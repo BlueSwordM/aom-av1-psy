@@ -741,16 +741,26 @@ void av1_frame_init_quantizer(AV1_COMP *cpi) {
 }
 
 void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
-                       int q) {
+                       int q, int enable_chroma_deltaq) {
   // quantizer has to be reinitialized with av1_init_quantizer() if any
   // delta_q changes.
   CommonQuantParams *quant_params = &cm->quant_params;
   quant_params->base_qindex = AOMMAX(cm->delta_q_info.delta_q_present_flag, q);
+
   quant_params->y_dc_delta_q = 0;
-  quant_params->u_dc_delta_q = 0;
-  quant_params->u_ac_delta_q = 0;
-  quant_params->v_dc_delta_q = 0;
-  quant_params->v_ac_delta_q = 0;
+  if (enable_chroma_deltaq) {
+    // TODO(aomedia:2717): need to design better delta
+    quant_params->u_dc_delta_q = 2;
+    quant_params->u_ac_delta_q = 2;
+    quant_params->v_dc_delta_q = 2;
+    quant_params->v_ac_delta_q = 2;
+  } else {
+    quant_params->u_dc_delta_q = 0;
+    quant_params->u_ac_delta_q = 0;
+    quant_params->v_dc_delta_q = 0;
+    quant_params->v_ac_delta_q = 0;
+  }
+
   quant_params->qmatrix_level_y =
       aom_get_qmlevel(quant_params->base_qindex, min_qmlevel, max_qmlevel);
   quant_params->qmatrix_level_u =

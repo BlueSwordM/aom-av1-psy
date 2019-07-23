@@ -4657,11 +4657,13 @@ static void determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
         cpi->oxcf.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
       av1_set_quantizer(
           cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel,
-          av1_get_vmaf_base_qindex(cpi, q_for_screen_content_quick_run));
+          av1_get_vmaf_base_qindex(cpi, q_for_screen_content_quick_run),
+          cpi->oxcf.enable_chroma_deltaq);
     } else {
 #endif
       av1_set_quantizer(cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel,
-                        q_for_screen_content_quick_run);
+                        q_for_screen_content_quick_run,
+                        cpi->oxcf.enable_chroma_deltaq);
 #if CONFIG_TUNE_VMAF
     }
 #endif
@@ -4748,7 +4750,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
   }
   if (!frame_is_intra_only(cm)) scale_references(cpi);
 
-  av1_set_quantizer(cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel, q);
+  av1_set_quantizer(cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel, q,
+                    cpi->oxcf.enable_chroma_deltaq);
   av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
   if (cpi->oxcf.deltaq_mode != NO_DELTA_Q)
     av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
@@ -4762,7 +4765,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
   if (cpi->sf.rt_sf.overshoot_detection_cbr == FAST_DETECTION_MAXQ &&
       cpi->rc.high_source_sad) {
     if (av1_encodedframe_overshoot(cpi, &q)) {
-      av1_set_quantizer(cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel, q);
+      av1_set_quantizer(cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel, q,
+                        cpi->oxcf.enable_chroma_deltaq);
       av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
       if (cpi->oxcf.deltaq_mode != NO_DELTA_Q)
         av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
@@ -4902,10 +4906,12 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
         cpi->oxcf.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
         cpi->oxcf.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
       av1_set_quantizer(cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel,
-                        av1_get_vmaf_base_qindex(cpi, q));
+                        av1_get_vmaf_base_qindex(cpi, q),
+                        cpi->oxcf.enable_chroma_deltaq);
     } else {
 #endif
-      av1_set_quantizer(cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel, q);
+      av1_set_quantizer(cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel, q,
+                        cpi->oxcf.enable_chroma_deltaq);
 #if CONFIG_TUNE_VMAF
     }
 #endif
