@@ -610,7 +610,7 @@ typedef enum {
 } RestorationType;
 
 /*!\cond */
-// Picture prediction structures (0-12 are predefined) in scalability metadata.
+// Picture prediction structures (0-13 are predefined) in scalability metadata.
 enum {
   SCALABILITY_L1T2 = 0,
   SCALABILITY_L1T3 = 1,
