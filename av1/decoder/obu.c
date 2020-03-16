@@ -672,7 +672,9 @@ static void scalability_structure(struct aom_read_bit_buffer *rb) {
   const int spatial_layer_dimensions_present_flag = aom_rb_read_bit(rb);
   const int spatial_layer_description_present_flag = aom_rb_read_bit(rb);
   const int temporal_group_description_present_flag = aom_rb_read_bit(rb);
-  aom_rb_read_literal(rb, 3);  // reserved
+  // scalability_structure_reserved_3bits must be set to zero and be ignored by
+  // decoders.
+  aom_rb_read_literal(rb, 3);
 
   if (spatial_layer_dimensions_present_flag) {
     for (int i = 0; i <= spatial_layers_cnt_minus_1; i++) {
