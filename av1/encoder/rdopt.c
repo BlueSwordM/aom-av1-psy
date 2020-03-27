@@ -4545,6 +4545,112 @@ static void record_best_compound(REFERENCE_MODE reference_mode,
         hybrid_rd;
 }
 
+// Does a transform search over a list of the best inter mode candidates.
+// This is called if the original mode search computed an RD estimate
+// for the transform search rather than doing a full search.
+static void tx_search_best_inter_candidates(
+    AV1_COMP *cpi, TileDataEnc *tile_data, MACROBLOCK *x,
+    int64_t best_rd_so_far, BLOCK_SIZE bsize,
+    struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE], int mi_row, int mi_col,
+    InterModeSearchState *search_state, RD_STATS *rd_cost,
+    PICK_MODE_CONTEXT *ctx) {
+  AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  TxfmSearchInfo *txfm_info = &x->txfm_search_info;
+  const ModeCosts *mode_costs = &x->mode_costs;
+  const int num_planes = av1_num_planes(cm);
+  const int skip_ctx = av1_get_skip_txfm_context(xd);
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  InterModesInfo *inter_modes_info = x->inter_modes_info;
+  inter_modes_info_sort(inter_modes_info, inter_modes_info->rd_idx_pair_arr);
+  search_state->best_rd = best_rd_so_far;
+  search_state->best_mode_index = THR_INVALID;
+  // Initialize best mode stats for winner mode processing
+  x->winner_mode_count = 0;
+  store_winner_mode_stats(
+      &cpi->common, x, mbmi, NULL, NULL, NULL, THR_INVALID, NULL, bsize,
+      best_rd_so_far, cpi->sf.winner_mode_sf.enable_multiwinner_mode_process,
+      0);
+  inter_modes_info->num =
+      inter_modes_info->num < cpi->sf.rt_sf.num_inter_modes_for_tx_search
+          ? inter_modes_info->num
+          : cpi->sf.rt_sf.num_inter_modes_for_tx_search;
+  const int64_t top_est_rd =
+      inter_modes_info->num > 0
+          ? inter_modes_info
+                ->est_rd_arr[inter_modes_info->rd_idx_pair_arr[0].idx]
+          : INT64_MAX;
+  // Iterate over best inter mode candidates and perform tx search
+  for (int j = 0; j < inter_modes_info->num; ++j) {
+    const int data_idx = inter_modes_info->rd_idx_pair_arr[j].idx;
+    *mbmi = inter_modes_info->mbmi_arr[data_idx];
+    int64_t curr_est_rd = inter_modes_info->est_rd_arr[data_idx];
+    if (curr_est_rd * 0.80 > top_est_rd) break;
+
+    txfm_info->skip_txfm = 0;
+    set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
+
+    // Select prediction reference frames.
+    const int is_comp_pred = mbmi->ref_frame[1] > INTRA_FRAME;
+    for (int i = 0; i < num_planes; i++) {
+      xd->plane[i].pre[0] = yv12_mb[mbmi->ref_frame[0]][i];
+      if (is_comp_pred) xd->plane[i].pre[1] = yv12_mb[mbmi->ref_frame[1]][i];
+    }
+
+    // Build the prediction for this mode
+    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
+                                  av1_num_planes(cm) - 1);
+    if (mbmi->motion_mode == OBMC_CAUSAL) {
+      av1_build_obmc_inter_predictors_sb(cm, xd);
+    }
+
+    // Initialize RD stats
+    RD_STATS rd_stats;
+    RD_STATS rd_stats_y;
+    RD_STATS rd_stats_uv;
+    const int mode_rate = inter_modes_info->mode_rate_arr[data_idx];
+    int64_t skip_rd = INT64_MAX;
+    if (cpi->sf.inter_sf.txfm_rd_gate_level) {
+      // Check if the mode is good enough based on skip RD
+      int64_t curr_sse = inter_modes_info->sse_arr[data_idx];
+      skip_rd = RDCOST(x->rdmult, mode_rate, curr_sse);
+      int eval_txfm =
+          check_txfm_eval(x, bsize, search_state->best_skip_rd[0], skip_rd,
+                          cpi->sf.inter_sf.txfm_rd_gate_level, 0);
+      if (!eval_txfm) continue;
+    }
+
+    // Do the transform search
+    if (!av1_txfm_search(cpi, x, bsize, &rd_stats, &rd_stats_y, &rd_stats_uv,
+                         mode_rate, search_state->best_rd)) {
+      continue;
+    } else if (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1) {
+      inter_mode_data_push(
+          tile_data, mbmi->sb_type, rd_stats.sse, rd_stats.dist,
+          rd_stats_y.rate + rd_stats_uv.rate +
+              mode_costs->skip_txfm_cost[skip_ctx][mbmi->skip_txfm]);
+    }
+    rd_stats.rdcost = RDCOST(x->rdmult, rd_stats.rate, rd_stats.dist);
+
+    const THR_MODES mode_enum = get_prediction_mode_idx(
+        mbmi->mode, mbmi->ref_frame[0], mbmi->ref_frame[1]);
+
+    // Collect mode stats for multiwinner mode processing
+    const int txfm_search_done = 1;
+    store_winner_mode_stats(
+        &cpi->common, x, mbmi, &rd_stats, &rd_stats_y, &rd_stats_uv, mode_enum,
+        NULL, bsize, rd_stats.rdcost,
+        cpi->sf.winner_mode_sf.enable_multiwinner_mode_process,
+        txfm_search_done);
+
+    if (rd_stats.rdcost < search_state->best_rd) {
+      update_search_state(search_state, rd_cost, ctx, &rd_stats, &rd_stats_y,
+                          &rd_stats_uv, mode_enum, x, txfm_search_done);
+      search_state->best_skip_rd[0] = skip_rd;
+    }
+  }
+}
+
 // Indicates number of winner simple translation modes to be used
 static const unsigned int num_winner_motion_modes[3] = { 0, 10, 3 };
 
@@ -4699,7 +4805,6 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int64_t ref_frame_rd[REF_FRAMES] = { INT64_MAX, INT64_MAX, INT64_MAX,
                                        INT64_MAX, INT64_MAX, INT64_MAX,
                                        INT64_MAX, INT64_MAX };
-  const int skip_ctx = av1_get_skip_txfm_context(xd);
 
   // Prepared stats used later to check if we could skip intra mode eval.
   int64_t inter_cost = -1;
@@ -4917,89 +5022,11 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   start_timing(cpi, do_tx_search_time);
 #endif
   if (do_tx_search != 1) {
-    inter_modes_info_sort(inter_modes_info, inter_modes_info->rd_idx_pair_arr);
-    search_state.best_rd = best_rd_so_far;
-    search_state.best_mode_index = THR_INVALID;
-    // Initialize best mode stats for winner mode processing
-    x->winner_mode_count = 0;
-    store_winner_mode_stats(
-        &cpi->common, x, mbmi, NULL, NULL, NULL, THR_INVALID, NULL, bsize,
-        best_rd_so_far, cpi->sf.winner_mode_sf.enable_multiwinner_mode_process,
-        do_tx_search);
-    inter_modes_info->num =
-        inter_modes_info->num < cpi->sf.rt_sf.num_inter_modes_for_tx_search
-            ? inter_modes_info->num
-            : cpi->sf.rt_sf.num_inter_modes_for_tx_search;
-    const int64_t top_est_rd =
-        inter_modes_info->num > 0
-            ? inter_modes_info
-                  ->est_rd_arr[inter_modes_info->rd_idx_pair_arr[0].idx]
-            : INT64_MAX;
-    for (int j = 0; j < inter_modes_info->num; ++j) {
-      const int data_idx = inter_modes_info->rd_idx_pair_arr[j].idx;
-      *mbmi = inter_modes_info->mbmi_arr[data_idx];
-      int64_t curr_est_rd = inter_modes_info->est_rd_arr[data_idx];
-      if (curr_est_rd * 0.80 > top_est_rd) break;
-
-      txfm_info->skip_txfm = 0;
-      set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
-
-      // Select prediction reference frames.
-      const int is_comp_pred = mbmi->ref_frame[1] > INTRA_FRAME;
-      for (i = 0; i < num_planes; i++) {
-        xd->plane[i].pre[0] = yv12_mb[mbmi->ref_frame[0]][i];
-        if (is_comp_pred) xd->plane[i].pre[1] = yv12_mb[mbmi->ref_frame[1]][i];
-      }
-
-      av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
-                                    av1_num_planes(cm) - 1);
-      if (mbmi->motion_mode == OBMC_CAUSAL) {
-        av1_build_obmc_inter_predictors_sb(cm, xd);
-      }
-
-      RD_STATS rd_stats;
-      RD_STATS rd_stats_y;
-      RD_STATS rd_stats_uv;
-      const int mode_rate = inter_modes_info->mode_rate_arr[data_idx];
-      int64_t skip_rd = INT64_MAX;
-      if (cpi->sf.inter_sf.txfm_rd_gate_level) {
-        // Check if the mode is good enough based on skip RD
-        int64_t curr_sse = inter_modes_info->sse_arr[data_idx];
-        skip_rd = RDCOST(x->rdmult, mode_rate, curr_sse);
-        int eval_txfm =
-            check_txfm_eval(x, bsize, search_state.best_skip_rd[0], skip_rd,
-                            cpi->sf.inter_sf.txfm_rd_gate_level, 0);
-        if (!eval_txfm) continue;
-      }
-
-      if (!av1_txfm_search(cpi, x, bsize, &rd_stats, &rd_stats_y, &rd_stats_uv,
-                           mode_rate, search_state.best_rd)) {
-        continue;
-      } else if (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1) {
-        inter_mode_data_push(
-            tile_data, mbmi->sb_type, rd_stats.sse, rd_stats.dist,
-            rd_stats_y.rate + rd_stats_uv.rate +
-                mode_costs->skip_txfm_cost[skip_ctx][mbmi->skip_txfm]);
-      }
-      rd_stats.rdcost = RDCOST(x->rdmult, rd_stats.rate, rd_stats.dist);
-
-      const THR_MODES mode_enum = get_prediction_mode_idx(
-          mbmi->mode, mbmi->ref_frame[0], mbmi->ref_frame[1]);
-
-      // Collect mode stats for multiwinner mode processing
-      const int txfm_search_done = 1;
-      store_winner_mode_stats(
-          &cpi->common, x, mbmi, &rd_stats, &rd_stats_y, &rd_stats_uv,
-          mode_enum, NULL, bsize, rd_stats.rdcost,
-          cpi->sf.winner_mode_sf.enable_multiwinner_mode_process,
-          txfm_search_done);
-
-      if (rd_stats.rdcost < search_state.best_rd) {
-        update_search_state(&search_state, rd_cost, ctx, &rd_stats, &rd_stats_y,
-                            &rd_stats_uv, mode_enum, x, txfm_search_done);
-        search_state.best_skip_rd[0] = skip_rd;
-      }
-    }
+    // A full tx search has not yet been done, do tx search for
+    // top mode candidates
+    tx_search_best_inter_candidates(cpi, tile_data, x, best_rd_so_far, bsize,
+                                    yv12_mb, mi_row, mi_col, &search_state,
+                                    rd_cost, ctx);
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, do_tx_search_time);
