@@ -345,6 +345,9 @@ typedef struct TPL_SPEED_FEATURES {
 
   // Not run TPL for filtered Key frame.
   int disable_filtered_key_tpl;
+
+  // Prune reference frames in TPL.
+  int prune_ref_frames_in_tpl;
 } TPL_SPEED_FEATURES;
 
 typedef struct GLOBAL_MOTION_SPEED_FEATURES {

@@ -73,7 +73,7 @@ int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   const TplDepFrame *tpl_frame = &cpi->tpl_data.tpl_frame[tpl_idx];
   const int deltaq_rdmult = set_deltaq_rdmult(cpi, x);
   if (tpl_frame->is_valid == 0) return deltaq_rdmult;
-  if (!is_frame_tpl_eligible(gf_group)) return deltaq_rdmult;
+  if (!is_frame_tpl_eligible(gf_group, gf_group->index)) return deltaq_rdmult;
   if (tpl_idx >= MAX_TPL_FRAME_IDX) return deltaq_rdmult;
   if (cpi->superres_mode != AOM_SUPERRES_NONE) return deltaq_rdmult;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return deltaq_rdmult;
@@ -662,7 +662,7 @@ int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int analysis_type,
 
   if (tpl_frame->is_valid == 0) return orig_rdmult;
 
-  if (!is_frame_tpl_eligible(gf_group)) return orig_rdmult;
+  if (!is_frame_tpl_eligible(gf_group, gf_group->index)) return orig_rdmult;
 
   if (cpi->gf_group.index >= MAX_TPL_FRAME_IDX) return orig_rdmult;
 
@@ -876,7 +876,7 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
 
   if (tpl_frame->is_valid == 0) return base_qindex;
 
-  if (!is_frame_tpl_eligible(gf_group)) return base_qindex;
+  if (!is_frame_tpl_eligible(gf_group, gf_group->index)) return base_qindex;
 
   if (cpi->gf_group.index >= MAX_TPL_FRAME_IDX) return base_qindex;
 

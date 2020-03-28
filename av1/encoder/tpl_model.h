@@ -110,6 +110,7 @@ typedef struct TplDepFrame {
   int mi_rows;
   int mi_cols;
   int base_rdmult;
+  uint32_t frame_display_index;
 } TplDepFrame;
 
 /*!\endcond */

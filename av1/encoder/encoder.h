@@ -3084,10 +3084,19 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi);
 #define MAX_GFUBOOST_FACTOR 10.0
 #define MIN_GFUBOOST_FACTOR 4.0
 
-static INLINE int is_frame_tpl_eligible(const GF_GROUP *const gf_group) {
-  const FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_group->index];
+static INLINE int is_frame_tpl_eligible(const GF_GROUP *const gf_group,
+                                        uint8_t index) {
+  const FRAME_UPDATE_TYPE update_type = gf_group->update_type[index];
   return update_type == ARF_UPDATE || update_type == GF_UPDATE ||
          update_type == KF_UPDATE;
+}
+
+static INLINE int is_frame_eligible_for_ref_pruning(const GF_GROUP *gf_group,
+                                                    int selective_ref_frame,
+                                                    int prune_ref_frames_in_tpl,
+                                                    int gf_index) {
+  return (selective_ref_frame > 0) && (prune_ref_frames_in_tpl > 0) &&
+         !is_frame_tpl_eligible(gf_group, gf_index);
 }
 
 // Get update type of the current frame.

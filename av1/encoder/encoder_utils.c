@@ -519,7 +519,7 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
     } else {
       aom_clear_system_state();
       cpi->rd.r0 = (double)intra_cost_base / mc_dep_cost_base;
-      if (is_frame_tpl_eligible(gf_group)) {
+      if (is_frame_tpl_eligible(gf_group, gf_group->index)) {
         cpi->rd.arf_r0 = cpi->rd.r0;
         if (cpi->lap_enabled) {
           double min_boost_factor = sqrt(cpi->rc.baseline_gf_interval);
@@ -557,7 +557,8 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
 
 #if !CONFIG_REALTIME_ONLY
   GF_GROUP *gf_group = &cpi->gf_group;
-  if (cpi->oxcf.algo_cfg.enable_tpl_model && is_frame_tpl_eligible(gf_group)) {
+  if (cpi->oxcf.algo_cfg.enable_tpl_model &&
+      is_frame_tpl_eligible(gf_group, gf_group->index)) {
     process_tpl_stats_frame(cpi);
     av1_tpl_rdmult_setup(cpi);
   }

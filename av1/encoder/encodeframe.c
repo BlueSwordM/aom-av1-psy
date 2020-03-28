@@ -337,7 +337,7 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
   av1_zero(x->tpl_keep_ref_frame);
 
   if (tpl_frame->is_valid == 0) return;
-  if (!is_frame_tpl_eligible(gf_group)) return;
+  if (!is_frame_tpl_eligible(gf_group, gf_group->index)) return;
   if (frame_idx >= MAX_TPL_FRAME_IDX) return;
   if (cpi->superres_mode != AOM_SUPERRES_NONE) return;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return;
@@ -1277,7 +1277,8 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     // frames currently.
     const GF_GROUP *gf_group = &cpi->gf_group;
     if (cm->delta_q_info.delta_q_present_flag) {
-      if (deltaq_mode == DELTA_Q_OBJECTIVE && !is_frame_tpl_eligible(gf_group))
+      if (deltaq_mode == DELTA_Q_OBJECTIVE &&
+          !is_frame_tpl_eligible(gf_group, gf_group->index))
         cm->delta_q_info.delta_q_present_flag = 0;
     }
 
