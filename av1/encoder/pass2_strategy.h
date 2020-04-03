@@ -43,8 +43,6 @@ typedef struct {
   double avg_wavelet_energy;
   double avg_raw_err_stdev;
   int non_zero_stdev_count;
-
-  unsigned int allow_alt_ref;
 } GF_GROUP_STATS;
 
 typedef struct {
