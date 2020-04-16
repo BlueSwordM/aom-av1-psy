@@ -295,8 +295,6 @@ static void tf_build_predictor(const YV12_BUFFER_CONFIG *ref_frame,
                                const int mb_col, const int num_planes,
                                const struct scale_factors *scale,
                                const MV *subblock_mvs, uint8_t *pred) {
-  assert(num_planes >= 1 && num_planes <= MAX_MB_PLANE);
-
   // Information of the entire block.
   const int mb_height = block_size_high[block_size];  // Height.
   const int mb_width = block_size_wide[block_size];   // Width.
@@ -660,6 +658,15 @@ static INLINE int get_num_blocks(const int frame_length, const int mb_length) {
   return (frame_length + mb_length - 1) / mb_length;
 }
 
+// Helper function to get `q` used for encoding.
+static INLINE int get_q(const AV1_COMP *cpi) {
+  const FRAME_TYPE frame_type =
+      (cpi->common.current_frame.frame_number > 1) ? INTER_FRAME : KEY_FRAME;
+  const int q = (int)av1_convert_qindex_to_q(
+      cpi->rc.avg_frame_qindex[frame_type], cpi->common.seq_params.bit_depth);
+  return q;
+}
+
 typedef struct {
   int64_t sum;
   int64_t sse;
@@ -701,10 +708,7 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
   const int is_high_bitdepth = is_frame_high_bitdepth(frame_to_filter);
 
   // Quantization factor used in temporal filtering.
-  const FRAME_TYPE frame_type =
-      (cpi->common.current_frame.frame_number > 1) ? INTER_FRAME : KEY_FRAME;
-  const int q_factor = (int)av1_convert_qindex_to_q(
-      cpi->rc.avg_frame_qindex[frame_type], cpi->common.seq_params.bit_depth);
+  const int q_factor = get_q(cpi);
   // Factor to control the filering strength.
   const int filter_strength = cpi->oxcf.arnr_strength;
 
@@ -843,7 +847,8 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
 
 // Setups the frame buffer for temporal filtering. Basically, this fuction
 // determines how many frames will be used for temporal filtering and then
-// groups them into a buffer.
+// groups them into a buffer. This function will also estimate the noise level
+// of the to-filter frame.
 // Inputs:
 //   cpi: Pointer to the composed information of input video.
 //   filter_frame_lookahead_idx: The index of the to-filter frame in the
@@ -853,57 +858,97 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
 //   frames: Pointer to the frame buffer to setup.
 //   num_frames_for_filtering: Number of frames used for filtering.
 //   filter_frame_idx: Index of the to-filter frame in the setup frame buffer.
+//   noise_levels: Pointer to the noise levels of the to-filter frame, estimated
+//                 with each plane (in Y, U, V order).
 // Returns:
 //   Nothing will be returned. But the frame buffer `frames`, number of frames
 //   in the buffer `num_frames_for_filtering`, and the index of the to-filter
 //   frame in the buffer `filter_frame_idx` will be updated in this function.
+//   Estimated noise levels for YUV planes will be saved in `noise_levels`.
 static void tf_setup_filtering_buffer(const AV1_COMP *cpi,
                                       const int filter_frame_lookahead_idx,
                                       const int is_second_arf,
                                       YV12_BUFFER_CONFIG **frames,
                                       int *num_frames_for_filtering,
-                                      int *filter_frame_idx) {
-  int num_frames = 0;          // Number of frames used for filtering.
-  int num_frames_before = -1;  // Number of frames before the to-filter frame.
-  int filter_frame_offset;
+                                      int *filter_frame_idx,
+                                      double *noise_levels) {
+  // Number of frames used for filtering. Set `arnr_max_frames` as 1 to disable
+  // temporal filtering.
+  int num_frames = AOMMAX(cpi->oxcf.arnr_max_frames, 1);
+  int num_before = 0;  // Number of filtering frames before the to-filter frame.
+  int num_after = 0;   // Number of filtering frames after the to-filer frame.
+  const int lookahead_depth =
+      av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage);
+  // Number of buffered frames before the to-filter frame.
+  const int max_before = filter_frame_lookahead_idx < -1
+                             ? -filter_frame_lookahead_idx + 1
+                             : filter_frame_lookahead_idx + 1;
+  // Number of buffered frames after the to-filter frame.
+  const int max_after = lookahead_depth - max_before;
+
+  // Estimate noises for each plane.
+  const struct lookahead_entry *to_filter_buf = av1_lookahead_peek(
+      cpi->lookahead, filter_frame_lookahead_idx, cpi->compressor_stage);
+  assert(to_filter_buf != NULL);
+  const YV12_BUFFER_CONFIG *to_filter_frame = &to_filter_buf->img;
+  const int num_planes = av1_num_planes(&cpi->common);
+  for (int plane = 0; plane < num_planes; ++plane) {
+    noise_levels[plane] = av1_estimate_noise_from_single_plane(
+        to_filter_frame, plane, cpi->common.seq_params.bit_depth);
+  }
+  // Get quantization factor.
+  const int q = get_q(cpi);
+
+  // Adjust number of filtering frames based on noise and quantization factor.
+  // Basically, we would like to use more frames to filter low-noise frame such
+  // that the filtered frame can provide better predictions for more frames.
+  // Also, when the quantization factor is small enough (lossless compression),
+  // we will not change the number of frames for key frame filtering, which is
+  // to avoid visual quality drop.
+  int adjust_num = 0;
+  if (num_frames == 1) {  // `arnr_max_frames = 1` is used to disable filtering.
+    adjust_num = 0;
+  } else if (filter_frame_lookahead_idx < 0 && q <= 10) {
+    adjust_num = 0;
+  } else if (noise_levels[0] < 0.5) {
+    adjust_num = 6;
+  } else if (noise_levels[0] < 1.0) {
+    adjust_num = 4;
+  } else if (noise_levels[0] < 2.0) {
+    adjust_num = 2;
+  }
+  num_frames = AOMMIN(num_frames + adjust_num, lookahead_depth + 1);
 
   if (filter_frame_lookahead_idx == -1) {  // Key frame.
-    num_frames = TF_NUM_FILTERING_FRAMES_FOR_KEY_FRAME;
-    num_frames_before = 0;
-    filter_frame_offset = filter_frame_lookahead_idx;
+    num_before = 0;
+    num_after = AOMMIN(num_frames - 1, max_after);
   } else if (filter_frame_lookahead_idx < -1) {  // Key frame in one-pass mode.
-    num_frames = TF_NUM_FILTERING_FRAMES_FOR_KEY_FRAME;
-    num_frames_before = num_frames - 1;
-    filter_frame_offset = -filter_frame_lookahead_idx;
+    num_before = AOMMIN(num_frames - 1, max_before);
+    num_after = 0;
   } else {
-    // Set `arnr_max_frames` as 1 to disable temporal filtering.
-    num_frames = cpi->oxcf.arnr_max_frames;
-    if (is_second_arf) {  // Only use 2 neighbours for the second ARF.
-      num_frames = AOMMIN(num_frames, 3);
-    }
-    if (num_frames > cpi->rc.gfu_boost / 150) {
-      num_frames = cpi->rc.gfu_boost / 150;
-      num_frames += !(num_frames & 1);
-    }
-    num_frames_before = AOMMIN(num_frames >> 1, filter_frame_lookahead_idx + 1);
-    const int lookahead_depth =
-        av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage);
-    const int num_frames_after =
-        AOMMIN((num_frames - 1) >> 1,
-               lookahead_depth - filter_frame_lookahead_idx - 1);
-    num_frames = num_frames_before + 1 + num_frames_after;
-    filter_frame_offset = filter_frame_lookahead_idx;
+    num_frames = AOMMIN(num_frames, cpi->rc.gfu_boost / 150);
+    num_frames += !(num_frames & 1);  // Make the number odd.
+    // Only use 2 neighbours for the second ARF.
+    if (is_second_arf) num_frames = AOMMIN(num_frames, 3);
+    num_before = AOMMIN(num_frames >> 1, max_before);
+    num_after = AOMMIN(num_frames >> 1, max_after);
   }
-  *num_frames_for_filtering = num_frames;
-  *filter_frame_idx = num_frames_before;
+  num_frames = num_before + 1 + num_after;
 
   // Setup the frame buffer.
+  const int filter_frame_offset = filter_frame_lookahead_idx < -1
+                                      ? -filter_frame_lookahead_idx
+                                      : filter_frame_lookahead_idx;
   for (int frame = 0; frame < num_frames; ++frame) {
-    const int lookahead_idx = frame - num_frames_before + filter_frame_offset;
+    const int lookahead_idx = frame - num_before + filter_frame_offset;
     struct lookahead_entry *buf = av1_lookahead_peek(
         cpi->lookahead, lookahead_idx, cpi->compressor_stage);
-    frames[frame] = (buf == NULL) ? NULL : &buf->img;
+    assert(buf != NULL);
+    frames[frame] = &buf->img;
   }
+  *num_frames_for_filtering = num_frames;
+  *filter_frame_idx = num_before;
+  assert(frames[*filter_frame_idx] == to_filter_frame);
 }
 
 // A constant number, sqrt(pi / 2),  used for noise estimation.
@@ -987,18 +1032,12 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
   YV12_BUFFER_CONFIG *frames[MAX_LAG_BUFFERS] = { NULL };
   int num_frames_for_filtering = 0;
   int filter_frame_idx = -1;
+  double noise_levels[MAX_MB_PLANE] = { 0 };
   tf_setup_filtering_buffer(cpi, filter_frame_lookahead_idx, is_second_arf,
                             frames, &num_frames_for_filtering,
-                            &filter_frame_idx);
-
-  // Estimate noise.
-  const int bit_depth = cpi->common.seq_params.bit_depth;
-  const int num_planes = av1_num_planes(&cpi->common);
-  double noise_levels[MAX_MB_PLANE] = { 0 };
-  for (int plane = 0; plane < num_planes; ++plane) {
-    noise_levels[plane] = av1_estimate_noise_from_single_plane(
-        frames[filter_frame_idx], plane, bit_depth);
-  }
+                            &filter_frame_idx, noise_levels);
+  assert(num_frames_for_filtering > 0);
+  assert(filter_frame_idx < num_frames_for_filtering);
 
   // Set showable frame.
   if (filter_frame_lookahead_idx >= 0) {
@@ -1009,19 +1048,16 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
 
   // Do filtering.
   const int is_key_frame = (filter_frame_lookahead_idx < 0);
-  FRAME_DIFF diff = { 0, 0 };
-  if (num_frames_for_filtering > 0 && frames[0] != NULL) {
-    // Setup scaling factors. Scaling on each of the arnr frames is not
-    // supported.
-    // ARF is produced at the native frame size and resized when coded.
-    struct scale_factors sf;
-    av1_setup_scale_factors_for_frame(
-        &sf, frames[0]->y_crop_width, frames[0]->y_crop_height,
-        frames[0]->y_crop_width, frames[0]->y_crop_height);
-    diff =
-        tf_do_filtering(cpi, frames, num_frames_for_filtering, filter_frame_idx,
-                        is_key_frame, TF_BLOCK_SIZE, &sf, noise_levels);
-  }
+  // Setup scaling factors. Scaling on each of the arnr frames is not
+  // supported.
+  // ARF is produced at the native frame size and resized when coded.
+  struct scale_factors sf;
+  av1_setup_scale_factors_for_frame(
+      &sf, frames[0]->y_crop_width, frames[0]->y_crop_height,
+      frames[0]->y_crop_width, frames[0]->y_crop_height);
+  const FRAME_DIFF diff =
+      tf_do_filtering(cpi, frames, num_frames_for_filtering, filter_frame_idx,
+                      is_key_frame, TF_BLOCK_SIZE, &sf, noise_levels);
 
   if (is_key_frame) {  // Key frame should always be filtered.
     return 1;
@@ -1048,7 +1084,7 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
     const int q = av1_rc_pick_q_and_bounds(cpi, &cpi->rc, cpi->oxcf.width,
                                            cpi->oxcf.height, group_idx,
                                            &bottom_index, &top_index);
-    const int ac_q = av1_ac_quant_QTX(q, 0, bit_depth);
+    const int ac_q = av1_ac_quant_QTX(q, 0, cpi->common.seq_params.bit_depth);
     const float threshold = 0.7f * ac_q * ac_q;
 
     if (!is_second_arf) {

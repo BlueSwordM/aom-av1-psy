@@ -82,7 +82,6 @@ double av1_estimate_noise_from_single_plane(const YV12_BUFFER_CONFIG *frame,
                                             const int bit_depth);
 
 #define TF_QINDEX 128  // Q-index used in temporal filtering.
-#define TF_NUM_FILTERING_FRAMES_FOR_KEY_FRAME 7
 // Performs temporal filtering if needed.
 // NOTE: In this function, the lookahead index is different from the 0-based
 // real index. For example, if we want to filter the first frame in the
