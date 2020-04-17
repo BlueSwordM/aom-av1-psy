@@ -260,4 +260,10 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(&av1_txb_init_levels_avx2),
                        ::testing::Range(0, static_cast<int>(TX_SIZES_ALL), 1)));
 #endif
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, EncodeTxbInitLevelTest,
+    ::testing::Combine(::testing::Values(&av1_txb_init_levels_neon),
+                       ::testing::Range(0, static_cast<int>(TX_SIZES_ALL), 1)));
+#endif
 }  // namespace
