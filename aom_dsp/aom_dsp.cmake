@@ -281,7 +281,8 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/arm/variance_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/hadamard_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/avg_neon.c"
-              "${AOM_ROOT}/aom_dsp/arm/sse_neon.c")
+              "${AOM_ROOT}/aom_dsp/arm/sse_neon.c"
+              "${AOM_ROOT}/aom_dsp/arm/sum_squares_neon.c")
 
   list(APPEND AOM_DSP_ENCODER_INTRIN_MSA "${AOM_ROOT}/aom_dsp/mips/sad_msa.c"
               "${AOM_ROOT}/aom_dsp/mips/subtract_msa.c"
