@@ -72,3 +72,83 @@ int aom_satd_lp_neon(const int16_t *coeff, int length) {
     return satd;
   }
 }
+
+void aom_int_pro_row_neon(int16_t hbuf[16], const uint8_t *ref,
+                          const int ref_stride, const int height) {
+  int i;
+  const uint8_t *idx = ref;
+  uint16x8_t vec0 = vdupq_n_u16(0);
+  uint16x8_t vec1 = vec0;
+  uint8x16_t tmp;
+
+  for (i = 0; i < height; ++i) {
+    tmp = vld1q_u8(idx);
+    idx += ref_stride;
+    vec0 = vaddw_u8(vec0, vget_low_u8(tmp));
+    vec1 = vaddw_u8(vec1, vget_high_u8(tmp));
+  }
+
+  if (128 == height) {
+    vec0 = vshrq_n_u16(vec0, 6);
+    vec1 = vshrq_n_u16(vec1, 6);
+  } else if (64 == height) {
+    vec0 = vshrq_n_u16(vec0, 5);
+    vec1 = vshrq_n_u16(vec1, 5);
+  } else if (32 == height) {
+    vec0 = vshrq_n_u16(vec0, 4);
+    vec1 = vshrq_n_u16(vec1, 4);
+  } else if (16 == height) {
+    vec0 = vshrq_n_u16(vec0, 3);
+    vec1 = vshrq_n_u16(vec1, 3);
+  }
+
+  vst1q_s16(hbuf, vreinterpretq_s16_u16(vec0));
+  hbuf += 8;
+  vst1q_s16(hbuf, vreinterpretq_s16_u16(vec1));
+}
+
+int16_t aom_int_pro_col_neon(const uint8_t *ref, const int width) {
+  const uint8_t *idx;
+  uint16x8_t sum = vdupq_n_u16(0);
+
+  for (idx = ref; idx < (ref + width); idx += 16) {
+    uint8x16_t vec = vld1q_u8(idx);
+    sum = vaddq_u16(sum, vpaddlq_u8(vec));
+  }
+
+#if defined(__aarch64__)
+  return (int16_t)vaddvq_u16(sum);
+#else
+  const uint32x4_t a = vpaddlq_u16(sum);
+  const uint64x2_t b = vpaddlq_u32(a);
+  const uint32x2_t c = vadd_u32(vreinterpret_u32_u64(vget_low_u64(b)),
+                                vreinterpret_u32_u64(vget_high_u64(b)));
+  return (int16_t)vget_lane_u32(c, 0);
+#endif
+}
+
+// coeff: 16 bits, dynamic range [-32640, 32640].
+// length: value range {16, 64, 256, 1024}.
+int aom_satd_neon(const tran_low_t *coeff, int length) {
+  const int32x4_t zero = vdupq_n_s32(0);
+  int32x4_t accum = zero;
+  do {
+    const int32x4_t src0 = vld1q_s32(&coeff[0]);
+    const int32x4_t src8 = vld1q_s32(&coeff[4]);
+    const int32x4_t src16 = vld1q_s32(&coeff[8]);
+    const int32x4_t src24 = vld1q_s32(&coeff[12]);
+    accum = vabaq_s32(accum, src0, zero);
+    accum = vabaq_s32(accum, src8, zero);
+    accum = vabaq_s32(accum, src16, zero);
+    accum = vabaq_s32(accum, src24, zero);
+    length -= 16;
+    coeff += 16;
+  } while (length != 0);
+
+  // satd: 26 bits, dynamic range [-32640 * 1024, 32640 * 1024]
+#ifdef __aarch64__
+  return vaddvq_s32(accum);
+#else
+  return horizontal_add_s32x4(accum);
+#endif  // __aarch64__
+}
