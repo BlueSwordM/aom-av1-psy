@@ -1891,15 +1891,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       continue;
     }
 
-#if 0
-        if (x->content_state_sb != kVeryHighSad &&
-        (cpi->sf.short_circuit_low_temp_var >= 2 ||
-        (cpi->sf.short_circuit_low_temp_var == 1 && bsize == BLOCK_64X64))
-        && force_skip_low_temp_var && ref_frame == LAST_FRAME && this_mode ==
-            NEWMV)  {
-          continue;
-        }
-#endif
+    if (x->content_state_sb != kHighSad && bsize >= BLOCK_64X64 &&
+        force_skip_low_temp_var && this_mode == NEWMV) {
+      continue;
+    }
 
     // Disable this drop out case if the ref frame segment level feature is
     // enabled for this segment. This is to prevent the possibility that we
