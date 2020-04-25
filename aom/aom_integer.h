@@ -71,8 +71,6 @@ typedef size_t uintptr_t;
 #define INT32_MIN (-2147483647 - 1)
 #endif
 
-#define NELEMENTS(x) (int)(sizeof(x) / sizeof(x[0]))
-
 #if defined(__cplusplus)
 extern "C" {
 #endif  // __cplusplus
