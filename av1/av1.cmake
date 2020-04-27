@@ -369,7 +369,8 @@ endif()
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
             "${AOM_ROOT}/av1/encoder/arm/neon/quantize_neon.c"
-            "${AOM_ROOT}/av1/encoder/arm/neon/av1_error_neon.c")
+            "${AOM_ROOT}/av1/encoder/arm/neon/av1_error_neon.c"
+            "${AOM_ROOT}/av1/encoder/arm/neon/av1_fwd_txfm2d_neon.c")
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_MSA
             "${AOM_ROOT}/av1/encoder/mips/msa/error_msa.c"
@@ -548,10 +549,12 @@ function(setup_av1_targets)
                                     "AOM_AV1_COMMON_INTRIN_NEON")
     endif()
 
-    if(AOM_AV1_ENCODER_INTRIN_NEON)
-      add_intrinsics_object_library("${AOM_NEON_INTRIN_FLAG}" "neon"
-                                    "aom_av1_encoder"
-                                    "AOM_AV1_ENCODER_INTRIN_NEON")
+    if(CONFIG_AV1_ENCODER)
+      if(AOM_AV1_ENCODER_INTRIN_NEON)
+        add_intrinsics_object_library("${AOM_NEON_INTRIN_FLAG}" "neon"
+                                      "aom_av1_encoder"
+                                      "AOM_AV1_ENCODER_INTRIN_NEON")
+      endif()
     endif()
   endif()
 
