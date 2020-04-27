@@ -1870,10 +1870,8 @@ static aom_codec_err_t create_context_and_bufferpool(
   return res;
 }
 
-static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx,
-                                    aom_codec_priv_enc_mr_cfg_t *data) {
+static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
   aom_codec_err_t res = AOM_CODEC_OK;
-  (void)data;
 
   if (ctx->priv == NULL) {
     aom_codec_alg_priv_t *const priv = aom_calloc(1, sizeof(*priv));
@@ -1881,7 +1879,6 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx,
 
     ctx->priv = (aom_codec_priv_t *)priv;
     ctx->priv->init_flags = ctx->init_flags;
-    ctx->priv->enc.total_encoders = 1;
 
     if (ctx->config.enc) {
       // Update the reference to the config structure to an internal copy.
@@ -2943,7 +2940,6 @@ CODEC_INTERFACE(aom_codec_av1_cx) = {
       encoder_get_cxdata,          // aom_codec_get_cx_data_fn_t
       encoder_set_config,          // aom_codec_enc_config_set_fn_t
       encoder_get_global_headers,  // aom_codec_get_global_headers_fn_t
-      encoder_get_preview,         // aom_codec_get_preview_frame_fn_t
-      NULL                         // aom_codec_enc_mr_get_mem_loc_fn_t
+      encoder_get_preview          // aom_codec_get_preview_frame_fn_t
   }
 };
