@@ -911,7 +911,6 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   const int fp_block_size_width = block_size_high[fp_block_size];
   const int fp_block_size_height = block_size_wide[fp_block_size];
   int *raw_motion_err_list;
-  int raw_motion_err_counts = 0;
   CHECK_MEM_ERROR(cm, raw_motion_err_list,
                   aom_calloc(mi_params->mb_rows * mi_params->mb_cols,
                              sizeof(*raw_motion_err_list)));
@@ -998,6 +997,9 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
     MV best_ref_mv = kZeroMv;
     FRAME_STATS *mb_stat = &mb_stats[mb_row * mi_params->mb_cols];
     MV last_mv = first_top_mv;
+    int *row_raw_motion_err_list =
+        &raw_motion_err_list[mb_row * mi_params->mb_cols];
+    int raw_motion_err_counts = 0;
 
     // Reset above block coeffs.
     xd->up_available = (mb_row != 0);
@@ -1025,7 +1027,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
             cpi, last_frame, golden_frame, alt_ref_frame, mb_row, mb_col,
             recon_yoffset, recon_uvoffset, src_yoffset, alt_ref_frame_yoffset,
             fp_block_size, this_intra_error, raw_motion_err_counts,
-            raw_motion_err_list, &best_ref_mv, &last_mv, mb_stat);
+            row_raw_motion_err_list, &best_ref_mv, &last_mv, mb_stat);
         if (mb_col == 0) {
           first_top_mv = last_mv;
         }
@@ -1060,8 +1062,10 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
 
   FRAME_STATS stats =
       accumulate_frame_stats(mb_stats, mi_params->mb_rows, mi_params->mb_cols);
+  int total_raw_motion_err_count =
+      frame_is_intra_only(cm) ? 0 : mi_params->mb_rows * mi_params->mb_cols;
   const double raw_err_stdev =
-      raw_motion_error_stdev(raw_motion_err_list, raw_motion_err_counts);
+      raw_motion_error_stdev(raw_motion_err_list, total_raw_motion_err_count);
   aom_free(raw_motion_err_list);
   aom_free(mb_stats);
 
