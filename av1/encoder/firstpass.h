@@ -245,8 +245,11 @@ typedef struct {
 struct AV1_COMP;
 struct EncodeFrameParams;
 struct AV1EncoderConfig;
+struct TileDataEnc;
 
 void av1_rc_get_first_pass_params(struct AV1_COMP *cpi);
+void av1_first_pass_row(struct AV1_COMP *cpi, struct ThreadData *td,
+                        struct TileDataEnc *tile_data, int mb_row);
 void av1_first_pass(struct AV1_COMP *cpi, const int64_t ts_duration);
 void av1_end_first_pass(struct AV1_COMP *cpi);
 
