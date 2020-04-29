@@ -1265,6 +1265,13 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
     }
     if (cut_here) {
       cur_last = i - 1;  // the current last frame in the gf group
+      if (cpi->oxcf.fwd_kf_enabled && rc->next_is_fwd_key) {
+        const int frames_left = rc->frames_to_key - i;
+        const int min_int = AOMMIN(MIN_FWD_KF_INTERVAL, active_min_gf_interval);
+        if (frames_left < min_int) {
+          cur_last = rc->frames_to_key - min_int - 1;
+        }
+      }
       // only try shrinking if interval smaller than active_max_gf_interval
       if (cur_last - cur_start <= active_max_gf_interval) {
         // determine in the current decided gop the higher and lower errs
