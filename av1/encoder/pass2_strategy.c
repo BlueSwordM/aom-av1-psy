@@ -1113,11 +1113,12 @@ int determine_high_err_gf(double *errs, int *is_high, double *si, int len,
 // previous gf groups
 void set_last_prev_low_err(int *cur_start_ptr, int *cur_last_ptr, int *cut_pos,
                            int count_cuts, int before_pad, double ratio,
-                           int *is_high, double *si, int prev_lows) {
+                           int *is_high, double *si, int prev_lows,
+                           int min_shrink_len) {
   int n;
   int cur_start = *cur_start_ptr;
   int cur_last = *cur_last_ptr;
-  for (n = cur_last; n >= cur_start + MIN_SHRINK_LEN; n--) {
+  for (n = cur_last; n >= cur_start + min_shrink_len; n--) {
     // try to find a point that is very probable to be good
     if (is_high[n - cur_start + before_pad] == 0 &&
         si[n - cur_start + before_pad] > SI_HIGH) {
@@ -1127,7 +1128,7 @@ void set_last_prev_low_err(int *cur_start_ptr, int *cur_last_ptr, int *cut_pos,
   }
   // could not find a low-err point, then let's try find an "unsure"
   // point at least
-  for (n = cur_last; n >= cur_start + MIN_SHRINK_LEN; n--) {
+  for (n = cur_last; n >= cur_start + min_shrink_len; n--) {
     if ((is_high[n - cur_start + before_pad] == 0) ||
         (is_high[n - cur_start + before_pad] &&
          si[n - cur_start + before_pad] < SI_LOW)) {
@@ -1137,18 +1138,18 @@ void set_last_prev_low_err(int *cur_start_ptr, int *cur_last_ptr, int *cut_pos,
   }
   if (prev_lows) {
     // try with shrinking previous all_zero interval
-    for (n = cur_start + MIN_SHRINK_LEN - 1; n > cur_start; n--) {
+    for (n = cur_start + min_shrink_len - 1; n > cur_start; n--) {
       if (is_high[n - cur_start + before_pad] == 0 &&
           si[n - cur_start + before_pad] > SI_HIGH) {
-        int tentative_start = n - MIN_SHRINK_LEN;
+        int tentative_start = n - min_shrink_len;
         // check if the previous interval can shrink this much
         int available =
-            tentative_start - cut_pos[count_cuts - 2] > MIN_SHRINK_LEN &&
+            tentative_start - cut_pos[count_cuts - 2] > min_shrink_len &&
             cur_start - tentative_start < prev_lows;
         // shrinking too agressively may worsen performance
         // set stricter thres for shorter length
         double ratio_thres =
-            1.0 * (cur_start - tentative_start) / (double)(MIN_SHRINK_LEN) +
+            1.0 * (cur_start - tentative_start) / (double)(min_shrink_len) +
             1.0;
 
         if (available && (ratio > ratio_thres)) {
@@ -1162,18 +1163,18 @@ void set_last_prev_low_err(int *cur_start_ptr, int *cur_last_ptr, int *cut_pos,
   }
   if (prev_lows) {
     // try with shrinking previous all_zero interval with unsure points
-    for (n = cur_start + MIN_SHRINK_LEN - 1; n > cur_start; n--) {
+    for (n = cur_start + min_shrink_len - 1; n > cur_start; n--) {
       if ((is_high[n - cur_start + before_pad] == 0) ||
           (is_high[n - cur_start + before_pad] &&
            si[n - cur_start + before_pad] < SI_LOW)) {
-        int tentative_start = n - MIN_SHRINK_LEN;
+        int tentative_start = n - min_shrink_len;
         // check if the previous interval can shrink this much
         int available =
-            tentative_start - cut_pos[count_cuts - 2] > MIN_SHRINK_LEN &&
+            tentative_start - cut_pos[count_cuts - 2] > min_shrink_len &&
             cur_start - tentative_start < prev_lows;
         // shrinking too agressively may worsen performance
         double ratio_thres =
-            1.0 * (cur_start - tentative_start) / (double)(MIN_SHRINK_LEN) +
+            1.0 * (cur_start - tentative_start) / (double)(min_shrink_len) +
             1.0;
 
         if (available && (ratio > ratio_thres)) {
@@ -1217,6 +1218,7 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
   const int active_min_gf_interval = rc->min_gf_interval;
   const int active_max_gf_interval =
       AOMMIN(rc->max_gf_interval, max_gop_length);
+  const int min_shrink_int = AOMMIN(MIN_SHRINK_LEN, active_min_gf_interval);
 
   i = 0;
   max_intervals = cpi->lap_enabled ? 1 : max_intervals;
@@ -1298,12 +1300,13 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
             (!reset && si[cur_last - cur_start + before_pad] < SI_LOW)) {
           // try not to cut in high err area
           set_last_prev_low_err(&cur_start, &cur_last, cut_pos, count_cuts,
-                                before_pad, ratio, is_high, si, prev_lows);
+                                before_pad, ratio, is_high, si, prev_lows,
+                                min_shrink_int);
         }  // if current frame high error
         // count how many trailing lower error frames we have in this decided
         // gf group
         prev_lows = 0;
-        for (n = cur_last - 1; n > cur_start + MIN_SHRINK_LEN; n--) {
+        for (n = cur_last - 1; n > cur_start + min_shrink_int; n--) {
           if (is_high[n - cur_start + before_pad] == 0 &&
               (si[n - cur_start + before_pad] > SI_HIGH || reset)) {
             prev_lows++;
