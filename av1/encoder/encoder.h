@@ -1057,45 +1057,43 @@ typedef struct {
   int8_t nearest_future_ref;
 } RefFrameDistanceInfo;
 
+// This struct contains some parameters used for winner mode processing. This is
+// a basic two pass approach: in the first pass, we reduce the number of
+// transform searches based on some thresholds during the rdopt process to find
+// the  "winner mode". In the second pass, we perform a more through tx search
+// on the winner mode.
+// There are some arrays in the struct, and their indices are used in the
+// following manner:
+// Index 0: Default mode evaluation, Winner mode processing is not applicable
+// (Eg : IntraBc).
+// Index 1: Mode evaluation.
+// Index 2: Winner mode evaluation
+// Index 1 and 2 are only used when the respective speed feature is on.
 typedef struct {
-  // Threshold of transform domain distortion
-  // Index 0: Default mode evaluation, Winner mode processing is not applicable
-  // (Eg : IntraBc).
-  // Index 1: Mode evaluation.
-  // Index 2: Winner mode evaluation.
-  // Index 1 and 2 are applicable when enable_winner_mode_for_use_tx_domain_dist
-  // speed feature is ON
-  unsigned int tx_domain_dist_threshold[MODE_EVAL_TYPES];
-
-  // Factor to control R-D optimization of coeffs based on block
-  // mse.
-  // Index 0: Default mode evaluation, Winner mode processing is not applicable
-  // (Eg : IntraBc). Index 1: Mode evaluation.
-  // Index 2: Winner mode evaluation
-  // Index 1 and 2 are applicable when enable_winner_mode_for_coeff_opt speed
-  // feature is ON
+  // Threshold to determine the best number of transform coefficients to keep
+  // using trellis optimization.
+  // Corresponds to enable_winner_mode_for_coeff_opt speed feature.
   unsigned int coeff_opt_dist_threshold[MODE_EVAL_TYPES];
 
-  // Transform size to be used in transform search
-  // Index 0: Default mode evaluation, Winner mode processing is not applicable
-  // (Eg : IntraBc).
-  // Index 1: Mode evaluation. Index 2: Winner mode evaluation
-  // Index 1 and 2 are applicable when enable_winner_mode_for_tx_size_srch speed
-  // feature is ON
+  // Determines the tx size search method during rdopt.
+  // Corresponds to enable_winner_mode_for_tx_size_srch speed feature.
   TX_SIZE_SEARCH_METHOD tx_size_search_methods[MODE_EVAL_TYPES];
 
-  // Transform domain distortion levels
-  // Index 0: Default mode evaluation, Winner mode processing is not applicable
-  // (Eg : IntraBc).
-  // Index 1: Mode evaluation. Index 2: Winner mode evaluation
-  // Index 1 and 2 are applicable when enable_winner_mode_for_use_tx_domain_dist
-  // speed feature is ON
+  // Controls how often we should approximate prediction error with tx
+  // coefficients. If it's 0, then never. If 1, then it's during the tx_type
+  // search only. If 2, then always.
+  // Corresponds to tx_domain_dist_level speed feature.
   unsigned int use_transform_domain_distortion[MODE_EVAL_TYPES];
 
-  // Predict transform skip levels to be used for default, mode and winner mode
-  // evaluation. Index 0: Default mode evaluation, Winner mode processing is not
-  // applicable. Index 1: Mode evaluation, Index 2: Winner mode evaluation
-  unsigned int predict_skip_level[MODE_EVAL_TYPES];
+  // Threshold to approximate pixel domain distortion with transform domain
+  // distortion. This is only used if use_txform_domain_distortion is on.
+  // Corresponds to enable_winner_mode_for_use_tx_domain_dist speed feature.
+  unsigned int tx_domain_dist_threshold[MODE_EVAL_TYPES];
+
+  // Controls how often we should try to skip the transform process based on
+  // result from dct.
+  // Corresponds to use_skip_flag_prediction speed feature.
+  unsigned int skip_txfm_level[MODE_EVAL_TYPES];
 } WinnerModeParams;
 
 typedef struct {

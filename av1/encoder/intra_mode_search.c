@@ -201,7 +201,9 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
   RD_STATS this_rd_stats;
   int row, col;
   int64_t temp_sse, this_rd;
-  TX_SIZE tx_size = tx_size_from_tx_mode(bsize, x->tx_mode_search_type);
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
+  TX_SIZE tx_size =
+      tx_size_from_tx_mode(bsize, txfm_params->tx_mode_search_type);
   const int stepr = tx_size_high_unit[tx_size];
   const int stepc = tx_size_wide_unit[tx_size];
   const int max_blocks_wide = max_block_wide(xd, bsize, 0);

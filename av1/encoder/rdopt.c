@@ -2893,6 +2893,7 @@ static AOM_INLINE void rd_pick_skip_mode(
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
 
   x->compound_idx = 1;  // COMPOUND_AVERAGE
   RD_STATS skip_mode_rd_stats;
@@ -3001,7 +3002,7 @@ static AOM_INLINE void rd_pick_skip_mode(
     // Set up tx_size related variables for skip-specific loop filtering.
     search_state->best_mbmode.tx_size =
         block_signals_txsize(bsize)
-            ? tx_size_from_tx_mode(bsize, x->tx_mode_search_type)
+            ? tx_size_from_tx_mode(bsize, txfm_params->tx_mode_search_type)
             : max_txsize_rect_lookup[bsize];
     memset(search_state->best_mbmode.inter_tx_size,
            search_state->best_mbmode.tx_size,
@@ -3082,6 +3083,7 @@ static AOM_INLINE void refine_winner_mode_tx(
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
+  TxfmSearchParams *txfm_params = &x->txfm_search_params;
   int64_t best_rd;
   const int num_planes = av1_num_planes(cm);
 
@@ -3136,7 +3138,7 @@ static AOM_INLINE void refine_winner_mode_tx(
           av1_build_obmc_inter_predictors_sb(cm, xd);
 
         av1_subtract_plane(x, bsize, 0);
-        if (x->tx_mode_search_type == TX_MODE_SELECT &&
+        if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
             !xd->lossless[mbmi->segment_id]) {
           av1_pick_recursive_tx_size_type_yrd(cpi, x, &rd_stats_y, bsize,
                                               INT64_MAX);

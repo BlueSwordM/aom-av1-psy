@@ -69,6 +69,12 @@ enum {
   NO_ESTIMATE_YRD_TRELLIS_OPT  // Disable trellis in estimate_yrd_for_sb
 } UENUM1BYTE(TRELLIS_OPT_TYPE);
 
+enum {
+  USE_FULL_RD = 0,
+  USE_FAST_RD,
+  USE_LARGESTALL,
+} UENUM1BYTE(TX_SIZE_SEARCH_METHOD);
+
 typedef struct macroblock_plane {
   DECLARE_ALIGNED(32, int16_t, src_diff[MAX_SB_SQUARE]);
   tran_low_t *dqcoeff;
@@ -262,6 +268,35 @@ typedef struct {
   int **mv_cost_stack;
 } MvCostInfo;
 
+// This struct stores the parameters used to perform the txfm search. For the
+// most part, this determines how various speed features are used.
+typedef struct {
+  // Whether to limit the txfm search type to the default txfm during rdopt.
+  // This could either be a result of either sequence parameter or speed
+  // features.
+  int use_default_intra_tx_type;
+  int use_default_inter_tx_type;
+
+  // Try to prune 2d transforms based on 1d transform results.
+  int prune_2d_txfm_mode;
+
+  // The following four parameters are copied from WinnerModeParams based on the
+  // current evaluation mode. See the documentation for WinnerModeParams for
+  // more detail.
+  unsigned int coeff_opt_dist_threshold;
+  unsigned int tx_domain_dist_threshold;
+  TX_SIZE_SEARCH_METHOD tx_size_search_method;
+  unsigned int use_transform_domain_distortion;
+  unsigned int skip_txfm_level;
+
+  // Although this looks suspicious similar to a bitstream element, This
+  // tx_mode_search_type is used internally by the encoder, and is not
+  // written to the bitstream. It determines what kind of tx_mode should be
+  // searched. For example, we might set it to TX_MODE_LARGEST to find a good
+  // candidate, then use TX_MODE_SELECT on it
+  TX_MODE tx_mode_search_type;
+} TxfmSearchParams;
+
 struct inter_modes_info;
 typedef struct macroblock MACROBLOCK;
 struct macroblock {
@@ -441,18 +476,11 @@ struct macroblock {
   // rectangular blocks.
   int picked_ref_frames_mask[32 * 32];
 
-  // use default transform and skip transform type search for intra modes
-  int use_default_intra_tx_type;
-  // use default transform and skip transform type search for inter modes
-  int use_default_inter_tx_type;
   int comp_idx_cost[COMP_INDEX_CONTEXTS][2];
   int comp_group_idx_cost[COMP_GROUP_IDX_CONTEXTS][2];
   int must_find_valid_partition;
   int recalc_luma_mc_data;  // Flag to indicate recalculation of MC data during
                             // interpolation filter search
-  int prune_mode;
-  uint32_t tx_domain_dist_threshold;
-  int use_transform_domain_distortion;
   // The likelihood of an edge existing in the block (using partial Canny edge
   // detection). For reference, 556 is the value returned for a solid
   // vertical black/white edge.
@@ -467,10 +495,6 @@ struct macroblock {
   int comp_rd_stats_idx;
 
   CB_COEFF_BUFFER *cb_coef_buff;
-
-  // Threshold used to decide the applicability of R-D optimization of
-  // quantized coeffs
-  uint32_t coeff_opt_dist_threshold;
 
 #if !CONFIG_REALTIME_ONLY
   int quad_tree_idx;
@@ -494,18 +518,9 @@ struct macroblock {
   uint8_t color_sensitivity[2];
   int nonrd_prune_ref_frame_search;
 
-  // Used to control the tx size search evaluation for mode processing
-  // (normal/winner mode)
-  int tx_size_search_method;
-  // This tx_mode_search_type is used internally by the encoder, and is not
-  // written to the bitstream. It determines what kind of tx_mode should be
-  // searched. For example, we might set it to TX_MODE_LARGEST to find a good
-  // candidate, then use TX_MODE_SELECT on it
-  TX_MODE tx_mode_search_type;
-
-  // Used to control aggressiveness of skip flag prediction for mode processing
-  // (normal/winner mode)
-  unsigned int predict_skip_level;
+  // Stores various txfm search related parameters such as txfm_type, txfm_size,
+  // trellis eob search, etc.
+  TxfmSearchParams txfm_search_params;
 
   uint8_t search_ref_frame[REF_FRAMES];
 

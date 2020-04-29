@@ -11,6 +11,7 @@
 
 #include "av1/common/cfl.h"
 #include "av1/common/reconintra.h"
+#include "av1/encoder/block.h"
 #include "av1/encoder/encodetxb.h"
 #include "av1/encoder/hybrid_fwd_txfm.h"
 #include "av1/common/idct.h"
@@ -393,6 +394,7 @@ static INLINE int64_t pixel_diff_dist(const MACROBLOCK *x, int plane,
 // The sse value is stored in dist.
 static int predict_skip_txfm(MACROBLOCK *x, BLOCK_SIZE bsize, int64_t *dist,
                              int reduced_tx_set) {
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   const MACROBLOCKD *xd = &x->e_mbd;
@@ -408,12 +410,12 @@ static int predict_skip_txfm(MACROBLOCK *x, BLOCK_SIZE bsize, int64_t *dist,
   // For faster early skip decision, use dist to compare against threshold so
   // that quality risk is less for the skip=1 decision. Otherwise, use mse
   // since the fwd_txfm coeff checks will take care of quality
-  // TODO(any): Use dist to return 0 when predict_skip_level is 1
-  int64_t pred_err = (x->predict_skip_level >= 2) ? *dist : mse;
+  // TODO(any): Use dist to return 0 when skip_txfm_level is 1
+  int64_t pred_err = (txfm_params->skip_txfm_level >= 2) ? *dist : mse;
   // Predict not to skip when error is larger than threshold.
   if (pred_err > mse_thresh) return 0;
   // Return as skip otherwise for aggressive early skip
-  else if (x->predict_skip_level >= 2)
+  else if (txfm_params->skip_txfm_level >= 2)
     return 1;
 
   const int max_tx_size = max_predict_sf_tx_size[bsize];
@@ -1618,17 +1620,17 @@ static INLINE void sort_probability(float prob[], int txk[], int len) {
   }
 }
 
-static INLINE float get_adaptive_thresholds(TX_SIZE tx_size,
-                                            TxSetType tx_set_type,
-                                            TX_TYPE_PRUNE_MODE prune_mode) {
+static INLINE float get_adaptive_thresholds(
+    TX_SIZE tx_size, TxSetType tx_set_type,
+    TX_TYPE_PRUNE_MODE prune_2d_txfm_mode) {
   const int prune_aggr_table[4][2] = { { 4, 1 }, { 6, 3 }, { 9, 6 }, { 9, 6 } };
   int pruning_aggressiveness = 0;
   if (tx_set_type == EXT_TX_SET_ALL16)
     pruning_aggressiveness =
-        prune_aggr_table[prune_mode - PRUNE_2D_ACCURATE][0];
+        prune_aggr_table[prune_2d_txfm_mode - PRUNE_2D_ACCURATE][0];
   else if (tx_set_type == EXT_TX_SET_DTT9_IDTX_1DDCT)
     pruning_aggressiveness =
-        prune_aggr_table[prune_mode - PRUNE_2D_ACCURATE][1];
+        prune_aggr_table[prune_2d_txfm_mode - PRUNE_2D_ACCURATE][1];
 
   return prune_2D_adaptive_thresholds[tx_size][pruning_aggressiveness];
 }
@@ -1699,7 +1701,7 @@ static AOM_INLINE void get_energy_distribution_finer(const int16_t *diff,
 
 static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
                         int blk_row, int blk_col, TxSetType tx_set_type,
-                        TX_TYPE_PRUNE_MODE prune_mode, int *txk_map,
+                        TX_TYPE_PRUNE_MODE prune_2d_txfm_mode, int *txk_map,
                         uint16_t *allowed_tx_mask) {
   int tx_type_table_2D[16] = {
     DCT_DCT,      DCT_ADST,      DCT_FLIPADST,      V_DCT,
@@ -1760,7 +1762,7 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
   av1_nn_softmax(scores_2D_raw, scores_2D, 16);
 
   const float score_thresh =
-      get_adaptive_thresholds(tx_size, tx_set_type, prune_mode);
+      get_adaptive_thresholds(tx_size, tx_set_type, prune_2d_txfm_mode);
 
   // Always keep the TX type with the highest score, prune all others with
   // score below score_thresh.
@@ -1794,7 +1796,7 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
 
   // Enable more pruning based on tx type probability and number of allowed tx
   // types
-  if (prune_mode == PRUNE_2D_AGGRESSIVE) {
+  if (prune_2d_txfm_mode == PRUNE_2D_AGGRESSIVE) {
     float temp_score = 0.0;
     float score_ratio = 0.0;
     int tx_idx, tx_count = 0;
@@ -1910,14 +1912,15 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
   const AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   const int is_inter = is_inter_block(mbmi);
   const int fast_tx_search = ftxs_mode & FTXS_DCT_AND_1D_DCT_ONLY;
   // if txk_allowed = TX_TYPES, >1 tx types are allowed, else, if txk_allowed <
   // TX_TYPES, only that specific tx type is allowed.
   TX_TYPE txk_allowed = TX_TYPES;
 
-  if ((!is_inter && x->use_default_intra_tx_type) ||
-      (is_inter && x->use_default_inter_tx_type)) {
+  if ((!is_inter && txfm_params->use_default_intra_tx_type) ||
+      (is_inter && txfm_params->use_default_inter_tx_type)) {
     txk_allowed =
         get_default_tx_type(0, xd, tx_size, cpi->is_screen_content_type);
   } else if (x->rd_model == LOW_TXFM_RD) {
@@ -1993,8 +1996,8 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
     assert(num_allowed > 0);
 
     if (num_allowed > 2 && cpi->sf.tx_sf.tx_type_search.prune_tx_type_est_rd) {
-      int pf = prune_factors[x->prune_mode];
-      int mf = mul_factors[x->prune_mode];
+      int pf = prune_factors[txfm_params->prune_2d_txfm_mode];
+      int mf = mul_factors[txfm_params->prune_2d_txfm_mode];
       if (num_allowed <= 7) {
         const uint16_t prune =
             prune_txk_type(cpi, x, plane, block, tx_size, blk_row, blk_col,
@@ -2012,12 +2015,13 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
       }
     } else {
       assert(num_allowed > 0);
-      int allowed_tx_count = (x->prune_mode == PRUNE_2D_AGGRESSIVE) ? 1 : 5;
+      int allowed_tx_count =
+          (txfm_params->prune_2d_txfm_mode == PRUNE_2D_AGGRESSIVE) ? 1 : 5;
       // !fast_tx_search && txk_end != txk_start && plane == 0
-      if (x->prune_mode >= PRUNE_2D_ACCURATE && is_inter &&
+      if (txfm_params->prune_2d_txfm_mode >= PRUNE_2D_ACCURATE && is_inter &&
           num_allowed > allowed_tx_count) {
         prune_tx_2D(x, plane_bsize, tx_size, blk_row, blk_col, tx_set_type,
-                    x->prune_mode, txk_map, &allowed_tx_mask);
+                    txfm_params->prune_2d_txfm_mode, txk_map, &allowed_tx_mask);
       }
     }
   }
@@ -2091,6 +2095,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   int64_t best_rd = INT64_MAX;
   uint16_t best_eob = 0;
   TX_TYPE best_tx_type = DCT_DCT;
@@ -2177,7 +2182,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // TODO(any): Experiment with variance and mean based thresholds
   const int perform_block_coeff_opt =
       ((uint64_t)block_mse_q8 <=
-       (uint64_t)x->coeff_opt_dist_threshold * qstep * qstep);
+       (uint64_t)txfm_params->coeff_opt_dist_threshold * qstep * qstep);
   skip_trellis |= !perform_block_coeff_opt;
 
   // Flag to indicate if distortion should be calculated in transform domain or
@@ -2185,8 +2190,8 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // Transform domain distortion is accurate for higher residuals.
   // TODO(any): Experiment with variance and mean based thresholds
   int use_transform_domain_distortion =
-      (x->use_transform_domain_distortion > 0) &&
-      (block_mse_q8 >= x->tx_domain_dist_threshold) &&
+      (txfm_params->use_transform_domain_distortion > 0) &&
+      (block_mse_q8 >= txfm_params->tx_domain_dist_threshold) &&
       // Any 64-pt transforms only preserves half the coefficients.
       // Therefore transform domain distortion is not valid for these
       // transform sizes.
@@ -2195,7 +2200,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // should be performed at the end, after the best transform type has been
   // decided.
   int calc_pixel_domain_distortion_final =
-      x->use_transform_domain_distortion == 1 &&
+      txfm_params->use_transform_domain_distortion == 1 &&
       use_transform_domain_distortion && x->rd_model != LOW_TXFM_RD;
   if (calc_pixel_domain_distortion_final &&
       (txk_allowed < TX_TYPES || allowed_tx_mask == 0x0001))
@@ -2671,7 +2676,8 @@ static AOM_INLINE void choose_largest_tx_size(const AV1_COMP *const cpi,
                                               BLOCK_SIZE bs) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-  mbmi->tx_size = tx_size_from_tx_mode(bs, x->tx_mode_search_type);
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
+  mbmi->tx_size = tx_size_from_tx_mode(bs, txfm_params->tx_mode_search_type);
 
   // If tx64 is not enabled, we need to go down to the next available size
   if (!cpi->oxcf.enable_tx64) {
@@ -2740,8 +2746,9 @@ static AOM_INLINE void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
 
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   const TX_SIZE max_rect_tx_size = max_txsize_rect_lookup[bs];
-  const int tx_select = x->tx_mode_search_type == TX_MODE_SELECT;
+  const int tx_select = txfm_params->tx_mode_search_type == TX_MODE_SELECT;
   int start_tx;
   // The split depth can be at most MAX_TX_DEPTH, so the init_depth controls
   // how many times of splitting is allowed during the RD search.
@@ -2751,10 +2758,10 @@ static AOM_INLINE void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
     start_tx = max_rect_tx_size;
     init_depth = get_search_init_depth(mi_size_wide[bs], mi_size_high[bs],
                                        is_inter_block(mbmi), &cpi->sf,
-                                       x->tx_size_search_method);
+                                       txfm_params->tx_size_search_method);
   } else {
     const TX_SIZE chosen_tx_size =
-        tx_size_from_tx_mode(bs, x->tx_mode_search_type);
+        tx_size_from_tx_mode(bs, txfm_params->tx_mode_search_type);
     start_tx = chosen_tx_size;
     init_depth = MAX_TX_DEPTH;
   }
@@ -2878,8 +2885,9 @@ int64_t av1_uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   assert(IMPLIES(is_rect_tx(tx_size), is_rect_tx_allowed_bsize(bs)));
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   const int is_inter = is_inter_block(mbmi);
-  const int tx_select = x->tx_mode_search_type == TX_MODE_SELECT &&
+  const int tx_select = txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
                         block_signals_txsize(mbmi->sb_type);
   int tx_size_rate = 0;
   if (tx_select) {
@@ -3036,6 +3044,7 @@ static int inter_block_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
   av1_init_rd_stats(rd_stats);
 
   MACROBLOCKD *const xd = &x->e_mbd;
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   const struct macroblockd_plane *const pd = &xd->plane[0];
   const int mi_width = mi_size_wide[bsize];
   const int mi_height = mi_size_high[bsize];
@@ -3043,8 +3052,8 @@ static int inter_block_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
   const int bh = tx_size_high_unit[max_tx_size];
   const int bw = tx_size_wide_unit[max_tx_size];
   const int step = bw * bh;
-  const int init_depth = get_search_init_depth(mi_width, mi_height, 1, &cpi->sf,
-                                               x->tx_size_search_method);
+  const int init_depth = get_search_init_depth(
+      mi_width, mi_height, 1, &cpi->sf, txfm_params->tx_size_search_method);
   ENTROPY_CONTEXT ctxa[MAX_MIB_SIZE];
   ENTROPY_CONTEXT ctxl[MAX_MIB_SIZE];
   TXFM_CONTEXT tx_above[MAX_MIB_SIZE];
@@ -3103,9 +3112,10 @@ static int64_t select_tx_size_and_type(const AV1_COMP *cpi, MACROBLOCK *x,
                                        int64_t ref_best_rd,
                                        TXB_RD_INFO_NODE *rd_info_tree) {
   MACROBLOCKD *const xd = &x->e_mbd;
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   assert(is_inter_block(xd->mi[0]));
   assert(bsize < BLOCK_SIZES_ALL);
-  const int fast_tx_search = x->tx_size_search_method > USE_FULL_RD;
+  const int fast_tx_search = txfm_params->tx_size_search_method > USE_FULL_RD;
   int64_t rd_thresh = ref_best_rd;
   if (fast_tx_search && rd_thresh < INT64_MAX) {
     if (INT64_MAX - rd_thresh > (rd_thresh >> 3)) rd_thresh += (rd_thresh >> 3);
@@ -3124,8 +3134,8 @@ static int64_t select_tx_size_and_type(const AV1_COMP *cpi, MACROBLOCK *x,
   av1_get_entropy_contexts(bsize, pd, ctxa, ctxl);
   memcpy(tx_above, xd->above_txfm_context, sizeof(TXFM_CONTEXT) * mi_width);
   memcpy(tx_left, xd->left_txfm_context, sizeof(TXFM_CONTEXT) * mi_height);
-  const int init_depth = get_search_init_depth(mi_width, mi_height, 1, &cpi->sf,
-                                               x->tx_size_search_method);
+  const int init_depth = get_search_init_depth(
+      mi_width, mi_height, 1, &cpi->sf, txfm_params->tx_size_search_method);
   const TX_SIZE max_tx_size = max_txsize_rect_lookup[bsize];
   const int bh = tx_size_high_unit[max_tx_size];
   const int bw = tx_size_wide_unit[max_tx_size];
@@ -3222,6 +3232,7 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
                                          RD_STATS *rd_stats, BLOCK_SIZE bsize,
                                          int64_t ref_best_rd) {
   MACROBLOCKD *const xd = &x->e_mbd;
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   assert(is_inter_block(xd->mi[0]));
 
   av1_invalid_rd_stats(rd_stats);
@@ -3260,7 +3271,7 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
   // If we predict that skip is the optimal RD decision - set the respective
   // context and terminate early.
   int64_t dist;
-  if (x->predict_skip_level &&
+  if (txfm_params->skip_txfm_level &&
       predict_skip_txfm(x, bsize, &dist,
                         cpi->common.features.reduced_tx_set_used)) {
     set_skip_txfm(x, rd_stats, bsize, dist);
@@ -3313,6 +3324,7 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
                                        int64_t ref_best_rd) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
+  const TxfmSearchParams *tx_params = &x->txfm_search_params;
   assert(bs == mbmi->sb_type);
   const int is_inter = is_inter_block(mbmi);
   const int mi_row = xd->mi_row;
@@ -3347,7 +3359,8 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   // If we predict that skip is the optimal RD decision - set the respective
   // context and terminate early.
   int64_t dist;
-  if (x->predict_skip_level && is_inter && !xd->lossless[mbmi->segment_id] &&
+  if (tx_params->skip_txfm_level && is_inter &&
+      !xd->lossless[mbmi->segment_id] &&
       predict_skip_txfm(x, bs, &dist,
                         cpi->common.features.reduced_tx_set_used)) {
     // Populate rdstats as per skip decision
@@ -3362,7 +3375,7 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   if (xd->lossless[mbmi->segment_id]) {
     // Lossless mode can only pick the smallest (4x4) transform size.
     choose_smallest_tx_size(cpi, x, rd_stats, ref_best_rd, bs);
-  } else if (x->tx_size_search_method == USE_LARGESTALL) {
+  } else if (tx_params->tx_size_search_method == USE_LARGESTALL) {
     choose_largest_tx_size(cpi, x, rd_stats, ref_best_rd, bs);
   } else {
     choose_tx_size_type_from_rd(cpi, x, rd_stats, ref_best_rd, bs);
@@ -3495,6 +3508,7 @@ int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                     RD_STATS *rd_stats, RD_STATS *rd_stats_y,
                     RD_STATS *rd_stats_uv, int mode_rate, int64_t ref_best_rd) {
   MACROBLOCKD *const xd = &x->e_mbd;
+  TxfmSearchParams *txfm_params = &x->txfm_search_params;
   const int skip_ctx = av1_get_skip_txfm_context(xd);
   const int skip_txfm_cost[2] = { x->skip_txfm_cost[skip_ctx][0],
                                   x->skip_txfm_cost[skip_ctx][1] };
@@ -3519,7 +3533,7 @@ int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
 
   // cost and distortion
   av1_subtract_plane(x, bsize, 0);
-  if (x->tx_mode_search_type == TX_MODE_SELECT &&
+  if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
       !xd->lossless[mbmi->segment_id]) {
     av1_pick_recursive_tx_size_type_yrd(cpi, x, rd_stats_y, bsize, rd_thresh);
 #if CONFIG_COLLECT_RD_STATS == 2

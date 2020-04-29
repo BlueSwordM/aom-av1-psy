@@ -136,12 +136,6 @@ enum {
 } UENUM1BYTE(SUBPEL_SEARCH_METHODS);
 
 enum {
-  USE_FULL_RD = 0,
-  USE_FAST_RD,
-  USE_LARGESTALL,
-} UENUM1BYTE(TX_SIZE_SEARCH_METHOD);
-
-enum {
   // Try the full image with different values.
   LPF_PICK_FROM_FULL_IMAGE,
   // Try the full image filter search with non-dual filter only.
@@ -203,7 +197,7 @@ enum {
 } UENUM1BYTE(OVERSHOOT_DETECTION_CBR);
 
 typedef struct {
-  TX_TYPE_PRUNE_MODE prune_mode;
+  TX_TYPE_PRUNE_MODE prune_2d_txfm_mode;
   int fast_intra_tx_type_search;
   int fast_inter_tx_type_search;
 

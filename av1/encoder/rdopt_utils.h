@@ -404,55 +404,57 @@ static INLINE int is_winner_mode_processing_enabled(
 
 static INLINE void set_tx_size_search_method(
     const AV1_COMMON *cm, const WinnerModeParams *winner_mode_params,
-    MACROBLOCK *x, int enable_winner_mode_for_tx_size_srch,
+    TxfmSearchParams *txfm_params, int enable_winner_mode_for_tx_size_srch,
     int is_winner_mode) {
   // Populate transform size search method/transform mode appropriately
-  x->tx_size_search_method =
+  txfm_params->tx_size_search_method =
       winner_mode_params->tx_size_search_methods[DEFAULT_EVAL];
   if (enable_winner_mode_for_tx_size_srch) {
     if (is_winner_mode)
-      x->tx_size_search_method =
+      txfm_params->tx_size_search_method =
           winner_mode_params->tx_size_search_methods[WINNER_MODE_EVAL];
     else
-      x->tx_size_search_method =
+      txfm_params->tx_size_search_method =
           winner_mode_params->tx_size_search_methods[MODE_EVAL];
   }
-  x->tx_mode_search_type = select_tx_mode(cm, x->tx_size_search_method);
+  txfm_params->tx_mode_search_type =
+      select_tx_mode(cm, txfm_params->tx_size_search_method);
 }
 
-static INLINE void set_tx_type_prune(const SPEED_FEATURES *sf, MACROBLOCK *x,
+static INLINE void set_tx_type_prune(const SPEED_FEATURES *sf,
+                                     TxfmSearchParams *txfm_params,
                                      int enable_winner_mode_tx_type_pruning,
                                      int is_winner_mode) {
   // Populate prune transform mode appropriately
-  x->prune_mode = sf->tx_sf.tx_type_search.prune_mode;
+  txfm_params->prune_2d_txfm_mode = sf->tx_sf.tx_type_search.prune_2d_txfm_mode;
   if (enable_winner_mode_tx_type_pruning) {
     if (is_winner_mode)
-      x->prune_mode = NO_PRUNE;
+      txfm_params->prune_2d_txfm_mode = NO_PRUNE;
     else
-      x->prune_mode = PRUNE_2D_AGGRESSIVE;
+      txfm_params->prune_2d_txfm_mode = PRUNE_2D_AGGRESSIVE;
   }
 }
 
 static INLINE void set_tx_domain_dist_params(
-    const WinnerModeParams *winner_mode_params, MACROBLOCK *x,
+    const WinnerModeParams *winner_mode_params, TxfmSearchParams *txfm_params,
     int enable_winner_mode_for_tx_domain_dist, int is_winner_mode) {
   if (!enable_winner_mode_for_tx_domain_dist) {
-    x->use_transform_domain_distortion =
+    txfm_params->use_transform_domain_distortion =
         winner_mode_params->use_transform_domain_distortion[DEFAULT_EVAL];
-    x->tx_domain_dist_threshold =
+    txfm_params->tx_domain_dist_threshold =
         winner_mode_params->tx_domain_dist_threshold[DEFAULT_EVAL];
     return;
   }
 
   if (is_winner_mode) {
-    x->use_transform_domain_distortion =
+    txfm_params->use_transform_domain_distortion =
         winner_mode_params->use_transform_domain_distortion[WINNER_MODE_EVAL];
-    x->tx_domain_dist_threshold =
+    txfm_params->tx_domain_dist_threshold =
         winner_mode_params->tx_domain_dist_threshold[WINNER_MODE_EVAL];
   } else {
-    x->use_transform_domain_distortion =
+    txfm_params->use_transform_domain_distortion =
         winner_mode_params->use_transform_domain_distortion[MODE_EVAL];
-    x->tx_domain_dist_threshold =
+    txfm_params->tx_domain_dist_threshold =
         winner_mode_params->tx_domain_dist_threshold[MODE_EVAL];
   }
 }
@@ -464,75 +466,77 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
   const AV1_COMMON *cm = &cpi->common;
   const SPEED_FEATURES *sf = &cpi->sf;
   const WinnerModeParams *winner_mode_params = &cpi->winner_mode_params;
+  TxfmSearchParams *txfm_params = &x->txfm_search_params;
 
   switch (mode_eval_type) {
     case DEFAULT_EVAL:
-      x->use_default_inter_tx_type = 0;
-      x->use_default_intra_tx_type = 0;
-      x->predict_skip_level =
-          winner_mode_params->predict_skip_level[DEFAULT_EVAL];
+      txfm_params->use_default_inter_tx_type = 0;
+      txfm_params->use_default_intra_tx_type = 0;
+      txfm_params->skip_txfm_level =
+          winner_mode_params->skip_txfm_level[DEFAULT_EVAL];
       // Set default transform domain distortion type
-      set_tx_domain_dist_params(winner_mode_params, x, 0, 0);
+      set_tx_domain_dist_params(winner_mode_params, txfm_params, 0, 0);
 
       // Get default threshold for R-D optimization of coefficients
-      x->coeff_opt_dist_threshold = get_rd_opt_coeff_thresh(
+      txfm_params->coeff_opt_dist_threshold = get_rd_opt_coeff_thresh(
           winner_mode_params->coeff_opt_dist_threshold, 0, 0);
       // Set default transform size search method
-      set_tx_size_search_method(cm, winner_mode_params, x, 0, 0);
+      set_tx_size_search_method(cm, winner_mode_params, txfm_params, 0, 0);
       // Set default transform type prune
-      set_tx_type_prune(sf, x, 0, 0);
+      set_tx_type_prune(sf, txfm_params, 0, 0);
       break;
     case MODE_EVAL:
-      x->use_default_intra_tx_type =
+      txfm_params->use_default_intra_tx_type =
           (cpi->sf.tx_sf.tx_type_search.fast_intra_tx_type_search ||
            cpi->oxcf.use_intra_default_tx_only);
-      x->use_default_inter_tx_type =
+      txfm_params->use_default_inter_tx_type =
           cpi->sf.tx_sf.tx_type_search.fast_inter_tx_type_search;
-      x->predict_skip_level = winner_mode_params->predict_skip_level[MODE_EVAL];
+      txfm_params->skip_txfm_level =
+          winner_mode_params->skip_txfm_level[MODE_EVAL];
 
       // Set transform domain distortion type for mode evaluation
       set_tx_domain_dist_params(
-          winner_mode_params, x,
+          winner_mode_params, txfm_params,
           sf->winner_mode_sf.enable_winner_mode_for_use_tx_domain_dist, 0);
 
       // Get threshold for R-D optimization of coefficients during mode
       // evaluation
-      x->coeff_opt_dist_threshold = get_rd_opt_coeff_thresh(
+      txfm_params->coeff_opt_dist_threshold = get_rd_opt_coeff_thresh(
           winner_mode_params->coeff_opt_dist_threshold,
           sf->winner_mode_sf.enable_winner_mode_for_coeff_opt, 0);
       // Set the transform size search method for mode evaluation
       set_tx_size_search_method(
-          cm, winner_mode_params, x,
+          cm, winner_mode_params, txfm_params,
           sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch, 0);
       // Set transform type prune for mode evaluation
       set_tx_type_prune(
-          sf, x, sf->tx_sf.tx_type_search.enable_winner_mode_tx_type_pruning,
-          0);
+          sf, txfm_params,
+          sf->tx_sf.tx_type_search.enable_winner_mode_tx_type_pruning, 0);
       break;
     case WINNER_MODE_EVAL:
-      x->use_default_inter_tx_type = 0;
-      x->use_default_intra_tx_type = 0;
-      x->predict_skip_level =
-          winner_mode_params->predict_skip_level[WINNER_MODE_EVAL];
+      txfm_params->use_default_inter_tx_type = 0;
+      txfm_params->use_default_intra_tx_type = 0;
+      txfm_params->skip_txfm_level =
+          winner_mode_params->skip_txfm_level[WINNER_MODE_EVAL];
 
       // Set transform domain distortion type for winner mode evaluation
       set_tx_domain_dist_params(
-          winner_mode_params, x,
+          winner_mode_params, txfm_params,
           sf->winner_mode_sf.enable_winner_mode_for_use_tx_domain_dist, 1);
 
       // Get threshold for R-D optimization of coefficients for winner mode
       // evaluation
-      x->coeff_opt_dist_threshold = get_rd_opt_coeff_thresh(
+      txfm_params->coeff_opt_dist_threshold = get_rd_opt_coeff_thresh(
           winner_mode_params->coeff_opt_dist_threshold,
           sf->winner_mode_sf.enable_winner_mode_for_coeff_opt, 1);
       // Set the transform size search method for winner mode evaluation
       set_tx_size_search_method(
-          cm, winner_mode_params, x,
+          cm, winner_mode_params, txfm_params,
           sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch, 1);
       // Set default transform type prune mode for winner mode evaluation
       set_tx_type_prune(
-          sf, x, sf->tx_sf.tx_type_search.enable_winner_mode_tx_type_pruning,
-          1);
+          sf, txfm_params,
+          sf->tx_sf.tx_type_search.enable_winner_mode_tx_type_pruning, 1);
 
       // Reset hash state for winner mode processing. Winner mode and subsequent
       // transform/mode evaluations (palette/IntraBC) cann't reuse old data as

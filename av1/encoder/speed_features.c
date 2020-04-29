@@ -384,7 +384,7 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.intra_tx_size_search_init_depth_rect = 1;
     sf->tx_sf.model_based_prune_tx_search_level = 0;
     sf->tx_sf.tx_type_search.ml_tx_split_thresh = 4000;
-    sf->tx_sf.tx_type_search.prune_mode = PRUNE_2D_FAST;
+    sf->tx_sf.tx_type_search.prune_2d_txfm_mode = PRUNE_2D_FAST;
     sf->tx_sf.tx_type_search.skip_tx_search = 1;
     sf->tx_sf.use_intra_txb_hash = 1;
 
@@ -555,7 +555,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tx_sf.tx_type_search.enable_winner_mode_tx_type_pruning = 1;
     sf->tx_sf.tx_type_search.fast_intra_tx_type_search = 1;
-    sf->tx_sf.tx_type_search.prune_mode = PRUNE_2D_MORE;
+    sf->tx_sf.tx_type_search.prune_2d_txfm_mode = PRUNE_2D_MORE;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
     // TODO(any): Experiment with enabling of this speed feature as hash state
     // is reset during winner mode processing
@@ -770,7 +770,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->inter_sf.prune_warp_using_wmtype = 1;
     sf->inter_sf.selective_ref_frame = 4;
 
-    sf->tx_sf.tx_type_search.prune_mode = PRUNE_2D_FAST;
+    sf->tx_sf.tx_type_search.prune_2d_txfm_mode = PRUNE_2D_FAST;
 
     sf->rd_sf.tx_domain_dist_level = 1;
 
@@ -833,7 +833,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
       sf->intra_sf.intra_uv_mode_mask[i] = UV_INTRA_DC_CFL;
     }
 
-    sf->tx_sf.tx_type_search.prune_mode = PRUNE_2D_MORE;
+    sf->tx_sf.tx_type_search.prune_2d_txfm_mode = PRUNE_2D_MORE;
     sf->tx_sf.use_inter_txb_hash = 0;
     sf->tx_sf.refine_fast_tx_search_results = 0;
 
@@ -1064,7 +1064,7 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->intra_tx_size_search_init_depth_sqr = 0;
   tx_sf->tx_size_search_lgr_block = 0;
   tx_sf->model_based_prune_tx_search_level = 0;
-  tx_sf->tx_type_search.prune_mode = PRUNE_2D_ACCURATE;
+  tx_sf->tx_type_search.prune_2d_txfm_mode = PRUNE_2D_ACCURATE;
   tx_sf->tx_type_search.ml_tx_split_thresh = 8500;
   tx_sf->tx_type_search.use_skip_flag_prediction = 1;
   tx_sf->tx_type_search.use_reduced_intra_txset = 0;
@@ -1291,10 +1291,10 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   // assert ensures that predict_skip_levels is accessed correctly
   assert(cpi->sf.tx_sf.tx_type_search.use_skip_flag_prediction >= 0 &&
          cpi->sf.tx_sf.tx_type_search.use_skip_flag_prediction < 3);
-  memcpy(winner_mode_params->predict_skip_level,
+  memcpy(winner_mode_params->skip_txfm_level,
          predict_skip_levels[cpi->sf.tx_sf.tx_type_search
                                  .use_skip_flag_prediction],
-         sizeof(winner_mode_params->predict_skip_level));
+         sizeof(winner_mode_params->skip_txfm_level));
 
   // assert ensures that tx_size_search_level is accessed correctly
   assert(cpi->sf.winner_mode_sf.tx_size_search_level >= 0 &&

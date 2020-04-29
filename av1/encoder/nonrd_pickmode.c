@@ -449,10 +449,12 @@ static TX_SIZE calculate_tx_size(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
                                  unsigned int sse) {
   MACROBLOCKD *const xd = &x->e_mbd;
   TX_SIZE tx_size;
-  if (x->tx_mode_search_type == TX_MODE_SELECT) {
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
+  if (txfm_params->tx_mode_search_type == TX_MODE_SELECT) {
     if (sse > (var << 2))
-      tx_size = AOMMIN(max_txsize_lookup[bsize],
-                       tx_mode_to_biggest_tx_size[x->tx_mode_search_type]);
+      tx_size =
+          AOMMIN(max_txsize_lookup[bsize],
+                 tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]);
     else
       tx_size = TX_8X8;
 
@@ -462,11 +464,12 @@ static TX_SIZE calculate_tx_size(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
     else if (tx_size > TX_16X16)
       tx_size = TX_16X16;
   } else {
-    tx_size = AOMMIN(max_txsize_lookup[bsize],
-                     tx_mode_to_biggest_tx_size[x->tx_mode_search_type]);
+    tx_size =
+        AOMMIN(max_txsize_lookup[bsize],
+               tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]);
   }
 
-  if (x->tx_mode_search_type != ONLY_4X4 && bsize > BLOCK_32X32)
+  if (txfm_params->tx_mode_search_type != ONLY_4X4 && bsize > BLOCK_32X32)
     tx_size = TX_16X16;
 
   return AOMMIN(tx_size, TX_16X16);
@@ -1422,9 +1425,10 @@ void av1_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
   MB_MODE_INFO *const mi = xd->mi[0];
   RD_STATS this_rdc, best_rdc;
   struct estimate_block_intra_args args = { cpi, x, DC_PRED, 1, 0 };
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   const TX_SIZE intra_tx_size =
       AOMMIN(max_txsize_lookup[bsize],
-             tx_mode_to_biggest_tx_size[x->tx_mode_search_type]);
+             tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]);
   int *bmode_costs;
   const MB_MODE_INFO *above_mi = xd->above_mbmi;
   const MB_MODE_INFO *left_mi = xd->left_mbmi;
@@ -1538,6 +1542,7 @@ static void estimate_intra_mode(
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mi = xd->mi[0];
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   const unsigned char segment_id = mi->segment_id;
   const int *const rd_threshes = cpi->rd.threshes[segment_id][bsize];
   const int *const rd_thresh_freq_fact = x->thresh_freq_fact[bsize];
@@ -1595,10 +1600,10 @@ static void estimate_intra_mode(
 
   int64_t this_sse = INT64_MAX;
   struct estimate_block_intra_args args = { cpi, x, DC_PRED, 1, 0 };
-  TX_SIZE intra_tx_size =
-      AOMMIN(AOMMIN(max_txsize_lookup[bsize],
-                    tx_mode_to_biggest_tx_size[x->tx_mode_search_type]),
-             TX_16X16);
+  TX_SIZE intra_tx_size = AOMMIN(
+      AOMMIN(max_txsize_lookup[bsize],
+             tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]),
+      TX_16X16);
 
   PRED_BUFFER *const best_pred = best_pickmode->best_pred;
   if (reuse_prediction && best_pred != NULL) {
@@ -1732,6 +1737,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   const int pixels_in_block = bh * bw;
   struct buf_2d orig_dst = pd->dst;
   const CommonQuantParams *quant_params = &cm->quant_params;
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
 #if COLLECT_PICK_MODE_STAT
   aom_usec_timer_start(&ms_stat.timer2);
 #endif
@@ -1809,10 +1815,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   ms_stat.num_blocks[bsize]++;
 #endif
   init_mbmi(mi, DC_PRED, NONE_FRAME, NONE_FRAME, cm);
-  mi->tx_size =
-      AOMMIN(AOMMIN(max_txsize_lookup[bsize],
-                    tx_mode_to_biggest_tx_size[x->tx_mode_search_type]),
-             TX_16X16);
+  mi->tx_size = AOMMIN(
+      AOMMIN(max_txsize_lookup[bsize],
+             tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]),
+      TX_16X16);
 
   // TODO(marpan): Look into reducing these conditions. For now constrain
   // it to avoid significant bdrate loss.

@@ -581,7 +581,7 @@ static AOM_INLINE void update_state(const AV1_COMP *const cpi, ThreadData *td,
           seg->update_map ? cpi->enc_seg.map : cm->last_frame_seg_map;
       mi_addr->segment_id =
           map ? get_segment_id(mi_params, map, bsize, mi_row, mi_col) : 0;
-      reset_tx_size(x, mi_addr, x->tx_mode_search_type);
+      reset_tx_size(x, mi_addr, x->txfm_search_params.tx_mode_search_type);
     }
     // Else for cyclic refresh mode update the segment map, set the segment id
     // and then update the quantizer.
@@ -6460,8 +6460,9 @@ static AOM_INLINE void encode_superblock(const AV1_COMP *const cpi,
   const int is_inter = is_inter_block(mbmi);
 
   // Initialize tx_mode and tx_size_search_method
+  TxfmSearchParams *txfm_params = &x->txfm_search_params;
   set_tx_size_search_method(
-      cm, &cpi->winner_mode_params, x,
+      cm, &cpi->winner_mode_params, txfm_params,
       cpi->sf.winner_mode_sf.enable_winner_mode_for_tx_size_srch, 1);
 
   const int mi_row = xd->mi_row;
@@ -6546,7 +6547,7 @@ static AOM_INLINE void encode_superblock(const AV1_COMP *const cpi,
 
   if (!dry_run) {
     if (av1_allow_intrabc(cm) && is_intrabc_block(mbmi)) td->intrabc_used = 1;
-    if (x->tx_mode_search_type == TX_MODE_SELECT &&
+    if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
         !xd->lossless[mbmi->segment_id] && mbmi->sb_type > BLOCK_4X4 &&
         !(is_inter && (mbmi->skip_txfm || seg_skip))) {
       if (is_inter) {
@@ -6578,7 +6579,8 @@ static AOM_INLINE void encode_superblock(const AV1_COMP *const cpi,
         if (xd->lossless[mbmi->segment_id]) {
           intra_tx_size = TX_4X4;
         } else {
-          intra_tx_size = tx_size_from_tx_mode(bsize, x->tx_mode_search_type);
+          intra_tx_size =
+              tx_size_from_tx_mode(bsize, txfm_params->tx_mode_search_type);
         }
       } else {
         intra_tx_size = mbmi->tx_size;
@@ -6594,7 +6596,7 @@ static AOM_INLINE void encode_superblock(const AV1_COMP *const cpi,
     }
   }
 
-  if (x->tx_mode_search_type == TX_MODE_SELECT &&
+  if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
       block_signals_txsize(mbmi->sb_type) && is_inter &&
       !(mbmi->skip_txfm || seg_skip) && !xd->lossless[mbmi->segment_id]) {
     if (dry_run) tx_partition_set_contexts(cm, xd, bsize);
@@ -6605,7 +6607,7 @@ static AOM_INLINE void encode_superblock(const AV1_COMP *const cpi,
       if (xd->lossless[mbmi->segment_id]) {
         tx_size = TX_4X4;
       } else {
-        tx_size = tx_size_from_tx_mode(bsize, x->tx_mode_search_type);
+        tx_size = tx_size_from_tx_mode(bsize, txfm_params->tx_mode_search_type);
       }
     } else {
       tx_size = (bsize > BLOCK_4X4) ? tx_size : TX_4X4;
