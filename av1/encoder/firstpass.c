@@ -292,56 +292,6 @@ static double raw_motion_error_stdev(int *raw_motion_err_list,
   return raw_err_stdev;
 }
 
-// This structure contains several key parameters to be accumulate for this
-// frame.
-typedef struct {
-  // Intra prediction error.
-  int64_t intra_error;
-  // Average wavelet energy computed using Discrete Wavelet Transform (DWT).
-  int64_t frame_avg_wavelet_energy;
-  // Best of intra pred error and inter pred error using last frame as ref.
-  int64_t coded_error;
-  // Best of intra pred error and inter pred error using golden frame as ref.
-  int64_t sr_coded_error;
-  // Best of intra pred error and inter pred error using altref frame as ref.
-  int64_t tr_coded_error;
-  // Count of motion vector.
-  int mv_count;
-  // Count of blocks that pick inter prediction (inter pred error is smaller
-  // than intra pred error).
-  int inter_count;
-  // Count of blocks that pick second ref (golden frame).
-  int second_ref_count;
-  // Count of blocks that pick third ref (altref frame).
-  int third_ref_count;
-  // Count of blocks where the inter and intra are very close and very low.
-  double neutral_count;
-  // Count of blocks where intra error is very small.
-  int intra_skip_count;
-  // Start row.
-  int image_data_start_row;
-  // Count of unique non-zero motion vectors.
-  int new_mv_count;
-  // Sum of inward motion vectors.
-  int sum_in_vectors;
-  // Sum of motion vector row.
-  int sum_mvr;
-  // Sum of motion vector column.
-  int sum_mvc;
-  // Sum of absolute value of motion vector row.
-  int sum_mvr_abs;
-  // Sum of absolute value of motion vector column.
-  int sum_mvc_abs;
-  // Sum of the square of motion vector row.
-  int64_t sum_mvrs;
-  // Sum of the square of motion vector column.
-  int64_t sum_mvcs;
-  // A factor calculated using intra pred error.
-  double intra_factor;
-  // A factor that measures brightness.
-  double brightness_factor;
-} FRAME_STATS;
-
 #define UL_INTRA_THRESH 50
 #define INVALID_ROW -1
 // Computes and returns the intra pred error of a block.
@@ -887,6 +837,28 @@ static FRAME_STATS accumulate_frame_stats(FRAME_STATS *mb_stats, int mb_rows,
   return stats;
 }
 
+static void setup_firstpass_data(AV1_COMMON *const cm,
+                                 FirstPassData *firstpass_data) {
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  CHECK_MEM_ERROR(cm, firstpass_data->raw_motion_err_list,
+                  aom_calloc(mi_params->mb_rows * mi_params->mb_cols,
+                             sizeof(*firstpass_data->raw_motion_err_list)));
+  CHECK_MEM_ERROR(cm, firstpass_data->mb_stats,
+                  aom_calloc(mi_params->mb_rows * mi_params->mb_cols,
+                             sizeof(*firstpass_data->mb_stats)));
+  for (int j = 0; j < mi_params->mb_rows; j++) {
+    for (int i = 0; i < mi_params->mb_cols; i++) {
+      firstpass_data->mb_stats[j * mi_params->mb_cols + i]
+          .image_data_start_row = INVALID_ROW;
+    }
+  }
+}
+
+static void free_firstpass_data(FirstPassData *firstpass_data) {
+  aom_free(firstpass_data->raw_motion_err_list);
+  aom_free(firstpass_data->mb_stats);
+}
+
 #define FIRST_PASS_ALT_REF_DISTANCE 16
 void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   MACROBLOCK *const x = &cpi->td.mb;
@@ -896,9 +868,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
-  PICK_MODE_CONTEXT *ctx =
-      av1_alloc_pmc(cm, BLOCK_16X16, &cpi->td.shared_coeff_buf);
-  MV first_top_mv = kZeroMv;
+  PICK_MODE_CONTEXT *ctx = cpi->td.firstpass_ctx;
   const int qindex = find_fp_qindex(seq_params->bit_depth);
   // Detect if the key frame is screen content type.
   if (frame_is_intra_only(cm)) {
@@ -910,22 +880,17 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   const BLOCK_SIZE fp_block_size = BLOCK_16X16;
   const int fp_block_size_width = block_size_high[fp_block_size];
   const int fp_block_size_height = block_size_wide[fp_block_size];
-  int *raw_motion_err_list;
-  CHECK_MEM_ERROR(cm, raw_motion_err_list,
-                  aom_calloc(mi_params->mb_rows * mi_params->mb_cols,
-                             sizeof(*raw_motion_err_list)));
+
+  setup_firstpass_data(cm, &cpi->firstpass_data);
+  int *raw_motion_err_list = cpi->firstpass_data.raw_motion_err_list;
+  FRAME_STATS *mb_stats = cpi->firstpass_data.mb_stats;
+
   // Tiling is ignored in the first pass.
-  TileInfo tile;
-  av1_tile_init(&tile, cm, 0, 0);
-  FRAME_STATS *mb_stats;
-  CHECK_MEM_ERROR(
-      cm, mb_stats,
-      aom_calloc(mi_params->mb_rows * mi_params->mb_cols, sizeof(*mb_stats)));
-  for (int j = 0; j < mi_params->mb_rows; j++) {
-    for (int i = 0; i < mi_params->mb_cols; i++) {
-      mb_stats[j * mi_params->mb_cols + i].image_data_start_row = INVALID_ROW;
-    }
-  }
+  TileDataEnc tile_data;
+  TileInfo *tile = &tile_data.tile_info;
+  av1_tile_init(tile, cm, 0, 0);
+  tile_data.firstpass_top_mv = kZeroMv;
+  MV *first_top_mv = &tile_data.firstpass_top_mv;
 
   const YV12_BUFFER_CONFIG *const last_frame =
       get_ref_frame_yv12_buf(cm, LAST_FRAME);
@@ -996,7 +961,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   for (int mb_row = 0; mb_row < mi_params->mb_rows; ++mb_row) {
     MV best_ref_mv = kZeroMv;
     FRAME_STATS *mb_stat = &mb_stats[mb_row * mi_params->mb_cols];
-    MV last_mv = first_top_mv;
+    MV last_mv = *first_top_mv;
     int *row_raw_motion_err_list =
         &raw_motion_err_list[mb_row * mi_params->mb_cols];
     int raw_motion_err_counts = 0;
@@ -1019,7 +984,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
 
     for (int mb_col = 0; mb_col < mi_params->mb_cols; ++mb_col) {
       int this_intra_error = firstpass_intra_prediction(
-          cpi, this_frame, &tile, mb_row, mb_col, recon_yoffset, recon_uvoffset,
+          cpi, this_frame, tile, mb_row, mb_col, recon_yoffset, recon_uvoffset,
           fp_block_size, qindex, mb_stat);
 
       if (!frame_is_intra_only(cm)) {
@@ -1029,7 +994,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
             fp_block_size, this_intra_error, raw_motion_err_counts,
             row_raw_motion_err_list, &best_ref_mv, &last_mv, mb_stat);
         if (mb_col == 0) {
-          first_top_mv = last_mv;
+          *first_top_mv = last_mv;
         }
         mb_stat->coded_error += this_inter_error;
         ++raw_motion_err_counts;
@@ -1058,7 +1023,6 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
     x->plane[2].src.buf += uv_mb_height * x->plane[1].src.stride -
                            uv_mb_height * mi_params->mb_cols;
   }
-  av1_free_pmc(ctx, num_planes);
 
   FRAME_STATS stats =
       accumulate_frame_stats(mb_stats, mi_params->mb_rows, mi_params->mb_cols);
@@ -1066,8 +1030,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
       frame_is_intra_only(cm) ? 0 : mi_params->mb_rows * mi_params->mb_cols;
   const double raw_err_stdev =
       raw_motion_error_stdev(raw_motion_err_list, total_raw_motion_err_count);
-  aom_free(raw_motion_err_list);
-  aom_free(mb_stats);
+  free_firstpass_data(&cpi->firstpass_data);
 
   // Clamp the image start to rows/2. This number of rows is discarded top
   // and bottom as dead data so rows / 2 means the frame is blank.

@@ -734,6 +734,7 @@ typedef struct TileDataEnc {
   uint8_t allow_update_cdf;
   InterModeRdModel inter_mode_rd_models[BLOCK_SIZES_ALL];
   AV1EncRowMultiThreadSync row_mt_sync;
+  MV firstpass_top_mv;
 } TileDataEnc;
 
 typedef struct RD_COUNTS {
@@ -767,6 +768,7 @@ typedef struct ThreadData {
   MB_MODE_INFO_EXT *mbmi_ext;
   VP64x64 *vt64x64;
   int32_t num_64x64_blocks;
+  PICK_MODE_CONTEXT *firstpass_ctx;
 } ThreadData;
 
 struct EncWorkerData;
@@ -1568,6 +1570,9 @@ typedef struct AV1_COMP {
   // This may / may not be same as user-supplied mode in oxcf->superres_mode
   // (when we are recoding to try multiple options for example).
   aom_superres_mode superres_mode;
+
+  // First pass related data.
+  FirstPassData firstpass_data;
 } AV1_COMP;
 
 typedef struct EncodeFrameInput {
