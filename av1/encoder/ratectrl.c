@@ -752,22 +752,20 @@ static int calc_active_worst_quality_one_pass_cbr(const AV1_COMP *cpi) {
   return active_worst_quality;
 }
 
-static int rc_pick_q_and_bounds_one_pass_cbr(const AV1_COMP *cpi, int width,
-                                             int height, int *bottom_index,
-                                             int *top_index) {
+// Calculate the active_best_quality level.
+static int calc_active_best_quality_one_pass_cbr(const AV1_COMP *cpi,
+                                                 int active_worst_quality,
+                                                 int width, int height) {
   const AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *const rc = &cpi->rc;
   const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
   const CurrentFrame *const current_frame = &cm->current_frame;
-  int active_best_quality;
-  int active_worst_quality = calc_active_worst_quality_one_pass_cbr(cpi);
-  int q;
   int *rtc_minq;
   const int bit_depth = cm->seq_params.bit_depth;
+  int active_best_quality = rc->best_quality;
   ASSIGN_MINQ_TABLE(bit_depth, rtc_minq);
 
   if (frame_is_intra_only(cm)) {
-    active_best_quality = rc->best_quality;
     // Handle the special case for key frames forced when we have reached
     // the maximum key frame interval. Here force the Q to a range
     // based on the ambient Q to reduce the risk of popping.
@@ -781,15 +779,12 @@ static int rc_pick_q_and_bounds_one_pass_cbr(const AV1_COMP *cpi, int width,
       // not first frame of one pass and kf_boost is set
       double q_adj_factor = 1.0;
       double q_val;
-
       active_best_quality =
           get_kf_active_quality(rc, rc->avg_frame_qindex[KEY_FRAME], bit_depth);
-
       // Allow somewhat lower kf minq with small image formats.
       if ((width * height) <= (352 * 288)) {
         q_adj_factor -= 0.25;
       }
-
       // Convert the adjustment factor to a qindex delta
       // on active_best_quality.
       q_val = av1_convert_qindex_to_q(active_best_quality, bit_depth);
@@ -803,27 +798,35 @@ static int rc_pick_q_and_bounds_one_pass_cbr(const AV1_COMP *cpi, int width,
     // Use the lower of active_worst_quality and recent
     // average Q as basis for GF/ARF best Q limit unless last frame was
     // a key frame.
+    int q = active_worst_quality;
     if (rc->frames_since_key > 1 &&
         rc->avg_frame_qindex[INTER_FRAME] < active_worst_quality) {
       q = rc->avg_frame_qindex[INTER_FRAME];
-    } else {
-      q = active_worst_quality;
     }
     active_best_quality = get_gf_active_quality(rc, q, bit_depth);
   } else {
     // Use the lower of active_worst_quality and recent/average Q.
-    if (current_frame->frame_number > 1) {
-      if (rc->avg_frame_qindex[INTER_FRAME] < active_worst_quality)
-        active_best_quality = rtc_minq[rc->avg_frame_qindex[INTER_FRAME]];
-      else
-        active_best_quality = rtc_minq[active_worst_quality];
-    } else {
-      if (rc->avg_frame_qindex[KEY_FRAME] < active_worst_quality)
-        active_best_quality = rtc_minq[rc->avg_frame_qindex[KEY_FRAME]];
-      else
-        active_best_quality = rtc_minq[active_worst_quality];
-    }
+    FRAME_TYPE frame_type =
+        (current_frame->frame_number > 1) ? INTER_FRAME : KEY_FRAME;
+    if (rc->avg_frame_qindex[frame_type] < active_worst_quality)
+      active_best_quality = rtc_minq[rc->avg_frame_qindex[frame_type]];
+    else
+      active_best_quality = rtc_minq[active_worst_quality];
   }
+  return active_best_quality;
+}
+
+static int rc_pick_q_and_bounds_one_pass_cbr(const AV1_COMP *cpi, int width,
+                                             int height, int *bottom_index,
+                                             int *top_index) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const RATE_CONTROL *const rc = &cpi->rc;
+  const CurrentFrame *const current_frame = &cm->current_frame;
+  int q;
+  const int bit_depth = cm->seq_params.bit_depth;
+  int active_worst_quality = calc_active_worst_quality_one_pass_cbr(cpi);
+  int active_best_quality = calc_active_best_quality_one_pass_cbr(
+      cpi, active_worst_quality, width, height);
 
   // Clip the active best and worst quality values to limits
   active_best_quality =
