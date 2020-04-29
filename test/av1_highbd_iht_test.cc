@@ -359,4 +359,10 @@ INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1HighbdInvTxfm2d,
 INSTANTIATE_TEST_SUITE_P(AVX2, AV1HighbdInvTxfm2d,
                          ::testing::Values(av1_highbd_inv_txfm_add_avx2));
 #endif
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, AV1HighbdInvTxfm2d,
+                         ::testing::Values(av1_highbd_inv_txfm_add_neon));
+#endif
+
 }  // namespace

@@ -226,8 +226,12 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/warp_filter_test_util.h"
               "${AOM_ROOT}/test/webmenc_test.cc")
 
+  if((HAVE_SSE4_1 OR HAVE_NEON))
+    list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
+                "${AOM_ROOT}/test/av1_highbd_iht_test.cc")
+  endif()
+
   list(APPEND AOM_UNIT_TEST_ENCODER_INTRIN_SSE4_1
-              "${AOM_ROOT}/test/av1_highbd_iht_test.cc"
               "${AOM_ROOT}/test/av1_quantize_test.cc"
               "${AOM_ROOT}/test/corner_match_test.cc"
               "${AOM_ROOT}/test/simd_cmp_sse4.cc")
