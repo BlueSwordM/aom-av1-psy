@@ -1424,9 +1424,11 @@ static INLINE void set_baseline_gf_interval(AV1_COMP *cpi, int arf_position,
   // Set the interval until the next gf.
   // If forward keyframes are enabled, ensure the final gf group obeys the
   // MIN_FWD_KF_INTERVAL.
-  if (cpi->oxcf.fwd_kf_enabled && use_alt_ref &&
-      ((twopass->stats_in - arf_position + rc->frames_to_key) <
-       twopass->stats_buf_ctx->stats_in_end) &&
+  const int is_last_kf =
+      (twopass->stats_in - arf_position + rc->frames_to_key) >=
+      twopass->stats_buf_ctx->stats_in_end;
+
+  if (cpi->oxcf.fwd_kf_enabled && use_alt_ref && !is_last_kf &&
       cpi->rc.next_is_fwd_key) {
     if (arf_position == rc->frames_to_key) {
       rc->baseline_gf_interval = arf_position;
@@ -2110,6 +2112,8 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   if (cpi->lap_enabled && !scenecut_detected)
     frames_to_key = num_frames_to_next_key;
 
+  if (cpi->oxcf.fwd_kf_enabled && scenecut_detected) rc->next_is_fwd_key = 0;
+
   return frames_to_key;
 }
 static double get_kf_group_avg_error(TWO_PASS *twopass,
@@ -2355,6 +2359,9 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   } else {
     rc->next_key_frame_forced = 0;
   }
+
+  if (cpi->oxcf.fwd_kf_enabled)
+    rc->next_is_fwd_key |= rc->next_key_frame_forced;
 
   // Special case for the last key frame of the file.
   if (twopass->stats_in >= twopass->stats_buf_ctx->stats_in_end) {
