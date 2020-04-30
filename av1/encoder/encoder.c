@@ -3638,6 +3638,8 @@ void av1_remove_compressor(AV1_COMP *cpi) {
       }
       aom_free(thread_data->td->counts);
       aom_free(thread_data->td->mbmi_ext);
+      av1_free_pmc(thread_data->td->firstpass_ctx, av1_num_planes(cm));
+      thread_data->td->firstpass_ctx = NULL;
       av1_free_shared_coeff_buffer(&thread_data->td->shared_coeff_buf);
       av1_free_sms_tree(thread_data->td);
       aom_free(thread_data->td);

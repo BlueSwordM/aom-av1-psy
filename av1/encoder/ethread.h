@@ -38,6 +38,10 @@ void av1_row_mt_sync_write_dummy(AV1EncRowMultiThreadSync *row_mt_sync, int r,
 void av1_encode_tiles_mt(struct AV1_COMP *cpi);
 void av1_encode_tiles_row_mt(struct AV1_COMP *cpi);
 
+#if !CONFIG_REALTIME_ONLY
+void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi);
+#endif
+
 void av1_accumulate_frame_counts(struct FRAME_COUNTS *acc_counts,
                                  const struct FRAME_COUNTS *counts);
 

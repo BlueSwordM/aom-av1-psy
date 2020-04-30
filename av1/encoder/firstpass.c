@@ -37,6 +37,7 @@
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encode_strategy.h"
+#include "av1/encoder/ethread.h"
 #include "av1/encoder/extend.h"
 #include "av1/encoder/firstpass.h"
 #include "av1/encoder/mcomp.h"
@@ -859,6 +860,22 @@ static void free_firstpass_data(FirstPassData *firstpass_data) {
   aom_free(firstpass_data->mb_stats);
 }
 
+int av1_get_mb_rows_in_tile(TileInfo tile) {
+  int mi_rows_aligned_to_mb =
+      ALIGN_POWER_OF_TWO(tile.mi_row_end - tile.mi_row_start, FP_MIB_SIZE_LOG2);
+  int mb_rows = mi_rows_aligned_to_mb >> FP_MIB_SIZE_LOG2;
+
+  return mb_rows;
+}
+
+int av1_get_mb_cols_in_tile(TileInfo tile) {
+  int mi_cols_aligned_to_mb =
+      ALIGN_POWER_OF_TWO(tile.mi_col_end - tile.mi_col_start, FP_MIB_SIZE_LOG2);
+  int mb_cols = mi_cols_aligned_to_mb >> FP_MIB_SIZE_LOG2;
+
+  return mb_cols;
+}
+
 #define FIRST_PASS_ALT_REF_DISTANCE 16
 static void first_pass_tile(AV1_COMP *cpi, ThreadData *td,
                             TileDataEnc *tile_data) {
@@ -900,6 +917,10 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   int raw_motion_err_counts = 0;
   int mb_row_in_tile = mb_row - (tile->mi_row_start >> FP_MIB_SIZE_LOG2);
   int mb_col_start = tile->mi_col_start >> FP_MIB_SIZE_LOG2;
+  int mb_cols_in_tile = av1_get_mb_cols_in_tile(*tile);
+  MultiThreadInfo *const mt_info = &cpi->mt_info;
+  AV1EncRowMultiThreadInfo *const enc_row_mt = &mt_info->enc_row_mt;
+  AV1EncRowMultiThreadSync *const row_mt_sync = &tile_data->row_mt_sync;
 
   const YV12_BUFFER_CONFIG *const last_frame =
       get_ref_frame_yv12_buf(cm, LAST_FRAME);
@@ -941,7 +962,7 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       fp_block_size_height >> (this_frame->y_height > this_frame->uv_height);
 
   MV best_ref_mv = kZeroMv;
-  MV last_mv = *first_top_mv;
+  MV last_mv;
 
   // Reset above block coeffs.
   xd->up_available = (mb_row_in_tile != 0);
@@ -974,6 +995,12 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
        mi_col += FP_MIB_SIZE) {
     int mb_col = mi_col >> FP_MIB_SIZE_LOG2;
     int mb_col_in_tile = mb_col - mb_col_start;
+
+    (*(enc_row_mt->sync_read_ptr))(row_mt_sync, mb_row_in_tile, mb_col_in_tile);
+
+    if (mb_col_in_tile == 0) {
+      last_mv = *first_top_mv;
+    }
     int this_intra_error = firstpass_intra_prediction(
         cpi, td, this_frame, tile, mb_row, mb_col, recon_yoffset,
         recon_uvoffset, fp_block_size, qindex, mb_stats);
@@ -1005,6 +1032,9 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
     recon_uvoffset += uv_mb_height;
     alt_ref_frame_yoffset += fp_block_size_width;
     mb_stats++;
+
+    (*(enc_row_mt->sync_write_ptr))(row_mt_sync, mb_row_in_tile, mb_col_in_tile,
+                                    mb_cols_in_tile);
   }
 }
 
@@ -1030,9 +1060,14 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   int *raw_motion_err_list = cpi->firstpass_data.raw_motion_err_list;
   FRAME_STATS *mb_stats = cpi->firstpass_data.mb_stats;
 
+  // multi threading info
+  MultiThreadInfo *const mt_info = &cpi->mt_info;
+  AV1EncRowMultiThreadInfo *const enc_row_mt = &mt_info->enc_row_mt;
+
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
   if (cpi->allocated_tiles < tile_cols * tile_rows) {
+    av1_row_mt_mem_dealloc(cpi);
     av1_alloc_tile_data(cpi);
   }
 
@@ -1078,7 +1113,17 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   av1_init_mv_probs(cm);
   av1_initialize_rd_consts(cpi);
 
-  first_pass_tiles(cpi);
+  enc_row_mt->sync_read_ptr = av1_row_mt_sync_read_dummy;
+  enc_row_mt->sync_write_ptr = av1_row_mt_sync_write_dummy;
+  mt_info->row_mt_enabled = 0;
+
+  if (mt_info->row_mt_enabled) {
+    enc_row_mt->sync_read_ptr = av1_row_mt_sync_read;
+    enc_row_mt->sync_write_ptr = av1_row_mt_sync_write;
+    av1_fp_encode_tiles_row_mt(cpi);
+  } else {
+    first_pass_tiles(cpi);
+  }
 
   FRAME_STATS stats =
       accumulate_frame_stats(mb_stats, mi_params->mb_rows, mi_params->mb_cols);
