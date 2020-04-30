@@ -938,6 +938,10 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   av1_setup_src_planes(x, cpi->source, mb_row << 2, 0, num_planes,
                        fp_block_size);
 
+  // Fix - zero the 16x16 block first. This ensures correct this_intra_error for
+  // block sizes smaller than 16x16.
+  av1_zero_array(x->plane[0].src_diff, 256);
+
   for (int mb_col = 0; mb_col < mi_params->mb_cols; ++mb_col) {
     int this_intra_error = firstpass_intra_prediction(
         cpi, td, this_frame, tile, mb_row, mb_col, recon_yoffset,
