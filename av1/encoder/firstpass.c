@@ -535,7 +535,7 @@ static int firstpass_inter_prediction(
   xd->plane[0].pre[0].buf = last_frame->y_buffer + recon_yoffset;
   // Set up limit values for motion vectors to prevent them extending
   // outside the UMV borders.
-  av1_set_mv_col_limits(mi_params, &x->mv_limits, (mb_col << 2),
+  av1_set_mv_col_limits(mi_params, &x->mv_limits, (mb_col << FP_MIB_SIZE_LOG2),
                         (fp_block_size_height >> MI_SIZE_LOG2),
                         cpi->oxcf.border_in_pixels);
 
@@ -869,12 +869,15 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
+  TileInfo *tile = &tile_data->tile_info;
   const int qindex = find_fp_qindex(seq_params->bit_depth);
   // First pass coding proceeds in raster scan order with unit size of 16x16.
   const BLOCK_SIZE fp_block_size = BLOCK_16X16;
   const int fp_block_size_width = block_size_high[fp_block_size];
   const int fp_block_size_height = block_size_wide[fp_block_size];
   int raw_motion_err_counts = 0;
+  int mb_row_in_tile = mb_row - (tile->mi_row_start >> FP_MIB_SIZE_LOG2);
+  int mb_col_start = tile->mi_col_start >> FP_MIB_SIZE_LOG2;
 
   const YV12_BUFFER_CONFIG *const last_frame =
       get_ref_frame_yv12_buf(cm, LAST_FRAME);
@@ -896,11 +899,10 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
 
   PICK_MODE_CONTEXT *ctx = td->firstpass_ctx;
   FRAME_STATS *mb_stats =
-      cpi->firstpass_data.mb_stats + mb_row * mi_params->mb_cols;
-  int *raw_motion_err_list =
-      cpi->firstpass_data.raw_motion_err_list + mb_row * mi_params->mb_cols;
+      cpi->firstpass_data.mb_stats + mb_row * mi_params->mb_cols + mb_col_start;
+  int *raw_motion_err_list = cpi->firstpass_data.raw_motion_err_list +
+                             mb_row * mi_params->mb_cols + mb_col_start;
   MV *first_top_mv = &tile_data->firstpass_top_mv;
-  TileInfo *tile = &tile_data->tile_info;
 
   for (int i = 0; i < num_planes; ++i) {
     x->plane[i].coeff = ctx->coeff[i];
@@ -920,29 +922,36 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   MV last_mv = *first_top_mv;
 
   // Reset above block coeffs.
-  xd->up_available = (mb_row != 0);
-  int recon_yoffset = (mb_row * recon_y_stride * fp_block_size_height);
-  int src_yoffset = (mb_row * src_y_stride * fp_block_size_height);
-  int recon_uvoffset = (mb_row * recon_uv_stride * uv_mb_height);
+  xd->up_available = (mb_row_in_tile != 0);
+  int recon_yoffset = (mb_row * recon_y_stride * fp_block_size_height) +
+                      (mb_col_start * fp_block_size_width);
+  int src_yoffset = (mb_row * src_y_stride * fp_block_size_height) +
+                    (mb_col_start * fp_block_size_width);
+  int recon_uvoffset =
+      (mb_row * recon_uv_stride * uv_mb_height) + (mb_col_start * uv_mb_height);
   int alt_ref_frame_yoffset =
       (alt_ref_frame != NULL)
-          ? mb_row * alt_ref_frame->y_stride * fp_block_size_height
+          ? (mb_row * alt_ref_frame->y_stride * fp_block_size_height) +
+                (mb_col_start * fp_block_size_width)
           : -1;
 
   // Set up limit values for motion vectors to prevent them extending
   // outside the UMV borders.
-  av1_set_mv_row_limits(mi_params, &x->mv_limits, (mb_row << 2),
+  av1_set_mv_row_limits(mi_params, &x->mv_limits, (mb_row << FP_MIB_SIZE_LOG2),
                         (fp_block_size_height >> MI_SIZE_LOG2),
                         cpi->oxcf.border_in_pixels);
 
-  av1_setup_src_planes(x, cpi->source, mb_row << 2, 0, num_planes,
-                       fp_block_size);
+  av1_setup_src_planes(x, cpi->source, mb_row << FP_MIB_SIZE_LOG2,
+                       tile->mi_col_start, num_planes, fp_block_size);
 
   // Fix - zero the 16x16 block first. This ensures correct this_intra_error for
   // block sizes smaller than 16x16.
   av1_zero_array(x->plane[0].src_diff, 256);
 
-  for (int mb_col = 0; mb_col < mi_params->mb_cols; ++mb_col) {
+  for (int mi_col = tile->mi_col_start; mi_col < tile->mi_col_end;
+       mi_col += FP_MIB_SIZE) {
+    int mb_col = mi_col >> FP_MIB_SIZE_LOG2;
+    int mb_col_in_tile = mb_col - mb_col_start;
     int this_intra_error = firstpass_intra_prediction(
         cpi, td, this_frame, tile, mb_row, mb_col, recon_yoffset,
         recon_uvoffset, fp_block_size, qindex, mb_stats);
@@ -953,7 +962,7 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
           recon_yoffset, recon_uvoffset, src_yoffset, alt_ref_frame_yoffset,
           fp_block_size, this_intra_error, raw_motion_err_counts,
           raw_motion_err_list, &best_ref_mv, &last_mv, mb_stats);
-      if (mb_col == 0) {
+      if (mb_col_in_tile == 0) {
         *first_top_mv = last_mv;
       }
       mb_stats->coded_error += this_inter_error;
@@ -1004,6 +1013,8 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   TileInfo *tile = &tile_data.tile_info;
   av1_tile_init(tile, cm, 0, 0);
   tile_data.firstpass_top_mv = kZeroMv;
+  tile->mi_col_end = mi_params->mi_cols;
+  tile->mi_row_end = mi_params->mi_rows;
 
   const YV12_BUFFER_CONFIG *const last_frame =
       get_ref_frame_yv12_buf(cm, LAST_FRAME);
@@ -1045,8 +1056,9 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   av1_init_mv_probs(cm);
   av1_initialize_rd_consts(cpi);
 
-  for (int mb_row = 0; mb_row < mi_params->mb_rows; ++mb_row) {
-    av1_first_pass_row(cpi, &cpi->td, &tile_data, mb_row);
+  for (int mi_row = tile->mi_row_start; mi_row < tile->mi_row_end;
+       mi_row += FP_MIB_SIZE) {
+    av1_first_pass_row(cpi, &cpi->td, &tile_data, mi_row >> FP_MIB_SIZE_LOG2);
   }
 
   FRAME_STATS stats =

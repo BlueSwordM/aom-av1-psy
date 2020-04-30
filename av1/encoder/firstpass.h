@@ -30,6 +30,10 @@ extern "C" {
 
 #define VLOW_MOTION_THRESHOLD 950
 
+// size of firstpass macroblocks in terms of MIs.
+#define FP_MIB_SIZE 4
+#define FP_MIB_SIZE_LOG2 2
+
 typedef struct {
   // Frame number in display order, if stats are for a single frame.
   // No real meaning for a collection of frames.
