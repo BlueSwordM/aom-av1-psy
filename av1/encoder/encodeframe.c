@@ -5273,14 +5273,18 @@ void av1_init_tile_data(AV1_COMP *cpi) {
           &cpi->tile_data[tile_row * tile_cols + tile_col];
       TileInfo *const tile_info = &tile_data->tile_info;
       av1_tile_init(tile_info, cm, tile_row, tile_col);
+      tile_data->firstpass_top_mv = kZeroMv;
 
-      token_info->tile_tok[tile_row][tile_col] = pre_tok + tile_tok;
-      pre_tok = token_info->tile_tok[tile_row][tile_col];
-      tile_tok = allocated_tokens(
-          *tile_info, cm->seq_params.mib_size_log2 + MI_SIZE_LOG2, num_planes);
-      token_info->tplist[tile_row][tile_col] = tplist + tplist_count;
-      tplist = token_info->tplist[tile_row][tile_col];
-      tplist_count = av1_get_sb_rows_in_tile(cm, tile_data->tile_info);
+      if (pre_tok != NULL && tplist != NULL) {
+        token_info->tile_tok[tile_row][tile_col] = pre_tok + tile_tok;
+        pre_tok = token_info->tile_tok[tile_row][tile_col];
+        tile_tok = allocated_tokens(*tile_info,
+                                    cm->seq_params.mib_size_log2 + MI_SIZE_LOG2,
+                                    num_planes);
+        token_info->tplist[tile_row][tile_col] = tplist + tplist_count;
+        tplist = token_info->tplist[tile_row][tile_col];
+        tplist_count = av1_get_sb_rows_in_tile(cm, tile_data->tile_info);
+      }
       tile_data->allow_update_cdf = !cm->tiles.large_scale;
       tile_data->allow_update_cdf =
           tile_data->allow_update_cdf && !cm->features.disable_cdf_update;
