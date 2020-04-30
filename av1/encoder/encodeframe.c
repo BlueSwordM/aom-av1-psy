@@ -2225,6 +2225,24 @@ static AOM_INLINE int do_slipt_check(BLOCK_SIZE bsize) {
   return (bsize == BLOCK_16X16 || bsize == BLOCK_32X32);
 }
 
+// Encode the block by applying pre-calculated partition patterns that are
+// represented by coding block sizes stored in the mbmi array. The only
+// partition adjustment allowed is merging leaf split nodes if it leads to a
+// lower rd cost. The partition types are limited to a basic set: none, horz,
+// vert, and split. This function is only used in the real-time mode.
+//
+// Inputs:
+//     cpi: the global compressor setting
+//     td: thread data
+//     tile_data: tile data
+//     mib: the array representing MB_MODE_INFO pointers for mi blocks starting
+//          from the first pixel of the current block
+//     tp: the pointer to the start token
+//     mi_row: row coordinate of the block in a step size of MI_SIZE
+//     mi_col: column coordinate of the block in a step size of MI_SIZE
+//     bsize: block size
+//     pc_tree: the pointer to the PC_TREE node storing the picked partitions
+//              and mode info for the current block
 static AOM_INLINE void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
                                            TileDataEnc *tile_data,
                                            MB_MODE_INFO **mib, TokenExtra **tp,
