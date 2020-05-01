@@ -467,6 +467,7 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
   const SPEED_FEATURES *sf = &cpi->sf;
   const WinnerModeParams *winner_mode_params = &cpi->winner_mode_params;
   TxfmSearchParams *txfm_params = &x->txfm_search_params;
+  TxfmSearchInfo *txfm_info = &x->txfm_search_info;
 
   switch (mode_eval_type) {
     case DEFAULT_EVAL:
@@ -543,7 +544,7 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
       // the decisions would have been sub-optimal
       // TODO(any): Move the evaluation of palette/IntraBC modes before winner
       // mode is processed and clean-up the code below
-      reset_hash_records(x, cpi->sf.tx_sf.use_inter_txb_hash);
+      reset_hash_records(txfm_info, cpi->sf.tx_sf.use_inter_txb_hash);
 
       break;
     default: assert(0);

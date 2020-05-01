@@ -918,19 +918,21 @@ static void store_coding_context(MACROBLOCK *x, PICK_MODE_CONTEXT *ctx,
 static void store_coding_context(MACROBLOCK *x, PICK_MODE_CONTEXT *ctx) {
 #endif  // CONFIG_INTERNAL_STATS
   MACROBLOCKD *const xd = &x->e_mbd;
+  TxfmSearchInfo *txfm_info = &x->txfm_search_info;
 
   // Take a snapshot of the coding context so it can be
   // restored if we decide to encode this way
-  ctx->rd_stats.skip_txfm = x->skip_txfm;
+  ctx->rd_stats.skip_txfm = txfm_info->skip_txfm;
+
   memset(ctx->blk_skip, 0, sizeof(ctx->blk_skip[0]) * ctx->num_4x4_blk);
   memset(ctx->tx_type_map, DCT_DCT,
          sizeof(ctx->tx_type_map[0]) * ctx->num_4x4_blk);
-  ctx->skippable = x->skip_txfm;
+  ctx->skippable = txfm_info->skip_txfm;
 #if CONFIG_INTERNAL_STATS
   ctx->best_mode_index = mode_index;
 #endif  // CONFIG_INTERNAL_STATS
   ctx->mic = *xd->mi[0];
-  ctx->skippable = x->skip_txfm;
+  ctx->skippable = txfm_info->skip_txfm;
   av1_copy_mbmi_ext_to_mbmi_ext_frame(&ctx->mbmi_ext_best, x->mbmi_ext,
                                       av1_ref_frame_type(xd->mi[0]->ref_frame));
   ctx->comp_pred_diff = 0;
@@ -1738,6 +1740,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   struct buf_2d orig_dst = pd->dst;
   const CommonQuantParams *quant_params = &cm->quant_params;
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
+  TxfmSearchInfo *txfm_info = &x->txfm_search_info;
 #if COLLECT_PICK_MODE_STAT
   aom_usec_timer_start(&ms_stat.timer2);
 #endif
@@ -1768,7 +1771,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     tmp[3].in_use = 0;
   }
 
-  x->skip_txfm = 0;
+  txfm_info->skip_txfm = 0;
 
   // Instead of using av1_get_pred_context_switchable_interp(xd) to assign
   // filter_ref, we use a less strict condition on assigning filter_ref.
@@ -2107,7 +2110,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       if (reuse_inter_pred) free_pred_buffer(this_mode_pred);
     }
     if (best_early_term && idx > 0) {
-      x->skip_txfm = 1;
+      txfm_info->skip_txfm = 1;
       break;
     }
   }
@@ -2119,7 +2122,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   mi->ref_frame[0] = best_pickmode.best_ref_frame;
   mi->mv[0].as_int =
       frame_mv[best_pickmode.best_mode][best_pickmode.best_ref_frame].as_int;
-  x->skip_txfm = best_rdc.skip_txfm;
+  txfm_info->skip_txfm = best_rdc.skip_txfm;
 
   // Perform intra prediction search, if the best SAD is above a certain
   // threshold.

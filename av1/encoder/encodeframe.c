@@ -488,6 +488,7 @@ static AOM_INLINE void update_global_motion_used(PREDICTION_MODE mode,
 static AOM_INLINE void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
                                      const TX_MODE tx_mode) {
   MACROBLOCKD *const xd = &x->e_mbd;
+  TxfmSearchInfo *txfm_info = &x->txfm_search_info;
   if (xd->lossless[mbmi->segment_id]) {
     mbmi->tx_size = TX_4X4;
   } else if (tx_mode != TX_MODE_SELECT) {
@@ -506,8 +507,8 @@ static AOM_INLINE void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
     memset(xd->tx_type_map + row * stride, DCT_DCT,
            bw * sizeof(xd->tx_type_map[0]));
   }
-  av1_zero(x->blk_skip);
-  x->skip_txfm = 0;
+  av1_zero(txfm_info->blk_skip);
+  txfm_info->skip_txfm = 0;
 }
 
 // This function will copy the best reference mode information from
@@ -546,6 +547,7 @@ static AOM_INLINE void update_state(const AV1_COMP *const cpi, ThreadData *td,
   const int mis = mi_params->mi_stride;
   const int mi_width = mi_size_wide[bsize];
   const int mi_height = mi_size_high[bsize];
+  TxfmSearchInfo *txfm_info = &x->txfm_search_info;
 
   assert(mi->sb_type == bsize);
 
@@ -553,9 +555,10 @@ static AOM_INLINE void update_state(const AV1_COMP *const cpi, ThreadData *td,
   copy_mbmi_ext_frame_to_mbmi_ext(x->mbmi_ext, &ctx->mbmi_ext_best,
                                   av1_ref_frame_type(ctx->mic.ref_frame));
 
-  memcpy(x->blk_skip, ctx->blk_skip, sizeof(x->blk_skip[0]) * ctx->num_4x4_blk);
+  memcpy(txfm_info->blk_skip, ctx->blk_skip,
+         sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
 
-  x->skip_txfm = ctx->rd_stats.skip_txfm;
+  txfm_info->skip_txfm = ctx->rd_stats.skip_txfm;
 
   xd->tx_type_map = ctx->tx_type_map;
   xd->tx_type_map_stride = mi_size_wide[bsize];
@@ -588,7 +591,7 @@ static AOM_INLINE void update_state(const AV1_COMP *const cpi, ThreadData *td,
     if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ) {
       av1_cyclic_refresh_update_segment(cpi, mi_addr, mi_row, mi_col, bsize,
                                         ctx->rd_stats.rate, ctx->rd_stats.dist,
-                                        x->skip_txfm);
+                                        txfm_info->skip_txfm);
     }
     if (mi_addr->uv_mode == UV_CFL_PRED && !is_cfl_allowed(xd))
       mi_addr->uv_mode = UV_DC_PRED;
@@ -750,6 +753,8 @@ static AOM_INLINE void pick_sb_modes(AV1_COMP *const cpi,
   struct macroblock_plane *const p = x->plane;
   struct macroblockd_plane *const pd = xd->plane;
   const AQ_MODE aq_mode = cpi->oxcf.aq_mode;
+  TxfmSearchInfo *txfm_info = &x->txfm_search_info;
+
   int i;
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -767,7 +772,8 @@ static AOM_INLINE void pick_sb_modes(AV1_COMP *const cpi,
   mbmi->mi_col = mi_col;
 #endif
 
-  xd->tx_type_map = x->tx_type_map;
+  // Sets up the tx_type_map buffer in MACROBLOCKD.
+  xd->tx_type_map = txfm_info->tx_type_map_;
   xd->tx_type_map_stride = mi_size_wide[bsize];
 
   for (i = 0; i < num_planes; ++i) {
@@ -2879,7 +2885,8 @@ static bool rd_pick_partition(
   // when debugging.
   // bit 0, 1, 2 are blk_skip of each plane
   // bit 4, 5, 6 are initialization checking of each plane
-  memset(x->blk_skip, 0x77, sizeof(x->blk_skip));
+  memset(x->txfm_search_info.blk_skip, 0x77,
+         sizeof(x->txfm_search_info.blk_skip));
 #endif  // NDEBUG
 
   assert(mi_size_wide[bsize] == mi_size_high[bsize]);
@@ -4663,7 +4670,7 @@ static INLINE void backup_sb_state(SB_FIRST_PASS_STATS *sb_fp_stats,
   save_context(x, &sb_fp_stats->x_ctx, mi_row, mi_col, sb_size, num_planes);
 
   sb_fp_stats->rd_count = cpi->td.rd_counts;
-  sb_fp_stats->split_count = cpi->td.mb.txb_split_count;
+  sb_fp_stats->split_count = x->txfm_search_info.txb_split_count;
 
   sb_fp_stats->fc = *td->counts;
 
@@ -4696,7 +4703,7 @@ static INLINE void restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats,
   restore_context(x, &sb_fp_stats->x_ctx, mi_row, mi_col, sb_size, num_planes);
 
   cpi->td.rd_counts = sb_fp_stats->rd_count;
-  cpi->td.mb.txb_split_count = sb_fp_stats->split_count;
+  x->txfm_search_info.txb_split_count = sb_fp_stats->split_count;
 
   *td->counts = sb_fp_stats->fc;
 
@@ -4854,7 +4861,7 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 #endif
 
   // Reset hash state for transform/mode rd hash information
-  reset_hash_records(x, cpi->sf.tx_sf.use_inter_txb_hash);
+  reset_hash_records(&x->txfm_search_info, cpi->sf.tx_sf.use_inter_txb_hash);
   av1_zero(x->picked_ref_frames_mask);
   av1_zero(x->pred_mv);
   av1_invalid_rd_stats(rd_cost);
@@ -5244,7 +5251,8 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
 
   if (cpi->oxcf.enable_cfl_intra) cfl_init(&td->mb.e_mbd.cfl, &cm->seq_params);
 
-  av1_crc32c_calculator_init(&td->mb.mb_rd_record.crc_calculator);
+  av1_crc32c_calculator_init(
+      &td->mb.txfm_search_info.mb_rd_record.crc_calculator);
 
   for (int mi_row = tile_info->mi_row_start; mi_row < tile_info->mi_row_end;
        mi_row += cm->seq_params.mib_size) {
@@ -6066,9 +6074,9 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   // Figure out which ref frames can be skipped at frame level.
   setup_prune_ref_frame_mask(cpi);
 
-  x->txb_split_count = 0;
+  x->txfm_search_info.txb_split_count = 0;
 #if CONFIG_SPEED_STATS
-  x->tx_search_count = 0;
+  x->txfm_search_info.tx_search_count = 0;
 #endif  // CONFIG_SPEED_STATS
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -6324,7 +6332,7 @@ void av1_encode_frame(AV1_COMP *cpi) {
 
     if (!cm->tiles.large_scale) {
       if (features->tx_mode == TX_MODE_SELECT &&
-          cpi->td.mb.txb_split_count == 0)
+          cpi->td.mb.txfm_search_info.txb_split_count == 0)
         features->tx_mode = TX_MODE_LARGEST;
     }
   } else {
@@ -6376,7 +6384,7 @@ static AOM_INLINE void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
 #endif
     if (allow_update_cdf)
       update_cdf(xd->tile_ctx->txfm_partition_cdf[ctx], 1, 2);
-    ++x->txb_split_count;
+    ++x->txfm_search_info.txb_split_count;
 
     if (sub_txs == TX_4X4) {
       mbmi->inter_tx_size[txb_size_index] = TX_4X4;
@@ -6595,7 +6603,7 @@ static AOM_INLINE void encode_superblock(const AV1_COMP *const cpi,
                                   tile_data->allow_update_cdf);
       } else {
         if (mbmi->tx_size != max_txsize_rect_lookup[bsize])
-          ++x->txb_split_count;
+          ++x->txfm_search_info.txb_split_count;
         if (block_signals_txsize(bsize)) {
           const int tx_size_ctx = get_tx_size_context(xd);
           const int32_t tx_size_cat = bsize_to_tx_size_cat(bsize);
@@ -6632,7 +6640,8 @@ static AOM_INLINE void encode_superblock(const AV1_COMP *const cpi,
               mi_row + j < cm->mi_params.mi_rows)
             mi_4x4[mis * j + i]->tx_size = intra_tx_size;
 
-      if (intra_tx_size != max_txsize_rect_lookup[bsize]) ++x->txb_split_count;
+      if (intra_tx_size != max_txsize_rect_lookup[bsize])
+        ++x->txfm_search_info.txb_split_count;
     }
   }
 

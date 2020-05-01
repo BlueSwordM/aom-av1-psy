@@ -286,7 +286,8 @@ static int64_t calc_rd_given_intra_angle(
   this_rd = RDCOST(x->rdmult, this_rate, tokenonly_rd_stats.dist);
 
   if (this_rd < *best_rd) {
-    memcpy(best_blk_skip, x->blk_skip, sizeof(best_blk_skip[0]) * n4);
+    memcpy(best_blk_skip, x->txfm_search_info.blk_skip,
+           sizeof(best_blk_skip[0]) * n4);
     av1_copy_array(best_tx_type_map, xd->tx_type_map, n4);
     *best_rd = this_rd;
     *best_angle_delta = mbmi->angle_delta[PLANE_TYPE_Y];
@@ -455,8 +456,8 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
       best_tx_size = mbmi->tx_size;
       filter_intra_mode_info = mbmi->filter_intra_mode_info;
       av1_copy_array(best_tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
-      memcpy(ctx->blk_skip, x->blk_skip,
-             sizeof(x->blk_skip[0]) * ctx->num_4x4_blk);
+      memcpy(ctx->blk_skip, x->txfm_search_info.blk_skip,
+             sizeof(x->txfm_search_info.blk_skip[0]) * ctx->num_4x4_blk);
       *rate = this_rate;
       *rate_tokenonly = tokenonly_rd_stats.rate;
       *distortion = tokenonly_rd_stats.dist;
@@ -627,7 +628,8 @@ static AOM_INLINE void palette_rd_y(
     memcpy(best_palette_color_map, color_map,
            block_width * block_height * sizeof(color_map[0]));
     *best_mbmi = *mbmi;
-    memcpy(blk_skip, x->blk_skip, sizeof(x->blk_skip[0]) * ctx->num_4x4_blk);
+    memcpy(blk_skip, x->txfm_search_info.blk_skip,
+           sizeof(x->txfm_search_info.blk_skip[0]) * ctx->num_4x4_blk);
     av1_copy_array(tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
     if (rate) *rate = this_rate;
     if (rate_tokenonly) *rate_tokenonly = tokenonly_rd_stats.rate;
@@ -1569,7 +1571,7 @@ int av1_search_palette_mode(const AV1_COMP *cpi, MACROBLOCK *x,
     return skippable;
   }
 
-  memcpy(x->blk_skip, best_blk_skip,
+  memcpy(x->txfm_search_info.blk_skip, best_blk_skip,
          sizeof(best_blk_skip[0]) * bsize_to_num_blk(bsize));
   av1_copy_array(xd->tx_type_map, best_tx_type_map, ctx->num_4x4_blk);
   memcpy(color_map, best_palette_color_map,
@@ -1648,7 +1650,8 @@ static AOM_INLINE int intra_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
     *rate_tokenonly = this_rate_tokenonly;
     *distortion = rd_stats.dist;
     *skippable = rd_stats.skip_txfm;
-    av1_copy_array(ctx->blk_skip, x->blk_skip, ctx->num_4x4_blk);
+    av1_copy_array(ctx->blk_skip, x->txfm_search_info.blk_skip,
+                   ctx->num_4x4_blk);
     av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
     return 1;
   }
@@ -1716,7 +1719,8 @@ static int64_t rd_pick_intra_angle_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
     mbmi->tx_size = best_tx_size;
     mbmi->angle_delta[PLANE_TYPE_Y] = best_angle_delta;
     const int n4 = bsize_to_num_blk(bsize);
-    memcpy(x->blk_skip, best_blk_skip, sizeof(best_blk_skip[0]) * n4);
+    memcpy(x->txfm_search_info.blk_skip, best_blk_skip,
+           sizeof(best_blk_skip[0]) * n4);
     av1_copy_array(xd->tx_type_map, best_tx_type_map, n4);
   }
   return best_rd;
@@ -1797,7 +1801,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
       TX_SIZE best_tx_size = mbmi->tx_size;
       FILTER_INTRA_MODE best_fi_mode = FILTER_DC_PRED;
       uint8_t best_blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
-      memcpy(best_blk_skip, x->blk_skip,
+      memcpy(best_blk_skip, x->txfm_search_info.blk_skip,
              sizeof(best_blk_skip[0]) * ctx->num_4x4_blk);
       uint8_t best_tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
       av1_copy_array(best_tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
@@ -1820,7 +1824,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
         if (this_rd_tmp < best_rd_so_far) {
           best_tx_size = mbmi->tx_size;
           av1_copy_array(best_tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
-          memcpy(best_blk_skip, x->blk_skip,
+          memcpy(best_blk_skip, x->txfm_search_info.blk_skip,
                  sizeof(best_blk_skip[0]) * ctx->num_4x4_blk);
           best_fi_mode = fi_mode;
           *rd_stats_y = rd_stats_y_fi;
@@ -1831,8 +1835,8 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
 
       mbmi->tx_size = best_tx_size;
       av1_copy_array(xd->tx_type_map, best_tx_type_map, ctx->num_4x4_blk);
-      memcpy(x->blk_skip, best_blk_skip,
-             sizeof(x->blk_skip[0]) * ctx->num_4x4_blk);
+      memcpy(x->txfm_search_info.blk_skip, best_blk_skip,
+             sizeof(x->txfm_search_info.blk_skip[0]) * ctx->num_4x4_blk);
 
       if (filter_intra_selected_flag) {
         mbmi->filter_intra_mode_info.use_filter_intra = 1;
@@ -2053,8 +2057,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       *rate_tokenonly = this_rate_tokenonly;
       *distortion = this_distortion;
       *skippable = s;
-      memcpy(ctx->blk_skip, x->blk_skip,
-             sizeof(x->blk_skip[0]) * ctx->num_4x4_blk);
+      memcpy(ctx->blk_skip, x->txfm_search_info.blk_skip,
+             sizeof(x->txfm_search_info.blk_skip[0]) * ctx->num_4x4_blk);
       av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
     }
   }

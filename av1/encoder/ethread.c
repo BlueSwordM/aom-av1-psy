@@ -401,7 +401,8 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
                            &td->mb.e_mbd);
 
     cfl_init(&td->mb.e_mbd.cfl, &cm->seq_params);
-    av1_crc32c_calculator_init(&td->mb.mb_rd_record.crc_calculator);
+    av1_crc32c_calculator_init(
+        &td->mb.txfm_search_info.mb_rd_record.crc_calculator);
 
     av1_encode_sb_row(cpi, td, tile_row, tile_col, current_mi_row);
 #if CONFIG_MULTITHREAD
@@ -595,9 +596,11 @@ static AOM_INLINE void accumulate_counters_enc_workers(AV1_COMP *cpi,
     if (i > 0) {
       av1_accumulate_frame_counts(&cpi->counts, thread_data->td->counts);
       accumulate_rd_opt(&cpi->td, thread_data->td);
-      cpi->td.mb.txb_split_count += thread_data->td->mb.txb_split_count;
+      cpi->td.mb.txfm_search_info.txb_split_count +=
+          thread_data->td->mb.txfm_search_info.txb_split_count;
 #if CONFIG_SPEED_STATS
-      cpi->td.mb.tx_search_count += thread_data->td->mb.tx_search_count;
+      cpi->td.mb.txfm_search_info.tx_search_count +=
+          thread_data->td->mb.txfm_search_info.tx_search_count;
 #endif  // CONFIG_SPEED_STATS
     }
   }

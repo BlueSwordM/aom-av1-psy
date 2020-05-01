@@ -366,7 +366,9 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
   l = &args->tl[blk_row];
 
   TX_TYPE tx_type = DCT_DCT;
-  if (!is_blk_skip(x, plane, blk_row * bw + blk_col) && !mbmi->skip_mode) {
+  if (!is_blk_skip(x->txfm_search_info.blk_skip, plane,
+                   blk_row * bw + blk_col) &&
+      !mbmi->skip_mode) {
     tx_type = av1_get_tx_type(xd, pd->plane_type, blk_row, blk_col, tx_size,
                               cm->features.reduced_tx_set_used);
     TxfmParam txfm_param;
@@ -601,7 +603,7 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   mbmi->skip_txfm = 1;
-  if (x->skip_txfm) return;
+  if (x->txfm_search_info.skip_txfm) return;
 
   struct optimize_ctx ctx;
   struct encode_b_args arg = {
@@ -690,7 +692,8 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
 
   TX_TYPE tx_type = DCT_DCT;
   const int bw = mi_size_wide[plane_bsize];
-  if (plane == 0 && is_blk_skip(x, plane, blk_row * bw + blk_col)) {
+  if (plane == 0 && is_blk_skip(x->txfm_search_info.blk_skip, plane,
+                                blk_row * bw + blk_col)) {
     *eob = 0;
     p->txb_entropy_ctx[block] = 0;
   } else {

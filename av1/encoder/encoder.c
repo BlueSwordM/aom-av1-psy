@@ -6939,8 +6939,8 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
 #endif  // CONFIG_INTERNAL_STATS
 #if CONFIG_SPEED_STATS
   if (!is_stat_generation_stage(cpi) && !cm->show_existing_frame) {
-    cpi->tx_search_count += cpi->td.mb.tx_search_count;
-    cpi->td.mb.tx_search_count = 0;
+    cpi->tx_search_count += cpi->td.mb.txfm_search_info.tx_search_count;
+    cpi->td.mb.txfm_search_info.tx_search_count = 0;
   }
 #endif  // CONFIG_SPEED_STATS
 

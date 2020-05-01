@@ -297,6 +297,61 @@ typedef struct {
   TX_MODE tx_mode_search_type;
 } TxfmSearchParams;
 
+#define MAX_NUM_8X8_TXBS ((MAX_MIB_SIZE >> 1) * (MAX_MIB_SIZE >> 1))
+#define MAX_NUM_16X16_TXBS ((MAX_MIB_SIZE >> 2) * (MAX_MIB_SIZE >> 2))
+#define MAX_NUM_32X32_TXBS ((MAX_MIB_SIZE >> 3) * (MAX_MIB_SIZE >> 3))
+#define MAX_NUM_64X64_TXBS ((MAX_MIB_SIZE >> 4) * (MAX_MIB_SIZE >> 4))
+
+// This struct stores various encoding/search decisions related to txfm search.
+// This can include cache of previous txfm results, the current encoding
+// decision, etc.
+typedef struct {
+  // Skips transform and quantization on a partition block level.
+  int skip_txfm;
+
+  // Skips transform and quantization on a transform block level inside the
+  // current partition block. Each element of this array is used as a bit-field.
+  // So for example, the we are skipping on the luma plane, then the last bit
+  // would be set to 1.
+  uint8_t blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
+
+  // Keeps a record of what kind of transform to use for each of the transform
+  // block inside the partition block. A quick note here: the buffer here is
+  // NEVER directly used. Instead, this just allocates the memory for
+  // MACROBLOCKD::tx_type_map during rdopt on the partition block. So if we need
+  // to save memory, we could move the allocation to pick_sb_mode instead.
+  uint8_t tx_type_map_[MAX_MIB_SIZE * MAX_MIB_SIZE];
+
+  // Records of a partition block's inter-mode txfm result hashed by its
+  // residue. This is similar to txb_rd_record_*, but this operates on the whole
+  // prediction block.
+  MB_RD_RECORD mb_rd_record;
+
+  // Records of a transform block's result hashed by residue within the
+  // transform block. This operates on txb level only and only applies to square
+  // txfms.
+  // Inter transform block RD search
+  TXB_RD_RECORD txb_rd_record_8X8[MAX_NUM_8X8_TXBS];
+  TXB_RD_RECORD txb_rd_record_16X16[MAX_NUM_16X16_TXBS];
+  TXB_RD_RECORD txb_rd_record_32X32[MAX_NUM_32X32_TXBS];
+  TXB_RD_RECORD txb_rd_record_64X64[MAX_NUM_64X64_TXBS];
+  // Intra transform block RD search
+  TXB_RD_RECORD txb_rd_record_intra;
+
+  // Keep track of how many times we've used split partition for transform
+  // blocks. Misleadingly, his parameter doesn't actually keep track of the
+  // count of the current block. Instead, it's a cumulative count across of the
+  // whole frame. The main usage is that if txb_split_count is zero, then we
+  // can signal TX_MODE_LARGEST at frame level.
+  // TODO(chiyotsai@google.com): Move this to a more appropriate location such
+  // as ThreadData.
+  unsigned int txb_split_count;
+#if CONFIG_SPEED_STATS
+  // For debugging. Used to check how many txfm searches we are doing.
+  unsigned int tx_search_count;
+#endif  // CONFIG_SPEED_STATS
+} TxfmSearchInfo;
+
 struct inter_modes_info;
 typedef struct macroblock MACROBLOCK;
 struct macroblock {
@@ -309,18 +364,6 @@ struct macroblock {
 
   // prune_comp_search_by_single_result (3:MAX_REF_MV_SEARCH)
   SimpleRDState simple_rd_state[SINGLE_REF_MODES][3];
-
-  // Inter macroblock RD search info.
-  MB_RD_RECORD mb_rd_record;
-
-  // Inter transform block RD search info. for square TX sizes.
-  TXB_RD_RECORD txb_rd_record_8X8[(MAX_MIB_SIZE >> 1) * (MAX_MIB_SIZE >> 1)];
-  TXB_RD_RECORD txb_rd_record_16X16[(MAX_MIB_SIZE >> 2) * (MAX_MIB_SIZE >> 2)];
-  TXB_RD_RECORD txb_rd_record_32X32[(MAX_MIB_SIZE >> 3) * (MAX_MIB_SIZE >> 3)];
-  TXB_RD_RECORD txb_rd_record_64X64[(MAX_MIB_SIZE >> 4) * (MAX_MIB_SIZE >> 4)];
-
-  // Intra transform block RD search info. for square TX sizes.
-  TXB_RD_RECORD txb_rd_record_intra;
 
   MACROBLOCKD e_mbd;
   MB_MODE_INFO_EXT *mbmi_ext;
@@ -340,11 +383,6 @@ struct macroblock {
   int rdmult;
   int mb_energy;
   int sb_energy_level;
-
-  unsigned int txb_split_count;
-#if CONFIG_SPEED_STATS
-  unsigned int tx_search_count;
-#endif  // CONFIG_SPEED_STATS
 
   // These are set to their default values at the beginning, and then adjusted
   // further in the encoding process.
@@ -395,11 +433,6 @@ struct macroblock {
   // Stores the entropy cost needed to encode a motion vector.
   MvCostInfo mv_cost_info;
 
-  uint8_t blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
-  uint8_t tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
-
-  // Forces the coding block to skip transform and quantization.
-  int skip_txfm;
   int skip_txfm_cost[SKIP_CONTEXTS][2];
 
   // Skip mode tries to use the closest forward and backward references for
@@ -410,7 +443,6 @@ struct macroblock {
 
   LV_MAP_COEFF_COST coeff_costs[TX_SIZES][PLANE_TYPES];
   LV_MAP_EOB_COST eob_costs[7][2];
-  uint16_t cb_offset;
 
   // mode costs
   int intra_inter_cost[INTRA_INTER_CONTEXTS][2];
@@ -494,8 +526,6 @@ struct macroblock {
   COMP_RD_STATS comp_rd_stats[MAX_COMP_RD_STATS];
   int comp_rd_stats_idx;
 
-  CB_COEFF_BUFFER *cb_coef_buff;
-
 #if !CONFIG_REALTIME_ONLY
   int quad_tree_idx;
   int cnn_output_valid;
@@ -518,11 +548,22 @@ struct macroblock {
   uint8_t color_sensitivity[2];
   int nonrd_prune_ref_frame_search;
 
+  uint8_t search_ref_frame[REF_FRAMES];
+
   // Stores various txfm search related parameters such as txfm_type, txfm_size,
   // trellis eob search, etc.
   TxfmSearchParams txfm_search_params;
 
-  uint8_t search_ref_frame[REF_FRAMES];
+  // Caches old txfm search results and keeps the current txfm decisions.
+  TxfmSearchInfo txfm_search_info;
+
+  // Points to cb_coef_buff in the AV1_COMP struct, which contains the finalized
+  // coefficients. This is here to conveniently copy the best coefficients to
+  // frame level for bitstream packing. Since CB_COEFF_BUFFER is allocated on a
+  // superblock level, we need to combine it with cb_offset to get the proper
+  // position for the current coding block.
+  CB_COEFF_BUFFER *cb_coef_buff;
+  uint16_t cb_offset;
 
   // The information on a whole superblock level.
   // TODO(chiyotsai@google.com): Refactor this out of macroblock
@@ -585,34 +626,34 @@ static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
   return depth;
 }
 
-static INLINE void set_blk_skip(MACROBLOCK *x, int plane, int blk_idx,
+static INLINE void set_blk_skip(uint8_t txb_skip[], int plane, int blk_idx,
                                 int skip) {
   if (skip)
-    x->blk_skip[blk_idx] |= 1UL << plane;
+    txb_skip[blk_idx] |= 1UL << plane;
   else
-    x->blk_skip[blk_idx] &= ~(1UL << plane);
+    txb_skip[blk_idx] &= ~(1UL << plane);
 #ifndef NDEBUG
   // Set chroma planes to uninitialized states when luma is set to check if
   // it will be set later
   if (plane == 0) {
-    x->blk_skip[blk_idx] |= 1UL << (1 + 4);
-    x->blk_skip[blk_idx] |= 1UL << (2 + 4);
+    txb_skip[blk_idx] |= 1UL << (1 + 4);
+    txb_skip[blk_idx] |= 1UL << (2 + 4);
   }
 
   // Clear the initialization checking bit
-  x->blk_skip[blk_idx] &= ~(1UL << (plane + 4));
+  txb_skip[blk_idx] &= ~(1UL << (plane + 4));
 #endif
 }
 
-static INLINE int is_blk_skip(MACROBLOCK *x, int plane, int blk_idx) {
+static INLINE int is_blk_skip(uint8_t *txb_skip, int plane, int blk_idx) {
 #ifndef NDEBUG
   // Check if this is initialized
-  assert(!(x->blk_skip[blk_idx] & (1UL << (plane + 4))));
+  assert(!(txb_skip[blk_idx] & (1UL << (plane + 4))));
 
   // The magic number is 0x77, this is to test if there is garbage data
-  assert((x->blk_skip[blk_idx] & 0x88) == 0);
+  assert((txb_skip[blk_idx] & 0x88) == 0);
 #endif
-  return (x->blk_skip[blk_idx] >> plane) & 1;
+  return (txb_skip[blk_idx] >> plane) & 1;
 }
 
 #ifdef __cplusplus
