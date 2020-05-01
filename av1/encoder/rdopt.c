@@ -2375,6 +2375,34 @@ static int process_compound_inter_mode(
   return 0;
 }
 
+// Speed feature to prune out MVs that are similar to previous MVs if they
+// don't achieve the best RD advantage.
+static int prune_ref_mv_idx_search(int ref_mv_idx, int best_ref_mv_idx,
+                                   int_mv save_mv[MAX_REF_MV_SEARCH - 1][2],
+                                   MB_MODE_INFO *mbmi) {
+  int i;
+  const int is_comp_pred = has_second_ref(mbmi);
+  if (ref_mv_idx < MAX_REF_MV_SEARCH - 1) {
+    for (i = 0; i < is_comp_pred + 1; ++i)
+      save_mv[ref_mv_idx][i].as_int = mbmi->mv[i].as_int;
+  }
+  // Skip the evaluation if an MV match is found.
+  if (ref_mv_idx > 0) {
+    for (int idx = 0; idx < ref_mv_idx; ++idx) {
+      int mv_diff = 0;
+      for (i = 0; i < 1 + is_comp_pred; ++i) {
+        mv_diff += abs(save_mv[idx][i].as_mv.row - mbmi->mv[i].as_mv.row) +
+                   abs(save_mv[idx][i].as_mv.col - mbmi->mv[i].as_mv.col);
+      }
+
+      // If this mode is not the best one, and current MV is similar to
+      // previous stored MV, terminate this ref_mv_idx evaluation.
+      if (best_ref_mv_idx == -1 && mv_diff < 1) return 1;
+    }
+  }
+  return 0;
+}
+
 /*
    Do the RD search for a given inter mode and compute all information relevant
    to the input mode. It will compute the best MV,
@@ -2567,33 +2595,11 @@ static int64_t handle_inter_mode(
       continue;
     }
 
-    if (cpi->sf.inter_sf.prune_ref_mv_idx_search && is_comp_pred) {
-      // TODO(yunqing): Move this part to a separate function when it is done.
-      // Store MV result.
-      if (ref_mv_idx < MAX_REF_MV_SEARCH - 1) {
-        for (i = 0; i < is_comp_pred + 1; ++i)
-          save_mv[ref_mv_idx][i].as_int = mbmi->mv[i].as_int;
-      }
-      // Skip the evaluation if an MV match is found.
-      if (ref_mv_idx > 0) {
-        int match = 0;
-        for (int idx = 0; idx < ref_mv_idx; ++idx) {
-          int mv_diff = 0;
-          for (i = 0; i < 1 + is_comp_pred; ++i) {
-            mv_diff += abs(save_mv[idx][i].as_mv.row - mbmi->mv[i].as_mv.row) +
-                       abs(save_mv[idx][i].as_mv.col - mbmi->mv[i].as_mv.col);
-          }
-
-          // If this mode is not the best one, and current MV is similar to
-          // previous stored MV, terminate this ref_mv_idx evaluation.
-          if (best_ref_mv_idx == -1 && mv_diff < 1) {
-            match = 1;
-            break;
-          }
-        }
-        if (match == 1) continue;
-      }
-    }
+    // Skip the rest of the search if prune_ref_mv_idx_search speed feature
+    // is enabled, and the current MV is similar to a previous one.
+    if (cpi->sf.inter_sf.prune_ref_mv_idx_search && is_comp_pred &&
+        prune_ref_mv_idx_search(ref_mv_idx, best_ref_mv_idx, save_mv, mbmi))
+      continue;
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, compound_type_rd_time);
