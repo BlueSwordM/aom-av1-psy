@@ -197,10 +197,10 @@ static struct av1_extracfg default_extra_cfg = {
   NO_AQ,                        // aq_mode
   DELTA_Q_OBJECTIVE,            // deltaq_mode
   0,                            // delta lf mode
-  0,                            // frame_periodic_delta_q
+  0,                            // frame_periodic_boost
   AOM_BITS_8,                   // Bit depth
   AOM_CONTENT_DEFAULT,          // content
-  AOM_CICP_CP_UNSPECIFIED,      // CICP color space
+  AOM_CICP_CP_UNSPECIFIED,      // CICP color primaries
   AOM_CICP_TC_UNSPECIFIED,      // CICP transfer characteristics
   AOM_CICP_MC_UNSPECIFIED,      // CICP matrix coefficients
   AOM_CSP_UNKNOWN,              // chroma sample position
