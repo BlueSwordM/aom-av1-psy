@@ -1,4 +1,4 @@
-/*!\mainpage AMedia Codec SDK
+/*!\mainpage AOMedia Codec SDK
 
   \section main_contents Page Contents
   - \ref main_intro
@@ -6,15 +6,15 @@
   - \ref main_support
 
   \section main_intro Introduction
-  Welcome to the AMedia Codec SDK. This SDK allows you to integrate your
+  Welcome to the AOMedia Codec SDK. This SDK allows you to integrate your
   applications with the AOM and AV1 video codecs.
 
   This distribution of the AOMedia Codec SDK includes the following support:
 
-  \if aom_encoder
+  \if av1_encoder
   - \ref aom_encoder
   \endif
-  \if aom_decoder
+  \if av1_decoder
   - \ref aom_decoder
   \endif
 
