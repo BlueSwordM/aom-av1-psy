@@ -194,7 +194,7 @@ enum aome_enc_control_id {
    * the expense of quality.
    *
    * Valid range: 0..8. 0 runs the slowest, and 8 runs the fastest;
-   * quality improves as run-time decreases (since more compression
+   * quality improves as speed decreases (since more compression
    * possibilities are explored).
    */
   AOME_SET_CPUUSED = 13,
@@ -319,11 +319,11 @@ enum aome_enc_control_id {
    * input source.
    *
    * - 0 = normal coding mode, may be lossy (default)
-   * - 1 = lossless
+   * - 1 = lossless coding mode
    */
   AV1E_SET_LOSSLESS = AV1E_SET_GF_CBR_BOOST_PCT + 2,  // 31
 
-  /*!\brief Code control function to enable the row based multi-threading
+  /*!\brief Codec control function to enable the row based multi-threading
    * of the encoder, unsigned int parameter
    *
    * - 0 = disable
@@ -485,7 +485,7 @@ enum aome_enc_control_id {
    *  - 10 = SMPTE 428 (CIE 1921 XYZ)
    *  - 11 = SMPTE RP 431-2
    *  - 12 = SMPTE EG 432-1
-   *  - 13 = For future use (values 13 - 21)
+   *  - 13..21 = For future use
    *  - 22 = EBU Tech. 3213-E
    *  - 23 = For future use
    */
@@ -540,7 +540,7 @@ enum aome_enc_control_id {
   /*!\brief Codec control function to set chroma 4:2:0 sample position info,
    * aom_chroma_sample_position_t parameter
    *
-   * UNKNOWN is default
+   * AOM_CSP_UNKNOWN is default
    */
   AV1E_SET_CHROMA_SAMPLE_POSITION = 48,
 
@@ -1004,6 +1004,9 @@ enum aome_enc_control_id {
   /*!\brief Codec control function to turn on / off smooth intra modes usage,
    * int parameter
    *
+   * This will enable or disable usage of smooth, smooth_h and smooth_v intra
+   * modes.
+   *
    * - 0 = disable
    * - 1 = enable (default)
    */
@@ -1019,6 +1022,8 @@ enum aome_enc_control_id {
 
   /*!\brief Codec control function to turn on / off CFL uv intra mode usage, int
    * parameter
+   *
+   * This will enable or disable usage of chroma-from-luma intra mode.
    *
    * - 0 = disable
    * - 1 = enable (default)
@@ -1079,13 +1084,15 @@ enum aome_enc_control_id {
   /*!\brief Codec control function to set the single tile decoding mode,
    * unsigned int parameter
    *
+   * \attention Only applicable if large scale tiling is on.
+   *
    * - 0 = single tile decoding is off
    * - 1 = single tile decoding is on (default)
    */
   AV1E_SET_SINGLE_TILE_DECODING = 109,
 
-  /*!\brief Codec control function to enable the motion vector unit test,
-   * unsigned int parameter
+  /*!\brief Codec control function to enable the extreme motion vector unit
+   * test, unsigned int parameter
    *
    * - 0 = off
    * - 1 = MAX_EXTREME_MV
@@ -1104,7 +1111,7 @@ enum aome_enc_control_id {
   /*!\brief Codec control function to add film grain parameters (one of several
    * preset types) info in the bitstream, int parameter
    *
-   Valid ranges: 0..16, 0 is unknown, 1..15 are test vectors
+   Valid range: 0..16, 0 is unknown, 1..16 are test vectors
    */
   AV1E_SET_FILM_GRAIN_TEST_VECTOR = 112,
 
