@@ -2358,6 +2358,12 @@ static int process_compound_inter_mode(
   return 0;
 }
 
+/*
+   Do the RD search for a given inter mode and compute all information relevant
+   to the input mode. It will compute the best MV,
+   compound parameters (if the mode is a compound mode) and interpolation filter
+   parameters.
+*/
 static int64_t handle_inter_mode(
     AV1_COMP *const cpi, TileDataEnc *tile_data, MACROBLOCK *x,
     BLOCK_SIZE bsize, RD_STATS *rd_stats, RD_STATS *rd_stats_y,
@@ -2436,6 +2442,15 @@ static int64_t handle_inter_mode(
   const int ref_mv_cost = cost_mv_ref(x, this_mode, mode_ctx);
   const int base_rate =
       args->ref_frame_cost + args->single_comp_cost + ref_mv_cost;
+
+  // Main loop of this function. This will  iterate over all of the ref mvs
+  // in the dynamic reference list and do the following:
+  //    1.) Get the current MV. Create newmv MV if necessary
+  //    2.) Search compound type and parameters if applicable
+  //    3.) Do interpolation filter search
+  //    4.) Build the inter predictor
+  //    5.) Pick the motion mode (SIMPLE_TRANSLATION, OBMC_CAUSAL,
+  //    WARPED_CAUSAL) 6.) Update stats if best so far
   for (int ref_mv_idx = 0; ref_mv_idx < ref_set; ++ref_mv_idx) {
     mode_info[ref_mv_idx].full_search_mv.as_int = INVALID_MV;
     mode_info[ref_mv_idx].mv.as_int = INVALID_MV;
