@@ -112,18 +112,6 @@ static int frame_is_boosted(const AV1_COMP *cpi) {
   return frame_is_kf_gf_arf(cpi);
 }
 
-static BLOCK_SIZE dim_to_size(int dim) {
-  switch (dim) {
-    case 4: return BLOCK_4X4;
-    case 8: return BLOCK_8X8;
-    case 16: return BLOCK_16X16;
-    case 32: return BLOCK_32X32;
-    case 64: return BLOCK_64X64;
-    case 128: return BLOCK_128X128;
-    default: assert(0); return 0;
-  }
-}
-
 static void set_good_speed_feature_framesize_dependent(
     const AV1_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -1163,21 +1151,10 @@ void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
     cpi->mv_search_params.find_fractional_mv_step = av1_return_max_sub_pixel_mv;
   else if (cpi->oxcf.motion_vector_unit_test == 2)
     cpi->mv_search_params.find_fractional_mv_step = av1_return_min_sub_pixel_mv;
-
-  MACROBLOCK *const x = &cpi->td.mb;
-  AV1_COMMON *const cm = &cpi->common;
-  x->min_partition_size = AOMMAX(sf->part_sf.default_min_partition_size,
-                                 dim_to_size(cpi->oxcf.min_partition_size));
-  x->max_partition_size = AOMMIN(sf->part_sf.default_max_partition_size,
-                                 dim_to_size(cpi->oxcf.max_partition_size));
-  x->min_partition_size = AOMMIN(x->min_partition_size, cm->seq_params.sb_size);
-  x->max_partition_size = AOMMIN(x->max_partition_size, cm->seq_params.sb_size);
 }
 
 void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
-  AV1_COMMON *const cm = &cpi->common;
   SPEED_FEATURES *const sf = &cpi->sf;
-  MACROBLOCK *const x = &cpi->td.mb;
   WinnerModeParams *const winner_mode_params = &cpi->winner_mode_params;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   int i;
@@ -1254,13 +1231,6 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
     mv_search_params->find_fractional_mv_step =
         av1_find_best_sub_pixel_tree_pruned_evenmore;
   }
-
-  x->min_partition_size = AOMMAX(sf->part_sf.default_min_partition_size,
-                                 dim_to_size(cpi->oxcf.min_partition_size));
-  x->max_partition_size = AOMMIN(sf->part_sf.default_max_partition_size,
-                                 dim_to_size(cpi->oxcf.max_partition_size));
-  x->min_partition_size = AOMMIN(x->min_partition_size, cm->seq_params.sb_size);
-  x->max_partition_size = AOMMIN(x->max_partition_size, cm->seq_params.sb_size);
 
   // This is only used in motion vector unit test.
   if (cpi->oxcf.motion_vector_unit_test == 1)

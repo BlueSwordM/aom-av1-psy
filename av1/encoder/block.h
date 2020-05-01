@@ -36,6 +36,10 @@ extern "C" {
 // SuperblockEnc stores superblock level information used by the encoder for
 // more efficient encoding.
 typedef struct {
+  // The maximum and minimum allowed partition size
+  BLOCK_SIZE min_partition_size;
+  BLOCK_SIZE max_partition_size;
+
   // Below are information gathered from tpl_model used to speed up the encoding
   // process.
   int tpl_data_count;
@@ -268,6 +272,33 @@ typedef struct {
   int **mv_cost_stack;
 } MvCostInfo;
 
+// This struct holds some parameters related to partitioning schemes in av1.
+// TODO(chiyotsai@google.com): Consolidate this with SIMPLE_MOTION_DATA_TREE
+typedef struct {
+#if !CONFIG_REALTIME_ONLY
+  // The following 4 parameters are used for cnn-based partitioning on intra
+  // frame.
+  // Where we are on the quad tree. Used to index into the cnn buffer for
+  // partition decision.
+  int quad_tree_idx;
+  // Whether the CNN buffer contains valid output
+  int cnn_output_valid;
+  // A buffer used by our segmentation CNN for intra-frame partitioning.
+  float cnn_buffer[CNN_OUT_BUF_SIZE];
+  // log of the quantization parameter of the current BLOCK_64X64 that includes
+  // the current block. Used as an input to the CNN.
+  float log_q;
+#endif
+
+  // Holds the variable of various subblocks. This is used by rt mode for
+  // variance based partitioning.
+  //   0    - 128x128  |  1-2   - 128x64  |   3-4   -  64x128
+  //  5-8   -  64x64   |  9-16  -  64x32  |  17-24  -  32x64
+  // 25-40  -  32x32
+  // 41-104 -  16x16
+  uint8_t variance_low[105];
+} PartitionSearchInfo;
+
 // This struct stores the parameters used to perform the txfm search. For the
 // most part, this determines how various speed features are used.
 typedef struct {
@@ -383,11 +414,6 @@ struct macroblock {
   int rdmult;
   int mb_energy;
   int sb_energy_level;
-
-  // These are set to their default values at the beginning, and then adjusted
-  // further in the encoding process.
-  BLOCK_SIZE min_partition_size;
-  BLOCK_SIZE max_partition_size;
 
   unsigned int max_mv_context[REF_FRAMES];
   unsigned int source_variance;
@@ -526,22 +552,7 @@ struct macroblock {
   COMP_RD_STATS comp_rd_stats[MAX_COMP_RD_STATS];
   int comp_rd_stats_idx;
 
-#if !CONFIG_REALTIME_ONLY
-  int quad_tree_idx;
-  int cnn_output_valid;
-  float cnn_buffer[CNN_OUT_BUF_SIZE];
-  float log_q;
-#endif
   int thresh_freq_fact[BLOCK_SIZES_ALL][MAX_MODES];
-  // 0 - 128x128
-  // 1-2 - 128x64
-  // 3-4 - 64x128
-  // 5-8 - 64x64
-  // 9-16 - 64x32
-  // 17-24 - 32x64
-  // 25-40 - 32x32
-  // 41-104 - 16x16
-  uint8_t variance_low[105];
   uint8_t content_state_sb;
   // Strong color activity detection. Used in REALTIME coding mode to enhance
   // the visual quality at the boundary of moving color objects.
@@ -549,6 +560,9 @@ struct macroblock {
   int nonrd_prune_ref_frame_search;
 
   uint8_t search_ref_frame[REF_FRAMES];
+
+  // Stores some partition-search related buffers.
+  PartitionSearchInfo part_search_info;
 
   // Stores various txfm search related parameters such as txfm_type, txfm_size,
   // trellis eob search, etc.

@@ -1509,10 +1509,10 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
       x->nonrd_prune_ref_frame_search) {
     if (is_small_sb)
       *force_skip_low_temp_var = get_force_skip_low_temp_var_small_sb(
-          &x->variance_low[0], mi_row, mi_col, bsize);
+          &x->part_search_info.variance_low[0], mi_row, mi_col, bsize);
     else
       *force_skip_low_temp_var = get_force_skip_low_temp_var(
-          &x->variance_low[0], mi_row, mi_col, bsize);
+          &x->part_search_info.variance_low[0], mi_row, mi_col, bsize);
     // If force_skip_low_temp_var is set, skip golden reference.
     if (*force_skip_low_temp_var) {
       use_golden_ref_frame = 0;

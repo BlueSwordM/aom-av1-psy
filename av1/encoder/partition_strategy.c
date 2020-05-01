@@ -69,8 +69,10 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
     return;
   }
 
+  PartitionSearchInfo *part_info = &x->part_search_info;
+
   // Precompute the CNN part and cache the result in MACROBLOCK
-  if (bsize == BLOCK_64X64 && !x->cnn_output_valid) {
+  if (bsize == BLOCK_64X64 && !part_info->cnn_output_valid) {
     aom_clear_system_state();
     const CNN_CONFIG *cnn_config = &av1_intra_mode_cnn_partition_cnn_config;
 
@@ -83,7 +85,7 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
     float *output_buffer[CNN_TOT_OUT_CH];
 
     float **cur_output_buf = output_buffer;
-    float *curr_buf_ptr = x->cnn_buffer;
+    float *curr_buf_ptr = part_info->cnn_buffer;
     for (int output_idx = 0; output_idx < num_outputs; output_idx++) {
       const int num_chs = out_chs[output_idx];
       const int ch_size = output_dims[output_idx] * output_dims[output_idx];
@@ -106,9 +108,10 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
     const int bit_depth = xd->bd;
     const int dc_q =
         av1_dc_quant_QTX(x->qindex, 0, bit_depth) >> (bit_depth - 8);
-    x->log_q = logf(1.0f + (float)(dc_q * dc_q) / 256.0f);
-    x->log_q = (x->log_q - av1_intra_mode_cnn_partition_mean[0]) /
-               av1_intra_mode_cnn_partition_std[0];
+    part_info->log_q = logf(1.0f + (float)(dc_q * dc_q) / 256.0f);
+    part_info->log_q =
+        (part_info->log_q - av1_intra_mode_cnn_partition_mean[0]) /
+        av1_intra_mode_cnn_partition_std[0];
 
     const int width = 65, height = 65,
               stride = x->plane[AOM_PLANE_Y].src.stride;
@@ -128,10 +131,10 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
                                     &thread_data, &output);
     }
 
-    x->cnn_output_valid = 1;
+    part_info->cnn_output_valid = 1;
   }
 
-  if (!x->cnn_output_valid) {
+  if (!part_info->cnn_output_valid) {
     return;
   }
 
@@ -149,7 +152,7 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
   float dnn_features[100];
   float logits[4] = { 0.0f };
 
-  const float *branch_0 = x->cnn_buffer;
+  const float *branch_0 = part_info->cnn_buffer;
   const float *branch_1 = branch_0 + CNN_BRANCH_0_OUT_SIZE;
   const float *branch_2 = branch_1 + CNN_BRANCH_1_OUT_SIZE;
   const float *branch_3 = branch_2 + CNN_BRANCH_2_OUT_SIZE;
@@ -166,7 +169,7 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
         dnn_features[f_idx++] = branch_1[lin_idx + ch_idx * spa_stride];
       }
     }
-    dnn_features[f_idx++] = x->log_q;
+    dnn_features[f_idx++] = part_info->log_q;
   } else if (bsize == BLOCK_32X32) {
     int f_idx = 0;
     for (int idx = 0; idx < CNN_BRANCH_0_OUT_CH; idx++) {
@@ -178,7 +181,7 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
     for (int ch_idx = 0; ch_idx < CNN_BRANCH_1_OUT_CH; ch_idx++) {
       dnn_features[f_idx++] = branch_1[curr_lin_idx + ch_idx * spa_stride];
     }
-    dnn_features[f_idx++] = x->log_q;
+    dnn_features[f_idx++] = part_info->log_q;
   } else if (bsize == BLOCK_16X16) {
     int f_idx = 0;
     const int prev_quad_idx = (quad_tree_idx - 1) / 4;
@@ -193,7 +196,7 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
     for (int ch_idx = 0; ch_idx < CNN_BRANCH_2_OUT_CH; ch_idx++) {
       dnn_features[f_idx++] = branch_2[curr_lin_idx + ch_idx * spa_stride];
     }
-    dnn_features[f_idx++] = x->log_q;
+    dnn_features[f_idx++] = part_info->log_q;
   } else if (bsize == BLOCK_8X8) {
     int f_idx = 0;
     const int prev_quad_idx = (quad_tree_idx - 1) / 4;
@@ -208,7 +211,7 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
     for (int ch_idx = 0; ch_idx < CNN_BRANCH_3_OUT_CH; ch_idx++) {
       dnn_features[f_idx++] = branch_3[curr_lin_idx + ch_idx * spa_stride];
     }
-    dnn_features[f_idx++] = x->log_q;
+    dnn_features[f_idx++] = part_info->log_q;
   } else {
     assert(0 && "Invalid bsize in intra_cnn partition");
   }
@@ -713,7 +716,8 @@ void av1_get_max_min_partition_features(AV1_COMP *const cpi, MACROBLOCK *x,
   assert(f_idx == FEATURE_SIZE_MAX_MIN_PART_PRED);
 }
 
-BLOCK_SIZE av1_predict_max_partition(AV1_COMP *const cpi, MACROBLOCK *const x,
+BLOCK_SIZE av1_predict_max_partition(const AV1_COMP *const cpi,
+                                     const MACROBLOCK *const x,
                                      const float *features) {
   float scores[MAX_NUM_CLASSES_MAX_MIN_PART_PRED] = { 0.0f },
         probs[MAX_NUM_CLASSES_MAX_MIN_PART_PRED] = { 0.0f };
@@ -749,7 +753,7 @@ BLOCK_SIZE av1_predict_max_partition(AV1_COMP *const cpi, MACROBLOCK *const x,
   } else if (cpi->sf.part_sf.auto_max_partition_based_on_simple_motion ==
              ADAPT_PRED) {
     const BLOCK_SIZE sb_size = cpi->common.seq_params.sb_size;
-    MACROBLOCKD *const xd = &x->e_mbd;
+    const MACROBLOCKD *const xd = &x->e_mbd;
     // TODO(debargha): x->source_variance is unavailable at this point,
     // so compute. The redundant recomputation later can be removed.
     const unsigned int source_variance =

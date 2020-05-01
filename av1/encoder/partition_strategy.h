@@ -78,7 +78,8 @@ void av1_get_max_min_partition_features(AV1_COMP *const cpi, MACROBLOCK *x,
                                         float *features);
 
 // Predict the maximum BLOCK_SIZE to be used to encoder the current superblock.
-BLOCK_SIZE av1_predict_max_partition(AV1_COMP *const cpi, MACROBLOCK *const x,
+BLOCK_SIZE av1_predict_max_partition(const AV1_COMP *const cpi,
+                                     const MACROBLOCK *const x,
                                      const float *features);
 
 // Attempts an early termination after PARTITION_SPLIT.
@@ -200,12 +201,12 @@ static INLINE int is_full_sb(const CommonModeInfoParams *const mi_params,
 // Do not use this criteria for screen content videos.
 // Since screen content videos could often find good predictors and the largest
 // block size is likely to be used.
-static INLINE int use_auto_max_partition(AV1_COMP *const cpi,
+static INLINE int use_auto_max_partition(const AV1_COMP *const cpi,
                                          BLOCK_SIZE sb_size, int mi_row,
                                          int mi_col) {
   assert(IMPLIES(cpi->gf_group.size > 0,
                  cpi->gf_group.index < cpi->gf_group.size));
-  AV1_COMMON *const cm = &cpi->common;
+  const AV1_COMMON *const cm = &cpi->common;
   return !frame_is_intra_only(cm) && !cpi->is_screen_content_type &&
          cpi->sf.part_sf.auto_max_partition_based_on_simple_motion !=
              NOT_IN_USE &&
