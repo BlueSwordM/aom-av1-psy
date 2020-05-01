@@ -1362,7 +1362,7 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV1D_GET_FRAME_HEADER_INFO, ctrl_get_frame_header_info },
   { AV1D_GET_TILE_DATA, ctrl_get_tile_data },
 
-  { -1, NULL },
+  CTRL_MAP_END,
 };
 
 // This data structure and function are exported in aom/aomdx.h
