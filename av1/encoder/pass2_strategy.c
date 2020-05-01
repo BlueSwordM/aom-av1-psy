@@ -894,9 +894,18 @@ static void allocate_gf_group_bits(GF_GROUP *gf_group, RATE_CONTROL *const rc,
 }
 
 // Returns true if KF group and GF group both are almost completely static.
-static INLINE int is_almost_static(double gf_zero_motion, int kf_zero_motion) {
-  return (gf_zero_motion >= 0.995) &&
-         (kf_zero_motion >= STATIC_KF_GROUP_THRESH);
+static INLINE int is_almost_static(double gf_zero_motion, int kf_zero_motion,
+                                   int is_lap_enabled) {
+  if (is_lap_enabled) {
+    /*
+     * when LAP enabled kf_zero_motion is not reliable, so use strict
+     * constraint on gf_zero_motion.
+     */
+    return (gf_zero_motion >= 0.999);
+  } else {
+    return (gf_zero_motion >= 0.995) &&
+           (kf_zero_motion >= STATIC_KF_GROUP_THRESH);
+  }
 }
 
 #define ARF_ABS_ZOOM_THRESH 4.4
@@ -935,7 +944,7 @@ static INLINE int detect_gf_cut(AV1_COMP *cpi, int frame_index, int cur_start,
   // so we can continue for more frames.
   if (((frame_index - cur_start) >= active_max_gf_interval + 1) &&
       !is_almost_static(gf_stats->zero_motion_accumulator,
-                        twopass->kf_zeromotion_pct)) {
+                        twopass->kf_zeromotion_pct, cpi->lap_enabled)) {
     return 1;
   }
   return 0;
@@ -1605,11 +1614,12 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
 
   int use_alt_ref;
   if (can_disable_arf) {
-    use_alt_ref = !is_almost_static(gf_stats.zero_motion_accumulator,
-                                    twopass->kf_zeromotion_pct) &&
-                  gf_stats.allow_alt_ref && (i < cpi->oxcf.lag_in_frames) &&
-                  (i >= MIN_GF_INTERVAL) &&
-                  (cpi->oxcf.gf_max_pyr_height > MIN_PYRAMID_LVL);
+    use_alt_ref =
+        !is_almost_static(gf_stats.zero_motion_accumulator,
+                          twopass->kf_zeromotion_pct, cpi->lap_enabled) &&
+        gf_stats.allow_alt_ref && (i < cpi->oxcf.lag_in_frames) &&
+        (i >= MIN_GF_INTERVAL) &&
+        (cpi->oxcf.gf_max_pyr_height > MIN_PYRAMID_LVL);
 
     // TODO(urvang): Improve and use model for VBR, CQ etc as well.
     if (use_alt_ref && cpi->oxcf.rc_mode == AOM_Q &&
