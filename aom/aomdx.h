@@ -106,7 +106,7 @@ typedef struct av1_ext_ref_frame {
  * This set of macros define the control functions available for the AOM
  * decoder interface.
  *
- * \sa #aom_codec_control
+ * \sa #aom_codec_control(aom_codec_ctx_t *ctx, int ctrl_id, ...)
  */
 enum aom_dec_control_id {
   /*!\brief Codec control function to get info on which reference frames were
@@ -304,59 +304,87 @@ enum aom_dec_control_id {
 /*!\cond */
 /*!\brief AOM decoder control function parameter type
  *
- * Defines the data types that AOMD control functions take. Note that
- * additional common controls are defined in aom.h
+ * Defines the data types that AOMD control functions take.
  *
+ * \note Additional common controls are defined in aom.h.
+ *
+ * \note For each control ID "X", a macro-define of
+ * AOM_CTRL_X is provided. It is used at compile time to determine
+ * if the control ID is supported by the libaom library available,
+ * when the libaom version cannot be controlled.
  */
-
 AOM_CTRL_USE_TYPE(AOMD_GET_LAST_REF_UPDATES, int *)
 #define AOM_CTRL_AOMD_GET_LAST_REF_UPDATES
+
 AOM_CTRL_USE_TYPE(AOMD_GET_FRAME_CORRUPTED, int *)
 #define AOM_CTRL_AOMD_GET_FRAME_CORRUPTED
+
 AOM_CTRL_USE_TYPE(AOMD_GET_LAST_REF_USED, int *)
 #define AOM_CTRL_AOMD_GET_LAST_REF_USED
+
 AOM_CTRL_USE_TYPE(AOMD_GET_LAST_QUANTIZER, int *)
 #define AOM_CTRL_AOMD_GET_LAST_QUANTIZER
+
 AOM_CTRL_USE_TYPE(AV1D_GET_DISPLAY_SIZE, int *)
 #define AOM_CTRL_AV1D_GET_DISPLAY_SIZE
+
 AOM_CTRL_USE_TYPE(AV1D_GET_BIT_DEPTH, unsigned int *)
 #define AOM_CTRL_AV1D_GET_BIT_DEPTH
+
 AOM_CTRL_USE_TYPE(AV1D_GET_IMG_FORMAT, aom_img_fmt_t *)
 #define AOM_CTRL_AV1D_GET_IMG_FORMAT
+
 AOM_CTRL_USE_TYPE(AV1D_GET_TILE_SIZE, unsigned int *)
 #define AOM_CTRL_AV1D_GET_TILE_SIZE
+
 AOM_CTRL_USE_TYPE(AV1D_GET_TILE_COUNT, unsigned int *)
 #define AOM_CTRL_AV1D_GET_TILE_COUNT
+
 AOM_CTRL_USE_TYPE(AV1D_GET_FRAME_SIZE, int *)
 #define AOM_CTRL_AV1D_GET_FRAME_SIZE
+
 AOM_CTRL_USE_TYPE(AV1_INVERT_TILE_DECODE_ORDER, int)
 #define AOM_CTRL_AV1_INVERT_TILE_DECODE_ORDER
+
 AOM_CTRL_USE_TYPE(AV1_GET_ACCOUNTING, Accounting **)
 #define AOM_CTRL_AV1_GET_ACCOUNTING
+
 AOM_CTRL_USE_TYPE(AV1_SET_DECODE_TILE_ROW, int)
 #define AOM_CTRL_AV1_SET_DECODE_TILE_ROW
+
 AOM_CTRL_USE_TYPE(AV1_SET_DECODE_TILE_COL, int)
 #define AOM_CTRL_AV1_SET_DECODE_TILE_COL
+
 AOM_CTRL_USE_TYPE(AV1_SET_TILE_MODE, unsigned int)
 #define AOM_CTRL_AV1_SET_TILE_MODE
+
 AOM_CTRL_USE_TYPE(AV1D_GET_FRAME_HEADER_INFO, aom_tile_data *)
 #define AOM_CTRL_AV1D_GET_FRAME_HEADER_INFO
+
 AOM_CTRL_USE_TYPE(AV1D_GET_TILE_DATA, aom_tile_data *)
 #define AOM_CTRL_AV1D_GET_TILE_DATA
+
 AOM_CTRL_USE_TYPE(AV1D_SET_EXT_REF_PTR, av1_ext_ref_frame_t *)
 #define AOM_CTRL_AV1D_SET_EXT_REF_PTR
+
 AOM_CTRL_USE_TYPE(AV1D_EXT_TILE_DEBUG, unsigned int)
 #define AOM_CTRL_AV1D_EXT_TILE_DEBUG
+
 AOM_CTRL_USE_TYPE(AV1D_SET_ROW_MT, unsigned int)
 #define AOM_CTRL_AV1D_SET_ROW_MT
+
 AOM_CTRL_USE_TYPE(AV1D_SET_SKIP_FILM_GRAIN, int)
 #define AOM_CTRL_AV1D_SET_SKIP_FILM_GRAIN
+
 AOM_CTRL_USE_TYPE(AV1D_SET_IS_ANNEXB, unsigned int)
 #define AOM_CTRL_AV1D_SET_IS_ANNEXB
+
 AOM_CTRL_USE_TYPE(AV1D_SET_OPERATING_POINT, int)
 #define AOM_CTRL_AV1D_SET_OPERATING_POINT
+
 AOM_CTRL_USE_TYPE(AV1D_SET_OUTPUT_ALL_LAYERS, int)
 #define AOM_CTRL_AV1D_SET_OUTPUT_ALL_LAYERS
+
 AOM_CTRL_USE_TYPE(AV1_SET_INSPECTION_CALLBACK, aom_inspect_init *)
 #define AOM_CTRL_AV1_SET_INSPECTION_CALLBACK
 /*!\endcond */
