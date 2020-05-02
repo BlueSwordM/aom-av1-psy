@@ -726,7 +726,7 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
   memcpy(&xd->plane[2].seg_iqmatrix[segment_id],
          quant_params->giqmatrix[qmlevel_v][2],
          sizeof(quant_params->giqmatrix[qmlevel_v][2]));
-  x->skip_block = segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP);
+  x->seg_skip_block = segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP);
   x->qindex = qindex;
 
   MvCosts *mv_costs = &x->mv_costs;

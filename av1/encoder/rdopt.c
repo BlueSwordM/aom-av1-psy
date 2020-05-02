@@ -4695,9 +4695,9 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   PruneInfoFromTpl inter_cost_info_from_tpl;
 #if !CONFIG_REALTIME_ONLY
   if (cpi->sf.inter_sf.prune_inter_modes_based_on_tpl) {
-    // x->search_ref_frame[id] = 1 => no pruning in
+    // x->tpl_keep_ref_frame[id] = 1 => no pruning in
     // prune_ref_by_selective_ref_frame()
-    // x->search_ref_frame[id] = 0  => ref frame can be pruned in
+    // x->tpl_keep_ref_frame[id] = 0  => ref frame can be pruned in
     // prune_ref_by_selective_ref_frame()
     // Populating valid_refs[idx] = 1 ensures that
     // 'inter_cost_info_from_tpl.best_inter_cost' does not correspond to a
@@ -4706,7 +4706,7 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     for (MV_REFERENCE_FRAME frame = LAST_FRAME; frame < REF_FRAMES; frame++) {
       const MV_REFERENCE_FRAME refs[2] = { frame, NONE_FRAME };
       valid_refs[frame - 1] =
-          x->search_ref_frame[frame] ||
+          x->tpl_keep_ref_frame[frame] ||
           !prune_ref_by_selective_ref_frame(
               cpi, x, refs, cm->cur_frame->ref_display_order_hint);
     }

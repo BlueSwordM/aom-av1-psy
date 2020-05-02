@@ -14,6 +14,7 @@
 
 #include "av1/common/entropymv.h"
 #include "av1/common/entropy.h"
+#include "av1/common/enums.h"
 #include "av1/common/mvref_common.h"
 
 #include "av1/encoder/enc_enums.h"
@@ -72,6 +73,11 @@ enum {
   FINAL_PASS_TRELLIS_OPT,  // Trellis optimization in only the final encode pass
   NO_ESTIMATE_YRD_TRELLIS_OPT  // Disable trellis in estimate_yrd_for_sb
 } UENUM1BYTE(TRELLIS_OPT_TYPE);
+
+enum {
+  FULL_TXFM_RD,
+  LOW_TXFM_RD,
+} UENUM1BYTE(TXFM_RD_MODEL);
 
 enum {
   USE_FULL_RD = 0,
@@ -488,42 +494,49 @@ typedef struct {
 struct inter_modes_info;
 typedef struct macroblock MACROBLOCK;
 struct macroblock {
+  // ==========================================================================
+  // Source, Buffers and Decoder
+  // ==========================================================================
+  // Holds the src buffer for each of plane of the current block. This
+  // also contains the txfm and quantized txfm coefficients.
   struct macroblock_plane plane[MAX_MB_PLANE];
 
-  // Determine if one would go with reduced complexity transform block
-  // search model to select prediction modes, or full complexity model
-  // to select transform kernel.
-  int rd_model;
-
-  // prune_comp_search_by_single_result (3:MAX_REF_MV_SEARCH)
-  SimpleRDState simple_rd_state[SINGLE_REF_MODES][3];
-
+  // Contains the encoder's copy of what the decoder sees in the current block.
+  // Most importantly, this struct contains pointers to mbmi that is used in
+  // final bitstream packing.
   MACROBLOCKD e_mbd;
+
+  // Contains extra information not transmitted in the bitstream but are
+  // derived. For example, this contains the stack of ref_mvs.
   MB_MODE_INFO_EXT *mbmi_ext;
+
+  // Contains the finalized info in mbmi_ext that gets used at the frame level
+  // for bitstream packing.
   MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame;
-  // Array of mode stats for winner mode processing
-  WinnerModeStats winner_mode_stats[AOMMAX(MAX_WINNER_MODE_COUNT_INTRA,
-                                           MAX_WINNER_MODE_COUNT_INTER)];
-  int winner_mode_count;
-  int skip_block;
 
-  int mb_energy;
-  int sb_energy_level;
+  FRAME_CONTEXT *row_ctx;
+  // This context will be used to update color_map_cdf pointer which would be
+  // used during pack bitstream. For single thread and tile-multithreading case
+  // this pointer will be same as xd->tile_ctx, but for the case of row-mt:
+  // xd->tile_ctx will point to a temporary context while tile_pb_ctx will point
+  // to the accurate tile context.
+  FRAME_CONTEXT *tile_pb_ctx;
 
-  unsigned int max_mv_context[REF_FRAMES];
-  unsigned int source_variance;
-  unsigned int simple_motion_pred_sse;
-  unsigned int pred_sse[REF_FRAMES];
-  int pred_mv_sad[REF_FRAMES];
-  int best_pred_mv_sad;
+  // Points to cb_coef_buff in the AV1_COMP struct, which contains the finalized
+  // coefficients. This is here to conveniently copy the best coefficients to
+  // frame level for bitstream packing. Since CB_COEFF_BUFFER is allocated on a
+  // superblock level, we need to combine it with cb_offset to get the proper
+  // position for the current coding block.
+  CB_COEFF_BUFFER *cb_coef_buff;
+  uint16_t cb_offset;
 
-  // Buffers used to hold/create predictions during rdopt
+  // Stores some modified source and masks used for fast OBMC search.
   OBMCBuffer obmc_buffer;
+  // Stores the best palette map.
   PALETTE_BUFFER *palette_buffer;
+  // Stores buffers used to perform compound_type_rd.
   CompoundTypeRdBuffers comp_rd_buffer;
-
-  // A buffer used for convolution during the averaging prediction in compound
-  // mode.
+  // Stores convolution during the averaging prediction in compound/ mode.
   CONV_BUF_TYPE *tmp_conv_dst;
 
   // Points to a buffer that is used to hold temporary prediction results. This
@@ -534,61 +547,9 @@ struct macroblock {
   //    prediction.
   uint8_t *tmp_pred_bufs[2];
 
-  FRAME_CONTEXT *row_ctx;
-  // This context will be used to update color_map_cdf pointer which would be
-  // used during pack bitstream. For single thread and tile-multithreading case
-  // this ponter will be same as xd->tile_ctx, but for the case of row-mt:
-  // xd->tile_ctx will point to a temporary context while tile_pb_ctx will point
-  // to the accurate tile context.
-  FRAME_CONTEXT *tile_pb_ctx;
-
-  struct inter_modes_info *inter_modes_info;
-
-  // Contains the hash table, hash function, and buffer used for intrabc
-  IntraBCHashInfo intrabc_hash_info;
-
-  // These define limits to motion vector components to prevent them
-  // from extending outside the UMV borders
-  FullMvLimits mv_limits;
-
-  // Skip mode tries to use the closest forward and backward references for
-  // inter prediction. Skip here means to skip transmitting the reference
-  // frames, not to be confused with skip_txfm.
-  int skip_mode;  // 0: off; 1: on
-
-  // Used to store sub partition's choices.
-  MV pred_mv[REF_FRAMES];
-
-  // Ref frames that are selected by square partition blocks within a super-
-  // block, in MI resolution. They can be used to prune ref frames for
-  // rectangular blocks.
-  int picked_ref_frames_mask[32 * 32];
-
-  int must_find_valid_partition;
-  int recalc_luma_mc_data;  // Flag to indicate recalculation of MC data during
-                            // interpolation filter search
-  // The likelihood of an edge existing in the block (using partial Canny edge
-  // detection). For reference, 556 is the value returned for a solid
-  // vertical black/white edge.
-  uint16_t edge_strength;
-  // The strongest edge strength seen along the x/y axis.
-  uint16_t edge_strength_x;
-  uint16_t edge_strength_y;
-  uint8_t compound_idx;
-
-  // [Saved stat index]
-  COMP_RD_STATS comp_rd_stats[MAX_COMP_RD_STATS];
-  int comp_rd_stats_idx;
-
-  int thresh_freq_fact[BLOCK_SIZES_ALL][MAX_MODES];
-  uint8_t content_state_sb;
-  // Strong color activity detection. Used in REALTIME coding mode to enhance
-  // the visual quality at the boundary of moving color objects.
-  uint8_t color_sensitivity[2];
-  int nonrd_prune_ref_frame_search;
-
-  uint8_t search_ref_frame[REF_FRAMES];
-
+  // ==========================================================================
+  // Costs for Rdopt
+  // ==========================================================================
   // The quantization index for the current partition block. This is used to
   // as the index to find quantization parameter for luma and chroma transformed
   // coefficients.
@@ -606,6 +567,11 @@ struct macroblock {
   // block.
   int rdmult;
 
+  // These are measure of the energy in the current source mb/sb. They are used
+  // to determine the rdmult to facilitate better rdopt.
+  int mb_energy;
+  int sb_energy_level;
+
   // Stores the rate needed to signal a mode to the bitstream.
   ModeCosts mode_costs;
 
@@ -616,9 +582,145 @@ struct macroblock {
   // Stores the rate needed to signal the txfm coefficients to the bitstream.
   CoeffCosts coeff_costs;
 
+  // ==========================================================================
+  // Segmentation
+  // ==========================================================================
+  // Part of the segmentation mode. In skip_block mode, all mvs are set 0 and
+  // all txfms are skipped.
+  int seg_skip_block;
+
+  // ==========================================================================
+  // Superblock
+  // ==========================================================================
+  // Stores information on a whole superblock level.
+  // TODO(chiyotsai@google.com): Refactor this out of macroblock
+  SuperBlockEnc sb_enc;
+
+  // The characteristic of the current superblock. e.g., it can have high sad,
+  // low sad, etc. Only used by realtime mode.
+  uint8_t content_state_sb;
+
+  // ==========================================================================
+  // Reference Frame Search
+  // ==========================================================================
+  // The sad of the predicted mv for each of the reference frame. This is used
+  // to measure how viable a reference frames.
+  int pred_mv_sad[REF_FRAMES];
+  // Contains min(pred_mv_sad).
+  int best_pred_mv_sad;
+
+  // Determines whether a given ref frame is "good" based on data from the TPL
+  // model. If so, this stops selective_ref frame from pruning the given ref
+  // frame at block level.
+  uint8_t tpl_keep_ref_frame[REF_FRAMES];
+
+  // Keeps track of ref frames that are selected by square partition blocks
+  // within a superblock, in MI resolution. They can be used to prune ref frames
+  // for rectangular blocks.
+  int picked_ref_frames_mask[MAX_MIB_SIZE * MAX_MIB_SIZE];
+
+  // Determines whether to prune reference frames in real-time mode. For the
+  // most part, this is the same as nonrd_prune_ref_frame_search in
+  // cpi->sf.rt_sf.nonrd_prune_ref_frame_search, but this can be selectively
+  // turned off if the only frame available is GOLDEN_FRAME.
+  int nonrd_prune_ref_frame_search;
+
+  // ==========================================================================
+  // Partition Search
+  // ==========================================================================
   // Stores some partition-search related buffers.
   PartitionSearchInfo part_search_info;
 
+  // In some cases, our speed features can be overly aggressive and remove all
+  // modes search in the superblock. In this case, we set
+  // must_find_valid_partition to 1 to reduce the number of speed features, and
+  // recode the superblock again.
+  int must_find_valid_partition;
+
+  // ==========================================================================
+  // Prediction Mode Search
+  // ==========================================================================
+  // Skip mode tries to use the closest forward and backward references for
+  // inter prediction. Skip here means to skip transmitting the reference
+  // frames, not to be confused with skip_txfm.
+  int skip_mode;
+
+  // Determines a rd threshold to determine whether to continue searching the
+  // current mode. If the current best rd is already <= threshold, then we skip
+  // the current mode.
+  int thresh_freq_fact[BLOCK_SIZES_ALL][MAX_MODES];
+
+  // Winner mode is a two-pass strategy to find the best prediction mode. In the
+  // first pass, we search the prediction modes with a limited set of txfm
+  // options, and keep the top modes. These modes are called the winner modes.
+  // In the second pass, we retry the winner modes with more thorough txfm
+  // options.
+  // Stores the winner modes.
+  WinnerModeStats winner_mode_stats[AOMMAX(MAX_WINNER_MODE_COUNT_INTRA,
+                                           MAX_WINNER_MODE_COUNT_INTER)];
+  // Tracks how many winner modes there are.
+  int winner_mode_count;
+
+  // These are for inter_mode_rd_model_estimation, which is another two pass
+  // approach. In this speed feature, we collect data in the first couple frames
+  // to build an rd model to estimate the rdcost of a prediction model based on
+  // the residue error. Once enough data is collected, this speed feature uses
+  // the estimated rdcost to find the most performant prediction mode. Then we
+  // follow up with a second pass find the best transform for the mode.
+  // Determines if one would go with reduced complexity transform block
+  // search model to select prediction modes, or full complexity model
+  // to select transform kernel.
+  TXFM_RD_MODEL rd_model;
+
+  // Stores the inter mode information needed to build an rd model.
+  // TODO(any): try to consolidate this speed feature with winner mode
+  // processing.
+  struct inter_modes_info *inter_modes_info;
+
+  // Yet another 2-pass approach that tries to prune compound mode by first
+  // doing a simple_translational search on single ref modes. This however does
+  // not have good trade-off so it is only used by real-time mode.
+  SimpleRDState simple_rd_state[SINGLE_REF_MODES][3];
+
+  // Determines how to blend the compound predictions
+  uint8_t compound_idx;
+
+  // Caches the results of compound type search so they can be reused later.
+  COMP_RD_STATS comp_rd_stats[MAX_COMP_RD_STATS];
+  int comp_rd_stats_idx;
+
+  // The edge strengths are used in wedge_search.
+  // The likelihood of an edge existing in the block (using partial Canny edge
+  // detection). For reference, 556 is the value returned for a solid
+  // vertical black/white edge.
+  uint16_t edge_strength;
+  // The strongest edge strength seen along the x/y axis.
+  uint16_t edge_strength_x;
+  uint16_t edge_strength_y;
+
+  // Contains the hash table, hash function, and buffer used for intrabc.
+  IntraBCHashInfo intrabc_hash_info;
+
+  // ==========================================================================
+  // MV Search
+  // ==========================================================================
+  // The l_\inf norm of the best ref_mv for each frame. This is used to
+  // determine the initial step size during motion search.
+  unsigned int max_mv_context[REF_FRAMES];
+
+  // These define limits to motion vector components to prevent them
+  // from extending outside the UMV borders
+  FullMvLimits mv_limits;
+
+  // In interpolation search, we can usually skip recalculating the luma
+  // prediction because it is already calculated by a previous predictor. This
+  // flag signifies that some modes might have been skipped, so we need to redo
+  // the motion compensation.
+  int recalc_luma_mc_data;
+
+  // ==========================================================================
+  // Txfm Search
+  // ==========================================================================
   // Stores various txfm search related parameters such as txfm_type, txfm_size,
   // trellis eob search, etc.
   TxfmSearchParams txfm_search_params;
@@ -626,17 +728,27 @@ struct macroblock {
   // Caches old txfm search results and keeps the current txfm decisions.
   TxfmSearchInfo txfm_search_info;
 
-  // Points to cb_coef_buff in the AV1_COMP struct, which contains the finalized
-  // coefficients. This is here to conveniently copy the best coefficients to
-  // frame level for bitstream packing. Since CB_COEFF_BUFFER is allocated on a
-  // superblock level, we need to combine it with cb_offset to get the proper
-  // position for the current coding block.
-  CB_COEFF_BUFFER *cb_coef_buff;
-  uint16_t cb_offset;
+  // Strong color activity detection. Used in REALTIME coding mode to enhance
+  // the visual quality at the boundary of moving color objects.
+  uint8_t color_sensitivity[2];
 
-  // The information on a whole superblock level.
-  // TODO(chiyotsai@google.com): Refactor this out of macroblock
-  SuperBlockEnc sb_enc;
+  // ==========================================================================
+  // Misc
+  // ==========================================================================
+  // Variance on the source frame.
+  unsigned int source_variance;
+  // The sse of the current predictor.
+  unsigned int pred_sse[REF_FRAMES];
+
+  // ==========================================================================
+  // Unused
+  // ==========================================================================
+  // Some of these are not currently used by the codec so they should probably
+  // be removed.
+  unsigned int simple_motion_pred_sse;
+
+  // Used to store sub partition's choices.
+  MV pred_mv[REF_FRAMES];
 };
 
 // Only consider full SB, MC_FLOW_BSIZE_1D = 16.

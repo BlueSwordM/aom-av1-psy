@@ -280,7 +280,7 @@ void av1_xform_quant(MACROBLOCK *x, int plane, int block, int blk_row,
 
   if (qparam->xform_quant_idx != AV1_XFORM_QUANT_SKIP_QUANT) {
     const int n_coeffs = av1_get_max_eob(txfm_param->tx_size);
-    if (LIKELY(!x->skip_block)) {
+    if (LIKELY(!x->seg_skip_block)) {
 #if CONFIG_AV1_HIGHBITDEPTH
       quant_func_list[qparam->xform_quant_idx][txfm_param->is_hbd](
           coeff, n_coeffs, p, qcoeff, dqcoeff, eob, scan_order, qparam);

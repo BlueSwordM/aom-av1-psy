@@ -4746,7 +4746,7 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[frame_idx];
   const uint8_t block_mis_log2 = tpl_data->tpl_stats_block_mis_log2;
 
-  av1_zero(x->search_ref_frame);
+  av1_zero(x->tpl_keep_ref_frame);
 
   if (tpl_frame->is_valid == 0) return;
   if (!is_frame_tpl_eligible(cpi)) return;
@@ -4756,7 +4756,7 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
 
   const int is_overlay = cpi->gf_group.update_type[frame_idx] == OVERLAY_UPDATE;
   if (is_overlay) {
-    memset(x->search_ref_frame, 1, sizeof(x->search_ref_frame));
+    memset(x->tpl_keep_ref_frame, 1, sizeof(x->tpl_keep_ref_frame));
     return;
   }
 
@@ -4807,12 +4807,12 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
     }
   }
 
-  x->search_ref_frame[INTRA_FRAME] = 1;
-  x->search_ref_frame[LAST_FRAME] = 1;
+  x->tpl_keep_ref_frame[INTRA_FRAME] = 1;
+  x->tpl_keep_ref_frame[LAST_FRAME] = 1;
 
   int cutoff_ref = 0;
   for (int idx = 0; idx < INTER_REFS_PER_FRAME - 1; ++idx) {
-    x->search_ref_frame[rank_index[idx] + LAST_FRAME] = 1;
+    x->tpl_keep_ref_frame[rank_index[idx] + LAST_FRAME] = 1;
     if (idx > 2) {
       if (!cutoff_ref) {
         // If the predictive coding gains are smaller than the previous more
@@ -4824,7 +4824,7 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
           cutoff_ref = 1;
       }
 
-      if (cutoff_ref) x->search_ref_frame[rank_index[idx] + LAST_FRAME] = 0;
+      if (cutoff_ref) x->tpl_keep_ref_frame[rank_index[idx] + LAST_FRAME] = 0;
     }
   }
 }

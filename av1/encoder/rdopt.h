@@ -196,8 +196,8 @@ static INLINE int prune_ref_by_selective_ref_frame(
     int ref_frame_list[2] = { LAST3_FRAME, LAST2_FRAME };
 
     if (x != NULL) {
-      if (x->search_ref_frame[LAST3_FRAME]) ref_frame_list[0] = NONE_FRAME;
-      if (x->search_ref_frame[LAST2_FRAME]) ref_frame_list[1] = NONE_FRAME;
+      if (x->tpl_keep_ref_frame[LAST3_FRAME]) ref_frame_list[0] = NONE_FRAME;
+      if (x->tpl_keep_ref_frame[LAST2_FRAME]) ref_frame_list[1] = NONE_FRAME;
     }
 
     if (prune_ref(ref_frame, order_hint_info, ref_display_order_hint,
@@ -210,8 +210,8 @@ static INLINE int prune_ref_by_selective_ref_frame(
     int ref_frame_list[2] = { ALTREF2_FRAME, BWDREF_FRAME };
 
     if (x != NULL) {
-      if (x->search_ref_frame[ALTREF2_FRAME]) ref_frame_list[0] = NONE_FRAME;
-      if (x->search_ref_frame[BWDREF_FRAME]) ref_frame_list[1] = NONE_FRAME;
+      if (x->tpl_keep_ref_frame[ALTREF2_FRAME]) ref_frame_list[0] = NONE_FRAME;
+      if (x->tpl_keep_ref_frame[BWDREF_FRAME]) ref_frame_list[1] = NONE_FRAME;
     }
 
     if (prune_ref(ref_frame, order_hint_info, ref_display_order_hint,

@@ -627,6 +627,8 @@ typedef struct {
 // TODO(angiebird): This is an estimated size. We still need to figure what is
 // the maximum number of modes.
 #define MAX_INTER_MODES 1024
+// TODO(any): rename this struct to something else. There is already another
+// struct called inter_mode_info, which makes this terribly confusing.
 typedef struct inter_modes_info {
   int num;
   MB_MODE_INFO mbmi_arr[MAX_INTER_MODES];
