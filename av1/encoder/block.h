@@ -249,29 +249,6 @@ typedef struct {
   uint8_t *left_pred;
 } OBMCBuffer;
 
-typedef struct {
-  // A multiplier that converts mv cost to l2 error.
-  int errorperbit;
-  // A multiplier that converts mv cost to l1 error.
-  int sadperbit;
-
-  int nmv_joint_cost[MV_JOINTS];
-
-  // Below are the entropy costs needed to encode a given mv.
-  // nmv_costs_(hp_)alloc are two arrays that holds the memory
-  // for holding the mv cost. But since the motion vectors can be negative, we
-  // shift them to the middle and store the resulting pointer in nmvcost(_hp)
-  // for easier referencing. Finally, nmv_cost_stack points to the nmvcost array
-  // with the mv precision we are currently working with. In essence, only
-  // mv_cost_stack is needed for motion search, the other can be considered
-  // private.
-  int nmv_cost_alloc[2][MV_VALS];
-  int nmv_cost_hp_alloc[2][MV_VALS];
-  int *nmv_cost[2];
-  int *nmv_cost_hp[2];
-  int **mv_cost_stack;
-} MvCostInfo;
-
 // This struct holds some parameters related to partitioning schemes in av1.
 // TODO(chiyotsai@google.com): Consolidate this with SIMPLE_MOTION_DATA_TREE
 typedef struct {
@@ -383,6 +360,131 @@ typedef struct {
 #endif  // CONFIG_SPEED_STATS
 } TxfmSearchInfo;
 
+// This struct holds the entropy costs for various modes sent to the bitstream.
+// This however does not include the costs for mv and transformed coefficients.
+typedef struct {
+  // ==========================================================================
+  // Partition Costs
+  // ==========================================================================
+  int partition_cost[PARTITION_CONTEXTS][EXT_PARTITION_TYPES];
+
+  // ==========================================================================
+  // Intra Mode Costs
+  // ==========================================================================
+  int mbmode_cost[BLOCK_SIZE_GROUPS][INTRA_MODES];  // Mode cost for inter frame
+  int y_mode_costs[INTRA_MODES][INTRA_MODES][INTRA_MODES];  // Mode cost for kf
+  int intra_uv_mode_cost[CFL_ALLOWED_TYPES][INTRA_MODES][UV_INTRA_MODES];
+  int filter_intra_cost[BLOCK_SIZES_ALL][2];
+  int filter_intra_mode_cost[FILTER_INTRA_MODES];
+  int angle_delta_cost[DIRECTIONAL_MODES][2 * MAX_ANGLE_DELTA + 1];
+
+  // Screen Content Tools Costs
+  int intrabc_cost[2];
+
+  int palette_y_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];
+  int palette_uv_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];
+  int palette_y_color_cost[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS]
+                          [PALETTE_COLORS];
+  int palette_uv_color_cost[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS]
+                           [PALETTE_COLORS];
+  int palette_y_mode_cost[PALATTE_BSIZE_CTXS][PALETTE_Y_MODE_CONTEXTS][2];
+  int palette_uv_mode_cost[PALETTE_UV_MODE_CONTEXTS][2];
+
+  // The rate associated with each alpha codeword
+  int cfl_cost[CFL_JOINT_SIGNS][CFL_PRED_PLANES][CFL_ALPHABET_SIZE];
+
+  // ==========================================================================
+  // Inter Mode Costs
+  // ==========================================================================
+  int skip_mode_cost[SKIP_MODE_CONTEXTS][2];
+
+  // MV Mode Costs
+  int newmv_mode_cost[NEWMV_MODE_CONTEXTS][2];
+  int zeromv_mode_cost[GLOBALMV_MODE_CONTEXTS][2];
+  int refmv_mode_cost[REFMV_MODE_CONTEXTS][2];
+  int drl_mode_cost0[DRL_MODE_CONTEXTS][2];
+
+  // Ref Costs
+  int single_ref_cost[REF_CONTEXTS][SINGLE_REFS - 1][2];
+  int comp_inter_cost[COMP_INTER_CONTEXTS][2];
+  int comp_ref_type_cost[COMP_REF_TYPE_CONTEXTS]
+                        [CDF_SIZE(COMP_REFERENCE_TYPES)];
+  int uni_comp_ref_cost[UNI_COMP_REF_CONTEXTS][UNIDIR_COMP_REFS - 1]
+                       [CDF_SIZE(2)];
+  // Cost for signaling ref_frame[0] (LAST_FRAME, LAST2_FRAME, LAST3_FRAME or
+  // GOLDEN_FRAME) in bidir-comp mode.
+  int comp_ref_cost[REF_CONTEXTS][FWD_REFS - 1][2];
+  // Cost for signaling ref_frame[1] (ALTREF_FRAME, ALTREF2_FRAME, or
+  // BWDREF_FRAME) in bidir-comp mode.
+  int comp_bwdref_cost[REF_CONTEXTS][BWD_REFS - 1][2];
+
+  // Compound Costs
+  int intra_inter_cost[INTRA_INTER_CONTEXTS][2];
+  int inter_compound_mode_cost[INTER_MODE_CONTEXTS][INTER_COMPOUND_MODES];
+  int compound_type_cost[BLOCK_SIZES_ALL][MASKED_COMPOUND_TYPES];
+  int wedge_idx_cost[BLOCK_SIZES_ALL][16];
+  int interintra_cost[BLOCK_SIZE_GROUPS][2];
+  int wedge_interintra_cost[BLOCK_SIZES_ALL][2];
+  int interintra_mode_cost[BLOCK_SIZE_GROUPS][INTERINTRA_MODES];
+
+  // Masks
+  int comp_idx_cost[COMP_INDEX_CONTEXTS][2];
+  int comp_group_idx_cost[COMP_GROUP_IDX_CONTEXTS][2];
+
+  // Motion Mode/Filter Costs
+  int motion_mode_cost[BLOCK_SIZES_ALL][MOTION_MODES];
+  int motion_mode_cost1[BLOCK_SIZES_ALL][2];
+  int switchable_interp_costs[SWITCHABLE_FILTER_CONTEXTS][SWITCHABLE_FILTERS];
+
+  // ==========================================================================
+  // Txfm Mode Costs
+  // ==========================================================================
+  int skip_txfm_cost[SKIP_CONTEXTS][2];
+  int tx_size_cost[TX_SIZES - 1][TX_SIZE_CONTEXTS][TX_SIZES];
+  int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][2];
+  int inter_tx_type_costs[EXT_TX_SETS_INTER][EXT_TX_SIZES][TX_TYPES];
+  int intra_tx_type_costs[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
+                         [TX_TYPES];
+
+  // ==========================================================================
+  // Restoration Mode Costs
+  // ==========================================================================
+  int switchable_restore_cost[RESTORE_SWITCHABLE_TYPES];
+  int wiener_restore_cost[2];
+  int sgrproj_restore_cost[2];
+} ModeCosts;
+
+// This struct holds the rates needed to transmit a new mv and the cost
+// multiplier that converts entropy cost to sad/sse/var during motion search.
+typedef struct {
+  // A multiplier that converts mv cost to l2 error.
+  int errorperbit;
+  // A multiplier that converts mv cost to l1 error.
+  int sadperbit;
+
+  int nmv_joint_cost[MV_JOINTS];
+
+  // Below are the entropy costs needed to encode a given mv.
+  // nmv_costs_(hp_)alloc are two arrays that holds the memory
+  // for holding the mv cost. But since the motion vectors can be negative, we
+  // shift them to the middle and store the resulting pointer in nmvcost(_hp)
+  // for easier referencing. Finally, nmv_cost_stack points to the nmvcost array
+  // with the mv precision we are currently working with. In essence, only
+  // mv_cost_stack is needed for motion search, the other can be considered
+  // private.
+  int nmv_cost_alloc[2][MV_VALS];
+  int nmv_cost_hp_alloc[2][MV_VALS];
+  int *nmv_cost[2];
+  int *nmv_cost_hp[2];
+  int **mv_cost_stack;
+} MvCosts;
+
+// This struct holds the costs need to encode the coefficients
+typedef struct {
+  LV_MAP_COEFF_COST coeff_costs[TX_SIZES][PLANE_TYPES];
+  LV_MAP_EOB_COST eob_costs[7][2];
+} CoeffCosts;
+
 struct inter_modes_info;
 typedef struct macroblock MACROBLOCK;
 struct macroblock {
@@ -404,14 +506,7 @@ struct macroblock {
                                            MAX_WINNER_MODE_COUNT_INTER)];
   int winner_mode_count;
   int skip_block;
-  int qindex;
 
-  // The difference between the frame-level base qindex and the qindex used for
-  // the current superblock. This is used to track whether a non-zero delta for
-  // qindex is used at least once in the current frame.
-  int delta_qindex;
-
-  int rdmult;
   int mb_energy;
   int sb_energy_level;
 
@@ -456,75 +551,10 @@ struct macroblock {
   // from extending outside the UMV borders
   FullMvLimits mv_limits;
 
-  // Stores the entropy cost needed to encode a motion vector.
-  MvCostInfo mv_cost_info;
-
-  int skip_txfm_cost[SKIP_CONTEXTS][2];
-
   // Skip mode tries to use the closest forward and backward references for
   // inter prediction. Skip here means to skip transmitting the reference
   // frames, not to be confused with skip_txfm.
   int skip_mode;  // 0: off; 1: on
-  int skip_mode_cost[SKIP_MODE_CONTEXTS][2];
-
-  LV_MAP_COEFF_COST coeff_costs[TX_SIZES][PLANE_TYPES];
-  LV_MAP_EOB_COST eob_costs[7][2];
-
-  // mode costs
-  int intra_inter_cost[INTRA_INTER_CONTEXTS][2];
-
-  int mbmode_cost[BLOCK_SIZE_GROUPS][INTRA_MODES];
-  int newmv_mode_cost[NEWMV_MODE_CONTEXTS][2];
-  int zeromv_mode_cost[GLOBALMV_MODE_CONTEXTS][2];
-  int refmv_mode_cost[REFMV_MODE_CONTEXTS][2];
-  int drl_mode_cost0[DRL_MODE_CONTEXTS][2];
-
-  int comp_inter_cost[COMP_INTER_CONTEXTS][2];
-  int single_ref_cost[REF_CONTEXTS][SINGLE_REFS - 1][2];
-  int comp_ref_type_cost[COMP_REF_TYPE_CONTEXTS]
-                        [CDF_SIZE(COMP_REFERENCE_TYPES)];
-  int uni_comp_ref_cost[UNI_COMP_REF_CONTEXTS][UNIDIR_COMP_REFS - 1]
-                       [CDF_SIZE(2)];
-  // Cost for signaling ref_frame[0] (LAST_FRAME, LAST2_FRAME, LAST3_FRAME or
-  // GOLDEN_FRAME) in bidir-comp mode.
-  int comp_ref_cost[REF_CONTEXTS][FWD_REFS - 1][2];
-  // Cost for signaling ref_frame[1] (ALTREF_FRAME, ALTREF2_FRAME, or
-  // BWDREF_FRAME) in bidir-comp mode.
-  int comp_bwdref_cost[REF_CONTEXTS][BWD_REFS - 1][2];
-  int inter_compound_mode_cost[INTER_MODE_CONTEXTS][INTER_COMPOUND_MODES];
-  int compound_type_cost[BLOCK_SIZES_ALL][MASKED_COMPOUND_TYPES];
-  int wedge_idx_cost[BLOCK_SIZES_ALL][16];
-  int interintra_cost[BLOCK_SIZE_GROUPS][2];
-  int wedge_interintra_cost[BLOCK_SIZES_ALL][2];
-  int interintra_mode_cost[BLOCK_SIZE_GROUPS][INTERINTRA_MODES];
-  int motion_mode_cost[BLOCK_SIZES_ALL][MOTION_MODES];
-  int motion_mode_cost1[BLOCK_SIZES_ALL][2];
-  int intra_uv_mode_cost[CFL_ALLOWED_TYPES][INTRA_MODES][UV_INTRA_MODES];
-  int y_mode_costs[INTRA_MODES][INTRA_MODES][INTRA_MODES];
-  int filter_intra_cost[BLOCK_SIZES_ALL][2];
-  int filter_intra_mode_cost[FILTER_INTRA_MODES];
-  int switchable_interp_costs[SWITCHABLE_FILTER_CONTEXTS][SWITCHABLE_FILTERS];
-  int partition_cost[PARTITION_CONTEXTS][EXT_PARTITION_TYPES];
-  int palette_y_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];
-  int palette_uv_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];
-  int palette_y_color_cost[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS]
-                          [PALETTE_COLORS];
-  int palette_uv_color_cost[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS]
-                           [PALETTE_COLORS];
-  int palette_y_mode_cost[PALATTE_BSIZE_CTXS][PALETTE_Y_MODE_CONTEXTS][2];
-  int palette_uv_mode_cost[PALETTE_UV_MODE_CONTEXTS][2];
-  // The rate associated with each alpha codeword
-  int cfl_cost[CFL_JOINT_SIGNS][CFL_PRED_PLANES][CFL_ALPHABET_SIZE];
-  int tx_size_cost[TX_SIZES - 1][TX_SIZE_CONTEXTS][TX_SIZES];
-  int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][2];
-  int inter_tx_type_costs[EXT_TX_SETS_INTER][EXT_TX_SIZES][TX_TYPES];
-  int intra_tx_type_costs[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
-                         [TX_TYPES];
-  int angle_delta_cost[DIRECTIONAL_MODES][2 * MAX_ANGLE_DELTA + 1];
-  int switchable_restore_cost[RESTORE_SWITCHABLE_TYPES];
-  int wiener_restore_cost[2];
-  int sgrproj_restore_cost[2];
-  int intrabc_cost[2];
 
   // Used to store sub partition's choices.
   MV pred_mv[REF_FRAMES];
@@ -534,8 +564,6 @@ struct macroblock {
   // rectangular blocks.
   int picked_ref_frames_mask[32 * 32];
 
-  int comp_idx_cost[COMP_INDEX_CONTEXTS][2];
-  int comp_group_idx_cost[COMP_GROUP_IDX_CONTEXTS][2];
   int must_find_valid_partition;
   int recalc_luma_mc_data;  // Flag to indicate recalculation of MC data during
                             // interpolation filter search
@@ -560,6 +588,33 @@ struct macroblock {
   int nonrd_prune_ref_frame_search;
 
   uint8_t search_ref_frame[REF_FRAMES];
+
+  // The quantization index for the current partition block. This is used to
+  // as the index to find quantization parameter for luma and chroma transformed
+  // coefficients.
+  int qindex;
+
+  // The difference between the frame-level base qindex and the qindex used for
+  // the current superblock. This is used to track whether a non-zero delta for
+  // qindex is used at least once in the current frame.
+  int delta_qindex;
+
+  // The rd multiplier used to determine the rate-distortion trade-off. This is
+  // roughly proportional to the inverse of q-index for a given frame, but this
+  // can be manipulated to for better rate-control. For example, in tune_ssim
+  // mode, this is scaled by a factor related to the variance of the current
+  // block.
+  int rdmult;
+
+  // Stores the rate needed to signal a mode to the bitstream.
+  ModeCosts mode_costs;
+
+  // Stores the rate needed to encode a new motion vector to the bitstream
+  // and some multipliers for motion search.
+  MvCosts mv_costs;
+
+  // Stores the rate needed to signal the txfm coefficients to the bitstream.
+  CoeffCosts coeff_costs;
 
   // Stores some partition-search related buffers.
   PartitionSearchInfo part_search_info;

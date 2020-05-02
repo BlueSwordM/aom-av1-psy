@@ -33,16 +33,16 @@
 #include "av1/encoder/reconinter_enc.h"
 
 static INLINE void init_mv_cost_params(MV_COST_PARAMS *mv_cost_params,
-                                       const MvCostInfo *mv_cost_info,
+                                       const MvCosts *mv_costs,
                                        const MV *ref_mv) {
   mv_cost_params->ref_mv = ref_mv;
   mv_cost_params->full_ref_mv = get_fullmv_from_mv(ref_mv);
   mv_cost_params->mv_cost_type = MV_COST_ENTROPY;
-  mv_cost_params->error_per_bit = mv_cost_info->errorperbit;
-  mv_cost_params->sad_per_bit = mv_cost_info->sadperbit;
-  mv_cost_params->mvjcost = mv_cost_info->nmv_joint_cost;
-  mv_cost_params->mvcost[0] = mv_cost_info->mv_cost_stack[0];
-  mv_cost_params->mvcost[1] = mv_cost_info->mv_cost_stack[1];
+  mv_cost_params->error_per_bit = mv_costs->errorperbit;
+  mv_cost_params->sad_per_bit = mv_costs->sadperbit;
+  mv_cost_params->mvjcost = mv_costs->nmv_joint_cost;
+  mv_cost_params->mvcost[0] = mv_costs->mv_cost_stack[0];
+  mv_cost_params->mvcost[1] = mv_costs->mv_cost_stack[1];
 }
 
 static INLINE void init_ms_buffers(MSBuffers *ms_buffers, const MACROBLOCK *x) {
@@ -85,7 +85,7 @@ void av1_make_default_fullpel_ms_params(FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
   av1_set_mv_search_range(&ms_params->mv_limits, ref_mv);
 
   // Mvcost params
-  init_mv_cost_params(&ms_params->mv_cost_params, &x->mv_cost_info, ref_mv);
+  init_mv_cost_params(&ms_params->mv_cost_params, &x->mv_costs, ref_mv);
 }
 
 void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
@@ -102,7 +102,7 @@ void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
   av1_set_subpel_mv_search_range(&ms_params->mv_limits, &x->mv_limits, ref_mv);
 
   // Mvcost params
-  init_mv_cost_params(&ms_params->mv_cost_params, &x->mv_cost_info, ref_mv);
+  init_mv_cost_params(&ms_params->mv_cost_params, &x->mv_costs, ref_mv);
 
   // Subpel variance params
   ms_params->var_params.vfp = &cpi->fn_ptr[bsize];

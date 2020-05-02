@@ -706,7 +706,8 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
         get_ext_tx_set(tx_size, is_inter, reduced_tx_set_used);
     if (is_inter) {
       if (ext_tx_set > 0)
-        return x->inter_tx_type_costs[ext_tx_set][square_tx_size][tx_type];
+        return x->mode_costs
+            .inter_tx_type_costs[ext_tx_set][square_tx_size][tx_type];
     } else {
       if (ext_tx_set > 0) {
         PREDICTION_MODE intra_dir;
@@ -715,8 +716,8 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
                                              .filter_intra_mode];
         else
           intra_dir = mbmi->mode;
-        return x->intra_tx_type_costs[ext_tx_set][square_tx_size][intra_dir]
-                                     [tx_type];
+        return x->mode_costs.intra_tx_type_costs[ext_tx_set][square_tx_size]
+                                                [intra_dir][tx_type];
       }
     }
   }
@@ -772,7 +773,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
   DECLARE_ALIGNED(16, int8_t, coeff_contexts[MAX_TX_SQUARE]);
   const int eob_multi_size = txsize_log2_minus4[tx_size];
   const LV_MAP_EOB_COST *const eob_costs =
-      &x->eob_costs[eob_multi_size][plane_type];
+      &x->coeff_costs.eob_costs[eob_multi_size][plane_type];
   int cost = coeff_costs->txb_skip_cost[txb_skip_ctx][0];
 
   av1_txb_init_levels(qcoeff, width, height, levels);
@@ -859,7 +860,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_laplacian(
 
   const int eob_multi_size = txsize_log2_minus4[tx_size];
   const LV_MAP_EOB_COST *const eob_costs =
-      &x->eob_costs[eob_multi_size][plane_type];
+      &x->coeff_costs.eob_costs[eob_multi_size][plane_type];
   int cost = coeff_costs->txb_skip_cost[txb_skip_ctx][0];
 
   cost += get_tx_type_cost(x, xd, plane, tx_size, tx_type, reduced_tx_set_used);
@@ -922,7 +923,7 @@ int av1_cost_coeffs_txb(const MACROBLOCK *x, const int plane, const int block,
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
   const PLANE_TYPE plane_type = get_plane_type(plane);
   const LV_MAP_COEFF_COST *const coeff_costs =
-      &x->coeff_costs[txs_ctx][plane_type];
+      &x->coeff_costs.coeff_costs[txs_ctx][plane_type];
   if (eob == 0) {
     return coeff_costs->txb_skip_cost[txb_ctx->txb_skip_ctx][1];
   }
@@ -958,7 +959,7 @@ int av1_cost_coeffs_txb_laplacian(const MACROBLOCK *x, const int plane,
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
   const PLANE_TYPE plane_type = get_plane_type(plane);
   const LV_MAP_COEFF_COST *const coeff_costs =
-      &x->coeff_costs[txs_ctx][plane_type];
+      &x->coeff_costs.coeff_costs[txs_ctx][plane_type];
   if (eob == 0) {
     return coeff_costs->txb_skip_cost[txb_ctx->txb_skip_ctx][1];
   }
@@ -1753,6 +1754,7 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   tran_low_t *qcoeff = p->qcoeff + block_offset;
   tran_low_t *dqcoeff = p->dqcoeff + block_offset;
   const tran_low_t *tcoeff = p->coeff + block_offset;
+  const CoeffCosts *coeff_costs = &x->coeff_costs;
 
   // This function is not called if eob = 0.
   assert(eob > 0);
@@ -1761,7 +1763,7 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     update_coeff_eob_fast(&eob, shift, dequant, scan, tcoeff, qcoeff, dqcoeff);
     p->eobs[block] = eob;
     if (eob == 0) {
-      *rate_cost = av1_cost_skip_txb(x, txb_ctx, plane, tx_size);
+      *rate_cost = av1_cost_skip_txb(coeff_costs, txb_ctx, plane, tx_size);
       return eob;
     }
   }
@@ -1776,10 +1778,11 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const int height = get_txb_high(tx_size);
   assert(width == (1 << bwl));
   const int is_inter = is_inter_block(mbmi);
-  const LV_MAP_COEFF_COST *txb_costs = &x->coeff_costs[txs_ctx][plane_type];
+  const LV_MAP_COEFF_COST *txb_costs =
+      &coeff_costs->coeff_costs[txs_ctx][plane_type];
   const int eob_multi_size = txsize_log2_minus4[tx_size];
   const LV_MAP_EOB_COST *txb_eob_costs =
-      &x->eob_costs[eob_multi_size][plane_type];
+      &coeff_costs->eob_costs[eob_multi_size][plane_type];
 
   const int rshift =
       (sharpness +
@@ -1927,10 +1930,12 @@ int av1_optimize_txb(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const int height = get_txb_high(tx_size);
   const int is_inter = is_inter_block(mbmi);
   const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
-  const LV_MAP_COEFF_COST *txb_costs = &x->coeff_costs[txs_ctx][plane_type];
+  const CoeffCosts *coeff_costs = &x->coeff_costs;
+  const LV_MAP_COEFF_COST *txb_costs =
+      &coeff_costs->coeff_costs[txs_ctx][plane_type];
   const int eob_multi_size = txsize_log2_minus4[tx_size];
   const LV_MAP_EOB_COST txb_eob_costs =
-      x->eob_costs[eob_multi_size][plane_type];
+      coeff_costs->eob_costs[eob_multi_size][plane_type];
 
   const int shift = av1_get_tx_scale(tx_size);
   const int64_t rdmult =

@@ -82,13 +82,14 @@ static void get_palette_params(const MACROBLOCK *const x, int plane,
   params->color_map = xd->plane[plane].color_index_map;
   params->map_cdf = plane ? xd->tile_ctx->palette_uv_color_index_cdf
                           : xd->tile_ctx->palette_y_color_index_cdf;
-  params->color_cost =
-      plane ? &x->palette_uv_color_cost : &x->palette_y_color_cost;
+  params->color_cost = plane ? &x->mode_costs.palette_uv_color_cost
+                             : &x->mode_costs.palette_y_color_cost;
   params->n_colors = pmi->palette_size[plane];
   av1_get_block_dimensions(bsize, plane, xd, &params->plane_width, NULL,
                            &params->rows, &params->cols);
 }
 
+// TODO(any): Remove this function
 static void get_color_map_params(const MACROBLOCK *const x, int plane,
                                  BLOCK_SIZE bsize, TX_SIZE tx_size,
                                  COLOR_MAP_TYPE type,

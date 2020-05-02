@@ -120,8 +120,8 @@ static INLINE int get_switchable_rate(MACROBLOCK *const x,
   int inter_filter_cost;
   const InterpFilter filter0 = filters.as_filters.y_filter;
   const InterpFilter filter1 = filters.as_filters.x_filter;
-  inter_filter_cost = x->switchable_interp_costs[ctx[0]][filter0];
-  inter_filter_cost += x->switchable_interp_costs[ctx[1]][filter1];
+  inter_filter_cost = x->mode_costs.switchable_interp_costs[ctx[0]][filter0];
+  inter_filter_cost += x->mode_costs.switchable_interp_costs[ctx[1]][filter1];
   return SWITCHABLE_INTERP_RATE_FACTOR * inter_filter_cost;
 }
 
@@ -136,7 +136,7 @@ static INLINE void interp_model_rd_eval(
   RD_STATS tmp_rd_stats;
   av1_init_rd_stats(&tmp_rd_stats);
 
-  // Skip inter predictor if the predictor is already avilable.
+  // Skip inter predictor if the predictor is already available.
   if (!is_skip_build_pred) {
     const int mi_row = xd->mi_row;
     const int mi_col = xd->mi_col;

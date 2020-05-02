@@ -241,7 +241,7 @@ static int64_t pick_wedge(const AV1_COMP *const cpi, const MACROBLOCK *const x,
     // sse, rate, dist, rate2, dist2); dist = dist2;
     // rate = rate2;
 
-    rate += x->wedge_idx_cost[bsize][wedge_index];
+    rate += x->mode_costs.wedge_idx_cost[bsize][wedge_index];
     rd = RDCOST(x->rdmult, rate, dist);
 
     if (rd < best_rd) {
@@ -253,7 +253,8 @@ static int64_t pick_wedge(const AV1_COMP *const cpi, const MACROBLOCK *const x,
   }
 
   return best_rd -
-         RDCOST(x->rdmult, x->wedge_idx_cost[bsize][*best_wedge_index], 0);
+         RDCOST(x->rdmult,
+                x->mode_costs.wedge_idx_cost[bsize][*best_wedge_index], 0);
 }
 
 // Choose the best wedge index the specified sign
@@ -284,7 +285,7 @@ static int64_t pick_wedge_fixed_sign(
 
     model_rd_sse_fn[MODELRD_TYPE_MASKED_COMPOUND](cpi, x, bsize, 0, sse, N,
                                                   &rate, &dist);
-    rate += x->wedge_idx_cost[bsize][wedge_index];
+    rate += x->mode_costs.wedge_idx_cost[bsize][wedge_index];
     rd = RDCOST(x->rdmult, rate, dist);
 
     if (rd < best_rd) {
@@ -294,7 +295,8 @@ static int64_t pick_wedge_fixed_sign(
     }
   }
   return best_rd -
-         RDCOST(x->rdmult, x->wedge_idx_cost[bsize][*best_wedge_index], 0);
+         RDCOST(x->rdmult,
+                x->mode_costs.wedge_idx_cost[bsize][*best_wedge_index], 0);
 }
 
 static int64_t pick_interinter_wedge(
@@ -490,10 +492,10 @@ static int64_t estimate_yrd_for_sb(const AV1_COMP *const cpi, BLOCK_SIZE bs,
   if (rd != INT64_MAX) {
     const int skip_ctx = av1_get_skip_txfm_context(xd);
     if (rd_stats->skip_txfm) {
-      const int s1 = x->skip_txfm_cost[skip_ctx][1];
+      const int s1 = x->mode_costs.skip_txfm_cost[skip_ctx][1];
       rd_stats->rate = s1;
     } else {
-      const int s0 = x->skip_txfm_cost[skip_ctx][0];
+      const int s0 = x->mode_costs.skip_txfm_cost[skip_ctx][0];
       rd_stats->rate += s0;
     }
   }
@@ -529,7 +531,7 @@ static AOM_INLINE int64_t compute_best_wedge_interintra(
     int64_t rd = pick_interintra_wedge(cpi, x, bsize, intrapred_, tmp_buf_);
     const int rate_overhead =
         interintra_mode_cost[mode] +
-        x->wedge_idx_cost[bsize][mbmi->interintra_wedge_index];
+        x->mode_costs.wedge_idx_cost[bsize][mbmi->interintra_wedge_index];
     const int64_t total_rd = rd + RDCOST(x->rdmult, rate_overhead, 0);
     if (total_rd < best_total_rd) {
       best_total_rd = total_rd;
@@ -561,8 +563,9 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
   DECLARE_ALIGNED(16, uint8_t, intrapred_[2 * MAX_INTERINTRA_SB_SQUARE]);
   uint8_t *tmp_buf = get_buf_by_bd(xd, tmp_buf_);
   uint8_t *intrapred = get_buf_by_bd(xd, intrapred_);
+  const ModeCosts *mode_costs = &x->mode_costs;
   const int *const interintra_mode_cost =
-      x->interintra_mode_cost[size_group_lookup[bsize]];
+      mode_costs->interintra_mode_cost[size_group_lookup[bsize]];
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 
@@ -616,8 +619,9 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
     // Compute rd cost for best smooth_interintra
     RD_STATS rd_stats;
-    const int rmode = interintra_mode_cost[best_interintra_mode] +
-                      (is_wedge_used ? x->wedge_interintra_cost[bsize][0] : 0);
+    const int rmode =
+        interintra_mode_cost[best_interintra_mode] +
+        (is_wedge_used ? mode_costs->wedge_interintra_cost[bsize][0] : 0);
     const int total_mode_rate = rmode + *rate_mv;
     const int64_t rd_thresh =
         compute_rd_thresh(x, total_mode_rate, ref_best_rd);
@@ -696,8 +700,8 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
     const int rate_overhead =
         interintra_mode_cost[mbmi->interintra_mode] +
-        x->wedge_idx_cost[bsize][mbmi->interintra_wedge_index] +
-        x->wedge_interintra_cost[bsize][1];
+        mode_costs->wedge_idx_cost[bsize][mbmi->interintra_wedge_index] +
+        mode_costs->wedge_interintra_cost[bsize][1];
     best_interintra_rd_wedge += RDCOST(x->rdmult, rate_overhead + *rate_mv, 0);
 
     const int_mv mv0 = mbmi->mv[0];
@@ -834,11 +838,9 @@ static INLINE int compute_valid_comp_types(
 }
 
 // Calculates the cost for compound type mask
-static INLINE void calc_masked_type_cost(MACROBLOCK *x, BLOCK_SIZE bsize,
-                                         int comp_group_idx_ctx,
-                                         int comp_index_ctx,
-                                         int masked_compound_used,
-                                         int *masked_type_cost) {
+static INLINE void calc_masked_type_cost(
+    const ModeCosts *mode_costs, BLOCK_SIZE bsize, int comp_group_idx_ctx,
+    int comp_index_ctx, int masked_compound_used, int *masked_type_cost) {
   av1_zero_array(masked_type_cost, COMPOUND_TYPES);
   // Account for group index cost when wedge and/or diffwtd prediction are
   // enabled
@@ -846,18 +848,21 @@ static INLINE void calc_masked_type_cost(MACROBLOCK *x, BLOCK_SIZE bsize,
     // Compound group index of average and distwtd is 0
     // Compound group index of wedge and diffwtd is 1
     masked_type_cost[COMPOUND_AVERAGE] +=
-        x->comp_group_idx_cost[comp_group_idx_ctx][0];
+        mode_costs->comp_group_idx_cost[comp_group_idx_ctx][0];
     masked_type_cost[COMPOUND_DISTWTD] += masked_type_cost[COMPOUND_AVERAGE];
     masked_type_cost[COMPOUND_WEDGE] +=
-        x->comp_group_idx_cost[comp_group_idx_ctx][1];
+        mode_costs->comp_group_idx_cost[comp_group_idx_ctx][1];
     masked_type_cost[COMPOUND_DIFFWTD] += masked_type_cost[COMPOUND_WEDGE];
   }
 
   // Compute the cost to signal compound index/type
-  masked_type_cost[COMPOUND_AVERAGE] += x->comp_idx_cost[comp_index_ctx][1];
-  masked_type_cost[COMPOUND_DISTWTD] += x->comp_idx_cost[comp_index_ctx][0];
-  masked_type_cost[COMPOUND_WEDGE] += x->compound_type_cost[bsize][0];
-  masked_type_cost[COMPOUND_DIFFWTD] += x->compound_type_cost[bsize][1];
+  masked_type_cost[COMPOUND_AVERAGE] +=
+      mode_costs->comp_idx_cost[comp_index_ctx][1];
+  masked_type_cost[COMPOUND_DISTWTD] +=
+      mode_costs->comp_idx_cost[comp_index_ctx][0];
+  masked_type_cost[COMPOUND_WEDGE] += mode_costs->compound_type_cost[bsize][0];
+  masked_type_cost[COMPOUND_DIFFWTD] +=
+      mode_costs->compound_type_cost[bsize][1];
 }
 
 // Updates mbmi structure with the relevant compound type info
@@ -969,14 +974,15 @@ static INLINE void save_comp_rd_search_stat(
 }
 
 static INLINE int get_interinter_compound_mask_rate(
-    const MACROBLOCK *const x, const MB_MODE_INFO *const mbmi) {
+    const ModeCosts *const mode_costs, const MB_MODE_INFO *const mbmi) {
   const COMPOUND_TYPE compound_type = mbmi->interinter_comp.type;
   // This function will be called only for COMPOUND_WEDGE and COMPOUND_DIFFWTD
   if (compound_type == COMPOUND_WEDGE) {
     return av1_is_wedge_used(mbmi->sb_type)
                ? av1_cost_literal(1) +
-                     x->wedge_idx_cost[mbmi->sb_type]
-                                      [mbmi->interinter_comp.wedge_index]
+                     mode_costs
+                         ->wedge_idx_cost[mbmi->sb_type]
+                                         [mbmi->interinter_comp.wedge_index]
                : 0;
   } else {
     assert(compound_type == COMPOUND_DIFFWTD);
@@ -1049,7 +1055,7 @@ static int64_t masked_compound_type_rd(
   uint64_t cur_sse = UINT64_MAX;
   best_rd_cur = pick_interinter_mask[compound_type - COMPOUND_WEDGE](
       cpi, x, bsize, *preds0, *preds1, residual1, diff10, &cur_sse);
-  *rs2 += get_interinter_compound_mask_rate(x, mbmi);
+  *rs2 += get_interinter_compound_mask_rate(&x->mode_costs, mbmi);
   best_rd_cur += RDCOST(x->rdmult, *rs2 + rate_mv, 0);
   assert(cur_sse != UINT64_MAX);
   int64_t skip_rd_cur = RDCOST(x->rdmult, *rs2 + rate_mv, (cur_sse << 4));
@@ -1266,8 +1272,8 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   const int comp_index_ctx = get_comp_index_context(cm, xd);
 
   // Populates masked_type_cost local array for the 4 compound types
-  calc_masked_type_cost(x, bsize, comp_group_idx_ctx, comp_index_ctx,
-                        masked_compound_used, masked_type_cost);
+  calc_masked_type_cost(&x->mode_costs, bsize, comp_group_idx_ctx,
+                        comp_index_ctx, masked_compound_used, masked_type_cost);
 
   int64_t comp_model_rd_cur = INT64_MAX;
   int64_t best_rd_cur = INT64_MAX;

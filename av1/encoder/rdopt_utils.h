@@ -632,7 +632,8 @@ static INLINE void store_winner_mode_stats(
     if (txfm_search_done) {
       winner_mode_stats[mode_idx].rate_y =
           rd_cost_y->rate +
-          x->skip_txfm_cost[skip_ctx][rd_cost->skip_txfm || skip_txfm];
+          x->mode_costs
+              .skip_txfm_cost[skip_ctx][rd_cost->skip_txfm || skip_txfm];
       winner_mode_stats[mode_idx].rate_uv = rd_cost_uv->rate;
     }
   }

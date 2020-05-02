@@ -878,7 +878,7 @@ static AOM_INLINE void search_sgrproj(const RestorationTileLimits *limits,
   const int highbd = cm->seq_params.use_highbitdepth;
   const int bit_depth = cm->seq_params.bit_depth;
 
-  const int64_t bits_none = x->sgrproj_restore_cost[0];
+  const int64_t bits_none = x->mode_costs.sgrproj_restore_cost[0];
   // Prune evaluation of RESTORE_SGRPROJ if 'skip_sgr_eval' is set
   if (rusi->skip_sgr_eval) {
     rsc->bits += bits_none;
@@ -911,7 +911,7 @@ static AOM_INLINE void search_sgrproj(const RestorationTileLimits *limits,
 
   rusi->sse[RESTORE_SGRPROJ] = try_restoration_unit(rsc, limits, tile, &rui);
 
-  const int64_t bits_sgr = x->sgrproj_restore_cost[1] +
+  const int64_t bits_sgr = x->mode_costs.sgrproj_restore_cost[1] +
                            (count_sgrproj_bits(&rusi->sgrproj, &rsc->sgrproj)
                             << AV1_PROB_COST_SHIFT);
 
@@ -1458,7 +1458,7 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
 
   const MACROBLOCK *const x = rsc->x;
-  const int64_t bits_none = x->wiener_restore_cost[0];
+  const int64_t bits_none = x->mode_costs.wiener_restore_cost[0];
 
   // Skip Wiener search for low variance contents
   if (rsc->sf->lpf_sf.prune_wiener_based_on_src_var) {
@@ -1560,7 +1560,7 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
   }
 
   const int64_t bits_wiener =
-      x->wiener_restore_cost[1] +
+      x->mode_costs.wiener_restore_cost[1] +
       (count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener)
        << AV1_PROB_COST_SHIFT);
 
@@ -1649,7 +1649,7 @@ static AOM_INLINE void search_switchable(const RestorationTileLimits *limits,
       default: assert(0); break;
     }
     const int64_t coeff_bits = coeff_pcost << AV1_PROB_COST_SHIFT;
-    const int64_t bits = x->switchable_restore_cost[r] + coeff_bits;
+    const int64_t bits = x->mode_costs.switchable_restore_cost[r] + coeff_bits;
     double cost = RDCOST_DBL(x->rdmult, bits >> 4, sse);
     if (r == RESTORE_SGRPROJ && rusi->sgrproj.ep < 10)
       cost *=

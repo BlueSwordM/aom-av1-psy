@@ -703,10 +703,10 @@ static int conditional_skipintra(PREDICTION_MODE mode,
   return 0;
 }
 
-static int cost_mv_ref(const MACROBLOCK *const x, PREDICTION_MODE mode,
+static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
                        int16_t mode_context) {
   if (is_inter_compound_mode(mode)) {
-    return x
+    return mode_costs
         ->inter_compound_mode_cost[mode_context][INTER_COMPOUND_OFFSET(mode)];
   }
 
@@ -716,19 +716,19 @@ static int cost_mv_ref(const MACROBLOCK *const x, PREDICTION_MODE mode,
   assert(is_inter_mode(mode));
 
   if (mode == NEWMV) {
-    mode_cost = x->newmv_mode_cost[mode_ctx][0];
+    mode_cost = mode_costs->newmv_mode_cost[mode_ctx][0];
     return mode_cost;
   } else {
-    mode_cost = x->newmv_mode_cost[mode_ctx][1];
+    mode_cost = mode_costs->newmv_mode_cost[mode_ctx][1];
     mode_ctx = (mode_context >> GLOBALMV_OFFSET) & GLOBALMV_CTX_MASK;
 
     if (mode == GLOBALMV) {
-      mode_cost += x->zeromv_mode_cost[mode_ctx][0];
+      mode_cost += mode_costs->zeromv_mode_cost[mode_ctx][0];
       return mode_cost;
     } else {
-      mode_cost += x->zeromv_mode_cost[mode_ctx][1];
+      mode_cost += mode_costs->zeromv_mode_cost[mode_ctx][1];
       mode_ctx = (mode_context >> REFMV_OFFSET) & REFMV_CTX_MASK;
-      mode_cost += x->refmv_mode_cost[mode_ctx][mode != NEARESTMV];
+      mode_cost += mode_costs->refmv_mode_cost[mode_ctx][mode != NEARESTMV];
       return mode_cost;
     }
   }
@@ -741,7 +741,7 @@ static INLINE PREDICTION_MODE get_single_mode(PREDICTION_MODE this_mode,
 }
 
 static AOM_INLINE void estimate_ref_frame_costs(
-    const AV1_COMMON *cm, const MACROBLOCKD *xd, const MACROBLOCK *x,
+    const AV1_COMMON *cm, const MACROBLOCKD *xd, const ModeCosts *mode_costs,
     int segment_id, unsigned int *ref_costs_single,
     unsigned int (*ref_costs_comp)[REF_FRAMES]) {
   int seg_ref_active =
@@ -754,8 +754,9 @@ static AOM_INLINE void estimate_ref_frame_costs(
              REF_FRAMES * sizeof((*ref_costs_comp)[0]));
   } else {
     int intra_inter_ctx = av1_get_intra_inter_context(xd);
-    ref_costs_single[INTRA_FRAME] = x->intra_inter_cost[intra_inter_ctx][0];
-    unsigned int base_cost = x->intra_inter_cost[intra_inter_ctx][1];
+    ref_costs_single[INTRA_FRAME] =
+        mode_costs->intra_inter_cost[intra_inter_ctx][0];
+    unsigned int base_cost = mode_costs->intra_inter_cost[intra_inter_ctx][1];
 
     for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i)
       ref_costs_single[i] = base_cost;
@@ -770,38 +771,41 @@ static AOM_INLINE void estimate_ref_frame_costs(
     // Determine cost of a single ref frame, where frame types are represented
     // by a tree:
     // Level 0: add cost whether this ref is a forward or backward ref
-    ref_costs_single[LAST_FRAME] += x->single_ref_cost[ctx_p1][0][0];
-    ref_costs_single[LAST2_FRAME] += x->single_ref_cost[ctx_p1][0][0];
-    ref_costs_single[LAST3_FRAME] += x->single_ref_cost[ctx_p1][0][0];
-    ref_costs_single[GOLDEN_FRAME] += x->single_ref_cost[ctx_p1][0][0];
-    ref_costs_single[BWDREF_FRAME] += x->single_ref_cost[ctx_p1][0][1];
-    ref_costs_single[ALTREF2_FRAME] += x->single_ref_cost[ctx_p1][0][1];
-    ref_costs_single[ALTREF_FRAME] += x->single_ref_cost[ctx_p1][0][1];
+    ref_costs_single[LAST_FRAME] += mode_costs->single_ref_cost[ctx_p1][0][0];
+    ref_costs_single[LAST2_FRAME] += mode_costs->single_ref_cost[ctx_p1][0][0];
+    ref_costs_single[LAST3_FRAME] += mode_costs->single_ref_cost[ctx_p1][0][0];
+    ref_costs_single[GOLDEN_FRAME] += mode_costs->single_ref_cost[ctx_p1][0][0];
+    ref_costs_single[BWDREF_FRAME] += mode_costs->single_ref_cost[ctx_p1][0][1];
+    ref_costs_single[ALTREF2_FRAME] +=
+        mode_costs->single_ref_cost[ctx_p1][0][1];
+    ref_costs_single[ALTREF_FRAME] += mode_costs->single_ref_cost[ctx_p1][0][1];
 
     // Level 1: if this ref is forward ref,
     // add cost whether it is last/last2 or last3/golden
-    ref_costs_single[LAST_FRAME] += x->single_ref_cost[ctx_p3][2][0];
-    ref_costs_single[LAST2_FRAME] += x->single_ref_cost[ctx_p3][2][0];
-    ref_costs_single[LAST3_FRAME] += x->single_ref_cost[ctx_p3][2][1];
-    ref_costs_single[GOLDEN_FRAME] += x->single_ref_cost[ctx_p3][2][1];
+    ref_costs_single[LAST_FRAME] += mode_costs->single_ref_cost[ctx_p3][2][0];
+    ref_costs_single[LAST2_FRAME] += mode_costs->single_ref_cost[ctx_p3][2][0];
+    ref_costs_single[LAST3_FRAME] += mode_costs->single_ref_cost[ctx_p3][2][1];
+    ref_costs_single[GOLDEN_FRAME] += mode_costs->single_ref_cost[ctx_p3][2][1];
 
     // Level 1: if this ref is backward ref
     // then add cost whether this ref is altref or backward ref
-    ref_costs_single[BWDREF_FRAME] += x->single_ref_cost[ctx_p2][1][0];
-    ref_costs_single[ALTREF2_FRAME] += x->single_ref_cost[ctx_p2][1][0];
-    ref_costs_single[ALTREF_FRAME] += x->single_ref_cost[ctx_p2][1][1];
+    ref_costs_single[BWDREF_FRAME] += mode_costs->single_ref_cost[ctx_p2][1][0];
+    ref_costs_single[ALTREF2_FRAME] +=
+        mode_costs->single_ref_cost[ctx_p2][1][0];
+    ref_costs_single[ALTREF_FRAME] += mode_costs->single_ref_cost[ctx_p2][1][1];
 
     // Level 2: further add cost whether this ref is last or last2
-    ref_costs_single[LAST_FRAME] += x->single_ref_cost[ctx_p4][3][0];
-    ref_costs_single[LAST2_FRAME] += x->single_ref_cost[ctx_p4][3][1];
+    ref_costs_single[LAST_FRAME] += mode_costs->single_ref_cost[ctx_p4][3][0];
+    ref_costs_single[LAST2_FRAME] += mode_costs->single_ref_cost[ctx_p4][3][1];
 
     // Level 2: last3 or golden
-    ref_costs_single[LAST3_FRAME] += x->single_ref_cost[ctx_p5][4][0];
-    ref_costs_single[GOLDEN_FRAME] += x->single_ref_cost[ctx_p5][4][1];
+    ref_costs_single[LAST3_FRAME] += mode_costs->single_ref_cost[ctx_p5][4][0];
+    ref_costs_single[GOLDEN_FRAME] += mode_costs->single_ref_cost[ctx_p5][4][1];
 
     // Level 2: bwdref or altref2
-    ref_costs_single[BWDREF_FRAME] += x->single_ref_cost[ctx_p6][5][0];
-    ref_costs_single[ALTREF2_FRAME] += x->single_ref_cost[ctx_p6][5][1];
+    ref_costs_single[BWDREF_FRAME] += mode_costs->single_ref_cost[ctx_p6][5][0];
+    ref_costs_single[ALTREF2_FRAME] +=
+        mode_costs->single_ref_cost[ctx_p6][5][1];
 
     if (cm->current_frame.reference_mode != SINGLE_REFERENCE) {
       // Similar to single ref, determine cost of compound ref frames.
@@ -817,34 +821,42 @@ static AOM_INLINE void estimate_ref_frame_costs(
 
       ref_bicomp_costs[LAST_FRAME] = ref_bicomp_costs[LAST2_FRAME] =
           ref_bicomp_costs[LAST3_FRAME] = ref_bicomp_costs[GOLDEN_FRAME] =
-              base_cost + x->comp_ref_type_cost[comp_ref_type_ctx][1];
+              base_cost + mode_costs->comp_ref_type_cost[comp_ref_type_ctx][1];
       ref_bicomp_costs[BWDREF_FRAME] = ref_bicomp_costs[ALTREF2_FRAME] = 0;
       ref_bicomp_costs[ALTREF_FRAME] = 0;
 
       // cost of first ref frame
-      ref_bicomp_costs[LAST_FRAME] += x->comp_ref_cost[ref_comp_ctx_p][0][0];
-      ref_bicomp_costs[LAST2_FRAME] += x->comp_ref_cost[ref_comp_ctx_p][0][0];
-      ref_bicomp_costs[LAST3_FRAME] += x->comp_ref_cost[ref_comp_ctx_p][0][1];
-      ref_bicomp_costs[GOLDEN_FRAME] += x->comp_ref_cost[ref_comp_ctx_p][0][1];
+      ref_bicomp_costs[LAST_FRAME] +=
+          mode_costs->comp_ref_cost[ref_comp_ctx_p][0][0];
+      ref_bicomp_costs[LAST2_FRAME] +=
+          mode_costs->comp_ref_cost[ref_comp_ctx_p][0][0];
+      ref_bicomp_costs[LAST3_FRAME] +=
+          mode_costs->comp_ref_cost[ref_comp_ctx_p][0][1];
+      ref_bicomp_costs[GOLDEN_FRAME] +=
+          mode_costs->comp_ref_cost[ref_comp_ctx_p][0][1];
 
-      ref_bicomp_costs[LAST_FRAME] += x->comp_ref_cost[ref_comp_ctx_p1][1][0];
-      ref_bicomp_costs[LAST2_FRAME] += x->comp_ref_cost[ref_comp_ctx_p1][1][1];
+      ref_bicomp_costs[LAST_FRAME] +=
+          mode_costs->comp_ref_cost[ref_comp_ctx_p1][1][0];
+      ref_bicomp_costs[LAST2_FRAME] +=
+          mode_costs->comp_ref_cost[ref_comp_ctx_p1][1][1];
 
-      ref_bicomp_costs[LAST3_FRAME] += x->comp_ref_cost[ref_comp_ctx_p2][2][0];
-      ref_bicomp_costs[GOLDEN_FRAME] += x->comp_ref_cost[ref_comp_ctx_p2][2][1];
+      ref_bicomp_costs[LAST3_FRAME] +=
+          mode_costs->comp_ref_cost[ref_comp_ctx_p2][2][0];
+      ref_bicomp_costs[GOLDEN_FRAME] +=
+          mode_costs->comp_ref_cost[ref_comp_ctx_p2][2][1];
 
       // cost of second ref frame
       ref_bicomp_costs[BWDREF_FRAME] +=
-          x->comp_bwdref_cost[bwdref_comp_ctx_p][0][0];
+          mode_costs->comp_bwdref_cost[bwdref_comp_ctx_p][0][0];
       ref_bicomp_costs[ALTREF2_FRAME] +=
-          x->comp_bwdref_cost[bwdref_comp_ctx_p][0][0];
+          mode_costs->comp_bwdref_cost[bwdref_comp_ctx_p][0][0];
       ref_bicomp_costs[ALTREF_FRAME] +=
-          x->comp_bwdref_cost[bwdref_comp_ctx_p][0][1];
+          mode_costs->comp_bwdref_cost[bwdref_comp_ctx_p][0][1];
 
       ref_bicomp_costs[BWDREF_FRAME] +=
-          x->comp_bwdref_cost[bwdref_comp_ctx_p1][1][0];
+          mode_costs->comp_bwdref_cost[bwdref_comp_ctx_p1][1][0];
       ref_bicomp_costs[ALTREF2_FRAME] +=
-          x->comp_bwdref_cost[bwdref_comp_ctx_p1][1][1];
+          mode_costs->comp_bwdref_cost[bwdref_comp_ctx_p1][1][1];
 
       // cost: if one ref frame is forward ref, the other ref is backward ref
       int ref0, ref1;
@@ -860,22 +872,22 @@ static AOM_INLINE void estimate_ref_frame_costs(
       const int uni_comp_ref_ctx_p1 = av1_get_pred_context_uni_comp_ref_p1(xd);
       const int uni_comp_ref_ctx_p2 = av1_get_pred_context_uni_comp_ref_p2(xd);
       ref_costs_comp[LAST_FRAME][LAST2_FRAME] =
-          base_cost + x->comp_ref_type_cost[comp_ref_type_ctx][0] +
-          x->uni_comp_ref_cost[uni_comp_ref_ctx_p][0][0] +
-          x->uni_comp_ref_cost[uni_comp_ref_ctx_p1][1][0];
+          base_cost + mode_costs->comp_ref_type_cost[comp_ref_type_ctx][0] +
+          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p][0][0] +
+          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p1][1][0];
       ref_costs_comp[LAST_FRAME][LAST3_FRAME] =
-          base_cost + x->comp_ref_type_cost[comp_ref_type_ctx][0] +
-          x->uni_comp_ref_cost[uni_comp_ref_ctx_p][0][0] +
-          x->uni_comp_ref_cost[uni_comp_ref_ctx_p1][1][1] +
-          x->uni_comp_ref_cost[uni_comp_ref_ctx_p2][2][0];
+          base_cost + mode_costs->comp_ref_type_cost[comp_ref_type_ctx][0] +
+          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p][0][0] +
+          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p1][1][1] +
+          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p2][2][0];
       ref_costs_comp[LAST_FRAME][GOLDEN_FRAME] =
-          base_cost + x->comp_ref_type_cost[comp_ref_type_ctx][0] +
-          x->uni_comp_ref_cost[uni_comp_ref_ctx_p][0][0] +
-          x->uni_comp_ref_cost[uni_comp_ref_ctx_p1][1][1] +
-          x->uni_comp_ref_cost[uni_comp_ref_ctx_p2][2][1];
+          base_cost + mode_costs->comp_ref_type_cost[comp_ref_type_ctx][0] +
+          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p][0][0] +
+          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p1][1][1] +
+          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p2][2][1];
       ref_costs_comp[BWDREF_FRAME][ALTREF_FRAME] =
-          base_cost + x->comp_ref_type_cost[comp_ref_type_ctx][0] +
-          x->uni_comp_ref_cost[uni_comp_ref_ctx_p][0][1];
+          base_cost + mode_costs->comp_ref_type_cost[comp_ref_type_ctx][0] +
+          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p][0][1];
     } else {
       int ref0, ref1;
       for (ref0 = LAST_FRAME; ref0 <= GOLDEN_FRAME; ++ref0) {
@@ -1014,8 +1026,9 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
           INT64_MAX) {
         const int16_t mode_ctx =
             av1_mode_context_analyzer(mbmi_ext->mode_context, ref_frames);
-        const int compare_cost = cost_mv_ref(x, compare_mode, mode_ctx);
-        const int this_cost = cost_mv_ref(x, this_mode, mode_ctx);
+        const int compare_cost =
+            cost_mv_ref(&x->mode_costs, compare_mode, mode_ctx);
+        const int this_cost = cost_mv_ref(&x->mode_costs, this_mode, mode_ctx);
 
         // Only skip if the mode cost is larger than compare mode cost
         if (this_cost > compare_cost) {
@@ -1088,8 +1101,8 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
         for (int i = 0; i < 2; ++i) {
           const int_mv ref_mv = av1_get_ref_mv(x, i);
           *rate_mv += av1_mv_bit_cost(
-              &cur_mv[i].as_mv, &ref_mv.as_mv, x->mv_cost_info.nmv_joint_cost,
-              x->mv_cost_info.mv_cost_stack, MV_COST_WEIGHT);
+              &cur_mv[i].as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
+              x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
         }
       }
     } else if (this_mode == NEAREST_NEWMV || this_mode == NEAR_NEWMV) {
@@ -1105,9 +1118,9 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                                      NULL, 0, rate_mv, 1);
       } else {
         const int_mv ref_mv = av1_get_ref_mv(x, 1);
-        *rate_mv = av1_mv_bit_cost(
-            &cur_mv[1].as_mv, &ref_mv.as_mv, x->mv_cost_info.nmv_joint_cost,
-            x->mv_cost_info.mv_cost_stack, MV_COST_WEIGHT);
+        *rate_mv = av1_mv_bit_cost(&cur_mv[1].as_mv, &ref_mv.as_mv,
+                                   x->mv_costs.nmv_joint_cost,
+                                   x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
       }
     } else {
       assert(this_mode == NEW_NEARESTMV || this_mode == NEW_NEARMV);
@@ -1123,9 +1136,9 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                                      NULL, 0, rate_mv, 0);
       } else {
         const int_mv ref_mv = av1_get_ref_mv(x, 0);
-        *rate_mv = av1_mv_bit_cost(
-            &cur_mv[0].as_mv, &ref_mv.as_mv, x->mv_cost_info.nmv_joint_cost,
-            x->mv_cost_info.mv_cost_stack, MV_COST_WEIGHT);
+        *rate_mv = av1_mv_bit_cost(&cur_mv[0].as_mv, &ref_mv.as_mv,
+                                   x->mv_costs.nmv_joint_cost,
+                                   x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
       }
     }
   } else {
@@ -1394,10 +1407,9 @@ static int64_t motion_mode_rd(
 
           // Keep the refined MV and WM parameters.
           if (mv0.as_int != mbmi->mv[0].as_int) {
-            tmp_rate_mv =
-                av1_mv_bit_cost(&mbmi->mv[0].as_mv, &ref_mv.as_mv,
-                                x->mv_cost_info.nmv_joint_cost,
-                                x->mv_cost_info.mv_cost_stack, MV_COST_WEIGHT);
+            tmp_rate_mv = av1_mv_bit_cost(
+                &mbmi->mv[0].as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
+                x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
             if (cpi->sf.mv_sf.adaptive_motion_search) {
               x->pred_mv[mbmi->ref_frame[0]] = mbmi->mv[0].as_mv;
             }
@@ -1434,17 +1446,21 @@ static int64_t motion_mode_rd(
     rd_stats->sse = 0;
     rd_stats->skip_txfm = 1;
     rd_stats->rate = tmp_rate2;
+    const ModeCosts *mode_costs = &x->mode_costs;
     if (mbmi->motion_mode != WARPED_CAUSAL) rd_stats->rate += switchable_rate;
     if (interintra_allowed) {
-      rd_stats->rate += x->interintra_cost[size_group_lookup[bsize]]
-                                          [mbmi->ref_frame[1] == INTRA_FRAME];
+      rd_stats->rate +=
+          mode_costs->interintra_cost[size_group_lookup[bsize]]
+                                     [mbmi->ref_frame[1] == INTRA_FRAME];
     }
     if ((last_motion_mode_allowed > SIMPLE_TRANSLATION) &&
         (mbmi->ref_frame[1] != INTRA_FRAME)) {
       if (last_motion_mode_allowed == WARPED_CAUSAL) {
-        rd_stats->rate += x->motion_mode_cost[bsize][mbmi->motion_mode];
+        rd_stats->rate +=
+            mode_costs->motion_mode_cost[bsize][mbmi->motion_mode];
       } else {
-        rd_stats->rate += x->motion_mode_cost1[bsize][mbmi->motion_mode];
+        rd_stats->rate +=
+            mode_costs->motion_mode_cost1[bsize][mbmi->motion_mode];
       }
     }
 
@@ -1538,10 +1554,10 @@ static int64_t motion_mode_rd(
       *disable_skip_txfm = 0;
       if (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1) {
         const int skip_ctx = av1_get_skip_txfm_context(xd);
-        inter_mode_data_push(tile_data, mbmi->sb_type, rd_stats->sse,
-                             rd_stats->dist,
-                             rd_stats_y->rate + rd_stats_uv->rate +
-                                 x->skip_txfm_cost[skip_ctx][mbmi->skip_txfm]);
+        inter_mode_data_push(
+            tile_data, mbmi->sb_type, rd_stats->sse, rd_stats->dist,
+            rd_stats_y->rate + rd_stats_uv->rate +
+                mode_costs->skip_txfm_cost[skip_ctx][mbmi->skip_txfm]);
       }
     }
 
@@ -1633,7 +1649,7 @@ static int64_t skip_mode_rd(RD_STATS *rd_stats, const AV1_COMP *const cpi,
   }
   const int skip_mode_ctx = av1_get_skip_mode_context(xd);
   rd_stats->dist = rd_stats->sse = total_sse;
-  rd_stats->rate = x->skip_mode_cost[skip_mode_ctx][1];
+  rd_stats->rate = x->mode_costs.skip_mode_cost[skip_mode_ctx][1];
   rd_stats->rdcost = RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
 
   restore_dst_buf(xd, *orig_dst, num_planes);
@@ -1852,8 +1868,8 @@ static bool ref_mv_idx_early_breakout(
     return true;
   }
   size_t est_rd_rate = args->ref_frame_cost + args->single_comp_cost;
-  const int drl_cost =
-      get_drl_cost(mbmi, mbmi_ext, x->drl_mode_cost0, ref_frame_type);
+  const int drl_cost = get_drl_cost(
+      mbmi, mbmi_ext, x->mode_costs.drl_mode_cost0, ref_frame_type);
   est_rd_rate += drl_cost;
   if (RDCOST(x->rdmult, est_rd_rate, 0) > ref_best_rd &&
       mbmi->mode != NEARESTMV && mbmi->mode != NEAREST_NEARESTMV) {
@@ -1873,6 +1889,7 @@ static int64_t simple_translation_pred_rd(
   const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   const AV1_COMMON *cm = &cpi->common;
   const int is_comp_pred = has_second_ref(mbmi);
+  const ModeCosts *mode_costs = &x->mode_costs;
 
   struct macroblockd_plane *p = xd->plane;
   const BUFFER_SET orig_dst = {
@@ -1896,7 +1913,7 @@ static int64_t simple_translation_pred_rd(
 
   rd_stats->rate += args->ref_frame_cost + args->single_comp_cost;
   const int drl_cost =
-      get_drl_cost(mbmi, mbmi_ext, x->drl_mode_cost0, ref_frame_type);
+      get_drl_cost(mbmi, mbmi_ext, mode_costs->drl_mode_cost0, ref_frame_type);
   rd_stats->rate += drl_cost;
   mode_info[ref_mv_idx].drl_cost = drl_cost;
 
@@ -1908,7 +1925,7 @@ static int64_t simple_translation_pred_rd(
   for (int i = 0; i < is_comp_pred + 1; ++i) {
     mbmi->mv[i].as_int = cur_mv[i].as_int;
   }
-  const int ref_mv_cost = cost_mv_ref(x, mbmi->mode, mode_ctx);
+  const int ref_mv_cost = cost_mv_ref(mode_costs, mbmi->mode, mode_ctx);
   rd_stats->rate += ref_mv_cost;
 
   if (RDCOST(x->rdmult, rd_stats->rate, 0) > ref_best_rd) {
@@ -2238,10 +2255,9 @@ static int skip_repeated_newmv(
       if (mode_info[i].mv.as_int != INVALID_MV) {
         const int compare_cost = mode_info[i].rate_mv + mode_info[i].drl_cost;
         const int_mv ref_mv = av1_get_ref_mv(x, 0);
-        this_rate_mv =
-            av1_mv_bit_cost(&mode_info[i].mv.as_mv, &ref_mv.as_mv,
-                            x->mv_cost_info.nmv_joint_cost,
-                            x->mv_cost_info.mv_cost_stack, MV_COST_WEIGHT);
+        this_rate_mv = av1_mv_bit_cost(
+            &mode_info[i].mv.as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
+            x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
         const int this_cost = this_rate_mv + drl_cost;
 
         if (compare_cost <= this_cost) {
@@ -2441,7 +2457,8 @@ static int64_t handle_inter_mode(
                                             mode_info, bsize, ref_set);
   const int16_t mode_ctx =
       av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
-  const int ref_mv_cost = cost_mv_ref(x, this_mode, mode_ctx);
+  const ModeCosts *mode_costs = &x->mode_costs;
+  const int ref_mv_cost = cost_mv_ref(mode_costs, this_mode, mode_ctx);
   const int base_rate =
       args->ref_frame_cost + args->single_comp_cost + ref_mv_cost;
 
@@ -2481,8 +2498,8 @@ static int64_t handle_inter_mode(
     mbmi->ref_mv_idx = ref_mv_idx;
 
     rd_stats->rate = base_rate;
-    const int drl_cost =
-        get_drl_cost(mbmi, mbmi_ext, x->drl_mode_cost0, ref_frame_type);
+    const int drl_cost = get_drl_cost(
+        mbmi, mbmi_ext, mode_costs->drl_mode_cost0, ref_frame_type);
     rd_stats->rate += drl_cost;
     mode_info[ref_mv_idx].drl_cost = drl_cost;
 
@@ -2858,7 +2875,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     // in MV_COST_WEIGHT is too large. Explore other values.
     const int rate_mv = av1_mv_bit_cost(&dv, &dv_ref.as_mv, dv_costs->joint_mv,
                                         dvcost, MV_COST_WEIGHT_SUB);
-    const int rate_mode = x->intrabc_cost[1];
+    const int rate_mode = x->mode_costs.intrabc_cost[1];
     RD_STATS rd_stats_yuv, rd_stats_y, rd_stats_uv;
     if (!av1_txfm_search(cpi, x, bsize, &rd_stats_yuv, &rd_stats_y,
                          &rd_stats_uv, rate_mode + rate_mv, INT64_MAX))
@@ -2937,7 +2954,8 @@ void av1_rd_pick_intra_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 
     // Intra block is always coded as non-skip
     rd_cost->rate =
-        rate_y + rate_uv + x->skip_txfm_cost[av1_get_skip_txfm_context(xd)][0];
+        rate_y + rate_uv +
+        x->mode_costs.skip_txfm_cost[av1_get_skip_txfm_context(xd)][0];
     rd_cost->dist = dist_y + dist_uv;
     rd_cost->rdcost = RDCOST(x->rdmult, rd_cost->rate, rd_cost->dist);
     rd_cost->skip_txfm = 0;
@@ -3058,11 +3076,12 @@ static AOM_INLINE void rd_pick_skip_mode(
   const int skip_mode_ctx = av1_get_skip_mode_context(xd);
   int64_t best_intra_inter_mode_cost = INT64_MAX;
   if (rd_cost->dist < INT64_MAX && rd_cost->rate < INT32_MAX) {
-    best_intra_inter_mode_cost =
-        RDCOST(x->rdmult, rd_cost->rate + x->skip_mode_cost[skip_mode_ctx][0],
-               rd_cost->dist);
+    const ModeCosts *mode_costs = &x->mode_costs;
+    best_intra_inter_mode_cost = RDCOST(
+        x->rdmult, rd_cost->rate + mode_costs->skip_mode_cost[skip_mode_ctx][0],
+        rd_cost->dist);
     // Account for non-skip mode rate in total rd stats
-    rd_cost->rate += x->skip_mode_cost[skip_mode_ctx][0];
+    rd_cost->rate += mode_costs->skip_mode_cost[skip_mode_ctx][0];
     av1_rd_cost_update(x->rdmult, rd_cost);
   }
 
@@ -3245,21 +3264,22 @@ static AOM_INLINE void refine_winner_mode_tx(
         av1_init_rd_stats(&rd_stats_uv);
       }
 
+      const ModeCosts *mode_costs = &x->mode_costs;
       if (is_inter_mode(mbmi->mode) &&
           RDCOST(x->rdmult,
-                 x->skip_txfm_cost[skip_ctx][0] + rd_stats_y.rate +
+                 mode_costs->skip_txfm_cost[skip_ctx][0] + rd_stats_y.rate +
                      rd_stats_uv.rate,
                  (rd_stats_y.dist + rd_stats_uv.dist)) >
-              RDCOST(x->rdmult, x->skip_txfm_cost[skip_ctx][1],
+              RDCOST(x->rdmult, mode_costs->skip_txfm_cost[skip_ctx][1],
                      (rd_stats_y.sse + rd_stats_uv.sse))) {
         skip_blk = 1;
-        rd_stats_y.rate = x->skip_txfm_cost[skip_ctx][1];
+        rd_stats_y.rate = mode_costs->skip_txfm_cost[skip_ctx][1];
         rd_stats_uv.rate = 0;
         rd_stats_y.dist = rd_stats_y.sse;
         rd_stats_uv.dist = rd_stats_uv.sse;
       } else {
         skip_blk = 0;
-        rd_stats_y.rate += x->skip_txfm_cost[skip_ctx][0];
+        rd_stats_y.rate += mode_costs->skip_txfm_cost[skip_ctx][0];
       }
       int this_rate = rd_stats.rate + rd_stats_y.rate + rd_stats_uv.rate -
                       winner_rate_y - winner_rate_uv;
@@ -3526,7 +3546,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
 
   init_neighbor_pred_buf(&x->obmc_buffer, args, is_cur_buf_hbd(&x->e_mbd));
   av1_collect_neighbors_ref_counts(xd);
-  estimate_ref_frame_costs(cm, xd, x, segment_id, ref_costs_single,
+  estimate_ref_frame_costs(cm, xd, &x->mode_costs, segment_id, ref_costs_single,
                            ref_costs_comp);
 
   const int mi_row = xd->mi_row;
@@ -4243,7 +4263,8 @@ static INLINE void update_search_state(
   if (txfm_search_done) {
     search_state->best_rate_y =
         new_best_rd_stats_y->rate +
-        x->skip_txfm_cost[skip_ctx][new_best_rd_stats->skip_txfm || skip_txfm];
+        x->mode_costs.skip_txfm_cost[skip_ctx]
+                                    [new_best_rd_stats->skip_txfm || skip_txfm];
     search_state->best_rate_uv = new_best_rd_stats_uv->rate;
   }
   memcpy(ctx->blk_skip, txfm_info->blk_skip,
@@ -4565,8 +4586,9 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
   int i;
+  const ModeCosts *mode_costs = &x->mode_costs;
   const int *comp_inter_cost =
-      x->comp_inter_cost[av1_get_reference_mode_context(xd)];
+      mode_costs->comp_inter_cost[av1_get_reference_mode_context(xd)];
 
   InterModeSearchState search_state;
   init_inter_mode_search_state(&search_state, cpi, x, bsize, best_rd_so_far);
@@ -4935,10 +4957,10 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                            mode_rate, search_state.best_rd)) {
         continue;
       } else if (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1) {
-        inter_mode_data_push(tile_data, mbmi->sb_type, rd_stats.sse,
-                             rd_stats.dist,
-                             rd_stats_y.rate + rd_stats_uv.rate +
-                                 x->skip_txfm_cost[skip_ctx][mbmi->skip_txfm]);
+        inter_mode_data_push(
+            tile_data, mbmi->sb_type, rd_stats.sse, rd_stats.dist,
+            rd_stats_y.rate + rd_stats_uv.rate +
+                mode_costs->skip_txfm_cost[skip_ctx][mbmi->skip_txfm]);
       }
       rd_stats.rdcost = RDCOST(x->rdmult, rd_stats.rate, rd_stats.dist);
 
@@ -5197,7 +5219,9 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   int64_t best_pred_diff[REFERENCE_MODES];
   unsigned int ref_costs_single[REF_FRAMES];
   unsigned int ref_costs_comp[REF_FRAMES][REF_FRAMES];
-  int *comp_inter_cost = x->comp_inter_cost[av1_get_reference_mode_context(xd)];
+  const ModeCosts *mode_costs = &x->mode_costs;
+  const int *comp_inter_cost =
+      mode_costs->comp_inter_cost[av1_get_reference_mode_context(xd)];
   InterpFilter best_filter = SWITCHABLE;
   int64_t this_rd = INT64_MAX;
   int rate2 = 0;
@@ -5208,7 +5232,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 
   av1_collect_neighbors_ref_counts(xd);
 
-  estimate_ref_frame_costs(cm, xd, x, segment_id, ref_costs_single,
+  estimate_ref_frame_costs(cm, xd, mode_costs, segment_id, ref_costs_single,
                            ref_costs_comp);
 
   for (i = 0; i < REF_FRAMES; ++i) x->pred_sse[i] = INT_MAX;

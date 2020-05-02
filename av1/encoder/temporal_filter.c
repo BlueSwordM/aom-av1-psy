@@ -966,12 +966,12 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
   // is used somewhere unexpectedly. Should be resolved later.
   // Initialize errorperbit and sadperbit
   const int rdmult = av1_compute_rd_mult_based_on_qindex(cpi, TF_QINDEX);
-  MvCostInfo *mv_cost_info = &cpi->td.mb.mv_cost_info;
-  av1_set_error_per_bit(mv_cost_info, rdmult);
-  av1_set_sad_per_bit(cpi, mv_cost_info, TF_QINDEX);
+  MvCosts *mv_costs = &cpi->td.mb.mv_costs;
+  av1_set_error_per_bit(mv_costs, rdmult);
+  av1_set_sad_per_bit(cpi, mv_costs, TF_QINDEX);
   av1_fill_mv_costs(cpi->common.fc,
                     cpi->common.features.cur_frame_force_integer_mv,
-                    cpi->common.features.allow_high_precision_mv, mv_cost_info);
+                    cpi->common.features.allow_high_precision_mv, mv_costs);
 
   // Setup frame buffer for filtering.
   YV12_BUFFER_CONFIG *frames[MAX_LAG_BUFFERS] = { NULL };

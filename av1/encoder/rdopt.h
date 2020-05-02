@@ -42,13 +42,14 @@ int av1_count_colors(const uint8_t *src, int stride, int rows, int cols,
 int av1_count_colors_highbd(const uint8_t *src8, int stride, int rows, int cols,
                             int bit_depth, int *val_count);
 
-static INLINE int av1_cost_skip_txb(MACROBLOCK *x, const TXB_CTX *const txb_ctx,
-                                    int plane, TX_SIZE tx_size) {
+static INLINE int av1_cost_skip_txb(const CoeffCosts *coeff_costs,
+                                    const TXB_CTX *const txb_ctx, int plane,
+                                    TX_SIZE tx_size) {
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
   const PLANE_TYPE plane_type = get_plane_type(plane);
-  const LV_MAP_COEFF_COST *const coeff_costs =
-      &x->coeff_costs[txs_ctx][plane_type];
-  return coeff_costs->txb_skip_cost[txb_ctx->txb_skip_ctx][1];
+  const LV_MAP_COEFF_COST *const coeff_costs_ =
+      &coeff_costs->coeff_costs[txs_ctx][plane_type];
+  return coeff_costs_->txb_skip_cost[txb_ctx->txb_skip_ctx][1];
 }
 
 void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,

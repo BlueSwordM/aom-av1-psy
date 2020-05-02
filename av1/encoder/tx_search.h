@@ -44,7 +44,7 @@ static AOM_INLINE int tx_size_cost(const MACROBLOCK *const x, BLOCK_SIZE bsize,
   const int depth = tx_size_to_depth(tx_size, bsize);
   const MACROBLOCKD *const xd = &x->e_mbd;
   const int tx_size_ctx = get_tx_size_context(xd);
-  return x->tx_size_cost[tx_size_cat][tx_size_ctx][depth];
+  return x->mode_costs.tx_size_cost[tx_size_cat][tx_size_ctx][depth];
 }
 
 int64_t av1_uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
