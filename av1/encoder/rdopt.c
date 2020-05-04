@@ -4770,6 +4770,8 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                               &intra_mode_num,
                               0 };
 
+  // This is the main loop of this function. It loops over all possible modes
+  // and calls handle_inter_mode() to compute the RD for each.
   // Here midx is just an iterator index that should not be used by itself
   // except to keep track of the number of modes searched. It should be used
   // with av1_default_mode_order to get the enum that defines the mode, which

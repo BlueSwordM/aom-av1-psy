@@ -63,6 +63,13 @@ unsigned int av1_high_get_sby_perpixel_variance(const struct AV1_COMP *cpi,
                                                 const struct buf_2d *ref,
                                                 BLOCK_SIZE bs, int bd);
 
+/*
+Top level function for inter mode selection. This function will loop over
+all possible inter modes and select the best one for the current block by
+computing the RD cost. The mode search and RD are computed in
+handle_inter_mode(), which is called from this function within the main
+loop.
+*/
 void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                struct TileDataEnc *tile_data,
                                struct macroblock *x, struct RD_STATS *rd_cost,
