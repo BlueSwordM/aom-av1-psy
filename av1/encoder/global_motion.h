@@ -14,6 +14,8 @@
 
 #include "aom/aom_integer.h"
 #include "aom_scale/yv12config.h"
+#include "aom_util/aom_thread.h"
+
 #include "av1/common/mv.h"
 #include "av1/common/warped_motion.h"
 
@@ -45,6 +47,54 @@ typedef struct {
   int distance;
   MV_REFERENCE_FRAME frame;
 } FrameDistPair;
+
+typedef struct {
+  // Array of structure which holds the global motion parameters for a given
+  // motion model. params_by_motion[i] holds the parameters for a given motion
+  // model for the ith ransac motion.
+  MotionModel params_by_motion[RANSAC_NUM_MOTIONS];
+
+  // Pointer to hold inliers from motion model.
+  uint8_t *segment_map;
+} GlobalMotionThreadData;
+
+typedef struct {
+  // Holds the mapping of each thread to past/future direction.
+  // thread_id_to_dir[i] indicates the direction id (past - 0/future - 1)
+  // assigned to the ith thread.
+  int8_t thread_id_to_dir[MAX_NUM_THREADS];
+
+  // A flag which holds the early exit status based on the speed feature
+  // 'prune_ref_frame_for_gm_search'. early_exit[i] will be set if the speed
+  // feature based early exit happens in the direction 'i'.
+  int8_t early_exit[MAX_DIRECTIONS];
+
+  // Counter for the next reference frame to be processed.
+  // next_frame_to_process[i] will hold the count of next reference frame to be
+  // processed in the direction 'i'.
+  int8_t next_frame_to_process[MAX_DIRECTIONS];
+} JobInfo;
+
+typedef struct {
+  // Data related to assigning jobs for global motion multi-threading.
+  JobInfo job_info;
+
+  // Data specific to each worker in global motion multi-threading.
+  // thread_data[i] stores the thread specific data for worker 'i'.
+  GlobalMotionThreadData *thread_data;
+
+#if CONFIG_MULTITHREAD
+  // Mutex lock used while dispatching jobs.
+  pthread_mutex_t *mutex_;
+#endif
+
+  // Width and height for which segment_map is allocated for each thread.
+  int allocated_width;
+  int allocated_height;
+
+  // Number of workers for which thread_data is allocated.
+  int8_t allocated_workers;
+} AV1GlobalMotionSync;
 
 void av1_convert_model_to_params(const double *params,
                                  WarpedMotionParams *model);

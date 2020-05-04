@@ -5757,11 +5757,11 @@ static INLINE void update_valid_ref_frames_for_gm(
   }
 }
 
-static INLINE void compute_gm_for_valid_ref_frames(
+void av1_compute_gm_for_valid_ref_frames(
     AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES], int frame,
     int num_src_corners, int *src_corners, unsigned char *src_buffer,
-    MotionModel *params_by_motion, uint8_t *segment_map,
-    const int segment_map_w, const int segment_map_h) {
+    MotionModel *params_by_motion, uint8_t *segment_map, int segment_map_w,
+    int segment_map_h) {
   AV1_COMMON *const cm = &cpi->common;
   GlobalMotionInfo *const gm_info = &cpi->gm_info;
   const WarpedMotionParams *ref_params =
@@ -5802,9 +5802,9 @@ static INLINE void compute_global_motion_for_references(
   // frame in a given direction.
   for (int frame = 0; frame < num_ref_frames; frame++) {
     int ref_frame = reference_frame[frame].frame;
-    compute_gm_for_valid_ref_frames(cpi, ref_buf, ref_frame, num_src_corners,
-                                    src_corners, src_buffer, params_by_motion,
-                                    segment_map, segment_map_w, segment_map_h);
+    av1_compute_gm_for_valid_ref_frames(
+        cpi, ref_buf, ref_frame, num_src_corners, src_corners, src_buffer,
+        params_by_motion, segment_map, segment_map_w, segment_map_h);
     // If global motion w.r.t. current ref frame is
     // INVALID/TRANSLATION/IDENTITY, skip the evaluation of global motion w.r.t
     // the remaining ref frames in that direction. The below exit is disabled
@@ -5979,7 +5979,10 @@ static AOM_INLINE void compute_global_motion(AV1_COMP *cpi) {
   if (cpi->common.current_frame.frame_type == INTER_FRAME && cpi->source &&
       cpi->oxcf.enable_global_motion && !gm_info->search_done) {
     setup_global_motion_info_params(cpi);
-    global_motion_estimation(cpi);
+    if (cpi->mt_info.num_workers > 1)
+      av1_global_motion_estimation_mt(cpi);
+    else
+      global_motion_estimation(cpi);
     gm_info->search_done = 1;
   }
   memcpy(cm->cur_frame->global_motion, cm->global_motion,

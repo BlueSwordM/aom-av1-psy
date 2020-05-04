@@ -824,6 +824,9 @@ typedef struct {
 
   // Loop Restoration multi-threading object.
   AV1LrSync lr_row_sync;
+
+  // Global Motion multi-threading object.
+  AV1GlobalMotionSync gm_sync;
 } MultiThreadInfo;
 
 typedef struct ActiveMap {
