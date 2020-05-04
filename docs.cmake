@@ -62,6 +62,8 @@ if(CONFIG_AV1_DECODER)
     set(AOM_DOXYGEN_EXAMPLE_DESCRIPTIONS ${AOM_DOXYGEN_EXAMPLE_DESCRIPTIONS}
                                          "Bitstream inspector.")
   endif()
+
+  set(AOM_DOXYGEN_SOURCES ${AOM_DOXYGEN_SOURCES} "${AOM_ROOT}/av1_decoder.dox")
 endif()
 
 if(CONFIG_AV1_ENCODER)
@@ -95,6 +97,7 @@ if(CONFIG_AV1_ENCODER)
 
   set(AOM_DOXYGEN_SOURCES ${AOM_DOXYGEN_SOURCES} "${AOM_ROOT}/aom/aomcx.h"
                           "${AOM_ROOT}/usage_cx.dox")
+  set(AOM_DOXYGEN_SOURCES ${AOM_DOXYGEN_SOURCES} "${AOM_ROOT}/av1_encoder.dox")
 endif()
 
 if(CONFIG_AV1_DECODER AND CONFIG_AV1_ENCODER)
