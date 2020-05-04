@@ -245,6 +245,12 @@ reference. The following utilities are included:
   write_cmake_list_to_doxygen_config_var("ENABLED_SECTIONS"
                                          "AOM_DOXYGEN_SECTIONS")
 
+  # Add AOMedia logo.
+  set(aom_logo "aomedia_logo_200.png")
+  configure_file(${AOM_ROOT}/${aom_logo} ${AOM_CONFIG_DIR}/${aom_logo} COPYONLY)
+  file(APPEND "${AOM_DOXYFILE}"
+       "PROJECT_LOGO = ${AOM_CONFIG_DIR}/${aom_logo}\n")
+
   # Add the doxygen generation rule.
   add_custom_target(docs ALL
                     COMMAND "${DOXYGEN_EXECUTABLE}" "${AOM_DOXYFILE}"

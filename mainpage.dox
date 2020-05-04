@@ -1,9 +1,6 @@
 /*!\mainpage AOMedia Codec SDK
 
-  \section main_contents Page Contents
-  - \ref main_intro
-  - \ref main_startpoints
-  - \ref main_support
+  \tableofcontents
 
   \section main_intro Introduction
   Welcome to the AOMedia Codec SDK. This SDK allows you to integrate your
