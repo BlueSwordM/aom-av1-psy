@@ -2793,6 +2793,14 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
   RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
 
+  // in case of LAP, lag in frames is set according to number of lap buffers
+  // calculated at init time. This stores and restores LAP's lag in frames to
+  // prevent override by new cfg.
+  int lap_lag_in_frames = -1;
+  if (cpi->lap_enabled && cpi->compressor_stage == LAP_STAGE) {
+    lap_lag_in_frames = cpi->oxcf.lag_in_frames;
+  }
+
   if (seq_params->profile != oxcf->profile) seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->bit_depth;
   seq_params->color_primaries = oxcf->color_primaries;
@@ -2982,6 +2990,11 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   if (cpi->use_svc)
     av1_update_layer_context_change_config(cpi, oxcf->target_bandwidth);
+
+  // restore the value of lag_in_frame for LAP stage.
+  if (lap_lag_in_frames != -1) {
+    cpi->oxcf.lag_in_frames = lap_lag_in_frames;
+  }
 }
 
 static INLINE void setup_tpl_buffers(AV1_COMMON *const cm,

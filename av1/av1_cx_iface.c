@@ -1077,6 +1077,9 @@ static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
     // On profile change, request a key frame
     force_key |= ctx->cpi->common.seq_params.profile != ctx->oxcf.profile;
     av1_change_config(ctx->cpi, &ctx->oxcf);
+    if (ctx->cpi_lap != NULL) {
+      av1_change_config(ctx->cpi_lap, &ctx->oxcf);
+    }
   }
 
   if (force_key) ctx->next_frame_flags |= AOM_EFLAG_FORCE_KF;
@@ -1111,6 +1114,9 @@ static aom_codec_err_t update_extra_cfg(aom_codec_alg_priv_t *ctx,
     ctx->extra_cfg = *extra_cfg;
     set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg);
     av1_change_config(ctx->cpi, &ctx->oxcf);
+    if (ctx->cpi_lap != NULL) {
+      av1_change_config(ctx->cpi_lap, &ctx->oxcf);
+    }
   }
   return res;
 }
