@@ -89,9 +89,6 @@ FRAME_COUNTS aggregate_fc;
 #define AM_SEGMENT_ID_ACTIVE 0
 
 // #define OUTPUT_YUV_REC
-#ifdef OUTPUT_YUV_SKINMAP
-FILE *yuv_skinmap_file = NULL;
-#endif
 #ifdef OUTPUT_YUV_REC
 FILE *yuv_rec_file;
 #define FILE_NAME_LEN 100
@@ -3166,9 +3163,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
   cpi->time_stamps.first_ever = INT64_MAX;
 
-#ifdef OUTPUT_YUV_SKINMAP
-  yuv_skinmap_file = fopen("skinmap.yuv", "ab");
-#endif
 #ifdef OUTPUT_YUV_REC
   yuv_rec_file = fopen("rec.yuv", "wb");
 #endif
@@ -3679,9 +3673,6 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 
   aom_free(cpi);
 
-#ifdef OUTPUT_YUV_SKINMAP
-  fclose(yuv_skinmap_file);
-#endif
 #ifdef OUTPUT_YUV_REC
   fclose(yuv_rec_file);
 #endif
@@ -3747,7 +3738,7 @@ int av1_update_entropy(bool *ext_refresh_frame_context,
   return 0;
 }
 
-#if defined(OUTPUT_YUV_DENOISED) || defined(OUTPUT_YUV_SKINMAP)
+#if defined(OUTPUT_YUV_DENOISED)
 // The denoiser buffer is allocated as a YUV 440 buffer. This function writes it
 // as YUV 420. We simply use the top-left pixels of the UV buffers, since we do
 // not denoise the UV channels at this time. If ever we implement UV channel
@@ -5717,12 +5708,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     }
     return err;
   }
-
-#ifdef OUTPUT_YUV_SKINMAP
-  if (cpi->common.current_frame.frame_number > 1) {
-    av1_compute_skin_map(cpi, yuv_skinmap_file);
-  }
-#endif  // OUTPUT_YUV_SKINMAP
 
   AV1_COMMON *const cm = &cpi->common;
   SequenceHeader *const seq_params = &cm->seq_params;
