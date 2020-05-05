@@ -580,7 +580,7 @@ static AOM_INLINE void init_sbuv_mode(MB_MODE_INFO *const mbmi) {
 
 // Store best mode stats for winner mode processing
 static INLINE void store_winner_mode_stats(
-    const AV1_COMMON *const cm, MACROBLOCK *x, MB_MODE_INFO *mbmi,
+    const AV1_COMMON *const cm, MACROBLOCK *x, const MB_MODE_INFO *mbmi,
     RD_STATS *rd_cost, RD_STATS *rd_cost_y, RD_STATS *rd_cost_uv,
     THR_MODES mode_index, uint8_t *color_map, BLOCK_SIZE bsize, int64_t this_rd,
     int enable_multiwinner_mode_process, int txfm_search_done) {

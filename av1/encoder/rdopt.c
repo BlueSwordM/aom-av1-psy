@@ -2271,13 +2271,20 @@ static int skip_repeated_newmv(
           // best_mv is the same as ref_mv. In this case we skip and
           // rely on NEAR(EST)MV instead
           if (best_mbmi->ref_mv_idx == i &&
-              mode_info[i].mv.as_int != ref_mv.as_int) {
+              best_mbmi->mv[0].as_int != ref_mv.as_int) {
             assert(*best_rd != INT64_MAX);
+            assert(best_mbmi->mv[0].as_int == mode_info[i].mv.as_int);
             best_mbmi->ref_mv_idx = ref_mv_idx;
             motion_mode_cand->rate_mv = this_rate_mv;
             best_rd_stats->rate += this_cost - compare_cost;
             *best_rd =
                 RDCOST(x->rdmult, best_rd_stats->rate, best_rd_stats->dist);
+            // We also need to update mode_info here because we are setting
+            // (ref_)best_rd here. So we will not be able to search the same
+            // mode again with the current configuration.
+            mode_info[ref_mv_idx].mv.as_int = best_mbmi->mv[0].as_int;
+            mode_info[ref_mv_idx].rate_mv = this_rate_mv;
+            mode_info[ref_mv_idx].rd = *best_rd;
             if (*best_rd < *ref_best_rd) *ref_best_rd = *best_rd;
             break;
           }
@@ -2681,11 +2688,14 @@ static int64_t handle_inter_mode(
     assert(
         IMPLIES(!av1_check_newmv_joint_nonzero(cm, x), ret_val == INT64_MAX));
 
-    mode_info[ref_mv_idx].mv.as_int = mbmi->mv[0].as_int;
-    mode_info[ref_mv_idx].rate_mv = rate_mv;
     if (ret_val != INT64_MAX) {
       int64_t tmp_rd = RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
-      mode_info[ref_mv_idx].rd = tmp_rd;
+      if (tmp_rd < mode_info[ref_mv_idx].rd) {
+        // Only update mode_info if the new result is actually better.
+        mode_info[ref_mv_idx].mv.as_int = mbmi->mv[0].as_int;
+        mode_info[ref_mv_idx].rate_mv = rate_mv;
+        mode_info[ref_mv_idx].rd = tmp_rd;
+      }
       const THR_MODES mode_enum = get_prediction_mode_idx(
           mbmi->mode, mbmi->ref_frame[0], mbmi->ref_frame[1]);
       // Collect mode stats for multiwinner mode processing
