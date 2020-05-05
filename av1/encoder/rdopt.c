@@ -1234,8 +1234,14 @@ static INLINE void update_mode_start_end_index(const AV1_COMP *const cpi,
   }
 }
 
-// TODO(afergs): Refactor the MBMI references in here - there's four
-// TODO(afergs): Refactor optional args - add them to a struct or remove
+/* Function to search over and determine the motion mode. It will update
+   mbmi->motion_mode to one of SIMPLE_TRANSLATION, OBMC_CAUSAL, or
+   WARPED_CAUSAL and determine any necessary side information for the selected
+   motion mode. It will also perform the full transform search, unless the
+   input parameter do_tx_search indicates to do an estimation of the RD rather
+   than an RD corresponding to a full transform search. It will return the
+   RD for the final motion_mode.
+*/
 static int64_t motion_mode_rd(
     const AV1_COMP *const cpi, TileDataEnc *tile_data, MACROBLOCK *const x,
     BLOCK_SIZE bsize, RD_STATS *rd_stats, RD_STATS *rd_stats_y,
@@ -1270,15 +1276,21 @@ static int64_t motion_mode_rd(
   mbmi->num_proj_ref = 1;  // assume num_proj_ref >=1
   MOTION_MODE last_motion_mode_allowed = SIMPLE_TRANSLATION;
   if (features->switchable_motion_mode) {
+    // Determine which motion modes to search if more than SIMPLE_TRANSLATION
+    // is allowed.
     last_motion_mode_allowed = motion_mode_allowed(
         xd->global_motion, xd, mbmi, features->allow_warped_motion);
   }
 
   if (last_motion_mode_allowed == WARPED_CAUSAL) {
+    // Collect projection samples used in least squares approximation of
+    // the warped motion parameters if WARPED_CAUSAL is going to be searched.
     mbmi->num_proj_ref = av1_findSamples(cm, xd, pts0, pts_inref0);
   }
   const int total_samples = mbmi->num_proj_ref;
   if (total_samples == 0) {
+    // Do not search WARPED_CAUSAL if there are no samples to use to determine
+    // warped parameters.
     last_motion_mode_allowed = OBMC_CAUSAL;
   }
 
@@ -1294,9 +1306,17 @@ static int64_t motion_mode_rd(
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   int mode_index_start, mode_index_end;
+  // Modify the start and end index according to speed features. For example,
+  // if SIMPLE_TRANSLATION has already been searched according to
+  // the motion_mode_for_winner_cand speed feature, update the mode_index_start
+  // to avoid searching it again.
   update_mode_start_end_index(cpi, &mode_index_start, &mode_index_end,
                               last_motion_mode_allowed, interintra_allowed,
                               eval_motion_mode);
+  // Main function loop. This loops over all of the possible motion modes and
+  // computes RD to determine the best one. This process includes computing
+  // any necessary side information for the motion mode and performing the
+  // transform search.
   for (int mode_index = mode_index_start; mode_index <= mode_index_end;
        mode_index++) {
     if (args->skip_motion_mode && mode_index) continue;
@@ -1309,12 +1329,15 @@ static int64_t motion_mode_rd(
 
     *mbmi = base_mbmi;
     if (is_interintra_mode) {
+      // Only use SIMPLE_TRANSLATION for interintra
       mbmi->motion_mode = SIMPLE_TRANSLATION;
     } else {
       mbmi->motion_mode = (MOTION_MODE)mode_index;
       assert(mbmi->ref_frame[1] != INTRA_FRAME);
     }
 
+    // Do not search OBMC if the probability of selecting it is below a
+    // predetermined threshold for this update_type and block size.
     const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
     const int prune_obmc = cpi->frame_probs.obmc_probs[update_type][bsize] <
                            cpi->sf.inter_sf.prune_obmc_prob_thresh;
@@ -1353,6 +1376,7 @@ static int64_t motion_mode_rd(
       }
     } else if (mbmi->motion_mode == OBMC_CAUSAL) {
       const uint32_t cur_mv = mbmi->mv[0].as_int;
+      // OBMC_CAUSAL not allowed for compound prediction
       assert(!is_comp_pred);
       if (have_newmv_in_inter_mode(this_mode)) {
         av1_single_motion_search(cpi, x, bsize, 0, &tmp_rate_mv, INT_MAX, NULL,
@@ -1360,9 +1384,13 @@ static int64_t motion_mode_rd(
         tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
       }
       if ((mbmi->mv[0].as_int != cur_mv) || eval_motion_mode) {
+        // Build the predictor according to the current motion vector if it has
+        // not already been built
         av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
                                       0, av1_num_planes(cm) - 1);
       }
+      // Build the inter predictor by blending the predictor corresponding to
+      // this MV, and the neighboring blocks using the OBMC model
       av1_build_obmc_inter_prediction(
           cm, xd, args->above_pred_buf, args->above_pred_stride,
           args->left_pred_buf, args->left_pred_stride);
@@ -1381,12 +1409,14 @@ static int64_t motion_mode_rd(
             &mbmi->mv[0].as_mv, pts, pts_inref, mbmi->num_proj_ref, bsize);
       }
 
+      // Compute the warped motion parameters with a least squares fit
+      //  using the collected samples
       if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
                                mbmi->mv[0].as_mv.row, mbmi->mv[0].as_mv.col,
                                &mbmi->wm_params, mi_row, mi_col)) {
-        // Refine MV for NEWMV mode
         assert(!is_comp_pred);
         if (have_newmv_in_inter_mode(this_mode)) {
+          // Refine MV for NEWMV mode
           const int_mv mv0 = mbmi->mv[0];
           const WarpedMotionParams wm_params0 = mbmi->wm_params;
           const int num_proj_ref0 = mbmi->num_proj_ref;
@@ -1405,8 +1435,8 @@ static int64_t motion_mode_rd(
           av1_refine_warped_mv(xd, cm, &ms_params, bsize, pts0, pts_inref0,
                                total_samples);
 
-          // Keep the refined MV and WM parameters.
           if (mv0.as_int != mbmi->mv[0].as_int) {
+            // Keep the refined MV and WM parameters.
             tmp_rate_mv = av1_mv_bit_cost(
                 &mbmi->mv[0].as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
                 x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
@@ -1425,6 +1455,7 @@ static int64_t motion_mode_rd(
             continue;
         }
 
+        // Build the warped predictor
         av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
                                       av1_num_planes(cm) - 1);
       } else {
@@ -1441,6 +1472,7 @@ static int64_t motion_mode_rd(
     // current mode
     if (!av1_check_newmv_joint_nonzero(cm, x)) continue;
 
+    // Update rd_stats for the current motion mode
     txfm_info->skip_txfm = 0;
     rd_stats->dist = 0;
     rd_stats->sse = 0;
@@ -1465,6 +1497,9 @@ static int64_t motion_mode_rd(
     }
 
     if (!do_tx_search) {
+      // Avoid doing a transform search here to speed up the overall mode
+      // search. It will be done later in the mode search if the current
+      // motion mode seems promising.
       int64_t curr_sse = -1;
       int64_t sse_y = -1;
       int est_residue_cost = 0;
@@ -1517,6 +1552,7 @@ static int64_t motion_mode_rd(
       }
       mbmi->skip_txfm = 0;
     } else {
+      // Perform full transform search
       int64_t skip_rd = INT64_MAX;
       int64_t skip_rdy = INT64_MAX;
       if (cpi->sf.inter_sf.txfm_rd_gate_level) {
@@ -1533,6 +1569,7 @@ static int64_t motion_mode_rd(
         if (!eval_txfm) continue;
       }
 
+      // Do transform search
       if (!av1_txfm_search(cpi, x, bsize, rd_stats, rd_stats_y, rd_stats_uv,
                            rd_stats->rate, ref_best_rd)) {
         if (rd_stats_y->rate == INT_MAX && mode_index == 0) {
@@ -1585,6 +1622,7 @@ static int64_t motion_mode_rd(
       }
     }
     if (mode_index == 0 || tmp_rd < best_rd) {
+      // Update best_rd data if this is the best motion mode so far
       best_mbmi = *mbmi;
       best_rd = tmp_rd;
       best_rd_stats = *rd_stats;
@@ -1601,6 +1639,7 @@ static int64_t motion_mode_rd(
       // if (best_xskip) break;
     }
   }
+  // Update RD and mbmi stats for selected motion mode
   mbmi->ref_frame[1] = ref_frame_1;
   *rate_mv = best_rate_mv;
   if (best_rd == INT64_MAX || !av1_check_newmv_joint_nonzero(cm, x)) {
