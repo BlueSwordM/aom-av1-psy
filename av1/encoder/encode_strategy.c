@@ -1313,7 +1313,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
             cm->txcoeff_cost_count, cm->txcoeff_cost_timer,
             cm->cum_txcoeff_cost_timer);
 #endif
-    av1_twopass_postencode_update(cpi);
+    if (!has_no_stats_stage(cpi)) av1_twopass_postencode_update(cpi);
   }
 #endif  // !CONFIG_REALTIME_ONLY
 
