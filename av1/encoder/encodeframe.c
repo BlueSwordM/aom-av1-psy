@@ -5031,6 +5031,8 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   }
 }
 
+// Update the rate costs of some symbols according to the frequency directed
+// by speed features
 static AOM_INLINE void set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
                                          const TileInfo *const tile_info,
                                          const int mi_row, const int mi_col) {
@@ -5086,6 +5088,8 @@ static AOM_INLINE void set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
   }
 }
 
+// Do partition and mode search for an sb row: one row of superblocks filling up
+// the width of the current tile.
 static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
                                      TileDataEnc *tile_data, int mi_row,
                                      TokenExtra **tp) {
@@ -5111,7 +5115,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
   // Initialize the left context for the new SB row
   av1_zero_left_context(xd);
 
-  // Reset delta for every tile
+  // Reset delta for quantizer and loof filters at the beginning of every tile
   if (mi_row == tile_info->mi_row_start || row_mt_enabled) {
     if (cm->delta_q_info.delta_q_present_flag)
       xd->current_base_qindex = cm->quant_params.base_qindex;
@@ -5119,6 +5123,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
       av1_reset_loop_filter_delta(xd, av1_num_planes(cm));
     }
   }
+
   reset_thresh_freq_fact(x);
 
   // Code each SB in the row
@@ -5129,9 +5134,10 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     if (tile_data->allow_update_cdf && row_mt_enabled &&
         (tile_info->mi_row_start != mi_row)) {
       if ((tile_info->mi_col_start == mi_col)) {
-        // restore frame context of 1st column sb
+        // restore frame context at the 1st column sb
         memcpy(xd->tile_ctx, x->row_ctx, sizeof(*xd->tile_ctx));
       } else {
+        // update context
         int wt_left = AVG_CDF_WEIGHT_LEFT;
         int wt_tr = AVG_CDF_WEIGHT_TOP_RIGHT;
         if (tile_info->mi_col_end > (mi_col + mib_size))
@@ -5143,17 +5149,20 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
       }
     }
 
+    // Update the rate cost tables for some symbols
     set_cost_upd_freq(cpi, td, tile_info, mi_row, mi_col);
 
+    // Reset color coding related parameters
     x->color_sensitivity[0] = 0;
     x->color_sensitivity[1] = 0;
     x->content_state_sb = 0;
 
     xd->cur_frame_force_integer_mv = cm->features.cur_frame_force_integer_mv;
-    td->mb.cb_coef_buff = av1_get_cb_coeff_buffer(cpi, mi_row, mi_col);
     x->source_variance = UINT_MAX;
     x->simple_motion_pred_sse = UINT_MAX;
+    td->mb.cb_coef_buff = av1_get_cb_coeff_buffer(cpi, mi_row, mi_col);
 
+    // Get segment id and skip flag
     const struct segmentation *const seg = &cm->seg;
     int seg_skip = 0;
     if (seg->enabled) {
@@ -5165,12 +5174,14 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
       seg_skip = segfeature_active(seg, segment_id, SEG_LVL_SKIP);
     }
 
+    // encode the superblock
     if (use_nonrd_mode) {
       encode_nonrd_sb(cpi, td, tile_data, tp, mi_row, mi_col, seg_skip);
     } else {
       encode_rd_sb(cpi, td, tile_data, tp, mi_row, mi_col, seg_skip);
     }
 
+    // Update the top-right context in row_mt coding
     if (tile_data->allow_update_cdf && row_mt_enabled &&
         (tile_info->mi_row_end > (mi_row + mib_size))) {
       if (sb_cols_in_tile == 1)
