@@ -25,8 +25,14 @@ extern "C" {
 // Block size used in temporal filtering.
 #define TF_BLOCK_SIZE BLOCK_32X32
 
+// Window size for temporal filtering.
+#define TF_WINDOW_LENGTH 5
+
 // Hyper-parameters used to compute filtering weight. These hyper-parameters can
 // be tuned for a better performance.
+// 0. A scale factor used in temporal filtering to raise the filter weight from
+//    `double` with range [0, 1] to `int` with range [0, 1000].
+#define TF_WEIGHT_SCALE 1000
 // 1. Weight factor used to balance the weighted-average between window error
 //    and block error. The weight is for window error while the weight for block
 //    error is always set as 1.
@@ -47,12 +53,15 @@ extern "C" {
 //    i.e., smaller than this threshold), we will adjust the filtering weight
 //    based on the strength value.
 #define TF_STRENGTH_THRESHOLD 4
-
-// Window size for temporal filtering.
-#define TF_WINDOW_LENGTH 5
-// A scale factor used in temporal filtering to raise the filter weight from
-// `double` with range [0, 1] to `int` with range [0, 1000].
-#define TF_WEIGHT_SCALE 1000
+// 5. Threshold for using motion search distance to adjust the filtering weight.
+//    Concretely, larger motion search vector leads to a higher probability of
+//    unreliable search. Hence, we would like to reduce the filtering strength
+//    when the distance is large enough. Considering that the distance actually
+//    relies on the frame size, this threshold is also a resolution-based
+//    threshold. Taking 720p videos as an instance, if this field equals to 0.1,
+//    then the actual threshold will be 720 * 0.1 = 72. Similarly, the threshold
+//    for 360p videos will be 360 * 0.1 = 36.
+#define TF_SEARCH_DISTANCE_THRESHOLD 0.1
 
 #define NOISE_ESTIMATION_EDGE_THRESHOLD 50
 // Estimates noise level from a given frame using a single plane (Y, U, or V).

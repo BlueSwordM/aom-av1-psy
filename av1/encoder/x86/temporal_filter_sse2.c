@@ -105,10 +105,10 @@ static int32_t xx_mask_and_hadd(__m128i vsum1, __m128i vsum2, int i) {
 static void apply_temporal_filter(
     const uint8_t *frame1, const unsigned int stride, const uint8_t *frame2,
     const unsigned int stride2, const int block_width, const int block_height,
-    const double sigma, const int *subblock_mses, const int q_factor,
-    const int filter_strength, unsigned int *accumulator, uint16_t *count,
-    uint16_t *luma_sq_error, uint16_t *chroma_sq_error, int plane,
-    int ss_x_shift, int ss_y_shift) {
+    const int min_frame_size, const double sigma, const MV *subblock_mvs,
+    const int *subblock_mses, const int q_factor, const int filter_strength,
+    unsigned int *accumulator, uint16_t *count, uint16_t *luma_sq_error,
+    uint16_t *chroma_sq_error, int plane, int ss_x_shift, int ss_y_shift) {
   assert(((block_width == 32) && (block_height == 32)) ||
          ((block_width == 16) && (block_height == 16)));
   if (plane > PLANE_TYPE_Y) assert(chroma_sq_error != NULL);
@@ -208,8 +208,14 @@ static void apply_temporal_filter(
           (TF_WINDOW_BLOCK_BALANCE_WEIGHT * window_error + block_error) /
           (TF_WINDOW_BLOCK_BALANCE_WEIGHT + 1) / TF_SEARCH_ERROR_NORM_WEIGHT;
 
+      const MV mv = subblock_mvs[subblock_idx];
+      const double distance = sqrt(pow(mv.row, 2) + pow(mv.col, 2));
+      const double distance_threshold =
+          (double)AOMMAX(min_frame_size * TF_SEARCH_DISTANCE_THRESHOLD, 1);
+      const double d_factor = AOMMAX(distance / distance_threshold, 1);
+
       const double scaled_error =
-          AOMMIN(combined_error / n_decay / q_decay / s_decay, 7);
+          AOMMIN(combined_error * d_factor / n_decay / q_decay / s_decay, 7);
       const int weight = (int)(exp(-scaled_error) * TF_WEIGHT_SCALE);
 
       count[k] += weight;
@@ -219,12 +225,12 @@ static void apply_temporal_filter(
 }
 
 void av1_apply_temporal_filter_sse2(
-    const YV12_BUFFER_CONFIG *ref_frame, const MACROBLOCKD *mbd,
+    const YV12_BUFFER_CONFIG *frame_to_filter, const MACROBLOCKD *mbd,
     const BLOCK_SIZE block_size, const int mb_row, const int mb_col,
-    const int num_planes, const double *noise_levels, const int *subblock_mses,
-    const int q_factor, const int filter_strength, const uint8_t *pred,
-    uint32_t *accum, uint16_t *count) {
-  const int is_high_bitdepth = ref_frame->flags & YV12_FLAG_HIGHBITDEPTH;
+    const int num_planes, const double *noise_levels, const MV *subblock_mvs,
+    const int *subblock_mses, const int q_factor, const int filter_strength,
+    const uint8_t *pred, uint32_t *accum, uint16_t *count) {
+  const int is_high_bitdepth = frame_to_filter->flags & YV12_FLAG_HIGHBITDEPTH;
   assert(block_size == BLOCK_32X32 && "Only support 32x32 block with avx2!");
   assert(TF_WINDOW_LENGTH == 5 && "Only support window length 5 with avx2!");
   assert(!is_high_bitdepth && "Only support low bit-depth with sse2!");
@@ -234,6 +240,9 @@ void av1_apply_temporal_filter_sse2(
   const int mb_height = block_size_high[block_size];
   const int mb_width = block_size_wide[block_size];
   const int mb_pels = mb_height * mb_width;
+  const int frame_height = frame_to_filter->y_crop_height;
+  const int frame_width = frame_to_filter->y_crop_width;
+  const int min_frame_size = AOMMIN(frame_height, frame_width);
   uint16_t luma_sq_error[SSE_STRIDE * BH];
   uint16_t *chroma_sq_error =
       (num_planes > 0)
@@ -243,18 +252,19 @@ void av1_apply_temporal_filter_sse2(
   for (int plane = 0; plane < num_planes; ++plane) {
     const uint32_t plane_h = mb_height >> mbd->plane[plane].subsampling_y;
     const uint32_t plane_w = mb_width >> mbd->plane[plane].subsampling_x;
-    const uint32_t frame_stride = ref_frame->strides[plane == 0 ? 0 : 1];
+    const uint32_t frame_stride = frame_to_filter->strides[plane == 0 ? 0 : 1];
     const int frame_offset = mb_row * plane_h * frame_stride + mb_col * plane_w;
 
-    const uint8_t *ref = ref_frame->buffers[plane] + frame_offset;
+    const uint8_t *ref = frame_to_filter->buffers[plane] + frame_offset;
     const int ss_x_shift =
         mbd->plane[plane].subsampling_x - mbd->plane[0].subsampling_x;
     const int ss_y_shift =
         mbd->plane[plane].subsampling_y - mbd->plane[0].subsampling_y;
 
     apply_temporal_filter(ref, frame_stride, pred + mb_pels * plane, plane_w,
-                          plane_w, plane_h, noise_levels[plane], subblock_mses,
-                          q_factor, filter_strength, accum + mb_pels * plane,
+                          plane_w, plane_h, min_frame_size, noise_levels[plane],
+                          subblock_mvs, subblock_mses, q_factor,
+                          filter_strength, accum + mb_pels * plane,
                           count + mb_pels * plane, luma_sq_error,
                           chroma_sq_error, plane, ss_x_shift, ss_y_shift);
   }

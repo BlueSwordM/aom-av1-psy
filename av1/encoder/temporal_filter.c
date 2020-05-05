@@ -460,6 +460,7 @@ static INLINE void compute_square_diff(const uint8_t *ref, const int ref_offset,
 //   num_planes: Number of planes in the frame.
 //   noise_levels: Pointer to the noise levels of the to-filter frame, estimated
 //                 with each plane (in Y, U, V order).
+//   subblock_mvs:  Pointer to the motion vectors for 4 sub-blocks.
 //   subblock_mses: Pointer to the search errors (MSE) for 4 sub-blocks.
 //   q_factor: Quantization factor. This is actually the `q` defined in libaom,
 //             which is converted from `qindex`.
@@ -471,20 +472,22 @@ static INLINE void compute_square_diff(const uint8_t *ref, const int ref_offset,
 // Returns:
 //   Nothing will be returned. But the content to which `accum` and `pred`
 //   point will be modified.
-void av1_apply_temporal_filter_c(const YV12_BUFFER_CONFIG *frame_to_filter,
-                                 const MACROBLOCKD *mbd,
-                                 const BLOCK_SIZE block_size, const int mb_row,
-                                 const int mb_col, const int num_planes,
-                                 const double *noise_levels,
-                                 const int *subblock_mses, const int q_factor,
-                                 const int filter_strength, const uint8_t *pred,
-                                 uint32_t *accum, uint16_t *count) {
+void av1_apply_temporal_filter_c(
+    const YV12_BUFFER_CONFIG *frame_to_filter, const MACROBLOCKD *mbd,
+    const BLOCK_SIZE block_size, const int mb_row, const int mb_col,
+    const int num_planes, const double *noise_levels, const MV *subblock_mvs,
+    const int *subblock_mses, const int q_factor, const int filter_strength,
+    const uint8_t *pred, uint32_t *accum, uint16_t *count) {
   // Block information.
   const int mb_height = block_size_high[block_size];
   const int mb_width = block_size_wide[block_size];
   const int mb_pels = mb_height * mb_width;
   const int is_high_bitdepth = is_frame_high_bitdepth(frame_to_filter);
   const uint16_t *pred16 = CONVERT_TO_SHORTPTR(pred);
+  // Frame information.
+  const int frame_height = frame_to_filter->y_crop_height;
+  const int frame_width = frame_to_filter->y_crop_width;
+  const int min_frame_size = AOMMIN(frame_height, frame_width);
 
   // Allocate memory for pixel-wise squared differences for all planes. They,
   // regardless of the subsampling, are assigned with memory of size `mb_pels`.
@@ -554,15 +557,16 @@ void av1_apply_temporal_filter_c(const YV12_BUFFER_CONFIG *frame_to_filter,
 
         // Scale down the difference for high bit depth input.
         if (mbd->bd > 8) sum_square_diff >>= (mbd->bd - 8) * (mbd->bd - 8);
+
+        // Combine window error and block error, and normalize it.
         const double window_error = (double)sum_square_diff / num_ref_pixels;
         const int subblock_idx = (i >= h / 2) * 2 + (j >= w / 2);
         const double block_error = (double)subblock_mses[subblock_idx];
-        // Combine window error and block error, and normalize it.
         const double combined_error =
             (TF_WINDOW_BLOCK_BALANCE_WEIGHT * window_error + block_error) /
             (TF_WINDOW_BLOCK_BALANCE_WEIGHT + 1) / TF_SEARCH_ERROR_NORM_WEIGHT;
 
-        // Decay factor for non-local mean approach.
+        // Decay factors for non-local mean approach.
         // Larger noise -> larger filtering weight.
         const double n_decay = 0.5 + log(2 * noise_levels[plane] + 5.0);
         // Smaller q -> smaller filtering weight.
@@ -571,10 +575,16 @@ void av1_apply_temporal_filter_c(const YV12_BUFFER_CONFIG *frame_to_filter,
         // Smaller strength -> smaller filtering weight.
         const double s_decay = CLIP(
             pow((double)filter_strength / TF_STRENGTH_THRESHOLD, 2), 1e-5, 1);
+        // Larger motion vector -> smaller filtering weight.
+        const MV mv = subblock_mvs[subblock_idx];
+        const double distance = sqrt(pow(mv.row, 2) + pow(mv.col, 2));
+        const double distance_threshold =
+            (double)AOMMAX(min_frame_size * TF_SEARCH_DISTANCE_THRESHOLD, 1);
+        const double d_factor = AOMMAX(distance / distance_threshold, 1);
 
         // Compute filter weight.
         const double scaled_error =
-            AOMMIN(combined_error / n_decay / q_decay / s_decay, 7);
+            AOMMIN(combined_error * d_factor / n_decay / q_decay / s_decay, 7);
         const int weight = (int)(exp(-scaled_error) * TF_WEIGHT_SCALE);
 
         const int idx = plane_offset + pred_idx;  // Index with plane shift.
@@ -782,13 +792,13 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
               !is_frame_high_bitdepth(frame_to_filter) && !is_yuv422_format) {
             av1_apply_temporal_filter(frame_to_filter, mbd, block_size, mb_row,
                                       mb_col, num_planes, noise_levels,
-                                      subblock_mses, q_factor, filter_strength,
-                                      pred, accum, count);
+                                      subblock_mvs, subblock_mses, q_factor,
+                                      filter_strength, pred, accum, count);
           } else {
-            av1_apply_temporal_filter_c(frame_to_filter, mbd, block_size,
-                                        mb_row, mb_col, num_planes,
-                                        noise_levels, subblock_mses, q_factor,
-                                        filter_strength, pred, accum, count);
+            av1_apply_temporal_filter_c(
+                frame_to_filter, mbd, block_size, mb_row, mb_col, num_planes,
+                noise_levels, subblock_mvs, subblock_mses, q_factor,
+                filter_strength, pred, accum, count);
           }
         }
       }
