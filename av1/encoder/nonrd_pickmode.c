@@ -245,11 +245,13 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
   return 0;
 }
 
-static INLINE void find_predictors(
-    AV1_COMP *cpi, MACROBLOCK *x, MV_REFERENCE_FRAME ref_frame,
-    int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES], int *ref_frame_skip_mask,
-    TileDataEnc *tile_data, struct buf_2d yv12_mb[8][MAX_MB_PLANE],
-    BLOCK_SIZE bsize, int force_skip_low_temp_var) {
+static INLINE void find_predictors(AV1_COMP *cpi, MACROBLOCK *x,
+                                   MV_REFERENCE_FRAME ref_frame,
+                                   int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES],
+                                   TileDataEnc *tile_data,
+                                   struct buf_2d yv12_mb[8][MAX_MB_PLANE],
+                                   BLOCK_SIZE bsize,
+                                   int force_skip_low_temp_var) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -261,6 +263,7 @@ static INLINE void find_predictors(
   x->pred_mv_sad[ref_frame] = INT_MAX;
   frame_mv[NEWMV][ref_frame].as_int = INVALID_MV;
   // TODO(kyslov) this needs various further optimizations. to be continued..
+  assert(yv12 != NULL);
   if (yv12 != NULL) {
     const struct scale_factors *const sf =
         get_ref_scale_factors_const(cm, ref_frame);
@@ -280,8 +283,6 @@ static INLINE void find_predictors(
       av1_mv_pred(cpi, x, yv12_mb[ref_frame][0].buf, yv12->y_stride, ref_frame,
                   bsize);
     }
-  } else {
-    *ref_frame_skip_mask |= (1 << ref_frame);
   }
   av1_count_overlappable_neighbors(cm, xd);
   mbmi->num_proj_ref = 1;
@@ -1721,8 +1722,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   const unsigned char segment_id = mi->segment_id;
   const int *const rd_threshes = cpi->rd.threshes[segment_id][bsize];
   const int *const rd_thresh_freq_fact = x->thresh_freq_fact[bsize];
-  InterpFilter filter_ref;
-  int ref_frame_skip_mask = 0;
+  const InterpFilter filter_ref = cm->features.interp_filter;
   int best_early_term = 0;
   unsigned int ref_costs_single[REF_FRAMES],
       ref_costs_comp[REF_FRAMES][REF_FRAMES];
@@ -1779,12 +1779,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   txfm_info->skip_txfm = 0;
 
-  // Instead of using av1_get_pred_context_switchable_interp(xd) to assign
-  // filter_ref, we use a less strict condition on assigning filter_ref.
-  // This is to reduce the probabily of entering the flow of not assigning
-  // filter_ref and then skip filter search.
-  filter_ref = cm->features.interp_filter;
-
   // initialize mode decisions
   av1_invalid_rd_stats(&best_rdc);
   av1_invalid_rd_stats(&this_rdc);
@@ -1804,8 +1798,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   for (MV_REFERENCE_FRAME ref_frame_iter = LAST_FRAME;
        ref_frame_iter <= ALTREF_FRAME; ++ref_frame_iter) {
     if (use_ref_frame_mask[ref_frame_iter]) {
-      find_predictors(cpi, x, ref_frame_iter, frame_mv, &ref_frame_skip_mask,
-                      tile_data, yv12_mb, bsize, force_skip_low_temp_var);
+      find_predictors(cpi, x, ref_frame_iter, frame_mv, tile_data, yv12_mb,
+                      bsize, force_skip_low_temp_var);
     }
   }
 
@@ -1929,10 +1923,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       // Check for skipping GOLDEN and ALTREF based pred_mv_sad.
       if (cpi->sf.rt_sf.nonrd_prune_ref_frame_search > 0 &&
           x->pred_mv_sad[ref_frame] != INT_MAX && ref_frame != LAST_FRAME) {
-        if ((int64_t)(x->pred_mv_sad[ref_frame]) > thresh_sad_pred)
-          ref_frame_skip_mask |= (1 << ref_frame);
+        if ((int64_t)(x->pred_mv_sad[ref_frame]) > thresh_sad_pred) continue;
       }
-      if (ref_frame_skip_mask & (1 << ref_frame)) continue;
     }
 
     // Select prediction reference frames.
