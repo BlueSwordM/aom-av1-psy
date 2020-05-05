@@ -2380,6 +2380,7 @@ static int process_compound_inter_mode(
    to the input mode. It will compute the best MV,
    compound parameters (if the mode is a compound mode) and interpolation filter
    parameters.
+   Output: RD cost for the mode being searched.
 */
 static int64_t handle_inter_mode(
     AV1_COMP *const cpi, TileDataEnc *tile_data, MACROBLOCK *x,
@@ -2406,11 +2407,12 @@ static int64_t handle_inter_mode(
       cpi->sf.inter_sf.prune_inter_modes_based_on_tpl &&
       tpl_idx < MAX_TPL_FRAME_IDX && tpl_frame->is_valid;
   int i;
+  // Reference frames for this mode
   const int refs[2] = { mbmi->ref_frame[0],
                         (mbmi->ref_frame[1] < 0 ? 0 : mbmi->ref_frame[1]) };
   int rate_mv = 0;
   int64_t rd = INT64_MAX;
-  // do first prediction into the destination buffer. Do the next
+  // Do first prediction into the destination buffer. Do the next
   // prediction into a temporary buffer. Then keep track of which one
   // of these currently holds the best predictor, and use the other
   // one for future predictions. In the end, copy from tmp_buf to
@@ -2448,7 +2450,8 @@ static int64_t handle_inter_mode(
   }
 
   // First, perform a simple translation search for each of the indices. If
-  // an index performs well, it will be fully searched here.
+  // an index performs well, it will be fully searched in the main loop
+  // of this function.
   const int ref_set = get_drl_refmv_count(x, mbmi->ref_frame, this_mode);
   // Save MV results from first 2 ref_mv_idx.
   int_mv save_mv[MAX_REF_MV_SEARCH - 1][2] = { { { 0 } } };
@@ -2469,7 +2472,8 @@ static int64_t handle_inter_mode(
   //    3.) Do interpolation filter search
   //    4.) Build the inter predictor
   //    5.) Pick the motion mode (SIMPLE_TRANSLATION, OBMC_CAUSAL,
-  //    WARPED_CAUSAL) 6.) Update stats if best so far
+  //        WARPED_CAUSAL)
+  //    6.) Update stats if best so far
   for (int ref_mv_idx = 0; ref_mv_idx < ref_set; ++ref_mv_idx) {
     mode_info[ref_mv_idx].full_search_mv.as_int = INVALID_MV;
     mode_info[ref_mv_idx].mv.as_int = INVALID_MV;
@@ -2481,6 +2485,7 @@ static int64_t handle_inter_mode(
     }
     if (prune_modes_based_on_tpl && !ref_match_found_in_above_nb &&
         !ref_match_found_in_left_nb && (ref_best_rd != INT64_MAX)) {
+      // Skip mode if TPL model indicates it will not be beneficial.
       if (prune_modes_based_on_tpl_stats(
               inter_cost_info_from_tpl, refs, ref_mv_idx, this_mode,
               cpi->sf.inter_sf.prune_inter_modes_based_on_tpl))
@@ -2488,6 +2493,7 @@ static int64_t handle_inter_mode(
     }
     av1_init_rd_stats(rd_stats);
 
+    // Initialize compound mode data
     mbmi->interinter_comp.type = COMPOUND_AVERAGE;
     mbmi->comp_group_idx = 0;
     mbmi->compound_idx = 1;
@@ -2497,6 +2503,7 @@ static int64_t handle_inter_mode(
     mbmi->motion_mode = SIMPLE_TRANSLATION;
     mbmi->ref_mv_idx = ref_mv_idx;
 
+    // Compute cost for signalling this DRL index
     rd_stats->rate = base_rate;
     const int drl_cost = get_drl_cost(
         mbmi, mbmi_ext, mode_costs->drl_mode_cost0, ref_frame_type);
@@ -2511,10 +2518,13 @@ static int64_t handle_inter_mode(
     // TODO(Cherma): Extend this speed feature to support compound mode
     int skip_repeated_ref_mv =
         is_comp_pred ? 0 : cpi->sf.inter_sf.skip_repeated_ref_mv;
+    // Generate the current mv according to the prediction mode
     if (!build_cur_mv(cur_mv, this_mode, cm, x, skip_repeated_ref_mv)) {
       continue;
     }
 
+    // The above call to build_cur_mv does not handle NEWMV modes. Build
+    // the mv here if we have NEWMV for any predictors.
     if (have_newmv_in_inter_mode(this_mode)) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
       start_timing(cpi, handle_newmv_time);
@@ -2547,6 +2557,7 @@ static int64_t handle_inter_mode(
                               refs, cur_mv, &best_rd, orig_dst, ref_mv_idx))
         continue;
     }
+    // Copy the motion vector for this mode into mbmi struct
     for (i = 0; i < is_comp_pred + 1; ++i) {
       mbmi->mv[i].as_int = cur_mv[i].as_int;
     }
@@ -2608,6 +2619,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, interpolation_filter_search_time);
 #endif
+    // Determine the interpolation filter for this mode
     ret_val = av1_interpolation_filter_search(
         x, cpi, tile_data, bsize, &tmp_dst, &orig_dst, &rd, &rs,
         &skip_build_pred, args, ref_best_rd);
@@ -2626,6 +2638,7 @@ static int64_t handle_inter_mode(
       continue;
     }
 
+    // Compute modelled RD if enabled
     if (args->modelled_rd != NULL) {
       if (is_comp_pred) {
         const int mode0 = compound_ref0_mode(this_mode);
@@ -2641,6 +2654,7 @@ static int64_t handle_inter_mode(
     }
     rd_stats->rate += compmode_interinter_cost;
     if (skip_build_pred != 1) {
+      // Build this inter predictor if it has not been previously built
       av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, &orig_dst, bsize, 0,
                                     av1_num_planes(cm) - 1);
     }
@@ -2649,6 +2663,8 @@ static int64_t handle_inter_mode(
     start_timing(cpi, motion_mode_rd_time);
 #endif
     int rate2_nocoeff = rd_stats->rate;
+    // Determine the motion mode. This will be one of SIMPLE_TRANSLATION,
+    // OBMC_CAUSAL or WARPED_CAUSAL
     ret_val = motion_mode_rd(cpi, tile_data, x, bsize, rd_stats, rd_stats_y,
                              rd_stats_uv, disable_skip_txfm, args, ref_best_rd,
                              skip_rd, &rate_mv, &orig_dst, best_est_rd,
@@ -2672,6 +2688,7 @@ static int64_t handle_inter_mode(
           NULL, bsize, tmp_rd,
           cpi->sf.winner_mode_sf.enable_multiwinner_mode_process, do_tx_search);
       if (tmp_rd < best_rd) {
+        // Update the best rd stats if we found the best mode so far
         best_rd_stats = *rd_stats;
         best_rd_stats_y = *rd_stats_y;
         best_rd_stats_uv = *rd_stats_uv;
