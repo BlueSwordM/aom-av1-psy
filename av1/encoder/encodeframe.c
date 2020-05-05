@@ -4561,7 +4561,9 @@ static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
 }
 #endif
 
-static void source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, int shift) {
+// Grade the temporal variation of the source by comparing the current sb and
+// its collocated block in the last frame.
+static void source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, int offset) {
   unsigned int tmp_sse;
   unsigned int tmp_variance;
   const BLOCK_SIZE bsize = cpi->common.seq_params.sb_size;
@@ -4576,8 +4578,8 @@ static void source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, int shift) {
   MACROBLOCKD *xd = &x->e_mbd;
   if (xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) return;
 #endif
-  src_y += shift;
-  last_src_y += shift;
+  src_y += offset;
+  last_src_y += offset;
   tmp_variance = cpi->fn_ptr[bsize].vf(src_y, src_ystride, last_src_y,
                                        last_src_ystride, &tmp_sse);
   // Note: tmp_sse - tmp_variance = ((sum * sum) >> 12)
@@ -4590,6 +4592,9 @@ static void source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, int shift) {
     x->content_state_sb = kHighSad;
 }
 
+// Encodes the superblock by a pre-determined partition pattern, only minor
+// rd-based searches are allowed to adjust the initial pattern. It is only used
+// by realtime encoding.
 static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
                                        TileDataEnc *tile_data, TokenExtra **tp,
                                        const int mi_row, const int mi_col,
@@ -4601,23 +4606,32 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
   MB_MODE_INFO **mi = cm->mi_params.mi_grid_base +
                       get_mi_grid_idx(&cm->mi_params, mi_row, mi_col);
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+
+  // Grade the temporal variation of the sb, the grade will be used to decide
+  // fast mode search strategy for coding blocks
   if (sf->rt_sf.source_metrics_sb_nonrd &&
       cpi->svc.number_spatial_layers <= 1 &&
       cm->current_frame.frame_type != KEY_FRAME) {
-    int shift = cpi->source->y_stride * (mi_row << 2) + (mi_col << 2);
-    source_content_sb(cpi, x, shift);
+    int offset = cpi->source->y_stride * (mi_row << 2) + (mi_col << 2);
+    source_content_sb(cpi, x, offset);
   }
+
+  // Set the partition
   if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
+    // set a fixed-size partition
     set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
     const BLOCK_SIZE bsize =
         seg_skip ? sb_size : sf->part_sf.always_this_block_size;
     set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
   } else if (cpi->partition_search_skippable_frame) {
+    // set a fixed-size partition for which the size is determined by the source
+    // variance
     set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
     const BLOCK_SIZE bsize =
         get_rd_var_based_fixed_partition(cpi, x, mi_row, mi_col);
     set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
   } else if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION) {
+    // set a variance-based partition
     set_offsets_without_segment_id(cpi, tile_info, x, mi_row, mi_col, sb_size);
     av1_choose_var_based_partitioning(cpi, tile_info, td, x, mi_row, mi_col);
   }
@@ -4626,6 +4640,7 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
          sf->part_sf.partition_search_type == VAR_BASED_PARTITION);
   td->mb.cb_offset = 0;
 
+  // Adjust and encode the superblock
   PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
   nonrd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
                       pc_root);
@@ -4951,7 +4966,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 
   // Encode the superblock
   if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION) {
-    // partition search starting from a variance based partition
+    // partition search starting from a variance-based partition
     set_offsets_without_segment_id(cpi, tile_info, x, mi_row, mi_col, sb_size);
     av1_choose_var_based_partitioning(cpi, tile_info, td, x, mi_row, mi_col);
     PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
