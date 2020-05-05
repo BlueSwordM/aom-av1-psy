@@ -4923,6 +4923,8 @@ static AOM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
+// Conducts partition search for a superblock, based on rate-distortion costs,
+// from scratch or adjusting from a pre-calculated partition pattern.
 static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                                     TileDataEnc *tile_data, TokenExtra **tp,
                                     const int mi_row, const int mi_col,
@@ -4938,16 +4940,18 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   int dummy_rate;
   int64_t dummy_dist;
   RD_STATS dummy_rdc;
+  SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
 
 #if CONFIG_REALTIME_ONLY
   (void)seg_skip;
 #endif  // CONFIG_REALTIME_ONLY
 
-  SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
   init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
                     1);
 
+  // Encode the superblock
   if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION) {
+    // partition search starting from a variance based partition
     set_offsets_without_segment_id(cpi, tile_info, x, mi_row, mi_col, sb_size);
     av1_choose_var_based_partitioning(cpi, tile_info, td, x, mi_row, mi_col);
     PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
@@ -4957,6 +4961,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   }
 #if !CONFIG_REALTIME_ONLY
   else if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
+    // partition search by adjusting a fixed-size partition
     set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
     const BLOCK_SIZE bsize =
         seg_skip ? sb_size : sf->part_sf.always_this_block_size;
@@ -4966,6 +4971,8 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                      &dummy_rate, &dummy_dist, 1, pc_root);
     av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
   } else if (cpi->partition_search_skippable_frame) {
+    // partition search by adjusting a fixed-size partition for which the size
+    // is determined by the source variance
     set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
     const BLOCK_SIZE bsize =
         get_rd_var_based_fixed_partition(cpi, x, mi_row, mi_col);
@@ -4975,18 +4982,25 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                      &dummy_rate, &dummy_dist, 1, pc_root);
     av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
   } else {
+    // The most exhaustive recursive partition search
     SuperBlockEnc *sb_enc = &x->sb_enc;
     // No stats for overlay frames. Exclude key frame.
     get_tpl_stats_sb(cpi, sb_size, mi_row, mi_col, sb_enc);
 
+    // Reset the tree for simple motion search data
     reset_simple_motion_tree_partition(sms_root, sb_size);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, rd_pick_partition_time);
 #endif
 
+    // Estimate the maximum square partition block size, which will be used
+    // as the starting block size for partitioning the sb
     set_max_min_partition_size(sb_enc, cpi, x, sf, sb_size, mi_row, mi_col);
 
+    // The superblock can be searched only once, or twice consecutively for
+    // better quality. Note that the meaning of passes here is different from
+    // the general concept of 1-pass/2-pass encoders.
     const int num_passes = cpi->oxcf.sb_multipass_unit_test ? 2 : 1;
 
     if (num_passes == 1) {
@@ -5024,6 +5038,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   }
 #endif  // !CONFIG_REALTIME_ONLY
 
+  // Update the inter rd model
   // TODO(angiebird): Let inter_mode_rd_model_estimation support multi-tile.
   if (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1 &&
       cm->tiles.cols == 1 && cm->tiles.rows == 1) {
