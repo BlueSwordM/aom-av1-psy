@@ -23,30 +23,57 @@
 
 #define REDUCED_PRI_STRENGTHS_LVL1 8
 #define REDUCED_PRI_STRENGTHS_LVL2 5
+#define REDUCED_SEC_STRENGTHS_LVL3 2
 
 #define REDUCED_TOTAL_STRENGTHS_LVL1 \
   (REDUCED_PRI_STRENGTHS_LVL1 * CDEF_SEC_STRENGTHS)
 #define REDUCED_TOTAL_STRENGTHS_LVL2 \
   (REDUCED_PRI_STRENGTHS_LVL2 * CDEF_SEC_STRENGTHS)
+#define REDUCED_TOTAL_STRENGTHS_LVL3 \
+  (REDUCED_PRI_STRENGTHS_LVL2 * REDUCED_SEC_STRENGTHS_LVL3)
 #define TOTAL_STRENGTHS (CDEF_PRI_STRENGTHS * CDEF_SEC_STRENGTHS)
 
-static const int priconv_lvl1[REDUCED_TOTAL_STRENGTHS_LVL1] = { 0, 1, 2,  3,
-                                                                5, 7, 10, 13 };
-static const int priconv_lvl2[REDUCED_TOTAL_STRENGTHS_LVL2] = { 0, 2, 4, 8,
-                                                                14 };
+static const int priconv_lvl1[REDUCED_PRI_STRENGTHS_LVL1] = { 0, 1, 2,  3,
+                                                              5, 7, 10, 13 };
+static const int priconv_lvl2[REDUCED_PRI_STRENGTHS_LVL2] = { 0, 2, 4, 8, 14 };
+static const int secconv_lvl3[REDUCED_SEC_STRENGTHS_LVL3] = { 0, 2 };
 static const int nb_cdef_strengths[CDEF_PICK_METHODS] = {
   TOTAL_STRENGTHS, REDUCED_TOTAL_STRENGTHS_LVL1, REDUCED_TOTAL_STRENGTHS_LVL2,
-  TOTAL_STRENGTHS
+  REDUCED_TOTAL_STRENGTHS_LVL3, TOTAL_STRENGTHS
 };
 
-// Get primary strength value for the given index and search method
-static INLINE int get_pri_strength(CDEF_PICK_METHOD pick_method, int pri_idx) {
+// Get primary and secondary filter strength for the given strength index and
+// search method
+static INLINE void get_cdef_filter_strengths(CDEF_PICK_METHOD pick_method,
+                                             int *pri_strength,
+                                             int *sec_strength,
+                                             int strength_idx) {
+  const int tot_sec_filter = (pick_method == CDEF_FAST_SEARCH_LVL3)
+                                 ? REDUCED_SEC_STRENGTHS_LVL3
+                                 : CDEF_SEC_STRENGTHS;
+  const int pri_idx = strength_idx / tot_sec_filter;
+  const int sec_idx = strength_idx % tot_sec_filter;
+  *pri_strength = pri_idx;
+  *sec_strength = sec_idx;
+  if (pick_method == CDEF_FULL_SEARCH) return;
+
   switch (pick_method) {
-    case CDEF_FAST_SEARCH_LVL1: return priconv_lvl1[pri_idx];
-    case CDEF_FAST_SEARCH_LVL2: return priconv_lvl2[pri_idx];
-    default: assert(0 && "Invalid CDEF primary index"); return -1;
+    case CDEF_FAST_SEARCH_LVL1: *pri_strength = priconv_lvl1[pri_idx]; break;
+    case CDEF_FAST_SEARCH_LVL2: *pri_strength = priconv_lvl2[pri_idx]; break;
+    case CDEF_FAST_SEARCH_LVL3:
+      *pri_strength = priconv_lvl2[pri_idx];
+      *sec_strength = secconv_lvl3[sec_idx];
+      break;
+    default: assert(0 && "Invalid CDEF search method");
   }
 }
+
+// Store CDEF filter strength calculated from strength index for given search
+// method
+#define STORE_CDEF_FILTER_STRENGTH(cdef_strength, pick_method, strength_idx) \
+  get_cdef_filter_strengths((pick_method), &pri_strength, &sec_strength,     \
+                            (strength_idx));                                 \
+  cdef_strength = pri_strength * CDEF_SEC_STRENGTHS + sec_strength;
 
 /* Search for the best strength to add as an option, knowing we
    already selected nb_strengths options. */
@@ -141,8 +168,8 @@ static uint64_t joint_strength_search(int *best_lev, int nb_strengths,
                                       int sb_count,
                                       CDEF_PICK_METHOD pick_method) {
   uint64_t best_tot_mse;
-  int fast = (pick_method == CDEF_FAST_SEARCH_LVL1 ||
-              pick_method == CDEF_FAST_SEARCH_LVL2);
+  int fast = (pick_method >= CDEF_FAST_SEARCH_LVL1 &&
+              pick_method <= CDEF_FAST_SEARCH_LVL3);
   int i;
   best_tot_mse = (uint64_t)1 << 63;
   /* Greedy search: add one strength options at a time. */
@@ -391,8 +418,8 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   const int nhfb = (mi_params->mi_cols + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   int *sb_index = aom_malloc(nvfb * nhfb * sizeof(*sb_index));
   const int damping = 3 + (cm->quant_params.base_qindex >> 6);
-  const int fast = (pick_method == CDEF_FAST_SEARCH_LVL1 ||
-                    pick_method == CDEF_FAST_SEARCH_LVL2);
+  const int fast = (pick_method >= CDEF_FAST_SEARCH_LVL1 &&
+                    pick_method <= CDEF_FAST_SEARCH_LVL3);
   const int total_strengths = nb_cdef_strengths[pick_method];
   DECLARE_ALIGNED(32, uint16_t, tmp_dst[1 << (MAX_SB_SIZE_LOG2 * 2)]);
   const int num_planes = av1_num_planes(cm);
@@ -489,9 +516,9 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
         const int row = fbr * MI_SIZE_64X64 << mi_high_l2[pli];
         const int col = fbc * MI_SIZE_64X64 << mi_wide_l2[pli];
         for (int gi = 0; gi < total_strengths; gi++) {
-          int pri_strength = gi / CDEF_SEC_STRENGTHS;
-          if (fast) pri_strength = get_pri_strength(pick_method, pri_strength);
-          const int sec_strength = gi % CDEF_SEC_STRENGTHS;
+          int pri_strength, sec_strength;
+          get_cdef_filter_strengths(pick_method, &pri_strength, &sec_strength,
+                                    gi);
           copy_fn(&in[(-yoff * CDEF_BSTRIDE - xoff)], CDEF_BSTRIDE,
                   xd->plane[pli].dst.buf, row - yoff, col - xoff,
                   xd->plane[pli].dst.stride, ysize, xsize);
@@ -567,15 +594,12 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     for (int j = 0; j < cdef_info->nb_cdef_strengths; j++) {
       const int luma_strength = cdef_info->cdef_strengths[j];
       const int chroma_strength = cdef_info->cdef_uv_strengths[j];
-      int pri_strength;
-      pri_strength =
-          get_pri_strength(pick_method, luma_strength / CDEF_SEC_STRENGTHS);
-      cdef_info->cdef_strengths[j] = pri_strength * CDEF_SEC_STRENGTHS +
-                                     (luma_strength % CDEF_SEC_STRENGTHS);
-      pri_strength =
-          get_pri_strength(pick_method, chroma_strength / CDEF_SEC_STRENGTHS);
-      cdef_info->cdef_uv_strengths[j] = pri_strength * CDEF_SEC_STRENGTHS +
-                                        (chroma_strength % CDEF_SEC_STRENGTHS);
+      int pri_strength, sec_strength;
+
+      STORE_CDEF_FILTER_STRENGTH(cdef_info->cdef_strengths[j], pick_method,
+                                 luma_strength);
+      STORE_CDEF_FILTER_STRENGTH(cdef_info->cdef_uv_strengths[j], pick_method,
+                                 chroma_strength);
     }
   }
 

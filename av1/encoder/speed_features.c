@@ -596,6 +596,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
     sf->lpf_sf.disable_lr_filter = 1;
+    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
 
     sf->mv_sf.prune_mesh_search = 1;
     sf->mv_sf.reduce_search_range = 1;
