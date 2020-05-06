@@ -55,10 +55,9 @@ typedef struct AV1TplRowMultiThreadSync {
 
 typedef struct AV1TplRowMultiThreadInfo {
   // Row synchronization related function pointers.
-  void (*sync_read_ptr)(AV1TplRowMultiThreadSync *const tpl_mt_sync, int r,
-                        int c);
-  void (*sync_write_ptr)(AV1TplRowMultiThreadSync *const tpl_mt_sync, int r,
-                         int c, int cols);
+  void (*sync_read_ptr)(AV1TplRowMultiThreadSync *tpl_mt_sync, int r, int c);
+  void (*sync_write_ptr)(AV1TplRowMultiThreadSync *tpl_mt_sync, int r, int c,
+                         int cols);
 } AV1TplRowMultiThreadInfo;
 
 int av1_tpl_setup_stats(struct AV1_COMP *cpi, int gop_eval,
@@ -71,10 +70,9 @@ void av1_tpl_rdmult_setup(struct AV1_COMP *cpi);
 
 void av1_tpl_rdmult_setup_sb(struct AV1_COMP *cpi, MACROBLOCK *const x,
                              BLOCK_SIZE sb_size, int mi_row, int mi_col);
-void av1_tpl_row_mt_sync_read_dummy(AV1TplRowMultiThreadSync *const tpl_mt_sync,
-                                    int r, int c);
-void av1_tpl_row_mt_sync_write_dummy(
-    AV1TplRowMultiThreadSync *const tpl_mt_sync, int r, int c, int cols);
+
+void av1_mc_flow_dispenser_row(struct AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
+                               BLOCK_SIZE bsize, TX_SIZE tx_size);
 
 #ifdef __cplusplus
 }  // extern "C"

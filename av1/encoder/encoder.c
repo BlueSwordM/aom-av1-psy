@@ -3660,6 +3660,9 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   aom_free(mt_info->tile_thr_data);
   aom_free(mt_info->workers);
 
+#if !CONFIG_REALTIME_ONLY
+  av1_tpl_dealloc(&tpl_data->tpl_mt_sync);
+#endif
   if (mt_info->num_workers > 1) {
     av1_loop_filter_dealloc(&mt_info->lf_row_sync);
     av1_loop_restoration_dealloc(&mt_info->lr_row_sync, mt_info->num_workers);

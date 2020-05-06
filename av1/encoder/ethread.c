@@ -845,7 +845,7 @@ static AOM_INLINE int compute_num_enc_tile_mt_workers(AV1_COMMON *const cm,
 }
 
 // Computes the number of workers for encoding stage (row/tile multi-threading)
-static AOM_INLINE int compute_num_enc_workers(AV1_COMP *cpi) {
+int av1_compute_num_enc_workers(AV1_COMP *cpi) {
   if (cpi->oxcf.max_threads <= 1) return 1;
   if (cpi->oxcf.row_mt && (cpi->oxcf.max_threads > 1))
     return compute_num_enc_row_mt_workers(&cpi->common, cpi->oxcf.max_threads);
@@ -858,7 +858,7 @@ void av1_encode_tiles_mt(AV1_COMP *cpi) {
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
-  int num_workers = compute_num_enc_workers(cpi);
+  int num_workers = av1_compute_num_enc_workers(cpi);
 
   assert(IMPLIES(cpi->tile_data == NULL,
                  cpi->allocated_tiles < tile_cols * tile_rows));
@@ -963,7 +963,7 @@ void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
   // threads to the theoretical limit in row-mt does not have much impact on
   // post-processing multi-threading stage. Need to revisit this when
   // post-processing time starts shooting up.
-  int num_workers = compute_num_enc_workers(cpi);
+  int num_workers = av1_compute_num_enc_workers(cpi);
 
   assert(IMPLIES(cpi->tile_data == NULL,
                  cpi->allocated_tiles < tile_cols * tile_rows));
@@ -1086,9 +1086,8 @@ void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi) {
   launch_enc_workers(&cpi->mt_info, num_workers);
   sync_enc_workers(&cpi->mt_info, cm, num_workers);
 }
-#endif
 
-void av1_tpl_row_mt_sync_read_dummy(AV1TplRowMultiThreadSync *const tpl_mt_sync,
+void av1_tpl_row_mt_sync_read_dummy(AV1TplRowMultiThreadSync *tpl_mt_sync,
                                     int r, int c) {
   (void)tpl_mt_sync;
   (void)r;
@@ -1096,14 +1095,204 @@ void av1_tpl_row_mt_sync_read_dummy(AV1TplRowMultiThreadSync *const tpl_mt_sync,
   return;
 }
 
-void av1_tpl_row_mt_sync_write_dummy(
-    AV1TplRowMultiThreadSync *const tpl_mt_sync, int r, int c, int cols) {
+void av1_tpl_row_mt_sync_write_dummy(AV1TplRowMultiThreadSync *tpl_mt_sync,
+                                     int r, int c, int cols) {
   (void)tpl_mt_sync;
   (void)r;
   (void)c;
   (void)cols;
   return;
 }
+
+void av1_tpl_row_mt_sync_read(AV1TplRowMultiThreadSync *tpl_row_mt_sync, int r,
+                              int c) {
+#if CONFIG_MULTITHREAD
+  int nsync = tpl_row_mt_sync->sync_range;
+
+  if (r) {
+    pthread_mutex_t *const mutex = &tpl_row_mt_sync->mutex_[r - 1];
+    pthread_mutex_lock(mutex);
+
+    while (c > tpl_row_mt_sync->num_finished_cols[r - 1] - nsync)
+      pthread_cond_wait(&tpl_row_mt_sync->cond_[r - 1], mutex);
+    pthread_mutex_unlock(mutex);
+  }
+#else
+  (void)tpl_row_mt_sync;
+  (void)r;
+  (void)c;
+#endif  // CONFIG_MULTITHREAD
+}
+
+void av1_tpl_row_mt_sync_write(AV1TplRowMultiThreadSync *tpl_row_mt_sync, int r,
+                               int c, int cols) {
+#if CONFIG_MULTITHREAD
+  int nsync = tpl_row_mt_sync->sync_range;
+  int cur;
+  // Only signal when there are enough encoded blocks for next row to run.
+  int sig = 1;
+
+  if (c < cols - 1) {
+    cur = c;
+    if (c % nsync) sig = 0;
+  } else {
+    cur = cols + nsync;
+  }
+
+  if (sig) {
+    pthread_mutex_lock(&tpl_row_mt_sync->mutex_[r]);
+
+    tpl_row_mt_sync->num_finished_cols[r] = cur;
+
+    pthread_cond_signal(&tpl_row_mt_sync->cond_[r]);
+    pthread_mutex_unlock(&tpl_row_mt_sync->mutex_[r]);
+  }
+#else
+  (void)tpl_row_mt_sync;
+  (void)r;
+  (void)c;
+  (void)cols;
+#endif  // CONFIG_MULTITHREAD
+}
+
+// Each worker calls tpl_worker_hook() and computes the tpl data.
+static int tpl_worker_hook(void *arg1, void *unused) {
+  (void)unused;
+  EncWorkerData *thread_data = (EncWorkerData *)arg1;
+  AV1_COMP *cpi = thread_data->cpi;
+  MultiThreadInfo *mt_info = &cpi->mt_info;
+  AV1_COMMON *cm = &cpi->common;
+  MACROBLOCK *x = &thread_data->td->mb;
+  MACROBLOCKD *xd = &x->e_mbd;
+  CommonModeInfoParams *mi_params = &cm->mi_params;
+  BLOCK_SIZE bsize = convert_length_to_bsize(MC_FLOW_BSIZE_1D);
+  TX_SIZE tx_size = max_txsize_lookup[bsize];
+  int mi_height = mi_size_high[bsize];
+  int num_active_workers = mt_info->num_workers;
+  for (int mi_row = thread_data->start * mi_height; mi_row < mi_params->mi_rows;
+       mi_row += num_active_workers * mi_height) {
+    // Motion estimation row boundary
+    av1_set_mv_row_limits(mi_params, &x->mv_limits, mi_row, mi_height,
+                          cpi->oxcf.border_in_pixels);
+    xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
+    xd->mb_to_bottom_edge =
+        GET_MV_SUBPEL((mi_params->mi_rows - mi_height - mi_row) * MI_SIZE);
+    av1_mc_flow_dispenser_row(cpi, x, mi_row, bsize, tx_size);
+  }
+  return 1;
+}
+
+// Deallocate tpl synchronization related mutex and data.
+void av1_tpl_dealloc(AV1TplRowMultiThreadSync *tpl_sync) {
+  assert(tpl_sync != NULL);
+
+#if CONFIG_MULTITHREAD
+  if (tpl_sync->mutex_ != NULL) {
+    for (int i = 0; i < tpl_sync->rows; ++i)
+      pthread_mutex_destroy(&tpl_sync->mutex_[i]);
+    aom_free(tpl_sync->mutex_);
+  }
+  if (tpl_sync->cond_ != NULL) {
+    for (int i = 0; i < tpl_sync->rows; ++i)
+      pthread_cond_destroy(&tpl_sync->cond_[i]);
+    aom_free(tpl_sync->cond_);
+  }
+#endif  // CONFIG_MULTITHREAD
+
+  aom_free(tpl_sync->num_finished_cols);
+  // clear the structure as the source of this call may be a resize in which
+  // case this call will be followed by an _alloc() which may fail.
+  av1_zero(*tpl_sync);
+}
+
+// Allocate memory for tpl row synchronization.
+void av1_tpl_alloc(AV1TplRowMultiThreadSync *tpl_sync, AV1_COMMON *cm,
+                   int mb_rows, int num_workers) {
+  tpl_sync->rows = mb_rows;
+#if CONFIG_MULTITHREAD
+  {
+    CHECK_MEM_ERROR(cm, tpl_sync->mutex_,
+                    aom_malloc(sizeof(*tpl_sync->mutex_) * mb_rows));
+    if (tpl_sync->mutex_) {
+      for (int i = 0; i < mb_rows; ++i)
+        pthread_mutex_init(&tpl_sync->mutex_[i], NULL);
+    }
+
+    CHECK_MEM_ERROR(cm, tpl_sync->cond_,
+                    aom_malloc(sizeof(*tpl_sync->cond_) * mb_rows));
+    if (tpl_sync->cond_) {
+      for (int i = 0; i < mb_rows; ++i)
+        pthread_cond_init(&tpl_sync->cond_[i], NULL);
+    }
+  }
+#endif  // CONFIG_MULTITHREAD
+
+  tpl_sync->num_threads_working = num_workers;
+  CHECK_MEM_ERROR(cm, tpl_sync->num_finished_cols,
+                  aom_malloc(sizeof(*tpl_sync->num_finished_cols) * mb_rows));
+
+  // Set up nsync.
+  tpl_sync->sync_range = 1;
+}
+
+// Each worker is prepared by assigning the hook function and individual thread
+// data.
+static AOM_INLINE void prepare_tpl_workers(AV1_COMP *cpi, AVxWorkerHook hook,
+                                           int num_workers) {
+  MultiThreadInfo *mt_info = &cpi->mt_info;
+  for (int i = num_workers - 1; i >= 0; i--) {
+    AVxWorker *worker = &mt_info->workers[i];
+    EncWorkerData *thread_data = &mt_info->tile_thr_data[i];
+
+    worker->hook = hook;
+    worker->data1 = thread_data;
+    worker->data2 = NULL;
+
+    // Before encoding a frame, copy the thread data from cpi.
+    if (thread_data->td != &cpi->td) {
+      thread_data->td->mb = cpi->td.mb;
+      thread_data->td->mb.obmc_buffer = thread_data->td->obmc_buffer;
+      thread_data->td->mb.mbmi_ext = thread_data->td->mbmi_ext;
+    }
+  }
+}
+
+// Computes num_workers for tpl multi-threading.
+static AOM_INLINE int compute_num_tpl_workers(AV1_COMP *cpi) {
+  return av1_compute_num_enc_workers(cpi);
+}
+
+// Implements multi-threading for tpl.
+void av1_mc_flow_dispenser_mt(AV1_COMP *cpi) {
+  AV1_COMMON *cm = &cpi->common;
+  CommonModeInfoParams *mi_params = &cm->mi_params;
+  MultiThreadInfo *mt_info = &cpi->mt_info;
+  TplParams *tpl_data = &cpi->tpl_data;
+  AV1TplRowMultiThreadSync *tpl_sync = &tpl_data->tpl_mt_sync;
+  int mb_rows = mi_params->mb_rows;
+  int num_workers = compute_num_tpl_workers(cpi);
+
+  if (!tpl_sync->sync_range || mb_rows != tpl_sync->rows ||
+      num_workers > tpl_sync->num_threads_working) {
+    av1_tpl_dealloc(tpl_sync);
+    av1_tpl_alloc(tpl_sync, cm, mb_rows, num_workers);
+  }
+  tpl_sync->num_threads_working = num_workers;
+
+  // Initialize cur_mb_col to -1 for all MB rows.
+  memset(tpl_sync->num_finished_cols, -1,
+         sizeof(*tpl_sync->num_finished_cols) * mb_rows);
+
+  if (mt_info->num_workers == 0)
+    create_enc_workers(cpi, num_workers);
+  else
+    num_workers = AOMMIN(num_workers, mt_info->num_workers);
+
+  prepare_tpl_workers(cpi, tpl_worker_hook, num_workers);
+  launch_enc_workers(&cpi->mt_info, num_workers);
+  sync_enc_workers(&cpi->mt_info, cm, num_workers);
+}
+#endif  // !CONFIG_REALTIME_ONLY
 
 // Checks if a job is available in the current direction. If a job is available,
 // frame_idx will be populated and returns 1, else returns 0.
