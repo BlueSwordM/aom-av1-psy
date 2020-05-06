@@ -62,6 +62,9 @@
 extern "C" {
 #endif
 
+// TODO(yunqing, any): Added suppression tag to quiet Doxygen warnings. Need to
+// adjust it while we work on documentation.
+/*!\cond */
 // Number of frames required to test for scene cut detection
 #define SCENE_CUT_KEY_TEST_INTERVAL 16
 
@@ -1635,6 +1638,7 @@ void av1_change_config(AV1_COMP *cpi, const AV1EncoderConfig *oxcf);
 
 void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
                              int subsampling_x, int subsampling_y);
+/*!\endcond */
 
 // receive a frames worth of data. caller can assume that a copy of this
 // frame is made and not just a copy of the pointer..
@@ -1642,11 +1646,30 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
                           YV12_BUFFER_CONFIG *sd, int64_t time_stamp,
                           int64_t end_time_stamp);
 
+/*!\brief Encode a frame
+ * \ingroup high_level_algo
+ * This function receives a raw frame, and encode that frame. It outputs the
+ * frame bit stream to the designated buffer.
+ *
+ * \param[in]    cpi         Top-level encoder structure
+ * \param[in]    frame_flags Flags to decide how to encoding the frame
+ * \param[in]    size        Bitstream size
+ * \param[in]    dest        Bitstream output
+ * \param[in]    time_stamp  Time stamp of the frame
+ * \param[in]    time_end    Time end
+ * \param[in]    flush       Decide to encode one frame or the rest of frames
+ * \param[in]    timebase    Time base used
+ *
+ * \return Returns a value to indicate if the encoding is done successfully.
+ * \note A note for this function.
+ * \warning A warning message for this function.
+ */
 int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
                             size_t *size, uint8_t *dest, int64_t *time_stamp,
                             int64_t *time_end, int flush,
                             const aom_rational64_t *timebase);
 
+/*!\cond */
 int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
                const EncodeFrameInput *const frame_input,
                const EncodeFrameParams *const frame_params,
@@ -2167,6 +2190,8 @@ static INLINE char const *get_frame_type_enum(int type) {
   return "error";
 }
 #endif
+
+/*!\endcond */
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -8,6 +8,9 @@
     - \ref transform_search
     - \ref in_loop_filter
     - \ref rate_control
+
+  Encode a frame
+    - To encode a frame, call \ref av1_get_compressed_data().
 */
 
 /*!\defgroup encoder_algo Encoder Algorithm
