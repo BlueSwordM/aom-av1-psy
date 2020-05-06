@@ -1686,6 +1686,93 @@ static void estimate_intra_mode(
   }
 }
 
+static AOM_INLINE int is_filter_search_enabled(AV1_COMP *cpi, MACROBLOCK *x,
+                                               int mi_row, int mi_col,
+                                               BLOCK_SIZE bsize) {
+  AV1_COMMON *const cm = &cpi->common;
+  int enable_filter_search = 0;
+
+  if (cpi->sf.rt_sf.use_nonrd_filter_search) {
+    enable_filter_search = 1;
+    if (cpi->sf.interp_sf.cb_pred_filter_search) {
+      const int bsl = mi_size_wide_log2[bsize];
+      enable_filter_search =
+          (((mi_row + mi_col) >> bsl) +
+           get_chessboard_index(cm->current_frame.frame_number)) &
+          0x1;
+    }
+    if (x->source_variance <=
+        cpi->sf.interp_sf.disable_filter_search_var_thresh)
+      enable_filter_search = 0;
+  }
+  return enable_filter_search;
+}
+
+static AOM_INLINE int skip_mode_by_threshold(
+    PREDICTION_MODE mode, MV_REFERENCE_FRAME ref_frame, int_mv mv,
+    int frames_since_golden, const int *const rd_threshes,
+    const int *const rd_thresh_freq_fact, int64_t best_cost, int best_skip) {
+  int skip_this_mode = 0;
+  const THR_MODES mode_index = mode_idx[ref_frame][INTER_OFFSET(mode)];
+  int mode_rd_thresh =
+      best_skip ? rd_threshes[mode_index] << 1 : rd_threshes[mode_index];
+
+  // Increase mode_rd_thresh value for non-LAST for improved encoding
+  // speed
+  if (ref_frame != LAST_FRAME) {
+    mode_rd_thresh = mode_rd_thresh << 1;
+    if (ref_frame == GOLDEN_FRAME && frames_since_golden > 4)
+      mode_rd_thresh = mode_rd_thresh << 1;
+  }
+
+  if (rd_less_than_thresh(best_cost, mode_rd_thresh,
+                          rd_thresh_freq_fact[mode_index]))
+    if (mv.as_int != 0) skip_this_mode = 1;
+
+  return skip_this_mode;
+}
+
+static AOM_INLINE int skip_mode_by_low_temp(PREDICTION_MODE mode,
+                                            MV_REFERENCE_FRAME ref_frame,
+                                            BLOCK_SIZE bsize,
+                                            int content_state_sb, int_mv mv,
+                                            int force_skip_low_temp_var) {
+  // Skip non-zeromv mode search for non-LAST frame if force_skip_low_temp_var
+  // is set. If nearestmv for golden frame is 0, zeromv mode will be skipped
+  // later.
+  if (force_skip_low_temp_var && ref_frame != LAST_FRAME && mv.as_int != 0) {
+    return 1;
+  }
+
+  if (content_state_sb != kHighSad && bsize >= BLOCK_64X64 &&
+      force_skip_low_temp_var && mode == NEWMV) {
+    return 1;
+  }
+  return 0;
+}
+
+static AOM_INLINE int skip_mode_by_bsize_and_ref_frame(
+    PREDICTION_MODE mode, MV_REFERENCE_FRAME ref_frame, BLOCK_SIZE bsize,
+    int extra_prune, unsigned int sse_zeromv_norm) {
+  const unsigned int thresh_skip_golden = 500;
+
+  if (ref_frame != LAST_FRAME && sse_zeromv_norm < thresh_skip_golden &&
+      mode == NEWMV)
+    return 1;
+
+  if (bsize == BLOCK_128X128 && mode == NEWMV) return 1;
+
+  // Skip testing non-LAST if this flag is set.
+  if (extra_prune) {
+    if (extra_prune > 1 && ref_frame != LAST_FRAME &&
+        (bsize > BLOCK_64X64 || (bsize > BLOCK_16X16 && mode == NEWMV)))
+      return 1;
+
+    if (ref_frame != LAST_FRAME && mode == NEARMV) return 1;
+  }
+  return 0;
+}
+
 void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                   MACROBLOCK *x, RD_STATS *rd_cost,
                                   BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
@@ -1714,7 +1801,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int force_skip_low_temp_var = 0;
   int use_ref_frame_mask[REF_FRAMES] = { 0 };
   unsigned int sse_zeromv_norm = UINT_MAX;
-  const unsigned int thresh_skip_golden = 500;
   int num_inter_modes = RT_INTER_MODES;
   PRED_BUFFER tmp[4];
   DECLARE_ALIGNED(16, uint8_t, pred_buf[3 * 128 * 128]);
@@ -1731,10 +1817,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #if COLLECT_PICK_MODE_STAT
   aom_usec_timer_start(&ms_stat.timer2);
 #endif
-  int use_modeled_non_rd_cost = 0;
-  int enable_filter_search = 0;
-  InterpFilter default_interp_filter = EIGHTTAP_REGULAR;
+  const InterpFilter default_interp_filter = EIGHTTAP_REGULAR;
   int64_t thresh_sad_pred = INT64_MAX;
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
 
   (void)best_rd_so_far;
 
@@ -1772,9 +1858,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   mi->ref_frame[0] = NONE_FRAME;
   mi->ref_frame[1] = NONE_FRAME;
 
-  const int mi_row = xd->mi_row;
-  const int mi_col = xd->mi_col;
-
   const int gf_temporal_ref = is_same_gf_and_last_scale(cm);
 
   get_ref_frame_use_mask(cpi, x, mi, mi_row, mi_col, bsize, gf_temporal_ref,
@@ -1799,6 +1882,17 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       !cyclic_refresh_segment_id_boosted(xd->mi[0]->segment_id) &&
       quant_params->base_qindex && cm->seq_params.bit_depth == 8;
 
+  const int enable_filter_search =
+      is_filter_search_enabled(cpi, x, mi_row, mi_col, bsize);
+
+  // TODO(marpan): Look into reducing these conditions. For now constrain
+  // it to avoid significant bdrate loss.
+  const int use_modeled_non_rd_cost =
+      (cpi->sf.rt_sf.use_modeled_non_rd_cost &&
+       quant_params->base_qindex > 120 && x->source_variance > 100 &&
+       bsize <= BLOCK_16X16 && x->content_state_sb != kLowVarHighSumdiff &&
+       x->content_state_sb != kHighSad);
+
 #if COLLECT_PICK_MODE_STAT
   ms_stat.num_blocks[bsize]++;
 #endif
@@ -1808,34 +1902,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
              tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]),
       TX_16X16);
 
-  // TODO(marpan): Look into reducing these conditions. For now constrain
-  // it to avoid significant bdrate loss.
-  if (cpi->sf.rt_sf.use_modeled_non_rd_cost &&
-      quant_params->base_qindex > 120 && x->source_variance > 100 &&
-      bsize <= BLOCK_16X16 && x->content_state_sb != kLowVarHighSumdiff &&
-      x->content_state_sb != kHighSad)
-    use_modeled_non_rd_cost = 1;
-
-  if (cpi->sf.rt_sf.use_nonrd_filter_search) {
-    enable_filter_search = 1;
-    if (cpi->sf.interp_sf.cb_pred_filter_search) {
-      const int bsl = mi_size_wide_log2[bsize];
-      enable_filter_search =
-          (((mi_row + mi_col) >> bsl) +
-           get_chessboard_index(cm->current_frame.frame_number)) &
-          0x1;
-    }
-    if (x->source_variance <=
-        cpi->sf.interp_sf.disable_filter_search_var_thresh)
-      enable_filter_search = 0;
-  }
-
   for (int idx = 0; idx < num_inter_modes; ++idx) {
     const struct segmentation *const seg = &cm->seg;
 
     int rate_mv = 0;
-    int mode_rd_thresh;
-    int mode_index;
     int is_skippable;
     int this_early_term = 0;
     int skip_this_mv = 0;
@@ -1868,33 +1938,15 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         get_segdata(seg, segment_id, SEG_LVL_REF_FRAME) != (int)ref_frame)
       continue;
 
-    if (ref_frame != LAST_FRAME && cpi->oxcf.rc_mode == AOM_CBR &&
-        sse_zeromv_norm < thresh_skip_golden && this_mode == NEWMV)
+    if (skip_mode_by_bsize_and_ref_frame(this_mode, ref_frame, bsize,
+                                         x->nonrd_prune_ref_frame_search,
+                                         sse_zeromv_norm))
       continue;
 
-    if (bsize == BLOCK_128X128 && this_mode == NEWMV) continue;
-
-    // Skip testing non-LAST if this flag is set.
-    if (x->nonrd_prune_ref_frame_search) {
-      if (x->nonrd_prune_ref_frame_search > 1 && ref_frame != LAST_FRAME &&
-          (bsize > BLOCK_64X64 || (bsize > BLOCK_16X16 && this_mode == NEWMV)))
-        continue;
-
-      if (ref_frame != LAST_FRAME && this_mode == NEARMV) continue;
-    }
-
-    // Skip non-zeromv mode search for non-LAST frame if force_skip_low_temp_var
-    // is set. If nearestmv for golden frame is 0, zeromv mode will be skipped
-    // later.
-    if (force_skip_low_temp_var && ref_frame != LAST_FRAME &&
-        frame_mv[this_mode][ref_frame].as_int != 0) {
+    if (skip_mode_by_low_temp(this_mode, ref_frame, bsize, x->content_state_sb,
+                              frame_mv[this_mode][ref_frame],
+                              force_skip_low_temp_var))
       continue;
-    }
-
-    if (x->content_state_sb != kHighSad && bsize >= BLOCK_64X64 &&
-        force_skip_low_temp_var && this_mode == NEWMV) {
-      continue;
-    }
 
     // Disable this drop out case if the ref frame segment level feature is
     // enabled for this segment. This is to prevent the possibility that we
@@ -1907,6 +1959,12 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       }
     }
 
+    if (skip_mode_by_threshold(
+            this_mode, ref_frame, frame_mv[this_mode][ref_frame],
+            cpi->rc.frames_since_golden, rd_threshes, rd_thresh_freq_fact,
+            best_rdc.rdcost, best_pickmode.best_mode_skip_txfm))
+      continue;
+
     // Select prediction reference frames.
     for (int i = 0; i < MAX_MB_PLANE; i++) {
       xd->plane[i].pre[0] = yv12_mb[ref_frame][i];
@@ -1915,23 +1973,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     mi->ref_frame[0] = ref_frame;
     mi->ref_frame[1] = NONE_FRAME;
     set_ref_ptrs(cm, xd, ref_frame, NONE_FRAME);
-
-    mode_index = mode_idx[ref_frame][INTER_OFFSET(this_mode)];
-    mode_rd_thresh = best_pickmode.best_mode_skip_txfm
-                         ? rd_threshes[mode_index] << 1
-                         : rd_threshes[mode_index];
-
-    // Increase mode_rd_thresh value for non-LAST for improved encoding
-    // speed
-    if (ref_frame != LAST_FRAME) {
-      mode_rd_thresh = mode_rd_thresh << 1;
-      if (ref_frame == GOLDEN_FRAME && cpi->rc.frames_since_golden > 4)
-        mode_rd_thresh = mode_rd_thresh << 1;
-    }
-
-    if (rd_less_than_thresh(best_rdc.rdcost, mode_rd_thresh,
-                            rd_thresh_freq_fact[mode_index]))
-      if (frame_mv[this_mode][ref_frame].as_int != 0) continue;
 
     if (this_mode == NEWMV) {
       if (search_new_mv(cpi, x, frame_mv, ref_frame, gf_temporal_ref, bsize,
