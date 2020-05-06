@@ -55,8 +55,8 @@ void av1_simple_motion_search_based_split(
 // to prune some partitions.
 void av1_simple_motion_search_prune_rect(
     AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
-    int mi_row, int mi_col, BLOCK_SIZE bsize, int *partition_horz_allowed,
-    int *partition_vert_allowed, int *prune_horz, int *prune_vert);
+    int mi_row, int mi_col, BLOCK_SIZE bsize, int partition_horz_allowed,
+    int partition_vert_allowed, int *prune_horz, int *prune_vert);
 
 #if !CONFIG_REALTIME_ONLY
 // Early terminates PARTITION_NONE using simple_motion_search features and the
@@ -123,11 +123,21 @@ void av1_ml_prune_4_partition(const AV1_COMP *const cpi, MACROBLOCK *const x,
                               unsigned int pb_source_variance, int mi_row,
                               int mi_col);
 
-// ML-based partition search breakout after PARTITION_NONE
+// ML-based partition search breakout after PARTITION_NONE.
 int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
                             const MACROBLOCK *const x,
                             const RD_STATS *const rd_stats,
                             unsigned int pb_source_variance);
+
+// The first round of partition pruning determined before any partition
+// has been tested. The decisions will be updated and passed back
+// to the partition search function.
+void av1_prune_partitions_before_search(
+    AV1_COMP *const cpi, MACROBLOCK *const x, int mi_row, int mi_col,
+    BLOCK_SIZE bsize, SIMPLE_MOTION_DATA_TREE *const sms_tree,
+    int *partition_none_allowed, int *partition_horz_allowed,
+    int *partition_vert_allowed, int *do_rectangular_split,
+    int *do_square_split, int *prune_horz, int *prune_vert);
 #endif  // !CONFIG_REALTIME_ONLY
 
 // A simplified version of set_offsets meant to be used for

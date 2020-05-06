@@ -502,8 +502,8 @@ static AOM_INLINE void simple_motion_search_prune_part_features(
 
 void av1_simple_motion_search_prune_rect(
     AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
-    int mi_row, int mi_col, BLOCK_SIZE bsize, int *partition_horz_allowed,
-    int *partition_vert_allowed, int *prune_horz, int *prune_vert) {
+    int mi_row, int mi_col, BLOCK_SIZE bsize, int partition_horz_allowed,
+    int partition_vert_allowed, int *prune_horz, int *prune_vert) {
   aom_clear_system_state();
   const AV1_COMMON *const cm = &cpi->common;
   const int bsize_idx = convert_bsize_to_idx(bsize);
@@ -551,7 +551,7 @@ void av1_simple_motion_search_prune_rect(
   // Determine if we should prune rectangular partitions.
   if (cpi->sf.part_sf.simple_motion_search_prune_rect &&
       !frame_is_intra_only(cm) &&
-      (*partition_horz_allowed || *partition_vert_allowed) &&
+      (partition_horz_allowed || partition_vert_allowed) &&
       bsize >= BLOCK_8X8 && !av1_superres_scaled(cm)) {
     *prune_horz = probs[PARTITION_HORZ] <= prune_thresh;
     *prune_vert = probs[PARTITION_VERT] <= prune_thresh;
@@ -1288,4 +1288,68 @@ int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   return (int)(score * 100) >= thresh;
 }
 #undef FEATURES
+
+void av1_prune_partitions_before_search(
+    AV1_COMP *const cpi, MACROBLOCK *const x, int mi_row, int mi_col,
+    BLOCK_SIZE bsize, SIMPLE_MOTION_DATA_TREE *const sms_tree,
+    int *partition_none_allowed, int *partition_horz_allowed,
+    int *partition_vert_allowed, int *do_rectangular_split,
+    int *do_square_split, int *prune_horz, int *prune_vert) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+
+  // A CNN-based speed feature pruning out either split or all non-split
+  // partition in INTRA frame coding.
+  const int try_intra_cnn_split =
+      !cpi->is_screen_content_type && frame_is_intra_only(cm) &&
+      cpi->sf.part_sf.intra_cnn_split &&
+      cm->seq_params.sb_size >= BLOCK_64X64 && bsize <= BLOCK_64X64 &&
+      bsize >= BLOCK_8X8 &&
+      mi_row + mi_size_high[bsize] <= mi_params->mi_rows &&
+      mi_col + mi_size_wide[bsize] <= mi_params->mi_cols;
+
+  if (try_intra_cnn_split) {
+    av1_intra_mode_cnn_partition(
+        &cpi->common, x, bsize, x->part_search_info.quad_tree_idx,
+        partition_none_allowed, partition_horz_allowed, partition_vert_allowed,
+        do_rectangular_split, do_square_split);
+  }
+
+  // Use simple motion search to prune out split or non-split partitions. This
+  // must be done prior to PARTITION_SPLIT to propagate the initial mvs to a
+  // smaller blocksize.
+  const int try_split_only =
+      !cpi->is_screen_content_type &&
+      cpi->sf.part_sf.simple_motion_search_split && *do_square_split &&
+      bsize >= BLOCK_8X8 &&
+      mi_row + mi_size_high[bsize] <= mi_params->mi_rows &&
+      mi_col + mi_size_wide[bsize] <= mi_params->mi_cols &&
+      !frame_is_intra_only(cm) && !av1_superres_scaled(cm);
+
+  if (try_split_only) {
+    av1_simple_motion_search_based_split(
+        cpi, x, sms_tree, mi_row, mi_col, bsize, partition_none_allowed,
+        partition_horz_allowed, partition_vert_allowed, do_rectangular_split,
+        do_square_split);
+  }
+
+  // Use simple motion search to prune out rectangular partition in some
+  // direction. The results are stored in prune_horz and prune_vert in order to
+  // bypass future related pruning checks if a pruning decision has been made.
+  const int try_prune_rect =
+      !cpi->is_screen_content_type &&
+      cpi->sf.part_sf.simple_motion_search_prune_rect &&
+      !frame_is_intra_only(cm) && *do_rectangular_split &&
+      (*do_square_split || *partition_none_allowed ||
+       (*prune_horz && *prune_vert)) &&
+      (*partition_horz_allowed || *partition_vert_allowed) &&
+      bsize >= BLOCK_8X8;
+
+  if (try_prune_rect) {
+    av1_simple_motion_search_prune_rect(
+        cpi, x, sms_tree, mi_row, mi_col, bsize, *partition_horz_allowed,
+        *partition_vert_allowed, prune_horz, prune_vert);
+  }
+}
+
 #endif  // !CONFIG_REALTIME_ONLY

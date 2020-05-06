@@ -2935,57 +2935,10 @@ static bool rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
   save_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
 
-  // A CNN-based speed feature pruning out either split or all non-split
-  // partition in INTRA frame coding.
-  const int try_intra_cnn_split =
-      !cpi->is_screen_content_type && frame_is_intra_only(cm) &&
-      cpi->sf.part_sf.intra_cnn_split &&
-      cm->seq_params.sb_size >= BLOCK_64X64 && bsize <= BLOCK_64X64 &&
-      bsize >= BLOCK_8X8 &&
-      mi_row + mi_size_high[bsize] <= mi_params->mi_rows &&
-      mi_col + mi_size_wide[bsize] <= mi_params->mi_cols;
-
-  if (try_intra_cnn_split) {
-    av1_intra_mode_cnn_partition(
-        &cpi->common, x, bsize, part_info->quad_tree_idx,
-        &partition_none_allowed, &partition_horz_allowed,
-        &partition_vert_allowed, &do_rectangular_split, &do_square_split);
-  }
-
-  // Use simple motion search to prune out split or non-split partitions. This
-  // must be done prior to PARTITION_SPLIT to propagate the initial mvs to a
-  // smaller blocksize.
-  const int try_split_only =
-      !cpi->is_screen_content_type &&
-      cpi->sf.part_sf.simple_motion_search_split && do_square_split &&
-      bsize >= BLOCK_8X8 &&
-      mi_row + mi_size_high[bsize] <= mi_params->mi_rows &&
-      mi_col + mi_size_wide[bsize] <= mi_params->mi_cols &&
-      !frame_is_intra_only(cm) && !av1_superres_scaled(cm);
-
-  if (try_split_only) {
-    av1_simple_motion_search_based_split(
-        cpi, x, sms_tree, mi_row, mi_col, bsize, &partition_none_allowed,
-        &partition_horz_allowed, &partition_vert_allowed, &do_rectangular_split,
-        &do_square_split);
-  }
-
-  // Use simple motion search to prune out rectangular partition in one
-  // direction. The results are stored in prune_horz and prune_vert in order to
-  // bypass future related pruning checks if a pruning decision has been made.
-  const int try_prune_rect =
-      !cpi->is_screen_content_type &&
-      cpi->sf.part_sf.simple_motion_search_prune_rect &&
-      !frame_is_intra_only(cm) && do_rectangular_split &&
-      (do_square_split || partition_none_allowed ||
-       (prune_horz && prune_vert)) &&
-      (partition_horz_allowed || partition_vert_allowed) && bsize >= BLOCK_8X8;
-
-  if (try_prune_rect) {
-    av1_simple_motion_search_prune_rect(
-        cpi, x, sms_tree, mi_row, mi_col, bsize, &partition_horz_allowed,
-        &partition_vert_allowed, &prune_horz, &prune_vert);
-  }
+  av1_prune_partitions_before_search(
+      cpi, x, mi_row, mi_col, bsize, sms_tree, &partition_none_allowed,
+      &partition_horz_allowed, &partition_vert_allowed, &do_rectangular_split,
+      &do_square_split, &prune_horz, &prune_vert);
 
   // Max and min square partition levels are defined as the partition nodes that
   // the recursive function rd_pick_partition() can reach. To implement this:
@@ -3290,7 +3243,7 @@ BEGIN_PARTITION_SEARCH:
   }
 
   // Pruning: using the rd costs of PARTITION_NONE and subblocks from
-  // PARTITION_SPLIT to prune out rectangular partitions in one direction.
+  // PARTITION_SPLIT to prune out rectangular partitions in some directions.
   if (!cpi->sf.part_sf.ml_early_term_after_part_split_level &&
       cpi->sf.part_sf.ml_prune_rect_partition && !frame_is_intra_only(cm) &&
       (partition_horz_allowed || partition_vert_allowed) &&
