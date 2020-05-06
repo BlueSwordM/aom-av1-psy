@@ -22,9 +22,6 @@
 
 #define custom_packs_s32(w0, w1) vcombine_s16(vqmovn_s32(w0), vqmovn_s32(w1));
 
-typedef void (*FwdTxfm2dFunc)(const int16_t *input, int32_t *output, int stride,
-                              TX_TYPE tx_type, int bd);
-
 static INLINE void transpose_16bit_4x4(const int16x8_t *const in,
                                        int16x8_t *const out) {
 #if defined(__aarch64__)
@@ -186,118 +183,6 @@ static INLINE void transpose_16bit_8x8(const int16x8_t *const in,
       vextq_s32(vextq_s32(b26.val[1], b26.val[1], 2), b37.val[1], 2));
   out[7] = vreinterpretq_s16_s32(
       vextq_s32(b26.val[1], vextq_s32(b37.val[1], b37.val[1], 2), 2));
-#endif
-}
-
-static INLINE void transpose_16bit_16x16(int16x8_t *const left,
-                                         int16x8_t *const right) {
-  int16x8_t tbuf[8];
-  transpose_16bit_8x8(left, left);
-  transpose_16bit_8x8(right, tbuf);
-  transpose_16bit_8x8(left + 8, right);
-  transpose_16bit_8x8(right + 8, right + 8);
-
-  left[8] = tbuf[0];
-  left[9] = tbuf[1];
-  left[10] = tbuf[2];
-  left[11] = tbuf[3];
-  left[12] = tbuf[4];
-  left[13] = tbuf[5];
-  left[14] = tbuf[6];
-  left[15] = tbuf[7];
-}
-
-static INLINE void transpose_32bit_4x4(const int32x4_t *const in,
-                                       int32x4_t *const out) {
-  const int32x4x2_t a02 = vzipq_s32(in[0], in[1]);
-  const int32x4x2_t a13 = vzipq_s32(in[2], in[3]);
-
-#if defined(__aarch64__)
-  out[0] = vreinterpretq_s32_s64(vzip1q_s64(vreinterpretq_s64_s32(a02.val[0]),
-                                            vreinterpretq_s64_s32(a13.val[0])));
-  out[1] = vreinterpretq_s32_s64(vzip2q_s64(vreinterpretq_s64_s32(a02.val[0]),
-                                            vreinterpretq_s64_s32(a13.val[0])));
-  out[2] = vreinterpretq_s32_s64(vzip1q_s64(vreinterpretq_s64_s32(a02.val[1]),
-                                            vreinterpretq_s64_s32(a13.val[1])));
-  out[3] = vreinterpretq_s32_s64(vzip2q_s64(vreinterpretq_s64_s32(a02.val[1]),
-                                            vreinterpretq_s64_s32(a13.val[1])));
-#else
-  out[0] = vextq_s32(vextq_s32(a02.val[0], a02.val[0], 2), a13.val[0], 2);
-  out[1] = vextq_s32(a02.val[0], vextq_s32(a13.val[0], a13.val[0], 2), 2);
-  out[2] = vextq_s32(vextq_s32(a02.val[1], a02.val[1], 2), a13.val[1], 2);
-  out[3] = vextq_s32(a02.val[1], vextq_s32(a13.val[1], a13.val[1], 2), 2);
-#endif
-}
-
-static INLINE void transpose_32bit_4x4x2(const int32x4_t *const in,
-                                         int32x4_t *const out) {
-  const int32x4x2_t a02 = vzipq_s32(in[0], in[1]);
-  const int32x4x2_t a13 = vzipq_s32(in[2], in[3]);
-  const int32x4x2_t a46 = vzipq_s32(in[4], in[5]);
-  const int32x4x2_t a57 = vzipq_s32(in[6], in[7]);
-
-#if defined(__aarch64__)
-  out[0] = vreinterpretq_s32_s64(vzip1q_s64(vreinterpretq_s64_s32(a02.val[0]),
-                                            vreinterpretq_s64_s32(a13.val[0])));
-  out[1] = vreinterpretq_s32_s64(vzip2q_s64(vreinterpretq_s64_s32(a02.val[0]),
-                                            vreinterpretq_s64_s32(a13.val[0])));
-  out[2] = vreinterpretq_s32_s64(vzip1q_s64(vreinterpretq_s64_s32(a02.val[1]),
-                                            vreinterpretq_s64_s32(a13.val[1])));
-  out[3] = vreinterpretq_s32_s64(vzip2q_s64(vreinterpretq_s64_s32(a02.val[1]),
-                                            vreinterpretq_s64_s32(a13.val[1])));
-  out[4] = vreinterpretq_s32_s64(vzip1q_s64(vreinterpretq_s64_s32(a46.val[0]),
-                                            vreinterpretq_s64_s32(a57.val[0])));
-  out[5] = vreinterpretq_s32_s64(vzip2q_s64(vreinterpretq_s64_s32(a46.val[0]),
-                                            vreinterpretq_s64_s32(a57.val[0])));
-  out[6] = vreinterpretq_s32_s64(vzip1q_s64(vreinterpretq_s64_s32(a46.val[1]),
-                                            vreinterpretq_s64_s32(a57.val[1])));
-  out[7] = vreinterpretq_s32_s64(vzip2q_s64(vreinterpretq_s64_s32(a46.val[1]),
-                                            vreinterpretq_s64_s32(a57.val[1])));
-#else
-  out[0] = vextq_s32(vextq_s32(a02.val[0], a02.val[0], 2), a13.val[0], 2);
-  out[1] = vextq_s32(a02.val[0], vextq_s32(a13.val[0], a13.val[0], 2), 2);
-  out[2] = vextq_s32(vextq_s32(a02.val[1], a02.val[1], 2), a13.val[1], 2);
-  out[3] = vextq_s32(a02.val[1], vextq_s32(a13.val[1], a13.val[1], 2), 2);
-  out[4] = vextq_s32(vextq_s32(a46.val[0], a46.val[0], 2), a57.val[0], 2);
-  out[5] = vextq_s32(a46.val[0], vextq_s32(a57.val[0], a57.val[0], 2), 2);
-  out[6] = vextq_s32(vextq_s32(a46.val[1], a46.val[1], 2), a57.val[1], 2);
-  out[7] = vextq_s32(a46.val[1], vextq_s32(a57.val[1], a57.val[1], 2), 2);
-#endif
-}
-
-static INLINE void transpose_32bit_8x4(const int32x4_t *const in,
-                                       int32x4_t *const out) {
-  const int32x4x2_t a02 = vzipq_s32(in[0], in[2]);
-  const int32x4x2_t a13 = vzipq_s32(in[4], in[6]);
-  const int32x4x2_t a46 = vzipq_s32(in[1], in[3]);
-  const int32x4x2_t a57 = vzipq_s32(in[5], in[7]);
-
-#if defined(__aarch64__)
-  out[0] = vreinterpretq_s32_s64(vzip1q_s64(vreinterpretq_s64_s32(a02.val[0]),
-                                            vreinterpretq_s64_s32(a13.val[0])));
-  out[1] = vreinterpretq_s32_s64(vzip2q_s64(vreinterpretq_s64_s32(a02.val[0]),
-                                            vreinterpretq_s64_s32(a13.val[0])));
-  out[2] = vreinterpretq_s32_s64(vzip1q_s64(vreinterpretq_s64_s32(a02.val[1]),
-                                            vreinterpretq_s64_s32(a13.val[1])));
-  out[3] = vreinterpretq_s32_s64(vzip2q_s64(vreinterpretq_s64_s32(a02.val[1]),
-                                            vreinterpretq_s64_s32(a13.val[1])));
-  out[4] = vreinterpretq_s32_s64(vzip1q_s64(vreinterpretq_s64_s32(a46.val[0]),
-                                            vreinterpretq_s64_s32(a57.val[0])));
-  out[5] = vreinterpretq_s32_s64(vzip2q_s64(vreinterpretq_s64_s32(a46.val[0]),
-                                            vreinterpretq_s64_s32(a57.val[0])));
-  out[6] = vreinterpretq_s32_s64(vzip1q_s64(vreinterpretq_s64_s32(a46.val[1]),
-                                            vreinterpretq_s64_s32(a57.val[1])));
-  out[7] = vreinterpretq_s32_s64(vzip2q_s64(vreinterpretq_s64_s32(a46.val[1]),
-                                            vreinterpretq_s64_s32(a57.val[1])));
-#else
-  out[0] = vextq_s32(vextq_s32(a02.val[0], a02.val[0], 2), a13.val[0], 2);
-  out[1] = vextq_s32(a02.val[0], vextq_s32(a13.val[0], a13.val[0], 2), 2);
-  out[2] = vextq_s32(vextq_s32(a02.val[1], a02.val[1], 2), a13.val[1], 2);
-  out[3] = vextq_s32(a02.val[1], vextq_s32(a13.val[1], a13.val[1], 2), 2);
-  out[4] = vextq_s32(vextq_s32(a46.val[0], a46.val[0], 2), a57.val[0], 2);
-  out[5] = vextq_s32(a46.val[0], vextq_s32(a57.val[0], a57.val[0], 2), 2);
-  out[6] = vextq_s32(vextq_s32(a46.val[1], a46.val[1], 2), a57.val[1], 2);
-  out[7] = vextq_s32(a46.val[1], vextq_s32(a57.val[1], a57.val[1], 2), 2);
 #endif
 }
 
