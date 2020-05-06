@@ -236,11 +236,6 @@ void av1_make_inter_predictor(const uint8_t *src, int src_stride, uint8_t *dst,
                               InterPredParams *inter_pred_params,
                               const SubpelParams *subpel_params);
 
-void av1_make_masked_inter_predictor(const uint8_t *pre, int pre_stride,
-                                     uint8_t *dst, int dst_stride,
-                                     InterPredParams *inter_pred_params,
-                                     const SubpelParams *subpel_params);
-
 typedef void (*CalcSubpelParamsFunc)(const MV *const src_mv,
                                      InterPredParams *const inter_pred_params,
                                      MACROBLOCKD *xd, int mi_x, int mi_y,

@@ -651,10 +651,10 @@ static AOM_INLINE void build_masked_compound_no_round(
 #endif
 }
 
-void av1_make_masked_inter_predictor(const uint8_t *pre, int pre_stride,
-                                     uint8_t *dst, int dst_stride,
-                                     InterPredParams *inter_pred_params,
-                                     const SubpelParams *subpel_params) {
+static void make_masked_inter_predictor(const uint8_t *pre, int pre_stride,
+                                        uint8_t *dst, int dst_stride,
+                                        InterPredParams *inter_pred_params,
+                                        const SubpelParams *subpel_params) {
   const INTERINTER_COMPOUND_DATA *comp_data = &inter_pred_params->mask_comp;
   BLOCK_SIZE sb_type = inter_pred_params->sb_type;
 
@@ -706,8 +706,8 @@ void av1_build_one_inter_predictor(
     av1_make_inter_predictor(src, src_stride, dst, dst_stride,
                              inter_pred_params, &subpel_params);
   } else {
-    av1_make_masked_inter_predictor(src, src_stride, dst, dst_stride,
-                                    inter_pred_params, &subpel_params);
+    make_masked_inter_predictor(src, src_stride, dst, dst_stride,
+                                inter_pred_params, &subpel_params);
   }
 }
 
