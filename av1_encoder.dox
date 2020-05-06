@@ -1,5 +1,73 @@
 /*!\page encoder_guide AV1 ENCODING TECHNIQUES
 
-  Describe AV1 encoding techniques here.
-
+  AV1 encoding algorithm consists following modules:
+    - \ref high_level_algo
+    - \ref partition_search
+    - \ref intra_mode_search
+    - \ref inter_mode_search
+    - \ref transform_search
+    - \ref in_loop_filter
+    - \ref rate_control
 */
+
+/*!\defgroup encoder_algo Encoder Algorithm
+ *
+ * The encoder algorithm describes how a sequence is encoded, including high
+ * level decision as well as algorithm used at every encoding stage.
+ */
+
+/*!\defgroup high_level_algo High-level Algorithm
+ * \ingroup encoder_algo
+ * This module describes sequence level/frame level algorithm in AV1.
+ * More details will be added.
+ * @{
+ */
+/*! @} - end defgroup high_level_algo */
+
+/*!\defgroup partition_search Partition Search
+ * \ingroup encoder_algo
+ * This module describes partition search algorithm in AV1.
+ * More details will be added.
+ * @{
+ */
+/*! @} - end defgroup partition_search */
+
+/*!\defgroup intra_mode_search Intra Mode Search
+ * \ingroup encoder_algo
+ * This module describes intra mode search algorithm in AV1.
+ * More details will be added.
+ * @{
+ */
+/*! @} - end defgroup intra_mode_search */
+
+/*!\defgroup inter_mode_search Inter Mode Search
+ * \ingroup encoder_algo
+ * This module describes inter mode search algorithm in AV1.
+ * More details will be added.
+ * @{
+ */
+/*! @} - end defgroup inter_mode_search */
+
+/*!\defgroup transform_search Transform Search
+ * \ingroup encoder_algo
+ * This module describes transform search algorithm in AV1.
+ * More details will be added.
+ * @{
+ */
+/*! @} - end defgroup transform_search */
+
+/*!\defgroup in_loop_filter In-loop Filter
+ * \ingroup encoder_algo
+ * This module describes in-loop filter algorithm in AV1.
+ * More details will be added.
+ * @{
+ */
+/*! @} - end defgroup in_loop_filter */
+
+/*!\defgroup rate_control Rate Control
+ * \ingroup encoder_algo
+ * This module describes rate control algorithm in AV1.
+ * More details will be added.
+ * @{
+ */
+/*! @} - end defgroup rate_control */
