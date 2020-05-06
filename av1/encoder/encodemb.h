@@ -76,6 +76,12 @@ void av1_xform_quant(MACROBLOCK *x, int plane, int block, int blk_row,
                      int blk_col, BLOCK_SIZE plane_bsize, TxfmParam *txfm_param,
                      QUANT_PARAM *qparam);
 
+void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
+               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param);
+
+void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
+               QUANT_PARAM *qparam);
+
 int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *mb, int plane,
                    int block, TX_SIZE tx_size, TX_TYPE tx_type,
                    const TXB_CTX *const txb_ctx, int fast_mode, int *rate_cost);

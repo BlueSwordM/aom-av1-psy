@@ -1094,6 +1094,11 @@ typedef struct {
   // Corresponds to enable_winner_mode_for_coeff_opt speed feature.
   unsigned int coeff_opt_dist_threshold[MODE_EVAL_TYPES];
 
+  // Threshold to determine if trellis optimization is to be enabled
+  // based on SATD.
+  // Corresponds to enable_winner_mode_for_coeff_opt speed feature.
+  unsigned int coeff_opt_satd_threshold[MODE_EVAL_TYPES];
+
   // Determines the tx size search method during rdopt.
   // Corresponds to enable_winner_mode_for_tx_size_srch speed feature.
   TX_SIZE_SEARCH_METHOD tx_size_search_methods[MODE_EVAL_TYPES];

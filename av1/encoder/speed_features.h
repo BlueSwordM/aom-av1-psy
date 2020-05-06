@@ -821,6 +821,11 @@ typedef struct RD_CALC_SPEED_FEATURES {
 
   // Flag used to control the extent of coeff R-D optimization
   int perform_coeff_opt;
+
+  // Enable coeff R-D optimization based on SATD values.
+  // 0    : Do not disable coeff R-D opt.
+  // 1, 2 : Disable coeff R-D opt with progressively increasing aggressiveness.
+  int perform_coeff_opt_based_on_satd;
 } RD_CALC_SPEED_FEATURES;
 
 typedef struct WINNER_MODE_SPEED_FEATURES {

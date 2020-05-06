@@ -294,10 +294,11 @@ typedef struct {
   // Try to prune 2d transforms based on 1d transform results.
   int prune_2d_txfm_mode;
 
-  // The following four parameters are copied from WinnerModeParams based on the
+  // The following six parameters are copied from WinnerModeParams based on the
   // current evaluation mode. See the documentation for WinnerModeParams for
   // more detail.
   unsigned int coeff_opt_dist_threshold;
+  unsigned int coeff_opt_satd_threshold;
   unsigned int tx_domain_dist_threshold;
   TX_SIZE_SEARCH_METHOD tx_size_search_method;
   unsigned int use_transform_domain_distortion;

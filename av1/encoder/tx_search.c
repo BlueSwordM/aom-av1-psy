@@ -74,6 +74,12 @@ static const TX_SIZE max_predict_sf_tx_size[BLOCK_SIZES_ALL] = {
   TX_8X8,   TX_8X8,   TX_16X16, TX_16X16,
 };
 
+// look-up table for sqrt of number of pixels in a transform block
+// rounded up to the nearest integer.
+static const int sqrt_tx_pixels_2d[TX_SIZES_ALL] = { 4,  8,  16, 32, 32, 6,  6,
+                                                     12, 12, 23, 23, 32, 32, 8,
+                                                     8,  16, 16, 23, 23 };
+
 static int find_tx_size_rd_info(TXB_RD_RECORD *cur_record,
                                 const uint32_t hash) {
   // Linear search through the circular buffer to find matching hash.
@@ -2088,6 +2094,37 @@ static INLINE int cost_coeffs(MACROBLOCK *x, int plane, int block,
   return cost;
 }
 
+static int skip_trellis_opt_based_on_satd(MACROBLOCK *x,
+                                          QUANT_PARAM *quant_param, int plane,
+                                          int block, TX_SIZE tx_size,
+                                          int quant_b_adapt, int qstep,
+                                          unsigned int coeff_opt_satd_threshold,
+                                          int skip_trellis) {
+  if (skip_trellis || (coeff_opt_satd_threshold == UINT_MAX))
+    return skip_trellis;
+
+  const struct macroblock_plane *const p = &x->plane[plane];
+  const int block_offset = BLOCK_OFFSET(block);
+  tran_low_t *const coeff_ptr = p->coeff + block_offset;
+  const int n_coeffs = av1_get_max_eob(tx_size);
+  const int shift = (MAX_TX_SCALE - av1_get_tx_scale(tx_size));
+  int satd = aom_satd(coeff_ptr, n_coeffs);
+  satd = RIGHT_SIGNED_SHIFT(satd, shift);
+
+  const int skip_block_trellis =
+      ((uint64_t)satd >
+       (uint64_t)coeff_opt_satd_threshold * qstep * sqrt_tx_pixels_2d[tx_size]);
+
+  av1_setup_quant(
+      tx_size, !skip_block_trellis,
+      skip_block_trellis
+          ? (USE_B_QUANT_NO_TRELLIS ? AV1_XFORM_QUANT_B : AV1_XFORM_QUANT_FP)
+          : AV1_XFORM_QUANT_FP,
+      quant_b_adapt, quant_param);
+
+  return skip_block_trellis;
+}
+
 // Search for the best transform type for a given transform block.
 // This function can be used for both inter and intra, both luma and chroma.
 static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
@@ -2215,6 +2252,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   TxfmParam txfm_param;
   QUANT_PARAM quant_param;
+  int skip_trellis_based_on_satd[TX_TYPES] = { 0 };
   av1_setup_xform(cm, x, tx_size, DCT_DCT, &txfm_param);
   av1_setup_quant(tx_size, !skip_trellis,
                   skip_trellis ? (USE_B_QUANT_NO_TRELLIS ? AV1_XFORM_QUANT_B
@@ -2235,8 +2273,13 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     RD_STATS this_rd_stats;
     av1_invalid_rd_stats(&this_rd_stats);
 
-    av1_xform_quant(x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param,
-                    &quant_param);
+    av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param);
+
+    skip_trellis_based_on_satd[tx_type] = skip_trellis_opt_based_on_satd(
+        x, &quant_param, plane, block, tx_size, cpi->oxcf.quant_b_adapt, qstep,
+        txfm_params->coeff_opt_satd_threshold, skip_trellis);
+
+    av1_quant(x, plane, block, &txfm_param, &quant_param);
 
     // Calculate rate cost of quantized coefficients.
     if (quant_param.use_optimize_b) {
@@ -2386,6 +2429,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   if (plane == 0) update_txk_array(xd, blk_row, blk_col, tx_size, best_tx_type);
   x->plane[plane].txb_entropy_ctx[block] = best_txb_ctx;
   x->plane[plane].eobs[block] = best_eob;
+  skip_trellis = skip_trellis_based_on_satd[best_tx_type];
 
   // Point dqcoeff to the quantized coefficients corresponding to the best
   // transform type, then we can skip transform and quantization, e.g. in the

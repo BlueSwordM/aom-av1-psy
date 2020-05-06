@@ -263,6 +263,25 @@ static AV1_QUANT_FACADE quant_func_list[AV1_XFORM_QUANT_TYPES] = {
 void av1_xform_quant(MACROBLOCK *x, int plane, int block, int blk_row,
                      int blk_col, BLOCK_SIZE plane_bsize, TxfmParam *txfm_param,
                      QUANT_PARAM *qparam) {
+  av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, txfm_param);
+  av1_quant(x, plane, block, txfm_param, qparam);
+}
+
+void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
+               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param) {
+  const struct macroblock_plane *const p = &x->plane[plane];
+  const int block_offset = BLOCK_OFFSET(block);
+  tran_low_t *const coeff = p->coeff + block_offset;
+  const int diff_stride = block_size_wide[plane_bsize];
+
+  const int src_offset = (blk_row * diff_stride + blk_col);
+  const int16_t *src_diff = &p->src_diff[src_offset << MI_SIZE_LOG2];
+
+  av1_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
+}
+
+void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
+               QUANT_PARAM *qparam) {
   const struct macroblock_plane *const p = &x->plane[plane];
   const SCAN_ORDER *const scan_order =
       get_scan(txfm_param->tx_size, txfm_param->tx_type);
@@ -271,12 +290,6 @@ void av1_xform_quant(MACROBLOCK *x, int plane, int block, int blk_row,
   tran_low_t *const qcoeff = p->qcoeff + block_offset;
   tran_low_t *const dqcoeff = p->dqcoeff + block_offset;
   uint16_t *const eob = &p->eobs[block];
-  const int diff_stride = block_size_wide[plane_bsize];
-
-  const int src_offset = (blk_row * diff_stride + blk_col);
-  const int16_t *src_diff = &p->src_diff[src_offset << MI_SIZE_LOG2];
-
-  av1_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
 
   if (qparam->xform_quant_idx != AV1_XFORM_QUANT_SKIP_QUANT) {
     const int n_coeffs = av1_get_max_eob(txfm_param->tx_size);
@@ -300,7 +313,6 @@ void av1_xform_quant(MACROBLOCK *x, int plane, int block, int blk_row,
     p->txb_entropy_ctx[block] =
         (uint8_t)av1_get_txb_entropy_context(qcoeff, scan_order, *eob);
   }
-  return;
 }
 
 void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, TX_SIZE tx_size,
