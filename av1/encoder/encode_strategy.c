@@ -1283,8 +1283,14 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     return AOM_CODEC_ERROR;
   }
 #else
-  if (denoise_and_encode(cpi, dest, &frame_input, &frame_params,
-                         &frame_results) != AOM_CODEC_OK) {
+  if (has_no_stats_stage(cpi) && oxcf->mode == REALTIME &&
+      oxcf->lag_in_frames == 0) {
+    if (av1_encode(cpi, dest, &frame_input, &frame_params, &frame_results) !=
+        AOM_CODEC_OK) {
+      return AOM_CODEC_ERROR;
+    }
+  } else if (denoise_and_encode(cpi, dest, &frame_input, &frame_params,
+                                &frame_results) != AOM_CODEC_OK) {
     return AOM_CODEC_ERROR;
   }
 #endif  // CONFIG_REALTIME_ONLY
