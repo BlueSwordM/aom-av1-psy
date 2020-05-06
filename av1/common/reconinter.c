@@ -827,7 +827,6 @@ static void build_inter_predictors_sub8x8(
     int col = col_start;
     for (int x = 0; x < b8_w; x += b4_w) {
       MB_MODE_INFO *this_mbmi = xd->mi[row * xd->mi_stride + col];
-      int tmp_dst_stride = 8;
       assert(bw < 8 || bh < 8);
       (void)bw;
       (void)bh;
@@ -854,9 +853,8 @@ static void build_inter_predictors_sub8x8(
                             pre_x + x, pd->subsampling_x, pd->subsampling_y,
                             xd->bd, is_cur_buf_hbd(xd), mi->use_intrabc, sf,
                             &pre_buf, this_mbmi->interp_filters);
-      inter_pred_params.conv_params = get_conv_params_no_round(
-          ref, plane, xd->tmp_conv_dst, tmp_dst_stride, is_compound, xd->bd);
-      inter_pred_params.conv_params.use_dist_wtd_comp_avg = 0;
+      inter_pred_params.conv_params =
+          get_conv_params_no_round(ref, plane, NULL, 0, is_compound, xd->bd);
 
       av1_build_one_inter_predictor(dst, dst_buf->stride, &mv,
                                     &inter_pred_params, xd, mi_x + x, mi_y + y,
