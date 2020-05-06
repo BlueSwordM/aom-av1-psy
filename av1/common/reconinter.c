@@ -761,9 +761,8 @@ static void dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
 
 // True if the following hold:
 //  1. Not intrabc and not build_for_obmc
-//  2. A U or V plane
-//  3. If the block size differs from the base block size
-//  4. If sub-sampled, none of the previous blocks around the sub-sample
+//  2. At least one dimension is size 4 with subsampling
+//  3. If sub-sampled, none of the previous blocks around the sub-sample
 //     are intrabc or inter-blocks
 static bool is_sub8x8_inter(const MACROBLOCKD *xd, int plane, BLOCK_SIZE bsize,
                             int is_intrabc, int build_for_obmc) {
@@ -774,8 +773,9 @@ static bool is_sub8x8_inter(const MACROBLOCKD *xd, int plane, BLOCK_SIZE bsize,
   const struct macroblockd_plane *const pd = &xd->plane[plane];
   const int ss_x = pd->subsampling_x;
   const int ss_y = pd->subsampling_y;
-  if ((block_size_wide[bsize] >= 8 || !ss_x) &&
-      (block_size_high[bsize] >= 8 || !ss_y)) {
+  const int is_sub4_x = (block_size_wide[bsize] == 4) && ss_x;
+  const int is_sub4_y = (block_size_high[bsize] == 4) && ss_y;
+  if (!is_sub4_x && !is_sub4_y) {
     return false;
   }
 
@@ -783,8 +783,8 @@ static bool is_sub8x8_inter(const MACROBLOCKD *xd, int plane, BLOCK_SIZE bsize,
   // worth of pixels. Thus (mi_x, mi_y) may not be the correct coordinates for
   // the top-left corner of the prediction source - the correct top-left corner
   // is at (pre_x, pre_y).
-  const int row_start = (block_size_high[bsize] == 4) && ss_y ? -1 : 0;
-  const int col_start = (block_size_wide[bsize] == 4) && ss_x ? -1 : 0;
+  const int row_start = is_sub4_y ? -1 : 0;
+  const int col_start = is_sub4_x ? -1 : 0;
 
   for (int row = row_start; row <= 0; ++row) {
     for (int col = col_start; col <= 0; ++col) {
@@ -798,7 +798,7 @@ static bool is_sub8x8_inter(const MACROBLOCKD *xd, int plane, BLOCK_SIZE bsize,
 
 static void build_inter_predictors_sub8x8(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
-    int bw, int bh, int mi_x, int mi_y, uint8_t **mc_buf,
+    int mi_x, int mi_y, uint8_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func) {
   const BLOCK_SIZE bsize = mi->sb_type;
   struct macroblockd_plane *const pd = &xd->plane[plane];
@@ -827,9 +827,6 @@ static void build_inter_predictors_sub8x8(
     int col = col_start;
     for (int x = 0; x < b8_w; x += b4_w) {
       MB_MODE_INFO *this_mbmi = xd->mi[row * xd->mi_stride + col];
-      assert(bw < 8 || bh < 8);
-      (void)bw;
-      (void)bh;
       struct buf_2d *const dst_buf = &pd->dst;
       uint8_t *dst = dst_buf->buf + dst_buf->stride * y + x;
       int ref = 0;
@@ -942,7 +939,8 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 CalcSubpelParamsFunc calc_subpel_params_func) {
   if (is_sub8x8_inter(xd, plane, mi->sb_type, is_intrabc_block(mi),
                       build_for_obmc)) {
-    build_inter_predictors_sub8x8(cm, xd, plane, mi, bw, bh, mi_x, mi_y, mc_buf,
+    assert(bw < 8 || bh < 8);
+    build_inter_predictors_sub8x8(cm, xd, plane, mi, mi_x, mi_y, mc_buf,
                                   calc_subpel_params_func);
   } else {
     build_inter_predictors_8x8_and_bigger(cm, xd, plane, mi, build_for_obmc, bw,
