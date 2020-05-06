@@ -108,17 +108,6 @@ void av1_init_warp_params(InterPredParams *inter_pred_params,
     inter_pred_params->mode = WARP_PRED;
 }
 
-void av1_init_mask_comp(InterPredParams *inter_pred_params, BLOCK_SIZE bsize,
-                        const INTERINTER_COMPOUND_DATA *mask_comp) {
-  inter_pred_params->sb_type = bsize;
-  inter_pred_params->mask_comp = *mask_comp;
-
-  if (inter_pred_params->conv_params.compound_index == 1) {
-    inter_pred_params->conv_params.do_average = 0;
-    inter_pred_params->comp_mode = MASK_COMP;
-  }
-}
-
 void av1_make_inter_predictor(const uint8_t *src, int src_stride, uint8_t *dst,
                               int dst_stride,
                               InterPredParams *inter_pred_params,
@@ -932,7 +921,12 @@ static void build_inter_predictors_8x8_and_bigger(
       av1_init_warp_params(&inter_pred_params, &warp_types, ref, xd, mi);
 
     if (is_masked_compound_type(mi->interinter_comp.type)) {
-      av1_init_mask_comp(&inter_pred_params, mi->sb_type, &mi->interinter_comp);
+      inter_pred_params.sb_type = mi->sb_type;
+      inter_pred_params.mask_comp = mi->interinter_comp;
+      if (ref == 1) {
+        inter_pred_params.conv_params.do_average = 0;
+        inter_pred_params.comp_mode = MASK_COMP;
+      }
       // Assign physical buffer.
       inter_pred_params.mask_comp.seg_mask = xd->seg_mask;
     }
