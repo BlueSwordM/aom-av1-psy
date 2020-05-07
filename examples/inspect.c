@@ -759,7 +759,7 @@ int open_file(char *file) {
   if (!decoder) die("Unknown input codec.");
   fprintf(stderr, "Using %s\n", aom_codec_iface_name(decoder));
   if (aom_codec_dec_init(&codec, decoder, NULL, 0))
-    die_codec(&codec, "Failed to initialize decoder.");
+    die("Failed to initialize decoder.");
   ifd_init(&frame_data, info->frame_width, info->frame_height);
   ifd_init_cb();
   return EXIT_SUCCESS;

@@ -736,7 +736,7 @@ int main(int argc, char **argv) {
   // Initialize codec.
   aom_codec_ctx_t codec;
   if (aom_codec_enc_init(&codec, encoder, &cfg, 0))
-    die_codec(&codec, "Failed to initialize encoder");
+    die("Failed to initialize encoder");
 
   aom_codec_control(&codec, AOME_SET_CPUUSED, speed);
   aom_codec_control(&codec, AV1E_SET_AQ_MODE, 3);

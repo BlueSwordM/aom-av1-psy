@@ -133,11 +133,11 @@ int main(int argc, char **argv) {
 
   aom_codec_ctx_t codec;
   if (aom_codec_dec_init(&codec, decoder, NULL, 0))
-    die_codec(&codec, "Failed to initialize decoder.");
+    die("Failed to initialize decoder.");
 
   if (AOM_CODEC_CONTROL_TYPECHECKED(&codec, AV1D_SET_IS_ANNEXB,
                                     info->is_annexb)) {
-    die("Failed to set annex b status");
+    die_codec(&codec, "Failed to set annex b status");
   }
 
   // Decode anchor frames.
