@@ -2737,12 +2737,6 @@ int evaluate_ab_partition_based_on_split(
   return 1;
 }
 
-#ifndef NDEBUG
-static AOM_INLINE int is_bsize_square(BLOCK_SIZE bsize) {
-  return block_size_wide[bsize] == block_size_high[bsize];
-}
-#endif  // NDEBUG
-
 // Searches for the best partition pattern for a block based on the
 // rate-distortion cost, and returns a bool value to indicate whether a valid
 // partition pattern is found. The partition can recursively go down to
@@ -2790,6 +2784,9 @@ static bool rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   RD_SEARCH_MACROBLOCK_CONTEXT x_ctx;
   const TokenExtra *const tp_orig = *tp;
   int tmp_partition_cost[PARTITION_TYPES];
+  const int bsize_1d = block_size_wide[bsize];
+  const int min_partition_size_1d =
+      block_size_wide[x->sb_enc.min_partition_size];
   BLOCK_SIZE subsize;
   BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
   const int bsize_at_least_8x8 = (bsize >= BLOCK_8X8);
@@ -2935,43 +2932,18 @@ static bool rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
   save_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
 
+  // Pruning: before searching any partition type, using source and simple
+  // motion search results to prune out unlikely partitions.
   av1_prune_partitions_before_search(
       cpi, x, mi_row, mi_col, bsize, sms_tree, &partition_none_allowed,
       &partition_horz_allowed, &partition_vert_allowed, &do_rectangular_split,
       &do_square_split, &prune_horz, &prune_vert);
 
-  // Max and min square partition levels are defined as the partition nodes that
-  // the recursive function rd_pick_partition() can reach. To implement this:
-  // only PARTITION_NONE is allowed if the current node equals
-  // max_partition_size, only PARTITION_SPLIT is allowed if the current node
-  // exceeds max_partition_size.
-  SuperBlockEnc *sb_enc = &x->sb_enc;
-  assert(is_bsize_square(sb_enc->max_partition_size));
-  assert(is_bsize_square(sb_enc->min_partition_size));
-  assert(sb_enc->min_partition_size <= sb_enc->max_partition_size);
-  assert(is_bsize_square(bsize));
-  const int max_partition_size = block_size_wide[sb_enc->max_partition_size];
-  const int min_partition_size = block_size_wide[sb_enc->min_partition_size];
-  const int blksize = block_size_wide[bsize];
-  assert(min_partition_size <= max_partition_size);
-  const int is_le_min_sq_part = blksize <= min_partition_size;
-  const int is_gt_max_sq_part = blksize > max_partition_size;
-  if (is_gt_max_sq_part) {
-    // If current block size is larger than max, only allow split.
-    partition_none_allowed = 0;
-    partition_horz_allowed = 0;
-    partition_vert_allowed = 0;
-    do_square_split = 1;
-  } else if (is_le_min_sq_part) {
-    // If current block size is less or equal to min, only allow none if valid
-    // block large enough; only allow split otherwise.
-    partition_horz_allowed = 0;
-    partition_vert_allowed = 0;
-    // only disable square split when current block is not at the picture
-    // boundary. otherwise, inherit the square split flag from previous logic.
-    if (has_rows && has_cols) do_square_split = 0;
-    partition_none_allowed = !do_square_split;
-  }
+  // Pruning: eliminating partition types leading to coding block sizes outside
+  // the min and max bsize limitations set from the encoder.
+  av1_prune_partitions_by_max_min_bsize(
+      &x->sb_enc, bsize, has_rows && has_cols, &partition_none_allowed,
+      &partition_horz_allowed, &partition_vert_allowed, &do_square_split);
 
   // Partition search
 BEGIN_PARTITION_SEARCH:
@@ -2979,17 +2951,17 @@ BEGIN_PARTITION_SEARCH:
   // a valid one under the cost limit after pruning, reset the limitations on
   // partition types.
   if (x->must_find_valid_partition) {
-    do_square_split = bsize_at_least_8x8 && (blksize > min_partition_size);
+    do_square_split = bsize_at_least_8x8 && (bsize_1d > min_partition_size_1d);
     partition_none_allowed =
-        has_rows && has_cols && (blksize >= min_partition_size);
+        has_rows && has_cols && (bsize_1d >= min_partition_size_1d);
     partition_horz_allowed =
         has_cols && bsize_at_least_8x8 && cpi->oxcf.enable_rect_partitions &&
-        (blksize > min_partition_size) &&
+        (bsize_1d > min_partition_size_1d) &&
         get_plane_block_size(get_partition_subsize(bsize, PARTITION_HORZ), xss,
                              yss) != BLOCK_INVALID;
     partition_vert_allowed =
         has_rows && bsize_at_least_8x8 && cpi->oxcf.enable_rect_partitions &&
-        (blksize > min_partition_size) &&
+        (bsize_1d > min_partition_size_1d) &&
         get_plane_block_size(get_partition_subsize(bsize, PARTITION_VERT), xss,
                              yss) != BLOCK_INVALID;
     terminate_partition_search = 0;
@@ -3007,12 +2979,13 @@ BEGIN_PARTITION_SEARCH:
   if (pc_tree->none == NULL)
     pc_tree->none = av1_alloc_pmc(cm, bsize, &td->shared_coeff_buf);
   PICK_MODE_CONTEXT *ctx_none = pc_tree->none;
-  if (is_le_min_sq_part && has_rows && has_cols) partition_none_allowed = 1;
+  if ((bsize_1d <= min_partition_size_1d) && has_rows && has_cols)
+    partition_none_allowed = 1;
   assert(terminate_partition_search == 0);
   int64_t part_none_rd = INT64_MAX;
   if (cpi->is_screen_content_type)
     partition_none_allowed = has_rows && has_cols;
-  if (partition_none_allowed && !is_gt_max_sq_part) {
+  if (partition_none_allowed) {
     int pt_cost = 0;
     if (bsize_at_least_8x8) {
       pt_cost = partition_cost[PARTITION_NONE] < INT_MAX
@@ -3132,7 +3105,7 @@ BEGIN_PARTITION_SEARCH:
   // PARTITION_SPLIT
   int64_t part_split_rd = INT64_MAX;
   subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
-  if ((!terminate_partition_search && do_square_split) || is_gt_max_sq_part) {
+  if ((!terminate_partition_search && do_square_split)) {
     for (int i = 0; i < 4; ++i) {
       if (pc_tree->split[i] == NULL)
         pc_tree->split[i] = av1_alloc_pc_tree_node(subsize);
@@ -3256,8 +3229,7 @@ BEGIN_PARTITION_SEARCH:
   // PARTITION_HORZ
   assert(IMPLIES(!cpi->oxcf.enable_rect_partitions, !partition_horz_allowed));
   if (!terminate_partition_search && partition_horz_allowed && !prune_horz &&
-      (do_rectangular_split || active_h_edge(cpi, mi_row, mi_step)) &&
-      !is_gt_max_sq_part) {
+      (do_rectangular_split || active_h_edge(cpi, mi_row, mi_step))) {
     av1_init_rd_stats(&sum_rdc);
     subsize = get_partition_subsize(bsize, PARTITION_HORZ);
     for (int i = 0; i < 2; ++i) {
@@ -3353,8 +3325,7 @@ BEGIN_PARTITION_SEARCH:
   // PARTITION_VERT
   assert(IMPLIES(!cpi->oxcf.enable_rect_partitions, !partition_vert_allowed));
   if (!terminate_partition_search && partition_vert_allowed && !prune_vert &&
-      (do_rectangular_split || active_v_edge(cpi, mi_col, mi_step)) &&
-      !is_gt_max_sq_part) {
+      (do_rectangular_split || active_v_edge(cpi, mi_col, mi_step))) {
     av1_init_rd_stats(&sum_rdc);
     subsize = get_partition_subsize(bsize, PARTITION_VERT);
     for (int i = 0; i < 2; ++i) {
@@ -3578,7 +3549,7 @@ BEGIN_PARTITION_SEARCH:
 
   // PARTITION_HORZ_A
   if (!terminate_partition_search && partition_horz_allowed &&
-      horza_partition_allowed && !is_gt_max_sq_part) {
+      horza_partition_allowed) {
     subsize = get_partition_subsize(bsize, PARTITION_HORZ_A);
 
     pc_tree->horizontala[0] = av1_alloc_pmc(cm, bsize2, &td->shared_coeff_buf);
@@ -3638,7 +3609,7 @@ BEGIN_PARTITION_SEARCH:
 
   // PARTITION_HORZ_B.
   if (!terminate_partition_search && partition_horz_allowed &&
-      horzb_partition_allowed && !is_gt_max_sq_part) {
+      horzb_partition_allowed) {
     subsize = get_partition_subsize(bsize, PARTITION_HORZ_B);
 
     pc_tree->horizontalb[0] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
@@ -3693,7 +3664,7 @@ BEGIN_PARTITION_SEARCH:
 
   // PARTITION_VERT_A
   if (!terminate_partition_search && partition_vert_allowed &&
-      verta_partition_allowed && !is_gt_max_sq_part) {
+      verta_partition_allowed) {
     subsize = get_partition_subsize(bsize, PARTITION_VERT_A);
 
     pc_tree->verticala[0] = av1_alloc_pmc(cm, bsize2, &td->shared_coeff_buf);
@@ -3748,7 +3719,7 @@ BEGIN_PARTITION_SEARCH:
 
   // PARTITION_VERT_B
   if (!terminate_partition_search && partition_vert_allowed &&
-      vertb_partition_allowed && !is_gt_max_sq_part) {
+      vertb_partition_allowed) {
     subsize = get_partition_subsize(bsize, PARTITION_VERT_B);
 
     pc_tree->verticalb[0] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
@@ -3836,7 +3807,7 @@ BEGIN_PARTITION_SEARCH:
                              pb_source_variance, mi_row, mi_col);
   }
 
-  if (blksize < (min_partition_size << 2)) {
+  if (bsize_1d < (min_partition_size_1d << 2)) {
     partition_horz4_allowed = 0;
     partition_vert4_allowed = 0;
   }
@@ -3867,8 +3838,7 @@ BEGIN_PARTITION_SEARCH:
   // PARTITION_HORZ_4
   assert(IMPLIES(!cpi->oxcf.enable_rect_partitions, !partition_horz4_allowed));
   if (!terminate_partition_search && partition_horz4_allowed && has_rows &&
-      (do_rectangular_split || active_h_edge(cpi, mi_row, mi_step)) &&
-      !is_gt_max_sq_part) {
+      (do_rectangular_split || active_h_edge(cpi, mi_row, mi_step))) {
     av1_init_rd_stats(&sum_rdc);
     const int quarter_step = mi_size_high[bsize] / 4;
     PICK_MODE_CONTEXT *ctx_prev = ctx_none;
@@ -3929,8 +3899,7 @@ BEGIN_PARTITION_SEARCH:
   // PARTITION_VERT_4
   assert(IMPLIES(!cpi->oxcf.enable_rect_partitions, !partition_vert4_allowed));
   if (!terminate_partition_search && partition_vert4_allowed && has_cols &&
-      (do_rectangular_split || active_v_edge(cpi, mi_row, mi_step)) &&
-      !is_gt_max_sq_part) {
+      (do_rectangular_split || active_v_edge(cpi, mi_row, mi_step))) {
     av1_init_rd_stats(&sum_rdc);
     const int quarter_step = mi_size_wide[bsize] / 4;
     PICK_MODE_CONTEXT *ctx_prev = ctx_none;

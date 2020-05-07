@@ -1352,4 +1352,42 @@ void av1_prune_partitions_before_search(
   }
 }
 
+#ifndef NDEBUG
+static AOM_INLINE int is_bsize_square(BLOCK_SIZE bsize) {
+  return block_size_wide[bsize] == block_size_high[bsize];
+}
+#endif  // NDEBUG
+
+void av1_prune_partitions_by_max_min_bsize(
+    SuperBlockEnc *sb_enc, BLOCK_SIZE bsize, int is_not_edge_block,
+    int *partition_none_allowed, int *partition_horz_allowed,
+    int *partition_vert_allowed, int *do_square_split) {
+  assert(is_bsize_square(sb_enc->max_partition_size));
+  assert(is_bsize_square(sb_enc->min_partition_size));
+  assert(sb_enc->min_partition_size <= sb_enc->max_partition_size);
+  assert(is_bsize_square(bsize));
+  const int max_partition_size_1d = block_size_wide[sb_enc->max_partition_size];
+  const int min_partition_size_1d = block_size_wide[sb_enc->min_partition_size];
+  const int bsize_1d = block_size_wide[bsize];
+  assert(min_partition_size_1d <= max_partition_size_1d);
+  const int is_le_min_sq_part = bsize_1d <= min_partition_size_1d;
+  const int is_gt_max_sq_part = bsize_1d > max_partition_size_1d;
+  if (is_gt_max_sq_part) {
+    // If current block size is larger than max, only allow split.
+    *partition_none_allowed = 0;
+    *partition_horz_allowed = 0;
+    *partition_vert_allowed = 0;
+    *do_square_split = 1;
+  } else if (is_le_min_sq_part) {
+    // If current block size is less or equal to min, only allow none if valid
+    // block large enough; only allow split otherwise.
+    *partition_horz_allowed = 0;
+    *partition_vert_allowed = 0;
+    // only disable square split when current block is not at the picture
+    // boundary. otherwise, inherit the square split flag from previous logic
+    if (is_not_edge_block) *do_square_split = 0;
+    *partition_none_allowed = !(*do_square_split);
+  }
+}
+
 #endif  // !CONFIG_REALTIME_ONLY

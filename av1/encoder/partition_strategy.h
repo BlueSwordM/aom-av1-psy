@@ -138,6 +138,17 @@ void av1_prune_partitions_before_search(
     int *partition_none_allowed, int *partition_horz_allowed,
     int *partition_vert_allowed, int *do_rectangular_split,
     int *do_square_split, int *prune_horz, int *prune_vert);
+
+// Prune out partitions that lead to coding block sizes outside the min and max
+// bsizes set by the encoder. Max and min square partition levels are defined as
+// the partition nodes that the recursive function rd_pick_partition() can
+// reach. To implement this: only PARTITION_NONE is allowed if the current node
+// equals max_partition_size, only PARTITION_SPLIT is allowed if the current
+// node exceeds max_partition_size.
+void av1_prune_partitions_by_max_min_bsize(
+    SuperBlockEnc *sb_enc, BLOCK_SIZE bsize, int is_not_edge_block,
+    int *partition_none_allowed, int *partition_horz_allowed,
+    int *partition_vert_allowed, int *do_square_split);
 #endif  // !CONFIG_REALTIME_ONLY
 
 // A simplified version of set_offsets meant to be used for
