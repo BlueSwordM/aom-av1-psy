@@ -158,6 +158,8 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/firstpass.h"
             "${AOM_ROOT}/av1/encoder/global_motion.c"
             "${AOM_ROOT}/av1/encoder/global_motion.h"
+            "${AOM_ROOT}/av1/encoder/global_motion_facade.c"
+            "${AOM_ROOT}/av1/encoder/global_motion_facade.h"
             "${AOM_ROOT}/av1/encoder/gop_structure.c"
             "${AOM_ROOT}/av1/encoder/gop_structure.h"
             "${AOM_ROOT}/av1/encoder/grain_test_vectors.h"

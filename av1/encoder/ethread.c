@@ -18,6 +18,7 @@
 #include "av1/encoder/firstpass.h"
 #endif
 #include "av1/encoder/global_motion.h"
+#include "av1/encoder/global_motion_facade.h"
 #include "av1/encoder/rdopt.h"
 #include "aom_dsp/aom_dsp_common.h"
 #include "av1/encoder/tpl_model.h"
