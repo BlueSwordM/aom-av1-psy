@@ -2697,46 +2697,6 @@ static AOM_INLINE void update_picked_ref_frames_mask(MACROBLOCK *const x,
   }
 }
 
-// Structure to keep win flags for HORZ and VERT partition evaluations
-typedef struct {
-  bool horz_win;
-  bool vert_win;
-} RD_RECT_PART_WIN_INFO;
-
-// Decide whether to evaluate the AB partition specified by part_type based on
-// split and HORZ/VERT info
-int evaluate_ab_partition_based_on_split(
-    PC_TREE *pc_tree, PARTITION_TYPE rect_part,
-    RD_RECT_PART_WIN_INFO *rect_part_win_info, int qindex, int split_idx1,
-    int split_idx2) {
-  int num_win = 0;
-  // Threshold for number of winners
-  // Conservative pruning for high quantizers
-  const int num_win_thresh = AOMMIN(3 * (2 * (MAXQ - qindex) / MAXQ), 3);
-  bool sub_part_win = (rect_part_win_info == NULL)
-                          ? (pc_tree->partitioning == rect_part)
-                          : (rect_part == PARTITION_HORZ)
-                                ? rect_part_win_info->horz_win
-                                : rect_part_win_info->vert_win;
-  num_win += (sub_part_win) ? 1 : 0;
-  if (pc_tree->split[split_idx1]) {
-    num_win +=
-        (pc_tree->split[split_idx1]->partitioning == PARTITION_NONE) ? 1 : 0;
-  } else {
-    num_win += 1;
-  }
-  if (pc_tree->split[split_idx2]) {
-    num_win +=
-        (pc_tree->split[split_idx2]->partitioning == PARTITION_NONE) ? 1 : 0;
-  } else {
-    num_win += 1;
-  }
-  if (num_win < num_win_thresh) {
-    return 0;
-  }
-  return 1;
-}
-
 // Searches for the best partition pattern for a block based on the
 // rate-distortion cost, and returns a bool value to indicate whether a valid
 // partition pattern is found. The partition can recursively go down to
@@ -3442,110 +3402,18 @@ BEGIN_PARTITION_SEARCH:
       do_rectangular_split &&
       bsize > cpi->sf.part_sf.ext_partition_eval_thresh && has_rows && has_cols;
 
-  // The standard AB partitions are allowed initially if ext-partition-types are
-  // allowed.
-  int horzab_partition_allowed =
-      ext_partition_allowed & cpi->oxcf.enable_ab_partitions;
-  int vertab_partition_allowed =
-      ext_partition_allowed & cpi->oxcf.enable_ab_partitions;
+  int horza_partition_allowed = 1;
+  int horzb_partition_allowed = 1;
+  int verta_partition_allowed = 1;
+  int vertb_partition_allowed = 1;
 
-  // Pruning: pruning out AB partitions on one main direction based on the
-  // current best partition and source variance.
-  if (cpi->sf.part_sf.prune_ext_partition_types_search_level) {
-    if (cpi->sf.part_sf.prune_ext_partition_types_search_level == 1) {
-      // TODO(debargha,huisu@google.com): may need to tune the threshold for
-      // pb_source_variance.
-      horzab_partition_allowed &= (pc_tree->partitioning == PARTITION_HORZ ||
-                                   (pc_tree->partitioning == PARTITION_NONE &&
-                                    pb_source_variance < 32) ||
-                                   pc_tree->partitioning == PARTITION_SPLIT);
-      vertab_partition_allowed &= (pc_tree->partitioning == PARTITION_VERT ||
-                                   (pc_tree->partitioning == PARTITION_NONE &&
-                                    pb_source_variance < 32) ||
-                                   pc_tree->partitioning == PARTITION_SPLIT);
-    } else {
-      horzab_partition_allowed &= (pc_tree->partitioning == PARTITION_HORZ ||
-                                   pc_tree->partitioning == PARTITION_SPLIT);
-      vertab_partition_allowed &= (pc_tree->partitioning == PARTITION_VERT ||
-                                   pc_tree->partitioning == PARTITION_SPLIT);
-    }
-    horz_rd[0] = (horz_rd[0] < INT64_MAX ? horz_rd[0] : 0);
-    horz_rd[1] = (horz_rd[1] < INT64_MAX ? horz_rd[1] : 0);
-    vert_rd[0] = (vert_rd[0] < INT64_MAX ? vert_rd[0] : 0);
-    vert_rd[1] = (vert_rd[1] < INT64_MAX ? vert_rd[1] : 0);
-    split_rd[0] = (split_rd[0] < INT64_MAX ? split_rd[0] : 0);
-    split_rd[1] = (split_rd[1] < INT64_MAX ? split_rd[1] : 0);
-    split_rd[2] = (split_rd[2] < INT64_MAX ? split_rd[2] : 0);
-    split_rd[3] = (split_rd[3] < INT64_MAX ? split_rd[3] : 0);
-  }
-
-  // Pruning: pruning out horz_a or horz_b if the combined rdcost of its
-  // subblocks estimated from previous partitions is much higher than the best
-  // rd so far.
-  int horza_partition_allowed = horzab_partition_allowed;
-  int horzb_partition_allowed = horzab_partition_allowed;
-  if (cpi->sf.part_sf.prune_ext_partition_types_search_level) {
-    const int64_t horz_a_rd = horz_rd[1] + split_rd[0] + split_rd[1];
-    const int64_t horz_b_rd = horz_rd[0] + split_rd[2] + split_rd[3];
-    switch (cpi->sf.part_sf.prune_ext_partition_types_search_level) {
-      case 1:
-        horza_partition_allowed &= (horz_a_rd / 16 * 14 < best_rdc.rdcost);
-        horzb_partition_allowed &= (horz_b_rd / 16 * 14 < best_rdc.rdcost);
-        break;
-      case 2:
-      default:
-        horza_partition_allowed &= (horz_a_rd / 16 * 15 < best_rdc.rdcost);
-        horzb_partition_allowed &= (horz_b_rd / 16 * 15 < best_rdc.rdcost);
-        break;
-    }
-  }
-
-  // Pruning: pruning out vert_a or vert_b if the combined rdcost of its
-  // subblocks estimated from previous partitions is much higher than the best
-  // rd so far.
-  int verta_partition_allowed = vertab_partition_allowed;
-  int vertb_partition_allowed = vertab_partition_allowed;
-  if (cpi->sf.part_sf.prune_ext_partition_types_search_level) {
-    const int64_t vert_a_rd = vert_rd[1] + split_rd[0] + split_rd[2];
-    const int64_t vert_b_rd = vert_rd[0] + split_rd[1] + split_rd[3];
-    switch (cpi->sf.part_sf.prune_ext_partition_types_search_level) {
-      case 1:
-        verta_partition_allowed &= (vert_a_rd / 16 * 14 < best_rdc.rdcost);
-        vertb_partition_allowed &= (vert_b_rd / 16 * 14 < best_rdc.rdcost);
-        break;
-      case 2:
-      default:
-        verta_partition_allowed &= (vert_a_rd / 16 * 15 < best_rdc.rdcost);
-        vertb_partition_allowed &= (vert_b_rd / 16 * 15 < best_rdc.rdcost);
-        break;
-    }
-  }
-
-  // Pruning: pruning out some ab partitions using a DNN taking rd costs of
-  // sub-blocks from previous basic partition types.
-  if (cpi->sf.part_sf.ml_prune_ab_partition && ext_partition_allowed &&
-      partition_horz_allowed && partition_vert_allowed) {
-    // TODO(huisu@google.com): x->source_variance may not be the current
-    // block's variance. The correct one to use is pb_source_variance. Need to
-    // re-train the model to fix it.
-    av1_ml_prune_ab_partition(
-        bsize, pc_tree->partitioning, get_unsigned_bits(x->source_variance),
-        best_rdc.rdcost, horz_rd, vert_rd, split_rd, &horza_partition_allowed,
-        &horzb_partition_allowed, &verta_partition_allowed,
-        &vertb_partition_allowed);
-  }
-
-  // Disable ab partitions if they are disabled by the encoder parameter.
-  horza_partition_allowed &= cpi->oxcf.enable_ab_partitions;
-  horzb_partition_allowed &= cpi->oxcf.enable_ab_partitions;
-  verta_partition_allowed &= cpi->oxcf.enable_ab_partitions;
-  vertb_partition_allowed &= cpi->oxcf.enable_ab_partitions;
-
-  if (cpi->sf.part_sf.prune_ab_partition_using_split_info &&
-      horza_partition_allowed) {
-    horza_partition_allowed &= evaluate_ab_partition_based_on_split(
-        pc_tree, PARTITION_HORZ, rect_part_win_info, x->qindex, 0, 1);
-  }
+  // Prune AB partitions
+  av1_prune_ab_partitions(cpi, x, pc_tree, bsize, pb_source_variance,
+                          best_rdc.rdcost, horz_rd, vert_rd, split_rd,
+                          rect_part_win_info, ext_partition_allowed,
+                          partition_horz_allowed, partition_vert_allowed,
+                          &horza_partition_allowed, &horzb_partition_allowed,
+                          &verta_partition_allowed, &vertb_partition_allowed);
 
   // PARTITION_HORZ_A
   if (!terminate_partition_search && partition_horz_allowed &&
@@ -3601,13 +3469,7 @@ BEGIN_PARTITION_SEARCH:
     restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   }
 
-  if (cpi->sf.part_sf.prune_ab_partition_using_split_info &&
-      horzb_partition_allowed) {
-    horzb_partition_allowed &= evaluate_ab_partition_based_on_split(
-        pc_tree, PARTITION_HORZ, rect_part_win_info, x->qindex, 2, 3);
-  }
-
-  // PARTITION_HORZ_B.
+  // PARTITION_HORZ_B
   if (!terminate_partition_search && partition_horz_allowed &&
       horzb_partition_allowed) {
     subsize = get_partition_subsize(bsize, PARTITION_HORZ_B);
@@ -3654,12 +3516,6 @@ BEGIN_PARTITION_SEARCH:
     }
 #endif
     restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
-  }
-
-  if (cpi->sf.part_sf.prune_ab_partition_using_split_info &&
-      verta_partition_allowed) {
-    verta_partition_allowed &= evaluate_ab_partition_based_on_split(
-        pc_tree, PARTITION_VERT, rect_part_win_info, x->qindex, 0, 2);
   }
 
   // PARTITION_VERT_A
@@ -3709,12 +3565,6 @@ BEGIN_PARTITION_SEARCH:
     }
 #endif
     restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
-  }
-
-  if (cpi->sf.part_sf.prune_ab_partition_using_split_info &&
-      vertb_partition_allowed) {
-    vertb_partition_allowed &= evaluate_ab_partition_based_on_split(
-        pc_tree, PARTITION_VERT, rect_part_win_info, x->qindex, 1, 3);
   }
 
   // PARTITION_VERT_B

@@ -33,6 +33,12 @@
 #define FEATURE_SMS_SPLIT_MODEL_FLAG \
   (FEATURE_SMS_NONE_FLAG | FEATURE_SMS_SPLIT_FLAG)
 
+// Structure to keep win flags for HORZ and VERT partition evaluations.
+typedef struct {
+  bool horz_win;
+  bool vert_win;
+} RD_RECT_PART_WIN_INFO;
+
 void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
                                   int bsize, int label_idx,
                                   int *partition_none_allowed,
@@ -149,6 +155,17 @@ void av1_prune_partitions_by_max_min_bsize(
     SuperBlockEnc *sb_enc, BLOCK_SIZE bsize, int is_not_edge_block,
     int *partition_none_allowed, int *partition_horz_allowed,
     int *partition_vert_allowed, int *do_square_split);
+
+// Prune out AB partitions based on rd decisions made from testing the
+// basic partitions.
+void av1_prune_ab_partitions(
+    const AV1_COMP *cpi, const MACROBLOCK *x, const PC_TREE *pc_tree,
+    BLOCK_SIZE bsize, int pb_source_variance, int64_t best_rdcost,
+    int64_t horz_rd[2], int64_t vert_rd[2], int64_t split_rd[4],
+    const RD_RECT_PART_WIN_INFO *rect_part_win_info, int ext_partition_allowed,
+    int partition_horz_allowed, int partition_vert_allowed,
+    int *horza_partition_allowed, int *horzb_partition_allowed,
+    int *verta_partition_allowed, int *vertb_partition_allowed);
 #endif  // !CONFIG_REALTIME_ONLY
 
 // A simplified version of set_offsets meant to be used for
