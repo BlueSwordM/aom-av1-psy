@@ -30,6 +30,8 @@
 
 namespace {
 
+typedef uint64_t (*MseWxH16bitFunc)(uint8_t *dst, int dstride, uint16_t *src,
+                                    int sstride, int w, int h);
 typedef unsigned int (*VarianceMxNFunc)(const uint8_t *a, int a_stride,
                                         const uint8_t *b, int b_stride,
                                         unsigned int *sse);
@@ -403,6 +405,106 @@ std::ostream &operator<<(std::ostream &os, const TestParams<Func> &p) {
   return os << "width/height:" << p.width << "/" << p.height
             << " function:" << reinterpret_cast<const void *>(p.func)
             << " bit-depth:" << p.bit_depth;
+}
+
+// Main class for testing a function type
+template <typename FunctionType>
+class MseWxHTestClass
+    : public ::testing::TestWithParam<TestParams<FunctionType> > {
+ public:
+  virtual void SetUp() {
+    params_ = this->GetParam();
+
+    rnd_.Reset(ACMRandom::DeterministicSeed());
+    src_ = reinterpret_cast<uint16_t *>(
+        aom_memalign(16, block_size() * sizeof(src_)));
+    dst_ = reinterpret_cast<uint8_t *>(
+        aom_memalign(16, block_size() * sizeof(dst_)));
+    ASSERT_TRUE(src_ != NULL);
+    ASSERT_TRUE(dst_ != NULL);
+  }
+
+  virtual void TearDown() {
+    aom_free(src_);
+    aom_free(dst_);
+    src_ = NULL;
+    dst_ = NULL;
+    libaom_test::ClearSystemState();
+  }
+
+ protected:
+  void RefMatchTestMse();
+  void SpeedTest();
+
+ protected:
+  ACMRandom rnd_;
+  uint8_t *dst_;
+  uint16_t *src_;
+  TestParams<FunctionType> params_;
+
+  // some relay helpers
+  int block_size() const { return params_.block_size; }
+  int width() const { return params_.width; }
+  int height() const { return params_.height; }
+  int d_stride() const { return params_.width; }  // stride is same as width
+  int s_stride() const { return params_.width; }  // stride is same as width
+};
+
+template <typename MseWxHFunctionType>
+void MseWxHTestClass<MseWxHFunctionType>::SpeedTest() {
+  aom_usec_timer ref_timer, test_timer;
+  double elapsed_time_c = 0;
+  double elapsed_time_simd = 0;
+  int run_time = 10000000;
+  int w = width();
+  int h = height();
+  int dstride = d_stride();
+  int sstride = s_stride();
+
+  for (int k = 0; k < block_size(); ++k) {
+    dst_[k] = rnd_.Rand8();
+    src_[k] = rnd_.Rand8();
+  }
+  aom_usec_timer_start(&ref_timer);
+  for (int i = 0; i < run_time; i++) {
+    aom_mse_wxh_16bit_c(dst_, dstride, src_, sstride, w, h);
+  }
+  aom_usec_timer_mark(&ref_timer);
+  elapsed_time_c = static_cast<double>(aom_usec_timer_elapsed(&ref_timer));
+
+  aom_usec_timer_start(&test_timer);
+  for (int i = 0; i < run_time; i++) {
+    params_.func(dst_, dstride, src_, sstride, w, h);
+  }
+  aom_usec_timer_mark(&test_timer);
+  elapsed_time_simd = static_cast<double>(aom_usec_timer_elapsed(&test_timer));
+
+  printf("%dx%d\tc_time=%lf \t simd_time=%lf \t gain=%lf\n", width(), height(),
+         elapsed_time_c, elapsed_time_simd,
+         (elapsed_time_c / elapsed_time_simd));
+}
+
+template <typename MseWxHFunctionType>
+void MseWxHTestClass<MseWxHFunctionType>::RefMatchTestMse() {
+  uint64_t mse_ref = 0;
+  uint64_t mse_mod = 0;
+  int w = width();
+  int h = height();
+  int dstride = d_stride();
+  int sstride = s_stride();
+
+  for (int i = 0; i < 10; i++) {
+    for (int k = 0; k < block_size(); ++k) {
+      dst_[k] = rnd_.Rand8();
+      src_[k] = rnd_.Rand8();
+    }
+    ASM_REGISTER_STATE_CHECK(
+        mse_ref = aom_mse_wxh_16bit_c(dst_, dstride, src_, sstride, w, h));
+    ASM_REGISTER_STATE_CHECK(
+        mse_mod = params_.func(dst_, dstride, src_, sstride, w, h));
+    EXPECT_EQ(mse_ref, mse_mod)
+        << "ref mse: " << mse_ref << " mod mse: " << mse_mod;
+  }
 }
 
 // Main class for testing a function type
@@ -1070,6 +1172,7 @@ void ObmcVarianceTest<ObmcSubpelVarFunc>::SpeedTest() {
          params_.bit_depth, elapsed_time);
 }
 
+typedef MseWxHTestClass<MseWxH16bitFunc> AvxMseWxHTest;
 typedef MainTestClass<Get4x4SseFunc> AvxSseTest;
 typedef MainTestClass<VarianceMxNFunc> AvxMseTest;
 typedef MainTestClass<VarianceMxNFunc> AvxVarianceTest;
@@ -1081,6 +1184,8 @@ typedef ObmcVarianceTest<ObmcSubpelVarFunc> AvxObmcSubpelVarianceTest;
 
 TEST_P(AvxSseTest, RefSse) { RefTestSse(); }
 TEST_P(AvxSseTest, MaxSse) { MaxTestSse(); }
+TEST_P(AvxMseWxHTest, RefMse) { RefMatchTestMse(); }
+TEST_P(AvxMseWxHTest, DISABLED_SpeedMse) { SpeedTest(); }
 TEST_P(AvxMseTest, RefMse) { RefTestMse(); }
 TEST_P(AvxMseTest, MaxMse) { MaxTestMse(); }
 TEST_P(AvxVarianceTest, Zero) { ZeroTest(); }
@@ -2274,6 +2379,15 @@ INSTANTIATE_TEST_SUITE_P(
 #endif  // HAVE_SSE4_1
 
 #if HAVE_AVX2
+
+typedef TestParams<MseWxH16bitFunc> MseWxHParams;
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AvxMseWxHTest,
+    ::testing::Values(MseWxHParams(3, 3, &aom_mse_wxh_16bit_avx2, 8),
+                      MseWxHParams(3, 2, &aom_mse_wxh_16bit_avx2, 8),
+                      MseWxHParams(2, 3, &aom_mse_wxh_16bit_avx2, 8),
+                      MseWxHParams(2, 2, &aom_mse_wxh_16bit_avx2, 8)));
+
 INSTANTIATE_TEST_SUITE_P(AVX2, AvxMseTest,
                          ::testing::Values(MseParams(4, 4,
                                                      &aom_mse16x16_avx2)));
