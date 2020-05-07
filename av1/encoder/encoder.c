@@ -5414,6 +5414,83 @@ static void determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
 }
 #endif  // CONFIG_REALTIME_ONLY
 
+static void encode_without_recode(AV1_COMP *cpi, int q) {
+  AV1_COMMON *const cm = &cpi->common;
+
+  aom_clear_system_state();
+
+  cpi->source =
+      av1_scale_if_required(cm, cpi->unscaled_source, &cpi->scaled_source);
+  if (cpi->unscaled_last_source != NULL) {
+    cpi->last_source = av1_scale_if_required(cm, cpi->unscaled_last_source,
+                                             &cpi->scaled_last_source);
+  }
+  if (!frame_is_intra_only(cm)) scale_references(cpi);
+
+  av1_set_quantizer(cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel, q);
+  av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
+  if (cpi->oxcf.deltaq_mode != NO_DELTA_Q)
+    av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
+                       cm->seq_params.bit_depth);
+  av1_set_variance_partition_thresholds(cpi, q, 0);
+  setup_frame(cpi);
+
+  // Check if this high_source_sad (scene/slide change) frame should be
+  // encoded at high/max QP, and if so, set the q and adjust some rate
+  // control parameters.
+  if (cpi->sf.rt_sf.overshoot_detection_cbr == FAST_DETECTION_MAXQ &&
+      cpi->rc.high_source_sad) {
+    if (av1_encodedframe_overshoot(cpi, &q)) {
+      av1_set_quantizer(cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel, q);
+      av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
+      if (cpi->oxcf.deltaq_mode != NO_DELTA_Q)
+        av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
+                           cm->seq_params.bit_depth);
+      av1_set_variance_partition_thresholds(cpi, q, 0);
+    }
+  }
+
+  if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ) {
+    suppress_active_map(cpi);
+    av1_cyclic_refresh_setup(cpi);
+    apply_active_map(cpi);
+  }
+  if (cm->seg.enabled) {
+    if (!cm->seg.update_data && cm->prev_frame) {
+      segfeatures_copy(&cm->seg, &cm->prev_frame->seg);
+      cm->seg.enabled = cm->prev_frame->seg.enabled;
+    } else {
+      av1_calculate_segdata(&cm->seg);
+    }
+  } else {
+    memset(&cm->seg, 0, sizeof(cm->seg));
+  }
+  segfeatures_copy(&cm->cur_frame->seg, &cm->seg);
+  cm->cur_frame->seg.enabled = cm->seg.enabled;
+
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(cpi, av1_encode_frame_time);
+#endif
+
+  // Set the motion vector precision based on mv stats from the last coded
+  // frame.
+  if (!frame_is_intra_only(cm)) av1_pick_and_set_high_precision_mv(cpi, q);
+
+  // transform / motion compensation build reconstruction frame
+  av1_encode_frame(cpi);
+
+  // Update some stats from cyclic refresh.
+  if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ && !frame_is_intra_only(cm))
+    av1_cyclic_refresh_postencode(cpi);
+
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, av1_encode_frame_time);
+#endif
+#if CONFIG_INTERNAL_STATS
+  ++cpi->tot_recode_hits;
+#endif
+}
+
 static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
@@ -5484,14 +5561,20 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
                default_switchable_interp_probs);
     }
   }
-#if !CONFIG_REALTIME_ONLY
-  // Determine whether to use screen content tools using two fast encoding.
-  determine_sc_tools_with_encoding(cpi, q);
-#endif  // CONFIG_REALTIME_ONLY
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   printf("\n Encoding a frame:");
 #endif
+
+  if (cpi->sf.hl_sf.recode_loop == DISALLOW_RECODE) {
+    encode_without_recode(cpi, q);
+    return AOM_CODEC_OK;
+  }
+
+#if !CONFIG_REALTIME_ONLY
+  // Determine whether to use screen content tools using two fast encoding.
+  determine_sc_tools_with_encoding(cpi, q);
+#endif  // CONFIG_REALTIME_ONLY
 
   // Loop variables
   int loop = 0;
@@ -5560,29 +5643,10 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       av1_setup_frame_contexts(cm);
     }
 
-    // Check if this high_source_sad (scene/slide change) frame should be
-    // encoded at high/max QP, and if so, set the q and adjust some rate
-    // control parameters.
-    if (cpi->sf.rt_sf.overshoot_detection_cbr == FAST_DETECTION_MAXQ &&
-        cpi->rc.high_source_sad) {
-      if (av1_encodedframe_overshoot(cpi, &q)) {
-        av1_set_quantizer(cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel, q);
-        av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
-        if (cpi->oxcf.deltaq_mode != NO_DELTA_Q)
-          av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
-                             cm->seq_params.bit_depth);
-        av1_set_variance_partition_thresholds(cpi, q, 0);
-      }
-    }
-
     if (cpi->oxcf.aq_mode == VARIANCE_AQ) {
       av1_vaq_frame_setup(cpi);
     } else if (cpi->oxcf.aq_mode == COMPLEXITY_AQ) {
       av1_setup_in_frame_q_adj(cpi);
-    } else if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ && !allow_recode) {
-      suppress_active_map(cpi);
-      av1_cyclic_refresh_setup(cpi);
-      apply_active_map(cpi);
     }
 
     if (cm->seg.enabled) {
@@ -5686,10 +5750,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     if (loop) printf("\n Recoding:");
 #endif
   } while (loop);
-
-  // Update some stats from cyclic refresh.
-  if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ && !frame_is_intra_only(cm))
-    av1_cyclic_refresh_postencode(cpi);
 
   return AOM_CODEC_OK;
 }
