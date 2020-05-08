@@ -51,7 +51,8 @@
     recent version of [nasm](http://www.nasm.us/). If you download yasm with
     the intention to work with Visual Studio, please download win32.exe or
     win64.exe and rename it into yasm.exe. DO NOT download or use vsyasm.exe.
- 5. Building the documentation requires [doxygen](http://doxygen.org).
+ 5. Building the documentation requires
+   [doxygen version 1.8.10 or newer](http://doxygen.org).
  6. Building the unit tests requires [Python](https://www.python.org/).
  7. Emscripten builds require the portable
    [EMSDK](https://kripken.github.io/emscripten-site/index.html).

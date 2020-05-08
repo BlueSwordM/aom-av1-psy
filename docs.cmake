@@ -257,9 +257,12 @@ reference. The following utilities are included:
        "PROJECT_LOGO = ${AOM_CONFIG_DIR}/${aom_logo}\n")
 
   # Only set HAVE_DOT to YES if dot tool is found.
-  if(DOXYGEN_HAVE_DOT)
+  if(DOXYGEN_DOT_FOUND)
     file(APPEND "${AOM_DOXYFILE}" "HAVE_DOT = YES\n")
   endif()
+
+  # Add image path.
+  file(APPEND "${AOM_DOXYFILE}" "IMAGE_PATH += ${AOM_ROOT}/doc\n")
 
   # Add the doxygen generation rule.
   add_custom_target(docs ALL

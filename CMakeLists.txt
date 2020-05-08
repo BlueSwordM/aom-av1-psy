@@ -625,10 +625,34 @@ set_user_flags()
 if(ENABLE_DOCS)
   include(FindDoxygen)
   if(DOXYGEN_FOUND)
+    # Check if Doxygen version is >= minimum required version(i.e. 1.8.10).
+    set(MINIMUM_DOXYGEN_VERSION 1008010)
+
+    if(DOXYGEN_VERSION)
+      string(REGEX REPLACE "\\." ";" DOXYGEN_VERSION_LIST ${DOXYGEN_VERSION})
+      list(GET DOXYGEN_VERSION_LIST 0 DOXYGEN_MAJOR)
+      list(GET DOXYGEN_VERSION_LIST 1 DOXYGEN_MINOR)
+      list(GET DOXYGEN_VERSION_LIST 2 DOXYGEN_PATCH)
+    endif()
+
+    # Construct a version value for comparison.
+    math(EXPR DOXYGEN_MAJOR "${DOXYGEN_MAJOR}*1000000")
+    math(EXPR DOXYGEN_MINOR "${DOXYGEN_MINOR}*1000")
+    math(EXPR DOXYGEN_VERSION_VALUE
+         "${DOXYGEN_MAJOR} + ${DOXYGEN_MINOR} + ${DOXYGEN_PATCH}")
+
+    if(${DOXYGEN_VERSION_VALUE} LESS ${MINIMUM_DOXYGEN_VERSION})
+      set(DOXYGEN_FOUND NO)
+    endif()
+  endif()
+
+  if(DOXYGEN_FOUND)
     include("${AOM_ROOT}/docs.cmake")
     setup_documentation_targets()
   else()
-    message("--- Cannot find doxygen, ENABLE_DOCS turned off.")
+    message(
+      "--- Cannot find doxygen(version 1.8.10 or newer), ENABLE_DOCS turned off."
+      )
     set(ENABLE_DOCS OFF)
   endif()
 endif()
