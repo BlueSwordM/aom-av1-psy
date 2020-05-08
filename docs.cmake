@@ -256,6 +256,11 @@ reference. The following utilities are included:
   file(APPEND "${AOM_DOXYFILE}"
        "PROJECT_LOGO = ${AOM_CONFIG_DIR}/${aom_logo}\n")
 
+  # Only set HAVE_DOT to YES if dot tool is found.
+  if(DOXYGEN_HAVE_DOT)
+    file(APPEND "${AOM_DOXYFILE}" "HAVE_DOT = YES\n")
+  endif()
+
   # Add the doxygen generation rule.
   add_custom_target(docs ALL
                     COMMAND "${DOXYGEN_EXECUTABLE}" "${AOM_DOXYFILE}"
