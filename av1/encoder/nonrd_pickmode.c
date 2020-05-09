@@ -2038,7 +2038,13 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     const int skip_ctx = av1_get_skip_txfm_context(xd);
     const int skip_txfm_cost = mode_costs->skip_txfm_cost[skip_ctx][1];
     const int no_skip_txfm_cost = mode_costs->skip_txfm_cost[skip_ctx][0];
-    if (!this_early_term) {
+    if (this_early_term) {
+      this_rdc.skip_txfm = 1;
+      this_rdc.rate = skip_txfm_cost;
+      this_rdc.dist = this_rdc.sse << 4;
+    } else {
+      RD_STATS nonskip_rdc;
+      av1_invalid_rd_stats(&nonskip_rdc);
       if (use_modeled_non_rd_cost) {
         if (this_rdc.skip_txfm) {
           this_rdc.rate = skip_txfm_cost;
@@ -2051,6 +2057,12 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         if (this_rdc.skip_txfm ||
             RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist) >=
                 RDCOST(x->rdmult, 0, this_rdc.sse)) {
+          if (!this_rdc.skip_txfm) {
+            // Need to store "real" rdc for possible furure use if UV rdc
+            // disallows tx skip
+            nonskip_rdc = this_rdc;
+            nonskip_rdc.rate += no_skip_txfm_cost;
+          }
           this_rdc.rate = skip_txfm_cost;
           this_rdc.skip_txfm = 1;
           this_rdc.dist = this_rdc.sse;
@@ -2058,29 +2070,27 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
           this_rdc.rate += no_skip_txfm_cost;
         }
       }
-    } else {
-      this_rdc.skip_txfm = 1;
-      this_rdc.rate = skip_txfm_cost;
-      this_rdc.dist = this_rdc.sse << 4;
-    }
-
-    if (!this_early_term &&
-        (x->color_sensitivity[0] || x->color_sensitivity[1])) {
-      RD_STATS rdc_uv;
-      const BLOCK_SIZE uv_bsize = get_plane_block_size(
-          bsize, xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
-      if (x->color_sensitivity[0]) {
-        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                      AOM_PLANE_U, AOM_PLANE_U);
+      if ((x->color_sensitivity[0] || x->color_sensitivity[1])) {
+        RD_STATS rdc_uv;
+        const BLOCK_SIZE uv_bsize = get_plane_block_size(
+            bsize, xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
+        if (x->color_sensitivity[0]) {
+          av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                        AOM_PLANE_U, AOM_PLANE_U);
+        }
+        if (x->color_sensitivity[1]) {
+          av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                        AOM_PLANE_V, AOM_PLANE_V);
+        }
+        model_rd_for_sb_uv(cpi, uv_bsize, x, xd, &rdc_uv, &this_rdc.sse, 1, 2);
+        // Restore Y rdc if UV rdc disallows txfm skip
+        if (this_rdc.skip_txfm && !rdc_uv.skip_txfm &&
+            nonskip_rdc.rate != INT_MAX)
+          this_rdc = nonskip_rdc;
+        this_rdc.rate += rdc_uv.rate;
+        this_rdc.dist += rdc_uv.dist;
+        this_rdc.skip_txfm = this_rdc.skip_txfm && rdc_uv.skip_txfm;
       }
-      if (x->color_sensitivity[1]) {
-        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                      AOM_PLANE_V, AOM_PLANE_V);
-      }
-      model_rd_for_sb_uv(cpi, uv_bsize, x, xd, &rdc_uv, &this_rdc.sse, 1, 2);
-      this_rdc.rate += rdc_uv.rate;
-      this_rdc.dist += rdc_uv.dist;
-      this_rdc.skip_txfm = this_rdc.skip_txfm && rdc_uv.skip_txfm;
     }
 
     // TODO(kyslov) account for UV prediction cost
@@ -2133,7 +2143,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   mi->ref_frame[0] = best_pickmode.best_ref_frame;
   mi->mv[0].as_int =
       frame_mv[best_pickmode.best_mode][best_pickmode.best_ref_frame].as_int;
-  txfm_info->skip_txfm = best_rdc.skip_txfm;
 
   // Perform intra prediction search, if the best SAD is above a certain
   // threshold.
@@ -2149,6 +2158,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   pd->dst = orig_dst;
   mi->mode = best_pickmode.best_mode;
   mi->ref_frame[0] = best_pickmode.best_ref_frame;
+  txfm_info->skip_txfm = best_rdc.skip_txfm;
 
   if (!is_inter_block(mi)) {
     mi->interp_filters = av1_broadcast_interp_filter(SWITCHABLE_FILTERS);
