@@ -1354,29 +1354,37 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
 #endif
 
   while (1) {
+    int ref_buf_idx = -1;
     int ref_frame_idx = -1;
 
 #if CONFIG_MULTITHREAD
     pthread_mutex_lock(gm_mt_mutex_);
 #endif
 
-    if (!get_next_gm_job(cpi, &ref_frame_idx, cur_dir)) {
+    // Populates ref_buf_idx(the reference frame type) for which global motion
+    // estimation will be done.
+    if (!get_next_gm_job(cpi, &ref_buf_idx, cur_dir)) {
       // No jobs are available for the current direction. Switch
       // to other direction and get the next job, if available.
-      switch_direction(cpi, &ref_frame_idx, &cur_dir);
+      switch_direction(cpi, &ref_buf_idx, &cur_dir);
     }
+
+    // 'ref_frame_idx' holds the index of the current reference frame type in
+    // gm_info->reference_frames. job_info->next_frame_to_process will be
+    // incremented in get_next_gm_job() and hence subtracting by 1.
+    ref_frame_idx = job_info->next_frame_to_process[cur_dir] - 1;
 
 #if CONFIG_MULTITHREAD
     pthread_mutex_unlock(gm_mt_mutex_);
 #endif
 
-    if (ref_frame_idx == -1) break;
+    if (ref_buf_idx == -1) break;
 
     init_gm_thread_data(gm_info, gm_thread_data);
 
-    // Compute global motion for the given ref_frame_idx.
+    // Compute global motion for the given ref_buf_idx.
     av1_compute_gm_for_valid_ref_frames(
-        cpi, gm_info->ref_buf, ref_frame_idx, gm_info->num_src_corners,
+        cpi, gm_info->ref_buf, ref_buf_idx, gm_info->num_src_corners,
         gm_info->src_corners, gm_info->src_buffer,
         gm_thread_data->params_by_motion, gm_thread_data->segment_map,
         gm_info->segment_map_w, gm_info->segment_map_h);
@@ -1384,7 +1392,7 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
 #if CONFIG_MULTITHREAD
     pthread_mutex_lock(gm_mt_mutex_);
 #endif
-
+    assert(ref_frame_idx != -1);
     // If global motion w.r.t. current ref frame is
     // INVALID/TRANSLATION/IDENTITY, skip the evaluation of global motion w.r.t
     // the remaining ref frames in that direction. The below exit is disabled
@@ -1392,7 +1400,7 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
     // source_alt_ref_frame w.r.t. ARF frames.
     if (cpi->sf.gm_sf.prune_ref_frame_for_gm_search &&
         gm_info->reference_frames[cur_dir][ref_frame_idx].distance != 0 &&
-        cpi->common.global_motion[ref_frame_idx].wmtype != ROTZOOM)
+        cpi->common.global_motion[ref_buf_idx].wmtype != ROTZOOM)
       job_info->early_exit[cur_dir] = 1;
 
 #if CONFIG_MULTITHREAD
