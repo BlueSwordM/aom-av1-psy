@@ -39,7 +39,7 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
   uint16_t *dst_ptr_ref = dst_ptr;
   int64_t sum_long = 0;
   uint64_t sse_long = 0;
-  uint16_t rshift = 0, inc = 1;
+  unsigned int rshift = 0, inc = 1;
   __m256i rbias = _mm256_set1_epi32(bitshift);
   __m256i src[4], opointer[8];
   __m128i src0[6], dst0[2];
