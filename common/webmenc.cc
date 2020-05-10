@@ -13,6 +13,8 @@
 
 #include <stdio.h>
 
+#include <memory>
+#include <new>
 #include <string>
 
 #include "common/av1_config.h"
@@ -30,14 +32,16 @@ int write_webm_file_header(struct WebmOutputContext *webm_ctx,
                            const aom_codec_enc_cfg_t *cfg,
                            stereo_format_t stereo_fmt, unsigned int fourcc,
                            const struct AvxRational *par) {
-  mkvmuxer::MkvWriter *const writer = new mkvmuxer::MkvWriter(webm_ctx->stream);
-  mkvmuxer::Segment *const segment = new mkvmuxer::Segment();
-  if (!writer || !segment) {
+  std::unique_ptr<mkvmuxer::MkvWriter> writer(
+      new (std::nothrow) mkvmuxer::MkvWriter(webm_ctx->stream));
+  std::unique_ptr<mkvmuxer::Segment> segment(new (std::nothrow)
+                                                 mkvmuxer::Segment());
+  if (writer == nullptr || segment == nullptr) {
     fprintf(stderr, "webmenc> mkvmuxer objects alloc failed, out of memory?\n");
     return -1;
   }
 
-  bool ok = segment->Init(writer);
+  bool ok = segment->Init(writer.get());
   if (!ok) {
     fprintf(stderr, "webmenc> mkvmuxer Init failed.\n");
     return -1;
@@ -120,9 +124,8 @@ int write_webm_file_header(struct WebmOutputContext *webm_ctx,
     video_track->set_uid(kDebugTrackUid);
   }
 
-  webm_ctx->writer = writer;
-  webm_ctx->segment = segment;
-
+  webm_ctx->writer = writer.release();
+  webm_ctx->segment = segment.release();
   return 0;
 }
 
