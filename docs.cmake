@@ -63,7 +63,8 @@ if(CONFIG_AV1_DECODER)
                                          "Bitstream inspector.")
   endif()
 
-  set(AOM_DOXYGEN_SOURCES ${AOM_DOXYGEN_SOURCES} "${AOM_ROOT}/av1_decoder.dox")
+  set(AOM_DOXYGEN_SOURCES ${AOM_DOXYGEN_SOURCES}
+                          "${AOM_ROOT}/doc/dev_guide/av1_decoder.dox")
 endif()
 
 if(CONFIG_AV1_ENCODER)
@@ -97,7 +98,8 @@ if(CONFIG_AV1_ENCODER)
 
   set(AOM_DOXYGEN_SOURCES ${AOM_DOXYGEN_SOURCES} "${AOM_ROOT}/aom/aomcx.h"
                           "${AOM_ROOT}/usage_cx.dox")
-  set(AOM_DOXYGEN_SOURCES ${AOM_DOXYGEN_SOURCES} "${AOM_ROOT}/av1_encoder.dox")
+  set(AOM_DOXYGEN_SOURCES ${AOM_DOXYGEN_SOURCES}
+                          "${AOM_ROOT}/doc/dev_guide/av1_encoder.dox")
   set(AOM_DOXYGEN_SOURCES ${AOM_DOXYGEN_SOURCES}
                           "${AOM_ROOT}/av1/encoder/encoder.h")
 endif()
@@ -262,7 +264,7 @@ reference. The following utilities are included:
   endif()
 
   # Add image path.
-  file(APPEND "${AOM_DOXYFILE}" "IMAGE_PATH += ${AOM_ROOT}/doc\n")
+  file(APPEND "${AOM_DOXYFILE}" "IMAGE_PATH += ${AOM_ROOT}/doc/dev_guide\n")
 
   # Add the doxygen generation rule.
   add_custom_target(docs ALL
