@@ -1765,9 +1765,6 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   const int skip_ctx = av1_get_skip_txfm_context(xd);
 
   int known_rate = mode_cost;
-  // TODO(chiyotsai@google.com): known rate seems to be counting ref_frame_cost
-  // twice here. Try to remove this.
-  known_rate += ref_frame_cost;
   if (mode != DC_PRED && mode != PAETH_PRED) known_rate += intra_cost_penalty;
   known_rate += AOMMIN(mode_costs->skip_txfm_cost[skip_ctx][0],
                        mode_costs->skip_txfm_cost[skip_ctx][1]);
