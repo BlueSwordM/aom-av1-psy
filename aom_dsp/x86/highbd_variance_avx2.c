@@ -101,11 +101,7 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
             sum_long += _mm_extract_epi32(v_d, 0);
             sse_long += _mm_extract_epi32(v_d, 1);
           }
-          switch (output_height) {
-            case 16: rshift = 7; break;
-            case 8: rshift = 6; break;
-            case 4: rshift = 5; break;
-          }
+          rshift = get_msb(output_height) + 3;
 
           break;
 
@@ -150,39 +146,8 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
             sum_long += _mm_extract_epi32(v_d, 0);
             sse_long += _mm_extract_epi32(v_d, 1);
           }
-          switch (output_width) {
-            case 128:
-              switch (output_height) {
-                case 128: rshift = 14; break;
-                case 64: rshift = 13; break;
-              }
-              break;
-            case 64:
-              switch (output_height) {
-                case 128: rshift = 13; break;
-                case 64: rshift = 12; break;
-                case 32: rshift = 11; break;
-                case 16: rshift = 10; break;
-              }
-              break;
-            case 32:
-              switch (output_height) {
-                case 64: rshift = 11; break;
-                case 32: rshift = 10; break;
-                case 16: rshift = 9; break;
-                case 8: rshift = 8; break;
-              }
-              break;
-            case 16:
-              switch (output_height) {
-                case 64: rshift = 10; break;
-                case 32: rshift = 9; break;
-                case 16: rshift = 8; break;
-                case 8: rshift = 7; break;
-                case 4: rshift = 6; break;
-              }
-              break;
-          }
+
+          rshift = get_msb(output_height) + get_msb(output_width);
       }
     } else if (yoffset == 8) {
       switch (output_width) {
@@ -305,39 +270,8 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
             sum_long += _mm_extract_epi32(v_d, 0);
             sse_long += _mm_extract_epi32(v_d, 1);
           }
-          switch (output_width) {
-            case 128:
-              switch (output_height) {
-                case 128: rshift = 14; break;
-                case 64: rshift = 13; break;
-              }
-              break;
-            case 64:
-              switch (output_height) {
-                case 128: rshift = 13; break;
-                case 64: rshift = 12; break;
-                case 32: rshift = 11; break;
-                case 16: rshift = 10; break;
-              }
-              break;
-            case 32:
-              switch (output_height) {
-                case 64: rshift = 11; break;
-                case 32: rshift = 10; break;
-                case 16: rshift = 9; break;
-                case 8: rshift = 8; break;
-              }
-              break;
-            case 16:
-              switch (output_height) {
-                case 64: rshift = 10; break;
-                case 32: rshift = 9; break;
-                case 16: rshift = 8; break;
-                case 8: rshift = 7; break;
-                case 4: rshift = 6; break;
-              }
-              break;
-          }
+
+          rshift = get_msb(output_height) + get_msb(output_width);
       }
 
     } else {
@@ -417,11 +351,8 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
             sum_long += _mm_extract_epi32(v_d, 0);
             sse_long += _mm_extract_epi32(v_d, 1);
           }
-          switch (output_height) {
-            case 16: rshift = 7; break;
-            case 8: rshift = 6; break;
-            case 4: rshift = 5; break;
-          }
+
+          rshift = get_msb(output_height) + 3;
 
           break;
 
@@ -486,39 +417,8 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
             sum_long += _mm_extract_epi32(v_d, 0);
             sse_long += _mm_extract_epi32(v_d, 1);
           }
-          switch (output_width) {
-            case 128:
-              switch (output_height) {
-                case 128: rshift = 14; break;
-                case 64: rshift = 13; break;
-              }
-              break;
-            case 64:
-              switch (output_height) {
-                case 128: rshift = 13; break;
-                case 64: rshift = 12; break;
-                case 32: rshift = 11; break;
-                case 16: rshift = 10; break;
-              }
-              break;
-            case 32:
-              switch (output_height) {
-                case 64: rshift = 11; break;
-                case 32: rshift = 10; break;
-                case 16: rshift = 9; break;
-                case 8: rshift = 8; break;
-              }
-              break;
-            case 16:
-              switch (output_height) {
-                case 64: rshift = 10; break;
-                case 32: rshift = 9; break;
-                case 16: rshift = 8; break;
-                case 8: rshift = 7; break;
-                case 4: rshift = 6; break;
-              }
-              break;
-          }
+
+          rshift = get_msb(output_height) + get_msb(output_width);
       }
     }
   } else if (xoffset == 8) {
@@ -598,11 +498,8 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
             sum_long += _mm_extract_epi32(v_d, 0);
             sse_long += _mm_extract_epi32(v_d, 1);
           }
-          switch (output_height) {
-            case 16: rshift = 7; break;
-            case 8: rshift = 6; break;
-            case 4: rshift = 5; break;
-          }
+
+          rshift = get_msb(output_height) + 3;
 
           break;
 
@@ -675,39 +572,8 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
             sum_long += _mm_extract_epi32(v_d, 0);
             sse_long += _mm_extract_epi32(v_d, 1);
           }
-          switch (output_width) {
-            case 128:
-              switch (output_height) {
-                case 128: rshift = 14; break;
-                case 64: rshift = 13; break;
-              }
-              break;
-            case 64:
-              switch (output_height) {
-                case 128: rshift = 13; break;
-                case 64: rshift = 12; break;
-                case 32: rshift = 11; break;
-                case 16: rshift = 10; break;
-              }
-              break;
-            case 32:
-              switch (output_height) {
-                case 64: rshift = 11; break;
-                case 32: rshift = 10; break;
-                case 16: rshift = 9; break;
-                case 8: rshift = 8; break;
-              }
-              break;
-            case 16:
-              switch (output_height) {
-                case 64: rshift = 10; break;
-                case 32: rshift = 9; break;
-                case 16: rshift = 8; break;
-                case 8: rshift = 7; break;
-                case 4: rshift = 6; break;
-              }
-              break;
-          }
+
+          rshift = get_msb(output_height) + get_msb(output_width);
       }
     } else if (yoffset == 8) {
       switch (output_width) {
@@ -794,11 +660,8 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
             sum_long += _mm_extract_epi32(v_d, 0);
             sse_long += _mm_extract_epi32(v_d, 1);
           }
-          switch (output_height) {
-            case 16: rshift = 7; break;
-            case 8: rshift = 6; break;
-            case 4: rshift = 5; break;
-          }
+
+          rshift = get_msb(output_height) + 3;
 
           break;
 
@@ -854,39 +717,8 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
             sum_long += _mm_extract_epi32(v_d, 0);
             sse_long += _mm_extract_epi32(v_d, 1);
           }
-          switch (output_width) {
-            case 128:
-              switch (output_height) {
-                case 128: rshift = 14; break;
-                case 64: rshift = 13; break;
-              }
-              break;
-            case 64:
-              switch (output_height) {
-                case 128: rshift = 13; break;
-                case 64: rshift = 12; break;
-                case 32: rshift = 11; break;
-                case 16: rshift = 10; break;
-              }
-              break;
-            case 32:
-              switch (output_height) {
-                case 64: rshift = 11; break;
-                case 32: rshift = 10; break;
-                case 16: rshift = 9; break;
-                case 8: rshift = 8; break;
-              }
-              break;
-            case 16:
-              switch (output_height) {
-                case 64: rshift = 10; break;
-                case 32: rshift = 9; break;
-                case 16: rshift = 8; break;
-                case 8: rshift = 7; break;
-                case 4: rshift = 6; break;
-              }
-              break;
-          }
+
+          rshift = get_msb(output_height) + get_msb(output_width);
       }
 
     } else {
@@ -985,11 +817,8 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
             sum_long += _mm_extract_epi32(v_d, 0);
             sse_long += _mm_extract_epi32(v_d, 1);
           }
-          switch (output_height) {
-            case 16: rshift = 7; break;
-            case 8: rshift = 6; break;
-            case 4: rshift = 5; break;
-          }
+
+          rshift = get_msb(output_height) + 3;
 
           break;
 
@@ -1060,39 +889,8 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
             sum_long += _mm_extract_epi32(v_d, 0);
             sse_long += _mm_extract_epi32(v_d, 1);
           }
-          switch (output_width) {
-            case 128:
-              switch (output_height) {
-                case 128: rshift = 14; break;
-                case 64: rshift = 13; break;
-              }
-              break;
-            case 64:
-              switch (output_height) {
-                case 128: rshift = 13; break;
-                case 64: rshift = 12; break;
-                case 32: rshift = 11; break;
-                case 16: rshift = 10; break;
-              }
-              break;
-            case 32:
-              switch (output_height) {
-                case 64: rshift = 11; break;
-                case 32: rshift = 10; break;
-                case 16: rshift = 9; break;
-                case 8: rshift = 8; break;
-              }
-              break;
-            case 16:
-              switch (output_height) {
-                case 64: rshift = 10; break;
-                case 32: rshift = 9; break;
-                case 16: rshift = 8; break;
-                case 8: rshift = 7; break;
-                case 4: rshift = 6; break;
-              }
-              break;
-          }
+
+          rshift = get_msb(output_height) + get_msb(output_width);
       }
     }
   } else if (yoffset == 0) {
@@ -1158,11 +956,8 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
           sum_long += _mm_extract_epi32(v_d, 0);
           sse_long += _mm_extract_epi32(v_d, 1);
         }
-        switch (output_height) {
-          case 16: rshift = 7; break;
-          case 8: rshift = 6; break;
-          case 4: rshift = 5; break;
-        }
+
+        rshift = get_msb(output_height) + 3;
 
         break;
 
@@ -1217,39 +1012,8 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
           sum_long += _mm_extract_epi32(v_d, 0);
           sse_long += _mm_extract_epi32(v_d, 1);
         }
-        switch (output_width) {
-          case 128:
-            switch (output_height) {
-              case 128: rshift = 14; break;
-              case 64: rshift = 13; break;
-            }
-            break;
-          case 64:
-            switch (output_height) {
-              case 128: rshift = 13; break;
-              case 64: rshift = 12; break;
-              case 32: rshift = 11; break;
-              case 16: rshift = 10; break;
-            }
-            break;
-          case 32:
-            switch (output_height) {
-              case 64: rshift = 11; break;
-              case 32: rshift = 10; break;
-              case 16: rshift = 9; break;
-              case 8: rshift = 8; break;
-            }
-            break;
-          case 16:
-            switch (output_height) {
-              case 64: rshift = 10; break;
-              case 32: rshift = 9; break;
-              case 16: rshift = 8; break;
-              case 8: rshift = 7; break;
-              case 4: rshift = 6; break;
-            }
-            break;
-        }
+
+        rshift = get_msb(output_height) + get_msb(output_width);
     }
   } else if (yoffset == 8) {
     switch (output_width) {
@@ -1357,11 +1121,8 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
           sum_long += _mm_extract_epi32(v_d, 0);
           sse_long += _mm_extract_epi32(v_d, 1);
         }
-        switch (output_height) {
-          case 16: rshift = 7; break;
-          case 8: rshift = 6; break;
-          case 4: rshift = 5; break;
-        }
+
+        rshift = get_msb(output_height) + 3;
 
         break;
 
@@ -1438,39 +1199,8 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
           sum_long += _mm_extract_epi32(v_d, 0);
           sse_long += _mm_extract_epi32(v_d, 1);
         }
-        switch (output_width) {
-          case 128:
-            switch (output_height) {
-              case 128: rshift = 14; break;
-              case 64: rshift = 13; break;
-            }
-            break;
-          case 64:
-            switch (output_height) {
-              case 128: rshift = 13; break;
-              case 64: rshift = 12; break;
-              case 32: rshift = 11; break;
-              case 16: rshift = 10; break;
-            }
-            break;
-          case 32:
-            switch (output_height) {
-              case 64: rshift = 11; break;
-              case 32: rshift = 10; break;
-              case 16: rshift = 9; break;
-              case 8: rshift = 8; break;
-            }
-            break;
-          case 16:
-            switch (output_height) {
-              case 64: rshift = 10; break;
-              case 32: rshift = 9; break;
-              case 16: rshift = 8; break;
-              case 8: rshift = 7; break;
-              case 4: rshift = 6; break;
-            }
-            break;
-        }
+
+        rshift = get_msb(output_height) + get_msb(output_width);
     }
   } else {
     switch (output_width) {
@@ -1589,11 +1319,8 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
           sum_long += _mm_extract_epi32(v_d, 0);
           sse_long += _mm_extract_epi32(v_d, 1);
         }
-        switch (output_height) {
-          case 16: rshift = 7; break;
-          case 8: rshift = 6; break;
-          case 4: rshift = 5; break;
-        }
+
+        rshift = get_msb(output_height) + 3;
 
         break;
 
@@ -1684,39 +1411,8 @@ uint32_t aom_highbd_var_filter_block2d_bil_avx2(
           sum_long += _mm_extract_epi32(v_d, 0);
           sse_long += _mm_extract_epi32(v_d, 1);
         }
-        switch (output_width) {
-          case 128:
-            switch (output_height) {
-              case 128: rshift = 14; break;
-              case 64: rshift = 13; break;
-            }
-            break;
-          case 64:
-            switch (output_height) {
-              case 128: rshift = 13; break;
-              case 64: rshift = 12; break;
-              case 32: rshift = 11; break;
-              case 16: rshift = 10; break;
-            }
-            break;
-          case 32:
-            switch (output_height) {
-              case 64: rshift = 11; break;
-              case 32: rshift = 10; break;
-              case 16: rshift = 9; break;
-              case 8: rshift = 8; break;
-            }
-            break;
-          case 16:
-            switch (output_height) {
-              case 64: rshift = 10; break;
-              case 32: rshift = 9; break;
-              case 16: rshift = 8; break;
-              case 8: rshift = 7; break;
-              case 4: rshift = 6; break;
-            }
-            break;
-        }
+
+        rshift = get_msb(output_height) + get_msb(output_width);
     }
   }
 
