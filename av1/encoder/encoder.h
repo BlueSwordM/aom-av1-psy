@@ -1640,16 +1640,30 @@ void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
                              int subsampling_x, int subsampling_y);
 /*!\endcond */
 
-// receive a frames worth of data. caller can assume that a copy of this
-// frame is made and not just a copy of the pointer..
+/*!\brief Obtain the raw frame data
+ * \ingroup high_level_algo
+ * This function receives the raw frame data from input.
+ *
+ * \param[in]    cpi            Top-level encoder structure
+ * \param[in]    frame_flags    Flags to decide how to encoding the frame
+ * \param[in]    sd             Contain raw frame data
+ * \param[in]    time_stamp     Time stamp of the frame
+ * \param[in]    end_time_stamp End time stamp
+ *
+ * \return Returns a value to indicate if the frame data is received
+ * successfully.
+ * \note The caller of this function is the encoder interface: encoder_encode().
+ * The caller can assume that a copy of this frame is made and not just a
+ * copy of the pointer.
+ */
 int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
                           YV12_BUFFER_CONFIG *sd, int64_t time_stamp,
                           int64_t end_time_stamp);
 
 /*!\brief Encode a frame
  * \ingroup high_level_algo
- * This function receives a raw frame, and encode that frame. It outputs the
- * frame bit stream to the designated buffer.
+ * This function encodes the raw frame data, and outputs the frame bit stream
+ * to the designated buffer.
  *
  * \param[in]    cpi         Top-level encoder structure
  * \param[in]    frame_flags Flags to decide how to encoding the frame
@@ -1661,8 +1675,8 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
  * \param[in]    timebase    Time base used
  *
  * \return Returns a value to indicate if the encoding is done successfully.
- * \note A note for this function.
- * \warning A warning message for this function.
+ * \note Main entry point of encoding a frame. The caller of this function is
+ * the encoder interface: encoder_encode().
  */
 int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
                             size_t *size, uint8_t *dest, int64_t *time_stamp,

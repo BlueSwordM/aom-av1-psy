@@ -2,15 +2,15 @@
 
   AV1 encoding algorithm consists following modules:
     - \ref high_level_algo
+      - To encode a frame, first call \ref av1_receive_raw_frame() to obtain the
+        raw frame data. Then call \ref av1_get_compressed_data() to encode raw
+        frame data into compressed frame data.
     - \ref partition_search
     - \ref intra_mode_search
     - \ref inter_mode_search
     - \ref transform_search
     - \ref in_loop_filter
     - \ref rate_control
-
-  Encode a frame
-    - To encode a frame, call \ref av1_get_compressed_data().
 
   <b>[SAMPLE CONTEXT ONLY - copied from AV1 overview paper]:</b>
 
