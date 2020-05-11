@@ -34,7 +34,6 @@ class AVxFirstPassEncoderThreadTest
     init_flags_ = AOM_CODEC_USE_PSNR;
 
     row_mt_ = 1;
-    first_pass_only_ = 1;
     firstpass_stats_.buf = NULL;
     firstpass_stats_.sz = 0;
   }
@@ -59,8 +58,7 @@ class AVxFirstPassEncoderThreadTest
 
   virtual void EndPassHook() {
     // For first pass stats test, only run first pass encoder.
-    if (first_pass_only_ && cfg_.g_pass == AOM_RC_FIRST_PASS)
-      abort_ |= first_pass_only_;
+    if (cfg_.g_pass == AOM_RC_FIRST_PASS) abort_ = true;
   }
 
   virtual void PreEncodeFrameHook(::libaom_test::VideoSource * /*video*/,
@@ -106,7 +104,6 @@ class AVxFirstPassEncoderThreadTest
   int tile_rows_;
   int tile_cols_;
   int row_mt_;
-  int first_pass_only_;
   aom_fixed_buf_t firstpass_stats_;
 };
 
@@ -133,7 +130,6 @@ TEST_P(AVxFirstPassEncoderThreadTest, FirstPassStatsTest) {
   aom_fixed_buf_t firstpass_stats;
   size_t single_run_sz;
 
-  first_pass_only_ = true;
   cfg_.rc_target_bitrate = 1000;
 
   // 5 encodes will be run:
