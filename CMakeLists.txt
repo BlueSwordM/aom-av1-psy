@@ -622,6 +622,7 @@ endif()
 set_user_flags()
 
 # Aomedia documentation rule.
+set(DOXYGEN_VERSION_VALUE 0)
 if(ENABLE_DOCS)
   include(FindDoxygen)
   if(DOXYGEN_FOUND)

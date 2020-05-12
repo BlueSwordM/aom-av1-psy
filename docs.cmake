@@ -242,6 +242,13 @@ reference. The following utilities are included:
   get_filename_component(samples_dox ${samples_dox} NAME)
   set(AOM_DOXYGEN_SOURCES ${AOM_DOXYGEN_SOURCES} ${samples_dox})
 
+  # There are issues to show Markdown file for old Doxygen version. Here, only
+  # enable Markdown support for 1.8.16 or newer.
+  if(${DOXYGEN_VERSION_VALUE} GREATER_EQUAL 1008016)
+    set(AOM_DOXYGEN_SECTIONS ${AOM_DOXYGEN_SECTIONS} "av1_md_support")
+    set(AOM_DOXYGEN_SOURCES ${AOM_DOXYGEN_SOURCES} "${AOM_ROOT}/README.md")
+  endif()
+
   # Generate libaom's doxyfile.
   file(WRITE "${AOM_DOXYFILE}" "##\n## GENERATED FILE. DO NOT EDIT\n##\n")
   file(READ "${AOM_ROOT}/${AOM_DOXYGEN_CONFIG_TEMPLATE}" doxygen_template_data)
