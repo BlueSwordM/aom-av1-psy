@@ -152,3 +152,37 @@ int aom_satd_neon(const tran_low_t *coeff, int length) {
   return horizontal_add_s32x4(accum);
 #endif  // __aarch64__
 }
+
+int aom_vector_var_neon(const int16_t *ref, const int16_t *src, const int bwl) {
+  int32x4_t v_mean = vdupq_n_s32(0);
+  int32x4_t v_sse = v_mean;
+  int16x8_t v_ref, v_src;
+  int16x4_t v_low;
+
+  int i, width = 4 << bwl;
+  for (i = 0; i < width; i += 8) {
+    v_ref = vld1q_s16(&ref[i]);
+    v_src = vld1q_s16(&src[i]);
+    const int16x8_t diff = vsubq_s16(v_ref, v_src);
+    // diff: dynamic range [-510, 510], 10 bits.
+    v_mean = vpadalq_s16(v_mean, diff);
+    v_low = vget_low_s16(diff);
+    v_sse = vmlal_s16(v_sse, v_low, v_low);
+#if defined(__aarch64__)
+    v_sse = vmlal_high_s16(v_sse, diff, diff);
+#else
+    const int16x4_t v_high = vget_high_s16(diff);
+    v_sse = vmlal_s16(v_sse, v_high, v_high);
+#endif
+  }
+#if defined(__aarch64__)
+  int mean = vaddvq_s32(v_mean);
+  int sse = (int)vaddvq_s32(v_sse);
+#else
+  int mean = horizontal_add_s32x4(v_mean);
+  int sse = horizontal_add_s32x4(v_sse);
+#endif
+  // (mean * mean): dynamic range 31 bits.
+  int var = sse - ((mean * mean) >> (bwl + 2));
+  return var;
+}

@@ -310,6 +310,155 @@ TEST_P(IntProColTest, DISABLED_Speed) {
   FillRandom();
   RunSpeedTest();
 }
+class VectorVarTestBase : public ::testing::Test {
+ public:
+  explicit VectorVarTestBase(int bwl) { m_bwl = bwl; }
+  VectorVarTestBase() {}
+  ~VectorVarTestBase() {}
+
+ protected:
+  static const int kDataAlignment = 16;
+
+  virtual void SetUp() {
+    width = 4 << m_bwl;
+
+    ref_vector = static_cast<int16_t *>(
+        aom_memalign(kDataAlignment, width * sizeof(ref_vector[0])));
+    ASSERT_TRUE(ref_vector != NULL);
+    src_vector = static_cast<int16_t *>(
+        aom_memalign(kDataAlignment, width * sizeof(src_vector[0])));
+    ASSERT_TRUE(src_vector != NULL);
+
+    rnd_.Reset(ACMRandom::DeterministicSeed());
+  }
+  virtual void TearDown() {
+    aom_free(ref_vector);
+    ref_vector = NULL;
+    aom_free(src_vector);
+    src_vector = NULL;
+    libaom_test::ClearSystemState();
+  }
+
+  void FillConstant(int16_t fill_constant_ref, int16_t fill_constant_src) {
+    for (int i = 0; i < width; ++i) {
+      ref_vector[i] = fill_constant_ref;
+      src_vector[i] = fill_constant_src;
+    }
+  }
+
+  void FillRandom() {
+    for (int i = 0; i < width; ++i) {
+      ref_vector[i] =
+          rnd_.Rand16() % max_range;  // acc. aom_vector_var_c brief.
+      src_vector[i] = rnd_.Rand16() % max_range;
+    }
+  }
+
+  int width;
+  int m_bwl;
+  int16_t *ref_vector;
+  int16_t *src_vector;
+  ACMRandom rnd_;
+
+  static const int max_range = 510;
+  static const int num_random_cmp = 50;
+};
+
+typedef int (*VectorVarFunc)(const int16_t *ref, const int16_t *src,
+                             const int bwl);
+
+typedef std::tuple<int, VectorVarFunc, VectorVarFunc> VecVarFunc;
+
+class VectorVarTest : public VectorVarTestBase,
+                      public ::testing::WithParamInterface<VecVarFunc> {
+ public:
+  VectorVarTest()
+      : VectorVarTestBase(GET_PARAM(0)), c_func(GET_PARAM(1)),
+        simd_func(GET_PARAM(2)) {}
+
+ protected:
+  int calcVarC() { return c_func(ref_vector, src_vector, m_bwl); }
+  int calcVarSIMD() { return simd_func(ref_vector, src_vector, m_bwl); }
+
+  VectorVarFunc c_func;
+  VectorVarFunc simd_func;
+};
+
+TEST_P(VectorVarTest, MaxVar) {
+  FillConstant(0, max_range);
+  int c_var = calcVarC();
+  int simd_var = calcVarSIMD();
+  ASSERT_EQ(c_var, simd_var);
+}
+TEST_P(VectorVarTest, MaxVarRev) {
+  FillConstant(max_range, 0);
+  int c_var = calcVarC();
+  int simd_var = calcVarSIMD();
+  ASSERT_EQ(c_var, simd_var);
+}
+TEST_P(VectorVarTest, ZeroDiff) {
+  FillConstant(0, 0);
+  int c_var = calcVarC();
+  int simd_var = calcVarSIMD();
+  ASSERT_EQ(c_var, simd_var);
+}
+TEST_P(VectorVarTest, ZeroDiff2) {
+  FillConstant(max_range, max_range);
+  int c_var = calcVarC();
+  int simd_var = calcVarSIMD();
+  ASSERT_EQ(c_var, simd_var);
+}
+TEST_P(VectorVarTest, Constant) {
+  FillConstant(30, 90);
+  int c_var = calcVarC();
+  int simd_var = calcVarSIMD();
+  ASSERT_EQ(c_var, simd_var);
+}
+TEST_P(VectorVarTest, Random) {
+  for (size_t i = 0; i < num_random_cmp; i++) {
+    FillRandom();
+    int c_var = calcVarC();
+    int simd_var = calcVarSIMD();
+    ASSERT_EQ(c_var, simd_var);
+  }
+}
+TEST_P(VectorVarTest, DISABLED_Speed) {
+  FillRandom();
+  const int numIter = 50000;
+  printf("Width = %d number of iteration is %d \n", width, numIter);
+
+  int sum_c_var = 0;
+  int c_var = 0;
+
+  aom_usec_timer c_timer_;
+  aom_usec_timer_start(&c_timer_);
+  for (size_t i = 0; i < numIter; i++) {
+    c_var = calcVarC();
+    sum_c_var += c_var;
+  }
+  aom_usec_timer_mark(&c_timer_);
+
+  int simd_var = 0;
+  int sum_simd_var = 0;
+  aom_usec_timer simd_timer_;
+  aom_usec_timer_start(&simd_timer_);
+  for (size_t i = 0; i < numIter; i++) {
+    simd_var = calcVarSIMD();
+    sum_simd_var += simd_var;
+  }
+  aom_usec_timer_mark(&simd_timer_);
+
+  const int c_sum_time = static_cast<int>(aom_usec_timer_elapsed(&c_timer_));
+  const int simd_sum_time =
+      static_cast<int>(aom_usec_timer_elapsed(&simd_timer_));
+
+  printf("c_time = %d \t simd_time = %d \t Gain = %4.2f \n", c_sum_time,
+         simd_sum_time,
+         (static_cast<float>(c_sum_time) / static_cast<float>(simd_sum_time)));
+
+  EXPECT_EQ(c_var, simd_var) << "Output mismatch \n";
+  EXPECT_EQ(sum_c_var, sum_simd_var) << "Output mismatch \n";
+}
 
 using std::make_tuple;
 
@@ -498,6 +647,12 @@ INSTANTIATE_TEST_SUITE_P(
                       make_tuple(64, &aom_satd_c, &aom_satd_neon),
                       make_tuple(256, &aom_satd_c, &aom_satd_neon),
                       make_tuple(1024, &aom_satd_c, &aom_satd_neon)));
+INSTANTIATE_TEST_SUITE_P(
+    NEON, VectorVarTest,
+    ::testing::Values(make_tuple(2, &aom_vector_var_c, &aom_vector_var_neon),
+                      make_tuple(3, &aom_vector_var_c, &aom_vector_var_neon),
+                      make_tuple(4, &aom_vector_var_c, &aom_vector_var_neon),
+                      make_tuple(5, &aom_vector_var_c, &aom_vector_var_neon)));
 #endif
 
 }  // namespace
