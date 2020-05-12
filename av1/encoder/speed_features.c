@@ -1302,6 +1302,20 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
       sf->tx_sf.inter_tx_size_search_init_depth_sqr = 1;
       sf->tx_sf.intra_tx_size_search_init_depth_rect = 1;
       sf->inter_sf.skip_repeated_newmv = 1;
+      sf->tx_sf.model_based_prune_tx_search_level = 0;
+      if (is_1080p_or_larger) {
+        sf->inter_sf.selective_ref_frame = 2;
+        sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
+        sf->rd_sf.tx_domain_dist_thres_level = 1;
+        sf->part_sf.simple_motion_search_early_term_none = 1;
+        sf->part_sf.simple_motion_search_split =
+            cm->features.allow_screen_content_tools ? 1 : 2;
+        sf->tx_sf.tx_type_search.ml_tx_split_thresh = 4000;
+        sf->interp_sf.cb_pred_filter_search = 0;
+        sf->tx_sf.tx_type_search.prune_2d_txfm_mode = PRUNE_2D_FAST;
+        sf->tx_sf.tx_type_search.skip_tx_search = 1;
+        sf->tx_sf.use_intra_txb_hash = 1;
+      }
     }
   }
 
