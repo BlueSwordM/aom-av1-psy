@@ -1662,6 +1662,7 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
 
 /*!\brief Encode a frame
  * \ingroup high_level_algo
+ * \callgraph
  * This function encodes the raw frame data, and outputs the frame bit stream
  * to the designated buffer.
  *
@@ -1683,12 +1684,15 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
                             int64_t *time_end, int flush,
                             const aom_rational64_t *timebase);
 
-/*!\cond */
+/*!\brief Run 1-pass/2-pass encoding
+ * \ingroup high_level_algo
+ */
 int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
                const EncodeFrameInput *const frame_input,
                const EncodeFrameParams *const frame_params,
                EncodeFrameResults *const frame_results);
 
+/*!\cond */
 int av1_get_preview_raw_frame(AV1_COMP *cpi, YV12_BUFFER_CONFIG *dest);
 
 int av1_get_last_show_frame(AV1_COMP *cpi, YV12_BUFFER_CONFIG *frame);
