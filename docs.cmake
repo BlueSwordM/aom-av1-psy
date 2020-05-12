@@ -265,6 +265,7 @@ reference. The following utilities are included:
   # Only set HAVE_DOT to YES if dot tool is found.
   if(DOXYGEN_DOT_FOUND)
     file(APPEND "${AOM_DOXYFILE}" "HAVE_DOT = YES\n")
+    file(APPEND "${AOM_DOXYFILE}" "DOT_GRAPH_MAX_NODES = 10000\n")
   endif()
 
   # Add image path.

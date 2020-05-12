@@ -9,6 +9,9 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+/*!\file
+ * \brief Define look ahead buffer operations.
+ */
 #ifndef AOM_AV1_ENCODER_LOOKAHEAD_H_
 #define AOM_AV1_ENCODER_LOOKAHEAD_H_
 
@@ -67,7 +70,6 @@ struct lookahead_ctx *av1_lookahead_init(
 void av1_lookahead_destroy(struct lookahead_ctx *ctx);
 
 /**\brief Enqueue a source buffer
- * \ingroup high_level_algo
  *
  * This function will copy the source image into a new framebuffer with
  * the expected stride/border.
@@ -87,7 +89,6 @@ int av1_lookahead_push(struct lookahead_ctx *ctx, YV12_BUFFER_CONFIG *src,
                        aom_enc_frame_flags_t flags);
 
 /**\brief Get the next source buffer to encode
- * \ingroup high_level_algo
  *
  * \param[in] ctx       Pointer to the lookahead context
  * \param[in] drain     Flag indicating the buffer should be drained
@@ -101,7 +102,6 @@ struct lookahead_entry *av1_lookahead_pop(struct lookahead_ctx *ctx, int drain,
                                           COMPRESSOR_STAGE stage);
 
 /**\brief Get a future source buffer to encode
- * \ingroup high_level_algo
  *
  * \param[in] ctx       Pointer to the lookahead context
  * \param[in] index     Index of the frame to be returned, 0 == next frame
@@ -113,12 +113,12 @@ struct lookahead_entry *av1_lookahead_peek(struct lookahead_ctx *ctx, int index,
                                            COMPRESSOR_STAGE stage);
 
 /**\brief Get the number of frames currently in the lookahead queue
- *
- * \param[in] ctx       Pointer to the lookahead context
  */
 unsigned int av1_lookahead_depth(struct lookahead_ctx *ctx,
                                  COMPRESSOR_STAGE stage);
 
+/**\brief Get pop_sz value
+ */
 int av1_lookahead_pop_sz(struct lookahead_ctx *ctx, COMPRESSOR_STAGE stage);
 
 #ifdef __cplusplus

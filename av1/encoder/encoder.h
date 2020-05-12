@@ -9,6 +9,9 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+/*!\file
+ * \brief Define top-level encoder functions.
+ */
 #ifndef AOM_AV1_ENCODER_ENCODER_H_
 #define AOM_AV1_ENCODER_ENCODER_H_
 
