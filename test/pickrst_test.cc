@@ -188,6 +188,12 @@ INSTANTIATE_TEST_SUITE_P(AVX2, PixelProjErrorTest,
                          ::testing::Values(av1_lowbd_pixel_proj_error_avx2));
 #endif  // HAVE_AVX2
 
+#if HAVE_NEON
+
+INSTANTIATE_TEST_SUITE_P(NEON, PixelProjErrorTest,
+                         ::testing::Values(av1_lowbd_pixel_proj_error_neon));
+#endif  // HAVE_NEON
+
 }  // namespace pickrst_test_lowbd
 
 #if CONFIG_AV1_HIGHBITDEPTH
