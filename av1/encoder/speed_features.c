@@ -877,6 +877,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.nonrd_check_partition_merge_mode = 1;
     sf->rt_sf.nonrd_check_partition_split = 0;
     sf->rt_sf.hybrid_intra_pickmode = 1;
+    sf->rt_sf.skip_intra_pred_if_tx_skip = 1;
   }
 
   if (speed >= 8) {
@@ -889,6 +890,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.nonrd_check_partition_split = 0;
     sf->rt_sf.use_modeled_non_rd_cost = 1;
     sf->rt_sf.source_metrics_sb_nonrd = 1;
+    sf->rt_sf.skip_intra_pred_if_tx_skip = 0;
     sf->interp_sf.cb_pred_filter_search = 1;
   }
 }
@@ -1135,6 +1137,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->use_simple_rd_model = 0;
   rt_sf->nonrd_check_partition_merge_mode = 0;
   rt_sf->nonrd_check_partition_split = 0;
+  rt_sf->skip_intra_pred_if_tx_skip = 0;
 }
 
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {

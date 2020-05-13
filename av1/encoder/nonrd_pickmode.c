@@ -46,10 +46,9 @@ typedef struct {
   PRED_BUFFER *best_pred;
   PREDICTION_MODE best_mode;
   TX_SIZE best_tx_size;
-  TX_SIZE best_intra_tx_size;
   MV_REFERENCE_FRAME best_ref_frame;
-  MV_REFERENCE_FRAME best_second_ref_frame;
   uint8_t best_mode_skip_txfm;
+  uint8_t best_mode_initial_skip_flag;
   int_interpfilters best_pred_filter;
 } BEST_PICKMODE;
 
@@ -108,10 +107,9 @@ static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
   bp->best_mode = NEARESTMV;
   bp->best_ref_frame = LAST_FRAME;
   bp->best_tx_size = TX_8X8;
-  bp->best_intra_tx_size = TX_8X8;
   bp->best_pred_filter = av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
   bp->best_mode_skip_txfm = 0;
-  bp->best_second_ref_frame = NONE_FRAME;
+  bp->best_mode_initial_skip_flag = 0;
   bp->best_pred = NULL;
 }
 
@@ -1585,6 +1583,11 @@ static void estimate_intra_mode(
     perform_intra_pred = 0;
   }
 
+  if (cpi->sf.rt_sf.skip_intra_pred_if_tx_skip && best_rdc->skip_txfm &&
+      best_pickmode->best_mode_initial_skip_flag) {
+    perform_intra_pred = 0;
+  }
+
   if (!(best_rdc->rdcost == INT64_MAX ||
         (perform_intra_pred && !best_early_term &&
          best_rdc->rdcost > inter_mode_thresh &&
@@ -1672,18 +1675,14 @@ static void estimate_intra_mode(
     if (this_rdc.rdcost < best_rdc->rdcost) {
       *best_rdc = this_rdc;
       best_pickmode->best_mode = this_mode;
-      best_pickmode->best_intra_tx_size = mi->tx_size;
+      best_pickmode->best_tx_size = mi->tx_size;
       best_pickmode->best_ref_frame = INTRA_FRAME;
       mi->uv_mode = this_mode;
       mi->mv[0].as_int = INVALID_MV;
       mi->mv[1].as_int = INVALID_MV;
     }
   }
-  if (best_pickmode->best_ref_frame != INTRA_FRAME) {
-    mi->tx_size = best_pickmode->best_tx_size;
-  } else {
-    mi->tx_size = best_pickmode->best_intra_tx_size;
-  }
+  mi->tx_size = best_pickmode->best_tx_size;
 }
 
 static AOM_INLINE int is_filter_search_enabled(AV1_COMP *cpi, MACROBLOCK *x,
@@ -1908,6 +1907,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     int skip_this_mv = 0;
     PREDICTION_MODE this_mode;
     MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
+    RD_STATS nonskip_rdc;
+    av1_invalid_rd_stats(&nonskip_rdc);
 
     this_mode = ref_mode_set[idx].pred_mode;
     ref_frame = ref_mode_set[idx].ref_frame;
@@ -2040,8 +2041,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       this_rdc.rate = skip_txfm_cost;
       this_rdc.dist = this_rdc.sse << 4;
     } else {
-      RD_STATS nonskip_rdc;
-      av1_invalid_rd_stats(&nonskip_rdc);
       if (use_modeled_non_rd_cost) {
         if (this_rdc.skip_txfm) {
           this_rdc.rate = skip_txfm_cost;
@@ -2120,6 +2119,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       best_pickmode.best_tx_size = mi->tx_size;
       best_pickmode.best_ref_frame = ref_frame;
       best_pickmode.best_mode_skip_txfm = this_rdc.skip_txfm;
+      best_pickmode.best_mode_initial_skip_flag =
+          (nonskip_rdc.rate == INT_MAX && this_rdc.skip_txfm);
+
       if (reuse_inter_pred) {
         free_pred_buffer(best_pickmode.best_pred);
         best_pickmode.best_pred = this_mode_pred;
