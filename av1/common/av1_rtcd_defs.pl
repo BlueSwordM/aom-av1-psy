@@ -298,6 +298,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   # fdct functions
 
   add_proto qw/void av1_fwht4x4/, "const int16_t *input, tran_low_t *output, int stride";
+  specialize qw/av1_fwht4x4 neon/;
 
   #fwd txfm
   add_proto qw/void av1_lowbd_fwd_txfm/, "const int16_t *src_diff, tran_low_t *coeff, int diff_stride, TxfmParam *txfm_param";
@@ -364,6 +365,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   }
 
   add_proto qw/void av1_highbd_fwht4x4/, "const int16_t *input, tran_low_t *output, int stride";
+  specialize qw/av1_highbd_fwht4x4 neon/;
 
   # End av1_high encoder functions
 
