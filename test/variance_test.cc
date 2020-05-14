@@ -2587,21 +2587,48 @@ INSTANTIATE_TEST_SUITE_P(
     NEON, AvxVarianceTest,
     ::testing::Values(VarianceParams(7, 7, &aom_variance128x128_neon),
                       VarianceParams(6, 6, &aom_variance64x64_neon),
+                      VarianceParams(7, 6, &aom_variance128x64_neon),
+                      VarianceParams(6, 7, &aom_variance64x128_neon),
+                      VarianceParams(6, 6, &aom_variance64x64_neon),
                       VarianceParams(6, 5, &aom_variance64x32_neon),
                       VarianceParams(5, 6, &aom_variance32x64_neon),
                       VarianceParams(5, 5, &aom_variance32x32_neon),
+                      VarianceParams(5, 4, &aom_variance32x16_neon),
+                      VarianceParams(4, 5, &aom_variance16x32_neon),
                       VarianceParams(4, 4, &aom_variance16x16_neon),
                       VarianceParams(4, 3, &aom_variance16x8_neon),
                       VarianceParams(3, 4, &aom_variance8x16_neon),
-                      VarianceParams(3, 3, &aom_variance8x8_neon)));
+                      VarianceParams(3, 3, &aom_variance8x8_neon),
+                      VarianceParams(3, 2, &aom_variance8x4_neon),
+                      VarianceParams(2, 3, &aom_variance4x8_neon),
+                      VarianceParams(2, 2, &aom_variance4x4_neon)));
 
 INSTANTIATE_TEST_SUITE_P(
     NEON, AvxSubpelVarianceTest,
     ::testing::Values(
+        SubpelVarianceParams(7, 7, &aom_sub_pixel_variance128x128_neon, 0),
+        SubpelVarianceParams(7, 6, &aom_sub_pixel_variance128x64_neon, 0),
+        SubpelVarianceParams(6, 7, &aom_sub_pixel_variance64x128_neon, 0),
         SubpelVarianceParams(6, 6, &aom_sub_pixel_variance64x64_neon, 0),
+        SubpelVarianceParams(6, 5, &aom_sub_pixel_variance64x32_neon, 0),
+        SubpelVarianceParams(5, 6, &aom_sub_pixel_variance32x64_neon, 0),
         SubpelVarianceParams(5, 5, &aom_sub_pixel_variance32x32_neon, 0),
+        SubpelVarianceParams(5, 4, &aom_sub_pixel_variance32x16_neon, 0),
+        SubpelVarianceParams(4, 5, &aom_sub_pixel_variance16x32_neon, 0),
         SubpelVarianceParams(4, 4, &aom_sub_pixel_variance16x16_neon, 0),
-        SubpelVarianceParams(3, 3, &aom_sub_pixel_variance8x8_neon, 0)));
+        SubpelVarianceParams(4, 3, &aom_sub_pixel_variance16x8_neon, 0),
+        SubpelVarianceParams(3, 4, &aom_sub_pixel_variance8x16_neon, 0),
+        SubpelVarianceParams(3, 3, &aom_sub_pixel_variance8x8_neon, 0),
+        SubpelVarianceParams(3, 2, &aom_sub_pixel_variance8x4_neon, 0),
+        SubpelVarianceParams(2, 3, &aom_sub_pixel_variance4x8_neon, 0),
+        SubpelVarianceParams(2, 2, &aom_sub_pixel_variance4x4_neon, 0),
+
+        SubpelVarianceParams(6, 4, &aom_sub_pixel_variance64x16_neon, 0),
+        SubpelVarianceParams(4, 6, &aom_sub_pixel_variance16x64_neon, 0),
+        SubpelVarianceParams(5, 3, &aom_sub_pixel_variance32x8_neon, 0),
+        SubpelVarianceParams(3, 5, &aom_sub_pixel_variance8x32_neon, 0),
+        SubpelVarianceParams(4, 2, &aom_sub_pixel_variance16x4_neon, 0),
+        SubpelVarianceParams(2, 4, &aom_sub_pixel_variance4x16_neon, 0)));
 #endif  // HAVE_NEON
 
 #if HAVE_MSA
