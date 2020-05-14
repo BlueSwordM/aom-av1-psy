@@ -10,7 +10,7 @@
  */
 
 /*!\file
- * \brief Define top-level encoder functions.
+ * \brief Declares top-level encoder structures and functions.
  */
 #ifndef AOM_AV1_ENCODER_ENCODER_H_
 #define AOM_AV1_ENCODER_ENCODER_H_
@@ -1644,6 +1644,7 @@ void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
 /*!\endcond */
 
 /*!\brief Obtain the raw frame data
+ *
  * \ingroup high_level_algo
  * This function receives the raw frame data from input.
  *
@@ -1655,8 +1656,7 @@ void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
  *
  * \return Returns a value to indicate if the frame data is received
  * successfully.
- * \note The caller of this function is the encoder interface: encoder_encode().
- * The caller can assume that a copy of this frame is made and not just a
+ * \note The caller can assume that a copy of this frame is made and not just a
  * copy of the pointer.
  */
 int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
@@ -1664,6 +1664,7 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
                           int64_t end_time_stamp);
 
 /*!\brief Encode a frame
+ *
  * \ingroup high_level_algo
  * \callgraph
  * This function encodes the raw frame data, and outputs the frame bit stream
@@ -1679,8 +1680,6 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
  * \param[in]    timebase    Time base used
  *
  * \return Returns a value to indicate if the encoding is done successfully.
- * \note Main entry point of encoding a frame. The caller of this function is
- * the encoder interface: encoder_encode().
  */
 int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
                             size_t *size, uint8_t *dest, int64_t *time_stamp,
@@ -1688,6 +1687,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
                             const aom_rational64_t *timebase);
 
 /*!\brief Run 1-pass/2-pass encoding
+ *
  * \ingroup high_level_algo
  */
 int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,

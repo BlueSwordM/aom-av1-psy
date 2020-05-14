@@ -10,7 +10,7 @@
  */
 
 /*!\file
- * \brief Define look ahead buffer operations.
+ * \brief Describes look ahead buffer operations.
  */
 #ifndef AOM_AV1_ENCODER_LOOKAHEAD_H_
 #define AOM_AV1_ENCODER_LOOKAHEAD_H_

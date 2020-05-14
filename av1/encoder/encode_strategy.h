@@ -10,7 +10,7 @@
  */
 
 /*!\file
- * \brief Define encoder functions.
+ * \brief Declares frame encoding functions.
  */
 #ifndef AOM_AV1_ENCODER_ENCODE_STRATEGY_H_
 #define AOM_AV1_ENCODER_ENCODE_STRATEGY_H_
@@ -27,10 +27,11 @@ extern "C" {
 #include "av1/encoder/firstpass.h"
 
 /*!\brief Implement high-level encode strategy
+ *
  * \ingroup high_level_algo
  * This function will implement high-level encode strategy, choosing frame type,
  * frame placement, etc. It populates an EncodeFrameParams struct with the
- * results of these decisions and then calls av1_encode().
+ * results of these decisions and then encodes the frame.
  *
  * \param[in]    cpi         Top-level encoder structure
  * \param[in]    size        Bitstream size
