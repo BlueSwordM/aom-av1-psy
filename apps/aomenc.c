@@ -263,6 +263,8 @@ static const arg_def_t monochrome =
     ARG_DEF(NULL, "monochrome", 0, "Monochrome video (no chroma planes)");
 static const arg_def_t full_still_picture_hdr = ARG_DEF(
     NULL, "full-still-picture-hdr", 0, "Use full header for still picture");
+static const arg_def_t use_16bit_internal =
+    ARG_DEF(NULL, "use-16bit-internal", 0, "Force use of 16-bit pipeline");
 
 static const arg_def_t *global_args[] = { &use_yv12,
                                           &use_i420,
@@ -286,6 +288,7 @@ static const arg_def_t *global_args[] = { &use_yv12,
                                           &large_scale_tile,
                                           &monochrome,
                                           &full_still_picture_hdr,
+                                          &use_16bit_internal,
                                           NULL };
 
 static const arg_def_t dropframe_thresh =
@@ -1527,6 +1530,11 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.monochrome = 1;
     } else if (arg_match(&arg, &full_still_picture_hdr, argi)) {
       config->cfg.full_still_picture_hdr = 1;
+    } else if (arg_match(&arg, &use_16bit_internal, argi)) {
+      config->use_16bit_internal = CONFIG_AV1_HIGHBITDEPTH;
+      if (!config->use_16bit_internal) {
+        warn("%s option ignored with CONFIG_AV1_HIGHBITDEPTH=0.\n", arg.name);
+      }
     } else if (arg_match(&arg, &dropframe_thresh, argi)) {
       config->cfg.rc_dropframe_thresh = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &resize_mode, argi)) {
@@ -1630,8 +1638,8 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       if (!match) argj++;
     }
   }
-  config->use_16bit_internal =
-      config->cfg.g_bit_depth > AOM_BITS_8 || FORCE_HIGHBITDEPTH_DECODING;
+  config->use_16bit_internal |= config->cfg.g_bit_depth > AOM_BITS_8;
+
   return eos_mark_found;
 }
 
@@ -1934,7 +1942,7 @@ static void initialize_encoder(struct stream_state *stream,
   if (global->test_decode != TEST_DECODE_OFF) {
     aom_codec_iface_t *decoder = get_aom_decoder_by_short_name(
         get_short_name_by_aom_encoder(global->codec));
-    aom_codec_dec_cfg_t cfg = { 0, 0, 0, !FORCE_HIGHBITDEPTH_DECODING };
+    aom_codec_dec_cfg_t cfg = { 0, 0, 0, !stream->config.use_16bit_internal };
     aom_codec_dec_init(&stream->decoder, decoder, &cfg, 0);
 
     if (strcmp(get_short_name_by_aom_encoder(global->codec), "av1") == 0) {
@@ -2250,7 +2258,7 @@ int main(int argc, const char **argv_) {
   aom_image_t raw;
   aom_image_t raw_shift;
   int allocated_raw_shift = 0;
-  int use_16bit_internal = 0;
+  int do_16bit_internal = 0;
   int input_shift = 0;
   int frame_avail, got_data;
 
@@ -2450,6 +2458,11 @@ int main(int argc, const char **argv_) {
                   stream->config.cfg.g_input_bit_depth);
         }
       }
+#if !CONFIG_AV1_HIGHBITDEPTH
+      if (stream->config.cfg.g_bit_depth > 8) {
+        fatal("Unsupported bit-depth with CONFIG_AV1_HIGHBITDEPTH=0\n");
+      }
+#endif  // CONFIG_AV1_HIGHBITDEPTH
       if (stream->config.cfg.g_bit_depth > 10) {
         switch (stream->config.cfg.g_profile) {
           case 0:
@@ -2559,7 +2572,7 @@ int main(int argc, const char **argv_) {
       // highbitdepth are the same.
       FOREACH_STREAM(stream, streams) {
         if (stream->config.use_16bit_internal) {
-          use_16bit_internal = 1;
+          do_16bit_internal = 1;
         }
         input_shift = (int)stream->config.cfg.g_bit_depth -
                       stream->config.cfg.g_input_bit_depth;
@@ -2602,8 +2615,8 @@ int main(int argc, const char **argv_) {
 
       if (frames_in > global.skip_frames) {
         aom_image_t *frame_to_encode;
-        if (input_shift || (use_16bit_internal && input.bit_depth == 8)) {
-          assert(use_16bit_internal);
+        if (input_shift || (do_16bit_internal && input.bit_depth == 8)) {
+          assert(do_16bit_internal);
           // Input bit depth and stream bit depth do not match, so up
           // shift frame to stream bit depth
           if (!allocated_raw_shift) {
@@ -2617,7 +2630,7 @@ int main(int argc, const char **argv_) {
           frame_to_encode = &raw;
         }
         aom_usec_timer_start(&timer);
-        if (use_16bit_internal) {
+        if (do_16bit_internal) {
           assert(frame_to_encode->fmt & AOM_IMG_FMT_HIGHBITDEPTH);
           FOREACH_STREAM(stream, streams) {
             if (stream->config.use_16bit_internal)
