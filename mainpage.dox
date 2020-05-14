@@ -22,7 +22,7 @@
   - Consult the \ref changelog for a complete list of improvements in this
     release.
   \if av1_md_support
-  - [README](README.md) contains instructions on compiling the sample applications.
+  - [README](\ref LREADME) contains instructions on compiling the sample applications.
   \else
   - \ref readme contains instructions on compiling the sample applications.
   \endif
