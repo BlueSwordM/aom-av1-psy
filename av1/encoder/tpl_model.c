@@ -88,7 +88,7 @@ static int rate_estimator(const tran_low_t *qcoeff, int eob, TX_SIZE tx_size) {
   const SCAN_ORDER *const scan_order = &av1_default_scan_orders[tx_size];
 
   assert((1 << num_pels_log2_lookup[txsize_to_bsize[tx_size]]) >= eob);
-
+  aom_clear_system_state();
   int rate_cost = 1;
 
   for (int idx = 0; idx < eob; ++idx) {
