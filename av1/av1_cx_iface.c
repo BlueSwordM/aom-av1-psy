@@ -24,6 +24,7 @@
 #include "av1/av1_iface_common.h"
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/encoder.h"
+#include "av1/encoder/ethread.h"
 #include "av1/encoder/firstpass.h"
 
 #define MAG_SIZE (4)
@@ -2182,12 +2183,19 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     int index_size = 0;
     int has_fwd_keyframe = 0;
 
+    const int num_workers = av1_compute_num_enc_workers(cpi);
+    if ((num_workers > 1) && (cpi->mt_info.num_workers == 0))
+      av1_create_workers(cpi, num_workers);
+
     // Call for LAP stage
     if (cpi_lap != NULL) {
       int status;
       aom_rational64_t timestamp_ratio_la = *timestamp_ratio;
       int64_t dst_time_stamp_la = dst_time_stamp;
       int64_t dst_end_time_stamp_la = dst_end_time_stamp;
+      if (cpi_lap->mt_info.workers == NULL)
+        cpi_lap->mt_info.workers = cpi->mt_info.workers;
+      cpi_lap->mt_info.num_workers = cpi->mt_info.num_workers;
       status = av1_get_compressed_data(
           cpi_lap, &lib_flags, &frame_size, NULL, &dst_time_stamp_la,
           &dst_end_time_stamp_la, !img, &timestamp_ratio_la);

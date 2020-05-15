@@ -70,6 +70,8 @@ void av1_tpl_dealloc(AV1TplRowMultiThreadSync *tpl_sync);
 
 int av1_compute_num_enc_workers(AV1_COMP *cpi);
 
+void av1_create_workers(AV1_COMP *cpi, int num_workers);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

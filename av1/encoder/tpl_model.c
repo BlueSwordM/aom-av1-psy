@@ -1092,7 +1092,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
     if (gf_group->size == frame_idx) continue;
     init_mc_flow_dispenser(cpi, frame_idx, pframe_qindex);
-    if (av1_compute_num_enc_workers(cpi) > 1) {
+    if (mt_info->num_workers > 1) {
       tpl_row_mt->sync_read_ptr = av1_tpl_row_mt_sync_read;
       tpl_row_mt->sync_write_ptr = av1_tpl_row_mt_sync_write;
       av1_mc_flow_dispenser_mt(cpi);

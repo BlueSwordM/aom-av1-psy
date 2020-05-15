@@ -805,8 +805,14 @@ typedef struct {
 } AV1EncRowMultiThreadInfo;
 
 typedef struct {
-  // Number of workers created for encoder multi-threading.
+  // Number of workers created for multi-threading.
   int num_workers;
+
+  // Number of workers created for tpl and tile/row multi-threading of encoder.
+  int num_enc_workers;
+
+  // Number of workers created for first-pass multi-threading.
+  int num_fp_workers;
 
   // Synchronization object used to launch job in the worker thread.
   AVxWorker *workers;

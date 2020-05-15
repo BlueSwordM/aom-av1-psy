@@ -512,9 +512,6 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   int sb_mi_size = av1_get_sb_mi_size(cm);
 
-  CHECK_MEM_ERROR(cm, mt_info->workers,
-                  aom_malloc(num_workers * sizeof(*mt_info->workers)));
-
   CHECK_MEM_ERROR(cm, mt_info->tile_thr_data,
                   aom_calloc(num_workers, sizeof(*mt_info->tile_thr_data)));
 
@@ -539,9 +536,7 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
     AVxWorker *const worker = &mt_info->workers[i];
     EncWorkerData *const thread_data = &mt_info->tile_thr_data[i];
 
-    ++mt_info->num_workers;
-    winterface->init(worker);
-    worker->thread_name = "aom enc worker";
+    ++mt_info->num_enc_workers;
 
     thread_data->cpi = cpi;
     thread_data->thread_id = i;
@@ -620,15 +615,20 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
   }
 }
 
-static AOM_INLINE void create_workers(AV1_COMP *cpi, int num_workers) {
+void av1_create_workers(AV1_COMP *cpi, int num_workers) {
   AV1_COMMON *const cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
+  const AVxWorkerInterface *const winterface = aom_get_worker_interface();
+  mt_info->tile_thr_data = NULL;
 
   CHECK_MEM_ERROR(cm, mt_info->workers,
                   aom_malloc(num_workers * sizeof(*mt_info->workers)));
-
-  CHECK_MEM_ERROR(cm, mt_info->tile_thr_data,
-                  aom_calloc(num_workers, sizeof(*mt_info->tile_thr_data)));
+  for (int i = num_workers - 1; i >= 0; i--) {
+    AVxWorker *const worker = &mt_info->workers[i];
+    winterface->init(worker);
+    worker->thread_name = "aom enc worker";
+    ++mt_info->num_workers;
+  }
 }
 
 #if !CONFIG_REALTIME_ONLY
@@ -637,7 +637,10 @@ static AOM_INLINE void fp_create_enc_workers(AV1_COMP *cpi, int num_workers) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   MultiThreadInfo *const mt_info = &cpi->mt_info;
 
-  assert(mt_info->workers != NULL && mt_info->tile_thr_data != NULL);
+  CHECK_MEM_ERROR(cm, mt_info->tile_thr_data,
+                  aom_calloc(num_workers, sizeof(*mt_info->tile_thr_data)));
+
+  assert(mt_info->workers != NULL);
 
 #if CONFIG_MULTITHREAD
   if (cpi->oxcf.row_mt == 1) {
@@ -654,9 +657,7 @@ static AOM_INLINE void fp_create_enc_workers(AV1_COMP *cpi, int num_workers) {
     AVxWorker *const worker = &mt_info->workers[i];
     EncWorkerData *const thread_data = &mt_info->tile_thr_data[i];
 
-    ++mt_info->num_workers;
-    winterface->init(worker);
-    worker->thread_name = "aom enc worker";
+    ++mt_info->num_fp_workers;
 
     thread_data->cpi = cpi;
     thread_data->thread_id = i;
@@ -867,10 +868,10 @@ void av1_encode_tiles_mt(AV1_COMP *cpi) {
 
   av1_init_tile_data(cpi);
   // Only run once to create threads and allocate thread data.
-  if (mt_info->num_workers == 0) {
+  if (mt_info->num_enc_workers == 0) {
     create_enc_workers(cpi, num_workers);
   } else {
-    num_workers = AOMMIN(num_workers, mt_info->num_workers);
+    num_workers = AOMMIN(num_workers, mt_info->num_enc_workers);
   }
   prepare_enc_workers(cpi, enc_worker_hook, num_workers);
   launch_enc_workers(&cpi->mt_info, num_workers);
@@ -1007,10 +1008,10 @@ void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
   }
 
   // Only run once to create threads and allocate thread data.
-  if (mt_info->num_workers == 0) {
+  if (mt_info->num_enc_workers == 0) {
     create_enc_workers(cpi, num_workers);
   } else {
-    num_workers = AOMMIN(num_workers, mt_info->num_workers);
+    num_workers = AOMMIN(num_workers, mt_info->num_enc_workers);
   }
   assign_tile_to_thread(thread_id_to_tile_id, tile_cols * tile_rows,
                         num_workers);
@@ -1074,13 +1075,9 @@ void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi) {
     }
   }
 
+  num_workers = AOMMIN(num_workers, mt_info->num_workers);
   // Only run once to create threads and allocate thread data.
-  if (mt_info->num_workers == 0) {
-    create_workers(cpi, num_workers);
-    fp_create_enc_workers(cpi, num_workers);
-  } else {
-    num_workers = AOMMIN(num_workers, mt_info->num_workers);
-  }
+  if (mt_info->num_fp_workers == 0) fp_create_enc_workers(cpi, num_workers);
   assign_tile_to_thread(thread_id_to_tile_id, tile_cols * tile_rows,
                         num_workers);
   fp_prepare_enc_workers(cpi, fp_enc_row_mt_worker_hook, num_workers);
@@ -1169,7 +1166,7 @@ static int tpl_worker_hook(void *arg1, void *unused) {
   BLOCK_SIZE bsize = convert_length_to_bsize(MC_FLOW_BSIZE_1D);
   TX_SIZE tx_size = max_txsize_lookup[bsize];
   int mi_height = mi_size_high[bsize];
-  int num_active_workers = mt_info->num_workers;
+  int num_active_workers = mt_info->num_enc_workers;
   for (int mi_row = thread_data->start * mi_height; mi_row < mi_params->mi_rows;
        mi_row += num_active_workers * mi_height) {
     // Motion estimation row boundary
@@ -1284,10 +1281,10 @@ void av1_mc_flow_dispenser_mt(AV1_COMP *cpi) {
   memset(tpl_sync->num_finished_cols, -1,
          sizeof(*tpl_sync->num_finished_cols) * mb_rows);
 
-  if (mt_info->num_workers == 0)
+  if (mt_info->num_enc_workers == 0)
     create_enc_workers(cpi, num_workers);
   else
-    num_workers = AOMMIN(num_workers, mt_info->num_workers);
+    num_workers = AOMMIN(num_workers, mt_info->num_enc_workers);
 
   prepare_tpl_workers(cpi, tpl_worker_hook, num_workers);
   launch_enc_workers(&cpi->mt_info, num_workers);
