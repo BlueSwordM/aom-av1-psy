@@ -3510,6 +3510,51 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   snprintf((H) + strlen(H), sizeof(H) - strlen(H), (T), (V))
 #endif  // CONFIG_INTERNAL_STATS
 
+// This function will change the state and free the mutex of corresponding
+// workers and terminate the object. The object can not be re-used unless a call
+// to reset() is made.
+static AOM_INLINE void terminate_worker_data(AV1_COMP *cpi) {
+  MultiThreadInfo *const mt_info = &cpi->mt_info;
+  for (int t = mt_info->num_workers - 1; t >= 0; --t) {
+    AVxWorker *const worker = &mt_info->workers[t];
+    aom_get_worker_interface()->end(worker);
+  }
+}
+
+// Deallocate allocated thread_data.
+static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
+  MultiThreadInfo *const mt_info = &cpi->mt_info;
+  AV1_COMMON *cm = &cpi->common;
+  for (int t = 0; t < mt_info->num_workers; ++t) {
+    EncWorkerData *const thread_data = &mt_info->tile_thr_data[t];
+    aom_free(thread_data->td->tctx);
+    if (t == 0) continue;
+    aom_free(thread_data->td->palette_buffer);
+    aom_free(thread_data->td->tmp_conv_dst);
+    av1_release_compound_type_rd_buffers(&thread_data->td->comp_rd_buffer);
+    for (int j = 0; j < 2; ++j) {
+      aom_free(thread_data->td->tmp_pred_bufs[j]);
+    }
+    av1_release_obmc_buffers(&thread_data->td->obmc_buffer);
+    aom_free(thread_data->td->vt64x64);
+
+    aom_free(thread_data->td->inter_modes_info);
+    for (int x = 0; x < 2; x++) {
+      for (int y = 0; y < 2; y++) {
+        aom_free(thread_data->td->hash_value_buffer[x][y]);
+        thread_data->td->hash_value_buffer[x][y] = NULL;
+      }
+    }
+    aom_free(thread_data->td->counts);
+    aom_free(thread_data->td->mbmi_ext);
+    av1_free_pmc(thread_data->td->firstpass_ctx, av1_num_planes(cm));
+    thread_data->td->firstpass_ctx = NULL;
+    av1_free_shared_coeff_buffer(&thread_data->td->shared_coeff_buf);
+    av1_free_sms_tree(thread_data->td);
+    aom_free(thread_data->td);
+  }
+}
+
 void av1_remove_compressor(AV1_COMP *cpi) {
   AV1_COMMON *cm;
   TplParams *const tpl_data = &cpi->tpl_data;
@@ -3518,8 +3563,6 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   pthread_mutex_t *const enc_row_mt_mutex_ = mt_info->enc_row_mt.mutex_;
   pthread_mutex_t *const gm_mt_mutex_ = mt_info->gm_sync.mutex_;
 #endif
-  int t;
-
   if (!cpi) return;
 
   cm = &cpi->common;
@@ -3624,41 +3667,9 @@ void av1_remove_compressor(AV1_COMP *cpi) {
     aom_free_frame_buffer(&tpl_data->tpl_rec_pool[frame]);
   }
 
-  for (t = mt_info->num_workers - 1; t >= 0; --t) {
-    AVxWorker *const worker = &mt_info->workers[t];
-    EncWorkerData *const thread_data = &mt_info->tile_thr_data[t];
+  terminate_worker_data(cpi);
+  free_thread_data(cpi);
 
-    // Deallocate allocated threads.
-    aom_get_worker_interface()->end(worker);
-
-    // Deallocate allocated thread data.
-    aom_free(thread_data->td->tctx);
-    if (t > 0) {
-      aom_free(thread_data->td->palette_buffer);
-      aom_free(thread_data->td->tmp_conv_dst);
-      av1_release_compound_type_rd_buffers(&thread_data->td->comp_rd_buffer);
-      for (int j = 0; j < 2; ++j) {
-        aom_free(thread_data->td->tmp_pred_bufs[j]);
-      }
-      av1_release_obmc_buffers(&thread_data->td->obmc_buffer);
-      aom_free(thread_data->td->vt64x64);
-
-      aom_free(thread_data->td->inter_modes_info);
-      for (int x = 0; x < 2; x++) {
-        for (int y = 0; y < 2; y++) {
-          aom_free(thread_data->td->hash_value_buffer[x][y]);
-          thread_data->td->hash_value_buffer[x][y] = NULL;
-        }
-      }
-      aom_free(thread_data->td->counts);
-      aom_free(thread_data->td->mbmi_ext);
-      av1_free_pmc(thread_data->td->firstpass_ctx, av1_num_planes(cm));
-      thread_data->td->firstpass_ctx = NULL;
-      av1_free_shared_coeff_buffer(&thread_data->td->shared_coeff_buf);
-      av1_free_sms_tree(thread_data->td);
-      aom_free(thread_data->td);
-    }
-  }
 #if CONFIG_MULTITHREAD
   if (enc_row_mt_mutex_ != NULL) {
     pthread_mutex_destroy(enc_row_mt_mutex_);
