@@ -512,8 +512,8 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   int sb_mi_size = av1_get_sb_mi_size(cm);
 
-  CHECK_MEM_ERROR(cm, mt_info->tile_thr_data,
-                  aom_calloc(num_workers, sizeof(*mt_info->tile_thr_data)));
+  assert(mt_info->workers != NULL);
+  assert(mt_info->tile_thr_data != NULL);
 
 #if CONFIG_MULTITHREAD
   if (cpi->oxcf.row_mt == 1) {
@@ -542,14 +542,8 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
     thread_data->thread_id = i;
 
     if (i > 0) {
-      // Allocate thread data.
-      CHECK_MEM_ERROR(cm, thread_data->td,
-                      aom_memalign(32, sizeof(*thread_data->td)));
-      av1_zero(*thread_data->td);
-
       // Set up sms_tree.
       av1_setup_sms_tree(cpi, thread_data->td);
-      av1_setup_shared_coeff_buffer(cm, &thread_data->td->shared_coeff_buf);
 
       av1_alloc_obmc_buffers(&thread_data->td->obmc_buffer, cm);
 
@@ -619,14 +613,29 @@ void av1_create_workers(AV1_COMP *cpi, int num_workers) {
   AV1_COMMON *const cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
-  mt_info->tile_thr_data = NULL;
 
   CHECK_MEM_ERROR(cm, mt_info->workers,
                   aom_malloc(num_workers * sizeof(*mt_info->workers)));
+
+  CHECK_MEM_ERROR(cm, mt_info->tile_thr_data,
+                  aom_calloc(num_workers, sizeof(*mt_info->tile_thr_data)));
+
   for (int i = num_workers - 1; i >= 0; i--) {
     AVxWorker *const worker = &mt_info->workers[i];
+    EncWorkerData *const thread_data = &mt_info->tile_thr_data[i];
+
     winterface->init(worker);
     worker->thread_name = "aom enc worker";
+
+    if (i > 0) {
+      // Allocate thread data.
+      CHECK_MEM_ERROR(cm, thread_data->td,
+                      aom_memalign(32, sizeof(*thread_data->td)));
+      av1_zero(*thread_data->td);
+
+      // Set up shared coeff buffers.
+      av1_setup_shared_coeff_buffer(cm, &thread_data->td->shared_coeff_buf);
+    }
     ++mt_info->num_workers;
   }
 }
@@ -637,10 +646,8 @@ static AOM_INLINE void fp_create_enc_workers(AV1_COMP *cpi, int num_workers) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   MultiThreadInfo *const mt_info = &cpi->mt_info;
 
-  CHECK_MEM_ERROR(cm, mt_info->tile_thr_data,
-                  aom_calloc(num_workers, sizeof(*mt_info->tile_thr_data)));
-
   assert(mt_info->workers != NULL);
+  assert(mt_info->tile_thr_data != NULL);
 
 #if CONFIG_MULTITHREAD
   AV1EncRowMultiThreadInfo *enc_row_mt = &mt_info->enc_row_mt;
@@ -661,14 +668,6 @@ static AOM_INLINE void fp_create_enc_workers(AV1_COMP *cpi, int num_workers) {
     thread_data->thread_id = i;
 
     if (i > 0) {
-      // Allocate thread data.
-      CHECK_MEM_ERROR(cm, thread_data->td,
-                      aom_memalign(32, sizeof(*thread_data->td)));
-      av1_zero(*thread_data->td);
-
-      // Set up shared coeff buffers.
-      av1_setup_shared_coeff_buffer(cm, &thread_data->td->shared_coeff_buf);
-
       // Set up firstpass PICK_MODE_CONTEXT.
       thread_data->td->firstpass_ctx =
           av1_alloc_pmc(cm, BLOCK_16X16, &thread_data->td->shared_coeff_buf);
@@ -753,6 +752,11 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     worker->data1 = thread_data;
     worker->data2 = NULL;
 
+    thread_data->cpi = cpi;
+    if (i == 0) {
+      thread_data->td = &cpi->td;
+    }
+
     thread_data->td->intrabc_used = 0;
     thread_data->td->deltaq_used = 0;
 
@@ -808,6 +812,11 @@ static AOM_INLINE void fp_prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     worker->hook = hook;
     worker->data1 = thread_data;
     worker->data2 = NULL;
+
+    thread_data->cpi = cpi;
+    if (i == 0) {
+      thread_data->td = &cpi->td;
+    }
 
     // Before encoding a frame, copy the thread data from cpi.
     if (thread_data->td != &cpi->td) {
@@ -1244,6 +1253,11 @@ static AOM_INLINE void prepare_tpl_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     worker->data1 = thread_data;
     worker->data2 = NULL;
 
+    thread_data->cpi = cpi;
+    if (i == 0) {
+      thread_data->td = &cpi->td;
+    }
+
     // Before encoding a frame, copy the thread data from cpi.
     if (thread_data->td != &cpi->td) {
       thread_data->td->mb = cpi->td.mb;
@@ -1416,6 +1430,8 @@ static AOM_INLINE void prepare_gm_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     worker->hook = hook;
     worker->data1 = thread_data;
     worker->data2 = NULL;
+
+    thread_data->cpi = cpi;
   }
 }
 

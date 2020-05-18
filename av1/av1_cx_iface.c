@@ -2193,8 +2193,10 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       aom_rational64_t timestamp_ratio_la = *timestamp_ratio;
       int64_t dst_time_stamp_la = dst_time_stamp;
       int64_t dst_end_time_stamp_la = dst_end_time_stamp;
-      if (cpi_lap->mt_info.workers == NULL)
+      if (cpi_lap->mt_info.workers == NULL) {
         cpi_lap->mt_info.workers = cpi->mt_info.workers;
+        cpi_lap->mt_info.tile_thr_data = cpi->mt_info.tile_thr_data;
+      }
       cpi_lap->mt_info.num_workers = cpi->mt_info.num_workers;
       status = av1_get_compressed_data(
           cpi_lap, &lib_flags, &frame_size, NULL, &dst_time_stamp_la,

@@ -3525,7 +3525,6 @@ static AOM_INLINE void terminate_worker_data(AV1_COMP *cpi) {
 static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   AV1_COMMON *cm = &cpi->common;
-  if (mt_info->tile_thr_data == NULL) return;
   for (int t = 0; t < mt_info->num_workers; ++t) {
     EncWorkerData *const thread_data = &mt_info->tile_thr_data[t];
     aom_free(thread_data->td->tctx);
@@ -3668,8 +3667,10 @@ void av1_remove_compressor(AV1_COMP *cpi) {
     aom_free_frame_buffer(&tpl_data->tpl_rec_pool[frame]);
   }
 
-  if (cpi->compressor_stage != LAP_STAGE) terminate_worker_data(cpi);
-  free_thread_data(cpi);
+  if (cpi->compressor_stage != LAP_STAGE) {
+    terminate_worker_data(cpi);
+    free_thread_data(cpi);
+  }
 
 #if CONFIG_MULTITHREAD
   if (enc_row_mt_mutex_ != NULL) {
@@ -3682,8 +3683,10 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   }
 #endif
   av1_row_mt_mem_dealloc(cpi);
-  aom_free(mt_info->tile_thr_data);
-  if (cpi->compressor_stage != LAP_STAGE) aom_free(mt_info->workers);
+  if (cpi->compressor_stage != LAP_STAGE) {
+    aom_free(mt_info->tile_thr_data);
+    aom_free(mt_info->workers);
+  }
 
 #if !CONFIG_REALTIME_ONLY
   av1_tpl_dealloc(&tpl_data->tpl_mt_sync);
