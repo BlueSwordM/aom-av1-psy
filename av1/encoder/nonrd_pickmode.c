@@ -1775,8 +1775,7 @@ static AOM_INLINE int skip_mode_by_bsize_and_ref_frame(
 
 void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                   MACROBLOCK *x, RD_STATS *rd_cost,
-                                  BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
-                                  int64_t best_rd_so_far) {
+                                  BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mi = xd->mi[0];
@@ -1821,8 +1820,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int64_t thresh_sad_pred = INT64_MAX;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-
-  (void)best_rd_so_far;
 
   init_best_pickmode(&best_pickmode);
 
