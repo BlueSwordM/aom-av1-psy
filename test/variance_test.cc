@@ -1172,7 +1172,7 @@ void ObmcVarianceTest<ObmcSubpelVarFunc>::SpeedTest() {
          params_.bit_depth, elapsed_time);
 }
 
-typedef MseWxHTestClass<MseWxH16bitFunc> AvxMseWxHTest;
+typedef MseWxHTestClass<MseWxH16bitFunc> MseWxHTest;
 typedef MainTestClass<Get4x4SseFunc> AvxSseTest;
 typedef MainTestClass<VarianceMxNFunc> AvxMseTest;
 typedef MainTestClass<VarianceMxNFunc> AvxVarianceTest;
@@ -1181,11 +1181,12 @@ typedef SubpelVarianceTest<SubpixAvgVarMxNFunc> AvxSubpelAvgVarianceTest;
 typedef SubpelVarianceTest<DistWtdSubpixAvgVarMxNFunc>
     AvxDistWtdSubpelAvgVarianceTest;
 typedef ObmcVarianceTest<ObmcSubpelVarFunc> AvxObmcSubpelVarianceTest;
+typedef TestParams<MseWxH16bitFunc> MseWxHParams;
 
 TEST_P(AvxSseTest, RefSse) { RefTestSse(); }
 TEST_P(AvxSseTest, MaxSse) { MaxTestSse(); }
-TEST_P(AvxMseWxHTest, RefMse) { RefMatchTestMse(); }
-TEST_P(AvxMseWxHTest, DISABLED_SpeedMse) { SpeedTest(); }
+TEST_P(MseWxHTest, RefMse) { RefMatchTestMse(); }
+TEST_P(MseWxHTest, DISABLED_SpeedMse) { SpeedTest(); }
 TEST_P(AvxMseTest, RefMse) { RefTestMse(); }
 TEST_P(AvxMseTest, MaxMse) { MaxTestMse(); }
 TEST_P(AvxVarianceTest, Zero) { ZeroTest(); }
@@ -1795,6 +1796,13 @@ INSTANTIATE_TEST_SUITE_P(C, AvxHBDObmcSubpelVarianceTest,
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #if HAVE_SSE2
+INSTANTIATE_TEST_SUITE_P(
+    SSE2, MseWxHTest,
+    ::testing::Values(MseWxHParams(3, 3, &aom_mse_wxh_16bit_sse2, 8),
+                      MseWxHParams(3, 2, &aom_mse_wxh_16bit_sse2, 8),
+                      MseWxHParams(2, 3, &aom_mse_wxh_16bit_sse2, 8),
+                      MseWxHParams(2, 2, &aom_mse_wxh_16bit_sse2, 8)));
+
 INSTANTIATE_TEST_SUITE_P(SSE2, SumOfSquaresTest,
                          ::testing::Values(aom_get_mb_ss_sse2));
 
@@ -2380,9 +2388,8 @@ INSTANTIATE_TEST_SUITE_P(
 
 #if HAVE_AVX2
 
-typedef TestParams<MseWxH16bitFunc> MseWxHParams;
 INSTANTIATE_TEST_SUITE_P(
-    AVX2, AvxMseWxHTest,
+    AVX2, MseWxHTest,
     ::testing::Values(MseWxHParams(3, 3, &aom_mse_wxh_16bit_avx2, 8),
                       MseWxHParams(3, 2, &aom_mse_wxh_16bit_avx2, 8),
                       MseWxHParams(2, 3, &aom_mse_wxh_16bit_avx2, 8),
