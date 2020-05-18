@@ -1444,9 +1444,13 @@ static int rc_pick_q_and_bounds_two_pass(const AV1_COMP *cpi, int width,
 #ifdef STRICT_RC
     //  Active best quality limited by previous layer.
     const int pyramid_level = gf_group_pyramid_level(gf_group, gf_index);
-    active_best_quality =
-        rc->active_best_quality[pyramid_level - 1] +
-        AOMMAX((rc->active_best_quality[pyramid_level - 1] / 10), 5);
+    if (pyramid_level == 1) {
+      active_best_quality = get_active_best_quality(cpi, active_worst_quality,
+                                                    cq_level, gf_index);
+    } else {
+      active_best_quality = rc->active_best_quality[pyramid_level - 1] + 1;
+      active_best_quality += (active_worst_quality - active_best_quality) / 16;
+    }
 #else
     active_best_quality =
         get_active_best_quality(cpi, active_worst_quality, cq_level, gf_index);
@@ -1475,11 +1479,7 @@ static int rc_pick_q_and_bounds_two_pass(const AV1_COMP *cpi, int width,
     active_worst_quality = q;
   }
 
-#ifdef STRICT_RC
-  *top_index = rc->worst_quality;
-#else
   *top_index = active_worst_quality;
-#endif
   *bottom_index = active_best_quality;
 
   assert(*top_index <= rc->worst_quality && *top_index >= rc->best_quality);

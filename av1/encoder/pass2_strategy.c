@@ -2918,7 +2918,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
             (double)twopass->rolling_arf_group_actual_bits /
                 (double)twopass->rolling_arf_group_target_bits,
             twopass->bpm_factor,
-            av1_convert_qindex_to_q(quant_params->base_qindex,
+            av1_convert_qindex_to_q(cpi->common.quant_params.base_qindex,
                                     cm->seq_params.bit_depth),
             av1_convert_qindex_to_q(rc->active_worst_quality,
                                     cm->seq_params.bit_depth));
