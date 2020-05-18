@@ -643,13 +643,11 @@ static AOM_INLINE void fp_create_enc_workers(AV1_COMP *cpi, int num_workers) {
   assert(mt_info->workers != NULL);
 
 #if CONFIG_MULTITHREAD
-  if (cpi->oxcf.row_mt == 1) {
-    AV1EncRowMultiThreadInfo *enc_row_mt = &mt_info->enc_row_mt;
-    if (enc_row_mt->mutex_ == NULL) {
-      CHECK_MEM_ERROR(cm, enc_row_mt->mutex_,
-                      aom_malloc(sizeof(*(enc_row_mt->mutex_))));
-      if (enc_row_mt->mutex_) pthread_mutex_init(enc_row_mt->mutex_, NULL);
-    }
+  AV1EncRowMultiThreadInfo *enc_row_mt = &mt_info->enc_row_mt;
+  if (enc_row_mt->mutex_ == NULL) {
+    CHECK_MEM_ERROR(cm, enc_row_mt->mutex_,
+                    aom_malloc(sizeof(*(enc_row_mt->mutex_))));
+    if (enc_row_mt->mutex_) pthread_mutex_init(enc_row_mt->mutex_, NULL);
   }
 #endif
 
