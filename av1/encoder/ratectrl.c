@@ -2264,9 +2264,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
   cm->current_frame.frame_type = frame_params->frame_type;
 }
 
-// Test if the frame to be encoded will significantly overshoot the target
-// bitrate, and if so, set the QP, reset/adjust some rate control parameters,
-// and return 1.
+// Increase the QP, reset/adjust some rate control parameters, and return 1.
 int av1_encodedframe_overshoot(AV1_COMP *cpi, int *q) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
