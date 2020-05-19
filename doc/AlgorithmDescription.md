@@ -47,9 +47,12 @@ For inter prediction blocks, the coding block can be further partitioned into
 multiple transform units. The transform unit partitioning can be done in a
 recursive manner with the partitioning depth up to 2 levels. The transform
 partitioning supports 1:1 (square), 1:2/2:1, and 1:4/4:1 transform unit sizes
-ranging from 4×4 to 64×64. The transform unit partitioning only applies to
-luma component, for chroma blocks, the transform unit is identical to the coding
-block size.
+ranging from 4×4 to 64×64. If the coding block is smaller than or equal to
+64x64, the transform block partitioning can only apply to luma component, for
+chroma blocks, the transform block size is identical to the coding block size.
+Otherwise, if the coding block width or height is greater than 64, then both the
+luma and chroma coding blocks will implicitly split into multiples of min(W,
+64)x min(H, 64) and min(W, 32)x min(H, 32) transform blocks, respectively.
 
 ## Intra Prediction
 
@@ -58,7 +61,7 @@ block size.
 Directional intra prediction modes are applied in intra prediction, which models
 local textures using a given direction pattern. Directional intra prediction
 modes are represented by nominal modes and angle delta. The nominal modes are
-the same set of intra predictio angle used in VP9, which includes 8 angles. The
+the same set of intra prediction angle used in VP9, which includes 8 angles. The
 index value of angle delta is ranging from -3 ~ +3, and zero delta angle
 indicates a nominal mode. The prediction angle is represented by a nominal intra
 angle plus an angle delta. In total, there are 56 directional intra prediction
@@ -86,7 +89,7 @@ In `SMOOTH V`, `SMOOTH H` and `SMOOTH modes`, the prediction values are
 generated using quadratic interpolation along vertical, horizontal directions,
 or the average thereof. The samples used in the quadratic interpolation include
 reconstructed samples from the top and left neighboring blocks and samples from
-the right and bottom boundaries which are aspproxmated by top reconstructed
+the right and bottom boundaries which are approximated by top reconstructed
 samples and the left reconstructed samples.
 
 In `PAETH predictor` mode, the prediction for each sample is assigned as one
@@ -115,14 +118,18 @@ modes</figcaption> </figure>
 
 ### Chroma from Luma mode
 
-Chroma from Luma (CfL) is a chroma intra preddiction mode, which models chroma
-samples as a linear function of co-located reconstructed luma samples. To algin
-the resolution between luma and chroma samples for differnt chroma sampling
+Chroma from Luma (CfL) is a chroma intra prediction mode, which models chroma
+samples as a linear function of co-located reconstructed luma samples. To align
+the resolution between luma and chroma samples for different chroma sampling
 format, e.g., 4:2:0 and 4:2:2, reconstructed luma pixels may need to be
-subsampled before being used in CfL mode. In addition, the DC component is
-removed to form the AC contribution. In CfL mode, the model parameters whihc
-specify the linear function between two color compoennts are optimized by
+sub-sampled before being used in CfL mode. In addition, the DC component is
+removed to form the AC contribution. In CfL mode, the model parameters which
+specify the linear function between two color components are optimized by
 encoder signalled in the bitstream.
+
+<figure class="image"> <center><img src="img\intra_cfl.svg"
+alt="Directional intra" width="700" /> <figcaption>Figure 5: CfL
+prediction</figcaption> </figure>
 
 ## Inter Prediction
 
@@ -141,10 +148,10 @@ are direct top and left neighbors of the current block, and second outer spatial
 neighbors which are close but not directly adjacent to the current block. The
 two sets of spatial neighboring blocks are illustrated in an example shown in
 Figure 5.<figure class="image"> <center><img src="img\inter_spatial_mvp.svg"
-alt="Directional intra" width="350" /><figcaption>Figure 5: Motion field
+alt="Directional intra" width="350" /><figcaption>Figure 6: Motion field
 estimation by linear projection</figcaption></figure> For each set of spatial
 neighbors, the top row will be checked from left to right and then the left
-column will be checked from top to down. For the adjacent spatial neighors, an
+column will be checked from top to down. For the adjacent spatial neighbors, an
 additional top-right block will be also checked after checking the left column
 neighboring blocks. For the non-adjacent spatial neighbors, the top-left block
 located at (-1, -1) position will be checked first, then the top row and left
@@ -166,19 +173,19 @@ each 8x8 block of the current frame, the MVs of a reference frame which pass the
 8x8 block are identified and stored together with the reference frame index in a
 temporal MV buffer. In an example shown in Figure 5, the MV of reference frame 1
 (R1) pointing from R1 to a reference frame of R1 is identified, i.e., MVref,
-which passes the a 8x8 block (shaded in blue dots) of current frame. Then this
+which passes a 8x8 block (shaded in blue dots) of current frame. Then this
 MVref is stored in the temporal MV buffer associated with this 8x8 block.
 <figure class="image"> <center><img src="img\inter_motion_field.svg"
-alt="Directional intra" width="800" /><figcaption>Figure 5: Motion field
+alt="Directional intra" width="800" /><figcaption>Figure 7: Motion field
 estimation by linear projection</figcaption></figure> Finally, given a couple of
 pre-defined block coordinates, the associated MVs stored in the temporal MV
 buffer are identified and projected accordingly to derive a temporal MV
 predictor which points from the current block to its reference frame, e.g., MV0
-in Figure 5. In Figure 6, the pre-defined block positions for derviging temporal
+in Figure 5. In Figure 6, the pre-defined block positions for deriving temporal
 MV predictors of a 16x16 block are shown and up to 7 blocks will be checked to
 find valid temporal MV predictors.<figure class="image"> <center><img
 src="img\inter_tmvp_positions.svg" alt="Directional intra" width="300"
-/><figcaption>Figure 5: Block positions for deriving temporal MV
+/><figcaption>Figure 8: Block positions for deriving temporal MV
 predictors</figcaption></figure> The temporal MV predictors are checked after
 the nearest spatial MV predictors but before the non-adjacent spatial MV
 predictors.
@@ -235,9 +242,126 @@ list MV predictor list.
 
 ## Transform
 
-<mark>[Ed.: to be added]</mark>
+The separable 2D transform process is applied on prediction residuals. For the
+forward transform, a 1-D vertical transform is performed first on each column of
+the input residual block, then a horizontal transform is performed on each row
+of the vertical transform output. For the backward transform, a 1-D horizontal
+transform is performed first on each row of the input de-quantized coefficient
+block, then a vertical transform is performed on each column of the horizontal
+transform output. The primary 1-D transforms include four different types of
+transform: a) 4-point, 8-point, 16-point, 32-point, 64-point DCT-2; b) 4-point,
+8-point, 16-point asymmetric DST’s (DST-4, DST-7) and c) their flipped
+versions; d) 4-point, 8-point, 16-point, 32-point identity transforms. When
+transform size is 4-point, ADST refers to DST-7, otherwise, when transform size
+is greater than 4-point, ADST refers to DST-4.
 
-## Quantization <mark>[Ed.: to be added]</mark>
+
+<center>
+
+Table 1: Transform basis functions (DCT-2, DST-4 and DST-7 for N-point input.
+
+| Transform Type          |      Basis function T<sub>_i_</sub>(_j_), _i_, _j_=0, 1,…, N−1 |
+|-------------------------|:--------------------------------------------------------------:|
+| DCT-2                   |  T<sub>_i_;</sub>(_j_) = &omega;<sub>0</sub> &sdot; _`sqrt`_(2/N) + _`cos`_( &pi;&sdot;_i_&sdot;(2&sdot;_j_ +1) ) / (2N) )<br>where &omega;<sub>0</sub> = (_i_==0) ? _`sqrt`_(N/2) : 1
+| DST-4                   |    T<sub>_i_;</sub>(_j_) = _`sqrt`_(2/N) + _`sin`_( &pi;&sdot;(2&sdot;_i_+1)&sdot;(2&sdot;_j_+1) ) / (4&sdot;N) )                 |
+| DST-7                   | T<sub>_i_;</sub>(_j_) = _`sqrt`_(4/(2&sdot;N+1)) + _`sin`_( &pi;&sdot;_i_&sdot;(_j_+1) ) / (2&sdot;N+1) ) |
+| Identity (IDT)          | T<sub>_i_;</sub>(_j_) = (_i_==_j_) ? 1 : 0 |
+|||
+</center>
+
+For luma component, each transform block can select one pair of horizontal and
+vertical transform combination given a pre-defined set of transform type
+candidates, and the selection is explicitly signalled into the bitstream. When
+the maximum of transform block width and height is greater than or equal to 32,
+the set of transform type candidates depend on the prediction mode, as described
+in Table 2. Otherwise, when the maximum of transform block width and height is
+smaller than 32, the set of transform type candidates depend on the prediction
+mode, as described in Table 3.
+
+<center>
+
+Table 2: Transform type candidates for luma component when max(width, height)
+is greater than or equal to 32.
+
+| Max(width, height)      |      Intra                 |      Inter                    |
+|:-----------------------:|:--------------------------:|:-----------------------------:|
+| 32                      |  _DCTOnly_                 |      _DCTOnly_, _IDTX_        |
+| 64                      |  _DCTOnly_                 |      _DCTOnly_                |
+</center>
+
+<center>
+
+Table 3: Transform type candidates for luma component when max(width, height)
+is smaller than 32.
+
+| Min(width, height)      |      Intra                 |      Inter                    |
+|:-----------------------:|:--------------------------:|:-----------------------------:|
+| 4                       |  _DTT4_, _IDTX_, _1DDCT_   |      _ALL16_                  |
+| 8                       |  _DTT4_, _IDTX_, _1DDCT_   |      _ALL16_                  |
+| 16                      |  _DTT4_, _IDTX_            |      _DTT9, _IDTX_, _1DDCT_   |
+</center>
+
+The set of transform type candidates (namely transform set) is defined in
+Table 3.
+
+<center>
+
+Table 3: Definition of transform set.
+
+| Transform set | Vertical transform | Horizontal transform |
+|---------------|:------------------:|:--------------------:|
+| _DCTOnly_       |  DCT     |      DCT   |
+| _IDTX_          |  IDT     |      IDT   |
+| _1DDCT_         |  DCT <br> IDT              | IDT <br> DCT |
+| _DTT4_          |  ADST <br> ADST <br> DCT <br> DCT              | ADST <br> DCT <br> ADST <br>  DCT                 |
+| _DTT9_          |  DCT <br> DCT <br> DCT <br> ADST <br> ADST <br> ADST <br> Flipped ADST <br> Flipped ADST <br> Flipped ADST              | DCT <br> ADST <br> Flipped ADST <br> DCT <br> ADST <br> Flipped ADST <br> DCT <br> ADST <br> Flipped ADST <br>                 |
+| _ALL16_          |  DCT <br> DCT <br> DCT <br> DCT <br> ADST <br> ADST <br>ADST <br> ADST <br> Flipped ADST <br> Flipped ADST <br> Flipped ADST <br> Flipped ADST <br> IDT <br> IDT <br> IDT <br> IDT <br>          | DCT <br> ADST <br> Flipped ADST <br> IDT <br> DCT <br> ADST <br> Flipped ADST <br> IDT <br> DCT <br> ADST <br> Flipped ADST <br> IDT <br> DCT <br> ADST <br> Flipped ADST <br> IDT <br>                 |
+||
+</center>
+
+For chroma component, the transform type selection is done in an implicit way.
+For intra prediction residuals, the transform type is selected according to the
+intra prediction mode, as specified in Table 4. For inter prediction residuals,
+the transform type is selected according to the transform type selection of the
+co-located luma block. Therefore, for chroma component, there is no transform
+type signalling in the bitstream.
+
+<center>
+
+Table 4: Transform type selection for chroma component intra prediction residuals.
+
+
+| Intra Prediction Mode | Vertical transform | Horizontal transform |
+|-----------------------|:------------------:|:--------------------:|
+| DC_PRED               | DCT                | DCT                  |
+| V_PRED                | ADST               | DCT                  |
+| H_PRED                | DCT                | ADST                 |
+| D45_PRED              | DCT                | DCT                  |
+| D135_PRED             | ADST               | ADST                 |
+| D113_PRED             | ADST               | DCT                  |
+| D157_PRED             | DCT                | ADST                 |
+| D203_PRED             | DCT                | ADST                 |
+| D67_PRED              | ADST               | DCT                  |
+| SMOOTH_PRED           | ADST               | ADST                 |
+| SMOOTH_V_PRED         | ADST               | DCT                  |
+| SMOOTH_H_PRED         | DCT                | ADST                 |
+| PAETH_PRED            | ADST               | ADST                 |
+||
+</center>
+
+The computational cost of large size (e.g., 64-point) transforms is further
+reduced by zeroing out all the coefficients except the following two cases:
+
+1. The top-left 32×32 quadrant for 64×64/64×32/32×64 DCT_DCT hybrid transforms
+2. The top-left 16×16 quadrant for 64×16/16×64 DCT_DCT hybrid transforms.
+
+Both the DCT-2 and ADST (DST-4, DST-7) are implemented using butterfly structure
+[1], which included multiple stages of butterfly operations. Each butterfly
+operations can be calculated in parallel and different stages are cascaded in a
+sequential order.
+
+## Quantization
+<mark>[Ed.: to be added]</mark>
 
 ## Entropy Coding
 
@@ -262,7 +386,7 @@ The three level planes are coded as follows. After the EOB position is coded,
 the lower-level and middle-level planes are coded together in backward scan
 order, and the scan order refers to zig-zag scan applied on the entire transform
 unit basis. Then the sign plane and higher-level plane are coded together in
-forward scan order. After that, the remainder (coefficenit level minus 14) is
+forward scan order. After that, the remainder (coefficient level minus 14) is
 entropy coded using Exp-Golomb code.
 
 The context model applied to the lower level plane depends on the primary
@@ -317,8 +441,12 @@ coefficients are coded directly without using context model.
 
 <mark>[Ed.: to be added]</mark>
 
-### Pallete mode
+### Palette mode
 
 <mark>[Ed.: to be added]</mark>
 
 # References
+
+[1] J. Han, Y. Xu and D. Mukherjee, "A butterfly structured design of the hybrid
+transform coding scheme," 2013 Picture Coding Symposium (PCS), San Jose, CA,
+2013, pp. 17-20.
