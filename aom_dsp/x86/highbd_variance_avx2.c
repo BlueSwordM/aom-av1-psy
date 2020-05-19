@@ -14,6 +14,7 @@
 
 #include "config/aom_dsp_rtcd.h"
 #include "aom_dsp/aom_filter.h"
+#include "aom_dsp/x86/synonyms.h"
 
 typedef void (*high_variance_fn_t)(const uint16_t *src, int src_stride,
                                    const uint16_t *ref, int ref_stride,
@@ -1571,3 +1572,124 @@ HIGHBD_SUBPIX_VAR(32, 8);
 HIGHBD_SUBPIX_VAR(16, 64);
 HIGHBD_SUBPIX_VAR(64, 16);
 #undef HIGHBD_SUBPIX_VAR
+
+uint64_t aom_mse_4xh_16bit_highbd_avx2(uint16_t *dst, int dstride,
+                                       uint16_t *src, int sstride, int h) {
+  uint64_t sum = 0;
+  __m128i reg0_4x16, reg1_4x16, reg2_4x16, reg3_4x16;
+  __m256i src0_8x16, src1_8x16, src_16x16;
+  __m256i dst0_8x16, dst1_8x16, dst_16x16;
+  __m256i res0_4x64, res1_4x64, res2_4x64, res3_4x64;
+  __m256i sub_result;
+  const __m256i zeros = _mm256_broadcastsi128_si256(_mm_setzero_si128());
+  __m256i square_result = _mm256_broadcastsi128_si256(_mm_setzero_si128());
+  for (int i = 0; i < h; i += 4) {
+    reg0_4x16 = _mm_loadl_epi64((__m128i const *)(&dst[(i + 0) * dstride]));
+    reg1_4x16 = _mm_loadl_epi64((__m128i const *)(&dst[(i + 1) * dstride]));
+    reg2_4x16 = _mm_loadl_epi64((__m128i const *)(&dst[(i + 2) * dstride]));
+    reg3_4x16 = _mm_loadl_epi64((__m128i const *)(&dst[(i + 3) * dstride]));
+    dst0_8x16 =
+        _mm256_castsi128_si256(_mm_unpacklo_epi64(reg0_4x16, reg1_4x16));
+    dst1_8x16 =
+        _mm256_castsi128_si256(_mm_unpacklo_epi64(reg2_4x16, reg3_4x16));
+    dst_16x16 = _mm256_permute2x128_si256(dst0_8x16, dst1_8x16, 0x20);
+
+    reg0_4x16 = _mm_loadl_epi64((__m128i const *)(&src[(i + 0) * sstride]));
+    reg1_4x16 = _mm_loadl_epi64((__m128i const *)(&src[(i + 1) * sstride]));
+    reg2_4x16 = _mm_loadl_epi64((__m128i const *)(&src[(i + 2) * sstride]));
+    reg3_4x16 = _mm_loadl_epi64((__m128i const *)(&src[(i + 3) * sstride]));
+    src0_8x16 =
+        _mm256_castsi128_si256(_mm_unpacklo_epi64(reg0_4x16, reg1_4x16));
+    src1_8x16 =
+        _mm256_castsi128_si256(_mm_unpacklo_epi64(reg2_4x16, reg3_4x16));
+    src_16x16 = _mm256_permute2x128_si256(src0_8x16, src1_8x16, 0x20);
+
+    sub_result = _mm256_abs_epi16(_mm256_sub_epi16(src_16x16, dst_16x16));
+
+    src_16x16 = _mm256_unpacklo_epi16(sub_result, zeros);
+    dst_16x16 = _mm256_unpackhi_epi16(sub_result, zeros);
+
+    src_16x16 = _mm256_madd_epi16(src_16x16, src_16x16);
+    dst_16x16 = _mm256_madd_epi16(dst_16x16, dst_16x16);
+
+    res0_4x64 = _mm256_unpacklo_epi32(src_16x16, zeros);
+    res1_4x64 = _mm256_unpackhi_epi32(src_16x16, zeros);
+    res2_4x64 = _mm256_unpacklo_epi32(dst_16x16, zeros);
+    res3_4x64 = _mm256_unpackhi_epi32(dst_16x16, zeros);
+
+    square_result = _mm256_add_epi64(
+        square_result,
+        _mm256_add_epi64(
+            _mm256_add_epi64(_mm256_add_epi64(res0_4x64, res1_4x64), res2_4x64),
+            res3_4x64));
+  }
+  const __m128i sum_2x64 =
+      _mm_add_epi64(_mm256_castsi256_si128(square_result),
+                    _mm256_extracti128_si256(square_result, 1));
+  const __m128i sum_1x64 = _mm_add_epi64(sum_2x64, _mm_srli_si128(sum_2x64, 8));
+  xx_storel_64(&sum, sum_1x64);
+  return sum;
+}
+
+uint64_t aom_mse_8xh_16bit_highbd_avx2(uint16_t *dst, int dstride,
+                                       uint16_t *src, int sstride, int h) {
+  uint64_t sum = 0;
+  __m256i src0_8x16, src1_8x16, src_16x16;
+  __m256i dst0_8x16, dst1_8x16, dst_16x16;
+  __m256i res0_4x64, res1_4x64, res2_4x64, res3_4x64;
+  __m256i sub_result;
+  const __m256i zeros = _mm256_broadcastsi128_si256(_mm_setzero_si128());
+  __m256i square_result = _mm256_broadcastsi128_si256(_mm_setzero_si128());
+
+  for (int i = 0; i < h; i += 2) {
+    dst0_8x16 =
+        _mm256_castsi128_si256(_mm_loadu_si128((__m128i *)&dst[i * dstride]));
+    dst1_8x16 = _mm256_castsi128_si256(
+        _mm_loadu_si128((__m128i *)&dst[(i + 1) * dstride]));
+    dst_16x16 = _mm256_permute2x128_si256(dst0_8x16, dst1_8x16, 0x20);
+
+    src0_8x16 =
+        _mm256_castsi128_si256(_mm_loadu_si128((__m128i *)&src[i * sstride]));
+    src1_8x16 = _mm256_castsi128_si256(
+        _mm_loadu_si128((__m128i *)&src[(i + 1) * sstride]));
+    src_16x16 = _mm256_permute2x128_si256(src0_8x16, src1_8x16, 0x20);
+
+    sub_result = _mm256_abs_epi16(_mm256_sub_epi16(src_16x16, dst_16x16));
+
+    src_16x16 = _mm256_unpacklo_epi16(sub_result, zeros);
+    dst_16x16 = _mm256_unpackhi_epi16(sub_result, zeros);
+
+    src_16x16 = _mm256_madd_epi16(src_16x16, src_16x16);
+    dst_16x16 = _mm256_madd_epi16(dst_16x16, dst_16x16);
+
+    res0_4x64 = _mm256_unpacklo_epi32(src_16x16, zeros);
+    res1_4x64 = _mm256_unpackhi_epi32(src_16x16, zeros);
+    res2_4x64 = _mm256_unpacklo_epi32(dst_16x16, zeros);
+    res3_4x64 = _mm256_unpackhi_epi32(dst_16x16, zeros);
+
+    square_result = _mm256_add_epi64(
+        square_result,
+        _mm256_add_epi64(
+            _mm256_add_epi64(_mm256_add_epi64(res0_4x64, res1_4x64), res2_4x64),
+            res3_4x64));
+  }
+
+  const __m128i sum_2x64 =
+      _mm_add_epi64(_mm256_castsi256_si128(square_result),
+                    _mm256_extracti128_si256(square_result, 1));
+  const __m128i sum_1x64 = _mm_add_epi64(sum_2x64, _mm_srli_si128(sum_2x64, 8));
+  xx_storel_64(&sum, sum_1x64);
+  return sum;
+}
+
+uint64_t aom_mse_wxh_16bit_highbd_avx2(uint16_t *dst, int dstride,
+                                       uint16_t *src, int sstride, int w,
+                                       int h) {
+  assert((w == 8 || w == 4) && (h == 8 || h == 4) &&
+         "w=8/4 and h=8/4 must satisfy");
+  switch (w) {
+    case 4: return aom_mse_4xh_16bit_highbd_avx2(dst, dstride, src, sstride, h);
+    case 8: return aom_mse_8xh_16bit_highbd_avx2(dst, dstride, src, sstride, h);
+    default: assert(0 && "unsupported width"); return -1;
+  }
+}

@@ -1376,12 +1376,118 @@ INSTANTIATE_TEST_SUITE_P(
         ObmcSubpelVarianceParams(2, 4, &aom_obmc_sub_pixel_variance4x16_c, 0)));
 
 #if CONFIG_AV1_HIGHBITDEPTH
+typedef uint64_t (*MseHBDWxH16bitFunc)(uint16_t *dst, int dstride,
+                                       uint16_t *src, int sstride, int w,
+                                       int h);
+
+template <typename FunctionType>
+class MseHBDWxHTestClass
+    : public ::testing::TestWithParam<TestParams<FunctionType> > {
+ public:
+  virtual void SetUp() {
+    params_ = this->GetParam();
+
+    rnd_.Reset(ACMRandom::DeterministicSeed());
+    src_ = reinterpret_cast<uint16_t *>(
+        aom_memalign(16, block_size() * sizeof(src_)));
+    dst_ = reinterpret_cast<uint16_t *>(
+        aom_memalign(16, block_size() * sizeof(dst_)));
+    ASSERT_TRUE(src_ != NULL);
+    ASSERT_TRUE(dst_ != NULL);
+  }
+
+  virtual void TearDown() {
+    aom_free(src_);
+    aom_free(dst_);
+    src_ = NULL;
+    dst_ = NULL;
+    libaom_test::ClearSystemState();
+  }
+
+ protected:
+  void RefMatchTestMse();
+  void SpeedTest();
+
+ protected:
+  ACMRandom rnd_;
+  uint16_t *dst_;
+  uint16_t *src_;
+  TestParams<FunctionType> params_;
+
+  // some relay helpers
+  int block_size() const { return params_.block_size; }
+  int width() const { return params_.width; }
+  int d_stride() const { return params_.width; }  // stride is same as width
+  int s_stride() const { return params_.width; }  // stride is same as width
+  int height() const { return params_.height; }
+  int mask() const { return params_.mask; }
+};
+
+template <typename MseHBDWxHFunctionType>
+void MseHBDWxHTestClass<MseHBDWxHFunctionType>::SpeedTest() {
+  aom_usec_timer ref_timer, test_timer;
+  double elapsed_time_c = 0;
+  double elapsed_time_simd = 0;
+  int run_time = 10000000;
+  int w = width();
+  int h = height();
+  int dstride = d_stride();
+  int sstride = s_stride();
+  for (int k = 0; k < block_size(); ++k) {
+    dst_[k] = rnd_.Rand16() & mask();
+    src_[k] = rnd_.Rand16() & mask();
+  }
+  aom_usec_timer_start(&ref_timer);
+  for (int i = 0; i < run_time; i++) {
+    aom_mse_wxh_16bit_highbd_c(dst_, dstride, src_, sstride, w, h);
+  }
+  aom_usec_timer_mark(&ref_timer);
+  elapsed_time_c = static_cast<double>(aom_usec_timer_elapsed(&ref_timer));
+
+  aom_usec_timer_start(&test_timer);
+  for (int i = 0; i < run_time; i++) {
+    params_.func(dst_, dstride, src_, sstride, w, h);
+  }
+  aom_usec_timer_mark(&test_timer);
+  elapsed_time_simd = static_cast<double>(aom_usec_timer_elapsed(&test_timer));
+
+  printf("%dx%d\tc_time=%lf \t simd_time=%lf \t gain=%lf\n", width(), height(),
+         elapsed_time_c, elapsed_time_simd,
+         (elapsed_time_c / elapsed_time_simd));
+}
+
+template <typename MseHBDWxHFunctionType>
+void MseHBDWxHTestClass<MseHBDWxHFunctionType>::RefMatchTestMse() {
+  uint64_t mse_ref = 0;
+  uint64_t mse_mod = 0;
+  int w = width();
+  int h = height();
+  int dstride = d_stride();
+  int sstride = s_stride();
+  for (int i = 0; i < 10; i++) {
+    for (int k = 0; k < block_size(); ++k) {
+      dst_[k] = rnd_.Rand16() & mask();
+      src_[k] = rnd_.Rand16() & mask();
+    }
+    ASM_REGISTER_STATE_CHECK(mse_ref = aom_mse_wxh_16bit_highbd_c(
+                                 dst_, dstride, src_, sstride, w, h));
+    ASM_REGISTER_STATE_CHECK(
+        mse_mod = params_.func(dst_, dstride, src_, sstride, w, h));
+    EXPECT_EQ(mse_ref, mse_mod)
+        << "ref mse: " << mse_ref << " mod mse: " << mse_mod;
+  }
+}
+
+typedef TestParams<MseHBDWxH16bitFunc> MseHBDWxHParams;
+typedef MseHBDWxHTestClass<MseHBDWxH16bitFunc> MseHBDWxHTest;
 typedef MainTestClass<VarianceMxNFunc> AvxHBDMseTest;
 typedef MainTestClass<VarianceMxNFunc> AvxHBDVarianceTest;
 typedef SubpelVarianceTest<SubpixVarMxNFunc> AvxHBDSubpelVarianceTest;
 typedef SubpelVarianceTest<SubpixAvgVarMxNFunc> AvxHBDSubpelAvgVarianceTest;
 typedef ObmcVarianceTest<ObmcSubpelVarFunc> AvxHBDObmcSubpelVarianceTest;
 
+TEST_P(MseHBDWxHTest, RefMse) { RefMatchTestMse(); }
+TEST_P(MseHBDWxHTest, DISABLED_SpeedMse) { SpeedTest(); }
 TEST_P(AvxHBDMseTest, RefMse) { RefTestMse(); }
 TEST_P(AvxHBDMseTest, MaxMse) { MaxTestMse(); }
 TEST_P(AvxHBDVarianceTest, Zero) { ZeroTest(); }
@@ -2002,6 +2108,14 @@ INSTANTIATE_TEST_SUITE_P(SSE2, AvxHBDVarianceTest,
                          ::testing::ValuesIn(kArrayHBDVariance_sse2));
 
 #if HAVE_AVX2
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, MseHBDWxHTest,
+    ::testing::Values(MseHBDWxHParams(3, 3, &aom_mse_wxh_16bit_highbd_avx2, 10),
+                      MseHBDWxHParams(3, 2, &aom_mse_wxh_16bit_highbd_avx2, 10),
+                      MseHBDWxHParams(2, 3, &aom_mse_wxh_16bit_highbd_avx2, 10),
+                      MseHBDWxHParams(2, 2, &aom_mse_wxh_16bit_highbd_avx2,
+                                      10)));
 
 const VarianceParams kArrayHBDVariance_avx2[] = {
   VarianceParams(7, 7, &aom_highbd_10_variance128x128_avx2, 10),
