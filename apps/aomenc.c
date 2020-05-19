@@ -2551,7 +2551,14 @@ int main(int argc, const char **argv_) {
     FOREACH_STREAM(stream, streams) {
       char *encoder_settings = NULL;
 #if CONFIG_WEBM_IO
-      if (stream->config.write_webm) {
+      // Test frameworks may compare outputs from different versions, but only
+      // wish to check for bitstream changes. The encoder-settings tag, however,
+      // can vary if the version is updated, even if no encoder algorithm
+      // changes were made. To work around this issue, do not output
+      // the encoder-settings tag when --debug is enabled (which is the flag
+      // that test frameworks should use, when they want deterministic output
+      // from the container format).
+      if (stream->config.write_webm && !stream->webm_ctx.debug) {
         encoder_settings = extract_encoder_settings(
             aom_codec_version_str(), argv_, argc, input.filename);
         if (encoder_settings == NULL) {
