@@ -2205,6 +2205,43 @@ static AOM_INLINE void rd_use_partition(
   x->rdmult = orig_rdmult;
 }
 
+static AOM_INLINE void encode_b_nonrd(const AV1_COMP *const cpi,
+                                      TileDataEnc *tile_data, ThreadData *td,
+                                      TokenExtra **tp, int mi_row, int mi_col,
+                                      RUN_TYPE dry_run, BLOCK_SIZE bsize,
+                                      PARTITION_TYPE partition,
+                                      PICK_MODE_CONTEXT *const ctx, int *rate) {
+  TileInfo *const tile = &tile_data->tile_info;
+  MACROBLOCK *const x = &td->mb;
+  MACROBLOCKD *xd = &x->e_mbd;
+  set_offsets_without_segment_id(cpi, tile, x, mi_row, mi_col, bsize);
+  const int origin_mult = x->rdmult;
+  setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, NO_AQ, NULL);
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  mbmi->partition = partition;
+  // Nonrd pickmode does not currently support second/combined reference.
+  assert(!has_second_ref(mbmi));
+  update_state(cpi, td, ctx, mi_row, mi_col, bsize, dry_run);
+  if (!dry_run) {
+    x->mbmi_ext_frame->cb_offset = x->cb_offset;
+    assert(x->cb_offset <
+           (1 << num_pels_log2_lookup[cpi->common.seq_params.sb_size]));
+  }
+  encode_superblock(cpi, tile_data, td, tp, dry_run, bsize, rate);
+  if (!dry_run) {
+    x->cb_offset += block_size_wide[bsize] * block_size_high[bsize];
+    if (tile_data->allow_update_cdf) update_stats(&cpi->common, td);
+  }
+  // TODO(Ravi/Remya): Move this copy function to a better logical place
+  // This function will copy the best mode information from block
+  // level (x->mbmi_ext) to frame level (cpi->mbmi_ext_info.frame_base). This
+  // frame level buffer (cpi->mbmi_ext_info.frame_base) will be used during
+  // bitstream preparation.
+  av1_copy_mbmi_ext_to_mbmi_ext_frame(x->mbmi_ext_frame, x->mbmi_ext,
+                                      av1_ref_frame_type(xd->mi[0]->ref_frame));
+  x->rdmult = origin_mult;
+}
+
 static AOM_INLINE void pick_sb_modes_nonrd(AV1_COMP *const cpi,
                                            TileDataEnc *tile_data,
                                            MACROBLOCK *const x, int mi_row,
@@ -2405,8 +2442,9 @@ static AOM_INLINE void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
           split_rdc.rate += block_rdc.rate;
           split_rdc.dist += block_rdc.dist;
 
-          encode_b(cpi, tile_data, td, tp, mi_row + y_idx, mi_col + x_idx, 1,
-                   subsize, PARTITION_NONE, pc_tree->split[i]->none, NULL);
+          encode_b_nonrd(cpi, tile_data, td, tp, mi_row + y_idx, mi_col + x_idx,
+                         1, subsize, PARTITION_NONE, pc_tree->split[i]->none,
+                         NULL);
         }
         split_rdc.rate += mode_costs->partition_cost[pl][PARTITION_SPLIT];
         split_rdc.rdcost = RDCOST(x->rdmult, split_rdc.rate, split_rdc.dist);
@@ -2415,8 +2453,8 @@ static AOM_INLINE void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
         if (none_rdc.rdcost < split_rdc.rdcost) {
           mib[0]->sb_type = bsize;
           pc_tree->partitioning = PARTITION_NONE;
-          encode_b(cpi, tile_data, td, tp, mi_row, mi_col, 0, bsize, partition,
-                   pc_tree->none, NULL);
+          encode_b_nonrd(cpi, tile_data, td, tp, mi_row, mi_col, 0, bsize,
+                         partition, pc_tree->none, NULL);
         } else {
           mib[0]->sb_type = subsize;
           pc_tree->partitioning = PARTITION_SPLIT;
@@ -2426,17 +2464,17 @@ static AOM_INLINE void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
             if (mi_row + y_idx >= mi_params->mi_rows ||
                 mi_col + x_idx >= mi_params->mi_cols)
               continue;
-
-            encode_b(cpi, tile_data, td, tp, mi_row + y_idx, mi_col + x_idx, 0,
-                     subsize, PARTITION_NONE, pc_tree->split[i]->none, NULL);
+            encode_b_nonrd(cpi, tile_data, td, tp, mi_row + y_idx,
+                           mi_col + x_idx, 0, subsize, PARTITION_NONE,
+                           pc_tree->split[i]->none, NULL);
           }
         }
 
       } else {
         pick_sb_modes_nonrd(cpi, tile_data, x, mi_row, mi_col, &dummy_cost,
                             bsize, pc_tree->none);
-        encode_b(cpi, tile_data, td, tp, mi_row, mi_col, 0, bsize, partition,
-                 pc_tree->none, NULL);
+        encode_b_nonrd(cpi, tile_data, td, tp, mi_row, mi_col, 0, bsize,
+                       partition, pc_tree->none, NULL);
       }
       break;
     case PARTITION_VERT:
@@ -2446,13 +2484,13 @@ static AOM_INLINE void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
       }
       pick_sb_modes_nonrd(cpi, tile_data, x, mi_row, mi_col, &dummy_cost,
                           subsize, pc_tree->vertical[0]);
-      encode_b(cpi, tile_data, td, tp, mi_row, mi_col, 0, subsize,
-               PARTITION_VERT, pc_tree->vertical[0], NULL);
+      encode_b_nonrd(cpi, tile_data, td, tp, mi_row, mi_col, 0, subsize,
+                     PARTITION_VERT, pc_tree->vertical[0], NULL);
       if (mi_col + hbs < mi_params->mi_cols && bsize > BLOCK_8X8) {
         pick_sb_modes_nonrd(cpi, tile_data, x, mi_row, mi_col + hbs,
                             &dummy_cost, subsize, pc_tree->vertical[1]);
-        encode_b(cpi, tile_data, td, tp, mi_row, mi_col + hbs, 0, subsize,
-                 PARTITION_VERT, pc_tree->vertical[1], NULL);
+        encode_b_nonrd(cpi, tile_data, td, tp, mi_row, mi_col + hbs, 0, subsize,
+                       PARTITION_VERT, pc_tree->vertical[1], NULL);
       }
       break;
     case PARTITION_HORZ:
@@ -2462,14 +2500,14 @@ static AOM_INLINE void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
       }
       pick_sb_modes_nonrd(cpi, tile_data, x, mi_row, mi_col, &dummy_cost,
                           subsize, pc_tree->horizontal[0]);
-      encode_b(cpi, tile_data, td, tp, mi_row, mi_col, 0, subsize,
-               PARTITION_HORZ, pc_tree->horizontal[0], NULL);
+      encode_b_nonrd(cpi, tile_data, td, tp, mi_row, mi_col, 0, subsize,
+                     PARTITION_HORZ, pc_tree->horizontal[0], NULL);
 
       if (mi_row + hbs < mi_params->mi_rows && bsize > BLOCK_8X8) {
         pick_sb_modes_nonrd(cpi, tile_data, x, mi_row + hbs, mi_col,
                             &dummy_cost, subsize, pc_tree->horizontal[1]);
-        encode_b(cpi, tile_data, td, tp, mi_row + hbs, mi_col, 0, subsize,
-                 PARTITION_HORZ, pc_tree->horizontal[1], NULL);
+        encode_b_nonrd(cpi, tile_data, td, tp, mi_row + hbs, mi_col, 0, subsize,
+                       PARTITION_HORZ, pc_tree->horizontal[1], NULL);
       }
       break;
     case PARTITION_SPLIT:
@@ -2521,8 +2559,9 @@ static AOM_INLINE void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
             split_rdc.rate += block_rdc.rate;
             split_rdc.dist += block_rdc.dist;
 
-            encode_b(cpi, tile_data, td, tp, mi_row + y_idx, mi_col + x_idx, 1,
-                     subsize, PARTITION_NONE, pc_tree->split[i]->none, NULL);
+            encode_b_nonrd(cpi, tile_data, td, tp, mi_row + y_idx,
+                           mi_col + x_idx, 1, subsize, PARTITION_NONE,
+                           pc_tree->split[i]->none, NULL);
           }
           restore_context(x, &x_ctx, mi_row, mi_col, bsize, 3);
           split_rdc.rate += mode_costs->partition_cost[pl][PARTITION_SPLIT];
@@ -2531,8 +2570,8 @@ static AOM_INLINE void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
         if (none_rdc.rdcost < split_rdc.rdcost) {
           mib[0]->sb_type = bsize;
           pc_tree->partitioning = PARTITION_NONE;
-          encode_b(cpi, tile_data, td, tp, mi_row, mi_col, 0, bsize, partition,
-                   pc_tree->none, NULL);
+          encode_b_nonrd(cpi, tile_data, td, tp, mi_row, mi_col, 0, bsize,
+                         partition, pc_tree->none, NULL);
         } else {
           mib[0]->sb_type = subsize;
           pc_tree->partitioning = PARTITION_SPLIT;
@@ -2546,8 +2585,9 @@ static AOM_INLINE void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
             if (pc_tree->split[i]->none == NULL)
               pc_tree->split[i]->none =
                   av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
-            encode_b(cpi, tile_data, td, tp, mi_row + y_idx, mi_col + x_idx, 0,
-                     subsize, PARTITION_NONE, pc_tree->split[i]->none, NULL);
+            encode_b_nonrd(cpi, tile_data, td, tp, mi_row + y_idx,
+                           mi_col + x_idx, 0, subsize, PARTITION_NONE,
+                           pc_tree->split[i]->none, NULL);
           }
         }
       } else {
