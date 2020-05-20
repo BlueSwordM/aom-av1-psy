@@ -2182,8 +2182,15 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     int is_frame_visible = 0;
     int index_size = 0;
     int has_fwd_keyframe = 0;
+    int num_workers = 0;
 
-    const int num_workers = av1_compute_num_enc_workers(cpi);
+    if (cpi->oxcf.pass == 1) {
+#if !CONFIG_REALTIME_ONLY
+      num_workers = av1_fp_compute_num_enc_workers(cpi);
+#endif
+    } else {
+      num_workers = av1_compute_num_enc_workers(cpi);
+    }
     if ((num_workers > 1) && (cpi->mt_info.num_workers == 0))
       av1_create_workers(cpi, num_workers);
 

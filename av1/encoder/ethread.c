@@ -918,18 +918,18 @@ static AOM_INLINE int compute_max_sb_rows(AV1_COMP *cpi) {
 
 #if !CONFIG_REALTIME_ONLY
 // Computes the number of workers for firstpass stage (row/tile multi-threading)
-static AOM_INLINE int fp_compute_num_enc_workers(AV1_COMP *cpi) {
+int av1_fp_compute_num_enc_workers(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
   int total_num_threads_row_mt = 0;
+  TileInfo tile_info;
 
   if (cpi->oxcf.max_threads <= 1) return 1;
 
   for (int row = 0; row < tile_rows; row++) {
     for (int col = 0; col < tile_cols; col++) {
-      const int tile_index = row * cm->tiles.cols + col;
-      TileInfo tile_info = cpi->tile_data[tile_index].tile_info;
+      av1_tile_init(&tile_info, cm, row, col);
       const int num_mb_rows_in_tile = av1_get_mb_rows_in_tile(tile_info);
       const int num_mb_cols_in_tile = av1_get_mb_cols_in_tile(tile_info);
       total_num_threads_row_mt +=
@@ -1056,7 +1056,7 @@ void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi) {
   // threads to the theoretical limit in row-mt does not have much impact on
   // post-processing multi-threading stage. Need to revisit this when
   // post-processing time starts shooting up.
-  num_workers = fp_compute_num_enc_workers(cpi);
+  num_workers = av1_fp_compute_num_enc_workers(cpi);
 
   if (enc_row_mt->allocated_tile_cols != tile_cols ||
       enc_row_mt->allocated_tile_rows != tile_rows ||

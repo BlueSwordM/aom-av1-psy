@@ -40,6 +40,8 @@ void av1_encode_tiles_row_mt(struct AV1_COMP *cpi);
 
 #if !CONFIG_REALTIME_ONLY
 void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi);
+
+int av1_fp_compute_num_enc_workers(AV1_COMP *cpi);
 #endif
 
 void av1_accumulate_frame_counts(struct FRAME_COUNTS *acc_counts,
