@@ -34,6 +34,8 @@ extern "C" {
 #define FP_MIB_SIZE 4
 #define FP_MIB_SIZE_LOG2 2
 
+/*!\cond */
+
 typedef struct {
   // Frame number in display order, if stats are for a single frame.
   // No real meaning for a collection of frames.
@@ -257,12 +259,32 @@ int av1_get_mb_cols_in_tile(TileInfo tile);
 void av1_rc_get_first_pass_params(struct AV1_COMP *cpi);
 void av1_first_pass_row(struct AV1_COMP *cpi, struct ThreadData *td,
                         struct TileDataEnc *tile_data, int mb_row);
-void av1_first_pass(struct AV1_COMP *cpi, const int64_t ts_duration);
 void av1_end_first_pass(struct AV1_COMP *cpi);
 
 void av1_twopass_zero_stats(FIRSTPASS_STATS *section);
 void av1_accumulate_stats(FIRSTPASS_STATS *section,
                           const FIRSTPASS_STATS *frame);
+/*!\endcond */
+
+/*!\brief AV1 first pass encoding.
+ *
+ * \ingroup rate_control
+ * This function is the first encoding pass for the two pass encoding mode.
+ * It encodes the whole video and collect essential information.
+ * Two pass encoding is an encoding mode in the reference software (libaom)
+ * of AV1 for high performance encoding. The first pass is a fast encoding
+ * process to collect essential information to help the second pass make
+ * encoding decisions and improve coding quality. The collected stats is used
+ * in rate control, for example, to determine frame cut, the position of
+ * alternative reference frame (ARF), etc.
+ *
+ * \param[in]    cpi            Top-level encoder structure
+ * \param[in]    ts_duration    Duration of the frame / collection of frames
+ *
+ * \return Nothing is returned. Instead, the "TWO_PASS" structure inside "cpi"
+ * is modified to store information computed in this function.
+ */
+void av1_first_pass(struct AV1_COMP *cpi, const int64_t ts_duration);
 
 #ifdef __cplusplus
 }  // extern "C"
