@@ -189,6 +189,8 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/motion_search_facade.h"
             "${AOM_ROOT}/av1/encoder/mv_prec.c"
             "${AOM_ROOT}/av1/encoder/mv_prec.h"
+            "${AOM_ROOT}/av1/encoder/optical_flow.c"
+            "${AOM_ROOT}/av1/encoder/optical_flow.h"
             "${AOM_ROOT}/av1/encoder/palette.c"
             "${AOM_ROOT}/av1/encoder/palette.h"
             "${AOM_ROOT}/av1/encoder/partition_search.h"
