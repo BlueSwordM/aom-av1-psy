@@ -747,9 +747,6 @@ struct macroblock {
   // Some of these are not currently used by the codec so they should probably
   // be removed.
   unsigned int simple_motion_pred_sse;
-
-  // Used to store sub partition's choices.
-  MV pred_mv[REF_FRAMES];
 };
 
 // Only consider full SB, MC_FLOW_BSIZE_1D = 16.

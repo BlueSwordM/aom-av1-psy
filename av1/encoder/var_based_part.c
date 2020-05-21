@@ -776,7 +776,6 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
     *ref_frame_partition = GOLDEN_FRAME;
     x->nonrd_prune_ref_frame_search = 0;
   } else {
-    x->pred_mv[LAST_FRAME] = mi->mv[0].as_mv;
     *ref_frame_partition = LAST_FRAME;
     x->nonrd_prune_ref_frame_search =
         cpi->sf.rt_sf.nonrd_prune_ref_frame_search;

@@ -1009,10 +1009,6 @@ void av1_mv_pred(const AV1_COMP *cpi, MACROBLOCK *x, uint8_t *ref_y_buffer,
   if (ref_mv.as_int != ref_mv1.as_int) {
     pred_mv[num_mv_refs++] = ref_mv1.as_mv;
   }
-  if (cpi->sf.mv_sf.adaptive_motion_search &&
-      block_size < x->sb_enc.max_partition_size) {
-    pred_mv[num_mv_refs++] = x->pred_mv[ref_frame];
-  }
 
   assert(num_mv_refs <= (int)(sizeof(pred_mv) / sizeof(pred_mv[0])));
 

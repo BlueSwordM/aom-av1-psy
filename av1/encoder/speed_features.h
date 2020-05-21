@@ -454,11 +454,6 @@ typedef struct MV_SPEED_FEATURES {
   // encoding and decoding; otherwise, it uses bilinear interpolation.
   SUBPEL_SEARCH_TYPE use_accurate_subpel_search;
 
-  // TODO(jingning): combine the related motion search speed features
-  // This allows us to use motion search at other sizes as a starting
-  // point for this motion search and limits the search range around it.
-  int adaptive_motion_search;
-
   // Threshold for allowing exhaustive motion search.
   int exhaustive_searches_thresh;
 

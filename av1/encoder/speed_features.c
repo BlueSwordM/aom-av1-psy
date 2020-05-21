@@ -973,7 +973,6 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
 
 static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->full_pixel_search_level = 0;
-  mv_sf->adaptive_motion_search = 0;
   mv_sf->auto_mv_step_size = 0;
   mv_sf->exhaustive_searches_thresh = 0;
   mv_sf->obmc_full_pixel_search_level = 0;

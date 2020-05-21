@@ -1440,9 +1440,6 @@ static int64_t motion_mode_rd(
             tmp_rate_mv = av1_mv_bit_cost(
                 &mbmi->mv[0].as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
                 x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
-            if (cpi->sf.mv_sf.adaptive_motion_search) {
-              x->pred_mv[mbmi->ref_frame[0]] = mbmi->mv[0].as_mv;
-            }
             tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
           } else {
             // Restore the old MV and WM parameters.

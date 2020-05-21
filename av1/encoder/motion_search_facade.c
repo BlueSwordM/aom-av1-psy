@@ -88,43 +88,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
     step_param = mv_search_params->mv_step_param;
   }
 
-  if (cpi->sf.mv_sf.adaptive_motion_search && bsize < cm->seq_params.sb_size) {
-    int boffset =
-        2 * (mi_size_wide_log2[cm->seq_params.sb_size] -
-             AOMMIN(mi_size_high_log2[bsize], mi_size_wide_log2[bsize]));
-    step_param = AOMMAX(step_param, boffset);
-  }
-
-  if (cpi->sf.mv_sf.adaptive_motion_search) {
-    int bwl = mi_size_wide_log2[bsize];
-    int bhl = mi_size_high_log2[bsize];
-    int tlevel = x->pred_mv_sad[ref] >> (bwl + bhl + 4);
-
-    if (tlevel < 5) {
-      step_param += 2;
-      step_param = AOMMIN(step_param, MAX_MVSEARCH_STEPS - 1);
-    }
-
-    // prev_mv_sad is not setup for dynamically scaled frames.
-    if (cpi->oxcf.resize_mode != RESIZE_RANDOM) {
-      int i;
-      for (i = LAST_FRAME; i <= ALTREF_FRAME && cm->show_frame; ++i) {
-        if ((x->pred_mv_sad[ref] >> 3) > x->pred_mv_sad[i]) {
-          x->pred_mv[ref].row = 0;
-          x->pred_mv[ref].col = 0;
-          best_mv->as_int = INVALID_MV;
-
-          if (scaled_ref_frame) {
-            // Swap back the original buffers before returning.
-            for (int j = 0; j < num_planes; ++j)
-              xd->plane[j].pre[ref_idx] = backup_yv12[j];
-          }
-          return;
-        }
-      }
-    }
-  }
-
   const MV ref_mv = av1_get_ref_mv(x, ref_idx).as_mv;
   FULLPEL_MV start_mv;
   if (mbmi->motion_mode != SIMPLE_TRANSLATION)
@@ -352,10 +315,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   }
   *rate_mv = av1_mv_bit_cost(&best_mv->as_mv, &ref_mv, mv_costs->nmv_joint_cost,
                              mv_costs->mv_cost_stack, MV_COST_WEIGHT);
-
-  if (cpi->sf.mv_sf.adaptive_motion_search &&
-      mbmi->motion_mode == SIMPLE_TRANSLATION)
-    x->pred_mv[ref] = best_mv->as_mv;
 }
 
 void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,

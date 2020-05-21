@@ -60,10 +60,6 @@ typedef struct {
 
   int rd_mode_is_ready;  // Flag to indicate whether rd pick mode decision has
                          // been made.
-
-  // motion vector cache for adaptive motion search control in partition
-  // search loop
-  MV pred_mv[REF_FRAMES];
 } PICK_MODE_CONTEXT;
 
 typedef struct PC_TREE {
