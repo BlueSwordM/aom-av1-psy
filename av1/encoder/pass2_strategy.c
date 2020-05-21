@@ -181,7 +181,7 @@ static void twopass_update_bpm_factor(TWO_PASS *twopass) {
 }
 
 static int qbpm_enumerator(int rate_err_tol) {
-  return 1350000 + ((300000 * AOMMIN(75, AOMMAX(rate_err_tol - 25, 0))) / 75);
+  return 1250000 + ((300000 * AOMMIN(75, AOMMAX(rate_err_tol - 25, 0))) / 75);
 }
 
 // Similar to find_qindex_by_rate() function in ratectrl.c, but includes

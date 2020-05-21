@@ -1441,20 +1441,21 @@ static int rc_pick_q_and_bounds_two_pass(const AV1_COMP *cpi, int width,
     active_best_quality = 0;
 #endif
   } else {
-#ifdef STRICT_RC
     //  Active best quality limited by previous layer.
     const int pyramid_level = gf_group_pyramid_level(gf_group, gf_index);
-    if (pyramid_level == 1) {
+
+    if ((pyramid_level <= 1) || (pyramid_level > MAX_ARF_LAYERS)) {
       active_best_quality = get_active_best_quality(cpi, active_worst_quality,
                                                     cq_level, gf_index);
     } else {
       active_best_quality = rc->active_best_quality[pyramid_level - 1] + 1;
+      active_best_quality = AOMMIN(active_best_quality, active_worst_quality);
+#ifdef STRICT_RC
       active_best_quality += (active_worst_quality - active_best_quality) / 16;
-    }
 #else
-    active_best_quality =
-        get_active_best_quality(cpi, active_worst_quality, cq_level, gf_index);
+      active_best_quality += (active_worst_quality - active_best_quality) / 2;
 #endif
+    }
 
     // For alt_ref and GF frames (including internal arf frames) adjust the
     // worst allowed quality as well. This insures that even on hard
