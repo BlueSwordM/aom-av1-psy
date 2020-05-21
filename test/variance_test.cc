@@ -2002,6 +2002,15 @@ INSTANTIATE_TEST_SUITE_P(
                                 0)));
 
 #if CONFIG_AV1_HIGHBITDEPTH
+#if HAVE_SSE2
+INSTANTIATE_TEST_SUITE_P(
+    SSE2, MseHBDWxHTest,
+    ::testing::Values(MseHBDWxHParams(3, 3, &aom_mse_wxh_16bit_highbd_sse2, 10),
+                      MseHBDWxHParams(3, 2, &aom_mse_wxh_16bit_highbd_sse2, 10),
+                      MseHBDWxHParams(2, 3, &aom_mse_wxh_16bit_highbd_sse2, 10),
+                      MseHBDWxHParams(2, 2, &aom_mse_wxh_16bit_highbd_sse2,
+                                      10)));
+#endif  // HAVE_SSE2
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AvxSubpelVarianceTest,
