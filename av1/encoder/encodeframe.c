@@ -3028,6 +3028,33 @@ static void set_partition_cost_for_edge_blk(
   part_search_state->partition_cost = part_search_state->tmp_partition_cost;
 }
 
+// Reset the partition search state flags when
+// must_find_valid_partition is equal to 1.
+static void reset_part_limitations(AV1_COMP *const cpi,
+                                   PartitionSearchState *part_search_state) {
+  PartitionBlkParams blk_params = part_search_state->part_blk_params;
+  const int is_rect_part_allowed =
+      blk_params.bsize_at_least_8x8 && cpi->oxcf.enable_rect_partitions &&
+      (blk_params.width > blk_params.min_partition_size_1d);
+  part_search_state->do_square_split =
+      blk_params.bsize_at_least_8x8 &&
+      (blk_params.width > blk_params.min_partition_size_1d);
+  part_search_state->partition_none_allowed =
+      blk_params.has_rows && blk_params.has_cols &&
+      (blk_params.width >= blk_params.min_partition_size_1d);
+  part_search_state->partition_horz_allowed =
+      blk_params.has_cols && is_rect_part_allowed &&
+      get_plane_block_size(
+          get_partition_subsize(blk_params.bsize, PARTITION_HORZ),
+          part_search_state->ss_x, part_search_state->ss_y) != BLOCK_INVALID;
+  part_search_state->partition_vert_allowed =
+      blk_params.has_rows && is_rect_part_allowed &&
+      get_plane_block_size(
+          get_partition_subsize(blk_params.bsize, PARTITION_VERT),
+          part_search_state->ss_x, part_search_state->ss_y) != BLOCK_INVALID;
+  part_search_state->terminate_partition_search = 0;
+}
+
 // Searches for the best partition pattern for a block based on the
 // rate-distortion cost, and returns a bool value to indicate whether a valid
 // partition pattern is found. The partition can recursively go down to
@@ -3169,29 +3196,8 @@ BEGIN_PARTITION_SEARCH:
   // If a valid partition is required, usually when the first round cannot find
   // a valid one under the cost limit after pruning, reset the limitations on
   // partition types.
-  if (x->must_find_valid_partition) {
-    part_search_state.do_square_split =
-        blk_params.bsize_at_least_8x8 &&
-        (blk_params.width > blk_params.min_partition_size_1d);
-    part_search_state.partition_none_allowed =
-        blk_params.has_rows && blk_params.has_cols &&
-        (blk_params.width >= blk_params.min_partition_size_1d);
-    part_search_state.partition_horz_allowed =
-        blk_params.has_cols && blk_params.bsize_at_least_8x8 &&
-        cpi->oxcf.enable_rect_partitions &&
-        (blk_params.width > blk_params.min_partition_size_1d) &&
-        get_plane_block_size(get_partition_subsize(bsize, PARTITION_HORZ),
-                             part_search_state.ss_x,
-                             part_search_state.ss_y) != BLOCK_INVALID;
-    part_search_state.partition_vert_allowed =
-        blk_params.has_rows && blk_params.bsize_at_least_8x8 &&
-        cpi->oxcf.enable_rect_partitions &&
-        (blk_params.width > blk_params.min_partition_size_1d) &&
-        get_plane_block_size(get_partition_subsize(bsize, PARTITION_VERT),
-                             part_search_state.ss_x,
-                             part_search_state.ss_y) != BLOCK_INVALID;
-    part_search_state.terminate_partition_search = 0;
-  }
+  if (x->must_find_valid_partition)
+    reset_part_limitations(cpi, &part_search_state);
 
   // Partition block source pixel variance.
   unsigned int pb_source_variance = UINT_MAX;
