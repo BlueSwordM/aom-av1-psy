@@ -2832,6 +2832,9 @@ typedef struct {
   int has_rows;
   int has_cols;
 
+  // Block size of current partition.
+  BLOCK_SIZE bsize;
+
   // Size of current sub-partition.
   BLOCK_SIZE subsize;
 
@@ -2914,6 +2917,7 @@ static void init_partition_search_state_params(
   blk_params->subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
   blk_params->split_bsize2 = blk_params->subsize;
   blk_params->bsize_at_least_8x8 = (bsize >= BLOCK_8X8);
+  blk_params->bsize = bsize;
 
   // Check if the partition corresponds to edge block.
   blk_params->has_rows = (blk_params->mi_row_edge < mi_params->mi_rows);
@@ -2992,6 +2996,38 @@ static void init_partition_search_state_params(
   part_search_state->found_best_partition = false;
 }
 
+// Override partition cost buffer for the edge blocks.
+static void set_partition_cost_for_edge_blk(
+    AV1_COMMON const *cm, PartitionSearchState *part_search_state) {
+  PartitionBlkParams blk_params = part_search_state->part_blk_params;
+  assert(blk_params.bsize_at_least_8x8 && part_search_state->pl_ctx_idx >= 0);
+  const aom_cdf_prob *partition_cdf =
+      cm->fc->partition_cdf[part_search_state->pl_ctx_idx];
+  const int max_cost = av1_cost_symbol(0);
+  for (PARTITION_TYPE i = 0; i < PARTITION_TYPES; ++i)
+    part_search_state->tmp_partition_cost[i] = max_cost;
+  if (blk_params.has_cols) {
+    // At the bottom, the two possibilities are HORZ and SPLIT.
+    aom_cdf_prob bot_cdf[2];
+    partition_gather_vert_alike(bot_cdf, partition_cdf, blk_params.bsize);
+    static const int bot_inv_map[2] = { PARTITION_HORZ, PARTITION_SPLIT };
+    av1_cost_tokens_from_cdf(part_search_state->tmp_partition_cost, bot_cdf,
+                             bot_inv_map);
+  } else if (blk_params.has_rows) {
+    // At the right, the two possibilities are VERT and SPLIT.
+    aom_cdf_prob rhs_cdf[2];
+    partition_gather_horz_alike(rhs_cdf, partition_cdf, blk_params.bsize);
+    static const int rhs_inv_map[2] = { PARTITION_VERT, PARTITION_SPLIT };
+    av1_cost_tokens_from_cdf(part_search_state->tmp_partition_cost, rhs_cdf,
+                             rhs_inv_map);
+  } else {
+    // At the bottom right, we always split.
+    part_search_state->tmp_partition_cost[PARTITION_SPLIT] = 0;
+  }
+  // Override the partition cost buffer.
+  part_search_state->partition_cost = part_search_state->tmp_partition_cost;
+}
+
 // Searches for the best partition pattern for a block based on the
 // rate-distortion cost, and returns a bool value to indicate whether a valid
 // partition pattern is found. The partition can recursively go down to
@@ -3066,34 +3102,8 @@ static bool rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
 
   // Override partition costs at the edges of the frame in the same
   // way as in read_partition (see decodeframe.c).
-  if (!(blk_params.has_rows && blk_params.has_cols)) {
-    assert(blk_params.bsize_at_least_8x8 && part_search_state.pl_ctx_idx >= 0);
-    const aom_cdf_prob *partition_cdf =
-        cm->fc->partition_cdf[part_search_state.pl_ctx_idx];
-    const int max_cost = av1_cost_symbol(0);
-    for (int i = 0; i < PARTITION_TYPES; ++i)
-      part_search_state.tmp_partition_cost[i] = max_cost;
-    if (blk_params.has_cols) {
-      // At the bottom, the two possibilities are HORZ and SPLIT.
-      aom_cdf_prob bot_cdf[2];
-      partition_gather_vert_alike(bot_cdf, partition_cdf, bsize);
-      static const int bot_inv_map[2] = { PARTITION_HORZ, PARTITION_SPLIT };
-      av1_cost_tokens_from_cdf(part_search_state.tmp_partition_cost, bot_cdf,
-                               bot_inv_map);
-    } else if (blk_params.has_rows) {
-      // At the right, the two possibilities are VERT and SPLIT.
-      aom_cdf_prob rhs_cdf[2];
-      partition_gather_horz_alike(rhs_cdf, partition_cdf, bsize);
-      static const int rhs_inv_map[2] = { PARTITION_VERT, PARTITION_SPLIT };
-      av1_cost_tokens_from_cdf(part_search_state.tmp_partition_cost, rhs_cdf,
-                               rhs_inv_map);
-    } else {
-      // At the bottom right, we always split.
-      part_search_state.tmp_partition_cost[PARTITION_SPLIT] = 0;
-    }
-
-    part_search_state.partition_cost = part_search_state.tmp_partition_cost;
-  }
+  if (!(blk_params.has_rows && blk_params.has_cols))
+    set_partition_cost_for_edge_blk(cm, &part_search_state);
 
   // Disable rectangular partitions for inner blocks when the current block is
   // forced to only use square partitions.
