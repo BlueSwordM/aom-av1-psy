@@ -267,6 +267,7 @@ static BLOCK_SIZE get_bsize(const CommonModeInfoParams *const mi_params,
 }
 
 static int find_fp_qindex(aom_bit_depth_t bit_depth) {
+  aom_clear_system_state();
   return av1_find_qindex(FIRST_PASS_Q, bit_depth, 0, QINDEX_RANGE - 1);
 }
 
