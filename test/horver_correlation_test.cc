@@ -140,6 +140,11 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(av1_get_horver_correlation_full_sse4_1));
 #endif  // HAVE_SSE4_1
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, HorverTest, ::testing::Values(av1_get_horver_correlation_full_neon));
+#endif  // HAVE_NEON
+
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, HorverTest, ::testing::Values(av1_get_horver_correlation_full_avx2));
