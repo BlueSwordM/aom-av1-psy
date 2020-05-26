@@ -214,4 +214,9 @@ INSTANTIATE_TEST_SUITE_P(SSE3, NnPredictTest,
                          ::testing::Values(av1_nn_predict_sse3));
 #endif
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, NnPredictTest,
+                         ::testing::Values(av1_nn_predict_neon));
+#endif
+
 }  // namespace
