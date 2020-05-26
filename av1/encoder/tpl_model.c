@@ -385,6 +385,13 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
         qsort(center_mvs, refmv_count, sizeof(center_mvs[0]), compare_sad);
       }
       refmv_count = AOMMIN(4 - cpi->sf.tpl_sf.prune_starting_mv, refmv_count);
+      // Further reduce number of refmv based on sad difference.
+      if (refmv_count > 1) {
+        int last_sad = center_mvs[refmv_count - 1].sad;
+        int second_to_last_sad = center_mvs[refmv_count - 2].sad;
+        if ((last_sad - second_to_last_sad) * 5 > second_to_last_sad)
+          refmv_count--;
+      }
     }
 
     for (idx = 0; idx < refmv_count; ++idx) {
