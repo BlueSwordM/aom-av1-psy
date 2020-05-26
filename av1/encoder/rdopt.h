@@ -63,13 +63,32 @@ unsigned int av1_high_get_sby_perpixel_variance(const struct AV1_COMP *cpi,
                                                 const struct buf_2d *ref,
                                                 BLOCK_SIZE bs, int bd);
 
-/*
-Top level function for inter mode selection. This function will loop over
-all possible inter modes and select the best one for the current block by
-computing the RD cost. The mode search and RD are computed in
-handle_inter_mode(), which is called from this function within the main
-loop.
-*/
+/*!\brief AV1 inter mode selection.
+ *
+ * \ingroup inter_mode_search
+ * Top level function for inter mode selection. This function will loop over
+ * all possible inter modes and select the best one for the current block by
+ * computing the RD cost. The mode search and RD are computed in
+ * handle_inter_mode(), which is called from this function within the main
+ * loop.
+ *
+ * \param[in]    cpi            Top-level encoder structure
+ * \param[in]    tile_data      Pointer to struct holding adaptive
+                                data/contexts/models for the tile during
+                                encoding
+ * \param[in]    x              Pointer to structure holding all the data for
+                                the current macroblock
+ * \param[in]    rd_cost        Struct to keep track of the RD information
+ * \param[in]    bsize          Current block size
+ * \param[in]    ctx            Structure to hold snapshot of coding context
+                                during the mode picking process
+ * \param[in]    best_rd_so_far Best RD seen for this block so far
+ *
+ * \return Nothing is returned. Instead, the MB_MODE_INFO struct inside x
+ * is modified to store information about the best mode computed
+ * in this function. The rd_cost struct is also updated with the RD stats
+ * corresponding to the best mode found.
+ */
 void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                struct TileDataEnc *tile_data,
                                struct macroblock *x, struct RD_STATS *rd_cost,
@@ -90,6 +109,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(
     struct macroblock *x, int mi_row, int mi_col, struct RD_STATS *rd_cost,
     BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx, int64_t best_rd_so_far);
 
+/*!\cond */
 // The best edge strength seen in the block, as well as the best x and y
 // components of edge strength seen.
 typedef struct {
@@ -97,6 +117,7 @@ typedef struct {
   uint16_t x;
   uint16_t y;
 } EdgeInfo;
+/*!\endcond */
 
 /** Returns an integer indicating the strength of the edge.
  * 0 means no edge found, 556 is the strength of a solid black/white edge,
@@ -113,11 +134,13 @@ EdgeInfo av1_edge_exists(const uint8_t *src, int src_stride, int w, int h,
 void av1_gaussian_blur(const uint8_t *src, int src_stride, int w, int h,
                        uint8_t *dst, bool high_bd, int bd);
 
+/*!\cond */
 /* Applies standard 3x3 Sobel matrix. */
 typedef struct {
   int16_t x;
   int16_t y;
 } sobel_xy;
+/*!\endcond */
 
 sobel_xy av1_sobel(const uint8_t *input, int stride, int i, int j,
                    bool high_bd);
