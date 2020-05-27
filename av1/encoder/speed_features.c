@@ -489,6 +489,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tpl_sf.skip_alike_starting_mv = 2;
     sf->tpl_sf.prune_intra_modes = 1;
+    sf->tpl_sf.prune_starting_mv = 1;
     sf->tpl_sf.reduce_first_step_size = 6;
     sf->tpl_sf.subpel_force_stop = QUARTER_PEL;
 
