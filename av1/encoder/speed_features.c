@@ -567,6 +567,8 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.use_intra_txb_hash = 0;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 5;
+    sf->rd_sf.perform_coeff_opt_based_on_satd =
+        is_boosted_arf2_bwd_type ? 1 : 2;
     sf->rd_sf.tx_domain_dist_thres_level = 2;
 
     // TODO(any): Extend multi-winner mode processing support for inter frames
@@ -617,9 +619,6 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.reduce_search_range = 1;
 
     sf->tpl_sf.prune_starting_mv = 3;
-
-    sf->rd_sf.perform_coeff_opt_based_on_satd =
-        is_boosted_arf2_bwd_type ? 1 : 2;
   }
 
   if (speed >= 6) {
