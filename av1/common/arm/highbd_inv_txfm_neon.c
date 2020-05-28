@@ -629,7 +629,7 @@ static void iadst4x4_neon(int32x4_t *in, int32x4_t *out, int bit, int do_cols,
   u0 = vreinterpretq_s32_s64(vzip1q_s64(vreinterpretq_s64_s32(u0x.val[0]),
                                         vreinterpretq_s64_s32(u0x.val[1])));
 #else
-  u0 = vcombine_s32(vget_low_s32(u0x.val[0]), vget_high_s32(u0x.val[1]));
+  u0 = vcombine_s32(vget_low_s32(u0x.val[0]), vget_low_s32(u0x.val[1]));
 #endif  // (__aarch64__)
   // u1
   int32x4x2_t u1x;
@@ -654,7 +654,7 @@ static void iadst4x4_neon(int32x4_t *in, int32x4_t *out, int bit, int do_cols,
   u1 = vreinterpretq_s32_s64(vzip1q_s64(vreinterpretq_s64_s32(u1x.val[0]),
                                         vreinterpretq_s64_s32(u1x.val[1])));
 #else
-  u1 = vcombine_s32(vget_low_s32(u1x.val[0]), vget_high_s32(u1x.val[1]));
+  u1 = vcombine_s32(vget_low_s32(u1x.val[0]), vget_low_s32(u1x.val[1]));
 #endif  // (__aarch64__)
 
   // u2
@@ -680,7 +680,7 @@ static void iadst4x4_neon(int32x4_t *in, int32x4_t *out, int bit, int do_cols,
   u2 = vreinterpretq_s32_s64(vzip1q_s64(vreinterpretq_s64_s32(u2x.val[0]),
                                         vreinterpretq_s64_s32(u2x.val[1])));
 #else
-  u2 = vcombine_s32(vget_low_s32(u2x.val[0]), vget_high_s32(u2x.val[1]));
+  u2 = vcombine_s32(vget_low_s32(u2x.val[0]), vget_low_s32(u2x.val[1]));
 #endif  // (__aarch64__)
 
   // u3
@@ -706,7 +706,7 @@ static void iadst4x4_neon(int32x4_t *in, int32x4_t *out, int bit, int do_cols,
   u3 = vreinterpretq_s32_s64(vzip1q_s64(vreinterpretq_s64_s32(u3x.val[0]),
                                         vreinterpretq_s64_s32(u3x.val[1])));
 #else
-  u3 = vcombine_s32(vget_low_s32(u3x.val[0]), vget_high_s32(u3x.val[1]));
+  u3 = vcombine_s32(vget_low_s32(u3x.val[0]), vget_low_s32(u3x.val[1]));
 #endif  // (__aarch64__)
 
   out[0] = u0;
@@ -2771,7 +2771,7 @@ static void iidentity16_neon(int32x4_t *in, int32x4_t *out, int bit,
         vmull_s32(vmovn_s64(vreinterpretq_s64_s32(in[i])), fact));
     a0.val[0] = vreinterpretq_s32_s64(
         vrshrq_n_s64(vreinterpretq_s64_s32(a0.val[0]), NewSqrt2Bits));
-    a0.val[1] = vextq_s32(in[i], zero, 1);  // 4
+    a0.val[1] = vextq_s32(in[i], zero, 1);
     a0.val[1] = vreinterpretq_s32_s64(
         vmull_s32(vmovn_s64(vreinterpretq_s64_s32(a0.val[1])), fact));
     a0.val[1] = vreinterpretq_s32_s64(
