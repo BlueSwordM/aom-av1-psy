@@ -2561,8 +2561,7 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
     }
     if (cpi->common.current_frame.frame_number == 0)
       av1_init_layer_context(cpi);
-    else
-      av1_update_layer_context_change_config(cpi, cpi->oxcf.target_bandwidth);
+    av1_update_layer_context_change_config(cpi, cpi->oxcf.target_bandwidth);
   }
   return AOM_CODEC_OK;
 }
