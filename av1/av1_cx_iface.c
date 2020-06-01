@@ -2537,19 +2537,18 @@ static aom_codec_err_t ctrl_set_layer_id(aom_codec_alg_priv_t *ctx,
 static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
                                            va_list args) {
   AV1_COMP *const cpi = ctx->cpi;
+  AV1_COMMON *const cm = &cpi->common;
   aom_svc_params_t *const params = va_arg(args, aom_svc_params_t *);
-  cpi->common.number_spatial_layers = params->number_spatial_layers;
-  cpi->common.number_temporal_layers = params->number_temporal_layers;
+  cm->number_spatial_layers = params->number_spatial_layers;
+  cm->number_temporal_layers = params->number_temporal_layers;
   cpi->svc.number_spatial_layers = params->number_spatial_layers;
   cpi->svc.number_temporal_layers = params->number_temporal_layers;
-  if (cpi->common.number_spatial_layers > 1 ||
-      cpi->common.number_temporal_layers > 1) {
+  if (cm->number_spatial_layers > 1 || cm->number_temporal_layers > 1) {
     unsigned int sl, tl;
     cpi->use_svc = 1;
-    for (sl = 0; sl < cpi->common.number_spatial_layers; ++sl) {
-      for (tl = 0; tl < cpi->common.number_temporal_layers; ++tl) {
-        const int layer =
-            LAYER_IDS_TO_IDX(sl, tl, cpi->common.number_temporal_layers);
+    for (sl = 0; sl < cm->number_spatial_layers; ++sl) {
+      for (tl = 0; tl < cm->number_temporal_layers; ++tl) {
+        const int layer = LAYER_IDS_TO_IDX(sl, tl, cm->number_temporal_layers);
         LAYER_CONTEXT *lc = &cpi->svc.layer_context[layer];
         lc->max_q = params->max_quantizers[layer];
         lc->min_q = params->min_quantizers[layer];
@@ -2559,8 +2558,15 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
         lc->framerate_factor = params->framerate_factor[tl];
       }
     }
-    if (cpi->common.current_frame.frame_number == 0)
+    if (cm->current_frame.frame_number == 0) {
+      if (!cpi->seq_params_locked) {
+        SequenceHeader *const seq_params = &cm->seq_params;
+        seq_params->operating_points_cnt_minus_1 =
+            cm->number_spatial_layers * cm->number_temporal_layers - 1;
+        av1_init_seq_coding_tools(&cm->seq_params, cm, &cpi->oxcf, 1);
+      }
       av1_init_layer_context(cpi);
+    }
     av1_update_layer_context_change_config(cpi, cpi->oxcf.target_bandwidth);
   }
   return AOM_CODEC_OK;

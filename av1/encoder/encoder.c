@@ -1297,8 +1297,8 @@ static void set_bitstream_level_tier(SequenceHeader *seq, AV1_COMMON *cm,
   }
 }
 
-static void init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
-                                  const AV1EncoderConfig *oxcf, int use_svc) {
+void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
+                               const AV1EncoderConfig *oxcf, int use_svc) {
   seq->still_picture = (oxcf->force_video_mode == 0) && (oxcf->limit == 1);
   seq->reduced_still_picture_hdr = seq->still_picture;
   seq->reduced_still_picture_hdr &= !oxcf->full_still_picture_hdr;
@@ -2985,7 +2985,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
         (cm->number_spatial_layers > 1 || cm->number_temporal_layers > 1)
             ? cm->number_spatial_layers * cm->number_temporal_layers - 1
             : 0;
-    init_seq_coding_tools(&cm->seq_params, cm, oxcf, cpi->use_svc);
+    av1_init_seq_coding_tools(&cm->seq_params, cm, oxcf, cpi->use_svc);
   }
 
   if (cpi->use_svc)
