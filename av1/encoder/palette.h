@@ -88,7 +88,6 @@ int av1_palette_color_cost_y(const PALETTE_MODE_INFO *const pmi,
 int av1_palette_color_cost_uv(const PALETTE_MODE_INFO *const pmi,
                               uint16_t *color_cache, int n_cache,
                               int bit_depth);
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif

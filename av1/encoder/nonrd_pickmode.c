@@ -1410,8 +1410,8 @@ static void compute_intra_yprediction(const AV1_COMMON *cm,
   pd->dst.buf = dst_buf_base;
 }
 
-void av1_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
-                         BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx) {
+void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
+                               BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mi = xd->mi[0];

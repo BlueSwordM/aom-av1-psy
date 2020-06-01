@@ -35,33 +35,10 @@ struct TileInfo;
 struct macroblock;
 struct RD_STATS;
 
-// Returns the number of colors in 'src'.
-int av1_count_colors(const uint8_t *src, int stride, int rows, int cols,
-                     int *val_count);
-// Same as av1_count_colors(), but for high-bitdepth mode.
-int av1_count_colors_highbd(const uint8_t *src8, int stride, int rows, int cols,
-                            int bit_depth, int *val_count);
-
-static INLINE int av1_cost_skip_txb(const CoeffCosts *coeff_costs,
-                                    const TXB_CTX *const txb_ctx, int plane,
-                                    TX_SIZE tx_size) {
-  const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
-  const PLANE_TYPE plane_type = get_plane_type(plane);
-  const LV_MAP_COEFF_COST *const coeff_costs_ =
-      &coeff_costs->coeff_costs[txs_ctx][plane_type];
-  return coeff_costs_->txb_skip_cost[txb_ctx->txb_skip_ctx][1];
-}
-
+// Top level function for intra mode selection during intra-only frame encoding.
 void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
                                struct RD_STATS *rd_cost, BLOCK_SIZE bsize,
                                PICK_MODE_CONTEXT *ctx, int64_t best_rd);
-
-unsigned int av1_get_sby_perpixel_variance(const struct AV1_COMP *cpi,
-                                           const struct buf_2d *ref,
-                                           BLOCK_SIZE bs);
-unsigned int av1_high_get_sby_perpixel_variance(const struct AV1_COMP *cpi,
-                                                const struct buf_2d *ref,
-                                                BLOCK_SIZE bs, int bd);
 
 /*!\brief AV1 inter mode selection.
  *
@@ -95,9 +72,11 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
                                int64_t best_rd_so_far);
 
-void av1_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
-                         BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx);
+// Non-rd version of intra mode selection used in av1 real time mode.
+void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
+                               BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx);
 
+// Non-rd version of inter mode selection used in av1 real time mode.
 void av1_nonrd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                   struct TileDataEnc *tile_data,
                                   struct macroblock *x,
@@ -109,6 +88,8 @@ void av1_rd_pick_inter_mode_sb_seg_skip(
     struct macroblock *x, int mi_row, int mi_col, struct RD_STATS *rd_cost,
     BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx, int64_t best_rd_so_far);
 
+// TODO(any): The defs below could potentially be moved to rdopt_utils.h instead
+// because they are not the main rdopt functions.
 /*!\cond */
 // The best edge strength seen in the block, as well as the best x and y
 // components of edge strength seen.

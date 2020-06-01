@@ -718,7 +718,7 @@ static void hybrid_intra_mode_search(AV1_COMP *cpi, MACROBLOCK *const x,
       bsize < BLOCK_16X16)
     av1_rd_pick_intra_mode_sb(cpi, x, rd_cost, bsize, ctx, INT64_MAX);
   else
-    av1_pick_intra_mode(cpi, x, rd_cost, bsize, ctx);
+    av1_nonrd_pick_intra_mode(cpi, x, rd_cost, bsize, ctx);
 }
 
 static AOM_INLINE void pick_sb_modes(AV1_COMP *const cpi,

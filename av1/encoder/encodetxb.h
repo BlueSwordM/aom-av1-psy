@@ -88,6 +88,17 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 CB_COEFF_BUFFER *av1_get_cb_coeff_buffer(const struct AV1_COMP *cpi, int mi_row,
                                          int mi_col);
 
+// Returns the rate cost associated with skipping the current transform block.
+static INLINE int av1_cost_skip_txb(const CoeffCosts *coeff_costs,
+                                    const TXB_CTX *const txb_ctx, int plane,
+                                    TX_SIZE tx_size) {
+  const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
+  const PLANE_TYPE plane_type = get_plane_type(plane);
+  const LV_MAP_COEFF_COST *const coeff_costs_ =
+      &coeff_costs->coeff_costs[txs_ctx][plane_type];
+  return coeff_costs_->txb_skip_cost[txb_ctx->txb_skip_ctx][1];
+}
+
 // These numbers are empirically obtained.
 static const int plane_rd_mult[REF_TYPES][PLANE_TYPES] = {
   { 17, 13 },

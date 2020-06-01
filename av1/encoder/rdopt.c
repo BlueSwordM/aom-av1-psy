@@ -2784,6 +2784,7 @@ static int64_t handle_inter_mode(
   return rd_stats->rdcost;
 }
 
+// Searches intrabc mode in intraframe.
 static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                                        PICK_MODE_CONTEXT *ctx,
                                        RD_STATS *rd_stats, BLOCK_SIZE bsize,
@@ -2998,27 +2999,19 @@ void av1_rd_pick_intra_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   set_mode_eval_params(cpi, x, DEFAULT_EVAL);
 
   if (intra_yrd < best_rd) {
-    // Only store reconstructed luma when there's chroma RDO. When there's no
-    // chroma RDO, the reconstructed luma will be stored in encode_superblock().
-    xd->cfl.store_y = store_cfl_required_rdo(cm, x);
-    if (xd->cfl.store_y) {
-      // Restore reconstructed luma values.
-      memcpy(txfm_info->blk_skip, ctx->blk_skip,
-             sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
-      av1_copy_array(xd->tx_type_map, ctx->tx_type_map, ctx->num_4x4_blk);
-      av1_encode_intra_block_plane(cpi, x, bsize, AOM_PLANE_Y, DRY_RUN_NORMAL,
-                                   cpi->optimize_seg_arr[mbmi->segment_id]);
-      av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
-      xd->cfl.store_y = 0;
-    }
+    // Search intra modes for uv planes if needed
     if (num_planes > 1) {
-      init_sbuv_mode(mbmi);
-      if (xd->is_chroma_ref) {
-        const TX_SIZE max_uv_tx_size = av1_get_tx_size(AOM_PLANE_U, xd);
-        av1_rd_pick_intra_sbuv_mode(cpi, x, &rate_uv, &rate_uv_tokenonly,
-                                    &dist_uv, &uv_skip_txfm, bsize,
-                                    max_uv_tx_size);
+      // Set up the tx variables for reproducing the y predictions in case we
+      // need it for chroma-from-luma.
+      if (xd->is_chroma_ref && store_cfl_required_rdo(cm, x)) {
+        memcpy(txfm_info->blk_skip, ctx->blk_skip,
+               sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
+        av1_copy_array(xd->tx_type_map, ctx->tx_type_map, ctx->num_4x4_blk);
       }
+      const TX_SIZE max_uv_tx_size = av1_get_tx_size(AOM_PLANE_U, xd);
+      av1_rd_pick_intra_sbuv_mode(cpi, x, &rate_uv, &rate_uv_tokenonly,
+                                  &dist_uv, &uv_skip_txfm, bsize,
+                                  max_uv_tx_size);
     }
 
     // Intra block is always coded as non-skip
@@ -3719,7 +3712,7 @@ static AOM_INLINE void init_intra_mode_search_state(
     IntraModeSearchState *intra_search_state) {
   intra_search_state->skip_intra_modes = 0;
   intra_search_state->best_intra_mode = DC_PRED;
-  intra_search_state->angle_stats_ready = 0;
+  intra_search_state->dir_mode_skip_mask_ready = 0;
   av1_zero(intra_search_state->directional_mode_skip_mask);
   intra_search_state->rate_uv_intra = INT_MAX;
   av1_zero(intra_search_state->pmi_uv);

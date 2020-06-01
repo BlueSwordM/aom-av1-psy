@@ -3449,6 +3449,7 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
 }
 
 // Calculate the transform coefficient RD cost for the given chroma coding block
+// If the current mode is intra, then this function will compute the predictor.
 // Return value 0: early termination triggered, no valid rd cost available;
 //              1: rd cost values are valid.
 int av1_txfm_uvrd(const AV1_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
