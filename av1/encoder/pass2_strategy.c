@@ -2422,9 +2422,9 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   rc->kf_boost = (int)boost_score;
 
   if (cpi->lap_enabled) {
-    if (cpi->oxcf.rc_mode == AOM_Q)
+    if (cpi->oxcf.rc_mode == AOM_Q) {
       rc->kf_boost = get_projected_kf_boost(cpi);
-    else if (cpi->oxcf.rc_mode == AOM_VBR) {
+    } else {
       // TODO(any): Explore using average frame stats for AOM_Q as well.
       boost_score = get_kf_boost_score(
           cpi, kf_raw_err, &zero_motion_accumulator, &sr_accumulator, 1);
