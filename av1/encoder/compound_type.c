@@ -595,7 +595,7 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
       int64_t best_interintra_rd = INT64_MAX;
       for (INTERINTRA_MODE cur_mode = 0; cur_mode < INTERINTRA_MODES;
            ++cur_mode) {
-        if ((!cpi->oxcf.enable_smooth_intra ||
+        if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
              cpi->sf.intra_sf.disable_smooth_intra) &&
             cur_mode == II_SMOOTH_PRED)
           continue;

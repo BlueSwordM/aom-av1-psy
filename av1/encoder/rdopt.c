@@ -4524,11 +4524,14 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
 
   // Speed features to prune out INTRA frames
   if (ref_frame == INTRA_FRAME) {
-    if ((!cpi->oxcf.enable_smooth_intra || sf->intra_sf.disable_smooth_intra) &&
+    if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
+         sf->intra_sf.disable_smooth_intra) &&
         (mbmi->mode == SMOOTH_PRED || mbmi->mode == SMOOTH_H_PRED ||
          mbmi->mode == SMOOTH_V_PRED))
       return 1;
-    if (!cpi->oxcf.enable_paeth_intra && mbmi->mode == PAETH_PRED) return 1;
+    if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
+        mbmi->mode == PAETH_PRED)
+      return 1;
     if (sf->inter_sf.adaptive_mode_search > 1)
       if ((x->source_variance << num_pels_log2_lookup[bsize]) >
           args->search_state->best_pred_sse)

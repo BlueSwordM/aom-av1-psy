@@ -1339,7 +1339,7 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
   const BLOCK_SIZE plane_bsize =
       get_plane_block_size(mbmi->sb_type, pd->subsampling_x, pd->subsampling_y);
 
-  assert(is_cfl_allowed(xd) && cpi->oxcf.enable_cfl_intra);
+  assert(is_cfl_allowed(xd) && cpi->oxcf.intra_mode_cfg.enable_cfl_intra);
   assert(plane_bsize < BLOCK_SIZES_ALL);
   if (!xd->lossless[mbmi->segment_id]) {
     assert(block_size_wide[plane_bsize] == tx_size_wide[tx_size]);
@@ -1463,6 +1463,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   MB_MODE_INFO best_mbmi = *mbmi;
   int64_t best_rd = INT64_MAX, this_rd;
   const ModeCosts *mode_costs = &x->mode_costs;
+  const IntraModeCfg *const intra_mode_cfg = &cpi->oxcf.intra_mode_cfg;
 
   for (int mode_idx = 0; mode_idx < UV_INTRA_MODES; ++mode_idx) {
     int this_rate;
@@ -1472,16 +1473,16 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     if (!(cpi->sf.intra_sf.intra_uv_mode_mask[txsize_sqr_up_map[max_tx_size]] &
           (1 << mode)))
       continue;
-    if (!cpi->oxcf.enable_smooth_intra && mode >= UV_SMOOTH_PRED &&
+    if (!intra_mode_cfg->enable_smooth_intra && mode >= UV_SMOOTH_PRED &&
         mode <= UV_SMOOTH_H_PRED)
       continue;
 
-    if (!cpi->oxcf.enable_paeth_intra && mode == UV_PAETH_PRED) continue;
+    if (!intra_mode_cfg->enable_paeth_intra && mode == UV_PAETH_PRED) continue;
 
     mbmi->uv_mode = mode;
     int cfl_alpha_rate = 0;
     if (mode == UV_CFL_PRED) {
-      if (!is_cfl_allowed(xd) || !cpi->oxcf.enable_cfl_intra) continue;
+      if (!is_cfl_allowed(xd) || !intra_mode_cfg->enable_cfl_intra) continue;
       assert(!is_directional_mode);
       const TX_SIZE uv_tx_size = av1_get_tx_size(AOM_PLANE_U, xd);
       cfl_alpha_rate = cfl_rd_pick_alpha(x, cpi, uv_tx_size, best_rd);
@@ -1489,7 +1490,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     }
     mbmi->angle_delta[PLANE_TYPE_UV] = 0;
     if (is_directional_mode && av1_use_angle_delta(mbmi->sb_type) &&
-        cpi->oxcf.enable_angle_delta) {
+        intra_mode_cfg->enable_angle_delta) {
       const int rate_overhead =
           mode_costs->intra_uv_mode_cost[is_cfl_allowed(xd)][mbmi->mode][mode];
       if (!rd_pick_intra_angle_sbuv(cpi, x, bsize, rate_overhead, best_rd,
@@ -1506,7 +1507,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     this_rate = tokenonly_rd_stats.rate +
                 intra_mode_info_cost_uv(cpi, x, mbmi, bsize, mode_cost);
     if (mode == UV_CFL_PRED) {
-      assert(is_cfl_allowed(xd) && cpi->oxcf.enable_cfl_intra);
+      assert(is_cfl_allowed(xd) && intra_mode_cfg->enable_cfl_intra);
 #if CONFIG_DEBUG
       if (!xd->lossless[mbmi->segment_id])
         assert(xd->cfl.rate == tokenonly_rd_stats.rate + mode_cost);
@@ -1776,7 +1777,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
 
   const int is_directional_mode = av1_is_directional_mode(mode);
   if (is_directional_mode && av1_use_angle_delta(bsize) &&
-      cpi->oxcf.enable_angle_delta) {
+      cpi->oxcf.intra_mode_cfg.enable_angle_delta) {
     if (sf->intra_sf.intra_pruning_with_hog &&
         !intra_search_state->angle_stats_ready) {
       prune_intra_mode_with_hog(x, bsize,
@@ -2016,12 +2017,14 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     int this_rate, this_rate_tokenonly, s;
     int64_t this_distortion, this_rd;
     mbmi->mode = intra_rd_search_mode_order[mode_idx];
-    if ((!cpi->oxcf.enable_smooth_intra ||
+    if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
          cpi->sf.intra_sf.disable_smooth_intra) &&
         (mbmi->mode == SMOOTH_PRED || mbmi->mode == SMOOTH_H_PRED ||
          mbmi->mode == SMOOTH_V_PRED))
       continue;
-    if (!cpi->oxcf.enable_paeth_intra && mbmi->mode == PAETH_PRED) continue;
+    if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
+        mbmi->mode == PAETH_PRED)
+      continue;
     mbmi->angle_delta[PLANE_TYPE_Y] = 0;
 
     if (model_intra_yrd_and_prune(cpi, x, bsize, bmode_costs[mbmi->mode],
@@ -2032,7 +2035,7 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     is_directional_mode = av1_is_directional_mode(mbmi->mode);
     if (is_directional_mode && directional_mode_skip_mask[mbmi->mode]) continue;
     if (is_directional_mode && av1_use_angle_delta(bsize) &&
-        cpi->oxcf.enable_angle_delta) {
+        cpi->oxcf.intra_mode_cfg.enable_angle_delta) {
       this_rd_stats.rate = INT_MAX;
       rd_pick_intra_angle_sby(cpi, x, &this_rate, &this_rd_stats, bsize,
                               bmode_costs[mbmi->mode], best_rd, &best_model_rd,

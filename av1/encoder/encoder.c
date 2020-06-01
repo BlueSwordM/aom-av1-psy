@@ -1346,8 +1346,8 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_warped_motion = oxcf->enable_warped_motion;
   seq->enable_interintra_compound = oxcf->enable_interintra_comp;
   seq->enable_masked_compound = oxcf->enable_masked_comp;
-  seq->enable_intra_edge_filter = oxcf->enable_intra_edge_filter;
-  seq->enable_filter_intra = oxcf->enable_filter_intra;
+  seq->enable_intra_edge_filter = oxcf->intra_mode_cfg.enable_intra_edge_filter;
+  seq->enable_filter_intra = oxcf->intra_mode_cfg.enable_filter_intra;
 
   set_bitstream_level_tier(seq, cm, oxcf);
 

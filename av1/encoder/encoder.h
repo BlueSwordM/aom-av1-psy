@@ -254,6 +254,23 @@ typedef enum {
 
 #define TPL_DEP_COST_SCALE_LOG2 4
 
+typedef struct {
+  // Flag to indicate if intra edge filtering process should be enabled.
+  bool enable_intra_edge_filter;
+  // Flag to indicate if recursive filtering based intra prediction should be
+  // enabled.
+  bool enable_filter_intra;
+  // Flag to indicate if smooth intra prediction modes should be enabled.
+  bool enable_smooth_intra;
+  // Flag to indicate if PAETH intra prediction mode should be enabled.
+  bool enable_paeth_intra;
+  // Flag to indicate if CFL uv intra mode should be enabled.
+  bool enable_cfl_intra;
+  // Flag to indicate if delta angles for directional intra prediction should be
+  // enabled.
+  bool enable_angle_delta;
+} IntraModeCfg;
+
 typedef struct AV1EncoderConfig {
   BITSTREAM_PROFILE profile;
   aom_bit_depth_t bit_depth;     // Codec bit-depth.
@@ -429,7 +446,6 @@ typedef struct AV1EncoderConfig {
   int enable_1to4_partitions;
   int min_partition_size;
   int max_partition_size;
-  int enable_intra_edge_filter;
   int enable_tx64;
   int enable_flip_idtx;
   int enable_order_hint;
@@ -448,16 +464,14 @@ typedef struct AV1EncoderConfig {
   int enable_global_motion;
   int enable_warped_motion;
   int allow_warped_motion;
-  int enable_filter_intra;
-  int enable_smooth_intra;
-  int enable_paeth_intra;
-  int enable_cfl_intra;
   int enable_superres;
   int enable_overlay;
   int enable_palette;
   int enable_intrabc;
-  int enable_angle_delta;
   unsigned int save_as_annexb;
+
+  // Flags related to intra mode search.
+  IntraModeCfg intra_mode_cfg;
 
 #if CONFIG_DENOISE
   float noise_level;

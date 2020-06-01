@@ -708,6 +708,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     update_default_encoder_config(&cfg->encoder_cfg, extra_cfg);
   }
 
+  IntraModeCfg *const intra_mode_cfg = &oxcf->intra_mode_cfg;
+
   const int is_vbr = cfg->rc_end_usage == AOM_VBR;
   oxcf->profile = cfg->g_profile;
   oxcf->fwd_kf_enabled = cfg->fwd_kf_enabled;
@@ -787,7 +789,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->enable_overlay = extra_cfg->enable_overlay;
   oxcf->enable_palette = extra_cfg->enable_palette;
   oxcf->enable_intrabc = extra_cfg->enable_intrabc;
-  oxcf->enable_angle_delta = extra_cfg->enable_angle_delta;
   oxcf->disable_trellis_quant = extra_cfg->disable_trellis_quant;
   oxcf->allow_ref_frame_mvs = extra_cfg->enable_ref_frame_mvs;
   oxcf->using_qm = extra_cfg->enable_qm;
@@ -929,7 +930,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->enable_1to4_partitions = extra_cfg->enable_1to4_partitions;
   oxcf->min_partition_size = extra_cfg->min_partition_size;
   oxcf->max_partition_size = extra_cfg->max_partition_size;
-  oxcf->enable_intra_edge_filter = extra_cfg->enable_intra_edge_filter;
   oxcf->enable_tx64 = extra_cfg->enable_tx64;
   oxcf->enable_flip_idtx = extra_cfg->enable_flip_idtx;
   oxcf->enable_order_hint = extra_cfg->enable_order_hint;
@@ -957,10 +957,15 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       (cfg->g_usage == AOM_USAGE_REALTIME)
           ? 0
           : (extra_cfg->allow_warped_motion & extra_cfg->enable_warped_motion);
-  oxcf->enable_filter_intra = extra_cfg->enable_filter_intra;
-  oxcf->enable_smooth_intra = extra_cfg->enable_smooth_intra;
-  oxcf->enable_paeth_intra = extra_cfg->enable_paeth_intra;
-  oxcf->enable_cfl_intra = extra_cfg->enable_cfl_intra;
+
+  // Set intra mode configuration.
+  intra_mode_cfg->enable_angle_delta = extra_cfg->enable_angle_delta;
+  intra_mode_cfg->enable_intra_edge_filter =
+      extra_cfg->enable_intra_edge_filter;
+  intra_mode_cfg->enable_filter_intra = extra_cfg->enable_filter_intra;
+  intra_mode_cfg->enable_smooth_intra = extra_cfg->enable_smooth_intra;
+  intra_mode_cfg->enable_paeth_intra = extra_cfg->enable_paeth_intra;
+  intra_mode_cfg->enable_cfl_intra = extra_cfg->enable_cfl_intra;
 
   oxcf->enable_superres =
       (oxcf->superres_mode != AOM_SUPERRES_NONE) && extra_cfg->enable_superres;
