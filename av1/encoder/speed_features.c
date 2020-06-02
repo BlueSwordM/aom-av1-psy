@@ -325,7 +325,6 @@ static void set_good_speed_features_framesize_independent(
   sf->inter_sf.selective_ref_frame = 1;
   sf->inter_sf.use_dist_wtd_comp_flag = DIST_WTD_COMP_SKIP_MV_SEARCH;
 
-  sf->interp_sf.cb_pred_filter_search = 0;
   sf->interp_sf.use_fast_interpolation_filter_search = 1;
 
   sf->intra_sf.intra_pruning_with_hog = 1;
@@ -378,7 +377,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.selective_ref_frame = 2;
     sf->inter_sf.skip_repeated_newmv = 1;
 
-    sf->interp_sf.cb_pred_filter_search = 0;
     sf->interp_sf.use_interp_filter = 1;
     sf->intra_sf.prune_palette_search_level = 1;
 
@@ -659,7 +657,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->inter_sf.selective_ref_frame = 1;
   sf->inter_sf.use_dist_wtd_comp_flag = DIST_WTD_COMP_SKIP_MV_SEARCH;
 
-  sf->interp_sf.cb_pred_filter_search = 0;
   sf->interp_sf.use_fast_interpolation_filter_search = 1;
 
   sf->intra_sf.intra_pruning_with_hog = 1;
@@ -1040,12 +1037,13 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
 }
 
 static AOM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
-  interp_sf->disable_filter_search_var_thresh = 0;
   interp_sf->adaptive_interp_filter_search = 0;
-  interp_sf->use_fast_interpolation_filter_search = 0;
+  interp_sf->cb_pred_filter_search = 0;
   interp_sf->disable_dual_filter = 0;
-  interp_sf->use_interp_filter = 0;
+  interp_sf->disable_filter_search_var_thresh = 0;
   interp_sf->skip_sharp_interp_filter_search = 0;
+  interp_sf->use_fast_interpolation_filter_search = 0;
+  interp_sf->use_interp_filter = 0;
 }
 
 static AOM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
