@@ -20,14 +20,18 @@ set(AOM_DOXYGEN_CONFIG_TEMPLATE "libs.doxy_template")
 set(AOM_DOXYGEN_OUTPUT_DIR "${AOM_CONFIG_DIR}/dox")
 set(AOM_DOXYGEN_SECTIONS "av1")
 
-set(AOM_DOXYGEN_SOURCES "${AOM_ROOT}/aom/aom.h" "${AOM_ROOT}/aom/aom_codec.h"
-                        "${AOM_ROOT}/aom/aom_decoder.h"
-                        "${AOM_ROOT}/aom/aom_encoder.h"
-                        "${AOM_ROOT}/aom/aom_frame_buffer.h"
-                        "${AOM_ROOT}/aom/aom_image.h"
-                        "${AOM_ROOT}/aom/aom_integer.h"
-                        "${AOM_ROOT}/keywords.dox" "${AOM_ROOT}/mainpage.dox"
-                        "${AOM_ROOT}/usage.dox")
+set(AOM_DOXYGEN_SOURCES
+    "${AOM_ROOT}/aom/aom.h"
+    "${AOM_ROOT}/aom/aom_codec.h"
+    "${AOM_ROOT}/aom/aom_decoder.h"
+    "${AOM_ROOT}/aom/aom_encoder.h"
+    "${AOM_ROOT}/aom/aom_frame_buffer.h"
+    "${AOM_ROOT}/aom/aom_image.h"
+    "${AOM_ROOT}/aom/aom_integer.h"
+    "${AOM_ROOT}/av1/common/av1_common_int.h"
+    "${AOM_ROOT}/keywords.dox"
+    "${AOM_ROOT}/mainpage.dox"
+    "${AOM_ROOT}/usage.dox")
 
 if(CONFIG_AV1_DECODER)
   set(AOM_DOXYGEN_EXAMPLE_SOURCES ${AOM_DOXYGEN_EXAMPLE_SOURCES}

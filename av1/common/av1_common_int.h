@@ -79,6 +79,8 @@ extern "C" {
 #define TXCOEFF_TIMER 0
 #define TXCOEFF_COST_TIMER 0
 
+/*!\cond */
+
 enum {
   SINGLE_REFERENCE = 0,
   COMPOUND_REFERENCE = 1,
@@ -314,128 +316,256 @@ typedef struct {
   int frame_refs_short_signaling;
 } CurrentFrame;
 
-// Struct containing some frame level features.
+/*!\endcond */
+
+/*!
+ * \brief Frame level features.
+ */
 typedef struct {
+  /*!
+   * If true, CDF update in the symbol encoding/decoding process is disabled.
+   */
   bool disable_cdf_update;
+  /*!
+   * If true, motion vectors are specified to eighth pel precision; and
+   * if false, motion vectors are specified to quarter pel precision.
+   */
   bool allow_high_precision_mv;
-  bool cur_frame_force_integer_mv;  // 0 the default in AOM, 1 only integer
+  /*!
+   * If true, force integer motion vectors; if false, use the default.
+   */
+  bool cur_frame_force_integer_mv;
+  /*!
+   * If true, palette tool and/or intra block copy tools may be used.
+   */
   bool allow_screen_content_tools;
-  bool allow_intrabc;
-  bool allow_warped_motion;
-  // Whether to use previous frames' motion vectors for prediction.
+  bool allow_intrabc;       /*!< If true, intra block copy tool may be used. */
+  bool allow_warped_motion; /*!< If true, frame may use warped motion mode. */
+  /*!
+   * If true, using previous frames' motion vectors for prediction is allowed.
+   */
   bool allow_ref_frame_mvs;
-  bool coded_lossless;  // frame is fully lossless at the coded resolution.
-  bool all_lossless;    // frame is fully lossless at the upscaled resolution.
+  /*!
+   * If true, frame is fully lossless at coded resolution.
+   * */
+  bool coded_lossless;
+  /*!
+   * If true, frame is fully lossless at upscaled resolution.
+   */
+  bool all_lossless;
+  /*!
+   * If true, the frame is restricted to a reduced subset of the full set of
+   * transform types.
+   */
   bool reduced_tx_set_used;
+  /*!
+   * If true, error resilient mode is enabled.
+   * Note: Error resilient mode allows the syntax of a frame to be parsed
+   * independently of previously decoded frames.
+   */
   bool error_resilient_mode;
+  /*!
+   * If false, only MOTION_MODE that may be used is SIMPLE_TRANSLATION;
+   * if true, all MOTION_MODES may be used.
+   */
   bool switchable_motion_mode;
-  TX_MODE tx_mode;
-  InterpFilter interp_filter;
+  TX_MODE tx_mode;            /*!< Transform mode at frame level. */
+  InterpFilter interp_filter; /*!< Interpolation filter at frame level. */
+  /*!
+   * The reference frame that contains the CDF values and other state that
+   * should be loaded at the start of the frame.
+   */
   int primary_ref_frame;
+  /*!
+   * Byte alignment of the planes in the reference buffers.
+   */
   int byte_alignment;
-  // Flag signaling how frame contexts should be updated at the end of
-  // a frame decode
+  /*!
+   * Flag signaling how frame contexts should be updated at the end of
+   * a frame decode.
+   */
   REFRESH_FRAME_CONTEXT_MODE refresh_frame_context;
 } FeatureFlags;
 
-// Struct containing params related to tiles.
+/*!
+ * \brief Params related to tiles.
+ */
 typedef struct CommonTileParams {
-  int cols;           // number of tile columns that frame is divided into
-  int rows;           // number of tile rows that frame is divided into
-  int max_width_sb;   // maximum tile width in superblock units.
-  int max_height_sb;  // maximum tile height in superblock units.
-  // Min width of non-rightmost tile in MI units. Only valid if cols > 1.
+  int cols;          /*!< number of tile columns that frame is divided into */
+  int rows;          /*!< number of tile rows that frame is divided into */
+  int max_width_sb;  /*!< maximum tile width in superblock units. */
+  int max_height_sb; /*!< maximum tile height in superblock units. */
+
+  /*!
+   * Min width of non-rightmost tile in MI units. Only valid if cols > 1.
+   */
   int min_inner_width;
 
-  // If true, tiles are uniformly spaced with power-of-two number of rows and
-  // columns.
-  // If false, tiles have explicitly configured widths and heights.
+  /*!
+   * If true, tiles are uniformly spaced with power-of-two number of rows and
+   * columns.
+   * If false, tiles have explicitly configured widths and heights.
+   */
   int uniform_spacing;
 
-  // Following members are only valid when uniform_spacing == 1
-  int log2_cols;  // log2 of 'cols'.
-  int log2_rows;  // log2 of 'rows'.
-  int width;      // tile width in MI units
-  int height;     // tile height in MI units
-  // End of members that are only valid when uniform_spacing == 1
+  /**
+   * \name Members only valid when uniform_spacing == 1
+   */
+  /**@{*/
+  int log2_cols; /*!< log2 of 'cols'. */
+  int log2_rows; /*!< log2 of 'rows'. */
+  int width;     /*!< tile width in MI units */
+  int height;    /*!< tile height in MI units */
+  /**@}*/
 
-  // Min num of tile columns possible based on 'max_width_sb' and frame width.
+  /*!
+   * Min num of tile columns possible based on 'max_width_sb' and frame width.
+   */
   int min_log2_cols;
-  // Min num of tile rows possible based on 'max_height_sb' and frame height.
+  /*!
+   * Min num of tile rows possible based on 'max_height_sb' and frame height.
+   */
   int min_log2_rows;
-  // Min num of tile columns possible based on frame width.
+  /*!
+   * Min num of tile columns possible based on frame width.
+   */
   int max_log2_cols;
-  // Max num of tile columns possible based on frame width.
+  /*!
+   * Max num of tile columns possible based on frame width.
+   */
   int max_log2_rows;
-  // log2 of min number of tiles (same as min_log2_cols + min_log2_rows).
+  /*!
+   * log2 of min number of tiles (same as min_log2_cols + min_log2_rows).
+   */
   int min_log2;
-  // col_start_sb[i] is the start position of tile column i in superblock units.
-  // valid for 0 <= i <= cols
+  /*!
+   * col_start_sb[i] is the start position of tile column i in superblock units.
+   * valid for 0 <= i <= cols
+   */
   int col_start_sb[MAX_TILE_COLS + 1];
-  // row_start_sb[i] is the start position of tile row i in superblock units.
-  // valid for 0 <= i <= rows
+  /*!
+   * row_start_sb[i] is the start position of tile row i in superblock units.
+   * valid for 0 <= i <= rows
+   */
   int row_start_sb[MAX_TILE_ROWS + 1];
-  // If true, we are using large scale tile mode.
+  /*!
+   * If true, we are using large scale tile mode.
+   */
   unsigned int large_scale;
-  // Only relevant when large_scale == 1.
-  // If true, the independent decoding of a single tile or a section of a frame
-  // is allowed.
+  /*!
+   * Only relevant when large_scale == 1.
+   * If true, the independent decoding of a single tile or a section of a frame
+   * is allowed.
+   */
   unsigned int single_tile_decoding;
 } CommonTileParams;
 
-// Struct containing params related to MB_MODE_INFO arrays and related info.
 typedef struct CommonModeInfoParams CommonModeInfoParams;
+/*!
+ * \brief Params related to MB_MODE_INFO arrays and related info.
+ */
 struct CommonModeInfoParams {
-  // Number of rows/cols in the frame in 16 pixel units.
-  // This is computed from frame width and height aligned to a multiple of 8.
+  /*!
+   * Number of rows in the frame in 16 pixel units.
+   * This is computed from frame height aligned to a multiple of 8.
+   */
   int mb_rows;
+  /*!
+   * Number of cols in the frame in 16 pixel units.
+   * This is computed from frame width aligned to a multiple of 8.
+   */
   int mb_cols;
-  // Total MBs = mb_rows * mb_cols.
+
+  /*!
+   * Total MBs = mb_rows * mb_cols.
+   */
   int MBs;
 
-  // Number of rows/cols in the frame in 4 pixel (MB_MODE_INFO) units.
-  // This is computed from frame width and height aligned to a multiple of 8.
+  /*!
+   * Number of rows in the frame in 4 pixel (MB_MODE_INFO) units.
+   * This is computed from frame height aligned to a multiple of 8.
+   */
   int mi_rows;
+  /*!
+   * Number of cols in the frame in 4 pixel (MB_MODE_INFO) units.
+   * This is computed from frame width aligned to a multiple of 8.
+   */
   int mi_cols;
 
-  // An array of MB_MODE_INFO structs for every 'mi_alloc_bsize' sized block
-  // in the frame.
-  // Note: This array should be treated like a scratch memory, and should NOT be
-  // accessed directly, in most cases. Please use 'mi_grid_base' array instead.
+  /*!
+   * An array of MB_MODE_INFO structs for every 'mi_alloc_bsize' sized block
+   * in the frame.
+   * Note: This array should be treated like a scratch memory, and should NOT be
+   * accessed directly, in most cases. Please use 'mi_grid_base' array instead.
+   */
   MB_MODE_INFO *mi_alloc;
-  // Number of allocated elements in 'mi_alloc'.
+  /*!
+   * Number of allocated elements in 'mi_alloc'.
+   */
   int mi_alloc_size;
-  // Stride for 'mi_alloc' array.
+  /*!
+   * Stride for 'mi_alloc' array.
+   */
   int mi_alloc_stride;
-  // The minimum block size that each element in 'mi_alloc' can correspond to.
-  // For decoder, this is always BLOCK_4X4.
-  // For encoder, this is currently set to BLOCK_4X4 for resolution < 4k,
-  // and BLOCK_8X8 for resolution >= 4k.
+  /*!
+   * The minimum block size that each element in 'mi_alloc' can correspond to.
+   * For decoder, this is always BLOCK_4X4.
+   * For encoder, this is currently set to BLOCK_4X4 for resolution < 4k,
+   * and BLOCK_8X8 for resolution >= 4k.
+   */
   BLOCK_SIZE mi_alloc_bsize;
 
-  // Grid of pointers to 4x4 MB_MODE_INFO structs allocated in 'mi_alloc'.
-  // It's possible that:
-  // - Multiple pointers in the grid point to the same element in 'mi_alloc'
-  // (for example, for all 4x4 blocks that belong to the same partition block).
-  // - Some pointers can be NULL (for example, for blocks outside visible area).
+  /*!
+   * Grid of pointers to 4x4 MB_MODE_INFO structs allocated in 'mi_alloc'.
+   * It's possible that:
+   * - Multiple pointers in the grid point to the same element in 'mi_alloc'
+   * (for example, for all 4x4 blocks that belong to the same partition block).
+   * - Some pointers can be NULL (for example, for blocks outside visible area).
+   */
   MB_MODE_INFO **mi_grid_base;
-  // Number of allocated elements in 'mi_grid_base' (and 'tx_type_map' also).
+  /*!
+   * Number of allocated elements in 'mi_grid_base' (and 'tx_type_map' also).
+   */
   int mi_grid_size;
-  // Stride for 'mi_grid_base' (and 'tx_type_map' also).
+  /*!
+   * Stride for 'mi_grid_base' (and 'tx_type_map' also).
+   */
   int mi_stride;
 
-  // An array of tx types for each 4x4 block in the frame.
-  // Number of allocated elements is same as 'mi_grid_size', and stride is
-  // same as 'mi_grid_size'. So, indexing into 'tx_type_map' is same as that of
-  // 'mi_grid_base'.
+  /*!
+   * An array of tx types for each 4x4 block in the frame.
+   * Number of allocated elements is same as 'mi_grid_size', and stride is
+   * same as 'mi_grid_size'. So, indexing into 'tx_type_map' is same as that of
+   * 'mi_grid_base'.
+   */
   TX_TYPE *tx_type_map;
 
-  // Function pointers to allow separate logic for encoder and decoder.
+  /**
+   * \name Function pointers to allow separate logic for encoder and decoder.
+   */
+  /**@{*/
+  /*!
+   * Free the memory allocated to arrays in 'mi_params'.
+   * \param[in,out]   mi_params   object containing common mode info parameters
+   */
   void (*free_mi)(struct CommonModeInfoParams *mi_params);
+  /*!
+   * Initialize / reset appropriate arrays in 'mi_params'.
+   * \param[in,out]   mi_params   object containing common mode info parameters
+   */
   void (*setup_mi)(struct CommonModeInfoParams *mi_params);
+  /*!
+   * Allocate required memory for arrays in 'mi_params'.
+   * \param[in,out]   mi_params   object containing common mode info parameters
+   * \param           width       frame width
+   * \param           height      frame height
+   */
   void (*set_mb_mi)(struct CommonModeInfoParams *mi_params, int width,
                     int height);
+  /**@}*/
 };
+
+/*!\cond */
 
 // Parameters related to quantization at the frame level.
 typedef struct CommonQuantParams CommonQuantParams;
@@ -1549,6 +1679,8 @@ static INLINE int is_valid_seq_level_idx(AV1_LEVEL seq_level_idx) {
           seq_level_idx != SEQ_LEVEL_7_0 && seq_level_idx != SEQ_LEVEL_7_1 &&
           seq_level_idx != SEQ_LEVEL_7_2 && seq_level_idx != SEQ_LEVEL_7_3);
 }
+
+/*!\endcond */
 
 #ifdef __cplusplus
 }  // extern "C"
