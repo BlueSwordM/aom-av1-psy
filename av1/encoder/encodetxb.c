@@ -2016,13 +2016,13 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
   const TX_TYPE tx_type = av1_get_tx_type(xd, PLANE_TYPE_Y, blk_row, blk_col,
                                           tx_size, reduced_tx_set_used);
   if (is_inter) {
-    if (cpi->oxcf.use_inter_dct_only) {
+    if (cpi->oxcf.txfm_cfg.use_inter_dct_only) {
       assert(tx_type == DCT_DCT);
     }
   } else {
-    if (cpi->oxcf.use_intra_dct_only) {
+    if (cpi->oxcf.txfm_cfg.use_intra_dct_only) {
       assert(tx_type == DCT_DCT);
-    } else if (cpi->oxcf.use_intra_default_tx_only) {
+    } else if (cpi->oxcf.txfm_cfg.use_intra_default_tx_only) {
       const TX_TYPE default_type = get_default_tx_type(
           PLANE_TYPE_Y, xd, tx_size, cpi->is_screen_content_type);
       (void)default_type;

@@ -1959,12 +1959,13 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
           : av1_ext_tx_used_flag[tx_set_type];
   if (xd->lossless[mbmi->segment_id] || txsize_sqr_up_map[tx_size] > TX_32X32 ||
       ext_tx_used_flag == 0x0001 ||
-      (is_inter && cpi->oxcf.use_inter_dct_only) ||
-      (!is_inter && cpi->oxcf.use_intra_dct_only)) {
+      (is_inter && cpi->oxcf.txfm_cfg.use_inter_dct_only) ||
+      (!is_inter && cpi->oxcf.txfm_cfg.use_intra_dct_only)) {
     txk_allowed = DCT_DCT;
   }
 
-  if (cpi->oxcf.enable_flip_idtx == 0) ext_tx_used_flag &= DCT_ADST_TX_MASK;
+  if (cpi->oxcf.txfm_cfg.enable_flip_idtx == 0)
+    ext_tx_used_flag &= DCT_ADST_TX_MASK;
 
   uint16_t allowed_tx_mask = 0;  // 1: allow; 0: skip.
   if (txk_allowed < TX_TYPES) {
@@ -2650,7 +2651,7 @@ static AOM_INLINE void select_tx_block(
   struct macroblock_plane *const p = &x->plane[0];
 
   const int try_no_split =
-      cpi->oxcf.enable_tx64 || txsize_sqr_up_map[tx_size] != TX_64X64;
+      cpi->oxcf.txfm_cfg.enable_tx64 || txsize_sqr_up_map[tx_size] != TX_64X64;
   int try_split = tx_size > TX_4X4 && depth < MAX_VARTX_DEPTH;
   TxCandidateInfo no_split = { INT64_MAX, 0, TX_TYPES };
 
@@ -2732,7 +2733,7 @@ static AOM_INLINE void choose_largest_tx_size(const AV1_COMP *const cpi,
   mbmi->tx_size = tx_size_from_tx_mode(bs, txfm_params->tx_mode_search_type);
 
   // If tx64 is not enabled, we need to go down to the next available size
-  if (!cpi->oxcf.enable_tx64) {
+  if (!cpi->oxcf.txfm_cfg.enable_tx64) {
     static const TX_SIZE tx_size_max_32[TX_SIZES_ALL] = {
       TX_4X4,    // 4x4 transform
       TX_8X8,    // 8x8 transform
@@ -2829,7 +2830,8 @@ static AOM_INLINE void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
   for (int tx_size = start_tx, depth = init_depth; depth <= MAX_TX_DEPTH;
        depth++, tx_size = sub_tx_size_map[tx_size]) {
-    if (!cpi->oxcf.enable_tx64 && txsize_sqr_up_map[tx_size] == TX_64X64) {
+    if (!cpi->oxcf.txfm_cfg.enable_tx64 &&
+        txsize_sqr_up_map[tx_size] == TX_64X64) {
       continue;
     }
 
@@ -3517,7 +3519,8 @@ void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
                           FAST_TX_SEARCH_MODE ftxs_mode, int skip_trellis) {
   assert(IMPLIES(plane == 0, x->e_mbd.mi[0]->tx_size == tx_size));
 
-  if (!cpi->oxcf.enable_tx64 && txsize_sqr_up_map[tx_size] == TX_64X64) {
+  if (!cpi->oxcf.txfm_cfg.enable_tx64 &&
+      txsize_sqr_up_map[tx_size] == TX_64X64) {
     av1_invalid_rd_stats(rd_stats);
     return;
   }

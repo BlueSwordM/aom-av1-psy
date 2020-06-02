@@ -710,6 +710,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   IntraModeCfg *const intra_mode_cfg = &oxcf->intra_mode_cfg;
 
+  TxfmSizeTypeCfg *const txfm_cfg = &oxcf->txfm_cfg;
+
   const int is_vbr = cfg->rc_end_usage == AOM_VBR;
   oxcf->profile = cfg->g_profile;
   oxcf->fwd_kf_enabled = cfg->fwd_kf_enabled;
@@ -797,10 +799,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->qm_v = extra_cfg->qm_v;
   oxcf->qm_minlevel = extra_cfg->qm_min;
   oxcf->qm_maxlevel = extra_cfg->qm_max;
-  oxcf->reduced_tx_type_set = extra_cfg->reduced_tx_type_set;
-  oxcf->use_intra_dct_only = extra_cfg->use_intra_dct_only;
-  oxcf->use_inter_dct_only = extra_cfg->use_inter_dct_only;
-  oxcf->use_intra_default_tx_only = extra_cfg->use_intra_default_tx_only;
   oxcf->quant_b_adapt = extra_cfg->quant_b_adapt;
   oxcf->coeff_cost_upd_freq = (COST_UPDATE_TYPE)extra_cfg->coeff_cost_upd_freq;
   oxcf->mode_cost_upd_freq = (COST_UPDATE_TYPE)extra_cfg->mode_cost_upd_freq;
@@ -930,8 +928,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->enable_1to4_partitions = extra_cfg->enable_1to4_partitions;
   oxcf->min_partition_size = extra_cfg->min_partition_size;
   oxcf->max_partition_size = extra_cfg->max_partition_size;
-  oxcf->enable_tx64 = extra_cfg->enable_tx64;
-  oxcf->enable_flip_idtx = extra_cfg->enable_flip_idtx;
   oxcf->enable_order_hint = extra_cfg->enable_order_hint;
   oxcf->enable_dist_wtd_comp =
       extra_cfg->enable_dist_wtd_comp & extra_cfg->enable_order_hint;
@@ -966,6 +962,14 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   intra_mode_cfg->enable_smooth_intra = extra_cfg->enable_smooth_intra;
   intra_mode_cfg->enable_paeth_intra = extra_cfg->enable_paeth_intra;
   intra_mode_cfg->enable_cfl_intra = extra_cfg->enable_cfl_intra;
+
+  // Set transform size/type configuration.
+  txfm_cfg->enable_tx64 = extra_cfg->enable_tx64;
+  txfm_cfg->enable_flip_idtx = extra_cfg->enable_flip_idtx;
+  txfm_cfg->reduced_tx_type_set = extra_cfg->reduced_tx_type_set;
+  txfm_cfg->use_intra_dct_only = extra_cfg->use_intra_dct_only;
+  txfm_cfg->use_inter_dct_only = extra_cfg->use_inter_dct_only;
+  txfm_cfg->use_intra_default_tx_only = extra_cfg->use_intra_default_tx_only;
 
   oxcf->enable_superres =
       (oxcf->superres_mode != AOM_SUPERRES_NONE) && extra_cfg->enable_superres;

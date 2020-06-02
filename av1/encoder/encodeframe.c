@@ -5722,6 +5722,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   IntraBCHashInfo *const intrabc_hash_info = &x->intrabc_hash_info;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   AV1EncRowMultiThreadInfo *const enc_row_mt = &mt_info->enc_row_mt;
+  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   int i;
 
   if (!cpi->sf.rt_sf.use_nonrd_pick_mode) {
@@ -5743,7 +5744,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     features->allow_intrabc = 0;
   }
 
-  features->allow_intrabc &= (cpi->oxcf.enable_intrabc);
+  features->allow_intrabc &= (oxcf->enable_intrabc);
 
   if (features->allow_warped_motion &&
       cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
@@ -5833,21 +5834,20 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
   // Fix delta q resolution for the moment
   cm->delta_q_info.delta_q_res = 0;
-  if (cpi->oxcf.deltaq_mode == DELTA_Q_OBJECTIVE)
+  if (oxcf->deltaq_mode == DELTA_Q_OBJECTIVE)
     cm->delta_q_info.delta_q_res = DEFAULT_DELTA_Q_RES_OBJECTIVE;
-  else if (cpi->oxcf.deltaq_mode == DELTA_Q_PERCEPTUAL)
+  else if (oxcf->deltaq_mode == DELTA_Q_PERCEPTUAL)
     cm->delta_q_info.delta_q_res = DEFAULT_DELTA_Q_RES_PERCEPTUAL;
   // Set delta_q_present_flag before it is used for the first time
   cm->delta_q_info.delta_lf_res = DEFAULT_DELTA_LF_RES;
-  cm->delta_q_info.delta_q_present_flag = cpi->oxcf.deltaq_mode != NO_DELTA_Q;
+  cm->delta_q_info.delta_q_present_flag = oxcf->deltaq_mode != NO_DELTA_Q;
 
   // Turn off cm->delta_q_info.delta_q_present_flag if objective delta_q is used
   // for ineligible frames. That effectively will turn off row_mt usage.
   // Note objective delta_q and tpl eligible frames are only altref frames
   // currently.
   if (cm->delta_q_info.delta_q_present_flag) {
-    if (cpi->oxcf.deltaq_mode == DELTA_Q_OBJECTIVE &&
-        !is_frame_tpl_eligible(cpi))
+    if (oxcf->deltaq_mode == DELTA_Q_OBJECTIVE && !is_frame_tpl_eligible(cpi))
       cm->delta_q_info.delta_q_present_flag = 0;
   }
 
@@ -5855,7 +5855,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   cpi->deltaq_used = 0;
 
   cm->delta_q_info.delta_lf_present_flag =
-      cm->delta_q_info.delta_q_present_flag && cpi->oxcf.deltalf_mode;
+      cm->delta_q_info.delta_q_present_flag && oxcf->deltalf_mode;
   cm->delta_q_info.delta_lf_multi = DEFAULT_DELTA_LF_MULTI;
 
   // update delta_q_present_flag and delta_lf_present_flag based on
@@ -5918,13 +5918,13 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   enc_row_mt->sync_write_ptr = av1_row_mt_sync_write_dummy;
   mt_info->row_mt_enabled = 0;
 
-  if (cpi->oxcf.row_mt && (cpi->oxcf.max_threads > 1)) {
+  if (oxcf->row_mt && (oxcf->max_threads > 1)) {
     mt_info->row_mt_enabled = 1;
     enc_row_mt->sync_read_ptr = av1_row_mt_sync_read;
     enc_row_mt->sync_write_ptr = av1_row_mt_sync_write;
     av1_encode_tiles_row_mt(cpi);
   } else {
-    if (AOMMIN(cpi->oxcf.max_threads, cm->tiles.cols * cm->tiles.rows) > 1)
+    if (AOMMIN(oxcf->max_threads, cm->tiles.cols * cm->tiles.rows) > 1)
       av1_encode_tiles_mt(cpi);
     else
       encode_tiles(cpi);
@@ -5949,7 +5949,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
           : DEFAULT_EVAL;
   const TX_SIZE_SEARCH_METHOD tx_search_type =
       cpi->winner_mode_params.tx_size_search_methods[eval_type];
-  assert(cpi->oxcf.enable_tx64 || tx_search_type != USE_LARGESTALL);
+  assert(oxcf->txfm_cfg.enable_tx64 || tx_search_type != USE_LARGESTALL);
   features->tx_mode = select_tx_mode(cm, tx_search_type);
 
   if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats) {
@@ -6043,7 +6043,7 @@ void av1_encode_frame(AV1_COMP *cpi) {
   const int num_planes = av1_num_planes(cm);
   // Indicates whether or not to use a default reduced set for ext-tx
   // rather than the potential full set of 16 transforms
-  features->reduced_tx_set_used = cpi->oxcf.reduced_tx_type_set;
+  features->reduced_tx_set_used = cpi->oxcf.txfm_cfg.reduced_tx_type_set;
 
   // Make sure segment_id is no larger than last_active_segid.
   if (cm->seg.enabled && cm->seg.update_map) {

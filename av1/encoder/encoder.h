@@ -271,6 +271,25 @@ typedef struct {
   bool enable_angle_delta;
 } IntraModeCfg;
 
+typedef struct {
+  // Flag to indicate if 64-pt transform should be enabled.
+  bool enable_tx64;
+  // Flag to indicate if flip and identity transform types should be enabled.
+  bool enable_flip_idtx;
+  // Flag to indicate whether or not to use a default reduced set for ext-tx
+  // rather than the potential full set of 16 transforms.
+  bool reduced_tx_type_set;
+  // Flag to indicate if transform type for intra blocks should be limited to
+  // DCT_DCT.
+  bool use_intra_dct_only;
+  // Flag to indicate if transform type for inter blocks should be limited to
+  // DCT_DCT.
+  bool use_inter_dct_only;
+  // Flag to indicate if intra blocks should use default transform type
+  // (mode-dependent) only.
+  bool use_intra_default_tx_only;
+} TxfmSizeTypeCfg;
+
 typedef struct AV1EncoderConfig {
   BITSTREAM_PROFILE profile;
   aom_bit_depth_t bit_depth;     // Codec bit-depth.
@@ -446,8 +465,6 @@ typedef struct AV1EncoderConfig {
   int enable_1to4_partitions;
   int min_partition_size;
   int max_partition_size;
-  int enable_tx64;
-  int enable_flip_idtx;
   int enable_order_hint;
   int enable_dist_wtd_comp;
   int enable_ref_frame_mvs;
@@ -473,6 +490,9 @@ typedef struct AV1EncoderConfig {
   // Flags related to intra mode search.
   IntraModeCfg intra_mode_cfg;
 
+  // Flags related to transform size/type.
+  TxfmSizeTypeCfg txfm_cfg;
+
 #if CONFIG_DENOISE
   float noise_level;
   int noise_block_size;
@@ -480,10 +500,6 @@ typedef struct AV1EncoderConfig {
 
   unsigned int chroma_subsampling_x;
   unsigned int chroma_subsampling_y;
-  int reduced_tx_type_set;
-  int use_intra_dct_only;
-  int use_inter_dct_only;
-  int use_intra_default_tx_only;
   int quant_b_adapt;
   COST_UPDATE_TYPE coeff_cost_upd_freq;
   COST_UPDATE_TYPE mode_cost_upd_freq;

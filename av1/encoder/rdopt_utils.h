@@ -384,11 +384,12 @@ static INLINE int is_winner_mode_processing_enabled(
   if (is_inter_block(mbmi)) {
     if (is_inter_mode(best_mode) &&
         sf->tx_sf.tx_type_search.fast_inter_tx_type_search &&
-        !cpi->oxcf.use_inter_dct_only)
+        !cpi->oxcf.txfm_cfg.use_inter_dct_only)
       return 1;
   } else {
     if (sf->tx_sf.tx_type_search.fast_intra_tx_type_search &&
-        !cpi->oxcf.use_intra_default_tx_only && !cpi->oxcf.use_intra_dct_only)
+        !cpi->oxcf.txfm_cfg.use_intra_default_tx_only &&
+        !cpi->oxcf.txfm_cfg.use_intra_dct_only)
       return 1;
   }
 
@@ -492,7 +493,7 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
     case MODE_EVAL:
       txfm_params->use_default_intra_tx_type =
           (cpi->sf.tx_sf.tx_type_search.fast_intra_tx_type_search ||
-           cpi->oxcf.use_intra_default_tx_only);
+           cpi->oxcf.txfm_cfg.use_intra_default_tx_only);
       txfm_params->use_default_inter_tx_type =
           cpi->sf.tx_sf.tx_type_search.fast_inter_tx_type_search;
       txfm_params->skip_txfm_level =
