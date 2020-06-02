@@ -1444,7 +1444,8 @@ static int rc_pick_q_and_bounds_two_pass(const AV1_COMP *cpi, int width,
     //  Active best quality limited by previous layer.
     const int pyramid_level = gf_group_pyramid_level(gf_group, gf_index);
 
-    if ((pyramid_level <= 1) || (pyramid_level > MAX_ARF_LAYERS)) {
+    if ((pyramid_level <= 1) || (pyramid_level > MAX_ARF_LAYERS) ||
+        (oxcf->rc_mode == AOM_Q)) {
       active_best_quality = get_active_best_quality(cpi, active_worst_quality,
                                                     cq_level, gf_index);
     } else {
