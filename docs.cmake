@@ -112,7 +112,8 @@ if(CONFIG_AV1_ENCODER)
                           "${AOM_ROOT}/av1/encoder/encoder.c"
                           "${AOM_ROOT}/av1/encoder/lookahead.h"
                           "${AOM_ROOT}/av1/encoder/encode_strategy.h"
-                          "${AOM_ROOT}/av1/encoder/encode_strategy.c")
+                          "${AOM_ROOT}/av1/encoder/encode_strategy.c"
+                          "${AOM_ROOT}/av1/encoder/picklpf.h")
 endif()
 
 if(CONFIG_AV1_DECODER AND CONFIG_AV1_ENCODER)
