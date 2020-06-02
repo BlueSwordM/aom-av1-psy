@@ -1092,13 +1092,14 @@ void av1_ml_prune_ab_partition(BLOCK_SIZE bsize, int part_ctx, int var_ctx,
 // Use a ML model to predict if horz4 and vert4 should be considered.
 void av1_ml_prune_4_partition(const AV1_COMP *const cpi, MACROBLOCK *const x,
                               BLOCK_SIZE bsize, int part_ctx, int64_t best_rd,
-                              int64_t horz_rd[2], int64_t vert_rd[2],
-                              int64_t split_rd[4],
+                              int64_t rect_part_rd[2][2], int64_t split_rd[4],
                               int *const partition_horz4_allowed,
                               int *const partition_vert4_allowed,
                               unsigned int pb_source_variance, int mi_row,
                               int mi_col) {
   if (best_rd >= 1000000000) return;
+  int64_t *horz_rd = rect_part_rd[0];
+  int64_t *vert_rd = rect_part_rd[1];
   const NN_CONFIG *nn_config = NULL;
   switch (bsize) {
     case BLOCK_16X16: nn_config = &av1_4_partition_nnconfig_16; break;
@@ -1427,11 +1428,13 @@ int evaluate_ab_partition_based_on_split(
 void av1_prune_ab_partitions(
     const AV1_COMP *cpi, const MACROBLOCK *x, const PC_TREE *pc_tree,
     BLOCK_SIZE bsize, int pb_source_variance, int64_t best_rdcost,
-    int64_t horz_rd[2], int64_t vert_rd[2], int64_t split_rd[4],
+    int64_t rect_part_rd[2][2], int64_t split_rd[4],
     const RD_RECT_PART_WIN_INFO *rect_part_win_info, int ext_partition_allowed,
     int partition_horz_allowed, int partition_vert_allowed,
     int *horza_partition_allowed, int *horzb_partition_allowed,
     int *verta_partition_allowed, int *vertb_partition_allowed) {
+  int64_t *horz_rd = rect_part_rd[0];
+  int64_t *vert_rd = rect_part_rd[1];
   // The standard AB partitions are allowed initially if ext-partition-types are
   // allowed.
   int horzab_partition_allowed =
