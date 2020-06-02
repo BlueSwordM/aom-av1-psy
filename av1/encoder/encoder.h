@@ -290,6 +290,22 @@ typedef struct {
   bool use_intra_default_tx_only;
 } TxfmSizeTypeCfg;
 
+typedef struct {
+  // Flag to indicate if distance-weighted compound type should be enabled.
+  bool enable_dist_wtd_comp;
+  // Flag to indicate if masked (wedge/diff-wtd) compound type should be
+  // enabled.
+  bool enable_masked_comp;
+  // Flag to indicate if smooth interintra mode should be enabled.
+  bool enable_smooth_interintra;
+  // Flag to indicate if difference-weighted compound type should be enabled.
+  bool enable_diff_wtd_comp;
+  // Flag to indicate if inter-inter wedge compound type should be enabled.
+  bool enable_interinter_wedge;
+  // Flag to indicate if inter-intra wedge compound type should be enabled.
+  bool enable_interintra_wedge;
+} CompoundTypeCfg;
+
 typedef struct AV1EncoderConfig {
   BITSTREAM_PROFILE profile;
   aom_bit_depth_t bit_depth;     // Codec bit-depth.
@@ -466,18 +482,12 @@ typedef struct AV1EncoderConfig {
   int min_partition_size;
   int max_partition_size;
   int enable_order_hint;
-  int enable_dist_wtd_comp;
   int enable_ref_frame_mvs;
   unsigned int max_reference_frames;
   int enable_reduced_reference_set;
   unsigned int allow_ref_frame_mvs;
-  int enable_masked_comp;
   int enable_onesided_comp;
   int enable_interintra_comp;
-  int enable_smooth_interintra;
-  int enable_diff_wtd_comp;
-  int enable_interinter_wedge;
-  int enable_interintra_wedge;
   int enable_global_motion;
   int enable_warped_motion;
   int allow_warped_motion;
@@ -492,6 +502,9 @@ typedef struct AV1EncoderConfig {
 
   // Flags related to transform size/type.
   TxfmSizeTypeCfg txfm_cfg;
+
+  // Flags related to compound type.
+  CompoundTypeCfg comp_type_cfg;
 
 #if CONFIG_DENOISE
   float noise_level;

@@ -478,7 +478,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.selective_ref_frame = 4;
     sf->inter_sf.skip_repeated_ref_mv = 1;
     sf->inter_sf.skip_repeated_full_newmv = 1;
-    if (cpi->oxcf.enable_smooth_interintra)
+    if (cpi->oxcf.comp_type_cfg.enable_smooth_interintra)
       sf->inter_sf.disable_smooth_interintra = boosted ? 0 : 1;
     sf->inter_sf.reuse_compound_type_decision = 1;
     sf->inter_sf.txfm_rd_gate_level = (boosted || allow_screen_content_tools)

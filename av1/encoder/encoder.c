@@ -1334,7 +1334,8 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->delta_frame_id_length = DELTA_FRAME_ID_LENGTH;
 
   seq->enable_dual_filter = oxcf->enable_dual_filter;
-  seq->order_hint_info.enable_dist_wtd_comp = oxcf->enable_dist_wtd_comp;
+  seq->order_hint_info.enable_dist_wtd_comp =
+      oxcf->comp_type_cfg.enable_dist_wtd_comp;
   seq->order_hint_info.enable_dist_wtd_comp &=
       seq->order_hint_info.enable_order_hint;
   seq->order_hint_info.enable_ref_frame_mvs = oxcf->enable_ref_frame_mvs;
@@ -1345,7 +1346,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_restoration = oxcf->enable_restoration;
   seq->enable_warped_motion = oxcf->enable_warped_motion;
   seq->enable_interintra_compound = oxcf->enable_interintra_comp;
-  seq->enable_masked_compound = oxcf->enable_masked_comp;
+  seq->enable_masked_compound = oxcf->comp_type_cfg.enable_masked_comp;
   seq->enable_intra_edge_filter = oxcf->intra_mode_cfg.enable_intra_edge_filter;
   seq->enable_filter_intra = oxcf->intra_mode_cfg.enable_filter_intra;
 

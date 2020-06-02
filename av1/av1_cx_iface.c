@@ -712,6 +712,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   TxfmSizeTypeCfg *const txfm_cfg = &oxcf->txfm_cfg;
 
+  CompoundTypeCfg *const comp_type_cfg = &oxcf->comp_type_cfg;
+
   const int is_vbr = cfg->rc_end_usage == AOM_VBR;
   oxcf->profile = cfg->g_profile;
   oxcf->fwd_kf_enabled = cfg->fwd_kf_enabled;
@@ -929,21 +931,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->min_partition_size = extra_cfg->min_partition_size;
   oxcf->max_partition_size = extra_cfg->max_partition_size;
   oxcf->enable_order_hint = extra_cfg->enable_order_hint;
-  oxcf->enable_dist_wtd_comp =
-      extra_cfg->enable_dist_wtd_comp & extra_cfg->enable_order_hint;
   oxcf->max_reference_frames = extra_cfg->max_reference_frames;
   oxcf->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
-  oxcf->enable_masked_comp = extra_cfg->enable_masked_comp;
   oxcf->enable_onesided_comp = extra_cfg->enable_onesided_comp;
-  oxcf->enable_diff_wtd_comp =
-      extra_cfg->enable_masked_comp & extra_cfg->enable_diff_wtd_comp;
-  oxcf->enable_interinter_wedge =
-      extra_cfg->enable_masked_comp & extra_cfg->enable_interinter_wedge;
   oxcf->enable_interintra_comp = extra_cfg->enable_interintra_comp;
-  oxcf->enable_smooth_interintra =
-      extra_cfg->enable_interintra_comp && extra_cfg->enable_smooth_interintra;
-  oxcf->enable_interintra_wedge =
-      extra_cfg->enable_interintra_comp & extra_cfg->enable_interintra_wedge;
   oxcf->enable_ref_frame_mvs =
       extra_cfg->enable_ref_frame_mvs & extra_cfg->enable_order_hint;
 
@@ -970,6 +961,19 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   txfm_cfg->use_intra_dct_only = extra_cfg->use_intra_dct_only;
   txfm_cfg->use_inter_dct_only = extra_cfg->use_inter_dct_only;
   txfm_cfg->use_intra_default_tx_only = extra_cfg->use_intra_default_tx_only;
+
+  // Set compound type configuration.
+  comp_type_cfg->enable_dist_wtd_comp =
+      extra_cfg->enable_dist_wtd_comp & extra_cfg->enable_order_hint;
+  comp_type_cfg->enable_masked_comp = extra_cfg->enable_masked_comp;
+  comp_type_cfg->enable_diff_wtd_comp =
+      extra_cfg->enable_masked_comp & extra_cfg->enable_diff_wtd_comp;
+  comp_type_cfg->enable_interinter_wedge =
+      extra_cfg->enable_masked_comp & extra_cfg->enable_interinter_wedge;
+  comp_type_cfg->enable_smooth_interintra =
+      extra_cfg->enable_interintra_comp && extra_cfg->enable_smooth_interintra;
+  comp_type_cfg->enable_interintra_wedge =
+      extra_cfg->enable_interintra_comp & extra_cfg->enable_interintra_wedge;
 
   oxcf->enable_superres =
       (oxcf->superres_mode != AOM_SUPERRES_NONE) && extra_cfg->enable_superres;

@@ -107,13 +107,15 @@ static INLINE bool enable_wedge_search(MACROBLOCK *const x,
 
 static INLINE bool enable_wedge_interinter_search(MACROBLOCK *const x,
                                                   const AV1_COMP *const cpi) {
-  return enable_wedge_search(x, cpi) && cpi->oxcf.enable_interinter_wedge &&
+  return enable_wedge_search(x, cpi) &&
+         cpi->oxcf.comp_type_cfg.enable_interinter_wedge &&
          !cpi->sf.inter_sf.disable_interinter_wedge;
 }
 
 static INLINE bool enable_wedge_interintra_search(MACROBLOCK *const x,
                                                   const AV1_COMP *const cpi) {
-  return enable_wedge_search(x, cpi) && cpi->oxcf.enable_interintra_wedge &&
+  return enable_wedge_search(x, cpi) &&
+         cpi->oxcf.comp_type_cfg.enable_interintra_wedge &&
          !cpi->sf.inter_sf.disable_wedge_interintra_search;
 }
 
@@ -548,8 +550,9 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                 HandleInterModeArgs *args, int64_t ref_best_rd,
                                 int *rate_mv, int *tmp_rate2,
                                 const BUFFER_SET *orig_dst) {
-  const int try_smooth_interintra = cpi->oxcf.enable_smooth_interintra &&
-                                    !cpi->sf.inter_sf.disable_smooth_interintra;
+  const int try_smooth_interintra =
+      cpi->oxcf.comp_type_cfg.enable_smooth_interintra &&
+      !cpi->sf.inter_sf.disable_smooth_interintra;
   const int is_wedge_used = av1_is_wedge_used(bsize);
   const int try_wedge_interintra =
       is_wedge_used && enable_wedge_interintra_search(x, cpi);
@@ -606,7 +609,7 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
       }
       args->inter_intra_mode[mbmi->ref_frame[0]] = best_interintra_mode;
     }
-    assert(IMPLIES(!cpi->oxcf.enable_smooth_interintra ||
+    assert(IMPLIES(!cpi->oxcf.comp_type_cfg.enable_smooth_interintra ||
                        cpi->sf.inter_sf.disable_smooth_interintra,
                    best_interintra_mode != II_SMOOTH_PRED));
     // Recompute prediction if required
@@ -825,7 +828,7 @@ static INLINE int compute_valid_comp_types(
     // enable_masked_type[0] corresponds to COMPOUND_WEDGE
     // enable_masked_type[1] corresponds to COMPOUND_DIFFWTD
     enable_masked_type[0] = enable_wedge_interinter_search(x, cpi);
-    enable_masked_type[1] = cpi->oxcf.enable_diff_wtd_comp;
+    enable_masked_type[1] = cpi->oxcf.comp_type_cfg.enable_diff_wtd_comp;
     for (comp_type = COMPOUND_WEDGE; comp_type <= COMPOUND_DIFFWTD;
          comp_type++) {
       if ((mode_search_mask & (1 << comp_type)) &&
