@@ -232,6 +232,10 @@ typedef struct SequenceHeader {
   int num_bits_height;
   int max_frame_width;
   int max_frame_height;
+  // Whether current and reference frame IDs are signaled in the bitstream.
+  // Frame id numbers are additional information that do not affect the
+  // decoding process, but provide decoders with a way of detecting missing
+  // reference frames so that appropriate action can be taken.
   uint8_t frame_id_numbers_present_flag;
   int frame_id_length;
   int delta_frame_id_length;
@@ -707,213 +711,320 @@ struct CommonContexts {
   int num_mi_cols;   /*!< Corresponds to cm->mi_params.mi_cols */
 };
 
-/*!\cond */
-
+/*!
+ * \brief Top level common structure used by both encoder and decoder.
+ */
 typedef struct AV1Common {
-  // Information about the current frame that is being coded.
+  /*!
+   * Information about the current frame that is being coded.
+   */
   CurrentFrame current_frame;
-  // Code and details about current error status.
+  /*!
+   * Code and details about current error status.
+   */
   struct aom_internal_error_info error;
 
-  // AV1 allows two types of frame scaling operations:
-  // (1) Frame super-resolution: that allows coding a frame at lower resolution
-  // and after decoding the frame, normatively uscales and restores the frame --
-  // inside the coding loop.
-  // (2) Frame resize: that allows coding frame at lower/higher resolution, and
-  // then non-normatively upscale the frame at the time of rendering -- outside
-  // the coding loop.
-  // Hence, the need for 3 types of dimensions.
+  /*!
+   * AV1 allows two types of frame scaling operations:
+   * 1. Frame super-resolution: that allows coding a frame at lower resolution
+   * and after decoding the frame, normatively uscales and restores the frame --
+   * inside the coding loop.
+   * 2. Frame resize: that allows coding frame at lower/higher resolution, and
+   * then non-normatively upscale the frame at the time of rendering -- outside
+   * the coding loop.
+   * Hence, the need for 3 types of dimensions.
+   */
 
-  // Coded frame dimensions.
-  int width;
-  int height;
+  /**
+   * \name Coded frame dimensions.
+   */
+  /**@{*/
+  int width;  /*!< Coded frame width */
+  int height; /*!< Coded frame height */
+  /**@}*/
 
-  // Rendered frame dimensions, after applying both super-resolution and resize
-  // to the coded frame.
-  // Different from coded dimensions if super-resolution and/or resize are
-  // being used for this frame.
-  int render_width;
-  int render_height;
+  /**
+   * \name Rendered frame dimensions.
+   * Dimensions after applying both super-resolution and resize to the coded
+   * frame. Different from coded dimensions if super-resolution and/or resize
+   * are being used for this frame.
+   */
+  /**@{*/
+  int render_width;  /*!< Rendered frame width */
+  int render_height; /*!< Rendered frame height */
+  /**@}*/
 
-  // Frame dimensions after applying super-resolution to the coded frame (if
-  // present), but before applying resize.
-  // Larger than the coded dimensions if super-resolution is being used for
-  // this frame.
-  // Different from rendered dimensions if resize is being used for this frame.
-  int superres_upscaled_width;
-  int superres_upscaled_height;
+  /**
+   * \name Super-resolved frame dimensions.
+   * Frame dimensions after applying super-resolution to the coded frame (if
+   * present), but before applying resize.
+   * Larger than the coded dimensions if super-resolution is being used for
+   * this frame.
+   * Different from rendered dimensions if resize is being used for this frame.
+   */
+  /**@{*/
+  int superres_upscaled_width;  /*!< Super-resolved frame width */
+  int superres_upscaled_height; /*!< Super-resolved frame height */
+  /**@}*/
 
-  // The denominator of the superres scale used by this frame.
-  // Note: The numerator is fixed to be SCALE_NUMERATOR.
+  /*!
+   * The denominator of the superres scale used by this frame.
+   * Note: The numerator is fixed to be SCALE_NUMERATOR.
+   */
   uint8_t superres_scale_denominator;
 
-  // If true, buffer removal times are present.
+  /*!
+   * If true, buffer removal times are present.
+   */
   bool buffer_removal_time_present;
-  // buffer_removal_times[op_num] specifies the frame removal time in units of
-  // DecCT clock ticks counted from the removal time of the last random access
-  // point for operating point op_num.
-  // TODO(urvang): We probably don't need the +1 here.
+  /*!
+   * buffer_removal_times[op_num] specifies the frame removal time in units of
+   * DecCT clock ticks counted from the removal time of the last random access
+   * point for operating point op_num.
+   * TODO(urvang): We probably don't need the +1 here.
+   */
   uint32_t buffer_removal_times[MAX_NUM_OPERATING_POINTS + 1];
-  // Presentation time of the frame in clock ticks DispCT counted from the
-  // removal time of the last random access point for the operating point that
-  // is being decoded.
+  /*!
+   * Presentation time of the frame in clock ticks DispCT counted from the
+   * removal time of the last random access point for the operating point that
+   * is being decoded.
+   */
   uint32_t frame_presentation_time;
 
-  // Buffer where previous frame is stored.
+  /*!
+   * Buffer where previous frame is stored.
+   */
   RefCntBuffer *prev_frame;
 
-  // Buffer into which the current frame will be stored and other related info.
-  // TODO(hkuang): Combine this with cur_buf in macroblockd.
+  /*!
+   * Buffer into which the current frame will be stored and other related info.
+   * TODO(hkuang): Combine this with cur_buf in macroblockd.
+   */
   RefCntBuffer *cur_frame;
 
-  // For encoder, we have a two-level mapping from reference frame type to the
-  // corresponding buffer in the buffer pool:
-  // * 'remapped_ref_idx[i - 1]' maps reference type 'i' (range: LAST_FRAME ...
-  // EXTREF_FRAME) to a remapped index 'j' (in range: 0 ... REF_FRAMES - 1)
-  // * Later, 'cm->ref_frame_map[j]' maps the remapped index 'j' to a pointer to
-  // the reference counted buffer structure RefCntBuffer, taken from the buffer
-  // pool cm->buffer_pool->frame_bufs.
-  //
-  // LAST_FRAME,                        ...,      EXTREF_FRAME
-  //      |                                           |
-  //      v                                           v
-  // remapped_ref_idx[LAST_FRAME - 1],  ...,  remapped_ref_idx[EXTREF_FRAME - 1]
-  //      |                                           |
-  //      v                                           v
-  // ref_frame_map[],                   ...,     ref_frame_map[]
-  //
-  // Note: INTRA_FRAME always refers to the current frame, so there's no need to
-  // have a remapped index for the same.
+  /*!
+   * For encoder, we have a two-level mapping from reference frame type to the
+   * corresponding buffer in the buffer pool:
+   * * 'remapped_ref_idx[i - 1]' maps reference type 'i' (range: LAST_FRAME ...
+   * EXTREF_FRAME) to a remapped index 'j' (in range: 0 ... REF_FRAMES - 1)
+   * * Later, 'cm->ref_frame_map[j]' maps the remapped index 'j' to a pointer to
+   * the reference counted buffer structure RefCntBuffer, taken from the buffer
+   * pool cm->buffer_pool->frame_bufs.
+   *
+   * LAST_FRAME,                        ...,      EXTREF_FRAME
+   *      |                                           |
+   *      v                                           v
+   * remapped_ref_idx[LAST_FRAME - 1],  ...,  remapped_ref_idx[EXTREF_FRAME - 1]
+   *      |                                           |
+   *      v                                           v
+   * ref_frame_map[],                   ...,     ref_frame_map[]
+   *
+   * Note: INTRA_FRAME always refers to the current frame, so there's no need to
+   * have a remapped index for the same.
+   */
   int remapped_ref_idx[REF_FRAMES];
 
-  // Scale of the current frame with respect to itself.
-  // This is currently used for intra block copy, which behaves like an inter
-  // prediction mode, where the reference frame is the current frame itself.
+  /*!
+   * Scale of the current frame with respect to itself.
+   * This is currently used for intra block copy, which behaves like an inter
+   * prediction mode, where the reference frame is the current frame itself.
+   */
   struct scale_factors sf_identity;
 
-  // Scale factors of the reference frame with respect to the current frame.
-  // This is required for generating inter prediction and will be non-identity
-  // for a reference frame, if it has different dimensions than the coded
-  // dimensions of the current frame.
+  /*!
+   * Scale factors of the reference frame with respect to the current frame.
+   * This is required for generating inter prediction and will be non-identity
+   * for a reference frame, if it has different dimensions than the coded
+   * dimensions of the current frame.
+   */
   struct scale_factors ref_scale_factors[REF_FRAMES];
 
-  // For decoder, ref_frame_map[i] maps reference type 'i' to a pointer to
-  // the buffer in the buffer pool 'cm->buffer_pool.frame_bufs'.
-  // For encoder, ref_frame_map[j] (where j = remapped_ref_idx[i]) maps
-  // remapped reference index 'j' (that is, original reference type 'i') to
-  // a pointer to the buffer in the buffer pool 'cm->buffer_pool.frame_bufs'.
+  /*!
+   * For decoder, ref_frame_map[i] maps reference type 'i' to a pointer to
+   * the buffer in the buffer pool 'cm->buffer_pool.frame_bufs'.
+   * For encoder, ref_frame_map[j] (where j = remapped_ref_idx[i]) maps
+   * remapped reference index 'j' (that is, original reference type 'i') to
+   * a pointer to the buffer in the buffer pool 'cm->buffer_pool.frame_bufs'.
+   */
   RefCntBuffer *ref_frame_map[REF_FRAMES];
 
-  // If true, this frame is actually shown after decoding.
-  // If false, this frame is coded in the bitstream, but not shown. It is only
-  // used as a reference for other frames coded later.
+  /*!
+   * If true, this frame is actually shown after decoding.
+   * If false, this frame is coded in the bitstream, but not shown. It is only
+   * used as a reference for other frames coded later.
+   */
   int show_frame;
 
-  // If true, this frame can be used as a show-existing frame for other frames
-  // coded later.
-  // When 'show_frame' is true, this is always true for all non-keyframes.
-  // When 'show_frame' is false, this value is transmitted in the bitstream.
+  /*!
+   * If true, this frame can be used as a show-existing frame for other frames
+   * coded later.
+   * When 'show_frame' is true, this is always true for all non-keyframes.
+   * When 'show_frame' is false, this value is transmitted in the bitstream.
+   */
   int showable_frame;
 
-  // If true, show an existing frame coded before, instead of actually coding a
-  // frame. The existing frame comes from one of the existing reference buffers,
-  // as signaled in the bitstream.
+  /*!
+   * If true, show an existing frame coded before, instead of actually coding a
+   * frame. The existing frame comes from one of the existing reference buffers,
+   * as signaled in the bitstream.
+   */
   int show_existing_frame;
 
-  // Whether some features are allowed or not.
+  /*!
+   * Whether some features are allowed or not.
+   */
   FeatureFlags features;
 
-  // Params related to MB_MODE_INFO arrays and related info.
+  /*!
+   * Params related to MB_MODE_INFO arrays and related info.
+   */
   CommonModeInfoParams mi_params;
 
 #if CONFIG_ENTROPY_STATS
+  /*!
+   * Context type used by token CDFs, in the range 0 .. (TOKEN_CDF_Q_CTXS - 1).
+   */
   int coef_cdf_category;
-#endif
-  // Quantization params.
+#endif  // CONFIG_ENTROPY_STATS
+
+  /*!
+   * Quantization params.
+   */
   CommonQuantParams quant_params;
 
-  // Segmentation info for current frame.
+  /*!
+   * Segmentation info for current frame.
+   */
   struct segmentation seg;
 
-  // Segmentation map for previous frame.
+  /*!
+   * Segmentation map for previous frame.
+   */
   uint8_t *last_frame_seg_map;
 
-  // Deblocking filter parameters.
-  loop_filter_info_n lf_info;
-  struct loopfilter lf;
+  /**
+   * \name Deblocking filter parameters.
+   */
+  /**@{*/
+  loop_filter_info_n lf_info; /*!< Loop filter info */
+  struct loopfilter lf;       /*!< Loop filter parameters */
+  /**@}*/
 
-  // Loop Restoration filter parameters.
-  RestorationInfo rst_info[MAX_MB_PLANE];  // Loop Restoration filter info.
-  int32_t *rst_tmpbuf;  // Scratch buffer for self-guided restoration filter.
-  RestorationLineBuffers *rlbs;  // Line buffers required by loop restoration.
-  YV12_BUFFER_CONFIG rst_frame;  // Stores the output of loop restoration.
+  /**
+   * \name Loop Restoration filter parameters.
+   */
+  /**@{*/
+  RestorationInfo rst_info[MAX_MB_PLANE]; /*!< Loop Restoration filter info */
+  int32_t *rst_tmpbuf; /*!< Scratch buffer for self-guided restoration */
+  RestorationLineBuffers *rlbs; /*!< Line buffers needed by loop restoration */
+  YV12_BUFFER_CONFIG rst_frame; /*!< Stores the output of loop restoration */
+  /**@}*/
 
-  // CDEF (Constrained Directional Enhancement Filter) parameters.
+  /*!
+   * CDEF (Constrained Directional Enhancement Filter) parameters.
+   */
   CdefInfo cdef_info;
 
-  // Parameters for film grain synthesis.
+  /*!
+   * Parameters for film grain synthesis.
+   */
   aom_film_grain_t film_grain_params;
 
-  // Parameters for delta quantization and delta loop filter level.
+  /*!
+   * Parameters for delta quantization and delta loop filter level.
+   */
   DeltaQInfo delta_q_info;
 
-  // Global motion parameters for each reference frame.
+  /*!
+   * Global motion parameters for each reference frame.
+   */
   WarpedMotionParams global_motion[REF_FRAMES];
 
-  // Elements part of the sequence header, that are applicable for all the
-  // frames in the video.
+  /*!
+   * Elements part of the sequence header, that are applicable for all the
+   * frames in the video.
+   */
   SequenceHeader seq_params;
 
-  // Current CDFs of all the symbols for the current frame.
+  /*!
+   * Current CDFs of all the symbols for the current frame.
+   */
   FRAME_CONTEXT *fc;
-  // Default CDFs used when features.primary_ref_frame = PRIMARY_REF_NONE
-  // (e.g. for a keyframe). These default CDFs are defined by the bitstream and
-  // copied from default CDF tables for each symbol.
+  /*!
+   * Default CDFs used when features.primary_ref_frame = PRIMARY_REF_NONE
+   * (e.g. for a keyframe). These default CDFs are defined by the bitstream and
+   * copied from default CDF tables for each symbol.
+   */
   FRAME_CONTEXT *default_frame_context;
 
-  // Parameters related to tiling.
+  /*!
+   * Parameters related to tiling.
+   */
   CommonTileParams tiles;
 
-  // External BufferPool passed from outside.
+  /*!
+   * External BufferPool passed from outside.
+   */
   BufferPool *buffer_pool;
 
-  // Above context buffers and their sizes.
-  // Note: above contexts are allocated in this struct, as their size is
-  // dependent on frame width, while left contexts are declared and allocated in
-  // MACROBLOCKD struct, as they have a fixed size.
+  /*!
+   * Above context buffers and their sizes.
+   * Note: above contexts are allocated in this struct, as their size is
+   * dependent on frame width, while left contexts are declared and allocated in
+   * MACROBLOCKD struct, as they have a fixed size.
+   */
   CommonContexts above_contexts;
 
-  // When cm->seq_params.frame_id_numbers_present_flag == 1, current and
-  // reference frame IDs are signaled in the bitstream.
-  int current_frame_id;
-  int ref_frame_id[REF_FRAMES];
+  /**
+   * \name Signaled when cm->seq_params.frame_id_numbers_present_flag == 1
+   */
+  /**@{*/
+  int current_frame_id;         /*!< frame ID for the current frame. */
+  int ref_frame_id[REF_FRAMES]; /*!< frame IDs for the reference frames. */
+  /**@}*/
 
-  // Motion vectors provided by motion field estimation.
-  // tpl_mvs[row * stride + col] stores MV for block at [mi_row, mi_col] where:
-  // mi_row = 2 * row,
-  // mi_col = 2 * col, and
-  // stride = cm->mi_params.mi_stride / 2
+  /*!
+   * Motion vectors provided by motion field estimation.
+   * tpl_mvs[row * stride + col] stores MV for block at [mi_row, mi_col] where:
+   * mi_row = 2 * row,
+   * mi_col = 2 * col, and
+   * stride = cm->mi_params.mi_stride / 2
+   */
   TPL_MV_REF *tpl_mvs;
-  // Allocated size of 'tpl_mvs' array. Refer to 'ensure_mv_buffer()' function.
+  /*!
+   * Allocated size of 'tpl_mvs' array. Refer to 'ensure_mv_buffer()' function.
+   */
   int tpl_mvs_mem_size;
-  // ref_frame_sign_bias[k] is 1 if relative distance between reference 'k' and
-  // current frame is positive; and 0 otherwise.
+  /*!
+   * ref_frame_sign_bias[k] is 1 if relative distance between reference 'k' and
+   * current frame is positive; and 0 otherwise.
+   */
   int ref_frame_sign_bias[REF_FRAMES];
-  // ref_frame_side[k] is 1 if relative distance between reference 'k' and
-  // current frame is positive, -1 if relative distance is 0; and 0 otherwise.
-  // TODO(jingning): This can be combined with sign_bias later.
+  /*!
+   * ref_frame_side[k] is 1 if relative distance between reference 'k' and
+   * current frame is positive, -1 if relative distance is 0; and 0 otherwise.
+   * TODO(jingning): This can be combined with sign_bias later.
+   */
   int8_t ref_frame_side[REF_FRAMES];
 
-  // Number of temporal layers: may be > 1 for SVC (scalable vector coding).
+  /*!
+   * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
+   */
   unsigned int number_temporal_layers;
-  // Temporal layer ID of this frame
-  // (in the range 0 ... (number_temporal_layers - 1)).
+  /*!
+   * Temporal layer ID of this frame
+   * (in the range 0 ... (number_temporal_layers - 1)).
+   */
   int temporal_layer_id;
 
-  // Number of spatial layers: may be > 1 for SVC (scalable vector coding).
+  /*!
+   * Number of spatial layers: may be > 1 for SVC (scalable vector coding).
+   */
   unsigned int number_spatial_layers;
-  // Spatial layer ID of this frame
-  // (in the range 0 ... (number_spatial_layers - 1)).
+  /*!
+   * Spatial layer ID of this frame
+   * (in the range 0 ... (number_spatial_layers - 1)).
+   */
   int spatial_layer_id;
 
 #if TXCOEFF_TIMER
@@ -932,6 +1043,8 @@ typedef struct AV1Common {
   int is_decoding;
 #endif  // CONFIG_LPF_MASK
 } AV1_COMMON;
+
+/*!\cond */
 
 // TODO(hkuang): Don't need to lock the whole pool after implementing atomic
 // frame reference count.
