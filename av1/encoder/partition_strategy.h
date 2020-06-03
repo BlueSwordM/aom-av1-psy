@@ -33,10 +33,12 @@
 #define FEATURE_SMS_SPLIT_MODEL_FLAG \
   (FEATURE_SMS_NONE_FLAG | FEATURE_SMS_SPLIT_FLAG)
 
+// Rectangular parition types.
+enum { HORZ = 0, VERT, NUM_RECT_PARTS } UENUM1BYTE(RECT_PART_TYPE);
+
 // Structure to keep win flags for HORZ and VERT partition evaluations.
 typedef struct {
-  bool horz_win;
-  bool vert_win;
+  int rect_part_win[NUM_RECT_PARTS];
 } RD_RECT_PART_WIN_INFO;
 
 void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
