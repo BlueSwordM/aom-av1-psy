@@ -3062,7 +3062,7 @@ static void rd_pick_rect_partition(AV1_COMP *const cpi, TileDataEnc *tile_data,
 
   // Obtain the best mode for the partition sub-block.
   pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &part_search_state->this_rdc,
-                PARTITION_HORZ, bsize, cur_partition_ctx, best_remain_rdcost,
+                partition_type, bsize, cur_partition_ctx, best_remain_rdcost,
                 PICK_MODE_RD);
   av1_rd_cost_update(x->rdmult, &part_search_state->this_rdc);
 
