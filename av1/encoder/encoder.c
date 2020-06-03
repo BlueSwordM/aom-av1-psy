@@ -574,18 +574,18 @@ static void analyze_hor_freq(const AV1_COMP *cpi, double *energy) {
 
 static BLOCK_SIZE select_sb_size(const AV1_COMP *const cpi) {
   const AV1_COMMON *const cm = &cpi->common;
+  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
 
-  if (cpi->oxcf.superblock_size == AOM_SUPERBLOCK_SIZE_64X64)
-    return BLOCK_64X64;
-  if (cpi->oxcf.superblock_size == AOM_SUPERBLOCK_SIZE_128X128)
+  if (oxcf->superblock_size == AOM_SUPERBLOCK_SIZE_64X64) return BLOCK_64X64;
+  if (oxcf->superblock_size == AOM_SUPERBLOCK_SIZE_128X128)
     return BLOCK_128X128;
 
-  assert(cpi->oxcf.superblock_size == AOM_SUPERBLOCK_SIZE_DYNAMIC);
+  assert(oxcf->superblock_size == AOM_SUPERBLOCK_SIZE_DYNAMIC);
 
   if (cpi->svc.number_spatial_layers > 1) {
     // Use the configured size (top resolution) for spatial layers.
-    return AOMMIN(cpi->oxcf.width, cpi->oxcf.height) > 480 ? BLOCK_128X128
-                                                           : BLOCK_64X64;
+    return AOMMIN(oxcf->width, oxcf->height) > 480 ? BLOCK_128X128
+                                                   : BLOCK_64X64;
   }
 
   // TODO(any): Possibly could improve this with a heuristic.
@@ -594,8 +594,8 @@ static BLOCK_SIZE select_sb_size(const AV1_COMP *const cpi) {
   // Things break if superblock size changes between the first pass and second
   // pass encoding, which is why this heuristic is not configured as a
   // speed-feature.
-  if (cpi->oxcf.superres_mode == AOM_SUPERRES_NONE &&
-      cpi->oxcf.resize_mode == RESIZE_NONE && cpi->oxcf.speed >= 1) {
+  if (oxcf->superres_cfg.superres_mode == AOM_SUPERRES_NONE &&
+      oxcf->resize_mode == RESIZE_NONE && oxcf->speed >= 1) {
     return AOMMIN(cm->width, cm->height) > 480 ? BLOCK_128X128 : BLOCK_64X64;
   }
 
@@ -1341,7 +1341,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->order_hint_info.enable_ref_frame_mvs = oxcf->enable_ref_frame_mvs;
   seq->order_hint_info.enable_ref_frame_mvs &=
       seq->order_hint_info.enable_order_hint;
-  seq->enable_superres = oxcf->enable_superres;
+  seq->enable_superres = oxcf->superres_cfg.enable_superres;
   seq->enable_cdef = oxcf->enable_cdef;
   seq->enable_restoration = oxcf->enable_restoration;
   seq->enable_warped_motion = oxcf->enable_warped_motion;
@@ -2847,7 +2847,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   update_film_grain_parameters(cpi, oxcf);
 
   cpi->oxcf = *oxcf;
-  cpi->superres_mode = oxcf->superres_mode;  // default
+  cpi->superres_mode = oxcf->superres_cfg.superres_mode;  // default
   x->e_mbd.bd = (int)seq_params->bit_depth;
   x->e_mbd.global_motion = cm->global_motion;
 
@@ -4506,7 +4506,7 @@ static uint8_t calculate_next_resize_scale(const AV1_COMP *cpi) {
 static int superres_in_recode_allowed(const AV1_COMP *const cpi) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   // Empirically found to not be beneficial for AOM_Q mode and images coding.
-  return oxcf->superres_mode == AOM_SUPERRES_AUTO &&
+  return oxcf->superres_cfg.superres_mode == AOM_SUPERRES_AUTO &&
          (oxcf->rc_mode == AOM_VBR || oxcf->rc_mode == AOM_CQ) &&
          cpi->rc.frames_to_key > 1;
 }
@@ -4599,19 +4599,21 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
   // Choose an arbitrary random number
   static unsigned int seed = 34567;
   const AV1EncoderConfig *oxcf = &cpi->oxcf;
+  const SuperResCfg *const superres_cfg = &oxcf->superres_cfg;
+
   if (is_stat_generation_stage(cpi)) return SCALE_NUMERATOR;
   uint8_t new_denom = SCALE_NUMERATOR;
 
   // Make sure that superres mode of the frame is consistent with the
   // sequence-level flag.
-  assert(IMPLIES(oxcf->superres_mode != AOM_SUPERRES_NONE,
+  assert(IMPLIES(superres_cfg->superres_mode != AOM_SUPERRES_NONE,
                  cpi->common.seq_params.enable_superres));
   assert(IMPLIES(!cpi->common.seq_params.enable_superres,
-                 oxcf->superres_mode == AOM_SUPERRES_NONE));
+                 superres_cfg->superres_mode == AOM_SUPERRES_NONE));
   // Make sure that superres mode for current encoding is consistent with user
   // provided superres mode.
-  assert(IMPLIES(oxcf->superres_mode != AOM_SUPERRES_AUTO,
-                 cpi->superres_mode == oxcf->superres_mode));
+  assert(IMPLIES(superres_cfg->superres_mode != AOM_SUPERRES_AUTO,
+                 cpi->superres_mode == superres_cfg->superres_mode));
 
   // Note: we must look at the current superres_mode to be tried in 'cpi' here,
   // not the user given mode in 'oxcf'.
@@ -4619,9 +4621,9 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
     case AOM_SUPERRES_NONE: new_denom = SCALE_NUMERATOR; break;
     case AOM_SUPERRES_FIXED:
       if (cpi->common.current_frame.frame_type == KEY_FRAME)
-        new_denom = oxcf->superres_kf_scale_denominator;
+        new_denom = superres_cfg->superres_kf_scale_denominator;
       else
-        new_denom = oxcf->superres_scale_denominator;
+        new_denom = superres_cfg->superres_scale_denominator;
       break;
     case AOM_SUPERRES_RANDOM: new_denom = lcg_rand16(&seed) % 9 + 8; break;
     case AOM_SUPERRES_QTHRESH: {
@@ -4637,8 +4639,8 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
           &bottom_index, &top_index);
 
       const int qthresh = (frame_is_intra_only(&cpi->common))
-                              ? oxcf->superres_kf_qthresh
-                              : oxcf->superres_qthresh;
+                              ? superres_cfg->superres_kf_qthresh
+                              : superres_cfg->superres_qthresh;
       if (q <= qthresh) {
         new_denom = SCALE_NUMERATOR;
       } else {
@@ -4664,9 +4666,9 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
       } else {
 #if SUPERRES_RECODE_ALL_RATIOS
         if (cpi->common.current_frame.frame_type == KEY_FRAME)
-          new_denom = oxcf->superres_kf_scale_denominator;
+          new_denom = superres_cfg->superres_kf_scale_denominator;
         else
-          new_denom = oxcf->superres_scale_denominator;
+          new_denom = superres_cfg->superres_scale_denominator;
 #else
         new_denom = get_superres_denom_for_qindex(cpi, q, 1, 1);
 #endif  // SUPERRES_RECODE_ALL_RATIOS
@@ -4808,7 +4810,7 @@ static void superres_post_encode(AV1_COMP *cpi) {
 
   if (!av1_superres_scaled(cm)) return;
 
-  assert(cpi->oxcf.enable_superres);
+  assert(cpi->oxcf.superres_cfg.enable_superres);
   assert(!is_lossless_requested(&cpi->oxcf));
   assert(!cm->features.all_lossless);
 
@@ -5989,7 +5991,7 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
 
   // Encode with superres.
 #if SUPERRES_RECODE_ALL_RATIOS
-  AV1EncoderConfig *const oxcf = &cpi->oxcf;
+  SuperResCfg *const superres_cfg = &cpi->oxcf.superres_cfg;
   int64_t superres_sses[SCALE_NUMERATOR];
   int64_t superres_rates[SCALE_NUMERATOR];
   int superres_largest_tile_ids[SCALE_NUMERATOR];
@@ -5999,8 +6001,8 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
       gf_group->update_type[gf_group->index] != INTNL_OVERLAY_UPDATE) {
     for (int denom = SCALE_NUMERATOR + 1; denom <= 2 * SCALE_NUMERATOR;
          ++denom) {
-      oxcf->superres_scale_denominator = denom;
-      oxcf->superres_kf_scale_denominator = denom;
+      superres_cfg->superres_scale_denominator = denom;
+      superres_cfg->superres_kf_scale_denominator = denom;
       const int this_index = denom - (SCALE_NUMERATOR + 1);
       err = encode_with_recode_loop_and_filter(
           cpi, size, dest, &superres_sses[this_index],
@@ -6009,8 +6011,8 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
       restore_all_coding_context(cpi);
     }
     // Reset.
-    oxcf->superres_scale_denominator = SCALE_NUMERATOR;
-    oxcf->superres_kf_scale_denominator = SCALE_NUMERATOR;
+    superres_cfg->superres_scale_denominator = SCALE_NUMERATOR;
+    superres_cfg->superres_kf_scale_denominator = SCALE_NUMERATOR;
   } else {
     for (int denom = SCALE_NUMERATOR + 1; denom <= 2 * SCALE_NUMERATOR;
          ++denom) {
@@ -6036,8 +6038,8 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
   cpi->superres_mode = AOM_SUPERRES_NONE;  // To force full-res.
   err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse2, &rate2,
                                            &largest_tile_id2);
-  cpi->superres_mode = cpi->oxcf.superres_mode;  // Reset.
-  assert(cpi->oxcf.superres_mode == AOM_SUPERRES_AUTO);
+  cpi->superres_mode = cpi->oxcf.superres_cfg.superres_mode;  // Reset.
+  assert(cpi->oxcf.superres_cfg.superres_mode == AOM_SUPERRES_AUTO);
   if (err != AOM_CODEC_OK) return err;
 
   // Note: Both use common rdmult based on base qindex of fullres.
@@ -6081,8 +6083,8 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     // previous step.
 #if SUPERRES_RECODE_ALL_RATIOS
     // Again, temporarily force the best denom.
-    oxcf->superres_scale_denominator = best_denom;
-    oxcf->superres_kf_scale_denominator = best_denom;
+    superres_cfg->superres_scale_denominator = best_denom;
+    superres_cfg->superres_kf_scale_denominator = best_denom;
 #endif  // SUPERRES_RECODE_ALL_RATIOS
     int64_t sse3 = INT64_MAX;
     int64_t rate3 = INT64_MAX;
@@ -6093,8 +6095,8 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     assert(largest_tile_id1 == *largest_tile_id);
 #if SUPERRES_RECODE_ALL_RATIOS
     // Reset.
-    oxcf->superres_scale_denominator = SCALE_NUMERATOR;
-    oxcf->superres_kf_scale_denominator = SCALE_NUMERATOR;
+    superres_cfg->superres_scale_denominator = SCALE_NUMERATOR;
+    superres_cfg->superres_kf_scale_denominator = SCALE_NUMERATOR;
 #endif  // SUPERRES_RECODE_ALL_RATIOS
   } else {
     *largest_tile_id = largest_tile_id2;

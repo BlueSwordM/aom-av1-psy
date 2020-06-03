@@ -321,6 +321,27 @@ typedef struct {
   bool enable_interintra_wedge;
 } CompoundTypeCfg;
 
+typedef struct {
+  // Flag to indicate if super-resolution should be enabled for the sequence.
+  bool enable_superres;
+  // Indicates the Super-resolution mode to be used by the encoder.
+  aom_superres_mode superres_mode;
+  // Indicates the denominator of the fraction that specifies the ratio between
+  // the superblock width before and after upscaling for inter frames. The
+  // numerator of this fraction is equal to the constant SCALE_NUMERATOR.
+  uint8_t superres_scale_denominator;
+  // Indicates the denominator of the fraction that specifies the ratio between
+  // the superblock width before and after upscaling for key frames. The
+  // numerator of this fraction is equal to the constant SCALE_NUMERATOR.
+  uint8_t superres_kf_scale_denominator;
+  // Indicates the qindex based threshold to be used when AOM_SUPERRES_QTHRESH
+  // mode is used for inter frames.
+  int superres_qthresh;
+  // Indicates the qindex based threshold to be used when AOM_SUPERRES_QTHRESH
+  // mode is used for key frames.
+  int superres_kf_qthresh;
+} SuperResCfg;
+
 typedef struct AV1EncoderConfig {
   BITSTREAM_PROFILE profile;
   aom_bit_depth_t bit_depth;     // Codec bit-depth.
@@ -403,11 +424,7 @@ typedef struct AV1EncoderConfig {
   uint8_t resize_kf_scale_denominator;
 
   // Frame Super-Resolution size scaling.
-  aom_superres_mode superres_mode;
-  uint8_t superres_scale_denominator;
-  uint8_t superres_kf_scale_denominator;
-  int superres_qthresh;
-  int superres_kf_qthresh;
+  SuperResCfg superres_cfg;
 
   // Enable feature to reduce the frame quantization every x frames.
   int frame_periodic_boost;
@@ -501,7 +518,6 @@ typedef struct AV1EncoderConfig {
   int enable_global_motion;
   int enable_warped_motion;
   int allow_warped_motion;
-  int enable_superres;
   int enable_overlay;
   int enable_palette;
   int enable_intrabc;

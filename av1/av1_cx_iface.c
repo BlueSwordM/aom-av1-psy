@@ -633,12 +633,12 @@ static int get_image_bps(const aom_image_t *img) {
 }
 
 // Set appropriate options to disable frame super-resolution.
-static void disable_superres(AV1EncoderConfig *const oxcf) {
-  oxcf->superres_mode = AOM_SUPERRES_NONE;
-  oxcf->superres_scale_denominator = SCALE_NUMERATOR;
-  oxcf->superres_kf_scale_denominator = SCALE_NUMERATOR;
-  oxcf->superres_qthresh = 255;
-  oxcf->superres_kf_qthresh = 255;
+static void disable_superres(SuperResCfg *const superres_cfg) {
+  superres_cfg->superres_mode = AOM_SUPERRES_NONE;
+  superres_cfg->superres_scale_denominator = SCALE_NUMERATOR;
+  superres_cfg->superres_kf_scale_denominator = SCALE_NUMERATOR;
+  superres_cfg->superres_qthresh = 255;
+  superres_cfg->superres_kf_qthresh = 255;
 }
 
 static void update_default_encoder_config(const cfg_options_t *cfg,
@@ -715,6 +715,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   TxfmSizeTypeCfg *const txfm_cfg = &oxcf->txfm_cfg;
 
   CompoundTypeCfg *const comp_type_cfg = &oxcf->comp_type_cfg;
+
+  SuperResCfg *const superres_cfg = &oxcf->superres_cfg;
 
   const int is_vbr = cfg->rc_end_usage == AOM_VBR;
   oxcf->profile = cfg->g_profile;
@@ -828,27 +830,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       oxcf->resize_scale_denominator == SCALE_NUMERATOR &&
       oxcf->resize_kf_scale_denominator == SCALE_NUMERATOR)
     oxcf->resize_mode = RESIZE_NONE;
-
-  if (extra_cfg->lossless || cfg->large_scale_tile) {
-    disable_superres(oxcf);
-  } else {
-    oxcf->superres_mode = cfg->rc_superres_mode;
-    oxcf->superres_scale_denominator = (uint8_t)cfg->rc_superres_denominator;
-    oxcf->superres_kf_scale_denominator =
-        (uint8_t)cfg->rc_superres_kf_denominator;
-    oxcf->superres_qthresh = av1_quantizer_to_qindex(cfg->rc_superres_qthresh);
-    oxcf->superres_kf_qthresh =
-        av1_quantizer_to_qindex(cfg->rc_superres_kf_qthresh);
-    if (oxcf->superres_mode == AOM_SUPERRES_FIXED &&
-        oxcf->superres_scale_denominator == SCALE_NUMERATOR &&
-        oxcf->superres_kf_scale_denominator == SCALE_NUMERATOR) {
-      disable_superres(oxcf);
-    }
-    if (oxcf->superres_mode == AOM_SUPERRES_QTHRESH &&
-        oxcf->superres_qthresh == 255 && oxcf->superres_kf_qthresh == 255) {
-      disable_superres(oxcf);
-    }
-  }
 
   oxcf->maximum_buffer_size_ms = is_vbr ? 240000 : cfg->rc_buf_sz;
   oxcf->starting_buffer_level_ms = is_vbr ? 60000 : cfg->rc_buf_initial_sz;
@@ -979,10 +960,36 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   comp_type_cfg->enable_interintra_wedge =
       extra_cfg->enable_interintra_comp & extra_cfg->enable_interintra_wedge;
 
-  oxcf->enable_superres =
-      (oxcf->superres_mode != AOM_SUPERRES_NONE) && extra_cfg->enable_superres;
-  if (!oxcf->enable_superres) {
-    disable_superres(oxcf);
+  // Set Super-resolution mode configuration.
+  if (extra_cfg->lossless || cfg->large_scale_tile) {
+    disable_superres(superres_cfg);
+  } else {
+    superres_cfg->superres_mode = cfg->rc_superres_mode;
+    superres_cfg->superres_scale_denominator =
+        (uint8_t)cfg->rc_superres_denominator;
+    superres_cfg->superres_kf_scale_denominator =
+        (uint8_t)cfg->rc_superres_kf_denominator;
+    superres_cfg->superres_qthresh =
+        av1_quantizer_to_qindex(cfg->rc_superres_qthresh);
+    superres_cfg->superres_kf_qthresh =
+        av1_quantizer_to_qindex(cfg->rc_superres_kf_qthresh);
+    if (superres_cfg->superres_mode == AOM_SUPERRES_FIXED &&
+        superres_cfg->superres_scale_denominator == SCALE_NUMERATOR &&
+        superres_cfg->superres_kf_scale_denominator == SCALE_NUMERATOR) {
+      disable_superres(superres_cfg);
+    }
+    if (superres_cfg->superres_mode == AOM_SUPERRES_QTHRESH &&
+        superres_cfg->superres_qthresh == 255 &&
+        superres_cfg->superres_kf_qthresh == 255) {
+      disable_superres(superres_cfg);
+    }
+  }
+
+  superres_cfg->enable_superres =
+      (superres_cfg->superres_mode != AOM_SUPERRES_NONE) &&
+      extra_cfg->enable_superres;
+  if (!superres_cfg->enable_superres) {
+    disable_superres(superres_cfg);
   }
 
   oxcf->tile_width_count = AOMMIN(cfg->tile_width_count, MAX_TILE_COLS);
@@ -1030,7 +1037,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   oxcf->chroma_subsampling_x = extra_cfg->chroma_subsampling_x;
   oxcf->chroma_subsampling_y = extra_cfg->chroma_subsampling_y;
-  oxcf->border_in_pixels = (oxcf->resize_mode || oxcf->superres_mode)
+  oxcf->border_in_pixels = (oxcf->resize_mode || superres_cfg->superres_mode)
                                ? AOM_BORDER_IN_PIXELS
                                : AOM_ENC_NO_SCALE_BORDER;
   memcpy(oxcf->target_seq_level_idx, extra_cfg->target_seq_level_idx,
