@@ -1700,8 +1700,11 @@ static int rest_tiles_in_plane(const AV1_COMMON *cm, int plane) {
 
 void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCK *const x = &cpi->td.mb;
   const int num_planes = av1_num_planes(cm);
   assert(!cm->features.all_lossless);
+
+  av1_fill_lr_rates(&x->mode_costs, x->e_mbd.tile_ctx);
 
   int ntiles[2];
   for (int is_uv = 0; is_uv < 2; ++is_uv)
@@ -1717,14 +1720,14 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   // problem, as these elements are ignored later, but in order to quiet
   // Valgrind's warnings we initialise the array below.
   memset(rusi, 0, sizeof(*rusi) * ntiles[0]);
-  cpi->td.mb.rdmult = cpi->rd.RDMULT;
+  x->rdmult = cpi->rd.RDMULT;
 
   RestSearchCtxt rsc;
   const int plane_start = AOM_PLANE_Y;
   const int plane_end = num_planes > 1 ? AOM_PLANE_V : AOM_PLANE_Y;
   for (int plane = plane_start; plane <= plane_end; ++plane) {
-    init_rsc(src, &cpi->common, &cpi->td.mb, &cpi->sf, plane, rusi,
-             &cpi->trial_frame_rst, &rsc);
+    init_rsc(src, &cpi->common, x, &cpi->sf, plane, rusi, &cpi->trial_frame_rst,
+             &rsc);
 
     const int plane_ntiles = ntiles[plane > 0];
     const RestorationType num_rtypes =

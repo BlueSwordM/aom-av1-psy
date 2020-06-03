@@ -209,12 +209,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     av1_cost_tokens_from_cdf(mode_costs->angle_delta_cost[i],
                              fc->angle_delta_cdf[i], NULL);
   }
-  av1_cost_tokens_from_cdf(mode_costs->switchable_restore_cost,
-                           fc->switchable_restore_cdf, NULL);
-  av1_cost_tokens_from_cdf(mode_costs->wiener_restore_cost,
-                           fc->wiener_restore_cdf, NULL);
-  av1_cost_tokens_from_cdf(mode_costs->sgrproj_restore_cost,
-                           fc->sgrproj_restore_cdf, NULL);
   av1_cost_tokens_from_cdf(mode_costs->intrabc_cost, fc->intrabc_cdf, NULL);
 
   if (!frame_is_intra_only(cm)) {
@@ -319,6 +313,15 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                                fc->comp_group_idx_cdf[i], NULL);
     }
   }
+}
+
+void av1_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc) {
+  av1_cost_tokens_from_cdf(mode_costs->switchable_restore_cost,
+                           fc->switchable_restore_cdf, NULL);
+  av1_cost_tokens_from_cdf(mode_costs->wiener_restore_cost,
+                           fc->wiener_restore_cdf, NULL);
+  av1_cost_tokens_from_cdf(mode_costs->sgrproj_restore_cost,
+                           fc->sgrproj_restore_cdf, NULL);
 }
 
 // Values are now correlated to quantizer.
