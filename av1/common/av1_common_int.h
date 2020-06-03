@@ -565,83 +565,149 @@ struct CommonModeInfoParams {
   /**@}*/
 };
 
-/*!\cond */
-
-// Parameters related to quantization at the frame level.
 typedef struct CommonQuantParams CommonQuantParams;
+/*!
+ * \brief Parameters related to quantization at the frame level.
+ */
 struct CommonQuantParams {
-  // Base qindex of the frame in the range 0 to 255.
+  /*!
+   * Base qindex of the frame in the range 0 to 255.
+   */
   int base_qindex;
 
-  // Delta of qindex (from base_qindex) for Y plane DC coefficient.
-  // Note: y_ac_delta_q is implicitly 0.
+  /*!
+   * Delta of qindex (from base_qindex) for Y plane DC coefficient.
+   * Note: y_ac_delta_q is implicitly 0.
+   */
   int y_dc_delta_q;
 
-  // Delta of qindex (from base_qindex) for U plane DC and AC coefficients.
+  /*!
+   * Delta of qindex (from base_qindex) for U plane DC coefficients.
+   */
   int u_dc_delta_q;
+  /*!
+   * Delta of qindex (from base_qindex) for U plane AC coefficients.
+   */
   int v_dc_delta_q;
 
-  // Delta of qindex (from base_qindex) for V plane DC and AC coefficients.
-  // Same as those for U plane if cm->seq_params.separate_uv_delta_q == 0.
+  /*!
+   * Delta of qindex (from base_qindex) for V plane DC coefficients.
+   * Same as those for U plane if cm->seq_params.separate_uv_delta_q == 0.
+   */
   int u_ac_delta_q;
+  /*!
+   * Delta of qindex (from base_qindex) for V plane AC coefficients.
+   * Same as those for U plane if cm->seq_params.separate_uv_delta_q == 0.
+   */
   int v_ac_delta_q;
 
-  // Note: The qindex per superblock may have a delta from the qindex obtained
-  // at frame level from parameters above, based on 'cm->delta_q_info'.
+  /*
+   * Note: The qindex per superblock may have a delta from the qindex obtained
+   * at frame level from parameters above, based on 'cm->delta_q_info'.
+   */
 
-  // The dequantizers below are true dequantizers used only in the
-  // dequantization process.  They have the same coefficient
-  // shift/scale as TX.
-  int16_t y_dequant_QTX[MAX_SEGMENTS][2];
-  int16_t u_dequant_QTX[MAX_SEGMENTS][2];
-  int16_t v_dequant_QTX[MAX_SEGMENTS][2];
+  /**
+   * \name True dequantizers.
+   * The dequantizers below are true dequantizers used only in the
+   * dequantization process.  They have the same coefficient
+   * shift/scale as TX.
+   */
+  /**@{*/
+  int16_t y_dequant_QTX[MAX_SEGMENTS][2]; /*!< Dequant for Y plane */
+  int16_t u_dequant_QTX[MAX_SEGMENTS][2]; /*!< Dequant for U plane */
+  int16_t v_dequant_QTX[MAX_SEGMENTS][2]; /*!< Dequant for V plane */
+  /**@}*/
 
-  // Global quant matrix tables
+  /**
+   * \name Global quantization matrix tables.
+   */
+  /**@{*/
+  /*!
+   * Global dquantization matrix table.
+   */
   const qm_val_t *giqmatrix[NUM_QM_LEVELS][3][TX_SIZES_ALL];
+  /*!
+   * Global quantization matrix table.
+   */
   const qm_val_t *gqmatrix[NUM_QM_LEVELS][3][TX_SIZES_ALL];
+  /**@}*/
 
-  // Local quant matrix tables for each frame
+  /**
+   * \name Local dequantization matrix tables for each frame.
+   */
+  /**@{*/
+  /*!
+   * Local dequant matrix for Y plane.
+   */
   const qm_val_t *y_iqmatrix[MAX_SEGMENTS][TX_SIZES_ALL];
+  /*!
+   * Local dequant matrix for U plane.
+   */
   const qm_val_t *u_iqmatrix[MAX_SEGMENTS][TX_SIZES_ALL];
+  /*!
+   * Local dequant matrix for V plane.
+   */
   const qm_val_t *v_iqmatrix[MAX_SEGMENTS][TX_SIZES_ALL];
+  /**@}*/
 
-  // Flag indicating whether quantization matrices are being used:
-  //  - If true, qm_level_y, qm_level_u and qm_level_v indicate the level
-  //    indices to be used to access appropriate global quant matrix tables.
-  //  - If false, we implicitly use level index 'NUM_QM_LEVELS - 1'.
+  /*!
+   * Flag indicating whether quantization matrices are being used:
+   *  - If true, qm_level_y, qm_level_u and qm_level_v indicate the level
+   *    indices to be used to access appropriate global quant matrix tables.
+   *  - If false, we implicitly use level index 'NUM_QM_LEVELS - 1'.
+   */
   bool using_qmatrix;
-  int qmatrix_level_y;
-  int qmatrix_level_u;
-  int qmatrix_level_v;
+  /**
+   * \name Valid only when using_qmatrix == true
+   * Indicate the level indices to be used to access appropriate global quant
+   * matrix tables.
+   */
+  /**@{*/
+  int qmatrix_level_y; /*!< Level index for Y plane */
+  int qmatrix_level_u; /*!< Level index for U plane */
+  int qmatrix_level_v; /*!< Level index for V plane */
+  /**@}*/
 };
 
-// Context used for transmitting various symbols in the bistream.
 typedef struct CommonContexts CommonContexts;
+/*!
+ * \brief Contexts used for transmitting various symbols in the bitstream.
+ */
 struct CommonContexts {
-  // Context used by 'FRAME_CONTEXT.partition_cdf' to transmit partition type.
-  // partition[i][j] is the context for ith tile row, jth mi_col.
+  /*!
+   * Context used by 'FRAME_CONTEXT.partition_cdf' to transmit partition type.
+   * partition[i][j] is the context for ith tile row, jth mi_col.
+   */
   PARTITION_CONTEXT **partition;
 
-  // Context used to derive context for multiple symbols:
-  // - 'TXB_CTX.txb_skip_ctx' used by 'FRAME_CONTEXT.txb_skip_cdf' to transmit
-  // to transmit skip_txfm flag.
-  // - 'TXB_CTX.dc_sign_ctx' used by 'FRAME_CONTEXT.dc_sign_cdf' to transmit
-  // sign.
-  // entropy[i][j][k] is the context for ith plane, jth tile row, kth mi_col.
+  /*!
+   * Context used to derive context for multiple symbols:
+   * - 'TXB_CTX.txb_skip_ctx' used by 'FRAME_CONTEXT.txb_skip_cdf' to transmit
+   * to transmit skip_txfm flag.
+   * - 'TXB_CTX.dc_sign_ctx' used by 'FRAME_CONTEXT.dc_sign_cdf' to transmit
+   * sign.
+   * entropy[i][j][k] is the context for ith plane, jth tile row, kth mi_col.
+   */
   ENTROPY_CONTEXT **entropy[MAX_MB_PLANE];
 
-  // Context used to derive context for 'FRAME_CONTEXT.txfm_partition_cdf' to
-  // transmit 'is_split' flag to indicate if this transform block should be
-  // split into smaller sub-blocks.
-  // txfm[i][j] is the context for ith tile row, jth mi_col.
+  /*!
+   * Context used to derive context for 'FRAME_CONTEXT.txfm_partition_cdf' to
+   * transmit 'is_split' flag to indicate if this transform block should be
+   * split into smaller sub-blocks.
+   * txfm[i][j] is the context for ith tile row, jth mi_col.
+   */
   TXFM_CONTEXT **txfm;
 
-  // Dimensions that were used to allocate the arrays above.
-  // If these dimensions change, the arrays may have to be re-allocated.
-  int num_planes;     // Corresponds to av1_num_planes(cm)
-  int num_tile_rows;  // Corresponds to cm->tiles.row
-  int num_mi_cols;    // Corresponds to cm->mi_params.mi_cols
+  /*!
+   * Dimensions that were used to allocate the arrays above.
+   * If these dimensions change, the arrays may have to be re-allocated.
+   */
+  int num_planes;    /*!< Corresponds to av1_num_planes(cm) */
+  int num_tile_rows; /*!< Corresponds to cm->tiles.row */
+  int num_mi_cols;   /*!< Corresponds to cm->mi_params.mi_cols */
 };
+
+/*!\cond */
 
 typedef struct AV1Common {
   // Information about the current frame that is being coded.
