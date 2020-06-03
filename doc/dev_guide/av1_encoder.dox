@@ -127,6 +127,105 @@
  * More details will be added.
  * @{
  */
+
+ /*!\defgroup two_pass_algo Two Pass Mode
+    \ingroup high_level_algo
+
+ In two pass mode, the input file is passed into the encoder for a quick
+ first pass, where statistics are gathered. These statistics and the input
+ file are then passed back into the encoder for a second pass. The statistics
+ help the encoder reach the desired bitrate without as much overshooting or
+ undershooting.
+
+ During the first pass, the codec will return "stats" packets that contain
+ information useful for the second pass. The caller should concatenate these
+ packets as they are received. In the second pass, the concatenated packets
+ are passed in, along with the frames to encode. During the second pass,
+ "frame" packets are returned that represent the compressed video.
+
+ A complete example can be found in `examples/twopass_encoder.c`. Pseudocode
+ is provided below to illustrate the core parts.
+
+ During the first pass, the uncompressed frames are passed in and stats
+ information is appended to a byte array.
+
+~~~~~~~~~~~~~~~{.c}
+// For simplicity, assume that there is enough memory in the stats buffer.
+// Actual code will want to use a resizable array. stats_len represents
+// the length of data already present in the buffer.
+void get_stats_data(aom_codec_ctx_t *encoder, char *stats,
+                    size_t *stats_len) {
+  const aom_codec_cx_pkt_t *pkt;
+  aom_codec_iter_t iter = NULL;
+  while ((pkt = aom_codec_get_cx_data(encoder, &iter))) {
+    if (pkt->kind != AOM_CODEC_STATS_PKT) continue;
+    memcpy(stats + *stats_len, pkt->data.twopass_stats.buf,
+           pkt->data.twopass_stats.sz);
+    *stats_len += pkt->data.twopass_stats.sz;
+  }
+}
+
+void first_pass(char *stats, size_t *stats_len) {
+  struct aom_codec_enc_cfg first_pass_cfg;
+  ... // Initialize the config as needed.
+  first_pass_cfg.g_pass = AOM_RC_FIRST_PASS;
+  aom_codec_ctx_t first_pass_encoder;
+  ... // Initialize the encoder.
+
+  while (frame_available) {
+    // Read in the uncompressed frame, update frame_available
+    aom_image_t *frame_to_encode = ...;
+    aom_codec_encode(&first_pass_encoder, img, pts, duration, flags);
+    get_stats_data(&first_pass_encoder, stats, stats_len);
+  }
+  // After all frames have been processed, call aom_codec_encode with
+  // a NULL ptr. This tells the encoder to flush all data.
+  aom_codec_encode(&first_pass_encoder, NULL, pts, duration, flags);
+  get_stats_data(&first_pass_encoder, stats, stats_len);
+
+  aom_codec_destroy(&first_pass_encoder);
+}
+~~~~~~~~~~~~~~~
+
+ During the second pass, the uncompressed frames and the stats are
+ passed into the encoder.
+
+~~~~~~~~~~~~~~~{.c}
+// Write out each encoded frame to the file.
+void get_cx_data(aom_codec_ctx_t *encoder, FILE *file) {
+  const aom_codec_cx_pkt_t *pkt;
+  aom_codec_iter_t iter = NULL;
+  while ((pkt = aom_codec_get_cx_data(encoder, &iter))) {
+   if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) continue;
+   fwrite(pkt->data.frame.buf, 1, pkt->data.frame.sz, file);
+  }
+}
+
+void second_pass(char *stats, size_t stats_len) {
+  struct aom_codec_enc_cfg second_pass_cfg;
+  ... // Initialize the config file as needed.
+  second_pass_cfg.g_pass = AOM_RC_LAST_PASS;
+  cfg.rc_twopass_stats_in.buf = stats;
+  cfg.rc_twopass_stats_in.sz = stats_len;
+  aom_codec_ctx_t second_pass_encoder;
+  ... // Initialize the encoder from the config.
+
+  FILE *output = fopen("output.obu", "wb");
+  while (frame_available) {
+    // Read in the uncompressed frame, update frame_available
+    aom_image_t *frame_to_encode = ...;
+    aom_codec_encode(&second_pass_encoder, img, pts, duration, flags);
+    get_cx_data(&second_pass_encoder, output);
+  }
+  // Pass in NULL to flush the encoder.
+  aom_codec_encode(&second_pass_encoder, NULL, pts, duration, flags);
+  get_cx_data(&second_pass_encoder, output);
+
+  aom_codec_destroy(&second_pass_encoder);
+}
+~~~~~~~~~~~~~~~
+ */
+
 /*! @} - end defgroup high_level_algo */
 
 /*!\defgroup partition_search Partition Search
