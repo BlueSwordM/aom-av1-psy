@@ -3557,17 +3557,9 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
 }
 
 void av1_remove_compressor(AV1_COMP *cpi) {
-  AV1_COMMON *cm;
-  TplParams *const tpl_data = &cpi->tpl_data;
-  MultiThreadInfo *const mt_info = &cpi->mt_info;
-#if CONFIG_MULTITHREAD
-  pthread_mutex_t *const enc_row_mt_mutex_ = mt_info->enc_row_mt.mutex_;
-  pthread_mutex_t *const gm_mt_mutex_ = mt_info->gm_sync.mutex_;
-#endif
   if (!cpi) return;
 
-  cm = &cpi->common;
-
+  AV1_COMMON *cm = &cpi->common;
   if (cm->current_frame.frame_number > 0) {
 #if CONFIG_ENTROPY_STATS
     if (!is_stat_generation_stage(cpi)) {
@@ -3663,6 +3655,7 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 #endif
   }
 
+  TplParams *const tpl_data = &cpi->tpl_data;
   for (int frame = 0; frame < MAX_LAG_BUFFERS; ++frame) {
     aom_free(tpl_data->tpl_stats_pool[frame]);
     aom_free_frame_buffer(&tpl_data->tpl_rec_pool[frame]);
@@ -3673,7 +3666,10 @@ void av1_remove_compressor(AV1_COMP *cpi) {
     free_thread_data(cpi);
   }
 
+  MultiThreadInfo *const mt_info = &cpi->mt_info;
 #if CONFIG_MULTITHREAD
+  pthread_mutex_t *const enc_row_mt_mutex_ = mt_info->enc_row_mt.mutex_;
+  pthread_mutex_t *const gm_mt_mutex_ = mt_info->gm_sync.mutex_;
   if (enc_row_mt_mutex_ != NULL) {
     pthread_mutex_destroy(enc_row_mt_mutex_);
     aom_free(enc_row_mt_mutex_);
