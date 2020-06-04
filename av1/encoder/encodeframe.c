@@ -3369,12 +3369,12 @@ BEGIN_PARTITION_SEARCH:
 
   // PARTITION_SPLIT
   int64_t part_split_rd = INT64_MAX;
-  BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
+  blk_params.subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
   if ((!part_search_state.terminate_partition_search &&
        part_search_state.do_square_split)) {
     for (int i = 0; i < 4; ++i) {
       if (pc_tree->split[i] == NULL)
-        pc_tree->split[i] = av1_alloc_pc_tree_node(subsize);
+        pc_tree->split[i] = av1_alloc_pc_tree_node(blk_params.subsize);
       pc_tree->split[i]->index = i;
     }
     av1_init_rd_stats(&part_search_state.sum_rdc);
@@ -3414,11 +3414,12 @@ BEGIN_PARTITION_SEARCH:
         part_search_state.intra_part_info->quad_tree_idx =
             4 * curr_quad_tree_idx + idx + 1;
       }
-      if (!rd_pick_partition(
-              cpi, td, tile_data, tp, mi_row + y_idx, mi_col + x_idx, subsize,
-              &part_search_state.this_rdc, best_remain_rdcost,
-              pc_tree->split[idx], sms_tree->split[idx], p_split_rd,
-              multi_pass_mode, &part_search_state.split_part_rect_win[idx])) {
+      if (!rd_pick_partition(cpi, td, tile_data, tp, mi_row + y_idx,
+                             mi_col + x_idx, blk_params.subsize,
+                             &part_search_state.this_rdc, best_remain_rdcost,
+                             pc_tree->split[idx], sms_tree->split[idx],
+                             p_split_rd, multi_pass_mode,
+                             &part_search_state.split_part_rect_win[idx])) {
         av1_invalid_rd_stats(&part_search_state.sum_rdc);
         break;
       }
@@ -3515,11 +3516,11 @@ BEGIN_PARTITION_SEARCH:
       (part_search_state.do_rectangular_split ||
        active_h_edge(cpi, mi_row, blk_params.mi_step))) {
     av1_init_rd_stats(&part_search_state.sum_rdc);
-    subsize = get_partition_subsize(bsize, PARTITION_HORZ);
+    blk_params.subsize = get_partition_subsize(bsize, PARTITION_HORZ);
     for (int i = 0; i < 2; ++i) {
       if (pc_tree->horizontal[i] == NULL) {
         pc_tree->horizontal[i] =
-            av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+            av1_alloc_pmc(cm, blk_params.subsize, &td->shared_coeff_buf);
       }
     }
     part_search_state.sum_rdc.rate =
@@ -3536,7 +3537,7 @@ BEGIN_PARTITION_SEARCH:
     // First sub-partition evaluation in horizontal partition type.
     rd_pick_rect_partition(cpi, tile_data, x, pc_tree->horizontal[0],
                            &part_search_state, &best_rdc, 0, mi_row, mi_col,
-                           subsize, PARTITION_HORZ);
+                           blk_params.subsize, PARTITION_HORZ);
     if (part_search_state.sum_rdc.rdcost < best_rdc.rdcost &&
         blk_params.has_rows) {
       const PICK_MODE_CONTEXT *const ctx_h = pc_tree->horizontal[0];
@@ -3547,12 +3548,13 @@ BEGIN_PARTITION_SEARCH:
         if (mbmi->uv_mode != UV_CFL_PRED)
           part_search_state.is_horz_ctx_is_ready = 1;
       }
-      update_state(cpi, td, ctx_h, mi_row, mi_col, subsize, 1);
-      encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, subsize, NULL);
+      update_state(cpi, td, ctx_h, mi_row, mi_col, blk_params.subsize, 1);
+      encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL,
+                        blk_params.subsize, NULL);
       // Second sub-partition evaluation in horizontal partition type.
       rd_pick_rect_partition(cpi, tile_data, x, pc_tree->horizontal[1],
                              &part_search_state, &best_rdc, 1,
-                             blk_params.mi_row_edge, mi_col, subsize,
+                             blk_params.mi_row_edge, mi_col, blk_params.subsize,
                              PARTITION_HORZ);
     }
 #if CONFIG_COLLECT_PARTITION_STATS
@@ -3593,11 +3595,11 @@ BEGIN_PARTITION_SEARCH:
       (part_search_state.do_rectangular_split ||
        active_v_edge(cpi, mi_col, blk_params.mi_step))) {
     av1_init_rd_stats(&part_search_state.sum_rdc);
-    subsize = get_partition_subsize(bsize, PARTITION_VERT);
+    blk_params.subsize = get_partition_subsize(bsize, PARTITION_VERT);
     for (int i = 0; i < 2; ++i) {
       if (pc_tree->vertical[i] == NULL) {
         pc_tree->vertical[i] =
-            av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+            av1_alloc_pmc(cm, blk_params.subsize, &td->shared_coeff_buf);
       }
     }
 
@@ -3615,7 +3617,7 @@ BEGIN_PARTITION_SEARCH:
     // First sub-partition evaluation in vertical partition type.
     rd_pick_rect_partition(cpi, tile_data, x, pc_tree->vertical[0],
                            &part_search_state, &best_rdc, 0, mi_row, mi_col,
-                           subsize, PARTITION_VERT);
+                           blk_params.subsize, PARTITION_VERT);
     if (part_search_state.sum_rdc.rdcost < best_rdc.rdcost &&
         blk_params.has_cols) {
       const MB_MODE_INFO *const mbmi = &pc_tree->vertical[0]->mic;
@@ -3625,12 +3627,15 @@ BEGIN_PARTITION_SEARCH:
         if (mbmi->uv_mode != UV_CFL_PRED)
           part_search_state.is_vert_ctx_is_ready = 1;
       }
-      update_state(cpi, td, pc_tree->vertical[0], mi_row, mi_col, subsize, 1);
-      encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, subsize, NULL);
+      update_state(cpi, td, pc_tree->vertical[0], mi_row, mi_col,
+                   blk_params.subsize, 1);
+      encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL,
+                        blk_params.subsize, NULL);
       // Second sub-partition evaluation in vertical partition type.
       rd_pick_rect_partition(cpi, tile_data, x, pc_tree->vertical[1],
                              &part_search_state, &best_rdc, 1, mi_row,
-                             blk_params.mi_col_edge, subsize, PARTITION_VERT);
+                             blk_params.mi_col_edge, blk_params.subsize,
+                             PARTITION_VERT);
     }
 #if CONFIG_COLLECT_PARTITION_STATS
     if (partition_timer_on) {
@@ -3704,13 +3709,14 @@ BEGIN_PARTITION_SEARCH:
   // PARTITION_HORZ_A
   if (!part_search_state.terminate_partition_search &&
       part_search_state.partition_horz_allowed && horza_partition_allowed) {
-    subsize = get_partition_subsize(bsize, PARTITION_HORZ_A);
+    blk_params.subsize = get_partition_subsize(bsize, PARTITION_HORZ_A);
 
     pc_tree->horizontala[0] =
         av1_alloc_pmc(cm, blk_params.split_bsize2, &td->shared_coeff_buf);
     pc_tree->horizontala[1] =
         av1_alloc_pmc(cm, blk_params.split_bsize2, &td->shared_coeff_buf);
-    pc_tree->horizontala[2] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+    pc_tree->horizontala[2] =
+        av1_alloc_pmc(cm, blk_params.subsize, &td->shared_coeff_buf);
 
     pc_tree->horizontala[0]->rd_mode_is_ready = 0;
     pc_tree->horizontala[1]->rd_mode_is_ready = 0;
@@ -3746,7 +3752,8 @@ BEGIN_PARTITION_SEARCH:
         cpi, td, tile_data, tp, pc_tree, &best_rdc, pc_tree->horizontala,
         mi_row, mi_col, bsize, PARTITION_HORZ_A, mi_row, mi_col,
         blk_params.split_bsize2, mi_row, blk_params.mi_col_edge,
-        blk_params.split_bsize2, blk_params.mi_row_edge, mi_col, subsize);
+        blk_params.split_bsize2, blk_params.mi_row_edge, mi_col,
+        blk_params.subsize);
 #if CONFIG_COLLECT_PARTITION_STATS
     if (partition_timer_on) {
       aom_usec_timer_mark(&partition_timer);
@@ -3761,9 +3768,10 @@ BEGIN_PARTITION_SEARCH:
   // PARTITION_HORZ_B
   if (!part_search_state.terminate_partition_search &&
       part_search_state.partition_horz_allowed && horzb_partition_allowed) {
-    subsize = get_partition_subsize(bsize, PARTITION_HORZ_B);
+    blk_params.subsize = get_partition_subsize(bsize, PARTITION_HORZ_B);
 
-    pc_tree->horizontalb[0] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+    pc_tree->horizontalb[0] =
+        av1_alloc_pmc(cm, blk_params.subsize, &td->shared_coeff_buf);
     pc_tree->horizontalb[1] =
         av1_alloc_pmc(cm, blk_params.split_bsize2, &td->shared_coeff_buf);
     pc_tree->horizontalb[2] =
@@ -3795,9 +3803,9 @@ BEGIN_PARTITION_SEARCH:
     // Test this partition and update the best partition.
     part_search_state.found_best_partition |= rd_test_partition3(
         cpi, td, tile_data, tp, pc_tree, &best_rdc, pc_tree->horizontalb,
-        mi_row, mi_col, bsize, PARTITION_HORZ_B, mi_row, mi_col, subsize,
-        blk_params.mi_row_edge, mi_col, blk_params.split_bsize2,
-        blk_params.mi_row_edge, blk_params.mi_col_edge,
+        mi_row, mi_col, bsize, PARTITION_HORZ_B, mi_row, mi_col,
+        blk_params.subsize, blk_params.mi_row_edge, mi_col,
+        blk_params.split_bsize2, blk_params.mi_row_edge, blk_params.mi_col_edge,
         blk_params.split_bsize2);
 
 #if CONFIG_COLLECT_PARTITION_STATS
@@ -3814,13 +3822,14 @@ BEGIN_PARTITION_SEARCH:
   // PARTITION_VERT_A
   if (!part_search_state.terminate_partition_search &&
       part_search_state.partition_vert_allowed && verta_partition_allowed) {
-    subsize = get_partition_subsize(bsize, PARTITION_VERT_A);
+    blk_params.subsize = get_partition_subsize(bsize, PARTITION_VERT_A);
 
     pc_tree->verticala[0] =
         av1_alloc_pmc(cm, blk_params.split_bsize2, &td->shared_coeff_buf);
     pc_tree->verticala[1] =
         av1_alloc_pmc(cm, blk_params.split_bsize2, &td->shared_coeff_buf);
-    pc_tree->verticala[2] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+    pc_tree->verticala[2] =
+        av1_alloc_pmc(cm, blk_params.subsize, &td->shared_coeff_buf);
 
     pc_tree->verticala[0]->rd_mode_is_ready = 0;
     pc_tree->verticala[1]->rd_mode_is_ready = 0;
@@ -3851,7 +3860,8 @@ BEGIN_PARTITION_SEARCH:
         cpi, td, tile_data, tp, pc_tree, &best_rdc, pc_tree->verticala, mi_row,
         mi_col, bsize, PARTITION_VERT_A, mi_row, mi_col,
         blk_params.split_bsize2, blk_params.mi_row_edge, mi_col,
-        blk_params.split_bsize2, mi_row, blk_params.mi_col_edge, subsize);
+        blk_params.split_bsize2, mi_row, blk_params.mi_col_edge,
+        blk_params.subsize);
 #if CONFIG_COLLECT_PARTITION_STATS
     if (partition_timer_on) {
       aom_usec_timer_mark(&partition_timer);
@@ -3866,9 +3876,10 @@ BEGIN_PARTITION_SEARCH:
   // PARTITION_VERT_B
   if (!part_search_state.terminate_partition_search &&
       part_search_state.partition_vert_allowed && vertb_partition_allowed) {
-    subsize = get_partition_subsize(bsize, PARTITION_VERT_B);
+    blk_params.subsize = get_partition_subsize(bsize, PARTITION_VERT_B);
 
-    pc_tree->verticalb[0] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+    pc_tree->verticalb[0] =
+        av1_alloc_pmc(cm, blk_params.subsize, &td->shared_coeff_buf);
     pc_tree->verticalb[1] =
         av1_alloc_pmc(cm, blk_params.split_bsize2, &td->shared_coeff_buf);
     pc_tree->verticalb[2] =
@@ -3901,9 +3912,10 @@ BEGIN_PARTITION_SEARCH:
     // Test this partition and update the best partition.
     part_search_state.found_best_partition |= rd_test_partition3(
         cpi, td, tile_data, tp, pc_tree, &best_rdc, pc_tree->verticalb, mi_row,
-        mi_col, bsize, PARTITION_VERT_B, mi_row, mi_col, subsize, mi_row,
-        blk_params.mi_col_edge, blk_params.split_bsize2, blk_params.mi_row_edge,
-        blk_params.mi_col_edge, blk_params.split_bsize2);
+        mi_col, bsize, PARTITION_VERT_B, mi_row, mi_col, blk_params.subsize,
+        mi_row, blk_params.mi_col_edge, blk_params.split_bsize2,
+        blk_params.mi_row_edge, blk_params.mi_col_edge,
+        blk_params.split_bsize2);
 #if CONFIG_COLLECT_PARTITION_STATS
     if (partition_timer_on) {
       aom_usec_timer_mark(&partition_timer);
@@ -3999,7 +4011,7 @@ BEGIN_PARTITION_SEARCH:
     av1_init_rd_stats(&part_search_state.sum_rdc);
     const int quarter_step = mi_size_high[bsize] / 4;
 
-    subsize = get_partition_subsize(bsize, PARTITION_HORZ_4);
+    blk_params.subsize = get_partition_subsize(bsize, PARTITION_HORZ_4);
     part_search_state.sum_rdc.rate =
         part_search_state.partition_cost[PARTITION_HORZ_4];
     part_search_state.sum_rdc.rdcost =
@@ -4007,7 +4019,7 @@ BEGIN_PARTITION_SEARCH:
 
     for (int i = 0; i < 4; ++i) {
       pc_tree->horizontal4[i] =
-          av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+          av1_alloc_pmc(cm, blk_params.subsize, &td->shared_coeff_buf);
     }
 
 #if CONFIG_COLLECT_PARTITION_STATS
@@ -4026,7 +4038,7 @@ BEGIN_PARTITION_SEARCH:
 
       ctx_this->rd_mode_is_ready = 0;
       if (!rd_try_subblock(cpi, td, tile_data, tp, (i == 3), this_mi_row,
-                           mi_col, subsize, best_rdc,
+                           mi_col, blk_params.subsize, best_rdc,
                            &part_search_state.sum_rdc, PARTITION_HORZ_4,
                            ctx_this)) {
         av1_invalid_rd_stats(&part_search_state.sum_rdc);
@@ -4062,14 +4074,15 @@ BEGIN_PARTITION_SEARCH:
     av1_init_rd_stats(&part_search_state.sum_rdc);
     const int quarter_step = mi_size_wide[bsize] / 4;
 
-    subsize = get_partition_subsize(bsize, PARTITION_VERT_4);
+    blk_params.subsize = get_partition_subsize(bsize, PARTITION_VERT_4);
     part_search_state.sum_rdc.rate =
         part_search_state.partition_cost[PARTITION_VERT_4];
     part_search_state.sum_rdc.rdcost =
         RDCOST(x->rdmult, part_search_state.sum_rdc.rate, 0);
 
     for (int i = 0; i < 4; ++i)
-      pc_tree->vertical4[i] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+      pc_tree->vertical4[i] =
+          av1_alloc_pmc(cm, blk_params.subsize, &td->shared_coeff_buf);
 
 #if CONFIG_COLLECT_PARTITION_STATS
     if (best_rdc.rdcost - part_search_state.sum_rdc.rdcost >= 0) {
@@ -4087,7 +4100,7 @@ BEGIN_PARTITION_SEARCH:
 
       ctx_this->rd_mode_is_ready = 0;
       if (!rd_try_subblock(cpi, td, tile_data, tp, (i == 3), mi_row,
-                           this_mi_col, subsize, best_rdc,
+                           this_mi_col, blk_params.subsize, best_rdc,
                            &part_search_state.sum_rdc, PARTITION_VERT_4,
                            ctx_this)) {
         av1_invalid_rd_stats(&part_search_state.sum_rdc);
