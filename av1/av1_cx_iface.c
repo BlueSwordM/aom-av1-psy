@@ -708,6 +708,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     update_default_encoder_config(&cfg->encoder_cfg, extra_cfg);
   }
 
+  PartitionCfg *const part_cfg = &oxcf->part_cfg;
+
   IntraModeCfg *const intra_mode_cfg = &oxcf->intra_mode_cfg;
 
   TxfmSizeTypeCfg *const txfm_cfg = &oxcf->txfm_cfg;
@@ -925,11 +927,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->monochrome = cfg->monochrome;
   oxcf->full_still_picture_hdr = cfg->full_still_picture_hdr;
   oxcf->enable_dual_filter = extra_cfg->enable_dual_filter;
-  oxcf->enable_rect_partitions = extra_cfg->enable_rect_partitions;
-  oxcf->enable_ab_partitions = extra_cfg->enable_ab_partitions;
-  oxcf->enable_1to4_partitions = extra_cfg->enable_1to4_partitions;
-  oxcf->min_partition_size = extra_cfg->min_partition_size;
-  oxcf->max_partition_size = extra_cfg->max_partition_size;
   oxcf->enable_order_hint = extra_cfg->enable_order_hint;
   oxcf->max_reference_frames = extra_cfg->max_reference_frames;
   oxcf->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
@@ -944,6 +941,13 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       (cfg->g_usage == AOM_USAGE_REALTIME)
           ? 0
           : (extra_cfg->allow_warped_motion & extra_cfg->enable_warped_motion);
+
+  // Set partition related configuration.
+  part_cfg->enable_rect_partitions = extra_cfg->enable_rect_partitions;
+  part_cfg->enable_ab_partitions = extra_cfg->enable_ab_partitions;
+  part_cfg->enable_1to4_partitions = extra_cfg->enable_1to4_partitions;
+  part_cfg->min_partition_size = extra_cfg->min_partition_size;
+  part_cfg->max_partition_size = extra_cfg->max_partition_size;
 
   // Set intra mode configuration.
   intra_mode_cfg->enable_angle_delta = extra_cfg->enable_angle_delta;

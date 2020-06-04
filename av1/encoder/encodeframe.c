@@ -2962,7 +2962,8 @@ static void init_partition_search_state_params(
   // Initialize partition search flags to defaults.
   part_search_state->terminate_partition_search = 0;
   part_search_state->do_square_split = blk_params->bsize_at_least_8x8;
-  part_search_state->do_rectangular_split = cpi->oxcf.enable_rect_partitions;
+  part_search_state->do_rectangular_split =
+      cpi->oxcf.part_cfg.enable_rect_partitions;
   part_search_state->prune_horz = 0;
   part_search_state->prune_vert = 0;
 
@@ -2971,13 +2972,13 @@ static void init_partition_search_state_params(
       blk_params->has_rows && blk_params->has_cols;
   part_search_state->partition_horz_allowed =
       blk_params->has_cols && blk_params->bsize_at_least_8x8 &&
-      cpi->oxcf.enable_rect_partitions &&
+      cpi->oxcf.part_cfg.enable_rect_partitions &&
       get_plane_block_size(get_partition_subsize(bsize, PARTITION_HORZ),
                            part_search_state->ss_x,
                            part_search_state->ss_y) != BLOCK_INVALID;
   part_search_state->partition_vert_allowed =
       blk_params->has_rows && blk_params->bsize_at_least_8x8 &&
-      cpi->oxcf.enable_rect_partitions &&
+      cpi->oxcf.part_cfg.enable_rect_partitions &&
       get_plane_block_size(get_partition_subsize(bsize, PARTITION_VERT),
                            part_search_state->ss_x,
                            part_search_state->ss_y) != BLOCK_INVALID;
@@ -3025,7 +3026,8 @@ static void reset_part_limitations(AV1_COMP *const cpi,
                                    PartitionSearchState *part_search_state) {
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
   const int is_rect_part_allowed =
-      blk_params.bsize_at_least_8x8 && cpi->oxcf.enable_rect_partitions &&
+      blk_params.bsize_at_least_8x8 &&
+      cpi->oxcf.part_cfg.enable_rect_partitions &&
       (blk_params.width > blk_params.min_partition_size_1d);
   part_search_state->do_square_split =
       blk_params.bsize_at_least_8x8 &&
@@ -3128,6 +3130,7 @@ static bool rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   init_partition_search_state_params(x, cpi, &part_search_state, mi_row, mi_col,
                                      bsize);
   PartitionBlkParams blk_params = part_search_state.part_blk_params;
+  const PartitionCfg *const part_cfg = &cpi->oxcf.part_cfg;
 
   sms_tree->partitioning = PARTITION_NONE;
   if (best_rdc.rdcost < 0) {
@@ -3508,7 +3511,7 @@ BEGIN_PARTITION_SEARCH:
   }
 
   // PARTITION_HORZ
-  assert(IMPLIES(!cpi->oxcf.enable_rect_partitions,
+  assert(IMPLIES(!part_cfg->enable_rect_partitions,
                  !part_search_state.partition_horz_allowed));
   if (!part_search_state.terminate_partition_search &&
       part_search_state.partition_horz_allowed &&
@@ -3587,7 +3590,7 @@ BEGIN_PARTITION_SEARCH:
   }
 
   // PARTITION_VERT
-  assert(IMPLIES(!cpi->oxcf.enable_rect_partitions,
+  assert(IMPLIES(!part_cfg->enable_rect_partitions,
                  !part_search_state.partition_vert_allowed));
   if (!part_search_state.terminate_partition_search &&
       part_search_state.partition_vert_allowed &&
@@ -3683,7 +3686,7 @@ BEGIN_PARTITION_SEARCH:
                               &pb_simple_motion_pred_sse, &var);
   }
 
-  assert(IMPLIES(!cpi->oxcf.enable_rect_partitions,
+  assert(IMPLIES(!part_cfg->enable_rect_partitions,
                  !part_search_state.do_rectangular_split));
 
   const int ext_partition_allowed =
@@ -3931,7 +3934,7 @@ BEGIN_PARTITION_SEARCH:
   // PARTITION_VERT_4 for this block. This is almost the same as
   // ext_partition_allowed, except that we don't allow 128x32 or 32x128
   // blocks, so we require that bsize is not BLOCK_128X128.
-  const int partition4_allowed = cpi->oxcf.enable_1to4_partitions &&
+  const int partition4_allowed = part_cfg->enable_1to4_partitions &&
                                  ext_partition_allowed &&
                                  bsize != BLOCK_128X128;
 
@@ -4003,7 +4006,7 @@ BEGIN_PARTITION_SEARCH:
   }
 
   // PARTITION_HORZ_4
-  assert(IMPLIES(!cpi->oxcf.enable_rect_partitions, !partition_horz4_allowed));
+  assert(IMPLIES(!part_cfg->enable_rect_partitions, !partition_horz4_allowed));
   if (!part_search_state.terminate_partition_search &&
       partition_horz4_allowed && blk_params.has_rows &&
       (part_search_state.do_rectangular_split ||
@@ -4066,7 +4069,7 @@ BEGIN_PARTITION_SEARCH:
   }
 
   // PARTITION_VERT_4
-  assert(IMPLIES(!cpi->oxcf.enable_rect_partitions, !partition_vert4_allowed));
+  assert(IMPLIES(!part_cfg->enable_rect_partitions, !partition_vert4_allowed));
   if (!part_search_state.terminate_partition_search &&
       partition_vert4_allowed && blk_params.has_cols &&
       (part_search_state.do_rectangular_split ||
@@ -5091,10 +5094,10 @@ static AOM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
 
   sb_enc->max_partition_size =
       AOMMIN(sf->part_sf.default_max_partition_size,
-             dim_to_size(cpi->oxcf.max_partition_size));
+             dim_to_size(cpi->oxcf.part_cfg.max_partition_size));
   sb_enc->min_partition_size =
       AOMMAX(sf->part_sf.default_min_partition_size,
-             dim_to_size(cpi->oxcf.min_partition_size));
+             dim_to_size(cpi->oxcf.part_cfg.min_partition_size));
   sb_enc->max_partition_size =
       AOMMIN(sb_enc->max_partition_size, cm->seq_params.sb_size);
   sb_enc->min_partition_size =

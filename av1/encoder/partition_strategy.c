@@ -1435,12 +1435,13 @@ void av1_prune_ab_partitions(
     int *verta_partition_allowed, int *vertb_partition_allowed) {
   int64_t *horz_rd = rect_part_rd[0];
   int64_t *vert_rd = rect_part_rd[1];
+  const PartitionCfg *const part_cfg = &cpi->oxcf.part_cfg;
   // The standard AB partitions are allowed initially if ext-partition-types are
   // allowed.
   int horzab_partition_allowed =
-      ext_partition_allowed & cpi->oxcf.enable_ab_partitions;
+      ext_partition_allowed & part_cfg->enable_ab_partitions;
   int vertab_partition_allowed =
-      ext_partition_allowed & cpi->oxcf.enable_ab_partitions;
+      ext_partition_allowed & part_cfg->enable_ab_partitions;
 
   // Pruning: pruning out AB partitions on one main direction based on the
   // current best partition and source variance.
@@ -1529,10 +1530,10 @@ void av1_prune_ab_partitions(
   }
 
   // Disable ab partitions if they are disabled by the encoder parameter.
-  *horza_partition_allowed &= cpi->oxcf.enable_ab_partitions;
-  *horzb_partition_allowed &= cpi->oxcf.enable_ab_partitions;
-  *verta_partition_allowed &= cpi->oxcf.enable_ab_partitions;
-  *vertb_partition_allowed &= cpi->oxcf.enable_ab_partitions;
+  *horza_partition_allowed &= part_cfg->enable_ab_partitions;
+  *horzb_partition_allowed &= part_cfg->enable_ab_partitions;
+  *verta_partition_allowed &= part_cfg->enable_ab_partitions;
+  *vertb_partition_allowed &= part_cfg->enable_ab_partitions;
 
   // Pruning: pruning AB partitions based on the number of horz/vert wins
   // in the current block and sub-blocks in PARTITION_SPLIT.

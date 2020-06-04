@@ -255,6 +255,21 @@ typedef enum {
 #define TPL_DEP_COST_SCALE_LOG2 4
 
 typedef struct {
+  // Flag to indicate if rectanguar partitions should be enabled.
+  bool enable_rect_partitions;
+  // Flag to indicate if AB partitions should be enabled.
+  bool enable_ab_partitions;
+  // Flag to indicate if 1:4 / 4:1 partitions should be enabled.
+  bool enable_1to4_partitions;
+  // Indicates the minimum partition size that should be allowed. Both width and
+  // height of a partition cannot be smaller than the min_partition_size.
+  BLOCK_SIZE min_partition_size;
+  // Indicates the maximum partition size that should be allowed. Both width and
+  // height of a partition cannot be larger than the max_partition_size.
+  BLOCK_SIZE max_partition_size;
+} PartitionCfg;
+
+typedef struct {
   // Flag to indicate if intra edge filtering process should be enabled.
   bool enable_intra_edge_filter;
   // Flag to indicate if recursive filtering based intra prediction should be
@@ -476,11 +491,6 @@ typedef struct AV1EncoderConfig {
   unsigned int motion_vector_unit_test;
   unsigned int sb_multipass_unit_test;
   unsigned int ext_tile_debug;
-  int enable_rect_partitions;
-  int enable_ab_partitions;
-  int enable_1to4_partitions;
-  int min_partition_size;
-  int max_partition_size;
   int enable_order_hint;
   int enable_ref_frame_mvs;
   unsigned int max_reference_frames;
@@ -505,6 +515,9 @@ typedef struct AV1EncoderConfig {
 
   // Flags related to compound type.
   CompoundTypeCfg comp_type_cfg;
+
+  // Partition related information.
+  PartitionCfg part_cfg;
 
 #if CONFIG_DENOISE
   float noise_level;
