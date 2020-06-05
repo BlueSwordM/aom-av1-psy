@@ -556,6 +556,49 @@ class DatarateTestSVC
     }
   }
 
+  virtual void BasicRateTargeting444SVC3TL3SLTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.g_error_resilient = 1;
+    cfg_.g_profile = 1;
+
+    ::libaom_test::Y4mVideoSource video("rush_hour_444.y4m", 0, 140);
+
+    const int bitrate_array[2] = { 600, 1200 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    ResetModel();
+    number_temporal_layers_ = 3;
+    number_spatial_layers_ = 3;
+    // SL0
+    const int bitrate_sl0 = 1 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[0] = 50 * bitrate_sl0 / 100;
+    target_layer_bitrate_[1] = 70 * bitrate_sl0 / 100;
+    target_layer_bitrate_[2] = bitrate_sl0;
+    // SL1
+    const int bitrate_sl1 = 3 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[3] = 50 * bitrate_sl1 / 100;
+    target_layer_bitrate_[4] = 70 * bitrate_sl1 / 100;
+    target_layer_bitrate_[5] = bitrate_sl1;
+    // SL2
+    const int bitrate_sl2 = 4 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[6] = 50 * bitrate_sl2 / 100;
+    target_layer_bitrate_[7] = 70 * bitrate_sl2 / 100;
+    target_layer_bitrate_[8] = bitrate_sl2;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.70)
+          << " The datarate for the file is lower than target by too much!";
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.38)
+          << " The datarate for the file is greater than target by too much!";
+    }
+  }
+
   int layer_frame_cnt_;
   int superframe_cnt_;
   int number_temporal_layers_;
@@ -597,6 +640,12 @@ TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL3SLHD) {
 // for auto key frame mode with short key frame period.
 TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL3SLKf) {
   BasicRateTargetingSVC3TL3SLKfTest();
+}
+
+// Check basic rate targeting for CBR, for 3 spatial, 3 temporal layers,
+// for 4:4:4 input.
+TEST_P(DatarateTestSVC, BasicRateTargeting444SVC3TL3SL) {
+  BasicRateTargeting444SVC3TL3SLTest();
 }
 
 AV1_INSTANTIATE_TEST_CASE(DatarateTestSVC,
