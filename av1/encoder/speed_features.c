@@ -1377,4 +1377,12 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
       sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
     }
   }
+
+  if (cpi->oxcf.mode == GOOD && speed >= 5) {
+    const int qindex_thresh = boosted ? 100 : 160;
+    if (cm->quant_params.base_qindex <= qindex_thresh &&
+        !frame_is_intra_only(&cpi->common)) {
+      sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
+    }
+  }
 }
