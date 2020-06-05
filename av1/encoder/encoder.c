@@ -595,7 +595,7 @@ static BLOCK_SIZE select_sb_size(const AV1_COMP *const cpi) {
   // pass encoding, which is why this heuristic is not configured as a
   // speed-feature.
   if (oxcf->superres_cfg.superres_mode == AOM_SUPERRES_NONE &&
-      oxcf->resize_mode == RESIZE_NONE && oxcf->speed >= 1) {
+      oxcf->resize_cfg.resize_mode == RESIZE_NONE && oxcf->speed >= 1) {
     return AOMMIN(cm->width, cm->height) > 480 ? BLOCK_128X128 : BLOCK_64X64;
   }
 
@@ -4483,18 +4483,18 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
 static uint8_t calculate_next_resize_scale(const AV1_COMP *cpi) {
   // Choose an arbitrary random number
   static unsigned int seed = 56789;
-  const AV1EncoderConfig *oxcf = &cpi->oxcf;
+  const ResizeCfg *resize_cfg = &cpi->oxcf.resize_cfg;
   if (is_stat_generation_stage(cpi)) return SCALE_NUMERATOR;
   uint8_t new_denom = SCALE_NUMERATOR;
 
   if (cpi->common.seq_params.reduced_still_picture_hdr) return SCALE_NUMERATOR;
-  switch (oxcf->resize_mode) {
+  switch (resize_cfg->resize_mode) {
     case RESIZE_NONE: new_denom = SCALE_NUMERATOR; break;
     case RESIZE_FIXED:
       if (cpi->common.current_frame.frame_type == KEY_FRAME)
-        new_denom = oxcf->resize_kf_scale_denominator;
+        new_denom = resize_cfg->resize_kf_scale_denominator;
       else
-        new_denom = oxcf->resize_scale_denominator;
+        new_denom = resize_cfg->resize_scale_denominator;
       break;
     case RESIZE_RANDOM: new_denom = lcg_rand16(&seed) % 9 + 8; break;
     default: assert(0);
@@ -4774,8 +4774,8 @@ static size_params_type calculate_next_size_params(AV1_COMP *cpi) {
                               resize_denom);
   }
   rsz.superres_denom = calculate_next_superres_scale(cpi);
-  if (!validate_size_scales(oxcf->resize_mode, cpi->superres_mode, oxcf->width,
-                            oxcf->height, &rsz))
+  if (!validate_size_scales(oxcf->resize_cfg.resize_mode, cpi->superres_mode,
+                            oxcf->width, oxcf->height, &rsz))
     assert(0 && "Invalid scale parameters");
   return rsz;
 }

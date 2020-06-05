@@ -708,6 +708,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     update_default_encoder_config(&cfg->encoder_cfg, extra_cfg);
   }
 
+  ResizeCfg *const resize_cfg = &oxcf->resize_cfg;
+
   PartitionCfg *const part_cfg = &oxcf->part_cfg;
 
   IntraModeCfg *const intra_mode_cfg = &oxcf->intra_mode_cfg;
@@ -823,13 +825,15 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->under_shoot_pct = cfg->rc_undershoot_pct;
   oxcf->over_shoot_pct = cfg->rc_overshoot_pct;
 
-  oxcf->resize_mode = (RESIZE_MODE)cfg->rc_resize_mode;
-  oxcf->resize_scale_denominator = (uint8_t)cfg->rc_resize_denominator;
-  oxcf->resize_kf_scale_denominator = (uint8_t)cfg->rc_resize_kf_denominator;
-  if (oxcf->resize_mode == RESIZE_FIXED &&
-      oxcf->resize_scale_denominator == SCALE_NUMERATOR &&
-      oxcf->resize_kf_scale_denominator == SCALE_NUMERATOR)
-    oxcf->resize_mode = RESIZE_NONE;
+  // Set frame resize mode configuration.
+  resize_cfg->resize_mode = (RESIZE_MODE)cfg->rc_resize_mode;
+  resize_cfg->resize_scale_denominator = (uint8_t)cfg->rc_resize_denominator;
+  resize_cfg->resize_kf_scale_denominator =
+      (uint8_t)cfg->rc_resize_kf_denominator;
+  if (resize_cfg->resize_mode == RESIZE_FIXED &&
+      resize_cfg->resize_scale_denominator == SCALE_NUMERATOR &&
+      resize_cfg->resize_kf_scale_denominator == SCALE_NUMERATOR)
+    resize_cfg->resize_mode = RESIZE_NONE;
 
   oxcf->maximum_buffer_size_ms = is_vbr ? 240000 : cfg->rc_buf_sz;
   oxcf->starting_buffer_level_ms = is_vbr ? 60000 : cfg->rc_buf_initial_sz;
@@ -1037,9 +1041,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   oxcf->chroma_subsampling_x = extra_cfg->chroma_subsampling_x;
   oxcf->chroma_subsampling_y = extra_cfg->chroma_subsampling_y;
-  oxcf->border_in_pixels = (oxcf->resize_mode || superres_cfg->superres_mode)
-                               ? AOM_BORDER_IN_PIXELS
-                               : AOM_ENC_NO_SCALE_BORDER;
+  oxcf->border_in_pixels =
+      (resize_cfg->resize_mode || superres_cfg->superres_mode)
+          ? AOM_BORDER_IN_PIXELS
+          : AOM_ENC_NO_SCALE_BORDER;
   memcpy(oxcf->target_seq_level_idx, extra_cfg->target_seq_level_idx,
          sizeof(oxcf->target_seq_level_idx));
   oxcf->tier_mask = extra_cfg->tier_mask;

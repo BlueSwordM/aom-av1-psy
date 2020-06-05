@@ -255,6 +255,16 @@ typedef enum {
 #define TPL_DEP_COST_SCALE_LOG2 4
 
 typedef struct {
+  // Indicates the frame resize mode to be used by the encoder.
+  RESIZE_MODE resize_mode;
+  // Indicates the denominator for resize of inter frames, assuming 8 as the
+  // numerator. Its value ranges between 8-16.
+  uint8_t resize_scale_denominator;
+  // Indicates the denominator for resize of key frames, assuming 8 as the
+  // numerator. Its value ranges between 8-16.
+  uint8_t resize_kf_scale_denominator;
+} ResizeCfg;
+typedef struct {
   // Flag to indicate if rectanguar partitions should be enabled.
   bool enable_rect_partitions;
   // Flag to indicate if AB partitions should be enabled.
@@ -419,9 +429,7 @@ typedef struct AV1EncoderConfig {
   unsigned int mtu;
 
   // Internal frame size scaling.
-  RESIZE_MODE resize_mode;
-  uint8_t resize_scale_denominator;
-  uint8_t resize_kf_scale_denominator;
+  ResizeCfg resize_cfg;
 
   // Frame Super-Resolution size scaling.
   SuperResCfg superres_cfg;

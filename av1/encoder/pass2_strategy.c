@@ -223,7 +223,7 @@ static int get_twopass_worst_quality(AV1_COMP *cpi, const double section_err,
   if (section_target_bandwidth <= 0) {
     return rc->worst_quality;  // Highest value allowed
   } else {
-    const int num_mbs = (cpi->oxcf.resize_mode != RESIZE_NONE)
+    const int num_mbs = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
                             ? cpi->initial_mbs
                             : cpi->common.mi_params.MBs;
     const int active_mbs = AOMMAX(1, num_mbs - (int)(num_mbs * inactive_zone));
@@ -1603,7 +1603,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // Was the group length constrained by the requirement for a new KF?
   rc->constrained_gf_group = (i >= rc->frames_to_key) ? 1 : 0;
 
-  const int num_mbs = (cpi->oxcf.resize_mode != RESIZE_NONE)
+  const int num_mbs = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
                           ? cpi->initial_mbs
                           : cm->mi_params.MBs;
   assert(num_mbs > 0);
@@ -2152,7 +2152,7 @@ static int64_t get_kf_group_bits(AV1_COMP *cpi, double kf_group_err,
   if (cpi->lap_enabled) {
     kf_group_bits = (int64_t)rc->frames_to_key * rc->avg_frame_bandwidth;
     if (cpi->oxcf.vbr_corpus_complexity_lap) {
-      const int num_mbs = (cpi->oxcf.resize_mode != RESIZE_NONE)
+      const int num_mbs = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
                               ? cpi->initial_mbs
                               : cpi->common.mi_params.MBs;
 
@@ -2563,7 +2563,7 @@ static void process_first_pass_stats(AV1_COMP *cpi,
   if (err == EOF) return;
 
   {
-    const int num_mbs = (cpi->oxcf.resize_mode != RESIZE_NONE)
+    const int num_mbs = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
                             ? cpi->initial_mbs
                             : cm->mi_params.MBs;
     // The multiplication by 256 reverses a scaling factor of (>> 8)

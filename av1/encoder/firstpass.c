@@ -712,8 +712,9 @@ static void update_firstpass_stats(AV1_COMP *cpi,
   // where the typical "real" energy per MB also falls.
   // Initial estimate here uses sqrt(mbs) to define the min_err, where the
   // number of mbs is proportional to the image area.
-  const int num_mbs = (cpi->oxcf.resize_mode != RESIZE_NONE) ? cpi->initial_mbs
-                                                             : mi_params->MBs;
+  const int num_mbs = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
+                          ? cpi->initial_mbs
+                          : mi_params->MBs;
   const double min_err = 200 * sqrt(num_mbs);
 
   fps.weight = stats->intra_factor * stats->brightness_factor;
@@ -1147,8 +1148,9 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   }
 
   TWO_PASS *twopass = &cpi->twopass;
-  const int num_mbs = (cpi->oxcf.resize_mode != RESIZE_NONE) ? cpi->initial_mbs
-                                                             : mi_params->MBs;
+  const int num_mbs = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
+                          ? cpi->initial_mbs
+                          : mi_params->MBs;
   stats.intra_factor = stats.intra_factor / (double)num_mbs;
   stats.brightness_factor = stats.brightness_factor / (double)num_mbs;
   FIRSTPASS_STATS *this_frame_stats = twopass->stats_buf_ctx->stats_in_end;
