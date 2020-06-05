@@ -331,6 +331,9 @@ class AVxEncoderThreadTest
       ASSERT_EQ(single_thr_size_enc, multi_thr_size_enc);
       ASSERT_EQ(single_thr_md5_enc, multi_thr_md5_enc);
       ASSERT_EQ(single_thr_md5_dec, multi_thr_md5_dec);
+
+      DoTestMaxThreads(&video, single_thr_size_enc, single_thr_md5_enc,
+                       single_thr_md5_dec);
     } else if (row_mt_ == 1) {
       // Encode using multiple threads row-mt enabled.
       cfg_.g_threads = 2;
@@ -379,7 +382,34 @@ class AVxEncoderThreadTest
       ASSERT_EQ(multi_thr4_row_mt_size_enc, multi_thr2_row_mt_size_enc);
       ASSERT_EQ(multi_thr4_row_mt_md5_enc, multi_thr2_row_mt_md5_enc);
       ASSERT_EQ(multi_thr4_row_mt_md5_dec, multi_thr2_row_mt_md5_dec);
+
+      DoTestMaxThreads(&video, multi_thr2_row_mt_size_enc,
+                       multi_thr2_row_mt_md5_enc, multi_thr2_row_mt_md5_dec);
     }
+  }
+
+  virtual void DoTestMaxThreads(::libaom_test::YUVVideoSource *video,
+                                const std::vector<size_t> ref_size_enc,
+                                const std::vector<std::string> ref_md5_enc,
+                                const std::vector<std::string> ref_md5_dec) {
+    // This value should be kept the same as MAX_NUM_THREADS
+    // in aom_thread.h
+    cfg_.g_threads = 64;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(video));
+    std::vector<size_t> multi_thr_max_row_mt_size_enc;
+    std::vector<std::string> multi_thr_max_row_mt_md5_enc;
+    std::vector<std::string> multi_thr_max_row_mt_md5_dec;
+    multi_thr_max_row_mt_size_enc = size_enc_;
+    multi_thr_max_row_mt_md5_enc = md5_enc_;
+    multi_thr_max_row_mt_md5_dec = md5_dec_;
+    size_enc_.clear();
+    md5_enc_.clear();
+    md5_dec_.clear();
+
+    // Check that the vectors are equal.
+    ASSERT_EQ(ref_size_enc, multi_thr_max_row_mt_size_enc);
+    ASSERT_EQ(ref_md5_enc, multi_thr_max_row_mt_md5_enc);
+    ASSERT_EQ(ref_md5_dec, multi_thr_max_row_mt_md5_dec);
   }
 
   bool encoder_initialized_;
@@ -433,6 +463,16 @@ class AVxEncoderThreadLSTest : public AVxEncoderThreadTest {
   virtual void SetTileSize(libaom_test::Encoder *encoder) {
     encoder->Control(AV1E_SET_TILE_COLUMNS, tile_cols_);
     encoder->Control(AV1E_SET_TILE_ROWS, tile_rows_);
+  }
+
+  virtual void DoTestMaxThreads(::libaom_test::YUVVideoSource *video,
+                                const std::vector<size_t> ref_size_enc,
+                                const std::vector<std::string> ref_md5_enc,
+                                const std::vector<std::string> ref_md5_dec) {
+    (void)video;
+    (void)ref_size_enc;
+    (void)ref_md5_enc;
+    (void)ref_md5_dec;
   }
 };
 
