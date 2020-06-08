@@ -575,9 +575,7 @@ static void set_good_speed_features_framesize_independent(
         frame_is_intra_only(&cpi->common) ? 1 : 0;
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
 
-    sf->lpf_sf.cdef_pick_method = allow_screen_content_tools
-                                      ? CDEF_FAST_SEARCH_LVL1
-                                      : CDEF_FAST_SEARCH_LVL2;
+    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL2;
 
     // TODO(any): The following features have no impact on quality and speed,
     // and are disabled.
