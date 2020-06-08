@@ -525,8 +525,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
 
     sf->part_sf.simple_motion_search_prune_agg = 2;
-    sf->part_sf.prune_ab_partition_using_split_info =
-        !allow_screen_content_tools;
+    sf->part_sf.prune_ab_partition_using_split_info = 1;
 
     sf->inter_sf.adaptive_mode_search = 1;
     sf->inter_sf.alt_ref_search_fp = 1;
