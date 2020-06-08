@@ -56,6 +56,11 @@ class DatarateTestSVC
     memset(&layer_id_, 0, sizeof(aom_svc_layer_id_t));
     memset(&svc_params_, 0, sizeof(aom_svc_params_t));
     memset(&ref_frame_config_, 0, sizeof(aom_svc_ref_frame_config_t));
+    drop_frames_ = 0;
+    for (int i = 0; i < 1000; i++) drop_frames_list_[i] = 1000;
+    decoded_nframes_ = 0;
+    mismatch_nframes_ = 0;
+    mismatch_psnr_ = 0.0;
   }
 
   virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
@@ -106,6 +111,35 @@ class DatarateTestSVC
       effective_datarate_tl[i] = (effective_datarate_tl[i] / 1000) / duration_;
     }
   }
+
+  virtual void DecompressedFrameHook(const aom_image_t &img,
+                                     aom_codec_pts_t pts) {
+    (void)img;
+    (void)pts;
+    ++decoded_nframes_;
+  }
+
+  virtual bool DoDecode() const {
+    if (drop_frames_ > 0) {
+      for (unsigned int i = 0; i < drop_frames_; ++i) {
+        if (drop_frames_list_[i] == (unsigned int)superframe_cnt_) {
+          std::cout << "             Skipping decoding frame: "
+                    << drop_frames_list_[i] << "\n";
+          return 0;
+        }
+      }
+    }
+    return 1;
+  }
+
+  virtual void MismatchHook(const aom_image_t *img1, const aom_image_t *img2) {
+    double mismatch_psnr = compute_psnr(img1, img2);
+    mismatch_psnr_ += mismatch_psnr;
+    ++mismatch_nframes_;
+  }
+
+  unsigned int GetMismatchFrames() { return mismatch_nframes_; }
+  unsigned int GetDecodedFrames() { return decoded_nframes_; }
 
   // Layer pattern configuration.
   virtual int set_layer_pattern(int frame_cnt, aom_svc_layer_id_t *layer_id,
@@ -599,6 +633,97 @@ class DatarateTestSVC
     }
   }
 
+  virtual void BasicRateTargetingSVC3TL1SLDropAllEnhTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    // error_resilient needs to be on/1 for this test to pass.
+    // TODO(marpan): error_resilient can be set per-frame, look into
+    // setting erorr_resilient = 1 only for enhancement layers.
+    cfg_.g_error_resilient = 1;
+
+    ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
+                                         288, 30, 1, 0, 300);
+    const int bitrate_array[2] = { 200, 550 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    ResetModel();
+    // Drop TL1 and TL2: #frames(300) - #TL0.
+    drop_frames_ = 300 - 300 / 4;
+    int n = 0;
+    for (int i = 0; i < 300; i++) {
+      if (i % 4 != 0) {
+        drop_frames_list_[n] = i;
+        n++;
+      }
+    }
+    number_temporal_layers_ = 3;
+    target_layer_bitrate_[0] = 50 * cfg_.rc_target_bitrate / 100;
+    target_layer_bitrate_[1] = 70 * cfg_.rc_target_bitrate / 100;
+    target_layer_bitrate_[2] = cfg_.rc_target_bitrate;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
+          << " The datarate for the file is lower than target by too much!";
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.30)
+          << " The datarate for the file is greater than target by too much!";
+    }
+    // Test that no mismatches have been found.
+    std::cout << "          Decoded frames: " << GetDecodedFrames() << "\n";
+    std::cout << "          Mismatch frames: " << GetMismatchFrames() << "\n";
+    EXPECT_EQ(300 - GetDecodedFrames(), drop_frames_);
+    EXPECT_EQ((int)GetMismatchFrames(), 0);
+  }
+
+  virtual void BasicRateTargetingSVC3TL1SLDropTL2EnhTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    // error_resilient can be off/0, since dropped frames (TL2)
+    // are non-reference frames.
+    cfg_.g_error_resilient = 0;
+
+    ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
+                                         288, 30, 1, 0, 300);
+    const int bitrate_array[2] = { 200, 550 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    ResetModel();
+    // Drop TL2: #frames(300) - (#TL0 + #TL1).
+    drop_frames_ = 300 - 300 / 2;
+    int n = 0;
+    for (int i = 0; i < 300; i++) {
+      if (i % 2 != 0) {
+        drop_frames_list_[n] = i;
+        n++;
+      }
+    }
+    number_temporal_layers_ = 3;
+    target_layer_bitrate_[0] = 50 * cfg_.rc_target_bitrate / 100;
+    target_layer_bitrate_[1] = 70 * cfg_.rc_target_bitrate / 100;
+    target_layer_bitrate_[2] = cfg_.rc_target_bitrate;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
+          << " The datarate for the file is lower than target by too much!";
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.30)
+          << " The datarate for the file is greater than target by too much!";
+    }
+    // Test that no mismatches have been found.
+    std::cout << "          Decoded frames: " << GetDecodedFrames() << "\n";
+    std::cout << "          Mismatch frames: " << GetMismatchFrames() << "\n";
+    EXPECT_EQ(300 - GetDecodedFrames(), drop_frames_);
+    EXPECT_EQ((int)GetMismatchFrames(), 0);
+  }
+
   int layer_frame_cnt_;
   int superframe_cnt_;
   int number_temporal_layers_;
@@ -609,6 +734,11 @@ class DatarateTestSVC
   aom_svc_ref_frame_config_t ref_frame_config_;
   aom_svc_layer_id_t layer_id_;
   double effective_datarate_tl[AOM_MAX_LAYERS];
+  unsigned int drop_frames_;
+  unsigned int drop_frames_list_[1000];
+  unsigned int mismatch_nframes_;
+  unsigned int decoded_nframes_;
+  double mismatch_psnr_;
 };
 
 // Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial.
@@ -646,6 +776,23 @@ TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL3SLKf) {
 // for 4:4:4 input.
 TEST_P(DatarateTestSVC, BasicRateTargeting444SVC3TL3SL) {
   BasicRateTargeting444SVC3TL3SLTest();
+}
+
+// Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial layer,
+// with dropping of all enhancement layers (TL 1 and TL2). For the base
+// layer (TL0) to still be decodeable (with no mismatch), the
+// error_resilient flag must be set to 1.
+TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLDropAllEnh) {
+  BasicRateTargetingSVC3TL1SLDropAllEnhTest();
+}
+
+// Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial layer,
+// with dropping of the TL2 enhancement layer, which are non-reference
+// (droppble) frames. For the base layer (TL0) and TL1 to still be decodeable
+// (with no mismatch), the error_resilient_flag may be off (set to 0),
+// since TL2 are non-reference frames.
+TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLDropTL2Enh) {
+  BasicRateTargetingSVC3TL1SLDropTL2EnhTest();
 }
 
 AV1_INSTANTIATE_TEST_CASE(DatarateTestSVC,

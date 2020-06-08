@@ -227,7 +227,7 @@ static int choose_primary_ref_frame(
 
   const int intra_only = frame_params->frame_type == KEY_FRAME ||
                          frame_params->frame_type == INTRA_ONLY_FRAME;
-  if (intra_only || frame_params->error_resilient_mode || cpi->use_svc ||
+  if (intra_only || frame_params->error_resilient_mode ||
       cpi->ext_flags.use_primary_ref_none) {
     return PRIMARY_REF_NONE;
   }
