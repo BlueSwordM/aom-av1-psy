@@ -76,7 +76,7 @@ static AOM_INLINE void encode_superblock(const AV1_COMP *const cpi,
                                          TileDataEnc *tile_data, ThreadData *td,
                                          TokenExtra **t, RUN_TYPE dry_run,
                                          BLOCK_SIZE bsize, int *rate);
-
+/*!\cond */
 // This is used as a reference when computing the source variance for the
 //  purposes of activity masking.
 // Eventually this should be replaced by custom no-reference routines,
@@ -182,6 +182,7 @@ typedef struct SB_FIRST_PASS_STATS {
   unsigned int mode_chosen_counts[MAX_MODES];
 #endif  // CONFIG_INTERNAL_STATS
 } SB_FIRST_PASS_STATS;
+/*!\endcond */
 
 unsigned int av1_get_sby_perpixel_variance(const AV1_COMP *cpi,
                                            const struct buf_2d *ref,
@@ -1882,28 +1883,40 @@ static AOM_INLINE void set_fixed_partitioning(AV1_COMP *cpi,
   }
 }
 
-// Encode the block by applying pre-calculated partition patterns that are
-// represented by coding block sizes stored in the mbmi array. Minor partition
-// adjustments are tested and applied if they lead to lower rd costs. The
-// partition types are limited to a basic set: none, horz, vert, and split.
-//
-// Inputs:
-//     cpi: the global compressor setting
-//     td: thread data
-//     tile_data: tile data
-//     mib: the array representing MB_MODE_INFO pointers for mi blocks starting
-//          from the first pixel of the current block
-//     tp: the pointer to the start token
-//     mi_row: row coordinate of the block in a step size of MI_SIZE
-//     mi_col: column coordinate of the block in a step size of MI_SIZE
-//     bsize: block size
-//     rate: the pointer to the final rate for encoding the current block
-//     dist: the pointer to the final distortion of the current block
-//     do_recon: whether the reconstruction function needs to be run, either for
-//               finalizing a superblock or providing reference for future
-//               sub-partitions
-//     pc_tree: the pointer to the PC_TREE node storing the picked partitions
-//              and mode info for the current block
+/*!\brief AV1 block partition search (partition estimation and partial search).
+ *
+ * \ingroup partition_search
+ * \callgraph
+ * Encode the block by applying pre-calculated partition patterns that are
+ * represented by coding block sizes stored in the mbmi array. Minor partition
+ * adjustments are tested and applied if they lead to lower rd costs. The
+ * partition types are limited to a basic set: none, horz, vert, and split.
+ *
+ * \param[in]    cpi       Top-level encoder structure
+ * \param[in]    td        Pointer to thread data
+ * \param[in]    tile_data Pointer to struct holding adaptive
+                           data/contexts/models for the tile during encoding
+ * \param[in]    mib       Array representing MB_MODE_INFO pointers for mi
+                           blocks starting from the first pixel of the current
+                           block
+ * \param[in]    tp        Pointer to the starting token
+ * \param[in]    mi_row    Row coordinate of the block in a step size of MI_SIZE
+ * \param[in]    mi_col    Column coordinate of the block in a step size of
+                           MI_SIZE
+ * \param[in]    bsize     Current block size
+ * \param[in]    rate      Pointer to the final rate for encoding the current
+                           block
+ * \param[in]    dist      Pointer to the final distortion of the current block
+ * \param[in]    do_recon  Whether the reconstruction function needs to be run,
+                           either for finalizing a superblock or providing
+                           reference for future sub-partitions
+ * \param[in]    pc_tree   Pointer to the PC_TREE node holding the picked
+                           partitions and mode info for the current block
+ *
+ * \return Nothing is returned. The pc_tree struct is modified to store the
+ * picked partition and modes. The rate and dist are also updated with those
+ * corresponding to the best partition found.
+ */
 static AOM_INLINE void rd_use_partition(
     AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, MB_MODE_INFO **mib,
     TokenExtra **tp, int mi_row, int mi_col, BLOCK_SIZE bsize, int *rate,
@@ -2347,24 +2360,34 @@ static AOM_INLINE int do_slipt_check(BLOCK_SIZE bsize) {
   return (bsize == BLOCK_16X16 || bsize == BLOCK_32X32);
 }
 
-// Encode the block by applying pre-calculated partition patterns that are
-// represented by coding block sizes stored in the mbmi array. The only
-// partition adjustment allowed is merging leaf split nodes if it leads to a
-// lower rd cost. The partition types are limited to a basic set: none, horz,
-// vert, and split. This function is only used in the real-time mode.
-//
-// Inputs:
-//     cpi: the global compressor setting
-//     td: thread data
-//     tile_data: tile data
-//     mib: the array representing MB_MODE_INFO pointers for mi blocks starting
-//          from the first pixel of the current block
-//     tp: the pointer to the start token
-//     mi_row: row coordinate of the block in a step size of MI_SIZE
-//     mi_col: column coordinate of the block in a step size of MI_SIZE
-//     bsize: block size
-//     pc_tree: the pointer to the PC_TREE node storing the picked partitions
-//              and mode info for the current block
+/*!\brief AV1 block partition application (minimal RD search).
+ *
+ * \ingroup partition_search
+ * \callgraph
+ * Encode the block by applying pre-calculated partition patterns that are
+ * represented by coding block sizes stored in the mbmi array. The only
+ * partition adjustment allowed is merging leaf split nodes if it leads to a
+ * lower rd cost. The partition types are limited to a basic set: none, horz,
+ * vert, and split. This function is only used in the real-time mode.
+ *
+ * \param[in]    cpi       Top-level encoder structure
+ * \param[in]    td        Pointer to thread data
+ * \param[in]    tile_data Pointer to struct holding adaptive
+                           data/contexts/models for the tile during encoding
+ * \param[in]    mib       Array representing MB_MODE_INFO pointers for mi
+                           blocks starting from the first pixel of the current
+                           block
+ * \param[in]    tp        Pointer to the starting token
+ * \param[in]    mi_row    Row coordinate of the block in a step size of MI_SIZE
+ * \param[in]    mi_col    Column coordinate of the block in a step size of
+                           MI_SIZE
+ * \param[in]    bsize     Current block size
+ * \param[in]    pc_tree   Pointer to the PC_TREE node holding the picked
+                           partitions and mode info for the current block
+ *
+ * \return Nothing is returned. The pc_tree struct is modified to store the
+ * picked partition and modes.
+ */
 static AOM_INLINE void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
                                            TileDataEnc *tile_data,
                                            MB_MODE_INFO **mib, TokenExtra **tp,
@@ -2800,6 +2823,7 @@ static AOM_INLINE void update_picked_ref_frames_mask(MACROBLOCK *const x,
   }
 }
 
+/*!\cond */
 // This structure contains block size related
 // variables for use in rd_pick_partition().
 typedef struct {
@@ -2891,6 +2915,7 @@ typedef struct {
   // This flag will be set if best partition is found from the search.
   bool found_best_partition;
 } PartitionSearchState;
+/*!\endcond */
 
 // Initialize state variables of partition search used in rd_pick_partition().
 static AOM_INLINE void init_partition_search_state_params(
@@ -3225,33 +3250,45 @@ static AOM_INLINE void rectangular_partition_search(
   }
 }
 
-// Searches for the best partition pattern for a block based on the
-// rate-distortion cost, and returns a bool value to indicate whether a valid
-// partition pattern is found. The partition can recursively go down to
-// the smallest block size.
-//
-// Inputs:
-//     cpi: the global compressor setting
-//     td: thread data
-//     tile_data: tile data
-//     tp: the pointer to the start token
-//     mi_row: row coordinate of the block in a step size of MI_SIZE
-//     mi_col: column coordinate of the block in a step size of MI_SIZE
-//     bsize: block size
-//     rd_cost: the pointer to the final rd cost of the current block
-//     best_rdc: the upper bound of rd cost for a valid partition
-//     pc_tree: the pointer to the PC_TREE node storing the picked partitions
-//              and mode info for the current block
-//     sms_tree: the pointer to the SIMPLE_MOTION_DATA_TREE node storing the
-//               simple motion search data for the current block
-//     none_rd: the pointer to the rd cost in the case of not splitting the
-//              current block
-//     multi_pass_mode: SB_SINGLE_PASS/SB_DRY_PASS/SB_WET_PASS
-//     rect_part_win_info: the pointer to a struct storing whether horz/vert
-//                         partition outperforms previously tested partitions
-//
-// Output:
-//     a bool value indicating whether a valid partition is found
+/*!\brief AV1 block partition search (full search).
+ *
+ * \ingroup partition_search
+ * \callgraph
+ * Searches for the best partition pattern for a block based on the
+ * rate-distortion cost, and returns a bool value to indicate whether a valid
+ * partition pattern is found. The partition can recursively go down to the
+ * smallest block size.
+ *
+ * \param[in]    cpi                Top-level encoder structure
+ * \param[in]    td                 Pointer to thread data
+ * \param[in]    tile_data          Pointer to struct holding adaptive
+                                    data/contexts/models for the tile during
+                                    encoding
+ * \param[in]    tp                 Pointer to the starting token
+ * \param[in]    mi_row             Row coordinate of the block in a step size
+                                    of MI_SIZE
+ * \param[in]    mi_col             Column coordinate of the block in a step
+                                    size of MI_SIZE
+ * \param[in]    bsize              Current block size
+ * \param[in]    rd_cost            Pointer to the final rd cost of the block
+ * \param[in]    best_rdc           Upper bound of rd cost of a valid partition
+ * \param[in]    pc_tree            Pointer to the PC_TREE node storing the
+                                    picked partitions and mode info for the
+                                    current block
+ * \param[in]    sms_tree           Pointer to struct holding simple motion
+                                    search data for the current block
+ * \param[in]    none_rd            Pointer to the rd cost in the case of not
+                                    splitting the current block
+ * \param[in]    multi_pass_mode    SB_SINGLE_PASS/SB_DRY_PASS/SB_WET_PASS
+ * \param[in]    rect_part_win_info Pointer to struct storing whether horz/vert
+                                    partition outperforms previously tested
+                                    partitions
+ *
+ * \return A bool value is returned indicating if a valid partition is found.
+ * The pc_tree struct is modified to store the picked partition and modes.
+ * The rd_cost struct is also updated with the RD stats orresponding to the best
+ * partition found.
+ */
 static bool rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
                               TileDataEnc *tile_data, TokenExtra **tp,
                               int mi_row, int mi_col, BLOCK_SIZE bsize,
@@ -4767,9 +4804,14 @@ static void source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, int offset) {
     x->content_state_sb = kHighSad;
 }
 
-// Encodes the superblock by a pre-determined partition pattern, only minor
-// rd-based searches are allowed to adjust the initial pattern. It is only used
-// by realtime encoding.
+/*!\brief Encode a superblock (minimal RD search involved)
+ *
+ * \ingroup partition_search
+ * \callgraph
+ * Encodes the superblock by a pre-determined partition pattern, only minor
+ * rd-based searches are allowed to adjust the initial pattern. It is only used
+ * by realtime encoding.
+ */
 static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
                                        TileDataEnc *tile_data, TokenExtra **tp,
                                        const int mi_row, const int mi_col,
@@ -5112,8 +5154,13 @@ static AOM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
-// Conducts partition search for a superblock, based on rate-distortion costs,
-// from scratch or adjusting from a pre-calculated partition pattern.
+/*!\brief Encode a superblock (RD-search-based)
+ *
+ * \ingroup partition_search
+ * \callgraph
+ * Conducts partition search for a superblock, based on rate-distortion costs,
+ * from scratch or adjusting from a pre-calculated partition pattern.
+ */
 static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                                     TileDataEnc *tile_data, TokenExtra **tp,
                                     const int mi_row, const int mi_col,
@@ -5292,8 +5339,13 @@ static AOM_INLINE void set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
   }
 }
 
-// Do partition and mode search for an sb row: one row of superblocks filling up
-// the width of the current tile.
+/*!\brief Encode a superblock row
+ *
+ * \ingroup partition_search
+ * \callgraph
+ * Do partition and mode search for an sb row: one row of superblocks filling up
+ * the width of the current tile.
+ */
 static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
                                      TileDataEnc *tile_data, int mi_row,
                                      TokenExtra **tp) {
