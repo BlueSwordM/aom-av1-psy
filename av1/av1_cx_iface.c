@@ -720,9 +720,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   SuperResCfg *const superres_cfg = &oxcf->superres_cfg;
 
+  KeyFrameCfg *const kf_cfg = &oxcf->kf_cfg;
+
   const int is_vbr = cfg->rc_end_usage == AOM_VBR;
   oxcf->profile = cfg->g_profile;
-  oxcf->fwd_kf_enabled = cfg->fwd_kf_enabled;
   oxcf->max_threads = (int)cfg->g_threads;
   oxcf->mode = (cfg->g_usage == AOM_USAGE_REALTIME) ? REALTIME : GOOD;
   oxcf->width = cfg->g_w;
@@ -798,7 +799,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->enable_obmc = extra_cfg->enable_obmc;
   oxcf->enable_overlay = extra_cfg->enable_overlay;
   oxcf->enable_palette = extra_cfg->enable_palette;
-  oxcf->enable_intrabc = extra_cfg->enable_intrabc;
   oxcf->disable_trellis_quant = extra_cfg->disable_trellis_quant;
   oxcf->allow_ref_frame_mvs = extra_cfg->enable_ref_frame_mvs;
   oxcf->using_qm = extra_cfg->enable_qm;
@@ -845,13 +845,17 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->two_pass_vbrmin_section = cfg->rc_2pass_vbr_minsection_pct;
   oxcf->two_pass_vbrmax_section = cfg->rc_2pass_vbr_maxsection_pct;
 
-  oxcf->auto_key =
+  // Set Key frame configuration.
+  kf_cfg->fwd_kf_enabled = cfg->fwd_kf_enabled;
+  kf_cfg->auto_key =
       cfg->kf_mode == AOM_KF_AUTO && cfg->kf_min_dist != cfg->kf_max_dist;
+  kf_cfg->key_freq = cfg->kf_max_dist;
+  kf_cfg->sframe_dist = cfg->sframe_dist;
+  kf_cfg->sframe_mode = cfg->sframe_mode;
+  kf_cfg->enable_sframe = extra_cfg->s_frame_mode;
+  kf_cfg->enable_keyframe_filtering = extra_cfg->enable_keyframe_filtering;
+  kf_cfg->enable_intrabc = extra_cfg->enable_intrabc;
 
-  oxcf->key_freq = cfg->kf_max_dist;
-  oxcf->sframe_dist = cfg->sframe_dist;
-  oxcf->sframe_mode = cfg->sframe_mode;
-  oxcf->sframe_enabled = cfg->sframe_dist != 0;
   oxcf->speed = extra_cfg->cpu_used;
   oxcf->enable_auto_arf = extra_cfg->enable_auto_alt_ref;
   oxcf->enable_auto_brf = extra_cfg->enable_auto_bwd_ref;
@@ -1006,7 +1010,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   }
   oxcf->error_resilient_mode =
       cfg->g_error_resilient | extra_cfg->error_resilient_mode;
-  oxcf->s_frame_mode = extra_cfg->s_frame_mode;
   oxcf->frame_parallel_decoding_mode = extra_cfg->frame_parallel_decoding_mode;
   if (cfg->g_pass == AOM_RC_LAST_PASS) {
     const size_t packet_sz = sizeof(FIRSTPASS_STATS);
@@ -1023,7 +1026,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   }
 
   oxcf->enable_tpl_model = extra_cfg->enable_tpl_model;
-  oxcf->enable_keyframe_filtering = extra_cfg->enable_keyframe_filtering;
 
   oxcf->enable_chroma_deltaq = extra_cfg->enable_chroma_deltaq;
   oxcf->aq_mode = extra_cfg->aq_mode;
@@ -1966,8 +1968,8 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
         *num_lap_buffers = priv->cfg.g_lag_in_frames;
         *num_lap_buffers =
             clamp(*num_lap_buffers, 1,
-                  AOMMIN(MAX_LAP_BUFFERS,
-                         priv->oxcf.key_freq + SCENE_CUT_KEY_TEST_INTERVAL));
+                  AOMMIN(MAX_LAP_BUFFERS, priv->oxcf.kf_cfg.key_freq +
+                                              SCENE_CUT_KEY_TEST_INTERVAL));
         if ((int)priv->cfg.g_lag_in_frames - (*num_lap_buffers) >=
             LAP_LAG_IN_FRAMES) {
           lap_lag_in_frames = LAP_LAG_IN_FRAMES;

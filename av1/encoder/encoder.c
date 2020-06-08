@@ -4606,7 +4606,7 @@ static void determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   const int allow_intrabc_orig_decision = cm->features.allow_intrabc;
   const int is_screen_content_type_orig_decision = cpi->is_screen_content_type;
   // Turn off the encoding trial for forward key frame and superres.
-  if (cpi->sf.rt_sf.use_nonrd_pick_mode || cpi->oxcf.fwd_kf_enabled ||
+  if (cpi->sf.rt_sf.use_nonrd_pick_mode || cpi->oxcf.kf_cfg.fwd_kf_enabled ||
       cpi->superres_mode != AOM_SUPERRES_NONE || cpi->oxcf.mode == REALTIME ||
       is_screen_content_type_orig_decision || !is_key_frame) {
     return;
@@ -5662,8 +5662,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   // frame type has been decided outside of this function call
   cm->cur_frame->frame_type = current_frame->frame_type;
 
-  cm->tiles.large_scale = cpi->oxcf.large_scale_tile;
-  cm->tiles.single_tile_decoding = cpi->oxcf.single_tile_decoding;
+  cm->tiles.large_scale = oxcf->large_scale_tile;
+  cm->tiles.single_tile_decoding = oxcf->single_tile_decoding;
 
   features->allow_ref_frame_mvs &= frame_might_allow_ref_frame_mvs(cm);
   // features->allow_ref_frame_mvs needs to be written into the frame header
@@ -5672,7 +5672,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   features->allow_ref_frame_mvs &= !cm->tiles.large_scale;
 
   features->allow_warped_motion =
-      cpi->oxcf.allow_warped_motion && frame_might_allow_warped_motion(cm);
+      oxcf->allow_warped_motion && frame_might_allow_warped_motion(cm);
 
   cpi->last_frame_type = current_frame->frame_type;
 
@@ -5762,8 +5762,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     // The alternate reference frame cannot be active for a key frame.
     cpi->rc.source_alt_ref_active = 0;
   }
-  if (cpi->oxcf.mtu == 0) {
-    cpi->num_tg = cpi->oxcf.num_tile_groups;
+  if (oxcf->mtu == 0) {
+    cpi->num_tg = oxcf->num_tile_groups;
   } else {
     // Use a default value for the purposes of weighting costs in probability
     // updates
@@ -5818,7 +5818,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       // same across different streams of the same content current_frame_id
       // should be the same and not random. 0x37 is a chosen number as start
       // point
-      if (cpi->oxcf.sframe_enabled) cm->current_frame_id = 0x37;
+      if (oxcf->kf_cfg.sframe_dist != 0) cm->current_frame_id = 0x37;
     } else {
       cm->current_frame_id =
           (cm->current_frame_id + 1 + (1 << seq_params->frame_id_length)) %
@@ -5826,7 +5826,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     }
   }
 
-  switch (cpi->oxcf.cdf_update_mode) {
+  switch (oxcf->cdf_update_mode) {
     case 0:  // No CDF update for any frames(4~6% compression loss).
       features->disable_cdf_update = 1;
       break;
@@ -5909,7 +5909,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     cm->cur_frame->frame_context = *cm->fc;
   }
 
-  if (cpi->oxcf.ext_tile_debug) {
+  if (oxcf->ext_tile_debug) {
     // (yunqing) This test ensures the correctness of large scale tile coding.
     if (cm->tiles.large_scale && is_stat_consumption_stage(cpi)) {
       char fn[20] = "./fc";
@@ -6534,7 +6534,7 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
   ext_flags->use_error_resilient = cpi->oxcf.error_resilient_mode |
                                    ((flags & AOM_EFLAG_ERROR_RESILIENT) != 0);
   ext_flags->use_s_frame =
-      cpi->oxcf.s_frame_mode | ((flags & AOM_EFLAG_SET_S_FRAME) != 0);
+      cpi->oxcf.kf_cfg.enable_sframe | ((flags & AOM_EFLAG_SET_S_FRAME) != 0);
   ext_flags->use_primary_ref_none =
       (flags & AOM_EFLAG_SET_PRIMARY_REF_NONE) != 0;
 

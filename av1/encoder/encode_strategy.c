@@ -483,8 +483,8 @@ static int allow_show_existing(const AV1_COMP *const cpi,
   const int is_error_resilient =
       cpi->oxcf.error_resilient_mode ||
       (lookahead_src->flags & AOM_EFLAG_ERROR_RESILIENT);
-  const int is_s_frame =
-      cpi->oxcf.s_frame_mode || (lookahead_src->flags & AOM_EFLAG_SET_S_FRAME);
+  const int is_s_frame = cpi->oxcf.kf_cfg.enable_sframe ||
+                         (lookahead_src->flags & AOM_EFLAG_SET_S_FRAME);
   const int is_key_frame =
       (cpi->rc.frames_to_key == 0) || (frame_flags & FRAMEFLAGS_KEY);
   return !(is_error_resilient || is_s_frame) || is_key_frame;
@@ -882,8 +882,8 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   // Decide whether to apply temporal filtering to the source frame.
   int apply_filtering =
       frame_params->frame_type == KEY_FRAME &&
-      oxcf->enable_keyframe_filtering && !is_stat_generation_stage(cpi) &&
-      !frame_params->show_existing_frame &&
+      oxcf->kf_cfg.enable_keyframe_filtering &&
+      !is_stat_generation_stage(cpi) && !frame_params->show_existing_frame &&
       cpi->rc.frames_to_key > cpi->oxcf.arnr_max_frames &&
       !is_lossless_requested(oxcf) && oxcf->arnr_max_frames > 0;
   if (apply_filtering) {
@@ -915,7 +915,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     av1_setup_past_independence(cm);
 
     if (!frame_params->show_frame) {
-      int arf_src_index = get_arf_src_index(&cpi->gf_group, cpi->oxcf.pass);
+      int arf_src_index = get_arf_src_index(&cpi->gf_group, oxcf->pass);
       av1_temporal_filter(cpi, -1 * arf_src_index, NULL);
     } else {
       av1_temporal_filter(cpi, -1, NULL);
@@ -1046,7 +1046,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                         int64_t *const time_stamp, int64_t *const time_end,
                         const aom_rational64_t *const timestamp_ratio,
                         int flush) {
-  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+  AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
   GF_GROUP *gf_group = &cpi->gf_group;
   ExternalFlags *const ext_flags = &cpi->ext_flags;
@@ -1060,15 +1060,15 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   // TODO(sarahparker) finish bit allocation for one pass pyramid
   if (has_no_stats_stage(cpi)) {
-    cpi->oxcf.gf_max_pyr_height =
-        AOMMIN(cpi->oxcf.gf_max_pyr_height, USE_ALTREF_FOR_ONE_PASS);
-    cpi->oxcf.gf_min_pyr_height =
-        AOMMIN(cpi->oxcf.gf_min_pyr_height, cpi->oxcf.gf_max_pyr_height);
+    oxcf->gf_max_pyr_height =
+        AOMMIN(oxcf->gf_max_pyr_height, USE_ALTREF_FOR_ONE_PASS);
+    oxcf->gf_min_pyr_height =
+        AOMMIN(oxcf->gf_min_pyr_height, oxcf->gf_max_pyr_height);
   }
 
   if (!is_stat_generation_stage(cpi)) {
     // If this is a forward keyframe, mark as a show_existing_frame
-    if (cpi->oxcf.fwd_kf_enabled && (gf_group->index == gf_group->size) &&
+    if (oxcf->kf_cfg.fwd_kf_enabled && (gf_group->index == gf_group->size) &&
         gf_group->update_type[1] == ARF_UPDATE && cpi->rc.frames_to_key == 0) {
       frame_params.show_existing_frame = 1;
     } else {
@@ -1180,10 +1180,10 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   frame_params.speed = oxcf->speed;
 
   // Work out some encoding parameters specific to the pass:
-  if (has_no_stats_stage(cpi) && cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ) {
+  if (has_no_stats_stage(cpi) && oxcf->aq_mode == CYCLIC_REFRESH_AQ) {
     av1_cyclic_refresh_update_parameters(cpi);
   } else if (is_stat_generation_stage(cpi)) {
-    cpi->td.mb.e_mbd.lossless[0] = is_lossless_requested(&cpi->oxcf);
+    cpi->td.mb.e_mbd.lossless[0] = is_lossless_requested(oxcf);
     const int kf_requested = (cm->current_frame.frame_number == 0 ||
                               (*frame_flags & FRAMEFLAGS_KEY));
     if (kf_requested && frame_update_type != OVERLAY_UPDATE &&
@@ -1263,10 +1263,10 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   cpi->td.mb.delta_qindex = 0;
 
   if (!frame_params.show_existing_frame) {
-    cm->quant_params.using_qmatrix = cpi->oxcf.using_qm;
+    cm->quant_params.using_qmatrix = oxcf->using_qm;
 #if !CONFIG_REALTIME_ONLY
     if (oxcf->lag_in_frames > 0 && !is_stat_generation_stage(cpi)) {
-      if (cpi->gf_group.index == 1 && cpi->oxcf.enable_tpl_model) {
+      if (cpi->gf_group.index == 1 && oxcf->enable_tpl_model) {
         av1_configure_buffer_updates(cpi, &frame_params.refresh_frame,
                                      frame_update_type, 0);
         av1_set_frame_size(cpi, cm->width, cm->height);

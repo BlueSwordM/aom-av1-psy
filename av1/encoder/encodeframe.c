@@ -5810,7 +5810,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     features->allow_intrabc = 0;
   }
 
-  features->allow_intrabc &= (oxcf->enable_intrabc);
+  features->allow_intrabc &= (oxcf->kf_cfg.enable_intrabc);
 
   if (features->allow_warped_motion &&
       cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
