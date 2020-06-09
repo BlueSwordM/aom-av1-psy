@@ -16,6 +16,7 @@
 #include "av1/common/reconintra.h"
 #include "av1/encoder/tx_search.h"
 
+/*!\cond */
 static const PREDICTION_MODE intra_rd_search_mode_order[INTRA_MODES] = {
   DC_PRED,       H_PRED,        V_PRED,    SMOOTH_PRED, PAETH_PRED,
   SMOOTH_V_PRED, SMOOTH_H_PRED, D135_PRED, D203_PRED,   D157_PRED,
@@ -28,6 +29,7 @@ static const UV_PREDICTION_MODE uv_rd_search_mode_order[UV_INTRA_MODES] = {
   UV_D135_PRED,   UV_D203_PRED,  UV_D157_PRED,     UV_D67_PRED,
   UV_D113_PRED,   UV_D45_PRED,
 };
+/*!\endcond */
 
 #define BINS 32
 static const float intra_hog_model_bias[DIRECTIONAL_MODES] = {
@@ -242,8 +244,16 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
   return this_rd;
 }
 
-// Update the intra model yrd and prune the current mode if the new estimate
-// y_rd > 1.5 * best_model_rd.
+/*!\brief Estimate the luma rdcost of a given intra mode and try to prune it.
+ *
+ * \ingroup intra_mode_search
+ * \callergraph
+ * This function first make a quick luma prediction and estimate the rdcost with
+ * a model without going through the txfm, then try to prune the current mode if
+ * the new estimate y_rd > 1.5 * best_model_rd.
+ *
+ * \return Returns 1 if the given mode is prune; 0 otherwise.
+ */
 static AOM_INLINE int model_intra_yrd_and_prune(const AV1_COMP *const cpi,
                                                 MACROBLOCK *x, BLOCK_SIZE bsize,
                                                 int mode_info_cost,
@@ -258,8 +268,16 @@ static AOM_INLINE int model_intra_yrd_and_prune(const AV1_COMP *const cpi,
   return 0;
 }
 
-// Run RD calculation with given luma intra prediction angle., and return
-// the RD cost. Update the best mode info. if the RD cost is the best so far.
+/*!\brief Calculate the rdcost of a given luma intra angle
+ *
+ * \ingroup intra_mode_search
+ * \callergraph
+ * This function runs rd calculation for a given luma intra prediction angle.
+ * This is used to select the best angle delta.
+ *
+ * \return Returns the rdcost of the angle and updates the mbmi if the
+ * new rdcost is better.
+ */
 static int64_t calc_rd_given_intra_angle(
     const AV1_COMP *const cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int mode_cost,
     int64_t best_rd_in, int8_t angle_delta, int max_angle_delta, int *rate,
@@ -421,7 +439,14 @@ static int intra_mode_info_cost_uv(const AV1_COMP *cpi, const MACROBLOCK *x,
   return total_rate;
 }
 
-// Return 1 if an filter intra mode is selected; return 0 otherwise.
+/*!\brief Search for the best filter_intra mode when coding intra frame.
+ *
+ * \ingroup intra_mode_search
+ * \callergraph
+ * This function loops through all filter_intra modes to find the best one.
+ *
+ * \return Returns 1 if a new filter_intra mode is selected; 0 otherwise.
+ */
 static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
                                     int *rate, int *rate_tokenonly,
                                     int64_t *distortion, int *skippable,
@@ -821,7 +846,12 @@ static const uint8_t step_size_lookup_table[PALETTE_MAX_SIZE + 1] = { 0, 0, 0,
                                                                       3, 3, 3,
                                                                       3, 3, 3 };
 
-// Searches for the best palette in the luma plane.
+/*!\brief Search for the best palette in the luma plane.
+ *
+ * \ingroup intra_mode_search
+ * \callergraph
+ * This function is used in both inter and intra frame coding.
+ */
 static void rd_pick_palette_intra_sby(
     const AV1_COMP *const cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     int dc_mode_cost, MB_MODE_INFO *best_mbmi, uint8_t *best_palette_color_map,
@@ -1020,7 +1050,12 @@ static void rd_pick_palette_intra_sby(
   *mbmi = *best_mbmi;
 }
 
-// Searches for the best palette in the chroma plane.
+/*!\brief Search for the best palette in the chroma plane.
+ *
+ * \ingroup intra_mode_search
+ * \callergraph
+ * This function is used in both inter and intra frame coding.
+ */
 static AOM_INLINE void rd_pick_palette_intra_sbuv(
     const AV1_COMP *const cpi, MACROBLOCK *x, int dc_mode_cost,
     uint8_t *best_palette_color_map, MB_MODE_INFO *const best_mbmi,
@@ -1240,8 +1275,15 @@ static int64_t pick_intra_angle_routine_sbuv(
   return this_rd;
 }
 
-// With given chroma directional intra prediction mode, pick the best angle
-// delta. Return true if a RD cost that is smaller than the input one is found.
+/*!\brief Search for the best angle delta for chroma prediction
+ *
+ * \ingroup intra_mode_search
+ * \callergraph
+ * Given a chroma directional intra prediction mode, this function will try to
+ * estimate the best delta_angle.
+ *
+ * \returns Return if there is a new mode with smaller rdcost than best_rd.
+ */
 static int rd_pick_intra_angle_sbuv(const AV1_COMP *const cpi, MACROBLOCK *x,
                                     BLOCK_SIZE bsize, int rate_overhead,
                                     int64_t best_rd, int *rate,
@@ -1549,14 +1591,14 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 }
 
 // Searches palette mode for luma channel in inter frame.
-int av1_search_palette_mode(const AV1_COMP *cpi, MACROBLOCK *x,
-                            RD_STATS *this_rd_cost, PICK_MODE_CONTEXT *ctx,
-                            BLOCK_SIZE bsize, MB_MODE_INFO *const mbmi,
-                            PALETTE_MODE_INFO *const pmi,
-                            unsigned int *ref_costs_single,
-                            IntraModeSearchState *intra_search_state,
+int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
+                            const AV1_COMP *cpi, MACROBLOCK *x,
+                            BLOCK_SIZE bsize, unsigned int ref_frame_cost,
+                            PICK_MODE_CONTEXT *ctx, RD_STATS *this_rd_cost,
                             int64_t best_rd) {
   const AV1_COMMON *const cm = &cpi->common;
+  MB_MODE_INFO *const mbmi = x->e_mbd.mi[0];
+  PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
   int rate2 = 0;
@@ -1599,7 +1641,7 @@ int av1_search_palette_mode(const AV1_COMP *cpi, MACROBLOCK *x,
 
   skippable = rd_stats_y.skip_txfm;
   distortion2 = rd_stats_y.dist;
-  rate2 = rd_stats_y.rate + ref_costs_single[INTRA_FRAME];
+  rate2 = rd_stats_y.rate + ref_frame_cost;
   if (num_planes > 1) {
     if (intra_search_state->rate_uv_intra == INT_MAX) {
       // We have not found any good uv mode yet, so we need to search for it.
@@ -1613,7 +1655,8 @@ int av1_search_palette_mode(const AV1_COMP *cpi, MACROBLOCK *x,
       intra_search_state->uv_angle_delta = mbmi->angle_delta[PLANE_TYPE_UV];
     }
 
-    // We have found at least one good uv mode before, so copy and pate it over.
+    // We have found at least one good uv mode before, so copy and paste it
+    // over.
     mbmi->uv_mode = intra_search_state->mode_uv;
     pmi->palette_size[1] = intra_search_state->pmi_uv.palette_size[1];
     if (pmi->palette_size[1] > 0) {
@@ -1641,9 +1684,15 @@ int av1_search_palette_mode(const AV1_COMP *cpi, MACROBLOCK *x,
   return skippable;
 }
 
-// Given selected prediction mode, search for the best tx type and size.
-// Currently this is only used in the intra frame code path for winner-mode
-// processing.
+/*!\brief Get the intra prediction by searching through tx_type and tx_size.
+ *
+ * \ingroup intra_mode_search
+ * \callergraph
+ * Currently this function is only used in the intra frame code path for
+ * winner-mode processing.
+ *
+ * \return Returns whether the current mode is an improvement over best_rd.
+ */
 static AOM_INLINE int intra_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
                                       BLOCK_SIZE bsize, const int *bmode_costs,
                                       int64_t *best_rd, int *rate,
@@ -1684,8 +1733,15 @@ static AOM_INLINE int intra_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   return 0;
 }
 
-// With given luma directional intra prediction mode, pick the best angle delta
-// Return the RD cost corresponding to the best angle delta.
+/*!\brief Search for the best angle delta for luma prediction
+ *
+ * \ingroup intra_mode_search
+ * \callergraph
+ * Given a luma directional intra prediction mode, this function will try to
+ * estimate the best delta_angle.
+ *
+ * \return Returns the new rdcost of the best intra angle.
+ */
 static int64_t rd_pick_intra_angle_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
                                        int *rate, RD_STATS *rd_stats,
                                        BLOCK_SIZE bsize, int mode_cost,
@@ -1752,7 +1808,14 @@ static int64_t rd_pick_intra_angle_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
   return best_rd;
 }
 
-// Searches through filter_intra mode in inter frame.
+/*!\brief Search for the best filter_intra mode when coding inter frame.
+ *
+ * \ingroup intra_mode_search
+ * \callergraph
+ * This function loops through all filter_intra modes to find the best one.
+ *
+ * \return Returns nothing, but updates the mbmi and rd_stats.
+ */
 static INLINE void handle_filter_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
                                             BLOCK_SIZE bsize,
                                             const PICK_MODE_CONTEXT *ctx,
@@ -1815,11 +1878,10 @@ static INLINE void handle_filter_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
 
 int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
                               const AV1_COMP *cpi, MACROBLOCK *x,
-                              BLOCK_SIZE bsize, int ref_frame_cost,
-                              const PICK_MODE_CONTEXT *ctx, int disable_skip,
-                              RD_STATS *rd_stats, RD_STATS *rd_stats_y,
-                              RD_STATS *rd_stats_uv, int64_t best_rd,
-                              int64_t *best_intra_rd) {
+                              BLOCK_SIZE bsize, unsigned int ref_frame_cost,
+                              const PICK_MODE_CONTEXT *ctx, RD_STATS *rd_stats,
+                              RD_STATS *rd_stats_y, RD_STATS *rd_stats_uv,
+                              int64_t best_rd, int64_t *best_intra_rd) {
   const AV1_COMMON *cm = &cpi->common;
   const SPEED_FEATURES *const sf = &cpi->sf;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -1893,6 +1955,8 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   av1_init_rd_stats(rd_stats_uv);
   const int num_planes = av1_num_planes(cm);
   if (num_planes > 1) {
+    // TODO(chiyotsai@google.com): Consolidate the chroma search code here with
+    // the one in av1_search_palette_mode.
     PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
     const int try_palette =
         cpi->oxcf.enable_palette &&
@@ -1984,12 +2048,11 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
       intra_search_state->skip_intra_modes = 1;
   }
 
-  if (!disable_skip) {
-    for (int i = 0; i < REFERENCE_MODES; ++i) {
-      intra_search_state->best_pred_rd[i] =
-          AOMMIN(intra_search_state->best_pred_rd[i], this_rd);
-    }
+  for (int i = 0; i < REFERENCE_MODES; ++i) {
+    intra_search_state->best_pred_rd[i] =
+        AOMMIN(intra_search_state->best_pred_rd[i], this_rd);
   }
+
   return this_rd;
 }
 

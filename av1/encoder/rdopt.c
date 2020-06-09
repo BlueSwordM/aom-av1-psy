@@ -312,6 +312,7 @@ static int find_last_single_ref_mode_idx(const THR_MODES *mode_order) {
   return -1;
 }
 
+/*!\cond */
 typedef struct SingleInterModeState {
   int64_t rd;
   MV_REFERENCE_FRAME ref_frame;
@@ -353,6 +354,7 @@ typedef struct InterModeSearchState {
   MV_REFERENCE_FRAME single_rd_order[2][SINGLE_INTER_MODE_NUM][FWD_REFS];
   IntraModeSearchState intra_search_state;
 } InterModeSearchState;
+/*!\endcond */
 
 void av1_inter_mode_data_init(TileDataEnc *tile_data) {
   for (int i = 0; i < BLOCK_SIZES_ALL; ++i) {
@@ -2070,6 +2072,7 @@ static int ref_mv_idx_to_search(AV1_COMP *const cpi, MACROBLOCK *x,
   return result;
 }
 
+/*!\cond */
 typedef struct motion_mode_candidate {
   MB_MODE_INFO mbmi;
   int rate_mv;
@@ -2150,6 +2153,7 @@ typedef struct {
   int64_t best_inter_cost;
   int64_t ref_inter_cost[INTER_REFS_PER_FRAME];
 } PruneInfoFromTpl;
+/*!\endcond */
 
 #if !CONFIG_REALTIME_ONLY
 // TODO(Remya): Check if get_tpl_stats_b() can be reused
@@ -2784,7 +2788,15 @@ static int64_t handle_inter_mode(
   return rd_stats->rdcost;
 }
 
-// Searches intrabc mode in intraframe.
+/*!\brief Search for the best intrabc predictor
+ *
+ * \ingroup intra_mode_search
+ * \callergraph
+ * This function performs a motion search to find the best intrabc predictor.
+ *
+ * \returns Returns the best overall rdcost (including the non-intrabc modes
+ * search before this function).
+ */
 static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                                        PICK_MODE_CONTEXT *ctx,
                                        RD_STATS *rd_stats, BLOCK_SIZE bsize,
@@ -2972,8 +2984,13 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   return best_rd;
 }
 
-void av1_rd_pick_intra_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
-                               RD_STATS *rd_cost, BLOCK_SIZE bsize,
+// TODO(chiyotsai@google.com): We are using struct $struct_name instead of their
+// typedef here because Doxygen doesn't know about the typedefs yet. So using
+// the typedef will prevent doxygen from finding this function and generating
+// the callgraph. Once documents for AV1_COMP and MACROBLOCK are added to
+// doxygen, we can revert back to using the typedefs.
+void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
+                               struct RD_STATS *rd_cost, BLOCK_SIZE bsize,
                                PICK_MODE_CONTEXT *ctx, int64_t best_rd) {
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -3363,6 +3380,7 @@ static AOM_INLINE void refine_winner_mode_tx(
   }
 }
 
+/*!\cond */
 typedef struct {
   // Mask for each reference frame, specifying which prediction modes to NOT try
   // during search.
@@ -3373,6 +3391,7 @@ typedef struct {
   // (NONE_FRAME).
   bool ref_combo[REF_FRAMES][REF_FRAMES + 1];
 } mode_skip_mask_t;
+/*!\endcond */
 
 // Update 'ref_combo' mask to disable given 'ref' in single and compound modes.
 static AOM_INLINE void disable_reference(
@@ -4440,6 +4459,7 @@ static AOM_INLINE void evaluate_motion_mode_for_winner_candidates(
   }
 }
 
+/*!\cond */
 // Arguments for speed feature pruning of inter mode search
 typedef struct {
   int *skip_motion_mode;
@@ -4452,6 +4472,7 @@ typedef struct {
   int *intra_mode_num;
   int prune_cpd_using_sr_stats_ready;
 } InterModeSFArgs;
+/*!\endcond */
 
 static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
                            int64_t *ref_frame_rd, int midx,
@@ -4745,9 +4766,11 @@ static void handle_winner_cand(
   }
 }
 
-void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
-                               MACROBLOCK *x, RD_STATS *rd_cost,
-                               const BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
+// TODO(chiyotsai@google.com): See the todo for av1_rd_pick_intra_mode_sb.
+void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
+                               struct TileDataEnc *tile_data,
+                               struct macroblock *x, struct RD_STATS *rd_cost,
+                               BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
                                int64_t best_rd_so_far) {
   AV1_COMMON *const cm = &cpi->common;
   const FeatureFlags *const features = &cm->features;
@@ -5117,7 +5140,7 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     }
   }
 
-  const int intra_ref_frame_cost = ref_costs_single[INTRA_FRAME];
+  const unsigned int intra_ref_frame_cost = ref_costs_single[INTRA_FRAME];
   for (int j = 0; j < intra_mode_num; ++j) {
     if (sf->intra_sf.skip_intra_in_interframe &&
         search_state.intra_search_state.skip_intra_modes)
@@ -5150,8 +5173,9 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     RD_STATS intra_rd_stats, intra_rd_stats_y, intra_rd_stats_uv;
     intra_rd_stats.rdcost = av1_handle_intra_mode(
         &search_state.intra_search_state, cpi, x, bsize, intra_ref_frame_cost,
-        ctx, 0, &intra_rd_stats, &intra_rd_stats_y, &intra_rd_stats_uv,
+        ctx, &intra_rd_stats, &intra_rd_stats_y, &intra_rd_stats_uv,
         search_state.best_rd, &search_state.best_intra_rd);
+
     // Collect mode stats for multiwinner mode processing
     const int txfm_search_done = 1;
     store_winner_mode_stats(
@@ -5186,13 +5210,12 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       cpi->oxcf.enable_palette &&
       av1_allow_palette(features->allow_screen_content_tools, mbmi->sb_type) &&
       !is_inter_mode(search_state.best_mbmode.mode);
-  PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   RD_STATS this_rd_cost;
   int this_skippable = 0;
   if (try_palette) {
     this_skippable = av1_search_palette_mode(
-        cpi, x, &this_rd_cost, ctx, bsize, mbmi, pmi, ref_costs_single,
-        &search_state.intra_search_state, search_state.best_rd);
+        &search_state.intra_search_state, cpi, x, bsize, intra_ref_frame_cost,
+        ctx, &this_rd_cost, search_state.best_rd);
     if (this_rd_cost.rdcost < search_state.best_rd) {
       search_state.best_mode_index = THR_DC;
       mbmi->mv[0].as_int = 0;
@@ -5290,7 +5313,7 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                        search_state.best_mode_skippable);
 #endif  // CONFIG_INTERNAL_STATS
 
-  if (pmi->palette_size[1] > 0) {
+  if (mbmi->palette_mode_info.palette_size[1] > 0) {
     assert(try_palette);
     av1_restore_uv_color_map(cpi, x);
   }
@@ -5429,12 +5452,14 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 #endif  // CONFIG_INTERNAL_STATS
 }
 
+/*!\cond */
 struct calc_target_weighted_pred_ctxt {
   const OBMCBuffer *obmc_buffer;
   const uint8_t *tmp;
   int tmp_stride;
   int overlap;
 };
+/*!\endcond */
 
 static INLINE void calc_target_weighted_pred_above(
     MACROBLOCKD *xd, int rel_mi_row, int rel_mi_col, uint8_t op_mi_size,

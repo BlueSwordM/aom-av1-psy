@@ -35,7 +35,30 @@ struct TileInfo;
 struct macroblock;
 struct RD_STATS;
 
-// Top level function for intra mode selection during intra-only frame encoding.
+/*!\brief AV1 intra mode selection for intra frames.
+ *
+ * \ingroup intra_mode_search
+ * \callgraph
+ * Top level function for rd-based intra mode selection during intra frame
+ * encoding. This function will first search for the best luma prediction by
+ * calling av1_rd_pick_intra_sby_mode, then it searches for chroma prediction
+ * with av1_rd_pick_intra_sbuv_mode. If applicable, this function ends the
+ * search with an evaluation for intrabc.
+ *
+ * \param[in]    cpi            Top-level encoder structure.
+ * \param[in]    x              Pointer to structure holding all the data for
+                                the current macroblock.
+ * \param[in]    rd_cost        Struct to keep track of the RD information.
+ * \param[in]    bsize          Current block size.
+ * \param[in]    ctx            Structure to hold snapshot of coding context
+                                during the mode picking process.
+ * \param[in]    best_rd Best   RD seen for this block so far.
+ *
+ * \return Nothing is returned. Instead, the MB_MODE_INFO struct inside x
+ * is modified to store information about the best mode computed
+ * in this function. The rd_cost struct is also updated with the RD stats
+ * corresponding to the best mode found.
+ */
 void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
                                struct RD_STATS *rd_cost, BLOCK_SIZE bsize,
                                PICK_MODE_CONTEXT *ctx, int64_t best_rd);
@@ -43,6 +66,7 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
 /*!\brief AV1 inter mode selection.
  *
  * \ingroup inter_mode_search
+ * \callgraph
  * Top level function for inter mode selection. This function will loop over
  * all possible inter modes and select the best one for the current block by
  * computing the RD cost. The mode search and RD are computed in
