@@ -61,6 +61,7 @@ class DatarateTestSVC
     decoded_nframes_ = 0;
     mismatch_nframes_ = 0;
     mismatch_psnr_ = 0.0;
+    set_frame_level_er_ = 0;
   }
 
   virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
@@ -87,6 +88,11 @@ class DatarateTestSVC
                                      &ref_frame_config_, spatial_layer_id);
     encoder->Control(AV1E_SET_SVC_LAYER_ID, &layer_id_);
     encoder->Control(AV1E_SET_SVC_REF_FRAME_CONFIG, &ref_frame_config_);
+    if (set_frame_level_er_) {
+      int mode =
+          (layer_id_.spatial_layer_id > 0 || layer_id_.temporal_layer_id > 0);
+      encoder->Control(AV1E_SET_ERROR_RESILIENT_MODE, mode);
+    }
     layer_frame_cnt_++;
     DatarateTest::PreEncodeFrameHook(video, encoder);
   }
@@ -642,9 +648,7 @@ class DatarateTestSVC
     cfg_.rc_max_quantizer = 63;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
-    // error_resilient needs to be on/1 for this test to pass.
-    // TODO(marpan): error_resilient can be set per-frame, look into
-    // setting erorr_resilient = 1 only for enhancement layers.
+    // error_resilient for sequence needs to be on/1 for test to pass.
     cfg_.g_error_resilient = 1;
 
     ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
@@ -688,7 +692,7 @@ class DatarateTestSVC
     cfg_.rc_max_quantizer = 63;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
-    // error_resilient can be off/0, since dropped frames (TL2)
+    // error_resilient for sequence can be off/0, since dropped frames (TL2)
     // are non-reference frames.
     cfg_.g_error_resilient = 0;
 
@@ -702,6 +706,52 @@ class DatarateTestSVC
     int n = 0;
     for (int i = 0; i < 300; i++) {
       if (i % 2 != 0) {
+        drop_frames_list_[n] = i;
+        n++;
+      }
+    }
+    number_temporal_layers_ = 3;
+    target_layer_bitrate_[0] = 50 * cfg_.rc_target_bitrate / 100;
+    target_layer_bitrate_[1] = 70 * cfg_.rc_target_bitrate / 100;
+    target_layer_bitrate_[2] = cfg_.rc_target_bitrate;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
+          << " The datarate for the file is lower than target by too much!";
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.30)
+          << " The datarate for the file is greater than target by too much!";
+    }
+    // Test that no mismatches have been found.
+    std::cout << "          Decoded frames: " << GetDecodedFrames() << "\n";
+    std::cout << "          Mismatch frames: " << GetMismatchFrames() << "\n";
+    EXPECT_EQ(300 - GetDecodedFrames(), drop_frames_);
+    EXPECT_EQ((int)GetMismatchFrames(), 0);
+  }
+
+  virtual void BasicRateTargetingSVC3TL1SLDropAllEnhFrameERTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+
+    ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
+                                         288, 30, 1, 0, 300);
+    const int bitrate_array[2] = { 200, 550 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    ResetModel();
+    // Set error_resilience at frame level, with codec control,
+    // on/1 for enahancement layers and off/0 for base layer frames.
+    set_frame_level_er_ = 1;
+
+    // Drop TL1 and TL2: #frames(300) - #TL0.
+    drop_frames_ = 300 - 300 / 4;
+    int n = 0;
+    for (int i = 0; i < 300; i++) {
+      if (i % 4 != 0) {
         drop_frames_list_[n] = i;
         n++;
       }
@@ -739,6 +789,7 @@ class DatarateTestSVC
   unsigned int mismatch_nframes_;
   unsigned int decoded_nframes_;
   double mismatch_psnr_;
+  int set_frame_level_er_;
 };
 
 // Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial.
@@ -793,6 +844,15 @@ TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLDropAllEnh) {
 // since TL2 are non-reference frames.
 TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLDropTL2Enh) {
   BasicRateTargetingSVC3TL1SLDropTL2EnhTest();
+}
+
+// Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial layer,
+// with dropping of all enhancement layers (TL 1 and TL2). Test that the
+// error_resilient flag can be set at frame level, with on/1 on
+// enhancement layers and off/0 on base layer.
+// This allows for successful decoding after dropping enhancement layer frames.
+TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLDropAllEnhFrameER) {
+  BasicRateTargetingSVC3TL1SLDropAllEnhFrameERTest();
 }
 
 AV1_INSTANTIATE_TEST_CASE(DatarateTestSVC,

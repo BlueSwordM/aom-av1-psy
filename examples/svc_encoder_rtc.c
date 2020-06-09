@@ -589,6 +589,7 @@ int main(int argc, char **argv) {
   double sum_bitrate2 = 0.0;
   double framerate = 30.0;
   int use_svc_control = 1;
+  int set_err_resil_frame = 0;
   zero(rc.layer_target_bitrate);
   memset(&layer_id, 0, sizeof(aom_svc_layer_id_t));
   memset(&input_ctx, 0, sizeof(input_ctx));
@@ -812,6 +813,14 @@ int main(int argc, char **argv) {
       if (use_svc_control)
         aom_codec_control(&codec, AV1E_SET_SVC_REF_FRAME_CONFIG,
                           &ref_frame_config);
+      if (set_err_resil_frame) {
+        // Set error_resilient per frame: off/0 for base layer and
+        // on/1 for enhancement layer frames.
+        int err_resil_mode =
+            (layer_id.spatial_layer_id > 0 || layer_id.temporal_layer_id > 0);
+        aom_codec_control(&codec, AV1E_SET_ERROR_RESILIENT_MODE,
+                          err_resil_mode);
+      }
 
       layer = slx * ts_number_layers + layer_id.temporal_layer_id;
       if (frame_avail && slx == 0) ++rc.layer_input_frames[layer];
