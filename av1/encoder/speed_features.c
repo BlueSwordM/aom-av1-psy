@@ -1357,8 +1357,9 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
 
   if (cpi->oxcf.mode == GOOD && speed >= 3) {
     // Disable extended partitions for lower quantizers
-    if (cm->quant_params.base_qindex <= 100 &&
-        !cm->features.allow_screen_content_tools && !boosted) {
+    const int qindex_thresh =
+        cm->features.allow_screen_content_tools ? 50 : 100;
+    if (cm->quant_params.base_qindex <= qindex_thresh && !boosted) {
       sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
     }
   }
