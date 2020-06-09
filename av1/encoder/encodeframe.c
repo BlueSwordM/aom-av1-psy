@@ -1975,7 +1975,8 @@ static AOM_INLINE void rd_use_partition(
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, NO_AQ, NULL);
 
   if (cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION &&
-      (cpi->sf.part_sf.adjust_var_based_rd_partitioning == 2 ||
+      ((cpi->sf.part_sf.adjust_var_based_rd_partitioning == 2 &&
+        bsize <= BLOCK_32X32) ||
        (cpi->sf.part_sf.adjust_var_based_rd_partitioning == 1 &&
         cm->quant_params.base_qindex > 190 && bsize <= BLOCK_32X32 &&
         !frame_is_intra_only(cm)))) {
