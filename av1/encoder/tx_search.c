@@ -2934,8 +2934,6 @@ static AOM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
   if (args->current_rd > args->best_rd) args->exit_early = 1;
 }
 
-// Search for the best transform type and return the transform coefficients RD
-// cost of current luma coding block with the given uniform transform size.
 int64_t av1_uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
                              RD_STATS *rd_stats, int64_t ref_best_rd,
                              BLOCK_SIZE bs, TX_SIZE tx_size,
@@ -3285,10 +3283,6 @@ static AOM_INLINE int model_based_tx_search_prune(const AV1_COMP *cpi,
   return ((model_rd * factor) >> 3) > ref_best_rd;
 }
 
-// Search for best transform size and type for luma inter blocks. The transform
-// block partitioning can be recursive resulting in non-uniform transform sizes.
-// The best transform size and type, if found, will be saved in the MB_MODE_INFO
-// structure, and the corresponding RD stats will be saved in rd_stats.
 void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
                                          RD_STATS *rd_stats, BLOCK_SIZE bsize,
                                          int64_t ref_best_rd) {
@@ -3375,11 +3369,6 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
   }
 }
 
-// Search for the best transform size and type for current coding block, with
-// the assumption that all the transform blocks have a uniform size (VP9 style).
-// The selected transform size and type will be saved in the MB_MODE_INFO
-// structure; the corresponding RD stats will be saved in rd_stats.
-// This function may be used for both intra and inter predicted blocks.
 void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
                                        RD_STATS *rd_stats, BLOCK_SIZE bs,
                                        int64_t ref_best_rd) {
@@ -3448,10 +3437,6 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   }
 }
 
-// Calculate the transform coefficient RD cost for the given chroma coding block
-// If the current mode is intra, then this function will compute the predictor.
-// Return value 0: early termination triggered, no valid rd cost available;
-//              1: rd cost values are valid.
 int av1_txfm_uvrd(const AV1_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
                   BLOCK_SIZE bsize, int64_t ref_best_rd) {
   av1_init_rd_stats(rd_stats);
@@ -3510,9 +3495,6 @@ int av1_txfm_uvrd(const AV1_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
   return is_cost_valid;
 }
 
-// Search for the best transform type and calculate the transform coefficients
-// RD cost of the current coding block with the specified (uniform) transform
-// size and channel. The RD results will be saved in rd_stats.
 void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
                           RD_STATS *rd_stats, int64_t ref_best_rd,
                           int64_t current_rd, int plane, BLOCK_SIZE plane_bsize,
@@ -3559,14 +3541,6 @@ void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
   }
 }
 
-// This function combines y and uv planes' transform search processes together
-// for inter-predicted blocks (including IntraBC), when the prediction is
-// already generated. It first does subtraction to obtain the prediction error.
-// Then it calls
-// av1_pick_recursive_tx_size_type_yrd/av1_pick_uniform_tx_size_type_yrd and
-// av1_txfm_uvrd sequentially and handles the early terminations
-// happening in those functions. At the end, it computes the
-// rd_stats/_y/_uv accordingly.
 int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                     RD_STATS *rd_stats, RD_STATS *rd_stats_y,
                     RD_STATS *rd_stats_uv, int mode_rate, int64_t ref_best_rd) {
