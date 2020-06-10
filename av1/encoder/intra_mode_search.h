@@ -53,7 +53,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
                               const PICK_MODE_CONTEXT *ctx, int disable_skip,
                               RD_STATS *rd_stats, RD_STATS *rd_stats_y,
                               RD_STATS *rd_stats_uv, int64_t best_rd,
-                              int64_t *best_intra_rd, int8_t best_mbmode_skip);
+                              int64_t *best_intra_rd);
 
 // Handles palette-mode search when the current frame is an inter frame. In
 // addition to searching palette-mode in the luma channel, this always searches

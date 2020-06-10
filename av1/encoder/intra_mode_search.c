@@ -1819,8 +1819,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
                               const PICK_MODE_CONTEXT *ctx, int disable_skip,
                               RD_STATS *rd_stats, RD_STATS *rd_stats_y,
                               RD_STATS *rd_stats_uv, int64_t best_rd,
-                              int64_t *best_intra_rd,
-                              int8_t best_mbmode_skip_txfm) {
+                              int64_t *best_intra_rd) {
   const AV1_COMMON *cm = &cpi->common;
   const SPEED_FEATURES *const sf = &cpi->sf;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -1871,15 +1870,13 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
 
   // Pick filter intra modes.
   if (mode == DC_PRED && av1_filter_intra_allowed_bsize(cm, bsize)) {
-    int try_filter_intra = 0;
+    int try_filter_intra = 1;
     int64_t best_rd_so_far = INT64_MAX;
     if (rd_stats_y->rate != INT_MAX) {
       const int tmp_rate = rd_stats_y->rate +
                            mode_costs->filter_intra_cost[bsize][0] + mode_cost;
       best_rd_so_far = RDCOST(x->rdmult, tmp_rate, rd_stats_y->dist);
       try_filter_intra = (best_rd_so_far / 2) <= best_rd;
-    } else {
-      try_filter_intra = !best_mbmode_skip_txfm;
     }
 
     if (try_filter_intra) {

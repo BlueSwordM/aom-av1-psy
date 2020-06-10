@@ -5151,8 +5151,7 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     intra_rd_stats.rdcost = av1_handle_intra_mode(
         &search_state.intra_search_state, cpi, x, bsize, intra_ref_frame_cost,
         ctx, 0, &intra_rd_stats, &intra_rd_stats_y, &intra_rd_stats_uv,
-        search_state.best_rd, &search_state.best_intra_rd,
-        search_state.best_mbmode.skip_txfm);
+        search_state.best_rd, &search_state.best_intra_rd);
     // Collect mode stats for multiwinner mode processing
     const int txfm_search_done = 1;
     store_winner_mode_stats(
