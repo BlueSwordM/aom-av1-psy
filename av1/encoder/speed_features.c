@@ -490,8 +490,7 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.subpel_force_stop = QUARTER_PEL;
 
     sf->tx_sf.adaptive_txb_search_level = boosted ? 2 : 3;
-    sf->tx_sf.tx_type_search.use_skip_flag_prediction =
-        allow_screen_content_tools ? 1 : 2;
+    sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
 
     // TODO(any): Refactor the code related to following winner mode speed
     // features
