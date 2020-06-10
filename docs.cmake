@@ -50,7 +50,8 @@ if(CONFIG_AV1_DECODER)
   set(AOM_DOXYGEN_SECTIONS ${AOM_DOXYGEN_SECTIONS} "av1_decoder decoder")
 
   set(AOM_DOXYGEN_SOURCES ${AOM_DOXYGEN_SOURCES} "${AOM_ROOT}/aom/aomdx.h"
-                          "${AOM_ROOT}/usage_dx.dox")
+                          "${AOM_ROOT}/usage_dx.dox"
+                          "${AOM_ROOT}/av1/decoder/decoder.h")
 
   if(CONFIG_ANALYZER)
     set(AOM_DOXYGEN_EXAMPLE_SOURCES ${AOM_DOXYGEN_EXAMPLE_SOURCES}

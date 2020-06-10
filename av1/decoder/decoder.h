@@ -33,35 +33,57 @@
 extern "C" {
 #endif
 
-// Contains coding block data required by the decoder, which includes:
-// - Coding block info that is common between encoder and decoder.
-// - Other coding block info only needed by the decoder.
-// Contract this with a similar struct MACROBLOCK on encoder side.
-// This data is also common between ThreadData and AV1Decoder structs.
+/*!
+ * \brief Contains coding block data required by the decoder.
+ *
+ * This includes:
+ * - Coding block info that is common between encoder and decoder.
+ * - Other coding block info only needed by the decoder.
+ * Contrast this with a similar struct MACROBLOCK on encoder side.
+ * This data is also common between ThreadData and AV1Decoder structs.
+ */
 typedef struct DecoderCodingBlock {
-  // Coding block info that is common between encoder and decoder.
+  /*!
+   * Coding block info that is common between encoder and decoder.
+   */
   DECLARE_ALIGNED(32, MACROBLOCKD, xd);
-  // True if the at least one of the coding blocks decoded was corrupted.
+  /*!
+   * True if the at least one of the coding blocks decoded was corrupted.
+   */
   int corrupted;
-  // Pointer to 'mc_buf' inside 'pbi->td' (single-threaded decoding) or
-  // 'pbi->thread_data[i].td' (multi-threaded decoding).
+  /*!
+   * Pointer to 'mc_buf' inside 'pbi->td' (single-threaded decoding) or
+   * 'pbi->thread_data[i].td' (multi-threaded decoding).
+   */
   uint8_t *mc_buf[2];
-  // Pointer to 'dqcoeff' inside 'td->cb_buffer_base' or 'pbi->cb_buffer_base'
-  // with appropriate offset for the current superblock, for each plane.
+  /*!
+   * Pointer to 'dqcoeff' inside 'td->cb_buffer_base' or 'pbi->cb_buffer_base'
+   * with appropriate offset for the current superblock, for each plane.
+   */
   tran_low_t *dqcoeff_block[MAX_MB_PLANE];
-  // cb_offset[p] is the offset into the dqcoeff_block[p] for the current coding
-  // block, for each plane 'p'.
+  /*!
+   * cb_offset[p] is the offset into the dqcoeff_block[p] for the current coding
+   * block, for each plane 'p'.
+   */
   uint16_t cb_offset[MAX_MB_PLANE];
-  // Pointer to 'eob_data' inside 'td->cb_buffer_base' or 'pbi->cb_buffer_base'
-  // with appropriate offset for the current superblock, for each plane.
+  /*!
+   * Pointer to 'eob_data' inside 'td->cb_buffer_base' or 'pbi->cb_buffer_base'
+   * with appropriate offset for the current superblock, for each plane.
+   */
   eob_info *eob_data[MAX_MB_PLANE];
-  // txb_offset[p] is the offset into the eob_data[p] for the current coding
-  // block, for each plane 'p'.
+  /*!
+   * txb_offset[p] is the offset into the eob_data[p] for the current coding
+   * block, for each plane 'p'.
+   */
   uint16_t txb_offset[MAX_MB_PLANE];
-  // ref_mv_count[i] specifies the number of number of motion vector candidates
-  // in xd->ref_mv_stack[i].
+  /*!
+   * ref_mv_count[i] specifies the number of number of motion vector candidates
+   * in xd->ref_mv_stack[i].
+   */
   uint8_t ref_mv_count[MODE_CTX_REF_FRAMES];
 } DecoderCodingBlock;
+
+/*!\cond */
 
 typedef void (*decode_block_visitor_fn_t)(const AV1_COMMON *const cm,
                                           DecoderCodingBlock *dcb,
@@ -377,6 +399,8 @@ void av1_visit_palette(AV1Decoder *const pbi, MACROBLOCKD *const xd,
 typedef void (*block_visitor_fn_t)(AV1Decoder *const pbi, ThreadData *const td,
                                    int mi_row, int mi_col, aom_reader *r,
                                    PARTITION_TYPE partition, BLOCK_SIZE bsize);
+
+/*!\endcond */
 
 #ifdef __cplusplus
 }  // extern "C"
