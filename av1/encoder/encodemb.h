@@ -22,6 +22,30 @@
 extern "C" {
 #endif
 
+enum {
+  AV1_XFORM_QUANT_FP = 0,
+  AV1_XFORM_QUANT_B = 1,
+  AV1_XFORM_QUANT_DC = 2,
+  AV1_XFORM_QUANT_SKIP_QUANT,
+  AV1_XFORM_QUANT_TYPES,
+} UENUM1BYTE(AV1_XFORM_QUANT);
+
+// TODO(any): Merge OPT_TYPe and TRELLLIS_OPT_TYPE
+// Available optimization types to optimize the quantized coefficients.
+enum {
+  NONE_OPT = 0,            // No optimization.
+  TRELLIS_OPT = 1,         // Trellis optimization. See `av1_optimize_b()`.
+  DROPOUT_OPT = 2,         // Dropout optimization. See `av1_dropout_qcoeff()`.
+  TRELLIS_DROPOUT_OPT = 3  // Perform dropout after trellis optimization.
+} UENUM1BYTE(OPT_TYPE);
+
+enum {
+  NO_TRELLIS_OPT,          // No trellis optimization
+  FULL_TRELLIS_OPT,        // Trellis optimization in all stages
+  FINAL_PASS_TRELLIS_OPT,  // Trellis optimization in only the final encode pass
+  NO_ESTIMATE_YRD_TRELLIS_OPT  // Disable trellis in estimate_yrd_for_sb
+} UENUM1BYTE(TRELLIS_OPT_TYPE);
+
 struct optimize_ctx {
   ENTROPY_CONTEXT ta[MAX_MB_PLANE][MAX_MIB_SIZE];
   ENTROPY_CONTEXT tl[MAX_MB_PLANE][MAX_MIB_SIZE];
@@ -37,22 +61,6 @@ struct encode_b_args {
   RUN_TYPE dry_run;
   TRELLIS_OPT_TYPE enable_optimize_b;
 };
-
-enum {
-  AV1_XFORM_QUANT_FP = 0,
-  AV1_XFORM_QUANT_B = 1,
-  AV1_XFORM_QUANT_DC = 2,
-  AV1_XFORM_QUANT_SKIP_QUANT,
-  AV1_XFORM_QUANT_TYPES,
-} UENUM1BYTE(AV1_XFORM_QUANT);
-
-// Available optimization types to optimize the quantized coefficients.
-enum {
-  NONE_OPT = 0,            // No optimization.
-  TRELLIS_OPT = 1,         // Trellis optimization. See `av1_optimize_b()`.
-  DROPOUT_OPT = 2,         // Dropout optimization. See `av1_dropout_qcoeff()`.
-  TRELLIS_DROPOUT_OPT = 3  // Perform dropout after trellis optimization.
-} UENUM1BYTE(OPT_TYPE);
 
 void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                    RUN_TYPE dry_run);

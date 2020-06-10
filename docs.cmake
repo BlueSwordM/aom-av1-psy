@@ -108,6 +108,7 @@ if(CONFIG_AV1_ENCODER)
                           "${AOM_ROOT}/doc/dev_guide/av1_encoder.dox")
   set(AOM_DOXYGEN_SOURCES
       ${AOM_DOXYGEN_SOURCES}
+      "${AOM_ROOT}/av1/encoder/block.h"
       "${AOM_ROOT}/av1/encoder/encode_strategy.c"
       "${AOM_ROOT}/av1/encoder/encode_strategy.h"
       "${AOM_ROOT}/av1/encoder/encodeframe.c"
@@ -292,6 +293,9 @@ reference. The following utilities are included:
 
   # Add image path.
   file(APPEND "${AOM_DOXYFILE}" "IMAGE_PATH += ${AOM_ROOT}/doc/dev_guide\n")
+
+  # Allow banner style comments
+  file(APPEND "${AOM_DOXYFILE}" "JAVADOC_BANNER = YES")
 
   # Add the doxygen generation rule.
   add_custom_target(docs ALL

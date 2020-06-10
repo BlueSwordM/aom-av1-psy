@@ -3470,8 +3470,8 @@ static AOM_INLINE void ab_partitions_search(
  *
  * \return A bool value is returned indicating if a valid partition is found.
  * The pc_tree struct is modified to store the picked partition and modes.
- * The rd_cost struct is also updated with the RD stats orresponding to the best
- * partition found.
+ * The rd_cost struct is also updated with the RD stats corresponding to the
+ * best partition found.
  */
 static bool rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
                               TileDataEnc *tile_data, TokenExtra **tp,
