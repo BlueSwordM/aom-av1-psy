@@ -2548,6 +2548,12 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   set_ref_ptrs(cm, xd, LAST_FRAME, LAST_FRAME);
 }
 
+/*!\brief Select and apply cdef filters and switchable restoration filters
+ *
+ * \ingroup high_level_algo
+ * \callgraph
+ * \callergraph
+ */
 static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                                    MACROBLOCKD *xd, int use_restoration,
                                    int use_cdef) {
@@ -2605,6 +2611,13 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #endif
 }
 
+/*!\brief Select and apply in-loop deblocking filters, cdef filters, and
+ * restoration filters
+ *
+ * \ingroup high_level_algo
+ * \callgraph
+ * \callergraph
+ */
 static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   const int num_workers = mt_info->num_workers;
@@ -2935,6 +2948,19 @@ static void determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
 }
 #endif  // CONFIG_REALTIME_ONLY
 
+/*!\brief Encode a frame without the recode loop, usually used in one-pass
+ * encoding and realtime coding.
+ *
+ * \ingroup high_level_algo
+ * \callgraph
+ * \callergraph
+ *
+ * \param[in]    cpi             Top-level encoder structure
+ *
+ * \return Returns a value to indicate if the encoding is done successfully.
+ * \retval #AOM_CODEC_OK
+ * \retval #AOM_CODEC_ERROR
+ */
 static int encode_without_recode(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   int top_index = 0, bottom_index = 0, q = 0;
@@ -3033,6 +3059,24 @@ static int encode_without_recode(AV1_COMP *cpi) {
 }
 
 #if !CONFIG_REALTIME_ONLY
+
+/*!\brief Recode loop for encoding one frame. the purpose of encoding one frame
+ * for multiple times can be approaching a target bitrate or adjusting the usage
+ * of global motions.
+ *
+ * \ingroup high_level_algo
+ * \callgraph
+ * \callergraph
+ *
+ * \param[in]    cpi             Top-level encoder structure
+ * \param[in]    size            Bitstream size
+ * \param[in]    dest            Bitstream output
+ *
+ * \return Returns a value to indicate if the encoding is done successfully.
+ * \retval #AOM_CODEC_OK
+ * \retval -1
+ * \retval #AOM_CODEC_ERROR
+ */
 static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
@@ -3259,6 +3303,24 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
+/*!\brief Recode loop or a single loop for encoding one frame, followed by
+ * in-loop deblocking filters, CDEF filters, and restoration filters.
+ *
+ * \ingroup high_level_algo
+ * \callgraph
+ * \callergraph
+ *
+ * \param[in]    cpi             Top-level encoder structure
+ * \param[in]    size            Bitstream size
+ * \param[in]    dest            Bitstream output
+ * \param[in]    sse             Total distortion of the frame
+ * \param[in]    rate            Total rate of the frame
+ * \param[in]    largest_tile_id Tile id of the last tile
+ *
+ * \return Returns a value to indicate if the encoding is done successfully.
+ * \retval #AOM_CODEC_OK
+ * \retval #AOM_CODEC_ERROR
+ */
 static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
                                               uint8_t *dest, int64_t *sse,
                                               int64_t *rate,
@@ -3831,6 +3893,21 @@ static void set_mb_ssim_rdmult_scaling(AV1_COMP *cpi) {
 extern void av1_print_frame_contexts(const FRAME_CONTEXT *fc,
                                      const char *filename);
 
+/*!\brief Run the final pass encoding for 1-pass/2-pass encoding mode, and pack
+ * the bitstream
+ *
+ * \ingroup high_level_algo
+ * \callgraph
+ * \callergraph
+ *
+ * \param[in]    cpi             Top-level encoder structure
+ * \param[in]    size            Bitstream size
+ * \param[in]    dest            Bitstream output
+ *
+ * \return Returns a value to indicate if the encoding is done successfully.
+ * \retval #AOM_CODEC_OK
+ * \retval #AOM_CODEC_ERROR
+ */
 static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
                                      uint8_t *dest) {
   AV1_COMMON *const cm = &cpi->common;

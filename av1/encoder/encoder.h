@@ -2373,6 +2373,7 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
  *
  * \ingroup high_level_algo
  * \callgraph
+ * \callergraph
  * This function encodes the raw frame data, and outputs the frame bit stream
  * to the designated buffer. The caller should use the output parameters
  * *time_stamp and *time_end only when this function returns AOM_CODEC_OK.
@@ -2400,6 +2401,8 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
 /*!\brief Run 1-pass/2-pass encoding
  *
  * \ingroup high_level_algo
+ * \callgraph
+ * \callergraph
  */
 int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
                const EncodeFrameInput *const frame_input,

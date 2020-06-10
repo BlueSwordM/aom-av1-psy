@@ -1887,6 +1887,7 @@ static AOM_INLINE void set_fixed_partitioning(AV1_COMP *cpi,
  *
  * \ingroup partition_search
  * \callgraph
+ * \callergraph
  * Encode the block by applying pre-calculated partition patterns that are
  * represented by coding block sizes stored in the mbmi array. Minor partition
  * adjustments are tested and applied if they lead to lower rd costs. The
@@ -2365,6 +2366,7 @@ static AOM_INLINE int do_slipt_check(BLOCK_SIZE bsize) {
  *
  * \ingroup partition_search
  * \callgraph
+ * \callergraph
  * Encode the block by applying pre-calculated partition patterns that are
  * represented by coding block sizes stored in the mbmi array. The only
  * partition adjustment allowed is merging leaf split nodes if it leads to a
@@ -3438,6 +3440,7 @@ static AOM_INLINE void ab_partitions_search(
  *
  * \ingroup partition_search
  * \callgraph
+ * \callergraph
  * Searches for the best partition pattern for a block based on the
  * rate-distortion cost, and returns a bool value to indicate whether a valid
  * partition pattern is found. The partition can recursively go down to the
@@ -4759,6 +4762,7 @@ static void source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, int offset) {
  *
  * \ingroup partition_search
  * \callgraph
+ * \callergraph
  * Encodes the superblock by a pre-determined partition pattern, only minor
  * rd-based searches are allowed to adjust the initial pattern. It is only used
  * by realtime encoding.
@@ -5109,6 +5113,7 @@ static AOM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
  *
  * \ingroup partition_search
  * \callgraph
+ * \callergraph
  * Conducts partition search for a superblock, based on rate-distortion costs,
  * from scratch or adjusting from a pre-calculated partition pattern.
  */
@@ -5290,10 +5295,11 @@ static AOM_INLINE void set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
   }
 }
 
-/*!\brief Encode a superblock row
+/*!\brief Encode a superblock row by breaking it into superblocks
  *
  * \ingroup partition_search
  * \callgraph
+ * \callergraph
  * Do partition and mode search for an sb row: one row of superblocks filling up
  * the width of the current tile.
  */
@@ -5470,6 +5476,12 @@ void av1_init_tile_data(AV1_COMP *cpi) {
   }
 }
 
+/*!\brief Encode a superblock row
+ *
+ * \ingroup partition_search
+ * \callgraph
+ * \callergraph
+ */
 void av1_encode_sb_row(AV1_COMP *cpi, ThreadData *td, int tile_row,
                        int tile_col, int mi_row) {
   AV1_COMMON *const cm = &cpi->common;
@@ -5504,6 +5516,12 @@ void av1_encode_sb_row(AV1_COMP *cpi, ThreadData *td, int tile_row,
   (void)num_mb_rows_in_sb;
 }
 
+/*!\brief Encode a tile
+ *
+ * \ingroup partition_search
+ * \callgraph
+ * \callergraph
+ */
 void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
                      int tile_col) {
   AV1_COMMON *const cm = &cpi->common;
@@ -5530,6 +5548,14 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
   }
 }
 
+/*!\brief Break one frame into tiles and encode the tiles
+ *
+ * \ingroup partition_search
+ * \callgraph
+ * \callergraph
+ *
+ * \param[in]    cpi    Top-level encoder structure
+ */
 static AOM_INLINE void encode_tiles(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   const int tile_cols = cm->tiles.cols;
@@ -5726,6 +5752,13 @@ static AOM_INLINE void setup_prune_ref_frame_mask(AV1_COMP *cpi) {
 
 #define CHECK_PRECOMPUTED_REF_FRAME_MAP 0
 
+/*!\brief Encoder setup(only for the current frame), encoding, and recontruction
+ * for a single frame
+ *
+ * \ingroup high_level_algo
+ * \callgraph
+ * \callergraph
+ */
 static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   ThreadData *const td = &cpi->td;
   MACROBLOCK *const x = &td->mb;
@@ -6052,6 +6085,14 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   }
 }
 
+/*!\brief Setup reference frame buffers and encode a frame
+ *
+ * \ingroup high_level_algo
+ * \callgraph
+ * \callergraph
+ *
+ * \param[in]    cpi    Top-level encoder structure
+ */
 void av1_encode_frame(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
