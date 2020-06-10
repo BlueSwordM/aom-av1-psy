@@ -238,6 +238,8 @@ static int choose_primary_ref_frame(
   // frame bit allocation.
   if (cm->tiles.large_scale) return (LAST_FRAME - LAST_FRAME);
 
+  if (cpi->use_svc) return av1_svc_primary_ref_frame(cpi);
+
   // Find the most recent reference frame with the same reference type as the
   // current frame
   const int current_ref_type = get_current_frame_ref_type(cpi, frame_params);

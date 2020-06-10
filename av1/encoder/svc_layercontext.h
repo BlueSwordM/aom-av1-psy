@@ -61,8 +61,9 @@ typedef struct SVC {
   unsigned char buffer_spatial_layer[REF_FRAMES];
   int skip_nonzeromv_last;
   int skip_nonzeromv_gf;
-  // Layer context used for rate control in one pass temporal CBR mode or
-  // two pass spatial mode.
+  int spatial_layer_fb[REF_FRAMES];
+  int temporal_layer_fb[REF_FRAMES];
+  // Layer context used for rate control in CBR mode.
   LAYER_CONTEXT layer_context[AOM_MAX_LAYERS];
 } SVC;
 
@@ -91,6 +92,8 @@ void av1_free_svc_cyclic_refresh(struct AV1_COMP *const cpi);
 void av1_svc_reset_temporal_layers(struct AV1_COMP *const cpi, int is_key);
 
 void av1_one_pass_cbr_svc_start_layer(struct AV1_COMP *const cpi);
+
+int av1_svc_primary_ref_frame(const struct AV1_COMP *const cpi);
 
 #ifdef __cplusplus
 }  // extern "C"
