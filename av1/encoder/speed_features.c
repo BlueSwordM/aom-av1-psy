@@ -499,8 +499,7 @@ static void set_good_speed_features_framesize_independent(
     // TODO(any): Experiment with this speed feature by enabling for key frames
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch =
         frame_is_intra_only(&cpi->common) ? 0 : 1;
-    sf->winner_mode_sf.enable_winner_mode_for_use_tx_domain_dist =
-        !allow_screen_content_tools;
+    sf->winner_mode_sf.enable_winner_mode_for_use_tx_domain_dist = 1;
     sf->winner_mode_sf.motion_mode_for_winner_cand =
         boosted
             ? 0
