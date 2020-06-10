@@ -509,8 +509,7 @@ static void set_good_speed_features_framesize_independent(
 
     // TODO(any): evaluate if these lpf features can be moved to speed 2.
     sf->lpf_sf.prune_sgr_based_on_wiener = allow_screen_content_tools ? 0 : 2;
-    sf->lpf_sf.disable_loop_restoration_chroma =
-        (boosted || allow_screen_content_tools) ? 0 : 1;
+    sf->lpf_sf.disable_loop_restoration_chroma = boosted ? 0 : 1;
     sf->lpf_sf.reduce_wiener_window_size = !boosted;
     sf->lpf_sf.prune_wiener_based_on_src_var = 2;
 
