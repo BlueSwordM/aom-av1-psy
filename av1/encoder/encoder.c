@@ -1831,7 +1831,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   // prevent override by new cfg.
   int lap_lag_in_frames = -1;
   if (cpi->lap_enabled && cpi->compressor_stage == LAP_STAGE) {
-    lap_lag_in_frames = cpi->oxcf.lag_in_frames;
+    lap_lag_in_frames = cpi->oxcf.gf_cfg.lag_in_frames;
   }
 
   if (seq_params->profile != oxcf->profile) seq_params->profile = oxcf->profile;
@@ -2026,7 +2026,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   // restore the value of lag_in_frame for LAP stage.
   if (lap_lag_in_frames != -1) {
-    cpi->oxcf.lag_in_frames = lap_lag_in_frames;
+    cpi->oxcf.gf_cfg.lag_in_frames = lap_lag_in_frames;
   }
 }
 
@@ -2132,7 +2132,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
   init_config(cpi, oxcf);
   if (cpi->compressor_stage == LAP_STAGE) {
-    cpi->oxcf.lag_in_frames = lap_lag_in_frames;
+    cpi->oxcf.gf_cfg.lag_in_frames = lap_lag_in_frames;
   }
 
   av1_rc_init(&cpi->oxcf, oxcf->pass, &cpi->rc);

@@ -5691,7 +5691,7 @@ static int check_skip_mode_enabled(AV1_COMP *const cpi) {
   if (abs(cur_to_ref0 - cur_to_ref1) > 1) return 0;
 
   // High Latency: Turn off skip mode if all refs are fwd.
-  if (cpi->all_one_sided_refs && cpi->oxcf.lag_in_frames > 0) return 0;
+  if (cpi->all_one_sided_refs && cpi->oxcf.gf_cfg.lag_in_frames > 0) return 0;
 
   static const int flag_list[REF_FRAMES] = { 0,
                                              AOM_LAST_FLAG,

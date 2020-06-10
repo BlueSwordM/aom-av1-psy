@@ -1372,6 +1372,7 @@ static void define_gf_group_pass0(AV1_COMP *cpi,
   RATE_CONTROL *const rc = &cpi->rc;
   GF_GROUP *const gf_group = &cpi->gf_group;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+  const GFConfig *const gf_cfg = &oxcf->gf_cfg;
   int target;
 
   if (oxcf->aq_mode == CYCLIC_REFRESH_AQ) {
@@ -1392,12 +1393,13 @@ static void define_gf_group_pass0(AV1_COMP *cpi,
   rc->constrained_gf_group =
       (rc->baseline_gf_interval >= rc->frames_to_key) ? 1 : 0;
 
-  gf_group->max_layer_depth_allowed = oxcf->gf_max_pyr_height;
+  gf_group->max_layer_depth_allowed = oxcf->gf_cfg.gf_max_pyr_height;
 
   // Rare case when the look-ahead is less than the target GOP length, can't
   // generate ARF frame.
-  if (rc->baseline_gf_interval > cpi->oxcf.lag_in_frames ||
-      !is_altref_enabled(cpi) || rc->baseline_gf_interval < rc->min_gf_interval)
+  if (rc->baseline_gf_interval > gf_cfg->lag_in_frames ||
+      !is_altref_enabled(gf_cfg->lag_in_frames, gf_cfg->enable_auto_arf) ||
+      rc->baseline_gf_interval < rc->min_gf_interval)
     gf_group->max_layer_depth_allowed = 0;
 
   // Set up the structure of this Group-Of-Pictures (same as GF_GROUP)
@@ -1499,12 +1501,13 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
                             int max_gop_length, int is_final_pass) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
-  AV1EncoderConfig *const oxcf = &cpi->oxcf;
+  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   TWO_PASS *const twopass = &cpi->twopass;
   FIRSTPASS_STATS next_frame;
   const FIRSTPASS_STATS *const start_pos = twopass->stats_in;
   GF_GROUP *gf_group = &cpi->gf_group;
   FRAME_INFO *frame_info = &cpi->frame_info;
+  const GFConfig *const gf_cfg = &oxcf->gf_cfg;
   int i;
 
   int flash_detected;
@@ -1513,7 +1516,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
                             frame_params->frame_type == INTRA_ONLY_FRAME;
   const int arf_active_or_kf = is_intra_only || rc->source_alt_ref_active;
 
-  cpi->internal_altref_allowed = (oxcf->gf_max_pyr_height > 1);
+  cpi->internal_altref_allowed = (gf_cfg->gf_max_pyr_height > 1);
 
   // Reset the GF group data structures unless this is a key
   // frame in which case it will already have been done.
@@ -1538,8 +1541,9 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   init_gf_stats(&gf_stats);
   GF_FRAME_STATS first_frame_stats, last_frame_stats;
 
-  gf_stats.allow_alt_ref = is_altref_enabled(cpi);
-  const int can_disable_arf = (oxcf->gf_min_pyr_height == MIN_PYRAMID_LVL);
+  gf_stats.allow_alt_ref =
+      is_altref_enabled(gf_cfg->lag_in_frames, gf_cfg->enable_auto_arf);
+  const int can_disable_arf = (gf_cfg->gf_min_pyr_height == MIN_PYRAMID_LVL);
 
   // Load stats for the current frame.
   double mod_frame_err =
@@ -1618,7 +1622,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   //   avg_raw_err_stdev:       average of the standard deviation of (0,0)
   //                            motion error per block of each frame.
   const int can_disable_internal_arfs =
-      (oxcf->gf_min_pyr_height <= MIN_PYRAMID_LVL + 1);
+      (gf_cfg->gf_min_pyr_height <= MIN_PYRAMID_LVL + 1);
   if (can_disable_internal_arfs &&
       gf_stats.zero_motion_accumulator > MIN_ZERO_MOTION &&
       gf_stats.avg_sr_coded_error / num_mbs < MAX_SR_CODED_ERROR &&
@@ -1631,8 +1635,8 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
     use_alt_ref =
         !is_almost_static(gf_stats.zero_motion_accumulator,
                           twopass->kf_zeromotion_pct, cpi->lap_enabled) &&
-        gf_stats.allow_alt_ref && (i < oxcf->lag_in_frames) &&
-        (i >= MIN_GF_INTERVAL) && (oxcf->gf_max_pyr_height > MIN_PYRAMID_LVL);
+        gf_stats.allow_alt_ref && (i < gf_cfg->lag_in_frames) &&
+        (i >= MIN_GF_INTERVAL) && (gf_cfg->gf_max_pyr_height > MIN_PYRAMID_LVL);
 
     // TODO(urvang): Improve and use model for VBR, CQ etc as well.
     if (use_alt_ref && oxcf->rc_mode == AOM_Q && oxcf->cq_level <= 200) {
@@ -1647,9 +1651,9 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
       use_alt_ref = (score <= 0.0);
     }
   } else {
-    assert(oxcf->gf_max_pyr_height > MIN_PYRAMID_LVL);
+    assert(gf_cfg->gf_max_pyr_height > MIN_PYRAMID_LVL);
     use_alt_ref =
-        gf_stats.allow_alt_ref && (i < oxcf->lag_in_frames) && (i > 2);
+        gf_stats.allow_alt_ref && (i < gf_cfg->lag_in_frames) && (i > 2);
   }
 
 #define REDUCE_GF_LENGTH_THRESH 4
@@ -1693,7 +1697,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // Should we use the alternate reference frame.
   if (use_alt_ref) {
     rc->source_alt_ref_pending = 1;
-    gf_group->max_layer_depth_allowed = oxcf->gf_max_pyr_height;
+    gf_group->max_layer_depth_allowed = gf_cfg->gf_max_pyr_height;
     set_baseline_gf_interval(cpi, i, active_max_gf_interval, use_alt_ref,
                              is_final_pass);
 
@@ -2658,7 +2662,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     this_frame = this_frame_copy;
   } else {
     frame_params->frame_type = INTER_FRAME;
-    const int altref_enabled = is_altref_enabled(cpi);
+    const int altref_enabled = is_altref_enabled(oxcf->gf_cfg.lag_in_frames,
+                                                 oxcf->gf_cfg.enable_auto_arf);
     const int sframe_dist = oxcf->kf_cfg.sframe_dist;
     const int sframe_mode = oxcf->kf_cfg.sframe_mode;
     const int update_type = gf_group->update_type[gf_group->index];
@@ -2709,10 +2714,10 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
     reset_fpf_position(twopass, start_position);
 
-    int max_gop_length =
-        (oxcf->lag_in_frames >= 32 && is_stat_consumption_stage_twopass(cpi))
-            ? MAX_GF_INTERVAL
-            : MAX_GF_LENGTH_LAP;
+    int max_gop_length = (oxcf->gf_cfg.lag_in_frames >= 32 &&
+                          is_stat_consumption_stage_twopass(cpi))
+                             ? MAX_GF_INTERVAL
+                             : MAX_GF_LENGTH_LAP;
     if (rc->intervals_till_gf_calculate_due == 0) {
       calculate_gf_length(cpi, max_gop_length, MAX_NUM_GF_INTERVALS);
     }

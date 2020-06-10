@@ -710,6 +710,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   ResizeCfg *const resize_cfg = &oxcf->resize_cfg;
 
+  GFConfig *const gf_cfg = &oxcf->gf_cfg;
+
   PartitionCfg *const part_cfg = &oxcf->part_cfg;
 
   IntraModeCfg *const intra_mode_cfg = &oxcf->intra_mode_cfg;
@@ -776,7 +778,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     case AOM_RC_LAST_PASS: oxcf->pass = 2; break;
   }
 
-  oxcf->lag_in_frames = clamp(cfg->g_lag_in_frames, 0, MAX_LAG_BUFFERS);
   oxcf->rc_mode = cfg->rc_end_usage;
 
   // Convert target bandwidth from Kbit/s to Bit/s
@@ -857,8 +858,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   kf_cfg->enable_intrabc = extra_cfg->enable_intrabc;
 
   oxcf->speed = extra_cfg->cpu_used;
-  oxcf->enable_auto_arf = extra_cfg->enable_auto_alt_ref;
-  oxcf->enable_auto_brf = extra_cfg->enable_auto_bwd_ref;
   oxcf->noise_sensitivity = extra_cfg->noise_sensitivity;
   oxcf->sharpness = extra_cfg->sharpness;
 
@@ -874,10 +873,15 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->render_height = extra_cfg->render_height;
   oxcf->arnr_max_frames = extra_cfg->arnr_max_frames;
   oxcf->arnr_strength = extra_cfg->arnr_strength;
-  oxcf->min_gf_interval = extra_cfg->min_gf_interval;
-  oxcf->max_gf_interval = extra_cfg->max_gf_interval;
-  oxcf->gf_min_pyr_height = extra_cfg->gf_min_pyr_height;
-  oxcf->gf_max_pyr_height = extra_cfg->gf_max_pyr_height;
+
+  // Set Group of frames configuration.
+  gf_cfg->lag_in_frames = clamp(cfg->g_lag_in_frames, 0, MAX_LAG_BUFFERS);
+  gf_cfg->enable_auto_arf = extra_cfg->enable_auto_alt_ref;
+  gf_cfg->enable_auto_brf = extra_cfg->enable_auto_bwd_ref;
+  gf_cfg->min_gf_interval = extra_cfg->min_gf_interval;
+  gf_cfg->max_gf_interval = extra_cfg->max_gf_interval;
+  gf_cfg->gf_min_pyr_height = extra_cfg->gf_min_pyr_height;
+  gf_cfg->gf_max_pyr_height = extra_cfg->gf_max_pyr_height;
 
   oxcf->tuning = extra_cfg->tuning;
   oxcf->vmaf_model_path = extra_cfg->vmaf_model_path;
@@ -2158,8 +2162,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       subsampling_y = sd.subsampling_y;
 
       if (!cpi->lookahead) {
-        int lag_in_frames = cpi_lap != NULL ? cpi_lap->oxcf.lag_in_frames
-                                            : cpi->oxcf.lag_in_frames;
+        int lag_in_frames = cpi_lap != NULL ? cpi_lap->oxcf.gf_cfg.lag_in_frames
+                                            : cpi->oxcf.gf_cfg.lag_in_frames;
 
         cpi->lookahead = av1_lookahead_init(
             cpi->oxcf.width, cpi->oxcf.height, subsampling_x, subsampling_y,

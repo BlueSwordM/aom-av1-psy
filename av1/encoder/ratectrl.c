@@ -326,8 +326,8 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
     rc->rate_correction_factors[i] = 0.7;
   }
   rc->rate_correction_factors[KF_STD] = 1.0;
-  rc->min_gf_interval = oxcf->min_gf_interval;
-  rc->max_gf_interval = oxcf->max_gf_interval;
+  rc->min_gf_interval = oxcf->gf_cfg.min_gf_interval;
+  rc->max_gf_interval = oxcf->gf_cfg.max_gf_interval;
   if (rc->min_gf_interval == 0)
     rc->min_gf_interval = av1_rc_get_default_min_gf_interval(
         oxcf->width, oxcf->height, oxcf->init_framerate);
@@ -1667,7 +1667,9 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
 
   rc->total_target_vs_actual = rc->total_actual_bits - rc->total_target_bits;
 
-  if (is_altref_enabled(cpi) && refresh_frame_flags->alt_ref_frame &&
+  if (is_altref_enabled(cpi->oxcf.gf_cfg.lag_in_frames,
+                        cpi->oxcf.gf_cfg.enable_auto_arf) &&
+      refresh_frame_flags->alt_ref_frame &&
       (current_frame->frame_type != KEY_FRAME && !frame_is_sframe(cm)))
     // Update the alternate reference frame stats as appropriate.
     update_alt_ref_frame_stats(cpi);
@@ -1777,8 +1779,8 @@ void av1_rc_set_gf_interval_range(const AV1_COMP *const cpi,
     rc->static_scene_max_gf_interval = FIXED_GF_INTERVAL;
   } else {
     // Set Maximum gf/arf interval
-    rc->max_gf_interval = oxcf->max_gf_interval;
-    rc->min_gf_interval = oxcf->min_gf_interval;
+    rc->max_gf_interval = oxcf->gf_cfg.max_gf_interval;
+    rc->min_gf_interval = oxcf->gf_cfg.min_gf_interval;
     if (rc->min_gf_interval == 0)
       rc->min_gf_interval = av1_rc_get_default_min_gf_interval(
           oxcf->width, oxcf->height, cpi->framerate);

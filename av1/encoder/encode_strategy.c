@@ -930,7 +930,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   }
 
   if (frame_params->frame_type == KEY_FRAME && !is_stat_generation_stage(cpi) &&
-      oxcf->enable_tpl_model && oxcf->lag_in_frames > 0 &&
+      oxcf->enable_tpl_model && oxcf->gf_cfg.lag_in_frames > 0 &&
       frame_params->show_frame) {
     av1_tpl_setup_stats(cpi, 0, frame_params, frame_input);
   }
@@ -1050,6 +1050,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   AV1_COMMON *const cm = &cpi->common;
   GF_GROUP *gf_group = &cpi->gf_group;
   ExternalFlags *const ext_flags = &cpi->ext_flags;
+  GFConfig *const gf_cfg = &oxcf->gf_cfg;
 
   EncodeFrameInput frame_input;
   EncodeFrameParams frame_params;
@@ -1060,10 +1061,10 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   // TODO(sarahparker) finish bit allocation for one pass pyramid
   if (has_no_stats_stage(cpi)) {
-    oxcf->gf_max_pyr_height =
-        AOMMIN(oxcf->gf_max_pyr_height, USE_ALTREF_FOR_ONE_PASS);
-    oxcf->gf_min_pyr_height =
-        AOMMIN(oxcf->gf_min_pyr_height, oxcf->gf_max_pyr_height);
+    gf_cfg->gf_max_pyr_height =
+        AOMMIN(gf_cfg->gf_max_pyr_height, USE_ALTREF_FOR_ONE_PASS);
+    gf_cfg->gf_min_pyr_height =
+        AOMMIN(gf_cfg->gf_min_pyr_height, gf_cfg->gf_max_pyr_height);
   }
 
   if (!is_stat_generation_stage(cpi)) {
@@ -1153,7 +1154,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #else
   const int use_one_pass_rt_params = has_no_stats_stage(cpi) &&
                                      oxcf->mode == REALTIME &&
-                                     oxcf->lag_in_frames == 0;
+                                     gf_cfg->lag_in_frames == 0;
   if (use_one_pass_rt_params) {
     av1_get_one_pass_rt_params(cpi, &frame_params, *frame_flags);
   } else if (!is_stat_generation_stage(cpi)) {
@@ -1265,7 +1266,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (!frame_params.show_existing_frame) {
     cm->quant_params.using_qmatrix = oxcf->using_qm;
 #if !CONFIG_REALTIME_ONLY
-    if (oxcf->lag_in_frames > 0 && !is_stat_generation_stage(cpi)) {
+    if (gf_cfg->lag_in_frames > 0 && !is_stat_generation_stage(cpi)) {
       if (cpi->gf_group.index == 1 && oxcf->enable_tpl_model) {
         av1_configure_buffer_updates(cpi, &frame_params.refresh_frame,
                                      frame_update_type, 0);
@@ -1284,7 +1285,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 #else
   if (has_no_stats_stage(cpi) && oxcf->mode == REALTIME &&
-      oxcf->lag_in_frames == 0) {
+      gf_cfg->lag_in_frames == 0) {
     if (av1_encode(cpi, dest, &frame_input, &frame_params, &frame_results) !=
         AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;

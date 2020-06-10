@@ -488,6 +488,24 @@ typedef struct {
   bool enable_intrabc;
 } KeyFrameCfg;
 
+typedef struct {
+  // Indicates the number of frames lag before encoding is started.
+  int lag_in_frames;
+  // Indicates the minimum gf/arf interval to be used.
+  int min_gf_interval;
+  // Indicates the maximum gf/arf interval to be used.
+  int max_gf_interval;
+  // Indicates the minimum height for GF group pyramid structure to be used.
+  int gf_min_pyr_height;
+  // Indicates the maximum height for GF group pyramid structure to be used.
+  int gf_max_pyr_height;
+  // Indicates if automatic set and use of altref frames should be enabled.
+  bool enable_auto_arf;
+  // Indicates if automatic set and use of (b)ackward (r)ef (f)rames should be
+  // enabled.
+  bool enable_auto_brf;
+} GFConfig;
+
 typedef struct AV1EncoderConfig {
   BITSTREAM_PROFILE profile;
   aom_bit_depth_t bit_depth;     // Codec bit-depth.
@@ -514,8 +532,6 @@ typedef struct AV1EncoderConfig {
 
   // Configuration related to key-frame.
   KeyFrameCfg kf_cfg;
-
-  int lag_in_frames;
 
   // ----------------------------------------------------------------
   // DATARATE CONTROL OPTIONS
@@ -576,9 +592,6 @@ typedef struct AV1EncoderConfig {
   // END DATARATE CONTROL OPTIONS
   // ----------------------------------------------------------------
 
-  int enable_auto_arf;
-  int enable_auto_brf;  // (b)ackward (r)ef (f)rame
-
   /* Bitfield defining the error resiliency features to enable.
    * Can provide decodable frames after losses in previous
    * frames and decodable partitions after losses in the same frame.
@@ -596,10 +609,8 @@ typedef struct AV1EncoderConfig {
   int arnr_max_frames;
   int arnr_strength;
 
-  int min_gf_interval;
-  int max_gf_interval;
-  int gf_min_pyr_height;
-  int gf_max_pyr_height;
+  // Configuration related to Group of frames.
+  GFConfig gf_cfg;
 
   int row_mt;
   int tile_columns;
@@ -2522,8 +2533,8 @@ static INLINE void get_start_tok(AV1_COMP *cpi, int tile_row, int tile_col,
 void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags);
 
 #define ALT_MIN_LAG 3
-static INLINE int is_altref_enabled(const AV1_COMP *const cpi) {
-  return cpi->oxcf.lag_in_frames >= ALT_MIN_LAG && cpi->oxcf.enable_auto_arf;
+static INLINE int is_altref_enabled(int lag_in_frames, bool enable_auto_arf) {
+  return lag_in_frames >= ALT_MIN_LAG && enable_auto_arf;
 }
 
 // Check if statistics generation stage
@@ -2556,7 +2567,7 @@ static INLINE int get_stats_buf_size(int num_lap_buffer, int num_lag_buffer) {
   return (num_lap_buffer > 0 ? num_lap_buffer + 1 : num_lag_buffer);
 }
 
-// TODO(zoeliu): To set up cpi->oxcf.enable_auto_brf
+// TODO(zoeliu): To set up cpi->oxcf.gf_cfg.enable_auto_brf
 
 static INLINE void set_ref_ptrs(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 MV_REFERENCE_FRAME ref0,
