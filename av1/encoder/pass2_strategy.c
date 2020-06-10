@@ -26,6 +26,7 @@
 #include "av1/encoder/gop_structure.h"
 #include "av1/encoder/pass2_strategy.h"
 #include "av1/encoder/ratectrl.h"
+#include "av1/encoder/rc_utils.h"
 #include "av1/encoder/tpl_model.h"
 #include "av1/encoder/use_flat_gop_model_params.h"
 #include "av1/encoder/encode_strategy.h"

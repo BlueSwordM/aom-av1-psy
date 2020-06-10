@@ -199,6 +199,7 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/ransac.h"
             "${AOM_ROOT}/av1/encoder/ratectrl.c"
             "${AOM_ROOT}/av1/encoder/ratectrl.h"
+            "${AOM_ROOT}/av1/encoder/rc_utils.h"
             "${AOM_ROOT}/av1/encoder/rd.c"
             "${AOM_ROOT}/av1/encoder/rd.h"
             "${AOM_ROOT}/av1/encoder/rdopt.c"
