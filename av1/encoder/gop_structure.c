@@ -120,7 +120,10 @@ static int construct_multi_layer_gf_structure(
     gf_group->layer_depth[frame_index] = 1;
     gf_group->arf_boost[frame_index] = cpi->rc.gfu_boost;
     gf_group->max_layer_depth = 1;
+    gf_group->arf_index = frame_index;
     ++frame_index;
+  } else {
+    gf_group->arf_index = -1;
   }
 
   // Rest of the frames.

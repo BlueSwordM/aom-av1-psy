@@ -2828,6 +2828,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   if (has_no_stats_stage(cpi) && oxcf->rc_cfg.mode == AOM_CBR &&
       current_frame->frame_type != KEY_FRAME) {
     if (av1_rc_drop_frame(cpi)) {
+      av1_setup_frame_size(cpi);
       av1_rc_postencode_update_drop_frame(cpi);
       release_scaled_references(cpi);
       return AOM_CODEC_OK;

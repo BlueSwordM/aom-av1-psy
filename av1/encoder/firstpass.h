@@ -191,6 +191,7 @@ typedef struct {
   // This is currently only populated for AOM_Q mode
   unsigned char q_val[MAX_STATIC_GF_GROUP_LENGTH];
   int bit_allocation[MAX_STATIC_GF_GROUP_LENGTH];
+  int arf_index;  // the index in the gf group of ARF, if no arf, then -1
   int size;
   /*!\endcond */
 } GF_GROUP;
