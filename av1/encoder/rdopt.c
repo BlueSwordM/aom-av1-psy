@@ -1247,10 +1247,10 @@ static INLINE void update_mode_start_end_index(const AV1_COMP *const cpi,
 static int64_t motion_mode_rd(
     const AV1_COMP *const cpi, TileDataEnc *tile_data, MACROBLOCK *const x,
     BLOCK_SIZE bsize, RD_STATS *rd_stats, RD_STATS *rd_stats_y,
-    RD_STATS *rd_stats_uv, int *disable_skip_txfm,
-    HandleInterModeArgs *const args, int64_t ref_best_rd, int64_t *ref_skip_rd,
-    int *rate_mv, const BUFFER_SET *orig_dst, int64_t *best_est_rd,
-    int do_tx_search, InterModesInfo *inter_modes_info, int eval_motion_mode) {
+    RD_STATS *rd_stats_uv, HandleInterModeArgs *const args, int64_t ref_best_rd,
+    int64_t *ref_skip_rd, int *rate_mv, const BUFFER_SET *orig_dst,
+    int64_t *best_est_rd, int do_tx_search, InterModesInfo *inter_modes_info,
+    int eval_motion_mode) {
   const AV1_COMMON *const cm = &cpi->common;
   const FeatureFlags *const features = &cm->features;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
@@ -1260,7 +1260,7 @@ static int64_t motion_mode_rd(
   const int is_comp_pred = has_second_ref(mbmi);
   const PREDICTION_MODE this_mode = mbmi->mode;
   const int rate2_nocoeff = rd_stats->rate;
-  int best_xskip_txfm = 0, best_disable_skip_txfm = 0;
+  int best_xskip_txfm = 0;
   RD_STATS best_rd_stats, best_rd_stats_y, best_rd_stats_uv;
   uint8_t best_blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
   uint8_t best_tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
@@ -1369,7 +1369,6 @@ static int64_t motion_mode_rd(
             av1_copy_array(best_tx_type_map, simple_states->tx_type_map,
                            xd->height * xd->width);
             best_xskip_txfm = simple_states->skip_txfm;
-            best_disable_skip_txfm = simple_states->disable_skip_txfm;
             best_mbmi = *mbmi;
           }
           continue;
@@ -1587,7 +1586,6 @@ static int64_t motion_mode_rd(
         ref_skip_rd[0] = skip_rd;
         ref_skip_rd[1] = skip_rdy;
       }
-      *disable_skip_txfm = 0;
       if (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1) {
         const int skip_ctx = av1_get_skip_txfm_context(xd);
         inter_mode_data_push(
@@ -1617,7 +1615,6 @@ static int64_t motion_mode_rd(
         av1_copy_array(simple_states->tx_type_map, xd->tx_type_map,
                        xd->height * xd->width);
         simple_states->skip_txfm = mbmi->skip_txfm;
-        simple_states->disable_skip_txfm = *disable_skip_txfm;
       }
     }
     if (mode_index == 0 || tmp_rd < best_rd) {
@@ -1632,10 +1629,6 @@ static int64_t motion_mode_rd(
              sizeof(txfm_info->blk_skip[0]) * xd->height * xd->width);
       av1_copy_array(best_tx_type_map, xd->tx_type_map, xd->height * xd->width);
       best_xskip_txfm = mbmi->skip_txfm;
-      best_disable_skip_txfm = *disable_skip_txfm;
-      // TODO(anyone): evaluate the quality and speed trade-off of the early
-      // termination logic below.
-      // if (best_xskip) break;
     }
   }
   // Update RD and mbmi stats for selected motion mode
@@ -1654,7 +1647,6 @@ static int64_t motion_mode_rd(
          sizeof(txfm_info->blk_skip[0]) * xd->height * xd->width);
   av1_copy_array(xd->tx_type_map, best_tx_type_map, xd->height * xd->width);
   txfm_info->skip_txfm = best_xskip_txfm;
-  *disable_skip_txfm = best_disable_skip_txfm;
 
   restore_dst_buf(xd, *orig_dst, num_planes);
   return 0;
@@ -2460,12 +2452,11 @@ static int prune_ref_mv_idx_search(int ref_mv_idx, int best_ref_mv_idx,
 static int64_t handle_inter_mode(
     AV1_COMP *const cpi, TileDataEnc *tile_data, MACROBLOCK *x,
     BLOCK_SIZE bsize, RD_STATS *rd_stats, RD_STATS *rd_stats_y,
-    RD_STATS *rd_stats_uv, int *disable_skip_txfm, HandleInterModeArgs *args,
-    int64_t ref_best_rd, uint8_t *const tmp_buf,
-    const CompoundTypeRdBuffers *rd_buffers, int64_t *best_est_rd,
-    const int do_tx_search, InterModesInfo *inter_modes_info,
-    motion_mode_candidate *motion_mode_cand, int64_t *skip_rd,
-    PruneInfoFromTpl *inter_cost_info_from_tpl) {
+    RD_STATS *rd_stats_uv, HandleInterModeArgs *args, int64_t ref_best_rd,
+    uint8_t *const tmp_buf, const CompoundTypeRdBuffers *rd_buffers,
+    int64_t *best_est_rd, const int do_tx_search,
+    InterModesInfo *inter_modes_info, motion_mode_candidate *motion_mode_cand,
+    int64_t *skip_rd, PruneInfoFromTpl *inter_cost_info_from_tpl) {
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *xd = &x->e_mbd;
@@ -2508,7 +2499,6 @@ static int64_t handle_inter_mode(
   uint8_t best_blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
   uint8_t best_tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
   MB_MODE_INFO best_mbmi = *mbmi;
-  int best_disable_skip_txfm = 0;
   int best_xskip_txfm = 0;
   int64_t newmv_ret_val = INT64_MAX;
   inter_mode_info mode_info[MAX_REF_MV_SEARCH];
@@ -2719,9 +2709,9 @@ static int64_t handle_inter_mode(
     // Determine the motion mode. This will be one of SIMPLE_TRANSLATION,
     // OBMC_CAUSAL or WARPED_CAUSAL
     ret_val = motion_mode_rd(cpi, tile_data, x, bsize, rd_stats, rd_stats_y,
-                             rd_stats_uv, disable_skip_txfm, args, ref_best_rd,
-                             skip_rd, &rate_mv, &orig_dst, best_est_rd,
-                             do_tx_search, inter_modes_info, 0);
+                             rd_stats_uv, args, ref_best_rd, skip_rd, &rate_mv,
+                             &orig_dst, best_est_rd, do_tx_search,
+                             inter_modes_info, 0);
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, motion_mode_rd_time);
 #endif
@@ -2750,7 +2740,6 @@ static int64_t handle_inter_mode(
         best_rd_stats_uv = *rd_stats_uv;
         best_rd = tmp_rd;
         best_mbmi = *mbmi;
-        best_disable_skip_txfm = *disable_skip_txfm;
         best_xskip_txfm = txfm_info->skip_txfm;
         memcpy(best_blk_skip, txfm_info->blk_skip,
                sizeof(best_blk_skip[0]) * xd->height * xd->width);
@@ -2775,7 +2764,6 @@ static int64_t handle_inter_mode(
   *rd_stats_y = best_rd_stats_y;
   *rd_stats_uv = best_rd_stats_uv;
   *mbmi = best_mbmi;
-  *disable_skip_txfm = best_disable_skip_txfm;
   txfm_info->skip_txfm = best_xskip_txfm;
   assert(IMPLIES(mbmi->comp_group_idx == 1,
                  mbmi->interinter_comp.type != COMPOUND_AVERAGE));
@@ -4403,7 +4391,7 @@ static AOM_INLINE void evaluate_motion_mode_for_winner_candidates(
     av1_init_rd_stats(&rd_stats);
     av1_init_rd_stats(&rd_stats_y);
     av1_init_rd_stats(&rd_stats_uv);
-    int disable_skip = 0, rate_mv;
+    int rate_mv;
 
     rate_mv = best_motion_mode_cands->motion_mode_cand[cand].rate_mv;
     args->skip_motion_mode =
@@ -4438,9 +4426,9 @@ static AOM_INLINE void evaluate_motion_mode_for_winner_candidates(
     int64_t skip_rd[2] = { search_state->best_skip_rd[0],
                            search_state->best_skip_rd[1] };
     int64_t ret_value = motion_mode_rd(
-        cpi, tile_data, x, bsize, &rd_stats, &rd_stats_y, &rd_stats_uv,
-        &disable_skip, args, search_state->best_rd, skip_rd, &rate_mv,
-        &orig_dst, best_est_rd, do_tx_search, inter_modes_info, 1);
+        cpi, tile_data, x, bsize, &rd_stats, &rd_stats_y, &rd_stats_uv, args,
+        search_state->best_rd, skip_rd, &rate_mv, &orig_dst, best_est_rd,
+        do_tx_search, inter_modes_info, 1);
 
     if (ret_value != INT64_MAX) {
       rd_stats.rdcost = RDCOST(x->rdmult, rd_stats.rate, rd_stats.dist);
@@ -5004,7 +4992,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     mbmi->ref_mv_idx = 0;
 
     const int64_t ref_best_rd = search_state.best_rd;
-    int disable_skip = 0;
     RD_STATS rd_stats, rd_stats_y, rd_stats_uv;
     av1_init_rd_stats(&rd_stats);
 
@@ -5030,10 +5017,10 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     int64_t skip_rd[2] = { search_state.best_skip_rd[0],
                            search_state.best_skip_rd[1] };
     int64_t this_rd = handle_inter_mode(
-        cpi, tile_data, x, bsize, &rd_stats, &rd_stats_y, &rd_stats_uv,
-        &disable_skip, &args, ref_best_rd, tmp_buf, &x->comp_rd_buffer,
-        &best_est_rd, do_tx_search, inter_modes_info, &motion_mode_cand,
-        skip_rd, &inter_cost_info_from_tpl);
+        cpi, tile_data, x, bsize, &rd_stats, &rd_stats_y, &rd_stats_uv, &args,
+        ref_best_rd, tmp_buf, &x->comp_rd_buffer, &best_est_rd, do_tx_search,
+        inter_modes_info, &motion_mode_cand, skip_rd,
+        &inter_cost_info_from_tpl);
 
     if (sf->inter_sf.prune_comp_search_by_single_result > 0 &&
         is_inter_singleref_mode(this_mode) && args.single_ref_first_pass) {
@@ -5075,10 +5062,8 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     }
 
     /* keep record of best compound/single-only prediction */
-    if (!disable_skip) {
-      record_best_compound(cm->current_frame.reference_mode, &rd_stats,
-                           comp_pred, x->rdmult, &search_state, compmode_cost);
-    }
+    record_best_compound(cm->current_frame.reference_mode, &rd_stats, comp_pred,
+                         x->rdmult, &search_state, compmode_cost);
   }
 
   if (cpi->sf.winner_mode_sf.motion_mode_for_winner_cand) {
