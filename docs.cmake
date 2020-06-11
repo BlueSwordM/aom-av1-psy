@@ -130,6 +130,7 @@ if(CONFIG_AV1_ENCODER)
       "${AOM_ROOT}/av1/encoder/palette.c"
       "${AOM_ROOT}/av1/encoder/partition_search.h"
       "${AOM_ROOT}/av1/encoder/partition_search.c"
+      "${AOM_ROOT}/av1/encoder/pass2_strategy.c"
       "${AOM_ROOT}/av1/encoder/pickcdef.h"
       "${AOM_ROOT}/av1/encoder/picklpf.h"
       "${AOM_ROOT}/av1/encoder/pickrst.h"

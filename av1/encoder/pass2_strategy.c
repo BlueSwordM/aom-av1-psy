@@ -9,6 +9,14 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+/*!\defgroup gf_group_algo Golden Frame Group
+ * \ingroup high_level_algo
+ * Algorithms regarding determining the length of GF groups and defining GF
+ * group structures.
+ * @{
+ */
+/*! @} - end defgroup gf_group_algo */
+
 #include <stdint.h>
 
 #include "config/aom_config.h"
@@ -1181,8 +1189,18 @@ void set_last_prev_low_err(int *cur_start_ptr, int *cur_last_ptr, int *cut_pos,
   return;
 }
 
-// This function decides the gf group length of future frames in batch
-// rc->gf_intervals is modified to store the group lengths
+/*!\brief Determine the length of future GF groups.
+ *
+ * \ingroup gf_group_algo
+ * This function decides the gf group length of future frames in batch
+ *
+ * \param[in]    cpi              Top-level encoder structure
+ * \param[in]    max_gop_length   Maximum length of the GF group
+ * \param[in]    max_intervals    Maximum number of intervals to decide
+ *
+ * \return Nothing is returned. Instead, cpi->rc.gf_intervals is
+ * changed to store the decided GF group lengths.
+ */
 static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
                                 int max_intervals) {
   RATE_CONTROL *const rc = &cpi->rc;
@@ -1484,6 +1502,21 @@ static void init_gf_stats(GF_GROUP_STATS *gf_stats) {
 
 // Analyse and define a gf/arf group.
 #define MAX_GF_BOOST 5400
+/*!\brief Define a GF group.
+ *
+ * \ingroup gf_group_algo
+ * This function defines the structure of a GF group, along with various
+ * parameters regarding bit-allocation and quality setup.
+ *
+ * \param[in]    cpi             Top-level encoder structure
+ * \param[in]    this_frame      First pass statistics structure
+ * \param[in]    frame_params    Structure with frame parameters
+ * \param[in]    max_gop_length  Maximum length of the GF group
+ * \param[in]    is_final_pass   Whether this is the final pass for the
+ *                               GF group, or a trial (non-zero)
+ *
+ * \return Nothing is returned. Instead, cpi->gf_group is changed.
+ */
 static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
                             const EncodeFrameParams *const frame_params,
                             int max_gop_length, int is_final_pass) {
@@ -2008,6 +2041,19 @@ static int get_projected_kf_boost(AV1_COMP *cpi) {
   return projected_kf_boost;
 }
 
+/*!\brief Determine the location of the next key frame
+ *
+ * \ingroup gf_group_algo
+ * This function decides the placement of the next key frame when a
+ * scenecut is detected or the maximum key frame distance is reached.
+ *
+ * \param[in]    cpi              Top-level encoder structure
+ * \param[in]    this_frame       Pointer to first pass stats
+ * \param[out]   kf_group_err     The total error in the KF group
+ * \param[in]    num_frames_to_detect_scenecut Maximum lookahead frames.
+ *
+ * \return       Number of frames to the next key.
+ */
 static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
                               double *kf_group_err,
                               int num_frames_to_detect_scenecut) {
@@ -2265,6 +2311,17 @@ static double get_kf_boost_score(AV1_COMP *cpi, double kf_raw_err,
   return boost_score;
 }
 
+/*!\brief Determine the next key frame group
+ *
+ * \ingroup gf_group_algo
+ * This function decides the placement of the next key frame, and
+ * calculates the bit allocation of the KF group and the keyframe itself.
+ *
+ * \param[in]    cpi              Top-level encoder structure
+ * \param[in]    this_frame       Pointer to first pass stats
+ *
+ * \return Nothing is returned.
+ */
 static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->twopass;

@@ -537,7 +537,7 @@ desirable to group together frames that are similar. Hence, we may choose
 longer groups when consecutive frames are very alike and shorter ones when
 they are very different.
 
-The determination of the GF group length is done in function (TODO REF)
+The determination of the GF group length is done in function \ref
 calculate_gf_length(). The following encoder use cases are supported:
 
 <ul>
@@ -563,7 +563,7 @@ calculate_gf_length(). The following encoder use cases are supported:
 </ul>
 
 Except for the first trivial case where there is no prior knowledge of the
-following frames, the function (TODO REF) calculate_gf_length() tries to
+following frames, the function \ref calculate_gf_length() tries to
 determine the GF group length based on the first pass statistics. As shown
 in figure [TODO], the determination is divided into two parts:
 
@@ -584,23 +584,23 @@ in figure [TODO], the determination is divided into two parts:
    Detailed algorithm description is introduced here [TODO].</li>
 </ol>
 
-As mentioned, for two-pass encoding, the function (TODO REF)
+As mentioned, for two-pass encoding, the function \ref
 calculate_gf_length() tries to determine the length of as many as
 MAX_NUM_GF_INTERVALS groups. The decisions are stored in
 \ref RATE_CONTROL.gf_intervals[]. The variables
 \ref RATE_CONTROL.intervals_till_gf_calculate_due and
 \ref RATE_CONTROL.cur_gf_index help with managing and updating the stored
-decisions. In the function (TODO REF)define_gf_group(), the corresponding
+decisions. In the function \ref define_gf_group(), the corresponding
 stored length decision will be used to define the current GF group.
 
 When the maximum GF group length is larger or equal to 32, the encoder will
 enforce an extra layer to determine whether to use maximum GF length of 32
-or 16 for every GF group. In such a case, (TODO REF) calculate_gf_length() is
+or 16 for every GF group. In such a case, \ref calculate_gf_length() is
 first called with the original maximum length (>=32). Afterwards,
 (TODO REF) av1_tpl_setup_stats() is called to analyze the determined GF group
 and compare the reference to the last frame and the middle frame. If it is
 decided that we should use a maximum GF length of 16, the function
-(TODO REF)calculate_gf_length() is called again with the updated maximum
+\ref calculate_gf_length() is called again with the updated maximum
 length, and it only sets the length for a single GF group
 (\ref RATE_CONTROL.intervals_till_gf_calculate_due is set to 1). This process
 is shown in [TODO].
@@ -609,7 +609,7 @@ Before encoding each frame, the encoder checks
 \ref RATE_CONTROL.frames_till_gf_update_due. If it is zero, indicating
 processing of the current GF group is done, the encoder will check whether
 \ref RATE_CONTROL.intervals_till_gf_calculate_due is zero. If it is, as
-discussed above, (TODO REF)calculate_gf_length() is called with original
+discussed above, \ref calculate_gf_length() is called with original
 maximum length. If it is not zero, then the GF group length value stored
 in \ref RATE_CONTROL.gf_intervals[\ref RATE_CONTROL.cur_gf_index] is used
 (subject to change as discussed above).
@@ -625,11 +625,11 @@ for GF group length.
 <ul>
    <li>For two-pass encoding \ref RATE_CONTROL.frames_to_key controls when to
    encode a key frame. When it is zero, the current frame is a keyframe and
-   the function (TODO REF) find_next_key_frame() is called. This in turn calls
-   (TODO REF) define_kf_interval() to work out where the next key frame should
+   the function \ref find_next_key_frame() is called. This in turn calls
+   \ref define_kf_interval() to work out where the next key frame should
    be placed.</li>
 
-   <li>For single-pass with look-ahead enabled, (TODO REF)define_kf_interval()
+   <li>For single-pass with look-ahead enabled, \ref define_kf_interval()
    is called whenever a GF group update is needed (when
    \ref RATE_CONTROL.frames_till_gf_update_due is zero). This is because
    generally KFs are more widely spaced and the look-ahead buffer is usually
@@ -640,7 +640,7 @@ for GF group length.
    also subject to this constraint).</li>
 </ul>
 
-The function (TODO REF) define_kf_interval() tries to detect a scenecut.
+The function \ref define_kf_interval() tries to detect a scenecut.
 If a scenecut within kf-max-dist is detected, then it is set as the next
 keyframe. Otherwise the given maximum value is used.
 
