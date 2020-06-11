@@ -2157,6 +2157,14 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       YV12_BUFFER_CONFIG sd;
       int use_highbitdepth, subsampling_x, subsampling_y;
       res = image2yuvconfig(img, &sd);
+      // When generating a monochrome stream, make |sd| a monochrome image.
+      if (ctx->cfg.monochrome) {
+        sd.u_buffer = sd.v_buffer = NULL;
+        sd.uv_stride = 0;
+        sd.uv_width = sd.uv_height = sd.uv_crop_width = sd.uv_crop_height = 0;
+        sd.subsampling_x = sd.subsampling_y = 1;
+        sd.monochrome = 1;
+      }
       use_highbitdepth = (sd.flags & YV12_FLAG_HIGHBITDEPTH) != 0;
       subsampling_x = sd.subsampling_x;
       subsampling_y = sd.subsampling_y;
