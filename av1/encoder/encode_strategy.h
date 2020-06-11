@@ -31,18 +31,23 @@ extern "C" {
  * \ingroup high_level_algo
  * This function will implement high-level encode strategy, choosing frame type,
  * frame placement, etc. It populates an EncodeFrameParams struct with the
- * results of these decisions and then encodes the frame.
+ * results of these decisions and then encodes the frame. The caller should use
+ * the output parameters *time_stamp and *time_end only when this function
+ * returns AOM_CODEC_OK.
  *
  * \param[in]    cpi         Top-level encoder structure
  * \param[in]    size        Bitstream size
  * \param[in]    dest        Bitstream output
  * \param[in]    frame_flags Flags to decide how to encoding the frame
- * \param[in]    time_stamp  Time stamp of the frame
- * \param[in]    time_end    Time end
+ * \param[out]   time_stamp  Time stamp of the frame
+ * \param[out]   time_end    Time end
  * \param[in]    timestamp_ratio Time base
  * \param[in]    flush       Decide to encode one frame or the rest of frames
  *
  * \return Returns a value to indicate if the encoding is done successfully.
+ * \retval #AOM_CODEC_OK
+ * \retval -1
+ * \retval #AOM_CODEC_ERROR
  */
 int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                         uint8_t *const dest, unsigned int *frame_flags,

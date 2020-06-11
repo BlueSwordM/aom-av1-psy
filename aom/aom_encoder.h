@@ -1034,15 +1034,18 @@ aom_fixed_buf_t *aom_codec_get_global_headers(aom_codec_ctx_t *ctx);
  * time stamp (PTS) \ref MUST be strictly increasing.
  *
  * When the last frame has been passed to the encoder, this function should
- * continue to be called, with the img parameter set to NULL. This will
- * signal the end-of-stream condition to the encoder and allow it to encode
- * any held buffers. Encoding is complete when aom_codec_encode() is called
- * and aom_codec_get_cx_data() returns no data.
+ * continue to be called in a loop, with the img parameter set to NULL. This
+ * will signal the end-of-stream condition to the encoder and allow it to
+ * encode any held buffers. Encoding is complete when aom_codec_encode() is
+ * called with img set to NULL and aom_codec_get_cx_data() returns no data.
  *
  * \param[in]    ctx       Pointer to this instance's context
  * \param[in]    img       Image data to encode, NULL to flush.
- * \param[in]    pts       Presentation time stamp, in timebase units.
- * \param[in]    duration  Duration to show frame, in timebase units.
+ * \param[in]    pts       Presentation time stamp, in timebase units. If img
+ *                         is NULL, pts is ignored.
+ * \param[in]    duration  Duration to show frame, in timebase units. If img
+ *                         is not NULL, duration must be nonzero. If img is
+ *                         NULL, duration is ignored.
  * \param[in]    flags     Flags to use for encoding this frame.
  *
  * \retval #AOM_CODEC_OK

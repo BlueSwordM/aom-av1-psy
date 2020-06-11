@@ -4398,6 +4398,7 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
   }
 }
 #endif  // CONFIG_INTERNAL_STATS
+
 int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
                             size_t *size, uint8_t *dest, int64_t *time_stamp,
                             int64_t *time_end, int flush,
@@ -4439,11 +4440,12 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   const int result =
       av1_encode_strategy(cpi, size, dest, frame_flags, time_stamp, time_end,
                           timestamp_ratio, flush);
-  if (result != AOM_CODEC_OK && result != -1) {
-    return AOM_CODEC_ERROR;
-  } else if (result == -1) {
+  if (result == -1) {
     // Returning -1 indicates no frame encoded; more input is required
     return -1;
+  }
+  if (result != AOM_CODEC_OK) {
+    return AOM_CODEC_ERROR;
   }
 #if CONFIG_INTERNAL_STATS
   aom_usec_timer_mark(&cmptimer);

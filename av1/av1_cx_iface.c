@@ -2099,12 +2099,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     av1_change_config(ctx->cpi, &ctx->oxcf);
   }
 
-  if (!ctx->pts_offset_initialized) {
-    ctx->pts_offset = ptsvol;
-    ctx->pts_offset_initialized = 1;
-  }
-  ptsvol -= ctx->pts_offset;
-
   aom_codec_pkt_list_init(&ctx->pkt_list);
 
   volatile aom_enc_frame_flags_t flags = enc_flags;
@@ -2150,16 +2144,20 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   }
 
   if (res == AOM_CODEC_OK) {
-    int64_t dst_time_stamp = timebase_units_to_ticks(timestamp_ratio, ptsvol);
-    int64_t dst_end_time_stamp =
-        timebase_units_to_ticks(timestamp_ratio, ptsvol + duration);
-
     // Set up internal flags
     if (ctx->base.init_flags & AOM_CODEC_USE_PSNR) cpi->b_calculate_psnr = 1;
 
     if (img != NULL) {
+      if (!ctx->pts_offset_initialized) {
+        ctx->pts_offset = ptsvol;
+        ctx->pts_offset_initialized = 1;
+      }
+      ptsvol -= ctx->pts_offset;
+      int64_t src_time_stamp = timebase_units_to_ticks(timestamp_ratio, ptsvol);
+      int64_t src_end_time_stamp =
+          timebase_units_to_ticks(timestamp_ratio, ptsvol + duration);
+
       YV12_BUFFER_CONFIG sd;
-      int use_highbitdepth, subsampling_x, subsampling_y;
       res = image2yuvconfig(img, &sd);
       // When generating a monochrome stream, make |sd| a monochrome image.
       if (ctx->cfg.monochrome) {
@@ -2167,9 +2165,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         sd.uv_stride = 0;
         sd.monochrome = 1;
       }
-      use_highbitdepth = (sd.flags & YV12_FLAG_HIGHBITDEPTH) != 0;
-      subsampling_x = sd.subsampling_x;
-      subsampling_y = sd.subsampling_y;
+      int use_highbitdepth = (sd.flags & YV12_FLAG_HIGHBITDEPTH) != 0;
+      int subsampling_x = sd.subsampling_x;
+      int subsampling_y = sd.subsampling_y;
 
       if (!cpi->lookahead) {
         int lag_in_frames = cpi_lap != NULL ? cpi_lap->oxcf.gf_cfg.lag_in_frames
@@ -2195,7 +2193,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       // Store the original flags in to the frame buffer. Will extract the
       // key frame flag when we actually encode this frame.
       if (av1_receive_raw_frame(cpi, flags | ctx->next_frame_flags, &sd,
-                                dst_time_stamp, dst_end_time_stamp)) {
+                                src_time_stamp, src_end_time_stamp)) {
         res = update_error_state(ctx, &cpi->common.error);
       }
       ctx->next_frame_flags = 0;
@@ -2241,18 +2239,16 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
     // Call for LAP stage
     if (cpi_lap != NULL) {
-      int status;
-      aom_rational64_t timestamp_ratio_la = *timestamp_ratio;
-      int64_t dst_time_stamp_la = dst_time_stamp;
-      int64_t dst_end_time_stamp_la = dst_end_time_stamp;
+      int64_t dst_time_stamp_la;
+      int64_t dst_end_time_stamp_la;
       if (cpi_lap->mt_info.workers == NULL) {
         cpi_lap->mt_info.workers = cpi->mt_info.workers;
         cpi_lap->mt_info.tile_thr_data = cpi->mt_info.tile_thr_data;
       }
       cpi_lap->mt_info.num_workers = cpi->mt_info.num_workers;
-      status = av1_get_compressed_data(
+      const int status = av1_get_compressed_data(
           cpi_lap, &lib_flags, &frame_size, NULL, &dst_time_stamp_la,
-          &dst_end_time_stamp_la, !img, &timestamp_ratio_la);
+          &dst_end_time_stamp_la, !img, timestamp_ratio);
       if (status != -1) {
         if (status != AOM_CODEC_OK) {
           aom_internal_error(&cpi_lap->common.error, AOM_CODEC_ERROR, NULL);
@@ -2263,7 +2259,10 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       frame_size = 0;
     }
 
-    // invisible frames get packed with the next visible frame
+    // Get the next visible frame. Invisible frames get packed with the next
+    // visible frame.
+    int64_t dst_time_stamp;
+    int64_t dst_end_time_stamp;
     while (cx_data_sz - index_size >= ctx->cx_data_sz / 2 &&
            !is_frame_visible) {
       const int status = av1_get_compressed_data(
