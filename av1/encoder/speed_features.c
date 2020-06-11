@@ -882,7 +882,12 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.short_circuit_low_temp_var = 0;
     sf->rt_sf.skip_interp_filter_search = 0;
     sf->rt_sf.use_comp_ref_nonrd = 0;
-    sf->rt_sf.use_nonrd_altref_frame = 1;
+    // For spatial layers, only LAST and GOLDEN are currently used in the SVC
+    // for nonrd. The flag use_nonrd_altref_frame can disable GOLDEN in the
+    // get_ref_frame_flags() for some patterns, so disable it here for
+    // spatial layers.
+    sf->rt_sf.use_nonrd_altref_frame =
+        (cpi->svc.number_spatial_layers > 1) ? 0 : 1;
     sf->rt_sf.use_nonrd_pick_mode = 1;
     sf->rt_sf.nonrd_check_partition_merge_mode = 1;
     sf->rt_sf.nonrd_check_partition_split = 0;
