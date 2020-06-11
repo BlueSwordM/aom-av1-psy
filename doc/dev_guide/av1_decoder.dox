@@ -2,4 +2,10 @@
 
   Describe AV1 decoding techniques here.
 
+  \cond
+  \if av1_md_support
+  [AV1 Algorithm Description](\ref LALGORITHMDESCRIPTION)
+  \endif
+  \endcond
+
 */
