@@ -154,10 +154,11 @@
 // Actual code will want to use a resizable array. stats_len represents
 // the length of data already present in the buffer.
 void get_stats_data(aom_codec_ctx_t *encoder, char *stats,
-                    size_t *stats_len) {
+                    size_t *stats_len, bool *got_data) {
   const aom_codec_cx_pkt_t *pkt;
   aom_codec_iter_t iter = NULL;
   while ((pkt = aom_codec_get_cx_data(encoder, &iter))) {
+    *got_data = true;
     if (pkt->kind != AOM_CODEC_STATS_PKT) continue;
     memcpy(stats + *stats_len, pkt->data.twopass_stats.buf,
            pkt->data.twopass_stats.sz);
@@ -179,9 +180,14 @@ void first_pass(char *stats, size_t *stats_len) {
     get_stats_data(&first_pass_encoder, stats, stats_len);
   }
   // After all frames have been processed, call aom_codec_encode with
-  // a NULL ptr. This tells the encoder to flush all data.
-  aom_codec_encode(&first_pass_encoder, NULL, pts, duration, flags);
-  get_stats_data(&first_pass_encoder, stats, stats_len);
+  // a NULL ptr repeatedly, until no more data is returned. The NULL
+  // ptr tells the encoder that no more frames are available.
+  bool got_data;
+  do {
+    got_data = false;
+    aom_codec_encode(&first_pass_encoder, NULL, pts, duration, flags);
+    get_stats_data(&first_pass_encoder, stats, stats_len, &got_data);
+  } while (got_data);
 
   aom_codec_destroy(&first_pass_encoder);
 }
@@ -192,10 +198,12 @@ void first_pass(char *stats, size_t *stats_len) {
 
 ~~~~~~~~~~~~~~~{.c}
 // Write out each encoded frame to the file.
-void get_cx_data(aom_codec_ctx_t *encoder, FILE *file) {
+void get_cx_data(aom_codec_ctx_t *encoder, FILE *file,
+                 bool *got_data) {
   const aom_codec_cx_pkt_t *pkt;
   aom_codec_iter_t iter = NULL;
   while ((pkt = aom_codec_get_cx_data(encoder, &iter))) {
+   *got_data = true;
    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) continue;
    fwrite(pkt->data.frame.buf, 1, pkt->data.frame.sz, file);
   }
@@ -218,8 +226,12 @@ void second_pass(char *stats, size_t stats_len) {
     get_cx_data(&second_pass_encoder, output);
   }
   // Pass in NULL to flush the encoder.
-  aom_codec_encode(&second_pass_encoder, NULL, pts, duration, flags);
-  get_cx_data(&second_pass_encoder, output);
+  bool got_data;
+  do {
+    got_data = false;
+    aom_codec_encode(&second_pass_encoder, NULL, pts, duration, flags);
+    get_cx_data(&second_pass_encoder, output, &got_data);
+  } while (got_data);
 
   aom_codec_destroy(&second_pass_encoder);
 }
