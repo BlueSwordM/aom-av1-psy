@@ -708,6 +708,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     update_default_encoder_config(&cfg->encoder_cfg, extra_cfg);
   }
 
+  TileConfig *const tile_cfg = &oxcf->tile_cfg;
+
   ResizeCfg *const resize_cfg = &oxcf->resize_cfg;
 
   GFConfig *const gf_cfg = &oxcf->gf_cfg;
@@ -812,10 +814,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->coeff_cost_upd_freq = (COST_UPDATE_TYPE)extra_cfg->coeff_cost_upd_freq;
   oxcf->mode_cost_upd_freq = (COST_UPDATE_TYPE)extra_cfg->mode_cost_upd_freq;
   oxcf->mv_cost_upd_freq = (COST_UPDATE_TYPE)extra_cfg->mv_cost_upd_freq;
-  oxcf->num_tile_groups = extra_cfg->num_tg;
-  // In large-scale tile encoding mode, num_tile_groups is always 1.
-  if (cfg->large_scale_tile) oxcf->num_tile_groups = 1;
-  oxcf->mtu = extra_cfg->mtu_size;
 
   // FIXME(debargha): Should this be:
   // oxcf->allow_ref_frame_mvs = extra_cfg->allow_ref_frame_mvs &
@@ -899,13 +897,31 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->noise_level = extra_cfg->noise_level;
   oxcf->noise_block_size = extra_cfg->noise_block_size;
 #endif
-  oxcf->large_scale_tile = cfg->large_scale_tile;
-  oxcf->single_tile_decoding =
-      (oxcf->large_scale_tile) ? extra_cfg->single_tile_decoding : 0;
-  if (oxcf->large_scale_tile) {
+
+  // Set Tile related configuration.
+  tile_cfg->num_tile_groups = extra_cfg->num_tg;
+  // In large-scale tile encoding mode, num_tile_groups is always 1.
+  if (cfg->large_scale_tile) tile_cfg->num_tile_groups = 1;
+  tile_cfg->mtu = extra_cfg->mtu_size;
+  tile_cfg->enable_large_scale_tile = cfg->large_scale_tile;
+  tile_cfg->enable_single_tile_decoding =
+      (tile_cfg->enable_large_scale_tile) ? extra_cfg->single_tile_decoding : 0;
+  tile_cfg->tile_columns = extra_cfg->tile_columns;
+  tile_cfg->tile_rows = extra_cfg->tile_rows;
+  tile_cfg->tile_width_count = AOMMIN(cfg->tile_width_count, MAX_TILE_COLS);
+  tile_cfg->tile_height_count = AOMMIN(cfg->tile_height_count, MAX_TILE_ROWS);
+  for (int i = 0; i < tile_cfg->tile_width_count; i++) {
+    tile_cfg->tile_widths[i] = AOMMAX(cfg->tile_widths[i], 1);
+  }
+  for (int i = 0; i < tile_cfg->tile_height_count; i++) {
+    tile_cfg->tile_heights[i] = AOMMAX(cfg->tile_heights[i], 1);
+  }
+  tile_cfg->enable_ext_tile_debug = extra_cfg->ext_tile_debug;
+
+  if (tile_cfg->enable_large_scale_tile) {
     // The superblock_size can only be AOM_SUPERBLOCK_SIZE_64X64 or
-    // AOM_SUPERBLOCK_SIZE_128X128 while oxcf->large_scale_tile = 1. If
-    // superblock_size = AOM_SUPERBLOCK_SIZE_DYNAMIC, hard set it to
+    // AOM_SUPERBLOCK_SIZE_128X128 while tile_cfg->enable_large_scale_tile = 1.
+    // If superblock_size = AOM_SUPERBLOCK_SIZE_DYNAMIC, hard set it to
     // AOM_SUPERBLOCK_SIZE_64X64(default value in large_scale_tile).
     if (extra_cfg->superblock_size != AOM_SUPERBLOCK_SIZE_64X64 &&
         extra_cfg->superblock_size != AOM_SUPERBLOCK_SIZE_128X128)
@@ -913,9 +929,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   }
 
   oxcf->row_mt = extra_cfg->row_mt;
-
-  oxcf->tile_columns = extra_cfg->tile_columns;
-  oxcf->tile_rows = extra_cfg->tile_rows;
 
   oxcf->monochrome = cfg->monochrome;
   oxcf->full_still_picture_hdr = cfg->full_still_picture_hdr;
@@ -1004,14 +1017,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     disable_superres(superres_cfg);
   }
 
-  oxcf->tile_width_count = AOMMIN(cfg->tile_width_count, MAX_TILE_COLS);
-  oxcf->tile_height_count = AOMMIN(cfg->tile_height_count, MAX_TILE_ROWS);
-  for (int i = 0; i < oxcf->tile_width_count; i++) {
-    oxcf->tile_widths[i] = AOMMAX(cfg->tile_widths[i], 1);
-  }
-  for (int i = 0; i < oxcf->tile_height_count; i++) {
-    oxcf->tile_heights[i] = AOMMAX(cfg->tile_heights[i], 1);
-  }
   oxcf->error_resilient_mode =
       cfg->g_error_resilient | extra_cfg->error_resilient_mode;
   oxcf->frame_parallel_decoding_mode = extra_cfg->frame_parallel_decoding_mode;
@@ -1043,7 +1048,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->frame_periodic_boost = extra_cfg->frame_periodic_boost;
   oxcf->motion_vector_unit_test = extra_cfg->motion_vector_unit_test;
   oxcf->sb_multipass_unit_test = extra_cfg->sb_multipass_unit_test;
-  oxcf->ext_tile_debug = extra_cfg->ext_tile_debug;
 
   oxcf->chroma_subsampling_x = extra_cfg->chroma_subsampling_x;
   oxcf->chroma_subsampling_y = extra_cfg->chroma_subsampling_y;

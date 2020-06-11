@@ -506,6 +506,32 @@ typedef struct {
   bool enable_auto_brf;
 } GFConfig;
 
+typedef struct {
+  // Indicates the number of tile groups.
+  unsigned int num_tile_groups;
+  // Indicates the MTU size for a tile group. If mtu is non-zero,
+  // num_tile_groups is set to DEFAULT_MAX_NUM_TG.
+  unsigned int mtu;
+  // Indicates the number of tile columns in log2.
+  int tile_columns;
+  // Indicates the number of tile rows in log2.
+  int tile_rows;
+  // Indicates the number of widths in the tile_widths[] array.
+  int tile_width_count;
+  // Indicates the number of heights in the tile_heights[] array.
+  int tile_height_count;
+  // Indicates the tile widths, and may be empty.
+  int tile_widths[MAX_TILE_COLS];
+  // Indicates the tile heights, and may be empty.
+  int tile_heights[MAX_TILE_ROWS];
+  // Indicates if large scale tile coding should be used.
+  bool enable_large_scale_tile;
+  // Indicates if single tile decoding mode should be enabled.
+  bool enable_single_tile_decoding;
+  // Indicates if EXT_TILE_DEBUG should be enabled.
+  bool enable_ext_tile_debug;
+} TileConfig;
+
 typedef struct AV1EncoderConfig {
   BITSTREAM_PROFILE profile;
   aom_bit_depth_t bit_depth;     // Codec bit-depth.
@@ -573,8 +599,6 @@ typedef struct AV1EncoderConfig {
   int qm_maxlevel;
   unsigned int vbr_corpus_complexity_lap;  // 0 indicates corpus complexity vbr
                                            // mode is disabled
-  unsigned int num_tile_groups;
-  unsigned int mtu;
 
   // Internal frame size scaling.
   ResizeCfg resize_cfg;
@@ -612,13 +636,10 @@ typedef struct AV1EncoderConfig {
   // Configuration related to Group of frames.
   GFConfig gf_cfg;
 
+  // Tile related configuration parameters.
+  TileConfig tile_cfg;
+
   int row_mt;
-  int tile_columns;
-  int tile_rows;
-  int tile_width_count;
-  int tile_height_count;
-  int tile_widths[MAX_TILE_COLS];
-  int tile_heights[MAX_TILE_ROWS];
 
   int enable_tpl_model;
 
@@ -648,14 +669,11 @@ typedef struct AV1EncoderConfig {
 
   uint8_t cdf_update_mode;
   aom_superblock_size_t superblock_size;
-  unsigned int large_scale_tile;
-  unsigned int single_tile_decoding;
   uint8_t monochrome;
   unsigned int full_still_picture_hdr;
   int enable_dual_filter;
   unsigned int motion_vector_unit_test;
   unsigned int sb_multipass_unit_test;
-  unsigned int ext_tile_debug;
   int enable_order_hint;
   int enable_ref_frame_mvs;
   unsigned int max_reference_frames;

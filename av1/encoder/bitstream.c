@@ -3495,7 +3495,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
     total_size += frame_header_size;
 
     // (yunqing) This test ensures the correctness of large scale tile coding.
-    if (cpi->oxcf.ext_tile_debug) {
+    if (cpi->oxcf.tile_cfg.enable_ext_tile_debug) {
       char fn[20] = "./fh";
       fn[4] = cm->current_frame.frame_number / 100 + '0';
       fn[5] = (cm->current_frame.frame_number % 100) / 10 + '0';

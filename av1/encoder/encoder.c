@@ -525,8 +525,8 @@ double av1_get_compression_ratio(const AV1_COMMON *const cm,
   return uncompressed_frame_size / (double)encoded_frame_size;
 }
 
-static void set_tile_info(AV1_COMP *cpi) {
-  AV1_COMMON *const cm = &cpi->common;
+static void set_tile_info(AV1_COMMON *const cm,
+                          const TileConfig *const tile_cfg) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const SequenceHeader *const seq_params = &cm->seq_params;
   CommonTileParams *const tiles = &cm->tiles;
@@ -535,9 +535,9 @@ static void set_tile_info(AV1_COMP *cpi) {
   av1_get_tile_limits(cm);
 
   // configure tile columns
-  if (cpi->oxcf.tile_width_count == 0 || cpi->oxcf.tile_height_count == 0) {
+  if (tile_cfg->tile_width_count == 0 || tile_cfg->tile_height_count == 0) {
     tiles->uniform_spacing = 1;
-    tiles->log2_cols = AOMMAX(cpi->oxcf.tile_columns, tiles->min_log2_cols);
+    tiles->log2_cols = AOMMAX(tile_cfg->tile_columns, tiles->min_log2_cols);
     tiles->log2_cols = AOMMIN(tiles->log2_cols, tiles->max_log2_cols);
   } else {
     int mi_cols =
@@ -547,8 +547,8 @@ static void set_tile_info(AV1_COMP *cpi) {
     tiles->uniform_spacing = 0;
     for (i = 0, start_sb = 0; start_sb < sb_cols && i < MAX_TILE_COLS; i++) {
       tiles->col_start_sb[i] = start_sb;
-      size_sb = cpi->oxcf.tile_widths[j++];
-      if (j >= cpi->oxcf.tile_width_count) j = 0;
+      size_sb = tile_cfg->tile_widths[j++];
+      if (j >= tile_cfg->tile_width_count) j = 0;
       start_sb += AOMMIN(size_sb, tiles->max_width_sb);
     }
     tiles->cols = i;
@@ -559,7 +559,7 @@ static void set_tile_info(AV1_COMP *cpi) {
 
   // configure tile rows
   if (tiles->uniform_spacing) {
-    tiles->log2_rows = AOMMAX(cpi->oxcf.tile_rows, tiles->min_log2_rows);
+    tiles->log2_rows = AOMMAX(tile_cfg->tile_rows, tiles->min_log2_rows);
     tiles->log2_rows = AOMMIN(tiles->log2_rows, tiles->max_log2_rows);
   } else {
     int mi_rows =
@@ -568,8 +568,8 @@ static void set_tile_info(AV1_COMP *cpi) {
     int size_sb, j = 0;
     for (i = 0, start_sb = 0; start_sb < sb_rows && i < MAX_TILE_ROWS; i++) {
       tiles->row_start_sb[i] = start_sb;
-      size_sb = cpi->oxcf.tile_heights[j++];
-      if (j >= cpi->oxcf.tile_height_count) j = 0;
+      size_sb = tile_cfg->tile_heights[j++];
+      if (j >= tile_cfg->tile_height_count) j = 0;
       start_sb += AOMMIN(size_sb, tiles->max_height_sb);
     }
     tiles->rows = i;
@@ -593,7 +593,7 @@ static void update_frame_size(AV1_COMP *cpi) {
 
   if (!is_stat_generation_stage(cpi))
     alloc_context_buffers_ext(cm, &cpi->mbmi_ext_info);
-  set_tile_info(cpi);
+  set_tile_info(cm, &cpi->oxcf.tile_cfg);
 }
 
 static INLINE int does_level_match(int width, int height, double fps,
@@ -682,7 +682,8 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->order_hint_info.enable_order_hint = oxcf->enable_order_hint;
   seq->frame_id_numbers_present_flag =
       !(seq->still_picture && seq->reduced_still_picture_hdr) &&
-      !oxcf->large_scale_tile && oxcf->error_resilient_mode && !use_svc;
+      !oxcf->tile_cfg.enable_large_scale_tile && oxcf->error_resilient_mode &&
+      !use_svc;
   if (seq->still_picture && seq->reduced_still_picture_hdr) {
     seq->order_hint_info.enable_order_hint = 0;
     seq->force_screen_content_tools = 2;
@@ -1040,7 +1041,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   cm->features.refresh_frame_context = (oxcf->frame_parallel_decoding_mode)
                                            ? REFRESH_FRAME_CONTEXT_DISABLED
                                            : REFRESH_FRAME_CONTEXT_BACKWARD;
-  if (oxcf->large_scale_tile)
+  if (oxcf->tile_cfg.enable_large_scale_tile)
     cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 
   if (x->palette_buffer == NULL) {
@@ -1086,7 +1087,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   rc->best_quality = cpi->oxcf.best_allowed_q;
 
   cm->features.interp_filter =
-      oxcf->large_scale_tile ? EIGHTTAP_REGULAR : SWITCHABLE;
+      oxcf->tile_cfg.enable_large_scale_tile ? EIGHTTAP_REGULAR : SWITCHABLE;
   cm->features.switchable_motion_mode = 1;
 
   if (cpi->oxcf.render_width > 0 && cpi->oxcf.render_height > 0) {
@@ -1125,7 +1126,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   rc->is_src_frame_alt_ref = 0;
 
-  set_tile_info(cpi);
+  set_tile_info(cm, &cpi->oxcf.tile_cfg);
 
   if (!cpi->svc.external_ref_frame_config)
     cpi->ext_flags.refresh_frame.update_pending = 0;
@@ -3833,6 +3834,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   struct segmentation *const seg = &cm->seg;
   FeatureFlags *const features = &cm->features;
+  const TileConfig *const tile_cfg = &oxcf->tile_cfg;
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, encode_frame_to_data_rate_time);
@@ -3846,8 +3848,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   // frame type has been decided outside of this function call
   cm->cur_frame->frame_type = current_frame->frame_type;
 
-  cm->tiles.large_scale = oxcf->large_scale_tile;
-  cm->tiles.single_tile_decoding = oxcf->single_tile_decoding;
+  cm->tiles.large_scale = tile_cfg->enable_large_scale_tile;
+  cm->tiles.single_tile_decoding = tile_cfg->enable_single_tile_decoding;
 
   features->allow_ref_frame_mvs &= frame_might_allow_ref_frame_mvs(cm);
   // features->allow_ref_frame_mvs needs to be written into the frame header
@@ -3946,8 +3948,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     // The alternate reference frame cannot be active for a key frame.
     cpi->rc.source_alt_ref_active = 0;
   }
-  if (oxcf->mtu == 0) {
-    cpi->num_tg = oxcf->num_tile_groups;
+  if (tile_cfg->mtu == 0) {
+    cpi->num_tg = tile_cfg->num_tile_groups;
   } else {
     // Use a default value for the purposes of weighting costs in probability
     // updates
@@ -4093,7 +4095,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     cm->cur_frame->frame_context = *cm->fc;
   }
 
-  if (oxcf->ext_tile_debug) {
+  if (tile_cfg->enable_ext_tile_debug) {
     // (yunqing) This test ensures the correctness of large scale tile coding.
     if (cm->tiles.large_scale && is_stat_consumption_stage(cpi)) {
       char fn[20] = "./fc";
@@ -4426,7 +4428,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   cm->features.refresh_frame_context = oxcf->frame_parallel_decoding_mode
                                            ? REFRESH_FRAME_CONTEXT_DISABLED
                                            : REFRESH_FRAME_CONTEXT_BACKWARD;
-  if (oxcf->large_scale_tile)
+  if (oxcf->tile_cfg.enable_large_scale_tile)
     cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 
   // Initialize fields related to forward keyframes

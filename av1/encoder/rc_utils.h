@@ -39,6 +39,7 @@ static AOM_INLINE void config_target_level(AV1_COMP *const cpi,
 
   AV1EncoderConfig *const oxcf = &cpi->oxcf;
   SequenceHeader *const seq_params = &cpi->common.seq_params;
+  TileConfig *const tile_cfg = &oxcf->tile_cfg;
 
   // Adjust target bitrate to be no larger than 70% of level limit.
   const BITSTREAM_PROFILE profile = seq_params->profile;
@@ -62,13 +63,14 @@ static AOM_INLINE void config_target_level(AV1_COMP *const cpi,
   // Adjust number of tiles and tile columns to be under level limit.
   int max_tiles, max_tile_cols;
   av1_get_max_tiles_for_level(target_level, &max_tiles, &max_tile_cols);
-  while (oxcf->tile_columns > 0 && (1 << oxcf->tile_columns) > max_tile_cols) {
-    --oxcf->tile_columns;
+  while (tile_cfg->tile_columns > 0 &&
+         (1 << tile_cfg->tile_columns) > max_tile_cols) {
+    --tile_cfg->tile_columns;
   }
-  const int tile_cols = (1 << oxcf->tile_columns);
-  while (oxcf->tile_rows > 0 &&
-         tile_cols * (1 << oxcf->tile_rows) > max_tiles) {
-    --oxcf->tile_rows;
+  const int tile_cols = (1 << tile_cfg->tile_columns);
+  while (tile_cfg->tile_rows > 0 &&
+         tile_cols * (1 << tile_cfg->tile_rows) > max_tiles) {
+    --tile_cfg->tile_rows;
   }
 
   // Adjust min compression ratio.
