@@ -919,7 +919,7 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
 
   int offset_idx = -1;
   if (update_type == KF_UPDATE) {
-    if (rc->frames_to_key == 1) {
+    if (rc->frames_to_key <= 1) {
       // Image / intra-only coding: ignore offsets.
       return cq_level;
     }
@@ -1161,7 +1161,7 @@ static void get_intra_q_and_bounds_two_pass(const AV1_COMP *cpi, int width,
   int active_worst_quality = *active_worst;
   const int bit_depth = cm->seq_params.bit_depth;
 
-  if (rc->frames_to_key == 1 && oxcf->rc_mode == AOM_Q) {
+  if (rc->frames_to_key <= 1 && oxcf->rc_mode == AOM_Q) {
     // If the next frame is also a key frame or the current frame is the
     // only frame in the sequence in AOM_Q mode, just use the cq_level
     // as q.
