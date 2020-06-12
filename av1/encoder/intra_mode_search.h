@@ -237,4 +237,8 @@ int av1_count_colors_highbd(const uint8_t *src8, int stride, int rows, int cols,
 // Resets palette color map for chroma channels.
 void av1_restore_uv_color_map(const AV1_COMP *const cpi, MACROBLOCK *x);
 
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
 #endif  // AOM_AV1_ENCODER_INTRA_MODE_SEARCH_H_
