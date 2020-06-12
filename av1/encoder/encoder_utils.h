@@ -600,6 +600,17 @@ static AOM_INLINE void init_buffer_indices(
   cpi->fn_ptr[BT].jsdaf = JSDAF;                                       \
   cpi->fn_ptr[BT].jsvaf = JSVAF;
 
+#define HIGHBD_BFP_WRAPPER(WIDTH, HEIGHT, BD)                                \
+  HIGHBD_BFP(                                                                \
+      BLOCK_##WIDTH##X##HEIGHT, aom_highbd_sad##WIDTH##x##HEIGHT##_bits##BD, \
+      aom_highbd_sad##WIDTH##x##HEIGHT##_avg_bits##BD,                       \
+      aom_highbd_##BD##_variance##WIDTH##x##HEIGHT,                          \
+      aom_highbd_##BD##_sub_pixel_variance##WIDTH##x##HEIGHT,                \
+      aom_highbd_##BD##_sub_pixel_avg_variance##WIDTH##x##HEIGHT,            \
+      aom_highbd_sad##WIDTH##x##HEIGHT##x4d_bits##BD,                        \
+      aom_highbd_dist_wtd_sad##WIDTH##x##HEIGHT##_avg_bits##BD,              \
+      aom_highbd_##BD##_dist_wtd_sub_pixel_avg_variance##WIDTH##x##HEIGHT)
+
 #define MAKE_BFP_SAD_WRAPPER(fnname)                                           \
   static unsigned int fnname##_bits8(const uint8_t *src_ptr,                   \
                                      int source_stride,                        \
@@ -779,6 +790,11 @@ MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad64x16_avg)
   cpi->fn_ptr[BT].msdf = MCSDF;       \
   cpi->fn_ptr[BT].msvf = MCSVF;
 
+#define HIGHBD_MBFP_WRAPPER(WIDTH, HEIGHT, BD)                    \
+  HIGHBD_MBFP(BLOCK_##WIDTH##X##HEIGHT,                           \
+              aom_highbd_masked_sad##WIDTH##x##HEIGHT##_bits##BD, \
+              aom_highbd_##BD##_masked_sub_pixel_variance##WIDTH##x##HEIGHT)
+
 #define MAKE_MBFP_COMPOUND_SAD_WRAPPER(fnname)                           \
   static unsigned int fnname##_bits8(                                    \
       const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, \
@@ -833,6 +849,18 @@ MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad64x16)
   cpi->fn_ptr[BT].osdf = OSDF;           \
   cpi->fn_ptr[BT].ovf = OVF;             \
   cpi->fn_ptr[BT].osvf = OSVF;
+
+#define HIGHBD_OBFP_WRAPPER(WIDTH, HEIGHT, BD)                   \
+  HIGHBD_OBFP(BLOCK_##WIDTH##X##HEIGHT,                          \
+              aom_highbd_obmc_sad##WIDTH##x##HEIGHT##_bits##BD,  \
+              aom_highbd_##BD##_obmc_variance##WIDTH##x##HEIGHT, \
+              aom_highbd_##BD##_obmc_sub_pixel_variance##WIDTH##x##HEIGHT)
+
+#define LOWBD_OBFP_WRAPPER(WIDTH, HEIGHT)                    \
+  HIGHBD_OBFP(BLOCK_##WIDTH##X##HEIGHT,                      \
+              aom_highbd_obmc_sad##WIDTH##x##HEIGHT##_bits8, \
+              aom_highbd_obmc_variance##WIDTH##x##HEIGHT,    \
+              aom_highbd_obmc_sub_pixel_variance##WIDTH##x##HEIGHT)
 
 #define MAKE_OBFP_SAD_WRAPPER(fnname)                                     \
   static unsigned int fnname##_bits8(const uint8_t *ref, int ref_stride,  \
