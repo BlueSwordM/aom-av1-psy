@@ -84,7 +84,7 @@ void av1_lookahead_destroy(struct lookahead_ctx *ctx);
  * \param[in] use_highbitdepth Tell if HBD is used
  * \param[in] flags       Flags set on this frame
  */
-int av1_lookahead_push(struct lookahead_ctx *ctx, YV12_BUFFER_CONFIG *src,
+int av1_lookahead_push(struct lookahead_ctx *ctx, const YV12_BUFFER_CONFIG *src,
                        int64_t ts_start, int64_t ts_end, int use_highbitdepth,
                        aom_enc_frame_flags_t flags);
 
