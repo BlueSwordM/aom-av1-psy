@@ -708,6 +708,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     update_default_encoder_config(&cfg->encoder_cfg, extra_cfg);
   }
 
+  FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
+
   TileConfig *const tile_cfg = &oxcf->tile_cfg;
 
   ResizeCfg *const resize_cfg = &oxcf->resize_cfg;
@@ -730,10 +732,15 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->profile = cfg->g_profile;
   oxcf->max_threads = (int)cfg->g_threads;
   oxcf->mode = (cfg->g_usage == AOM_USAGE_REALTIME) ? REALTIME : GOOD;
-  oxcf->width = cfg->g_w;
-  oxcf->height = cfg->g_h;
-  oxcf->forced_max_frame_width = cfg->g_forced_max_frame_width;
-  oxcf->forced_max_frame_height = cfg->g_forced_max_frame_height;
+
+  // Set frame-dimension related configuration.
+  frm_dim_cfg->width = cfg->g_w;
+  frm_dim_cfg->height = cfg->g_h;
+  frm_dim_cfg->forced_max_frame_width = cfg->g_forced_max_frame_width;
+  frm_dim_cfg->forced_max_frame_height = cfg->g_forced_max_frame_height;
+  frm_dim_cfg->render_width = extra_cfg->render_width;
+  frm_dim_cfg->render_height = extra_cfg->render_height;
+
   oxcf->bit_depth = cfg->g_bit_depth;
   oxcf->input_bit_depth = cfg->g_input_bit_depth;
   // guess a frame rate if out of whack, use 30
@@ -867,8 +874,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->chroma_sample_position = extra_cfg->chroma_sample_position;
 
   oxcf->color_range = extra_cfg->color_range;
-  oxcf->render_width = extra_cfg->render_width;
-  oxcf->render_height = extra_cfg->render_height;
   oxcf->arnr_max_frames = extra_cfg->arnr_max_frames;
   oxcf->arnr_strength = extra_cfg->arnr_strength;
 
@@ -2174,9 +2179,10 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
                                             : cpi->oxcf.gf_cfg.lag_in_frames;
 
         cpi->lookahead = av1_lookahead_init(
-            cpi->oxcf.width, cpi->oxcf.height, subsampling_x, subsampling_y,
-            use_highbitdepth, lag_in_frames, cpi->oxcf.border_in_pixels,
-            cpi->common.features.byte_alignment, ctx->num_lap_buffers);
+            cpi->oxcf.frm_dim_cfg.width, cpi->oxcf.frm_dim_cfg.height,
+            subsampling_x, subsampling_y, use_highbitdepth, lag_in_frames,
+            cpi->oxcf.border_in_pixels, cpi->common.features.byte_alignment,
+            ctx->num_lap_buffers);
       }
       if (!cpi->lookahead)
         aom_internal_error(&cpi->common.error, AOM_CODEC_MEM_ERROR,

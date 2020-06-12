@@ -241,8 +241,9 @@ static BLOCK_SIZE select_sb_size(const AV1_COMP *const cpi) {
 
   if (cpi->svc.number_spatial_layers > 1) {
     // Use the configured size (top resolution) for spatial layers.
-    return AOMMIN(oxcf->width, oxcf->height) > 480 ? BLOCK_128X128
-                                                   : BLOCK_64X64;
+    return AOMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) > 480
+               ? BLOCK_128X128
+               : BLOCK_64X64;
   }
 
   // TODO(any): Possibly could improve this with a heuristic.
@@ -610,47 +611,47 @@ static INLINE int does_level_match(int width, int height, double fps,
 }
 
 static void set_bitstream_level_tier(SequenceHeader *seq, AV1_COMMON *cm,
-                                     const AV1EncoderConfig *oxcf) {
+                                     int width, int height,
+                                     double init_framerate) {
   // TODO(any): This is a placeholder function that only addresses dimensions
   // and max display sample rates.
   // Need to add checks for max bit rate, max decoded luma sample rate, header
   // rate, etc. that are not covered by this function.
   AV1_LEVEL level = SEQ_LEVEL_MAX;
-  if (does_level_match(oxcf->width, oxcf->height, oxcf->init_framerate, 512,
-                       288, 30.0, 4)) {
+  if (does_level_match(width, height, init_framerate, 512, 288, 30.0, 4)) {
     level = SEQ_LEVEL_2_0;
-  } else if (does_level_match(oxcf->width, oxcf->height, oxcf->init_framerate,
-                              704, 396, 30.0, 4)) {
+  } else if (does_level_match(width, height, init_framerate, 704, 396, 30.0,
+                              4)) {
     level = SEQ_LEVEL_2_1;
-  } else if (does_level_match(oxcf->width, oxcf->height, oxcf->init_framerate,
-                              1088, 612, 30.0, 4)) {
+  } else if (does_level_match(width, height, init_framerate, 1088, 612, 30.0,
+                              4)) {
     level = SEQ_LEVEL_3_0;
-  } else if (does_level_match(oxcf->width, oxcf->height, oxcf->init_framerate,
-                              1376, 774, 30.0, 4)) {
+  } else if (does_level_match(width, height, init_framerate, 1376, 774, 30.0,
+                              4)) {
     level = SEQ_LEVEL_3_1;
-  } else if (does_level_match(oxcf->width, oxcf->height, oxcf->init_framerate,
-                              2048, 1152, 30.0, 3)) {
+  } else if (does_level_match(width, height, init_framerate, 2048, 1152, 30.0,
+                              3)) {
     level = SEQ_LEVEL_4_0;
-  } else if (does_level_match(oxcf->width, oxcf->height, oxcf->init_framerate,
-                              2048, 1152, 60.0, 3)) {
+  } else if (does_level_match(width, height, init_framerate, 2048, 1152, 60.0,
+                              3)) {
     level = SEQ_LEVEL_4_1;
-  } else if (does_level_match(oxcf->width, oxcf->height, oxcf->init_framerate,
-                              4096, 2176, 30.0, 2)) {
+  } else if (does_level_match(width, height, init_framerate, 4096, 2176, 30.0,
+                              2)) {
     level = SEQ_LEVEL_5_0;
-  } else if (does_level_match(oxcf->width, oxcf->height, oxcf->init_framerate,
-                              4096, 2176, 60.0, 2)) {
+  } else if (does_level_match(width, height, init_framerate, 4096, 2176, 60.0,
+                              2)) {
     level = SEQ_LEVEL_5_1;
-  } else if (does_level_match(oxcf->width, oxcf->height, oxcf->init_framerate,
-                              4096, 2176, 120.0, 2)) {
+  } else if (does_level_match(width, height, init_framerate, 4096, 2176, 120.0,
+                              2)) {
     level = SEQ_LEVEL_5_2;
-  } else if (does_level_match(oxcf->width, oxcf->height, oxcf->init_framerate,
-                              8192, 4352, 30.0, 2)) {
+  } else if (does_level_match(width, height, init_framerate, 8192, 4352, 30.0,
+                              2)) {
     level = SEQ_LEVEL_6_0;
-  } else if (does_level_match(oxcf->width, oxcf->height, oxcf->init_framerate,
-                              8192, 4352, 60.0, 2)) {
+  } else if (does_level_match(width, height, init_framerate, 8192, 4352, 60.0,
+                              2)) {
     level = SEQ_LEVEL_6_1;
-  } else if (does_level_match(oxcf->width, oxcf->height, oxcf->init_framerate,
-                              8192, 4352, 120.0, 2)) {
+  } else if (does_level_match(width, height, init_framerate, 8192, 4352, 120.0,
+                              2)) {
     level = SEQ_LEVEL_6_2;
   }
 
@@ -674,6 +675,8 @@ static void set_bitstream_level_tier(SequenceHeader *seq, AV1_COMMON *cm,
 
 void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
                                const AV1EncoderConfig *oxcf, int use_svc) {
+  const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
+
   seq->still_picture = (oxcf->force_video_mode == 0) && (oxcf->limit == 1);
   seq->reduced_still_picture_hdr = seq->still_picture;
   seq->reduced_still_picture_hdr &= !oxcf->full_still_picture_hdr;
@@ -694,11 +697,12 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
           ? DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1
           : -1;
 
-  seq->max_frame_width =
-      oxcf->forced_max_frame_width ? oxcf->forced_max_frame_width : oxcf->width;
-  seq->max_frame_height = oxcf->forced_max_frame_height
-                              ? oxcf->forced_max_frame_height
-                              : oxcf->height;
+  seq->max_frame_width = frm_dim_cfg->forced_max_frame_width
+                             ? frm_dim_cfg->forced_max_frame_width
+                             : frm_dim_cfg->width;
+  seq->max_frame_height = frm_dim_cfg->forced_max_frame_height
+                              ? frm_dim_cfg->forced_max_frame_height
+                              : frm_dim_cfg->height;
   seq->num_bits_width =
       (seq->max_frame_width > 1) ? get_msb(seq->max_frame_width - 1) + 1 : 1;
   seq->num_bits_height =
@@ -726,7 +730,8 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_intra_edge_filter = oxcf->intra_mode_cfg.enable_intra_edge_filter;
   seq->enable_filter_intra = oxcf->intra_mode_cfg.enable_filter_intra;
 
-  set_bitstream_level_tier(seq, cm, oxcf);
+  set_bitstream_level_tier(seq, cm, frm_dim_cfg->width, frm_dim_cfg->height,
+                           oxcf->init_framerate);
 
   if (seq->operating_points_cnt_minus_1 == 0) {
     seq->operating_point_idc[0] = 0;
@@ -822,8 +827,8 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
     }
   }
 
-  cm->width = oxcf->width;
-  cm->height = oxcf->height;
+  cm->width = oxcf->frm_dim_cfg.width;
+  cm->height = oxcf->frm_dim_cfg.height;
   set_sb_size(seq_params,
               select_sb_size(cpi));  // set sb size before allocations
   alloc_compressor_data(cpi);
@@ -950,7 +955,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   AV1LevelParams *const level_params = &cpi->level_params;
   InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
   RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
-
+  const FrameDimensionCfg *const frm_dim_cfg = &cpi->oxcf.frm_dim_cfg;
   // in case of LAP, lag in frames is set according to number of lap buffers
   // calculated at init time. This stores and restores LAP's lag in frames to
   // prevent override by new cfg.
@@ -1090,15 +1095,15 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
       oxcf->tile_cfg.enable_large_scale_tile ? EIGHTTAP_REGULAR : SWITCHABLE;
   cm->features.switchable_motion_mode = 1;
 
-  if (cpi->oxcf.render_width > 0 && cpi->oxcf.render_height > 0) {
-    cm->render_width = cpi->oxcf.render_width;
-    cm->render_height = cpi->oxcf.render_height;
+  if (frm_dim_cfg->render_width > 0 && frm_dim_cfg->render_height > 0) {
+    cm->render_width = frm_dim_cfg->render_width;
+    cm->render_height = frm_dim_cfg->render_height;
   } else {
-    cm->render_width = cpi->oxcf.width;
-    cm->render_height = cpi->oxcf.height;
+    cm->render_width = frm_dim_cfg->width;
+    cm->render_height = frm_dim_cfg->height;
   }
-  cm->width = cpi->oxcf.width;
-  cm->height = cpi->oxcf.height;
+  cm->width = frm_dim_cfg->width;
+  cm->height = frm_dim_cfg->height;
 
   int sb_size = seq_params->sb_size;
   // Superblock size should not be updated after the first key frame.
@@ -1652,8 +1657,8 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
   av1_loop_filter_init(cm);
   cm->superres_scale_denominator = SCALE_NUMERATOR;
-  cm->superres_upscaled_width = oxcf->width;
-  cm->superres_upscaled_height = oxcf->height;
+  cm->superres_upscaled_width = oxcf->frm_dim_cfg.width;
+  cm->superres_upscaled_height = oxcf->frm_dim_cfg.height;
   av1_loop_restoration_precal();
 
   cm->error.setjmp = 0;
@@ -2341,11 +2346,11 @@ static void init_motion_estimation(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MotionVectorSearchParams *const mv_search_params = &cpi->mv_search_params;
   const int y_stride = cpi->scaled_source.y_stride;
-  const int y_stride_src =
-      ((cpi->oxcf.width != cm->width || cpi->oxcf.height != cm->height) ||
-       av1_superres_scaled(cm))
-          ? y_stride
-          : cpi->lookahead->buf->img.y_stride;
+  const int y_stride_src = ((cpi->oxcf.frm_dim_cfg.width != cm->width ||
+                             cpi->oxcf.frm_dim_cfg.height != cm->height) ||
+                            av1_superres_scaled(cm))
+                               ? y_stride
+                               : cpi->lookahead->buf->img.y_stride;
   int fpf_y_stride = cm->cur_frame != NULL ? cm->cur_frame->buf.y_stride
                                            : cpi->scaled_source.y_stride;
 
@@ -4544,8 +4549,8 @@ int av1_set_internal_size(AV1EncoderConfig *const oxcf,
   Scale2Ratio(vert_mode, &vr, &vs);
 
   // always go to the next whole number
-  resize_pending_params->width = (hs - 1 + oxcf->width * hr) / hs;
-  resize_pending_params->height = (vs - 1 + oxcf->height * vr) / vs;
+  resize_pending_params->width = (hs - 1 + oxcf->frm_dim_cfg.width * hr) / hs;
+  resize_pending_params->height = (vs - 1 + oxcf->frm_dim_cfg.height * vr) / vs;
 
   return 0;
 }

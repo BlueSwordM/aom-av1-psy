@@ -1082,9 +1082,9 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
     av1_set_target_rate(cpi, cpi->common.width, cpi->common.height);
     int top_index = 0;
     int bottom_index = 0;
-    const int q = av1_rc_pick_q_and_bounds(cpi, &cpi->rc, cpi->oxcf.width,
-                                           cpi->oxcf.height, group_idx,
-                                           &bottom_index, &top_index);
+    const int q = av1_rc_pick_q_and_bounds(
+        cpi, &cpi->rc, cpi->oxcf.frm_dim_cfg.width,
+        cpi->oxcf.frm_dim_cfg.height, group_idx, &bottom_index, &top_index);
     const int ac_q = av1_ac_quant_QTX(q, 0, cpi->common.seq_params.bit_depth);
     const float threshold = 0.7f * ac_q * ac_q;
 

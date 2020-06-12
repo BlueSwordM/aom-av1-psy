@@ -95,8 +95,9 @@ static int kf_low = 400;
 
 // How many times less pixels there are to encode given the current scaling.
 // Temporary replacement for rcf_mult and rate_thresh_mult.
-static double resize_rate_factor(const AV1_COMP *cpi, int width, int height) {
-  return (double)(cpi->oxcf.width * cpi->oxcf.height) / (width * height);
+static double resize_rate_factor(const FrameDimensionCfg *const frm_dim_cfg,
+                                 int width, int height) {
+  return (double)(frm_dim_cfg->width * frm_dim_cfg->height) / (width * height);
 }
 
 // Functions to compute the active minq lookup table entries based on a
@@ -330,7 +331,8 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
   rc->max_gf_interval = oxcf->gf_cfg.max_gf_interval;
   if (rc->min_gf_interval == 0)
     rc->min_gf_interval = av1_rc_get_default_min_gf_interval(
-        oxcf->width, oxcf->height, oxcf->init_framerate);
+        oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height,
+        oxcf->init_framerate);
   if (rc->max_gf_interval == 0)
     rc->max_gf_interval = av1_rc_get_default_max_gf_interval(
         oxcf->init_framerate, rc->min_gf_interval);
@@ -446,7 +448,7 @@ static double get_rate_correction_factor(const AV1_COMP *cpi, int width,
     else
       rcf = rc->rate_correction_factors[INTER_NORMAL];
   }
-  rcf *= resize_rate_factor(cpi, width, height);
+  rcf *= resize_rate_factor(&cpi->oxcf.frm_dim_cfg, width, height);
   return fclamp(rcf, MIN_BPB_FACTOR, MAX_BPB_FACTOR);
 }
 
@@ -456,7 +458,7 @@ static void set_rate_correction_factor(AV1_COMP *cpi, double factor, int width,
   const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
 
   // Normalize RCF to account for the size-dependent scaling factor.
-  factor /= resize_rate_factor(cpi, width, height);
+  factor /= resize_rate_factor(&cpi->oxcf.frm_dim_cfg, width, height);
 
   factor = fclamp(factor, MIN_BPB_FACTOR, MAX_BPB_FACTOR);
 
@@ -1549,7 +1551,8 @@ void av1_rc_set_frame_target(AV1_COMP *cpi, int target, int width, int height) {
   // Modify frame size target when down-scaled.
   if (av1_frame_scaled(cm))
     rc->this_frame_target =
-        (int)(rc->this_frame_target * resize_rate_factor(cpi, width, height));
+        (int)(rc->this_frame_target *
+              resize_rate_factor(&cpi->oxcf.frm_dim_cfg, width, height));
 
   // Target rate per SB64 (including partial SB64s.
   rc->sb64_target_rate =
@@ -1647,9 +1650,9 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
   // Rolling monitors of whether we are over or underspending used to help
   // regulate min and Max Q in two pass.
   if (av1_frame_scaled(cm))
-    rc->this_frame_target =
-        (int)(rc->this_frame_target /
-              resize_rate_factor(cpi, cm->width, cm->height));
+    rc->this_frame_target = (int)(rc->this_frame_target /
+                                  resize_rate_factor(&cpi->oxcf.frm_dim_cfg,
+                                                     cm->width, cm->height));
   if (current_frame->frame_type != KEY_FRAME) {
     rc->rolling_target_bits = (int)ROUND_POWER_OF_TWO_64(
         rc->rolling_target_bits * 3 + rc->this_frame_target, 2);
@@ -1681,8 +1684,8 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
   // if (current_frame->frame_number == 1 && cm->show_frame)
   /*
   rc->this_frame_target =
-      (int)(rc->this_frame_target / resize_rate_factor(cpi, cm->width,
-  cm->height));
+      (int)(rc->this_frame_target / resize_rate_factor(&cpi->oxcf.frm_dim_cfg,
+  cm->width, cm->height));
       */
 }
 
@@ -1783,7 +1786,7 @@ void av1_rc_set_gf_interval_range(const AV1_COMP *const cpi,
     rc->min_gf_interval = oxcf->gf_cfg.min_gf_interval;
     if (rc->min_gf_interval == 0)
       rc->min_gf_interval = av1_rc_get_default_min_gf_interval(
-          oxcf->width, oxcf->height, cpi->framerate);
+          oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height, cpi->framerate);
     if (rc->max_gf_interval == 0)
       rc->max_gf_interval = av1_rc_get_default_max_gf_interval(
           cpi->framerate, rc->min_gf_interval);

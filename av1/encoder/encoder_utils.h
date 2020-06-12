@@ -411,10 +411,11 @@ static AOM_INLINE void alloc_altref_frame_buffer(AV1_COMP *cpi) {
 
   // TODO(agrange) Check if ARF is enabled and skip allocation if not.
   if (aom_realloc_frame_buffer(
-          &cpi->alt_ref_buffer, oxcf->width, oxcf->height,
-          seq_params->subsampling_x, seq_params->subsampling_y,
-          seq_params->use_highbitdepth, cpi->oxcf.border_in_pixels,
-          cm->features.byte_alignment, NULL, NULL, NULL))
+          &cpi->alt_ref_buffer, oxcf->frm_dim_cfg.width,
+          oxcf->frm_dim_cfg.height, seq_params->subsampling_x,
+          seq_params->subsampling_y, seq_params->use_highbitdepth,
+          cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
+          NULL))
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate altref buffer");
 }

@@ -312,8 +312,8 @@ void av1_one_pass_cbr_svc_start_layer(AV1_COMP *const cpi) {
   int width = 0, height = 0;
   lc = &svc->layer_context[svc->spatial_layer_id * svc->number_temporal_layers +
                            svc->temporal_layer_id];
-  get_layer_resolution(cpi->oxcf.width, cpi->oxcf.height,
-                       lc->scaling_factor_num, lc->scaling_factor_den, &width,
-                       &height);
+  get_layer_resolution(cpi->oxcf.frm_dim_cfg.width,
+                       cpi->oxcf.frm_dim_cfg.height, lc->scaling_factor_num,
+                       lc->scaling_factor_den, &width, &height);
   av1_set_size_literal(cpi, width, height);
 }

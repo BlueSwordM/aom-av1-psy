@@ -188,6 +188,7 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
   static unsigned int seed = 34567;
   const AV1EncoderConfig *oxcf = &cpi->oxcf;
   const SuperResCfg *const superres_cfg = &oxcf->superres_cfg;
+  const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
 
   if (is_stat_generation_stage(cpi)) return SCALE_NUMERATOR;
   uint8_t new_denom = SCALE_NUMERATOR;
@@ -218,13 +219,13 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
       // Do not use superres when screen content tools are used.
       if (cpi->common.features.allow_screen_content_tools) break;
       if (oxcf->rc_mode == AOM_VBR || oxcf->rc_mode == AOM_CQ)
-        av1_set_target_rate(cpi, cpi->oxcf.width, cpi->oxcf.height);
+        av1_set_target_rate(cpi, frm_dim_cfg->width, frm_dim_cfg->height);
 
       // Now decide the use of superres based on 'q'.
       int bottom_index, top_index;
       const int q = av1_rc_pick_q_and_bounds(
-          cpi, &cpi->rc, cpi->oxcf.width, cpi->oxcf.height, cpi->gf_group.index,
-          &bottom_index, &top_index);
+          cpi, &cpi->rc, frm_dim_cfg->width, frm_dim_cfg->height,
+          cpi->gf_group.index, &bottom_index, &top_index);
 
       const int qthresh = (frame_is_intra_only(&cpi->common))
                               ? superres_cfg->superres_kf_qthresh
@@ -240,13 +241,13 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
       // Do not use superres when screen content tools are used.
       if (cpi->common.features.allow_screen_content_tools) break;
       if (oxcf->rc_mode == AOM_VBR || oxcf->rc_mode == AOM_CQ)
-        av1_set_target_rate(cpi, cpi->oxcf.width, cpi->oxcf.height);
+        av1_set_target_rate(cpi, frm_dim_cfg->width, frm_dim_cfg->height);
 
       // Now decide the use of superres based on 'q'.
       int bottom_index, top_index;
       const int q = av1_rc_pick_q_and_bounds(
-          cpi, &cpi->rc, cpi->oxcf.width, cpi->oxcf.height, cpi->gf_group.index,
-          &bottom_index, &top_index);
+          cpi, &cpi->rc, frm_dim_cfg->width, frm_dim_cfg->height,
+          cpi->gf_group.index, &bottom_index, &top_index);
 
       const int qthresh = 128;
       if (q <= qthresh) {
@@ -341,7 +342,9 @@ static int validate_size_scales(RESIZE_MODE resize_mode,
 static size_params_type calculate_next_size_params(AV1_COMP *cpi) {
   const AV1EncoderConfig *oxcf = &cpi->oxcf;
   ResizePendingParams *resize_pending_params = &cpi->resize_pending_params;
-  size_params_type rsz = { oxcf->width, oxcf->height, SCALE_NUMERATOR };
+  const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
+  size_params_type rsz = { frm_dim_cfg->width, frm_dim_cfg->height,
+                           SCALE_NUMERATOR };
   int resize_denom = SCALE_NUMERATOR;
   if (has_no_stats_stage(cpi) && cpi->use_svc &&
       cpi->svc.spatial_layer_id < cpi->svc.number_spatial_layers - 1) {
@@ -356,14 +359,14 @@ static size_params_type calculate_next_size_params(AV1_COMP *cpi) {
     resize_pending_params->width = resize_pending_params->height = 0;
   } else {
     resize_denom = calculate_next_resize_scale(cpi);
-    rsz.resize_width = oxcf->width;
-    rsz.resize_height = oxcf->height;
+    rsz.resize_width = frm_dim_cfg->width;
+    rsz.resize_height = frm_dim_cfg->height;
     av1_calculate_scaled_size(&rsz.resize_width, &rsz.resize_height,
                               resize_denom);
   }
   rsz.superres_denom = calculate_next_superres_scale(cpi);
   if (!validate_size_scales(oxcf->resize_cfg.resize_mode, cpi->superres_mode,
-                            oxcf->width, oxcf->height, &rsz))
+                            frm_dim_cfg->width, frm_dim_cfg->height, &rsz))
     assert(0 && "Invalid scale parameters");
   return rsz;
 }

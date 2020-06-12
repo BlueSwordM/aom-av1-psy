@@ -532,16 +532,34 @@ typedef struct {
   bool enable_ext_tile_debug;
 } TileConfig;
 
+typedef struct {
+  // Indicates the width of the input frame.
+  int width;
+  // Indicates the height of the input frame.
+  int height;
+  // If forced_max_frame_width is non-zero then it is used to force the maximum
+  // frame width written in write_sequence_header().
+  int forced_max_frame_width;
+  // If forced_max_frame_width is non-zero then it is used to force the maximum
+  // frame height written in write_sequence_header().
+  int forced_max_frame_height;
+  // Indicates the frame width after applying both super-resolution and resize
+  // to the coded frame.
+  int render_width;
+  // Indicates the frame height after applying both super-resolution and resize
+  // to the coded frame.
+  int render_height;
+} FrameDimensionCfg;
+
 typedef struct AV1EncoderConfig {
   BITSTREAM_PROFILE profile;
   aom_bit_depth_t bit_depth;     // Codec bit-depth.
-  int width;                     // width of data passed to the compressor
-  int height;                    // height of data passed to the compressor
-  int forced_max_frame_width;    // forced maximum width of frame (if != 0)
-  int forced_max_frame_height;   // forced maximum height of frame (if != 0)
   unsigned int input_bit_depth;  // Input bit depth.
   double init_framerate;         // set to passed in framerate
   int64_t target_bandwidth;      // bandwidth to be used in bits per second
+
+  // Configuration related to frame-dimensions.
+  FrameDimensionCfg frm_dim_cfg;
 
   int noise_sensitivity;  // pre processing blur: recommendation 0
   int sharpness;          // sharpening output: recommendation 0:
@@ -656,8 +674,6 @@ typedef struct AV1EncoderConfig {
   aom_matrix_coefficients_t matrix_coefficients;
   aom_chroma_sample_position_t chroma_sample_position;
   int color_range;
-  int render_width;
-  int render_height;
   int timing_info_present;
   aom_timing_info_t timing_info;
   int decoder_model_info_present_flag;
