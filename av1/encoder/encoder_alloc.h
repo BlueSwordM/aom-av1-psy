@@ -373,6 +373,30 @@ static AOM_INLINE void alloc_util_frame_buffers(AV1_COMP *cpi) {
                        "Failed to allocate scaled last source buffer");
 }
 
+static AOM_INLINE YV12_BUFFER_CONFIG *realloc_and_scale_source(
+    AV1_COMP *cpi, int scaled_width, int scaled_height) {
+  AV1_COMMON *cm = &cpi->common;
+  const int num_planes = av1_num_planes(cm);
+
+  if (scaled_width == cpi->unscaled_source->y_crop_width &&
+      scaled_height == cpi->unscaled_source->y_crop_height) {
+    return cpi->unscaled_source;
+  }
+
+  if (aom_realloc_frame_buffer(
+          &cpi->scaled_source, scaled_width, scaled_height,
+          cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
+          cm->seq_params.use_highbitdepth, AOM_BORDER_IN_PIXELS,
+          cm->features.byte_alignment, NULL, NULL, NULL))
+    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                       "Failed to reallocate scaled source buffer");
+  assert(cpi->scaled_source.y_crop_width == scaled_width);
+  assert(cpi->scaled_source.y_crop_height == scaled_height);
+  av1_resize_and_extend_frame(cpi->unscaled_source, &cpi->scaled_source,
+                              (int)cm->seq_params.bit_depth, num_planes);
+  return &cpi->scaled_source;
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

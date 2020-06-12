@@ -3844,6 +3844,11 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       av1_rc_postencode_update(cpi, *size);
     }
 
+    if (is_psnr_calc_enabled(cpi)) {
+      cpi->source =
+          realloc_and_scale_source(cpi, cm->cur_frame->buf.y_crop_width,
+                                   cm->cur_frame->buf.y_crop_height);
+    }
     ++current_frame->frame_number;
 
     return AOM_CODEC_OK;

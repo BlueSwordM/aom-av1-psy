@@ -943,8 +943,9 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   }
 
   // Set frame_input source to true source for psnr calculation.
-  if (apply_filtering) {
-    cpi->source = source_kf_buffer;
+  if (apply_filtering && is_psnr_calc_enabled(cpi)) {
+    cpi->source =
+        av1_scale_if_required(cm, source_kf_buffer, &cpi->scaled_source);
     cpi->unscaled_source = source_kf_buffer;
   }
 

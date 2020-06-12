@@ -2887,6 +2887,13 @@ static INLINE int av1_pixels_to_mi(int pixels) {
   return ALIGN_POWER_OF_TWO(pixels, 3) >> MI_SIZE_LOG2;
 }
 
+static AOM_INLINE int is_psnr_calc_enabled(const AV1_COMP *cpi) {
+  const AV1_COMMON *const cm = &cpi->common;
+
+  return cpi->b_calculate_psnr && !is_stat_generation_stage(cpi) &&
+         cm->show_frame;
+}
+
 #if CONFIG_COLLECT_PARTITION_STATS == 2
 static INLINE void av1_print_partition_stats(PartitionStats *part_stats) {
   FILE *f = fopen("partition_stats.csv", "w");
