@@ -392,8 +392,9 @@ static AOM_INLINE YV12_BUFFER_CONFIG *realloc_and_scale_source(
                        "Failed to reallocate scaled source buffer");
   assert(cpi->scaled_source.y_crop_width == scaled_width);
   assert(cpi->scaled_source.y_crop_height == scaled_height);
-  av1_resize_and_extend_frame(cpi->unscaled_source, &cpi->scaled_source,
-                              (int)cm->seq_params.bit_depth, num_planes);
+  av1_resize_and_extend_frame_nonnormative(
+      cpi->unscaled_source, &cpi->scaled_source, (int)cm->seq_params.bit_depth,
+      num_planes);
   return &cpi->scaled_source;
 }
 

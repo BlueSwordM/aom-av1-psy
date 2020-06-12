@@ -523,8 +523,8 @@ void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
       &resized_source, y_width / resize_factor, y_height / resize_factor, 1, 1,
       cm->seq_params.use_highbitdepth, cpi->oxcf.border_in_pixels,
       cm->features.byte_alignment);
-  av1_resize_and_extend_frame(cpi->source, &resized_source, bit_depth,
-                              av1_num_planes(cm));
+  av1_resize_and_extend_frame_nonnormative(cpi->source, &resized_source,
+                                           bit_depth, av1_num_planes(cm));
 
   const int resized_y_width = resized_source.y_width;
   const int resized_y_height = resized_source.y_height;

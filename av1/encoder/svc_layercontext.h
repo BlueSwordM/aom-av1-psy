@@ -65,6 +65,11 @@ typedef struct SVC {
   int temporal_layer_fb[REF_FRAMES];
   // Layer context used for rate control in CBR mode.
   LAYER_CONTEXT layer_context[AOM_MAX_LAYERS];
+  // EIGHTTAP_SMOOTH or BILINEAR
+  InterpFilter downsample_filter_type[AOM_MAX_SS_LAYERS];
+  // downsample_filter_phase: = 0 will do sub-sampling (no weighted average),
+  // = 8 will center the target pixel and get a symmetric averaging filter.
+  int downsample_filter_phase[AOM_MAX_SS_LAYERS];
 } SVC;
 
 struct AV1_COMP;
