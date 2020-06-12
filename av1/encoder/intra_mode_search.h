@@ -9,6 +9,9 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+/*!\file
+ * \brief Declares high level functions to search through intra modes.
+ */
 #ifndef AOM_AV1_ENCODER_INTRA_MODE_SEARCH_H_
 #define AOM_AV1_ENCODER_INTRA_MODE_SEARCH_H_
 
@@ -233,9 +236,6 @@ int av1_count_colors(const uint8_t *src, int stride, int rows, int cols,
  */
 int av1_count_colors_highbd(const uint8_t *src8, int stride, int rows, int cols,
                             int bit_depth, int *val_count);
-
-// Resets palette color map for chroma channels.
-void av1_restore_uv_color_map(const AV1_COMP *const cpi, MACROBLOCK *x);
 
 #ifdef __cplusplus
 }  // extern "C"

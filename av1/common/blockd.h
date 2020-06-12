@@ -1403,15 +1403,23 @@ static INLINE void av1_get_block_dimensions(BLOCK_SIZE bsize, int plane,
   // Special handling for chroma sub8x8.
   const int is_chroma_sub8_x = plane > 0 && plane_block_width < 4;
   const int is_chroma_sub8_y = plane > 0 && plane_block_height < 4;
-  if (width) *width = plane_block_width + 2 * is_chroma_sub8_x;
-  if (height) *height = plane_block_height + 2 * is_chroma_sub8_y;
+  if (width) {
+    *width = plane_block_width + 2 * is_chroma_sub8_x;
+    assert(*width >= 0);
+  }
+  if (height) {
+    *height = plane_block_height + 2 * is_chroma_sub8_y;
+    assert(*height >= 0);
+  }
   if (rows_within_bounds) {
     *rows_within_bounds =
         (block_rows >> pd->subsampling_y) + 2 * is_chroma_sub8_y;
+    assert(*rows_within_bounds >= 0);
   }
   if (cols_within_bounds) {
     *cols_within_bounds =
         (block_cols >> pd->subsampling_x) + 2 * is_chroma_sub8_x;
+    assert(*cols_within_bounds >= 0);
   }
 }
 

@@ -18,6 +18,10 @@
 extern "C" {
 #endif
 
+struct AV1_COMP;
+struct PICK_MODE_CONTEXT;
+struct macroblock;
+
 #define AV1_K_MEANS_RENAME(func, dim) func##_dim##dim
 
 void AV1_K_MEANS_RENAME(av1_calc_indices, 1)(const int *data,
@@ -37,6 +41,8 @@ void AV1_K_MEANS_RENAME(av1_k_means, 2)(const int *data, int *centroids,
 // calculate the centroid 'indices' for the data points.
 static INLINE void av1_calc_indices(const int *data, const int *centroids,
                                     uint8_t *indices, int n, int k, int dim) {
+  assert(n > 0);
+  assert(k > 0);
   if (dim == 1) {
     AV1_K_MEANS_RENAME(av1_calc_indices, 1)(data, centroids, indices, n, k);
   } else if (dim == 2) {
@@ -53,6 +59,8 @@ static INLINE void av1_calc_indices(const int *data, const int *centroids,
 static INLINE void av1_k_means(const int *data, int *centroids,
                                uint8_t *indices, int n, int k, int dim,
                                int max_itr) {
+  assert(n > 0);
+  assert(k > 0);
   if (dim == 1) {
     AV1_K_MEANS_RENAME(av1_k_means, 1)(data, centroids, indices, n, k, max_itr);
   } else if (dim == 2) {
@@ -88,6 +96,38 @@ int av1_palette_color_cost_y(const PALETTE_MODE_INFO *const pmi,
 int av1_palette_color_cost_uv(const PALETTE_MODE_INFO *const pmi,
                               uint16_t *color_cache, int n_cache,
                               int bit_depth);
+
+/*!\brief Search for the best palette in the luma plane.
+ *
+ * \ingroup intra_mode_search
+ * \callergraph
+ * This function is used in both inter and intra frame coding.
+ */
+void av1_rd_pick_palette_intra_sby(
+    const struct AV1_COMP *cpi, struct macroblock *x, BLOCK_SIZE bsize,
+    int dc_mode_cost, MB_MODE_INFO *best_mbmi, uint8_t *best_palette_color_map,
+    int64_t *best_rd, int64_t *best_model_rd, int *rate, int *rate_tokenonly,
+    int64_t *distortion, int *skippable, int *beat_best_rd,
+    struct PICK_MODE_CONTEXT *ctx, uint8_t *best_blk_skip,
+    uint8_t *tx_type_map);
+
+/*!\brief Search for the best palette in the chroma plane.
+ *
+ * \ingroup intra_mode_search
+ * \callergraph
+ * This function is used in both inter and intra frame coding.
+ */
+void av1_rd_pick_palette_intra_sbuv(const struct AV1_COMP *cpi,
+                                    struct macroblock *x, int dc_mode_cost,
+                                    uint8_t *best_palette_color_map,
+                                    MB_MODE_INFO *const best_mbmi,
+                                    int64_t *best_rd, int *rate,
+                                    int *rate_tokenonly, int64_t *distortion,
+                                    int *skippable);
+
+// Resets palette color map for chroma channels.
+void av1_restore_uv_color_map(const struct AV1_COMP *cpi, struct macroblock *x);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
