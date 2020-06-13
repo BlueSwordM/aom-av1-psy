@@ -123,7 +123,7 @@ int av1_get_palette_delta_bits_v(const PALETTE_MODE_INFO *const pmi,
 }
 
 int av1_palette_color_cost_y(const PALETTE_MODE_INFO *const pmi,
-                             uint16_t *color_cache, int n_cache,
+                             const uint16_t *color_cache, int n_cache,
                              int bit_depth) {
   const int n = pmi->palette_size[0];
   int out_cache_colors[PALETTE_MAX_SIZE];
@@ -137,7 +137,7 @@ int av1_palette_color_cost_y(const PALETTE_MODE_INFO *const pmi,
 }
 
 int av1_palette_color_cost_uv(const PALETTE_MODE_INFO *const pmi,
-                              uint16_t *color_cache, int n_cache,
+                              const uint16_t *color_cache, int n_cache,
                               int bit_depth) {
   const int n = pmi->palette_size[1];
   int total_bits = 0;
@@ -205,8 +205,13 @@ static AOM_INLINE void optimize_palette_colors(uint16_t *color_cache,
   }
 }
 
-// Given the base colors as specified in centroids[], calculate the RD cost
-// of palette mode.
+/*!\brief Calculate the luma palette cost from a given color palette
+ *
+ * \ingroup palette_mode_search
+ * \callergraph
+ * Given the base colors as specified in centroids[], calculate the RD cost
+ * of palette mode.
+ */
 static AOM_INLINE void palette_rd_y(
     const AV1_COMP *const cpi, MACROBLOCK *x, MB_MODE_INFO *mbmi,
     BLOCK_SIZE bsize, int dc_mode_cost, const int *data, int *centroids, int n,
@@ -432,29 +437,6 @@ static AOM_INLINE void update_start_end_stage_2(int *start_n_stage2,
   *step_size_stage2 = *end_n_stage2 - *start_n_stage2;
 }
 
-// Start index and step size below are chosen to evaluate unique
-// candidates in neighbor search, in case a winner candidate is found in
-// coarse search. Example,
-// 1) 8 colors (end_n = 8): 2,3,4,5,6,7,8. start_n is chosen as 2 and step
-// size is chosen as 3. Therefore, coarse search will evaluate 2, 5 and 8.
-// If winner is found at 5, then 4 and 6 are evaluated. Similarly, for 2
-// (3) and 8 (7).
-// 2) 7 colors (end_n = 7): 2,3,4,5,6,7. If start_n is chosen as 2 (same
-// as for 8 colors) then step size should also be 2, to cover all
-// candidates. Coarse search will evaluate 2, 4 and 6. If winner is either
-// 2 or 4, 3 will be evaluated. Instead, if start_n=3 and step_size=3,
-// coarse search will evaluate 3 and 6. For the winner, unique neighbors
-// (3: 2,4 or 6: 5,7) would be evaluated.
-
-// start index for coarse palette search for dominant colors and k-means
-static const uint8_t start_n_lookup_table[PALETTE_MAX_SIZE + 1] = { 0, 0, 0,
-                                                                    3, 3, 2,
-                                                                    3, 3, 2 };
-// step size for coarse palette search for dominant colors and k-means
-static const uint8_t step_size_lookup_table[PALETTE_MAX_SIZE + 1] = { 0, 0, 0,
-                                                                      3, 3, 3,
-                                                                      3, 3, 3 };
-
 void av1_rd_pick_palette_intra_sby(
     const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int dc_mode_cost,
     MB_MODE_INFO *best_mbmi, uint8_t *best_palette_color_map, int64_t *best_rd,
@@ -466,6 +448,29 @@ void av1_rd_pick_palette_intra_sby(
   assert(!is_inter_block(mbmi));
   assert(av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                            bsize));
+
+  // Start index and step size below are chosen to evaluate unique
+  // candidates in neighbor search, in case a winner candidate is found in
+  // coarse search. Example,
+  // 1) 8 colors (end_n = 8): 2,3,4,5,6,7,8. start_n is chosen as 2 and step
+  // size is chosen as 3. Therefore, coarse search will evaluate 2, 5 and 8.
+  // If winner is found at 5, then 4 and 6 are evaluated. Similarly, for 2
+  // (3) and 8 (7).
+  // 2) 7 colors (end_n = 7): 2,3,4,5,6,7. If start_n is chosen as 2 (same
+  // as for 8 colors) then step size should also be 2, to cover all
+  // candidates. Coarse search will evaluate 2, 4 and 6. If winner is either
+  // 2 or 4, 3 will be evaluated. Instead, if start_n=3 and step_size=3,
+  // coarse search will evaluate 3 and 6. For the winner, unique neighbors
+  // (3: 2,4 or 6: 5,7) would be evaluated.
+
+  // Start index for coarse palette search for dominant colors and k-means
+  static const uint8_t start_n_lookup_table[PALETTE_MAX_SIZE + 1] = { 0, 0, 0,
+                                                                      3, 3, 2,
+                                                                      3, 3, 2 };
+  // Step size for coarse palette search for dominant colors and k-means
+  static const uint8_t step_size_lookup_table[PALETTE_MAX_SIZE + 1] = {
+    0, 0, 0, 3, 3, 3, 3, 3, 3
+  };
 
   const int src_stride = x->plane[0].src.stride;
   const uint8_t *const src = x->plane[0].src.buf;

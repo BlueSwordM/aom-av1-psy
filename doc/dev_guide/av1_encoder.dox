@@ -307,6 +307,14 @@ void second_pass(char *stats, size_t stats_len) {
  */
 /*! @} - end defgroup inter_mode_search */
 
+/*!\defgroup palette_mode_search Palette Mode Search
+ * \ingroup intra_mode_search
+ * This module describes palette mode search algorithm in AV1.
+ * More details will be added.
+ * @{
+ */
+/*! @} - end defgroup palette_mode_search */
+
 /*!\defgroup transform_search Transform Search
  * \ingroup encoder_algo
  * This module describes transform search algorithm in AV1.
