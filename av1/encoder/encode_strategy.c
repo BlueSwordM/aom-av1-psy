@@ -359,57 +359,6 @@ static int get_arf_src_index(GF_GROUP *gf_group, int pass) {
   return arf_src_index;
 }
 
-// Called if this frame is an ARF or ARF2. Also handles forward-keyframes
-// For an ARF set arf2=0, for ARF2 set arf2=1
-// temporal_filtered is set to 1 if we temporally filter the ARF frame, so that
-// the correct post-filter buffer can be used.
-static struct lookahead_entry *setup_arf_frame(
-    AV1_COMP *const cpi, const int arf_src_index, int *code_arf,
-    EncodeFrameParams *const frame_params, int *show_existing_alt_ref) {
-  AV1_COMMON *const cm = &cpi->common;
-  RATE_CONTROL *const rc = &cpi->rc;
-#if !CONFIG_REALTIME_ONLY
-  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
-#endif
-
-  assert(arf_src_index <= rc->frames_to_key);
-  *code_arf = 0;
-
-  struct lookahead_entry *source =
-      av1_lookahead_peek(cpi->lookahead, arf_src_index, cpi->compressor_stage);
-
-  if (source != NULL) {
-    cm->showable_frame = 1;
-
-    // When arf_src_index == rc->frames_to_key, it indicates a fwd_kf
-    if (arf_src_index == rc->frames_to_key) {
-      // Skip temporal filtering and mark as intra_only if we have a fwd_kf
-      cpi->no_show_kf = 1;
-    } else {
-#if !CONFIG_REALTIME_ONLY
-      if (oxcf->algo_cfg.arnr_max_frames > 0) {
-        // Produce the filtered ARF frame.
-        cm->current_frame.frame_type = INTER_FRAME;
-        FRAME_UPDATE_TYPE frame_update_type =
-            get_frame_update_type(&cpi->gf_group);
-        av1_configure_buffer_updates(cpi, &frame_params->refresh_frame,
-                                     frame_update_type, 0);
-        *code_arf =
-            av1_temporal_filter(cpi, arf_src_index, show_existing_alt_ref);
-        if (*code_arf) {
-          aom_extend_frame_borders(&cpi->alt_ref_buffer, av1_num_planes(cm));
-        }
-      }
-#else
-      (void)show_existing_alt_ref;
-#endif
-    }
-    frame_params->show_frame = 0;
-  }
-  rc->source_alt_ref_pending = 0;
-  return source;
-}
-
 // Determine whether there is a forced keyframe pending in the lookahead buffer
 int is_forced_keyframe_pending(struct lookahead_ctx *lookahead,
                                const int up_to_index,
@@ -435,29 +384,31 @@ int is_forced_keyframe_pending(struct lookahead_ctx *lookahead,
 // temporal_filtered, flush, and frame_update_type are outputs.
 // Return the frame source, or NULL if we couldn't find one
 static struct lookahead_entry *choose_frame_source(
-    AV1_COMP *const cpi, int *const code_arf, int *const flush,
-    struct lookahead_entry **last_source, EncodeFrameParams *const frame_params,
-    int *show_existing_alt_ref) {
+    AV1_COMP *const cpi, int *const flush, struct lookahead_entry **last_source,
+    EncodeFrameParams *const frame_params) {
   AV1_COMMON *const cm = &cpi->common;
   struct lookahead_entry *source = NULL;
-  *code_arf = 0;
 
-  // Should we encode an alt-ref frame.
-  int arf_src_index = get_arf_src_index(&cpi->gf_group, cpi->oxcf.pass);
+  // Source index in lookahead buffer.
+  int src_index = get_arf_src_index(&cpi->gf_group, cpi->oxcf.pass);
+
   // TODO(Aasaipriya): Forced key frames need to be fixed when rc_mode != AOM_Q
-  if (arf_src_index &&
-      (is_forced_keyframe_pending(cpi->lookahead, arf_src_index,
+  if (src_index &&
+      (is_forced_keyframe_pending(cpi->lookahead, src_index,
                                   cpi->compressor_stage) != -1) &&
       cpi->oxcf.rc_cfg.mode != AOM_Q) {
-    arf_src_index = 0;
+    src_index = 0;
     *flush = 1;
   }
 
-  if (arf_src_index)
-    source = setup_arf_frame(cpi, arf_src_index, code_arf, frame_params,
-                             show_existing_alt_ref);
-
-  if (!source) {
+  // If the current frame is arf, then we should not pop from the lookahead
+  // buffer. If the current frame is not arf, then pop it. This assumes the
+  // first frame in the GF group is not arf. May need to change if it is not
+  // true.
+  const int pop_lookahead = (src_index == 0);
+  frame_params->show_frame = pop_lookahead;
+  if (pop_lookahead) {
+    // show frame, pop from buffer
     // Get last frame source.
     if (cm->current_frame.frame_number > 0) {
       *last_source =
@@ -465,8 +416,18 @@ static struct lookahead_entry *choose_frame_source(
     }
     // Read in the source frame.
     source = av1_lookahead_pop(cpi->lookahead, *flush, cpi->compressor_stage);
-    if (source == NULL) return NULL;
-    frame_params->show_frame = 1;
+  } else {
+    // no show frames are arf frames
+    source =
+        av1_lookahead_peek(cpi->lookahead, src_index, cpi->compressor_stage);
+    cpi->rc.source_alt_ref_pending = 0;
+    // When src_index == rc->frames_to_key, it indicates a fwd_kf
+    if (src_index == cpi->rc.frames_to_key) {
+      cpi->no_show_kf = 1;
+    }
+    if (source != NULL) {
+      cm->showable_frame = 1;
+    }
   }
   return source;
 }
@@ -871,9 +832,9 @@ void setup_mi(AV1_COMP *const cpi, YV12_BUFFER_CONFIG *src) {
   set_mi_offsets(&cm->mi_params, xd, 0, 0);
 }
 
-// Apply temporal filtering to key frames and encode the filtered frame.
-// If the current frame is not key frame, this function is identical to
-// av1_encode().
+// Apply temporal filtering to source frames and encode the filtered frame.
+// If the current frame does not require filtering, this function is identical
+// to av1_encode() except that tpl is not performed.
 static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
                               EncodeFrameInput *const frame_input,
                               EncodeFrameParams *const frame_params,
@@ -882,62 +843,97 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   AV1_COMMON *const cm = &cpi->common;
 
   // Decide whether to apply temporal filtering to the source frame.
-  int apply_filtering =
-      frame_params->frame_type == KEY_FRAME &&
-      oxcf->kf_cfg.enable_keyframe_filtering &&
-      !is_stat_generation_stage(cpi) && !frame_params->show_existing_frame &&
-      cpi->rc.frames_to_key > cpi->oxcf.algo_cfg.arnr_max_frames &&
-      !is_lossless_requested(&oxcf->rc_cfg) &&
-      oxcf->algo_cfg.arnr_max_frames > 0;
-  if (apply_filtering) {
-    const double y_noise_level = av1_estimate_noise_from_single_plane(
-        frame_input->source, 0, cm->seq_params.bit_depth);
-    apply_filtering = y_noise_level > 0;
-  }
-
-  // Save the pointer to the original source image.
-  YV12_BUFFER_CONFIG *source_kf_buffer = frame_input->source;
-
-  // Apply filtering to key frame.
-  if (apply_filtering) {
-    // Initialization for frame motion estimation.
-    MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
-    av1_init_mi_buffers(&cm->mi_params);
-    setup_mi(cpi, frame_input->source);
-    av1_init_macroblockd(cm, xd);
-    memset(
-        cpi->mbmi_ext_info.frame_base, 0,
-        cpi->mbmi_ext_info.alloc_size * sizeof(*cpi->mbmi_ext_info.frame_base));
-
-    av1_set_speed_features_framesize_independent(cpi, oxcf->speed);
-    av1_set_speed_features_framesize_dependent(cpi, oxcf->speed);
-    av1_set_rd_speed_thresholds(cpi);
-    av1_setup_frame_buf_refs(cm);
-    av1_setup_frame_sign_bias(cm);
-    av1_frame_init_quantizer(cpi);
-    av1_setup_past_independence(cm);
-
-    if (!frame_params->show_frame) {
-      int arf_src_index = get_arf_src_index(&cpi->gf_group, oxcf->pass);
-      av1_temporal_filter(cpi, -1 * arf_src_index, NULL);
+  int apply_filtering = 0;
+  int arf_src_index = -1;
+  if (frame_params->frame_type == KEY_FRAME) {
+    // Decide whether it is allowed to perform key frame filtering
+    int allow_kf_filtering =
+        oxcf->kf_cfg.enable_keyframe_filtering &&
+        !is_stat_generation_stage(cpi) && !frame_params->show_existing_frame &&
+        cpi->rc.frames_to_key > cpi->oxcf.algo_cfg.arnr_max_frames &&
+        !is_lossless_requested(&oxcf->rc_cfg) &&
+        oxcf->algo_cfg.arnr_max_frames > 0;
+    if (allow_kf_filtering) {
+      const double y_noise_level = av1_estimate_noise_from_single_plane(
+          frame_input->source, 0, cm->seq_params.bit_depth);
+      apply_filtering = y_noise_level > 0;
     } else {
-      av1_temporal_filter(cpi, -1, NULL);
+      apply_filtering = 0;
     }
-    aom_extend_frame_borders(&cpi->alt_ref_buffer, av1_num_planes(cm));
-    // Use the filtered frame for encoding.
-    frame_input->source = &cpi->alt_ref_buffer;
-    // Copy metadata info to alt-ref buffer.
-    aom_remove_metadata_from_frame_buffer(frame_input->source);
+    // If we are doing kf filtering, set up a few things.
+    if (apply_filtering) {
+      MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
+      av1_init_mi_buffers(&cm->mi_params);
+      setup_mi(cpi, frame_input->source);
+      av1_init_macroblockd(cm, xd);
+      memset(cpi->mbmi_ext_info.frame_base, 0,
+             cpi->mbmi_ext_info.alloc_size *
+                 sizeof(*cpi->mbmi_ext_info.frame_base));
+
+      av1_set_speed_features_framesize_independent(cpi, oxcf->speed);
+      av1_set_speed_features_framesize_dependent(cpi, oxcf->speed);
+      av1_set_rd_speed_thresholds(cpi);
+      av1_setup_frame_buf_refs(cm);
+      av1_setup_frame_sign_bias(cm);
+      av1_frame_init_quantizer(cpi);
+      av1_setup_past_independence(cm);
+
+      if (!frame_params->show_frame) {
+        arf_src_index = -1 * get_arf_src_index(&cpi->gf_group, oxcf->pass);
+      } else {
+        arf_src_index = -1;
+      }
+    }
+  } else if (get_frame_update_type(&cpi->gf_group) == ARF_UPDATE ||
+             get_frame_update_type(&cpi->gf_group) == INTNL_ARF_UPDATE) {
+    // ARF
+    apply_filtering = oxcf->algo_cfg.arnr_max_frames > 0;
+    if (apply_filtering) {
+      arf_src_index = get_arf_src_index(&cpi->gf_group, oxcf->pass);
+    }
+  }
+  // Save the pointer to the original source image.
+  YV12_BUFFER_CONFIG *source_buffer = frame_input->source;
+  // apply filtering to frame
+  if (apply_filtering) {
+    int show_existing_alt_ref = 0;
+    // TODO(bohanli): figure out why we need frame_type in cm here.
+    cm->current_frame.frame_type = frame_params->frame_type;
+    const int code_arf =
+        av1_temporal_filter(cpi, arf_src_index, &show_existing_alt_ref);
+    if (code_arf) {
+      aom_extend_frame_borders(&cpi->alt_ref_buffer, av1_num_planes(cm));
+      frame_input->source = &cpi->alt_ref_buffer;
+    }
+    if (get_frame_update_type(&cpi->gf_group) == ARF_UPDATE) {
+      cpi->show_existing_alt_ref = show_existing_alt_ref;
+    }
     aom_copy_metadata_to_frame_buffer(frame_input->source,
-                                      source_kf_buffer->metadata);
+                                      source_buffer->metadata);
   }
 
-  if (!cpi->sf.tpl_sf.disable_filtered_key_tpl) {
-    if (frame_params->frame_type == KEY_FRAME &&
-        !is_stat_generation_stage(cpi) && oxcf->algo_cfg.enable_tpl_model &&
-        oxcf->gf_cfg.lag_in_frames > 0 && frame_params->show_frame) {
-      av1_tpl_setup_stats(cpi, 0, frame_params, frame_input);
+  // perform tpl after filtering
+  int allow_tpl = oxcf->gf_cfg.lag_in_frames > 0 &&
+                  !is_stat_generation_stage(cpi) &&
+                  oxcf->algo_cfg.enable_tpl_model;
+  if (frame_params->frame_type == KEY_FRAME) {
+    // Don't do tpl for fwd key frames
+    allow_tpl = allow_tpl && !cpi->sf.tpl_sf.disable_filtered_key_tpl &&
+                frame_params->show_frame;
+  } else {
+    // Do tpl after ARF is filtered, or if no ARF, at the second frame of GF
+    // group.
+    // TODO(bohanli): if no ARF, just do it at the first frame.
+    int which_frame_tpl = AOMMAX(cpi->gf_group.arf_index, 1);
+    allow_tpl = allow_tpl && (cpi->gf_group.index == which_frame_tpl);
+    if (allow_tpl) {
+      // Need to set the size for TPL for ARF
+      // TODO(bohanli): Why is this? what part of it is necessary?
+      av1_set_frame_size(cpi, cm->width, cm->height);
     }
+  }
+  if (allow_tpl) {
+    av1_tpl_setup_stats(cpi, 0, frame_params, frame_input);
   }
 
   if (av1_encode(cpi, dest, frame_input, frame_params, frame_results) !=
@@ -947,10 +943,9 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
 
   // Set frame_input source to true source for psnr calculation.
   if (apply_filtering && is_psnr_calc_enabled(cpi)) {
-    cpi->source =
-        av1_scale_if_required(cm, source_kf_buffer, &cpi->scaled_source,
-                              cm->features.interp_filter, 0, 0);
-    cpi->unscaled_source = source_kf_buffer;
+    cpi->source = av1_scale_if_required(cm, source_buffer, &cpi->scaled_source,
+                                        cm->features.interp_filter, 0, 0);
+    cpi->unscaled_source = source_buffer;
   }
 
   return AOM_CODEC_OK;
@@ -1099,18 +1094,13 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.show_existing_frame = 0;
   }
 
-  int code_arf = 0;
   struct lookahead_entry *source = NULL;
   struct lookahead_entry *last_source = NULL;
   if (frame_params.show_existing_frame) {
     source = av1_lookahead_pop(cpi->lookahead, flush, cpi->compressor_stage);
     frame_params.show_frame = 1;
   } else {
-    int show_existing_alt_ref = 0;
-    source = choose_frame_source(cpi, &code_arf, &flush, &last_source,
-                                 &frame_params, &show_existing_alt_ref);
-    if (gf_group->update_type[gf_group->index] == ARF_UPDATE)
-      cpi->show_existing_alt_ref = show_existing_alt_ref;
+    source = choose_frame_source(cpi, &flush, &last_source, &frame_params);
   }
 
   if (source == NULL) {  // If no source was found, we can't encode a frame.
@@ -1122,8 +1112,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #endif
     return -1;
   }
-
-  frame_input.source = code_arf ? &cpi->alt_ref_buffer : &source->img;
+  // Source may be changed if temporal filtered later.
+  frame_input.source = &source->img;
   frame_input.last_source = last_source != NULL ? &last_source->img : NULL;
   frame_input.ts_duration = source->ts_end - source->ts_start;
   // Save unfiltered source. It is used in av1_get_second_pass_params().
@@ -1275,29 +1265,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   if (!frame_params.show_existing_frame) {
     cm->quant_params.using_qmatrix = oxcf->q_cfg.using_qm;
-#if !CONFIG_REALTIME_ONLY
-    // Perform TPL when finished with arf filtering if arf is used.
-    // Otherwise perform it at the start of the gf group.
-    if (gf_cfg->lag_in_frames > 0 && !is_stat_generation_stage(cpi)) {
-      // Try performing tpl after arf is initialized.
-      int which_frame_tpl = cpi->gf_group.arf_index;
-      // TODO(any): If no arf in the GF group, we can do tpl at the first
-      // frame.
-      // TODO(bohanli): Unify it with tpl for kf.
-      if (which_frame_tpl < 0) {
-        which_frame_tpl = 1;
-      }
-      if (cpi->gf_group.index == which_frame_tpl &&
-          oxcf->algo_cfg.enable_tpl_model) {
-        av1_configure_buffer_updates(cpi, &frame_params.refresh_frame,
-                                     frame_update_type, 0);
-        av1_set_frame_size(cpi, cm->width, cm->height);
-        av1_tpl_setup_stats(cpi, 0, &frame_params, &frame_input);
-      }
-    }
-#endif
   }
-
 #if CONFIG_REALTIME_ONLY
   if (av1_encode(cpi, dest, &frame_input, &frame_params, &frame_results) !=
       AOM_CODEC_OK) {
