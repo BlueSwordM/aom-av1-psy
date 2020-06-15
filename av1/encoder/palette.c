@@ -219,7 +219,7 @@ static AOM_INLINE void palette_rd_y(
     uint8_t *best_palette_color_map, int64_t *best_rd, int64_t *best_model_rd,
     int *rate, int *rate_tokenonly, int64_t *distortion, int *skippable,
     int *beat_best_rd, PICK_MODE_CONTEXT *ctx, uint8_t *blk_skip,
-    uint8_t *tx_type_map, int *beat_best_pallette_rd) {
+    uint8_t *tx_type_map, int *beat_best_palette_rd) {
   optimize_palette_colors(color_cache, n_cache, n, 1, centroids);
   const int num_unique_colors = av1_remove_duplicates(centroids, n);
   if (num_unique_colors < PALETTE_MIN_SIZE) {
@@ -285,14 +285,23 @@ static AOM_INLINE void palette_rd_y(
     if (rate_tokenonly) *rate_tokenonly = tokenonly_rd_stats.rate;
     if (distortion) *distortion = tokenonly_rd_stats.dist;
     if (skippable) *skippable = tokenonly_rd_stats.skip_txfm;
-    if (beat_best_pallette_rd) *beat_best_pallette_rd = 1;
+    if (beat_best_palette_rd) *beat_best_palette_rd = 1;
   }
 }
 
-static AOM_INLINE int perform_top_color_coarse_palette_search(
+static AOM_INLINE int is_iter_over(int curr_idx, int end_idx, int step_size) {
+  assert(step_size != 0);
+  return (step_size > 0) ? curr_idx >= end_idx : curr_idx <= end_idx;
+}
+
+// Performs count-based palette search with number of colors in interval
+// [start_n, end_n) with step size step_size. If step_size < 0, then end_n can
+// be less than start_n. Saves the last numbers searched in last_n_searched and
+// returns the best number of colors found.
+static AOM_INLINE int perform_top_color_palette_search(
     const AV1_COMP *const cpi, MACROBLOCK *x, MB_MODE_INFO *mbmi,
-    BLOCK_SIZE bsize, int dc_mode_cost, const int *data,
-    const int *const top_colors, int start_n, int end_n, int step_size,
+    BLOCK_SIZE bsize, int dc_mode_cost, const int *data, int *top_colors,
+    int start_n, int end_n, int step_size, int *last_n_searched,
     uint16_t *color_cache, int n_cache, MB_MODE_INFO *best_mbmi,
     uint8_t *best_palette_color_map, int64_t *best_rd, int64_t *best_model_rd,
     int *rate, int *rate_tokenonly, int64_t *distortion, int *skippable,
@@ -300,109 +309,54 @@ static AOM_INLINE int perform_top_color_coarse_palette_search(
     uint8_t *tx_type_map) {
   int centroids[PALETTE_MAX_SIZE];
   int n = start_n;
-  int top_color_winner = end_n + 1;
-  while (1) {
-    int beat_best_pallette_rd = 0;
-    for (int i = 0; i < n; ++i) centroids[i] = top_colors[i];
+  int top_color_winner = end_n;
+  /* clang-format off */
+  assert(IMPLIES(step_size < 0, start_n > end_n));
+  /* clang-format on */
+  assert(IMPLIES(step_size > 0, start_n < end_n));
+  while (!is_iter_over(n, end_n, step_size)) {
+    int beat_best_palette_rd = 0;
+    memcpy(centroids, top_colors, n * sizeof(top_colors[0]));
     palette_rd_y(cpi, x, mbmi, bsize, dc_mode_cost, data, centroids, n,
                  color_cache, n_cache, best_mbmi, best_palette_color_map,
                  best_rd, best_model_rd, rate, rate_tokenonly, distortion,
                  skippable, beat_best_rd, ctx, best_blk_skip, tx_type_map,
-                 &beat_best_pallette_rd);
-    // Break if current palette colors is not winning
-    if (beat_best_pallette_rd) top_color_winner = n;
+                 &beat_best_palette_rd);
+    *last_n_searched = n;
+    if (beat_best_palette_rd) {
+      top_color_winner = n;
+    } else if (cpi->sf.intra_sf.prune_palette_search_level == 2) {
+      // At search level 2, we return immediately if we don't see an improvement
+      return top_color_winner;
+    }
     n += step_size;
-    if (n > end_n) break;
   }
   return top_color_winner;
 }
 
-static AOM_INLINE int perform_k_means_coarse_palette_search(
-    const AV1_COMP *const cpi, MACROBLOCK *x, MB_MODE_INFO *mbmi,
-    BLOCK_SIZE bsize, int dc_mode_cost, const int *data, int lb, int ub,
-    int start_n, int end_n, int step_size, uint16_t *color_cache, int n_cache,
-    MB_MODE_INFO *best_mbmi, uint8_t *best_palette_color_map, int64_t *best_rd,
-    int64_t *best_model_rd, int *rate, int *rate_tokenonly, int64_t *distortion,
-    int *skippable, int *beat_best_rd, PICK_MODE_CONTEXT *ctx,
-    uint8_t *best_blk_skip, uint8_t *tx_type_map, uint8_t *color_map,
-    int data_points) {
-  int centroids[PALETTE_MAX_SIZE];
-  const int max_itr = 50;
-  int n = start_n;
-  int k_means_winner = end_n + 1;
-  while (1) {
-    int beat_best_pallette_rd = 0;
-    for (int i = 0; i < n; ++i) {
-      centroids[i] = lb + (2 * i + 1) * (ub - lb) / n / 2;
-    }
-    av1_k_means(data, centroids, color_map, data_points, n, 1, max_itr);
-    palette_rd_y(cpi, x, mbmi, bsize, dc_mode_cost, data, centroids, n,
-                 color_cache, n_cache, best_mbmi, best_palette_color_map,
-                 best_rd, best_model_rd, rate, rate_tokenonly, distortion,
-                 skippable, beat_best_rd, ctx, best_blk_skip, tx_type_map,
-                 &beat_best_pallette_rd);
-    // Break if current palette colors is not winning
-    if (beat_best_pallette_rd) k_means_winner = n;
-    n += step_size;
-    if (n > end_n) break;
-  }
-  return k_means_winner;
-}
-
-// Perform palette search for top colors from minimum palette colors (/maximum)
-// with a step-size of 1 (/-1)
-static AOM_INLINE int perform_top_color_palette_search(
-    const AV1_COMP *const cpi, MACROBLOCK *x, MB_MODE_INFO *mbmi,
-    BLOCK_SIZE bsize, int dc_mode_cost, const int *data, int *top_colors,
-    int start_n, int end_n, int step_size, uint16_t *color_cache, int n_cache,
-    MB_MODE_INFO *best_mbmi, uint8_t *best_palette_color_map, int64_t *best_rd,
-    int64_t *best_model_rd, int *rate, int *rate_tokenonly, int64_t *distortion,
-    int *skippable, int *beat_best_rd, PICK_MODE_CONTEXT *ctx,
-    uint8_t *best_blk_skip, uint8_t *tx_type_map) {
-  int centroids[PALETTE_MAX_SIZE];
-  int n = start_n;
-  assert((step_size == -1) || (step_size == 1) || (step_size == 0) ||
-         (step_size == 2));
-  assert(IMPLIES(step_size == -1, start_n > end_n));
-  assert(IMPLIES(step_size == 1, start_n < end_n));
-  while (1) {
-    int beat_best_pallette_rd = 0;
-    for (int i = 0; i < n; ++i) centroids[i] = top_colors[i];
-    palette_rd_y(cpi, x, mbmi, bsize, dc_mode_cost, data, centroids, n,
-                 color_cache, n_cache, best_mbmi, best_palette_color_map,
-                 best_rd, best_model_rd, rate, rate_tokenonly, distortion,
-                 skippable, beat_best_rd, ctx, best_blk_skip, tx_type_map,
-                 &beat_best_pallette_rd);
-    // Break if current palette colors is not winning
-    if ((cpi->sf.intra_sf.prune_palette_search_level == 2) &&
-        !beat_best_pallette_rd)
-      return n;
-    n += step_size;
-    if (n == end_n) break;
-  }
-  return n;
-}
-// Perform k-means based palette search from minimum palette colors (/maximum)
-// with a step-size of 1 (/-1)
+// Performs k-means based palette search with number of colors in interval
+// [start_n, end_n) with step size step_size. If step_size < 0, then end_n can
+// be less than start_n. Saves the last numbers searched in last_n_searched and
+// returns the best number of colors found.
 static AOM_INLINE int perform_k_means_palette_search(
     const AV1_COMP *const cpi, MACROBLOCK *x, MB_MODE_INFO *mbmi,
     BLOCK_SIZE bsize, int dc_mode_cost, const int *data, int lb, int ub,
-    int start_n, int end_n, int step_size, uint16_t *color_cache, int n_cache,
-    MB_MODE_INFO *best_mbmi, uint8_t *best_palette_color_map, int64_t *best_rd,
-    int64_t *best_model_rd, int *rate, int *rate_tokenonly, int64_t *distortion,
-    int *skippable, int *beat_best_rd, PICK_MODE_CONTEXT *ctx,
-    uint8_t *best_blk_skip, uint8_t *tx_type_map, uint8_t *color_map,
-    int data_points) {
+    int start_n, int end_n, int step_size, int *last_n_searched,
+    uint16_t *color_cache, int n_cache, MB_MODE_INFO *best_mbmi,
+    uint8_t *best_palette_color_map, int64_t *best_rd, int64_t *best_model_rd,
+    int *rate, int *rate_tokenonly, int64_t *distortion, int *skippable,
+    int *beat_best_rd, PICK_MODE_CONTEXT *ctx, uint8_t *best_blk_skip,
+    uint8_t *tx_type_map, uint8_t *color_map, int data_points) {
   int centroids[PALETTE_MAX_SIZE];
   const int max_itr = 50;
   int n = start_n;
-  assert((step_size == -1) || (step_size == 1) || (step_size == 0) ||
-         (step_size == 2));
-  assert(IMPLIES(step_size == -1, start_n > end_n));
-  assert(IMPLIES(step_size == 1, start_n < end_n));
-  assert(start_n > 0);
-  while (1) {
-    int beat_best_pallette_rd = 0;
+  int top_color_winner = end_n;
+  /* clang-format off */
+  assert(IMPLIES(step_size < 0, start_n > end_n));
+  /* clang-format on */
+  assert(IMPLIES(step_size > 0, start_n < end_n));
+  while (!is_iter_over(n, end_n, step_size)) {
+    int beat_best_palette_rd = 0;
     for (int i = 0; i < n; ++i) {
       centroids[i] = lb + (2 * i + 1) * (ub - lb) / n / 2;
     }
@@ -411,30 +365,34 @@ static AOM_INLINE int perform_k_means_palette_search(
                  color_cache, n_cache, best_mbmi, best_palette_color_map,
                  best_rd, best_model_rd, rate, rate_tokenonly, distortion,
                  skippable, beat_best_rd, ctx, best_blk_skip, tx_type_map,
-                 &beat_best_pallette_rd);
-    // Break if current palette colors is not winning
-    if ((cpi->sf.intra_sf.prune_palette_search_level == 2) &&
-        !beat_best_pallette_rd)
-      return n;
+                 &beat_best_palette_rd);
+    *last_n_searched = n;
+    if (beat_best_palette_rd) {
+      top_color_winner = n;
+    } else if (cpi->sf.intra_sf.prune_palette_search_level == 2) {
+      // At search level 2, we return immediately if we don't see an improvement
+      return top_color_winner;
+    }
     n += step_size;
-    if (n == end_n) break;
   }
-  return n;
+  return top_color_winner;
 }
 
-#define START_N_STAGE2(x)                         \
-  ((x == PALETTE_MIN_SIZE) ? PALETTE_MIN_SIZE + 1 \
-                           : AOMMAX(x - 1, PALETTE_MIN_SIZE));
-#define END_N_STAGE2(x, end_n) \
-  ((x == end_n) ? x - 1 : AOMMIN(x + 1, PALETTE_MAX_SIZE));
+// Sets the parameters to search the current number of colors +- 1
+static AOM_INLINE void set_stage2_params(int *min_n, int *max_n, int *step_size,
+                                         int winner, int end_n) {
+  // Set min to winner - 1 unless we are already at the border, then we set it
+  // to winner + 1
+  *min_n = (winner == PALETTE_MIN_SIZE) ? (PALETTE_MIN_SIZE + 1)
+                                        : AOMMAX(winner - 1, PALETTE_MIN_SIZE);
+  // Set max to winner + 1 unless we are already at the border, then we set it
+  // to winner - 1
+  *max_n =
+      (winner == end_n) ? (winner - 1) : AOMMIN(winner + 1, PALETTE_MAX_SIZE);
 
-static AOM_INLINE void update_start_end_stage_2(int *start_n_stage2,
-                                                int *end_n_stage2,
-                                                int *step_size_stage2,
-                                                int winner, int end_n) {
-  *start_n_stage2 = START_N_STAGE2(winner);
-  *end_n_stage2 = END_N_STAGE2(winner, end_n);
-  *step_size_stage2 = *end_n_stage2 - *start_n_stage2;
+  // Set the step size to max_n - min_n so we only search those two values.
+  // If max_n == min_n, then set step_size to 1 to avoid infinite loop later.
+  *step_size = AOMMAX(1, *max_n - *min_n);
 }
 
 void av1_rd_pick_palette_intra_sby(
@@ -448,29 +406,8 @@ void av1_rd_pick_palette_intra_sby(
   assert(!is_inter_block(mbmi));
   assert(av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                            bsize));
-
-  // Start index and step size below are chosen to evaluate unique
-  // candidates in neighbor search, in case a winner candidate is found in
-  // coarse search. Example,
-  // 1) 8 colors (end_n = 8): 2,3,4,5,6,7,8. start_n is chosen as 2 and step
-  // size is chosen as 3. Therefore, coarse search will evaluate 2, 5 and 8.
-  // If winner is found at 5, then 4 and 6 are evaluated. Similarly, for 2
-  // (3) and 8 (7).
-  // 2) 7 colors (end_n = 7): 2,3,4,5,6,7. If start_n is chosen as 2 (same
-  // as for 8 colors) then step size should also be 2, to cover all
-  // candidates. Coarse search will evaluate 2, 4 and 6. If winner is either
-  // 2 or 4, 3 will be evaluated. Instead, if start_n=3 and step_size=3,
-  // coarse search will evaluate 3 and 6. For the winner, unique neighbors
-  // (3: 2,4 or 6: 5,7) would be evaluated.
-
-  // Start index for coarse palette search for dominant colors and k-means
-  static const uint8_t start_n_lookup_table[PALETTE_MAX_SIZE + 1] = { 0, 0, 0,
-                                                                      3, 3, 2,
-                                                                      3, 3, 2 };
-  // Step size for coarse palette search for dominant colors and k-means
-  static const uint8_t step_size_lookup_table[PALETTE_MAX_SIZE + 1] = {
-    0, 0, 0, 3, 3, 3, 3, 3, 3
-  };
+  assert(PALETTE_MAX_SIZE == 8);
+  assert(PALETTE_MIN_SIZE == 2);
 
   const int src_stride = x->plane[0].src.stride;
   const uint8_t *const src = x->plane[0].src.buf;
@@ -480,6 +417,8 @@ void av1_rd_pick_palette_intra_sby(
   const SequenceHeader *const seq_params = &cpi->common.seq_params;
   const int is_hbd = seq_params->use_highbitdepth;
   const int bit_depth = seq_params->bit_depth;
+  int unused;
+
   int count_buf[1 << 12];  // Maximum (1 << 12) color levels.
   int colors;
   if (is_hbd) {
@@ -544,76 +483,98 @@ void av1_rd_pick_palette_intra_sby(
       count_buf[top_colors[i]] = 0;
     }
 
-    // Try the dominant colors directly.
     // TODO(huisu@google.com): Try to avoid duplicate computation in cases
     // where the dominant colors and the k-means results are similar.
     if ((cpi->sf.intra_sf.prune_palette_search_level == 1) &&
         (colors > PALETTE_MIN_SIZE)) {
-      const int end_n = AOMMIN(colors, PALETTE_MAX_SIZE);
-      assert(PALETTE_MAX_SIZE == 8);
-      assert(PALETTE_MIN_SIZE == 2);
+      // Start index and step size below are chosen to evaluate unique
+      // candidates in neighbor search, in case a winner candidate is found in
+      // coarse search. Example,
+      // 1) 8 colors (end_n = 8): 2,3,4,5,6,7,8. start_n is chosen as 2 and step
+      // size is chosen as 3. Therefore, coarse search will evaluate 2, 5 and 8.
+      // If winner is found at 5, then 4 and 6 are evaluated. Similarly, for 2
+      // (3) and 8 (7).
+      // 2) 7 colors (end_n = 7): 2,3,4,5,6,7. If start_n is chosen as 2 (same
+      // as for 8 colors) then step size should also be 2, to cover all
+      // candidates. Coarse search will evaluate 2, 4 and 6. If winner is either
+      // 2 or 4, 3 will be evaluated. Instead, if start_n=3 and step_size=3,
+      // coarse search will evaluate 3 and 6. For the winner, unique neighbors
+      // (3: 2,4 or 6: 5,7) would be evaluated.
+
+      // Start index for coarse palette search for dominant colors and k-means
+      const uint8_t start_n_lookup_table[PALETTE_MAX_SIZE + 1] = { 0, 0, 0,
+                                                                   3, 3, 2,
+                                                                   3, 3, 2 };
+      // Step size for coarse palette search for dominant colors and k-means
+      const uint8_t step_size_lookup_table[PALETTE_MAX_SIZE + 1] = { 0, 0, 0,
+                                                                     3, 3, 3,
+                                                                     3, 3, 3 };
+
       // Choose the start index and step size for coarse search based on number
       // of colors
-      const int start_n = start_n_lookup_table[end_n];
-      const int step_size = step_size_lookup_table[end_n];
+      const int max_n = AOMMIN(colors, PALETTE_MAX_SIZE);
+      const int min_n = start_n_lookup_table[max_n];
+      const int step_size = step_size_lookup_table[max_n];
+      assert(min_n >= PALETTE_MIN_SIZE);
+
       // Perform top color coarse palette search to find the winner candidate
-      const int top_color_winner = perform_top_color_coarse_palette_search(
-          cpi, x, mbmi, bsize, dc_mode_cost, data, top_colors, start_n, end_n,
-          step_size, color_cache, n_cache, best_mbmi, best_palette_color_map,
-          best_rd, best_model_rd, rate, rate_tokenonly, distortion, skippable,
-          beat_best_rd, ctx, best_blk_skip, tx_type_map);
+      const int top_color_winner = perform_top_color_palette_search(
+          cpi, x, mbmi, bsize, dc_mode_cost, data, top_colors, min_n, max_n + 1,
+          step_size, &unused, color_cache, n_cache, best_mbmi,
+          best_palette_color_map, best_rd, best_model_rd, rate, rate_tokenonly,
+          distortion, skippable, beat_best_rd, ctx, best_blk_skip, tx_type_map);
       // Evaluate neighbors for the winner color (if winner is found) in the
       // above coarse search for dominant colors
-      if (top_color_winner <= end_n) {
-        int start_n_stage2, end_n_stage2, step_size_stage2;
-        update_start_end_stage_2(&start_n_stage2, &end_n_stage2,
-                                 &step_size_stage2, top_color_winner, end_n);
+      if (top_color_winner <= max_n) {
+        int stage2_min_n, stage2_max_n, stage2_step_size;
+        set_stage2_params(&stage2_min_n, &stage2_max_n, &stage2_step_size,
+                          top_color_winner, max_n);
         // perform finer search for the winner candidate
         perform_top_color_palette_search(
-            cpi, x, mbmi, bsize, dc_mode_cost, data, top_colors, start_n_stage2,
-            end_n_stage2 + step_size_stage2, step_size_stage2, color_cache,
-            n_cache, best_mbmi, best_palette_color_map, best_rd, best_model_rd,
-            rate, rate_tokenonly, distortion, skippable, beat_best_rd, ctx,
+            cpi, x, mbmi, bsize, dc_mode_cost, data, top_colors, stage2_min_n,
+            stage2_max_n + 1, stage2_step_size, &unused, color_cache, n_cache,
+            best_mbmi, best_palette_color_map, best_rd, best_model_rd, rate,
+            rate_tokenonly, distortion, skippable, beat_best_rd, ctx,
             best_blk_skip, tx_type_map);
       }
       // K-means clustering.
       // Perform k-means coarse palette search to find the winner candidate
-      const int k_means_winner = perform_k_means_coarse_palette_search(
-          cpi, x, mbmi, bsize, dc_mode_cost, data, lb, ub, start_n, end_n,
-          step_size, color_cache, n_cache, best_mbmi, best_palette_color_map,
-          best_rd, best_model_rd, rate, rate_tokenonly, distortion, skippable,
-          beat_best_rd, ctx, best_blk_skip, tx_type_map, color_map,
-          rows * cols);
+      const int k_means_winner = perform_k_means_palette_search(
+          cpi, x, mbmi, bsize, dc_mode_cost, data, lb, ub, min_n, max_n + 1,
+          step_size, &unused, color_cache, n_cache, best_mbmi,
+          best_palette_color_map, best_rd, best_model_rd, rate, rate_tokenonly,
+          distortion, skippable, beat_best_rd, ctx, best_blk_skip, tx_type_map,
+          color_map, rows * cols);
       // Evaluate neighbors for the winner color (if winner is found) in the
       // above coarse search for k-means
-      if (k_means_winner <= end_n) {
+      if (k_means_winner <= max_n) {
         int start_n_stage2, end_n_stage2, step_size_stage2;
-        update_start_end_stage_2(&start_n_stage2, &end_n_stage2,
-                                 &step_size_stage2, k_means_winner, end_n);
+        set_stage2_params(&start_n_stage2, &end_n_stage2, &step_size_stage2,
+                          k_means_winner, max_n);
         // perform finer search for the winner candidate
         perform_k_means_palette_search(
             cpi, x, mbmi, bsize, dc_mode_cost, data, lb, ub, start_n_stage2,
-            end_n_stage2 + step_size_stage2, step_size_stage2, color_cache,
-            n_cache, best_mbmi, best_palette_color_map, best_rd, best_model_rd,
-            rate, rate_tokenonly, distortion, skippable, beat_best_rd, ctx,
+            end_n_stage2 + 1, step_size_stage2, &unused, color_cache, n_cache,
+            best_mbmi, best_palette_color_map, best_rd, best_model_rd, rate,
+            rate_tokenonly, distortion, skippable, beat_best_rd, ctx,
             best_blk_skip, tx_type_map, color_map, rows * cols);
       }
     } else {
-      const int start_n = AOMMIN(colors, PALETTE_MAX_SIZE),
-                end_n = PALETTE_MIN_SIZE;
-      // Perform top color palette search from start_n
-      const int top_color_winner = perform_top_color_palette_search(
-          cpi, x, mbmi, bsize, dc_mode_cost, data, top_colors, start_n,
-          end_n - 1, -1, color_cache, n_cache, best_mbmi,
+      const int max_n = AOMMIN(colors, PALETTE_MAX_SIZE),
+                min_n = PALETTE_MIN_SIZE;
+      // Perform top color palette search in descending order
+      int last_n_searched = max_n;
+      perform_top_color_palette_search(
+          cpi, x, mbmi, bsize, dc_mode_cost, data, top_colors, max_n, min_n - 1,
+          -1, &last_n_searched, color_cache, n_cache, best_mbmi,
           best_palette_color_map, best_rd, best_model_rd, rate, rate_tokenonly,
           distortion, skippable, beat_best_rd, ctx, best_blk_skip, tx_type_map);
 
-      if (top_color_winner > end_n) {
-        // Perform top color palette search in reverse order for the remaining
-        // colors
+      if (last_n_searched > min_n) {
+        // Search in ascending order until we get to the previous best
         perform_top_color_palette_search(
-            cpi, x, mbmi, bsize, dc_mode_cost, data, top_colors, end_n,
-            top_color_winner, 1, color_cache, n_cache, best_mbmi,
+            cpi, x, mbmi, bsize, dc_mode_cost, data, top_colors, min_n,
+            last_n_searched, 1, &unused, color_cache, n_cache, best_mbmi,
             best_palette_color_map, best_rd, best_model_rd, rate,
             rate_tokenonly, distortion, skippable, beat_best_rd, ctx,
             best_blk_skip, tx_type_map);
@@ -630,19 +591,19 @@ void av1_rd_pick_palette_intra_sby(
                      skippable, beat_best_rd, ctx, best_blk_skip, tx_type_map,
                      NULL);
       } else {
-        // Perform k-means palette search from start_n
-        const int k_means_winner = perform_k_means_palette_search(
-            cpi, x, mbmi, bsize, dc_mode_cost, data, lb, ub, start_n, end_n - 1,
-            -1, color_cache, n_cache, best_mbmi, best_palette_color_map,
-            best_rd, best_model_rd, rate, rate_tokenonly, distortion, skippable,
-            beat_best_rd, ctx, best_blk_skip, tx_type_map, color_map,
-            rows * cols);
-        if (k_means_winner > end_n) {
-          // Perform k-means palette search in reverse order for the remaining
-          // colors
+        // Perform k-means palette search in descending order
+        last_n_searched = max_n;
+        perform_k_means_palette_search(
+            cpi, x, mbmi, bsize, dc_mode_cost, data, lb, ub, max_n, min_n - 1,
+            -1, &last_n_searched, color_cache, n_cache, best_mbmi,
+            best_palette_color_map, best_rd, best_model_rd, rate,
+            rate_tokenonly, distortion, skippable, beat_best_rd, ctx,
+            best_blk_skip, tx_type_map, color_map, rows * cols);
+        if (last_n_searched > min_n) {
+          // Search in ascending order until we get to the previous best
           perform_k_means_palette_search(
-              cpi, x, mbmi, bsize, dc_mode_cost, data, lb, ub, end_n,
-              k_means_winner, 1, color_cache, n_cache, best_mbmi,
+              cpi, x, mbmi, bsize, dc_mode_cost, data, lb, ub, min_n,
+              last_n_searched, 1, &unused, color_cache, n_cache, best_mbmi,
               best_palette_color_map, best_rd, best_model_rd, rate,
               rate_tokenonly, distortion, skippable, beat_best_rd, ctx,
               best_blk_skip, tx_type_map, color_map, rows * cols);
