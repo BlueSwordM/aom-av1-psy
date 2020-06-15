@@ -6409,7 +6409,7 @@ static AOM_INLINE void encode_superblock(const AV1_COMP *const cpi,
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
                                   start_plane, av1_num_planes(cm) - 1);
     if (mbmi->motion_mode == OBMC_CAUSAL) {
-      assert(cpi->oxcf.enable_obmc == 1);
+      assert(cpi->oxcf.motion_mode_cfg.enable_obmc);
       av1_build_obmc_inter_predictors_sb(cm, xd);
     }
 

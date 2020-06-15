@@ -806,7 +806,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->enable_restoration =
       (cfg->g_usage == AOM_USAGE_REALTIME) ? 0 : extra_cfg->enable_restoration;
   oxcf->force_video_mode = extra_cfg->force_video_mode;
-  oxcf->enable_obmc = extra_cfg->enable_obmc;
   oxcf->enable_overlay = extra_cfg->enable_overlay;
   oxcf->enable_palette = extra_cfg->enable_palette;
   oxcf->disable_trellis_quant = extra_cfg->disable_trellis_quant;
@@ -947,10 +946,13 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       extra_cfg->enable_ref_frame_mvs & extra_cfg->enable_order_hint;
 
   oxcf->enable_global_motion = extra_cfg->enable_global_motion;
-  oxcf->enable_warped_motion = extra_cfg->enable_warped_motion;
-  oxcf->allow_warped_motion =
+
+  // Set motion mode related configuration.
+  oxcf->motion_mode_cfg.enable_obmc = extra_cfg->enable_obmc;
+  oxcf->motion_mode_cfg.enable_warped_motion = extra_cfg->enable_warped_motion;
+  oxcf->motion_mode_cfg.allow_warped_motion =
       (cfg->g_usage == AOM_USAGE_REALTIME)
-          ? 0
+          ? false
           : (extra_cfg->allow_warped_motion & extra_cfg->enable_warped_motion);
 
   // Set partition related configuration.

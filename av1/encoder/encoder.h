@@ -551,6 +551,15 @@ typedef struct {
   int render_height;
 } FrameDimensionCfg;
 
+typedef struct {
+  // Indicates if warped motion should be enabled.
+  bool enable_warped_motion;
+  // Indicates if warped motion should be evaluated or not.
+  bool allow_warped_motion;
+  // Indicates if OBMC motion should be enabled.
+  bool enable_obmc;
+} MotionModeCfg;
+
 typedef struct AV1EncoderConfig {
   BITSTREAM_PROFILE profile;
   aom_bit_depth_t bit_depth;     // Codec bit-depth.
@@ -607,7 +616,6 @@ typedef struct AV1EncoderConfig {
   int enable_cdef;
   int enable_restoration;
   int force_video_mode;
-  int enable_obmc;
   int disable_trellis_quant;
   int using_qm;
   int qm_y;
@@ -698,11 +706,12 @@ typedef struct AV1EncoderConfig {
   int enable_onesided_comp;
   int enable_interintra_comp;
   int enable_global_motion;
-  int enable_warped_motion;
-  int allow_warped_motion;
   int enable_overlay;
   int enable_palette;
   unsigned int save_as_annexb;
+
+  // Flags related to motion mode.
+  MotionModeCfg motion_mode_cfg;
 
   // Flags related to intra mode search.
   IntraModeCfg intra_mode_cfg;

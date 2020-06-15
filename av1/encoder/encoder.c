@@ -725,7 +725,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_superres = oxcf->superres_cfg.enable_superres;
   seq->enable_cdef = oxcf->enable_cdef;
   seq->enable_restoration = oxcf->enable_restoration;
-  seq->enable_warped_motion = oxcf->enable_warped_motion;
+  seq->enable_warped_motion = oxcf->motion_mode_cfg.enable_warped_motion;
   seq->enable_interintra_compound = oxcf->enable_interintra_comp;
   seq->enable_masked_compound = oxcf->comp_type_cfg.enable_masked_comp;
   seq->enable_intra_edge_filter = oxcf->intra_mode_cfg.enable_intra_edge_filter;
@@ -3795,8 +3795,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   // is separated from frame_might_allow_ref_frame_mvs().
   features->allow_ref_frame_mvs &= !cm->tiles.large_scale;
 
-  features->allow_warped_motion =
-      oxcf->allow_warped_motion && frame_might_allow_warped_motion(cm);
+  features->allow_warped_motion = oxcf->motion_mode_cfg.allow_warped_motion &&
+                                  frame_might_allow_warped_motion(cm);
 
   cpi->last_frame_type = current_frame->frame_type;
 
