@@ -2064,15 +2064,37 @@ static int ref_mv_idx_to_search(AV1_COMP *const cpi, MACROBLOCK *x,
   return result;
 }
 
-/*!\cond */
+/*!\brief Motion mode information for inter mode search speedup.
+ *
+ * Used in a speed feature to search motion modes other than
+ * SIMPLE_TRANSLATION only on winning candidates.
+ */
 typedef struct motion_mode_candidate {
+  /*!
+   * Mode info for the motion mode candidate.
+   */
   MB_MODE_INFO mbmi;
+  /*!
+   * Rate describing the cost of the motion vectors for this candidate.
+   */
   int rate_mv;
+  /*!
+   * Rate before motion mode search and transform coding is applied.
+   */
   int rate2_nocoeff;
+  /*!
+   * An integer value 0 or 1 which indicates whether or not to skip the motion
+   * mode search and default to SIMPLE_TRANSLATION as a speed feature for this
+   * candidate.
+   */
   int skip_motion_mode;
+  /*!
+   * Total RD cost for this candidate.
+   */
   int64_t rd_cost;
 } motion_mode_candidate;
 
+/*!\cond */
 typedef struct motion_mode_best_st_candidate {
   motion_mode_candidate motion_mode_cand[MAX_WINNER_MOTION_MODES];
   int num_motion_mode_cand;
