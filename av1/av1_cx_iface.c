@@ -418,14 +418,6 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, rc_superres_kf_qthresh, 1, 63);
   RANGE_CHECK_HI(extra_cfg, cdf_update_mode, 2);
 
-  // AV1 does not support a lower bound on the keyframe interval in
-  // automatic keyframe placement mode.
-  if (cfg->kf_mode != AOM_KF_DISABLED && cfg->kf_min_dist != cfg->kf_max_dist &&
-      cfg->kf_min_dist > 0)
-    ERROR(
-        "kf_min_dist not supported in auto mode, use 0 "
-        "or kf_max_dist instead.");
-
   RANGE_CHECK_HI(extra_cfg, motion_vector_unit_test, 2);
   RANGE_CHECK_HI(extra_cfg, sb_multipass_unit_test, 1);
   RANGE_CHECK_HI(extra_cfg, ext_tile_debug, 1);
@@ -854,7 +846,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   kf_cfg->fwd_kf_enabled = cfg->fwd_kf_enabled;
   kf_cfg->auto_key =
       cfg->kf_mode == AOM_KF_AUTO && cfg->kf_min_dist != cfg->kf_max_dist;
-  kf_cfg->key_freq = cfg->kf_max_dist;
+  kf_cfg->key_freq_min = cfg->kf_min_dist;
+  kf_cfg->key_freq_max = cfg->kf_max_dist;
   kf_cfg->sframe_dist = cfg->sframe_dist;
   kf_cfg->sframe_mode = cfg->sframe_mode;
   kf_cfg->enable_sframe = extra_cfg->s_frame_mode;
@@ -1983,7 +1976,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
         *num_lap_buffers = priv->cfg.g_lag_in_frames;
         *num_lap_buffers =
             clamp(*num_lap_buffers, 1,
-                  AOMMIN(MAX_LAP_BUFFERS, priv->oxcf.kf_cfg.key_freq +
+                  AOMMIN(MAX_LAP_BUFFERS, priv->oxcf.kf_cfg.key_freq_max +
                                               SCENE_CUT_KEY_TEST_INTERVAL));
         if ((int)priv->cfg.g_lag_in_frames - (*num_lap_buffers) >=
             LAP_LAG_IN_FRAMES) {

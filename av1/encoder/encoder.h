@@ -467,8 +467,10 @@ typedef struct {
 /*!\cond */
 
 typedef struct {
+  // Indicates the minimum distance to a key frame.
+  int key_freq_min;
   // Indicates the maximum distance to a key frame.
-  int key_freq;
+  int key_freq_max;
   // Indicates if temporal filtering should be applied on keyframe.
   int enable_keyframe_filtering;
   // Indicates the number of frames after which a frame may be coded as an

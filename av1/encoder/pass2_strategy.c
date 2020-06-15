@@ -2062,7 +2062,8 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
       double loop_decay_rate;
 
       // Check for a scene cut.
-      if (test_candidate_kf(twopass, &last_frame, this_frame, twopass->stats_in,
+      if (frames_since_key >= kf_cfg->key_freq_min &&
+          test_candidate_kf(twopass, &last_frame, this_frame, twopass->stats_in,
                             frames_since_key, oxcf->rc_mode,
                             cpi->rc.enable_scenecut_detection)) {
         scenecut_detected = 1;
@@ -2083,8 +2084,9 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
 
       // Special check for transition or high motion followed by a
       // static scene.
-      if (detect_transition_to_still(twopass, rc->min_gf_interval, i,
-                                     kf_cfg->key_freq - i, loop_decay_rate,
+      if (frames_since_key >= kf_cfg->key_freq_min &&
+          detect_transition_to_still(twopass, rc->min_gf_interval, i,
+                                     kf_cfg->key_freq_max - i, loop_decay_rate,
                                      decay_accumulator)) {
         scenecut_detected = 1;
         // In the case of transition followed by a static scene, the key frame
@@ -2099,8 +2101,8 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
       ++frames_since_key;
 
       // If we don't have a real key frame within the next two
-      // key_freq intervals then break out of the loop.
-      if (frames_to_key >= 2 * kf_cfg->key_freq) break;
+      // key_freq_max intervals then break out of the loop.
+      if (frames_to_key >= 2 * kf_cfg->key_freq_max) break;
     } else {
       ++frames_to_key;
       ++frames_since_key;
@@ -2300,7 +2302,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     if (num_frames_to_app_forced_key != -1)
       rc->frames_to_key = num_frames_to_app_forced_key;
     else
-      rc->frames_to_key = AOMMAX(1, kf_cfg->key_freq);
+      rc->frames_to_key = AOMMAX(1, kf_cfg->key_freq_max);
     correct_frames_to_key(cpi);
     rc->kf_boost = DEFAULT_KF_BOOST;
     rc->source_alt_ref_active = 0;
@@ -2328,12 +2330,12 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   kf_mod_err = calculate_modified_err(frame_info, twopass, oxcf, this_frame);
 
   frames_to_key =
-      define_kf_interval(cpi, this_frame, &kf_group_err, kf_cfg->key_freq);
+      define_kf_interval(cpi, this_frame, &kf_group_err, kf_cfg->key_freq_max);
 
   if (frames_to_key != -1)
-    rc->frames_to_key = AOMMIN(kf_cfg->key_freq, frames_to_key);
+    rc->frames_to_key = AOMMIN(kf_cfg->key_freq_max, frames_to_key);
   else
-    rc->frames_to_key = kf_cfg->key_freq;
+    rc->frames_to_key = kf_cfg->key_freq_max;
 
   if (cpi->lap_enabled) correct_frames_to_key(cpi);
 
@@ -2341,7 +2343,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   // We already breakout of the loop above at 2x max.
   // This code centers the extra kf if the actual natural interval
   // is between 1x and 2x.
-  if (kf_cfg->auto_key && rc->frames_to_key > kf_cfg->key_freq) {
+  if (kf_cfg->auto_key && rc->frames_to_key > kf_cfg->key_freq_max) {
     FIRSTPASS_STATS tmp_frame = first_frame;
 
     rc->frames_to_key /= 2;
@@ -2360,7 +2362,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     rc->next_key_frame_forced = 1;
   } else if ((twopass->stats_in == twopass->stats_buf_ctx->stats_in_end &&
               is_stat_consumption_stage_twopass(cpi)) ||
-             rc->frames_to_key >= kf_cfg->key_freq) {
+             rc->frames_to_key >= kf_cfg->key_freq_max) {
     rc->next_key_frame_forced = 1;
   } else {
     rc->next_key_frame_forced = 0;
