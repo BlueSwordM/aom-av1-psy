@@ -413,6 +413,18 @@ static INLINE __m256i convolve_lowbd_x(const __m256i data,
   return convolve_lowbd(s, coeffs);
 }
 
+static INLINE __m256i convolve_lowbd_x_6tap(const __m256i data,
+                                            const __m256i *const coeffs,
+                                            const __m256i *const filt) {
+  __m256i s[4];
+
+  s[0] = _mm256_shuffle_epi8(data, filt[0]);
+  s[1] = _mm256_shuffle_epi8(data, filt[1]);
+  s[2] = _mm256_shuffle_epi8(data, filt[2]);
+
+  return convolve_lowbd_6tap(s, coeffs);
+}
+
 static INLINE __m256i convolve_lowbd_x_4tap(const __m256i data,
                                             const __m256i *const coeffs,
                                             const __m256i *const filt) {
