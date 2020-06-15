@@ -2221,12 +2221,21 @@ static AOM_INLINE int find_ref_match_in_left_nbs(const int total_mi_rows,
   }
   return 0;
 }
+/*!\endcond */
 
+/*! \brief Struct used to hold TPL data to
+ * narrow down parts of the inter mode search.
+ */
 typedef struct {
+  /*!
+   * The best inter cost out of all of the reference frames.
+   */
   int64_t best_inter_cost;
+  /*!
+   * The inter cost for each reference frame.
+   */
   int64_t ref_inter_cost[INTER_REFS_PER_FRAME];
 } PruneInfoFromTpl;
-/*!\endcond */
 
 #if !CONFIG_REALTIME_ONLY
 // TODO(Remya): Check if get_tpl_stats_b() can be reused
