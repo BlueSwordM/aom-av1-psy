@@ -1103,19 +1103,6 @@ typedef struct macroblock {
    */
   int recalc_luma_mc_data;
 
-  /*! \brief Likelihood of an edge existing in the current coding block.
-   *
-   * The likelihood of an edge existing in the block (using partial Canny edge
-   * detection). For reference, 556 is the value returned for a solid
-   * vertical black/white edge.
-   * The edge strengths are used in wedge_search.
-   */
-  uint16_t edge_strength;
-  //! The strongest edge strength seen along the x axis.
-  uint16_t edge_strength_x;
-  //! The strongest edge strength seen along the y axis.
-  uint16_t edge_strength_y;
-
   /*! \brief Data structure to speed up intrabc search.
    *
    * Contains the hash table, hash function, and buffer used for intrabc.

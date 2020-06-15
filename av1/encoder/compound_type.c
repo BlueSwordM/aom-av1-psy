@@ -100,9 +100,7 @@ static INLINE bool enable_wedge_search(MACROBLOCK *const x,
                                        const AV1_COMP *const cpi) {
   // Enable wedge search if source variance and edge strength are above
   // the thresholds.
-  return x->source_variance >
-             cpi->sf.inter_sf.disable_wedge_search_var_thresh &&
-         x->edge_strength > cpi->sf.inter_sf.disable_wedge_search_edge_thresh;
+  return x->source_variance > cpi->sf.inter_sf.disable_wedge_search_var_thresh;
 }
 
 static INLINE bool enable_wedge_interinter_search(MACROBLOCK *const x,

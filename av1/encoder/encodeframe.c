@@ -688,20 +688,6 @@ void av1_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
   }
 }
 
-static EdgeInfo edge_info(const struct buf_2d *ref, const BLOCK_SIZE bsize,
-                          const bool high_bd, const int bd) {
-  const int width = block_size_wide[bsize];
-  const int height = block_size_high[bsize];
-  // Implementation requires width to be a multiple of 8. It also requires
-  // height to be a multiple of 4, but this is always the case.
-  assert(height % 4 == 0);
-  if (width % 8 != 0) {
-    EdgeInfo ei = { .magnitude = 0, .x = 0, .y = 0 };
-    return ei;
-  }
-  return av1_edge_exists(ref->buf, ref->stride, width, height, high_bd, bd);
-}
-
 static int use_pb_simple_motion_pred_sse(const AV1_COMP *const cpi) {
   // TODO(debargha, yuec): Not in use, need to implement a speed feature
   // utilizing this data point, and replace '0' by the corresponding speed
@@ -804,20 +790,6 @@ static AOM_INLINE void pick_sb_modes(AV1_COMP *const cpi,
     unsigned int var = 0;
     av1_simple_motion_sse_var(cpi, x, mi_row, mi_col, bsize, start_mv, 0,
                               &x->simple_motion_pred_sse, &var);
-  }
-
-  // If the threshold for disabling wedge search is zero, it means the feature
-  // should not be used. Use a value that will always succeed in the check.
-  if (cpi->sf.inter_sf.disable_wedge_search_edge_thresh == 0) {
-    x->edge_strength = UINT16_MAX;
-    x->edge_strength_x = UINT16_MAX;
-    x->edge_strength_y = UINT16_MAX;
-  } else {
-    EdgeInfo ei =
-        edge_info(&x->plane[0].src, bsize, is_cur_buf_hbd(xd), xd->bd);
-    x->edge_strength = ei.magnitude;
-    x->edge_strength_x = ei.x;
-    x->edge_strength_y = ei.y;
   }
 
   // Initialize default mode evaluation params
