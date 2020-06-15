@@ -1786,40 +1786,42 @@ static void show_stream_config(struct stream_state *stream,
 #define SHOW_PARAMS(field)                    \
   fprintf(stderr, "    %-28s = %d\n", #field, \
           stream->config.cfg.encoder_cfg.field)
-  SHOW_PARAMS(super_block_size);
-  SHOW_PARAMS(max_partition_size);
-  SHOW_PARAMS(min_partition_size);
-  SHOW_PARAMS(disable_ab_partition_type);
-  SHOW_PARAMS(disable_rect_partition_type);
-  SHOW_PARAMS(disable_1to4_partition_type);
-  SHOW_PARAMS(disable_flip_idtx);
-  SHOW_PARAMS(disable_cdef);
-  SHOW_PARAMS(disable_lr);
-  SHOW_PARAMS(disable_obmc);
-  SHOW_PARAMS(disable_warp_motion);
-  SHOW_PARAMS(disable_global_motion);
-  SHOW_PARAMS(disable_dist_wtd_comp);
-  SHOW_PARAMS(disable_diff_wtd_comp);
-  SHOW_PARAMS(disable_inter_intra_comp);
-  SHOW_PARAMS(disable_masked_comp);
-  SHOW_PARAMS(disable_one_sided_comp);
-  SHOW_PARAMS(disable_palette);
-  SHOW_PARAMS(disable_intrabc);
-  SHOW_PARAMS(disable_cfl);
-  SHOW_PARAMS(disable_smooth_intra);
-  SHOW_PARAMS(disable_filter_intra);
-  SHOW_PARAMS(disable_dual_filter);
-  SHOW_PARAMS(disable_intra_angle_delta);
-  SHOW_PARAMS(disable_intra_edge_filter);
-  SHOW_PARAMS(disable_tx_64x64);
-  SHOW_PARAMS(disable_smooth_inter_intra);
-  SHOW_PARAMS(disable_inter_inter_wedge);
-  SHOW_PARAMS(disable_inter_intra_wedge);
-  SHOW_PARAMS(disable_paeth_intra);
-  SHOW_PARAMS(disable_trellis_quant);
-  SHOW_PARAMS(disable_ref_frame_mv);
-  SHOW_PARAMS(reduced_reference_set);
-  SHOW_PARAMS(reduced_tx_type_set);
+  if (global->encoder_config.init_by_cfg_file) {
+    SHOW_PARAMS(super_block_size);
+    SHOW_PARAMS(max_partition_size);
+    SHOW_PARAMS(min_partition_size);
+    SHOW_PARAMS(disable_ab_partition_type);
+    SHOW_PARAMS(disable_rect_partition_type);
+    SHOW_PARAMS(disable_1to4_partition_type);
+    SHOW_PARAMS(disable_flip_idtx);
+    SHOW_PARAMS(disable_cdef);
+    SHOW_PARAMS(disable_lr);
+    SHOW_PARAMS(disable_obmc);
+    SHOW_PARAMS(disable_warp_motion);
+    SHOW_PARAMS(disable_global_motion);
+    SHOW_PARAMS(disable_dist_wtd_comp);
+    SHOW_PARAMS(disable_diff_wtd_comp);
+    SHOW_PARAMS(disable_inter_intra_comp);
+    SHOW_PARAMS(disable_masked_comp);
+    SHOW_PARAMS(disable_one_sided_comp);
+    SHOW_PARAMS(disable_palette);
+    SHOW_PARAMS(disable_intrabc);
+    SHOW_PARAMS(disable_cfl);
+    SHOW_PARAMS(disable_smooth_intra);
+    SHOW_PARAMS(disable_filter_intra);
+    SHOW_PARAMS(disable_dual_filter);
+    SHOW_PARAMS(disable_intra_angle_delta);
+    SHOW_PARAMS(disable_intra_edge_filter);
+    SHOW_PARAMS(disable_tx_64x64);
+    SHOW_PARAMS(disable_smooth_inter_intra);
+    SHOW_PARAMS(disable_inter_inter_wedge);
+    SHOW_PARAMS(disable_inter_intra_wedge);
+    SHOW_PARAMS(disable_paeth_intra);
+    SHOW_PARAMS(disable_trellis_quant);
+    SHOW_PARAMS(disable_ref_frame_mv);
+    SHOW_PARAMS(reduced_reference_set);
+    SHOW_PARAMS(reduced_tx_type_set);
+  }
 }
 
 static void open_output_file(struct stream_state *stream,
