@@ -675,6 +675,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 0: No reuse
   // 1: Reuse the compound type decision
   int reuse_compound_type_decision;
+
+  // Enable/disable masked compound.
+  int disable_masked_comp;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
