@@ -2716,7 +2716,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       calculate_gf_length(cpi, max_gop_length, MAX_NUM_GF_INTERVALS);
     }
 
-    if (max_gop_length > 16) {
+    if (max_gop_length > 16 && oxcf->enable_tpl_model) {
       if (rc->gf_intervals[rc->cur_gf_index] - 1 > 16) {
         // The calculate_gf_length function is previously used with
         // max_gop_length = 32 with look-ahead gf intervals.
