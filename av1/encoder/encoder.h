@@ -912,18 +912,54 @@ typedef struct {
 #define MAX_INTER_MODES 1024
 // TODO(any): rename this struct to something else. There is already another
 // struct called inter_mode_info, which makes this terribly confusing.
+/*!\endcond */
+/*!
+ * \brief Struct used to hold inter mode data for fast tx search.
+ *
+ * This struct is used to perform a full transform search only on winning
+ * candidates searched with an estimate for transform coding RD.
+ */
 typedef struct inter_modes_info {
+  /*!
+   * The number of inter modes for which data was stored in each of the
+   * following arrays.
+   */
   int num;
+  /*!
+   * Mode info struct for each of the candidate modes.
+   */
   MB_MODE_INFO mbmi_arr[MAX_INTER_MODES];
+  /*!
+   * The rate for each of the candidate modes.
+   */
   int mode_rate_arr[MAX_INTER_MODES];
+  /*!
+   * The sse of the predictor for each of the candidate modes.
+   */
   int64_t sse_arr[MAX_INTER_MODES];
+  /*!
+   * The estimated rd of the predictor for each of the candidate modes.
+   */
   int64_t est_rd_arr[MAX_INTER_MODES];
+  /*!
+   * The rate and mode index for each of the candidate modes.
+   */
   RdIdxPair rd_idx_pair_arr[MAX_INTER_MODES];
+  /*!
+   * The full rd stats for each of the candidate modes.
+   */
   RD_STATS rd_cost_arr[MAX_INTER_MODES];
+  /*!
+   * The full rd stats of luma only for each of the candidate modes.
+   */
   RD_STATS rd_cost_y_arr[MAX_INTER_MODES];
+  /*!
+   * The full rd stats of chroma only for each of the candidate modes.
+   */
   RD_STATS rd_cost_uv_arr[MAX_INTER_MODES];
 } InterModesInfo;
 
+/*!\cond */
 typedef struct {
   // TODO(kyslov): consider changing to 64bit
 
