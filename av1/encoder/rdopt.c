@@ -3698,13 +3698,6 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
     }
   }
 
-  if (sf->inter_sf.adaptive_mode_search) {
-    if (cm->show_frame && !cpi->rc.is_src_frame_alt_ref &&
-        cpi->rc.frames_since_golden >= 3)
-      if ((x->pred_mv_sad[GOLDEN_FRAME] >> 1) > x->pred_mv_sad[LAST_FRAME])
-        mask->pred_modes[GOLDEN_FRAME] |= INTER_ALL;
-  }
-
   if (bsize > sf->part_sf.max_intra_bsize) {
     disable_reference(INTRA_FRAME, mask->ref_combo);
   }
@@ -4673,10 +4666,6 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
     if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
         mbmi->mode == PAETH_PRED)
       return 1;
-    if (sf->inter_sf.adaptive_mode_search > 1)
-      if ((x->source_variance << num_pels_log2_lookup[bsize]) >
-          args->search_state->best_pred_sse)
-        return 1;
 
     // Intra modes will be handled in another loop later.
     assert(*args->intra_mode_num < INTRA_MODES);
@@ -5521,9 +5510,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
     best_filter = interp_filter;
   } else {
     best_filter = EIGHTTAP_REGULAR;
-    if (av1_is_interp_needed(xd) &&
-        x->source_variance >=
-            cpi->sf.interp_sf.disable_filter_search_var_thresh) {
+    if (av1_is_interp_needed(xd)) {
       int rs;
       int best_rs = INT_MAX;
       for (i = 0; i < SWITCHABLE_FILTERS; ++i) {

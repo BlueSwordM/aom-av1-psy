@@ -1685,10 +1685,9 @@ static void estimate_intra_mode(
   mi->tx_size = best_pickmode->best_tx_size;
 }
 
-static AOM_INLINE int is_filter_search_enabled(AV1_COMP *cpi, MACROBLOCK *x,
-                                               int mi_row, int mi_col,
-                                               BLOCK_SIZE bsize) {
-  AV1_COMMON *const cm = &cpi->common;
+static AOM_INLINE int is_filter_search_enabled(const AV1_COMP *cpi, int mi_row,
+                                               int mi_col, BLOCK_SIZE bsize) {
+  const AV1_COMMON *const cm = &cpi->common;
   int enable_filter_search = 0;
 
   if (cpi->sf.rt_sf.use_nonrd_filter_search) {
@@ -1700,9 +1699,6 @@ static AOM_INLINE int is_filter_search_enabled(AV1_COMP *cpi, MACROBLOCK *x,
            get_chessboard_index(cm->current_frame.frame_number)) &
           0x1;
     }
-    if (x->source_variance <=
-        cpi->sf.interp_sf.disable_filter_search_var_thresh)
-      enable_filter_search = 0;
   }
   return enable_filter_search;
 }
@@ -1879,7 +1875,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       quant_params->base_qindex && cm->seq_params.bit_depth == 8;
 
   const int enable_filter_search =
-      is_filter_search_enabled(cpi, x, mi_row, mi_col, bsize);
+      is_filter_search_enabled(cpi, mi_row, mi_col, bsize);
 
   // TODO(marpan): Look into reducing these conditions. For now constrain
   // it to avoid significant bdrate loss.

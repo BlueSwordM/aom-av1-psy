@@ -496,9 +496,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Limit the inter mode tested in the RD loop
   int reduce_inter_modes;
 
-  // Adaptive prediction mode search
-  int adaptive_mode_search;
-
   // This variable is used to cap the maximum number of times we skip testing a
   // mode to be evaluated. A high value means we will be faster.
   int adaptive_rd_thresh;
@@ -677,10 +674,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
-  // A source variance threshold below which filter search is disabled
-  // Choose a very large value (UINT_MAX) to use 8-tap always
-  unsigned int disable_filter_search_var_thresh;
-
   // Do limited interpolation filter search for dual filters, since best choice
   // usually includes EIGHTTAP_REGULAR.
   int use_fast_interpolation_filter_search;
