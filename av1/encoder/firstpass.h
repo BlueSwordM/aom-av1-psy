@@ -175,8 +175,6 @@ typedef struct {
   // frame.
   unsigned char cur_frame_idx[MAX_STATIC_GF_GROUP_LENGTH];
   unsigned char frame_disp_idx[MAX_STATIC_GF_GROUP_LENGTH];
-  int ref_frame_disp_idx[MAX_STATIC_GF_GROUP_LENGTH][REF_FRAMES];
-  int ref_frame_gop_idx[MAX_STATIC_GF_GROUP_LENGTH][REF_FRAMES];
 
   // TODO(jingning): Unify the data structure used here after the new control
   // mechanism is in place.
