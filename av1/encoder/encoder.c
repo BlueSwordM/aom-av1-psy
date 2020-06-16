@@ -56,6 +56,7 @@
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/encode_strategy.h"
 #include "av1/encoder/encoder.h"
+#include "av1/encoder/encoder_alloc.h"
 #include "av1/encoder/encoder_utils.h"
 #include "av1/encoder/encodetxb.h"
 #include "av1/encoder/ethread.h"
@@ -861,92 +862,6 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   init_buffer_indices(&cpi->force_intpel_info, cm->remapped_ref_idx);
 }
 
-static void realloc_segmentation_maps(AV1_COMP *cpi) {
-  AV1_COMMON *const cm = &cpi->common;
-  CommonModeInfoParams *const mi_params = &cm->mi_params;
-
-  // Create the encoder segmentation map and set all entries to 0
-  aom_free(cpi->enc_seg.map);
-  CHECK_MEM_ERROR(cm, cpi->enc_seg.map,
-                  aom_calloc(mi_params->mi_rows * mi_params->mi_cols, 1));
-
-  // Create a map used for cyclic background refresh.
-  if (cpi->cyclic_refresh) av1_cyclic_refresh_free(cpi->cyclic_refresh);
-  CHECK_MEM_ERROR(
-      cm, cpi->cyclic_refresh,
-      av1_cyclic_refresh_alloc(mi_params->mi_rows, mi_params->mi_cols));
-
-  // Create a map used to mark inactive areas.
-  aom_free(cpi->active_map.map);
-  CHECK_MEM_ERROR(cm, cpi->active_map.map,
-                  aom_calloc(mi_params->mi_rows * mi_params->mi_cols, 1));
-}
-
-static AOM_INLINE void set_tpl_stats_block_size(int width, int height,
-                                                uint8_t *block_mis_log2) {
-  const int is_720p_or_larger = AOMMIN(width, height) >= 720;
-
-  // 0: 4x4, 1: 8x8, 2: 16x16
-  *block_mis_log2 = is_720p_or_larger ? 2 : 1;
-}
-
-void av1_alloc_obmc_buffers(OBMCBuffer *obmc_buffer, AV1_COMMON *cm) {
-  CHECK_MEM_ERROR(
-      cm, obmc_buffer->wsrc,
-      (int32_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*obmc_buffer->wsrc)));
-  CHECK_MEM_ERROR(
-      cm, obmc_buffer->mask,
-      (int32_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*obmc_buffer->mask)));
-  CHECK_MEM_ERROR(
-      cm, obmc_buffer->above_pred,
-      (uint8_t *)aom_memalign(
-          16, MAX_MB_PLANE * MAX_SB_SQUARE * sizeof(*obmc_buffer->above_pred)));
-  CHECK_MEM_ERROR(
-      cm, obmc_buffer->left_pred,
-      (uint8_t *)aom_memalign(
-          16, MAX_MB_PLANE * MAX_SB_SQUARE * sizeof(*obmc_buffer->left_pred)));
-}
-
-void av1_release_obmc_buffers(OBMCBuffer *obmc_buffer) {
-  aom_free(obmc_buffer->mask);
-  aom_free(obmc_buffer->above_pred);
-  aom_free(obmc_buffer->left_pred);
-  aom_free(obmc_buffer->wsrc);
-
-  obmc_buffer->mask = NULL;
-  obmc_buffer->above_pred = NULL;
-  obmc_buffer->left_pred = NULL;
-  obmc_buffer->wsrc = NULL;
-}
-
-void av1_alloc_compound_type_rd_buffers(AV1_COMMON *const cm,
-                                        CompoundTypeRdBuffers *const bufs) {
-  CHECK_MEM_ERROR(
-      cm, bufs->pred0,
-      (uint8_t *)aom_memalign(16, 2 * MAX_SB_SQUARE * sizeof(*bufs->pred0)));
-  CHECK_MEM_ERROR(
-      cm, bufs->pred1,
-      (uint8_t *)aom_memalign(16, 2 * MAX_SB_SQUARE * sizeof(*bufs->pred1)));
-  CHECK_MEM_ERROR(
-      cm, bufs->residual1,
-      (int16_t *)aom_memalign(32, MAX_SB_SQUARE * sizeof(*bufs->residual1)));
-  CHECK_MEM_ERROR(
-      cm, bufs->diff10,
-      (int16_t *)aom_memalign(32, MAX_SB_SQUARE * sizeof(*bufs->diff10)));
-  CHECK_MEM_ERROR(cm, bufs->tmp_best_mask_buf,
-                  (uint8_t *)aom_malloc(2 * MAX_SB_SQUARE *
-                                        sizeof(*bufs->tmp_best_mask_buf)));
-}
-
-void av1_release_compound_type_rd_buffers(CompoundTypeRdBuffers *const bufs) {
-  aom_free(bufs->pred0);
-  aom_free(bufs->pred1);
-  aom_free(bufs->residual1);
-  aom_free(bufs->diff10);
-  aom_free(bufs->tmp_best_mask_buf);
-  av1_zero(*bufs);  // Set all pointers to NULL for safety.
-}
-
 void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   AV1_COMMON *const cm = &cpi->common;
   SequenceHeader *const seq_params = &cm->seq_params;
@@ -1055,7 +970,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   }
 
   if (x->comp_rd_buffer.pred0 == NULL) {
-    av1_alloc_compound_type_rd_buffers(cm, &x->comp_rd_buffer);
+    alloc_compound_type_rd_buffers(cm, &x->comp_rd_buffer);
   }
 
   if (x->tmp_conv_dst == NULL) {
@@ -1158,46 +1073,6 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   if (lap_lag_in_frames != -1) {
     cpi->oxcf.gf_cfg.lag_in_frames = lap_lag_in_frames;
   }
-}
-
-static INLINE void setup_tpl_buffers(AV1_COMMON *const cm,
-                                     TplParams *const tpl_data) {
-  CommonModeInfoParams *const mi_params = &cm->mi_params;
-  set_tpl_stats_block_size(cm->width, cm->height,
-                           &tpl_data->tpl_stats_block_mis_log2);
-  const uint8_t block_mis_log2 = tpl_data->tpl_stats_block_mis_log2;
-
-  for (int frame = 0; frame < MAX_LENGTH_TPL_FRAME_STATS; ++frame) {
-    const int mi_cols =
-        ALIGN_POWER_OF_TWO(mi_params->mi_cols, MAX_MIB_SIZE_LOG2);
-    const int mi_rows =
-        ALIGN_POWER_OF_TWO(mi_params->mi_rows, MAX_MIB_SIZE_LOG2);
-
-    tpl_data->tpl_stats_buffer[frame].is_valid = 0;
-    tpl_data->tpl_stats_buffer[frame].width = mi_cols >> block_mis_log2;
-    tpl_data->tpl_stats_buffer[frame].height = mi_rows >> block_mis_log2;
-    tpl_data->tpl_stats_buffer[frame].stride =
-        tpl_data->tpl_stats_buffer[frame].width;
-    tpl_data->tpl_stats_buffer[frame].mi_rows = mi_params->mi_rows;
-    tpl_data->tpl_stats_buffer[frame].mi_cols = mi_params->mi_cols;
-  }
-
-  for (int frame = 0; frame < MAX_LAG_BUFFERS; ++frame) {
-    CHECK_MEM_ERROR(
-        cm, tpl_data->tpl_stats_pool[frame],
-        aom_calloc(tpl_data->tpl_stats_buffer[frame].width *
-                       tpl_data->tpl_stats_buffer[frame].height,
-                   sizeof(*tpl_data->tpl_stats_buffer[frame].tpl_stats_ptr)));
-    if (aom_alloc_frame_buffer(
-            &tpl_data->tpl_rec_pool[frame], cm->width, cm->height,
-            cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
-            cm->seq_params.use_highbitdepth, AOM_ENC_NO_SCALE_BORDER,
-            cm->features.byte_alignment))
-      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                         "Failed to allocate frame buffer");
-  }
-
-  tpl_data->tpl_frame = &tpl_data->tpl_stats_buffer[REF_FRAMES + 1];
 }
 
 static INLINE void init_frame_info(FRAME_INFO *frame_info,
@@ -1373,7 +1248,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
   int sb_mi_size = av1_get_sb_mi_size(cm);
 
-  av1_alloc_obmc_buffers(&cpi->td.mb.obmc_buffer, cm);
+  alloc_obmc_buffers(&cpi->td.mb.obmc_buffer, cm);
 
   CHECK_MEM_ERROR(
       cm, cpi->td.mb.inter_modes_info,
@@ -1694,11 +1569,11 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
     if (t == 0) continue;
     aom_free(thread_data->td->palette_buffer);
     aom_free(thread_data->td->tmp_conv_dst);
-    av1_release_compound_type_rd_buffers(&thread_data->td->comp_rd_buffer);
+    release_compound_type_rd_buffers(&thread_data->td->comp_rd_buffer);
     for (int j = 0; j < 2; ++j) {
       aom_free(thread_data->td->tmp_pred_bufs[j]);
     }
-    av1_release_obmc_buffers(&thread_data->td->obmc_buffer);
+    release_obmc_buffers(&thread_data->td->obmc_buffer);
     aom_free(thread_data->td->vt64x64);
 
     aom_free(thread_data->td->inter_modes_info);

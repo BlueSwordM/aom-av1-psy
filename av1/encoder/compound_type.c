@@ -11,6 +11,7 @@
 
 #include "av1/common/pred_common.h"
 #include "av1/encoder/compound_type.h"
+#include "av1/encoder/encoder_alloc.h"
 #include "av1/encoder/model_rd.h"
 #include "av1/encoder/motion_search_facade.h"
 #include "av1/encoder/rdopt_utils.h"
@@ -1135,7 +1136,7 @@ static int64_t masked_compound_type_rd(
         av1_build_wedge_inter_predictor_from_buf(xd, bsize, 0, 0, tmp_preds0,
                                                  strides, tmp_preds1, strides);
       }
-      av1_release_compound_type_rd_buffers(&tmp_buf);
+      release_compound_type_rd_buffers(&tmp_buf);
     } else {
       *out_rate_mv = rate_mv;
       av1_build_wedge_inter_predictor_from_buf(xd, bsize, 0, 0, preds0, strides,

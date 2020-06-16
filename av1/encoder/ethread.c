@@ -13,6 +13,7 @@
 
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/encoder.h"
+#include "av1/encoder/encoder_alloc.h"
 #include "av1/encoder/ethread.h"
 #if !CONFIG_REALTIME_ONLY
 #include "av1/encoder/firstpass.h"
@@ -545,7 +546,7 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
       // Set up sms_tree.
       av1_setup_sms_tree(cpi, thread_data->td);
 
-      av1_alloc_obmc_buffers(&thread_data->td->obmc_buffer, cm);
+      alloc_obmc_buffers(&thread_data->td->obmc_buffer, cm);
 
       CHECK_MEM_ERROR(cm, thread_data->td->inter_modes_info,
                       (InterModesInfo *)aom_malloc(
@@ -568,7 +569,7 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
           cm, thread_data->td->palette_buffer,
           aom_memalign(16, sizeof(*thread_data->td->palette_buffer)));
 
-      av1_alloc_compound_type_rd_buffers(cm, &thread_data->td->comp_rd_buffer);
+      alloc_compound_type_rd_buffers(cm, &thread_data->td->comp_rd_buffer);
 
       CHECK_MEM_ERROR(
           cm, thread_data->td->tmp_conv_dst,

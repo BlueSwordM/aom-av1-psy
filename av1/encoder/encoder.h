@@ -2440,12 +2440,6 @@ int av1_get_quantizer(struct AV1_COMP *cpi);
 
 int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *input_size);
 
-void av1_alloc_obmc_buffers(OBMCBuffer *obmc_buffer, AV1_COMMON *cm);
-void av1_release_obmc_buffers(OBMCBuffer *obmc_buffer);
-void av1_alloc_compound_type_rd_buffers(AV1_COMMON *const cm,
-                                        CompoundTypeRdBuffers *const bufs);
-void av1_release_compound_type_rd_buffers(CompoundTypeRdBuffers *const bufs);
-
 // Set screen content options.
 // This function estimates whether to use screen content tools, by counting
 // the portion of blocks that have few luma colors.
