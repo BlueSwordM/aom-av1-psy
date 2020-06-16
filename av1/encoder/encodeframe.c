@@ -5722,8 +5722,6 @@ static AOM_INLINE void setup_prune_ref_frame_mask(AV1_COMP *cpi) {
   }
 }
 
-#define CHECK_PRECOMPUTED_REF_FRAME_MAP 0
-
 /*!\brief Encoder setup(only for the current frame), encoding, and recontruction
  * for a single frame
  *
@@ -6093,43 +6091,6 @@ void av1_encode_frame(AV1_COMP *cpi) {
   set_rel_frame_dist(&cpi->common, &cpi->ref_frame_dist_info,
                      cpi->ref_frame_flags);
   av1_setup_frame_sign_bias(cm);
-
-#if CHECK_PRECOMPUTED_REF_FRAME_MAP
-  GF_GROUP *gf_group = &cpi->gf_group;
-  // TODO(yuec): The check is disabled on OVERLAY frames for now, because info
-  // in cpi->gf_group has been refreshed for the next GOP when the check is
-  // performed for OVERLAY frames. Since we have not support inter-GOP ref
-  // frame map computation, the precomputed ref map for an OVERLAY frame is all
-  // -1 at this point (although it is meaning before gf_group is refreshed).
-  if (!frame_is_intra_only(cm) && gf_group->index != 0) {
-    const RefCntBuffer *const golden_buf = get_ref_frame_buf(cm, GOLDEN_FRAME);
-
-    if (golden_buf) {
-      const int golden_order_hint = golden_buf->order_hint;
-
-      for (int ref = LAST_FRAME; ref < EXTREF_FRAME; ++ref) {
-        const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
-        const int ref_disp_idx_precomputed =
-            gf_group->ref_frame_disp_idx[gf_group->index][ref - LAST_FRAME];
-
-        (void)ref_disp_idx_precomputed;
-
-        if (buf != NULL) {
-          const int ref_disp_idx =
-              get_relative_dist(&cm->seq_params.order_hint_info,
-                                buf->order_hint, golden_order_hint);
-
-          if (ref_disp_idx >= 0)
-            assert(ref_disp_idx == ref_disp_idx_precomputed);
-          else
-            assert(ref_disp_idx_precomputed == -1);
-        } else {
-          assert(ref_disp_idx_precomputed == -1);
-        }
-      }
-    }
-  }
-#endif
 
 #if CONFIG_MISMATCH_DEBUG
   mismatch_reset_frame(num_planes);
