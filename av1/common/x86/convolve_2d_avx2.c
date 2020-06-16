@@ -64,9 +64,25 @@ void av1_convolve_2d_sr_avx2(const uint8_t *src, int src_stride, uint8_t *dst,
   int horiz_tap = SUBPEL_TAPS;
   int vert_tap = SUBPEL_TAPS;
 
-  if (!(filter_x[0] | filter_x[1] | filter_x[6] | filter_x[7])) horiz_tap = 4;
+  if (!(filter_x[0] | filter_x[1] | filter_x[6] | filter_x[7]))
+    horiz_tap = 4;
+  else if (!(filter_x[0] | filter_x[7]))
+    horiz_tap = 6;
 
-  if (!(filter_y[0] | filter_y[1] | filter_y[6] | filter_y[7])) vert_tap = 4;
+  if (!(filter_y[0] | filter_y[1] | filter_y[6] | filter_y[7]))
+    vert_tap = 4;
+  else if (!(filter_y[0] | filter_y[7]))
+    vert_tap = 6;
+
+  if (horiz_tap == 6)
+    prepare_coeffs_6t_lowbd(filter_params_x, subpel_x_qn, coeffs_h);
+  else
+    prepare_coeffs_lowbd(filter_params_x, subpel_x_qn, coeffs_h);
+
+  if (vert_tap == 6)
+    prepare_coeffs_6t(filter_params_y, subpel_y_qn, coeffs_v);
+  else
+    prepare_coeffs(filter_params_y, subpel_y_qn, coeffs_v);
 
   int im_h = h + vert_tap - 1;
   const int fo_vert = vert_tap / 2 - 1;
@@ -79,12 +95,16 @@ void av1_convolve_2d_sr_avx2(const uint8_t *src, int src_stride, uint8_t *dst,
   for (int j = 0; j < w; j += 8) {
     if (horiz_tap == 4) {
       CONVOLVE_SR_HORIZONTAL_FILTER_4TAP
+    } else if (horiz_tap == 6) {
+      CONVOLVE_SR_HORIZONTAL_FILTER_6TAP
     } else {
       CONVOLVE_SR_HORIZONTAL_FILTER_8TAP
     }
 
     if (vert_tap == 4) {
       CONVOLVE_SR_VERTICAL_FILTER_4TAP
+    } else if (vert_tap == 6) {
+      CONVOLVE_SR_VERTICAL_FILTER_6TAP
     } else {
       CONVOLVE_SR_VERTICAL_FILTER_8TAP
     }
