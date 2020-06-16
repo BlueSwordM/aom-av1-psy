@@ -648,8 +648,9 @@ class DatarateTestSVC
     cfg_.rc_max_quantizer = 63;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
-    // error_resilient for sequence needs to be on/1 for test to pass.
-    cfg_.g_error_resilient = 1;
+    // error_resilient can set to off/0, since for SVC the context update
+    // is done per-layer.
+    cfg_.g_error_resilient = 0;
 
     ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
                                          288, 30, 1, 0, 300);
@@ -830,9 +831,9 @@ TEST_P(DatarateTestSVC, BasicRateTargeting444SVC3TL3SL) {
 }
 
 // Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial layer,
-// with dropping of all enhancement layers (TL 1 and TL2). For the base
-// layer (TL0) to still be decodeable (with no mismatch), the
-// error_resilient flag must be set to 1.
+// with dropping of all enhancement layers (TL 1 and TL2). Check that the base
+// layer (TL0) can still be decodeable (with no mismatch) with the
+// error_resilient flag set to 0.
 TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLDropAllEnh) {
   BasicRateTargetingSVC3TL1SLDropAllEnhTest();
 }
