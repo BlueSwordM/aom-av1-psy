@@ -218,13 +218,13 @@ static int get_twopass_worst_quality(AV1_COMP *cpi, const double section_err,
                                      double group_weight_factor) {
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
-
+  const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   inactive_zone = fclamp(inactive_zone, 0.0, 1.0);
 
   if (section_target_bandwidth <= 0) {
     return rc->worst_quality;  // Highest value allowed
   } else {
-    const int num_mbs = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
+    const int num_mbs = (oxcf->resize_cfg.resize_mode != RESIZE_NONE)
                             ? cpi->initial_mbs
                             : cpi->common.mi_params.MBs;
     const int active_mbs = AOMMAX(1, num_mbs - (int)(num_mbs * inactive_zone));
@@ -232,8 +232,7 @@ static int get_twopass_worst_quality(AV1_COMP *cpi, const double section_err,
     const int target_norm_bits_per_mb =
         (int)((uint64_t)section_target_bandwidth << BPER_MB_NORMBITS) /
         active_mbs;
-    int rate_err_tol =
-        AOMMIN(cpi->oxcf.under_shoot_pct, cpi->oxcf.over_shoot_pct);
+    int rate_err_tol = AOMMIN(rc_cfg->under_shoot_pct, rc_cfg->over_shoot_pct);
 
     twopass_update_bpm_factor(&cpi->twopass);
     // Try and pick a max Q that will be high enough to encode the
@@ -244,7 +243,7 @@ static int get_twopass_worst_quality(AV1_COMP *cpi, const double section_err,
         rc->worst_quality);
 
     // Restriction on active max q for constrained quality mode.
-    if (cpi->oxcf.rc_mode == AOM_CQ) q = AOMMAX(q, oxcf->cq_level);
+    if (rc_cfg->mode == AOM_CQ) q = AOMMAX(q, rc_cfg->cq_level);
     return q;
   }
 }
@@ -1400,7 +1399,7 @@ static void define_gf_group_pass0(AV1_COMP *cpi,
   // TODO(sarahparker) Extend this to work with pyramid structure.
   for (int cur_index = 0; cur_index < gf_group->size; ++cur_index) {
     const FRAME_UPDATE_TYPE cur_update_type = gf_group->update_type[cur_index];
-    if (oxcf->rc_mode == AOM_CBR) {
+    if (oxcf->rc_cfg.mode == AOM_CBR) {
       if (cur_update_type == KEY_FRAME) {
         target = av1_calc_iframe_target_size_one_pass_cbr(cpi);
       } else {
@@ -1497,6 +1496,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   GF_GROUP *gf_group = &cpi->gf_group;
   FRAME_INFO *frame_info = &cpi->frame_info;
   const GFConfig *const gf_cfg = &oxcf->gf_cfg;
+  const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   int i;
 
   int flash_detected;
@@ -1625,7 +1625,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
         (i >= MIN_GF_INTERVAL) && (gf_cfg->gf_max_pyr_height > MIN_PYRAMID_LVL);
 
     // TODO(urvang): Improve and use model for VBR, CQ etc as well.
-    if (use_alt_ref && oxcf->rc_mode == AOM_Q && oxcf->cq_level <= 200) {
+    if (use_alt_ref && rc_cfg->mode == AOM_Q && rc_cfg->cq_level <= 200) {
       aom_clear_system_state();
       float features[21];
       get_features_from_gf_stats(
@@ -1649,9 +1649,9 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // The length reduction strategy is tweaked for certain cases, and doesn't
   // work well for certain other cases.
   const int allow_gf_length_reduction =
-      ((oxcf->rc_mode == AOM_Q && oxcf->cq_level <= 128) ||
+      ((rc_cfg->mode == AOM_Q && rc_cfg->cq_level <= 128) ||
        !cpi->internal_altref_allowed) &&
-      !is_lossless_requested(oxcf);
+      !is_lossless_requested(rc_cfg);
 
   if (allow_gf_length_reduction && use_alt_ref) {
     // adjust length of this gf group if one of the following condition met
@@ -1723,7 +1723,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
 
 #define LAST_ALR_BOOST_FACTOR 0.2f
   rc->arf_boost_factor = 1.0;
-  if (rc->source_alt_ref_pending && !is_lossless_requested(oxcf)) {
+  if (rc->source_alt_ref_pending && !is_lossless_requested(rc_cfg)) {
     // Reduce the boost of altref in the last gf group
     if (rc->frames_to_key - i == REDUCE_GF_LENGTH_BY ||
         rc->frames_to_key - i == 0) {
@@ -1746,7 +1746,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // where there could be significant overshoot than for easier
   // sections where we do not wish to risk creating an overshoot
   // of the allocated bit budget.
-  if ((oxcf->rc_mode != AOM_Q) && (rc->baseline_gf_interval > 1)) {
+  if ((rc_cfg->mode != AOM_Q) && (rc->baseline_gf_interval > 1)) {
     const int vbr_group_bits_per_frame =
         (int)(gf_group_bits / rc->baseline_gf_interval);
     const double group_av_err =
@@ -2064,7 +2064,7 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
       // Check for a scene cut.
       if (frames_since_key >= kf_cfg->key_freq_min &&
           test_candidate_kf(twopass, &last_frame, this_frame, twopass->stats_in,
-                            frames_since_key, oxcf->rc_mode,
+                            frames_since_key, oxcf->rc_cfg.mode,
                             cpi->rc.enable_scenecut_detection)) {
         scenecut_detected = 1;
         break;
@@ -2226,7 +2226,7 @@ static double get_kf_boost_score(AV1_COMP *cpi, double kf_raw_err,
   int i = 0, num_stat_used = 0;
   double boost_score = 0.0;
   const double kf_max_boost =
-      cpi->oxcf.rc_mode == AOM_Q
+      cpi->oxcf.rc_cfg.mode == AOM_Q
           ? AOMMIN(AOMMAX(rc->frames_to_key * 2.0, KF_MIN_FRAME_BOOST),
                    KF_MAX_FRAME_BOOST)
           : KF_MAX_FRAME_BOOST;
@@ -2379,7 +2379,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
 
   // Calculate the number of bits that should be assigned to the kf group.
   if ((twopass->bits_left > 0 && twopass->modified_error_left > 0.0) ||
-      (cpi->lap_enabled && oxcf->rc_mode != AOM_Q)) {
+      (cpi->lap_enabled && oxcf->rc_cfg.mode != AOM_Q)) {
     // Maximum number of bits for a single normal frame (not key frame).
     const int max_bits = frame_max_bits(rc, oxcf);
 
@@ -2422,7 +2422,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   rc->kf_boost = (int)boost_score;
 
   if (cpi->lap_enabled) {
-    if (oxcf->rc_mode == AOM_Q) {
+    if (oxcf->rc_cfg.mode == AOM_Q) {
       rc->kf_boost = get_projected_kf_boost(cpi);
     } else {
       // TODO(any): Explore using average frame stats for AOM_Q as well.
@@ -2518,7 +2518,7 @@ static void process_first_pass_stats(AV1_COMP *cpi,
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->twopass;
 
-  if (cpi->oxcf.rc_mode != AOM_Q && current_frame->frame_number == 0 &&
+  if (cpi->oxcf.rc_cfg.mode != AOM_Q && current_frame->frame_number == 0 &&
       cpi->twopass.stats_buf_ctx->total_stats &&
       cpi->twopass.stats_buf_ctx->total_left_stats) {
     if (cpi->lap_enabled) {
@@ -2550,7 +2550,7 @@ static void process_first_pass_stats(AV1_COMP *cpi,
     rc->last_q[INTER_FRAME] = tmp_q;
     rc->avg_q = av1_convert_qindex_to_q(tmp_q, cm->seq_params.bit_depth);
     rc->avg_frame_qindex[INTER_FRAME] = tmp_q;
-    rc->last_q[KEY_FRAME] = (tmp_q + cpi->oxcf.best_allowed_q) / 2;
+    rc->last_q[KEY_FRAME] = (tmp_q + cpi->oxcf.rc_cfg.best_allowed_q) / 2;
     rc->avg_frame_qindex[KEY_FRAME] = rc->last_q[KEY_FRAME];
   }
 
@@ -2637,14 +2637,15 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
   aom_clear_system_state();
 
-  if (oxcf->rc_mode == AOM_Q) rc->active_worst_quality = oxcf->cq_level;
+  if (oxcf->rc_cfg.mode == AOM_Q)
+    rc->active_worst_quality = oxcf->rc_cfg.cq_level;
   FIRSTPASS_STATS this_frame;
   av1_zero(this_frame);
   // call above fn
   if (is_stat_consumption_stage(cpi)) {
     process_first_pass_stats(cpi, &this_frame);
   } else {
-    rc->active_worst_quality = oxcf->cq_level;
+    rc->active_worst_quality = oxcf->rc_cfg.cq_level;
   }
 
   // Keyframe and section processing.
@@ -2867,6 +2868,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
   TWO_PASS *const twopass = &cpi->twopass;
   RATE_CONTROL *const rc = &cpi->rc;
   const int bits_used = rc->base_frame_target;
+  const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
 
   // VBR correction is done through rc->vbr_bits_off_target. Based on the
   // sign of this value, a limited % adjustment is made to the target rate
@@ -2934,18 +2936,18 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
   twopass->kf_group_bits = AOMMAX(twopass->kf_group_bits, 0);
 
   // If the rate control is drifting consider adjustment to min or maxq.
-  if ((cpi->oxcf.rc_mode != AOM_Q) && !cpi->rc.is_src_frame_alt_ref) {
+  if ((rc_cfg->mode != AOM_Q) && !cpi->rc.is_src_frame_alt_ref) {
     const int maxq_adj_limit = rc->worst_quality - rc->active_worst_quality;
     const int minq_adj_limit =
-        (cpi->oxcf.rc_mode == AOM_CQ ? MINQ_ADJ_LIMIT_CQ : MINQ_ADJ_LIMIT);
+        (rc_cfg->mode == AOM_CQ ? MINQ_ADJ_LIMIT_CQ : MINQ_ADJ_LIMIT);
 
     // Undershoot.
-    if (rc->rate_error_estimate > cpi->oxcf.under_shoot_pct) {
+    if (rc->rate_error_estimate > rc_cfg->under_shoot_pct) {
       --twopass->extend_maxq;
       if (rc->rolling_target_bits >= rc->rolling_actual_bits)
         ++twopass->extend_minq;
       // Overshoot.
-    } else if (rc->rate_error_estimate < -cpi->oxcf.over_shoot_pct) {
+    } else if (rc->rate_error_estimate < -rc_cfg->over_shoot_pct) {
       --twopass->extend_minq;
       if (rc->rolling_target_bits < rc->rolling_actual_bits)
         ++twopass->extend_maxq;

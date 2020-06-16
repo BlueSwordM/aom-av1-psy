@@ -724,6 +724,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   TwoPassCfg *const two_pass_cfg = &oxcf->two_pass_cfg;
 
+  RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
+
   const int is_vbr = cfg->rc_end_usage == AOM_VBR;
   oxcf->profile = cfg->g_profile;
   oxcf->max_threads = (int)cfg->g_threads;
@@ -784,20 +786,25 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     case AOM_RC_LAST_PASS: oxcf->pass = 2; break;
   }
 
-  oxcf->rc_mode = cfg->rc_end_usage;
+  // Set Rate Control configuration.
+  rc_cfg->max_intra_bitrate_pct = extra_cfg->rc_max_intra_bitrate_pct;
+  rc_cfg->max_inter_bitrate_pct = extra_cfg->rc_max_inter_bitrate_pct;
+  rc_cfg->gf_cbr_boost_pct = extra_cfg->gf_cbr_boost_pct;
+  rc_cfg->mode = cfg->rc_end_usage;
+  rc_cfg->min_cr = extra_cfg->min_cr;
+  rc_cfg->best_allowed_q =
+      extra_cfg->lossless ? 0 : av1_quantizer_to_qindex(cfg->rc_min_quantizer);
+  rc_cfg->worst_allowed_q =
+      extra_cfg->lossless ? 0 : av1_quantizer_to_qindex(cfg->rc_max_quantizer);
+  rc_cfg->cq_level = av1_quantizer_to_qindex(extra_cfg->cq_level);
+  rc_cfg->under_shoot_pct = cfg->rc_undershoot_pct;
+  rc_cfg->over_shoot_pct = cfg->rc_overshoot_pct;
+  rc_cfg->maximum_buffer_size_ms = is_vbr ? 240000 : cfg->rc_buf_sz;
+  rc_cfg->starting_buffer_level_ms = is_vbr ? 60000 : cfg->rc_buf_initial_sz;
+  rc_cfg->optimal_buffer_level_ms = is_vbr ? 60000 : cfg->rc_buf_optimal_sz;
 
   // Convert target bandwidth from Kbit/s to Bit/s
   oxcf->target_bandwidth = 1000 * cfg->rc_target_bitrate;
-  oxcf->rc_max_intra_bitrate_pct = extra_cfg->rc_max_intra_bitrate_pct;
-  oxcf->rc_max_inter_bitrate_pct = extra_cfg->rc_max_inter_bitrate_pct;
-  oxcf->gf_cbr_boost_pct = extra_cfg->gf_cbr_boost_pct;
-
-  oxcf->best_allowed_q =
-      extra_cfg->lossless ? 0 : av1_quantizer_to_qindex(cfg->rc_min_quantizer);
-  oxcf->worst_allowed_q =
-      extra_cfg->lossless ? 0 : av1_quantizer_to_qindex(cfg->rc_max_quantizer);
-  oxcf->cq_level = av1_quantizer_to_qindex(extra_cfg->cq_level);
-  oxcf->fixed_q = -1;
 
   oxcf->enable_cdef = extra_cfg->enable_cdef;
   oxcf->enable_restoration =
@@ -826,8 +833,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   // Disallow using temporal MVs while large_scale_tile = 1.
   oxcf->allow_ref_frame_mvs =
       extra_cfg->allow_ref_frame_mvs && !cfg->large_scale_tile;
-  oxcf->under_shoot_pct = cfg->rc_undershoot_pct;
-  oxcf->over_shoot_pct = cfg->rc_overshoot_pct;
 
   // Set frame resize mode configuration.
   resize_cfg->resize_mode = (RESIZE_MODE)cfg->rc_resize_mode;
@@ -838,10 +843,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       resize_cfg->resize_scale_denominator == SCALE_NUMERATOR &&
       resize_cfg->resize_kf_scale_denominator == SCALE_NUMERATOR)
     resize_cfg->resize_mode = RESIZE_NONE;
-
-  oxcf->maximum_buffer_size_ms = is_vbr ? 240000 : cfg->rc_buf_sz;
-  oxcf->starting_buffer_level_ms = is_vbr ? 60000 : cfg->rc_buf_initial_sz;
-  oxcf->optimal_buffer_level_ms = is_vbr ? 60000 : cfg->rc_buf_optimal_sz;
 
   oxcf->drop_frames_water_mark = cfg->rc_dropframe_thresh;
 
@@ -1072,24 +1073,23 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->tier_mask = extra_cfg->tier_mask;
 
   oxcf->use_fixed_qp_offsets =
-      cfg->use_fixed_qp_offsets && (oxcf->rc_mode == AOM_Q);
+      cfg->use_fixed_qp_offsets && (rc_cfg->mode == AOM_Q);
   oxcf->vbr_corpus_complexity_lap = extra_cfg->vbr_corpus_complexity_lap;
 
   for (int i = 0; i < FIXED_QP_OFFSET_COUNT; ++i) {
     if (oxcf->use_fixed_qp_offsets) {
       if (cfg->fixed_qp_offsets[i] >= 0) {  // user-provided qp offset
         oxcf->fixed_qp_offsets[i] = convert_qp_offset(
-            oxcf->cq_level, cfg->fixed_qp_offsets[i], oxcf->bit_depth);
+            rc_cfg->cq_level, cfg->fixed_qp_offsets[i], oxcf->bit_depth);
       } else {  // auto-selected qp offset
         oxcf->fixed_qp_offsets[i] =
-            get_modeled_qp_offset(oxcf->cq_level, i, oxcf->bit_depth);
+            get_modeled_qp_offset(rc_cfg->cq_level, i, oxcf->bit_depth);
       }
     } else {
       oxcf->fixed_qp_offsets[i] = -1.0;
     }
   }
 
-  oxcf->min_cr = extra_cfg->min_cr;
   return AOM_CODEC_OK;
 }
 
@@ -1982,7 +1982,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
       reduce_ratio(&priv->timestamp_ratio);
 
       set_encoder_config(&priv->oxcf, &priv->cfg, &priv->extra_cfg);
-      if (priv->oxcf.rc_mode != AOM_CBR && priv->oxcf.pass == 0 &&
+      if (priv->oxcf.rc_cfg.mode != AOM_CBR && priv->oxcf.pass == 0 &&
           priv->oxcf.mode == GOOD) {
         // Enable look ahead - enabled for AOM_Q, AOM_CQ, AOM_VBR
         *num_lap_buffers = priv->cfg.g_lag_in_frames;

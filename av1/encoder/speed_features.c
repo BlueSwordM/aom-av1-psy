@@ -845,7 +845,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.use_simple_rd_model = 1;
 
     if (cm->current_frame.frame_type != KEY_FRAME &&
-        cpi->oxcf.rc_mode == AOM_CBR) {
+        cpi->oxcf.rc_cfg.mode == AOM_CBR) {
       sf->rt_sf.overshoot_detection_cbr = FAST_DETECTION_MAXQ;
       sf->rt_sf.check_scene_detection = 1;
     }
@@ -1083,15 +1083,15 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
 static AOM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
                                   const AV1_COMP *cpi) {
   if (cpi->oxcf.disable_trellis_quant == 3) {
-    rd_sf->optimize_coefficients = !is_lossless_requested(&cpi->oxcf)
+    rd_sf->optimize_coefficients = !is_lossless_requested(&cpi->oxcf.rc_cfg)
                                        ? NO_ESTIMATE_YRD_TRELLIS_OPT
                                        : NO_TRELLIS_OPT;
   } else if (cpi->oxcf.disable_trellis_quant == 2) {
-    rd_sf->optimize_coefficients = !is_lossless_requested(&cpi->oxcf)
+    rd_sf->optimize_coefficients = !is_lossless_requested(&cpi->oxcf.rc_cfg)
                                        ? FINAL_PASS_TRELLIS_OPT
                                        : NO_TRELLIS_OPT;
   } else if (cpi->oxcf.disable_trellis_quant == 0) {
-    if (is_lossless_requested(&cpi->oxcf)) {
+    if (is_lossless_requested(&cpi->oxcf.rc_cfg)) {
       rd_sf->optimize_coefficients = NO_TRELLIS_OPT;
     } else {
       rd_sf->optimize_coefficients = FULL_TRELLIS_OPT;

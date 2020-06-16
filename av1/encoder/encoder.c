@@ -952,7 +952,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
                         seq_params->tier[0]);
   }
 
-  if ((has_no_stats_stage(cpi)) && (oxcf->rc_mode == AOM_Q)) {
+  if ((has_no_stats_stage(cpi)) && (oxcf->rc_cfg.mode == AOM_Q)) {
     rc->baseline_gf_interval = FIXED_GF_INTERVAL;
   } else {
     rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
@@ -1006,8 +1006,8 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   av1_new_framerate(cpi, cpi->framerate);
 
   // Set absolute upper and lower quality limits
-  rc->worst_quality = cpi->oxcf.worst_allowed_q;
-  rc->best_quality = cpi->oxcf.best_allowed_q;
+  rc->worst_quality = cpi->oxcf.rc_cfg.worst_allowed_q;
+  rc->best_quality = cpi->oxcf.rc_cfg.best_allowed_q;
 
   cm->features.interp_filter =
       oxcf->tile_cfg.enable_large_scale_tile ? EIGHTTAP_REGULAR : SWITCHABLE;
@@ -2150,7 +2150,7 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
         // TODO(debargha): Turn off q adjustment for kf temporarily to
         // reduce impact on speed of encoding. Need to investigate how
         // to mitigate the issue.
-        if (cpi->oxcf.rc_mode == AOM_Q) {
+        if (cpi->oxcf.rc_cfg.mode == AOM_Q) {
           const int kf_boost =
               get_kf_boost_from_r0(cpi->rd.r0, cpi->rc.frames_to_key);
           if (cpi->lap_enabled) {
@@ -2480,7 +2480,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *xd = &cpi->td.mb.e_mbd;
 
-  assert(IMPLIES(is_lossless_requested(&cpi->oxcf),
+  assert(IMPLIES(is_lossless_requested(&cpi->oxcf.rc_cfg),
                  cm->features.coded_lossless && cm->features.all_lossless));
 
   const int use_loopfilter =
@@ -2732,7 +2732,7 @@ static void determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   // for lossless coding.
   // Use a high q and a fixed partition to do quick encoding.
   const int q_for_screen_content_quick_run =
-      is_lossless_requested(&cpi->oxcf) ? q_orig : AOMMAX(q_orig, 244);
+      is_lossless_requested(&cpi->oxcf.rc_cfg) ? q_orig : AOMMAX(q_orig, 244);
   const int partition_search_type_orig = cpi->sf.part_sf.partition_search_type;
   const BLOCK_SIZE fixed_partition_block_size_orig =
       cpi->sf.part_sf.always_this_block_size;
@@ -2935,7 +2935,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   GlobalMotionInfo *const gm_info = &cpi->gm_info;
   const int allow_recode = (cpi->sf.hl_sf.recode_loop != DISALLOW_RECODE);
   // Must allow recode if minimum compression ratio is set.
-  assert(IMPLIES(cpi->oxcf.min_cr > 0, allow_recode));
+  assert(IMPLIES(cpi->oxcf.rc_cfg.min_cr > 0, allow_recode));
 
   set_size_independent_vars(cpi);
   if (is_stat_consumption_stage_twopass(cpi) &&
@@ -3105,8 +3105,8 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     // to recode.
     const int do_dummy_pack =
         (cpi->sf.hl_sf.recode_loop >= ALLOW_RECODE_KFARFGF &&
-         cpi->oxcf.rc_mode != AOM_Q) ||
-        cpi->oxcf.min_cr > 0;
+         cpi->oxcf.rc_cfg.mode != AOM_Q) ||
+        cpi->oxcf.rc_cfg.min_cr > 0;
     if (do_dummy_pack) {
       finalize_encoded_frame(cpi);
       int largest_tile_id = 0;  // Output from bitstream: unused here
@@ -3897,7 +3897,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   // For 1 pass CBR, check if we are dropping this frame.
   // Never drop on key frame.
-  if (has_no_stats_stage(cpi) && oxcf->rc_mode == AOM_CBR &&
+  if (has_no_stats_stage(cpi) && oxcf->rc_cfg.mode == AOM_CBR &&
       current_frame->frame_type != KEY_FRAME) {
     if (av1_rc_drop_frame(cpi)) {
       av1_rc_postencode_update_drop_frame(cpi);

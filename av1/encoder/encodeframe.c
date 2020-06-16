@@ -700,8 +700,8 @@ static void hybrid_intra_mode_search(AV1_COMP *cpi, MACROBLOCK *const x,
                                      PICK_MODE_CONTEXT *ctx) {
   // TODO(jianj): Investigate the failure of ScalabilityTest in AOM_Q mode,
   // which sets base_qindex to 0 on keyframe.
-  if (cpi->oxcf.rc_mode != AOM_CBR || !cpi->sf.rt_sf.hybrid_intra_pickmode ||
-      bsize < BLOCK_16X16)
+  if (cpi->oxcf.rc_cfg.mode != AOM_CBR ||
+      !cpi->sf.rt_sf.hybrid_intra_pickmode || bsize < BLOCK_16X16)
     av1_rd_pick_intra_mode_sb(cpi, x, rd_cost, bsize, ctx, INT64_MAX);
   else
     av1_nonrd_pick_intra_mode(cpi, x, rd_cost, bsize, ctx);

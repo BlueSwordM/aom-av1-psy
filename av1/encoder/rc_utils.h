@@ -22,9 +22,9 @@ extern "C" {
 static AOM_INLINE void set_rc_buffer_sizes(RATE_CONTROL *rc,
                                            const AV1EncoderConfig *oxcf) {
   const int64_t bandwidth = oxcf->target_bandwidth;
-  const int64_t starting = oxcf->starting_buffer_level_ms;
-  const int64_t optimal = oxcf->optimal_buffer_level_ms;
-  const int64_t maximum = oxcf->maximum_buffer_size_ms;
+  const int64_t starting = oxcf->rc_cfg.starting_buffer_level_ms;
+  const int64_t optimal = oxcf->rc_cfg.optimal_buffer_level_ms;
+  const int64_t maximum = oxcf->rc_cfg.maximum_buffer_size_ms;
 
   rc->starting_buffer_level = starting * bandwidth / 1000;
   rc->optimal_buffer_level =
@@ -40,6 +40,7 @@ static AOM_INLINE void config_target_level(AV1_COMP *const cpi,
   AV1EncoderConfig *const oxcf = &cpi->oxcf;
   SequenceHeader *const seq_params = &cpi->common.seq_params;
   TileConfig *const tile_cfg = &oxcf->tile_cfg;
+  RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
 
   // Adjust target bitrate to be no larger than 70% of level limit.
   const BITSTREAM_PROFILE profile = seq_params->profile;
@@ -55,10 +56,10 @@ static AOM_INLINE void config_target_level(AV1_COMP *const cpi,
         (int64_t)(stats->duration * cpi->oxcf.target_bandwidth / 10000000.0);
 
   // Adjust max over-shoot percentage.
-  oxcf->over_shoot_pct = 0;
+  rc_cfg->over_shoot_pct = 0;
 
   // Adjust max quantizer.
-  oxcf->worst_allowed_q = 255;
+  rc_cfg->worst_allowed_q = 255;
 
   // Adjust number of tiles and tile columns to be under level limit.
   int max_tiles, max_tile_cols;
@@ -77,7 +78,7 @@ static AOM_INLINE void config_target_level(AV1_COMP *const cpi,
   const int still_picture = seq_params->still_picture;
   const double min_cr =
       av1_get_min_cr_for_level(target_level, tier, still_picture);
-  oxcf->min_cr = AOMMAX(oxcf->min_cr, (unsigned int)(min_cr * 100));
+  rc_cfg->min_cr = AOMMAX(rc_cfg->min_cr, (unsigned int)(min_cr * 100));
 }
 
 #if !CONFIG_REALTIME_ONLY
@@ -99,10 +100,10 @@ static AOM_INLINE int recode_loop_test(AV1_COMP *cpi, int high_limit,
     if ((rc->projected_frame_size > high_limit && q < maxq) ||
         (rc->projected_frame_size < low_limit && q > minq)) {
       force_recode = 1;
-    } else if (cpi->oxcf.rc_mode == AOM_CQ) {
+    } else if (cpi->oxcf.rc_cfg.mode == AOM_CQ) {
       // Deal with frame undershoot and whether or not we are
       // below the automatically set cq level.
-      if (q > oxcf->cq_level &&
+      if (q > oxcf->rc_cfg.cq_level &&
           rc->projected_frame_size < ((rc->this_frame_target * 7) >> 3)) {
         force_recode = 1;
       }
@@ -198,9 +199,10 @@ static AOM_INLINE void recode_loop_update_q(
     int *const low_cr_seen, const int loop_at_this_size) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
+  const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
   *loop = 0;
 
-  const int min_cr = cpi->oxcf.min_cr;
+  const int min_cr = rc_cfg->min_cr;
   if (min_cr > 0) {
     aom_clear_system_state();
     const double compression_ratio =
@@ -220,7 +222,7 @@ static AOM_INLINE void recode_loop_update_q(
     if (*low_cr_seen) return;
   }
 
-  if (cpi->oxcf.rc_mode == AOM_Q) return;
+  if (rc_cfg->mode == AOM_Q) return;
 
   const int last_q = *q;
   int frame_over_shoot_limit = 0, frame_under_shoot_limit = 0;
@@ -338,7 +340,7 @@ static AOM_INLINE void recode_loop_update_q(
         // This should only trigger where there is very substantial
         // undershoot on a frame and the auto cq level is above
         // the user passsed in value.
-        if (cpi->oxcf.rc_mode == AOM_CQ && q_regulated < *q_low) {
+        if (rc_cfg->mode == AOM_CQ && q_regulated < *q_low) {
           *q_low = *q;
         }
       } else {
@@ -348,7 +350,7 @@ static AOM_INLINE void recode_loop_update_q(
         // This should only trigger where there is very substantial
         // undershoot on a frame and the auto cq level is above
         // the user passsed in value.
-        if (cpi->oxcf.rc_mode == AOM_CQ && *q < *q_low) {
+        if (rc_cfg->mode == AOM_CQ && *q < *q_low) {
           *q_low = *q;
         }
       }

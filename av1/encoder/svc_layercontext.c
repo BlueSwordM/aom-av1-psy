@@ -34,7 +34,7 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
       int layer = LAYER_IDS_TO_IDX(sl, tl, svc->number_temporal_layers);
       LAYER_CONTEXT *const lc = &svc->layer_context[layer];
       RATE_CONTROL *const lrc = &lc->rc;
-      lrc->ni_av_qi = oxcf->worst_allowed_q;
+      lrc->ni_av_qi = oxcf->rc_cfg.worst_allowed_q;
       lrc->total_actual_bits = 0;
       lrc->total_target_vs_actual = 0;
       lrc->ni_tot_qi = 0;
@@ -53,7 +53,7 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
       lrc->avg_frame_qindex[INTER_FRAME] = lrc->worst_quality;
       lrc->avg_frame_qindex[KEY_FRAME] = lrc->worst_quality;
       lrc->buffer_level =
-          oxcf->starting_buffer_level_ms * lc->target_bandwidth / 1000;
+          oxcf->rc_cfg.starting_buffer_level_ms * lc->target_bandwidth / 1000;
       lrc->bits_off_target = lrc->buffer_level;
       // Initialize the cyclic refresh parameters. If spatial layers are used
       // (i.e., ss_number_layers > 1), these need to be updated per spatial

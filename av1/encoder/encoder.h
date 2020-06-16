@@ -376,6 +376,50 @@ typedef struct {
 } KeyFrameCfg;
 
 typedef struct {
+  // BUFFERING PARAMETERS
+  // Indicates the amount of data that will be buffered by the decoding
+  // application prior to beginning playback, and is expressed in units of
+  // time(milliseconds).
+  int64_t starting_buffer_level_ms;
+  // Indicates the amount of data that the encoder should try to maintain in the
+  // decoder's buffer, and is expressed in units of time(milliseconds).
+  int64_t optimal_buffer_level_ms;
+  // Indicates the maximum amount of data that may be buffered by the decoding
+  // application, and is expressed in units of time(milliseconds).
+  int64_t maximum_buffer_size_ms;
+
+  // Indicates the maximum allowed bitrate for any intra frame as % of bitrate
+  // target.
+  unsigned int max_intra_bitrate_pct;
+  // Indicates the maximum allowed bitrate for any inter frame as % of bitrate
+  // target.
+  unsigned int max_inter_bitrate_pct;
+  // Indicates the percentage of rate boost for golden frame in CBR mode.
+  unsigned int gf_cbr_boost_pct;
+  // min_cr / 100 indicates the target minimum compression ratio for each frame.
+  unsigned int min_cr;
+  // under_shoot_pct indicates the tolerance of the VBR algorithm to undershoot
+  // and is used as a trigger threshold for more agressive adaptation of Q. It's
+  // value can range from 0-100.
+  int under_shoot_pct;
+  // over_shoot_pct indicates the tolerance of the VBR algorithm to overshoot
+  // and is used as a trigger threshold for more agressive adaptation of Q. It's
+  // value can range from 0-1000.
+  int over_shoot_pct;
+  // Indicates the maximum qindex that can be used by the quantizer i.e. the
+  // worst quality qindex.
+  int worst_allowed_q;
+  // Indicates the minimum qindex that can be used by the quantizer i.e. the
+  // best quality qindex.
+  int best_allowed_q;
+  // Indicates the Constant/Constrained Quality level.
+  int cq_level;
+  // Indicates if the encoding mode is vbr, cbr, constrained quality or constant
+  // quality.
+  enum aom_rc_mode mode;
+} RateControlCfg;
+
+typedef struct {
   // Indicates the number of frames lag before encoding is started.
   int lag_in_frames;
   // Indicates the minimum gf/arf interval to be used.
@@ -512,12 +556,6 @@ typedef struct AV1EncoderConfig {
   int noise_sensitivity;  // pre processing blur: recommendation 0
   int sharpness;          // sharpening output: recommendation 0:
   int speed;
-  // maximum allowed bitrate for any intra frame in % of bitrate target.
-  unsigned int rc_max_intra_bitrate_pct;
-  // maximum allowed bitrate for any inter frame in % of bitrate target.
-  unsigned int rc_max_inter_bitrate_pct;
-  // percent of rate boost for golden frame in CBR mode.
-  unsigned int gf_cbr_boost_pct;
 
   MODE mode;
   int pass;
@@ -528,26 +566,13 @@ typedef struct AV1EncoderConfig {
   // ----------------------------------------------------------------
   // DATARATE CONTROL OPTIONS
 
-  // vbr, cbr, constrained quality or constant quality
-  enum aom_rc_mode rc_mode;
-
-  // buffer targeting aggressiveness
-  int under_shoot_pct;
-  int over_shoot_pct;
-
-  // buffering parameters
-  int64_t starting_buffer_level_ms;
-  int64_t optimal_buffer_level_ms;
-  int64_t maximum_buffer_size_ms;
+  // Configuration related to rate control.
+  RateControlCfg rc_cfg;
 
   // Frame drop threshold.
   int drop_frames_water_mark;
 
   // controlling quality
-  int fixed_q;
-  int worst_allowed_q;
-  int best_allowed_q;
-  int cq_level;
   int enable_chroma_deltaq;
   AQ_MODE aq_mode;  // Adaptive Quantization mode
   DELTAQ_MODE deltaq_mode;
@@ -683,13 +708,11 @@ typedef struct AV1EncoderConfig {
   // If any of these values are negative, fixed offsets are disabled.
   // Uses internal q range.
   double fixed_qp_offsets[FIXED_QP_OFFSET_COUNT];
-  // min_cr / 100 is the target minimum compression ratio for each frame.
-  unsigned int min_cr;
   const cfg_options_t *encoder_cfg;
 } AV1EncoderConfig;
 
-static INLINE int is_lossless_requested(const AV1EncoderConfig *cfg) {
-  return cfg->best_allowed_q == 0 && cfg->worst_allowed_q == 0;
+static INLINE int is_lossless_requested(const RateControlCfg *const rc_cfg) {
+  return rc_cfg->best_allowed_q == 0 && rc_cfg->worst_allowed_q == 0;
 }
 
 /*!\endcond */

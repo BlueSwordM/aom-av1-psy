@@ -448,7 +448,7 @@ static struct lookahead_entry *choose_frame_source(
   if (arf_src_index &&
       (is_forced_keyframe_pending(cpi->lookahead, arf_src_index,
                                   cpi->compressor_stage) != -1) &&
-      cpi->oxcf.rc_mode != AOM_Q) {
+      cpi->oxcf.rc_cfg.mode != AOM_Q) {
     arf_src_index = 0;
     *flush = 1;
   }
@@ -887,7 +887,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       oxcf->kf_cfg.enable_keyframe_filtering &&
       !is_stat_generation_stage(cpi) && !frame_params->show_existing_frame &&
       cpi->rc.frames_to_key > cpi->oxcf.arnr_max_frames &&
-      !is_lossless_requested(oxcf) && oxcf->arnr_max_frames > 0;
+      !is_lossless_requested(&oxcf->rc_cfg) && oxcf->arnr_max_frames > 0;
   if (apply_filtering) {
     const double y_noise_level = av1_estimate_noise_from_single_plane(
         frame_input->source, 0, cm->seq_params.bit_depth);
@@ -1187,7 +1187,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (has_no_stats_stage(cpi) && oxcf->aq_mode == CYCLIC_REFRESH_AQ) {
     av1_cyclic_refresh_update_parameters(cpi);
   } else if (is_stat_generation_stage(cpi)) {
-    cpi->td.mb.e_mbd.lossless[0] = is_lossless_requested(oxcf);
+    cpi->td.mb.e_mbd.lossless[0] = is_lossless_requested(&oxcf->rc_cfg);
     const int kf_requested = (cm->current_frame.frame_number == 0 ||
                               (*frame_flags & FRAMEFLAGS_KEY));
     if (kf_requested && frame_update_type != OVERLAY_UPDATE &&

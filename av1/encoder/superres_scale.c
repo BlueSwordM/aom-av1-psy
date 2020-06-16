@@ -100,7 +100,7 @@ int av1_superres_in_recode_allowed(const AV1_COMP *const cpi) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   // Empirically found to not be beneficial for AOM_Q mode and images coding.
   return oxcf->superres_cfg.superres_mode == AOM_SUPERRES_AUTO &&
-         (oxcf->rc_mode == AOM_VBR || oxcf->rc_mode == AOM_CQ) &&
+         (oxcf->rc_cfg.mode == AOM_VBR || oxcf->rc_cfg.mode == AOM_CQ) &&
          cpi->rc.frames_to_key > 1;
 }
 #endif  // CONFIG_SUPERRES_IN_RECODE
@@ -190,6 +190,7 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
   const AV1EncoderConfig *oxcf = &cpi->oxcf;
   const SuperResCfg *const superres_cfg = &oxcf->superres_cfg;
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
+  const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
 
   if (is_stat_generation_stage(cpi)) return SCALE_NUMERATOR;
   uint8_t new_denom = SCALE_NUMERATOR;
@@ -219,7 +220,7 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
     case AOM_SUPERRES_QTHRESH: {
       // Do not use superres when screen content tools are used.
       if (cpi->common.features.allow_screen_content_tools) break;
-      if (oxcf->rc_mode == AOM_VBR || oxcf->rc_mode == AOM_CQ)
+      if (rc_cfg->mode == AOM_VBR || rc_cfg->mode == AOM_CQ)
         av1_set_target_rate(cpi, frm_dim_cfg->width, frm_dim_cfg->height);
 
       // Now decide the use of superres based on 'q'.
@@ -241,7 +242,7 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
     case AOM_SUPERRES_AUTO: {
       // Do not use superres when screen content tools are used.
       if (cpi->common.features.allow_screen_content_tools) break;
-      if (oxcf->rc_mode == AOM_VBR || oxcf->rc_mode == AOM_CQ)
+      if (rc_cfg->mode == AOM_VBR || rc_cfg->mode == AOM_CQ)
         av1_set_target_rate(cpi, frm_dim_cfg->width, frm_dim_cfg->height);
 
       // Now decide the use of superres based on 'q'.
@@ -402,7 +403,7 @@ void av1_superres_post_encode(AV1_COMP *cpi) {
   if (!av1_superres_scaled(cm)) return;
 
   assert(cpi->oxcf.superres_cfg.enable_superres);
-  assert(!is_lossless_requested(&cpi->oxcf));
+  assert(!is_lossless_requested(&cpi->oxcf.rc_cfg));
   assert(!cm->features.all_lossless);
 
   av1_superres_upscale(cm, NULL);

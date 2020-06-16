@@ -200,7 +200,7 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mi = xd->mi[0];
   AV1_COMMON *cm = &cpi->common;
-  if (ref_frame > LAST_FRAME && cpi->oxcf.rc_mode == AOM_CBR &&
+  if (ref_frame > LAST_FRAME && cpi->oxcf.rc_cfg.mode == AOM_CBR &&
       gf_temporal_ref) {
     int tmp_sad;
     int dis;
@@ -1870,7 +1870,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   const int large_block = bsize >= BLOCK_32X32;
   const int use_model_yrd_large =
-      cpi->oxcf.rc_mode == AOM_CBR && large_block &&
+      cpi->oxcf.rc_cfg.mode == AOM_CBR && large_block &&
       !cyclic_refresh_segment_id_boosted(xd->mi[0]->segment_id) &&
       quant_params->base_qindex && cm->seq_params.bit_depth == 8;
 
@@ -2094,7 +2094,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     this_rdc.rate += ref_costs_single[ref_frame];
 
     this_rdc.rdcost = RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist);
-    if (cpi->oxcf.rc_mode == AOM_CBR) {
+    if (cpi->oxcf.rc_cfg.mode == AOM_CBR) {
       newmv_diff_bias(xd, this_mode, &this_rdc, bsize,
                       frame_mv[this_mode][ref_frame].as_mv.row,
                       frame_mv[this_mode][ref_frame].as_mv.col, cpi->speed,
