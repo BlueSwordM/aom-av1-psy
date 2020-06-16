@@ -879,12 +879,26 @@ static void tf_setup_filtering_buffer(const AV1_COMP *cpi,
   int num_after = 0;   // Number of filtering frames after the to-filer frame.
   const int lookahead_depth =
       av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage);
+
+  // Temporal filtering should not go beyond key frames
+  const int key_to_curframe =
+      AOMMAX(cpi->rc.frames_since_key +
+                 cpi->gf_group.frame_disp_idx[cpi->gf_group.index] -
+                 cpi->num_gf_group_show_frames,
+             0);
+  const int curframe_to_key =
+      AOMMAX(cpi->rc.frames_to_key -
+                 cpi->gf_group.frame_disp_idx[cpi->gf_group.index] +
+                 cpi->num_gf_group_show_frames - 1,
+             0);
+
   // Number of buffered frames before the to-filter frame.
-  const int max_before = filter_frame_lookahead_idx < -1
-                             ? -filter_frame_lookahead_idx + 1
-                             : filter_frame_lookahead_idx + 1;
+  const int max_before =
+      AOMMIN(filter_frame_lookahead_idx < -1 ? -filter_frame_lookahead_idx + 1
+                                             : filter_frame_lookahead_idx + 1,
+             key_to_curframe);
   // Number of buffered frames after the to-filter frame.
-  const int max_after = lookahead_depth - max_before;
+  const int max_after = AOMMIN(lookahead_depth - max_before, curframe_to_key);
 
   const int filter_frame_offset = filter_frame_lookahead_idx < -1
                                       ? -filter_frame_lookahead_idx
