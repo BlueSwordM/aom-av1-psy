@@ -1236,14 +1236,72 @@ static INLINE void update_mode_start_end_index(const AV1_COMP *const cpi,
   }
 }
 
-/* Function to search over and determine the motion mode. It will update
-   mbmi->motion_mode to one of SIMPLE_TRANSLATION, OBMC_CAUSAL, or
-   WARPED_CAUSAL and determine any necessary side information for the selected
-   motion mode. It will also perform the full transform search, unless the
-   input parameter do_tx_search indicates to do an estimation of the RD rather
-   than an RD corresponding to a full transform search. It will return the
-   RD for the final motion_mode.
-*/
+/*!\brief AV1 motion mode search
+ *
+ * \ingroup inter_mode_search
+ * Function to search over and determine the motion mode. It will update
+ * mbmi->motion_mode to one of SIMPLE_TRANSLATION, OBMC_CAUSAL, or
+ * WARPED_CAUSAL and determine any necessary side information for the selected
+ * motion mode. It will also perform the full transform search, unless the
+ * input parameter do_tx_search indicates to do an estimation of the RD rather
+ * than an RD corresponding to a full transform search. It will return the
+ * RD for the final motion_mode.
+ * Do the RD search for a given inter mode and compute all information relevant
+ * to the input mode. It will compute the best MV,
+ * compound parameters (if the mode is a compound mode) and interpolation filter
+ * parameters.
+ *
+ * \param[in]     cpi               Top-level encoder structure.
+ * \param[in]     tile_data         Pointer to struct holding adaptive
+ *                                  data/contexts/models for the tile during
+ *                                  encoding.
+ * \param[in]     x                 Pointer to struct holding all the data for
+ *                                  the current macroblock.
+ * \param[in]     bsize             Current block size.
+ * \param[in,out] rd_stats          Struct to keep track of the overall RD
+ *                                  information.
+ * \param[in,out] rd_stats_y        Struct to keep track of the RD information
+ *                                  for only the Y plane.
+ * \param[in,out] rd_stats_uv       Struct to keep track of the RD information
+ *                                  for only the UV planes.
+ * \param[in]     args              HandleInterModeArgs struct holding
+ *                                  miscellaneous arguments for inter mode
+ *                                  search. See the documentation for this
+ *                                  struct for a description of each member.
+ * \param[in]     ref_best_rd       Best RD found so far for this block.
+ *                                  It is used for early termination of this
+ *                                  search if the RD exceeds this value.
+ * \param[in,out] ref_skip_rd       A length 2 array, where skip_rd[0] is the
+ *                                  best total RD for a skip mode so far,  and
+ *                                  skip_rd[1] is the best RD for a skip mode so
+ *                                  far in luma. This is used as a speed feature
+ *                                  to skip the transform search if the computed
+ *                                  skip RD for the current mode is not better
+ *                                  than the best skip_rd so far.
+ * \param[in,out] rate_mv           The rate assiciated with the motion vectors.
+ *                                  This will be modified if a motion search is
+ *                                  done in the motion mode search.
+ * \param[in,out] orig_dst          A prediction buffer to hold a computed
+ *                                  prediction. This will eventually hold the
+ *                                  final prediction, and the tmp_dst info will
+ *                                  be copied here.
+ * \param[in,out] best_est_rd       Estimated RD for motion mode search if
+ *                                  do_tx_search (see below) is 0.
+ * \param[in]     do_tx_search      Parameter to indicate whether or not to do
+ *                                  a full transform search. This will compute
+ *                                  an estimated RD for the modes without the
+ *                                  transform search and later perform the full
+ *                                  transform search on the best candidates.
+ * \param[in]     inter_modes_info  InterModesInfo struct to hold inter mode
+ *                                  information to perform a full transform
+ *                                  search only on winning candidates searched
+ *                                  with an estimate for transform coding RD.
+ * \param[in]     eval_motion_mode  Boolean whether or not to evaluate motion
+ *                                  motion modes other than SIMPLE_TRANSLATION.
+ * \return Returns INT64_MAX if the determined motion mode is invalid and the
+ * current motion mode being tested should be skipped. It returns 0 if the
+ * motion mode search is a success.
+ */
 static int64_t motion_mode_rd(
     const AV1_COMP *const cpi, TileDataEnc *tile_data, MACROBLOCK *const x,
     BLOCK_SIZE bsize, RD_STATS *rd_stats, RD_STATS *rd_stats_y,
