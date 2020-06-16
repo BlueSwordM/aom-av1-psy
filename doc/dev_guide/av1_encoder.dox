@@ -5,6 +5,8 @@
       - To encode a frame, first call \ref av1_receive_raw_frame() to obtain the
         raw frame data. Then call \ref av1_get_compressed_data() to encode raw
         frame data into compressed frame data.
+      - \ref two_pass_algo
+      - \ref look_ahead_buffer
     - \ref partition_search
     - \ref intra_mode_search
     - \ref inter_mode_search
@@ -236,6 +238,47 @@ void second_pass(char *stats, size_t stats_len) {
   aom_codec_destroy(&second_pass_encoder);
 }
 ~~~~~~~~~~~~~~~
+ */
+
+ /*!\defgroup look_ahead_buffer The Look-Ahead Buffer
+    \ingroup high_level_algo
+
+ A program should call \ref aom_codec_encode() for each frame that needs
+ processing. These frames are internally copied and stored in a fixed-size
+ circular buffer, known as the look-ahead buffer. Other parts of the code
+ will use future frame information to inform current frame decisions;
+ examples include the first-pass algorithm, TPL model, and temporal filter.
+ Note that this buffer also keeps a reference to the last source frame.
+
+ The look-ahead buffer is defined in \ref av1/encoder/lookahead.h. It acts as an
+ opaque structure, with an interface to create and free memory associated with
+ it. It supports pushing and popping frames onto the structure in a FIFO
+ fashion. It also allows look-ahead when using the \ref av1_lookahead_peek()
+ function with a non-negative number, and look-behind when -1 is passed in (for
+ the last source frame). The \ref av1_lookahead_depth() function returns the
+ current number of frames stored in it. Note that \ref av1_lookahead_pop() is
+ a bit of a misnomer - it only pops if either the "flush" variable is set, or
+ the buffer is at maximum capacity.
+
+ The buffer is stored in the \ref AV1_COMP::lookahead field.
+ It is initialized in the first call to \ref aom_codec_encode(), in the
+ \ref av1_receive_raw_frame() sub-routine. The buffer size is defined by
+ the g_lag_in_frames parameter set in the
+ \ref aom_codec_enc_cfg_t::g_lag_in_frames struct.
+ This can be modified manually but should only be set once. On the command
+ line, the flag "--lag-in-frames" controls it. The default size is 19 for
+ non-realtime usage and 1 for realtime. Note that a maximum value of 25 is
+ enforced.
+
+ A frame will stay in the buffer as long as possible. As mentioned above,
+ the \ref av1_lookahead_pop() only removes a frame when either flush is set,
+ or the buffer is full. Note that each call to \ref aom_codec_encode() inserts
+ another frame into the buffer, and pop is called by the sub-function
+ \ref av1_encode_strategy(). The buffer is told to flush when
+ \ref aom_codec_encode() is passed a NULL image pointer. Note that the caller
+ must repeatedly call \ref aom_codec_encode() with a NULL image pointer, until
+ no more packets are available, in order to fully flush the buffer.
+
  */
 
 /*! @} - end defgroup high_level_algo */
