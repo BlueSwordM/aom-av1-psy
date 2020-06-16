@@ -1034,7 +1034,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     oxcf->timing_info_present = 0;
   }
 
-  oxcf->enable_tpl_model = extra_cfg->enable_tpl_model;
+  // TODO(any): Fix and Enable TPL for resize-mode > 0
+  oxcf->enable_tpl_model =
+      resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
 
   oxcf->enable_chroma_deltaq = extra_cfg->enable_chroma_deltaq;
   oxcf->aq_mode = extra_cfg->aq_mode;
