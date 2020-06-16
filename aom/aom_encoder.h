@@ -666,23 +666,17 @@ typedef struct aom_codec_enc_cfg {
 
   /*!\brief Rate control adaptation undershoot control
    *
-   * This value, expressed as a percentage of the target bitrate,
-   * controls the maximum allowed adaptation speed of the codec.
-   * This factor controls the maximum amount of bits that can
-   * be subtracted from the target bitrate in order to compensate
-   * for prior overshoot.
+   * This value, controls the tolerance of the VBR algorithm to undershoot
+   * and is used as a trigger threshold for more agressive adaptation of Q.
    *
-   * Valid values in the range 0-1000.
+   * Valid values in the range 0-100.
    */
   unsigned int rc_undershoot_pct;
 
   /*!\brief Rate control adaptation overshoot control
    *
-   * This value, expressed as a percentage of the target bitrate,
-   * controls the maximum allowed adaptation speed of the codec.
-   * This factor controls the maximum amount of bits that can
-   * be added to the target bitrate in order to compensate for
-   * prior undershoot.
+   * This value, controls the tolerance of the VBR algorithm to overshoot
+   * and is used as a trigger threshold for more agressive adaptation of Q.
    *
    * Valid values in the range 0-1000.
    */
