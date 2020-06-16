@@ -1929,13 +1929,6 @@ int av1_set_reference_enc(AV1_COMP *cpi, int idx, YV12_BUFFER_CONFIG *sd) {
   }
 }
 
-int av1_update_entropy(bool *ext_refresh_frame_context,
-                       bool *ext_refresh_frame_context_pending, bool update) {
-  *ext_refresh_frame_context = update;
-  *ext_refresh_frame_context_pending = 1;
-  return 0;
-}
-
 #ifdef OUTPUT_YUV_REC
 void aom_write_one_yuv_frame(AV1_COMMON *cm, YV12_BUFFER_CONFIG *s) {
   uint8_t *src = s->y_buffer;
@@ -2214,18 +2207,6 @@ static void set_size_independent_vars(AV1_COMP *cpi) {
 
 #define MIN_BOOST_COMBINE_FACTOR 4.0
 #define MAX_BOOST_COMBINE_FACTOR 12.0
-int combine_prior_with_tpl_boost(double min_factor, double max_factor,
-                                 int prior_boost, int tpl_boost,
-                                 int frames_to_key) {
-  double factor = sqrt((double)frames_to_key);
-  double range = max_factor - min_factor;
-  factor = AOMMIN(factor, max_factor);
-  factor = AOMMAX(factor, min_factor);
-  factor -= min_factor;
-  int boost =
-      (int)((factor * prior_boost + (range - factor) * tpl_boost) / range);
-  return boost;
-}
 
 #if !CONFIG_REALTIME_ONLY
 static void process_tpl_stats_frame(AV1_COMP *cpi) {
@@ -4799,8 +4780,8 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
       (flags & AOM_EFLAG_SET_PRIMARY_REF_NONE) != 0;
 
   if (flags & AOM_EFLAG_NO_UPD_ENTROPY) {
-    av1_update_entropy(&ext_flags->refresh_frame_context,
-                       &ext_flags->refresh_frame_context_pending, 0);
+    update_entropy(&ext_flags->refresh_frame_context,
+                   &ext_flags->refresh_frame_context_pending, 0);
   }
 }
 

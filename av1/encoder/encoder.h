@@ -2428,9 +2428,6 @@ int av1_set_size_literal(AV1_COMP *cpi, int width, int height);
 
 void av1_set_frame_size(AV1_COMP *cpi, int width, int height);
 
-int av1_update_entropy(bool *ext_refresh_frame_context,
-                       bool *ext_refresh_frame_context_pending, bool update);
-
 int av1_set_active_map(AV1_COMP *cpi, unsigned char *map, int rows, int cols);
 
 int av1_get_active_map(AV1_COMP *cpi, unsigned char *map, int rows, int cols);

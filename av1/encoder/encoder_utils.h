@@ -1196,6 +1196,31 @@ static AOM_INLINE int equal_dimensions_and_border(const YV12_BUFFER_CONFIG *a,
              (b->flags & YV12_FLAG_HIGHBITDEPTH);
 }
 
+static AOM_INLINE int update_entropy(bool *ext_refresh_frame_context,
+                                     bool *ext_refresh_frame_context_pending,
+                                     bool update) {
+  *ext_refresh_frame_context = update;
+  *ext_refresh_frame_context_pending = 1;
+  return 0;
+}
+
+#if !CONFIG_REALTIME_ONLY
+static AOM_INLINE int combine_prior_with_tpl_boost(double min_factor,
+                                                   double max_factor,
+                                                   int prior_boost,
+                                                   int tpl_boost,
+                                                   int frames_to_key) {
+  double factor = sqrt((double)frames_to_key);
+  double range = max_factor - min_factor;
+  factor = AOMMIN(factor, max_factor);
+  factor = AOMMAX(factor, min_factor);
+  factor -= min_factor;
+  int boost =
+      (int)((factor * prior_boost + (range - factor) * tpl_boost) / range);
+  return boost;
+}
+#endif
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
