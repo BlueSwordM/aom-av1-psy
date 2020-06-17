@@ -24,6 +24,8 @@
 extern "C" {
 #endif
 
+/*!\cond */
+
 // Bits Per MB at different Q (Multiplied by 512)
 #define BPER_MB_NORMBITS 9
 
@@ -255,10 +257,26 @@ void av1_rc_compute_frame_size_bounds(const struct AV1_COMP *cpi,
                                       int *frame_under_shoot_limit,
                                       int *frame_over_shoot_limit);
 
-// Picks q and q bounds given the target for bits
+/*!\endcond */
+
+/*!\brief Picks q and q bounds given the rate control parameters in \c cpi->rc.
+ *
+ * \ingroup rate_control
+ * \param[in]       cpi          Top level encoder structure
+ * \param[in,out]   rc           Top level rate control structure
+ * \param[in]       width        Coded frame width
+ * \param[in]       height       Coded frame height
+ * \param[in]       gf_index     Index of this frame in the golden frame group
+ * \param[out]      bottom_index Bottom bound for q index (best quality)
+ * \param[out]      top_index    Top bound for q index (worst quality)
+ * \return Returns selected q index to be used for encoding this frame.
+ * Also, updates \c rc->arf_q.
+ */
 int av1_rc_pick_q_and_bounds(const struct AV1_COMP *cpi, RATE_CONTROL *rc,
                              int width, int height, int gf_index,
                              int *bottom_index, int *top_index);
+
+/*!\cond */
 
 // Estimates q to achieve a target bits per frame
 int av1_rc_regulate_q(const struct AV1_COMP *cpi, int target_bits_per_frame,
@@ -322,6 +340,8 @@ void av1_get_one_pass_rt_params(struct AV1_COMP *cpi,
                                 unsigned int frame_flags);
 
 int av1_encodedframe_overshoot(struct AV1_COMP *cpi, int *q);
+
+/*!\endcond */
 
 #ifdef __cplusplus
 }  // extern "C"
