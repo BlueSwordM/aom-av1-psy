@@ -720,6 +720,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   KeyFrameCfg *const kf_cfg = &oxcf->kf_cfg;
 
+  DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
+
   const int is_vbr = cfg->rc_end_usage == AOM_VBR;
   oxcf->profile = cfg->g_profile;
   oxcf->max_threads = (int)cfg->g_threads;
@@ -737,19 +739,21 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->input_bit_depth = cfg->g_input_bit_depth;
   // guess a frame rate if out of whack, use 30
   oxcf->init_framerate = (double)cfg->g_timebase.den / cfg->g_timebase.num;
+
+  // Set Decoder model configuration.
   if (extra_cfg->timing_info_type == AOM_TIMING_EQUAL ||
       extra_cfg->timing_info_type == AOM_TIMING_DEC_MODEL) {
-    oxcf->timing_info_present = 1;
-    oxcf->timing_info.num_units_in_display_tick = cfg->g_timebase.num;
-    oxcf->timing_info.time_scale = cfg->g_timebase.den;
-    oxcf->timing_info.num_ticks_per_picture = 1;
+    dec_model_cfg->timing_info_present = 1;
+    dec_model_cfg->timing_info.num_units_in_display_tick = cfg->g_timebase.num;
+    dec_model_cfg->timing_info.time_scale = cfg->g_timebase.den;
+    dec_model_cfg->timing_info.num_ticks_per_picture = 1;
   } else {
-    oxcf->timing_info_present = 0;
+    dec_model_cfg->timing_info_present = 0;
   }
   if (extra_cfg->timing_info_type == AOM_TIMING_EQUAL) {
-    oxcf->timing_info.equal_picture_interval = 1;
-    oxcf->decoder_model_info_present_flag = 0;
-    oxcf->display_model_info_present_flag = 1;
+    dec_model_cfg->timing_info.equal_picture_interval = 1;
+    dec_model_cfg->decoder_model_info_present_flag = 0;
+    dec_model_cfg->display_model_info_present_flag = 1;
   } else if (extra_cfg->timing_info_type == AOM_TIMING_DEC_MODEL) {
     //    if( extra_cfg->arnr_strength > 0 )
     //    {
@@ -761,15 +765,14 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     //      printf("Only --superres-mode=0 can currently be used with
     //      --timing-info=model."); return AOM_CODEC_INVALID_PARAM;
     //    }
-    oxcf->buffer_model.num_units_in_decoding_tick = cfg->g_timebase.num;
-    oxcf->timing_info.equal_picture_interval = 0;
-    oxcf->decoder_model_info_present_flag = 1;
-    oxcf->buffer_removal_time_present = 1;
-    oxcf->display_model_info_present_flag = 1;
+    dec_model_cfg->num_units_in_decoding_tick = cfg->g_timebase.num;
+    dec_model_cfg->timing_info.equal_picture_interval = 0;
+    dec_model_cfg->decoder_model_info_present_flag = 1;
+    dec_model_cfg->display_model_info_present_flag = 1;
   }
   if (oxcf->init_framerate > 180) {
     oxcf->init_framerate = 30;
-    oxcf->timing_info_present = 0;
+    dec_model_cfg->timing_info_present = 0;
   }
   oxcf->encoder_cfg = &cfg->encoder_cfg;
 
@@ -1030,8 +1033,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   if (oxcf->limit == 1) {
     // still picture mode, display model and timing is meaningless
-    oxcf->display_model_info_present_flag = 0;
-    oxcf->timing_info_present = 0;
+    dec_model_cfg->display_model_info_present_flag = 0;
+    dec_model_cfg->timing_info_present = 0;
   }
 
   // TODO(any): Fix and Enable TPL for resize-mode > 0

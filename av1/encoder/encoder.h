@@ -562,6 +562,21 @@ typedef struct {
   bool enable_obmc;
 } MotionModeCfg;
 
+typedef struct {
+  // Timing info for each frame.
+  aom_timing_info_t timing_info;
+  // Indicates the number of time units of a decoding clock.
+  uint32_t num_units_in_decoding_tick;
+  // Indicates if decoder model information is present in the coded sequence
+  // header.
+  bool decoder_model_info_present_flag;
+  // Indicates if display model information is present in the coded sequence
+  // header.
+  bool display_model_info_present_flag;
+  // Indicates if timing info for each frame is present.
+  bool timing_info_present;
+} DecoderModelCfg;
+
 typedef struct AV1EncoderConfig {
   BITSTREAM_PROFILE profile;
   aom_bit_depth_t bit_depth;     // Codec bit-depth.
@@ -684,14 +699,11 @@ typedef struct AV1EncoderConfig {
   aom_matrix_coefficients_t matrix_coefficients;
   aom_chroma_sample_position_t chroma_sample_position;
   int color_range;
-  int timing_info_present;
-  aom_timing_info_t timing_info;
-  int decoder_model_info_present_flag;
-  int display_model_info_present_flag;
-  int buffer_removal_time_present;
-  aom_dec_model_info_t buffer_model;
   int film_grain_test_vector;
   const char *film_grain_table_filename;
+
+  // Configuration related to decoder model.
+  DecoderModelCfg dec_model_cfg;
 
   uint8_t cdf_update_mode;
   aom_superblock_size_t superblock_size;

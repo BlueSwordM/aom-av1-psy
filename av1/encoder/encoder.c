@@ -759,6 +759,7 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   AV1_COMMON *const cm = &cpi->common;
   SequenceHeader *const seq_params = &cm->seq_params;
   ResizePendingParams *resize_pending_params = &cpi->resize_pending_params;
+  const DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
 
   cpi->oxcf = *oxcf;
   cpi->framerate = oxcf->init_framerate;
@@ -772,23 +773,23 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   seq_params->monochrome = oxcf->monochrome;
   seq_params->chroma_sample_position = oxcf->chroma_sample_position;
   seq_params->color_range = oxcf->color_range;
-  seq_params->timing_info_present = oxcf->timing_info_present;
+  seq_params->timing_info_present = dec_model_cfg->timing_info_present;
   seq_params->timing_info.num_units_in_display_tick =
-      oxcf->timing_info.num_units_in_display_tick;
-  seq_params->timing_info.time_scale = oxcf->timing_info.time_scale;
+      dec_model_cfg->timing_info.num_units_in_display_tick;
+  seq_params->timing_info.time_scale = dec_model_cfg->timing_info.time_scale;
   seq_params->timing_info.equal_picture_interval =
-      oxcf->timing_info.equal_picture_interval;
+      dec_model_cfg->timing_info.equal_picture_interval;
   seq_params->timing_info.num_ticks_per_picture =
-      oxcf->timing_info.num_ticks_per_picture;
+      dec_model_cfg->timing_info.num_ticks_per_picture;
 
   seq_params->display_model_info_present_flag =
-      oxcf->display_model_info_present_flag;
+      dec_model_cfg->display_model_info_present_flag;
   seq_params->decoder_model_info_present_flag =
-      oxcf->decoder_model_info_present_flag;
-  if (oxcf->decoder_model_info_present_flag) {
+      dec_model_cfg->decoder_model_info_present_flag;
+  if (dec_model_cfg->decoder_model_info_present_flag) {
     // set the decoder model parameters in schedule mode
     seq_params->decoder_model_info.num_units_in_decoding_tick =
-        oxcf->buffer_model.num_units_in_decoding_tick;
+        dec_model_cfg->num_units_in_decoding_tick;
     cm->buffer_removal_time_present = 1;
     av1_set_aom_dec_model_info(&seq_params->decoder_model_info);
     av1_set_dec_model_op_parameters(&seq_params->op_params[0]);
@@ -871,6 +872,8 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
   RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
   const FrameDimensionCfg *const frm_dim_cfg = &cpi->oxcf.frm_dim_cfg;
+  const DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
+
   // in case of LAP, lag in frames is set according to number of lap buffers
   // calculated at init time. This stores and restores LAP's lag in frames to
   // prevent override by new cfg.
@@ -891,23 +894,23 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   assert(IMPLIES(seq_params->profile <= PROFILE_1,
                  seq_params->bit_depth <= AOM_BITS_10));
 
-  seq_params->timing_info_present = oxcf->timing_info_present;
+  seq_params->timing_info_present = dec_model_cfg->timing_info_present;
   seq_params->timing_info.num_units_in_display_tick =
-      oxcf->timing_info.num_units_in_display_tick;
-  seq_params->timing_info.time_scale = oxcf->timing_info.time_scale;
+      dec_model_cfg->timing_info.num_units_in_display_tick;
+  seq_params->timing_info.time_scale = dec_model_cfg->timing_info.time_scale;
   seq_params->timing_info.equal_picture_interval =
-      oxcf->timing_info.equal_picture_interval;
+      dec_model_cfg->timing_info.equal_picture_interval;
   seq_params->timing_info.num_ticks_per_picture =
-      oxcf->timing_info.num_ticks_per_picture;
+      dec_model_cfg->timing_info.num_ticks_per_picture;
 
   seq_params->display_model_info_present_flag =
-      oxcf->display_model_info_present_flag;
+      dec_model_cfg->display_model_info_present_flag;
   seq_params->decoder_model_info_present_flag =
-      oxcf->decoder_model_info_present_flag;
-  if (oxcf->decoder_model_info_present_flag) {
+      dec_model_cfg->decoder_model_info_present_flag;
+  if (dec_model_cfg->decoder_model_info_present_flag) {
     // set the decoder model parameters in schedule mode
     seq_params->decoder_model_info.num_units_in_decoding_tick =
-        oxcf->buffer_model.num_units_in_decoding_tick;
+        dec_model_cfg->num_units_in_decoding_tick;
     cm->buffer_removal_time_present = 1;
     av1_set_aom_dec_model_info(&seq_params->decoder_model_info);
     av1_set_dec_model_op_parameters(&seq_params->op_params[0]);
