@@ -675,7 +675,7 @@ static int get_gf_high_motion_quality(int q, aom_bit_depth_t bit_depth) {
   return arfgf_high_motion_minq[q];
 }
 
-static int calc_active_worst_quality_one_pass_vbr(const AV1_COMP *cpi) {
+static int calc_active_worst_quality_no_stats_vbr(const AV1_COMP *cpi) {
   const RATE_CONTROL *const rc = &cpi->rc;
   const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
   const unsigned int curr_frame = cpi->common.current_frame.frame_number;
@@ -699,7 +699,7 @@ static int calc_active_worst_quality_one_pass_vbr(const AV1_COMP *cpi) {
 }
 
 // Adjust active_worst_quality level based on buffer level.
-static int calc_active_worst_quality_one_pass_cbr(const AV1_COMP *cpi) {
+static int calc_active_worst_quality_no_stats_cbr(const AV1_COMP *cpi) {
   // Adjust active_worst_quality: If buffer is above the optimal/target level,
   // bring active_worst_quality down depending on fullness of buffer.
   // If buffer is below the optimal level, let the active_worst_quality go from
@@ -755,7 +755,7 @@ static int calc_active_worst_quality_one_pass_cbr(const AV1_COMP *cpi) {
 }
 
 // Calculate the active_best_quality level.
-static int calc_active_best_quality_one_pass_cbr(const AV1_COMP *cpi,
+static int calc_active_best_quality_no_stats_cbr(const AV1_COMP *cpi,
                                                  int active_worst_quality,
                                                  int width, int height) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -818,7 +818,7 @@ static int calc_active_best_quality_one_pass_cbr(const AV1_COMP *cpi,
   return active_best_quality;
 }
 
-static int rc_pick_q_and_bounds_one_pass_cbr(const AV1_COMP *cpi, int width,
+static int rc_pick_q_and_bounds_no_stats_cbr(const AV1_COMP *cpi, int width,
                                              int height, int *bottom_index,
                                              int *top_index) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -826,9 +826,11 @@ static int rc_pick_q_and_bounds_one_pass_cbr(const AV1_COMP *cpi, int width,
   const CurrentFrame *const current_frame = &cm->current_frame;
   int q;
   const int bit_depth = cm->seq_params.bit_depth;
-  int active_worst_quality = calc_active_worst_quality_one_pass_cbr(cpi);
-  int active_best_quality = calc_active_best_quality_one_pass_cbr(
+  int active_worst_quality = calc_active_worst_quality_no_stats_cbr(cpi);
+  int active_best_quality = calc_active_best_quality_no_stats_cbr(
       cpi, active_worst_quality, width, height);
+  assert(has_no_stats_stage(cpi));
+  assert(cpi->oxcf.rc_mode == AOM_CBR);
 
   // Clip the active best and worst quality values to limits
   active_best_quality =
@@ -841,7 +843,7 @@ static int rc_pick_q_and_bounds_one_pass_cbr(const AV1_COMP *cpi, int width,
 
   // Limit Q range for the adaptive loop.
   if (current_frame->frame_type == KEY_FRAME && !rc->this_key_frame_forced &&
-      !(current_frame->frame_number == 0)) {
+      current_frame->frame_number != 0) {
     int qdelta = 0;
     aom_clear_system_state();
     qdelta = av1_compute_qdelta_by_rate(&cpi->rc, current_frame->frame_type,
@@ -948,26 +950,38 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
   return AOMMAX(cq_level + delta_qindex, 0);
 }
 
-static int rc_pick_q_and_bounds_one_pass_vbr(const AV1_COMP *cpi, int width,
-                                             int height, int *bottom_index,
-                                             int *top_index) {
+static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
+                                         int height, int *bottom_index,
+                                         int *top_index) {
   const AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *const rc = &cpi->rc;
   const CurrentFrame *const current_frame = &cm->current_frame;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
+  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const int gf_index = gf_group->index;
+
+  assert(has_no_stats_stage(cpi));
+  assert(cpi->oxcf.rc_mode == AOM_VBR ||
+#if !USE_UNRESTRICTED_Q_IN_CQ_MODE
+         cpi->oxcf.rc_mode == AOM_CQ ||
+#endif  // !USE_UNRESTRICTED_Q_IN_CQ_MODE
+         cpi->oxcf.rc_mode == AOM_Q);
+  assert(IMPLIES(cpi->oxcf.rc_mode == AOM_Q,
+                 gf_group->update_type[gf_index] == ARF_UPDATE));
+
   const int cq_level =
       get_active_cq_level(rc, oxcf, frame_is_intra_only(cm), cpi->superres_mode,
                           cm->superres_scale_denominator);
   const int bit_depth = cm->seq_params.bit_depth;
 
   if (oxcf->use_fixed_qp_offsets) {
-    return get_q_using_fixed_offsets(oxcf, rc, &cpi->gf_group,
-                                     cpi->gf_group.index, cq_level, bit_depth);
+    return get_q_using_fixed_offsets(oxcf, rc, gf_group, gf_index, cq_level,
+                                     bit_depth);
   }
 
   int active_best_quality;
-  int active_worst_quality = calc_active_worst_quality_one_pass_vbr(cpi);
+  int active_worst_quality = calc_active_worst_quality_no_stats_vbr(cpi);
   int q;
   int *inter_minq;
   ASSIGN_MINQ_TABLE(bit_depth, inter_minq);
@@ -1069,7 +1083,7 @@ static int rc_pick_q_and_bounds_one_pass_vbr(const AV1_COMP *cpi, int width,
     int qdelta = 0;
     aom_clear_system_state();
     if (current_frame->frame_type == KEY_FRAME && !rc->this_key_frame_forced &&
-        !(current_frame->frame_number == 0)) {
+        current_frame->frame_number != 0) {
       qdelta = av1_compute_qdelta_by_rate(&cpi->rc, current_frame->frame_type,
                                           active_worst_quality, 2.0, bit_depth);
     } else if (!rc->is_src_frame_alt_ref &&
@@ -1132,18 +1146,22 @@ int av1_frame_type_qdelta(const AV1_COMP *cpi, int q) {
 // This unrestricted Q selection on CQ mode is useful when testing new features,
 // but may lead to Q being out of range on current RC restrictions
 #if USE_UNRESTRICTED_Q_IN_CQ_MODE
-static int rc_pick_q_and_bounds_one_pass_cq(const AV1_COMP *cpi, int width,
+static int rc_pick_q_and_bounds_no_stats_cq(const AV1_COMP *cpi, int width,
                                             int height, int *bottom_index,
                                             int *top_index) {
   const AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
-  const int cq_level = get_active_cq_level(rc, oxcf, frame_is_intra_only(cm),
-                                           cm->superres_scale_denominator);
+  const int cq_level =
+      get_active_cq_level(rc, oxcf, frame_is_intra_only(cm), cpi->superres_mode,
+                          cm->superres_scale_denominator);
   const int bit_depth = cm->seq_params.bit_depth;
   const int q = (int)av1_convert_qindex_to_q(cq_level, bit_depth);
   (void)width;
   (void)height;
+  assert(has_no_stats_stage(cpi));
+  assert(cpi->oxcf.rc_mode == AOM_CQ);
+
   *top_index = q;
   *bottom_index = q;
 
@@ -1152,10 +1170,9 @@ static int rc_pick_q_and_bounds_one_pass_cq(const AV1_COMP *cpi, int width,
 #endif  // USE_UNRESTRICTED_Q_IN_CQ_MODE
 
 #define STATIC_MOTION_THRESH 95
-static void get_intra_q_and_bounds_two_pass(const AV1_COMP *cpi, int width,
-                                            int height, int *active_best,
-                                            int *active_worst, int cq_level,
-                                            int is_fwd_kf) {
+static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
+                                   int *active_best, int *active_worst,
+                                   int cq_level, int is_fwd_kf) {
   const AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
@@ -1409,14 +1426,17 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   return active_best_quality;
 }
 
-static int rc_pick_q_and_bounds_two_pass(const AV1_COMP *cpi, int width,
-                                         int height, int gf_index,
-                                         int *bottom_index, int *top_index) {
+static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
+                                int gf_index, int *bottom_index,
+                                int *top_index) {
   const AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
   const GF_GROUP *gf_group = &cpi->gf_group;
+  assert(IMPLIES(has_no_stats_stage(cpi),
+                 cpi->oxcf.rc_mode == AOM_Q &&
+                     gf_group->update_type[gf_index] != ARF_UPDATE));
   const int cq_level =
       get_active_cq_level(rc, oxcf, frame_is_intra_only(cm), cpi->superres_mode,
                           cm->superres_scale_denominator);
@@ -1437,8 +1457,8 @@ static int rc_pick_q_and_bounds_two_pass(const AV1_COMP *cpi, int width,
   if (frame_is_intra_only(cm)) {
     const int is_fwd_kf =
         cm->current_frame.frame_type == KEY_FRAME && cm->show_frame == 0;
-    get_intra_q_and_bounds_two_pass(cpi, width, height, &active_best_quality,
-                                    &active_worst_quality, cq_level, is_fwd_kf);
+    get_intra_q_and_bounds(cpi, width, height, &active_best_quality,
+                           &active_worst_quality, cq_level, is_fwd_kf);
 #ifdef STRICT_RC
     active_best_quality = 0;
 #endif
@@ -1498,26 +1518,27 @@ int av1_rc_pick_q_and_bounds(const AV1_COMP *cpi, RATE_CONTROL *rc, int width,
                              int height, int gf_index, int *bottom_index,
                              int *top_index) {
   int q;
-  // TODO(sarahparker) merge onepass vbr and altref q computation
-  // with two pass
+  // TODO(sarahparker) merge no-stats vbr and altref q computation
+  // with rc_pick_q_and_bounds().
   const GF_GROUP *gf_group = &cpi->gf_group;
   if ((cpi->oxcf.rc_mode != AOM_Q ||
        gf_group->update_type[gf_index] == ARF_UPDATE) &&
       has_no_stats_stage(cpi)) {
-    if (cpi->oxcf.rc_mode == AOM_CBR)
-      q = rc_pick_q_and_bounds_one_pass_cbr(cpi, width, height, bottom_index,
+    if (cpi->oxcf.rc_mode == AOM_CBR) {
+      q = rc_pick_q_and_bounds_no_stats_cbr(cpi, width, height, bottom_index,
                                             top_index);
 #if USE_UNRESTRICTED_Q_IN_CQ_MODE
-    else if (cpi->oxcf.rc_mode == AOM_CQ)
-      q = rc_pick_q_and_bounds_one_pass_cq(cpi, width, height, bottom_index,
+    } else if (cpi->oxcf.rc_mode == AOM_CQ) {
+      q = rc_pick_q_and_bounds_no_stats_cq(cpi, width, height, bottom_index,
                                            top_index);
 #endif  // USE_UNRESTRICTED_Q_IN_CQ_MODE
-    else
-      q = rc_pick_q_and_bounds_one_pass_vbr(cpi, width, height, bottom_index,
-                                            top_index);
+    } else {
+      q = rc_pick_q_and_bounds_no_stats(cpi, width, height, bottom_index,
+                                        top_index);
+    }
   } else {
-    q = rc_pick_q_and_bounds_two_pass(cpi, width, height, gf_index,
-                                      bottom_index, top_index);
+    q = rc_pick_q_and_bounds(cpi, width, height, gf_index, bottom_index,
+                             top_index);
   }
   if (gf_group->update_type[gf_index] == ARF_UPDATE) rc->arf_q = q;
 
