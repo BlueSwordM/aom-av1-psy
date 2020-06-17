@@ -707,6 +707,41 @@ static void hybrid_intra_mode_search(AV1_COMP *cpi, MACROBLOCK *const x,
     av1_nonrd_pick_intra_mode(cpi, x, rd_cost, bsize, ctx);
 }
 
+/*!\brief Interface for AV1 mode search for an individual coding block
+ *
+ * \ingroup partition_search
+ * \callgraph
+ * \callergraph
+ * Searches prediction modes, transform, and coefficient coding modes for an
+ * individual coding block. This function is the top-level interface that
+ * directs the encoder to the proper mode search function, among these
+ * implemented for inter/intra + rd/non-rd + non-skip segment/skip segment.
+ *
+ * \param[in]    cpi            Top-level encoder structure
+ * \param[in]    tile_data      Pointer to struct holding adaptive
+ *                              data/contexts/models for the tile during
+ *                              encoding
+ * \param[in]    x              Pointer to structure holding all the data for
+ *                              the current macroblock
+ * \param[in]    mi_row         Row coordinate of the block in a step size of
+ *                              MI_SIZE
+ * \param[in]    mi_col         Column coordinate of the block in a step size of
+ *                              MI_SIZE
+ * \param[in]    rd_cost        Pointer to structure holding rate and distortion
+ *                              stats for the current block
+ * \param[in]    partition      Partition mode of the parent block
+ * \param[in]    bsize          Current block size
+ * \param[in]    ctx            Pointer to structure holding coding contexts and
+ *                              chosen modes for the current block
+ * \param[in]    best_rd        Upper bound of rd cost of a valid partition
+ * \param[in]    pick_mode_type A code indicating mode search strategy:
+ *                              PICK_MODE_RD, or PICK_MODE_NONRD
+ *
+ * \return Nothing is returned. Instead, the chosen modes and contexts necessary
+ * for reconstruction are stored in ctx, the rate-distortion stats are stored in
+ * rd_cost. If no valid mode leading to rd_cost <= best_rd, the status will be
+ * signalled by an INT64_MAX rd_cost->rdcost.
+ */
 static AOM_INLINE void pick_sb_modes(AV1_COMP *const cpi,
                                      TileDataEnc *tile_data,
                                      MACROBLOCK *const x, int mi_row,
@@ -1532,6 +1567,34 @@ static AOM_INLINE void save_context(const MACROBLOCK *x,
   ctx->p_tl = xd->left_txfm_context;
 }
 
+/*!\brief Reconstructs an individual coding block
+ *
+ * \ingroup partition_search
+ * \callgraph
+ * \callergraph
+ * Reconstructs an individual coding block by applying the chosen modes stored
+ * in ctx, also updates mode counts and entropy models.
+ *
+ * \param[in]    cpi       Top-level encoder structure
+ * \param[in]    tile_data Pointer to struct holding adaptive
+ *                         data/contexts/models for the tile during encoding
+ * \param[in]    td        Pointer to thread data
+ * \param[in]    tp        Pointer to the starting token
+ * \param[in]    mi_row    Row coordinate of the block in a step size of MI_SIZE
+ * \param[in]    mi_col    Column coordinate of the block in a step size of
+ *                         MI_SIZE
+ * \param[in]    dry_run   A code indicating whether it is part of the final
+ *                         pass for reconstructing the superblock
+ * \param[in]    bsize     Current block size
+ * \param[in]    partition Partition mode of the parent block
+ * \param[in]    ctx       Pointer to structure holding coding contexts and the
+ *                         chosen modes for the current block
+ * \param[in]    rate      Pointer to the total rate for the current block
+ *
+ * \return Nothing is returned. Instead, reconstructions (w/o in-loop filters)
+ * will be updated in the pixel buffers in td->mb.e_mbd. Also, the chosen modes
+ * will be stored in the MB_MODE_INFO buffer td->mb.e_mbd.mi[0].
+ */
 static AOM_INLINE void encode_b(const AV1_COMP *const cpi,
                                 TileDataEnc *tile_data, ThreadData *td,
                                 TokenExtra **tp, int mi_row, int mi_col,
@@ -1665,6 +1728,32 @@ static AOM_INLINE void encode_b(const AV1_COMP *const cpi,
   x->rdmult = origin_mult;
 }
 
+/*!\brief Reconstructs a partition (may contain multiple coding blocks)
+ *
+ * \ingroup partition_search
+ * \callgraph
+ * \callergraph
+ * Reconstructs a sub-partition of the superblock by applying the chosen modes
+ * and partition trees stored in pc_tree.
+ *
+ * \param[in]    cpi       Top-level encoder structure
+ * \param[in]    td        Pointer to thread data
+ * \param[in]    tile_data Pointer to struct holding adaptive
+ *                         data/contexts/models for the tile during encoding
+ * \param[in]    tp        Pointer to the starting token
+ * \param[in]    mi_row    Row coordinate of the block in a step size of MI_SIZE
+ * \param[in]    mi_col    Column coordinate of the block in a step size of
+ *                         MI_SIZE
+ * \param[in]    dry_run   A code indicating whether it is part of the final
+ *                         pass for reconstructing the superblock
+ * \param[in]    bsize     Current block size
+ * \param[in]    pc_tree   Pointer to the PC_TREE node storing the picked
+ *                         partitions and mode info for the current block
+ * \param[in]    rate      Pointer to the total rate for the current block
+ *
+ * \return Nothing is returned. Instead, reconstructions (w/o in-loop filters)
+ * will be updated in the pixel buffers in td->mb.e_mbd.
+ */
 static AOM_INLINE void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
                                  TileDataEnc *tile_data, TokenExtra **tp,
                                  int mi_row, int mi_col, RUN_TYPE dry_run,
