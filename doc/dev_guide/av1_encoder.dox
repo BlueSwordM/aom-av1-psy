@@ -12,6 +12,8 @@
     - \ref inter_mode_search
     - \ref transform_search
     - \ref in_loop_filter
+    - \ref in_loop_cdef
+    - \ref in_loop_restoration
     - \ref rate_control
 
   <b>[SAMPLE CONTEXT ONLY - copied from AV1 overview paper]:</b>
@@ -330,6 +332,23 @@ void second_pass(char *stats, size_t stats_len) {
  * @{
  */
 /*! @} - end defgroup in_loop_filter */
+
+/*!\defgroup in_loop_cdef CDEF Search
+ * \ingroup encoder_algo
+ * This module describes the CDEF parameter search algorithm
+ * in AV1. More details will be added.
+ * @{
+ */
+/*! @} - end defgroup in_loop_restoration */
+
+/*!\defgroup in_loop_restoration Loop Restoration Search
+ * \ingroup encoder_algo
+ * This module describes the loop restoration search
+ * and estimation algorithm in AV1.
+ * More details will be added.
+ * @{
+ */
+/*! @} - end defgroup in_loop_restoration */
 
 /*!\defgroup rate_control Rate Control
  * \ingroup encoder_algo

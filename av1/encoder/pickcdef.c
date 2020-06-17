@@ -378,9 +378,9 @@ static void pick_cdef_from_qp(AV1_COMMON *const cm) {
   }
 }
 
-void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
-                     AV1_COMMON *cm, MACROBLOCKD *xd, int pick_method,
-                     int rdmult) {
+void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
+                     const YV12_BUFFER_CONFIG *ref, AV1_COMMON *cm,
+                     MACROBLOCKD *xd, int pick_method, int rdmult) {
   if (pick_method == CDEF_PICK_FROM_Q) {
     pick_cdef_from_qp(cm);
     return;
