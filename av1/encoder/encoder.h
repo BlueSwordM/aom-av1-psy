@@ -199,7 +199,6 @@ typedef struct TplDepFrame {
   int height;
   int mi_rows;
   int mi_cols;
-  unsigned int frame_display_index;
   int base_rdmult;
 } TplDepFrame;
 
