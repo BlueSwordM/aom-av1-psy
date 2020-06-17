@@ -64,11 +64,13 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
         lc->actual_num_seg1_blocks = 0;
         lc->actual_num_seg2_blocks = 0;
         lc->counter_encode_maxq_scene_change = 0;
+        if (lc->map) aom_free(lc->map);
         CHECK_MEM_ERROR(cm, lc->map,
                         aom_malloc(mi_rows * mi_cols * sizeof(*lc->map)));
         memset(lc->map, 0, mi_rows * mi_cols);
         last_coded_q_map_size =
             mi_rows * mi_cols * sizeof(*lc->last_coded_q_map);
+        if (lc->last_coded_q_map) aom_free(lc->last_coded_q_map);
         CHECK_MEM_ERROR(cm, lc->last_coded_q_map,
                         aom_malloc(last_coded_q_map_size));
         assert(MAXQ <= 255);
