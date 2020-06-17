@@ -416,8 +416,6 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 2) {
-    sf->gm_sf.gm_erroradv_type = GM_ERRORADV_TR_2;
-
     sf->part_sf.allow_partition_search_skip = 1;
 
     sf->mv_sf.auto_mv_step_size = 1;
@@ -429,14 +427,11 @@ static void set_good_speed_features_framesize_independent(
     // bit more closely to figure out why.
     sf->inter_sf.adaptive_rd_thresh = 1;
     sf->inter_sf.comp_inter_joint_search_thresh = BLOCK_SIZES_ALL;
-    sf->inter_sf.disable_interinter_wedge_newmv_search = 1;
     sf->inter_sf.disable_wedge_search_var_thresh = 100;
     sf->inter_sf.fast_interintra_wedge_search = 1;
-    sf->inter_sf.fast_wedge_sign_estimate = 1;
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 4 : 1;
     sf->inter_sf.prune_compound_using_neighbors = 1;
     sf->inter_sf.prune_comp_type_by_comp_avg = 2;
-    sf->inter_sf.prune_warp_using_wmtype = 1;
     sf->inter_sf.selective_ref_frame = 3;
     sf->inter_sf.use_dist_wtd_comp_flag = DIST_WTD_COMP_DISABLED;
 
@@ -470,7 +465,6 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.full_pixel_search_level = 1;
     sf->mv_sf.simple_motion_subpel_force_stop = QUARTER_PEL;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
-    sf->mv_sf.use_accurate_subpel_search = USE_2_TAPS;
     sf->mv_sf.search_method = DIAMOND;
 
     sf->inter_sf.disable_sb_level_mv_cost_upd = 1;
@@ -521,8 +515,6 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.disable_loop_restoration_chroma = boosted ? 0 : 1;
     sf->lpf_sf.reduce_wiener_window_size = !boosted;
     sf->lpf_sf.prune_wiener_based_on_src_var = 2;
-
-    sf->hl_sf.second_alt_ref_filtering = 0;
   }
 
   if (speed >= 4) {
@@ -532,7 +524,6 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.prune_ab_partition_using_split_info = 1;
 
     sf->inter_sf.alt_ref_search_fp = 1;
-    sf->inter_sf.prune_ref_mv_idx_search = 1;
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 3;
 
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 2;
