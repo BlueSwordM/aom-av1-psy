@@ -1275,7 +1275,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                                      frame_update_type, 0);
         av1_set_frame_size(cpi, cm->width, cm->height);
         av1_tpl_setup_stats(cpi, 0, &frame_params, &frame_input);
-        assert(cpi->num_gf_group_show_frames == 1);
       }
     }
 #endif
@@ -1298,8 +1297,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     return AOM_CODEC_ERROR;
   }
 #endif  // CONFIG_REALTIME_ONLY
-  if (!is_stat_generation_stage(cpi))
-    cpi->num_gf_group_show_frames += frame_params.show_frame;
 
   if (!is_stat_generation_stage(cpi)) {
     // First pass doesn't modify reference buffer assignment or produce frame

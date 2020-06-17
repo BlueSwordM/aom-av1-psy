@@ -2035,11 +2035,6 @@ typedef struct AV1_COMP {
   aom_variance_fn_ptr_t fn_ptr[BLOCK_SIZES_ALL];
 
   /*!
-   * Number of show frames encoded in current gf_group.
-   */
-  int num_gf_group_show_frames;
-
-  /*!
    * Information related to two pass encoding.
    */
   TWO_PASS twopass;
