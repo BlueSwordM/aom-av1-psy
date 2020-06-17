@@ -883,13 +883,11 @@ static void tf_setup_filtering_buffer(const AV1_COMP *cpi,
   // Temporal filtering should not go beyond key frames
   const int key_to_curframe =
       AOMMAX(cpi->rc.frames_since_key +
-                 cpi->gf_group.frame_disp_idx[cpi->gf_group.index] -
-                 cpi->num_gf_group_show_frames,
+                 cpi->gf_group.arf_src_offset[cpi->gf_group.index],
              0);
   const int curframe_to_key =
       AOMMAX(cpi->rc.frames_to_key -
-                 cpi->gf_group.frame_disp_idx[cpi->gf_group.index] +
-                 cpi->num_gf_group_show_frames - 1,
+                 cpi->gf_group.arf_src_offset[cpi->gf_group.index] - 1,
              0);
 
   // Number of buffered frames before the to-filter frame.
