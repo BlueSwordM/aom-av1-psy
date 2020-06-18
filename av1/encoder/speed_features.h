@@ -659,11 +659,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   DIST_WTD_COMP_FLAG use_dist_wtd_comp_flag;
 
   // Whether to override and disable sb level coeff cost updates, if
-  // cpi->oxcf.coeff_cost_upd_freq = COST_UPD_SB (i.e. set at SB level)
+  // cpi->oxcf.cost_upd_freq.coeff = COST_UPD_SB (i.e. set at SB level)
   int disable_sb_level_coeff_cost_upd;
 
   // Whether to override and disable sb level mv cost updates, if
-  // cpi->oxcf.coeff_cost_upd_freq = COST_UPD_SB (i.e. set at SB level)
+  // cpi->oxcf.cost_upd_freq.coeff = COST_UPD_SB (i.e. set at SB level)
   int disable_sb_level_mv_cost_upd;
 
   // Prune inter modes based on tpl stats

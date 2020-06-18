@@ -481,6 +481,15 @@ typedef struct {
   int vbrmax_section;
 } TwoPassCfg;
 
+typedef struct {
+  // Indicates the update frequency for coeff costs.
+  COST_UPDATE_TYPE coeff;
+  // Indicates the update frequency for mode costs.
+  COST_UPDATE_TYPE mode;
+  // Indicates the update frequency for mv costs.
+  COST_UPDATE_TYPE mv;
+} CostUpdateFreq;
+
 typedef struct AV1EncoderConfig {
   BITSTREAM_PROFILE profile;
   aom_bit_depth_t bit_depth;     // Codec bit-depth.
@@ -648,9 +657,10 @@ typedef struct AV1EncoderConfig {
   unsigned int chroma_subsampling_x;
   unsigned int chroma_subsampling_y;
   int quant_b_adapt;
-  COST_UPDATE_TYPE coeff_cost_upd_freq;
-  COST_UPDATE_TYPE mode_cost_upd_freq;
-  COST_UPDATE_TYPE mv_cost_upd_freq;
+
+  // Configuration related to frequency of cost update.
+  CostUpdateFreq cost_upd_freq;
+
   int border_in_pixels;
   AV1_LEVEL target_seq_level_idx[MAX_NUM_OPERATING_POINTS];
   // Bit mask to specify which tier each of the 32 possible operating points

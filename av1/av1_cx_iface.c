@@ -814,9 +814,11 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->qm_minlevel = extra_cfg->qm_min;
   oxcf->qm_maxlevel = extra_cfg->qm_max;
   oxcf->quant_b_adapt = extra_cfg->quant_b_adapt;
-  oxcf->coeff_cost_upd_freq = (COST_UPDATE_TYPE)extra_cfg->coeff_cost_upd_freq;
-  oxcf->mode_cost_upd_freq = (COST_UPDATE_TYPE)extra_cfg->mode_cost_upd_freq;
-  oxcf->mv_cost_upd_freq = (COST_UPDATE_TYPE)extra_cfg->mv_cost_upd_freq;
+
+  // Set cost update frequency configuration.
+  oxcf->cost_upd_freq.coeff = (COST_UPDATE_TYPE)extra_cfg->coeff_cost_upd_freq;
+  oxcf->cost_upd_freq.mode = (COST_UPDATE_TYPE)extra_cfg->mode_cost_upd_freq;
+  oxcf->cost_upd_freq.mv = (COST_UPDATE_TYPE)extra_cfg->mv_cost_upd_freq;
 
   // FIXME(debargha): Should this be:
   // oxcf->allow_ref_frame_mvs = extra_cfg->allow_ref_frame_mvs &
