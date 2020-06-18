@@ -29,6 +29,8 @@ extern "C" {
 /*!\brief Implement high-level encode strategy
  *
  * \ingroup high_level_algo
+ * \callgraph
+ * \callergraph
  * This function will implement high-level encode strategy, choosing frame type,
  * frame placement, etc. It populates an EncodeFrameParams struct with the
  * results of these decisions and then encodes the frame. The caller should use
