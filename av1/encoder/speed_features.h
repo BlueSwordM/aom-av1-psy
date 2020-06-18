@@ -315,6 +315,9 @@ typedef struct TPL_SPEED_FEATURES {
 
   // Prune starting mvs in TPL based on sad scores.
   int prune_starting_mv;
+
+  // Not run TPL for filtered Key frame.
+  int disable_filtered_key_tpl;
 } TPL_SPEED_FEATURES;
 
 typedef struct GLOBAL_MOTION_SPEED_FEATURES {

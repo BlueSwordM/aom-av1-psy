@@ -626,6 +626,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 4 : 6;
     sf->tpl_sf.subpel_force_stop = FULL_PEL;
+    sf->tpl_sf.disable_filtered_key_tpl = 1;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 0;
   }
 }
@@ -933,6 +934,7 @@ static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
   tpl_sf->reduce_first_step_size = 0;
   tpl_sf->skip_alike_starting_mv = 0;
   tpl_sf->subpel_force_stop = EIGHTH_PEL;
+  tpl_sf->disable_filtered_key_tpl = 0;
 }
 
 static AOM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {

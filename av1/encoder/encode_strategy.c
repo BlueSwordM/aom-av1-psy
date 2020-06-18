@@ -931,10 +931,12 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
                                       source_kf_buffer->metadata);
   }
 
-  if (frame_params->frame_type == KEY_FRAME && !is_stat_generation_stage(cpi) &&
-      oxcf->enable_tpl_model && oxcf->gf_cfg.lag_in_frames > 0 &&
-      frame_params->show_frame) {
-    av1_tpl_setup_stats(cpi, 0, frame_params, frame_input);
+  if (!cpi->sf.tpl_sf.disable_filtered_key_tpl) {
+    if (frame_params->frame_type == KEY_FRAME &&
+        !is_stat_generation_stage(cpi) && oxcf->enable_tpl_model &&
+        oxcf->gf_cfg.lag_in_frames > 0 && frame_params->show_frame) {
+      av1_tpl_setup_stats(cpi, 0, frame_params, frame_input);
+    }
   }
 
   if (av1_encode(cpi, dest, frame_input, frame_params, frame_results) !=
