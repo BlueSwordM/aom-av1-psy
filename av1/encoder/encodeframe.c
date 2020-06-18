@@ -1570,8 +1570,6 @@ static AOM_INLINE void save_context(const MACROBLOCK *x,
 /*!\brief Reconstructs an individual coding block
  *
  * \ingroup partition_search
- * \callgraph
- * \callergraph
  * Reconstructs an individual coding block by applying the chosen modes stored
  * in ctx, also updates mode counts and entropy models.
  *
@@ -1731,8 +1729,6 @@ static AOM_INLINE void encode_b(const AV1_COMP *const cpi,
 /*!\brief Reconstructs a partition (may contain multiple coding blocks)
  *
  * \ingroup partition_search
- * \callgraph
- * \callergraph
  * Reconstructs a sub-partition of the superblock by applying the chosen modes
  * and partition trees stored in pc_tree.
  *
@@ -1947,8 +1943,6 @@ static AOM_INLINE void set_fixed_partitioning(AV1_COMP *cpi,
 /*!\brief AV1 block partition search (partition estimation and partial search).
  *
  * \ingroup partition_search
- * \callgraph
- * \callergraph
  * Encode the block by applying pre-calculated partition patterns that are
  * represented by coding block sizes stored in the mbmi array. Minor partition
  * adjustments are tested and applied if they lead to lower rd costs. The
@@ -2426,8 +2420,6 @@ static AOM_INLINE int do_slipt_check(BLOCK_SIZE bsize) {
 /*!\brief AV1 block partition application (minimal RD search).
  *
  * \ingroup partition_search
- * \callgraph
- * \callergraph
  * Encode the block by applying pre-calculated partition patterns that are
  * represented by coding block sizes stored in the mbmi array. The only
  * partition adjustment allowed is merging leaf split nodes if it leads to a
@@ -3590,7 +3582,6 @@ static AOM_INLINE void rd_pick_4partition(
  *
  * \ingroup partition_search
  * \callgraph
- * \callergraph
  * Searches for the best partition pattern for a block based on the
  * rate-distortion cost, and returns a bool value to indicate whether a valid
  * partition pattern is found. The partition can recursively go down to the
@@ -4815,8 +4806,6 @@ static void source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, int offset) {
 /*!\brief Encode a superblock (minimal RD search involved)
  *
  * \ingroup partition_search
- * \callgraph
- * \callergraph
  * Encodes the superblock by a pre-determined partition pattern, only minor
  * rd-based searches are allowed to adjust the initial pattern. It is only used
  * by realtime encoding.
@@ -5166,8 +5155,6 @@ static AOM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
 /*!\brief Encode a superblock (RD-search-based)
  *
  * \ingroup partition_search
- * \callgraph
- * \callergraph
  * Conducts partition search for a superblock, based on rate-distortion costs,
  * from scratch or adjusting from a pre-calculated partition pattern.
  */
@@ -5533,8 +5520,6 @@ void av1_init_tile_data(AV1_COMP *cpi) {
 /*!\brief Encode a superblock row
  *
  * \ingroup partition_search
- * \callgraph
- * \callergraph
  */
 void av1_encode_sb_row(AV1_COMP *cpi, ThreadData *td, int tile_row,
                        int tile_col, int mi_row) {
@@ -5573,8 +5558,6 @@ void av1_encode_sb_row(AV1_COMP *cpi, ThreadData *td, int tile_row,
 /*!\brief Encode a tile
  *
  * \ingroup partition_search
- * \callgraph
- * \callergraph
  */
 void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
                      int tile_col) {
@@ -5605,8 +5588,6 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
 /*!\brief Break one frame into tiles and encode the tiles
  *
  * \ingroup partition_search
- * \callgraph
- * \callergraph
  *
  * \param[in]    cpi    Top-level encoder structure
  */
@@ -5808,8 +5789,6 @@ static AOM_INLINE void setup_prune_ref_frame_mask(AV1_COMP *cpi) {
  * for a single frame
  *
  * \ingroup high_level_algo
- * \callgraph
- * \callergraph
  */
 static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   ThreadData *const td = &cpi->td;

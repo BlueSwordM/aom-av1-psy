@@ -2411,8 +2411,6 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
 /*!\brief Select and apply cdef filters and switchable restoration filters
  *
  * \ingroup high_level_algo
- * \callgraph
- * \callergraph
  */
 static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                                    MACROBLOCKD *xd, int use_restoration,
@@ -2475,8 +2473,6 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
  * restoration filters
  *
  * \ingroup high_level_algo
- * \callgraph
- * \callergraph
  */
 static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   MultiThreadInfo *const mt_info = &cpi->mt_info;
@@ -2812,8 +2808,6 @@ static void determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
  * encoding and realtime coding.
  *
  * \ingroup high_level_algo
- * \callgraph
- * \callergraph
  *
  * \param[in]    cpi             Top-level encoder structure
  *
@@ -2925,8 +2919,6 @@ static int encode_without_recode(AV1_COMP *cpi) {
  * of global motions.
  *
  * \ingroup high_level_algo
- * \callgraph
- * \callergraph
  *
  * \param[in]    cpi             Top-level encoder structure
  * \param[in]    size            Bitstream size
