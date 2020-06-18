@@ -155,119 +155,7 @@ enum {
   ENABLE_SCENECUT_MODE_2   // For twopass and LAP - lag_in_frames >=33
 } UENUM1BYTE(SCENECUT_MODE);
 
-// TODO(jingning): This needs to be cleaned up next.
-
-// TPL stats buffers are prepared for every frame in the GOP,
-// including (internal) overlays and (internal) arfs.
-// In addition, frames in the lookahead that are outside of the GOP
-// are also used.
-// Thus it should use
-// (gop_length) + (# overlays) + (MAX_LAG_BUFFERS - gop_len) =
-// MAX_LAG_BUFFERS + (# overlays)
-// 2 * MAX_LAG_BUFFERS is therefore a safe estimate.
-// TODO(bohanli): test setting it to 1.5 * MAX_LAG_BUFFER
-#define MAX_TPL_FRAME_IDX (2 * MAX_LAG_BUFFERS)
-// The first REF_FRAMES + 1 buffers are reserved.
-// tpl_data->tpl_frame starts after REF_FRAMES + 1
-#define MAX_LENGTH_TPL_FRAME_STATS (MAX_TPL_FRAME_IDX + REF_FRAMES + 1)
-#define MAX_TPL_EXTEND (MAX_LAG_BUFFERS - MAX_GF_INTERVAL)
 #define MAX_VBR_CORPUS_COMPLEXITY 10000
-typedef struct TplDepStats {
-  int64_t intra_cost;
-  int64_t inter_cost;
-  int64_t srcrf_dist;
-  int64_t recrf_dist;
-  int64_t srcrf_rate;
-  int64_t recrf_rate;
-  int64_t mc_dep_rate;
-  int64_t mc_dep_dist;
-  int_mv mv[INTER_REFS_PER_FRAME];
-  int ref_frame_index;
-  int64_t pred_error[INTER_REFS_PER_FRAME];
-  int64_t mc_count;
-  int64_t mc_saved;
-} TplDepStats;
-
-typedef struct TplDepFrame {
-  uint8_t is_valid;
-  TplDepStats *tpl_stats_ptr;
-  const YV12_BUFFER_CONFIG *gf_picture;
-  YV12_BUFFER_CONFIG *rec_picture;
-  int ref_map_index[REF_FRAMES];
-  int stride;
-  int width;
-  int height;
-  int mi_rows;
-  int mi_cols;
-  int base_rdmult;
-} TplDepFrame;
-
-/*!\endcond */
-
-/*!
- * \brief Params related to temporal dependency model.
- */
-typedef struct TplParams {
-  /*!
-   * Block granularity of tpl score storage.
-   */
-  uint8_t tpl_stats_block_mis_log2;
-
-  /*!
-   * Buffer to store the frame level tpl information for each frame in a gf
-   * group. tpl_stats_buffer[i] stores the tpl information of ith frame in a gf
-   * group
-   */
-  TplDepFrame tpl_stats_buffer[MAX_LENGTH_TPL_FRAME_STATS];
-
-  /*!
-   * Buffer to store tpl stats at block granularity.
-   * tpl_stats_pool[i][j] stores the tpl stats of jth block of ith frame in a gf
-   * group.
-   */
-  TplDepStats *tpl_stats_pool[MAX_LAG_BUFFERS];
-
-  /*!
-   * Buffer to store tpl reconstructed frame.
-   * tpl_rec_pool[i] stores the reconstructed frame of ith frame in a gf group.
-   */
-  YV12_BUFFER_CONFIG tpl_rec_pool[MAX_LAG_BUFFERS];
-
-  /*!
-   * Pointer to tpl_stats_buffer.
-   */
-  TplDepFrame *tpl_frame;
-
-  /*!
-   * Scale factors for the current frame.
-   */
-  struct scale_factors sf;
-
-  /*!
-   * GF group index of the current frame.
-   */
-  int frame_idx;
-
-  /*!
-   * Array of pointers to the frame buffers holding the source frame.
-   * src_ref_frame[i] stores the pointer to the source frame of the ith
-   * reference frame type.
-   */
-  const YV12_BUFFER_CONFIG *src_ref_frame[INTER_REFS_PER_FRAME];
-
-  /*!
-   * Array of pointers to the frame buffers holding the tpl reconstructed frame.
-   * ref_frame[i] stores the pointer to the tpl reconstructed frame of the ith
-   * reference frame type.
-   */
-  const YV12_BUFFER_CONFIG *ref_frame[INTER_REFS_PER_FRAME];
-
-  /*!
-   * Parameters related to synchronization for top-right dependency in row based
-   * multi-threading of tpl
-   */
-  AV1TplRowMultiThreadSync tpl_mt_sync;
-} TplParams;
 
 /*!\cond */
 
@@ -277,8 +165,6 @@ typedef enum {
   COST_UPD_TILE,
   COST_UPD_OFF,
 } COST_UPDATE_TYPE;
-
-#define TPL_DEP_COST_SCALE_LOG2 4
 
 /*!\endcond */
 
