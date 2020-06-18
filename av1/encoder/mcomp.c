@@ -2164,14 +2164,19 @@ static int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
 // both prediction error and residue into account. It is suffixed "fast" because
 // it uses bilinear filter to estimate the prediction.
 static INLINE unsigned int check_better_fast(
-    const MV *this_mv, MV *best_mv, const SubpelMvLimits *mv_limits,
-    const SUBPEL_SEARCH_VAR_PARAMS *var_params,
+    MACROBLOCKD *xd, const AV1_COMMON *cm, const MV *this_mv, MV *best_mv,
+    const SubpelMvLimits *mv_limits, const SUBPEL_SEARCH_VAR_PARAMS *var_params,
     const MV_COST_PARAMS *mv_cost_params, unsigned int *besterr,
-    unsigned int *sse1, int *distortion, int *has_better_mv) {
+    unsigned int *sse1, int *distortion, int *has_better_mv, int is_scaled) {
   unsigned int cost;
   if (av1_is_subpelmv_in_range(mv_limits, *this_mv)) {
     unsigned int sse;
-    int thismse = estimated_pref_error(this_mv, var_params, &sse);
+    int thismse;
+    if (is_scaled) {
+      thismse = upsampled_pref_error(xd, cm, this_mv, var_params, &sse);
+    } else {
+      thismse = estimated_pref_error(this_mv, var_params, &sse);
+    }
     cost = mv_err_cost_(this_mv, mv_cost_params);
     cost += thismse;
 
@@ -2229,39 +2234,41 @@ static INLINE MV get_best_diag_step(int step_size, unsigned int left_cost,
 // search in the best quadrant. This uses bilinear filter to speed up the
 // calculation.
 static AOM_FORCE_INLINE MV first_level_check_fast(
-    const MV this_mv, MV *best_mv, int hstep, const SubpelMvLimits *mv_limits,
+    MACROBLOCKD *xd, const AV1_COMMON *cm, const MV this_mv, MV *best_mv,
+    int hstep, const SubpelMvLimits *mv_limits,
     const SUBPEL_SEARCH_VAR_PARAMS *var_params,
     const MV_COST_PARAMS *mv_cost_params, unsigned int *besterr,
-    unsigned int *sse1, int *distortion) {
+    unsigned int *sse1, int *distortion, int is_scaled) {
   // Check the four cardinal directions
   const MV left_mv = { this_mv.row, this_mv.col - hstep };
   int dummy = 0;
-  const unsigned int left =
-      check_better_fast(&left_mv, best_mv, mv_limits, var_params,
-                        mv_cost_params, besterr, sse1, distortion, &dummy);
+  const unsigned int left = check_better_fast(
+      xd, cm, &left_mv, best_mv, mv_limits, var_params, mv_cost_params, besterr,
+      sse1, distortion, &dummy, is_scaled);
 
   const MV right_mv = { this_mv.row, this_mv.col + hstep };
-  const unsigned int right =
-      check_better_fast(&right_mv, best_mv, mv_limits, var_params,
-                        mv_cost_params, besterr, sse1, distortion, &dummy);
+  const unsigned int right = check_better_fast(
+      xd, cm, &right_mv, best_mv, mv_limits, var_params, mv_cost_params,
+      besterr, sse1, distortion, &dummy, is_scaled);
 
   const MV top_mv = { this_mv.row - hstep, this_mv.col };
-  const unsigned int up =
-      check_better_fast(&top_mv, best_mv, mv_limits, var_params, mv_cost_params,
-                        besterr, sse1, distortion, &dummy);
+  const unsigned int up = check_better_fast(
+      xd, cm, &top_mv, best_mv, mv_limits, var_params, mv_cost_params, besterr,
+      sse1, distortion, &dummy, is_scaled);
 
   const MV bottom_mv = { this_mv.row + hstep, this_mv.col };
-  const unsigned int down =
-      check_better_fast(&bottom_mv, best_mv, mv_limits, var_params,
-                        mv_cost_params, besterr, sse1, distortion, &dummy);
+  const unsigned int down = check_better_fast(
+      xd, cm, &bottom_mv, best_mv, mv_limits, var_params, mv_cost_params,
+      besterr, sse1, distortion, &dummy, is_scaled);
 
   const MV diag_step = get_best_diag_step(hstep, left, right, up, down);
   const MV diag_mv = { this_mv.row + diag_step.row,
                        this_mv.col + diag_step.col };
 
   // Check the diagonal direction with the best mv
-  check_better_fast(&diag_mv, best_mv, mv_limits, var_params, mv_cost_params,
-                    besterr, sse1, distortion, &dummy);
+  check_better_fast(xd, cm, &diag_mv, best_mv, mv_limits, var_params,
+                    mv_cost_params, besterr, sse1, distortion, &dummy,
+                    is_scaled);
 
   return diag_step;
 }
@@ -2269,10 +2276,11 @@ static AOM_FORCE_INLINE MV first_level_check_fast(
 // Performs a following up search after first_level_check_fast is called. This
 // performs two extra chess pattern searches in the best quadrant.
 static AOM_FORCE_INLINE void second_level_check_fast(
-    const MV this_mv, const MV diag_step, MV *best_mv, int hstep,
-    const SubpelMvLimits *mv_limits, const SUBPEL_SEARCH_VAR_PARAMS *var_params,
+    MACROBLOCKD *xd, const AV1_COMMON *cm, const MV this_mv, const MV diag_step,
+    MV *best_mv, int hstep, const SubpelMvLimits *mv_limits,
+    const SUBPEL_SEARCH_VAR_PARAMS *var_params,
     const MV_COST_PARAMS *mv_cost_params, unsigned int *besterr,
-    unsigned int *sse1, int *distortion) {
+    unsigned int *sse1, int *distortion, int is_scaled) {
   assert(diag_step.row == hstep || diag_step.row == -hstep);
   assert(diag_step.col == hstep || diag_step.col == -hstep);
   const int tr = this_mv.row;
@@ -2285,39 +2293,47 @@ static AOM_FORCE_INLINE void second_level_check_fast(
     assert(diag_step.row == br - tr);
     const MV chess_mv_1 = { br, bc + diag_step.col };
     const MV chess_mv_2 = { br + diag_step.row, bc };
-    check_better_fast(&chess_mv_1, best_mv, mv_limits, var_params,
-                      mv_cost_params, besterr, sse1, distortion, &dummy);
+    check_better_fast(xd, cm, &chess_mv_1, best_mv, mv_limits, var_params,
+                      mv_cost_params, besterr, sse1, distortion, &dummy,
+                      is_scaled);
 
-    check_better_fast(&chess_mv_2, best_mv, mv_limits, var_params,
-                      mv_cost_params, besterr, sse1, distortion, &dummy);
+    check_better_fast(xd, cm, &chess_mv_2, best_mv, mv_limits, var_params,
+                      mv_cost_params, besterr, sse1, distortion, &dummy,
+                      is_scaled);
   } else if (tr == br && tc != bc) {
     assert(diag_step.col == bc - tc);
     // Continue searching in the best direction
     const MV bottom_long_mv = { br + hstep, bc + diag_step.col };
     const MV top_long_mv = { br - hstep, bc + diag_step.col };
-    check_better_fast(&bottom_long_mv, best_mv, mv_limits, var_params,
-                      mv_cost_params, besterr, sse1, distortion, &dummy);
-    check_better_fast(&top_long_mv, best_mv, mv_limits, var_params,
-                      mv_cost_params, besterr, sse1, distortion, &dummy);
+    check_better_fast(xd, cm, &bottom_long_mv, best_mv, mv_limits, var_params,
+                      mv_cost_params, besterr, sse1, distortion, &dummy,
+                      is_scaled);
+    check_better_fast(xd, cm, &top_long_mv, best_mv, mv_limits, var_params,
+                      mv_cost_params, besterr, sse1, distortion, &dummy,
+                      is_scaled);
 
     // Search in the direction opposite of the best quadrant
     const MV rev_mv = { br - diag_step.row, bc };
-    check_better_fast(&rev_mv, best_mv, mv_limits, var_params, mv_cost_params,
-                      besterr, sse1, distortion, &dummy);
+    check_better_fast(xd, cm, &rev_mv, best_mv, mv_limits, var_params,
+                      mv_cost_params, besterr, sse1, distortion, &dummy,
+                      is_scaled);
   } else if (tr != br && tc == bc) {
     assert(diag_step.row == br - tr);
     // Continue searching in the best direction
     const MV right_long_mv = { br + diag_step.row, bc + hstep };
     const MV left_long_mv = { br + diag_step.row, bc - hstep };
-    check_better_fast(&right_long_mv, best_mv, mv_limits, var_params,
-                      mv_cost_params, besterr, sse1, distortion, &dummy);
-    check_better_fast(&left_long_mv, best_mv, mv_limits, var_params,
-                      mv_cost_params, besterr, sse1, distortion, &dummy);
+    check_better_fast(xd, cm, &right_long_mv, best_mv, mv_limits, var_params,
+                      mv_cost_params, besterr, sse1, distortion, &dummy,
+                      is_scaled);
+    check_better_fast(xd, cm, &left_long_mv, best_mv, mv_limits, var_params,
+                      mv_cost_params, besterr, sse1, distortion, &dummy,
+                      is_scaled);
 
     // Search in the direction opposite of the best quadrant
     const MV rev_mv = { br, bc - diag_step.col };
-    check_better_fast(&rev_mv, best_mv, mv_limits, var_params, mv_cost_params,
-                      besterr, sse1, distortion, &dummy);
+    check_better_fast(xd, cm, &rev_mv, best_mv, mv_limits, var_params,
+                      mv_cost_params, besterr, sse1, distortion, &dummy,
+                      is_scaled);
   }
 }
 
@@ -2325,17 +2341,18 @@ static AOM_FORCE_INLINE void second_level_check_fast(
 // searches the four cardinal directions, and perform several
 // diagonal/chess-pattern searches in the best quadrant.
 static AOM_FORCE_INLINE void two_level_checks_fast(
-    const MV this_mv, MV *best_mv, int hstep, const SubpelMvLimits *mv_limits,
+    MACROBLOCKD *xd, const AV1_COMMON *cm, const MV this_mv, MV *best_mv,
+    int hstep, const SubpelMvLimits *mv_limits,
     const SUBPEL_SEARCH_VAR_PARAMS *var_params,
     const MV_COST_PARAMS *mv_cost_params, unsigned int *besterr,
-    unsigned int *sse1, int *distortion, int iters) {
-  const MV diag_step =
-      first_level_check_fast(this_mv, best_mv, hstep, mv_limits, var_params,
-                             mv_cost_params, besterr, sse1, distortion);
+    unsigned int *sse1, int *distortion, int iters, int is_scaled) {
+  const MV diag_step = first_level_check_fast(
+      xd, cm, this_mv, best_mv, hstep, mv_limits, var_params, mv_cost_params,
+      besterr, sse1, distortion, is_scaled);
   if (iters > 1) {
-    second_level_check_fast(this_mv, diag_step, best_mv, hstep, mv_limits,
-                            var_params, mv_cost_params, besterr, sse1,
-                            distortion);
+    second_level_check_fast(xd, cm, this_mv, diag_step, best_mv, hstep,
+                            mv_limits, var_params, mv_cost_params, besterr,
+                            sse1, distortion, is_scaled);
   }
 }
 
@@ -2383,7 +2400,7 @@ static AOM_FORCE_INLINE void second_level_check_v2(
     MV *best_mv, const SubpelMvLimits *mv_limits,
     const SUBPEL_SEARCH_VAR_PARAMS *var_params,
     const MV_COST_PARAMS *mv_cost_params, unsigned int *besterr,
-    unsigned int *sse1, int *distortion) {
+    unsigned int *sse1, int *distortion, int is_scaled) {
   assert(best_mv->row == this_mv.row + diag_step.row ||
          best_mv->col == this_mv.col + diag_step.col);
   if (CHECK_MV_EQUAL(this_mv, *best_mv)) {
@@ -2414,18 +2431,18 @@ static AOM_FORCE_INLINE void second_level_check_v2(
                    mv_cost_params, besterr, sse1, distortion, &has_better_mv);
     }
   } else {
-    check_better_fast(&row_bias_mv, best_mv, mv_limits, var_params,
-                      mv_cost_params, besterr, sse1, distortion,
-                      &has_better_mv);
-    check_better_fast(&col_bias_mv, best_mv, mv_limits, var_params,
-                      mv_cost_params, besterr, sse1, distortion,
-                      &has_better_mv);
+    check_better_fast(xd, cm, &row_bias_mv, best_mv, mv_limits, var_params,
+                      mv_cost_params, besterr, sse1, distortion, &has_better_mv,
+                      is_scaled);
+    check_better_fast(xd, cm, &col_bias_mv, best_mv, mv_limits, var_params,
+                      mv_cost_params, besterr, sse1, distortion, &has_better_mv,
+                      is_scaled);
 
     // Do an additional search if the second iteration gives a better mv
     if (has_better_mv) {
-      check_better_fast(&diag_bias_mv, best_mv, mv_limits, var_params,
+      check_better_fast(xd, cm, &diag_bias_mv, best_mv, mv_limits, var_params,
                         mv_cost_params, besterr, sse1, distortion,
-                        &has_better_mv);
+                        &has_better_mv, is_scaled);
     }
   }
 }
@@ -2543,6 +2560,20 @@ static INLINE int check_repeated_mv_and_update(int_mv *last_mv_search_list,
   return 0;
 }
 
+static AOM_INLINE int setup_center_error_facade(
+    MACROBLOCKD *xd, const AV1_COMMON *cm, const MV *bestmv,
+    const SUBPEL_SEARCH_VAR_PARAMS *var_params,
+    const MV_COST_PARAMS *mv_cost_params, unsigned int *sse1, int *distortion,
+    int is_scaled) {
+  if (is_scaled) {
+    return upsampled_setup_center_error(xd, cm, bestmv, var_params,
+                                        mv_cost_params, sse1, distortion);
+  } else {
+    return setup_center_error(xd, bestmv, var_params, mv_cost_params, sse1,
+                              distortion);
+  }
+}
+
 int av1_find_best_sub_pixel_tree_pruned_evenmore(
     MACROBLOCKD *xd, const AV1_COMMON *const cm,
     const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv, MV *bestmv,
@@ -2563,8 +2594,13 @@ int av1_find_best_sub_pixel_tree_pruned_evenmore(
   unsigned int besterr = INT_MAX;
   *bestmv = start_mv;
 
-  besterr = setup_center_error(xd, bestmv, var_params, mv_cost_params, sse1,
-                               distortion);
+  const struct scale_factors *const sf = is_intrabc_block(xd->mi[0])
+                                             ? &cm->sf_identity
+                                             : xd->block_ref_scale_factors[0];
+  const int is_scaled = av1_is_scaled(sf);
+  besterr = setup_center_error_facade(
+      xd, cm, bestmv, var_params, mv_cost_params, sse1, distortion, is_scaled);
+
   // If forced_stop is FULL_PEL, return.
   if (forced_stop == FULL_PEL) return besterr;
 
@@ -2581,13 +2617,14 @@ int av1_find_best_sub_pixel_tree_pruned_evenmore(
     get_cost_surf_min(cost_list, &ir, &ic, 2);
     if (ir != 0 || ic != 0) {
       const MV this_mv = { start_mv.row + 2 * ir, start_mv.col + 2 * ic };
-      check_better_fast(&this_mv, bestmv, mv_limits, var_params, mv_cost_params,
-                        &besterr, sse1, distortion, &dummy);
+      check_better_fast(xd, cm, &this_mv, bestmv, mv_limits, var_params,
+                        mv_cost_params, &besterr, sse1, distortion, &dummy,
+                        is_scaled);
     }
   } else {
-    two_level_checks_fast(start_mv, bestmv, hstep, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion,
-                          iters_per_step);
+    two_level_checks_fast(xd, cm, start_mv, bestmv, hstep, mv_limits,
+                          var_params, mv_cost_params, &besterr, sse1,
+                          distortion, iters_per_step, is_scaled);
 
     // Each subsequent iteration checks at least one point in common with
     // the last iteration could be 2 ( if diag selected) 1/4 pel
@@ -2599,9 +2636,9 @@ int av1_find_best_sub_pixel_tree_pruned_evenmore(
 
       hstep >>= 1;
       start_mv = *bestmv;
-      two_level_checks_fast(start_mv, bestmv, hstep, mv_limits, var_params,
-                            mv_cost_params, &besterr, sse1, distortion,
-                            iters_per_step);
+      two_level_checks_fast(xd, cm, start_mv, bestmv, hstep, mv_limits,
+                            var_params, mv_cost_params, &besterr, sse1,
+                            distortion, iters_per_step, is_scaled);
     }
   }
 
@@ -2613,9 +2650,9 @@ int av1_find_best_sub_pixel_tree_pruned_evenmore(
 
     hstep >>= 1;
     start_mv = *bestmv;
-    two_level_checks_fast(start_mv, bestmv, hstep, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion,
-                          iters_per_step);
+    two_level_checks_fast(xd, cm, start_mv, bestmv, hstep, mv_limits,
+                          var_params, mv_cost_params, &besterr, sse1,
+                          distortion, iters_per_step, is_scaled);
   }
 
   return besterr;
@@ -2641,8 +2678,13 @@ int av1_find_best_sub_pixel_tree_pruned_more(
   unsigned int besterr = INT_MAX;
   *bestmv = start_mv;
 
-  besterr = setup_center_error(xd, bestmv, var_params, mv_cost_params, sse1,
-                               distortion);
+  const struct scale_factors *const sf = is_intrabc_block(xd->mi[0])
+                                             ? &cm->sf_identity
+                                             : xd->block_ref_scale_factors[0];
+  const int is_scaled = av1_is_scaled(sf);
+  besterr = setup_center_error_facade(
+      xd, cm, bestmv, var_params, mv_cost_params, sse1, distortion, is_scaled);
+
   // If forced_stop is FULL_PEL, return.
   if (forced_stop == FULL_PEL) return besterr;
 
@@ -2660,13 +2702,14 @@ int av1_find_best_sub_pixel_tree_pruned_more(
       const MV this_mv = { start_mv.row + ir * hstep,
                            start_mv.col + ic * hstep };
       int dummy = 0;
-      check_better_fast(&this_mv, bestmv, mv_limits, var_params, mv_cost_params,
-                        &besterr, sse1, distortion, &dummy);
+      check_better_fast(xd, cm, &this_mv, bestmv, mv_limits, var_params,
+                        mv_cost_params, &besterr, sse1, distortion, &dummy,
+                        is_scaled);
     }
   } else {
-    two_level_checks_fast(start_mv, bestmv, hstep, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion,
-                          iters_per_step);
+    two_level_checks_fast(xd, cm, start_mv, bestmv, hstep, mv_limits,
+                          var_params, mv_cost_params, &besterr, sse1,
+                          distortion, iters_per_step, is_scaled);
   }
 
   // Each subsequent iteration checks at least one point in common with
@@ -2679,9 +2722,9 @@ int av1_find_best_sub_pixel_tree_pruned_more(
 
     hstep >>= 1;
     start_mv = *bestmv;
-    two_level_checks_fast(start_mv, bestmv, hstep, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion,
-                          iters_per_step);
+    two_level_checks_fast(xd, cm, start_mv, bestmv, hstep, mv_limits,
+                          var_params, mv_cost_params, &besterr, sse1,
+                          distortion, iters_per_step, is_scaled);
   }
 
   if (allow_hp && forced_stop == EIGHTH_PEL) {
@@ -2692,9 +2735,9 @@ int av1_find_best_sub_pixel_tree_pruned_more(
 
     hstep >>= 1;
     start_mv = *bestmv;
-    two_level_checks_fast(start_mv, bestmv, hstep, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion,
-                          iters_per_step);
+    two_level_checks_fast(xd, cm, start_mv, bestmv, hstep, mv_limits,
+                          var_params, mv_cost_params, &besterr, sse1,
+                          distortion, iters_per_step, is_scaled);
   }
 
   return besterr;
@@ -2720,8 +2763,13 @@ int av1_find_best_sub_pixel_tree_pruned(
   unsigned int besterr = INT_MAX;
   *bestmv = start_mv;
 
-  besterr = setup_center_error(xd, bestmv, var_params, mv_cost_params, sse1,
-                               distortion);
+  const struct scale_factors *const sf = is_intrabc_block(xd->mi[0])
+                                             ? &cm->sf_identity
+                                             : xd->block_ref_scale_factors[0];
+  const int is_scaled = av1_is_scaled(sf);
+  besterr = setup_center_error_facade(
+      xd, cm, bestmv, var_params, mv_cost_params, sse1, distortion, is_scaled);
+
   // If forced_stop is FULL_PEL, return.
   if (forced_stop == FULL_PEL) return besterr;
 
@@ -2750,42 +2798,54 @@ int av1_find_best_sub_pixel_tree_pruned(
 
     switch (whichdir) {
       case 0:  // bottom left quadrant
-        check_better_fast(&left_mv, bestmv, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion, &dummy);
-        check_better_fast(&bottom_mv, bestmv, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion, &dummy);
-        check_better_fast(&bottom_left_mv, bestmv, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion, &dummy);
+        check_better_fast(xd, cm, &left_mv, bestmv, mv_limits, var_params,
+                          mv_cost_params, &besterr, sse1, distortion, &dummy,
+                          is_scaled);
+        check_better_fast(xd, cm, &bottom_mv, bestmv, mv_limits, var_params,
+                          mv_cost_params, &besterr, sse1, distortion, &dummy,
+                          is_scaled);
+        check_better_fast(xd, cm, &bottom_left_mv, bestmv, mv_limits,
+                          var_params, mv_cost_params, &besterr, sse1,
+                          distortion, &dummy, is_scaled);
         break;
       case 1:  // bottom right quadrant
-        check_better_fast(&right_mv, bestmv, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion, &dummy);
-        check_better_fast(&bottom_mv, bestmv, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion, &dummy);
-        check_better_fast(&bottom_right_mv, bestmv, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion, &dummy);
+        check_better_fast(xd, cm, &right_mv, bestmv, mv_limits, var_params,
+                          mv_cost_params, &besterr, sse1, distortion, &dummy,
+                          is_scaled);
+        check_better_fast(xd, cm, &bottom_mv, bestmv, mv_limits, var_params,
+                          mv_cost_params, &besterr, sse1, distortion, &dummy,
+                          is_scaled);
+        check_better_fast(xd, cm, &bottom_right_mv, bestmv, mv_limits,
+                          var_params, mv_cost_params, &besterr, sse1,
+                          distortion, &dummy, is_scaled);
         break;
       case 2:  // top left quadrant
-        check_better_fast(&left_mv, bestmv, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion, &dummy);
-        check_better_fast(&top_mv, bestmv, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion, &dummy);
-        check_better_fast(&top_left_mv, bestmv, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion, &dummy);
+        check_better_fast(xd, cm, &left_mv, bestmv, mv_limits, var_params,
+                          mv_cost_params, &besterr, sse1, distortion, &dummy,
+                          is_scaled);
+        check_better_fast(xd, cm, &top_mv, bestmv, mv_limits, var_params,
+                          mv_cost_params, &besterr, sse1, distortion, &dummy,
+                          is_scaled);
+        check_better_fast(xd, cm, &top_left_mv, bestmv, mv_limits, var_params,
+                          mv_cost_params, &besterr, sse1, distortion, &dummy,
+                          is_scaled);
         break;
       case 3:  // top right quadrant
-        check_better_fast(&right_mv, bestmv, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion, &dummy);
-        check_better_fast(&top_mv, bestmv, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion, &dummy);
-        check_better_fast(&top_right_mv, bestmv, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion, &dummy);
+        check_better_fast(xd, cm, &right_mv, bestmv, mv_limits, var_params,
+                          mv_cost_params, &besterr, sse1, distortion, &dummy,
+                          is_scaled);
+        check_better_fast(xd, cm, &top_mv, bestmv, mv_limits, var_params,
+                          mv_cost_params, &besterr, sse1, distortion, &dummy,
+                          is_scaled);
+        check_better_fast(xd, cm, &top_right_mv, bestmv, mv_limits, var_params,
+                          mv_cost_params, &besterr, sse1, distortion, &dummy,
+                          is_scaled);
         break;
     }
   } else {
-    two_level_checks_fast(start_mv, bestmv, hstep, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion,
-                          iters_per_step);
+    two_level_checks_fast(xd, cm, start_mv, bestmv, hstep, mv_limits,
+                          var_params, mv_cost_params, &besterr, sse1,
+                          distortion, iters_per_step, is_scaled);
   }
 
   // Each subsequent iteration checks at least one point in common with
@@ -2798,9 +2858,9 @@ int av1_find_best_sub_pixel_tree_pruned(
 
     hstep >>= 1;
     start_mv = *bestmv;
-    two_level_checks_fast(start_mv, bestmv, hstep, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion,
-                          iters_per_step);
+    two_level_checks_fast(xd, cm, start_mv, bestmv, hstep, mv_limits,
+                          var_params, mv_cost_params, &besterr, sse1,
+                          distortion, iters_per_step, is_scaled);
   }
 
   if (allow_hp && forced_stop == EIGHTH_PEL) {
@@ -2811,9 +2871,9 @@ int av1_find_best_sub_pixel_tree_pruned(
 
     hstep >>= 1;
     start_mv = *bestmv;
-    two_level_checks_fast(start_mv, bestmv, hstep, mv_limits, var_params,
-                          mv_cost_params, &besterr, sse1, distortion,
-                          iters_per_step);
+    two_level_checks_fast(xd, cm, start_mv, bestmv, hstep, mv_limits,
+                          var_params, mv_cost_params, &besterr, sse1,
+                          distortion, iters_per_step, is_scaled);
   }
 
   return besterr;
@@ -2842,6 +2902,11 @@ int av1_find_best_sub_pixel_tree(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 
   *bestmv = start_mv;
 
+  const struct scale_factors *const sf = is_intrabc_block(xd->mi[0])
+                                             ? &cm->sf_identity
+                                             : xd->block_ref_scale_factors[0];
+  const int is_scaled = av1_is_scaled(sf);
+
   if (subpel_search_type != USE_2_TAPS_ORIG) {
     besterr = upsampled_setup_center_error(xd, cm, bestmv, var_params,
                                            mv_cost_params, sse1, distortion);
@@ -2866,16 +2931,16 @@ int av1_find_best_sub_pixel_tree(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                     mv_limits, var_params, mv_cost_params,
                                     &besterr, sse1, distortion);
     } else {
-      diag_step = first_level_check_fast(iter_center_mv, bestmv, hstep,
+      diag_step = first_level_check_fast(xd, cm, iter_center_mv, bestmv, hstep,
                                          mv_limits, var_params, mv_cost_params,
-                                         &besterr, sse1, distortion);
+                                         &besterr, sse1, distortion, is_scaled);
     }
 
     // Check diagonal sub-pixel position
     if (!CHECK_MV_EQUAL(iter_center_mv, *bestmv) && iters_per_step > 1) {
       second_level_check_v2(xd, cm, iter_center_mv, diag_step, bestmv,
                             mv_limits, var_params, mv_cost_params, &besterr,
-                            sse1, distortion);
+                            sse1, distortion, is_scaled);
     }
 
     hstep >>= 1;
