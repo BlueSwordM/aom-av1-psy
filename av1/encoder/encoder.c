@@ -39,7 +39,6 @@
 #endif  // CONFIG_BITSTREAM_DEBUG
 
 #include "av1/common/alloccommon.h"
-#include "av1/common/cdef.h"
 #include "av1/common/filter.h"
 #include "av1/common/idct.h"
 #include "av1/common/reconinter.h"
@@ -66,6 +65,7 @@
 #include "av1/encoder/intra_mode_search.h"
 #include "av1/encoder/mv_prec.h"
 #include "av1/encoder/pass2_strategy.h"
+#include "av1/encoder/pickcdef.h"
 #include "av1/encoder/picklpf.h"
 #include "av1/encoder/pickrst.h"
 #include "av1/encoder/random.h"

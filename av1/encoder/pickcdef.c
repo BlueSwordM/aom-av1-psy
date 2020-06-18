@@ -18,9 +18,9 @@
 #include "aom/aom_integer.h"
 #include "aom_ports/system_state.h"
 #include "av1/common/av1_common_int.h"
-#include "av1/common/cdef.h"
 #include "av1/common/reconinter.h"
 #include "av1/encoder/encoder.h"
+#include "av1/encoder/pickcdef.h"
 
 #define REDUCED_PRI_STRENGTHS_LVL1 8
 #define REDUCED_PRI_STRENGTHS_LVL2 5
@@ -380,7 +380,8 @@ static void pick_cdef_from_qp(AV1_COMMON *const cm) {
 
 void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
                      const YV12_BUFFER_CONFIG *ref, AV1_COMMON *cm,
-                     MACROBLOCKD *xd, int pick_method, int rdmult) {
+                     MACROBLOCKD *xd, CDEF_PICK_METHOD pick_method,
+                     int rdmult) {
   if (pick_method == CDEF_PICK_FROM_Q) {
     pick_cdef_from_qp(cm);
     return;

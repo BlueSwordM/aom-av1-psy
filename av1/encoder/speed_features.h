@@ -13,10 +13,17 @@
 #define AOM_AV1_ENCODER_SPEED_FEATURES_H_
 
 #include "av1/common/enums.h"
+#include "av1/encoder/enc_enums.h"
+#include "av1/encoder/mcomp.h"
+#include "av1/encoder/encodemb.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/*! @file */
+
+/*!\cond */
 
 #define MAX_MESH_STEP 4
 
@@ -142,17 +149,22 @@ enum {
   // Pick 0 to disable LPF if LPF was enabled last frame
   LPF_PICK_MINIMAL_LPF
 } UENUM1BYTE(LPF_PICK_METHOD);
+/*!\endcond */
 
-enum {
-  CDEF_FULL_SEARCH,
-  CDEF_FAST_SEARCH_LVL1,  // Search among a subset of all possible filters.
-  CDEF_FAST_SEARCH_LVL2,  // Search reduced subset of filters than Level 1.
-  CDEF_FAST_SEARCH_LVL3,  // Search reduced subset of secondary filters than
-                          // Level 2.
-  CDEF_PICK_FROM_Q,       // Estimate filter strength based on quantizer.
+/*!\enum CDEF_PICK_METHOD
+ * \brief This enumeration defines a variety of CDEF pick methods
+ */
+typedef enum {
+  CDEF_FULL_SEARCH,      /**< Full search */
+  CDEF_FAST_SEARCH_LVL1, /**< Search among a subset of all possible filters. */
+  CDEF_FAST_SEARCH_LVL2, /**< Search reduced subset of filters than Level 1. */
+  CDEF_FAST_SEARCH_LVL3, /**< Search reduced subset of secondary filters than
+                              Level 2. */
+  CDEF_PICK_FROM_Q,      /**< Estimate filter strength based on quantizer. */
   CDEF_PICK_METHODS
-} UENUM1BYTE(CDEF_PICK_METHOD);
+} CDEF_PICK_METHOD;
 
+/*!\cond */
 enum {
   // Terminate search early based on distortion so far compared to
   // qp step, distortion in the neighborhood of the frame, etc.
@@ -1038,6 +1050,8 @@ void av1_set_speed_features_framesize_independent(struct AV1_COMP *cpi,
 void av1_set_speed_features_framesize_dependent(struct AV1_COMP *cpi,
                                                 int speed);
 void av1_set_speed_features_qindex_dependent(struct AV1_COMP *cpi, int speed);
+
+/*!\endcond */
 
 #ifdef __cplusplus
 }  // extern "C"

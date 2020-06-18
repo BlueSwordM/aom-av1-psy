@@ -193,6 +193,7 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/pass2_strategy.h"
             "${AOM_ROOT}/av1/encoder/pass2_strategy.c"
             "${AOM_ROOT}/av1/encoder/pickcdef.c"
+            "${AOM_ROOT}/av1/encoder/pickcdef.h"
             "${AOM_ROOT}/av1/encoder/picklpf.c"
             "${AOM_ROOT}/av1/encoder/picklpf.h"
             "${AOM_ROOT}/av1/encoder/pickrst.c"
