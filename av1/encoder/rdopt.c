@@ -1272,13 +1272,13 @@ static INLINE void update_mode_start_end_index(const AV1_COMP *const cpi,
  *                                  It is used for early termination of this
  *                                  search if the RD exceeds this value.
  * \param[in,out] ref_skip_rd       A length 2 array, where skip_rd[0] is the
- *                                  best total RD for a skip mode so far,  and
+ *                                  best total RD for a skip mode so far, and
  *                                  skip_rd[1] is the best RD for a skip mode so
  *                                  far in luma. This is used as a speed feature
  *                                  to skip the transform search if the computed
  *                                  skip RD for the current mode is not better
  *                                  than the best skip_rd so far.
- * \param[in,out] rate_mv           The rate assiciated with the motion vectors.
+ * \param[in,out] rate_mv           The rate associated with the motion vectors.
  *                                  This will be modified if a motion search is
  *                                  done in the motion mode search.
  * \param[in,out] orig_dst          A prediction buffer to hold a computed
@@ -2465,13 +2465,13 @@ static int skip_repeated_newmv(
  *                                  be copied here.
  * \param[in]     tmp_dst           A temporary prediction buffer to hold a
  *                                  computed prediction.
- * \param[in,out] rate_mv           The rate assiciated with the motion vectors.
+ * \param[in,out] rate_mv           The rate associated with the motion vectors.
  *                                  This will be modified if a motion search is
  *                                  done in the motion mode search.
  * \param[in,out] rd_stats          Struct to keep track of the overall RD
  *                                  information.
  * \param[in,out] skip_rd           An array of length 2 where skip_rd[0] is the
- *                                  best total RD for a skip mode so far,  and
+ *                                  best total RD for a skip mode so far, and
  *                                  skip_rd[1] is the best RD for a skip mode so
  *                                  far in luma. This is used as a speed feature
  *                                  to skip the transform search if the computed
