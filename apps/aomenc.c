@@ -424,8 +424,9 @@ static const arg_def_t enable_tpl_model =
             "This is required for deltaq mode.");
 static const arg_def_t enable_keyframe_filtering =
     ARG_DEF(NULL, "enable-keyframe-filtering", 1,
-            "Apply temporal filtering on key frame "
-            "(0: false, 1: true (default)");
+            "Apply temporal filtering on key frame"
+            "(0: no filter, 1: filter without overlay (default),"
+            "2: filter with overlay)");
 static const arg_def_t tile_width =
     ARG_DEF(NULL, "tile-width", 1, "Tile widths (comma separated)");
 static const arg_def_t tile_height =

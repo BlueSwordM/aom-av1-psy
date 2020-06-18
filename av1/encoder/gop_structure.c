@@ -98,17 +98,32 @@ static int construct_multi_layer_gf_structure(
          first_frame_update_type == OVERLAY_UPDATE ||
          first_frame_update_type == GF_UPDATE);
 
-  gf_group->update_type[frame_index] = first_frame_update_type;
-  gf_group->arf_src_offset[frame_index] = 0;
-  gf_group->cur_frame_idx[frame_index] = cur_frame_index;
-  gf_group->layer_depth[frame_index] =
-      first_frame_update_type == OVERLAY_UPDATE ? MAX_ARF_LAYERS + 1 : 0;
-  gf_group->max_layer_depth = 0;
-  ++frame_index;
-  // TODO(jingning): Increase cur_frame_index when a frame is displayed.
-  // When key frame is decomposed into an ARF and overlay frame, increase
-  // cur_frame_index after the overlay frame.
-  ++cur_frame_index;
+  if (first_frame_update_type == KF_UPDATE &&
+      cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1) {
+    gf_group->update_type[frame_index] = ARF_UPDATE;
+    gf_group->arf_src_offset[frame_index] = 0;
+    gf_group->cur_frame_idx[frame_index] = cur_frame_index;
+    gf_group->layer_depth[frame_index] = 0;
+    gf_group->max_layer_depth = 0;
+    ++frame_index;
+
+    gf_group->update_type[frame_index] = OVERLAY_UPDATE;
+    gf_group->arf_src_offset[frame_index] = 0;
+    gf_group->cur_frame_idx[frame_index] = cur_frame_index;
+    gf_group->layer_depth[frame_index] = 0;
+    gf_group->max_layer_depth = 0;
+    ++frame_index;
+    cur_frame_index++;
+  } else {
+    gf_group->update_type[frame_index] = first_frame_update_type;
+    gf_group->arf_src_offset[frame_index] = 0;
+    gf_group->cur_frame_idx[frame_index] = cur_frame_index;
+    gf_group->layer_depth[frame_index] =
+        first_frame_update_type == OVERLAY_UPDATE ? MAX_ARF_LAYERS + 1 : 0;
+    gf_group->max_layer_depth = 0;
+    ++frame_index;
+    ++cur_frame_index;
+  }
 
   // ALTREF.
   const int use_altref = gf_group->max_layer_depth_allowed > 0;

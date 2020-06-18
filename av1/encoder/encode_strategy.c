@@ -393,7 +393,19 @@ static struct lookahead_entry *choose_frame_source(
   // buffer. If the current frame is not arf, then pop it. This assumes the
   // first frame in the GF group is not arf. May need to change if it is not
   // true.
-  const int pop_lookahead = (src_index == 0);
+  int pop_lookahead = (src_index == 0);
+  // If this is a key frame and keyframe filtering is enabled with overlay,
+  // then do not pop.
+  if (pop_lookahead && cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1 &&
+      cpi->rc.frames_to_key == 0 && cpi->rc.frames_till_gf_update_due == 0 &&
+      !is_stat_generation_stage(cpi) && cpi->lookahead) {
+    if (cpi->lookahead->read_ctxs[cpi->compressor_stage].sz &&
+        (*flush ||
+         cpi->lookahead->read_ctxs[cpi->compressor_stage].sz ==
+             cpi->lookahead->read_ctxs[cpi->compressor_stage].pop_sz)) {
+      pop_lookahead = 0;
+    }
+  }
   frame_params->show_frame = pop_lookahead;
   if (pop_lookahead) {
     // show frame, pop from buffer
