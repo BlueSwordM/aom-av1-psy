@@ -311,8 +311,28 @@ void second_pass(char *stats, size_t stats_len) {
 
 /*!\defgroup partition_search Partition Search
  * \ingroup encoder_algo
- * This module describes partition search algorithm in AV1.
- * More details will be added.
+ A frame is first split into tiles in \ref encode_tiles(), with each tile
+ compressed by av1_encode_tile(). Then a tile is processed in superblock rows
+ via \ref av1_encode_sb_row() and then \ref encode_sb_row().
+
+ Partition search starts by superblocks that are sequentially processed in
+ \ref encode_sb_row(). For a superblock, two search modes are supported
+ corresponding to the encoding configurations, \ref encode_nonrd_sb() is for
+ 1-pass and real-time modes, while \ref encode_rd_sb() performs more
+ exhaustive searches.
+
+ Partition search over the recursive quad-tree space is implemented by
+ recursively calling \ref nonrd_use_partition(), \ref rd_use_partition(), or
+ rd_pick_partition() and returning best options for sub-trees to their
+ parent partitions.
+
+ In libaom, partition search lays on top of mode search (predictor, transform,
+ etc.) instead of being a separate module, the interface of mode search is
+ \ref pick_sb_modes(), which connects \ref partition_search with
+ \ref inter_mode_search and \ref intra_mode_search. To make good decisions,
+ reconstruction is also required in order to build references and contexts, it
+ is implemented by \ref encode_sb() at sub-tree level and \ref encode_b() at
+ coding block level.
  * @{
  */
 /*! @} - end defgroup partition_search */
