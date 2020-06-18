@@ -904,7 +904,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
   int gf_index;
   int use_arf = gf_group->update_type[1] == ARF_UPDATE;
-  int anc_frame_offset = gf_group->cur_frame_idx[cur_frame_idx] + 1;
+  int anc_frame_offset = gf_group->cur_frame_idx[cur_frame_idx];
   int process_frame_count = 0;
   const int gop_length =
       AOMMIN(gf_group->size - 1 + use_arf, MAX_TPL_FRAME_IDX - 1);
