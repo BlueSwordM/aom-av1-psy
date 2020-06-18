@@ -3270,7 +3270,7 @@ static AOM_INLINE void rd_pick_skip_mode(
     return;
   }
 
-  if ((!cpi->oxcf.enable_onesided_comp ||
+  if ((!cpi->oxcf.ref_frm_cfg.enable_onesided_comp ||
        cpi->sf.inter_sf.disable_onesided_comp) &&
       cpi->all_one_sided_refs) {
     return;
@@ -3659,7 +3659,7 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
 
   if (sf->rt_sf.use_real_time_ref_set)
     ref_set = REF_SET_REALTIME;
-  else if (cpi->oxcf.enable_reduced_reference_set)
+  else if (cpi->oxcf.ref_frm_cfg.enable_reduced_reference_set)
     ref_set = REF_SET_REDUCED;
 
   default_skip_mask(mask, ref_set);
@@ -4078,7 +4078,7 @@ static int inter_mode_search_order_independent_skip(
   }
 
   const int comp_pred = ref_frame[1] > INTRA_FRAME;
-  if ((!cpi->oxcf.enable_onesided_comp ||
+  if ((!cpi->oxcf.ref_frm_cfg.enable_onesided_comp ||
        cpi->sf.inter_sf.disable_onesided_comp) &&
       comp_pred && cpi->all_one_sided_refs) {
     return 1;

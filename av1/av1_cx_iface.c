@@ -932,15 +932,18 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       oxcf->superblock_size = AOM_SUPERBLOCK_SIZE_64X64;
   }
 
+  // Set reference frame related configuration.
+  oxcf->ref_frm_cfg.max_reference_frames = extra_cfg->max_reference_frames;
+  oxcf->ref_frm_cfg.enable_reduced_reference_set =
+      extra_cfg->enable_reduced_reference_set;
+  oxcf->ref_frm_cfg.enable_onesided_comp = extra_cfg->enable_onesided_comp;
+
   oxcf->row_mt = extra_cfg->row_mt;
 
   oxcf->monochrome = cfg->monochrome;
   oxcf->full_still_picture_hdr = cfg->full_still_picture_hdr;
   oxcf->enable_dual_filter = extra_cfg->enable_dual_filter;
   oxcf->enable_order_hint = extra_cfg->enable_order_hint;
-  oxcf->max_reference_frames = extra_cfg->max_reference_frames;
-  oxcf->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
-  oxcf->enable_onesided_comp = extra_cfg->enable_onesided_comp;
   oxcf->enable_interintra_comp = extra_cfg->enable_interintra_comp;
   oxcf->enable_ref_frame_mvs =
       extra_cfg->enable_ref_frame_mvs & extra_cfg->enable_order_hint;

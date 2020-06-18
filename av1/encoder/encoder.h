@@ -490,6 +490,15 @@ typedef struct {
   COST_UPDATE_TYPE mv;
 } CostUpdateFreq;
 
+typedef struct {
+  // Indicates the maximum number of reference frames allowed per frame.
+  unsigned int max_reference_frames;
+  // Indicates if the reduced set of references should be enabled.
+  bool enable_reduced_reference_set;
+  // Indicates if one-sided compound should be enabled.
+  bool enable_onesided_comp;
+} RefFrameCfg;
+
 typedef struct AV1EncoderConfig {
   BITSTREAM_PROFILE profile;
   aom_bit_depth_t bit_depth;     // Codec bit-depth.
@@ -615,6 +624,9 @@ typedef struct AV1EncoderConfig {
   // Configuration related to decoder model.
   DecoderModelCfg dec_model_cfg;
 
+  // Configuration related to reference frames.
+  RefFrameCfg ref_frm_cfg;
+
   uint8_t cdf_update_mode;
   aom_superblock_size_t superblock_size;
   uint8_t monochrome;
@@ -624,10 +636,7 @@ typedef struct AV1EncoderConfig {
   unsigned int sb_multipass_unit_test;
   int enable_order_hint;
   int enable_ref_frame_mvs;
-  unsigned int max_reference_frames;
-  int enable_reduced_reference_set;
   unsigned int allow_ref_frame_mvs;
-  int enable_onesided_comp;
   int enable_interintra_comp;
   int enable_global_motion;
   int enable_overlay;
@@ -2682,12 +2691,12 @@ static const MV_REFERENCE_FRAME disable_order[] = {
   GOLDEN_FRAME,
 };
 
-static INLINE int get_max_allowed_ref_frames(const AV1_COMP *cpi) {
+static INLINE int get_max_allowed_ref_frames(
+    int selective_ref_frame, unsigned int max_reference_frames) {
   const unsigned int max_allowed_refs_for_given_speed =
-      (cpi->sf.inter_sf.selective_ref_frame >= 3) ? INTER_REFS_PER_FRAME - 1
-                                                  : INTER_REFS_PER_FRAME;
-  return AOMMIN(max_allowed_refs_for_given_speed,
-                cpi->oxcf.max_reference_frames);
+      (selective_ref_frame >= 3) ? INTER_REFS_PER_FRAME - 1
+                                 : INTER_REFS_PER_FRAME;
+  return AOMMIN(max_allowed_refs_for_given_speed, max_reference_frames);
 }
 
 static const MV_REFERENCE_FRAME
@@ -2737,7 +2746,9 @@ static AOM_INLINE void enforce_max_ref_frames(AV1_COMP *cpi,
     }
   }
 
-  const int max_allowed_refs = get_max_allowed_ref_frames(cpi);
+  const int max_allowed_refs =
+      get_max_allowed_ref_frames(cpi->sf.inter_sf.selective_ref_frame,
+                                 cpi->oxcf.ref_frm_cfg.max_reference_frames);
 
   for (int i = 0; i < 4 && total_valid_refs > max_allowed_refs; ++i) {
     const MV_REFERENCE_FRAME ref_frame_to_disable = disable_order[i];
