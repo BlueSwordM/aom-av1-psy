@@ -29,9 +29,11 @@ set(AOM_DOXYGEN_SOURCES
     "${AOM_ROOT}/aom/aom_image.h"
     "${AOM_ROOT}/aom/aom_integer.h"
     "${AOM_ROOT}/av1/common/av1_common_int.h"
+    "${AOM_ROOT}/av1/common/av1_loopfilter.h"
     "${AOM_ROOT}/av1/common/blockd.h"
     "${AOM_ROOT}/av1/common/cdef.h"
-    "${AOM_ROOT}/av1/common/av1_loopfilter.h"
+    "${AOM_ROOT}/av1/common/enums.h"
+    "${AOM_ROOT}/av1/common/restoration.h"
     "${AOM_ROOT}/keywords.dox"
     "${AOM_ROOT}/mainpage.dox"
     "${AOM_ROOT}/usage.dox")

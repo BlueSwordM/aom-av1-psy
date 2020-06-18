@@ -22,6 +22,10 @@
 extern "C" {
 #endif
 
+/*! @file */
+
+/*!\cond */
+
 #undef MAX_SB_SIZE
 
 // Max superblock size
@@ -636,15 +640,21 @@ enum {
 // NONE_FRAME to (MODE_CTX_REF_FRAMES - 1). Hence, it is not defined as an enum.
 typedef int8_t MV_REFERENCE_FRAME;
 
-enum {
-  RESTORE_NONE,
-  RESTORE_WIENER,
-  RESTORE_SGRPROJ,
-  RESTORE_SWITCHABLE,
-  RESTORE_SWITCHABLE_TYPES = RESTORE_SWITCHABLE,
-  RESTORE_TYPES = 4,
-} UENUM1BYTE(RestorationType);
+/*!\endcond */
 
+/*!\enum RestorationType
+ * \brief This enumeration defines various restoration types supported
+ */
+typedef enum {
+  RESTORE_NONE,       /**< No restoration */
+  RESTORE_WIENER,     /**< Separable Wiener restoration */
+  RESTORE_SGRPROJ,    /**< Selfguided restoration */
+  RESTORE_SWITCHABLE, /**< Switchable restoration */
+  RESTORE_SWITCHABLE_TYPES = RESTORE_SWITCHABLE, /**< Num Switchable types */
+  RESTORE_TYPES = 4,                             /**< Num Restore types */
+} RestorationType;
+
+/*!\cond */
 // Picture prediction structures (0-12 are predefined) in scalability metadata.
 enum {
   SCALABILITY_L1T2 = 0,
@@ -670,6 +680,8 @@ enum {
 // In large_scale_tile coding, external references are used.
 #define MAX_EXTERNAL_REFERENCES 128
 #define MAX_TILES 512
+
+/*!\endcond */
 
 #ifdef __cplusplus
 }  // extern "C"

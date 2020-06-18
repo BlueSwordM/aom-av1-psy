@@ -22,6 +22,10 @@
 extern "C" {
 #endif
 
+/*! @file */
+
+/*!\cond */
+
 // Border for Loop restoration buffer
 #define AOM_RESTORATION_FRAME_BORDER 32
 #define CLIP(x, lo, hi) ((x) < (lo) ? (lo) : (x) > (hi) ? (hi) : (x))
@@ -183,12 +187,27 @@ typedef struct {
   int r[2];  // radii
   int s[2];  // sgr parameters for r[0] and r[1], based on GenSgrprojVtable()
 } sgr_params_type;
+/*!\endcond */
 
+/*!\brief Parameters related to Restoration Unit Info */
 typedef struct {
+  /*!
+   * restoration type
+   */
   RestorationType restoration_type;
+
+  /*!
+   * Wiener filter parameters if restoration_type indicates Wiener
+   */
   WienerInfo wiener_info;
+
+  /*!
+   * Sgrproj filter parameters if restoration_type indicates Sgrproj
+   */
   SgrprojInfo sgrproj_info;
 } RestorationUnitInfo;
+
+/*!\cond */
 
 // A restoration line buffer needs space for two lines plus a horizontal filter
 // margin of RESTORATION_EXTRA_HORZ on each side.
@@ -207,32 +226,88 @@ typedef struct {
   uint16_t tmp_save_above[RESTORATION_BORDER][RESTORATION_LINEBUFFER_WIDTH];
   uint16_t tmp_save_below[RESTORATION_BORDER][RESTORATION_LINEBUFFER_WIDTH];
 } RestorationLineBuffers;
+/*!\endcond */
 
+/*!\brief Parameters related to Restoration Stripe boundaries */
 typedef struct {
+  /*!
+   * stripe boundary above
+   */
   uint8_t *stripe_boundary_above;
+
+  /*!
+   * stripe boundary below
+   */
   uint8_t *stripe_boundary_below;
+
+  /*!
+   * strides for stripe boundaries above and below
+   */
   int stripe_boundary_stride;
+
+  /*!
+   * size of stripe boundaries above and below
+   */
   int stripe_boundary_size;
 } RestorationStripeBoundaries;
 
+/*!\brief Parameters related to Restoration Info */
 typedef struct {
+  /*!
+   * Restoration type for frame
+   */
   RestorationType frame_restoration_type;
+
+  /*!
+   * Restoration unit size
+   */
   int restoration_unit_size;
 
-  // Fields below here are allocated and initialised by
-  // av1_alloc_restoration_struct. (horz_)units_per_tile give the number of
-  // restoration units in (one row of) the largest tile in the frame. The data
-  // in unit_info is laid out with units_per_tile entries for each tile, which
-  // have stride horz_units_per_tile.
-  //
-  // Even if there are tiles of different sizes, the data in unit_info is laid
-  // out as if all tiles are of full size.
+  /**
+   * \name Fields allocated and initialised by av1_alloc_restoration_struct.
+   * (horz_)units_per_tile give the number of restoration units in
+   * (one row of) the largest tile in the frame.
+   */
+  /**@{*/
+  /*!
+   * Number of units per tile for the largest tile in the frame
+   */
   int units_per_tile;
-  int vert_units_per_tile, horz_units_per_tile;
+
+  /*!
+   * Number of vertical units per tile
+   */
+  int vert_units_per_tile;
+
+  /*!
+   * Number of horizontal units per tile for the largest tile in the frame
+   */
+  int horz_units_per_tile;
+  /**@}*/
+
+  /*!
+   * List of info for units in tile.
+   * The data in unit_info is laid out with units_per_tile entries for each
+   * tile, which have stride horz_units_per_tile.
+   * Even if there are tiles of different sizes, the data in unit_info is
+   * laid out as if all tiles are of full size.
+   */
   RestorationUnitInfo *unit_info;
+
+  /*!
+   * Restoration Stripe boundary info
+   */
   RestorationStripeBoundaries boundaries;
+
+  /*!
+   * Whether optimized lr can be used for speed.
+   * That includes cases of no cdef and no superres, or if fast trial runs
+   * are used on the encoder side.
+   */
   int optimized_lr;
 } RestorationInfo;
+
+/*!\cond */
 
 static INLINE void set_default_sgrproj(SgrprojInfo *sgrproj_info) {
   sgrproj_info->xqd[0] = (SGRPROJ_PRJ_MIN0 + SGRPROJ_PRJ_MAX0) / 2;
@@ -373,6 +448,9 @@ int av1_lr_count_units_in_tile(int unit_size, int tile_size);
 void av1_lr_sync_read_dummy(void *const lr_sync, int r, int c, int plane);
 void av1_lr_sync_write_dummy(void *const lr_sync, int r, int c,
                              const int sb_cols, int plane);
+
+/*!\endcond */
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

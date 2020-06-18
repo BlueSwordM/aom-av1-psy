@@ -24,7 +24,6 @@ extern "C" {
 /*! @file */
 
 /*!\cond */
-
 #define MAX_MESH_STEP 4
 
 typedef struct MESH_PATTERN {

@@ -68,7 +68,7 @@ static INLINE uint16_t find_average_highbd(const uint16_t *src, int h_start,
  *
  * \return Nothing is returned. Instead, chosen restoration filter
  * types and parameters are stored per plane in the \c rst_info structure
- * inside \c cpi-> \c common:
+ * of type \ref RestorationInfo inside \c cpi->common:
  * \arg \c rst_info[ \c 0 ]: Chosen parameters for Y plane
  * \arg \c rst_info[ \c 1 ]: Chosen parameters for U plane if it exists
  * \arg \c rst_info[ \c 2 ]: Chosen parameters for V plane if it exists
@@ -81,12 +81,13 @@ static INLINE uint16_t find_average_highbd(const uint16_t *src, int h_start,
  * where \c n( \c p ) is the number of restoration units in plane \c p.
  * \par
  * The following fields in each \c rst_info[ \c p ].\c unit_info[ \c u ],
- * \c p = 0, 1, 2 and \c u = 0, 1, ..., \c n( \c p ) - 1,
- * are populated:
+ * \c p = 0, 1, 2 and \c u = 0, 1, ..., \c n( \c p ) - 1, of type
+ * \ref RestorationUnitInfo are populated:
  * \arg \c rst_info[ \c p ].\c unit_info[ \c u ].\c restoration_type
  * \arg \c rst_info[ \c p ].\c unit_info[ \c u ].\c wiener_info OR
  *      \c rst_info[ \c p ].\c unit_info[ \c u ].\c sgrproj_info OR
- *      neither, depending on \c restoration_type.
+ *      neither, depending on
+ *      \c rst_info[ \c p ].\c unit_info[ \c u ].\c restoration_type
  *
  */
 void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi);

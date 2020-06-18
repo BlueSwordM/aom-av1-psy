@@ -419,15 +419,35 @@ typedef struct macroblockd_plane {
 
 #define BLOCK_OFFSET(i) ((i) << 4)
 
+/*!\endcond */
+
+/*!\brief Parameters related to Wiener Filter */
 typedef struct {
+  /*!
+   * Vertical filter kernel.
+   */
   DECLARE_ALIGNED(16, InterpKernel, vfilter);
+
+  /*!
+   * Horizontal filter kernel.
+   */
   DECLARE_ALIGNED(16, InterpKernel, hfilter);
 } WienerInfo;
 
+/*!\brief Parameters related to Sgrproj Filter */
 typedef struct {
+  /*!
+   * Parameter index.
+   */
   int ep;
+
+  /*!
+   * Weights for linear combination of filtered versions
+   */
   int xqd[2];
 } SgrprojInfo;
+
+/*!\cond */
 
 #if CONFIG_DEBUG
 #define CFL_SUB8X8_VAL_MI_SIZE (4)
