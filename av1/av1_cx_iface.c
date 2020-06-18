@@ -722,6 +722,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
 
+  TwoPassCfg *const two_pass_cfg = &oxcf->two_pass_cfg;
+
   const int is_vbr = cfg->rc_end_usage == AOM_VBR;
   oxcf->profile = cfg->g_profile;
   oxcf->max_threads = (int)cfg->g_threads;
@@ -841,9 +843,11 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   oxcf->drop_frames_water_mark = cfg->rc_dropframe_thresh;
 
-  oxcf->two_pass_vbrbias = cfg->rc_2pass_vbr_bias_pct;
-  oxcf->two_pass_vbrmin_section = cfg->rc_2pass_vbr_minsection_pct;
-  oxcf->two_pass_vbrmax_section = cfg->rc_2pass_vbr_maxsection_pct;
+  // Set two-pass configuration.
+  two_pass_cfg->vbrbias = cfg->rc_2pass_vbr_bias_pct;
+  two_pass_cfg->vbrmin_section = cfg->rc_2pass_vbr_minsection_pct;
+  two_pass_cfg->vbrmax_section = cfg->rc_2pass_vbr_maxsection_pct;
+  two_pass_cfg->stats_in = cfg->rc_twopass_stats_in;
 
   // Set Key frame configuration.
   kf_cfg->fwd_kf_enabled = cfg->fwd_kf_enabled;
@@ -860,8 +864,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->speed = extra_cfg->cpu_used;
   oxcf->noise_sensitivity = extra_cfg->noise_sensitivity;
   oxcf->sharpness = extra_cfg->sharpness;
-
-  oxcf->two_pass_stats_in = cfg->rc_twopass_stats_in;
 
   oxcf->color_primaries = extra_cfg->color_primaries;
   oxcf->transfer_characteristics = extra_cfg->transfer_characteristics;

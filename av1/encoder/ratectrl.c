@@ -1837,7 +1837,7 @@ void av1_rc_update_framerate(AV1_COMP *cpi, int width, int height) {
 
   rc->avg_frame_bandwidth = (int)(oxcf->target_bandwidth / cpi->framerate);
   rc->min_frame_bandwidth =
-      (int)(rc->avg_frame_bandwidth * oxcf->two_pass_vbrmin_section / 100);
+      (int)(rc->avg_frame_bandwidth * oxcf->two_pass_cfg.vbrmin_section / 100);
 
   rc->min_frame_bandwidth =
       AOMMAX(rc->min_frame_bandwidth, FRAME_OVERHEAD_BITS);
@@ -1849,9 +1849,9 @@ void av1_rc_update_framerate(AV1_COMP *cpi, int width, int height) {
   // a very high rate is given on the command line or the the rate cannnot
   // be acheived because of a user specificed max q (e.g. when the user
   // specifies lossless encode.
-  vbr_max_bits =
-      (int)(((int64_t)rc->avg_frame_bandwidth * oxcf->two_pass_vbrmax_section) /
-            100);
+  vbr_max_bits = (int)(((int64_t)rc->avg_frame_bandwidth *
+                        oxcf->two_pass_cfg.vbrmax_section) /
+                       100);
   rc->max_frame_bandwidth =
       AOMMAX(AOMMAX((MBs * MAX_MB_RATE), MAXRATE_1080P), vbr_max_bits);
 

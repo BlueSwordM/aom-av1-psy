@@ -462,6 +462,25 @@ typedef struct {
   bool timing_info_present;
 } DecoderModelCfg;
 
+typedef struct {
+  // stats_in buffer contains all of the stats packets produced in the first
+  // pass, concatenated.
+  aom_fixed_buf_t stats_in;
+
+  // TWO PASS DATARATE CONTROL OPTIONS.
+  // Indicates the bias (expressed on a scale of 0 to 100) for determining
+  // target size for the current frame. The value 0 indicates the optimal CBR
+  // mode value should be used, and 100 indicates the optimal VBR mode value
+  // should be used.
+  int vbrbias;
+  // Indicates the minimum bitrate to be used for a single GOP as a percentage
+  // of the target bitrate.
+  int vbrmin_section;
+  // Indicates the maximum bitrate to be used for a single GOP as a percentage
+  // of the target bitrate.
+  int vbrmax_section;
+} TwoPassCfg;
+
 typedef struct AV1EncoderConfig {
   BITSTREAM_PROFILE profile;
   aom_bit_depth_t bit_depth;     // Codec bit-depth.
@@ -538,9 +557,8 @@ typedef struct AV1EncoderConfig {
   int frame_periodic_boost;
 
   // two pass datarate control
-  int two_pass_vbrbias;  // two pass datarate control tweaks
-  int two_pass_vbrmin_section;
-  int two_pass_vbrmax_section;
+  TwoPassCfg two_pass_cfg;
+
   // END DATARATE CONTROL OPTIONS
   // ----------------------------------------------------------------
 
@@ -572,8 +590,6 @@ typedef struct AV1EncoderConfig {
   int enable_tpl_model;
 
   int max_threads;
-
-  aom_fixed_buf_t two_pass_stats_in;
 
   aom_tune_metric tuning;
   const char *vmaf_model_path;
