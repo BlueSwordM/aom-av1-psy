@@ -818,6 +818,21 @@ static int calc_active_best_quality_no_stats_cbr(const AV1_COMP *cpi,
   return active_best_quality;
 }
 
+/*!\brief Picks q and q bounds given CBR rate control parameters in \c cpi->rc.
+ *
+ * Handles the special case when using:
+ * - Constant bit-rate mode: \c cpi->oxcf.rc_mode == \ref AOM_CBR, and
+ * - 1-pass encoding without LAP (look-ahead processing), so 1st pass stats are
+ * NOT available.
+ *
+ * \ingroup rate_control
+ * \param[in]       cpi          Top level encoder structure
+ * \param[in]       width        Coded frame width
+ * \param[in]       height       Coded frame height
+ * \param[out]      bottom_index Bottom bound for q index (best quality)
+ * \param[out]      top_index    Top bound for q index (worst quality)
+ * \return Returns selected q index to be used for encoding this frame.
+ */
 static int rc_pick_q_and_bounds_no_stats_cbr(const AV1_COMP *cpi, int width,
                                              int height, int *bottom_index,
                                              int *top_index) {
@@ -912,6 +927,24 @@ static int get_active_cq_level(const RATE_CONTROL *rc,
   return active_cq_level;
 }
 
+/*! \brief Pick q index for this frame using fixed q index offsets.
+ *
+ * The q index offsets are fixed in the sense that they are independent of the
+ * video content. The offsets for each pyramid level are taken from
+ * \c oxcf->fixed_qp_offsets array.
+ *
+ * \ingroup rate_control
+ * \param[in]   oxcf        Top level encoder configuration
+ * \param[in]   rc          Top level rate control structure
+ * \param[in]   gf_group    Configuration of current golden frame group
+ * \param[in]   gf_index    Index of this frame in the golden frame group
+ * \param[in]   cq_level    Upper bound for q index (this may be same as
+ *                          \c oxcf->cq_level, or slightly modified for some
+ *                          special cases)
+ * \param[in]   bit_depth   Bit depth of the codec (same as
+ *                          \c cm->seq_params.bit_depth)
+ * \return Returns selected q index to be used for encoding this frame.
+ */
 static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
                                      const RATE_CONTROL *const rc,
                                      const GF_GROUP *const gf_group,
@@ -950,6 +983,22 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
   return AOMMAX(cq_level + delta_qindex, 0);
 }
 
+/*!\brief Picks q and q bounds given non-CBR rate control params in \c cpi->rc.
+ *
+ * Handles the special case when using:
+ * - Any rate control other than constant bit-rate mode:
+ * \c cpi->oxcf.rc_mode != \ref AOM_CBR, and
+ * - 1-pass encoding without LAP (look-ahead processing), so 1st pass stats are
+ * NOT available.
+ *
+ * \ingroup rate_control
+ * \param[in]       cpi          Top level encoder structure
+ * \param[in]       width        Coded frame width
+ * \param[in]       height       Coded frame height
+ * \param[out]      bottom_index Bottom bound for q index (best quality)
+ * \param[out]      top_index    Top bound for q index (worst quality)
+ * \return Returns selected q index to be used for encoding this frame.
+ */
 static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
                                          int height, int *bottom_index,
                                          int *top_index) {
@@ -1426,6 +1475,21 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   return active_best_quality;
 }
 
+/*!\brief Picks q and q bounds given rate control parameters in \c cpi->rc.
+ *
+ * Handles the the general cases not covered by
+ * \ref rc_pick_q_and_bounds_no_stats_cbr() and
+ * \ref rc_pick_q_and_bounds_no_stats()
+ *
+ * \ingroup rate_control
+ * \param[in]       cpi          Top level encoder structure
+ * \param[in]       width        Coded frame width
+ * \param[in]       height       Coded frame height
+ * \param[in]       gf_index     Index of this frame in the golden frame group
+ * \param[out]      bottom_index Bottom bound for q index (best quality)
+ * \param[out]      top_index    Top bound for q index (worst quality)
+ * \return Returns selected q index to be used for encoding this frame.
+ */
 static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
                                 int gf_index, int *bottom_index,
                                 int *top_index) {

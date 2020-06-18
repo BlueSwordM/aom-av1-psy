@@ -128,6 +128,7 @@ if(CONFIG_AV1_ENCODER)
       "${AOM_ROOT}/av1/encoder/pickcdef.h"
       "${AOM_ROOT}/av1/encoder/picklpf.h"
       "${AOM_ROOT}/av1/encoder/pickrst.h"
+      "${AOM_ROOT}/av1/encoder/ratectrl.c"
       "${AOM_ROOT}/av1/encoder/ratectrl.h"
       "${AOM_ROOT}/av1/encoder/rdopt.h"
       "${AOM_ROOT}/av1/encoder/rdopt.c"
