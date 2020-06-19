@@ -50,10 +50,9 @@
   <br>
 
   \section main_support Support Options & FAQ
-  The AOMedia project is an open source project supported by its community. For
-  questions about this SDK, please mail the apps-devel@webmproject.org list.
-  To contribute, see http://www.webmproject.org/code/contribute and mail
-  codec-devel@webmproject.org.
+  The AOMedia project is an open source project supported by its community.
+  For questions about this SDK or for help, please visit http://aomedia.org/
+  and email the aomediacodec@jointdevelopment.kavi.com list.
 */
 
 /*!\page changelog CHANGELOG
