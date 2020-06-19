@@ -279,6 +279,9 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.use_modeled_non_rd_cost = 0;
       sf->rt_sf.use_nonrd_filter_search = 0;
     }
+    if (speed >= 9) {
+      sf->rt_sf.use_modeled_non_rd_cost = 1;
+    }
   }
   if (!is_480p_or_larger) {
     if (speed == 7) {
@@ -286,8 +289,11 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
     if (speed >= 8) {
       sf->mv_sf.subpel_search_method = SUBPEL_TREE;
-
       sf->rt_sf.estimate_motion_for_var_based_partition = 1;
+    }
+    if (speed >= 9) {
+      sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
+      sf->rt_sf.estimate_motion_for_var_based_partition = 0;
     }
   }
 }
@@ -902,6 +908,10 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.source_metrics_sb_nonrd = 1;
     sf->rt_sf.skip_intra_pred_if_tx_skip = 0;
     sf->interp_sf.cb_pred_filter_search = 1;
+  }
+  if (speed >= 9) {
+    sf->rt_sf.force_large_partition_blocks = 1;
+    sf->rt_sf.nonrd_intra_dc_only = 1;
   }
 }
 

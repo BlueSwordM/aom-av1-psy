@@ -973,6 +973,12 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Check for scene/content change detection on every frame before encoding.
   int check_scene_detection;
+
+  // Forces larger partition blocks in variance based partitioning
+  int force_large_partition_blocks;
+
+  // Only checks intra DCPRED mode in nonrd_pick_inter_mode
+  int nonrd_intra_dc_only;
 } REAL_TIME_SPEED_FEATURES;
 
 typedef struct SPEED_FEATURES {

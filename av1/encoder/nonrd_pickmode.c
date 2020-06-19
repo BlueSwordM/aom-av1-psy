@@ -1621,7 +1621,9 @@ static void estimate_intra_mode(
     const int mode_rd_thresh = rd_threshes[mode_index];
 
     // Only check DC for blocks >= 32X32.
-    if (this_mode > 0 && bsize >= BLOCK_32X32) continue;
+    if (this_mode > 0 &&
+        (bsize >= BLOCK_32X32 || cpi->sf.rt_sf.nonrd_intra_dc_only))
+      continue;
 
     if (rd_less_than_thresh(best_rdc->rdcost, mode_rd_thresh,
                             rd_thresh_freq_fact[mode_index]) &&
