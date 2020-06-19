@@ -24,6 +24,10 @@
 #include "av1/encoder/cost.h"
 #endif
 
+#if CONFIG_BITSTREAM_DEBUG
+#include "aom_util/debug_util.h"
+#endif  // CONFIG_BITSTREAM_DEBUG
+
 #ifdef __cplusplus
 extern "C" {
 #endif
