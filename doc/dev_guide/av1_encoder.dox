@@ -179,10 +179,11 @@ void second_pass(char *stats, size_t stats_len) {
  it. It supports pushing and popping frames onto the structure in a FIFO
  fashion. It also allows look-ahead when using the \ref av1_lookahead_peek()
  function with a non-negative number, and look-behind when -1 is passed in (for
- the last source frame). The \ref av1_lookahead_depth() function returns the
- current number of frames stored in it. Note that \ref av1_lookahead_pop() is
- a bit of a misnomer - it only pops if either the "flush" variable is set, or
- the buffer is at maximum capacity.
+ the last source frame; e.g., firstpass will use this for motion estimation).
+ The \ref av1_lookahead_depth() function returns the current number of frames
+ stored in it. Note that \ref av1_lookahead_pop() is a bit of a misnomer - it
+ only pops if either the "flush" variable is set, or the buffer is at maximum
+ capacity.
 
  The buffer is stored in the \ref AV1_COMP::lookahead field.
  It is initialized in the first call to \ref aom_codec_encode(), in the
@@ -191,7 +192,7 @@ void second_pass(char *stats, size_t stats_len) {
  \ref aom_codec_enc_cfg_t::g_lag_in_frames struct.
  This can be modified manually but should only be set once. On the command
  line, the flag "--lag-in-frames" controls it. The default size is 19 for
- non-realtime usage and 1 for realtime. Note that a maximum value of 25 is
+ non-realtime usage and 1 for realtime. Note that a maximum value of 35 is
  enforced.
 
  A frame will stay in the buffer as long as possible. As mentioned above,
