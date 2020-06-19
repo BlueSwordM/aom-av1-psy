@@ -5083,18 +5083,26 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   }
 
 #if !CONFIG_REALTIME_ONLY
-  init_ref_frame_space(cpi, td, mi_row, mi_col);
-  x->sb_energy_level = 0;
-  x->part_search_info.cnn_output_valid = 0;
-  if (gather_tpl_data) {
-    if (cm->delta_q_info.delta_q_present_flag) {
-      const int num_planes = av1_num_planes(cm);
-      const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
-      setup_delta_q(cpi, td, x, tile_info, mi_row, mi_col, num_planes);
-      av1_tpl_rdmult_setup_sb(cpi, x, sb_size, mi_row, mi_col);
-    }
-    if (cpi->oxcf.enable_tpl_model) {
-      adjust_rdmult_tpl_model(cpi, x, mi_row, mi_col);
+  if (has_no_stats_stage(cpi) && cpi->oxcf.mode == REALTIME &&
+      cpi->oxcf.gf_cfg.lag_in_frames == 0) {
+    (void)tile_info;
+    (void)mi_row;
+    (void)mi_col;
+    (void)gather_tpl_data;
+  } else {
+    init_ref_frame_space(cpi, td, mi_row, mi_col);
+    x->sb_energy_level = 0;
+    x->part_search_info.cnn_output_valid = 0;
+    if (gather_tpl_data) {
+      if (cm->delta_q_info.delta_q_present_flag) {
+        const int num_planes = av1_num_planes(cm);
+        const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+        setup_delta_q(cpi, td, x, tile_info, mi_row, mi_col, num_planes);
+        av1_tpl_rdmult_setup_sb(cpi, x, sb_size, mi_row, mi_col);
+      }
+      if (cpi->oxcf.enable_tpl_model) {
+        adjust_rdmult_tpl_model(cpi, x, mi_row, mi_col);
+      }
     }
   }
 #else
@@ -5916,34 +5924,36 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
   // Fix delta q resolution for the moment
   cm->delta_q_info.delta_q_res = 0;
-  if (deltaq_mode == DELTA_Q_OBJECTIVE)
-    cm->delta_q_info.delta_q_res = DEFAULT_DELTA_Q_RES_OBJECTIVE;
-  else if (deltaq_mode == DELTA_Q_PERCEPTUAL)
-    cm->delta_q_info.delta_q_res = DEFAULT_DELTA_Q_RES_PERCEPTUAL;
-  // Set delta_q_present_flag before it is used for the first time
-  cm->delta_q_info.delta_lf_res = DEFAULT_DELTA_LF_RES;
-  cm->delta_q_info.delta_q_present_flag = deltaq_mode != NO_DELTA_Q;
+  if (cpi->oxcf.q_cfg.aq_mode != CYCLIC_REFRESH_AQ) {
+    if (deltaq_mode == DELTA_Q_OBJECTIVE)
+      cm->delta_q_info.delta_q_res = DEFAULT_DELTA_Q_RES_OBJECTIVE;
+    else if (deltaq_mode == DELTA_Q_PERCEPTUAL)
+      cm->delta_q_info.delta_q_res = DEFAULT_DELTA_Q_RES_PERCEPTUAL;
+    // Set delta_q_present_flag before it is used for the first time
+    cm->delta_q_info.delta_lf_res = DEFAULT_DELTA_LF_RES;
+    cm->delta_q_info.delta_q_present_flag = deltaq_mode != NO_DELTA_Q;
 
-  // Turn off cm->delta_q_info.delta_q_present_flag if objective delta_q is used
-  // for ineligible frames. That effectively will turn off row_mt usage.
-  // Note objective delta_q and tpl eligible frames are only altref frames
-  // currently.
-  if (cm->delta_q_info.delta_q_present_flag) {
-    if (deltaq_mode == DELTA_Q_OBJECTIVE && !is_frame_tpl_eligible(cpi))
-      cm->delta_q_info.delta_q_present_flag = 0;
+    // Turn off cm->delta_q_info.delta_q_present_flag if objective delta_q
+    // is used for ineligible frames. That effectively will turn off row_mt
+    // usage. Note objective delta_q and tpl eligible frames are only altref
+    // frames currently.
+    if (cm->delta_q_info.delta_q_present_flag) {
+      if (deltaq_mode == DELTA_Q_OBJECTIVE && !is_frame_tpl_eligible(cpi))
+        cm->delta_q_info.delta_q_present_flag = 0;
+    }
+
+    // Reset delta_q_used flag
+    cpi->deltaq_used = 0;
+
+    cm->delta_q_info.delta_lf_present_flag =
+        cm->delta_q_info.delta_q_present_flag && oxcf->deltalf_mode;
+    cm->delta_q_info.delta_lf_multi = DEFAULT_DELTA_LF_MULTI;
+
+    // update delta_q_present_flag and delta_lf_present_flag based on
+    // base_qindex
+    cm->delta_q_info.delta_q_present_flag &= quant_params->base_qindex > 0;
+    cm->delta_q_info.delta_lf_present_flag &= quant_params->base_qindex > 0;
   }
-
-  // Reset delta_q_used flag
-  cpi->deltaq_used = 0;
-
-  cm->delta_q_info.delta_lf_present_flag =
-      cm->delta_q_info.delta_q_present_flag && oxcf->deltalf_mode;
-  cm->delta_q_info.delta_lf_multi = DEFAULT_DELTA_LF_MULTI;
-
-  // update delta_q_present_flag and delta_lf_present_flag based on
-  // base_qindex
-  cm->delta_q_info.delta_q_present_flag &= quant_params->base_qindex > 0;
-  cm->delta_q_info.delta_lf_present_flag &= quant_params->base_qindex > 0;
 
   av1_frame_init_quantizer(cpi);
   av1_initialize_rd_consts(cpi);
