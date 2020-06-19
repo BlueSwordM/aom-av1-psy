@@ -377,7 +377,7 @@ void second_pass(char *stats, size_t stats_len) {
  */
 /*! @} - end defgroup in_loop_filter */
 
-/*!\defgroup in_loop_cdef CDEF Search
+/*!\defgroup in_loop_cdef CDEF
  * \ingroup encoder_algo
  * This module describes the CDEF parameter search algorithm
  * in AV1. More details will be added.
@@ -385,7 +385,7 @@ void second_pass(char *stats, size_t stats_len) {
  */
 /*! @} - end defgroup in_loop_restoration */
 
-/*!\defgroup in_loop_restoration Loop Restoration Search
+/*!\defgroup in_loop_restoration Loop Restoration
  * \ingroup encoder_algo
  * This module describes the loop restoration search
  * and estimation algorithm in AV1.
