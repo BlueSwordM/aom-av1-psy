@@ -32,13 +32,14 @@ extern "C" {
  * \param[in]      rdmult       rd multiplier to use in making param choices
  *
  * \return Nothing is returned. Instead, optimal CDEF parameters are stored
- * in the \c cdef_info structure inside \c cm:
+ * in the \c cdef_info structure of type \ref CdefInfo inside \c cm:
  * \arg \c cdef_bits: Bits of strength parameters
  * \arg \c nb_cdef_strengths: Number of strength parameters
  * \arg \c cdef_strengths: list of \c nb_cdef_strengths strength parameters
  * for the luma plane.
  * \arg \c uv_cdef_strengths: list of \c nb_cdef_strengths strength parameters
  * for the chroma planes.
+ * \arg \c damping_factor: CDEF damping factor.
  *
  */
 void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,

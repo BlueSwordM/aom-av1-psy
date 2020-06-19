@@ -188,13 +188,19 @@ typedef struct BufferPool {
   InternalFrameBufferList int_frame_buffers;
 } BufferPool;
 
+/*!\endcond */
+
+/*!\brief Parameters related to CDEF */
 typedef struct {
-  int cdef_damping;
-  int nb_cdef_strengths;
-  int cdef_strengths[CDEF_MAX_STRENGTHS];
-  int cdef_uv_strengths[CDEF_MAX_STRENGTHS];
-  int cdef_bits;
+  int cdef_damping;                       /*!< CDEF damping factor */
+  int nb_cdef_strengths;                  /*!< Number of CDEF strength values */
+  int cdef_strengths[CDEF_MAX_STRENGTHS]; /*!< CDEF strength values for luma */
+  int cdef_uv_strengths[CDEF_MAX_STRENGTHS]; /*!< CDEF strength values for
+                                                chroma */
+  int cdef_bits; /*!< Number of CDEF strength values in bits */
 } CdefInfo;
+
+/*!\cond */
 
 typedef struct {
   int delta_q_present_flag;
