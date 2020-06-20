@@ -726,6 +726,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
 
+  QuantizationCfg *const q_cfg = &oxcf->q_cfg;
+
   const int is_vbr = cfg->rc_end_usage == AOM_VBR;
   oxcf->profile = cfg->g_profile;
   oxcf->max_threads = (int)cfg->g_threads;
@@ -814,13 +816,30 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->enable_palette = extra_cfg->enable_palette;
   oxcf->disable_trellis_quant = extra_cfg->disable_trellis_quant;
   oxcf->allow_ref_frame_mvs = extra_cfg->enable_ref_frame_mvs;
-  oxcf->using_qm = extra_cfg->enable_qm;
-  oxcf->qm_y = extra_cfg->qm_y;
-  oxcf->qm_u = extra_cfg->qm_u;
-  oxcf->qm_v = extra_cfg->qm_v;
-  oxcf->qm_minlevel = extra_cfg->qm_min;
-  oxcf->qm_maxlevel = extra_cfg->qm_max;
-  oxcf->quant_b_adapt = extra_cfg->quant_b_adapt;
+
+  // Set Quantization related configuration.
+  q_cfg->using_qm = extra_cfg->enable_qm;
+  q_cfg->qm_minlevel = extra_cfg->qm_min;
+  q_cfg->qm_maxlevel = extra_cfg->qm_max;
+  q_cfg->quant_b_adapt = extra_cfg->quant_b_adapt;
+  q_cfg->enable_chroma_deltaq = extra_cfg->enable_chroma_deltaq;
+  q_cfg->aq_mode = extra_cfg->aq_mode;
+  q_cfg->deltaq_mode = extra_cfg->deltaq_mode;
+  q_cfg->use_fixed_qp_offsets =
+      cfg->use_fixed_qp_offsets && (rc_cfg->mode == AOM_Q);
+  for (int i = 0; i < FIXED_QP_OFFSET_COUNT; ++i) {
+    if (q_cfg->use_fixed_qp_offsets) {
+      if (cfg->fixed_qp_offsets[i] >= 0) {  // user-provided qp offset
+        q_cfg->fixed_qp_offsets[i] = convert_qp_offset(
+            rc_cfg->cq_level, cfg->fixed_qp_offsets[i], oxcf->bit_depth);
+      } else {  // auto-selected qp offset
+        q_cfg->fixed_qp_offsets[i] =
+            get_modeled_qp_offset(rc_cfg->cq_level, i, oxcf->bit_depth);
+      }
+    } else {
+      q_cfg->fixed_qp_offsets[i] = -1.0;
+    }
+  }
 
   // Set cost update frequency configuration.
   oxcf->cost_upd_freq.coeff = (COST_UPDATE_TYPE)extra_cfg->coeff_cost_upd_freq;
@@ -1049,12 +1068,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->enable_tpl_model =
       resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
 
-  oxcf->enable_chroma_deltaq = extra_cfg->enable_chroma_deltaq;
-  oxcf->aq_mode = extra_cfg->aq_mode;
-  oxcf->deltaq_mode = extra_cfg->deltaq_mode;
-
   oxcf->deltalf_mode =
-      (oxcf->deltaq_mode != NO_DELTA_Q) && extra_cfg->deltalf_mode;
+      (q_cfg->deltaq_mode != NO_DELTA_Q) && extra_cfg->deltalf_mode;
 
   oxcf->save_as_annexb = cfg->save_as_annexb;
 
@@ -1072,23 +1087,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
          sizeof(oxcf->target_seq_level_idx));
   oxcf->tier_mask = extra_cfg->tier_mask;
 
-  oxcf->use_fixed_qp_offsets =
-      cfg->use_fixed_qp_offsets && (rc_cfg->mode == AOM_Q);
   oxcf->vbr_corpus_complexity_lap = extra_cfg->vbr_corpus_complexity_lap;
-
-  for (int i = 0; i < FIXED_QP_OFFSET_COUNT; ++i) {
-    if (oxcf->use_fixed_qp_offsets) {
-      if (cfg->fixed_qp_offsets[i] >= 0) {  // user-provided qp offset
-        oxcf->fixed_qp_offsets[i] = convert_qp_offset(
-            rc_cfg->cq_level, cfg->fixed_qp_offsets[i], oxcf->bit_depth);
-      } else {  // auto-selected qp offset
-        oxcf->fixed_qp_offsets[i] =
-            get_modeled_qp_offset(rc_cfg->cq_level, i, oxcf->bit_depth);
-      }
-    } else {
-      oxcf->fixed_qp_offsets[i] = -1.0;
-    }
-  }
 
   return AOM_CODEC_OK;
 }

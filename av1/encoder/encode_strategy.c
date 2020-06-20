@@ -1184,7 +1184,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   frame_params.speed = oxcf->speed;
 
   // Work out some encoding parameters specific to the pass:
-  if (has_no_stats_stage(cpi) && oxcf->aq_mode == CYCLIC_REFRESH_AQ) {
+  if (has_no_stats_stage(cpi) && oxcf->q_cfg.aq_mode == CYCLIC_REFRESH_AQ) {
     av1_cyclic_refresh_update_parameters(cpi);
   } else if (is_stat_generation_stage(cpi)) {
     cpi->td.mb.e_mbd.lossless[0] = is_lossless_requested(&oxcf->rc_cfg);
@@ -1267,7 +1267,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   cpi->td.mb.delta_qindex = 0;
 
   if (!frame_params.show_existing_frame) {
-    cm->quant_params.using_qmatrix = oxcf->using_qm;
+    cm->quant_params.using_qmatrix = oxcf->q_cfg.using_qm;
 #if !CONFIG_REALTIME_ONLY
     if (gf_cfg->lag_in_frames > 0 && !is_stat_generation_stage(cpi)) {
       if (cpi->gf_group.index == 1 && oxcf->enable_tpl_model) {

@@ -2712,6 +2712,8 @@ static void set_encoding_params_for_screen_content(AV1_COMP *cpi,
 // "cm->features.allow_intrabc" and "cpi->is_screen_content_type".
 static void determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   AV1_COMMON *const cm = &cpi->common;
+  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+  const QuantizationCfg *const q_cfg = &oxcf->q_cfg;
   // Variables to help determine if we should allow screen content tools.
   int projected_size_pass[3] = { 0 };
   PSNR_STATS psnr[3];
@@ -2721,8 +2723,8 @@ static void determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   const int allow_intrabc_orig_decision = cm->features.allow_intrabc;
   const int is_screen_content_type_orig_decision = cpi->is_screen_content_type;
   // Turn off the encoding trial for forward key frame and superres.
-  if (cpi->sf.rt_sf.use_nonrd_pick_mode || cpi->oxcf.kf_cfg.fwd_kf_enabled ||
-      cpi->superres_mode != AOM_SUPERRES_NONE || cpi->oxcf.mode == REALTIME ||
+  if (cpi->sf.rt_sf.use_nonrd_pick_mode || oxcf->kf_cfg.fwd_kf_enabled ||
+      cpi->superres_mode != AOM_SUPERRES_NONE || oxcf->mode == REALTIME ||
       is_screen_content_type_orig_decision || !is_key_frame) {
     return;
   }
@@ -2732,7 +2734,7 @@ static void determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   // for lossless coding.
   // Use a high q and a fixed partition to do quick encoding.
   const int q_for_screen_content_quick_run =
-      is_lossless_requested(&cpi->oxcf.rc_cfg) ? q_orig : AOMMAX(q_orig, 244);
+      is_lossless_requested(&oxcf->rc_cfg) ? q_orig : AOMMAX(q_orig, 244);
   const int partition_search_type_orig = cpi->sf.part_sf.partition_search_type;
   const BLOCK_SIZE fixed_partition_block_size_orig =
       cpi->sf.part_sf.always_this_block_size;
@@ -2767,23 +2769,23 @@ static void determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   for (int pass = 0; pass < 2; ++pass) {
     set_encoding_params_for_screen_content(cpi, pass);
 #if CONFIG_TUNE_VMAF
-    if (cpi->oxcf.tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
-        cpi->oxcf.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
-        cpi->oxcf.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
+    if (oxcf->tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
+        oxcf->tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
+        oxcf->tuning == AOM_TUNE_VMAF_MAX_GAIN) {
       av1_set_quantizer(
-          cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel,
+          cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel,
           av1_get_vmaf_base_qindex(cpi, q_for_screen_content_quick_run),
-          cpi->oxcf.enable_chroma_deltaq);
+          q_cfg->enable_chroma_deltaq);
     } else {
 #endif
-      av1_set_quantizer(cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel,
+      av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel,
                         q_for_screen_content_quick_run,
-                        cpi->oxcf.enable_chroma_deltaq);
+                        q_cfg->enable_chroma_deltaq);
 #if CONFIG_TUNE_VMAF
     }
 #endif
-    av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
-    if (cpi->oxcf.deltaq_mode != NO_DELTA_Q)
+    av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
+    if (q_cfg->deltaq_mode != NO_DELTA_Q)
       av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
                          cm->seq_params.bit_depth);
 
@@ -2817,6 +2819,7 @@ static void determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
  */
 static int encode_without_recode(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
+  const QuantizationCfg *const q_cfg = &cpi->oxcf.q_cfg;
   int top_index = 0, bottom_index = 0, q = 0;
 
   set_size_independent_vars(cpi);
@@ -2842,10 +2845,10 @@ static int encode_without_recode(AV1_COMP *cpi) {
   }
   if (!frame_is_intra_only(cm)) scale_references(cpi);
 
-  av1_set_quantizer(cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel, q,
-                    cpi->oxcf.enable_chroma_deltaq);
+  av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
+                    q_cfg->enable_chroma_deltaq);
   av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
-  if (cpi->oxcf.deltaq_mode != NO_DELTA_Q)
+  if (q_cfg->deltaq_mode != NO_DELTA_Q)
     av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
                        cm->seq_params.bit_depth);
   av1_set_variance_partition_thresholds(cpi, q, 0);
@@ -2857,17 +2860,17 @@ static int encode_without_recode(AV1_COMP *cpi) {
   if (cpi->sf.rt_sf.overshoot_detection_cbr == FAST_DETECTION_MAXQ &&
       cpi->rc.high_source_sad) {
     if (av1_encodedframe_overshoot(cpi, &q)) {
-      av1_set_quantizer(cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel, q,
-                        cpi->oxcf.enable_chroma_deltaq);
+      av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
+                        q_cfg->enable_chroma_deltaq);
       av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
-      if (cpi->oxcf.deltaq_mode != NO_DELTA_Q)
+      if (q_cfg->deltaq_mode != NO_DELTA_Q)
         av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
                            cm->seq_params.bit_depth);
       av1_set_variance_partition_thresholds(cpi, q, 0);
     }
   }
 
-  if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ) {
+  if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ) {
     suppress_active_map(cpi);
     av1_cyclic_refresh_setup(cpi);
     apply_active_map(cpi);
@@ -2897,7 +2900,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
   av1_encode_frame(cpi);
 
   // Update some stats from cyclic refresh.
-  if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ && !frame_is_intra_only(cm))
+  if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ && !frame_is_intra_only(cm))
     av1_cyclic_refresh_postencode(cpi);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -2933,9 +2936,11 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
   GlobalMotionInfo *const gm_info = &cpi->gm_info;
+  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+  const QuantizationCfg *const q_cfg = &oxcf->q_cfg;
   const int allow_recode = (cpi->sf.hl_sf.recode_loop != DISALLOW_RECODE);
   // Must allow recode if minimum compression ratio is set.
-  assert(IMPLIES(cpi->oxcf.rc_cfg.min_cr > 0, allow_recode));
+  assert(IMPLIES(oxcf->rc_cfg.min_cr > 0, allow_recode));
 
   set_size_independent_vars(cpi);
   if (is_stat_consumption_stage_twopass(cpi) &&
@@ -3010,22 +3015,22 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       scale_references(cpi);
     }
 #if CONFIG_TUNE_VMAF
-    if (cpi->oxcf.tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
-        cpi->oxcf.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
-        cpi->oxcf.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
-      av1_set_quantizer(cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel,
+    if (oxcf->tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
+        oxcf->tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
+        oxcf->tuning == AOM_TUNE_VMAF_MAX_GAIN) {
+      av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel,
                         av1_get_vmaf_base_qindex(cpi, q),
-                        cpi->oxcf.enable_chroma_deltaq);
+                        q_cfg->enable_chroma_deltaq);
     } else {
 #endif
-      av1_set_quantizer(cm, cpi->oxcf.qm_minlevel, cpi->oxcf.qm_maxlevel, q,
-                        cpi->oxcf.enable_chroma_deltaq);
+      av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
+                        q_cfg->enable_chroma_deltaq);
 #if CONFIG_TUNE_VMAF
     }
 #endif
-    av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
+    av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
 
-    if (cpi->oxcf.deltaq_mode != NO_DELTA_Q)
+    if (q_cfg->deltaq_mode != NO_DELTA_Q)
       av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
                          cm->seq_params.bit_depth);
 
@@ -3044,9 +3049,9 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       av1_setup_frame_contexts(cm);
     }
 
-    if (cpi->oxcf.aq_mode == VARIANCE_AQ) {
+    if (q_cfg->aq_mode == VARIANCE_AQ) {
       av1_vaq_frame_setup(cpi);
-    } else if (cpi->oxcf.aq_mode == COMPLEXITY_AQ) {
+    } else if (q_cfg->aq_mode == COMPLEXITY_AQ) {
       av1_setup_in_frame_q_adj(cpi);
     }
 
@@ -3105,8 +3110,8 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     // to recode.
     const int do_dummy_pack =
         (cpi->sf.hl_sf.recode_loop >= ALLOW_RECODE_KFARFGF &&
-         cpi->oxcf.rc_cfg.mode != AOM_Q) ||
-        cpi->oxcf.rc_cfg.min_cr > 0;
+         oxcf->rc_cfg.mode != AOM_Q) ||
+        oxcf->rc_cfg.min_cr > 0;
     if (do_dummy_pack) {
       finalize_encoded_frame(cpi);
       int largest_tile_id = 0;  // Output from bitstream: unused here

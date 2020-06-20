@@ -1365,7 +1365,7 @@ static void define_gf_group_pass0(AV1_COMP *cpi,
   const GFConfig *const gf_cfg = &oxcf->gf_cfg;
   int target;
 
-  if (oxcf->aq_mode == CYCLIC_REFRESH_AQ) {
+  if (oxcf->q_cfg.aq_mode == CYCLIC_REFRESH_AQ) {
     av1_cyclic_refresh_set_golden_update(cpi);
   } else {
     rc->baseline_gf_interval = rc->gf_intervals[rc->cur_gf_index];

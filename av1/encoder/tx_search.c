@@ -1117,7 +1117,7 @@ static INLINE void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                           ? (USE_B_QUANT_NO_TRELLIS ? AV1_XFORM_QUANT_B
                                                     : AV1_XFORM_QUANT_FP)
                           : AV1_XFORM_QUANT_FP,
-                      cpi->oxcf.quant_b_adapt, &quant_param_intra);
+                      cpi->oxcf.q_cfg.quant_b_adapt, &quant_param_intra);
       av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, best_tx_type,
                         &quant_param_intra);
       av1_xform_quant(x, plane, block, blk_row, blk_col, plane_bsize,
@@ -1388,7 +1388,7 @@ uint16_t prune_txk_type_separ(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   QUANT_PARAM quant_param;
   TxfmParam txfm_param;
   av1_setup_xform(cm, x, tx_size, DCT_DCT, &txfm_param);
-  av1_setup_quant(tx_size, 1, AV1_XFORM_QUANT_B, cpi->oxcf.quant_b_adapt,
+  av1_setup_quant(tx_size, 1, AV1_XFORM_QUANT_B, cpi->oxcf.q_cfg.quant_b_adapt,
                   &quant_param);
   int tx_type;
   // to ensure we can try ones even outside of ext_tx_set of current block
@@ -1503,7 +1503,7 @@ uint16_t prune_txk_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   TxfmParam txfm_param;
   QUANT_PARAM quant_param;
   av1_setup_xform(cm, x, tx_size, DCT_DCT, &txfm_param);
-  av1_setup_quant(tx_size, 1, AV1_XFORM_QUANT_B, cpi->oxcf.quant_b_adapt,
+  av1_setup_quant(tx_size, 1, AV1_XFORM_QUANT_B, cpi->oxcf.q_cfg.quant_b_adapt,
                   &quant_param);
 
   for (int idx = 0; idx < TX_TYPES; idx++) {
@@ -2264,7 +2264,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                   skip_trellis ? (USE_B_QUANT_NO_TRELLIS ? AV1_XFORM_QUANT_B
                                                          : AV1_XFORM_QUANT_FP)
                                : AV1_XFORM_QUANT_FP,
-                  cpi->oxcf.quant_b_adapt, &quant_param);
+                  cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
 
   // Iterate through all transform type candidates.
   for (int idx = 0; idx < TX_TYPES; ++idx) {
@@ -2282,8 +2282,8 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param);
 
     skip_trellis_based_on_satd[tx_type] = skip_trellis_opt_based_on_satd(
-        x, &quant_param, plane, block, tx_size, cpi->oxcf.quant_b_adapt, qstep,
-        txfm_params->coeff_opt_satd_threshold, skip_trellis);
+        x, &quant_param, plane, block, tx_size, cpi->oxcf.q_cfg.quant_b_adapt,
+        qstep, txfm_params->coeff_opt_satd_threshold, skip_trellis);
 
     av1_quant(x, plane, block, &txfm_param, &quant_param);
 

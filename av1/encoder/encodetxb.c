@@ -1786,11 +1786,11 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   const int rshift =
       (sharpness +
-       (cpi->oxcf.aq_mode == VARIANCE_AQ && mbmi->segment_id < 4
+       (cpi->oxcf.q_cfg.aq_mode == VARIANCE_AQ && mbmi->segment_id < 4
             ? 7 - mbmi->segment_id
             : 2) +
-       (cpi->oxcf.aq_mode != VARIANCE_AQ &&
-                cpi->oxcf.deltaq_mode == DELTA_Q_PERCEPTUAL &&
+       (cpi->oxcf.q_cfg.aq_mode != VARIANCE_AQ &&
+                cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL &&
                 cm->delta_q_info.delta_q_present_flag && x->sb_energy_level < 0
             ? (3 - x->sb_energy_level)
             : 0));

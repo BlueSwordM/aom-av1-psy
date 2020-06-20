@@ -166,7 +166,7 @@ void av1_restore_layer_context(AV1_COMP *const cpi) {
   cpi->rc.frames_to_key = old_frame_to_key;
   // For spatial-svc, allow cyclic-refresh to be applied on the spatial layers,
   // for the base temporal layer.
-  if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ &&
+  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
       svc->number_spatial_layers > 1 && svc->temporal_layer_id == 0) {
     CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
     swap_ptr(&cr->map, &lc->map);
@@ -204,7 +204,7 @@ void av1_save_layer_context(AV1_COMP *const cpi) {
   if (svc->spatial_layer_id == 0) svc->base_framerate = cpi->framerate;
   // For spatial-svc, allow cyclic-refresh to be applied on the spatial layers,
   // for the base temporal layer.
-  if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ &&
+  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
       cpi->svc.number_spatial_layers > 1 && svc->temporal_layer_id == 0) {
     CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
     signed char *temp = lc->map;

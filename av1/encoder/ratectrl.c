@@ -502,7 +502,7 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int width,
   // Work out how big we would have expected the frame to be at this Q given
   // the current correction factor.
   // Stay in double to avoid int overflow when values are large
-  if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ && cpi->common.seg.enabled) {
+  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && cpi->common.seg.enabled) {
     projected_size_based_on_q =
         av1_cyclic_refresh_estimate_bits_at_q(cpi, rate_correction_factor);
   } else {
@@ -574,7 +574,7 @@ static int find_closest_qindex_by_rate(int desired_bits_per_mb,
                                        const AV1_COMP *cpi,
                                        double correction_factor,
                                        int best_qindex, int worst_qindex) {
-  const int use_cyclic_refresh = cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ &&
+  const int use_cyclic_refresh = cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
                                  cpi->cyclic_refresh->apply_cyclic_refresh;
 
   // Find 'qindex' based on 'desired_bits_per_mb'.
@@ -936,7 +936,7 @@ static int get_active_cq_level(const RATE_CONTROL *rc,
  *
  * The q index offsets are fixed in the sense that they are independent of the
  * video content. The offsets for each pyramid level are taken from
- * \c oxcf->fixed_qp_offsets array.
+ * \c oxcf->q_cfg.fixed_qp_offsets array.
  *
  * \ingroup rate_control
  * \param[in]   oxcf        Top level encoder configuration
@@ -955,7 +955,7 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
                                      const GF_GROUP *const gf_group,
                                      int gf_index, int cq_level,
                                      int bit_depth) {
-  assert(oxcf->use_fixed_qp_offsets);
+  assert(oxcf->q_cfg.use_fixed_qp_offsets);
   assert(oxcf->rc_cfg.mode == AOM_Q);
   const FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_index];
 
@@ -977,12 +977,12 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
     return cq_level;  // Directly Return worst quality allowed.
   }
   assert(offset_idx >= 0 && offset_idx < FIXED_QP_OFFSET_COUNT);
-  assert(oxcf->fixed_qp_offsets[offset_idx] >= 0);
+  assert(oxcf->q_cfg.fixed_qp_offsets[offset_idx] >= 0);
 
   // Get qindex offset, by first converting to 'q' and then back.
   const double q_val_orig = av1_convert_qindex_to_q(cq_level, bit_depth);
   const double q_val_target =
-      AOMMAX(q_val_orig - oxcf->fixed_qp_offsets[offset_idx], 0.0);
+      AOMMAX(q_val_orig - oxcf->q_cfg.fixed_qp_offsets[offset_idx], 0.0);
   const int delta_qindex =
       av1_compute_qdelta(rc, q_val_orig, q_val_target, bit_depth);
   return AOMMAX(cq_level + delta_qindex, 0);
@@ -1028,7 +1028,7 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
                           cm->superres_scale_denominator);
   const int bit_depth = cm->seq_params.bit_depth;
 
-  if (oxcf->use_fixed_qp_offsets) {
+  if (oxcf->q_cfg.use_fixed_qp_offsets) {
     return get_q_using_fixed_offsets(oxcf, rc, gf_group, gf_index, cq_level,
                                      bit_depth);
   }
@@ -1510,7 +1510,7 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
                           cm->superres_scale_denominator);
   const int bit_depth = cm->seq_params.bit_depth;
 
-  if (oxcf->use_fixed_qp_offsets) {
+  if (oxcf->q_cfg.use_fixed_qp_offsets) {
     return get_q_using_fixed_offsets(oxcf, rc, gf_group, gf_group->index,
                                      cq_level, bit_depth);
   }
@@ -2255,7 +2255,7 @@ static int set_gf_interval_update_onepass_rt(AV1_COMP *cpi,
   if ((resize_pending || rc->high_source_sad ||
        rc->frames_till_gf_update_due == 0) &&
       cpi->svc.temporal_layer_id == 0 && cpi->svc.spatial_layer_id == 0) {
-    if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ)
+    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ)
       av1_cyclic_refresh_set_golden_update(cpi);
     else
       rc->baseline_gf_interval = MAX_GF_INTERVAL;

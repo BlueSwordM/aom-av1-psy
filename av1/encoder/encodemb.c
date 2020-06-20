@@ -393,8 +393,8 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
       quant_idx =
           USE_B_QUANT_NO_TRELLIS ? AV1_XFORM_QUANT_B : AV1_XFORM_QUANT_FP;
     av1_setup_xform(cm, x, tx_size, tx_type, &txfm_param);
-    av1_setup_quant(tx_size, use_trellis, quant_idx, cpi->oxcf.quant_b_adapt,
-                    &quant_param);
+    av1_setup_quant(tx_size, use_trellis, quant_idx,
+                    cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
     av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
                       &quant_param);
     av1_xform_quant(x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param,
@@ -437,8 +437,8 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
   // again.
   if (p->eobs[block] == 0 && plane == 0) {
 #if 0
-    if (args->cpi->oxcf.aq_mode == NO_AQ &&
-        args->cpi->oxcf.deltaq_mode == NO_DELTA_Q) {
+    if (args->cpi->oxcf.q_cfg.aq_mode == NO_AQ &&
+        args->cpi->oxcf.q_cfg.deltaq_mode == NO_DELTA_Q) {
       // TODO(jingning,angiebird,huisu@google.com): enable txk_check when
       // enable_optimize_b is true to detect potential RD bug.
       const uint8_t disable_txk_check = args->enable_optimize_b;
@@ -584,7 +584,7 @@ static void encode_block_pass1(int plane, int block, int blk_row, int blk_col,
   QUANT_PARAM quant_param;
 
   av1_setup_xform(cm, x, tx_size, DCT_DCT, &txfm_param);
-  av1_setup_quant(tx_size, 0, AV1_XFORM_QUANT_B, cpi->oxcf.quant_b_adapt,
+  av1_setup_quant(tx_size, 0, AV1_XFORM_QUANT_B, cpi->oxcf.q_cfg.quant_b_adapt,
                   &quant_param);
   av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, DCT_DCT,
                     &quant_param);
@@ -727,8 +727,8 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
           USE_B_QUANT_NO_TRELLIS ? AV1_XFORM_QUANT_B : AV1_XFORM_QUANT_FP;
 
     av1_setup_xform(cm, x, tx_size, tx_type, &txfm_param);
-    av1_setup_quant(tx_size, use_trellis, quant_idx, cpi->oxcf.quant_b_adapt,
-                    &quant_param);
+    av1_setup_quant(tx_size, use_trellis, quant_idx,
+                    cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
     av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
                       &quant_param);
 
@@ -775,8 +775,8 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
   // again.
   if (*eob == 0 && plane == 0) {
 #if 0
-    if (args->cpi->oxcf.aq_mode == NO_AQ
-        && args->cpi->oxcf.deltaq_mode == NO_DELTA_Q) {
+    if (args->cpi->oxcf.q_cfg.aq_mode == NO_AQ
+        && args->cpi->oxcf.q_cfg.deltaq_mode == NO_DELTA_Q) {
       assert(xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col)] ==
           DCT_DCT);
     }

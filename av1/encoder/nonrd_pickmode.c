@@ -470,7 +470,7 @@ static TX_SIZE calculate_tx_size(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
     else
       tx_size = TX_8X8;
 
-    if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ &&
+    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
         cyclic_refresh_segment_id_boosted(xd->mi[0]->segment_id))
       tx_size = TX_8X8;
     else if (tx_size > TX_16X16)

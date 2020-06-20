@@ -543,6 +543,31 @@ typedef struct {
   bool enable_onesided_comp;
 } RefFrameCfg;
 
+typedef struct {
+  // List of QP offsets for: keyframe, ALTREF, and 3 levels of internal ARFs.
+  // If any of these values are negative, fixed offsets are disabled.
+  // Uses internal q range.
+  double fixed_qp_offsets[FIXED_QP_OFFSET_COUNT];
+  // If true, encoder will use fixed QP offsets, that are either:
+  // - Given by the user, and stored in 'fixed_qp_offsets' array, OR
+  // - Picked automatically from cq_level.
+  int use_fixed_qp_offsets;
+  // Indicates the minimum flatness of the quantization matrix.
+  int qm_minlevel;
+  // Indicates the maximum flatness of the quantization matrix.
+  int qm_maxlevel;
+  // Indicates if adaptive quantize_b should be enabled.
+  int quant_b_adapt;
+  // Indicates the Adaptive Quantization mode to be used.
+  AQ_MODE aq_mode;
+  // Indicates the delta q mode to be used.
+  DELTAQ_MODE deltaq_mode;
+  // Indicates if delta quantization should be enabled in chroma planes.
+  bool enable_chroma_deltaq;
+  // Indicates if encoding with quantization matrices should be enabled.
+  bool using_qm;
+} QuantizationCfg;
+
 typedef struct AV1EncoderConfig {
   BITSTREAM_PROFILE profile;
   aom_bit_depth_t bit_depth;     // Codec bit-depth.
@@ -573,22 +598,16 @@ typedef struct AV1EncoderConfig {
   int drop_frames_water_mark;
 
   // controlling quality
-  int enable_chroma_deltaq;
-  AQ_MODE aq_mode;  // Adaptive Quantization mode
-  DELTAQ_MODE deltaq_mode;
   int deltalf_mode;
   int enable_cdef;
   int enable_restoration;
   int force_video_mode;
   int disable_trellis_quant;
-  int using_qm;
-  int qm_y;
-  int qm_u;
-  int qm_v;
-  int qm_minlevel;
-  int qm_maxlevel;
   unsigned int vbr_corpus_complexity_lap;  // 0 indicates corpus complexity vbr
                                            // mode is disabled
+
+  // Configuration related to Quantization.
+  QuantizationCfg q_cfg;
 
   // Internal frame size scaling.
   ResizeCfg resize_cfg;
@@ -690,7 +709,6 @@ typedef struct AV1EncoderConfig {
 
   unsigned int chroma_subsampling_x;
   unsigned int chroma_subsampling_y;
-  int quant_b_adapt;
 
   // Configuration related to frequency of cost update.
   CostUpdateFreq cost_upd_freq;
@@ -700,14 +718,6 @@ typedef struct AV1EncoderConfig {
   // Bit mask to specify which tier each of the 32 possible operating points
   // conforms to.
   unsigned int tier_mask;
-  // If true, encoder will use fixed QP offsets, that are either:
-  // - Given by the user, and stored in 'fixed_qp_offsets' array, OR
-  // - Picked automatically from cq_level.
-  int use_fixed_qp_offsets;
-  // List of QP offsets for: keyframe, ALTREF, and 3 levels of internal ARFs.
-  // If any of these values are negative, fixed offsets are disabled.
-  // Uses internal q range.
-  double fixed_qp_offsets[FIXED_QP_OFFSET_COUNT];
   const cfg_options_t *encoder_cfg;
 } AV1EncoderConfig;
 

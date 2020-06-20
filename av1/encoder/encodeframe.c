@@ -296,7 +296,7 @@ static int get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   if (!is_frame_tpl_eligible((AV1_COMP *)cpi)) return deltaq_rdmult;
   if (tpl_idx >= MAX_TPL_FRAME_IDX) return deltaq_rdmult;
   if (cpi->superres_mode != AOM_SUPERRES_NONE) return deltaq_rdmult;
-  if (cpi->oxcf.aq_mode != NO_AQ) return deltaq_rdmult;
+  if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return deltaq_rdmult;
 
   const int bsize_base = BLOCK_16X16;
   const int num_mi_w = mi_size_wide[bsize_base];
@@ -579,7 +579,7 @@ static AOM_INLINE void update_state(const AV1_COMP *const cpi, ThreadData *td,
   // If segmentation in use
   if (seg->enabled) {
     // For in frame complexity AQ copy the segment id from the segment map.
-    if (cpi->oxcf.aq_mode == COMPLEXITY_AQ) {
+    if (cpi->oxcf.q_cfg.aq_mode == COMPLEXITY_AQ) {
       const uint8_t *const map =
           seg->update_map ? cpi->enc_seg.map : cm->last_frame_seg_map;
       mi_addr->segment_id =
@@ -588,7 +588,7 @@ static AOM_INLINE void update_state(const AV1_COMP *const cpi, ThreadData *td,
     }
     // Else for cyclic refresh mode update the segment map, set the segment id
     // and then update the quantizer.
-    if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ) {
+    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ) {
       av1_cyclic_refresh_update_segment(cpi, mi_addr, mi_row, mi_col, bsize,
                                         ctx->rd_stats.rate, ctx->rd_stats.dist,
                                         txfm_info->skip_txfm);
@@ -616,7 +616,8 @@ static AOM_INLINE void update_state(const AV1_COMP *const cpi, ThreadData *td,
     }
   }
 
-  if (cpi->oxcf.aq_mode) av1_init_plane_quantizers(cpi, x, mi_addr->segment_id);
+  if (cpi->oxcf.q_cfg.aq_mode)
+    av1_init_plane_quantizers(cpi, x, mi_addr->segment_id);
 
   if (dry_run) return;
 
@@ -773,7 +774,7 @@ static AOM_INLINE void pick_sb_modes(AV1_COMP *const cpi,
   MB_MODE_INFO *mbmi;
   struct macroblock_plane *const p = x->plane;
   struct macroblockd_plane *const pd = xd->plane;
-  const AQ_MODE aq_mode = cpi->oxcf.aq_mode;
+  const AQ_MODE aq_mode = cpi->oxcf.q_cfg.aq_mode;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
 
   int i;
@@ -2325,7 +2326,7 @@ static AOM_INLINE void pick_sb_modes_nonrd(AV1_COMP *const cpi,
   MB_MODE_INFO *mbmi = xd->mi[0];
   struct macroblock_plane *const p = x->plane;
   struct macroblockd_plane *const pd = xd->plane;
-  const AQ_MODE aq_mode = cpi->oxcf.aq_mode;
+  const AQ_MODE aq_mode = cpi->oxcf.q_cfg.aq_mode;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
   int i;
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -4500,7 +4501,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
   av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, sb_size);
 
   int current_qindex = cm->quant_params.base_qindex;
-  if (cpi->oxcf.deltaq_mode == DELTA_Q_PERCEPTUAL) {
+  if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL) {
     if (DELTA_Q_PERCEPTUAL_MODULATION == 1) {
       const int block_wavelet_energy_level =
           av1_block_wavelet_energy_level(cpi, x, sb_size);
@@ -4513,7 +4514,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
       current_qindex =
           av1_compute_q_from_energy_level_deltaq_mode(cpi, block_var_level);
     }
-  } else if (cpi->oxcf.deltaq_mode == DELTA_Q_OBJECTIVE &&
+  } else if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_OBJECTIVE &&
              cpi->oxcf.enable_tpl_model) {
     // Setup deltaq based on tpl stats
     current_qindex = get_q_for_deltaq_objective(cpi, sb_size, mi_row, mi_col);
@@ -4522,7 +4523,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
   const int delta_q_res = delta_q_info->delta_q_res;
   // Right now aq only works with tpl model. So if tpl is disabled, we set the
   // current_qindex to base_qindex.
-  if (cpi->oxcf.enable_tpl_model && cpi->oxcf.deltaq_mode != NO_DELTA_Q) {
+  if (cpi->oxcf.enable_tpl_model && cpi->oxcf.q_cfg.deltaq_mode != NO_DELTA_Q) {
     current_qindex =
         clamp(current_qindex, delta_q_res, 256 - delta_q_info->delta_q_res);
   } else {
@@ -4762,8 +4763,8 @@ static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
   assert(IMPLIES(cpi->gf_group.size > 0,
                  cpi->gf_group.index < cpi->gf_group.size));
   const int gf_group_index = cpi->gf_group.index;
-  if (cpi->oxcf.enable_tpl_model && cpi->oxcf.aq_mode == NO_AQ &&
-      cpi->oxcf.deltaq_mode == NO_DELTA_Q && gf_group_index > 0 &&
+  if (cpi->oxcf.enable_tpl_model && cpi->oxcf.q_cfg.aq_mode == NO_AQ &&
+      cpi->oxcf.q_cfg.deltaq_mode == NO_DELTA_Q && gf_group_index > 0 &&
       cpi->gf_group.update_type[gf_group_index] == ARF_UPDATE) {
     const int dr =
         get_rdmult_delta(cpi, sb_size, 0, mi_row, mi_col, orig_rdmult);
@@ -4982,7 +4983,7 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
   if (!is_frame_tpl_eligible(cpi)) return;
   if (frame_idx >= MAX_TPL_FRAME_IDX) return;
   if (cpi->superres_mode != AOM_SUPERRES_NONE) return;
-  if (cpi->oxcf.aq_mode != NO_AQ) return;
+  if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return;
 
   const int is_overlay = cpi->gf_group.update_type[frame_idx] == OVERLAY_UPDATE;
   if (is_overlay) {
@@ -5803,6 +5804,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   AV1EncRowMultiThreadInfo *const enc_row_mt = &mt_info->enc_row_mt;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+  const DELTAQ_MODE deltaq_mode = oxcf->q_cfg.deltaq_mode;
   int i;
 
   if (!cpi->sf.rt_sf.use_nonrd_pick_mode) {
@@ -5914,20 +5916,20 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
   // Fix delta q resolution for the moment
   cm->delta_q_info.delta_q_res = 0;
-  if (oxcf->deltaq_mode == DELTA_Q_OBJECTIVE)
+  if (deltaq_mode == DELTA_Q_OBJECTIVE)
     cm->delta_q_info.delta_q_res = DEFAULT_DELTA_Q_RES_OBJECTIVE;
-  else if (oxcf->deltaq_mode == DELTA_Q_PERCEPTUAL)
+  else if (deltaq_mode == DELTA_Q_PERCEPTUAL)
     cm->delta_q_info.delta_q_res = DEFAULT_DELTA_Q_RES_PERCEPTUAL;
   // Set delta_q_present_flag before it is used for the first time
   cm->delta_q_info.delta_lf_res = DEFAULT_DELTA_LF_RES;
-  cm->delta_q_info.delta_q_present_flag = oxcf->deltaq_mode != NO_DELTA_Q;
+  cm->delta_q_info.delta_q_present_flag = deltaq_mode != NO_DELTA_Q;
 
   // Turn off cm->delta_q_info.delta_q_present_flag if objective delta_q is used
   // for ineligible frames. That effectively will turn off row_mt usage.
   // Note objective delta_q and tpl eligible frames are only altref frames
   // currently.
   if (cm->delta_q_info.delta_q_present_flag) {
-    if (oxcf->deltaq_mode == DELTA_Q_OBJECTIVE && !is_frame_tpl_eligible(cpi))
+    if (deltaq_mode == DELTA_Q_OBJECTIVE && !is_frame_tpl_eligible(cpi))
       cm->delta_q_info.delta_q_present_flag = 0;
   }
 
