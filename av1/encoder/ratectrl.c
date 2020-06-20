@@ -1018,9 +1018,7 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
 
   assert(has_no_stats_stage(cpi));
   assert(rc_mode == AOM_VBR ||
-#if !USE_UNRESTRICTED_Q_IN_CQ_MODE
-         rc_mode == AOM_CQ ||
-#endif  // !USE_UNRESTRICTED_Q_IN_CQ_MODE
+         (!USE_UNRESTRICTED_Q_IN_CQ_MODE && rc_mode == AOM_CQ) ||
          rc_mode == AOM_Q);
   assert(
       IMPLIES(rc_mode == AOM_Q, gf_group->update_type[gf_index] == ARF_UPDATE));
