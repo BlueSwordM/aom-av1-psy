@@ -1345,6 +1345,16 @@ YV12_BUFFER_CONFIG *av1_scale_if_required(AV1_COMMON *cm,
   const int num_planes = av1_num_planes(cm);
   if (cm->width != unscaled->y_crop_width ||
       cm->height != unscaled->y_crop_height) {
+#if CONFIG_AV1_HIGHBITDEPTH
+    if ((cm->width << 1) == unscaled->y_crop_width &&
+        (cm->height << 1) == unscaled->y_crop_height &&
+        cm->seq_params.bit_depth == AOM_BITS_8) {
+      av1_resize_and_extend_frame(unscaled, scaled, filter, phase, num_planes);
+    } else {
+      av1_resize_and_extend_frame_nonnormative(
+          unscaled, scaled, (int)cm->seq_params.bit_depth, num_planes);
+    }
+#else
     if ((cm->width << 1) == unscaled->y_crop_width &&
         (cm->height << 1) == unscaled->y_crop_height) {
       av1_resize_and_extend_frame(unscaled, scaled, filter, phase, num_planes);
@@ -1352,6 +1362,7 @@ YV12_BUFFER_CONFIG *av1_scale_if_required(AV1_COMMON *cm,
       av1_resize_and_extend_frame_nonnormative(
           unscaled, scaled, (int)cm->seq_params.bit_depth, num_planes);
     }
+#endif
     return scaled;
   } else {
     return unscaled;

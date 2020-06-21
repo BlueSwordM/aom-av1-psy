@@ -271,7 +271,8 @@ list(APPEND AOM_AV1_COMMON_INTRIN_SSSE3
             "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/highbd_wiener_convolve_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/jnt_convolve_ssse3.c"
-            "${AOM_ROOT}/av1/common/x86/reconinter_ssse3.c")
+            "${AOM_ROOT}/av1/common/x86/reconinter_ssse3.c"
+            "${AOM_ROOT}/av1/common/x86/resize_ssse3.c")
 
 if(NOT CONFIG_AV1_HIGHBITDEPTH)
   list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_SSSE3
