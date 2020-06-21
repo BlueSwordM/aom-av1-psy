@@ -1128,6 +1128,11 @@ typedef struct {
    * per tile.
    */
   int allocated_sb_rows;
+  /*!
+   * Number of superblock columns for which entropy context memory is allocated
+   * per tile.
+   */
+  int allocated_sb_cols;
 
   /*!
    * thread_id_to_tile_id[i] indicates the tile id assigned to the ith thread.
