@@ -266,7 +266,7 @@ specialize "av1_round_shift_array", qw/sse4_1 neon/;
 
 # Resize functions.
 add_proto qw/void av1_resize_and_extend_frame/, "const YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *dst, const InterpFilter filter, const int phase, const int num_planes";
-specialize qw/av1_resize_and_extend_frame ssse3/;
+specialize qw/av1_resize_and_extend_frame ssse3 neon/;
 
 #
 # Encoder functions below this point.

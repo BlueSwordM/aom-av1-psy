@@ -405,6 +405,7 @@ list(APPEND AOM_AV1_COMMON_INTRIN_NEON
             "${AOM_ROOT}/av1/common/arm/blend_a64_vmask_neon.c"
             "${AOM_ROOT}/av1/common/arm/reconinter_neon.c"
             "${AOM_ROOT}/av1/common/arm/reconintra_neon.c"
+            "${AOM_ROOT}/av1/common/arm/resize_neon.c"
             "${AOM_ROOT}/av1/common/arm/wiener_convolve_neon.c"
             "${AOM_ROOT}/av1/common/arm/selfguided_neon.c"
             "${AOM_ROOT}/av1/common/arm/av1_inv_txfm_neon.c"
