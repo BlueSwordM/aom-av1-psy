@@ -2816,7 +2816,6 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi);
 #define MAX_GFUBOOST_FACTOR 10.0
 #define MIN_GFUBOOST_FACTOR 4.0
 
-#define ENABLE_KF_TPL 1
 #define MAX_PYR_LEVEL_FROMTOP_DELTAQ 0
 
 static INLINE int is_frame_kf_and_tpl_eligible(AV1_COMP *const cpi) {
@@ -2831,12 +2830,8 @@ static INLINE int is_frame_arf_and_tpl_eligible(const GF_GROUP *gf_group) {
 }
 
 static INLINE int is_frame_tpl_eligible(AV1_COMP *const cpi) {
-#if ENABLE_KF_TPL
   return is_frame_kf_and_tpl_eligible(cpi) ||
          is_frame_arf_and_tpl_eligible(&cpi->gf_group);
-#else
-  return is_frame_arf_and_tpl_eligible(&cpi->gf_group);
-#endif  // ENABLE_KF_TPL
 }
 
 // Get update type of the current frame.
