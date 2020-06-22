@@ -20,6 +20,8 @@ struct AV1_COMP;
 struct EncodeFrameParams;
 struct EncodeFrameInput;
 
+#include "av1/encoder/encoder.h"
+
 static INLINE BLOCK_SIZE convert_length_to_bsize(int length) {
   switch (length) {
     case 64: return BLOCK_64X64;
