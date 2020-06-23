@@ -2304,8 +2304,12 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
   RATE_CONTROL *const rc = &cpi->rc;
   AV1_COMMON *const cm = &cpi->common;
   GF_GROUP *const gf_group = &cpi->gf_group;
+  SVC *const svc = &cpi->svc;
   int gf_update = 0;
   int target;
+  const int layer =
+      LAYER_IDS_TO_IDX(svc->spatial_layer_id, svc->temporal_layer_id,
+                       svc->number_temporal_layers);
   // Turn this on to explicitly set the reference structure rather than
   // relying on internal/default structure.
   const int set_reference_structure = 1;
@@ -2315,8 +2319,8 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
   }
   // Set frame type.
   if ((!cpi->use_svc && rc->frames_to_key == 0) ||
-      (cpi->use_svc && cpi->svc.spatial_layer_id == 0 &&
-       cpi->svc.current_superframe % cpi->oxcf.kf_cfg.key_freq_max == 0) ||
+      (cpi->use_svc && svc->spatial_layer_id == 0 &&
+       svc->current_superframe % cpi->oxcf.kf_cfg.key_freq_max == 0) ||
       (frame_flags & FRAMEFLAGS_KEY)) {
     frame_params->frame_type = KEY_FRAME;
     rc->this_key_frame_forced =
@@ -2325,11 +2329,21 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
     rc->kf_boost = DEFAULT_KF_BOOST_RT;
     rc->source_alt_ref_active = 0;
     gf_group->update_type[gf_group->index] = KF_UPDATE;
-    if (cpi->use_svc && cm->current_frame.frame_number > 0)
-      av1_svc_reset_temporal_layers(cpi, 1);
+    if (cpi->use_svc) {
+      if (cm->current_frame.frame_number > 0)
+        av1_svc_reset_temporal_layers(cpi, 1);
+      svc->layer_context[layer].is_key_frame = 1;
+    }
   } else {
     frame_params->frame_type = INTER_FRAME;
     gf_group->update_type[gf_group->index] = LF_UPDATE;
+    if (cpi->use_svc) {
+      LAYER_CONTEXT *lc = &svc->layer_context[layer];
+      lc->is_key_frame =
+          svc->spatial_layer_id == 0
+              ? 0
+              : svc->layer_context[svc->temporal_layer_id].is_key_frame;
+    }
   }
   // Check for scene change, for non-SVC for now.
   if (!cpi->use_svc && cpi->sf.rt_sf.check_scene_detection)

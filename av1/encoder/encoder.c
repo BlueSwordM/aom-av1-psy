@@ -2869,7 +2869,13 @@ static int encode_without_recode(AV1_COMP *cpi) {
                                              &cpi->scaled_last_source,
                                              downsample_filter, phase_scaler);
   }
-  if (!frame_is_intra_only(cm)) scale_references(cpi);
+
+  // For SVC the inter-layer/spatial prediction is not done for newmv
+  // (zero_mode is forced), and since the scaled references are only
+  // use for newmv search, we can avoid scaling here.
+  if (!frame_is_intra_only(cm) &&
+      !(cpi->use_svc && cpi->svc.force_zero_mode_spatial_ref))
+    scale_references(cpi);
 
   av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                     q_cfg->enable_chroma_deltaq);

@@ -28,6 +28,7 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
   int mi_cols = cpi->common.mi_params.mi_cols;
   svc->base_framerate = 30.0;
   svc->current_superframe = 0;
+  svc->force_zero_mode_spatial_ref = 1;
 
   for (int sl = 0; sl < svc->number_spatial_layers; ++sl) {
     for (int tl = 0; tl < svc->number_temporal_layers; ++tl) {
@@ -182,15 +183,15 @@ void av1_restore_layer_context(AV1_COMP *const cpi) {
   // For each reference (LAST/GOLDEN) set the skip_nonzero_last/gf frame flags.
   // This is to skip testing nonzero-mv for that reference if it was last
   // refreshed (i.e., buffer slot holding that reference was refreshed) on the
-  // previous spatial layer at the same time (current_superframe).
-  if (svc->external_ref_frame_config) {
+  // previous spatial layer(s) at the same time (current_superframe).
+  if (svc->external_ref_frame_config && svc->force_zero_mode_spatial_ref) {
     int ref_frame_idx = svc->ref_idx[LAST_FRAME - 1];
     if (svc->buffer_time_index[ref_frame_idx] == svc->current_superframe &&
-        svc->buffer_spatial_layer[ref_frame_idx] == svc->spatial_layer_id - 1)
+        svc->buffer_spatial_layer[ref_frame_idx] <= svc->spatial_layer_id - 1)
       svc->skip_nonzeromv_last = 1;
     ref_frame_idx = svc->ref_idx[GOLDEN_FRAME - 1];
     if (svc->buffer_time_index[ref_frame_idx] == svc->current_superframe &&
-        svc->buffer_spatial_layer[ref_frame_idx] == svc->spatial_layer_id - 1)
+        svc->buffer_spatial_layer[ref_frame_idx] <= svc->spatial_layer_id - 1)
       svc->skip_nonzeromv_gf = 1;
   }
 }

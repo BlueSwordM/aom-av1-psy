@@ -823,7 +823,12 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   const uint8_t *d;
   int sp;
   int dp;
-  const int is_key_frame = frame_is_intra_only(cm);
+
+  const int is_key_frame =
+      (frame_is_intra_only(cm) ||
+       (cpi->use_svc &&
+        cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame));
+
   assert(cm->seq_params.sb_size == BLOCK_64X64 ||
          cm->seq_params.sb_size == BLOCK_128X128);
   const int is_small_sb = (cm->seq_params.sb_size == BLOCK_64X64);
