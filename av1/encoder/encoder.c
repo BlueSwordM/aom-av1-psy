@@ -1902,7 +1902,8 @@ static int recode_loop_test_global_motion(
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
-static void scale_references(AV1_COMP *cpi) {
+static void scale_references(AV1_COMP *cpi, const InterpFilter filter,
+                             const int phase) {
   AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   MV_REFERENCE_FRAME ref_frame;
@@ -1960,8 +1961,24 @@ static void scale_references(AV1_COMP *cpi) {
             aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                                "Failed to allocate frame buffer");
           }
-          av1_resize_and_extend_frame_nonnormative(
-              ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
+#if CONFIG_AV1_HIGHBITDEPTH
+          if ((cm->width << 1) == ref->y_crop_width &&
+              (cm->height << 1) == ref->y_crop_height &&
+              cm->seq_params.bit_depth == AOM_BITS_8)
+            av1_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
+                                        num_planes);
+          else
+            av1_resize_and_extend_frame_nonnormative(
+                ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
+#else
+          if ((cm->width << 1) == ref->y_crop_width &&
+              (cm->height << 1) == ref->y_crop_height)
+            av1_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
+                                        num_planes);
+          else
+            av1_resize_and_extend_frame_nonnormative(
+                ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
+#endif
           cpi->scaled_ref_buf[ref_frame - 1] = new_fb;
           alloc_frame_mvs(cm, new_fb);
         }
@@ -2837,19 +2854,21 @@ static int encode_without_recode(AV1_COMP *cpi) {
   SVC *const svc = &cpi->svc;
   int top_index = 0, bottom_index = 0, q = 0;
   YV12_BUFFER_CONFIG *unscaled = cpi->unscaled_source;
-  InterpFilter downsample_filter =
+  InterpFilter filter_scaler =
       cpi->use_svc ? svc->downsample_filter_type[svc->spatial_layer_id]
                    : EIGHTTAP_REGULAR;
   int phase_scaler =
       cpi->use_svc ? svc->downsample_filter_phase[svc->spatial_layer_id] : 0;
-  if ((cm->width << 1) == unscaled->y_crop_width &&
-      (cm->height << 1) == unscaled->y_crop_height) {
-    downsample_filter = BILINEAR;
-    phase_scaler = 8;
-  }
+
   set_size_independent_vars(cpi);
   av1_setup_frame_size(cpi);
   set_size_dependent_vars(cpi, &q, &bottom_index, &top_index);
+
+  if (!cpi->use_svc && (cm->width << 1) == unscaled->y_crop_width &&
+      (cm->height << 1) == unscaled->y_crop_height) {
+    filter_scaler = BILINEAR;
+    phase_scaler = 8;
+  }
 
   if (cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION)
     variance_partition_alloc(cpi);
@@ -2863,11 +2882,11 @@ static int encode_without_recode(AV1_COMP *cpi) {
   aom_clear_system_state();
 
   cpi->source = av1_scale_if_required(cm, unscaled, &cpi->scaled_source,
-                                      downsample_filter, phase_scaler);
+                                      filter_scaler, phase_scaler);
   if (cpi->unscaled_last_source != NULL) {
     cpi->last_source = av1_scale_if_required(cm, cpi->unscaled_last_source,
                                              &cpi->scaled_last_source,
-                                             downsample_filter, phase_scaler);
+                                             filter_scaler, phase_scaler);
   }
 
   // For SVC the inter-layer/spatial prediction is not done for newmv
@@ -2875,7 +2894,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
   // use for newmv search, we can avoid scaling here.
   if (!frame_is_intra_only(cm) &&
       !(cpi->use_svc && cpi->svc.force_zero_mode_spatial_ref))
-    scale_references(cpi);
+    scale_references(cpi, filter_scaler, phase_scaler);
 
   av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                     q_cfg->enable_chroma_deltaq);
@@ -3033,20 +3052,20 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
         gm_info->search_done = 0;
       }
     }
-    cpi->source =
-        av1_scale_if_required(cm, cpi->unscaled_source, &cpi->scaled_source,
-                              cm->features.interp_filter, 0);
+    cpi->source = av1_scale_if_required(
+        cm, cpi->unscaled_source, &cpi->scaled_source, EIGHTTAP_REGULAR, 0);
+
     if (cpi->unscaled_last_source != NULL) {
-      cpi->last_source = av1_scale_if_required(cm, cpi->unscaled_last_source,
-                                               &cpi->scaled_last_source,
-                                               cm->features.interp_filter, 0);
+      cpi->last_source =
+          av1_scale_if_required(cm, cpi->unscaled_last_source,
+                                &cpi->scaled_last_source, EIGHTTAP_REGULAR, 0);
     }
 
     if (!frame_is_intra_only(cm)) {
       if (loop_count > 0) {
         release_scaled_references(cpi);
       }
-      scale_references(cpi);
+      scale_references(cpi, EIGHTTAP_REGULAR, 0);
     }
 #if CONFIG_TUNE_VMAF
     if (oxcf->tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
