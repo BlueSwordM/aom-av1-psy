@@ -309,6 +309,11 @@ enum aom_dec_control_id {
   AOM_DECODER_CTRL_ID_MAX,
 
   AOMD_GET_FWD_KF_PRESENT,
+
+  /*!\brief Codec control function to get the frame flags of the previous frame
+   * decoded. This will return a flag of type aom_codec_frame_flags_t.
+   */
+  AOMD_GET_FRAME_FLAGS,
 };
 
 /*!\cond */
@@ -337,6 +342,9 @@ AOM_CTRL_USE_TYPE(AOMD_GET_LAST_QUANTIZER, int *)
 
 AOM_CTRL_USE_TYPE(AOMD_GET_FWD_KF_PRESENT, int *)
 #define AOM_CTRL_AOMD_GET_FWD_KF_PRESENT
+
+AOM_CTRL_USE_TYPE(AOMD_GET_FRAME_FLAGS, int *)
+#define AOM_CTRL_AOMD_GET_FRAME_FLAGS
 
 AOM_CTRL_USE_TYPE(AV1D_GET_DISPLAY_SIZE, int *)
 #define AOM_CTRL_AV1D_GET_DISPLAY_SIZE

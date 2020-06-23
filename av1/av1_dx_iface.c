@@ -977,6 +977,29 @@ static aom_codec_err_t ctrl_get_fwd_kf_value(aom_codec_alg_priv_t *ctx,
   return AOM_CODEC_OK;
 }
 
+static aom_codec_err_t ctrl_get_frame_flags(aom_codec_alg_priv_t *ctx,
+                                            va_list args) {
+  int *const arg = va_arg(args, int *);
+  if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
+  AV1Decoder *pbi = ((FrameWorkerData *)ctx->frame_worker->data1)->pbi;
+  *arg = 0;
+  switch (pbi->common.current_frame.frame_type) {
+    case KEY_FRAME:
+      *arg |= AOM_FRAME_IS_KEY;
+      *arg |= AOM_FRAME_IS_INTRAONLY;
+      if (!pbi->common.show_frame) {
+        *arg |= AOM_FRAME_IS_DELAYED_RANDOM_ACCESS_POINT;
+      }
+      break;
+    case INTRA_ONLY_FRAME: *arg |= AOM_FRAME_IS_INTRAONLY; break;
+    case S_FRAME: *arg |= AOM_FRAME_IS_SWITCH; break;
+  }
+  if (pbi->common.features.error_resilient_mode) {
+    *arg |= AOM_FRAME_IS_ERROR_RESILIENT;
+  }
+  return AOM_CODEC_OK;
+}
+
 static aom_codec_err_t ctrl_get_frame_corrupted(aom_codec_alg_priv_t *ctx,
                                                 va_list args) {
   int *corrupted = va_arg(args, int *);
@@ -1370,6 +1393,7 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV1D_GET_FRAME_HEADER_INFO, ctrl_get_frame_header_info },
   { AV1D_GET_TILE_DATA, ctrl_get_tile_data },
   { AOMD_GET_FWD_KF_PRESENT, ctrl_get_fwd_kf_value },
+  { AOMD_GET_FRAME_FLAGS, ctrl_get_frame_flags },
 
   CTRL_MAP_END,
 };

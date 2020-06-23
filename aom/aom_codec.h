@@ -260,6 +260,27 @@ typedef const struct aom_codec_iface aom_codec_iface_t;
  */
 typedef struct aom_codec_priv aom_codec_priv_t;
 
+/*!\brief Compressed Frame Flags
+ *
+ * This type represents a bitfield containing information about a compressed
+ * frame that may be useful to an application. The most significant 16 bits
+ * can be used by an algorithm to provide additional detail, for example to
+ * support frame types that are codec specific (MPEG-1 D-frames for example)
+ */
+typedef uint32_t aom_codec_frame_flags_t;
+#define AOM_FRAME_IS_KEY 0x1 /**< frame is the start of a GOP */
+/*!\brief frame can be dropped without affecting the stream (no future frame
+ * depends on this one) */
+#define AOM_FRAME_IS_DROPPABLE 0x2
+/*!\brief this is an INTRA_ONLY frame */
+#define AOM_FRAME_IS_INTRAONLY 0x10
+/*!\brief this is an S-frame */
+#define AOM_FRAME_IS_SWITCH 0x20
+/*!\brief this is an error-resilient frame */
+#define AOM_FRAME_IS_ERROR_RESILIENT 0x40
+/*!\brief this is a key-frame dependent recovery-point frame */
+#define AOM_FRAME_IS_DELAYED_RANDOM_ACCESS_POINT 0x80
+
 /*!\brief Iterator
  *
  * Opaque storage used for iterating over lists.
