@@ -2548,16 +2548,16 @@ static int process_compound_inter_mode(
 // don't achieve the best RD advantage.
 static int prune_ref_mv_idx_search(int ref_mv_idx, int best_ref_mv_idx,
                                    int_mv save_mv[MAX_REF_MV_SEARCH - 1][2],
-                                   MB_MODE_INFO *mbmi) {
+                                   MB_MODE_INFO *mbmi, int pruning_factor) {
   int i;
   const int is_comp_pred = has_second_ref(mbmi);
-  if (ref_mv_idx < MAX_REF_MV_SEARCH - 1) {
-    for (i = 0; i < is_comp_pred + 1; ++i)
-      save_mv[ref_mv_idx][i].as_int = mbmi->mv[i].as_int;
-  }
+  const int thr = (1 + is_comp_pred) << (pruning_factor + 1);
+
   // Skip the evaluation if an MV match is found.
   if (ref_mv_idx > 0) {
     for (int idx = 0; idx < ref_mv_idx; ++idx) {
+      if (save_mv[idx][0].as_int == INVALID_MV) continue;
+
       int mv_diff = 0;
       for (i = 0; i < 1 + is_comp_pred; ++i) {
         mv_diff += abs(save_mv[idx][i].as_mv.row - mbmi->mv[i].as_mv.row) +
@@ -2566,9 +2566,15 @@ static int prune_ref_mv_idx_search(int ref_mv_idx, int best_ref_mv_idx,
 
       // If this mode is not the best one, and current MV is similar to
       // previous stored MV, terminate this ref_mv_idx evaluation.
-      if (best_ref_mv_idx == -1 && mv_diff < 1) return 1;
+      if (best_ref_mv_idx == -1 && mv_diff <= thr) return 1;
     }
   }
+
+  if (ref_mv_idx < MAX_REF_MV_SEARCH - 1) {
+    for (i = 0; i < is_comp_pred + 1; ++i)
+      save_mv[ref_mv_idx][i].as_int = mbmi->mv[i].as_int;
+  }
+
   return 0;
 }
 
@@ -2705,7 +2711,7 @@ static int64_t handle_inter_mode(
   // of this function.
   const int ref_set = get_drl_refmv_count(x, mbmi->ref_frame, this_mode);
   // Save MV results from first 2 ref_mv_idx.
-  int_mv save_mv[MAX_REF_MV_SEARCH - 1][2] = { { { 0 } } };
+  int_mv save_mv[MAX_REF_MV_SEARCH - 1][2];
   int best_ref_mv_idx = -1;
   const int idx_mask = ref_mv_idx_to_search(cpi, x, rd_stats, args, ref_best_rd,
                                             mode_info, bsize, ref_set);
@@ -2715,6 +2721,11 @@ static int64_t handle_inter_mode(
   const int ref_mv_cost = cost_mv_ref(mode_costs, this_mode, mode_ctx);
   const int base_rate =
       args->ref_frame_cost + args->single_comp_cost + ref_mv_cost;
+
+  for (i = 0; i < MAX_REF_MV_SEARCH - 1; ++i) {
+    save_mv[i][0].as_int = INVALID_MV;
+    save_mv[i][1].as_int = INVALID_MV;
+  }
 
   // Main loop of this function. This will  iterate over all of the ref mvs
   // in the dynamic reference list and do the following:
@@ -2821,7 +2832,8 @@ static int64_t handle_inter_mode(
     // Skip the rest of the search if prune_ref_mv_idx_search speed feature
     // is enabled, and the current MV is similar to a previous one.
     if (cpi->sf.inter_sf.prune_ref_mv_idx_search && is_comp_pred &&
-        prune_ref_mv_idx_search(ref_mv_idx, best_ref_mv_idx, save_mv, mbmi))
+        prune_ref_mv_idx_search(ref_mv_idx, best_ref_mv_idx, save_mv, mbmi,
+                                cpi->sf.inter_sf.prune_ref_mv_idx_search))
       continue;
 
 #if CONFIG_COLLECT_COMPONENT_TIMING

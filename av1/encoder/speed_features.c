@@ -266,6 +266,12 @@ static void set_good_speed_feature_framesize_dependent(
     } else {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_16X16;
     }
+
+    if (is_720p_or_larger) {
+      sf->inter_sf.prune_ref_mv_idx_search = 2;
+    } else {
+      sf->inter_sf.prune_ref_mv_idx_search = 1;
+    }
   }
 }
 
