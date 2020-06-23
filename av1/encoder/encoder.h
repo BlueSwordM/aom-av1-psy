@@ -91,7 +91,10 @@ enum {
   NORMAL = 0,
   FOURFIVE = 1,
   THREEFIVE = 2,
-  ONETWO = 3
+  THREEFOUR = 3,
+  ONEFOUR = 4,
+  ONEEIGHT = 5,
+  ONETWO = 6
 } UENUM1BYTE(AOM_SCALING);
 
 enum {

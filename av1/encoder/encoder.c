@@ -110,6 +110,18 @@ static INLINE void Scale2Ratio(AOM_SCALING mode, int *hr, int *hs) {
       *hr = 3;
       *hs = 5;
       break;
+    case THREEFOUR:
+      *hr = 3;
+      *hs = 4;
+      break;
+    case ONEFOUR:
+      *hr = 1;
+      *hs = 4;
+      break;
+    case ONEEIGHT:
+      *hr = 1;
+      *hs = 8;
+      break;
     case ONETWO:
       *hr = 1;
       *hs = 2;
