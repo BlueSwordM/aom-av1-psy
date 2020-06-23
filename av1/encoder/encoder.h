@@ -2816,20 +2816,14 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi);
 #define MAX_GFUBOOST_FACTOR 10.0
 #define MIN_GFUBOOST_FACTOR 4.0
 
-static INLINE int is_frame_kf_and_tpl_eligible(AV1_COMP *const cpi) {
-  AV1_COMMON *cm = &cpi->common;
-  return (cm->current_frame.frame_type == KEY_FRAME) && cm->show_frame &&
-         (cpi->rc.frames_to_key > 1);
-}
-
 static INLINE int is_frame_arf_and_tpl_eligible(const GF_GROUP *gf_group) {
   const FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_group->index];
-  return update_type == ARF_UPDATE || update_type == GF_UPDATE;
+  return update_type == ARF_UPDATE || update_type == GF_UPDATE ||
+         update_type == KF_UPDATE;
 }
 
 static INLINE int is_frame_tpl_eligible(AV1_COMP *const cpi) {
-  return is_frame_kf_and_tpl_eligible(cpi) ||
-         is_frame_arf_and_tpl_eligible(&cpi->gf_group);
+  return is_frame_arf_and_tpl_eligible(&cpi->gf_group);
 }
 
 // Get update type of the current frame.
