@@ -287,13 +287,14 @@ static int get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                const BLOCK_SIZE bsize, const int mi_row,
                                const int mi_col, int orig_rdmult) {
   const AV1_COMMON *const cm = &cpi->common;
+  const GF_GROUP *const gf_group = &cpi->gf_group;
   assert(IMPLIES(cpi->gf_group.size > 0,
                  cpi->gf_group.index < cpi->gf_group.size));
   const int tpl_idx = cpi->gf_group.index;
   const TplDepFrame *tpl_frame = &cpi->tpl_data.tpl_frame[tpl_idx];
   const int deltaq_rdmult = set_deltaq_rdmult(cpi, x);
   if (tpl_frame->is_valid == 0) return deltaq_rdmult;
-  if (!is_frame_tpl_eligible((AV1_COMP *)cpi)) return deltaq_rdmult;
+  if (!is_frame_tpl_eligible(gf_group)) return deltaq_rdmult;
   if (tpl_idx >= MAX_TPL_FRAME_IDX) return deltaq_rdmult;
   if (cpi->superres_mode != AOM_SUPERRES_NONE) return deltaq_rdmult;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return deltaq_rdmult;
@@ -4268,6 +4269,7 @@ BEGIN_PARTITION_SEARCH:
 static int get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int analysis_type,
                             int mi_row, int mi_col, int orig_rdmult) {
   AV1_COMMON *const cm = &cpi->common;
+  const GF_GROUP *const gf_group = &cpi->gf_group;
   assert(IMPLIES(cpi->gf_group.size > 0,
                  cpi->gf_group.index < cpi->gf_group.size));
   const int tpl_idx = cpi->gf_group.index;
@@ -4283,7 +4285,7 @@ static int get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int analysis_type,
 
   if (tpl_frame->is_valid == 0) return orig_rdmult;
 
-  if (!is_frame_tpl_eligible(cpi)) return orig_rdmult;
+  if (!is_frame_tpl_eligible(gf_group)) return orig_rdmult;
 
   if (cpi->gf_group.index >= MAX_TPL_FRAME_IDX) return orig_rdmult;
 
@@ -4420,6 +4422,7 @@ static void get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
 static int get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
                                       int mi_row, int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
+  const GF_GROUP *const gf_group = &cpi->gf_group;
   assert(IMPLIES(cpi->gf_group.size > 0,
                  cpi->gf_group.index < cpi->gf_group.size));
   const int tpl_idx = cpi->gf_group.index;
@@ -4436,7 +4439,7 @@ static int get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
 
   if (tpl_frame->is_valid == 0) return base_qindex;
 
-  if (!is_frame_tpl_eligible(cpi)) return base_qindex;
+  if (!is_frame_tpl_eligible(gf_group)) return base_qindex;
 
   if (cpi->gf_group.index >= MAX_TPL_FRAME_IDX) return base_qindex;
 
@@ -4970,6 +4973,7 @@ static INLINE void restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats,
 static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
                                  int mi_col) {
   const AV1_COMMON *cm = &cpi->common;
+  const GF_GROUP *const gf_group = &cpi->gf_group;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   MACROBLOCK *x = &td->mb;
   const int frame_idx = cpi->gf_group.index;
@@ -4980,7 +4984,7 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
   av1_zero(x->tpl_keep_ref_frame);
 
   if (tpl_frame->is_valid == 0) return;
-  if (!is_frame_tpl_eligible(cpi)) return;
+  if (!is_frame_tpl_eligible(gf_group)) return;
   if (frame_idx >= MAX_TPL_FRAME_IDX) return;
   if (cpi->superres_mode != AOM_SUPERRES_NONE) return;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return;
@@ -5937,8 +5941,9 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     // is used for ineligible frames. That effectively will turn off row_mt
     // usage. Note objective delta_q and tpl eligible frames are only altref
     // frames currently.
+    const GF_GROUP *gf_group = &cpi->gf_group;
     if (cm->delta_q_info.delta_q_present_flag) {
-      if (deltaq_mode == DELTA_Q_OBJECTIVE && !is_frame_tpl_eligible(cpi))
+      if (deltaq_mode == DELTA_Q_OBJECTIVE && !is_frame_tpl_eligible(gf_group))
         cm->delta_q_info.delta_q_present_flag = 0;
     }
 

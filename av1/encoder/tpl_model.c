@@ -1201,13 +1201,14 @@ void av1_tpl_rdmult_setup(AV1_COMP *cpi) {
 void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
                              BLOCK_SIZE sb_size, int mi_row, int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
+  GF_GROUP *gf_group = &cpi->gf_group;
   assert(IMPLIES(cpi->gf_group.size > 0,
                  cpi->gf_group.index < cpi->gf_group.size));
   const int tpl_idx = cpi->gf_group.index;
   TplDepFrame *tpl_frame = &cpi->tpl_data.tpl_frame[tpl_idx];
 
   if (tpl_frame->is_valid == 0) return;
-  if (!is_frame_tpl_eligible(cpi)) return;
+  if (!is_frame_tpl_eligible(gf_group)) return;
   if (tpl_idx >= MAX_TPL_FRAME_IDX) return;
   if (cpi->superres_mode != AOM_SUPERRES_NONE) return;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return;
