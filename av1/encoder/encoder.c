@@ -772,19 +772,19 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   SequenceHeader *const seq_params = &cm->seq_params;
   ResizePendingParams *resize_pending_params = &cpi->resize_pending_params;
   const DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
-
+  const ColorCfg *const color_cfg = &oxcf->color_cfg;
   cpi->oxcf = *oxcf;
   cpi->framerate = oxcf->init_framerate;
 
   seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->bit_depth;
   seq_params->use_highbitdepth = oxcf->use_highbitdepth;
-  seq_params->color_primaries = oxcf->color_primaries;
-  seq_params->transfer_characteristics = oxcf->transfer_characteristics;
-  seq_params->matrix_coefficients = oxcf->matrix_coefficients;
+  seq_params->color_primaries = color_cfg->color_primaries;
+  seq_params->transfer_characteristics = color_cfg->transfer_characteristics;
+  seq_params->matrix_coefficients = color_cfg->matrix_coefficients;
   seq_params->monochrome = oxcf->monochrome;
   seq_params->chroma_sample_position = oxcf->chroma_sample_position;
-  seq_params->color_range = oxcf->color_range;
+  seq_params->color_range = color_cfg->color_range;
   seq_params->timing_info_present = dec_model_cfg->timing_info_present;
   seq_params->timing_info.num_units_in_display_tick =
       dec_model_cfg->timing_info.num_units_in_display_tick;
@@ -885,6 +885,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
   const FrameDimensionCfg *const frm_dim_cfg = &cpi->oxcf.frm_dim_cfg;
   const DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
+  const ColorCfg *const color_cfg = &oxcf->color_cfg;
 
   // in case of LAP, lag in frames is set according to number of lap buffers
   // calculated at init time. This stores and restores LAP's lag in frames to
@@ -896,12 +897,12 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   if (seq_params->profile != oxcf->profile) seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->bit_depth;
-  seq_params->color_primaries = oxcf->color_primaries;
-  seq_params->transfer_characteristics = oxcf->transfer_characteristics;
-  seq_params->matrix_coefficients = oxcf->matrix_coefficients;
+  seq_params->color_primaries = color_cfg->color_primaries;
+  seq_params->transfer_characteristics = color_cfg->transfer_characteristics;
+  seq_params->matrix_coefficients = color_cfg->matrix_coefficients;
   seq_params->monochrome = oxcf->monochrome;
   seq_params->chroma_sample_position = oxcf->chroma_sample_position;
-  seq_params->color_range = oxcf->color_range;
+  seq_params->color_range = color_cfg->color_range;
 
   assert(IMPLIES(seq_params->profile <= PROFILE_1,
                  seq_params->bit_depth <= AOM_BITS_10));

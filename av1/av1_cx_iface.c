@@ -728,6 +728,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   QuantizationCfg *const q_cfg = &oxcf->q_cfg;
 
+  ColorCfg *const color_cfg = &oxcf->color_cfg;
+
   const int is_vbr = cfg->rc_end_usage == AOM_VBR;
   oxcf->profile = cfg->g_profile;
   oxcf->max_threads = (int)cfg->g_threads;
@@ -887,12 +889,13 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->noise_sensitivity = extra_cfg->noise_sensitivity;
   oxcf->sharpness = extra_cfg->sharpness;
 
-  oxcf->color_primaries = extra_cfg->color_primaries;
-  oxcf->transfer_characteristics = extra_cfg->transfer_characteristics;
-  oxcf->matrix_coefficients = extra_cfg->matrix_coefficients;
-  oxcf->chroma_sample_position = extra_cfg->chroma_sample_position;
+  // Set Color related configuration.
+  color_cfg->color_primaries = extra_cfg->color_primaries;
+  color_cfg->transfer_characteristics = extra_cfg->transfer_characteristics;
+  color_cfg->matrix_coefficients = extra_cfg->matrix_coefficients;
+  color_cfg->color_range = extra_cfg->color_range;
 
-  oxcf->color_range = extra_cfg->color_range;
+  oxcf->chroma_sample_position = extra_cfg->chroma_sample_position;
   oxcf->arnr_max_frames = extra_cfg->arnr_max_frames;
   oxcf->arnr_strength = extra_cfg->arnr_strength;
 

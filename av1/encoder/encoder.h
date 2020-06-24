@@ -547,6 +547,17 @@ typedef struct {
 } RefFrameCfg;
 
 typedef struct {
+  // Indicates the color space that should be used.
+  aom_color_primaries_t color_primaries;
+  // Indicates the characteristics of transfer function to be used.
+  aom_transfer_characteristics_t transfer_characteristics;
+  // Indicates the matrix coefficients to be used for the transfer function.
+  aom_matrix_coefficients_t matrix_coefficients;
+  // Indicates if a limited color range or full color range should be used.
+  aom_color_range_t color_range;
+} ColorCfg;
+
+typedef struct {
   // List of QP offsets for: keyframe, ALTREF, and 3 levels of internal ARFs.
   // If any of these values are negative, fixed offsets are disabled.
   // Uses internal q range.
@@ -660,13 +671,12 @@ typedef struct AV1EncoderConfig {
   const char *vmaf_model_path;
   aom_tune_content content;
   int use_highbitdepth;
-  aom_color_primaries_t color_primaries;
-  aom_transfer_characteristics_t transfer_characteristics;
-  aom_matrix_coefficients_t matrix_coefficients;
   aom_chroma_sample_position_t chroma_sample_position;
-  int color_range;
   int film_grain_test_vector;
   const char *film_grain_table_filename;
+
+  // Configuration related to color.
+  ColorCfg color_cfg;
 
   // Configuration related to decoder model.
   DecoderModelCfg dec_model_cfg;
