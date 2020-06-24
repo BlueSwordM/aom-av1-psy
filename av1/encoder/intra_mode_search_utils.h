@@ -81,9 +81,47 @@ static const float intra_hog_model_weights[BINS * DIRECTIONAL_MODES] = {
   -1.222860f, -1.502437f, -1.900969f, -3.206816f,
 };
 
+#define FIX_PREC_BITS (16)
+static AOM_INLINE int get_hist_bin_idx(int dx, int dy) {
+  const int32_t ratio = (dy * (1 << FIX_PREC_BITS)) / dx;
+
+  // Find index by bisection
+  static const int thresholds[BINS] = {
+    -1334015, -441798, -261605, -183158, -138560, -109331, -88359, -72303,
+    -59392,   -48579,  -39272,  -30982,  -23445,  -16400,  -9715,  -3194,
+    3227,     9748,    16433,   23478,   31015,   39305,   48611,  59425,
+    72336,    88392,   109364,  138593,  183191,  261638,  441831, INT32_MAX
+  };
+
+  int lo_idx = 0, hi_idx = BINS - 1;
+  // Divide into segments of size 8 gives better performance than binary search
+  // here.
+  if (ratio <= thresholds[7]) {
+    lo_idx = 0;
+    hi_idx = 7;
+  } else if (ratio <= thresholds[15]) {
+    lo_idx = 8;
+    hi_idx = 15;
+  } else if (ratio <= thresholds[23]) {
+    lo_idx = 16;
+    hi_idx = 23;
+  } else {
+    lo_idx = 24;
+    hi_idx = 31;
+  }
+
+  for (int idx = lo_idx; idx <= hi_idx; idx++) {
+    if (ratio <= thresholds[idx]) {
+      return idx;
+    }
+  }
+  assert(0 && "No valid histogram bin found!");
+  return BINS - 1;
+}
+#undef FIX_PREC_BITS
+
 static AOM_INLINE void generate_hog(const uint8_t *src, int stride, int rows,
                                     int cols, float *hist) {
-  const float step = (float)PI / BINS;
   float total = 0.1f;
   src += stride;
   for (int r = 1; r < rows - 1; ++r) {
@@ -105,10 +143,8 @@ static AOM_INLINE void generate_hog(const uint8_t *src, int stride, int rows,
         hist[0] += temp / 2;
         hist[BINS - 1] += temp / 2;
       } else {
-        const float angle = atanf(dy * 1.0f / dx);
-        int idx = (int)roundf(angle / step) + BINS / 2;
-        idx = AOMMIN(idx, BINS - 1);
-        idx = AOMMAX(idx, 0);
+        const int idx = get_hist_bin_idx(dx, dy);
+        assert(idx >= 0 && idx < BINS);
         hist[idx] += temp;
       }
     }
@@ -120,7 +156,6 @@ static AOM_INLINE void generate_hog(const uint8_t *src, int stride, int rows,
 
 static AOM_INLINE void generate_hog_hbd(const uint8_t *src8, int stride,
                                         int rows, int cols, float *hist) {
-  const float step = (float)PI / BINS;
   float total = 0.1f;
   uint16_t *src = CONVERT_TO_SHORTPTR(src8);
   src += stride;
@@ -143,10 +178,8 @@ static AOM_INLINE void generate_hog_hbd(const uint8_t *src8, int stride,
         hist[0] += temp / 2;
         hist[BINS - 1] += temp / 2;
       } else {
-        const float angle = atanf(dy * 1.0f / dx);
-        int idx = (int)roundf(angle / step) + BINS / 2;
-        idx = AOMMIN(idx, BINS - 1);
-        idx = AOMMAX(idx, 0);
+        const int idx = get_hist_bin_idx(dx, dy);
+        assert(idx >= 0 && idx < BINS);
         hist[idx] += temp;
       }
     }
