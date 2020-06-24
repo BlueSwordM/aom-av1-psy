@@ -252,8 +252,10 @@ static BLOCK_SIZE select_sb_size(const AV1_COMP *const cpi) {
 
   assert(oxcf->superblock_size == AOM_SUPERBLOCK_SIZE_DYNAMIC);
 
-  if (cpi->svc.number_spatial_layers > 1) {
-    // Use the configured size (top resolution) for spatial layers.
+  if (cpi->svc.number_spatial_layers > 1 ||
+      oxcf->resize_cfg.resize_mode != RESIZE_NONE) {
+    // Use the configured size (top resolution) for spatial layers or
+    // on resize.
     return AOMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) > 480
                ? BLOCK_128X128
                : BLOCK_64X64;
@@ -4546,6 +4548,8 @@ int av1_set_internal_size(AV1EncoderConfig *const oxcf,
   resize_pending_params->width = (hs - 1 + oxcf->frm_dim_cfg.width * hr) / hs;
   resize_pending_params->height = (vs - 1 + oxcf->frm_dim_cfg.height * vr) / vs;
 
+  if (horiz_mode != NORMAL || vert_mode != NORMAL)
+    oxcf->resize_cfg.resize_mode = RESIZE_FIXED;
   return 0;
 }
 

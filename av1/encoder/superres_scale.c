@@ -359,6 +359,7 @@ static size_params_type calculate_next_size_params(AV1_COMP *cpi) {
     rsz.resize_width = resize_pending_params->width;
     rsz.resize_height = resize_pending_params->height;
     resize_pending_params->width = resize_pending_params->height = 0;
+    if (oxcf->superres_cfg.superres_mode == AOM_SUPERRES_NONE) return rsz;
   } else {
     resize_denom = calculate_next_resize_scale(cpi);
     rsz.resize_width = frm_dim_cfg->width;

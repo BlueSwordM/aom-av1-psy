@@ -1638,10 +1638,11 @@ void av1_rc_set_frame_target(AV1_COMP *cpi, int target, int width, int height) {
   rc->this_frame_target = target;
 
   // Modify frame size target when down-scaled.
-  if (av1_frame_scaled(cm))
+  if (av1_frame_scaled(cm) && cpi->oxcf.rc_cfg.mode != AOM_CBR) {
     rc->this_frame_target =
         (int)(rc->this_frame_target *
               resize_rate_factor(&cpi->oxcf.frm_dim_cfg, width, height));
+  }
 
   // Target rate per SB64 (including partial SB64s.
   rc->sb64_target_rate =
