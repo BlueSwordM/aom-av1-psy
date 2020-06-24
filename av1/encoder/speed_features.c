@@ -244,6 +244,12 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (speed >= 6) {
+    if (is_720p_or_larger) {
+      sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
+    } else if (is_480p_or_larger) {
+      sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
+    }
+
     if (is_1080p_or_larger) {
       sf->part_sf.default_min_partition_size = BLOCK_8X8;
     }
