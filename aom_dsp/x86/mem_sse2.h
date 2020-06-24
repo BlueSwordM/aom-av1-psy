@@ -37,6 +37,10 @@ static INLINE uint64_t loadu_uint64(const void *src) {
   return v;
 }
 
+static INLINE void _mm_storeh_epi64(__m128i *const d, const __m128i s) {
+  _mm_storeh_pi((__m64 *)d, _mm_castsi128_ps(s));
+}
+
 static INLINE __m128i loadh_epi64(const void *const src, const __m128i s) {
   return _mm_castps_si128(
       _mm_loadh_pi(_mm_castsi128_ps(s), (const __m64 *)src));
@@ -56,6 +60,37 @@ static INLINE __m128i load_8bit_8x2_to_1_reg_sse2(const void *const src,
   dst = _mm_loadl_epi64((__m128i *)((int8_t *)src + 0 * byte_stride));
   dst = loadh_epi64((int8_t *)src + 1 * byte_stride, dst);
   return dst;
+}
+
+static INLINE void store_8bit_8x4_from_16x2(const __m128i *const s,
+                                            uint8_t *const d,
+                                            const ptrdiff_t stride) {
+  _mm_storel_epi64((__m128i *)(d + 0 * stride), s[0]);
+  _mm_storeh_epi64((__m128i *)(d + 1 * stride), s[0]);
+  _mm_storel_epi64((__m128i *)(d + 2 * stride), s[1]);
+  _mm_storeh_epi64((__m128i *)(d + 3 * stride), s[1]);
+}
+
+static INLINE void load_8bit_8x4(const uint8_t *const s, const ptrdiff_t stride,
+                                 __m128i *const d) {
+  d[0] = _mm_loadl_epi64((const __m128i *)(s + 0 * stride));
+  d[1] = _mm_loadl_epi64((const __m128i *)(s + 1 * stride));
+  d[2] = _mm_loadl_epi64((const __m128i *)(s + 2 * stride));
+  d[3] = _mm_loadl_epi64((const __m128i *)(s + 3 * stride));
+}
+
+static INLINE void loadu_8bit_16x4(const uint8_t *const s,
+                                   const ptrdiff_t stride, __m128i *const d) {
+  d[0] = _mm_loadu_si128((const __m128i *)(s + 0 * stride));
+  d[1] = _mm_loadu_si128((const __m128i *)(s + 1 * stride));
+  d[2] = _mm_loadu_si128((const __m128i *)(s + 2 * stride));
+  d[3] = _mm_loadu_si128((const __m128i *)(s + 3 * stride));
+}
+
+static INLINE void load_8bit_8x8(const uint8_t *const s, const ptrdiff_t stride,
+                                 __m128i *const d) {
+  load_8bit_8x4(s + 0 * stride, stride, &d[0]);
+  load_8bit_8x4(s + 4 * stride, stride, &d[4]);
 }
 
 #endif  // AOM_AOM_DSP_X86_MEM_SSE2_H_
