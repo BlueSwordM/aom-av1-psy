@@ -4069,7 +4069,8 @@ static int inter_mode_search_order_independent_skip(
   if ((cpi->prune_ref_frame_mask >> ref_type) & 1) return 1;
 
   // This is only used in motion vector unit test.
-  if (cpi->oxcf.motion_vector_unit_test && ref_frame[0] == INTRA_FRAME)
+  if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test &&
+      ref_frame[0] == INTRA_FRAME)
     return 1;
 
   const AV1_COMMON *const cm = &cpi->common;

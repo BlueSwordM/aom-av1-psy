@@ -5247,7 +5247,8 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     // The superblock can be searched only once, or twice consecutively for
     // better quality. Note that the meaning of passes here is different from
     // the general concept of 1-pass/2-pass encoders.
-    const int num_passes = cpi->oxcf.sb_multipass_unit_test ? 2 : 1;
+    const int num_passes =
+        cpi->oxcf.unit_test_cfg.sb_multipass_unit_test ? 2 : 1;
 
     if (num_passes == 1) {
       PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);

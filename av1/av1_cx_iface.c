@@ -1077,8 +1077,12 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->save_as_annexb = cfg->save_as_annexb;
 
   oxcf->frame_periodic_boost = extra_cfg->frame_periodic_boost;
-  oxcf->motion_vector_unit_test = extra_cfg->motion_vector_unit_test;
-  oxcf->sb_multipass_unit_test = extra_cfg->sb_multipass_unit_test;
+
+  // Set unit test related configuration.
+  oxcf->unit_test_cfg.motion_vector_unit_test =
+      extra_cfg->motion_vector_unit_test;
+  oxcf->unit_test_cfg.sb_multipass_unit_test =
+      extra_cfg->sb_multipass_unit_test;
 
   oxcf->chroma_subsampling_x = extra_cfg->chroma_subsampling_x;
   oxcf->chroma_subsampling_y = extra_cfg->chroma_subsampling_y;

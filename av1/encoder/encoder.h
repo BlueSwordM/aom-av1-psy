@@ -558,6 +558,13 @@ typedef struct {
 } ColorCfg;
 
 typedef struct {
+  // Indicates if extreme motion vector unit test should be enabled or not.
+  unsigned int motion_vector_unit_test;
+  // Indicates if superblock multipass unit test should be enabled or not.
+  unsigned int sb_multipass_unit_test;
+} UnitTestCfg;
+
+typedef struct {
   // List of QP offsets for: keyframe, ALTREF, and 3 levels of internal ARFs.
   // If any of these values are negative, fixed offsets are disabled.
   // Uses internal q range.
@@ -684,13 +691,14 @@ typedef struct AV1EncoderConfig {
   // Configuration related to reference frames.
   RefFrameCfg ref_frm_cfg;
 
+  // Configuration related to unit tests.
+  UnitTestCfg unit_test_cfg;
+
   uint8_t cdf_update_mode;
   aom_superblock_size_t superblock_size;
   uint8_t monochrome;
   unsigned int full_still_picture_hdr;
   int enable_dual_filter;
-  unsigned int motion_vector_unit_test;
-  unsigned int sb_multipass_unit_test;
   int enable_order_hint;
   int enable_ref_frame_mvs;
   unsigned int allow_ref_frame_mvs;
