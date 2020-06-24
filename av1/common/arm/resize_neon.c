@@ -13,8 +13,51 @@
 #include <assert.h>
 
 #include "av1/common/resize.h"
+#include "av1/common/arm/mem_neon.h"
+#include "av1/common/arm/transpose_neon.h"
 #include "config/av1_rtcd.h"
 #include "config/aom_scale_rtcd.h"
+
+static INLINE uint8x8_t convolve8_8(const int16x8_t s0, const int16x8_t s1,
+                                    const int16x8_t s2, const int16x8_t s3,
+                                    const int16x8_t s4, const int16x8_t s5,
+                                    const int16x8_t s6, const int16x8_t s7,
+                                    const int16x8_t filters,
+                                    const int16x8_t filter3,
+                                    const int16x8_t filter4) {
+  const int16x4_t filters_lo = vget_low_s16(filters);
+  const int16x4_t filters_hi = vget_high_s16(filters);
+  int16x8_t sum;
+
+  sum = vmulq_lane_s16(s0, filters_lo, 0);
+  sum = vmlaq_lane_s16(sum, s1, filters_lo, 1);
+  sum = vmlaq_lane_s16(sum, s2, filters_lo, 2);
+  sum = vmlaq_lane_s16(sum, s5, filters_hi, 1);
+  sum = vmlaq_lane_s16(sum, s6, filters_hi, 2);
+  sum = vmlaq_lane_s16(sum, s7, filters_hi, 3);
+  sum = vqaddq_s16(sum, vmulq_s16(s3, filter3));
+  sum = vqaddq_s16(sum, vmulq_s16(s4, filter4));
+  return vqrshrun_n_s16(sum, 7);
+}
+
+static INLINE uint8x8_t scale_filter_8(const uint8x8_t *const s,
+                                       const int16x8_t filters) {
+  const int16x8_t filter3 = vdupq_lane_s16(vget_low_s16(filters), 3);
+  const int16x8_t filter4 = vdupq_lane_s16(vget_high_s16(filters), 0);
+  int16x8_t ss[8];
+
+  ss[0] = vreinterpretq_s16_u16(vmovl_u8(s[0]));
+  ss[1] = vreinterpretq_s16_u16(vmovl_u8(s[1]));
+  ss[2] = vreinterpretq_s16_u16(vmovl_u8(s[2]));
+  ss[3] = vreinterpretq_s16_u16(vmovl_u8(s[3]));
+  ss[4] = vreinterpretq_s16_u16(vmovl_u8(s[4]));
+  ss[5] = vreinterpretq_s16_u16(vmovl_u8(s[5]));
+  ss[6] = vreinterpretq_s16_u16(vmovl_u8(s[6]));
+  ss[7] = vreinterpretq_s16_u16(vmovl_u8(s[7]));
+
+  return convolve8_8(ss[0], ss[1], ss[2], ss[3], ss[4], ss[5], ss[6], ss[7],
+                     filters, filter3, filter4);
+}
 
 static INLINE void scale_plane_2_to_1_phase_0(const uint8_t *src,
                                               const int src_stride,
@@ -101,6 +144,122 @@ static INLINE void scale_plane_2_to_1_bilinear(
   } while (--y);
 }
 
+static void scale_plane_2_to_1_general(const uint8_t *src, const int src_stride,
+                                       uint8_t *dst, const int dst_stride,
+                                       const int w, const int h,
+                                       const int16_t *const coef,
+                                       uint8_t *const temp_buffer) {
+  const int width_hor = (w + 3) & ~3;
+  const int width_ver = (w + 7) & ~7;
+  const int height_hor = (2 * h + SUBPEL_TAPS - 2 + 7) & ~7;
+  const int height_ver = (h + 3) & ~3;
+  const int16x8_t filters = vld1q_s16(coef);
+  int x, y = height_hor;
+  uint8_t *t = temp_buffer;
+  uint8x8_t s[14], d[4];
+
+  assert(w && h);
+
+  src -= (SUBPEL_TAPS / 2 - 1) * src_stride + SUBPEL_TAPS / 2 + 1;
+
+  // horizontal 4x8
+  // Note: processing 4x8 is about 20% faster than processing row by row using
+  // vld4_u8().
+  do {
+    load_u8_8x8(src + 2, src_stride, &s[0], &s[1], &s[2], &s[3], &s[4], &s[5],
+                &s[6], &s[7]);
+    transpose_u8_8x8(&s[0], &s[1], &s[2], &s[3], &s[4], &s[5], &s[6], &s[7]);
+    x = width_hor;
+
+    do {
+      src += 8;
+      load_u8_8x8(src, src_stride, &s[6], &s[7], &s[8], &s[9], &s[10], &s[11],
+                  &s[12], &s[13]);
+      transpose_u8_8x8(&s[6], &s[7], &s[8], &s[9], &s[10], &s[11], &s[12],
+                       &s[13]);
+
+      d[0] = scale_filter_8(&s[0], filters);  // 00 10 20 30 40 50 60 70
+      d[1] = scale_filter_8(&s[2], filters);  // 01 11 21 31 41 51 61 71
+      d[2] = scale_filter_8(&s[4], filters);  // 02 12 22 32 42 52 62 72
+      d[3] = scale_filter_8(&s[6], filters);  // 03 13 23 33 43 53 63 73
+      // 00 01 02 03 40 41 42 43
+      // 10 11 12 13 50 51 52 53
+      // 20 21 22 23 60 61 62 63
+      // 30 31 32 33 70 71 72 73
+      transpose_u8_8x4(&d[0], &d[1], &d[2], &d[3]);
+      vst1_lane_u32((uint32_t *)(t + 0 * width_hor), vreinterpret_u32_u8(d[0]),
+                    0);
+      vst1_lane_u32((uint32_t *)(t + 1 * width_hor), vreinterpret_u32_u8(d[1]),
+                    0);
+      vst1_lane_u32((uint32_t *)(t + 2 * width_hor), vreinterpret_u32_u8(d[2]),
+                    0);
+      vst1_lane_u32((uint32_t *)(t + 3 * width_hor), vreinterpret_u32_u8(d[3]),
+                    0);
+      vst1_lane_u32((uint32_t *)(t + 4 * width_hor), vreinterpret_u32_u8(d[0]),
+                    1);
+      vst1_lane_u32((uint32_t *)(t + 5 * width_hor), vreinterpret_u32_u8(d[1]),
+                    1);
+      vst1_lane_u32((uint32_t *)(t + 6 * width_hor), vreinterpret_u32_u8(d[2]),
+                    1);
+      vst1_lane_u32((uint32_t *)(t + 7 * width_hor), vreinterpret_u32_u8(d[3]),
+                    1);
+
+      s[0] = s[8];
+      s[1] = s[9];
+      s[2] = s[10];
+      s[3] = s[11];
+      s[4] = s[12];
+      s[5] = s[13];
+
+      t += 4;
+      x -= 4;
+    } while (x);
+    src += 8 * src_stride - 2 * width_hor;
+    t += 7 * width_hor;
+    y -= 8;
+  } while (y);
+
+  // vertical 8x4
+  x = width_ver;
+  t = temp_buffer;
+  do {
+    load_u8_8x8(t, width_hor, &s[0], &s[1], &s[2], &s[3], &s[4], &s[5], &s[6],
+                &s[7]);
+    t += 6 * width_hor;
+    y = height_ver;
+
+    do {
+      load_u8_8x8(t, width_hor, &s[6], &s[7], &s[8], &s[9], &s[10], &s[11],
+                  &s[12], &s[13]);
+      t += 8 * width_hor;
+
+      d[0] = scale_filter_8(&s[0], filters);  // 00 01 02 03 04 05 06 07
+      d[1] = scale_filter_8(&s[2], filters);  // 10 11 12 13 14 15 16 17
+      d[2] = scale_filter_8(&s[4], filters);  // 20 21 22 23 24 25 26 27
+      d[3] = scale_filter_8(&s[6], filters);  // 30 31 32 33 34 35 36 37
+      vst1_u8(dst + 0 * dst_stride, d[0]);
+      vst1_u8(dst + 1 * dst_stride, d[1]);
+      vst1_u8(dst + 2 * dst_stride, d[2]);
+      vst1_u8(dst + 3 * dst_stride, d[3]);
+
+      s[0] = s[8];
+      s[1] = s[9];
+      s[2] = s[10];
+      s[3] = s[11];
+      s[4] = s[12];
+      s[5] = s[13];
+
+      dst += 4 * dst_stride;
+      y -= 4;
+    } while (y);
+    t -= width_hor * (2 * height_ver + 6);
+    t += 8;
+    dst -= height_ver * dst_stride;
+    dst += 8;
+    x -= 8;
+  } while (x);
+}
+
 void av1_resize_and_extend_frame_neon(const YV12_BUFFER_CONFIG *src,
                                       YV12_BUFFER_CONFIG *dst,
                                       const InterpFilter filter,
@@ -126,13 +285,25 @@ void av1_resize_and_extend_frame_neon(const YV12_BUFFER_CONFIG *src,
                                     dst->buffers[i], dst->strides[is_uv], dst_w,
                                     dst_h, c0, c1);
       } else {
-        av1_resize_plane(src->buffers[i], src_h, src_w, src->strides[is_uv],
-                         dst->buffers[i], dst_h, dst_w, dst->strides[is_uv]);
+        const int buffer_stride = (dst_w + 3) & ~3;
+        const int buffer_height = (2 * dst_h + SUBPEL_TAPS - 2 + 7) & ~7;
+        uint8_t *const temp_buffer =
+            (uint8_t *)malloc(buffer_stride * buffer_height);
+        if (temp_buffer) {
+          const InterpKernel *interp_kernel =
+              (const InterpKernel *)av1_interp_filter_params_list[filter]
+                  .filter_ptr;
+          scale_plane_2_to_1_general(src->buffers[i], src->strides[is_uv],
+                                     dst->buffers[i], dst->strides[is_uv],
+                                     dst_w, dst_h, interp_kernel[phase],
+                                     temp_buffer);
+          free(temp_buffer);
+        }
       }
     } else {
       av1_resize_plane(src->buffers[i], src_h, src_w, src->strides[is_uv],
                        dst->buffers[i], dst_h, dst_w, dst->strides[is_uv]);
     }
+    aom_extend_frame_borders(dst, num_planes);
   }
-  aom_extend_frame_borders(dst, num_planes);
 }
