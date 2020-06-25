@@ -3580,6 +3580,94 @@ static AOM_INLINE void rd_pick_4partition(
                   blk_params.bsize, av1_num_planes(cm));
 }
 
+// Prune 4-way partitions based on the number of horz/vert wins
+// in the current block and sub-blocks in PARTITION_SPLIT.
+static AOM_INLINE void prune_4_partition_using_split_info(
+    AV1_COMP *const cpi, MACROBLOCK *x, PartitionSearchState *part_search_state,
+    int part4_search_allowed[NUM_PART4_TYPES]) {
+  PART4_TYPES cur_part[NUM_PART4_TYPES] = { HORZ4, VERT4 };
+  // Count of child blocks in which HORZ or VERT partition has won
+  int num_child_rect_win[NUM_RECT_PARTS] = { 0, 0 };
+  // Prune HORZ4/VERT4 partitions based on number of HORZ/VERT winners of
+  // split partiitons.
+  // Conservative pruning for high quantizers.
+  const int num_win_thresh = AOMMIN(3 * (MAXQ - x->qindex) / MAXQ + 1, 3);
+
+  for (RECT_PART_TYPE i = HORZ; i < NUM_RECT_PARTS; i++) {
+    if (!(cpi->sf.part_sf.prune_4_partition_using_split_info &&
+          part4_search_allowed[cur_part[i]]))
+      continue;
+    // Loop over split partitions.
+    // Get reactnagular partitions winner info of split partitions.
+    for (int idx = 0; idx < 4; idx++)
+      num_child_rect_win[i] +=
+          (part_search_state->split_part_rect_win[idx].rect_part_win[i]) ? 1
+                                                                         : 0;
+    if (num_child_rect_win[i] < num_win_thresh) {
+      part4_search_allowed[cur_part[i]] = 0;
+    }
+  }
+}
+
+// Prune 4-way partition search.
+static AOM_INLINE void prune_4_way_partition_search(
+    AV1_COMP *const cpi, MACROBLOCK *x, PC_TREE *pc_tree,
+    PartitionSearchState *part_search_state, RD_STATS *best_rdc,
+    int pb_source_variance, int ext_partition_allowed,
+    int part4_search_allowed[NUM_PART4_TYPES]) {
+  PartitionBlkParams blk_params = part_search_state->part_blk_params;
+  const int mi_row = blk_params.mi_row;
+  const int mi_col = blk_params.mi_col;
+  const int bsize = blk_params.bsize;
+  PARTITION_TYPE cur_part[2] = { PARTITION_HORZ_4, PARTITION_VERT_4 };
+  const PartitionCfg *const part_cfg = &cpi->oxcf.part_cfg;
+  // partition4_allowed is 1 if we can use a PARTITION_HORZ_4 or
+  // PARTITION_VERT_4 for this block. This is almost the same as
+  // ext_partition_allowed, except that we don't allow 128x32 or 32x128
+  // blocks, so we require that bsize is not BLOCK_128X128.
+  const int partition4_allowed = part_cfg->enable_1to4_partitions &&
+                                 ext_partition_allowed &&
+                                 bsize != BLOCK_128X128;
+
+  for (PART4_TYPES i = HORZ4; i < NUM_PART4_TYPES; i++) {
+    part4_search_allowed[i] =
+        partition4_allowed && part_search_state->partition_rect_allowed[i] &&
+        get_plane_block_size(get_partition_subsize(bsize, cur_part[i]),
+                             part_search_state->ss_x,
+                             part_search_state->ss_y) != BLOCK_INVALID;
+  }
+  // Pruning: pruning out 4-way partitions based on the current best partition.
+  if (cpi->sf.part_sf.prune_ext_partition_types_search_level == 2) {
+    part4_search_allowed[HORZ4] &= (pc_tree->partitioning == PARTITION_HORZ ||
+                                    pc_tree->partitioning == PARTITION_HORZ_A ||
+                                    pc_tree->partitioning == PARTITION_HORZ_B ||
+                                    pc_tree->partitioning == PARTITION_SPLIT ||
+                                    pc_tree->partitioning == PARTITION_NONE);
+    part4_search_allowed[VERT4] &= (pc_tree->partitioning == PARTITION_VERT ||
+                                    pc_tree->partitioning == PARTITION_VERT_A ||
+                                    pc_tree->partitioning == PARTITION_VERT_B ||
+                                    pc_tree->partitioning == PARTITION_SPLIT ||
+                                    pc_tree->partitioning == PARTITION_NONE);
+  }
+
+  // Pruning: pruning out some 4-way partitions using a DNN taking rd costs of
+  // sub-blocks from basic partition types.
+  if (cpi->sf.part_sf.ml_prune_4_partition && partition4_allowed &&
+      part_search_state->partition_rect_allowed[HORZ] &&
+      part_search_state->partition_rect_allowed[VERT]) {
+    av1_ml_prune_4_partition(
+        cpi, x, bsize, pc_tree->partitioning, best_rdc->rdcost,
+        part_search_state->rect_part_rd, part_search_state->split_rd,
+        &part4_search_allowed[HORZ4], &part4_search_allowed[VERT4],
+        pb_source_variance, mi_row, mi_col);
+  }
+
+  // Pruning: pruning out 4-way partitions based on the number of horz/vert wins
+  // in the current block and sub-blocks in PARTITION_SPLIT.
+  prune_4_partition_using_split_info(cpi, x, part_search_state,
+                                     part4_search_allowed);
+}
+
 /*!\brief AV1 block partition search (full search).
  *
  * \ingroup partition_search
@@ -3641,7 +3729,6 @@ static bool rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   init_partition_search_state_params(x, cpi, &part_search_state, mi_row, mi_col,
                                      bsize);
   PartitionBlkParams blk_params = part_search_state.part_blk_params;
-  const PartitionCfg *const part_cfg = &cpi->oxcf.part_cfg;
 
   sms_tree->partitioning = PARTITION_NONE;
   if (best_rdc.rdcost < 0) {
@@ -4046,7 +4133,7 @@ BEGIN_PARTITION_SEARCH:
                               &pb_simple_motion_pred_sse, &var);
   }
 
-  assert(IMPLIES(!part_cfg->enable_rect_partitions,
+  assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
                  !part_search_state.do_rectangular_split));
 
   const int ext_partition_allowed =
@@ -4059,87 +4146,26 @@ BEGIN_PARTITION_SEARCH:
                        &part_search_state, &best_rdc, rect_part_win_info,
                        pb_source_variance, ext_partition_allowed);
 
-  // partition4_allowed is 1 if we can use a PARTITION_HORZ_4 or
-  // PARTITION_VERT_4 for this block. This is almost the same as
-  // ext_partition_allowed, except that we don't allow 128x32 or 32x128
-  // blocks, so we require that bsize is not BLOCK_128X128.
-  const int partition4_allowed = part_cfg->enable_1to4_partitions &&
-                                 ext_partition_allowed &&
-                                 bsize != BLOCK_128X128;
+  // 4-way partitions search stage.
+  int part4_search_allowed[NUM_PART4_TYPES] = { 1, 1 };
 
-  int partition_horz4_allowed =
-      partition4_allowed && part_search_state.partition_rect_allowed[HORZ] &&
-      get_plane_block_size(get_partition_subsize(bsize, PARTITION_HORZ_4),
-                           part_search_state.ss_x,
-                           part_search_state.ss_y) != BLOCK_INVALID;
-  int partition_vert4_allowed =
-      partition4_allowed && part_search_state.partition_rect_allowed[VERT] &&
-      get_plane_block_size(get_partition_subsize(bsize, PARTITION_VERT_4),
-                           part_search_state.ss_x,
-                           part_search_state.ss_y) != BLOCK_INVALID;
-
-  // Pruning: pruning out 4-way partitions based on the current best partition.
-  if (cpi->sf.part_sf.prune_ext_partition_types_search_level == 2) {
-    partition_horz4_allowed &= (pc_tree->partitioning == PARTITION_HORZ ||
-                                pc_tree->partitioning == PARTITION_HORZ_A ||
-                                pc_tree->partitioning == PARTITION_HORZ_B ||
-                                pc_tree->partitioning == PARTITION_SPLIT ||
-                                pc_tree->partitioning == PARTITION_NONE);
-    partition_vert4_allowed &= (pc_tree->partitioning == PARTITION_VERT ||
-                                pc_tree->partitioning == PARTITION_VERT_A ||
-                                pc_tree->partitioning == PARTITION_VERT_B ||
-                                pc_tree->partitioning == PARTITION_SPLIT ||
-                                pc_tree->partitioning == PARTITION_NONE);
-  }
-
-  // Pruning: pruning out some 4-way partitions using a DNN taking rd costs of
-  // sub-blocks from basic partition types.
-  if (cpi->sf.part_sf.ml_prune_4_partition && partition4_allowed &&
-      part_search_state.partition_rect_allowed[HORZ] &&
-      part_search_state.partition_rect_allowed[VERT]) {
-    av1_ml_prune_4_partition(cpi, x, bsize, pc_tree->partitioning,
-                             best_rdc.rdcost, part_search_state.rect_part_rd,
-                             part_search_state.split_rd,
-                             &partition_horz4_allowed, &partition_vert4_allowed,
-                             pb_source_variance, mi_row, mi_col);
-  }
-
+  // Disable 4-way partition search flags for width less than twice the minimum
+  // width.
   if (blk_params.width < (blk_params.min_partition_size_1d << 2)) {
-    partition_horz4_allowed = 0;
-    partition_vert4_allowed = 0;
-  }
-
-  // Pruning: pruning out 4-way partitions based on the number of horz/vert wins
-  // in the current block and sub-blocks in PARTITION_SPLIT.
-  if (cpi->sf.part_sf.prune_4_partition_using_split_info &&
-      (partition_horz4_allowed || partition_vert4_allowed)) {
-    // Count of child blocks in which HORZ or VERT partition has won
-    int num_child_horz_win = 0, num_child_vert_win = 0;
-    for (int idx = 0; idx < PART4_SUB_PARTITIONS; idx++) {
-      num_child_horz_win +=
-          (part_search_state.split_part_rect_win[idx].rect_part_win[HORZ]) ? 1
-                                                                           : 0;
-      num_child_vert_win +=
-          (part_search_state.split_part_rect_win[idx].rect_part_win[VERT]) ? 1
-                                                                           : 0;
-    }
-
-    // Prune HORZ4/VERT4 partitions based on number of HORZ/VERT winners of
-    // split partiitons.
-    // Conservative pruning for high quantizers.
-    const int num_win_thresh = AOMMIN(3 * (MAXQ - x->qindex) / MAXQ + 1, 3);
-    if (num_child_horz_win < num_win_thresh) {
-      partition_horz4_allowed = 0;
-    }
-    if (num_child_vert_win < num_win_thresh) {
-      partition_vert4_allowed = 0;
-    }
+    part4_search_allowed[HORZ4] = 0;
+    part4_search_allowed[VERT4] = 0;
+  } else {
+    // Prune 4-way partition search.
+    prune_4_way_partition_search(cpi, x, pc_tree, &part_search_state, &best_rdc,
+                                 pb_source_variance, ext_partition_allowed,
+                                 part4_search_allowed);
   }
 
   // PARTITION_HORZ_4
-  assert(IMPLIES(!part_cfg->enable_rect_partitions, !partition_horz4_allowed));
+  assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
+                 !part4_search_allowed[HORZ4]));
   if (!part_search_state.terminate_partition_search &&
-      partition_horz4_allowed && blk_params.has_rows &&
+      part4_search_allowed[HORZ4] && blk_params.has_rows &&
       (part_search_state.do_rectangular_split ||
        active_h_edge(cpi, mi_row, blk_params.mi_step))) {
     const int inc_step[NUM_PART4_TYPES] = { mi_size_high[blk_params.bsize] / 4,
@@ -4151,9 +4177,10 @@ BEGIN_PARTITION_SEARCH:
   }
 
   // PARTITION_VERT_4
-  assert(IMPLIES(!part_cfg->enable_rect_partitions, !partition_vert4_allowed));
+  assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
+                 !part4_search_allowed[VERT4]));
   if (!part_search_state.terminate_partition_search &&
-      partition_vert4_allowed && blk_params.has_cols &&
+      part4_search_allowed[VERT4] && blk_params.has_cols &&
       (part_search_state.do_rectangular_split ||
        active_v_edge(cpi, mi_row, blk_params.mi_step))) {
     const int inc_step[NUM_PART4_TYPES] = { 0, mi_size_wide[blk_params.bsize] /
