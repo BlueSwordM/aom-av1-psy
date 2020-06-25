@@ -789,7 +789,9 @@ typedef struct TX_SPEED_FEATURES {
   int model_based_prune_tx_search_level;
 
   // Use hash table to store intra(keyframe only) txb transform search results
-  // to avoid repeated search on the same residue signal.
+  // to avoid repeated search on the same residue signal. This is currently not
+  // compatible with multi-winner mode as the hash states are reset during
+  // winner mode processing.
   int use_intra_txb_hash;
 
   // Use hash table to store inter txb transform search results
