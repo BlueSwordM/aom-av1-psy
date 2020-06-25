@@ -82,6 +82,9 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
     svc->downsample_filter_type[sl] = BILINEAR;
     svc->downsample_filter_phase[sl] = 8;
   }
+  if (svc->number_spatial_layers == 3) {
+    svc->downsample_filter_type[0] = EIGHTTAP_SMOOTH;
+  }
 }
 
 // Update the layer context from a change_config() call.

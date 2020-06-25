@@ -71,6 +71,25 @@ static INLINE void store_8bit_8x4_from_16x2(const __m128i *const s,
   _mm_storeh_epi64((__m128i *)(d + 3 * stride), s[1]);
 }
 
+static INLINE void store_8bit_4x4(const __m128i *const s, uint8_t *const d,
+                                  const ptrdiff_t stride) {
+  *(int *)(d + 0 * stride) = _mm_cvtsi128_si32(s[0]);
+  *(int *)(d + 1 * stride) = _mm_cvtsi128_si32(s[1]);
+  *(int *)(d + 2 * stride) = _mm_cvtsi128_si32(s[2]);
+  *(int *)(d + 3 * stride) = _mm_cvtsi128_si32(s[3]);
+}
+
+static INLINE void store_8bit_4x4_sse2(const __m128i s, uint8_t *const d,
+                                       const ptrdiff_t stride) {
+  __m128i ss[4];
+
+  ss[0] = s;
+  ss[1] = _mm_srli_si128(s, 4);
+  ss[2] = _mm_srli_si128(s, 8);
+  ss[3] = _mm_srli_si128(s, 12);
+  store_8bit_4x4(ss, d, stride);
+}
+
 static INLINE void load_8bit_8x4(const uint8_t *const s, const ptrdiff_t stride,
                                  __m128i *const d) {
   d[0] = _mm_loadl_epi64((const __m128i *)(s + 0 * stride));

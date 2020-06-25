@@ -1971,8 +1971,8 @@ static void scale_references(AV1_COMP *cpi, const InterpFilter filter,
                                "Failed to allocate frame buffer");
           }
 #if CONFIG_AV1_HIGHBITDEPTH
-          if ((cm->width << 1) == ref->y_crop_width &&
-              (cm->height << 1) == ref->y_crop_height &&
+          if (cm->width <= (ref->y_crop_width >> 1) &&
+              cm->height <= (ref->y_crop_height >> 1) &&
               cm->seq_params.bit_depth == AOM_BITS_8)
             av1_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
                                         num_planes);
@@ -1980,8 +1980,8 @@ static void scale_references(AV1_COMP *cpi, const InterpFilter filter,
             av1_resize_and_extend_frame_nonnormative(
                 ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
 #else
-          if ((cm->width << 1) == ref->y_crop_width &&
-              (cm->height << 1) == ref->y_crop_height)
+          if (cm->width <= (ref->y_crop_width >> 1) &&
+              cm->height <= (ref->y_crop_height >> 1))
             av1_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
                                         num_planes);
           else
@@ -2883,10 +2883,15 @@ static int encode_without_recode(AV1_COMP *cpi) {
   av1_setup_frame_size(cpi);
   set_size_dependent_vars(cpi, &q, &bottom_index, &top_index);
 
-  if (!cpi->use_svc && (cm->width << 1) == unscaled->y_crop_width &&
-      (cm->height << 1) == unscaled->y_crop_height) {
-    filter_scaler = BILINEAR;
+  if (!cpi->use_svc) {
     phase_scaler = 8;
+    if ((cm->width << 1) == unscaled->y_crop_width &&
+        (cm->height << 1) == unscaled->y_crop_height)
+      filter_scaler = BILINEAR;
+    // Use eighttap for 4:1 scaling.
+    if ((cm->width << 2) == unscaled->y_crop_width &&
+        (cm->height << 2) == unscaled->y_crop_height)
+      filter_scaler = EIGHTTAP_SMOOTH;
   }
 
   if (cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION)
