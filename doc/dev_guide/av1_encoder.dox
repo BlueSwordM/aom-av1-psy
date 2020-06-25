@@ -1,19 +1,179 @@
-/*!\page encoder_guide AV1 ENCODING TECHNIQUES
+/*!\page encoder_guide AV1 ENCODER GUIDE
 
-  AV1 encoding algorithm consists following modules:
-    - \ref high_level_algo
-      - \ref frame_coding_pipeline
-      - \ref two_pass_algo
-      - \ref look_ahead_buffer
-    - \ref partition_search
-    - \ref intra_mode_search
-    - \ref inter_mode_search
-    - \ref transform_search
-    - \ref in_loop_filter
-    - \ref in_loop_cdef
-    - \ref in_loop_restoration
-    - \ref rate_control
-    */
+\tableofcontents
+
+\section architecture_introduction Introduction
+
+This document provides an architectural overview of the libaom AV1 encoder.
+
+It is intended as a high level starting point for anyone wishing to contribute
+to the project, that will help them to more quickly understand the structure
+of the encoder and find their way around the codebase.
+
+It stands above and will where necessary link to more detailed function
+level documents.
+
+\section  architecture_gencodecs Generic Block Transform Based Codecs
+
+Most modern video encoders including VP8, H.264, VP9, HEVC and AV1
+(in increasing order of complexity) share a common basic paradigm. This
+comprises separating a stream of raw video frames into a series of discrete
+blocks (of one or more sizes), then computing a prediction signal and a
+quantized, transform coded, residual error signal. The prediction and residual
+error signal, along with any side information needed by the decoder, are then
+entropy coded and packed to form the encoded bitstream. See Figure 1: below,
+where the blue blocks are, to all intents and purposes, the lossless parts of
+the encoder and the red block is the lossy part.
+
+This is of course a gross oversimplification, even in regard to the simplest
+of the above codecs.  For example, all of them allow for block based
+prediction at multiple different scales (i.e. different block sizes) and may
+use previously coded pixels in the current frame for prediction or pixels from
+one or more previously encoded frames. Further, they may support multiple
+different transforms and transform sizes and quality optimization tools like
+loop filtering.
+
+\image html genericcodecflow.png "" width=70%
+
+\section architecture_av1_structure AV1 Structure and Complexity
+
+As previously stated, AV1 adopts the same underlying paradigm as other block
+transform based codecs. However, it is much more complicated than previous
+generation codecs and supports many more block partitioning, prediction and
+transform options.
+
+AV1 supports block partitions of various sizes from 128x128 pixels down to 4x4
+pixels using a multi-layer recursive tree structure as illustrated in figure 2
+below.
+
+\image html av1partitions.png "" width=70%
+
+AV1 also provides 71 basic intra prediction modes, 56 single frame inter prediction
+modes (7 reference frames x 4 modes x 2 for OBMC (overlapped block motion
+compensation)), 12768 compound inter prediction modes (that combine inter
+predictors from two reference frames) and 36708 compound inter / intra
+prediction modes. Furthermore, in addition to simple inter motion estimation,
+AV1 also supports warped motion prediction using affine transforms.
+
+In terms of transform coding, it has 16 separable 2-D transform kernels
+{ DCT, ADST, fADST, IDTX }2 that can be applied at up to 19 different scales
+from 64x64 down to 4x4 pixels.
+
+When combined together, this means that for any one 8x8 pixel block in a
+source frame, there are approximately 45,000,000 different ways that it can
+be encoded.
+
+Consequently, AV1 requires complex control processes. While not necessarily
+a normative part of the bitstream, these are the algorithms that turn a set
+of compression tools and a bitstream format specification, into a coherent
+and useful codec implementation. These may include but are not limited to
+things like :-
+
+- Rate distortion optimization (The process of trying to choose the most
+  efficient combination of block size, prediction mode, transform type
+  etc.)
+- Rate control (regulation of the output bitrate)
+- Encoder speed vs quality trade offs.
+- Features such as two pass encoding or optimization for low delay
+  encoding.
+
+For a more detailed overview of AV1’s encoding tools and a discussion of some
+of the design considerations and hardware constraints that had to be
+accommodated, please refer to *** TODO link to Jingning’s AV1 overview paper.
+
+Figure 3 provides a slightly expanded but still simplistic view of the
+AV1 encoder architecture with blocks that relate to some of the subsequent
+sections of this document. In this diagram, the raw uncompressed frame buffers
+are shown in dark green and the reconstructed frame buffers used for
+prediction in light green. Red indicates those parts of the codec that are
+(or may be) “lossy”, where fidelity can be traded off against compression
+efficiency, whilst light blue shows algorithms or coding tools that are
+lossless. The yellow blocks represent non-bitstream normative configuration
+and control algorithms.
+
+\image html av1encoderflow.png "" width=70%
+
+\section architecture_command_line The Libaom Command Line Interface
+
+ Add details or links here: TODO ? elliotk@
+
+\section architecture_enc_data_structures Main Encoder Data Structures
+
+ The following are the main high level data structures used by the libaom AV1 encoder:
+
+ - \ref AV1_COMP
+ - Add details, references or links here: TODO ? urvang@
+
+
+\section architecture_enc_use_cases Encoder Use Cases
+
+ Add details here.
+
+\section architecture_enc_rate_ctrl Rate Control
+
+ Add details here.
+
+\subsection architecture_enc_vbr Variable Bitrate (VBR) Encoding
+
+ Add details here.
+
+\subsection architecture_enc_1pass_lagged 1 Pass Lagged VBR Encoding
+
+ Add details here.
+
+\subsection architecture_enc_rc_loop The Main Rate Control Loop
+
+ Add details here.
+
+\subsection architecture_enc_fixed_q Fixed Q Mode
+
+ Add details here.
+
+\section architecture_enc_src_proc Source Frame Processing
+
+ Add details here.
+
+\section architecture_enc_hierachical Hierarchical Coding
+
+ Add details here.
+
+\section architecture_enc_tpl Temporal Dependency Modelling
+
+ Add details here.
+
+\section architecture_enc_partitions Block Partition Search
+
+ Add details here.
+
+\section architecture_enc_inter_modes Inter Prediction Mode Search
+
+ Add details here.
+
+\section architecture_enc_intra_modes Intra Mode Search
+
+ Add details here.
+
+\section architecture_enc_tx_search Transform Search
+
+ Add details here.
+
+\section architecture_loop_filt Loop Filtering
+
+ Add details here.
+
+\section architecture_loop_rest Loop Restoration Filtering
+
+ Add details here.
+
+\section architecture_cdef CDEF
+
+ Add details here.
+
+\section architecture_entropy Entropy Coding
+
+ Add details here.
+
+*/
 
 /*!\defgroup encoder_algo Encoder Algorithm
  *
