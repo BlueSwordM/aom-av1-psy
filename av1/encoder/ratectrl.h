@@ -192,6 +192,8 @@ typedef struct {
   int next_is_fwd_key;
   int enable_scenecut_detection;
   int use_arf_in_this_kf_group;
+  // Track amount of low motion in scene
+  int avg_frame_low_motion;
 } RATE_CONTROL;
 
 struct AV1_COMP;
@@ -340,6 +342,8 @@ void av1_get_one_pass_rt_params(struct AV1_COMP *cpi,
                                 unsigned int frame_flags);
 
 int av1_encodedframe_overshoot(struct AV1_COMP *cpi, int *q);
+
+void av1_compute_frame_low_motion(struct AV1_COMP *const cpi);
 
 /*!\endcond */
 

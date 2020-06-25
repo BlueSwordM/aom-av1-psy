@@ -132,6 +132,8 @@ set_aom_config_var(CONFIG_REALTIME_ONLY 0
                    "Build for RTC-only to reduce binary size.")
 set_aom_config_var(CONFIG_AV1_HIGHBITDEPTH 1
                    "Build with high bitdepth support.")
+set_aom_config_var(CONFIG_AV1_TEMPORAL_DENOISING 0
+                   "Build with temporal denoising support.")
 set_aom_config_var(CONFIG_NN_V2 0 "Fully-connected neural nets ver.2.")
 set_aom_config_var(CONFIG_SUPERRES_IN_RECODE 1
                    "Enable encoding both full-res and superres in recode loop"

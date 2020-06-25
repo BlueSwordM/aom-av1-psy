@@ -862,6 +862,9 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
       sf->rt_sf.overshoot_detection_cbr = FAST_DETECTION_MAXQ;
       sf->rt_sf.check_scene_detection = 1;
     }
+    // Keeping this off for now as some clips show ~6% BDRate regression with
+    // moderate speed-up (~20%)
+    sf->rt_sf.use_temporal_noise_estimate = 0;
   }
 
   if (speed >= 6) {

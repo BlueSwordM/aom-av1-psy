@@ -984,6 +984,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Only checks intra DCPRED mode in nonrd_pick_inter_mode
   int nonrd_intra_dc_only;
+
+  // uses results of temporal noise estimate
+  int use_temporal_noise_estimate;
 } REAL_TIME_SPEED_FEATURES;
 
 typedef struct SPEED_FEATURES {

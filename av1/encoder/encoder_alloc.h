@@ -304,6 +304,11 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   }
 
   if (cpi->use_svc) av1_free_svc_cyclic_refresh(cpi);
+
+  if (cpi->consec_zero_mv) {
+    aom_free(cpi->consec_zero_mv);
+    cpi->consec_zero_mv = NULL;
+  }
 }
 
 static AOM_INLINE void variance_partition_alloc(AV1_COMP *cpi) {

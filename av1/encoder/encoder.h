@@ -46,6 +46,7 @@
 #include "av1/encoder/svc_layercontext.h"
 #include "av1/encoder/tokenize.h"
 #include "av1/encoder/tpl_model.h"
+#include "av1/encoder/av1_noise_estimate.h"
 
 #if CONFIG_INTERNAL_STATS
 #include "aom_dsp/ssim.h"
@@ -2312,6 +2313,17 @@ typedef struct AV1_COMP {
    * First pass related data.
    */
   FirstPassData firstpass_data;
+
+  /*!
+   * Temporal Noise Estimate
+   */
+  NOISE_ESTIMATE noise_estimate;
+
+  /*!
+   * Count on how many consecutive times a block uses small/zeromv for encoding
+   * in a scale of 8x8 block.
+   */
+  uint8_t *consec_zero_mv;
 } AV1_COMP;
 
 /*!\cond */

@@ -6402,6 +6402,33 @@ static AOM_INLINE void tx_partition_set_contexts(const AV1_COMMON *const cm,
   }
 }
 
+static void update_zeromv_cnt(const AV1_COMP *const cpi,
+                              const MB_MODE_INFO *const mi, int mi_row,
+                              int mi_col, BLOCK_SIZE bsize) {
+  const AV1_COMMON *const cm = &cpi->common;
+  MV mv = mi->mv[0].as_mv;
+  const int bw = mi_size_wide[bsize] >> 1;
+  const int bh = mi_size_high[bsize] >> 1;
+  const int xmis = AOMMIN((cm->mi_params.mi_cols - mi_col) >> 1, bw);
+  const int ymis = AOMMIN((cm->mi_params.mi_rows - mi_row) >> 1, bh);
+  const int block_index =
+      (mi_row >> 1) * (cm->mi_params.mi_cols >> 1) + (mi_col >> 1);
+  for (int y = 0; y < ymis; y++)
+    for (int x = 0; x < xmis; x++) {
+      // consec_zero_mv is in the scale of 8x8 blocks
+      const int map_offset = block_index + y * (cm->mi_params.mi_cols >> 1) + x;
+      if (mi->ref_frame[0] == LAST_FRAME && is_inter_block(mi) &&
+          mi->segment_id <= CR_SEGMENT_ID_BOOST2) {
+        if (abs(mv.row) < 10 && abs(mv.col) < 10) {
+          if (cpi->consec_zero_mv[map_offset] < 255)
+            cpi->consec_zero_mv[map_offset]++;
+        } else {
+          cpi->consec_zero_mv[map_offset] = 0;
+        }
+      }
+    }
+}
+
 static AOM_INLINE void encode_superblock(const AV1_COMP *const cpi,
                                          TileDataEnc *tile_data, ThreadData *td,
                                          TokenExtra **t, RUN_TYPE dry_run,
@@ -6580,5 +6607,14 @@ static AOM_INLINE void encode_superblock(const AV1_COMP *const cpi,
 
   if (is_inter_block(mbmi) && !xd->is_chroma_ref && is_cfl_allowed(xd)) {
     cfl_store_block(xd, mbmi->sb_type, mbmi->tx_size);
+  }
+  if (!dry_run) {
+    if (cpi->oxcf.pass == 0 && cpi->svc.temporal_layer_id == 0 &&
+        cpi->sf.rt_sf.use_temporal_noise_estimate &&
+        (!cpi->use_svc ||
+         (cpi->use_svc &&
+          !cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame &&
+          cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1)))
+      update_zeromv_cnt(cpi, mbmi, mi_row, mi_col, bsize);
   }
 }

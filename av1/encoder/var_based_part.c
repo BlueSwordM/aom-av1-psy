@@ -358,6 +358,17 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
     thresholds[3] = threshold_base >> 2;
     thresholds[4] = threshold_base << 2;
   } else {
+    if (cpi->noise_estimate.enabled && cm->width >= 640 && cm->height >= 480) {
+      NOISE_LEVEL noise_level =
+          av1_noise_estimate_extract_level(&cpi->noise_estimate);
+      if (noise_level == kHigh)
+        threshold_base = 3 * threshold_base;
+      else if (noise_level == kMedium)
+        threshold_base = threshold_base << 1;
+      else if (noise_level < kLow)
+        threshold_base = (7 * threshold_base) >> 3;
+    }
+
     // Increase base variance threshold based on content_state/sum_diff level.
     threshold_base = scale_part_thresh_sumdiff(
         threshold_base, cpi->oxcf.speed, cm->width, cm->height, content_state);
@@ -808,6 +819,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   VP16x16 *vt2 = NULL;
   unsigned char force_split[85];
   int avg_32x32;
+  int avg_64x64;
   int max_var_32x32[4];
   int min_var_32x32[4];
   int var_32x32;
@@ -840,6 +852,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
 
   // Ref frame used in partitioning.
   MV_REFERENCE_FRAME ref_frame_partition = LAST_FRAME;
+  NOISE_LEVEL noise_level = kLow;
 
   CHECK_MEM_ERROR(cm, vt, aom_malloc(sizeof(*vt)));
 
@@ -909,6 +922,10 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                             thresholds, s, sp, d, dp);
 
   // Fill the rest of the variance tree by summing split partition values.
+  if (cpi->noise_estimate.enabled)
+    noise_level = av1_noise_estimate_extract_level(&cpi->noise_estimate);
+
+  avg_64x64 = 0;
   for (m = 0; m < num_64x64_blocks; ++m) {
     avg_32x32 = 0;
     max_var_32x32[m] = 0;
@@ -955,7 +972,10 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
           force_split[5 + m2 + i] = 1;
           force_split[m + 1] = 1;
           force_split[0] = 1;
-        } else if (!is_key_frame && cm->height <= 360 &&
+        } else if (!is_key_frame &&
+                   (!cpi->noise_estimate.enabled ||
+                    (cpi->noise_estimate.enabled && noise_level < kLow)) &&
+                   cm->height <= 360 &&
                    (maxvar_16x16[m][i] - minvar_16x16[m][i]) >
                        (thresholds[2] >> 1) &&
                    maxvar_16x16[m][i] > thresholds[2]) {
@@ -980,6 +1000,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
           (max_var_32x32[m] - min_var_32x32[m]) > 3 * (thresholds[1] >> 3) &&
           max_var_32x32[m] > thresholds[1] >> 1)
         force_split[1 + m] = 1;
+      avg_64x64 += var_64x64;
     }
     if (is_small_sb) force_split[0] = 1;
   }
@@ -987,6 +1008,12 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   if (!force_split[0]) {
     fill_variance_tree(vt, BLOCK_128X128);
     get_variance(&vt->part_variances.none);
+    if (!is_key_frame &&
+        (!cpi->noise_estimate.enabled ||
+         (cpi->noise_estimate.enabled && noise_level >= kMedium)) &&
+        vt->part_variances.none.variance > (9 * avg_64x64) >> 5)
+      force_split[0] = 1;
+
     if (!is_key_frame &&
         (max_var_64x64 - min_var_64x64) > 3 * (thresholds[0] >> 3) &&
         max_var_64x64 > thresholds[0] >> 1)

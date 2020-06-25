@@ -29,6 +29,7 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
   svc->base_framerate = 30.0;
   svc->current_superframe = 0;
   svc->force_zero_mode_spatial_ref = 1;
+  svc->num_encoded_top_layer = 0;
 
   for (int sl = 0; sl < svc->number_spatial_layers; ++sl) {
     for (int tl = 0; tl < svc->number_temporal_layers; ++tl) {

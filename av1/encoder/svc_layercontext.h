@@ -64,6 +64,7 @@ typedef struct SVC {
   int skip_nonzeromv_gf;
   int spatial_layer_fb[REF_FRAMES];
   int temporal_layer_fb[REF_FRAMES];
+  int num_encoded_top_layer;
   // Layer context used for rate control in CBR mode.
   LAYER_CONTEXT layer_context[AOM_MAX_LAYERS];
   // EIGHTTAP_SMOOTH or BILINEAR

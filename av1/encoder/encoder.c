@@ -875,6 +875,8 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   resize_pending_params->height = 0;
 
   init_buffer_indices(&cpi->force_intpel_info, cm->remapped_ref_idx);
+
+  av1_noise_estimate_init(&cpi->noise_estimate, cm->width, cm->height);
 }
 
 void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
@@ -1288,6 +1290,10 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
   av1_set_speed_features_framesize_independent(cpi, oxcf->speed);
   av1_set_speed_features_framesize_dependent(cpi, oxcf->speed);
+
+  CHECK_MEM_ERROR(cm, cpi->consec_zero_mv,
+                  aom_calloc((mi_params->mi_rows * mi_params->mi_cols) >> 2,
+                             sizeof(*cpi->consec_zero_mv)));
 
   {
     const int bsize = BLOCK_16X16;
@@ -2381,6 +2387,8 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
     // Recalculate 'all_lossless' in case super-resolution was (un)selected.
     cm->features.all_lossless =
         cm->features.coded_lossless && !av1_superres_scaled(cm);
+
+    av1_noise_estimate_init(&cpi->noise_estimate, cm->width, cm->height);
   }
   set_mv_search_params(cpi);
 
@@ -2856,6 +2864,13 @@ static int encode_without_recode(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   const QuantizationCfg *const q_cfg = &cpi->oxcf.q_cfg;
   SVC *const svc = &cpi->svc;
+  ResizePendingParams *const resize_pending_params =
+      &cpi->resize_pending_params;
+  const int resize_pending =
+      (resize_pending_params->width && resize_pending_params->height &&
+       (cpi->common.width != resize_pending_params->width ||
+        cpi->common.height != resize_pending_params->height));
+
   int top_index = 0, bottom_index = 0, q = 0;
   YV12_BUFFER_CONFIG *unscaled = cpi->unscaled_source;
   InterpFilter filter_scaler =
@@ -2887,10 +2902,20 @@ static int encode_without_recode(AV1_COMP *cpi) {
 
   cpi->source = av1_scale_if_required(cm, unscaled, &cpi->scaled_source,
                                       filter_scaler, phase_scaler);
+  if (frame_is_intra_only(cm) || resize_pending != 0) {
+    memset(cpi->consec_zero_mv, 0,
+           ((cm->mi_params.mi_rows * cm->mi_params.mi_cols) >> 2) *
+               sizeof(*cpi->consec_zero_mv));
+  }
+
   if (cpi->unscaled_last_source != NULL) {
     cpi->last_source = av1_scale_if_required(cm, cpi->unscaled_last_source,
                                              &cpi->scaled_last_source,
                                              filter_scaler, phase_scaler);
+  }
+
+  if (cpi->sf.rt_sf.use_temporal_noise_estimate) {
+    av1_update_noise_estimate(cpi);
   }
 
   // For SVC the inter-layer/spatial prediction is not done for newmv
@@ -4060,6 +4085,9 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     }
   }
 
+  if (cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1)
+    cpi->svc.num_encoded_top_layer++;
+
 #if DUMP_RECON_FRAMES == 1
   // NOTE(zoeliu): For debug - Output the filtered reconstructed video.
   dump_filtered_recon_frames(cpi);
@@ -4128,6 +4156,15 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   cpi->last_frame_type = current_frame->frame_type;
 
   av1_rc_postencode_update(cpi, *size);
+
+  if (oxcf->pass == 0 && !frame_is_intra_only(cm) &&
+      cpi->sf.rt_sf.use_temporal_noise_estimate &&
+      (!cpi->use_svc ||
+       (cpi->use_svc &&
+        !cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame &&
+        cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1))) {
+    av1_compute_frame_low_motion(cpi);
+  }
 
   // Clear the one shot update flags for segmentation map and mode/ref loop
   // filter deltas.
