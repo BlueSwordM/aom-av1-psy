@@ -577,8 +577,9 @@ static void set_good_speed_features_framesize_independent(
     sf->rd_sf.tx_domain_dist_thres_level = 2;
 
     // TODO(any): Extend multi-winner mode processing support for inter frames
-    sf->winner_mode_sf.enable_multiwinner_mode_process =
-        frame_is_intra_only(&cpi->common) ? 1 : 0;
+    sf->winner_mode_sf.multi_winner_mode_type =
+        frame_is_intra_only(&cpi->common) ? MULTI_WINNER_MODE_DEFAULT
+                                          : MULTI_WINNER_MODE_OFF;
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
 
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL2;
@@ -615,6 +616,11 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
 
+    // TODO(any): Extend multi-winner mode processing support for inter frames
+    sf->winner_mode_sf.multi_winner_mode_type =
+        frame_is_intra_only(&cpi->common) ? MULTI_WINNER_MODE_FAST
+                                          : MULTI_WINNER_MODE_OFF;
+
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
     sf->lpf_sf.disable_lr_filter = 1;
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
@@ -634,6 +640,8 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.disable_filtered_key_tpl = 1;
 
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 0;
+
+    sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
   }
 }
 
@@ -1144,7 +1152,7 @@ static AOM_INLINE void init_winner_mode_sf(
   winner_mode_sf->enable_winner_mode_for_coeff_opt = 0;
   winner_mode_sf->enable_winner_mode_for_tx_size_srch = 0;
   winner_mode_sf->enable_winner_mode_for_use_tx_domain_dist = 0;
-  winner_mode_sf->enable_multiwinner_mode_process = 0;
+  winner_mode_sf->multi_winner_mode_type = 0;
 }
 
 static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {

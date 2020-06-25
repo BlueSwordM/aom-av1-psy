@@ -131,8 +131,7 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
     const int txfm_search_done = 1;
     store_winner_mode_stats(
         &cpi->common, x, mbmi, NULL, NULL, NULL, 0, NULL, bsize, this_rd,
-        cpi->sf.winner_mode_sf.enable_multiwinner_mode_process,
-        txfm_search_done);
+        cpi->sf.winner_mode_sf.multi_winner_mode_type, txfm_search_done);
     if (this_rd < *best_rd) {
       *best_rd = this_rd;
       best_tx_size = mbmi->tx_size;
@@ -1113,8 +1112,7 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     const int txfm_search_done = 1;
     store_winner_mode_stats(
         &cpi->common, x, mbmi, NULL, NULL, NULL, 0, NULL, bsize, this_rd,
-        cpi->sf.winner_mode_sf.enable_multiwinner_mode_process,
-        txfm_search_done);
+        cpi->sf.winner_mode_sf.multi_winner_mode_type, txfm_search_done);
     if (this_rd < best_rd) {
       best_mbmi = *mbmi;
       best_rd = this_rd;
@@ -1156,7 +1154,7 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   // In multi-winner mode processing, perform tx search for few best modes
   // identified during mode evaluation. Winner mode processing uses best tx
   // configuration for tx search.
-  if (cpi->sf.winner_mode_sf.enable_multiwinner_mode_process) {
+  if (cpi->sf.winner_mode_sf.multi_winner_mode_type) {
     int best_mode_idx = 0;
     int block_width, block_height;
     uint8_t *color_map_dst = xd->plane[PLANE_TYPE_Y].color_index_map;

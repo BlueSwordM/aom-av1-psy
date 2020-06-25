@@ -204,6 +204,20 @@ enum {
   FAST_DETECTION_MAXQ = 1,
 } UENUM1BYTE(OVERSHOOT_DETECTION_CBR);
 
+enum {
+  // Turns off multi-winner mode. So we will do txfm search on either all modes
+  // if winner mode is off, or we will only on txfm search on a single winner
+  // mode.
+  MULTI_WINNER_MODE_OFF = 0,
+
+  // Limits the number of winner modes to at most 2
+  MULTI_WINNER_MODE_FAST = 1,
+
+  // Uses the default number of winner modes, which is 3 for intra mode, and 1
+  // for inter mode.
+  MULTI_WINNER_MODE_DEFAULT = 2,
+} UENUM1BYTE(MULTI_WINNER_MODE_TYPE);
+
 typedef struct {
   TX_TYPE_PRUNE_MODE prune_2d_txfm_mode;
   int fast_intra_tx_type_search;
@@ -852,7 +866,7 @@ typedef struct WINNER_MODE_SPEED_FEATURES {
   int enable_winner_mode_for_use_tx_domain_dist;
 
   // Flag used to enable processing of multiple winner modes
-  int enable_multiwinner_mode_process;
+  MULTI_WINNER_MODE_TYPE multi_winner_mode_type;
 
   // Motion mode for winner candidates:
   // 0: speed feature OFF

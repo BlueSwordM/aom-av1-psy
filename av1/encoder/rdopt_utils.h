@@ -595,21 +595,24 @@ static INLINE void store_winner_mode_stats(
     const AV1_COMMON *const cm, MACROBLOCK *x, const MB_MODE_INFO *mbmi,
     RD_STATS *rd_cost, RD_STATS *rd_cost_y, RD_STATS *rd_cost_uv,
     THR_MODES mode_index, uint8_t *color_map, BLOCK_SIZE bsize, int64_t this_rd,
-    int enable_multiwinner_mode_process, int txfm_search_done) {
+    int multi_winner_mode_type, int txfm_search_done) {
   WinnerModeStats *winner_mode_stats = x->winner_mode_stats;
   int mode_idx = 0;
   int is_palette_mode = mbmi->palette_mode_info.palette_size[PLANE_TYPE_Y] > 0;
   // Mode stat is not required when multiwinner mode processing is disabled
-  if (!enable_multiwinner_mode_process) return;
+  if (multi_winner_mode_type == MULTI_WINNER_MODE_OFF) return;
   // Ignore mode with maximum rd
   if (this_rd == INT64_MAX) return;
   // TODO(any): Winner mode processing is currently not applicable for palette
   // mode in Inter frames. Clean-up the following code, once support is added
   if (!frame_is_intra_only(cm) && is_palette_mode) return;
 
-  const int max_winner_mode_count = frame_is_intra_only(cm)
-                                        ? MAX_WINNER_MODE_COUNT_INTRA
-                                        : MAX_WINNER_MODE_COUNT_INTER;
+  int max_winner_mode_count = frame_is_intra_only(cm)
+                                  ? MAX_WINNER_MODE_COUNT_INTRA
+                                  : MAX_WINNER_MODE_COUNT_INTER;
+  max_winner_mode_count = (multi_winner_mode_type == MULTI_WINNER_MODE_FAST)
+                              ? AOMMIN(max_winner_mode_count, 2)
+                              : max_winner_mode_count;
   assert(x->winner_mode_count >= 0 &&
          x->winner_mode_count <= max_winner_mode_count);
 

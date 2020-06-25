@@ -268,8 +268,7 @@ static AOM_INLINE void palette_rd_y(
   const int txfm_search_done = 1;
   store_winner_mode_stats(
       &cpi->common, x, mbmi, NULL, NULL, NULL, THR_DC, color_map, bsize,
-      this_rd, cpi->sf.winner_mode_sf.enable_multiwinner_mode_process,
-      txfm_search_done);
+      this_rd, cpi->sf.winner_mode_sf.multi_winner_mode_type, txfm_search_done);
   if (this_rd < *best_rd) {
     *best_rd = this_rd;
     // Setting beat_best_rd flag because current mode rd is better than best_rd.

@@ -2421,7 +2421,7 @@ static int skip_repeated_newmv(
     store_winner_mode_stats(
         &cpi->common, x, best_mbmi, best_rd_stats, best_rd_stats_y,
         best_rd_stats_uv, mode_enum, NULL, bsize, *best_rd,
-        cpi->sf.winner_mode_sf.enable_multiwinner_mode_process, do_tx_search);
+        cpi->sf.winner_mode_sf.multi_winner_mode_type, do_tx_search);
     args->modelled_rd[this_mode][ref_mv_idx][refs[0]] =
         args->modelled_rd[this_mode][i][refs[0]];
     args->simple_rd[this_mode][ref_mv_idx][refs[0]] =
@@ -2927,10 +2927,10 @@ static int64_t handle_inter_mode(
       const THR_MODES mode_enum = get_prediction_mode_idx(
           mbmi->mode, mbmi->ref_frame[0], mbmi->ref_frame[1]);
       // Collect mode stats for multiwinner mode processing
-      store_winner_mode_stats(
-          &cpi->common, x, mbmi, rd_stats, rd_stats_y, rd_stats_uv, mode_enum,
-          NULL, bsize, tmp_rd,
-          cpi->sf.winner_mode_sf.enable_multiwinner_mode_process, do_tx_search);
+      store_winner_mode_stats(&cpi->common, x, mbmi, rd_stats, rd_stats_y,
+                              rd_stats_uv, mode_enum, NULL, bsize, tmp_rd,
+                              cpi->sf.winner_mode_sf.multi_winner_mode_type,
+                              do_tx_search);
       if (tmp_rd < best_rd) {
         // Update the best rd stats if we found the best mode so far
         best_rd_stats = *rd_stats;
@@ -3415,10 +3415,10 @@ static AOM_INLINE MB_MODE_INFO *get_winner_mode_stats(
     MACROBLOCK *x, MB_MODE_INFO *best_mbmode, RD_STATS *best_rd_cost,
     int best_rate_y, int best_rate_uv, THR_MODES *best_mode_index,
     RD_STATS **winner_rd_cost, int *winner_rate_y, int *winner_rate_uv,
-    THR_MODES *winner_mode_index, int enable_multiwinner_mode_process,
+    THR_MODES *winner_mode_index, MULTI_WINNER_MODE_TYPE multi_winner_mode_type,
     int mode_idx) {
   MB_MODE_INFO *winner_mbmi;
-  if (enable_multiwinner_mode_process) {
+  if (multi_winner_mode_type) {
     assert(mode_idx >= 0 && mode_idx < x->winner_mode_count);
     WinnerModeStats *winner_mode_stat = &x->winner_mode_stats[mode_idx];
     winner_mbmi = &winner_mode_stat->mbmi;
@@ -3475,7 +3475,7 @@ static AOM_INLINE void refine_winner_mode_tx(
     MB_MODE_INFO *winner_mbmi = get_winner_mode_stats(
         x, best_mbmode, rd_cost, best_rate_y, best_rate_uv, best_mode_index,
         &winner_rd_stats, &winner_rate_y, &winner_rate_uv, &winner_mode_index,
-        cpi->sf.winner_mode_sf.enable_multiwinner_mode_process, mode_idx);
+        cpi->sf.winner_mode_sf.multi_winner_mode_type, mode_idx);
 
     if (xd->lossless[winner_mbmi->segment_id] == 0 &&
         winner_mode_index != THR_INVALID &&
@@ -4631,7 +4631,7 @@ static AOM_INLINE void evaluate_motion_mode_for_winner_candidates(
       store_winner_mode_stats(
           &cpi->common, x, mbmi, &rd_stats, &rd_stats_y, &rd_stats_uv,
           mode_enum, NULL, bsize, rd_stats.rdcost,
-          cpi->sf.winner_mode_sf.enable_multiwinner_mode_process, do_tx_search);
+          cpi->sf.winner_mode_sf.multi_winner_mode_type, do_tx_search);
       if (rd_stats.rdcost < search_state->best_rd) {
         update_search_state(search_state, rd_cost, ctx, &rd_stats, &rd_stats_y,
                             &rd_stats_uv, mode_enum, x, do_tx_search);
@@ -4814,10 +4814,9 @@ static void tx_search_best_inter_candidates(
   search_state->best_mode_index = THR_INVALID;
   // Initialize best mode stats for winner mode processing
   x->winner_mode_count = 0;
-  store_winner_mode_stats(
-      &cpi->common, x, mbmi, NULL, NULL, NULL, THR_INVALID, NULL, bsize,
-      best_rd_so_far, cpi->sf.winner_mode_sf.enable_multiwinner_mode_process,
-      0);
+  store_winner_mode_stats(&cpi->common, x, mbmi, NULL, NULL, NULL, THR_INVALID,
+                          NULL, bsize, best_rd_so_far,
+                          cpi->sf.winner_mode_sf.multi_winner_mode_type, 0);
   inter_modes_info->num =
       inter_modes_info->num < cpi->sf.rt_sf.num_inter_modes_for_tx_search
           ? inter_modes_info->num
@@ -4887,8 +4886,7 @@ static void tx_search_best_inter_candidates(
     store_winner_mode_stats(
         &cpi->common, x, mbmi, &rd_stats, &rd_stats_y, &rd_stats_uv, mode_enum,
         NULL, bsize, rd_stats.rdcost,
-        cpi->sf.winner_mode_sf.enable_multiwinner_mode_process,
-        txfm_search_done);
+        cpi->sf.winner_mode_sf.multi_winner_mode_type, txfm_search_done);
 
     if (rd_stats.rdcost < search_state->best_rd) {
       update_search_state(search_state, rd_cost, ctx, &rd_stats, &rd_stats_y,
@@ -5119,10 +5117,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   // Initialize best mode stats for winner mode processing
   av1_zero(x->winner_mode_stats);
   x->winner_mode_count = 0;
-  store_winner_mode_stats(
-      &cpi->common, x, mbmi, NULL, NULL, NULL, THR_INVALID, NULL, bsize,
-      best_rd_so_far, cpi->sf.winner_mode_sf.enable_multiwinner_mode_process,
-      0);
+  store_winner_mode_stats(&cpi->common, x, mbmi, NULL, NULL, NULL, THR_INVALID,
+                          NULL, bsize, best_rd_so_far,
+                          cpi->sf.winner_mode_sf.multi_winner_mode_type, 0);
 
   int mode_thresh_mul_fact = (1 << MODE_THRESH_QBITS);
   if (sf->inter_sf.prune_inter_modes_if_skippable) {
@@ -5356,8 +5353,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     store_winner_mode_stats(
         &cpi->common, x, mbmi, &intra_rd_stats, &intra_rd_stats_y,
         &intra_rd_stats_uv, mode_enum, NULL, bsize, intra_rd_stats.rdcost,
-        cpi->sf.winner_mode_sf.enable_multiwinner_mode_process,
-        txfm_search_done);
+        cpi->sf.winner_mode_sf.multi_winner_mode_type, txfm_search_done);
     if (intra_rd_stats.rdcost < search_state.best_rd) {
       update_search_state(&search_state, rd_cost, ctx, &intra_rd_stats,
                           &intra_rd_stats_y, &intra_rd_stats_uv, mode_enum, x,
@@ -5368,9 +5364,8 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   end_timing(cpi, handle_intra_mode_time);
 #endif
 
-  int winner_mode_count = cpi->sf.winner_mode_sf.enable_multiwinner_mode_process
-                              ? x->winner_mode_count
-                              : 1;
+  int winner_mode_count =
+      cpi->sf.winner_mode_sf.multi_winner_mode_type ? x->winner_mode_count : 1;
   // In effect only when fast tx search speed features are enabled.
   refine_winner_mode_tx(
       cpi, x, rd_cost, bsize, ctx, &search_state.best_mode_index,
