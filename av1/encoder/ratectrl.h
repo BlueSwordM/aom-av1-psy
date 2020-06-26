@@ -327,10 +327,33 @@ int av1_resize_one_pass_cbr(struct AV1_COMP *cpi);
 void av1_rc_set_frame_target(struct AV1_COMP *cpi, int target, int width,
                              int height);
 
+/*!\endcond */
+/*!\brief Calculates how many bits to use for a P frame in one pass vbr
+ *
+ * \ingroup rate_control
+ * \callgraph
+ * \callergraph
+ *
+ * \param[in]       cpi                 Top level encoder structure
+ * \param[in]       frame_update_type   Type of frame
+ *
+ * \return	Returns the target number of bits for this frame.
+ */
 int av1_calc_pframe_target_size_one_pass_vbr(
     const struct AV1_COMP *const cpi, FRAME_UPDATE_TYPE frame_update_type);
 
+/*!\brief Calculates how many bits to use for an i frame in one pass vbr
+ *
+ * \ingroup rate_control
+ * \callgraph
+ * \callergraph
+ *
+ * \param[in]       cpi  Top level encoder structure
+ *
+ * \return	Returns the target number of bits for this frame.
+ */
 int av1_calc_iframe_target_size_one_pass_vbr(const struct AV1_COMP *const cpi);
+/*!\cond */
 
 int av1_calc_pframe_target_size_one_pass_cbr(
     const struct AV1_COMP *cpi, FRAME_UPDATE_TYPE frame_update_type);

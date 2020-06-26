@@ -100,11 +100,28 @@ and control algorithms.
 \section architecture_enc_data_structures Main Encoder Data Structures
 
 The following are the main high level data structures used by the libaom AV1
-encoder:
+encoder and referenced elsewhere in this overview document:
+
+The following are the main libaom encoder data structures referenced
+in this overview document:
 
  - \ref AV1_COMP
- - Add details, references or links here: TODO ? urvang@
+   - \ref AV1_COMP.rc ((TODO REF) RATE_CONTROL)
+   - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
+   - \ref AV1_COMP.twopass (\ref TWO_PASS)
+   - \ref AV1_COMP.gf_group ((TODO REF) GF_GROUP)
+   - \ref AV1_COMP.speed
+   - \ref AV1_COMP.sf (\ref SPEED_FEATURES)
 
+ - AV1EncoderConfig (Encoder configuration parameters)
+   - AV1EncoderConfig.rc_cfg (RateControlCfg)
+
+ - (TODO REF) RATE_CONTROL (Rate control status)
+ - \ref RateControlCfg (Rate control configuration)
+ - \ref TWO_PASS (Two pass status and control data)
+ - (TODO REF) GF_GROUP (Data relating to the current GF/ARF group)
+ - \ref FIRSTPASS_STATS (Defines entries in the first pass stats buffer)
+ - \ref SPEED_FEATURES (Encode speed / quality tradeoff parameters)
 
 \section architecture_enc_use_cases Encoder Use Cases
 
@@ -114,7 +131,7 @@ cases and rate control strategies.
 The principle use cases for which it is optimised are as follows:
 
  - <b>Video on Demand / Streaming</b>
- - <b>Low Delay or  Live Streaming</b>
+ - <b>Low Delay or Live Streaming</b>
  - <b>Video Conferencing / Real Time Coding (RTC)</b>
  - <b>Fixed Quality / Testing</b>
 
@@ -127,7 +144,8 @@ which there is less by way of specific optimizations include:
  - <b>Editing</b>
  - <b>Broadcast video</b>
 
-Specific use cases may have particular requirements or constraints. For example:
+Specific use cases may have particular requirements or constraints. For
+example:
 
 <b>Video Conferencing:</b>  In a video conference we need to encode the video
 in real time and to avoid any coding tools that could increase latency, such
@@ -192,13 +210,186 @@ pathway designed for testing under highly constrained conditions.
 
 \section architecture_enc_rate_ctrl Rate Control
 
- Add details here.
+Different use cases may have different requirements in terms of data rate
+control.
+
+The broad rate control strategy is selected using the <b>--end-usage</b>
+parameter on the command line, which maps onto the field
+\ref aom_codec_enc_cfg_t.rc_end_usage in \ref aom_encoder.h.
+
+The four supported options are:-
+
+- <b>VBR</b> (Variable Bitrate)
+- <b>CBR</b> (Constant Bitrate)
+- <b>CQ</b> (Constrained Quality mode ; A constrained variant of VBR)
+- <b>Fixed Q</b> (Constant quality of ‘Q’ mode)
+
+The value of \ref aom_codec_enc_cfg_t.rc_end_usage is in turn copied over
+into the encoder rate control configuration data structure as
+(TODO REF) RateControlCfg.rc_mode (see \ref encoder.h).
+
+In regards to the most important use cases above, Video on demand uses either
+VBR or CQ mode. CBR is the preferred rate control model for RTC and Live
+streaming and Fixed Q is only used in testing.
+
+The behaviour of each of these modes is regulated by a series of secondary
+command line rate control options but also depends somewhat on the selected
+use case, whether 2-pass coding is enabled and the selected encode speed vs
+quality trade offs (\ref AV1_COMP.speed and \ref AV1_COMP.sf).
+
+The list below gives the names of the main rate control command line
+options together with the names of the corresponding fields in the rate
+control configuration data structure.
+
+- <b>--target-bitrate</b> ((TODO REF)RateControlCfg.target_bandwidth)
+- <b>--min-q</b> ((TODO REF)RateControlCfg.best_allowed_q)
+- <b>--max-q</b> ((TODO REF)RateControlCfg.worst_allowed_q)
+- <b>--cq-level</b> ((TODO REF)RateControlCfg.cq_level)
+- <b>--undershoot-pct</b> ((TODO REF)RateControlCfg.under_shoot_pct)
+- <b>--overshoot-pct</b> ((TODO REF)RateControlCfg.over_shoot_pct)
+
+The following control aspects of 2 pass vbr encoding
+
+- <b>--bias-pct</b> (RateControlCfg::two_pass_vbrbias)
+- <b>--minsection-pct</b> ((TODO REF)RateControlCfg.two_pass_vbrmin_section)
+- <b>--maxsection-pct</b> ((TODO REF)RateControlCfg.two_pass_vbrmax_section)
+
+The following relate to buffer and delay management in one pass low delay and
+real time coding
+
+- <b>--buf-sz</b> ((TODO REF) RateControlCfg::maximum_buffer_size_ms)
+- <b>--buf-initial-sz</b> ((TODO REF)RateControlCfg.starting_buffer_level_ms)
+- <b>--buf-optimal-sz</b> ((TODO REF)RateControlCfg.optimal_buffer_level_ms)
+
+The rate control configuration data structure can be found in:
+
+- \ref AV1_COMP.oxcf
+  - \ref AV1EncoderConfig.rc_cfg
 
 \subsection architecture_enc_vbr Variable Bitrate (VBR) Encoding
 
- Add details here.
+For streamed VOD content the most common rate control strategy is Variable
+Bitrate (VBR) encoding. The CQ mode mentioned above is a variant of this
+where additional quantizer and quality constraints are applied.  VBR
+encoding may in theory be used in conjunction with either 1-pass or 2-pass
+encoding.
 
-\subsection architecture_enc_1pass_lagged 1 Pass Lagged VBR Encoding
+VBR encoding varies the number of bits given to each frame or group of frames
+according to the difficulty of that frame or group of frames, such that easier
+frames are allocated fewer bits and harder frames are allocated more bits. The
+intent here is to even out the quality between frames. This contrasts with
+Constant Bitrate (CBR) encoding where each frame is allocated the same number
+of bits.
+
+Whilst for any given frame or group of frames the data rate may vary, the VBR
+algorithm attempts to deliver a given average bitrate over a wider time
+interval. In standard VBR encoding, the time interval over which the data rate
+is averaged is usually the duration of the video clip.  An alternative
+approach is to target an average VBR bitrate over the entire video corpus for
+a particular video format (corpus VBR).
+
+\subsubsection architecture_enc_1pass_vbr 1 Pass VBR Encoding
+
+The command line for libaom does allow 1 Pass VBR, but this has not been
+properly optimised and behaves much like 1 pass CBR in most regards with bits
+allocated to frames by the following functions defined in ratectrl.c
+
+- \ref av1_calc_iframe_target_size_one_pass_vbr()
+- \ref av1_calc_pframe_target_size_one_pass_vbr()
+
+\subsubsection architecture_enc_2pass_vbr 2 Pass VBR Encoding
+
+The main focus here will be on 2-pass VBR encoding (and the related CQ mode)
+as these are the modes most commonly used for VOD content.
+
+2-pass encoding is selected on the command line by setting --passes=2
+(or -p 2).
+
+Generally speaking, in 2-pass encoding, an encoder will first encode a video
+using a default set of parameters and assumptions. Depending on the outcome
+of that first encode, the baseline assumptions and parameters will be adjusted
+to optimize the output during the second pass.  In essence the first pass is a
+fact finding mission to establish the complexity and variability of the video,
+in order to allow a better allocation of bits in the second pass.
+
+The libaom 2-pass algorithm is unusual in that the first pass is not a full
+encode of the video. Rather it uses a limited set of prediction and transform
+options and a fixed quantizer,  to generate statistics about each frame. No
+output bitstream is created and the per frame first pass statistics are stored
+entirely in volatile memory. This has some disadvantages when compared to a
+full first pass encode, but avoids the need for file I/O and improves speed.
+
+In what follows I will refer to the following key data structures.
+(see also \ref architecture_enc_data_structures)
+
+- \ref AV1_COMP cpi (the main compressor instance data structure)
+   - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
+   - \ref AV1_COMP.rc ((TODO REF) RATE_CONTROL)
+   - \ref AV1_COMP.twopass (\ref TWO_PASS)
+
+- \ref AV1EncoderConfig  (Encoder configuration parameters)
+   - (TODO REF) AV1EncoderConfig.pass
+
+- (TODO REF) RATE_CONTROL (Rate control status)
+- \ref TWO_PASS (Two pass status and control data)
+
+- \ref FIRSTPASS_STATS *frame_stats_buf (used to store per frame first
+  pass stats)
+
+
+For two pass encoding, the function \ref av1_encode() in encoder.c will first
+be called for each frame in the video with the value (TODO REF)
+cpi->oxcf.pass=1. This will result in calls to \ref av1_first_pass() in
+firspass.c
+
+Statistics about each frame are stored in (TODO REF) frame_stats_buf.
+
+After completion of the first pass, \ref av1_encode() will be called again for
+each frame with (TODO REF) cpi->oxcf.pass=2.  The frames are then encoded in
+accordance with the statistics gathered during the first pass by calls to
+\ref encode_frame_to_data_rate() in encoder.c.
+
+\ref encode_frame_to_data_rate() in turn calls (TODO REF)
+av1_get_second_pass_params() which is defined in pass2_strategy.c
+
+In summary the second pass code :-
+
+- Searches for scene cuts (if auto key frame detection is enabled).
+- Defines the length of and hierarchical structure to be used in each
+  ARF/GF group.
+- Allocates bits based on the relative complexity of each frame, the quality
+  of frame to frame prediction and the type of frame (e.g. key frame, ARF
+  frame, golden frame or normal leaf frame).
+- Suggests a maximum Q (quantizer value) for each ARF/GF group, based on
+  estimated complexity and recent rate control compliance
+  (TODO REF) (rc->active_worst_quality)
+- Tracks adherence to the overall rate control objectives and adjusts
+  heuristics.
+
+The main two pass 2 functions in regard to the above (also in pass2_strategy.c)
+include:-
+
+- (TODO REF) find_next_key_frame()
+- (TODO REF) define_gf_group()
+- (TODO REF) calculate_total_gf_group_bits()
+- (TODO REF) get_twopass_worst_quality()
+- (TODO REF) av1_gop_setup_structure()
+- (TODO REF) av1_gop_bit_allocation()
+- (TODO REF) av1_twopass_postencode_update()
+
+For each frame, the two pass algorithm defines a target number of bits
+(TODO REF) rc->base_frame_target,  which is then adjusted if necessary to
+reflect any undershoot or overshoot on previous frames to give
+(TODO REF) rc->this_frame_target.
+
+As well as (TODO REF) rc->active_worst_quality, the two pass code also
+maintains a record of the actual Q value used to encode previous frames
+at each level in the current pyramid hierarchy
+((TODO REF)rc->active_best_quality[level]). The function
+\ref rc_pick_q_and_bounds(), defined in rate_ctrl.c, uses these values
+to set a permitted Q range for each frame.
+
+\subsubsection architecture_enc_1pass_lagged 1 Pass Lagged VBR Encoding
 
  Add details here.
 

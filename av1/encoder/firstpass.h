@@ -196,7 +196,13 @@ typedef struct {
   FIRSTPASS_STATS *total_left_stats;
 } STATS_BUFFER_CTX;
 
+/*!\endcond */
+
+/*!
+ * \brief Two pass status and control data.
+ */
 typedef struct {
+  /*!\cond */
   unsigned int section_intra_rating;
   // Circular queue of first pass stats stored for most recent frames.
   // cpi->output_pkt_list[i].data.twopass_stats.buf points to actual data stored
@@ -236,7 +242,10 @@ typedef struct {
   int extend_minq;
   int extend_maxq;
   int extend_minq_fast;
+  /*!\endcond */
 } TWO_PASS;
+
+/*!\cond */
 
 // This structure contains several key parameters to be accumulated for this
 // frame.

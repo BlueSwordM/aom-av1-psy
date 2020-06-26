@@ -379,7 +379,12 @@ typedef struct {
   bool enable_intrabc;
 } KeyFrameCfg;
 
+/*!\endcond */
+/*!
+ * \brief Encoder rate control configuration parameters
+ */
 typedef struct {
+  /*!\cond */
   // BUFFERING PARAMETERS
   // Indicates the amount of data that will be buffered by the decoding
   // application prior to beginning playback, and is expressed in units of
@@ -421,8 +426,10 @@ typedef struct {
   // Indicates if the encoding mode is vbr, cbr, constrained quality or constant
   // quality.
   enum aom_rc_mode mode;
+  /*!\endcond */
 } RateControlCfg;
 
+/*!\cond */
 typedef struct {
   // Indicates the number of frames lag before encoding is started.
   int lag_in_frames;
@@ -590,7 +597,12 @@ typedef struct {
   bool using_qm;
 } QuantizationCfg;
 
+/*!\endcond */
+/*!
+ * \brief Main encoder configuration data structure.
+ */
 typedef struct AV1EncoderConfig {
+  /*!\cond */
   BITSTREAM_PROFILE profile;
   aom_bit_depth_t bit_depth;     // Codec bit-depth.
   unsigned int input_bit_depth;  // Input bit depth.
@@ -613,8 +625,12 @@ typedef struct AV1EncoderConfig {
   // ----------------------------------------------------------------
   // DATARATE CONTROL OPTIONS
 
-  // Configuration related to rate control.
+  /*!\endcond */
+  /*!
+   * Rate control configuration
+   */
   RateControlCfg rc_cfg;
+  /*!\cond */
 
   // Frame drop threshold.
   int drop_frames_water_mark;
@@ -741,12 +757,14 @@ typedef struct AV1EncoderConfig {
   // conforms to.
   unsigned int tier_mask;
   const cfg_options_t *encoder_cfg;
+
+  /*!\endcond */
 } AV1EncoderConfig;
 
+/*!\cond */
 static INLINE int is_lossless_requested(const RateControlCfg *const rc_cfg) {
   return rc_cfg->best_allowed_q == 0 && rc_cfg->worst_allowed_q == 0;
 }
-
 /*!\endcond */
 
 /*!
@@ -1977,6 +1995,7 @@ typedef struct AV1_COMP {
    * speed is passed as a per-frame parameter into the encoder.
    */
   int speed;
+
   /*!
    * sf contains fine-grained config set internally based on speed.
    */

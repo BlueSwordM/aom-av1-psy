@@ -1011,7 +1011,13 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   int use_temporal_noise_estimate;
 } REAL_TIME_SPEED_FEATURES;
 
+/*!\endcond */
+
+/*!
+ * \brief Top level speed vs quality trade off data struture.
+ */
 typedef struct SPEED_FEATURES {
+  /*!\cond */
   /*
    * Sequence/frame level speed features:
    */
@@ -1076,7 +1082,9 @@ typedef struct SPEED_FEATURES {
    * Real-time mode speed features:
    */
   REAL_TIME_SPEED_FEATURES rt_sf;
+  /*!\endcond */
 } SPEED_FEATURES;
+/*!\cond */
 
 struct AV1_COMP;
 
