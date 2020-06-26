@@ -139,12 +139,6 @@ static AOM_INLINE double av1_get_kf_boost_projection_factor(int frame_count) {
   return factor;
 }
 
-static AOM_INLINE int get_kf_boost_from_r0(double r0, int frames_to_key) {
-  double factor = av1_get_kf_boost_projection_factor(frames_to_key);
-  const int boost = (int)rint(factor / r0);
-  return boost;
-}
-
 static AOM_INLINE int get_regulated_q_overshoot(AV1_COMP *const cpi, int q_low,
                                                 int q_high, int top_index,
                                                 int bottom_index) {
