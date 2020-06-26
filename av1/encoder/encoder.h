@@ -612,8 +612,7 @@ typedef struct AV1EncoderConfig {
   // Configuration related to frame-dimensions.
   FrameDimensionCfg frm_dim_cfg;
 
-  int noise_sensitivity;  // pre processing blur: recommendation 0
-  int sharpness;          // sharpening output: recommendation 0:
+  int sharpness;  // sharpening output: recommendation 0:
   int speed;
 
   MODE mode;
@@ -652,9 +651,6 @@ typedef struct AV1EncoderConfig {
 
   // Frame Super-Resolution size scaling.
   SuperResCfg superres_cfg;
-
-  // Enable feature to reduce the frame quantization every x frames.
-  int frame_periodic_boost;
 
   // two pass datarate control
   TwoPassCfg two_pass_cfg;
@@ -756,7 +752,6 @@ typedef struct AV1EncoderConfig {
   // Bit mask to specify which tier each of the 32 possible operating points
   // conforms to.
   unsigned int tier_mask;
-  const cfg_options_t *encoder_cfg;
 
   /*!\endcond */
 } AV1EncoderConfig;

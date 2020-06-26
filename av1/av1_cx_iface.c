@@ -782,7 +782,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     oxcf->init_framerate = 30;
     dec_model_cfg->timing_info_present = 0;
   }
-  oxcf->encoder_cfg = &cfg->encoder_cfg;
 
   switch (cfg->g_pass) {
     case AOM_RC_ONE_PASS: oxcf->pass = 0; break;
@@ -886,7 +885,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   kf_cfg->enable_intrabc = extra_cfg->enable_intrabc;
 
   oxcf->speed = extra_cfg->cpu_used;
-  oxcf->noise_sensitivity = extra_cfg->noise_sensitivity;
   oxcf->sharpness = extra_cfg->sharpness;
 
   // Set Color related configuration.
@@ -1075,8 +1073,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       (q_cfg->deltaq_mode != NO_DELTA_Q) && extra_cfg->deltalf_mode;
 
   oxcf->save_as_annexb = cfg->save_as_annexb;
-
-  oxcf->frame_periodic_boost = extra_cfg->frame_periodic_boost;
 
   // Set unit test related configuration.
   oxcf->unit_test_cfg.motion_vector_unit_test =
