@@ -533,6 +533,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
 
     sf->part_sf.simple_motion_search_prune_agg = 2;
+    sf->part_sf.simple_motion_search_reduce_search_steps = 4;
     sf->part_sf.prune_ab_partition_using_split_info = 1;
 
     sf->inter_sf.alt_ref_search_fp = 1;
@@ -1001,6 +1002,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->simple_motion_search_split = 0;
   part_sf->simple_motion_search_prune_rect = 0;
   part_sf->simple_motion_search_early_term_none = 0;
+  part_sf->simple_motion_search_reduce_search_steps = 0;
   part_sf->intra_cnn_split = 0;
   part_sf->ext_partition_eval_thresh = BLOCK_8X8;
   part_sf->prune_4_partition_using_split_info = 0;

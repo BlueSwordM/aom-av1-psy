@@ -739,7 +739,10 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   struct buf_2d backup_yv12;
   // ref_mv is used to calculate the cost of the motion vector
   const MV ref_mv = kZeroMv;
-  const int step_param = cpi->mv_search_params.mv_step_param;
+  const int step_param =
+      AOMMIN(cpi->mv_search_params.mv_step_param +
+                 cpi->sf.part_sf.simple_motion_search_reduce_search_steps,
+             MAX_MVSEARCH_STEPS - 2);
   const search_site_config *src_search_sites =
       &cpi->mv_search_params.search_site_cfg[SS_CFG_SRC];
   int cost_list[5];
