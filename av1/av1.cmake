@@ -149,6 +149,7 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/encoder.c"
             "${AOM_ROOT}/av1/encoder/encoder.h"
             "${AOM_ROOT}/av1/encoder/encoder_alloc.h"
+            "${AOM_ROOT}/av1/encoder/encoder_utils.c"
             "${AOM_ROOT}/av1/encoder/encoder_utils.h"
             "${AOM_ROOT}/av1/encoder/encodetxb.c"
             "${AOM_ROOT}/av1/encoder/encodetxb.h"
