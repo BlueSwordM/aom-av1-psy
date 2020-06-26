@@ -77,16 +77,16 @@ things like :-
 - Features such as two pass encoding or optimization for low delay
   encoding.
 
-For a more detailed overview of AV1’s encoding tools and a discussion of some
+For a more detailed overview of AV1's encoding tools and a discussion of some
 of the design considerations and hardware constraints that had to be
-accommodated, please refer to *** TODO link to Jingning’s AV1 overview paper.
+accommodated, please refer to *** TODO link to Jingning's AV1 overview paper.
 
 Figure 3 provides a slightly expanded but still simplistic view of the
 AV1 encoder architecture with blocks that relate to some of the subsequent
 sections of this document. In this diagram, the raw uncompressed frame buffers
 are shown in dark green and the reconstructed frame buffers used for
 prediction in light green. Red indicates those parts of the codec that are
-(or may be) “lossy”, where fidelity can be traded off against compression
+(or may be) lossy, where fidelity can be traded off against compression
 efficiency, whilst light blue shows algorithms or coding tools that are
 lossless. The yellow blocks represent non-bitstream normative configuration
 and control algorithms.
@@ -99,7 +99,8 @@ and control algorithms.
 
 \section architecture_enc_data_structures Main Encoder Data Structures
 
- The following are the main high level data structures used by the libaom AV1 encoder:
+The following are the main high level data structures used by the libaom AV1
+encoder:
 
  - \ref AV1_COMP
  - Add details, references or links here: TODO ? urvang@
@@ -107,7 +108,87 @@ and control algorithms.
 
 \section architecture_enc_use_cases Encoder Use Cases
 
- Add details here.
+The libaom AV1 encoder is configurable to support a number of different use
+cases and rate control strategies.
+
+The principle use cases for which it is optimised are as follows:
+
+ - <b>Video on Demand / Streaming</b>
+ - <b>Low Delay or  Live Streaming</b>
+ - <b>Video Conferencing / Real Time Coding (RTC)</b>
+ - <b>Fixed Quality / Testing</b>
+
+Other examples of use cases for which the encoder could be configured but for
+which there is less by way of specific optimizations include:
+
+ - <b>Download and Play</b>
+ - <b>Disk Playback</b>>
+ - <b>Storage</b>
+ - <b>Editing</b>
+ - <b>Broadcast video</b>
+
+Specific use cases may have particular requirements or constraints. For example:
+
+<b>Video Conferencing:</b>  In a video conference we need to encode the video
+in real time and to avoid any coding tools that could increase latency, such
+as frame look ahead.
+
+<b>Live Streams:</b> In cases such as “live streaming of games or events” it
+may be possible to allow some limited buffering of the video and use of
+lookahead coding tools to improve encoding quality. However,  whilst a lag of
+a second or two may be fine given the one way nature of this type of video,
+it is clearly not possible to use tools such as two pass coding.
+
+<b>Broadcast:</b> Broadcast video (e.g. digital TV over satellite) may have
+specific requirements such as frequent and regular key frames (e.g. once per
+second or more) as these are important as entry points to users when switching
+channels. There may also be  strict upper limits on bandwidth over a short
+window of time.
+
+<b>Download and Play:</b> Download and play applications may have less strict
+requirements in terms of local frame by frame rate control but there may be a
+requirement to accurately hit a file size target for the video clip as a
+whole. Similar considerations may apply to playback from mass storage devices
+such as DVD or disk drives.
+
+<b>Editing:</b> In certain special use cases such as offline editing, it may
+be desirable to have very high quality and data rate but also very frequent
+key frames or indeed to encode the video exclusively as key frames. Lossless
+video encoding may also be required in this use case.
+
+<b>VOD / Streaming:</b> One of the most important and common use cases for AV1
+is video on demand or streaming, for services such as YouTube and Netflix. In
+this use case it is possible to do two or even multi-pass encoding to improve
+compression efficiency. Streaming services will often store many encoded
+copies of a video at different resolutions and data rates to support users
+with different types of playback device and bandwidth limitations.
+Furthermore, these services support dynamic switching between multiple
+streams, so that they can respond to changing network conditions.
+
+Exact rate control when encoding for a specific format (e.g 360P or 1080P on
+YouTube) may not be critical, provided that the video bandwidth remains within
+allowed limits. Whilst a format may have a nominal target data rate, this can
+be considered more as the desired average egress rate over the video corpus
+rather than a strict requirement for any individual clip. Indeed, in order
+to maintain optimal quality of experience for the end user, it may be
+desirable to encode some easier videos or sections of video at a lower data
+rate and harder videos or sections at a higher rate.
+
+VOD / streaming does not usually require very frequent key frames (as in the
+broadcast case) but key frames are important in trick play (scanning back and
+forth to different points in a video) and for adaptive stream switching. As
+such, in a use case like YouTube, there is normally an upper limit on the
+maximum time between key frames of a few seconds, but within certain limits
+the encoder can try to align key frames with real scene cuts.
+
+Whilst encoder speed may not seem to be as critical in this use case, for
+services such as YouTube, where millions of new videos have to be encoded
+every day, encoder speed is still important, so libaom allows command line
+control of the encode speed vs quality trade off.
+
+<b>Fixed Quality / Testing Mode:</b> Libaom also has a fixed quality encoder
+pathway designed for testing under highly constrained conditions.
+
 
 \section architecture_enc_rate_ctrl Rate Control
 
