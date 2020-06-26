@@ -83,6 +83,30 @@ static INLINE void scale_plane_2_to_1_phase_0(const uint8_t *src,
   } while (--y);
 }
 
+static INLINE void scale_plane_4_to_1_phase_0(const uint8_t *src,
+                                              const int src_stride,
+                                              uint8_t *dst,
+                                              const int dst_stride, const int w,
+                                              const int h) {
+  const int max_width = (w + 15) & ~15;
+  int y = h;
+
+  assert(w && h);
+
+  do {
+    int x = max_width;
+    do {
+      const uint8x16x4_t s = vld4q_u8(src);
+      vst1q_u8(dst, s.val[0]);
+      src += 64;
+      dst += 16;
+      x -= 16;
+    } while (x);
+    src += 4 * (src_stride - max_width);
+    dst += dst_stride - max_width;
+  } while (--y);
+}
+
 static INLINE void scale_plane_bilinear_kernel(
     const uint8x16_t in0, const uint8x16_t in1, const uint8x16_t in2,
     const uint8x16_t in3, const uint8x8_t coef0, const uint8x8_t coef1,
@@ -140,6 +164,46 @@ static INLINE void scale_plane_2_to_1_bilinear(
     } while (x);
     src0 += 2 * (src_stride - max_width);
     src1 += 2 * (src_stride - max_width);
+    dst += dst_stride - max_width;
+  } while (--y);
+}
+
+static INLINE void scale_plane_4_to_1_bilinear(
+    const uint8_t *const src, const int src_stride, uint8_t *dst,
+    const int dst_stride, const int w, const int h, const int16_t c0,
+    const int16_t c1) {
+  const int max_width = (w + 15) & ~15;
+  const uint8_t *src0 = src;
+  const uint8_t *src1 = src + src_stride;
+  const uint8x8_t coef0 = vdup_n_u8(c0);
+  const uint8x8_t coef1 = vdup_n_u8(c1);
+  int y = h;
+
+  assert(w && h);
+
+  do {
+    int x = max_width;
+    do {
+      // (*) -- useless
+      // 000 004 008 00C 010 014 018 01C  020 024 028 02C 030 034 038 03C
+      // 001 005 009 00D 011 015 019 01D  021 025 029 02D 031 035 039 03D
+      // 002 006 00A 00E 012 016 01A 01E  022 026 02A 02E 032 036 03A 03E (*)
+      // 003 007 00B 00F 013 017 01B 01F  023 027 02B 02F 033 037 03B 03F (*)
+      const uint8x16x4_t s0 = vld4q_u8(src0);
+      // 100 104 108 10C 110 114 118 11C  120 124 128 12C 130 134 138 13C
+      // 101 105 109 10D 111 115 119 11D  121 125 129 12D 131 135 139 13D
+      // 102 106 10A 10E 112 116 11A 11E  122 126 12A 12E 132 136 13A 13E (*)
+      // 103 107 10B 10F 113 117 11B 11F  123 127 12B 12F 133 137 13B 13F (*)
+      const uint8x16x4_t s1 = vld4q_u8(src1);
+      scale_plane_bilinear_kernel(s0.val[0], s0.val[1], s1.val[0], s1.val[1],
+                                  coef0, coef1, dst);
+      src0 += 64;
+      src1 += 64;
+      dst += 16;
+      x -= 16;
+    } while (x);
+    src0 += 4 * (src_stride - max_width);
+    src1 += 4 * (src_stride - max_width);
     dst += dst_stride - max_width;
   } while (--y);
 }
@@ -260,6 +324,110 @@ static void scale_plane_2_to_1_general(const uint8_t *src, const int src_stride,
   } while (x);
 }
 
+static void scale_plane_4_to_1_general(const uint8_t *src, const int src_stride,
+                                       uint8_t *dst, const int dst_stride,
+                                       const int w, const int h,
+                                       const int16_t *const coef,
+                                       uint8_t *const temp_buffer) {
+  const int width_hor = (w + 1) & ~1;
+  const int width_ver = (w + 7) & ~7;
+  const int height_hor = (4 * h + SUBPEL_TAPS - 2 + 7) & ~7;
+  const int height_ver = (h + 1) & ~1;
+  const int16x8_t filters = vld1q_s16(coef);
+  int x, y = height_hor;
+  uint8_t *t = temp_buffer;
+  uint8x8_t s[12], d[2];
+
+  assert(w && h);
+
+  src -= (SUBPEL_TAPS / 2 - 1) * src_stride + SUBPEL_TAPS / 2 + 3;
+
+  // horizontal 2x8
+  // Note: processing 2x8 is about 20% faster than processing row by row using
+  // vld4_u8().
+  do {
+    load_u8_8x8(src + 4, src_stride, &s[0], &s[1], &s[2], &s[3], &s[4], &s[5],
+                &s[6], &s[7]);
+    transpose_u8_4x8(&s[0], &s[1], &s[2], &s[3], s[4], s[5], s[6], s[7]);
+    x = width_hor;
+
+    do {
+      uint8x8x2_t dd;
+      src += 8;
+      load_u8_8x8(src, src_stride, &s[4], &s[5], &s[6], &s[7], &s[8], &s[9],
+                  &s[10], &s[11]);
+      transpose_u8_8x8(&s[4], &s[5], &s[6], &s[7], &s[8], &s[9], &s[10],
+                       &s[11]);
+
+      d[0] = scale_filter_8(&s[0], filters);  // 00 10 20 30 40 50 60 70
+      d[1] = scale_filter_8(&s[4], filters);  // 01 11 21 31 41 51 61 71
+      // dd.val[0]: 00 01 20 21 40 41 60 61
+      // dd.val[1]: 10 11 30 31 50 51 70 71
+      dd = vtrn_u8(d[0], d[1]);
+      vst1_lane_u16((uint16_t *)(t + 0 * width_hor),
+                    vreinterpret_u16_u8(dd.val[0]), 0);
+      vst1_lane_u16((uint16_t *)(t + 1 * width_hor),
+                    vreinterpret_u16_u8(dd.val[1]), 0);
+      vst1_lane_u16((uint16_t *)(t + 2 * width_hor),
+                    vreinterpret_u16_u8(dd.val[0]), 1);
+      vst1_lane_u16((uint16_t *)(t + 3 * width_hor),
+                    vreinterpret_u16_u8(dd.val[1]), 1);
+      vst1_lane_u16((uint16_t *)(t + 4 * width_hor),
+                    vreinterpret_u16_u8(dd.val[0]), 2);
+      vst1_lane_u16((uint16_t *)(t + 5 * width_hor),
+                    vreinterpret_u16_u8(dd.val[1]), 2);
+      vst1_lane_u16((uint16_t *)(t + 6 * width_hor),
+                    vreinterpret_u16_u8(dd.val[0]), 3);
+      vst1_lane_u16((uint16_t *)(t + 7 * width_hor),
+                    vreinterpret_u16_u8(dd.val[1]), 3);
+
+      s[0] = s[8];
+      s[1] = s[9];
+      s[2] = s[10];
+      s[3] = s[11];
+
+      t += 2;
+      x -= 2;
+    } while (x);
+    src += 8 * src_stride - 4 * width_hor;
+    t += 7 * width_hor;
+    y -= 8;
+  } while (y);
+
+  // vertical 8x2
+  x = width_ver;
+  t = temp_buffer;
+  do {
+    load_u8_8x4(t, width_hor, &s[0], &s[1], &s[2], &s[3]);
+    t += 4 * width_hor;
+    y = height_ver;
+
+    do {
+      load_u8_8x8(t, width_hor, &s[4], &s[5], &s[6], &s[7], &s[8], &s[9],
+                  &s[10], &s[11]);
+      t += 8 * width_hor;
+
+      d[0] = scale_filter_8(&s[0], filters);  // 00 01 02 03 04 05 06 07
+      d[1] = scale_filter_8(&s[4], filters);  // 10 11 12 13 14 15 16 17
+      vst1_u8(dst + 0 * dst_stride, d[0]);
+      vst1_u8(dst + 1 * dst_stride, d[1]);
+
+      s[0] = s[8];
+      s[1] = s[9];
+      s[2] = s[10];
+      s[3] = s[11];
+
+      dst += 2 * dst_stride;
+      y -= 2;
+    } while (y);
+    t -= width_hor * (4 * height_ver + 4);
+    t += 8;
+    dst -= height_ver * dst_stride;
+    dst += 8;
+    x -= 8;
+  } while (x);
+}
+
 void av1_resize_and_extend_frame_neon(const YV12_BUFFER_CONFIG *src,
                                       YV12_BUFFER_CONFIG *dst,
                                       const InterpFilter filter,
@@ -294,6 +462,33 @@ void av1_resize_and_extend_frame_neon(const YV12_BUFFER_CONFIG *src,
               (const InterpKernel *)av1_interp_filter_params_list[filter]
                   .filter_ptr;
           scale_plane_2_to_1_general(src->buffers[i], src->strides[is_uv],
+                                     dst->buffers[i], dst->strides[is_uv],
+                                     dst_w, dst_h, interp_kernel[phase],
+                                     temp_buffer);
+          free(temp_buffer);
+        }
+      }
+    } else if (4 * dst_w == src_w && 4 * dst_h == src_h) {
+      if (phase == 0) {
+        scale_plane_4_to_1_phase_0(src->buffers[i], src->strides[is_uv],
+                                   dst->buffers[i], dst->strides[is_uv], dst_w,
+                                   dst_h);
+      } else if (filter == BILINEAR) {
+        const int16_t c0 = av1_bilinear_filters[phase][3];
+        const int16_t c1 = av1_bilinear_filters[phase][4];
+        scale_plane_4_to_1_bilinear(src->buffers[i], src->strides[is_uv],
+                                    dst->buffers[i], dst->strides[is_uv], dst_w,
+                                    dst_h, c0, c1);
+      } else {
+        const int buffer_stride = (dst_w + 1) & ~1;
+        const int buffer_height = (4 * dst_h + SUBPEL_TAPS - 2 + 7) & ~7;
+        uint8_t *const temp_buffer =
+            (uint8_t *)malloc(buffer_stride * buffer_height);
+        if (temp_buffer) {
+          const InterpKernel *interp_kernel =
+              (const InterpKernel *)av1_interp_filter_params_list[filter]
+                  .filter_ptr;
+          scale_plane_4_to_1_general(src->buffers[i], src->strides[is_uv],
                                      dst->buffers[i], dst->strides[is_uv],
                                      dst_w, dst_h, interp_kernel[phase],
                                      temp_buffer);
