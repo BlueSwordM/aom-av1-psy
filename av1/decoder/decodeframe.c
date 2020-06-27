@@ -5111,7 +5111,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
   MACROBLOCKD *const xd = &pbi->dcb.xd;
 
 #if CONFIG_BITSTREAM_DEBUG
-  aom_bitstream_queue_set_frame_read(cm->current_frame.frame_number * 2 +
+  aom_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
                                      cm->show_frame);
 #endif
 #if CONFIG_MISMATCH_DEBUG
