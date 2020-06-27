@@ -22,7 +22,7 @@ void aom_bitstream_queue_set_frame_write(int frame_idx) {
   frame_idx_w = frame_idx;
 }
 
-int aom_bitstream_queue_get_frame_writee(void) { return frame_idx_w; }
+int aom_bitstream_queue_get_frame_write(void) { return frame_idx_w; }
 
 void aom_bitstream_queue_set_frame_read(int frame_idx) {
   frame_idx_r = frame_idx;
