@@ -857,12 +857,12 @@ static AOM_INLINE int compute_num_enc_tile_mt_workers(AV1_COMMON *const cm,
 }
 
 // Computes the number of workers for encoding stage (row/tile multi-threading)
-int av1_compute_num_enc_workers(AV1_COMP *cpi) {
-  if (cpi->oxcf.max_threads <= 1) return 1;
-  if (cpi->oxcf.row_mt && (cpi->oxcf.max_threads > 1))
-    return compute_num_enc_row_mt_workers(&cpi->common, cpi->oxcf.max_threads);
+int av1_compute_num_enc_workers(AV1_COMP *cpi, int max_workers) {
+  if (max_workers <= 1) return 1;
+  if (cpi->oxcf.row_mt && (max_workers > 1))
+    return compute_num_enc_row_mt_workers(&cpi->common, max_workers);
   else
-    return compute_num_enc_tile_mt_workers(&cpi->common, cpi->oxcf.max_threads);
+    return compute_num_enc_tile_mt_workers(&cpi->common, max_workers);
 }
 
 void av1_encode_tiles_mt(AV1_COMP *cpi) {
@@ -870,7 +870,7 @@ void av1_encode_tiles_mt(AV1_COMP *cpi) {
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
-  int num_workers = av1_compute_num_enc_workers(cpi);
+  int num_workers = av1_compute_num_enc_workers(cpi, mt_info->num_workers);
 
   assert(IMPLIES(cpi->tile_data == NULL,
                  cpi->allocated_tiles < tile_cols * tile_rows));
@@ -976,7 +976,7 @@ void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
   // threads to the theoretical limit in row-mt does not have much impact on
   // post-processing multi-threading stage. Need to revisit this when
   // post-processing time starts shooting up.
-  int num_workers = av1_compute_num_enc_workers(cpi);
+  int num_workers = av1_compute_num_enc_workers(cpi, mt_info->num_workers);
 
   assert(IMPLIES(cpi->tile_data == NULL,
                  cpi->allocated_tiles < tile_cols * tile_rows));
@@ -1274,7 +1274,7 @@ static AOM_INLINE void prepare_tpl_workers(AV1_COMP *cpi, AVxWorkerHook hook,
 
 // Computes num_workers for tpl multi-threading.
 static AOM_INLINE int compute_num_tpl_workers(AV1_COMP *cpi) {
-  return av1_compute_num_enc_workers(cpi);
+  return av1_compute_num_enc_workers(cpi, cpi->mt_info.num_workers);
 }
 
 // Implements multi-threading for tpl.

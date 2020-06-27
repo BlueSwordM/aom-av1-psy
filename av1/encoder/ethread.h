@@ -70,7 +70,7 @@ void av1_tpl_dealloc(AV1TplRowMultiThreadSync *tpl_sync);
 
 #endif  // !CONFIG_REALTIME_ONLY
 
-int av1_compute_num_enc_workers(AV1_COMP *cpi);
+int av1_compute_num_enc_workers(AV1_COMP *cpi, int max_workers);
 
 void av1_create_workers(AV1_COMP *cpi, int num_workers);
 
