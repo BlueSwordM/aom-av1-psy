@@ -68,6 +68,16 @@ void bitstream_queue_pop(int *result, aom_cdf_prob *cdf, int *nsymbs) {
 }
 
 void bitstream_queue_push(int result, const aom_cdf_prob *cdf, int nsymbs) {
+  // If you observe a cdf error, turn the following debug code on and
+  // set target_frame_idx_r and target_queue_r accordingly.
+  /*
+  int target_frame_idx_r = 1;
+  int target_queue_r = 18005;
+  if (frame_idx_w == target_frame_idx_r && queue_w == target_queue_r) {
+    fprintf(stderr, "\n *** bitstream queue at frame_idx_w %d queue_w %d\n",
+    frame_idx_w, queue_w);
+  }
+  */
   if (!skip_w) {
     result_queue[queue_w] = result;
     nsymbs_queue[queue_w] = nsymbs;
