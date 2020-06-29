@@ -787,7 +787,7 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
                                       const AV1EncoderConfig *oxcf);
 
 void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
-                          const int phase);
+                          const int phase, const int use_optimized_scaler);
 
 void av1_setup_frame(AV1_COMP *cpi);
 

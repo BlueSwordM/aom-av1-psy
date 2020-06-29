@@ -1341,22 +1341,20 @@ YV12_BUFFER_CONFIG *av1_scale_if_required(AV1_COMMON *cm,
                                           YV12_BUFFER_CONFIG *unscaled,
                                           YV12_BUFFER_CONFIG *scaled,
                                           const InterpFilter filter,
-                                          const int phase) {
+                                          const int phase,
+                                          const int use_optimized_scaler) {
   const int num_planes = av1_num_planes(cm);
   if (cm->width != unscaled->y_crop_width ||
       cm->height != unscaled->y_crop_height) {
 #if CONFIG_AV1_HIGHBITDEPTH
-    if (cm->width <= (unscaled->y_crop_width >> 1) &&
-        cm->height <= (unscaled->y_crop_height >> 1) &&
-        cm->seq_params.bit_depth == AOM_BITS_8) {
+    if (use_optimized_scaler && cm->seq_params.bit_depth == AOM_BITS_8) {
       av1_resize_and_extend_frame(unscaled, scaled, filter, phase, num_planes);
     } else {
       av1_resize_and_extend_frame_nonnormative(
           unscaled, scaled, (int)cm->seq_params.bit_depth, num_planes);
     }
 #else
-    if (cm->width <= (unscaled->y_crop_width >> 1) &&
-        cm->height <= (unscaled->y_crop_height >> 1)) {
+    if (use_optimized_scaler) {
       av1_resize_and_extend_frame(unscaled, scaled, filter, phase, num_planes);
     } else {
       av1_resize_and_extend_frame_nonnormative(

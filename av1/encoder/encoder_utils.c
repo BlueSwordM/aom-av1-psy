@@ -633,7 +633,7 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
 }
 
 void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
-                          const int phase) {
+                          const int phase, const int use_optimized_scaler) {
   AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   MV_REFERENCE_FRAME ref_frame;
@@ -692,17 +692,14 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
                                "Failed to allocate frame buffer");
           }
 #if CONFIG_AV1_HIGHBITDEPTH
-          if (cm->width <= (ref->y_crop_width >> 1) &&
-              cm->height <= (ref->y_crop_height >> 1) &&
-              cm->seq_params.bit_depth == AOM_BITS_8)
+          if (use_optimized_scaler && cm->seq_params.bit_depth == AOM_BITS_8)
             av1_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
                                         num_planes);
           else
             av1_resize_and_extend_frame_nonnormative(
                 ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
 #else
-          if (cm->width <= (ref->y_crop_width >> 1) &&
-              cm->height <= (ref->y_crop_height >> 1))
+          if (use_optimized_scaler)
             av1_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
                                         num_planes);
           else
@@ -942,11 +939,11 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
 
   cpi->source =
       av1_scale_if_required(cm, cpi->unscaled_source, &cpi->scaled_source,
-                            cm->features.interp_filter, 0);
+                            cm->features.interp_filter, 0, 0);
   if (cpi->unscaled_last_source != NULL) {
     cpi->last_source = av1_scale_if_required(cm, cpi->unscaled_last_source,
                                              &cpi->scaled_last_source,
-                                             cm->features.interp_filter, 0);
+                                             cm->features.interp_filter, 0, 0);
   }
 
   av1_setup_frame(cpi);
