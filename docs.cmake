@@ -119,6 +119,7 @@ if(CONFIG_AV1_ENCODER)
       "${AOM_ROOT}/av1/encoder/encodeframe.c"
       "${AOM_ROOT}/av1/encoder/encoder.c"
       "${AOM_ROOT}/av1/encoder/encoder.h"
+      "${AOM_ROOT}/av1/encoder/encodetxb.h"
       "${AOM_ROOT}/av1/encoder/firstpass.h"
       "${AOM_ROOT}/av1/encoder/interp_search.c"
       "${AOM_ROOT}/av1/encoder/intra_mode_search.h"

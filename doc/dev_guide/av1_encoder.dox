@@ -428,6 +428,14 @@ void second_pass(char *stats, size_t stats_len) {
  */
 /*! @} - end defgroup transform_search */
 
+/*!\defgroup coefficient_coding Transform Coefficient Coding and Optimization
+ * \ingroup encoder_algo
+ * This module describes the algorithms of transform coefficient coding and optimization in AV1.
+ * More details will be added.
+ * @{
+ */
+/*! @} - end defgroup coefficient_coding */
+
 /*!\defgroup in_loop_filter In-loop Filter
  * \ingroup encoder_algo
  * This module describes in-loop filter algorithm in AV1.

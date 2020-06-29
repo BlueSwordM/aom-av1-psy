@@ -24,6 +24,7 @@
 extern "C" {
 #endif
 
+/*!\cond */
 #define TXB_SKIP_CTX_MASK 15
 #define DC_SIGN_CTX_SHIFT 4
 #define DC_SIGN_CTX_MASK 3
@@ -64,9 +65,45 @@ int av1_cost_coeffs_txb_laplacian(const MACROBLOCK *x, const int plane,
 int av1_cost_coeffs_txb_estimate(const MACROBLOCK *x, const int plane,
                                  const int block, const TX_SIZE tx_size,
                                  const TX_TYPE tx_type);
+/*!\endcond */
+
+/*!\brief Entropy coding quantized coefficients in a transform block.
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function will write the quantized coefficients in a transform block into
+ * a bitstream using entropy coding.
+ *
+ * The coding steps are as follows.
+ *
+ * 1) Code the end of block position "eob", which is the scan index of the
+ * last non-zero coefficient plus one.
+ *
+ * 2) Code the lower magnitude level (<= COEFF_BASE_RANGE + NUM_BASE_LEVELS)
+ * for each coefficient in reversed scan order.
+ *
+ * 3) Code the sign and higher magnitude level
+ * (> COEFF_BASE_RANGE + NUM_BASE_LEVELS) in forward scan order.
+ *
+ * \param[in]    cm             Top-level structure shared by encoder and
+ * decoder
+ * \param[in]    x              Pointer to structure holding the data for the
+                                current encoding macroblock
+ * \param[in]    w              Entropy coding write pointer
+ * \param[in]    blk_row      The row index of the current transform block
+ * in the macroblock. Each unit has 4 pixels in y plane
+ * \param[in]    blk_col      The col index of the current transform block
+ * in the macroblock. Each unit has 4 pixels in y plane
+ * \param[in]    plane          The index of the current plane
+ * \param[in]    block          The index of the current transform block in the
+ * macroblock. It's defined by number of 4x4 units that has been coded before
+ * the currernt transform block.
+ * \param[in]    tx_size        The given transform size
+ */
 void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
                           aom_writer *w, int blk_row, int blk_col, int plane,
                           int block, TX_SIZE tx_size);
+/*!\cond */
 void av1_write_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
                          aom_writer *w, BLOCK_SIZE bsize);
 int av1_get_txb_entropy_context(const tran_low_t *qcoeff,
@@ -104,6 +141,7 @@ static const int plane_rd_mult[REF_TYPES][PLANE_TYPES] = {
   { 17, 13 },
   { 16, 10 },
 };
+/*!\endcond */
 
 #ifdef __cplusplus
 }
