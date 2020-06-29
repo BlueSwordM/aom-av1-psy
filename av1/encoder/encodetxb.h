@@ -67,12 +67,13 @@ int av1_cost_coeffs_txb_estimate(const MACROBLOCK *x, const int plane,
                                  const TX_TYPE tx_type);
 /*!\endcond */
 
-/*!\brief Entropy coding quantized coefficients in a transform block.
+/*!\brief Write quantized coefficients in a transform block into bitstream using
+ * entropy coding.
  *
  * \ingroup coefficient_coding
  *
  * This function will write the quantized coefficients in a transform block into
- * a bitstream using entropy coding.
+ * the bitstream using entropy coding.
  *
  * The coding steps are as follows.
  *
@@ -97,15 +98,33 @@ int av1_cost_coeffs_txb_estimate(const MACROBLOCK *x, const int plane,
  * \param[in]    plane          The index of the current plane
  * \param[in]    block          The index of the current transform block in the
  * macroblock. It's defined by number of 4x4 units that has been coded before
- * the currernt transform block.
+ * the currernt transform block
  * \param[in]    tx_size        The given transform size
  */
 void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
                           aom_writer *w, int blk_row, int blk_col, int plane,
                           int block, TX_SIZE tx_size);
-/*!\cond */
+
+/*!\brief Write quantized coefficients of all transform blocks in an intra
+ * macroblock into the bitstream using entropy coding.
+ *
+ * \ingroup coefficient_coding
+ *
+ * All transform blocks in the intra macroblock share the same transform size.
+ *
+ * This function use \ref av1_write_coeffs_txb() to code each transform block in
+ * raster order.
+ *
+ * \param[in]    cm             Top-level structure shared by encoder and
+ * decoder
+ * \param[in]    x              Pointer to structure holding the data for the
+                                current encoding macroblock
+ * \param[in]    w              Entropy coding write pointer
+ * \param[in]    bsize          size of the current encoding macroblock
+ */
 void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
                                aom_writer *w, BLOCK_SIZE bsize);
+/*!\cond */
 int av1_get_txb_entropy_context(const tran_low_t *qcoeff,
                                 const SCAN_ORDER *scan_order, int eob);
 void av1_update_txb_context(const AV1_COMP *cpi, ThreadData *td,
