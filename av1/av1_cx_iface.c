@@ -730,6 +730,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   ColorCfg *const color_cfg = &oxcf->color_cfg;
 
+  InputCfg *const input_cfg = &oxcf->input_cfg;
+
   const int is_vbr = cfg->rc_end_usage == AOM_VBR;
   oxcf->profile = cfg->g_profile;
   oxcf->max_threads = (int)cfg->g_threads;
@@ -744,9 +746,24 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   frm_dim_cfg->render_height = extra_cfg->render_height;
 
   oxcf->bit_depth = cfg->g_bit_depth;
-  oxcf->input_bit_depth = cfg->g_input_bit_depth;
+
+  // Set input video related configuration.
+  input_cfg->input_bit_depth = cfg->g_input_bit_depth;
   // guess a frame rate if out of whack, use 30
-  oxcf->init_framerate = (double)cfg->g_timebase.den / cfg->g_timebase.num;
+  input_cfg->init_framerate = (double)cfg->g_timebase.den / cfg->g_timebase.num;
+  if (cfg->g_pass == AOM_RC_LAST_PASS) {
+    const size_t packet_sz = sizeof(FIRSTPASS_STATS);
+    const int n_packets = (int)(cfg->rc_twopass_stats_in.sz / packet_sz);
+    input_cfg->limit = n_packets - 1;
+  } else {
+    input_cfg->limit = cfg->g_limit;
+  }
+  input_cfg->chroma_subsampling_x = extra_cfg->chroma_subsampling_x;
+  input_cfg->chroma_subsampling_y = extra_cfg->chroma_subsampling_y;
+  if (input_cfg->init_framerate > 180) {
+    input_cfg->init_framerate = 30;
+    dec_model_cfg->timing_info_present = 0;
+  }
 
   // Set Decoder model configuration.
   if (extra_cfg->timing_info_type == AOM_TIMING_EQUAL ||
@@ -777,10 +794,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     dec_model_cfg->timing_info.equal_picture_interval = 0;
     dec_model_cfg->decoder_model_info_present_flag = 1;
     dec_model_cfg->display_model_info_present_flag = 1;
-  }
-  if (oxcf->init_framerate > 180) {
-    oxcf->init_framerate = 30;
-    dec_model_cfg->timing_info_present = 0;
   }
 
   switch (cfg->g_pass) {
@@ -1051,15 +1064,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->error_resilient_mode =
       cfg->g_error_resilient | extra_cfg->error_resilient_mode;
   oxcf->frame_parallel_decoding_mode = extra_cfg->frame_parallel_decoding_mode;
-  if (cfg->g_pass == AOM_RC_LAST_PASS) {
-    const size_t packet_sz = sizeof(FIRSTPASS_STATS);
-    const int n_packets = (int)(cfg->rc_twopass_stats_in.sz / packet_sz);
-    oxcf->limit = n_packets - 1;
-  } else {
-    oxcf->limit = cfg->g_limit;
-  }
 
-  if (oxcf->limit == 1) {
+  if (input_cfg->limit == 1) {
     // still picture mode, display model and timing is meaningless
     dec_model_cfg->display_model_info_present_flag = 0;
     dec_model_cfg->timing_info_present = 0;
@@ -1080,8 +1086,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->unit_test_cfg.sb_multipass_unit_test =
       extra_cfg->sb_multipass_unit_test;
 
-  oxcf->chroma_subsampling_x = extra_cfg->chroma_subsampling_x;
-  oxcf->chroma_subsampling_y = extra_cfg->chroma_subsampling_y;
   oxcf->border_in_pixels =
       (resize_cfg->resize_mode || superres_cfg->superres_mode)
           ? AOM_BORDER_IN_PIXELS

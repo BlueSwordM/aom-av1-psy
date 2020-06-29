@@ -385,7 +385,8 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
                                const AV1EncoderConfig *oxcf, int use_svc) {
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
 
-  seq->still_picture = (oxcf->force_video_mode == 0) && (oxcf->limit == 1);
+  seq->still_picture =
+      (oxcf->force_video_mode == 0) && (oxcf->input_cfg.limit == 1);
   seq->reduced_still_picture_hdr = seq->still_picture;
   seq->reduced_still_picture_hdr &= !oxcf->full_still_picture_hdr;
   seq->force_screen_content_tools = (oxcf->mode == REALTIME) ? 0 : 2;
@@ -439,7 +440,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_filter_intra = oxcf->intra_mode_cfg.enable_filter_intra;
 
   set_bitstream_level_tier(seq, cm, frm_dim_cfg->width, frm_dim_cfg->height,
-                           oxcf->init_framerate);
+                           oxcf->input_cfg.init_framerate);
 
   if (seq->operating_points_cnt_minus_1 == 0) {
     seq->operating_point_idc[0] = 0;
@@ -469,7 +470,7 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   const DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
   const ColorCfg *const color_cfg = &oxcf->color_cfg;
   cpi->oxcf = *oxcf;
-  cpi->framerate = oxcf->init_framerate;
+  cpi->framerate = oxcf->input_cfg.init_framerate;
 
   seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->bit_depth;
@@ -527,8 +528,8 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
       seq_params->subsampling_y = 0;
     } else {
       if (seq_params->bit_depth == AOM_BITS_12) {
-        seq_params->subsampling_x = oxcf->chroma_subsampling_x;
-        seq_params->subsampling_y = oxcf->chroma_subsampling_y;
+        seq_params->subsampling_x = oxcf->input_cfg.chroma_subsampling_x;
+        seq_params->subsampling_y = oxcf->input_cfg.chroma_subsampling_y;
       } else {
         seq_params->subsampling_x = 1;
         seq_params->subsampling_y = 0;
@@ -1338,7 +1339,8 @@ void av1_remove_compressor(AV1_COMP *cpi) {
           (cpi->time_receive_data + cpi->time_compress_data) / 1000.000;
       const double dr =
           (double)cpi->bytes * (double)8 / (double)1000 / time_encoded;
-      const double peak = (double)((1 << cpi->oxcf.input_bit_depth) - 1);
+      const double peak =
+          (double)((1 << cpi->oxcf.input_cfg.input_bit_depth) - 1);
       const double target_rate = (double)cpi->oxcf.target_bandwidth / 1000;
       const double rate_err = ((100.0 * (dr - target_rate)) / target_rate);
 
@@ -1474,7 +1476,7 @@ static void generate_psnr_packet(AV1_COMP *cpi) {
   int i;
   PSNR_STATS psnr;
 #if CONFIG_AV1_HIGHBITDEPTH
-  const uint32_t in_bit_depth = cpi->oxcf.input_bit_depth;
+  const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
   aom_calc_highbd_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr,
                        bit_depth, in_bit_depth);
@@ -3181,7 +3183,7 @@ static void adjust_image_stat(double y, double u, double v, double all,
 static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
   AV1_COMMON *const cm = &cpi->common;
   double samples = 0.0;
-  const uint32_t in_bit_depth = cpi->oxcf.input_bit_depth;
+  const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
 
 #if CONFIG_INTER_STATS_ONLY

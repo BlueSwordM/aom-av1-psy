@@ -573,6 +573,19 @@ typedef struct {
 } UnitTestCfg;
 
 typedef struct {
+  // Indicates the framerate of the input video.
+  double init_framerate;
+  // Indicates the bit-depth of the input video.
+  unsigned int input_bit_depth;
+  // Indicates the maximum number of frames to be encoded.
+  unsigned int limit;
+  // Indicates the chrome subsampling x value.
+  unsigned int chroma_subsampling_x;
+  // Indicates the chrome subsampling y value.
+  unsigned int chroma_subsampling_y;
+} InputCfg;
+
+typedef struct {
   // List of QP offsets for: keyframe, ALTREF, and 3 levels of internal ARFs.
   // If any of these values are negative, fixed offsets are disabled.
   // Uses internal q range.
@@ -604,10 +617,11 @@ typedef struct {
 typedef struct AV1EncoderConfig {
   /*!\cond */
   BITSTREAM_PROFILE profile;
-  aom_bit_depth_t bit_depth;     // Codec bit-depth.
-  unsigned int input_bit_depth;  // Input bit depth.
-  double init_framerate;         // set to passed in framerate
-  int64_t target_bandwidth;      // bandwidth to be used in bits per second
+  aom_bit_depth_t bit_depth;  // Codec bit-depth.
+  int64_t target_bandwidth;   // bandwidth to be used in bits per second
+
+  // Configuration related to the input video.
+  InputCfg input_cfg;
 
   // Configuration related to frame-dimensions.
   FrameDimensionCfg frm_dim_cfg;
@@ -669,8 +683,6 @@ typedef struct AV1EncoderConfig {
    * just by decoding the frame headers.
    */
   unsigned int frame_parallel_decoding_mode;
-
-  unsigned int limit;
 
   int arnr_max_frames;
   int arnr_strength;
@@ -740,9 +752,6 @@ typedef struct AV1EncoderConfig {
   float noise_level;
   int noise_block_size;
 #endif
-
-  unsigned int chroma_subsampling_x;
-  unsigned int chroma_subsampling_y;
 
   // Configuration related to frequency of cost update.
   CostUpdateFreq cost_upd_freq;

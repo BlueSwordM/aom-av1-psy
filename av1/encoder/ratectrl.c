@@ -333,10 +333,10 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
   if (rc->min_gf_interval == 0)
     rc->min_gf_interval = av1_rc_get_default_min_gf_interval(
         oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height,
-        oxcf->init_framerate);
+        oxcf->input_cfg.init_framerate);
   if (rc->max_gf_interval == 0)
     rc->max_gf_interval = av1_rc_get_default_max_gf_interval(
-        oxcf->init_framerate, rc->min_gf_interval);
+        oxcf->input_cfg.init_framerate, rc->min_gf_interval);
   rc->baseline_gf_interval = (rc->min_gf_interval + rc->max_gf_interval) / 2;
   rc->avg_frame_low_motion = 0;
 }

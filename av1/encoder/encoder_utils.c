@@ -854,7 +854,7 @@ static void screen_content_tools_determination(
   FeatureFlags *const features = &cm->features;
   projected_size_pass[pass] = cpi->rc.projected_frame_size;
 #if CONFIG_AV1_HIGHBITDEPTH
-  const uint32_t in_bit_depth = cpi->oxcf.input_bit_depth;
+  const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
   aom_calc_highbd_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr[pass],
                        bit_depth, in_bit_depth);
