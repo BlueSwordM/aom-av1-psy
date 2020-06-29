@@ -647,8 +647,8 @@ typedef struct encode_txb_args {
   aom_writer *w;
 } ENCODE_TXB_ARGS;
 
-void av1_write_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
-                         aom_writer *w, BLOCK_SIZE bsize) {
+void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
+                               aom_writer *w, BLOCK_SIZE bsize) {
   MACROBLOCKD *xd = &x->e_mbd;
   const int num_planes = av1_num_planes(cm);
   int block[MAX_MB_PLANE] = { 0 };
