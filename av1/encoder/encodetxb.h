@@ -136,10 +136,44 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
 #if CONFIG_HTB_TRELLIS
 void hbt_destroy();
 #endif  // CONFIG_HTB_TRELLIS
+
+/*!\endcond */
+/*!\brief Adjust the magnitude of quantized coefficients to achieve better
+ * rate-distortion (RD) trade-off.
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function goes through each coefficient and greedily choose to lower
+ * the coefficient magnitude by 1 or not based on the RD score.
+ *
+ * The coefficients are processing in reversed scan order.
+ *
+ * Note that, the end of block position (eob) may change if the original last
+ * coefficient is lowered to zero.
+ *
+ * \param[in]    cpi            Top-level encoder structure
+ * \param[in]    x              Pointer to structure holding the data for the
+                                current encoding macroblock
+ * \param[in]    plane          The index of the current plane
+ * \param[in]    block          The index of the current transform block in the
+ * \param[in]    tx_size        The transform size
+ * \param[in]    tx_type        The transform type
+ * \param[in]    txb_ctx        Context info for entropy coding transform block
+ * skip flag (tx_skip) and the sign of DC coefficient (dc_sign).
+ * \param[out]   rate_cost      The entropy cost of coding the transform block
+ * after adjustment of coefficients.
+ * \param[in]    sharpness      When sharpness == 1, the function will be less
+ * aggresive toward lowering the magnitude of coefficients.
+ * In this way, the transform block will contain more high-frequency
+ coefficients
+ * and therefore preserve the sharpness of the reconstructed block.
+ * \param[in]    fast_mode      Faster mode
+ */
 int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                          int block, TX_SIZE tx_size, TX_TYPE tx_type,
                          const TXB_CTX *const txb_ctx, int *rate_cost,
                          int sharpness, int fast_mode);
+/*!\cond */
 
 CB_COEFF_BUFFER *av1_get_cb_coeff_buffer(const struct AV1_COMP *cpi, int mi_row,
                                          int mi_col);
