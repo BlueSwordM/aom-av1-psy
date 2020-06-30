@@ -160,11 +160,26 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
  * \param[in]    w              Entropy coding write pointer
  * \param[in]    bsize          size of the current encoding macroblock
  */
+
 void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
                                aom_writer *w, BLOCK_SIZE bsize);
-/*!\cond */
+
+/*!\brief Pack the context info of the current transform block into an uint8_t.
+ * \ingroup coefficient_coding
+ *
+ * This context info will be collected and consolidated by its neighbor
+ * transform blocks for coding transform block skip flag (tx_skip) and
+ * the sign of DC coefficient (dc_sign).
+ *
+ * \param[in]    qcoeff         Buffer of quantized coefficients
+ * \param[in]    scan_order     Coding order of coefficients in the transform
+ * block
+ * \param[in]    eob            The scan index of last non-zero coefficient plus
+ * one
+ */
 uint8_t av1_get_txb_entropy_context(const tran_low_t *qcoeff,
                                     const SCAN_ORDER *scan_order, int eob);
+/*!\cond */
 void av1_update_txb_context(const AV1_COMP *cpi, ThreadData *td,
                             RUN_TYPE dry_run, BLOCK_SIZE bsize,
                             uint8_t allow_update_cdf);
