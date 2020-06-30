@@ -51,9 +51,26 @@ typedef struct TxbInfo {
   int tx_type_cost;
 } TxbInfo;
 
-void av1_alloc_txb_buf(AV1_COMP *cpi);
-void av1_free_txb_buf(AV1_COMP *cpi);
 /*!\endcond */
+/*!\brief Allocate the memory resources for all the macro blocks in the current
+ * coding frame.
+ * \ingroup coefficient_coding
+ *
+ * Each macro block will need a \ref CB_COEFF_BUFFER to store information for
+ * rate-distortion optimization and entropy coding of transform coefficients.
+ *
+ * \param[in]    cpi            Top-level encoder structure
+ */
+void av1_alloc_txb_buf(AV1_COMP *cpi);
+/*!\brief Free the memory resources for all the macro blocks in the current
+ * coding frame.
+ * \ingroup coefficient_coding
+ *
+ * See \ref av1_alloc_txb_buf and \ref CB_COEFF_BUFFER for more details.
+ *
+ * \param[in]    cpi            Top-level encoder structure
+ */
+void av1_free_txb_buf(AV1_COMP *cpi);
 /*!\brief Compute the entropy cost of coding coefficients in a transform block.
  *
  * \ingroup coefficient_coding
