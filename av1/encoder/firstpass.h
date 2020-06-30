@@ -167,7 +167,13 @@ enum {
   FRAME_CONTENT_TYPES = 2
 } UENUM1BYTE(FRAME_CONTENT_TYPE);
 
+/*!\endcond */
+/*!
+ * \brief  Data relating to the current GF/ARF group and the
+ * individual frames within the group
+ */
 typedef struct {
+  /*!\cond */
   unsigned char index;
   FRAME_UPDATE_TYPE update_type[MAX_STATIC_GF_GROUP_LENGTH];
   unsigned char arf_src_offset[MAX_STATIC_GF_GROUP_LENGTH];
@@ -186,7 +192,9 @@ typedef struct {
   unsigned char q_val[MAX_STATIC_GF_GROUP_LENGTH];
   int bit_allocation[MAX_STATIC_GF_GROUP_LENGTH];
   int size;
+  /*!\endcond */
 } GF_GROUP;
+/*!\cond */
 
 typedef struct {
   FIRSTPASS_STATS *stats_in_start;

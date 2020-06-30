@@ -630,7 +630,17 @@ typedef struct AV1EncoderConfig {
   int speed;
 
   MODE mode;
+
+  /*!\endcond */
+  /*!
+   * Indicates the current encoder pass :
+   * 0 = 1 Pass encode,
+   * 1 = First pass of two pass,
+   * 2 = Second pass of two pass.
+   *
+   */
   int pass;
+  /*!\cond */
 
   // Configuration related to key-frame.
   KeyFrameCfg kf_cfg;

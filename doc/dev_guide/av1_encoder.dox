@@ -102,24 +102,21 @@ and control algorithms.
 The following are the main high level data structures used by the libaom AV1
 encoder and referenced elsewhere in this overview document:
 
-The following are the main libaom encoder data structures referenced
-in this overview document:
-
  - \ref AV1_COMP
-   - \ref AV1_COMP.rc ((TODO REF) RATE_CONTROL)
+   - \ref AV1_COMP.rc (\ref RATE_CONTROL)
    - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
    - \ref AV1_COMP.twopass (\ref TWO_PASS)
-   - \ref AV1_COMP.gf_group ((TODO REF) GF_GROUP)
+   - \ref AV1_COMP.gf_group (\ref GF_GROUP)
    - \ref AV1_COMP.speed
    - \ref AV1_COMP.sf (\ref SPEED_FEATURES)
 
- - AV1EncoderConfig (Encoder configuration parameters)
-   - AV1EncoderConfig.rc_cfg (RateControlCfg)
+ - \ref AV1EncoderConfig (Encoder configuration parameters)
+   - \ref AV1EncoderConfig.rc_cfg (\ref RateControlCfg)
 
- - (TODO REF) RATE_CONTROL (Rate control status)
+ - \ref RATE_CONTROL (Rate control status)
  - \ref RateControlCfg (Rate control configuration)
  - \ref TWO_PASS (Two pass status and control data)
- - (TODO REF) GF_GROUP (Data relating to the current GF/ARF group)
+ - \ref GF_GROUP (Data relating to the current GF/ARF group)
  - \ref FIRSTPASS_STATS (Defines entries in the first pass stats buffer)
  - \ref SPEED_FEATURES (Encode speed / quality tradeoff parameters)
 
@@ -151,7 +148,7 @@ example:
 in real time and to avoid any coding tools that could increase latency, such
 as frame look ahead.
 
-<b>Live Streams:</b> In cases such as “live streaming of games or events” it
+<b>Live Streams:</b> In cases such as live streaming of games or events, it
 may be possible to allow some limited buffering of the video and use of
 lookahead coding tools to improve encoding quality. However,  whilst a lag of
 a second or two may be fine given the one way nature of this type of video,
@@ -222,7 +219,7 @@ The four supported options are:-
 - <b>VBR</b> (Variable Bitrate)
 - <b>CBR</b> (Constant Bitrate)
 - <b>CQ</b> (Constrained Quality mode ; A constrained variant of VBR)
-- <b>Fixed Q</b> (Constant quality of ‘Q’ mode)
+- <b>Fixed Q</b> (Constant quality of Q mode)
 
 The value of \ref aom_codec_enc_cfg_t.rc_end_usage is in turn copied over
 into the encoder rate control configuration data structure as
@@ -319,33 +316,31 @@ output bitstream is created and the per frame first pass statistics are stored
 entirely in volatile memory. This has some disadvantages when compared to a
 full first pass encode, but avoids the need for file I/O and improves speed.
 
-In what follows I will refer to the following key data structures.
+In this section I will refer to the following key data structures.
 (see also \ref architecture_enc_data_structures)
 
 - \ref AV1_COMP cpi (the main compressor instance data structure)
    - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
-   - \ref AV1_COMP.rc ((TODO REF) RATE_CONTROL)
+   - \ref AV1_COMP.rc (\ref RATE_CONTROL)
    - \ref AV1_COMP.twopass (\ref TWO_PASS)
 
 - \ref AV1EncoderConfig  (Encoder configuration parameters)
-   - (TODO REF) AV1EncoderConfig.pass
+   - \ref AV1EncoderConfig.pass
 
-- (TODO REF) RATE_CONTROL (Rate control status)
+- \ref RATE_CONTROL (Rate control status)
 - \ref TWO_PASS (Two pass status and control data)
 
 - \ref FIRSTPASS_STATS *frame_stats_buf (used to store per frame first
   pass stats)
 
-
 For two pass encoding, the function \ref av1_encode() in encoder.c will first
-be called for each frame in the video with the value (TODO REF)
-cpi->oxcf.pass=1. This will result in calls to \ref av1_first_pass() in
-firspass.c
+be called for each frame in the video with the value \ref AV1EncoderConfig.pass
+= 1. This will result in calls to \ref av1_first_pass() in firspass.c
 
-Statistics about each frame are stored in (TODO REF) frame_stats_buf.
+Statistics for each frame are stored in \ref FIRSTPASS_STATS frame_stats_buf.
 
 After completion of the first pass, \ref av1_encode() will be called again for
-each frame with (TODO REF) cpi->oxcf.pass=2.  The frames are then encoded in
+each frame with \ref AV1EncoderConfig.pass = 2.  The frames are then encoded in
 accordance with the statistics gathered during the first pass by calls to
 \ref encode_frame_to_data_rate() in encoder.c.
 
@@ -362,7 +357,7 @@ In summary the second pass code :-
   frame, golden frame or normal leaf frame).
 - Suggests a maximum Q (quantizer value) for each ARF/GF group, based on
   estimated complexity and recent rate control compliance
-  (TODO REF) (rc->active_worst_quality)
+  (\ref RATE_CONTROL.active_worst_quality)
 - Tracks adherence to the overall rate control objectives and adjusts
   heuristics.
 
@@ -378,20 +373,32 @@ include:-
 - (TODO REF) av1_twopass_postencode_update()
 
 For each frame, the two pass algorithm defines a target number of bits
-(TODO REF) rc->base_frame_target,  which is then adjusted if necessary to
+\ref RATE_CONTROL.base_frame_target,  which is then adjusted if necessary to
 reflect any undershoot or overshoot on previous frames to give
-(TODO REF) rc->this_frame_target.
+\ref RATE_CONTROL.this_frame_target.
 
-As well as (TODO REF) rc->active_worst_quality, the two pass code also
+As well as \ref RATE_CONTROL.active_worst_quality, the two pass code also
 maintains a record of the actual Q value used to encode previous frames
 at each level in the current pyramid hierarchy
-((TODO REF)rc->active_best_quality[level]). The function
+(\ref RATE_CONTROL.active_best_quality). The function
 \ref rc_pick_q_and_bounds(), defined in rate_ctrl.c, uses these values
 to set a permitted Q range for each frame.
 
 \subsubsection architecture_enc_1pass_lagged 1 Pass Lagged VBR Encoding
 
- Add details here.
+1 pass lagged encode falls between simple 1 pass encoding and full two pass
+encoding and is used for cases where it is not possible to do a full first
+pass through the entire video clip, but where some delay is permissible. For
+example near live streaming where there is a delay of up to a few seconds. In
+this case the first pass and second pass are in effect combined such that the
+first pass starts encoding the clip and the second pass lags behind it by a
+few frames.  When using this method, full sequence level statistics are not
+available, but it is possible to collect and use frame or group of frame level
+data to help in the allocation of bits and in defining ARF/GF coding
+hierarchies.  The reader is referred to the data value
+(TODO REF) cpi->lap_enabled (where <b>lap</b> stands for
+<b>look ahead processing</b>). This encoding mode for the most part uses the
+same rate control pathways as two pass VBR encoding.
 
 \subsection architecture_enc_rc_loop The Main Rate Control Loop
 
