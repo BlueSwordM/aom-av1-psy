@@ -53,9 +53,30 @@ typedef struct TxbInfo {
 
 void av1_alloc_txb_buf(AV1_COMP *cpi);
 void av1_free_txb_buf(AV1_COMP *cpi);
+/*!\endcond */
+/*!\brief Compute the entropy cost of coding coefficients in a transform block.
+ *
+ * \ingroup coefficient_coding
+ *
+ * \param[in]    x                    Pointer to structure holding the data for
+ the current encoding macroblock.
+ * \param[in]    plane                The index of the current plane.
+ * \param[in]    block                The index of the current transform block
+ in the
+ * macroblock. It's defined by number of 4x4 units that has been coded before
+ * the currernt transform block.
+ * \param[in]    tx_size              The transform size.
+ * \param[in]    tx_type              The transform type.
+ * \param[in]    txb_ctx              Context info for entropy coding transform
+ block
+ * skip flag (tx_skip) and the sign of DC coefficient (dc_sign).
+ * \param[in]    reduced_tx_set_used  Whether the transform type is chosen from
+ * a reduced set.
+ */
 int av1_cost_coeffs_txb(const MACROBLOCK *x, const int plane, const int block,
                         const TX_SIZE tx_size, const TX_TYPE tx_type,
                         const TXB_CTX *const txb_ctx, int reduced_tx_set_used);
+/*!\cond */
 int av1_cost_coeffs_txb_laplacian(const MACROBLOCK *x, const int plane,
                                   const int block, const TX_SIZE tx_size,
                                   const TX_TYPE tx_type,
