@@ -405,6 +405,11 @@ enum aom_dec_control_id {
    * 1 for BLOCK_128X128)
    */
   AOMD_GET_SB_SIZE,
+
+  /*!\brief Codec control function to check if the previous frame
+   * decoded has show existing frame flag set.
+   */
+  AOMD_GET_SHOW_EXISTING_FRAME_FLAG,
 };
 
 /*!\cond */
@@ -452,6 +457,9 @@ AOM_CTRL_USE_TYPE(AOMD_GET_STILL_PICTURE, aom_still_picture_info *)
 
 AOM_CTRL_USE_TYPE(AOMD_GET_SB_SIZE, aom_superblock_size_t *)
 #define AOMD_CTRL_AOMD_GET_SB_SIZE
+
+AOM_CTRL_USE_TYPE(AOMD_GET_SHOW_EXISTING_FRAME_FLAG, int *)
+#define AOMD_CTRL_AOMD_GET_SHOW_EXISTING_FRAME_FLAG
 
 AOM_CTRL_USE_TYPE(AV1D_GET_DISPLAY_SIZE, int *)
 #define AOM_CTRL_AV1D_GET_DISPLAY_SIZE

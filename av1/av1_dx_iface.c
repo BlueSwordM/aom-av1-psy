@@ -1119,6 +1119,15 @@ static aom_codec_err_t ctrl_get_sb_size(aom_codec_alg_priv_t *ctx,
   return AOM_CODEC_INVALID_PARAM;
 }
 
+static aom_codec_err_t ctrl_get_show_existing_frame_flag(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  int *const arg = va_arg(args, int *);
+  if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
+  *arg = ((FrameWorkerData *)ctx->frame_worker->data1)
+             ->pbi->common.show_existing_frame;
+  return AOM_CODEC_OK;
+}
+
 static aom_codec_err_t ctrl_get_frame_corrupted(aom_codec_alg_priv_t *ctx,
                                                 va_list args) {
   int *corrupted = va_arg(args, int *);
@@ -1518,6 +1527,7 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AOMD_GET_SCREEN_CONTENT_TOOLS_INFO, ctrl_get_screen_content_tools_info },
   { AOMD_GET_STILL_PICTURE, ctrl_get_still_picture },
   { AOMD_GET_SB_SIZE, ctrl_get_sb_size },
+  { AOMD_GET_SHOW_EXISTING_FRAME_FLAG, ctrl_get_show_existing_frame_flag },
 
   CTRL_MAP_END,
 };

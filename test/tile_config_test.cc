@@ -15,6 +15,7 @@
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/y4m_video_source.h"
+#include "test/i420_video_source.h"
 #include "test/util.h"
 
 namespace {
@@ -265,4 +266,96 @@ AV1_INSTANTIATE_TEST_SUITE(NonUniformTileConfigTestLarge,
                                              ::libaom_test::kTwoPassGood),
                            ::testing::ValuesIn(nonUniformTileConfigParams),
                            ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
+
+typedef struct {
+  // Number of tile groups to set.
+  const int num_tg;
+  // Number of tile rows to set
+  const int num_tile_rows;
+  // Number of tile columns to set
+  const int num_tile_cols;
+} TileGroupConfigParams;
+
+static const TileGroupConfigParams tileGroupTestParams[] = {
+  { 5, 4, 4 }, { 3, 3, 3 }, { 5, 3, 3 }, { 7, 5, 5 }, { 7, 3, 3 }, { 7, 4, 4 }
+};
+
+std::ostream &operator<<(std::ostream &os,
+                         const TileGroupConfigParams &test_arg) {
+  return os << "TileGroupConfigParams { num_tg:" << test_arg.num_tg
+            << " num_tile_rows:" << test_arg.num_tile_rows
+            << " num_tile_cols:" << test_arg.num_tile_cols << " }";
+}
+
+// This class is used to test number of tile groups present in header.
+class TileGroupTestLarge
+    : public ::libaom_test::CodecTestWith2Params<libaom_test::TestMode,
+                                                 TileGroupConfigParams>,
+      public ::libaom_test::EncoderTest {
+ protected:
+  TileGroupTestLarge()
+      : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
+        tile_group_config_params_(GET_PARAM(2)) {
+    tile_group_config_violated_ = false;
+  }
+  virtual ~TileGroupTestLarge() {}
+
+  virtual void SetUp() {
+    InitializeConfig();
+    SetMode(encoding_mode_);
+    const aom_rational timebase = { 1, 30 };
+    cfg_.g_timebase = timebase;
+    cfg_.rc_end_usage = AOM_Q;
+    cfg_.g_threads = 1;
+  }
+
+  virtual bool DoDecode() const { return 1; }
+
+  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                                  ::libaom_test::Encoder *encoder) {
+    if (video->frame() == 0) {
+      encoder->Control(AOME_SET_CPUUSED, 5);
+      encoder->Control(AV1E_SET_NUM_TG, tile_group_config_params_.num_tg);
+      encoder->Control(AV1E_SET_TILE_COLUMNS,
+                       tile_group_config_params_.num_tile_cols);
+      encoder->Control(AV1E_SET_TILE_ROWS,
+                       tile_group_config_params_.num_tile_rows);
+    }
+  }
+
+  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
+                                  libaom_test::Decoder *decoder) {
+    EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
+    if (AOM_CODEC_OK == res_dec) {
+      aom_tile_info tile_info;
+      aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
+      AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_TILE_INFO, &tile_info);
+      AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_SHOW_EXISTING_FRAME_FLAG,
+                                    &show_existing_frame_);
+      if (tile_info.num_tile_groups != tile_group_config_params_.num_tg &&
+          !show_existing_frame_)
+        tile_group_config_violated_ = true;
+      EXPECT_EQ(tile_group_config_violated_, false);
+    }
+    return AOM_CODEC_OK == res_dec;
+  }
+
+  int show_existing_frame_;
+  bool tile_group_config_violated_;
+  aom_rc_mode end_usage_check_;
+  ::libaom_test::TestMode encoding_mode_;
+  const TileGroupConfigParams tile_group_config_params_;
+};
+
+TEST_P(TileGroupTestLarge, TileGroupCountTest) {
+  libaom_test::I420VideoSource video("niklas_640_480_30.yuv", 640, 480,
+                                     cfg_.g_timebase.den, cfg_.g_timebase.num,
+                                     0, 5);
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+}
+
+AV1_INSTANTIATE_TEST_SUITE(TileGroupTestLarge,
+                           ::testing::Values(::libaom_test::kOnePassGood,
+                                             ::libaom_test::kTwoPassGood),
+                           ::testing::ValuesIn(tileGroupTestParams));
 }  // namespace
