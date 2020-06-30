@@ -80,7 +80,7 @@ void av1_free_txb_buf(AV1_COMP *cpi);
  * \param[in]    plane                The index of the current plane.
  * \param[in]    block                The index of the current transform block
  in the
- * macroblock. It's defined by number of 4x4 units that has been coded before
+ * macroblock. It's defined by number of 4x4 units that have been coded before
  * the currernt transform block.
  * \param[in]    tx_size              The transform size.
  * \param[in]    tx_type              The transform type.
@@ -135,7 +135,7 @@ int av1_cost_coeffs_txb_estimate(const MACROBLOCK *x, const int plane,
  * in the macroblock. Each unit has 4 pixels in y plane
  * \param[in]    plane          The index of the current plane
  * \param[in]    block          The index of the current transform block in the
- * macroblock. It's defined by number of 4x4 units that has been coded before
+ * macroblock. It's defined by number of 4x4 units that have been coded before
  * the currernt transform block
  * \param[in]    tx_size        The given transform size
  */
@@ -183,14 +183,52 @@ uint8_t av1_get_txb_entropy_context(const tran_low_t *qcoeff,
 void av1_update_txb_context(const AV1_COMP *cpi, ThreadData *td,
                             RUN_TYPE dry_run, BLOCK_SIZE bsize,
                             uint8_t allow_update_cdf);
+/*!\endcond */
+
+/*!\brief Update the probability model (cdf) and the entropy context related to
+ * coefficient coding.
+ *
+ * \ingroup coefficient_coding
+ *
+ * There are regular mode and dry run for this funtion.
+ *
+ * Regular mode:
+ *
+ * The probability model (cdf) for each coding symbol in the
+ * transform block will be updated.
+ *
+ * The entropy context of this transform block will be updated.
+ *
+ * Dry run:
+ *
+ * The probability model update will be skipped.
+ *
+ * The entropy context of this transform block will be updated.
+ *
+ * \param[in]    plane        The index of the current plane.
+ * \param[in]    block        The index of the current transform block in the
+ * macroblock. It's defined by number of 4x4 units that have been coded before
+ * the currernt transform block.
+ * \param[in]    blk_row      The row index of the current transform block
+ * in the macroblock. Each unit has 4 pixels in y plane.
+ * \param[in]    blk_col      The col index of the current transform block
+ * in the macroblock. Each unit has 4 pixels in y plane.
+ * \param[in]    plane_bsize  Block size for this plane. When the video source
+ * uses chroma subsampling, the block size of UV planes will be smaller than the
+ * block size of Y plane.
+ * \param[in]    tx_size      The given transform size.
+ * \param[in]    arg          This parameter will be translated into
+ * tokenize_b_args, in which RUN_TYPE indicates using regular mode or dry run.
+ */
 void av1_update_and_record_txb_context(int plane, int block, int blk_row,
                                        int blk_col, BLOCK_SIZE plane_bsize,
                                        TX_SIZE tx_size, void *arg);
+/*!\cond */
 #if CONFIG_HTB_TRELLIS
 void hbt_destroy();
 #endif  // CONFIG_HTB_TRELLIS
-
 /*!\endcond */
+
 /*!\brief Adjust the magnitude of quantized coefficients to achieve better
  * rate-distortion (RD) trade-off.
  *
