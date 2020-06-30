@@ -215,8 +215,19 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
 CB_COEFF_BUFFER *av1_get_cb_coeff_buffer(const struct AV1_COMP *cpi, int mi_row,
                                          int mi_col);
+/*!\endcond */
 
-// Returns the rate cost associated with skipping the current transform block.
+/*!\brief Returns the entropy cost associated with skipping the current
+ * transform block.
+ *
+ * \ingroup coefficient_coding
+ *
+ * \param[in]    coeff_costs    Table of entropy cost for coefficient coding.
+ * \param[in]    txb_ctx        Context info for entropy coding transform block
+ * skip flag (tx_skip) and the sign of DC coefficient (dc_sign).
+ * \param[in]    plane          The index of the current plane
+ * \param[in]    tx_size        The transform size
+ */
 static INLINE int av1_cost_skip_txb(const CoeffCosts *coeff_costs,
                                     const TXB_CTX *const txb_ctx, int plane,
                                     TX_SIZE tx_size) {
@@ -227,6 +238,7 @@ static INLINE int av1_cost_skip_txb(const CoeffCosts *coeff_costs,
   return coeff_costs_->txb_skip_cost[txb_ctx->txb_skip_ctx][1];
 }
 
+/*!\cond */
 // These numbers are empirically obtained.
 static const int plane_rd_mult[REF_TYPES][PLANE_TYPES] = {
   { 17, 13 },
