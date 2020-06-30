@@ -184,6 +184,7 @@ enum {
 } UENUM1BYTE(MODE_SEARCH_SKIP_LOGIC);
 
 enum {
+  // TODO(yunqing): modify the following names.
   NO_PRUNE = 0,
   // adaptively prunes the least perspective tx types out of all 16
   // (tuned to provide negligible quality loss)
@@ -193,6 +194,7 @@ enum {
   PRUNE_2D_MORE = 3,
   // More aggressive pruning based on tx type score and allowed tx count
   PRUNE_2D_AGGRESSIVE = 4,
+  PRUNE_2D_MORE_AGGRESSIVE = 5,
 } UENUM1BYTE(TX_TYPE_PRUNE_MODE);
 
 enum {

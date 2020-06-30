@@ -428,12 +428,12 @@ static INLINE void set_tx_type_prune(const SPEED_FEATURES *sf,
                                      int is_winner_mode) {
   // Populate prune transform mode appropriately
   txfm_params->prune_2d_txfm_mode = sf->tx_sf.tx_type_search.prune_2d_txfm_mode;
-  if (enable_winner_mode_tx_type_pruning) {
-    if (is_winner_mode)
-      txfm_params->prune_2d_txfm_mode = NO_PRUNE;
-    else
-      txfm_params->prune_2d_txfm_mode = PRUNE_2D_AGGRESSIVE;
-  }
+  if (!enable_winner_mode_tx_type_pruning) return;
+
+  const int prune_mode[2][2] = { { PRUNE_2D_AGGRESSIVE, NO_PRUNE },
+                                 { PRUNE_2D_MORE_AGGRESSIVE, PRUNE_2D_FAST } };
+  txfm_params->prune_2d_txfm_mode =
+      prune_mode[enable_winner_mode_tx_type_pruning - 1][is_winner_mode];
 }
 
 static INLINE void set_tx_domain_dist_params(

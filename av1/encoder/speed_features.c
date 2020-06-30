@@ -640,6 +640,7 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.subpel_force_stop = FULL_PEL;
     sf->tpl_sf.disable_filtered_key_tpl = 1;
 
+    sf->tx_sf.tx_type_search.enable_winner_mode_tx_type_pruning = 2;
     sf->tx_sf.use_intra_txb_hash = 1;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 0;
 
