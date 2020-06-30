@@ -1980,8 +1980,8 @@ int av1_optimize_txb(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   return txb_info.eob;
 }
 
-int av1_get_txb_entropy_context(const tran_low_t *qcoeff,
-                                const SCAN_ORDER *scan_order, int eob) {
+uint8_t av1_get_txb_entropy_context(const tran_low_t *qcoeff,
+                                    const SCAN_ORDER *scan_order, int eob) {
   const int16_t *const scan = scan_order->scan;
   int cul_level = 0;
   int c;
@@ -1995,7 +1995,7 @@ int av1_get_txb_entropy_context(const tran_low_t *qcoeff,
   cul_level = AOMMIN(COEFF_CONTEXT_MASK, cul_level);
   set_dc_sign(&cul_level, qcoeff[0]);
 
-  return cul_level;
+  return (uint8_t)cul_level;
 }
 
 static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
@@ -2221,7 +2221,8 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
   } else {
     tcoeff = qcoeff;
   }
-  const int cul_level = av1_get_txb_entropy_context(tcoeff, scan_order, eob);
+  const uint8_t cul_level =
+      av1_get_txb_entropy_context(tcoeff, scan_order, eob);
   av1_set_entropy_contexts(xd, pd, plane, plane_bsize, tx_size, cul_level,
                            blk_col, blk_row);
 }

@@ -225,7 +225,7 @@ void av1_dropout_qcoeff(MACROBLOCK *mb, int plane, int block, TX_SIZE tx_size,
   if (eob != p->eobs[block]) {
     p->eobs[block] = eob;
     p->txb_entropy_ctx[block] =
-        (uint8_t)av1_get_txb_entropy_context(qcoeff, scan_order, eob);
+        av1_get_txb_entropy_context(qcoeff, scan_order, eob);
   }
 }
 
@@ -312,7 +312,7 @@ void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
     p->txb_entropy_ctx[block] = 0;
   } else {
     p->txb_entropy_ctx[block] =
-        (uint8_t)av1_get_txb_entropy_context(qcoeff, scan_order, *eob);
+        av1_get_txb_entropy_context(qcoeff, scan_order, *eob);
   }
 }
 
