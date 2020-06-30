@@ -2871,7 +2871,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     }
   }
 
-  switch (oxcf->cdf_update_mode) {
+  switch (oxcf->algo_cfg.cdf_update_mode) {
     case 0:  // No CDF update for any frames(4~6% compression loss).
       features->disable_cdf_update = 1;
       break;

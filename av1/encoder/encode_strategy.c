@@ -387,7 +387,7 @@ static struct lookahead_entry *setup_arf_frame(
       cpi->no_show_kf = 1;
     } else {
 #if !CONFIG_REALTIME_ONLY
-      if (oxcf->arnr_max_frames > 0) {
+      if (oxcf->algo_cfg.arnr_max_frames > 0) {
         // Produce the filtered ARF frame.
         cm->current_frame.frame_type = INTER_FRAME;
         FRAME_UPDATE_TYPE frame_update_type =
@@ -886,8 +886,9 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       frame_params->frame_type == KEY_FRAME &&
       oxcf->kf_cfg.enable_keyframe_filtering &&
       !is_stat_generation_stage(cpi) && !frame_params->show_existing_frame &&
-      cpi->rc.frames_to_key > cpi->oxcf.arnr_max_frames &&
-      !is_lossless_requested(&oxcf->rc_cfg) && oxcf->arnr_max_frames > 0;
+      cpi->rc.frames_to_key > cpi->oxcf.algo_cfg.arnr_max_frames &&
+      !is_lossless_requested(&oxcf->rc_cfg) &&
+      oxcf->algo_cfg.arnr_max_frames > 0;
   if (apply_filtering) {
     const double y_noise_level = av1_estimate_noise_from_single_plane(
         frame_input->source, 0, cm->seq_params.bit_depth);
@@ -933,7 +934,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
 
   if (!cpi->sf.tpl_sf.disable_filtered_key_tpl) {
     if (frame_params->frame_type == KEY_FRAME &&
-        !is_stat_generation_stage(cpi) && oxcf->enable_tpl_model &&
+        !is_stat_generation_stage(cpi) && oxcf->algo_cfg.enable_tpl_model &&
         oxcf->gf_cfg.lag_in_frames > 0 && frame_params->show_frame) {
       av1_tpl_setup_stats(cpi, 0, frame_params, frame_input);
     }
@@ -1080,7 +1081,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       frame_params.show_existing_frame = 1;
     } else {
       frame_params.show_existing_frame =
-          ((oxcf->enable_overlay == 0 || cpi->sf.hl_sf.disable_overlay_frames ||
+          ((oxcf->algo_cfg.enable_overlay == 0 ||
+            cpi->sf.hl_sf.disable_overlay_frames ||
             cpi->show_existing_alt_ref) &&
            gf_group->update_type[gf_group->index] == OVERLAY_UPDATE) ||
           gf_group->update_type[gf_group->index] == INTNL_OVERLAY_UPDATE;
@@ -1273,7 +1275,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     cm->quant_params.using_qmatrix = oxcf->q_cfg.using_qm;
 #if !CONFIG_REALTIME_ONLY
     if (gf_cfg->lag_in_frames > 0 && !is_stat_generation_stage(cpi)) {
-      if (cpi->gf_group.index == 1 && oxcf->enable_tpl_model) {
+      if (cpi->gf_group.index == 1 && oxcf->algo_cfg.enable_tpl_model) {
         av1_configure_buffer_updates(cpi, &frame_params.refresh_frame,
                                      frame_update_type, 0);
         av1_set_frame_size(cpi, cm->width, cm->height);

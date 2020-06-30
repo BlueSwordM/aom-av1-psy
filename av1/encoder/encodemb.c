@@ -98,7 +98,8 @@ int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   }
 
   return av1_optimize_txb_new(cpi, x, plane, block, tx_size, tx_type, txb_ctx,
-                              rate_cost, cpi->oxcf.sharpness, fast_mode);
+                              rate_cost, cpi->oxcf.algo_cfg.sharpness,
+                              fast_mode);
 }
 
 // Hyper-parameters for dropout optimization, based on following logics.

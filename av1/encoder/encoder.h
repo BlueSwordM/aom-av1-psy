@@ -610,6 +610,31 @@ typedef struct {
   bool using_qm;
 } QuantizationCfg;
 
+typedef struct {
+  // Indicates the loop filter sharpness.
+  int sharpness;
+  // Indicates the trellis optimization mode of quantized coefficients.
+  // 0: disabled
+  // 1: enabled
+  // 2: enabled for rd search
+  // 3: true for estimate yrd search
+  int disable_trellis_quant;
+  // Indicates the maximum number of frames to create arf.
+  int arnr_max_frames;
+  // Indicates the temporal filter strength for arf.
+  int arnr_strength;
+  // Indicates the CDF update mode
+  // 0: no update
+  // 1: update on every frame(default)
+  // 2: selectively update
+  uint8_t cdf_update_mode;
+  // Indicates if RDO based on frame temporal dependency should be enabled.
+  bool enable_tpl_model;
+  // Indicates if coding of overlay frames for filtered ALTREF frames is
+  // enabled.
+  bool enable_overlay;
+} AlgoCfg;
+
 /*!\endcond */
 /*!
  * \brief Main encoder configuration data structure.
@@ -626,7 +651,9 @@ typedef struct AV1EncoderConfig {
   // Configuration related to frame-dimensions.
   FrameDimensionCfg frm_dim_cfg;
 
-  int sharpness;  // sharpening output: recommendation 0:
+  // Configuration related to encoder algorithm.
+  AlgoCfg algo_cfg;
+
   int speed;
 
   MODE mode;
@@ -663,7 +690,6 @@ typedef struct AV1EncoderConfig {
   int enable_cdef;
   int enable_restoration;
   int force_video_mode;
-  int disable_trellis_quant;
   unsigned int vbr_corpus_complexity_lap;  // 0 indicates corpus complexity vbr
                                            // mode is disabled
 
@@ -694,9 +720,6 @@ typedef struct AV1EncoderConfig {
    */
   unsigned int frame_parallel_decoding_mode;
 
-  int arnr_max_frames;
-  int arnr_strength;
-
   // Configuration related to Group of frames.
   GFConfig gf_cfg;
 
@@ -704,8 +727,6 @@ typedef struct AV1EncoderConfig {
   TileConfig tile_cfg;
 
   int row_mt;
-
-  int enable_tpl_model;
 
   int max_threads;
 
@@ -729,7 +750,6 @@ typedef struct AV1EncoderConfig {
   // Configuration related to unit tests.
   UnitTestCfg unit_test_cfg;
 
-  uint8_t cdf_update_mode;
   aom_superblock_size_t superblock_size;
   uint8_t monochrome;
   unsigned int full_still_picture_hdr;
@@ -739,7 +759,6 @@ typedef struct AV1EncoderConfig {
   unsigned int allow_ref_frame_mvs;
   int enable_interintra_comp;
   int enable_global_motion;
-  int enable_overlay;
   int enable_palette;
   unsigned int save_as_annexb;
 

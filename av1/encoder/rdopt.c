@@ -3719,7 +3719,8 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
     // unless ARNR filtering is enabled in which case we want
     // an unfiltered alternative. We allow near/nearest as well
     // because they may result in zero-zero MVs but be cheaper.
-    if (cpi->rc.is_src_frame_alt_ref && (cpi->oxcf.arnr_max_frames == 0)) {
+    if (cpi->rc.is_src_frame_alt_ref &&
+        (cpi->oxcf.algo_cfg.arnr_max_frames == 0)) {
       disable_inter_references_except_altref(mask->ref_combo);
 
       mask->pred_modes[ALTREF_FRAME] = ~INTER_NEAREST_NEAR_ZERO;

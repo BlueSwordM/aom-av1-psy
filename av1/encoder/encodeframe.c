@@ -4375,7 +4375,7 @@ static void get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
                              int mi_col, SuperBlockEnc *sb_enc) {
   sb_enc->tpl_data_count = 0;
 
-  if (!cpi->oxcf.enable_tpl_model) return;
+  if (!cpi->oxcf.algo_cfg.enable_tpl_model) return;
   if (cpi->superres_mode != AOM_SUPERRES_NONE) return;
   if (cpi->common.current_frame.frame_type == KEY_FRAME) return;
   const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
@@ -4545,7 +4545,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
           av1_compute_q_from_energy_level_deltaq_mode(cpi, block_var_level);
     }
   } else if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_OBJECTIVE &&
-             cpi->oxcf.enable_tpl_model) {
+             cpi->oxcf.algo_cfg.enable_tpl_model) {
     // Setup deltaq based on tpl stats
     current_qindex = get_q_for_deltaq_objective(cpi, sb_size, mi_row, mi_col);
   }
@@ -4553,7 +4553,8 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
   const int delta_q_res = delta_q_info->delta_q_res;
   // Right now aq only works with tpl model. So if tpl is disabled, we set the
   // current_qindex to base_qindex.
-  if (cpi->oxcf.enable_tpl_model && cpi->oxcf.q_cfg.deltaq_mode != NO_DELTA_Q) {
+  if (cpi->oxcf.algo_cfg.enable_tpl_model &&
+      cpi->oxcf.q_cfg.deltaq_mode != NO_DELTA_Q) {
     current_qindex =
         clamp(current_qindex, delta_q_res, 256 - delta_q_info->delta_q_res);
   } else {
@@ -4793,7 +4794,7 @@ static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
   assert(IMPLIES(cpi->gf_group.size > 0,
                  cpi->gf_group.index < cpi->gf_group.size));
   const int gf_group_index = cpi->gf_group.index;
-  if (cpi->oxcf.enable_tpl_model && cpi->oxcf.q_cfg.aq_mode == NO_AQ &&
+  if (cpi->oxcf.algo_cfg.enable_tpl_model && cpi->oxcf.q_cfg.aq_mode == NO_AQ &&
       cpi->oxcf.q_cfg.deltaq_mode == NO_DELTA_Q && gf_group_index > 0 &&
       cpi->gf_group.update_type[gf_group_index] == ARF_UPDATE) {
     const int dr =
@@ -5131,7 +5132,7 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
         setup_delta_q(cpi, td, x, tile_info, mi_row, mi_col, num_planes);
         av1_tpl_rdmult_setup_sb(cpi, x, sb_size, mi_row, mi_col);
       }
-      if (cpi->oxcf.enable_tpl_model) {
+      if (cpi->oxcf.algo_cfg.enable_tpl_model) {
         adjust_rdmult_tpl_model(cpi, x, mi_row, mi_col);
       }
     }

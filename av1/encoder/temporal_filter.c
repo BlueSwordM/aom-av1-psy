@@ -710,7 +710,7 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
   // Quantization factor used in temporal filtering.
   const int q_factor = get_q(cpi);
   // Factor to control the filering strength.
-  const int filter_strength = cpi->oxcf.arnr_strength;
+  const int filter_strength = cpi->oxcf.algo_cfg.arnr_strength;
 
   // Save input state.
   MACROBLOCK *const mb = &cpi->td.mb;
@@ -874,7 +874,7 @@ static void tf_setup_filtering_buffer(const AV1_COMP *cpi,
                                       double *noise_levels) {
   // Number of frames used for filtering. Set `arnr_max_frames` as 1 to disable
   // temporal filtering.
-  int num_frames = AOMMAX(cpi->oxcf.arnr_max_frames, 1);
+  int num_frames = AOMMAX(cpi->oxcf.algo_cfg.arnr_max_frames, 1);
   int num_before = 0;  // Number of filtering frames before the to-filter frame.
   int num_after = 0;   // Number of filtering frames after the to-filer frame.
   const int lookahead_depth =
@@ -1054,9 +1054,10 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
 
   // Set showable frame.
   if (filter_frame_lookahead_idx >= 0) {
-    cpi->common.showable_frame =
-        num_frames_for_filtering == 1 || is_second_arf ||
-        (cpi->oxcf.enable_overlay == 0 || cpi->sf.hl_sf.disable_overlay_frames);
+    cpi->common.showable_frame = num_frames_for_filtering == 1 ||
+                                 is_second_arf ||
+                                 (cpi->oxcf.algo_cfg.enable_overlay == 0 ||
+                                  cpi->sf.hl_sf.disable_overlay_frames);
   }
 
   // Do filtering.

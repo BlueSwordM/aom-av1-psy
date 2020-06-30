@@ -291,7 +291,7 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
   MV_PREC_LOGIC high_precision_mv_usage;
 
   // Whether to disable overlay frames for filtered Altref frames,
-  // overiding oxcf->enable_overlay flag set as 1.
+  // overiding oxcf->algo_cfg.enable_overlay flag set as 1.
   int disable_overlay_frames;
 
   // Enable/disable adaptively deciding whether or not to encode ALTREF overlay

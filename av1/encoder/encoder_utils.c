@@ -557,7 +557,7 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
 
 #if !CONFIG_REALTIME_ONLY
   GF_GROUP *gf_group = &cpi->gf_group;
-  if (cpi->oxcf.enable_tpl_model && is_frame_tpl_eligible(gf_group)) {
+  if (cpi->oxcf.algo_cfg.enable_tpl_model && is_frame_tpl_eligible(gf_group)) {
     process_tpl_stats_frame(cpi);
     av1_tpl_rdmult_setup(cpi);
   }

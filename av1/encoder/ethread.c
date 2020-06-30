@@ -263,7 +263,7 @@ void av1_row_mt_mem_dealloc(AV1_COMP *cpi) {
 
       row_mt_sync_mem_dealloc(&this_tile->row_mt_sync);
 
-      if (cpi->oxcf.cdf_update_mode) aom_free(this_tile->row_ctx);
+      if (cpi->oxcf.algo_cfg.cdf_update_mode) aom_free(this_tile->row_ctx);
     }
   }
   enc_row_mt->allocated_sb_rows = 0;
@@ -994,7 +994,8 @@ void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
       enc_row_mt->allocated_sb_rows != max_sb_rows ||
       enc_row_mt->allocated_sb_cols != (max_sb_cols - 1)) {
     av1_row_mt_mem_dealloc(cpi);
-    row_mt_mem_alloc(cpi, max_sb_rows, max_sb_cols, cpi->oxcf.cdf_update_mode);
+    row_mt_mem_alloc(cpi, max_sb_rows, max_sb_cols,
+                     cpi->oxcf.algo_cfg.cdf_update_mode);
   }
 
   memset(thread_id_to_tile_id, -1,

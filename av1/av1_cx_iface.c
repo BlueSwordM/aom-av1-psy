@@ -732,6 +732,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   InputCfg *const input_cfg = &oxcf->input_cfg;
 
+  AlgoCfg *const algo_cfg = &oxcf->algo_cfg;
+
   const int is_vbr = cfg->rc_end_usage == AOM_VBR;
   oxcf->profile = cfg->g_profile;
   oxcf->max_threads = (int)cfg->g_threads;
@@ -826,9 +828,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->enable_restoration =
       (cfg->g_usage == AOM_USAGE_REALTIME) ? 0 : extra_cfg->enable_restoration;
   oxcf->force_video_mode = extra_cfg->force_video_mode;
-  oxcf->enable_overlay = extra_cfg->enable_overlay;
   oxcf->enable_palette = extra_cfg->enable_palette;
-  oxcf->disable_trellis_quant = extra_cfg->disable_trellis_quant;
   oxcf->allow_ref_frame_mvs = extra_cfg->enable_ref_frame_mvs;
 
   // Set Quantization related configuration.
@@ -879,6 +879,17 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   oxcf->drop_frames_water_mark = cfg->rc_dropframe_thresh;
 
+  // Set encoder algorithm related configuration.
+  algo_cfg->enable_overlay = extra_cfg->enable_overlay;
+  algo_cfg->disable_trellis_quant = extra_cfg->disable_trellis_quant;
+  algo_cfg->sharpness = extra_cfg->sharpness;
+  algo_cfg->arnr_max_frames = extra_cfg->arnr_max_frames;
+  algo_cfg->arnr_strength = extra_cfg->arnr_strength;
+  algo_cfg->cdf_update_mode = (uint8_t)extra_cfg->cdf_update_mode;
+  // TODO(any): Fix and Enable TPL for resize-mode > 0
+  algo_cfg->enable_tpl_model =
+      resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
+
   // Set two-pass configuration.
   two_pass_cfg->vbrbias = cfg->rc_2pass_vbr_bias_pct;
   two_pass_cfg->vbrmin_section = cfg->rc_2pass_vbr_minsection_pct;
@@ -898,7 +909,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   kf_cfg->enable_intrabc = extra_cfg->enable_intrabc;
 
   oxcf->speed = extra_cfg->cpu_used;
-  oxcf->sharpness = extra_cfg->sharpness;
 
   // Set Color related configuration.
   color_cfg->color_primaries = extra_cfg->color_primaries;
@@ -907,8 +917,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   color_cfg->color_range = extra_cfg->color_range;
 
   oxcf->chroma_sample_position = extra_cfg->chroma_sample_position;
-  oxcf->arnr_max_frames = extra_cfg->arnr_max_frames;
-  oxcf->arnr_strength = extra_cfg->arnr_strength;
 
   // Set Group of frames configuration.
   gf_cfg->lag_in_frames = clamp(cfg->g_lag_in_frames, 0, MAX_LAG_BUFFERS);
@@ -922,7 +930,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->tuning = extra_cfg->tuning;
   oxcf->vmaf_model_path = extra_cfg->vmaf_model_path;
   oxcf->content = extra_cfg->content;
-  oxcf->cdf_update_mode = (uint8_t)extra_cfg->cdf_update_mode;
   oxcf->superblock_size = extra_cfg->superblock_size;
   if (cfg->large_scale_tile) {
     oxcf->film_grain_test_vector = 0;
@@ -1070,10 +1077,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     dec_model_cfg->display_model_info_present_flag = 0;
     dec_model_cfg->timing_info_present = 0;
   }
-
-  // TODO(any): Fix and Enable TPL for resize-mode > 0
-  oxcf->enable_tpl_model =
-      resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
 
   oxcf->deltalf_mode =
       (q_cfg->deltaq_mode != NO_DELTA_Q) && extra_cfg->deltalf_mode;
