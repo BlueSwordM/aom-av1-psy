@@ -318,6 +318,7 @@ list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
             "${AOM_ROOT}/av1/common/x86/highbd_inv_txfm_avx2.c"
             "${AOM_ROOT}/av1/common/x86/highbd_jnt_convolve_avx2.c"
             "${AOM_ROOT}/av1/common/x86/highbd_wiener_convolve_avx2.c"
+            "${AOM_ROOT}/av1/common/x86/highbd_warp_affine_avx2.c"
             "${AOM_ROOT}/av1/common/x86/jnt_convolve_avx2.c"
             "${AOM_ROOT}/av1/common/x86/reconinter_avx2.c"
             "${AOM_ROOT}/av1/common/x86/selfguided_avx2.c"
