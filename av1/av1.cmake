@@ -140,6 +140,8 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/cost.h"
             "${AOM_ROOT}/av1/encoder/encodeframe.c"
             "${AOM_ROOT}/av1/encoder/encodeframe.h"
+            "${AOM_ROOT}/av1/encoder/encodeframe_utils.c"
+            "${AOM_ROOT}/av1/encoder/encodeframe_utils.h"
             "${AOM_ROOT}/av1/encoder/encodemb.c"
             "${AOM_ROOT}/av1/encoder/encodemb.h"
             "${AOM_ROOT}/av1/encoder/encodemv.c"
