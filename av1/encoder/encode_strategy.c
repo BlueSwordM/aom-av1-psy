@@ -483,7 +483,7 @@ static int allow_show_existing(const AV1_COMP *const cpi,
   if (lookahead_src == NULL) return 1;
 
   const int is_error_resilient =
-      cpi->oxcf.error_resilient_mode ||
+      cpi->oxcf.tool_cfg.error_resilient_mode ||
       (lookahead_src->flags & AOM_EFLAG_ERROR_RESILIENT);
   const int is_s_frame = cpi->oxcf.kf_cfg.enable_sframe ||
                          (lookahead_src->flags & AOM_EFLAG_SET_S_FRAME);

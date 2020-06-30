@@ -635,6 +635,44 @@ typedef struct {
   bool enable_overlay;
 } AlgoCfg;
 
+typedef struct {
+  // Indicates the codec bit-depth.
+  aom_bit_depth_t bit_depth;
+  // Indicates the superblock size that should be used by the encoder.
+  aom_superblock_size_t superblock_size;
+  // Indicates if loopfilter modulation should be enabled.
+  bool enable_deltalf_mode;
+  // Indicates if CDEF should be enabled.
+  bool enable_cdef;
+  // Indicates if loop restoration filter should be enabled.
+  bool enable_restoration;
+  // When enabled, video mode should be used even for single frame input.
+  bool force_video_mode;
+  // Indicates if the error resiliency features should be enabled.
+  bool error_resilient_mode;
+  // Indicates if frame parallel decoding feature should be enabled.
+  bool frame_parallel_decoding_mode;
+  // Indicates if the input should be encoded as monochrome.
+  bool enable_monochrome;
+  // When enabled, the encoder will use a full header even for still pictures.
+  // When disabled, a reduced header is used for still pictures.
+  bool full_still_picture_hdr;
+  // Indicates if dual interpolation filters should be enabled.
+  bool enable_dual_filter;
+  // Indicates if frame order hint should be enabled or not.
+  bool enable_order_hint;
+  // Indicates if ref_frame_mvs should be enabled at the sequence level.
+  bool ref_frame_mvs_present;
+  // Indicates if ref_frame_mvs should be enabled at the frame level.
+  bool enable_ref_frame_mvs;
+  // Indicates if interintra compound mode is enabled.
+  bool enable_interintra_comp;
+  // Indicates if global motion should be enabled.
+  bool enable_global_motion;
+  // Indicates if palette should be enabled.
+  bool enable_palette;
+} ToolCfg;
+
 /*!\endcond */
 /*!
  * \brief Main encoder configuration data structure.
@@ -642,8 +680,7 @@ typedef struct {
 typedef struct AV1EncoderConfig {
   /*!\cond */
   BITSTREAM_PROFILE profile;
-  aom_bit_depth_t bit_depth;  // Codec bit-depth.
-  int64_t target_bandwidth;   // bandwidth to be used in bits per second
+  int64_t target_bandwidth;  // bandwidth to be used in bits per second
 
   // Configuration related to the input video.
   InputCfg input_cfg;
@@ -685,11 +722,6 @@ typedef struct AV1EncoderConfig {
   // Frame drop threshold.
   int drop_frames_water_mark;
 
-  // controlling quality
-  int deltalf_mode;
-  int enable_cdef;
-  int enable_restoration;
-  int force_video_mode;
   unsigned int vbr_corpus_complexity_lap;  // 0 indicates corpus complexity vbr
                                            // mode is disabled
 
@@ -708,17 +740,8 @@ typedef struct AV1EncoderConfig {
   // END DATARATE CONTROL OPTIONS
   // ----------------------------------------------------------------
 
-  /* Bitfield defining the error resiliency features to enable.
-   * Can provide decodable frames after losses in previous
-   * frames and decodable partitions after losses in the same frame.
-   */
-  unsigned int error_resilient_mode;
-
-  /* Bitfield defining the parallel decoding mode where the
-   * decoding in successive frames may be conducted in parallel
-   * just by decoding the frame headers.
-   */
-  unsigned int frame_parallel_decoding_mode;
+  // Configuration related to encoder toolsets.
+  ToolCfg tool_cfg;
 
   // Configuration related to Group of frames.
   GFConfig gf_cfg;
@@ -750,16 +773,6 @@ typedef struct AV1EncoderConfig {
   // Configuration related to unit tests.
   UnitTestCfg unit_test_cfg;
 
-  aom_superblock_size_t superblock_size;
-  uint8_t monochrome;
-  unsigned int full_still_picture_hdr;
-  int enable_dual_filter;
-  int enable_order_hint;
-  int enable_ref_frame_mvs;
-  unsigned int allow_ref_frame_mvs;
-  int enable_interintra_comp;
-  int enable_global_motion;
-  int enable_palette;
   unsigned int save_as_annexb;
 
   // Flags related to motion mode.

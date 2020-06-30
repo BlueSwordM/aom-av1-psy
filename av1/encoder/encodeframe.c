@@ -3457,7 +3457,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
   // keep track of any non-zero delta-q used
   td->deltaq_used |= (x->delta_qindex != 0);
 
-  if (cpi->oxcf.deltalf_mode) {
+  if (cpi->oxcf.tool_cfg.enable_deltalf_mode) {
     const int delta_lf_res = delta_q_info->delta_lf_res;
     const int lfmask = ~(delta_lf_res - 1);
     const int delta_lf_from_base =
@@ -4445,7 +4445,8 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     cpi->deltaq_used = 0;
 
     cm->delta_q_info.delta_lf_present_flag =
-        cm->delta_q_info.delta_q_present_flag && oxcf->deltalf_mode;
+        cm->delta_q_info.delta_q_present_flag &&
+        oxcf->tool_cfg.enable_deltalf_mode;
     cm->delta_q_info.delta_lf_multi = DEFAULT_DELTA_LF_MULTI;
 
     // update delta_q_present_flag and delta_lf_present_flag based on

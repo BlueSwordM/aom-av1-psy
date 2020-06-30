@@ -322,7 +322,8 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
   rc->ni_frames = 0;
 
   rc->tot_q = 0.0;
-  rc->avg_q = av1_convert_qindex_to_q(rc_cfg->worst_allowed_q, oxcf->bit_depth);
+  rc->avg_q = av1_convert_qindex_to_q(rc_cfg->worst_allowed_q,
+                                      oxcf->tool_cfg.bit_depth);
 
   for (i = 0; i < RATE_FACTOR_LEVELS; ++i) {
     rc->rate_correction_factors[i] = 0.7;

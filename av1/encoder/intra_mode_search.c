@@ -521,7 +521,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
   // Search palette mode
   const int try_palette =
-      cpi->oxcf.enable_palette &&
+      cpi->oxcf.tool_cfg.enable_palette &&
       av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                         mbmi->sb_type);
   if (try_palette) {
@@ -909,7 +909,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
     // the one in av1_search_palette_mode.
     PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
     const int try_palette =
-        cpi->oxcf.enable_palette &&
+        cpi->oxcf.tool_cfg.enable_palette &&
         av1_allow_palette(cm->features.allow_screen_content_tools,
                           mbmi->sb_type);
     if (intra_search_state->rate_uv_intra == INT_MAX) {
@@ -1024,7 +1024,7 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   const int *bmode_costs;
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   const int try_palette =
-      cpi->oxcf.enable_palette &&
+      cpi->oxcf.tool_cfg.enable_palette &&
       av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                         mbmi->sb_type);
   uint8_t *best_palette_color_map =

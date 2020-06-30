@@ -384,18 +384,19 @@ static void set_bitstream_level_tier(SequenceHeader *seq, AV1_COMMON *cm,
 void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
                                const AV1EncoderConfig *oxcf, int use_svc) {
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
+  const ToolCfg *const tool_cfg = &oxcf->tool_cfg;
 
   seq->still_picture =
-      (oxcf->force_video_mode == 0) && (oxcf->input_cfg.limit == 1);
+      (tool_cfg->force_video_mode == 0) && (oxcf->input_cfg.limit == 1);
   seq->reduced_still_picture_hdr = seq->still_picture;
-  seq->reduced_still_picture_hdr &= !oxcf->full_still_picture_hdr;
+  seq->reduced_still_picture_hdr &= !tool_cfg->full_still_picture_hdr;
   seq->force_screen_content_tools = (oxcf->mode == REALTIME) ? 0 : 2;
   seq->force_integer_mv = 2;
-  seq->order_hint_info.enable_order_hint = oxcf->enable_order_hint;
+  seq->order_hint_info.enable_order_hint = tool_cfg->enable_order_hint;
   seq->frame_id_numbers_present_flag =
       !(seq->still_picture && seq->reduced_still_picture_hdr) &&
-      !oxcf->tile_cfg.enable_large_scale_tile && oxcf->error_resilient_mode &&
-      !use_svc;
+      !oxcf->tile_cfg.enable_large_scale_tile &&
+      tool_cfg->error_resilient_mode && !use_svc;
   if (seq->still_picture && seq->reduced_still_picture_hdr) {
     seq->order_hint_info.enable_order_hint = 0;
     seq->force_screen_content_tools = 2;
@@ -422,19 +423,19 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->frame_id_length = FRAME_ID_LENGTH;
   seq->delta_frame_id_length = DELTA_FRAME_ID_LENGTH;
 
-  seq->enable_dual_filter = oxcf->enable_dual_filter;
+  seq->enable_dual_filter = tool_cfg->enable_dual_filter;
   seq->order_hint_info.enable_dist_wtd_comp =
       oxcf->comp_type_cfg.enable_dist_wtd_comp;
   seq->order_hint_info.enable_dist_wtd_comp &=
       seq->order_hint_info.enable_order_hint;
-  seq->order_hint_info.enable_ref_frame_mvs = oxcf->enable_ref_frame_mvs;
+  seq->order_hint_info.enable_ref_frame_mvs = tool_cfg->ref_frame_mvs_present;
   seq->order_hint_info.enable_ref_frame_mvs &=
       seq->order_hint_info.enable_order_hint;
   seq->enable_superres = oxcf->superres_cfg.enable_superres;
-  seq->enable_cdef = oxcf->enable_cdef;
-  seq->enable_restoration = oxcf->enable_restoration;
+  seq->enable_cdef = tool_cfg->enable_cdef;
+  seq->enable_restoration = tool_cfg->enable_restoration;
   seq->enable_warped_motion = oxcf->motion_mode_cfg.enable_warped_motion;
-  seq->enable_interintra_compound = oxcf->enable_interintra_comp;
+  seq->enable_interintra_compound = tool_cfg->enable_interintra_comp;
   seq->enable_masked_compound = oxcf->comp_type_cfg.enable_masked_comp;
   seq->enable_intra_edge_filter = oxcf->intra_mode_cfg.enable_intra_edge_filter;
   seq->enable_filter_intra = oxcf->intra_mode_cfg.enable_filter_intra;
@@ -473,12 +474,12 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   cpi->framerate = oxcf->input_cfg.init_framerate;
 
   seq_params->profile = oxcf->profile;
-  seq_params->bit_depth = oxcf->bit_depth;
+  seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   seq_params->use_highbitdepth = oxcf->use_highbitdepth;
   seq_params->color_primaries = color_cfg->color_primaries;
   seq_params->transfer_characteristics = color_cfg->transfer_characteristics;
   seq_params->matrix_coefficients = color_cfg->matrix_coefficients;
-  seq_params->monochrome = oxcf->monochrome;
+  seq_params->monochrome = oxcf->tool_cfg.enable_monochrome;
   seq_params->chroma_sample_position = oxcf->chroma_sample_position;
   seq_params->color_range = color_cfg->color_range;
   seq_params->timing_info_present = dec_model_cfg->timing_info_present;
@@ -594,11 +595,11 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   }
 
   if (seq_params->profile != oxcf->profile) seq_params->profile = oxcf->profile;
-  seq_params->bit_depth = oxcf->bit_depth;
+  seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   seq_params->color_primaries = color_cfg->color_primaries;
   seq_params->transfer_characteristics = color_cfg->transfer_characteristics;
   seq_params->matrix_coefficients = color_cfg->matrix_coefficients;
-  seq_params->monochrome = oxcf->monochrome;
+  seq_params->monochrome = oxcf->tool_cfg.enable_monochrome;
   seq_params->chroma_sample_position = oxcf->chroma_sample_position;
   seq_params->color_range = color_cfg->color_range;
 
@@ -672,9 +673,10 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   refresh_frame_flags->golden_frame = false;
   refresh_frame_flags->bwd_ref_frame = false;
 
-  cm->features.refresh_frame_context = (oxcf->frame_parallel_decoding_mode)
-                                           ? REFRESH_FRAME_CONTEXT_DISABLED
-                                           : REFRESH_FRAME_CONTEXT_BACKWARD;
+  cm->features.refresh_frame_context =
+      (oxcf->tool_cfg.frame_parallel_decoding_mode)
+          ? REFRESH_FRAME_CONTEXT_DISABLED
+          : REFRESH_FRAME_CONTEXT_BACKWARD;
   if (oxcf->tile_cfg.enable_large_scale_tile)
     cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 
@@ -3306,9 +3308,10 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   av1_set_high_precision_mv(cpi, 1, 0);
 
   // Normal defaults
-  cm->features.refresh_frame_context = oxcf->frame_parallel_decoding_mode
-                                           ? REFRESH_FRAME_CONTEXT_DISABLED
-                                           : REFRESH_FRAME_CONTEXT_BACKWARD;
+  cm->features.refresh_frame_context =
+      oxcf->tool_cfg.frame_parallel_decoding_mode
+          ? REFRESH_FRAME_CONTEXT_DISABLED
+          : REFRESH_FRAME_CONTEXT_BACKWARD;
   if (oxcf->tile_cfg.enable_large_scale_tile)
     cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 
@@ -3589,9 +3592,9 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
       ext_refresh_frame_flags->update_pending = 0;
   }
 
-  ext_flags->use_ref_frame_mvs = cpi->oxcf.allow_ref_frame_mvs &
+  ext_flags->use_ref_frame_mvs = cpi->oxcf.tool_cfg.enable_ref_frame_mvs &
                                  ((flags & AOM_EFLAG_NO_REF_FRAME_MVS) == 0);
-  ext_flags->use_error_resilient = cpi->oxcf.error_resilient_mode |
+  ext_flags->use_error_resilient = cpi->oxcf.tool_cfg.error_resilient_mode |
                                    ((flags & AOM_EFLAG_ERROR_RESILIENT) != 0);
   ext_flags->use_s_frame =
       cpi->oxcf.kf_cfg.enable_sframe | ((flags & AOM_EFLAG_SET_S_FRAME) != 0);

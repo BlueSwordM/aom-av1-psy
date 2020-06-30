@@ -607,7 +607,7 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
       memcpy(&cm->film_grain_params,
              film_grain_test_vectors + oxcf->film_grain_test_vector - 1,
              sizeof(cm->film_grain_params));
-      if (oxcf->monochrome)
+      if (oxcf->tool_cfg.enable_monochrome)
         reset_film_grain_chroma_params(&cm->film_grain_params);
       cm->film_grain_params.bit_depth = cm->seq_params.bit_depth;
       if (cm->seq_params.color_range == AOM_CR_FULL_RANGE) {
@@ -726,11 +726,12 @@ BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi) {
   const AV1_COMMON *const cm = &cpi->common;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
 
-  if (oxcf->superblock_size == AOM_SUPERBLOCK_SIZE_64X64) return BLOCK_64X64;
-  if (oxcf->superblock_size == AOM_SUPERBLOCK_SIZE_128X128)
+  if (oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_64X64)
+    return BLOCK_64X64;
+  if (oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_128X128)
     return BLOCK_128X128;
 
-  assert(oxcf->superblock_size == AOM_SUPERBLOCK_SIZE_DYNAMIC);
+  assert(oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_DYNAMIC);
 
   if (cpi->svc.number_spatial_layers > 1 ||
       oxcf->resize_cfg.resize_mode != RESIZE_NONE) {

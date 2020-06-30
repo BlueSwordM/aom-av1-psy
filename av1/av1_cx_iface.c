@@ -734,6 +734,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   AlgoCfg *const algo_cfg = &oxcf->algo_cfg;
 
+  ToolCfg *const tool_cfg = &oxcf->tool_cfg;
+
   const int is_vbr = cfg->rc_end_usage == AOM_VBR;
   oxcf->profile = cfg->g_profile;
   oxcf->max_threads = (int)cfg->g_threads;
@@ -746,8 +748,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   frm_dim_cfg->forced_max_frame_height = cfg->g_forced_max_frame_height;
   frm_dim_cfg->render_width = extra_cfg->render_width;
   frm_dim_cfg->render_height = extra_cfg->render_height;
-
-  oxcf->bit_depth = cfg->g_bit_depth;
 
   // Set input video related configuration.
   input_cfg->input_bit_depth = cfg->g_input_bit_depth;
@@ -824,11 +824,32 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   // Convert target bandwidth from Kbit/s to Bit/s
   oxcf->target_bandwidth = 1000 * cfg->rc_target_bitrate;
 
-  oxcf->enable_cdef = extra_cfg->enable_cdef;
-  oxcf->enable_restoration =
+  // Set Toolset related configuration.
+  tool_cfg->bit_depth = cfg->g_bit_depth;
+  tool_cfg->enable_cdef = extra_cfg->enable_cdef;
+  tool_cfg->enable_restoration =
       (cfg->g_usage == AOM_USAGE_REALTIME) ? 0 : extra_cfg->enable_restoration;
-  oxcf->force_video_mode = extra_cfg->force_video_mode;
-  oxcf->enable_palette = extra_cfg->enable_palette;
+  tool_cfg->force_video_mode = extra_cfg->force_video_mode;
+  tool_cfg->enable_palette = extra_cfg->enable_palette;
+  // FIXME(debargha): Should this be:
+  // tool_cfg->enable_ref_frame_mvs  = extra_cfg->allow_ref_frame_mvs &
+  //                                         extra_cfg->enable_order_hint ?
+  // Disallow using temporal MVs while large_scale_tile = 1.
+  tool_cfg->enable_ref_frame_mvs =
+      extra_cfg->allow_ref_frame_mvs && !cfg->large_scale_tile;
+  tool_cfg->superblock_size = extra_cfg->superblock_size;
+  tool_cfg->enable_monochrome = cfg->monochrome;
+  tool_cfg->full_still_picture_hdr = cfg->full_still_picture_hdr;
+  tool_cfg->enable_dual_filter = extra_cfg->enable_dual_filter;
+  tool_cfg->enable_order_hint = extra_cfg->enable_order_hint;
+  tool_cfg->enable_interintra_comp = extra_cfg->enable_interintra_comp;
+  tool_cfg->ref_frame_mvs_present =
+      extra_cfg->enable_ref_frame_mvs & extra_cfg->enable_order_hint;
+  tool_cfg->enable_global_motion = extra_cfg->enable_global_motion;
+  tool_cfg->error_resilient_mode =
+      cfg->g_error_resilient | extra_cfg->error_resilient_mode;
+  tool_cfg->frame_parallel_decoding_mode =
+      extra_cfg->frame_parallel_decoding_mode;
 
   // Set Quantization related configuration.
   q_cfg->using_qm = extra_cfg->enable_qm;
@@ -844,27 +865,23 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     if (q_cfg->use_fixed_qp_offsets) {
       if (cfg->fixed_qp_offsets[i] >= 0) {  // user-provided qp offset
         q_cfg->fixed_qp_offsets[i] = convert_qp_offset(
-            rc_cfg->cq_level, cfg->fixed_qp_offsets[i], oxcf->bit_depth);
+            rc_cfg->cq_level, cfg->fixed_qp_offsets[i], tool_cfg->bit_depth);
       } else {  // auto-selected qp offset
         q_cfg->fixed_qp_offsets[i] =
-            get_modeled_qp_offset(rc_cfg->cq_level, i, oxcf->bit_depth);
+            get_modeled_qp_offset(rc_cfg->cq_level, i, tool_cfg->bit_depth);
       }
     } else {
       q_cfg->fixed_qp_offsets[i] = -1.0;
     }
   }
 
+  tool_cfg->enable_deltalf_mode =
+      (q_cfg->deltaq_mode != NO_DELTA_Q) && extra_cfg->deltalf_mode;
+
   // Set cost update frequency configuration.
   oxcf->cost_upd_freq.coeff = (COST_UPDATE_TYPE)extra_cfg->coeff_cost_upd_freq;
   oxcf->cost_upd_freq.mode = (COST_UPDATE_TYPE)extra_cfg->mode_cost_upd_freq;
   oxcf->cost_upd_freq.mv = (COST_UPDATE_TYPE)extra_cfg->mv_cost_upd_freq;
-
-  // FIXME(debargha): Should this be:
-  // oxcf->allow_ref_frame_mvs = extra_cfg->allow_ref_frame_mvs &
-  //                             extra_cfg->enable_order_hint ?
-  // Disallow using temporal MVs while large_scale_tile = 1.
-  oxcf->allow_ref_frame_mvs =
-      extra_cfg->allow_ref_frame_mvs && !cfg->large_scale_tile;
 
   // Set frame resize mode configuration.
   resize_cfg->resize_mode = (RESIZE_MODE)cfg->rc_resize_mode;
@@ -929,7 +946,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->tuning = extra_cfg->tuning;
   oxcf->vmaf_model_path = extra_cfg->vmaf_model_path;
   oxcf->content = extra_cfg->content;
-  oxcf->superblock_size = extra_cfg->superblock_size;
   if (cfg->large_scale_tile) {
     oxcf->film_grain_test_vector = 0;
     oxcf->film_grain_table_filename = NULL;
@@ -969,7 +985,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     // AOM_SUPERBLOCK_SIZE_64X64(default value in large_scale_tile).
     if (extra_cfg->superblock_size != AOM_SUPERBLOCK_SIZE_64X64 &&
         extra_cfg->superblock_size != AOM_SUPERBLOCK_SIZE_128X128)
-      oxcf->superblock_size = AOM_SUPERBLOCK_SIZE_64X64;
+      tool_cfg->superblock_size = AOM_SUPERBLOCK_SIZE_64X64;
   }
 
   // Set reference frame related configuration.
@@ -979,16 +995,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->ref_frm_cfg.enable_onesided_comp = extra_cfg->enable_onesided_comp;
 
   oxcf->row_mt = extra_cfg->row_mt;
-
-  oxcf->monochrome = cfg->monochrome;
-  oxcf->full_still_picture_hdr = cfg->full_still_picture_hdr;
-  oxcf->enable_dual_filter = extra_cfg->enable_dual_filter;
-  oxcf->enable_order_hint = extra_cfg->enable_order_hint;
-  oxcf->enable_interintra_comp = extra_cfg->enable_interintra_comp;
-  oxcf->enable_ref_frame_mvs =
-      extra_cfg->enable_ref_frame_mvs & extra_cfg->enable_order_hint;
-
-  oxcf->enable_global_motion = extra_cfg->enable_global_motion;
 
   // Set motion mode related configuration.
   oxcf->motion_mode_cfg.enable_obmc = extra_cfg->enable_obmc;
@@ -1067,18 +1073,11 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     disable_superres(superres_cfg);
   }
 
-  oxcf->error_resilient_mode =
-      cfg->g_error_resilient | extra_cfg->error_resilient_mode;
-  oxcf->frame_parallel_decoding_mode = extra_cfg->frame_parallel_decoding_mode;
-
   if (input_cfg->limit == 1) {
     // still picture mode, display model and timing is meaningless
     dec_model_cfg->display_model_info_present_flag = 0;
     dec_model_cfg->timing_info_present = 0;
   }
-
-  oxcf->deltalf_mode =
-      (q_cfg->deltaq_mode != NO_DELTA_Q) && extra_cfg->deltalf_mode;
 
   oxcf->save_as_annexb = cfg->save_as_annexb;
 

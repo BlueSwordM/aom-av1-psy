@@ -462,7 +462,7 @@ void av1_compute_global_motion_facade(AV1_COMP *cpi) {
   av1_zero(gm_info->params_cost);
 
   if (cpi->common.current_frame.frame_type == INTER_FRAME && cpi->source &&
-      cpi->oxcf.enable_global_motion && !gm_info->search_done) {
+      cpi->oxcf.tool_cfg.enable_global_motion && !gm_info->search_done) {
     setup_global_motion_info_params(cpi);
     if (cpi->mt_info.num_workers > 1)
       av1_global_motion_estimation_mt(cpi);

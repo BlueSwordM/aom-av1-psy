@@ -599,7 +599,7 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
   int i;
   MACROBLOCKD *xd = &x->e_mbd;
 
-  if (is_key_frame || cpi->oxcf.monochrome) return;
+  if (is_key_frame || cpi->oxcf.tool_cfg.enable_monochrome) return;
 
   for (i = 1; i <= 2; ++i) {
     unsigned int uv_sad = UINT_MAX;
