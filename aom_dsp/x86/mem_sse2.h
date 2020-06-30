@@ -112,4 +112,12 @@ static INLINE void load_8bit_8x8(const uint8_t *const s, const ptrdiff_t stride,
   load_8bit_8x4(s + 4 * stride, stride, &d[4]);
 }
 
+static INLINE void storeu_8bit_16x4(const __m128i *const s, uint8_t *const d,
+                                    const ptrdiff_t stride) {
+  _mm_storeu_si128((__m128i *)(d + 0 * stride), s[0]);
+  _mm_storeu_si128((__m128i *)(d + 1 * stride), s[1]);
+  _mm_storeu_si128((__m128i *)(d + 2 * stride), s[2]);
+  _mm_storeu_si128((__m128i *)(d + 3 * stride), s[3]);
+}
+
 #endif  // AOM_AOM_DSP_X86_MEM_SSE2_H_

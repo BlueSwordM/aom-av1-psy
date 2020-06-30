@@ -37,6 +37,66 @@ static INLINE void shuffle_filter_ssse3(const int16_t *const filter,
   f[3] = _mm_shuffle_epi8(f_values, _mm_set1_epi16(0x0e0cu));
 }
 
+static INLINE void shuffle_filter_odd_ssse3(const int16_t *const filter,
+                                            __m128i *const f) {
+  const __m128i f_values = _mm_load_si128((const __m128i *)filter);
+  // pack and duplicate the filter values
+  // It utilizes the fact that the high byte of filter[3] is always 0 to clean
+  // half of f[0] and f[4].
+  assert(filter[3] >= 0 && filter[3] < 256);
+  f[0] = _mm_shuffle_epi8(f_values, _mm_set1_epi16(0x0007u));
+  f[1] = _mm_shuffle_epi8(f_values, _mm_set1_epi16(0x0402u));
+  f[2] = _mm_shuffle_epi8(f_values, _mm_set1_epi16(0x0806u));
+  f[3] = _mm_shuffle_epi8(f_values, _mm_set1_epi16(0x0c0au));
+  f[4] = _mm_shuffle_epi8(f_values, _mm_set1_epi16(0x070eu));
+}
+
+static INLINE __m128i convolve8_8_even_offset_ssse3(const __m128i *const s,
+                                                    const __m128i *const f) {
+  // multiply 2 adjacent elements with the filter and add the result
+  const __m128i k_64 = _mm_set1_epi16(1 << 6);
+  const __m128i x0 = _mm_maddubs_epi16(s[0], f[0]);
+  const __m128i x1 = _mm_maddubs_epi16(s[1], f[1]);
+  const __m128i x2 = _mm_maddubs_epi16(s[2], f[2]);
+  const __m128i x3 = _mm_maddubs_epi16(s[3], f[3]);
+  // compensate the subtracted 64 in f[1]. x4 is always non negative.
+  const __m128i x4 = _mm_maddubs_epi16(s[1], _mm_set1_epi8(64));
+  // add and saturate the results together
+  __m128i temp = _mm_adds_epi16(x0, x3);
+  temp = _mm_adds_epi16(temp, x1);
+  temp = _mm_adds_epi16(temp, x2);
+  temp = _mm_adds_epi16(temp, x4);
+  // round and shift by 7 bit each 16 bit
+  temp = _mm_adds_epi16(temp, k_64);
+  temp = _mm_srai_epi16(temp, 7);
+  return temp;
+}
+
+static INLINE __m128i convolve8_8_odd_offset_ssse3(const __m128i *const s,
+                                                   const __m128i *const f) {
+  // multiply 2 adjacent elements with the filter and add the result
+  const __m128i k_64 = _mm_set1_epi16(1 << 6);
+  const __m128i x0 = _mm_maddubs_epi16(s[0], f[0]);
+  const __m128i x1 = _mm_maddubs_epi16(s[1], f[1]);
+  const __m128i x2 = _mm_maddubs_epi16(s[2], f[2]);
+  const __m128i x3 = _mm_maddubs_epi16(s[3], f[3]);
+  const __m128i x4 = _mm_maddubs_epi16(s[4], f[4]);
+  // compensate the subtracted 64 in f[2]. x5 is always non negative.
+  const __m128i x5 = _mm_maddubs_epi16(s[2], _mm_set1_epi8(64));
+  __m128i temp;
+
+  // add and saturate the results together
+  temp = _mm_adds_epi16(x0, x1);
+  temp = _mm_adds_epi16(temp, x2);
+  temp = _mm_adds_epi16(temp, x3);
+  temp = _mm_adds_epi16(temp, x4);
+  temp = _mm_adds_epi16(temp, x5);
+  // round and shift by 7 bit each 16 bit
+  temp = _mm_adds_epi16(temp, k_64);
+  temp = _mm_srai_epi16(temp, 7);
+  return temp;
+}
+
 static INLINE __m128i convolve8_8_ssse3(const __m128i *const s,
                                         const __m128i *const f) {
   // multiply 2 adjacent elements with the filter and add the result
@@ -471,6 +531,202 @@ static void scale_plane_2_to_1_general(const uint8_t *src, const int src_stride,
   } while (x);
 }
 
+typedef void (*shuffle_filter_funcs)(const int16_t *const filter,
+                                     __m128i *const f);
+
+typedef __m128i (*convolve8_funcs)(const __m128i *const s,
+                                   const __m128i *const f);
+
+static void scale_plane_4_to_3_general(const uint8_t *src, const int src_stride,
+                                       uint8_t *dst, const int dst_stride,
+                                       const int w, const int h,
+                                       const InterpKernel *const coef,
+                                       const int phase_scaler,
+                                       uint8_t *const temp_buffer) {
+  static const int step_q4 = 16 * 4 / 3;
+  const int width_hor = (w + 5) - ((w + 5) % 6);
+  const int stride_hor = 2 * width_hor + 4;  // store 4 extra pixels
+  const int width_ver = (w + 7) & ~7;
+  // We need (SUBPEL_TAPS - 1) extra rows: (SUBPEL_TAPS / 2 - 1) extra rows
+  // above and (SUBPEL_TAPS / 2) extra rows below.
+  const int height_hor = (4 * h / 3 + SUBPEL_TAPS - 1 + 7) & ~7;
+  const int height_ver = (h + 5) - ((h + 5) % 6);
+  int x, y = height_hor;
+  uint8_t *t = temp_buffer;
+  __m128i s[12], d[6], dd[4];
+  __m128i f0[4], f1[5], f2[5];
+  // The offset of the first row is always less than 1 pixel.
+  const int offset1_q4 = phase_scaler + 1 * step_q4;
+  const int offset2_q4 = phase_scaler + 2 * step_q4;
+  // offset_idxx indicates the pixel offset is even (0) or odd (1).
+  // It's used to choose the src offset and filter coefficient offset.
+  const int offset_idx1 = (offset1_q4 >> 4) & 1;
+  const int offset_idx2 = (offset2_q4 >> 4) & 1;
+  static const shuffle_filter_funcs shuffle_filter_func_list[2] = {
+    shuffle_filter_ssse3, shuffle_filter_odd_ssse3
+  };
+  static const convolve8_funcs convolve8_func_list[2] = {
+    convolve8_8_even_offset_ssse3, convolve8_8_odd_offset_ssse3
+  };
+
+  assert(w && h);
+
+  shuffle_filter_ssse3(coef[(phase_scaler + 0 * step_q4) & SUBPEL_MASK], f0);
+  shuffle_filter_func_list[offset_idx1](coef[offset1_q4 & SUBPEL_MASK], f1);
+  shuffle_filter_func_list[offset_idx2](coef[offset2_q4 & SUBPEL_MASK], f2);
+
+  // Sub 64 to avoid overflow.
+  // Coef 128 would be treated as -128 in PMADDUBSW. Sub 64 here.
+  // Coef 128 is in either fx[1] or fx[2] depending on the phase idx.
+  // When filter phase idx is 1, the two biggest coefficients are shuffled
+  // together, and the sum of them are always no less than 128. Sub 64 here.
+  // After the subtraction, when the sum of all positive coefficients are no
+  // larger than 128, and the sum of all negative coefficients are no
+  // less than -128, there will be no overflow in the convolve8 functions.
+  f0[1] = _mm_sub_epi8(f0[1], _mm_set1_epi8(64));
+  f1[1 + offset_idx1] = _mm_sub_epi8(f1[1 + offset_idx1], _mm_set1_epi8(64));
+  f2[1 + offset_idx2] = _mm_sub_epi8(f2[1 + offset_idx2], _mm_set1_epi8(64));
+
+  src -= (SUBPEL_TAPS / 2 - 1) * src_stride + SUBPEL_TAPS / 2 - 1;
+
+  // horizontal 6x8
+  do {
+    load_8bit_8x8(src, src_stride, s);
+    // 00 01 10 11 20 21 30 31  40 41 50 51 60 61 70 71
+    // 02 03 12 13 22 23 32 33  42 43 52 53 62 63 72 73
+    // 04 05 14 15 24 25 34 35  44 45 54 55 64 65 74 75
+    // 06 07 16 17 26 27 36 37  46 47 56 57 66 67 76 77
+    transpose_16bit_4x8(s, s);
+    x = width_hor;
+
+    do {
+      src += 8;
+      load_8bit_8x8(src, src_stride, &s[4]);
+      // 08 09 18 19 28 29 38 39  48 49 58 59 68 69 78 79
+      // 0A 0B 1A 1B 2A 2B 3A 3B  4A 4B 5A 5B 6A 6B 7A 7B
+      // OC 0D 1C 1D 2C 2D 3C 3D  4C 4D 5C 5D 6C 6D 7C 7D
+      // 0E 0F 1E 1F 2E 2F 3E 3F  4E 4F 5E 5F 6E 6F 7E 7F
+      transpose_16bit_4x8(&s[4], &s[4]);
+
+      // 00 10 20 30 40 50 60 70
+      // 01 11 21 31 41 51 61 71
+      // 02 12 22 32 42 52 62 72
+      // 03 13 23 33 43 53 63 73
+      // 04 14 24 34 44 54 64 74
+      // 05 15 25 35 45 55 65 75
+      d[0] = convolve8_8_even_offset_ssse3(&s[0], f0);
+      d[1] = convolve8_func_list[offset_idx1](&s[offset1_q4 >> 5], f1);
+      d[2] = convolve8_func_list[offset_idx2](&s[offset2_q4 >> 5], f2);
+      d[3] = convolve8_8_even_offset_ssse3(&s[2], f0);
+      d[4] = convolve8_func_list[offset_idx1](&s[2 + (offset1_q4 >> 5)], f1);
+      d[5] = convolve8_func_list[offset_idx2](&s[2 + (offset2_q4 >> 5)], f2);
+
+      // 00 10 20 30 40 50 60 70  02 12 22 32 42 52 62 72
+      // 01 11 21 31 41 51 61 71  03 13 23 33 43 53 63 73
+      // 04 14 24 34 44 54 64 74  xx xx xx xx xx xx xx xx
+      // 05 15 25 35 45 55 65 75  xx xx xx xx xx xx xx xx
+      dd[0] = _mm_packus_epi16(d[0], d[2]);
+      dd[1] = _mm_packus_epi16(d[1], d[3]);
+      dd[2] = _mm_packus_epi16(d[4], d[4]);
+      dd[3] = _mm_packus_epi16(d[5], d[5]);
+
+      // 00 10 01 11 20 30 21 31  40 50 41 51 60 70 61 71
+      // 02 12 03 13 22 32 23 33  42 52 43 53 62 72 63 73
+      // 04 14 05 15 24 34 25 35  44 54 45 55 64 74 65 75
+      d[0] = _mm_unpacklo_epi16(dd[0], dd[1]);
+      d[1] = _mm_unpackhi_epi16(dd[0], dd[1]);
+      d[2] = _mm_unpacklo_epi16(dd[2], dd[3]);
+
+      // 00 10 01 11 02 12 03 13  20 30 21 31 22 32 23 33
+      // 40 50 41 51 42 52 43 53  60 70 61 71 62 72 63 73
+      // 04 14 05 15 xx xx xx xx  24 34 25 35 xx xx xx xx
+      // 44 54 45 55 xx xx xx xx  64 74 65 75 xx xx xx xx
+      dd[0] = _mm_unpacklo_epi32(d[0], d[1]);
+      dd[1] = _mm_unpackhi_epi32(d[0], d[1]);
+      dd[2] = _mm_unpacklo_epi32(d[2], d[2]);
+      dd[3] = _mm_unpackhi_epi32(d[2], d[2]);
+
+      // 00 10 01 11 02 12 03 13  04 14 05 15 xx xx xx xx
+      // 20 30 21 31 22 32 23 33  24 34 25 35 xx xx xx xx
+      // 40 50 41 51 42 52 43 53  44 54 45 55 xx xx xx xx
+      // 60 70 61 71 62 72 63 73  64 74 65 75 xx xx xx xx
+      d[0] = _mm_unpacklo_epi64(dd[0], dd[2]);
+      d[1] = _mm_unpackhi_epi64(dd[0], dd[2]);
+      d[2] = _mm_unpacklo_epi64(dd[1], dd[3]);
+      d[3] = _mm_unpackhi_epi64(dd[1], dd[3]);
+
+      // store 4 extra pixels
+      storeu_8bit_16x4(d, t, stride_hor);
+
+      s[0] = s[4];
+      s[1] = s[5];
+      s[2] = s[6];
+      s[3] = s[7];
+
+      t += 12;
+      x -= 6;
+    } while (x);
+    src += 8 * src_stride - 4 * width_hor / 3;
+    t += 3 * stride_hor + 4;
+    y -= 8;
+  } while (y);
+
+  // vertical 8x6
+  x = width_ver;
+  t = temp_buffer;
+  do {
+    // 00 10 01 11 02 12 03 13  04 14 05 15 06 16 07 17
+    // 20 30 21 31 22 32 23 33  24 34 25 35 26 36 27 37
+    // 40 50 41 51 42 52 43 53  44 54 45 55 46 56 47 57
+    // 60 70 61 71 62 72 63 73  64 74 65 75 66 76 67 77
+    loadu_8bit_16x4(t, stride_hor, s);
+    y = height_ver;
+
+    do {
+      // 80 90 81 91 82 92 83 93  84 94 85 95 86 96 87 97
+      // A0 B0 A1 B1 A2 B2 A3 B3  A4 B4 A5 B5 A6 B6 A7 B7
+      // C0 D0 C1 D1 C2 D2 C3 D3  C4 D4 C5 D5 C6 D6 C7 D7
+      // E0 F0 E1 F1 E2 F2 E3 F3  E4 F4 E5 F5 E6 F6 E7 F7
+      t += 4 * stride_hor;
+      loadu_8bit_16x4(t, stride_hor, &s[4]);
+
+      d[0] = convolve8_8_even_offset_ssse3(&s[0], f0);
+      d[1] = convolve8_func_list[offset_idx1](&s[offset1_q4 >> 5], f1);
+      d[2] = convolve8_func_list[offset_idx2](&s[offset2_q4 >> 5], f2);
+      d[3] = convolve8_8_even_offset_ssse3(&s[2], f0);
+      d[4] = convolve8_func_list[offset_idx1](&s[2 + (offset1_q4 >> 5)], f1);
+      d[5] = convolve8_func_list[offset_idx2](&s[2 + (offset2_q4 >> 5)], f2);
+
+      // 00 01 02 03 04 05 06 07  10 11 12 13 14 15 16 17
+      // 20 21 22 23 24 25 26 27  30 31 32 33 34 35 36 37
+      // 40 41 42 43 44 45 46 47  50 51 52 53 54 55 56 57
+      d[0] = _mm_packus_epi16(d[0], d[1]);
+      d[2] = _mm_packus_epi16(d[2], d[3]);
+      d[4] = _mm_packus_epi16(d[4], d[5]);
+
+      _mm_storel_epi64((__m128i *)(dst + 0 * dst_stride), d[0]);
+      _mm_storeh_epi64((__m128i *)(dst + 1 * dst_stride), d[0]);
+      _mm_storel_epi64((__m128i *)(dst + 2 * dst_stride), d[2]);
+      _mm_storeh_epi64((__m128i *)(dst + 3 * dst_stride), d[2]);
+      _mm_storel_epi64((__m128i *)(dst + 4 * dst_stride), d[4]);
+      _mm_storeh_epi64((__m128i *)(dst + 5 * dst_stride), d[4]);
+
+      s[0] = s[4];
+      s[1] = s[5];
+      s[2] = s[6];
+      s[3] = s[7];
+
+      dst += 6 * dst_stride;
+      y -= 6;
+    } while (y);
+    t -= stride_hor * 2 * height_ver / 3;
+    t += 16;
+    dst -= height_ver * dst_stride;
+    dst += 8;
+    x -= 8;
+  } while (x);
+}
+
 void av1_resize_and_extend_frame_ssse3(const YV12_BUFFER_CONFIG *src,
                                        YV12_BUFFER_CONFIG *dst,
                                        const InterpFilter filter,
@@ -542,6 +798,32 @@ void av1_resize_and_extend_frame_ssse3(const YV12_BUFFER_CONFIG *src,
                                      temp_buffer);
           free(temp_buffer);
         }
+      }
+    } else if (4 * dst_w == 3 * src_w && 4 * dst_h == 3 * src_h) {
+      // 4 to 3
+      const int buffer_stride_hor = (dst_w + 5) - ((dst_w + 5) % 6) + 2;
+      const int buffer_stride_ver = (dst_w + 7) & ~7;
+      const int buffer_height = (4 * dst_h / 3 + SUBPEL_TAPS - 1 + 7) & ~7;
+      // When the vertical filter reads more pixels than the horizontal filter
+      // generated in each row, we need extra padding to avoid heap read
+      // overflow. For example, the horizontal filter generates 18 pixels but
+      // the vertical filter reads 24 pixels in a row. The difference is
+      // multiplied by 2 since two rows are interlaced together in the
+      // optimization.
+      const int extra_padding =
+          (buffer_stride_ver > buffer_stride_hor)
+              ? 2 * (buffer_stride_ver - buffer_stride_hor)
+              : 0;
+      const int buffer_size = buffer_stride_hor * buffer_height + extra_padding;
+      uint8_t *const temp_buffer = (uint8_t *)malloc(buffer_size);
+      if (temp_buffer) {
+        const InterpKernel *interp_kernel =
+            (const InterpKernel *)av1_interp_filter_params_list[filter]
+                .filter_ptr;
+        scale_plane_4_to_3_general(src->buffers[i], src->strides[is_uv],
+                                   dst->buffers[i], dst->strides[is_uv], dst_w,
+                                   dst_h, interp_kernel, phase, temp_buffer);
+        free(temp_buffer);
       }
     } else {
       av1_resize_plane(src->buffers[i], src_h, src_w, src->strides[is_uv],
