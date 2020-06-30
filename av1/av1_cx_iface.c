@@ -829,7 +829,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       (cfg->g_usage == AOM_USAGE_REALTIME) ? 0 : extra_cfg->enable_restoration;
   oxcf->force_video_mode = extra_cfg->force_video_mode;
   oxcf->enable_palette = extra_cfg->enable_palette;
-  oxcf->allow_ref_frame_mvs = extra_cfg->enable_ref_frame_mvs;
 
   // Set Quantization related configuration.
   q_cfg->using_qm = extra_cfg->enable_qm;
