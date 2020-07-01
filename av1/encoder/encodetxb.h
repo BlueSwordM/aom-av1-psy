@@ -264,11 +264,26 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                          int block, TX_SIZE tx_size, TX_TYPE tx_type,
                          const TXB_CTX *const txb_ctx, int *rate_cost,
                          int sharpness, int fast_mode);
-/*!\cond */
 
+/*!\brief Get the corresponding \ref CB_COEFF_BUFFER of the current macro block.
+ *
+ * \ingroup coefficient_coding
+ *
+ * The macroblock's location is described by mi_row and mi_col, row and column
+ * mi indexes in the coding frame.
+ *
+ * Each mi unit is a 4x4 pixel block.
+ *
+ * \param[in]    cpi               Top-level encoder structure.
+ * \param[in]    mi_row            Row mi index of the current transform block
+ * in the frame.
+ * \param[in]    mi_col           Column mi index of the current transform
+ * block in the frame.
+ * \return       CB_COEFF_BUFFER*  Pointer of \ref CB_COEFF_BUFFER associated
+ * to this macroblock.
+ */
 CB_COEFF_BUFFER *av1_get_cb_coeff_buffer(const struct AV1_COMP *cpi, int mi_row,
                                          int mi_col);
-/*!\endcond */
 
 /*!\brief Returns the entropy cost associated with skipping the current
  * transform block.
