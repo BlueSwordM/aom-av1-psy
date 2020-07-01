@@ -2227,9 +2227,9 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
                            blk_col, blk_row);
 }
 
-void av1_update_txb_context(const AV1_COMP *cpi, ThreadData *td,
-                            RUN_TYPE dry_run, BLOCK_SIZE bsize,
-                            uint8_t allow_update_cdf) {
+void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
+                                     RUN_TYPE dry_run, BLOCK_SIZE bsize,
+                                     uint8_t allow_update_cdf) {
   const AV1_COMMON *const cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCK *const x = &td->mb;

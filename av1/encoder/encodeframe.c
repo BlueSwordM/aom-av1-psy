@@ -4952,8 +4952,8 @@ static AOM_INLINE void encode_superblock(const AV1_COMP *const cpi,
       }
     }
 
-    av1_update_txb_context(cpi, td, dry_run, bsize,
-                           tile_data->allow_update_cdf);
+    av1_update_intra_mb_txb_context(cpi, td, dry_run, bsize,
+                                    tile_data->allow_update_cdf);
   } else {
     int ref;
     const int is_compound = has_second_ref(mbmi);

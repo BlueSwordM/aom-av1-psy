@@ -158,7 +158,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
  * \param[in]    x              Pointer to structure holding the data for the
                                 current encoding macroblock
  * \param[in]    w              Entropy coding write pointer
- * \param[in]    bsize          size of the current encoding macroblock
+ * \param[in]    bsize          Block size of the current macroblock
  */
 
 void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
@@ -179,14 +179,29 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
  */
 uint8_t av1_get_txb_entropy_context(const tran_low_t *qcoeff,
                                     const SCAN_ORDER *scan_order, int eob);
-/*!\cond */
-void av1_update_txb_context(const AV1_COMP *cpi, ThreadData *td,
-                            RUN_TYPE dry_run, BLOCK_SIZE bsize,
-                            uint8_t allow_update_cdf);
-/*!\endcond */
 
 /*!\brief Update the probability model (cdf) and the entropy context related to
- * coefficient coding.
+ * coefficient coding for all transform blocks in the intra macroblock.
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function will go through each transform block in the intra macorblock
+ * and call \ref av1_update_and_record_txb_context to update the probability
+ * model and entropy context properly.
+ *
+ * \param[in]    cpi               Top-level encoder structure
+ * \param[in]    td                Top-level multithreading structure
+ * \param[in]    dry_run           Whether this is a dry run.
+ * \param[in]    bsize             Block size of the current macroblock
+ * \param[in]    allow_update_cdf  Allowed to update probability model (cdf) or
+ * not.
+ */
+void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
+                                     RUN_TYPE dry_run, BLOCK_SIZE bsize,
+                                     uint8_t allow_update_cdf);
+
+/*!\brief Update the probability model (cdf) and the entropy context related to
+ * coefficient coding for a transform block.
  *
  * \ingroup coefficient_coding
  *
