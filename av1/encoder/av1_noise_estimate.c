@@ -73,7 +73,7 @@ static int enable_noise_estimation(AV1_COMP *const cpi) {
   if (cpi->oxcf.pass == 0 && cpi->oxcf.rc_cfg.mode == AOM_CBR &&
       cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && cpi->oxcf.speed >= 5 &&
       resize_pending == 0 && !cpi->use_svc &&
-      cpi->oxcf.content != AOM_CONTENT_SCREEN &&
+      cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN &&
       cpi->common.width * cpi->common.height >= 640 * 360)
     return 1;
   else

@@ -2169,7 +2169,7 @@ static void av1_scene_detection_onepass(AV1_COMP *cpi) {
     const int num_mi_rows = cm->mi_params.mi_rows;
     int num_zero_temp_sad = 0;
     uint32_t min_thresh = 10000;
-    if (cpi->oxcf.content != AOM_CONTENT_SCREEN) min_thresh = 100000;
+    if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN) min_thresh = 100000;
     const BLOCK_SIZE bsize = BLOCK_64X64;
     int full_sampling = (cm->width * cm->height < 640 * 360) ? 1 : 0;
     // Loop over sub-sample of frame, compute average sad over 64x64 blocks.
@@ -2386,7 +2386,7 @@ int av1_encodedframe_overshoot(AV1_COMP *cpi, int *q) {
   int thresh_qp = 7 * (rc->worst_quality >> 3);
   // Lower thresh_qp for video (more overshoot at lower Q) to be
   // more conservative for video.
-  if (cpi->oxcf.content != AOM_CONTENT_SCREEN)
+  if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN)
     thresh_qp = 3 * (rc->worst_quality >> 2);
   if (sf->rt_sf.overshoot_detection_cbr == FAST_DETECTION_MAXQ &&
       cm->quant_params.base_qindex < thresh_qp) {

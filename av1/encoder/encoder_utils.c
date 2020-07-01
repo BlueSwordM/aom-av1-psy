@@ -594,6 +594,7 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
                                       const AV1EncoderConfig *oxcf) {
   AV1_COMMON *const cm = &cpi->common;
   cpi->oxcf = *oxcf;
+  const TuneCfg *const tune_cfg = &oxcf->tune_cfg;
 
   if (cpi->film_grain_table) {
     aom_film_grain_table_free(cpi->film_grain_table);
@@ -601,11 +602,11 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
     cpi->film_grain_table = NULL;
   }
 
-  if (oxcf->film_grain_test_vector) {
+  if (tune_cfg->film_grain_test_vector) {
     cm->seq_params.film_grain_params_present = 1;
     if (cm->current_frame.frame_type == KEY_FRAME) {
       memcpy(&cm->film_grain_params,
-             film_grain_test_vectors + oxcf->film_grain_test_vector - 1,
+             film_grain_test_vectors + tune_cfg->film_grain_test_vector - 1,
              sizeof(cm->film_grain_params));
       if (oxcf->tool_cfg.enable_monochrome)
         reset_film_grain_chroma_params(&cm->film_grain_params);
@@ -614,14 +615,14 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
         cm->film_grain_params.clip_to_restricted_range = 0;
       }
     }
-  } else if (oxcf->film_grain_table_filename) {
+  } else if (tune_cfg->film_grain_table_filename) {
     cm->seq_params.film_grain_params_present = 1;
 
     cpi->film_grain_table = aom_malloc(sizeof(*cpi->film_grain_table));
     memset(cpi->film_grain_table, 0, sizeof(aom_film_grain_table_t));
 
     aom_film_grain_table_read(cpi->film_grain_table,
-                              oxcf->film_grain_table_filename, &cm->error);
+                              tune_cfg->film_grain_table_filename, &cm->error);
   } else {
 #if CONFIG_DENOISE
     cm->seq_params.film_grain_params_present = (cpi->oxcf.noise_level > 0);
@@ -967,9 +968,9 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   for (int pass = 0; pass < 2; ++pass) {
     set_encoding_params_for_screen_content(cpi, pass);
 #if CONFIG_TUNE_VMAF
-    if (oxcf->tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
-        oxcf->tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
-        oxcf->tuning == AOM_TUNE_VMAF_MAX_GAIN) {
+    if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
+        oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
+        oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
       av1_set_quantizer(
           cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel,
           av1_get_vmaf_base_qindex(cpi, q_for_screen_content_quick_run),

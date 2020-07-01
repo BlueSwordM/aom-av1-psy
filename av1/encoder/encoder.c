@@ -1621,7 +1621,7 @@ void av1_set_screen_content_options(const AV1_COMP *cpi,
     return;
   }
 
-  if (cpi->oxcf.content == AOM_CONTENT_SCREEN) {
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
     features->allow_screen_content_tools = features->allow_intrabc = 1;
     return;
   }
@@ -2264,9 +2264,9 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       av1_scale_references(cpi, EIGHTTAP_REGULAR, 0, 0);
     }
 #if CONFIG_TUNE_VMAF
-    if (oxcf->tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
-        oxcf->tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
-        oxcf->tuning == AOM_TUNE_VMAF_MAX_GAIN) {
+    if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
+        oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
+        oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
       av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel,
                         av1_get_vmaf_base_qindex(cpi, q),
                         q_cfg->enable_chroma_deltaq);
@@ -2837,11 +2837,12 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     }
   }
 
-  if (oxcf->tuning == AOM_TUNE_SSIM) av1_set_mb_ssim_rdmult_scaling(cpi);
+  if (oxcf->tune_cfg.tuning == AOM_TUNE_SSIM)
+    av1_set_mb_ssim_rdmult_scaling(cpi);
 
 #if CONFIG_TUNE_VMAF
-  if (oxcf->tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
-      oxcf->tuning == AOM_TUNE_VMAF_MAX_GAIN) {
+  if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
+      oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
     av1_set_mb_vmaf_rdmult_scaling(cpi);
   }
 #endif
@@ -3127,11 +3128,11 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
 
 #if CONFIG_TUNE_VMAF
   if (!is_stat_generation_stage(cpi) &&
-      cpi->oxcf.tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING) {
+      cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING) {
     av1_vmaf_frame_preprocessing(cpi, sd);
   }
   if (!is_stat_generation_stage(cpi) &&
-      cpi->oxcf.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
+      cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
     av1_vmaf_blk_preprocessing(cpi, sd);
   }
 #endif
@@ -3343,9 +3344,9 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
 
 #if CONFIG_TUNE_VMAF
   if (!is_stat_generation_stage(cpi) &&
-      (oxcf->tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
-       oxcf->tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
-       oxcf->tuning == AOM_TUNE_VMAF_MAX_GAIN)) {
+      (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
+       oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
+       oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN)) {
     av1_update_vmaf_curve(cpi, cpi->source, &cpi->common.cur_frame->buf);
   }
 #endif

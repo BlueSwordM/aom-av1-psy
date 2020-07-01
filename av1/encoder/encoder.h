@@ -573,6 +573,19 @@ typedef struct {
 } UnitTestCfg;
 
 typedef struct {
+  // Indicates the file path to the VMAF model.
+  const char *vmaf_model_path;
+  // Indicates the path to the film grain parameters.
+  const char *film_grain_table_filename;
+  // Indicates the visual tuning metric.
+  aom_tune_metric tuning;
+  // Indicates if the current content is screen or default type.
+  aom_tune_content content;
+  // Indicates the film grain parameters.
+  int film_grain_test_vector;
+} TuneCfg;
+
+typedef struct {
   // Indicates the framerate of the input video.
   double init_framerate;
   // Indicates the bit-depth of the input video.
@@ -753,13 +766,11 @@ typedef struct AV1EncoderConfig {
 
   int max_threads;
 
-  aom_tune_metric tuning;
-  const char *vmaf_model_path;
-  aom_tune_content content;
   int use_highbitdepth;
   aom_chroma_sample_position_t chroma_sample_position;
-  int film_grain_test_vector;
-  const char *film_grain_table_filename;
+
+  // Configuration related to Tune.
+  TuneCfg tune_cfg;
 
   // Configuration related to color.
   ColorCfg color_cfg;

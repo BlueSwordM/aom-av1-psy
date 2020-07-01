@@ -42,7 +42,7 @@ void av1_set_ssim_rdmult(const AV1_COMP *const cpi, MvCosts *const mv_costs,
   double num_of_mi = 0.0;
   double geom_mean_of_scale = 0.0;
 
-  assert(cpi->oxcf.tuning == AOM_TUNE_SSIM);
+  assert(cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIM);
 
   aom_clear_system_state();
   for (row = mi_row / num_mi_w;

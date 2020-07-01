@@ -234,12 +234,12 @@ static AOM_INLINE void setup_block_rdmult(const AV1_COMP *const cpi,
         av1_get_hier_tpl_rdmult(cpi, x, bsize, mi_row, mi_col, x->rdmult);
   }
 
-  if (cpi->oxcf.tuning == AOM_TUNE_SSIM) {
+  if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIM) {
     av1_set_ssim_rdmult(cpi, &x->mv_costs, bsize, mi_row, mi_col, &x->rdmult);
   }
 #if CONFIG_TUNE_VMAF
-  if (cpi->oxcf.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
-      cpi->oxcf.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
+  if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
+      cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
     av1_set_vmaf_rdmult(cpi, x, bsize, mi_row, mi_col, &x->rdmult);
   }
 #endif

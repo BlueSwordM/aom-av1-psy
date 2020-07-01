@@ -700,6 +700,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     update_default_encoder_config(&cfg->encoder_cfg, extra_cfg);
   }
 
+  TuneCfg *const tune_cfg = &oxcf->tune_cfg;
+
   FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
 
   TileConfig *const tile_cfg = &oxcf->tile_cfg;
@@ -943,15 +945,16 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   gf_cfg->gf_min_pyr_height = extra_cfg->gf_min_pyr_height;
   gf_cfg->gf_max_pyr_height = extra_cfg->gf_max_pyr_height;
 
-  oxcf->tuning = extra_cfg->tuning;
-  oxcf->vmaf_model_path = extra_cfg->vmaf_model_path;
-  oxcf->content = extra_cfg->content;
+  // Set tune related configuration.
+  tune_cfg->tuning = extra_cfg->tuning;
+  tune_cfg->vmaf_model_path = extra_cfg->vmaf_model_path;
+  tune_cfg->content = extra_cfg->content;
   if (cfg->large_scale_tile) {
-    oxcf->film_grain_test_vector = 0;
-    oxcf->film_grain_table_filename = NULL;
+    tune_cfg->film_grain_test_vector = 0;
+    tune_cfg->film_grain_table_filename = NULL;
   } else {
-    oxcf->film_grain_test_vector = extra_cfg->film_grain_test_vector;
-    oxcf->film_grain_table_filename = extra_cfg->film_grain_table_filename;
+    tune_cfg->film_grain_test_vector = extra_cfg->film_grain_test_vector;
+    tune_cfg->film_grain_table_filename = extra_cfg->film_grain_table_filename;
   }
 #if CONFIG_DENOISE
   oxcf->noise_level = extra_cfg->noise_level;
