@@ -1200,7 +1200,7 @@ static void build_intra_predictors_high(
     int need_bottom = extend_modes[mode] & NEED_BOTTOMLEFT;
     if (use_filter_intra) need_bottom = 0;
     if (is_dr_mode) need_bottom = p_angle > 180;
-    const int num_left_pixels_needed = txhpx + (need_bottom ? txwpx : 0);
+    const int num_left_pixels_needed = txhpx + (need_bottom ? txwpx : 3);
     i = 0;
     if (n_left_px > 0) {
       for (; i < n_left_px; i++) left_col[i] = left_ref[i * ref_stride];
