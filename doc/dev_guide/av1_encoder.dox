@@ -288,8 +288,8 @@ a particular video format (corpus VBR).
 \subsubsection architecture_enc_1pass_vbr 1 Pass VBR Encoding
 
 The command line for libaom does allow 1 Pass VBR, but this has not been
-properly optimised and behaves much like 1 pass CBR in most regards with bits
-allocated to frames by the following functions defined in ratectrl.c
+properly optimised and behaves much like 1 pass CBR in most regards, with bits
+allocated to frames by the following functions:
 
 - \ref av1_calc_iframe_target_size_one_pass_vbr()
 - \ref av1_calc_pframe_target_size_one_pass_vbr()
@@ -333,19 +333,19 @@ In this section I will refer to the following key data structures.
 - \ref FIRSTPASS_STATS *frame_stats_buf (used to store per frame first
   pass stats)
 
-For two pass encoding, the function \ref av1_encode() in encoder.c will first
-be called for each frame in the video with the value \ref AV1EncoderConfig.pass
-= 1. This will result in calls to \ref av1_first_pass() in firspass.c
+For two pass encoding, the function \ref av1_encode() will first be called
+for each frame in the video with the value \ref AV1EncoderConfig.pass = 1.
+This will result in calls to \ref av1_first_pass().
 
 Statistics for each frame are stored in \ref FIRSTPASS_STATS frame_stats_buf.
 
 After completion of the first pass, \ref av1_encode() will be called again for
 each frame with \ref AV1EncoderConfig.pass = 2.  The frames are then encoded in
 accordance with the statistics gathered during the first pass by calls to
-\ref encode_frame_to_data_rate() in encoder.c.
+\ref encode_frame_to_data_rate().
 
 \ref encode_frame_to_data_rate() in turn calls (TODO REF)
-av1_get_second_pass_params() which is defined in pass2_strategy.c
+av1_get_second_pass_params().
 
 In summary the second pass code :-
 
@@ -361,8 +361,7 @@ In summary the second pass code :-
 - Tracks adherence to the overall rate control objectives and adjusts
   heuristics.
 
-The main two pass 2 functions in regard to the above (also in pass2_strategy.c)
-include:-
+The main two pass 2 functions in regard to the above include:-
 
 - (TODO REF) find_next_key_frame()
 - (TODO REF) define_gf_group()
@@ -381,8 +380,8 @@ As well as \ref RATE_CONTROL.active_worst_quality, the two pass code also
 maintains a record of the actual Q value used to encode previous frames
 at each level in the current pyramid hierarchy
 (\ref RATE_CONTROL.active_best_quality). The function
-\ref rc_pick_q_and_bounds(), defined in rate_ctrl.c, uses these values
-to set a permitted Q range for each frame.
+\ref rc_pick_q_and_bounds(), uses these values to set a permitted Q range
+for each frame.
 
 \subsubsection architecture_enc_1pass_lagged 1 Pass Lagged VBR Encoding
 
@@ -402,7 +401,72 @@ same rate control pathways as two pass VBR encoding.
 
 \subsection architecture_enc_rc_loop The Main Rate Control Loop
 
- Add details here.
+Having established a target rate for a given frame and an allowed range of Q
+values, the encoder then tries to encode the frame at a rate that is as close
+as possible to the target value, given the Q range constraints.
+
+There are two main mechanisms by which this is achieved.
+
+The first selects a frame level Q, using an adaptive estimate of the number of
+bits that will be generated when the frame is encoded at any given Q.
+Fundamentally this mechanism is common to VBR, CBR and to use cases such as
+RTC with small adjustments.
+
+As the Q value mainly adjusts the precision of the residual signal, it is not
+actually a reliable basis for accurately predicting the number of bits that
+will be generated across all clips. A well predicted clip, for example, may
+have a much smaller error residual after prediction.  The algorithm copes with
+this by adapting its predictions on the fly using a feedback loop based on how
+well it did the previous time around.
+
+The main functions responsible for the prediction of Q and the adaptation over
+time, for the two pass encoding pipeline are:
+
+- \ref rc_pick_q_and_bounds()
+	- (TODO REF) get_q()
+		- (TODO REF) av1_rc_regulate_q()
+			- (TODO REF) get_rate_correction_factor()
+			- (TODO REF) find_closest_qindex_by_rate()
+
+- (TODO REF) av1_twopass_postencode_update()
+	- (TODO REF) av1_rc_update_rate_correction_factors()
+
+The second mechanism for control comes into play if there is a large rate miss
+for the current frame (much too big or too small). This is a recode mechanism
+which allows the current frame to be re-encoded one or more times with a
+revised Q value. This obviously has significant implications for encode speed
+and in the case of RTC latency (hence it is not used for the RTC pathway).
+
+Whether or not a recode is allowed for a given frame depends on the selected
+encode speed vs quality trade off. This is set on the command line using the
+--cpu-used parameter which maps onto the \ref AV1_COMP.speed field in the main
+compressor instance data structure.
+
+The value of \ref AV1_COMP.speed, combined with the use case, is used to
+populate the speed features data structure AV1_COMP.sf. In particular
+\ref HIGH_LEVEL_SPEED_FEATURES.recode_loop determines the types of frames that
+may be recoded and \ref HIGH_LEVEL_SPEED_FEATURES.recode_tolerance is a rate
+error trigger threshold.
+
+For more information the reader is directed to the following data structures:
+
+- \ref AV1_COMP cpi (the main compressor instance data structure)
+   - \ref AV1_COMP.speed
+   - \ref AV1_COMP.sf (\ref SPEED_FEATURES)
+
+- \ref SPEED_FEATURES (Encode speed vs quality tradeoff parameters)
+	- \ref SPEED_FEATURES.hl_sf (\ref HIGH_LEVEL_SPEED_FEATURES)
+
+- \ref HIGH_LEVEL_SPEED_FEATURES
+	- \ref HIGH_LEVEL_SPEED_FEATURES.recode_loop
+	- \ref HIGH_LEVEL_SPEED_FEATURES.recode_tolerance
+
+and functions:
+
+- (TODO REF) encode_with_recode_loop()
+- (TODO REF) recode_loop_update_q()
+- (TODO REF) av1_set_speed_features_framesize_independent()
+- (TODO REF) av1_set_speed_features_framesize_dependent()
 
 \subsection architecture_enc_fixed_q Fixed Q Mode
 

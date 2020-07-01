@@ -117,14 +117,25 @@ enum {
   RESERVE_3_SF = 128,
 } UENUM1BYTE(DEV_SPEED_FEATURES);
 
+/* This enumeration defines when the rate control recode loop will be
+ * enabled.
+ */
 enum {
-  // No recode.
+  /*
+   * No recodes allowed
+   */
   DISALLOW_RECODE = 0,
-  // Allow recode for KF and exceeding maximum frame bandwidth.
+  /*
+   * Recode KF's exceeding maximum frame bandwidth
+   */
   ALLOW_RECODE_KFMAXBW = 1,
-  // Allow recode only for KF/ARF/GF frames.
+  /*
+   * Allow recode only for KF/ARF/GF frames
+   */
   ALLOW_RECODE_KFARFGF = 2,
-  // Allow recode for all frames based on bitrate constraints.
+  /*
+   * Allow recode for all frame types based on bitrate constraints.
+   */
   ALLOW_RECODE = 3,
 } UENUM1BYTE(RECODE_LOOP_TYPE);
 
@@ -276,15 +287,27 @@ enum {
   QTR_ONLY,
 } UENUM1BYTE(MV_PREC_LOGIC);
 
+/*!\endcond */
+/*!
+ * \brief Sequence/frame level speed vs quality features
+ */
 typedef struct HIGH_LEVEL_SPEED_FEATURES {
+  /*!\cond */
   // Frame level coding parameter update
   int frame_parameter_update;
 
+  /*!\endcond */
+  /*!
+   * Cases and frame types for which the recode loop is enabled.
+   */
   RECODE_LOOP_TYPE recode_loop;
 
-  // This feature controls the tolerence vs target used in deciding whether to
-  // recode a frame. It has no meaning if recode is disabled.
+  /*!
+   * Controls the tolerence vs target rate used in deciding whether to
+   * recode a frame. It has no meaning if recode is disabled.
+   */
   int recode_tolerance;
+  /*!\cond */
 
   // Determine how motion vector precision is chosen. The possibilities are:
   // LAST_MV_DATA: use the mv data from the last coded frame
@@ -309,7 +332,9 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
 
   // Enable/disable second_alt_ref temporal filtering.
   int second_alt_ref_filtering;
+  /*!\endcond */
 } HIGH_LEVEL_SPEED_FEATURES;
+/*!\cond */
 
 typedef struct TPL_SPEED_FEATURES {
   // Enable/disable GOP length adaptive decision.
@@ -1019,72 +1044,70 @@ typedef struct REAL_TIME_SPEED_FEATURES {
  * \brief Top level speed vs quality trade off data struture.
  */
 typedef struct SPEED_FEATURES {
-  /*!\cond */
-  /*
+  /*!
    * Sequence/frame level speed features:
    */
   HIGH_LEVEL_SPEED_FEATURES hl_sf;
 
-  /*
+  /*!
    * Speed features related to how tpl's searches are done.
    */
   TPL_SPEED_FEATURES tpl_sf;
 
-  /*
+  /*!
    * Global motion speed features:
    */
   GLOBAL_MOTION_SPEED_FEATURES gm_sf;
 
-  /*
+  /*!
    * Partition search speed features:
    */
   PARTITION_SPEED_FEATURES part_sf;
 
-  /*
+  /*!
    * Motion search speed features:
    */
   MV_SPEED_FEATURES mv_sf;
 
-  /*
+  /*!
    * Inter mode search speed features:
    */
   INTER_MODE_SPEED_FEATURES inter_sf;
 
-  /*
+  /*!
    * Interpolation filter search speed features:
    */
   INTERP_FILTER_SPEED_FEATURES interp_sf;
 
-  /*
+  /*!
    * Intra mode search speed features:
    */
   INTRA_MODE_SPEED_FEATURES intra_sf;
 
-  /*
+  /*!
    * Transform size/type search speed features:
    */
   TX_SPEED_FEATURES tx_sf;
 
-  /*
+  /*!
    * RD calculation speed features:
    */
   RD_CALC_SPEED_FEATURES rd_sf;
 
-  /*
+  /*!
    * Two-pass mode evaluation features:
    */
   WINNER_MODE_SPEED_FEATURES winner_mode_sf;
 
-  /*
+  /*!
    * In-loop filter speed features:
    */
   LOOP_FILTER_SPEED_FEATURES lpf_sf;
 
-  /*
+  /*!
    * Real-time mode speed features:
    */
   REAL_TIME_SPEED_FEATURES rt_sf;
-  /*!\endcond */
 } SPEED_FEATURES;
 /*!\cond */
 
