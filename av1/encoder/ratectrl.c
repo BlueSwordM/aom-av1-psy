@@ -1001,20 +1001,20 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
  * \param[in]       cpi          Top level encoder structure
  * \param[in]       width        Coded frame width
  * \param[in]       height       Coded frame height
+ * \param[in]       gf_index     Index of this frame in the golden frame group
  * \param[out]      bottom_index Bottom bound for q index (best quality)
  * \param[out]      top_index    Top bound for q index (worst quality)
  * \return Returns selected q index to be used for encoding this frame.
  */
 static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
-                                         int height, int *bottom_index,
-                                         int *top_index) {
+                                         int height, int gf_index,
+                                         int *bottom_index, int *top_index) {
   const AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *const rc = &cpi->rc;
   const CurrentFrame *const current_frame = &cm->current_frame;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
   const GF_GROUP *const gf_group = &cpi->gf_group;
-  const int gf_index = gf_group->index;
   const enum aom_rc_mode rc_mode = oxcf->rc_cfg.mode;
 
   assert(has_no_stats_stage(cpi));
@@ -1602,8 +1602,8 @@ int av1_rc_pick_q_and_bounds(const AV1_COMP *cpi, RATE_CONTROL *rc, int width,
                                            top_index);
 #endif  // USE_UNRESTRICTED_Q_IN_CQ_MODE
     } else {
-      q = rc_pick_q_and_bounds_no_stats(cpi, width, height, bottom_index,
-                                        top_index);
+      q = rc_pick_q_and_bounds_no_stats(cpi, width, height, gf_index,
+                                        bottom_index, top_index);
     }
   } else {
     q = rc_pick_q_and_bounds(cpi, width, height, gf_index, bottom_index,
