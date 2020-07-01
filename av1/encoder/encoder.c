@@ -2037,13 +2037,21 @@ static int encode_without_recode(AV1_COMP *cpi) {
 
   if (!cpi->use_svc) {
     phase_scaler = 8;
+    // 2:1 scaling.
     if ((cm->width << 1) == unscaled->y_crop_width &&
-        (cm->height << 1) == unscaled->y_crop_height)
+        (cm->height << 1) == unscaled->y_crop_height) {
       filter_scaler = BILINEAR;
-    // Use eighttap for 4:1 scaling.
-    if ((cm->width << 2) == unscaled->y_crop_width &&
-        (cm->height << 2) == unscaled->y_crop_height)
+      // For lower resolutions use eighttap_smooth.
+      if (cm->width * cm->height <= 320 * 180) filter_scaler = EIGHTTAP_SMOOTH;
+    } else if ((cm->width << 2) == unscaled->y_crop_width &&
+               (cm->height << 2) == unscaled->y_crop_height) {
+      // 4:1 scaling.
       filter_scaler = EIGHTTAP_SMOOTH;
+    } else if ((cm->width << 2) == 3 * unscaled->y_crop_width &&
+               (cm->height << 2) == 3 * unscaled->y_crop_height) {
+      // 4:3 scaling.
+      filter_scaler = EIGHTTAP_REGULAR;
+    }
   }
 
   if (cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION)
