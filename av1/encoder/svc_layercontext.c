@@ -165,7 +165,7 @@ void av1_restore_layer_context(AV1_COMP *const cpi) {
   const int old_frame_to_key = cpi->rc.frames_to_key;
   // Restore layer rate control.
   cpi->rc = lc->rc;
-  cpi->oxcf.target_bandwidth = lc->target_bandwidth;
+  cpi->oxcf.rc_cfg.target_bandwidth = lc->target_bandwidth;
   gf_group->index = lc->group_index;
   // Reset the frames_since_key and frames_to_key counters to their values
   // before the layer restore. Keep these defined for the stream (not layer).
@@ -206,7 +206,7 @@ void av1_save_layer_context(AV1_COMP *const cpi) {
   const AV1_COMMON *const cm = &cpi->common;
   LAYER_CONTEXT *lc = get_layer_context(cpi);
   lc->rc = cpi->rc;
-  lc->target_bandwidth = (int)cpi->oxcf.target_bandwidth;
+  lc->target_bandwidth = (int)cpi->oxcf.rc_cfg.target_bandwidth;
   lc->group_index = gf_group->index;
   if (svc->spatial_layer_id == 0) svc->base_framerate = cpi->framerate;
   // For spatial-svc, allow cyclic-refresh to be applied on the spatial layers,

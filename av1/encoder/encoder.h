@@ -397,6 +397,11 @@ typedef struct {
   // application, and is expressed in units of time(milliseconds).
   int64_t maximum_buffer_size_ms;
 
+  // Indicates the bandwidth to be used in bits per second.
+  int64_t target_bandwidth;
+  // Indicates average complexity of the corpus in single pass vbr based on LAP.
+  // 0 indicates that corpus complexity vbr mode is disabled.
+  unsigned int vbr_corpus_complexity_lap;
   // Indicates the maximum allowed bitrate for any intra frame as % of bitrate
   // target.
   unsigned int max_intra_bitrate_pct;
@@ -407,6 +412,8 @@ typedef struct {
   unsigned int gf_cbr_boost_pct;
   // min_cr / 100 indicates the target minimum compression ratio for each frame.
   unsigned int min_cr;
+  // Indicates the frame drop threshold.
+  int drop_frames_water_mark;
   // under_shoot_pct indicates the tolerance of the VBR algorithm to undershoot
   // and is used as a trigger threshold for more agressive adaptation of Q. It's
   // value can range from 0-100.
@@ -561,6 +568,8 @@ typedef struct {
   aom_transfer_characteristics_t transfer_characteristics;
   // Indicates the matrix coefficients to be used for the transfer function.
   aom_matrix_coefficients_t matrix_coefficients;
+  // Indicates the chroma 4:2:0 sample position info.
+  aom_chroma_sample_position_t chroma_sample_position;
   // Indicates if a limited color range or full color range should be used.
   aom_color_range_t color_range;
 } ColorCfg;
@@ -693,7 +702,6 @@ typedef struct {
 typedef struct AV1EncoderConfig {
   /*!\cond */
   BITSTREAM_PROFILE profile;
-  int64_t target_bandwidth;  // bandwidth to be used in bits per second
 
   // Configuration related to the input video.
   InputCfg input_cfg;
@@ -732,12 +740,6 @@ typedef struct AV1EncoderConfig {
   RateControlCfg rc_cfg;
   /*!\cond */
 
-  // Frame drop threshold.
-  int drop_frames_water_mark;
-
-  unsigned int vbr_corpus_complexity_lap;  // 0 indicates corpus complexity vbr
-                                           // mode is disabled
-
   // Configuration related to Quantization.
   QuantizationCfg q_cfg;
 
@@ -767,7 +769,6 @@ typedef struct AV1EncoderConfig {
   int max_threads;
 
   int use_highbitdepth;
-  aom_chroma_sample_position_t chroma_sample_position;
 
   // Configuration related to Tune.
   TuneCfg tune_cfg;

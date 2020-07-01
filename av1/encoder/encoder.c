@@ -480,7 +480,7 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   seq_params->transfer_characteristics = color_cfg->transfer_characteristics;
   seq_params->matrix_coefficients = color_cfg->matrix_coefficients;
   seq_params->monochrome = oxcf->tool_cfg.enable_monochrome;
-  seq_params->chroma_sample_position = oxcf->chroma_sample_position;
+  seq_params->chroma_sample_position = color_cfg->chroma_sample_position;
   seq_params->color_range = color_cfg->color_range;
   seq_params->timing_info_present = dec_model_cfg->timing_info_present;
   seq_params->timing_info.num_units_in_display_tick =
@@ -585,7 +585,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   const FrameDimensionCfg *const frm_dim_cfg = &cpi->oxcf.frm_dim_cfg;
   const DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
   const ColorCfg *const color_cfg = &oxcf->color_cfg;
-
+  const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   // in case of LAP, lag in frames is set according to number of lap buffers
   // calculated at init time. This stores and restores LAP's lag in frames to
   // prevent override by new cfg.
@@ -600,7 +600,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   seq_params->transfer_characteristics = color_cfg->transfer_characteristics;
   seq_params->matrix_coefficients = color_cfg->matrix_coefficients;
   seq_params->monochrome = oxcf->tool_cfg.enable_monochrome;
-  seq_params->chroma_sample_position = oxcf->chroma_sample_position;
+  seq_params->chroma_sample_position = color_cfg->chroma_sample_position;
   seq_params->color_range = color_cfg->color_range;
 
   assert(IMPLIES(seq_params->profile <= PROFILE_1,
@@ -664,7 +664,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
                         seq_params->tier[0]);
   }
 
-  if ((has_no_stats_stage(cpi)) && (oxcf->rc_cfg.mode == AOM_Q)) {
+  if ((has_no_stats_stage(cpi)) && (rc_cfg->mode == AOM_Q)) {
     rc->baseline_gf_interval = FIXED_GF_INTERVAL;
   } else {
     rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
@@ -708,7 +708,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   av1_set_high_precision_mv(cpi, 1, 0);
 
-  set_rc_buffer_sizes(rc, &cpi->oxcf);
+  set_rc_buffer_sizes(rc, rc_cfg);
 
   // Under a configuration change, where maximum_buffer_size may change,
   // keep buffer level clipped to the maximum allowed buffer size.
@@ -719,8 +719,8 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   av1_new_framerate(cpi, cpi->framerate);
 
   // Set absolute upper and lower quality limits
-  rc->worst_quality = cpi->oxcf.rc_cfg.worst_allowed_q;
-  rc->best_quality = cpi->oxcf.rc_cfg.best_allowed_q;
+  rc->worst_quality = rc_cfg->worst_allowed_q;
+  rc->best_quality = rc_cfg->best_allowed_q;
 
   cm->features.interp_filter =
       oxcf->tile_cfg.enable_large_scale_tile ? EIGHTTAP_REGULAR : SWITCHABLE;
@@ -783,7 +783,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   }
 
   if (cpi->use_svc)
-    av1_update_layer_context_change_config(cpi, oxcf->target_bandwidth);
+    av1_update_layer_context_change_config(cpi, rc_cfg->target_bandwidth);
 
   // restore the value of lag_in_frame for LAP stage.
   if (lap_lag_in_frames != -1) {
@@ -1343,7 +1343,8 @@ void av1_remove_compressor(AV1_COMP *cpi) {
           (double)cpi->bytes * (double)8 / (double)1000 / time_encoded;
       const double peak =
           (double)((1 << cpi->oxcf.input_cfg.input_bit_depth) - 1);
-      const double target_rate = (double)cpi->oxcf.target_bandwidth / 1000;
+      const double target_rate =
+          (double)cpi->oxcf.rc_cfg.target_bandwidth / 1000;
       const double rate_err = ((100.0 * (dr - target_rate)) / target_rate);
 
       if (cpi->b_calculate_psnr) {

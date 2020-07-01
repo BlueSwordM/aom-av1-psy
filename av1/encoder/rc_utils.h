@@ -20,11 +20,11 @@ extern "C" {
 #endif
 
 static AOM_INLINE void set_rc_buffer_sizes(RATE_CONTROL *rc,
-                                           const AV1EncoderConfig *oxcf) {
-  const int64_t bandwidth = oxcf->target_bandwidth;
-  const int64_t starting = oxcf->rc_cfg.starting_buffer_level_ms;
-  const int64_t optimal = oxcf->rc_cfg.optimal_buffer_level_ms;
-  const int64_t maximum = oxcf->rc_cfg.maximum_buffer_size_ms;
+                                           const RateControlCfg *rc_cfg) {
+  const int64_t bandwidth = rc_cfg->target_bandwidth;
+  const int64_t starting = rc_cfg->starting_buffer_level_ms;
+  const int64_t optimal = rc_cfg->optimal_buffer_level_ms;
+  const int64_t maximum = rc_cfg->maximum_buffer_size_ms;
 
   rc->starting_buffer_level = starting * bandwidth / 1000;
   rc->optimal_buffer_level =
@@ -47,13 +47,13 @@ static AOM_INLINE void config_target_level(AV1_COMP *const cpi,
   const double level_bitrate_limit =
       av1_get_max_bitrate_for_level(target_level, tier, profile);
   const int64_t max_bitrate = (int64_t)(level_bitrate_limit * 0.70);
-  oxcf->target_bandwidth = AOMMIN(oxcf->target_bandwidth, max_bitrate);
+  rc_cfg->target_bandwidth = AOMMIN(rc_cfg->target_bandwidth, max_bitrate);
   // Also need to update cpi->twopass.bits_left.
   TWO_PASS *const twopass = &cpi->twopass;
   FIRSTPASS_STATS *stats = twopass->stats_buf_ctx->total_stats;
   if (stats != NULL)
     cpi->twopass.bits_left =
-        (int64_t)(stats->duration * cpi->oxcf.target_bandwidth / 10000000.0);
+        (int64_t)(stats->duration * rc_cfg->target_bandwidth / 10000000.0);
 
   // Adjust max over-shoot percentage.
   rc_cfg->over_shoot_pct = 0;

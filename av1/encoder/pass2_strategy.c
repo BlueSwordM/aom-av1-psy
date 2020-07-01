@@ -1760,7 +1760,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
     int tmp_q;
     // rc factor is a weight factor that corrects for local rate control drift.
     double rc_factor = 1.0;
-    int64_t bits = oxcf->target_bandwidth;
+    int64_t bits = rc_cfg->target_bandwidth;
 
     if (bits > 0) {
       int rate_error;
@@ -2148,13 +2148,13 @@ static int64_t get_kf_group_bits(AV1_COMP *cpi, double kf_group_err,
   int64_t kf_group_bits;
   if (cpi->lap_enabled) {
     kf_group_bits = (int64_t)rc->frames_to_key * rc->avg_frame_bandwidth;
-    if (cpi->oxcf.vbr_corpus_complexity_lap) {
+    if (cpi->oxcf.rc_cfg.vbr_corpus_complexity_lap) {
       const int num_mbs = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
                               ? cpi->initial_mbs
                               : cpi->common.mi_params.MBs;
 
       double vbr_corpus_complexity_lap =
-          cpi->oxcf.vbr_corpus_complexity_lap / 10.0;
+          cpi->oxcf.rc_cfg.vbr_corpus_complexity_lap / 10.0;
       /* Get the average corpus complexity of the frame */
       vbr_corpus_complexity_lap = vbr_corpus_complexity_lap * num_mbs;
       kf_group_bits = (int64_t)(
@@ -2386,7 +2386,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     // Maximum number of bits allocated to the key frame group.
     int64_t max_grp_bits;
 
-    if (oxcf->vbr_corpus_complexity_lap) {
+    if (oxcf->rc_cfg.vbr_corpus_complexity_lap) {
       kf_group_avg_error = get_kf_group_avg_error(
           twopass, &first_frame, start_position, rc->frames_to_key);
     }
@@ -2791,7 +2791,7 @@ void av1_init_second_pass(AV1_COMP *cpi) {
   // first pass.
   av1_new_framerate(cpi, frame_rate);
   twopass->bits_left =
-      (int64_t)(stats->duration * oxcf->target_bandwidth / 10000000.0);
+      (int64_t)(stats->duration * oxcf->rc_cfg.target_bandwidth / 10000000.0);
 
   // This variable monitors how far behind the second ref update is lagging.
   twopass->sr_update_lag = 1;
