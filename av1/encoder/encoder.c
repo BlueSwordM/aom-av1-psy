@@ -2027,7 +2027,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
   YV12_BUFFER_CONFIG *unscaled = cpi->unscaled_source;
   InterpFilter filter_scaler =
       cpi->use_svc ? svc->downsample_filter_type[svc->spatial_layer_id]
-                   : EIGHTTAP_REGULAR;
+                   : EIGHTTAP_SMOOTH;
   int phase_scaler =
       cpi->use_svc ? svc->downsample_filter_phase[svc->spatial_layer_id] : 0;
 
