@@ -40,15 +40,32 @@ static AOM_INLINE void get_quantize_error(const MACROBLOCK *x, int plane,
                                           uint16_t *eob, int64_t *recon_error,
                                           int64_t *sse) {
   const struct macroblock_plane *const p = &x->plane[plane];
+  const MACROBLOCKD *xd = &x->e_mbd;
   const SCAN_ORDER *const scan_order = &av1_default_scan_orders[tx_size];
   int pix_num = 1 << num_pels_log2_lookup[txsize_to_bsize[tx_size]];
   const int shift = tx_size == TX_32X32 ? 0 : 2;
 
-  av1_quantize_fp(coeff, pix_num, p->zbin_QTX, p->round_fp_QTX, p->quant_fp_QTX,
-                  p->quant_shift_QTX, qcoeff, dqcoeff, p->dequant_QTX, eob,
-                  scan_order->scan, scan_order->iscan);
+  QUANT_PARAM quant_param;
+  av1_setup_quant(tx_size, 0, AV1_XFORM_QUANT_FP, 0, &quant_param);
 
+#if CONFIG_AV1_HIGHBITDEPTH
+  if (is_cur_buf_hbd(xd)) {
+    av1_highbd_quantize_fp_facade(coeff, pix_num, p, qcoeff, dqcoeff, eob,
+                                  scan_order, &quant_param);
+    *recon_error =
+        av1_highbd_block_error(coeff, dqcoeff, pix_num, sse, xd->bd) >> shift;
+  } else {
+    av1_quantize_fp_facade(coeff, pix_num, p, qcoeff, dqcoeff, eob, scan_order,
+                           &quant_param);
+    *recon_error = av1_block_error(coeff, dqcoeff, pix_num, sse) >> shift;
+  }
+#else
+  (void)xd;
+  av1_quantize_fp_facade(coeff, pix_num, p, qcoeff, dqcoeff, eob, scan_order,
+                         &quant_param);
   *recon_error = av1_block_error(coeff, dqcoeff, pix_num, sse) >> shift;
+#endif  // CONFIG_AV1_HIGHBITDEPTH
+
   *recon_error = AOMMAX(*recon_error, 1);
 
   *sse = (*sse) >> shift;
