@@ -1564,9 +1564,6 @@ static int64_t motion_mode_rd(
       int64_t est_rd = 0;
       if (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1) {
         curr_sse = get_sse(cpi, x, &sse_y);
-        // Scale luma SSE as per bit depth so as to be consistent with
-        // model_rd_sb_fn and compound type rd
-        sse_y = ROUND_POWER_OF_TWO(sse_y, (xd->bd - 8) * 2);
         const int has_est_rd = get_est_rate_dist(tile_data, bsize, curr_sse,
                                                  &est_residue_cost, &est_dist);
         (void)has_est_rd;
@@ -1616,9 +1613,6 @@ static int64_t motion_mode_rd(
         // Check if the mode is good enough based on skip RD
         int64_t sse_y = INT64_MAX;
         int64_t curr_sse = get_sse(cpi, x, &sse_y);
-        // Scale luma SSE as per bit depth so as to be consistent with
-        // model_rd_sb_fn and compound type rd
-        sse_y = ROUND_POWER_OF_TWO(sse_y, (xd->bd - 8) * 2);
         skip_rd = RDCOST(x->rdmult, rd_stats->rate, curr_sse);
         skip_rdy = RDCOST(x->rdmult, rd_stats->rate, (sse_y << 4));
         int eval_txfm = check_txfm_eval(x, bsize, ref_skip_rd[0], skip_rd,
