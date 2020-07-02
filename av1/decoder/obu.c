@@ -576,30 +576,30 @@ static void alloc_read_metadata(AV1Decoder *const pbi,
                                 const uint8_t *data, size_t sz,
                                 aom_metadata_insert_flags_t insert_flag) {
   AV1_COMMON *const cm = &pbi->common;
+  if (!pbi->metadata) {
+    pbi->metadata = aom_img_metadata_array_alloc(0);
+    if (!pbi->metadata) {
+      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate metadata array");
+    }
+  }
   aom_metadata_t *metadata =
       aom_img_metadata_alloc(metadata_type, data, sz, insert_flag);
   if (!metadata) {
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Error allocating metadata");
   }
-  if (!pbi->metadata) {
-    pbi->metadata = aom_img_metadata_array_alloc(1);
-    if (!pbi->metadata) {
-      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                         "Failed to allocate metadata array");
-    }
-  } else {
-    aom_metadata_t **metadata_array =
-        (aom_metadata_t **)realloc(pbi->metadata->metadata_array,
-                                   (pbi->metadata->sz + 1) * sizeof(metadata));
-    if (!metadata_array) {
-      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                         "Error allocating metadata");
-    }
-    pbi->metadata->metadata_array = metadata_array;
-    pbi->metadata->sz++;
+  aom_metadata_t **metadata_array =
+      (aom_metadata_t **)realloc(pbi->metadata->metadata_array,
+                                 (pbi->metadata->sz + 1) * sizeof(metadata));
+  if (!metadata_array) {
+    aom_img_metadata_free(metadata);
+    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                       "Error growing metadata array");
   }
-  pbi->metadata->metadata_array[pbi->metadata->sz - 1] = metadata;
+  pbi->metadata->metadata_array = metadata_array;
+  pbi->metadata->metadata_array[pbi->metadata->sz] = metadata;
+  pbi->metadata->sz++;
 }
 
 // On failure, calls aom_internal_error() and does not return.
