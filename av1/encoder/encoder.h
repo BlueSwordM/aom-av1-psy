@@ -322,13 +322,15 @@ typedef struct {
  */
 typedef struct {
   /*!
-   * Flag to indicate if super-resolution should be enabled for the sequence.
+   * Indicates the qindex based threshold to be used when AOM_SUPERRES_QTHRESH
+   * mode is used for inter frames.
    */
-  bool enable_superres;
+  int superres_qthresh;
   /*!
-   * Indicates the Super-resolution mode to be used by the encoder.
+   * Indicates the qindex based threshold to be used when AOM_SUPERRES_QTHRESH
+   * mode is used for key frames.
    */
-  aom_superres_mode superres_mode;
+  int superres_kf_qthresh;
   /*!
    * Indicates the denominator of the fraction that specifies the ratio between
    * the superblock width before and after upscaling for inter frames. The
@@ -342,15 +344,13 @@ typedef struct {
    */
   uint8_t superres_kf_scale_denominator;
   /*!
-   * Indicates the qindex based threshold to be used when AOM_SUPERRES_QTHRESH
-   * mode is used for inter frames.
+   * Indicates the Super-resolution mode to be used by the encoder.
    */
-  int superres_qthresh;
+  aom_superres_mode superres_mode;
   /*!
-   * Indicates the qindex based threshold to be used when AOM_SUPERRES_QTHRESH
-   * mode is used for key frames.
+   * Flag to indicate if super-resolution should be enabled for the sequence.
    */
-  int superres_kf_qthresh;
+  bool enable_superres;
 } SuperResCfg;
 
 /*!\cond */
@@ -701,8 +701,6 @@ typedef struct {
  */
 typedef struct AV1EncoderConfig {
   /*!\cond */
-  BITSTREAM_PROFILE profile;
-
   // Configuration related to the input video.
   InputCfg input_cfg;
 
@@ -712,26 +710,8 @@ typedef struct AV1EncoderConfig {
   // Configuration related to encoder algorithm.
   AlgoCfg algo_cfg;
 
-  int speed;
-
-  MODE mode;
-
-  /*!\endcond */
-  /*!
-   * Indicates the current encoder pass :
-   * 0 = 1 Pass encode,
-   * 1 = First pass of two pass,
-   * 2 = Second pass of two pass.
-   *
-   */
-  int pass;
-  /*!\cond */
-
   // Configuration related to key-frame.
   KeyFrameCfg kf_cfg;
-
-  // ----------------------------------------------------------------
-  // DATARATE CONTROL OPTIONS
 
   /*!\endcond */
   /*!
@@ -752,9 +732,6 @@ typedef struct AV1EncoderConfig {
   // two pass datarate control
   TwoPassCfg two_pass_cfg;
 
-  // END DATARATE CONTROL OPTIONS
-  // ----------------------------------------------------------------
-
   // Configuration related to encoder toolsets.
   ToolCfg tool_cfg;
 
@@ -763,12 +740,6 @@ typedef struct AV1EncoderConfig {
 
   // Tile related configuration parameters.
   TileConfig tile_cfg;
-
-  int row_mt;
-
-  int max_threads;
-
-  int use_highbitdepth;
 
   // Configuration related to Tune.
   TuneCfg tune_cfg;
@@ -785,8 +756,6 @@ typedef struct AV1EncoderConfig {
   // Configuration related to unit tests.
   UnitTestCfg unit_test_cfg;
 
-  unsigned int save_as_annexb;
-
   // Flags related to motion mode.
   MotionModeCfg motion_mode_cfg;
 
@@ -802,19 +771,61 @@ typedef struct AV1EncoderConfig {
   // Partition related information.
   PartitionCfg part_cfg;
 
-#if CONFIG_DENOISE
-  float noise_level;
-  int noise_block_size;
-#endif
-
   // Configuration related to frequency of cost update.
   CostUpdateFreq cost_upd_freq;
 
-  int border_in_pixels;
-  AV1_LEVEL target_seq_level_idx[MAX_NUM_OPERATING_POINTS];
+#if CONFIG_DENOISE
+  // Indicates the noise level.
+  float noise_level;
+  // Indicates the the denoisers block size.
+  int noise_block_size;
+#endif
+
   // Bit mask to specify which tier each of the 32 possible operating points
   // conforms to.
   unsigned int tier_mask;
+
+  // Indicates the number of pixels off the edge of a reference frame we're
+  // allowed to go when forming an inter prediction.
+  int border_in_pixels;
+
+  // Indicates the maximum number of threads that may be used by the encoder.
+  int max_threads;
+
+  // Indicates the spped preset to be used.
+  int speed;
+
+  // Indicates the target sequence level index for each operating point(OP).
+  AV1_LEVEL target_seq_level_idx[MAX_NUM_OPERATING_POINTS];
+
+  // Indicates the bitstream profile to be used.
+  BITSTREAM_PROFILE profile;
+
+  /*!\endcond */
+  /*!
+   * Indicates the current encoder pass :
+   * 0 = 1 Pass encode,
+   * 1 = First pass of two pass,
+   * 2 = Second pass of two pass.
+   *
+   */
+  enum aom_enc_pass pass;
+  /*!\cond */
+
+  // Indicates if the encoding is GOOD or REALTIME.
+  MODE mode;
+
+  // Indicates if row-based multi-threading should be enabled or not.
+  bool row_mt;
+
+  // Indicates if 16bit frame buffers are to be used i.e., the content is >
+  // 8-bit.
+  bool use_highbitdepth;
+
+  // Indicates the bitstream syntax mode. 0 indicates bitstream is saved as
+  // Section 5 bitstream, while 1 indicates the bitstream is saved in Annex - B
+  // format.
+  bool save_as_annexb;
 
   /*!\endcond */
 } AV1EncoderConfig;
