@@ -851,6 +851,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
   memset(&obu_header, 0, sizeof(obu_header));
   pbi->seen_frame_header = 0;
   pbi->next_start_tile = 0;
+  pbi->num_tile_groups = 0;
 
   if (data_end < data) {
     cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
@@ -1008,6 +1009,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         is_first_tg_obu_received = 0;
         if (frame_decoding_finished) pbi->seen_frame_header = 0;
+        pbi->num_tile_groups++;
         break;
       case OBU_METADATA:
         decoded_payload_size = read_metadata(pbi, data, payload_size);

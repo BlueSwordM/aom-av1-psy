@@ -327,6 +327,8 @@ typedef struct AV1Decoder {
   int is_annexb;
   int valid_for_referencing[REF_FRAMES];
   int is_fwd_kf_present;
+  int is_arf_frame_present;
+  int num_tile_groups;
 } AV1Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error
