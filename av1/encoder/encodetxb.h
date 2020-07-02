@@ -100,10 +100,43 @@ int av1_cost_coeffs_txb_laplacian(const MACROBLOCK *x, const int plane,
                                   const TXB_CTX *const txb_ctx,
                                   const int reduced_tx_set_used,
                                   const int adjust_eob);
+/*!\endcond */
+
+/*!\brief Estimate the entropy cost of transform coefficients using Laplacian
+ * distribution.
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function assumes each transform coefficient is of its own Laplacian
+ * distribution and the coefficient is the only observation of the Laplacian
+ * distribution.
+ *
+ * Based on that, each coefficient's coding cost can be estimated by computing
+ * the entropy of the corresponding Laplacian distribution.
+ *
+ * This function then return the sum of the estimated entropy cost for all
+ * coefficients in the transform block.
+ *
+ * Note that the entropy cost of end of block (eob) and transform type (tx_type)
+ * are not included.
+ *
+ * Compared to \ref av1_cost_coeffs_txb, this function is much faster but less
+ * accurate.
+ *
+ * \param[in]    x              Pointer to structure holding the data for the
+                                current encoding macroblock
+ * \param[in]    plane          The index of the current plane
+ * \param[in]    block          The index of the current transform block in the
+ * macroblock. It's defined by number of 4x4 units that have been coded before
+ * the currernt transform block
+ * \param[in]    tx_size        The transform size
+ * \param[in]    tx_type        The transform type
+ * \return       int            Estimated entropy cost of coefficients in the
+ * transform block.
+ */
 int av1_cost_coeffs_txb_estimate(const MACROBLOCK *x, const int plane,
                                  const int block, const TX_SIZE tx_size,
                                  const TX_TYPE tx_type);
-/*!\endcond */
 
 /*!\brief Write quantized coefficients in a transform block into bitstream using
  * entropy coding.
