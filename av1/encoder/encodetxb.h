@@ -93,14 +93,48 @@ void av1_free_txb_buf(AV1_COMP *cpi);
 int av1_cost_coeffs_txb(const MACROBLOCK *x, const int plane, const int block,
                         const TX_SIZE tx_size, const TX_TYPE tx_type,
                         const TXB_CTX *const txb_ctx, int reduced_tx_set_used);
-/*!\cond */
+
+/*!\brief Estimate the entropy cost of coding a transform block using Laplacian
+ * distribution.
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function compute the entropy costs of the end of block position (eob)
+ * and the transform type (tx_type) precisely.
+ *
+ * Then using \ref av1_cost_coeffs_txb_estimate to estimate the entropy costs
+ * of coefficients in the transform block.
+ *
+ * In the end, the function returns the sum of entropy costs of end of block
+ * position (eob), transform type (tx_type) and coefficients.
+ *
+ * Compared to \ref av1_cost_coeffs_txb, this function is much faster but less
+ * accurate.
+ *
+ * \param[in]    x              Pointer to structure holding the data for the
+                                current encoding macroblock
+ * \param[in]    plane          The index of the current plane
+ * \param[in]    block          The index of the current transform block in the
+ * macroblock. It's defined by number of 4x4 units that have been coded before
+ * the currernt transform block
+ * \param[in]    tx_size        The transform size
+ * \param[in]    tx_type        The transform type
+ * \param[in]    txb_ctx        Context info for entropy coding transform block
+ * skip flag (tx_skip) and the sign of DC coefficient (dc_sign).
+ * \param[in]    reduced_tx_set_used  Whether the transform type is chosen from
+ * a reduced set.
+ * \param[in]    adjust_eob     Whether to adjust the end of block position
+ (eob)
+ * or not.
+ * \return       int            Estimated entropy cost of coding the transform
+ block.
+ */
 int av1_cost_coeffs_txb_laplacian(const MACROBLOCK *x, const int plane,
                                   const int block, const TX_SIZE tx_size,
                                   const TX_TYPE tx_type,
                                   const TXB_CTX *const txb_ctx,
                                   const int reduced_tx_set_used,
                                   const int adjust_eob);
-/*!\endcond */
 
 /*!\brief Estimate the entropy cost of transform coefficients using Laplacian
  * distribution.
@@ -119,9 +153,6 @@ int av1_cost_coeffs_txb_laplacian(const MACROBLOCK *x, const int plane,
  *
  * Note that the entropy cost of end of block (eob) and transform type (tx_type)
  * are not included.
- *
- * Compared to \ref av1_cost_coeffs_txb, this function is much faster but less
- * accurate.
  *
  * \param[in]    x              Pointer to structure holding the data for the
                                 current encoding macroblock
