@@ -1199,15 +1199,19 @@ typedef struct {
    */
   int allocated_tile_cols;
   /*!
-   * Number of superblock rows for which row synchronization memory is allocated
-   * per tile.
+   * Number of rows for which row synchronization memory is allocated
+   * per tile. During first-pass/look-ahead stage this equals the
+   * maximum number of macroblock rows in a tile. During encode stage,
+   * this equals the maximum number of superblock rows in a tile.
    */
-  int allocated_sb_rows;
+  int allocated_rows;
   /*!
-   * Number of superblock columns for which entropy context memory is allocated
-   * per tile.
+   * Number of columns for which entropy context memory is allocated
+   * per tile. During encode stage, this equals the maximum number of
+   * superblock columns in a tile minus 1. The entropy context memory
+   * is not allocated during first-pass/look-ahead stage.
    */
-  int allocated_sb_cols;
+  int allocated_cols;
 
   /*!
    * thread_id_to_tile_id[i] indicates the tile id assigned to the ith thread.
