@@ -178,6 +178,7 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   const MB_MODE_INFO *const mi = &ctx->mic;
   MB_MODE_INFO *const mi_addr = xd->mi[0];
   const struct segmentation *const seg = &cm->seg;
+  assert(bsize < BLOCK_SIZES_ALL);
   const int bw = mi_size_wide[mi->sb_type];
   const int bh = mi_size_high[mi->sb_type];
   const int mis = mi_params->mi_stride;

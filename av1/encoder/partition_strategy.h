@@ -33,6 +33,9 @@
 #define FEATURE_SMS_SPLIT_MODEL_FLAG \
   (FEATURE_SMS_NONE_FLAG | FEATURE_SMS_SPLIT_FLAG)
 
+// Number of sub-partitions in split partition type.
+#define SUB_PARTITIONS_SPLIT 4
+
 // Number of sub-partitions in AB partition types.
 #define SUB_PARTITIONS_AB 3
 
