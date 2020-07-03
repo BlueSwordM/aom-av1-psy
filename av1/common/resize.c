@@ -1201,7 +1201,8 @@ void av1_resize_and_extend_frame_c(const YV12_BUFFER_CONFIG *src,
   const int src_strides[3] = { src->y_stride, src->uv_stride, src->uv_stride };
   uint8_t *const dsts[3] = { dst->y_buffer, dst->u_buffer, dst->v_buffer };
   const int dst_strides[3] = { dst->y_stride, dst->uv_stride, dst->uv_stride };
-  assert(filter == BILINEAR || filter == EIGHTTAP_SMOOTH);
+  assert(filter == BILINEAR || filter == EIGHTTAP_SMOOTH ||
+         filter == EIGHTTAP_REGULAR);
   const InterpKernel *const kernel =
       filter == BILINEAR ? av1_bilinear_filters : av1_sub_pel_filters_8smooth;
   const int dst_w = dst->y_crop_width;
