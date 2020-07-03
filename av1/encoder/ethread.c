@@ -1171,7 +1171,6 @@ static int tpl_worker_hook(void *arg1, void *unused) {
   (void)unused;
   EncWorkerData *thread_data = (EncWorkerData *)arg1;
   AV1_COMP *cpi = thread_data->cpi;
-  MultiThreadInfo *mt_info = &cpi->mt_info;
   AV1_COMMON *cm = &cpi->common;
   MACROBLOCK *x = &thread_data->td->mb;
   MACROBLOCKD *xd = &x->e_mbd;
@@ -1179,7 +1178,7 @@ static int tpl_worker_hook(void *arg1, void *unused) {
   BLOCK_SIZE bsize = convert_length_to_bsize(MC_FLOW_BSIZE_1D);
   TX_SIZE tx_size = max_txsize_lookup[bsize];
   int mi_height = mi_size_high[bsize];
-  int num_active_workers = mt_info->num_enc_workers;
+  int num_active_workers = cpi->tpl_data.tpl_mt_sync.num_threads_working;
   for (int mi_row = thread_data->start * mi_height; mi_row < mi_params->mi_rows;
        mi_row += num_active_workers * mi_height) {
     // Motion estimation row boundary
@@ -1288,6 +1287,11 @@ void av1_mc_flow_dispenser_mt(AV1_COMP *cpi) {
   int mb_rows = mi_params->mb_rows;
   int num_workers = compute_num_tpl_workers(cpi);
 
+  if (mt_info->num_enc_workers == 0)
+    create_enc_workers(cpi, num_workers);
+  else
+    num_workers = AOMMIN(num_workers, mt_info->num_enc_workers);
+
   if (!tpl_sync->sync_range || mb_rows != tpl_sync->rows ||
       num_workers > tpl_sync->num_threads_working) {
     av1_tpl_dealloc(tpl_sync);
@@ -1298,11 +1302,6 @@ void av1_mc_flow_dispenser_mt(AV1_COMP *cpi) {
   // Initialize cur_mb_col to -1 for all MB rows.
   memset(tpl_sync->num_finished_cols, -1,
          sizeof(*tpl_sync->num_finished_cols) * mb_rows);
-
-  if (mt_info->num_enc_workers == 0)
-    create_enc_workers(cpi, num_workers);
-  else
-    num_workers = AOMMIN(num_workers, mt_info->num_enc_workers);
 
   prepare_tpl_workers(cpi, tpl_worker_hook, num_workers);
   launch_enc_workers(&cpi->mt_info, num_workers);
