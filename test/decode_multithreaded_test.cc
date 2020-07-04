@@ -111,7 +111,7 @@ class AV1DecodeMultiThreadedTest
     cfg_.rc_end_usage = AOM_VBR;
 
     libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 704, 576,
-                                       timebase.den, timebase.num, 0, 5);
+                                       timebase.den, timebase.num, 0, 2);
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
     const char *md5_single_thread_str = md5_single_thread_.Get();
