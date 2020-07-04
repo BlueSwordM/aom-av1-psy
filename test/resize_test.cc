@@ -533,12 +533,12 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode2) {
 TEST_P(ResizeRealtimeTest, TestExternalResizeWorks) {
   ResizingVideoSource video;
   video.flag_codec_ = 1;
-  DefaultConfig();
   change_bitrate_ = false;
   set_scale_mode_ = false;
   set_scale_mode2_ = false;
   mismatch_psnr_ = 0.0;
   mismatch_nframes_ = 0;
+  DefaultConfig();
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
   // Check we decoded the same number of frames as we attempted to encode
