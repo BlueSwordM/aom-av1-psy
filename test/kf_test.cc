@@ -104,7 +104,7 @@ class KeyFrameIntervalTestLarge
 TEST_P(KeyFrameIntervalTestLarge, KeyFrameIntervalTest) {
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
-                                     0, 150);
+                                     0, 75);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   ASSERT_EQ(is_kf_interval_violated_, false) << kf_dist_param_;
 }
