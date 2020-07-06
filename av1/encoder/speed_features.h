@@ -303,25 +303,17 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
   RECODE_LOOP_TYPE recode_loop;
 
   /*!
-   * Controls the tolerence vs target rate used in deciding whether to
+   * Controls the tolerance vs target rate used in deciding whether to
    * recode a frame. It has no meaning if recode is disabled.
    */
   int recode_tolerance;
-  /*!\cond */
 
+  /*!\cond */
   // Determine how motion vector precision is chosen. The possibilities are:
   // LAST_MV_DATA: use the mv data from the last coded frame
   // CURRENT_Q: use the current q as a threshold
   // QTR_ONLY: use quarter pel precision only.
   MV_PREC_LOGIC high_precision_mv_usage;
-
-  // Whether to disable overlay frames for filtered Altref frames,
-  // overiding oxcf->algo_cfg.enable_overlay flag set as 1.
-  int disable_overlay_frames;
-
-  // Enable/disable adaptively deciding whether or not to encode ALTREF overlay
-  // frame.
-  int adaptive_overlay_encoding;
 
   // Always set to 0. If on it enables 0 cost background transmission
   // (except for the initial transmission of the segmentation). The feature is
@@ -329,13 +321,10 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
   // backgrounds very to cheap to encode, and the segmentation we have
   // adds overhead.
   int static_segmentation;
-
-  // Enable/disable second_alt_ref temporal filtering.
-  int second_alt_ref_filtering;
   /*!\endcond */
 } HIGH_LEVEL_SPEED_FEATURES;
-/*!\cond */
 
+/*!\cond */
 typedef struct TPL_SPEED_FEATURES {
   // Enable/disable GOP length adaptive decision.
   int disable_gop_length_decision;

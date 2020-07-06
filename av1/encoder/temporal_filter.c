@@ -810,7 +810,7 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
       tf_normalize_filtered_frame(mbd, block_size, mb_row, mb_col, num_planes,
                                   accum, count, &cpi->alt_ref_buffer);
 
-      if (!is_key_frame && cpi->sf.hl_sf.adaptive_overlay_encoding) {
+      if (!is_key_frame) {
         const int y_height = mb_height >> mbd->plane[0].subsampling_y;
         const int y_width = mb_width >> mbd->plane[0].subsampling_x;
         const int source_y_stride = frame_to_filter->y_stride;
@@ -1020,9 +1020,8 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
   const FRAME_UPDATE_TYPE update_type = gf_group->update_type[group_idx];
   // Filter one more ARF if the lookahead index is leq 7 (w.r.t. 9-th frame).
   // This frame is ALWAYS a show existing frame.
-  const int is_second_arf = (update_type == INTNL_ARF_UPDATE) &&
-                            (filter_frame_lookahead_idx >= 7) &&
-                            cpi->sf.hl_sf.second_alt_ref_filtering;
+  const int is_second_arf =
+      (update_type == INTNL_ARF_UPDATE) && (filter_frame_lookahead_idx >= 7);
   // TODO(anyone): Currently, we enforce the filtering strength on internal
   // ARFs except the second ARF to be zero. We should investigate in which case
   // it is more beneficial to use non-zero strength filtering.
@@ -1056,8 +1055,7 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
   if (filter_frame_lookahead_idx >= 0) {
     cpi->common.showable_frame = num_frames_for_filtering == 1 ||
                                  is_second_arf ||
-                                 (cpi->oxcf.algo_cfg.enable_overlay == 0 ||
-                                  cpi->sf.hl_sf.disable_overlay_frames);
+                                 (cpi->oxcf.algo_cfg.enable_overlay == 0);
   }
 
   // Do filtering.
@@ -1077,8 +1075,7 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
     return 1;
   }
 
-  if ((show_existing_arf != NULL && cpi->sf.hl_sf.adaptive_overlay_encoding) ||
-      is_second_arf) {
+  if (show_existing_arf != NULL || is_second_arf) {
     const int frame_height = frames[filter_frame_idx]->y_crop_height;
     const int frame_width = frames[filter_frame_idx]->y_crop_width;
     const int block_height = block_size_high[TF_BLOCK_SIZE];
