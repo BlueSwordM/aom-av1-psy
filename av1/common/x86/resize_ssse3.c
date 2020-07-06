@@ -541,7 +541,7 @@ static void scale_plane_4_to_3_general(const uint8_t *src, const int src_stride,
                                        uint8_t *dst, const int dst_stride,
                                        const int w, const int h,
                                        const InterpKernel *const coef,
-                                       const int phase_scaler,
+                                       const int phase,
                                        uint8_t *const temp_buffer) {
   static const int step_q4 = 16 * 4 / 3;
   const int width_hor = (w + 5) - ((w + 5) % 6);
@@ -556,8 +556,8 @@ static void scale_plane_4_to_3_general(const uint8_t *src, const int src_stride,
   __m128i s[12], d[6], dd[4];
   __m128i f0[4], f1[5], f2[5];
   // The offset of the first row is always less than 1 pixel.
-  const int offset1_q4 = phase_scaler + 1 * step_q4;
-  const int offset2_q4 = phase_scaler + 2 * step_q4;
+  const int offset1_q4 = phase + 1 * step_q4;
+  const int offset2_q4 = phase + 2 * step_q4;
   // offset_idxx indicates the pixel offset is even (0) or odd (1).
   // It's used to choose the src offset and filter coefficient offset.
   const int offset_idx1 = (offset1_q4 >> 4) & 1;
@@ -571,7 +571,7 @@ static void scale_plane_4_to_3_general(const uint8_t *src, const int src_stride,
 
   assert(w && h);
 
-  shuffle_filter_ssse3(coef[(phase_scaler + 0 * step_q4) & SUBPEL_MASK], f0);
+  shuffle_filter_ssse3(coef[(phase + 0 * step_q4) & SUBPEL_MASK], f0);
   shuffle_filter_func_list[offset_idx1](coef[offset1_q4 & SUBPEL_MASK], f1);
   shuffle_filter_func_list[offset_idx2](coef[offset2_q4 & SUBPEL_MASK], f2);
 
@@ -727,6 +727,119 @@ static void scale_plane_4_to_3_general(const uint8_t *src, const int src_stride,
   } while (x);
 }
 
+static INLINE __m128i scale_1_to_2_phase_0_kernel(const __m128i *const s,
+                                                  const __m128i *const f) {
+  __m128i ss[4], temp;
+
+  ss[0] = _mm_unpacklo_epi8(s[0], s[1]);
+  ss[1] = _mm_unpacklo_epi8(s[2], s[3]);
+  ss[2] = _mm_unpacklo_epi8(s[4], s[5]);
+  ss[3] = _mm_unpacklo_epi8(s[6], s[7]);
+  temp = convolve8_8_ssse3(ss, f);
+  return _mm_packus_epi16(temp, temp);
+}
+
+// Only calculate odd columns since even columns are just src pixels' copies.
+static void scale_1_to_2_phase_0_row(const uint8_t *src, uint8_t *dst,
+                                     const int w, const __m128i *const f) {
+  int x = w;
+
+  do {
+    __m128i s[8], temp;
+    s[0] = _mm_loadl_epi64((const __m128i *)(src + 0));
+    s[1] = _mm_loadl_epi64((const __m128i *)(src + 1));
+    s[2] = _mm_loadl_epi64((const __m128i *)(src + 2));
+    s[3] = _mm_loadl_epi64((const __m128i *)(src + 3));
+    s[4] = _mm_loadl_epi64((const __m128i *)(src + 4));
+    s[5] = _mm_loadl_epi64((const __m128i *)(src + 5));
+    s[6] = _mm_loadl_epi64((const __m128i *)(src + 6));
+    s[7] = _mm_loadl_epi64((const __m128i *)(src + 7));
+    temp = scale_1_to_2_phase_0_kernel(s, f);
+    _mm_storel_epi64((__m128i *)dst, temp);
+    src += 8;
+    dst += 8;
+    x -= 8;
+  } while (x);
+}
+
+static void scale_plane_1_to_2_phase_0(const uint8_t *src,
+                                       const ptrdiff_t src_stride, uint8_t *dst,
+                                       const ptrdiff_t dst_stride,
+                                       const int src_w, const int src_h,
+                                       const int16_t *const coef,
+                                       uint8_t *const temp_buffer) {
+  int max_width;
+  int y;
+  uint8_t *tmp[9];
+  __m128i f[4];
+
+  max_width = (src_w + 7) & ~7;
+  tmp[0] = temp_buffer + 0 * max_width;
+  tmp[1] = temp_buffer + 1 * max_width;
+  tmp[2] = temp_buffer + 2 * max_width;
+  tmp[3] = temp_buffer + 3 * max_width;
+  tmp[4] = temp_buffer + 4 * max_width;
+  tmp[5] = temp_buffer + 5 * max_width;
+  tmp[6] = temp_buffer + 6 * max_width;
+  tmp[7] = temp_buffer + 7 * max_width;
+
+  shuffle_filter_ssse3(coef, f);
+
+  scale_1_to_2_phase_0_row(src - 3 * src_stride - 3, tmp[0], max_width, f);
+  scale_1_to_2_phase_0_row(src - 2 * src_stride - 3, tmp[1], max_width, f);
+  scale_1_to_2_phase_0_row(src - 1 * src_stride - 3, tmp[2], max_width, f);
+  scale_1_to_2_phase_0_row(src + 0 * src_stride - 3, tmp[3], max_width, f);
+  scale_1_to_2_phase_0_row(src + 1 * src_stride - 3, tmp[4], max_width, f);
+  scale_1_to_2_phase_0_row(src + 2 * src_stride - 3, tmp[5], max_width, f);
+  scale_1_to_2_phase_0_row(src + 3 * src_stride - 3, tmp[6], max_width, f);
+
+  y = src_h;
+  do {
+    int x;
+    scale_1_to_2_phase_0_row(src + 4 * src_stride - 3, tmp[7], max_width, f);
+    for (x = 0; x < max_width; x += 8) {
+      __m128i s[8], C, D, CD;
+
+      // Even rows
+      const __m128i a = _mm_loadl_epi64((const __m128i *)(src + x));
+      const __m128i b = _mm_loadl_epi64((const __m128i *)(tmp[3] + x));
+      const __m128i ab = _mm_unpacklo_epi8(a, b);
+      _mm_storeu_si128((__m128i *)(dst + 2 * x), ab);
+
+      // Odd rows
+      // Even columns
+      load_8bit_8x8(src + x - 3 * src_stride, src_stride, s);
+      C = scale_1_to_2_phase_0_kernel(s, f);
+
+      // Odd columns
+      s[0] = _mm_loadl_epi64((const __m128i *)(tmp[0] + x));
+      s[1] = _mm_loadl_epi64((const __m128i *)(tmp[1] + x));
+      s[2] = _mm_loadl_epi64((const __m128i *)(tmp[2] + x));
+      s[3] = _mm_loadl_epi64((const __m128i *)(tmp[3] + x));
+      s[4] = _mm_loadl_epi64((const __m128i *)(tmp[4] + x));
+      s[5] = _mm_loadl_epi64((const __m128i *)(tmp[5] + x));
+      s[6] = _mm_loadl_epi64((const __m128i *)(tmp[6] + x));
+      s[7] = _mm_loadl_epi64((const __m128i *)(tmp[7] + x));
+      D = scale_1_to_2_phase_0_kernel(s, f);
+
+      CD = _mm_unpacklo_epi8(C, D);
+      _mm_storeu_si128((__m128i *)(dst + dst_stride + 2 * x), CD);
+    }
+
+    src += src_stride;
+    dst += 2 * dst_stride;
+    tmp[8] = tmp[0];
+    tmp[0] = tmp[1];
+    tmp[1] = tmp[2];
+    tmp[2] = tmp[3];
+    tmp[3] = tmp[4];
+    tmp[4] = tmp[5];
+    tmp[5] = tmp[6];
+    tmp[6] = tmp[7];
+    tmp[7] = tmp[8];
+  } while (--y);
+}
+
 void av1_resize_and_extend_frame_ssse3(const YV12_BUFFER_CONFIG *src,
                                        YV12_BUFFER_CONFIG *dst,
                                        const InterpFilter filter,
@@ -741,6 +854,7 @@ void av1_resize_and_extend_frame_ssse3(const YV12_BUFFER_CONFIG *src,
     const int dst_h = dst->crop_heights[is_uv];
 
     if (2 * dst_w == src_w && 2 * dst_h == src_h) {
+      // 2 to 1
       if (phase == 0) {
         scale_plane_2_to_1_phase_0(src->buffers[i], src->strides[is_uv],
                                    dst->buffers[i], dst->strides[is_uv], dst_w,
@@ -769,6 +883,7 @@ void av1_resize_and_extend_frame_ssse3(const YV12_BUFFER_CONFIG *src,
         }
       }
     } else if (4 * dst_w == src_w && 4 * dst_h == src_h) {
+      // 4 to 1
       if (phase == 0) {
         scale_plane_4_to_1_phase_0(src->buffers[i], src->strides[is_uv],
                                    dst->buffers[i], dst->strides[is_uv], dst_w,
@@ -823,6 +938,18 @@ void av1_resize_and_extend_frame_ssse3(const YV12_BUFFER_CONFIG *src,
         scale_plane_4_to_3_general(src->buffers[i], src->strides[is_uv],
                                    dst->buffers[i], dst->strides[is_uv], dst_w,
                                    dst_h, interp_kernel, phase, temp_buffer);
+        free(temp_buffer);
+      }
+    } else if (dst_w == src_w * 2 && dst_h == src_h * 2) {
+      // 1 to 2
+      uint8_t *const temp_buffer = (uint8_t *)malloc(8 * ((src_w + 7) & ~7));
+      if (temp_buffer) {
+        const InterpKernel *interp_kernel =
+            (const InterpKernel *)av1_interp_filter_params_list[filter]
+                .filter_ptr;
+        scale_plane_1_to_2_phase_0(src->buffers[i], src->strides[is_uv],
+                                   dst->buffers[i], dst->strides[is_uv], src_w,
+                                   src_h, interp_kernel[8], temp_buffer);
         free(temp_buffer);
       }
     } else {
