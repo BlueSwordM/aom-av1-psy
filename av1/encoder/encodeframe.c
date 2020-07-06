@@ -216,8 +216,6 @@ void av1_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
   }
 }
 
-#undef NUM_SIMPLE_MOTION_FEATURES
-
 #if !CONFIG_REALTIME_ONLY
 static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
                                      MACROBLOCK *const x,
