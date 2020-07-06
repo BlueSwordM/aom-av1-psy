@@ -441,8 +441,8 @@ TEST_P(AVxEncoderThreadTestLarge, EncoderResultTest) {
 // first pass stats test
 AV1_INSTANTIATE_TEST_CASE(AVxFirstPassEncoderThreadTest,
                           ::testing::Values(::libaom_test::kTwoPassGood),
-                          ::testing::Range(0, 6), ::testing::Range(0, 3),
-                          ::testing::Range(0, 3));
+                          ::testing::Range(0, 6, 2), ::testing::Range(0, 2),
+                          ::testing::Range(1, 3));
 
 // For AV1, test speed 0, 1, 2, 3, 5.
 // Only test cpu_used 2 here.
