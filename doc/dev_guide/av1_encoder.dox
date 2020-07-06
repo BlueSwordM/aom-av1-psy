@@ -724,8 +724,8 @@ void second_pass(char *stats, size_t stats_len) {
  exhaustive searches.
 
  Partition search over the recursive quad-tree space is implemented by
- recursively calling \ref nonrd_use_partition(), \ref rd_use_partition(), or
- rd_pick_partition() and returning best options for sub-trees to their
+ recursively calling \ref av1_nonrd_use_partition(), \ref av1_rd_use_partition(), or
+ av1_rd_pick_partition() and returning best options for sub-trees to their
  parent partitions.
 
  In libaom, partition search lays on top of mode search (predictor, transform,
