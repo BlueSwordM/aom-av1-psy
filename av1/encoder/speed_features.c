@@ -373,7 +373,6 @@ static void set_good_speed_features_framesize_independent(
   sf->rd_sf.perform_coeff_opt = 1;
 
   if (speed >= 1) {
-    sf->gm_sf.disable_adaptive_warp_error_thresh = 0;
     sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3_ARF2;
     sf->gm_sf.prune_ref_frame_for_gm_search = boosted ? 0 : 1;
 
@@ -711,7 +710,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->tx_sf.tx_type_search.use_reduced_intra_txset = 1;
 
   if (speed >= 1) {
-    sf->gm_sf.gm_erroradv_type = GM_ERRORADV_TR_1;
     sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3_ARF2;
 
     sf->part_sf.prune_ext_partition_types_search_level = 2;
@@ -747,8 +745,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   }
 
   if (speed >= 2) {
-    sf->gm_sf.gm_erroradv_type = GM_ERRORADV_TR_2;
-
     sf->part_sf.allow_partition_search_skip = 1;
     sf->part_sf.partition_search_breakout_rate_thr = 80;
 
@@ -962,8 +958,6 @@ static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
 }
 
 static AOM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
-  gm_sf->gm_erroradv_type = GM_ERRORADV_TR_0;
-  gm_sf->disable_adaptive_warp_error_thresh = 1;
   gm_sf->selective_ref_gm = 1;
   gm_sf->gm_search_type = GM_FULL_SEARCH;
   gm_sf->gm_disable_recode = 0;

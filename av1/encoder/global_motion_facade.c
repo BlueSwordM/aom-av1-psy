@@ -71,14 +71,8 @@ static int gm_get_params_cost(const WarpedMotionParams *gm,
 }
 
 // Calculates the threshold to be used for warp error computation.
-// TODO(Remya): Can include erroradv_prod_tr[] for threshold calculation.
-static AOM_INLINE int64_t calc_erroradv_threshold(AV1_COMP *cpi,
-                                                  int64_t ref_frame_error) {
-  if (!cpi->sf.gm_sf.disable_adaptive_warp_error_thresh)
-    return (int64_t)(
-        ref_frame_error * erroradv_tr[cpi->sf.gm_sf.gm_erroradv_type] + 0.5);
-  else
-    return INT64_MAX;
+static AOM_INLINE int64_t calc_erroradv_threshold(int64_t ref_frame_error) {
+  return (int64_t)(ref_frame_error * erroradv_tr + 0.5);
 }
 
 // For the given reference frame, computes the global motion parameters for
@@ -152,8 +146,8 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
             ref_buf[frame]->y_stride, cpi->source->y_buffer, src_width,
             src_height, src_stride, segment_map, segment_map_w);
 
-        int64_t erroradv_threshold =
-            calc_erroradv_threshold(cpi, ref_frame_error);
+        const int64_t erroradv_threshold =
+            calc_erroradv_threshold(ref_frame_error);
 
         const int64_t warp_error = av1_refine_integerized_param(
             &tmp_wm_params, tmp_wm_params.wmtype, is_cur_buf_hbd(xd), xd->bd,
@@ -197,8 +191,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
     if (!av1_is_enough_erroradvantage(
             (double)best_warp_error / ref_frame_error,
             gm_get_params_cost(&cm->global_motion[frame], ref_params,
-                               cm->features.allow_high_precision_mv),
-            cpi->sf.gm_sf.gm_erroradv_type)) {
+                               cm->features.allow_high_precision_mv))) {
       cm->global_motion[frame] = default_warp_params;
     }
 

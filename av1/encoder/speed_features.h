@@ -39,13 +39,6 @@ enum {
 } UENUM1BYTE(GM_SEARCH_TYPE);
 
 enum {
-  GM_ERRORADV_TR_0,
-  GM_ERRORADV_TR_1,
-  GM_ERRORADV_TR_2,
-  GM_ERRORADV_TR_TYPES,
-} UENUM1BYTE(GM_ERRORADV_TYPE);
-
-enum {
   DIST_WTD_COMP_ENABLED,
   DIST_WTD_COMP_SKIP_MV_SEARCH,
   DIST_WTD_COMP_DISABLED,
@@ -353,12 +346,6 @@ typedef struct TPL_SPEED_FEATURES {
 } TPL_SPEED_FEATURES;
 
 typedef struct GLOBAL_MOTION_SPEED_FEATURES {
-  // Global motion warp error threshold
-  GM_ERRORADV_TYPE gm_erroradv_type;
-
-  // Disable adaptive threshold for global motion warp error
-  int disable_adaptive_warp_error_thresh;
-
   // Do not compute the global motion parameters for a LAST2_FRAME or
   // LAST3_FRAME if the GOLDEN_FRAME is closer and it has a non identity
   // global model.
