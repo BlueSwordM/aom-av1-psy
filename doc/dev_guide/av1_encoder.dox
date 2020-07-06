@@ -1,4 +1,4 @@
-/*!\page encoder_guide AV1 ENCODER GUIDE
+﻿/*!\page encoder_guide AV1 ENCODER GUIDE
 
 \tableofcontents
 
@@ -481,8 +481,100 @@ and functions:
  Add details here.
 
 \section architecture_enc_tpl Temporal Dependency Modelling
+The temporal dependency model runs at the beginning of each GOP. It builds the
+motion trajectory within the GOP in units of 16x16 blocks. The temporal
+dependency of a 16x16 block is evaluated as the predictive coding gains it
+contributes to its trailing motion trajectory. This temporal dependency model
+reflects how important a coding block is for the coding efficiency of the
+overall GOP. It is hence used to scale the Lagrangian multiplier used in the
+rate-distortion optimization framework.
 
- Add details here.
+\subsection architecture_enc_tpl_config Configurations
+
+The temporal dependency model and its applications are by default turned on in
+libaom encoder for the VoD use case. To disable it, use --tpl-model=0 in the
+aomenc configuration.
+
+
+\subsection architecture_enc_tpl_algoritms Algorithms
+
+The scheme works in the reverse frame processing order over the source frames,
+propagating information from future frames back to the current frame. For each
+frame, a propagation step is run for each MB. it operates as follows:
+
+<ul>
+   <li> Estimate the intra prediction cost in terms of sum of absolute Hadamard
+   transform difference (SATD) noted as intra_cost. It also loads the motion
+   information available from the first-pass encode and estimates the inter
+   prediction cost as inter_cost. Due to the use of hybrid inter/intra
+   prediction mode, the inter_cost value is further upper bounded by
+   intra_cost. A propagation cost variable is used to collect all the
+   information flowed back from future processing frames. It is initialized as
+   0 for all the blocks in the last processing frame in a group of pictures
+   (GOP).</li>
+
+   <li> The fraction of information from a current block to be propagated towards
+   its reference block is estimated as:
+\f[
+   propagation\_fraction = (1 − inter\_cost/intra\_cost)
+\f]
+   It reflects how much the motion compensated reference would reduce the
+   prediction error in percentage.</li>
+
+   <li> The total amount of information the current block contributes to the GOP
+   is estimated as intra_cost + propagation_cost. The information that it
+   propagates towards its reference block is captured by:
+
+\f[
+   propagation\_amount =
+   (intra\_cost + propagation\_cost) ∗ propagation\_fraction
+\f]</li>
+
+   <li> Note that the reference block may not necessarily sit on the grid of
+   16x16 blocks. The propagation amount is hence dispensed to all the blocks
+   that overlap with the reference block. The corresponding block in the
+   reference frame accumulates its own propagation cost as it receives back
+   propagation.
+
+\f[
+   propagation\_cost = propagation\_cost +
+                       (\frac{overlap\_area}{(16*16)} ∗ propagation\_amount)
+\f]</li>
+
+   <li> In the final encoding stage, the distortion propagation factor of a block
+   is evaluated as \f$(1 + \frac{propagation\_cost}{intra\_cost})\f$, where the second term
+   captures its impact on later frames in a GOP.</li>
+
+   <li> The Lagrangian multiplier is adapted at the 64x64 block level. For every
+   64x64 block in a frame, we have a distortion propagation factor:
+
+\f[
+  dist\_prop[i] = 1 + \frac{propogation\_cost[i]}{intra\_cost[i]}
+\f]
+
+   where i denotes the block index in the frame. We also have the frame level
+   distortion propagation factor:
+
+\f[
+  dist\_prop = 1 +
+  \frac{\sum_{i}propogation\_cost[i]}{\sum_{i}intra\_cost[i]}
+\f]
+
+   which is used to normalize the propagation factor at the 64x64 block level. The
+   Lagrangian multiplier is hence adapted as:
+
+\f[
+  &lambda;[i] = &lambda;[0] * \frac{dist\_prop}{dist\_prop[i]}
+\f]
+
+   where &lambda;0 is the multiplier associated with the frame level QP. The
+   64x64 block level QP is scaled according to the Lagrangian multiplier.
+</ul>
+
+\subsection architecture_enc_tpl_keyfun Key Functions
+
+- The TPL model is built in (TODO REF) av1_tpl_setup_stats().
+- Its application to the QP offset is triggered in (TODO REF) setup_delta_q().
 
 \section architecture_enc_partitions Block Partition Search
 
