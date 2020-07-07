@@ -291,18 +291,6 @@ static void update_fb_of_context_type(
   }
 }
 
-static int get_order_offset(const GF_GROUP *const gf_group,
-                            const EncodeFrameParams *const frame_params) {
-  // shown frame by definition has order offset 0
-  // show_existing_frame ignores order_offset and simply takes the order_hint
-  // from the reference frame being shown.
-  if (frame_params->show_frame || frame_params->show_existing_frame) return 0;
-
-  const int arf_offset =
-      AOMMIN((MAX_GF_INTERVAL - 1), gf_group->arf_src_offset[gf_group->index]);
-  return AOMMIN((MAX_GF_INTERVAL - 1), arf_offset);
-}
-
 static void adjust_frame_rate(AV1_COMP *cpi, int64_t ts_start, int64_t ts_end) {
   TimeStamps *time_stamps = &cpi->time_stamps;
   int64_t this_duration;
@@ -1235,7 +1223,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
     frame_params.primary_ref_frame =
         choose_primary_ref_frame(cpi, &frame_params);
-    frame_params.order_offset = get_order_offset(&cpi->gf_group, &frame_params);
+    frame_params.order_offset = gf_group->arf_src_offset[gf_group->index];
 
     frame_params.refresh_frame_flags = av1_get_refresh_frame_flags(
         cpi, &frame_params, frame_update_type, &cpi->ref_buffer_stack);
