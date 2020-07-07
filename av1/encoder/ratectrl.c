@@ -2076,11 +2076,23 @@ int av1_calc_iframe_target_size_one_pass_cbr(const AV1_COMP *cpi) {
   return av1_rc_clamp_iframe_target_size(cpi, target);
 }
 
-// Specify the reference prediction structure, for 1 layer nonrd mode.
-// Current structue is to use 3 references (LAST, GOLDEN, ALTREF),
-// where ALT_REF always behind current by lag_alt frames, and GOLDEN is
-// either updated on LAST with period baseline_gf_interval (fixed slot)
-// or always behind current by lag_gld (gld_fixed_slot = 0, lag_gld <= 7).
+/*!\brief Setup the reference prediction structure for 1 pass real-time
+ *
+ * Set the reference prediction structure for 1 layer.
+ * Current structue is to use 3 references (LAST, GOLDEN, ALTREF),
+ * where ALT_REF always behind current by lag_alt frames, and GOLDEN is
+ * either updated on LAST with period baseline_gf_interval (fixed slot)
+ * or always behind current by lag_gld (gld_fixed_slot = 0, lag_gld <= 7).
+ *
+ * \ingroup rate_control
+ * \param[in]       cpi          Top level encoder structure
+ * \param[in]       gf_update    Flag to indicate if GF is updated
+ *
+ * \return Nothing is returned. Instead the settings for the prediction
+ * structure are set in \c cpi-ext_flags; and the buffer slot index
+ * (for each of 7 references) and refresh flags (for each of the 8 slots)
+ * are set in \c cpi->svc.ref_idx[] and \c cpi->svc.refresh[].
+ */
 static void set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
   AV1_COMMON *const cm = &cpi->common;
   ExternalFlags *const ext_flags = &cpi->ext_flags;
@@ -2135,10 +2147,19 @@ static void set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
   }
 }
 
-// Compute average source sad (temporal sad: between current source and
-// previous source) over a subset of superblocks. Use this is detect big changes
-// in content and set the high_source_sad flag.
-static void av1_scene_detection_onepass(AV1_COMP *cpi) {
+/*!\brief Check for scene detection, for 1 pass real-time mode.
+ *
+ * Compute average source sad (temporal sad: between current source and
+ * previous source) over a subset of superblocks. Use this is detect big changes
+ * in content and set the \c cpi->rc.high_source_sad flag.
+ *
+ * \ingroup rate_control
+ * \param[in]       cpi          Top level encoder structure
+ *
+ * \return Nothing is returned. Instead the flag \c cpi->rc.high_source_sad
+ * is set if scene change is detected, and \c cpi->rc.avg_source_sad is updated.
+ */
+static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
   YV12_BUFFER_CONFIG const *unscaled_src = cpi->unscaled_source;
@@ -2238,7 +2259,16 @@ static void av1_scene_detection_onepass(AV1_COMP *cpi) {
 #define DEFAULT_KF_BOOST_RT 2300
 #define DEFAULT_GF_BOOST_RT 2000
 
-// Set the GF baseline interval and return update flag.
+/*!\brief Set the GF baseline interval for 1 pass real-time mode.
+ *
+ *
+ * \ingroup rate_control
+ * \param[in]       cpi          Top level encoder structure
+ * \param[in]       frame_type   frame type
+ *
+ * \return Return GF update flag, and update the \c cpi->rc with
+ * the next GF interval settings.
+ */
 static int set_gf_interval_update_onepass_rt(AV1_COMP *cpi,
                                              FRAME_TYPE frame_type) {
   RATE_CONTROL *const rc = &cpi->rc;
@@ -2293,11 +2323,6 @@ static int set_gf_interval_update_onepass_rt(AV1_COMP *cpi,
   return gf_update;
 }
 
-// For 1 pass real-time mode: set the frame_type, check for
-// scene change and GF update, and set the target frame size.
-// For 1 layer (non-SVC) this will also set the reference structure
-// (GF and ALT reference/refresh); for SVC some update/resets are done
-// (update_temporal_layer_framerate and restore_layer_context).
 void av1_get_one_pass_rt_params(AV1_COMP *cpi,
                                 EncodeFrameParams *const frame_params,
                                 unsigned int frame_flags) {
@@ -2347,7 +2372,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
   }
   // Check for scene change, for non-SVC for now.
   if (!cpi->use_svc && cpi->sf.rt_sf.check_scene_detection)
-    av1_scene_detection_onepass(cpi);
+    rc_scene_detection_onepass_rt(cpi);
   // Set the GF interval and update flag.
   gf_update = set_gf_interval_update_onepass_rt(cpi, frame_params->frame_type);
   // Set target size.
@@ -2375,8 +2400,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
   cm->current_frame.frame_type = frame_params->frame_type;
 }
 
-// Increase the QP, reset/adjust some rate control parameters, and return 1.
-int av1_encodedframe_overshoot(AV1_COMP *cpi, int *q) {
+int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
   SPEED_FEATURES *const sf = &cpi->sf;
