@@ -105,7 +105,7 @@ typedef struct {
   PartitionBlkParams part_blk_params;
 
   // Win flags for HORZ and VERT partition evaluations.
-  RD_RECT_PART_WIN_INFO split_part_rect_win[4];
+  RD_RECT_PART_WIN_INFO split_part_rect_win[SUB_PARTITIONS_SPLIT];
 
   // RD cost for the current block of given partition type.
   RD_STATS this_rdc;
@@ -121,11 +121,11 @@ typedef struct {
 
   // RD costs for different partition types.
   int64_t none_rd;
-  int64_t split_rd[4];
+  int64_t split_rd[SUB_PARTITIONS_SPLIT];
   // RD costs for rectangular partitions.
   // rect_part_rd[0][i] is the RD cost of ith partition index of PARTITION_HORZ.
   // rect_part_rd[1][i] is the RD cost of ith partition index of PARTITION_VERT.
-  int64_t rect_part_rd[NUM_RECT_PARTS][2];
+  int64_t rect_part_rd[NUM_RECT_PARTS][SUB_PARTITIONS_RECT];
 
   // Flags indicating if the corresponding partition was winner or not.
   // Used to bypass similar blocks during AB partition evaluation.

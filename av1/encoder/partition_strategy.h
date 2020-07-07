@@ -33,14 +33,17 @@
 #define FEATURE_SMS_SPLIT_MODEL_FLAG \
   (FEATURE_SMS_NONE_FLAG | FEATURE_SMS_SPLIT_FLAG)
 
+// Number of sub-partitions in rectangular partition types.
+#define SUB_PARTITIONS_RECT 2
+
 // Number of sub-partitions in split partition type.
 #define SUB_PARTITIONS_SPLIT 4
 
 // Number of sub-partitions in AB partition types.
 #define SUB_PARTITIONS_AB 3
 
-// Number of sub-partitions in 4-part partition types.
-#define PART4_SUB_PARTITIONS 4
+// Number of sub-partitions in 4-way partition types.
+#define SUB_PARTITIONS_PART4 4
 
 // 4part parition types.
 enum { HORZ4 = 0, VERT4, NUM_PART4_TYPES } UENUM1BYTE(PART4_TYPES);
@@ -134,22 +137,21 @@ void av1_ml_prune_rect_partition(const AV1_COMP *const cpi,
 
 // Use a ML model to predict if horz_a, horz_b, vert_a, and vert_b should be
 // considered.
-void av1_ml_prune_ab_partition(BLOCK_SIZE bsize, int part_ctx, int var_ctx,
-                               int64_t best_rd, int64_t horz_rd[2],
-                               int64_t vert_rd[2], int64_t split_rd[4],
-                               int *const horza_partition_allowed,
-                               int *const horzb_partition_allowed,
-                               int *const verta_partition_allowed,
-                               int *const vertb_partition_allowed);
+void av1_ml_prune_ab_partition(
+    BLOCK_SIZE bsize, int part_ctx, int var_ctx, int64_t best_rd,
+    int64_t horz_rd[SUB_PARTITIONS_RECT], int64_t vert_rd[SUB_PARTITIONS_RECT],
+    int64_t split_rd[SUB_PARTITIONS_SPLIT], int *const horza_partition_allowed,
+    int *const horzb_partition_allowed, int *const verta_partition_allowed,
+    int *const vertb_partition_allowed);
 
 // Use a ML model to predict if horz4 and vert4 should be considered.
-void av1_ml_prune_4_partition(const AV1_COMP *const cpi, MACROBLOCK *const x,
-                              BLOCK_SIZE bsize, int part_ctx, int64_t best_rd,
-                              int64_t rect_part_rd[2][2], int64_t split_rd[4],
-                              int *const partition_horz4_allowed,
-                              int *const partition_vert4_allowed,
-                              unsigned int pb_source_variance, int mi_row,
-                              int mi_col);
+void av1_ml_prune_4_partition(
+    const AV1_COMP *const cpi, MACROBLOCK *const x, BLOCK_SIZE bsize,
+    int part_ctx, int64_t best_rd,
+    int64_t rect_part_rd[NUM_RECT_PARTS][SUB_PARTITIONS_RECT],
+    int64_t split_rd[SUB_PARTITIONS_SPLIT], int *const partition_horz4_allowed,
+    int *const partition_vert4_allowed, unsigned int pb_source_variance,
+    int mi_row, int mi_col);
 
 // ML-based partition search breakout after PARTITION_NONE.
 int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
@@ -183,7 +185,8 @@ void av1_prune_partitions_by_max_min_bsize(
 void av1_prune_ab_partitions(
     const AV1_COMP *cpi, const MACROBLOCK *x, const PC_TREE *pc_tree,
     BLOCK_SIZE bsize, int pb_source_variance, int64_t best_rdcost,
-    int64_t rect_part_rd[2][2], int64_t split_rd[4],
+    int64_t rect_part_rd[NUM_RECT_PARTS][SUB_PARTITIONS_RECT],
+    int64_t split_rd[SUB_PARTITIONS_SPLIT],
     const RD_RECT_PART_WIN_INFO *rect_part_win_info, int ext_partition_allowed,
     int partition_horz_allowed, int partition_vert_allowed,
     int *horza_partition_allowed, int *horzb_partition_allowed,
