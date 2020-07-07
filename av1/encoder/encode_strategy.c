@@ -339,14 +339,6 @@ static void adjust_frame_rate(AV1_COMP *cpi, int64_t ts_start, int64_t ts_end) {
   time_stamps->prev_end_seen = ts_end;
 }
 
-// If this is an alt-ref, returns the offset of the source frame used
-// as the arf midpoint. Otherwise, returns 0.
-static int get_arf_src_index(GF_GROUP *gf_group, int pass) {
-  int arf_src_index = 0;
-  if (pass != 1) arf_src_index = gf_group->arf_src_offset[gf_group->index];
-  return arf_src_index;
-}
-
 // Determine whether there is a forced keyframe pending in the lookahead buffer
 int is_forced_keyframe_pending(struct lookahead_ctx *lookahead,
                                const int up_to_index,
@@ -375,10 +367,11 @@ static struct lookahead_entry *choose_frame_source(
     AV1_COMP *const cpi, int *const flush, struct lookahead_entry **last_source,
     EncodeFrameParams *const frame_params) {
   AV1_COMMON *const cm = &cpi->common;
+  const GF_GROUP *const gf_group = &cpi->gf_group;
   struct lookahead_entry *source = NULL;
 
   // Source index in lookahead buffer.
-  int src_index = get_arf_src_index(&cpi->gf_group, cpi->oxcf.pass);
+  int src_index = gf_group->arf_src_offset[gf_group->index];
 
   // TODO(Aasaipriya): Forced key frames need to be fixed when rc_mode != AOM_Q
   if (src_index &&
@@ -829,6 +822,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
                               EncodeFrameResults *const frame_results) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
+  const GF_GROUP *const gf_group = &cpi->gf_group;
 
   // Decide whether to apply temporal filtering to the source frame.
   int apply_filtering = 0;
@@ -867,7 +861,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       av1_setup_past_independence(cm);
 
       if (!frame_params->show_frame) {
-        arf_src_index = -1 * get_arf_src_index(&cpi->gf_group, oxcf->pass);
+        arf_src_index = -1 * gf_group->arf_src_offset[gf_group->index];
       } else {
         arf_src_index = -1;
       }
@@ -877,7 +871,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     // ARF
     apply_filtering = oxcf->algo_cfg.arnr_max_frames > 0;
     if (apply_filtering) {
-      arf_src_index = get_arf_src_index(&cpi->gf_group, oxcf->pass);
+      arf_src_index = gf_group->arf_src_offset[gf_group->index];
     }
   }
   // Save the pointer to the original source image.
