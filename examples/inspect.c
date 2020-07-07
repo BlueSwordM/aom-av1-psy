@@ -792,6 +792,7 @@ int read_frame() {
     }
 
     frame = adr.buf;
+    frame_size = end_frame - frame;
     if (frame == end_frame) have_frame = 0;
   } while (adr.show_existing);
 
