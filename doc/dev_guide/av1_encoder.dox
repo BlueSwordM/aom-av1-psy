@@ -316,8 +316,8 @@ output bitstream is created and the per frame first pass statistics are stored
 entirely in volatile memory. This has some disadvantages when compared to a
 full first pass encode, but avoids the need for file I/O and improves speed.
 
-In this section I will refer to the following key data structures.
-(see also \ref architecture_enc_data_structures)
+This section refers to the following key data structures. (see also
+\ref architecture_enc_data_structures)
 
 - \ref AV1_COMP cpi (the main compressor instance data structure)
    - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
@@ -423,13 +423,13 @@ The main functions responsible for the prediction of Q and the adaptation over
 time, for the two pass encoding pipeline are:
 
 - \ref rc_pick_q_and_bounds()
-	- (TODO REF) get_q()
-		- (TODO REF) av1_rc_regulate_q()
-			- (TODO REF) get_rate_correction_factor()
-			- (TODO REF) find_closest_qindex_by_rate()
+    - (TODO REF) get_q()
+        - (TODO REF) av1_rc_regulate_q()
+        - (TODO REF) get_rate_correction_factor()
+        - (TODO REF) find_closest_qindex_by_rate()
 
 - (TODO REF) av1_twopass_postencode_update()
-	- (TODO REF) av1_rc_update_rate_correction_factors()
+    - (TODO REF) av1_rc_update_rate_correction_factors()
 
 The second mechanism for control comes into play if there is a large rate miss
 for the current frame (much too big or too small). This is a recode mechanism
@@ -451,15 +451,15 @@ error trigger threshold.
 For more information the reader is directed to the following data structures:
 
 - \ref AV1_COMP cpi (the main compressor instance data structure)
-   - \ref AV1_COMP.speed
-   - \ref AV1_COMP.sf (\ref SPEED_FEATURES)
+    - \ref AV1_COMP.speed
+    - \ref AV1_COMP.sf (\ref SPEED_FEATURES)
 
 - \ref SPEED_FEATURES (Encode speed vs quality tradeoff parameters)
-	- \ref SPEED_FEATURES.hl_sf (\ref HIGH_LEVEL_SPEED_FEATURES)
+    - \ref SPEED_FEATURES.hl_sf (\ref HIGH_LEVEL_SPEED_FEATURES)
 
 - \ref HIGH_LEVEL_SPEED_FEATURES
-	- \ref HIGH_LEVEL_SPEED_FEATURES.recode_loop
-	- \ref HIGH_LEVEL_SPEED_FEATURES.recode_tolerance
+    - \ref HIGH_LEVEL_SPEED_FEATURES.recode_loop
+    - \ref HIGH_LEVEL_SPEED_FEATURES.recode_tolerance
 
 and functions:
 
@@ -476,11 +476,161 @@ and functions:
 
  Add details here.
 
-\section architecture_enc_hierachical Hierarchical Coding
+\section architecture_enc_frame_groups GF/ ARF Frame Groups & Hierarchical Coding
 
- Add details here.
+This section refers to the following key data structures. (see also
+\ref architecture_enc_data_structures)
+
+- \ref AV1_COMP cpi (the main compressor instance data structure)
+    - \ref AV1_COMP.rc (\ref RATE_CONTROL)
+    - \ref AV1_COMP.lap_enabled
+
+- \ref RATE_CONTROL (Rate control status)
+    - \ref RATE_CONTROL.intervals_till_gf_calculate_due
+    - \ref RATE_CONTROL.gf_intervals[]
+    - \ref RATE_CONTROL.cur_gf_index
+    - \ref RATE_CONTROL.frames_till_gf_update_due
+    - \ref RATE_CONTROL.frames_to_key
+
+- \ref FIRSTPASS_STATS *frame_stats_buf (used to store per frame first pass
+stats)
+    - \ref FIRSTPASS_STATS.coded_error
+
+To process a sequence/stream of video frames, the encoder divides the frames
+into groups and encodes them sequentially (possibly dependent on previous
+groups). In AV1 such a group is usually referred to as a golden frame group
+(GF group) or sometimes an Alt-Ref (ARF) group or a group of pictures (GOP).
+A GF group determines and stores the coding structure of the frames (for
+example, frame type, usage of the hierarchical structure, usage of overlay
+frames, etc.) and can be considered as the “base unit” to process the frames,
+therefore playing an important role in the encoder.
+
+The length of a specific GF group is arguably the most important aspect when
+determining a GF group. This is because most GF group level decisions are
+based on the frame characteristics, if not on the length itself directly.
+Note that the GF group is always a group of consecutive frames, which means
+the start and end of the group (so again, the length of it) determines which
+frames are included in it and hence determines the characteristics of the GF
+group. Therefore, in this document we will first discuss the GF group length
+decision in Libaom, followed by frame structure decisions when defining a GF
+group with a certain length.
+
+\subsection architecture_enc_gf_length GF / ARF Group Length Determination
+
+The basic intuition of determining the GF group length is that it is usually
+desirable to group together frames that are similar. Hence, we may choose
+longer groups when consecutive frames are very alike and shorter ones when
+they are very different.
+
+The determination of the GF group length is done in function (TODO REF)
+calculate_gf_length(). The following encoder use cases are supported:
+
+<ul>
+  <li><b>Single pass with look-ahead disabled((TODO REF)has_no_stats_stage()):
+  </b> in this case there is no information available on the following stream
+  of frames, therefore the function will set the GF group length for the
+  current and the following GF groups (a total number of MAX_NUM_GF_INTERVALS
+  groups) to be the maximum value allowed.</li>
+
+  <li><b>Single pass with look-ahead enabled (\ref AV1_COMP.lap_enabled):</b>
+  look-ahead processing is enabled for single pass, therefore there is a
+  limited amount of information available regarding future frames. In this
+  case the function will determine the length based on “first pass stats”
+  (which is generated when processing the look-ahead buffer) for only the
+  current GF group.</li>
+
+  <li><b>Two pass:</b> the first pass in two-pass encoding collects the stats
+  and will not call the function. In the second pass, the function tries to
+  determine the GF group length of the current and the following GF groups (a
+  total number of MAX_NUM_GF_INTERVALS groups) based on the first-pass
+  statistics. Note that as we will be discussing later, such decisions may not
+  be accurate and can be changed later.</li>
+</ul>
+
+Except for the first trivial case where there is no prior knowledge of the
+following frames, the function (TODO REF) calculate_gf_length() tries to
+determine the GF group length based on the first pass statistics. As shown
+in figure [TODO], the determination is divided into two parts:
+
+<ol>
+   <li>Baseline decision based on accumulated statistics: this part of the function
+   iterates through the firstpass statistics of the following frames and
+   accumulates the statistics with function accumulate_next_frame_stats.
+   The accumulated statistics are then used to determine whether the
+   correlation in the GF group has dropped too much in function detect_gf_cut.
+   If detect_gf_cut returns non-zero, or if we’ve reached the end of
+   first-pass statistics, the baseline decision is set at the current point.</li>
+
+   <li>If we are not at the end of the first-pass statistics, the next part will
+   try to refine the baseline decision. The algorithm is based on
+   \ref FIRSTPASS_STATS.coded_error. It tries to label the frames in the
+   baseline group into two classes: high-error and low-error, and cuts the GF
+   group at the furthest location that is also of the low-error class.
+   Detailed algorithm description is introduced here [TODO].</li>
+</ol>
+
+As mentioned, for two-pass encoding, the function (TODO REF)
+calculate_gf_length() tries to determine the length of as many as
+MAX_NUM_GF_INTERVALS groups. The decisions are stored in
+\ref RATE_CONTROL.gf_intervals[]. The variables
+\ref RATE_CONTROL.intervals_till_gf_calculate_due and
+\ref RATE_CONTROL.cur_gf_index help with managing and updating the stored
+decisions. In the function (TODO REF)define_gf_group(), the corresponding
+stored length decision will be used to define the current GF group.
+
+When the maximum GF group length is larger or equal to 32, the encoder will
+enforce an extra layer to determine whether to use maximum GF length of 32
+or 16 for every GF group. In such a case, (TODO REF) calculate_gf_length() is
+first called with the original maximum length (>=32). Afterwards,
+(TODO REF) av1_tpl_setup_stats() is called to analyze the determined GF group
+and compare the reference to the last frame and the middle frame. If it is
+decided that we should use a maximum GF length of 16, the function
+(TODO REF)calculate_gf_length() is called again with the updated maximum
+length, and it only sets the length for a single GF group
+(\ref RATE_CONTROL.intervals_till_gf_calculate_due is set to 1). This process
+is shown in [TODO].
+
+Before encoding each frame, the encoder checks
+\ref RATE_CONTROL.frames_till_gf_update_due. If it is zero, indicating
+processing of the current GF group is done, the encoder will check whether
+\ref RATE_CONTROL.intervals_till_gf_calculate_due is zero. If it is, as
+discussed above, (TODO REF)calculate_gf_length() is called with original
+maximum length. If it is not zero, then the GF group length value stored
+in \ref RATE_CONTROL.gf_intervals[\ref RATE_CONTROL.cur_gf_index] is used
+(subject to change as discussed above).
+
+\subsection architecture_enc_kf_groups Key Frame Groups
+
+A special constraint for GF group length is the location of the next keyframe
+(KF). The frames between two KFs are referred to as a KF group. Each KF group
+can be encoded and decoded independently. Because of this, a GF group cannot
+span beyond a KF and the location of the next KF is set as a hard boundary
+for GF group length.
+
+<ul>
+   <li>For two-pass encoding \ref RATE_CONTROL.frames_to_key controls when to
+   encode a key frame. When it is zero, the current frame is a keyframe and
+   the function (TODO REF) find_next_key_frame() is called. This in turn calls
+   (TODO REF) define_kf_interval() to work out where the next key frame should
+   be placed.</li>
+
+   <li>For single-pass with look-ahead enabled, (TODO REF)define_kf_interval()
+   is called whenever a GF group update is needed (when
+   \ref RATE_CONTROL.frames_till_gf_update_due is zero). This is because
+   generally KFs are more widely spaced and the look-ahead buffer is usually
+   not long enough.</li>
+
+   <li>For single-pass with look-ahead disabled, the KFs are placed according
+   to the command line parameter <b>--kf-max-dist</b> (The above two cases are
+   also subject to this constraint).</li>
+</ul>
+
+The function (TODO REF) define_kf_interval() tries to detect a scenecut.
+If a scenecut within kf-max-dist is detected, then it is set as the next
+keyframe. Otherwise the given maximum value is used.
 
 \section architecture_enc_tpl Temporal Dependency Modelling
+
 The temporal dependency model runs at the beginning of each GOP. It builds the
 motion trajectory within the GOP in units of 16x16 blocks. The temporal
 dependency of a 16x16 block is evaluated as the predictive coding gains it
@@ -494,7 +644,6 @@ rate-distortion optimization framework.
 The temporal dependency model and its applications are by default turned on in
 libaom encoder for the VoD use case. To disable it, use --tpl-model=0 in the
 aomenc configuration.
-
 
 \subsection architecture_enc_tpl_algoritms Algorithms
 
