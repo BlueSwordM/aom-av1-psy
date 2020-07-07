@@ -262,8 +262,7 @@ enum {
   // Always use a fixed size partition
   FIXED_PARTITION,
 
-  REFERENCE_PARTITION,
-
+  // Partition using source variance
   VAR_BASED_PARTITION
 } UENUM1BYTE(PARTITION_SEARCH_TYPE);
 
@@ -365,8 +364,8 @@ typedef struct GLOBAL_MOTION_SPEED_FEATURES {
 typedef struct PARTITION_SPEED_FEATURES {
   PARTITION_SEARCH_TYPE partition_search_type;
 
-  // Used if partition_search_type = FIXED_SIZE_PARTITION
-  BLOCK_SIZE always_this_block_size;
+  // Used if partition_search_type = FIXED_PARTITION
+  BLOCK_SIZE fixed_partition_size;
 
   // Prune extended partition types search
   // Can take values 0 - 2, 0 referring to no pruning, and 1 - 2 increasing

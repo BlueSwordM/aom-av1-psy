@@ -977,7 +977,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->max_intra_bsize = BLOCK_LARGEST;
   // This setting only takes effect when partition_search_type is set
   // to FIXED_PARTITION.
-  part_sf->always_this_block_size = BLOCK_16X16;
+  part_sf->fixed_partition_size = BLOCK_16X16;
   // Recode loop tolerance %.
   part_sf->partition_search_breakout_dist_thr = 0;
   part_sf->partition_search_breakout_rate_thr = 0;

@@ -2724,7 +2724,7 @@ static void set_encoding_params_for_screen_content(AV1_COMP *cpi,
     cm->features.allow_intrabc = 0;
     cpi->is_screen_content_type = 0;
     cpi->sf.part_sf.partition_search_type = FIXED_PARTITION;
-    cpi->sf.part_sf.always_this_block_size = BLOCK_32X32;
+    cpi->sf.part_sf.fixed_partition_size = BLOCK_32X32;
     return;
   }
   assert(pass == 1);
@@ -2735,7 +2735,7 @@ static void set_encoding_params_for_screen_content(AV1_COMP *cpi,
   // cm->allow_intrabc = 1;
   cpi->is_screen_content_type = 1;
   cpi->sf.part_sf.partition_search_type = FIXED_PARTITION;
-  cpi->sf.part_sf.always_this_block_size = BLOCK_32X32;
+  cpi->sf.part_sf.fixed_partition_size = BLOCK_32X32;
 }
 
 // Determines whether to use screen content tools for the key frame group.
@@ -2768,7 +2768,7 @@ static void determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
       is_lossless_requested(&oxcf->rc_cfg) ? q_orig : AOMMAX(q_orig, 244);
   const int partition_search_type_orig = cpi->sf.part_sf.partition_search_type;
   const BLOCK_SIZE fixed_partition_block_size_orig =
-      cpi->sf.part_sf.always_this_block_size;
+      cpi->sf.part_sf.fixed_partition_size;
 
   // Setup necessary params for encoding, including frame source, etc.
   aom_clear_system_state();
@@ -2835,7 +2835,7 @@ static void determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
 
   // Set partition speed feature back.
   cpi->sf.part_sf.partition_search_type = partition_search_type_orig;
-  cpi->sf.part_sf.always_this_block_size = fixed_partition_block_size_orig;
+  cpi->sf.part_sf.fixed_partition_size = fixed_partition_block_size_orig;
 }
 #endif  // CONFIG_REALTIME_ONLY
 

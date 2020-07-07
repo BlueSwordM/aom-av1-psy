@@ -455,7 +455,7 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
     // set a fixed-size partition
     av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
     const BLOCK_SIZE bsize =
-        seg_skip ? sb_size : sf->part_sf.always_this_block_size;
+        seg_skip ? sb_size : sf->part_sf.fixed_partition_size;
     av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
   } else if (cpi->partition_search_skippable_frame) {
     // set a fixed-size partition for which the size is determined by the source
@@ -585,7 +585,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     // partition search by adjusting a fixed-size partition
     av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
     const BLOCK_SIZE bsize =
-        seg_skip ? sb_size : sf->part_sf.always_this_block_size;
+        seg_skip ? sb_size : sf->part_sf.fixed_partition_size;
     av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
     PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
     av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
