@@ -1,4 +1,4 @@
-﻿/*!\page encoder_guide AV1 ENCODER GUIDE
+/*!\page encoder_guide AV1 ENCODER GUIDE
 
 \tableofcontents
 
@@ -102,23 +102,56 @@ and control algorithms.
 The following are the main high level data structures used by the libaom AV1
 encoder and referenced elsewhere in this overview document:
 
- - \ref AV1_COMP
-   - \ref AV1_COMP.rc (\ref RATE_CONTROL)
-   - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
-   - \ref AV1_COMP.twopass (\ref TWO_PASS)
-   - \ref AV1_COMP.gf_group (\ref GF_GROUP)
-   - \ref AV1_COMP.speed
-   - \ref AV1_COMP.sf (\ref SPEED_FEATURES)
+- \ref AV1_COMP
+    - \ref AV1_COMP.rc (\ref RATE_CONTROL)
+    - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
+    - \ref AV1_COMP.twopass (\ref TWO_PASS)
+    - \ref AV1_COMP.gf_group (\ref GF_GROUP)
+    - \ref AV1_COMP.speed
+    - \ref AV1_COMP.sf (\ref SPEED_FEATURES)
+    - \ref AV1_COMP.lap_enabled
 
- - \ref AV1EncoderConfig (Encoder configuration parameters)
-   - \ref AV1EncoderConfig.rc_cfg (\ref RateControlCfg)
+- \ref AV1EncoderConfig (Encoder configuration parameters)
+    - \ref AV1EncoderConfig.pass
+    - \ref AV1EncoderConfig.rc_cfg (\ref RateControlCfg)
+    - \ref AV1EncoderConfig.two_pass_cfg (\ref TwoPassCfg)
 
- - \ref RATE_CONTROL (Rate control status)
- - \ref RateControlCfg (Rate control configuration)
- - \ref TWO_PASS (Two pass status and control data)
- - \ref GF_GROUP (Data relating to the current GF/ARF group)
- - \ref FIRSTPASS_STATS (Defines entries in the first pass stats buffer)
- - \ref SPEED_FEATURES (Encode speed / quality tradeoff parameters)
+- \ref RateControlCfg (Rate control configuration)
+    - (TODO REF) RateControlCfg.target_bandwidth
+    - (TODO REF) RateControlCfg.best_allowed_q
+    - (TODO REF) RateControlCfg.worst_allowed_q
+    - (TODO REF) RateControlCfg.cq_level
+    - (TODO REF) RateControlCfg.under_shoot_pct
+    - (TODO REF) RateControlCfg.over_shoot_pct
+    - (TODO REF) RateControlCfg.maximum_buffer_size_ms)
+    - (TODO REF) RateControlCfg.starting_buffer_level_ms)
+    - (TODO REF) RateControlCfg.optimal_buffer_level_ms)
+
+- \ref RATE_CONTROL (Rate control status)
+    - \ref RATE_CONTROL.intervals_till_gf_calculate_due
+    - \ref RATE_CONTROL.gf_intervals[]
+    - \ref RATE_CONTROL.cur_gf_index
+    - \ref RATE_CONTROL.frames_till_gf_update_due
+    - \ref RATE_CONTROL.frames_to_key
+
+- \ref TwoPassCfg (Two pass specific rate control configuration)
+    - \ref TwoPassCfg.vbrbias
+    - \ref TwoPassCfg.vbrmin_section
+    - \ref TwoPassCfg.vbrmax_section
+
+- \ref TWO_PASS (Two pass status and control data)
+
+- \ref GF_GROUP (Data relating to the current GF/ARF group)
+
+- \ref FIRSTPASS_STATS (Defines entries in the first pass stats buffer)
+    - \ref FIRSTPASS_STATS.coded_error
+
+- \ref SPEED_FEATURES (Encode speed vs quality tradeoff parameters)
+    - \ref SPEED_FEATURES.hl_sf (\ref HIGH_LEVEL_SPEED_FEATURES)
+
+- \ref HIGH_LEVEL_SPEED_FEATURES
+    - \ref HIGH_LEVEL_SPEED_FEATURES.recode_loop
+    - \ref HIGH_LEVEL_SPEED_FEATURES.recode_tolerance
 
 \section architecture_enc_use_cases Encoder Use Cases
 
@@ -204,8 +237,30 @@ control of the encode speed vs quality trade off.
 <b>Fixed Quality / Testing Mode:</b> Libaom also has a fixed quality encoder
 pathway designed for testing under highly constrained conditions.
 
-
 \section architecture_enc_rate_ctrl Rate Control
+
+\subsection architecture_enc_rate_ctrl_data Main Data Structures
+
+The following are the main data structures referenced in this section
+(see also \ref architecture_enc_data_structures):
+
+ - \ref AV1_COMP cpi (the main compressor instance data structure)
+    - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
+    - \ref AV1_COMP.rc (\ref RATE_CONTROL)
+    - \ref AV1_COMP.twopass (\ref TWO_PASS)
+    - \ref AV1_COMP.sf (\ref SPEED_FEATURES)
+
+ - \ref AV1EncoderConfig (Encoder configuration parameters)
+    - \ref AV1EncoderConfig.rc_cfg (\ref RateControlCfg)
+    - \ref AV1EncoderConfig.two_pass_cfg (\ref TwoPassCfg)
+
+ - \ref FIRSTPASS_STATS *frame_stats_buf (used to store per frame first
+   pass stats)
+
+ - \ref SPEED_FEATURES (Encode speed vs quality tradeoff parameters)
+    - \ref SPEED_FEATURES.hl_sf (\ref HIGH_LEVEL_SPEED_FEATURES)
+
+\subsection architecture_enc_rate_ctrl_options Supported Rate Control Options
 
 Different use cases may have different requirements in terms of data rate
 control.
@@ -236,32 +291,27 @@ quality trade offs (\ref AV1_COMP.speed and \ref AV1_COMP.sf).
 
 The list below gives the names of the main rate control command line
 options together with the names of the corresponding fields in the rate
-control configuration data structure.
+control configuration data structures.
 
-- <b>--target-bitrate</b> ((TODO REF)RateControlCfg.target_bandwidth)
-- <b>--min-q</b> ((TODO REF)RateControlCfg.best_allowed_q)
-- <b>--max-q</b> ((TODO REF)RateControlCfg.worst_allowed_q)
-- <b>--cq-level</b> ((TODO REF)RateControlCfg.cq_level)
-- <b>--undershoot-pct</b> ((TODO REF)RateControlCfg.under_shoot_pct)
-- <b>--overshoot-pct</b> ((TODO REF)RateControlCfg.over_shoot_pct)
+- <b>--target-bitrate</b> ((TODO REF) RateControlCfg.target_bandwidth)
+- <b>--min-q</b> ((TODO REF) RateControlCfg.best_allowed_q)
+- <b>--max-q</b> ((TODO REF) RateControlCfg.worst_allowed_q)
+- <b>--cq-level</b> ((TODO REF) RateControlCfg.cq_level)
+- <b>--undershoot-pct</b> ((TODO REF) RateControlCfg.under_shoot_pct)
+- <b>--overshoot-pct</b> ((TODO REF) RateControlCfg.over_shoot_pct)
 
 The following control aspects of 2 pass vbr encoding
 
-- <b>--bias-pct</b> (RateControlCfg::two_pass_vbrbias)
-- <b>--minsection-pct</b> ((TODO REF)RateControlCfg.two_pass_vbrmin_section)
-- <b>--maxsection-pct</b> ((TODO REF)RateControlCfg.two_pass_vbrmax_section)
+- <b>--bias-pct</b> (\ref TwoPassCfg.vbrbias)
+- <b>--minsection-pct</b> ((\ref TwoPassCfg.vbrmin_section)
+- <b>--maxsection-pct</b> ((\ref TwoPassCfg.vbrmax_section)
 
 The following relate to buffer and delay management in one pass low delay and
 real time coding
 
-- <b>--buf-sz</b> ((TODO REF) RateControlCfg::maximum_buffer_size_ms)
-- <b>--buf-initial-sz</b> ((TODO REF)RateControlCfg.starting_buffer_level_ms)
-- <b>--buf-optimal-sz</b> ((TODO REF)RateControlCfg.optimal_buffer_level_ms)
-
-The rate control configuration data structure can be found in:
-
-- \ref AV1_COMP.oxcf
-  - \ref AV1EncoderConfig.rc_cfg
+- <b>--buf-sz</b> ((TODO REF) RateControlCfg.maximum_buffer_size_ms)
+- <b>--buf-initial-sz</b> ((TODO REF) RateControlCfg.starting_buffer_level_ms)
+- <b>--buf-optimal-sz</b> ((TODO REF) RateControlCfg.optimal_buffer_level_ms)
 
 \subsection architecture_enc_vbr Variable Bitrate (VBR) Encoding
 
@@ -315,23 +365,6 @@ options and a fixed quantizer,  to generate statistics about each frame. No
 output bitstream is created and the per frame first pass statistics are stored
 entirely in volatile memory. This has some disadvantages when compared to a
 full first pass encode, but avoids the need for file I/O and improves speed.
-
-This section refers to the following key data structures. (see also
-\ref architecture_enc_data_structures)
-
-- \ref AV1_COMP cpi (the main compressor instance data structure)
-   - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
-   - \ref AV1_COMP.rc (\ref RATE_CONTROL)
-   - \ref AV1_COMP.twopass (\ref TWO_PASS)
-
-- \ref AV1EncoderConfig  (Encoder configuration parameters)
-   - \ref AV1EncoderConfig.pass
-
-- \ref RATE_CONTROL (Rate control status)
-- \ref TWO_PASS (Two pass status and control data)
-
-- \ref FIRSTPASS_STATS *frame_stats_buf (used to store per frame first
-  pass stats)
 
 For two pass encoding, the function \ref av1_encode() will first be called
 for each frame in the video with the value \ref AV1EncoderConfig.pass = 1.
@@ -431,7 +464,7 @@ time, for the two pass encoding pipeline are:
 - (TODO REF) av1_twopass_postencode_update()
     - (TODO REF) av1_rc_update_rate_correction_factors()
 
-The second mechanism for control comes into play if there is a large rate miss
+A second mechanism for control comes into play if there is a large rate miss
 for the current frame (much too big or too small). This is a recode mechanism
 which allows the current frame to be re-encoded one or more times with a
 revised Q value. This obviously has significant implications for encode speed
@@ -448,20 +481,7 @@ populate the speed features data structure AV1_COMP.sf. In particular
 may be recoded and \ref HIGH_LEVEL_SPEED_FEATURES.recode_tolerance is a rate
 error trigger threshold.
 
-For more information the reader is directed to the following data structures:
-
-- \ref AV1_COMP cpi (the main compressor instance data structure)
-    - \ref AV1_COMP.speed
-    - \ref AV1_COMP.sf (\ref SPEED_FEATURES)
-
-- \ref SPEED_FEATURES (Encode speed vs quality tradeoff parameters)
-    - \ref SPEED_FEATURES.hl_sf (\ref HIGH_LEVEL_SPEED_FEATURES)
-
-- \ref HIGH_LEVEL_SPEED_FEATURES
-    - \ref HIGH_LEVEL_SPEED_FEATURES.recode_loop
-    - \ref HIGH_LEVEL_SPEED_FEATURES.recode_tolerance
-
-and functions:
+For more information the reader is directed to the following functions:
 
 - (TODO REF) encode_with_recode_loop()
 - (TODO REF) recode_loop_update_q()
@@ -478,23 +498,18 @@ and functions:
 
 \section architecture_enc_frame_groups GF/ ARF Frame Groups & Hierarchical Coding
 
-This section refers to the following key data structures. (see also
-\ref architecture_enc_data_structures)
+\subsection architecture_enc_frame_groups_data Main Data Structures
+
+The following are the main data structures referenced in this section
+(see also \ref architecture_enc_data_structures):
 
 - \ref AV1_COMP cpi (the main compressor instance data structure)
     - \ref AV1_COMP.rc (\ref RATE_CONTROL)
-    - \ref AV1_COMP.lap_enabled
-
-- \ref RATE_CONTROL (Rate control status)
-    - \ref RATE_CONTROL.intervals_till_gf_calculate_due
-    - \ref RATE_CONTROL.gf_intervals[]
-    - \ref RATE_CONTROL.cur_gf_index
-    - \ref RATE_CONTROL.frames_till_gf_update_due
-    - \ref RATE_CONTROL.frames_to_key
 
 - \ref FIRSTPASS_STATS *frame_stats_buf (used to store per frame first pass
 stats)
-    - \ref FIRSTPASS_STATS.coded_error
+
+\subsection architecture_enc_frame_groups_groups Frame Groups
 
 To process a sequence/stream of video frames, the encoder divides the frames
 into groups and encodes them sequentially (possibly dependent on previous
@@ -502,7 +517,7 @@ groups). In AV1 such a group is usually referred to as a golden frame group
 (GF group) or sometimes an Alt-Ref (ARF) group or a group of pictures (GOP).
 A GF group determines and stores the coding structure of the frames (for
 example, frame type, usage of the hierarchical structure, usage of overlay
-frames, etc.) and can be considered as the “base unit” to process the frames,
+frames, etc.) and can be considered as the base unit to process the frames,
 therefore playing an important role in the encoder.
 
 The length of a specific GF group is arguably the most important aspect when
@@ -535,7 +550,7 @@ calculate_gf_length(). The following encoder use cases are supported:
   <li><b>Single pass with look-ahead enabled (\ref AV1_COMP.lap_enabled):</b>
   look-ahead processing is enabled for single pass, therefore there is a
   limited amount of information available regarding future frames. In this
-  case the function will determine the length based on “first pass stats”
+  case the function will determine the length based on \ref FIRSTPASS_STATS
   (which is generated when processing the look-ahead buffer) for only the
   current GF group.</li>
 
@@ -558,7 +573,7 @@ in figure [TODO], the determination is divided into two parts:
    accumulates the statistics with function accumulate_next_frame_stats.
    The accumulated statistics are then used to determine whether the
    correlation in the GF group has dropped too much in function detect_gf_cut.
-   If detect_gf_cut returns non-zero, or if we’ve reached the end of
+   If detect_gf_cut returns non-zero, or if we've reached the end of
    first-pass statistics, the baseline decision is set at the current point.</li>
 
    <li>If we are not at the end of the first-pass statistics, the next part will
@@ -665,7 +680,7 @@ frame, a propagation step is run for each MB. it operates as follows:
    <li> The fraction of information from a current block to be propagated towards
    its reference block is estimated as:
 \f[
-   propagation\_fraction = (1 − inter\_cost/intra\_cost)
+   propagation\_fraction = (1 - inter\_cost/intra\_cost)
 \f]
    It reflects how much the motion compensated reference would reduce the
    prediction error in percentage.</li>
@@ -676,7 +691,7 @@ frame, a propagation step is run for each MB. it operates as follows:
 
 \f[
    propagation\_amount =
-   (intra\_cost + propagation\_cost) ∗ propagation\_fraction
+   (intra\_cost + propagation\_cost) * propagation\_fraction
 \f]</li>
 
    <li> Note that the reference block may not necessarily sit on the grid of
@@ -687,7 +702,7 @@ frame, a propagation step is run for each MB. it operates as follows:
 
 \f[
    propagation\_cost = propagation\_cost +
-                       (\frac{overlap\_area}{(16*16)} ∗ propagation\_amount)
+                       (\frac{overlap\_area}{(16*16)} * propagation\_amount)
 \f]</li>
 
    <li> In the final encoding stage, the distortion propagation factor of a block
@@ -698,7 +713,7 @@ frame, a propagation step is run for each MB. it operates as follows:
    64x64 block in a frame, we have a distortion propagation factor:
 
 \f[
-  dist\_prop[i] = 1 + \frac{propogation\_cost[i]}{intra\_cost[i]}
+  dist\_prop[i] = 1 + \frac{propagation\_cost[i]}{intra\_cost[i]}
 \f]
 
    where i denotes the block index in the frame. We also have the frame level
@@ -706,7 +721,7 @@ frame, a propagation step is run for each MB. it operates as follows:
 
 \f[
   dist\_prop = 1 +
-  \frac{\sum_{i}propogation\_cost[i]}{\sum_{i}intra\_cost[i]}
+  \frac{\sum_{i}propagation\_cost[i]}{\sum_{i}intra\_cost[i]}
 \f]
 
    which is used to normalize the propagation factor at the 64x64 block level. The

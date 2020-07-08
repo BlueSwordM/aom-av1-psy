@@ -524,24 +524,37 @@ typedef struct {
   bool timing_info_present;
 } DecoderModelCfg;
 
+/*!\endcond */
+/*!
+ * \brief Two pass specific rate control configuration parameters
+ */
 typedef struct {
-  // stats_in buffer contains all of the stats packets produced in the first
-  // pass, concatenated.
+  // TWO PASS DATARATE CONTROL OPTIONS.
+  /*!
+   * stats_in buffer contains all of the stats packets produced in the first
+   * pass, concatenated.
+   */
   aom_fixed_buf_t stats_in;
 
-  // TWO PASS DATARATE CONTROL OPTIONS.
-  // Indicates the bias (expressed on a scale of 0 to 100) for determining
-  // target size for the current frame. The value 0 indicates the optimal CBR
-  // mode value should be used, and 100 indicates the optimal VBR mode value
-  // should be used.
+  /*!
+   * Indicates the bias (expressed on a scale of 0 to 100) for determining
+   * target size for the current frame. The value 0 indicates the optimal CBR
+   * mode value should be used, and 100 indicates the optimal VBR mode value
+   * should be used.
+   */
   int vbrbias;
-  // Indicates the minimum bitrate to be used for a single GOP as a percentage
-  // of the target bitrate.
+  /*!
+   * Indicates the minimum bitrate to be used for a single GOP as a percentage
+   *  of the target bitrate.
+   */
   int vbrmin_section;
-  // Indicates the maximum bitrate to be used for a single GOP as a percentage
-  // of the target bitrate.
+  /*!
+   * Indicates the maximum bitrate to be used for a single GOP as a percentage
+   * of the target bitrate.
+   */
   int vbrmax_section;
 } TwoPassCfg;
+/*!\cond */
 
 typedef struct {
   // Indicates the update frequency for coeff costs.
@@ -729,8 +742,12 @@ typedef struct AV1EncoderConfig {
   // Frame Super-Resolution size scaling.
   SuperResCfg superres_cfg;
 
-  // two pass datarate control
+  /*!\endcond */
+  /*!
+   * Two pass specific rate control configuration parameters
+   */
   TwoPassCfg two_pass_cfg;
+  /*!\cond */
 
   // Configuration related to encoder toolsets.
   ToolCfg tool_cfg;
