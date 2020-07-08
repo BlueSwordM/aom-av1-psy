@@ -47,7 +47,7 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
   __m256i src1, dst1;
   unsigned int range;
   if (xoffset == 0) {
-    if (yoffset == 0) {
+    if (yoffset == 0) {  // xoffset==0 && yoffset==0
       switch (output_width) {
         case 8:
           if (output_height == 4) inc = 2;
@@ -150,7 +150,7 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
 
           rshift = get_msb(output_height) + get_msb(output_width);
       }
-    } else if (yoffset == 8) {
+    } else if (yoffset == 4) {  // xoffset==0 && yoffset==4
       switch (output_width) {
         case 8:
           if (output_height == 4) inc = 2;
@@ -275,7 +275,7 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
           rshift = get_msb(output_height) + get_msb(output_width);
       }
 
-    } else {
+    } else {  // xoffset==0 && yoffset==1,2,3,5,6,7
       switch (output_width) {
         case 8:
           if (output_height == 4) inc = 2;
@@ -422,8 +422,8 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
           rshift = get_msb(output_height) + get_msb(output_width);
       }
     }
-  } else if (xoffset == 8) {
-    if (yoffset == 0) {
+  } else if (xoffset == 4) {
+    if (yoffset == 0) {  // xoffset==4 && yoffset==0
       switch (output_width) {
         case 8:
           if (output_height == 4) inc = 2;
@@ -576,7 +576,7 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
 
           rshift = get_msb(output_height) + get_msb(output_width);
       }
-    } else if (yoffset == 8) {
+    } else if (yoffset == 4) {  // xoffset==4 && yoffset==4
       switch (output_width) {
         case 8:
           if (output_height == 4) inc = 2;
@@ -722,7 +722,7 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
           rshift = get_msb(output_height) + get_msb(output_width);
       }
 
-    } else {
+    } else {  // xoffset==4 && yoffset==1,2,3,5,6,7
       switch (output_width) {
         case 8:
           if (output_height == 4) inc = 2;
@@ -894,7 +894,7 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
           rshift = get_msb(output_height) + get_msb(output_width);
       }
     }
-  } else if (yoffset == 0) {
+  } else if (yoffset == 0) {  // xoffset==1,2,3,5,6,7 && yoffset==0
     switch (output_width) {
       case 8:
         if (output_height == 4) inc = 2;
@@ -1016,7 +1016,7 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
 
         rshift = get_msb(output_height) + get_msb(output_width);
     }
-  } else if (yoffset == 8) {
+  } else if (yoffset == 4) {  // xoffset==1,2,3,5,6,7 && yoffset==4
     switch (output_width) {
       case 8:
         if (output_height == 4) inc = 2;
@@ -1203,7 +1203,7 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
 
         rshift = get_msb(output_height) + get_msb(output_width);
     }
-  } else {
+  } else {  // xoffset==1,2,3,5,6,7 && yoffset==1,2,3,5,6,7
     switch (output_width) {
       case 8:
         if (output_height == 4) inc = 2;
@@ -1565,6 +1565,8 @@ HIGHBD_SUBPIX_VAR(32, 16);
 HIGHBD_SUBPIX_VAR(16, 32);
 HIGHBD_SUBPIX_VAR(16, 16);
 HIGHBD_SUBPIX_VAR(16, 8);
+HIGHBD_SUBPIX_VAR(8, 16);
+HIGHBD_SUBPIX_VAR(8, 8);
 #undef HIGHBD_SUBPIX_VAR
 
 uint64_t aom_mse_4xh_16bit_highbd_avx2(uint16_t *dst, int dstride,

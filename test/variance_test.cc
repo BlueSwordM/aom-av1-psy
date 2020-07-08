@@ -2157,6 +2157,8 @@ const SubpelVarianceParams kArrayHBDSubpelVariance_avx2[] = {
   SubpelVarianceParams(4, 5, &aom_highbd_10_sub_pixel_variance16x32_avx2, 10),
   SubpelVarianceParams(4, 4, &aom_highbd_10_sub_pixel_variance16x16_avx2, 10),
   SubpelVarianceParams(4, 3, &aom_highbd_10_sub_pixel_variance16x8_avx2, 10),
+  SubpelVarianceParams(3, 4, &aom_highbd_10_sub_pixel_variance8x16_avx2, 10),
+  SubpelVarianceParams(3, 3, &aom_highbd_10_sub_pixel_variance8x8_avx2, 10),
 };
 
 INSTANTIATE_TEST_SUITE_P(AVX2, AvxHBDSubpelVarianceTest,
