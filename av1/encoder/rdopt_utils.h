@@ -424,16 +424,16 @@ static INLINE void set_tx_size_search_method(
 
 static INLINE void set_tx_type_prune(const SPEED_FEATURES *sf,
                                      TxfmSearchParams *txfm_params,
-                                     int enable_winner_mode_tx_type_pruning,
+                                     int winner_mode_tx_type_pruning,
                                      int is_winner_mode) {
   // Populate prune transform mode appropriately
   txfm_params->prune_2d_txfm_mode = sf->tx_sf.tx_type_search.prune_2d_txfm_mode;
-  if (!enable_winner_mode_tx_type_pruning) return;
+  if (!winner_mode_tx_type_pruning) return;
 
-  const int prune_mode[2][2] = { { PRUNE_2D_AGGRESSIVE, NO_PRUNE },
-                                 { PRUNE_2D_MORE_AGGRESSIVE, PRUNE_2D_FAST } };
+  const int prune_mode[2][2] = { { TX_TYPE_PRUNE_4, TX_TYPE_PRUNE_0 },
+                                 { TX_TYPE_PRUNE_5, TX_TYPE_PRUNE_2 } };
   txfm_params->prune_2d_txfm_mode =
-      prune_mode[enable_winner_mode_tx_type_pruning - 1][is_winner_mode];
+      prune_mode[winner_mode_tx_type_pruning - 1][is_winner_mode];
 }
 
 static INLINE void set_tx_domain_dist_params(
@@ -518,9 +518,9 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
           cm, winner_mode_params, txfm_params,
           sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch, 0);
       // Set transform type prune for mode evaluation
-      set_tx_type_prune(
-          sf, txfm_params,
-          sf->tx_sf.tx_type_search.enable_winner_mode_tx_type_pruning, 0);
+      set_tx_type_prune(sf, txfm_params,
+                        sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning,
+                        0);
       break;
     case WINNER_MODE_EVAL:
       txfm_params->use_default_inter_tx_type = 0;
@@ -547,9 +547,9 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
           cm, winner_mode_params, txfm_params,
           sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch, 1);
       // Set default transform type prune mode for winner mode evaluation
-      set_tx_type_prune(
-          sf, txfm_params,
-          sf->tx_sf.tx_type_search.enable_winner_mode_tx_type_pruning, 1);
+      set_tx_type_prune(sf, txfm_params,
+                        sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning,
+                        1);
 
       // Reset hash state for winner mode processing. Winner mode and subsequent
       // transform/mode evaluations (palette/IntraBC) cann't reuse old data as

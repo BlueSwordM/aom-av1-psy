@@ -188,17 +188,17 @@ enum {
 } UENUM1BYTE(MODE_SEARCH_SKIP_LOGIC);
 
 enum {
-  // TODO(yunqing): modify the following names.
-  NO_PRUNE = 0,
+  // No tx type pruning
+  TX_TYPE_PRUNE_0 = 0,
   // adaptively prunes the least perspective tx types out of all 16
   // (tuned to provide negligible quality loss)
-  PRUNE_2D_ACCURATE = 1,
+  TX_TYPE_PRUNE_1 = 1,
   // similar, but applies much more aggressive pruning to get better speed-up
-  PRUNE_2D_FAST = 2,
-  PRUNE_2D_MORE = 3,
+  TX_TYPE_PRUNE_2 = 2,
+  TX_TYPE_PRUNE_3 = 3,
   // More aggressive pruning based on tx type score and allowed tx count
-  PRUNE_2D_AGGRESSIVE = 4,
-  PRUNE_2D_MORE_AGGRESSIVE = 5,
+  TX_TYPE_PRUNE_4 = 4,
+  TX_TYPE_PRUNE_5 = 5,
 } UENUM1BYTE(TX_TYPE_PRUNE_MODE);
 
 enum {
@@ -252,7 +252,7 @@ typedef struct {
   // inter blocks. It enables further tx type mode pruning based on ML model for
   // mode evaluation and disables tx type mode pruning for winner mode
   // processing.
-  int enable_winner_mode_tx_type_pruning;
+  int winner_mode_tx_type_pruning;
 } TX_TYPE_SEARCH;
 
 enum {

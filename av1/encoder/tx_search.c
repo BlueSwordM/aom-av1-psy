@@ -1645,10 +1645,10 @@ static INLINE float get_adaptive_thresholds(
   int pruning_aggressiveness = 0;
   if (tx_set_type == EXT_TX_SET_ALL16)
     pruning_aggressiveness =
-        prune_aggr_table[prune_2d_txfm_mode - PRUNE_2D_ACCURATE][0];
+        prune_aggr_table[prune_2d_txfm_mode - TX_TYPE_PRUNE_1][0];
   else if (tx_set_type == EXT_TX_SET_DTT9_IDTX_1DDCT)
     pruning_aggressiveness =
-        prune_aggr_table[prune_2d_txfm_mode - PRUNE_2D_ACCURATE][1];
+        prune_aggr_table[prune_2d_txfm_mode - TX_TYPE_PRUNE_1][1];
 
   return prune_2D_adaptive_thresholds[tx_size][pruning_aggressiveness];
 }
@@ -1814,7 +1814,7 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
 
   // Enable more pruning based on tx type probability and number of allowed tx
   // types
-  if (prune_2d_txfm_mode >= PRUNE_2D_AGGRESSIVE) {
+  if (prune_2d_txfm_mode >= TX_TYPE_PRUNE_4) {
     float temp_score = 0.0;
     float score_ratio = 0.0;
     int tx_idx, tx_count = 0;
@@ -2035,9 +2035,9 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
     } else {
       assert(num_allowed > 0);
       int allowed_tx_count =
-          (txfm_params->prune_2d_txfm_mode >= PRUNE_2D_AGGRESSIVE) ? 1 : 5;
+          (txfm_params->prune_2d_txfm_mode >= TX_TYPE_PRUNE_4) ? 1 : 5;
       // !fast_tx_search && txk_end != txk_start && plane == 0
-      if (txfm_params->prune_2d_txfm_mode >= PRUNE_2D_ACCURATE && is_inter &&
+      if (txfm_params->prune_2d_txfm_mode >= TX_TYPE_PRUNE_1 && is_inter &&
           num_allowed > allowed_tx_count) {
         prune_tx_2D(x, plane_bsize, tx_size, blk_row, blk_col, tx_set_type,
                     txfm_params->prune_2d_txfm_mode, txk_map, &allowed_tx_mask);
