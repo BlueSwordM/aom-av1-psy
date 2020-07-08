@@ -613,7 +613,7 @@ static void update_frame_size(AV1_COMP *cpi) {
     alloc_context_buffers_ext(cm, &cpi->mbmi_ext_info);
 
   if (!cpi->seq_params_locked)
-    set_sb_size(&cm->seq_params, av1_select_sb_size(cpi));
+    set_sb_size(&cm->seq_params, select_sb_size(cpi));
 
   set_tile_info(cm, &cpi->oxcf.tile_cfg);
 }
