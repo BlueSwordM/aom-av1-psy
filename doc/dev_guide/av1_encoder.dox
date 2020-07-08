@@ -483,8 +483,9 @@ error trigger threshold.
 
 For more information the reader is directed to the following functions:
 
-- (TODO REF) encode_with_recode_loop()
-- (TODO REF) recode_loop_update_q()
+- encode_with_recode_loop()
+- \ref encode_without_recode()
+- recode_loop_update_q()
 - (TODO REF) av1_set_speed_features_framesize_independent()
 - (TODO REF) av1_set_speed_features_framesize_dependent()
 

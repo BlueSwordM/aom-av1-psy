@@ -3066,7 +3066,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   // Loop variables
   int loop = 0;
   int loop_count = 0;
-  int loop_at_this_size = 0;
   int overshoot_seen = 0;
   int undershoot_seen = 0;
   int low_cr_seen = 0;
@@ -3212,7 +3211,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       // Update q and decide whether to do a recode loop
       recode_loop_update_q(cpi, &loop, &q, &q_low, &q_high, top_index,
                            bottom_index, &undershoot_seen, &overshoot_seen,
-                           &low_cr_seen, loop_at_this_size);
+                           &low_cr_seen, loop_count);
     }
 
     // Special case for overlay frame.
@@ -3230,7 +3229,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
     if (loop) {
       ++loop_count;
-      ++loop_at_this_size;
 
 #if CONFIG_INTERNAL_STATS
       ++cpi->tot_recode_hits;

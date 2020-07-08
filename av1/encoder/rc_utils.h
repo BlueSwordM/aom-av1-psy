@@ -182,15 +182,33 @@ static AOM_INLINE int get_regulated_q_undershoot(AV1_COMP *const cpi,
   return q_regulated;
 }
 
-// Called after encode_with_recode_loop() has just encoded a frame and packed
-// its bitstream.  This function works out whether we under- or over-shot
-// our bitrate target and adjusts q as appropriate.  Also decides whether
-// or not we should do another recode loop, indicated by *loop
+/*!\brief Called after encode_with_recode_loop() has just encoded a frame
+ * and packed its bitstream.  This function works out whether we under-
+ * or over-shot our bitrate target and adjusts q as appropriate. It also
+ * decides whether or not we should do another recode loop.
+ *
+ * \ingroup rate_control
+ *
+ * \param[in]     cpi             Top-level encoder structure
+ * \param[out]    loop            Should we go around the recode loop again
+ * \param[in,out] q               New q index value
+ * \param[in,out] q_low           Low q index limit for this loop itteration
+ * \param[in,out] q_high          High q index limit for this loop itteration
+ * \param[in]     top_index       Max permited new value for q index
+ * \param[in]     bottom_index    Min permited new value for q index
+ * \param[in,out] undershoot_seen Have we seen undershoot on this frame
+ * \param[in,out] overshoot_seen  Have we seen overshoot on this frame
+ * \param[in,out] low_cr_seen     Have we previously trriggered recode
+ *                                because the compression ration was less
+ *                                than a given minimum threshold.
+ * \param[in]     loop_count      Loop itterations so far.
+ *
+ */
 static AOM_INLINE void recode_loop_update_q(
     AV1_COMP *const cpi, int *const loop, int *const q, int *const q_low,
     int *const q_high, const int top_index, const int bottom_index,
     int *const undershoot_seen, int *const overshoot_seen,
-    int *const low_cr_seen, const int loop_at_this_size) {
+    int *const low_cr_seen, const int loop_count) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
   const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
@@ -296,17 +314,17 @@ static AOM_INLINE void recode_loop_update_q(
       // Raise Qlow as to at least the current value
       *q_low = AOMMIN(*q + 1, *q_high);
 
-      if (*undershoot_seen || loop_at_this_size > 2 ||
-          (loop_at_this_size == 2 && !frame_is_intra_only(cm))) {
+      if (*undershoot_seen || loop_count > 2 ||
+          (loop_count == 2 && !frame_is_intra_only(cm))) {
         av1_rc_update_rate_correction_factors(cpi, cm->width, cm->height);
 
         *q = (*q_high + *q_low + 1) / 2;
-      } else if (loop_at_this_size == 2 && frame_is_intra_only(cm)) {
+      } else if (loop_count == 2 && frame_is_intra_only(cm)) {
         const int q_mid = (*q_high + *q_low + 1) / 2;
         const int q_regulated = get_regulated_q_overshoot(
             cpi, *q_low, *q_high, top_index, bottom_index);
         // Get 'q' in-between 'q_mid' and 'q_regulated' for a smooth
-        // transition between loop_at_this_size < 2 and loop_at_this_size > 2.
+        // transition between loop_count < 2 and loop_count > 2.
         *q = (q_mid + q_regulated + 1) / 2;
       } else {
         *q = get_regulated_q_overshoot(cpi, *q_low, *q_high, top_index,
@@ -318,16 +336,16 @@ static AOM_INLINE void recode_loop_update_q(
       // Frame is too small
       *q_high = AOMMAX(*q - 1, *q_low);
 
-      if (*overshoot_seen || loop_at_this_size > 2 ||
-          (loop_at_this_size == 2 && !frame_is_intra_only(cm))) {
+      if (*overshoot_seen || loop_count > 2 ||
+          (loop_count == 2 && !frame_is_intra_only(cm))) {
         av1_rc_update_rate_correction_factors(cpi, cm->width, cm->height);
         *q = (*q_high + *q_low) / 2;
-      } else if (loop_at_this_size == 2 && frame_is_intra_only(cm)) {
+      } else if (loop_count == 2 && frame_is_intra_only(cm)) {
         const int q_mid = (*q_high + *q_low) / 2;
         const int q_regulated =
             get_regulated_q_undershoot(cpi, *q_high, top_index, bottom_index);
         // Get 'q' in-between 'q_mid' and 'q_regulated' for a smooth
-        // transition between loop_at_this_size < 2 and loop_at_this_size > 2.
+        // transition between loop_count < 2 and loop_count > 2.
         *q = (q_mid + q_regulated) / 2;
 
         // Special case reset for qlow for constrained quality.

@@ -136,6 +136,7 @@ if(CONFIG_AV1_ENCODER)
       "${AOM_ROOT}/av1/encoder/pickrst.h"
       "${AOM_ROOT}/av1/encoder/ratectrl.c"
       "${AOM_ROOT}/av1/encoder/ratectrl.h"
+      "${AOM_ROOT}/av1/encoder/rc_utils.h"
       "${AOM_ROOT}/av1/encoder/rdopt.h"
       "${AOM_ROOT}/av1/encoder/rdopt.c"
       "${AOM_ROOT}/av1/encoder/speed_features.h"
