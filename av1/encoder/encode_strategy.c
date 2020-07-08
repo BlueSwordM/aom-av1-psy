@@ -895,7 +895,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   }
 
   // perform tpl after filtering
-  int allow_tpl = oxcf->gf_cfg.lag_in_frames > 0 &&
+  int allow_tpl = oxcf->gf_cfg.lag_in_frames > 1 &&
                   !is_stat_generation_stage(cpi) &&
                   oxcf->algo_cfg.enable_tpl_model;
   if (frame_params->frame_type == KEY_FRAME) {
