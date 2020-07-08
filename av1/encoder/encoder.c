@@ -4586,8 +4586,10 @@ int av1_set_internal_size(AV1EncoderConfig *const oxcf,
   resize_pending_params->width = (hs - 1 + oxcf->frm_dim_cfg.width * hr) / hs;
   resize_pending_params->height = (vs - 1 + oxcf->frm_dim_cfg.height * vr) / vs;
 
-  if (horiz_mode != NORMAL || vert_mode != NORMAL)
+  if (horiz_mode != NORMAL || vert_mode != NORMAL) {
     oxcf->resize_cfg.resize_mode = RESIZE_FIXED;
+    oxcf->algo_cfg.enable_tpl_model = 0;
+  }
   return 0;
 }
 
