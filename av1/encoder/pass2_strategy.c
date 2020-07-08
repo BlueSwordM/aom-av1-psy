@@ -1210,7 +1210,7 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
   const int active_min_gf_interval = rc->min_gf_interval;
   const int active_max_gf_interval =
       AOMMIN(rc->max_gf_interval, max_gop_length);
-  const int min_shrink_int = AOMMIN(MIN_SHRINK_LEN, active_min_gf_interval);
+  const int min_shrink_int = AOMMAX(MIN_SHRINK_LEN, active_min_gf_interval);
 
   i = 0;
   max_intervals = cpi->lap_enabled ? 1 : max_intervals;
