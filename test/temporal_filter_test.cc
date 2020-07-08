@@ -93,6 +93,7 @@ class TemporalFilterTest
   uint8_t *src2_;
   ACMRandom rnd_;
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TemporalFilterTest);
 
 void TemporalFilterTest::RunTest(int isRandom, int width, int height,
                                  int run_times) {

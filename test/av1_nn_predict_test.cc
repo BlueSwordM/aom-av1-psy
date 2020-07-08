@@ -70,6 +70,7 @@ class NnPredictTest : public ::testing::TestWithParam<NnPredictTestParam> {
   float *bias[NN_MAX_HIDDEN_LAYERS + 1] = { 0 };
   float *weights_buf = nullptr, *bias_buf = nullptr;
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(NnPredictTest);
 
 void NnPredictTest::RunNnPredictTest(const NN_CONFIG *const shape) {
   libaom_test::ClearSystemState();

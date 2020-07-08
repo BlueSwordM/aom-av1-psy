@@ -109,9 +109,9 @@ TEST_P(KeyFrameIntervalTestLarge, KeyFrameIntervalTest) {
   ASSERT_EQ(is_kf_interval_violated_, false) << kf_dist_param_;
 }
 
-AV1_INSTANTIATE_TEST_CASE(KeyFrameIntervalTestLarge,
-                          ::testing::Values(::libaom_test::kOnePassGood,
-                                            ::libaom_test::kTwoPassGood),
-                          ::testing::ValuesIn(kfTestParams),
-                          ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
+AV1_INSTANTIATE_TEST_SUITE(KeyFrameIntervalTestLarge,
+                           testing::Values(::libaom_test::kOnePassGood,
+                                           ::libaom_test::kTwoPassGood),
+                           ::testing::ValuesIn(kfTestParams),
+                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
 }  // namespace

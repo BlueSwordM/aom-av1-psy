@@ -856,11 +856,11 @@ TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLDropAllEnhFrameER) {
   BasicRateTargetingSVC3TL1SLDropAllEnhFrameERTest();
 }
 
-AV1_INSTANTIATE_TEST_CASE(DatarateTestSVC,
-                          ::testing::Values(::libaom_test::kRealTime),
-                          ::testing::Range(7, 9),
-                          ::testing::Range<unsigned int>(0, 4),
-                          ::testing::Values(0, 1));
+AV1_INSTANTIATE_TEST_SUITE(DatarateTestSVC,
+                           ::testing::Values(::libaom_test::kRealTime),
+                           ::testing::Range(7, 9),
+                           ::testing::Range<unsigned int>(0, 4),
+                           ::testing::Values(0, 1));
 
 }  // namespace
 }  // namespace datarate_test

@@ -215,6 +215,8 @@ class HighbdIntraPredTest : public AV1IntraPredTest<HighbdIntraPred, uint16_t> {
     }
   }
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(HighbdIntraPredTest);
+
 #endif
 
 class LowbdIntraPredTest : public AV1IntraPredTest<IntraPred, uint8_t> {
@@ -235,6 +237,7 @@ class LowbdIntraPredTest : public AV1IntraPredTest<IntraPred, uint8_t> {
     }
   }
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(LowbdIntraPredTest);
 
 #if CONFIG_AV1_HIGHBITDEPTH
 // Suppress an unitialized warning. Once there are implementations to test then

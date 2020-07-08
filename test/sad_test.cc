@@ -74,7 +74,7 @@ class SADTestBase : public ::testing::Test {
   SADTestBase(int width, int height, int bit_depth)
       : width_(width), height_(height), bd_(bit_depth) {}
 
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     source_data8_ = reinterpret_cast<uint8_t *>(
         aom_memalign(kDataAlignment, kDataBlockSize));
     reference_data8_ = reinterpret_cast<uint8_t *>(
@@ -97,7 +97,7 @@ class SADTestBase : public ::testing::Test {
         aom_memalign(kDataAlignment, 128 * 128 * sizeof(uint16_t)));
   }
 
-  static void TearDownTestCase() {
+  static void TearDownTestSuite() {
     aom_free(source_data8_);
     source_data8_ = NULL;
     aom_free(reference_data8_);
@@ -501,6 +501,7 @@ class DistWtdSADTest : public ::testing::WithParamInterface<DistWtdSadMxhParam>,
     }
   }
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(DistWtdSADTest);
 
 class DistWtdSADavgTest
     : public ::testing::WithParamInterface<DistWtdSadMxNAvgParam>,

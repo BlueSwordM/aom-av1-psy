@@ -161,14 +161,14 @@ TEST_P(RTEndToEndTest, EndtoEndPSNRTest) { DoTest(); }
 
 TEST_P(RTEndToEndTestThreaded, EndtoEndPSNRTest) { DoTest(); }
 
-AV1_INSTANTIATE_TEST_CASE(RTEndToEndTest, ::testing::ValuesIn(kTestVectors),
-                          ::testing::Range(5, 9),
-                          ::testing::Values<unsigned int>(0, 3),
-                          ::testing::Values(1), ::testing::Values(1));
+AV1_INSTANTIATE_TEST_SUITE(RTEndToEndTest, ::testing::ValuesIn(kTestVectors),
+                           ::testing::Range(5, 9),
+                           ::testing::Values<unsigned int>(0, 3),
+                           ::testing::Values(1), ::testing::Values(1));
 
-AV1_INSTANTIATE_TEST_CASE(RTEndToEndTestThreaded,
-                          ::testing::ValuesIn(kTestVectors),
-                          ::testing::Range(5, 9),
-                          ::testing::Values<unsigned int>(0, 3),
-                          ::testing::Range(2, 5), ::testing::Range(2, 5));
+AV1_INSTANTIATE_TEST_SUITE(RTEndToEndTestThreaded,
+                           ::testing::ValuesIn(kTestVectors),
+                           ::testing::Range(5, 9),
+                           ::testing::Values<unsigned int>(0, 3),
+                           ::testing::Range(2, 5), ::testing::Range(2, 5));
 }  // namespace

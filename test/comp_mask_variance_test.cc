@@ -75,6 +75,7 @@ class AV1CompMaskVarianceTest
   uint8_t *ref_buffer_;
   uint8_t *ref_;
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1CompMaskVarianceTest);
 
 AV1CompMaskVarianceTest::~AV1CompMaskVarianceTest() { ; }
 
@@ -318,6 +319,7 @@ class AV1HighbdCompMaskVarianceTest
   uint16_t *ref_buffer_;
   uint16_t *ref_;
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HighbdCompMaskVarianceTest);
 
 AV1HighbdCompMaskVarianceTest::~AV1HighbdCompMaskVarianceTest() { ; }
 

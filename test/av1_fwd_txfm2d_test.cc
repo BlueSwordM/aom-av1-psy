@@ -354,6 +354,7 @@ void AV1FwdTxfm2dSpeedTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
 typedef std::tuple<TX_SIZE, lowbd_fwd_txfm_func> LbdFwdTxfm2dParam;
 
 class AV1FwdTxfm2dTest : public ::testing::TestWithParam<LbdFwdTxfm2dParam> {};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1FwdTxfm2dTest);
 
 TEST_P(AV1FwdTxfm2dTest, match) {
   AV1FwdTxfm2dMatchTest(GET_PARAM(0), GET_PARAM(1));
@@ -562,6 +563,7 @@ typedef std::tuple<TX_SIZE, Highbd_fwd_txfm_func> HighbdFwdTxfm2dParam;
 
 class AV1HighbdFwdTxfm2dTest
     : public ::testing::TestWithParam<HighbdFwdTxfm2dParam> {};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HighbdFwdTxfm2dTest);
 
 TEST_P(AV1HighbdFwdTxfm2dTest, match) {
   AV1HighbdFwdTxfm2dMatchTest(GET_PARAM(0), GET_PARAM(1));

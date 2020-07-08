@@ -110,9 +110,9 @@ TEST_P(ForwardKeyTest, ForwardKeyEncodeTest) {
       << "kf max dist = " << kf_max_dist_;
 }
 
-AV1_INSTANTIATE_TEST_CASE(ForwardKeyTest,
-                          ::testing::Values(::libaom_test::kTwoPassGood),
-                          ::testing::ValuesIn(kTestParams));
+AV1_INSTANTIATE_TEST_SUITE(ForwardKeyTest,
+                           ::testing::Values(::libaom_test::kTwoPassGood),
+                           ::testing::ValuesIn(kTestParams));
 
 typedef struct {
   const unsigned int min_kf_dist;
@@ -188,9 +188,9 @@ TEST_P(ForwardKeyPresenceTestLarge, ForwardKeyEncodePresenceTest) {
   ASSERT_EQ(is_fwd_kf_present_, 1);
 }
 
-AV1_INSTANTIATE_TEST_CASE(ForwardKeyPresenceTestLarge,
-                          ::testing::Values(::libaom_test::kOnePassGood,
-                                            ::libaom_test::kTwoPassGood),
-                          ::testing::ValuesIn(kfTestParams),
-                          ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
+AV1_INSTANTIATE_TEST_SUITE(ForwardKeyPresenceTestLarge,
+                           ::testing::Values(::libaom_test::kOnePassGood,
+                                             ::libaom_test::kTwoPassGood),
+                           ::testing::ValuesIn(kfTestParams),
+                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
 }  // namespace

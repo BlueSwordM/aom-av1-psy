@@ -215,6 +215,7 @@ class IntProRowTest : public AverageTestBase<uint8_t>,
   int16_t *hbuf_asm_;
   int16_t *hbuf_c_;
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(IntProRowTest);
 
 typedef int16_t (*IntProColFunc)(uint8_t const *ref, const int width);
 
@@ -270,6 +271,7 @@ class IntProColTest : public AverageTestBase<uint8_t>,
   int16_t sum_asm_;
   int16_t sum_c_;
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(IntProColTest);
 
 TEST_P(IntProRowTest, MinValue) {
   FillConstant(0);
@@ -383,6 +385,7 @@ class VectorVarTest : public VectorVarTestBase,
   VectorVarFunc c_func;
   VectorVarFunc simd_func;
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(VectorVarTest);
 
 TEST_P(VectorVarTest, MaxVar) {
   FillConstant(0, max_range);
@@ -640,6 +643,8 @@ TEST_P(SatdTest, DISABLED_Speed) {
   FillRandom();
   RunSpeedTest();
 }
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SatdTest);
+
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
     NEON, SatdTest,

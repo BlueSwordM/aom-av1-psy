@@ -129,6 +129,7 @@ class AV1HighbdInvHTNxN : public ::testing::TestWithParam<IHbdHtParam> {
   uint16_t *output_;
   uint16_t *output_ref_;
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HighbdInvHTNxN);
 
 void AV1HighbdInvHTNxN::RunBitexactCheck() {
   ACMRandom rnd(ACMRandom::DeterministicSeed());
@@ -204,6 +205,7 @@ class AV1HighbdInvTxfm2d
  private:
   HighbdInvTxfm2dFunc target_func_;
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HighbdInvTxfm2d);
 
 void AV1HighbdInvTxfm2d::RunAV1InvTxfm2dTest(TX_TYPE tx_type_, TX_SIZE tx_size_,
                                              int run_times, int bit_depth_,

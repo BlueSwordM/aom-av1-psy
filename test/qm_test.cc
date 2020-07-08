@@ -74,8 +74,8 @@ TEST_P(QMTest, TestNoMisMatchQM2) { DoTest(0, 8); }
 // encodes and decodes without a mismatch.
 TEST_P(QMTest, TestNoMisMatchQM3) { DoTest(9, 15); }
 
-AV1_INSTANTIATE_TEST_CASE(QMTest,
-                          ::testing::Values(::libaom_test::kRealTime,
-                                            ::libaom_test::kOnePassGood),
-                          ::testing::Range(5, 9));
+AV1_INSTANTIATE_TEST_SUITE(QMTest,
+                           ::testing::Values(::libaom_test::kRealTime,
+                                             ::libaom_test::kOnePassGood),
+                           ::testing::Range(5, 9));
 }  // namespace

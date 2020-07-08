@@ -1480,11 +1480,14 @@ void MseHBDWxHTestClass<MseHBDWxHFunctionType>::RefMatchTestMse() {
 
 typedef TestParams<MseHBDWxH16bitFunc> MseHBDWxHParams;
 typedef MseHBDWxHTestClass<MseHBDWxH16bitFunc> MseHBDWxHTest;
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MseHBDWxHTest);
 typedef MainTestClass<VarianceMxNFunc> AvxHBDMseTest;
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AvxHBDMseTest);
 typedef MainTestClass<VarianceMxNFunc> AvxHBDVarianceTest;
 typedef SubpelVarianceTest<SubpixVarMxNFunc> AvxHBDSubpelVarianceTest;
 typedef SubpelVarianceTest<SubpixAvgVarMxNFunc> AvxHBDSubpelAvgVarianceTest;
 typedef ObmcVarianceTest<ObmcSubpelVarFunc> AvxHBDObmcSubpelVarianceTest;
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AvxHBDObmcSubpelVarianceTest);
 
 TEST_P(MseHBDWxHTest, RefMse) { RefMatchTestMse(); }
 TEST_P(MseHBDWxHTest, DISABLED_SpeedMse) { SpeedTest(); }

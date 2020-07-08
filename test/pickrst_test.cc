@@ -75,6 +75,7 @@ class PixelProjErrorTest
   int32_t *flt0_;
   int32_t *flt1_;
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(PixelProjErrorTest);
 
 void PixelProjErrorTest::RunPixelProjErrorTest(int32_t run_times) {
   int h_end = run_times != 1 ? 128 : (rng_.Rand16() % MAX_DATA_BLOCK) + 1;
@@ -246,6 +247,7 @@ class PixelProjHighbdErrorTest
   int32_t *flt0_;
   int32_t *flt1_;
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(PixelProjHighbdErrorTest);
 
 void PixelProjHighbdErrorTest::RunPixelProjErrorTest(int32_t run_times) {
   int h_end = run_times != 1 ? 128 : (rng_.Rand16() % MAX_DATA_BLOCK) + 1;
@@ -415,6 +417,7 @@ class GetProjSubspaceTest
   int32_t *flt0_;
   int32_t *flt1_;
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GetProjSubspaceTest);
 
 void GetProjSubspaceTest::RunGetProjSubspaceTest(int32_t run_times) {
   int h_end = run_times != 1

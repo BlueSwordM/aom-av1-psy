@@ -153,7 +153,7 @@ const DecodeParam kAV1InvalidFileTests[] = {
 #endif
 };
 
-AV1_INSTANTIATE_TEST_CASE(InvalidFileTest,
-                          ::testing::ValuesIn(kAV1InvalidFileTests));
+AV1_INSTANTIATE_TEST_SUITE(InvalidFileTest,
+                           ::testing::ValuesIn(kAV1InvalidFileTests));
 
 }  // namespace

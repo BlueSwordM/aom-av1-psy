@@ -151,7 +151,7 @@ TEST_P(LevelTest, TestTargetLevel0) {
   }
 }
 
-AV1_INSTANTIATE_TEST_CASE(LevelTest,
-                          ::testing::Values(::libaom_test::kTwoPassGood),
-                          ::testing::ValuesIn(kCpuUsedVectors));
+AV1_INSTANTIATE_TEST_SUITE(LevelTest,
+                           ::testing::Values(::libaom_test::kTwoPassGood),
+                           ::testing::ValuesIn(kCpuUsedVectors));
 }  // namespace

@@ -48,6 +48,7 @@ class HorverTest : public ::testing::TestWithParam<HorverTestParam> {
   ACMRandom rng_;
   int16_t *data_buf_;
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(HorverTest);
 
 void HorverTest::RunHorverTest(void) {
   for (int block_size = 0; block_size < BLOCK_SIZES_ALL; block_size++) {

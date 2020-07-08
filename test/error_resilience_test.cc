@@ -456,5 +456,5 @@ TEST_P(ErrorResilienceTestLarge, SFrameTest) {
   EXPECT_LE(GetMismatchFrames(), GetEncodedFrames() - s_frame_list[0]);
 }
 
-AV1_INSTANTIATE_TEST_CASE(ErrorResilienceTestLarge, NONREALTIME_TEST_MODES);
+AV1_INSTANTIATE_TEST_SUITE(ErrorResilienceTestLarge, NONREALTIME_TEST_MODES);
 }  // namespace
