@@ -2472,6 +2472,11 @@ typedef struct AV1_COMP {
    * in a scale of 8x8 block.
    */
   uint8_t *consec_zero_mv;
+
+  /*!
+   * Number of frames left to be encoded, is 0 if limit is not set.
+   */
+  int frames_left;
 } AV1_COMP;
 
 /*!\cond */

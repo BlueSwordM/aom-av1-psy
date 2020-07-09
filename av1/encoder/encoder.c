@@ -860,6 +860,8 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
     cpi->oxcf.gf_cfg.lag_in_frames = lap_lag_in_frames;
   }
 
+  cpi->frames_left = cpi->oxcf.input_cfg.limit;
+
   av1_rc_init(&cpi->oxcf, oxcf->pass, &cpi->rc);
 
   // For two pass and lag_in_frames > 33 in LAP.

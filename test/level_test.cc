@@ -121,6 +121,7 @@ TEST_P(LevelTest, TestLevelMonitoringLowBitrate) {
                                        30, 1, 0, 40);
     target_level_ = kLevelKeepStats;
     cfg_.rc_target_bitrate = 1000;
+    cfg_.g_limit = 40;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
     ASSERT_EQ(level_[0], 0);
   }
@@ -128,7 +129,7 @@ TEST_P(LevelTest, TestLevelMonitoringLowBitrate) {
 
 TEST_P(LevelTest, TestLevelMonitoringHighBitrate) {
   // To save run time, we only test speed 4.
-  if (cpu_used_ == 4) {
+  if (cpu_used_ == 4 && encoding_mode_ == ::libaom_test::kTwoPassGood) {
     libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 40);
     target_level_ = kLevelKeepStats;
@@ -152,6 +153,7 @@ TEST_P(LevelTest, TestTargetLevel0) {
 }
 
 AV1_INSTANTIATE_TEST_SUITE(LevelTest,
-                           ::testing::Values(::libaom_test::kTwoPassGood),
+                           ::testing::Values(::libaom_test::kTwoPassGood,
+                                             ::libaom_test::kOnePassGood),
                            ::testing::ValuesIn(kCpuUsedVectors));
 }  // namespace

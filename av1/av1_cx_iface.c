@@ -2369,6 +2369,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       // Add the frame packet to the list of returned packets.
       aom_codec_cx_pkt_t pkt;
 
+      // decrement frames_left counter
+      cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
       if (ctx->oxcf.save_as_annexb) {
         //  B_PRIME (add TU size)
         size_t tu_size = ctx->pending_cx_data_sz;
