@@ -811,10 +811,6 @@ typedef struct TX_SPEED_FEATURES {
 } TX_SPEED_FEATURES;
 
 typedef struct RD_CALC_SPEED_FEATURES {
-  // This feature controls whether we do the expensive context update and
-  // calculation in the rd coefficient costing loop.
-  int use_fast_coef_costing;
-
   // Fast approximation of av1_model_rd_from_var_lapndz
   int simple_model_rd_from_var;
 

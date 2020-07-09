@@ -333,9 +333,8 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
       if (i == CFL_SIGN_NEG) {
         mbmi->cfl_alpha_idx = 0;
         mbmi->cfl_alpha_signs = joint_sign;
-        av1_txfm_rd_in_plane(
-            x, cpi, &rd_stats, best_rd, 0, plane + 1, plane_bsize, tx_size,
-            cpi->sf.rd_sf.use_fast_coef_costing, FTXS_NONE, skip_trellis);
+        av1_txfm_rd_in_plane(x, cpi, &rd_stats, best_rd, 0, plane + 1,
+                             plane_bsize, tx_size, FTXS_NONE, skip_trellis);
         if (rd_stats.rate == INT_MAX) break;
       }
       const int alpha_rate = mode_costs->cfl_cost[joint_sign][plane][0];
@@ -362,9 +361,8 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
           if (i == 0) {
             mbmi->cfl_alpha_idx = (c << CFL_ALPHABET_SIZE_LOG2) + c;
             mbmi->cfl_alpha_signs = joint_sign;
-            av1_txfm_rd_in_plane(
-                x, cpi, &rd_stats, best_rd, 0, plane + 1, plane_bsize, tx_size,
-                cpi->sf.rd_sf.use_fast_coef_costing, FTXS_NONE, skip_trellis);
+            av1_txfm_rd_in_plane(x, cpi, &rd_stats, best_rd, 0, plane + 1,
+                                 plane_bsize, tx_size, FTXS_NONE, skip_trellis);
             if (rd_stats.rate == INT_MAX) break;
           }
           const int alpha_rate = mode_costs->cfl_cost[joint_sign][plane][c];

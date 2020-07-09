@@ -821,7 +821,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
     sf->inter_sf.adaptive_rd_thresh = 4;
 
-    sf->rd_sf.use_fast_coef_costing = 1;
     sf->rd_sf.tx_domain_dist_level = 2;
     sf->rd_sf.tx_domain_dist_thres_level = 2;
     sf->winner_mode_sf.tx_size_search_level = 1;
@@ -1137,7 +1136,6 @@ static AOM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
   rd_sf->trellis_eob_fast = 0;
   rd_sf->use_mb_rd_hash = 1;
   rd_sf->optimize_b_precheck = 0;
-  rd_sf->use_fast_coef_costing = 0;
   rd_sf->simple_model_rd_from_var = 0;
   rd_sf->tx_domain_dist_level = 0;
   rd_sf->tx_domain_dist_thres_level = 0;

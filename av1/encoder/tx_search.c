@@ -31,7 +31,6 @@ struct rdcost_block_args {
   int64_t best_rd;
   int exit_early;
   int incomplete_exit;
-  int use_fast_coef_costing;
   FAST_TX_SEARCH_MODE ftxs_mode;
   int skip_trellis;
 };
@@ -2083,13 +2082,11 @@ static INLINE void update_txb_coeff_cost(RD_STATS *rd_stats, int plane,
 static INLINE int cost_coeffs(MACROBLOCK *x, int plane, int block,
                               TX_SIZE tx_size, const TX_TYPE tx_type,
                               const TXB_CTX *const txb_ctx,
-                              int use_fast_coef_costing,
                               int reduced_tx_set_used) {
 #if TXCOEFF_COST_TIMER
   struct aom_usec_timer timer;
   aom_usec_timer_start(&timer);
 #endif
-  (void)use_fast_coef_costing;
   const int cost = av1_cost_coeffs_txb(x, plane, block, tx_size, tx_type,
                                        txb_ctx, reduced_tx_set_used);
 #if TXCOEFF_COST_TIMER
@@ -2139,8 +2136,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                            int block, int blk_row, int blk_col,
                            BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
                            const TXB_CTX *const txb_ctx,
-                           FAST_TX_SEARCH_MODE ftxs_mode,
-                           int use_fast_coef_costing, int skip_trellis,
+                           FAST_TX_SEARCH_MODE ftxs_mode, int skip_trellis,
                            int64_t ref_best_rd, RD_STATS *best_rd_stats) {
   const AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
@@ -2305,9 +2301,8 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       av1_optimize_b(cpi, x, plane, block, tx_size, tx_type, txb_ctx,
                      cpi->sf.rd_sf.trellis_eob_fast, &rate_cost);
     } else {
-      rate_cost =
-          cost_coeffs(x, plane, block, tx_size, tx_type, txb_ctx,
-                      use_fast_coef_costing, cm->features.reduced_tx_set_used);
+      rate_cost = cost_coeffs(x, plane, block, tx_size, tx_type, txb_ctx,
+                              cm->features.reduced_tx_set_used);
     }
 
     // If rd cost based on coeff rate alone is already more than best_rd,
@@ -2506,8 +2501,7 @@ static AOM_INLINE void tx_type_rd(const AV1_COMP *cpi, MACROBLOCK *x,
   RD_STATS this_rd_stats;
   const int skip_trellis = 0;
   search_tx_type(cpi, x, 0, block, blk_row, blk_col, plane_bsize, tx_size,
-                 txb_ctx, ftxs_mode, 0, skip_trellis, ref_rdcost,
-                 &this_rd_stats);
+                 txb_ctx, ftxs_mode, skip_trellis, ref_rdcost, &this_rd_stats);
 
   av1_merge_rd_stats(rd_stats, &this_rd_stats);
 
@@ -2776,8 +2770,7 @@ static AOM_INLINE void choose_largest_tx_size(const AV1_COMP *const cpi,
   const int skip_trellis = 0;
   av1_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd,
                        AOMMIN(no_skip_txfm_rd, skip_txfm_rd), AOM_PLANE_Y, bs,
-                       mbmi->tx_size, cpi->sf.rd_sf.use_fast_coef_costing,
-                       FTXS_NONE, skip_trellis);
+                       mbmi->tx_size, FTXS_NONE, skip_trellis);
 }
 
 static AOM_INLINE void choose_smallest_tx_size(const AV1_COMP *const cpi,
@@ -2792,8 +2785,7 @@ static AOM_INLINE void choose_smallest_tx_size(const AV1_COMP *const cpi,
   // TODO(any) : Pass this_rd based on skip/non-skip cost
   const int skip_trellis = 0;
   av1_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd, 0, 0, bs, mbmi->tx_size,
-                       cpi->sf.rd_sf.use_fast_coef_costing, FTXS_NONE,
-                       skip_trellis);
+                       FTXS_NONE, skip_trellis);
 }
 
 // Search for the best uniform transform size and type for current coding block.
@@ -2897,9 +2889,8 @@ static AOM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
   TXB_CTX txb_ctx;
   get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx);
   search_tx_type(cpi, x, plane, block, blk_row, blk_col, plane_bsize, tx_size,
-                 &txb_ctx, args->ftxs_mode, args->use_fast_coef_costing,
-                 args->skip_trellis, args->best_rd - args->current_rd,
-                 &this_rd_stats);
+                 &txb_ctx, args->ftxs_mode, args->skip_trellis,
+                 args->best_rd - args->current_rd, &this_rd_stats);
 
   if (plane == AOM_PLANE_Y && xd->cfl.store_y) {
     assert(!is_inter || plane_bsize < BLOCK_8X8);
@@ -2971,8 +2962,7 @@ int64_t av1_uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->tx_size = tx_size;
   av1_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd,
                        AOMMIN(no_this_rd, skip_txfm_rd), AOM_PLANE_Y, bs,
-                       tx_size, cpi->sf.rd_sf.use_fast_coef_costing, ftxs_mode,
-                       skip_trellis);
+                       tx_size, ftxs_mode, skip_trellis);
   if (rd_stats->rate == INT_MAX) return INT64_MAX;
 
   int64_t rd;
@@ -3478,9 +3468,7 @@ int av1_txfm_uvrd(const AV1_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
         chroma_ref_best_rd != INT64_MAX)
       chroma_ref_best_rd = ref_best_rd - AOMMIN(this_rd, skip_txfm_rd);
     av1_txfm_rd_in_plane(x, cpi, &this_rd_stats, chroma_ref_best_rd, 0, plane,
-                         plane_bsize, uv_tx_size,
-                         cpi->sf.rd_sf.use_fast_coef_costing, FTXS_NONE,
-                         skip_trellis);
+                         plane_bsize, uv_tx_size, FTXS_NONE, skip_trellis);
     if (this_rd_stats.rate == INT_MAX) {
       is_cost_valid = 0;
       break;
@@ -3505,8 +3493,8 @@ int av1_txfm_uvrd(const AV1_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
 void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
                           RD_STATS *rd_stats, int64_t ref_best_rd,
                           int64_t current_rd, int plane, BLOCK_SIZE plane_bsize,
-                          TX_SIZE tx_size, int use_fast_coef_costing,
-                          FAST_TX_SEARCH_MODE ftxs_mode, int skip_trellis) {
+                          TX_SIZE tx_size, FAST_TX_SEARCH_MODE ftxs_mode,
+                          int skip_trellis) {
   assert(IMPLIES(plane == 0, x->e_mbd.mi[0]->tx_size == tx_size));
 
   if (!cpi->oxcf.txfm_cfg.enable_tx64 &&
@@ -3528,7 +3516,6 @@ void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
   args.cpi = cpi;
   args.best_rd = ref_best_rd;
   args.current_rd = current_rd;
-  args.use_fast_coef_costing = use_fast_coef_costing;
   args.ftxs_mode = ftxs_mode;
   args.skip_trellis = skip_trellis;
   av1_init_rd_stats(&args.rd_stats);
