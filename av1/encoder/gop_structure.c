@@ -44,7 +44,6 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
       gf_group->update_type[*frame_ind] = LF_UPDATE;
       gf_group->arf_src_offset[*frame_ind] = 0;
       gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
-      gf_group->frame_disp_idx[*frame_ind] = start;
       gf_group->layer_depth[*frame_ind] = MAX_ARF_LAYERS;
       gf_group->arf_boost[*frame_ind] = av1_calc_arf_boost(
           twopass, rc, frame_info, start, end - start, 0, NULL, NULL);
@@ -60,7 +59,6 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
     gf_group->update_type[*frame_ind] = INTNL_ARF_UPDATE;
     gf_group->arf_src_offset[*frame_ind] = m - start - 1;
     gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
-    gf_group->frame_disp_idx[*frame_ind] = m;
     gf_group->layer_depth[*frame_ind] = layer_depth;
 
     // Get the boost factor for intermediate ARF frames.
@@ -76,7 +74,6 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
     gf_group->update_type[*frame_ind] = INTNL_OVERLAY_UPDATE;
     gf_group->arf_src_offset[*frame_ind] = 0;
     gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
-    gf_group->frame_disp_idx[*frame_ind] = m;
     gf_group->arf_boost[*frame_ind] = 0;
     gf_group->layer_depth[*frame_ind] = layer_depth;
     ++(*frame_ind);
@@ -119,7 +116,6 @@ static int construct_multi_layer_gf_structure(
     gf_group->update_type[frame_index] = ARF_UPDATE;
     gf_group->arf_src_offset[frame_index] = gf_interval - 1;
     gf_group->cur_frame_idx[frame_index] = cur_frame_index;
-    gf_group->frame_disp_idx[frame_index] = gf_interval;
     gf_group->layer_depth[frame_index] = 1;
     gf_group->arf_boost[frame_index] = cpi->rc.gfu_boost;
     gf_group->max_layer_depth = 1;
