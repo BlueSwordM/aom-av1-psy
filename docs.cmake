@@ -141,6 +141,8 @@ if(CONFIG_AV1_ENCODER)
       "${AOM_ROOT}/av1/encoder/rdopt.h"
       "${AOM_ROOT}/av1/encoder/rdopt.c"
       "${AOM_ROOT}/av1/encoder/speed_features.h"
+      "${AOM_ROOT}/av1/encoder/svc_layercontext.c"
+      "${AOM_ROOT}/av1/encoder/svc_layercontext.h"
       "${AOM_ROOT}/av1/encoder/tx_search.h")
 endif()
 

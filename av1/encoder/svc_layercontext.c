@@ -127,6 +127,13 @@ void av1_update_layer_context_change_config(AV1_COMP *const cpi,
   }
 }
 
+/*!\brief Return layer context for current layer.
+ *
+ * \ingroup rate_control
+ * \param[in]       cpi   Top level encoder structure
+ *
+ * \return LAYER_CONTEXT for current layer.
+ */
 static LAYER_CONTEXT *get_layer_context(AV1_COMP *const cpi) {
   return &cpi->svc.layer_context[cpi->svc.spatial_layer_id *
                                      cpi->svc.number_temporal_layers +
@@ -287,7 +294,6 @@ void av1_free_svc_cyclic_refresh(AV1_COMP *const cpi) {
   }
 }
 
-// Reset on key frame: reset counters, references and buffer updates.
 void av1_svc_reset_temporal_layers(AV1_COMP *const cpi, int is_key) {
   SVC *const svc = &cpi->svc;
   LAYER_CONTEXT *lc = NULL;
@@ -301,6 +307,18 @@ void av1_svc_reset_temporal_layers(AV1_COMP *const cpi, int is_key) {
   av1_restore_layer_context(cpi);
 }
 
+/*!\brief Get resolution for current layer.
+ *
+ * \ingroup rate_control
+ * \param[in]       width_org    Original width, unscaled
+ * \param[in]       height_org   Original height, unscaled
+ * \param[in]       num          Numerator for the scale ratio
+ * \param[in]       den          Denominator for the scale ratio
+ * \param[in]       width_out    Output width, scaled for current layer
+ * \param[in]       height_out   Output height, scaled for current layer
+ *
+ * \return Nothing is returned. Instead the scaled width and height are set.
+ */
 static void get_layer_resolution(const int width_org, const int height_org,
                                  const int num, const int den, int *width_out,
                                  int *height_out) {
