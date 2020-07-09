@@ -850,8 +850,11 @@ void av1_resize_and_extend_frame_ssse3(const YV12_BUFFER_CONFIG *src,
     const int is_uv = i > 0;
     const int src_w = src->crop_widths[is_uv];
     const int src_h = src->crop_heights[is_uv];
+    const int src_y_w = src->crop_widths[0];
     const int dst_w = dst->crop_widths[is_uv];
     const int dst_h = dst->crop_heights[is_uv];
+    const int dst_y_w = dst->crop_widths[0];
+    const int dst_y_h = dst->crop_heights[0];
 
     if (2 * dst_w == src_w && 2 * dst_h == src_h) {
       // 2 to 1
@@ -867,8 +870,8 @@ void av1_resize_and_extend_frame_ssse3(const YV12_BUFFER_CONFIG *src,
                                     dst->buffers[i], dst->strides[is_uv], dst_w,
                                     dst_h, c0c1);
       } else {
-        const int buffer_stride = (dst_w + 3) & ~3;
-        const int buffer_height = (2 * dst_h + SUBPEL_TAPS - 2 + 7) & ~7;
+        const int buffer_stride = (dst_y_w + 3) & ~3;
+        const int buffer_height = (2 * dst_y_h + SUBPEL_TAPS - 2 + 7) & ~7;
         uint8_t *const temp_buffer =
             (uint8_t *)malloc(buffer_stride * buffer_height);
         if (temp_buffer) {
@@ -896,8 +899,8 @@ void av1_resize_and_extend_frame_ssse3(const YV12_BUFFER_CONFIG *src,
                                     dst->buffers[i], dst->strides[is_uv], dst_w,
                                     dst_h, c0c1);
       } else {
-        const int buffer_stride = (dst_w + 1) & ~1;
-        const int buffer_height = (4 * dst_h + SUBPEL_TAPS - 2 + 7) & ~7;
+        const int buffer_stride = (dst_y_w + 1) & ~1;
+        const int buffer_height = (4 * dst_y_h + SUBPEL_TAPS - 2 + 7) & ~7;
         // When dst_w is 1 or 2, we need extra padding to avoid heap read
         // overflow
         const int extra_padding = 16;
@@ -916,9 +919,9 @@ void av1_resize_and_extend_frame_ssse3(const YV12_BUFFER_CONFIG *src,
       }
     } else if (4 * dst_w == 3 * src_w && 4 * dst_h == 3 * src_h) {
       // 4 to 3
-      const int buffer_stride_hor = (dst_w + 5) - ((dst_w + 5) % 6) + 2;
-      const int buffer_stride_ver = (dst_w + 7) & ~7;
-      const int buffer_height = (4 * dst_h / 3 + SUBPEL_TAPS - 1 + 7) & ~7;
+      const int buffer_stride_hor = (dst_y_w + 5) - ((dst_y_w + 5) % 6) + 2;
+      const int buffer_stride_ver = (dst_y_w + 7) & ~7;
+      const int buffer_height = (4 * dst_y_h / 3 + SUBPEL_TAPS - 1 + 7) & ~7;
       // When the vertical filter reads more pixels than the horizontal filter
       // generated in each row, we need extra padding to avoid heap read
       // overflow. For example, the horizontal filter generates 18 pixels but
@@ -942,7 +945,7 @@ void av1_resize_and_extend_frame_ssse3(const YV12_BUFFER_CONFIG *src,
       }
     } else if (dst_w == src_w * 2 && dst_h == src_h * 2) {
       // 1 to 2
-      uint8_t *const temp_buffer = (uint8_t *)malloc(8 * ((src_w + 7) & ~7));
+      uint8_t *const temp_buffer = (uint8_t *)malloc(8 * ((src_y_w + 7) & ~7));
       if (temp_buffer) {
         const InterpKernel *interp_kernel =
             (const InterpKernel *)av1_interp_filter_params_list[filter]
