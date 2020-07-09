@@ -1123,7 +1123,7 @@ static INLINE void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                       &txfm_param_intra, &quant_param_intra);
       if (quant_param_intra.use_optimize_b) {
         av1_optimize_b(cpi, x, plane, block, tx_size, best_tx_type, txb_ctx,
-                       cpi->sf.rd_sf.trellis_eob_fast, rate_cost);
+                       rate_cost);
       }
     }
 
@@ -2299,7 +2299,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         if (dist_cost_estimate - (dist_cost_estimate >> 3) > best_rd_) continue;
       }
       av1_optimize_b(cpi, x, plane, block, tx_size, tx_type, txb_ctx,
-                     cpi->sf.rd_sf.trellis_eob_fast, &rate_cost);
+                     &rate_cost);
     } else {
       rate_cost = cost_coeffs(x, plane, block, tx_size, tx_type, txb_ctx,
                               cm->features.reduced_tx_set_used);

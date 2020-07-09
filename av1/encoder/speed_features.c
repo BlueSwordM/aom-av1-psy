@@ -1132,8 +1132,6 @@ static AOM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
   } else {
     assert(0 && "Invalid disable_trellis_quant value");
   }
-  // TODO(sarahparker) Pair this with a speed setting once experiments are done
-  rd_sf->trellis_eob_fast = 0;
   rd_sf->use_mb_rd_hash = 1;
   rd_sf->optimize_b_precheck = 0;
   rd_sf->simple_model_rd_from_var = 0;

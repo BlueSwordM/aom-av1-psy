@@ -93,7 +93,7 @@ void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
 
 int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *mb, int plane,
                    int block, TX_SIZE tx_size, TX_TYPE tx_type,
-                   const TXB_CTX *const txb_ctx, int fast_mode, int *rate_cost);
+                   const TXB_CTX *const txb_ctx, int *rate_cost);
 
 // This function can be used as (i) a further optimization to reduce the
 // redundancy of quantized coefficients (a.k.a., `qcoeff`) after trellis

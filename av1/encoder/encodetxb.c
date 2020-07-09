@@ -1121,7 +1121,7 @@ static INLINE void update_skip(int *accu_rate, int64_t accu_dist, int *eob,
 int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                          int block, TX_SIZE tx_size, TX_TYPE tx_type,
                          const TXB_CTX *const txb_ctx, int *rate_cost,
-                         int sharpness, int fast_mode) {
+                         int sharpness) {
   MACROBLOCKD *xd = &x->e_mbd;
   const struct macroblock_plane *p = &x->plane[plane];
   const SCAN_ORDER *scan_order = get_scan(tx_size, tx_type);
@@ -1139,15 +1139,6 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   // This function is not called if eob = 0.
   assert(eob > 0);
-
-  if (fast_mode) {
-    update_coeff_eob_fast(&eob, shift, dequant, scan, tcoeff, qcoeff, dqcoeff);
-    p->eobs[block] = eob;
-    if (eob == 0) {
-      *rate_cost = av1_cost_skip_txb(coeff_costs, txb_ctx, plane, tx_size);
-      return eob;
-    }
-  }
 
   const AV1_COMMON *cm = &cpi->common;
   const PLANE_TYPE plane_type = get_plane_type(plane);
@@ -1223,7 +1214,7 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
 #define UPDATE_COEFF_EOB_CASE(tx_class_literal)                            \
   case tx_class_literal:                                                   \
-    for (; si >= 0 && nz_num <= max_nz_num && !fast_mode; --si) {          \
+    for (; si >= 0 && nz_num <= max_nz_num; --si) {                        \
       update_coeff_eob(&accu_rate, &accu_dist, &eob, &nz_num, nz_ci, si,   \
                        tx_size, tx_class_literal, bwl, height,             \
                        txb_ctx->dc_sign_ctx, rdmult, shift, dequant, scan, \

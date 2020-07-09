@@ -328,16 +328,15 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
  * \param[out]   rate_cost      The entropy cost of coding the transform block
  * after adjustment of coefficients.
  * \param[in]    sharpness      When sharpness == 1, the function will be less
- * aggresive toward lowering the magnitude of coefficients.
+ * aggressive toward lowering the magnitude of coefficients.
  * In this way, the transform block will contain more high-frequency
  coefficients
  * and therefore preserve the sharpness of the reconstructed block.
- * \param[in]    fast_mode      Faster mode
  */
 int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                          int block, TX_SIZE tx_size, TX_TYPE tx_type,
                          const TXB_CTX *const txb_ctx, int *rate_cost,
-                         int sharpness, int fast_mode);
+                         int sharpness);
 
 /*!\brief Get the corresponding \ref CB_COEFF_BUFFER of the current macro block.
  *
