@@ -302,11 +302,6 @@ void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
 void av1_update_and_record_txb_context(int plane, int block, int blk_row,
                                        int blk_col, BLOCK_SIZE plane_bsize,
                                        TX_SIZE tx_size, void *arg);
-/*!\cond */
-#if CONFIG_HTB_TRELLIS
-void hbt_destroy();
-#endif  // CONFIG_HTB_TRELLIS
-/*!\endcond */
 
 /*!\brief Adjust the magnitude of quantized coefficients to achieve better
  * rate-distortion (RD) trade-off.

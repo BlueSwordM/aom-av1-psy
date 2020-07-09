@@ -126,8 +126,6 @@ set_aom_config_var(CONFIG_COLLECT_COMPONENT_TIMING 0
                    "Collect encoding component timing information.")
 set_aom_config_var(CONFIG_LPF_MASK 0
                    "Enable the use loop filter bitmasks for optimizations.")
-set_aom_config_var(CONFIG_HTB_TRELLIS 0
-                   "Enable the use of hash table for trellis optimizations.")
 set_aom_config_var(CONFIG_REALTIME_ONLY 0
                    "Build for RTC-only to reduce binary size.")
 set_aom_config_var(CONFIG_AV1_HIGHBITDEPTH 1

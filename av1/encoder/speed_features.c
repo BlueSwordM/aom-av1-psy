@@ -1139,7 +1139,6 @@ static AOM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
   rd_sf->simple_model_rd_from_var = 0;
   rd_sf->tx_domain_dist_level = 0;
   rd_sf->tx_domain_dist_thres_level = 0;
-  rd_sf->use_hash_based_trellis = 0;
   rd_sf->perform_coeff_opt = 0;
   rd_sf->perform_coeff_opt_based_on_satd = 0;
 }

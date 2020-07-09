@@ -828,10 +828,6 @@ typedef struct RD_CALC_SPEED_FEATURES {
   // Trellis (dynamic programming) optimization of quantized values
   TRELLIS_OPT_TYPE optimize_coefficients;
 
-  // Use a hash table to store previously computed optimized qcoeffs from
-  // expensive calls to optimize_txb.
-  int use_hash_based_trellis;
-
   // Use hash table to store macroblock RD search results
   // to avoid repeated search on the same residue signal.
   int use_mb_rd_hash;
