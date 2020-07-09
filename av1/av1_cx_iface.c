@@ -2938,7 +2938,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
 
       // keyframing settings (kf)
       0,                       // fwd_kf_enabled
-      AOM_KF_AUTO,             // g_kfmode
+      AOM_KF_AUTO,             // kf_mode
       0,                       // kf_min_dist
       9999,                    // kf_max_dist
       0,                       // sframe_dist
@@ -3008,7 +3008,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
 
       // keyframing settings (kf)
       0,                       // fwd_kf_enabled
-      AOM_KF_AUTO,             // g_kfmode
+      AOM_KF_AUTO,             // kf_mode
       0,                       // kf_min_dist
       9999,                    // kf_max_dist
       0,                       // sframe_dist
