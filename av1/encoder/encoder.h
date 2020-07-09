@@ -386,54 +386,88 @@ typedef struct {
 typedef struct {
   /*!\cond */
   // BUFFERING PARAMETERS
-  // Indicates the amount of data that will be buffered by the decoding
-  // application prior to beginning playback, and is expressed in units of
-  // time(milliseconds).
+  /*!\endcond */
+  /*!
+   * Indicates the amount of data that will be buffered by the decoding
+   * application prior to beginning playback, and is expressed in units of
+   * time(milliseconds).
+   */
   int64_t starting_buffer_level_ms;
-  // Indicates the amount of data that the encoder should try to maintain in the
-  // decoder's buffer, and is expressed in units of time(milliseconds).
+  /*!
+   * Indicates the amount of data that the encoder should try to maintain in the
+   * decoder's buffer, and is expressed in units of time(milliseconds).
+   */
   int64_t optimal_buffer_level_ms;
-  // Indicates the maximum amount of data that may be buffered by the decoding
-  // application, and is expressed in units of time(milliseconds).
+  /*!
+   * Indicates the maximum amount of data that may be buffered by the decoding
+   * application, and is expressed in units of time(milliseconds).
+   */
   int64_t maximum_buffer_size_ms;
 
-  // Indicates the bandwidth to be used in bits per second.
+  /*!
+   * Indicates the bandwidth to be used in bits per second.
+   */
   int64_t target_bandwidth;
-  // Indicates average complexity of the corpus in single pass vbr based on LAP.
-  // 0 indicates that corpus complexity vbr mode is disabled.
+
+  /*!
+   * Indicates average complexity of the corpus in single pass vbr based on
+   * LAP. 0 indicates that corpus complexity vbr mode is disabled.
+   */
   unsigned int vbr_corpus_complexity_lap;
-  // Indicates the maximum allowed bitrate for any intra frame as % of bitrate
-  // target.
+  /*!
+   * Indicates the maximum allowed bitrate for any intra frame as % of bitrate
+   * target.
+   */
   unsigned int max_intra_bitrate_pct;
-  // Indicates the maximum allowed bitrate for any inter frame as % of bitrate
-  // target.
+  /*!
+   * Indicates the maximum allowed bitrate for any inter frame as % of bitrate
+   * target.
+   */
   unsigned int max_inter_bitrate_pct;
-  // Indicates the percentage of rate boost for golden frame in CBR mode.
+  /*!
+   * Indicates the percentage of rate boost for golden frame in CBR mode.
+   */
   unsigned int gf_cbr_boost_pct;
-  // min_cr / 100 indicates the target minimum compression ratio for each frame.
+  /*!
+   * min_cr / 100 indicates the target minimum compression ratio for each
+   * frame.
+   */
   unsigned int min_cr;
-  // Indicates the frame drop threshold.
+  /*!
+   * Indicates the frame drop threshold.
+   */
   int drop_frames_water_mark;
-  // under_shoot_pct indicates the tolerance of the VBR algorithm to undershoot
-  // and is used as a trigger threshold for more agressive adaptation of Q. It's
-  // value can range from 0-100.
+  /*!
+   * under_shoot_pct indicates the tolerance of the VBR algorithm to
+   * undershoot and is used as a trigger threshold for more agressive
+   * adaptation of Q. It's value can range from 0-100.
+   */
   int under_shoot_pct;
-  // over_shoot_pct indicates the tolerance of the VBR algorithm to overshoot
-  // and is used as a trigger threshold for more agressive adaptation of Q. It's
-  // value can range from 0-1000.
+  /*!
+   * over_shoot_pct indicates the tolerance of the VBR algorithm to overshoot
+   * and is used as a trigger threshold for more agressive adaptation of Q.
+   * It's value can range from 0-1000.
+   */
   int over_shoot_pct;
-  // Indicates the maximum qindex that can be used by the quantizer i.e. the
-  // worst quality qindex.
+  /*!
+   * Indicates the maximum qindex that can be used by the quantizer i.e. the
+   * worst quality qindex.
+   */
   int worst_allowed_q;
-  // Indicates the minimum qindex that can be used by the quantizer i.e. the
-  // best quality qindex.
+  /*!
+   * Indicates the minimum qindex that can be used by the quantizer i.e. the
+   * best quality qindex.
+   */
   int best_allowed_q;
-  // Indicates the Constant/Constrained Quality level.
+  /*!
+   * Indicates the Constant/Constrained Quality level.
+   */
   int cq_level;
-  // Indicates if the encoding mode is vbr, cbr, constrained quality or constant
-  // quality.
+  /*!
+   * Indicates if the encoding mode is vbr, cbr, constrained quality or
+   * constant quality.
+   */
   enum aom_rc_mode mode;
-  /*!\endcond */
 } RateControlCfg;
 
 /*!\cond */

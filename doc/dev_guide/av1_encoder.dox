@@ -117,15 +117,16 @@ encoder and referenced elsewhere in this overview document:
     - \ref AV1EncoderConfig.two_pass_cfg (\ref TwoPassCfg)
 
 - \ref RateControlCfg (Rate control configuration)
-    - (TODO REF) RateControlCfg.target_bandwidth
-    - (TODO REF) RateControlCfg.best_allowed_q
-    - (TODO REF) RateControlCfg.worst_allowed_q
-    - (TODO REF) RateControlCfg.cq_level
-    - (TODO REF) RateControlCfg.under_shoot_pct
-    - (TODO REF) RateControlCfg.over_shoot_pct
-    - (TODO REF) RateControlCfg.maximum_buffer_size_ms)
-    - (TODO REF) RateControlCfg.starting_buffer_level_ms)
-    - (TODO REF) RateControlCfg.optimal_buffer_level_ms)
+    - \ref RateControlCfg.mode
+    - \ref RateControlCfg.target_bandwidth
+    - \ref RateControlCfg.best_allowed_q
+    - \ref RateControlCfg.worst_allowed_q
+    - \ref RateControlCfg.cq_level
+    - \ref RateControlCfg.under_shoot_pct
+    - \ref RateControlCfg.over_shoot_pct
+    - \ref RateControlCfg.maximum_buffer_size_ms
+    - \ref RateControlCfg.starting_buffer_level_ms
+    - \ref RateControlCfg.optimal_buffer_level_ms
 
 - \ref RATE_CONTROL (Rate control status)
     - \ref RATE_CONTROL.intervals_till_gf_calculate_due
@@ -278,7 +279,7 @@ The four supported options are:-
 
 The value of \ref aom_codec_enc_cfg_t.rc_end_usage is in turn copied over
 into the encoder rate control configuration data structure as
-(TODO REF) RateControlCfg.rc_mode (see \ref encoder.h).
+\ref RateControlCfg.mode.
 
 In regards to the most important use cases above, Video on demand uses either
 VBR or CQ mode. CBR is the preferred rate control model for RTC and Live
@@ -293,12 +294,12 @@ The list below gives the names of the main rate control command line
 options together with the names of the corresponding fields in the rate
 control configuration data structures.
 
-- <b>--target-bitrate</b> ((TODO REF) RateControlCfg.target_bandwidth)
-- <b>--min-q</b> ((TODO REF) RateControlCfg.best_allowed_q)
-- <b>--max-q</b> ((TODO REF) RateControlCfg.worst_allowed_q)
-- <b>--cq-level</b> ((TODO REF) RateControlCfg.cq_level)
-- <b>--undershoot-pct</b> ((TODO REF) RateControlCfg.under_shoot_pct)
-- <b>--overshoot-pct</b> ((TODO REF) RateControlCfg.over_shoot_pct)
+- <b>--target-bitrate</b> (\ref RateControlCfg.target_bandwidth)
+- <b>--min-q</b> (\ref RateControlCfg.best_allowed_q)
+- <b>--max-q</b> (\ref RateControlCfg.worst_allowed_q)
+- <b>--cq-level</b> (\ref RateControlCfg.cq_level)
+- <b>--undershoot-pct</b> (\ref RateControlCfg.under_shoot_pct)
+- <b>--overshoot-pct</b> (\ref RateControlCfg.over_shoot_pct)
 
 The following control aspects of 2 pass vbr encoding
 
@@ -309,9 +310,9 @@ The following control aspects of 2 pass vbr encoding
 The following relate to buffer and delay management in one pass low delay and
 real time coding
 
-- <b>--buf-sz</b> ((TODO REF) RateControlCfg.maximum_buffer_size_ms)
-- <b>--buf-initial-sz</b> ((TODO REF) RateControlCfg.starting_buffer_level_ms)
-- <b>--buf-optimal-sz</b> ((TODO REF) RateControlCfg.optimal_buffer_level_ms)
+- <b>--buf-sz</b> (\ref RateControlCfg.maximum_buffer_size_ms)
+- <b>--buf-initial-sz</b> (\ref RateControlCfg.starting_buffer_level_ms)
+- <b>--buf-optimal-sz</b> (\ref RateControlCfg.optimal_buffer_level_ms)
 
 \subsection architecture_enc_vbr Variable Bitrate (VBR) Encoding
 
