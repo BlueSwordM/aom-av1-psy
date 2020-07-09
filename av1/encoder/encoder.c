@@ -4314,6 +4314,14 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
   aom_usec_timer_mark(&timer);
   cpi->time_receive_data += aom_usec_timer_elapsed(&timer);
 #endif
+
+  // Note: Regarding profile setting, the following checks are added to help
+  // choose a proper profile for the input video. The criterion is that all
+  // bitstreams must be designated as the lowest profile that match its content.
+  // E.G. A bitstream that contains 4:4:4 video must be designated as High
+  // Profile in the seq header, and likewise a bitstream that contains 4:2:2
+  // bitstream must be designated as Professional Profile in the sequence
+  // header.
   if ((seq_params->profile == PROFILE_0) && !seq_params->monochrome &&
       (subsampling_x != 1 || subsampling_y != 1)) {
     aom_internal_error(&cm->error, AOM_CODEC_INVALID_PARAM,
@@ -4330,7 +4338,7 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
       (seq_params->bit_depth <= AOM_BITS_10) &&
       !(subsampling_x == 1 && subsampling_y == 0)) {
     aom_internal_error(&cm->error, AOM_CODEC_INVALID_PARAM,
-                       "Profile 2 bit-depth < 10 requires 4:2:2 color format");
+                       "Profile 2 bit-depth <= 10 requires 4:2:2 color format");
     res = -1;
   }
 
