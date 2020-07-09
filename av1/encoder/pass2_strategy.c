@@ -1375,6 +1375,19 @@ static void correct_frames_to_key(AV1_COMP *cpi) {
   }
 }
 
+/*!\brief Define a GF group in one pass mode when no look ahead stats are
+ * available.
+ *
+ * \ingroup gf_group_algo
+ * This function defines the structure of a GF group, along with various
+ * parameters regarding bit-allocation and quality setup in the special
+ * case of one pass encoding where no lookahead stats are avialable.
+ *
+ * \param[in]    cpi             Top-level encoder structure
+ * \param[in]    frame_params    Structure with frame parameters
+ *
+ * \return Nothing is returned. Instead, cpi->gf_group is changed.
+ */
 static void define_gf_group_pass0(AV1_COMP *cpi,
                                   const EncodeFrameParams *const frame_params) {
   RATE_CONTROL *const rc = &cpi->rc;

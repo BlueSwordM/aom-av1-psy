@@ -82,8 +82,23 @@ static AOM_INLINE void config_target_level(AV1_COMP *const cpi,
 }
 
 #if !CONFIG_REALTIME_ONLY
-// Function to test for conditions that indicate we should loop
-// back and recode a frame.
+
+/*!\brief Function to test for conditions that indicate we should loop
+ * back and recode a frame.
+ *
+ * \ingroup rate_control
+ *
+ * \param[in]     cpi         Top-level encoder structure
+ * \param[in]     high_limit  Upper rate threshold
+ * \param[in]     low_limit   Lower rate threshold
+ * \param[in]     q           Current q index
+ * \param[in]     maxq        Maximum allowed q index
+ * \param[in]     minq        Minimum allowed q index
+ *
+ * \return        Indicates if a recode is required.
+ * \retval        1           Recode Required
+ * \retval        0           No Recode required
+ */
 static AOM_INLINE int recode_loop_test(AV1_COMP *cpi, int high_limit,
                                        int low_limit, int q, int maxq,
                                        int minq) {
@@ -182,10 +197,10 @@ static AOM_INLINE int get_regulated_q_undershoot(AV1_COMP *const cpi,
   return q_regulated;
 }
 
-/*!\brief Called after encode_with_recode_loop() has just encoded a frame
- * and packed its bitstream.  This function works out whether we under-
- * or over-shot our bitrate target and adjusts q as appropriate. It also
- * decides whether or not we should do another recode loop.
+/*!\brief Called after encode_with_recode_loop() has just encoded a frame.
+ * This function works out whether we undershot or overshot our bitrate
+ *  target and adjusts q as appropriate. It also decides whether or not
+ *  we need to recode the frame to get closer to the target rate.
  *
  * \ingroup rate_control
  *
