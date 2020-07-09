@@ -2287,17 +2287,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
     // Calculate rate cost of quantized coefficients.
     if (quant_param.use_optimize_b) {
-      if (cpi->sf.rd_sf.optimize_b_precheck && best_rd < INT64_MAX &&
-          eobs_ptr[block] >= 4) {
-        // Calculate distortion quickly in transform domain.
-        dist_block_tx_domain(x, plane, block, tx_size, &this_rd_stats.dist,
-                             &this_rd_stats.sse);
-
-        const int64_t best_rd_ = AOMMIN(best_rd, ref_best_rd);
-        const int64_t dist_cost_estimate =
-            RDCOST(x->rdmult, 0, AOMMIN(this_rd_stats.dist, this_rd_stats.sse));
-        if (dist_cost_estimate - (dist_cost_estimate >> 3) > best_rd_) continue;
-      }
       av1_optimize_b(cpi, x, plane, block, tx_size, tx_type, txb_ctx,
                      &rate_cost);
     } else {

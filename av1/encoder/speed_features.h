@@ -832,9 +832,6 @@ typedef struct RD_CALC_SPEED_FEATURES {
   // to avoid repeated search on the same residue signal.
   int use_mb_rd_hash;
 
-  // Calculate RD cost before doing optimize_b, and skip if the cost is large.
-  int optimize_b_precheck;
-
   // Flag used to control the extent of coeff R-D optimization
   int perform_coeff_opt;
 
