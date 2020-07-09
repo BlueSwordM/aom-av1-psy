@@ -925,6 +925,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   int process_frame_count = 0;
   const int gop_length =
       AOMMIN(gf_group->size - 1 + use_arf, MAX_TPL_FRAME_IDX - 1);
+
   for (gf_index = cur_frame_idx; gf_index <= gop_length; ++gf_index) {
     TplDepFrame *tpl_frame = &tpl_data->tpl_frame[gf_index];
     FRAME_UPDATE_TYPE frame_update_type = gf_group->update_type[gf_index];
@@ -945,7 +946,8 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     } else {
       int frame_display_index = gf_index == gf_group->size
                                     ? cpi->rc.baseline_gf_interval
-                                    : gf_group->frame_disp_idx[gf_index];
+                                    : gf_group->cur_frame_idx[gf_index] +
+                                          gf_group->arf_src_offset[gf_index];
       struct lookahead_entry *buf = av1_lookahead_peek(
           cpi->lookahead, frame_display_index - anc_frame_offset,
           cpi->compressor_stage);

@@ -43,7 +43,6 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
     while (++start < end) {
       gf_group->update_type[*frame_ind] = LF_UPDATE;
       gf_group->arf_src_offset[*frame_ind] = 0;
-      ++*cur_frame_idx;
       gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
       gf_group->frame_disp_idx[*frame_ind] = start;
       gf_group->layer_depth[*frame_ind] = MAX_ARF_LAYERS;
@@ -52,6 +51,7 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
       gf_group->max_layer_depth =
           AOMMAX(gf_group->max_layer_depth, layer_depth);
       ++(*frame_ind);
+      ++(*cur_frame_idx);
     }
   } else {
     const int m = (start + end) / 2;
@@ -75,12 +75,12 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
     // Overlay for internal ARF.
     gf_group->update_type[*frame_ind] = INTNL_OVERLAY_UPDATE;
     gf_group->arf_src_offset[*frame_ind] = 0;
-    ++(*cur_frame_idx);
     gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
     gf_group->frame_disp_idx[*frame_ind] = m;
     gf_group->arf_boost[*frame_ind] = 0;
     gf_group->layer_depth[*frame_ind] = layer_depth;
     ++(*frame_ind);
+    ++(*cur_frame_idx);
 
     // Frames displayed after this internal ARF.
     set_multi_layer_params(twopass, gf_group, rc, frame_info, m, end,
@@ -103,12 +103,15 @@ static int construct_multi_layer_gf_structure(
 
   gf_group->update_type[frame_index] = first_frame_update_type;
   gf_group->arf_src_offset[frame_index] = 0;
-  ++cur_frame_index;
   gf_group->cur_frame_idx[frame_index] = cur_frame_index;
   gf_group->layer_depth[frame_index] =
       first_frame_update_type == OVERLAY_UPDATE ? MAX_ARF_LAYERS + 1 : 0;
   gf_group->max_layer_depth = 0;
   ++frame_index;
+  // TODO(jingning): Increase cur_frame_index when a frame is displayed.
+  // When key frame is decomposed into an ARF and overlay frame, increase
+  // cur_frame_index after the overlay frame.
+  ++cur_frame_index;
 
   // ALTREF.
   const int use_altref = gf_group->max_layer_depth_allowed > 0;
