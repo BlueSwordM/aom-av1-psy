@@ -27,6 +27,8 @@ extern "C" {
 // Maximum rate target ratio for setting segment delta-qp.
 #define CR_MAX_RATE_TARGET_RATIO 4.0
 
+/*!\cond */
+
 struct CYCLIC_REFRESH {
   // Percentage of blocks per frame that are targeted as candidates
   // for cyclic refresh.
@@ -101,10 +103,37 @@ void av1_cyclic_refresh_postencode(struct AV1_COMP *const cpi);
 // Set golden frame update interval, for 1 pass CBR mode.
 void av1_cyclic_refresh_set_golden_update(struct AV1_COMP *const cpi);
 
-// Set/update global/frame level refresh parameters.
+/*!\endcond */
+/*!\brief Set the global/frame level parameters for cyclic refresh.
+ *
+ * First call to the cyclic refresh, before encoding the frame.
+ * Sets the flag on whether cyclic refresh should be applied, sets
+ * the amount/percent of refresh, and the amount of boost applied to
+ * the two segments (set by rate_ratio_qdelta and rate_boost_fac).
+ *
+ * \ingroup cyclic_refresh
+ * \callgraph
+ * \callergraph
+ *
+ * \param[in]       cpi          Top level encoder structure
+ *
+ * \return Updates the \c cpi->cyclic_refresh with the settings.
+ */
 void av1_cyclic_refresh_update_parameters(struct AV1_COMP *const cpi);
 
-// Setup cyclic background refresh: set delta q and segmentation map.
+/*!\brief Setup the cyclic background refresh.
+ *
+ * Set the delta q for the segment(s), and set the segmentation map.
+ *
+ * \ingroup cyclic_refresh
+ * \callgraph
+ * \callergraph
+ *
+ * \param[in]       cpi          Top level encoder structure
+ *
+ * \return Updates the \c cpi->cyclic_refresh with the cyclic refresh
+ * parameters and the \c cm->seg with the segmentation data.
+ */
 void av1_cyclic_refresh_setup(struct AV1_COMP *const cpi);
 
 int av1_cyclic_refresh_get_rdmult(const CYCLIC_REFRESH *cr);

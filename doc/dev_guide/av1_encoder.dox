@@ -1115,3 +1115,11 @@ void second_pass(char *stats, size_t stats_len) {
  * @{
  */
 /*! @} - end defgroup rate_control */
+
+/*!\defgroup cyclic_refresh Cyclic Refresh
+ * \ingroup encoder_algo
+ * This module describes the cyclic refresh (aq-mode=3) in AV1.
+ * More details will be added.
+ * @{
+ */
+/*! @} - end defgroup cyclic_refresh */

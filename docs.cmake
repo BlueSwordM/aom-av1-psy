@@ -114,6 +114,7 @@ if(CONFIG_AV1_ENCODER)
       ${AOM_DOXYGEN_SOURCES}
       "${AOM_ROOT}/av1/encoder/bitstream.h"
       "${AOM_ROOT}/av1/encoder/block.h"
+      "${AOM_ROOT}/av1/encoder/aq_cyclicrefresh.h"
       "${AOM_ROOT}/av1/encoder/encode_strategy.c"
       "${AOM_ROOT}/av1/encoder/encode_strategy.h"
       "${AOM_ROOT}/av1/encoder/encodeframe.c"
