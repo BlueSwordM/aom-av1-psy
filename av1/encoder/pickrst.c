@@ -133,7 +133,7 @@ typedef struct {
   RestUnitSearchInfo *rusi;
 
   // Speed features
-  const SPEED_FEATURES *sf;
+  const LOOP_FILTER_SPEED_FEATURES *lpf_sf;
 
   uint8_t *dgd_buffer;
   int dgd_stride;
@@ -166,8 +166,8 @@ static AOM_INLINE void reset_rsc(RestSearchCtxt *rsc) {
 
 static AOM_INLINE void init_rsc(const YV12_BUFFER_CONFIG *src,
                                 const AV1_COMMON *cm, const MACROBLOCK *x,
-                                const SPEED_FEATURES *sf, int plane,
-                                RestUnitSearchInfo *rusi,
+                                const LOOP_FILTER_SPEED_FEATURES *lpf_sf,
+                                int plane, RestUnitSearchInfo *rusi,
                                 YV12_BUFFER_CONFIG *dst, RestSearchCtxt *rsc) {
   rsc->src = src;
   rsc->dst = dst;
@@ -175,7 +175,7 @@ static AOM_INLINE void init_rsc(const YV12_BUFFER_CONFIG *src,
   rsc->x = x;
   rsc->plane = plane;
   rsc->rusi = rusi;
-  rsc->sf = sf;
+  rsc->lpf_sf = lpf_sf;
 
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
   const int is_uv = plane != AOM_PLANE_Y;
@@ -903,7 +903,7 @@ static AOM_INLINE void search_sgrproj(const RestorationTileLimits *limits,
       dgd_start, limits->h_end - limits->h_start,
       limits->v_end - limits->v_start, rsc->dgd_stride, src_start,
       rsc->src_stride, highbd, bit_depth, procunit_width, procunit_height,
-      tmpbuf, rsc->sf->lpf_sf.enable_sgr_ep_pruning);
+      tmpbuf, rsc->lpf_sf->enable_sgr_ep_pruning);
 
   RestorationUnitInfo rui;
   rui.restoration_type = RESTORE_SGRPROJ;
@@ -921,7 +921,7 @@ static AOM_INLINE void search_sgrproj(const RestorationTileLimits *limits,
       RDCOST_DBL(x->rdmult, bits_sgr >> 4, rusi->sse[RESTORE_SGRPROJ]);
   if (rusi->sgrproj.ep < 10)
     cost_sgr *=
-        (1 + DUAL_SGR_PENALTY_MULT * rsc->sf->lpf_sf.dual_sgr_penalty_level);
+        (1 + DUAL_SGR_PENALTY_MULT * rsc->lpf_sf->dual_sgr_penalty_level);
 
   RestorationType rtype =
       (cost_sgr < cost_none) ? RESTORE_SGRPROJ : RESTORE_NONE;
@@ -1461,7 +1461,7 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
   const int64_t bits_none = x->mode_costs.wiener_restore_cost[0];
 
   // Skip Wiener search for low variance contents
-  if (rsc->sf->lpf_sf.prune_wiener_based_on_src_var) {
+  if (rsc->lpf_sf->prune_wiener_based_on_src_var) {
     const int scale[3] = { 0, 1, 2 };
     // Obtain the normalized Qscale
     const int qs = av1_dc_quant_QTX(rsc->cm->quant_params.base_qindex, 0,
@@ -1469,7 +1469,7 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
                    3;
     // Derive threshold as sqr(normalized Qscale) * scale / 16,
     const uint64_t thresh =
-        (qs * qs * scale[rsc->sf->lpf_sf.prune_wiener_based_on_src_var]) >> 4;
+        (qs * qs * scale[rsc->lpf_sf->prune_wiener_based_on_src_var]) >> 4;
     const int highbd = rsc->cm->seq_params.use_highbitdepth;
     const uint64_t src_var =
         var_restoration_unit(limits, rsc->src, rsc->plane, highbd);
@@ -1481,8 +1481,7 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
       rsc->sse += rusi->sse[RESTORE_NONE];
       rusi->best_rtype[RESTORE_WIENER - 1] = RESTORE_NONE;
       rusi->sse[RESTORE_WIENER] = INT64_MAX;
-      if (rsc->sf->lpf_sf.prune_sgr_based_on_wiener == 2)
-        rusi->skip_sgr_eval = 1;
+      if (rsc->lpf_sf->prune_sgr_based_on_wiener == 2) rusi->skip_sgr_eval = 1;
       return;
     }
   }
@@ -1491,7 +1490,7 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
       (rsc->plane == AOM_PLANE_Y) ? WIENER_WIN : WIENER_WIN_CHROMA;
 
   int reduced_wiener_win = wiener_win;
-  if (rsc->sf->lpf_sf.reduce_wiener_window_size) {
+  if (rsc->lpf_sf->reduce_wiener_window_size) {
     reduced_wiener_win =
         (rsc->plane == AOM_PLANE_Y) ? WIENER_WIN_REDUCED : WIENER_WIN_CHROMA;
   }
@@ -1523,7 +1522,7 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
     rsc->sse += rusi->sse[RESTORE_NONE];
     rusi->best_rtype[RESTORE_WIENER - 1] = RESTORE_NONE;
     rusi->sse[RESTORE_WIENER] = INT64_MAX;
-    if (rsc->sf->lpf_sf.prune_sgr_based_on_wiener == 2) rusi->skip_sgr_eval = 1;
+    if (rsc->lpf_sf->prune_sgr_based_on_wiener == 2) rusi->skip_sgr_eval = 1;
     return;
   }
 
@@ -1542,7 +1541,7 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
     rsc->sse += rusi->sse[RESTORE_NONE];
     rusi->best_rtype[RESTORE_WIENER - 1] = RESTORE_NONE;
     rusi->sse[RESTORE_WIENER] = INT64_MAX;
-    if (rsc->sf->lpf_sf.prune_sgr_based_on_wiener == 2) rusi->skip_sgr_eval = 1;
+    if (rsc->lpf_sf->prune_sgr_based_on_wiener == 2) rusi->skip_sgr_eval = 1;
     return;
   }
 
@@ -1575,9 +1574,9 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
 
   // Set 'skip_sgr_eval' based on rdcost ratio of RESTORE_WIENER and
   // RESTORE_NONE or based on best_rtype
-  if (rsc->sf->lpf_sf.prune_sgr_based_on_wiener == 1) {
+  if (rsc->lpf_sf->prune_sgr_based_on_wiener == 1) {
     rusi->skip_sgr_eval = cost_wiener > (1.01 * cost_none);
-  } else if (rsc->sf->lpf_sf.prune_sgr_based_on_wiener == 2) {
+  } else if (rsc->lpf_sf->prune_sgr_based_on_wiener == 2) {
     rusi->skip_sgr_eval = rusi->best_rtype[RESTORE_WIENER - 1] == RESTORE_NONE;
   }
 
@@ -1652,8 +1651,7 @@ static AOM_INLINE void search_switchable(const RestorationTileLimits *limits,
     const int64_t bits = x->mode_costs.switchable_restore_cost[r] + coeff_bits;
     double cost = RDCOST_DBL(x->rdmult, bits >> 4, sse);
     if (r == RESTORE_SGRPROJ && rusi->sgrproj.ep < 10)
-      cost *=
-          (1 + DUAL_SGR_PENALTY_MULT * rsc->sf->lpf_sf.dual_sgr_penalty_level);
+      cost *= (1 + DUAL_SGR_PENALTY_MULT * rsc->lpf_sf->dual_sgr_penalty_level);
     if (r == 0 || cost < best_cost) {
       best_cost = cost;
       best_bits = bits;
@@ -1726,8 +1724,8 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   const int plane_start = AOM_PLANE_Y;
   const int plane_end = num_planes > 1 ? AOM_PLANE_V : AOM_PLANE_Y;
   for (int plane = plane_start; plane <= plane_end; ++plane) {
-    init_rsc(src, &cpi->common, x, &cpi->sf, plane, rusi, &cpi->trial_frame_rst,
-             &rsc);
+    init_rsc(src, &cpi->common, x, &cpi->sf.lpf_sf, plane, rusi,
+             &cpi->trial_frame_rst, &rsc);
 
     const int plane_ntiles = ntiles[plane > 0];
     const RestorationType num_rtypes =
