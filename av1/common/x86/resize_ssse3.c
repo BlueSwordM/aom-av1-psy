@@ -850,11 +850,11 @@ void av1_resize_and_extend_frame_ssse3(const YV12_BUFFER_CONFIG *src,
     const int is_uv = i > 0;
     const int src_w = src->crop_widths[is_uv];
     const int src_h = src->crop_heights[is_uv];
-    const int src_y_w = src->crop_widths[0];
+    const int src_y_w = (src->crop_widths[0] + 1) & ~1;
     const int dst_w = dst->crop_widths[is_uv];
     const int dst_h = dst->crop_heights[is_uv];
-    const int dst_y_w = dst->crop_widths[0];
-    const int dst_y_h = dst->crop_heights[0];
+    const int dst_y_w = (dst->crop_widths[0] + 1) & ~1;
+    const int dst_y_h = (dst->crop_heights[0] + 1) & ~1;
 
     if (2 * dst_w == src_w && 2 * dst_h == src_h) {
       // 2 to 1
