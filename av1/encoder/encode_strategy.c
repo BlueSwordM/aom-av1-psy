@@ -892,12 +892,12 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     if (code_arf) {
       aom_extend_frame_borders(&cpi->alt_ref_buffer, av1_num_planes(cm));
       frame_input->source = &cpi->alt_ref_buffer;
+      aom_copy_metadata_to_frame_buffer(frame_input->source,
+                                        source_buffer->metadata);
     }
     if (get_frame_update_type(&cpi->gf_group) == ARF_UPDATE) {
       cpi->show_existing_alt_ref = show_existing_alt_ref;
     }
-    aom_copy_metadata_to_frame_buffer(frame_input->source,
-                                      source_buffer->metadata);
   }
 
   // perform tpl after filtering

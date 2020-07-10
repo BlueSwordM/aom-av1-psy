@@ -140,10 +140,12 @@ void aom_remove_metadata_from_frame_buffer(YV12_BUFFER_CONFIG *ybf);
 
 /*!\brief Copy metadata to YUV_BUFFER_CONFIG struct.
  *
- * Copies metadata in frame buffer.
+ * Copies metadata to frame buffer.
  * Frame buffer will clear any previous metadata and will reallocate the
  * metadata array to the new metadata size. Then, it will copy the new metadata
  * array into it.
+ * If arr metadata pointer points to the same address as current metadata in the
+ * frame buffer, function will do nothing and return 0.
  * Returns 0 on success or -1 on failure.
  *
  * \param[in]    ybf       Frame buffer struct pointer
