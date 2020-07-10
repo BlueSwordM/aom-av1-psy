@@ -1164,14 +1164,6 @@ typedef struct macroblock {
   //! SSE of the current predictor.
   unsigned int pred_sse[REF_FRAMES];
   /**@}*/
-
-  /*****************************************************************************
-   * \name Unused
-   ****************************************************************************/
-  /**@{*/
-  //! To be removed.
-  unsigned int simple_motion_pred_sse;
-  /**@}*/
 } MACROBLOCK;
 #undef SINGLE_REF_MODES
 

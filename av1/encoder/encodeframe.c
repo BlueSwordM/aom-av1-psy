@@ -745,7 +745,6 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
 
     xd->cur_frame_force_integer_mv = cm->features.cur_frame_force_integer_mv;
     x->source_variance = UINT_MAX;
-    x->simple_motion_pred_sse = UINT_MAX;
     td->mb.cb_coef_buff = av1_get_cb_coeff_buffer(cpi, mi_row, mi_col);
 
     // Get segment id and skip flag

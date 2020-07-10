@@ -500,13 +500,6 @@ void av1_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
   }
 }
 
-static AOM_INLINE int use_pb_simple_motion_pred_sse(const AV1_COMP *const cpi) {
-  // TODO(debargha, yuec): Not in use, need to implement a speed feature
-  // utilizing this data point, and replace '0' by the corresponding speed
-  // feature flag.
-  return 0 && !frame_is_intra_only(&cpi->common);
-}
-
 static AOM_INLINE void hybrid_intra_mode_search(AV1_COMP *cpi,
                                                 MACROBLOCK *const x,
                                                 RD_STATS *rd_cost,
@@ -631,12 +624,6 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
   } else {
     x->source_variance =
         av1_get_sby_perpixel_variance(cpi, &x->plane[0].src, bsize);
-  }
-  if (use_pb_simple_motion_pred_sse(cpi)) {
-    const FULLPEL_MV start_mv = kZeroFullMv;
-    unsigned int var = 0;
-    av1_simple_motion_sse_var(cpi, x, mi_row, mi_col, bsize, start_mv, 0,
-                              &x->simple_motion_pred_sse, &var);
   }
 
   // Initialize default mode evaluation params
@@ -3101,8 +3088,7 @@ static void none_partition_search(
     PC_TREE *pc_tree, SIMPLE_MOTION_DATA_TREE *sms_tree,
     RD_SEARCH_MACROBLOCK_CONTEXT *x_ctx,
     PartitionSearchState *part_search_state, RD_STATS *best_rdc,
-    unsigned int *pb_source_variance, unsigned int *pb_simple_motion_pred_sse,
-    int64_t *none_rd, int64_t *part_none_rd) {
+    unsigned int *pb_source_variance, int64_t *none_rd, int64_t *part_none_rd) {
   const AV1_COMMON *const cm = &cpi->common;
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
   RD_STATS *this_rdc = &part_search_state->this_rdc;
@@ -3145,7 +3131,6 @@ static void none_partition_search(
   }
 #endif
   *pb_source_variance = x->source_variance;
-  *pb_simple_motion_pred_sse = x->simple_motion_pred_sse;
   if (none_rd) *none_rd = this_rdc->rdcost;
   part_search_state->none_rd = this_rdc->rdcost;
   if (this_rdc->rate != INT_MAX) {
@@ -3461,16 +3446,11 @@ BEGIN_PARTITION_SEARCH:
   // Partition block source pixel variance.
   unsigned int pb_source_variance = UINT_MAX;
 
-  // Partition block sse after simple motion compensation, not in use now,
-  // but will be used for upcoming speed features.
-  unsigned int pb_simple_motion_pred_sse = UINT_MAX;
-  (void)pb_simple_motion_pred_sse;
-
   // PARTITION_NONE search stage.
   int64_t part_none_rd = INT64_MAX;
   none_partition_search(cpi, td, tile_data, x, pc_tree, sms_tree, &x_ctx,
                         &part_search_state, &best_rdc, &pb_source_variance,
-                        &pb_simple_motion_pred_sse, none_rd, &part_none_rd);
+                        none_rd, &part_none_rd);
 
   // PARTITION_SPLIT search stage.
   int64_t part_split_rd = INT64_MAX;
@@ -3496,16 +3476,6 @@ BEGIN_PARTITION_SEARCH:
       pb_source_variance =
           av1_get_sby_perpixel_variance(cpi, &x->plane[0].src, bsize);
     }
-  }
-
-  // Update prediction errors from simple motion search.
-  if (use_pb_simple_motion_pred_sse(cpi) &&
-      pb_simple_motion_pred_sse == UINT_MAX) {
-    const FULLPEL_MV start_mv = kZeroFullMv;
-    unsigned int var = 0;
-
-    av1_simple_motion_sse_var(cpi, x, mi_row, mi_col, bsize, start_mv, 0,
-                              &pb_simple_motion_pred_sse, &var);
   }
 
   assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
