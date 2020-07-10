@@ -1715,8 +1715,16 @@ static void init_motion_estimation(AV1_COMP *cpi) {
     av1_init3smotion_compensation(
         &mv_search_params->search_site_cfg[SS_CFG_LOOKAHEAD], y_stride_src);
   }
+
   av1_init_motion_fpf(&mv_search_params->search_site_cfg[SS_CFG_FPF],
                       fpf_y_stride);
+
+  if (cpi->sf.tpl_sf.search_method == FAST_DIAMOND) {
+    av1_init_motion_compensation_bigdia(
+        &mv_search_params->search_site_cfg[SS_CFG_TPL_SRC], y_stride);
+    av1_init_motion_compensation_bigdia(
+        &mv_search_params->search_site_cfg[SS_CFG_TPL_LOOKAHEAD], y_stride_src);
+  }
 }
 
 #define COUPLED_CHROMA_FROM_LUMA_RESTORATION 0

@@ -170,6 +170,11 @@ typedef struct {
 
   // For calculating mv cost
   MV_COST_PARAMS mv_cost_params;
+
+  // Search level flag for FAST_DIAMOND search method.
+  // 0 : Number of search steps 2
+  // 1 : Number of search steps 3
+  int fast_dia_search_level;
 } FULLPEL_MOTION_SEARCH_PARAMS;
 
 void av1_make_default_fullpel_ms_params(FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
@@ -177,7 +182,8 @@ void av1_make_default_fullpel_ms_params(FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
                                         const MACROBLOCK *x, BLOCK_SIZE bsize,
                                         const MV *ref_mv,
                                         const search_site_config *search_sites,
-                                        int fine_search_interval);
+                                        int fine_search_interval,
+                                        int fast_dia_search_level);
 
 // Sets up configs for fullpixel diamond search
 void av1_init_dsmotion_compensation(search_site_config *cfg, int stride);
@@ -185,6 +191,8 @@ void av1_init_dsmotion_compensation(search_site_config *cfg, int stride);
 void av1_init_motion_fpf(search_site_config *cfg, int stride);
 // Sets up configs for all other types of motion search
 void av1_init3smotion_compensation(search_site_config *cfg, int stride);
+// Sets up configs for BIGDIA motion search
+void av1_init_motion_compensation_bigdia(search_site_config *cfg, int stride);
 
 // Set up limit values for MV components.
 // Mv beyond the range do not produce new/different prediction block.

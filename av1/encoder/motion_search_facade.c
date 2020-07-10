@@ -185,7 +185,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
       &mv_search_params->search_site_cfg[SS_CFG_SRC];
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &ref_mv,
-                                     src_search_sites, fine_search_interval);
+                                     src_search_sites, fine_search_interval, 0);
 
   switch (mbmi->motion_mode) {
     case SIMPLE_TRANSLATION: {
@@ -421,7 +421,8 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
     av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize,
                                        &ref_mv[id].as_mv, NULL,
-                                       /*fine_search_interval=*/0);
+                                       /*fine_search_interval=*/0, 0);
+
     av1_set_ms_compound_refs(&full_ms_params.ms_buffers, second_pred, mask,
                              mask_stride, id);
 
@@ -546,7 +547,8 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize,
                                      &ref_mv.as_mv, NULL,
-                                     /*fine_search_interval=*/0);
+                                     /*fine_search_interval=*/0, 0);
+
   av1_set_ms_compound_refs(&full_ms_params.ms_buffers, second_pred, mask,
                            mask_stride, ref_idx);
 
@@ -763,7 +765,7 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   const int fine_search_interval = use_fine_search_interval(cpi);
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &ref_mv,
-                                     src_search_sites, fine_search_interval);
+                                     src_search_sites, fine_search_interval, 0);
 
   var = av1_full_pixel_search(start_mv, &full_ms_params, step_param,
                               cond_cost_list(cpi, cost_list),

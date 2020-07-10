@@ -337,11 +337,19 @@ typedef struct TPL_SPEED_FEATURES {
   // When to stop subpel search.
   SUBPEL_FORCE_STOP subpel_force_stop;
 
+  // Which search method to use.
+  SEARCH_METHODS search_method;
+
   // Prune starting mvs in TPL based on sad scores.
   int prune_starting_mv;
 
   // Not run TPL for filtered Key frame.
   int disable_filtered_key_tpl;
+
+  // Search level flag for FAST_DIAMOND search method.
+  // 0 : Number of search steps 2
+  // 1 : Number of search steps 3
+  int fast_dia_search_level;
 } TPL_SPEED_FEATURES;
 
 typedef struct GLOBAL_MOTION_SPEED_FEATURES {
