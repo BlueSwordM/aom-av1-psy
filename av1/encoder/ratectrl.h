@@ -298,7 +298,8 @@ void av1_rc_init(const struct AV1EncoderConfig *oxcf, int pass,
                  RATE_CONTROL *rc);
 
 int av1_estimate_bits_at_q(FRAME_TYPE frame_kind, int q, int mbs,
-                           double correction_factor, aom_bit_depth_t bit_depth);
+                           double correction_factor, aom_bit_depth_t bit_depth,
+                           const int is_screen_content_type);
 
 double av1_convert_qindex_to_q(int qindex, aom_bit_depth_t bit_depth);
 
@@ -382,7 +383,8 @@ int av1_rc_regulate_q(const struct AV1_COMP *cpi, int target_bits_per_frame,
 
 // Estimates bits per mb for a given qindex and correction factor.
 int av1_rc_bits_per_mb(FRAME_TYPE frame_type, int qindex,
-                       double correction_factor, aom_bit_depth_t bit_depth);
+                       double correction_factor, aom_bit_depth_t bit_depth,
+                       const int is_screen_content_type);
 
 // Clamping utilities for bitrate targets for iframes and pframes.
 int av1_rc_clamp_iframe_target_size(const struct AV1_COMP *const cpi,
@@ -406,6 +408,7 @@ int av1_compute_qdelta(const RATE_CONTROL *rc, double qstart, double qtarget,
 // to a value that should equate to the given rate ratio.
 int av1_compute_qdelta_by_rate(const RATE_CONTROL *rc, FRAME_TYPE frame_type,
                                int qindex, double rate_target_ratio,
+                               const int is_screen_content_type,
                                aom_bit_depth_t bit_depth);
 
 int av1_frame_type_qdelta(const struct AV1_COMP *cpi, int q);
