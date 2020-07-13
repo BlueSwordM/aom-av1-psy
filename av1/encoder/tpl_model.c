@@ -846,7 +846,7 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
 
     // Motion estimation column boundary
     av1_set_mv_col_limits(mi_params, &x->mv_limits, mi_col, mi_width,
-                          cpi->oxcf.border_in_pixels);
+                          tpl_data->border_in_pixels);
     xd->mb_to_left_edge = -GET_MV_SUBPEL(mi_col * MI_SIZE);
     xd->mb_to_right_edge =
         GET_MV_SUBPEL(mi_params->mi_cols - mi_width - mi_col);
@@ -873,7 +873,7 @@ static AOM_INLINE void mc_flow_dispenser(AV1_COMP *cpi) {
   for (int mi_row = 0; mi_row < mi_params->mi_rows; mi_row += mi_height) {
     // Motion estimation row boundary
     av1_set_mv_row_limits(mi_params, &x->mv_limits, mi_row, mi_height,
-                          cpi->oxcf.border_in_pixels);
+                          cpi->tpl_data.border_in_pixels);
     xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
     xd->mb_to_bottom_edge =
         GET_MV_SUBPEL((mi_params->mi_rows - mi_height - mi_row) * MI_SIZE);

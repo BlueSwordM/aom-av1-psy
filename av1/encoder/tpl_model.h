@@ -175,6 +175,11 @@ typedef struct TplParams {
    * multi-threading of tpl
    */
   AV1TplRowMultiThreadSync tpl_mt_sync;
+
+  /*!
+   * Frame border for tpl frame.
+   */
+  int border_in_pixels;
 } TplParams;
 
 int av1_tpl_setup_stats(struct AV1_COMP *cpi, int gop_eval,
