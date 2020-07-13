@@ -89,10 +89,6 @@ static int compute_deltaq(const AV1_COMP *cpi, int q, double rate_factor) {
   return deltaq;
 }
 
-// For the just encoded frame, estimate the bits, incorporating the delta-q
-// from non-base segment. For now ignore effect of multiple segments
-// (with different delta-q). Note this function is called in the postencode
-// (called from rc_update_rate_correction_factors()).
 int av1_cyclic_refresh_estimate_bits_at_q(const AV1_COMP *cpi,
                                           double correction_factor) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -120,11 +116,6 @@ int av1_cyclic_refresh_estimate_bits_at_q(const AV1_COMP *cpi,
   return estimated_bits;
 }
 
-// Prior to encoding the frame, estimate the bits per mb, for a given q = i and
-// a corresponding delta-q (for segment 1). This function is called in the
-// rc_regulate_q() to set the base qp index.
-// Note: the segment map is set to either 0/CR_SEGMENT_ID_BASE (no refresh) or
-// to 1/CR_SEGMENT_ID_BOOST1 (refresh) for each superblock, prior to encoding.
 int av1_cyclic_refresh_rc_bits_per_mb(const AV1_COMP *cpi, int i,
                                       double correction_factor) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -152,9 +143,6 @@ int av1_cyclic_refresh_rc_bits_per_mb(const AV1_COMP *cpi, int i,
   return bits_per_mb;
 }
 
-// Prior to coding a given prediction block, of size bsize at (mi_row, mi_col),
-// check if we should reset the segment_id, and update the cyclic_refresh map
-// and segmentation map.
 void av1_cyclic_refresh_update_segment(const AV1_COMP *cpi,
                                        MB_MODE_INFO *const mbmi, int mi_row,
                                        int mi_col, BLOCK_SIZE bsize,
@@ -205,7 +193,6 @@ void av1_cyclic_refresh_update_segment(const AV1_COMP *cpi,
     }
 }
 
-// Update the some stats after encode frame is done.
 void av1_cyclic_refresh_postencode(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -239,7 +226,6 @@ void av1_cyclic_refresh_postencode(AV1_COMP *const cpi) {
       (3 * cr->avg_frame_low_motion + (double)cr->cnt_zeromv) / 4;
 }
 
-// Set golden frame update interval, for 1 pass CBR mode.
 void av1_cyclic_refresh_set_golden_update(AV1_COMP *const cpi) {
   RATE_CONTROL *const rc = &cpi->rc;
   CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
