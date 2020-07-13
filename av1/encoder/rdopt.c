@@ -1356,7 +1356,6 @@ static int64_t motion_mode_rd(
 
   const MB_MODE_INFO base_mbmi = *mbmi;
   MB_MODE_INFO best_mbmi;
-  SimpleRDState *const simple_states = &args->simple_rd_state[mbmi->ref_mv_idx];
   const int interp_filter = features->interp_filter;
   const int switchable_rate =
       av1_is_interp_needed(xd) ? av1_get_switchable_rate(x, xd, interp_filter)
@@ -1380,9 +1379,6 @@ static int64_t motion_mode_rd(
   for (int mode_index = mode_index_start; mode_index <= mode_index_end;
        mode_index++) {
     if (args->skip_motion_mode && mode_index) continue;
-    if (cpi->sf.inter_sf.prune_single_motion_modes_by_simple_trans &&
-        args->single_ref_first_pass && mode_index)
-      break;
     int tmp_rate2 = rate2_nocoeff;
     const int is_interintra_mode = mode_index > (int)last_motion_mode_allowed;
     int tmp_rate_mv = rate_mv0;
@@ -1411,29 +1407,6 @@ static int64_t motion_mode_rd(
       // SIMPLE_TRANSLATION mode: no need to recalculate.
       // The prediction is calculated before motion_mode_rd() is called in
       // handle_inter_mode()
-      if (cpi->sf.inter_sf.prune_single_motion_modes_by_simple_trans &&
-          !is_comp_pred) {
-        if (args->single_ref_first_pass == 0) {
-          if (simple_states->early_skipped) {
-            assert(simple_states->rd_stats.rdcost == INT64_MAX);
-            return INT64_MAX;
-          }
-          if (simple_states->rd_stats.rdcost != INT64_MAX) {
-            best_rd = simple_states->rd_stats.rdcost;
-            best_rd_stats = simple_states->rd_stats;
-            best_rd_stats_y = simple_states->rd_stats_y;
-            best_rd_stats_uv = simple_states->rd_stats_uv;
-            memcpy(best_blk_skip, simple_states->blk_skip,
-                   sizeof(txfm_info->blk_skip[0]) * xd->height * xd->width);
-            av1_copy_array(best_tx_type_map, simple_states->tx_type_map,
-                           xd->height * xd->width);
-            best_xskip_txfm = simple_states->skip_txfm;
-            best_mbmi = *mbmi;
-          }
-          continue;
-        }
-        simple_states->early_skipped = 0;
-      }
     } else if (mbmi->motion_mode == OBMC_CAUSAL) {
       const uint32_t cur_mv = mbmi->mv[0].as_int;
       // OBMC_CAUSAL not allowed for compound prediction
@@ -1624,10 +1597,6 @@ static int64_t motion_mode_rd(
       if (!av1_txfm_search(cpi, x, bsize, rd_stats, rd_stats_y, rd_stats_uv,
                            rd_stats->rate, ref_best_rd)) {
         if (rd_stats_y->rate == INT_MAX && mode_index == 0) {
-          if (cpi->sf.inter_sf.prune_single_motion_modes_by_simple_trans &&
-              !is_comp_pred) {
-            simple_states->early_skipped = 1;
-          }
           return INT64_MAX;
         }
         continue;
@@ -1658,17 +1627,6 @@ static int64_t motion_mode_rd(
     const int64_t tmp_rd = RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
     if (mode_index == 0) {
       args->simple_rd[this_mode][mbmi->ref_mv_idx][mbmi->ref_frame[0]] = tmp_rd;
-      if (!is_comp_pred) {
-        simple_states->rd_stats = *rd_stats;
-        simple_states->rd_stats.rdcost = tmp_rd;
-        simple_states->rd_stats_y = *rd_stats_y;
-        simple_states->rd_stats_uv = *rd_stats_uv;
-        memcpy(simple_states->blk_skip, txfm_info->blk_skip,
-               sizeof(txfm_info->blk_skip[0]) * xd->height * xd->width);
-        av1_copy_array(simple_states->tx_type_map, xd->tx_type_map,
-                       xd->height * xd->width);
-        simple_states->skip_txfm = mbmi->skip_txfm;
-      }
     }
     if (mode_index == 0 || tmp_rd < best_rd) {
       // Update best_rd data if this is the best motion mode so far
@@ -1940,12 +1898,7 @@ static bool ref_mv_idx_early_breakout(
       }
     }
   }
-  if (sf->inter_sf.prune_single_motion_modes_by_simple_trans && !is_comp_pred &&
-      args->single_ref_first_pass == 0) {
-    if (args->simple_rd_state[ref_mv_idx].early_skipped) {
-      return true;
-    }
-  }
+
   mbmi->ref_mv_idx = ref_mv_idx;
   if (is_comp_pred && (!is_single_newmv_valid(args, mbmi, mbmi->mode))) {
     return true;
@@ -2785,16 +2738,8 @@ static int64_t handle_inter_mode(
 #if CONFIG_COLLECT_COMPONENT_TIMING
       start_timing(cpi, handle_newmv_time);
 #endif
-      if (cpi->sf.inter_sf.prune_single_motion_modes_by_simple_trans &&
-          args->single_ref_first_pass == 0 && !is_comp_pred) {
-        const int ref0 = mbmi->ref_frame[0];
-        newmv_ret_val = args->single_newmv_valid[ref_mv_idx][ref0] ? 0 : 1;
-        cur_mv[0] = args->single_newmv[ref_mv_idx][ref0];
-        rate_mv = args->single_newmv_rate[ref_mv_idx][ref0];
-      } else {
-        newmv_ret_val =
-            handle_newmv(cpi, x, bsize, cur_mv, &rate_mv, args, mode_info);
-      }
+      newmv_ret_val =
+          handle_newmv(cpi, x, bsize, cur_mv, &rate_mv, args, mode_info);
 #if CONFIG_COLLECT_COMPONENT_TIMING
       end_timing(cpi, handle_newmv_time);
 #endif
@@ -4592,8 +4537,6 @@ static AOM_INLINE void evaluate_motion_mode_for_winner_candidates(
     if (!is_inter_singleref_mode(mbmi->mode)) continue;
 
     x->txfm_search_info.skip_txfm = 0;
-    const int mode_index = get_prediction_mode_idx(
-        mbmi->mode, mbmi->ref_frame[0], mbmi->ref_frame[1]);
     struct macroblockd_plane *p = xd->plane;
     const BUFFER_SET orig_dst = {
       { p[0].dst.buf, p[1].dst.buf, p[2].dst.buf },
@@ -4601,7 +4544,6 @@ static AOM_INLINE void evaluate_motion_mode_for_winner_candidates(
     };
 
     set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
-    args->simple_rd_state = x->simple_rd_state[mode_index];
     // Initialize motion mode to simple translation
     // Calculation of switchable rate depends on it.
     mbmi->motion_mode = 0;
@@ -4975,8 +4917,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                search_state.simple_rd,
                                0,
                                interintra_modes,
-                               1,
-                               NULL,
                                { { { 0 }, { { 0 } }, { 0 }, 0, 0, 0, 0 } },
                                0 };
   // Indicates the appropriate number of simple translation winner modes for
@@ -5191,9 +5131,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     args.single_newmv_valid = search_state.single_newmv_valid;
     args.single_comp_cost = real_compmode_cost;
     args.ref_frame_cost = ref_frame_cost;
-    if (is_single_pred) {
-      args.simple_rd_state = x->simple_rd_state[mode_enum];
-    }
 
     int64_t skip_rd[2] = { search_state.best_skip_rd[0],
                            search_state.best_skip_rd[1] };
@@ -5204,7 +5141,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         &inter_cost_info_from_tpl);
 
     if (sf->inter_sf.prune_comp_search_by_single_result > 0 &&
-        is_inter_singleref_mode(this_mode) && args.single_ref_first_pass) {
+        is_inter_singleref_mode(this_mode)) {
       collect_single_states(x, &search_state, mbmi);
     }
 

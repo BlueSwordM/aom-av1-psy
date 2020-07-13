@@ -725,7 +725,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->inter_sf.disable_wedge_search_var_thresh = 0;
     sf->inter_sf.prune_comp_type_by_comp_avg = 1;
     sf->inter_sf.prune_motion_mode_level = 2;
-    sf->inter_sf.prune_single_motion_modes_by_simple_trans = 1;
 
     sf->interp_sf.cb_pred_filter_search = 1;
     sf->interp_sf.use_interp_filter = 1;
@@ -1035,7 +1034,6 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->skip_repeated_ref_mv = 0;
   inter_sf->skip_repeated_newmv = 0;
   inter_sf->skip_repeated_full_newmv = 0;
-  inter_sf->prune_single_motion_modes_by_simple_trans = 0;
   inter_sf->inter_mode_rd_model_estimation = 0;
   inter_sf->prune_compound_using_single_ref = 0;
   inter_sf->prune_compound_using_neighbors = 0;

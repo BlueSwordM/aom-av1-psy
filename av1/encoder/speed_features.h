@@ -574,10 +574,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Flag used to control the ref_best_rd based gating for chroma
   int perform_best_rd_based_gating_for_chroma;
 
-  // Skip certain motion modes (OBMC, warped, interintra) for single reference
-  // motion search, using the results of single ref SIMPLE_TRANSLATION
-  int prune_single_motion_modes_by_simple_trans;
-
   // Reuse the inter_intra_mode search result from NEARESTMV mode to other
   // single ref modes
   int reuse_inter_intra_mode;

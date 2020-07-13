@@ -114,23 +114,6 @@ typedef struct {
    */
   INTERINTRA_MODE *inter_intra_mode;
   /*!
-   * Indicates if we are in the 1st or 2nd pass of sped up compound
-   * motion mode search. It corresponds to a speed feature that will do a 1st
-   * pass evaluating both single reference modes with SIMPLE_TRANSLATION only,
-   * and then do a 2nd pass to do the full compound search.
-   * 1st pass: Evaluate single ref RD results and rewind to the beginning;
-   * 2nd pass: Continue with compound ref search.
-   */
-  int single_ref_first_pass;
-  /*!
-   * A pointer to the first element in an array of SimpleRDState structs.
-   * Here, a the resulting state of the SIMPLE_TRANSLATION motion mode
-   * search is saved for each mode. This information will later be used
-   * in a speed feature to prune the search for other possible motion mode
-   * types.
-   */
-  SimpleRDState *simple_rd_state;
-  /*!
    * Array of saved interpolation filter stats collected to avoid repeating
    * an interpolation filter search when the mv and ref_frame are the same
    * as a previous search.

@@ -300,27 +300,6 @@ typedef struct {
   int num;
 } TXB_RD_RECORD;
 
-/*! \brief Simple translation rd_stats for prune_comp_search_by_single_result().
- *
- * This is only used by the rd-path of AV1 realtime.
- */
-typedef struct {
-  //! rd_stats for single_ref single_translation.
-  RD_STATS rd_stats;
-  //! Luma rd_stats for single_ref single_translation.
-  RD_STATS rd_stats_y;
-  //! Chroma rd_stats for single_ref single_translation.
-  RD_STATS rd_stats_uv;
-  //! Txfm skip map of the txfm subblocks.
-  uint8_t blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
-  //! Txfm type map of the txfm subblocks.
-  uint8_t tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
-  //! Whether to skip the txfm process.
-  uint8_t skip_txfm;
-  //! Whether simple_ref single_trans result decides to prune the mode.
-  uint8_t early_skipped;
-} SimpleRDState;
-
 //! Number of compound rd stats
 #define MAX_COMP_RD_STATS 64
 /*! \brief Rdcost stats in compound mode.
@@ -1077,14 +1056,6 @@ typedef struct macroblock {
   // TODO(any): try to consolidate this speed feature with winner mode
   // processing.
   struct inter_modes_info *inter_modes_info;
-
-  /*! \brief Store the cost of single ref simple_translation predictor.
-   *
-   * This is used in another 2-pass approach that tries to prune compound mode
-   * by first doing a simple_translational search on single ref modes. This
-   * however does not have good trade-off so it is only used by real-time mode.
-   */
-  SimpleRDState simple_rd_state[SINGLE_REF_MODES][3];
 
   //! How to blend the compound predictions.
   uint8_t compound_idx;
