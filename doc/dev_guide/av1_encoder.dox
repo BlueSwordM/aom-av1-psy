@@ -493,7 +493,17 @@ For more information the reader is directed to the following functions:
 
 \subsection architecture_enc_fixed_q Fixed Q Mode
 
- Add details here.
+There are two main fixed Q cases:
+-# Fixed Q with adaptive qp offsets: same qp offset for each pyramid level
+   in a given video, but these offsets are adaptive based on video content.
+-# Fixed Q with fixed qp offsets: content-independent fixed qp offsets for
+   each pyramid level. (see \ref get_q_using_fixed_offsets()).
+
+The reader is also refered to the following functions:
+- \ref av1_rc_pick_q_and_bounds()
+- \ref rc_pick_q_and_bounds_no_stats_cbr()
+- \ref rc_pick_q_and_bounds_no_stats()
+- \ref rc_pick_q_and_bounds()
 
 \section architecture_enc_src_proc Source Frame Processing
 
