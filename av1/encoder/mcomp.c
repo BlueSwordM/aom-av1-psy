@@ -55,6 +55,26 @@ static INLINE void init_ms_buffers(MSBuffers *ms_buffers, const MACROBLOCK *x) {
   ms_buffers->obmc_mask = x->obmc_buffer.mask;
 }
 
+static AOM_INLINE SEARCH_METHODS
+get_faster_search_method(SEARCH_METHODS search_method) {
+  // Note on search method's accuracy:
+  //  1. NSTEP
+  //  2. DIAMOND
+  //  3. BIGDIA \approx SQUARE
+  //  4. HEX.
+  //  5. FAST_HEX \approx FAST_DIAMOND
+  switch (search_method) {
+    case NSTEP: return DIAMOND;
+    case DIAMOND: return BIGDIA;
+    case BIGDIA: return HEX;
+    case SQUARE: return HEX;
+    case HEX: return FAST_HEX;
+    case FAST_HEX: return FAST_HEX;
+    case FAST_DIAMOND: return FAST_DIAMOND;
+    default: assert(0 && "Invalid search method!"); return DIAMOND;
+  }
+}
+
 void av1_make_default_fullpel_ms_params(FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
                                         const struct AV1_COMP *cpi,
                                         const MACROBLOCK *x, BLOCK_SIZE bsize,
@@ -62,26 +82,35 @@ void av1_make_default_fullpel_ms_params(FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
                                         const search_site_config *search_sites,
                                         int fine_search_interval,
                                         int fast_dia_search_level) {
+  const MV_SPEED_FEATURES *mv_sf = &cpi->sf.mv_sf;
+
   // High level params
   ms_params->bsize = bsize;
   ms_params->vfp = &cpi->fn_ptr[bsize];
 
   init_ms_buffers(&ms_params->ms_buffers, x);
 
-  ms_params->search_method = cpi->sf.mv_sf.search_method;
+  ms_params->search_method = mv_sf->search_method;
+  if (mv_sf->use_bsize_dependent_search_method) {
+    const int min_dim = AOMMIN(block_size_wide[bsize], block_size_high[bsize]);
+    if (min_dim >= 32) {
+      ms_params->search_method =
+          get_faster_search_method(ms_params->search_method);
+    }
+  }
   ms_params->search_sites = search_sites;
 
-  ms_params->mesh_patterns[0] = cpi->sf.mv_sf.mesh_patterns;
-  ms_params->mesh_patterns[1] = cpi->sf.mv_sf.intrabc_mesh_patterns;
-  ms_params->force_mesh_thresh = cpi->sf.mv_sf.exhaustive_searches_thresh;
-  ms_params->prune_mesh_search = cpi->sf.mv_sf.prune_mesh_search;
+  ms_params->mesh_patterns[0] = mv_sf->mesh_patterns;
+  ms_params->mesh_patterns[1] = mv_sf->intrabc_mesh_patterns;
+  ms_params->force_mesh_thresh = mv_sf->exhaustive_searches_thresh;
+  ms_params->prune_mesh_search = mv_sf->prune_mesh_search;
   ms_params->run_mesh_search = 0;
   ms_params->fine_search_interval = fine_search_interval;
   ms_params->fast_dia_search_level = fast_dia_search_level;
 
   ms_params->is_intra_mode = 0;
 
-  ms_params->fast_obmc_search = cpi->sf.mv_sf.obmc_full_pixel_search_level;
+  ms_params->fast_obmc_search = mv_sf->obmc_full_pixel_search_level;
 
   ms_params->mv_limits = x->mv_limits;
   av1_set_mv_search_range(&ms_params->mv_limits, ref_mv);
@@ -991,7 +1020,7 @@ static int bigdia_search_level1(FULLPEL_MV start_mv,
 // passed into this function
 static int pattern_search(
     FULLPEL_MV start_mv, const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
-    const int search_step, const int do_init_search,
+    int search_step, const int do_init_search,
     const int num_candidates[MAX_PATTERN_SCALES],
     const MV candidates[MAX_PATTERN_SCALES][MAX_PATTERN_CANDIDATES],
     int *cost_list, FULLPEL_MV *best_mv) {
@@ -1009,7 +1038,8 @@ static int pattern_search(
   int thissad;
   int k = -1;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
-  assert(search_step < MAX_MVSEARCH_STEPS);
+  search_step = AOMMIN(search_step, MAX_MVSEARCH_STEPS - 1);
+  assert(search_step >= 0);
   int best_init_s = search_steps[search_step];
   // adjust ref_mv to make sure it is within MV range
   clamp_fullmv(&start_mv, &ms_params->mv_limits);
