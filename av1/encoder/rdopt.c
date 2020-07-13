@@ -1194,29 +1194,6 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
   return 0;
 }
 
-// If number of valid neighbours is 1,
-// 1) ROTZOOM parameters can be obtained reliably (2 parameters from
-// one neighbouring MV)
-// 2) For IDENTITY/TRANSLATION cases, warp can perform better due to
-// a different interpolation filter being used. However the quality
-// gains (due to the same) may not be much
-// For above 2 cases warp evaluation is skipped
-
-static int check_if_optimal_warp(const AV1_COMP *cpi,
-                                 WarpedMotionParams *wm_params,
-                                 int num_proj_ref) {
-  int is_valid_warp = 1;
-  if (cpi->sf.inter_sf.prune_warp_using_wmtype) {
-    TransformationType wmtype = get_wmtype(wm_params);
-    if (num_proj_ref == 1) {
-      if (wmtype != ROTZOOM) is_valid_warp = 0;
-    } else {
-      if (wmtype < ROTZOOM) is_valid_warp = 0;
-    }
-  }
-  return is_valid_warp;
-}
-
 static INLINE void update_mode_start_end_index(const AV1_COMP *const cpi,
                                                int *mode_index_start,
                                                int *mode_index_end,
@@ -1454,11 +1431,6 @@ static int64_t motion_mode_rd(
           const WarpedMotionParams wm_params0 = mbmi->wm_params;
           const int num_proj_ref0 = mbmi->num_proj_ref;
 
-          if (cpi->sf.inter_sf.prune_warp_using_wmtype) {
-            TransformationType wmtype = get_wmtype(&mbmi->wm_params);
-            if (wmtype < ROTZOOM) continue;
-          }
-
           const int_mv ref_mv = av1_get_ref_mv(x, 0);
           SUBPEL_MOTION_SEARCH_PARAMS ms_params;
           av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize,
@@ -1480,9 +1452,6 @@ static int64_t motion_mode_rd(
             mbmi->wm_params = wm_params0;
             mbmi->num_proj_ref = num_proj_ref0;
           }
-        } else {
-          if (!check_if_optimal_warp(cpi, &mbmi->wm_params, mbmi->num_proj_ref))
-            continue;
         }
 
         // Build the warped predictor

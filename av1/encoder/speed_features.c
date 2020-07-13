@@ -788,7 +788,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->inter_sf.disable_wedge_interintra_search = 1;
     sf->inter_sf.prune_comp_search_by_single_result = 2;
     sf->inter_sf.prune_motion_mode_level = boosted ? 2 : 3;
-    sf->inter_sf.prune_warp_using_wmtype = 1;
     sf->inter_sf.selective_ref_frame = 4;
 
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
@@ -1045,7 +1044,6 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->enable_interinter_diffwtd_newmv_search = 0;
   inter_sf->disable_smooth_interintra = 0;
   inter_sf->prune_motion_mode_level = 0;
-  inter_sf->prune_warp_using_wmtype = 0;
   inter_sf->disable_wedge_interintra_search = 0;
   inter_sf->fast_interintra_wedge_search = 0;
   inter_sf->prune_comp_type_by_model_rd = 0;

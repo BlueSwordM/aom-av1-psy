@@ -642,10 +642,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Disable obmc.
   int disable_obmc;
 
-  // Gate warp evaluation for motions of type IDENTITY,
-  // TRANSLATION and AFFINE(based on number of warp neighbors)
-  int prune_warp_using_wmtype;
-
   // Prune warped motion search using previous frame stats.
   int prune_warped_prob_thresh;
 
