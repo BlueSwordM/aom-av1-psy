@@ -586,23 +586,6 @@ static void set_good_speed_features_framesize_independent(
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
 
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL2;
-
-    // TODO(any): The following features have no impact on quality and speed,
-    // and are disabled.
-    // sf->part_sf.partition_search_breakout_rate_thr = 300;
-    // sf->interp_sf.disable_filter_search_var_thresh = 200;
-    // sf->rd_sf.use_fast_coef_costing = 1;
-
-    // TODO(any): The following features give really bad quality/speed trade
-    // off. Needs to be re-worked.
-    // sf->inter_sf.adaptive_rd_thresh = 4;
-    // sf->rd_sf.tx_domain_dist_level = 2;
-    // sf->rt_sf.mode_search_skip_flags =
-    //     (cm->current_frame.frame_type == KEY_FRAME)
-    //     ? 0
-    //     : FLAG_SKIP_INTRA_DIRMISMATCH | FLAG_SKIP_INTRA_BESTINTER |
-    //     FLAG_SKIP_COMP_BESTINTRA | FLAG_SKIP_INTRA_LOWVAR |
-    //     FLAG_EARLY_TERMINATE;
   }
 
   if (speed >= 5) {
