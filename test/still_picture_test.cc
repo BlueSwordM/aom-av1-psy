@@ -89,8 +89,8 @@ TEST_P(StillPicturePresenceTestLarge, StillPictureEncodePresenceTest) {
   ASSERT_EQ(still_picture_coding_violated_, false);
 }
 
-AV1_INSTANTIATE_TEST_CASE(StillPicturePresenceTestLarge,
-                          ::testing::Values(::libaom_test::kOnePassGood,
-                                            ::libaom_test::kTwoPassGood),
-                          ::testing::Values(1, 0));
+AV1_INSTANTIATE_TEST_SUITE(StillPicturePresenceTestLarge,
+                           ::testing::Values(::libaom_test::kOnePassGood,
+                                             ::libaom_test::kTwoPassGood),
+                           ::testing::Values(1, 0));
 }  // namespace

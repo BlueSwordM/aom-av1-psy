@@ -136,9 +136,9 @@ TEST_P(UniformTileConfigTestLarge, UniformTileConfigTestLowRes) {
   ASSERT_EQ(tile_config_violated_, false);
 }
 
-AV1_INSTANTIATE_TEST_CASE(UniformTileConfigTestLarge,
-                          ::testing::Values(::libaom_test::kOnePassGood,
-                                            ::libaom_test::kTwoPassGood),
-                          ::testing::ValuesIn(uniformTileConfigParams),
-                          ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
+AV1_INSTANTIATE_TEST_SUITE(UniformTileConfigTestLarge,
+                           ::testing::Values(::libaom_test::kOnePassGood,
+                                             ::libaom_test::kTwoPassGood),
+                           ::testing::ValuesIn(uniformTileConfigParams),
+                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
 }  // namespace
