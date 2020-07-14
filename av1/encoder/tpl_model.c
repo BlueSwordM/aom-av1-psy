@@ -1153,7 +1153,8 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
             (this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta;
       }
     }
-    beta[frame_idx - 1] = (double)mc_dep_cost_base / intra_cost_base;
+    beta[frame_idx - gf_group->arf_index] =
+        (double)mc_dep_cost_base / intra_cost_base;
   }
 
   // Allow larger GOP size if the base layer ARF has higher dependency factor
