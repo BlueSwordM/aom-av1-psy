@@ -96,7 +96,31 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
                                int64_t best_rd_so_far);
 
-// Non-rd version of intra mode selection used in av1 real time mode.
+/*!\brief AV1 intra mode selection based on Non-RD optimized model.
+ *
+ * \ingroup intra_mode_search
+ * \callgraph
+ * \callergraph
+ * Top level function for Non-RD optimized intra mode selection.
+ * This finction will loop over subset of intra modes and select the best one
+ * based on calculated modelled RD cost. Only 4 intra modes are checked as
+ * specified in \c intra_mode_list. When calculating RD cost Hadamard transform
+ * of residual is used to calculate rate. Estmation of RD cost is performed
+ * in \c estimate_block_intra which is called from this function
+ *
+ * \param[in]    cpi            Top-level encoder structure
+ * \param[in]    x              Pointer to structure holding all the data for
+                                the current macroblock
+ * \param[in]    rd_cost        Struct to keep track of the RD information
+ * \param[in]    bsize          Current block size
+ * \param[in]    ctx            Structure to hold snapshot of coding context
+                                during the mode picking process
+ *
+ * \return Nothing is returned. Instead, the MB_MODE_INFO struct inside x
+ * is modified to store information about the best mode computed
+ * in this function. The rd_cost struct is also updated with the RD stats
+ * corresponding to the best mode found.
+ */
 void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
                                BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx);
 

@@ -36,6 +36,7 @@
 #include "av1/encoder/reconinter_enc.h"
 
 extern int g_pick_inter_mode_cnt;
+/*!\cond */
 typedef struct {
   uint8_t *data;
   int stride;
@@ -56,6 +57,7 @@ typedef struct {
   MV_REFERENCE_FRAME ref_frame;
   PREDICTION_MODE pred_mode;
 } REF_MODE;
+/*!\endcond */
 
 static const int pos_shift_16x16[4][4] = {
   { 9, 10, 13, 14 }, { 11, 12, 15, 16 }, { 17, 18, 21, 22 }, { 19, 20, 23, 24 }
@@ -1101,6 +1103,7 @@ static void model_rd_for_sb_uv(AV1_COMP *cpi, BLOCK_SIZE plane_bsize,
   *sse_y = tot_sse;
 }
 
+/*!\cond */
 struct estimate_block_intra_args {
   AV1_COMP *cpi;
   MACROBLOCK *x;
@@ -1108,7 +1111,27 @@ struct estimate_block_intra_args {
   int skippable;
   RD_STATS *rdc;
 };
+/*!\endcond */
 
+/*!\brief Estimation of RD cost of an intra mode for Non-RD optimized case.
+ *
+ * \ingroup intra_mode_search
+ * \callgraph
+ * \callergraph
+ * Calculates RD Cost for an intra mode for a single TX block using Hadamard
+ * transform.
+ * \param[in]    plane          Color plane
+ * \param[in]    block          Index of a TX block in a prediction block
+ * \param[in]    row            Row of a current TX block
+ * \param[in]    col            Column of a current TX block
+ * \param[in]    plane_bsize    Block size of a current prediction block
+ * \param[in]    tx_size        Transform size
+ * \param[in]    arg            Pointer to a structure that holds paramaters
+ *                              for intra mode search
+ *
+ * \return Nothing is returned. Instead, best mode and RD Cost of the best mode
+ * are set in \c args->rdc and \c args->mode
+ */
 static void estimate_block_intra(int plane, int block, int row, int col,
                                  BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
                                  void *arg) {

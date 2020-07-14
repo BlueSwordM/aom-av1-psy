@@ -500,6 +500,29 @@ void av1_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
   }
 }
 
+/*!\brief Hybrid intra mode search.
+ *
+ * \ingroup intra_mode_search
+ * \callgraph
+ * \callergraph
+ * This is top level function for mode srarch for intra frames in non-RD
+ * optimized case. Depending on speed feature, rate control mode and block
+ * size it calls either non-RD or RD optimized intra mode search
+ *
+ * \param[in]    cpi            Top-level encoder structure
+ * \param[in]    x              Pointer to structure holding all the data for
+                                the current macroblock
+ * \param[in]    rd_cost        Struct to keep track of the RD information
+ * \param[in]    bsize          Current block size
+ * \param[in]    ctx            Structure to hold snapshot of coding context
+                                during the mode picking process
+ *
+ * \return Nothing is returned. Instead, the MB_MODE_INFO struct inside x
+ * is modified to store information about the best mode computed
+ * in this function. The rd_cost struct is also updated with the RD stats
+ * corresponding to the best mode found.
+ */
+
 static AOM_INLINE void hybrid_intra_mode_search(AV1_COMP *cpi,
                                                 MACROBLOCK *const x,
                                                 RD_STATS *rd_cost,
