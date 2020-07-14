@@ -2958,7 +2958,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
   // Shown keyframes and switch-frames automatically refreshes all reference
   // frames.  For all other frame types, we need to write refresh_frame_flags.
-  if ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
+  if ((current_frame->frame_type == KEY_FRAME && cpi->no_show_fwd_kf) ||
       current_frame->frame_type == INTER_FRAME ||
       current_frame->frame_type == INTRA_ONLY_FRAME)
     aom_wb_write_literal(wb, current_frame->refresh_frame_flags, REF_FRAMES);
@@ -3867,7 +3867,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   // The TD is now written outside the frame encode loop
 
   // write sequence header obu if KEY_FRAME, preceded by 4-byte size
-  if (cm->current_frame.frame_type == KEY_FRAME && cm->show_frame) {
+  if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
     obu_header_size =
         av1_write_obu_header(level_params, OBU_SEQUENCE_HEADER, 0, data);
 

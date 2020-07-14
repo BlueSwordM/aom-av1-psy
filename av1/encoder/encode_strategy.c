@@ -401,10 +401,11 @@ static struct lookahead_entry *choose_frame_source(
     // no show frames are arf frames
     source =
         av1_lookahead_peek(cpi->lookahead, src_index, cpi->compressor_stage);
-    cpi->rc.source_alt_ref_pending = 0;
+    // clear altref pending if this is not keyframe arf
+    if (src_index) cpi->rc.source_alt_ref_pending = 0;
     // When src_index == rc->frames_to_key, it indicates a fwd_kf
-    if (src_index == cpi->rc.frames_to_key) {
-      cpi->no_show_kf = 1;
+    if (src_index == cpi->rc.frames_to_key && src_index != 0) {
+      cpi->no_show_fwd_kf = 1;
     }
     if (source != NULL) {
       cm->showable_frame = 1;
@@ -671,7 +672,7 @@ int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
 
   const SVC *const svc = &cpi->svc;
   // Switch frames and shown key-frames overwrite all reference slots
-  if ((frame_params->frame_type == KEY_FRAME && frame_params->show_frame) ||
+  if ((frame_params->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) ||
       frame_params->frame_type == S_FRAME)
     return 0xFF;
 
@@ -860,8 +861,13 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       av1_frame_init_quantizer(cpi);
       av1_setup_past_independence(cm);
 
-      if (!frame_params->show_frame) {
+      if (gf_group->index == 0) cm->current_frame.frame_number = 0;
+
+      if (!frame_params->show_frame && cpi->no_show_fwd_kf) {
+        // fwd kf
         arf_src_index = -1 * gf_group->arf_src_offset[gf_group->index];
+      } else if (!frame_params->show_frame) {
+        arf_src_index = 0;
       } else {
         arf_src_index = -1;
       }
@@ -901,7 +907,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   if (frame_params->frame_type == KEY_FRAME) {
     // Don't do tpl for fwd key frames
     allow_tpl = allow_tpl && !cpi->sf.tpl_sf.disable_filtered_key_tpl &&
-                frame_params->show_frame;
+                !cpi->no_show_fwd_kf;
   } else {
     // Do tpl after ARF is filtered, or if no ARF, at the second frame of GF
     // group.

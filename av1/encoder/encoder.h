@@ -1959,7 +1959,7 @@ typedef struct AV1_COMP {
   /*!
    * When set, this flag indicates that the current frame is a forward keyframe.
    */
-  int no_show_kf;
+  int no_show_fwd_kf;
 
   /*!
    * Stores the trellis optimization type at segment level.

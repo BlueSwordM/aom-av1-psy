@@ -2725,7 +2725,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     // If this is an arf frame then we dont want to read the stats file or
     // advance the input pointer as we already have what we need.
     if (update_type == ARF_UPDATE || update_type == INTNL_ARF_UPDATE) {
-      if (cpi->no_show_kf) {
+      if (cpi->no_show_fwd_kf) {
         assert(update_type == ARF_UPDATE);
         frame_params->frame_type = KEY_FRAME;
       } else {
