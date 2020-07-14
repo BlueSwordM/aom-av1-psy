@@ -338,10 +338,6 @@ static int64_t scale_part_thresh_sumdiff(int64_t threshold_base, int speed,
   return threshold_base;
 }
 
-// Set the variance split thresholds for following the block sizes:
-// 0 - threshold_128x128, 1 - threshold_64x64, 2 - threshold_32x32,
-// 3 - vbp_threshold_16x16. 4 - vbp_threshold_8x8 (to split to 4x4 partition) is
-// currently only used on key frame.
 static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
                                           int q, int content_state) {
   AV1_COMMON *const cm = &cpi->common;
@@ -803,10 +799,6 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                                 AOM_PLANE_Y);
 }
 
-// This function chooses partitioning based on the variance between source and
-// reconstructed last, where variance is computed for down-sampled inputs.
-// TODO(kyslov): lot of things. Bring back noise estimation, brush up partition
-// selection and most of all - retune the thresholds
 int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                                       ThreadData *td, MACROBLOCK *x, int mi_row,
                                       int mi_col) {

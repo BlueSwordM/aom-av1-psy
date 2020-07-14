@@ -143,7 +143,8 @@ if(CONFIG_AV1_ENCODER)
       "${AOM_ROOT}/av1/encoder/speed_features.h"
       "${AOM_ROOT}/av1/encoder/svc_layercontext.c"
       "${AOM_ROOT}/av1/encoder/svc_layercontext.h"
-      "${AOM_ROOT}/av1/encoder/tx_search.h")
+      "${AOM_ROOT}/av1/encoder/tx_search.h"
+      "${AOM_ROOT}/av1/encoder/var_based_part.h")
 endif()
 
 if(CONFIG_AV1_DECODER AND CONFIG_AV1_ENCODER)

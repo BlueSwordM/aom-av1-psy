@@ -1141,3 +1141,10 @@ void second_pass(char *stats, size_t stats_len) {
  * @{
  */
 /*! @} - end defgroup SVC */
+/*!\defgroup variance_partition Variance Partition
+ * \ingroup encoder_algo
+ * This module describes variance partition algorithm in AV1.
+ * More details will be added.
+ * @{
+ */
+/*! @} - end defgroup variance_partition */
