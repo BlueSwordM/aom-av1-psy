@@ -13,7 +13,7 @@ of the encoder and find their way around the codebase.
 It stands above and will where necessary link to more detailed function
 level documents.
 
-\section  architecture_gencodecs Generic Block Transform Based Codecs
+\subsection  architecture_gencodecs Generic Block Transform Based Codecs
 
 Most modern video encoders including VP8, H.264, VP9, HEVC and AV1
 (in increasing order of complexity) share a common basic paradigm. This
@@ -35,7 +35,7 @@ loop filtering.
 
 \image html genericcodecflow.png "" width=70%
 
-\section architecture_av1_structure AV1 Structure and Complexity
+\subsection architecture_av1_structure AV1 Structure and Complexity
 
 As previously stated, AV1 adopts the same underlying paradigm as other block
 transform based codecs. However, it is much more complicated than previous
@@ -185,11 +185,34 @@ The following are the main data structures referenced in this section
 - \ref KeyFrameCfg (Keyframe coding configuration parameters)
     - \ref KeyFrameCfg.enable_keyframe_filtering
 
-\subsection architecture_enc_frame_proc_ingest Frame Ingest and Buffering
+\subsection architecture_enc_frame_proc_ingest Frame Ingest / Coding Pipeline
 
- Add details here.
+ To encode a frame, first call \ref av1_receive_raw_frame() to obtain the raw
+ frame data. Then call \ref av1_get_compressed_data() to encode raw frame data
+ into compressed frame data. The main body of \ref av1_get_compressed_data()
+ is \ref av1_encode_strategy(), which determines high-level encode strategy
+ (frame type, frame placement, etc.) and then encodes the frame by calling
+ \ref av1_encode(). In \ref av1_encode(), \ref av1_first_pass() will execute
+ the first_pass of two-pass encoding, while \ref encode_frame_to_data_rate()
+ will perform the final pass for either one-pass or two-pass encoding.
 
-\subsection architecture_enc_frame_proc_tf_overview Temporal Filtering Overview
+ The main body of \ref encode_frame_to_data_rate() is
+ \ref encode_with_recode_loop_and_filter(), which handles encoding before
+ in-loop filters (with recode loops (TODO ref) encode_with_recode_loop(), or
+ without any recode loop \ref encode_without_recode()), followed by in-loop
+ filters (deblocking filters \ref loopfilter_frame(), CDEF filters and
+ restoration filters \ref cdef_restoration_frame()).
+
+ Except for rate/quality control, both encode_with_recode_loop() and
+ \ref encode_without_recode() call \ref av1_encode_frame() to manage the
+ reference frame buffers and \ref encode_frame_internal() to perform the
+ rest of encoding that does not require access to external frames.
+ \ref encode_frame_internal() is the starting point for the partition search
+ (see \ref architecture_enc_partitions).
+
+\subsection architecture_enc_frame_proc_tf Temporal Filtering
+
+\subsubsection architecture_enc_frame_proc_tf_overview Overview
 
 Video codecs exploit the spatial and temporal correlations in video signals to
 achieve compression efficiency. The noise factor in the source signal
@@ -224,7 +247,7 @@ hierarchical ARF based pyramid coding structure. We typically apply denoising
 only on key frame and ARF frames at the highest (and sometimes the second
 highest) layer in the hierarchical coding structure.
 
-\subsection architecture_enc_frame_proc_tf_algo Temporal Filtering Algorithm
+\subsubsection architecture_enc_frame_proc_tf_algo Temporal Filtering Algorithm
 
 Our method divides the current frame into "MxM" blocks. For each block, a
 motion search is applied on frames before and after the current frame. Only
@@ -266,7 +289,7 @@ where:
 
 It is recommended that the reader refers to the code for more details.
 
-\subsection architecture_enc_frame_proc_tf_funcs Main Functions
+\subsubsection architecture_enc_frame_proc_tf_funcs Temporal Filter Functions
 
 The main entry point for temporal filtering is (TODO REF)
 av1_temporal_filter(). This function returns 1 if temporal filtering is
@@ -943,7 +966,30 @@ frame, a propagation step is run for each MB. it operates as follows:
 
 \section architecture_enc_partitions Block Partition Search
 
- Add details here.
+ A frame is first split into tiles in \ref encode_tiles(), with each tile
+ compressed by av1_encode_tile(). Then a tile is processed in superblock rows
+ via \ref av1_encode_sb_row() and then \ref encode_sb_row().
+
+ The partition search processes superblocks sequentially in \ref
+ encode_sb_row(). Two search modes are supported, depending upon the encoding
+ configuration, \ref encode_nonrd_sb() is for 1-pass and real-time modes,
+ while \ref encode_rd_sb() performs more exhaustive rate distortion based
+ searches.
+
+ Partition search over the recursive quad-tree space is implemented by
+ recursive calls to \ref av1_nonrd_use_partition(),
+ \ref av1_rd_use_partition(), or av1_rd_pick_partition() and returning best
+ options for sub-trees to their parent partitions.
+
+ In libaom, partition search lays on top of mode search (predictor, transform,
+ etc.) instead of being a separate module, the interface of mode search is
+ \ref pick_sb_modes(), which connects the partition_search with
+ \ref inter_mode_search and \ref intra_mode_search. To make good decisions,
+ reconstruction is also required in order to build references and contexts.
+ This is implemented by \ref encode_sb() at the sub-tree level and
+ \ref encode_b() at coding block level.
+
+ See also \ref partition_search
 
 \section architecture_enc_inter_modes Inter Prediction Mode Search
 
@@ -986,32 +1032,6 @@ frame, a propagation step is run for each MB. it operates as follows:
  * This module describes sequence level/frame level algorithm in AV1.
  * More details will be added.
  * @{
- */
-
- /*!\defgroup frame_coding_pipeline Frame Coding Pipeline
-    \ingroup high_level_algo
-
- To encode a frame, first call \ref av1_receive_raw_frame() to obtain the raw
- frame data. Then call \ref av1_get_compressed_data() to encode raw frame data
- into compressed frame data. The main body of \ref av1_get_compressed_data()
- is \ref av1_encode_strategy(), which determines high-level encode strategy
- (frame type, frame placement, etc.) and then encodes the frame by calling
- \ref av1_encode(). In \ref av1_encode(), \ref av1_first_pass() will execute
- the first_pass of two-pass encoding, while \ref encode_frame_to_data_rate()
- will perform the final pass for either one-pass or two-pass encoding.
-
- The main body of \ref encode_frame_to_data_rate() is
- \ref encode_with_recode_loop_and_filter(), which handles encoding before
- in-loop filters (with recode loops encode_with_recode_loop(), or without
- any recode loop \ref encode_without_recode()), followed by in-loop filters
- (deblocking filters \ref loopfilter_frame(), CDEF filters and restoration
- filters \ref cdef_restoration_frame()).
-
- Except for rate/quality control, both encode_with_recode_loop() and
- \ref encode_without_recode() call \ref av1_encode_frame() to manage reference
- frame buffers and to perform the rest of encoding that does not require
- operating external frames by \ref encode_frame_internal(), which is the
- starting point of \ref partition_search.
  */
 
  /*!\defgroup two_pass_algo Two Pass Mode
@@ -1170,28 +1190,9 @@ void second_pass(char *stats, size_t stats_len) {
 
 /*!\defgroup partition_search Partition Search
  * \ingroup encoder_algo
- A frame is first split into tiles in \ref encode_tiles(), with each tile
- compressed by av1_encode_tile(). Then a tile is processed in superblock rows
- via \ref av1_encode_sb_row() and then \ref encode_sb_row().
 
- Partition search starts by superblocks that are sequentially processed in
- \ref encode_sb_row(). For a superblock, two search modes are supported
- corresponding to the encoding configurations, \ref encode_nonrd_sb() is for
- 1-pass and real-time modes, while \ref encode_rd_sb() performs more
- exhaustive searches.
+For and overview of the partition search see \ref architecture_enc_partitions
 
- Partition search over the recursive quad-tree space is implemented by
- recursively calling \ref av1_nonrd_use_partition(), \ref av1_rd_use_partition(), or
- av1_rd_pick_partition() and returning best options for sub-trees to their
- parent partitions.
-
- In libaom, partition search lays on top of mode search (predictor, transform,
- etc.) instead of being a separate module, the interface of mode search is
- \ref pick_sb_modes(), which connects \ref partition_search with
- \ref inter_mode_search and \ref intra_mode_search. To make good decisions,
- reconstruction is also required in order to build references and contexts, it
- is implemented by \ref encode_sb() at sub-tree level and \ref encode_b() at
- coding block level.
  * @{
  */
 /*! @} - end defgroup partition_search */
