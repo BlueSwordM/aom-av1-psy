@@ -353,33 +353,59 @@ typedef struct {
   bool enable_superres;
 } SuperResCfg;
 
-/*!\cond */
-
+/*!
+ * \brief Encoder config related to the coding of key frames.
+ */
 typedef struct {
-  // Indicates the minimum distance to a key frame.
+  /*!
+   * Indicates the minimum distance to a key frame.
+   */
   int key_freq_min;
-  // Indicates the maximum distance to a key frame.
+
+  /*!
+   * Indicates the maximum distance to a key frame.
+   */
   int key_freq_max;
-  // Indicates if temporal filtering should be applied on keyframe.
+
+  /*!
+   * Indicates if temporal filtering should be applied on keyframe.
+   */
   int enable_keyframe_filtering;
-  // Indicates the number of frames after which a frame may be coded as an
-  // S-Frame.
+
+  /*!
+   * Indicates the number of frames after which a frame may be coded as an
+   * S-Frame.
+   */
   int sframe_dist;
-  // Indicates how an S-Frame should be inserted.
-  // 1: the considered frame will be made into an S-Frame only if it is an
-  // altref frame. 2: the next altref frame will be made into an S-Frame.
+
+  /*!
+   * Indicates how an S-Frame should be inserted.
+   * 1: the considered frame will be made into an S-Frame only if it is an
+   * altref frame. 2: the next altref frame will be made into an S-Frame.
+   */
   int sframe_mode;
-  // Indicates if encoder should autodetect cut scenes and set the keyframes.
+
+  /*!
+   * Indicates if encoder should autodetect cut scenes and set the keyframes.
+   */
   bool auto_key;
-  // Indicates if forward keyframe reference should be enabled.
+
+  /*!
+   * Indicates if forward keyframe reference should be enabled.
+   */
   bool fwd_kf_enabled;
-  // Indicates if S-Frames should be enabled for the sequence.
+
+  /*!
+   * Indicates if S-Frames should be enabled for the sequence.
+   */
   bool enable_sframe;
-  // Indicates if intra block copy prediction mode should be enabled or not.
+
+  /*!
+   * Indicates if intra block copy prediction mode should be enabled or not.
+   */
   bool enable_intrabc;
 } KeyFrameCfg;
 
-/*!\endcond */
 /*!
  * \brief Encoder rate control configuration parameters
  */
@@ -679,30 +705,55 @@ typedef struct {
   bool using_qm;
 } QuantizationCfg;
 
+/*!\endcond */
+/*!
+ * \brief Algorithm configuration parameters.
+ */
 typedef struct {
-  // Indicates the loop filter sharpness.
+  /*!
+   * Indicates the loop filter sharpness.
+   */
   int sharpness;
-  // Indicates the trellis optimization mode of quantized coefficients.
-  // 0: disabled
-  // 1: enabled
-  // 2: enabled for rd search
-  // 3: true for estimate yrd search
+
+  /*!
+   * Indicates the trellis optimization mode of quantized coefficients.
+   * 0: disabled
+   * 1: enabled
+   * 2: enabled for rd search
+   * 3: true for estimate yrd search
+   */
   int disable_trellis_quant;
-  // Indicates the maximum number of frames to create arf.
+
+  /*!
+   * The maximum number of frames used to create an arf.
+   */
   int arnr_max_frames;
-  // Indicates the temporal filter strength for arf.
+
+  /*!
+   * The temporal filter strength for arf used when creating ARFs.
+   */
   int arnr_strength;
-  // Indicates the CDF update mode
-  // 0: no update
-  // 1: update on every frame(default)
-  // 2: selectively update
+
+  /*!
+   * Indicates the CDF update mode
+   * 0: no update
+   * 1: update on every frame(default)
+   * 2: selectively update
+   */
   uint8_t cdf_update_mode;
-  // Indicates if RDO based on frame temporal dependency should be enabled.
+
+  /*!
+   * Indicates if RDO based on frame temporal dependency should be enabled.
+   */
   bool enable_tpl_model;
-  // Indicates if coding of overlay frames for filtered ALTREF frames is
-  // enabled.
+
+  /*!
+   * Indicates if coding of overlay frames for filtered ALTREF frames is
+   * enabled.
+   */
   bool enable_overlay;
 } AlgoCfg;
+/*!\cond */
 
 typedef struct {
   // Indicates the codec bit-depth.
@@ -754,13 +805,17 @@ typedef struct AV1EncoderConfig {
   // Configuration related to frame-dimensions.
   FrameDimensionCfg frm_dim_cfg;
 
-  // Configuration related to encoder algorithm.
+  /*!\endcond */
+  /*!
+   * Encoder algorithm configuration.
+   */
   AlgoCfg algo_cfg;
 
-  // Configuration related to key-frame.
+  /*!
+   * Configuration related to key-frames.
+   */
   KeyFrameCfg kf_cfg;
 
-  /*!\endcond */
   /*!
    * Rate control configuration
    */

@@ -103,8 +103,9 @@ The following are the main high level data structures used by the libaom AV1
 encoder and referenced elsewhere in this overview document:
 
 - \ref AV1_COMP
-    - \ref AV1_COMP.rc (\ref RATE_CONTROL)
     - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
+    - \ref AV1_COMP.alt_ref_buffer ((TODO REF) YV12_BUFFER_CONFIG)
+    - \ref AV1_COMP.rc (\ref RATE_CONTROL)
     - \ref AV1_COMP.twopass (\ref TWO_PASS)
     - \ref AV1_COMP.gf_group (\ref GF_GROUP)
     - \ref AV1_COMP.speed
@@ -113,8 +114,16 @@ encoder and referenced elsewhere in this overview document:
 
 - \ref AV1EncoderConfig (Encoder configuration parameters)
     - \ref AV1EncoderConfig.pass
+    - \ref AV1EncoderConfig.algo_cfg (\ref AlgoCfg)
     - \ref AV1EncoderConfig.rc_cfg (\ref RateControlCfg)
     - \ref AV1EncoderConfig.two_pass_cfg (\ref TwoPassCfg)
+
+- \ref AlgoCfg (Algorithm related configuration parameters)
+    - \ref AlgoCfg.arnr_max_frames
+    - \ref AlgoCfg.arnr_strength
+
+- \ref KeyFrameCfg (Keyframe coding configuration parameters)
+    - \ref KeyFrameCfg.enable_keyframe_filtering
 
 - \ref RateControlCfg (Rate control configuration)
     - \ref RateControlCfg.mode
@@ -153,6 +162,144 @@ encoder and referenced elsewhere in this overview document:
 - \ref HIGH_LEVEL_SPEED_FEATURES
     - \ref HIGH_LEVEL_SPEED_FEATURES.recode_loop
     - \ref HIGH_LEVEL_SPEED_FEATURES.recode_tolerance
+
+\section architecture_enc_src_proc Source Frame Processing
+
+\subsection architecture_enc_frame_proc_data Main Data Structures
+
+The following are the main data structures referenced in this section
+(see also \ref architecture_enc_data_structures):
+
+- \ref AV1_COMP cpi (the main compressor instance data structure)
+    - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
+    - \ref AV1_COMP.alt_ref_buffer ((TODO REF) YV12_BUFFER_CONFIG)
+
+- \ref AV1EncoderConfig (Encoder configuration parameters)
+    - \ref AV1EncoderConfig.algo_cfg (\ref AlgoCfg)
+    - \ref AV1EncoderConfig.kf_cfg (\ref KeyFrameCfg)
+
+- \ref AlgoCfg (Algorithm related configuration parameters)
+    - \ref AlgoCfg.arnr_max_frames
+    - \ref AlgoCfg.arnr_strength
+
+- \ref KeyFrameCfg (Keyframe coding configuration parameters)
+    - \ref KeyFrameCfg.enable_keyframe_filtering
+
+\subsection architecture_enc_frame_proc_ingest Frame Ingest and Buffering
+
+ Add details here.
+
+\subsection architecture_enc_frame_proc_tf_overview Temporal Filtering Overview
+
+Video codecs exploit the spatial and temporal correlations in video signals to
+achieve compression efficiency. The noise factor in the source signal
+attenuates such correlation and impedes the codec performance. Denoising the
+video signal is potentially a promising solution.
+
+One strategy for denoising a source is motion compensated temporal filtering.
+Unlike image denoising, where only the spatial information is available,
+video denoising can leverage a combination of the spatial and temporal
+information. Specifically, in the temporal domain, similar pixels can often be
+tracked along the motion trajectory of moving objects. Motion estimation is
+applied to neighboring frames to find similar patches or blocks of pixels that
+can be combined to create a temporally filtered output.
+
+AV1, in common with VP8 and VP9, uses an in-loop motion compensated temporal
+filter to generate what are referred to as alternate reference frames (or ARF
+frames). These can be encoded in the bitstream and stored as frame buffers for
+use in the prediction of subsequent frames, but are not usually directly
+displayed (hence they are sometimes referred to as non-display frames).
+
+The following command line parameters set the strength of the filter, the
+number of frames used and determine whether filtering is allowed for key
+frames.
+
+- <b>--arnr-strength</b> (\ref AlgoCfg.arnr_strength)
+- <b>--arnr-maxframes</b> (\ref AlgoCfg.arnr_max_frames)
+- <b>--enable-keyframe-filtering</b>
+  (\ref KeyFrameCfg.enable_keyframe_filtering)
+
+Note that in AV1, the temporal filtering scheme is designed around the
+hierarchical ARF based pyramid coding structure. We typically apply denoising
+only on key frame and ARF frames at the highest (and sometimes the second
+highest) layer in the hierarchical coding structure.
+
+\subsection architecture_enc_frame_proc_tf_algo Temporal Filtering Algorithm
+
+Our method divides the current frame into "MxM" blocks. For each block, a
+motion search is applied on frames before and after the current frame. Only
+the best matching patch with the smallest mean square error (MSE) is kept as a
+candidate patch for a neighbour frame. The current block is also a candidate
+patch. A total of N candidate patches are combined to generate the filtered
+output.
+
+Let f(i) represent the filtered sample value and \f$p_{j}(i)\f$ the sample
+value of the j-th patch. The filtering process is:
+
+\f[
+  f(i) = \frac{p_{0}(i) + \sum_{j=1}^{N} &omega;_{j}(i).p_{j}(i)}
+              {1 + \sum_{j=1}^{N} &omega;_{j}(i)}
+\f]
+
+where \f$ &omega;_{j}(i) \f$ is the weight of the j-th patch from a total of
+N patches. The weight is determined by the patch difference as:
+
+\f[
+  &omega;_{j}(i) = exp(-\frac{D_{j}(i)}{h^2})
+\f]
+
+where \f$ D_{j}(i) \f$ is the sum of squared difference between the current
+block and the j-th candidate patch:
+
+\f[
+  D_{j}(i) = \sum_{k\in&Omega;_{i}}||p_{0}(k) - p_{j}(k)||_{2}
+\f]
+
+where:
+- \f$p_{0}\f$ refers to the current frame.
+- \f$&Omega;_{i}\f$ is the patch window, an "LxL" pixel square.
+- h is a critical parameter that controls the decay of the weights measured by
+  the Euclidean distance. It is derived from an estimate of noise amplitude in
+  the source. This allows the filter coefficients to adapt for videos with
+  different noise characteristics.
+- Usually, M = 32, N = 7, and L = 5, but they can be adjusted.
+
+It is recommended that the reader refers to the code for more details.
+
+\subsection architecture_enc_frame_proc_tf_funcs Main Functions
+
+The main entry point for temporal filtering is (TODO REF)
+av1_temporal_filter(). This function returns 1 if temporal filtering is
+successful, otherwise 0. When temporal filtering is applied, the filtered
+frame will be held in the frame buffer \ref AV1_COMP.alt_ref_buffer, which is
+the frame to be encoded in the following encoding process.
+
+Almost all temporal filter related code is in av1/encoder/temporal_filter.c
+and av1/encoder/temporal_filter.h.
+
+Inside (TODO REF)av1_temporal_filter(), the reader's attention is directed to
+(TODO REF)tf_setup_filtering_buffer() and (TODO REF) tf_do_filtering().
+
+- (TODO REF)tf_setup_filtering_buffer(): sets up the frame buffer for
+  temporal filtering, determines the number of frames to be used, and
+  calculates the noise level of each frame.
+
+- (TODO REF) tf_do_filtering(): the main function for the temporal
+  filtering algorithm. It breaks each frame into MxM blocks. For each
+  block a motion search (TODO REF) tf_motion_search() is applied to find
+  the motion vector from one neighboring frame. (TODO REF)
+  tf_build_predictor() is then called to build the matching patch.
+  (TODO REF) av1_apply_temporal_filter() is then used to apply temporal
+  filtering. The weighted average over each pixel is accumulated and finally
+  normalized in (TODO REF) tf_normalize_filtered_frame() to generate the final
+  filtered frame.
+
+- (TODO REF) av1_apply_temporal_filter(): the core function of our temporal
+  filtering algorithm.
+
+\subsection architecture_enc_frame_proc_film Film Grain Modelling
+
+ Add details here.
 
 \section architecture_enc_use_cases Encoder Use Cases
 
@@ -504,10 +651,6 @@ The reader is also refered to the following functions:
 - \ref rc_pick_q_and_bounds_no_stats_cbr()
 - \ref rc_pick_q_and_bounds_no_stats()
 - \ref rc_pick_q_and_bounds()
-
-\section architecture_enc_src_proc Source Frame Processing
-
- Add details here.
 
 \section architecture_enc_frame_groups GF/ ARF Frame Groups & Hierarchical Coding
 
