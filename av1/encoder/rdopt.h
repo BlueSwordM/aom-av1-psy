@@ -100,7 +100,35 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
                                BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx);
 
-// Non-rd version of inter mode selection used in av1 real time mode.
+/*!\brief AV1 inter mode selection based on Non-RD optimized model.
+ *
+ * \ingroup inter_mode_search
+ * \callgraph
+ * Top level function for Non-RD optimized inter mode selection.
+ * This finction will loop over subset of inter modes and select the best one
+ * based on calculated modelled RD cost. While making decisions which modes to
+ * check, this function applies heuristics based on previously checked modes,
+ * block residual variance, block size, and other factors to prune certain
+ * modes and reference frames. Currently only single reference frame modes
+ * are checked. Additional heuristics are applied to decide if intra modes
+ *  need to be checked.
+ *  *
+ * \param[in]    cpi            Top-level encoder structure
+ * \param[in]    tile_data      Pointer to struct holding adaptive
+                                data/contexts/models for the tile during
+                                encoding
+ * \param[in]    x              Pointer to structure holding all the data for
+                                the current macroblock
+ * \param[in]    rd_cost        Struct to keep track of the RD information
+ * \param[in]    bsize          Current block size
+ * \param[in]    ctx            Structure to hold snapshot of coding context
+                                during the mode picking process
+ *
+ * \return Nothing is returned. Instead, the MB_MODE_INFO struct inside x
+ * is modified to store information about the best mode computed
+ * in this function. The rd_cost struct is also updated with the RD stats
+ * corresponding to the best mode found.
+ */
 void av1_nonrd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                   struct TileDataEnc *tile_data,
                                   struct macroblock *x,

@@ -1788,7 +1788,38 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                                       av1_ref_frame_type(xd->mi[0]->ref_frame));
   x->rdmult = origin_mult;
 }
-
+/*!\brief Top level function to pick block mode for non-RD optimized case
+ *
+ * \ingroup partition_search
+ * \callgraph
+ * \callergraph
+ * Searches prediction modes, transform, and coefficient coding modes for an
+ * individual coding block. This function is the top-level function that is
+ * used for non-RD optimized mode search (controlled by
+ * \c cpi->sf.rt_sf.use_nonrd_pick_mode). Depending on frame type it calls
+ * inter/skip/hybrid-intra mode search functions
+ *
+ * \param[in]    cpi            Top-level encoder structure
+ * \param[in]    tile_data      Pointer to struct holding adaptive
+ *                              data/contexts/models for the tile during
+ *                              encoding
+ * \param[in]    x              Pointer to structure holding all the data for
+ *                              the current macroblock
+ * \param[in]    mi_row         Row coordinate of the block in a step size of
+ *                              MI_SIZE
+ * \param[in]    mi_col         Column coordinate of the block in a step size of
+ *                              MI_SIZE
+ * \param[in]    rd_cost        Pointer to structure holding rate and distortion
+ *                              stats for the current block
+ * \param[in]    bsize          Current block size
+ * \param[in]    ctx            Pointer to structure holding coding contexts and
+ *                              chosen modes for the current block
+ *
+ * \return Nothing is returned. Instead, the chosen modes and contexts necessary
+ * for reconstruction are stored in ctx, the rate-distortion stats are stored in
+ * rd_cost. If no valid mode leading to rd_cost <= best_rd, the status will be
+ * signalled by an INT64_MAX rd_cost->rdcost.
+ */
 static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
                                 MACROBLOCK *const x, int mi_row, int mi_col,
                                 RD_STATS *rd_cost, BLOCK_SIZE bsize,
@@ -1870,6 +1901,8 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
 /*!\brief AV1 block partition application (minimal RD search).
 *
 * \ingroup partition_search
+* \callgraph
+* \callergraph
 * Encode the block by applying pre-calculated partition patterns that are
 * represented by coding block sizes stored in the mbmi array. The only
 * partition adjustment allowed is merging leaf split nodes if it leads to a
