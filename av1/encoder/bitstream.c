@@ -2958,7 +2958,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
   // Shown keyframes and switch-frames automatically refreshes all reference
   // frames.  For all other frame types, we need to write refresh_frame_flags.
-  if ((current_frame->frame_type == KEY_FRAME && cpi->no_show_fwd_kf) ||
+  if ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
       current_frame->frame_type == INTER_FRAME ||
       current_frame->frame_type == INTRA_ONLY_FRAME)
     aom_wb_write_literal(wb, current_frame->refresh_frame_flags, REF_FRAMES);

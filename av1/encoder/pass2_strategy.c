@@ -2783,7 +2783,12 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   av1_zero(this_frame);
   // call above fn
   if (is_stat_consumption_stage(cpi)) {
-    process_first_pass_stats(cpi, &this_frame);
+    // Do not read if it is overlay for kf arf, since kf already
+    // advanced the first pass stats pointer
+    if (!av1_check_keyframe_overlay(gf_group->index, gf_group,
+                                    rc->frames_since_key)) {
+      process_first_pass_stats(cpi, &this_frame);
+    }
   } else {
     rc->active_worst_quality = oxcf->rc_cfg.cq_level;
   }

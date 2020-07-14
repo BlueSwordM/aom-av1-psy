@@ -63,7 +63,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 // refresh_*_frame flags to be set, because we refresh all buffers in this case.
 void av1_configure_buffer_updates(
     AV1_COMP *const cpi, RefreshFrameFlagsInfo *const refresh_frame_flags,
-    const FRAME_UPDATE_TYPE type, int force_refresh_all);
+    const FRAME_UPDATE_TYPE type, const FRAME_TYPE frame_type,
+    int force_refresh_all);
 
 int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
                                 const EncodeFrameParams *const frame_params,
@@ -74,7 +75,8 @@ int av1_get_refresh_ref_frame_map(int refresh_frame_flags);
 
 void av1_update_ref_frame_map(AV1_COMP *cpi,
                               FRAME_UPDATE_TYPE frame_update_type,
-                              int show_existing_frame, int ref_map_index,
+                              FRAME_TYPE frame_type, int show_existing_frame,
+                              int ref_map_index,
                               RefBufferStack *ref_buffer_stack);
 
 void av1_get_ref_frames(AV1_COMP *const cpi, RefBufferStack *ref_buffer_stack);
@@ -82,6 +84,11 @@ void av1_get_ref_frames(AV1_COMP *const cpi, RefBufferStack *ref_buffer_stack);
 int is_forced_keyframe_pending(struct lookahead_ctx *lookahead,
                                const int up_to_index,
                                const COMPRESSOR_STAGE compressor_stage);
+
+int av1_check_keyframe_arf(int gf_index, GF_GROUP *gf_group,
+                           int frame_since_key);
+int av1_check_keyframe_overlay(int gf_index, GF_GROUP *gf_group,
+                               int frame_since_key);
 /*!\endcond */
 #ifdef __cplusplus
 }  // extern "C"
