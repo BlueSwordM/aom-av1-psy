@@ -568,13 +568,13 @@ In summary the second pass code :-
 
 The main two pass functions in regard to the above include:-
 
-- (TODO REF) find_next_key_frame()
+- \ref find_next_key_frame()
 - \ref define_gf_group()
-- (TODO REF) calculate_total_gf_group_bits()
-- (TODO REF) get_twopass_worst_quality()
-- (TODO REF) av1_gop_setup_structure()
-- (TODO REF) av1_gop_bit_allocation()
-- (TODO REF) av1_twopass_postencode_update()
+- \ref calculate_total_gf_group_bits()
+- \ref get_twopass_worst_quality()
+- \ref av1_gop_setup_structure()
+- \ref av1_gop_bit_allocation()
+- \ref av1_twopass_postencode_update()
 
 For each frame, the two pass algorithm defines a target number of bits
 \ref RATE_CONTROL.base_frame_target,  which is then adjusted if necessary to
@@ -633,7 +633,7 @@ time, for the two pass encoding pipeline are:
         - (TODO REF) get_rate_correction_factor()
         - (TODO REF) find_closest_qindex_by_rate()
 
-- (TODO REF) av1_twopass_postencode_update()
+- \ref av1_twopass_postencode_update()
     - (TODO REF) av1_rc_update_rate_correction_factors()
 
 A second mechanism for control comes into play if there is a large rate miss
@@ -808,7 +808,7 @@ properties of the GF group. The values of \ref RATE_CONTROL.cur_gf_index,
 \ref RATE_CONTROL.intervals_till_gf_calculate_due and
 \ref RATE_CONTROL.frames_till_gf_update_due are also updated accordingly.
 
-The function (TODO REF) av1_gop_setup_structure() is called at the end to
+The function \ref av1_gop_setup_structure() is called at the end to
 determine the frame layers and reference maps in the GF group, as shown in
 [TODO BohalLi@]. The (TODO REF) construct_multi_layer_gf_structure()
 function sets the frame update types for each frame and the group structure.
