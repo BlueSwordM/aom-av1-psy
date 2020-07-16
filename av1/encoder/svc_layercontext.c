@@ -173,7 +173,7 @@ void av1_restore_layer_context(AV1_COMP *const cpi) {
   // Restore layer rate control.
   cpi->rc = lc->rc;
   cpi->oxcf.rc_cfg.target_bandwidth = lc->target_bandwidth;
-  gf_group->index = lc->group_index;
+  gf_group->index = 0;
   // Reset the frames_since_key and frames_to_key counters to their values
   // before the layer restore. Keep these defined for the stream (not layer).
   cpi->rc.frames_since_key = old_frame_since_key;

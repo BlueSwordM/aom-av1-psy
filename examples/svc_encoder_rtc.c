@@ -281,9 +281,10 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
   }
   switch (layering_mode) {
     case 0:
-      // 1-layer: update LAST on every frame, reference LAST and GF.
+      // 1-layer: update LAST on every frame, reference LAST.
       layer_id->temporal_layer_id = 0;
       ref_frame_config->refresh[0] = 1;
+      ref_frame_config->reference[SVC_LAST_FRAME] = 1;
       break;
     case 1:
       // 2-temporal layer.
@@ -291,8 +292,9 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
       //  0    2    4
       if (superframe_cnt % 2 == 0) {
         layer_id->temporal_layer_id = 0;
-        // Update LAST on layer 0, reference LAST and GF.
+        // Update LAST on layer 0, reference LAST.
         ref_frame_config->refresh[0] = 1;
+        ref_frame_config->reference[SVC_LAST_FRAME] = 1;
       } else {
         layer_id->temporal_layer_id = 1;
         // No updates on layer 1, only reference LAST (TL0).
@@ -307,8 +309,9 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
       if (superframe_cnt % 4 == 0) {
         // Base layer.
         layer_id->temporal_layer_id = 0;
-        // Update LAST on layer 0, reference LAST and GF.
+        // Update LAST on layer 0, reference LAST.
         ref_frame_config->refresh[0] = 1;
+        ref_frame_config->reference[SVC_LAST_FRAME] = 1;
       } else if ((superframe_cnt - 1) % 4 == 0) {
         layer_id->temporal_layer_id = 2;
         // First top layer: no updates, only reference LAST (TL0).
