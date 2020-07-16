@@ -41,10 +41,6 @@ extern "C" {
 // The maximum duration of a GF group that is static (e.g. a slide show).
 #define MAX_STATIC_GF_GROUP_LENGTH 250
 
-// Minimum and maximum height for the new pyramid structure.
-// (Old structure supports height = 1, but does NOT support height = 4).
-#define MIN_PYRAMID_LVL 0
-
 #define MIN_GF_INTERVAL 4
 #define MAX_GF_INTERVAL 32
 #define FIXED_GF_INTERVAL 8  // Used in some testing modes only

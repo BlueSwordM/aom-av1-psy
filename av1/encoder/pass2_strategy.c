@@ -1609,7 +1609,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   init_gf_stats(&gf_stats);
   GF_FRAME_STATS first_frame_stats, last_frame_stats;
 
-  const int can_disable_arf = (gf_cfg->gf_min_pyr_height == MIN_PYRAMID_LVL);
+  const int can_disable_arf = !gf_cfg->gf_min_pyr_height;
 
   // Load stats for the current frame.
   double mod_frame_err =
@@ -1686,8 +1686,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   //   avg_sr_coded_error:      average of the SSE per pixel of each frame;
   //   avg_raw_err_stdev:       average of the standard deviation of (0,0)
   //                            motion error per block of each frame.
-  const int can_disable_internal_arfs =
-      (gf_cfg->gf_min_pyr_height <= MIN_PYRAMID_LVL + 1);
+  const int can_disable_internal_arfs = gf_cfg->gf_min_pyr_height <= 1;
   if (can_disable_internal_arfs &&
       gf_stats.zero_motion_accumulator > MIN_ZERO_MOTION &&
       gf_stats.avg_sr_coded_error / num_mbs < MAX_SR_CODED_ERROR &&
@@ -1701,7 +1700,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
         !is_almost_static(gf_stats.zero_motion_accumulator,
                           twopass->kf_zeromotion_pct, cpi->lap_enabled) &&
         rc->use_arf_in_this_kf_group && (i < gf_cfg->lag_in_frames) &&
-        (i >= MIN_GF_INTERVAL) && (gf_cfg->gf_max_pyr_height > MIN_PYRAMID_LVL);
+        (i >= MIN_GF_INTERVAL);
 
     // TODO(urvang): Improve and use model for VBR, CQ etc as well.
     if (use_alt_ref && rc_cfg->mode == AOM_Q && rc_cfg->cq_level <= 200) {
@@ -1716,7 +1715,6 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
       use_alt_ref = (score <= 0.0);
     }
   } else {
-    assert(gf_cfg->gf_max_pyr_height > MIN_PYRAMID_LVL);
     use_alt_ref =
         rc->use_arf_in_this_kf_group && (i < gf_cfg->lag_in_frames) && (i > 2);
   }
