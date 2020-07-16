@@ -340,10 +340,22 @@ void av1_rc_postencode_update(struct AV1_COMP *cpi, uint64_t bytes_used);
 // Post encode update of the rate control parameters for dropped frames
 void av1_rc_postencode_update_drop_frame(struct AV1_COMP *cpi);
 
-// Updates rate correction factors
-// Changes only the rate correction factors in the rate control structure.
+/*!\endcond */
+/*!\brief Updates the rate correction factor linking Q to output bits
+ *
+ * This function updates the Q rate correction factor after an encode
+ * cycle depending on whether we overshot or undershot the target rate.
+ *
+ * \ingroup rate_control
+ * \param[in]   cpi                   Top level encoder instance structure
+ * \param[in]   width                 Frame width
+ * \param[in]   height                Frame height
+ *
+ * \return None but updates the relevant rate correction factor in cpi->rc
+ */
 void av1_rc_update_rate_correction_factors(struct AV1_COMP *cpi, int width,
                                            int height);
+/*!\cond */
 
 // Decide if we should drop this frame: For 1-pass CBR.
 // Changes only the decimation count in the rate control structure
@@ -374,13 +386,23 @@ int av1_rc_pick_q_and_bounds(const struct AV1_COMP *cpi, RATE_CONTROL *rc,
                              int width, int height, int gf_index,
                              int *bottom_index, int *top_index);
 
-/*!\cond */
-
-// Estimates q to achieve a target bits per frame
+/*!\brief Estimates q to achieve a target bits per frame
+ *
+ * \ingroup rate_control
+ * \param[in]   cpi                   Top level encoder instance structure
+ * \param[in]   target_bits_per_frame Frame rate target
+ * \param[in]   active_worst_quality  Max Q allowed
+ * \param[in]   active_best_quality   Min Q allowed
+ * \param[in]   width                 Frame width
+ * \param[in]   height                Frame height
+ *
+ * \return Returns a q index value
+ */
 int av1_rc_regulate_q(const struct AV1_COMP *cpi, int target_bits_per_frame,
                       int active_best_quality, int active_worst_quality,
                       int width, int height);
 
+/*!\cond */
 // Estimates bits per mb for a given qindex and correction factor.
 int av1_rc_bits_per_mb(FRAME_TYPE frame_type, int qindex,
                        double correction_factor, aom_bit_depth_t bit_depth,

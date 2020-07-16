@@ -436,6 +436,19 @@ static RATE_FACTOR_LEVEL get_rate_factor_level(const GF_GROUP *const gf_group) {
   return rate_factor_levels[update_type];
 }
 
+/*!\brief Gets a rate vs Q correction factor
+ *
+ * This function returns the current value of a correction factor used to
+ * dynamilcally adjust the relationship between Q and the expected number
+ * of bits for the frame.
+ *
+ * \ingroup rate_control
+ * \param[in]   cpi                   Top level encoder instance structure
+ * \param[in]   width                 Frame width
+ * \param[in]   height                Frame height
+ *
+ * \return Returns a correction factor for the current frame
+ */
 static double get_rate_correction_factor(const AV1_COMP *cpi, int width,
                                          int height) {
   const RATE_CONTROL *const rc = &cpi->rc;
@@ -461,6 +474,21 @@ static double get_rate_correction_factor(const AV1_COMP *cpi, int width,
   return fclamp(rcf, MIN_BPB_FACTOR, MAX_BPB_FACTOR);
 }
 
+/*!\brief Sets a rate vs Q correction factor
+ *
+ * This function updates the current value of a correction factor used to
+ * dynamilcally adjust the relationship between Q and the expected number
+ * of bits for the frame.
+ *
+ * \ingroup rate_control
+ * \param[in]   cpi                   Top level encoder instance structure
+ * \param[in]   factor                New correction factor
+ * \param[in]   width                 Frame width
+ * \param[in]   height                Frame height
+ *
+ * \return None but updates the rate correction factor for the
+ *         current frame type in cpi->rc.
+ */
 static void set_rate_correction_factor(AV1_COMP *cpi, double factor, int width,
                                        int height) {
   RATE_CONTROL *const rc = &cpi->rc;
@@ -574,10 +602,23 @@ static int get_bits_per_mb(const AV1_COMP *cpi, int use_cyclic_refresh,
                                   cpi->is_screen_content_type);
 }
 
-// Similar to find_qindex_by_rate() function in ratectrl.c, but returns the q
-// index with rate just above or below the desired rate, depending on which of
-// the two rates is closer to the desired rate.
-// Also, respects the selected aq_mode when computing the rate.
+/*!\brief Searches for a Q index value predicted to give an average macro
+ * block rate closest to the target value.
+ *
+ * Similar to find_qindex_by_rate() function, but returns a q index with a
+ * rate just above or below the desired rate, depending on which of the two
+ * rates is closer to the desired rate.
+ * Also, respects the selected aq_mode when computing the rate.
+ *
+ * \ingroup rate_control
+ * \param[in]   desired_bits_per_mb   Target bits per mb
+ * \param[in]   cpi                   Top level encoder instance structure
+ * \param[in]   correction_factor     Current Q to rate correction factor
+ * \param[in]   best_qindex           Min allowed Q value.
+ * \param[in]   worst_qindex          Max allowed Q value.
+ *
+ * \return Returns a correction factor for the current frame
+ */
 static int find_closest_qindex_by_rate(int desired_bits_per_mb,
                                        const AV1_COMP *cpi,
                                        double correction_factor,
@@ -1384,6 +1425,21 @@ static void adjust_active_best_and_worst_quality(const AV1_COMP *cpi,
   *active_worst = active_worst_quality;
 }
 
+/*!\brief Gets a Q value to use  for the current frame
+ *
+ *
+ * Selects a Q value from a permitted range that we estimate
+ * will result in approximately the target number of bits.
+ *
+ * \ingroup rate_control
+ * \param[in]   cpi                   Top level encoder instance structure
+ * \param[in]   width                 Width of frame
+ * \param[in]   height                Height of frame
+ * \param[in]   active_worst_quality  Max Q allowed
+ * \param[in]   active_best_quality   Min Q allowed
+ *
+ * \return The suggested Q for this frame.
+ */
 static int get_q(const AV1_COMP *cpi, const int width, const int height,
                  const int active_worst_quality,
                  const int active_best_quality) {

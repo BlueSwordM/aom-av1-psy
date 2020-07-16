@@ -628,13 +628,13 @@ The main functions responsible for the prediction of Q and the adaptation over
 time, for the two pass encoding pipeline are:
 
 - \ref rc_pick_q_and_bounds()
-    - (TODO REF) get_q()
-        - (TODO REF) av1_rc_regulate_q()
-        - (TODO REF) get_rate_correction_factor()
-        - (TODO REF) find_closest_qindex_by_rate()
-
+    - \ref get_q()
+        - \ref av1_rc_regulate_q()
+        - \ref get_rate_correction_factor()
+        - \ref set_rate_correction_factor()
+        - \ref find_closest_qindex_by_rate()
 - \ref av1_twopass_postencode_update()
-    - (TODO REF) av1_rc_update_rate_correction_factors()
+    - \ref av1_rc_update_rate_correction_factors()
 
 A second mechanism for control comes into play if there is a large rate miss
 for the current frame (much too big or too small). This is a recode mechanism
