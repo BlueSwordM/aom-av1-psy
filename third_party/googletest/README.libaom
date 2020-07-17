@@ -12,6 +12,5 @@ failures, various options for running the tests, and XML test report
 generation.
 
 Local Modifications:
-- Replace everything in:
-  third_party/googletest/src/googletest/src/
-  third_party/googletest/src/googletest/include/
+- Enable kErrorOnUninstantiatedParameterizedTest and
+  kErrorOnUninstantiatedTypeParameterizedTest in gtest.cc
