@@ -691,6 +691,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->rt_sf.use_nonrd_pick_mode = 0;
   sf->rt_sf.use_real_time_ref_set = 0;
   sf->rt_sf.check_scene_detection = 0;
+  sf->rt_sf.overshoot_detection_cbr = NO_DETECTION;
   sf->tx_sf.adaptive_txb_search_level = 1;
   sf->tx_sf.intra_tx_size_search_init_depth_sqr = 1;
   sf->tx_sf.model_based_prune_tx_search_level = 1;
