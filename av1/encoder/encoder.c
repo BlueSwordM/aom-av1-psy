@@ -1719,7 +1719,7 @@ static void init_motion_estimation(AV1_COMP *cpi) {
   av1_init_motion_fpf(&mv_search_params->search_site_cfg[SS_CFG_FPF],
                       fpf_y_stride);
 
-  if (cpi->sf.tpl_sf.search_method == FAST_DIAMOND) {
+  if (cpi->sf.tpl_sf.search_method == FAST_BIGDIA) {
     av1_init_motion_compensation_bigdia(
         &mv_search_params->search_site_cfg[SS_CFG_TPL_SRC], y_stride);
     av1_init_motion_compensation_bigdia(

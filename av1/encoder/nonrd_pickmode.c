@@ -182,7 +182,7 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &center_mv,
                                      src_search_sites,
-                                     /*fine_search_interval=*/0, 0);
+                                     /*fine_search_interval=*/0);
 
   av1_full_pixel_search(start_mv, &full_ms_params, step_param,
                         cond_cost_list(cpi, cost_list), &tmp_mv->as_fullmv,

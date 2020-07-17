@@ -80,8 +80,7 @@ void av1_make_default_fullpel_ms_params(FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
                                         const MACROBLOCK *x, BLOCK_SIZE bsize,
                                         const MV *ref_mv,
                                         const search_site_config *search_sites,
-                                        int fine_search_interval,
-                                        int fast_dia_search_level) {
+                                        int fine_search_interval) {
   const MV_SPEED_FEATURES *mv_sf = &cpi->sf.mv_sf;
 
   // High level params
@@ -106,7 +105,6 @@ void av1_make_default_fullpel_ms_params(FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
   ms_params->prune_mesh_search = mv_sf->prune_mesh_search;
   ms_params->run_mesh_search = 0;
   ms_params->fine_search_interval = fine_search_interval;
-  ms_params->fast_dia_search_level = fast_dia_search_level;
 
   ms_params->is_intra_mode = 0;
 
@@ -1454,14 +1452,18 @@ static int fast_dia_search(const FULLPEL_MV start_mv,
                            const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
                            const int search_step, const int do_init_search,
                            int *cost_list, FULLPEL_MV *best_mv) {
-  if (ms_params->fast_dia_search_level)
-    return bigdia_search_level1(start_mv, ms_params,
-                                AOMMAX(MAX_MVSEARCH_STEPS - 3, search_step),
-                                do_init_search, cost_list, best_mv);
-  else
-    return bigdia_search(start_mv, ms_params,
-                         AOMMAX(MAX_MVSEARCH_STEPS - 2, search_step),
-                         do_init_search, cost_list, best_mv);
+  return bigdia_search(start_mv, ms_params,
+                       AOMMAX(MAX_MVSEARCH_STEPS - 2, search_step),
+                       do_init_search, cost_list, best_mv);
+}
+
+static int fast_bigdia_search(const FULLPEL_MV start_mv,
+                              const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
+                              const int search_step, const int do_init_search,
+                              int *cost_list, FULLPEL_MV *best_mv) {
+  return bigdia_search_level1(start_mv, ms_params,
+                              AOMMAX(MAX_MVSEARCH_STEPS - 3, search_step),
+                              do_init_search, cost_list, best_mv);
 }
 
 static int diamond_search_sad(FULLPEL_MV start_mv,
@@ -1888,6 +1890,10 @@ int av1_full_pixel_search(const FULLPEL_MV start_mv,
   }
 
   switch (search_method) {
+    case FAST_BIGDIA:
+      var = fast_bigdia_search(start_mv, ms_params, step_param, 0, cost_list,
+                               best_mv);
+      break;
     case FAST_DIAMOND:
       var = fast_dia_search(start_mv, ms_params, step_param, 0, cost_list,
                             best_mv);
