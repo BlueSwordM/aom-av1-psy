@@ -2126,6 +2126,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
         av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
                            cm->seq_params.bit_depth);
       av1_set_variance_partition_thresholds(cpi, q, 0);
+      if (frame_is_intra_only(cm) || cm->features.error_resilient_mode)
+        av1_setup_frame(cpi);
     }
   }
 
