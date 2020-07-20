@@ -84,6 +84,29 @@ class DatarateTestLarge
         << " The datarate for the file is greater than target by too much!";
   }
 
+  virtual void ErrorResilienceOnSceneCuts() {
+    if (GET_PARAM(4) > 0) return;
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.g_error_resilient = 1;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+
+    ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
+                                         288, 30, 1, 0, 300);
+    cfg_.rc_target_bitrate = 500;
+    ResetModel();
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    ASSERT_GE(effective_datarate_, cfg_.rc_target_bitrate * 0.85)
+        << " The datarate for the file is lower than target by too much!";
+    ASSERT_LE(effective_datarate_, cfg_.rc_target_bitrate * 1.15)
+        << " The datarate for the file is greater than target by too much!";
+  }
+
   virtual void BasicRateTargetingCBRPeriodicKeyFrameTest() {
     cfg_.rc_buf_initial_sz = 500;
     cfg_.rc_buf_optimal_sz = 500;
@@ -108,6 +131,31 @@ class DatarateTestLarge
         << " The datarate for the file is greater than target by too much!";
   }
 
+  virtual void CBRPeriodicKeyFrameOnSceneCuts() {
+    if (GET_PARAM(4) > 0) return;
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    // Periodic keyframe
+    cfg_.kf_max_dist = 30;
+    cfg_.kf_min_dist = 30;
+
+    ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
+                                         288, 30, 1, 0, 300);
+    cfg_.rc_target_bitrate = 500;
+    ResetModel();
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    ASSERT_GE(effective_datarate_, cfg_.rc_target_bitrate * 0.85)
+        << " The datarate for the file is lower than target by too much!";
+    ASSERT_LE(effective_datarate_, cfg_.rc_target_bitrate * 1.3)
+        << " The datarate for the file is greater than target by too much!";
+  }
+
   virtual void BasicRateTargetingAQModeOnOffCBRTest() {
     if (GET_PARAM(4) > 0) return;
     cfg_.rc_buf_initial_sz = 500;
@@ -125,8 +173,7 @@ class DatarateTestLarge
 
     ::libaom_test::I420VideoSource video("pixel_capture_w320h240.yuv", 320, 240,
                                          30, 1, 0, 310);
-    const int bitrate_array[1] = { 60 };
-    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    cfg_.rc_target_bitrate = 60;
     ResetModel();
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
     ASSERT_GE(effective_datarate_, cfg_.rc_target_bitrate * 0.85)
@@ -245,6 +292,16 @@ TEST_P(DatarateTestLarge, PeriodicKeyFrameCBR) {
   BasicRateTargetingCBRPeriodicKeyFrameTest();
 }
 
+// Check basic rate targeting for periodic key frame, aligned with scene change.
+TEST_P(DatarateTestLarge, PeriodicKeyFrameCBROnSceneCuts) {
+  CBRPeriodicKeyFrameOnSceneCuts();
+}
+
+// Check basic rate targeting with error resilience on for scene cuts.
+TEST_P(DatarateTestLarge, ErrorResilienceOnSceneCuts) {
+  ErrorResilienceOnSceneCuts();
+}
+
 // Check basic rate targeting for CBR.
 TEST_P(DatarateTestLarge, BasicRateTargeting444CBR) {
   BasicRateTargeting444CBRTest();
@@ -328,6 +385,16 @@ TEST_P(DatarateTestRealtime, BasicRateTargetingCBR) {
 // Check basic rate targeting for periodic key frame.
 TEST_P(DatarateTestRealtime, PeriodicKeyFrameCBR) {
   BasicRateTargetingCBRPeriodicKeyFrameTest();
+}
+
+// Check basic rate targeting for periodic key frame, aligned with scene change.
+TEST_P(DatarateTestRealtime, PeriodicKeyFrameCBROnSceneCuts) {
+  CBRPeriodicKeyFrameOnSceneCuts();
+}
+
+// Check basic rate targeting with error resilience on for scene cuts.
+TEST_P(DatarateTestRealtime, ErrorResilienceOnSceneCuts) {
+  ErrorResilienceOnSceneCuts();
 }
 
 // Check basic rate targeting for CBR.
