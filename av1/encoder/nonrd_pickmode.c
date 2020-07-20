@@ -115,6 +115,30 @@ static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
   bp->best_pred = NULL;
 }
 
+/*!\brief Runs Motion Estimation for a specific block and specific ref frame.
+ *
+ * \ingroup nonrd_mode_search
+ * \callgraph
+ * \callergraph
+ * Finds the best Motion Vector by running Motion Estimation for a specific
+ * block and a specific reference frame. Exits early if RDCost of Full Pel part
+ * exceeds best RD Cost fund so far
+ * \param[in]    cpi                      Top-level encoder structure
+ * \param[in]    x                        Pointer to structure holding all the
+ *                                        data for the current macroblock
+ * \param[in]    bsize                    Current block size
+ * \param[in]    mi_row                   Row index in 4x4 units
+ * \param[in]    mi_col                   Column index in 4x4 units
+ * \param[in]    tmp_mv                   Pointer to best found New MV
+ * \param[in]    rate_mv                  Pointer to Rate of the best new MV
+ * \param[in]    best_rd_sofar            RD Cost of the best mode found so far
+ * \param[in]    use_base_mv              Flag, indicating that tmp_mv holds
+ *                                        specific MV to start the search with
+ *
+ * \return Returns 0 if ME was terminated after Full Pel Search because too
+ * high RD Cost. Otherwise returns 1. Best New MV is placed into \c tmp_mv.
+ * Rate estimation for this vector is placed to \c rate_mv
+ */
 static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
                                   BLOCK_SIZE bsize, int mi_row, int mi_col,
                                   int_mv *tmp_mv, int *rate_mv,
@@ -194,6 +218,34 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   return rv;
 }
 
+/*!\brief Searches for the best New Motion Vector.
+ *
+ * \ingroup nonrd_mode_search
+ * \callgraph
+ * \callergraph
+ * Finds the best Motion Vector by doing Motion Estimation. Uses reduced
+ * complexity ME for non-LAST frames or calls \c combined_motion_search
+ * for LAST reference frame
+ * \param[in]    cpi                      Top-level encoder structure
+ * \param[in]    x                        Pointer to structure holding all the
+ *                                        data for the current macroblock
+ * \param[in]    frame_mv                 Array that holds MVs for all modes
+ *                                        and ref frames
+ * \param[in]    ref_frame                Reference freme for which to find
+ *                                        the best New MVs
+ * \param[in]    gf_temporal_ref          Flag, indicating temporal reference
+ *                                        for GOLDEN frame
+ * \param[in]    bsize                    Current block size
+ * \param[in]    mi_row                   Row index in 4x4 units
+ * \param[in]    mi_col                   Column index in 4x4 units
+ * \param[in]    rate_mv                  Pointer to Rate of the best new MV
+ * \param[in]    best_rdc                 Pointer to the RD Cost for the best
+ *                                        mode found so far
+ *
+ * \return Returns -1 if the search was not done, otherwise returns 0.
+ * Best New MV is placed into \c frame_mv array, Rate estimation for this
+ * vector is placed to \c rate_mv
+ */
 static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
                          int_mv frame_mv[][REF_FRAMES],
                          MV_REFERENCE_FRAME ref_frame, int gf_temporal_ref,
@@ -245,6 +297,31 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
   return 0;
 }
 
+/*!\brief Finds predicted motion vectors for a block.
+ *
+ * \ingroup nonrd_mode_search
+ * \callgraph
+ * \callergraph
+ * Finds predicted motion vectors for a block from a certain reference frame.
+ * First, it fills reference MV stack, then picks the test from the stack and
+ * predicts the final MV for a block for each mode.
+ * \param[in]    cpi                      Top-level encoder structure
+ * \param[in]    x                        Pointer to structure holding all the
+ *                                        data for the current macroblock
+ * \param[in]    ref_frame                Reference freme for which to find
+ *                                        ref MVs
+ * \param[in]    frame_mv                 Predicted MVs for a block
+ * \param[in]    tile_data                Pointer to struct holding adaptive
+ *                                        data/contexts/models for the tile
+ *                                        during encoding
+ * \param[in]    yv12_mb                  Buffer to hold predicted block
+ * \param[in]    bsize                    Current block size
+ * \param[in]    force_skip_low_temp_var  Flag indicating possible mode search
+ *                                        prune for low temporal variace  block
+ *
+ * \return Nothing is returned. Instead, predicted MVs are placed into
+ * \c frame_mv array
+ */
 static INLINE void find_predictors(AV1_COMP *cpi, MACROBLOCK *x,
                                    MV_REFERENCE_FRAME ref_frame,
                                    int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES],
@@ -738,7 +815,7 @@ static void model_rd_for_sb_y(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
 
 /*!\brief Calculates RD Cost using Hadamard transform.
  *
- * \ingroup inter_mode_search
+ * \ingroup nonrd_mode_search
  * \callgraph
  * \callergraph
  * Calculates RD Cost using Hadamard transform. For low bit depth this function
@@ -1136,7 +1213,7 @@ struct estimate_block_intra_args {
 
 /*!\brief Estimation of RD cost of an intra mode for Non-RD optimized case.
  *
- * \ingroup intra_mode_search
+ * \ingroup nonrd_mode_search
  * \callgraph
  * \callergraph
  * Calculates RD Cost for an intra mode for a single TX block using Hadamard
@@ -1333,7 +1410,7 @@ static INLINE int get_force_skip_low_temp_var(uint8_t *variance_low, int mi_row,
 #define FILTER_SEARCH_SIZE 2
 /*!\brief Searches for the best intrpolation filter
  *
- * \ingroup inter_mode_search
+ * \ingroup nonrd_mode_search
  * \callgraph
  * \callergraph
  * Iterates through subset of possible interpolation filters (currently
@@ -1603,7 +1680,7 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
 
 /*!\brief Estimates best intra mode for inter mode search
  *
- * \ingroup inter_mode_search
+ * \ingroup nonrd_mode_search
  * \callgraph
  * \callergraph
  *

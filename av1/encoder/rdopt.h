@@ -98,7 +98,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
 /*!\brief AV1 intra mode selection based on Non-RD optimized model.
  *
- * \ingroup intra_mode_search
+ * \ingroup nonrd_mode_search
  * \callgraph
  * \callergraph
  * Top level function for Non-RD optimized intra mode selection.
@@ -126,7 +126,7 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
 
 /*!\brief AV1 inter mode selection based on Non-RD optimized model.
  *
- * \ingroup inter_mode_search
+ * \ingroup nonrd_mode_search
  * \callgraph
  * Top level function for Non-RD optimized inter mode selection.
  * This finction will loop over subset of inter modes and select the best one

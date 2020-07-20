@@ -1293,3 +1293,10 @@ For and overview of the partition search see \ref architecture_enc_partitions
  * @{
  */
 /*! @} - end defgroup variance_partition */
+/*!\defgroup nonrd_mode_search NonRD Optimized Mode Search
+ * \ingroup encoder_algo
+ * This module describes NonRD Optimized Mode Search used in Real-Time mode.
+ * More details will be added.
+ * @{
+ */
+/*! @} - end defgroup nonrd_mode_search */
