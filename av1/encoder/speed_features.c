@@ -856,10 +856,10 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.use_real_time_ref_set = 1;
     sf->rt_sf.use_simple_rd_model = 1;
 
-    if (cm->current_frame.frame_type != KEY_FRAME &&
-        cpi->oxcf.rc_cfg.mode == AOM_CBR) {
-      sf->rt_sf.overshoot_detection_cbr = FAST_DETECTION_MAXQ;
+    if (cpi->oxcf.rc_cfg.mode == AOM_CBR) {
       sf->rt_sf.check_scene_detection = 1;
+      if (cm->current_frame.frame_type != KEY_FRAME)
+        sf->rt_sf.overshoot_detection_cbr = FAST_DETECTION_MAXQ;
     }
     // Keeping this off for now as some clips show ~6% BDRate regression with
     // moderate speed-up (~20%)
