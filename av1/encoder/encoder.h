@@ -133,9 +133,10 @@ enum {
 } UENUM1BYTE(DELTAQ_MODE);
 
 enum {
-  RESIZE_NONE = 0,    // No frame resizing allowed.
-  RESIZE_FIXED = 1,   // All frames are coded at the specified scale.
-  RESIZE_RANDOM = 2,  // All frames are coded at a random scale.
+  RESIZE_NONE = 0,     // No frame resizing allowed.
+  RESIZE_FIXED = 1,    // All frames are coded at the specified scale.
+  RESIZE_RANDOM = 2,   // All frames are coded at a random scale.
+  RESIZE_DYNAMIC = 3,  // Frames coded at lower scale based on rate control.
   RESIZE_MODES
 } UENUM1BYTE(RESIZE_MODE);
 

@@ -20,6 +20,7 @@
 #include "aom/aom_encoder.h"
 #include "aom/aomcx.h"
 #include "av1/common/enums.h"
+#include "av1/encoder/encoder.h"
 #include "common/tools_common.h"
 #include "common/video_writer.h"
 #include "aom_ports/aom_timer.h"
@@ -700,6 +701,7 @@ int main(int argc, char **argv) {
   cfg.rc_buf_initial_sz = 600;
   cfg.rc_buf_optimal_sz = 600;
   cfg.rc_buf_sz = 1000;
+  cfg.rc_resize_mode = 0;  // Set to RESIZE_DYNAMIC for dynamic resize.
 
   // Use 1 thread as default.
   cfg.g_threads = (unsigned int)strtoul(argv[11], NULL, 0);

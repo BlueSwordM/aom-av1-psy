@@ -2097,6 +2097,27 @@ static int encode_without_recode(AV1_COMP *cpi) {
     av1_update_noise_estimate(cpi);
   }
 
+  // For 1 spatial layer encoding: if the (non-LAST) reference has different
+  // resolution from the source then disable that reference. This is to avoid
+  // significant increase in encode time from scaling the references in
+  // av1_scale_references. Note GOLDEN is forced to update on the (first/tigger)
+  // resized frame and ALTREF will be refreshed ~4 frames later, so both
+  // references become available again after few frames.
+  if (svc->number_spatial_layers == 1) {
+    if (cpi->ref_frame_flags & av1_ref_frame_flag_list[GOLDEN_FRAME]) {
+      const YV12_BUFFER_CONFIG *const ref =
+          get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
+      if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height)
+        cpi->ref_frame_flags ^= AOM_GOLD_FLAG;
+    }
+    if (cpi->ref_frame_flags & av1_ref_frame_flag_list[ALTREF_FRAME]) {
+      const YV12_BUFFER_CONFIG *const ref =
+          get_ref_frame_yv12_buf(cm, ALTREF_FRAME);
+      if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height)
+        cpi->ref_frame_flags ^= AOM_ALT_FLAG;
+    }
+  }
+
   // For SVC the inter-layer/spatial prediction is not done for newmv
   // (zero_mode is forced), and since the scaled references are only
   // use for newmv search, we can avoid scaling here.

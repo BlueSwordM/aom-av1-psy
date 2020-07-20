@@ -13,6 +13,7 @@
 #include <vector>
 #include "aom_dsp/aom_dsp_common.h"
 #include "common/tools_common.h"
+#include "av1/encoder/encoder.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
@@ -597,15 +598,25 @@ TEST_P(ResizeRealtimeTest, TestExternalResizeWorks) {
 // Verify the dynamic resizer behavior for real time, 1 pass CBR mode.
 // Run at low bitrate, with resize_allowed = 1, and verify that we get
 // one resize down event.
-TEST_P(ResizeRealtimeTest, DISABLED_TestInternalResizeDown) {
-  ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
-                                       30, 1, 0, 299);
+TEST_P(ResizeRealtimeTest, TestInternalResizeDown) {
+  ::libaom_test::I420VideoSource video("niklas_640_480_30.yuv", 640, 480, 30, 1,
+                                       0, 400);
   DefaultConfig();
-  cfg_.g_w = 352;
-  cfg_.g_h = 288;
+  cfg_.g_w = 640;
+  cfg_.g_h = 480;
   change_bitrate_ = false;
+  set_scale_mode_ = false;
+  set_scale_mode2_ = false;
   mismatch_psnr_ = 0.0;
   mismatch_nframes_ = 0;
+  DefaultConfig();
+  // Disable dropped frames.
+  cfg_.rc_dropframe_thresh = 0;
+  // Starting bitrate low.
+  cfg_.rc_target_bitrate = 150;
+  cfg_.rc_resize_mode = RESIZE_DYNAMIC;
+  cfg_.g_forced_max_frame_width = 1280;
+  cfg_.g_forced_max_frame_height = 1280;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
   unsigned int last_w = cfg_.g_w;
@@ -635,19 +646,25 @@ TEST_P(ResizeRealtimeTest, DISABLED_TestInternalResizeDown) {
 // Verify the dynamic resizer behavior for real time, 1 pass CBR mode.
 // Start at low target bitrate, raise the bitrate in the middle of the clip,
 // scaling-up should occur after bitrate changed.
-TEST_P(ResizeRealtimeTest, DISABLED_TestInternalResizeDownUpChangeBitRate) {
-  ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
-                                       30, 1, 0, 359);
+TEST_P(ResizeRealtimeTest, TestInternalResizeDownUpChangeBitRate) {
+  ::libaom_test::I420VideoSource video("niklas_640_480_30.yuv", 640, 480, 30, 1,
+                                       0, 400);
   DefaultConfig();
-  cfg_.g_w = 352;
-  cfg_.g_h = 288;
+  cfg_.g_w = 640;
+  cfg_.g_h = 480;
   change_bitrate_ = true;
+  set_scale_mode_ = false;
+  set_scale_mode2_ = false;
   mismatch_psnr_ = 0.0;
   mismatch_nframes_ = 0;
+  DefaultConfig();
   // Disable dropped frames.
   cfg_.rc_dropframe_thresh = 0;
   // Starting bitrate low.
-  cfg_.rc_target_bitrate = 80;
+  cfg_.rc_target_bitrate = 150;
+  cfg_.rc_resize_mode = RESIZE_DYNAMIC;
+  cfg_.g_forced_max_frame_width = 1280;
+  cfg_.g_forced_max_frame_height = 1280;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
   unsigned int last_w = cfg_.g_w;

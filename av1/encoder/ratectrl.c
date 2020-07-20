@@ -344,6 +344,11 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
         oxcf->input_cfg.init_framerate, rc->min_gf_interval);
   rc->baseline_gf_interval = (rc->min_gf_interval + rc->max_gf_interval) / 2;
   rc->avg_frame_low_motion = 0;
+
+  rc->resize_state = ORIG;
+  rc->resize_avg_qp = 0;
+  rc->resize_buffer_underflow = 0;
+  rc->resize_count = 0;
 }
 
 int av1_rc_drop_frame(AV1_COMP *cpi) {
@@ -2394,6 +2399,142 @@ static int set_gf_interval_update_onepass_rt(AV1_COMP *cpi,
   return gf_update;
 }
 
+/*!\brief ChecK for resize based on Q, for 1 pass real-time mode.
+ *
+ * Check if we should resize, based on average QP from past x frames.
+ * Only allow for resize at most 1/2 scale down for now, Scaling factor
+ * for each step may be 3/4 or 1/2.
+ *
+ * \ingroup rate_control
+ * \param[in]       cpi          Top level encoder structure
+ *
+ * \return Return resized width/height in \c cpi->resize_pending_params,
+ * and update some resize counters in \c rc.
+ */
+static void dynamic_resize_one_pass_cbr(AV1_COMP *cpi) {
+  const AV1_COMMON *const cm = &cpi->common;
+  RATE_CONTROL *const rc = &cpi->rc;
+  RESIZE_ACTION resize_action = NO_RESIZE;
+  const int avg_qp_thr1 = 70;
+  const int avg_qp_thr2 = 50;
+  // Don't allow for resized frame to go below 160x90, resize in steps of 3/4.
+  const int min_width = (160 * 4) / 3;
+  const int min_height = (90 * 4) / 3;
+  int down_size_on = 1;
+  // Don't resize on key frame; reset the counters on key frame.
+  if (cm->current_frame.frame_type == KEY_FRAME) {
+    rc->resize_avg_qp = 0;
+    rc->resize_count = 0;
+    rc->resize_buffer_underflow = 0;
+    return;
+  }
+  // No resizing down if frame size is below some limit.
+  if ((cm->width * cm->height) < min_width * min_height) down_size_on = 0;
+
+  // Resize based on average buffer underflow and QP over some window.
+  // Ignore samples close to key frame, since QP is usually high after key.
+  if (cpi->rc.frames_since_key > cpi->framerate) {
+    const int window = AOMMIN(30, (int)(2 * cpi->framerate));
+    rc->resize_avg_qp += rc->last_q[INTER_FRAME];
+    if (cpi->rc.buffer_level < (int)(30 * rc->optimal_buffer_level / 100))
+      ++rc->resize_buffer_underflow;
+    ++rc->resize_count;
+    // Check for resize action every "window" frames.
+    if (rc->resize_count >= window) {
+      int avg_qp = rc->resize_avg_qp / rc->resize_count;
+      // Resize down if buffer level has underflowed sufficient amount in past
+      // window, and we are at original or 3/4 of original resolution.
+      // Resize back up if average QP is low, and we are currently in a resized
+      // down state, i.e. 1/2 or 3/4 of original resolution.
+      // Currently, use a flag to turn 3/4 resizing feature on/off.
+      if (rc->resize_buffer_underflow > (rc->resize_count >> 2) &&
+          down_size_on) {
+        if (rc->resize_state == THREE_QUARTER) {
+          resize_action = DOWN_ONEHALF;
+          rc->resize_state = ONE_HALF;
+        } else if (rc->resize_state == ORIG) {
+          resize_action = DOWN_THREEFOUR;
+          rc->resize_state = THREE_QUARTER;
+        }
+      } else if (rc->resize_state != ORIG &&
+                 avg_qp < avg_qp_thr1 * cpi->rc.worst_quality / 100) {
+        if (rc->resize_state == THREE_QUARTER ||
+            avg_qp < avg_qp_thr2 * cpi->rc.worst_quality / 100) {
+          resize_action = UP_ORIG;
+          rc->resize_state = ORIG;
+        } else if (rc->resize_state == ONE_HALF) {
+          resize_action = UP_THREEFOUR;
+          rc->resize_state = THREE_QUARTER;
+        }
+      }
+      // Reset for next window measurement.
+      rc->resize_avg_qp = 0;
+      rc->resize_count = 0;
+      rc->resize_buffer_underflow = 0;
+    }
+  }
+  // If decision is to resize, reset some quantities, and check is we should
+  // reduce rate correction factor,
+  if (resize_action != NO_RESIZE) {
+    SVC *const svc = &cpi->svc;
+    LAYER_CONTEXT *lc = NULL;
+    int resize_width = cpi->oxcf.frm_dim_cfg.width;
+    int resize_height = cpi->oxcf.frm_dim_cfg.height;
+    int resize_scale_num = 1;
+    int resize_scale_den = 1;
+    int target_bits_per_frame;
+    int active_worst_quality;
+    int qindex, tl, tot_scale_change;
+    if (resize_action == DOWN_THREEFOUR || resize_action == UP_THREEFOUR) {
+      resize_scale_num = 3;
+      resize_scale_den = 4;
+    } else if (resize_action == DOWN_ONEHALF) {
+      resize_scale_num = 1;
+      resize_scale_den = 2;
+    }
+    resize_width = resize_width * resize_scale_num / resize_scale_den;
+    resize_height = resize_height * resize_scale_num / resize_scale_den;
+    tot_scale_change = (resize_scale_den * resize_scale_den) /
+                       (resize_scale_num * resize_scale_num);
+    // Reset buffer level to optimal, update target size.
+    rc->buffer_level = rc->optimal_buffer_level;
+    rc->bits_off_target = rc->optimal_buffer_level;
+    rc->this_frame_target =
+        av1_calc_pframe_target_size_one_pass_cbr(cpi, INTER_FRAME);
+    // Get the projected qindex, based on the scaled target frame size (scaled
+    // so target_bits_per_mb in av1_rc_regulate_q will be correct target).
+    target_bits_per_frame = (resize_action >= 0)
+                                ? rc->this_frame_target * tot_scale_change
+                                : rc->this_frame_target / tot_scale_change;
+    active_worst_quality = calc_active_worst_quality_no_stats_cbr(cpi);
+    qindex =
+        av1_rc_regulate_q(cpi, target_bits_per_frame, rc->best_quality,
+                          active_worst_quality, resize_width, resize_height);
+    // If resize is down, check if projected q index is close to worst_quality,
+    // and if so, reduce the rate correction factor (since likely can afford
+    // lower q for resized frame).
+    if (resize_action > 0 && qindex > 90 * cpi->rc.worst_quality / 100)
+      rc->rate_correction_factors[INTER_NORMAL] *= 0.85;
+    // Apply the same rate control reset to all temporal layers.
+    for (tl = 0; tl < svc->number_temporal_layers; tl++) {
+      lc = &svc->layer_context[svc->spatial_layer_id *
+                                   svc->number_temporal_layers +
+                               tl];
+      lc->rc.buffer_level = lc->rc.optimal_buffer_level;
+      lc->rc.bits_off_target = lc->rc.optimal_buffer_level;
+      lc->rc.rate_correction_factors[INTER_FRAME] =
+          rc->rate_correction_factors[INTER_FRAME];
+    }
+    // If resize is back up, check if projected q index is too much above the
+    // current base_qindex, and if so, reduce the rate correction factor
+    // (since prefer to keep q for resized frame at least close to previous q).
+    if (resize_action < 0 && qindex > 130 * rc->last_q[INTER_FRAME] / 100) {
+      rc->rate_correction_factors[INTER_NORMAL] *= 0.9;
+    }
+  }
+  return;
+}
+
 void av1_get_one_pass_rt_params(AV1_COMP *cpi,
                                 EncodeFrameParams *const frame_params,
                                 unsigned int frame_flags) {
@@ -2444,6 +2585,25 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
   // Check for scene change, for non-SVC for now.
   if (!cpi->use_svc && cpi->sf.rt_sf.check_scene_detection)
     rc_scene_detection_onepass_rt(cpi);
+  // Check for dynamic resize, for single spatial layer for now.
+  // For temporal layers only check on base temporal layer.
+  if (cpi->oxcf.resize_cfg.resize_mode == RESIZE_DYNAMIC) {
+    ResizePendingParams *const resize_pending_params =
+        &cpi->resize_pending_params;
+    if (svc->number_spatial_layers == 1 && svc->temporal_layer_id == 0)
+      dynamic_resize_one_pass_cbr(cpi);
+    if (rc->resize_state == THREE_QUARTER) {
+      resize_pending_params->width = (3 + cpi->oxcf.frm_dim_cfg.width * 3) >> 2;
+      resize_pending_params->height =
+          (3 + cpi->oxcf.frm_dim_cfg.height * 3) >> 2;
+    } else if (rc->resize_state == ONE_HALF) {
+      resize_pending_params->width = (1 + cpi->oxcf.frm_dim_cfg.width) >> 1;
+      resize_pending_params->height = (1 + cpi->oxcf.frm_dim_cfg.height) >> 1;
+    } else {
+      resize_pending_params->width = cpi->oxcf.frm_dim_cfg.width;
+      resize_pending_params->height = cpi->oxcf.frm_dim_cfg.height;
+    }
+  }
   // Set the GF interval and update flag.
   gf_update = set_gf_interval_update_onepass_rt(cpi, frame_params->frame_type);
   // Set target size.

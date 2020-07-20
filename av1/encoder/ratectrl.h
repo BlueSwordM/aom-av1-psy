@@ -76,6 +76,16 @@ enum {
   FRAME_UPDATE_TYPES
 } UENUM1BYTE(FRAME_UPDATE_TYPE);
 
+typedef enum {
+  NO_RESIZE = 0,
+  DOWN_THREEFOUR = 1,  // From orig to 3/4.
+  DOWN_ONEHALF = 2,    // From orig or 3/4 to 1/2.
+  UP_THREEFOUR = -1,   // From 1/2 to 3/4.
+  UP_ORIG = -2,        // From 1/2 or 3/4 to orig.
+} RESIZE_ACTION;
+
+typedef enum { ORIG = 0, THREE_QUARTER = 1, ONE_HALF = 2 } RESIZE_STATE;
+
 /*!\endcond */
 /*!
  * \brief  Rate Control parameters and status
@@ -281,6 +291,12 @@ typedef struct {
   int use_arf_in_this_kf_group;
   // Track amount of low motion in scene
   int avg_frame_low_motion;
+
+  // For dynamic resize, 1 pass cbr.
+  RESIZE_STATE resize_state;
+  int resize_avg_qp;
+  int resize_buffer_underflow;
+  int resize_count;
   /*!\endcond */
 } RATE_CONTROL;
 

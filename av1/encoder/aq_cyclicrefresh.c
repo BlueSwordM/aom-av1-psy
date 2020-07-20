@@ -488,4 +488,5 @@ void av1_cyclic_refresh_reset_resize(AV1_COMP *const cpi) {
   memset(cr->map, 0, cm->mi_params.mi_rows * cm->mi_params.mi_cols);
   cr->sb_index = 0;
   cpi->refresh_frame.golden_frame = true;
+  cr->apply_cyclic_refresh = 0;
 }
