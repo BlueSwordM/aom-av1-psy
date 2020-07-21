@@ -145,6 +145,18 @@ typedef struct aom_still_picture_info {
   int is_reduced_still_picture_hdr;
 } aom_still_picture_info;
 
+/*!\brief Structure to hold information about S_FRAME.
+ *
+ * Defines a structure to hold a information regarding S_FRAME
+ * and its position.
+ */
+typedef struct aom_s_frame_info {
+  /*! Indicates if current frame is S_FRAME */
+  int is_s_frame;
+  /*! Indicates if current S_FRAME is present at ALTREF frame*/
+  int is_s_frame_at_altref;
+} aom_s_frame_info;
+
 /*!\brief Structure to hold information about screen content tools.
  *
  * Defines a structure to hold information about screen content
@@ -410,6 +422,10 @@ enum aom_dec_control_id {
    * decoded has show existing frame flag set.
    */
   AOMD_GET_SHOW_EXISTING_FRAME_FLAG,
+
+  /*!\brief Codec control function to get the S_FRAME coding information
+   */
+  AOMD_GET_S_FRAME_INFO,
 };
 
 /*!\cond */
@@ -460,6 +476,9 @@ AOM_CTRL_USE_TYPE(AOMD_GET_SB_SIZE, aom_superblock_size_t *)
 
 AOM_CTRL_USE_TYPE(AOMD_GET_SHOW_EXISTING_FRAME_FLAG, int *)
 #define AOMD_CTRL_AOMD_GET_SHOW_EXISTING_FRAME_FLAG
+
+AOM_CTRL_USE_TYPE(AOMD_GET_S_FRAME_INFO, aom_s_frame_info *)
+#define AOMD_CTRL_AOMD_GET_S_FRAME_INFO
 
 AOM_CTRL_USE_TYPE(AV1D_GET_DISPLAY_SIZE, int *)
 #define AOM_CTRL_AV1D_GET_DISPLAY_SIZE

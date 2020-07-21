@@ -1128,6 +1128,26 @@ static aom_codec_err_t ctrl_get_show_existing_frame_flag(
   return AOM_CODEC_OK;
 }
 
+static aom_codec_err_t ctrl_get_s_frame_info(aom_codec_alg_priv_t *ctx,
+                                             va_list args) {
+  aom_s_frame_info *const s_frame_info = va_arg(args, aom_s_frame_info *);
+  if (s_frame_info) {
+    if (ctx->frame_worker) {
+      AVxWorker *const worker = ctx->frame_worker;
+      FrameWorkerData *const frame_worker_data =
+          (FrameWorkerData *)worker->data1;
+      const AV1Decoder *pbi = frame_worker_data->pbi;
+      s_frame_info->is_s_frame = pbi->sframe_info.is_s_frame;
+      s_frame_info->is_s_frame_at_altref =
+          pbi->sframe_info.is_s_frame_at_altref;
+      return AOM_CODEC_OK;
+    } else {
+      return AOM_CODEC_ERROR;
+    }
+  }
+  return AOM_CODEC_OK;
+}
+
 static aom_codec_err_t ctrl_get_frame_corrupted(aom_codec_alg_priv_t *ctx,
                                                 va_list args) {
   int *corrupted = va_arg(args, int *);
@@ -1528,6 +1548,7 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AOMD_GET_STILL_PICTURE, ctrl_get_still_picture },
   { AOMD_GET_SB_SIZE, ctrl_get_sb_size },
   { AOMD_GET_SHOW_EXISTING_FRAME_FLAG, ctrl_get_show_existing_frame_flag },
+  { AOMD_GET_S_FRAME_INFO, ctrl_get_s_frame_info },
 
   CTRL_MAP_END,
 };

@@ -4440,6 +4440,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   MACROBLOCKD *const xd = &pbi->dcb.xd;
   BufferPool *const pool = cm->buffer_pool;
   RefCntBuffer *const frame_bufs = pool->frame_bufs;
+  aom_s_frame_info *sframe_info = &pbi->sframe_info;
+  sframe_info->is_s_frame = 0;
+  sframe_info->is_s_frame_at_altref = 0;
 
   if (!pbi->sequence_header_ready) {
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
@@ -4548,6 +4551,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     if (cm->show_frame == 0) pbi->is_arf_frame_present = 1;
     if (cm->show_frame == 0 && cm->current_frame.frame_type == KEY_FRAME)
       pbi->is_fwd_kf_present = 1;
+    if (cm->current_frame.frame_type == S_FRAME) {
+      sframe_info->is_s_frame = 1;
+      sframe_info->is_s_frame_at_altref = cm->show_frame ? 0 : 1;
+    }
     if (seq_params->still_picture &&
         (current_frame->frame_type != KEY_FRAME || !cm->show_frame)) {
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
