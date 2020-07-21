@@ -292,34 +292,33 @@ It is recommended that the reader refers to the code for more details.
 
 \subsubsection architecture_enc_frame_proc_tf_funcs Temporal Filter Functions
 
-The main entry point for temporal filtering is (TODO REF)
-av1_temporal_filter(). This function returns 1 if temporal filtering is
-successful, otherwise 0. When temporal filtering is applied, the filtered
-frame will be held in the frame buffer \ref AV1_COMP.alt_ref_buffer, which is
-the frame to be encoded in the following encoding process.
+The main entry point for temporal filtering is \ref av1_temporal_filter().
+This function returns 1 if temporal filtering is successful, otherwise 0.
+When temporal filtering is applied, the filtered frame will be held in
+the frame buffer \ref AV1_COMP.alt_ref_buffer, which is the frame to be
+encoded in the following encoding process.
 
 Almost all temporal filter related code is in av1/encoder/temporal_filter.c
 and av1/encoder/temporal_filter.h.
 
-Inside (TODO REF)av1_temporal_filter(), the reader's attention is directed to
-(TODO REF)tf_setup_filtering_buffer() and (TODO REF) tf_do_filtering().
+Inside \ref av1_temporal_filter(), the reader's attention is directed to
+\ref tf_setup_filtering_buffer() and \ref tf_do_filtering().
 
-- (TODO REF)tf_setup_filtering_buffer(): sets up the frame buffer for
+- \ref tf_setup_filtering_buffer(): sets up the frame buffer for
   temporal filtering, determines the number of frames to be used, and
   calculates the noise level of each frame.
 
-- (TODO REF) tf_do_filtering(): the main function for the temporal
+- \ref tf_do_filtering(): the main function for the temporal
   filtering algorithm. It breaks each frame into "MxM" blocks. For each
-  block a motion search (TODO REF) tf_motion_search() is applied to find
-  the motion vector from one neighboring frame. (TODO REF)
-  tf_build_predictor() is then called to build the matching patch.
-  (TODO REF) av1_apply_temporal_filter() is then used to apply temporal
-  filtering. The weighted average over each pixel is accumulated and finally
-  normalized in (TODO REF) tf_normalize_filtered_frame() to generate the final
-  filtered frame.
+  block a motion search \ref tf_motion_search() is applied to find
+  the motion vector from one neighboring frame. tf_build_predictor() is then
+  called to build the matching patch and \ref av1_apply_temporal_filter_c() (see
+  also optimised SIMD versions) to apply temporal filtering. The weighted
+  average over each pixel is accumulated and finally normalized in
+  \ref tf_normalize_filtered_frame() to generate the final filtered frame.
 
-- (TODO REF) av1_apply_temporal_filter(): the core function of our temporal
-  filtering algorithm.
+- \ref av1_apply_temporal_filter_c(): the core function of our temporal
+  filtering algorithm (see also optimised SIMD versions).
 
 \subsection architecture_enc_frame_proc_film Film Grain Modelling
 
@@ -547,9 +546,7 @@ Statistics for each frame are stored in \ref FIRSTPASS_STATS frame_stats_buf.
 After completion of the first pass, \ref av1_encode() will be called again for
 each frame with \ref AV1EncoderConfig.pass = 2.  The frames are then encoded in
 accordance with the statistics gathered during the first pass by calls to
-\ref encode_frame_to_data_rate().
-
-\ref encode_frame_to_data_rate() in turn calls (TODO REF)
+\ref encode_frame_to_data_rate() which in turn calls (TODO REF)
 av1_get_second_pass_params().
 
 In summary the second pass code :-
@@ -1191,9 +1188,7 @@ void second_pass(char *stats, size_t stats_len) {
 
 /*!\defgroup partition_search Partition Search
  * \ingroup encoder_algo
-
-For and overview of the partition search see \ref architecture_enc_partitions
-
+ * For and overview of the partition search see \ref architecture_enc_partitions
  * @{
  */
 /*! @} - end defgroup partition_search */
@@ -1266,10 +1261,19 @@ For and overview of the partition search see \ref architecture_enc_partitions
 /*!\defgroup rate_control Rate Control
  * \ingroup encoder_algo
  * This module describes rate control algorithm in AV1.
- * More details will be added.
+ *  See also \ref architecture_enc_rate_ctrl
  * @{
  */
 /*! @} - end defgroup rate_control */
+
+/*!\defgroup src_frame_proc Source Frame Processing
+ * \ingroup encoder_algo
+ * This module describes algorithms in AV1 assosciated with the
+ * pre-processing of source frames. See also \ref architecture_enc_src_proc
+ *
+ * @{
+ */
+/*! @} - end defgroup src_frame_proc */
 
 /*!\defgroup cyclic_refresh Cyclic Refresh
  * \ingroup encoder_algo

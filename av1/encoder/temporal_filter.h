@@ -15,6 +15,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+/*!\cond */
 
 // TODO(any): These two variables are only used in avx2, sse2, sse4
 // implementations, where the block size is still hard coded. This should be
@@ -82,24 +83,30 @@ double av1_estimate_noise_from_single_plane(const YV12_BUFFER_CONFIG *frame,
                                             const int bit_depth);
 
 #define TF_QINDEX 128  // Q-index used in temporal filtering.
-// Performs temporal filtering if needed.
-// NOTE: In this function, the lookahead index is different from the 0-based
-// real index. For example, if we want to filter the first frame in the
-// pre-fetched buffer `cpi->lookahead`, the lookahead index will be -1 instead
-// of 0. More concretely, 0 indicates the first LOOKAHEAD frame, which is the
-// second frame in the pre-fetched buffer. Another example: if we want to filter
-// the 17-th frame, which is an ARF, the lookahead index is 15 instead of 16.
-// Futhermore, negative number is used for key frame in one-pass mode, where key
-// frame is filtered with the frames before it instead of after it. For example,
-// -15 means to filter the 17-th frame, which is a key frame in one-pass mode.
-// Inputs:
-//   cpi: Pointer to the composed information of input video.
-//   filter_frame_lookahead_idx: The index of the to-filter frame in the
-//                               lookahead buffer `cpi->lookahead`.
-//   show_existing_arf: Whether to show existing ARF. This field will be updated
-//                      in this function.
-// Returns:
-//   Whether temporal filtering is successfully done.
+
+/*!\endcond */
+/*!\brief Performs temporal filtering if needed on a source frame.
+ * For example to create a filtered alternate reference frame (ARF)
+ *
+ * In this function, the lookahead index is different from the 0-based
+ * real index. For example, if we want to filter the first frame in the
+ * pre-fetched buffer `cpi->lookahead`, the lookahead index will be -1 instead
+ * of 0. More concretely, 0 indicates the first LOOKAHEAD frame, which is the
+ * second frame in the pre-fetched buffer. Another example: if we want to filter
+ * the 17-th frame, which is an ARF, the lookahead index is 15 instead of 16.
+ * Futhermore, negative number is used for key frame in one-pass mode, where key
+ * frame is filtered with the frames before it instead of after it. For example,
+ * -15 means to filter the 17-th frame, which is a key frame in one-pass mode.
+ *
+ * \ingroup src_frame_proc
+ * \param[in]   cpi                        Top level encoder instance structure
+ * \param[in]   filter_frame_lookahead_idx The index of the to-filter frame in
+ *                                         the lookahead buffer cpi->lookahead.
+ * \param[in,out]   show_existing_arf      Whether to show existing ARF. This
+ *                                         field is updated in this function.
+ *
+ * \return Whether temporal filtering is successfully done.
+ */
 int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
                         int *show_existing_arf);
 

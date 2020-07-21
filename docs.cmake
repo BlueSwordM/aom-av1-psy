@@ -146,6 +146,8 @@ if(CONFIG_AV1_ENCODER)
       "${AOM_ROOT}/av1/encoder/speed_features.h"
       "${AOM_ROOT}/av1/encoder/svc_layercontext.c"
       "${AOM_ROOT}/av1/encoder/svc_layercontext.h"
+      "${AOM_ROOT}/av1/encoder/temporal_filter.h"
+      "${AOM_ROOT}/av1/encoder/temporal_filter.c"
       "${AOM_ROOT}/av1/encoder/tx_search.h"
       "${AOM_ROOT}/av1/encoder/var_based_part.h"
       "${AOM_ROOT}/av1/encoder/nonrd_pickmode.c")
