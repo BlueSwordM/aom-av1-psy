@@ -23,6 +23,8 @@ extern "C" {
 #include "aom/aom_integer.h"
 #include "aom/internal/aom_image_internal.h"
 
+/*!\cond */
+
 #define AOMINNERBORDERINPIXELS 160
 #define AOM_INTERP_EXTEND 4
 #define AOM_BORDER_IN_PIXELS 288
@@ -30,7 +32,12 @@ extern "C" {
 #define AOM_ENC_TPL_FRAME_BORDER 32
 #define AOM_DEC_BORDER_IN_PIXELS 64
 
+/*!\endcond */
+/*!
+ * \brief YV12 frame buffer data structure
+ */
 typedef struct yv12_buffer_config {
+  /*!\cond */
   union {
     struct {
       int y_width;
@@ -107,7 +114,10 @@ typedef struct yv12_buffer_config {
   int corrupted;
   int flags;
   aom_metadata_array_t *metadata;
+  /*!\endcond */
 } YV12_BUFFER_CONFIG;
+
+/*!\cond */
 
 #define YV12_FLAG_HIGHBITDEPTH 8
 
@@ -130,6 +140,7 @@ int aom_realloc_frame_buffer(YV12_BUFFER_CONFIG *ybf, int width, int height,
 
 int aom_free_frame_buffer(YV12_BUFFER_CONFIG *ybf);
 
+/*!\endcond */
 /*!\brief Removes metadata from YUV_BUFFER_CONFIG struct.
  *
  * Frees metadata in frame buffer.

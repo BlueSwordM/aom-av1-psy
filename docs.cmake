@@ -112,6 +112,7 @@ if(CONFIG_AV1_ENCODER)
                           "${AOM_ROOT}/doc/dev_guide/av1_encoder.dox")
   set(AOM_DOXYGEN_SOURCES
       ${AOM_DOXYGEN_SOURCES}
+      "${AOM_ROOT}/aom_scale/yv12config.h"
       "${AOM_ROOT}/av1/encoder/bitstream.h"
       "${AOM_ROOT}/av1/encoder/block.h"
       "${AOM_ROOT}/av1/encoder/aq_cyclicrefresh.h"

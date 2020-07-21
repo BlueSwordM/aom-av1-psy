@@ -104,7 +104,7 @@ encoder and referenced elsewhere in this overview document:
 
 - \ref AV1_COMP
     - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
-    - \ref AV1_COMP.alt_ref_buffer ((TODO REF) YV12_BUFFER_CONFIG)
+    - \ref AV1_COMP.alt_ref_buffer (\ref yv12_buffer_config)
     - \ref AV1_COMP.rc (\ref RATE_CONTROL)
     - \ref AV1_COMP.twopass (\ref TWO_PASS)
     - \ref AV1_COMP.gf_group (\ref GF_GROUP)
@@ -173,7 +173,7 @@ The following are the main data structures referenced in this section
 
 - \ref AV1_COMP cpi (the main compressor instance data structure)
     - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
-    - \ref AV1_COMP.alt_ref_buffer ((TODO REF) YV12_BUFFER_CONFIG)
+    - \ref AV1_COMP.alt_ref_buffer (\ref yv12_buffer_config)
 
 - \ref AV1EncoderConfig (Encoder configuration parameters)
     - \ref AV1EncoderConfig.algo_cfg (\ref AlgoCfg)
