@@ -1269,6 +1269,10 @@ enum aome_enc_control_id {
    * single pass vbr based on LAP, unsigned int parameter
    */
   AV1E_SET_VBR_CORPUS_COMPLEXITY_LAP = 157,
+
+  /*!\brief Control to get baseline gf interval
+   */
+  AV1E_GET_BASELINE_GF_INTERVAL = 158,
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1690,6 +1694,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_SUPERBLOCK_SIZE, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_GET_SEQ_LEVEL_IDX, int *)
 #define AOM_CTRL_AV1E_GET_SEQ_LEVEL_IDX
+
+AOM_CTRL_USE_TYPE(AV1E_GET_BASELINE_GF_INTERVAL, int *)
+#define AOM_CTRL_AV1E_GET_BASELINE_GF_INTERVAL
 
 AOM_CTRL_USE_TYPE(AV1E_SET_SINGLE_TILE_DECODING, unsigned int)
 #define AOM_CTRL_AV1E_SET_SINGLE_TILE_DECODING

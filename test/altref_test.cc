@@ -114,4 +114,105 @@ AV1_INSTANTIATE_TEST_SUITE(AltRefFramePresenceTestLarge,
                            ::testing::ValuesIn(TestParams),
                            ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
 
+typedef struct {
+  const ::libaom_test::TestMode encoding_mode;
+  const unsigned int min_gf_interval;
+  const unsigned int max_gf_interval;
+} gfIntervalParam;
+
+const gfIntervalParam gfTestParams[] = {
+  // single pass
+  { ::libaom_test::kOnePassGood, 0, 6 },
+  { ::libaom_test::kOnePassGood, 0, 8 },
+  { ::libaom_test::kOnePassGood, 5, 10 },
+  { ::libaom_test::kOnePassGood, 8, 16 },
+  { ::libaom_test::kOnePassGood, 16, 16 },
+
+  // two pass
+  { ::libaom_test::kTwoPassGood, 0, 6 },
+  { ::libaom_test::kTwoPassGood, 0, 8 },
+  { ::libaom_test::kTwoPassGood, 5, 10 },
+  { ::libaom_test::kTwoPassGood, 8, 16 },
+  { ::libaom_test::kTwoPassGood, 16, 32 },
+  // disabled below test case because it causes failure
+  // TODO(anyone): enable below test case once issue is fixed.
+  // { ::libaom_test::kTwoPassGood, 20, 32 },
+};
+
+// This class is used to test if the gf interval bounds configured by the user
+// are respected by the encoder.
+class GoldenFrameIntervalTestLarge
+    : public ::libaom_test::CodecTestWith2Params<gfIntervalParam, aom_rc_mode>,
+      public ::libaom_test::EncoderTest {
+ protected:
+  GoldenFrameIntervalTestLarge()
+      : EncoderTest(GET_PARAM(0)), gf_interval_param_(GET_PARAM(1)),
+        rc_end_usage_(GET_PARAM(2)) {
+    baseline_gf_interval_ = -1;
+    limit_ = 60;
+    frame_num_ = 0;
+  }
+  virtual ~GoldenFrameIntervalTestLarge() {}
+
+  virtual void SetUp() {
+    InitializeConfig();
+    SetMode(gf_interval_param_.encoding_mode);
+    const aom_rational timebase = { 1, 30 };
+    cfg_.g_timebase = timebase;
+    cfg_.rc_end_usage = rc_end_usage_;
+    cfg_.g_threads = 1;
+    // kf_min_dist is equal to kf_max_dist to make sure that there are no scene
+    // cuts due to which the min_gf_interval may not be respected.
+    cfg_.kf_min_dist = limit_;
+    cfg_.kf_max_dist = limit_;
+    cfg_.g_limit = limit_;
+    cfg_.g_lag_in_frames = 35;
+    cfg_.rc_target_bitrate = 1000;
+  }
+
+  virtual bool DoDecode() const { return 1; }
+
+  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                                  ::libaom_test::Encoder *encoder) {
+    if (video->frame() == 0) {
+      encoder->Control(AOME_SET_CPUUSED, 5);
+      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AV1E_SET_MIN_GF_INTERVAL,
+                       gf_interval_param_.min_gf_interval);
+      encoder->Control(AV1E_SET_MAX_GF_INTERVAL,
+                       gf_interval_param_.max_gf_interval);
+    }
+    if (frame_num_ > 0) {
+      encoder->Control(AV1E_GET_BASELINE_GF_INTERVAL, &baseline_gf_interval_);
+      ASSERT_LE(baseline_gf_interval_, (int)gf_interval_param_.max_gf_interval);
+      if ((frame_num_ + (int)gf_interval_param_.min_gf_interval) <= limit_) {
+        ASSERT_GE(baseline_gf_interval_,
+                  (int)gf_interval_param_.min_gf_interval);
+      }
+    }
+  }
+
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
+    (void)pkt;
+    ++frame_num_;
+  }
+
+  const gfIntervalParam gf_interval_param_;
+  int baseline_gf_interval_;
+  int limit_;
+  int frame_num_;
+  aom_rc_mode rc_end_usage_;
+};
+
+TEST_P(GoldenFrameIntervalTestLarge, GoldenFrameIntervalTest) {
+  libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+                                     cfg_.g_timebase.den, cfg_.g_timebase.num,
+                                     0, limit_);
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+}
+
+AV1_INSTANTIATE_TEST_SUITE(GoldenFrameIntervalTestLarge,
+                           ::testing::ValuesIn(gfTestParams),
+                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CQ, AOM_CBR));
+
 }  // namespace

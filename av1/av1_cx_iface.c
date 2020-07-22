@@ -1158,6 +1158,14 @@ static aom_codec_err_t ctrl_get_quantizer64(aom_codec_alg_priv_t *ctx,
   return AOM_CODEC_OK;
 }
 
+static aom_codec_err_t ctrl_get_baseline_gf_interval(aom_codec_alg_priv_t *ctx,
+                                                     va_list args) {
+  int *const arg = va_arg(args, int *);
+  if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
+  *arg = ctx->cpi->rc.baseline_gf_interval;
+  return AOM_CODEC_OK;
+}
+
 static aom_codec_err_t update_extra_cfg(aom_codec_alg_priv_t *ctx,
                                         struct av1_extracfg *extra_cfg) {
   const aom_codec_err_t res = validate_config(ctx, &ctx->cfg, extra_cfg);
@@ -2877,6 +2885,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_CHROMA_SUBSAMPLING_X, ctrl_set_chroma_subsampling_x },
   { AV1E_SET_CHROMA_SUBSAMPLING_Y, ctrl_set_chroma_subsampling_y },
   { AV1E_GET_SEQ_LEVEL_IDX, ctrl_get_seq_level_idx },
+  { AV1E_GET_BASELINE_GF_INTERVAL, ctrl_get_baseline_gf_interval },
 
   CTRL_MAP_END,
 };
