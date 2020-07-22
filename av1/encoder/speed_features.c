@@ -868,8 +868,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   }
 
   if (speed >= 7) {
-    sf->hl_sf.frame_parameter_update = 0;
-
     sf->part_sf.default_max_partition_size = BLOCK_128X128;
     sf->part_sf.default_min_partition_size = BLOCK_8X8;
     sf->part_sf.partition_search_type = VAR_BASED_PARTITION;
