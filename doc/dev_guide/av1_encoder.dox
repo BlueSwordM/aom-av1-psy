@@ -137,6 +137,9 @@ encoder and referenced elsewhere in this overview document:
     - \ref RateControlCfg.maximum_buffer_size_ms
     - \ref RateControlCfg.starting_buffer_level_ms
     - \ref RateControlCfg.optimal_buffer_level_ms
+    - \ref RateControlCfg.vbrbias
+    - \ref RateControlCfg.vbrmin_section
+    - \ref RateControlCfg.vbrmax_section
 
 - \ref RATE_CONTROL (Rate control status)
     - \ref RATE_CONTROL.intervals_till_gf_calculate_due
@@ -145,10 +148,7 @@ encoder and referenced elsewhere in this overview document:
     - \ref RATE_CONTROL.frames_till_gf_update_due
     - \ref RATE_CONTROL.frames_to_key
 
-- \ref TwoPassCfg (Two pass specific rate control configuration)
-    - \ref TwoPassCfg.vbrbias
-    - \ref TwoPassCfg.vbrmin_section
-    - \ref TwoPassCfg.vbrmax_section
+- \ref TwoPassCfg (VBR pass specific rate control configuration)
 
 - \ref TWO_PASS (Two pass status and control data)
 
@@ -471,11 +471,11 @@ control configuration data structures.
 - <b>--undershoot-pct</b> (\ref RateControlCfg.under_shoot_pct)
 - <b>--overshoot-pct</b> (\ref RateControlCfg.over_shoot_pct)
 
-The following control aspects of 2 pass vbr encoding
+The following control aspects of vbr encoding
 
-- <b>--bias-pct</b> (\ref TwoPassCfg.vbrbias)
-- <b>--minsection-pct</b> ((\ref TwoPassCfg.vbrmin_section)
-- <b>--maxsection-pct</b> ((\ref TwoPassCfg.vbrmax_section)
+- <b>--bias-pct</b> (\ref RateControlCfg.vbrbias)
+- <b>--minsection-pct</b> ((\ref RateControlCfg.vbrmin_section)
+- <b>--maxsection-pct</b> ((\ref RateControlCfg.vbrmax_section)
 
 The following relate to buffer and delay management in one pass low delay and
 real time coding

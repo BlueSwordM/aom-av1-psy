@@ -821,6 +821,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   rc_cfg->target_bandwidth = 1000 * cfg->rc_target_bitrate;
   rc_cfg->drop_frames_water_mark = cfg->rc_dropframe_thresh;
   rc_cfg->vbr_corpus_complexity_lap = extra_cfg->vbr_corpus_complexity_lap;
+  rc_cfg->vbrbias = cfg->rc_2pass_vbr_bias_pct;
+  rc_cfg->vbrmin_section = cfg->rc_2pass_vbr_minsection_pct;
+  rc_cfg->vbrmax_section = cfg->rc_2pass_vbr_maxsection_pct;
 
   // Set Toolset related configuration.
   tool_cfg->bit_depth = cfg->g_bit_depth;
@@ -903,9 +906,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
 
   // Set two-pass configuration.
-  two_pass_cfg->vbrbias = cfg->rc_2pass_vbr_bias_pct;
-  two_pass_cfg->vbrmin_section = cfg->rc_2pass_vbr_minsection_pct;
-  two_pass_cfg->vbrmax_section = cfg->rc_2pass_vbr_maxsection_pct;
   two_pass_cfg->stats_in = cfg->rc_twopass_stats_in;
 
   // Set Key frame configuration.

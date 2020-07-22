@@ -73,7 +73,7 @@ static double calculate_modified_err(const FRAME_INFO *frame_info,
   double modified_error =
       av_err * pow(this_frame->coded_error * this_frame->weight /
                        DOUBLE_DIVIDE_CHECK(av_err),
-                   oxcf->two_pass_cfg.vbrbias / 100.0);
+                   oxcf->rc_cfg.vbrbias / 100.0);
 
   // Correction for active area. Frames with a reduced active area
   // (eg due to formatting bars) have a higher error per mb for the
@@ -154,7 +154,7 @@ static void subtract_stats(FIRSTPASS_STATS *section,
 static int frame_max_bits(const RATE_CONTROL *rc,
                           const AV1EncoderConfig *oxcf) {
   int64_t max_bits = ((int64_t)rc->avg_frame_bandwidth *
-                      (int64_t)oxcf->two_pass_cfg.vbrmax_section) /
+                      (int64_t)oxcf->rc_cfg.vbrmax_section) /
                      100;
   if (max_bits < 0)
     max_bits = 0;
@@ -2944,9 +2944,9 @@ void av1_init_second_pass(AV1_COMP *cpi) {
     const FIRSTPASS_STATS *s = twopass->stats_in;
     double modified_error_total = 0.0;
     twopass->modified_error_min =
-        (avg_error * oxcf->two_pass_cfg.vbrmin_section) / 100;
+        (avg_error * oxcf->rc_cfg.vbrmin_section) / 100;
     twopass->modified_error_max =
-        (avg_error * oxcf->two_pass_cfg.vbrmax_section) / 100;
+        (avg_error * oxcf->rc_cfg.vbrmax_section) / 100;
     while (s < twopass->stats_buf_ctx->stats_in_end) {
       modified_error_total +=
           calculate_modified_err(frame_info, twopass, oxcf, s);
