@@ -151,9 +151,7 @@ enum {
   SS_CFG_SRC = 0,
   SS_CFG_LOOKAHEAD = 1,
   SS_CFG_FPF = 2,
-  SS_CFG_TPL_SRC = 3,
-  SS_CFG_TPL_LOOKAHEAD = 4,
-  SS_CFG_TOTAL = 5
+  SS_CFG_TOTAL = 3
 } UENUM1BYTE(SS_CFG_OFFSET);
 
 enum {
@@ -1691,7 +1689,7 @@ typedef struct {
    * motion search. search_site_cfg[SS_CFG_LOOKAHEAD]: Used in intraBC, temporal
    * filter search_site_cfg[SS_CFG_FPF]: Used during first pass and lookahead
    */
-  search_site_config search_site_cfg[SS_CFG_TOTAL];
+  search_site_config search_site_cfg[SS_CFG_TOTAL][NUM_DISTINCT_SEARCH_METHODS];
 } MotionVectorSearchParams;
 
 /*!

@@ -104,9 +104,21 @@ static void tf_motion_search(AV1_COMP *cpi,
   // Parameters used for motion search.
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   SUBPEL_MOTION_SEARCH_PARAMS ms_params;
-  const search_site_config search_site_cfg =
+  SEARCH_METHODS search_method = NSTEP;
+  // The initialization of search method with mv_sf.search_method
+  // happens only for some cases to prevent bit mismatch with ref version.
+  // ToDo(anyone): As per previous implementation search method has been changed
+  // without taking care of search site config. Now as the initialization of
+  // search site config for all search methods happens at frame level,
+  // we can try to use that when changing the search method.
+  if (cpi->oxcf.mode == GOOD &&
+      (!cpi->sf.mv_sf.use_bsize_dependent_search_method ||
+       (cpi->sf.mv_sf.use_bsize_dependent_search_method &&
+        block_size < BLOCK_32X32))) {
+    search_method = cpi->sf.mv_sf.search_method;
+  }
+  const search_site_config *search_site_cfg =
       cpi->mv_search_params.search_site_cfg[SS_CFG_LOOKAHEAD];
-  const SEARCH_METHODS full_search_method = NSTEP;
   const int step_param = av1_init_search_range(
       AOMMAX(frame_to_filter->y_crop_width, frame_to_filter->y_crop_height));
   const SUBPEL_SEARCH_TYPE subpel_search_type = USE_8_TAPS;
@@ -137,10 +149,9 @@ static void tf_motion_search(AV1_COMP *cpi,
   MV block_mv = kZeroMv;
 
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, mb, block_size,
-                                     &baseline_mv, &search_site_cfg,
-                                     /*fine_search_interval=*/0);
+                                     &baseline_mv, search_site_cfg,
+                                     /*fine_search_interval=*/0, search_method);
   full_ms_params.run_mesh_search = 1;
-  full_ms_params.search_method = full_search_method;
   full_ms_params.mv_cost_params.mv_cost_type = mv_cost_type;
 
   av1_full_pixel_search(start_mv, &full_ms_params, step_param,
@@ -182,18 +193,30 @@ static void tf_motion_search(AV1_COMP *cpi,
     start_mv = get_fullmv_from_mv(ref_mv);
 
     int subblock_idx = 0;
+    search_method = NSTEP;
     for (int i = 0; i < mb_height; i += subblock_height) {
       for (int j = 0; j < mb_width; j += subblock_width) {
         const int offset = i * y_stride + j;
         mb->plane[0].src.buf = frame_to_filter->y_buffer + y_offset + offset;
         mbd->plane[0].pre[0].buf = ref_frame->y_buffer + y_offset + offset;
-
-        av1_make_default_fullpel_ms_params(&full_ms_params, cpi, mb,
-                                           subblock_size, &baseline_mv,
-                                           &search_site_cfg,
-                                           /*fine_search_interval=*/0);
+        // The initialization of search method with mv_sf.search_method
+        // happens only for some cases to prevent bit mismatch with ref version.
+        // ToDo(anyone): As per previous implementation search method has been
+        // changed without taking care of search site config. Now as the
+        // initialization of search site config for all search methods happens
+        // at frame level, we can try to use that when changing the search
+        // method.
+        if (cpi->oxcf.mode == GOOD &&
+            (!cpi->sf.mv_sf.use_bsize_dependent_search_method ||
+             (cpi->sf.mv_sf.use_bsize_dependent_search_method &&
+              subblock_size < BLOCK_32X32))) {
+          search_method = cpi->sf.mv_sf.search_method;
+        }
+        av1_make_default_fullpel_ms_params(
+            &full_ms_params, cpi, mb, subblock_size, &baseline_mv,
+            search_site_cfg,
+            /*fine_search_interval=*/0, search_method);
         full_ms_params.run_mesh_search = 1;
-        full_ms_params.search_method = full_search_method;
         full_ms_params.mv_cost_params.mv_cost_type = mv_cost_type;
 
         av1_full_pixel_search(start_mv, &full_ms_params, step_param,

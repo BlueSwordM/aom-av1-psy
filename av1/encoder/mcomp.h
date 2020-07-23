@@ -151,6 +151,10 @@ enum {
   FAST_DIAMOND = 6,
   // BIGDIA search with up to 3 stages.
   FAST_BIGDIA = 7,
+  // Total number of search methods.
+  NUM_SEARCH_METHODS,
+  // Number of distinct search methods.
+  NUM_DISTINCT_SEARCH_METHODS = SQUARE + 1,
 } UENUM1BYTE(SEARCH_METHODS);
 
 // This struct holds fullpixel motion search parameters that should be constant
@@ -186,21 +190,25 @@ typedef struct {
   MV_COST_PARAMS mv_cost_params;
 } FULLPEL_MOTION_SEARCH_PARAMS;
 
-void av1_make_default_fullpel_ms_params(FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
-                                        const struct AV1_COMP *cpi,
-                                        const MACROBLOCK *x, BLOCK_SIZE bsize,
-                                        const MV *ref_mv,
-                                        const search_site_config *search_sites,
-                                        int fine_search_interval);
+void av1_make_default_fullpel_ms_params(
+    FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const struct AV1_COMP *cpi,
+    const MACROBLOCK *x, BLOCK_SIZE bsize, const MV *ref_mv,
+    const search_site_config search_sites[NUM_SEARCH_METHODS],
+    int fine_search_interval, SEARCH_METHODS search_method);
 
-// Sets up configs for fullpixel diamond search
+// Sets up configs for fullpixel diamond search method.
 void av1_init_dsmotion_compensation(search_site_config *cfg, int stride);
-// Sets up configs for firstpass motion search
+// Sets up configs for firstpass motion search.
 void av1_init_motion_fpf(search_site_config *cfg, int stride);
-// Sets up configs for all other types of motion search
-void av1_init3smotion_compensation(search_site_config *cfg, int stride);
-// Sets up configs for BIGDIA motion search
+// Sets up configs for all other types of motion search method.
+void av1_init_motion_compensation_nstep(search_site_config *cfg, int stride);
+// Sets up configs for BIGDIA / FAST_DIAMOND / FAST_BIGDIA
+// motion search method.
 void av1_init_motion_compensation_bigdia(search_site_config *cfg, int stride);
+// Sets up configs for HEX or FAST_HEX motion search method.
+void av1_init_motion_compensation_hex(search_site_config *cfg, int stride);
+// Sets up configs for SQUARE motion search method.
+void av1_init_motion_compensation_square(search_site_config *cfg, int stride);
 
 // Set up limit values for MV components.
 // Mv beyond the range do not produce new/different prediction block.

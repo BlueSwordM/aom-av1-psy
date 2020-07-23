@@ -176,13 +176,12 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
     center_mv = ref_mv;
   else
     center_mv = tmp_mv->as_mv;
-
   const search_site_config *src_search_sites =
-      &cpi->mv_search_params.search_site_cfg[SS_CFG_SRC];
+      cpi->mv_search_params.search_site_cfg[SS_CFG_SRC];
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
-  av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &center_mv,
-                                     src_search_sites,
-                                     /*fine_search_interval=*/0);
+  av1_make_default_fullpel_ms_params(
+      &full_ms_params, cpi, x, bsize, &center_mv, src_search_sites,
+      /*fine_search_interval=*/0, cpi->sf.mv_sf.search_method);
 
   av1_full_pixel_search(start_mv, &full_ms_params, step_param,
                         cond_cost_list(cpi, cost_list), &tmp_mv->as_fullmv,

@@ -161,28 +161,16 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
   step_param = tpl_sf->reduce_first_step_size;
   step_param = AOMMIN(step_param, MAX_MVSEARCH_STEPS - 2);
 
-  search_site_config *search_site_cfg;
-
-  // When motion search method is FAST_DIAMOND retrive
-  // search_site_cfg from corresponding buffers.
-  if (tpl_sf->search_method == FAST_BIGDIA) {
-    search_site_cfg = &cpi->mv_search_params.search_site_cfg[SS_CFG_TPL_SRC];
-    if (search_site_cfg->stride != stride_ref)
-      search_site_cfg =
-          &cpi->mv_search_params.search_site_cfg[SS_CFG_TPL_LOOKAHEAD];
-  } else {
-    search_site_cfg = &cpi->mv_search_params.search_site_cfg[SS_CFG_SRC];
-    if (search_site_cfg->stride != stride_ref)
-      search_site_cfg =
-          &cpi->mv_search_params.search_site_cfg[SS_CFG_LOOKAHEAD];
-  }
+  const search_site_config *search_site_cfg =
+      cpi->mv_search_params.search_site_cfg[SS_CFG_SRC];
+  if (search_site_cfg->stride != stride_ref)
+    search_site_cfg = cpi->mv_search_params.search_site_cfg[SS_CFG_LOOKAHEAD];
   assert(search_site_cfg->stride == stride_ref);
 
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
-  av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &center_mv,
-                                     search_site_cfg,
-                                     /*fine_search_interval=*/0);
-  full_ms_params.search_method = tpl_sf->search_method;
+  av1_make_default_fullpel_ms_params(
+      &full_ms_params, cpi, x, bsize, &center_mv, search_site_cfg,
+      /*fine_search_interval=*/0, tpl_sf->search_method);
 
   av1_full_pixel_search(start_mv, &full_ms_params, step_param,
                         cond_cost_list(cpi, cost_list), &best_mv->as_fullmv,

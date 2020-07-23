@@ -1680,6 +1680,18 @@ void av1_set_screen_content_options(const AV1_COMP *cpi,
                             counts_2 * blk_h * blk_w * 12 > width * height;
 }
 
+// Function pointer to search site config initialization
+// of different search method functions.
+typedef void (*av1_init_search_site_config)(search_site_config *cfg,
+                                            int stride);
+
+av1_init_search_site_config
+    av1_init_motion_compensation[NUM_DISTINCT_SEARCH_METHODS] = {
+      av1_init_dsmotion_compensation, av1_init_motion_compensation_nstep,
+      av1_init_motion_compensation_hex, av1_init_motion_compensation_bigdia,
+      av1_init_motion_compensation_square
+    };
+
 static void init_motion_estimation(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MotionVectorSearchParams *const mv_search_params = &cpi->mv_search_params;
@@ -1695,34 +1707,30 @@ static void init_motion_estimation(AV1_COMP *cpi) {
   // Update if search_site_cfg is uninitialized or the current frame has a new
   // stride
   const int should_update =
-      !mv_search_params->search_site_cfg[SS_CFG_SRC].stride ||
-      !mv_search_params->search_site_cfg[SS_CFG_LOOKAHEAD].stride ||
-      (y_stride != mv_search_params->search_site_cfg[SS_CFG_SRC].stride);
+      !mv_search_params->search_site_cfg[SS_CFG_SRC][DIAMOND].stride ||
+      !mv_search_params->search_site_cfg[SS_CFG_LOOKAHEAD][DIAMOND].stride ||
+      (y_stride !=
+       mv_search_params->search_site_cfg[SS_CFG_SRC][DIAMOND].stride);
 
   if (!should_update) {
     return;
   }
 
-  if (cpi->sf.mv_sf.search_method == DIAMOND) {
-    av1_init_dsmotion_compensation(
-        &mv_search_params->search_site_cfg[SS_CFG_SRC], y_stride);
-    av1_init_dsmotion_compensation(
-        &mv_search_params->search_site_cfg[SS_CFG_LOOKAHEAD], y_stride_src);
-  } else {
-    av1_init3smotion_compensation(
-        &mv_search_params->search_site_cfg[SS_CFG_SRC], y_stride);
-    av1_init3smotion_compensation(
-        &mv_search_params->search_site_cfg[SS_CFG_LOOKAHEAD], y_stride_src);
+  // Initialization of search_site_cfg for NUM_DISTINCT_SEARCH_METHODS.
+  for (SEARCH_METHODS i = DIAMOND; i < NUM_DISTINCT_SEARCH_METHODS; i++) {
+    av1_init_motion_compensation[i](
+        &mv_search_params->search_site_cfg[SS_CFG_SRC][i], y_stride);
+    av1_init_motion_compensation[i](
+        &mv_search_params->search_site_cfg[SS_CFG_LOOKAHEAD][i], y_stride_src);
   }
 
-  av1_init_motion_fpf(&mv_search_params->search_site_cfg[SS_CFG_FPF],
+  // First pass search site config initialization.
+  av1_init_motion_fpf(&mv_search_params->search_site_cfg[SS_CFG_FPF][DIAMOND],
                       fpf_y_stride);
-
-  if (cpi->sf.tpl_sf.search_method == FAST_BIGDIA) {
-    av1_init_motion_compensation_bigdia(
-        &mv_search_params->search_site_cfg[SS_CFG_TPL_SRC], y_stride);
-    av1_init_motion_compensation_bigdia(
-        &mv_search_params->search_site_cfg[SS_CFG_TPL_LOOKAHEAD], y_stride_src);
+  for (SEARCH_METHODS i = NSTEP; i < NUM_DISTINCT_SEARCH_METHODS; i++) {
+    memcpy(&mv_search_params->search_site_cfg[SS_CFG_FPF][i],
+           &mv_search_params->search_site_cfg[SS_CFG_FPF][DIAMOND],
+           sizeof(search_site_config));
   }
 }
 

@@ -225,7 +225,7 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   const int step_param = 3 + sr;
 
   const search_site_config *first_pass_search_sites =
-      &cpi->mv_search_params.search_site_cfg[SS_CFG_FPF];
+      cpi->mv_search_params.search_site_cfg[SS_CFG_FPF];
   const int fine_search_interval =
       cpi->is_screen_content_type && cpi->common.features.allow_intrabc;
   if (fine_search_interval) {
@@ -234,7 +234,7 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   FULLPEL_MOTION_SEARCH_PARAMS ms_params;
   av1_make_default_fullpel_ms_params(&ms_params, cpi, x, bsize, ref_mv,
                                      first_pass_search_sites,
-                                     fine_search_interval);
+                                     fine_search_interval, NSTEP);
   ms_params.search_method = NSTEP;
 
   FULLPEL_MV this_best_mv;
