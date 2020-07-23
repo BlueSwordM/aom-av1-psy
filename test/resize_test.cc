@@ -786,6 +786,54 @@ TEST_P(ResizeCspTest, TestResizeCspWorks) {
   }
 }
 
+// This class is used to check if there are any fatal
+// failures while encoding with resize-mode > 0
+class ResizeModeTestLarge
+    : public ::libaom_test::CodecTestWith5Params<libaom_test::TestMode, int,
+                                                 int, int, int>,
+      public ::libaom_test::EncoderTest {
+ protected:
+  ResizeModeTestLarge()
+      : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
+        resize_mode_(GET_PARAM(2)), resize_denominator_(GET_PARAM(3)),
+        resize_kf_denominator_(GET_PARAM(4)), cpu_used_(GET_PARAM(5)) {}
+  virtual ~ResizeModeTestLarge() {}
+
+  virtual void SetUp() {
+    InitializeConfig();
+    SetMode(encoding_mode_);
+    const aom_rational timebase = { 1, 30 };
+    cfg_.g_timebase = timebase;
+    cfg_.rc_end_usage = AOM_VBR;
+    cfg_.g_threads = 1;
+    cfg_.g_lag_in_frames = 35;
+    cfg_.rc_target_bitrate = 1000;
+    cfg_.rc_resize_mode = resize_mode_;
+    cfg_.rc_resize_denominator = resize_denominator_;
+    cfg_.rc_resize_kf_denominator = resize_kf_denominator_;
+    init_flags_ = AOM_CODEC_USE_PSNR;
+  }
+
+  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                                  ::libaom_test::Encoder *encoder) {
+    if (video->frame() == 0) {
+      encoder->Control(AOME_SET_CPUUSED, cpu_used_);
+      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
+    }
+  }
+
+  ::libaom_test::TestMode encoding_mode_;
+  int resize_mode_;
+  int resize_denominator_;
+  int resize_kf_denominator_;
+  int cpu_used_;
+};
+
+TEST_P(ResizeModeTestLarge, ResizeModeTest) {
+  ::libaom_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 0, 30);
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+}
+
 AV1_INSTANTIATE_TEST_SUITE(ResizeTest,
                            ::testing::Values(::libaom_test::kRealTime));
 AV1_INSTANTIATE_TEST_SUITE(ResizeInternalTestLarge,
@@ -795,4 +843,10 @@ AV1_INSTANTIATE_TEST_SUITE(ResizeRealtimeTest,
                            ::testing::Range(5, 10));
 AV1_INSTANTIATE_TEST_SUITE(ResizeCspTest,
                            ::testing::Values(::libaom_test::kRealTime));
+
+AV1_INSTANTIATE_TEST_SUITE(
+    ResizeModeTestLarge,
+    ::testing::Values(::libaom_test::kOnePassGood, ::libaom_test::kTwoPassGood),
+    ::testing::Values(1, 2), ::testing::Values(8, 12, 16),
+    ::testing::Values(8, 12, 16), ::testing::Range(2, 7));
 }  // namespace
