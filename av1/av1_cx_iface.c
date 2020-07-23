@@ -719,8 +719,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
 
-  TwoPassCfg *const two_pass_cfg = &oxcf->two_pass_cfg;
-
   RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
 
   QuantizationCfg *const q_cfg = &oxcf->q_cfg;
@@ -905,8 +903,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   algo_cfg->enable_tpl_model =
       resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
 
-  // Set two-pass configuration.
-  two_pass_cfg->stats_in = cfg->rc_twopass_stats_in;
+  // Set two-pass stats configuration.
+  oxcf->twopass_stats_in = cfg->rc_twopass_stats_in;
 
   // Set Key frame configuration.
   kf_cfg->fwd_kf_enabled = cfg->fwd_kf_enabled;

@@ -117,7 +117,6 @@ encoder and referenced elsewhere in this overview document:
     - \ref AV1EncoderConfig.algo_cfg (\ref AlgoCfg)
     - \ref AV1EncoderConfig.kf_cfg (\ref KeyFrameCfg)
     - \ref AV1EncoderConfig.rc_cfg (\ref RateControlCfg)
-    - \ref AV1EncoderConfig.two_pass_cfg (\ref TwoPassCfg)
 
 - \ref AlgoCfg (Algorithm related configuration parameters)
     - \ref AlgoCfg.arnr_max_frames
@@ -147,8 +146,6 @@ encoder and referenced elsewhere in this overview document:
     - \ref RATE_CONTROL.cur_gf_index
     - \ref RATE_CONTROL.frames_till_gf_update_due
     - \ref RATE_CONTROL.frames_to_key
-
-- \ref TwoPassCfg (VBR pass specific rate control configuration)
 
 - \ref TWO_PASS (Two pass status and control data)
 
@@ -423,7 +420,6 @@ The following are the main data structures referenced in this section
 
  - \ref AV1EncoderConfig (Encoder configuration parameters)
     - \ref AV1EncoderConfig.rc_cfg (\ref RateControlCfg)
-    - \ref AV1EncoderConfig.two_pass_cfg (\ref TwoPassCfg)
 
  - \ref FIRSTPASS_STATS *frame_stats_buf (used to store per frame first
    pass stats)
