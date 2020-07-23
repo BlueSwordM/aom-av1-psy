@@ -130,13 +130,26 @@ static INLINE void av1_set_ms_compound_refs(MSBuffers *ms_buffers,
 //  Fullpixel Motion Search
 // =============================================================================
 enum {
+  // Search 8-points in the radius grid around center, up to 11 search stages.
   DIAMOND = 0,
+  // Search 12-points in the radius/tan_radius grid around center,
+  // up to 15 search stages.
   NSTEP = 1,
+  // Search maximum 8-points in the radius grid around center,
+  // up to 11 search stages. First stage consists of 8 search points
+  // and the rest with 6 search points each in hex shape.
   HEX = 2,
+  // Search maximum 8-points in the radius grid around center,
+  // up to 11 search stages. First stage consists of 4 search
+  // points and the rest with 8 search points each.
   BIGDIA = 3,
+  // Search 8-points in the square grid around center, up to 11 search stages.
   SQUARE = 4,
+  // HEX search with up to 2 stages.
   FAST_HEX = 5,
+  // BIGDIA search with up to 2 stages.
   FAST_DIAMOND = 6,
+  // BIGDIA search with up to 3 stages.
   FAST_BIGDIA = 7,
 } UENUM1BYTE(SEARCH_METHODS);
 
