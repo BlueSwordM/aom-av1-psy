@@ -334,6 +334,12 @@ static const arg_def_t buf_initial_sz =
     ARG_DEF(NULL, "buf-initial-sz", 1, "Client initial buffer size (ms)");
 static const arg_def_t buf_optimal_sz =
     ARG_DEF(NULL, "buf-optimal-sz", 1, "Client optimal buffer size (ms)");
+static const arg_def_t bias_pct =
+    ARG_DEF(NULL, "bias-pct", 1, "CBR/VBR bias (0=CBR, 100=VBR)");
+static const arg_def_t minsection_pct =
+    ARG_DEF(NULL, "minsection-pct", 1, "GOP min bitrate (% of target)");
+static const arg_def_t maxsection_pct =
+    ARG_DEF(NULL, "maxsection-pct", 1, "GOP max bitrate (% of target)");
 static const arg_def_t *rc_args[] = { &dropframe_thresh,
                                       &resize_mode,
                                       &resize_denominator,
@@ -352,16 +358,11 @@ static const arg_def_t *rc_args[] = { &dropframe_thresh,
                                       &buf_sz,
                                       &buf_initial_sz,
                                       &buf_optimal_sz,
+                                      &bias_pct,
+                                      &minsection_pct,
+                                      &maxsection_pct,
                                       NULL };
 
-static const arg_def_t bias_pct =
-    ARG_DEF(NULL, "bias-pct", 1, "CBR/VBR bias (0=CBR, 100=VBR)");
-static const arg_def_t minsection_pct =
-    ARG_DEF(NULL, "minsection-pct", 1, "GOP min bitrate (% of target)");
-static const arg_def_t maxsection_pct =
-    ARG_DEF(NULL, "maxsection-pct", 1, "GOP max bitrate (% of target)");
-static const arg_def_t *rc_twopass_args[] = { &bias_pct, &minsection_pct,
-                                              &maxsection_pct, NULL };
 static const arg_def_t fwd_kf_enabled =
     ARG_DEF(NULL, "enable-fwd-kf", 1, "Enable forward reference keyframes");
 static const arg_def_t kf_min_dist =
@@ -1048,8 +1049,6 @@ static void show_help(FILE *fout, int shorthelp) {
   arg_show_usage(fout, global_args);
   fprintf(fout, "\nRate Control Options:\n");
   arg_show_usage(fout, rc_args);
-  fprintf(fout, "\nTwopass Rate Control Options:\n");
-  arg_show_usage(fout, rc_twopass_args);
   fprintf(fout, "\nKeyframe Placement Options:\n");
   arg_show_usage(fout, kf_args);
 #if CONFIG_AV1_ENCODER
