@@ -9,8 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <vector>
 #include "config/aom_config.h"
-
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/datarate_test.h"
@@ -20,9 +20,19 @@
 #include "test/y4m_video_source.h"
 #include "aom/aom_codec.h"
 #include "av1/common/enums.h"
+#include "av1/encoder/encoder.h"
 
 namespace datarate_test {
 namespace {
+
+struct FrameInfo {
+  FrameInfo(aom_codec_pts_t _pts, unsigned int _w, unsigned int _h)
+      : pts(_pts), w(_w), h(_h) {}
+
+  aom_codec_pts_t pts;
+  unsigned int w;
+  unsigned int h;
+};
 
 class DatarateTestSVC
     : public ::libaom_test::CodecTestWith4Params<libaom_test::TestMode, int,
@@ -40,6 +50,14 @@ class DatarateTestSVC
     SetMode(GET_PARAM(1));
     ResetModel();
   }
+
+  virtual void DecompressedFrameHook(const aom_image_t &img,
+                                     aom_codec_pts_t pts) {
+    frame_info_list_.push_back(FrameInfo(pts, img.d_w, img.d_h));
+    ++decoded_nframes_;
+  }
+
+  std::vector<FrameInfo> frame_info_list_;
 
   virtual int GetNumSpatialLayers() { return number_spatial_layers_; }
 
@@ -116,13 +134,6 @@ class DatarateTestSVC
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
       effective_datarate_tl[i] = (effective_datarate_tl[i] / 1000) / duration_;
     }
-  }
-
-  virtual void DecompressedFrameHook(const aom_image_t &img,
-                                     aom_codec_pts_t pts) {
-    (void)img;
-    (void)pts;
-    ++decoded_nframes_;
   }
 
   virtual bool DoDecode() const {
@@ -408,6 +419,54 @@ class DatarateTestSVC
       ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.30)
           << " The datarate for the file is greater than target by too much!";
     }
+  }
+
+  virtual void BasicRateTargetingSVC3TL1SLResizeTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.g_error_resilient = 1;
+    cfg_.rc_resize_mode = RESIZE_DYNAMIC;
+
+    ::libaom_test::I420VideoSource video("niklas_640_480_30.yuv", 640, 480, 30,
+                                         1, 0, 400);
+    cfg_.g_w = 640;
+    cfg_.g_h = 480;
+    const int bitrate_array[2] = { 70, 100 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    ResetModel();
+    number_temporal_layers_ = 3;
+    target_layer_bitrate_[0] = 50 * cfg_.rc_target_bitrate / 100;
+    target_layer_bitrate_[1] = 70 * cfg_.rc_target_bitrate / 100;
+    target_layer_bitrate_[2] = cfg_.rc_target_bitrate;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
+          << " The datarate for the file is lower than target by too much!";
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.60)
+          << " The datarate for the file is greater than target by too much!";
+    }
+    unsigned int last_w = cfg_.g_w;
+    unsigned int last_h = cfg_.g_h;
+    int resize_down_count = 0;
+    for (std::vector<FrameInfo>::const_iterator info = frame_info_list_.begin();
+         info != frame_info_list_.end(); ++info) {
+      if (info->w != last_w || info->h != last_h) {
+        // Verify that resize down occurs.
+        ASSERT_LT(info->w, last_w);
+        ASSERT_LT(info->h, last_h);
+        last_w = info->w;
+        last_h = info->h;
+        resize_down_count++;
+      }
+    }
+    // Must be at least one resize down.
+    ASSERT_GE(resize_down_count, 1);
   }
 
   virtual void BasicRateTargetingSVC1TL2SLTest() {
@@ -796,6 +855,13 @@ class DatarateTestSVC
 // Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial.
 TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SL) {
   BasicRateTargetingSVC3TL1SLTest();
+}
+
+// Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial,
+// with dynamic resize on. Encode at very low bitrate and check that
+// there is at least one resize (down) event.
+TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLResize) {
+  BasicRateTargetingSVC3TL1SLResizeTest();
 }
 
 // Check basic rate targeting for CBR, for 2 spatial layers, 1 temporal.

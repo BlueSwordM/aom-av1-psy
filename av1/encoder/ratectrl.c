@@ -2520,6 +2520,7 @@ static void dynamic_resize_one_pass_cbr(AV1_COMP *cpi) {
       lc = &svc->layer_context[svc->spatial_layer_id *
                                    svc->number_temporal_layers +
                                tl];
+      lc->rc.resize_state = rc->resize_state;
       lc->rc.buffer_level = lc->rc.optimal_buffer_level;
       lc->rc.bits_off_target = lc->rc.optimal_buffer_level;
       lc->rc.rate_correction_factors[INTER_FRAME] =
