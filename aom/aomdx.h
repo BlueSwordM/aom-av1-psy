@@ -375,13 +375,13 @@ enum aom_dec_control_id {
    */
   AOMD_GET_FWD_KF_PRESENT,
 
-  /*!\brief Codec control function to check the presence of altref frames */
-  AOMD_GET_ALTREF_PRESENT,
-
   /*!\brief Codec control function to get the frame flags of the previous frame
    * decoded. This will return a flag of type aom_codec_frame_flags_t.
    */
   AOMD_GET_FRAME_FLAGS,
+
+  /*!\brief Codec control function to check the presence of altref frames */
+  AOMD_GET_ALTREF_PRESENT,
 
   /*!\brief Codec control function to get tile information of the previous frame
    * decoded. This will return a struct of type aom_tile_info.
