@@ -542,8 +542,8 @@ Statistics for each frame are stored in \ref FIRSTPASS_STATS frame_stats_buf.
 After completion of the first pass, \ref av1_encode() will be called again for
 each frame with \ref AV1EncoderConfig.pass = 2.  The frames are then encoded in
 accordance with the statistics gathered during the first pass by calls to
-\ref encode_frame_to_data_rate() which in turn calls (TODO REF)
-av1_get_second_pass_params().
+\ref encode_frame_to_data_rate() which in turn calls
+ \ref av1_get_second_pass_params().
 
 In summary the second pass code :-
 

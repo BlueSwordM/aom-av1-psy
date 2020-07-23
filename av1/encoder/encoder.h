@@ -2523,15 +2523,17 @@ typedef struct AV1_COMP {
   int frames_left;
 } AV1_COMP;
 
-/*!\cond */
-
+/*!
+ * \brief Input frames and last input frame
+ */
 typedef struct EncodeFrameInput {
+  /*!\cond */
   YV12_BUFFER_CONFIG *source;
   YV12_BUFFER_CONFIG *last_source;
   int64_t ts_duration;
+  /*!\endcond */
 } EncodeFrameInput;
 
-/*!\endcond */
 /*!
  * \brief contains per-frame encoding parameters decided upon by
  * av1_encode_strategy() and passed down to av1_encode().
