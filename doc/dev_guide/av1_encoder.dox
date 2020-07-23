@@ -161,6 +161,157 @@ encoder and referenced elsewhere in this overview document:
     - \ref HIGH_LEVEL_SPEED_FEATURES.recode_loop
     - \ref HIGH_LEVEL_SPEED_FEATURES.recode_tolerance
 
+\section architecture_enc_use_cases Encoder Use Cases
+
+The libaom AV1 encoder is configurable to support a number of different use
+cases and rate control strategies.
+
+The principle use cases for which it is optimised are as follows:
+
+ - <b>Video on Demand / Streaming</b>
+ - <b>Low Delay or Live Streaming</b>
+ - <b>Video Conferencing / Real Time Coding (RTC)</b>
+ - <b>Fixed Quality / Testing</b>
+
+Other examples of use cases for which the encoder could be configured but for
+which there is less by way of specific optimizations include:
+
+ - <b>Download and Play</b>
+ - <b>Disk Playback</b>>
+ - <b>Storage</b>
+ - <b>Editing</b>
+ - <b>Broadcast video</b>
+
+Specific use cases may have particular requirements or constraints. For
+example:
+
+<b>Video Conferencing:</b>  In a video conference we need to encode the video
+in real time and to avoid any coding tools that could increase latency, such
+as frame look ahead.
+
+<b>Live Streams:</b> In cases such as live streaming of games or events, it
+may be possible to allow some limited buffering of the video and use of
+lookahead coding tools to improve encoding quality. However,  whilst a lag of
+a second or two may be fine given the one way nature of this type of video,
+it is clearly not possible to use tools such as two pass coding.
+
+<b>Broadcast:</b> Broadcast video (e.g. digital TV over satellite) may have
+specific requirements such as frequent and regular key frames (e.g. once per
+second or more) as these are important as entry points to users when switching
+channels. There may also be  strict upper limits on bandwidth over a short
+window of time.
+
+<b>Download and Play:</b> Download and play applications may have less strict
+requirements in terms of local frame by frame rate control but there may be a
+requirement to accurately hit a file size target for the video clip as a
+whole. Similar considerations may apply to playback from mass storage devices
+such as DVD or disk drives.
+
+<b>Editing:</b> In certain special use cases such as offline editing, it may
+be desirable to have very high quality and data rate but also very frequent
+key frames or indeed to encode the video exclusively as key frames. Lossless
+video encoding may also be required in this use case.
+
+<b>VOD / Streaming:</b> One of the most important and common use cases for AV1
+is video on demand or streaming, for services such as YouTube and Netflix. In
+this use case it is possible to do two or even multi-pass encoding to improve
+compression efficiency. Streaming services will often store many encoded
+copies of a video at different resolutions and data rates to support users
+with different types of playback device and bandwidth limitations.
+Furthermore, these services support dynamic switching between multiple
+streams, so that they can respond to changing network conditions.
+
+Exact rate control when encoding for a specific format (e.g 360P or 1080P on
+YouTube) may not be critical, provided that the video bandwidth remains within
+allowed limits. Whilst a format may have a nominal target data rate, this can
+be considered more as the desired average egress rate over the video corpus
+rather than a strict requirement for any individual clip. Indeed, in order
+to maintain optimal quality of experience for the end user, it may be
+desirable to encode some easier videos or sections of video at a lower data
+rate and harder videos or sections at a higher rate.
+
+VOD / streaming does not usually require very frequent key frames (as in the
+broadcast case) but key frames are important in trick play (scanning back and
+forth to different points in a video) and for adaptive stream switching. As
+such, in a use case like YouTube, there is normally an upper limit on the
+maximum time between key frames of a few seconds, but within certain limits
+the encoder can try to align key frames with real scene cuts.
+
+Whilst encoder speed may not seem to be as critical in this use case, for
+services such as YouTube, where millions of new videos have to be encoded
+every day, encoder speed is still important, so libaom allows command line
+control of the encode speed vs quality trade off.
+
+<b>Fixed Quality / Testing Mode:</b> Libaom also has a fixed quality encoder
+pathway designed for testing under highly constrained conditions.
+
+\section architecture_enc_speed_quality Speed vs Quality Trade Off
+
+In any modern video encoder there are trade offs that can be made in regard to
+the amount of time spent encoding a video or video frame vs the quality of the
+final encode.
+
+These trade offs typically limit the scope of the search for an optimal
+prediction / transform combination with faster encode modes doing fewer
+partition, reference frame, prediction mode and transform searches at the cost
+of some reduction in coding efficiency.
+
+The pruning of the size of the search tree is typically based on assumptions
+about the likelihood of different search modes being selected based on what
+has gone before and features such as the dimensions of the video frames and
+the Q value selected for encoding the frame. For example certain intra modes
+are less likely to be chosen at high Q but may be more likely if similar
+modes were used for the previously coded blocks above and to the left of the
+current block.
+
+The speed settings depend both on the use case (e.g. Real Time encoding) and
+an explicit speed control passed in on the command line as <b>--cpu-used</b>
+and stored in the \ref AV1_COMP.speed field of the main compressor instance
+data structure (<b>cpi</b>).
+
+The control flags for the speed trade off are stored the \ref AV1_COMP.sf
+field of the compressor instancve and are set in the following functions:-
+
+- \ref av1_set_speed_features_framesize_independent()
+- \ref av1_set_speed_features_framesize_dependent()
+- \ref av1_set_speed_features_qindex_dependent()
+
+A second factor impacting the speed of encode is rate distortion optimisation
+(<b>rd vs non-rd</b> encoding).
+
+When rate distortion optimization is enabled each candidate combination of
+a prediction mode and transform coding strategy is fully encoded and the
+resulting error (or distortion) as compared to the original source and the
+number of bits used, are passed to a rate distortion function. This function
+converts the distortion and cost in bits to a single <b>RD</b> value (where
+lower is better). This <b>RD</b> value is used to decide between different
+encoding strategies for the current block where, for example, a one may
+result in a lower distortion but a larger number of bits.
+
+The calculation of this <b>RD</b> value is broadly speaking as follows:
+
+\f[
+  RD = (&lambda; * Rate) + Distortion
+\f]
+
+This assumes a linear relationship between the number of bits used and
+distortion (represented by the rate multiplier value <b>&lambda;</b>) which is
+not actually valid across a broad range of rate and distortion values.
+Typically, where distortion is high, expending a small number of extra bits
+will result in a large change in distortion. However, at lower values of
+distortion the cost in bits of each incremental improvement is large.
+
+To deal with this we scale the value of <b>&lambda;</b> based on the quantizer
+value chosen for the frame. This is assumed to be a proxy for our approximate
+position on the true rate distortion curve and it is further assumed that over
+a limited range of distortion values, a linear relationship between distortion
+and rate is a valid approximation.
+
+Doing a rate distortion test on each candidate prediction / transform
+combination is expensive in terms of cpu cycles. Hence, for cases where encode
+speed is critical, libaom implements a non-rd pathway where the <b>RD</b>
+value is estimated based on the prediction error and quantizer setting.
+
 \section architecture_enc_src_proc Source Frame Processing
 
 \subsection architecture_enc_frame_proc_data Main Data Structures
@@ -321,90 +472,6 @@ Inside \ref av1_temporal_filter(), the reader's attention is directed to
 
  Add details here.
 
-\section architecture_enc_use_cases Encoder Use Cases
-
-The libaom AV1 encoder is configurable to support a number of different use
-cases and rate control strategies.
-
-The principle use cases for which it is optimised are as follows:
-
- - <b>Video on Demand / Streaming</b>
- - <b>Low Delay or Live Streaming</b>
- - <b>Video Conferencing / Real Time Coding (RTC)</b>
- - <b>Fixed Quality / Testing</b>
-
-Other examples of use cases for which the encoder could be configured but for
-which there is less by way of specific optimizations include:
-
- - <b>Download and Play</b>
- - <b>Disk Playback</b>>
- - <b>Storage</b>
- - <b>Editing</b>
- - <b>Broadcast video</b>
-
-Specific use cases may have particular requirements or constraints. For
-example:
-
-<b>Video Conferencing:</b>  In a video conference we need to encode the video
-in real time and to avoid any coding tools that could increase latency, such
-as frame look ahead.
-
-<b>Live Streams:</b> In cases such as live streaming of games or events, it
-may be possible to allow some limited buffering of the video and use of
-lookahead coding tools to improve encoding quality. However,  whilst a lag of
-a second or two may be fine given the one way nature of this type of video,
-it is clearly not possible to use tools such as two pass coding.
-
-<b>Broadcast:</b> Broadcast video (e.g. digital TV over satellite) may have
-specific requirements such as frequent and regular key frames (e.g. once per
-second or more) as these are important as entry points to users when switching
-channels. There may also be  strict upper limits on bandwidth over a short
-window of time.
-
-<b>Download and Play:</b> Download and play applications may have less strict
-requirements in terms of local frame by frame rate control but there may be a
-requirement to accurately hit a file size target for the video clip as a
-whole. Similar considerations may apply to playback from mass storage devices
-such as DVD or disk drives.
-
-<b>Editing:</b> In certain special use cases such as offline editing, it may
-be desirable to have very high quality and data rate but also very frequent
-key frames or indeed to encode the video exclusively as key frames. Lossless
-video encoding may also be required in this use case.
-
-<b>VOD / Streaming:</b> One of the most important and common use cases for AV1
-is video on demand or streaming, for services such as YouTube and Netflix. In
-this use case it is possible to do two or even multi-pass encoding to improve
-compression efficiency. Streaming services will often store many encoded
-copies of a video at different resolutions and data rates to support users
-with different types of playback device and bandwidth limitations.
-Furthermore, these services support dynamic switching between multiple
-streams, so that they can respond to changing network conditions.
-
-Exact rate control when encoding for a specific format (e.g 360P or 1080P on
-YouTube) may not be critical, provided that the video bandwidth remains within
-allowed limits. Whilst a format may have a nominal target data rate, this can
-be considered more as the desired average egress rate over the video corpus
-rather than a strict requirement for any individual clip. Indeed, in order
-to maintain optimal quality of experience for the end user, it may be
-desirable to encode some easier videos or sections of video at a lower data
-rate and harder videos or sections at a higher rate.
-
-VOD / streaming does not usually require very frequent key frames (as in the
-broadcast case) but key frames are important in trick play (scanning back and
-forth to different points in a video) and for adaptive stream switching. As
-such, in a use case like YouTube, there is normally an upper limit on the
-maximum time between key frames of a few seconds, but within certain limits
-the encoder can try to align key frames with real scene cuts.
-
-Whilst encoder speed may not seem to be as critical in this use case, for
-services such as YouTube, where millions of new videos have to be encoded
-every day, encoder speed is still important, so libaom allows command line
-control of the encode speed vs quality trade off.
-
-<b>Fixed Quality / Testing Mode:</b> Libaom also has a fixed quality encoder
-pathway designed for testing under highly constrained conditions.
-
 \section architecture_enc_rate_ctrl Rate Control
 
 \subsection architecture_enc_rate_ctrl_data Main Data Structures
@@ -429,8 +496,8 @@ The following are the main data structures referenced in this section
 
 \subsection architecture_enc_rate_ctrl_options Supported Rate Control Options
 
-Different use cases may have different requirements in terms of data rate
-control.
+Different use cases (\ref architecture_enc_use_cases) may have different
+requirements in terms of data rate control.
 
 The broad rate control strategy is selected using the <b>--end-usage</b>
 parameter on the command line, which maps onto the field
@@ -592,8 +659,8 @@ first pass starts encoding the clip and the second pass lags behind it by a
 few frames.  When using this method, full sequence level statistics are not
 available, but it is possible to collect and use frame or group of frame level
 data to help in the allocation of bits and in defining ARF/GF coding
-hierarchies.  The reader is referred to the data value
-(TODO REF) cpi->lap_enabled (where <b>lap</b> stands for
+hierarchies.  The reader is referred to the \ref AV1_COMP.lap_enabled field
+in the main compressor instance (where <b>lap</b> stands for
 <b>look ahead processing</b>). This encoding mode for the most part uses the
 same rate control pathways as two pass VBR encoding.
 
@@ -652,8 +719,8 @@ For more information the reader is directed to the following functions:
 - \ref encode_without_recode()
 - \ref recode_loop_update_q()
 - \ref recode_loop_test()
-- (TODO REF) av1_set_speed_features_framesize_independent()
-- (TODO REF) av1_set_speed_features_framesize_dependent()
+- \ref av1_set_speed_features_framesize_independent()
+- \ref av1_set_speed_features_framesize_dependent()
 
 \subsection architecture_enc_fixed_q Fixed Q Mode
 
@@ -1028,8 +1095,32 @@ frame, a propagation step is run for each MB. it operates as follows:
  * @{
  */
 
- /*!\defgroup two_pass_algo Two Pass Mode
-    \ingroup high_level_algo
+/*!\defgroup speed_features Speed vs Quality Trade Off
+ * \ingroup high_level_algo
+ * This module describes the encode speed vs quality tradeoff
+ * @{
+ */
+/*! @} - end defgroup speed_features */
+
+/*!\defgroup src_frame_proc Source Frame Processing
+ * \ingroup high_level_algo
+ * This module describes algorithms in AV1 assosciated with the
+ * pre-processing of source frames. See also \ref architecture_enc_src_proc
+ *
+ * @{
+ */
+/*! @} - end defgroup src_frame_proc */
+
+/*!\defgroup rate_control Rate Control
+ * \ingroup high_level_algo
+ * This module describes rate control algorithm in AV1.
+ *  See also \ref architecture_enc_rate_ctrl
+ * @{
+ */
+/*! @} - end defgroup rate_control */
+
+/*!\defgroup two_pass_algo Two Pass Mode
+   \ingroup high_level_algo
 
  In two pass mode, the input file is passed into the encoder for a quick
  first pass, where statistics are gathered. These statistics and the input
@@ -1187,6 +1278,7 @@ void second_pass(char *stats, size_t stats_len) {
  * For and overview of the partition search see \ref architecture_enc_partitions
  * @{
  */
+
 /*! @} - end defgroup partition_search */
 
 /*!\defgroup intra_mode_search Intra Mode Search
@@ -1253,23 +1345,6 @@ void second_pass(char *stats, size_t stats_len) {
  * @{
  */
 /*! @} - end defgroup in_loop_restoration */
-
-/*!\defgroup rate_control Rate Control
- * \ingroup encoder_algo
- * This module describes rate control algorithm in AV1.
- *  See also \ref architecture_enc_rate_ctrl
- * @{
- */
-/*! @} - end defgroup rate_control */
-
-/*!\defgroup src_frame_proc Source Frame Processing
- * \ingroup encoder_algo
- * This module describes algorithms in AV1 assosciated with the
- * pre-processing of source frames. See also \ref architecture_enc_src_proc
- *
- * @{
- */
-/*! @} - end defgroup src_frame_proc */
 
 /*!\defgroup cyclic_refresh Cyclic Refresh
  * \ingroup encoder_algo
