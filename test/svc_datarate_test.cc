@@ -924,7 +924,7 @@ TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLDropAllEnhFrameER) {
 
 AV1_INSTANTIATE_TEST_SUITE(DatarateTestSVC,
                            ::testing::Values(::libaom_test::kRealTime),
-                           ::testing::Range(7, 9),
+                           ::testing::Range(7, 10),
                            ::testing::Range<unsigned int>(0, 4),
                            ::testing::Values(0, 1));
 

@@ -787,7 +787,7 @@ AV1_INSTANTIATE_TEST_SUITE(ResizeInternalTestLarge,
                            ::testing::Values(::libaom_test::kOnePassGood));
 AV1_INSTANTIATE_TEST_SUITE(ResizeRealtimeTest,
                            ::testing::Values(::libaom_test::kRealTime),
-                           ::testing::Range(5, 9));
+                           ::testing::Range(5, 10));
 AV1_INSTANTIATE_TEST_SUITE(ResizeCspTest,
                            ::testing::Values(::libaom_test::kRealTime));
 }  // namespace
