@@ -2063,7 +2063,9 @@ static int encode_without_recode(AV1_COMP *cpi) {
     } else if ((cm->width << 2) == 3 * unscaled->y_crop_width &&
                (cm->height << 2) == 3 * unscaled->y_crop_height) {
       // 4:3 scaling.
-      filter_scaler = EIGHTTAP_REGULAR;
+      // TODO(jianj): Neon optimization for 4:3 scaling for EIGHTTAP has issues.
+      // See aomedia:2766.
+      filter_scaler = BILINEAR;
     }
   }
 
