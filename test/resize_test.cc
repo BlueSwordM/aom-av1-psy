@@ -369,7 +369,9 @@ class ResizeRealtimeTest
     : public ::libaom_test::CodecTestWith2Params<libaom_test::TestMode, int>,
       public ::libaom_test::EncoderTest {
  protected:
-  ResizeRealtimeTest() : EncoderTest(GET_PARAM(0)) {}
+  ResizeRealtimeTest()
+      : EncoderTest(GET_PARAM(0)), set_scale_mode_(false),
+        set_scale_mode2_(false) {}
   virtual ~ResizeRealtimeTest() {}
 
   virtual void PreEncodeFrameHook(libaom_test::VideoSource *video,
@@ -399,7 +401,7 @@ class ResizeRealtimeTest
       encoder->Control(AOME_SET_SCALEMODE, &mode);
     }
 
-    if (change_bitrate_ && video->frame() == 120) {
+    if (change_bitrate_ && video->frame() == frame_change_bitrate_) {
       change_bitrate_ = false;
       cfg_.rc_target_bitrate = 500;
       encoder->Config(&cfg_);
@@ -447,7 +449,7 @@ class ResizeRealtimeTest
     // the width and height of the frame are swapped
     cfg_.g_forced_max_frame_width = cfg_.g_forced_max_frame_height =
         AOMMAX(kInitialWidth, kInitialHeight);
-    if (set_scale_mode_ | set_scale_mode2_) {
+    if (set_scale_mode_ || set_scale_mode2_) {
       cfg_.rc_dropframe_thresh = 0;
       cfg_.g_forced_max_frame_width = 1280;
       cfg_.g_forced_max_frame_height = 1280;
@@ -457,6 +459,7 @@ class ResizeRealtimeTest
   std::vector<FrameInfo> frame_info_list_;
   int set_cpu_used_;
   bool change_bitrate_;
+  unsigned int frame_change_bitrate_;
   double mismatch_psnr_;
   int mismatch_nframes_;
   bool set_scale_mode_;
@@ -601,7 +604,6 @@ TEST_P(ResizeRealtimeTest, TestExternalResizeWorks) {
 TEST_P(ResizeRealtimeTest, TestInternalResizeDown) {
   ::libaom_test::I420VideoSource video("niklas_640_480_30.yuv", 640, 480, 30, 1,
                                        0, 400);
-  DefaultConfig();
   cfg_.g_w = 640;
   cfg_.g_h = 480;
   change_bitrate_ = false;
@@ -644,15 +646,16 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeDown) {
 }
 
 // Verify the dynamic resizer behavior for real time, 1 pass CBR mode.
-// Start at low target bitrate, raise the bitrate in the middle of the clip,
-// scaling-up should occur after bitrate changed.
+// Start at low target bitrate, raise the bitrate in the middle of the clip
+// (at frame# = frame_change_bitrate_), scaling-up should occur after bitrate
+// is increased.
 TEST_P(ResizeRealtimeTest, TestInternalResizeDownUpChangeBitRate) {
   ::libaom_test::I420VideoSource video("niklas_640_480_30.yuv", 640, 480, 30, 1,
                                        0, 400);
-  DefaultConfig();
   cfg_.g_w = 640;
   cfg_.g_h = 480;
   change_bitrate_ = true;
+  frame_change_bitrate_ = 120;
   set_scale_mode_ = false;
   set_scale_mode2_ = false;
   mismatch_psnr_ = 0.0;
@@ -669,28 +672,30 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeDownUpChangeBitRate) {
 
   unsigned int last_w = cfg_.g_w;
   unsigned int last_h = cfg_.g_h;
+  unsigned int frame_number = 0;
   int resize_count = 0;
   for (std::vector<FrameInfo>::const_iterator info = frame_info_list_.begin();
        info != frame_info_list_.end(); ++info) {
     if (info->w != last_w || info->h != last_h) {
       resize_count++;
-      if (resize_count == 1) {
-        // Verify that resize down occurs.
+      if (frame_number < frame_change_bitrate_) {
+        // Verify that resize down occurs, before bitrate is increased.
         ASSERT_LT(info->w, last_w);
         ASSERT_LT(info->h, last_h);
-      } else if (resize_count == 2) {
-        // Verify that resize up occurs.
+      } else {
+        // Verify that resize up occurs, after bitrate is increased.
         ASSERT_GT(info->w, last_w);
         ASSERT_GT(info->h, last_h);
       }
       last_w = info->w;
       last_h = info->h;
     }
+    frame_number++;
   }
 
 #if CONFIG_AV1_DECODER
-  // Verify that we get 2 resize events in this test.
-  ASSERT_EQ(resize_count, 2) << "Resizing should occur twice.";
+  // Verify that we get at least 2 resize events in this test.
+  ASSERT_GE(resize_count, 2) << "Resizing should occur twice.";
   EXPECT_EQ(static_cast<unsigned int>(0), GetMismatchFrames());
 #else
   printf("Warning: AV1 decoder unavailable, unable to check resize count!\n");
