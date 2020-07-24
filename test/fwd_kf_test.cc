@@ -111,7 +111,8 @@ TEST_P(ForwardKeyTest, ForwardKeyEncodeTest) {
 }
 
 AV1_INSTANTIATE_TEST_SUITE(ForwardKeyTest,
-                           ::testing::Values(::libaom_test::kTwoPassGood),
+                           ::testing::Values(::libaom_test::kTwoPassGood,
+                                             ::libaom_test::kOnePassGood),
                            ::testing::ValuesIn(kTestParams));
 
 typedef struct {
