@@ -1173,6 +1173,7 @@ void ObmcVarianceTest<ObmcSubpelVarFunc>::SpeedTest() {
 }
 
 typedef MseWxHTestClass<MseWxH16bitFunc> MseWxHTest;
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MseWxHTest);
 typedef MainTestClass<Get4x4SseFunc> AvxSseTest;
 typedef MainTestClass<VarianceMxNFunc> AvxMseTest;
 typedef MainTestClass<VarianceMxNFunc> AvxVarianceTest;
