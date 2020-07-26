@@ -148,14 +148,14 @@ class ForcedKeyTestLarge
 #endif
     }
     frame_flags_ =
-        (video->frame() == forced_kf_frame_num_) ? AOM_EFLAG_FORCE_KF : 0;
+        ((int)video->frame() == forced_kf_frame_num_) ? AOM_EFLAG_FORCE_KF : 0;
   }
 
   virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
                                   libaom_test::Decoder *decoder) {
     EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
     if (AOM_CODEC_OK == res_dec) {
-      if (frame_num_ == forced_kf_frame_num_) {
+      if ((int)frame_num_ == forced_kf_frame_num_) {
         aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
         int frame_flags = 0;
         AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_FRAME_FLAGS,
@@ -175,7 +175,7 @@ class ForcedKeyTestLarge
   int fwd_kf_enabled_;
   int cpu_used_;
   aom_rc_mode rc_end_usage_;
-  unsigned int forced_kf_frame_num_;
+  int forced_kf_frame_num_;
   unsigned int frame_num_;
   bool is_kf_placement_violated_;
 };
@@ -236,7 +236,8 @@ TEST_P(ForcedKeyTestLarge, ForcedFrameIsKeyCornerCases) {
 
   for (int i = 0; kf_offsets[i] != 0; ++i) {
     frame_num_ = 0;
-    forced_kf_frame_num_ = cfg_.kf_max_dist + kf_offsets[i];
+    forced_kf_frame_num_ = (int)cfg_.kf_max_dist + kf_offsets[i];
+    forced_kf_frame_num_ = forced_kf_frame_num_ > 0 ? forced_kf_frame_num_ : 1;
     is_kf_placement_violated_ = false;
     libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        timebase.den, timebase.num, 0,
