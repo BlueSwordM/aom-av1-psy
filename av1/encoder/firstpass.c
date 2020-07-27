@@ -234,8 +234,8 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   FULLPEL_MOTION_SEARCH_PARAMS ms_params;
   av1_make_default_fullpel_ms_params(&ms_params, cpi, x, bsize, ref_mv,
                                      first_pass_search_sites,
-                                     fine_search_interval, NSTEP);
-  ms_params.search_method = NSTEP;
+                                     fine_search_interval);
+  av1_set_mv_search_method(&ms_params, first_pass_search_sites, NSTEP);
 
   FULLPEL_MV this_best_mv;
   tmp_err = av1_full_pixel_search(start_mv, &ms_params, step_param, NULL,

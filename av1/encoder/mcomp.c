@@ -55,19 +55,6 @@ static INLINE void init_ms_buffers(MSBuffers *ms_buffers, const MACROBLOCK *x) {
   ms_buffers->obmc_mask = x->obmc_buffer.mask;
 }
 
-// Array to inform which all search methods are having
-// same candidates and different in number of search steps.
-const SEARCH_METHODS search_method_lookup[NUM_SEARCH_METHODS] = {
-  DIAMOND,  // DIAMOND
-  NSTEP,    // NSTEP
-  HEX,      // HEX
-  BIGDIA,   // BIGDIA
-  SQUARE,   // SQUARE
-  HEX,      // FAST_HEX
-  BIGDIA,   // FAST_DIAMOND
-  BIGDIA    // FAST_BIGDIA
-};
-
 static AOM_INLINE SEARCH_METHODS
 get_faster_search_method(SEARCH_METHODS search_method) {
   // Note on search method's accuracy:
@@ -93,7 +80,7 @@ void av1_make_default_fullpel_ms_params(
     FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const struct AV1_COMP *cpi,
     const MACROBLOCK *x, BLOCK_SIZE bsize, const MV *ref_mv,
     const search_site_config search_sites[NUM_SEARCH_METHODS],
-    int fine_search_interval, SEARCH_METHODS search_method) {
+    int fine_search_interval) {
   const MV_SPEED_FEATURES *mv_sf = &cpi->sf.mv_sf;
 
   // High level params
@@ -102,16 +89,15 @@ void av1_make_default_fullpel_ms_params(
 
   init_ms_buffers(&ms_params->ms_buffers, x);
 
-  ms_params->search_method = search_method;
+  SEARCH_METHODS search_method = mv_sf->search_method;
   if (mv_sf->use_bsize_dependent_search_method) {
     const int min_dim = AOMMIN(block_size_wide[bsize], block_size_high[bsize]);
     if (min_dim >= 32) {
-      ms_params->search_method =
-          get_faster_search_method(ms_params->search_method);
+      search_method = get_faster_search_method(search_method);
     }
   }
-  ms_params->search_sites =
-      &search_sites[search_method_lookup[ms_params->search_method]];
+
+  av1_set_mv_search_method(ms_params, search_sites, search_method);
 
   ms_params->mesh_patterns[0] = mv_sf->mesh_patterns;
   ms_params->mesh_patterns[1] = mv_sf->intrabc_mesh_patterns;

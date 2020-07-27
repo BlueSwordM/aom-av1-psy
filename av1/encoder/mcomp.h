@@ -166,6 +166,9 @@ typedef struct {
 
   MSBuffers ms_buffers;
 
+  // WARNING: search_method should be regarded as a private variable and should
+  // not be modified directly so it is in sync with search_sites. To modify it,
+  // use av1_set_mv_search_method.
   SEARCH_METHODS search_method;
   const search_site_config *search_sites;
   FullMvLimits mv_limits;
@@ -194,7 +197,7 @@ void av1_make_default_fullpel_ms_params(
     FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const struct AV1_COMP *cpi,
     const MACROBLOCK *x, BLOCK_SIZE bsize, const MV *ref_mv,
     const search_site_config search_sites[NUM_SEARCH_METHODS],
-    int fine_search_interval, SEARCH_METHODS search_method);
+    int fine_search_interval);
 
 // Sets up configs for fullpixel diamond search method.
 void av1_init_dsmotion_compensation(search_site_config *cfg, int stride);
@@ -209,6 +212,29 @@ void av1_init_motion_compensation_bigdia(search_site_config *cfg, int stride);
 void av1_init_motion_compensation_hex(search_site_config *cfg, int stride);
 // Sets up configs for SQUARE motion search method.
 void av1_init_motion_compensation_square(search_site_config *cfg, int stride);
+
+// Mv beyond the range do not produce new/different prediction block.
+static INLINE void av1_set_mv_search_method(
+    FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
+    const search_site_config search_sites[NUM_SEARCH_METHODS],
+    SEARCH_METHODS search_method) {
+  // Array to inform which all search methods are having
+  // same candidates and different in number of search steps.
+  static const SEARCH_METHODS search_method_lookup[NUM_SEARCH_METHODS] = {
+    DIAMOND,  // DIAMOND
+    NSTEP,    // NSTEP
+    HEX,      // HEX
+    BIGDIA,   // BIGDIA
+    SQUARE,   // SQUARE
+    HEX,      // FAST_HEX
+    BIGDIA,   // FAST_DIAMOND
+    BIGDIA    // FAST_BIGDIA
+  };
+
+  ms_params->search_method = search_method;
+  ms_params->search_sites =
+      &search_sites[search_method_lookup[ms_params->search_method]];
+}
 
 // Set up limit values for MV components.
 // Mv beyond the range do not produce new/different prediction block.
