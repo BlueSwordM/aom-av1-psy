@@ -40,7 +40,7 @@ class ScreenContentToolsTestLarge
     cfg_.g_threads = 1;
     cfg_.g_lag_in_frames = 35;
     cfg_.rc_target_bitrate = 1000;
-    cfg_.g_profile = 1;
+    cfg_.g_profile = 0;
   }
 
   virtual bool DoDecode() const { return 1; }
@@ -79,6 +79,7 @@ class ScreenContentToolsTestLarge
 TEST_P(ScreenContentToolsTestLarge, ScreenContentToolsTest) {
   // force screen content tools on
   ::libaom_test::Y4mVideoSource video_nonsc("park_joy_90p_8_444.y4m", 0, 1);
+  cfg_.g_profile = 1;
   tune_content_ = AOM_CONTENT_SCREEN;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   ASSERT_EQ(is_screen_content_violated_, false)
@@ -87,11 +88,23 @@ TEST_P(ScreenContentToolsTestLarge, ScreenContentToolsTest) {
   // Don't force screen content, however as the input is screen content
   // allow_screen_content_tools should still be turned on
   ::libaom_test::Y4mVideoSource video_sc("desktop_credits.y4m", 0, 1);
+  cfg_.g_profile = 1;
   is_screen_content_violated_ = true;
   tune_content_ = AOM_CONTENT_DEFAULT;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_sc));
   ASSERT_EQ(is_screen_content_violated_, false)
       << "Failed detection of screen content";
+
+  // TODO(anyone): Enable below test once low resolution screen content
+  // detection issues are fixed.
+  // low resolution test
+  //  ::libaom_test::Y4mVideoSource video_sc("screendata.y4m", 0, 1);
+  //  cfg_.g_profile = 0;
+  //  is_screen_content_violated_ = true;
+  //  tune_content_ = AOM_CONTENT_DEFAULT;
+  //  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_sc));
+  //  ASSERT_EQ(is_screen_content_violated_, false)
+  //      << "Failed detection of screen content(lowres)";
 }
 
 AV1_INSTANTIATE_TEST_SUITE(ScreenContentToolsTestLarge,
