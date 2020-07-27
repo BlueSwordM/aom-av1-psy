@@ -217,6 +217,22 @@ void av1_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
 }
 
 #if !CONFIG_REALTIME_ONLY
+/*!\brief Assigns different quantization parameters to each super
+ * block based on its TPL weight.
+ *
+ * \ingroup tpl_modelling
+ *
+ * \param[in]     cpi         Top level encoder instance structure
+ * \param[in,out] td          Thread data structure
+ * \param[in,out] x           Macro block level data for this block.
+ * \param[in]     tile_info   Tile infromation / identification
+ * \param[in]     mi_row      Block row (in "MI_SIZE" units) index
+ * \param[in]     mi_col      Block column (in "MI_SIZE" units) index
+ * \param[out]    num_planes  Number of image planes (e.g. Y,U,V)
+ *
+ * \return No return value but updates macroblock and thread data
+ * relating to the q / q delta to be used.
+ */
 static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
                                      MACROBLOCK *const x,
                                      const TileInfo *const tile_info,

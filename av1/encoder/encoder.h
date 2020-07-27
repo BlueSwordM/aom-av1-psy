@@ -2854,11 +2854,20 @@ static INLINE int is_stat_consumption_stage(const AV1_COMP *const cpi) {
            cpi->lap_enabled));
 }
 
-// Check if the current stage has statistics
+/*!\endcond */
+/*!\brief Check if the current stage has statistics
+ *
+ *\ingroup two_pass_algo
+ *
+ * \param[in]    cpi     Top - level encoder instance structure
+ *
+ * \return 0 if no stats for current stage else 1
+ */
 static INLINE int has_no_stats_stage(const AV1_COMP *const cpi) {
   assert(IMPLIES(!cpi->lap_enabled, cpi->compressor_stage == ENCODE_STAGE));
   return (cpi->oxcf.pass == 0 && !cpi->lap_enabled);
 }
+/*!\cond */
 
 // Function return size of frame stats buffer
 static INLINE int get_stats_buf_size(int num_lap_buffer, int num_lag_buffer) {

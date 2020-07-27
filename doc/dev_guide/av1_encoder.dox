@@ -781,7 +781,7 @@ The determination of the GF group length is done in function \ref
 calculate_gf_length(). The following encoder use cases are supported:
 
 <ul>
-  <li><b>Single pass with look-ahead disabled((TODO REF)has_no_stats_stage()):
+  <li><b>Single pass with look-ahead disabled(\ref has_no_stats_stage()):
   </b> in this case there is no information available on the following stream
   of frames, therefore the function will set the GF group length for the
   current and the following GF groups (a total number of MAX_NUM_GF_INTERVALS
@@ -837,7 +837,7 @@ When the maximum GF group length is larger or equal to 32, the encoder will
 enforce an extra layer to determine whether to use maximum GF length of 32
 or 16 for every GF group. In such a case, \ref calculate_gf_length() is
 first called with the original maximum length (>=32). Afterwards,
-(TODO REF) av1_tpl_setup_stats() is called to analyze the determined GF group
+\ref av1_tpl_setup_stats() is called to analyze the determined GF group
 and compare the reference to the last frame and the middle frame. If it is
 decided that we should use a maximum GF length of 16, the function
 \ref calculate_gf_length() is called again with the updated maximum
@@ -1020,10 +1020,14 @@ frame, a propagation step is run for each MB. it operates as follows:
    64x64 block level QP is scaled according to the Lagrangian multiplier.
 </ul>
 
-\subsection architecture_enc_tpl_keyfun Key Functions
+\subsection architecture_enc_tpl_keyfun Key Functions and data structures
 
-- The TPL model is built in (TODO REF) av1_tpl_setup_stats().
-- Its application to the QP offset is triggered in (TODO REF) setup_delta_q().
+The reader is also refered to the following functions and data structures:
+
+- \ref TplParams
+- \ref av1_tpl_setup_stats() builds the TPL model.
+- \ref setup_delta_q() Assign different quantization parameters to each super
+  block based on its TPL weight.
 
 \section architecture_enc_partitions Block Partition Search
 
@@ -1118,6 +1122,14 @@ frame, a propagation step is run for each MB. it operates as follows:
  * @{
  */
 /*! @} - end defgroup rate_control */
+
+/*!\defgroup tpl_modelling Temporal Dependency Modelling
+ * \ingroup high_level_algo
+ * This module includes algorithms to implement temporal dependency modelling.
+ *  See also \ref architecture_enc_tpl
+ * @{
+ */
+/*! @} - end defgroup tpl_modelling */
 
 /*!\defgroup two_pass_algo Two Pass Mode
    \ingroup high_level_algo
