@@ -148,7 +148,9 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   const int num_planes = av1_num_planes(cm);
   MB_MODE_INFO *mi = xd->mi[0];
   struct buf_2d backup_yv12[MAX_MB_PLANE] = { { 0, 0, 0, 0, 0 } };
-  int step_param = cpi->mv_search_params.mv_step_param;
+  int step_param = (cpi->sf.rt_sf.fullpel_search_step_param)
+                       ? cpi->sf.rt_sf.fullpel_search_step_param
+                       : cpi->mv_search_params.mv_step_param;
   FULLPEL_MV start_mv;
   const int ref = mi->ref_frame[0];
   const MV ref_mv = av1_get_ref_mv(x, mi->ref_mv_idx).as_mv;

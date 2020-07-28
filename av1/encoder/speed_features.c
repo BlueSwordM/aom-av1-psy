@@ -695,6 +695,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->tx_sf.intra_tx_size_search_init_depth_sqr = 1;
   sf->tx_sf.model_based_prune_tx_search_level = 1;
   sf->tx_sf.tx_type_search.use_reduced_intra_txset = 1;
+  sf->rt_sf.fullpel_search_step_param = 0;
 
   if (speed >= 1) {
     sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3_ARF2;
@@ -898,6 +899,21 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.nonrd_check_partition_split = 0;
     sf->rt_sf.hybrid_intra_pickmode = 1;
     sf->rt_sf.skip_intra_pred_if_tx_skip = 1;
+    // For SVC: use better mv search on base temporal layer, and only
+    // on base spatial layer if highest resolution is above 640x360.
+    if (cpi->svc.number_temporal_layers > 1) {
+      if (cpi->svc.temporal_layer_id == 0 &&
+          (cpi->svc.spatial_layer_id == 0 ||
+           cpi->oxcf.frm_dim_cfg.width * cpi->oxcf.frm_dim_cfg.height <=
+               640 * 360)) {
+        sf->mv_sf.search_method = NSTEP;
+        sf->mv_sf.subpel_search_method = SUBPEL_TREE;
+        sf->rt_sf.fullpel_search_step_param = 6;
+      } else if (cpi->svc.non_reference_frame) {
+        sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
+        sf->rt_sf.fullpel_search_step_param = 10;
+      }
+    }
   }
 
   if (speed >= 8) {

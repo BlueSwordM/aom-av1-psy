@@ -998,6 +998,12 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // uses results of temporal noise estimate
   int use_temporal_noise_estimate;
+
+  // Parameter indicating initial search window to be used in full-pixel search
+  // for nonrd_pickmode. Range [0, MAX_MVSEARCH_STEPS - 1]. Lower value
+  // indicates larger window. If set to 0, step_param is set based on internal
+  // logic in set_mv_search_params().
+  int fullpel_search_step_param;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

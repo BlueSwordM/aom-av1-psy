@@ -326,16 +326,19 @@ static AOM_INLINE void fill_variance_4x4avg(const uint8_t *s, int sp,
 }
 
 // TODO(kyslov) Bring back threshold adjustment based on content state
-static int64_t scale_part_thresh_sumdiff(int64_t threshold_base, int speed,
+static int64_t scale_part_thresh_content(int64_t threshold_base, int speed,
                                          int width, int height,
-                                         int content_state) {
+                                         int content_state,
+                                         int non_reference_frame) {
   (void)width;
   (void)height;
   (void)content_state;
+  int64_t threshold = threshold_base;
+  if (non_reference_frame) threshold = (3 * threshold) >> 1;
   if (speed >= 8) {
-    return (5 * threshold_base) >> 2;
+    return (5 * threshold) >> 2;
   }
-  return threshold_base;
+  return threshold;
 }
 
 static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
@@ -366,8 +369,9 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
     }
 
     // Increase base variance threshold based on content_state/sum_diff level.
-    threshold_base = scale_part_thresh_sumdiff(
-        threshold_base, cpi->oxcf.speed, cm->width, cm->height, content_state);
+    threshold_base = scale_part_thresh_content(
+        threshold_base, cpi->oxcf.speed, cm->width, cm->height, content_state,
+        cpi->svc.non_reference_frame);
 
     thresholds[0] = threshold_base >> 1;
     thresholds[1] = threshold_base;
