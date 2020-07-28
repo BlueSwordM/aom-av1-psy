@@ -2530,9 +2530,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   cm->cur_frame->buf.render_width = cm->render_width;
   cm->cur_frame->buf.render_height = cm->render_height;
 
-  // TODO(zoeliu): For non-ref frames, loop filtering may need to be turned
-  // off.
-
   // Pick the loop filter level for the frame.
   if (!cm->features.allow_intrabc) {
     loopfilter_frame(cpi, cm);
