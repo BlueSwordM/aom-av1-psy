@@ -65,7 +65,9 @@ get_faster_search_method(SEARCH_METHODS search_method) {
   //  5. FAST_HEX \approx FAST_DIAMOND
   switch (search_method) {
     case NSTEP: return DIAMOND;
+    case NSTEP_8PT: return DIAMOND;
     case DIAMOND: return BIGDIA;
+    case CLAMPED_DIAMOND: return BIGDIA;
     case BIGDIA: return HEX;
     case SQUARE: return HEX;
     case HEX: return FAST_HEX;
@@ -313,7 +315,10 @@ static INLINE int mvsad_err_cost_(const FULLPEL_MV *mv,
 #define MAX_PATTERN_CANDIDATES 8  // max number of candidates per scale
 #define PATTERN_CANDIDATES_REF 3  // number of refinement candidates
 
-void av1_init_dsmotion_compensation(search_site_config *cfg, int stride) {
+// Search site initialization for DIAMOND / CLAMPED_DIAMOND search methods.
+// level = 0: DIAMOND, level = 1: CLAMPED_DIAMOND.
+void av1_init_dsmotion_compensation(search_site_config *cfg, int stride,
+                                    int level) {
   int num_search_steps = 0;
   int stage_index = MAX_MVSEARCH_STEPS - 1;
 
@@ -321,7 +326,10 @@ void av1_init_dsmotion_compensation(search_site_config *cfg, int stride) {
   cfg->site[stage_index][0].offset = 0;
   cfg->stride = stride;
 
-  for (int radius = MAX_FIRST_STEP; radius > 0; radius /= 2) {
+  // Choose the initial step size depending on level.
+  const int first_step = (level > 0) ? (MAX_FIRST_STEP / 4) : MAX_FIRST_STEP;
+
+  for (int radius = first_step; radius > 0;) {
     int num_search_pts = 8;
 
     const FULLPEL_MV search_site_mvs[13] = {
@@ -338,6 +346,8 @@ void av1_init_dsmotion_compensation(search_site_config *cfg, int stride) {
     }
     cfg->searches_per_step[stage_index] = num_search_pts;
     cfg->radius[stage_index] = radius;
+    // Update the search radius based on level.
+    if (!level || ((stage_index < 9) && level)) radius /= 2;
     --stage_index;
     ++num_search_steps;
   }
@@ -388,16 +398,19 @@ void av1_init_motion_fpf(search_site_config *cfg, int stride) {
   cfg->num_search_steps = num_search_steps;
 }
 
-// Search site initialization for NSTEP search method.
-void av1_init_motion_compensation_nstep(search_site_config *cfg, int stride) {
+// Search site initialization for NSTEP / NSTEP_8PT search methods.
+// level = 0: NSTEP, level = 1: NSTEP_8PT.
+void av1_init_motion_compensation_nstep(search_site_config *cfg, int stride,
+                                        int level) {
   int num_search_steps = 0;
   int stage_index = 0;
   cfg->stride = stride;
   int radius = 1;
-  for (stage_index = 0; stage_index < 15; ++stage_index) {
+  const int num_stages = (level > 0) ? 16 : 15;
+  for (stage_index = 0; stage_index < num_stages; ++stage_index) {
     int tan_radius = AOMMAX((int)(0.41 * radius), 1);
     int num_search_pts = 12;
-    if (radius <= 5) {
+    if ((radius <= 5) || (level > 0)) {
       tan_radius = radius;
       num_search_pts = 8;
     }
@@ -433,7 +446,9 @@ void av1_init_motion_compensation_nstep(search_site_config *cfg, int stride) {
 
 // Search site initialization for BIGDIA / FAST_BIGDIA / FAST_DIAMOND
 // search methods.
-void av1_init_motion_compensation_bigdia(search_site_config *cfg, int stride) {
+void av1_init_motion_compensation_bigdia(search_site_config *cfg, int stride,
+                                         int level) {
+  (void)level;
   cfg->stride = stride;
   // First scale has 4-closest points, the rest have 8 points in diamond
   // shape at increasing scales
@@ -486,7 +501,9 @@ void av1_init_motion_compensation_bigdia(search_site_config *cfg, int stride) {
 }
 
 // Search site initialization for SQUARE search method.
-void av1_init_motion_compensation_square(search_site_config *cfg, int stride) {
+void av1_init_motion_compensation_square(search_site_config *cfg, int stride,
+                                         int level) {
+  (void)level;
   cfg->stride = stride;
   // All scales have 8 closest points in square shape.
   static const int square_num_candidates[MAX_PATTERN_SCALES] = {
@@ -538,7 +555,9 @@ void av1_init_motion_compensation_square(search_site_config *cfg, int stride) {
 }
 
 // Search site initialization for HEX / FAST_HEX search methods.
-void av1_init_motion_compensation_hex(search_site_config *cfg, int stride) {
+void av1_init_motion_compensation_hex(search_site_config *cfg, int stride,
+                                      int level) {
+  (void)level;
   cfg->stride = stride;
   // First scale has 8-closest points, the rest have 6 points in hex shape
   // at increasing scales.
@@ -1664,7 +1683,9 @@ int av1_full_pixel_search(const FULLPEL_MV start_mv,
           bigdia_search(start_mv, ms_params, step_param, 1, cost_list, best_mv);
       break;
     case NSTEP:
+    case NSTEP_8PT:
     case DIAMOND:
+    case CLAMPED_DIAMOND:
       var = full_pixel_diamond(start_mv, ms_params, step_param, cost_list,
                                best_mv, second_best_mv);
       break;
@@ -1672,7 +1693,8 @@ int av1_full_pixel_search(const FULLPEL_MV start_mv,
   }
 
   // Should we allow a follow on exhaustive search?
-  if (!run_mesh_search && search_method == NSTEP) {
+  if (!run_mesh_search &&
+      ((search_method == NSTEP) || (search_method == NSTEP_8PT))) {
     int exhaustive_thr = ms_params->force_mesh_thresh;
     exhaustive_thr >>=
         10 - (mi_size_wide_log2[bsize] + mi_size_high_log2[bsize]);

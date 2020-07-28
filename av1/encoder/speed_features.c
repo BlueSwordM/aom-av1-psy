@@ -122,6 +122,20 @@ static int gm_available_reference_frames[GM_DISABLE_SEARCH + 1] = {
   INTER_REFS_PER_FRAME, INTER_REFS_PER_FRAME - 2, INTER_REFS_PER_FRAME - 3, 0
 };
 
+// Qindex threshold levels used for selecting full-pel motion search.
+// ms_qthresh[i][j][k] indicates the qindex boundary value for 'k'th qindex band
+// for resolution index 'j' for aggressiveness level 'i'.
+// i = 0: conservative, i = 1: aggressive.
+// j = 0: lower than 720p resolution, j = 1: 720p or larger resolution.
+// Currently invoked only for speed 1 and 2.
+static int ms_qindex_thresh[2][2][2] = { { { 170, 50 }, { MAXQ, 200 } },
+                                         { { 170, 40 }, { 200, 40 } } };
+
+// Full-pel search methods for aggressive search based on qindex.
+// Index 0 is for resolutions lower than 720p, index 1 for 720p or larger
+// resolutions. Currently invoked only for speed 1 and 2.
+static SEARCH_METHODS motion_search_method[2] = { CLAMPED_DIAMOND, DIAMOND };
+
 // Intra only frames, golden frames (except alt ref overlays) and
 // alt ref frames tend to be coded at a higher than ambient quality
 static int frame_is_boosted(const AV1_COMP *cpi) {
@@ -433,6 +447,7 @@ static void set_good_speed_features_framesize_independent(
 
     // TODO(any, yunqing): move this feature to speed 0.
     sf->tpl_sf.skip_alike_starting_mv = 1;
+    sf->tpl_sf.search_method = NSTEP_8PT;
   }
 
   if (speed >= 2) {
@@ -1423,6 +1438,25 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
     if (cm->quant_params.base_qindex <= qindex_thresh &&
         !frame_is_intra_only(&cpi->common)) {
       sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
+    }
+  }
+
+  if (cpi->oxcf.mode == GOOD && ((speed == 1) || (speed == 2))) {
+    if (!is_stat_generation_stage(cpi)) {
+      // Use faster full-pel motion search for high quantizers.
+      // Also use reduced total search range for low resolutions at high
+      // quantizers.
+      const int aggr = (speed == 1) ? 0 : 1;
+      const int qindex_thresh1 = ms_qindex_thresh[aggr][is_720p_or_larger][0];
+      const int qindex_thresh2 = ms_qindex_thresh[aggr][is_720p_or_larger][1];
+      const SEARCH_METHODS search_method =
+          motion_search_method[is_720p_or_larger];
+      if (cm->quant_params.base_qindex > qindex_thresh1) {
+        sf->mv_sf.search_method = search_method;
+        sf->tpl_sf.search_method = search_method;
+      } else if (cm->quant_params.base_qindex > qindex_thresh2) {
+        sf->mv_sf.search_method = NSTEP_8PT;
+      }
     }
   }
 }

@@ -1773,13 +1773,14 @@ void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
 
 // Function pointer to search site config initialization
 // of different search method functions.
-typedef void (*av1_init_search_site_config)(search_site_config *cfg,
-                                            int stride);
+typedef void (*av1_init_search_site_config)(search_site_config *cfg, int stride,
+                                            int level);
 
 av1_init_search_site_config
     av1_init_motion_compensation[NUM_DISTINCT_SEARCH_METHODS] = {
-      av1_init_dsmotion_compensation, av1_init_motion_compensation_nstep,
-      av1_init_motion_compensation_hex, av1_init_motion_compensation_bigdia,
+      av1_init_dsmotion_compensation,     av1_init_motion_compensation_nstep,
+      av1_init_motion_compensation_nstep, av1_init_dsmotion_compensation,
+      av1_init_motion_compensation_hex,   av1_init_motion_compensation_bigdia,
       av1_init_motion_compensation_square
     };
 
@@ -1809,10 +1810,12 @@ static void init_motion_estimation(AV1_COMP *cpi) {
 
   // Initialization of search_site_cfg for NUM_DISTINCT_SEARCH_METHODS.
   for (SEARCH_METHODS i = DIAMOND; i < NUM_DISTINCT_SEARCH_METHODS; i++) {
+    const int level = ((i == NSTEP_8PT) || (i == CLAMPED_DIAMOND)) ? 1 : 0;
     av1_init_motion_compensation[i](
-        &mv_search_params->search_site_cfg[SS_CFG_SRC][i], y_stride);
+        &mv_search_params->search_site_cfg[SS_CFG_SRC][i], y_stride, level);
     av1_init_motion_compensation[i](
-        &mv_search_params->search_site_cfg[SS_CFG_LOOKAHEAD][i], y_stride_src);
+        &mv_search_params->search_site_cfg[SS_CFG_LOOKAHEAD][i], y_stride_src,
+        level);
   }
 
   // First pass search site config initialization.
