@@ -702,6 +702,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->tx_sf.model_based_prune_tx_search_level = 1;
   sf->tx_sf.tx_type_search.use_reduced_intra_txset = 1;
   sf->rt_sf.fullpel_search_step_param = 0;
+  sf->rt_sf.skip_loopfilter_non_reference = 0;
 
   if (speed >= 1) {
     sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3_ARF2;
@@ -920,6 +921,13 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
         sf->rt_sf.fullpel_search_step_param = 10;
       }
     }
+    // TODO(marpan): Look into why enabling skip_loopfilter_non_reference is
+    // not bitexact on rtc testset, its very close (< ~0.01 bdrate), but not
+    // always bitexact.
+    if (cpi->use_svc && cpi->svc.non_reference_frame &&
+        sf->lpf_sf.cdef_pick_method == CDEF_PICK_FROM_Q &&
+        sf->lpf_sf.lpf_pick == LPF_PICK_FROM_Q)
+      sf->rt_sf.skip_loopfilter_non_reference = 1;
   }
 
   if (speed >= 8) {

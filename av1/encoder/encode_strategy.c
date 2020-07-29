@@ -1294,6 +1294,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (!frame_params.show_existing_frame) {
     cm->quant_params.using_qmatrix = oxcf->q_cfg.using_qm;
   }
+
 #if CONFIG_REALTIME_ONLY
   if (av1_encode(cpi, dest, &frame_input, &frame_params, &frame_results) !=
       AOM_CODEC_OK) {

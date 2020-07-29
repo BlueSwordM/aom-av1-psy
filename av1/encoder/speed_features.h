@@ -1015,6 +1015,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // indicates larger window. If set to 0, step_param is set based on internal
   // logic in set_mv_search_params().
   int fullpel_search_step_param;
+
+  // Skip loopfilter (and cdef) in svc real-time mode for
+  // non_reference/droppable frames.
+  int skip_loopfilter_non_reference;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

@@ -1955,7 +1955,8 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                     cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult);
 
     // Apply the filter
-    av1_cdef_frame(&cm->cur_frame->buf, cm, xd);
+    if (!cpi->sf.rt_sf.skip_loopfilter_non_reference)
+      av1_cdef_frame(&cm->cur_frame->buf, cm, xd);
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, cdef_time);
 #endif
@@ -2030,7 +2031,8 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
     lf->filter_level[1] = 0;
   }
 
-  if (lf->filter_level[0] || lf->filter_level[1]) {
+  if ((lf->filter_level[0] || lf->filter_level[1]) &&
+      !cpi->sf.rt_sf.skip_loopfilter_non_reference) {
     if (num_workers > 1)
       av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0,
 #if CONFIG_LPF_MASK
