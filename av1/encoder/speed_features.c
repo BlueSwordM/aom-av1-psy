@@ -537,12 +537,14 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.prune_ab_partition_using_split_info = 1;
 
     sf->inter_sf.alt_ref_search_fp = 1;
-    sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 3;
+    sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
 
-    sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 2;
+    sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
     sf->inter_sf.prune_compound_using_neighbors = 2;
-    sf->inter_sf.prune_comp_using_best_single_mode_ref = 1;
+    sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
     sf->inter_sf.disable_smooth_interintra = 1;
+    sf->inter_sf.disable_obmc = 1;
+    sf->inter_sf.disable_onesided_comp = 1;
 
     sf->interp_sf.cb_pred_filter_search = 1;
     sf->interp_sf.skip_sharp_interp_filter_search = 1;
@@ -584,7 +586,10 @@ static void set_good_speed_features_framesize_independent(
                                           : MULTI_WINNER_MODE_OFF;
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
 
-    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL2;
+    sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
+    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
+
+    sf->mv_sf.reduce_search_range = 1;
   }
 
   if (speed >= 5) {
@@ -592,12 +597,7 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.ext_partition_eval_thresh =
         allow_screen_content_tools ? BLOCK_8X8 : BLOCK_16X16;
 
-    sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
-    sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
     sf->inter_sf.disable_interinter_wedge = 1;
-    sf->inter_sf.disable_obmc = 1;
-    sf->inter_sf.disable_onesided_comp = 1;
-    sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
 
     // TODO(any): Extend multi-winner mode processing support for inter frames
@@ -605,12 +605,9 @@ static void set_good_speed_features_framesize_independent(
         frame_is_intra_only(&cpi->common) ? MULTI_WINNER_MODE_FAST
                                           : MULTI_WINNER_MODE_OFF;
 
-    sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
     sf->lpf_sf.disable_lr_filter = 1;
-    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
 
     sf->mv_sf.prune_mesh_search = 1;
-    sf->mv_sf.reduce_search_range = 1;
 
     sf->tpl_sf.prune_starting_mv = 3;
   }
