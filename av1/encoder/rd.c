@@ -349,9 +349,9 @@ void av1_init_me_luts(void) {
 
 static const int rd_boost_factor[16] = { 64, 32, 32, 32, 24, 16, 12, 12,
                                          8,  8,  4,  4,  2,  2,  1,  0 };
-static const int rd_frame_type_factor[FRAME_UPDATE_TYPES] = { 128, 144, 128,
-                                                              128, 144, 144,
-                                                              128 };
+static const int rd_layer_depth_factor[6] = {
+  128, 128, 144, 160, 160, 180,
+};
 
 int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
   const int q = av1_dc_quant_QTX(qindex, 0, cpi->common.seq_params.bit_depth);
@@ -373,10 +373,10 @@ int av1_compute_rd_mult(const AV1_COMP *cpi, int qindex) {
   if (is_stat_consumption_stage(cpi) &&
       (cpi->common.current_frame.frame_type != KEY_FRAME)) {
     const GF_GROUP *const gf_group = &cpi->gf_group;
-    const FRAME_UPDATE_TYPE frame_type = gf_group->update_type[gf_group->index];
     const int boost_index = AOMMIN(15, (cpi->rc.gfu_boost / 100));
+    const int layer_depth = AOMMIN(gf_group->layer_depth[gf_group->index], 5);
 
-    rdmult = (rdmult * rd_frame_type_factor[frame_type]) >> 7;
+    rdmult = (rdmult * rd_layer_depth_factor[layer_depth]) >> 7;
     rdmult += ((rdmult * rd_boost_factor[boost_index]) >> 7);
   }
   return (int)rdmult;
@@ -422,10 +422,11 @@ int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
   if (is_stat_consumption_stage(cpi) &&
       (cm->current_frame.frame_type != KEY_FRAME)) {
     const GF_GROUP *const gf_group = &cpi->gf_group;
-    const FRAME_UPDATE_TYPE frame_type = gf_group->update_type[gf_group->index];
     const int boost_index = AOMMIN(15, (cpi->rc.gfu_boost / 100));
 
-    rdmult = (rdmult * rd_frame_type_factor[frame_type]) >> 7;
+    const int layer_depth = AOMMIN(gf_group->layer_depth[gf_group->index], 5);
+    rdmult = (rdmult * rd_layer_depth_factor[layer_depth]) >> 7;
+
     rdmult += ((rdmult * rd_boost_factor[boost_index]) >> 7);
   }
   if (rdmult < 1) rdmult = 1;
