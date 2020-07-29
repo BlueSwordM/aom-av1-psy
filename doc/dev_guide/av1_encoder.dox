@@ -1046,27 +1046,63 @@ The reader is also refered to the following functions and data structures:
  \ref av1_rd_use_partition(), or av1_rd_pick_partition() and returning best
  options for sub-trees to their parent partitions.
 
- In libaom, partition search lays on top of mode search (predictor, transform,
- etc.) instead of being a separate module, the interface of mode search is
- \ref pick_sb_modes(), which connects the partition_search with
- \ref inter_mode_search and \ref intra_mode_search. To make good decisions,
- reconstruction is also required in order to build references and contexts.
- This is implemented by \ref encode_sb() at the sub-tree level and
- \ref encode_b() at coding block level.
+ In libaom, the partition search lays on top of the mode search (predictor,
+ transform, etc.), instead of being a separate module. The interface of mode
+ search is \ref pick_sb_modes(), which connects the partition_search with
+ \ref architecture_enc_inter_modes and \ref architecture_enc_intra_modes. To
+ make good decisions, reconstruction is also required in order to build
+ references and contexts. This is implemented by \ref encode_sb() at the
+ sub-tree level and \ref encode_b() at coding block level.
 
  See also \ref partition_search
 
-\section architecture_enc_inter_modes Inter Prediction Mode Search
-
- Add details here.
-
 \section architecture_enc_intra_modes Intra Mode Search
 
- Add details here.
+See also \ref intra_mode_search for more details.
+
+\section architecture_enc_inter_modes Inter Prediction Mode Search
+
+See also \ref inter_mode_search for more details.
 
 \section architecture_enc_tx_search Transform Search
 
- Add details here.
+AV1 implements the transform stage using 4 seperable 1-d transforms which
+can be combined to give 16 2-d combinations. These are DCT, ADST, FLIPADST
+and IDTX, where FLIPADST is the reversed version of ADST and IDTX is the
+identity transform.
+
+These combinations can be applied at 19 different scales from 64x64 pixels
+down to 4x4 pixels.
+
+This gives rise to a large number of possible candidate transform options
+for coding the residual error after prediction. An exhaustive rate-distortion
+based evaluation of all candidates would not be practical from a speed
+perspective in a production encoder implementation. Hence libaom addopts a
+number of strategies to prune the selection of both the transform size and
+transform type.
+
+There are a number of strategies that have been tested and implememnted in
+libaom including:
+
+- A statistics based approach that looks at the frequency with which certain
+  combinations are used in a given context and prunes out very unlikely
+  candidates. It is worth noting here that some size candidates can be pruned
+  out immediately based on the size of the prediction partition. For example it
+  does not make sense to use a transform size that is larger than the
+  prediction partition size but also a very large prediction partition size is
+  unlikely to be optimally pared with small transforms.
+
+- A Machine learning based model
+
+- A method that initially tests candidates using a fast algorithm that skips
+  entropy encoding and uses an estimated cost model to choose a reduced subset
+  for full RD analysis. This subject is covered more fully in a paper authored
+  by Bohan Li, Jingning Han, and Yaowu Xu titled: <b>Fast Transform Type
+  Selection Using Conditional Laplace Distribution Based Rate Estimation</b>
+
+<b>TODO Add link to paper when available</b>
+
+See also \ref transform_search for more details.
 
 \section architecture_loop_filt Loop Filtering
 
@@ -1320,7 +1356,6 @@ void second_pass(char *stats, size_t stats_len) {
 /*!\defgroup transform_search Transform Search
  * \ingroup encoder_algo
  * This module describes transform search algorithm in AV1.
- * More details will be added.
  * @{
  */
 /*! @} - end defgroup transform_search */
