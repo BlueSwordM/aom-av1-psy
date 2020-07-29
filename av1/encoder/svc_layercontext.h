@@ -78,6 +78,10 @@ typedef struct {
    * If current layer is key frame.
    */
   int is_key_frame;
+  /*!
+   * Maximum motion magnitude of previous encoded layer.
+   */
+  int max_mv_magnitude;
 } LAYER_CONTEXT;
 
 /*!

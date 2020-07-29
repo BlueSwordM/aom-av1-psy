@@ -167,6 +167,7 @@ void av1_update_temporal_layer_framerate(AV1_COMP *const cpi) {
 void av1_restore_layer_context(AV1_COMP *const cpi) {
   GF_GROUP *const gf_group = &cpi->gf_group;
   SVC *const svc = &cpi->svc;
+  const AV1_COMMON *const cm = &cpi->common;
   LAYER_CONTEXT *const lc = get_layer_context(cpi);
   const int old_frame_since_key = cpi->rc.frames_since_key;
   const int old_frame_to_key = cpi->rc.frames_to_key;
@@ -174,6 +175,9 @@ void av1_restore_layer_context(AV1_COMP *const cpi) {
   cpi->rc = lc->rc;
   cpi->oxcf.rc_cfg.target_bandwidth = lc->target_bandwidth;
   gf_group->index = 0;
+  cpi->mv_search_params.max_mv_magnitude = lc->max_mv_magnitude;
+  if (cpi->mv_search_params.max_mv_magnitude == 0)
+    cpi->mv_search_params.max_mv_magnitude = AOMMAX(cm->width, cm->height);
   // Reset the frames_since_key and frames_to_key counters to their values
   // before the layer restore. Keep these defined for the stream (not layer).
   cpi->rc.frames_since_key = old_frame_since_key;
@@ -215,6 +219,7 @@ void av1_save_layer_context(AV1_COMP *const cpi) {
   lc->rc = cpi->rc;
   lc->target_bandwidth = (int)cpi->oxcf.rc_cfg.target_bandwidth;
   lc->group_index = gf_group->index;
+  lc->max_mv_magnitude = cpi->mv_search_params.max_mv_magnitude;
   if (svc->spatial_layer_id == 0) svc->base_framerate = cpi->framerate;
   // For spatial-svc, allow cyclic-refresh to be applied on the spatial layers,
   // for the base temporal layer.
