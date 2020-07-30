@@ -79,7 +79,8 @@ things like :-
 
 For a more detailed overview of AV1's encoding tools and a discussion of some
 of the design considerations and hardware constraints that had to be
-accommodated, please refer to *** TODO link to Jingning's AV1 overview paper.
+accommodated, please refer to (TODO REF) <b>A Technical Overview of the AV1
+Standard</b> (TODO add link to Jingning's AV1 overview paper).
 
 Figure 3 provides a slightly expanded but still simplistic view of the
 AV1 encoder architecture with blocks that relate to some of the subsequent
@@ -1163,17 +1164,30 @@ libaom including:
 
 See also \ref transform_search for more details.
 
-\section architecture_loop_filt Loop Filtering
+\section architecture_post_enc_filt Post Encode Loop Filtering
 
- Add details here.
+AV1 supports three types of post encode <b>in loop</b> filtering to improve
+the quality of the reconstructed video.
 
-\section architecture_loop_rest Loop Restoration Filtering
+- <b>Deblocking Filter</b> The first of these is a farily traditional boundary
+  deblocking filter that attempts to smooth discontinuities that may occur at
+  the boundaries between blocks. See also \ref in_loop_filter.
 
- Add details here.
+- <b>CDEF Filter</b> The constrained directional enhancement filter (CDEF)
+  allows the codec to apply a non-linear deringing filter along certain
+  (potentially oblique) directions. A primary filter is applied along the
+  selected direction, whilst a secondary filter is applied at 45° to the
+  primary direction. (See also \ref in_loop_cdef and (TODO REF)
+  <b>A Technical Overview of the AV1 Standard</b> (TODO add link to
+  Jingning's AV1 overview paper).
 
-\section architecture_cdef CDEF
-
- Add details here.
+- <b>Loop Restoration Filter</b> The loop restoration filter is applied after
+  any prior post filtering stages. It acts on units of either 64 × 64,
+  128 × 128, or 256 × 256 pixel blocks, refered to as loop restoration units.
+  Each unit can independently select either to bypass filtering, use a Wiener
+  filter, or use a self-guided filter. (See also \ref in_loop_restoration and
+  (TODO REF) <b>A Technical Overview of the AV1 Standard</b> (TODO add link
+  to Jingning's AV1 overview paper).
 
 \section architecture_entropy Entropy Coding
 
