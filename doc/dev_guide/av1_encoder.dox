@@ -161,6 +161,8 @@ encoder and referenced elsewhere in this overview document:
     - \ref HIGH_LEVEL_SPEED_FEATURES.recode_loop
     - \ref HIGH_LEVEL_SPEED_FEATURES.recode_tolerance
 
+- \ref TplParams
+
 \section architecture_enc_use_cases Encoder Use Cases
 
 The libaom AV1 encoder is configurable to support a number of different use
@@ -1057,6 +1059,32 @@ The reader is also refered to the following functions and data structures:
  See also \ref partition_search
 
 \section architecture_enc_intra_modes Intra Mode Search
+
+AV1 also provides 71 different intra prediction modes, i.e. modes that predict
+only based upon information in the current frame with no dependency on
+previous or future frames. For key frames, where this independence from any
+other frame is a defining requirement and for other cases where intra only
+frames are required, the encoder need only considers these modes in the rate
+distortion loop.
+
+Even so, in most use cases, searching all possible intra prediction modes for
+every block and partition size is not practical and some pruning of the search
+tree is necessary.
+
+For the Rate distortion optimized case, the main top level function
+responsible for selecting the intra prediction mode for a given block is
+\ref av1_rd_pick_intra_mode_sb(). The readers attention is also drawn to the
+functions \ref hybrid_intra_mode_search() and \ref av1_nonrd_pick_intra_mode()
+which may be used where encode speed is critical. The choice between the
+rd path and the non rd or hybrid paths depends on the encoder use case and the
+\ref AV1_COMP.speed parameter. Further fine control of the speed vs quality
+trade off is provided by means of fields in \ref AV1_COMP.sf (which has type
+\ref SPEED_FEATURES).
+
+Note that some intra modes are only considered for specific use cases or
+types of video. For example the palette based prediction modes are often
+valueable for graphics or screen share content but not for natural video.
+(See \ref av1_search_palette_mode())
 
 See also \ref intra_mode_search for more details.
 
