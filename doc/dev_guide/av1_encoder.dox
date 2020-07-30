@@ -1090,6 +1090,37 @@ See also \ref intra_mode_search for more details.
 
 \section architecture_enc_inter_modes Inter Prediction Mode Search
 
+For inter frames, where we also allow prediction using one or more previously
+coded frames (which may chronologically speaking be past or future frames or
+non-display reference buffers such as ARF frames), the size of the search tree
+that needs to be traversed, to select a prediction mode, is considerably more
+massive.
+
+In addition to the 71 possible intra modes we also need to consider 56 single
+frame inter prediction modes (7 reference frames x 4 modes x 2 for OBMC
+(overlapped block motion compensation)), 12768 compound inter prediction modes
+(these are modes that combine inter predictors from two reference frames) and
+36708 compound inter / intra prediction modes.
+
+As with the intra mode search, libaom supports an RD based pathway and a non
+rd pathway for speed critical use cases.  The entry points for these two cases
+are \ref av1_rd_pick_inter_mode_sb() and \ref av1_nonrd_pick_inter_mode_sb()
+respectively.
+
+Various heuristics and predictive strategies are used to prune the search tree
+with fine control provided through the speed features parameter in the main
+compressor instance data structure \ref AV1_COMP.sf.
+
+It is worth noting, that some prediction modes incurr a much larger rate cost
+than others (ignoring for now the cost of coding the error residual). For
+example, a compound mode that requires the encoder to specify two reference
+frames and two new motion vectors will almost inevitable have a higher rate
+cost than a simple inter prediction mode that uses a predicted or 0,0 motion
+vector. As such, if we have already found a mode for the current block that
+has a low RD cost, we can skip a large number of the possible modes on the
+basis that even if the error residual is 0 the inherent rate cost of the
+mode itself will garauntee that it is not chosen.
+
 See also \ref inter_mode_search for more details.
 
 \section architecture_enc_tx_search Transform Search
