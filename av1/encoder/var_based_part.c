@@ -416,8 +416,8 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
     }
     if (cpi->sf.rt_sf.force_large_partition_blocks) {
       thresholds[1] <<= 2;
-      thresholds[2] <<= 3;
-      thresholds[3] <<= 2;
+      thresholds[2] <<= 5;
+      thresholds[3] = INT32_MAX;
     }
   }
 }
