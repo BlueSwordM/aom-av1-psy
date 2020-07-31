@@ -3093,9 +3093,9 @@ static INLINE int is_frame_tpl_eligible(const GF_GROUP *const gf_group,
 
 static INLINE int is_frame_eligible_for_ref_pruning(const GF_GROUP *gf_group,
                                                     int selective_ref_frame,
-                                                    int prune_ref_frames_in_tpl,
+                                                    int prune_ref_frames,
                                                     int gf_index) {
-  return (selective_ref_frame > 0) && (prune_ref_frames_in_tpl > 0) &&
+  return (selective_ref_frame > 0) && (prune_ref_frames > 0) &&
          !is_frame_tpl_eligible(gf_group, gf_index);
 }
 

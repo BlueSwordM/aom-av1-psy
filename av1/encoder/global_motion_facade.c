@@ -305,6 +305,10 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
   int *num_past_ref_frames = &num_ref_frames[0];
   int *num_future_ref_frames = &num_ref_frames[1];
+  const GF_GROUP *gf_group = &cpi->gf_group;
+  int ref_pruning_enabled = is_frame_eligible_for_ref_pruning(
+      gf_group, cpi->sf.inter_sf.selective_ref_frame, 1, gf_group->index);
+
   for (int frame = ALTREF_FRAME; frame >= LAST_FRAME; --frame) {
     const MV_REFERENCE_FRAME ref_frame[2] = { frame, NONE_FRAME };
     RefCntBuffer *buf = get_ref_frame_buf(cm, frame);
@@ -321,11 +325,14 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
       ref_buf[frame] = &buf->buf;
     }
 
+    int prune_ref_frames =
+        ref_pruning_enabled &&
+        prune_ref_by_selective_ref_frame(cpi, NULL, ref_frame,
+                                         cm->cur_frame->ref_display_order_hint);
+
     if (ref_buf[frame]->y_crop_width == cpi->source->y_crop_width &&
         ref_buf[frame]->y_crop_height == cpi->source->y_crop_height &&
-        do_gm_search_logic(&cpi->sf, frame) &&
-        !prune_ref_by_selective_ref_frame(
-            cpi, NULL, ref_frame, cm->cur_frame->ref_display_order_hint) &&
+        do_gm_search_logic(&cpi->sf, frame) && !prune_ref_frames &&
         !(cpi->sf.gm_sf.selective_ref_gm && skip_gm_frame(cm, frame))) {
       assert(ref_buf[frame] != NULL);
       int relative_frame_dist = av1_encoder_get_relative_dist(
