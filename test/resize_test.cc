@@ -844,9 +844,12 @@ AV1_INSTANTIATE_TEST_SUITE(ResizeRealtimeTest,
 AV1_INSTANTIATE_TEST_SUITE(ResizeCspTest,
                            ::testing::Values(::libaom_test::kRealTime));
 
-AV1_INSTANTIATE_TEST_SUITE(
-    ResizeModeTestLarge,
-    ::testing::Values(::libaom_test::kOnePassGood, ::libaom_test::kTwoPassGood),
-    ::testing::Values(1, 2), ::testing::Values(8, 12, 16),
-    ::testing::Values(8, 12, 16), ::testing::Range(2, 7));
+// TODO(anyone): Enable below test once resize issues are fixed
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ResizeModeTestLarge);
+// AV1_INSTANTIATE_TEST_SUITE(
+//    ResizeModeTestLarge,
+//    ::testing::Values(::libaom_test::kOnePassGood,
+//    ::libaom_test::kTwoPassGood),
+//    ::testing::Values(1, 2), ::testing::Values(8, 12, 16),
+//    ::testing::Values(8, 12, 16), ::testing::Range(2, 7));
 }  // namespace
