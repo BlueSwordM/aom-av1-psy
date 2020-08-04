@@ -1191,7 +1191,39 @@ the quality of the reconstructed video.
 
 \section architecture_entropy Entropy Coding
 
-\subsection architecture_entropy_aritmetic Arithmetic Coding Model
+\subsection architecture_entropy_aritmetic Arithmetic Coder
+
+VP9, used a binary arithmetic coder to encode symbols, where the propability
+of a 1 or 0 at each descision node was based on a context model that took
+into account recently coded values (for example previously coded coefficients
+in the current block). A mechanism existed to update the context model each
+frame, either explicitly in the bitstream, or implicitly at both the encoder
+and decoder based on the observed frequency of different outcomes in the
+previous frame. VP9 also supported seperate context models for different types
+of frame (e.g. inter coded frames and key frames).
+
+In contrast, AV1 uses an M-ary symbol arithmetic coder to compress the syntax
+elements, where integer \f$M\in[2, 14]\f$. This approach is based upon the entropy
+coding strategy used in the Daala video codec and allows for some bit-level
+parallelism in its implementation. AV1 also has an extended context model and
+allows for updates to the probabilities on a per symbol basis as opposed to
+the per frame strategy in VP9.
+
+To improve the performance / throughput of the arithmetic encoder, especially
+in hardware implementations, the probability model is updated and maintained
+at 15-bit precision, but the arithmetic encoder only uses the most significant
+9 bits when encoding a symbol. A more detailed discussion of the algorithm
+and design constraints can be found in (TODO REF) <b>A Technical Overview of
+the AV1 Standard</b> (TODO add link to Jingning's AV1 overview paper).
+
+TODO add references to key functions / files.
+
+As with VP9, a mechanism exists in AV1 to encode some elements into the
+bitstream as uncrompresed bits or literal values, without using the arithmetic
+coder. For example, some frame and sequence header values, where it is
+beneficial to be able to read the values directly.
+
+TODO add references to key functions / files.
 
 \subsection architecture_entropy_coef Coefficient Coding and Optimisaztion
 
