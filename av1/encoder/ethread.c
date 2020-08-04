@@ -860,7 +860,7 @@ static AOM_INLINE int compute_num_enc_tile_mt_workers(AV1_COMMON *const cm,
 // Computes the number of workers for encoding stage (row/tile multi-threading)
 int av1_compute_num_enc_workers(AV1_COMP *cpi, int max_workers) {
   if (max_workers <= 1) return 1;
-  if (cpi->oxcf.row_mt && (max_workers > 1))
+  if (cpi->oxcf.row_mt)
     return compute_num_enc_row_mt_workers(&cpi->common, max_workers);
   else
     return compute_num_enc_tile_mt_workers(&cpi->common, max_workers);
