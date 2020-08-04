@@ -2714,7 +2714,7 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *input_size);
 //   cpi->common.allow_intrabc
 // However, the estimation is not accurate and may misclassify videos.
 // A slower but more accurate approach that determines whether to use screen
-// content tools is employed later. See determine_sc_tools_with_encoding().
+// content tools is employed later. See av1_determine_sc_tools_with_encoding().
 void av1_set_screen_content_options(const struct AV1_COMP *cpi,
                                     FeatureFlags *features);
 
