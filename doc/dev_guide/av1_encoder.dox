@@ -56,8 +56,8 @@ prediction modes. Furthermore, in addition to simple inter motion estimation,
 AV1 also supports warped motion prediction using affine transforms.
 
 In terms of transform coding, it has 16 separable 2-D transform kernels
-{ DCT, ADST, fADST, IDTX }2 that can be applied at up to 19 different scales
-from 64x64 down to 4x4 pixels.
+\f$(DCT, ADST, fADST, IDTX)^2\f$ that can be applied at up to 19 different
+scales from 64x64 down to 4x4 pixels.
 
 When combined together, this means that for any one 8x8 pixel block in a
 source frame, there are approximately 45,000,000 different ways that it can
@@ -1126,10 +1126,10 @@ See also \ref inter_mode_search for more details.
 
 \section architecture_enc_tx_search Transform Search
 
-AV1 implements the transform stage using 4 seperable 1-d transforms which
-can be combined to give 16 2-d combinations. These are DCT, ADST, FLIPADST
-and IDTX, where FLIPADST is the reversed version of ADST and IDTX is the
-identity transform.
+AV1 implements the transform stage using 4 seperable 1-d transforms (DCT,
+ADST, FLIPADST and IDTX, where FLIPADST is the reversed version of ADST
+and IDTX is the identity transform) which can be combined to give 16 2-d
+combinations.
 
 These combinations can be applied at 19 different scales from 64x64 pixels
 down to 4x4 pixels.
