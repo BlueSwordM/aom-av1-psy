@@ -1191,7 +1191,11 @@ the quality of the reconstructed video.
 
 \section architecture_entropy Entropy Coding
 
- Add details here.
+\subsection architecture_entropy_aritmetic Arithmetic Coding Model
+
+\subsection architecture_entropy_coef Coefficient Coding and Optimisaztion
+
+See also \ref coefficient_coding for more details.
 
 */
 
