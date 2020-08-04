@@ -161,6 +161,12 @@ static void set_good_speed_feature_framesize_dependent(
     sf->part_sf.ml_early_term_after_part_split_level = 1;
   }
 
+  if (is_720p_or_larger) {
+    // TODO(chiyotsai@google.com): make this speed feature adaptive based on
+    // current block's vertical texture instead of hardcoded with resolution
+    sf->mv_sf.use_downsampled_sad = 1;
+  }
+
   if (speed >= 1) {
     if (is_720p_or_larger) {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
@@ -1016,6 +1022,7 @@ static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->use_accurate_subpel_search = USE_8_TAPS;
   mv_sf->use_bsize_dependent_search_method = 0;
   mv_sf->use_fullpel_costlist = 0;
+  mv_sf->use_downsampled_sad = 0;
 }
 
 static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {

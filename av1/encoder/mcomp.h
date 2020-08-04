@@ -191,6 +191,11 @@ typedef struct {
 
   // For calculating mv cost
   MV_COST_PARAMS mv_cost_params;
+
+  // Stores the function used to compute the sad. This can be different from the
+  // sdf in vfp (e.g. downsampled sad and not sad) to allow speed up.
+  aom_sad_fn_t sdf;
+  aom_sad_multi_d_fn_t sdx4df;
 } FULLPEL_MOTION_SEARCH_PARAMS;
 
 void av1_make_default_fullpel_ms_params(

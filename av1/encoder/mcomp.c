@@ -99,6 +99,16 @@ void av1_make_default_fullpel_ms_params(
 
   av1_set_mv_search_method(ms_params, search_sites, search_method);
 
+  const int use_downsampled_sad =
+      mv_sf->use_downsampled_sad && block_size_high[bsize] >= 16;
+  if (use_downsampled_sad) {
+    ms_params->sdf = ms_params->vfp->sdsf;
+    ms_params->sdx4df = ms_params->vfp->sdsx4df;
+  } else {
+    ms_params->sdf = ms_params->vfp->sdf;
+    ms_params->sdx4df = ms_params->vfp->sdx4df;
+  }
+
   ms_params->mesh_patterns[0] = mv_sf->mesh_patterns;
   ms_params->mesh_patterns[1] = mv_sf->intrabc_mesh_patterns;
   ms_params->force_mesh_thresh = mv_sf->exhaustive_searches_thresh;
@@ -608,11 +618,10 @@ static INLINE int get_mvpred_sad(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
                                  const struct buf_2d *const src,
                                  const uint8_t *const ref_address,
                                  const int ref_stride) {
-  const aom_variance_fn_ptr_t *vfp = ms_params->vfp;
   const uint8_t *src_buf = src->buf;
   const int src_stride = src->stride;
 
-  return vfp->sdf(src_buf, src_stride, ref_address, ref_stride);
+  return ms_params->sdf(src_buf, src_stride, ref_address, ref_stride);
 }
 
 static INLINE int get_mvpred_compound_var_cost(
@@ -668,7 +677,7 @@ static INLINE int get_mvpred_compound_sad(
   } else if (second_pred) {
     return vfp->sdaf(src_buf, src_stride, ref_address, ref_stride, second_pred);
   } else {
-    return vfp->sdf(src_buf, src_stride, ref_address, ref_stride);
+    return ms_params->sdf(src_buf, src_stride, ref_address, ref_stride);
   }
 }
 
@@ -808,7 +817,6 @@ static void calc_sad4_update_bestmv(
   const struct buf_2d *const ref = ms_params->ms_buffers.ref;
   const search_site *site = ms_params->search_sites->site[search_step];
 
-  const aom_variance_fn_ptr_t *vfp = ms_params->vfp;
   unsigned char const *block_offset[4];
   unsigned int sads[4];
   const uint8_t *best_address;
@@ -819,8 +827,8 @@ static void calc_sad4_update_bestmv(
   for (int j = 0; j < 4; j++)
     block_offset[j] = site[cand_start + j].offset + best_address;
 
-  // 4-point sad calcuation.
-  vfp->sdx4df(src_buf, src_stride, block_offset, ref->stride, sads);
+  // 4-point sad calculation.
+  ms_params->sdx4df(src_buf, src_stride, block_offset, ref->stride, sads);
 
   for (int j = 0; j < 4; j++) {
     const FULLPEL_MV this_mv = {
@@ -1219,7 +1227,6 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
   const int ref_stride = ref->stride;
   const uint8_t *best_address;
 
-  const aom_variance_fn_ptr_t *vfp = ms_params->vfp;
   const uint8_t *mask = ms_params->ms_buffers.mask;
   const uint8_t *second_pred = ms_params->ms_buffers.second_pred;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
@@ -1268,7 +1275,7 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
         for (j = 0; j < 4; j++)
           block_offset[j] = site[idx + j].offset + best_address;
 
-        vfp->sdx4df(src_buf, src_stride, block_offset, ref_stride, sads);
+        ms_params->sdx4df(src_buf, src_stride, block_offset, ref_stride, sads);
         for (j = 0; j < 4; j++) {
           if (sads[j] < bestsad) {
             const FULLPEL_MV this_mv = { best_mv->row + site[idx + j].mv.row,
@@ -1390,7 +1397,6 @@ static int exhaustive_mesh_search(FULLPEL_MV start_mv,
                                   const int range, const int step,
                                   FULLPEL_MV *best_mv,
                                   FULLPEL_MV *second_best_mv) {
-  const aom_variance_fn_ptr_t *vfp = ms_params->vfp;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
   const struct buf_2d *const src = ms_params->ms_buffers.src;
   const struct buf_2d *const ref = ms_params->ms_buffers.ref;
@@ -1430,7 +1436,8 @@ static int exhaustive_mesh_search(FULLPEL_MV start_mv,
             const FULLPEL_MV mv = { start_mv.row + r, start_mv.col + c + i };
             addrs[i] = get_buf_from_fullmv(ref, &mv);
           }
-          vfp->sdx4df(src->buf, src->stride, addrs, ref_stride, sads);
+
+          ms_params->sdx4df(src->buf, src->stride, addrs, ref_stride, sads);
 
           for (i = 0; i < 4; ++i) {
             if (sads[i] < best_sad) {
@@ -1680,6 +1687,40 @@ int av1_full_pixel_search(const FULLPEL_MV start_mv,
                                         abs(start_mv.col - best_mv->col));
     if (full_pel_mv_diff <= 4) {
       run_mesh_search = 0;
+    }
+  }
+
+  if (ms_params->sdf != ms_params->vfp->sdf) {
+    // If we are skipping rows when we perform the motion search, we need to
+    // check the quality of skipping. If it's bad, then we run mesh search with
+    // skip row features off.
+    // TODO(chiyotsai@google.com): Handle the case where we have a vertical
+    // offset of 1 before we hit this statement to avoid having to redo
+    // motion search.
+    const struct buf_2d *src = ms_params->ms_buffers.src;
+    const struct buf_2d *ref = ms_params->ms_buffers.ref;
+    const int src_stride = src->stride;
+    const int ref_stride = ref->stride;
+
+    const uint8_t *src_address = src->buf;
+    const uint8_t *best_address = get_buf_from_fullmv(ref, best_mv);
+    const int sad =
+        ms_params->vfp->sdf(src_address, src_stride, best_address, ref_stride);
+    const int skip_sad =
+        ms_params->vfp->sdsf(src_address, src_stride, best_address, ref_stride);
+    // We will keep the result of skipping rows if it's good enough. Here, good
+    // enough means the error is less than 1 per pixel.
+    const int kSADThresh =
+        1 << (mi_size_wide_log2[bsize] + mi_size_high_log2[bsize]);
+    if (sad > kSADThresh && abs(skip_sad - sad) * 10 >= AOMMAX(sad, 1) * 9) {
+      // There is a large discrepancy between skipping and not skipping, so we
+      // need to redo the motion search.
+      FULLPEL_MOTION_SEARCH_PARAMS new_ms_params = *ms_params;
+      new_ms_params.sdf = new_ms_params.vfp->sdf;
+      new_ms_params.sdx4df = new_ms_params.vfp->sdx4df;
+
+      return av1_full_pixel_search(start_mv, &new_ms_params, step_param,
+                                   cost_list, best_mv, second_best_mv);
     }
   }
 

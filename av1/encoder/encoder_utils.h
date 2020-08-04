@@ -329,6 +329,15 @@ MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad64x16_avg)
               aom_highbd_masked_sad##WIDTH##x##HEIGHT##_bits##BD, \
               aom_highbd_##BD##_masked_sub_pixel_variance##WIDTH##x##HEIGHT)
 
+#define HIGHBD_SDSFP(BT, SDSF, SDSX4DF) \
+  cpi->fn_ptr[BT].sdsf = SDSF;          \
+  cpi->fn_ptr[BT].sdsx4df = SDSX4DF;
+
+#define HIGHBD_SDSFP_WRAPPER(WIDTH, HEIGHT)            \
+  HIGHBD_SDSFP(BLOCK_##WIDTH##X##HEIGHT,               \
+               aom_highbd_sad_skip_##WIDTH##x##HEIGHT, \
+               aom_highbd_sad_skip_##WIDTH##x##HEIGHT##x4d)
+
 #define MAKE_MBFP_COMPOUND_SAD_WRAPPER(fnname)                           \
   static unsigned int fnname##_bits8(                                    \
       const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, \
@@ -659,6 +668,29 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
                "cm->seq_params.bit_depth should be AOM_BITS_8, "
                "AOM_BITS_10 or AOM_BITS_12");
     }
+
+    HIGHBD_SDSFP_WRAPPER(128, 128);
+    HIGHBD_SDSFP_WRAPPER(128, 64);
+    HIGHBD_SDSFP_WRAPPER(64, 128);
+    HIGHBD_SDSFP_WRAPPER(64, 64);
+    HIGHBD_SDSFP_WRAPPER(64, 32);
+    HIGHBD_SDSFP_WRAPPER(64, 16);
+    HIGHBD_SDSFP_WRAPPER(32, 64);
+    HIGHBD_SDSFP_WRAPPER(32, 32);
+    HIGHBD_SDSFP_WRAPPER(32, 16);
+    HIGHBD_SDSFP_WRAPPER(32, 8);
+    HIGHBD_SDSFP_WRAPPER(16, 64);
+    HIGHBD_SDSFP_WRAPPER(16, 32);
+    HIGHBD_SDSFP_WRAPPER(16, 16);
+    HIGHBD_SDSFP_WRAPPER(16, 8);
+    HIGHBD_SDSFP_WRAPPER(8, 16);
+    HIGHBD_SDSFP_WRAPPER(8, 8);
+    HIGHBD_SDSFP_WRAPPER(4, 16);
+    HIGHBD_SDSFP_WRAPPER(4, 8);
+    HIGHBD_SDSFP_WRAPPER(4, 16);
+    HIGHBD_SDSFP_WRAPPER(8, 32);
+    HIGHBD_SDSFP_WRAPPER(32, 8);
+    HIGHBD_SDSFP_WRAPPER(64, 16);
   }
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
