@@ -469,6 +469,10 @@ typedef struct PARTITION_SPEED_FEATURES {
 
   // Prune AB partition search using split and HORZ/VERT info
   int prune_ab_partition_using_split_info;
+
+  // Terminate partition search for child partition,
+  // when NONE and SPLIT partition rd_costs are INT64_MAX.
+  int early_term_after_none_split;
 } PARTITION_SPEED_FEATURES;
 
 typedef struct MV_SPEED_FEATURES {

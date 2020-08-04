@@ -3514,6 +3514,14 @@ BEGIN_PARTITION_SEARCH:
                          &part_search_state, &best_rdc, multi_pass_mode,
                          &part_split_rd);
 
+  // Terminate partition search for child partition,
+  // when NONE and SPLIT partition rd_costs are INT64_MAX.
+  if (cpi->sf.part_sf.early_term_after_none_split &&
+      part_none_rd == INT64_MAX && part_split_rd == INT64_MAX &&
+      !x->must_find_valid_partition && (bsize != cm->seq_params.sb_size)) {
+    part_search_state.terminate_partition_search = 1;
+  }
+
   // Prune partitions based on PARTITION_NONE and PARTITION_SPLIT.
   prune_partitions_after_split(cpi, x, sms_tree, &part_search_state, &best_rdc,
                                part_none_rd, part_split_rd);
