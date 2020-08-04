@@ -520,11 +520,10 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
       aom_clear_system_state();
       cpi->rd.r0 = (double)intra_cost_base / mc_dep_cost_base;
       if (is_frame_tpl_eligible(gf_group, gf_group->index)) {
-        cpi->rd.arf_r0 = cpi->rd.r0;
         if (cpi->lap_enabled) {
           double min_boost_factor = sqrt(cpi->rc.baseline_gf_interval);
           const int gfu_boost = get_gfu_boost_from_r0_lap(
-              min_boost_factor, MAX_GFUBOOST_FACTOR, cpi->rd.arf_r0,
+              min_boost_factor, MAX_GFUBOOST_FACTOR, cpi->rd.r0,
               cpi->rc.num_stats_required_for_gfu_boost);
           // printf("old boost %d new boost %d\n", cpi->rc.gfu_boost,
           //        gfu_boost);
