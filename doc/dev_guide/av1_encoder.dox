@@ -1176,14 +1176,14 @@ the quality of the reconstructed video.
 - <b>CDEF Filter</b> The constrained directional enhancement filter (CDEF)
   allows the codec to apply a non-linear deringing filter along certain
   (potentially oblique) directions. A primary filter is applied along the
-  selected direction, whilst a secondary filter is applied at 45° to the
-  primary direction. (See also \ref in_loop_cdef and (TODO REF)
+  selected direction, whilst a secondary filter is applied at 45 degrees to
+  the primary direction. (See also \ref in_loop_cdef and (TODO REF)
   <b>A Technical Overview of the AV1 Standard</b> (TODO add link to
   Jingning's AV1 overview paper).
 
 - <b>Loop Restoration Filter</b> The loop restoration filter is applied after
-  any prior post filtering stages. It acts on units of either 64 × 64,
-  128 × 128, or 256 × 256 pixel blocks, refered to as loop restoration units.
+  any prior post filtering stages. It acts on units of either 64 x 64,
+  128 x 128, or 256 x 256 pixel blocks, refered to as loop restoration units.
   Each unit can independently select either to bypass filtering, use a Wiener
   filter, or use a self-guided filter. (See also \ref in_loop_restoration and
   (TODO REF) <b>A Technical Overview of the AV1 Standard</b> (TODO add link
