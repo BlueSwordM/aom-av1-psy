@@ -2893,8 +2893,8 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       0,                       // g_threads
       0,                       // g_profile
 
-      320,         // g_width
-      240,         // g_height
+      320,         // g_w
+      240,         // g_h
       0,           // g_limit
       0,           // g_forced_max_frame_width
       0,           // g_forced_max_frame_height
@@ -2963,8 +2963,8 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       0,                   // g_threads
       0,                   // g_profile
 
-      320,         // g_width
-      240,         // g_height
+      320,         // g_w
+      240,         // g_h
       0,           // g_limit
       0,           // g_forced_max_frame_width
       0,           // g_forced_max_frame_height
@@ -2984,11 +2984,11 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       SCALE_NUMERATOR,  // rc_resize_denominator
       SCALE_NUMERATOR,  // rc_resize_kf_denominator
 
-      0,                // rc_superres_mode
-      SCALE_NUMERATOR,  // rc_superres_denominator
-      SCALE_NUMERATOR,  // rc_superres_kf_denominator
-      63,               // rc_superres_qthresh
-      32,               // rc_superres_kf_qthresh
+      AOM_SUPERRES_NONE,  // rc_superres_mode
+      SCALE_NUMERATOR,    // rc_superres_denominator
+      SCALE_NUMERATOR,    // rc_superres_kf_denominator
+      63,                 // rc_superres_qthresh
+      32,                 // rc_superres_kf_qthresh
 
       AOM_CBR,      // rc_end_usage
       { NULL, 0 },  // rc_twopass_stats_in
