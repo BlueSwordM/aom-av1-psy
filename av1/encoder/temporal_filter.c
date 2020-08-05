@@ -582,7 +582,7 @@ void av1_apply_temporal_filter_c(
         }
 
         // Scale down the difference for high bit depth input.
-        if (mbd->bd > 8) sum_square_diff >>= (mbd->bd - 8) * (mbd->bd - 8);
+        if (mbd->bd > 8) sum_square_diff >>= ((mbd->bd - 8) * 2);
 
         // Combine window error and block error, and normalize it.
         const double window_error = (double)sum_square_diff / num_ref_pixels;

@@ -214,7 +214,7 @@ static void highbd_apply_temporal_filter(
       }
 
       // Scale down the difference for high bit depth input.
-      diff_sse >>= (bd - 8) * (bd - 8);
+      diff_sse >>= ((bd - 8) * 2);
 
       const double window_error = (double)(diff_sse) / num_ref_pixels;
       const int subblock_idx =
