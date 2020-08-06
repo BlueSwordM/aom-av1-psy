@@ -28,9 +28,10 @@ typedef enum {
   MV_FILTER_MEDIAN
 } MV_FILTER_TYPE;
 
+#define MAX_PYRAMID_LEVELS 5
 // default options for optical flow
 #define OPFL_WINDOW_SIZE 15
-#define OPFL_PYRAMID_LEVELS 3  // total levels (max is 5)
+#define OPFL_PYRAMID_LEVELS 3  // total levels
 
 // parameters specific to Lucas-Kanade
 typedef struct lk_params {
@@ -42,7 +43,10 @@ typedef struct lk_params {
 typedef struct opfl_params {
   int pyramid_levels;
   LK_PARAMS *lk_params;
+  int flags;
 } OPFL_PARAMS;
+
+#define OPFL_FLAG_SPARSE 1
 
 void init_opfl_params(OPFL_PARAMS *opfl_params) {
   opfl_params->pyramid_levels = OPFL_PYRAMID_LEVELS;

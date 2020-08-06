@@ -26,6 +26,11 @@ static INLINE int is_frame_high_bitdepth(const YV12_BUFFER_CONFIG *frame) {
   return (frame->flags & YV12_FLAG_HIGHBITDEPTH) ? 1 : 0;
 }
 
+// Helper function to determine whether optical flow method is sparse.
+static INLINE int is_sparse(const OPFL_PARAMS *opfl_params) {
+  return (opfl_params->flags & OPFL_FLAG_SPARSE) ? 1 : 0;
+}
+
 typedef struct LOCALMV {
   double row;
   double col;
@@ -469,6 +474,151 @@ void filter_mvs(const MV_FILTER_TYPE mv_filter, const int frame_height,
     }
   }
 }
+
+// Computes optical flow at a single pyramid level,
+// using Lucas-Kanade algorithm.
+// Modifies mvs array.
+void lucas_kanade(const YV12_BUFFER_CONFIG *frame_to_filter,
+                  const YV12_BUFFER_CONFIG *ref_frame, const int level,
+                  const LK_PARAMS *lk_params, const int num_ref_corners,
+                  int *ref_corners, const int highres_frame_width,
+                  const int bit_depth, LOCALMV *mvs) {
+  assert(lk_params->window_size > 0 && lk_params->window_size % 2 == 0);
+  const int n = lk_params->window_size;
+  // algorithm is sensitive to window size
+  double *i_x = (double *)aom_malloc(n * n * sizeof(double));
+  double *i_y = (double *)aom_malloc(n * n * sizeof(double));
+  double *i_t = (double *)aom_malloc(n * n * sizeof(double));
+  const int expand_multiplier = (int)pow(2, level);
+  double sigma = 0.2 * n;
+  double *weights = (double *)aom_malloc(n * n * sizeof(double));
+  // normalizing doesn't really affect anything since it's applied
+  // to every component of M and b
+  gaussian(sigma, n, 0, weights);
+  for (int i = 0; i < num_ref_corners; i++) {
+    const double x_coord = 1.0 * ref_corners[i * 2] / expand_multiplier;
+    const double y_coord = 1.0 * ref_corners[i * 2 + 1] / expand_multiplier;
+    int highres_x = ref_corners[i * 2];
+    int highres_y = ref_corners[i * 2 + 1];
+    int mv_idx = highres_y * (highres_frame_width) + highres_x;
+    LOCALMV mv_old = mvs[mv_idx];
+    mv_old.row = mv_old.row / expand_multiplier;
+    mv_old.col = mv_old.col / expand_multiplier;
+    // using this instead of memset, since it's not completely
+    // clear if zero memset works on double arrays
+    for (int j = 0; j < n * n; j++) {
+      i_x[j] = 0;
+      i_y[j] = 0;
+      i_t[j] = 0;
+    }
+    gradients_over_window(frame_to_filter, ref_frame, x_coord, y_coord, n,
+                          bit_depth, i_x, i_y, i_t, &mv_old);
+    double Mres1[1] = { 0 }, Mres2[1] = { 0 }, Mres3[1] = { 0 };
+    double bres1[1] = { 0 }, bres2[1] = { 0 };
+    for (int j = 0; j < n * n; j++) {
+      Mres1[0] += weights[j] * i_x[j] * i_x[j];
+      Mres2[0] += weights[j] * i_x[j] * i_y[j];
+      Mres3[0] += weights[j] * i_y[j] * i_y[j];
+      bres1[0] += weights[j] * i_x[j] * i_t[j];
+      bres2[0] += weights[j] * i_y[j] * i_t[j];
+    }
+    double M[4] = { Mres1[0], Mres2[0], Mres2[0], Mres3[0] };
+    double b[2] = { -1 * bres1[0], -1 * bres2[0] };
+    double eig[2] = { 1, 1 };
+    eigenvalues_2x2(M, eig);
+    double threshold = 0.1;
+    if (fabs(eig[0]) > threshold) {
+      // if M is not invertible, then displacement
+      // will default to zeros
+      double u[2] = { 0, 0 };
+      linsolve(2, M, 2, b, u);
+      int mult = 1;
+      if (level != 0)
+        mult = expand_multiplier;  // mv doubles when resolution doubles
+      LOCALMV mv = { .row = (mult * (u[0] + mv_old.row)),
+                     .col = (mult * (u[1] + mv_old.col)) };
+      mvs[mv_idx] = mv;
+      mvs[mv_idx] = mv;
+    }
+  }
+  aom_free(weights);
+  aom_free(i_t);
+  aom_free(i_x);
+  aom_free(i_y);
+}
+
+// Apply optical flow iteratively at each pyramid level
+void pyramid_optical_flow(const YV12_BUFFER_CONFIG *from_frame,
+                          const YV12_BUFFER_CONFIG *to_frame,
+                          const int bit_depth, const OPFL_PARAMS *opfl_params,
+                          const OPTFLOW_METHOD method, LOCALMV *mvs) {
+  assert(opfl_params->pyramid_levels > 0 &&
+         opfl_params->pyramid_levels <= MAX_PYRAMID_LEVELS);
+  int levels = opfl_params->pyramid_levels;
+  const int frame_height = from_frame->y_crop_height;
+  const int frame_width = from_frame->y_crop_width;
+  if ((frame_height / pow(2.0, levels - 1) < 50 ||
+       frame_height / pow(2.0, levels - 1) < 50) &&
+      levels > 1)
+    levels = levels - 1;
+  uint8_t *images1[MAX_PYRAMID_LEVELS];
+  uint8_t *images2[MAX_PYRAMID_LEVELS];
+  images1[0] = from_frame->y_buffer;
+  images2[0] = to_frame->y_buffer;
+  YV12_BUFFER_CONFIG *buffers1 =
+      aom_malloc(levels * sizeof(YV12_BUFFER_CONFIG));
+  YV12_BUFFER_CONFIG *buffers2 =
+      aom_malloc(levels * sizeof(YV12_BUFFER_CONFIG));
+  buffers1[0] = *from_frame;
+  buffers2[0] = *to_frame;
+  int fw = frame_width;
+  int fh = frame_height;
+  for (int i = 1; i < levels; i++) {
+    images1[i] = (uint8_t *)aom_calloc(fh / 2 * fw / 2, sizeof(uint8_t));
+    images2[i] = (uint8_t *)aom_calloc(fh / 2 * fw / 2, sizeof(uint8_t));
+    int stride;
+    if (i == 1)
+      stride = from_frame->y_stride;
+    else
+      stride = fw;
+    reduce(images1[i - 1], fh, fw, stride, images1[i]);
+    reduce(images2[i - 1], fh, fw, stride, images2[i]);
+    fh /= 2;
+    fw /= 2;
+    YV12_BUFFER_CONFIG a = { .y_buffer = images1[i],
+                             .y_crop_width = fw,
+                             .y_crop_height = fh,
+                             .y_stride = fw };
+    YV12_BUFFER_CONFIG b = { .y_buffer = images2[i],
+                             .y_crop_width = fw,
+                             .y_crop_height = fh,
+                             .y_stride = fw };
+    buffers1[i] = a;
+    buffers2[i] = b;
+  }
+  // Compute corners for specific frame
+  int maxcorners = from_frame->y_crop_width * from_frame->y_crop_height;
+  int *ref_corners = aom_malloc(maxcorners * 2 * sizeof(int));
+  int num_ref_corners = 0;
+  if (is_sparse(opfl_params)) {
+    num_ref_corners = detect_corners(from_frame, to_frame, maxcorners,
+                                     ref_corners, bit_depth);
+  }
+  const int stop_level = 0;
+  for (int i = levels - 1; i >= stop_level; i--) {
+    if (method == LUCAS_KANADE) {
+      assert(is_sparse(opfl_params));
+      lucas_kanade(&buffers1[i], &buffers2[i], i, opfl_params->lk_params,
+                   num_ref_corners, ref_corners, buffers1[0].y_crop_width,
+                   bit_depth, mvs);
+    }
+  }
+  for (int i = 1; i < levels; i++) {
+    aom_free(images1[i]);
+    aom_free(images2[i]);
+  }
+  aom_free(ref_corners);
+}
 // Computes optical flow by applying algorithm at
 // multiple pyramid levels of images (lower-resolution, smoothed images)
 // This accounts for larger motions.
@@ -490,11 +640,6 @@ void optical_flow(const YV12_BUFFER_CONFIG *from_frame,
                   const OPFL_PARAMS *opfl_params,
                   const MV_FILTER_TYPE mv_filter, const OPTFLOW_METHOD method,
                   MV *mvs) {
-  // parameters to be used in later implementations
-  (void)to_frame;
-  (void)bit_depth;
-  (void)opfl_params;
-  (void)method;
   const int frame_height = from_frame->y_crop_height;
   const int frame_width = from_frame->y_crop_width;
   // TODO(any): deal with the case where frames are not of the same dimensions
@@ -520,6 +665,8 @@ void optical_flow(const YV12_BUFFER_CONFIG *from_frame,
     localmvs[i] = localmv;
   }
   // Apply optical flow algorithm
+  pyramid_optical_flow(from_frame, to_frame, bit_depth, opfl_params, method,
+                       localmvs);
 
   // Update original mvs array
   for (int j = 0; j < frame_height; j++) {
