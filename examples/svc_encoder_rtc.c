@@ -266,6 +266,8 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
   int shift = (layering_mode == 7) ? 2 : 0;
   *use_svc_control = 1;
   layer_id->spatial_layer_id = spatial_layer_id;
+  int lag_index = 0;
+  int base_count = superframe_cnt >> 2;
   // Set the referende map buffer idx for the 7 references:
   // LAST_FRAME (0), LAST2_FRAME(1), LAST3_FRAME(2), GOLDEN_FRAME(3),
   // BWDREF_FRAME(4), ALTREF2_FRAME(5), ALTREF_FRAME(6).
@@ -333,6 +335,51 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
       }
       break;
     case 3:
+      // 3 TL, same as above, except allow for predicting
+      // off 2 more references (GOLDEN and ALTREF), with
+      // GOLDEN updated periodically, and ALTREF lagging from
+      // LAST from ~4 frames. Both GOLDEN and ALTREF
+      // can only be updated on base temporal layer.
+
+      // Keep golden fixed at slot 3.
+      ref_frame_config->ref_idx[SVC_GOLDEN_FRAME] = 3;
+      // Cyclically refresh slots 4, 5, 6, 7, for lag altref.
+      lag_index = 4 + (base_count % 4);
+      // Set the altref slot to lag_index.
+      ref_frame_config->ref_idx[SVC_ALTREF_FRAME] = lag_index;
+      if (superframe_cnt % 4 == 0) {
+        // Base layer.
+        layer_id->temporal_layer_id = 0;
+        // Update LAST on layer 0, reference LAST.
+        ref_frame_config->refresh[0] = 1;
+        ref_frame_config->reference[SVC_LAST_FRAME] = 1;
+        // Refresh GOLDEN every x ~10 base layer frames.
+        if (base_count % 10 == 0) ref_frame_config->refresh[3] = 1;
+        // Refresh lag_index slot, needed for lagging altref.
+        ref_frame_config->refresh[lag_index] = 1;
+      } else if ((superframe_cnt - 1) % 4 == 0) {
+        layer_id->temporal_layer_id = 2;
+        // First top layer: no updates, only reference LAST (TL0).
+        ref_frame_config->reference[SVC_LAST_FRAME] = 1;
+      } else if ((superframe_cnt - 2) % 4 == 0) {
+        layer_id->temporal_layer_id = 1;
+        // Middle layer (TL1): update LAST2, only reference LAST (TL0).
+        ref_frame_config->refresh[1] = 1;
+        ref_frame_config->reference[SVC_LAST_FRAME] = 1;
+      } else if ((superframe_cnt - 3) % 4 == 0) {
+        layer_id->temporal_layer_id = 2;
+        // Second top layer: no updates, only reference LAST.
+        // Set buffer idx for LAST to slot 1, since that was the slot
+        // updated in previous frame. So LAST is TL1 frame.
+        ref_frame_config->ref_idx[SVC_LAST_FRAME] = 1;
+        ref_frame_config->ref_idx[SVC_LAST2_FRAME] = 0;
+        ref_frame_config->reference[SVC_LAST_FRAME] = 1;
+      }
+      // Every frame can reference GOLDEN AND ALTREF.
+      ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
+      ref_frame_config->reference[SVC_ALTREF_FRAME] = 1;
+      break;
+    case 4:
       // 3-temporal layer: but middle layer updates GF, so 2nd TL2 will
       // only reference GF (not LAST). Other frames only reference LAST.
       //   1    3   5    7
@@ -357,24 +404,6 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
         layer_id->temporal_layer_id = 2;
         // Second top layer: no updates, only reference GF.
         ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
-      }
-      break;
-    case 4:
-      // 2-temporal layer with the old update flags, not with the new
-      // SVC control.
-      *use_svc_control = 0;
-      //    1    3    5
-      //  0    2    4
-      if (superframe_cnt % 2 == 0) {
-        layer_id->temporal_layer_id = 0;
-        // Update LAST on layer 0, reference LAST and GF.
-        ref_frame_config->refresh[0] = 1;
-        ref_frame_config->reference[SVC_LAST_FRAME] = 1;
-        ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
-      } else {
-        layer_id->temporal_layer_id = 1;
-        // No updates on layer 1, only reference LAST (TL0).
-        ref_frame_config->reference[SVC_LAST_FRAME] = 1;
       }
       break;
     case 5:
