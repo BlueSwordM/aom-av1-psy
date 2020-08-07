@@ -156,8 +156,12 @@ static const arg_def_t quietarg =
     ARG_DEF("q", "quiet", 0, "Do not print encode progress");
 static const arg_def_t verbosearg =
     ARG_DEF("v", "verbose", 0, "Show encoder parameters");
-static const arg_def_t psnrarg =
-    ARG_DEF(NULL, "psnr", 0, "Show PSNR in status line");
+static const arg_def_t psnrarg = ARG_DEF(
+    NULL, "psnr", -1,
+    "Show PSNR in status line"
+    "(0: Disable PSNR status line display, 1: PSNR calculated using input "
+    "bit-depth (default), 2: PSNR calculated using stream bit-depth), "
+    "takes default option when arguments are not specified");
 static const arg_def_t use_cfg = ARG_DEF("c", "cfg", 1, "Config file to use");
 
 static const struct arg_enum_list test_decode_enum[] = {
@@ -1114,10 +1118,10 @@ struct stream_state {
   FILE *file;
   struct rate_hist *rate_hist;
   struct WebmOutputContext webm_ctx;
-  uint64_t psnr_sse_total;
-  uint64_t psnr_samples_total;
-  double psnr_totals[4];
-  int psnr_count;
+  uint64_t psnr_sse_total[2];
+  uint64_t psnr_samples_total[2];
+  double psnr_totals[2][4];
+  int psnr_count[2];
   int counts[64];
   aom_codec_ctx_t encoder;
   unsigned int frames_out;
@@ -1167,6 +1171,7 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
   global->passes = 0;
   global->color_type = I420;
   global->csp = AOM_CSP_UNKNOWN;
+  global->show_psnr = 0;
 
   int cfg_included = 0;
   init_config(&global->encoder_config);
@@ -1223,11 +1228,14 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
       global->limit = arg_parse_uint(&arg);
     else if (arg_match(&arg, &skip, argi))
       global->skip_frames = arg_parse_uint(&arg);
-    else if (arg_match(&arg, &psnrarg, argi))
-      global->show_psnr = 1;
-    else if (arg_match(&arg, &recontest, argi))
+    else if (arg_match(&arg, &psnrarg, argi)) {
+      if (arg.val)
+        global->show_psnr = arg_parse_int(&arg);
+      else
+        global->show_psnr = 1;
+    } else if (arg_match(&arg, &recontest, argi)) {
       global->test_decode = arg_parse_enum_or_int(&arg);
-    else if (arg_match(&arg, &framerate, argi)) {
+    } else if (arg_match(&arg, &framerate, argi)) {
       global->framerate = arg_parse_rational(&arg);
       validate_positive_rational(arg.name, &global->framerate);
       global->have_framerate = 1;
@@ -1909,7 +1917,7 @@ static void initialize_encoder(struct stream_state *stream,
   int i;
   int flags = 0;
 
-  flags |= global->show_psnr ? AOM_CODEC_USE_PSNR : 0;
+  flags |= (global->show_psnr >= 1) ? AOM_CODEC_USE_PSNR : 0;
   flags |= stream->config.use_16bit_internal ? AOM_CODEC_USE_HIGHBITDEPTH : 0;
 
   /* Construct Encoder Context */
@@ -2135,17 +2143,31 @@ static void get_cx_data(struct stream_state *stream,
         break;
       case AOM_CODEC_PSNR_PKT:
 
-        if (global->show_psnr) {
+        if (global->show_psnr >= 1) {
           int i;
 
-          stream->psnr_sse_total += pkt->data.psnr.sse[0];
-          stream->psnr_samples_total += pkt->data.psnr.samples[0];
+          stream->psnr_sse_total[0] += pkt->data.psnr.sse[0];
+          stream->psnr_samples_total[0] += pkt->data.psnr.samples[0];
           for (i = 0; i < 4; i++) {
             if (!global->quiet)
               fprintf(stderr, "%.3f ", pkt->data.psnr.psnr[i]);
-            stream->psnr_totals[i] += pkt->data.psnr.psnr[i];
+            stream->psnr_totals[0][i] += pkt->data.psnr.psnr[i];
           }
-          stream->psnr_count++;
+          stream->psnr_count[0]++;
+
+#if CONFIG_AV1_HIGHBITDEPTH
+          if (stream->config.cfg.g_input_bit_depth <
+              stream->config.cfg.g_bit_depth) {
+            stream->psnr_sse_total[1] += pkt->data.psnr.sse_hbd[0];
+            stream->psnr_samples_total[1] += pkt->data.psnr.samples_hbd[0];
+            for (i = 0; i < 4; i++) {
+              if (!global->quiet)
+                fprintf(stderr, "%.3f ", pkt->data.psnr.psnr_hbd[i]);
+              stream->psnr_totals[1][i] += pkt->data.psnr.psnr_hbd[i];
+            }
+            stream->psnr_count[1]++;
+          }
+#endif
         }
 
         break;
@@ -2158,15 +2180,15 @@ static void show_psnr(struct stream_state *stream, double peak, int64_t bps) {
   int i;
   double ovpsnr;
 
-  if (!stream->psnr_count) return;
+  if (!stream->psnr_count[0]) return;
 
   fprintf(stderr, "Stream %d PSNR (Overall/Avg/Y/U/V)", stream->index);
-  ovpsnr = sse_to_psnr((double)stream->psnr_samples_total, peak,
-                       (double)stream->psnr_sse_total);
+  ovpsnr = sse_to_psnr((double)stream->psnr_samples_total[0], peak,
+                       (double)stream->psnr_sse_total[0]);
   fprintf(stderr, " %.3f", ovpsnr);
 
   for (i = 0; i < 4; i++) {
-    fprintf(stderr, " %.3f", stream->psnr_totals[i] / stream->psnr_count);
+    fprintf(stderr, " %.3f", stream->psnr_totals[0][i] / stream->psnr_count[0]);
   }
   if (bps > 0) {
     fprintf(stderr, " %7" PRId64 " bps", bps);
@@ -2174,6 +2196,30 @@ static void show_psnr(struct stream_state *stream, double peak, int64_t bps) {
   fprintf(stderr, " %7" PRId64 " ms", stream->cx_time / 1000);
   fprintf(stderr, "\n");
 }
+
+#if CONFIG_AV1_HIGHBITDEPTH
+static void show_psnr_hbd(struct stream_state *stream, double peak,
+                          int64_t bps) {
+  int i;
+  double ovpsnr;
+  // Compute PSNR based on stream bit depth
+  if (!stream->psnr_count[1]) return;
+
+  fprintf(stderr, "Stream %d PSNR (Overall/Avg/Y/U/V)", stream->index);
+  ovpsnr = sse_to_psnr((double)stream->psnr_samples_total[1], peak,
+                       (double)stream->psnr_sse_total[1]);
+  fprintf(stderr, " %.3f", ovpsnr);
+
+  for (i = 0; i < 4; i++) {
+    fprintf(stderr, " %.3f", stream->psnr_totals[1][i] / stream->psnr_count[1]);
+  }
+  if (bps > 0) {
+    fprintf(stderr, " %7" PRId64 " bps", bps);
+  }
+  fprintf(stderr, " %7" PRId64 " ms", stream->cx_time / 1000);
+  fprintf(stderr, "\n");
+}
+#endif
 
 static float usec_to_fps(uint64_t usec, unsigned int frames) {
   return (float)(usec > 0 ? frames * 1000000.0 / (float)usec : 0);
@@ -2482,6 +2528,20 @@ int main(int argc, const char **argv_) {
                 "match input format.\n",
                 stream->config.cfg.g_profile);
       }
+      if ((global.show_psnr == 2) && (stream->config.cfg.g_input_bit_depth ==
+                                      stream->config.cfg.g_bit_depth)) {
+        fprintf(stderr,
+                "Warning: --psnr==2 and --psnr==1 will provide same "
+                "results when input bit-depth == stream bit-depth, "
+                "falling back to default psnr value\n");
+        global.show_psnr = 1;
+      }
+      if (global.show_psnr < 0 || global.show_psnr > 2) {
+        fprintf(stderr,
+                "Warning: --psnr can take only 0,1,2 as values,"
+                "falling back to default psnr value\n");
+        global.show_psnr = 1;
+      }
       /* Set limit */
       stream->config.cfg.g_limit = global.limit;
     }
@@ -2722,16 +2782,27 @@ int main(int argc, const char **argv_) {
       }
     }
 
-    if (global.show_psnr) {
+    if (global.show_psnr >= 1) {
       if (get_fourcc_by_aom_encoder(global.codec) == AV1_FOURCC) {
         FOREACH_STREAM(stream, streams) {
           int64_t bps = 0;
-          if (stream->psnr_count && seen_frames && global.framerate.den) {
-            bps = (int64_t)stream->nbytes * 8 * (int64_t)global.framerate.num /
-                  global.framerate.den / seen_frames;
+          if (global.show_psnr == 1) {
+            if (stream->psnr_count[0] && seen_frames && global.framerate.den) {
+              bps = (int64_t)stream->nbytes * 8 *
+                    (int64_t)global.framerate.num / global.framerate.den /
+                    seen_frames;
+            }
+            show_psnr(stream, (1 << stream->config.cfg.g_input_bit_depth) - 1,
+                      bps);
           }
-          show_psnr(stream, (1 << stream->config.cfg.g_input_bit_depth) - 1,
-                    bps);
+          if (global.show_psnr == 2) {
+#if CONFIG_AV1_HIGHBITDEPTH
+            if (stream->config.cfg.g_input_bit_depth <
+                stream->config.cfg.g_bit_depth)
+              show_psnr_hbd(stream, (1 << stream->config.cfg.g_bit_depth) - 1,
+                            bps);
+#endif
+          }
         }
       } else {
         FOREACH_STREAM(stream, streams) { show_psnr(stream, 255.0, 0); }

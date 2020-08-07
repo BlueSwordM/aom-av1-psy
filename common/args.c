@@ -169,6 +169,12 @@ int arg_match(struct arg *arg_, const struct arg_def *def, char **argv) {
     }
   }
 
+  if (arg.name && def->has_val == -1) {
+    arg.def = def;
+    *arg_ = arg;
+    return 1;
+  }
+
   if (arg.name && !arg.val && def->has_val)
     die("Error: option %s requires argument.\n", arg.name);
 
