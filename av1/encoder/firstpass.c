@@ -360,13 +360,6 @@ static int firstpass_intra_prediction(
 
   av1_encode_intra_block_plane(cpi, x, bsize, 0, DRY_RUN_NORMAL, 0);
   int this_intra_error = aom_get_mb_ss(x->plane[0].src_diff);
-
-  if (this_intra_error < UL_INTRA_THRESH) {
-    ++stats->intra_skip_count;
-  } else if ((mb_col > 0) && (stats->image_data_start_row == INVALID_ROW)) {
-    stats->image_data_start_row = mb_row;
-  }
-
   if (seq_params->use_highbitdepth) {
     switch (seq_params->bit_depth) {
       case AOM_BITS_8: break;
@@ -378,6 +371,12 @@ static int firstpass_intra_prediction(
                "AOM_BITS_10 or AOM_BITS_12");
         return -1;
     }
+  }
+
+  if (this_intra_error < UL_INTRA_THRESH) {
+    ++stats->intra_skip_count;
+  } else if ((mb_col > 0) && (stats->image_data_start_row == INVALID_ROW)) {
+    stats->image_data_start_row = mb_row;
   }
 
   aom_clear_system_state();
@@ -393,6 +392,19 @@ static int firstpass_intra_prediction(
     level_sample = CONVERT_TO_SHORTPTR(x->plane[0].src.buf)[0];
   } else {
     level_sample = x->plane[0].src.buf[0];
+  }
+
+  if (seq_params->use_highbitdepth) {
+    switch (seq_params->bit_depth) {
+      case AOM_BITS_8: break;
+      case AOM_BITS_10: level_sample >>= 2; break;
+      case AOM_BITS_12: level_sample >>= 4; break;
+      default:
+        assert(0 &&
+               "seq_params->bit_depth should be AOM_BITS_8, "
+               "AOM_BITS_10 or AOM_BITS_12");
+        return -1;
+    }
   }
   if ((level_sample < DARK_THRESH) && (log_intra < 9.0)) {
     stats->brightness_factor += 1.0 + (0.01 * (DARK_THRESH - level_sample));
