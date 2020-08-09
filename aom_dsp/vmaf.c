@@ -115,17 +115,18 @@ void aom_calc_vmaf(const char *model_path, const YV12_BUFFER_CONFIG *source,
   *vmaf = vmaf_score;
 }
 
-void aom_calc_vmaf_multi_frame(
-    void *user_data, const char *model_path,
-    int (*read_frame)(float *ref_data, float *main_data, float *temp_data,
-                      int stride_byte, void *user_data),
-    int frame_width, int frame_height, int bit_depth, double *vmaf) {
+void aom_calc_vmaf_multi_frame(void *user_data, const char *model_path,
+                               int (*rd_frm)(float *ref_data, float *main_data,
+                                             float *temp_data, int stride_byte,
+                                             void *user_data),
+                               int frame_width, int frame_height, int bit_depth,
+                               double *vmaf) {
   aom_clear_system_state();
 
   char *fmt = bit_depth == 10 ? "yuv420p10le" : "yuv420p";
   double vmaf_score;
   const int ret = compute_vmaf(
-      &vmaf_score, fmt, frame_width, frame_height, read_frame,
+      &vmaf_score, fmt, frame_width, frame_height, rd_frm,
       /*user_data=*/user_data, (char *)model_path,
       /*log_path=*/"vmaf_scores.xml", /*log_fmt=*/NULL, /*disable_clip=*/0,
       /*disable_avx=*/0, /*enable_transform=*/0,
