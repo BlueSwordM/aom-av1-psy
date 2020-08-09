@@ -25,6 +25,10 @@
 #include "av1/encoder/superres_scale.h"
 #include "av1/encoder/var_based_part.h"
 
+#if CONFIG_TUNE_VMAF
+#include "av1/encoder/tune_vmaf.h"
+#endif
+
 #define MIN_BOOST_COMBINE_FACTOR 4.0
 #define MAX_BOOST_COMBINE_FACTOR 12.0
 
