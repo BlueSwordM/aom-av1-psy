@@ -343,14 +343,12 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_SSE2
             "${AOM_ROOT}/av1/encoder/x86/encodetxb_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/highbd_block_error_intrin_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/temporal_filter_sse2.c"
-            "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/wedge_utils_sse2.c")
 
 if(NOT CONFIG_AV1_HIGHBITDEPTH)
   list(
     REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_SSE2
-                "${AOM_ROOT}/av1/encoder/x86/highbd_block_error_intrin_sse2.c"
-                "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_sse2.c")
+                "${AOM_ROOT}/av1/encoder/x86/highbd_block_error_intrin_sse2.c")
 endif()
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_SSE3 "${AOM_ROOT}/av1/encoder/x86/ml_sse3.c")
