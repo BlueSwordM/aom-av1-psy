@@ -608,6 +608,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->inter_sf.disable_interinter_wedge = 1;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
+    sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 5;
 
     // TODO(any): Extend multi-winner mode processing support for inter frames
     sf->winner_mode_sf.multi_winner_mode_type =
