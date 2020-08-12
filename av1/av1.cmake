@@ -189,8 +189,6 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/motion_search_facade.h"
             "${AOM_ROOT}/av1/encoder/mv_prec.c"
             "${AOM_ROOT}/av1/encoder/mv_prec.h"
-            "${AOM_ROOT}/av1/encoder/optical_flow.c"
-            "${AOM_ROOT}/av1/encoder/optical_flow.h"
             "${AOM_ROOT}/av1/encoder/palette.c"
             "${AOM_ROOT}/av1/encoder/palette.h"
             "${AOM_ROOT}/av1/encoder/partition_search.h"
@@ -255,6 +253,11 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
 if(CONFIG_TUNE_VMAF)
   list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/tune_vmaf.c"
               "${AOM_ROOT}/av1/encoder/tune_vmaf.h")
+endif()
+
+if(CONFIG_OPTICAL_FLOW_API)
+  list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/optical_flow.c"
+              "${AOM_ROOT}/av1/encoder/optical_flow.h")
 endif()
 
 list(APPEND AOM_AV1_COMMON_INTRIN_SSE2

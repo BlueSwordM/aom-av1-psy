@@ -107,7 +107,6 @@ set_aom_config_var(CONFIG_SPATIAL_RESAMPLING 1 "Spatial resampling.")
 set_aom_config_var(DECODE_HEIGHT_LIMIT 0 "Set limit for decode height.")
 set_aom_config_var(DECODE_WIDTH_LIMIT 0 "Set limit for decode width.")
 set_aom_config_var(CONFIG_TUNE_VMAF 0 "Enable encoding tuning for VMAF.")
-set_aom_config_var(CONFIG_OPTICAL_FLOW_API 0 "Enables optical flow API.")
 
 # AV1 experiment flags.
 set_aom_config_var(CONFIG_SPEED_STATS 0 "AV1 experiment flag.")
@@ -137,6 +136,8 @@ set_aom_config_var(CONFIG_NN_V2 0 "Fully-connected neural nets ver.2.")
 set_aom_config_var(CONFIG_SUPERRES_IN_RECODE 1
                    "Enable encoding both full-res and superres in recode loop"
                    "when AOM_SUPERRES_AUTO mode is used.")
+set_aom_config_var(CONFIG_OPTICAL_FLOW_API 0
+                   "AV1 experiment flag for optical flow API.")
 #
 # Variables in this section control optional features of the build system.
 #
