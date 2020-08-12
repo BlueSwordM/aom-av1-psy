@@ -144,10 +144,13 @@ static int construct_multi_layer_gf_structure(
   set_multi_layer_params(twopass, gf_group, rc, frame_info, 0, gf_interval,
                          &cur_frame_index, &frame_index, use_altref + 1);
 
-  // The end frame will be Overlay frame for an ARF GOP; otherwise set it to
-  // be GF, for consistency, which will be updated in the next GOP.
-  gf_group->update_type[frame_index] = use_altref ? OVERLAY_UPDATE : GF_UPDATE;
-  gf_group->arf_src_offset[frame_index] = 0;
+  if (use_altref) {
+    gf_group->update_type[frame_index] = OVERLAY_UPDATE;
+    gf_group->arf_src_offset[frame_index] = 0;
+    gf_group->cur_frame_idx[frame_index] = cur_frame_index;
+    gf_group->layer_depth[frame_index] = MAX_ARF_LAYERS;
+    gf_group->arf_boost[frame_index] = NORMAL_BOOST;
+  }
   return frame_index;
 }
 
