@@ -546,11 +546,12 @@ static void dump_ref_frame_images(AV1_COMP *cpi) {
 #endif  // DUMP_REF_FRAME_IMAGES == 1
 
 int av1_get_refresh_ref_frame_map(int refresh_frame_flags) {
-  int ref_map_index = INVALID_IDX;
+  int ref_map_index;
 
   for (ref_map_index = 0; ref_map_index < REF_FRAMES; ++ref_map_index)
     if ((refresh_frame_flags >> ref_map_index) & 1) break;
 
+  if (ref_map_index == REF_FRAMES) ref_map_index = INVALID_IDX;
   return ref_map_index;
 }
 
