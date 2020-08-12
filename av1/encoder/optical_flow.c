@@ -47,6 +47,12 @@ void optical_flow(const YV12_BUFFER_CONFIG *from_frame,
                   const OPFL_PARAMS *opfl_params,
                   const MV_FILTER_TYPE mv_filter, const OPTFLOW_METHOD method,
                   MV *mvs) {
+  // parameters to be used in later implementations
+  (void)to_frame;
+  (void)bit_depth;
+  (void)opfl_params;
+  (void)mv_filter;
+  (void)method;
   const int frame_height = from_frame->y_crop_height;
   const int frame_width = from_frame->y_crop_width;
   // TODO(any): deal with the case where frames are not of the same dimensions
@@ -76,8 +82,8 @@ void optical_flow(const YV12_BUFFER_CONFIG *from_frame,
   for (int j = 0; j < frame_height; j++) {
     for (int i = 0; i < frame_width; i++) {
       int idx = j * frame_width + i;
-      int new_x = localmvs[idx].row + i;
-      int new_y = localmvs[idx].col + j;
+      int new_x = (int)(localmvs[idx].row + i);
+      int new_y = (int)(localmvs[idx].col + j);
       if ((fabs(localmvs[idx].row) >= 0.125 ||
            fabs(localmvs[idx].col) >= 0.125)) {
         // if mv points outside of frame (lost feature), keep old mv.
