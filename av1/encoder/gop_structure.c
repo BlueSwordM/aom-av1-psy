@@ -151,33 +151,6 @@ static int construct_multi_layer_gf_structure(
   return frame_index;
 }
 
-#define CHECK_GF_PARAMETER 0
-#if CHECK_GF_PARAMETER
-void check_frame_params(GF_GROUP *const gf_group, int gf_interval) {
-  static const char *update_type_strings[FRAME_UPDATE_TYPES] = {
-    "KF_UPDATE",       "LF_UPDATE",      "GF_UPDATE",
-    "ARF_UPDATE",      "OVERLAY_UPDATE", "INTNL_OVERLAY_UPDATE",
-    "INTNL_ARF_UPDATE"
-  };
-  FILE *fid = fopen("GF_PARAMS.txt", "a");
-
-  fprintf(fid, "\ngf_interval = {%d}\n", gf_interval);
-  for (int i = 0; i < gf_group->size; ++i) {
-    fprintf(fid, "#%2d : %s %d %d %d %d\n", i,
-            update_type_strings[gf_group->update_type[i]],
-            gf_group->arf_src_offset[i], gf_group->arf_pos_in_gf[i],
-            gf_group->arf_update_idx[i], gf_group->pyramid_level[i]);
-  }
-
-  fprintf(fid, "number of nodes in each level: \n");
-  for (int i = 0; i < gf_group->pyramid_height; ++i) {
-    fprintf(fid, "lvl %d: %d ", i, gf_group->pyramid_lvl_nodes[i]);
-  }
-  fprintf(fid, "\n");
-  fclose(fid);
-}
-#endif  // CHECK_GF_PARAMETER
-
 void av1_gop_setup_structure(AV1_COMP *cpi,
                              const EncodeFrameParams *const frame_params) {
   RATE_CONTROL *const rc = &cpi->rc;
@@ -191,8 +164,4 @@ void av1_gop_setup_structure(AV1_COMP *cpi,
   gf_group->size = construct_multi_layer_gf_structure(
       cpi, twopass, gf_group, rc, frame_info, rc->baseline_gf_interval,
       first_frame_update_type);
-
-#if CHECK_GF_PARAMETER
-  check_frame_params(gf_group, rc->baseline_gf_interval);
-#endif
 }
