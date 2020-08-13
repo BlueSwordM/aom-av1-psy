@@ -491,6 +491,9 @@ static const arg_def_t enable_flip_idtx =
             "including FLIPADST_DCT, DCT_FLIPADST, FLIPADST_FLIPADST, "
             "ADST_FLIPADST, FLIPADST_ADST, IDTX, V_DCT, H_DCT, V_ADST, "
             "H_ADST, V_FLIPADST, H_FLIPADST");
+static const arg_def_t enable_rect_tx =
+    ARG_DEF(NULL, "enable-rect-tx", 1,
+            "Enable rectangular transform (0: false, 1: true (default))");
 static const arg_def_t enable_dist_wtd_comp =
     ARG_DEF(NULL, "enable-dist-wtd-comp", 1,
             "Enable distance-weighted compound "
@@ -858,6 +861,7 @@ static const arg_def_t *av1_args[] = { &cpu_used_av1,
                                        &enable_order_hint,
                                        &enable_tx64,
                                        &enable_flip_idtx,
+                                       &enable_rect_tx,
                                        &enable_dist_wtd_comp,
                                        &enable_masked_comp,
                                        &enable_onesided_comp,
@@ -965,6 +969,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_ENABLE_ORDER_HINT,
                                         AV1E_SET_ENABLE_TX64,
                                         AV1E_SET_ENABLE_FLIP_IDTX,
+                                        AV1E_SET_ENABLE_RECT_TX,
                                         AV1E_SET_ENABLE_DIST_WTD_COMP,
                                         AV1E_SET_ENABLE_MASKED_COMP,
                                         AV1E_SET_ENABLE_ONESIDED_COMP,

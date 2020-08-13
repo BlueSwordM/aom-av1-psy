@@ -103,8 +103,9 @@ struct av1_extracfg {
   int enable_order_hint;         // enable order hint for sequence
   int enable_tx64;               // enable 64-pt transform usage for sequence
   int enable_flip_idtx;          // enable flip and identity transform types
-  int enable_dist_wtd_comp;      // enable dist wtd compound for sequence
-  int max_reference_frames;      // maximum number of references per frame
+  int enable_rect_tx;        // enable rectangular transform usage for sequence
+  int enable_dist_wtd_comp;  // enable dist wtd compound for sequence
+  int max_reference_frames;  // maximum number of references per frame
   int enable_reduced_reference_set;  // enable reduced set of references
   int enable_ref_frame_mvs;          // sequence level
   int allow_ref_frame_mvs;           // frame level
@@ -225,6 +226,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,                            // frame order hint
   1,                            // enable 64-pt transform usage
   1,                            // enable flip and identity transform
+  1,                            // enable rectangular transform usage
   1,                            // dist-wtd compound
   7,                            // max_reference_frames
   0,                            // enable_reduced_reference_set
@@ -1013,6 +1015,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   // Set transform size/type configuration.
   txfm_cfg->enable_tx64 = extra_cfg->enable_tx64;
   txfm_cfg->enable_flip_idtx = extra_cfg->enable_flip_idtx;
+  txfm_cfg->enable_rect_tx = extra_cfg->enable_rect_tx;
   txfm_cfg->reduced_tx_type_set = extra_cfg->reduced_tx_type_set;
   txfm_cfg->use_intra_dct_only = extra_cfg->use_intra_dct_only;
   txfm_cfg->use_inter_dct_only = extra_cfg->use_inter_dct_only;
@@ -1478,6 +1481,13 @@ static aom_codec_err_t ctrl_set_enable_flip_idtx(aom_codec_alg_priv_t *ctx,
                                                  va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_flip_idtx = CAST(AV1E_SET_ENABLE_FLIP_IDTX, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_enable_rect_tx(aom_codec_alg_priv_t *ctx,
+                                               va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_rect_tx = CAST(AV1E_SET_ENABLE_RECT_TX, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -2804,6 +2814,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_ORDER_HINT, ctrl_set_enable_order_hint },
   { AV1E_SET_ENABLE_TX64, ctrl_set_enable_tx64 },
   { AV1E_SET_ENABLE_FLIP_IDTX, ctrl_set_enable_flip_idtx },
+  { AV1E_SET_ENABLE_RECT_TX, ctrl_set_enable_rect_tx },
   { AV1E_SET_ENABLE_DIST_WTD_COMP, ctrl_set_enable_dist_wtd_comp },
   { AV1E_SET_MAX_REFERENCE_FRAMES, ctrl_set_max_reference_frames },
   { AV1E_SET_REDUCED_REFERENCE_SET, ctrl_set_enable_reduced_reference_set },

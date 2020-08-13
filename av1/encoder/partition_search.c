@@ -2469,7 +2469,6 @@ static AOM_INLINE int is_rect_part_allowed(
   return is_part_allowed;
 }
 
-// Rectangular partition types search function.
 static void rectangular_partition_search(
     AV1_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data,
     TokenExtra **tp, MACROBLOCK *x, PC_TREE *pc_tree,
@@ -2892,7 +2891,7 @@ static void prune_4_partition_using_split_info(
           part4_search_allowed[cur_part[i]]))
       continue;
     // Loop over split partitions.
-    // Get reactnagular partitions winner info of split partitions.
+    // Get rectangular partitions winner info of split partitions.
     for (int idx = 0; idx < SUB_PARTITIONS_SPLIT; idx++)
       num_child_rect_win[i] +=
           (part_search_state->split_part_rect_win[idx].rect_part_win[i]) ? 1

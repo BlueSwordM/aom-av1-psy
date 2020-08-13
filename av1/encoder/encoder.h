@@ -266,6 +266,10 @@ typedef struct {
    */
   bool enable_flip_idtx;
   /*!
+   * Flag to indicate if rectangular transform should be enabled.
+   */
+  bool enable_rect_tx;
+  /*!
    * Flag to indicate whether or not to use a default reduced set for ext-tx
    * rather than the potential full set of 16 transforms.
    */

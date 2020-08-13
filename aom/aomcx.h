@@ -855,7 +855,17 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_FLIP_IDTX = 81,
 
-  /* Note: enum value 82 unused */
+  /*!\brief Codec control function to turn on / off rectangular transforms, int
+   * parameter
+   *
+   * This will enable or disable usage of rectangular transforms. NOTE:
+   * Rectangular transforms only enabled when corresponding rectangular
+   * partitions are.
+   *
+   * - 0 = disable
+   * - 1 = enable (default)
+   */
+  AV1E_SET_ENABLE_RECT_TX = 82,
 
   /*!\brief Codec control function to turn on / off dist-wtd compound mode
    * at sequence level, int parameter
@@ -1562,6 +1572,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_TX64, int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_FLIP_IDTX, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_FLIP_IDTX
+
+AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_RECT_TX, int)
+#define AOM_CTRL_AV1E_SET_ENABLE_RECT_TX
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_DIST_WTD_COMP, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_DIST_WTD_COMP
