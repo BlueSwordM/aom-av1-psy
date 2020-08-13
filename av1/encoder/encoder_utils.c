@@ -968,22 +968,9 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   // content tools, with a high q and fixed partition.
   for (int pass = 0; pass < 2; ++pass) {
     set_encoding_params_for_screen_content(cpi, pass);
-#if CONFIG_TUNE_VMAF
-    if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
-        oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
-        oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
-      av1_set_quantizer(
-          cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel,
-          av1_get_vmaf_base_qindex(cpi, q_for_screen_content_quick_run),
-          q_cfg->enable_chroma_deltaq);
-    } else {
-#endif
-      av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel,
-                        q_for_screen_content_quick_run,
-                        q_cfg->enable_chroma_deltaq);
-#if CONFIG_TUNE_VMAF
-    }
-#endif
+    av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel,
+                      q_for_screen_content_quick_run,
+                      q_cfg->enable_chroma_deltaq);
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
     if (q_cfg->deltaq_mode != NO_DELTA_Q)
       av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,

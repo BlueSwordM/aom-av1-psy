@@ -3045,6 +3045,15 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
     int i;
     for (i = pyramid_level; i <= MAX_ARF_LAYERS; ++i) {
       rc->active_best_quality[i] = cpi->common.quant_params.base_qindex;
+#if CONFIG_TUNE_VMAF
+      if (cpi->vmaf_info.original_qindex != -1 &&
+          (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
+           cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
+           cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN)) {
+        rc->active_best_quality[i] = cpi->vmaf_info.original_qindex;
+      }
+#endif
+
       // if (pyramid_level >= 2) {
       //   rc->active_best_quality[pyramid_level] =
       //     AOMMAX(rc->active_best_quality[pyramid_level],

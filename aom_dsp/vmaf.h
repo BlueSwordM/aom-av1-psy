@@ -34,6 +34,9 @@ typedef struct {
   // Stores the filter strength of the last frame.
   double last_frame_unsharp_amount;
 
+  // Stores the origial qindex before scaling.
+  int original_qindex;
+
 #if CONFIG_USE_VMAF_RC
   // VMAF model used in VMAF caculations.
   VmafModel *vmaf_model;
