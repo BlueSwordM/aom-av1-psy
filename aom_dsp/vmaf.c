@@ -10,7 +10,7 @@
  */
 
 #include <assert.h>
-#include <libvmaf/libvmaf.h>
+#include <libvmaf.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
