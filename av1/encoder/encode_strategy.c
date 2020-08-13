@@ -942,8 +942,9 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     // Do tpl after ARF is filtered, or if no ARF, at the second frame of GF
     // group.
     // TODO(bohanli): if no ARF, just do it at the first frame.
-    int which_frame_tpl = AOMMAX(cpi->gf_group.arf_index, 1);
-    allow_tpl = allow_tpl && (cpi->gf_group.index == which_frame_tpl);
+    int gf_index = gf_group->index;
+    allow_tpl = allow_tpl && (gf_group->update_type[gf_index] == ARF_UPDATE ||
+                              gf_group->update_type[gf_index] == GF_UPDATE);
     if (allow_tpl) {
       // Need to set the size for TPL for ARF
       // TODO(bohanli): Why is this? what part of it is necessary?
