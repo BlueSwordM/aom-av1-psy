@@ -100,20 +100,26 @@ static AOM_INLINE void realloc_segmentation_maps(AV1_COMP *cpi) {
 }
 
 static AOM_INLINE void set_tpl_stats_block_size(int width, int height,
-                                                uint8_t *block_mis_log2) {
+                                                uint8_t *block_mis_log2,
+                                                uint8_t *tpl_bsize_1d) {
   const int is_720p_or_larger = AOMMIN(width, height) >= 720;
 
   // 0: 4x4, 1: 8x8, 2: 16x16
   *block_mis_log2 = is_720p_or_larger ? 2 : 1;
+  // Block size used in tpl motion estimation
+  *tpl_bsize_1d = 16;
+  assert(*tpl_bsize_1d >= 16);
 }
 
 static AOM_INLINE void setup_tpl_buffers(AV1_COMMON *const cm,
                                          TplParams *const tpl_data) {
   CommonModeInfoParams *const mi_params = &cm->mi_params;
   set_tpl_stats_block_size(cm->width, cm->height,
-                           &tpl_data->tpl_stats_block_mis_log2);
+                           &tpl_data->tpl_stats_block_mis_log2,
+                           &tpl_data->tpl_bsize_1d);
   const uint8_t block_mis_log2 = tpl_data->tpl_stats_block_mis_log2;
-  tpl_data->border_in_pixels = AOM_ENC_TPL_FRAME_BORDER;
+  tpl_data->border_in_pixels =
+      ALIGN_POWER_OF_TWO(tpl_data->tpl_bsize_1d + 2 * AOM_INTERP_EXTEND, 5);
 
   for (int frame = 0; frame < MAX_LENGTH_TPL_FRAME_STATS; ++frame) {
     const int mi_cols =

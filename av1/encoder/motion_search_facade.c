@@ -96,9 +96,8 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
     start_mv = get_fullmv_from_mv(&ref_mv);
 
   // cand stores start_mv and all possible MVs in a SB.
-  cand_mv_t cand[MAX_MC_FLOW_BLK_IN_SB * MAX_MC_FLOW_BLK_IN_SB + 1] = {
-    { { 0, 0 }, 0 }
-  };
+  cand_mv_t cand[MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB + 1] = { { { 0, 0 },
+                                                                  0 } };
   cand[0].fmv = start_mv;
   int cnt = 1;
   int total_weight = 0;
@@ -107,7 +106,8 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
       mbmi->motion_mode == SIMPLE_TRANSLATION) {
     SuperBlockEnc *sb_enc = &x->sb_enc;
     if (sb_enc->tpl_data_count) {
-      const BLOCK_SIZE tpl_bsize = convert_length_to_bsize(MC_FLOW_BSIZE_1D);
+      const BLOCK_SIZE tpl_bsize =
+          convert_length_to_bsize(cpi->tpl_data.tpl_bsize_1d);
       const int tplw = mi_size_wide[tpl_bsize];
       const int tplh = mi_size_high[tpl_bsize];
       const int nw = mi_size_wide[bsize] / tplw;

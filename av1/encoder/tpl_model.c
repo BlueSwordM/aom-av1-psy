@@ -254,13 +254,16 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   uint8_t *dst_buffer = tpl_frame->rec_picture->y_buffer + dst_mb_offset;
   const int dst_buffer_stride = tpl_frame->rec_picture->y_stride;
 
-  // Temporaray buffers
-  DECLARE_ALIGNED(32, uint8_t, predictor8[MC_FLOW_NUM_PELS * 2]);
-  DECLARE_ALIGNED(32, int16_t, src_diff[MC_FLOW_NUM_PELS]);
-  DECLARE_ALIGNED(32, tran_low_t, coeff[MC_FLOW_NUM_PELS]);
-  DECLARE_ALIGNED(32, tran_low_t, qcoeff[MC_FLOW_NUM_PELS]);
-  DECLARE_ALIGNED(32, tran_low_t, dqcoeff[MC_FLOW_NUM_PELS]);
-  DECLARE_ALIGNED(32, tran_low_t, best_coeff[MC_FLOW_NUM_PELS]);
+  // Number of pixels in a tpl block
+  const int tpl_block_pels = tpl_data->tpl_bsize_1d * tpl_data->tpl_bsize_1d;
+  // Allocate temporary buffers used in motion estimation.
+  uint8_t *predictor8 = aom_memalign(32, tpl_block_pels * 2 * sizeof(uint8_t));
+  int16_t *src_diff = aom_memalign(32, tpl_block_pels * sizeof(int16_t));
+  tran_low_t *coeff = aom_memalign(32, tpl_block_pels * sizeof(tran_low_t));
+  tran_low_t *qcoeff = aom_memalign(32, tpl_block_pels * sizeof(tran_low_t));
+  tran_low_t *dqcoeff = aom_memalign(32, tpl_block_pels * sizeof(tran_low_t));
+  tran_low_t *best_coeff =
+      aom_memalign(32, tpl_block_pels * sizeof(tran_low_t));
   uint8_t *predictor =
       is_cur_buf_hbd(xd) ? CONVERT_TO_BYTEPTR(predictor8) : predictor8;
   int64_t recon_error = 1, sse = 1;
@@ -444,7 +447,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
     tpl_stats->pred_error[rf_idx] = AOMMAX(1, inter_cost);
 
     if (inter_cost < best_inter_cost) {
-      memcpy(best_coeff, coeff, sizeof(best_coeff));
+      memcpy(best_coeff, coeff, tpl_block_pels * sizeof(best_coeff[0]));
       best_rf_idx = rf_idx;
 
       best_inter_cost = inter_cost;
@@ -526,6 +529,14 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
       }
     }
   }
+
+  // Free temporary buffers.
+  aom_free(predictor8);
+  aom_free(src_diff);
+  aom_free(coeff);
+  aom_free(qcoeff);
+  aom_free(dqcoeff);
+  aom_free(best_coeff);
 }
 
 static int round_floor(int ref_pos, int bsize_pix) {
@@ -679,13 +690,13 @@ static AOM_INLINE void tpl_model_update(TplParams *const tpl_data, int mi_row,
   const int mi_height = mi_size_high[bsize];
   const int mi_width = mi_size_wide[bsize];
   const int step = 1 << tpl_data->tpl_stats_block_mis_log2;
-  const BLOCK_SIZE tpl_block_size =
+  const BLOCK_SIZE tpl_stats_block_size =
       convert_length_to_bsize(MI_SIZE << tpl_data->tpl_stats_block_mis_log2);
 
   for (int idy = 0; idy < mi_height; idy += step) {
     for (int idx = 0; idx < mi_width; idx += step) {
-      tpl_model_update_b(tpl_data, mi_row + idy, mi_col + idx, tpl_block_size,
-                         frame_idx);
+      tpl_model_update_b(tpl_data, mi_row + idy, mi_col + idx,
+                         tpl_stats_block_size, frame_idx);
     }
   }
 }
@@ -855,12 +866,15 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   TplParams *const tpl_data = &cpi->tpl_data;
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_data->frame_idx];
   MACROBLOCKD *xd = &x->e_mbd;
-  const int mb_cols_in_tile = mi_params->mb_cols;
-  const int mb_row = (mi_row + 2) >> 2;
-  for (int mi_col = 0, mb_col_in_tile = 0; mi_col < mi_params->mi_cols;
-       mi_col += mi_width, mb_col_in_tile++) {
-    (*tpl_row_mt->sync_read_ptr)(&tpl_data->tpl_mt_sync, mb_row,
-                                 mb_col_in_tile);
+
+  const int tplb_cols_in_tile =
+      ROUND_POWER_OF_TWO(mi_params->mi_cols, mi_size_wide_log2[bsize]);
+  const int tplb_row = ROUND_POWER_OF_TWO(mi_row, mi_size_high_log2[bsize]);
+
+  for (int mi_col = 0, tplb_col_in_tile = 0; mi_col < mi_params->mi_cols;
+       mi_col += mi_width, tplb_col_in_tile++) {
+    (*tpl_row_mt->sync_read_ptr)(&tpl_data->tpl_mt_sync, tplb_row,
+                                 tplb_col_in_tile);
     TplDepStats tpl_stats;
 
     // Motion estimation column boundary
@@ -875,8 +889,8 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
     tpl_model_store(tpl_frame->tpl_stats_ptr, mi_row, mi_col, bsize,
                     tpl_frame->stride, &tpl_stats,
                     tpl_data->tpl_stats_block_mis_log2);
-    (*tpl_row_mt->sync_write_ptr)(&tpl_data->tpl_mt_sync, mb_row,
-                                  mb_col_in_tile, mb_cols_in_tile);
+    (*tpl_row_mt->sync_write_ptr)(&tpl_data->tpl_mt_sync, tplb_row,
+                                  tplb_col_in_tile, tplb_cols_in_tile);
   }
 }
 
@@ -886,7 +900,7 @@ static AOM_INLINE void mc_flow_dispenser(AV1_COMP *cpi) {
   ThreadData *td = &cpi->td;
   MACROBLOCK *x = &td->mb;
   MACROBLOCKD *xd = &x->e_mbd;
-  const BLOCK_SIZE bsize = convert_length_to_bsize(MC_FLOW_BSIZE_1D);
+  const BLOCK_SIZE bsize = convert_length_to_bsize(cpi->tpl_data.tpl_bsize_1d);
   const TX_SIZE tx_size = max_txsize_lookup[bsize];
   const int mi_height = mi_size_high[bsize];
   for (int mi_row = 0; mi_row < mi_params->mi_rows; mi_row += mi_height) {
@@ -908,7 +922,7 @@ static void mc_flow_synthesizer(AV1_COMP *cpi, int frame_idx) {
 
   TplParams *const tpl_data = &cpi->tpl_data;
 
-  const BLOCK_SIZE bsize = convert_length_to_bsize(MC_FLOW_BSIZE_1D);
+  const BLOCK_SIZE bsize = convert_length_to_bsize(tpl_data->tpl_bsize_1d);
   const int mi_height = mi_size_high[bsize];
   const int mi_width = mi_size_wide[bsize];
 

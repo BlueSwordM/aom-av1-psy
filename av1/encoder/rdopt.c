@@ -4983,18 +4983,21 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
       (AOMMIN(cm->width, cm->height) > 480 && cpi->speed <= 1) ? 0 : 1;
   if (do_pruning && sf->intra_sf.skip_intra_in_interframe) {
     // Only consider full SB.
-    int len = tpl_blocks_in_sb(cm->seq_params.sb_size);
+    const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+    const int tpl_bsize_1d = cpi->tpl_data.tpl_bsize_1d;
+    const int len = (block_size_wide[sb_size] / tpl_bsize_1d) *
+                    (block_size_high[sb_size] / tpl_bsize_1d);
     SuperBlockEnc *sb_enc = &x->sb_enc;
     if (sb_enc->tpl_data_count == len) {
-      const BLOCK_SIZE tpl_bsize = convert_length_to_bsize(MC_FLOW_BSIZE_1D);
+      const BLOCK_SIZE tpl_bsize = convert_length_to_bsize(tpl_bsize_1d);
       const int tpl_stride = sb_enc->tpl_stride;
       const int tplw = mi_size_wide[tpl_bsize];
       const int tplh = mi_size_high[tpl_bsize];
       const int nw = mi_size_wide[bsize] / tplw;
       const int nh = mi_size_high[bsize] / tplh;
       if (nw >= 1 && nh >= 1) {
-        const int of_h = mi_row % mi_size_high[cm->seq_params.sb_size];
-        const int of_w = mi_col % mi_size_wide[cm->seq_params.sb_size];
+        const int of_h = mi_row % mi_size_high[sb_size];
+        const int of_w = mi_col % mi_size_wide[sb_size];
         const int start = of_h / tplh * tpl_stride + of_w / tplw;
 
         for (int k = 0; k < nh; k++) {

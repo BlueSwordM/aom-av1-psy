@@ -31,12 +31,10 @@
 extern "C" {
 #endif
 
-//! Linear dimension of a tpl block
-#define MC_FLOW_BSIZE_1D 16
-//! Number of pixels in a tpl block
-#define MC_FLOW_NUM_PELS (MC_FLOW_BSIZE_1D * MC_FLOW_BSIZE_1D)
-//! Number of tpl block in a super block
-#define MAX_MC_FLOW_BLK_IN_SB (MAX_SB_SIZE / MC_FLOW_BSIZE_1D)
+//! Minimum linear dimension of a tpl block
+#define MIN_TPL_BSIZE_1D 16
+//! Maximum number of tpl block in a super block
+#define MAX_TPL_BLK_IN_SB (MAX_SB_SIZE / MIN_TPL_BSIZE_1D)
 //! Number of intra winner modes kept
 #define MAX_WINNER_MODE_COUNT_INTRA 3
 //! Number of inter winner modes kept
@@ -61,19 +59,18 @@ typedef struct {
   /*****************************************************************************
    * \name TPL Info
    *
-   * Information gathered from tpl_model at MC_FLOW_BSIZE_1D precision for the
+   * Information gathered from tpl_model at tpl block precision for the
    * superblock to speed up the encoding process..
    ****************************************************************************/
   /**@{*/
   //! Number of TPL blocks in this superblock.
   int tpl_data_count;
   //! TPL's estimate of inter cost for each tpl block.
-  int64_t tpl_inter_cost[MAX_MC_FLOW_BLK_IN_SB * MAX_MC_FLOW_BLK_IN_SB];
+  int64_t tpl_inter_cost[MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB];
   //! TPL's estimate of tpl cost for each tpl block.
-  int64_t tpl_intra_cost[MAX_MC_FLOW_BLK_IN_SB * MAX_MC_FLOW_BLK_IN_SB];
+  int64_t tpl_intra_cost[MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB];
   //! Motion vectors found by TPL model for each tpl block.
-  int_mv tpl_mv[MAX_MC_FLOW_BLK_IN_SB * MAX_MC_FLOW_BLK_IN_SB]
-               [INTER_REFS_PER_FRAME];
+  int_mv tpl_mv[MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB][INTER_REFS_PER_FRAME];
   //! TPL's stride for the arrays in this struct.
   int tpl_stride;
   /**@}*/
@@ -1139,16 +1136,6 @@ typedef struct macroblock {
 #undef SINGLE_REF_MODES
 
 /*!\cond */
-
-static INLINE int tpl_blocks_in_sb(BLOCK_SIZE bsize) {
-  switch (bsize) {
-    case BLOCK_64X64: return 16;
-    case BLOCK_128X128: return 64;
-    default: assert(0);
-  }
-  return -1;
-}
-
 static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {
   static const char LUT[BLOCK_SIZES_ALL] = {
     0,  // BLOCK_4X4

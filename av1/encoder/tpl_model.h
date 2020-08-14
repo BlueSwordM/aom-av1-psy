@@ -124,6 +124,11 @@ typedef struct TplParams {
   uint8_t tpl_stats_block_mis_log2;
 
   /*!
+   * Tpl motion estimation block 1d size. tpl_bsize_1d >= 16.
+   */
+  uint8_t tpl_bsize_1d;
+
+  /*!
    * Buffer to store the frame level tpl information for each frame in a gf
    * group. tpl_stats_buffer[i] stores the tpl information of ith frame in a gf
    * group
