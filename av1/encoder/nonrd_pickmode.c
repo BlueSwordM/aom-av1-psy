@@ -2004,6 +2004,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int64_t thresh_sad_pred = INT64_MAX;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
+  int use_modeled_non_rd_cost = 0;
 
   init_best_pickmode(&best_pickmode);
 
@@ -2068,11 +2069,18 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   // TODO(marpan): Look into reducing these conditions. For now constrain
   // it to avoid significant bdrate loss.
-  const int use_modeled_non_rd_cost =
-      (cpi->sf.rt_sf.use_modeled_non_rd_cost &&
-       quant_params->base_qindex > 120 && x->source_variance > 100 &&
-       bsize <= BLOCK_16X16 && x->content_state_sb != kLowVarHighSumdiff &&
-       x->content_state_sb != kHighSad);
+  if (cpi->sf.rt_sf.use_modeled_non_rd_cost) {
+    if (cpi->svc.non_reference_frame)
+      use_modeled_non_rd_cost = 1;
+    else if (cpi->svc.number_temporal_layers > 1 &&
+             cpi->svc.temporal_layer_id == 0)
+      use_modeled_non_rd_cost = 0;
+    else
+      use_modeled_non_rd_cost =
+          (quant_params->base_qindex > 120 && x->source_variance > 100 &&
+           bsize <= BLOCK_16X16 && x->content_state_sb != kLowVarHighSumdiff &&
+           x->content_state_sb != kHighSad);
+  }
 
 #if COLLECT_PICK_MODE_STAT
   ms_stat.num_blocks[bsize]++;
