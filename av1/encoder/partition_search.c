@@ -2995,7 +2995,7 @@ static AOM_INLINE void set_part_none_allowed_flag(
   assert(part_search_state->terminate_partition_search == 0);
 
   // Set PARTITION_NONE for screen content.
-  if (cpi->is_screen_content_type)
+  if (cpi->use_screen_content_tools)
     part_search_state->partition_none_allowed =
         blk_params.has_rows && blk_params.has_cols;
 }

@@ -370,7 +370,7 @@ static void set_good_speed_features_framesize_independent(
   sf->rt_sf.use_real_time_ref_set = 0;
 
   if (cpi->twopass.fr_content_type == FC_GRAPHICS_ANIMATION ||
-      cpi->is_screen_content_type) {
+      cpi->use_screen_content_tools) {
     sf->mv_sf.exhaustive_searches_thresh = (1 << 20);
   } else {
     sf->mv_sf.exhaustive_searches_thresh = (1 << 25);

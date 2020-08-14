@@ -1939,7 +1939,7 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
   if ((!is_inter && txfm_params->use_default_intra_tx_type) ||
       (is_inter && txfm_params->use_default_inter_tx_type)) {
     txk_allowed =
-        get_default_tx_type(0, xd, tx_size, cpi->is_screen_content_type);
+        get_default_tx_type(0, xd, tx_size, cpi->use_screen_content_tools);
   } else if (x->rd_model == LOW_TXFM_RD) {
     if (plane == 0) txk_allowed = DCT_DCT;
   }

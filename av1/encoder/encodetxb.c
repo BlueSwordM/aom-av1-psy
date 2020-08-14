@@ -1320,7 +1320,7 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
       assert(tx_type == DCT_DCT);
     } else if (cpi->oxcf.txfm_cfg.use_intra_default_tx_only) {
       const TX_TYPE default_type = get_default_tx_type(
-          PLANE_TYPE_Y, xd, tx_size, cpi->is_screen_content_type);
+          PLANE_TYPE_Y, xd, tx_size, cpi->use_screen_content_tools);
       (void)default_type;
       assert(tx_type == default_type);
     }

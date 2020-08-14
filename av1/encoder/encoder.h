@@ -2394,7 +2394,19 @@ typedef struct AV1_COMP {
   InterpSearchFlags interp_search_flags;
 
   /*!
-   * Set for screen contents or when screen content tools are enabled.
+   * Turn on screen content tools flag.
+   * Note that some videos are not screen content videos, but
+   * screen content tools could also improve coding efficiency.
+   * For example, videos with large flat regions, gaming videos that look
+   * like natural videos.
+   */
+  int use_screen_content_tools;
+
+  /*!
+   * A flag to indicate "real" screen content videos.
+   * For example, screen shares, screen editing.
+   * This type is true indicates |use_screen_content_tools| must be true.
+   * In addition, rate control strategy is adjusted when this flag is true.
    */
   int is_screen_content_type;
 
@@ -2710,12 +2722,14 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *input_size);
 // This function estimates whether to use screen content tools, by counting
 // the portion of blocks that have few luma colors.
 // Modifies:
-//   cpi->commom.allow_screen_content_tools
-//   cpi->common.allow_intrabc
+//   cpi->commom.features.allow_screen_content_tools
+//   cpi->common.features.allow_intrabc
+//   cpi->use_screen_content_tools
+//   cpi->is_screen_content_type
 // However, the estimation is not accurate and may misclassify videos.
 // A slower but more accurate approach that determines whether to use screen
 // content tools is employed later. See av1_determine_sc_tools_with_encoding().
-void av1_set_screen_content_options(const struct AV1_COMP *cpi,
+void av1_set_screen_content_options(struct AV1_COMP *cpi,
                                     FeatureFlags *features);
 
 // TODO(jingning): Move these functions as primitive members for the new cpi

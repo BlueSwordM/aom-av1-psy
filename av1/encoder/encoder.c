@@ -1692,8 +1692,7 @@ static void set_mv_search_params(AV1_COMP *cpi) {
   }
 }
 
-void av1_set_screen_content_options(const AV1_COMP *cpi,
-                                    FeatureFlags *features) {
+void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
   const AV1_COMMON *const cm = &cpi->common;
 
   if (cm->seq_params.force_screen_content_tools != 2) {
@@ -1756,6 +1755,11 @@ void av1_set_screen_content_options(const AV1_COMP *cpi,
   // requires that the block has high variance.
   features->allow_intrabc = features->allow_screen_content_tools &&
                             counts_2 * blk_h * blk_w * 12 > width * height;
+  cpi->use_screen_content_tools = features->allow_screen_content_tools;
+  cpi->is_screen_content_type =
+      features->allow_intrabc ||
+      (counts_1 * blk_h * blk_w * 10 > width * height * 4 &&
+       counts_2 * blk_h * blk_w * 30 > width * height);
 }
 
 // Function pointer to search site config initialization
@@ -2824,7 +2828,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   if (frame_is_intra_only(cm)) {
     av1_set_screen_content_options(cpi, features);
-    cpi->is_screen_content_type = features->allow_screen_content_tools;
   }
 
   // frame type has been decided outside of this function call

@@ -270,7 +270,7 @@ static INLINE int use_auto_max_partition(const AV1_COMP *const cpi,
   assert(IMPLIES(cpi->gf_group.size > 0,
                  cpi->gf_group.index < cpi->gf_group.size));
   const AV1_COMMON *const cm = &cpi->common;
-  return !frame_is_intra_only(cm) && !cpi->is_screen_content_type &&
+  return !frame_is_intra_only(cm) && !cpi->use_screen_content_tools &&
          cpi->sf.part_sf.auto_max_partition_based_on_simple_motion !=
              NOT_IN_USE &&
          sb_size == BLOCK_128X128 &&

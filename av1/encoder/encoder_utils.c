@@ -851,6 +851,7 @@ uint16_t av1_setup_interp_filter_search_mask(AV1_COMP *cpi) {
 static void screen_content_tools_determination(
     AV1_COMP *cpi, const int allow_screen_content_tools_orig_decision,
     const int allow_intrabc_orig_decision,
+    const int use_screen_content_tools_orig_decision,
     const int is_screen_content_type_orig_decision, const int pass,
     int *projected_size_pass, PSNR_STATS *psnr) {
   AV1_COMMON *const cm = &cpi->common;
@@ -872,12 +873,14 @@ static void screen_content_tools_determination(
     // Use screen content tools, if we get coding gain.
     features->allow_screen_content_tools = 1;
     features->allow_intrabc = cpi->intrabc_used;
+    cpi->use_screen_content_tools = 1;
     cpi->is_screen_content_type = 1;
   } else {
     // Use original screen content decision.
     features->allow_screen_content_tools =
         allow_screen_content_tools_orig_decision;
     features->allow_intrabc = allow_intrabc_orig_decision;
+    cpi->use_screen_content_tools = use_screen_content_tools_orig_decision;
     cpi->is_screen_content_type = is_screen_content_type_orig_decision;
   }
 }
@@ -892,7 +895,7 @@ static void set_encoding_params_for_screen_content(AV1_COMP *cpi,
     // Use a high q, and a fixed block size for fast encoding.
     cm->features.allow_screen_content_tools = 0;
     cm->features.allow_intrabc = 0;
-    cpi->is_screen_content_type = 0;
+    cpi->use_screen_content_tools = 0;
     cpi->sf.part_sf.partition_search_type = FIXED_PARTITION;
     cpi->sf.part_sf.fixed_partition_size = BLOCK_32X32;
     return;
@@ -903,14 +906,14 @@ static void set_encoding_params_for_screen_content(AV1_COMP *cpi,
   cm->features.allow_screen_content_tools = 1;
   // TODO(chengchen): turn intrabc on could lead to data race issue.
   // cm->allow_intrabc = 1;
-  cpi->is_screen_content_type = 1;
+  cpi->use_screen_content_tools = 1;
   cpi->sf.part_sf.partition_search_type = FIXED_PARTITION;
   cpi->sf.part_sf.fixed_partition_size = BLOCK_32X32;
 }
 
 // Determines whether to use screen content tools for the key frame group.
 // This function modifies "cm->features.allow_screen_content_tools",
-// "cm->features.allow_intrabc" and "cpi->is_screen_content_type".
+// "cm->features.allow_intrabc" and "cpi->use_screen_content_tools".
 void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   AV1_COMMON *const cm = &cpi->common;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
@@ -922,11 +925,13 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   const int allow_screen_content_tools_orig_decision =
       cm->features.allow_screen_content_tools;
   const int allow_intrabc_orig_decision = cm->features.allow_intrabc;
+  const int use_screen_content_tools_orig_decision =
+      cpi->use_screen_content_tools;
   const int is_screen_content_type_orig_decision = cpi->is_screen_content_type;
   // Turn off the encoding trial for forward key frame and superres.
   if (cpi->sf.rt_sf.use_nonrd_pick_mode || oxcf->kf_cfg.fwd_kf_enabled ||
       cpi->superres_mode != AOM_SUPERRES_NONE || oxcf->mode == REALTIME ||
-      is_screen_content_type_orig_decision || !is_key_frame) {
+      use_screen_content_tools_orig_decision || !is_key_frame) {
     return;
   }
 
@@ -999,8 +1004,8 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
     // Screen content decision
     screen_content_tools_determination(
         cpi, allow_screen_content_tools_orig_decision,
-        allow_intrabc_orig_decision, is_screen_content_type_orig_decision, pass,
-        projected_size_pass, psnr);
+        allow_intrabc_orig_decision, use_screen_content_tools_orig_decision,
+        is_screen_content_type_orig_decision, pass, projected_size_pass, psnr);
   }
 
   // Set partition speed feature back.
