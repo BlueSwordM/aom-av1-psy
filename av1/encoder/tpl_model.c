@@ -697,13 +697,14 @@ static AOM_INLINE void tpl_model_store(TplDepStats *tpl_stats_ptr, int mi_row,
   const int mi_height = mi_size_high[bsize];
   const int mi_width = mi_size_wide[bsize];
   const int step = 1 << block_mis_log2;
+  const int div = (mi_height >> block_mis_log2) * (mi_width >> block_mis_log2);
 
-  int64_t intra_cost = src_stats->intra_cost / (mi_height * mi_width);
-  int64_t inter_cost = src_stats->inter_cost / (mi_height * mi_width);
-  int64_t srcrf_dist = src_stats->srcrf_dist / (mi_height * mi_width);
-  int64_t recrf_dist = src_stats->recrf_dist / (mi_height * mi_width);
-  int64_t srcrf_rate = src_stats->srcrf_rate / (mi_height * mi_width);
-  int64_t recrf_rate = src_stats->recrf_rate / (mi_height * mi_width);
+  int64_t intra_cost = src_stats->intra_cost / div;
+  int64_t inter_cost = src_stats->inter_cost / div;
+  int64_t srcrf_dist = src_stats->srcrf_dist / div;
+  int64_t recrf_dist = src_stats->recrf_dist / div;
+  int64_t srcrf_rate = src_stats->srcrf_rate / div;
+  int64_t recrf_rate = src_stats->recrf_rate / div;
 
   intra_cost = AOMMAX(1, intra_cost);
   inter_cost = AOMMAX(1, inter_cost);
