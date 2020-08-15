@@ -1580,8 +1580,8 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
 
   int flash_detected;
   int64_t gf_group_bits;
-  const int is_intra_only = frame_params->frame_type == KEY_FRAME ||
-                            frame_params->frame_type == INTRA_ONLY_FRAME;
+  const int is_intra_only =
+      rc->frames_since_key == 0 || frame_params->frame_type == INTRA_ONLY_FRAME;
   const int arf_active_or_kf = is_intra_only || rc->source_alt_ref_active;
 
   cpi->internal_altref_allowed = (gf_cfg->gf_max_pyr_height > 1);
