@@ -2749,9 +2749,12 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
   if (is_stat_consumption_stage(cpi) && !twopass->stats_in) return;
 
+  const int update_type = gf_group->update_type[gf_group->index];
+  if (update_type != KF_UPDATE) frame_params->frame_type = INTER_FRAME;
+  if (rc->frames_since_key > 0) frame_params->frame_type = INTER_FRAME;
+
   if (rc->frames_till_gf_update_due > 0 && !(frame_flags & FRAMEFLAGS_KEY)) {
     assert(gf_group->index < gf_group->size);
-    const int update_type = gf_group->update_type[gf_group->index];
 
     setup_target_rate(cpi);
 
@@ -2770,7 +2773,6 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       if (cpi->sf.part_sf.allow_partition_search_skip && oxcf->pass == 2) {
         cpi->partition_search_skippable_frame = is_skippable_frame(cpi);
       }
-
       return;
     }
   }
@@ -2803,12 +2805,10 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     find_next_key_frame(cpi, &this_frame);
     this_frame = this_frame_copy;
   } else {
-    frame_params->frame_type = INTER_FRAME;
     const int altref_enabled = is_altref_enabled(oxcf->gf_cfg.lag_in_frames,
                                                  oxcf->gf_cfg.enable_auto_arf);
     const int sframe_dist = oxcf->kf_cfg.sframe_dist;
     const int sframe_mode = oxcf->kf_cfg.sframe_mode;
-    const int update_type = gf_group->update_type[gf_group->index];
     CurrentFrame *const current_frame = &cpi->common.current_frame;
     if (sframe_dist != 0) {
       if (altref_enabled) {
