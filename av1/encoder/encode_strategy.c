@@ -1083,6 +1083,16 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   memset(&frame_params, 0, sizeof(frame_params));
   memset(&frame_results, 0, sizeof(frame_results));
 
+  // Check if we need to stuff more src frames
+  if (flush == 0) {
+    int srcbuf_size =
+        av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage);
+    int pop_size = av1_lookahead_pop_sz(cpi->lookahead, cpi->compressor_stage);
+
+    // Continue buffering look ahead buffer.
+    if (srcbuf_size < pop_size) return -1;
+  }
+
   // TODO(sarahparker) finish bit allocation for one pass pyramid
   if (has_no_stats_stage(cpi)) {
     gf_cfg->gf_max_pyr_height =
