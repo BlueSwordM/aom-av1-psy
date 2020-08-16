@@ -14,6 +14,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
 
 #include "aom_dsp/blend.h"
 #include "aom_dsp/vmaf.h"
@@ -124,16 +129,21 @@ void aom_calc_vmaf_multi_frame(void *user_data, const char *model_path,
   aom_clear_system_state();
 
   char *fmt = bit_depth == 10 ? "yuv420p10le" : "yuv420p";
+  int log_path_length = snprintf(NULL, 0, "vmaf_scores_%d.xml", getpid()) + 1;
+  char *log_path = malloc(log_path_length);
+  snprintf(log_path, log_path_length, "vmaf_scores_%d.xml", getpid());
   double vmaf_score;
-  const int ret = compute_vmaf(
-      &vmaf_score, fmt, frame_width, frame_height, rd_frm,
-      /*user_data=*/user_data, (char *)model_path,
-      /*log_path=*/"vmaf_scores.xml", /*log_fmt=*/NULL, /*disable_clip=*/0,
-      /*disable_avx=*/0, /*enable_transform=*/0,
-      /*phone_model=*/0, /*do_psnr=*/0, /*do_ssim=*/0,
-      /*do_ms_ssim=*/0, /*pool_method=*/NULL, /*n_thread=*/0,
-      /*n_subsample=*/1, /*enable_conf_interval=*/0);
-  FILE *vmaf_log = fopen("vmaf_scores.xml", "r");
+  const int ret =
+      compute_vmaf(&vmaf_score, fmt, frame_width, frame_height, rd_frm,
+                   /*user_data=*/user_data, (char *)model_path,
+                   /*log_path=*/log_path, /*log_fmt=*/NULL, /*disable_clip=*/0,
+                   /*disable_avx=*/0, /*enable_transform=*/0,
+                   /*phone_model=*/0, /*do_psnr=*/0, /*do_ssim=*/0,
+                   /*do_ms_ssim=*/0, /*pool_method=*/NULL, /*n_thread=*/0,
+                   /*n_subsample=*/1, /*enable_conf_interval=*/0);
+  FILE *vmaf_log = fopen(log_path, "r");
+  free(log_path);
+  log_path = NULL;
   if (vmaf_log == NULL || ret) {
     vmaf_fatal_error("Failed to compute VMAF scores.");
   }
