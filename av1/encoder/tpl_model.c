@@ -995,10 +995,9 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
     if (gf_index == cur_frame_idx) {
       struct lookahead_entry *buf =
-          av1_lookahead_peek(cpi->lookahead, 0, cpi->compressor_stage);
+          av1_lookahead_peek(cpi->lookahead, 1, cpi->compressor_stage);
       if (buf == NULL) break;
-      tpl_frame->gf_picture =
-          frame_input->source == NULL ? &buf->img : frame_input->source;
+      tpl_frame->gf_picture = gop_eval ? &buf->img : frame_input->source;
     } else {
       struct lookahead_entry *buf = av1_lookahead_peek(
           cpi->lookahead, frame_display_index - anc_frame_offset,

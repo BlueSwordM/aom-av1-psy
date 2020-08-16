@@ -397,7 +397,7 @@ static struct lookahead_entry *choose_frame_source(
   // If this is a key frame and keyframe filtering is enabled with overlay,
   // then do not pop.
   if (pop_lookahead && cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1 &&
-      cpi->rc.frames_to_key == 0 && cpi->rc.frames_till_gf_update_due == 0 &&
+      gf_group->update_type[gf_group->index] == ARF_UPDATE &&
       !is_stat_generation_stage(cpi) && cpi->lookahead) {
     if (cpi->lookahead->read_ctxs[cpi->compressor_stage].sz &&
         (*flush ||
@@ -1093,6 +1093,16 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     if (srcbuf_size < pop_size) return -1;
   }
 
+  if (!av1_lookahead_peek(cpi->lookahead, 0, cpi->compressor_stage)) {
+#if !CONFIG_REALTIME_ONLY
+    if (flush && oxcf->pass == 1 && !cpi->twopass.first_pass_done) {
+      av1_end_first_pass(cpi); /* get last stats packet */
+      cpi->twopass.first_pass_done = 1;
+    }
+#endif
+    return -1;
+  }
+
   // TODO(sarahparker) finish bit allocation for one pass pyramid
   if (has_no_stats_stage(cpi)) {
     gf_cfg->gf_max_pyr_height =
@@ -1100,6 +1110,15 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     gf_cfg->gf_min_pyr_height =
         AOMMIN(gf_cfg->gf_min_pyr_height, gf_cfg->gf_max_pyr_height);
   }
+
+#if !CONFIG_REALTIME_ONLY
+  const int use_one_pass_rt_params = has_no_stats_stage(cpi) &&
+                                     oxcf->mode == REALTIME &&
+                                     gf_cfg->lag_in_frames == 0;
+  if (!use_one_pass_rt_params && !is_stat_generation_stage(cpi)) {
+    av1_get_second_pass_params(cpi, &frame_params, &frame_input, *frame_flags);
+  }
+#endif
 
   if (!is_stat_generation_stage(cpi)) {
     // If this is a forward keyframe, mark as a show_existing_frame
@@ -1157,6 +1176,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 
   av1_apply_encoding_flags(cpi, source->flags);
+
   if (!frame_params.show_existing_frame)
     *frame_flags = (source->flags & AOM_EFLAG_FORCE_KF) ? FRAMEFLAGS_KEY : 0;
 
@@ -1181,16 +1201,18 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
 #if CONFIG_REALTIME_ONLY
   av1_get_one_pass_rt_params(cpi, &frame_params, *frame_flags);
+  if (cpi->oxcf.speed >= 6 && cm->number_spatial_layers == 1 &&
+      cm->number_temporal_layers == 1)
+    av1_set_reference_structure_one_pass_rt(cpi, gf_group->index == 0);
 #else
-  const int use_one_pass_rt_params = has_no_stats_stage(cpi) &&
-                                     oxcf->mode == REALTIME &&
-                                     gf_cfg->lag_in_frames == 0;
   if (use_one_pass_rt_params) {
     av1_get_one_pass_rt_params(cpi, &frame_params, *frame_flags);
-  } else if (!is_stat_generation_stage(cpi)) {
-    av1_get_second_pass_params(cpi, &frame_params, &frame_input, *frame_flags);
+    if (cpi->oxcf.speed >= 6 && cm->number_spatial_layers == 1 &&
+        cm->number_temporal_layers == 1)
+      av1_set_reference_structure_one_pass_rt(cpi, gf_group->index == 0);
   }
 #endif
+
   FRAME_UPDATE_TYPE frame_update_type = get_frame_update_type(gf_group);
 
   if (frame_params.show_existing_frame &&

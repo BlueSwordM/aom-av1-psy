@@ -2796,7 +2796,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   }
 
   // Keyframe and section processing.
-  if (rc->frames_to_key <= 0 || (frame_flags & FRAMEFLAGS_KEY)) {
+  if (rc->frames_to_key <= 0) {
     assert(rc->frames_to_key >= -1);
     FIRSTPASS_STATS this_frame_copy;
     this_frame_copy = this_frame;
