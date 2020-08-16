@@ -157,7 +157,7 @@ void av1_ml_prune_4_partition(
 int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
                             const MACROBLOCK *const x,
                             const RD_STATS *const rd_stats,
-                            unsigned int pb_source_variance);
+                            unsigned int pb_source_variance, int bit_depth);
 
 // The first round of partition pruning determined before any partition
 // has been tested. The decisions will be updated and passed back

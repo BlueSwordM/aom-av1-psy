@@ -473,6 +473,11 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Terminate partition search for child partition,
   // when NONE and SPLIT partition rd_costs are INT64_MAX.
   int early_term_after_none_split;
+
+  // Level used to adjust threshold for av1_ml_predict_breakout(). At lower
+  // levels, more conservative threshold is used. Value of 2 corresponds to
+  // default case with no adjustment to lbd thresholds.
+  int ml_predict_breakout_level;
 } PARTITION_SPEED_FEATURES;
 
 typedef struct MV_SPEED_FEATURES {

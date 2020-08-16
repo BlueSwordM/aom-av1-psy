@@ -3051,10 +3051,10 @@ static void prune_partitions_after_none(AV1_COMP *const cpi, MACROBLOCK *x,
       !x->e_mbd.lossless[xd->mi[0]->segment_id] && ctx_none->skippable) {
     const int use_ml_based_breakout =
         bsize <= cpi->sf.part_sf.use_square_partition_only_threshold &&
-        bsize > BLOCK_4X4 && xd->bd == 8;
+        bsize > BLOCK_4X4 && cpi->sf.part_sf.ml_predict_breakout_level >= 1;
     if (use_ml_based_breakout) {
-      if (av1_ml_predict_breakout(cpi, bsize, x, this_rdc,
-                                  *pb_source_variance)) {
+      if (av1_ml_predict_breakout(cpi, bsize, x, this_rdc, *pb_source_variance,
+                                  xd->bd)) {
         part_search_state->do_square_split = 0;
         part_search_state->do_rectangular_split = 0;
       }

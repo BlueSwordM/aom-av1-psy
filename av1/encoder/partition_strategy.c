@@ -1230,7 +1230,7 @@ void av1_ml_prune_4_partition(
 int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
                             const MACROBLOCK *const x,
                             const RD_STATS *const rd_stats,
-                            unsigned int pb_source_variance) {
+                            unsigned int pb_source_variance, int bit_depth) {
   const NN_CONFIG *nn_config = NULL;
   int thresh = 0;
   switch (bsize) {
@@ -1258,6 +1258,12 @@ int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   }
   if (!nn_config || thresh < 0) return 0;
 
+  const float ml_predict_breakout_thresh_scale[3] = { 1.15f, 1.05f, 1.0f };
+  thresh =
+      (int)((float)thresh *
+            ml_predict_breakout_thresh_scale[cpi->sf.part_sf
+                                                 .ml_predict_breakout_level]);
+
   // Generate feature values.
   float features[FEATURES];
   int feature_index = 0;
@@ -1275,7 +1281,7 @@ int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
 
   features[feature_index++] = (float)pb_source_variance;
 
-  const int dc_q = (int)x->plane[0].dequant_QTX[0];
+  const int dc_q = (int)x->plane[0].dequant_QTX[0] >> (bit_depth - 8);
   features[feature_index++] = (float)(dc_q * dc_q) / 256.0f;
   assert(feature_index == FEATURES);
 
