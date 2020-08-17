@@ -165,8 +165,9 @@ static double aom_highbd_ssim2(const uint8_t *img1, const uint8_t *img2,
   return ssim_total;
 }
 
-double aom_calc_ssim(const YV12_BUFFER_CONFIG *source,
-                     const YV12_BUFFER_CONFIG *dest, double *weight) {
+void aom_calc_ssim(const YV12_BUFFER_CONFIG *source,
+                   const YV12_BUFFER_CONFIG *dest, double *weight,
+                   double *fast_ssim) {
   double abc[3];
   for (int i = 0; i < 3; ++i) {
     const int is_uv = i > 0;
@@ -176,7 +177,7 @@ double aom_calc_ssim(const YV12_BUFFER_CONFIG *source,
   }
 
   *weight = 1;
-  return abc[0] * .8 + .1 * (abc[1] + abc[2]);
+  *fast_ssim = abc[0] * .8 + .1 * (abc[1] + abc[2]);
 }
 
 // traditional ssim as per: http://en.wikipedia.org/wiki/Structural_similarity
@@ -421,11 +422,11 @@ double aom_get_ssim_metrics(uint8_t *img1, int img1_pitch, uint8_t *img2,
   return inconsistency_total;
 }
 
-double aom_highbd_calc_ssim(const YV12_BUFFER_CONFIG *source,
-                            const YV12_BUFFER_CONFIG *dest, double *weight,
-                            uint32_t bd, uint32_t in_bd) {
+void aom_highbd_calc_ssim(const YV12_BUFFER_CONFIG *source,
+                          const YV12_BUFFER_CONFIG *dest, double *weight,
+                          uint32_t bd, uint32_t in_bd, double *fast_ssim) {
   assert(bd >= in_bd);
-  const uint32_t shift = bd - in_bd;
+  uint32_t shift = bd - in_bd;
 
   double abc[3];
   for (int i = 0; i < 3; ++i) {
@@ -436,6 +437,21 @@ double aom_highbd_calc_ssim(const YV12_BUFFER_CONFIG *source,
                               source->crop_heights[is_uv], in_bd, shift);
   }
 
-  *weight = 1;
-  return abc[0] * .8 + .1 * (abc[1] + abc[2]);
+  weight[0] = 1;
+  fast_ssim[0] = abc[0] * .8 + .1 * (abc[1] + abc[2]);
+
+  if (bd > in_bd) {
+    // Compute SSIM based on stream bit depth
+    shift = 0;
+    for (int i = 0; i < 3; ++i) {
+      const int is_uv = i > 0;
+      abc[i] = aom_highbd_ssim2(source->buffers[i], dest->buffers[i],
+                                source->strides[is_uv], dest->strides[is_uv],
+                                source->crop_widths[is_uv],
+                                source->crop_heights[is_uv], bd, shift);
+    }
+
+    weight[1] = 1;
+    fast_ssim[1] = abc[0] * .8 + .1 * (abc[1] + abc[2]);
+  }
 }

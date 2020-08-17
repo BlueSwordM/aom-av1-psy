@@ -901,6 +901,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   cpi->psnr[0].worst = 100.0;
   cpi->psnr[1].worst = 100.0;
   cpi->worst_ssim = 100.0;
+  cpi->worst_ssim_hbd = 100.0;
 
   cpi->count[0] = 0;
   cpi->count[1] = 0;
@@ -917,6 +918,8 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
     cpi->tot_recode_hits = 0;
     cpi->summed_quality = 0;
     cpi->summed_weights = 0;
+    cpi->summed_quality_hbd = 0;
+    cpi->summed_weights_hbd = 0;
   }
 
   cpi->fastssim.worst = 100.0;
@@ -1448,9 +1451,12 @@ void av1_remove_compressor(AV1_COMP *cpi) {
           const double total_psnr_hbd =
               aom_sse_to_psnr((double)cpi->total_samples[1], peak_hbd,
                               (double)cpi->total_sq_error[1]);
+          const double total_ssim_hbd =
+              100 * pow(cpi->summed_quality_hbd / cpi->summed_weights_hbd, 8.0);
           SNPRINT(headings,
                   "\t AVGPsnrH GLBPsnrH AVPsnrPH GLPsnrPH"
-                  " AVPsnrYH APsnrCbH APsnrCrH WstPsnrH");
+                  " AVPsnrYH APsnrCbH APsnrCrH WstPsnrH"
+                  " AOMSSIMH VPSSIMPH WstSsimH");
           SNPRINT2(results, "\t%7.3f",
                    cpi->psnr[1].stat[STAT_ALL] / cpi->count[1]);
           SNPRINT2(results, "  %7.3f", total_psnr_hbd);
@@ -1464,6 +1470,9 @@ void av1_remove_compressor(AV1_COMP *cpi) {
           SNPRINT2(results, "  %7.3f",
                    cpi->psnr[1].stat[STAT_V] / cpi->count[1]);
           SNPRINT2(results, "  %7.3f", cpi->psnr[1].worst);
+          SNPRINT2(results, "  %7.3f", total_ssim_hbd);
+          SNPRINT2(results, "  %7.3f", total_ssim_hbd);
+          SNPRINT2(results, "  %7.3f", cpi->worst_ssim_hbd);
         }
 #endif
         fprintf(f, "%s\n", headings);
@@ -3354,7 +3363,8 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
     cpi->count[1]++;
     if (cpi->b_calculate_psnr) {
       PSNR_STATS psnr;
-      double frame_ssim2 = 0.0, weight = 0.0;
+      double weight[2] = { 0.0, 0.0 };
+      double frame_ssim2[2] = { 0.0, 0.0 };
       aom_clear_system_state();
 #if CONFIG_AV1_HIGHBITDEPTH
       aom_calc_highbd_psnr(orig, recon, &psnr, bit_depth, in_bit_depth);
@@ -3369,14 +3379,14 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
 
       // TODO(yaowu): unify these two versions into one.
       if (cm->seq_params.use_highbitdepth)
-        frame_ssim2 =
-            aom_highbd_calc_ssim(orig, recon, &weight, bit_depth, in_bit_depth);
+        aom_highbd_calc_ssim(orig, recon, weight, bit_depth, in_bit_depth,
+                             frame_ssim2);
       else
-        frame_ssim2 = aom_calc_ssim(orig, recon, &weight);
+        aom_calc_ssim(orig, recon, &weight[0], &frame_ssim2[0]);
 
-      cpi->worst_ssim = AOMMIN(cpi->worst_ssim, frame_ssim2);
-      cpi->summed_quality += frame_ssim2 * weight;
-      cpi->summed_weights += weight;
+      cpi->worst_ssim = AOMMIN(cpi->worst_ssim, frame_ssim2[0]);
+      cpi->summed_quality += frame_ssim2[0] * weight[0];
+      cpi->summed_weights += weight[0];
 
 #if CONFIG_AV1_HIGHBITDEPTH
       // Compute PSNR based on stream bit depth
@@ -3386,6 +3396,10 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
                           psnr.psnr_hbd[0], &cpi->psnr[1]);
         cpi->total_sq_error[1] += psnr.sse_hbd[0];
         cpi->total_samples[1] += psnr.samples_hbd[0];
+
+        cpi->worst_ssim_hbd = AOMMIN(cpi->worst_ssim_hbd, frame_ssim2[1]);
+        cpi->summed_quality_hbd += frame_ssim2[1] * weight[1];
+        cpi->summed_weights_hbd += weight[1];
       }
 #endif
 

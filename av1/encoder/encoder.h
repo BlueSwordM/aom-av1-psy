@@ -2244,8 +2244,11 @@ typedef struct AV1_COMP {
   int bytes;
   double summed_quality;
   double summed_weights;
+  double summed_quality_hbd;
+  double summed_weights_hbd;
   unsigned int tot_recode_hits;
   double worst_ssim;
+  double worst_ssim_hbd;
 
   ImageStat fastssim;
   ImageStat psnrhvs;
