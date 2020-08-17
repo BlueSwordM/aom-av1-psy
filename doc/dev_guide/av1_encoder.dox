@@ -1225,9 +1225,86 @@ beneficial to be able to read the values directly.
 
 TODO add references to key functions / files.
 
-\subsection architecture_entropy_coef Coefficient Coding and Optimisaztion
+\subsection architecture_entropy_coef Transform Coefficient Coding and Optimization
+\image html coeff_coding.png "" width=70%
 
-See also \ref coefficient_coding for more details.
+\subsubsection architecture_entropy_coef_what Transform coefficient coding
+Transform coefficient coding is where the encoder compresses a quantized version
+of prediction residue into the bitstream.
+
+\paragraph architecture_entropy_coef_prepare Preparation - transform and quantize
+Before the entropy coding stage, the encoder decouple the pixel-to-pixel
+correlation of the prediction residue by transforming the residue from the
+spatial domain to the frequency domain. Then the encoder quantizes the transform
+coefficients to make the coefficients ready for entropy coding.
+
+\paragraph architecture_entropy_coef_coding The coding process
+The encoder uses \ref av1_write_coeffs_txb() to write the coefficients of
+a transform block into the bitstream.
+The coding process has three stages.
+1. The encoder will code transform block skip flag (txb_skip). If the skip flag is
+off, then the encoder will code the end of block position (eob) which is the scan
+index of the last non-zero coefficient plus one.
+2. Second, the encoder will code lower magnitude levels of each coefficient in
+reverse scan order.
+3. Finally, the encoder will code the sign and higher magnitude levels for each
+coefficient if they are available.
+
+Related functions:
+- \ref av1_write_coeffs_txb()
+- write_inter_txb_coeff()
+- \ref av1_write_intra_coeffs_mb()
+
+\paragraph architecture_entropy_coef_context Context information
+To improve the compression efficiency, the encoder uses several context models
+tailored for transform coefficients to capture the correlations between coding
+symbols. Most of the context models are built to capture the correlations
+between the coefficients within the same transform block. However, transform
+block skip flag (txb_skip) and the sign of dc coefficient (dc_sign) require
+context info from neighboring transform blocks.
+
+Here is how context info spread between transform blocks. Before coding a
+transform block, the encoder will use get_txb_ctx() to collect the context
+information from neighboring transform blocks. Then the context information
+will be used for coding transform block skip flag (txb_skip) and the sign of
+dc coefficient (dc_sign). After the transform block is coded, the encoder will
+extract the context info from the current block using
+\ref av1_get_txb_entropy_context(). Then encoder will store the context info
+into a byte (uint8_t) using av1_set_entropy_contexts(). The encoder will use
+the context info to code other transform blocks.
+
+Related functions:
+- \ref av1_get_txb_entropy_context()
+- av1_set_entropy_contexts()
+- get_txb_ctx()
+- \ref av1_update_intra_mb_txb_context()
+
+\subsubsection architecture_entropy_coef_rd RD optimization
+Beside the actual entropy coding, the encoder uses several utility functions
+to make optimal RD decisions.
+
+\paragraph architecture_entropy_coef_cost Entropy cost
+The encoder uses \ref av1_cost_coeffs_txb() or \ref av1_cost_coeffs_txb_laplacian()
+to estimate the entropy cost of a transform block. Note that
+\ref av1_cost_coeffs_txb() is slower but accurate whereas
+\ref av1_cost_coeffs_txb_laplacian() is faster but less accurate.
+
+Related functions:
+- \ref av1_cost_coeffs_txb()
+- \ref av1_cost_coeffs_txb_laplacian()
+- \ref av1_cost_coeffs_txb_estimate()
+
+\paragraph architecture_entropy_coef_opt Quantized level optimization
+Beside computing entropy cost, the encoder also uses \ref av1_optimize_txb_new()
+to adjust the coefficient’s quantized levels to achieve optimal RD trade-off.
+In \ref av1_optimize_txb_new(), the encoder goes through each quantized
+coefficient and lowers the quantized coefficient level by one if the action
+yields a better RD score.
+
+Related functions:
+- \ref av1_optimize_txb_new()
+
+All the related functions are listed in \ref coefficient_coding.
 
 */
 
