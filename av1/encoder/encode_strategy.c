@@ -925,6 +925,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       aom_copy_metadata_to_frame_buffer(frame_input->source,
                                         source_buffer->metadata);
     }
+    // Currently INTNL_ARF_UPDATE only do show_existing.
     if (get_frame_update_type(&cpi->gf_group) == ARF_UPDATE) {
       cpi->show_existing_alt_ref = show_existing_alt_ref;
     }
@@ -1176,9 +1177,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 
   av1_apply_encoding_flags(cpi, source->flags);
-
-  if (!frame_params.show_existing_frame)
-    *frame_flags = (source->flags & AOM_EFLAG_FORCE_KF) ? FRAMEFLAGS_KEY : 0;
+  *frame_flags = (source->flags & AOM_EFLAG_FORCE_KF) ? FRAMEFLAGS_KEY : 0;
 
   // Shown frames and arf-overlay frames need frame-rate considering
   if (frame_params.show_frame)

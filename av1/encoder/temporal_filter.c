@@ -764,15 +764,16 @@ typedef struct {
 /*!\brief Does temporal filter for a given frame.
  *
  * \ingroup src_frame_proc
- * \param[in]   cpi              Top level encoder instance structure
- * \param[in]   frames           Frame buffers used for temporal filtering
- * \param[in]   num_frames       Number of frames in the frame buffer
- * \param[in]   filter_frame_idx Index of the frame to be filtered
- * \param[in]   is_key_frame     Is the to-filter is a key frame
- * \param[in]   block_size       Block size used for temporal filtering
- * \param[in]   scale            Frame scaling factor
- * \param[in]   noise_levels     Estimated noise levels for each plane
- *                               in the frame (Y,U,V)
+ * \param[in]   cpi                   Top level encoder instance structure
+ * \param[in]   frames                Frame buffers used for temporal filtering
+ * \param[in]   num_frames            Number of frames in the frame buffer
+ * \param[in]   filter_frame_idx      Index of the frame to be filtered
+ * \param[in]   check_show_existing   whether to accumulate diff for show
+                                      existing condition check
+ * \param[in]   block_size            Block size used for temporal filtering
+ * \param[in]   scale                 Frame scaling factor
+ * \param[in]   noise_levels          Estimated noise levels for each plane
+ *                                    in the frame (Y,U,V)
  *
  * \return Difference between filtered frame and the original frame
  *         (sum and sse)
@@ -780,7 +781,7 @@ typedef struct {
 static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
                                   const int num_frames,
                                   const int filter_frame_idx,
-                                  const int is_key_frame,
+                                  const int check_show_existing,
                                   const BLOCK_SIZE block_size,
                                   const struct scale_factors *scale,
                                   const double *noise_levels) {
@@ -920,7 +921,7 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
       tf_normalize_filtered_frame(mbd, block_size, mb_row, mb_col, num_planes,
                                   accum, count, &cpi->alt_ref_buffer);
 
-      if (!is_key_frame) {
+      if (check_show_existing) {
         const int y_height = mb_height >> mbd->plane[0].subsampling_y;
         const int y_width = mb_width >> mbd->plane[0].subsampling_x;
         const int source_y_stride = frame_to_filter->y_stride;
@@ -1178,7 +1179,11 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
   }
 
   // Do filtering.
-  const int is_key_frame = (filter_frame_lookahead_idx <= 0);
+  // Check show existing condition for non-keyframes. For KFs, only check when
+  // KF overlay is enabled.
+  const int check_show_existing =
+      !(filter_frame_lookahead_idx <= 0) ||
+      cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1;
   // Setup scaling factors. Scaling on each of the arnr frames is not
   // supported.
   // ARF is produced at the native frame size and resized when coded.
@@ -1188,11 +1193,9 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
       frames[0]->y_crop_width, frames[0]->y_crop_height);
   const FRAME_DIFF diff =
       tf_do_filtering(cpi, frames, num_frames_for_filtering, filter_frame_idx,
-                      is_key_frame, TF_BLOCK_SIZE, &sf, noise_levels);
+                      check_show_existing, TF_BLOCK_SIZE, &sf, noise_levels);
 
-  if (is_key_frame) {  // Key frame should always be filtered.
-    return 1;
-  }
+  if (!check_show_existing) return 1;
 
   if (show_existing_arf != NULL || is_second_arf) {
     const int frame_height = frames[filter_frame_idx]->y_crop_height;
