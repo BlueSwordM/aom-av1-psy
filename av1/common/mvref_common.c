@@ -1069,44 +1069,22 @@ uint8_t av1_selectSamples(MV *mv, int *pts, int *pts_inref, int len,
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   const int thresh = clamp(AOMMAX(bw, bh), 16, 112);
-  int pts_mvd[SAMPLES_ARRAY_SIZE] = { 0 };
-  int i, j, k, l = len;
   uint8_t ret = 0;
   assert(len <= LEAST_SQUARES_SAMPLES_MAX);
 
-  // Obtain the motion vector difference.
-  for (i = 0; i < len; ++i) {
-    pts_mvd[i] = abs(pts_inref[2 * i] - pts[2 * i] - mv->col) +
-                 abs(pts_inref[2 * i + 1] - pts[2 * i + 1] - mv->row);
-
-    if (pts_mvd[i] > thresh)
-      pts_mvd[i] = -1;
-    else
-      ret++;
+  // Only keep the samples with MV differences within threshold.
+  for (int i = 0; i < len; ++i) {
+    const int diff = abs(pts_inref[2 * i] - pts[2 * i] - mv->col) +
+                     abs(pts_inref[2 * i + 1] - pts[2 * i + 1] - mv->row);
+    if (diff > thresh) continue;
+    if (ret != i) {
+      memcpy(pts + 2 * ret, pts + 2 * i, 2 * sizeof(pts[0]));
+      memcpy(pts_inref + 2 * ret, pts_inref + 2 * i, 2 * sizeof(pts_inref[0]));
+    }
+    ++ret;
   }
-
   // Keep at least 1 sample.
-  if (!ret) return 1;
-
-  i = 0;
-  j = l - 1;
-  for (k = 0; k < l - ret; k++) {
-    while (pts_mvd[i] != -1) i++;
-    while (pts_mvd[j] == -1) j--;
-    assert(i != j);
-    if (i > j) break;
-
-    // Replace the discarded samples;
-    pts_mvd[i] = pts_mvd[j];
-    pts[2 * i] = pts[2 * j];
-    pts[2 * i + 1] = pts[2 * j + 1];
-    pts_inref[2 * i] = pts_inref[2 * j];
-    pts_inref[2 * i + 1] = pts_inref[2 * j + 1];
-    i++;
-    j--;
-  }
-
-  return ret;
+  return AOMMAX(ret, 1);
 }
 
 // Note: Samples returned are at 1/8-pel precision

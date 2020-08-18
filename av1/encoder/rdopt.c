@@ -5452,9 +5452,10 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
     int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
     mbmi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
     // Select the samples according to motion vector difference
-    if (mbmi->num_proj_ref > 1)
+    if (mbmi->num_proj_ref > 1) {
       mbmi->num_proj_ref = av1_selectSamples(&mbmi->mv[0].as_mv, pts, pts_inref,
                                              mbmi->num_proj_ref, bsize);
+    }
   }
 
   const InterpFilter interp_filter = features->interp_filter;
