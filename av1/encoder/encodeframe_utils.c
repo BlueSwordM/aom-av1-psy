@@ -1272,6 +1272,7 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
   MACROBLOCKD *const xd = &x->e_mbd;
 
   switch (cpi->oxcf.cost_upd_freq.coeff) {
+    case COST_UPD_OFF: break;
     case COST_UPD_TILE:  // Tile level
       if (mi_row != tile_info->mi_row_start) break;
       AOM_FALLTHROUGH_INTENDED;
@@ -1288,6 +1289,7 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
   }
 
   switch (cpi->oxcf.cost_upd_freq.mode) {
+    case COST_UPD_OFF: break;
     case COST_UPD_TILE:  // Tile level
       if (mi_row != tile_info->mi_row_start) break;
       AOM_FALLTHROUGH_INTENDED;

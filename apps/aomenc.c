@@ -590,11 +590,11 @@ static const arg_def_t quant_b_adapt =
 static const arg_def_t coeff_cost_upd_freq =
     ARG_DEF(NULL, "coeff-cost-upd-freq", 1,
             "Update freq for coeff costs"
-            "0: SB, 1: SB Row per Tile, 2: Tile");
+            "0: SB, 1: SB Row per Tile, 2: Tile, 3: Off");
 static const arg_def_t mode_cost_upd_freq =
     ARG_DEF(NULL, "mode-cost-upd-freq", 1,
             "Update freq for mode costs"
-            "0: SB, 1: SB Row per Tile, 2: Tile");
+            "0: SB, 1: SB Row per Tile, 2: Tile, 3: Off");
 static const arg_def_t mv_cost_upd_freq =
     ARG_DEF(NULL, "mv-cost-upd-freq", 1,
             "Update freq for mv costs"

@@ -549,8 +549,8 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_y, 1);
 
   RANGE_CHECK_HI(extra_cfg, disable_trellis_quant, 3);
-  RANGE_CHECK(extra_cfg, coeff_cost_upd_freq, 0, 2);
-  RANGE_CHECK(extra_cfg, mode_cost_upd_freq, 0, 2);
+  RANGE_CHECK(extra_cfg, coeff_cost_upd_freq, 0, 3);
+  RANGE_CHECK(extra_cfg, mode_cost_upd_freq, 0, 3);
   RANGE_CHECK(extra_cfg, mv_cost_upd_freq, 0, 3);
 
   RANGE_CHECK(extra_cfg, min_partition_size, 4, 128);
