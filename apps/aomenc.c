@@ -2157,7 +2157,7 @@ static void get_cx_data(struct stream_state *stream,
 
 #if CONFIG_AV1_HIGHBITDEPTH
           if (stream->config.cfg.g_input_bit_depth <
-              stream->config.cfg.g_bit_depth) {
+              (unsigned int)stream->config.cfg.g_bit_depth) {
             stream->psnr_sse_total[1] += pkt->data.psnr.sse_hbd[0];
             stream->psnr_samples_total[1] += pkt->data.psnr.samples_hbd[0];
             for (i = 0; i < 4; i++) {
@@ -2798,7 +2798,7 @@ int main(int argc, const char **argv_) {
           if (global.show_psnr == 2) {
 #if CONFIG_AV1_HIGHBITDEPTH
             if (stream->config.cfg.g_input_bit_depth <
-                stream->config.cfg.g_bit_depth)
+                (unsigned int)stream->config.cfg.g_bit_depth)
               show_psnr_hbd(stream, (1 << stream->config.cfg.g_bit_depth) - 1,
                             bps);
 #endif
