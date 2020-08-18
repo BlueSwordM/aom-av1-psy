@@ -598,6 +598,7 @@ static int main_loop(int argc, const char **argv_) {
     fprintf(stderr,
             "Not dumping raw video to your terminal. Use '-o -' to "
             "override.\n");
+    free(argv);
     return EXIT_FAILURE;
   }
 #endif
