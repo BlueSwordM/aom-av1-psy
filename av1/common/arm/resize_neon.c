@@ -595,7 +595,7 @@ static void scale_plane_4_to_3_bilinear(const uint8_t *src,
 static void scale_plane_4_to_3_general(const uint8_t *src, const int src_stride,
                                        uint8_t *dst, const int dst_stride,
                                        const int w, const int h,
-                                       const int16_t *const coef,
+                                       const InterpKernel *const coef,
                                        const int phase_scaler,
                                        uint8_t *const temp_buffer) {
   static const int step_q4 = 16 * 4 / 3;
@@ -606,12 +606,12 @@ static void scale_plane_4_to_3_general(const uint8_t *src, const int src_stride,
   // above and (SUBPEL_TAPS / 2) extra rows below.
   const int height_hor = (4 * h / 3 + SUBPEL_TAPS - 1 + 7) & ~7;
   const int height_ver = (h + 5) - ((h + 5) % 6);
-  const int16x8_t filters0 =
-      vld1q_s16(&coef[(phase_scaler + 0 * step_q4) & SUBPEL_MASK]);
-  const int16x8_t filters1 =
-      vld1q_s16(&coef[(phase_scaler + 1 * step_q4) & SUBPEL_MASK]);
-  const int16x8_t filters2 =
-      vld1q_s16(&coef[(phase_scaler + 2 * step_q4) & SUBPEL_MASK]);
+  const int16x8_t filters0 = vld1q_s16(
+      (const int16_t *)&coef[(phase_scaler + 0 * step_q4) & SUBPEL_MASK]);
+  const int16x8_t filters1 = vld1q_s16(
+      (const int16_t *)&coef[(phase_scaler + 1 * step_q4) & SUBPEL_MASK]);
+  const int16x8_t filters2 = vld1q_s16(
+      (const int16_t *)&coef[(phase_scaler + 2 * step_q4) & SUBPEL_MASK]);
   int x, y = height_hor;
   uint8_t *t = temp_buffer;
   uint8x8_t s[15], d[8];
@@ -740,6 +740,7 @@ void av1_resize_and_extend_frame_neon(const YV12_BUFFER_CONFIG *src,
                                       const int phase, const int num_planes) {
   // We use AOMMIN(num_planes, MAX_MB_PLANE) instead of num_planes to quiet
   // the static analysis warnings.
+  int scaled = 0;
   for (int i = 0; i < AOMMIN(num_planes, MAX_MB_PLANE); ++i) {
     const int is_uv = i > 0;
     const int src_w = src->crop_widths[is_uv];
@@ -750,6 +751,7 @@ void av1_resize_and_extend_frame_neon(const YV12_BUFFER_CONFIG *src,
     const int dst_y_h = (dst->crop_heights[0] + 1) & ~1;
 
     if (2 * dst_w == src_w && 2 * dst_h == src_h) {
+      scaled = 1;
       if (phase == 0) {
         scale_plane_2_to_1_phase_0(src->buffers[i], src->strides[is_uv],
                                    dst->buffers[i], dst->strides[is_uv], dst_w,
@@ -774,9 +776,12 @@ void av1_resize_and_extend_frame_neon(const YV12_BUFFER_CONFIG *src,
                                      dst_w, dst_h, interp_kernel[phase],
                                      temp_buffer);
           free(temp_buffer);
+        } else {
+          scaled = 0;
         }
       }
     } else if (4 * dst_w == src_w && 4 * dst_h == src_h) {
+      scaled = 1;
       if (phase == 0) {
         scale_plane_4_to_1_phase_0(src->buffers[i], src->strides[is_uv],
                                    dst->buffers[i], dst->strides[is_uv], dst_w,
@@ -801,6 +806,8 @@ void av1_resize_and_extend_frame_neon(const YV12_BUFFER_CONFIG *src,
                                      dst_w, dst_h, interp_kernel[phase],
                                      temp_buffer);
           free(temp_buffer);
+        } else {
+          scaled = 0;
         }
       }
     } else if (4 * dst_w == 3 * src_w && 4 * dst_h == 3 * src_h) {
@@ -810,6 +817,7 @@ void av1_resize_and_extend_frame_neon(const YV12_BUFFER_CONFIG *src,
       uint8_t *const temp_buffer =
           (uint8_t *)malloc(buffer_stride * buffer_height);
       if (temp_buffer) {
+        scaled = 1;
         if (filter == BILINEAR) {
           scale_plane_4_to_3_bilinear(src->buffers[i], src->strides[is_uv],
                                       dst->buffers[i], dst->strides[is_uv],
@@ -820,14 +828,18 @@ void av1_resize_and_extend_frame_neon(const YV12_BUFFER_CONFIG *src,
                   .filter_ptr;
           scale_plane_4_to_3_general(src->buffers[i], src->strides[is_uv],
                                      dst->buffers[i], dst->strides[is_uv],
-                                     dst_w, dst_h, interp_kernel[phase], phase,
+                                     dst_w, dst_h, interp_kernel, phase,
                                      temp_buffer);
         }
+        free(temp_buffer);
+      } else {
+        scaled = 0;
       }
-    } else {
-      av1_resize_plane(src->buffers[i], src_h, src_w, src->strides[is_uv],
-                       dst->buffers[i], dst_h, dst_w, dst->strides[is_uv]);
     }
+  }
+  if (!scaled) {
+    av1_resize_and_extend_frame_c(src, dst, filter, phase, num_planes);
+  } else {
     aom_extend_frame_borders(dst, num_planes);
   }
 }
