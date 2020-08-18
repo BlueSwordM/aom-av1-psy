@@ -136,7 +136,8 @@ const DecodeParam kAV1InvalidFileTests[] = {
   { 1, "invalid-oss-fuzz-10389.ivf", "invalid-oss-fuzz-10389.ivf.res.2" },
   { 1, "invalid-oss-fuzz-11523.ivf", "invalid-oss-fuzz-11523.ivf.res.2" },
   { 4, "invalid-oss-fuzz-15363.ivf", NULL },
-  { 1, "invalid-oss-fuzz-16437.ivf", NULL },
+  { 1, "invalid-oss-fuzz-16437.ivf", "invalid-oss-fuzz-16437.ivf.res.2" },
+  { 1, "invalid-oss-fuzz-24706.ivf", NULL },
 #if CONFIG_AV1_HIGHBITDEPTH
   // These test vectors contain 10-bit or 12-bit video.
   { 1, "invalid-oss-fuzz-9288.ivf", NULL },
