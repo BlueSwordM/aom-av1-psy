@@ -92,18 +92,14 @@ static int32_t xx_mask_and_hadd(__m128i vsum1, __m128i vsum2, int i) {
 static void highbd_apply_temporal_filter(
     const uint16_t *frame1, const unsigned int stride, const uint16_t *frame2,
     const unsigned int stride2, const int block_width, const int block_height,
-    const int min_frame_size, const MV *subblock_mvs, const int *subblock_mses,
-    unsigned int *accumulator, uint16_t *count, uint32_t *luma_sq_error,
-    uint32_t *chroma_sq_error, int plane, int ss_x_shift, int ss_y_shift,
-    int bd, const double inv_num_ref_pixels, const double decay_factor,
-    const double inv_factor, const double weight_factor) {
+    const int *subblock_mses, unsigned int *accumulator, uint16_t *count,
+    uint32_t *frame_sse, uint32_t *luma_sse_sum, int bd,
+    const double inv_num_ref_pixels, const double decay_factor,
+    const double inv_factor, const double weight_factor, double *d_factor) {
   assert(((block_width == 32) && (block_height == 32)) ||
          ((block_width == 16) && (block_height == 16)));
-  if (plane > PLANE_TYPE_Y) assert(chroma_sq_error != NULL);
 
   uint32_t acc_5x5_sse[BH][BW];
-  uint32_t *frame_sse =
-      (plane == PLANE_TYPE_Y) ? luma_sq_error : chroma_sq_error;
 
   get_squared_error(frame1, stride, frame2, stride2, block_width, block_height,
                     frame_sse, SSE_STRIDE);
@@ -186,24 +182,7 @@ static void highbd_apply_temporal_filter(
   for (int i = 0, k = 0; i < block_height; i++) {
     for (int j = 0; j < block_width; j++, k++) {
       const int pixel_value = frame2[i * stride2 + j];
-
-      int diff_sse = acc_5x5_sse[i][j];
-      int num_ref_pixels = TF_WINDOW_LENGTH * TF_WINDOW_LENGTH;
-
-      // Filter U-plane and V-plane using Y-plane. This is because motion
-      // search is only done on Y-plane, so the information from Y-plane will
-      // be more accurate.
-      if (plane != PLANE_TYPE_Y) {
-        for (int ii = 0; ii < (1 << ss_y_shift); ++ii) {
-          for (int jj = 0; jj < (1 << ss_x_shift); ++jj) {
-            const int yy = (i << ss_y_shift) + ii;      // Y-coord on Y-plane.
-            const int xx = (j << ss_x_shift) + jj + 2;  // X-coord on Y-plane.
-            const int ww = SSE_STRIDE;                  // Stride of Y-plane.
-            diff_sse += luma_sq_error[yy * ww + xx];
-            ++num_ref_pixels;
-          }
-        }
-      }
+      uint32_t diff_sse = acc_5x5_sse[i][j] + luma_sse_sum[i * BW + j];
 
       // Scale down the difference for high bit depth input.
       diff_sse >>= ((bd - 8) * 2);
@@ -215,13 +194,8 @@ static void highbd_apply_temporal_filter(
       const double combined_error =
           weight_factor * window_error + block_error * inv_factor;
 
-      const MV mv = subblock_mvs[subblock_idx];
-      const double distance = sqrt(pow(mv.row, 2) + pow(mv.col, 2));
-      const double distance_threshold =
-          (double)AOMMAX(min_frame_size * TF_SEARCH_DISTANCE_THRESHOLD, 1);
-      const double d_factor = AOMMAX(distance / distance_threshold, 1);
-
-      double scaled_error = combined_error * d_factor * decay_factor;
+      double scaled_error =
+          combined_error * d_factor[subblock_idx] * decay_factor;
       scaled_error = AOMMIN(scaled_error, 7);
       const int weight = (int)(exp(-scaled_error) * TF_WEIGHT_SCALE);
 
@@ -261,12 +235,21 @@ void av1_highbd_apply_temporal_filter_sse2(
   // Smaller strength -> smaller filtering weight.
   double s_decay = pow((double)filter_strength / TF_STRENGTH_THRESHOLD, 2);
   s_decay = CLIP(s_decay, 1e-5, 1);
-  uint32_t luma_sq_error[SSE_STRIDE * BH];
-  uint32_t *chroma_sq_error =
-      (num_planes > 0)
-          ? (uint32_t *)aom_malloc(SSE_STRIDE * BH * sizeof(uint32_t))
-          : NULL;
+  double d_factor[4] = { 0 };
+  uint32_t frame_sse[SSE_STRIDE * BH] = { 0 };
+  uint32_t luma_sse_sum[BW * BH] = { 0 };
   uint16_t *pred1 = CONVERT_TO_SHORTPTR(pred);
+
+  for (int subblock_idx = 0; subblock_idx < 4; subblock_idx++) {
+    // Larger motion vector -> smaller filtering weight.
+    const MV mv = subblock_mvs[subblock_idx];
+    const double distance = sqrt(pow(mv.row, 2) + pow(mv.col, 2));
+    double distance_threshold = min_frame_size * TF_SEARCH_DISTANCE_THRESHOLD;
+    distance_threshold = AOMMAX(distance_threshold, 1);
+    d_factor[subblock_idx] = distance / distance_threshold;
+    d_factor[subblock_idx] = AOMMAX(d_factor[subblock_idx], 1);
+  }
+
   for (int plane = 0; plane < num_planes; ++plane) {
     const uint32_t plane_h = mb_height >> mbd->plane[plane].subsampling_y;
     const uint32_t plane_w = mb_width >> mbd->plane[plane].subsampling_x;
@@ -286,12 +269,28 @@ void av1_highbd_apply_temporal_filter_sse2(
     const double n_decay = 0.5 + log(2 * noise_levels[plane] + 5.0);
     const double decay_factor = 1 / (n_decay * q_decay * s_decay);
 
+    // Filter U-plane and V-plane using Y-plane. This is because motion
+    // search is only done on Y-plane, so the information from Y-plane
+    // will be more accurate. The luma sse sum is reused in both chroma
+    // planes.
+    if (plane == AOM_PLANE_U) {
+      for (unsigned int i = 0, k = 0; i < plane_h; i++) {
+        for (unsigned int j = 0; j < plane_w; j++, k++) {
+          for (int ii = 0; ii < (1 << ss_y_shift); ++ii) {
+            for (int jj = 0; jj < (1 << ss_x_shift); ++jj) {
+              const int yy = (i << ss_y_shift) + ii;  // Y-coord on Y-plane.
+              const int xx = (j << ss_x_shift) + jj;  // X-coord on Y-plane.
+              luma_sse_sum[i * BW + j] += frame_sse[yy * SSE_STRIDE + xx + 2];
+            }
+          }
+        }
+      }
+    }
+
     highbd_apply_temporal_filter(
         ref, frame_stride, pred1 + mb_pels * plane, plane_w, plane_w, plane_h,
-        min_frame_size, subblock_mvs, subblock_mses, accum + mb_pels * plane,
-        count + mb_pels * plane, luma_sq_error, chroma_sq_error, plane,
-        ss_x_shift, ss_y_shift, mbd->bd, inv_num_ref_pixels, decay_factor,
-        inv_factor, weight_factor);
+        subblock_mses, accum + mb_pels * plane, count + mb_pels * plane,
+        frame_sse, luma_sse_sum, mbd->bd, inv_num_ref_pixels, decay_factor,
+        inv_factor, weight_factor, d_factor);
   }
-  if (chroma_sq_error != NULL) aom_free(chroma_sq_error);
 }
