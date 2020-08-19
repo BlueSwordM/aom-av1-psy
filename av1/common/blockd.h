@@ -246,7 +246,7 @@ typedef struct MB_MODE_INFO {
   MV_REFERENCE_FRAME ref_frame[2];
   FILTER_INTRA_MODE_INFO filter_intra_mode_info;
   int8_t skip_txfm;
-  uint8_t inter_tx_size[INTER_TX_SIZE_BUF_LEN];
+  TX_SIZE inter_tx_size[INTER_TX_SIZE_BUF_LEN];
   TX_SIZE tx_size;
   int8_t delta_lf_from_base;
   int8_t delta_lf[FRAME_LF_COUNT];
