@@ -514,6 +514,24 @@ void av1_apply_temporal_filter_c(
   const int frame_height = frame_to_filter->y_crop_height;
   const int frame_width = frame_to_filter->y_crop_width;
   const int min_frame_size = AOMMIN(frame_height, frame_width);
+  // Variables to simplify combined error calculation.
+  const double inv_factor = 1.0 / ((TF_WINDOW_BLOCK_BALANCE_WEIGHT + 1) *
+                                   TF_SEARCH_ERROR_NORM_WEIGHT);
+  const double weight_factor =
+      (double)TF_WINDOW_BLOCK_BALANCE_WEIGHT * inv_factor;
+  // Decay factors for non-local mean approach.
+  double decay_factor[MAX_MB_PLANE] = { 0 };
+  // Smaller q -> smaller filtering weight.
+  double q_decay = pow((double)q_factor / TF_Q_DECAY_THRESHOLD, 2);
+  q_decay = CLIP(q_decay, 1e-5, 1);
+  // Smaller strength -> smaller filtering weight.
+  double s_decay = pow((double)filter_strength / TF_STRENGTH_THRESHOLD, 2);
+  s_decay = CLIP(s_decay, 1e-5, 1);
+  for (int plane = 0; plane < num_planes; plane++) {
+    // Larger noise -> larger filtering weight.
+    const double n_decay = 0.5 + log(2 * noise_levels[plane] + 5.0);
+    decay_factor[plane] = 1 / (n_decay * q_decay * s_decay);
+  }
 
   // Allocate memory for pixel-wise squared differences for all planes. They,
   // regardless of the subsampling, are assigned with memory of size `mb_pels`.
@@ -546,6 +564,13 @@ void av1_apply_temporal_filter_c(
     const int subsampling_x = mbd->plane[plane].subsampling_x;
     const int h = mb_height >> subsampling_y;  // Plane height.
     const int w = mb_width >> subsampling_x;   // Plane width.
+    const int ss_y_shift =
+        subsampling_y - mbd->plane[AOM_PLANE_Y].subsampling_y;
+    const int ss_x_shift =
+        subsampling_x - mbd->plane[AOM_PLANE_Y].subsampling_x;
+    const int num_ref_pixels = TF_WINDOW_LENGTH * TF_WINDOW_LENGTH +
+                               ((plane) ? (1 << (ss_x_shift + ss_y_shift)) : 0);
+    const double inv_num_ref_pixels = 1.0 / num_ref_pixels;
 
     // Perform filtering.
     int pred_idx = 0;
@@ -553,14 +578,12 @@ void av1_apply_temporal_filter_c(
       for (int j = 0; j < w; ++j) {
         // non-local mean approach
         uint64_t sum_square_diff = 0;
-        int num_ref_pixels = 0;
 
         for (int wi = -half_window; wi <= half_window; ++wi) {
           for (int wj = -half_window; wj <= half_window; ++wj) {
             const int y = CLIP(i + wi, 0, h - 1);  // Y-coord on current plane.
             const int x = CLIP(j + wj, 0, w - 1);  // X-coord on current plane.
             sum_square_diff += square_diff[plane_offset + y * w + x];
-            ++num_ref_pixels;
           }
         }
 
@@ -568,15 +591,12 @@ void av1_apply_temporal_filter_c(
         // search is only done on Y-plane, so the information from Y-plane will
         // be more accurate.
         if (plane != 0) {
-          const int ss_y_shift = subsampling_y - mbd->plane[0].subsampling_y;
-          const int ss_x_shift = subsampling_x - mbd->plane[0].subsampling_x;
           for (int ii = 0; ii < (1 << ss_y_shift); ++ii) {
             for (int jj = 0; jj < (1 << ss_x_shift); ++jj) {
               const int yy = (i << ss_y_shift) + ii;  // Y-coord on Y-plane.
               const int xx = (j << ss_x_shift) + jj;  // X-coord on Y-plane.
               const int ww = w << ss_x_shift;         // Width of Y-plane.
               sum_square_diff += square_diff[yy * ww + xx];
-              ++num_ref_pixels;
             }
           }
         }
@@ -585,22 +605,12 @@ void av1_apply_temporal_filter_c(
         if (mbd->bd > 8) sum_square_diff >>= ((mbd->bd - 8) * 2);
 
         // Combine window error and block error, and normalize it.
-        const double window_error = (double)sum_square_diff / num_ref_pixels;
+        const double window_error = sum_square_diff * inv_num_ref_pixels;
         const int subblock_idx = (i >= h / 2) * 2 + (j >= w / 2);
         const double block_error = (double)subblock_mses[subblock_idx];
         const double combined_error =
-            (TF_WINDOW_BLOCK_BALANCE_WEIGHT * window_error + block_error) /
-            (TF_WINDOW_BLOCK_BALANCE_WEIGHT + 1) / TF_SEARCH_ERROR_NORM_WEIGHT;
+            weight_factor * window_error + block_error * inv_factor;
 
-        // Decay factors for non-local mean approach.
-        // Larger noise -> larger filtering weight.
-        const double n_decay = 0.5 + log(2 * noise_levels[plane] + 5.0);
-        // Smaller q -> smaller filtering weight.
-        const double q_decay =
-            CLIP(pow((double)q_factor / TF_Q_DECAY_THRESHOLD, 2), 1e-5, 1);
-        // Smaller strength -> smaller filtering weight.
-        const double s_decay = CLIP(
-            pow((double)filter_strength / TF_STRENGTH_THRESHOLD, 2), 1e-5, 1);
         // Larger motion vector -> smaller filtering weight.
         const MV mv = subblock_mvs[subblock_idx];
         const double distance = sqrt(pow(mv.row, 2) + pow(mv.col, 2));
@@ -609,8 +619,8 @@ void av1_apply_temporal_filter_c(
         const double d_factor = AOMMAX(distance / distance_threshold, 1);
 
         // Compute filter weight.
-        const double scaled_error =
-            AOMMIN(combined_error * d_factor / n_decay / q_decay / s_decay, 7);
+        double scaled_error = combined_error * d_factor * decay_factor[plane];
+        scaled_error = AOMMIN(scaled_error, 7);
         const int weight = (int)(exp(-scaled_error) * TF_WEIGHT_SCALE);
 
         const int idx = plane_offset + pred_idx;  // Index with plane shift.

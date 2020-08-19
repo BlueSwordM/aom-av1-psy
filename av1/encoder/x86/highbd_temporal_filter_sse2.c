@@ -92,11 +92,11 @@ static int32_t xx_mask_and_hadd(__m128i vsum1, __m128i vsum2, int i) {
 static void highbd_apply_temporal_filter(
     const uint16_t *frame1, const unsigned int stride, const uint16_t *frame2,
     const unsigned int stride2, const int block_width, const int block_height,
-    const int min_frame_size, const double sigma, const MV *subblock_mvs,
-    const int *subblock_mses, const int q_factor, const int filter_strength,
+    const int min_frame_size, const MV *subblock_mvs, const int *subblock_mses,
     unsigned int *accumulator, uint16_t *count, uint32_t *luma_sq_error,
     uint32_t *chroma_sq_error, int plane, int ss_x_shift, int ss_y_shift,
-    int bd) {
+    int bd, const double inv_num_ref_pixels, const double decay_factor,
+    const double inv_factor, const double weight_factor) {
   assert(((block_width == 32) && (block_height == 32)) ||
          ((block_width == 16) && (block_height == 16)));
   if (plane > PLANE_TYPE_Y) assert(chroma_sq_error != NULL);
@@ -109,12 +109,6 @@ static void highbd_apply_temporal_filter(
                     frame_sse, SSE_STRIDE);
 
   __m128i vsrc[5][2];
-
-  const double n_decay = 0.5 + log(2 * sigma + 5.0);
-  const double q_decay =
-      CLIP(pow((double)q_factor / TF_Q_DECAY_THRESHOLD, 2), 1e-5, 1);
-  const double s_decay =
-      CLIP(pow((double)filter_strength / TF_STRENGTH_THRESHOLD, 2), 1e-5, 1);
 
   // Traverse 4 columns at a time
   // First and last columns will require padding
@@ -214,13 +208,12 @@ static void highbd_apply_temporal_filter(
       // Scale down the difference for high bit depth input.
       diff_sse >>= ((bd - 8) * 2);
 
-      const double window_error = (double)(diff_sse) / num_ref_pixels;
+      const double window_error = diff_sse * inv_num_ref_pixels;
       const int subblock_idx =
           (i >= block_height / 2) * 2 + (j >= block_width / 2);
       const double block_error = (double)subblock_mses[subblock_idx];
       const double combined_error =
-          (TF_WINDOW_BLOCK_BALANCE_WEIGHT * window_error + block_error) /
-          (TF_WINDOW_BLOCK_BALANCE_WEIGHT + 1) / TF_SEARCH_ERROR_NORM_WEIGHT;
+          weight_factor * window_error + block_error * inv_factor;
 
       const MV mv = subblock_mvs[subblock_idx];
       const double distance = sqrt(pow(mv.row, 2) + pow(mv.col, 2));
@@ -228,8 +221,8 @@ static void highbd_apply_temporal_filter(
           (double)AOMMAX(min_frame_size * TF_SEARCH_DISTANCE_THRESHOLD, 1);
       const double d_factor = AOMMAX(distance / distance_threshold, 1);
 
-      const double scaled_error =
-          AOMMIN(combined_error * d_factor / n_decay / q_decay / s_decay, 7);
+      double scaled_error = combined_error * d_factor * decay_factor;
+      scaled_error = AOMMIN(scaled_error, 7);
       const int weight = (int)(exp(-scaled_error) * TF_WEIGHT_SCALE);
 
       count[k] += weight;
@@ -256,6 +249,18 @@ void av1_highbd_apply_temporal_filter_sse2(
   const int frame_height = frame_to_filter->y_crop_height;
   const int frame_width = frame_to_filter->y_crop_width;
   const int min_frame_size = AOMMIN(frame_height, frame_width);
+  // Variables to simplify combined error calculation.
+  const double inv_factor = 1.0 / ((TF_WINDOW_BLOCK_BALANCE_WEIGHT + 1) *
+                                   TF_SEARCH_ERROR_NORM_WEIGHT);
+  const double weight_factor =
+      (double)TF_WINDOW_BLOCK_BALANCE_WEIGHT * inv_factor;
+  // Decay factors for non-local mean approach.
+  // Smaller q -> smaller filtering weight.
+  double q_decay = pow((double)q_factor / TF_Q_DECAY_THRESHOLD, 2);
+  q_decay = CLIP(q_decay, 1e-5, 1);
+  // Smaller strength -> smaller filtering weight.
+  double s_decay = pow((double)filter_strength / TF_STRENGTH_THRESHOLD, 2);
+  s_decay = CLIP(s_decay, 1e-5, 1);
   uint32_t luma_sq_error[SSE_STRIDE * BH];
   uint32_t *chroma_sq_error =
       (num_planes > 0)
@@ -274,13 +279,19 @@ void av1_highbd_apply_temporal_filter_sse2(
         mbd->plane[plane].subsampling_x - mbd->plane[0].subsampling_x;
     const int ss_y_shift =
         mbd->plane[plane].subsampling_y - mbd->plane[0].subsampling_y;
+    const int num_ref_pixels = TF_WINDOW_LENGTH * TF_WINDOW_LENGTH +
+                               ((plane) ? (1 << (ss_x_shift + ss_y_shift)) : 0);
+    const double inv_num_ref_pixels = 1.0 / num_ref_pixels;
+    // Larger noise -> larger filtering weight.
+    const double n_decay = 0.5 + log(2 * noise_levels[plane] + 5.0);
+    const double decay_factor = 1 / (n_decay * q_decay * s_decay);
 
     highbd_apply_temporal_filter(
         ref, frame_stride, pred1 + mb_pels * plane, plane_w, plane_w, plane_h,
-        min_frame_size, noise_levels[plane], subblock_mvs, subblock_mses,
-        q_factor, filter_strength, accum + mb_pels * plane,
+        min_frame_size, subblock_mvs, subblock_mses, accum + mb_pels * plane,
         count + mb_pels * plane, luma_sq_error, chroma_sq_error, plane,
-        ss_x_shift, ss_y_shift, mbd->bd);
+        ss_x_shift, ss_y_shift, mbd->bd, inv_num_ref_pixels, decay_factor,
+        inv_factor, weight_factor);
   }
   if (chroma_sq_error != NULL) aom_free(chroma_sq_error);
 }
