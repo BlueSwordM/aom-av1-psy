@@ -623,22 +623,22 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeDown) {
 
   unsigned int last_w = cfg_.g_w;
   unsigned int last_h = cfg_.g_h;
-  int resize_count = 0;
+  int resize_down_count = 0;
   for (std::vector<FrameInfo>::const_iterator info = frame_info_list_.begin();
        info != frame_info_list_.end(); ++info) {
     if (info->w != last_w || info->h != last_h) {
       // Verify that resize down occurs.
-      ASSERT_LT(info->w, last_w);
-      ASSERT_LT(info->h, last_h);
+      if (info->w < last_w && info->h < last_h) {
+        resize_down_count++;
+      }
       last_w = info->w;
       last_h = info->h;
-      resize_count++;
     }
   }
 
 #if CONFIG_AV1_DECODER
-  // Verify that we get 1 resize down event in this test.
-  ASSERT_EQ(1, resize_count) << "Resizing should occur.";
+  // Verify that we get at lease 1 resize down event in this test.
+  ASSERT_GE(resize_down_count, 1) << "Resizing should occur.";
   EXPECT_EQ(static_cast<unsigned int>(0), GetMismatchFrames());
 #else
   printf("Warning: AV1 decoder unavailable, unable to check resize count!\n");
@@ -673,19 +673,21 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeDownUpChangeBitRate) {
   unsigned int last_w = cfg_.g_w;
   unsigned int last_h = cfg_.g_h;
   unsigned int frame_number = 0;
-  int resize_count = 0;
+  int resize_down_count = 0;
+  int resize_up_count = 0;
   for (std::vector<FrameInfo>::const_iterator info = frame_info_list_.begin();
        info != frame_info_list_.end(); ++info) {
     if (info->w != last_w || info->h != last_h) {
-      resize_count++;
       if (frame_number < frame_change_bitrate_) {
         // Verify that resize down occurs, before bitrate is increased.
         ASSERT_LT(info->w, last_w);
         ASSERT_LT(info->h, last_h);
+        resize_down_count++;
       } else {
         // Verify that resize up occurs, after bitrate is increased.
         ASSERT_GT(info->w, last_w);
         ASSERT_GT(info->h, last_h);
+        resize_up_count++;
       }
       last_w = info->w;
       last_h = info->h;
@@ -695,7 +697,9 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeDownUpChangeBitRate) {
 
 #if CONFIG_AV1_DECODER
   // Verify that we get at least 2 resize events in this test.
-  ASSERT_GE(resize_count, 2) << "Resizing should occur twice.";
+  ASSERT_GE(resize_up_count, 1) << "Resizing up should occur at lease once.";
+  ASSERT_GE(resize_down_count, 1)
+      << "Resizing down should occur at lease once.";
   EXPECT_EQ(static_cast<unsigned int>(0), GetMismatchFrames());
 #else
   printf("Warning: AV1 decoder unavailable, unable to check resize count!\n");
