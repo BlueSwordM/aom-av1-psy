@@ -643,8 +643,8 @@ int av1_is_leaf_split_partition(AV1_COMMON *cm, int mi_row, int mi_col,
 }
 
 #if !CONFIG_REALTIME_ONLY
-int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int analysis_type,
-                         int mi_row, int mi_col, int orig_rdmult) {
+int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
+                         int mi_col, int orig_rdmult) {
   AV1_COMMON *const cm = &cpi->common;
   const GF_GROUP *const gf_group = &cpi->gf_group;
   assert(IMPLIES(cpi->gf_group.size > 0,
@@ -666,7 +666,6 @@ int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int analysis_type,
 
   if (cpi->gf_group.index >= MAX_TPL_FRAME_IDX) return orig_rdmult;
 
-  int64_t mc_count = 0, mc_saved = 0;
   int mi_count = 0;
   const int mi_col_sr =
       coded_to_superres_mi(mi_col, cm->superres_scale_denominator);
@@ -684,8 +683,6 @@ int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int analysis_type,
                  this_stats->mc_dep_dist);
       intra_cost += this_stats->recrf_dist << RDDIV_BITS;
       mc_dep_cost += (this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta;
-      mc_count += this_stats->mc_count;
-      mc_saved += this_stats->mc_saved;
       mi_count++;
     }
   }
@@ -693,20 +690,10 @@ int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int analysis_type,
   aom_clear_system_state();
 
   double beta = 1.0;
-  if (analysis_type == 0) {
-    if (mc_dep_cost > 0 && intra_cost > 0) {
-      const double r0 = cpi->rd.r0;
-      const double rk = (double)intra_cost / mc_dep_cost;
-      beta = (r0 / rk);
-    }
-  } else if (analysis_type == 1) {
-    const double mc_count_base = (mi_count * cpi->rd.mc_count_base);
-    beta = (mc_count + 1.0) / (mc_count_base + 1.0);
-    beta = pow(beta, 0.5);
-  } else if (analysis_type == 2) {
-    const double mc_saved_base = (mi_count * cpi->rd.mc_saved_base);
-    beta = (mc_saved + 1.0) / (mc_saved_base + 1.0);
-    beta = pow(beta, 0.5);
+  if (mc_dep_cost > 0 && intra_cost > 0) {
+    const double r0 = cpi->rd.r0;
+    const double rk = (double)intra_cost / mc_dep_cost;
+    beta = (r0 / rk);
   }
 
   int rdmult = av1_get_adaptive_rdmult(cpi, beta);
@@ -880,7 +867,6 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
 
   if (cpi->gf_group.index >= MAX_TPL_FRAME_IDX) return base_qindex;
 
-  int64_t mc_count = 0, mc_saved = 0;
   int mi_count = 0;
   const int mi_col_sr =
       coded_to_superres_mi(mi_col, cm->superres_scale_denominator);
@@ -898,8 +884,6 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
                  this_stats->mc_dep_dist);
       intra_cost += this_stats->recrf_dist << RDDIV_BITS;
       mc_dep_cost += (this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta;
-      mc_count += this_stats->mc_count;
-      mc_saved += this_stats->mc_saved;
       mi_count++;
     }
   }

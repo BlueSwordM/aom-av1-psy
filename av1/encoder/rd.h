@@ -79,7 +79,6 @@ typedef struct RD_OPT {
   int RDMULT;
 
   double r0;
-  double mc_saved_base, mc_count_base;
 } RD_OPT;
 
 typedef struct {

@@ -94,8 +94,6 @@ typedef struct TplDepStats {
   int_mv mv[INTER_REFS_PER_FRAME];
   int ref_frame_index;
   int64_t pred_error[INTER_REFS_PER_FRAME];
-  int64_t mc_count;
-  int64_t mc_saved;
 } TplDepStats;
 
 typedef struct TplDepFrame {

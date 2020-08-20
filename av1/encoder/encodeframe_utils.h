@@ -244,8 +244,8 @@ static AOM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
   }
 }
 
-int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int analysis_type,
-                         int mi_row, int mi_col, int orig_rdmult);
+int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
+                         int mi_col, int orig_rdmult);
 
 int av1_active_h_edge(const AV1_COMP *cpi, int mi_row, int mi_step);
 
