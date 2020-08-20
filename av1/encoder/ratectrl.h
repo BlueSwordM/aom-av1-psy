@@ -76,7 +76,11 @@ enum {
   FRAME_UPDATE_TYPES
 } UENUM1BYTE(FRAME_UPDATE_TYPE);
 
-enum { REFBUF_RESET, REFBUF_UPDATE, REFBUF_STATES } UENUM1BYTE(REFBUF_STATE);
+enum {
+  REFBUF_RESET,   // Clear reference frame buffer
+  REFBUF_UPDATE,  // Refresh reference frame buffer
+  REFBUF_STATES
+} UENUM1BYTE(REFBUF_STATE);
 
 typedef enum {
   NO_RESIZE = 0,

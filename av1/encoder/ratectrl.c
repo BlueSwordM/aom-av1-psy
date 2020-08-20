@@ -2602,6 +2602,8 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
     rc->kf_boost = DEFAULT_KF_BOOST_RT;
     rc->source_alt_ref_active = 0;
     gf_group->update_type[gf_group->index] = KF_UPDATE;
+    gf_group->frame_type[gf_group->index] = KEY_FRAME;
+    gf_group->refbuf_state[gf_group->index] = REFBUF_RESET;
     if (cpi->use_svc) {
       if (cm->current_frame.frame_number > 0)
         av1_svc_reset_temporal_layers(cpi, 1);
@@ -2610,6 +2612,8 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
   } else {
     frame_params->frame_type = INTER_FRAME;
     gf_group->update_type[gf_group->index] = LF_UPDATE;
+    gf_group->frame_type[gf_group->index] = INTER_FRAME;
+    gf_group->refbuf_state[gf_group->index] = REFBUF_UPDATE;
     if (cpi->use_svc) {
       LAYER_CONTEXT *lc = &svc->layer_context[layer];
       lc->is_key_frame =

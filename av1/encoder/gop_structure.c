@@ -47,6 +47,8 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
       gf_group->layer_depth[*frame_ind] = MAX_ARF_LAYERS;
       gf_group->arf_boost[*frame_ind] = av1_calc_arf_boost(
           twopass, rc, frame_info, start, end - start, 0, NULL, NULL);
+      gf_group->frame_type[*frame_ind] = INTER_FRAME;
+      gf_group->refbuf_state[*frame_ind] = REFBUF_UPDATE;
       gf_group->max_layer_depth =
           AOMMAX(gf_group->max_layer_depth, layer_depth);
       ++(*frame_ind);
@@ -60,6 +62,8 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
     gf_group->arf_src_offset[*frame_ind] = m - start - 1;
     gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
     gf_group->layer_depth[*frame_ind] = layer_depth;
+    gf_group->frame_type[*frame_ind] = INTER_FRAME;
+    gf_group->refbuf_state[*frame_ind] = REFBUF_UPDATE;
 
     // Get the boost factor for intermediate ARF frames.
     gf_group->arf_boost[*frame_ind] = av1_calc_arf_boost(
@@ -76,6 +80,8 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
     gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
     gf_group->arf_boost[*frame_ind] = 0;
     gf_group->layer_depth[*frame_ind] = layer_depth;
+    gf_group->frame_type[*frame_ind] = INTER_FRAME;
+    gf_group->refbuf_state[*frame_ind] = REFBUF_UPDATE;
     ++(*frame_ind);
     ++(*cur_frame_idx);
 
@@ -104,6 +110,8 @@ static int construct_multi_layer_gf_structure(
     gf_group->arf_src_offset[frame_index] = 0;
     gf_group->cur_frame_idx[frame_index] = cur_frame_index;
     gf_group->layer_depth[frame_index] = 0;
+    gf_group->frame_type[frame_index] = KEY_FRAME;
+    gf_group->refbuf_state[frame_index] = REFBUF_RESET;
     gf_group->max_layer_depth = 0;
     ++frame_index;
 
@@ -111,6 +119,8 @@ static int construct_multi_layer_gf_structure(
     gf_group->arf_src_offset[frame_index] = 0;
     gf_group->cur_frame_idx[frame_index] = cur_frame_index;
     gf_group->layer_depth[frame_index] = 0;
+    gf_group->frame_type[frame_index] = INTER_FRAME;
+    gf_group->refbuf_state[frame_index] = REFBUF_UPDATE;
     gf_group->max_layer_depth = 0;
     ++frame_index;
     cur_frame_index++;
@@ -120,6 +130,10 @@ static int construct_multi_layer_gf_structure(
     gf_group->cur_frame_idx[frame_index] = cur_frame_index;
     gf_group->layer_depth[frame_index] =
         first_frame_update_type == OVERLAY_UPDATE ? MAX_ARF_LAYERS + 1 : 0;
+    gf_group->frame_type[frame_index] =
+        (first_frame_update_type == KF_UPDATE) ? KEY_FRAME : INTER_FRAME;
+    gf_group->refbuf_state[frame_index] =
+        (first_frame_update_type == KF_UPDATE) ? REFBUF_RESET : REFBUF_UPDATE;
     gf_group->max_layer_depth = 0;
     ++frame_index;
     ++cur_frame_index;
@@ -127,12 +141,15 @@ static int construct_multi_layer_gf_structure(
 
   // ALTREF.
   const int use_altref = gf_group->max_layer_depth_allowed > 0;
+  int is_fwd_kf = (gf_interval == cpi->rc.frames_to_key);
   if (use_altref) {
     gf_group->update_type[frame_index] = ARF_UPDATE;
     gf_group->arf_src_offset[frame_index] = gf_interval - 1;
     gf_group->cur_frame_idx[frame_index] = cur_frame_index;
     gf_group->layer_depth[frame_index] = 1;
     gf_group->arf_boost[frame_index] = cpi->rc.gfu_boost;
+    gf_group->frame_type[frame_index] = is_fwd_kf ? KEY_FRAME : INTER_FRAME;
+    gf_group->refbuf_state[frame_index] = REFBUF_UPDATE;
     gf_group->max_layer_depth = 1;
     gf_group->arf_index = frame_index;
     ++frame_index;
@@ -150,6 +167,9 @@ static int construct_multi_layer_gf_structure(
     gf_group->cur_frame_idx[frame_index] = cur_frame_index;
     gf_group->layer_depth[frame_index] = MAX_ARF_LAYERS;
     gf_group->arf_boost[frame_index] = NORMAL_BOOST;
+    gf_group->frame_type[frame_index] = INTER_FRAME;
+    gf_group->refbuf_state[frame_index] =
+        is_fwd_kf ? REFBUF_RESET : REFBUF_UPDATE;
   }
   return frame_index;
 }
