@@ -1220,9 +1220,9 @@ void av1_resize_and_extend_frame_c(const YV12_BUFFER_CONFIG *src,
                                  (x / factor) * src_w / dst_w;
         uint8_t *dst_ptr = dsts[i] + (y / factor) * dst_stride + (x / factor);
 
-        aom_convolve8_c(src_ptr, src_stride, dst_ptr, dst_stride, kernel,
-                        x_q4 & 0xf, 16 * src_w / dst_w, y_q4 & 0xf,
-                        16 * src_h / dst_h, 16 / factor, 16 / factor);
+        aom_scaled_2d(src_ptr, src_stride, dst_ptr, dst_stride, kernel,
+                      x_q4 & 0xf, 16 * src_w / dst_w, y_q4 & 0xf,
+                      16 * src_h / dst_h, 16 / factor, 16 / factor);
       }
     }
   }

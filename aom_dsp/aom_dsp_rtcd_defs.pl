@@ -362,6 +362,9 @@ specialize qw/aom_convolve_copy       neon dspr2 msa sse2 avx2/;
 specialize qw/aom_convolve8_horiz     sse2 ssse3/, "$avx2_ssse3";
 specialize qw/aom_convolve8_vert      sse2 ssse3/, "$avx2_ssse3";
 
+add_proto qw/void aom_scaled_2d/, "const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const InterpKernel *filter, int x0_q4, int x_step_q4, int y0_q4, int y_step_q4, int w, int h";
+specialize qw/aom_scaled_2d ssse3/;
+
 if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
   add_proto qw/void aom_highbd_convolve_copy/, "const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst, ptrdiff_t dst_stride, int w, int h";
   specialize qw/aom_highbd_convolve_copy sse2 avx2/;
