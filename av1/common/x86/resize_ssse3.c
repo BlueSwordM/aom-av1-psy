@@ -957,6 +957,7 @@ void av1_resize_and_extend_frame_ssse3(const YV12_BUFFER_CONFIG *src,
       // 1 to 2
       uint8_t *const temp_buffer = (uint8_t *)malloc(8 * ((src_y_w + 7) & ~7));
       if (temp_buffer) {
+        scaled = 1;
         const InterpKernel *interp_kernel =
             (const InterpKernel *)av1_interp_filter_params_list[filter]
                 .filter_ptr;
