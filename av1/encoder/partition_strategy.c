@@ -1259,10 +1259,9 @@ int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   if (!nn_config || thresh < 0) return 0;
 
   const float ml_predict_breakout_thresh_scale[3] = { 1.15f, 1.05f, 1.0f };
-  thresh =
-      (int)((float)thresh *
-            ml_predict_breakout_thresh_scale[cpi->sf.part_sf
-                                                 .ml_predict_breakout_level]);
+  thresh = (int)((float)thresh *
+                 ml_predict_breakout_thresh_scale
+                     [cpi->sf.part_sf.ml_predict_breakout_level - 1]);
 
   // Generate feature values.
   float features[FEATURES];

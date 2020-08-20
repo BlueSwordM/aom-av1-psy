@@ -475,8 +475,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   int early_term_after_none_split;
 
   // Level used to adjust threshold for av1_ml_predict_breakout(). At lower
-  // levels, more conservative threshold is used. Value of 2 corresponds to
-  // default case with no adjustment to lbd thresholds.
+  // levels, more conservative threshold is used, and value of 0 indicates
+  // av1_ml_predict_breakout() is disabled. Value of 3 corresponds to default
+  // case with no adjustment to lbd thresholds.
   int ml_predict_breakout_level;
 } PARTITION_SPEED_FEATURES;
 
