@@ -1128,13 +1128,13 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (!is_stat_generation_stage(cpi)) {
     // If this is a forward keyframe, mark as a show_existing_frame
     // TODO(bohanli): find a consistent condition for fwd keyframes
-    if (oxcf->kf_cfg.fwd_kf_enabled && (gf_group->index == gf_group->size) &&
+    if (oxcf->kf_cfg.fwd_kf_enabled &&
         gf_group->update_type[gf_group->index] == OVERLAY_UPDATE &&
-        gf_group->arf_index >= 0 && cpi->rc.frames_to_key == 0) {
+        cpi->rc.frames_to_key == 0) {
       frame_params.show_existing_frame = 1;
     } else {
       frame_params.show_existing_frame =
-          ((oxcf->algo_cfg.enable_overlay == 0 || cpi->show_existing_alt_ref) &&
+          (cpi->show_existing_alt_ref &&
            gf_group->update_type[gf_group->index] == OVERLAY_UPDATE) ||
           gf_group->update_type[gf_group->index] == INTNL_OVERLAY_UPDATE;
     }

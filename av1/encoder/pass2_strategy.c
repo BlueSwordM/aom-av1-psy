@@ -2750,7 +2750,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   if (is_stat_consumption_stage(cpi) && !twopass->stats_in) return;
 
   const int update_type = gf_group->update_type[gf_group->index];
-  if (update_type != KF_UPDATE) frame_params->frame_type = INTER_FRAME;
+  frame_params->frame_type = gf_group->frame_type[gf_group->index];
+
   if (rc->frames_since_key > 0) frame_params->frame_type = INTER_FRAME;
 
   if (rc->frames_till_gf_update_due > 0 && !(frame_flags & FRAMEFLAGS_KEY)) {
@@ -2761,13 +2762,6 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     // If this is an arf frame then we dont want to read the stats file or
     // advance the input pointer as we already have what we need.
     if (update_type == ARF_UPDATE || update_type == INTNL_ARF_UPDATE) {
-      if (cpi->no_show_fwd_kf) {
-        assert(update_type == ARF_UPDATE);
-        frame_params->frame_type = KEY_FRAME;
-      } else {
-        frame_params->frame_type = INTER_FRAME;
-      }
-
       // Do the firstpass stats indicate that this frame is skippable for the
       // partition search?
       if (cpi->sf.part_sf.allow_partition_search_skip && oxcf->pass == 2) {
@@ -2904,6 +2898,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 #endif
   }
   assert(gf_group->index < gf_group->size);
+
+  frame_params->frame_type = gf_group->frame_type[gf_group->index];
 
   // Do the firstpass stats indicate that this frame is skippable for the
   // partition search?
