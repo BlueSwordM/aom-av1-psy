@@ -115,6 +115,7 @@ class RTEndToEndTest
       encoder->Control(AV1E_SET_TUNE_CONTENT, AOM_CONTENT_DEFAULT);
       encoder->Control(AV1E_SET_AQ_MODE, aq_mode_);
       encoder->Control(AV1E_SET_ROW_MT, 1);
+      encoder->Control(AV1E_SET_ENABLE_CDEF, 1);
     }
   }
 
