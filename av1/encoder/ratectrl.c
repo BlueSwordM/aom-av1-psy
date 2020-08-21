@@ -1752,7 +1752,7 @@ static void update_alt_ref_frame_stats(AV1_COMP *cpi) {
   rc->source_alt_ref_pending = 0;
 
   // Set the alternate reference frame active flag
-  rc->source_alt_ref_active = 1;
+  rc->source_alt_ref_active = 0;
 }
 
 static void update_golden_frame_stats(AV1_COMP *cpi) {

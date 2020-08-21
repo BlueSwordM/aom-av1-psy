@@ -2247,6 +2247,11 @@ typedef struct AV1_COMP {
   GF_GROUP gf_group;
 
   /*!
+   * Track prior gf group state.
+   */
+  GF_STATE gf_state;
+
+  /*!
    * To control the reference frame buffer and selection.
    */
   RefBufferStack ref_buffer_stack;

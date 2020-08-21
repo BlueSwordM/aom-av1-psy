@@ -37,12 +37,10 @@ struct EncodeFrameParams;
  * cpi->twopass.gf_group.update_type[].
  *
  * \param[in]    cpi          Top - level encoder instance structure
- * \param[in]    frame_params Per-frame encoding parameters
  *
  * \return No return value but this function updates group data structures.
  */
-void av1_gop_setup_structure(
-    struct AV1_COMP *cpi, const struct EncodeFrameParams *const frame_params);
+void av1_gop_setup_structure(struct AV1_COMP *cpi);
 
 /*!\brief Distributes bits to frames in a group
  *
