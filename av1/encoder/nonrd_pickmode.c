@@ -916,6 +916,14 @@ static void block_yrd(AV1_COMP *cpi, MACROBLOCK *x, int mi_row, int mi_col,
                             dqcoeff, p->dequant_QTX, eob, scan_order->scan,
                             scan_order->iscan);
             break;
+          default:
+            assert(tx_size == TX_4X4);
+            aom_fdct4x4(src_diff, coeff, diff_stride);
+            av1_quantize_fp(coeff, 4 * 4, p->zbin_QTX, p->round_fp_QTX,
+                            p->quant_fp_QTX, p->quant_shift_QTX, qcoeff,
+                            dqcoeff, p->dequant_QTX, eob, scan_order->scan,
+                            scan_order->iscan);
+            break;
 #else
           case TX_16X16:
             aom_hadamard_lp_16x16(src_diff, diff_stride, low_coeff);
@@ -938,6 +946,7 @@ static void block_yrd(AV1_COMP *cpi, MACROBLOCK *x, int mi_row, int mi_col,
             break;
 #endif
         }
+        assert(*eob <= 1024);
         *skippable &= (*eob == 0);
         eob_cost += 1;
       }
