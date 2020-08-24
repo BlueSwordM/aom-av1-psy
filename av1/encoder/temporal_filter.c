@@ -814,17 +814,6 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
   }
   MB_MODE_INFO **input_mb_mode_info = mbd->mi;
 
-  // Determine whether the video is with `YUV 4:2:2` format, since the avx2/sse2
-  // function only supports square block size. We will use C function instead
-  // for videos with `YUV 4:2:2` format.
-  int is_yuv422_format = 0;
-  for (int plane = 1; plane < num_planes; ++plane) {
-    if (mbd->plane[plane].subsampling_x != mbd->plane[plane].subsampling_y) {
-      is_yuv422_format = 1;
-      break;
-    }
-  }
-
   // Setup.
   mbd->block_ref_scale_factors[0] = scale;
   mbd->block_ref_scale_factors[1] = scale;
@@ -882,13 +871,10 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
         } else {  // Other reference frames.
           // TODO(any): avx2/sse2 version should be changed to align with C
           // function before using. In particular, current avx2/sse2 function
-          // only supports 32x32 block size, 5x5 filtering window, 8-bit
-          // encoding, and the case when the video is not with `YUV 4:2:2`
-          // format.
+          // only supports 32x32 block size and 5x5 filtering window.
           if (is_frame_high_bitdepth(frame_to_filter)) {  // for high bit-depth
 #if CONFIG_AV1_HIGHBITDEPTH
-            if (TF_BLOCK_SIZE == BLOCK_32X32 && TF_WINDOW_LENGTH == 5 &&
-                !is_yuv422_format) {
+            if (TF_BLOCK_SIZE == BLOCK_32X32 && TF_WINDOW_LENGTH == 5) {
               av1_highbd_apply_temporal_filter(
                   frame_to_filter, mbd, block_size, mb_row, mb_col, num_planes,
                   noise_levels, subblock_mvs, subblock_mses, q_factor,
@@ -903,8 +889,7 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
             }
 #endif              // CONFIG_AV1_HIGHBITDEPTH
           } else {  // for 8-bit
-            if (TF_BLOCK_SIZE == BLOCK_32X32 && TF_WINDOW_LENGTH == 5 &&
-                !is_yuv422_format) {
+            if (TF_BLOCK_SIZE == BLOCK_32X32 && TF_WINDOW_LENGTH == 5) {
               av1_apply_temporal_filter(
                   frame_to_filter, mbd, block_size, mb_row, mb_col, num_planes,
                   noise_levels, subblock_mvs, subblock_mses, q_factor,

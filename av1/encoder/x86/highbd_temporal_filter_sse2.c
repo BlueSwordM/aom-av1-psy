@@ -96,8 +96,8 @@ static void highbd_apply_temporal_filter(
     uint32_t *frame_sse, uint32_t *luma_sse_sum, int bd,
     const double inv_num_ref_pixels, const double decay_factor,
     const double inv_factor, const double weight_factor, double *d_factor) {
-  assert(((block_width == 32) && (block_height == 32)) ||
-         ((block_width == 16) && (block_height == 16)));
+  assert(((block_width == 16) || (block_width == 32)) &&
+         ((block_height == 16) || (block_height == 32)));
 
   uint32_t acc_5x5_sse[BH][BW];
 
@@ -212,8 +212,8 @@ void av1_highbd_apply_temporal_filter_sse2(
     const int *subblock_mses, const int q_factor, const int filter_strength,
     const uint8_t *pred, uint32_t *accum, uint16_t *count) {
   const int is_high_bitdepth = frame_to_filter->flags & YV12_FLAG_HIGHBITDEPTH;
-  assert(block_size == BLOCK_32X32 && "Only support 32x32 block with avx2!");
-  assert(TF_WINDOW_LENGTH == 5 && "Only support window length 5 with avx2!");
+  assert(block_size == BLOCK_32X32 && "Only support 32x32 block with sse2!");
+  assert(TF_WINDOW_LENGTH == 5 && "Only support window length 5 with sse2!");
   assert(num_planes >= 1 && num_planes <= MAX_MB_PLANE);
   (void)is_high_bitdepth;
 

@@ -134,8 +134,8 @@ static void apply_temporal_filter(
     uint16_t *frame_sse, uint32_t *luma_sse_sum,
     const double inv_num_ref_pixels, const double decay_factor,
     const double inv_factor, const double weight_factor, double *d_factor) {
-  assert(((block_width == 32) && (block_height == 32)) ||
-         ((block_width == 16) && (block_height == 16)));
+  assert(((block_width == 16) || (block_width == 32)) &&
+         ((block_height == 16) || (block_height == 32)));
 
   uint32_t acc_5x5_sse[BH][BW];
 
