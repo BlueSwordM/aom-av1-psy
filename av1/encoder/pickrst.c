@@ -631,11 +631,13 @@ void av1_calc_proj_params_c(const uint8_t *src8, int width, int height,
   }
 }
 
-static AOM_INLINE void av1_calc_proj_params_high_bd_c(
-    const uint8_t *src8, int width, int height, int src_stride,
-    const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride,
-    int32_t *flt1, int flt1_stride, int64_t H[2][2], int64_t C[2],
-    const sgr_params_type *params) {
+void av1_calc_proj_params_high_bd_c(const uint8_t *src8, int width, int height,
+                                    int src_stride, const uint8_t *dat8,
+                                    int dat_stride, int32_t *flt0,
+                                    int flt0_stride, int32_t *flt1,
+                                    int flt1_stride, int64_t H[2][2],
+                                    int64_t C[2],
+                                    const sgr_params_type *params) {
   if ((params->r[0] > 0) && (params->r[1] > 0)) {
     calc_proj_params_r0_r1_high_bd_c(src8, width, height, src_stride, dat8,
                                      dat_stride, flt0, flt0_stride, flt1,
@@ -673,9 +675,15 @@ static AOM_INLINE void get_proj_subspace(const uint8_t *src8, int width,
                              params);
     }
   } else {
-    av1_calc_proj_params_high_bd_c(src8, width, height, src_stride, dat8,
+    if ((width & 0x7) == 0) {
+      av1_calc_proj_params_high_bd(src8, width, height, src_stride, dat8,
                                    dat_stride, flt0, flt0_stride, flt1,
                                    flt1_stride, H, C, params);
+    } else {
+      av1_calc_proj_params_high_bd_c(src8, width, height, src_stride, dat8,
+                                     dat_stride, flt0, flt0_stride, flt1,
+                                     flt1_stride, H, C, params);
+    }
   }
 
   if (params->r[0] == 0) {
