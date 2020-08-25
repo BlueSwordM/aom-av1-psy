@@ -139,6 +139,11 @@ typedef struct {
   int projected_frame_size;
 
   /*!
+   * Bit size of transform coefficient for current frame.
+   */
+  int coefficient_size;
+
+  /*!
    * Super block rate target used with some adaptive quantization strategies.
    */
   int sb64_target_rate;
