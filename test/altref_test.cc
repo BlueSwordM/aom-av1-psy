@@ -204,7 +204,9 @@ class GoldenFrameIntervalTestLarge
   aom_rc_mode rc_end_usage_;
 };
 
-TEST_P(GoldenFrameIntervalTestLarge, GoldenFrameIntervalTest) {
+// TODO(crbug.com/aomedia/2800): Re-enable or remove this test when the redesign
+// of the GOP structure and related rate control mechanism is complete.
+TEST_P(GoldenFrameIntervalTestLarge, DISABLED_GoldenFrameIntervalTest) {
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, limit_);
