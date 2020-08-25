@@ -1361,6 +1361,7 @@ static INLINE int check_num_overlappable_neighbors(const MB_MODE_INFO *mbmi) {
 static INLINE MOTION_MODE
 motion_mode_allowed(const WarpedMotionParams *gm_params, const MACROBLOCKD *xd,
                     const MB_MODE_INFO *mbmi, int allow_warped_motion) {
+  if (!check_num_overlappable_neighbors(mbmi)) return SIMPLE_TRANSLATION;
   if (xd->cur_frame_force_integer_mv == 0) {
     const TransformationType gm_type = gm_params[mbmi->ref_frame[0]].wmtype;
     if (is_global_mv_block(mbmi, gm_type)) return SIMPLE_TRANSLATION;
@@ -1368,20 +1369,15 @@ motion_mode_allowed(const WarpedMotionParams *gm_params, const MACROBLOCKD *xd,
   if (is_motion_variation_allowed_bsize(mbmi->sb_type) &&
       is_inter_mode(mbmi->mode) && mbmi->ref_frame[1] != INTRA_FRAME &&
       is_motion_variation_allowed_compound(mbmi)) {
-    if (!check_num_overlappable_neighbors(mbmi)) return SIMPLE_TRANSLATION;
     assert(!has_second_ref(mbmi));
-    if (mbmi->num_proj_ref >= 1 &&
-        (allow_warped_motion &&
-         !av1_is_scaled(xd->block_ref_scale_factors[0]))) {
-      if (xd->cur_frame_force_integer_mv) {
-        return OBMC_CAUSAL;
-      }
+    if (mbmi->num_proj_ref >= 1 && allow_warped_motion &&
+        !xd->cur_frame_force_integer_mv &&
+        !av1_is_scaled(xd->block_ref_scale_factors[0])) {
       return WARPED_CAUSAL;
     }
     return OBMC_CAUSAL;
-  } else {
-    return SIMPLE_TRANSLATION;
   }
+  return SIMPLE_TRANSLATION;
 }
 
 static INLINE int is_neighbor_overlappable(const MB_MODE_INFO *mbmi) {
