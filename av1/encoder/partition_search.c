@@ -568,8 +568,6 @@ static AOM_INLINE void hybrid_intra_mode_search(AV1_COMP *cpi,
  * \param[in]    ctx            Pointer to structure holding coding contexts and
  *                              chosen modes for the current block
  * \param[in]    best_rd        Upper bound of rd cost of a valid partition
- * \param[in]    pick_mode_type A code indicating mode search strategy:
- *                              PICK_MODE_RD, or PICK_MODE_NONRD
  *
  * \return Nothing is returned. Instead, the chosen modes and contexts necessary
  * for reconstruction are stored in ctx, the rate-distortion stats are stored in
@@ -580,7 +578,7 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
                           MACROBLOCK *const x, int mi_row, int mi_col,
                           RD_STATS *rd_cost, PARTITION_TYPE partition,
                           BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
-                          RD_STATS best_rd, int pick_mode_type) {
+                          RD_STATS best_rd) {
   if (best_rd.rdcost < 0) {
     ctx->rd_stats.rdcost = INT64_MAX;
     ctx->rd_stats.skip_txfm = 0;
@@ -669,15 +667,7 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, av1_rd_pick_intra_mode_sb_time);
 #endif
-    switch (pick_mode_type) {
-      case PICK_MODE_RD:
-        av1_rd_pick_intra_mode_sb(cpi, x, rd_cost, bsize, ctx, best_rd.rdcost);
-        break;
-      case PICK_MODE_NONRD:
-        hybrid_intra_mode_search(cpi, x, rd_cost, bsize, ctx);
-        break;
-      default: assert(0 && "Unknown pick mode type.");
-    }
+    av1_rd_pick_intra_mode_sb(cpi, x, rd_cost, bsize, ctx, best_rd.rdcost);
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, av1_rd_pick_intra_mode_sb_time);
 #endif
@@ -689,17 +679,8 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
       av1_rd_pick_inter_mode_sb_seg_skip(cpi, tile_data, x, mi_row, mi_col,
                                          rd_cost, bsize, ctx, best_rd.rdcost);
     } else {
-      // TODO(kyslov): do the same for pick_inter_mode_sb_seg_skip
-      switch (pick_mode_type) {
-        case PICK_MODE_RD:
-          av1_rd_pick_inter_mode_sb(cpi, tile_data, x, rd_cost, bsize, ctx,
-                                    best_rd.rdcost);
-          break;
-        case PICK_MODE_NONRD:
-          av1_nonrd_pick_inter_mode_sb(cpi, tile_data, x, rd_cost, bsize, ctx);
-          break;
-        default: assert(0 && "Unknown pick mode type.");
-      }
+      av1_rd_pick_inter_mode_sb(cpi, tile_data, x, rd_cost, bsize, ctx,
+                                best_rd.rdcost);
     }
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, av1_rd_pick_inter_mode_sb_time);
@@ -1560,7 +1541,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
         mi_col + hbs < mi_params->mi_cols) {
       pc_tree->partitioning = PARTITION_NONE;
       pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &none_rdc,
-                    PARTITION_NONE, bsize, ctx_none, invalid_rdc, PICK_MODE_RD);
+                    PARTITION_NONE, bsize, ctx_none, invalid_rdc);
 
       if (none_rdc.rate < INT_MAX) {
         none_rdc.rate += mode_costs->partition_cost[pl][PARTITION_NONE];
@@ -1580,7 +1561,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   switch (partition) {
     case PARTITION_NONE:
       pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &last_part_rdc,
-                    PARTITION_NONE, bsize, ctx_none, invalid_rdc, PICK_MODE_RD);
+                    PARTITION_NONE, bsize, ctx_none, invalid_rdc);
       break;
     case PARTITION_HORZ:
       for (int i = 0; i < SUB_PARTITIONS_RECT; ++i) {
@@ -1589,7 +1570,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       }
       pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &last_part_rdc,
                     PARTITION_HORZ, subsize, pc_tree->horizontal[0],
-                    invalid_rdc, PICK_MODE_RD);
+                    invalid_rdc);
       if (last_part_rdc.rate != INT_MAX && bsize >= BLOCK_8X8 &&
           mi_row + hbs < mi_params->mi_rows) {
         RD_STATS tmp_rdc;
@@ -1600,7 +1581,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                           NULL);
         pick_sb_modes(cpi, tile_data, x, mi_row + hbs, mi_col, &tmp_rdc,
                       PARTITION_HORZ, subsize, pc_tree->horizontal[1],
-                      invalid_rdc, PICK_MODE_RD);
+                      invalid_rdc);
         if (tmp_rdc.rate == INT_MAX || tmp_rdc.dist == INT64_MAX) {
           av1_invalid_rd_stats(&last_part_rdc);
           break;
@@ -1616,8 +1597,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
             av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
       }
       pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &last_part_rdc,
-                    PARTITION_VERT, subsize, pc_tree->vertical[0], invalid_rdc,
-                    PICK_MODE_RD);
+                    PARTITION_VERT, subsize, pc_tree->vertical[0], invalid_rdc);
       if (last_part_rdc.rate != INT_MAX && bsize >= BLOCK_8X8 &&
           mi_col + hbs < mi_params->mi_cols) {
         RD_STATS tmp_rdc;
@@ -1628,8 +1608,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                           NULL);
         pick_sb_modes(cpi, tile_data, x, mi_row, mi_col + hbs, &tmp_rdc,
                       PARTITION_VERT, subsize,
-                      pc_tree->vertical[bsize > BLOCK_8X8], invalid_rdc,
-                      PICK_MODE_RD);
+                      pc_tree->vertical[bsize > BLOCK_8X8], invalid_rdc);
         if (tmp_rdc.rate == INT_MAX || tmp_rdc.dist == INT64_MAX) {
           av1_invalid_rd_stats(&last_part_rdc);
           break;
@@ -1718,7 +1697,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
             av1_alloc_pmc(cm, split_subsize, &td->shared_coeff_buf);
       pick_sb_modes(cpi, tile_data, x, mi_row + y_idx, mi_col + x_idx, &tmp_rdc,
                     PARTITION_SPLIT, split_subsize, pc_tree->split[i]->none,
-                    invalid_rdc, PICK_MODE_RD);
+                    invalid_rdc);
 
       av1_restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
       if (tmp_rdc.rate == INT_MAX || tmp_rdc.dist == INT64_MAX) {
@@ -2224,7 +2203,7 @@ static int rd_try_subblock(AV1_COMP *const cpi, ThreadData *td,
   av1_rd_stats_subtraction(x->rdmult, &best_rdcost, sum_rdc, &rdcost_remaining);
   RD_STATS this_rdc;
   pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &this_rdc, partition,
-                subsize, this_ctx, rdcost_remaining, PICK_MODE_RD);
+                subsize, this_ctx, rdcost_remaining);
 
   if (this_rdc.rate == INT_MAX) {
     sum_rdc->rdcost = INT64_MAX;
@@ -2457,8 +2436,7 @@ static void rd_pick_rect_partition(AV1_COMP *const cpi, TileDataEnc *tile_data,
 
   // Obtain the best mode for the partition sub-block.
   pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &part_search_state->this_rdc,
-                partition_type, bsize, cur_partition_ctx, best_remain_rdcost,
-                PICK_MODE_RD);
+                partition_type, bsize, cur_partition_ctx, best_remain_rdcost);
   av1_rd_cost_update(x->rdmult, &part_search_state->this_rdc);
 
   // Update the partition rd cost with the current sub-block rd.
@@ -3178,7 +3156,7 @@ static void none_partition_search(
 #endif
   // PARTITION_NONE evaluation and cost update.
   pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, this_rdc, PARTITION_NONE,
-                bsize, pc_tree->none, best_remain_rdcost, PICK_MODE_RD);
+                bsize, pc_tree->none, best_remain_rdcost);
   av1_rd_cost_update(x->rdmult, this_rdc);
 
 #if CONFIG_COLLECT_PARTITION_STATS
