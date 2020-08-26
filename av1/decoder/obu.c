@@ -52,13 +52,13 @@ aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
 }
 
 static int is_obu_in_current_operating_point(AV1Decoder *pbi,
-                                             ObuHeader obu_header) {
-  if (!pbi->current_operating_point) {
+                                             const ObuHeader *obu_header) {
+  if (!pbi->current_operating_point || !obu_header->has_extension) {
     return 1;
   }
 
-  if ((pbi->current_operating_point >> obu_header.temporal_layer_id) & 0x1 &&
-      (pbi->current_operating_point >> (obu_header.spatial_layer_id + 8)) &
+  if ((pbi->current_operating_point >> obu_header->temporal_layer_id) & 0x1 &&
+      (pbi->current_operating_point >> (obu_header->spatial_layer_id + 8)) &
           0x1) {
     return 1;
   }
@@ -902,10 +902,9 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
     cm->spatial_layer_id = obu_header.spatial_layer_id;
 
     if (obu_header.type != OBU_TEMPORAL_DELIMITER &&
-        obu_header.type != OBU_SEQUENCE_HEADER &&
-        obu_header.type != OBU_PADDING) {
+        obu_header.type != OBU_SEQUENCE_HEADER) {
       // don't decode obu if it's not in current operating mode
-      if (!is_obu_in_current_operating_point(pbi, obu_header)) {
+      if (!is_obu_in_current_operating_point(pbi, &obu_header)) {
         data += payload_size;
         continue;
       }
