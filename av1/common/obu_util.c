@@ -89,6 +89,9 @@ static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
       // extension_header_reserved_3bits must be set to 0.
       return AOM_CODEC_CORRUPT_FRAME;
     }
+  } else {
+    header->temporal_layer_id = 0;
+    header->spatial_layer_id = 0;
   }
 
   return AOM_CODEC_OK;
