@@ -643,6 +643,8 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     add_proto qw/unsigned int/, "aom_dist_wtd_sad${w}x${h}_avg", "const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr, int ref_stride, const uint8_t *second_pred, const DIST_WTD_COMP_PARAMS *jcp_param";
   }
 
+  add_proto qw/uint64_t aom_sum_sse_2d_i16/, "const int16_t *src, int src_stride, int width, int height, int *sum";
+  specialize qw/aom_sum_sse_2d_i16 sse2 avx2/;
   specialize qw/aom_sad128x128    avx2 neon     sse2/;
   specialize qw/aom_sad128x64     avx2          sse2/;
   specialize qw/aom_sad64x128     avx2          sse2/;
