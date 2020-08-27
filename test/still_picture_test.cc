@@ -18,16 +18,16 @@
 namespace {
 
 // This class is used to test the presence of still picture feature.
-class StillPicturePresenceTestLarge
+class StillPicturePresenceTest
     : public ::libaom_test::CodecTestWith2Params<libaom_test::TestMode, int>,
       public ::libaom_test::EncoderTest {
  protected:
-  StillPicturePresenceTestLarge()
+  StillPicturePresenceTest()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
         enable_full_header_(GET_PARAM(2)) {
     still_picture_coding_violated_ = false;
   }
-  virtual ~StillPicturePresenceTestLarge() {}
+  virtual ~StillPicturePresenceTest() {}
 
   virtual void SetUp() {
     InitializeConfig();
@@ -82,7 +82,7 @@ class StillPicturePresenceTestLarge
 };
 
 // TODO(crbug.com/aomedia/2813): Fix and re-enable the test.
-TEST_P(StillPicturePresenceTestLarge, DISABLED_StillPictureEncodePresenceTest) {
+TEST_P(StillPicturePresenceTest, DISABLED_StillPictureEncodePresenceTest) {
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, 1);
@@ -90,7 +90,7 @@ TEST_P(StillPicturePresenceTestLarge, DISABLED_StillPictureEncodePresenceTest) {
   ASSERT_EQ(still_picture_coding_violated_, false);
 }
 
-AV1_INSTANTIATE_TEST_SUITE(StillPicturePresenceTestLarge,
+AV1_INSTANTIATE_TEST_SUITE(StillPicturePresenceTest,
                            ::testing::Values(::libaom_test::kOnePassGood,
                                              ::libaom_test::kTwoPassGood),
                            ::testing::Values(1, 0));
