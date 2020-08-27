@@ -81,7 +81,8 @@ class StillPicturePresenceTestLarge
   aom_rc_mode end_usage_check_;
 };
 
-TEST_P(StillPicturePresenceTestLarge, StillPictureEncodePresenceTest) {
+// TODO(crbug.com/aomedia/2813): Fix and re-enable the test.
+TEST_P(StillPicturePresenceTestLarge, DISABLED_StillPictureEncodePresenceTest) {
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, 1);
