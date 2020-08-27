@@ -129,9 +129,9 @@ static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
   if (xd->lossless[mbmi->segment_id]) {
     mbmi->tx_size = TX_4X4;
   } else if (tx_mode != TX_MODE_SELECT) {
-    mbmi->tx_size = tx_size_from_tx_mode(mbmi->sb_type, tx_mode);
+    mbmi->tx_size = tx_size_from_tx_mode(mbmi->bsize, tx_mode);
   } else {
-    BLOCK_SIZE bsize = mbmi->sb_type;
+    BLOCK_SIZE bsize = mbmi->bsize;
     TX_SIZE min_tx_size = depth_to_tx_size(MAX_TX_DEPTH, bsize);
     mbmi->tx_size = (TX_SIZE)TXSIZEMAX(mbmi->tx_size, min_tx_size);
   }
@@ -139,8 +139,8 @@ static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
     memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
   }
   const int stride = xd->tx_type_map_stride;
-  const int bw = mi_size_wide[mbmi->sb_type];
-  for (int row = 0; row < mi_size_high[mbmi->sb_type]; ++row) {
+  const int bw = mi_size_wide[mbmi->bsize];
+  for (int row = 0; row < mi_size_high[mbmi->bsize]; ++row) {
     memset(xd->tx_type_map + row * stride, DCT_DCT,
            bw * sizeof(xd->tx_type_map[0]));
   }
@@ -179,14 +179,14 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   MB_MODE_INFO *const mi_addr = xd->mi[0];
   const struct segmentation *const seg = &cm->seg;
   assert(bsize < BLOCK_SIZES_ALL);
-  const int bw = mi_size_wide[mi->sb_type];
-  const int bh = mi_size_high[mi->sb_type];
+  const int bw = mi_size_wide[mi->bsize];
+  const int bh = mi_size_high[mi->bsize];
   const int mis = mi_params->mi_stride;
   const int mi_width = mi_size_wide[bsize];
   const int mi_height = mi_size_high[bsize];
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
 
-  assert(mi->sb_type == bsize);
+  assert(mi->bsize == bsize);
 
   *mi_addr = *mi;
   copy_mbmi_ext_frame_to_mbmi_ext(x->mbmi_ext, &ctx->mbmi_ext_best,
@@ -351,7 +351,7 @@ void av1_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
 static void update_palette_cdf(MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi,
                                FRAME_COUNTS *counts) {
   FRAME_CONTEXT *fc = xd->tile_ctx;
-  const BLOCK_SIZE bsize = mbmi->sb_type;
+  const BLOCK_SIZE bsize = mbmi->bsize;
   const PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   const int palette_bsize_ctx = av1_get_palette_bsize_ctx(bsize);
 
@@ -401,7 +401,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
   FRAME_CONTEXT *fc = xd->tile_ctx;
   const PREDICTION_MODE y_mode = mbmi->mode;
   (void)counts;
-  const BLOCK_SIZE bsize = mbmi->sb_type;
+  const BLOCK_SIZE bsize = mbmi->bsize;
 
   if (intraonly) {
 #if CONFIG_ENTROPY_STATS
@@ -423,13 +423,13 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
     const int use_filter_intra_mode =
         mbmi->filter_intra_mode_info.use_filter_intra;
 #if CONFIG_ENTROPY_STATS
-    ++counts->filter_intra[mbmi->sb_type][use_filter_intra_mode];
+    ++counts->filter_intra[mbmi->bsize][use_filter_intra_mode];
     if (use_filter_intra_mode) {
       ++counts
             ->filter_intra_mode[mbmi->filter_intra_mode_info.filter_intra_mode];
     }
 #endif  // CONFIG_ENTROPY_STATS
-    update_cdf(fc->filter_intra_cdfs[mbmi->sb_type], use_filter_intra_mode, 2);
+    update_cdf(fc->filter_intra_cdfs[mbmi->bsize], use_filter_intra_mode, 2);
     if (use_filter_intra_mode) {
       update_cdf(fc->filter_intra_mode_cdf,
                  mbmi->filter_intra_mode_info.filter_intra_mode,
@@ -574,7 +574,7 @@ static void set_partial_sb_partition(const AV1_COMMON *const cm,
       const int grid_index = get_mi_grid_idx(&cm->mi_params, r, c);
       const int mi_index = get_alloc_mi_idx(&cm->mi_params, r, c);
       mib[grid_index] = mi + mi_index;
-      mib[grid_index]->sb_type = find_partition_size(
+      mib[grid_index]->bsize = find_partition_size(
           bsize, mi_rows_remaining - r, mi_cols_remaining - c, &bh, &bw);
     }
   }
@@ -611,7 +611,7 @@ void av1_set_fixed_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
         const int grid_index = get_mi_grid_idx(mi_params, block_row, block_col);
         const int mi_index = get_alloc_mi_idx(mi_params, block_row, block_col);
         mib[grid_index] = mi_upper_left + mi_index;
-        mib[grid_index]->sb_type = bsize;
+        mib[grid_index]->bsize = bsize;
       }
     }
   } else {

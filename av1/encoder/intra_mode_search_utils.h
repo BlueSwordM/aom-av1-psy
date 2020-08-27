@@ -252,7 +252,7 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
   assert(((mbmi->mode != DC_PRED) + use_palette + use_intrabc +
           use_filter_intra) <= 1);
   const int try_palette = av1_allow_palette(
-      cpi->common.features.allow_screen_content_tools, mbmi->sb_type);
+      cpi->common.features.allow_screen_content_tools, mbmi->bsize);
   if (try_palette && mbmi->mode == DC_PRED) {
     const MACROBLOCKD *xd = &x->e_mbd;
     const int bsize_ctx = av1_get_palette_bsize_ctx(bsize);
@@ -280,8 +280,7 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
     }
   }
   if (av1_filter_intra_allowed(&cpi->common, mbmi)) {
-    total_rate +=
-        mode_costs->filter_intra_cost[mbmi->sb_type][use_filter_intra];
+    total_rate += mode_costs->filter_intra_cost[mbmi->bsize][use_filter_intra];
     if (use_filter_intra) {
       total_rate +=
           mode_costs->filter_intra_mode_cost[mbmi->filter_intra_mode_info
@@ -317,7 +316,7 @@ static AOM_INLINE int intra_mode_info_cost_uv(const AV1_COMP *cpi,
   assert(((mode != UV_DC_PRED) + use_palette + mbmi->use_intrabc) <= 1);
 
   const int try_palette = av1_allow_palette(
-      cpi->common.features.allow_screen_content_tools, mbmi->sb_type);
+      cpi->common.features.allow_screen_content_tools, mbmi->bsize);
   if (try_palette && mode == UV_DC_PRED) {
     const PALETTE_MODE_INFO *pmi = &mbmi->palette_mode_info;
     total_rate +=
@@ -389,13 +388,13 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                               mbmi->angle_delta[PLANE_TYPE_Y]];
   }
   if (mbmi->mode == DC_PRED &&
-      av1_filter_intra_allowed_bsize(cm, mbmi->sb_type)) {
+      av1_filter_intra_allowed_bsize(cm, mbmi->bsize)) {
     if (mbmi->filter_intra_mode_info.use_filter_intra) {
       const int mode = mbmi->filter_intra_mode_info.filter_intra_mode;
-      mode_cost += mode_costs->filter_intra_cost[mbmi->sb_type][1] +
+      mode_cost += mode_costs->filter_intra_cost[mbmi->bsize][1] +
                    mode_costs->filter_intra_mode_cost[mode];
     } else {
-      mode_cost += mode_costs->filter_intra_cost[mbmi->sb_type][0];
+      mode_cost += mode_costs->filter_intra_cost[mbmi->bsize][0];
     }
   }
   this_rd =

@@ -490,8 +490,8 @@ static AOM_INLINE void simple_motion_search_prune_part_features(
   // Neighbor stuff
   const int has_above = !!xd->above_mbmi;
   const int has_left = !!xd->left_mbmi;
-  const BLOCK_SIZE above_bsize = has_above ? xd->above_mbmi->sb_type : bsize;
-  const BLOCK_SIZE left_bsize = has_left ? xd->left_mbmi->sb_type : bsize;
+  const BLOCK_SIZE above_bsize = has_above ? xd->above_mbmi->bsize : bsize;
+  const BLOCK_SIZE left_bsize = has_left ? xd->left_mbmi->bsize : bsize;
   features[f_idx++] = (float)has_above;
   features[f_idx++] = (float)mi_size_wide_log2[above_bsize];
   features[f_idx++] = (float)mi_size_high_log2[above_bsize];

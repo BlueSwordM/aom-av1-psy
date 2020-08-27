@@ -1291,7 +1291,7 @@ static INLINE void set_entropy_context(MACROBLOCKD *xd, int mi_row, int mi_col,
   for (i = 0; i < num_planes; ++i) {
     struct macroblockd_plane *const pd = &xd->plane[i];
     // Offset the buffer pointer
-    const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
+    const BLOCK_SIZE bsize = xd->mi[0]->bsize;
     if (pd->subsampling_y && (mi_row & 0x01) && (mi_size_high[bsize] == 1))
       row_offset = mi_row - 1;
     if (pd->subsampling_x && (mi_col & 0x01) && (mi_size_wide[bsize] == 1))
@@ -1760,7 +1760,7 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
 
   const int offset = mi_row * mi_params->mi_stride + mi_col;
   MB_MODE_INFO **mi = mi_params->mi_grid_base + offset;
-  const BLOCK_SIZE subsize = mi[0]->sb_type;
+  const BLOCK_SIZE subsize = mi[0]->bsize;
 
   assert(bsize < BLOCK_SIZES_ALL);
 
@@ -1785,7 +1785,7 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
       if (sshigh * 4 == bhigh) return PARTITION_HORZ_4;
       assert(sshigh * 2 == bhigh);
 
-      if (mbmi_below->sb_type == subsize)
+      if (mbmi_below->bsize == subsize)
         return PARTITION_HORZ;
       else
         return PARTITION_HORZ_B;
@@ -1796,7 +1796,7 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
       if (sswide * 4 == bwide) return PARTITION_VERT_4;
       assert(sswide * 2 == bhigh);
 
-      if (mbmi_right->sb_type == subsize)
+      if (mbmi_right->bsize == subsize)
         return PARTITION_VERT;
       else
         return PARTITION_VERT_B;
@@ -1810,8 +1810,8 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
       // it's PARTITION_SPLIT.
       if (sswide * 2 != bwide || sshigh * 2 != bhigh) return PARTITION_SPLIT;
 
-      if (mi_size_wide[mbmi_below->sb_type] == bwide) return PARTITION_HORZ_A;
-      if (mi_size_high[mbmi_right->sb_type] == bhigh) return PARTITION_VERT_A;
+      if (mi_size_wide[mbmi_below->bsize] == bwide) return PARTITION_HORZ_A;
+      if (mi_size_high[mbmi_right->bsize] == bhigh) return PARTITION_VERT_A;
 
       return PARTITION_SPLIT;
     }

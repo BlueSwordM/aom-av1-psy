@@ -608,8 +608,8 @@ static int64_t get_sse(const AV1_COMP *cpi, const MACROBLOCK *x,
     if (plane && !xd->is_chroma_ref) break;
     const struct macroblock_plane *const p = &x->plane[plane];
     const struct macroblockd_plane *const pd = &xd->plane[plane];
-    const BLOCK_SIZE bs = get_plane_block_size(mbmi->sb_type, pd->subsampling_x,
-                                               pd->subsampling_y);
+    const BLOCK_SIZE bs =
+        get_plane_block_size(mbmi->bsize, pd->subsampling_x, pd->subsampling_y);
     unsigned int sse;
 
     cpi->fn_ptr[bs].vf(p->src.buf, p->src.stride, pd->dst.buf, pd->dst.stride,
@@ -1563,7 +1563,7 @@ static int64_t motion_mode_rd(
       if (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1) {
         const int skip_ctx = av1_get_skip_txfm_context(xd);
         inter_mode_data_push(
-            tile_data, mbmi->sb_type, rd_stats->sse, rd_stats->dist,
+            tile_data, mbmi->bsize, rd_stats->sse, rd_stats->dist,
             rd_stats_y->rate + rd_stats_uv->rate +
                 mode_costs->skip_txfm_cost[skip_ctx][mbmi->skip_txfm]);
       }
@@ -2090,7 +2090,7 @@ static AOM_INLINE int find_ref_match_in_above_nbs(const int total_mi_cols,
   for (int above_mi_col = mi_col; above_mi_col < end_col;
        above_mi_col += mi_step) {
     MB_MODE_INFO **above_mi = prev_row_mi + above_mi_col;
-    mi_step = mi_size_wide[above_mi[0]->sb_type];
+    mi_step = mi_size_wide[above_mi[0]->bsize];
     int match_found = 0;
     if (is_inter_block(*above_mi))
       match_found = ref_match_found_in_nb_blocks(*cur_mbmi, *above_mi);
@@ -2112,7 +2112,7 @@ static AOM_INLINE int find_ref_match_in_left_nbs(const int total_mi_rows,
   for (int left_mi_row = mi_row; left_mi_row < end_row;
        left_mi_row += mi_step) {
     MB_MODE_INFO **left_mi = prev_col_mi + left_mi_row * xd->mi_stride;
-    mi_step = mi_size_high[left_mi[0]->sb_type];
+    mi_step = mi_size_high[left_mi[0]->bsize];
     int match_found = 0;
     if (is_inter_block(*left_mi))
       match_found = ref_match_found_in_nb_blocks(*cur_mbmi, *left_mi);
@@ -4768,7 +4768,7 @@ static void tx_search_best_inter_candidates(
       continue;
     } else if (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1) {
       inter_mode_data_push(
-          tile_data, mbmi->sb_type, rd_stats.sse, rd_stats.dist,
+          tile_data, mbmi->bsize, rd_stats.sse, rd_stats.dist,
           rd_stats_y.rate + rd_stats_uv.rate +
               mode_costs->skip_txfm_cost[skip_ctx][mbmi->skip_txfm]);
     }
@@ -5085,7 +5085,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                    ? ref_costs_comp[ref_frame][second_ref_frame]
                                    : ref_costs_single[ref_frame];
     const int compmode_cost =
-        is_comp_ref_allowed(mbmi->sb_type) ? comp_inter_cost[comp_pred] : 0;
+        is_comp_ref_allowed(mbmi->bsize) ? comp_inter_cost[comp_pred] : 0;
     const int real_compmode_cost =
         cm->current_frame.reference_mode == REFERENCE_MODE_SELECT
             ? compmode_cost
@@ -5275,7 +5275,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   // Only try palette mode when the best mode so far is an intra mode.
   const int try_palette =
       cpi->oxcf.tool_cfg.enable_palette &&
-      av1_allow_palette(features->allow_screen_content_tools, mbmi->sb_type) &&
+      av1_allow_palette(features->allow_screen_content_tools, mbmi->bsize) &&
       !is_inter_mode(search_state.best_mbmode.mode);
   RD_STATS this_rd_cost;
   int this_skippable = 0;
@@ -5667,7 +5667,7 @@ static AOM_INLINE void calc_target_weighted_pred(
     const AV1_COMMON *cm, const MACROBLOCK *x, const MACROBLOCKD *xd,
     const uint8_t *above, int above_stride, const uint8_t *left,
     int left_stride) {
-  const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
+  const BLOCK_SIZE bsize = xd->mi[0]->bsize;
   const int bw = xd->width << MI_SIZE_LOG2;
   const int bh = xd->height << MI_SIZE_LOG2;
   const OBMCBuffer *obmc_buffer = &x->obmc_buffer;

@@ -37,12 +37,12 @@ static void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
                               int blk_row, int blk_col,
                               uint8_t allow_update_cdf) {
   MB_MODE_INFO *mbmi = xd->mi[0];
-  const BLOCK_SIZE bsize = mbmi->sb_type;
+  const BLOCK_SIZE bsize = mbmi->bsize;
   const int max_blocks_high = max_block_high(xd, bsize, 0);
   const int max_blocks_wide = max_block_wide(xd, bsize, 0);
   int ctx = txfm_partition_context(xd->above_txfm_context + blk_col,
-                                   xd->left_txfm_context + blk_row,
-                                   mbmi->sb_type, tx_size);
+                                   xd->left_txfm_context + blk_row, mbmi->bsize,
+                                   tx_size);
   const int txb_size_index = av1_get_txb_size_index(bsize, blk_row, blk_col);
   const TX_SIZE plane_tx_size = mbmi->inter_tx_size[txb_size_index];
 
@@ -125,7 +125,7 @@ static void tx_partition_count_update(const AV1_COMMON *const cm, MACROBLOCK *x,
 static void set_txfm_context(MACROBLOCKD *xd, TX_SIZE tx_size, int blk_row,
                              int blk_col) {
   MB_MODE_INFO *mbmi = xd->mi[0];
-  const BLOCK_SIZE bsize = mbmi->sb_type;
+  const BLOCK_SIZE bsize = mbmi->bsize;
   const int max_blocks_high = max_block_high(xd, bsize, 0);
   const int max_blocks_wide = max_block_wide(xd, bsize, 0);
   const int txb_size_index = av1_get_txb_size_index(bsize, blk_row, blk_col);
@@ -312,7 +312,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   if (!dry_run) {
     if (av1_allow_intrabc(cm) && is_intrabc_block(mbmi)) td->intrabc_used = 1;
     if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
-        !xd->lossless[mbmi->segment_id] && mbmi->sb_type > BLOCK_4X4 &&
+        !xd->lossless[mbmi->segment_id] && mbmi->bsize > BLOCK_4X4 &&
         !(is_inter && (mbmi->skip_txfm || seg_skip))) {
       if (is_inter) {
         tx_partition_count_update(cm, x, bsize, td->counts,
@@ -362,7 +362,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   }
 
   if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
-      block_signals_txsize(mbmi->sb_type) && is_inter &&
+      block_signals_txsize(mbmi->bsize) && is_inter &&
       !(mbmi->skip_txfm || seg_skip) && !xd->lossless[mbmi->segment_id]) {
     if (dry_run) tx_partition_set_contexts(cm, xd, bsize);
   } else {
@@ -383,7 +383,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   }
 
   if (is_inter_block(mbmi) && !xd->is_chroma_ref && is_cfl_allowed(xd)) {
-    cfl_store_block(xd, mbmi->sb_type, mbmi->tx_size);
+    cfl_store_block(xd, mbmi->bsize, mbmi->tx_size);
   }
   if (!dry_run) {
     if (cpi->oxcf.pass == 0 && cpi->svc.temporal_layer_id == 0 &&
@@ -589,7 +589,7 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
   av1_set_offsets(cpi, &tile_data->tile_info, x, mi_row, mi_col, bsize);
 
   if (ctx->rd_mode_is_ready) {
-    assert(ctx->mic.sb_type == bsize);
+    assert(ctx->mic.bsize == bsize);
     assert(ctx->mic.partition == partition);
     rd_cost->rate = ctx->rd_stats.rate;
     rd_cost->dist = ctx->rd_stats.dist;
@@ -615,7 +615,7 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
   aom_clear_system_state();
 
   mbmi = xd->mi[0];
-  mbmi->sb_type = bsize;
+  mbmi->bsize = bsize;
   mbmi->partition = partition;
 
 #if CONFIG_RD_DEBUG
@@ -714,7 +714,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   const CurrentFrame *const current_frame = &cm->current_frame;
-  const BLOCK_SIZE bsize = mbmi->sb_type;
+  const BLOCK_SIZE bsize = mbmi->bsize;
   FRAME_CONTEXT *fc = xd->tile_ctx;
   const int seg_ref_active =
       segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_REF_FRAME);
@@ -1482,7 +1482,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   RD_STATS last_part_rdc, none_rdc, chosen_rdc, invalid_rdc;
   BLOCK_SIZE sub_subsize = BLOCK_4X4;
   int splits_below = 0;
-  BLOCK_SIZE bs_type = mib[0]->sb_type;
+  BLOCK_SIZE bs_type = mib[0]->bsize;
 
   if (pc_tree->none == NULL) {
     pc_tree->none = av1_alloc_pmc(cm, bsize, &td->shared_coeff_buf);
@@ -1528,7 +1528,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       for (int i = 0; i < SUB_PARTITIONS_SPLIT; i++) {
         int jj = i >> 1, ii = i & 0x01;
         MB_MODE_INFO *this_mi = mib[jj * hbs * mi_params->mi_stride + ii * hbs];
-        if (this_mi && this_mi->sb_type >= sub_subsize) {
+        if (this_mi && this_mi->bsize >= sub_subsize) {
           splits_below = 0;
         }
       }
@@ -1549,7 +1549,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       }
 
       av1_restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
-      mib[0]->sb_type = bs_type;
+      mib[0]->bsize = bs_type;
       pc_tree->partitioning = partition;
     }
   }
@@ -1722,7 +1722,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
 
   // If last_part is better set the partitioning to that.
   if (last_part_rdc.rdcost < chosen_rdc.rdcost) {
-    mib[0]->sb_type = bsize;
+    mib[0]->bsize = bsize;
     if (bsize >= BLOCK_8X8) pc_tree->partitioning = partition;
     chosen_rdc = last_part_rdc;
   }
@@ -2018,12 +2018,12 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
         av1_restore_context(x, &x_ctx, mi_row, mi_col, bsize, 3);
 
         if (none_rdc.rdcost < split_rdc.rdcost) {
-          mib[0]->sb_type = bsize;
+          mib[0]->bsize = bsize;
           pc_tree->partitioning = PARTITION_NONE;
           encode_b_nonrd(cpi, tile_data, td, tp, mi_row, mi_col, 0, bsize,
                          partition, pc_tree->none, NULL);
         } else {
-          mib[0]->sb_type = subsize;
+          mib[0]->bsize = subsize;
           pc_tree->partitioning = PARTITION_SPLIT;
           for (int i = 0; i < SUB_PARTITIONS_SPLIT; i++) {
             const int x_idx = (i & 1) * hbs;
@@ -2135,12 +2135,12 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
           split_rdc.rdcost = RDCOST(x->rdmult, split_rdc.rate, split_rdc.dist);
         }
         if (none_rdc.rdcost < split_rdc.rdcost) {
-          mib[0]->sb_type = bsize;
+          mib[0]->bsize = bsize;
           pc_tree->partitioning = PARTITION_NONE;
           encode_b_nonrd(cpi, tile_data, td, tp, mi_row, mi_col, 0, bsize,
                          partition, pc_tree->none, NULL);
         } else {
-          mib[0]->sb_type = subsize;
+          mib[0]->bsize = subsize;
           pc_tree->partitioning = PARTITION_SPLIT;
           for (int i = 0; i < SUB_PARTITIONS_SPLIT; i++) {
             int x_idx = (i & 1) * hbs;

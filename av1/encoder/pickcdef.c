@@ -452,9 +452,9 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
           mi_params->mi_grid_base[MI_SIZE_64X64 * fbr * mi_params->mi_stride +
                                   MI_SIZE_64X64 * fbc];
       if (((fbc & 1) &&
-           (mbmi->sb_type == BLOCK_128X128 || mbmi->sb_type == BLOCK_128X64)) ||
+           (mbmi->bsize == BLOCK_128X128 || mbmi->bsize == BLOCK_128X64)) ||
           ((fbr & 1) &&
-           (mbmi->sb_type == BLOCK_128X128 || mbmi->sb_type == BLOCK_64X128)))
+           (mbmi->bsize == BLOCK_128X128 || mbmi->bsize == BLOCK_64X128)))
         continue;
 
       int nhb = AOMMIN(MI_SIZE_64X64, mi_params->mi_cols - MI_SIZE_64X64 * fbc);
@@ -462,9 +462,9 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
       int hb_step = 1;
       int vb_step = 1;
       BLOCK_SIZE bs;
-      if (mbmi->sb_type == BLOCK_128X128 || mbmi->sb_type == BLOCK_128X64 ||
-          mbmi->sb_type == BLOCK_64X128) {
-        bs = mbmi->sb_type;
+      if (mbmi->bsize == BLOCK_128X128 || mbmi->bsize == BLOCK_128X64 ||
+          mbmi->bsize == BLOCK_64X128) {
+        bs = mbmi->bsize;
         if (bs == BLOCK_128X128 || bs == BLOCK_128X64) {
           nhb =
               AOMMIN(MI_SIZE_128X128, mi_params->mi_cols - MI_SIZE_64X64 * fbc);

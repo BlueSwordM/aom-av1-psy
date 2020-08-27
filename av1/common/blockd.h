@@ -214,64 +214,132 @@ typedef struct {
 
 #define INTER_TX_SIZE_BUF_LEN 16
 #define TXK_TYPE_BUF_LEN 64
-// This structure now relates to 4x4 block regions.
+/*!\endcond */
+
+/*! \brief Stores the prediction/txfm mode of the current coding block
+ */
 typedef struct MB_MODE_INFO {
-  // interinter members
-  INTERINTER_COMPOUND_DATA interinter_comp;
-  WarpedMotionParams wm_params;
-  int_mv mv[2];
-  // q index for the current coding block.
+  /*****************************************************************************
+   * \name General Info of the Coding Block
+   ****************************************************************************/
+  /**@{*/
+  /*! \brief The block size of the current coding block */
+  BLOCK_SIZE bsize;
+  /*! \brief The partition type of the current coding block. */
+  PARTITION_TYPE partition;
+  /*! \brief The prediction mode used */
+  PREDICTION_MODE mode;
+  /*! \brief The UV mode when intra is used */
+  UV_PREDICTION_MODE uv_mode;
+  /*! \brief The q index for the current coding block. */
   int current_qindex;
-  // Only for INTER blocks
+  /**@}*/
+
+  /*****************************************************************************
+   * \name Inter Mode Info
+   ****************************************************************************/
+  /**@{*/
+  /*! \brief The motion vectors used by the current inter mode */
+  int_mv mv[2];
+  /*! \brief The reference frames for the MV */
+  MV_REFERENCE_FRAME ref_frame[2];
+  /*! \brief Filter used in subpel interpolation. */
   int_interpfilters interp_filters;
-  // TODO(debargha): Consolidate these flags
+  /*! \brief The motion mode used by the inter prediction. */
+  MOTION_MODE motion_mode;
+  /*! \brief Number of samples used by warp causal */
+  uint8_t num_proj_ref;
+  /*! \brief The number of overlapped neighbors above/left for obmc/warp motion
+   * mode. */
+  uint8_t overlappable_neighbors[2];
+  /*! \brief The parameters used in warp motion mode. */
+  WarpedMotionParams wm_params;
+  /*! \brief The type of intra mode used by inter-intra */
+  INTERINTRA_MODE interintra_mode;
+  /*! \brief The type of wedge used in interintra mode. */
+  int8_t interintra_wedge_index;
+  /*! \brief Struct that stores the data used in interinter compound mode. */
+  INTERINTER_COMPOUND_DATA interinter_comp;
+  /**@}*/
+
+  /*****************************************************************************
+   * \name Intra Mode Info
+   ****************************************************************************/
+  /**@{*/
+  /*! \brief Directional mode delta: the angle is base angle + (angle_delta *
+   * step). */
+  int8_t angle_delta[PLANE_TYPES];
+  /*! \brief The type of filter intra mode used (if applicable). */
+  FILTER_INTRA_MODE_INFO filter_intra_mode_info;
+  /*! \brief Chroma from Luma: Joint sign of alpha Cb and alpha Cr */
+  int8_t cfl_alpha_signs;
+  /*! \brief Chroma from Luma: Index of the alpha Cb and alpha Cr combination */
+  uint8_t cfl_alpha_idx;
+  /*! \brief Stores the size and colors of palette mode */
+  PALETTE_MODE_INFO palette_mode_info;
+  /**@}*/
+
+  /*****************************************************************************
+   * \name Transform Info
+   ****************************************************************************/
+  /**@{*/
+  /*! \brief Whether to skip transforming and sending. */
+  int8_t skip_txfm;
+  /*! \brief Transform size when fixed size txfm is used (e.g. intra modes). */
+  TX_SIZE tx_size;
+  /*! \brief Transform size when recursive txfm tree is on. */
+  TX_SIZE inter_tx_size[INTER_TX_SIZE_BUF_LEN];
+  /**@}*/
+
+  /*****************************************************************************
+   * \name Loop Filter Info
+   ****************************************************************************/
+  /**@{*/
+  /*! \copydoc MACROBLOCKD::delta_lf_from_base */
+  int8_t delta_lf_from_base;
+  /*! \copydoc MACROBLOCKD::delta_lf */
+  int8_t delta_lf[FRAME_LF_COUNT];
+  /**@}*/
+
+  /*****************************************************************************
+   * \name Bitfield for Memory Reduction
+   ****************************************************************************/
+  /**@{*/
+  /*! \brief The segment id */
+  uint8_t segment_id : 3;
+  /*! \brief Only valid when temporal update if off. */
+  uint8_t seg_id_predicted : 1;
+  /*! \brief Which ref_mv to use */
+  uint8_t ref_mv_idx : 2;
+  /*! \brief Inter skip mode */
+  uint8_t skip_mode : 1;
+  /*! \brief Whether intrabc is used. */
+  uint8_t use_intrabc : 1;
+  /*! \brief Indicates if masked compound is used(1) or not (0). */
+  uint8_t comp_group_idx : 1;
+  /*! \brief Indicates whether dist_wtd_comp(0) is used or not (0). */
+  uint8_t compound_idx : 1;
+  /*! \brief Whether to use interintra wedge */
+  uint8_t use_wedge_interintra : 1;
+  /*! \brief CDEF strength per BLOCK_64X64 */
+  int8_t cdef_strength : 4;
+  /**@}*/
+
 #if CONFIG_RD_DEBUG
+  /*! \brief RD info used for debugging */
   RD_STATS rd_stats;
+  /*! \brief The current row in unit of 4x4 blocks for debugging */
   int mi_row;
+  /*! \brief The current col in unit of 4x4 blocks for debugging */
   int mi_col;
 #endif
 #if CONFIG_INSPECTION
+  /*! \brief Whether we are skipping the current rows or columns. */
   int16_t tx_skip[TXK_TYPE_BUF_LEN];
 #endif
-  PALETTE_MODE_INFO palette_mode_info;
-  // Common for both INTER and INTRA blocks
-  BLOCK_SIZE sb_type;
-  PREDICTION_MODE mode;
-  // Only for INTRA blocks
-  UV_PREDICTION_MODE uv_mode;
-  // interintra members
-  INTERINTRA_MODE interintra_mode;
-  MOTION_MODE motion_mode;
-  PARTITION_TYPE partition;
-  MV_REFERENCE_FRAME ref_frame[2];
-  FILTER_INTRA_MODE_INFO filter_intra_mode_info;
-  int8_t skip_txfm;
-  TX_SIZE inter_tx_size[INTER_TX_SIZE_BUF_LEN];
-  TX_SIZE tx_size;
-  int8_t delta_lf_from_base;
-  int8_t delta_lf[FRAME_LF_COUNT];
-  int8_t interintra_wedge_index;
-  // The actual prediction angle is the base angle + (angle_delta * step).
-  int8_t angle_delta[PLANE_TYPES];
-  /* deringing gain *per-superblock* */
-  // Joint sign of alpha Cb and alpha Cr
-  int8_t cfl_alpha_signs;
-  // Index of the alpha Cb and alpha Cr combination
-  uint8_t cfl_alpha_idx;
-  uint8_t num_proj_ref;
-  uint8_t overlappable_neighbors[2];
-  // If comp_group_idx=0, indicate if dist_wtd_comp(0) or avg_comp(1) is used.
-  uint8_t compound_idx;
-  uint8_t use_wedge_interintra : 1;
-  uint8_t segment_id : 3;
-  uint8_t seg_id_predicted : 1;  // valid only when temporal_update is enabled
-  uint8_t skip_mode : 1;
-  uint8_t use_intrabc : 1;
-  uint8_t ref_mv_idx : 2;
-  // Indicate if masked compound is used(1) or not(0).
-  uint8_t comp_group_idx : 1;
-  int8_t cdef_strength : 4;
 } MB_MODE_INFO;
+
+/*!\cond */
 
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {
   return mbmi->use_intrabc;
@@ -352,7 +420,7 @@ PREDICTION_MODE av1_above_block_mode(const MB_MODE_INFO *above_mi);
 static INLINE int is_global_mv_block(const MB_MODE_INFO *const mbmi,
                                      TransformationType type) {
   const PREDICTION_MODE mode = mbmi->mode;
-  const BLOCK_SIZE bsize = mbmi->sb_type;
+  const BLOCK_SIZE bsize = mbmi->bsize;
   const int block_size_allowed =
       AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8;
   return (mode == GLOBALMV || mode == GLOBAL_GLOBALMV) && type > TRANSLATION &&
@@ -1271,7 +1339,7 @@ static INLINE TX_SIZE av1_get_tx_size(int plane, const MACROBLOCKD *xd) {
   if (xd->lossless[mbmi->segment_id]) return TX_4X4;
   if (plane == 0) return mbmi->tx_size;
   const MACROBLOCKD_PLANE *pd = &xd->plane[plane];
-  return av1_get_max_uv_txsize(mbmi->sb_type, pd->subsampling_x,
+  return av1_get_max_uv_txsize(mbmi->bsize, pd->subsampling_x,
                                pd->subsampling_y);
 }
 
@@ -1311,7 +1379,7 @@ static INLINE int is_interintra_allowed_ref(const MV_REFERENCE_FRAME rf[2]) {
 }
 
 static INLINE int is_interintra_allowed(const MB_MODE_INFO *mbmi) {
-  return is_interintra_allowed_bsize(mbmi->sb_type) &&
+  return is_interintra_allowed_bsize(mbmi->bsize) &&
          is_interintra_allowed_mode(mbmi->mode) &&
          is_interintra_allowed_ref(mbmi->ref_frame);
 }
@@ -1366,7 +1434,7 @@ motion_mode_allowed(const WarpedMotionParams *gm_params, const MACROBLOCKD *xd,
     const TransformationType gm_type = gm_params[mbmi->ref_frame[0]].wmtype;
     if (is_global_mv_block(mbmi, gm_type)) return SIMPLE_TRANSLATION;
   }
-  if (is_motion_variation_allowed_bsize(mbmi->sb_type) &&
+  if (is_motion_variation_allowed_bsize(mbmi->bsize) &&
       is_inter_mode(mbmi->mode) && mbmi->ref_frame[1] != INTRA_FRAME &&
       is_motion_variation_allowed_compound(mbmi)) {
     assert(!has_second_ref(mbmi));
@@ -1464,7 +1532,7 @@ static INLINE int is_nontrans_global_motion(const MACROBLOCKD *xd,
   // First check if all modes are GLOBALMV
   if (mbmi->mode != GLOBALMV && mbmi->mode != GLOBAL_GLOBALMV) return 0;
 
-  if (AOMMIN(mi_size_wide[mbmi->sb_type], mi_size_high[mbmi->sb_type]) < 2)
+  if (AOMMIN(mi_size_wide[mbmi->bsize], mi_size_high[mbmi->bsize]) < 2)
     return 0;
 
   // Now check if all global motion is non translational

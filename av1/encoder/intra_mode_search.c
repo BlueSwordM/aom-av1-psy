@@ -298,7 +298,7 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
   const MACROBLOCKD_PLANE *pd = &xd->plane[AOM_PLANE_U];
   const ModeCosts *mode_costs = &x->mode_costs;
   const BLOCK_SIZE plane_bsize =
-      get_plane_block_size(mbmi->sb_type, pd->subsampling_x, pd->subsampling_y);
+      get_plane_block_size(mbmi->bsize, pd->subsampling_x, pd->subsampling_y);
 
   assert(is_cfl_allowed(xd) && cpi->oxcf.intra_mode_cfg.enable_cfl_intra);
   assert(plane_bsize < BLOCK_SIZES_ALL);
@@ -445,7 +445,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     // this function everytime we search through uv modes. There is some
     // potential speed up here if we cache the result to avoid redundant
     // computation.
-    av1_encode_intra_block_plane(cpi, x, mbmi->sb_type, AOM_PLANE_Y,
+    av1_encode_intra_block_plane(cpi, x, mbmi->bsize, AOM_PLANE_Y,
                                  DRY_RUN_NORMAL,
                                  cpi->optimize_seg_arr[mbmi->segment_id]);
     xd->cfl.store_y = 0;
@@ -479,7 +479,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     }
     mbmi->angle_delta[PLANE_TYPE_UV] = 0;
 
-    if (is_directional_mode && av1_use_angle_delta(mbmi->sb_type) &&
+    if (is_directional_mode && av1_use_angle_delta(mbmi->bsize) &&
         intra_mode_cfg->enable_angle_delta) {
       // Search through angle delta
       const int rate_overhead =
@@ -521,7 +521,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   const int try_palette =
       cpi->oxcf.tool_cfg.enable_palette &&
       av1_allow_palette(cpi->common.features.allow_screen_content_tools,
-                        mbmi->sb_type);
+                        mbmi->bsize);
   if (try_palette) {
     uint8_t *best_palette_color_map = x->palette_buffer->best_palette_color_map;
     av1_rd_pick_palette_intra_sbuv(
@@ -655,7 +655,7 @@ static AOM_INLINE int intra_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   av1_pick_uniform_tx_size_type_yrd(cpi, x, &rd_stats, bsize, INT64_MAX);
   if (rd_stats.rate == INT_MAX) return 0;
   int this_rate_tokenonly = rd_stats.rate;
-  if (!xd->lossless[mbmi->segment_id] && block_signals_txsize(mbmi->sb_type)) {
+  if (!xd->lossless[mbmi->segment_id] && block_signals_txsize(mbmi->bsize)) {
     // av1_pick_uniform_tx_size_type_yrd above includes the cost of the tx_size
     // in the tokenonly rate, but for intra blocks, tx_size is always coded
     // (prediction granularity), so we account for it in the full rate,
@@ -908,8 +908,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
     PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
     const int try_palette =
         cpi->oxcf.tool_cfg.enable_palette &&
-        av1_allow_palette(cm->features.allow_screen_content_tools,
-                          mbmi->sb_type);
+        av1_allow_palette(cm->features.allow_screen_content_tools, mbmi->bsize);
     if (intra_search_state->rate_uv_intra == INT_MAX) {
       // If no good uv-predictor had been found, search for it.
       const int rate_y = rd_stats_y->skip_txfm
@@ -1024,7 +1023,7 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   const int try_palette =
       cpi->oxcf.tool_cfg.enable_palette &&
       av1_allow_palette(cpi->common.features.allow_screen_content_tools,
-                        mbmi->sb_type);
+                        mbmi->bsize);
   uint8_t *best_palette_color_map =
       try_palette ? x->palette_buffer->best_palette_color_map : NULL;
   const MB_MODE_INFO *above_mi = xd->above_mbmi;
@@ -1094,8 +1093,7 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
     if (this_rate_tokenonly == INT_MAX) continue;
 
-    if (!xd->lossless[mbmi->segment_id] &&
-        block_signals_txsize(mbmi->sb_type)) {
+    if (!xd->lossless[mbmi->segment_id] && block_signals_txsize(mbmi->bsize)) {
       // av1_pick_uniform_tx_size_type_yrd above includes the cost of the
       // tx_size in the tokenonly rate, but for intra blocks, tx_size is always
       // coded (prediction granularity), so we account for it in the full rate,

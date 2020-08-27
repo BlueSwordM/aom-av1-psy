@@ -219,7 +219,7 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   MACROBLOCKD *const xd = &x->e_mbd;
   FULLPEL_MV start_mv = get_fullmv_from_mv(ref_mv);
   int tmp_err;
-  const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
+  const BLOCK_SIZE bsize = xd->mi[0]->bsize;
   const int new_mv_mode_penalty = NEW_MV_MODE_PENALTY;
   const int sr = get_search_range(&cpi->initial_dimensions);
   const int step_param = 3 + sr;
@@ -346,7 +346,7 @@ static int firstpass_intra_prediction(
   xd->plane[1].dst.buf = this_frame->u_buffer + uv_offset;
   xd->plane[2].dst.buf = this_frame->v_buffer + uv_offset;
   xd->left_available = (mb_col != 0);
-  xd->mi[0]->sb_type = bsize;
+  xd->mi[0]->bsize = bsize;
   xd->mi[0]->ref_frame[0] = INTRA_FRAME;
   set_mi_row_col(xd, tile, mb_row * mb_scale, mi_size_high[bsize],
                  mb_col * mb_scale, mi_size_wide[bsize], mi_params->mi_rows,
@@ -1104,7 +1104,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   aom_clear_system_state();
 
   set_mi_offsets(mi_params, xd, 0, 0);
-  xd->mi[0]->sb_type = fp_block_size;
+  xd->mi[0]->bsize = fp_block_size;
 
   // Do not use periodic key frames.
   cpi->rc.frames_to_key = INT_MAX;

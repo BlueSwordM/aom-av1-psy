@@ -278,7 +278,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
                  cm->mi_params.mi_rows, cm->mi_params.mi_cols);
   set_plane_n4(xd, mi_size_wide[bsize], mi_size_high[bsize],
                av1_num_planes(cm));
-  xd->mi[0]->sb_type = bsize;
+  xd->mi[0]->bsize = bsize;
   xd->mi[0]->motion_mode = SIMPLE_TRANSLATION;
 
   // Intra prediction search
