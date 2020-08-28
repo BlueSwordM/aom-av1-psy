@@ -1797,6 +1797,13 @@ typedef struct {
    * Corresponds to use_skip_flag_prediction speed feature.
    */
   unsigned int skip_txfm_level[MODE_EVAL_TYPES];
+
+  /*!
+   * Predict DC only txfm blocks for default, mode and winner mode evaluation.
+   * Index 0: Default mode evaluation, Winner mode processing is not applicable.
+   * Index 1: Mode evaluation, Index 2: Winner mode evaluation
+   */
+  unsigned int predict_dc_level[MODE_EVAL_TYPES];
 } WinnerModeParams;
 
 /*!

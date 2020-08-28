@@ -81,6 +81,9 @@ void av1_setup_qmatrix(const CommonQuantParams *quant_params,
                        const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
                        TX_TYPE tx_type, QUANT_PARAM *qparam);
 
+void av1_xform_dc_only(MACROBLOCK *x, int plane, int block,
+                       TxfmParam *txfm_param, int64_t per_px_mean);
+
 void av1_xform_quant(MACROBLOCK *x, int plane, int block, int blk_row,
                      int blk_col, BLOCK_SIZE plane_bsize, TxfmParam *txfm_param,
                      QUANT_PARAM *qparam);
@@ -153,6 +156,14 @@ static INLINE int is_trellis_used(TRELLIS_OPT_TYPE optimize_b,
     return false;
   return true;
 }
+
+// Scaling terms (precision of 12 bits) to obtain DC coefficient from block
+// residual mean
+static const uint16_t dc_coeff_scale[TX_SIZES_ALL] = {
+  1024, 2048, 4096, 4096, 0,    1448, 1448, 2896, 2896, 2896,
+  2896, 0,    0,    2048, 2048, 4096, 4096, 0,    0
+};
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

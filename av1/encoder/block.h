@@ -468,6 +468,11 @@ typedef struct {
    * candidate, then code it as TX_MODE_SELECT.
    */
   TX_MODE tx_mode_search_type;
+
+  /*!
+   * Flag to enable/disable DC block prediction.
+   */
+  unsigned int predict_dc_level;
 } TxfmSearchParams;
 
 /*!\cond */
