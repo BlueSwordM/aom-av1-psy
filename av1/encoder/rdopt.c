@@ -2079,7 +2079,7 @@ static AOM_INLINE int ref_match_found_in_nb_blocks(MB_MODE_INFO *cur_mbmi,
 
 static AOM_INLINE int find_ref_match_in_above_nbs(const int total_mi_cols,
                                                   MACROBLOCKD *xd) {
-  if (!xd->up_available) return 0;
+  if (!xd->up_available) return 1;
   const int mi_col = xd->mi_col;
   MB_MODE_INFO **cur_mbmi = xd->mi;
   // prev_row_mi points into the mi array, starting at the beginning of the
@@ -2101,7 +2101,7 @@ static AOM_INLINE int find_ref_match_in_above_nbs(const int total_mi_cols,
 
 static AOM_INLINE int find_ref_match_in_left_nbs(const int total_mi_rows,
                                                  MACROBLOCKD *xd) {
-  if (!xd->left_available) return 0;
+  if (!xd->left_available) return 1;
   const int mi_row = xd->mi_row;
   MB_MODE_INFO **cur_mbmi = xd->mi;
   // prev_col_mi points into the mi array, starting at the top of the
