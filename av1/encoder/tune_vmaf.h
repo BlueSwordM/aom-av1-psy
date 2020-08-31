@@ -19,6 +19,10 @@ void av1_vmaf_blk_preprocessing(AV1_COMP *cpi, YV12_BUFFER_CONFIG *source);
 
 void av1_vmaf_frame_preprocessing(AV1_COMP *cpi, YV12_BUFFER_CONFIG *source);
 
+#ifdef CONFIG_USE_VMAF_RC
+void av1_vmaf_neg_preprocessing(AV1_COMP *cpi, YV12_BUFFER_CONFIG *source);
+#endif
+
 void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi);
 
 void av1_set_vmaf_rdmult(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,

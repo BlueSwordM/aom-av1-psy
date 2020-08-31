@@ -34,6 +34,10 @@
 #include "av1/encoder/temporal_filter.h"
 #include "av1/encoder/tpl_model.h"
 
+#if CONFIG_TUNE_VMAF
+#include "av1/encoder/tune_vmaf.h"
+#endif
+
 #define TEMPORAL_FILTER_KEY_FRAME (CONFIG_REALTIME_ONLY ? 0 : 1)
 
 static INLINE void set_refresh_frame_flags(
@@ -1372,6 +1376,14 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     if (!has_no_stats_stage(cpi)) av1_twopass_postencode_update(cpi);
   }
 #endif  // !CONFIG_REALTIME_ONLY
+
+#if CONFIG_TUNE_VMAF
+  if (!is_stat_generation_stage(cpi) &&
+      (oxcf->tune_cfg.tuning >= AOM_TUNE_VMAF_WITH_PREPROCESSING &&
+       oxcf->tune_cfg.tuning <= AOM_TUNE_VMAF_NEG_MAX_GAIN)) {
+    av1_update_vmaf_curve(cpi, cpi->source, &cpi->common.cur_frame->buf);
+  }
+#endif
 
   if (!is_stat_generation_stage(cpi)) {
     update_fb_of_context_type(cpi, &frame_params, cpi->fb_of_context_type);
