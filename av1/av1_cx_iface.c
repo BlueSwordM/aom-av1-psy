@@ -2162,6 +2162,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     av1_apply_encoding_flags(cpi_lap, flags);
   }
 
+#if CONFIG_USE_VMAF_RC
+  aom_init_vmaf_rc(&cpi->vmaf_info.vmaf_model,
+                   cpi->oxcf.tune_cfg.vmaf_model_path);
+#endif
+
   // Handle fixed keyframe intervals
   if (is_stat_generation_stage(cpi)) {
     if (ctx->cfg.kf_mode == AOM_KF_AUTO &&

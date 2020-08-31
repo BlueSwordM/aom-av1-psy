@@ -14,6 +14,11 @@
 
 #include "aom_scale/yv12config.h"
 
+#if CONFIG_USE_VMAF_RC
+typedef struct VmafContext VmafContext;
+typedef struct VmafModel VmafModel;
+#endif
+
 typedef struct {
   // Stores the scaling factors for rdmult when tuning for VMAF.
   // rdmult_scaling_factors[row * num_cols + col] stores the scaling factors for
@@ -28,6 +33,11 @@ typedef struct {
 
   // Stores the filter strength of the last frame.
   double last_frame_unsharp_amount;
+
+#if CONFIG_USE_VMAF_RC
+  // VMAF model used in VMAF caculations.
+  VmafModel *vmaf_model;
+#endif
 } TuneVMAFInfo;
 
 void aom_calc_vmaf(const char *model_path, const YV12_BUFFER_CONFIG *source,
@@ -39,5 +49,15 @@ void aom_calc_vmaf_multi_frame(
     int (*read_frame)(float *ref_data, float *main_data, float *temp_data,
                       int stride_byte, void *user_data),
     int frame_width, int frame_height, int bit_depth, double *vmaf);
+
+#if CONFIG_USE_VMAF_RC
+void aom_init_vmaf_rc(VmafModel **vmaf_model, const char *model_path);
+
+void aom_calc_vmaf_rc(VmafModel *vmaf_model, const YV12_BUFFER_CONFIG *source,
+                      const YV12_BUFFER_CONFIG *distorted, int bit_depth,
+                      int cal_vmaf_neg, double *vmaf);
+
+void aom_close_vmaf_rc(VmafModel *vmaf_model);
+#endif  // CONFIG_USE_VMAF_RC
 
 #endif  // AOM_AOM_DSP_VMAF_H_

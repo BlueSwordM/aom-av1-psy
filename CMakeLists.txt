@@ -432,6 +432,10 @@ if(CONFIG_AV1_ENCODER)
   list(APPEND AOM_APP_TARGETS ${AOM_ENCODER_EXAMPLE_TARGETS}
               ${AOM_ENCODER_TOOL_TARGETS})
 
+  if(CONFIG_USE_VMAF_RC AND NOT CONFIG_TUNE_VMAF)
+    message(FATAL_ERROR "Turn on CONFIG_TUNE_VMAF to use CONFIG_USE_VMAF_RC.")
+  endif()
+
   if(CONFIG_TUNE_VMAF)
     find_package(PkgConfig)
     if(PKG_CONFIG_FOUND)
@@ -446,6 +450,21 @@ if(CONFIG_AV1_ENCODER)
         message(FATAL_ERROR "VMAF library not found.")
       endif()
     endif()
+
+    if(CONFIG_USE_VMAF_RC)
+      if(PKG_CONFIG_FOUND)
+        pkg_check_modules(VMAF_RC REQUIRED libvmaf_rc)
+        target_link_libraries(aom
+                              PRIVATE ${VMAF_RC_LDFLAGS} ${VMAF_RC_LIBRARIES})
+        target_include_directories(aom PRIVATE ${VMAF_RC_INCLUDE_DIRS})
+        if(VMAF_RC_CFLAGS)
+          append_compiler_flag("${VMAF_RC_CFLAGS}")
+        endif()
+      else()
+        message(FATAL_ERROR "CONFIG_USE_VMAF_RC error: pkg-config not found.")
+      endif()
+    endif()
+
     set_target_properties(aom PROPERTIES LINKER_LANGUAGE CXX)
     if(BUILD_SHARED_LIBS)
       set_target_properties(aom_static PROPERTIES LINKER_LANGUAGE CXX)
