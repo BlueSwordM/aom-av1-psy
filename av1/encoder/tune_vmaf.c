@@ -16,6 +16,9 @@
 #include "aom_ports/system_state.h"
 #include "av1/encoder/extend.h"
 #include "av1/encoder/rdopt.h"
+#if CONFIG_USE_VMAF_RC
+#include "config/aom_scale_rtcd.h"
+#endif
 
 static const double kBaselineVmaf = 97.42773;
 
@@ -160,8 +163,16 @@ static double cal_approx_vmaf(const AV1_COMP *const cpi, double source_variance,
                               YV12_BUFFER_CONFIG *const sharpened) {
   const int bit_depth = cpi->td.mb.e_mbd.bd;
   double new_vmaf;
+
+#if CONFIG_USE_VMAF_RC
+  aom_calc_vmaf_rc(cpi->vmaf_info.vmaf_model, source, sharpened, bit_depth,
+                   cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN,
+                   &new_vmaf);
+#else
   aom_calc_vmaf(cpi->oxcf.tune_cfg.vmaf_model_path, source, sharpened,
                 bit_depth, &new_vmaf);
+#endif
+
   const double sharpened_var = frame_average_variance(cpi, sharpened);
   return source_variance / sharpened_var * (new_vmaf - kBaselineVmaf);
 }
@@ -447,6 +458,7 @@ void av1_vmaf_blk_preprocessing(AV1_COMP *const cpi,
   aom_clear_system_state();
 }
 
+#if !CONFIG_USE_VMAF_RC
 typedef struct FrameData {
   const YV12_BUFFER_CONFIG *source, *blurred;
   int block_w, block_h, num_rows, num_cols, row, col, bit_depth;
@@ -531,6 +543,7 @@ static int update_frame(float *ref_data, float *main_data, float *temp_data,
     return 2;
   }
 }
+#endif
 
 void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
@@ -567,6 +580,15 @@ void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
                          cm->features.byte_alignment);
   gaussian_blur(bit_depth, &resized_source, &blurred);
 
+#if CONFIG_USE_VMAF_RC
+  YV12_BUFFER_CONFIG recon;
+  memset(&recon, 0, sizeof(recon));
+  aom_alloc_frame_buffer(&recon, resized_y_width, resized_y_height, 1, 1,
+                         cm->seq_params.use_highbitdepth,
+                         cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment);
+  aom_yv12_copy_frame(&resized_source, &recon, 1);
+#else
   double *scores = aom_malloc(sizeof(*scores) * (num_rows * num_cols));
   memset(scores, 0, sizeof(*scores) * (num_rows * num_cols));
   FrameData frame_data;
@@ -582,6 +604,7 @@ void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
   aom_calc_vmaf_multi_frame(&frame_data, cpi->oxcf.tune_cfg.vmaf_model_path,
                             update_frame, resized_y_width, resized_y_height,
                             bit_depth, scores);
+#endif
 
   // Loop through each 'block_size' block.
   for (int row = 0; row < num_rows; ++row) {
@@ -596,11 +619,46 @@ void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
       uint8_t *const blurred_buf =
           blurred.y_buffer + row_offset_y * blurred.y_stride + col_offset_y;
 
-      const double vmaf = scores[index];
-      const double dvmaf = kBaselineVmaf - vmaf;
       unsigned int sse;
       cpi->fn_ptr[resized_block_size].vf(orig_buf, resized_source.y_stride,
                                          blurred_buf, blurred.y_stride, &sse);
+
+#if CONFIG_USE_VMAF_RC
+      uint8_t *const recon_buf =
+          recon.y_buffer + row_offset_y * recon.y_stride + col_offset_y;
+      // Set recon buf
+      if (cpi->common.seq_params.use_highbitdepth) {
+        highbd_unsharp_rect(CONVERT_TO_SHORTPTR(blurred_buf), blurred.y_stride,
+                            CONVERT_TO_SHORTPTR(blurred_buf), blurred.y_stride,
+                            CONVERT_TO_SHORTPTR(recon_buf), recon.y_stride,
+                            resized_block_w, resized_block_h, 0.0, bit_depth);
+      } else {
+        unsharp_rect(blurred_buf, blurred.y_stride, blurred_buf,
+                     blurred.y_stride, recon_buf, recon.y_stride,
+                     resized_block_w, resized_block_h, 0.0);
+      }
+
+      double vmaf;
+      aom_calc_vmaf_rc(
+          cpi->vmaf_info.vmaf_model, &resized_source, &recon, bit_depth,
+          cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN, &vmaf);
+
+      // Restore recon buf
+      if (cpi->common.seq_params.use_highbitdepth) {
+        highbd_unsharp_rect(
+            CONVERT_TO_SHORTPTR(orig_buf), resized_source.y_stride,
+            CONVERT_TO_SHORTPTR(orig_buf), resized_source.y_stride,
+            CONVERT_TO_SHORTPTR(recon_buf), recon.y_stride, resized_block_w,
+            resized_block_h, 0.0, bit_depth);
+      } else {
+        unsharp_rect(orig_buf, resized_source.y_stride, orig_buf,
+                     resized_source.y_stride, recon_buf, recon.y_stride,
+                     resized_block_w, resized_block_h, 0.0);
+      }
+#else
+      const double vmaf = scores[index];
+#endif
+      const double dvmaf = kBaselineVmaf - vmaf;
 
       const double mse =
           (double)sse / (double)(resized_y_width * resized_y_height);
@@ -620,7 +678,9 @@ void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
 
   aom_free_frame_buffer(&resized_source);
   aom_free_frame_buffer(&blurred);
+#if !CONFIG_USE_VMAF_RC
   aom_free(scores);
+#endif
   aom_clear_system_state();
 }
 
@@ -882,8 +942,14 @@ static double find_best_frame_unsharp_amount_neg(
 void av1_update_vmaf_curve(AV1_COMP *cpi, YV12_BUFFER_CONFIG *source,
                            YV12_BUFFER_CONFIG *recon) {
   const int bit_depth = cpi->td.mb.e_mbd.bd;
+#if CONFIG_USE_VMAF_RC
+  aom_calc_vmaf_rc(cpi->vmaf_info.vmaf_model, source, recon, bit_depth,
+                   cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN,
+                   &cpi->vmaf_info.last_frame_vmaf);
+#else
   aom_calc_vmaf(cpi->oxcf.tune_cfg.vmaf_model_path, source, recon, bit_depth,
                 &cpi->vmaf_info.last_frame_vmaf);
+#endif
   if (cpi->common.seq_params.use_highbitdepth) {
     assert(source->flags & YV12_FLAG_HIGHBITDEPTH);
     assert(recon->flags & YV12_FLAG_HIGHBITDEPTH);

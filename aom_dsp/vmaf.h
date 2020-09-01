@@ -46,6 +46,15 @@ typedef struct {
 #endif
 } TuneVMAFInfo;
 
+#if CONFIG_USE_VMAF_RC
+void aom_init_vmaf_rc(VmafModel **vmaf_model, const char *model_path);
+
+void aom_calc_vmaf_rc(VmafModel *vmaf_model, const YV12_BUFFER_CONFIG *source,
+                      const YV12_BUFFER_CONFIG *distorted, int bit_depth,
+                      int cal_vmaf_neg, double *vmaf);
+
+void aom_close_vmaf_rc(VmafModel *vmaf_model);
+#else
 void aom_calc_vmaf(const char *model_path, const YV12_BUFFER_CONFIG *source,
                    const YV12_BUFFER_CONFIG *distorted, int bit_depth,
                    double *vmaf);
@@ -55,15 +64,6 @@ void aom_calc_vmaf_multi_frame(
     int (*read_frame)(float *ref_data, float *main_data, float *temp_data,
                       int stride_byte, void *user_data),
     int frame_width, int frame_height, int bit_depth, double *vmaf);
-
-#if CONFIG_USE_VMAF_RC
-void aom_init_vmaf_rc(VmafModel **vmaf_model, const char *model_path);
-
-void aom_calc_vmaf_rc(VmafModel *vmaf_model, const YV12_BUFFER_CONFIG *source,
-                      const YV12_BUFFER_CONFIG *distorted, int bit_depth,
-                      int cal_vmaf_neg, double *vmaf);
-
-void aom_close_vmaf_rc(VmafModel *vmaf_model);
 #endif  // CONFIG_USE_VMAF_RC
 
 #endif  // AOM_AOM_DSP_VMAF_H_
