@@ -567,7 +567,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.alt_ref_search_fp = 1;
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
 
-    sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
+    sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 2;
     sf->inter_sf.prune_compound_using_neighbors = 2;
     sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
     sf->inter_sf.disable_smooth_interintra = 1;
@@ -642,6 +642,8 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 6) {
+    sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
+
     sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
     sf->mv_sf.use_bsize_dependent_search_method = 1;
 

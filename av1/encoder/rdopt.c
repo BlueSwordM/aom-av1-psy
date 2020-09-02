@@ -2197,10 +2197,9 @@ static AOM_INLINE int prune_modes_based_on_tpl_stats(
     PruneInfoFromTpl *inter_cost_info_from_tpl, const int *refs, int ref_mv_idx,
     const PREDICTION_MODE this_mode, int prune_mode_level) {
   const int have_newmv = have_newmv_in_inter_mode(this_mode);
-  if ((prune_mode_level < 3) && have_newmv) return 0;
+  if ((prune_mode_level < 2) && have_newmv) return 0;
 
-  static const int prune_level_idx[3] = { 0, 1, 1 };
-  const int prune_level = prune_level_idx[prune_mode_level - 1];
+  const int prune_level = prune_mode_level - 1;
   int64_t cur_inter_cost;
 
   const int is_globalmv =
@@ -2212,8 +2211,8 @@ static AOM_INLINE int prune_modes_based_on_tpl_stats(
   // conservative pruning which is set based on ref_mv_idx and speed feature.
   // 'prune_index' 0, 1, 2 corresponds to ref_mv indices 0, 1 and 2. prune_index
   // 3 corresponds to GLOBALMV/GLOBAL_GLOBALMV
-  static const int tpl_inter_mode_prune_mul_factor[2][MAX_REF_MV_SEARCH + 1] = {
-    { 3, 3, 3, 2 }, { 3, 2, 2, 2 }
+  static const int tpl_inter_mode_prune_mul_factor[3][MAX_REF_MV_SEARCH + 1] = {
+    { 6, 6, 6, 4 }, { 6, 4, 4, 4 }, { 5, 4, 4, 4 }
   };
 
   const int is_comp_pred = (refs[1] > INTRA_FRAME);
@@ -2235,7 +2234,7 @@ static AOM_INLINE int prune_modes_based_on_tpl_stats(
   if (cur_inter_cost >
       ((tpl_inter_mode_prune_mul_factor[prune_level][prune_index] *
         best_inter_cost) >>
-       1))
+       2))
     return 1;
   return 0;
 }
