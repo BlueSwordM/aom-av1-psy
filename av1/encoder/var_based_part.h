@@ -30,6 +30,9 @@ extern "C" {
 #define QINDEX_HIGH_THR \
   220  // Use high qindex variance partition thresholds when qindex is above
        // this threshold
+#define QINDEX_LARGE_BLOCK_THR \
+  100  // Use increased thresholds for midres for speed 9 when qindex is above
+       // this threshold
 
 /*!\brief Set the thresholds for variance based partition.
  *
