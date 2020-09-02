@@ -2171,8 +2171,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   }
 
 #if CONFIG_USE_VMAF_RC
-  aom_init_vmaf_rc(&cpi->vmaf_info.vmaf_model,
-                   cpi->oxcf.tune_cfg.vmaf_model_path);
+  aom_init_vmaf_model_rc(&cpi->vmaf_info.vmaf_model,
+                         cpi->oxcf.tune_cfg.vmaf_model_path);
 #endif
 
   // Handle fixed keyframe intervals

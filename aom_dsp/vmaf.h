@@ -12,6 +12,7 @@
 #ifndef AOM_AOM_DSP_VMAF_H_
 #define AOM_AOM_DSP_VMAF_H_
 
+#include <stdbool.h>
 #include "aom_scale/yv12config.h"
 
 #if CONFIG_USE_VMAF_RC
@@ -47,13 +48,17 @@ typedef struct {
 } TuneVMAFInfo;
 
 #if CONFIG_USE_VMAF_RC
-void aom_init_vmaf_rc(VmafModel **vmaf_model, const char *model_path);
+void aom_init_vmaf_context_rc(VmafContext **vmaf_context, VmafModel *vmaf_model,
+                              bool cal_vmaf_neg);
+void aom_close_vmaf_context_rc(VmafContext *vmaf_context);
 
-void aom_calc_vmaf_rc(VmafModel *vmaf_model, const YV12_BUFFER_CONFIG *source,
-                      const YV12_BUFFER_CONFIG *distorted, int bit_depth,
-                      int cal_vmaf_neg, double *vmaf);
+void aom_init_vmaf_model_rc(VmafModel **vmaf_model, const char *model_path);
+void aom_close_vmaf_model_rc(VmafModel *vmaf_model);
 
-void aom_close_vmaf_rc(VmafModel *vmaf_model);
+void aom_calc_vmaf_at_index_rc(VmafContext *vmaf_context, VmafModel *vmaf_model,
+                               const YV12_BUFFER_CONFIG *source,
+                               const YV12_BUFFER_CONFIG *distorted,
+                               int bit_depth, int frame_index, double *vmaf);
 #else
 void aom_calc_vmaf(const char *model_path, const YV12_BUFFER_CONFIG *source,
                    const YV12_BUFFER_CONFIG *distorted, int bit_depth,

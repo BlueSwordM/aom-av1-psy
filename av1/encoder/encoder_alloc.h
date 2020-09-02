@@ -243,7 +243,7 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   cpi->vmaf_info.rdmult_scaling_factors = NULL;
 
 #if CONFIG_USE_VMAF_RC
-  aom_close_vmaf_rc(cpi->vmaf_info.vmaf_model);
+  aom_close_vmaf_model_rc(cpi->vmaf_info.vmaf_model);
 #endif
 #endif
 

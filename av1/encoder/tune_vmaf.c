@@ -158,16 +158,20 @@ static double frame_average_variance(const AV1_COMP *const cpi,
   return var;
 }
 
-static double cal_approx_vmaf(const AV1_COMP *const cpi, double source_variance,
+static double cal_approx_vmaf(const AV1_COMP *const cpi,
+#if CONFIG_USE_VMAF_RC
+                              VmafContext *vmaf_context, int *vmaf_cal_index,
+#endif
+                              double source_variance,
                               YV12_BUFFER_CONFIG *const source,
                               YV12_BUFFER_CONFIG *const sharpened) {
   const int bit_depth = cpi->td.mb.e_mbd.bd;
   double new_vmaf;
 
 #if CONFIG_USE_VMAF_RC
-  aom_calc_vmaf_rc(cpi->vmaf_info.vmaf_model, source, sharpened, bit_depth,
-                   cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN,
-                   &new_vmaf);
+  aom_calc_vmaf_at_index_rc(vmaf_context, cpi->vmaf_info.vmaf_model, source,
+                            sharpened, bit_depth, *vmaf_cal_index, &new_vmaf);
+  (*vmaf_cal_index)++;
 #else
   aom_calc_vmaf(cpi->oxcf.tune_cfg.vmaf_model_path, source, sharpened,
                 bit_depth, &new_vmaf);
@@ -178,11 +182,14 @@ static double cal_approx_vmaf(const AV1_COMP *const cpi, double source_variance,
 }
 
 static double find_best_frame_unsharp_amount_loop(
-    const AV1_COMP *const cpi, YV12_BUFFER_CONFIG *const source,
-    YV12_BUFFER_CONFIG *const blurred, YV12_BUFFER_CONFIG *const sharpened,
-    double best_vmaf, const double baseline_variance,
-    const double unsharp_amount_start, const double step_size,
-    const int max_loop_count, const double max_amount) {
+    const AV1_COMP *const cpi,
+#if CONFIG_USE_VMAF_RC
+    VmafContext *vmaf_context, int *vmaf_cal_index,
+#endif
+    YV12_BUFFER_CONFIG *const source, YV12_BUFFER_CONFIG *const blurred,
+    YV12_BUFFER_CONFIG *const sharpened, double best_vmaf,
+    const double baseline_variance, const double unsharp_amount_start,
+    const double step_size, const int max_loop_count, const double max_amount) {
   const double min_amount = 0.0;
   int loop_count = 0;
   double approx_vmaf = best_vmaf;
@@ -192,7 +199,11 @@ static double find_best_frame_unsharp_amount_loop(
     unsharp_amount += step_size;
     if (unsharp_amount > max_amount || unsharp_amount < min_amount) break;
     unsharp(cpi, source, blurred, sharpened, unsharp_amount);
-    approx_vmaf = cal_approx_vmaf(cpi, baseline_variance, source, sharpened);
+    approx_vmaf = cal_approx_vmaf(cpi,
+#if CONFIG_USE_VMAF_RC
+                                  vmaf_context, vmaf_cal_index,
+#endif
+                                  baseline_variance, source, sharpened);
 
     loop_count++;
   } while (approx_vmaf > best_vmaf && loop_count < max_loop_count);
@@ -211,7 +222,13 @@ static double find_best_frame_unsharp_amount(const AV1_COMP *const cpi,
   const AV1_COMMON *const cm = &cpi->common;
   const int width = source->y_width;
   const int height = source->y_height;
-
+#if CONFIG_USE_VMAF_RC
+  VmafContext *vmaf_context;
+  aom_init_vmaf_context_rc(
+      &vmaf_context, cpi->vmaf_info.vmaf_model,
+      cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN);
+  int vmaf_cal_index = 0;
+#endif
   YV12_BUFFER_CONFIG sharpened;
   memset(&sharpened, 0, sizeof(sharpened));
   aom_alloc_frame_buffer(
@@ -222,29 +239,52 @@ static double find_best_frame_unsharp_amount(const AV1_COMP *const cpi,
   double unsharp_amount;
   if (unsharp_amount_start <= step_size) {
     unsharp_amount = find_best_frame_unsharp_amount_loop(
-        cpi, source, blurred, &sharpened, 0.0, baseline_variance, 0.0,
-        step_size, max_loop_count, max_filter_amount);
+        cpi,
+#if CONFIG_USE_VMAF_RC
+        vmaf_context, &vmaf_cal_index,
+#endif
+        source, blurred, &sharpened, 0.0, baseline_variance, 0.0, step_size,
+        max_loop_count, max_filter_amount);
   } else {
     double a0 = unsharp_amount_start - step_size, a1 = unsharp_amount_start;
     double v0, v1;
     unsharp(cpi, source, blurred, &sharpened, a0);
-    v0 = cal_approx_vmaf(cpi, baseline_variance, source, &sharpened);
+    v0 = cal_approx_vmaf(cpi,
+#if CONFIG_USE_VMAF_RC
+                         vmaf_context, &vmaf_cal_index,
+#endif
+                         baseline_variance, source, &sharpened);
     unsharp(cpi, source, blurred, &sharpened, a1);
-    v1 = cal_approx_vmaf(cpi, baseline_variance, source, &sharpened);
+    v1 = cal_approx_vmaf(cpi,
+#if CONFIG_USE_VMAF_RC
+                         vmaf_context, &vmaf_cal_index,
+#endif
+                         baseline_variance, source, &sharpened);
     if (fabs(v0 - v1) < 0.01) {
       unsharp_amount = a0;
     } else if (v0 > v1) {
       unsharp_amount = find_best_frame_unsharp_amount_loop(
-          cpi, source, blurred, &sharpened, v0, baseline_variance, a0,
-          -step_size, max_loop_count, max_filter_amount);
+          cpi,
+#if CONFIG_USE_VMAF_RC
+          vmaf_context, &vmaf_cal_index,
+#endif
+          source, blurred, &sharpened, v0, baseline_variance, a0, -step_size,
+          max_loop_count, max_filter_amount);
     } else {
       unsharp_amount = find_best_frame_unsharp_amount_loop(
-          cpi, source, blurred, &sharpened, v1, baseline_variance, a1,
-          step_size, max_loop_count, max_filter_amount);
+          cpi,
+#if CONFIG_USE_VMAF_RC
+          vmaf_context, &vmaf_cal_index,
+#endif
+          source, blurred, &sharpened, v1, baseline_variance, a1, step_size,
+          max_loop_count, max_filter_amount);
     }
   }
 
   aom_free_frame_buffer(&sharpened);
+#if CONFIG_USE_VMAF_RC
+  aom_close_vmaf_context_rc(vmaf_context);
+#endif
   return unsharp_amount;
 }
 
@@ -588,6 +628,11 @@ void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
                          cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment);
   aom_yv12_copy_frame(&resized_source, &recon, 1);
+
+  VmafContext *vmaf_context;
+  aom_init_vmaf_context_rc(
+      &vmaf_context, cpi->vmaf_info.vmaf_model,
+      cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN);
 #else
   double *scores = aom_malloc(sizeof(*scores) * (num_rows * num_cols));
   memset(scores, 0, sizeof(*scores) * (num_rows * num_cols));
@@ -639,9 +684,9 @@ void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
       }
 
       double vmaf;
-      aom_calc_vmaf_rc(
-          cpi->vmaf_info.vmaf_model, &resized_source, &recon, bit_depth,
-          cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN, &vmaf);
+      aom_calc_vmaf_at_index_rc(vmaf_context, cpi->vmaf_info.vmaf_model,
+                                &resized_source, &recon, bit_depth, index,
+                                &vmaf);
 
       // Restore recon buf
       if (cpi->common.seq_params.use_highbitdepth) {
@@ -678,7 +723,9 @@ void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
 
   aom_free_frame_buffer(&resized_source);
   aom_free_frame_buffer(&blurred);
-#if !CONFIG_USE_VMAF_RC
+#if CONFIG_USE_VMAF_RC
+  aom_close_vmaf_context_rc(vmaf_context);
+#else
   aom_free(scores);
 #endif
   aom_clear_system_state();
@@ -879,31 +926,34 @@ int av1_get_vmaf_base_qindex(const AV1_COMP *const cpi, int current_qindex) {
 
 #if CONFIG_USE_VMAF_RC
 static double cal_approx_score(const AV1_COMP *const cpi,
+                               VmafContext *vmaf_context, int vmaf_cal_index,
                                YV12_BUFFER_CONFIG *const ref,
                                YV12_BUFFER_CONFIG *const sharpened) {
   double score;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
-  aom_calc_vmaf_rc(cpi->vmaf_info.vmaf_model, ref, sharpened, bit_depth, 1,
-                   &score);
+  aom_calc_vmaf_at_index_rc(vmaf_context, cpi->vmaf_info.vmaf_model, ref,
+                            sharpened, bit_depth, vmaf_cal_index, &score);
   return score;
 }
 
 static double find_best_frame_unsharp_amount_loop_neg(
-    const AV1_COMP *const cpi, YV12_BUFFER_CONFIG *const ref,
-    YV12_BUFFER_CONFIG *const source, YV12_BUFFER_CONFIG *const blurred,
-    YV12_BUFFER_CONFIG *const sharpened, double best_score,
-    const double unsharp_amount_start, const double step_size,
-    const int max_loop_count, const double max_amount) {
+    const AV1_COMP *const cpi, VmafContext *vmaf_context,
+    YV12_BUFFER_CONFIG *const ref, YV12_BUFFER_CONFIG *const source,
+    YV12_BUFFER_CONFIG *const blurred, YV12_BUFFER_CONFIG *const sharpened,
+    double best_score, const double unsharp_amount_start,
+    const double step_size, const int max_loop_count, const double max_amount) {
   const double min_amount = 0.0;
   int loop_count = 0;
   double approx_score = best_score;
   double unsharp_amount = unsharp_amount_start;
+  int vmaf_cal_index = 2;
   do {
     best_score = approx_score;
     unsharp_amount += step_size;
     if (unsharp_amount > max_amount || unsharp_amount < min_amount) break;
     unsharp(cpi, source, blurred, sharpened, unsharp_amount);
-    approx_score = cal_approx_score(cpi, ref, sharpened);
+    approx_score =
+        cal_approx_score(cpi, vmaf_context, vmaf_cal_index++, ref, sharpened);
 
     loop_count++;
   } while (approx_score > best_score && loop_count < max_loop_count);
@@ -913,17 +963,18 @@ static double find_best_frame_unsharp_amount_loop_neg(
 }
 
 static double find_best_frame_unsharp_amount_neg(
-    const AV1_COMP *const cpi, YV12_BUFFER_CONFIG *const ref,
-    YV12_BUFFER_CONFIG *const source, YV12_BUFFER_CONFIG *const blurred,
-    const double unsharp_amount_start, const double step_size,
-    const int max_loop_count, const double max_filter_amount) {
+    const AV1_COMP *const cpi, VmafContext *vmaf_context,
+    YV12_BUFFER_CONFIG *const ref, YV12_BUFFER_CONFIG *const source,
+    YV12_BUFFER_CONFIG *const blurred, const double unsharp_amount_start,
+    const double step_size, const int max_loop_count,
+    const double max_filter_amount) {
   const AV1_COMMON *const cm = &cpi->common;
   const int width = source->y_width;
   const int height = source->y_height;
 
   double best_score = 0.0;
-  aom_calc_vmaf_rc(cpi->vmaf_info.vmaf_model, ref, source, cpi->td.mb.e_mbd.bd,
-                   1, &best_score);
+  aom_calc_vmaf_at_index_rc(vmaf_context, cpi->vmaf_info.vmaf_model, ref,
+                            source, cpi->td.mb.e_mbd.bd, 1, &best_score);
   YV12_BUFFER_CONFIG sharpened;
   memset(&sharpened, 0, sizeof(sharpened));
   aom_alloc_frame_buffer(
@@ -931,8 +982,8 @@ static double find_best_frame_unsharp_amount_neg(
       cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
 
   const double unsharp_amount = find_best_frame_unsharp_amount_loop_neg(
-      cpi, ref, source, blurred, &sharpened, best_score, unsharp_amount_start,
-      step_size, max_loop_count, max_filter_amount);
+      cpi, vmaf_context, ref, source, blurred, &sharpened, best_score,
+      unsharp_amount_start, step_size, max_loop_count, max_filter_amount);
 
   aom_free_frame_buffer(&sharpened);
   return unsharp_amount;
@@ -943,9 +994,13 @@ void av1_update_vmaf_curve(AV1_COMP *cpi, YV12_BUFFER_CONFIG *source,
                            YV12_BUFFER_CONFIG *recon) {
   const int bit_depth = cpi->td.mb.e_mbd.bd;
 #if CONFIG_USE_VMAF_RC
-  aom_calc_vmaf_rc(cpi->vmaf_info.vmaf_model, source, recon, bit_depth,
-                   cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN,
-                   &cpi->vmaf_info.last_frame_vmaf);
+  VmafContext *vmaf_context;
+  aom_init_vmaf_context_rc(
+      &vmaf_context, cpi->vmaf_info.vmaf_model,
+      cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN);
+  aom_calc_vmaf_at_index_rc(vmaf_context, cpi->vmaf_info.vmaf_model, source,
+                            recon, bit_depth, 0,
+                            &cpi->vmaf_info.last_frame_vmaf);
 #else
   aom_calc_vmaf(cpi->oxcf.tune_cfg.vmaf_model_path, source, recon, bit_depth,
                 &cpi->vmaf_info.last_frame_vmaf);
@@ -973,9 +1028,10 @@ void av1_update_vmaf_curve(AV1_COMP *cpi, YV12_BUFFER_CONFIG *source,
 
     gaussian_blur(bit_depth, recon, &blurred);
     cpi->vmaf_info.best_unsharp_amount = find_best_frame_unsharp_amount_neg(
-        cpi, source, recon, &blurred, 0.0, 0.025, 20, 1.01);
+        cpi, vmaf_context, source, recon, &blurred, 0.0, 0.025, 20, 1.01);
 
     aom_free_frame_buffer(&blurred);
   }
+  aom_close_vmaf_context_rc(vmaf_context);
 #endif
 }
