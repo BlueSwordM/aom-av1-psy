@@ -195,8 +195,10 @@ static int search_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
 
   // Update best error
   best_err = ss_err[filt_best];
+  const int sse_shift = 2 * (cm->seq_params.bit_depth - 8);
 
-  if (best_cost_ret) *best_cost_ret = RDCOST_DBL(x->rdmult, 0, best_err);
+  if (best_cost_ret)
+    *best_cost_ret = RDCOST_DBL(x->rdmult, 0, ((best_err >> sse_shift) << 4));
   return filt_best;
 }
 
