@@ -2147,6 +2147,7 @@ static int skip_trellis_opt_based_on_satd(MACROBLOCK *x,
   const int shift = (MAX_TX_SCALE - av1_get_tx_scale(tx_size));
   int satd = (dc_only_blk) ? abs(coeff_ptr[0]) : aom_satd(coeff_ptr, n_coeffs);
   satd = RIGHT_SIGNED_SHIFT(satd, shift);
+  satd >>= (x->e_mbd.bd - 8);
 
   const int skip_block_trellis =
       ((uint64_t)satd >
