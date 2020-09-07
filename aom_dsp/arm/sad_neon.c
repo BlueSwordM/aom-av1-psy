@@ -418,12 +418,16 @@ static INLINE unsigned int sad16xh_neon(const uint8_t *src_ptr, int src_stride,
   for (int i = 0; i < h; i++) {
     uint8x8_t q0 = vld1_u8(src_ptr);
     uint8x8_t q1 = vld1_u8(ref_ptr);
-    for (int x = 0; x < 4; x++)
-      sum += vget_lane_u16(vpaddl_u8(vabd_u8(q0, q1)), x);
+    sum += vget_lane_u16(vpaddl_u8(vabd_u8(q0, q1)), 0);
+    sum += vget_lane_u16(vpaddl_u8(vabd_u8(q0, q1)), 1);
+    sum += vget_lane_u16(vpaddl_u8(vabd_u8(q0, q1)), 2);
+    sum += vget_lane_u16(vpaddl_u8(vabd_u8(q0, q1)), 3);
     q0 = vld1_u8(src_ptr + 8);
     q1 = vld1_u8(ref_ptr + 8);
-    for (int x = 0; x < 4; x++)
-      sum += vget_lane_u16(vpaddl_u8(vabd_u8(q0, q1)), x);
+    sum += vget_lane_u16(vpaddl_u8(vabd_u8(q0, q1)), 0);
+    sum += vget_lane_u16(vpaddl_u8(vabd_u8(q0, q1)), 1);
+    sum += vget_lane_u16(vpaddl_u8(vabd_u8(q0, q1)), 2);
+    sum += vget_lane_u16(vpaddl_u8(vabd_u8(q0, q1)), 3);
 
     src_ptr += src_stride;
     ref_ptr += ref_stride;
