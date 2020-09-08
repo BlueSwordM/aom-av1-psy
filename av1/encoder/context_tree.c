@@ -11,6 +11,7 @@
 
 #include "av1/encoder/context_tree.h"
 #include "av1/encoder/encoder.h"
+#include "av1/encoder/rd.h"
 
 static const BLOCK_SIZE square[MAX_SB_SIZE_LOG2 - 1] = {
   BLOCK_4X4, BLOCK_8X8, BLOCK_16X16, BLOCK_32X32, BLOCK_64X64, BLOCK_128X128,
@@ -100,6 +101,8 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, BLOCK_SIZE bsize,
           aom_memalign(32, num_pix * sizeof(*ctx->color_index_map[i])));
     }
   }
+
+  av1_invalid_rd_stats(&ctx->rd_stats);
 
   return ctx;
 }

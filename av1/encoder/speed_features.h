@@ -736,6 +736,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Enable/disable masked compound.
   int disable_masked_comp;
+
+  // Reuse the best prediction modes found in PARTITION_SPLIT and PARTITION_RECT
+  // when encoding PARTITION_AB.
+  int reuse_best_prediction_for_part_ab;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {

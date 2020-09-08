@@ -536,6 +536,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.selective_ref_frame = 4;
     sf->inter_sf.skip_repeated_ref_mv = 1;
     sf->inter_sf.skip_repeated_full_newmv = 1;
+    sf->inter_sf.reuse_best_prediction_for_part_ab = 1;
     sf->inter_sf.reuse_compound_type_decision = 1;
     sf->inter_sf.txfm_rd_gate_level =
         boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);
@@ -1130,6 +1131,7 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->txfm_rd_gate_level = 0;
   inter_sf->prune_inter_modes_if_skippable = 0;
   inter_sf->disable_masked_comp = 0;
+  inter_sf->reuse_best_prediction_for_part_ab = 0;
 }
 
 static AOM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {

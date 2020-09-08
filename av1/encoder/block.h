@@ -944,7 +944,7 @@ typedef struct macroblock {
   /**@}*/
 
   /*****************************************************************************
-   * \name Reference Frame Searc
+   * \name Reference Frame Search
    ****************************************************************************/
   /**@{*/
   /*! \brief Sum absolute distortion of the predicted mv for each ref frame.
@@ -1080,6 +1080,11 @@ typedef struct macroblock {
    * Contains the hash table, hash function, and buffer used for intrabc.
    */
   IntraBCHashInfo intrabc_hash_info;
+
+  /*! \brief Whether to reuse the mode stored in intermode_cache. */
+  int use_intermode_cache;
+  /*! \brief The mode to reuse during \ref av1_rd_pick_inter_mode_sb. */
+  PREDICTION_MODE intermode_cache;
   /**@}*/
 
   /*****************************************************************************

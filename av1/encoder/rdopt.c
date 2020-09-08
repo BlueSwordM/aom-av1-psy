@@ -5095,6 +5095,10 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     num_single_modes_processed += is_single_pred;
     set_ref_ptrs(cm, xd, ref_frame, second_ref_frame);
 
+    if (x->use_intermode_cache && this_mode != x->intermode_cache) {
+      continue;
+    }
+
     // Apply speed features to decide if this inter mode can be skipped
     if (skip_inter_mode(cpi, x, bsize, ref_frame_rd, midx, &sf_args)) continue;
 

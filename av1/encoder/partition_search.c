@@ -2249,8 +2249,9 @@ static bool rd_test_partition3(AV1_COMP *const cpi, ThreadData *td,
                                int mi_row, int mi_col, BLOCK_SIZE bsize,
                                PARTITION_TYPE partition,
                                const BLOCK_SIZE ab_subsize[SUB_PARTITIONS_AB],
-                               const int ab_mi_pos[SUB_PARTITIONS_AB][2]) {
-  const MACROBLOCK *const x = &td->mb;
+                               const int ab_mi_pos[SUB_PARTITIONS_AB][2],
+                               const PREDICTION_MODE *mode_cache) {
+  MACROBLOCK *const x = &td->mb;
   const MACROBLOCKD *const xd = &x->e_mbd;
   const int pl = partition_plane_context(xd, mi_row, mi_col, bsize);
   RD_STATS sum_rdc;
@@ -2259,10 +2260,19 @@ static bool rd_test_partition3(AV1_COMP *const cpi, ThreadData *td,
   sum_rdc.rdcost = RDCOST(x->rdmult, sum_rdc.rate, 0);
   // Loop over sub-partitions in AB partition type.
   for (int i = 0; i < SUB_PARTITIONS_AB; i++) {
-    if (!rd_try_subblock(cpi, td, tile_data, tp, i == SUB_PARTITIONS_AB - 1,
-                         ab_mi_pos[i][0], ab_mi_pos[i][1], ab_subsize[i],
-                         *best_rdc, &sum_rdc, partition, ctxs[i]))
+    if (mode_cache && mode_cache[i] != PRED_MODE_INVALID) {
+      x->use_intermode_cache = 1;
+      x->intermode_cache = mode_cache[i];
+    }
+    const int mode_search_success =
+        rd_try_subblock(cpi, td, tile_data, tp, i == SUB_PARTITIONS_AB - 1,
+                        ab_mi_pos[i][0], ab_mi_pos[i][1], ab_subsize[i],
+                        *best_rdc, &sum_rdc, partition, ctxs[i]);
+    x->use_intermode_cache = 0;
+    x->intermode_cache = PRED_MODE_INVALID;
+    if (!mode_search_success) {
       return false;
+    }
   }
 
   av1_rd_cost_update(x->rdmult, &sum_rdc);
@@ -2616,7 +2626,8 @@ static void rd_pick_ab_part(
     PC_TREE *pc_tree, PICK_MODE_CONTEXT *dst_ctxs[SUB_PARTITIONS_AB],
     PartitionSearchState *part_search_state, RD_STATS *best_rdc,
     const BLOCK_SIZE ab_subsize[SUB_PARTITIONS_AB],
-    const int ab_mi_pos[SUB_PARTITIONS_AB][2], const PARTITION_TYPE part_type) {
+    const int ab_mi_pos[SUB_PARTITIONS_AB][2], const PARTITION_TYPE part_type,
+    const PREDICTION_MODE *mode_cache) {
   const AV1_COMMON *const cm = &cpi->common;
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
   const int mi_row = blk_params.mi_row;
@@ -2641,7 +2652,7 @@ static void rd_pick_ab_part(
   // Test this partition and update the best partition.
   part_search_state->found_best_partition |= rd_test_partition3(
       cpi, td, tile_data, tp, pc_tree, best_rdc, dst_ctxs, mi_row, mi_col,
-      bsize, part_type, ab_subsize, ab_mi_pos);
+      bsize, part_type, ab_subsize, ab_mi_pos, mode_cache);
 
 #if CONFIG_COLLECT_PARTITION_STATS
   if (partition_timer_on) {
@@ -2681,6 +2692,56 @@ static AOM_INLINE void set_mode_search_ctx(
 
   if (is_ctx_ready[HORZ_A][1])
     mode_srch_ctx[HORZ_A][1] = &pc_tree->split[1]->none;
+}
+
+static AOM_INLINE void copy_partition_mode_from_mode_context(
+    PREDICTION_MODE *dst_mode, const PICK_MODE_CONTEXT *ctx) {
+  if (ctx && ctx->rd_stats.rate < INT_MAX) {
+    *dst_mode = ctx->mic.mode;
+  } else {
+    *dst_mode = PRED_MODE_INVALID;
+  }
+}
+
+static AOM_INLINE void copy_partition_mode_from_pc_tree(
+    PREDICTION_MODE *dst_mode, const PC_TREE *pc_tree) {
+  if (pc_tree) {
+    copy_partition_mode_from_mode_context(dst_mode, pc_tree->none);
+  } else {
+    *dst_mode = PRED_MODE_INVALID;
+  }
+}
+
+static AOM_INLINE void set_mode_cache_for_partition_ab(
+    PREDICTION_MODE *mode_cache, const PC_TREE *pc_tree,
+    AB_PART_TYPE ab_part_type) {
+  switch (ab_part_type) {
+    case HORZ_A:
+      copy_partition_mode_from_pc_tree(&mode_cache[0], pc_tree->split[0]);
+      copy_partition_mode_from_pc_tree(&mode_cache[1], pc_tree->split[1]);
+      copy_partition_mode_from_mode_context(&mode_cache[2],
+                                            pc_tree->horizontal[1]);
+      break;
+    case HORZ_B:
+      copy_partition_mode_from_mode_context(&mode_cache[0],
+                                            pc_tree->horizontal[0]);
+      copy_partition_mode_from_pc_tree(&mode_cache[1], pc_tree->split[2]);
+      copy_partition_mode_from_pc_tree(&mode_cache[2], pc_tree->split[3]);
+      break;
+    case VERT_A:
+      copy_partition_mode_from_pc_tree(&mode_cache[0], pc_tree->split[0]);
+      copy_partition_mode_from_pc_tree(&mode_cache[1], pc_tree->split[2]);
+      copy_partition_mode_from_mode_context(&mode_cache[2],
+                                            pc_tree->vertical[1]);
+      break;
+    case VERT_B:
+      copy_partition_mode_from_mode_context(&mode_cache[0],
+                                            pc_tree->vertical[0]);
+      copy_partition_mode_from_pc_tree(&mode_cache[1], pc_tree->split[1]);
+      copy_partition_mode_from_pc_tree(&mode_cache[2], pc_tree->split[3]);
+      break;
+    default: assert(0 && "Invalid ab partition type!\n");
+  }
 }
 
 // AB Partitions type search.
@@ -2775,7 +2836,8 @@ static void ab_partitions_search(
       cur_part_ctxs[ab_part_type][i]->rd_mode_is_ready = 0;
     }
 
-    // Copy of mode search results if the ctx is ready.
+    // We can copy directly the mode search results if we have already searched
+    // the current block and the contexts match.
     if (is_ctx_ready[ab_part_type][0]) {
       av1_copy_tree_context(cur_part_ctxs[ab_part_type][0],
                             mode_srch_ctx[ab_part_type][0][0]);
@@ -2789,11 +2851,19 @@ static void ab_partitions_search(
       }
     }
 
+    // Even if the contexts don't match, we can still speed up by reusing the
+    // previous prediction mode.
+    PREDICTION_MODE mode_cache[3] = { PRED_MODE_INVALID, PRED_MODE_INVALID,
+                                      PRED_MODE_INVALID };
+    if (cpi->sf.inter_sf.reuse_best_prediction_for_part_ab) {
+      set_mode_cache_for_partition_ab(mode_cache, pc_tree, ab_part_type);
+    }
+
     // Evaluation of AB partition type.
     rd_pick_ab_part(cpi, td, tile_data, tp, x, x_ctx, pc_tree,
                     cur_part_ctxs[ab_part_type], part_search_state, best_rdc,
                     ab_subsize[ab_part_type], ab_mi_pos[ab_part_type],
-                    part_type);
+                    part_type, mode_cache);
   }
 }
 
@@ -3169,6 +3239,7 @@ static void none_partition_search(
   // PARTITION_NONE evaluation and cost update.
   pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, this_rdc, PARTITION_NONE,
                 bsize, pc_tree->none, best_remain_rdcost);
+
   av1_rd_cost_update(x->rdmult, this_rdc);
 
 #if CONFIG_COLLECT_PARTITION_STATS
