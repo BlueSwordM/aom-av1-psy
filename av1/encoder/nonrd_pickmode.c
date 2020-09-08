@@ -1609,7 +1609,8 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   const struct segmentation *const seg = &cm->seg;
   const int is_small_sb = (cm->seq_params.sb_size == BLOCK_64X64);
 
-  int use_alt_ref_frame = cpi->sf.rt_sf.use_nonrd_altref_frame;
+  // For SVC the usage of alt_ref is determined by the ref_frame_flags.
+  int use_alt_ref_frame = cpi->use_svc || cpi->sf.rt_sf.use_nonrd_altref_frame;
   int use_golden_ref_frame = 1;
 
   use_ref_frame[LAST_FRAME] = 1;  // we never skip LAST
@@ -1713,9 +1714,10 @@ static void estimate_intra_mode(
   uint32_t spatial_var_thresh = 50;
   int motion_thresh = 32;
   // Adjust thresholds to make intra mode likely tested if the other
-  // references (golden, alt) are skipped/not checked.
-  if (cpi->sf.rt_sf.use_nonrd_altref_frame == 0 &&
-      cpi->sf.rt_sf.nonrd_prune_ref_frame_search > 0) {
+  // references (golden, alt) are skipped/not checked. For now always
+  // adjust for svc mode.
+  if (cpi->use_svc || (cpi->sf.rt_sf.use_nonrd_altref_frame == 0 &&
+                       cpi->sf.rt_sf.nonrd_prune_ref_frame_search > 0)) {
     spatial_var_thresh = 150;
     motion_thresh = 0;
   }

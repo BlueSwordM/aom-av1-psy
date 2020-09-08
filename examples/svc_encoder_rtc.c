@@ -263,6 +263,7 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
                               int *use_svc_control, int spatial_layer_id,
                               int is_key_frame, int ksvc_mode) {
   int i;
+  int enable_longterm_temporal_ref = 1;
   int shift = (layering_mode == 7) ? 2 : 0;
   *use_svc_control = 1;
   layer_id->spatial_layer_id = spatial_layer_id;
@@ -456,6 +457,14 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
         ref_frame_config->refresh[2] = 1;
         ref_frame_config->reference[SVC_LAST_FRAME] = 1;
         ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
+        // For 3 spatial layer case: allow for top spatial layer to use
+        // additional temporal reference. Update every 10 frames.
+        if (enable_longterm_temporal_ref) {
+          ref_frame_config->ref_idx[SVC_ALTREF_FRAME] = REF_FRAMES - 1;
+          ref_frame_config->reference[SVC_ALTREF_FRAME] = 1;
+          if (base_count % 10 == 0)
+            ref_frame_config->refresh[REF_FRAMES - 1] = 1;
+        }
       }
       break;
     case 7:
@@ -587,7 +596,19 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
         }
       }
       if (layer_id->spatial_layer_id > 0)
-        ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;  // Reference GOLDEN.
+        // Reference GOLDEN.
+        ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
+      // For 3 spatial layer case 7 (where there is free buffer slot):
+      // allow for top spatial layer to use additional temporal reference.
+      // Additional reference is only updated on base temporal layer, every
+      // 10 TL0 frames here.
+      if (enable_longterm_temporal_ref && layer_id->spatial_layer_id == 2 &&
+          layering_mode == 7) {
+        ref_frame_config->ref_idx[SVC_ALTREF_FRAME] = REF_FRAMES - 1;
+        ref_frame_config->reference[SVC_ALTREF_FRAME] = 1;
+        if (base_count % 10 == 0 && layer_id->temporal_layer_id == 0)
+          ref_frame_config->refresh[REF_FRAMES - 1] = 1;
+      }
       break;
     default: assert(0); die("Error: Unsupported temporal layering mode!\n");
   }
