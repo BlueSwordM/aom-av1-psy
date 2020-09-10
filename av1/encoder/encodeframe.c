@@ -489,7 +489,7 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
   assert(sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip ||
          cpi->partition_search_skippable_frame ||
          sf->part_sf.partition_search_type == VAR_BASED_PARTITION);
-  td->mb.cb_offset = 0;
+  set_cb_offsets(td->mb.cb_offset, 0, 0);
 
   // Adjust and encode the superblock
   PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);

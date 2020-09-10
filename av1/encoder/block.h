@@ -178,17 +178,16 @@ typedef struct {
  */
 typedef struct {
   //! The transformed coefficients.
-  tran_low_t tcoeff[MAX_MB_PLANE][MAX_SB_SQUARE];
+  tran_low_t *tcoeff[MAX_MB_PLANE];
   //! Where the transformed coefficients end.
-  uint16_t eobs[MAX_MB_PLANE][MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
+  uint16_t *eobs[MAX_MB_PLANE];
   /*! \brief Transform block entropy contexts.
    *
    * Each element is used as a bit field.
    * - Bits 0~3: txb_skip_ctx
    * - Bits 4~5: dc_sign_ctx.
    */
-  uint8_t entropy_ctx[MAX_MB_PLANE]
-                     [MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
+  uint8_t *entropy_ctx[MAX_MB_PLANE];
 } CB_COEFF_BUFFER;
 
 /*! \brief Extended mode info derived from mbmi.
@@ -226,7 +225,7 @@ typedef struct {
   //! \copydoc MB_MODE_INFO_EXT::mode_context
   int16_t mode_context;
   //! Offset of current coding block's coeff buffer relative to the sb.
-  int cb_offset;
+  uint16_t cb_offset[PLANE_TYPES];
 } MB_MODE_INFO_EXT_FRAME;
 
 /*! \brief Txfm search results for a partition
@@ -849,7 +848,7 @@ typedef struct macroblock {
    */
   CB_COEFF_BUFFER *cb_coef_buff;
   //! Offset of current coding block's coeff buffer relative to the sb.
-  uint16_t cb_offset;
+  uint16_t cb_offset[PLANE_TYPES];
 
   //! Modified source and masks used for fast OBMC search.
   OBMCBuffer obmc_buffer;

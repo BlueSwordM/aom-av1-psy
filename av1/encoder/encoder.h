@@ -1963,6 +1963,25 @@ typedef struct {
 } TimeStamps;
 
 /*!
+ * Pointers to the memory allocated for frame level transform coeff related
+ * info.
+ */
+typedef struct {
+  /*!
+   * Pointer to the transformed coefficients buffer.
+   */
+  tran_low_t *tcoeff;
+  /*!
+   * Pointer to the eobs buffer.
+   */
+  uint16_t *eobs;
+  /*!
+   * Pointer to the entropy_ctx buffer.
+   */
+  uint8_t *entropy_ctx;
+} CoeffBufferPool;
+
+/*!
  * \brief Top level encoder structure.
  */
 typedef struct AV1_COMP {
@@ -1993,6 +2012,12 @@ typedef struct AV1_COMP {
    * ith superblock in raster scan order.
    */
   CB_COEFF_BUFFER *coeff_buffer_base;
+
+  /*!
+   * Structure holding pointers to frame level memory allocated for transform
+   * block related information.
+   */
+  CoeffBufferPool coeff_buffer_pool;
 
   /*!
    * Structure holding variables common to encoder and decoder.

@@ -1146,9 +1146,12 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                      RUN_TYPE dry_run, BLOCK_SIZE bsize,
                      PARTITION_TYPE partition, PICK_MODE_CONTEXT *const ctx,
                      int *rate) {
+  const AV1_COMMON *const cm = &cpi->common;
   TileInfo *const tile = &tile_data->tile_info;
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *xd = &x->e_mbd;
+  const int subsampling_x = cm->seq_params.subsampling_x;
+  const int subsampling_y = cm->seq_params.subsampling_y;
 
   av1_set_offsets_without_segment_id(cpi, tile, x, mi_row, mi_col, bsize);
   const int origin_mult = x->rdmult;
@@ -1158,16 +1161,19 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   av1_update_state(cpi, td, ctx, mi_row, mi_col, bsize, dry_run);
 
   if (!dry_run) {
-    x->mbmi_ext_frame->cb_offset = x->cb_offset;
-    assert(x->cb_offset <
+    set_cb_offsets(x->mbmi_ext_frame->cb_offset, x->cb_offset[PLANE_TYPE_Y],
+                   x->cb_offset[PLANE_TYPE_UV]);
+    assert(x->cb_offset[PLANE_TYPE_Y] <
            (1 << num_pels_log2_lookup[cpi->common.seq_params.sb_size]));
+    assert(x->cb_offset[PLANE_TYPE_UV] <
+           ((1 << num_pels_log2_lookup[cpi->common.seq_params.sb_size]) >>
+            (subsampling_x + subsampling_y)));
   }
 
   encode_superblock(cpi, tile_data, td, tp, dry_run, bsize, rate);
 
   if (!dry_run) {
-    const AV1_COMMON *const cm = &cpi->common;
-    x->cb_offset += block_size_wide[bsize] * block_size_high[bsize];
+    update_cb_offsets(x, bsize, subsampling_x, subsampling_y);
     if (bsize == cpi->common.seq_params.sb_size && mbmi->skip_txfm == 1 &&
         cm->delta_q_info.delta_lf_present_flag) {
       const int frame_lf_count =
@@ -1746,7 +1752,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       // int rate_coeffs = 0;
       // encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_COSTCOEFFS,
       //           bsize, pc_tree, &rate_coeffs);
-      x->cb_offset = 0;
+      set_cb_offsets(x->cb_offset, 0, 0);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, OUTPUT_ENABLED, bsize,
                 pc_tree, NULL);
     } else {
@@ -1776,14 +1782,20 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   // Nonrd pickmode does not currently support second/combined reference.
   assert(!has_second_ref(mbmi));
   av1_update_state(cpi, td, ctx, mi_row, mi_col, bsize, dry_run);
+  const int subsampling_x = cpi->common.seq_params.subsampling_x;
+  const int subsampling_y = cpi->common.seq_params.subsampling_y;
   if (!dry_run) {
-    x->mbmi_ext_frame->cb_offset = x->cb_offset;
-    assert(x->cb_offset <
+    set_cb_offsets(x->mbmi_ext_frame->cb_offset, x->cb_offset[PLANE_TYPE_Y],
+                   x->cb_offset[PLANE_TYPE_UV]);
+    assert(x->cb_offset[PLANE_TYPE_Y] <
            (1 << num_pels_log2_lookup[cpi->common.seq_params.sb_size]));
+    assert(x->cb_offset[PLANE_TYPE_UV] <
+           ((1 << num_pels_log2_lookup[cpi->common.seq_params.sb_size]) >>
+            (subsampling_x + subsampling_y)));
   }
   encode_superblock(cpi, tile_data, td, tp, dry_run, bsize, rate);
   if (!dry_run) {
-    x->cb_offset += block_size_wide[bsize] * block_size_high[bsize];
+    update_cb_offsets(x, bsize, subsampling_x, subsampling_y);
     if (tile_data->allow_update_cdf) update_stats(&cpi->common, td);
   }
   // TODO(Ravi/Remya): Move this copy function to a better logical place
@@ -3649,7 +3661,7 @@ BEGIN_PARTITION_SEARCH:
       const int emit_output = multi_pass_mode != SB_DRY_PASS;
       const RUN_TYPE run_type = emit_output ? OUTPUT_ENABLED : DRY_RUN_NORMAL;
 
-      x->cb_offset = 0;
+      set_cb_offsets(x->cb_offset, 0, 0);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, run_type, bsize,
                 pc_tree, NULL);
       // Dealloc the whole PC_TREE after a superblock is done.

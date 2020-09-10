@@ -52,16 +52,53 @@ static INLINE int get_dqv(const int16_t *dequant, int coeff_idx,
 
 void av1_alloc_txb_buf(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
+  CoeffBufferPool *coeff_buf_pool = &cpi->coeff_buffer_pool;
   int size = ((cm->mi_params.mi_rows >> cm->seq_params.mib_size_log2) + 1) *
              ((cm->mi_params.mi_cols >> cm->seq_params.mib_size_log2) + 1);
+  const int num_planes = av1_num_planes(cm);
+  const int subsampling_x = cm->seq_params.subsampling_x;
+  const int subsampling_y = cm->seq_params.subsampling_y;
+  const int chroma_max_sb_square =
+      MAX_SB_SQUARE >> (subsampling_x + subsampling_y);
+  const int num_tcoeffs =
+      size * (MAX_SB_SQUARE + (num_planes - 1) * chroma_max_sb_square);
+  const int txb_unit_size = TX_SIZE_W_MIN * TX_SIZE_H_MIN;
 
   av1_free_txb_buf(cpi);
   // TODO(jingning): This should be further reduced.
-  CHECK_MEM_ERROR(cm, cpi->coeff_buffer_base,
-                  aom_memalign(32, sizeof(*cpi->coeff_buffer_base) * size));
+  cpi->coeff_buffer_base = aom_malloc(sizeof(*cpi->coeff_buffer_base) * size);
+  CHECK_MEM_ERROR(
+      cm, coeff_buf_pool->tcoeff,
+      aom_memalign(32, sizeof(*coeff_buf_pool->tcoeff) * num_tcoeffs));
+  coeff_buf_pool->eobs =
+      aom_malloc(sizeof(*coeff_buf_pool->eobs) * num_tcoeffs / txb_unit_size);
+  coeff_buf_pool->entropy_ctx = aom_malloc(
+      sizeof(*coeff_buf_pool->entropy_ctx) * num_tcoeffs / txb_unit_size);
+
+  tran_low_t *tcoeff_ptr = coeff_buf_pool->tcoeff;
+  uint16_t *eob_ptr = coeff_buf_pool->eobs;
+  uint8_t *entropy_ctx_ptr = coeff_buf_pool->entropy_ctx;
+  for (int i = 0; i < size; i++) {
+    for (int plane = 0; plane < num_planes; plane++) {
+      const int max_sb_square =
+          (plane == AOM_PLANE_Y) ? MAX_SB_SQUARE : chroma_max_sb_square;
+      cpi->coeff_buffer_base[i].tcoeff[plane] = tcoeff_ptr;
+      cpi->coeff_buffer_base[i].eobs[plane] = eob_ptr;
+      cpi->coeff_buffer_base[i].entropy_ctx[plane] = entropy_ctx_ptr;
+      tcoeff_ptr += max_sb_square;
+      eob_ptr += max_sb_square / txb_unit_size;
+      entropy_ctx_ptr += max_sb_square / txb_unit_size;
+    }
+  }
 }
 
-void av1_free_txb_buf(AV1_COMP *cpi) { aom_free(cpi->coeff_buffer_base); }
+void av1_free_txb_buf(AV1_COMP *cpi) {
+  CoeffBufferPool *coeff_buf_pool = &cpi->coeff_buffer_pool;
+  aom_free(cpi->coeff_buffer_base);
+  aom_free(coeff_buf_pool->tcoeff);
+  aom_free(coeff_buf_pool->eobs);
+  aom_free(coeff_buf_pool->entropy_ctx);
+}
 
 static void write_golomb(aom_writer *w, int level) {
   int x = level + 1;
@@ -325,8 +362,9 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
                           int block, TX_SIZE tx_size) {
   MACROBLOCKD *xd = &x->e_mbd;
   const CB_COEFF_BUFFER *cb_coef_buff = x->cb_coef_buff;
-  const int txb_offset =
-      x->mbmi_ext_frame->cb_offset / (TX_SIZE_W_MIN * TX_SIZE_H_MIN);
+  const PLANE_TYPE plane_type = get_plane_type(plane);
+  const int txb_offset = x->mbmi_ext_frame->cb_offset[plane_type] /
+                         (TX_SIZE_W_MIN * TX_SIZE_H_MIN);
   const uint16_t *eob_txb = cb_coef_buff->eobs[plane] + txb_offset;
   const uint16_t eob = eob_txb[block];
   const uint8_t *entropy_ctx = cb_coef_buff->entropy_ctx[plane] + txb_offset;
@@ -336,7 +374,6 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   aom_write_symbol(w, eob == 0, ec_ctx->txb_skip_cdf[txs_ctx][txb_skip_ctx], 2);
   if (eob == 0) return;
 
-  const PLANE_TYPE plane_type = get_plane_type(plane);
   const TX_TYPE tx_type =
       av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
                       cm->features.reduced_tx_set_used);
@@ -400,7 +437,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   uint8_t levels_buf[TX_PAD_2D];
   uint8_t *const levels = set_levels(levels_buf, width);
   const tran_low_t *tcoeff_txb =
-      cb_coef_buff->tcoeff[plane] + x->mbmi_ext_frame->cb_offset;
+      cb_coef_buff->tcoeff[plane] + x->mbmi_ext_frame->cb_offset[plane_type];
   const tran_low_t *tcoeff = tcoeff_txb + BLOCK_OFFSET(block);
   av1_txb_init_levels(tcoeff, width, height, levels);
   const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
@@ -1408,8 +1445,8 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
     }
 
     CB_COEFF_BUFFER *cb_coef_buff = x->cb_coef_buff;
-    const int txb_offset =
-        x->mbmi_ext_frame->cb_offset / (TX_SIZE_W_MIN * TX_SIZE_H_MIN);
+    const int txb_offset = x->mbmi_ext_frame->cb_offset[plane_type] /
+                           (TX_SIZE_W_MIN * TX_SIZE_H_MIN);
     uint16_t *eob_txb = cb_coef_buff->eobs[plane] + txb_offset;
     uint8_t *const entropy_ctx = cb_coef_buff->entropy_ctx[plane] + txb_offset;
     entropy_ctx[block] = txb_ctx.txb_skip_ctx;
@@ -1423,7 +1460,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
     const int segment_id = mbmi->segment_id;
     const int seg_eob = av1_get_tx_eob(&cpi->common.seg, segment_id, tx_size);
     tran_low_t *tcoeff_txb =
-        cb_coef_buff->tcoeff[plane] + x->mbmi_ext_frame->cb_offset;
+        cb_coef_buff->tcoeff[plane] + x->mbmi_ext_frame->cb_offset[plane_type];
     tcoeff = tcoeff_txb + block_offset;
     memcpy(tcoeff, qcoeff, sizeof(*tcoeff) * seg_eob);
 
