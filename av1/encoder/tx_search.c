@@ -2742,6 +2742,98 @@ static AOM_INLINE void try_tx_block_split(
   }
 }
 
+static float get_var(float mean, double x2_sum, int num) {
+  const float e_x2 = (float)(x2_sum / num);
+  const float diff = e_x2 - mean * mean;
+  return diff;
+}
+
+static AOM_INLINE void get_blk_var_dev(const int16_t *data, int stride, int bw,
+                                       int bh, float *dev_of_mean,
+                                       float *var_of_vars) {
+  const int16_t *const data_ptr = &data[0];
+  const int subh = (bh >= bw) ? (bh >> 1) : bh;
+  const int subw = (bw >= bh) ? (bw >> 1) : bw;
+  const int num = bw * bh;
+  const int sub_num = subw * subh;
+  int total_x_sum = 0;
+  int64_t total_x2_sum = 0;
+  int blk_idx = 0;
+  float var_sum = 0.0f;
+  float mean_sum = 0.0f;
+  double var2_sum = 0.0f;
+  double mean2_sum = 0.0f;
+
+  for (int row = 0; row < bh; row += subh) {
+    for (int col = 0; col < bw; col += subw) {
+      int x_sum;
+      int64_t x2_sum;
+      aom_get_blk_sse_sum(data_ptr + row * stride + col, stride, subw, subh,
+                          &x_sum, &x2_sum);
+      total_x_sum += x_sum;
+      total_x2_sum += x2_sum;
+
+      aom_clear_system_state();
+      const float mean = (float)x_sum / sub_num;
+      const float var = get_var(mean, (double)x2_sum, sub_num);
+      mean_sum += mean;
+      mean2_sum += (double)(mean * mean);
+      var_sum += var;
+      var2_sum += var * var;
+      blk_idx++;
+    }
+  }
+
+  const float lvl0_mean = (float)total_x_sum / num;
+  const float block_var = get_var(lvl0_mean, (double)total_x2_sum, num);
+  mean_sum += lvl0_mean;
+  mean2_sum += (double)(lvl0_mean * lvl0_mean);
+  var_sum += block_var;
+  var2_sum += block_var * block_var;
+  const float av_mean = mean_sum / 5;
+
+  if (blk_idx > 1) {
+    // Deviation of means.
+    *dev_of_mean = get_dev(av_mean, mean2_sum, (blk_idx + 1));
+    // Variance of variances.
+    const float mean_var = var_sum / (blk_idx + 1);
+    *var_of_vars = get_var(mean_var, var2_sum, (blk_idx + 1));
+  }
+}
+
+static void prune_tx_split_no_split(MACROBLOCK *x, BLOCK_SIZE bsize,
+                                    int blk_row, int blk_col, TX_SIZE tx_size,
+                                    int *try_no_split, int *try_split,
+                                    int pruning_level) {
+  const int diff_stride = block_size_wide[bsize];
+  const int16_t *diff =
+      x->plane[0].src_diff + 4 * blk_row * diff_stride + 4 * blk_col;
+  const int bw = tx_size_wide[tx_size];
+  const int bh = tx_size_high[tx_size];
+  aom_clear_system_state();
+  float dev_of_means = 0.0f;
+  float var_of_vars = 0.0f;
+
+  // This function calculates the deviation of means, and the variance of pixel
+  // variances of the block as well as it's sub-blocks.
+  get_blk_var_dev(diff, diff_stride, bw, bh, &dev_of_means, &var_of_vars);
+  const int dc_q = x->plane[0].dequant_QTX[0] >> 3;
+  const int ac_q = x->plane[0].dequant_QTX[1] >> 3;
+  const int no_split_thresh_scales[4] = { 0, 24, 8, 8 };
+  const int no_split_thresh_scale = no_split_thresh_scales[pruning_level];
+  const int split_thresh_scales[4] = { 0, 24, 10, 8 };
+  const int split_thresh_scale = split_thresh_scales[pruning_level];
+
+  if ((dev_of_means <= dc_q) &&
+      (split_thresh_scale * var_of_vars <= ac_q * ac_q)) {
+    *try_split = 0;
+  }
+  if ((dev_of_means > no_split_thresh_scale * dc_q) &&
+      (var_of_vars > no_split_thresh_scale * ac_q * ac_q)) {
+    *try_no_split = 0;
+  }
+}
+
 // Search for the best transform partition(recursive)/type for a given
 // inter-predicted luma block. The obtained transform selection will be saved
 // in xd->mi[0], the corresponding RD stats will be saved in rd_stats.
@@ -2767,12 +2859,20 @@ static AOM_INLINE void select_tx_block(
                                          mbmi->bsize, tx_size);
   struct macroblock_plane *const p = &x->plane[0];
 
-  const int try_no_split = (cpi->oxcf.txfm_cfg.enable_tx64 ||
-                            txsize_sqr_up_map[tx_size] != TX_64X64) &&
-                           (cpi->oxcf.txfm_cfg.enable_rect_tx ||
-                            tx_size_wide[tx_size] == tx_size_high[tx_size]);
+  int try_no_split = (cpi->oxcf.txfm_cfg.enable_tx64 ||
+                      txsize_sqr_up_map[tx_size] != TX_64X64) &&
+                     (cpi->oxcf.txfm_cfg.enable_rect_tx ||
+                      tx_size_wide[tx_size] == tx_size_high[tx_size]);
   int try_split = tx_size > TX_4X4 && depth < MAX_VARTX_DEPTH;
   TxCandidateInfo no_split = { INT64_MAX, 0, TX_TYPES };
+
+  // Prune tx_split and no-split based on sub-block properties.
+  if (tx_size != TX_4X4 && try_split == 1 && try_no_split == 1 &&
+      cpi->sf.tx_sf.prune_tx_size_level > 0) {
+    prune_tx_split_no_split(x, plane_bsize, blk_row, blk_col, tx_size,
+                            &try_no_split, &try_split,
+                            cpi->sf.tx_sf.prune_tx_size_level);
+  }
 
   // Try using current block as a single transform block without split.
   if (try_no_split) {

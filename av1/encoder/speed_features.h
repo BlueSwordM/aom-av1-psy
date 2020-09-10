@@ -849,6 +849,11 @@ typedef struct TX_SPEED_FEATURES {
 
   // Refine TX type after fast TX search.
   int refine_fast_tx_search_results;
+
+  // Prune transform split/no_split eval based on residual properties. A value
+  // of 0 indicates no pruning, and the aggressiveness of pruning progressively
+  // increases from levels 1 to 3.
+  int prune_tx_size_level;
 } TX_SPEED_FEATURES;
 
 typedef struct RD_CALC_SPEED_FEATURES {

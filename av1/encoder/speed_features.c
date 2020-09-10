@@ -159,6 +159,7 @@ static void set_good_speed_feature_framesize_dependent(
   const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
   const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
   const int is_4k_or_larger = AOMMIN(cm->width, cm->height) >= 2160;
+  const bool use_hbd = cpi->oxcf.use_highbitdepth;
 
   if (is_480p_or_larger) {
     sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
@@ -169,6 +170,7 @@ static void set_good_speed_feature_framesize_dependent(
   } else {
     sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
     sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
+    if (use_hbd) sf->tx_sf.prune_tx_size_level = 1;
   }
 
   if (is_4k_or_larger) {
@@ -235,6 +237,9 @@ static void set_good_speed_feature_framesize_dependent(
 
     if (is_480p_or_larger) {
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
+      if (use_hbd) sf->tx_sf.prune_tx_size_level = 2;
+    } else {
+      if (use_hbd) sf->tx_sf.prune_tx_size_level = 3;
     }
   }
 
@@ -249,6 +254,7 @@ static void set_good_speed_feature_framesize_dependent(
       sf->part_sf.partition_search_breakout_dist_thr = (1 << 23);
       sf->part_sf.partition_search_breakout_rate_thr = 120;
     }
+    if (use_hbd) sf->tx_sf.prune_tx_size_level = 3;
   }
 
   if (speed >= 4) {
@@ -1191,6 +1197,7 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->use_intra_txb_hash = 0;
   tx_sf->use_inter_txb_hash = 1;
   tx_sf->refine_fast_tx_search_results = 1;
+  tx_sf->prune_tx_size_level = 0;
 }
 
 static AOM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
