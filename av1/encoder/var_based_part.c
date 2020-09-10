@@ -415,8 +415,18 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
       thresholds[2] = (5 * threshold_base) >> 1;
     }
     if (cpi->sf.rt_sf.force_large_partition_blocks) {
-      if (current_qindex > QINDEX_LARGE_BLOCK_THR ||
-          cm->width * cm->height <= 352 * 288) {
+      if (cm->width * cm->height <= 352 * 288) {
+        thresholds[1] <<= 2;
+        thresholds[2] <<= 5;
+        thresholds[3] = INT32_MAX;
+      } else if (cm->width * cm->height > 640 * 480) {
+        thresholds[0] <<= 2;
+        thresholds[3] = INT32_MAX;
+        if (current_qindex >= QINDEX_LARGE_BLOCK_THR) {
+          thresholds[1] <<= 1;
+          thresholds[2] <<= 1;
+        }
+      } else if (current_qindex > QINDEX_LARGE_BLOCK_THR) {
         thresholds[1] <<= 2;
         thresholds[2] <<= 5;
         thresholds[3] = INT32_MAX;
