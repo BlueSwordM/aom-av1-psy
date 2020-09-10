@@ -2161,6 +2161,67 @@ static int skip_trellis_opt_based_on_satd(MACROBLOCK *x,
   return skip_block_trellis;
 }
 
+// Predict DC only blocks if the residual variance is below a qstep based
+// threshold.For such blocks, transform type search is bypassed.
+static INLINE void predict_dc_only_block(
+    MACROBLOCK *x, int plane, BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
+    int block, int blk_row, int blk_col, RD_STATS *best_rd_stats,
+    int64_t *block_sse, unsigned int *block_mse_q8, int64_t *per_px_mean,
+    int *dc_only_blk) {
+  MACROBLOCKD *xd = &x->e_mbd;
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  const int dequant_shift = (is_cur_buf_hbd(xd)) ? xd->bd - 5 : 3;
+  const int qstep = x->plane[plane].dequant_QTX[1] >> dequant_shift;
+  uint64_t block_var = UINT64_MAX;
+  const int dc_qstep = x->plane[plane].dequant_QTX[0] >> 3;
+  *block_sse = pixel_diff_stats(x, plane, blk_row, blk_col, plane_bsize,
+                                txsize_to_bsize[tx_size], block_mse_q8,
+                                per_px_mean, &block_var);
+  assert((*block_mse_q8) != UINT_MAX);
+  uint64_t var_threshold = (uint64_t)(1.8 * qstep * qstep);
+  if (is_cur_buf_hbd(xd))
+    block_var = ROUND_POWER_OF_TWO(block_var, (xd->bd - 8) * 2);
+  // Early prediction of skip block if residual mean and variance are less
+  // than qstep based threshold
+  if (((llabs(*per_px_mean) * dc_coeff_scale[tx_size]) < (dc_qstep << 12)) &&
+      (block_var < var_threshold)) {
+    // If the normalized mean of residual block is less than the dc qstep and
+    // the  normalized block variance is less than ac qstep, then the block is
+    // assumed to be a skip block and its rdcost is updated accordingly.
+    best_rd_stats->skip_txfm = 1;
+
+    x->plane[plane].eobs[block] = 0;
+
+    best_rd_stats->dist = (*block_sse) << 4;
+    best_rd_stats->sse = best_rd_stats->dist;
+
+    ENTROPY_CONTEXT ctxa[MAX_MIB_SIZE];
+    ENTROPY_CONTEXT ctxl[MAX_MIB_SIZE];
+    av1_get_entropy_contexts(plane_bsize, &xd->plane[plane], ctxa, ctxl);
+    ENTROPY_CONTEXT *ta = ctxa;
+    ENTROPY_CONTEXT *tl = ctxl;
+    const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
+    TXB_CTX txb_ctx_tmp;
+    const PLANE_TYPE plane_type = get_plane_type(plane);
+    get_txb_ctx(plane_bsize, tx_size, plane, ta, tl, &txb_ctx_tmp);
+    const int zero_blk_rate = x->coeff_costs.coeff_costs[txs_ctx][plane_type]
+                                  .txb_skip_cost[txb_ctx_tmp.txb_skip_ctx][1];
+    best_rd_stats->rate =
+        zero_blk_rate *
+        (block_size_wide[plane_bsize] >> tx_size_wide_log2[tx_size]) *
+        (block_size_high[plane_bsize] >> tx_size_high_log2[tx_size]);
+
+    best_rd_stats->rdcost =
+        RDCOST(x->rdmult, best_rd_stats->rate, best_rd_stats->sse);
+
+    x->plane[plane].txb_entropy_ctx[block] = 0;
+  } else if (block_var < var_threshold) {
+    // Predict DC only blocks based on residual variance.
+    // For chroma plane, this early prediction is disabled for intra blocks.
+    if ((plane == 0) || (plane > 0 && is_inter_block(mbmi))) *dc_only_blk = 1;
+  }
+}
+
 // Search for the best transform type for a given transform block.
 // This function can be used for both inter and intra, both luma and chroma.
 static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
@@ -2247,56 +2308,11 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const bool predict_dc_block =
       cpi->sf.winner_mode_sf.enable_dc_only_blk_pred && txw != 64 && txh != 64;
   int64_t per_px_mean = INT64_MAX;
-  uint64_t block_var = UINT64_MAX;
   if (predict_dc_block) {
-    const int dc_qstep = x->plane[plane].dequant_QTX[0] >> 3;
-    block_sse = pixel_diff_stats(x, plane, blk_row, blk_col, plane_bsize,
-                                 txsize_to_bsize[tx_size], &block_mse_q8,
-                                 &per_px_mean, &block_var);
-    assert(block_mse_q8 != UINT_MAX);
-    uint64_t var_threshold = (uint64_t)(1.8 * qstep * qstep);
-    if (is_cur_buf_hbd(xd))
-      block_var = ROUND_POWER_OF_TWO(block_var, (xd->bd - 8) * 2);
-    // Early prediction of skip block if residual mean and variance are less
-    // than qstep based threshold
-    if (((llabs(per_px_mean) * dc_coeff_scale[tx_size]) < (dc_qstep << 12)) &&
-        (block_var < var_threshold)) {
-      // If the normalized mean of residual block is less than the dc qstep and
-      // the  normalized block variance is less than ac qstep, then the block is
-      // assumed to be a skip block and its rdcost is updated accordingly.
-      best_rd_stats->skip_txfm = 1;
-
-      x->plane[plane].eobs[block] = 0;
-
-      best_rd_stats->dist = block_sse << 4;
-      best_rd_stats->sse = best_rd_stats->dist;
-
-      ENTROPY_CONTEXT ctxa[MAX_MIB_SIZE];
-      ENTROPY_CONTEXT ctxl[MAX_MIB_SIZE];
-      av1_get_entropy_contexts(plane_bsize, &xd->plane[plane], ctxa, ctxl);
-      ENTROPY_CONTEXT *ta = ctxa;
-      ENTROPY_CONTEXT *tl = ctxl;
-      const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
-      TXB_CTX txb_ctx_tmp;
-      const PLANE_TYPE plane_type = get_plane_type(plane);
-      get_txb_ctx(plane_bsize, tx_size, plane, ta, tl, &txb_ctx_tmp);
-      const int zero_blk_rate = x->coeff_costs.coeff_costs[txs_ctx][plane_type]
-                                    .txb_skip_cost[txb_ctx_tmp.txb_skip_ctx][1];
-      best_rd_stats->rate =
-          zero_blk_rate *
-          (block_size_wide[plane_bsize] >> tx_size_wide_log2[tx_size]) *
-          (block_size_high[plane_bsize] >> tx_size_high_log2[tx_size]);
-
-      best_rd_stats->rdcost =
-          RDCOST(x->rdmult, best_rd_stats->rate, best_rd_stats->sse);
-
-      x->plane[plane].txb_entropy_ctx[block] = 0;
-      return;
-    } else if (block_var < var_threshold) {
-      // Predict DC only blocks based on residual variance.
-      // For chroma plane, this early prediction is disabled for intra blocks.
-      if ((plane == 0) || (plane > 0 && is_inter_block(mbmi))) dc_only_blk = 1;
-    }
+    predict_dc_only_block(x, plane, plane_bsize, tx_size, block, blk_row,
+                          blk_col, best_rd_stats, &block_sse, &block_mse_q8,
+                          &per_px_mean, &dc_only_blk);
+    if (best_rd_stats->skip_txfm == 1) return;
   } else {
     block_sse = pixel_diff_dist(x, plane, blk_row, blk_col, plane_bsize,
                                 txsize_to_bsize[tx_size], &block_mse_q8);
