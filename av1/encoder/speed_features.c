@@ -1412,8 +1412,21 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
   const int boosted = frame_is_boosted(cpi);
   const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
   const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
-  if (is_720p_or_larger && cpi->oxcf.mode == GOOD && speed == 0) {
-    if (cm->quant_params.base_qindex <= 108) {
+  const int is_arf2_bwd_type =
+      cpi->gf_group.update_type[cpi->gf_group.index] == INTNL_ARF_UPDATE;
+
+  if (cpi->oxcf.mode == GOOD && speed == 0) {
+    // qindex_thresh for resolution < 720p
+    const int qindex_thresh = boosted ? 70 : (is_arf2_bwd_type ? 110 : 140);
+    if (!is_720p_or_larger && cm->quant_params.base_qindex <= qindex_thresh) {
+      sf->inter_sf.skip_repeated_newmv = 1;
+      sf->part_sf.simple_motion_search_split =
+          cm->features.allow_screen_content_tools ? 1 : 2;
+      sf->part_sf.simple_motion_search_early_term_none = 1;
+      sf->tx_sf.model_based_prune_tx_search_level = 0;
+    }
+
+    if (is_720p_or_larger && cm->quant_params.base_qindex <= 108) {
       sf->rd_sf.perform_coeff_opt = 2 + is_1080p_or_larger;
       memcpy(winner_mode_params->coeff_opt_dist_threshold,
              coeff_opt_dist_thresholds[sf->rd_sf.perform_coeff_opt],
@@ -1431,8 +1444,6 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
         sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
         sf->rd_sf.tx_domain_dist_thres_level = 1;
         sf->part_sf.simple_motion_search_early_term_none = 1;
-        sf->part_sf.simple_motion_search_split =
-            cm->features.allow_screen_content_tools ? 1 : 2;
         sf->tx_sf.tx_type_search.ml_tx_split_thresh = 4000;
         sf->interp_sf.cb_pred_filter_search = 0;
         sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
