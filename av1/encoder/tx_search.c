@@ -2436,9 +2436,9 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       int64_t sse_diff = INT64_MAX;
       // high_energy threshold assumes that every pixel within a txfm block
       // has a residue energy of at least 25% of the maximum, i.e. 128 * 128
-      // for 8 bit, then the threshold is scaled based on input bit depth.
+      // for 8 bit.
       const int64_t high_energy_thresh =
-          ((int64_t)128 * 128 * tx_size_2d[tx_size]) << ((xd->bd - 8) * 2);
+          ((int64_t)128 * 128 * tx_size_2d[tx_size]);
       const int is_high_energy = (block_sse >= high_energy_thresh);
       if (tx_size == TX_64X64 || is_high_energy) {
         // Because 3 out 4 quadrants of transform coefficients are forced to
