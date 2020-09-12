@@ -898,6 +898,10 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // This feature controls how the loop filter level is determined.
   LPF_PICK_METHOD lpf_pick;
 
+  // Skip some final iterations in the determination of the best loop filter
+  // level.
+  int use_coarse_filter_level_search;
+
   // Control how the CDEF strength is determined.
   CDEF_PICK_METHOD cdef_pick_method;
 

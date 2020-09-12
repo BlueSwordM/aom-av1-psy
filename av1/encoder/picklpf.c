@@ -131,6 +131,13 @@ static int search_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
   // Sum squared error at each filter level
   int64_t ss_err[MAX_LOOP_FILTER + 1];
 
+  const int use_coarse_search = cpi->sf.lpf_sf.use_coarse_filter_level_search;
+  assert(use_coarse_search <= 1);
+  static const int min_filter_step_lookup[2] = { 0, 2 };
+  // min_filter_step_thesh determines the stopping criteria for the search.
+  // The search is terminated when filter_step equals min_filter_step_thesh.
+  const int min_filter_step_thesh = min_filter_step_lookup[use_coarse_search];
+
   // Set each entry to -1
   memset(ss_err, 0xFF, sizeof(ss_err));
   yv12_copy_plane(&cm->cur_frame->buf, &cpi->last_frame_uf, plane);
@@ -138,7 +145,7 @@ static int search_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
   filt_best = filt_mid;
   ss_err[filt_mid] = best_err;
 
-  while (filter_step > 0) {
+  while (filter_step > min_filter_step_thesh) {
     const int filt_high = AOMMIN(filt_mid + filter_step, max_filter_level);
     const int filt_low = AOMMAX(filt_mid - filter_step, min_filter_level);
 
