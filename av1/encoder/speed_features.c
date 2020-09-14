@@ -118,8 +118,9 @@ static unsigned int predict_skip_levels[3][MODE_EVAL_TYPES] = { { 0, 0, 0 },
 // Values indicate the aggressiveness of skip flag prediction.
 // 0 : no early DC block prediction
 // 1 : Early DC block prediction based on error variance
-static unsigned int predict_dc_levels[2][MODE_EVAL_TYPES] = { { 0, 0, 0 },
-                                                              { 1, 1, 0 } };
+static unsigned int predict_dc_levels[3][MODE_EVAL_TYPES] = { { 0, 0, 0 },
+                                                              { 1, 1, 0 },
+                                                              { 1, 1, 1 } };
 
 // This table holds the maximum number of reference frames for global motion.
 // The table is indexed as per the speed feature 'gm_search_type'.
@@ -655,6 +656,8 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.prune_mesh_search = 1;
 
     sf->tpl_sf.prune_starting_mv = 3;
+
+    sf->winner_mode_sf.dc_blk_pred_level = 1;
   }
 
   if (speed >= 6) {
@@ -675,7 +678,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 4 : 6;
 
-    sf->winner_mode_sf.enable_dc_only_blk_pred = 1;
+    sf->winner_mode_sf.dc_blk_pred_level = 2;
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
   }
 
@@ -1207,7 +1210,7 @@ static AOM_INLINE void init_winner_mode_sf(
   winner_mode_sf->enable_winner_mode_for_tx_size_srch = 0;
   winner_mode_sf->enable_winner_mode_for_use_tx_domain_dist = 0;
   winner_mode_sf->multi_winner_mode_type = 0;
-  winner_mode_sf->enable_dc_only_blk_pred = 0;
+  winner_mode_sf->dc_blk_pred_level = 0;
 }
 
 static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
@@ -1385,7 +1388,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
          tx_size_search_methods[cpi->sf.winner_mode_sf.tx_size_search_level],
          sizeof(winner_mode_params->tx_size_search_methods));
   memcpy(winner_mode_params->predict_dc_level,
-         predict_dc_levels[cpi->sf.winner_mode_sf.enable_dc_only_blk_pred],
+         predict_dc_levels[cpi->sf.winner_mode_sf.dc_blk_pred_level],
          sizeof(winner_mode_params->predict_dc_level));
 
   if (cpi->oxcf.row_mt == 1 && (cpi->oxcf.max_threads > 1)) {

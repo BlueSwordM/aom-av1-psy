@@ -891,7 +891,9 @@ typedef struct WINNER_MODE_SPEED_FEATURES {
   int motion_mode_for_winner_cand;
 
   // Early DC only txfm block prediction
-  int enable_dc_only_blk_pred;
+  // 0: speed feature OFF
+  // 1 / 2 : Use the configured level for different modes
+  int dc_blk_pred_level;
 } WINNER_MODE_SPEED_FEATURES;
 
 typedef struct LOOP_FILTER_SPEED_FEATURES {

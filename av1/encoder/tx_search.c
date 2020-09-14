@@ -2207,10 +2207,7 @@ static INLINE void predict_dc_only_block(
     get_txb_ctx(plane_bsize, tx_size, plane, ta, tl, &txb_ctx_tmp);
     const int zero_blk_rate = x->coeff_costs.coeff_costs[txs_ctx][plane_type]
                                   .txb_skip_cost[txb_ctx_tmp.txb_skip_ctx][1];
-    best_rd_stats->rate =
-        zero_blk_rate *
-        (block_size_wide[plane_bsize] >> tx_size_wide_log2[tx_size]) *
-        (block_size_high[plane_bsize] >> tx_size_high_log2[tx_size]);
+    best_rd_stats->rate = zero_blk_rate;
 
     best_rd_stats->rdcost =
         RDCOST(x->rdmult, best_rd_stats->rate, best_rd_stats->sse);
@@ -2307,7 +2304,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   unsigned int block_mse_q8;
   int dc_only_blk = 0;
   const bool predict_dc_block =
-      cpi->sf.winner_mode_sf.enable_dc_only_blk_pred && txw != 64 && txh != 64;
+      txfm_params->predict_dc_level && txw != 64 && txh != 64;
   int64_t per_px_mean = INT64_MAX;
   if (predict_dc_block) {
     predict_dc_only_block(x, plane, plane_bsize, tx_size, block, blk_row,
