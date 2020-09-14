@@ -349,14 +349,15 @@ void av1_init_me_luts(void) {
 
 static const int rd_boost_factor[16] = { 64, 32, 32, 32, 24, 16, 12, 12,
                                          8,  8,  4,  4,  2,  2,  1,  0 };
-static const int rd_layer_depth_factor[6] = {
-  128, 128, 144, 160, 160, 180,
+
+static const int rd_layer_depth_factor[7] = {
+  160, 160, 160, 160, 192, 208, 224
 };
 
 int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
   const int q = av1_dc_quant_QTX(qindex, 0, cpi->common.seq_params.bit_depth);
-  int rdmult = q * q;
-  rdmult = rdmult * 3 + (rdmult * 2 / 3);
+  int rdmult = (int)(((int64_t)88 * q * q) / 24);
+
   switch (cpi->common.seq_params.bit_depth) {
     case AOM_BITS_8: break;
     case AOM_BITS_10: rdmult = ROUND_POWER_OF_TWO(rdmult, 4); break;
@@ -374,9 +375,12 @@ int av1_compute_rd_mult(const AV1_COMP *cpi, int qindex) {
       (cpi->common.current_frame.frame_type != KEY_FRAME)) {
     const GF_GROUP *const gf_group = &cpi->gf_group;
     const int boost_index = AOMMIN(15, (cpi->rc.gfu_boost / 100));
-    const int layer_depth = AOMMIN(gf_group->layer_depth[gf_group->index], 5);
+    const int layer_depth = AOMMIN(gf_group->layer_depth[gf_group->index], 6);
 
+    // Layer depth adjustment
     rdmult = (rdmult * rd_layer_depth_factor[layer_depth]) >> 7;
+
+    // ARF boost adjustment
     rdmult += ((rdmult * rd_boost_factor[boost_index]) >> 7);
   }
   return (int)rdmult;
@@ -404,33 +408,10 @@ int av1_get_deltaq_offset(const AV1_COMP *cpi, int qindex, double beta) {
 int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
   assert(beta > 0.0);
   const AV1_COMMON *cm = &cpi->common;
-  int64_t q = av1_dc_quant_QTX(cm->quant_params.base_qindex, 0,
-                               cm->seq_params.bit_depth);
-  int64_t rdmult = 0;
+  int q = av1_dc_quant_QTX(cm->quant_params.base_qindex, 0,
+                           cm->seq_params.bit_depth);
 
-  switch (cm->seq_params.bit_depth) {
-    case AOM_BITS_8: rdmult = (int)((88 * q * q / beta) / 24); break;
-    case AOM_BITS_10:
-      rdmult = ROUND_POWER_OF_TWO((int)((88 * q * q / beta) / 24), 4);
-      break;
-    default:
-      assert(cm->seq_params.bit_depth == AOM_BITS_12);
-      rdmult = ROUND_POWER_OF_TWO((int)((88 * q * q / beta) / 24), 8);
-      break;
-  }
-
-  if (is_stat_consumption_stage(cpi) &&
-      (cm->current_frame.frame_type != KEY_FRAME)) {
-    const GF_GROUP *const gf_group = &cpi->gf_group;
-    const int boost_index = AOMMIN(15, (cpi->rc.gfu_boost / 100));
-
-    const int layer_depth = AOMMIN(gf_group->layer_depth[gf_group->index], 5);
-    rdmult = (rdmult * rd_layer_depth_factor[layer_depth]) >> 7;
-
-    rdmult += ((rdmult * rd_boost_factor[boost_index]) >> 7);
-  }
-  if (rdmult < 1) rdmult = 1;
-  return (int)rdmult;
+  return (int)(av1_compute_rd_mult(cpi, q) / beta);
 }
 
 static int compute_rd_thresh_factor(int qindex, aom_bit_depth_t bit_depth) {
