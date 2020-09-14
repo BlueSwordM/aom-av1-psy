@@ -470,6 +470,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Prune AB partition search using split and HORZ/VERT info
   int prune_ab_partition_using_split_info;
 
+  // Prunt rectangular, AB and 4-way partition based on q index and block size
+  int prune_rectangular_split_based_on_qidx;
+
   // Terminate partition search for child partition,
   // when NONE and SPLIT partition rd_costs are INT64_MAX.
   int early_term_after_none_split;

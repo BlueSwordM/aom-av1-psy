@@ -657,6 +657,8 @@ static void set_good_speed_features_framesize_independent(
 
   if (speed >= 6) {
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
+    sf->part_sf.prune_rectangular_split_based_on_qidx =
+        boosted || allow_screen_content_tools ? 0 : 1;
 
     sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
     sf->mv_sf.use_bsize_dependent_search_method = 1;
@@ -1049,6 +1051,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->ext_partition_eval_thresh = BLOCK_8X8;
   part_sf->prune_4_partition_using_split_info = 0;
   part_sf->prune_ab_partition_using_split_info = 0;
+  part_sf->prune_rectangular_split_based_on_qidx = 0;
   part_sf->early_term_after_none_split = 0;
   part_sf->ml_predict_breakout_level = 0;
 }
