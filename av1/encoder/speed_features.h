@@ -720,6 +720,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 1 - 3 indicate increasing aggressiveness in order.
   int prune_inter_modes_based_on_tpl;
 
+  // Skip NEARMV and NEAR_NEARMV modes using ref frames of above and left
+  // neighbor blocks and qindex.
+  int prune_nearmv_using_neighbors;
+
   // Model based breakout after interpolation filter search
   // 0: no breakout
   // 1: use model based rd breakout

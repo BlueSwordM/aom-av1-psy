@@ -3977,6 +3977,14 @@ static int fetch_picked_ref_frames_mask(const MACROBLOCK *const x,
   return picked_ref_frames_mask;
 }
 
+// Check if reference frame pair of the current block matches with the given
+// block.
+static INLINE int match_ref_frame_pair(const MB_MODE_INFO *mbmi,
+                                       const MV_REFERENCE_FRAME *ref_frames) {
+  return ((ref_frames[0] == mbmi->ref_frame[0]) &&
+          (ref_frames[1] == mbmi->ref_frame[1]));
+}
+
 // Case 1: return 0, means don't skip this mode
 // Case 2: return 1, means skip this mode completely
 // Case 3: return 2, means skip compound only, but still try single motion modes
@@ -4008,6 +4016,32 @@ static int inter_mode_search_order_independent_skip(
       x->must_find_valid_partition)
     return 0;
 
+  const SPEED_FEATURES *const sf = &cpi->sf;
+  // Prune NEARMV and NEAR_NEARMV based on q index and neighbor's reference
+  // frames
+  if (sf->inter_sf.prune_nearmv_using_neighbors &&
+      (mode == NEAR_NEARMV || mode == NEARMV)) {
+    const MACROBLOCKD *const xd = &x->e_mbd;
+    if (search_state->best_rd != INT64_MAX && xd->left_available &&
+        xd->up_available) {
+      const int num_ref_frame_pair_match_thresh =
+          2 - (x->qindex * 3 / QINDEX_RANGE);
+      assert(num_ref_frame_pair_match_thresh <= 2 &&
+             num_ref_frame_pair_match_thresh >= 0);
+      int num_ref_frame_pair_match = 0;
+
+      num_ref_frame_pair_match = match_ref_frame_pair(xd->left_mbmi, ref_frame);
+      num_ref_frame_pair_match +=
+          match_ref_frame_pair(xd->above_mbmi, ref_frame);
+
+      // Prune modes if:
+      // num_ref_frame_pair_match < 2 for qindex   0 to 85
+      // num_ref_frame_pair_match < 1 for qindex  86 to 170
+      // No pruning for qindex 171 to 255
+      if (num_ref_frame_pair_match < num_ref_frame_pair_match_thresh) return 1;
+    }
+  }
+
   int skip_motion_mode = 0;
   if (mbmi->partition != PARTITION_NONE && mbmi->partition != PARTITION_SPLIT) {
     int skip_ref = skip_ref_frame_mask & (1 << ref_type);
@@ -4033,7 +4067,6 @@ static int inter_mode_search_order_independent_skip(
     if (skip_ref) return 1;
   }
 
-  const SPEED_FEATURES *const sf = &cpi->sf;
   if (ref_frame[0] == INTRA_FRAME) {
     if (mode != DC_PRED) {
       // Disable intra modes other than DC_PRED for blocks with low variance
