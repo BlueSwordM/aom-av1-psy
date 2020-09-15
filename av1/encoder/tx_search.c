@@ -419,6 +419,7 @@ static INLINE int64_t pixel_diff_stats(
   int sum = 0;
   sse = aom_sum_sse_2d_i16(diff, diff_stride, visible_cols, visible_rows, &sum);
   if (visible_cols > 0 && visible_rows > 0) {
+    aom_clear_system_state();
     double norm_factor = 1.0 / (visible_cols * visible_rows);
     int sign_sum = sum > 0 ? 1 : -1;
     // Conversion to transform domain
