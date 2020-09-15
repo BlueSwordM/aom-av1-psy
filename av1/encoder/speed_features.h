@@ -709,10 +709,12 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // cpi->oxcf.cost_upd_freq.coeff = COST_UPD_SB (i.e. set at SB level)
   int disable_sb_level_coeff_cost_upd;
 
-  // Whether to override and disable sb level mv cost updates, if
-  // cpi->oxcf.cost_upd_freq.coeff = COST_UPD_SB (i.e. set at SB level)
-  int disable_sb_level_mv_cost_upd;
-
+  // To skip cost update for mv.
+  // mv_cost_upd_level indicates the aggressiveness of skipping.
+  // 0: update happens at each sb level.
+  // 1: update happens once for each sb row.
+  // 2: update happens once for a set of rows.
+  int mv_cost_upd_level;
   // Prune inter modes based on tpl stats
   // 0 : no pruning
   // 1 - 3 indicate increasing aggressiveness in order.

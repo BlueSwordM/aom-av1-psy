@@ -288,6 +288,10 @@ static void set_good_speed_feature_framesize_dependent(
       sf->inter_sf.disable_masked_comp = 1;
     }
 
+    if (!is_720p_or_larger) {
+      sf->inter_sf.mv_cost_upd_level = 2;
+    }
+
     // TODO(yunqing): use BLOCK_32X32 for >= 4k.
     if (is_4k_or_larger) {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
@@ -519,7 +523,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
     sf->mv_sf.search_method = DIAMOND;
 
-    sf->inter_sf.disable_sb_level_mv_cost_upd = 1;
+    sf->inter_sf.mv_cost_upd_level = 1;
     // TODO(yunqing): evaluate this speed feature for speed 1 & 2, and combine
     // it with cpi->sf.disable_wedge_search_var_thresh.
     sf->inter_sf.disable_wedge_interintra_search = 1;
@@ -821,7 +825,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     // sf->mv_sf.adaptive_motion_search = 1;
 
     sf->inter_sf.adaptive_rd_thresh = 2;
-    sf->inter_sf.disable_sb_level_mv_cost_upd = 1;
+    sf->inter_sf.mv_cost_upd_level = 1;
     // TODO(yunqing): evaluate this speed feature for speed 1 & 2, and combine
     // it with cpi->sf.disable_wedge_search_var_thresh.
     sf->inter_sf.disable_wedge_interintra_search = 1;
@@ -1093,7 +1097,7 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->use_dist_wtd_comp_flag = DIST_WTD_COMP_ENABLED;
   inter_sf->reuse_inter_intra_mode = 0;
   inter_sf->disable_sb_level_coeff_cost_upd = 0;
-  inter_sf->disable_sb_level_mv_cost_upd = 0;
+  inter_sf->mv_cost_upd_level = 0;
   inter_sf->prune_inter_modes_based_on_tpl = 0;
   inter_sf->prune_comp_search_by_single_result = 0;
   inter_sf->skip_repeated_ref_mv = 0;

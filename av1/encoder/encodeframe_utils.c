@@ -1245,6 +1245,46 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
 #endif  // CONFIG_INTERNAL_STATS
 }
 
+// Checks for skip status of mv cost update.
+static int skip_mv_cost_update(AV1_COMP *cpi, const TileInfo *const tile_info,
+                               const int mi_row, const int mi_col) {
+  // mv_cost_upd_level=0: update happens at each sb,
+  //                      so return skip status as 0.
+  // mv_cost_upd_level=1: update happens once for each sb row,
+  //                      so return skip status as 1 for
+  //                      mi_col != tile_info->mi_col_start.
+  // mv_cost_upd_level=2: update happens once for a set of rows,
+  //                      so return skip status as 1 appropriately.
+  if (!cpi->sf.inter_sf.mv_cost_upd_level) return 0;
+  if (mi_col != tile_info->mi_col_start) return 1;
+  if (cpi->sf.inter_sf.mv_cost_upd_level == 2) {
+    AV1_COMMON *const cm = &cpi->common;
+    const int mib_size_log2 = cm->seq_params.mib_size_log2;
+    const int sb_row = (mi_row - tile_info->mi_row_start) >> mib_size_log2;
+    const int sb_size = cm->seq_params.mib_size * MI_SIZE;
+    const int tile_height =
+        (tile_info->mi_row_end - tile_info->mi_row_start) * MI_SIZE;
+    // When mv_cost_upd_level = 2, the cost update happens once for 2, 4 sb
+    // rows for sb size 128, sb size 64 respectively. However, as the update
+    // will not be equally spaced in smaller resolutions making it equally
+    // spaced by calculating (mv_num_rows_cost_update) the number of rows
+    // after which the cost update should happen.
+    const int sb_size_update_freq_map[2] = { 2, 4 };
+    const int update_freq_sb_rows =
+        sb_size_update_freq_map[sb_size != MAX_SB_SIZE];
+    const int update_freq_num_rows = sb_size * update_freq_sb_rows;
+    // Round-up the division result to next integer.
+    const int num_updates_per_tile =
+        (tile_height + update_freq_num_rows - 1) / update_freq_num_rows;
+    const int num_rows_update_per_tile = num_updates_per_tile * sb_size;
+    // Round-up the division result to next integer.
+    const int num_sb_rows_per_update =
+        (tile_height + num_rows_update_per_tile - 1) / num_rows_update_per_tile;
+    if ((sb_row % num_sb_rows_per_update) != 0) return 1;
+  }
+  return 0;
+}
+
 // Update the rate costs of some symbols according to the frequency directed
 // by speed features
 void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
@@ -1294,9 +1334,8 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
       if (mi_col != tile_info->mi_col_start) break;
       AOM_FALLTHROUGH_INTENDED;
     case COST_UPD_SB:  // SB level
-      if (cpi->sf.inter_sf.disable_sb_level_mv_cost_upd &&
-          mi_col != tile_info->mi_col_start)
-        break;
+      // Checks for skip status of mv cost update.
+      if (skip_mv_cost_update(cpi, tile_info, mi_row, mi_col)) break;
       av1_fill_mv_costs(xd->tile_ctx, cm->features.cur_frame_force_integer_mv,
                         cm->features.allow_high_precision_mv, &x->mv_costs);
       break;
