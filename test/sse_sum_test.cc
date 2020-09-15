@@ -84,6 +84,8 @@ class SumSSETest : public ::testing::TestWithParam<TestFuncs> {
   ACMRandom rnd_;
 };
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SumSSETest);
+
 void SumSSETest::RunTest(int isRandom) {
   for (int k = 0; k < kNumIterations; k++) {
     const int width = 4 * (rnd_(31) + 1);   // Up to 128x128
