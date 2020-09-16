@@ -2770,8 +2770,8 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     const int64_t this_sse = superres_sses[this_index];
     const int64_t this_rate = superres_rates[this_index];
     const int this_largest_tile_id = superres_largest_tile_ids[this_index];
-    const double this_rdcost = RDCOST_DBL(
-        rdmult, this_rate, this_sse >> (2 * (cm->seq_params.bit_depth - 8)));
+    const double this_rdcost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+        rdmult, this_rate, this_sse, cm->seq_params.bit_depth);
     if (this_rdcost < proj_rdcost1) {
       sse1 = this_sse;
       rate1 = this_rate;
@@ -2781,11 +2781,11 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     }
   }
 #else
-  const double proj_rdcost1 =
-      RDCOST_DBL(rdmult, rate1, sse1 >> (2 * (cm->seq_params.bit_depth - 8)));
+  const double proj_rdcost1 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+      rdmult, rate1, sse1, cm->seq_params.bit_depth);
 #endif  // SUPERRES_RECODE_ALL_RATIOS
-  const double proj_rdcost2 =
-      RDCOST_DBL(rdmult, rate2, sse2 >> (2 * (cm->seq_params.bit_depth - 8)));
+  const double proj_rdcost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+      rdmult, rate2, sse2, cm->seq_params.bit_depth);
 
   // Re-encode with superres if it's better.
   if (proj_rdcost1 < proj_rdcost2) {

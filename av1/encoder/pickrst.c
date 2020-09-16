@@ -922,11 +922,10 @@ static AOM_INLINE void search_sgrproj(const RestorationTileLimits *limits,
   const int64_t bits_sgr = x->mode_costs.sgrproj_restore_cost[1] +
                            (count_sgrproj_bits(&rusi->sgrproj, &rsc->sgrproj)
                             << AV1_PROB_COST_SHIFT);
-  const int sse_shift = 2 * (bit_depth - 8);
-  double cost_none = RDCOST_DBL(x->rdmult, bits_none >> 4,
-                                rusi->sse[RESTORE_NONE] >> sse_shift);
-  double cost_sgr = RDCOST_DBL(x->rdmult, bits_sgr >> 4,
-                               rusi->sse[RESTORE_SGRPROJ] >> sse_shift);
+  double cost_none = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+      x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE], bit_depth);
+  double cost_sgr = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+      x->rdmult, bits_sgr >> 4, rusi->sse[RESTORE_SGRPROJ], bit_depth);
   if (rusi->sgrproj.ep < 10)
     cost_sgr *=
         (1 + DUAL_SGR_PENALTY_MULT * rsc->lpf_sf->dual_sgr_penalty_level);
@@ -1571,11 +1570,12 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
       (count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener)
        << AV1_PROB_COST_SHIFT);
 
-  const int sse_shift = 2 * (rsc->cm->seq_params.bit_depth - 8);
-  double cost_none = RDCOST_DBL(x->rdmult, bits_none >> 4,
-                                rusi->sse[RESTORE_NONE] >> sse_shift);
-  double cost_wiener = RDCOST_DBL(x->rdmult, bits_wiener >> 4,
-                                  rusi->sse[RESTORE_WIENER] >> sse_shift);
+  double cost_none = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+      x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE],
+      rsc->cm->seq_params.bit_depth);
+  double cost_wiener = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+      x->rdmult, bits_wiener >> 4, rusi->sse[RESTORE_WIENER],
+      rsc->cm->seq_params.bit_depth);
 
   RestorationType rtype =
       (cost_wiener < cost_none) ? RESTORE_WIENER : RESTORE_NONE;
@@ -1658,8 +1658,8 @@ static AOM_INLINE void search_switchable(const RestorationTileLimits *limits,
     }
     const int64_t coeff_bits = coeff_pcost << AV1_PROB_COST_SHIFT;
     const int64_t bits = x->mode_costs.switchable_restore_cost[r] + coeff_bits;
-    const int sse_shift = 2 * (rsc->cm->seq_params.bit_depth - 8);
-    double cost = RDCOST_DBL(x->rdmult, bits >> 4, sse >> sse_shift);
+    double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(x->rdmult, bits >> 4, sse,
+                                                 rsc->cm->seq_params.bit_depth);
     if (r == RESTORE_SGRPROJ && rusi->sgrproj.ep < 10)
       cost *= (1 + DUAL_SGR_PENALTY_MULT * rsc->lpf_sf->dual_sgr_penalty_level);
     if (r == 0 || cost < best_cost) {
@@ -1698,8 +1698,8 @@ static double search_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
 
   av1_foreach_rest_unit_in_plane(rsc->cm, rsc->plane, funs[rtype], rsc,
                                  &rsc->tile_rect, rsc->cm->rst_tmpbuf, NULL);
-  return RDCOST_DBL(rsc->x->rdmult, rsc->bits >> 4,
-                    rsc->sse >> (2 * (rsc->cm->seq_params.bit_depth - 8)));
+  return RDCOST_DBL_WITH_NATIVE_BD_DIST(
+      rsc->x->rdmult, rsc->bits >> 4, rsc->sse, rsc->cm->seq_params.bit_depth);
 }
 
 static int rest_tiles_in_plane(const AV1_COMMON *cm, int plane) {
