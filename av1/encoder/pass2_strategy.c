@@ -871,16 +871,6 @@ static void allocate_gf_group_bits(GF_GROUP *gf_group, RATE_CONTROL *const rc,
       AOMMAX(1, rc->baseline_gf_interval - (rc->frames_since_key == 0));
   base_frame_bits = (int)(total_group_bits / num_frames);
 
-  if (use_arf) {
-    for (; frame_index < gf_group->size; ++frame_index) {
-      if (gf_group->update_type[frame_index] == ARF_UPDATE) {
-        gf_group->bit_allocation[frame_index] = gf_arf_bits;
-        ++frame_index;
-        break;
-      }
-    }
-  }
-
   // Check the number of frames in each layer in case we have a
   // non standard group length.
   int max_arf_layer = gf_group->max_layer_depth - 1;
