@@ -1840,7 +1840,8 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // where there could be significant overshoot than for easier
   // sections where we do not wish to risk creating an overshoot
   // of the allocated bit budget.
-  if ((rc_cfg->mode != AOM_Q) && (rc->baseline_gf_interval > 1)) {
+  if ((rc_cfg->mode != AOM_Q) && (rc->baseline_gf_interval > 1) &&
+      is_final_pass) {
     const int vbr_group_bits_per_frame =
         (int)(gf_group_bits / rc->baseline_gf_interval);
     const double group_av_err =
@@ -1922,8 +1923,9 @@ void av1_gop_bit_allocation(const AV1_COMP *cpi, RATE_CONTROL *const rc,
 #ifdef FIXED_ARF_BITS
   int gf_arf_bits = (int)(ARF_BITS_FRACTION * gf_group_bits);
 #else
-  int gf_arf_bits = calculate_boost_bits(rc->baseline_gf_interval,
-                                         rc->gfu_boost, gf_group_bits);
+  int gf_arf_bits = calculate_boost_bits(
+      rc->baseline_gf_interval - (rc->frames_since_key == 0), rc->gfu_boost,
+      gf_group_bits);
 #endif
 
   gf_arf_bits = adjust_boost_bits_for_target_level(cpi, rc, gf_arf_bits,
