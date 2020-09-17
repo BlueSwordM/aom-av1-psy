@@ -458,13 +458,13 @@ static const arg_def_t enable_1to4_partitions =
             "Enable 1:4 and 4:1 partitions "
             "(0: false, 1: true (default))");
 static const arg_def_t min_partition_size =
-    ARG_DEF(NULL, "min-partition-size", 4,
+    ARG_DEF(NULL, "min-partition-size", 1,
             "Set min partition size "
             "(4:4x4, 8:8x8, 16:16x16, 32:32x32, 64:64x64, 128:128x128). "
             "On frame with 4k+ resolutions or higher speed settings, the min "
             "partition size will have a minimum of 8.");
 static const arg_def_t max_partition_size =
-    ARG_DEF(NULL, "max-partition-size", 128,
+    ARG_DEF(NULL, "max-partition-size", 1,
             "Set max partition size "
             "(4:4x4, 8:8x8, 16:16x16, 32:32x32, 64:64x64, 128:128x128)");
 static const arg_def_t enable_dual_filter =
