@@ -1373,7 +1373,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (!is_stat_generation_stage(cpi) &&
       (oxcf->tune_cfg.tuning >= AOM_TUNE_VMAF_WITH_PREPROCESSING &&
        oxcf->tune_cfg.tuning <= AOM_TUNE_VMAF_NEG_MAX_GAIN)) {
-    av1_update_vmaf_curve(cpi, cpi->source, &cpi->common.cur_frame->buf);
+    av1_update_vmaf_curve(cpi);
   }
 #endif
 

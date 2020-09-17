@@ -25,7 +25,7 @@
 #endif
 
 #if CONFIG_USE_VMAF_RC
-#include <libvmaf.rc.h>
+#include <libvmaf/libvmaf.rc.h>
 #endif
 
 #include "aom_dsp/blend.h"

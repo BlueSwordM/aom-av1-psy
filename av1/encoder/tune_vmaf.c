@@ -22,6 +22,173 @@
 
 static const double kBaselineVmaf = 97.42773;
 
+static void motion_search(AV1_COMP *cpi, const YV12_BUFFER_CONFIG *src,
+                          const YV12_BUFFER_CONFIG *ref,
+                          const BLOCK_SIZE block_size, const int mb_row,
+                          const int mb_col, FULLPEL_MV *ref_mv) {
+  // Block information (ONLY Y-plane is used for motion search).
+  const int mb_height = block_size_high[block_size];
+  const int mb_width = block_size_wide[block_size];
+  const int y_stride = src->y_stride;
+  assert(y_stride == ref->y_stride);
+  const int y_offset = mb_row * mb_height * y_stride + mb_col * mb_width;
+
+  // Save input state.
+  MACROBLOCK *const mb = &cpi->td.mb;
+  MACROBLOCKD *const mbd = &mb->e_mbd;
+  const struct buf_2d ori_src_buf = mb->plane[0].src;
+  const struct buf_2d ori_pre_buf = mbd->plane[0].pre[0];
+
+  // Parameters used for motion search.
+  FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
+  const SEARCH_METHODS search_method = NSTEP;
+  const search_site_config *search_site_cfg =
+      cpi->mv_search_params.search_site_cfg[SS_CFG_FPF];
+  const int step_param =
+      av1_init_search_range(AOMMAX(src->y_crop_width, src->y_crop_height));
+
+  // Baseline position for motion search (used for rate distortion comparison).
+  const MV baseline_mv = kZeroMv;
+
+  // Setup.
+  mb->plane[0].src.buf = src->y_buffer + y_offset;
+  mb->plane[0].src.stride = y_stride;
+  mbd->plane[0].pre[0].buf = ref->y_buffer + y_offset;
+  mbd->plane[0].pre[0].stride = y_stride;
+
+  // Unused intermediate results for motion search.
+  int cost_list[5];
+
+  // Do motion search.
+  // Only do full search on the entire block.
+  av1_make_default_fullpel_ms_params(&full_ms_params, cpi, mb, block_size,
+                                     &baseline_mv, search_site_cfg,
+                                     /*fine_search_interval=*/0);
+  av1_set_mv_search_method(&full_ms_params, search_site_cfg, search_method);
+  av1_full_pixel_search(*ref_mv, &full_ms_params, step_param,
+                        cond_cost_list(cpi, cost_list), ref_mv, NULL);
+
+  // Restore input state.
+  mb->plane[0].src = ori_src_buf;
+  mbd->plane[0].pre[0] = ori_pre_buf;
+}
+
+static unsigned int residual_variance(const AV1_COMP *cpi,
+                                      const YV12_BUFFER_CONFIG *src,
+                                      const YV12_BUFFER_CONFIG *ref,
+                                      const BLOCK_SIZE block_size,
+                                      const int mb_row, const int mb_col,
+                                      FULLPEL_MV ref_mv, unsigned int *sse) {
+  const int mb_height = block_size_high[block_size];
+  const int mb_width = block_size_wide[block_size];
+  const int y_stride = src->y_stride;
+  assert(y_stride == ref->y_stride);
+  const int y_offset = mb_row * mb_height * y_stride + mb_col * mb_width;
+  const int mv_offset = ref_mv.row * y_stride + ref_mv.col;
+  const unsigned int var =
+      cpi->fn_ptr[block_size].vf(ref->y_buffer + y_offset + mv_offset, y_stride,
+                                 src->y_buffer + y_offset, y_stride, sse);
+  return var;
+}
+
+static double frame_average_variance(const AV1_COMP *const cpi,
+                                     const YV12_BUFFER_CONFIG *const frame) {
+  const uint8_t *const y_buffer = frame->y_buffer;
+  const int y_stride = frame->y_stride;
+  const BLOCK_SIZE block_size = BLOCK_64X64;
+
+  const int block_w = mi_size_wide[block_size] * 4;
+  const int block_h = mi_size_high[block_size] * 4;
+  int row, col;
+  const int bit_depth = cpi->td.mb.e_mbd.bd;
+  double var = 0.0, var_count = 0.0;
+
+  // Loop through each block.
+  for (row = 0; row < frame->y_height / block_h; ++row) {
+    for (col = 0; col < frame->y_width / block_w; ++col) {
+      struct buf_2d buf;
+      const int row_offset_y = row * block_h;
+      const int col_offset_y = col * block_w;
+
+      buf.buf = (uint8_t *)y_buffer + row_offset_y * y_stride + col_offset_y;
+      buf.stride = y_stride;
+
+      if (cpi->common.seq_params.use_highbitdepth) {
+        assert(frame->flags & YV12_FLAG_HIGHBITDEPTH);
+        var += av1_high_get_sby_perpixel_variance(cpi, &buf, block_size,
+                                                  bit_depth);
+      } else {
+        var += av1_get_sby_perpixel_variance(cpi, &buf, block_size);
+      }
+      var_count += 1.0;
+    }
+  }
+  var /= var_count;
+  return var;
+}
+
+static double residual_frame_average_variance(AV1_COMP *cpi,
+                                              const YV12_BUFFER_CONFIG *src,
+                                              const YV12_BUFFER_CONFIG *ref,
+                                              FULLPEL_MV *mvs) {
+  if (ref == NULL) return frame_average_variance(cpi, src);
+  const BLOCK_SIZE block_size = BLOCK_16X16;
+  const int frame_height = src->y_height;
+  const int frame_width = src->y_width;
+  const int mb_height = block_size_high[block_size];
+  const int mb_width = block_size_wide[block_size];
+  const int mb_rows = (frame_height + mb_height - 1) / mb_height;
+  const int mb_cols = (frame_width + mb_width - 1) / mb_width;
+  const int num_planes = av1_num_planes(&cpi->common);
+  const int mi_h = mi_size_high_log2[block_size];
+  const int mi_w = mi_size_wide_log2[block_size];
+  assert(num_planes >= 1 && num_planes <= MAX_MB_PLANE);
+
+  // Save input state.
+  MACROBLOCK *const mb = &cpi->td.mb;
+  MACROBLOCKD *const mbd = &mb->e_mbd;
+  uint8_t *input_buffer[MAX_MB_PLANE];
+  for (int i = 0; i < num_planes; i++) {
+    input_buffer[i] = mbd->plane[i].pre[0].buf;
+  }
+  MB_MODE_INFO **input_mb_mode_info = mbd->mi;
+
+  bool do_motion_search = false;
+  if (mvs == NULL) {
+    do_motion_search = true;
+    mvs = (FULLPEL_MV *)aom_malloc(sizeof(*mvs) * mb_rows * mb_cols);
+    memset(mvs, 0, sizeof(*mvs) * mb_rows * mb_cols);
+  }
+
+  unsigned int variance = 0;
+  // Perform temporal filtering block by block.
+  for (int mb_row = 0; mb_row < mb_rows; mb_row++) {
+    av1_set_mv_row_limits(&cpi->common.mi_params, &mb->mv_limits,
+                          (mb_row << mi_h), (mb_height >> MI_SIZE_LOG2),
+                          cpi->oxcf.border_in_pixels);
+    for (int mb_col = 0; mb_col < mb_cols; mb_col++) {
+      av1_set_mv_col_limits(&cpi->common.mi_params, &mb->mv_limits,
+                            (mb_col << mi_w), (mb_width >> MI_SIZE_LOG2),
+                            cpi->oxcf.border_in_pixels);
+      FULLPEL_MV *ref_mv = &mvs[mb_col + mb_row * mb_cols];
+      if (do_motion_search) {
+        motion_search(cpi, src, ref, block_size, mb_row, mb_col, ref_mv);
+      }
+      unsigned int mv_sse;
+      const unsigned int blk_var = residual_variance(
+          cpi, src, ref, block_size, mb_row, mb_col, *ref_mv, &mv_sse);
+      variance += blk_var;
+    }
+  }
+
+  // Restore input state
+  for (int i = 0; i < num_planes; i++) {
+    mbd->plane[i].pre[0].buf = input_buffer[i];
+  }
+  mbd->mi = input_mb_mode_info;
+  return (double)variance / (double)(mb_rows * mb_cols);
+}
+
 // TODO(sdeng): Add the SIMD implementation.
 static AOM_INLINE void highbd_unsharp_rect(const uint16_t *source,
                                            int source_stride,
@@ -122,49 +289,14 @@ static AOM_INLINE void gaussian_blur(const int bit_depth,
   }
 }
 
-static double frame_average_variance(const AV1_COMP *const cpi,
-                                     const YV12_BUFFER_CONFIG *const frame) {
-  const uint8_t *const y_buffer = frame->y_buffer;
-  const int y_stride = frame->y_stride;
-  const BLOCK_SIZE block_size = BLOCK_64X64;
-
-  const int block_w = mi_size_wide[block_size] * 4;
-  const int block_h = mi_size_high[block_size] * 4;
-  int row, col;
-  const int bit_depth = cpi->td.mb.e_mbd.bd;
-  double var = 0.0, var_count = 0.0;
-
-  // Loop through each block.
-  for (row = 0; row < frame->y_height / block_h; ++row) {
-    for (col = 0; col < frame->y_width / block_w; ++col) {
-      struct buf_2d buf;
-      const int row_offset_y = row * block_h;
-      const int col_offset_y = col * block_w;
-
-      buf.buf = (uint8_t *)y_buffer + row_offset_y * y_stride + col_offset_y;
-      buf.stride = y_stride;
-
-      if (cpi->common.seq_params.use_highbitdepth) {
-        assert(frame->flags & YV12_FLAG_HIGHBITDEPTH);
-        var += av1_high_get_sby_perpixel_variance(cpi, &buf, block_size,
-                                                  bit_depth);
-      } else {
-        var += av1_get_sby_perpixel_variance(cpi, &buf, block_size);
-      }
-      var_count += 1.0;
-    }
-  }
-  var /= var_count;
-  return var;
-}
-
-static double cal_approx_vmaf(const AV1_COMP *const cpi,
+static AOM_INLINE double cal_approx_vmaf(const AV1_COMP *const cpi,
 #if CONFIG_USE_VMAF_RC
-                              VmafContext *vmaf_context, int *vmaf_cal_index,
+                                         VmafContext *vmaf_context,
+                                         int *vmaf_cal_index,
 #endif
-                              double source_variance,
-                              YV12_BUFFER_CONFIG *const source,
-                              YV12_BUFFER_CONFIG *const sharpened) {
+                                         double source_variance,
+                                         YV12_BUFFER_CONFIG *const source,
+                                         YV12_BUFFER_CONFIG *const sharpened) {
   const int bit_depth = cpi->td.mb.e_mbd.bd;
   double new_vmaf;
 
@@ -802,10 +934,11 @@ static AOM_INLINE double image_sad_c(const uint8_t *src, int src_stride,
   return accum / (double)(h * w);
 }
 
-static AOM_INLINE double calc_vmaf_motion_score(
-    const AV1_COMP *const cpi, const AV1_COMMON *const cm,
-    const YV12_BUFFER_CONFIG *const cur, const YV12_BUFFER_CONFIG *const last,
-    const YV12_BUFFER_CONFIG *const next) {
+static double calc_vmaf_motion_score(const AV1_COMP *const cpi,
+                                     const AV1_COMMON *const cm,
+                                     const YV12_BUFFER_CONFIG *const cur,
+                                     const YV12_BUFFER_CONFIG *const last,
+                                     const YV12_BUFFER_CONFIG *const next) {
   const int y_width = cur->y_width;
   const int y_height = cur->y_height;
   YV12_BUFFER_CONFIG blurred_cur, blurred_last, blurred_next;
@@ -865,6 +998,21 @@ static AOM_INLINE double calc_vmaf_motion_score(
   return AOMMIN(motion1, motion2);
 }
 
+static AOM_INLINE void get_neighbor_frames(const AV1_COMP *const cpi,
+                                           YV12_BUFFER_CONFIG **last,
+                                           YV12_BUFFER_CONFIG **next) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const GF_GROUP *gf_group = &cpi->gf_group;
+  const int src_index =
+      cm->show_frame != 0 ? 0 : gf_group->arf_src_offset[gf_group->index];
+  struct lookahead_entry *last_entry =
+      av1_lookahead_peek(cpi->lookahead, src_index - 1, cpi->compressor_stage);
+  struct lookahead_entry *next_entry =
+      av1_lookahead_peek(cpi->lookahead, src_index + 1, cpi->compressor_stage);
+  *next = &next_entry->img;
+  *last = cm->show_frame ? cpi->last_source : &last_entry->img;
+}
+
 // Calculates the new qindex from the VMAF motion score. This is based on the
 // observation: when the motion score becomes higher, the VMAF score of the
 // same source and distorted frames would become higher.
@@ -887,23 +1035,16 @@ int av1_get_vmaf_base_qindex(const AV1_COMP *const cpi, int current_qindex) {
   aom_clear_system_state();
   const GF_GROUP *gf_group = &cpi->gf_group;
   YV12_BUFFER_CONFIG *cur_buf = cpi->source;
-  int src_index = 0;
   if (cm->show_frame == 0) {
-    src_index = gf_group->arf_src_offset[gf_group->index];
+    const int src_index = gf_group->arf_src_offset[gf_group->index];
     struct lookahead_entry *cur_entry =
         av1_lookahead_peek(cpi->lookahead, src_index, cpi->compressor_stage);
     cur_buf = &cur_entry->img;
   }
   assert(cur_buf);
 
-  const struct lookahead_entry *last_entry =
-      av1_lookahead_peek(cpi->lookahead, src_index - 1, cpi->compressor_stage);
-  const struct lookahead_entry *next_entry =
-      av1_lookahead_peek(cpi->lookahead, src_index + 1, cpi->compressor_stage);
-  const YV12_BUFFER_CONFIG *next_buf = &next_entry->img;
-  const YV12_BUFFER_CONFIG *last_buf =
-      cm->show_frame ? cpi->last_source : &last_entry->img;
-
+  YV12_BUFFER_CONFIG *next_buf, *last_buf;
+  get_neighbor_frames(cpi, &last_buf, &next_buf);
   assert(last_buf);
 
   const double motion =
@@ -925,73 +1066,102 @@ int av1_get_vmaf_base_qindex(const AV1_COMP *const cpi, int current_qindex) {
 }
 
 #if CONFIG_USE_VMAF_RC
-static double cal_approx_score(const AV1_COMP *const cpi,
-                               VmafContext *vmaf_context, int vmaf_cal_index,
-                               YV12_BUFFER_CONFIG *const ref,
-                               YV12_BUFFER_CONFIG *const sharpened) {
+static AOM_INLINE double cal_approx_score(
+    AV1_COMP *const cpi, VmafContext *vmaf_context, int vmaf_cal_index,
+    double src_variance, double new_variance, double src_score,
+    YV12_BUFFER_CONFIG *const src, YV12_BUFFER_CONFIG *const recon_sharpened) {
   double score;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
-  aom_calc_vmaf_at_index_rc(vmaf_context, cpi->vmaf_info.vmaf_model, ref,
-                            sharpened, bit_depth, vmaf_cal_index, &score);
-  return score;
+  aom_calc_vmaf_at_index_rc(vmaf_context, cpi->vmaf_info.vmaf_model, src,
+                            recon_sharpened, bit_depth, vmaf_cal_index, &score);
+  return src_variance / new_variance * (score - src_score);
 }
 
 static double find_best_frame_unsharp_amount_loop_neg(
-    const AV1_COMP *const cpi, VmafContext *vmaf_context,
-    YV12_BUFFER_CONFIG *const ref, YV12_BUFFER_CONFIG *const source,
-    YV12_BUFFER_CONFIG *const blurred, YV12_BUFFER_CONFIG *const sharpened,
-    double best_score, const double unsharp_amount_start,
+    AV1_COMP *const cpi, VmafContext *vmaf_context, double src_variance,
+    double base_score, YV12_BUFFER_CONFIG *const src,
+    YV12_BUFFER_CONFIG *const recon, YV12_BUFFER_CONFIG *const ref,
+    FULLPEL_MV *mvs, double best_score, const double unsharp_amount_start,
     const double step_size, const int max_loop_count, const double max_amount) {
   const double min_amount = 0.0;
   int loop_count = 0;
   double approx_score = best_score;
   double unsharp_amount = unsharp_amount_start;
   int vmaf_cal_index = 2;
+
+  const AV1_COMMON *const cm = &cpi->common;
+  const int width = recon->y_width;
+  const int height = recon->y_height;
+  const int bit_depth = cpi->td.mb.e_mbd.bd;
+  YV12_BUFFER_CONFIG src_blurred, recon_blurred, src_sharpened, recon_sharpened;
+  memset(&recon_sharpened, 0, sizeof(recon_sharpened));
+  memset(&src_sharpened, 0, sizeof(src_sharpened));
+  memset(&recon_blurred, 0, sizeof(recon_blurred));
+  memset(&src_blurred, 0, sizeof(src_blurred));
+  aom_alloc_frame_buffer(
+      &recon_sharpened, width, height, 1, 1, cm->seq_params.use_highbitdepth,
+      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
+  aom_alloc_frame_buffer(
+      &src_sharpened, width, height, 1, 1, cm->seq_params.use_highbitdepth,
+      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
+  aom_alloc_frame_buffer(
+      &recon_blurred, width, height, 1, 1, cm->seq_params.use_highbitdepth,
+      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
+  aom_alloc_frame_buffer(
+      &src_blurred, width, height, 1, 1, cm->seq_params.use_highbitdepth,
+      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
+
+  gaussian_blur(bit_depth, recon, &recon_blurred);
+  gaussian_blur(bit_depth, src, &src_blurred);
   do {
     best_score = approx_score;
     unsharp_amount += step_size;
     if (unsharp_amount > max_amount || unsharp_amount < min_amount) break;
-    unsharp(cpi, source, blurred, sharpened, unsharp_amount);
+    unsharp(cpi, recon, &recon_blurred, &recon_sharpened, unsharp_amount);
+    unsharp(cpi, src, &src_blurred, &src_sharpened, unsharp_amount);
+    const double new_variance =
+        residual_frame_average_variance(cpi, &src_sharpened, ref, mvs);
     approx_score =
-        cal_approx_score(cpi, vmaf_context, vmaf_cal_index++, ref, sharpened);
+        cal_approx_score(cpi, vmaf_context, vmaf_cal_index++, src_variance,
+                         new_variance, base_score, src, &recon_sharpened);
 
     loop_count++;
   } while (approx_score > best_score && loop_count < max_loop_count);
   unsharp_amount =
       approx_score > best_score ? unsharp_amount : unsharp_amount - step_size;
+
+  aom_free_frame_buffer(&recon_sharpened);
+  aom_free_frame_buffer(&src_sharpened);
+  aom_free_frame_buffer(&recon_blurred);
+  aom_free_frame_buffer(&src_blurred);
   return AOMMIN(max_amount, AOMMAX(unsharp_amount, min_amount));
 }
 
 static double find_best_frame_unsharp_amount_neg(
-    const AV1_COMP *const cpi, VmafContext *vmaf_context,
-    YV12_BUFFER_CONFIG *const ref, YV12_BUFFER_CONFIG *const source,
-    YV12_BUFFER_CONFIG *const blurred, const double unsharp_amount_start,
+    AV1_COMP *const cpi, VmafContext *vmaf_context,
+    YV12_BUFFER_CONFIG *const src, YV12_BUFFER_CONFIG *const recon,
+    YV12_BUFFER_CONFIG *const ref, const double unsharp_amount_start,
     const double step_size, const int max_loop_count,
     const double max_filter_amount) {
-  const AV1_COMMON *const cm = &cpi->common;
-  const int width = source->y_width;
-  const int height = source->y_height;
+  double base_score = 0.0;
+  aom_calc_vmaf_at_index_rc(vmaf_context, cpi->vmaf_info.vmaf_model, src, recon,
+                            cpi->td.mb.e_mbd.bd, 1, &base_score);
 
-  double best_score = 0.0;
-  aom_calc_vmaf_at_index_rc(vmaf_context, cpi->vmaf_info.vmaf_model, ref,
-                            source, cpi->td.mb.e_mbd.bd, 1, &best_score);
-  YV12_BUFFER_CONFIG sharpened;
-  memset(&sharpened, 0, sizeof(sharpened));
-  aom_alloc_frame_buffer(
-      &sharpened, width, height, 1, 1, cm->seq_params.use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
-
+  FULLPEL_MV *mvs = NULL;
+  const double src_variance =
+      residual_frame_average_variance(cpi, src, ref, mvs);
   const double unsharp_amount = find_best_frame_unsharp_amount_loop_neg(
-      cpi, vmaf_context, ref, source, blurred, &sharpened, best_score,
+      cpi, vmaf_context, src_variance, base_score, src, recon, ref, mvs, 0.0,
       unsharp_amount_start, step_size, max_loop_count, max_filter_amount);
 
-  aom_free_frame_buffer(&sharpened);
+  aom_free(mvs);
   return unsharp_amount;
 }
-#endif
+#endif  // CONFIG_USE_VMAF_RC
 
-void av1_update_vmaf_curve(AV1_COMP *cpi, YV12_BUFFER_CONFIG *source,
-                           YV12_BUFFER_CONFIG *recon) {
+void av1_update_vmaf_curve(AV1_COMP *cpi) {
+  YV12_BUFFER_CONFIG *source = cpi->source;
+  YV12_BUFFER_CONFIG *recon = &cpi->common.cur_frame->buf;
   const int bit_depth = cpi->td.mb.e_mbd.bd;
 #if CONFIG_USE_VMAF_RC
   VmafContext *vmaf_context;
@@ -1004,7 +1174,7 @@ void av1_update_vmaf_curve(AV1_COMP *cpi, YV12_BUFFER_CONFIG *source,
 #else
   aom_calc_vmaf(cpi->oxcf.tune_cfg.vmaf_model_path, source, recon, bit_depth,
                 &cpi->vmaf_info.last_frame_vmaf);
-#endif
+#endif  // CONFIG_USE_VMAF_RC
   if (cpi->common.seq_params.use_highbitdepth) {
     assert(source->flags & YV12_FLAG_HIGHBITDEPTH);
     assert(recon->flags & YV12_FLAG_HIGHBITDEPTH);
@@ -1016,22 +1186,11 @@ void av1_update_vmaf_curve(AV1_COMP *cpi, YV12_BUFFER_CONFIG *source,
 
 #if CONFIG_USE_VMAF_RC
   if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN) {
-    const AV1_COMMON *const cm = &cpi->common;
-    const int width = source->y_width;
-    const int height = source->y_height;
-
-    YV12_BUFFER_CONFIG blurred;
-    memset(&blurred, 0, sizeof(blurred));
-    aom_alloc_frame_buffer(
-        &blurred, width, height, 1, 1, cm->seq_params.use_highbitdepth,
-        cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
-
-    gaussian_blur(bit_depth, recon, &blurred);
+    YV12_BUFFER_CONFIG *last, *next;
+    get_neighbor_frames(cpi, &last, &next);
     cpi->vmaf_info.best_unsharp_amount = find_best_frame_unsharp_amount_neg(
-        cpi, vmaf_context, source, recon, &blurred, 0.0, 0.025, 20, 1.01);
-
-    aom_free_frame_buffer(&blurred);
+        cpi, vmaf_context, source, recon, last, 0.0, 0.025, 20, 1.01);
   }
   aom_close_vmaf_context_rc(vmaf_context);
-#endif
+#endif  // CONFIG_USE_VMAF_RC
 }
