@@ -151,15 +151,14 @@ int arg_match(struct arg *arg_, const struct arg_def *def, char **argv) {
 
   arg = arg_init(argv);
 
-  if (def->short_name && strlen(arg.argv[0]) == strlen(def->short_name) + 1 &&
-      !strcmp(arg.argv[0] + 1, def->short_name)) {
+  if (def->short_name && !strcmp(arg.argv[0] + 1, def->short_name)) {
     arg.name = arg.argv[0] + 1;
     arg.val = def->has_val ? arg.argv[1] : NULL;
     arg.argv_step = def->has_val ? 2 : 1;
   } else if (def->long_name) {
     const size_t name_len = strlen(def->long_name);
 
-    if (strlen(arg.argv[0]) >= name_len + 2 && arg.argv[0][1] == '-' &&
+    if (arg.argv[0][1] == '-' &&
         !strncmp(arg.argv[0] + 2, def->long_name, name_len) &&
         (arg.argv[0][name_len + 2] == '=' ||
          arg.argv[0][name_len + 2] == '\0')) {
