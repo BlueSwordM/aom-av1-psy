@@ -329,15 +329,6 @@ MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad64x16_avg)
               aom_highbd_masked_sad##WIDTH##x##HEIGHT##_bits##BD, \
               aom_highbd_##BD##_masked_sub_pixel_variance##WIDTH##x##HEIGHT)
 
-#define HIGHBD_SDSFP(BT, SDSF, SDSX4DF) \
-  cpi->fn_ptr[BT].sdsf = SDSF;          \
-  cpi->fn_ptr[BT].sdsx4df = SDSX4DF;
-
-#define HIGHBD_SDSFP_WRAPPER(WIDTH, HEIGHT)            \
-  HIGHBD_SDSFP(BLOCK_##WIDTH##X##HEIGHT,               \
-               aom_highbd_sad_skip_##WIDTH##x##HEIGHT, \
-               aom_highbd_sad_skip_##WIDTH##x##HEIGHT##x4d)
-
 #define MAKE_MBFP_COMPOUND_SAD_WRAPPER(fnname)                           \
   static unsigned int fnname##_bits8(                                    \
       const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, \
@@ -386,6 +377,92 @@ MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad8x32)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad32x8)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad16x64)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad64x16)
+#endif
+
+#define HIGHBD_SDSFP(BT, SDSF, SDSX4DF) \
+  cpi->fn_ptr[BT].sdsf = SDSF;          \
+  cpi->fn_ptr[BT].sdsx4df = SDSX4DF;
+
+#define HIGHBD_SDSFP_WRAPPER(WIDTH, HEIGHT, BD)                   \
+  HIGHBD_SDSFP(BLOCK_##WIDTH##X##HEIGHT,                          \
+               aom_highbd_sad_skip_##WIDTH##x##HEIGHT##_bits##BD, \
+               aom_highbd_sad_skip_##WIDTH##x##HEIGHT##x4d##_bits##BD)
+
+#define MAKE_SDSF_SKIP_SAD_WRAPPER(fnname)                                  \
+  static unsigned int fnname##_bits8(const uint8_t *src, int src_stride,    \
+                                     const uint8_t *ref, int ref_stride) {  \
+    return fnname(src, src_stride, ref, ref_stride);                        \
+  }                                                                         \
+  static unsigned int fnname##_bits10(const uint8_t *src, int src_stride,   \
+                                      const uint8_t *ref, int ref_stride) { \
+    return fnname(src, src_stride, ref, ref_stride) >> 2;                   \
+  }                                                                         \
+  static unsigned int fnname##_bits12(const uint8_t *src, int src_stride,   \
+                                      const uint8_t *ref, int ref_stride) { \
+    return fnname(src, src_stride, ref, ref_stride) >> 4;                   \
+  }
+
+#define MAKE_SDSF_SKIP_SAD_4D_WRAPPER(fnname)                                 \
+  static void fnname##_bits8(const uint8_t *src_ptr, int source_stride,       \
+                             const uint8_t *const ref_ptr[], int ref_stride,  \
+                             unsigned int *sad_array) {                       \
+    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);           \
+  }                                                                           \
+  static void fnname##_bits10(const uint8_t *src_ptr, int source_stride,      \
+                              const uint8_t *const ref_ptr[], int ref_stride, \
+                              unsigned int *sad_array) {                      \
+    int i;                                                                    \
+    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);           \
+    for (i = 0; i < 4; i++) sad_array[i] >>= 2;                               \
+  }                                                                           \
+  static void fnname##_bits12(const uint8_t *src_ptr, int source_stride,      \
+                              const uint8_t *const ref_ptr[], int ref_stride, \
+                              unsigned int *sad_array) {                      \
+    int i;                                                                    \
+    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);           \
+    for (i = 0; i < 4; i++) sad_array[i] >>= 4;                               \
+  }
+
+#if CONFIG_AV1_HIGHBITDEPTH
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_128x128)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_128x64)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_64x128)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_64x64)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_64x32)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_64x16)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_32x64)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_32x32)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_32x16)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_32x8)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_16x64)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_16x32)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_16x16)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_16x8)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_8x16)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_8x8)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_4x16)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_4x8)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_8x32)
+
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_128x128x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_128x64x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_64x128x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_64x64x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_64x32x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_64x16x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_32x64x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_32x32x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_32x16x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_32x8x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_16x64x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_16x32x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_16x16x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_16x8x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_8x16x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_8x8x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_4x16x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_4x8x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_8x32x4d)
 #endif
 
 #define HIGHBD_OBFP(BT, OSDF, OVF, OSVF) \
@@ -519,6 +596,26 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
         LOWBD_OBFP_WRAPPER(8, 32)
         LOWBD_OBFP_WRAPPER(16, 4)
         LOWBD_OBFP_WRAPPER(4, 16)
+
+        HIGHBD_SDSFP_WRAPPER(128, 128, 8);
+        HIGHBD_SDSFP_WRAPPER(128, 64, 8);
+        HIGHBD_SDSFP_WRAPPER(64, 128, 8);
+        HIGHBD_SDSFP_WRAPPER(64, 64, 8);
+        HIGHBD_SDSFP_WRAPPER(64, 32, 8);
+        HIGHBD_SDSFP_WRAPPER(64, 16, 8);
+        HIGHBD_SDSFP_WRAPPER(32, 64, 8);
+        HIGHBD_SDSFP_WRAPPER(32, 32, 8);
+        HIGHBD_SDSFP_WRAPPER(32, 16, 8);
+        HIGHBD_SDSFP_WRAPPER(32, 8, 8);
+        HIGHBD_SDSFP_WRAPPER(16, 64, 8);
+        HIGHBD_SDSFP_WRAPPER(16, 32, 8);
+        HIGHBD_SDSFP_WRAPPER(16, 16, 8);
+        HIGHBD_SDSFP_WRAPPER(16, 8, 8);
+        HIGHBD_SDSFP_WRAPPER(8, 16, 8);
+        HIGHBD_SDSFP_WRAPPER(8, 8, 8);
+        HIGHBD_SDSFP_WRAPPER(4, 16, 8);
+        HIGHBD_SDSFP_WRAPPER(4, 8, 8);
+        HIGHBD_SDSFP_WRAPPER(8, 32, 8);
         break;
 
       case AOM_BITS_10:
@@ -590,6 +687,26 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
         HIGHBD_OBFP_WRAPPER(8, 32, 10)
         HIGHBD_OBFP_WRAPPER(16, 4, 10)
         HIGHBD_OBFP_WRAPPER(4, 16, 10)
+
+        HIGHBD_SDSFP_WRAPPER(128, 128, 10);
+        HIGHBD_SDSFP_WRAPPER(128, 64, 10);
+        HIGHBD_SDSFP_WRAPPER(64, 128, 10);
+        HIGHBD_SDSFP_WRAPPER(64, 64, 10);
+        HIGHBD_SDSFP_WRAPPER(64, 32, 10);
+        HIGHBD_SDSFP_WRAPPER(64, 16, 10);
+        HIGHBD_SDSFP_WRAPPER(32, 64, 10);
+        HIGHBD_SDSFP_WRAPPER(32, 32, 10);
+        HIGHBD_SDSFP_WRAPPER(32, 16, 10);
+        HIGHBD_SDSFP_WRAPPER(32, 8, 10);
+        HIGHBD_SDSFP_WRAPPER(16, 64, 10);
+        HIGHBD_SDSFP_WRAPPER(16, 32, 10);
+        HIGHBD_SDSFP_WRAPPER(16, 16, 10);
+        HIGHBD_SDSFP_WRAPPER(16, 8, 10);
+        HIGHBD_SDSFP_WRAPPER(8, 16, 10);
+        HIGHBD_SDSFP_WRAPPER(8, 8, 10);
+        HIGHBD_SDSFP_WRAPPER(4, 16, 10);
+        HIGHBD_SDSFP_WRAPPER(4, 8, 10);
+        HIGHBD_SDSFP_WRAPPER(8, 32, 10);
         break;
 
       case AOM_BITS_12:
@@ -661,6 +778,26 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
         HIGHBD_OBFP_WRAPPER(8, 32, 12)
         HIGHBD_OBFP_WRAPPER(16, 4, 12)
         HIGHBD_OBFP_WRAPPER(4, 16, 12)
+
+        HIGHBD_SDSFP_WRAPPER(128, 128, 12);
+        HIGHBD_SDSFP_WRAPPER(128, 64, 12);
+        HIGHBD_SDSFP_WRAPPER(64, 128, 12);
+        HIGHBD_SDSFP_WRAPPER(64, 64, 12);
+        HIGHBD_SDSFP_WRAPPER(64, 32, 12);
+        HIGHBD_SDSFP_WRAPPER(64, 16, 12);
+        HIGHBD_SDSFP_WRAPPER(32, 64, 12);
+        HIGHBD_SDSFP_WRAPPER(32, 32, 12);
+        HIGHBD_SDSFP_WRAPPER(32, 16, 12);
+        HIGHBD_SDSFP_WRAPPER(32, 8, 12);
+        HIGHBD_SDSFP_WRAPPER(16, 64, 12);
+        HIGHBD_SDSFP_WRAPPER(16, 32, 12);
+        HIGHBD_SDSFP_WRAPPER(16, 16, 12);
+        HIGHBD_SDSFP_WRAPPER(16, 8, 12);
+        HIGHBD_SDSFP_WRAPPER(8, 16, 12);
+        HIGHBD_SDSFP_WRAPPER(8, 8, 12);
+        HIGHBD_SDSFP_WRAPPER(4, 16, 12);
+        HIGHBD_SDSFP_WRAPPER(4, 8, 12);
+        HIGHBD_SDSFP_WRAPPER(8, 32, 12);
         break;
 
       default:
@@ -668,29 +805,6 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
                "cm->seq_params.bit_depth should be AOM_BITS_8, "
                "AOM_BITS_10 or AOM_BITS_12");
     }
-
-    HIGHBD_SDSFP_WRAPPER(128, 128);
-    HIGHBD_SDSFP_WRAPPER(128, 64);
-    HIGHBD_SDSFP_WRAPPER(64, 128);
-    HIGHBD_SDSFP_WRAPPER(64, 64);
-    HIGHBD_SDSFP_WRAPPER(64, 32);
-    HIGHBD_SDSFP_WRAPPER(64, 16);
-    HIGHBD_SDSFP_WRAPPER(32, 64);
-    HIGHBD_SDSFP_WRAPPER(32, 32);
-    HIGHBD_SDSFP_WRAPPER(32, 16);
-    HIGHBD_SDSFP_WRAPPER(32, 8);
-    HIGHBD_SDSFP_WRAPPER(16, 64);
-    HIGHBD_SDSFP_WRAPPER(16, 32);
-    HIGHBD_SDSFP_WRAPPER(16, 16);
-    HIGHBD_SDSFP_WRAPPER(16, 8);
-    HIGHBD_SDSFP_WRAPPER(8, 16);
-    HIGHBD_SDSFP_WRAPPER(8, 8);
-    HIGHBD_SDSFP_WRAPPER(4, 16);
-    HIGHBD_SDSFP_WRAPPER(4, 8);
-    HIGHBD_SDSFP_WRAPPER(4, 16);
-    HIGHBD_SDSFP_WRAPPER(8, 32);
-    HIGHBD_SDSFP_WRAPPER(32, 8);
-    HIGHBD_SDSFP_WRAPPER(64, 16);
   }
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH

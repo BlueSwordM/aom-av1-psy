@@ -1280,10 +1280,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   SDSFP(BLOCK_8X8, aom_sad_skip_8x8, aom_sad_skip_8x8x4d);
   SDSFP(BLOCK_4X16, aom_sad_skip_4x16, aom_sad_skip_4x16x4d);
   SDSFP(BLOCK_4X8, aom_sad_skip_4x8, aom_sad_skip_4x8x4d);
-  SDSFP(BLOCK_4X16, aom_sad_skip_4x16, aom_sad_skip_4x16x4d);
   SDSFP(BLOCK_8X32, aom_sad_skip_8x32, aom_sad_skip_8x32x4d);
-  SDSFP(BLOCK_32X8, aom_sad_skip_32x8, aom_sad_skip_32x8x4d);
-  SDSFP(BLOCK_64X16, aom_sad_skip_64x16, aom_sad_skip_64x16x4d);
 #undef SDSFP
 
 #if CONFIG_AV1_HIGHBITDEPTH
