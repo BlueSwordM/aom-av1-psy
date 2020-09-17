@@ -268,8 +268,8 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
   }
 
   const int delta_q_res = delta_q_info->delta_q_res;
-  // Right now aq only works with tpl model. So if tpl is disabled, we set the
-  // current_qindex to base_qindex.
+  // Right now deltaq only works with tpl model. So if tpl is disabled, we set
+  // the current_qindex to base_qindex.
   if (cpi->oxcf.algo_cfg.enable_tpl_model &&
       cpi->oxcf.q_cfg.deltaq_mode != NO_DELTA_Q) {
     current_qindex =
