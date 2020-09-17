@@ -2194,6 +2194,9 @@ static INLINE void predict_dc_only_block(
 
     x->plane[plane].eobs[block] = 0;
 
+    if (is_cur_buf_hbd(xd))
+      *block_sse = ROUND_POWER_OF_TWO((*block_sse), (xd->bd - 8) * 2);
+
     best_rd_stats->dist = (*block_sse) << 4;
     best_rd_stats->sse = best_rd_stats->dist;
 
