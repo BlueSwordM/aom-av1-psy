@@ -1186,12 +1186,11 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
     arg.argv_step = 1;
 
     if (arg_match(&arg, &use_cfg, argi)) {
-      if (cfg_included) continue;
-      parse_cfg(arg.val, &global->encoder_config);
-      cfg_included = 1;
-      continue;
-    }
-    if (arg_match(&arg, &help, argi)) {
+      if (!cfg_included) {
+        parse_cfg(arg.val, &global->encoder_config);
+        cfg_included = 1;
+      }
+    } else if (arg_match(&arg, &help, argi)) {
       show_help(stdout, 0);
       exit(EXIT_SUCCESS);
     } else if (arg_match(&arg, &codecarg, argi)) {
@@ -1641,6 +1640,7 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
           if (ctrl_args_map) {
             set_config_arg_ctrls(config, ctrl_args_map[i], &arg);
           }
+          break;
         }
       }
       if (!match) argj++;
