@@ -12,7 +12,6 @@
 #include "av1/encoder/tune_vmaf.h"
 
 #include "aom_dsp/psnr.h"
-#include "aom_dsp/vmaf.h"
 #include "aom_ports/system_state.h"
 #include "av1/encoder/extend.h"
 #include "av1/encoder/rdopt.h"
@@ -21,6 +20,11 @@
 #endif
 
 static const double kBaselineVmaf = 97.42773;
+
+static double get_layer_value(const double *array, int layer) {
+  while (array[layer] < 0.0 && layer > 0) layer--;
+  return AOMMAX(array[layer], 0.0);
+}
 
 static void motion_search(AV1_COMP *cpi, const YV12_BUFFER_CONFIG *src,
                           const YV12_BUFFER_CONFIG *ref,
@@ -428,8 +432,14 @@ void av1_vmaf_neg_preprocessing(AV1_COMP *const cpi,
   const int bit_depth = cpi->td.mb.e_mbd.bd;
   const int width = source->y_width;
   const int height = source->y_height;
-  const double best_frame_unsharp_amount = cpi->vmaf_info.best_unsharp_amount;
-  if (best_frame_unsharp_amount == 0.0) return;
+
+  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const int layer_depth =
+      AOMMIN(gf_group->layer_depth[gf_group->index], MAX_ARF_LAYERS - 1);
+  const double best_frame_unsharp_amount =
+      get_layer_value(cpi->vmaf_info.best_unsharp_amount, layer_depth);
+
+  if (best_frame_unsharp_amount <= 0.0) return;
 
   YV12_BUFFER_CONFIG blurred;
   memset(&blurred, 0, sizeof(blurred));
@@ -466,10 +476,17 @@ void av1_vmaf_frame_preprocessing(AV1_COMP *const cpi,
   gaussian_blur(bit_depth, &source_extended, &blurred);
   aom_free_frame_buffer(&source_extended);
 
+  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const int layer_depth =
+      AOMMIN(gf_group->layer_depth[gf_group->index], MAX_ARF_LAYERS - 1);
+  const double last_frame_unsharp_amount =
+      get_layer_value(cpi->vmaf_info.last_frame_unsharp_amount, layer_depth);
+
   const double best_frame_unsharp_amount = find_best_frame_unsharp_amount(
-      cpi, source, &blurred, cpi->vmaf_info.last_frame_unsharp_amount, 0.05, 20,
-      1.01);
-  cpi->vmaf_info.last_frame_unsharp_amount = best_frame_unsharp_amount;
+      cpi, source, &blurred, last_frame_unsharp_amount, 0.05, 20, 1.01);
+
+  cpi->vmaf_info.last_frame_unsharp_amount[layer_depth] =
+      best_frame_unsharp_amount;
 
   unsharp(cpi, source, &blurred, source, best_frame_unsharp_amount);
   aom_free_frame_buffer(&blurred);
@@ -498,10 +515,17 @@ void av1_vmaf_blk_preprocessing(AV1_COMP *const cpi,
   gaussian_blur(bit_depth, &source_extended, &blurred);
   aom_free_frame_buffer(&source_extended);
 
+  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const int layer_depth =
+      AOMMIN(gf_group->layer_depth[gf_group->index], MAX_ARF_LAYERS - 1);
+  const double last_frame_unsharp_amount =
+      get_layer_value(cpi->vmaf_info.last_frame_unsharp_amount, layer_depth);
+
   const double best_frame_unsharp_amount = find_best_frame_unsharp_amount(
-      cpi, source, &blurred, cpi->vmaf_info.last_frame_unsharp_amount, 0.05, 20,
-      1.01);
-  cpi->vmaf_info.last_frame_unsharp_amount = best_frame_unsharp_amount;
+      cpi, source, &blurred, last_frame_unsharp_amount, 0.05, 20, 1.01);
+
+  cpi->vmaf_info.last_frame_unsharp_amount[layer_depth] =
+      best_frame_unsharp_amount;
 
   const int block_size = BLOCK_64X64;
   const int block_w = mi_size_wide[block_size] * 4;
@@ -1021,19 +1045,24 @@ int av1_get_vmaf_base_qindex(const AV1_COMP *const cpi, int current_qindex) {
   if (cm->current_frame.frame_number == 0 || cpi->oxcf.pass == 1) {
     return current_qindex;
   }
+  aom_clear_system_state();
+  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const int layer_depth =
+      AOMMIN(gf_group->layer_depth[gf_group->index], MAX_ARF_LAYERS - 1);
+  const double last_frame_ysse =
+      get_layer_value(cpi->vmaf_info.last_frame_ysse, layer_depth);
+  const double last_frame_vmaf =
+      get_layer_value(cpi->vmaf_info.last_frame_vmaf, layer_depth);
   const int bit_depth = cpi->td.mb.e_mbd.bd;
-  const double approx_sse =
-      cpi->vmaf_info.last_frame_ysse /
-      (double)((1 << (bit_depth - 8)) * (1 << (bit_depth - 8)));
-  const double approx_dvmaf = kBaselineVmaf - cpi->vmaf_info.last_frame_vmaf;
+  const double approx_sse = last_frame_ysse / (double)((1 << (bit_depth - 8)) *
+                                                       (1 << (bit_depth - 8)));
+  const double approx_dvmaf = kBaselineVmaf - last_frame_vmaf;
   const double sse_threshold =
       0.01 * cpi->source->y_width * cpi->source->y_height;
   const double vmaf_threshold = 0.01;
   if (approx_sse < sse_threshold || approx_dvmaf < vmaf_threshold) {
     return current_qindex;
   }
-  aom_clear_system_state();
-  const GF_GROUP *gf_group = &cpi->gf_group;
   YV12_BUFFER_CONFIG *cur_buf = cpi->source;
   if (cm->show_frame == 0) {
     const int src_index = gf_group->arf_src_offset[gf_group->index];
@@ -1163,6 +1192,9 @@ void av1_update_vmaf_curve(AV1_COMP *cpi) {
   YV12_BUFFER_CONFIG *source = cpi->source;
   YV12_BUFFER_CONFIG *recon = &cpi->common.cur_frame->buf;
   const int bit_depth = cpi->td.mb.e_mbd.bd;
+  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const int layer_depth =
+      AOMMIN(gf_group->layer_depth[gf_group->index], MAX_ARF_LAYERS - 1);
 #if CONFIG_USE_VMAF_RC
   VmafContext *vmaf_context;
   aom_init_vmaf_context_rc(
@@ -1170,26 +1202,28 @@ void av1_update_vmaf_curve(AV1_COMP *cpi) {
       cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN);
   aom_calc_vmaf_at_index_rc(vmaf_context, cpi->vmaf_info.vmaf_model, source,
                             recon, bit_depth, 0,
-                            &cpi->vmaf_info.last_frame_vmaf);
+                            &cpi->vmaf_info.last_frame_vmaf[layer_depth]);
 #else
   aom_calc_vmaf(cpi->oxcf.tune_cfg.vmaf_model_path, source, recon, bit_depth,
-                &cpi->vmaf_info.last_frame_vmaf);
+                &cpi->vmaf_info.last_frame_vmaf[layer_depth]);
 #endif  // CONFIG_USE_VMAF_RC
   if (cpi->common.seq_params.use_highbitdepth) {
     assert(source->flags & YV12_FLAG_HIGHBITDEPTH);
     assert(recon->flags & YV12_FLAG_HIGHBITDEPTH);
-    cpi->vmaf_info.last_frame_ysse =
+    cpi->vmaf_info.last_frame_ysse[layer_depth] =
         (double)aom_highbd_get_y_sse(source, recon);
   } else {
-    cpi->vmaf_info.last_frame_ysse = (double)aom_get_y_sse(source, recon);
+    cpi->vmaf_info.last_frame_ysse[layer_depth] =
+        (double)aom_get_y_sse(source, recon);
   }
 
 #if CONFIG_USE_VMAF_RC
   if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN) {
     YV12_BUFFER_CONFIG *last, *next;
     get_neighbor_frames(cpi, &last, &next);
-    cpi->vmaf_info.best_unsharp_amount = find_best_frame_unsharp_amount_neg(
-        cpi, vmaf_context, source, recon, last, 0.0, 0.025, 20, 1.01);
+    cpi->vmaf_info.best_unsharp_amount[layer_depth] =
+        find_best_frame_unsharp_amount_neg(cpi, vmaf_context, source, recon,
+                                           last, 0.0, 0.025, 20, 1.01);
   }
   aom_close_vmaf_context_rc(vmaf_context);
 #endif  // CONFIG_USE_VMAF_RC

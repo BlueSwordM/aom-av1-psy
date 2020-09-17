@@ -56,7 +56,7 @@
 #include "aom_dsp/noise_model.h"
 #endif
 #if CONFIG_TUNE_VMAF
-#include "aom_dsp/vmaf.h"
+#include "av1/encoder/tune_vmaf.h"
 #endif
 
 #include "aom/internal/aom_codec_internal.h"

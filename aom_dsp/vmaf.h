@@ -20,33 +20,6 @@ typedef struct VmafContext VmafContext;
 typedef struct VmafModel VmafModel;
 #endif
 
-typedef struct {
-  // Stores the scaling factors for rdmult when tuning for VMAF.
-  // rdmult_scaling_factors[row * num_cols + col] stores the scaling factors for
-  // 64x64 block at (row, col).
-  double *rdmult_scaling_factors;
-
-  // Stores the luma sse of the last frame.
-  double last_frame_ysse;
-
-  // Stores the VMAF of the last frame.
-  double last_frame_vmaf;
-
-  // Stores the filter strength of the last frame.
-  double last_frame_unsharp_amount;
-
-  // Stores the base unsharp amount in video pre-processing.
-  double best_unsharp_amount;
-
-  // Stores the origial qindex before scaling.
-  int original_qindex;
-
-#if CONFIG_USE_VMAF_RC
-  // VMAF model used in VMAF caculations.
-  VmafModel *vmaf_model;
-#endif
-} TuneVMAFInfo;
-
 #if CONFIG_USE_VMAF_RC
 void aom_init_vmaf_context_rc(VmafContext **vmaf_context, VmafModel *vmaf_model,
                               bool cal_vmaf_neg);
