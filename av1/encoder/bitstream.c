@@ -340,13 +340,16 @@ static AOM_INLINE void write_delta_lflevel(const AV1_COMMON *cm,
 }
 
 static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
-                                       int n, int num) {
+                                       int n, int num, MapCdf map_pb_cdf) {
   const TokenExtra *p = *tp;
+  const int palette_size_idx = n - PALETTE_MIN_SIZE;
   write_uniform(w, n, p->token);  // The first color index.
   ++p;
   --num;
   for (int i = 0; i < num; ++i) {
-    aom_write_symbol(w, p->token, p->color_map_cdf, n);
+    assert((p->color_ctx >= 0) && (p->color_ctx < CDF_SIZE(PALETTE_COLORS)));
+    aom_cdf_prob *color_map_cdf = map_pb_cdf[palette_size_idx][p->color_ctx];
+    aom_write_symbol(w, p->token, color_map_cdf, n);
     ++p;
   }
   *tp = p;
@@ -1488,6 +1491,7 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   const AV1_COMMON *cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   MACROBLOCKD *xd = &cpi->td.mb.e_mbd;
+  FRAME_CONTEXT *tile_ctx = xd->tile_ctx;
   const int grid_idx = mi_row * mi_params->mi_stride + mi_col;
   xd->mi = mi_params->mi_grid_base + grid_idx;
   cpi->td.mb.mbmi_ext_frame =
@@ -1526,7 +1530,9 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
       av1_get_block_dimensions(mbmi->bsize, plane, xd, NULL, NULL, &rows,
                                &cols);
       assert(*tok < tok_end);
-      pack_map_tokens(w, tok, palette_size_plane, rows * cols);
+      MapCdf map_pb_cdf = plane ? tile_ctx->palette_uv_color_index_cdf
+                                : tile_ctx->palette_y_color_index_cdf;
+      pack_map_tokens(w, tok, palette_size_plane, rows * cols, map_pb_cdf);
     }
   }
 
