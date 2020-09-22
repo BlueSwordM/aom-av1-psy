@@ -207,6 +207,8 @@ int av1_tpl_setup_stats(struct AV1_COMP *cpi, int gop_eval,
 
 int av1_tpl_ptr_pos(int mi_row, int mi_col, int stride, uint8_t right_shift);
 
+void av1_init_tpl_stats(TplParams *const tpl_data);
+
 void av1_tpl_rdmult_setup(struct AV1_COMP *cpi);
 
 void av1_tpl_rdmult_setup_sb(struct AV1_COMP *cpi, MACROBLOCK *const x,

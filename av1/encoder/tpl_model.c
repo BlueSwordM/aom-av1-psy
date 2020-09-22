@@ -1107,9 +1107,10 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   av1_get_ref_frames(cpi, &cpi->ref_buffer_stack);
 }
 
-static AOM_INLINE void init_tpl_stats(TplParams *const tpl_data) {
+void av1_init_tpl_stats(TplParams *const tpl_data) {
   for (int frame_idx = 0; frame_idx < MAX_LAG_BUFFERS; ++frame_idx) {
     TplDepFrame *tpl_frame = &tpl_data->tpl_stats_buffer[frame_idx];
+    if (tpl_data->tpl_stats_pool[frame_idx] == NULL) continue;
     memset(tpl_data->tpl_stats_pool[frame_idx], 0,
            tpl_frame->height * tpl_frame->width *
                sizeof(*tpl_frame->tpl_stats_ptr));
@@ -1156,7 +1157,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
   cpi->rc.base_layer_qp = pframe_qindex;
 
-  init_tpl_stats(tpl_data);
+  av1_init_tpl_stats(tpl_data);
 
   tpl_row_mt->sync_read_ptr = av1_tpl_row_mt_sync_read_dummy;
   tpl_row_mt->sync_write_ptr = av1_tpl_row_mt_sync_write_dummy;
