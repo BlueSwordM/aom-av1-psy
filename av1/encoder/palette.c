@@ -418,11 +418,12 @@ void av1_rd_pick_palette_intra_sby(
   const int bit_depth = seq_params->bit_depth;
   int unused;
 
-  int count_buf[1 << 12];  // Maximum (1 << 12) color levels.
+  int count_buf[1 << 12];      // Maximum (1 << 12) color levels.
+  int count_buf_8bit[1 << 8];  // Maximum (1 << 8) bins for hbd path.
   int colors;
   if (is_hbd) {
     colors = av1_count_colors_highbd(src, src_stride, rows, cols, bit_depth,
-                                     count_buf);
+                                     count_buf, count_buf_8bit);
   } else {
     colors = av1_count_colors(src, src_stride, rows, cols, count_buf);
   }
@@ -646,13 +647,12 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
                            &plane_block_height, &rows, &cols);
 
   mbmi->uv_mode = UV_DC_PRED;
-
-  int count_buf[1 << 12];  // Maximum (1 << 12) color levels.
+  int count_buf[1 << 8];  // Maximum (1 << 8) bins for hbd path.
   if (seq_params->use_highbitdepth) {
     colors_u = av1_count_colors_highbd(src_u, src_stride, rows, cols,
-                                       seq_params->bit_depth, count_buf);
+                                       seq_params->bit_depth, NULL, count_buf);
     colors_v = av1_count_colors_highbd(src_v, src_stride, rows, cols,
-                                       seq_params->bit_depth, count_buf);
+                                       seq_params->bit_depth, NULL, count_buf);
   } else {
     colors_u = av1_count_colors(src_u, src_stride, rows, cols, count_buf);
     colors_v = av1_count_colors(src_v, src_stride, rows, cols, count_buf);

@@ -1740,11 +1740,11 @@ void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
 
   for (int r = 0; r + blk_h <= height; r += blk_h) {
     for (int c = 0; c + blk_w <= width; c += blk_w) {
-      int count_buf[1 << 12];  // Maximum (1 << 12) color levels.
+      int count_buf[1 << 8];  // Maximum (1 << 8) bins for hbd path.
       const uint8_t *const this_src = src + r * stride + c;
       const int n_colors =
           use_hbd ? av1_count_colors_highbd(this_src, stride, blk_w, blk_h, bd,
-                                            count_buf)
+                                            NULL, count_buf)
                   : av1_count_colors(this_src, stride, blk_w, blk_h, count_buf);
       if (n_colors > 1 && n_colors <= color_thresh) {
         ++counts_1;

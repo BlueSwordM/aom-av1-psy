@@ -235,7 +235,7 @@ int av1_count_colors(const uint8_t *src, int stride, int rows, int cols,
 /*! \brief See \ref av1_count_colors(), but for highbd.
  */
 int av1_count_colors_highbd(const uint8_t *src8, int stride, int rows, int cols,
-                            int bit_depth, int *val_count);
+                            int bit_depth, int *val_count, int *val_count_8bit);
 
 #ifdef __cplusplus
 }  // extern "C"

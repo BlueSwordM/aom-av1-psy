@@ -177,22 +177,32 @@ int av1_count_colors(const uint8_t *src, int stride, int rows, int cols,
 }
 
 int av1_count_colors_highbd(const uint8_t *src8, int stride, int rows, int cols,
-                            int bit_depth, int *val_count) {
+                            int bit_depth, int *val_count, int *bin_val_count) {
   assert(bit_depth <= 12);
+  const int max_bin_val = 1 << 8;
   const int max_pix_val = 1 << bit_depth;
   const uint16_t *src = CONVERT_TO_SHORTPTR(src8);
-  memset(val_count, 0, max_pix_val * sizeof(val_count[0]));
+  memset(bin_val_count, 0, max_bin_val * sizeof(val_count[0]));
+  if (val_count != NULL)
+    memset(val_count, 0, max_pix_val * sizeof(val_count[0]));
   for (int r = 0; r < rows; ++r) {
     for (int c = 0; c < cols; ++c) {
-      const int this_val = src[r * stride + c];
-      assert(this_val < max_pix_val);
-      if (this_val >= max_pix_val) return 0;
-      ++val_count[this_val];
+      /*
+       * Down-convert the pixels to 8-bit domain before counting.
+       * This provides consistency of behavior for palette search
+       * between lbd and hbd encodes. This down-converted pixels
+       * are only used for calculating the threshold (n).
+       */
+      const int this_val = ((src[r * stride + c]) >> (bit_depth - 8));
+      assert(this_val < max_bin_val);
+      if (this_val >= max_bin_val) return 0;
+      ++bin_val_count[this_val];
+      if (val_count != NULL) ++val_count[(src[r * stride + c])];
     }
   }
   int n = 0;
-  for (int i = 0; i < max_pix_val; ++i) {
-    if (val_count[i]) ++n;
+  for (int i = 0; i < max_bin_val; ++i) {
+    if (bin_val_count[i]) ++n;
   }
   return n;
 }
