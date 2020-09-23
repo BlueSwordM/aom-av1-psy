@@ -48,35 +48,36 @@ typedef enum {
 static const arg_def_t outputfile =
     ARG_DEF("o", "output", 1, "Output filename");
 static const arg_def_t frames_arg =
-    ARG_DEF("f", "frames", 1, "number of frames to encode");
+    ARG_DEF("f", "frames", 1, "Number of frames to encode");
 static const arg_def_t threads_arg =
-    ARG_DEF("th", "threads", 1, "number of threads to use");
-static const arg_def_t width_arg = ARG_DEF("w", "width", 1, "source width");
-static const arg_def_t height_arg = ARG_DEF("h", "height", 1, "source height");
+    ARG_DEF("th", "threads", 1, "Number of threads to use");
+static const arg_def_t width_arg = ARG_DEF("w", "width", 1, "Source width");
+static const arg_def_t height_arg = ARG_DEF("h", "height", 1, "Source height");
 static const arg_def_t timebase_arg =
-    ARG_DEF("t", "timebase", 1, "timebase (num/den)");
+    ARG_DEF("t", "timebase", 1, "Timebase (num/den)");
 static const arg_def_t bitrate_arg = ARG_DEF(
-    "b", "target-bitrate", 1, "encoding bitrate, in kilobits per second");
+    "b", "target-bitrate", 1, "Encoding bitrate, in kilobits per second");
 static const arg_def_t spatial_layers_arg =
-    ARG_DEF("sl", "spatial-layers", 1, "number of spatial SVC layers");
+    ARG_DEF("sl", "spatial-layers", 1, "Number of spatial SVC layers");
 static const arg_def_t temporal_layers_arg =
-    ARG_DEF("tl", "temporal-layers", 1, "number of temporal SVC layers");
+    ARG_DEF("tl", "temporal-layers", 1, "Number of temporal SVC layers");
 static const arg_def_t layering_mode_arg =
-    ARG_DEF("lm", "layering-mode", 1, "temporal layering scheme.");
+    ARG_DEF("lm", "layering-mode", 1, "Temporal layering scheme.");
 static const arg_def_t kf_dist_arg =
-    ARG_DEF("k", "kf-dist", 1, "number of frames between keyframes");
+    ARG_DEF("k", "kf-dist", 1, "Number of frames between keyframes");
 static const arg_def_t scale_factors_arg =
-    ARG_DEF("r", "scale-factors", 1, "scale factors (lowest to highest layer)");
+    ARG_DEF("r", "scale-factors", 1, "Scale factors (lowest to highest layer)");
 static const arg_def_t min_q_arg =
     ARG_DEF(NULL, "min-q", 1, "Minimum quantizer");
 static const arg_def_t max_q_arg =
     ARG_DEF(NULL, "max-q", 1, "Maximum quantizer");
 static const arg_def_t speed_arg =
-    ARG_DEF("sp", "speed", 1, "speed configuration");
+    ARG_DEF("sp", "speed", 1, "Speed configuration");
 static const arg_def_t aqmode_arg =
-    ARG_DEF("aq", "aqmode", 1, "aq-mode off/on");
+    ARG_DEF("aq", "aqmode", 1, "AQ mode off/on");
 static const arg_def_t bitrates_arg =
-    ARG_DEF("bl", "bitrates", 1, "bitrates[sl * num_tl + tl]");
+    ARG_DEF("bl", "bitrates", 1,
+            "Bitrates[spatial_layer * num_temporal_layer + temporal_layer]");
 static const arg_def_t dropframe_thresh_arg =
     ARG_DEF(NULL, "drop-frame", 1, "Temporal resampling threshold (buf %)");
 static const arg_def_t error_resilient_arg =
@@ -117,10 +118,7 @@ void usage_exit(void) {
 }
 
 static int file_is_y4m(const char detect[4]) {
-  if (memcmp(detect, "YUV4", 4) == 0) {
-    return 1;
-  }
-  return 0;
+  return memcmp(detect, "YUV4", 4) == 0;
 }
 
 static int fourcc_is_ivf(const char detect[4]) {
@@ -296,9 +294,6 @@ static void parse_command_line(int argc, const char **argv_,
       parse_layer_options_from_string(svc_params, SCALE_FACTOR, arg.val,
                                       svc_params->scaling_factor_num,
                                       svc_params->scaling_factor_den);
-    } else if (arg_match(&arg, &bitrates_arg, argi)) {
-      parse_layer_options_from_string(svc_params, BITRATE, arg.val,
-                                      svc_params->layer_target_bitrate, NULL);
     } else if (arg_match(&arg, &min_q_arg, argi)) {
       enc_cfg->rc_min_quantizer = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &max_q_arg, argi)) {
@@ -331,6 +326,17 @@ static void parse_command_line(int argc, const char **argv_,
       if (enc_cfg->g_error_resilient != 0 && enc_cfg->g_error_resilient != 1)
         die("Invalid value for error resilient (0, 1): %d.",
             enc_cfg->g_error_resilient);
+    } else {
+      ++argj;
+    }
+  }
+
+  // Total bitrate needs to be parsed after the number of layers.
+  for (argi = argj = argv; (*argj = *argi); argi += arg.argv_step) {
+    arg.argv_step = 1;
+    if (arg_match(&arg, &bitrates_arg, argi)) {
+      parse_layer_options_from_string(svc_params, BITRATE, arg.val,
+                                      svc_params->layer_target_bitrate, NULL);
     } else {
       ++argj;
     }
@@ -983,8 +989,15 @@ int main(int argc, const char **argv) {
   memcpy(&rc.layer_target_bitrate[0], &svc_params.layer_target_bitrate[0],
          sizeof(svc_params.layer_target_bitrate));
 
-  cfg.rc_target_bitrate =
-      svc_params.layer_target_bitrate[ss_number_layers * ts_number_layers - 1];
+  unsigned int total_rate = 0;
+  for (i = 0; i < ss_number_layers; i++) {
+    total_rate +=
+        svc_params
+            .layer_target_bitrate[i * ts_number_layers + ts_number_layers - 1];
+  }
+  if (total_rate != cfg.rc_target_bitrate) {
+    die("Incorrect total target bitrate");
+  }
 
   svc_params.framerate_factor[0] = 1;
   if (ts_number_layers == 2) {
