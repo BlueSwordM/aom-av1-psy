@@ -388,17 +388,17 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   const ToolCfg *const tool_cfg = &oxcf->tool_cfg;
 
   seq->still_picture =
-      (tool_cfg->force_video_mode == 0) && (oxcf->input_cfg.limit == 1);
-  seq->reduced_still_picture_hdr = seq->still_picture;
-  seq->reduced_still_picture_hdr &= !tool_cfg->full_still_picture_hdr;
+      !tool_cfg->force_video_mode && (oxcf->input_cfg.limit == 1);
+  seq->reduced_still_picture_hdr =
+      seq->still_picture && !tool_cfg->full_still_picture_hdr;
   seq->force_screen_content_tools = (oxcf->mode == REALTIME) ? 0 : 2;
   seq->force_integer_mv = 2;
   seq->order_hint_info.enable_order_hint = tool_cfg->enable_order_hint;
   seq->frame_id_numbers_present_flag =
-      !(seq->still_picture && seq->reduced_still_picture_hdr) &&
+      !seq->reduced_still_picture_hdr &&
       !oxcf->tile_cfg.enable_large_scale_tile &&
       tool_cfg->error_resilient_mode && !use_svc;
-  if (seq->still_picture && seq->reduced_still_picture_hdr) {
+  if (seq->reduced_still_picture_hdr) {
     seq->order_hint_info.enable_order_hint = 0;
     seq->force_screen_content_tools = 2;
     seq->force_integer_mv = 2;
