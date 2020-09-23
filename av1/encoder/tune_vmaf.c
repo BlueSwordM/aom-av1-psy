@@ -437,7 +437,7 @@ void av1_vmaf_neg_preprocessing(AV1_COMP *const cpi,
   const int layer_depth =
       AOMMIN(gf_group->layer_depth[gf_group->index], MAX_ARF_LAYERS - 1);
   const double best_frame_unsharp_amount =
-      get_layer_value(cpi->vmaf_info.best_unsharp_amount, layer_depth);
+      get_layer_value(cpi->vmaf_info.last_frame_unsharp_amount, layer_depth);
 
   if (best_frame_unsharp_amount <= 0.0) return;
 
@@ -1110,13 +1110,47 @@ static double find_best_frame_unsharp_amount_loop_neg(
     AV1_COMP *const cpi, VmafContext *vmaf_context, double src_variance,
     double base_score, YV12_BUFFER_CONFIG *const src,
     YV12_BUFFER_CONFIG *const recon, YV12_BUFFER_CONFIG *const ref,
-    FULLPEL_MV *mvs, double best_score, const double unsharp_amount_start,
+    YV12_BUFFER_CONFIG *const src_blurred,
+    YV12_BUFFER_CONFIG *const recon_blurred,
+    YV12_BUFFER_CONFIG *const src_sharpened,
+    YV12_BUFFER_CONFIG *const recon_sharpened, FULLPEL_MV *mvs,
+    double best_score, const double unsharp_amount_start,
     const double step_size, const int max_loop_count, const double max_amount) {
   const double min_amount = 0.0;
   int loop_count = 0;
   double approx_score = best_score;
   double unsharp_amount = unsharp_amount_start;
-  int vmaf_cal_index = 2;
+  int vmaf_cal_index = 3;
+
+  do {
+    best_score = approx_score;
+    unsharp_amount += step_size;
+    if (unsharp_amount > max_amount || unsharp_amount < min_amount) break;
+    unsharp(cpi, recon, recon_blurred, recon_sharpened, unsharp_amount);
+    unsharp(cpi, src, src_blurred, src_sharpened, unsharp_amount);
+    const double new_variance =
+        residual_frame_average_variance(cpi, src_sharpened, ref, mvs);
+    approx_score =
+        cal_approx_score(cpi, vmaf_context, vmaf_cal_index++, src_variance,
+                         new_variance, base_score, src, recon_sharpened);
+
+    loop_count++;
+  } while (approx_score > best_score && loop_count < max_loop_count);
+  unsharp_amount =
+      approx_score > best_score ? unsharp_amount : unsharp_amount - step_size;
+
+  return AOMMIN(max_amount, AOMMAX(unsharp_amount, min_amount));
+}
+
+static double find_best_frame_unsharp_amount_neg(
+    AV1_COMP *const cpi, VmafContext *vmaf_context,
+    YV12_BUFFER_CONFIG *const src, YV12_BUFFER_CONFIG *const recon,
+    YV12_BUFFER_CONFIG *const ref, double base_score,
+    const double unsharp_amount_start, const double step_size,
+    const int max_loop_count, const double max_filter_amount) {
+  FULLPEL_MV *mvs = NULL;
+  const double src_variance =
+      residual_frame_average_variance(cpi, src, ref, mvs);
 
   const AV1_COMMON *const cm = &cpi->common;
   const int width = recon->y_width;
@@ -1142,47 +1176,43 @@ static double find_best_frame_unsharp_amount_loop_neg(
 
   gaussian_blur(bit_depth, recon, &recon_blurred);
   gaussian_blur(bit_depth, src, &src_blurred);
-  do {
-    best_score = approx_score;
-    unsharp_amount += step_size;
-    if (unsharp_amount > max_amount || unsharp_amount < min_amount) break;
-    unsharp(cpi, recon, &recon_blurred, &recon_sharpened, unsharp_amount);
-    unsharp(cpi, src, &src_blurred, &src_sharpened, unsharp_amount);
-    const double new_variance =
-        residual_frame_average_variance(cpi, &src_sharpened, ref, mvs);
-    approx_score =
-        cal_approx_score(cpi, vmaf_context, vmaf_cal_index++, src_variance,
-                         new_variance, base_score, src, &recon_sharpened);
 
-    loop_count++;
-  } while (approx_score > best_score && loop_count < max_loop_count);
-  unsharp_amount =
-      approx_score > best_score ? unsharp_amount : unsharp_amount - step_size;
+  unsharp(cpi, recon, &recon_blurred, &recon_sharpened, unsharp_amount_start);
+  unsharp(cpi, src, &src_blurred, &src_sharpened, unsharp_amount_start);
+  const double variance_start =
+      residual_frame_average_variance(cpi, &src_sharpened, ref, mvs);
+  const double score_start =
+      cal_approx_score(cpi, vmaf_context, 1, src_variance, variance_start,
+                       base_score, src, &recon_sharpened);
+
+  const double unsharp_amount_next = unsharp_amount_start + step_size;
+  unsharp(cpi, recon, &recon_blurred, &recon_sharpened, unsharp_amount_next);
+  unsharp(cpi, src, &src_blurred, &src_sharpened, unsharp_amount_next);
+  const double variance_next =
+      residual_frame_average_variance(cpi, &src_sharpened, ref, mvs);
+  const double score_next =
+      cal_approx_score(cpi, vmaf_context, 2, src_variance, variance_next,
+                       base_score, src, &recon_sharpened);
+
+  double unsharp_amount;
+  if (score_next > score_start) {
+    unsharp_amount = find_best_frame_unsharp_amount_loop_neg(
+        cpi, vmaf_context, src_variance, base_score, src, recon, ref,
+        &src_blurred, &recon_blurred, &src_sharpened, &recon_sharpened, mvs,
+        score_next, unsharp_amount_next, step_size, max_loop_count,
+        max_filter_amount);
+  } else {
+    unsharp_amount = find_best_frame_unsharp_amount_loop_neg(
+        cpi, vmaf_context, src_variance, base_score, src, recon, ref,
+        &src_blurred, &recon_blurred, &src_sharpened, &recon_sharpened, mvs,
+        score_start, unsharp_amount_start, -step_size, max_loop_count,
+        max_filter_amount);
+  }
 
   aom_free_frame_buffer(&recon_sharpened);
   aom_free_frame_buffer(&src_sharpened);
   aom_free_frame_buffer(&recon_blurred);
   aom_free_frame_buffer(&src_blurred);
-  return AOMMIN(max_amount, AOMMAX(unsharp_amount, min_amount));
-}
-
-static double find_best_frame_unsharp_amount_neg(
-    AV1_COMP *const cpi, VmafContext *vmaf_context,
-    YV12_BUFFER_CONFIG *const src, YV12_BUFFER_CONFIG *const recon,
-    YV12_BUFFER_CONFIG *const ref, const double unsharp_amount_start,
-    const double step_size, const int max_loop_count,
-    const double max_filter_amount) {
-  double base_score = 0.0;
-  aom_calc_vmaf_at_index_rc(vmaf_context, cpi->vmaf_info.vmaf_model, src, recon,
-                            cpi->td.mb.e_mbd.bd, 1, &base_score);
-
-  FULLPEL_MV *mvs = NULL;
-  const double src_variance =
-      residual_frame_average_variance(cpi, src, ref, mvs);
-  const double unsharp_amount = find_best_frame_unsharp_amount_loop_neg(
-      cpi, vmaf_context, src_variance, base_score, src, recon, ref, mvs, 0.0,
-      unsharp_amount_start, step_size, max_loop_count, max_filter_amount);
-
   aom_free(mvs);
   return unsharp_amount;
 }
@@ -1196,13 +1226,14 @@ void av1_update_vmaf_curve(AV1_COMP *cpi) {
   const int layer_depth =
       AOMMIN(gf_group->layer_depth[gf_group->index], MAX_ARF_LAYERS - 1);
 #if CONFIG_USE_VMAF_RC
+  double base_score;
   VmafContext *vmaf_context;
   aom_init_vmaf_context_rc(
       &vmaf_context, cpi->vmaf_info.vmaf_model,
       cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN);
   aom_calc_vmaf_at_index_rc(vmaf_context, cpi->vmaf_info.vmaf_model, source,
-                            recon, bit_depth, 0,
-                            &cpi->vmaf_info.last_frame_vmaf[layer_depth]);
+                            recon, bit_depth, 0, &base_score);
+  cpi->vmaf_info.last_frame_vmaf[layer_depth] = base_score;
 #else
   aom_calc_vmaf(cpi->oxcf.tune_cfg.vmaf_model_path, source, recon, bit_depth,
                 &cpi->vmaf_info.last_frame_vmaf[layer_depth]);
@@ -1221,9 +1252,13 @@ void av1_update_vmaf_curve(AV1_COMP *cpi) {
   if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN) {
     YV12_BUFFER_CONFIG *last, *next;
     get_neighbor_frames(cpi, &last, &next);
-    cpi->vmaf_info.best_unsharp_amount[layer_depth] =
-        find_best_frame_unsharp_amount_neg(cpi, vmaf_context, source, recon,
-                                           last, 0.0, 0.025, 20, 1.01);
+    double best_unsharp_amount_start =
+        get_layer_value(cpi->vmaf_info.last_frame_unsharp_amount, layer_depth);
+    const int max_loop_count = 5;
+    cpi->vmaf_info.last_frame_unsharp_amount[layer_depth] =
+        find_best_frame_unsharp_amount_neg(
+            cpi, vmaf_context, source, recon, last, base_score,
+            best_unsharp_amount_start, 0.025, max_loop_count, 1.01);
   }
   aom_close_vmaf_context_rc(vmaf_context);
 #endif  // CONFIG_USE_VMAF_RC

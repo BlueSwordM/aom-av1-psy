@@ -33,9 +33,6 @@ typedef struct {
   // Stores the filter strength of the last frame.
   double last_frame_unsharp_amount[MAX_ARF_LAYERS];
 
-  // Stores the base unsharp amount in video pre-processing.
-  double best_unsharp_amount[MAX_ARF_LAYERS];
-
   // Stores the origial qindex before scaling.
   int original_qindex;
 

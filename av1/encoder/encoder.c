@@ -1034,7 +1034,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
       cpi->vmaf_info.last_frame_unsharp_amount[i] = -1.0;
       cpi->vmaf_info.last_frame_ysse[i] = -1.0;
       cpi->vmaf_info.last_frame_vmaf[i] = -1.0;
-      cpi->vmaf_info.best_unsharp_amount[i] = -1.0;
     }
     cpi->vmaf_info.original_qindex = -1;
 
