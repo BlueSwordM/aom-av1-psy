@@ -1395,25 +1395,3 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   return AOM_CODEC_OK;
 }
-
-// Determine whether a frame is a keyframe arf. Will return 0 for fwd kf arf.
-// Note it depends on frame_since_key and gf_group, therefore should be called
-// after the gf group is defined, or otherwise a keyframe arf may still return
-// 0.
-int av1_check_keyframe_arf(int gf_index, GF_GROUP *gf_group,
-                           int frame_since_key) {
-  if (gf_index >= gf_group->size) return 0;
-  return gf_group->update_type[gf_index] == ARF_UPDATE &&
-         gf_group->update_type[gf_index + 1] == OVERLAY_UPDATE &&
-         frame_since_key == 0;
-}
-
-// Determine whether a frame is a keyframe overlay (will also return 0 for fwd
-// kf overlays).
-int av1_check_keyframe_overlay(int gf_index, GF_GROUP *gf_group,
-                               int frame_since_key) {
-  if (gf_index < 1) return 0;
-  return gf_group->update_type[gf_index - 1] == ARF_UPDATE &&
-         gf_group->update_type[gf_index] == OVERLAY_UPDATE &&
-         frame_since_key == 0;
-}

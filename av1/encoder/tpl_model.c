@@ -977,11 +977,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     frame_params.show_existing_frame =
         frame_update_type == INTNL_OVERLAY_UPDATE ||
         frame_update_type == OVERLAY_UPDATE;
-    frame_params.frame_type =
-        (frame_update_type == KF_UPDATE ||
-         av1_check_keyframe_arf(gf_index, gf_group, cpi->rc.frames_since_key))
-            ? KEY_FRAME
-            : INTER_FRAME;
+    frame_params.frame_type = gf_group->frame_type[gf_index];
 
     if (frame_update_type == LF_UPDATE)
       *pframe_qindex = gf_group->q_val[gf_index];

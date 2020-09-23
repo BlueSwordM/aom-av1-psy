@@ -2920,12 +2920,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
                                    cm->cur_frame->buf.y_crop_height);
     }
 
-    // current_frame->frame_number is incremented already for
-    // keyframe overlays.
-    if (!av1_check_keyframe_overlay(cpi->gf_group.index, &cpi->gf_group,
-                                    cpi->rc.frames_since_key))
-      ++current_frame->frame_number;
-
+    ++current_frame->frame_number;
     return AOM_CODEC_OK;
   }
 
@@ -3170,16 +3165,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   // A droppable frame might not be shown but it always
   // takes a space in the gf group. Therefore, even when
   // it is not shown, we still need update the count down.
-  if (cm->show_frame) {
-    // Don't increment frame counters if this is a key frame overlay
-    if (!av1_check_keyframe_overlay(cpi->gf_group.index, &cpi->gf_group,
-                                    cpi->rc.frames_since_key))
-      ++current_frame->frame_number;
-  } else if (av1_check_keyframe_arf(cpi->gf_group.index, &cpi->gf_group,
-                                    cpi->rc.frames_since_key)) {
-    // TODO(bohanli) Hack here: increment kf overlay before it is encoded
-    ++current_frame->frame_number;
-  }
+  if (cm->show_frame) ++current_frame->frame_number;
 
   return AOM_CODEC_OK;
 }
@@ -3214,14 +3200,8 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   if (current_frame->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf)
     current_frame->frame_number = 0;
 
-  if (av1_check_keyframe_overlay(cpi->gf_group.index, &cpi->gf_group,
-                                 cpi->rc.frames_since_key)) {
-    current_frame->order_hint =
-        current_frame->frame_number + frame_params->order_offset - 1;
-  } else {
-    current_frame->order_hint =
-        current_frame->frame_number + frame_params->order_offset;
-  }
+  current_frame->order_hint =
+      current_frame->frame_number + frame_params->order_offset;
 
   current_frame->display_order_hint = current_frame->order_hint;
   current_frame->order_hint %=

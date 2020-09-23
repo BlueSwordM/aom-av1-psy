@@ -84,11 +84,6 @@ void av1_get_ref_frames(AV1_COMP *const cpi, RefBufferStack *ref_buffer_stack);
 int is_forced_keyframe_pending(struct lookahead_ctx *lookahead,
                                const int up_to_index,
                                const COMPRESSOR_STAGE compressor_stage);
-
-int av1_check_keyframe_arf(int gf_index, GF_GROUP *gf_group,
-                           int frame_since_key);
-int av1_check_keyframe_overlay(int gf_index, GF_GROUP *gf_group,
-                               int frame_since_key);
 /*!\endcond */
 #ifdef __cplusplus
 }  // extern "C"
