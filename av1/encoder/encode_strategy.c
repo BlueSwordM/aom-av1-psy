@@ -1289,16 +1289,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     }
 
     // Work out which reference frame slots may be used.
-    if (av1_check_keyframe_overlay(gf_group->index, gf_group,
-                                   cpi->rc.frames_since_key)) {
-      // This is a KF overlay, it should refer to arf. However KF overlay
-      // has the same LAST and ALTREF references, so ALTREF will be disabled
-      // in function get_ref_frame_flags. Therefore setting it manually.
-      frame_params.ref_frame_flags = av1_ref_frame_flag_list[ALTREF_FRAME];
-    } else {
-      frame_params.ref_frame_flags = get_ref_frame_flags(
-          &cpi->sf, ref_frame_buf, ext_flags->ref_frame_flags);
-    }
+    frame_params.ref_frame_flags = get_ref_frame_flags(
+        &cpi->sf, ref_frame_buf, ext_flags->ref_frame_flags);
 
     frame_params.primary_ref_frame =
         choose_primary_ref_frame(cpi, &frame_params);
