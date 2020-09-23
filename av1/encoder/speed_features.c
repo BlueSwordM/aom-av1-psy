@@ -681,6 +681,7 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 6) {
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
     sf->inter_sf.prune_nearmv_using_neighbors = 1;
+    sf->inter_sf.selective_ref_frame = 5;
 
     sf->part_sf.prune_rectangular_split_based_on_qidx =
         boosted || allow_screen_content_tools ? 0 : 1;

@@ -1562,7 +1562,9 @@ void av1_encode_frame(AV1_COMP *cpi) {
   }
 
   av1_setup_frame_buf_refs(cm);
-  enforce_max_ref_frames(cpi, &cpi->ref_frame_flags);
+  enforce_max_ref_frames(cpi, &cpi->ref_frame_flags,
+                         cm->cur_frame->ref_display_order_hint,
+                         cm->current_frame.display_order_hint);
   set_rel_frame_dist(&cpi->common, &cpi->ref_frame_dist_info,
                      cpi->ref_frame_flags);
   av1_setup_frame_sign_bias(cm);

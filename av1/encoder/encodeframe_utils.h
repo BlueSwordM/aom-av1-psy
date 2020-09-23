@@ -320,6 +320,92 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
                            const TileInfo *const tile_info, const int mi_row,
                            const int mi_col);
 
+// This function will compute the number of reference frames to be disabled
+// based on selective_ref_frame speed feature.
+static AOM_INLINE unsigned int get_num_refs_to_disable(
+    const AV1_COMP *cpi, const int *ref_frame_flags,
+    const unsigned int *ref_display_order_hint,
+    unsigned int cur_frame_display_index) {
+  unsigned int num_refs_to_disable = 0;
+  if (cpi->sf.inter_sf.selective_ref_frame >= 3) {
+    num_refs_to_disable++;
+    if (cpi->sf.inter_sf.selective_ref_frame >= 5 &&
+        *ref_frame_flags & av1_ref_frame_flag_list[LAST2_FRAME]) {
+      const OrderHintInfo *const order_hint_info =
+          &cpi->common.seq_params.order_hint_info;
+      const int last2_frame_dist = av1_encoder_get_relative_dist(
+          order_hint_info, ref_display_order_hint[LAST2_FRAME - LAST_FRAME],
+          cur_frame_display_index);
+      // Disable LAST2_FRAME if it is a temporally distant frame
+      if (abs(last2_frame_dist) > 2) {
+        num_refs_to_disable++;
+      }
+#if !CONFIG_REALTIME_ONLY
+      else if (is_stat_consumption_stage_twopass(cpi)) {
+        const FIRSTPASS_STATS *const this_frame_stats =
+            read_one_frame_stats(&cpi->twopass, cur_frame_display_index);
+        const double coded_error_per_mb =
+            this_frame_stats->coded_error / cpi->frame_info.num_mbs;
+        // Disable LAST2_FRAME if the coded error of the current frame based on
+        // first pass stats is very low.
+        if (coded_error_per_mb < 100.0) num_refs_to_disable++;
+      }
+#endif  // CONFIG_REALTIME_ONLY
+    }
+  }
+  return num_refs_to_disable;
+}
+
+static INLINE int get_max_allowed_ref_frames(
+    const AV1_COMP *cpi, const int *ref_frame_flags,
+    const unsigned int *ref_display_order_hint,
+    unsigned int cur_frame_display_index) {
+  const unsigned int max_reference_frames =
+      cpi->oxcf.ref_frm_cfg.max_reference_frames;
+  const unsigned int num_refs_to_disable = get_num_refs_to_disable(
+      cpi, ref_frame_flags, ref_display_order_hint, cur_frame_display_index);
+  const unsigned int max_allowed_refs_for_given_speed =
+      INTER_REFS_PER_FRAME - num_refs_to_disable;
+  return AOMMIN(max_allowed_refs_for_given_speed, max_reference_frames);
+}
+
+// Enforce the number of references for each arbitrary frame based on user
+// options and speed.
+static AOM_INLINE void enforce_max_ref_frames(
+    AV1_COMP *cpi, int *ref_frame_flags,
+    const unsigned int *ref_display_order_hint,
+    unsigned int cur_frame_display_index) {
+  MV_REFERENCE_FRAME ref_frame;
+  int total_valid_refs = 0;
+
+  for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
+    if (*ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
+      total_valid_refs++;
+    }
+  }
+
+  const int max_allowed_refs = get_max_allowed_ref_frames(
+      cpi, ref_frame_flags, ref_display_order_hint, cur_frame_display_index);
+
+  for (int i = 0; i < 4 && total_valid_refs > max_allowed_refs; ++i) {
+    const MV_REFERENCE_FRAME ref_frame_to_disable = disable_order[i];
+
+    if (!(*ref_frame_flags & av1_ref_frame_flag_list[ref_frame_to_disable])) {
+      continue;
+    }
+
+    switch (ref_frame_to_disable) {
+      case LAST3_FRAME: *ref_frame_flags &= ~AOM_LAST3_FLAG; break;
+      case LAST2_FRAME: *ref_frame_flags &= ~AOM_LAST2_FLAG; break;
+      case ALTREF2_FRAME: *ref_frame_flags &= ~AOM_ALT2_FLAG; break;
+      case GOLDEN_FRAME: *ref_frame_flags &= ~AOM_GOLD_FLAG; break;
+      default: assert(0);
+    }
+    --total_valid_refs;
+  }
+  assert(total_valid_refs <= max_allowed_refs);
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

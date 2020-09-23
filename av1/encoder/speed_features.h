@@ -581,8 +581,8 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   int prune_inter_modes_if_skippable;
 
   // Drop less likely to be picked reference frames in the RD search.
-  // Has five levels for now: 0, 1, 2, 3 and 4, where higher levels prune more
-  // aggressively than lower ones. (0 means no pruning).
+  // Has six levels for now: 0, 1, 2, 3, 4 and 5, where higher levels prune
+  // more aggressively than lower ones. (0 means no pruning).
   int selective_ref_frame;
 
   // Prune reference frames for rectangular partitions.
