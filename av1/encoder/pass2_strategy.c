@@ -2760,6 +2760,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   GF_GROUP *const gf_group = &cpi->gf_group;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
 
+  const FIRSTPASS_STATS *const start_pos = twopass->stats_in;
+
   if (is_stat_consumption_stage(cpi) && !twopass->stats_in) return;
 
   const int update_type = gf_group->update_type[gf_group->index];
@@ -2792,14 +2794,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   av1_zero(this_frame);
   // call above fn
   if (is_stat_consumption_stage(cpi)) {
-    if (gf_group->index < gf_group->size || rc->frames_to_key == 0) {
-      // Do not read if it is overlay for kf arf, since kf already
-      // advanced the first pass stats pointer
-      if (!av1_check_keyframe_overlay(gf_group->index, gf_group,
-                                      rc->frames_since_key)) {
-        process_first_pass_stats(cpi, &this_frame);
-      }
-    }
+    if (gf_group->index < gf_group->size || rc->frames_to_key == 0)
+      process_first_pass_stats(cpi, &this_frame);
   } else {
     rc->active_worst_quality = oxcf->rc_cfg.cq_level;
   }
@@ -2927,6 +2923,10 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 #endif
   }
   assert(gf_group->index < gf_group->size);
+
+  if (gf_group->update_type[gf_group->index] == ARF_UPDATE ||
+      gf_group->update_type[gf_group->index] == INTNL_ARF_UPDATE)
+    reset_fpf_position(twopass, start_pos);
 
   frame_params->frame_type = gf_group->frame_type[gf_group->index];
 
