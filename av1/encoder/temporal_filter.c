@@ -742,8 +742,8 @@ static INLINE int get_num_blocks(const int frame_length, const int mb_length) {
 
 // Helper function to get `q` used for encoding.
 static INLINE int get_q(const AV1_COMP *cpi) {
-  const FRAME_TYPE frame_type =
-      (cpi->common.current_frame.frame_number > 1) ? INTER_FRAME : KEY_FRAME;
+  const GF_GROUP *gf_group = &cpi->gf_group;
+  const FRAME_TYPE frame_type = gf_group->frame_type[gf_group->index];
   const int q = (int)av1_convert_qindex_to_q(
       cpi->rc.avg_frame_qindex[frame_type], cpi->common.seq_params.bit_depth);
   return q;
