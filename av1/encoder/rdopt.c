@@ -3628,8 +3628,8 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
   }
 
   if (cpi->rc.is_src_frame_alt_ref) {
-    if (sf->inter_sf.alt_ref_search_fp) {
-      assert(cpi->ref_frame_flags & av1_ref_frame_flag_list[ALTREF_FRAME]);
+    if (sf->inter_sf.alt_ref_search_fp &&
+        (cpi->ref_frame_flags & av1_ref_frame_flag_list[ALTREF_FRAME])) {
       mask->pred_modes[ALTREF_FRAME] = 0;
       disable_inter_references_except_altref(mask->ref_combo);
       disable_reference(INTRA_FRAME, mask->ref_combo);
