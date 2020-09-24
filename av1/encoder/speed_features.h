@@ -482,6 +482,12 @@ typedef struct PARTITION_SPEED_FEATURES {
   // av1_ml_predict_breakout() is disabled. Value of 3 corresponds to default
   // case with no adjustment to lbd thresholds.
   int ml_predict_breakout_level;
+
+  // Prune sub_8x8 (BLOCK_4X4, BLOCK_4X8 and BLOCK_8X4) partitions.
+  // 0 : no pruning
+  // 1 : pruning based on neighbour block information
+  // 2 : prune always
+  int prune_sub_8x8_partition_level;
 } PARTITION_SPEED_FEATURES;
 
 typedef struct MV_SPEED_FEATURES {

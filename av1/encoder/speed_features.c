@@ -671,6 +671,9 @@ static void set_good_speed_features_framesize_independent(
 
     sf->part_sf.prune_rectangular_split_based_on_qidx =
         boosted || allow_screen_content_tools ? 0 : 1;
+    sf->part_sf.prune_sub_8x8_partition_level =
+        allow_screen_content_tools ? 0
+                                   : frame_is_intra_only(&cpi->common) ? 1 : 2;
 
     sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
     sf->mv_sf.use_bsize_dependent_search_method = 1;
@@ -1066,6 +1069,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_rectangular_split_based_on_qidx = 0;
   part_sf->early_term_after_none_split = 0;
   part_sf->ml_predict_breakout_level = 0;
+  part_sf->prune_sub_8x8_partition_level = 0;
 }
 
 static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {

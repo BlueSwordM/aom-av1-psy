@@ -1324,6 +1324,27 @@ void av1_prune_partitions_before_search(
     }
   }
 
+  if (cpi->sf.part_sf.prune_sub_8x8_partition_level && (bsize == BLOCK_8X8)) {
+    const MACROBLOCKD *const xd = &x->e_mbd;
+    int prune_sub_8x8 = 1;
+    if (cpi->sf.part_sf.prune_sub_8x8_partition_level == 1) {
+      int num_neighbors_lt_8x8 = 0;
+      if (xd->left_available)
+        num_neighbors_lt_8x8 += (xd->left_mbmi->bsize <= BLOCK_8X8);
+      if (xd->up_available)
+        num_neighbors_lt_8x8 += (xd->above_mbmi->bsize <= BLOCK_8X8);
+      // Evaluate only if both left and above blocks are of size <= BLOCK_8X8.
+      if (num_neighbors_lt_8x8 == 2) {
+        prune_sub_8x8 = 0;
+      }
+    }
+    if (prune_sub_8x8) {
+      *partition_horz_allowed = 0;
+      *partition_vert_allowed = 0;
+      *do_square_split = 0;
+    }
+  }
+
   // A CNN-based speed feature pruning out either split or all non-split
   // partition in INTRA frame coding.
   const int try_intra_cnn_split =
