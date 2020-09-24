@@ -1713,6 +1713,12 @@ void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
     return;
   }
 
+  if (cpi->oxcf.mode == REALTIME) {
+    assert(cm->seq_params.reduced_still_picture_hdr);
+    features->allow_screen_content_tools = features->allow_intrabc = 0;
+    return;
+  }
+
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
     features->allow_screen_content_tools = features->allow_intrabc = 1;
     return;
