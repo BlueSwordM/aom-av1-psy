@@ -884,22 +884,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     }
     // If we are doing kf filtering, set up a few things.
     if (apply_filtering) {
-      MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
-      av1_init_mi_buffers(&cm->mi_params);
-      setup_mi(cpi, frame_input->source);
-      av1_init_macroblockd(cm, xd);
-      memset(cpi->mbmi_ext_info.frame_base, 0,
-             cpi->mbmi_ext_info.alloc_size *
-                 sizeof(*cpi->mbmi_ext_info.frame_base));
-
-      av1_set_speed_features_framesize_independent(cpi, oxcf->speed);
-      av1_set_speed_features_framesize_dependent(cpi, oxcf->speed);
-      av1_set_rd_speed_thresholds(cpi);
-      av1_setup_frame_buf_refs(cm);
-      av1_setup_frame_sign_bias(cm);
-      av1_frame_init_quantizer(cpi);
       av1_setup_past_independence(cm);
-
       if (!frame_params->show_frame && cpi->no_show_fwd_kf) {
         // fwd kf
         arf_src_index = -1 * gf_group->arf_src_offset[gf_group->index];

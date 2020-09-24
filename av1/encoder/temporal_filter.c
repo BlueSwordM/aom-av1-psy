@@ -20,6 +20,7 @@
 #include "av1/common/quant_common.h"
 #include "av1/common/reconinter.h"
 #include "av1/encoder/av1_quantize.h"
+#include "av1/encoder/encodeframe.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/extend.h"
 #include "av1/encoder/firstpass.h"
@@ -967,7 +968,7 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
  *         in this function. Estimated noise levels for YUV planes will be
  *         saved in `noise_levels`.
  */
-static void tf_setup_filtering_buffer(const AV1_COMP *cpi,
+static void tf_setup_filtering_buffer(AV1_COMP *cpi,
                                       const int filter_frame_lookahead_idx,
                                       const int is_second_arf,
                                       YV12_BUFFER_CONFIG **frames,
@@ -1065,6 +1066,12 @@ static void tf_setup_filtering_buffer(const AV1_COMP *cpi,
   *num_frames_for_filtering = num_frames;
   *filter_frame_idx = num_before;
   assert(frames[*filter_frame_idx] == to_filter_frame);
+
+  av1_setup_src_planes(&cpi->td.mb, &to_filter_buf->img, 0, 0, num_planes,
+                       cpi->common.seq_params.sb_size);
+  av1_setup_block_planes(&cpi->td.mb.e_mbd,
+                         cpi->common.seq_params.subsampling_x,
+                         cpi->common.seq_params.subsampling_y, num_planes);
 }
 
 /*!\cond */
