@@ -1771,6 +1771,204 @@ static void adjust_unstable_region_bounds(const FIRSTPASS_STATS *stats,
   remove_short_regions(regions, num_regions, HIGH_VAR_REGION, HALF_WIN);
 }
 
+// Identify blending regions.
+static void find_blending_regions(const FIRSTPASS_STATS *stats,
+                                  const int *is_flash, REGIONS *regions,
+                                  int *num_regions, double *coeff) {
+  int i, k = 0;
+  // Blending regions will have large content change, therefore will have a
+  // large consistent change in intra error.
+  int count_stable = 0;
+  while (k < *num_regions) {
+    if (regions[k].type == STABLE_REGION) {
+      k++;
+      count_stable++;
+      continue;
+    }
+    int dir = 0;
+    int start = 0, last;
+    for (i = regions[k].start; i <= regions[k].last; i++) {
+      // First mark the regions that has consistent large change of intra error.
+      if (is_flash[i] || (i > 0 && is_flash[i - 1])) continue;
+      double grad = stats[i].intra_error - stats[i - 1].intra_error;
+      int large_change = fabs(grad) / AOMMAX(stats[i].intra_error, 0.01) > 0.05;
+      int this_dir = 0;
+      if (large_change) {
+        this_dir = (grad > 0) ? 1 : -1;
+      }
+      // the current trend continues
+      if (dir == this_dir) continue;
+      if (dir != 0) {
+        // Mark the end of a new large change group and add it
+        last = i - 1;
+        insert_region(start, last, BLENDING_REGION, regions, num_regions, &k);
+      }
+      dir = this_dir;
+      start = i;
+    }
+    if (dir != 0) {
+      last = regions[k].last;
+      insert_region(start, last, BLENDING_REGION, regions, num_regions, &k);
+    }
+    k++;
+  }
+
+  // If the blending region has very low correlation, mark it as high variance
+  // since we probably cannot benefit from it anyways.
+  get_region_stats(stats, is_flash, regions, coeff, *num_regions);
+  for (k = 0; k < *num_regions; k++) {
+    if (regions[k].type != BLENDING_REGION) continue;
+    if (regions[k].last == regions[k].start || regions[k].avg_cor_coeff < 0.6 ||
+        count_stable == 0)
+      regions[k].type = HIGH_VAR_REGION;
+  }
+  get_region_stats(stats, is_flash, regions, coeff, *num_regions);
+
+  // It is possible for blending to result in a "dip" in intra error (first
+  // decrease then increase). Therefore we need to find the dip and combine the
+  // two regions.
+  k = 1;
+  while (k < *num_regions) {
+    if (k < *num_regions - 1 && regions[k].type == HIGH_VAR_REGION) {
+      // Check if this short high variance regions is actually in the middle of
+      // a blending region.
+      if (regions[k - 1].type == BLENDING_REGION &&
+          regions[k + 1].type == BLENDING_REGION &&
+          regions[k].last - regions[k].start < 3) {
+        int prev_dir = (stats[regions[k - 1].last].intra_error -
+                        stats[regions[k - 1].last - 1].intra_error) > 0
+                           ? 1
+                           : -1;
+        int next_dir = (stats[regions[k + 1].last].intra_error -
+                        stats[regions[k + 1].last - 1].intra_error) > 0
+                           ? 1
+                           : -1;
+        if (prev_dir < 0 && next_dir > 0) {
+          // This is possibly a mid region of blending. Check the ratios
+          double ratio_thres = AOMMIN(regions[k - 1].avg_sr_fr_ratio,
+                                      regions[k + 1].avg_sr_fr_ratio) *
+                               0.95;
+          if (regions[k].avg_sr_fr_ratio > ratio_thres) {
+            regions[k].type = BLENDING_REGION;
+            remove_region(2, regions, num_regions, &k);
+            analyze_region(stats, k - 1, regions, coeff);
+            continue;
+          }
+        }
+      }
+    }
+    // Check if we have a pair of consecutive blending regions.
+    if (regions[k - 1].type == BLENDING_REGION &&
+        regions[k].type == BLENDING_REGION) {
+      int prev_dir = (stats[regions[k - 1].last].intra_error -
+                      stats[regions[k - 1].last - 1].intra_error) > 0
+                         ? 1
+                         : -1;
+      int next_dir = (stats[regions[k].last].intra_error -
+                      stats[regions[k].last - 1].intra_error) > 0
+                         ? 1
+                         : -1;
+
+      // if both are too short, no need to check
+      int total_length = regions[k].last - regions[k - 1].start + 1;
+      if (total_length < 4) {
+        regions[k - 1].type = HIGH_VAR_REGION;
+        k++;
+        continue;
+      }
+
+      int to_merge = 0;
+      if (prev_dir < 0 && next_dir > 0) {
+        // In this case we check the last frame in the previous region.
+        double prev_length =
+            (double)(regions[k - 1].last - regions[k - 1].start + 1);
+        double last_ratio, ratio_thres;
+        if (prev_length < 2.01) {
+          // if the previous region is very short
+          double max_coded_error =
+              AOMMAX(stats[regions[k - 1].last].coded_error,
+                     stats[regions[k - 1].last - 1].coded_error);
+          last_ratio = stats[regions[k - 1].last].sr_coded_error /
+                       AOMMAX(max_coded_error, 0.001);
+          ratio_thres = regions[k].avg_sr_fr_ratio * 0.95;
+        } else {
+          double max_coded_error =
+              AOMMAX(stats[regions[k - 1].last].coded_error,
+                     stats[regions[k - 1].last - 1].coded_error);
+          last_ratio = stats[regions[k - 1].last].sr_coded_error /
+                       AOMMAX(max_coded_error, 0.001);
+          double prev_ratio =
+              (regions[k - 1].avg_sr_fr_ratio * prev_length - last_ratio) /
+              (prev_length - 1.0);
+          ratio_thres = AOMMIN(prev_ratio, regions[k].avg_sr_fr_ratio) * 0.95;
+        }
+        if (last_ratio > ratio_thres) {
+          to_merge = 1;
+        }
+      }
+
+      if (to_merge) {
+        remove_region(0, regions, num_regions, &k);
+        analyze_region(stats, k - 1, regions, coeff);
+        continue;
+      } else {
+        // These are possibly two separate blending regions. Mark the boundary
+        // frame as HIGH_VAR_REGION to separate the two.
+        int prev_k = k - 1;
+        insert_region(regions[prev_k].last, regions[prev_k].last,
+                      HIGH_VAR_REGION, regions, num_regions, &prev_k);
+        analyze_region(stats, prev_k, regions, coeff);
+        k = prev_k + 1;
+        analyze_region(stats, k, regions, coeff);
+      }
+    }
+    k++;
+  }
+  cleanup_regions(regions, num_regions);
+}
+
+// Clean up decision for blendings. Remove blending regions that are too short.
+// Also if a very short high var region is between a blending and a stable
+// region, just merge it with one of them.
+static void cleanup_blendings(REGIONS *regions, int *num_regions) {
+  int k = 0;
+  while (k<*num_regions && * num_regions> 1) {
+    int is_short_blending = regions[k].type == BLENDING_REGION &&
+                            regions[k].last - regions[k].start + 1 < 5;
+    int is_short_hv = regions[k].type == HIGH_VAR_REGION &&
+                      regions[k].last - regions[k].start + 1 < 5;
+    int has_stable_neighbor =
+        ((k > 0 && regions[k - 1].type == STABLE_REGION) ||
+         (k < *num_regions - 1 && regions[k + 1].type == STABLE_REGION));
+    int has_blend_neighbor =
+        ((k > 0 && regions[k - 1].type == BLENDING_REGION) ||
+         (k < *num_regions - 1 && regions[k + 1].type == BLENDING_REGION));
+    int total_neighbors = (k > 0) + (k < *num_regions - 1);
+
+    if (is_short_blending ||
+        (is_short_hv &&
+         has_stable_neighbor + has_blend_neighbor >= total_neighbors)) {
+      // Remove this region.Try to determine whether to combine it with the
+      // previous or next region.
+      int merge;
+      double prev_diff =
+          (k > 0)
+              ? fabs(regions[k].avg_cor_coeff - regions[k - 1].avg_cor_coeff)
+              : 1;
+      double next_diff =
+          (k < *num_regions - 1)
+              ? fabs(regions[k].avg_cor_coeff - regions[k + 1].avg_cor_coeff)
+              : 1;
+      // merge == 0 means to merge with previous, 1 means to merge with next
+      merge = prev_diff > next_diff;
+      remove_region(merge, regions, num_regions, &k);
+    } else {
+      k++;
+    }
+  }
+  cleanup_regions(regions, num_regions);
+}
+
 #endif
 
 /*!\brief Determine the length of future GF groups.
