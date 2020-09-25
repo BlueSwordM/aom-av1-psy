@@ -1566,6 +1566,211 @@ static void get_region_stats(const FIRSTPASS_STATS *stats, const int *is_flash,
   }
 }
 
+// Find tentative stable regions
+static int find_stable_regions(const FIRSTPASS_STATS *stats,
+                               const double *grad_coded, int this_start,
+                               int this_last, REGIONS *regions) {
+  int i, j, k = 0;
+  regions[k].start = this_start;
+  for (i = this_start; i <= this_last; i++) {
+    // Check mean and variance of stats in a window
+    double mean_intra = 0.001, var_intra = 0.001;
+    double mean_coded = 0.001, var_coded = 0.001;
+    for (j = -HALF_WIN; j <= HALF_WIN; j++) {
+      int idx = AOMMIN(AOMMAX(i + j, this_start), this_last);
+      mean_intra += stats[idx].intra_error / WINDOW_SIZE;
+      var_intra +=
+          stats[idx].intra_error * stats[idx].intra_error / WINDOW_SIZE;
+      mean_coded += stats[idx].coded_error / WINDOW_SIZE;
+      var_coded +=
+          stats[idx].coded_error * stats[idx].coded_error / WINDOW_SIZE;
+    }
+
+    int is_intra_stable = (var_intra / (mean_intra * mean_intra) < 1.03);
+    int is_coded_stable = (var_coded / (mean_coded * mean_coded) < 1.04 &&
+                           fabs(grad_coded[i]) / mean_coded < 0.05) ||
+                          mean_coded / mean_intra < 0.05;
+    int is_coded_small = mean_coded < 0.5 * mean_intra;
+    REGION_TYPES cur_type =
+        (is_intra_stable && is_coded_stable && is_coded_small)
+            ? STABLE_REGION
+            : HIGH_VAR_REGION;
+
+    // mark a new region if type changes
+    if (i == regions[k].start) {
+      // first frame in the region
+      regions[k].type = cur_type;
+    } else if (cur_type != regions[k].type) {
+      // Append a new region
+      regions[k].last = i - 1;
+      regions[k + 1].start = i;
+      regions[k + 1].type = cur_type;
+      k++;
+    }
+  }
+  regions[k].last = this_last;
+  return k + 1;
+}
+
+// Clean up regions that should be removed or merged.
+static void cleanup_regions(REGIONS *regions, int *num_regions) {
+  int k = 0;
+  while (k < *num_regions) {
+    if ((k > 0 && regions[k - 1].type == regions[k].type) ||
+        regions[k].last < regions[k].start) {
+      remove_region(0, regions, num_regions, &k);
+    } else {
+      k++;
+    }
+  }
+}
+
+// Remove regions that are of type and shorter than length.
+// Merge it with its neighboring regions.
+static void remove_short_regions(REGIONS *regions, int *num_regions,
+                                 REGION_TYPES type, int length) {
+  int k = 0;
+  while (k < *num_regions && (*num_regions) > 1) {
+    if ((regions[k].last - regions[k].start + 1 < length &&
+         regions[k].type == type)) {
+      // merge current region with the previous and next regions
+      remove_region(2, regions, num_regions, &k);
+    } else {
+      k++;
+    }
+  }
+  cleanup_regions(regions, num_regions);
+}
+
+static void adjust_unstable_region_bounds(const FIRSTPASS_STATS *stats,
+                                          const int *is_flash,
+                                          const double *grad, REGIONS *regions,
+                                          double *coeff, int *num_regions) {
+  int i, j, k;
+  // Remove regions that are too short. Likely noise.
+  remove_short_regions(regions, num_regions, STABLE_REGION, HALF_WIN);
+  remove_short_regions(regions, num_regions, HIGH_VAR_REGION, HALF_WIN);
+
+  get_region_stats(stats, is_flash, regions, coeff, *num_regions);
+
+  // Adjust region boundaries. The thresholds are empirically obtained, but
+  // overall the performance is not very sensitive to small changes to them.
+  for (k = 0; k < *num_regions; k++) {
+    if (regions[k].type == STABLE_REGION) continue;
+    if (k > 0) {
+      // Adjust previous boundary.
+      // First find the average intra/coded error in the previous
+      // neighborhood.
+      double avg_intra_err = 0, avg_coded_err = 0, avg_coeff = 0;
+      int starti = AOMMAX(regions[k - 1].last - WINDOW_SIZE + 1,
+                          regions[k - 1].start + 1);
+      int lasti = regions[k - 1].last;
+      int counti = 0;
+      for (i = starti; i <= lasti; i++) {
+        avg_intra_err += stats[i].intra_error;
+        avg_coded_err += stats[i].coded_error;
+        avg_coeff += coeff[i];
+        counti++;
+      }
+      if (counti > 0) {
+        avg_intra_err = AOMMAX(avg_intra_err / (double)counti, 0.001);
+        avg_coded_err /= AOMMAX(avg_coded_err / (double)counti, 0.001);
+        avg_coeff /= AOMMIN(avg_intra_err / (double)counti, 0.99999);
+        int count_coded = 0, count_grad = 0;
+        for (j = lasti + 1; j <= regions[k].last; j++) {
+          int intra_close =
+              fabs(stats[j].intra_error - avg_intra_err) / avg_intra_err < 0.1;
+          int coded_close =
+              fabs(stats[j].coded_error - avg_coded_err) / avg_coded_err < 0.15;
+          int grad_small = fabs(grad[j]) / avg_coded_err < 0.05;
+          int coded_small = stats[j].coded_error / avg_intra_err < 0.03;
+          int coeff_close =
+              (1 - coeff[j]) / (1 - avg_coeff) < 1.5 || coeff[j] > 0.995;
+          if (!coeff_close || (!coded_close && !coded_small)) count_coded--;
+          if (!grad_small && !coded_small) count_grad--;
+
+          if (intra_close && count_coded >= 0 && count_grad >= 0) {
+            // this frame probably belongs to the previous stable region
+            regions[k - 1].last = j;
+            regions[k].start = j + 1;
+          } else {
+            break;
+          }
+        }
+      }
+    }  // if k > 0
+    if (k < *num_regions - 1) {
+      // Adjust next boundary.
+      // First find the average intra/coded error in the next neighborhood.
+      double avg_intra_err = 0, avg_coded_err = 0, avg_coeff = 0;
+      int starti = regions[k + 1].start;
+      int lasti = AOMMIN(regions[k + 1].last - 1,
+                         regions[k + 1].start + WINDOW_SIZE - 1);
+      int counti = 0;
+      for (i = starti; i <= lasti; i++) {
+        avg_intra_err += stats[i].intra_error;
+        avg_coded_err += stats[i + 1].coded_error;
+        avg_coeff += coeff[i];
+        counti++;
+      }
+      if (counti > 0) {
+        avg_intra_err = AOMMAX(avg_intra_err / (double)counti, 0.001);
+        avg_coded_err /= AOMMAX(avg_coded_err / (double)counti, 0.001);
+        avg_coeff /= AOMMIN(avg_intra_err / (double)counti, 0.99999);
+        // At the boundary, coded error is large, but still the frame is stable
+        int count_coded = 1, count_grad = 1;
+        for (j = starti - 1; j >= regions[k].start; j--) {
+          int intra_close =
+              fabs(stats[j].intra_error - avg_intra_err) / avg_intra_err < 0.1;
+          int coded_close =
+              fabs(stats[j + 1].coded_error - avg_coded_err) / avg_coded_err <
+              0.15;
+          int grad_small = fabs(grad[j + 1]) / avg_coded_err < 0.05;
+          int coded_small = stats[j + 1].coded_error / avg_intra_err < 0.03;
+          int coeff_close =
+              (1 - coeff[j + 1]) / (1 - avg_coeff) < 1.5 || coeff[j] > 0.995;
+          if (!coeff_close || (!coded_close && !coded_small)) count_coded--;
+          if (!grad_small && !coded_small) count_grad--;
+          if (intra_close && count_coded >= 0 && count_grad >= 0) {
+            // this frame probably belongs to the next stable region
+            regions[k + 1].start = j;
+            regions[k].last = j - 1;
+          } else {
+            break;
+          }
+        }
+      }
+    }  // if k < *num_regions - 1
+  }    // end of loop over all regions
+
+  cleanup_regions(regions, num_regions);
+  remove_short_regions(regions, num_regions, HIGH_VAR_REGION, HALF_WIN);
+  get_region_stats(stats, is_flash, regions, coeff, *num_regions);
+
+  // If a stable regions has higher error than neighboring high var regions,
+  // or if the stable region has a lower average correlation,
+  // then it should be merged with them
+  k = 0;
+  while (k < *num_regions && (*num_regions) > 1) {
+    if (regions[k].type == STABLE_REGION &&
+        ((k > 0 &&  // previous regions
+          (regions[k].avg_coded_err > regions[k - 1].avg_coded_err ||
+           regions[k].avg_cor_coeff < regions[k - 1].avg_cor_coeff)) ||
+         (k < *num_regions - 1 &&  // next region
+          (regions[k].avg_coded_err > regions[k + 1].avg_coded_err ||
+           regions[k].avg_cor_coeff < regions[k + 1].avg_cor_coeff)))) {
+      // merge current region with the previous and next regions
+      remove_region(2, regions, num_regions, &k);
+      analyze_region(stats, k - 1, regions, coeff);
+    } else {
+      k++;
+    }
+  }
+
+  remove_short_regions(regions, num_regions, STABLE_REGION, WINDOW_SIZE);
+  remove_short_regions(regions, num_regions, HIGH_VAR_REGION, HALF_WIN);
+}
+
 #endif
 
 /*!\brief Determine the length of future GF groups.
