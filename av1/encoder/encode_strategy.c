@@ -649,6 +649,11 @@ void av1_update_ref_frame_map(AV1_COMP *cpi,
                  ref_map_index);
       break;
     case OVERLAY_UPDATE:
+      if (ref_map_index != INVALID_IDX) {
+        update_arf_stack(ref_map_index, ref_buffer_stack);
+        stack_push(ref_buffer_stack->lst_stack,
+                   &ref_buffer_stack->lst_stack_size, ref_map_index);
+      }
       ref_map_index = stack_pop(ref_buffer_stack->arf_stack,
                                 &ref_buffer_stack->arf_stack_size);
       stack_push(ref_buffer_stack->gld_stack, &ref_buffer_stack->gld_stack_size,
@@ -823,7 +828,9 @@ int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
                      ->lst_stack[ref_buffer_stack->lst_stack_size - 1];
       }
       break;
-    case OVERLAY_UPDATE: break;
+    case OVERLAY_UPDATE:
+      if (free_fb_index != INVALID_IDX) refresh_mask = 1 << free_fb_index;
+      break;
     case INTNL_OVERLAY_UPDATE: break;
     default: assert(0); break;
   }
