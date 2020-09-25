@@ -1427,6 +1427,145 @@ static void insert_region(int start, int last, REGION_TYPES type,
   *cur_region_idx = k;
 }
 
+// Estimate the noise variance of each frame from the first pass stats
+static void estimate_region_noise(const FIRSTPASS_STATS *stats,
+                                  const int *is_flash, REGIONS *region) {
+  double C1, C2, C3, noise;
+  int count = 0;
+  region->avg_noise_var = -1;
+  for (int i = region->start + 2; i <= region->last; i++) {
+    if (is_flash[i] || is_flash[i - 1] || is_flash[i - 2]) continue;
+
+    C1 = stats[i - 1].intra_error *
+         (stats[i].intra_error - stats[i].coded_error);
+    C2 = stats[i - 2].intra_error *
+         (stats[i - 1].intra_error - stats[i - 1].coded_error);
+    C3 = stats[i - 2].intra_error *
+         (stats[i].intra_error - stats[i].sr_coded_error);
+    if (C1 <= 0 || C2 <= 0 || C3 <= 0) continue;
+    C1 = sqrt(C1);
+    C2 = sqrt(C2);
+    C3 = sqrt(C3);
+
+    noise = stats[i - 1].intra_error - C1 * C2 / C3;
+    noise = AOMMAX(noise, 0.01);
+    region->avg_noise_var = (region->avg_noise_var == -1)
+                                ? noise
+                                : AOMMIN(noise, region->avg_noise_var);
+    count++;
+  }
+  if (count == 0) {
+    region->avg_noise_var = 0;
+  }
+}
+
+// Analyze the corrrelation coefficient of each frame with its previous frame in
+// a region. Also get the average of stats inside a region.
+// Before calling this function, the region's noise variance is needed.
+static void analyze_region(const FIRSTPASS_STATS *stats, int region_idx,
+                           REGIONS *regions, double *coeff) {
+  double cor_coeff;
+
+  int i, k = region_idx;
+  regions[k].avg_cor_coeff = 0;
+  regions[k].avg_sr_fr_ratio = 0;
+  regions[k].avg_intra_err = 0;
+  regions[k].avg_coded_err = 0;
+
+  int check_first_sr = (k != 0);
+
+  for (i = regions[k].start; i <= regions[k].last; i++) {
+    double C = sqrt(stats[i - 1].intra_error *
+                    (stats[i].intra_error - stats[i].coded_error));
+    cor_coeff = C / (stats[i - 1].intra_error - regions[k].avg_noise_var);
+
+    if (i > regions[k].start || check_first_sr) {
+      double num_frames =
+          (double)(regions[k].last - regions[k].start + check_first_sr);
+      double max_coded_error =
+          AOMMAX(stats[i].coded_error, stats[i - 1].coded_error);
+      double this_ratio = stats[i].sr_coded_error / max_coded_error;
+      regions[k].avg_sr_fr_ratio += this_ratio / num_frames;
+    }
+
+    regions[k].avg_intra_err +=
+        stats[i].intra_error / (double)(regions[k].last - regions[k].start + 1);
+    regions[k].avg_coded_err +=
+        stats[i].coded_error / (double)(regions[k].last - regions[k].start + 1);
+
+    coeff[i] =
+        cor_coeff * sqrt((stats[i - 1].intra_error - regions[k].avg_noise_var) /
+                         (stats[i].intra_error - regions[k].avg_noise_var));
+    // clip correlation coefficient.
+    coeff[i] = AOMMIN(AOMMAX(coeff[i], 0), 1);
+
+    regions[k].avg_cor_coeff +=
+        coeff[i] / (double)(regions[k].last - regions[k].start + 1);
+  }
+}
+
+// Calculate the regions stats of every region. Uses the stable regions to
+// estimate noise variance of other regions. Then call analyze_region for each.
+static void get_region_stats(const FIRSTPASS_STATS *stats, const int *is_flash,
+                             REGIONS *regions, double *coeff, int num_regions) {
+  int k, count_stable = 0;
+  // Analyze stable regions.
+  for (k = 0; k < num_regions; k++) {
+    if (regions[k].type == STABLE_REGION) {
+      estimate_region_noise(stats, is_flash, regions + k);
+      analyze_region(stats, k, regions, coeff);
+      count_stable++;
+    }
+  }
+
+  if (count_stable == 0) {
+    // no stable region, just use the lowest noise variance estimated.
+    double lowest_noise = -1;
+    for (k = 0; k < num_regions; k++) {
+      if (regions[k].type == SCENECUT_REGION) continue;
+      estimate_region_noise(stats, is_flash, regions + k);
+      if (regions[k].avg_noise_var < 0.01) continue;
+      if (lowest_noise < 0 || lowest_noise > regions[k].avg_noise_var) {
+        lowest_noise = regions[k].avg_noise_var;
+      }
+    }
+    lowest_noise = AOMMAX(lowest_noise, 0);
+    for (k = 0; k < num_regions; k++) {
+      regions[k].avg_noise_var = lowest_noise;
+      analyze_region(stats, k, regions, coeff);
+    }
+    return;
+  }
+
+  // Analyze other regions
+  for (k = 0; k < num_regions; k++) {
+    if (regions[k].type != STABLE_REGION &&
+        regions[k].type != SCENECUT_REGION) {
+      // use the average of the nearest previous and next stable regions
+      int count = 0;
+      regions[k].avg_noise_var = 0;
+      for (int r = k - 1; r >= 0; r--) {
+        if (regions[r].type == STABLE_REGION) {
+          count++;
+          regions[k].avg_noise_var += regions[r].avg_noise_var;
+          break;
+        }
+      }
+      for (int r = k + 1; r < num_regions; r++) {
+        if (regions[r].type == STABLE_REGION) {
+          count++;
+          regions[k].avg_noise_var += regions[r].avg_noise_var;
+          break;
+        }
+      }
+      if (count) {
+        regions[k].avg_noise_var /= (double)count;
+      }
+      analyze_region(stats, k, regions, coeff);
+    }
+  }
+}
+
 #endif
 
 /*!\brief Determine the length of future GF groups.
