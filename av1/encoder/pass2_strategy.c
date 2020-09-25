@@ -1209,6 +1209,76 @@ void set_last_prev_low_err(int *cur_start_ptr, int *cur_last_ptr, int *cut_pos,
   }  // prev_lows
   return;
 }
+// To suppress unused function warnings. Will remove after all functions are
+// added.
+#define USE_GOP_ANALYSIS 0
+
+#if USE_GOP_ANALYSIS
+#define SMOOTH_FILT_LEN 7
+#define HALF_FILT_LEN (SMOOTH_FILT_LEN / 2)
+#define WINDOW_SIZE 7
+#define HALF_WIN (WINDOW_SIZE / 2)
+// A 7-tap gaussian smooth filter
+const double smooth_filt[SMOOTH_FILT_LEN] = { 0.006, 0.061, 0.242, 0.383,
+                                              0.242, 0.061, 0.006 };
+
+// Smooth filter intra_error and coded_error in firstpass stats.
+// If ignore[i]==1, the ith element should not be used in the filtering.
+static void smooth_filter_stats(const FIRSTPASS_STATS *stats, const int *ignore,
+                                int start_idx, int last_idx,
+                                double *filt_intra_err,
+                                double *filt_coded_err) {
+  int i, j;
+  for (i = start_idx; i <= last_idx; i++) {
+    double total_wt = 0;
+    for (j = -HALF_FILT_LEN; j <= HALF_FILT_LEN; j++) {
+      int idx = AOMMIN(AOMMAX(i + j, start_idx), last_idx);
+      if (ignore[idx]) continue;
+
+      filt_intra_err[i] +=
+          smooth_filt[j + HALF_FILT_LEN] * stats[idx].intra_error;
+      total_wt += smooth_filt[j + HALF_FILT_LEN];
+    }
+    if (total_wt > 0.01) {
+      filt_intra_err[i] /= total_wt;
+    } else {
+      filt_intra_err[i] = stats[i].intra_error;
+    }
+  }
+  for (i = start_idx; i <= last_idx; i++) {
+    double total_wt = 0;
+    for (j = -HALF_FILT_LEN; j <= HALF_FILT_LEN; j++) {
+      int idx = AOMMIN(AOMMAX(i + j, start_idx), last_idx);
+      // Coded error involves idx and idx - 1.
+      if (ignore[idx] || ignore[idx - 1]) continue;
+
+      filt_coded_err[i] +=
+          smooth_filt[j + HALF_FILT_LEN] * stats[idx].coded_error;
+      total_wt += smooth_filt[j + HALF_FILT_LEN];
+    }
+    if (total_wt > 0.01) {
+      filt_coded_err[i] /= total_wt;
+    } else {
+      filt_coded_err[i] = stats[i].coded_error;
+    }
+  }
+}
+
+// Calculate gradient
+static void get_gradient(const double *values, int start, int last,
+                         double *grad) {
+  if (start == last) {
+    grad[start] = 0;
+    return;
+  }
+  for (int i = start; i <= last; i++) {
+    int prev = AOMMAX(i - 1, start);
+    int next = AOMMIN(i + 1, last);
+    grad[i] = (values[next] - values[prev]) / (next - prev);
+  }
+}
+
+#endif
 
 /*!\brief Determine the length of future GF groups.
  *
