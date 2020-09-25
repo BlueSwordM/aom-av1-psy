@@ -1278,8 +1278,84 @@ static void get_gradient(const double *values, int start, int last,
   }
 }
 
-#endif
+static int find_next_scenecut(const FIRSTPASS_STATS *const stats_start,
+                              int first, int last, int *ignore) {
+  // Identify unstable areas caused by scenecuts.
+  // Find the max and 2nd max coded error, and the average of the rest frames.
+  // If there is only one frame that yields a huge coded error, it is likely a
+  // scenecut.
+  double this_ratio, max_prev_ratio, max_next_ratio, max_prev_coded,
+      max_next_coded;
 
+  for (int i = first; i <= last; i++) {
+    if (ignore[i] || (i > 0 && ignore[i - 1])) continue;
+    double temp_intra = AOMMAX(stats_start[i].intra_error, 0.01);
+    this_ratio = stats_start[i].coded_error / temp_intra;
+    // find the avg ratio in the preceding neighborhood
+    max_prev_ratio = 0;
+    max_prev_coded = 0;
+    for (int j = AOMMAX(first, i - HALF_WIN); j < i; j++) {
+      if (ignore[j] || (j > 0 && ignore[j - 1])) continue;
+      temp_intra = AOMMAX(stats_start[j].intra_error, 0.01);
+      double temp_ratio = stats_start[j].coded_error / temp_intra;
+      if (temp_ratio > max_prev_ratio) {
+        max_prev_ratio = temp_ratio;
+      }
+      if (stats_start[j].coded_error > max_prev_coded) {
+        max_prev_coded = stats_start[j].coded_error;
+      }
+    }
+    // find the avg ratio in the following neighborhood
+    max_next_ratio = 0;
+    max_next_coded = 0;
+    for (int j = i + 1; j <= AOMMIN(i + HALF_WIN, last); j++) {
+      if (ignore[j] || (j > 0 && ignore[j - 1])) continue;
+      temp_intra = AOMMAX(stats_start[j].intra_error, 0.01);
+      double temp_ratio = stats_start[j].coded_error / temp_intra;
+      if (temp_ratio > max_next_ratio) {
+        max_next_ratio = temp_ratio;
+      }
+      if (stats_start[j].coded_error > max_next_coded) {
+        max_next_coded = stats_start[j].coded_error;
+      }
+    }
+
+    if (max_prev_ratio < 0.001 && max_next_ratio < 0.001) {
+      // the ratios are very small, only check a small fixed threshold
+      if (this_ratio < 0.02) continue;
+    } else {
+      // check if this frame has a larger ratio than the neighborhood
+      double max_sr = stats_start[i].sr_coded_error;
+      if (i < last) max_sr = AOMMAX(max_sr, stats_start[i + 1].sr_coded_error);
+      double max_sr_fr_ratio =
+          max_sr / AOMMAX(stats_start[i].coded_error, 0.01);
+
+      if (max_sr_fr_ratio > 1.2) continue;
+      if (this_ratio < 2 * AOMMAX(max_prev_ratio, max_next_ratio) &&
+          stats_start[i].coded_error <
+              2 * AOMMAX(max_prev_coded, max_next_coded)) {
+        continue;
+      }
+    }
+    return i;
+  }
+  return -1;
+}
+
+static void mark_flashes(const FIRSTPASS_STATS *stats, int start_idx,
+                         int last_idx, int *is_flash) {
+  int i;
+  for (i = start_idx; i < last_idx; i++) {
+    if (stats[i + 1].pcnt_second_ref > stats[i + 1].pcnt_inter &&
+        stats[i + 1].pcnt_second_ref >= 0.5) {
+      // this is a new flash frame
+      is_flash[i] = 1;
+      continue;
+    }
+  }
+}
+
+#endif
 /*!\brief Determine the length of future GF groups.
  *
  * \ingroup gf_group_algo
