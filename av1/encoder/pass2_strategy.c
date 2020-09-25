@@ -1355,7 +1355,80 @@ static void mark_flashes(const FIRSTPASS_STATS *stats, int start_idx,
   }
 }
 
+// Remove the region with index next_region.
+// parameter merge: 0: merge with previous; 1: merge with next; 2:
+// merge with both, take type from previous if possible
+// After removing, next_region will be the index of the next region.
+static void remove_region(int merge, REGIONS *regions, int *num_regions,
+                          int *next_region) {
+  int k = *next_region;
+  assert(k < *num_regions);
+  if (*num_regions == 1) {
+    *num_regions = 0;
+    return;
+  }
+  if (k == 0) {
+    merge = 1;
+  } else if (k == *num_regions - 1) {
+    merge = 0;
+  }
+  int num_merge = (merge == 2) ? 2 : 1;
+  switch (merge) {
+    case 0:
+      regions[k - 1].last = regions[k].last;
+      *next_region = k;
+      break;
+    case 1:
+      regions[k + 1].start = regions[k].start;
+      *next_region = k + 1;
+      break;
+    case 2:
+      regions[k - 1].last = regions[k + 1].last;
+      *next_region = k;
+      break;
+    default: assert(0);
+  }
+  *num_regions -= num_merge;
+  for (k = *next_region - (merge == 1); k < *num_regions; k++) {
+    regions[k] = regions[k + num_merge];
+  }
+}
+
+// Insert a region in the cur_region_idx. The start and last should both be in
+// the current region. After insertion, the cur_region_idx will point to the
+// last region that was splitted from the original region.
+static void insert_region(int start, int last, REGION_TYPES type,
+                          REGIONS *regions, int *num_regions,
+                          int *cur_region_idx) {
+  int k = *cur_region_idx;
+  REGION_TYPES this_region_type = regions[k].type;
+  int this_region_last = regions[k].last;
+  int num_add = (start != regions[k].start) + (last != regions[k].last);
+  // move the following regions further to the back
+  for (int r = *num_regions - 1; r > k; r--) {
+    regions[r + num_add] = regions[r];
+  }
+  *num_regions += num_add;
+  if (start > regions[k].start) {
+    regions[k].last = start - 1;
+    k++;
+    regions[k].start = start;
+  }
+  regions[k].type = type;
+  if (last < this_region_last) {
+    regions[k].last = last;
+    k++;
+    regions[k].start = last + 1;
+    regions[k].last = this_region_last;
+    regions[k].type = this_region_type;
+  } else {
+    regions[k].last = this_region_last;
+  }
+  *cur_region_idx = k;
+}
+
 #endif
+
 /*!\brief Determine the length of future GF groups.
  *
  * \ingroup gf_group_algo
