@@ -327,6 +327,13 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
     if (speed >= 9) {
       sf->rt_sf.use_modeled_non_rd_cost = 1;
+// TODO(kyslov) Re-enable when AV1 models are trained
+#if 0
+      if (!frame_is_intra_only(cm)) {
+        sf->part_sf.partition_search_type = ML_BASED_PARTITION;
+        sf->rt_sf.reuse_inter_pred_nonrd = 0;
+      }
+#endif
     }
   } else {
     if (speed == 8 && !cpi->use_svc) {

@@ -264,7 +264,10 @@ enum {
   FIXED_PARTITION,
 
   // Partition using source variance
-  VAR_BASED_PARTITION
+  VAR_BASED_PARTITION,
+
+  // Partition using ML model
+  ML_BASED_PARTITION
 } UENUM1BYTE(PARTITION_SEARCH_TYPE);
 
 enum {

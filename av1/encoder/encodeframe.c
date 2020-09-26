@@ -435,6 +435,54 @@ static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
+// Get a prediction(stored in x->est_pred) for the whole superblock.
+static void get_estimated_pred(AV1_COMP *cpi, const TileInfo *const tile,
+                               MACROBLOCK *x, int mi_row, int mi_col) {
+  AV1_COMMON *const cm = &cpi->common;
+  const int is_key_frame = frame_is_intra_only(cm);
+  MACROBLOCKD *xd = &x->e_mbd;
+
+  // TODO(kyslov) Extend to 128x128
+  assert(cm->seq_params.sb_size == BLOCK_64X64);
+
+  av1_set_offsets(cpi, tile, x, mi_row, mi_col, BLOCK_64X64);
+
+  if (!is_key_frame) {
+    MB_MODE_INFO *mi = xd->mi[0];
+    const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, LAST_FRAME);
+
+    assert(yv12 != NULL);
+
+    av1_setup_pre_planes(xd, 0, yv12, mi_row, mi_col,
+                         get_ref_scale_factors(cm, LAST_FRAME), 1);
+    mi->ref_frame[0] = LAST_FRAME;
+    mi->ref_frame[1] = NONE;
+    mi->bsize = BLOCK_64X64;
+    mi->mv[0].as_int = 0;
+    mi->interp_filters = av1_broadcast_interp_filter(BILINEAR);
+
+    set_ref_ptrs(cm, xd, mi->ref_frame[0], mi->ref_frame[1]);
+
+    xd->plane[0].dst.buf = x->est_pred;
+    xd->plane[0].dst.stride = 64;
+    av1_enc_build_inter_predictor_y(xd, mi_row, mi_col);
+  } else {
+#if CONFIG_AV1_HIGHBITDEPTH
+    switch (xd->bd) {
+      case 8: memset(x->est_pred, 128, 64 * 64 * sizeof(x->est_pred[0])); break;
+      case 10:
+        memset(x->est_pred, 128 * 4, 64 * 64 * sizeof(x->est_pred[0]));
+        break;
+      case 12:
+        memset(x->est_pred, 128 * 16, 64 * 64 * sizeof(x->est_pred[0]));
+        break;
+    }
+#else
+    memset(x->est_pred, 128, 64 * 64 * sizeof(x->est_pred[0]));
+#endif  // CONFIG_VP9_HIGHBITDEPTH
+  }
+}
+
 #define AVG_CDF_WEIGHT_LEFT 3
 #define AVG_CDF_WEIGHT_TOP_RIGHT 1
 
@@ -464,6 +512,16 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
       cm->current_frame.frame_type != KEY_FRAME) {
     int offset = cpi->source->y_stride * (mi_row << 2) + (mi_col << 2);
     av1_source_content_sb(cpi, x, offset);
+  }
+
+  if (sf->part_sf.partition_search_type == ML_BASED_PARTITION) {
+    PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
+    RD_STATS dummy_rdc;
+    get_estimated_pred(cpi, tile_info, x, mi_row, mi_col);
+    av1_nonrd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col,
+                             BLOCK_64X64, &dummy_rdc, 1, INT64_MAX, pc_root);
+    av1_free_pc_tree_recursive(pc_root, av1_num_planes(cm), 0, 0);
+    return;
   }
 
   // Set the partition
