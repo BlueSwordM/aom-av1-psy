@@ -1467,9 +1467,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     }
   }
 
-  if ((!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi) &&
-       !cpi->sf.rt_sf.use_nonrd_pick_mode) ||
-      hash_table_created) {
+  if (hash_table_created) {
     av1_hash_table_destroy(&intrabc_hash_info->intrabc_hash_table);
   }
 }
