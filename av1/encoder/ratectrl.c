@@ -317,7 +317,6 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
   rc->frames_since_key = 8;  // Sensible default for first frame.
   rc->this_key_frame_forced = 0;
   rc->next_key_frame_forced = 0;
-  rc->source_alt_ref_pending = 0;
 
   rc->frames_till_gf_update_due = 0;
   rc->ni_av_qi = rc_cfg->worst_allowed_q;
@@ -1746,9 +1745,6 @@ static void update_alt_ref_frame_stats(AV1_COMP *cpi) {
   // this frame refreshes means next frames don't unless specified by user
   RATE_CONTROL *const rc = &cpi->rc;
   rc->frames_since_golden = 0;
-
-  // Mark the alt ref as done (setting to 0 means no further alt refs pending).
-  rc->source_alt_ref_pending = 0;
 }
 
 static void update_golden_frame_stats(AV1_COMP *cpi) {

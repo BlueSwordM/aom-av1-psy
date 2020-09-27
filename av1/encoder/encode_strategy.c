@@ -424,8 +424,6 @@ static struct lookahead_entry *choose_frame_source(
     // no show frames are arf frames
     source =
         av1_lookahead_peek(cpi->lookahead, src_index, cpi->compressor_stage);
-    // clear altref pending if this is not keyframe arf
-    if (src_index) cpi->rc.source_alt_ref_pending = 0;
     // When src_index == rc->frames_to_key, it indicates a fwd_kf
     if (src_index == cpi->rc.frames_to_key && src_index != 0) {
       cpi->no_show_fwd_kf = 1;

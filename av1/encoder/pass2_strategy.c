@@ -1504,7 +1504,7 @@ static INLINE void set_baseline_gf_interval(AV1_COMP *cpi, int arf_position,
         if (is_final_pass) rc->intervals_till_gf_calculate_due = 0;
       }
     } else {
-      rc->baseline_gf_interval = arf_position - rc->source_alt_ref_pending;
+      rc->baseline_gf_interval = arf_position;
     }
   } else {
     rc->baseline_gf_interval = arf_position;
@@ -1760,7 +1760,6 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // Should we use the alternate reference frame.
   int ext_len = i - is_intra_only;
   if (use_alt_ref) {
-    rc->source_alt_ref_pending = 0;
     gf_group->max_layer_depth_allowed = gf_cfg->gf_max_pyr_height;
     set_baseline_gf_interval(cpi, i, active_max_gf_interval, use_alt_ref,
                              is_final_pass);
@@ -1776,7 +1775,6 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
         cpi->lap_enabled ? &rc->num_stats_required_for_gfu_boost : NULL);
   } else {
     reset_fpf_position(twopass, start_pos);
-    rc->source_alt_ref_pending = 0;
     gf_group->max_layer_depth_allowed = 0;
     set_baseline_gf_interval(cpi, i, active_max_gf_interval, use_alt_ref,
                              is_final_pass);
@@ -1794,14 +1792,13 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // the next gf group.
   // TODO(bohanli): should incorporate the usage of alt_ref into
   // calculate_gf_length
-  if (is_final_pass && rc->source_alt_ref_pending == 0 &&
-      rc->intervals_till_gf_calculate_due > 0) {
+  if (is_final_pass && rc->intervals_till_gf_calculate_due > 0) {
     rc->gf_intervals[rc->cur_gf_index]--;
   }
 
 #define LAST_ALR_BOOST_FACTOR 0.2f
   rc->arf_boost_factor = 1.0;
-  if (rc->source_alt_ref_pending && !is_lossless_requested(rc_cfg)) {
+  if (use_alt_ref && !is_lossless_requested(rc_cfg)) {
     // Reduce the boost of altref in the last gf group
     if (rc->frames_to_key - ext_len == REDUCE_GF_LENGTH_BY ||
         rc->frames_to_key - ext_len == 0) {
