@@ -2411,10 +2411,6 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   // Reset the GF group data structures.
   av1_zero(*gf_group);
 
-  // Clear the alt ref active flag and last group multi arf flags as they
-  // can never be set for a key frame.
-  rc->source_alt_ref_active = 0;
-
   // KF is always a GF so clear frames till next gf counter.
   rc->frames_till_gf_update_due = 0;
 
@@ -2430,7 +2426,6 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
       rc->frames_to_key = AOMMAX(1, kf_cfg->key_freq_max);
     correct_frames_to_key(cpi);
     rc->kf_boost = DEFAULT_KF_BOOST;
-    rc->source_alt_ref_active = 0;
     gf_group->update_type[0] = KF_UPDATE;
     return;
   }

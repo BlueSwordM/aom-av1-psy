@@ -195,7 +195,6 @@ typedef struct {
   int this_key_frame_forced;
   int next_key_frame_forced;
   int source_alt_ref_pending;
-  int source_alt_ref_active;
   int is_src_frame_alt_ref;
   int sframe_due;
 

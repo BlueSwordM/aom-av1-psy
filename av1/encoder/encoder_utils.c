@@ -362,45 +362,18 @@ static void configure_static_seg_features(AV1_COMP *cpi) {
     // First normal frame in a valid gf or alt ref group
     if (rc->frames_since_golden == 0) {
       // Set up segment features for normal frames in an arf group
-      if (rc->source_alt_ref_active) {
-        seg->update_map = 0;
-        seg->update_data = 1;
+      // Disable segmentation and clear down features if alt ref
+      // is not active for this group
 
-        qi_delta = av1_compute_qdelta(rc, rc->avg_q, rc->avg_q * 1.125,
-                                      cm->seq_params.bit_depth);
-        av1_set_segdata(seg, 1, SEG_LVL_ALT_Q, qi_delta + 2);
-        av1_enable_segfeature(seg, 1, SEG_LVL_ALT_Q);
+      av1_disable_segmentation(seg);
 
-        av1_set_segdata(seg, 1, SEG_LVL_ALT_LF_Y_H, -2);
-        av1_set_segdata(seg, 1, SEG_LVL_ALT_LF_Y_V, -2);
-        av1_set_segdata(seg, 1, SEG_LVL_ALT_LF_U, -2);
-        av1_set_segdata(seg, 1, SEG_LVL_ALT_LF_V, -2);
+      memset(cpi->enc_seg.map, 0,
+             cm->mi_params.mi_rows * cm->mi_params.mi_cols);
 
-        av1_enable_segfeature(seg, 1, SEG_LVL_ALT_LF_Y_H);
-        av1_enable_segfeature(seg, 1, SEG_LVL_ALT_LF_Y_V);
-        av1_enable_segfeature(seg, 1, SEG_LVL_ALT_LF_U);
-        av1_enable_segfeature(seg, 1, SEG_LVL_ALT_LF_V);
+      seg->update_map = 0;
+      seg->update_data = 0;
 
-        // Segment coding disabled for compred testing
-        if (high_q) {
-          av1_set_segdata(seg, 1, SEG_LVL_REF_FRAME, ALTREF_FRAME);
-          av1_enable_segfeature(seg, 1, SEG_LVL_REF_FRAME);
-          av1_enable_segfeature(seg, 1, SEG_LVL_SKIP);
-        }
-      } else {
-        // Disable segmentation and clear down features if alt ref
-        // is not active for this group
-
-        av1_disable_segmentation(seg);
-
-        memset(cpi->enc_seg.map, 0,
-               cm->mi_params.mi_rows * cm->mi_params.mi_cols);
-
-        seg->update_map = 0;
-        seg->update_data = 0;
-
-        av1_clearall_segfeatures(seg);
-      }
+      av1_clearall_segfeatures(seg);
     } else if (rc->is_src_frame_alt_ref) {
       // Special case where we are coding over the top of a previous
       // alt ref frame.

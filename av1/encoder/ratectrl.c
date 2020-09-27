@@ -318,7 +318,6 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
   rc->this_key_frame_forced = 0;
   rc->next_key_frame_forced = 0;
   rc->source_alt_ref_pending = 0;
-  rc->source_alt_ref_active = 0;
 
   rc->frames_till_gf_update_due = 0;
   rc->ni_av_qi = rc_cfg->worst_allowed_q;
@@ -1750,24 +1749,14 @@ static void update_alt_ref_frame_stats(AV1_COMP *cpi) {
 
   // Mark the alt ref as done (setting to 0 means no further alt refs pending).
   rc->source_alt_ref_pending = 0;
-
-  // Set the alternate reference frame active flag
-  rc->source_alt_ref_active = 0;
 }
 
 static void update_golden_frame_stats(AV1_COMP *cpi) {
   RATE_CONTROL *const rc = &cpi->rc;
-  const GF_GROUP *const gf_group = &cpi->gf_group;
 
   // Update the Golden frame usage counts.
   if (cpi->refresh_frame.golden_frame || rc->is_src_frame_alt_ref) {
     rc->frames_since_golden = 0;
-
-    // If we are not using alt ref in the up and coming group clear the arf
-    // active flag. In multi arf group case, if the index is not 0 then
-    // we are overlaying a mid group arf so should not reset the flag.
-    if (!rc->source_alt_ref_pending && (gf_group->index == 0))
-      rc->source_alt_ref_active = 0;
   } else if (cpi->common.show_frame) {
     rc->frames_since_golden++;
   }
@@ -2600,7 +2589,6 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
         cm->current_frame.frame_number != 0 && rc->frames_to_key == 0;
     rc->frames_to_key = cpi->oxcf.kf_cfg.key_freq_max;
     rc->kf_boost = DEFAULT_KF_BOOST_RT;
-    rc->source_alt_ref_active = 0;
     gf_group->update_type[gf_group->index] = KF_UPDATE;
     gf_group->frame_type[gf_group->index] = KEY_FRAME;
     gf_group->refbuf_state[gf_group->index] = REFBUF_RESET;
