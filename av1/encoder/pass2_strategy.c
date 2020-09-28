@@ -1539,8 +1539,7 @@ static void get_region_stats(const FIRSTPASS_STATS *stats, const int *is_flash,
 
   // Analyze other regions
   for (k = 0; k < num_regions; k++) {
-    if (regions[k].type != STABLE_REGION &&
-        regions[k].type != SCENECUT_REGION) {
+    if (regions[k].type != STABLE_REGION) {
       // use the average of the nearest previous and next stable regions
       int count = 0;
       regions[k].avg_noise_var = 0;
@@ -1967,6 +1966,112 @@ static void cleanup_blendings(REGIONS *regions, int *num_regions) {
     }
   }
   cleanup_regions(regions, num_regions);
+}
+
+// Identify stable and unstable regions from first pass stats.
+// Stats_start points to the first frame to analyze.
+// Offset is the offset from the current frame to the frame stats_start is
+// pointing to.
+static void identify_regions(const FIRSTPASS_STATS *const stats_start,
+                             int total_frames, int offset, REGIONS *regions,
+                             int *total_regions, double *cor_coeff) {
+  int k;
+  if (total_frames <= 1) return;
+
+  double *coeff = cor_coeff + offset;
+
+  // store the initial decisions
+  REGIONS temp_regions[MAX_FIRSTPASS_ANALYSIS_FRAMES];
+  av1_zero_array(temp_regions, MAX_FIRSTPASS_ANALYSIS_FRAMES);
+  int is_flash[MAX_FIRSTPASS_ANALYSIS_FRAMES] = { 0 };
+  // buffers for filtered stats
+  double filt_intra_err[MAX_FIRSTPASS_ANALYSIS_FRAMES] = { 0 };
+  double filt_coded_err[MAX_FIRSTPASS_ANALYSIS_FRAMES] = { 0 };
+  double grad_coded[MAX_FIRSTPASS_ANALYSIS_FRAMES] = { 0 };
+
+  int cur_region = 0, this_start = 0, this_last;
+
+  // find possible flash frames
+  mark_flashes(stats_start, 0, total_frames - 1, is_flash);
+
+  // first get the obvious scenecuts
+  int next_scenecut = -1;
+
+  do {
+    next_scenecut =
+        find_next_scenecut(stats_start, this_start, total_frames - 1, is_flash);
+    this_last = (next_scenecut >= 0) ? (next_scenecut - 1) : total_frames - 1;
+    // low-pass filter the needed stats
+    smooth_filter_stats(stats_start, is_flash, this_start, this_last,
+                        filt_intra_err, filt_coded_err);
+    get_gradient(filt_coded_err, this_start, this_last, grad_coded);
+
+    // find tentative stable regions and unstable regions
+    int num_regions = find_stable_regions(stats_start, grad_coded, this_start,
+                                          this_last, temp_regions);
+    adjust_unstable_region_bounds(stats_start, is_flash, grad_coded,
+                                  temp_regions, coeff, &num_regions);
+
+    get_region_stats(stats_start, is_flash, temp_regions, coeff, num_regions);
+
+    // Try to identify blending regions in the unstable regions
+    find_blending_regions(stats_start, is_flash, temp_regions, &num_regions,
+                          coeff);
+    cleanup_blendings(temp_regions, &num_regions);
+
+    // The flash points should all be considered high variance points
+    k = 0;
+    while (k < num_regions) {
+      if (temp_regions[k].type != STABLE_REGION) {
+        k++;
+        continue;
+      }
+      int start = temp_regions[k].start;
+      int last = temp_regions[k].last;
+      for (int i = start; i <= last; i++) {
+        if (is_flash[i]) {
+          insert_region(i, i, HIGH_VAR_REGION, temp_regions, &num_regions, &k);
+        }
+      }
+      k++;
+    }
+    cleanup_regions(temp_regions, &num_regions);
+
+    // copy the regions in the scenecut group
+    for (k = 0; k < num_regions; k++) {
+      regions[k + cur_region] = temp_regions[k];
+    }
+    cur_region += num_regions;
+
+    // add the scenecut region
+    if (next_scenecut > -1) {
+      // add the scenecut region, and find the next scenecut
+      regions[cur_region].type = SCENECUT_REGION;
+      regions[cur_region].start = next_scenecut;
+      regions[cur_region].last = next_scenecut;
+      cur_region++;
+      this_start = next_scenecut + 1;
+    }
+  } while (next_scenecut >= 0);
+
+  *total_regions = cur_region;
+  get_region_stats(stats_start, is_flash, regions, coeff, *total_regions);
+
+  // if we have consecutive scenecuts, only consider the last one as scenecut
+  for (k = 0; k < *total_regions - 1; k++) {
+    if (regions[k].type != SCENECUT_REGION ||
+        regions[k + 1].type != SCENECUT_REGION) {
+      continue;
+    }
+    regions[k].type = HIGH_VAR_REGION;
+  }
+  cleanup_regions(regions, total_regions);
+  get_region_stats(stats_start, is_flash, regions, coeff, *total_regions);
+
+  for (k = 0; k < *total_regions; k++) {
+    regions[k].start += offset;
+    regions[k].last += offset;
+  }
 }
 
 #endif
