@@ -4017,7 +4017,7 @@ void av1_nonrd_pick_partition(AV1_COMP *cpi, ThreadData *td,
       // int rate_coeffs = 0;
       // encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_COSTCOEFFS,
       //           bsize, pc_tree, &rate_coeffs);
-      x->cb_offset = 0;
+      set_cb_offsets(x->cb_offset, 0, 0);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, OUTPUT_ENABLED, bsize,
                 pc_tree, NULL);
     } else {
