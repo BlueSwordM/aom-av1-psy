@@ -11,6 +11,7 @@
 
 #include "common/args.h"
 
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
@@ -18,12 +19,7 @@
 #include "aom/aom_integer.h"
 #include "aom_ports/msvc.h"
 #include "aom/aom_codec.h"
-
-#if defined(__GNUC__) && __GNUC__
-extern void die(const char *fmt, ...) __attribute__((noreturn));
-#else
-extern void die(const char *fmt, ...);
-#endif
+#include "common/tools_common.h"
 
 struct arg arg_init(char **argv) {
   struct arg a;
@@ -146,6 +142,8 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 
 int arg_match(struct arg *arg_, const struct arg_def *def, char **argv) {
   struct arg arg;
+
+  assert(def->has_val == 0 || def->has_val == 1 || def->has_val == -1);
 
   if (!argv[0] || argv[0][0] != '-') return 0;
 
