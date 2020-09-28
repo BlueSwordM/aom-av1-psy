@@ -690,6 +690,8 @@ static void set_good_speed_features_framesize_independent(
 
     sf->winner_mode_sf.dc_blk_pred_level = 2;
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
+
+    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
   }
 
   // Intra txb hash is currently not compatible with multi-winner mode as the
