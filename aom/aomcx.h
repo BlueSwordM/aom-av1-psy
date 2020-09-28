@@ -393,7 +393,7 @@ enum aome_enc_control_id {
    * AV1 has a bitstream feature to reduce decoding dependency between frames
    * by turning off backward update of probability context used in encoding
    * and decoding. This allows staged parallel processing of more than one
-   * video frames in the decoder. This control function provides a mean to
+   * video frames in the decoder. This control function provides a means to
    * turn this feature on or off for bitstreams produced by encoder.
    *
    * - 0 = disable (default)
@@ -442,7 +442,7 @@ enum aome_enc_control_id {
    * int parameter
    *
    * One AV1 encoder speed feature is to enable quality boost by lowering
-   * frame level Q periodically. This control function provides a mean to
+   * frame level Q periodically. This control function provides a means to
    * turn on/off this feature.
    *
    * - 0 = disable (default)
@@ -915,7 +915,7 @@ enum aome_enc_control_id {
   AV1E_SET_ENABLE_DUAL_FILTER = 86,
 
   /*!\brief Codec control function to turn on / off delta quantization in chroma
-   * planes usage for a sequence, int parameter
+   * planes for a sequence, int parameter
    *
    * - 0 = disable (default)
    * - 1 = enable
