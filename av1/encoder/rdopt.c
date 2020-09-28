@@ -3699,6 +3699,19 @@ static AOM_INLINE int prune_ref_frame(const AV1_COMP *cpi, const MACROBLOCK *x,
   return 0;
 }
 
+static AOM_INLINE int is_ref_frame_used_by_compound_ref(
+    int ref_frame, int skip_ref_frame_mask) {
+  for (int r = ALTREF_FRAME + 1; r < MODE_CTX_REF_FRAMES; ++r) {
+    if (!(skip_ref_frame_mask & (1 << r))) {
+      const MV_REFERENCE_FRAME *rf = ref_frame_map[r - REF_FRAMES];
+      if (rf[0] == ref_frame || rf[1] == ref_frame) {
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
 // Please add/modify parameter setting in this function, making it consistent
 // and easy to read and maintain.
 static AOM_INLINE void set_params_rd_pick_inter_mode(
@@ -3719,28 +3732,19 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
 
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-  MV_REFERENCE_FRAME ref_frame;
   x->best_pred_mv_sad = INT_MAX;
-  for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
+
+  for (MV_REFERENCE_FRAME ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME;
+       ++ref_frame) {
     x->pred_mv_sad[ref_frame] = INT_MAX;
     x->mbmi_ext->mode_context[ref_frame] = 0;
     mbmi_ext->ref_mv_count[ref_frame] = UINT8_MAX;
     if (cpi->ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
-      if (mbmi->partition != PARTITION_NONE &&
-          mbmi->partition != PARTITION_SPLIT) {
-        if (skip_ref_frame_mask & (1 << ref_frame)) {
-          int skip = 1;
-          for (int r = ALTREF_FRAME + 1; r < MODE_CTX_REF_FRAMES; ++r) {
-            if (!(skip_ref_frame_mask & (1 << r))) {
-              const MV_REFERENCE_FRAME *rf = ref_frame_map[r - REF_FRAMES];
-              if (rf[0] == ref_frame || rf[1] == ref_frame) {
-                skip = 0;
-                break;
-              }
-            }
-          }
-          if (skip) continue;
-        }
+      // Skip the ref frame if the mask says skip and the ref is not used by
+      // compound ref.
+      if (skip_ref_frame_mask & (1 << ref_frame) &&
+          !is_ref_frame_used_by_compound_ref(ref_frame, skip_ref_frame_mask)) {
+        continue;
       }
       assert(get_ref_frame_yv12_buf(cm, ref_frame) != NULL);
       setup_buffer_ref_mvs_inter(cpi, x, ref_frame, bsize, yv12_mb);
@@ -3751,10 +3755,11 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
       x->best_pred_mv_sad =
           AOMMIN(x->best_pred_mv_sad, x->pred_mv_sad[ref_frame]);
   }
-  // ref_frame = ALTREF_FRAME
+
   if (!cpi->sf.rt_sf.use_real_time_ref_set && is_comp_ref_allowed(bsize)) {
     // No second reference on RT ref set, so no need to initialize
-    for (; ref_frame < MODE_CTX_REF_FRAMES; ++ref_frame) {
+    for (MV_REFERENCE_FRAME ref_frame = EXTREF_FRAME;
+         ref_frame < MODE_CTX_REF_FRAMES; ++ref_frame) {
       x->mbmi_ext->mode_context[ref_frame] = 0;
       mbmi_ext->ref_mv_count[ref_frame] = UINT8_MAX;
       const MV_REFERENCE_FRAME *rf = ref_frame_map[ref_frame - REF_FRAMES];
@@ -3763,11 +3768,8 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
         continue;
       }
 
-      if (mbmi->partition != PARTITION_NONE &&
-          mbmi->partition != PARTITION_SPLIT) {
-        if (skip_ref_frame_mask & (1 << ref_frame)) {
-          continue;
-        }
+      if (skip_ref_frame_mask & (1 << ref_frame)) {
+        continue;
       }
       // Ref mv list population is not required, when compound references are
       // pruned.
@@ -4043,25 +4045,20 @@ static int inter_mode_search_order_independent_skip(
   }
 
   int skip_motion_mode = 0;
-  if (mbmi->partition != PARTITION_NONE && mbmi->partition != PARTITION_SPLIT) {
+  if (mbmi->partition != PARTITION_NONE) {
     int skip_ref = skip_ref_frame_mask & (1 << ref_type);
     if (ref_type <= ALTREF_FRAME && skip_ref) {
       // Since the compound ref modes depends on the motion estimation result of
-      // two single ref modes( best mv of single ref modes as the start point )
-      // If current single ref mode is marked skip, we need to check if it will
+      // two single ref modes (best mv of single ref modes as the start point),
+      // if current single ref mode is marked skip, we need to check if it will
       // be used in compound ref modes.
-      for (int r = ALTREF_FRAME + 1; r < MODE_CTX_REF_FRAMES; ++r) {
-        if (skip_ref_frame_mask & (1 << r)) continue;
-        const MV_REFERENCE_FRAME *rf = ref_frame_map[r - REF_FRAMES];
-        if (rf[0] == ref_type || rf[1] == ref_type) {
-          // Found a not skipped compound ref mode which contains current
-          // single ref. So this single ref can't be skipped completly
-          // Just skip it's motion mode search, still try it's simple
-          // transition mode.
-          skip_motion_mode = 1;
-          skip_ref = 0;
-          break;
-        }
+      if (is_ref_frame_used_by_compound_ref(ref_type, skip_ref_frame_mask)) {
+        // Found a not skipped compound ref mode which contains current
+        // single ref. So this single ref can't be skipped completely
+        // Just skip its motion mode search, still try its simple
+        // transition mode.
+        skip_motion_mode = 1;
+        skip_ref = 0;
       }
     }
     if (skip_ref) return 1;
@@ -4405,8 +4402,8 @@ static INLINE int skip_compound_using_best_single_mode_ref(
   // 1 - NEWMV corresponding to backward direction
   const int newmv_dir = comp_mode_ref0 != NEWMV;
 
-  // Avoid pruning the compound mode when ref frame corresponding to NEWMV have
-  // NEWMV as single mode winner.
+  // Avoid pruning the compound mode when ref frame corresponding to NEWMV
+  // have NEWMV as single mode winner.
   // Example: For an extended-compound mode,
   // {mode, {fwd_frame, bwd_frame}} = {NEAR_NEWMV, {LAST_FRAME, ALTREF_FRAME}}
   // - Ref frame corresponding to NEWMV is ALTREF_FRAME
@@ -4930,7 +4927,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   // Ref frames that are selected by square partition blocks.
   int picked_ref_frames_mask = 0;
   if (cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions &&
-      mbmi->partition != PARTITION_NONE && mbmi->partition != PARTITION_SPLIT) {
+      mbmi->partition != PARTITION_NONE) {
     // prune_ref_frame_for_rect_partitions = 1 implies prune only extended
     // partition blocks. prune_ref_frame_for_rect_partitions >=2
     // implies prune for vert, horiz and extended partition blocks.
