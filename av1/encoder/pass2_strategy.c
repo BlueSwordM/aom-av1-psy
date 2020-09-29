@@ -1391,7 +1391,7 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
 
 static void correct_frames_to_key(AV1_COMP *cpi) {
   int lookahead_size =
-      (int)av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage) + 1;
+      (int)av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage);
   if (lookahead_size <
       av1_lookahead_pop_sz(cpi->lookahead, cpi->compressor_stage)) {
     assert(IMPLIES(cpi->frames_left > 0, lookahead_size == cpi->frames_left));
