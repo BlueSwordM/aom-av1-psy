@@ -126,14 +126,8 @@ static void set_additional_frame_flags(const AV1_COMMON *const cm,
 
 static INLINE void update_keyframe_counters(AV1_COMP *cpi) {
   if (cpi->common.show_frame) {
-    if (!cpi->common.show_existing_frame || cpi->rc.is_src_frame_alt_ref ||
-        cpi->common.current_frame.frame_type == KEY_FRAME) {
-      // If this is a show_existing_frame with a source other than altref,
-      // or if it is not a displayed forward keyframe, the keyframe update
-      // counters were incremented when it was originally encoded.
-      cpi->rc.frames_since_key++;
-      cpi->rc.frames_to_key--;
-    }
+    cpi->rc.frames_since_key++;
+    cpi->rc.frames_to_key--;
   }
 }
 
