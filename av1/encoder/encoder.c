@@ -972,8 +972,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   }
 #endif
 
-  int sb_mi_size = av1_get_sb_mi_size(cm);
-
   alloc_obmc_buffers(&cpi->td.mb.obmc_buffer, cm);
 
   CHECK_MEM_ERROR(
@@ -989,9 +987,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
               sizeof(*cpi->td.mb.intrabc_hash_info.hash_value_buffer[0][0])));
 
   cpi->td.mb.intrabc_hash_info.g_crc_initialized = 0;
-
-  CHECK_MEM_ERROR(cm, cpi->td.mb.mbmi_ext,
-                  aom_calloc(sb_mi_size, sizeof(*cpi->td.mb.mbmi_ext)));
 
   av1_set_speed_features_framesize_independent(cpi, oxcf->speed);
   av1_set_speed_features_framesize_dependent(cpi, oxcf->speed);
@@ -1350,7 +1345,6 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
       }
     }
     aom_free(thread_data->td->counts);
-    aom_free(thread_data->td->mbmi_ext);
     av1_free_pmc(thread_data->td->firstpass_ctx, av1_num_planes(cm));
     thread_data->td->firstpass_ctx = NULL;
     av1_free_shared_coeff_buffer(&thread_data->td->shared_coeff_buf);

@@ -1285,7 +1285,6 @@ typedef struct ThreadData {
   int intrabc_used;
   int deltaq_used;
   FRAME_CONTEXT *tctx;
-  MB_MODE_INFO_EXT *mbmi_ext;
   VP64x64 *vt64x64;
   int32_t num_64x64_blocks;
   PICK_MODE_CONTEXT *firstpass_ctx;

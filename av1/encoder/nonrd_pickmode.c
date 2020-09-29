@@ -265,7 +265,7 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
 
     tmp_sad = av1_int_pro_motion_estimation(
         cpi, x, bsize, mi_row, mi_col,
-        &x->mbmi_ext->ref_mv_stack[ref_frame][0].this_mv.as_mv);
+        &x->mbmi_ext.ref_mv_stack[ref_frame][0].this_mv.as_mv);
 
     if (tmp_sad > x->pred_mv_sad[LAST_FRAME]) return -1;
 
@@ -333,7 +333,7 @@ static INLINE void find_predictors(AV1_COMP *cpi, MACROBLOCK *x,
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-  MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
+  MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref_frame);
   const int num_planes = av1_num_planes(cm);
   (void)tile_data;
@@ -1008,7 +1008,7 @@ static void store_coding_context(MACROBLOCK *x, PICK_MODE_CONTEXT *ctx) {
 #endif  // CONFIG_INTERNAL_STATS
   ctx->mic = *xd->mi[0];
   ctx->skippable = txfm_info->skip_txfm;
-  av1_copy_mbmi_ext_to_mbmi_ext_frame(&ctx->mbmi_ext_best, x->mbmi_ext,
+  av1_copy_mbmi_ext_to_mbmi_ext_frame(&ctx->mbmi_ext_best, &x->mbmi_ext,
                                       av1_ref_frame_type(xd->mi[0]->ref_frame));
   ctx->comp_pred_diff = 0;
   ctx->hybrid_pred_diff = 0;
@@ -2068,7 +2068,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     int this_early_term = 0;
     int skip_this_mv = 0;
     PREDICTION_MODE this_mode;
-    MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
+    MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
     RD_STATS nonskip_rdc;
     av1_invalid_rd_stats(&nonskip_rdc);
 

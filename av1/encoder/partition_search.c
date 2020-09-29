@@ -714,7 +714,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   MACROBLOCK *x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
   const MB_MODE_INFO *const mbmi = xd->mi[0];
-  const MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
+  const MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
   const CurrentFrame *const current_frame = &cm->current_frame;
   const BLOCK_SIZE bsize = mbmi->bsize;
   FRAME_CONTEXT *fc = xd->tile_ctx;
@@ -1275,7 +1275,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   // level (x->mbmi_ext) to frame level (cpi->mbmi_ext_info.frame_base). This
   // frame level buffer (cpi->mbmi_ext_info.frame_base) will be used during
   // bitstream preparation.
-  av1_copy_mbmi_ext_to_mbmi_ext_frame(x->mbmi_ext_frame, x->mbmi_ext,
+  av1_copy_mbmi_ext_to_mbmi_ext_frame(x->mbmi_ext_frame, &x->mbmi_ext,
                                       av1_ref_frame_type(xd->mi[0]->ref_frame));
   x->rdmult = origin_mult;
 }
@@ -1804,7 +1804,7 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   // level (x->mbmi_ext) to frame level (cpi->mbmi_ext_info.frame_base). This
   // frame level buffer (cpi->mbmi_ext_info.frame_base) will be used during
   // bitstream preparation.
-  av1_copy_mbmi_ext_to_mbmi_ext_frame(x->mbmi_ext_frame, x->mbmi_ext,
+  av1_copy_mbmi_ext_to_mbmi_ext_frame(x->mbmi_ext_frame, &x->mbmi_ext,
                                       av1_ref_frame_type(xd->mi[0]->ref_frame));
   x->rdmult = origin_mult;
 }
@@ -3882,7 +3882,7 @@ static void fill_mode_info_sb(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
                             mi_col);
       *(xd->mi[0]) = pc_tree->none->mic;
       copy_mbmi_ext_frame_to_mbmi_ext(
-          x->mbmi_ext, &pc_tree->none->mbmi_ext_best, LAST_FRAME);
+          &x->mbmi_ext, &pc_tree->none->mbmi_ext_best, LAST_FRAME);
       duplicate_mode_info_in_sb(cm, xd, mi_row, mi_col, bsize);
       break;
     case PARTITION_SPLIT: {

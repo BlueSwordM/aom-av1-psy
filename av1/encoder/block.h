@@ -817,7 +817,7 @@ typedef struct macroblock {
    * Contains extra information not transmitted in the bitstream but are
    * derived. For example, this contains the stack of ref_mvs.
    */
-  MB_MODE_INFO_EXT *mbmi_ext;
+  MB_MODE_INFO_EXT mbmi_ext;
 
   /*! \brief Finalized mbmi_ext for the whole frame.
    *

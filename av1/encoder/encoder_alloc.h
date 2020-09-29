@@ -261,9 +261,6 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   aom_free(cm->tpl_mvs);
   cm->tpl_mvs = NULL;
 
-  aom_free(cpi->td.mb.mbmi_ext);
-  cpi->td.mb.mbmi_ext = NULL;
-
   if (cpi->td.vt64x64) {
     aom_free(cpi->td.vt64x64);
     cpi->td.vt64x64 = NULL;

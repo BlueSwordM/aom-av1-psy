@@ -513,7 +513,6 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
   AV1_COMMON *const cm = &cpi->common;
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   MultiThreadInfo *const mt_info = &cpi->mt_info;
-  int sb_mi_size = av1_get_sb_mi_size(cm);
 
   assert(mt_info->workers != NULL);
   assert(mt_info->tile_thr_data != NULL);
@@ -583,10 +582,6 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
             aom_memalign(32, 2 * MAX_MB_PLANE * MAX_SB_SQUARE *
                                  sizeof(*thread_data->td->tmp_pred_bufs[j])));
       }
-
-      CHECK_MEM_ERROR(
-          cm, thread_data->td->mbmi_ext,
-          aom_calloc(sb_mi_size, sizeof(*thread_data->td->mbmi_ext)));
 
       if (cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION) {
         const int num_64x64_blocks =
@@ -780,7 +775,6 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
               thread_data->td->hash_value_buffer[x][y];
         }
       }
-      thread_data->td->mb.mbmi_ext = thread_data->td->mbmi_ext;
     }
     if (thread_data->td->counts != &cpi->counts) {
       memcpy(thread_data->td->counts, &cpi->counts, sizeof(cpi->counts));
@@ -1265,7 +1259,6 @@ static AOM_INLINE void prepare_tpl_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     if (thread_data->td != &cpi->td) {
       thread_data->td->mb = cpi->td.mb;
       thread_data->td->mb.obmc_buffer = thread_data->td->obmc_buffer;
-      thread_data->td->mb.mbmi_ext = thread_data->td->mbmi_ext;
     }
   }
 }

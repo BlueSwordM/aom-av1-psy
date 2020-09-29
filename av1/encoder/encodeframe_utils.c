@@ -189,7 +189,7 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   assert(mi->bsize == bsize);
 
   *mi_addr = *mi;
-  copy_mbmi_ext_frame_to_mbmi_ext(x->mbmi_ext, &ctx->mbmi_ext_best,
+  copy_mbmi_ext_frame_to_mbmi_ext(&x->mbmi_ext, &ctx->mbmi_ext_best,
                                   av1_ref_frame_type(ctx->mic.ref_frame));
 
   memcpy(txfm_info->blk_skip, ctx->blk_skip,

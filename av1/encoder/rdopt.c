@@ -904,7 +904,7 @@ static AOM_INLINE void store_coding_context(
   ctx->best_mode_index = mode_index;
 #endif  // CONFIG_INTERNAL_STATS
   ctx->mic = *xd->mi[0];
-  av1_copy_mbmi_ext_to_mbmi_ext_frame(&ctx->mbmi_ext_best, x->mbmi_ext,
+  av1_copy_mbmi_ext_to_mbmi_ext_frame(&ctx->mbmi_ext_best, &x->mbmi_ext,
                                       av1_ref_frame_type(xd->mi[0]->ref_frame));
   ctx->single_pred_diff = (int)comp_pred_diff[SINGLE_REFERENCE];
   ctx->comp_pred_diff = (int)comp_pred_diff[COMPOUND_REFERENCE];
@@ -920,7 +920,7 @@ static AOM_INLINE void setup_buffer_ref_mvs_inter(
       av1_get_scaled_ref_frame(cpi, ref_frame);
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-  MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
+  MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
   const struct scale_factors *const sf =
       get_ref_scale_factors_const(cm, ref_frame);
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref_frame);
@@ -978,7 +978,7 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
                             InterModeSearchState *search_state) {
   const int is_comp_pred = ref_frames[1] > INTRA_FRAME;
   const uint8_t ref_frame_type = av1_ref_frame_type(ref_frames);
-  const MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
+  const MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
   const int ref_mv_count = mbmi_ext->ref_mv_count[ref_frame_type];
   PREDICTION_MODE compare_mode = MB_MODE_COUNT;
   if (!is_comp_pred) {
@@ -1138,7 +1138,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       MV prev_ref_mv[2] = { { 0 } };
       for (int idx = 0; idx < mbmi->ref_mv_idx; ++idx) {
         prev_ref_mv[idx] = av1_get_ref_mv_from_stack(ref_idx, mbmi->ref_frame,
-                                                     idx, x->mbmi_ext)
+                                                     idx, &x->mbmi_ext)
                                .as_mv;
         const int ref_mv_diff = AOMMAX(abs(ref_mv.row - prev_ref_mv[idx].row),
                                        abs(ref_mv.col - prev_ref_mv[idx].col));
@@ -1738,15 +1738,15 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
     int_mv this_mv;
     this_mv.as_int = INVALID_MV;
     ret = get_this_mv(&this_mv, this_mode, i, mbmi->ref_mv_idx,
-                      skip_repeated_ref_mv, mbmi->ref_frame, x->mbmi_ext);
+                      skip_repeated_ref_mv, mbmi->ref_frame, &x->mbmi_ext);
     if (!ret) return 0;
     const PREDICTION_MODE single_mode = get_single_mode(this_mode, i);
     if (single_mode == NEWMV) {
       const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
       cur_mv[i] =
-          (i == 0) ? x->mbmi_ext->ref_mv_stack[ref_frame_type][mbmi->ref_mv_idx]
+          (i == 0) ? x->mbmi_ext.ref_mv_stack[ref_frame_type][mbmi->ref_mv_idx]
                          .this_mv
-                   : x->mbmi_ext->ref_mv_stack[ref_frame_type][mbmi->ref_mv_idx]
+                   : x->mbmi_ext.ref_mv_stack[ref_frame_type][mbmi->ref_mv_idx]
                          .comp_mv;
     } else {
       ret &= clamp_and_check_mv(cur_mv + i, this_mv, cm, x);
@@ -1801,7 +1801,7 @@ static INLINE int is_single_newmv_valid(const HandleInterModeArgs *const args,
 static int get_drl_refmv_count(const MACROBLOCK *const x,
                                const MV_REFERENCE_FRAME *ref_frame,
                                PREDICTION_MODE mode) {
-  MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
+  const MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
   const int has_nearmv = have_nearmv_in_inter_mode(mode) ? 1 : 0;
   const int ref_mv_count = mbmi_ext->ref_mv_count[ref_frame_type];
@@ -1823,7 +1823,7 @@ static bool ref_mv_idx_early_breakout(
     int ref_mv_idx) {
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
-  const MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
+  const MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
   const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   const int is_comp_pred = has_second_ref(mbmi);
   if (sf->inter_sf.reduce_inter_modes && ref_mv_idx > 0) {
@@ -1873,7 +1873,7 @@ static int64_t simple_translation_pred_rd(
     int64_t ref_best_rd, BLOCK_SIZE bsize) {
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
-  MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
+  MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
   const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   const AV1_COMMON *cm = &cpi->common;
   const int is_comp_pred = has_second_ref(mbmi);
@@ -2551,7 +2551,7 @@ static int64_t handle_inter_mode(
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
-  MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
+  MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
   const int is_comp_pred = has_second_ref(mbmi);
   const PREDICTION_MODE this_mode = mbmi->mode;
@@ -2894,7 +2894,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   const int sb_row = mi_row >> cm->seq_params.mib_size_log2;
   const int sb_col = mi_col >> cm->seq_params.mib_size_log2;
 
-  MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
+  MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
   MV_REFERENCE_FRAME ref_frame = INTRA_FRAME;
   av1_find_mv_refs(cm, xd, mbmi, ref_frame, mbmi_ext->ref_mv_count,
                    xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
@@ -3130,7 +3130,7 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
   if (rd_cost->rate == INT_MAX) return;
 
   ctx->mic = *xd->mi[0];
-  av1_copy_mbmi_ext_to_mbmi_ext_frame(&ctx->mbmi_ext_best, x->mbmi_ext,
+  av1_copy_mbmi_ext_to_mbmi_ext_frame(&ctx->mbmi_ext_best, &x->mbmi_ext,
                                       av1_ref_frame_type(xd->mi[0]->ref_frame));
   av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
 }
@@ -3183,12 +3183,12 @@ static AOM_INLINE void rd_pick_skip_mode(
   mbmi->ref_frame[0] = ref_frame;
   mbmi->ref_frame[1] = second_ref_frame;
   const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
-  if (x->mbmi_ext->ref_mv_count[ref_frame_type] == UINT8_MAX) {
-    if (x->mbmi_ext->ref_mv_count[ref_frame] == UINT8_MAX ||
-        x->mbmi_ext->ref_mv_count[second_ref_frame] == UINT8_MAX) {
+  if (x->mbmi_ext.ref_mv_count[ref_frame_type] == UINT8_MAX) {
+    MB_MODE_INFO_EXT *mbmi_ext = &x->mbmi_ext;
+    if (mbmi_ext->ref_mv_count[ref_frame] == UINT8_MAX ||
+        mbmi_ext->ref_mv_count[second_ref_frame] == UINT8_MAX) {
       return;
     }
-    MB_MODE_INFO_EXT *mbmi_ext = x->mbmi_ext;
     av1_find_mv_refs(cm, xd, mbmi, ref_frame_type, mbmi_ext->ref_mv_count,
                      xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
                      mbmi_ext->mode_context);
@@ -3616,9 +3616,10 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
       mask->pred_modes[ALTREF_FRAME] = ~INTER_NEAREST_NEAR_ZERO;
       const MV_REFERENCE_FRAME tmp_ref_frames[2] = { ALTREF_FRAME, NONE_FRAME };
       int_mv near_mv, nearest_mv, global_mv;
-      get_this_mv(&nearest_mv, NEARESTMV, 0, 0, 0, tmp_ref_frames, x->mbmi_ext);
-      get_this_mv(&near_mv, NEARMV, 0, 0, 0, tmp_ref_frames, x->mbmi_ext);
-      get_this_mv(&global_mv, GLOBALMV, 0, 0, 0, tmp_ref_frames, x->mbmi_ext);
+      get_this_mv(&nearest_mv, NEARESTMV, 0, 0, 0, tmp_ref_frames,
+                  &x->mbmi_ext);
+      get_this_mv(&near_mv, NEARMV, 0, 0, 0, tmp_ref_frames, &x->mbmi_ext);
+      get_this_mv(&global_mv, GLOBALMV, 0, 0, 0, tmp_ref_frames, &x->mbmi_ext);
 
       if (near_mv.as_int != global_mv.as_int)
         mask->pred_modes[ALTREF_FRAME] |= (1 << NEARMV);
@@ -3722,7 +3723,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-  MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
+  MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
   unsigned char segment_id = mbmi->segment_id;
 
   init_neighbor_pred_buf(&x->obmc_buffer, args, is_cur_buf_hbd(&x->e_mbd));
@@ -3737,7 +3738,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
   for (MV_REFERENCE_FRAME ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME;
        ++ref_frame) {
     x->pred_mv_sad[ref_frame] = INT_MAX;
-    x->mbmi_ext->mode_context[ref_frame] = 0;
+    mbmi_ext->mode_context[ref_frame] = 0;
     mbmi_ext->ref_mv_count[ref_frame] = UINT8_MAX;
     if (cpi->ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
       // Skip the ref frame if the mask says skip and the ref is not used by
@@ -3760,7 +3761,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
     // No second reference on RT ref set, so no need to initialize
     for (MV_REFERENCE_FRAME ref_frame = EXTREF_FRAME;
          ref_frame < MODE_CTX_REF_FRAMES; ++ref_frame) {
-      x->mbmi_ext->mode_context[ref_frame] = 0;
+      mbmi_ext->mode_context[ref_frame] = 0;
       mbmi_ext->ref_mv_count[ref_frame] = UINT8_MAX;
       const MV_REFERENCE_FRAME *rf = ref_frame_map[ref_frame - REF_FRAMES];
       if (!((cpi->ref_frame_flags & av1_ref_frame_flag_list[rf[0]]) &&
@@ -4305,8 +4306,8 @@ static int compound_skip_by_single_states(
       int_mv single_mv;
       int_mv comp_mv;
       get_this_mv(&single_mv, mode[i], 0, ref_mv_idx, 0, single_refs,
-                  x->mbmi_ext);
-      get_this_mv(&comp_mv, this_mode, i, ref_mv_idx, 0, refs, x->mbmi_ext);
+                  &x->mbmi_ext);
+      get_this_mv(&comp_mv, this_mode, i, ref_mv_idx, 0, refs, &x->mbmi_ext);
       if (single_mv.as_int != comp_mv.as_int) {
         ref_mv_match[i] = 0;
         break;
