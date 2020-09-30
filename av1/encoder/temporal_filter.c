@@ -387,16 +387,17 @@ static void tf_build_predictor(const YV12_BUFFER_CONFIG *ref_frame,
 // Returns:
 //   Nothing will be returned. But the content to which `accum` and `pred`
 //   point will be modified.
-void tf_apply_temporal_filter_self(const MACROBLOCKD *mbd,
+void tf_apply_temporal_filter_self(const YV12_BUFFER_CONFIG *ref_frame,
+                                   const MACROBLOCKD *mbd,
                                    const BLOCK_SIZE block_size,
-                                   const int num_planes, const uint8_t *pred,
-                                   uint32_t *accum, uint16_t *count) {
+                                   const int mb_row, const int mb_col,
+                                   const int num_planes, uint32_t *accum,
+                                   uint16_t *count) {
   // Block information.
   const int mb_height = block_size_high[block_size];
   const int mb_width = block_size_wide[block_size];
   const int mb_pels = mb_height * mb_width;
   const int is_high_bitdepth = is_cur_buf_hbd(mbd);
-  const uint16_t *pred16 = CONVERT_TO_SHORTPTR(pred);
 
   int plane_offset = 0;
   for (int plane = 0; plane < num_planes; ++plane) {
@@ -405,15 +406,25 @@ void tf_apply_temporal_filter_self(const MACROBLOCKD *mbd,
     const int h = mb_height >> subsampling_y;  // Plane height.
     const int w = mb_width >> subsampling_x;   // Plane width.
 
+    const int frame_stride = ref_frame->strides[plane == AOM_PLANE_Y ? 0 : 1];
+    const uint8_t *buf8 = ref_frame->buffers[plane];
+    const uint16_t *buf16 = CONVERT_TO_SHORTPTR(buf8);
+    const int frame_offset = mb_row * h * frame_stride + mb_col * w;
+
     int pred_idx = 0;
+    int pixel_idx = 0;
     for (int i = 0; i < h; ++i) {
       for (int j = 0; j < w; ++j) {
         const int idx = plane_offset + pred_idx;  // Index with plane shift.
-        const int pred_value = is_high_bitdepth ? pred16[idx] : pred[idx];
+        const int pred_value = is_high_bitdepth
+                                   ? buf16[frame_offset + pixel_idx]
+                                   : buf8[frame_offset + pixel_idx];
         accum[idx] += TF_WEIGHT_SCALE * pred_value;
         count[idx] += TF_WEIGHT_SCALE;
         ++pred_idx;
+        ++pixel_idx;
       }
+      pixel_idx += (frame_stride - w);
     }
     plane_offset += mb_pels;
   }
@@ -862,14 +873,15 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
                            mb_row, mb_col, &ref_mv, subblock_mvs,
                            subblock_mses);
         }
-        tf_build_predictor(frames[frame], mbd, block_size, mb_row, mb_col,
-                           num_planes, scale, subblock_mvs, pred);
 
         // Perform weighted averaging.
         if (frame == filter_frame_idx) {  // Frame to be filtered.
-          tf_apply_temporal_filter_self(mbd, block_size, num_planes, pred,
-                                        accum, count);
+          tf_apply_temporal_filter_self(frames[frame], mbd, block_size, mb_row,
+                                        mb_col, num_planes, accum, count);
         } else {  // Other reference frames.
+          tf_build_predictor(frames[frame], mbd, block_size, mb_row, mb_col,
+                             num_planes, scale, subblock_mvs, pred);
+
           // TODO(any): avx2/sse2 version should be changed to align with C
           // function before using. In particular, current avx2/sse2 function
           // only supports 32x32 block size and 5x5 filtering window.
