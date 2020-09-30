@@ -2906,10 +2906,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
     // Since we allocate a spot for the OVERLAY frame in the gf group, we need
     // to do post-encoding update accordingly.
-    if (cpi->rc.is_src_frame_alt_ref) {
-      av1_set_target_rate(cpi, cm->width, cm->height);
-      av1_rc_postencode_update(cpi, *size);
-    }
+    av1_set_target_rate(cpi, cm->width, cm->height);
+    av1_rc_postencode_update(cpi, *size);
 
     if (is_psnr_calc_enabled(cpi)) {
       cpi->source =
