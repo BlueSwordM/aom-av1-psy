@@ -3713,6 +3713,22 @@ static AOM_INLINE int is_ref_frame_used_by_compound_ref(
   return 0;
 }
 
+static AOM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
+                                                 const MB_MODE_INFO *mi_cache) {
+  if (!mi_cache) {
+    return 0;
+  }
+
+  if (ref_frame < REF_FRAMES) {
+    return (ref_frame == mi_cache->ref_frame[0] ||
+            ref_frame == mi_cache->ref_frame[1]);
+  }
+
+  // if we are here, then the current mode is compound.
+  MV_REFERENCE_FRAME cached_ref_type = av1_ref_frame_type(mi_cache->ref_frame);
+  return ref_frame == cached_ref_type;
+}
+
 // Please add/modify parameter setting in this function, making it consistent
 // and easy to read and maintain.
 static AOM_INLINE void set_params_rd_pick_inter_mode(
@@ -3744,7 +3760,8 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
       // Skip the ref frame if the mask says skip and the ref is not used by
       // compound ref.
       if (skip_ref_frame_mask & (1 << ref_frame) &&
-          !is_ref_frame_used_by_compound_ref(ref_frame, skip_ref_frame_mask)) {
+          !is_ref_frame_used_by_compound_ref(ref_frame, skip_ref_frame_mask) &&
+          !is_ref_frame_used_in_cache(ref_frame, x->intermode_cache)) {
         continue;
       }
       assert(get_ref_frame_yv12_buf(cm, ref_frame) != NULL);
@@ -3769,7 +3786,8 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
         continue;
       }
 
-      if (skip_ref_frame_mask & (1 << ref_frame)) {
+      if (skip_ref_frame_mask & (1 << ref_frame) &&
+          !is_ref_frame_used_in_cache(ref_frame, x->intermode_cache)) {
         continue;
       }
       // Ref mv list population is not required, when compound references are
@@ -4012,6 +4030,51 @@ static int inter_mode_search_order_independent_skip(
     return 1;
   }
 
+  // Reuse the prediction mode in cache
+  if (x->use_intermode_cache) {
+    const MB_MODE_INFO *cached_mi = x->intermode_cache;
+    const PREDICTION_MODE cached_mode = cached_mi->mode;
+    const MV_REFERENCE_FRAME *cached_frame = cached_mi->ref_frame;
+    const int cached_mode_is_single = cached_frame[1] <= INTRA_FRAME;
+
+    // If the cached mode is intra, then we just need to match the mode.
+    if (is_mode_intra(cached_mode) && mode != cached_mode) {
+      return 1;
+    }
+
+    // If the cached mode is single inter mode, then we match the mode and
+    // reference frame.
+    if (cached_mode_is_single) {
+      if (mode != cached_mode || ref_frame[0] != cached_frame[0]) {
+        return 1;
+      }
+    } else {
+      // If the cached mode is compound, then we need to consider several cases.
+      const int mode_is_single = ref_frame[1] <= INTRA_FRAME;
+      if (mode_is_single) {
+        // If the mode is single, we know the modes can't match. But we might
+        // still want to search it if compound mode depends on the current mode.
+        int skip_motion_mode_only = 0;
+        if (cached_mode == NEW_NEARMV || cached_mode == NEW_NEARESTMV) {
+          skip_motion_mode_only = (ref_frame[0] == cached_frame[0]);
+        } else if (cached_mode == NEAR_NEWMV || cached_mode == NEAREST_NEWMV) {
+          skip_motion_mode_only = (ref_frame[0] == cached_frame[1]);
+        } else if (cached_mode == NEW_NEWMV) {
+          skip_motion_mode_only = (ref_frame[0] == cached_frame[0] ||
+                                   ref_frame[0] == cached_frame[1]);
+        }
+
+        return 1 + skip_motion_mode_only;
+      } else {
+        // If both modes are compound, then everything must match.
+        if (mode != cached_mode || ref_frame[0] != cached_frame[0] ||
+            ref_frame[1] != cached_frame[1]) {
+          return 1;
+        }
+      }
+    }
+  }
+
   const MB_MODE_INFO *const mbmi = x->e_mbd.mi[0];
   // If no valid mode has been found so far in PARTITION_NONE when finding a
   // valid partition is required, do not skip mode.
@@ -4061,6 +4124,15 @@ static int inter_mode_search_order_independent_skip(
         skip_motion_mode = 1;
         skip_ref = 0;
       }
+    }
+    // If we are reusing the prediction from cache, and the current frame is
+    // required by the cache, then we cannot prune it.
+    if (is_ref_frame_used_in_cache(ref_type, x->intermode_cache)) {
+      skip_ref = 0;
+      // If the cache only needs the current reference type for compound
+      // prediction, then we can skip motion mode search.
+      skip_motion_mode = (ref_type <= ALTREF_FRAME &&
+                          x->intermode_cache->ref_frame[1] > INTRA_FRAME);
     }
     if (skip_ref) return 1;
   }
@@ -4439,9 +4511,8 @@ static INLINE void update_search_state(
   const MACROBLOCKD *xd = &x->e_mbd;
   const MB_MODE_INFO *mbmi = xd->mi[0];
   const int skip_ctx = av1_get_skip_txfm_context(xd);
-  const int mode_is_intra =
-      (av1_mode_defs[new_best_mode].mode < INTRA_MODE_END);
-  const int skip_txfm = mbmi->skip_txfm && !mode_is_intra;
+  const int skip_txfm =
+      mbmi->skip_txfm && !is_mode_intra(av1_mode_defs[new_best_mode].mode);
   const TxfmSearchInfo *txfm_info = &x->txfm_search_info;
 
   search_state->best_rd = new_best_rd_stats->rdcost;
@@ -5092,10 +5163,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     txfm_info->skip_txfm = 0;
     num_single_modes_processed += is_single_pred;
     set_ref_ptrs(cm, xd, ref_frame, second_ref_frame);
-
-    if (x->use_intermode_cache && this_mode != x->intermode_cache) {
-      continue;
-    }
 
     // Apply speed features to decide if this inter mode can be skipped
     if (skip_inter_mode(cpi, x, bsize, ref_frame_rd, midx, &sf_args)) continue;

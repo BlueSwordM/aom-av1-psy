@@ -15,6 +15,7 @@
 #ifndef AOM_AV1_ENCODER_BLOCK_H_
 #define AOM_AV1_ENCODER_BLOCK_H_
 
+#include "av1/common/blockd.h"
 #include "av1/common/entropymv.h"
 #include "av1/common/entropy.h"
 #include "av1/common/enums.h"
@@ -1084,7 +1085,7 @@ typedef struct macroblock {
   /*! \brief Whether to reuse the mode stored in intermode_cache. */
   int use_intermode_cache;
   /*! \brief The mode to reuse during \ref av1_rd_pick_inter_mode_sb. */
-  PREDICTION_MODE intermode_cache;
+  const MB_MODE_INFO *intermode_cache;
   /**@}*/
 
   /*****************************************************************************
