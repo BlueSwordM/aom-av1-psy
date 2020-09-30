@@ -401,7 +401,7 @@ static void set_good_speed_features_framesize_independent(
           ? 0
           : (is_boosted_arf2_bwd_type ? 1 : 2);
   sf->inter_sf.prune_wedge_pred_diff_based = 1;
-  sf->inter_sf.reduce_inter_modes = 1;
+  sf->inter_sf.reduce_inter_modes = boosted ? 1 : 2;
   sf->inter_sf.selective_ref_frame = 1;
   sf->inter_sf.use_dist_wtd_comp_flag = DIST_WTD_COMP_SKIP_MV_SEARCH;
 
@@ -454,7 +454,7 @@ static void set_good_speed_features_framesize_independent(
         (frame_is_intra_only(&cpi->common) || (allow_screen_content_tools))
             ? 0
             : (boosted ? 1 : 2);
-    sf->inter_sf.reduce_inter_modes = boosted ? 1 : 2;
+    sf->inter_sf.reduce_inter_modes = boosted ? 1 : 3;
     sf->inter_sf.reuse_inter_intra_mode = 1;
     sf->inter_sf.selective_ref_frame = 2;
     sf->inter_sf.skip_repeated_newmv = 1;
