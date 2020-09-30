@@ -162,14 +162,8 @@ static INLINE void update_frames_till_gf_update(AV1_COMP *cpi) {
 }
 
 static INLINE void update_gf_group_index(AV1_COMP *cpi) {
-  // Increment the gf group index ready for the next frame. If this is
-  // a show_existing_frame with a source other than altref, or if it is not
-  // a displayed forward keyframe, the index was incremented when it was
-  // originally encoded.
-  if (!cpi->common.show_existing_frame || cpi->rc.is_src_frame_alt_ref ||
-      cpi->common.current_frame.frame_type == KEY_FRAME) {
-    ++cpi->gf_group.index;
-  }
+  // Increment the gf group index ready for the next frame.
+  ++cpi->gf_group.index;
 }
 
 static void update_rc_counts(AV1_COMP *cpi) {
