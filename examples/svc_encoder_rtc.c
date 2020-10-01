@@ -905,6 +905,7 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
 int main(int argc, const char **argv) {
   AppInput app_input;
   AvxVideoWriter *outfile[AOM_MAX_LAYERS] = { NULL };
+  AvxVideoWriter *total_layer_file = NULL;
   aom_codec_enc_cfg_t cfg;
   int frame_cnt = 0;
   aom_image_t raw;
@@ -1024,25 +1025,28 @@ int main(int argc, const char **argv) {
     }
   }
 
+  AvxVideoInfo info;
+  info.codec_fourcc = get_fourcc_by_aom_encoder(encoder);
+  info.frame_width = cfg.g_w;
+  info.frame_height = cfg.g_h;
+  info.time_base.numerator = cfg.g_timebase.num;
+  info.time_base.denominator = cfg.g_timebase.den;
   // Open an output file for each stream.
   for (unsigned int sl = 0; sl < ss_number_layers; ++sl) {
     for (unsigned tl = 0; tl < ts_number_layers; ++tl) {
       i = sl * ts_number_layers + tl;
       char file_name[PATH_MAX];
-      AvxVideoInfo info;
-      info.codec_fourcc = get_fourcc_by_aom_encoder(encoder);
-      info.frame_width = cfg.g_w;
-      info.frame_height = cfg.g_h;
-      info.time_base.numerator = cfg.g_timebase.num;
-      info.time_base.denominator = cfg.g_timebase.den;
 
       snprintf(file_name, sizeof(file_name), "%s_%d.av1",
                app_input.output_filename, i);
       outfile[i] = aom_video_writer_open(file_name, kContainerIVF, &info);
       if (!outfile[i]) die("Failed to open %s for writing", file_name);
-      assert(outfile[i] != NULL);
     }
   }
+  total_layer_file =
+      aom_video_writer_open(app_input.output_filename, kContainerIVF, &info);
+  if (!total_layer_file)
+    die("Failed to open %s for writing", app_input.output_filename);
 
   // Initialize codec.
   aom_codec_ctx_t codec;
@@ -1154,6 +1158,12 @@ int main(int argc, const char **argv) {
                 unsigned int j = sl * ts_number_layers + tl;
                 aom_video_writer_write_frame(outfile[j], pkt->data.frame.buf,
                                              pkt->data.frame.sz, pts);
+                // Write everything into the top layer.
+                if (j == ss_number_layers * ts_number_layers - 1) {
+                  aom_video_writer_write_frame(total_layer_file,
+                                               pkt->data.frame.buf,
+                                               pkt->data.frame.sz, pts);
+                }
                 if (sl == (unsigned int)layer_id.spatial_layer_id)
                   rc.layer_encoding_bitrate[j] += 8.0 * pkt->data.frame.sz;
                 // Keep count of rate control stats per layer (for non-key).
