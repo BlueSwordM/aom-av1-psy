@@ -1062,7 +1062,8 @@ static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
 
 static void newmv_diff_bias(MACROBLOCKD *xd, PREDICTION_MODE this_mode,
                             RD_STATS *this_rdc, BLOCK_SIZE bsize, int mv_row,
-                            int mv_col, int speed, uint32_t spatial_variance) {
+                            int mv_col, int speed, uint32_t spatial_variance,
+                            int content_state_sb) {
   // Bias against MVs associated with NEWMV mode that are very different from
   // top/left neighbors.
   if (this_mode == NEWMV) {
@@ -1074,7 +1075,12 @@ static void newmv_diff_bias(MACROBLOCKD *xd, PREDICTION_MODE this_mode,
     int left_mv_valid = 0;
     int above_row = 0;
     int above_col = 0;
-
+    if (bsize >= BLOCK_64X64 && content_state_sb != kHighSad &&
+        spatial_variance < 300 &&
+        (mv_row > 16 || mv_row < -16 || mv_col > 16 || mv_col < -16)) {
+      this_rdc->rdcost = this_rdc->rdcost << 2;
+      return;
+    }
     if (xd->above_mbmi) {
       above_mv_valid = xd->above_mbmi->mv[0].as_int != INVALID_MV;
       above_row = xd->above_mbmi->mv[0].as_mv.row;
@@ -2264,7 +2270,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       newmv_diff_bias(xd, this_mode, &this_rdc, bsize,
                       frame_mv[this_mode][ref_frame].as_mv.row,
                       frame_mv[this_mode][ref_frame].as_mv.col, cpi->speed,
-                      x->source_variance);
+                      x->source_variance, x->content_state_sb);
     }
 
     mode_checked[this_mode][ref_frame] = 1;
