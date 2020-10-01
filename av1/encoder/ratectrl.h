@@ -43,7 +43,7 @@ extern "C" {
 
 #define MIN_GF_INTERVAL 4
 #define MAX_GF_INTERVAL 32
-#define FIXED_GF_INTERVAL 8  // Used in some testing modes only
+#define FIXED_GF_INTERVAL 16
 #define MAX_GF_LENGTH_LAP 16
 
 #define MAX_NUM_GF_INTERVALS 15
