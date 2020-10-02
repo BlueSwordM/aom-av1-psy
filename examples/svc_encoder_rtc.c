@@ -1230,6 +1230,7 @@ int main(int argc, const char **argv) {
   // Try to rewrite the output file headers with the actual frame count.
   for (i = 0; i < ss_number_layers * ts_number_layers; ++i)
     aom_video_writer_close(outfile[i]);
+  aom_video_writer_close(total_layer_file);
 
   if (app_input.input_ctx.file_type != FILE_TYPE_Y4M) {
     aom_img_free(&raw);
