@@ -1158,25 +1158,22 @@ int main(int argc, const char **argv) {
                 unsigned int j = sl * ts_number_layers + tl;
                 aom_video_writer_write_frame(outfile[j], pkt->data.frame.buf,
                                              pkt->data.frame.sz, pts);
-                // Write everything into the top layer.
-                if (j == ss_number_layers * ts_number_layers - 1) {
-                  aom_video_writer_write_frame(total_layer_file,
-                                               pkt->data.frame.buf,
-                                               pkt->data.frame.sz, pts);
-                }
                 if (sl == (unsigned int)layer_id.spatial_layer_id)
                   rc.layer_encoding_bitrate[j] += 8.0 * pkt->data.frame.sz;
-                // Keep count of rate control stats per layer (for non-key).
-                if (tl == (unsigned int)layer_id.temporal_layer_id &&
-                    sl == (unsigned int)layer_id.spatial_layer_id &&
-                    !(pkt->data.frame.flags & AOM_FRAME_IS_KEY)) {
-                  rc.layer_avg_frame_size[j] += 8.0 * pkt->data.frame.sz;
-                  rc.layer_avg_rate_mismatch[j] +=
-                      fabs(8.0 * pkt->data.frame.sz - rc.layer_pfb[j]) /
-                      rc.layer_pfb[j];
-                  if (slx == 0) ++rc.layer_enc_frames[tl];
-                }
               }
+            }
+            // Write everything into the top layer.
+            aom_video_writer_write_frame(total_layer_file, pkt->data.frame.buf,
+                                         pkt->data.frame.sz, pts);
+            // Keep count of rate control stats per layer (for non-key).
+            if (!(pkt->data.frame.flags & AOM_FRAME_IS_KEY)) {
+              unsigned int j = layer_id.spatial_layer_id * ts_number_layers +
+                               layer_id.temporal_layer_id;
+              rc.layer_avg_frame_size[j] += 8.0 * pkt->data.frame.sz;
+              rc.layer_avg_rate_mismatch[j] +=
+                  fabs(8.0 * pkt->data.frame.sz - rc.layer_pfb[j]) /
+                  rc.layer_pfb[j];
+              if (slx == 0) ++rc.layer_enc_frames[layer_id.temporal_layer_id];
             }
 
             // Update for short-time encoding bitrate states, for moving window
