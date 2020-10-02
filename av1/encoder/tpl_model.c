@@ -988,9 +988,6 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       struct lookahead_entry *buf = av1_lookahead_peek(
           cpi->lookahead, lookahead_index, cpi->compressor_stage);
       tpl_frame->gf_picture = gop_eval ? &buf->img : frame_input->source;
-
-      if (gop_eval && cpi->rc.frames_since_key > 0 && gf_group->arf_index > -1)
-        tpl_frame->gf_picture = &cpi->alt_ref_buffer;
     } else {
       struct lookahead_entry *buf = av1_lookahead_peek(
           cpi->lookahead, lookahead_index, cpi->compressor_stage);
@@ -998,6 +995,10 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       if (buf == NULL) break;
       tpl_frame->gf_picture = &buf->img;
     }
+    if (gop_eval && cpi->rc.frames_since_key > 0 &&
+        gf_group->arf_index == gf_index)
+      tpl_frame->gf_picture = &cpi->alt_ref_buffer;
+
     // 'cm->current_frame.frame_number' is the display number
     // of the current frame.
     // 'anc_frame_offset' is the number of frames displayed so

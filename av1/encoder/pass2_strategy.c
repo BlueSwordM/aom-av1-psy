@@ -1209,11 +1209,7 @@ void set_last_prev_low_err(int *cur_start_ptr, int *cur_last_ptr, int *cut_pos,
   }  // prev_lows
   return;
 }
-// To suppress unused function warnings. Will remove after all functions are
-// added.
-#define USE_GOP_ANALYSIS 0
 
-#if USE_GOP_ANALYSIS
 #define SMOOTH_FILT_LEN 7
 #define HALF_FILT_LEN (SMOOTH_FILT_LEN / 2)
 #define WINDOW_SIZE 7
@@ -1250,7 +1246,7 @@ static void smooth_filter_stats(const FIRSTPASS_STATS *stats, const int *ignore,
     for (j = -HALF_FILT_LEN; j <= HALF_FILT_LEN; j++) {
       int idx = AOMMIN(AOMMAX(i + j, start_idx), last_idx);
       // Coded error involves idx and idx - 1.
-      if (ignore[idx] || ignore[idx - 1]) continue;
+      if (ignore[idx] || (idx > 0 && ignore[idx - 1])) continue;
 
       filt_coded_err[i] +=
           smooth_filt[j + HALF_FILT_LEN] * stats[idx].coded_error;
@@ -1286,6 +1282,8 @@ static int find_next_scenecut(const FIRSTPASS_STATS *const stats_start,
   // scenecut.
   double this_ratio, max_prev_ratio, max_next_ratio, max_prev_coded,
       max_next_coded;
+
+  if (last - first == 0) return -1;
 
   for (int i = first; i <= last; i++) {
     if (ignore[i] || (i > 0 && ignore[i - 1])) continue;
@@ -1475,16 +1473,19 @@ static void analyze_region(const FIRSTPASS_STATS *stats, int region_idx,
   int check_first_sr = (k != 0);
 
   for (i = regions[k].start; i <= regions[k].last; i++) {
-    double C = sqrt(stats[i - 1].intra_error *
-                    (stats[i].intra_error - stats[i].coded_error));
-    cor_coeff = C / (stats[i - 1].intra_error - regions[k].avg_noise_var);
+    double C = sqrt(AOMMAX(stats[i - 1].intra_error *
+                               (stats[i].intra_error - stats[i].coded_error),
+                           0.001));
+    cor_coeff =
+        C / AOMMAX(stats[i - 1].intra_error - regions[k].avg_noise_var, 0.001);
 
     if (i > regions[k].start || check_first_sr) {
       double num_frames =
           (double)(regions[k].last - regions[k].start + check_first_sr);
       double max_coded_error =
           AOMMAX(stats[i].coded_error, stats[i - 1].coded_error);
-      double this_ratio = stats[i].sr_coded_error / max_coded_error;
+      double this_ratio =
+          stats[i].sr_coded_error / AOMMAX(max_coded_error, 0.001);
       regions[k].avg_sr_fr_ratio += this_ratio / num_frames;
     }
 
@@ -1494,8 +1495,10 @@ static void analyze_region(const FIRSTPASS_STATS *stats, int region_idx,
         stats[i].coded_error / (double)(regions[k].last - regions[k].start + 1);
 
     coeff[i] =
-        cor_coeff * sqrt((stats[i - 1].intra_error - regions[k].avg_noise_var) /
-                         (stats[i].intra_error - regions[k].avg_noise_var));
+        cor_coeff *
+        sqrt(
+            AOMMAX(stats[i - 1].intra_error - regions[k].avg_noise_var, 0.001) /
+            AOMMAX(stats[i].intra_error - regions[k].avg_noise_var, 0.001));
     // clip correlation coefficient.
     coeff[i] = AOMMIN(AOMMAX(coeff[i], 0), 1);
 
@@ -1567,33 +1570,43 @@ static void get_region_stats(const FIRSTPASS_STATS *stats, const int *is_flash,
 
 // Find tentative stable regions
 static int find_stable_regions(const FIRSTPASS_STATS *stats,
-                               const double *grad_coded, int this_start,
-                               int this_last, REGIONS *regions) {
+                               const double *grad_coded, const int *ignore,
+                               int this_start, int this_last,
+                               REGIONS *regions) {
   int i, j, k = 0;
   regions[k].start = this_start;
   for (i = this_start; i <= this_last; i++) {
     // Check mean and variance of stats in a window
     double mean_intra = 0.001, var_intra = 0.001;
     double mean_coded = 0.001, var_coded = 0.001;
+    int count = 0;
     for (j = -HALF_WIN; j <= HALF_WIN; j++) {
       int idx = AOMMIN(AOMMAX(i + j, this_start), this_last);
-      mean_intra += stats[idx].intra_error / WINDOW_SIZE;
-      var_intra +=
-          stats[idx].intra_error * stats[idx].intra_error / WINDOW_SIZE;
-      mean_coded += stats[idx].coded_error / WINDOW_SIZE;
-      var_coded +=
-          stats[idx].coded_error * stats[idx].coded_error / WINDOW_SIZE;
+      if (ignore[idx] || (idx > 0 && ignore[idx - 1])) continue;
+      mean_intra += stats[idx].intra_error;
+      var_intra += stats[idx].intra_error * stats[idx].intra_error;
+      mean_coded += stats[idx].coded_error;
+      var_coded += stats[idx].coded_error * stats[idx].coded_error;
+      count++;
     }
 
-    int is_intra_stable = (var_intra / (mean_intra * mean_intra) < 1.03);
-    int is_coded_stable = (var_coded / (mean_coded * mean_coded) < 1.04 &&
-                           fabs(grad_coded[i]) / mean_coded < 0.05) ||
-                          mean_coded / mean_intra < 0.05;
-    int is_coded_small = mean_coded < 0.5 * mean_intra;
-    REGION_TYPES cur_type =
-        (is_intra_stable && is_coded_stable && is_coded_small)
-            ? STABLE_REGION
-            : HIGH_VAR_REGION;
+    REGION_TYPES cur_type;
+    if (count > 0) {
+      mean_intra /= (double)count;
+      var_intra /= (double)count;
+      mean_coded /= (double)count;
+      var_coded /= (double)count;
+      int is_intra_stable = (var_intra / (mean_intra * mean_intra) < 1.03);
+      int is_coded_stable = (var_coded / (mean_coded * mean_coded) < 1.04 &&
+                             fabs(grad_coded[i]) / mean_coded < 0.05) ||
+                            mean_coded / mean_intra < 0.05;
+      int is_coded_small = mean_coded < 0.5 * mean_intra;
+      cur_type = (is_intra_stable && is_coded_stable && is_coded_small)
+                     ? STABLE_REGION
+                     : HIGH_VAR_REGION;
+    } else {
+      cur_type = HIGH_VAR_REGION;
+    }
 
     // mark a new region if type changes
     if (i == regions[k].start) {
@@ -1615,7 +1628,8 @@ static int find_stable_regions(const FIRSTPASS_STATS *stats,
 static void cleanup_regions(REGIONS *regions, int *num_regions) {
   int k = 0;
   while (k < *num_regions) {
-    if ((k > 0 && regions[k - 1].type == regions[k].type) ||
+    if ((k > 0 && regions[k - 1].type == regions[k].type &&
+         regions[k].type != SCENECUT_REGION) ||
         regions[k].last < regions[k].start) {
       remove_region(0, regions, num_regions, &k);
     } else {
@@ -1754,10 +1768,20 @@ static void adjust_unstable_region_bounds(const FIRSTPASS_STATS *stats,
     if (regions[k].type == STABLE_REGION &&
         ((k > 0 &&  // previous regions
           (regions[k].avg_coded_err > regions[k - 1].avg_coded_err ||
-           regions[k].avg_cor_coeff < regions[k - 1].avg_cor_coeff)) ||
+           regions[k].avg_cor_coeff < regions[k - 1].avg_cor_coeff)) &&
          (k < *num_regions - 1 &&  // next region
           (regions[k].avg_coded_err > regions[k + 1].avg_coded_err ||
            regions[k].avg_cor_coeff < regions[k + 1].avg_cor_coeff)))) {
+      // merge current region with the previous and next regions
+      remove_region(2, regions, num_regions, &k);
+      analyze_region(stats, k - 1, regions, coeff);
+    } else if (regions[k].type == HIGH_VAR_REGION &&
+               ((k > 0 &&  // previous regions
+                 (regions[k].avg_coded_err < regions[k - 1].avg_coded_err ||
+                  regions[k].avg_cor_coeff > regions[k - 1].avg_cor_coeff)) &&
+                (k < *num_regions - 1 &&  // next region
+                 (regions[k].avg_coded_err < regions[k + 1].avg_coded_err ||
+                  regions[k].avg_cor_coeff > regions[k + 1].avg_cor_coeff)))) {
       // merge current region with the previous and next regions
       remove_region(2, regions, num_regions, &k);
       analyze_region(stats, k - 1, regions, coeff);
@@ -2007,8 +2031,8 @@ static void identify_regions(const FIRSTPASS_STATS *const stats_start,
     get_gradient(filt_coded_err, this_start, this_last, grad_coded);
 
     // find tentative stable regions and unstable regions
-    int num_regions = find_stable_regions(stats_start, grad_coded, this_start,
-                                          this_last, temp_regions);
+    int num_regions = find_stable_regions(stats_start, grad_coded, is_flash,
+                                          this_start, this_last, temp_regions);
     adjust_unstable_region_bounds(stats_start, is_flash, grad_coded,
                                   temp_regions, coeff, &num_regions);
 
@@ -2057,10 +2081,9 @@ static void identify_regions(const FIRSTPASS_STATS *const stats_start,
   *total_regions = cur_region;
   get_region_stats(stats_start, is_flash, regions, coeff, *total_regions);
 
-  // if we have consecutive scenecuts, only consider the last one as scenecut
-  for (k = 0; k < *total_regions - 1; k++) {
-    if (regions[k].type != SCENECUT_REGION ||
-        regions[k + 1].type != SCENECUT_REGION) {
+  for (k = 0; k < *total_regions; k++) {
+    // If scenecuts are very minor, mark them as high variance.
+    if (regions[k].type != SCENECUT_REGION || regions[k].avg_cor_coeff < 0.8) {
       continue;
     }
     regions[k].type = HIGH_VAR_REGION;
@@ -2074,7 +2097,15 @@ static void identify_regions(const FIRSTPASS_STATS *const stats_start,
   }
 }
 
-#endif
+static int find_regions_index(const REGIONS *regions, int num_regions,
+                              int frame_idx) {
+  for (int k = 0; k < num_regions; k++) {
+    if (regions[k].start <= frame_idx && regions[k].last >= frame_idx) {
+      return k;
+    }
+  }
+  return -1;
+}
 
 /*!\brief Determine the length of future GF groups.
  *
@@ -2111,9 +2142,6 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
     return;
   }
 
-  if (rc->frames_since_key > 0)
-    max_gop_length += !cpi->gf_state.arf_gf_boost_lst;
-
   // TODO(urvang): Try logic to vary min and max interval based on q.
   const int active_min_gf_interval = rc->min_gf_interval;
   const int active_max_gf_interval =
@@ -2123,31 +2151,24 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
   i = (rc->frames_since_key == 0);
   max_intervals = cpi->lap_enabled ? 1 : max_intervals;
   int count_cuts = 1;
-  int cur_start = -1 + (rc->frames_since_key == 0), cur_last;
+  // If cpi->gf_state.arf_gf_boost_lst is 0, we are starting with a KF or GF.
+  int cur_start = -1 + !cpi->gf_state.arf_gf_boost_lst, cur_last;
   int cut_pos[MAX_NUM_GF_INTERVALS + 1] = { -1 };
   int cut_here;
-  int prev_lows = 0;
   GF_GROUP_STATS gf_stats;
   init_gf_stats(&gf_stats);
   while (count_cuts < max_intervals + 1) {
     // reaches next key frame, break here
-    if (i >= rc->frames_to_key) {
-      cut_pos[count_cuts] = i - 1;
-      count_cuts++;
-      break;
-    }
-
-    // reached maximum len, but nothing special yet (almost static)
-    // let's look at the next interval
-    if (i - cur_start >= rc->static_scene_max_gf_interval) {
+    if (i >= rc->frames_to_key + rc->next_is_fwd_key) {
+      cut_here = 2;
+    } else if (i - cur_start >= rc->static_scene_max_gf_interval) {
+      // reached maximum len, but nothing special yet (almost static)
+      // let's look at the next interval
       cut_here = 1;
-    } else {
+    } else if (EOF == input_stats(twopass, &next_frame)) {
       // reaches last frame, break
-      if (EOF == input_stats(twopass, &next_frame)) {
-        cut_pos[count_cuts] = i - 1;
-        count_cuts++;
-        break;
-      }
+      cut_here = 2;
+    } else {
       // Test for the case where there is a brief flash but the prediction
       // quality back to an earlier frame is then restored.
       flash_detected = detect_flash(twopass, 0);
@@ -2162,60 +2183,99 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
     }
     if (cut_here) {
       cur_last = i - 1;  // the current last frame in the gf group
+      int ori_last = cur_last;
+      // The region frame idx does not start from the same frame as cur_start
+      // and cur_last. Need to offset them.
+      int offset = rc->frames_since_key - rc->regions_offset;
+      REGIONS *regions = rc->regions;
+      int num_regions = rc->num_regions;
       if (cpi->oxcf.kf_cfg.fwd_kf_enabled && rc->next_is_fwd_key) {
         const int frames_left = rc->frames_to_key - i;
         const int min_int = AOMMIN(MIN_FWD_KF_INTERVAL, active_min_gf_interval);
-        if (frames_left < min_int) {
+        if (frames_left < min_int && frames_left > 0) {
           cur_last = rc->frames_to_key - min_int - 1;
         }
       }
 
+      int scenecut_idx = -1;
       // only try shrinking if interval smaller than active_max_gf_interval
-      if (cur_last - cur_start <= active_max_gf_interval) {
-        // determine in the current decided gop the higher and lower errs
-        int n;
-        double ratio;
+      if (cur_last - cur_start <= active_max_gf_interval &&
+          cur_last > cur_start) {
+        // find the region indices of where the first and last frame belong.
+        int k_start =
+            find_regions_index(regions, num_regions, cur_start + offset);
+        int k_last =
+            find_regions_index(regions, num_regions, cur_last + offset);
+        if (cur_start + offset == 0) k_start = 0;
 
-        // load neighboring coded errs
-        int is_high[MAX_GF_INTERVAL + 1 + MAX_PAD_GF_CHECK * 2] = { 0 };
-        double errs[MAX_GF_INTERVAL + 1 + MAX_PAD_GF_CHECK * 2] = { 0 };
-        double si[MAX_GF_INTERVAL + 1 + MAX_PAD_GF_CHECK * 2] = { 0 };
-        int before_pad =
-            AOMMIN(MAX_PAD_GF_CHECK, rc->frames_since_key + cur_start - 1);
-        int after_pad =
-            AOMMIN(MAX_PAD_GF_CHECK, rc->frames_to_key - cur_last - 1);
-        for (n = cur_start - before_pad; n <= cur_last + after_pad; n++) {
-          if (start_pos + n > twopass->stats_buf_ctx->stats_in_end) {
-            after_pad = n - cur_last - 1;
-            assert(after_pad >= 0);
+        // See if we have a scenecut in between
+        for (int r = k_start + 1; r <= k_last; r++) {
+          if (regions[r].type == SCENECUT_REGION) {
+            scenecut_idx = r;
             break;
-          } else if (start_pos + n < twopass->stats_buf_ctx->stats_in_start) {
-            before_pad = cur_start - n - 1;
-            continue;
           }
-          errs[n + before_pad - cur_start] = (start_pos + n)->coded_error;
         }
-        const int len = before_pad + after_pad + cur_last - cur_start + 1;
-        const int reset = determine_high_err_gf(
-            errs, is_high, si, len, &ratio, cur_start, cur_last, before_pad);
 
-        // if the current frame may have high error, try shrinking
-        if (is_high[cur_last - cur_start + before_pad] == 1 ||
-            (!reset && si[cur_last - cur_start + before_pad] < SI_LOW)) {
-          // try not to cut in high err area
-          set_last_prev_low_err(&cur_start, &cur_last, cut_pos, count_cuts,
-                                before_pad, ratio, is_high, si, prev_lows,
-                                min_shrink_int);
-        }  // if current frame high error
-        // count how many trailing lower error frames we have in this decided
-        // gf group
-        prev_lows = 0;
-        for (n = cur_last - 1; n > cur_start + min_shrink_int; n--) {
-          if (is_high[n - cur_start + before_pad] == 0 &&
-              (si[n - cur_start + before_pad] > SI_HIGH || reset)) {
-            prev_lows++;
-          } else {
-            break;
+        // if the found scenecut is very close to the end, ignore it.
+        if (regions[num_regions - 1].last - regions[scenecut_idx].last < 4) {
+          scenecut_idx = -1;
+        }
+
+        if (scenecut_idx != -1) {
+          // If we have a scenecut, then stop at it.
+          // TODO(bohanli): add logic here to stop before the scenecut and for
+          // the next gop start from the scenecut with GF
+          int is_minor_sc = (regions[scenecut_idx].avg_cor_coeff > 0.6);
+          cur_last = regions[scenecut_idx].last - offset - !is_minor_sc;
+        } else {
+          int is_last_analysed = (k_last == num_regions - 1) &&
+                                 (cur_last + offset == regions[k_last].last);
+          int not_enough_regions =
+              k_last - k_start <=
+              1 + (regions[k_start].type == SCENECUT_REGION);
+          // if we are very close to the end, then do not shrink since it may
+          // introduce intervals that are too short
+          if (!(is_last_analysed && not_enough_regions)) {
+            int found = 0;
+            // first try to end at a stable area
+            for (int j = cur_last; j >= cur_start + min_shrink_int; j--) {
+              if (regions[find_regions_index(regions, num_regions, j + offset)]
+                      .type == STABLE_REGION) {
+                cur_last = j;
+                found = 1;
+                break;
+              }
+            }
+            if (!found) {
+              // Could not find stable point,
+              // try to find an OK point (high correlation, not blending)
+              for (int j = cur_last; j >= cur_start + min_shrink_int; j--) {
+                REGIONS *cur_region =
+                    regions +
+                    find_regions_index(regions, num_regions, j + offset);
+                double avg_coeff = cur_region->avg_cor_coeff;
+                if (rc->cor_coeff[j + offset] > avg_coeff &&
+                    cur_region->type != BLENDING_REGION) {
+                  cur_last = j;
+                  found = 1;
+                  break;
+                }
+              }
+            }
+            if (!found) {
+              // Could not find a better point,
+              // try not to cut in blending areas
+              for (int j = cur_last; j >= cur_start + min_shrink_int; j--) {
+                REGIONS *cur_region =
+                    regions +
+                    find_regions_index(regions, num_regions, j + offset);
+                if (cur_region->type != BLENDING_REGION) {
+                  cur_last = j;
+                  break;
+                }
+              }
+            }
+            // if cannot find anything, just cut at the original place.
           }
         }
       }
@@ -2225,7 +2285,14 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
       // reset pointers to the shrinked location
       twopass->stats_in = start_pos + cur_last;
       cur_start = cur_last;
+      if (regions[find_regions_index(regions, num_regions,
+                                     cur_start + 1 + offset)]
+              .type == SCENECUT_REGION) {
+        cur_start++;
+      }
       i = cur_last;
+
+      if (cut_here > 1 && cur_last == ori_last) break;
 
       // reset accumulators
       init_gf_stats(&gf_stats);
@@ -3722,6 +3789,44 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
                                           oxcf->algo_cfg.arnr_max_frames / 2)
             : MAX_GF_LENGTH_LAP;
 
+    // Identify regions if needed.
+    if (rc->frames_since_key == 0 ||
+        (rc->frames_till_regions_update - rc->frames_since_key <
+             rc->frames_to_key &&
+         rc->frames_till_regions_update - rc->frames_since_key <
+             max_gop_length + 1)) {
+      int is_first_stat =
+          twopass->stats_in == twopass->stats_buf_ctx->stats_in_start;
+      const FIRSTPASS_STATS *stats_start = twopass->stats_in + is_first_stat;
+      // offset of stats_start from the current frame
+      int offset = is_first_stat || (rc->frames_since_key == 0);
+      // offset of the region indices from the previous key frame
+      rc->regions_offset = rc->frames_since_key;
+      // how many frames we can analyze from this frame
+      int rest_frames = AOMMIN(rc->frames_to_key + rc->next_is_fwd_key,
+                               MAX_FIRSTPASS_ANALYSIS_FRAMES);
+      rest_frames =
+          AOMMIN(rest_frames,
+                 (int)(twopass->stats_buf_ctx->stats_in_end - stats_start + 1) +
+                     offset);
+
+      rc->frames_till_regions_update = rest_frames;
+
+      identify_regions(stats_start, rest_frames - offset, offset, rc->regions,
+                       &rc->num_regions, rc->cor_coeff);
+    }
+
+    int cur_region_idx =
+        find_regions_index(rc->regions, rc->num_regions,
+                           rc->frames_since_key - rc->regions_offset);
+    if ((cur_region_idx >= 0 &&
+         rc->regions[cur_region_idx].type == SCENECUT_REGION) ||
+        rc->frames_since_key == 0) {
+      // If we start from a scenecut, then the last GOP's arf boost is not
+      // needed for this GOP.
+      cpi->gf_state.arf_gf_boost_lst = 0;
+    }
+
     // TODO(jingning): Resoleve the redundant calls here.
     if (rc->intervals_till_gf_calculate_due == 0 || 1) {
       calculate_gf_length(cpi, max_gop_length, MAX_NUM_GF_INTERVALS);
@@ -3729,6 +3834,18 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
     if (max_gop_length > 16 && oxcf->algo_cfg.enable_tpl_model &&
         !cpi->sf.tpl_sf.disable_gop_length_decision) {
+      int this_idx = rc->frames_since_key + rc->gf_intervals[rc->cur_gf_index] -
+                     rc->regions_offset - 1;
+      int this_region =
+          find_regions_index(rc->regions, rc->num_regions, this_idx);
+      int next_region =
+          find_regions_index(rc->regions, rc->num_regions, this_idx + 1);
+      int is_last_scenecut =
+          (rc->gf_intervals[rc->cur_gf_index] >= rc->frames_to_key ||
+           rc->regions[this_region].type == SCENECUT_REGION ||
+           rc->regions[next_region].type == SCENECUT_REGION);
+      int ori_gf_int = rc->gf_intervals[rc->cur_gf_index];
+
       if (rc->gf_intervals[rc->cur_gf_index] > 16) {
         // The calculate_gf_length function is previously used with
         // max_gop_length = 32 with look-ahead gf intervals.
@@ -3743,12 +3860,11 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
           // TODO(jingning): Remove redundant computations here.
           max_gop_length = 16;
           calculate_gf_length(cpi, max_gop_length, 1);
+          if (is_last_scenecut &&
+              (ori_gf_int - rc->gf_intervals[rc->cur_gf_index] < 4)) {
+            rc->gf_intervals[rc->cur_gf_index] = ori_gf_int;
+          }
         }
-      } else {
-        // Even based on 32 we still decide to use a short gf interval.
-        // Better to re-decide based on 16 then
-        max_gop_length = 16;
-        calculate_gf_length(cpi, max_gop_length, 1);
       }
     }
     define_gf_group(cpi, &this_frame, frame_params, max_gop_length, 0);
