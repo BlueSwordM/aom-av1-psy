@@ -3070,12 +3070,6 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
         rc->active_best_quality[i] = cpi->vmaf_info.original_qindex;
       }
 #endif
-
-      // if (pyramid_level >= 2) {
-      //   rc->active_best_quality[pyramid_level] =
-      //     AOMMAX(rc->active_best_quality[pyramid_level],
-      //            cpi->common.base_qindex);
-      // }
     }
   }
 
