@@ -135,10 +135,11 @@ static int gm_available_reference_frames[GM_DISABLE_SEARCH + 1] = {
 // Qindex threshold levels used for selecting full-pel motion search.
 // ms_qthresh[i][j][k] indicates the qindex boundary value for 'k'th qindex band
 // for resolution index 'j' for aggressiveness level 'i'.
-// i = 0: conservative, i = 1: aggressive.
+// Aggressiveness increases from i = 0 to 2.
 // j = 0: lower than 720p resolution, j = 1: 720p or larger resolution.
-// Currently invoked only for speed 1 and 2.
-static int ms_qindex_thresh[2][2][2] = { { { 170, 50 }, { MAXQ, 200 } },
+// Currently invoked only for speed 0, 1 and 2.
+static int ms_qindex_thresh[3][2][2] = { { { 200, 70 }, { MAXQ, 200 } },
+                                         { { 170, 50 }, { MAXQ, 200 } },
                                          { { 170, 40 }, { 200, 40 } } };
 
 // Full-pel search methods for aggressive search based on qindex.
@@ -414,6 +415,8 @@ static void set_good_speed_features_framesize_independent(
   sf->tx_sf.model_based_prune_tx_search_level = 1;
   sf->tx_sf.tx_type_search.use_reduced_intra_txset = 1;
 
+  sf->tpl_sf.search_method = NSTEP_8PT;
+
   sf->rt_sf.use_nonrd_pick_mode = 0;
   sf->rt_sf.use_real_time_ref_set = 0;
 
@@ -479,7 +482,6 @@ static void set_good_speed_features_framesize_independent(
 
     // TODO(any, yunqing): move this feature to speed 0.
     sf->tpl_sf.skip_alike_starting_mv = 1;
-    sf->tpl_sf.search_method = NSTEP_8PT;
   }
 
   if (speed >= 2) {
@@ -1520,12 +1522,12 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
     }
   }
 
-  if (cpi->oxcf.mode == GOOD && ((speed == 1) || (speed == 2))) {
+  if (cpi->oxcf.mode == GOOD && (speed <= 2)) {
     if (!is_stat_generation_stage(cpi)) {
       // Use faster full-pel motion search for high quantizers.
       // Also use reduced total search range for low resolutions at high
       // quantizers.
-      const int aggr = (speed == 1) ? 0 : 1;
+      const int aggr = speed;
       const int qindex_thresh1 = ms_qindex_thresh[aggr][is_720p_or_larger][0];
       const int qindex_thresh2 = ms_qindex_thresh[aggr][is_720p_or_larger][1];
       const SEARCH_METHODS search_method =
