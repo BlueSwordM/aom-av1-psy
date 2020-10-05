@@ -403,10 +403,10 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   }
 
   add_proto qw/void av1_calc_proj_params/, " const uint8_t *src8, int width, int height, int src_stride, const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride, int32_t *flt1, int flt1_stride, int64_t H[2][2], int64_t C[2], const sgr_params_type *params";
-  specialize qw/av1_calc_proj_params avx2/;
+  specialize qw/av1_calc_proj_params sse4_1 avx2/;
 
   add_proto qw/void av1_calc_proj_params_high_bd/, " const uint8_t *src8, int width, int height, int src_stride, const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride, int32_t *flt1, int flt1_stride, int64_t H[2][2], int64_t C[2], const sgr_params_type *params";
-  specialize qw/av1_calc_proj_params_high_bd avx2/;
+  specialize qw/av1_calc_proj_params_high_bd sse4_1 avx2/;
 
   add_proto qw/int64_t av1_lowbd_pixel_proj_error/, " const uint8_t *src8, int width, int height, int src_stride, const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride, int32_t *flt1, int flt1_stride, int xq[2], const sgr_params_type *params";
   specialize qw/av1_lowbd_pixel_proj_error sse4_1 avx2 neon/;
