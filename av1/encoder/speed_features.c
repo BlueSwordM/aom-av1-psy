@@ -549,7 +549,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.perform_best_rd_based_gating_for_chroma = 1;
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 1;
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 4 : 2;
-    sf->inter_sf.selective_ref_frame = 4;
+    sf->inter_sf.selective_ref_frame = 5;
     sf->inter_sf.skip_repeated_ref_mv = 1;
     sf->inter_sf.skip_repeated_full_newmv = 1;
     sf->inter_sf.reuse_compound_type_decision = 1;
@@ -683,7 +683,6 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 6) {
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
     sf->inter_sf.prune_nearmv_using_neighbors = 1;
-    sf->inter_sf.selective_ref_frame = 5;
 
     sf->part_sf.prune_rectangular_split_based_on_qidx =
         boosted || allow_screen_content_tools ? 0 : 1;
