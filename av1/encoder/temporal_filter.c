@@ -834,7 +834,8 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
   memset(tmp_mb_mode_info, 0, sizeof(MB_MODE_INFO));
   mbd->mi = &tmp_mb_mode_info;
   mbd->mi[0]->motion_mode = SIMPLE_TRANSLATION;
-  // Allocate memory for predictor, accumulator and count.
+  // TODO(Jayasanker): Optimize buffers based on chroma subsampling and
+  // bit-depth. Allocate memory for predictor, accumulator and count.
   uint8_t *pred8 = aom_memalign(32, num_planes * mb_pels * sizeof(uint8_t));
   uint16_t *pred16 = aom_memalign(32, num_planes * mb_pels * sizeof(uint16_t));
   uint32_t *accum = aom_memalign(16, num_planes * mb_pels * sizeof(uint32_t));
