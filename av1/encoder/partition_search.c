@@ -3560,10 +3560,15 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
 BEGIN_PARTITION_SEARCH:
   // If a valid partition is required, usually when the first round cannot find
   // a valid one under the cost limit after pruning, reset the limitations on
-  // partition types.
-  if (x->must_find_valid_partition)
+  // partition types and intra cnn output.
+  if (x->must_find_valid_partition) {
     reset_part_limitations(cpi, &part_search_state);
-
+    // Invalidate intra cnn output for key frames.
+    if (frame_is_intra_only(cm) && bsize == BLOCK_64X64) {
+      part_search_state.intra_part_info->quad_tree_idx = 0;
+      part_search_state.intra_part_info->cnn_output_valid = 0;
+    }
+  }
   // Partition block source pixel variance.
   unsigned int pb_source_variance = UINT_MAX;
 
