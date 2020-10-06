@@ -1033,15 +1033,15 @@ static INLINE void increment_int_ptr(MACROBLOCKD *xd, int rel_mi_row,
 void av1_count_overlappable_neighbors(const AV1_COMMON *cm, MACROBLOCKD *xd) {
   MB_MODE_INFO *mbmi = xd->mi[0];
 
-  mbmi->overlappable_neighbors[0] = 0;
-  mbmi->overlappable_neighbors[1] = 0;
+  mbmi->overlappable_neighbors = 0;
 
   if (!is_motion_variation_allowed_bsize(mbmi->bsize)) return;
 
   foreach_overlappable_nb_above(cm, xd, INT_MAX, increment_int_ptr,
-                                &mbmi->overlappable_neighbors[0]);
+                                &mbmi->overlappable_neighbors);
+  if (mbmi->overlappable_neighbors) return;
   foreach_overlappable_nb_left(cm, xd, INT_MAX, increment_int_ptr,
-                               &mbmi->overlappable_neighbors[1]);
+                               &mbmi->overlappable_neighbors);
 }
 
 // HW does not support < 4x4 prediction. To limit the bandwidth requirement, if
