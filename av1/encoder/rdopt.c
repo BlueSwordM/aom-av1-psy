@@ -1382,7 +1382,10 @@ static int64_t motion_mode_rd(
   const int interintra_allowed = cm->seq_params.enable_interintra_compound &&
                                  is_interintra_allowed(mbmi) &&
                                  mbmi->compound_idx;
-  int pts0[SAMPLES_ARRAY_SIZE], pts_inref0[SAMPLES_ARRAY_SIZE];
+  WARP_SAMPLE_INFO *const warp_sample_info =
+      &x->warp_sample_info[mbmi->ref_frame[0]];
+  int *pts0 = warp_sample_info->pts;
+  int *pts_inref0 = warp_sample_info->pts_inref;
 
   assert(mbmi->ref_frame[1] != INTRA_FRAME);
   const MV_REFERENCE_FRAME ref_frame_1 = mbmi->ref_frame[1];
@@ -1402,7 +1405,10 @@ static int64_t motion_mode_rd(
   if (last_motion_mode_allowed == WARPED_CAUSAL) {
     // Collect projection samples used in least squares approximation of
     // the warped motion parameters if WARPED_CAUSAL is going to be searched.
-    mbmi->num_proj_ref = av1_findSamples(cm, xd, pts0, pts_inref0);
+    if (warp_sample_info->num < 0) {
+      warp_sample_info->num = av1_findSamples(cm, xd, pts0, pts_inref0);
+    }
+    mbmi->num_proj_ref = warp_sample_info->num;
   }
   const int total_samples = mbmi->num_proj_ref;
   if (total_samples == 0) {
@@ -5356,6 +5362,10 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   for (i = 0; i < REF_FRAMES; ++i) x->pred_sse[i] = INT_MAX;
 
   av1_invalid_rd_stats(rd_cost);
+
+  for (i = 0; i < REF_FRAMES; ++i) {
+    x->warp_sample_info[i].num = -1;
+  }
 
   // Ref frames that are selected by square partition blocks.
   int picked_ref_frames_mask = 0;

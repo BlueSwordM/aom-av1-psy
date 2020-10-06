@@ -786,6 +786,17 @@ typedef struct {
 /*!\endcond */
 struct inter_modes_info;
 
+/*! \brief Holds the motion samples for warp motion model estimation
+ */
+typedef struct {
+  //! Number of samples.
+  int num;
+  //! Sample locations in current frame.
+  int pts[16];
+  //! Sample location in the reference frame.
+  int pts_inref[16];
+} WARP_SAMPLE_INFO;
+
 /*! \brief Encoder's parameters related to the current coding block.
  *
  * This struct contains most of the information the encoder needs to encode the
@@ -963,6 +974,12 @@ typedef struct macroblock {
    * frame at block level.
    */
   uint8_t tpl_keep_ref_frame[REF_FRAMES];
+
+  /*! \brief Warp motion samples buffer.
+   *
+   * Store the motion samples used for warp motion.
+   */
+  WARP_SAMPLE_INFO warp_sample_info[REF_FRAMES];
 
   /*! \brief Reference frames picked by the square subblocks in a superblock.
    *
