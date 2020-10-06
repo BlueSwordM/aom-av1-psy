@@ -929,7 +929,8 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     if (allow_tpl) {
       // Need to set the size for TPL for ARF
       // TODO(bohanli): Why is this? what part of it is necessary?
-      av1_set_frame_size(cpi, cm->width, cm->height);
+      av1_set_frame_size(cpi, cm->superres_upscaled_width,
+                         cm->superres_upscaled_height);
     }
   }
 

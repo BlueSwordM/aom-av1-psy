@@ -640,7 +640,14 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   av1_update_film_grain_parameters(cpi, oxcf);
 
   cpi->oxcf = *oxcf;
-  cpi->superres_mode = oxcf->superres_cfg.superres_mode;  // default
+  // When user provides superres_mode = AOM_SUPERRES_AUTO, we still initialize
+  // superres mode for current encoding = AOM_SUPERRES_NONE. This is to ensure
+  // that any analysis (e.g. TPL) happening outside the main encoding loop still
+  // happens at full resolution.
+  // This value will later be set appropriately just before main encoding loop.
+  cpi->superres_mode = oxcf->superres_cfg.superres_mode == AOM_SUPERRES_AUTO
+                           ? AOM_SUPERRES_NONE
+                           : oxcf->superres_cfg.superres_mode;  // default
   x->e_mbd.bd = (int)seq_params->bit_depth;
   x->e_mbd.global_motion = cm->global_motion;
 
@@ -2731,8 +2738,10 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
   int64_t sse1 = INT64_MAX;
   int64_t rate1 = INT64_MAX;
   int largest_tile_id1;
+  cpi->superres_mode = AOM_SUPERRES_AUTO;  // Super-res on for this recode loop.
   err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse1, &rate1,
                                            &largest_tile_id1);
+  cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
   if (err != AOM_CODEC_OK) return err;
   restore_all_coding_context(cpi);
 #endif  // SUPERRES_RECODE_ALL_RATIOS
@@ -2741,11 +2750,9 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
   int64_t sse2 = INT64_MAX;
   int64_t rate2 = INT64_MAX;
   int largest_tile_id2;
-  cpi->superres_mode = AOM_SUPERRES_NONE;  // To force full-res.
+  assert(cpi->superres_mode == AOM_SUPERRES_NONE);
   err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse2, &rate2,
                                            &largest_tile_id2);
-  cpi->superres_mode = cpi->oxcf.superres_cfg.superres_mode;  // Reset.
-  assert(cpi->oxcf.superres_cfg.superres_mode == AOM_SUPERRES_AUTO);
   if (err != AOM_CODEC_OK) return err;
 
   // Note: Both use common rdmult based on base qindex of fullres.
@@ -2797,8 +2804,11 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
 #endif  // SUPERRES_RECODE_ALL_RATIOS
     int64_t sse3 = INT64_MAX;
     int64_t rate3 = INT64_MAX;
+    cpi->superres_mode =
+        AOM_SUPERRES_AUTO;  // Super-res on for this recode loop.
     err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse3, &rate3,
                                              largest_tile_id);
+    cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
     assert(sse1 == sse3);
     assert(rate1 == rate3);
     assert(largest_tile_id1 == *largest_tile_id);
@@ -3049,6 +3059,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     }
   } else {
 #endif  // CONFIG_SUPERRES_IN_RECODE
+    cpi->superres_mode = cpi->oxcf.superres_cfg.superres_mode;
     if (encode_with_recode_loop_and_filter(cpi, size, dest, NULL, NULL,
                                            &largest_tile_id) != AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;
