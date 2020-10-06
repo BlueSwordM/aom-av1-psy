@@ -98,9 +98,8 @@ static uint8_t calculate_next_resize_scale(const AV1_COMP *cpi) {
 #if CONFIG_SUPERRES_IN_RECODE
 int av1_superres_in_recode_allowed(const AV1_COMP *const cpi) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
-  // Empirically found to not be beneficial for AOM_Q mode and images coding.
+  // Empirically found to not be beneficial for image coding.
   return oxcf->superres_cfg.superres_mode == AOM_SUPERRES_AUTO &&
-         (oxcf->rc_cfg.mode == AOM_VBR || oxcf->rc_cfg.mode == AOM_CQ) &&
          cpi->rc.frames_to_key > 1;
 }
 #endif  // CONFIG_SUPERRES_IN_RECODE

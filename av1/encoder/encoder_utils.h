@@ -830,6 +830,9 @@ static AOM_INLINE void copy_frame_prob_info(AV1_COMP *cpi) {
 static AOM_INLINE void restore_cur_buf(AV1_COMP *cpi) {
   CODING_CONTEXT *const cc = &cpi->coding_context;
   AV1_COMMON *cm = &cpi->common;
+  if (cc->copy_buffer.y_crop_width == 0 && cc->copy_buffer.y_crop_height == 0) {
+    return;
+  }
   aom_yv12_copy_frame(&cc->copy_buffer, &cm->cur_frame->buf,
                       av1_num_planes(cm));
 }

@@ -1238,6 +1238,7 @@ static void save_cur_buf(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   const YV12_BUFFER_CONFIG *ybf = &cm->cur_frame->buf;
   memset(&cc->copy_buffer, 0, sizeof(cc->copy_buffer));
+  if (ybf->y_crop_width == 0 && ybf->y_crop_height == 0) return;
   if (aom_alloc_frame_buffer(&cc->copy_buffer, ybf->y_crop_width,
                              ybf->y_crop_height, ybf->subsampling_x,
                              ybf->subsampling_y,
