@@ -342,7 +342,8 @@ static int64_t scale_part_thresh_content(int64_t threshold_base, int speed,
 }
 
 static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
-                                          int q, int content_state) {
+                                          int q, int content_state,
+                                          int segment_id) {
   AV1_COMMON *const cm = &cpi->common;
   const int is_key_frame = frame_is_intra_only(cm);
   const int threshold_multiplier = is_key_frame ? 40 : 1;
@@ -419,14 +420,14 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
         thresholds[1] <<= 2;
         thresholds[2] <<= 5;
         thresholds[3] = INT32_MAX;
-      } else if (cm->width * cm->height > 640 * 480) {
+      } else if (cm->width * cm->height > 640 * 480 && segment_id == 0) {
         thresholds[0] <<= 2;
         thresholds[3] = INT32_MAX;
         if (current_qindex >= QINDEX_LARGE_BLOCK_THR) {
           thresholds[1] <<= 1;
           thresholds[2] <<= 1;
         }
-      } else if (current_qindex > QINDEX_LARGE_BLOCK_THR) {
+      } else if (current_qindex > QINDEX_LARGE_BLOCK_THR && segment_id == 0) {
         thresholds[1] <<= 2;
         thresholds[2] <<= 5;
         thresholds[3] = INT32_MAX;
@@ -600,7 +601,7 @@ void av1_set_variance_partition_thresholds(AV1_COMP *cpi, int q,
   if (sf->part_sf.partition_search_type != VAR_BASED_PARTITION) {
     return;
   } else {
-    set_vbp_thresholds(cpi, cpi->vbp_info.thresholds, q, content_state);
+    set_vbp_thresholds(cpi, cpi->vbp_info.thresholds, q, content_state, 0);
     // The threshold below is not changed locally.
     cpi->vbp_info.threshold_minmax = 15 + (q >> 3);
   }
@@ -879,10 +880,10 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
       cyclic_refresh_segment_id_boosted(segment_id) &&
       cpi->sf.rt_sf.use_nonrd_pick_mode) {
     int q = av1_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex);
-    set_vbp_thresholds(cpi, thresholds, q, content_state);
+    set_vbp_thresholds(cpi, thresholds, q, content_state, 1);
   } else {
     set_vbp_thresholds(cpi, thresholds, cm->quant_params.base_qindex,
-                       content_state);
+                       content_state, 0);
   }
 
   // For non keyframes, disable 4x4 average for low resolution when speed = 8
