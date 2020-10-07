@@ -71,6 +71,8 @@ enum {
   INTRA_DC = (1 << DC_PRED),
   INTRA_DC_TM = (1 << DC_PRED) | (1 << PAETH_PRED),
   INTRA_DC_H_V = (1 << DC_PRED) | (1 << V_PRED) | (1 << H_PRED),
+  INTRA_DC_H_V_SMOOTH =
+      (1 << DC_PRED) | (1 << V_PRED) | (1 << H_PRED) | (1 << SMOOTH_PRED),
   INTRA_DC_PAETH_H_V =
       (1 << DC_PRED) | (1 << PAETH_PRED) | (1 << V_PRED) | (1 << H_PRED)
 };
@@ -1047,9 +1049,6 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Forces larger partition blocks in variance based partitioning
   int force_large_partition_blocks;
 
-  // Only checks intra DCPRED mode in nonrd_pick_inter_mode
-  int nonrd_intra_dc_only;
-
   // uses results of temporal noise estimate
   int use_temporal_noise_estimate;
 
@@ -1062,6 +1061,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Skip loopfilter (and cdef) in svc real-time mode for
   // non_reference/droppable frames.
   int skip_loopfilter_non_reference;
+
+  // Bit mask to enable or disable intra modes for each prediction block size
+  // separately, for nonrd pickmode.
+  int intra_y_mode_bsize_mask_nrd[BLOCK_SIZES];
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

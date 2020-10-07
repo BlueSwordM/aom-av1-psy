@@ -998,6 +998,13 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
         sf->lpf_sf.cdef_pick_method == CDEF_PICK_FROM_Q &&
         sf->lpf_sf.lpf_pick == LPF_PICK_FROM_Q)
       sf->rt_sf.skip_loopfilter_non_reference = 1;
+    // Set mask for intra modes.
+    for (int i = 0; i < BLOCK_SIZES; ++i)
+      if (i >= BLOCK_32X32)
+        sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC;
+      else
+        // Use H, V, SMOOTH intra mode for block sizes < 32X32.
+        sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC_H_V_SMOOTH;
   }
 
   if (speed >= 8) {
@@ -1015,7 +1022,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   }
   if (speed >= 9) {
     sf->rt_sf.force_large_partition_blocks = 1;
-    sf->rt_sf.nonrd_intra_dc_only = 1;
+    for (int i = 0; i < BLOCK_SIZES; ++i)
+      sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC;
   }
 }
 
