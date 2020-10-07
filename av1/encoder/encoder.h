@@ -143,8 +143,9 @@ enum {
 typedef enum {
   kInvalid = 0,
   kLowSad = 1,
-  kHighSad = 2,
-  kLowVarHighSumdiff = 3,
+  kMedSad = 2,
+  kHighSad = 3,
+  kLowVarHighSumdiff = 4,
 } CONTENT_STATE_SB;
 
 enum {
