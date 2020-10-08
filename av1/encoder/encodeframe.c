@@ -339,7 +339,6 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
   if (tpl_frame->is_valid == 0) return;
   if (!is_frame_tpl_eligible(gf_group, gf_group->index)) return;
   if (frame_idx >= MAX_TPL_FRAME_IDX) return;
-  if (cpi->superres_mode != AOM_SUPERRES_NONE) return;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return;
 
   const int is_overlay = cpi->gf_group.update_type[frame_idx] == OVERLAY_UPDATE;
@@ -353,13 +352,21 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
   int64_t inter_cost[INTER_REFS_PER_FRAME] = { 0 };
   const int step = 1 << block_mis_log2;
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+
   const int mi_row_end =
       AOMMIN(mi_size_high[sb_size] + mi_row, mi_params->mi_rows);
-  const int mi_col_end =
-      AOMMIN(mi_size_wide[sb_size] + mi_col, mi_params->mi_cols);
-
-  for (int row = mi_row; row < mi_row_end; row += step) {
-    for (int col = mi_col; col < mi_col_end; col += step) {
+  const int mi_cols_sr = av1_pixels_to_mi(cm->superres_upscaled_width);
+  const int mi_col_sr =
+      coded_to_superres_mi(mi_col, cm->superres_scale_denominator);
+  const int mi_col_end_sr =
+      AOMMIN(coded_to_superres_mi(mi_col + mi_size_wide[sb_size],
+                                  cm->superres_scale_denominator),
+             mi_cols_sr);
+  const int row_step = step;
+  const int col_step_sr =
+      coded_to_superres_mi(step, cm->superres_scale_denominator);
+  for (int row = mi_row; row < mi_row_end; row += row_step) {
+    for (int col = mi_col_sr; col < mi_col_end_sr; col += col_step_sr) {
       const TplDepStats *this_stats =
           &tpl_stats[av1_tpl_ptr_pos(row, col, tpl_stride, block_mis_log2)];
       int64_t tpl_pred_error[INTER_REFS_PER_FRAME] = { 0 };

@@ -2249,10 +2249,13 @@ static AOM_INLINE void get_block_level_tpl_stats(
       coded_to_superres_mi(mi_col + mi_wide, cm->superres_scale_denominator);
   const int mi_cols_sr = av1_pixels_to_mi(cm->superres_upscaled_width);
 
+  const int row_step = step;
+  const int col_step_sr =
+      coded_to_superres_mi(step, cm->superres_scale_denominator);
   for (int row = mi_row; row < AOMMIN(mi_row + mi_high, cm->mi_params.mi_rows);
-       row += step) {
+       row += row_step) {
     for (int col = mi_col_sr; col < AOMMIN(mi_col_end_sr, mi_cols_sr);
-         col += step) {
+         col += col_step_sr) {
       const TplDepStats *this_stats = &tpl_stats[av1_tpl_ptr_pos(
           row, col, tpl_stride, tpl_data->tpl_stats_block_mis_log2)];
 
