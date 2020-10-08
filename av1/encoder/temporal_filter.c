@@ -317,7 +317,6 @@ static void tf_build_predictor(const YV12_BUFFER_CONFIG *ref_frame,
   // Information of the entire block.
   const int mb_height = block_size_high[block_size];  // Height.
   const int mb_width = block_size_wide[block_size];   // Width.
-  const int mb_pels = mb_height * mb_width;           // Number of pixels.
   const int mb_y = mb_height * mb_row;                // Y-coord (Top-left).
   const int mb_x = mb_width * mb_col;                 // X-coord (Top-left).
   const int bit_depth = mbd->bd;                      // Bit depth.
@@ -369,7 +368,7 @@ static void tf_build_predictor(const YV12_BUFFER_CONFIG *ref_frame,
                                           plane_w, &mv, &inter_pred_params);
       }
     }
-    plane_offset += mb_pels;
+    plane_offset += plane_h * plane_w;
   }
 }
 /*!\cond */
@@ -396,7 +395,6 @@ void tf_apply_temporal_filter_self(const YV12_BUFFER_CONFIG *ref_frame,
   // Block information.
   const int mb_height = block_size_high[block_size];
   const int mb_width = block_size_wide[block_size];
-  const int mb_pels = mb_height * mb_width;
   const int is_high_bitdepth = is_cur_buf_hbd(mbd);
 
   int plane_offset = 0;
@@ -426,7 +424,7 @@ void tf_apply_temporal_filter_self(const YV12_BUFFER_CONFIG *ref_frame,
       }
       pixel_idx += (frame_stride - w);
     }
-    plane_offset += mb_pels;
+    plane_offset += h * w;
   }
 }
 
@@ -668,7 +666,7 @@ void av1_apply_temporal_filter_c(
         ++pred_idx;
       }
     }
-    plane_offset += mb_pels;
+    plane_offset += h * w;
   }
 
   aom_free(square_diff);
@@ -713,7 +711,6 @@ static void tf_normalize_filtered_frame(
   // Block information.
   const int mb_height = block_size_high[block_size];
   const int mb_width = block_size_wide[block_size];
-  const int mb_pels = mb_height * mb_width;
   const int is_high_bitdepth = is_frame_high_bitdepth(result_buffer);
 
   int plane_offset = 0;
@@ -742,7 +739,7 @@ static void tf_normalize_filtered_frame(
       }
       frame_idx += (frame_stride - plane_w);
     }
-    plane_offset += mb_pels;
+    plane_offset += plane_h * plane_w;
   }
 }
 /*!\cond */
@@ -821,7 +818,11 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
   MACROBLOCK *const mb = &cpi->td.mb;
   MACROBLOCKD *const mbd = &mb->e_mbd;
   uint8_t *input_buffer[MAX_MB_PLANE];
+  int num_pels = 0;
   for (int i = 0; i < num_planes; i++) {
+    const int subsampling_x = mbd->plane[i].subsampling_x;
+    const int subsampling_y = mbd->plane[i].subsampling_y;
+    num_pels += mb_pels >> (subsampling_x + subsampling_y);
     input_buffer[i] = mbd->plane[i].pre[0].buf;
   }
   MB_MODE_INFO **input_mb_mode_info = mbd->mi;
@@ -834,15 +835,14 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
   memset(tmp_mb_mode_info, 0, sizeof(MB_MODE_INFO));
   mbd->mi = &tmp_mb_mode_info;
   mbd->mi[0]->motion_mode = SIMPLE_TRANSLATION;
-  // TODO(Jayasanker): Optimize buffers based on chroma subsampling and
-  // bit-depth. Allocate memory for predictor, accumulator and count.
-  uint8_t *pred8 = aom_memalign(32, num_planes * mb_pels * sizeof(uint8_t));
-  uint16_t *pred16 = aom_memalign(32, num_planes * mb_pels * sizeof(uint16_t));
-  uint32_t *accum = aom_memalign(16, num_planes * mb_pels * sizeof(uint32_t));
-  uint16_t *count = aom_memalign(16, num_planes * mb_pels * sizeof(uint16_t));
-  memset(pred8, 0, num_planes * mb_pels * sizeof(pred8[0]));
-  memset(pred16, 0, num_planes * mb_pels * sizeof(pred16[0]));
-  uint8_t *const pred = is_high_bitdepth ? CONVERT_TO_BYTEPTR(pred16) : pred8;
+  // Allocate memory for predictor, accumulator and count.
+  uint32_t *accum = aom_memalign(16, num_pels * sizeof(uint32_t));
+  uint16_t *count = aom_memalign(16, num_pels * sizeof(uint16_t));
+  uint8_t *pred;
+  if (is_high_bitdepth)
+    pred = CONVERT_TO_BYTEPTR(aom_memalign(32, num_pels * sizeof(uint16_t)));
+  else
+    pred = aom_memalign(32, num_pels * sizeof(uint8_t));
 
   // Do filtering.
   FRAME_DIFF diff = { 0, 0 };
@@ -855,8 +855,8 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
       av1_set_mv_col_limits(&cpi->common.mi_params, &mb->mv_limits,
                             (mb_col << mi_w), (mb_width >> MI_SIZE_LOG2),
                             cpi->oxcf.border_in_pixels);
-      memset(accum, 0, num_planes * mb_pels * sizeof(accum[0]));
-      memset(count, 0, num_planes * mb_pels * sizeof(count[0]));
+      memset(accum, 0, num_pels * sizeof(accum[0]));
+      memset(count, 0, num_pels * sizeof(count[0]));
       MV ref_mv = kZeroMv;  // Reference motion vector passed down along frames.
       // Perform temporal filtering frame by frame.
       for (int frame = 0; frame < num_frames; frame++) {
@@ -946,9 +946,9 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
   }
   mbd->mi = input_mb_mode_info;
 
+  if (is_high_bitdepth) pred = (uint8_t *)CONVERT_TO_SHORTPTR(pred);
   free(tmp_mb_mode_info);
-  aom_free(pred8);
-  aom_free(pred16);
+  aom_free(pred);
   aom_free(accum);
   aom_free(count);
 

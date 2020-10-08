@@ -81,13 +81,12 @@ class TemporalFilterTest
   void GenRandomData(int width, int height, int stride, int stride2,
                      int num_planes, int subsampling_x, int subsampling_y) {
     uint8_t *src1p = src1_;
-    uint8_t *src2p;
+    uint8_t *src2p = src2_;
     for (int plane = 0; plane < num_planes; plane++) {
       int plane_w = plane ? width >> subsampling_x : width;
       int plane_h = plane ? height >> subsampling_y : height;
       int plane_stride = plane ? stride >> subsampling_x : stride;
       int plane_stride2 = plane ? stride2 >> subsampling_x : stride2;
-      src2p = src2_ + plane * stride2 * height;
       for (int ii = 0; ii < plane_h; ii++) {
         for (int jj = 0; jj < plane_w; jj++) {
           src1p[jj] = rnd_.Rand8();
@@ -103,13 +102,12 @@ class TemporalFilterTest
                       int num_planes, int subsampling_x, int subsampling_y,
                       uint8_t val) {
     uint8_t *src1p = src1_;
-    uint8_t *src2p;
+    uint8_t *src2p = src2_;
     for (int plane = 0; plane < num_planes; plane++) {
       int plane_w = plane ? width >> subsampling_x : width;
       int plane_h = plane ? height >> subsampling_y : height;
       int plane_stride = plane ? stride >> subsampling_x : stride;
       int plane_stride2 = plane ? stride2 >> subsampling_x : stride2;
-      src2p = src2_ + plane * stride2 * height;
       for (int ii = 0; ii < plane_h; ii++) {
         for (int jj = 0; jj < plane_w; jj++) {
           src1p[jj] = val;
@@ -336,14 +334,13 @@ class HBDTemporalFilterTest
   void GenRandomData(int width, int height, int stride, int stride2, int bd,
                      int subsampling_x, int subsampling_y, int num_planes) {
     uint16_t *src1p = src1_;
-    uint16_t *src2p;
+    uint16_t *src2p = src2_;
     for (int plane = AOM_PLANE_Y; plane < num_planes; plane++) {
       int plane_w = plane ? width >> subsampling_x : width;
       int plane_h = plane ? height >> subsampling_y : height;
       int plane_stride = plane ? stride >> subsampling_x : stride;
       int plane_stride2 = plane ? stride2 >> subsampling_x : stride2;
       const uint16_t max_val = (1 << bd) - 1;
-      src2p = src2_ + plane * stride2 * height;
       for (int ii = 0; ii < plane_h; ii++) {
         for (int jj = 0; jj < plane_w; jj++) {
           src1p[jj] = rnd_.Rand16() & max_val;
@@ -359,13 +356,12 @@ class HBDTemporalFilterTest
                       int subsampling_x, int subsampling_y, int num_planes,
                       uint16_t val) {
     uint16_t *src1p = src1_;
-    uint16_t *src2p;
+    uint16_t *src2p = src2_;
     for (int plane = AOM_PLANE_Y; plane < num_planes; plane++) {
       int plane_w = plane ? width >> subsampling_x : width;
       int plane_h = plane ? height >> subsampling_y : height;
       int plane_stride = plane ? stride >> subsampling_x : stride;
       int plane_stride2 = plane ? stride2 >> subsampling_x : stride2;
-      src2p = src2_ + plane * stride2 * height;
       uint16_t max_val = (1 << bd) - 1;
       for (int ii = 0; ii < plane_h; ii++) {
         for (int jj = 0; jj < plane_w; jj++) {
