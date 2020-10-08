@@ -1251,19 +1251,17 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
   return q;
 }
 
-static const double rate_factor_deltas[RATE_FACTOR_LEVELS] = {
-  1.00,  // INTER_NORMAL
-  1.50,  // GF_ARF_LOW
-  2.00,  // GF_ARF_STD
-  2.00,  // KF_STD
-};
-
+static const double arf_layer_deltas[MAX_ARF_LAYERS + 1] = { 2.50, 2.00, 1.75,
+                                                             1.50, 1.25, 1.15,
+                                                             1.0 };
 int av1_frame_type_qdelta(const AV1_COMP *cpi, int q) {
-  const RATE_FACTOR_LEVEL rf_lvl = get_rate_factor_level(&cpi->gf_group);
-  const FRAME_TYPE frame_type = (rf_lvl == KF_STD) ? KEY_FRAME : INTER_FRAME;
-  double rate_factor;
+  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const RATE_FACTOR_LEVEL rf_lvl = get_rate_factor_level(gf_group);
+  const FRAME_TYPE frame_type = gf_group->frame_type[gf_group->index];
+  const int arf_layer = AOMMIN(gf_group->layer_depth[gf_group->index], 6);
+  const double rate_factor =
+      (rf_lvl == INTER_NORMAL) ? 1.0 : arf_layer_deltas[arf_layer];
 
-  rate_factor = rate_factor_deltas[rf_lvl];
   return av1_compute_qdelta_by_rate(&cpi->rc, frame_type, q, rate_factor,
                                     cpi->is_screen_content_type,
                                     cpi->common.seq_params.bit_depth);
