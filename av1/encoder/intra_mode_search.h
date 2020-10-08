@@ -229,13 +229,15 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
 /*! \brief Return the number of colors in src. Used by palette mode.
  */
-int av1_count_colors(const uint8_t *src, int stride, int rows, int cols,
-                     int *val_count);
+void av1_count_colors(const uint8_t *src, int stride, int rows, int cols,
+                      int *val_count, int *num_colors);
 
 /*! \brief See \ref av1_count_colors(), but for highbd.
  */
-int av1_count_colors_highbd(const uint8_t *src8, int stride, int rows, int cols,
-                            int bit_depth, int *val_count, int *val_count_8bit);
+void av1_count_colors_highbd(const uint8_t *src8, int stride, int rows,
+                             int cols, int bit_depth, int *val_count,
+                             int *val_count_8bit, int *num_color_bins,
+                             int *num_colors);
 
 #ifdef __cplusplus
 }  // extern "C"
