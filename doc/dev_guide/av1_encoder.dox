@@ -150,7 +150,7 @@ encoder and referenced elsewhere in this overview document:
 
 - \ref TWO_PASS (Two pass status and control data)
 
-- \ref GF_GROUP (Data relating to the current GF/ARF group)
+- \ref GF_GROUP (Data related to the current GF/ARF group)
 
 - \ref FIRSTPASS_STATS (Defines entries in the first pass stats buffer)
     - \ref FIRSTPASS_STATS.coded_error

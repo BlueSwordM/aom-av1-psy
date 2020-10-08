@@ -169,7 +169,7 @@ enum {
 
 /*!\endcond */
 /*!
- * \brief  Data relating to the current GF/ARF group and the
+ * \brief  Data related to the current GF/ARF group and the
  * individual frames within the group
  */
 typedef struct {

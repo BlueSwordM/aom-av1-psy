@@ -231,7 +231,7 @@ void av1_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
  * \param[out]    num_planes  Number of image planes (e.g. Y,U,V)
  *
  * \return No return value but updates macroblock and thread data
- * relating to the q / q delta to be used.
+ * related to the q / q delta to be used.
  */
 static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
                                      MACROBLOCK *const x,
