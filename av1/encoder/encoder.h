@@ -79,15 +79,6 @@ typedef struct aom_rational64 {
   int den;           // fraction denominator
 } aom_rational64_t;  // alias for struct aom_rational
 
-typedef struct {
-#if CONFIG_SUPERRES_IN_RECODE
-  struct loopfilter lf;
-  CdefInfo cdef_info;
-  YV12_BUFFER_CONFIG copy_buffer;
-  RATE_CONTROL rc;
-#endif  // CONFIG_SUPERRES_IN_RECODE
-} CODING_CONTEXT;
-
 enum {
   NORMAL = 0,
   FOURFIVE = 1,
@@ -1910,6 +1901,16 @@ typedef struct {
   // Whether the current struct contains valid data
   int valid;
 } MV_STATS;
+
+typedef struct {
+#if CONFIG_SUPERRES_IN_RECODE
+  struct loopfilter lf;
+  CdefInfo cdef_info;
+  YV12_BUFFER_CONFIG copy_buffer;
+  RATE_CONTROL rc;
+  MV_STATS mv_stats;
+#endif  // CONFIG_SUPERRES_IN_RECODE
+} CODING_CONTEXT;
 
 typedef struct {
   int frame_width;

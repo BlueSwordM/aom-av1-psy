@@ -1260,6 +1260,7 @@ static void save_extra_coding_context(AV1_COMP *cpi) {
   cc->lf = cm->lf;
   cc->cdef_info = cm->cdef_info;
   cc->rc = cpi->rc;
+  cc->mv_stats = cpi->mv_stats;
 }
 
 void av1_save_all_coding_context(AV1_COMP *cpi) {

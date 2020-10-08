@@ -843,6 +843,7 @@ static AOM_INLINE void restore_extra_coding_context(AV1_COMP *cpi) {
   cm->lf = cc->lf;
   cm->cdef_info = cc->cdef_info;
   cpi->rc = cc->rc;
+  cpi->mv_stats = cc->mv_stats;
 }
 
 static AOM_INLINE void release_copy_buffer(CODING_CONTEXT *cc) {
