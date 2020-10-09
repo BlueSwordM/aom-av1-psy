@@ -1027,7 +1027,6 @@ static AOM_INLINE void encode_tiles(AV1_COMP *cpi) {
 static AOM_INLINE void set_rel_frame_dist(
     const AV1_COMMON *const cm, RefFrameDistanceInfo *const ref_frame_dist_info,
     const int ref_frame_flags) {
-  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
   MV_REFERENCE_FRAME ref_frame;
   int min_past_dist = INT32_MAX, min_future_dist = INT32_MAX;
   ref_frame_dist_info->nearest_past_ref = NONE_FRAME;
@@ -1036,7 +1035,6 @@ static AOM_INLINE void set_rel_frame_dist(
     ref_frame_dist_info->ref_relative_dist[ref_frame - LAST_FRAME] = 0;
     if (ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
       int dist = av1_encoder_get_relative_dist(
-          order_hint_info,
           cm->cur_frame->ref_display_order_hint[ref_frame - LAST_FRAME],
           cm->current_frame.display_order_hint);
       ref_frame_dist_info->ref_relative_dist[ref_frame - LAST_FRAME] = dist;
@@ -1058,14 +1056,12 @@ static INLINE int refs_are_one_sided(const AV1_COMMON *cm) {
   assert(!frame_is_intra_only(cm));
 
   int one_sided_refs = 1;
+  const int cur_display_order_hint = cm->current_frame.display_order_hint;
   for (int ref = LAST_FRAME; ref <= ALTREF_FRAME; ++ref) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
     if (buf == NULL) continue;
-
-    const int ref_display_order_hint = buf->display_order_hint;
-    if (av1_encoder_get_relative_dist(
-            &cm->seq_params.order_hint_info, ref_display_order_hint,
-            (int)cm->current_frame.display_order_hint) > 0) {
+    if (av1_encoder_get_relative_dist(buf->display_order_hint,
+                                      cur_display_order_hint) > 0) {
       one_sided_refs = 0;  // bwd reference
       break;
     }
@@ -1145,17 +1141,15 @@ static AOM_INLINE void setup_prune_ref_frame_mask(AV1_COMP *cpi) {
   } else if (!cpi->sf.rt_sf.use_nonrd_pick_mode &&
              cpi->sf.inter_sf.selective_ref_frame >= 2) {
     AV1_COMMON *const cm = &cpi->common;
-    const OrderHintInfo *const order_hint_info =
-        &cm->seq_params.order_hint_info;
     const int cur_frame_display_order_hint =
         cm->current_frame.display_order_hint;
     unsigned int *ref_display_order_hint =
         cm->cur_frame->ref_display_order_hint;
     const int arf2_dist = av1_encoder_get_relative_dist(
-        order_hint_info, ref_display_order_hint[ALTREF2_FRAME - LAST_FRAME],
+        ref_display_order_hint[ALTREF2_FRAME - LAST_FRAME],
         cur_frame_display_order_hint);
     const int bwd_dist = av1_encoder_get_relative_dist(
-        order_hint_info, ref_display_order_hint[BWDREF_FRAME - LAST_FRAME],
+        ref_display_order_hint[BWDREF_FRAME - LAST_FRAME],
         cur_frame_display_order_hint);
 
     for (int ref_idx = REF_FRAMES; ref_idx < MODE_CTX_REF_FRAMES; ++ref_idx) {
@@ -1170,7 +1164,7 @@ static AOM_INLINE void setup_prune_ref_frame_mask(AV1_COMP *cpi) {
         int ref_dist[2];
         for (int i = 0; i < 2; ++i) {
           ref_dist[i] = av1_encoder_get_relative_dist(
-              order_hint_info, ref_display_order_hint[rf[i] - LAST_FRAME],
+              ref_display_order_hint[rf[i] - LAST_FRAME],
               cur_frame_display_order_hint);
         }
 

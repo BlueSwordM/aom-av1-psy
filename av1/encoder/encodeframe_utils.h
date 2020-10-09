@@ -331,10 +331,8 @@ static AOM_INLINE unsigned int get_num_refs_to_disable(
     num_refs_to_disable++;
     if (cpi->sf.inter_sf.selective_ref_frame >= 5 &&
         *ref_frame_flags & av1_ref_frame_flag_list[LAST2_FRAME]) {
-      const OrderHintInfo *const order_hint_info =
-          &cpi->common.seq_params.order_hint_info;
       const int last2_frame_dist = av1_encoder_get_relative_dist(
-          order_hint_info, ref_display_order_hint[LAST2_FRAME - LAST_FRAME],
+          ref_display_order_hint[LAST2_FRAME - LAST_FRAME],
           cur_frame_display_index);
       // Disable LAST2_FRAME if it is a temporally distant frame
       if (abs(last2_frame_dist) > 2) {
