@@ -1111,7 +1111,6 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
         } else {
           mbmi->compound_idx = 1;
         }
-
       } else {
         *rate_mv = 0;
         for (int i = 0; i < 2; ++i) {
@@ -1130,8 +1129,36 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       // aomenc2
       if (cpi->sf.inter_sf.comp_inter_joint_search_thresh <= bsize ||
           !valid_mv1) {
-        av1_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
-                                                     NULL, 0, rate_mv, 1);
+        int_mv tmp_mv[2] = { cur_mv[0], cur_mv[1] };
+        int tmp_rate_mv;
+        mbmi->compound_idx = 1;
+        av1_dist_wtd_comp_weight_assign(
+            &cpi->common, mbmi, 0, &inter_pred_params.conv_params.fwd_offset,
+            &inter_pred_params.conv_params.bck_offset,
+            &inter_pred_params.conv_params.use_dist_wtd_comp_avg, 1);
+        uint8_t mask_value = inter_pred_params.conv_params.fwd_offset * 4;
+        memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
+
+        int cmp_avg_sme = av1_compound_single_motion_search_interinter(
+            cpi, x, bsize, cur_mv, xd->seg_mask, block_size_wide[bsize],
+            rate_mv, 1);
+        mbmi->compound_idx = 0;
+        av1_dist_wtd_comp_weight_assign(
+            &cpi->common, mbmi, 0, &inter_pred_params.conv_params.fwd_offset,
+            &inter_pred_params.conv_params.bck_offset,
+            &inter_pred_params.conv_params.use_dist_wtd_comp_avg, 1);
+        mask_value = inter_pred_params.conv_params.fwd_offset * 4;
+        memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
+        int cmp_jnt_sme = av1_compound_single_motion_search_interinter(
+            cpi, x, bsize, tmp_mv, xd->seg_mask, block_size_wide[bsize],
+            &tmp_rate_mv, 1);
+        if (cmp_jnt_sme < cmp_avg_sme) {
+          cur_mv[0] = tmp_mv[0];
+          cur_mv[1] = tmp_mv[1];
+          *rate_mv = tmp_rate_mv;
+        } else {
+          mbmi->compound_idx = 1;
+        }
       } else {
         const int_mv ref_mv = av1_get_ref_mv(x, 1);
         *rate_mv = av1_mv_bit_cost(&cur_mv[1].as_mv, &ref_mv.as_mv,
@@ -1148,8 +1175,36 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       // aomenc3
       if (cpi->sf.inter_sf.comp_inter_joint_search_thresh <= bsize ||
           !valid_mv0) {
-        av1_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
-                                                     NULL, 0, rate_mv, 0);
+        int_mv tmp_mv[2] = { cur_mv[0], cur_mv[1] };
+        int tmp_rate_mv;
+        mbmi->compound_idx = 1;
+        av1_dist_wtd_comp_weight_assign(
+            &cpi->common, mbmi, 0, &inter_pred_params.conv_params.fwd_offset,
+            &inter_pred_params.conv_params.bck_offset,
+            &inter_pred_params.conv_params.use_dist_wtd_comp_avg, 1);
+        uint8_t mask_value = inter_pred_params.conv_params.fwd_offset * 4;
+        memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
+
+        int cmp_avg_sme = av1_compound_single_motion_search_interinter(
+            cpi, x, bsize, cur_mv, xd->seg_mask, block_size_wide[bsize],
+            rate_mv, 0);
+        mbmi->compound_idx = 0;
+        av1_dist_wtd_comp_weight_assign(
+            &cpi->common, mbmi, 0, &inter_pred_params.conv_params.fwd_offset,
+            &inter_pred_params.conv_params.bck_offset,
+            &inter_pred_params.conv_params.use_dist_wtd_comp_avg, 1);
+        mask_value = inter_pred_params.conv_params.fwd_offset * 4;
+        memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
+        int cmp_jnt_sme = av1_compound_single_motion_search_interinter(
+            cpi, x, bsize, tmp_mv, xd->seg_mask, block_size_wide[bsize],
+            &tmp_rate_mv, 0);
+        if (cmp_jnt_sme < cmp_avg_sme) {
+          cur_mv[0] = tmp_mv[0];
+          cur_mv[1] = tmp_mv[1];
+          *rate_mv = tmp_rate_mv;
+        } else {
+          mbmi->compound_idx = 1;
+        }
       } else {
         const int_mv ref_mv = av1_get_ref_mv(x, 0);
         *rate_mv = av1_mv_bit_cost(&cur_mv[0].as_mv, &ref_mv.as_mv,

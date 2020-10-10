@@ -500,11 +500,11 @@ int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 
 // Search for the best mv for one component of a compound,
 // given that the other component is fixed.
-void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
-                                       BLOCK_SIZE bsize, MV *this_mv,
-                                       const uint8_t *second_pred,
-                                       const uint8_t *mask, int mask_stride,
-                                       int *rate_mv, int ref_idx) {
+int av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
+                                      BLOCK_SIZE bsize, MV *this_mv,
+                                      const uint8_t *second_pred,
+                                      const uint8_t *mask, int mask_stride,
+                                      int *rate_mv, int ref_idx) {
   const AV1_COMMON *const cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *xd = &x->e_mbd;
@@ -603,6 +603,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 
   *rate_mv += av1_mv_bit_cost(this_mv, &ref_mv.as_mv, mv_costs->nmv_joint_cost,
                               mv_costs->mv_cost_stack, MV_COST_WEIGHT);
+  return bestsme;
 }
 
 static AOM_INLINE void build_second_inter_pred(const AV1_COMP *cpi,
@@ -645,7 +646,7 @@ static AOM_INLINE void build_second_inter_pred(const AV1_COMP *cpi,
 
 // Wrapper for av1_compound_single_motion_search, for the common case
 // where the second prediction is also an inter mode.
-void av1_compound_single_motion_search_interinter(
+int av1_compound_single_motion_search_interinter(
     const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int_mv *cur_mv,
     const uint8_t *mask, int mask_stride, int *rate_mv, int ref_idx) {
   MACROBLOCKD *xd = &x->e_mbd;
@@ -663,8 +664,8 @@ void av1_compound_single_motion_search_interinter(
   MV *this_mv = &cur_mv[ref_idx].as_mv;
   const MV *other_mv = &cur_mv[!ref_idx].as_mv;
   build_second_inter_pred(cpi, x, bsize, other_mv, ref_idx, second_pred);
-  av1_compound_single_motion_search(cpi, x, bsize, this_mv, second_pred, mask,
-                                    mask_stride, rate_mv, ref_idx);
+  return av1_compound_single_motion_search(cpi, x, bsize, this_mv, second_pred,
+                                           mask, mask_stride, rate_mv, ref_idx);
 }
 
 static AOM_INLINE void do_masked_motion_search_indexed(
