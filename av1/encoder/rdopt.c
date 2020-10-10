@@ -1055,8 +1055,8 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
                             const BLOCK_SIZE bsize, int_mv *cur_mv,
                             int *const rate_mv, HandleInterModeArgs *const args,
                             inter_mode_info *mode_info) {
-  const MACROBLOCKD *const xd = &x->e_mbd;
-  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
   const int is_comp_pred = has_second_ref(mbmi);
   const PREDICTION_MODE this_mode = mbmi->mode;
   const int refs[2] = { mbmi->ref_frame[0],
@@ -1066,6 +1066,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
   if (is_comp_pred) {
     const int valid_mv0 = args->single_newmv_valid[ref_mv_idx][refs[0]];
     const int valid_mv1 = args->single_newmv_valid[ref_mv_idx][refs[1]];
+    InterPredParams inter_pred_params;
 
     if (this_mode == NEW_NEWMV) {
       if (valid_mv0) {
@@ -1080,7 +1081,15 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       // aomenc1
       if (cpi->sf.inter_sf.comp_inter_joint_search_thresh <= bsize ||
           !valid_mv0 || !valid_mv1) {
-        av1_joint_motion_search(cpi, x, bsize, cur_mv, NULL, 0, rate_mv);
+        mbmi->compound_idx = 1;
+        av1_dist_wtd_comp_weight_assign(
+            &cpi->common, mbmi, 0, &inter_pred_params.conv_params.fwd_offset,
+            &inter_pred_params.conv_params.bck_offset,
+            &inter_pred_params.conv_params.use_dist_wtd_comp_avg, 1);
+        uint8_t mask_value = inter_pred_params.conv_params.fwd_offset * 4;
+        memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
+        av1_joint_motion_search(cpi, x, bsize, cur_mv, xd->seg_mask,
+                                block_size_wide[bsize], rate_mv);
       } else {
         *rate_mv = 0;
         for (int i = 0; i < 2; ++i) {
