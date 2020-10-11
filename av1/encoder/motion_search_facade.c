@@ -420,8 +420,10 @@ int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 
     // Make motion search params
     FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
+    const search_site_config *src_search_sites =
+        cpi->mv_search_params.search_site_cfg[SS_CFG_SRC];
     av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize,
-                                       &ref_mv[id].as_mv, NULL,
+                                       &ref_mv[id].as_mv, src_search_sites,
                                        /*fine_search_interval=*/0);
 
     av1_set_ms_compound_refs(&full_ms_params.ms_buffers, second_pred, mask,
@@ -431,8 +433,8 @@ int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     const FULLPEL_MV start_fullmv = get_fullmv_from_mv(&cur_mv[id].as_mv);
 
     // Small-range full-pixel motion search.
-    bestsme = av1_refining_search_8p_c(&full_ms_params, start_fullmv,
-                                       &best_mv.as_fullmv);
+    bestsme = av1_full_pixel_search(start_fullmv, &full_ms_params, 5, NULL,
+                                    &best_mv.as_fullmv, NULL);
 
     if (bestsme < INT_MAX) {
       bestsme = av1_get_mvpred_compound_var(
@@ -548,8 +550,10 @@ int av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 
   // Make motion search params
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
+  const search_site_config *src_search_sites =
+      cpi->mv_search_params.search_site_cfg[SS_CFG_SRC];
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize,
-                                     &ref_mv.as_mv, NULL,
+                                     &ref_mv.as_mv, src_search_sites,
                                      /*fine_search_interval=*/0);
 
   av1_set_ms_compound_refs(&full_ms_params.ms_buffers, second_pred, mask,
@@ -559,8 +563,8 @@ int av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   const FULLPEL_MV start_fullmv = get_fullmv_from_mv(this_mv);
 
   // Small-range full-pixel motion search.
-  bestsme = av1_refining_search_8p_c(&full_ms_params, start_fullmv,
-                                     &best_mv.as_fullmv);
+  bestsme = av1_full_pixel_search(start_fullmv, &full_ms_params, 5, NULL,
+                                  &best_mv.as_fullmv, NULL);
 
   if (bestsme < INT_MAX) {
     bestsme = av1_get_mvpred_compound_var(
