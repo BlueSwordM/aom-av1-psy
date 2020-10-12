@@ -718,6 +718,8 @@ static void dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
                                         int is_compound) {
   assert(fwd_offset != NULL && bck_offset != NULL);
   if (!is_compound || mbmi->compound_idx) {
+    *fwd_offset = 8;
+    *bck_offset = 8;
     *use_dist_wtd_comp_avg = 0;
     return;
   }
