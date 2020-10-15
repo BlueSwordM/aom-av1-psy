@@ -2210,7 +2210,8 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
 
         // See if we have a scenecut in between
         for (int r = k_start + 1; r <= k_last; r++) {
-          if (regions[r].type == SCENECUT_REGION) {
+          if (regions[r].type == SCENECUT_REGION &&
+              regions[r].last - offset - cur_start > active_min_gf_interval) {
             scenecut_idx = r;
             break;
           }
