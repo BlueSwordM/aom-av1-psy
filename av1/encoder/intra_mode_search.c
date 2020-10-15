@@ -846,6 +846,139 @@ static INLINE void handle_filter_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
   }
 }
 
+static INLINE int handle_intra_y_mode(IntraModeSearchState *intra_search_state,
+                                      const AV1_COMP *cpi, MACROBLOCK *x,
+                                      BLOCK_SIZE bsize,
+                                      unsigned int ref_frame_cost,
+                                      const PICK_MODE_CONTEXT *ctx,
+                                      RD_STATS *rd_stats_y, int64_t best_rd) {
+  const AV1_COMMON *cm = &cpi->common;
+  const SPEED_FEATURES *const sf = &cpi->sf;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  assert(mbmi->ref_frame[0] == INTRA_FRAME);
+  const PREDICTION_MODE mode = mbmi->mode;
+  const ModeCosts *mode_costs = &x->mode_costs;
+  const int mode_cost =
+      mode_costs->mbmode_cost[size_group_lookup[bsize]][mode] + ref_frame_cost;
+
+  const int is_directional_mode = av1_is_directional_mode(mode);
+  if (is_directional_mode && av1_use_angle_delta(bsize) &&
+      cpi->oxcf.intra_mode_cfg.enable_angle_delta) {
+    if (sf->intra_sf.intra_pruning_with_hog &&
+        !intra_search_state->dir_mode_skip_mask_ready) {
+      prune_intra_mode_with_hog(x, bsize,
+                                cpi->sf.intra_sf.intra_pruning_with_hog_thresh,
+                                intra_search_state->directional_mode_skip_mask);
+      intra_search_state->dir_mode_skip_mask_ready = 1;
+    }
+    if (intra_search_state->directional_mode_skip_mask[mode]) return 0;
+    av1_init_rd_stats(rd_stats_y);
+    rd_stats_y->rate = INT_MAX;
+    int64_t model_rd = INT64_MAX;
+    int rate_dummy;
+    rd_pick_intra_angle_sby(cpi, x, &rate_dummy, rd_stats_y, bsize, mode_cost,
+                            best_rd, &model_rd, 0);
+
+  } else {
+    av1_init_rd_stats(rd_stats_y);
+    mbmi->angle_delta[PLANE_TYPE_Y] = 0;
+    av1_pick_uniform_tx_size_type_yrd(cpi, x, rd_stats_y, bsize, best_rd);
+  }
+
+  // Pick filter intra modes.
+  if (mode == DC_PRED && av1_filter_intra_allowed_bsize(cm, bsize)) {
+    int try_filter_intra = 1;
+    int64_t best_rd_so_far = INT64_MAX;
+    if (rd_stats_y->rate != INT_MAX) {
+      const int tmp_rate = rd_stats_y->rate +
+                           mode_costs->filter_intra_cost[bsize][0] + mode_cost;
+      best_rd_so_far = RDCOST(x->rdmult, tmp_rate, rd_stats_y->dist);
+      try_filter_intra = (best_rd_so_far / 2) <= best_rd;
+    }
+
+    if (try_filter_intra) {
+      handle_filter_intra_mode(cpi, x, bsize, ctx, rd_stats_y, mode_cost,
+                               best_rd, best_rd_so_far);
+    }
+  }
+
+  if (rd_stats_y->rate == INT_MAX) return 0;
+
+  return 1;
+}
+
+static INLINE int handle_intra_uv_mode(IntraModeSearchState *intra_search_state,
+                                       const AV1_COMP *cpi, MACROBLOCK *x,
+                                       BLOCK_SIZE bsize, RD_STATS *rd_stats,
+                                       const RD_STATS *rd_stats_y,
+                                       RD_STATS *rd_stats_uv, int64_t best_rd,
+                                       int mode_cost_y) {
+  const AV1_COMMON *cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  assert(mbmi->ref_frame[0] == INTRA_FRAME);
+  const ModeCosts *mode_costs = &x->mode_costs;
+  const int skip_ctx = av1_get_skip_txfm_context(xd);
+
+  // TODO(chiyotsai@google.com): Consolidate the chroma search code here with
+  // the one in av1_search_palette_mode.
+  PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
+  const int try_palette =
+      cpi->oxcf.tool_cfg.enable_palette &&
+      av1_allow_palette(cm->features.allow_screen_content_tools, mbmi->bsize);
+
+  if (intra_search_state->rate_uv_intra == INT_MAX) {
+    // If no good uv-predictor had been found, search for it.
+    const int rate_y = rd_stats_y->skip_txfm
+                           ? mode_costs->skip_txfm_cost[skip_ctx][1]
+                           : rd_stats_y->rate;
+    const int64_t rdy =
+        RDCOST(x->rdmult, rate_y + mode_cost_y, rd_stats_y->dist);
+    if (best_rd < (INT64_MAX / 2) && rdy > (best_rd + (best_rd >> 2))) {
+      intra_search_state->skip_intra_modes = 1;
+      return 0;
+    }
+    const TX_SIZE uv_tx = av1_get_tx_size(AOM_PLANE_U, xd);
+    av1_rd_pick_intra_sbuv_mode(cpi, x, &intra_search_state->rate_uv_intra,
+                                &intra_search_state->rate_uv_tokenonly,
+                                &intra_search_state->dist_uvs,
+                                &intra_search_state->skip_uvs, bsize, uv_tx);
+    intra_search_state->mode_uv = mbmi->uv_mode;
+    if (try_palette) intra_search_state->pmi_uv = *pmi;
+    intra_search_state->uv_angle_delta = mbmi->angle_delta[PLANE_TYPE_UV];
+
+    const int uv_rate = intra_search_state->rate_uv_tokenonly;
+    const int64_t uv_dist = intra_search_state->dist_uvs;
+    const int64_t uv_rd = RDCOST(x->rdmult, uv_rate, uv_dist);
+    if (uv_rd > best_rd) {
+      // If there is no good intra uv-mode available, we can skip all intra
+      // modes.
+      intra_search_state->skip_intra_modes = 1;
+      return 0;
+    }
+  }
+
+  // If we are here, then the encoder has found at least one good intra uv
+  // predictor, so we can directly copy its statistics over.
+  // TODO(any): the stats here is probably not right if the current best mode
+  // is cfl.
+  rd_stats_uv->rate = intra_search_state->rate_uv_tokenonly;
+  rd_stats_uv->dist = intra_search_state->dist_uvs;
+  rd_stats_uv->skip_txfm = intra_search_state->skip_uvs;
+  rd_stats->skip_txfm = rd_stats_y->skip_txfm && rd_stats_uv->skip_txfm;
+  mbmi->uv_mode = intra_search_state->mode_uv;
+  if (try_palette) {
+    pmi->palette_size[1] = intra_search_state->pmi_uv.palette_size[1];
+    memcpy(pmi->palette_colors + PALETTE_MAX_SIZE,
+           intra_search_state->pmi_uv.palette_colors + PALETTE_MAX_SIZE,
+           2 * PALETTE_MAX_SIZE * sizeof(pmi->palette_colors[0]));
+  }
+  mbmi->angle_delta[PLANE_TYPE_UV] = intra_search_state->uv_angle_delta;
+
+  return 1;
+}
+
 int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
                               const AV1_COMP *cpi, MACROBLOCK *x,
                               BLOCK_SIZE bsize, unsigned int ref_frame_cost,
@@ -877,48 +1010,13 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
     return INT64_MAX;
   }
 
-  const int is_directional_mode = av1_is_directional_mode(mode);
-  if (is_directional_mode && av1_use_angle_delta(bsize) &&
-      cpi->oxcf.intra_mode_cfg.enable_angle_delta) {
-    if (sf->intra_sf.intra_pruning_with_hog &&
-        !intra_search_state->dir_mode_skip_mask_ready) {
-      prune_intra_mode_with_hog(x, bsize,
-                                cpi->sf.intra_sf.intra_pruning_with_hog_thresh,
-                                intra_search_state->directional_mode_skip_mask);
-      intra_search_state->dir_mode_skip_mask_ready = 1;
-    }
-    if (intra_search_state->directional_mode_skip_mask[mode]) return INT64_MAX;
-    av1_init_rd_stats(rd_stats_y);
-    rd_stats_y->rate = INT_MAX;
-    int64_t model_rd = INT64_MAX;
-    int rate_dummy;
-    rd_pick_intra_angle_sby(cpi, x, &rate_dummy, rd_stats_y, bsize, mode_cost,
-                            best_rd, &model_rd, 0);
+  const int intra_y_mode_valid =
+      handle_intra_y_mode(intra_search_state, cpi, x, bsize, ref_frame_cost,
+                          ctx, rd_stats_y, best_rd);
 
-  } else {
-    av1_init_rd_stats(rd_stats_y);
-    mbmi->angle_delta[PLANE_TYPE_Y] = 0;
-    av1_pick_uniform_tx_size_type_yrd(cpi, x, rd_stats_y, bsize, best_rd);
+  if (!intra_y_mode_valid) {
+    return INT64_MAX;
   }
-
-  // Pick filter intra modes.
-  if (mode == DC_PRED && av1_filter_intra_allowed_bsize(cm, bsize)) {
-    int try_filter_intra = 1;
-    int64_t best_rd_so_far = INT64_MAX;
-    if (rd_stats_y->rate != INT_MAX) {
-      const int tmp_rate = rd_stats_y->rate +
-                           mode_costs->filter_intra_cost[bsize][0] + mode_cost;
-      best_rd_so_far = RDCOST(x->rdmult, tmp_rate, rd_stats_y->dist);
-      try_filter_intra = (best_rd_so_far / 2) <= best_rd;
-    }
-
-    if (try_filter_intra) {
-      handle_filter_intra_mode(cpi, x, bsize, ctx, rd_stats_y, mode_cost,
-                               best_rd, best_rd_so_far);
-    }
-  }
-
-  if (rd_stats_y->rate == INT_MAX) return INT64_MAX;
 
   const int mode_cost_y =
       intra_mode_info_cost_y(cpi, x, mbmi, bsize, mode_cost);
@@ -926,59 +1024,12 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   av1_init_rd_stats(rd_stats_uv);
   const int num_planes = av1_num_planes(cm);
   if (num_planes > 1) {
-    // TODO(chiyotsai@google.com): Consolidate the chroma search code here with
-    // the one in av1_search_palette_mode.
-    PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
-    const int try_palette =
-        cpi->oxcf.tool_cfg.enable_palette &&
-        av1_allow_palette(cm->features.allow_screen_content_tools, mbmi->bsize);
-    if (intra_search_state->rate_uv_intra == INT_MAX) {
-      // If no good uv-predictor had been found, search for it.
-      const int rate_y = rd_stats_y->skip_txfm
-                             ? mode_costs->skip_txfm_cost[skip_ctx][1]
-                             : rd_stats_y->rate;
-      const int64_t rdy =
-          RDCOST(x->rdmult, rate_y + mode_cost_y, rd_stats_y->dist);
-      if (best_rd < (INT64_MAX / 2) && rdy > (best_rd + (best_rd >> 2))) {
-        intra_search_state->skip_intra_modes = 1;
-        return INT64_MAX;
-      }
-      const TX_SIZE uv_tx = av1_get_tx_size(AOM_PLANE_U, xd);
-      av1_rd_pick_intra_sbuv_mode(cpi, x, &intra_search_state->rate_uv_intra,
-                                  &intra_search_state->rate_uv_tokenonly,
-                                  &intra_search_state->dist_uvs,
-                                  &intra_search_state->skip_uvs, bsize, uv_tx);
-      intra_search_state->mode_uv = mbmi->uv_mode;
-      if (try_palette) intra_search_state->pmi_uv = *pmi;
-      intra_search_state->uv_angle_delta = mbmi->angle_delta[PLANE_TYPE_UV];
-
-      const int uv_rate = intra_search_state->rate_uv_tokenonly;
-      const int64_t uv_dist = intra_search_state->dist_uvs;
-      const int64_t uv_rd = RDCOST(x->rdmult, uv_rate, uv_dist);
-      if (uv_rd > best_rd) {
-        // If there is no good intra uv-mode available, we can skip all intra
-        // modes.
-        intra_search_state->skip_intra_modes = 1;
-        return INT64_MAX;
-      }
+    const int intra_uv_mode_valid =
+        handle_intra_uv_mode(intra_search_state, cpi, x, bsize, rd_stats,
+                             rd_stats_y, rd_stats_uv, best_rd, mode_cost_y);
+    if (!intra_uv_mode_valid) {
+      return INT64_MAX;
     }
-
-    // If we are here, then the encoder has found at least one good intra uv
-    // predictor, so we can directly copy its statistics over.
-    // TODO(any): the stats here is probably not right if the current best mode
-    // is cfl.
-    rd_stats_uv->rate = intra_search_state->rate_uv_tokenonly;
-    rd_stats_uv->dist = intra_search_state->dist_uvs;
-    rd_stats_uv->skip_txfm = intra_search_state->skip_uvs;
-    rd_stats->skip_txfm = rd_stats_y->skip_txfm && rd_stats_uv->skip_txfm;
-    mbmi->uv_mode = intra_search_state->mode_uv;
-    if (try_palette) {
-      pmi->palette_size[1] = intra_search_state->pmi_uv.palette_size[1];
-      memcpy(pmi->palette_colors + PALETTE_MAX_SIZE,
-             intra_search_state->pmi_uv.palette_colors + PALETTE_MAX_SIZE,
-             2 * PALETTE_MAX_SIZE * sizeof(pmi->palette_colors[0]));
-    }
-    mbmi->angle_delta[PLANE_TYPE_UV] = intra_search_state->uv_angle_delta;
   }
 
   rd_stats->rate = rd_stats_y->rate + mode_cost_y;
