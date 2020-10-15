@@ -2176,20 +2176,19 @@ static INLINE void set_baseline_gf_interval(AV1_COMP *cpi, int arf_position,
 
   if (cpi->oxcf.kf_cfg.fwd_kf_enabled && use_alt_ref && !is_last_kf &&
       cpi->rc.next_is_fwd_key) {
-    if (arf_position == rc->frames_to_key) {
+    if (arf_position == rc->frames_to_key + 1) {
       rc->baseline_gf_interval = arf_position;
       // if the last gf group will be smaller than MIN_FWD_KF_INTERVAL
-    } else if ((rc->frames_to_key - arf_position <
-                AOMMAX(MIN_FWD_KF_INTERVAL, rc->min_gf_interval)) &&
-               (rc->frames_to_key != arf_position)) {
+    } else if (rc->frames_to_key + 1 - arf_position <
+               AOMMAX(MIN_FWD_KF_INTERVAL, rc->min_gf_interval)) {
       // if possible, merge the last two gf groups
-      if (rc->frames_to_key <= active_max_gf_interval) {
-        rc->baseline_gf_interval = rc->frames_to_key;
+      if (rc->frames_to_key + 1 <= active_max_gf_interval) {
+        rc->baseline_gf_interval = rc->frames_to_key + 1;
         if (is_final_pass) rc->intervals_till_gf_calculate_due = 0;
         // if merging the last two gf groups creates a group that is too long,
         // split them and force the last gf group to be the MIN_FWD_KF_INTERVAL
       } else {
-        rc->baseline_gf_interval = rc->frames_to_key - MIN_FWD_KF_INTERVAL;
+        rc->baseline_gf_interval = rc->frames_to_key + 1 - MIN_FWD_KF_INTERVAL;
         if (is_final_pass) rc->intervals_till_gf_calculate_due = 0;
       }
     } else {
@@ -2474,15 +2473,6 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
             twopass, rc, frame_info, alt_offset, ext_len, 0,
             cpi->lap_enabled ? &rc->num_stats_used_for_gfu_boost : NULL,
             cpi->lap_enabled ? &rc->num_stats_required_for_gfu_boost : NULL));
-  }
-
-  // rc->gf_intervals assumes the usage of alt_ref, therefore adding one overlay
-  // frame to the next gf. If no alt_ref is used, should substract 1 frame from
-  // the next gf group.
-  // TODO(bohanli): should incorporate the usage of alt_ref into
-  // calculate_gf_length
-  if (is_final_pass && rc->intervals_till_gf_calculate_due > 0) {
-    rc->gf_intervals[rc->cur_gf_index]--;
   }
 
 #define LAST_ALR_BOOST_FACTOR 0.2f
@@ -2911,7 +2901,9 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   if (cpi->lap_enabled && !scenecut_detected)
     frames_to_key = num_frames_to_next_key;
 
-  if (kf_cfg->fwd_kf_enabled && scenecut_detected) rc->next_is_fwd_key = 0;
+  if (!kf_cfg->fwd_kf_enabled || scenecut_detected ||
+      twopass->stats_in >= twopass->stats_buf_ctx->stats_in_end)
+    rc->next_is_fwd_key = 0;
 
   return frames_to_key;
 }
@@ -3183,6 +3175,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     // Accumulate kf group error.
     kf_group_err +=
         calculate_modified_err(frame_info, twopass, oxcf, this_frame);
+    rc->next_is_fwd_key = 0;
   }
 
   // Calculate the number of bits that should be assigned to the kf group.
@@ -3444,8 +3437,6 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   const int update_type = gf_group->update_type[gf_group->index];
   frame_params->frame_type = gf_group->frame_type[gf_group->index];
 
-  if (rc->frames_since_key > 0) frame_params->frame_type = INTER_FRAME;
-
   if (gf_group->index < gf_group->size && !(frame_flags & FRAMEFLAGS_KEY)) {
     assert(gf_group->index < gf_group->size);
 
@@ -3480,11 +3471,21 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   // Keyframe and section processing.
   FIRSTPASS_STATS this_frame_copy;
   this_frame_copy = this_frame;
-  if (rc->frames_to_key <= 0) {
+  int is_overlay_forward_kf =
+      rc->frames_to_key == 0 &&
+      gf_group->update_type[gf_group->index] == OVERLAY_UPDATE;
+  if (rc->frames_to_key <= 0 && !is_overlay_forward_kf) {
     assert(rc->frames_to_key >= -1);
-    frame_params->frame_type = KEY_FRAME;
     // Define next KF group and assign bits to it.
+    int kf_offset = rc->frames_to_key;
+    if (rc->frames_to_key < 0) {
+      this_frame = *(twopass->stats_in - 1);
+    } else {
+      frame_params->frame_type = KEY_FRAME;
+    }
     find_next_key_frame(cpi, &this_frame);
+    rc->frames_since_key -= kf_offset;
+    rc->frames_to_key += kf_offset;
     this_frame = this_frame_copy;
   } else {
     const int altref_enabled = is_altref_enabled(oxcf->gf_cfg.lag_in_frames,
@@ -3546,7 +3547,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
             : MAX_GF_LENGTH_LAP;
 
     // Identify regions if needed.
-    if (rc->frames_since_key == 0 ||
+    if (rc->frames_since_key == 0 || rc->frames_since_key == 1 ||
         (rc->frames_till_regions_update - rc->frames_since_key <
              rc->frames_to_key &&
          rc->frames_till_regions_update - rc->frames_since_key <

@@ -1135,6 +1135,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
   cm->current_frame.frame_type = frame_params->frame_type;
   for (int gf_index = gf_group->index; gf_index < gf_group->size; ++gf_index) {
+    cm->current_frame.frame_type = gf_group->frame_type[gf_index];
     av1_configure_buffer_updates(cpi, &this_frame_params.refresh_frame,
                                  gf_group->update_type[gf_index],
                                  cm->current_frame.frame_type, 0);
@@ -1148,8 +1149,6 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
     gf_group->q_val[gf_index] =
         av1_rc_pick_q_and_bounds(cpi, &cpi->rc, cm->width, cm->height, gf_index,
                                  &bottom_index, &top_index);
-
-    cm->current_frame.frame_type = INTER_FRAME;
   }
 
   int pframe_qindex;
