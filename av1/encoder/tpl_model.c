@@ -1130,6 +1130,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
   if (cpi->superres_mode != AOM_SUPERRES_NONE) {
     assert(cpi->superres_mode != AOM_SUPERRES_AUTO);
+    av1_init_tpl_stats(tpl_data);
     return 0;
   }
 

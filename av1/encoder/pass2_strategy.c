@@ -3608,7 +3608,9 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
         // max_gop_length = 32 with look-ahead gf intervals.
         define_gf_group(cpi, &this_frame, frame_params, max_gop_length, 0);
         this_frame = this_frame_copy;
-        if (rc->frames_since_key > 0 && gf_group->arf_index > -1) {
+        int is_temporal_filter_enabled =
+            (rc->frames_since_key > 0 && gf_group->arf_index > -1);
+        if (is_temporal_filter_enabled) {
           int arf_src_index = gf_group->arf_src_offset[gf_group->arf_index];
           av1_temporal_filter(cpi, arf_src_index, NULL);
           aom_extend_frame_borders(&cpi->alt_ref_buffer,
@@ -3623,6 +3625,11 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
               (ori_gf_int - rc->gf_intervals[rc->cur_gf_index] < 4)) {
             rc->gf_intervals[rc->cur_gf_index] = ori_gf_int;
           }
+        } else {
+          // Tpl stats is reused only when the ARF frame is temporally filtered
+          if (is_temporal_filter_enabled &&
+              cpi->sf.tpl_sf.reuse_tpl_stats_from_gop_length_decision)
+            cpi->tpl_data.skip_tpl_setup_stats = 1;
         }
       }
     }

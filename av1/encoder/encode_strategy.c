@@ -953,8 +953,13 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     }
   }
 
-  if (gf_group->index == 0) av1_init_tpl_stats(&cpi->tpl_data);
-  if (allow_tpl) av1_tpl_setup_stats(cpi, 0, frame_params, frame_input);
+  if (allow_tpl == 0) {
+    // Avoid the use of unintended TPL stats from previous GOP's results.
+    if (gf_group->index == 0) av1_init_tpl_stats(&cpi->tpl_data);
+  } else {
+    if (!cpi->tpl_data.skip_tpl_setup_stats)
+      av1_tpl_setup_stats(cpi, 0, frame_params, frame_input);
+  }
 
   if (av1_encode(cpi, dest, frame_input, frame_params, frame_results) !=
       AOM_CODEC_OK) {
@@ -1113,6 +1118,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         AOMMIN(gf_cfg->gf_min_pyr_height, gf_cfg->gf_max_pyr_height);
   }
 
+  cpi->tpl_data.skip_tpl_setup_stats = 0;
 #if !CONFIG_REALTIME_ONLY
   const int use_one_pass_rt_params = has_no_stats_stage(cpi) &&
                                      oxcf->mode == REALTIME &&
