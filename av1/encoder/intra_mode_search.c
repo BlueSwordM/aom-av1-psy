@@ -861,6 +861,7 @@ static INLINE int handle_intra_y_mode(IntraModeSearchState *intra_search_state,
   const ModeCosts *mode_costs = &x->mode_costs;
   const int mode_cost =
       mode_costs->mbmode_cost[size_group_lookup[bsize]][mode] + ref_frame_cost;
+  const int skip_ctx = av1_get_skip_txfm_context(xd);
 
   const int is_directional_mode = av1_is_directional_mode(mode);
   if (is_directional_mode && av1_use_angle_delta(bsize) &&
@@ -905,6 +906,17 @@ static INLINE int handle_intra_y_mode(IntraModeSearchState *intra_search_state,
 
   if (rd_stats_y->rate == INT_MAX) return 0;
 
+  const int mode_cost_y =
+      intra_mode_info_cost_y(cpi, x, mbmi, bsize, mode_cost);
+  const int rate_y = rd_stats_y->skip_txfm
+                         ? mode_costs->skip_txfm_cost[skip_ctx][1]
+                         : rd_stats_y->rate;
+  const int64_t rdy = RDCOST(x->rdmult, rate_y + mode_cost_y, rd_stats_y->dist);
+  if (best_rd < (INT64_MAX / 2) && rdy > (best_rd + (best_rd >> 2))) {
+    intra_search_state->skip_intra_modes = 1;
+    return 0;
+  }
+
   return 1;
 }
 
@@ -912,14 +924,11 @@ static INLINE int handle_intra_uv_mode(IntraModeSearchState *intra_search_state,
                                        const AV1_COMP *cpi, MACROBLOCK *x,
                                        BLOCK_SIZE bsize, RD_STATS *rd_stats,
                                        const RD_STATS *rd_stats_y,
-                                       RD_STATS *rd_stats_uv, int64_t best_rd,
-                                       int mode_cost_y) {
+                                       RD_STATS *rd_stats_uv, int64_t best_rd) {
   const AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   assert(mbmi->ref_frame[0] == INTRA_FRAME);
-  const ModeCosts *mode_costs = &x->mode_costs;
-  const int skip_ctx = av1_get_skip_txfm_context(xd);
 
   // TODO(chiyotsai@google.com): Consolidate the chroma search code here with
   // the one in av1_search_palette_mode.
@@ -930,15 +939,6 @@ static INLINE int handle_intra_uv_mode(IntraModeSearchState *intra_search_state,
 
   if (intra_search_state->rate_uv_intra == INT_MAX) {
     // If no good uv-predictor had been found, search for it.
-    const int rate_y = rd_stats_y->skip_txfm
-                           ? mode_costs->skip_txfm_cost[skip_ctx][1]
-                           : rd_stats_y->rate;
-    const int64_t rdy =
-        RDCOST(x->rdmult, rate_y + mode_cost_y, rd_stats_y->dist);
-    if (best_rd < (INT64_MAX / 2) && rdy > (best_rd + (best_rd >> 2))) {
-      intra_search_state->skip_intra_modes = 1;
-      return 0;
-    }
     const TX_SIZE uv_tx = av1_get_tx_size(AOM_PLANE_U, xd);
     av1_rd_pick_intra_sbuv_mode(cpi, x, &intra_search_state->rate_uv_intra,
                                 &intra_search_state->rate_uv_tokenonly,
@@ -1010,6 +1010,8 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
     return INT64_MAX;
   }
 
+  const int mode_cost_y =
+      intra_mode_info_cost_y(cpi, x, mbmi, bsize, mode_cost);
   const int intra_y_mode_valid =
       handle_intra_y_mode(intra_search_state, cpi, x, bsize, ref_frame_cost,
                           ctx, rd_stats_y, best_rd);
@@ -1018,15 +1020,13 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
     return INT64_MAX;
   }
 
-  const int mode_cost_y =
-      intra_mode_info_cost_y(cpi, x, mbmi, bsize, mode_cost);
   av1_init_rd_stats(rd_stats);
   av1_init_rd_stats(rd_stats_uv);
   const int num_planes = av1_num_planes(cm);
   if (num_planes > 1) {
     const int intra_uv_mode_valid =
         handle_intra_uv_mode(intra_search_state, cpi, x, bsize, rd_stats,
-                             rd_stats_y, rd_stats_uv, best_rd, mode_cost_y);
+                             rd_stats_y, rd_stats_uv, best_rd);
     if (!intra_uv_mode_valid) {
       return INT64_MAX;
     }
