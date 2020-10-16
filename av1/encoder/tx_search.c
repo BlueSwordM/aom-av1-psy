@@ -3441,6 +3441,10 @@ static int64_t select_tx_size_and_type(const AV1_COMP *cpi, MACROBLOCK *x,
   assert(bsize < BLOCK_SIZES_ALL);
   const int fast_tx_search = txfm_params->tx_size_search_method > USE_FULL_RD;
   int64_t rd_thresh = ref_best_rd;
+  if (rd_thresh == 0) {
+    av1_invalid_rd_stats(rd_stats);
+    return INT64_MAX;
+  }
   if (fast_tx_search && rd_thresh < INT64_MAX) {
     if (INT64_MAX - rd_thresh > (rd_thresh >> 3)) rd_thresh += (rd_thresh >> 3);
   }
