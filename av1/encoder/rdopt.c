@@ -317,6 +317,11 @@ typedef struct InterModeSearchState {
   int64_t mode_threshold[MAX_MODES];
   int64_t best_intra_rd;
   unsigned int best_pred_sse;
+
+  /*!
+   * \brief Keep track of best intra rd for use in compound mode.
+   */
+  int64_t best_pred_rd[REFERENCE_MODES];
   int64_t best_pred_diff[REFERENCE_MODES];
   // Save a set of single_newmv for each checked ref_mv.
   int_mv single_newmv[MAX_REF_MV_SEARCH][REF_FRAMES];
@@ -3956,8 +3961,6 @@ static AOM_INLINE void init_intra_mode_search_state(
   av1_zero(intra_search_state->directional_mode_skip_mask);
   intra_search_state->rate_uv_intra = INT_MAX;
   av1_zero(intra_search_state->pmi_uv);
-  for (int i = 0; i < REFERENCE_MODES; ++i)
-    intra_search_state->best_pred_rd[i] = INT64_MAX;
 }
 
 static AOM_INLINE void init_inter_mode_search_state(
@@ -4042,6 +4045,10 @@ static AOM_INLINE void init_inter_mode_search_state(
   }
   av1_zero(search_state->single_state_cnt);
   av1_zero(search_state->single_state_modelled_cnt);
+
+  for (int i = 0; i < REFERENCE_MODES; ++i) {
+    search_state->best_pred_rd[i] = INT64_MAX;
+  }
 }
 
 static bool mask_says_skip(const mode_skip_mask_t *mode_skip_mask,
@@ -4881,20 +4888,14 @@ static void record_best_compound(REFERENCE_MODE reference_mode,
   hybrid_rd = RDCOST(rdmult, hybrid_rate, rd_stats->dist);
 
   if (!comp_pred) {
-    if (single_rd <
-        search_state->intra_search_state.best_pred_rd[SINGLE_REFERENCE])
-      search_state->intra_search_state.best_pred_rd[SINGLE_REFERENCE] =
-          single_rd;
+    if (single_rd < search_state->best_pred_rd[SINGLE_REFERENCE])
+      search_state->best_pred_rd[SINGLE_REFERENCE] = single_rd;
   } else {
-    if (single_rd <
-        search_state->intra_search_state.best_pred_rd[COMPOUND_REFERENCE])
-      search_state->intra_search_state.best_pred_rd[COMPOUND_REFERENCE] =
-          single_rd;
+    if (single_rd < search_state->best_pred_rd[COMPOUND_REFERENCE])
+      search_state->best_pred_rd[COMPOUND_REFERENCE] = single_rd;
   }
-  if (hybrid_rd <
-      search_state->intra_search_state.best_pred_rd[REFERENCE_MODE_SELECT])
-    search_state->intra_search_state.best_pred_rd[REFERENCE_MODE_SELECT] =
-        hybrid_rd;
+  if (hybrid_rd < search_state->best_pred_rd[REFERENCE_MODE_SELECT])
+    search_state->best_pred_rd[REFERENCE_MODE_SELECT] = hybrid_rd;
 }
 
 // Does a transform search over a list of the best inter mode candidates.
@@ -5452,7 +5453,8 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     intra_rd_stats.rdcost = av1_handle_intra_mode(
         &search_state.intra_search_state, cpi, x, bsize, intra_ref_frame_cost,
         ctx, &intra_rd_stats, &intra_rd_stats_y, &intra_rd_stats_uv,
-        search_state.best_rd, &search_state.best_intra_rd);
+        search_state.best_rd, &search_state.best_intra_rd,
+        search_state.best_pred_rd);
 
     // Collect mode stats for multiwinner mode processing
     const int txfm_search_done = 1;
@@ -5567,12 +5569,11 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   }
 
   for (i = 0; i < REFERENCE_MODES; ++i) {
-    if (search_state.intra_search_state.best_pred_rd[i] == INT64_MAX) {
+    if (search_state.best_pred_rd[i] == INT64_MAX) {
       search_state.best_pred_diff[i] = INT_MIN;
     } else {
       search_state.best_pred_diff[i] =
-          search_state.best_rd -
-          search_state.intra_search_state.best_pred_rd[i];
+          search_state.best_rd - search_state.best_pred_rd[i];
     }
   }
 

@@ -851,7 +851,8 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
                               BLOCK_SIZE bsize, unsigned int ref_frame_cost,
                               const PICK_MODE_CONTEXT *ctx, RD_STATS *rd_stats,
                               RD_STATS *rd_stats_y, RD_STATS *rd_stats_uv,
-                              int64_t best_rd, int64_t *best_intra_rd) {
+                              int64_t best_rd, int64_t *best_intra_rd,
+                              int64_t *best_pred_rd) {
   const AV1_COMMON *cm = &cpi->common;
   const SPEED_FEATURES *const sf = &cpi->sf;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -1018,8 +1019,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   }
 
   for (int i = 0; i < REFERENCE_MODES; ++i) {
-    intra_search_state->best_pred_rd[i] =
-        AOMMIN(intra_search_state->best_pred_rd[i], this_rd);
+    best_pred_rd[i] = AOMMIN(best_pred_rd[i], this_rd);
   }
 
   return this_rd;

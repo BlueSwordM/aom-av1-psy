@@ -66,11 +66,6 @@ typedef struct IntraModeSearchState {
   PALETTE_MODE_INFO pmi_uv;   /*!< \brief Color map if mode_uv is palette */
   int8_t uv_angle_delta;      /*!< \brief Angle delta if mode_uv directional */
   /**@}*/
-
-  /*!
-   * \brief Keep track of best intra rd for use in compound mode.
-   */
-  int64_t best_pred_rd[REFERENCE_MODES];
 } IntraModeSearchState;
 
 /*!\brief Evaluate a given intra-mode for inter frames.
@@ -89,24 +84,23 @@ typedef struct IntraModeSearchState {
  * support palette mode prediction in the luma channel, but it does search for
  * palette mode in the chroma channel.
  *
- * \param[in]    intra_search_state Structure to hold the best luma intra mode
- *                                  and cache chroma prediction for speed up.
- * \param[in]    cpi                Top-level encoder structure.
- * \param[in]    x                  Pointer to structure holding all the data
- *                                  for the current macroblock.
- * \param[in]    bsize              Current partition block size.
- * \param[in]    ref_frame_cost     The entropy cost for signaling that the
- *                                  current ref frame is an intra frame.
- * \param[in]    ctx                Structure to hold the number of 4x4 blks to
- *                                  copy the tx_type and txfm_skip arrays.
- * \param[in]    rd_stats           Struct to keep track of the current
+ * \param[in,out]    intra_search_state Structure to hold the best luma intra
+ * mode and cache chroma prediction for speed up. \param[in]    cpi Top-level
+ * encoder structure. \param[in,out]    x                  Pointer to structure
+ * holding all the data for the current macroblock. \param[in]    bsize Current
+ * partition block size. \param[in]    ref_frame_cost     The entropy cost for
+ * signaling that the current ref frame is an intra frame. \param[in]    ctx
+ * Structure to hold the number of 4x4 blks to copy the tx_type and txfm_skip
+ * arrays. \param[out]    rd_stats           Struct to keep track of the current
  *                                  intra-mode's rd_stats.
- * \param[in]    rd_stats_y         Struct to keep track of the current
+ * \param[out]    rd_stats_y         Struct to keep track of the current
  *                                  intra-mode's rd_stats (luma only).
- * \param[in]    rd_stats_uv        Struct to keep track of the current
+ * \param[out]    rd_stats_uv        Struct to keep track of the current
  *                                  intra-mode's rd_stats (chroma only).
  * \param[in]    best_rd            Best RD seen for this block so far.
- * \param[in]    best_intra_rd      Best intra RD seen for this block so far.
+ * \param[in,out]    best_intra_rd      Best intra RD seen for this block so
+ * far. \param[out]    best_pred_rd      Array of best pred rd for
+ * single/compound refs.
  *
  * \return Returns the rdcost of the current intra-mode if it's available,
  * otherwise returns INT64_MAX. The corresponding values in x->e_mbd.mi[0],
@@ -121,7 +115,8 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
                               BLOCK_SIZE bsize, unsigned int ref_frame_cost,
                               const PICK_MODE_CONTEXT *ctx, RD_STATS *rd_stats,
                               RD_STATS *rd_stats_y, RD_STATS *rd_stats_uv,
-                              int64_t best_rd, int64_t *best_intra_rd);
+                              int64_t best_rd, int64_t *best_intra_rd,
+                              int64_t *best_pred_rd);
 
 /*!\brief Evaluate luma palette mode for inter frames.
  *
