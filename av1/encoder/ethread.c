@@ -312,12 +312,19 @@ static AOM_INLINE void switch_tile_and_get_next_job(
       TileDataEnc *const this_tile = &tile_data[tile_index];
       AV1EncRowMultiThreadSync *const row_mt_sync = &this_tile->row_mt_sync;
 
+#if CONFIG_REALTIME_ONLY
+      int num_b_rows_in_tile =
+          av1_get_sb_rows_in_tile(cm, this_tile->tile_info);
+      int num_b_cols_in_tile =
+          av1_get_sb_cols_in_tile(cm, this_tile->tile_info);
+#else
       int num_b_rows_in_tile =
           is_firstpass ? av1_get_mb_rows_in_tile(this_tile->tile_info)
                        : av1_get_sb_rows_in_tile(cm, this_tile->tile_info);
       int num_b_cols_in_tile =
           is_firstpass ? av1_get_mb_cols_in_tile(this_tile->tile_info)
                        : av1_get_sb_cols_in_tile(cm, this_tile->tile_info);
+#endif
       int theoretical_limit_on_threads =
           AOMMIN((num_b_cols_in_tile + 1) >> 1, num_b_rows_in_tile);
       int num_threads_working = row_mt_sync->num_threads_working;
