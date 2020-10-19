@@ -1904,13 +1904,11 @@ typedef struct {
 } MV_STATS;
 
 typedef struct {
-#if CONFIG_SUPERRES_IN_RECODE
   struct loopfilter lf;
   CdefInfo cdef_info;
   YV12_BUFFER_CONFIG copy_buffer;
   RATE_CONTROL rc;
   MV_STATS mv_stats;
-#endif  // CONFIG_SUPERRES_IN_RECODE
 } CODING_CONTEXT;
 
 typedef struct {

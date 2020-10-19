@@ -1235,7 +1235,6 @@ void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi) {
   }
 }
 
-#if CONFIG_SUPERRES_IN_RECODE
 static void save_cur_buf(AV1_COMP *cpi) {
   CODING_CONTEXT *const cc = &cpi->coding_context;
   AV1_COMMON *cm = &cpi->common;
@@ -1272,7 +1271,6 @@ void av1_save_all_coding_context(AV1_COMP *cpi) {
   save_extra_coding_context(cpi);
   if (!frame_is_intra_only(&cpi->common)) release_scaled_references(cpi);
 }
-#endif  // CONFIG_SUPERRES_IN_RECODE
 
 #if DUMP_RECON_FRAMES == 1
 

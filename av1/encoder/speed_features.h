@@ -283,6 +283,12 @@ enum {
   QTR_ONLY,
 } UENUM1BYTE(MV_PREC_LOGIC);
 
+enum {
+  SUPERRES_AUTO_ALL,   // Tries all possible superres ratios
+  SUPERRES_AUTO_DUAL,  // Tries no superres and q-based superres ratios
+  SUPERRES_AUTO_SOLO,  // Only apply the q-based superres ratio
+} UENUM1BYTE(SUPERRES_AUTO_SEARCH_TYPE);
+
 /*!\endcond */
 /*!
  * \brief Sequence/frame level speed vs quality features
@@ -317,6 +323,11 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
   // backgrounds very to cheap to encode, and the segmentation we have
   // adds overhead.
   int static_segmentation;
+
+  /*!
+   * Superres-auto mode search type:
+   */
+  SUPERRES_AUTO_SEARCH_TYPE superres_auto_search_type;
   /*!\endcond */
 } HIGH_LEVEL_SPEED_FEATURES;
 

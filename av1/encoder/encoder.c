@@ -2347,7 +2347,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
   av1_setup_frame_size(cpi);
 
-#if CONFIG_SUPERRES_IN_RECODE
   if (av1_superres_in_recode_allowed(cpi) &&
       cpi->superres_mode != AOM_SUPERRES_NONE &&
       cm->superres_scale_denominator == SCALE_NUMERATOR) {
@@ -2356,7 +2355,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     // recode loop for full-resolution after this anyway.
     return -1;
   }
-#endif  // CONFIG_SUPERRES_IN_RECODE
 
   int top_index = 0, bottom_index = 0;
   int q = 0, q_low = 0, q_high = 0;
@@ -2695,8 +2693,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   return AOM_CODEC_OK;
 }
 
-#if CONFIG_SUPERRES_IN_RECODE
-
 static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
                                             uint8_t *dest,
                                             int *largest_tile_id) {
@@ -2706,133 +2702,152 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
   aom_codec_err_t err = AOM_CODEC_OK;
   av1_save_all_coding_context(cpi);
 
-  // Encode with superres.
-#if SUPERRES_RECODE_ALL_RATIOS
-  SuperResCfg *const superres_cfg = &cpi->oxcf.superres_cfg;
-  int64_t superres_sses[SCALE_NUMERATOR];
-  int64_t superres_rates[SCALE_NUMERATOR];
-  int superres_largest_tile_ids[SCALE_NUMERATOR];
-  // Use superres for Key-frames and Alt-ref frames only.
-  const GF_GROUP *const gf_group = &cpi->gf_group;
-  if (gf_group->update_type[gf_group->index] != OVERLAY_UPDATE &&
-      gf_group->update_type[gf_group->index] != INTNL_OVERLAY_UPDATE) {
-    for (int denom = SCALE_NUMERATOR + 1; denom <= 2 * SCALE_NUMERATOR;
-         ++denom) {
-      superres_cfg->superres_scale_denominator = denom;
-      superres_cfg->superres_kf_scale_denominator = denom;
-      const int this_index = denom - (SCALE_NUMERATOR + 1);
-
-      cpi->superres_mode = AOM_SUPERRES_AUTO;  // Super-res on for this loop.
-      err = encode_with_recode_loop_and_filter(
-          cpi, size, dest, &superres_sses[this_index],
-          &superres_rates[this_index], &superres_largest_tile_ids[this_index]);
-      cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
-      if (err != AOM_CODEC_OK) return err;
-      restore_all_coding_context(cpi);
-    }
-    // Reset.
-    superres_cfg->superres_scale_denominator = SCALE_NUMERATOR;
-    superres_cfg->superres_kf_scale_denominator = SCALE_NUMERATOR;
-  } else {
-    for (int denom = SCALE_NUMERATOR + 1; denom <= 2 * SCALE_NUMERATOR;
-         ++denom) {
-      const int this_index = denom - (SCALE_NUMERATOR + 1);
-      superres_sses[this_index] = INT64_MAX;
-      superres_rates[this_index] = INT64_MAX;
-    }
-  }
-#else
-  int64_t sse1 = INT64_MAX;
-  int64_t rate1 = INT64_MAX;
-  int largest_tile_id1;
-  cpi->superres_mode = AOM_SUPERRES_AUTO;  // Super-res on for this recode loop.
-  err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse1, &rate1,
-                                           &largest_tile_id1);
-  cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
-  if (err != AOM_CODEC_OK) return err;
-  restore_all_coding_context(cpi);
-#endif  // SUPERRES_RECODE_ALL_RATIOS
-
-  // Encode without superres.
-  int64_t sse2 = INT64_MAX;
-  int64_t rate2 = INT64_MAX;
-  int largest_tile_id2;
-  assert(cpi->superres_mode == AOM_SUPERRES_NONE);
-  err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse2, &rate2,
-                                           &largest_tile_id2);
-  if (err != AOM_CODEC_OK) return err;
-
-  // Note: Both use common rdmult based on base qindex of fullres.
-  const int64_t rdmult =
-      av1_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
-
-#if SUPERRES_RECODE_ALL_RATIOS
-  // Find the best rdcost among all superres denoms.
-  double proj_rdcost1 = DBL_MAX;
   int64_t sse1 = INT64_MAX;
   int64_t rate1 = INT64_MAX;
   int largest_tile_id1 = 0;
-  (void)sse1;
-  (void)rate1;
-  (void)largest_tile_id1;
-  int best_denom = -1;
-  for (int denom = SCALE_NUMERATOR + 1; denom <= 2 * SCALE_NUMERATOR; ++denom) {
-    const int this_index = denom - (SCALE_NUMERATOR + 1);
-    const int64_t this_sse = superres_sses[this_index];
-    const int64_t this_rate = superres_rates[this_index];
-    const int this_largest_tile_id = superres_largest_tile_ids[this_index];
-    const double this_rdcost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-        rdmult, this_rate, this_sse, cm->seq_params.bit_depth);
-    if (this_rdcost < proj_rdcost1) {
-      sse1 = this_sse;
-      rate1 = this_rate;
-      largest_tile_id1 = this_largest_tile_id;
-      proj_rdcost1 = this_rdcost;
-      best_denom = denom;
-    }
-  }
-#else
-  const double proj_rdcost1 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      rdmult, rate1, sse1, cm->seq_params.bit_depth);
-#endif  // SUPERRES_RECODE_ALL_RATIOS
-  const double proj_rdcost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      rdmult, rate2, sse2, cm->seq_params.bit_depth);
+  int64_t sse2 = INT64_MAX;
+  int64_t rate2 = INT64_MAX;
+  int largest_tile_id2;
+  double proj_rdcost1 = DBL_MAX;
 
-  // Re-encode with superres if it's better.
-  if (proj_rdcost1 < proj_rdcost2) {
-    restore_all_coding_context(cpi);
-    // TODO(urvang): We should avoid rerunning the recode loop by saving
-    // previous output+state, or running encode only for the selected 'q' in
-    // previous step.
-#if SUPERRES_RECODE_ALL_RATIOS
-    // Again, temporarily force the best denom.
-    superres_cfg->superres_scale_denominator = best_denom;
-    superres_cfg->superres_kf_scale_denominator = best_denom;
-#endif  // SUPERRES_RECODE_ALL_RATIOS
-    int64_t sse3 = INT64_MAX;
-    int64_t rate3 = INT64_MAX;
+  // Encode with superres.
+  if (cpi->sf.hl_sf.superres_auto_search_type == SUPERRES_AUTO_ALL) {
+    SuperResCfg *const superres_cfg = &cpi->oxcf.superres_cfg;
+    int64_t superres_sses[SCALE_NUMERATOR];
+    int64_t superres_rates[SCALE_NUMERATOR];
+    int superres_largest_tile_ids[SCALE_NUMERATOR];
+    // Use superres for Key-frames and Alt-ref frames only.
+    const GF_GROUP *const gf_group = &cpi->gf_group;
+    if (gf_group->update_type[gf_group->index] != OVERLAY_UPDATE &&
+        gf_group->update_type[gf_group->index] != INTNL_OVERLAY_UPDATE) {
+      for (int denom = SCALE_NUMERATOR + 1; denom <= 2 * SCALE_NUMERATOR;
+           ++denom) {
+        superres_cfg->superres_scale_denominator = denom;
+        superres_cfg->superres_kf_scale_denominator = denom;
+        const int this_index = denom - (SCALE_NUMERATOR + 1);
+
+        cpi->superres_mode = AOM_SUPERRES_AUTO;  // Super-res on for this loop.
+        err = encode_with_recode_loop_and_filter(
+            cpi, size, dest, &superres_sses[this_index],
+            &superres_rates[this_index],
+            &superres_largest_tile_ids[this_index]);
+        cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
+        if (err != AOM_CODEC_OK) return err;
+        restore_all_coding_context(cpi);
+      }
+      // Reset.
+      superres_cfg->superres_scale_denominator = SCALE_NUMERATOR;
+      superres_cfg->superres_kf_scale_denominator = SCALE_NUMERATOR;
+    } else {
+      for (int denom = SCALE_NUMERATOR + 1; denom <= 2 * SCALE_NUMERATOR;
+           ++denom) {
+        const int this_index = denom - (SCALE_NUMERATOR + 1);
+        superres_sses[this_index] = INT64_MAX;
+        superres_rates[this_index] = INT64_MAX;
+      }
+    }
+    // Encode without superres.
+    assert(cpi->superres_mode == AOM_SUPERRES_NONE);
+    err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse2, &rate2,
+                                             &largest_tile_id2);
+    if (err != AOM_CODEC_OK) return err;
+
+    // Note: Both use common rdmult based on base qindex of fullres.
+    const int64_t rdmult =
+        av1_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
+
+    // Find the best rdcost among all superres denoms.
+    int best_denom = -1;
+    for (int denom = SCALE_NUMERATOR + 1; denom <= 2 * SCALE_NUMERATOR;
+         ++denom) {
+      const int this_index = denom - (SCALE_NUMERATOR + 1);
+      const int64_t this_sse = superres_sses[this_index];
+      const int64_t this_rate = superres_rates[this_index];
+      const int this_largest_tile_id = superres_largest_tile_ids[this_index];
+      const double this_rdcost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+          rdmult, this_rate, this_sse, cm->seq_params.bit_depth);
+      if (this_rdcost < proj_rdcost1) {
+        sse1 = this_sse;
+        rate1 = this_rate;
+        largest_tile_id1 = this_largest_tile_id;
+        proj_rdcost1 = this_rdcost;
+        best_denom = denom;
+      }
+    }
+    const double proj_rdcost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+        rdmult, rate2, sse2, cm->seq_params.bit_depth);
+    // Re-encode with superres if it's better.
+    if (proj_rdcost1 < proj_rdcost2) {
+      restore_all_coding_context(cpi);
+      // TODO(urvang): We should avoid rerunning the recode loop by saving
+      // previous output+state, or running encode only for the selected 'q' in
+      // previous step.
+      // Again, temporarily force the best denom.
+      superres_cfg->superres_scale_denominator = best_denom;
+      superres_cfg->superres_kf_scale_denominator = best_denom;
+      int64_t sse3 = INT64_MAX;
+      int64_t rate3 = INT64_MAX;
+      cpi->superres_mode =
+          AOM_SUPERRES_AUTO;  // Super-res on for this recode loop.
+      err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse3, &rate3,
+                                               largest_tile_id);
+      cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
+      assert(sse1 == sse3);
+      assert(rate1 == rate3);
+      assert(largest_tile_id1 == *largest_tile_id);
+      // Reset.
+      superres_cfg->superres_scale_denominator = SCALE_NUMERATOR;
+      superres_cfg->superres_kf_scale_denominator = SCALE_NUMERATOR;
+    } else {
+      *largest_tile_id = largest_tile_id2;
+    }
+  } else {
+    assert(cpi->sf.hl_sf.superres_auto_search_type == SUPERRES_AUTO_DUAL);
     cpi->superres_mode =
         AOM_SUPERRES_AUTO;  // Super-res on for this recode loop.
-    err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse3, &rate3,
-                                             largest_tile_id);
+    err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse1, &rate1,
+                                             &largest_tile_id1);
     cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
-    assert(sse1 == sse3);
-    assert(rate1 == rate3);
-    assert(largest_tile_id1 == *largest_tile_id);
-#if SUPERRES_RECODE_ALL_RATIOS
-    // Reset.
-    superres_cfg->superres_scale_denominator = SCALE_NUMERATOR;
-    superres_cfg->superres_kf_scale_denominator = SCALE_NUMERATOR;
-#endif  // SUPERRES_RECODE_ALL_RATIOS
-  } else {
-    *largest_tile_id = largest_tile_id2;
+    if (err != AOM_CODEC_OK) return err;
+    restore_all_coding_context(cpi);
+    // Encode without superres.
+    assert(cpi->superres_mode == AOM_SUPERRES_NONE);
+    err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse2, &rate2,
+                                             &largest_tile_id2);
+    if (err != AOM_CODEC_OK) return err;
+
+    // Note: Both use common rdmult based on base qindex of fullres.
+    const int64_t rdmult =
+        av1_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
+    proj_rdcost1 = RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult, rate1, sse1,
+                                                  cm->seq_params.bit_depth);
+    const double proj_rdcost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+        rdmult, rate2, sse2, cm->seq_params.bit_depth);
+    // Re-encode with superres if it's better.
+    if (proj_rdcost1 < proj_rdcost2) {
+      restore_all_coding_context(cpi);
+      // TODO(urvang): We should avoid rerunning the recode loop by saving
+      // previous output+state, or running encode only for the selected 'q' in
+      // previous step.
+      int64_t sse3 = INT64_MAX;
+      int64_t rate3 = INT64_MAX;
+      cpi->superres_mode =
+          AOM_SUPERRES_AUTO;  // Super-res on for this recode loop.
+      err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse3, &rate3,
+                                               largest_tile_id);
+      cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
+      assert(sse1 == sse3);
+      assert(rate1 == rate3);
+      assert(largest_tile_id1 == *largest_tile_id);
+    } else {
+      *largest_tile_id = largest_tile_id2;
+    }
   }
 
   release_copy_buffer(&cpi->coding_context);
 
   return err;
 }
-#endif  // CONFIG_SUPERRES_IN_RECODE
 
 extern void av1_print_frame_contexts(const FRAME_CONTEXT *fc,
                                      const char *filename);
@@ -3059,14 +3074,12 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   seq_params->timing_info_present &= !seq_params->reduced_still_picture_hdr;
 
   int largest_tile_id = 0;
-#if CONFIG_SUPERRES_IN_RECODE
   if (av1_superres_in_recode_allowed(cpi)) {
     if (encode_with_and_without_superres(cpi, size, dest, &largest_tile_id) !=
         AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;
     }
   } else {
-#endif  // CONFIG_SUPERRES_IN_RECODE
     const aom_superres_mode orig_superres_mode = cpi->superres_mode;  // save
     cpi->superres_mode = cpi->oxcf.superres_cfg.superres_mode;
     if (encode_with_recode_loop_and_filter(cpi, size, dest, NULL, NULL,
@@ -3074,9 +3087,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       return AOM_CODEC_ERROR;
     }
     cpi->superres_mode = orig_superres_mode;  // restore
-#if CONFIG_SUPERRES_IN_RECODE
   }
-#endif  // CONFIG_SUPERRES_IN_RECODE
 
   cpi->seq_params_locked = 1;
 

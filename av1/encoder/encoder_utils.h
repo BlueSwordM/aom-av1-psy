@@ -913,13 +913,11 @@ static AOM_INLINE void release_scaled_references(AV1_COMP *cpi) {
   }
 }
 
-#if CONFIG_SUPERRES_IN_RECODE
 static AOM_INLINE void restore_all_coding_context(AV1_COMP *cpi) {
   restore_cur_buf(cpi);
   restore_extra_coding_context(cpi);
   if (!frame_is_intra_only(&cpi->common)) release_scaled_references(cpi);
 }
-#endif  // CONFIG_SUPERRES_IN_RECODE
 
 // Refresh reference frame buffers according to refresh_frame_flags.
 static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
@@ -966,9 +964,7 @@ int av1_is_integer_mv(const YV12_BUFFER_CONFIG *cur_picture,
 
 void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi);
 
-#if CONFIG_SUPERRES_IN_RECODE
 void av1_save_all_coding_context(AV1_COMP *cpi);
-#endif
 
 #if DUMP_RECON_FRAMES == 1
 void av1_dump_filtered_recon_frames(AV1_COMP *cpi);

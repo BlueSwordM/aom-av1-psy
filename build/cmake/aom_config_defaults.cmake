@@ -134,9 +134,6 @@ set_aom_config_var(CONFIG_AV1_HIGHBITDEPTH 1
 set_aom_config_var(CONFIG_AV1_TEMPORAL_DENOISING 0
                    "Build with temporal denoising support.")
 set_aom_config_var(CONFIG_NN_V2 0 "Fully-connected neural nets ver.2.")
-set_aom_config_var(CONFIG_SUPERRES_IN_RECODE 1
-                   "Enable encoding both full-res and superres in recode loop"
-                   "when AOM_SUPERRES_AUTO mode is used.")
 set_aom_config_var(CONFIG_OPTICAL_FLOW_API 0
                    "AV1 experiment flag for optical flow API.")
 #
