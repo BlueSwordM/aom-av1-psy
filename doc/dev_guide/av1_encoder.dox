@@ -79,8 +79,8 @@ things like :-
 
 For a more detailed overview of AV1's encoding tools and a discussion of some
 of the design considerations and hardware constraints that had to be
-accommodated, please refer to (TODO REF) <b>A Technical Overview of the AV1
-Standard</b> (TODO add link to Jingning's AV1 overview paper).
+accommodated, please refer to <a href="https://arxiv.org/abs/2008.06091">
+A Technical Overview of AV1</a>.
 
 Figure 3 provides a slightly expanded but still simplistic view of the
 AV1 encoder architecture with blocks that relate to some of the subsequent
@@ -1177,17 +1177,15 @@ the quality of the reconstructed video.
   allows the codec to apply a non-linear deringing filter along certain
   (potentially oblique) directions. A primary filter is applied along the
   selected direction, whilst a secondary filter is applied at 45 degrees to
-  the primary direction. (See also \ref in_loop_cdef and (TODO REF)
-  <b>A Technical Overview of the AV1 Standard</b> (TODO add link to
-  Jingning's AV1 overview paper).
+  the primary direction. (See also \ref in_loop_cdef and
+  <a href="https://arxiv.org/abs/2008.06091"> A Technical Overview of AV1</a>.
 
 - <b>Loop Restoration Filter</b> The loop restoration filter is applied after
   any prior post filtering stages. It acts on units of either 64 x 64,
   128 x 128, or 256 x 256 pixel blocks, refered to as loop restoration units.
   Each unit can independently select either to bypass filtering, use a Wiener
   filter, or use a self-guided filter. (See also \ref in_loop_restoration and
-  (TODO REF) <b>A Technical Overview of the AV1 Standard</b> (TODO add link
-  to Jingning's AV1 overview paper).
+  <a href="https://arxiv.org/abs/2008.06091"> A Technical Overview of AV1</a>.
 
 \section architecture_entropy Entropy Coding
 
@@ -1213,8 +1211,8 @@ To improve the performance / throughput of the arithmetic encoder, especially
 in hardware implementations, the probability model is updated and maintained
 at 15-bit precision, but the arithmetic encoder only uses the most significant
 9 bits when encoding a symbol. A more detailed discussion of the algorithm
-and design constraints can be found in (TODO REF) <b>A Technical Overview of
-the AV1 Standard</b> (TODO add link to Jingning's AV1 overview paper).
+and design constraints can be found in
+<a href="https://arxiv.org/abs/2008.06091"> A Technical Overview of AV1</a>.
 
 TODO add references to key functions / files.
 
