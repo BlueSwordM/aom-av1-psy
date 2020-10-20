@@ -2721,9 +2721,12 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
       superres_cfg->superres_scale_denominator = denom;
       superres_cfg->superres_kf_scale_denominator = denom;
       const int this_index = denom - (SCALE_NUMERATOR + 1);
+
+      cpi->superres_mode = AOM_SUPERRES_AUTO;  // Super-res on for this loop.
       err = encode_with_recode_loop_and_filter(
           cpi, size, dest, &superres_sses[this_index],
           &superres_rates[this_index], &superres_largest_tile_ids[this_index]);
+      cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
       if (err != AOM_CODEC_OK) return err;
       restore_all_coding_context(cpi);
     }
@@ -3064,11 +3067,13 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     }
   } else {
 #endif  // CONFIG_SUPERRES_IN_RECODE
+    const aom_superres_mode orig_superres_mode = cpi->superres_mode;  // save
     cpi->superres_mode = cpi->oxcf.superres_cfg.superres_mode;
     if (encode_with_recode_loop_and_filter(cpi, size, dest, NULL, NULL,
                                            &largest_tile_id) != AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;
     }
+    cpi->superres_mode = orig_superres_mode;  // restore
 #if CONFIG_SUPERRES_IN_RECODE
   }
 #endif  // CONFIG_SUPERRES_IN_RECODE
