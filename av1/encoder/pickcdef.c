@@ -20,6 +20,7 @@
 #include "av1/common/av1_common_int.h"
 #include "av1/common/reconinter.h"
 #include "av1/encoder/encoder.h"
+#include "av1/encoder/ethread.h"
 #include "av1/encoder/pickcdef.h"
 
 // Get primary and secondary filter strength for the given strength index and
@@ -289,11 +290,10 @@ static uint64_t compute_cdef_dist(void *dst, int dstride, uint16_t *src,
 //   fbc: Column index in units of 64x64 block
 // Returns:
 //   Nothing will be returned. Contents of cdef_search_ctx will be modified.
-static void cdef_mse_calc_block(CdefSearchCtx *cdef_search_ctx, int fbr,
-                                int fbc) {
-  const CommonModeInfoParams *const mi_params = &cdef_search_ctx->cm->mi_params;
+void av1_cdef_mse_calc_block(CdefSearchCtx *cdef_search_ctx, int fbr, int fbc,
+                             int sb_count) {
+  const CommonModeInfoParams *const mi_params = cdef_search_ctx->mi_params;
   const YV12_BUFFER_CONFIG *ref = cdef_search_ctx->ref;
-  const int sb_count = cdef_search_ctx->sb_count;
   const int coeff_shift = cdef_search_ctx->coeff_shift;
   const int *mi_wide_l2 = cdef_search_ctx->mi_wide_l2;
   const int *mi_high_l2 = cdef_search_ctx->mi_high_l2;
@@ -387,14 +387,14 @@ static void cdef_mse_calc_block(CdefSearchCtx *cdef_search_ctx, int fbr,
 // Returns:
 //   Nothing will be returned. Contents of cdef_search_ctx will be modified.
 static void cdef_mse_calc_frame(CdefSearchCtx *cdef_search_ctx) {
-  const CommonModeInfoParams *const mi_params = &cdef_search_ctx->cm->mi_params;
   // Loop over each sb.
   for (int fbr = 0; fbr < cdef_search_ctx->nvfb; ++fbr) {
     for (int fbc = 0; fbc < cdef_search_ctx->nhfb; ++fbc) {
       // Checks if cdef processing can be skipped for particular sb.
-      if (cdef_sb_skip(mi_params, fbr, fbc)) continue;
+      if (cdef_sb_skip(cdef_search_ctx->mi_params, fbr, fbc)) continue;
       // Calculate mse for each sb and store the relevant sb index.
-      cdef_mse_calc_block(cdef_search_ctx, fbr, fbc);
+      av1_cdef_mse_calc_block(cdef_search_ctx, fbr, fbc,
+                              cdef_search_ctx->sb_count);
       cdef_search_ctx->sb_count++;
     }
   }
@@ -448,7 +448,7 @@ static AOM_INLINE void cdef_params_init(const YV12_BUFFER_CONFIG *frame,
                                         CDEF_PICK_METHOD pick_method) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int num_planes = av1_num_planes(cm);
-  cdef_search_ctx->cm = cm;
+  cdef_search_ctx->mi_params = &cm->mi_params;
   cdef_search_ctx->ref = ref;
   cdef_search_ctx->nvfb =
       (mi_params->mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
@@ -549,7 +549,7 @@ static void pick_cdef_from_qp(AV1_COMMON *const cm) {
   }
 }
 
-void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
+void av1_cdef_search(MultiThreadInfo *mt_info, const YV12_BUFFER_CONFIG *frame,
                      const YV12_BUFFER_CONFIG *ref, AV1_COMMON *cm,
                      MACROBLOCKD *xd, CDEF_PICK_METHOD pick_method,
                      int rdmult) {
@@ -568,7 +568,11 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
   // Allocate CDEF search context buffers.
   cdef_alloc_data(&cdef_search_ctx);
   // Frame level mse calculation.
-  cdef_mse_calc_frame(&cdef_search_ctx);
+  if (mt_info->num_workers > 1) {
+    av1_cdef_mse_calc_frame_mt(cm, mt_info, &cdef_search_ctx);
+  } else {
+    cdef_mse_calc_frame(&cdef_search_ctx);
+  }
 
   /* Search for different number of signaling bits. */
   int nb_strength_bits = 0;

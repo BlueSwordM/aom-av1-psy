@@ -19,6 +19,8 @@ extern "C" {
 #endif
 
 /*!\cond */
+struct MultiThreadInfo;
+
 #define REDUCED_PRI_STRENGTHS_LVL1 8
 #define REDUCED_PRI_STRENGTHS_LVL2 5
 #define REDUCED_SEC_STRENGTHS_LVL3 2
@@ -56,6 +58,20 @@ typedef uint64_t (*compute_cdef_dist_t)(void *dst, int dstride, uint16_t *src,
                                         BLOCK_SIZE bsize, int coeff_shift,
                                         int row, int col);
 
+// Data related to CDEF search multi-thread synchronization.
+typedef struct AV1CdefSyncData {
+#if CONFIG_MULTITHREAD
+  // Mutex lock used while dispatching jobs.
+  pthread_mutex_t *mutex_;
+#endif  // CONFIG_MULTITHREAD
+  // Flag to indicate all blocks are processed and end of frame is reached
+  int end_of_frame;
+  // Row index in units of 64x64 block
+  int fbr;
+  // Column index in units of 64x64 block
+  int fbc;
+} AV1CdefSync;
+
 /*! \brief CDEF search context.
  */
 typedef struct {
@@ -64,9 +80,9 @@ typedef struct {
    */
   const YV12_BUFFER_CONFIG *ref;
   /*!
-   * Pointer to top level common structure
+   * Pointer to params related to MB_MODE_INFO arrays and related info
    */
-  AV1_COMMON *cm;
+  CommonModeInfoParams *mi_params;
   /*!
    * Info specific to each plane
    */
@@ -190,6 +206,9 @@ static INLINE int cdef_sb_skip(const CommonModeInfoParams *const mi_params,
     return 1;
   return 0;
 }
+
+void av1_cdef_mse_calc_block(CdefSearchCtx *cdef_search_ctx, int fbr, int fbc,
+                             int sb_count);
 /*!\endcond */
 
 /*!\brief AV1 CDEF parameter search
@@ -198,6 +217,7 @@ static INLINE int cdef_sb_skip(const CommonModeInfoParams *const mi_params,
  *
  * Searches for optimal CDEF parameters for frame
  *
+ * \param[in]      mt_info      Pointer to multi-threading parameters
  * \param[in]      frame        Compressed frame buffer
  * \param[in]      ref          Source frame buffer
  * \param[in,out]  cm           Pointer to top level common structure
@@ -216,7 +236,8 @@ static INLINE int cdef_sb_skip(const CommonModeInfoParams *const mi_params,
  * \arg \c damping_factor: CDEF damping factor.
  *
  */
-void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
+void av1_cdef_search(struct MultiThreadInfo *mt_info,
+                     const YV12_BUFFER_CONFIG *frame,
                      const YV12_BUFFER_CONFIG *ref, AV1_COMMON *cm,
                      MACROBLOCKD *xd, CDEF_PICK_METHOD pick_method, int rdmult);
 

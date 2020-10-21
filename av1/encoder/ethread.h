@@ -78,6 +78,11 @@ int av1_compute_num_enc_workers(AV1_COMP *cpi, int max_workers);
 
 void av1_create_workers(AV1_COMP *cpi, int num_workers);
 
+void av1_cdef_mse_calc_frame_mt(AV1_COMMON *cm, MultiThreadInfo *mt_info,
+                                CdefSearchCtx *cdef_search_ctx);
+
+void av1_cdef_mt_dealloc(AV1CdefSync *cdef_sync);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
