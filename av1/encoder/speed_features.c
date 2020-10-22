@@ -1373,9 +1373,6 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   } else if (sf->mv_sf.subpel_search_method == SUBPEL_TREE_PRUNED_MORE) {
     mv_search_params->find_fractional_mv_step =
         av1_find_best_sub_pixel_tree_pruned_more;
-  } else if (sf->mv_sf.subpel_search_method == SUBPEL_TREE_PRUNED_EVENMORE) {
-    mv_search_params->find_fractional_mv_step =
-        av1_find_best_sub_pixel_tree_pruned_evenmore;
   }
 
   // This is only used in motion vector unit test.

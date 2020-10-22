@@ -136,10 +136,8 @@ enum {
 
 enum {
   SUBPEL_TREE = 0,
-  SUBPEL_TREE_PRUNED = 1,           // Prunes 1/2-pel searches
-  SUBPEL_TREE_PRUNED_MORE = 2,      // Prunes 1/2-pel searches more aggressively
-  SUBPEL_TREE_PRUNED_EVENMORE = 3,  // Prunes 1/2- and 1/4-pel searches
-  // Other methods to come
+  SUBPEL_TREE_PRUNED = 1,       // Prunes 1/2-pel searches
+  SUBPEL_TREE_PRUNED_MORE = 2,  // Prunes 1/2-pel searches more aggressively
 } UENUM1BYTE(SUBPEL_SEARCH_METHODS);
 
 enum {

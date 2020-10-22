@@ -1673,7 +1673,6 @@ typedef struct {
    * In encoder: av1_find_best_sub_pixel_tree
    *             av1_find_best_sub_pixel_tree_pruned
    *             av1_find_best_sub_pixel_tree_pruned_more
-   *             av1_find_best_sub_pixel_tree_pruned_evenmore
    * In MV unit test: av1_return_max_sub_pixel_mv
    *                  av1_return_min_sub_pixel_mv
    */
