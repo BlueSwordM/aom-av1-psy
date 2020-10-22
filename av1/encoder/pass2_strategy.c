@@ -3611,6 +3611,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
         if (rc->frames_since_key > 0 && gf_group->arf_index > -1) {
           int arf_src_index = gf_group->arf_src_offset[gf_group->arf_index];
           av1_temporal_filter(cpi, arf_src_index, NULL);
+          aom_extend_frame_borders(&cpi->alt_ref_buffer,
+                                   av1_num_planes(&cpi->common));
         }
         if (!av1_tpl_setup_stats(cpi, 1, frame_params, frame_input)) {
           // Tpl decides that a shorter gf interval is better.
