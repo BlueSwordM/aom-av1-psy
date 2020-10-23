@@ -395,25 +395,22 @@ void aom_comp_mask_pred_avx2(uint8_t *comp_pred, const uint8_t *pred, int width,
       comp_pred += (16 << 2);
       i += 4;
     } while (i < height);
-  } else {  // for width == 32
+  } else {
     do {
-      const __m256i sA0 = _mm256_lddqu_si256((const __m256i *)(src0));
-      const __m256i sA1 = _mm256_lddqu_si256((const __m256i *)(src1));
-      const __m256i aA = _mm256_lddqu_si256((const __m256i *)(mask));
+      for (int x = 0; x < width / 32; x++) {
+        const __m256i sA0 =
+            _mm256_lddqu_si256((const __m256i *)(src0 + x * 32));
+        const __m256i sA1 =
+            _mm256_lddqu_si256((const __m256i *)(src1 + x * 32));
+        const __m256i aA = _mm256_lddqu_si256((const __m256i *)(mask + x * 32));
 
-      const __m256i sB0 = _mm256_lddqu_si256((const __m256i *)(src0 + stride0));
-      const __m256i sB1 = _mm256_lddqu_si256((const __m256i *)(src1 + stride1));
-      const __m256i aB =
-          _mm256_lddqu_si256((const __m256i *)(mask + mask_stride));
-
-      comp_mask_pred_line_avx2(sA0, sA1, aA, comp_pred);
-      comp_mask_pred_line_avx2(sB0, sB1, aB, comp_pred + 32);
-      comp_pred += (32 << 1);
-
-      src0 += (stride0 << 1);
-      src1 += (stride1 << 1);
-      mask += (mask_stride << 1);
-      i += 2;
+        comp_mask_pred_line_avx2(sA0, sA1, aA, comp_pred);
+        comp_pred += 32;
+      }
+      src0 += stride0;
+      src1 += stride1;
+      mask += mask_stride;
+      i++;
     } while (i < height);
   }
 }
