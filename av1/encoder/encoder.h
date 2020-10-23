@@ -44,6 +44,7 @@
 #include "av1/encoder/rd.h"
 #include "av1/encoder/speed_features.h"
 #include "av1/encoder/svc_layercontext.h"
+#include "av1/encoder/temporal_filter.h"
 #include "av1/encoder/tokenize.h"
 #include "av1/encoder/tpl_model.h"
 #include "av1/encoder/av1_noise_estimate.h"
@@ -1280,6 +1281,7 @@ typedef struct ThreadData {
   VP64x64 *vt64x64;
   int32_t num_64x64_blocks;
   PICK_MODE_CONTEXT *firstpass_ctx;
+  TemporalFilterData tf_data;
 } ThreadData;
 
 struct EncWorkerData;

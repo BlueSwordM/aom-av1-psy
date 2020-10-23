@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 /*!\cond */
-
+struct AV1_COMP;
 // TODO(any): These two variables are only used in avx2, sse2, sse4
 // implementations, where the block size is still hard coded. This should be
 // fixed to align with the c implementation.
@@ -65,6 +65,29 @@ extern "C" {
 #define TF_SEARCH_DISTANCE_THRESHOLD 0.1
 
 #define NOISE_ESTIMATION_EDGE_THRESHOLD 50
+
+// Sum and SSE source vs filtered frame difference returned by
+// temporal filter.
+typedef struct {
+  int64_t sum;
+  int64_t sse;
+} FRAME_DIFF;
+
+// Data related to temporal filtering.
+typedef struct {
+  // Source vs filtered frame error.
+  FRAME_DIFF diff;
+  // Pointer to temporary block info used to store state in temporal filtering
+  // process.
+  MB_MODE_INFO *tmp_mbmi;
+  // Pointer to accumulator buffer used in temporal filtering process.
+  uint32_t *accum;
+  // Pointer to count buffer used in temporal filtering process.
+  uint16_t *count;
+  // Pointer to predictor used in temporal filtering process.
+  uint8_t *pred;
+} TemporalFilterData;
+
 // Estimates noise level from a given frame using a single plane (Y, U, or V).
 // This is an adaptation of the mehtod in the following paper:
 // Shen-Chuan Tai, Shih-Ming Yang, "A fast method for image noise
@@ -107,7 +130,8 @@ double av1_estimate_noise_from_single_plane(const YV12_BUFFER_CONFIG *frame,
  *
  * \return Whether temporal filtering is successfully done.
  */
-int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
+int av1_temporal_filter(struct AV1_COMP *cpi,
+                        const int filter_frame_lookahead_idx,
                         int *show_existing_arf);
 
 #ifdef __cplusplus
