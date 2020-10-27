@@ -5296,7 +5296,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                               skip_ref_frame_mask,
                               0,
                               mode_thresh_mul_fact,
-                              {},
+                              { 0 },
                               0,
                               0,
                               0 };
