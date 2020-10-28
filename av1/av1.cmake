@@ -88,6 +88,12 @@ list(APPEND AOM_AV1_COMMON_SOURCES
             "${AOM_ROOT}/av1/common/warped_motion.c"
             "${AOM_ROOT}/av1/common/warped_motion.h")
 
+if(CONFIG_REALTIME_ONLY)
+  list(REMOVE_ITEM AOM_AV1_COMMON_SOURCES
+                   "${AOM_ROOT}/av1/common/warped_motion.c"
+                   "${AOM_ROOT}/av1/common/warped_motion.h")
+endif()
+
 if(CONFIG_LPF_MASK)
   list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/loopfiltermask.c")
 endif()
@@ -270,6 +276,11 @@ list(APPEND AOM_AV1_COMMON_INTRIN_SSE2
             "${AOM_ROOT}/av1/common/x86/av1_txfm_sse2.h"
             "${AOM_ROOT}/av1/common/x86/warp_plane_sse2.c")
 
+if(CONFIG_REALTIME_ONLY)
+  list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_SSE2
+                   "${AOM_ROOT}/av1/common/x86/warp_plane_sse2.c")
+endif()
+
 if(NOT CONFIG_AV1_HIGHBITDEPTH)
   list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_SSE2
                    "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_sse2.c")
@@ -313,6 +324,12 @@ if(NOT CONFIG_AV1_HIGHBITDEPTH)
                    "${AOM_ROOT}/av1/common/x86/highbd_warp_plane_sse4.c")
 endif()
 
+if(CONFIG_REALTIME_ONLY)
+  list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_SSE4_1
+                   "${AOM_ROOT}/av1/common/x86/highbd_warp_plane_sse4.c"
+                   "${AOM_ROOT}/av1/common/x86/warp_plane_sse4.c")
+endif()
+
 list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
             "${AOM_ROOT}/av1/common/cdef_block_avx2.c"
             "${AOM_ROOT}/av1/common/x86/av1_inv_txfm_avx2.c"
@@ -333,7 +350,14 @@ list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
 
 if(NOT CONFIG_AV1_HIGHBITDEPTH)
   list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_AVX2
+                   "${AOM_ROOT}/av1/common/x86/highbd_warp_affine_avx2.c"
                    "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_avx2.c")
+endif()
+
+if(CONFIG_REALTIME_ONLY)
+  list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_AVX2
+                   "${AOM_ROOT}/av1/common/x86/highbd_warp_affine_avx2.c"
+                   "${AOM_ROOT}/av1/common/x86/warp_plane_avx2.c")
 endif()
 
 list(APPEND AOM_AV1_ENCODER_ASM_SSE2 "${AOM_ROOT}/av1/encoder/x86/dct_sse2.asm"
@@ -430,6 +454,11 @@ list(APPEND AOM_AV1_COMMON_INTRIN_NEON
             "${AOM_ROOT}/av1/common/arm/highbd_inv_txfm_neon.c"
             "${AOM_ROOT}/av1/common/arm/warp_plane_neon.c"
             "${AOM_ROOT}/av1/common/cdef_block_neon.c")
+
+if(CONFIG_REALTIME_ONLY)
+  list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_NEON
+                   "${AOM_ROOT}/av1/common/arm/warp_plane_neon.c")
+endif()
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_SSE4_2
             "${AOM_ROOT}/av1/encoder/x86/hash_sse42.c")

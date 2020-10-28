@@ -1484,6 +1484,7 @@ static int64_t motion_mode_rd(
       av1_build_obmc_inter_prediction(
           cm, xd, args->above_pred_buf, args->above_pred_stride,
           args->left_pred_buf, args->left_pred_stride);
+#if !CONFIG_REALTIME_ONLY
     } else if (mbmi->motion_mode == WARPED_CAUSAL) {
       int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
       mbmi->motion_mode = WARPED_CAUSAL;
@@ -1540,6 +1541,7 @@ static int64_t motion_mode_rd(
       } else {
         continue;
       }
+#endif  // !CONFIG_REALTIME_ONLY
     } else if (is_interintra_mode) {
       const int ret =
           av1_handle_inter_intra_mode(cpi, x, bsize, mbmi, args, ref_best_rd,

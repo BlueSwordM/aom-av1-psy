@@ -236,6 +236,14 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/warp_filter_test_util.h"
               "${AOM_ROOT}/test/webmenc_test.cc")
 
+  if(CONFIG_REALTIME_ONLY)
+    list(REMOVE_ITEM AOM_UNIT_TEST_ENCODER_SOURCES
+                     "${AOM_ROOT}/test/frame_error_test.cc"
+                     "${AOM_ROOT}/test/warp_filter_test.cc"
+                     "${AOM_ROOT}/test/warp_filter_test_util.cc"
+                     "${AOM_ROOT}/test/warp_filter_test_util.h")
+  endif()
+
   if((HAVE_SSE4_1 OR HAVE_NEON))
     list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
                 "${AOM_ROOT}/test/av1_highbd_iht_test.cc")

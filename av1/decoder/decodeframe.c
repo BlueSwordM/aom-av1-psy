@@ -4307,10 +4307,14 @@ static int read_global_motion_params(WarpedMotionParams *params,
                        trans_dec_factor;
   }
 
+#if !CONFIG_REALTIME_ONLY
+  // For realtime only build, warped motion is disabled, so this section is not
+  // needed.
   if (params->wmtype <= AFFINE) {
     int good_shear_params = av1_get_shear_params(params);
     if (!good_shear_params) return 0;
   }
+#endif
 
   return 1;
 }

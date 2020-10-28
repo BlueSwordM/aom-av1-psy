@@ -3136,6 +3136,7 @@ int av1_return_min_sub_pixel_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   return besterr;
 }
 
+#if !CONFIG_REALTIME_ONLY
 // Computes the cost of the current predictor by going through the whole
 // av1_enc_build_inter_predictor pipeline. This is mainly used by warped mv
 // during motion_mode_rd. We are going through the whole
@@ -3235,6 +3236,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   mbmi->num_proj_ref = best_num_proj_ref;
   return bestmse;
 }
+#endif  // !CONFIG_REALTIME_ONLY
 // =============================================================================
 //  Subpixel Motion Search: OBMC
 // =============================================================================
