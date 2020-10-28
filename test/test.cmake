@@ -30,8 +30,6 @@ list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
             "${AOM_ROOT}/test/block_test.cc"
             "${AOM_ROOT}/test/clear_system_state.h"
             "${AOM_ROOT}/test/codec_factory.h"
-            "${AOM_ROOT}/test/decode_test_driver.cc"
-            "${AOM_ROOT}/test/decode_test_driver.h"
             "${AOM_ROOT}/test/function_equivalence_test.h"
             "${AOM_ROOT}/test/log2_test.cc"
             "${AOM_ROOT}/test/md5_helper.h"
@@ -42,6 +40,12 @@ list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
             "${AOM_ROOT}/test/transform_test_base.h"
             "${AOM_ROOT}/test/util.h"
             "${AOM_ROOT}/test/video_source.h")
+
+if(CONFIG_AV1_DECODER)
+  list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
+              "${AOM_ROOT}/test/decode_test_driver.cc"
+              "${AOM_ROOT}/test/decode_test_driver.h")
+endif()
 
 if(CONFIG_INTERNAL_STATS)
   list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
