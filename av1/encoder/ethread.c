@@ -1304,7 +1304,6 @@ void av1_mc_flow_dispenser_mt(AV1_COMP *cpi) {
   launch_enc_workers(&cpi->mt_info, num_workers);
   sync_enc_workers(&cpi->mt_info, cm, num_workers);
 }
-#endif  // !CONFIG_REALTIME_ONLY
 
 // Checks if a job is available in the current direction. If a job is available,
 // frame_idx will be populated and returns 1, else returns 0.
@@ -1525,3 +1524,4 @@ void av1_global_motion_estimation_mt(AV1_COMP *cpi) {
   launch_enc_workers(&cpi->mt_info, num_workers);
   sync_enc_workers(&cpi->mt_info, &cpi->common, num_workers);
 }
+#endif  // !CONFIG_REALTIME_ONLY

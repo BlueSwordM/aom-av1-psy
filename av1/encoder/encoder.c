@@ -1534,7 +1534,9 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   if (mt_info->num_workers > 1) {
     av1_loop_filter_dealloc(&mt_info->lf_row_sync);
     av1_loop_restoration_dealloc(&mt_info->lr_row_sync, mt_info->num_workers);
+#if !CONFIG_REALTIME_ONLY
     av1_gm_dealloc(&mt_info->gm_sync);
+#endif
   }
 
   dealloc_compressor_data(cpi);

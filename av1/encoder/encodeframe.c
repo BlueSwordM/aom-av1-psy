@@ -1392,6 +1392,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   x->txfm_search_info.tx_search_count = 0;
 #endif  // CONFIG_SPEED_STATS
 
+#if !CONFIG_REALTIME_ONLY
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, av1_compute_global_motion_time);
 #endif
@@ -1399,6 +1400,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_compute_global_motion_time);
 #endif
+#endif  // !CONFIG_REALTIME_ONLY
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, av1_setup_motion_field_time);
