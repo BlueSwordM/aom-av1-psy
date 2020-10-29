@@ -60,9 +60,11 @@ static INLINE void write_uniform(aom_writer *w, int n, int v) {
   }
 }
 
+#if !CONFIG_REALTIME_ONLY
 static AOM_INLINE void loop_restoration_write_sb_coeffs(
     const AV1_COMMON *const cm, MACROBLOCKD *xd, const RestorationUnitInfo *rui,
     aom_writer *const w, int plane, FRAME_COUNTS *counts);
+#endif
 
 static AOM_INLINE void write_intra_y_mode_kf(FRAME_CONTEXT *frame_ctx,
                                              const MB_MODE_INFO *mi,
@@ -1624,6 +1626,7 @@ static AOM_INLINE void write_modes_sb(
 
   if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) return;
 
+#if !CONFIG_REALTIME_ONLY
   const int num_planes = av1_num_planes(cm);
   for (int plane = 0; plane < num_planes; ++plane) {
     int rcol0, rcol1, rrow0, rrow1;
@@ -1641,6 +1644,7 @@ static AOM_INLINE void write_modes_sb(
       }
     }
   }
+#endif
 
   write_partition(cm, xd, hbs, mi_row, mi_col, partition, bsize, w);
   switch (partition) {
@@ -1821,6 +1825,7 @@ static AOM_INLINE void encode_restoration_mode(
   }
 }
 
+#if !CONFIG_REALTIME_ONLY
 static AOM_INLINE void write_wiener_filter(int wiener_win,
                                            const WienerInfo *wiener_info,
                                            WienerInfo *ref_wiener_info,
@@ -1947,6 +1952,7 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     }
   }
 }
+#endif  // !CONFIG_REALTIME_ONLY
 
 // Only write out the ref delta section if any of the elements
 // will signal a delta.

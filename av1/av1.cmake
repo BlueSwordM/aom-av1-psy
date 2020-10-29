@@ -89,7 +89,8 @@ list(APPEND AOM_AV1_COMMON_SOURCES
             "${AOM_ROOT}/av1/common/warped_motion.h")
 
 if(CONFIG_REALTIME_ONLY)
-  list(REMOVE_ITEM AOM_AV1_COMMON_SOURCES
+  list(REMOVE_ITEM AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/restoration.c"
+                   "${AOM_ROOT}/av1/common/restoration.h"
                    "${AOM_ROOT}/av1/common/warped_motion.c"
                    "${AOM_ROOT}/av1/common/warped_motion.h")
 endif()
@@ -327,6 +328,7 @@ endif()
 if(CONFIG_REALTIME_ONLY)
   list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_SSE4_1
                    "${AOM_ROOT}/av1/common/x86/highbd_warp_plane_sse4.c"
+                   "${AOM_ROOT}/av1/common/x86/selfguided_sse4.c"
                    "${AOM_ROOT}/av1/common/x86/warp_plane_sse4.c")
 endif()
 
@@ -357,6 +359,7 @@ endif()
 if(CONFIG_REALTIME_ONLY)
   list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_AVX2
                    "${AOM_ROOT}/av1/common/x86/highbd_warp_affine_avx2.c"
+                   "${AOM_ROOT}/av1/common/x86/selfguided_avx2.c"
                    "${AOM_ROOT}/av1/common/x86/warp_plane_avx2.c")
 endif()
 
@@ -395,6 +398,11 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_SSE4_1
             "${AOM_ROOT}/av1/encoder/x86/rdopt_sse4.c"
             "${AOM_ROOT}/av1/encoder/x86/pickrst_sse4.c")
 
+if(CONFIG_REALTIME_ONLY)
+  list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_SSE4_1
+                   "${AOM_ROOT}/av1/encoder/x86/pickrst_sse4.c")
+endif()
+
 list(APPEND AOM_AV1_ENCODER_INTRIN_AVX2
             "${AOM_ROOT}/av1/encoder/x86/av1_quantize_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/av1_highbd_quantize_avx2.c"
@@ -416,6 +424,11 @@ if(NOT CONFIG_AV1_HIGHBITDEPTH)
     REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_AVX2
                 "${AOM_ROOT}/av1/encoder/x86/highbd_block_error_intrin_avx2.c"
                 "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_avx2.c")
+endif()
+
+if(CONFIG_REALTIME_ONLY)
+  list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_AVX2
+                   "${AOM_ROOT}/av1/encoder/x86/pickrst_avx2.c")
 endif()
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
@@ -457,6 +470,7 @@ list(APPEND AOM_AV1_COMMON_INTRIN_NEON
 
 if(CONFIG_REALTIME_ONLY)
   list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_NEON
+                   "${AOM_ROOT}/av1/common/arm/selfguided_neon.c"
                    "${AOM_ROOT}/av1/common/arm/warp_plane_neon.c")
 endif()
 
@@ -495,6 +509,8 @@ if(CONFIG_REALTIME_ONLY)
                    "${AOM_ROOT}/av1/encoder/partition_cnn_weights.h"
                    "${AOM_ROOT}/av1/encoder/partition_model_weights.h"
                    "${AOM_ROOT}/av1/encoder/pass2_strategy.c"
+                   "${AOM_ROOT}/av1/encoder/picklpf.h"
+                   "${AOM_ROOT}/av1/encoder/pickrst.c"
                    "${AOM_ROOT}/av1/encoder/temporal_filter.c"
                    "${AOM_ROOT}/av1/encoder/temporal_filter.h"
                    "${AOM_ROOT}/av1/encoder/tpl_model.c"

@@ -1303,8 +1303,9 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   cm->superres_scale_denominator = SCALE_NUMERATOR;
   cm->superres_upscaled_width = oxcf->frm_dim_cfg.width;
   cm->superres_upscaled_height = oxcf->frm_dim_cfg.height;
+#if !CONFIG_REALTIME_ONLY
   av1_loop_restoration_precal();
-
+#endif
   cm->error.setjmp = 0;
 
   return cpi;
@@ -1535,8 +1536,8 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 #endif
   if (mt_info->num_workers > 1) {
     av1_loop_filter_dealloc(&mt_info->lf_row_sync);
-    av1_loop_restoration_dealloc(&mt_info->lr_row_sync, mt_info->num_workers);
 #if !CONFIG_REALTIME_ONLY
+    av1_loop_restoration_dealloc(&mt_info->lr_row_sync, mt_info->num_workers);
     av1_gm_dealloc(&mt_info->gm_sync);
 #endif
   }
@@ -1992,7 +1993,9 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   for (int i = 0; i < num_planes; ++i)
     cm->rst_info[i].frame_restoration_type = RESTORE_NONE;
 
+#if !CONFIG_REALTIME_ONLY
   av1_alloc_restoration_buffers(cm);
+#endif
   if (!is_stat_generation_stage(cpi)) alloc_util_frame_buffers(cpi);
   init_motion_estimation(cpi);
 
@@ -2020,10 +2023,12 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
 static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                                    MACROBLOCKD *xd, int use_restoration,
                                    int use_cdef) {
-  MultiThreadInfo *const mt_info = &cpi->mt_info;
-  const int num_workers = mt_info->num_workers;
+#if !CONFIG_REALTIME_ONLY
   if (use_restoration)
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 0);
+#else
+  (void)use_restoration;
+#endif
 
   if (use_cdef) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -2048,10 +2053,13 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 
   av1_superres_post_encode(cpi);
 
+#if !CONFIG_REALTIME_ONLY
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, loop_restoration_time);
 #endif
   if (use_restoration) {
+    MultiThreadInfo *const mt_info = &cpi->mt_info;
+    const int num_workers = mt_info->num_workers;
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 1);
     av1_pick_filter_restoration(cpi->source, cpi);
     if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
@@ -2073,6 +2081,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, loop_restoration_time);
 #endif
+#endif  // !CONFIG_REALTIME_ONLY
 }
 
 /*!\brief Select and apply in-loop deblocking filters, cdef filters, and
