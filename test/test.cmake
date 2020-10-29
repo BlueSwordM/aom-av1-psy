@@ -239,6 +239,8 @@ if(NOT BUILD_SHARED_LIBS)
   if(CONFIG_REALTIME_ONLY)
     list(REMOVE_ITEM AOM_UNIT_TEST_ENCODER_SOURCES
                      "${AOM_ROOT}/test/frame_error_test.cc"
+                     "${AOM_ROOT}/test/obmc_sad_test.cc"
+                     "${AOM_ROOT}/test/obmc_variance_test.cc"
                      "${AOM_ROOT}/test/warp_filter_test.cc"
                      "${AOM_ROOT}/test/warp_filter_test_util.cc"
                      "${AOM_ROOT}/test/warp_filter_test_util.h")

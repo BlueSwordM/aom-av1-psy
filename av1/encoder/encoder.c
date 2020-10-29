@@ -1174,6 +1174,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
       aom_sub_pixel_variance4x4, aom_sub_pixel_avg_variance4x4, aom_sad4x4x4d,
       aom_dist_wtd_sad4x4_avg, aom_dist_wtd_sub_pixel_avg_variance4x4)
 
+#if !CONFIG_REALTIME_ONLY
 #define OBFP(BT, OSDF, OVF, OSVF) \
   cpi->fn_ptr[BT].osdf = OSDF;    \
   cpi->fn_ptr[BT].ovf = OVF;      \
@@ -1223,6 +1224,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
        aom_obmc_sub_pixel_variance16x64)
   OBFP(BLOCK_64X16, aom_obmc_sad64x16, aom_obmc_variance64x16,
        aom_obmc_sub_pixel_variance64x16)
+#endif  // !CONFIG_REALTIME_ONLY
 
 #define MBFP(BT, MCSDF, MCSVF)  \
   cpi->fn_ptr[BT].msdf = MCSDF; \

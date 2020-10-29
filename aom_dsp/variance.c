@@ -1183,6 +1183,7 @@ HIGHBD_MASK_SUBPIX_VAR(16, 64)
 HIGHBD_MASK_SUBPIX_VAR(64, 16)
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
+#if !CONFIG_REALTIME_ONLY
 static INLINE void obmc_variance(const uint8_t *pre, int pre_stride,
                                  const int32_t *wsrc, const int32_t *mask,
                                  int w, int h, unsigned int *sse, int *sum) {
@@ -1482,6 +1483,7 @@ HIGHBD_OBMC_SUBPIX_VAR(16, 64)
 HIGHBD_OBMC_VAR(64, 16)
 HIGHBD_OBMC_SUBPIX_VAR(64, 16)
 #endif  // CONFIG_AV1_HIGHBITDEPTH
+#endif  // !CONFIG_REALTIME_ONLY
 
 uint64_t aom_mse_wxh_16bit_c(uint8_t *dst, int dstride, uint16_t *src,
                              int sstride, int w, int h) {

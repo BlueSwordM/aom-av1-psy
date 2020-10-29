@@ -51,10 +51,13 @@ typedef unsigned int (*DistWtdSubpixAvgVarMxNFunc)(
     const uint8_t *a, int a_stride, int xoffset, int yoffset, const uint8_t *b,
     int b_stride, uint32_t *sse, const uint8_t *second_pred,
     const DIST_WTD_COMP_PARAMS *jcp_param);
+
+#if !CONFIG_REALTIME_ONLY
 typedef uint32_t (*ObmcSubpelVarFunc)(const uint8_t *pre, int pre_stride,
                                       int xoffset, int yoffset,
                                       const int32_t *wsrc, const int32_t *mask,
                                       unsigned int *sse);
+#endif
 
 using libaom_test::ACMRandom;
 
@@ -277,6 +280,7 @@ static uint32_t dist_wtd_subpel_avg_variance_ref(
   return static_cast<uint32_t>(sse - ((se * se) >> (l2w + l2h)));
 }
 
+#if !CONFIG_REALTIME_ONLY
 static uint32_t obmc_subpel_variance_ref(const uint8_t *pre, int l2w, int l2h,
                                          int xoff, int yoff,
                                          const int32_t *wsrc,
@@ -326,6 +330,7 @@ static uint32_t obmc_subpel_variance_ref(const uint8_t *pre, int l2w, int l2h,
   *sse_ptr = static_cast<uint32_t>(sse);
   return static_cast<uint32_t>(sse - ((se * se) >> (l2w + l2h)));
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1017,6 +1022,8 @@ void SubpelVarianceTest<DistWtdSubpixAvgVarMxNFunc>::RefTest() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if !CONFIG_REALTIME_ONLY
+
 static const int kMaskMax = 64;
 
 typedef TestParams<ObmcSubpelVarFunc> ObmcSubpelVarianceParams;
@@ -1172,6 +1179,8 @@ void ObmcVarianceTest<ObmcSubpelVarFunc>::SpeedTest() {
          params_.bit_depth, elapsed_time);
 }
 
+#endif  // !CONFIG_REALTIME_ONLY
+
 typedef MseWxHTestClass<MseWxH16bitFunc> MseWxHTest;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MseWxHTest);
 typedef MainTestClass<Get4x4SseFunc> AvxSseTest;
@@ -1181,7 +1190,9 @@ typedef SubpelVarianceTest<SubpixVarMxNFunc> AvxSubpelVarianceTest;
 typedef SubpelVarianceTest<SubpixAvgVarMxNFunc> AvxSubpelAvgVarianceTest;
 typedef SubpelVarianceTest<DistWtdSubpixAvgVarMxNFunc>
     AvxDistWtdSubpelAvgVarianceTest;
+#if !CONFIG_REALTIME_ONLY
 typedef ObmcVarianceTest<ObmcSubpelVarFunc> AvxObmcSubpelVarianceTest;
+#endif
 typedef TestParams<MseWxH16bitFunc> MseWxHParams;
 
 TEST_P(AvxSseTest, RefSse) { RefTestSse(); }
@@ -1202,9 +1213,11 @@ TEST_P(AvxSubpelVarianceTest, ExtremeRef) { ExtremeRefTest(); }
 TEST_P(AvxSubpelVarianceTest, DISABLED_Speed) { SpeedTest(); }
 TEST_P(AvxSubpelAvgVarianceTest, Ref) { RefTest(); }
 TEST_P(AvxDistWtdSubpelAvgVarianceTest, Ref) { RefTest(); }
+#if !CONFIG_REALTIME_ONLY
 TEST_P(AvxObmcSubpelVarianceTest, Ref) { RefTest(); }
 TEST_P(AvxObmcSubpelVarianceTest, ExtremeRef) { ExtremeRefTest(); }
 TEST_P(AvxObmcSubpelVarianceTest, DISABLED_Speed) { SpeedTest(); }
+#endif
 
 INSTANTIATE_TEST_SUITE_P(C, SumOfSquaresTest,
                          ::testing::Values(aom_get_mb_ss_c));
@@ -1348,6 +1361,7 @@ INSTANTIATE_TEST_SUITE_P(
                           2, 4, &aom_dist_wtd_sub_pixel_avg_variance4x16_c,
                           0)));
 
+#if !CONFIG_REALTIME_ONLY
 INSTANTIATE_TEST_SUITE_P(
     C, AvxObmcSubpelVarianceTest,
     ::testing::Values(
@@ -1375,6 +1389,7 @@ INSTANTIATE_TEST_SUITE_P(
         ObmcSubpelVarianceParams(3, 5, &aom_obmc_sub_pixel_variance8x32_c, 0),
         ObmcSubpelVarianceParams(4, 2, &aom_obmc_sub_pixel_variance16x4_c, 0),
         ObmcSubpelVarianceParams(2, 4, &aom_obmc_sub_pixel_variance4x16_c, 0)));
+#endif
 
 #if CONFIG_AV1_HIGHBITDEPTH
 typedef uint64_t (*MseHBDWxH16bitFunc)(uint16_t *dst, int dstride,
@@ -1487,7 +1502,9 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AvxHBDMseTest);
 typedef MainTestClass<VarianceMxNFunc> AvxHBDVarianceTest;
 typedef SubpelVarianceTest<SubpixVarMxNFunc> AvxHBDSubpelVarianceTest;
 typedef SubpelVarianceTest<SubpixAvgVarMxNFunc> AvxHBDSubpelAvgVarianceTest;
+#if !CONFIG_REALTIME_ONLY
 typedef ObmcVarianceTest<ObmcSubpelVarFunc> AvxHBDObmcSubpelVarianceTest;
+#endif
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AvxHBDObmcSubpelVarianceTest);
 
 TEST_P(MseHBDWxHTest, RefMse) { RefMatchTestMse(); }
@@ -1785,6 +1802,7 @@ const SubpelAvgVarianceParams kArrayHBDSubpelAvgVariance_c[] = {
 INSTANTIATE_TEST_SUITE_P(C, AvxHBDSubpelAvgVarianceTest,
                          ::testing::ValuesIn(kArrayHBDSubpelAvgVariance_c));
 
+#if !CONFIG_REALTIME_ONLY
 const ObmcSubpelVarianceParams kArrayHBDObmcSubpelVariance_c[] = {
   ObmcSubpelVarianceParams(7, 7, &aom_highbd_obmc_sub_pixel_variance128x128_c,
                            8),
@@ -1903,6 +1921,7 @@ const ObmcSubpelVarianceParams kArrayHBDObmcSubpelVariance_c[] = {
 };
 INSTANTIATE_TEST_SUITE_P(C, AvxHBDObmcSubpelVarianceTest,
                          ::testing::ValuesIn(kArrayHBDObmcSubpelVariance_c));
+#endif  // !CONFIG_REALTIME_ONLY
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #if HAVE_SSE2
@@ -2465,6 +2484,7 @@ INSTANTIATE_TEST_SUITE_P(
 #endif  // HAVE_SSSE3
 
 #if HAVE_SSE4_1
+#if !CONFIG_REALTIME_ONLY
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AvxObmcSubpelVarianceTest,
     ::testing::Values(
@@ -2513,6 +2533,7 @@ INSTANTIATE_TEST_SUITE_P(
                                  0),
         ObmcSubpelVarianceParams(2, 4, &aom_obmc_sub_pixel_variance4x16_sse4_1,
                                  0)));
+#endif
 #endif  // HAVE_SSE4_1
 
 #if HAVE_AVX2

@@ -465,6 +465,19 @@ MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_4x8x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_8x32x4d)
 #endif
 
+#if !CONFIG_REALTIME_ONLY
+
+#define LOWBD_OBFP(BT, OSDF, OVF, OSVF) \
+  cpi->fn_ptr[BT].osdf = OSDF;          \
+  cpi->fn_ptr[BT].ovf = OVF;            \
+  cpi->fn_ptr[BT].osvf = OSVF;
+
+#define LOWBD_OBFP_WRAPPER(WIDTH, HEIGHT)                              \
+  LOWBD_OBFP(BLOCK_##WIDTH##X##HEIGHT, aom_obmc_sad##WIDTH##x##HEIGHT, \
+             aom_obmc_variance##WIDTH##x##HEIGHT,                      \
+             aom_obmc_sub_pixel_variance##WIDTH##x##HEIGHT)
+
+#if CONFIG_AV1_HIGHBITDEPTH
 #define HIGHBD_OBFP(BT, OSDF, OVF, OSVF) \
   cpi->fn_ptr[BT].osdf = OSDF;           \
   cpi->fn_ptr[BT].ovf = OVF;             \
@@ -476,18 +489,7 @@ MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_8x32x4d)
               aom_highbd_##BD##_obmc_variance##WIDTH##x##HEIGHT, \
               aom_highbd_##BD##_obmc_sub_pixel_variance##WIDTH##x##HEIGHT)
 
-#define LOWBD_OBFP_WRAPPER(WIDTH, HEIGHT)                    \
-  HIGHBD_OBFP(BLOCK_##WIDTH##X##HEIGHT,                      \
-              aom_highbd_obmc_sad##WIDTH##x##HEIGHT##_bits8, \
-              aom_highbd_obmc_variance##WIDTH##x##HEIGHT,    \
-              aom_highbd_obmc_sub_pixel_variance##WIDTH##x##HEIGHT)
-
 #define MAKE_OBFP_SAD_WRAPPER(fnname)                                     \
-  static unsigned int fnname##_bits8(const uint8_t *ref, int ref_stride,  \
-                                     const int32_t *wsrc,                 \
-                                     const int32_t *msk) {                \
-    return fnname(ref, ref_stride, wsrc, msk);                            \
-  }                                                                       \
   static unsigned int fnname##_bits10(const uint8_t *ref, int ref_stride, \
                                       const int32_t *wsrc,                \
                                       const int32_t *msk) {               \
@@ -498,8 +500,11 @@ MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_8x32x4d)
                                       const int32_t *msk) {               \
     return fnname(ref, ref_stride, wsrc, msk) >> 4;                       \
   }
+#endif  // CONFIG_AV1_HIGHBITDEPTH
+#endif  // !CONFIG_REALTIME_ONLY
 
 #if CONFIG_AV1_HIGHBITDEPTH
+#if !CONFIG_REALTIME_ONLY
 MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad128x128)
 MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad128x64)
 MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad64x128)
@@ -522,6 +527,7 @@ MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad8x32)
 MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad32x8)
 MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad16x64)
 MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad64x16)
+#endif
 
 static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
@@ -574,6 +580,7 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
         HIGHBD_MBFP_WRAPPER(16, 4, 8)
         HIGHBD_MBFP_WRAPPER(4, 16, 8)
 
+#if !CONFIG_REALTIME_ONLY
         LOWBD_OBFP_WRAPPER(128, 128)
         LOWBD_OBFP_WRAPPER(128, 64)
         LOWBD_OBFP_WRAPPER(64, 128)
@@ -596,6 +603,7 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
         LOWBD_OBFP_WRAPPER(8, 32)
         LOWBD_OBFP_WRAPPER(16, 4)
         LOWBD_OBFP_WRAPPER(4, 16)
+#endif
 
         HIGHBD_SDSFP_WRAPPER(128, 128, 8);
         HIGHBD_SDSFP_WRAPPER(128, 64, 8);
@@ -665,6 +673,7 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
         HIGHBD_MBFP_WRAPPER(16, 4, 10)
         HIGHBD_MBFP_WRAPPER(4, 16, 10)
 
+#if !CONFIG_REALTIME_ONLY
         HIGHBD_OBFP_WRAPPER(128, 128, 10)
         HIGHBD_OBFP_WRAPPER(128, 64, 10)
         HIGHBD_OBFP_WRAPPER(64, 128, 10)
@@ -687,6 +696,7 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
         HIGHBD_OBFP_WRAPPER(8, 32, 10)
         HIGHBD_OBFP_WRAPPER(16, 4, 10)
         HIGHBD_OBFP_WRAPPER(4, 16, 10)
+#endif
 
         HIGHBD_SDSFP_WRAPPER(128, 128, 10);
         HIGHBD_SDSFP_WRAPPER(128, 64, 10);
@@ -756,6 +766,7 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
         HIGHBD_MBFP_WRAPPER(16, 4, 12)
         HIGHBD_MBFP_WRAPPER(4, 16, 12)
 
+#if !CONFIG_REALTIME_ONLY
         HIGHBD_OBFP_WRAPPER(128, 128, 12)
         HIGHBD_OBFP_WRAPPER(128, 64, 12)
         HIGHBD_OBFP_WRAPPER(64, 128, 12)
@@ -778,6 +789,7 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
         HIGHBD_OBFP_WRAPPER(8, 32, 12)
         HIGHBD_OBFP_WRAPPER(16, 4, 12)
         HIGHBD_OBFP_WRAPPER(4, 16, 12)
+#endif
 
         HIGHBD_SDSFP_WRAPPER(128, 128, 12);
         HIGHBD_SDSFP_WRAPPER(128, 64, 12);
