@@ -329,6 +329,11 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    */
   SUPERRES_AUTO_SEARCH_TYPE superres_auto_search_type;
   /*!\endcond */
+
+  /*!
+   * Enable/disable extra screen content test by encoding key frame twice.
+   */
+  int disable_extra_sc_testing;
 } HIGH_LEVEL_SPEED_FEATURES;
 
 /*!\cond */

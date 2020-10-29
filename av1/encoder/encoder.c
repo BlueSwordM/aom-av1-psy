@@ -2374,7 +2374,8 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #endif
 
   // Determine whether to use screen content tools using two fast encoding.
-  av1_determine_sc_tools_with_encoding(cpi, q);
+  if (!cpi->sf.hl_sf.disable_extra_sc_testing)
+    av1_determine_sc_tools_with_encoding(cpi, q);
 
 #if CONFIG_USE_VMAF_RC
   if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN) {
