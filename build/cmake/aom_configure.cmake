@@ -105,7 +105,8 @@ string(STRIP "${AOM_CMAKE_CONFIG}" AOM_CMAKE_CONFIG)
 message("--- aom_configure: Detected CPU: ${AOM_TARGET_CPU}")
 set(AOM_TARGET_SYSTEM ${CMAKE_SYSTEM_NAME})
 
-if("${CMAKE_BUILD_TYPE}" MATCHES "Deb")
+string(TOLOWER "${CMAKE_BUILD_TYPE}" build_type_lowercase)
+if("${build_type_lowercase}" STREQUAL "debug")
   set(CONFIG_DEBUG 1)
 endif()
 
@@ -319,7 +320,7 @@ else()
     add_compiler_flag_if_supported("-Werror")
   endif()
 
-  if("${CMAKE_BUILD_TYPE}" MATCHES "Rel")
+  if("${build_type_lowercase}" MATCHES "rel")
     add_compiler_flag_if_supported("-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0")
   endif()
   add_compiler_flag_if_supported("-D_LARGEFILE_SOURCE")
