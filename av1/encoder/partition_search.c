@@ -2098,7 +2098,7 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
       }
       if (cpi->sf.rt_sf.nonrd_check_partition_merge_mode &&
           av1_is_leaf_split_partition(cm, mi_row, mi_col, bsize) &&
-          !frame_is_intra_only(cm) && bsize <= BLOCK_32X32) {
+          !frame_is_intra_only(cm) && bsize <= BLOCK_64X64) {
         RD_SEARCH_MACROBLOCK_CONTEXT x_ctx;
         RD_STATS split_rdc, none_rdc;
         av1_invalid_rd_stats(&split_rdc);
