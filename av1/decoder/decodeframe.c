@@ -1468,9 +1468,10 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
 
   seg->enabled = aom_rb_read_bit(rb);
   if (!seg->enabled) {
-    if (cm->cur_frame->seg_map)
+    if (cm->cur_frame->seg_map) {
       memset(cm->cur_frame->seg_map, 0,
-             (cm->mi_params.mi_rows * cm->mi_params.mi_cols));
+             (cm->cur_frame->mi_rows * cm->cur_frame->mi_cols));
+    }
 
     memset(seg, 0, sizeof(*seg));
     segfeatures_copy(&cm->cur_frame->seg, seg);

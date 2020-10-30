@@ -2858,8 +2858,6 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     }
   }
 
-  release_copy_buffer(&cpi->coding_context);
-
   return err;
 }
 
@@ -3127,7 +3125,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       update_reference_segmentation_map(cpi);
     } else if (cm->last_frame_seg_map) {
       memcpy(cm->cur_frame->seg_map, cm->last_frame_seg_map,
-             cm->mi_params.mi_cols * cm->mi_params.mi_rows * sizeof(uint8_t));
+             cm->cur_frame->mi_cols * cm->cur_frame->mi_rows *
+                 sizeof(*cm->cur_frame->seg_map));
     }
   }
 

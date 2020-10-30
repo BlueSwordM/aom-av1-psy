@@ -1235,24 +1235,6 @@ void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi) {
   }
 }
 
-static void save_cur_buf(AV1_COMP *cpi) {
-  CODING_CONTEXT *const cc = &cpi->coding_context;
-  AV1_COMMON *cm = &cpi->common;
-  const YV12_BUFFER_CONFIG *ybf = &cm->cur_frame->buf;
-  memset(&cc->copy_buffer, 0, sizeof(cc->copy_buffer));
-  if (ybf->y_crop_width == 0 && ybf->y_crop_height == 0) return;
-  if (aom_alloc_frame_buffer(&cc->copy_buffer, ybf->y_crop_width,
-                             ybf->y_crop_height, ybf->subsampling_x,
-                             ybf->subsampling_y,
-                             ybf->flags & YV12_FLAG_HIGHBITDEPTH, ybf->border,
-                             cm->features.byte_alignment) != AOM_CODEC_OK) {
-    aom_internal_error(
-        &cm->error, AOM_CODEC_MEM_ERROR,
-        "Failed to allocate copy buffer for saving coding context");
-  }
-  aom_yv12_copy_frame(ybf, &cc->copy_buffer, av1_num_planes(cm));
-}
-
 // Coding context that only needs to be saved when recode loop includes
 // filtering (deblocking, CDEF, superres post-encode upscale and/or loop
 // restoraton).
@@ -1267,7 +1249,6 @@ static void save_extra_coding_context(AV1_COMP *cpi) {
 }
 
 void av1_save_all_coding_context(AV1_COMP *cpi) {
-  save_cur_buf(cpi);
   save_extra_coding_context(cpi);
   if (!frame_is_intra_only(&cpi->common)) release_scaled_references(cpi);
 }

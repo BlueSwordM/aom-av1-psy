@@ -839,16 +839,6 @@ static AOM_INLINE void copy_frame_prob_info(AV1_COMP *cpi) {
   }
 }
 
-static AOM_INLINE void restore_cur_buf(AV1_COMP *cpi) {
-  CODING_CONTEXT *const cc = &cpi->coding_context;
-  AV1_COMMON *cm = &cpi->common;
-  if (cc->copy_buffer.y_crop_width == 0 && cc->copy_buffer.y_crop_height == 0) {
-    return;
-  }
-  aom_yv12_copy_frame(&cc->copy_buffer, &cm->cur_frame->buf,
-                      av1_num_planes(cm));
-}
-
 // Coding context that only needs to be restored when recode loop includes
 // filtering (deblocking, CDEF, superres post-encode upscale and/or loop
 // restoraton).
@@ -859,10 +849,6 @@ static AOM_INLINE void restore_extra_coding_context(AV1_COMP *cpi) {
   cm->cdef_info = cc->cdef_info;
   cpi->rc = cc->rc;
   cpi->mv_stats = cc->mv_stats;
-}
-
-static AOM_INLINE void release_copy_buffer(CODING_CONTEXT *cc) {
-  aom_free_frame_buffer(&cc->copy_buffer);
 }
 
 static AOM_INLINE int equal_dimensions_and_border(const YV12_BUFFER_CONFIG *a,
@@ -926,7 +912,6 @@ static AOM_INLINE void release_scaled_references(AV1_COMP *cpi) {
 }
 
 static AOM_INLINE void restore_all_coding_context(AV1_COMP *cpi) {
-  restore_cur_buf(cpi);
   restore_extra_coding_context(cpi);
   if (!frame_is_intra_only(&cpi->common)) release_scaled_references(cpi);
 }
