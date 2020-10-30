@@ -277,6 +277,7 @@ MAKE_BFP_SAD_WRAPPER(aom_highbd_sad4x4)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad4x4_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad4x4x4d)
 
+#if !CONFIG_REALTIME_ONLY
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad4x16)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad4x16_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad4x16x4d)
@@ -295,6 +296,7 @@ MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad16x64x4d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad64x16)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad64x16_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad64x16x4d)
+#endif
 
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad128x128_avg)
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad128x64_avg)
@@ -312,12 +314,14 @@ MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad8x8_avg)
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad8x4_avg)
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad4x8_avg)
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad4x4_avg)
+#if !CONFIG_REALTIME_ONLY
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad4x16_avg)
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad16x4_avg)
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad8x32_avg)
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad32x8_avg)
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad16x64_avg)
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad64x16_avg)
+#endif
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #define HIGHBD_MBFP(BT, MCSDF, MCSVF) \
@@ -371,12 +375,14 @@ MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad8x8)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad8x4)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad4x8)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad4x4)
+#if !CONFIG_REALTIME_ONLY
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad4x16)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad16x4)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad8x32)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad32x8)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad16x64)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad64x16)
+#endif
 #endif
 
 #define HIGHBD_SDSFP(BT, SDSF, SDSX4DF) \
@@ -429,40 +435,46 @@ MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_128x64)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_64x128)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_64x64)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_64x32)
-MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_64x16)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_32x64)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_32x32)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_32x16)
-MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_32x8)
-MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_16x64)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_16x32)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_16x16)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_16x8)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_8x16)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_8x8)
-MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_4x16)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_4x8)
+
+#if !CONFIG_REALTIME_ONLY
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_64x16)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_32x8)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_16x64)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_4x16)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_8x32)
+#endif
 
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_128x128x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_128x64x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_64x128x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_64x64x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_64x32x4d)
-MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_64x16x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_32x64x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_32x32x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_32x16x4d)
-MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_32x8x4d)
-MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_16x64x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_16x32x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_16x16x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_16x8x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_8x16x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_8x8x4d)
-MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_4x16x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_4x8x4d)
+
+#if !CONFIG_REALTIME_ONLY
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_64x16x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_32x8x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_16x64x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_4x16x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_8x32x4d)
+#endif
 #endif
 
 #if !CONFIG_REALTIME_ONLY
@@ -534,12 +546,14 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
   if (cm->seq_params.use_highbitdepth) {
     switch (cm->seq_params.bit_depth) {
       case AOM_BITS_8:
+#if !CONFIG_REALTIME_ONLY
         HIGHBD_BFP_WRAPPER(64, 16, 8)
         HIGHBD_BFP_WRAPPER(16, 64, 8)
         HIGHBD_BFP_WRAPPER(32, 8, 8)
         HIGHBD_BFP_WRAPPER(8, 32, 8)
         HIGHBD_BFP_WRAPPER(16, 4, 8)
         HIGHBD_BFP_WRAPPER(4, 16, 8)
+#endif
         HIGHBD_BFP_WRAPPER(32, 16, 8)
         HIGHBD_BFP_WRAPPER(16, 32, 8)
         HIGHBD_BFP_WRAPPER(64, 32, 8)
@@ -573,13 +587,16 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
         HIGHBD_MBFP_WRAPPER(4, 8, 8)
         HIGHBD_MBFP_WRAPPER(8, 4, 8)
         HIGHBD_MBFP_WRAPPER(4, 4, 8)
+#if !CONFIG_REALTIME_ONLY
         HIGHBD_MBFP_WRAPPER(64, 16, 8)
         HIGHBD_MBFP_WRAPPER(16, 64, 8)
         HIGHBD_MBFP_WRAPPER(32, 8, 8)
         HIGHBD_MBFP_WRAPPER(8, 32, 8)
         HIGHBD_MBFP_WRAPPER(16, 4, 8)
         HIGHBD_MBFP_WRAPPER(4, 16, 8)
+#endif
 
+// OBMC excluded from realtime only build.
 #if !CONFIG_REALTIME_ONLY
         LOWBD_OBFP_WRAPPER(128, 128)
         LOWBD_OBFP_WRAPPER(128, 64)
@@ -610,29 +627,33 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
         HIGHBD_SDSFP_WRAPPER(64, 128, 8);
         HIGHBD_SDSFP_WRAPPER(64, 64, 8);
         HIGHBD_SDSFP_WRAPPER(64, 32, 8);
-        HIGHBD_SDSFP_WRAPPER(64, 16, 8);
         HIGHBD_SDSFP_WRAPPER(32, 64, 8);
         HIGHBD_SDSFP_WRAPPER(32, 32, 8);
         HIGHBD_SDSFP_WRAPPER(32, 16, 8);
-        HIGHBD_SDSFP_WRAPPER(32, 8, 8);
-        HIGHBD_SDSFP_WRAPPER(16, 64, 8);
         HIGHBD_SDSFP_WRAPPER(16, 32, 8);
         HIGHBD_SDSFP_WRAPPER(16, 16, 8);
         HIGHBD_SDSFP_WRAPPER(16, 8, 8);
         HIGHBD_SDSFP_WRAPPER(8, 16, 8);
         HIGHBD_SDSFP_WRAPPER(8, 8, 8);
-        HIGHBD_SDSFP_WRAPPER(4, 16, 8);
         HIGHBD_SDSFP_WRAPPER(4, 8, 8);
+#if !CONFIG_REALTIME_ONLY
+        HIGHBD_SDSFP_WRAPPER(64, 16, 8);
+        HIGHBD_SDSFP_WRAPPER(32, 8, 8);
+        HIGHBD_SDSFP_WRAPPER(16, 64, 8);
         HIGHBD_SDSFP_WRAPPER(8, 32, 8);
+        HIGHBD_SDSFP_WRAPPER(4, 16, 8);
+#endif
         break;
 
       case AOM_BITS_10:
+#if !CONFIG_REALTIME_ONLY
         HIGHBD_BFP_WRAPPER(64, 16, 10)
         HIGHBD_BFP_WRAPPER(16, 64, 10)
         HIGHBD_BFP_WRAPPER(32, 8, 10)
         HIGHBD_BFP_WRAPPER(8, 32, 10)
         HIGHBD_BFP_WRAPPER(16, 4, 10)
         HIGHBD_BFP_WRAPPER(4, 16, 10)
+#endif
         HIGHBD_BFP_WRAPPER(32, 16, 10)
         HIGHBD_BFP_WRAPPER(16, 32, 10)
         HIGHBD_BFP_WRAPPER(64, 32, 10)
@@ -666,13 +687,16 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
         HIGHBD_MBFP_WRAPPER(4, 8, 10)
         HIGHBD_MBFP_WRAPPER(8, 4, 10)
         HIGHBD_MBFP_WRAPPER(4, 4, 10)
+#if !CONFIG_REALTIME_ONLY
         HIGHBD_MBFP_WRAPPER(64, 16, 10)
         HIGHBD_MBFP_WRAPPER(16, 64, 10)
         HIGHBD_MBFP_WRAPPER(32, 8, 10)
         HIGHBD_MBFP_WRAPPER(8, 32, 10)
         HIGHBD_MBFP_WRAPPER(16, 4, 10)
         HIGHBD_MBFP_WRAPPER(4, 16, 10)
+#endif
 
+// OBMC excluded from realtime only build.
 #if !CONFIG_REALTIME_ONLY
         HIGHBD_OBFP_WRAPPER(128, 128, 10)
         HIGHBD_OBFP_WRAPPER(128, 64, 10)
@@ -703,29 +727,34 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
         HIGHBD_SDSFP_WRAPPER(64, 128, 10);
         HIGHBD_SDSFP_WRAPPER(64, 64, 10);
         HIGHBD_SDSFP_WRAPPER(64, 32, 10);
-        HIGHBD_SDSFP_WRAPPER(64, 16, 10);
         HIGHBD_SDSFP_WRAPPER(32, 64, 10);
         HIGHBD_SDSFP_WRAPPER(32, 32, 10);
         HIGHBD_SDSFP_WRAPPER(32, 16, 10);
-        HIGHBD_SDSFP_WRAPPER(32, 8, 10);
-        HIGHBD_SDSFP_WRAPPER(16, 64, 10);
         HIGHBD_SDSFP_WRAPPER(16, 32, 10);
         HIGHBD_SDSFP_WRAPPER(16, 16, 10);
         HIGHBD_SDSFP_WRAPPER(16, 8, 10);
         HIGHBD_SDSFP_WRAPPER(8, 16, 10);
         HIGHBD_SDSFP_WRAPPER(8, 8, 10);
-        HIGHBD_SDSFP_WRAPPER(4, 16, 10);
         HIGHBD_SDSFP_WRAPPER(4, 8, 10);
+
+#if !CONFIG_REALTIME_ONLY
+        HIGHBD_SDSFP_WRAPPER(64, 16, 10);
+        HIGHBD_SDSFP_WRAPPER(32, 8, 10);
+        HIGHBD_SDSFP_WRAPPER(16, 64, 10);
         HIGHBD_SDSFP_WRAPPER(8, 32, 10);
+        HIGHBD_SDSFP_WRAPPER(4, 16, 10);
+#endif
         break;
 
       case AOM_BITS_12:
+#if !CONFIG_REALTIME_ONLY
         HIGHBD_BFP_WRAPPER(64, 16, 12)
         HIGHBD_BFP_WRAPPER(16, 64, 12)
         HIGHBD_BFP_WRAPPER(32, 8, 12)
         HIGHBD_BFP_WRAPPER(8, 32, 12)
         HIGHBD_BFP_WRAPPER(16, 4, 12)
         HIGHBD_BFP_WRAPPER(4, 16, 12)
+#endif
         HIGHBD_BFP_WRAPPER(32, 16, 12)
         HIGHBD_BFP_WRAPPER(16, 32, 12)
         HIGHBD_BFP_WRAPPER(64, 32, 12)
@@ -759,13 +788,16 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
         HIGHBD_MBFP_WRAPPER(4, 8, 12)
         HIGHBD_MBFP_WRAPPER(8, 4, 12)
         HIGHBD_MBFP_WRAPPER(4, 4, 12)
+#if !CONFIG_REALTIME_ONLY
         HIGHBD_MBFP_WRAPPER(64, 16, 12)
         HIGHBD_MBFP_WRAPPER(16, 64, 12)
         HIGHBD_MBFP_WRAPPER(32, 8, 12)
         HIGHBD_MBFP_WRAPPER(8, 32, 12)
         HIGHBD_MBFP_WRAPPER(16, 4, 12)
         HIGHBD_MBFP_WRAPPER(4, 16, 12)
+#endif
 
+// OBMC excluded from realtime only build.
 #if !CONFIG_REALTIME_ONLY
         HIGHBD_OBFP_WRAPPER(128, 128, 12)
         HIGHBD_OBFP_WRAPPER(128, 64, 12)
@@ -796,20 +828,23 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
         HIGHBD_SDSFP_WRAPPER(64, 128, 12);
         HIGHBD_SDSFP_WRAPPER(64, 64, 12);
         HIGHBD_SDSFP_WRAPPER(64, 32, 12);
-        HIGHBD_SDSFP_WRAPPER(64, 16, 12);
         HIGHBD_SDSFP_WRAPPER(32, 64, 12);
         HIGHBD_SDSFP_WRAPPER(32, 32, 12);
         HIGHBD_SDSFP_WRAPPER(32, 16, 12);
-        HIGHBD_SDSFP_WRAPPER(32, 8, 12);
-        HIGHBD_SDSFP_WRAPPER(16, 64, 12);
         HIGHBD_SDSFP_WRAPPER(16, 32, 12);
         HIGHBD_SDSFP_WRAPPER(16, 16, 12);
         HIGHBD_SDSFP_WRAPPER(16, 8, 12);
         HIGHBD_SDSFP_WRAPPER(8, 16, 12);
         HIGHBD_SDSFP_WRAPPER(8, 8, 12);
-        HIGHBD_SDSFP_WRAPPER(4, 16, 12);
         HIGHBD_SDSFP_WRAPPER(4, 8, 12);
+
+#if !CONFIG_REALTIME_ONLY
+        HIGHBD_SDSFP_WRAPPER(64, 16, 12);
+        HIGHBD_SDSFP_WRAPPER(32, 8, 12);
+        HIGHBD_SDSFP_WRAPPER(16, 64, 12);
         HIGHBD_SDSFP_WRAPPER(8, 32, 12);
+        HIGHBD_SDSFP_WRAPPER(4, 16, 12);
+#endif
         break;
 
       default:
