@@ -1054,11 +1054,10 @@ void aom_comp_mask_pred_ssse3(uint8_t *comp_pred, const uint8_t *pred,
     } while (i < height);
   } else {
     do {
-      for (int x = 0; x < width / 32; x++) {
-        comp_mask_pred_16_ssse3(src0 + x * 32, src1 + x * 32, mask + x * 32,
-                                comp_pred);
-        comp_mask_pred_16_ssse3(src0 + x * 32 + 16, src1 + x * 32 + 16,
-                                mask + x * 32 + 16, comp_pred + 16);
+      for (int x = 0; x < width; x += 32) {
+        comp_mask_pred_16_ssse3(src0 + x, src1 + x, mask + x, comp_pred);
+        comp_mask_pred_16_ssse3(src0 + x + 16, src1 + x + 16, mask + x + 16,
+                                comp_pred + 16);
         comp_pred += 32;
       }
       src0 += (stride0);

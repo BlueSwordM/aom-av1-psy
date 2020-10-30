@@ -397,12 +397,10 @@ void aom_comp_mask_pred_avx2(uint8_t *comp_pred, const uint8_t *pred, int width,
     } while (i < height);
   } else {
     do {
-      for (int x = 0; x < width / 32; x++) {
-        const __m256i sA0 =
-            _mm256_lddqu_si256((const __m256i *)(src0 + x * 32));
-        const __m256i sA1 =
-            _mm256_lddqu_si256((const __m256i *)(src1 + x * 32));
-        const __m256i aA = _mm256_lddqu_si256((const __m256i *)(mask + x * 32));
+      for (int x = 0; x < width; x += 32) {
+        const __m256i sA0 = _mm256_lddqu_si256((const __m256i *)(src0 + x));
+        const __m256i sA1 = _mm256_lddqu_si256((const __m256i *)(src1 + x));
+        const __m256i aA = _mm256_lddqu_si256((const __m256i *)(mask + x));
 
         comp_mask_pred_line_avx2(sA0, sA1, aA, comp_pred);
         comp_pred += 32;
@@ -496,28 +494,30 @@ void aom_highbd_comp_mask_pred_avx2(uint8_t *comp_pred8, const uint8_t *pred8,
       comp_pred += width;
       i += 1;
     } while (i < height);
-  } else if (width == 32) {
+  } else {
     do {
-      const __m256i s0 = _mm256_loadu_si256((const __m256i *)src0);
-      const __m256i s2 = _mm256_loadu_si256((const __m256i *)(src0 + 16));
-      const __m256i s1 = _mm256_loadu_si256((const __m256i *)src1);
-      const __m256i s3 = _mm256_loadu_si256((const __m256i *)(src1 + 16));
+      for (int x = 0; x < width; x += 32) {
+        const __m256i s0 = _mm256_loadu_si256((const __m256i *)(src0 + x));
+        const __m256i s2 = _mm256_loadu_si256((const __m256i *)(src0 + x + 16));
+        const __m256i s1 = _mm256_loadu_si256((const __m256i *)(src1 + x));
+        const __m256i s3 = _mm256_loadu_si256((const __m256i *)(src1 + x + 16));
 
-      const __m256i m01_16 =
-          _mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i *)mask));
-      const __m256i m23_16 =
-          _mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i *)(mask + 16)));
+        const __m256i m01_16 =
+            _mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i *)(mask + x)));
+        const __m256i m23_16 = _mm256_cvtepu8_epi16(
+            _mm_loadu_si128((const __m128i *)(mask + x + 16)));
 
-      const __m256i comp = highbd_comp_mask_pred_line_avx2(s0, s1, m01_16);
-      const __m256i comp1 = highbd_comp_mask_pred_line_avx2(s2, s3, m23_16);
+        const __m256i comp = highbd_comp_mask_pred_line_avx2(s0, s1, m01_16);
+        const __m256i comp1 = highbd_comp_mask_pred_line_avx2(s2, s3, m23_16);
 
-      _mm256_storeu_si256((__m256i *)comp_pred, comp);
-      _mm256_storeu_si256((__m256i *)(comp_pred + 16), comp1);
+        _mm256_storeu_si256((__m256i *)comp_pred, comp);
+        _mm256_storeu_si256((__m256i *)(comp_pred + 16), comp1);
 
+        comp_pred += 32;
+      }
       src0 += stride0;
       src1 += stride1;
       mask += mask_stride;
-      comp_pred += width;
       i += 1;
     } while (i < height);
   }

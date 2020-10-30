@@ -728,30 +728,35 @@ void aom_highbd_comp_mask_pred_sse2(uint8_t *comp_pred8, const uint8_t *pred8,
       comp_pred += width;
       i += 1;
     } while (i < height);
-  } else if (width == 32) {
+  } else {
     do {
-      for (int j = 0; j < 2; j++) {
-        const __m128i s0 = _mm_loadu_si128((const __m128i *)(src0 + j * 16));
-        const __m128i s2 =
-            _mm_loadu_si128((const __m128i *)(src0 + 8 + j * 16));
-        const __m128i s1 = _mm_loadu_si128((const __m128i *)(src1 + j * 16));
-        const __m128i s3 =
-            _mm_loadu_si128((const __m128i *)(src1 + 8 + j * 16));
+      for (int x = 0; x < width; x += 32) {
+        for (int j = 0; j < 2; j++) {
+          const __m128i s0 =
+              _mm_loadu_si128((const __m128i *)(src0 + x + j * 16));
+          const __m128i s2 =
+              _mm_loadu_si128((const __m128i *)(src0 + x + 8 + j * 16));
+          const __m128i s1 =
+              _mm_loadu_si128((const __m128i *)(src1 + x + j * 16));
+          const __m128i s3 =
+              _mm_loadu_si128((const __m128i *)(src1 + x + 8 + j * 16));
 
-        const __m128i m_8 = _mm_loadu_si128((const __m128i *)(mask + j * 16));
-        const __m128i m01_16 = _mm_unpacklo_epi8(m_8, zero);
-        const __m128i m23_16 = _mm_unpackhi_epi8(m_8, zero);
+          const __m128i m_8 =
+              _mm_loadu_si128((const __m128i *)(mask + x + j * 16));
+          const __m128i m01_16 = _mm_unpacklo_epi8(m_8, zero);
+          const __m128i m23_16 = _mm_unpackhi_epi8(m_8, zero);
 
-        const __m128i comp = highbd_comp_mask_pred_line_sse2(s0, s1, m01_16);
-        const __m128i comp1 = highbd_comp_mask_pred_line_sse2(s2, s3, m23_16);
+          const __m128i comp = highbd_comp_mask_pred_line_sse2(s0, s1, m01_16);
+          const __m128i comp1 = highbd_comp_mask_pred_line_sse2(s2, s3, m23_16);
 
-        _mm_storeu_si128((__m128i *)(comp_pred + j * 16), comp);
-        _mm_storeu_si128((__m128i *)(comp_pred + 8 + j * 16), comp1);
+          _mm_storeu_si128((__m128i *)(comp_pred + j * 16), comp);
+          _mm_storeu_si128((__m128i *)(comp_pred + 8 + j * 16), comp1);
+        }
+        comp_pred += 32;
       }
       src0 += stride0;
       src1 += stride1;
       mask += mask_stride;
-      comp_pred += width;
       i += 1;
     } while (i < height);
   }
