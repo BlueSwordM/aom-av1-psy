@@ -5268,11 +5268,6 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       }
     }
 
-#if !CONFIG_REALTIME_ONLY
-    const int do_loop_restoration =
-        cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
-        cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
-        cm->rst_info[2].frame_restoration_type != RESTORE_NONE;
     const int do_cdef =
         !pbi->skip_loop_filter && !cm->features.coded_lossless &&
         (cm->cdef_info.cdef_bits || cm->cdef_info.cdef_strengths[0] ||
@@ -5280,6 +5275,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     const int do_superres = av1_superres_scaled(cm);
     const int optimized_loop_restoration = !do_cdef && !do_superres;
 
+#if !CONFIG_REALTIME_ONLY
+    const int do_loop_restoration =
+        cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
+        cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
+        cm->rst_info[2].frame_restoration_type != RESTORE_NONE;
     if (!optimized_loop_restoration) {
       if (do_loop_restoration)
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
@@ -5319,6 +5319,12 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
                                             cm, optimized_loop_restoration,
                                             &pbi->lr_ctxt);
         }
+      }
+    }
+#else
+    if (!optimized_loop_restoration) {
+      if (do_cdef) {
+        av1_cdef_frame(&pbi->common.cur_frame->buf, cm, &pbi->dcb.xd);
       }
     }
 #endif  // !CONFIG_REALTIME_ONLY
