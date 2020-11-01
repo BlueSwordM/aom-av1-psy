@@ -326,8 +326,7 @@ const uint8_t *av1_get_compound_type_mask(
     case COMPOUND_WEDGE:
       return av1_get_contiguous_soft_mask(comp_data->wedge_index,
                                           comp_data->wedge_sign, sb_type);
-    case COMPOUND_DIFFWTD: return comp_data->seg_mask;
-    default: assert(0); return NULL;
+    default: return comp_data->seg_mask;
   }
 }
 
