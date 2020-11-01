@@ -389,7 +389,6 @@ static void set_good_speed_features_framesize_independent(
   sf->part_sf.simple_motion_search_prune_rect = 1;
   sf->part_sf.ml_predict_breakout_level = use_hbd ? 1 : 3;
 
-  sf->inter_sf.disable_wedge_search_var_thresh = 0;
   // TODO(debargha): Test, tweak and turn on either 1 or 2
   sf->inter_sf.inter_mode_rd_model_estimation = 1;
   sf->inter_sf.model_based_post_interp_filter_breakout = 1;
