@@ -958,20 +958,11 @@ static INLINE void update_best_info(const MB_MODE_INFO *const mbmi, int64_t *rd,
 
 // Updates best_mv for masked compound types
 static INLINE void update_mask_best_mv(const MB_MODE_INFO *const mbmi,
-                                       int_mv *best_mv, int_mv *cur_mv,
-                                       const COMPOUND_TYPE cur_type,
-                                       int *best_tmp_rate_mv, int tmp_rate_mv,
-                                       const SPEED_FEATURES *const sf) {
-  if (cur_type == COMPOUND_WEDGE ||
-      (sf->inter_sf.enable_interinter_diffwtd_newmv_search &&
-       cur_type == COMPOUND_DIFFWTD)) {
-    *best_tmp_rate_mv = tmp_rate_mv;
-    best_mv[0].as_int = mbmi->mv[0].as_int;
-    best_mv[1].as_int = mbmi->mv[1].as_int;
-  } else {
-    best_mv[0].as_int = cur_mv[0].as_int;
-    best_mv[1].as_int = cur_mv[1].as_int;
-  }
+                                       int_mv *best_mv, int *best_tmp_rate_mv,
+                                       int tmp_rate_mv) {
+  *best_tmp_rate_mv = tmp_rate_mv;
+  best_mv[0].as_int = mbmi->mv[0].as_int;
+  best_mv[1].as_int = mbmi->mv[1].as_int;
 }
 
 static INLINE void save_comp_rd_search_stat(
@@ -1418,8 +1409,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       if (masked_compound_used && cur_type >= COMPOUND_WEDGE) {
         memcpy(buffers->tmp_best_mask_buf, xd->seg_mask, mask_len);
         if (have_newmv_in_inter_mode(this_mode))
-          update_mask_best_mv(mbmi, best_mv, cur_mv, cur_type,
-                              &best_tmp_rate_mv, tmp_rate_mv, &cpi->sf);
+          update_mask_best_mv(mbmi, best_mv, &best_tmp_rate_mv, tmp_rate_mv);
       }
     }
     // reset to original mvs for next iteration
