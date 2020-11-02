@@ -1406,31 +1406,27 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
     if (best_rd_cur < *rd) {
       update_best_info(mbmi, rd, &best_type_stats, best_rd_cur,
                        comp_model_rd_cur, rs2);
-      if (masked_compound_used && cur_type >= COMPOUND_WEDGE) {
-        memcpy(buffers->tmp_best_mask_buf, xd->seg_mask, mask_len);
-        if (have_newmv_in_inter_mode(this_mode))
-          update_mask_best_mv(mbmi, best_mv, &best_tmp_rate_mv, tmp_rate_mv);
-      }
+      memcpy(buffers->tmp_best_mask_buf, xd->seg_mask, mask_len);
+      if (have_newmv_in_inter_mode(this_mode))
+        update_mask_best_mv(mbmi, best_mv, &best_tmp_rate_mv, tmp_rate_mv);
     }
     // reset to original mvs for next iteration
     mbmi->mv[0].as_int = cur_mv[0].as_int;
     mbmi->mv[1].as_int = cur_mv[1].as_int;
   }
-  if (mbmi->interinter_comp.type != best_type_stats.best_compound_data.type) {
-    mbmi->comp_group_idx =
-        (best_type_stats.best_compound_data.type < COMPOUND_WEDGE) ? 0 : 1;
-    mbmi->compound_idx =
-        !(best_type_stats.best_compound_data.type == COMPOUND_DISTWTD);
-    mbmi->interinter_comp = best_type_stats.best_compound_data;
-    memcpy(xd->seg_mask, buffers->tmp_best_mask_buf, mask_len);
-  }
+
+  mbmi->comp_group_idx =
+      (best_type_stats.best_compound_data.type < COMPOUND_WEDGE) ? 0 : 1;
+  mbmi->compound_idx =
+      !(best_type_stats.best_compound_data.type == COMPOUND_DISTWTD);
+  mbmi->interinter_comp = best_type_stats.best_compound_data;
+  memcpy(xd->seg_mask, buffers->tmp_best_mask_buf, mask_len);
+
   if (have_newmv_in_inter_mode(this_mode)) {
     mbmi->mv[0].as_int = best_mv[0].as_int;
     mbmi->mv[1].as_int = best_mv[1].as_int;
-    if (mbmi->interinter_comp.type == COMPOUND_WEDGE) {
-      rd_stats->rate += best_tmp_rate_mv - *rate_mv;
-      *rate_mv = best_tmp_rate_mv;
-    }
+    rd_stats->rate += best_tmp_rate_mv - *rate_mv;
+    *rate_mv = best_tmp_rate_mv;
   }
   restore_dst_buf(xd, *orig_dst, 1);
   if (!match_found)
