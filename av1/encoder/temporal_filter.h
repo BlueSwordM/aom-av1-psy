@@ -66,6 +66,60 @@ struct AV1_COMP;
 
 #define NOISE_ESTIMATION_EDGE_THRESHOLD 50
 
+/*!\endcond */
+
+/*!
+ * \brief Parameters related to temporal filtering.
+ */
+typedef struct {
+  /*!
+   * Frame buffers used for temporal filtering.
+   */
+  YV12_BUFFER_CONFIG *frames[MAX_LAG_BUFFERS];
+  /*!
+   * Number of frames in the frame buffer.
+   */
+  int num_frames;
+  /*!
+   * Index of the frame to be filtered.
+   */
+  int filter_frame_idx;
+  /*!
+   * Whether to accumulate diff for show existing condition check.
+   */
+  int check_show_existing;
+  /*!
+   * Frame scaling factor.
+   */
+  struct scale_factors sf;
+  /*!
+   * Estimated noise levels for each plane in the frame.
+   */
+  double noise_levels[MAX_MB_PLANE];
+  /*!
+   * Number of pixels in the temporal filtering block across all planes.
+   */
+  int num_pels;
+  /*!
+   * Number of temporal filtering block rows.
+   */
+  int mb_rows;
+  /*!
+   * Number of temporal filtering block columns.
+   */
+  int mb_cols;
+  /*!
+   * Whether the frame is high-bitdepth or not.
+   */
+  int is_highbitdepth;
+  /*!
+   * Quantization factor used in temporal filtering.
+   */
+  int q_factor;
+} TemporalFilterCtx;
+
+/*!\cond */
+
 // Sum and SSE source vs filtered frame difference returned by
 // temporal filter.
 typedef struct {
