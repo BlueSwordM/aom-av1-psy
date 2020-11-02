@@ -320,7 +320,6 @@ static const uint8_t *get_wedge_mask_inplace(int wedge_index, int neg,
 
 const uint8_t *av1_get_compound_type_mask(
     const INTERINTER_COMPOUND_DATA *const comp_data, BLOCK_SIZE sb_type) {
-  assert(is_masked_compound_type(comp_data->type));
   (void)sb_type;
   switch (comp_data->type) {
     case COMPOUND_WEDGE:

@@ -1271,8 +1271,6 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   best_mv[0].as_int = cur_mv[0].as_int;
   best_mv[1].as_int = cur_mv[1].as_int;
   *rd = INT64_MAX;
-  int rate_sum, tmp_skip_txfm_sb;
-  int64_t dist_sum, tmp_skip_sse_sb;
 
   // Local array to store the valid compound types to be evaluated in the core
   // loop
@@ -1324,53 +1322,27 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       const int64_t mode_rd = RDCOST(x->rdmult, rs2 + rd_stats->rate, 0);
       if (mode_rd < ref_best_rd) {
         // Reuse data if matching record is found
-        if (comp_rate[cur_type] == INT_MAX) {
-          av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
-                                        AOM_PLANE_Y, AOM_PLANE_Y);
-          if (cur_type == COMPOUND_AVERAGE) *is_luma_interp_done = 1;
-
-          // Compute RD cost for the current type
-          RD_STATS est_rd_stats;
-          const int64_t tmp_rd_thresh = AOMMIN(*rd, rd_thresh) - mode_rd;
-          int64_t est_rd = INT64_MAX;
-          int eval_txfm = 1;
-          // Check if the mode is good enough based on skip rd
-          if (cpi->sf.inter_sf.txfm_rd_gate_level) {
-            int64_t sse_y = compute_sse_plane(x, xd, PLANE_TYPE_Y, bsize);
-            int64_t skip_rd = RDCOST(x->rdmult, rs2 + *rate_mv, (sse_y << 4));
-            eval_txfm = check_txfm_eval(x, bsize, ref_skip_rd, skip_rd,
-                                        cpi->sf.inter_sf.txfm_rd_gate_level, 1);
-          }
-          // Evaluate further if skip rd is low enough
-          if (eval_txfm) {
-            est_rd = estimate_yrd_for_sb(cpi, bsize, x, tmp_rd_thresh,
-                                         &est_rd_stats);
-          }
-
-          if (est_rd != INT64_MAX) {
-            best_rd_cur = RDCOST(x->rdmult, rs2 + *rate_mv + est_rd_stats.rate,
-                                 est_rd_stats.dist);
-            model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
-                cpi, bsize, x, xd, 0, 0, &rate_sum, &dist_sum,
-                &tmp_skip_txfm_sb, &tmp_skip_sse_sb, NULL, NULL, NULL);
-            comp_model_rd_cur =
-                RDCOST(x->rdmult, rs2 + *rate_mv + rate_sum, dist_sum);
-
-            // Backup rate and distortion for future reuse
-            backup_stats(cur_type, comp_rate, comp_dist, comp_model_rate,
-                         comp_model_dist, rate_sum, dist_sum, &est_rd_stats,
-                         comp_rs2, rs2);
-          }
-        } else {
-          // Calculate RD cost based on stored stats
-          assert(comp_dist[cur_type] != INT64_MAX);
-          best_rd_cur = RDCOST(x->rdmult, rs2 + *rate_mv + comp_rate[cur_type],
-                               comp_dist[cur_type]);
-          // Recalculate model rdcost with the updated rate
-          comp_model_rd_cur =
-              RDCOST(x->rdmult, rs2 + *rate_mv + comp_model_rate[cur_type],
-                     comp_model_dist[cur_type]);
+        InterPredParams inter_pred_params;
+        av1_dist_wtd_comp_weight_assign(
+            &cpi->common, mbmi, 0, &inter_pred_params.conv_params.fwd_offset,
+            &inter_pred_params.conv_params.bck_offset,
+            &inter_pred_params.conv_params.use_dist_wtd_comp_avg, 1);
+        int mask_value = inter_pred_params.conv_params.fwd_offset * 4;
+        memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
+        tmp_rate_mv = *rate_mv;
+        if (have_newmv_in_inter_mode(this_mode)) {
+          tmp_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,
+                                                              bsize, this_mode);
         }
+        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
+                                      AOM_PLANE_Y, AOM_PLANE_Y);
+        if (cur_type == COMPOUND_AVERAGE) *is_luma_interp_done = 1;
+
+        RD_STATS est_rd_stats;
+        estimate_yrd_for_sb(cpi, bsize, x, INT64_MAX, &est_rd_stats);
+
+        best_rd_cur = RDCOST(x->rdmult, rs2 + tmp_rate_mv + est_rd_stats.rate,
+                             est_rd_stats.dist);
       }
       // use spare buffer for following compound type try
       if (cur_type == COMPOUND_AVERAGE) restore_dst_buf(xd, *tmp_dst, 1);
