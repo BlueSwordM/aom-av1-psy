@@ -12,6 +12,8 @@
 #ifndef AOM_AV1_ENCODER_OPTICAL_FLOW_H_
 #define AOM_AV1_ENCODER_OPTICAL_FLOW_H_
 
+#include "aom_scale/yv12config.h"
+#include "av1/common/mv.h"
 #include "config/aom_config.h"
 
 #ifdef __cplusplus
@@ -27,6 +29,11 @@ typedef enum {
   MV_FILTER_SMOOTH,
   MV_FILTER_MEDIAN
 } MV_FILTER_TYPE;
+
+typedef struct LOCALMV {
+  double row;
+  double col;
+} LOCALMV;
 
 #define MAX_PYRAMID_LEVELS 5
 // default options for optical flow
@@ -48,21 +55,16 @@ typedef struct opfl_params {
 
 #define OPFL_FLAG_SPARSE 1
 
-void init_opfl_params(OPFL_PARAMS *opfl_params) {
-  opfl_params->pyramid_levels = OPFL_PYRAMID_LEVELS;
-  opfl_params->lk_params = NULL;
-}
+void av1_init_opfl_params(OPFL_PARAMS *opfl_params);
 
-void init_lk_params(LK_PARAMS *lk_params) {
-  lk_params->window_size = OPFL_WINDOW_SIZE;
-}
+void av1_init_lk_params(LK_PARAMS *lk_params);
 
-void optical_flow(const YV12_BUFFER_CONFIG *from_frame,
-                  const YV12_BUFFER_CONFIG *to_frame, const int from_frame_idx,
-                  const int to_frame_idx, const int bit_depth,
-                  const OPFL_PARAMS *opfl_params,
-                  const MV_FILTER_TYPE mv_filter, const OPTFLOW_METHOD method,
-                  MV *mvs);
+void av1_optical_flow(const YV12_BUFFER_CONFIG *from_frame,
+                      const YV12_BUFFER_CONFIG *to_frame,
+                      const int from_frame_idx, const int to_frame_idx,
+                      const int bit_depth, const OPFL_PARAMS *opfl_params,
+                      const MV_FILTER_TYPE mv_filter,
+                      const OPTFLOW_METHOD method, MV *mvs);
 #endif
 
 #ifdef __cplusplus
