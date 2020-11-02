@@ -189,8 +189,9 @@ void av1_cyclic_refresh_update_segment(const AV1_COMP *cpi,
 
   // Update entries in the cyclic refresh map with new_map_value, and
   // copy mbmi->segment_id into global segmentation map.
-  for (int y = 0; y < ymis; y++)
-    for (int x = 0; x < xmis; x++) {
+  // 8x8 is smallest coding block size for non-key frames.
+  for (int y = 0; y < ymis; y += 2)
+    for (int x = 0; x < xmis; x += 2) {
       int map_offset = block_index + y * cm->mi_params.mi_cols + x;
       cr->map[map_offset] = new_map_value;
       cpi->enc_seg.map[map_offset] = mbmi->segment_id;
@@ -205,23 +206,28 @@ void av1_cyclic_refresh_postencode(AV1_COMP *const cpi) {
   cr->cnt_zeromv = 0;
   cr->actual_num_seg1_blocks = 0;
   cr->actual_num_seg2_blocks = 0;
-  for (int mi_row = 0; mi_row < mi_params->mi_rows; mi_row++) {
-    for (int mi_col = 0; mi_col < mi_params->mi_cols; mi_col++) {
-      MB_MODE_INFO **mi =
-          mi_params->mi_grid_base + mi_row * mi_params->mi_stride + mi_col;
+  // 8X8 blocks are smallest partition used on delta frames.
+  for (int mi_row = 0; mi_row < mi_params->mi_rows; mi_row += 2) {
+    MB_MODE_INFO **mi = mi_params->mi_grid_base + mi_row * mi_params->mi_stride;
+    int sh = 2;
+    for (int mi_col = 0; mi_col < mi_params->mi_cols; mi_col += sh) {
+      sh = mi_size_wide[mi[0]->bsize];
       MV mv = mi[0]->mv[0].as_mv;
       if (cm->seg.enabled) {
         int map_index = mi_row * mi_params->mi_cols + mi_col;
         if (cyclic_refresh_segment_id(seg_map[map_index]) ==
             CR_SEGMENT_ID_BOOST1)
-          cr->actual_num_seg1_blocks++;
+          cr->actual_num_seg1_blocks += sh << 1;
         else if (cyclic_refresh_segment_id(seg_map[map_index]) ==
                  CR_SEGMENT_ID_BOOST2)
-          cr->actual_num_seg2_blocks++;
+          cr->actual_num_seg2_blocks += sh << 1;
       }
       // Accumulate low_content_frame.
       if (is_inter_block(mi[0]) && abs(mv.row) < 16 && abs(mv.col) < 16)
-        cr->cnt_zeromv++;
+        cr->cnt_zeromv += sh << 1;
+      if (mi_col + sh < mi_params->mi_cols) {
+        mi += sh;
+      }
     }
   }
   cr->cnt_zeromv =
@@ -292,14 +298,15 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
     // Loop through all MI blocks in superblock and update map.
     xmis = AOMMIN(mi_params->mi_cols - mi_col, cm->seq_params.mib_size);
     ymis = AOMMIN(mi_params->mi_rows - mi_row, cm->seq_params.mib_size);
-    for (y = 0; y < ymis; y++) {
-      for (x = 0; x < xmis; x++) {
+    // cr_map only needed at 8x8 blocks.
+    for (y = 0; y < ymis; y += 2) {
+      for (x = 0; x < xmis; x += 2) {
         const int bl_index2 = bl_index + y * mi_params->mi_cols + x;
         // If the block is as a candidate for clean up then mark it
         // for possible boost/refresh (segment 1). The segment id may get
         // reset to 0 later if block gets coded anything other than GLOBALMV.
         if (cr->map[bl_index2] == 0) {
-          if (cr->last_coded_q_map[bl_index2] > qindex_thresh) sum_map++;
+          if (cr->last_coded_q_map[bl_index2] > qindex_thresh) sum_map += 4;
         } else if (cr->map[bl_index2] < 0) {
           cr->map[bl_index2]++;
         }
@@ -307,7 +314,7 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
     }
     // Enforce constant segment over superblock.
     // If segment is at least half of superblock, set to 1.
-    if (sum_map >= xmis * ymis / 2) {
+    if (sum_map >= (xmis * ymis) >> 1) {
       for (y = 0; y < ymis; y++)
         for (x = 0; x < xmis; x++) {
           seg_map[bl_index + y * mi_params->mi_cols + x] = CR_SEGMENT_ID_BOOST1;
