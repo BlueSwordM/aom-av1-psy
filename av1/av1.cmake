@@ -276,7 +276,10 @@ if(CONFIG_TUNE_BUTTERAUGLI)
 endif()
 
 if(CONFIG_OPTICAL_FLOW_API)
-  list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/optical_flow.c"
+  list(APPEND AOM_AV1_ENCODER_SOURCES
+              "${AOM_ROOT}/av1/encoder/sparse_linear_solver.c"
+              "${AOM_ROOT}/av1/encoder/sparse_linear_solver.h"
+              "${AOM_ROOT}/av1/encoder/optical_flow.c"
               "${AOM_ROOT}/av1/encoder/optical_flow.h")
 endif()
 
