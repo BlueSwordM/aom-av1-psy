@@ -5703,7 +5703,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   const int try_palette =
       cpi->oxcf.tool_cfg.enable_palette &&
       av1_allow_palette(features->allow_screen_content_tools, mbmi->bsize) &&
-      !is_inter_mode(search_state.best_mbmode.mode);
+      !is_inter_mode(search_state.best_mbmode.mode) && rd_cost->rate != INT_MAX;
   RD_STATS this_rd_cost;
   int this_skippable = 0;
   if (try_palette) {

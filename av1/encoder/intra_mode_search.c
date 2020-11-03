@@ -591,6 +591,8 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
   mbmi->uv_mode = UV_DC_PRED;
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
+  av1_zero(pmi->palette_size);
+
   RD_STATS rd_stats_y;
   av1_invalid_rd_stats(&rd_stats_y);
   av1_rd_pick_palette_intra_sby(
