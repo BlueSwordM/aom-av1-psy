@@ -1314,42 +1314,39 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
     comp_model_rd_cur = INT64_MAX;
     tmp_rate_mv = *rate_mv;
     best_rd_cur = INT64_MAX;
-
+    update_mbmi_for_compound_type(mbmi, cur_type);
+    rs2 = masked_type_cost[cur_type];
     // Case COMPOUND_AVERAGE and COMPOUND_DISTWTD
     if (cur_type < COMPOUND_WEDGE) {
-      update_mbmi_for_compound_type(mbmi, cur_type);
-      rs2 = masked_type_cost[cur_type];
       const int64_t mode_rd = RDCOST(x->rdmult, rs2 + rd_stats->rate, 0);
-      if (mode_rd < ref_best_rd) {
-        // Reuse data if matching record is found
-        InterPredParams inter_pred_params;
-        av1_dist_wtd_comp_weight_assign(
-            &cpi->common, mbmi, 0, &inter_pred_params.conv_params.fwd_offset,
-            &inter_pred_params.conv_params.bck_offset,
-            &inter_pred_params.conv_params.use_dist_wtd_comp_avg, 1);
-        int mask_value = inter_pred_params.conv_params.fwd_offset * 4;
-        memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
-        tmp_rate_mv = *rate_mv;
-        if (have_newmv_in_inter_mode(this_mode)) {
-          tmp_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,
-                                                              bsize, this_mode);
-        }
-        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
-                                      AOM_PLANE_Y, AOM_PLANE_Y);
-        if (cur_type == COMPOUND_AVERAGE) *is_luma_interp_done = 1;
+      if (mode_rd >= ref_best_rd) continue;
 
-        RD_STATS est_rd_stats;
-        estimate_yrd_for_sb(cpi, bsize, x, INT64_MAX, &est_rd_stats);
-
-        best_rd_cur = RDCOST(x->rdmult, rs2 + tmp_rate_mv + est_rd_stats.rate,
-                             est_rd_stats.dist);
+      // Reuse data if matching record is found
+      InterPredParams inter_pred_params;
+      av1_dist_wtd_comp_weight_assign(
+          &cpi->common, mbmi, 0, &inter_pred_params.conv_params.fwd_offset,
+          &inter_pred_params.conv_params.bck_offset,
+          &inter_pred_params.conv_params.use_dist_wtd_comp_avg, 1);
+      int mask_value = inter_pred_params.conv_params.fwd_offset * 4;
+      memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
+      tmp_rate_mv = *rate_mv;
+      if (have_newmv_in_inter_mode(this_mode)) {
+        tmp_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,
+                                                            bsize, this_mode);
       }
+      av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
+                                    AOM_PLANE_Y, AOM_PLANE_Y);
+      if (cur_type == COMPOUND_AVERAGE) *is_luma_interp_done = 1;
+
+      RD_STATS est_rd_stats;
+      estimate_yrd_for_sb(cpi, bsize, x, INT64_MAX, &est_rd_stats);
+
+      best_rd_cur = RDCOST(x->rdmult, rs2 + tmp_rate_mv + est_rd_stats.rate,
+                           est_rd_stats.dist);
       // use spare buffer for following compound type try
       if (cur_type == COMPOUND_AVERAGE) restore_dst_buf(xd, *tmp_dst, 1);
     } else {
       // Handle masked compound types
-      update_mbmi_for_compound_type(mbmi, cur_type);
-      rs2 = masked_type_cost[cur_type];
       // Factors to control gating of compound type selection based on best
       // approximate rd so far
       const int max_comp_type_rd_threshold_mul =
