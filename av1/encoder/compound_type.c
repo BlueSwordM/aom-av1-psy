@@ -1316,11 +1316,12 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
     best_rd_cur = INT64_MAX;
     update_mbmi_for_compound_type(mbmi, cur_type);
     rs2 = masked_type_cost[cur_type];
+
+    const int64_t mode_rd = RDCOST(x->rdmult, rs2 + rd_stats->rate, 0);
+    if (mode_rd >= ref_best_rd) continue;
+
     // Case COMPOUND_AVERAGE and COMPOUND_DISTWTD
     if (cur_type < COMPOUND_WEDGE) {
-      const int64_t mode_rd = RDCOST(x->rdmult, rs2 + rd_stats->rate, 0);
-      if (mode_rd >= ref_best_rd) continue;
-
       // Reuse data if matching record is found
       InterPredParams inter_pred_params;
       av1_dist_wtd_comp_weight_assign(
@@ -1345,6 +1346,51 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
                            est_rd_stats.dist);
       // use spare buffer for following compound type try
       if (cur_type == COMPOUND_AVERAGE) restore_dst_buf(xd, *tmp_dst, 1);
+    } else if (cur_type == COMPOUND_WEDGE) {
+      int best_mask_index = 0;
+      int best_wedge_sign = 0;
+      const int wedge_mask_size = get_wedge_types_lookup(bsize);
+      for (int wedge_mask = 0; wedge_mask < wedge_mask_size; ++wedge_mask) {
+        for (int wedge_sign = 0; wedge_sign < 2; ++wedge_sign) {
+          tmp_rate_mv = *rate_mv;
+          rs2 = masked_type_cost[cur_type];
+          mbmi->interinter_comp.wedge_index = wedge_mask;
+          mbmi->interinter_comp.wedge_sign = wedge_sign;
+          if (have_newmv_in_inter_mode(this_mode)) {
+            tmp_rate_mv = av1_interinter_compound_motion_search(
+                cpi, x, cur_mv, bsize, this_mode);
+          }
+          rs2 += get_interinter_compound_mask_rate(&x->mode_costs, mbmi);
+          av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
+                                        AOM_PLANE_Y, AOM_PLANE_Y);
+          RD_STATS est_rd_stats;
+          estimate_yrd_for_sb(cpi, bsize, x, INT64_MAX, &est_rd_stats);
+          int64_t this_rd_cur =
+              RDCOST(x->rdmult, rs2 + tmp_rate_mv + est_rd_stats.rate,
+                     est_rd_stats.dist);
+          if (this_rd_cur < best_rd_cur) {
+            best_mask_index = wedge_mask;
+            best_wedge_sign = wedge_sign;
+            best_rd_cur = this_rd_cur;
+          }
+        }
+      }
+
+      mbmi->interinter_comp.wedge_index = best_mask_index;
+      mbmi->interinter_comp.wedge_sign = best_wedge_sign;
+      rs2 = masked_type_cost[cur_type];
+      tmp_rate_mv = *rate_mv;
+      if (have_newmv_in_inter_mode(this_mode)) {
+        tmp_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,
+                                                            bsize, this_mode);
+      }
+      rs2 += get_interinter_compound_mask_rate(&x->mode_costs, mbmi);
+      av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
+                                    AOM_PLANE_Y, AOM_PLANE_Y);
+      RD_STATS est_rd_stats;
+      estimate_yrd_for_sb(cpi, bsize, x, INT64_MAX, &est_rd_stats);
+      best_rd_cur = RDCOST(x->rdmult, rs2 + tmp_rate_mv + est_rd_stats.rate,
+                           est_rd_stats.dist);
     } else {
       // Handle masked compound types
       // Factors to control gating of compound type selection based on best
