@@ -9,11 +9,13 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include "av1/common/av1_common_int.h"
 #include "av1/common/reconintra.h"
 
 #include "av1/encoder/intra_mode_search.h"
 #include "av1/encoder/intra_mode_search_utils.h"
 #include "av1/encoder/palette.h"
+#include "av1/encoder/speed_features.h"
 #include "av1/encoder/tx_search.h"
 
 /*!\cond */
@@ -472,6 +474,8 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
                                  cpi->optimize_seg_arr[mbmi->segment_id]);
     xd->cfl.store_y = 0;
   }
+  IntraModeSearchState intra_search_state;
+  init_intra_mode_search_state(&intra_search_state);
 
   // Search through all non-palette modes.
   for (int mode_idx = 0; mode_idx < UV_INTRA_MODES; ++mode_idx) {
@@ -503,6 +507,26 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
     if (is_directional_mode && av1_use_angle_delta(mbmi->bsize) &&
         intra_mode_cfg->enable_angle_delta) {
+      const SPEED_FEATURES *sf = &cpi->sf;
+      if (sf->intra_sf.chroma_intra_pruning_with_hog &&
+          !intra_search_state.dir_mode_skip_mask_ready) {
+        static const float thresh[2][4] = {
+          { -1.2f, 0.0f, 0.0f, 1.2f },    // Interframe
+          { -1.2f, -1.2f, -0.6f, 0.4f },  // Intraframe
+        };
+        const int is_chroma = 1;
+        const int is_intra_frame = frame_is_intra_only(cm);
+        prune_intra_mode_with_hog(
+            x, bsize,
+            thresh[is_intra_frame]
+                  [sf->intra_sf.chroma_intra_pruning_with_hog - 1],
+            intra_search_state.directional_mode_skip_mask, is_chroma);
+        intra_search_state.dir_mode_skip_mask_ready = 1;
+      }
+      if (intra_search_state.directional_mode_skip_mask[mode]) {
+        continue;
+      }
+
       // Search through angle delta
       const int rate_overhead =
           mode_costs->intra_uv_mode_cost[is_cfl_allowed(xd)][mbmi->mode][mode];
@@ -884,9 +908,10 @@ int av1_handle_intra_y_mode(IntraModeSearchState *intra_search_state,
     if (sf->intra_sf.intra_pruning_with_hog &&
         !intra_search_state->dir_mode_skip_mask_ready) {
       const float thresh[4] = { -1.2f, 0.0f, 0.0f, 1.2f };
-      prune_intra_mode_with_hog(x, bsize,
-                                thresh[sf->intra_sf.intra_pruning_with_hog - 1],
-                                intra_search_state->directional_mode_skip_mask);
+      const int is_chroma = 0;
+      prune_intra_mode_with_hog(
+          x, bsize, thresh[sf->intra_sf.intra_pruning_with_hog - 1],
+          intra_search_state->directional_mode_skip_mask, is_chroma);
       intra_search_state->dir_mode_skip_mask_ready = 1;
     }
     if (intra_search_state->directional_mode_skip_mask[mode]) return 0;
@@ -1030,9 +1055,10 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     // Less aggressive thresholds are used here than those used in inter frame
     // encoding.
     const float thresh[4] = { -1.2f, -1.2f, -0.6f, 0.4f };
+    const int is_chroma = 0;
     prune_intra_mode_with_hog(
         x, bsize, thresh[cpi->sf.intra_sf.intra_pruning_with_hog - 1],
-        directional_mode_skip_mask);
+        directional_mode_skip_mask, is_chroma);
   }
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
   pmi->palette_size[0] = 0;

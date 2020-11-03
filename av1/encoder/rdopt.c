@@ -3876,16 +3876,6 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
   x->comp_rd_stats_idx = 0;
 }
 
-static AOM_INLINE void init_intra_mode_search_state(
-    IntraModeSearchState *intra_search_state) {
-  intra_search_state->skip_intra_modes = 0;
-  intra_search_state->best_intra_mode = DC_PRED;
-  intra_search_state->dir_mode_skip_mask_ready = 0;
-  av1_zero(intra_search_state->directional_mode_skip_mask);
-  intra_search_state->rate_uv_intra = INT_MAX;
-  av1_zero(intra_search_state->pmi_uv);
-}
-
 static AOM_INLINE void init_inter_mode_search_state(
     InterModeSearchState *search_state, const AV1_COMP *cpi,
     const MACROBLOCK *x, BLOCK_SIZE bsize, int64_t best_rd_so_far) {

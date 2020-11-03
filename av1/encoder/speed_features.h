@@ -806,7 +806,12 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   unsigned int src_var_thresh_intra_skip;
 
   // Prune intra mode candidates based on source block histogram of gradient.
+  // Applies to luma plane only.
   int intra_pruning_with_hog;
+
+  // Prune intra mode candidates based on source block histogram of gradient.
+  // Applies to chroma plane only.
+  int chroma_intra_pruning_with_hog;
 
   // Enable/disable smooth intra modes.
   int disable_smooth_intra;

@@ -191,23 +191,33 @@ static AOM_INLINE void generate_hog_hbd(const uint8_t *src8, int stride,
 
 static AOM_INLINE void prune_intra_mode_with_hog(
     const MACROBLOCK *x, BLOCK_SIZE bsize, float th,
-    uint8_t *directional_mode_skip_mask) {
+    uint8_t *directional_mode_skip_mask, int is_chroma) {
   aom_clear_system_state();
 
+  const MACROBLOCKD *xd = &x->e_mbd;
+  const int plane = is_chroma ? AOM_PLANE_U : AOM_PLANE_Y;
+  const struct macroblockd_plane *const pd = &xd->plane[plane];
+  const int ss_x = pd->subsampling_x;
+  const int ss_y = pd->subsampling_y;
   const int bh = block_size_high[bsize];
   const int bw = block_size_wide[bsize];
-  const MACROBLOCKD *xd = &x->e_mbd;
   const int rows =
-      (xd->mb_to_bottom_edge >= 0) ? bh : (xd->mb_to_bottom_edge >> 3) + bh;
+      ((xd->mb_to_bottom_edge >= 0) ? bh : (xd->mb_to_bottom_edge >> 3) + bh) >>
+      ss_y;
   const int cols =
-      (xd->mb_to_right_edge >= 0) ? bw : (xd->mb_to_right_edge >> 3) + bw;
-  const int src_stride = x->plane[0].src.stride;
-  const uint8_t *src = x->plane[0].src.buf;
+      ((xd->mb_to_right_edge >= 0) ? bw : (xd->mb_to_right_edge >> 3) + bw) >>
+      ss_x;
+  const int src_stride = x->plane[plane].src.stride;
+  const uint8_t *src = x->plane[plane].src.buf;
   float hist[BINS] = { 0.0f };
   if (is_cur_buf_hbd(xd)) {
     generate_hog_hbd(src, src_stride, rows, cols, hist);
   } else {
     generate_hog(src, src_stride, rows, cols, hist);
+  }
+
+  for (int b = 0; b < BINS; ++b) {
+    hist[b] *= (1 + ss_x) * (1 + ss_y);
   }
 
   for (int i = 0; i < DIRECTIONAL_MODES; ++i) {

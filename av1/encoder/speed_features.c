@@ -460,6 +460,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.skip_repeated_newmv = 1;
 
     sf->interp_sf.use_interp_filter = 1;
+
     sf->intra_sf.prune_palette_search_level = 1;
 
     sf->tx_sf.adaptive_txb_search_level = 2;
@@ -557,6 +558,10 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.txfm_rd_gate_level =
         boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);
 
+    // TODO(chiyotsai@google.com): the thresholds chosen for intra hog are
+    // inherited directly from luma hog with some minor tweaking. Eventually we
+    // should run this with a bayesian optimizer to find the Pareto frontier.
+    sf->intra_sf.chroma_intra_pruning_with_hog = 2;
     sf->intra_sf.intra_pruning_with_hog = 3;
     sf->intra_sf.prune_palette_search_level = 2;
 
@@ -666,6 +671,8 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 5;
 
+    sf->intra_sf.chroma_intra_pruning_with_hog = 3;
+
     // TODO(any): Extend multi-winner mode processing support for inter frames
     sf->winner_mode_sf.multi_winner_mode_type =
         frame_is_intra_only(&cpi->common) ? MULTI_WINNER_MODE_FAST
@@ -690,6 +697,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
     sf->inter_sf.prune_nearmv_using_neighbors = 1;
 
+    sf->intra_sf.chroma_intra_pruning_with_hog = 4;
     sf->intra_sf.intra_pruning_with_hog = 4;
 
     sf->part_sf.prune_rectangular_split_based_on_qidx =
@@ -1182,6 +1190,7 @@ static AOM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
 }
 
 static AOM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
+  intra_sf->chroma_intra_pruning_with_hog = 0;
   intra_sf->skip_intra_in_interframe = 1;
   intra_sf->intra_pruning_with_hog = 0;
   intra_sf->src_var_thresh_intra_skip = 1;
