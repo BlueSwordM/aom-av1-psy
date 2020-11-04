@@ -1120,6 +1120,9 @@ void av1_init_tpl_stats(TplParams *const tpl_data) {
 int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
                         const EncodeFrameParams *const frame_params,
                         const EncodeFrameInput *const frame_input) {
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(cpi, av1_tpl_setup_stats_time);
+#endif
   AV1_COMMON *cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   AV1TplRowMultiThreadInfo *const tpl_row_mt = &mt_info->tpl_row_mt;
@@ -1233,6 +1236,10 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
     beta[frame_idx - gf_group->arf_index] =
         (double)mc_dep_cost_base / intra_cost_base;
   }
+
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, av1_tpl_setup_stats_time);
+#endif
 
   // Allow larger GOP size if the base layer ARF has higher dependency factor
   // than the intermediate ARF and both ARFs have reasonably high dependency

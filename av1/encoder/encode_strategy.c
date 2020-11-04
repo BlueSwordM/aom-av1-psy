@@ -866,6 +866,9 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
                               EncodeFrameInput *const frame_input,
                               EncodeFrameParams *const frame_params,
                               EncodeFrameResults *const frame_results) {
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  if (cpi->oxcf.pass == 2) start_timing(cpi, denoise_and_encode_time);
+#endif
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
   const GF_GROUP *const gf_group = &cpi->gf_group;
@@ -908,6 +911,10 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       arf_src_index = gf_group->arf_src_offset[gf_group->index];
     }
   }
+
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  if (cpi->oxcf.pass == 2) start_timing(cpi, apply_filtering_time);
+#endif
   // Save the pointer to the original source image.
   YV12_BUFFER_CONFIG *source_buffer = frame_input->source;
   // apply filtering to frame
@@ -929,6 +936,9 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       cpi->show_existing_alt_ref = show_existing_alt_ref;
     }
   }
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  if (cpi->oxcf.pass == 2) end_timing(cpi, apply_filtering_time);
+#endif
 
   // perform tpl after filtering
   int allow_tpl = oxcf->gf_cfg.lag_in_frames > 1 &&
@@ -973,7 +983,9 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
                               cm->features.interp_filter, 0, false, true);
     cpi->unscaled_source = source_buffer;
   }
-
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  if (cpi->oxcf.pass == 2) end_timing(cpi, denoise_and_encode_time);
+#endif
   return AOM_CODEC_OK;
 }
 #endif  // !CONFIG_REALTIME_ONLY
@@ -1124,7 +1136,13 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                                      oxcf->mode == REALTIME &&
                                      gf_cfg->lag_in_frames == 0;
   if (!use_one_pass_rt_params && !is_stat_generation_stage(cpi)) {
+#if CONFIG_COLLECT_COMPONENT_TIMING
+    start_timing(cpi, av1_get_second_pass_params_time);
+#endif
     av1_get_second_pass_params(cpi, &frame_params, &frame_input, *frame_flags);
+#if CONFIG_COLLECT_COMPONENT_TIMING
+    end_timing(cpi, av1_get_second_pass_params_time);
+#endif
   }
 #endif
 

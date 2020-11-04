@@ -5569,12 +5569,17 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     int64_t skip_rd[2] = { search_state.best_skip_rd[0],
                            search_state.best_skip_rd[1] };
     int64_t this_yrd = INT64_MAX;
+#if CONFIG_COLLECT_COMPONENT_TIMING
+    start_timing(cpi, handle_inter_mode_time);
+#endif
     int64_t this_rd = handle_inter_mode(
         cpi, tile_data, x, bsize, &rd_stats, &rd_stats_y, &rd_stats_uv, &args,
         ref_best_rd, tmp_buf, &x->comp_rd_buffer, &best_est_rd, do_tx_search,
         inter_modes_info, &motion_mode_cand, skip_rd, &inter_cost_info_from_tpl,
         &this_yrd);
-
+#if CONFIG_COLLECT_COMPONENT_TIMING
+    end_timing(cpi, handle_inter_mode_time);
+#endif
     if (sf->inter_sf.prune_comp_search_by_single_result > 0 &&
         is_inter_singleref_mode(this_mode)) {
       collect_single_states(x, &search_state, mbmi);
@@ -5620,6 +5625,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                          x->rdmult, &search_state, compmode_cost);
   }
 
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(cpi, evaluate_motion_mode_for_winner_candidates_time);
+#endif
   if (cpi->sf.winner_mode_sf.motion_mode_for_winner_cand) {
     // For the single ref winner candidates, evaluate other motion modes (non
     // simple translation).
@@ -5628,6 +5636,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         &best_motion_mode_cands, do_tx_search, bsize, &best_est_rd,
         &search_state, &best_inter_yrd);
   }
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, evaluate_motion_mode_for_winner_candidates_time);
+#endif
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, do_tx_search_time);
@@ -5646,7 +5657,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, handle_intra_mode_time);
 #endif
-
   // Gate intra mode evaluation if best of inter is skip except when source
   // variance is extremely low
   if (sf->intra_sf.skip_intra_in_interframe &&
@@ -5707,9 +5717,15 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   RD_STATS this_rd_cost;
   int this_skippable = 0;
   if (try_palette) {
+#if CONFIG_COLLECT_COMPONENT_TIMING
+    start_timing(cpi, av1_search_palette_mode_time);
+#endif
     this_skippable = av1_search_palette_mode(
         &search_state.intra_search_state, cpi, x, bsize, intra_ref_frame_cost,
         ctx, &this_rd_cost, search_state.best_rd);
+#if CONFIG_COLLECT_COMPONENT_TIMING
+    end_timing(cpi, av1_search_palette_mode_time);
+#endif
     if (this_rd_cost.rdcost < search_state.best_rd) {
       search_state.best_mode_index = THR_DC;
       mbmi->mv[0].as_int = 0;

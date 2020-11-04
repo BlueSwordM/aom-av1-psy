@@ -1495,6 +1495,11 @@ typedef struct PartitionStats {
 #include "aom_ports/aom_timer.h"
 // Adjust the following to add new components.
 enum {
+  av1_encode_strategy_time,
+  av1_get_second_pass_params_time,
+  denoise_and_encode_time,
+  apply_filtering_time,
+  av1_tpl_setup_stats_time,
   encode_frame_to_data_rate_time,
   encode_with_recode_loop_time,
   loop_filter_time,
@@ -1504,13 +1509,25 @@ enum {
   av1_encode_frame_time,
   av1_compute_global_motion_time,
   av1_setup_motion_field_time,
-  encode_sb_time,
+  encode_sb_row_time,
+
   rd_pick_partition_time,
+  av1_prune_partitions_time,
+  none_partition_search_time,
+  split_partition_search_time,
+  rectangular_partition_search_time,
+  ab_partitions_search_time,
+  rd_pick_4partition_time,
+  encode_sb_time,
+
   rd_pick_sb_modes_time,
   av1_rd_pick_intra_mode_sb_time,
   av1_rd_pick_inter_mode_sb_time,
+  handle_inter_mode_time,
+  evaluate_motion_mode_for_winner_candidates_time,
   handle_intra_mode_time,
   do_tx_search_time,
+  av1_search_palette_mode_time,
   handle_newmv_time,
   compound_type_rd_time,
   interpolation_filter_search_time,
@@ -1520,6 +1537,12 @@ enum {
 
 static INLINE char const *get_component_name(int index) {
   switch (index) {
+    case av1_encode_strategy_time: return "av1_encode_strategy_time";
+    case av1_get_second_pass_params_time:
+      return "av1_get_second_pass_params_time";
+    case denoise_and_encode_time: return "denoise_and_encode_time";
+    case apply_filtering_time: return "apply_filtering_time";
+    case av1_tpl_setup_stats_time: return "av1_tpl_setup_stats_time";
     case encode_frame_to_data_rate_time:
       return "encode_frame_to_data_rate_time";
     case encode_with_recode_loop_time: return "encode_with_recode_loop_time";
@@ -1531,15 +1554,29 @@ static INLINE char const *get_component_name(int index) {
     case av1_compute_global_motion_time:
       return "av1_compute_global_motion_time";
     case av1_setup_motion_field_time: return "av1_setup_motion_field_time";
-    case encode_sb_time: return "encode_sb_time";
+    case encode_sb_row_time: return "encode_sb_row_time";
+
     case rd_pick_partition_time: return "rd_pick_partition_time";
+    case av1_prune_partitions_time: return "av1_prune_partitions_time";
+    case none_partition_search_time: return "none_partition_search_time";
+    case split_partition_search_time: return "split_partition_search_time";
+    case rectangular_partition_search_time:
+      return "rectangular_partition_search_time";
+    case ab_partitions_search_time: return "ab_partitions_search_time";
+    case rd_pick_4partition_time: return "rd_pick_4partition_time";
+    case encode_sb_time: return "encode_sb_time";
+
     case rd_pick_sb_modes_time: return "rd_pick_sb_modes_time";
     case av1_rd_pick_intra_mode_sb_time:
       return "av1_rd_pick_intra_mode_sb_time";
     case av1_rd_pick_inter_mode_sb_time:
       return "av1_rd_pick_inter_mode_sb_time";
+    case handle_inter_mode_time: return "handle_inter_mode_time";
+    case evaluate_motion_mode_for_winner_candidates_time:
+      return "evaluate_motion_mode_for_winner_candidates_time";
     case handle_intra_mode_time: return "handle_intra_mode_time";
     case do_tx_search_time: return "do_tx_search_time";
+    case av1_search_palette_mode_time: return "av1_search_palette_mode_time";
     case handle_newmv_time: return "handle_newmv_time";
     case compound_type_rd_time: return "compound_type_rd_time";
     case interpolation_filter_search_time:

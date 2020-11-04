@@ -775,7 +775,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
   const int use_nonrd_mode = cpi->sf.rt_sf.use_nonrd_pick_mode;
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
-  start_timing(cpi, encode_sb_time);
+  start_timing(cpi, encode_sb_row_time);
 #endif
 
   // Initialize the left context for the new SB row
@@ -859,7 +859,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
                                     sb_cols_in_tile);
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING
-  end_timing(cpi, encode_sb_time);
+  end_timing(cpi, encode_sb_row_time);
 #endif
 }
 

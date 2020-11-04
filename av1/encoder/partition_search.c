@@ -3537,6 +3537,9 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
   av1_save_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
 
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(cpi, av1_prune_partitions_time);
+#endif
   int *partition_horz_allowed = &part_search_state.partition_rect_allowed[HORZ];
   int *partition_vert_allowed = &part_search_state.partition_rect_allowed[VERT];
   int *prune_horz = &part_search_state.prune_rect_part[HORZ];
@@ -3555,6 +3558,9 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
       &x->sb_enc, bsize, blk_params.has_rows && blk_params.has_cols,
       &part_search_state.partition_none_allowed, partition_horz_allowed,
       partition_vert_allowed, &part_search_state.do_square_split);
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, av1_prune_partitions_time);
+#endif
 
   // Partition search
 BEGIN_PARTITION_SEARCH:
@@ -3572,18 +3578,28 @@ BEGIN_PARTITION_SEARCH:
   // Partition block source pixel variance.
   unsigned int pb_source_variance = UINT_MAX;
 
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(cpi, none_partition_search_time);
+#endif
   // PARTITION_NONE search stage.
   int64_t part_none_rd = INT64_MAX;
   none_partition_search(cpi, td, tile_data, x, pc_tree, sms_tree, &x_ctx,
                         &part_search_state, &best_rdc, &pb_source_variance,
                         none_rd, &part_none_rd);
-
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, none_partition_search_time);
+#endif
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(cpi, split_partition_search_time);
+#endif
   // PARTITION_SPLIT search stage.
   int64_t part_split_rd = INT64_MAX;
   split_partition_search(cpi, td, tile_data, tp, x, pc_tree, sms_tree, &x_ctx,
                          &part_search_state, &best_rdc, multi_pass_mode,
                          &part_split_rd);
-
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, split_partition_search_time);
+#endif
   // Terminate partition search for child partition,
   // when NONE and SPLIT partition rd_costs are INT64_MAX.
   if (cpi->sf.part_sf.early_term_after_none_split &&
@@ -3595,11 +3611,16 @@ BEGIN_PARTITION_SEARCH:
   // Prune partitions based on PARTITION_NONE and PARTITION_SPLIT.
   prune_partitions_after_split(cpi, x, sms_tree, &part_search_state, &best_rdc,
                                part_none_rd, part_split_rd);
-
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(cpi, rectangular_partition_search_time);
+#endif
   // Rectangular partitions search stage.
   rectangular_partition_search(cpi, td, tile_data, tp, x, pc_tree, &x_ctx,
                                &part_search_state, &best_rdc,
                                rect_part_win_info);
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, rectangular_partition_search_time);
+#endif
 
   if (pb_source_variance == UINT_MAX) {
     av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, bsize);
@@ -3619,11 +3640,16 @@ BEGIN_PARTITION_SEARCH:
       part_search_state.do_rectangular_split &&
       bsize > cpi->sf.part_sf.ext_partition_eval_thresh &&
       blk_params.has_rows && blk_params.has_cols;
-
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(cpi, ab_partitions_search_time);
+#endif
   // AB partitions search stage.
   ab_partitions_search(cpi, td, tile_data, tp, x, &x_ctx, pc_tree,
                        &part_search_state, &best_rdc, rect_part_win_info,
                        pb_source_variance, ext_partition_allowed);
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, ab_partitions_search_time);
+#endif
 
   // 4-way partitions search stage.
   int part4_search_allowed[NUM_PART4_TYPES] = { 1, 1 };
@@ -3640,6 +3666,9 @@ BEGIN_PARTITION_SEARCH:
                                  part4_search_allowed);
   }
 
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(cpi, rd_pick_4partition_time);
+#endif
   // PARTITION_HORZ_4
   assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
                  !part4_search_allowed[HORZ4]));
@@ -3669,6 +3698,9 @@ BEGIN_PARTITION_SEARCH:
                        pc_tree->vertical4, &part_search_state, &best_rdc,
                        inc_step, PARTITION_VERT_4);
   }
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, rd_pick_4partition_time);
+#endif
 
   if (bsize == cm->seq_params.sb_size &&
       !part_search_state.found_best_partition) {
@@ -3729,6 +3761,9 @@ BEGIN_PARTITION_SEARCH:
   // Reset the PC_TREE deallocation flag.
   int pc_tree_dealloc = 0;
 
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(cpi, encode_sb_time);
+#endif
   // If a valid partition is found and reconstruction is required for future
   // sub-blocks in the same group.
   if (part_search_state.found_best_partition && pc_tree->index != 3) {
@@ -3749,6 +3784,9 @@ BEGIN_PARTITION_SEARCH:
                 pc_tree, NULL);
     }
   }
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, encode_sb_time);
+#endif
 
   // If the tree still exists (non-superblock), dealloc most nodes, only keep
   // nodes for the best partition and PARTITION_NONE.

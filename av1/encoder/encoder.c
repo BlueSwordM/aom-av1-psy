@@ -3169,23 +3169,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     }
   }
 
-#if CONFIG_COLLECT_COMPONENT_TIMING
-  end_timing(cpi, encode_frame_to_data_rate_time);
-
-  // Print out timing information.
-  int i;
-  fprintf(stderr, "\n Frame number: %d, Frame type: %s, Show Frame: %d\n",
-          cm->current_frame.frame_number,
-          get_frame_type_enum(cm->current_frame.frame_type), cm->show_frame);
-  for (i = 0; i < kTimingComponents; i++) {
-    cpi->component_time[i] += cpi->frame_component_time[i];
-    fprintf(stderr, " %s:  %" PRId64 " us (total: %" PRId64 " us)\n",
-            get_component_name(i), cpi->frame_component_time[i],
-            cpi->component_time[i]);
-    cpi->frame_component_time[i] = 0;
-  }
-#endif
-
   cpi->last_frame_type = current_frame->frame_type;
 
   av1_rc_postencode_update(cpi, *size);
@@ -3209,6 +3192,10 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   // takes a space in the gf group. Therefore, even when
   // it is not shown, we still need update the count down.
   if (cm->show_frame) ++current_frame->frame_number;
+
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, encode_frame_to_data_rate_time);
+#endif
 
   return AOM_CODEC_OK;
 }
@@ -3531,9 +3518,36 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
 
   if (assign_cur_frame_new_fb(cm) == NULL) return AOM_CODEC_ERROR;
 
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  // Only accumulate 2nd pass time.
+  if (cpi->oxcf.pass == 2) start_timing(cpi, av1_encode_strategy_time);
+#endif
+
   const int result =
       av1_encode_strategy(cpi, size, dest, frame_flags, time_stamp, time_end,
                           timestamp_ratio, flush);
+
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  if (cpi->oxcf.pass == 2) end_timing(cpi, av1_encode_strategy_time);
+
+  // Print out timing information.
+  // Note: Use "cpi->frame_component_time[0] > 100 us" to avoid showing of
+  // show_existing_frame and lag-in-frames.
+  if (cpi->oxcf.pass == 2 && cpi->frame_component_time[0] > 100) {
+    int i;
+    fprintf(stderr, "\n Frame number: %d, Frame type: %s, Show Frame: %d\n",
+            cm->current_frame.frame_number,
+            get_frame_type_enum(cm->current_frame.frame_type), cm->show_frame);
+    for (i = 0; i < kTimingComponents; i++) {
+      cpi->component_time[i] += cpi->frame_component_time[i];
+      fprintf(stderr, " %s:  %" PRId64 " us (total: %" PRId64 " us)\n",
+              get_component_name(i), cpi->frame_component_time[i],
+              cpi->component_time[i]);
+      cpi->frame_component_time[i] = 0;
+    }
+  }
+#endif
+
   if (result == -1) {
     // Returning -1 indicates no frame encoded; more input is required
     return -1;
