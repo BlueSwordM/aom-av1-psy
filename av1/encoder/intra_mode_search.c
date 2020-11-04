@@ -883,8 +883,9 @@ int av1_handle_intra_y_mode(IntraModeSearchState *intra_search_state,
       cpi->oxcf.intra_mode_cfg.enable_angle_delta) {
     if (sf->intra_sf.intra_pruning_with_hog &&
         !intra_search_state->dir_mode_skip_mask_ready) {
-      prune_intra_mode_with_hog(x, bsize,
-                                cpi->sf.intra_sf.intra_pruning_with_hog_thresh,
+      // Need to adjust the threshold for different speeds.
+      const float intra_pruning_with_hog_thresh = -1.2f;
+      prune_intra_mode_with_hog(x, bsize, intra_pruning_with_hog_thresh,
                                 intra_search_state->directional_mode_skip_mask);
       intra_search_state->dir_mode_skip_mask_ready = 1;
     }
@@ -1026,8 +1027,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
   mbmi->angle_delta[PLANE_TYPE_Y] = 0;
   if (cpi->sf.intra_sf.intra_pruning_with_hog) {
-    prune_intra_mode_with_hog(x, bsize,
-                              cpi->sf.intra_sf.intra_pruning_with_hog_thresh,
+    const float intra_pruning_with_hog_thresh = -1.2f;
+    prune_intra_mode_with_hog(x, bsize, intra_pruning_with_hog_thresh,
                               directional_mode_skip_mask);
   }
   mbmi->filter_intra_mode_info.use_filter_intra = 0;

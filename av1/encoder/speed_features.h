@@ -813,9 +813,6 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // Prune intra mode candidates based on source block histogram of gradient.
   int intra_pruning_with_hog;
 
-  // TODO(anyone): tune intra_pruning_with_hog_thresh for various speeds.
-  float intra_pruning_with_hog_thresh;
-
   // Enable/disable smooth intra modes.
   int disable_smooth_intra;
 

@@ -407,7 +407,6 @@ static void set_good_speed_features_framesize_independent(
   sf->interp_sf.use_fast_interpolation_filter_search = 1;
 
   sf->intra_sf.intra_pruning_with_hog = 1;
-  sf->intra_sf.intra_pruning_with_hog_thresh = -1.2f;
 
   sf->tx_sf.adaptive_txb_search_level = 1;
   sf->tx_sf.intra_tx_size_search_init_depth_sqr = 1;
@@ -755,7 +754,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->interp_sf.use_fast_interpolation_filter_search = 1;
 
   sf->intra_sf.intra_pruning_with_hog = 1;
-  sf->intra_sf.intra_pruning_with_hog_thresh = -1.2f;
 
   sf->mv_sf.full_pixel_search_level = 1;
   sf->mv_sf.exhaustive_searches_thresh = INT_MAX;
