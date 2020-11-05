@@ -300,6 +300,11 @@ else()
     add_cxx_flag_if_supported("-Wstack-usage=240000")
   endif()
 
+  if(CMAKE_C_COMPILER_ID MATCHES "GNU" AND SANITIZE MATCHES "address")
+    # Disable no optimization warning when compiling with sanitizers
+    add_compiler_flag_if_supported("-Wno-disabled-optimization")
+  endif()
+
   # Add -Wshadow only for C files to avoid massive gtest warning spam.
   add_c_flag_if_supported("-Wshadow")
 
