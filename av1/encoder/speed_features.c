@@ -686,6 +686,8 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
     sf->inter_sf.prune_nearmv_using_neighbors = 1;
 
+    sf->intra_sf.intra_pruning_with_hog = 2;
+
     sf->part_sf.prune_rectangular_split_based_on_qidx =
         boosted || allow_screen_content_tools ? 0 : 1;
     sf->part_sf.prune_sub_8x8_partition_level =
