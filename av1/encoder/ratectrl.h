@@ -254,9 +254,6 @@ typedef struct {
   int rolling_target_bits;
   int rolling_actual_bits;
 
-  int long_rolling_target_bits;
-  int long_rolling_actual_bits;
-
   int rate_error_estimate;
 
   int64_t total_actual_bits;

@@ -307,8 +307,6 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
 
   rc->rolling_target_bits = rc->avg_frame_bandwidth;
   rc->rolling_actual_bits = rc->avg_frame_bandwidth;
-  rc->long_rolling_target_bits = rc->avg_frame_bandwidth;
-  rc->long_rolling_actual_bits = rc->avg_frame_bandwidth;
 
   rc->total_actual_bits = 0;
   rc->total_target_bits = 0;
@@ -1825,10 +1823,6 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
         rc->rolling_target_bits * 3 + rc->this_frame_target, 2);
     rc->rolling_actual_bits = (int)ROUND_POWER_OF_TWO_64(
         rc->rolling_actual_bits * 3 + rc->projected_frame_size, 2);
-    rc->long_rolling_target_bits = (int)ROUND_POWER_OF_TWO_64(
-        rc->long_rolling_target_bits * 31 + rc->this_frame_target, 5);
-    rc->long_rolling_actual_bits = (int)ROUND_POWER_OF_TWO_64(
-        rc->long_rolling_actual_bits * 31 + rc->projected_frame_size, 5);
   }
 
   // Actual bits spent
