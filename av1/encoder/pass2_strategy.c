@@ -2559,10 +2559,6 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
         rc->baseline_gf_interval);
   }
 
-  // Reset rolling actual and target bits counters for ARF groups.
-  twopass->rolling_arf_group_target_bits = 1;
-  twopass->rolling_arf_group_actual_bits = 1;
-
   av1_gop_bit_allocation(cpi, rc, gf_group, rc->frames_since_key == 0,
                          use_alt_ref, gf_group_bits);
 
@@ -2575,6 +2571,10 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // TODO(jingning): Generalize this condition.
   if (is_final_pass) {
     cpi->gf_state.arf_gf_boost_lst = use_alt_ref;
+
+    // Reset rolling actual and target bits counters for ARF groups.
+    twopass->rolling_arf_group_target_bits = 1;
+    twopass->rolling_arf_group_actual_bits = 1;
   }
 }
 
