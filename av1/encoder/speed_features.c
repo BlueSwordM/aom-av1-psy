@@ -556,6 +556,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.txfm_rd_gate_level =
         boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);
 
+    sf->intra_sf.intra_pruning_with_hog = 2;
     sf->intra_sf.prune_palette_search_level = 2;
 
     sf->tpl_sf.skip_alike_starting_mv = 2;
@@ -686,7 +687,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
     sf->inter_sf.prune_nearmv_using_neighbors = 1;
 
-    sf->intra_sf.intra_pruning_with_hog = 2;
+    sf->intra_sf.intra_pruning_with_hog = 3;
 
     sf->part_sf.prune_rectangular_split_based_on_qidx =
         boosted || allow_screen_content_tools ? 0 : 1;
