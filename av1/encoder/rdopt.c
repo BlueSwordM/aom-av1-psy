@@ -1421,8 +1421,10 @@ static int64_t motion_mode_rd(
   MB_MODE_INFO best_mbmi;
   const int interp_filter = features->interp_filter;
   const int switchable_rate =
-      av1_is_interp_needed(xd) ? av1_get_switchable_rate(x, xd, interp_filter)
-                               : 0;
+      av1_is_interp_needed(xd)
+          ? av1_get_switchable_rate(x, xd, interp_filter,
+                                    cm->seq_params.enable_dual_filter)
+          : 0;
   int64_t best_rd = INT64_MAX;
   int best_rate_mv = rate_mv0;
   const int mi_row = xd->mi_row;
@@ -5912,7 +5914,8 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
       int best_rs = INT_MAX;
       for (i = 0; i < SWITCHABLE_FILTERS; ++i) {
         mbmi->interp_filters = av1_broadcast_interp_filter(i);
-        rs = av1_get_switchable_rate(x, xd, interp_filter);
+        rs = av1_get_switchable_rate(x, xd, interp_filter,
+                                     cm->seq_params.enable_dual_filter);
         if (rs < best_rs) {
           best_rs = rs;
           best_filter = mbmi->interp_filters.as_filters.y_filter;
@@ -5922,7 +5925,8 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   }
   // Set the appropriate filter
   mbmi->interp_filters = av1_broadcast_interp_filter(best_filter);
-  rate2 += av1_get_switchable_rate(x, xd, interp_filter);
+  rate2 += av1_get_switchable_rate(x, xd, interp_filter,
+                                   cm->seq_params.enable_dual_filter);
 
   if (cm->current_frame.reference_mode == REFERENCE_MODE_SELECT)
     rate2 += comp_inter_cost[comp_pred];

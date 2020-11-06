@@ -165,9 +165,10 @@ static AOM_INLINE void update_global_motion_used(PREDICTION_MODE mode,
 }
 
 static AOM_INLINE void update_filter_type_cdf(const MACROBLOCKD *xd,
-                                              const MB_MODE_INFO *mbmi) {
-  int dir;
-  for (dir = 0; dir < 2; ++dir) {
+                                              const MB_MODE_INFO *mbmi,
+                                              int dual_filter) {
+  for (int dir = 0; dir < 2; ++dir) {
+    if (dir && !dual_filter) break;
     const int ctx = av1_get_pred_context_switchable_interp(xd, dir);
     InterpFilter filter = av1_extract_interp_filter(mbmi->interp_filters, dir);
     update_cdf(xd->tile_ctx->switchable_interp_cdf[ctx], filter,
