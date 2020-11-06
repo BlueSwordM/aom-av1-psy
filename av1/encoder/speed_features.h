@@ -368,12 +368,6 @@ typedef struct TPL_SPEED_FEATURES {
 
   // Prune reference frames in TPL.
   int prune_ref_frames_in_tpl;
-
-  // Reuse tpl stats, generated during gop length decision, for rdmult and q
-  // index modulation (whenever gf interval is not shortened based on tpl
-  // stats). Tpl stats is reused when ARF is temporally filtered (as tpl stats
-  // generation in second stage would use the temporally filtered ARF).
-  int reuse_tpl_stats_from_gop_length_decision;
 } TPL_SPEED_FEATURES;
 
 typedef struct GLOBAL_MOTION_SPEED_FEATURES {

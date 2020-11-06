@@ -3627,8 +3627,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
           }
         } else {
           // Tpl stats is reused only when the ARF frame is temporally filtered
-          if (is_temporal_filter_enabled &&
-              cpi->sf.tpl_sf.reuse_tpl_stats_from_gop_length_decision)
+          if (is_temporal_filter_enabled)
             cpi->tpl_data.skip_tpl_setup_stats = 1;
         }
       }

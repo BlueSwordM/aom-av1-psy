@@ -518,7 +518,6 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.prune_sgr_based_on_wiener = 1;
 
     sf->tpl_sf.prune_ref_frames_in_tpl = 1;
-    sf->tpl_sf.reuse_tpl_stats_from_gop_length_decision = 1;
   }
 
   if (speed >= 3) {
@@ -1055,7 +1054,6 @@ static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
   tpl_sf->search_method = NSTEP;
   tpl_sf->disable_filtered_key_tpl = 0;
   tpl_sf->prune_ref_frames_in_tpl = 0;
-  tpl_sf->reuse_tpl_stats_from_gop_length_decision = 0;
 }
 
 static AOM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
