@@ -1693,7 +1693,7 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
     int runit_idx) {
   const RestorationInfo *rsi = &cm->rst_info[plane];
   RestorationUnitInfo *rui = &rsi->unit_info[runit_idx];
-  if (rsi->frame_restoration_type == RESTORE_NONE) return;
+  assert(rsi->frame_restoration_type != RESTORE_NONE);
 
   assert(!cm->features.all_lossless);
 
