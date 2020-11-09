@@ -2554,9 +2554,9 @@ static int process_compound_inter_mode(
   // (for example, the mask parameters if it is a masked mode) and compute
   // the RD
   *compmode_interinter_cost = av1_compound_type_rd(
-      cpi, x, bsize, cur_mv, mode_search_mask, masked_compound_used, orig_dst,
-      tmp_dst, rd_buffers, rate_mv, &best_rd_compound, rd_stats, ref_best_rd,
-      skip_rd[1], &is_luma_interp_done, rd_thresh);
+      cpi, x, args, bsize, cur_mv, mode_search_mask, masked_compound_used,
+      orig_dst, tmp_dst, rd_buffers, rate_mv, &best_rd_compound, rd_stats,
+      ref_best_rd, skip_rd[1], &is_luma_interp_done, rd_thresh);
   if (ref_best_rd < INT64_MAX &&
       (best_rd_compound >> comp_type_rd_shift) * comp_type_rd_scale >
           ref_best_rd) {
@@ -2765,6 +2765,9 @@ static int64_t handle_inter_mode(
     save_mv[i][0].as_int = INVALID_MV;
     save_mv[i][1].as_int = INVALID_MV;
   }
+
+  args->wedge_index = -1;
+  args->wedge_sign = -1;
 
   // Main loop of this function. This will  iterate over all of the ref mvs
   // in the dynamic reference list and do the following:
@@ -5346,6 +5349,8 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                0,
                                interintra_modes,
                                { { { 0 }, { { 0 } }, { 0 }, 0, 0, 0, 0 } },
+                               0,
+                               0,
                                0 };
   // Indicates the appropriate number of simple translation winner modes for
   // exhaustive motion mode evaluation

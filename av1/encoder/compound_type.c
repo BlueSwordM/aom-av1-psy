@@ -1224,7 +1224,8 @@ static int comp_type_rd_threshold_mul[3] = { 1, 11, 12 };
 static int comp_type_rd_threshold_div[3] = { 3, 16, 16 };
 
 int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
-                         BLOCK_SIZE bsize, int_mv *cur_mv, int mode_search_mask,
+                         HandleInterModeArgs *args, BLOCK_SIZE bsize,
+                         int_mv *cur_mv, int mode_search_mask,
                          int masked_compound_used, const BUFFER_SET *orig_dst,
                          const BUFFER_SET *tmp_dst,
                          const CompoundTypeRdBuffers *buffers, int *rate_mv,
@@ -1353,7 +1354,12 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       int_mv tmp_mv[2] = { mbmi->mv[0], mbmi->mv[1] };
       int best_rate_mv = *rate_mv;
       const int wedge_mask_size = get_wedge_types_lookup(bsize);
-      for (int wedge_mask = 0; wedge_mask < wedge_mask_size; ++wedge_mask) {
+
+      int need_mask_search =
+          args->wedge_index == -1 || !have_newmv_in_inter_mode(this_mode);
+
+      for (int wedge_mask = 0; wedge_mask < wedge_mask_size && need_mask_search;
+           ++wedge_mask) {
         for (int wedge_sign = 0; wedge_sign < 2; ++wedge_sign) {
           tmp_rate_mv = *rate_mv;
           mbmi->interinter_comp.wedge_index = wedge_mask;
@@ -1388,6 +1394,24 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
             best_rate_mv = tmp_rate_mv;
           }
         }
+      }
+
+      if (need_mask_search) {
+        args->wedge_index = best_mask_index;
+        args->wedge_sign = best_wedge_sign;
+      } else {
+        mbmi->interinter_comp.wedge_index = args->wedge_index;
+        mbmi->interinter_comp.wedge_sign = args->wedge_sign;
+        rs2 = masked_type_cost[cur_type];
+        rs2 += get_interinter_compound_mask_rate(&x->mode_costs, mbmi);
+        tmp_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,
+                                                            bsize, this_mode);
+
+        best_mask_index = args->wedge_index;
+        best_wedge_sign = args->wedge_sign;
+        tmp_mv[0] = mbmi->mv[0];
+        tmp_mv[1] = mbmi->mv[1];
+        best_rate_mv = tmp_rate_mv;
       }
 
       mbmi->interinter_comp.wedge_index = best_mask_index;
