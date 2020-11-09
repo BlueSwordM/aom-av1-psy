@@ -371,9 +371,9 @@ static void parse_command_line(int argc, const char **argv_,
   printf(
       "Codec %s\n"
       "layers: %d\n"
-      "width %d, height: %d\n"
-      "num: %d, den: %d, bitrate: %d\n"
-      "gop size: %d\n",
+      "width %u, height: %u\n"
+      "num: %d, den: %d, bitrate: %u\n"
+      "gop size: %u\n",
       aom_codec_iface_name(aom_codec_av1_cx()),
       svc_params->number_spatial_layers, enc_cfg->g_w, enc_cfg->g_h,
       enc_cfg->g_timebase.num, enc_cfg->g_timebase.den,
@@ -500,7 +500,7 @@ static void printout_rate_control_summary(struct RateControlMetrics *rc,
   int tot_num_frames = 0;
   double perc_fluctuation = 0.0;
   printf("Total number of processed frames: %d\n\n", frame_cnt - 1);
-  printf("Rate control layer stats for %d layer(s):\n\n", ts_number_layers);
+  printf("Rate control layer stats for %u layer(s):\n\n", ts_number_layers);
   for (unsigned int sl = 0; sl < ss_number_layers; ++sl) {
     tot_num_frames = 0;
     for (unsigned int tl = 0; tl < ts_number_layers; ++tl) {
@@ -516,7 +516,7 @@ static void printout_rate_control_summary(struct RateControlMetrics *rc,
           rc->layer_avg_frame_size[i] / rc->layer_enc_frames[tl];
       rc->layer_avg_rate_mismatch[i] =
           100.0 * rc->layer_avg_rate_mismatch[i] / rc->layer_enc_frames[tl];
-      printf("For layer#: %d %d \n", sl, tl);
+      printf("For layer#: %u %u \n", sl, tl);
       printf("Bitrate (target vs actual): %d %f\n", rc->layer_target_bitrate[i],
              rc->layer_encoding_bitrate[i]);
       printf("Average frame size (target vs actual): %f %f\n", rc->layer_pfb[i],
@@ -1037,7 +1037,7 @@ int main(int argc, const char **argv) {
       i = sl * ts_number_layers + tl;
       char file_name[PATH_MAX];
 
-      snprintf(file_name, sizeof(file_name), "%s_%d.av1",
+      snprintf(file_name, sizeof(file_name), "%s_%u.av1",
                app_input.output_filename, i);
       outfile[i] = aom_video_writer_open(file_name, kContainerIVF, &info);
       if (!outfile[i]) die("Failed to open %s for writing", file_name);
