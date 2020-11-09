@@ -17,6 +17,7 @@
 #include "av1/common/filter.h"
 #include "av1/common/warped_motion.h"
 #include "aom/aom_integer.h"
+#include "aom_dsp/blend.h"
 
 // Work out how many pixels off the edge of a reference frame we're allowed
 // to go when forming an inter prediction.
@@ -360,6 +361,86 @@ void av1_count_overlappable_neighbors(const AV1_COMMON *cm, MACROBLOCKD *xd);
 #define MASK_MASTER_STRIDE (MASK_MASTER_SIZE)
 
 void av1_init_wedge_masks();
+
+static INLINE void av1_diffwtd_mask(uint8_t *mask, int which_inverse,
+                                    int mask_base, const uint8_t *src0,
+                                    int src0_stride, const uint8_t *src1,
+                                    int src1_stride, int h, int w) {
+  int i, j, m, diff;
+  for (i = 0; i < h; ++i) {
+    for (j = 0; j < w; ++j) {
+      diff =
+          abs((int)src0[i * src0_stride + j] - (int)src1[i * src1_stride + j]);
+      m = clamp(mask_base + (diff / DIFF_FACTOR), 0, AOM_BLEND_A64_MAX_ALPHA);
+      mask[i * w + j] = which_inverse ? AOM_BLEND_A64_MAX_ALPHA - m : m;
+    }
+  }
+}
+
+static INLINE void av1_diffwtd_mask_highbd(uint8_t *mask, int which_inverse,
+                                           int mask_base, const uint16_t *src0,
+                                           int src0_stride,
+                                           const uint16_t *src1,
+                                           int src1_stride, int h, int w,
+                                           const unsigned int bd) {
+  assert(bd >= 8);
+  if (bd == 8) {
+    if (which_inverse) {
+      for (int i = 0; i < h; ++i) {
+        for (int j = 0; j < w; ++j) {
+          int diff = abs((int)src0[j] - (int)src1[j]) / DIFF_FACTOR;
+          unsigned int m = negative_to_zero(mask_base + diff);
+          m = AOMMIN(m, AOM_BLEND_A64_MAX_ALPHA);
+          mask[j] = AOM_BLEND_A64_MAX_ALPHA - m;
+        }
+        src0 += src0_stride;
+        src1 += src1_stride;
+        mask += w;
+      }
+    } else {
+      for (int i = 0; i < h; ++i) {
+        for (int j = 0; j < w; ++j) {
+          int diff = abs((int)src0[j] - (int)src1[j]) / DIFF_FACTOR;
+          unsigned int m = negative_to_zero(mask_base + diff);
+          m = AOMMIN(m, AOM_BLEND_A64_MAX_ALPHA);
+          mask[j] = m;
+        }
+        src0 += src0_stride;
+        src1 += src1_stride;
+        mask += w;
+      }
+    }
+  } else {
+    const unsigned int bd_shift = bd - 8;
+    if (which_inverse) {
+      for (int i = 0; i < h; ++i) {
+        for (int j = 0; j < w; ++j) {
+          int diff =
+              (abs((int)src0[j] - (int)src1[j]) >> bd_shift) / DIFF_FACTOR;
+          unsigned int m = negative_to_zero(mask_base + diff);
+          m = AOMMIN(m, AOM_BLEND_A64_MAX_ALPHA);
+          mask[j] = AOM_BLEND_A64_MAX_ALPHA - m;
+        }
+        src0 += src0_stride;
+        src1 += src1_stride;
+        mask += w;
+      }
+    } else {
+      for (int i = 0; i < h; ++i) {
+        for (int j = 0; j < w; ++j) {
+          int diff =
+              (abs((int)src0[j] - (int)src1[j]) >> bd_shift) / DIFF_FACTOR;
+          unsigned int m = negative_to_zero(mask_base + diff);
+          m = AOMMIN(m, AOM_BLEND_A64_MAX_ALPHA);
+          mask[j] = m;
+        }
+        src0 += src0_stride;
+        src1 += src1_stride;
+        mask += w;
+      }
+    }
+  }
+}
 
 static INLINE const uint8_t *av1_get_contiguous_soft_mask(int8_t wedge_index,
                                                           int8_t wedge_sign,
