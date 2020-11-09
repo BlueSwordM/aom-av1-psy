@@ -581,11 +581,6 @@ void av1_get_one_pass_rt_params(struct AV1_COMP *cpi,
  * \return q is returned, and updates are done to \c cpi->rc.
  */
 int av1_encodedframe_overshoot_cbr(struct AV1_COMP *cpi, int *q);
-/*!\cond */
-
-void av1_compute_frame_low_motion(struct AV1_COMP *const cpi);
-
-/*!\endcond */
 
 #ifdef __cplusplus
 }  // extern "C"

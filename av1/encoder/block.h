@@ -797,6 +797,21 @@ typedef struct {
   int pts_inref[16];
 } WARP_SAMPLE_INFO;
 
+/*!\cond */
+typedef enum {
+  kInvalid = 0,
+  kLowSad = 1,
+  kMedSad = 2,
+  kHighSad = 3
+} SOURCE_SAD;
+
+typedef struct {
+  SOURCE_SAD source_sad;
+  int lighting_change;
+  int low_sumdiff;
+} CONTENT_STATE_SB;
+/*!\endcond */
+
 /*! \brief Encoder's parameters related to the current coding block.
  *
  * This struct contains most of the information the encoder needs to encode the
@@ -952,7 +967,7 @@ typedef struct macroblock {
    *  Characteristics like whether the block has high sad, low sad, etc. This is
    *  only used by av1 realtime mode.
    */
-  uint8_t content_state_sb;
+  CONTENT_STATE_SB content_state_sb;
   /**@}*/
 
   /*****************************************************************************

@@ -2696,36 +2696,3 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
     return 0;
   }
 }
-
-void av1_compute_frame_low_motion(AV1_COMP *const cpi) {
-  AV1_COMMON *const cm = &cpi->common;
-  const CommonModeInfoParams *const mi_params = &cm->mi_params;
-  SVC *const svc = &cpi->svc;
-  MB_MODE_INFO **mi = mi_params->mi_grid_base;
-  RATE_CONTROL *const rc = &cpi->rc;
-  const int rows = mi_params->mi_rows, cols = mi_params->mi_cols;
-  int cnt_zeromv = 0;
-  for (int mi_row = 0; mi_row < rows; mi_row++) {
-    for (int mi_col = 0; mi_col < cols; mi_col++) {
-      if (mi[0]->ref_frame[0] == LAST_FRAME &&
-          abs(mi[0]->mv[0].as_mv.row) < 16 && abs(mi[0]->mv[0].as_mv.col) < 16)
-        cnt_zeromv++;
-      mi++;
-    }
-    mi += mi_params->mi_stride - cols;
-  }
-  cnt_zeromv = 100 * cnt_zeromv / (rows * cols);
-  rc->avg_frame_low_motion = (3 * rc->avg_frame_low_motion + cnt_zeromv) >> 2;
-
-  // For SVC: set avg_frame_low_motion (only computed on top spatial layer)
-  // to all lower spatial layers.
-  if (cpi->use_svc && svc->spatial_layer_id == svc->number_spatial_layers - 1) {
-    for (int i = 0; i < svc->number_spatial_layers - 1; ++i) {
-      const int layer = LAYER_IDS_TO_IDX(i, svc->temporal_layer_id,
-                                         svc->number_temporal_layers);
-      LAYER_CONTEXT *const lc = &svc->layer_context[layer];
-      RATE_CONTROL *const lrc = &lc->rc;
-      lrc->avg_frame_low_motion = rc->avg_frame_low_motion;
-    }
-  }
-}

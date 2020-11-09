@@ -1063,7 +1063,7 @@ static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
 static void newmv_diff_bias(MACROBLOCKD *xd, PREDICTION_MODE this_mode,
                             RD_STATS *this_rdc, BLOCK_SIZE bsize, int mv_row,
                             int mv_col, int speed, uint32_t spatial_variance,
-                            int content_state_sb) {
+                            CONTENT_STATE_SB content_state_sb) {
   // Bias against MVs associated with NEWMV mode that are very different from
   // top/left neighbors.
   if (this_mode == NEWMV) {
@@ -1075,7 +1075,7 @@ static void newmv_diff_bias(MACROBLOCKD *xd, PREDICTION_MODE this_mode,
     int left_mv_valid = 0;
     int above_row = 0;
     int above_col = 0;
-    if (bsize >= BLOCK_64X64 && content_state_sb != kHighSad &&
+    if (bsize >= BLOCK_64X64 && content_state_sb.source_sad != kHighSad &&
         spatial_variance < 300 &&
         (mv_row > 16 || mv_row < -16 || mv_col > 16 || mv_col < -16)) {
       this_rdc->rdcost = this_rdc->rdcost << 2;
@@ -1746,7 +1746,7 @@ static void estimate_intra_mode(
     // even if best_early_term is set.
     if (bsize >= BLOCK_32X32) best_early_term = 0;
   } else if (cpi->sf.rt_sf.source_metrics_sb_nonrd &&
-             x->content_state_sb == kLowSad) {
+             x->content_state_sb.source_sad == kLowSad) {
     perform_intra_pred = 0;
   }
 
@@ -1895,11 +1895,9 @@ static AOM_INLINE int skip_mode_by_threshold(
   return skip_this_mode;
 }
 
-static AOM_INLINE int skip_mode_by_low_temp(PREDICTION_MODE mode,
-                                            MV_REFERENCE_FRAME ref_frame,
-                                            BLOCK_SIZE bsize,
-                                            int content_state_sb, int_mv mv,
-                                            int force_skip_low_temp_var) {
+static AOM_INLINE int skip_mode_by_low_temp(
+    PREDICTION_MODE mode, MV_REFERENCE_FRAME ref_frame, BLOCK_SIZE bsize,
+    CONTENT_STATE_SB content_state_sb, int_mv mv, int force_skip_low_temp_var) {
   // Skip non-zeromv mode search for non-LAST frame if force_skip_low_temp_var
   // is set. If nearestmv for golden frame is 0, zeromv mode will be skipped
   // later.
@@ -1907,7 +1905,7 @@ static AOM_INLINE int skip_mode_by_low_temp(PREDICTION_MODE mode,
     return 1;
   }
 
-  if (content_state_sb != kHighSad && bsize >= BLOCK_64X64 &&
+  if (content_state_sb.source_sad != kHighSad && bsize >= BLOCK_64X64 &&
       force_skip_low_temp_var && mode == NEWMV) {
     return 1;
   }
@@ -2056,8 +2054,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     else
       use_modeled_non_rd_cost =
           (quant_params->base_qindex > 120 && x->source_variance > 100 &&
-           bsize <= BLOCK_16X16 && x->content_state_sb != kLowVarHighSumdiff &&
-           x->content_state_sb != kHighSad);
+           bsize <= BLOCK_16X16 && !x->content_state_sb.lighting_change &&
+           x->content_state_sb.source_sad != kHighSad);
   }
 
 #if COLLECT_PICK_MODE_STAT

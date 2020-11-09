@@ -37,7 +37,6 @@ CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols) {
   }
   assert(MAXQ <= 255);
   memset(cr->last_coded_q_map, MAXQ, last_coded_q_map_size);
-  cr->avg_frame_low_motion = 0.0;
   return cr;
 }
 
@@ -202,8 +201,10 @@ void av1_cyclic_refresh_postencode(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
+  RATE_CONTROL *const rc = &cpi->rc;
+  SVC *const svc = &cpi->svc;
   unsigned char *const seg_map = cpi->enc_seg.map;
-  cr->cnt_zeromv = 0;
+  int cnt_zeromv = 0;
   cr->actual_num_seg1_blocks = 0;
   cr->actual_num_seg2_blocks = 0;
   // 8X8 blocks are smallest partition used on delta frames.
@@ -223,17 +224,33 @@ void av1_cyclic_refresh_postencode(AV1_COMP *const cpi) {
           cr->actual_num_seg2_blocks += sh << 1;
       }
       // Accumulate low_content_frame.
-      if (is_inter_block(mi[0]) && abs(mv.row) < 16 && abs(mv.col) < 16)
-        cr->cnt_zeromv += sh << 1;
+      if (is_inter_block(mi[0]) && mi[0]->ref_frame[0] == LAST_FRAME &&
+          abs(mv.row) < 16 && abs(mv.col) < 16)
+        cnt_zeromv += sh << 1;
       if (mi_col + sh < mi_params->mi_cols) {
         mi += sh;
       }
     }
   }
-  cr->cnt_zeromv =
-      100 * cr->cnt_zeromv / (mi_params->mi_rows * mi_params->mi_cols);
-  cr->avg_frame_low_motion =
-      (3 * cr->avg_frame_low_motion + (double)cr->cnt_zeromv) / 4;
+  cnt_zeromv = 100 * cnt_zeromv / (mi_params->mi_rows * mi_params->mi_cols);
+  if (!cpi->use_svc ||
+      (cpi->use_svc &&
+       !cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame &&
+       cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1)) {
+    rc->avg_frame_low_motion = (3 * rc->avg_frame_low_motion + cnt_zeromv) / 4;
+    // For SVC: set avg_frame_low_motion (only computed on top spatial layer)
+    // to all lower spatial layers.
+    if (cpi->use_svc &&
+        svc->spatial_layer_id == svc->number_spatial_layers - 1) {
+      for (int i = 0; i < svc->number_spatial_layers - 1; ++i) {
+        const int layer = LAYER_IDS_TO_IDX(i, svc->temporal_layer_id,
+                                           svc->number_temporal_layers);
+        LAYER_CONTEXT *const lc = &svc->layer_context[layer];
+        RATE_CONTROL *const lrc = &lc->rc;
+        lrc->avg_frame_low_motion = rc->avg_frame_low_motion;
+      }
+    }
+  }
 }
 
 void av1_cyclic_refresh_set_golden_update(AV1_COMP *const cpi) {
@@ -246,7 +263,7 @@ void av1_cyclic_refresh_set_golden_update(AV1_COMP *const cpi) {
     rc->baseline_gf_interval = AOMMIN(2 * (100 / cr->percent_refresh), 40);
   else
     rc->baseline_gf_interval = 20;
-  if (cr->avg_frame_low_motion < 40) rc->baseline_gf_interval = 8;
+  if (rc->avg_frame_low_motion < 40) rc->baseline_gf_interval = 8;
 }
 
 // Update the segmentation map, and related quantities: cyclic refresh map,
@@ -347,7 +364,7 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
       rc->avg_frame_qindex[INTER_FRAME] < qp_thresh ||
       (rc->frames_since_key > 20 &&
        rc->avg_frame_qindex[INTER_FRAME] > qp_max_thresh) ||
-      (cr->avg_frame_low_motion < 45 && rc->frames_since_key > 40)) {
+      (rc->avg_frame_low_motion < 45 && rc->frames_since_key > 40)) {
     cr->apply_cyclic_refresh = 0;
     return;
   }
@@ -413,7 +430,6 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
       cm->prev_frame && (cm->width != cm->prev_frame->width ||
                          cm->height != cm->prev_frame->height);
   if (resolution_change) av1_cyclic_refresh_reset_resize(cpi);
-  if (cm->current_frame.frame_number == 0) cr->low_content_avg = 0.0;
   if (!cr->apply_cyclic_refresh) {
     // Set segmentation map to 0 and disable.
     unsigned char *const seg_map = cpi->enc_seg.map;

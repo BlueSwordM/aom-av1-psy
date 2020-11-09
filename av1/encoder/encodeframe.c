@@ -821,7 +821,9 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     // Reset color coding related parameters
     x->color_sensitivity[0] = 0;
     x->color_sensitivity[1] = 0;
-    x->content_state_sb = 0;
+    x->content_state_sb.source_sad = kMedSad;
+    x->content_state_sb.lighting_change = 0;
+    x->content_state_sb.low_sumdiff = 0;
 
     xd->cur_frame_force_integer_mv = cm->features.cur_frame_force_integer_mv;
     x->source_variance = UINT_MAX;

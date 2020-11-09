@@ -943,9 +943,9 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     if (cm->current_frame.frame_type != KEY_FRAME &&
         cpi->oxcf.rc_cfg.mode == AOM_CBR)
       sf->rt_sf.overshoot_detection_cbr = FAST_DETECTION_MAXQ;
-    // Keeping this off for now as some clips show ~6% BDRate regression with
-    // moderate speed-up (~20%)
-    sf->rt_sf.use_temporal_noise_estimate = 0;
+    // Enable noise estimation only for high resolutions for now.
+    if (cm->width * cm->height > 640 * 480)
+      sf->rt_sf.use_temporal_noise_estimate = 1;
   }
 
   if (speed >= 6) {
