@@ -1301,6 +1301,13 @@ void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
     cpi->mv_search_params.find_fractional_mv_step = av1_return_max_sub_pixel_mv;
   else if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 2)
     cpi->mv_search_params.find_fractional_mv_step = av1_return_min_sub_pixel_mv;
+
+  if ((cpi->oxcf.row_mt == 1) && (cpi->oxcf.max_threads > 1)) {
+    if (sf->inter_sf.mv_cost_upd_level > 1) {
+      // Set mv_cost_upd_level to use row level update.
+      sf->inter_sf.mv_cost_upd_level = 1;
+    }
+  }
 }
 
 void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
