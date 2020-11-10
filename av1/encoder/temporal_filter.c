@@ -1071,24 +1071,36 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   }
   // Get quantization factor.
   const int q = get_q(cpi);
+  // Get correlation estimates from first-pass
+  RATE_CONTROL *rc = &cpi->rc;
+  const double *coeff = rc->cor_coeff;
+  const int offset = rc->regions_offset;
+  int cur_frame_idx = filter_frame_offset + rc->frames_since_key - offset;
+  if (rc->frames_since_key == 0) cur_frame_idx++;
 
-  // Adjust number of filtering frames based on noise and quantization factor.
-  // Basically, we would like to use more frames to filter low-noise frame such
-  // that the filtered frame can provide better predictions for more frames.
-  // Also, when the quantization factor is small enough (lossless compression),
-  // we will not change the number of frames for key frame filtering, which is
-  // to avoid visual quality drop.
-  int adjust_num = 0;
+  double accu_coeff0 = 1.0, accu_coeff1 = 1.0;
+  for (int i = 1; i <= max_after; i++) {
+    accu_coeff1 *= coeff[cur_frame_idx + i];
+  }
+  if (max_after >= 1) {
+    accu_coeff1 = pow(accu_coeff1, 1.0 / (double)max_after);
+  }
+  for (int i = 1; i <= max_before; i++) {
+    accu_coeff0 *= coeff[cur_frame_idx - i + 1];
+  }
+  if (max_before >= 1) {
+    accu_coeff0 = pow(accu_coeff0, 1.0 / (double)max_before);
+  }
+
+  // Adjust number of filtering frames based on quantization factor. When the
+  // quantization factor is small enough (lossless compression), we will not
+  // change the number of frames for key frame filtering, which is to avoid
+  // visual quality drop.
+  int adjust_num = 6;
   if (num_frames == 1) {  // `arnr_max_frames = 1` is used to disable filtering.
     adjust_num = 0;
   } else if (filter_frame_lookahead_idx < 0 && q <= 10) {
     adjust_num = 0;
-  } else if (noise_levels[0] < 0.5) {
-    adjust_num = 6;
-  } else if (noise_levels[0] < 1.0) {
-    adjust_num = 4;
-  } else if (noise_levels[0] < 2.0) {
-    adjust_num = 2;
   }
   num_frames = AOMMIN(num_frames + adjust_num, lookahead_depth + 1);
 
@@ -1104,8 +1116,29 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
     num_frames += !(num_frames & 1);  // Make the number odd.
     // Only use 2 neighbours for the second ARF.
     if (is_second_arf) num_frames = AOMMIN(num_frames, 3);
-    num_before = AOMMIN(num_frames >> 1, max_before);
-    num_after = AOMMIN(num_frames >> 1, max_after);
+    if (AOMMIN(max_after, max_before) >= num_frames / 2) {
+      // just use half half
+      num_before = num_frames / 2;
+      num_after = num_frames / 2;
+    } else {
+      if (max_after < num_frames / 2) {
+        num_after = max_after;
+        num_before = AOMMIN(num_frames - 1 - num_after, max_before);
+      } else {
+        num_before = max_before;
+        num_after = AOMMIN(num_frames - 1 - num_before, max_after);
+      }
+      // Adjust insymmetry based on frame-level correlation
+      if (max_after > 0 && max_before > 0) {
+        if (num_after < num_before) {
+          const int insym = (int)(0.4 / AOMMAX(1 - accu_coeff1, 0.01));
+          num_before = AOMMIN(num_before, num_after + insym);
+        } else {
+          const int insym = (int)(0.4 / AOMMAX(1 - accu_coeff0, 0.01));
+          num_after = AOMMIN(num_after, num_before + insym);
+        }
+      }
+    }
   }
   num_frames = num_before + 1 + num_after;
 
