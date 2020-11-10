@@ -131,6 +131,10 @@ typedef struct {
    * Estimated wedge sign.
    */
   int wedge_sign;
+  /*!
+   * Estimated diff wtd index.
+   */
+  int diffwtd_index;
 } HandleInterModeArgs;
 
 /*!\cond */

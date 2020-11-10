@@ -2768,6 +2768,7 @@ static int64_t handle_inter_mode(
 
   args->wedge_index = -1;
   args->wedge_sign = -1;
+  args->diffwtd_index = -1;
 
   // Main loop of this function. This will  iterate over all of the ref mvs
   // in the dynamic reference list and do the following:
@@ -5349,6 +5350,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                0,
                                interintra_modes,
                                { { { 0 }, { { 0 } }, { 0 }, 0, 0, 0, 0 } },
+                               0,
                                0,
                                0,
                                0 };
