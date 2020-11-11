@@ -1116,7 +1116,7 @@ typedef struct macroblock {
 
   /*! \brief Whether to reuse the mode stored in intermode_cache. */
   int use_intermode_cache;
-  /*! \brief The mode to reuse during \ref av1_rd_pick_inter_mode_sb. */
+  /*! \brief The mode to reuse during \ref av1_rd_pick_inter_mode. */
   const MB_MODE_INFO *intermode_cache;
   /**@}*/
 

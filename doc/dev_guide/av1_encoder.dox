@@ -1105,7 +1105,7 @@ frame inter prediction modes (7 reference frames x 4 modes x 2 for OBMC
 
 As with the intra mode search, libaom supports an RD based pathway and a non
 rd pathway for speed critical use cases.  The entry points for these two cases
-are \ref av1_rd_pick_inter_mode_sb() and \ref av1_nonrd_pick_inter_mode_sb()
+are \ref av1_rd_pick_inter_mode() and \ref av1_nonrd_pick_inter_mode_sb()
 respectively.
 
 Various heuristics and predictive strategies are used to prune the search tree
