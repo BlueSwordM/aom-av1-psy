@@ -334,6 +334,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
     if (speed >= 9) {
       sf->rt_sf.use_modeled_non_rd_cost = 1;
+      sf->rt_sf.nonrd_agressive_skip = 1;
 // TODO(kyslov) Re-enable when AV1 models are trained
 #if 0
       if (!frame_is_intra_only(cm)) {

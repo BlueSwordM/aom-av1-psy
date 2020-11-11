@@ -1076,6 +1076,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Bit mask to enable or disable intra modes for each prediction block size
   // separately, for nonrd pickmode.
   int intra_y_mode_bsize_mask_nrd[BLOCK_SIZES];
+
+  // Skips mode checks more agressively in nonRD mode
+  int nonrd_agressive_skip;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

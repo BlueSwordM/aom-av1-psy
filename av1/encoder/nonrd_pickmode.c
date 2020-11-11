@@ -1250,14 +1250,18 @@ static INLINE void update_thresh_freq_fact(AV1_COMP *cpi, MACROBLOCK *x,
                                            MV_REFERENCE_FRAME ref_frame,
                                            THR_MODES best_mode_idx,
                                            PREDICTION_MODE mode) {
-  THR_MODES thr_mode_idx = mode_idx[ref_frame][mode_offset(mode)];
-  int *freq_fact = &x->thresh_freq_fact[bsize][thr_mode_idx];
-  if (thr_mode_idx == best_mode_idx) {
-    *freq_fact -= (*freq_fact >> 4);
-  } else {
-    *freq_fact =
-        AOMMIN(*freq_fact + RD_THRESH_INC,
-               cpi->sf.inter_sf.adaptive_rd_thresh * RD_THRESH_MAX_FACT);
+  const THR_MODES thr_mode_idx = mode_idx[ref_frame][mode_offset(mode)];
+  const BLOCK_SIZE min_size = AOMMAX(bsize - 3, BLOCK_4X4);
+  const BLOCK_SIZE max_size = AOMMIN(bsize + 6, BLOCK_128X128);
+  for (BLOCK_SIZE bs = min_size; bs <= max_size; bs += 3) {
+    int *freq_fact = &x->thresh_freq_fact[bsize][thr_mode_idx];
+    if (thr_mode_idx == best_mode_idx) {
+      *freq_fact -= (*freq_fact >> 4);
+    } else {
+      *freq_fact =
+          AOMMIN(*freq_fact + RD_THRESH_INC,
+                 cpi->sf.inter_sf.adaptive_rd_thresh * RD_THRESH_MAX_FACT);
+    }
   }
 }
 
@@ -1869,18 +1873,19 @@ static AOM_INLINE int is_filter_search_enabled(const AV1_COMP *cpi, int mi_row,
 static AOM_INLINE int skip_mode_by_threshold(
     PREDICTION_MODE mode, MV_REFERENCE_FRAME ref_frame, int_mv mv,
     int frames_since_golden, const int *const rd_threshes,
-    const int *const rd_thresh_freq_fact, int64_t best_cost, int best_skip) {
+    const int *const rd_thresh_freq_fact, int64_t best_cost, int best_skip,
+    int extra_shift) {
   int skip_this_mode = 0;
   const THR_MODES mode_index = mode_idx[ref_frame][INTER_OFFSET(mode)];
-  int mode_rd_thresh =
-      best_skip ? rd_threshes[mode_index] << 1 : rd_threshes[mode_index];
+  int mode_rd_thresh = best_skip ? rd_threshes[mode_index] << (extra_shift + 1)
+                                 : rd_threshes[mode_index] << extra_shift;
 
   // Increase mode_rd_thresh value for non-LAST for improved encoding
   // speed
   if (ref_frame != LAST_FRAME) {
     mode_rd_thresh = mode_rd_thresh << 1;
     if (ref_frame == GOLDEN_FRAME && frames_since_golden > 4)
-      mode_rd_thresh = mode_rd_thresh << 1;
+      mode_rd_thresh = mode_rd_thresh << (extra_shift + 1);
   }
 
   if (rd_less_than_thresh(best_cost, mode_rd_thresh,
@@ -1964,6 +1969,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   PRED_BUFFER *this_mode_pred = NULL;
   const int reuse_inter_pred =
       cpi->sf.rt_sf.reuse_inter_pred_nonrd && cm->seq_params.bit_depth == 8;
+
   const int bh = block_size_high[bsize];
   const int bw = block_size_wide[bsize];
   const int pixels_in_block = bh * bw;
@@ -2125,7 +2131,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     if (skip_mode_by_threshold(
             this_mode, ref_frame, frame_mv[this_mode][ref_frame],
             cpi->rc.frames_since_golden, rd_threshes, rd_thresh_freq_fact,
-            best_rdc.rdcost, best_pickmode.best_mode_skip_txfm))
+            best_rdc.rdcost, best_pickmode.best_mode_skip_txfm,
+            (cpi->sf.rt_sf.nonrd_agressive_skip ? 1 : 0)))
       continue;
 
     // Select prediction reference frames.
@@ -2294,7 +2301,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     } else {
       if (reuse_inter_pred) free_pred_buffer(this_mode_pred);
     }
-    if (best_early_term && idx > 0) {
+    if (best_early_term && (idx > 0 || cpi->sf.rt_sf.nonrd_agressive_skip)) {
       txfm_info->skip_txfm = 1;
       break;
     }
