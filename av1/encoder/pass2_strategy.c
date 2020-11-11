@@ -180,14 +180,24 @@ static double calc_correction_factor(double err_per_mb, int q) {
   return fclamp(pow(error_term, power_term), 0.05, 5.0);
 }
 
-static void twopass_update_bpm_factor(TWO_PASS *twopass) {
+static void twopass_update_bpm_factor(TWO_PASS *twopass, int err_estimate,
+                                      int rate_err_tol) {
   // Based on recent history adjust expectations of bits per macroblock.
   double last_group_rate_err =
       (double)twopass->rolling_arf_group_actual_bits /
       DOUBLE_DIVIDE_CHECK((double)twopass->rolling_arf_group_target_bits);
-  last_group_rate_err = AOMMAX(0.25, AOMMIN(4.0, last_group_rate_err));
-  twopass->bpm_factor *= (3.0 + last_group_rate_err) / 4.0;
-  twopass->bpm_factor = AOMMAX(0.25, AOMMIN(4.0, twopass->bpm_factor));
+  double damp_fac = AOMMAX(5.0, rate_err_tol / 10.0);
+
+  last_group_rate_err = AOMMAX(0.75, AOMMIN(1.25, last_group_rate_err));
+  last_group_rate_err = 1.0 + ((last_group_rate_err - 1.0) / damp_fac);
+
+  // Is the last GOP error making the total error worse or better? Only make
+  // an adjustment if things are getting worse.
+  if ((last_group_rate_err < 1.0 && err_estimate > 0) ||
+      (last_group_rate_err > 1.0 && err_estimate < 0)) {
+    twopass->bpm_factor *= last_group_rate_err;
+    twopass->bpm_factor = AOMMAX(0.75, AOMMIN(1.25, twopass->bpm_factor));
+  }
 }
 
 static int qbpm_enumerator(int rate_err_tol) {
@@ -240,15 +250,12 @@ static int find_qindex_by_rate_with_correction(
  *                                   Here we want to ignore the bands at the
  *                                   top and bottom.
  * \param[in]    av_target_bandwidth The target bits per frame
- * \param[in]    group_weight_factor A correction factor allowing the algorithm
- *                                   to correct for errors over time.
  *
  * \return The maximum Q for frames in the group.
  */
 static int get_twopass_worst_quality(AV1_COMP *cpi, const double av_frame_err,
                                      double inactive_zone,
-                                     int av_target_bandwidth,
-                                     double group_weight_factor) {
+                                     int av_target_bandwidth) {
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
@@ -266,12 +273,15 @@ static int get_twopass_worst_quality(AV1_COMP *cpi, const double av_frame_err,
         (int)((uint64_t)av_target_bandwidth << BPER_MB_NORMBITS) / active_mbs;
     int rate_err_tol = AOMMIN(rc_cfg->under_shoot_pct, rc_cfg->over_shoot_pct);
 
-    twopass_update_bpm_factor(&cpi->twopass);
+    // Update bpm correction factor based on previous GOP rate error.
+    twopass_update_bpm_factor(&cpi->twopass, rc->rate_error_estimate,
+                              rate_err_tol);
+
     // Try and pick a max Q that will be high enough to encode the
     // content at the given rate.
     int q = find_qindex_by_rate_with_correction(
         target_norm_bits_per_mb, cpi->common.seq_params.bit_depth,
-        av_err_per_mb, group_weight_factor, rate_err_tol, rc->best_quality,
+        av_err_per_mb, cpi->twopass.bpm_factor, rate_err_tol, rc->best_quality,
         rc->worst_quality);
 
     // Restriction on active max q for constrained quality mode.
@@ -970,11 +980,6 @@ static INLINE int detect_gf_cut(AV1_COMP *cpi, int frame_index, int cur_start,
   }
   return 0;
 }
-
-#if GROUP_ADAPTIVE_MAXQ
-#define RC_FACTOR_MIN 0.75
-#define RC_FACTOR_MAX 1.25
-#endif  // GROUP_ADAPTIVE_MAXQ
 
 #define MIN_FWD_KF_INTERVAL 8
 #define MIN_SHRINK_LEN 6  // the minimum length of gf if we are shrinking
@@ -2519,25 +2524,9 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
          (rc->baseline_gf_interval * (double)cm->mi_params.mb_rows));
 
     int tmp_q;
-    // rc factor is a weight factor that corrects for local rate control drift.
-    double rc_factor = 1.0;
-    int64_t bits = rc_cfg->target_bandwidth;
-
-    if (bits > 0) {
-      int rate_error;
-
-      rate_error = (int)((rc->vbr_bits_off_target * 100) / bits);
-      rate_error = clamp(rate_error, -100, 100);
-      if (rate_error > 0) {
-        rc_factor = AOMMAX(RC_FACTOR_MIN, (double)(100 - rate_error) / 100.0);
-      } else {
-        rc_factor = AOMMIN(RC_FACTOR_MAX, (double)(100 - rate_error) / 100.0);
-      }
-    }
-
     tmp_q = get_twopass_worst_quality(
         cpi, group_av_err, (group_av_skip_pct + group_av_inactive_zone),
-        vbr_group_bits_per_frame, rc_factor);
+        vbr_group_bits_per_frame);
     rc->active_worst_quality = AOMMAX(tmp_q, rc->active_worst_quality >> 1);
   }
 #endif
@@ -3321,7 +3310,6 @@ static int is_skippable_frame(const AV1_COMP *cpi) {
 #if ARF_STATS_OUTPUT
 unsigned int arf_count = 0;
 #endif
-#define DEFAULT_GRP_WEIGHT 1.0
 
 static int get_section_target_bandwidth(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
@@ -3370,7 +3358,7 @@ static void process_first_pass_stats(AV1_COMP *cpi,
         ((double)cm->mi_params.mb_rows * section_length);
     const int tmp_q = get_twopass_worst_quality(
         cpi, section_error, section_intra_skip + section_inactive_zone,
-        section_target_bandwidth, DEFAULT_GRP_WEIGHT);
+        section_target_bandwidth);
 
     rc->active_worst_quality = tmp_q;
     rc->ni_av_qi = tmp_q;
@@ -3780,7 +3768,6 @@ void av1_init_single_pass_lap(AV1_COMP *cpi) {
 void av1_twopass_postencode_update(AV1_COMP *cpi) {
   TWO_PASS *const twopass = &cpi->twopass;
   RATE_CONTROL *const rc = &cpi->rc;
-  const int bits_used = rc->base_frame_target;
   const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
 
   // VBR correction is done through rc->vbr_bits_off_target. Based on the
@@ -3789,10 +3776,10 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
   // is designed to prevent extreme behaviour at the end of a clip
   // or group of frames.
   rc->vbr_bits_off_target += rc->base_frame_target - rc->projected_frame_size;
-  twopass->bits_left = AOMMAX(twopass->bits_left - bits_used, 0);
+  twopass->bits_left = AOMMAX(twopass->bits_left - rc->base_frame_target, 0);
 
   // Target vs actual bits for this arf group.
-  twopass->rolling_arf_group_target_bits += rc->this_frame_target;
+  twopass->rolling_arf_group_target_bits += rc->base_frame_target;
   twopass->rolling_arf_group_actual_bits += rc->projected_frame_size;
 
   // Calculate the pct rc error.
@@ -3845,7 +3832,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
 #endif
 
   if (cpi->common.current_frame.frame_type != KEY_FRAME) {
-    twopass->kf_group_bits -= bits_used;
+    twopass->kf_group_bits -= rc->base_frame_target;
     twopass->last_kfgroup_zeromotion_pct = twopass->kf_zeromotion_pct;
   }
   twopass->kf_group_bits = AOMMAX(twopass->kf_group_bits, 0);
