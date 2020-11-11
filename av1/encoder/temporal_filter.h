@@ -188,6 +188,106 @@ int av1_temporal_filter(struct AV1_COMP *cpi,
                         const int filter_frame_lookahead_idx,
                         int *show_existing_arf);
 
+/*!\cond */
+// Helper function to get `q` used for encoding.
+int av1_get_q(const struct AV1_COMP *cpi);
+
+// Allocates memory for members of TemporalFilterData.
+// Inputs:
+//   tf_data: Pointer to the structure containing temporal filter related data.
+//   num_pels: Number of pixels in the block across all planes.
+//   is_high_bitdepth: Whether the frame is high-bitdepth or not.
+// Returns:
+//   Nothing will be returned. But the contents of tf_data will be modified.
+static AOM_INLINE void tf_alloc_and_reset_data(TemporalFilterData *tf_data,
+                                               int num_pels,
+                                               int is_high_bitdepth) {
+  tf_data->tmp_mbmi = (MB_MODE_INFO *)malloc(sizeof(*tf_data->tmp_mbmi));
+  memset(tf_data->tmp_mbmi, 0, sizeof(*tf_data->tmp_mbmi));
+  tf_data->accum =
+      (uint32_t *)aom_memalign(16, num_pels * sizeof(*tf_data->accum));
+  tf_data->count =
+      (uint16_t *)aom_memalign(16, num_pels * sizeof(*tf_data->count));
+  memset(&tf_data->diff, 0, sizeof(tf_data->diff));
+  if (is_high_bitdepth)
+    tf_data->pred = CONVERT_TO_BYTEPTR(
+        aom_memalign(32, num_pels * 2 * sizeof(*tf_data->pred)));
+  else
+    tf_data->pred =
+        (uint8_t *)aom_memalign(32, num_pels * sizeof(*tf_data->pred));
+}
+
+// Setup macroblockd params for temporal filtering process.
+// Inputs:
+//   mbd: Pointer to the block for filtering.
+//   tf_data: Pointer to the structure containing temporal filter related data.
+//   scale: Scaling factor.
+// Returns:
+//   Nothing will be returned. Contents of mbd will be modified.
+static AOM_INLINE void tf_setup_macroblockd(MACROBLOCKD *mbd,
+                                            TemporalFilterData *tf_data,
+                                            const struct scale_factors *scale) {
+  mbd->block_ref_scale_factors[0] = scale;
+  mbd->block_ref_scale_factors[1] = scale;
+  mbd->mi = &tf_data->tmp_mbmi;
+  mbd->mi[0]->motion_mode = SIMPLE_TRANSLATION;
+}
+
+// Deallocates the memory allocated for members of TemporalFilterData.
+// Inputs:
+//   tf_data: Pointer to the structure containing temporal filter related data.
+//   is_high_bitdepth: Whether the frame is high-bitdepth or not.
+// Returns:
+//   Nothing will be returned.
+static AOM_INLINE void tf_dealloc_data(TemporalFilterData *tf_data,
+                                       int is_high_bitdepth) {
+  if (is_high_bitdepth)
+    tf_data->pred = (uint8_t *)CONVERT_TO_SHORTPTR(tf_data->pred);
+  free(tf_data->tmp_mbmi);
+  aom_free(tf_data->accum);
+  aom_free(tf_data->count);
+  aom_free(tf_data->pred);
+}
+
+// Helper function to compute number of blocks on either side of the frame.
+static INLINE int get_num_blocks(const int frame_length, const int mb_length) {
+  return (frame_length + mb_length - 1) / mb_length;
+}
+
+// Saves the state prior to temporal filter process.
+// Inputs:
+//   mbd: Pointer to the block for filtering.
+//   input_mbmi: Backup block info to save input state.
+//   input_buffer: Backup buffer pointer to save input state.
+//   num_planes: Number of planes.
+// Returns:
+//   Nothing will be returned. Contents of input_mbmi and input_buffer will be
+//   modified.
+static INLINE void tf_save_state(MACROBLOCKD *mbd, MB_MODE_INFO ***input_mbmi,
+                                 uint8_t **input_buffer, int num_planes) {
+  for (int i = 0; i < num_planes; i++) {
+    input_buffer[i] = mbd->plane[i].pre[0].buf;
+  }
+  *input_mbmi = mbd->mi;
+}
+
+// Restores the initial state after temporal filter process.
+// Inputs:
+//   mbd: Pointer to the block for filtering.
+//   input_mbmi: Backup block info from where input state is restored.
+//   input_buffer: Backup buffer pointer from where input state is restored.
+//   num_planes: Number of planes.
+// Returns:
+//   Nothing will be returned. Contents of mbd will be modified.
+static INLINE void tf_restore_state(MACROBLOCKD *mbd, MB_MODE_INFO **input_mbmi,
+                                    uint8_t **input_buffer, int num_planes) {
+  for (int i = 0; i < num_planes; i++) {
+    mbd->plane[i].pre[0].buf = input_buffer[i];
+  }
+  mbd->mi = input_mbmi;
+}
+
+/*!\endcond */
 #ifdef __cplusplus
 }  // extern "C"
 #endif

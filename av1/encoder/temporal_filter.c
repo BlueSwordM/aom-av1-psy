@@ -40,93 +40,6 @@
 
 // NOTE: All `tf` in this file means `temporal filtering`.
 
-// Allocates memory for members of TemporalFilterData.
-// Inputs:
-//   tf_data: Pointer to the structure containing temporal filter related data.
-//   num_pels: Number of pixels in the block across all planes.
-//   is_high_bitdepth: Whether the frame is high-bitdepth or not.
-// Returns:
-//   Nothing will be returned. But the contents of tf_data will be modified.
-static AOM_INLINE void tf_alloc_and_reset_data(TemporalFilterData *tf_data,
-                                               int num_pels,
-                                               int is_high_bitdepth) {
-  tf_data->tmp_mbmi = (MB_MODE_INFO *)malloc(sizeof(MB_MODE_INFO));
-  memset(tf_data->tmp_mbmi, 0, sizeof(*tf_data->tmp_mbmi));
-  tf_data->accum = aom_memalign(16, num_pels * sizeof(uint32_t));
-  tf_data->count = aom_memalign(16, num_pels * sizeof(uint16_t));
-  memset(&tf_data->diff, 0, sizeof(tf_data->diff));
-  if (is_high_bitdepth)
-    tf_data->pred =
-        CONVERT_TO_BYTEPTR(aom_memalign(32, num_pels * sizeof(uint16_t)));
-  else
-    tf_data->pred = aom_memalign(32, num_pels * sizeof(uint8_t));
-}
-
-// Setup macroblockd params for temporal filtering process.
-// Inputs:
-//   mbd: Pointer to the block for filtering.
-//   tf_data: Pointer to the structure containing temporal filter related data.
-//   scale: Scaling factor.
-// Returns:
-//   Nothing will be returned. Contents of mbd will be modified.
-static AOM_INLINE void tf_setup_macroblockd(MACROBLOCKD *mbd,
-                                            TemporalFilterData *tf_data,
-                                            const struct scale_factors *scale) {
-  mbd->block_ref_scale_factors[0] = scale;
-  mbd->block_ref_scale_factors[1] = scale;
-  mbd->mi = &tf_data->tmp_mbmi;
-  mbd->mi[0]->motion_mode = SIMPLE_TRANSLATION;
-}
-
-// Saves the state prior to temporal filter process.
-// Inputs:
-//   mbd: Pointer to the block for filtering.
-//   input_mbmi: Backup block info to save input state.
-//   input_buffer: Backup buffer pointer to save input state.
-//   num_planes: Number of planes.
-// Returns:
-//   Nothing will be returned. Contents of input_mbmi and input_buffer will be
-//   modified.
-static void tf_save_state(MACROBLOCKD *mbd, MB_MODE_INFO ***input_mbmi,
-                          uint8_t **input_buffer, int num_planes) {
-  for (int i = 0; i < num_planes; i++) {
-    input_buffer[i] = mbd->plane[i].pre[0].buf;
-  }
-  *input_mbmi = mbd->mi;
-}
-
-// Restores the initial state after temporal filter process.
-// Inputs:
-//   mbd: Pointer to the block for filtering.
-//   input_mbmi: Backup block info from where input state is restored.
-//   input_buffer: Backup buffer pointer from where input state is restored.
-//   num_planes: Number of planes.
-// Returns:
-//   Nothing will be returned. Contents of mbd will be modified.
-static void tf_restore_state(MACROBLOCKD *mbd, MB_MODE_INFO **input_mbmi,
-                             uint8_t **input_buffer, int num_planes) {
-  for (int i = 0; i < num_planes; i++) {
-    mbd->plane[i].pre[0].buf = input_buffer[i];
-  }
-  mbd->mi = input_mbmi;
-}
-
-// Deallocates the memory allocated for members of TemporalFilterData.
-// Inputs:
-//   tf_data: Pointer to the structure containing temporal filter related data.
-//   is_high_bitdepth: Whether the frame is high-bitdepth or not.
-// Returns:
-//   Nothing will be returned.
-static AOM_INLINE void tf_dealloc_data(TemporalFilterData *tf_data,
-                                       int is_high_bitdepth) {
-  if (is_high_bitdepth)
-    tf_data->pred = (uint8_t *)CONVERT_TO_SHORTPTR(tf_data->pred);
-  free(tf_data->tmp_mbmi);
-  aom_free(tf_data->accum);
-  aom_free(tf_data->count);
-  aom_free(tf_data->pred);
-}
-
 // Forward Declaration.
 static void tf_determine_block_partition(const MV block_mv, const int block_mse,
                                          MV *subblock_mvs, int *subblock_mses);
@@ -829,23 +742,14 @@ static void tf_normalize_filtered_frame(
     plane_offset += plane_h * plane_w;
   }
 }
-/*!\cond */
 
-// Helper function to compute number of blocks on either side of the frame.
-static INLINE int get_num_blocks(const int frame_length, const int mb_length) {
-  return (frame_length + mb_length - 1) / mb_length;
-}
-
-// Helper function to get `q` used for encoding.
-static INLINE int get_q(const AV1_COMP *cpi) {
+int av1_get_q(const AV1_COMP *cpi) {
   const GF_GROUP *gf_group = &cpi->gf_group;
   const FRAME_TYPE frame_type = gf_group->frame_type[gf_group->index];
   const int q = (int)av1_convert_qindex_to_q(
       cpi->rc.avg_frame_qindex[frame_type], cpi->common.seq_params.bit_depth);
   return q;
 }
-
-/*!\endcond */
 
 /*!\brief Does temporal filter for a given macroblock row.
 *
@@ -1070,7 +974,7 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
         to_filter_frame, plane, cpi->common.seq_params.bit_depth);
   }
   // Get quantization factor.
-  const int q = get_q(cpi);
+  const int q = av1_get_q(cpi);
   // Get correlation estimates from first-pass
   RATE_CONTROL *rc = &cpi->rc;
   const double *coeff = rc->cor_coeff;
@@ -1267,7 +1171,7 @@ static void init_tf_ctx(AV1_COMP *cpi, int filter_frame_lookahead_idx,
   tf_ctx->mb_rows = mb_rows;
   tf_ctx->mb_cols = mb_cols;
   tf_ctx->is_highbitdepth = is_highbitdepth;
-  tf_ctx->q_factor = get_q(cpi);
+  tf_ctx->q_factor = av1_get_q(cpi);
 }
 
 int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
