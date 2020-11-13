@@ -451,8 +451,13 @@ int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     const FULLPEL_MV start_fullmv = get_fullmv_from_mv(&cur_mv[id].as_mv);
 
     // Small-range full-pixel motion search.
-    bestsme = av1_full_pixel_search(start_fullmv, &full_ms_params, 5, NULL,
-                                    &best_mv.as_fullmv, NULL);
+    if (mbmi->interinter_comp.type != COMPOUND_WEDGE) {
+      bestsme = av1_full_pixel_search(start_fullmv, &full_ms_params, 5, NULL,
+                                      &best_mv.as_fullmv, NULL);
+    } else {
+      bestsme = av1_refining_search_8p_c(&full_ms_params, start_fullmv,
+                                         &best_mv.as_fullmv);
+    }
 
     // Restore the pointer to the first (possibly scaled) prediction buffer.
     if (id) xd->plane[plane].pre[0] = ref_yv12[0];
