@@ -22,6 +22,7 @@
 #include "av1/encoder/av1_quantize.h"
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/encoder.h"
+#include "av1/encoder/ethread.h"
 #include "av1/encoder/extend.h"
 #include "av1/encoder/firstpass.h"
 #include "av1/encoder/mcomp.h"
@@ -751,18 +752,7 @@ int av1_get_q(const AV1_COMP *cpi) {
   return q;
 }
 
-/*!\brief Does temporal filter for a given macroblock row.
-*
-* \ingroup src_frame_proc
-* \param[in]   cpi                   Top level encoder instance structure
-* \param[in]   td                    Pointer to thread data
-* \param[in]   mb_row                Macroblock row to be filtered
-filtering
-*
-* \return Nothing will be returned, but the contents of td->diff will be
-modified.
-*/
-static void tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
+void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
   TemporalFilterCtx *tf_ctx = &cpi->tf_ctx;
   YV12_BUFFER_CONFIG **frames = tf_ctx->frames;
   const int num_frames = tf_ctx->num_frames;
@@ -906,7 +896,7 @@ static void tf_do_filtering(AV1_COMP *cpi) {
 
   // Perform temporal filtering for each row.
   for (int mb_row = 0; mb_row < tf_ctx->mb_rows; mb_row++)
-    tf_do_filtering_row(cpi, td, mb_row);
+    av1_tf_do_filtering_row(cpi, td, mb_row);
 
   tf_restore_state(mbd, input_mb_mode_info, input_buffer, num_planes);
 }
@@ -1176,6 +1166,7 @@ static void init_tf_ctx(AV1_COMP *cpi, int filter_frame_lookahead_idx,
 
 int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
                         int *show_existing_arf) {
+  MultiThreadInfo *const mt_info = &cpi->mt_info;
   // Basic informaton of the current frame.
   const GF_GROUP *const gf_group = &cpi->gf_group;
   const uint8_t group_idx = gf_group->index;
@@ -1219,7 +1210,10 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
   tf_alloc_and_reset_data(tf_data, tf_ctx->num_pels, is_highbitdepth);
 
   // Perform temporal filtering process.
-  tf_do_filtering(cpi);
+  if (mt_info->num_workers > 1)
+    av1_tf_do_filtering_mt(cpi);
+  else
+    tf_do_filtering(cpi);
 
   // Deallocate temporal filter buffers.
   tf_dealloc_data(tf_data, is_highbitdepth);

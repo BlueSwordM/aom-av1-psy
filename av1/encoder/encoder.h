@@ -1394,6 +1394,11 @@ typedef struct {
    * Global Motion multi-threading object.
    */
   AV1GlobalMotionSync gm_sync;
+
+  /*!
+   * Temporal Filter multi-threading object.
+   */
+  AV1TemporalFilterSync tf_sync;
 } MultiThreadInfo;
 
 /*!\cond */

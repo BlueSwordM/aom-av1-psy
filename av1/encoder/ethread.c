@@ -22,6 +22,7 @@
 #include "av1/encoder/global_motion_facade.h"
 #include "av1/encoder/rdopt.h"
 #include "aom_dsp/aom_dsp_common.h"
+#include "av1/encoder/temporal_filter.h"
 #include "av1/encoder/tpl_model.h"
 
 static AOM_INLINE void accumulate_rd_opt(ThreadData *td, ThreadData *td_t) {
@@ -538,6 +539,11 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
     CHECK_MEM_ERROR(cm, gm_sync->mutex_,
                     aom_malloc(sizeof(*(gm_sync->mutex_))));
     if (gm_sync->mutex_) pthread_mutex_init(gm_sync->mutex_, NULL);
+  }
+  AV1TemporalFilterSync *tf_sync = &mt_info->tf_sync;
+  if (tf_sync->mutex_ == NULL) {
+    CHECK_MEM_ERROR(cm, tf_sync->mutex_, aom_malloc(sizeof(*tf_sync->mutex_)));
+    if (tf_sync->mutex_) pthread_mutex_init(tf_sync->mutex_, NULL);
   }
 #endif
 
@@ -1303,6 +1309,139 @@ void av1_mc_flow_dispenser_mt(AV1_COMP *cpi) {
   prepare_tpl_workers(cpi, tpl_worker_hook, num_workers);
   launch_enc_workers(&cpi->mt_info, num_workers);
   sync_enc_workers(&cpi->mt_info, cm, num_workers);
+}
+
+// Deallocate memory for temporal filter multi-thread synchronization.
+void av1_tf_mt_dealloc(AV1TemporalFilterSync *tf_sync) {
+  assert(tf_sync != NULL);
+#if CONFIG_MULTITHREAD
+  if (tf_sync->mutex_ != NULL) {
+    pthread_mutex_destroy(tf_sync->mutex_);
+    aom_free(tf_sync->mutex_);
+  }
+#endif  // CONFIG_MULTITHREAD
+  tf_sync->next_tf_row = 0;
+}
+
+// Checks if a job is available. If job is available,
+// populates next_tf_row and returns 1, else returns 0.
+static AOM_INLINE int tf_get_next_job(AV1TemporalFilterSync *tf_mt_sync,
+                                      int *current_mb_row, int mb_rows) {
+  int do_next_row = 0;
+#if CONFIG_MULTITHREAD
+  pthread_mutex_t *tf_mutex_ = tf_mt_sync->mutex_;
+  pthread_mutex_lock(tf_mutex_);
+#endif
+  if (tf_mt_sync->next_tf_row < mb_rows) {
+    *current_mb_row = tf_mt_sync->next_tf_row;
+    tf_mt_sync->next_tf_row++;
+    do_next_row = 1;
+  }
+#if CONFIG_MULTITHREAD
+  pthread_mutex_unlock(tf_mutex_);
+#endif
+  return do_next_row;
+}
+
+// Hook function for each thread in temporal filter multi-threading.
+static int tf_worker_hook(void *arg1, void *unused) {
+  (void)unused;
+  EncWorkerData *thread_data = (EncWorkerData *)arg1;
+  AV1_COMP *cpi = thread_data->cpi;
+  ThreadData *td = thread_data->td;
+  TemporalFilterCtx *tf_ctx = &cpi->tf_ctx;
+  AV1TemporalFilterSync *tf_sync = &cpi->mt_info.tf_sync;
+  const struct scale_factors *scale = &cpi->tf_ctx.sf;
+  const int num_planes = av1_num_planes(&cpi->common);
+  assert(num_planes >= 1 && num_planes <= MAX_MB_PLANE);
+
+  MACROBLOCKD *mbd = &td->mb.e_mbd;
+  uint8_t *input_buffer[MAX_MB_PLANE];
+  MB_MODE_INFO **input_mb_mode_info;
+  tf_save_state(mbd, &input_mb_mode_info, input_buffer, num_planes);
+  tf_setup_macroblockd(mbd, &td->tf_data, scale);
+
+  int current_mb_row = -1;
+
+  while (tf_get_next_job(tf_sync, &current_mb_row, tf_ctx->mb_rows))
+    av1_tf_do_filtering_row(cpi, td, current_mb_row);
+
+  tf_restore_state(mbd, input_mb_mode_info, input_buffer, num_planes);
+
+  return 1;
+}
+
+// Assigns temporal filter hook function and thread data to each worker.
+static void prepare_tf_workers(AV1_COMP *cpi, AVxWorkerHook hook,
+                               int num_workers, int is_highbitdepth) {
+  MultiThreadInfo *mt_info = &cpi->mt_info;
+  mt_info->tf_sync.next_tf_row = 0;
+  for (int i = num_workers - 1; i >= 0; i--) {
+    AVxWorker *worker = &mt_info->workers[i];
+    EncWorkerData *thread_data = &mt_info->tile_thr_data[i];
+
+    worker->hook = hook;
+    worker->data1 = thread_data;
+    worker->data2 = NULL;
+
+    thread_data->cpi = cpi;
+    if (i == 0) {
+      thread_data->td = &cpi->td;
+    }
+
+    // Before encoding a frame, copy the thread data from cpi.
+    if (thread_data->td != &cpi->td) {
+      thread_data->td->mb = cpi->td.mb;
+      thread_data->td->mb.obmc_buffer = thread_data->td->obmc_buffer;
+      tf_alloc_and_reset_data(&thread_data->td->tf_data, cpi->tf_ctx.num_pels,
+                              is_highbitdepth);
+    }
+  }
+}
+
+// Deallocate thread specific data for temporal filter.
+static void tf_dealloc_thread_data(AV1_COMP *cpi, int num_workers,
+                                   int is_highbitdepth) {
+  MultiThreadInfo *mt_info = &cpi->mt_info;
+  for (int i = num_workers - 1; i >= 0; i--) {
+    EncWorkerData *thread_data = &mt_info->tile_thr_data[i];
+    ThreadData *td = thread_data->td;
+    if (td != &cpi->td) tf_dealloc_data(&td->tf_data, is_highbitdepth);
+  }
+}
+
+// Accumulate sse and sum after temporal filtering.
+static void tf_accumulate_frame_diff(AV1_COMP *cpi, int num_workers) {
+  FRAME_DIFF *total_diff = &cpi->td.tf_data.diff;
+  for (int i = num_workers - 1; i >= 0; i--) {
+    AVxWorker *const worker = &cpi->mt_info.workers[i];
+    EncWorkerData *const thread_data = (EncWorkerData *)worker->data1;
+    ThreadData *td = thread_data->td;
+    FRAME_DIFF *diff = &td->tf_data.diff;
+    if (td != &cpi->td) {
+      total_diff->sse += diff->sse;
+      total_diff->sum += diff->sum;
+    }
+  }
+}
+
+// Implements multi-threading for temporal filter.
+void av1_tf_do_filtering_mt(AV1_COMP *cpi) {
+  AV1_COMMON *cm = &cpi->common;
+  MultiThreadInfo *mt_info = &cpi->mt_info;
+  const int is_highbitdepth = cpi->tf_ctx.is_highbitdepth;
+
+  int num_workers = mt_info->num_workers;
+  if (mt_info->num_enc_workers == 0)
+    create_enc_workers(cpi, num_workers);
+  else
+    num_workers = AOMMIN(num_workers, mt_info->num_enc_workers);
+
+  prepare_tf_workers(cpi, tf_worker_hook, num_workers, is_highbitdepth);
+  launch_enc_workers(mt_info, num_workers);
+  sync_enc_workers(mt_info, cm, num_workers);
+  tf_accumulate_frame_diff(cpi, num_workers);
+  tf_dealloc_thread_data(cpi, num_workers, is_highbitdepth);
 }
 
 // Checks if a job is available in the current direction. If a job is available,

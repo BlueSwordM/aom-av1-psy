@@ -17,6 +17,7 @@ extern "C" {
 #endif
 /*!\cond */
 struct AV1_COMP;
+struct ThreadData;
 // TODO(any): These two variables are only used in avx2, sse2, sse4
 // implementations, where the block size is still hard coded. This should be
 // fixed to align with the c implementation.
@@ -142,6 +143,16 @@ typedef struct {
   uint8_t *pred;
 } TemporalFilterData;
 
+// Data related to temporal filter multi-thread synchronization.
+typedef struct {
+#if CONFIG_MULTITHREAD
+  // Mutex lock used for dispatching jobs.
+  pthread_mutex_t *mutex_;
+#endif  // CONFIG_MULTITHREAD
+  // Next temporal filter block row to be filtered.
+  int next_tf_row;
+} AV1TemporalFilterSync;
+
 // Estimates noise level from a given frame using a single plane (Y, U, or V).
 // This is an adaptation of the mehtod in the following paper:
 // Shen-Chuan Tai, Shih-Ming Yang, "A fast method for image noise
@@ -162,6 +173,21 @@ double av1_estimate_noise_from_single_plane(const YV12_BUFFER_CONFIG *frame,
 #define TF_QINDEX 128  // Q-index used in temporal filtering.
 
 /*!\endcond */
+
+/*!\brief Does temporal filter for a given macroblock row.
+*
+* \ingroup src_frame_proc
+* \param[in]   cpi                   Top level encoder instance structure
+* \param[in]   td                    Pointer to thread data
+* \param[in]   mb_row                Macroblock row to be filtered
+filtering
+*
+* \return Nothing will be returned, but the contents of td->diff will be
+modified.
+*/
+void av1_tf_do_filtering_row(struct AV1_COMP *cpi, struct ThreadData *td,
+                             int mb_row);
+
 /*!\brief Performs temporal filtering if needed on a source frame.
  * For example to create a filtered alternate reference frame (ARF)
  *
