@@ -235,7 +235,8 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/warp_filter_test.cc"
               "${AOM_ROOT}/test/warp_filter_test_util.cc"
               "${AOM_ROOT}/test/warp_filter_test_util.h"
-              "${AOM_ROOT}/test/webmenc_test.cc")
+              "${AOM_ROOT}/test/webmenc_test.cc"
+              "${AOM_ROOT}/test/av1_k_means_test.cc")
 
   if(CONFIG_REALTIME_ONLY)
     list(REMOVE_ITEM AOM_UNIT_TEST_ENCODER_SOURCES
