@@ -1352,6 +1352,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       int best_mask_index = 0;
       int best_wedge_sign = 0;
       int_mv tmp_mv[2] = { mbmi->mv[0], mbmi->mv[1] };
+      int best_rs2 = 0;
       int best_rate_mv = *rate_mv;
       const int wedge_mask_size = get_wedge_types_lookup(bsize);
       int ref_frame = av1_ref_frame_type(mbmi->ref_frame);
@@ -1392,6 +1393,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
             tmp_mv[0] = mbmi->mv[0];
             tmp_mv[1] = mbmi->mv[1];
             best_rate_mv = tmp_rate_mv;
+            best_rs2 = rs2;
           }
         }
       }
@@ -1414,6 +1416,15 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
         tmp_mv[0] = mbmi->mv[0];
         tmp_mv[1] = mbmi->mv[1];
         best_rate_mv = tmp_rate_mv;
+        best_rs2 = masked_type_cost[cur_type];
+        best_rs2 += get_interinter_compound_mask_rate(&x->mode_costs, mbmi);
+        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
+                                      AOM_PLANE_Y, AOM_PLANE_Y);
+        RD_STATS est_rd_stats;
+        estimate_yrd_for_sb(cpi, bsize, x, INT64_MAX, &est_rd_stats);
+        best_rd_cur =
+            RDCOST(x->rdmult, best_rs2 + tmp_rate_mv + est_rd_stats.rate,
+                   est_rd_stats.dist);
       }
 
       mbmi->interinter_comp.wedge_index = best_mask_index;
@@ -1421,15 +1432,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       mbmi->mv[0] = tmp_mv[0];
       mbmi->mv[1] = tmp_mv[1];
       tmp_rate_mv = best_rate_mv;
-      rs2 = masked_type_cost[cur_type];
-      rs2 += get_interinter_compound_mask_rate(&x->mode_costs, mbmi);
-
-      av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
-                                    AOM_PLANE_Y, AOM_PLANE_Y);
-      RD_STATS est_rd_stats;
-      estimate_yrd_for_sb(cpi, bsize, x, INT64_MAX, &est_rd_stats);
-      best_rd_cur = RDCOST(x->rdmult, rs2 + tmp_rate_mv + est_rd_stats.rate,
-                           est_rd_stats.dist);
+      rs2 = best_rs2;
     } else if (cur_type == COMPOUND_DIFFWTD) {
       int_mv tmp_mv[2];
       int best_mask_index = 0;
