@@ -334,6 +334,11 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    * Enable/disable extra screen content test by encoding key frame twice.
    */
   int disable_extra_sc_testing;
+
+  /*!
+   * Enable/disable second_alt_ref temporal filtering.
+   */
+  int second_alt_ref_filtering;
 } HIGH_LEVEL_SPEED_FEATURES;
 
 /*!\cond */
