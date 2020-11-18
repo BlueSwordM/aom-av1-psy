@@ -271,9 +271,9 @@ static INLINE void reset_thresh_freq_fact(MACROBLOCK *const x) {
   }
 }
 
-static INLINE int rd_less_than_thresh(int64_t best_rd, int thresh,
+static INLINE int rd_less_than_thresh(int64_t best_rd, int64_t thresh,
                                       int thresh_fact) {
-  return best_rd < ((int64_t)thresh * thresh_fact >> 5) || thresh == INT_MAX;
+  return best_rd < (thresh * thresh_fact >> 5) || thresh == INT_MAX;
 }
 
 void av1_mv_pred(const struct AV1_COMP *cpi, MACROBLOCK *x,
