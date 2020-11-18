@@ -126,11 +126,11 @@ typedef struct {
   /*!
    * Estimated wedge index.
    */
-  int wedge_index[MODE_CTX_REF_FRAMES];
+  int wedge_index;
   /*!
    * Estimated wedge sign.
    */
-  int wedge_sign[MODE_CTX_REF_FRAMES];
+  int wedge_sign;
   /*!
    * Estimated diff wtd index.
    */
