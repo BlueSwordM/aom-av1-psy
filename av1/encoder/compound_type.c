@@ -1369,7 +1369,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
           rs2 += get_interinter_compound_mask_rate(&x->mode_costs, mbmi);
 
           mode_rd = RDCOST(x->rdmult, rs2 + rd_stats->rate, 0);
-          if (mode_rd >= ref_best_rd) continue;
+          if (mode_rd >= ref_best_rd / 2) continue;
 
           if (have_newmv_in_inter_mode(this_mode)) {
             tmp_rate_mv = av1_interinter_compound_motion_search(
