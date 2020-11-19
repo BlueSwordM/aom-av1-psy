@@ -1074,8 +1074,6 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
   if (is_comp_pred) {
     const int valid_mv0 = args->single_newmv_valid[ref_mv_idx][refs[0]];
     const int valid_mv1 = args->single_newmv_valid[ref_mv_idx][refs[1]];
-    InterPredParams inter_pred_params;
-
     if (this_mode == NEW_NEWMV) {
       if (valid_mv0) {
         cur_mv[0].as_int = args->single_newmv[ref_mv_idx][refs[0]].as_int;
@@ -1085,140 +1083,32 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
         cur_mv[1].as_int = args->single_newmv[ref_mv_idx][refs[1]].as_int;
         clamp_mv_in_range(x, &cur_mv[1], 1);
       }
-
-      // aomenc1
-      if (cpi->sf.inter_sf.comp_inter_joint_search_thresh <= bsize ||
-          !valid_mv0 || !valid_mv1) {
-        int_mv tmp_mv[2] = { cur_mv[0], cur_mv[1] };
-        int tmp_rate_mv;
-        mbmi->compound_idx = 1;
-        av1_dist_wtd_comp_weight_assign(
-            &cpi->common, mbmi, 0, &inter_pred_params.conv_params.fwd_offset,
-            &inter_pred_params.conv_params.bck_offset,
-            &inter_pred_params.conv_params.use_dist_wtd_comp_avg, 1);
-        uint8_t mask_value = inter_pred_params.conv_params.fwd_offset * 4;
-        memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
-        int cmp_avg_sme =
-            av1_joint_motion_search(cpi, x, bsize, cur_mv, xd->seg_mask,
-                                    block_size_wide[bsize], rate_mv);
-
-        mbmi->compound_idx = 0;
-        av1_dist_wtd_comp_weight_assign(
-            &cpi->common, mbmi, 0, &inter_pred_params.conv_params.fwd_offset,
-            &inter_pred_params.conv_params.bck_offset,
-            &inter_pred_params.conv_params.use_dist_wtd_comp_avg, 1);
-        mask_value = inter_pred_params.conv_params.fwd_offset * 4;
-        memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
-        int cmp_jnt_sme =
-            av1_joint_motion_search(cpi, x, bsize, tmp_mv, xd->seg_mask,
-                                    block_size_wide[bsize], &tmp_rate_mv);
-        if (cmp_jnt_sme < cmp_avg_sme) {
-          cur_mv[0] = tmp_mv[0];
-          cur_mv[1] = tmp_mv[1];
-          *rate_mv = tmp_rate_mv;
-        } else {
-          mbmi->compound_idx = 1;
-        }
-      } else {
-        *rate_mv = 0;
-        for (int i = 0; i < 2; ++i) {
-          const int_mv ref_mv = av1_get_ref_mv(x, i);
-          *rate_mv += av1_mv_bit_cost(
-              &cur_mv[i].as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
-              x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
-        }
+      *rate_mv = 0;
+      for (int i = 0; i < 2; ++i) {
+        const int_mv ref_mv = av1_get_ref_mv(x, i);
+        *rate_mv += av1_mv_bit_cost(&cur_mv[i].as_mv, &ref_mv.as_mv,
+                                    x->mv_costs.nmv_joint_cost,
+                                    x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
       }
     } else if (this_mode == NEAREST_NEWMV || this_mode == NEAR_NEWMV) {
       if (valid_mv1) {
         cur_mv[1].as_int = args->single_newmv[ref_mv_idx][refs[1]].as_int;
         clamp_mv_in_range(x, &cur_mv[1], 1);
       }
-
-      // aomenc2
-      if (cpi->sf.inter_sf.comp_inter_joint_search_thresh <= bsize ||
-          !valid_mv1) {
-        int_mv tmp_mv[2] = { cur_mv[0], cur_mv[1] };
-        int tmp_rate_mv;
-        mbmi->compound_idx = 1;
-        av1_dist_wtd_comp_weight_assign(
-            &cpi->common, mbmi, 0, &inter_pred_params.conv_params.fwd_offset,
-            &inter_pred_params.conv_params.bck_offset,
-            &inter_pred_params.conv_params.use_dist_wtd_comp_avg, 1);
-        uint8_t mask_value = inter_pred_params.conv_params.fwd_offset * 4;
-        memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
-
-        int cmp_avg_sme = av1_compound_single_motion_search_interinter(
-            cpi, x, bsize, cur_mv, xd->seg_mask, block_size_wide[bsize],
-            rate_mv, 1);
-        mbmi->compound_idx = 0;
-        av1_dist_wtd_comp_weight_assign(
-            &cpi->common, mbmi, 0, &inter_pred_params.conv_params.fwd_offset,
-            &inter_pred_params.conv_params.bck_offset,
-            &inter_pred_params.conv_params.use_dist_wtd_comp_avg, 1);
-        mask_value = inter_pred_params.conv_params.fwd_offset * 4;
-        memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
-        int cmp_jnt_sme = av1_compound_single_motion_search_interinter(
-            cpi, x, bsize, tmp_mv, xd->seg_mask, block_size_wide[bsize],
-            &tmp_rate_mv, 1);
-        if (cmp_jnt_sme < cmp_avg_sme) {
-          cur_mv[0] = tmp_mv[0];
-          cur_mv[1] = tmp_mv[1];
-          *rate_mv = tmp_rate_mv;
-        } else {
-          mbmi->compound_idx = 1;
-        }
-      } else {
-        const int_mv ref_mv = av1_get_ref_mv(x, 1);
-        *rate_mv = av1_mv_bit_cost(&cur_mv[1].as_mv, &ref_mv.as_mv,
-                                   x->mv_costs.nmv_joint_cost,
-                                   x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
-      }
+      const int_mv ref_mv = av1_get_ref_mv(x, 1);
+      *rate_mv = av1_mv_bit_cost(&cur_mv[1].as_mv, &ref_mv.as_mv,
+                                 x->mv_costs.nmv_joint_cost,
+                                 x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
     } else {
       assert(this_mode == NEW_NEARESTMV || this_mode == NEW_NEARMV);
       if (valid_mv0) {
         cur_mv[0].as_int = args->single_newmv[ref_mv_idx][refs[0]].as_int;
         clamp_mv_in_range(x, &cur_mv[0], 0);
       }
-
-      // aomenc3
-      if (cpi->sf.inter_sf.comp_inter_joint_search_thresh <= bsize ||
-          !valid_mv0) {
-        int_mv tmp_mv[2] = { cur_mv[0], cur_mv[1] };
-        int tmp_rate_mv;
-        mbmi->compound_idx = 1;
-        av1_dist_wtd_comp_weight_assign(
-            &cpi->common, mbmi, 0, &inter_pred_params.conv_params.fwd_offset,
-            &inter_pred_params.conv_params.bck_offset,
-            &inter_pred_params.conv_params.use_dist_wtd_comp_avg, 1);
-        uint8_t mask_value = inter_pred_params.conv_params.fwd_offset * 4;
-        memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
-
-        int cmp_avg_sme = av1_compound_single_motion_search_interinter(
-            cpi, x, bsize, cur_mv, xd->seg_mask, block_size_wide[bsize],
-            rate_mv, 0);
-        mbmi->compound_idx = 0;
-        av1_dist_wtd_comp_weight_assign(
-            &cpi->common, mbmi, 0, &inter_pred_params.conv_params.fwd_offset,
-            &inter_pred_params.conv_params.bck_offset,
-            &inter_pred_params.conv_params.use_dist_wtd_comp_avg, 1);
-        mask_value = inter_pred_params.conv_params.fwd_offset * 4;
-        memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
-        int cmp_jnt_sme = av1_compound_single_motion_search_interinter(
-            cpi, x, bsize, tmp_mv, xd->seg_mask, block_size_wide[bsize],
-            &tmp_rate_mv, 0);
-        if (cmp_jnt_sme < cmp_avg_sme) {
-          cur_mv[0] = tmp_mv[0];
-          cur_mv[1] = tmp_mv[1];
-          *rate_mv = tmp_rate_mv;
-        } else {
-          mbmi->compound_idx = 1;
-        }
-      } else {
-        const int_mv ref_mv = av1_get_ref_mv(x, 0);
-        *rate_mv = av1_mv_bit_cost(&cur_mv[0].as_mv, &ref_mv.as_mv,
-                                   x->mv_costs.nmv_joint_cost,
-                                   x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
-      }
+      const int_mv ref_mv = av1_get_ref_mv(x, 0);
+      *rate_mv = av1_mv_bit_cost(&cur_mv[0].as_mv, &ref_mv.as_mv,
+                                 x->mv_costs.nmv_joint_cost,
+                                 x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
     }
   } else {
     // Single ref case.
