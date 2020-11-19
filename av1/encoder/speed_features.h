@@ -121,10 +121,6 @@ enum {
    */
   DISALLOW_RECODE = 0,
   /*
-   * Recode KF's exceeding maximum frame bandwidth
-   */
-  ALLOW_RECODE_KFMAXBW = 1,
-  /*
    * Allow recode only for KF/ARF/GF frames
    */
   ALLOW_RECODE_KFARFGF = 2,
