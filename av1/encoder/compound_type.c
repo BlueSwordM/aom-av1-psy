@@ -1355,8 +1355,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       int best_rs2 = 0;
       int best_rate_mv = *rate_mv;
       const int wedge_mask_size = get_wedge_types_lookup(bsize);
-      int need_mask_search =
-          args->wedge_index == -1 || !have_newmv_in_inter_mode(this_mode);
+      int need_mask_search = args->wedge_index == -1;
 
       for (int wedge_mask = 0; wedge_mask < wedge_mask_size && need_mask_search;
            ++wedge_mask) {
@@ -1398,7 +1397,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       }
 
       if (need_mask_search) {
-        if (have_newmv_in_inter_mode(this_mode)) {
+        if (this_mode == NEW_NEWMV) {
           args->wedge_index = best_mask_index;
           args->wedge_sign = best_wedge_sign;
         }
@@ -1407,8 +1406,11 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
         mbmi->interinter_comp.wedge_sign = args->wedge_sign;
         rs2 = masked_type_cost[cur_type];
         rs2 += get_interinter_compound_mask_rate(&x->mode_costs, mbmi);
-        tmp_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,
-                                                            bsize, this_mode);
+
+        if (have_newmv_in_inter_mode(this_mode)) {
+          tmp_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,
+                                                              bsize, this_mode);
+        }
 
         best_mask_index = args->wedge_index;
         best_wedge_sign = args->wedge_sign;
@@ -1437,8 +1439,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       int best_mask_index = 0;
       rs2 += get_interinter_compound_mask_rate(&x->mode_costs, mbmi);
 
-      int need_mask_search =
-          args->diffwtd_index == -1 || !have_newmv_in_inter_mode(this_mode);
+      int need_mask_search = args->diffwtd_index == -1;
 
       for (int mask_index = 0; mask_index < 2 && need_mask_search;
            ++mask_index) {
@@ -1470,8 +1471,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       }
 
       if (need_mask_search) {
-        if (have_newmv_in_inter_mode(this_mode))
-          args->diffwtd_index = best_mask_index;
+        if (this_mode == NEW_NEWMV) args->diffwtd_index = best_mask_index;
       } else {
         mbmi->interinter_comp.mask_type = args->diffwtd_index;
         rs2 = masked_type_cost[cur_type];
@@ -1480,8 +1480,10 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
         int mask_value = mbmi->interinter_comp.mask_type == 0 ? 38 : 26;
         memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
 
-        tmp_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,
-                                                            bsize, this_mode);
+        if (have_newmv_in_inter_mode(this_mode)) {
+          tmp_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,
+                                                              bsize, this_mode);
+        }
         best_mask_index = mbmi->interinter_comp.mask_type;
         tmp_mv[0] = mbmi->mv[0];
         tmp_mv[1] = mbmi->mv[1];
