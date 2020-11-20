@@ -424,7 +424,7 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
         thresholds[2] <<= 5;
         thresholds[3] = INT32_MAX;
       } else if (cm->width * cm->height > 640 * 480 && segment_id == 0) {
-        thresholds[0] <<= 2;
+        thresholds[0] = (3 * thresholds[0]) >> 1;
         thresholds[3] = INT32_MAX;
         if (current_qindex >= QINDEX_LARGE_BLOCK_THR) {
           thresholds[1] <<= 1;
