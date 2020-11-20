@@ -86,7 +86,7 @@ static const NN_CONFIG av1_intra_hog_model_nnconfig = {
   BINS,               // num_inputs
   DIRECTIONAL_MODES,  // num_outputs
   0,                  // num_hidden_layers
-  {},
+  { 0 },
   {
       av1_intra_hog_model_weights,
   },
