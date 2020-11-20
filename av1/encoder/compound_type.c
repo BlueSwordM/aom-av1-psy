@@ -1250,8 +1250,6 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   uint8_t *preds1[1] = { buffers->pred1 };
   int strides[1] = { bw };
   int tmp_rate_mv;
-  const int num_pix = 1 << num_pels_log2_lookup[bsize];
-  const int mask_len = 2 * num_pix * sizeof(uint8_t);
   COMPOUND_TYPE cur_type;
   // Local array to store the mask cost for different compound types
   int masked_type_cost[COMPOUND_TYPES];
@@ -1532,7 +1530,6 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
     if (best_rd_cur < *rd) {
       update_best_info(mbmi, rd, &best_type_stats, best_rd_cur,
                        comp_model_rd_cur, rs2);
-      memcpy(buffers->tmp_best_mask_buf, xd->seg_mask, mask_len);
       if (have_newmv_in_inter_mode(this_mode))
         update_mask_best_mv(mbmi, best_mv, &best_tmp_rate_mv, tmp_rate_mv);
     }
@@ -1546,7 +1543,6 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->compound_idx =
       !(best_type_stats.best_compound_data.type == COMPOUND_DISTWTD);
   mbmi->interinter_comp = best_type_stats.best_compound_data;
-  memcpy(xd->seg_mask, buffers->tmp_best_mask_buf, mask_len);
 
   if (have_newmv_in_inter_mode(this_mode)) {
     mbmi->mv[0].as_int = best_mv[0].as_int;
