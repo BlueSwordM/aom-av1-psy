@@ -1386,8 +1386,8 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
           }
 
           RD_STATS est_rd_stats;
-          int64_t this_rd_cur =
-              estimate_yrd_for_sb(cpi, bsize, x, best_rd_cur, &est_rd_stats);
+          int64_t this_rd_cur = estimate_yrd_for_sb(
+              cpi, bsize, x, AOMMIN(best_rd_cur, ref_best_rd), &est_rd_stats);
           if (this_rd_cur < INT64_MAX) {
             this_rd_cur =
                 RDCOST(x->rdmult, rs2 + tmp_rate_mv + est_rd_stats.rate,
