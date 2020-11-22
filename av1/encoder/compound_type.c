@@ -1452,20 +1452,20 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
 
       for (int mask_index = 0; mask_index < 2 && need_mask_search;
            ++mask_index) {
-        // hard coded number for diff wtd
-        int mask_value = mask_index == 0 ? 38 : 26;
-        memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
         tmp_rate_mv = *rate_mv;
-        mbmi->interinter_comp.mask_type =
-            mask_index == 0 ? DIFFWTD_38 : DIFFWTD_38_INV;
-        if (have_newmv_in_inter_mode(this_mode))
+        mbmi->interinter_comp.mask_type = mask_index;
+        if (have_newmv_in_inter_mode(this_mode)) {
+          // hard coded number for diff wtd
+          int mask_value = mask_index == 0 ? 38 : 26;
+          memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
           tmp_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,
                                                               bsize, this_mode);
+        }
         av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
                                       AOM_PLANE_Y, AOM_PLANE_Y);
         RD_STATS est_rd_stats;
         int64_t this_rd_cur =
-            estimate_yrd_for_sb(cpi, bsize, x, INT64_MAX, &est_rd_stats);
+            estimate_yrd_for_sb(cpi, bsize, x, ref_best_rd, &est_rd_stats);
         if (this_rd_cur < INT64_MAX) {
           this_rd_cur = RDCOST(x->rdmult, rs2 + tmp_rate_mv + est_rd_stats.rate,
                                est_rd_stats.dist);
@@ -1500,7 +1500,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
                                       AOM_PLANE_Y, AOM_PLANE_Y);
         RD_STATS est_rd_stats;
         int64_t this_rd_cur =
-            estimate_yrd_for_sb(cpi, bsize, x, INT64_MAX, &est_rd_stats);
+            estimate_yrd_for_sb(cpi, bsize, x, ref_best_rd, &est_rd_stats);
         if (this_rd_cur < INT64_MAX) {
           best_rd_cur = RDCOST(x->rdmult, rs2 + tmp_rate_mv + est_rd_stats.rate,
                                est_rd_stats.dist);
