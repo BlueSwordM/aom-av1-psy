@@ -1355,6 +1355,14 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       const int wedge_mask_size = get_wedge_types_lookup(bsize);
       int need_mask_search = args->wedge_index == -1;
 
+      if (need_mask_search && !have_newmv_in_inter_mode(this_mode)) {
+        // short cut repeated single reference block build
+        av1_build_inter_predictors_for_planes_single_buf(xd, bsize, 0, 0, 0,
+                                                         preds0, strides);
+        av1_build_inter_predictors_for_planes_single_buf(xd, bsize, 0, 0, 1,
+                                                         preds1, strides);
+      }
+
       for (int wedge_mask = 0; wedge_mask < wedge_mask_size && need_mask_search;
            ++wedge_mask) {
         for (int wedge_sign = 0; wedge_sign < 2; ++wedge_sign) {
@@ -1370,10 +1378,13 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
           if (have_newmv_in_inter_mode(this_mode)) {
             tmp_rate_mv = av1_interinter_compound_motion_search(
                 cpi, x, cur_mv, bsize, this_mode);
+            av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst,
+                                          bsize, AOM_PLANE_Y, AOM_PLANE_Y);
+          } else {
+            av1_build_wedge_inter_predictor_from_buf(xd, bsize, 0, 0, preds0,
+                                                     strides, preds1, strides);
           }
 
-          av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
-                                        AOM_PLANE_Y, AOM_PLANE_Y);
           RD_STATS est_rd_stats;
           int64_t this_rd_cur =
               estimate_yrd_for_sb(cpi, bsize, x, best_rd_cur, &est_rd_stats);
