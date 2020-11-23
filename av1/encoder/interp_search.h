@@ -135,6 +135,10 @@ typedef struct {
    * Estimated diff wtd index.
    */
   int diffwtd_index;
+  /*!
+   * Estimated cmp mode.
+   */
+  int cmp_mode[MODE_CTX_REF_FRAMES];
 } HandleInterModeArgs;
 
 /*!\cond */

@@ -1236,6 +1236,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   const PREDICTION_MODE this_mode = mbmi->mode;
+  int ref_frame = av1_ref_frame_type(mbmi->ref_frame);
   const int bw = block_size_wide[bsize];
   int rs2;
   int_mv best_mv[2];
@@ -1310,6 +1311,11 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   // Loop over valid compound types
   for (int i = 0; i < valid_type_count; i++) {
     cur_type = valid_comp_types[i];
+
+    if (args->cmp_mode[ref_frame] == COMPOUND_AVERAGE) {
+      if (cur_type == COMPOUND_WEDGE) continue;
+    }
+
     comp_model_rd_cur = INT64_MAX;
     tmp_rate_mv = *rate_mv;
     best_rd_cur = INT64_MAX;
@@ -1560,6 +1566,10 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
     rd_stats->rate += best_tmp_rate_mv - *rate_mv;
     *rate_mv = best_tmp_rate_mv;
   }
+
+  if (this_mode == NEW_NEWMV)
+    args->cmp_mode[ref_frame] = mbmi->interinter_comp.type;
+
   restore_dst_buf(xd, *orig_dst, 1);
   if (!match_found)
     save_comp_rd_search_stat(x, mbmi, comp_rate, comp_dist, comp_model_rate,
