@@ -1985,15 +1985,15 @@ typedef struct {
   /*!
    * Start time stamp of the previous frame
    */
-  int64_t prev_start_seen;
+  int64_t prev_ts_start;
   /*!
    * End time stamp of the previous frame
    */
-  int64_t prev_end_seen;
+  int64_t prev_ts_end;
   /*!
    * Start time stamp of the first frame
    */
-  int64_t first_ever;
+  int64_t first_ts_start;
 } TimeStamps;
 
 /*!

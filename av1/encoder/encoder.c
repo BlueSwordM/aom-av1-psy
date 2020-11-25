@@ -945,7 +945,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   av1_zero(aggregate_fc);
 #endif  // CONFIG_ENTROPY_STATS
 
-  cpi->time_stamps.first_ever = INT64_MAX;
+  cpi->time_stamps.first_ts_start = INT64_MAX;
 
 #ifdef OUTPUT_YUV_REC
   yuv_rec_file = fopen("rec.yuv", "wb");
@@ -1388,7 +1388,7 @@ void av1_remove_compressor(AV1_COMP *cpi) {
       char results[512] = { 0 };
       FILE *f = fopen("opsnr.stt", "a");
       double time_encoded =
-          (cpi->time_stamps.prev_end_seen - cpi->time_stamps.first_ever) /
+          (cpi->time_stamps.prev_ts_end - cpi->time_stamps.first_ts_start) /
           10000000.000;
       double total_encode_time =
           (cpi->time_receive_data + cpi->time_compress_data) / 1000.000;

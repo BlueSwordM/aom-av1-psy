@@ -309,14 +309,14 @@ static void adjust_frame_rate(AV1_COMP *cpi, int64_t ts_start, int64_t ts_end) {
     return;
   }
 
-  if (ts_start == time_stamps->first_ever) {
+  if (ts_start == time_stamps->first_ts_start) {
     this_duration = ts_end - ts_start;
     step = 1;
   } else {
     int64_t last_duration =
-        time_stamps->prev_end_seen - time_stamps->prev_start_seen;
+        time_stamps->prev_ts_end - time_stamps->prev_ts_start;
 
-    this_duration = ts_end - time_stamps->prev_end_seen;
+    this_duration = ts_end - time_stamps->prev_ts_end;
 
     // do a step update if the duration changes by 10%
     if (last_duration)
@@ -331,7 +331,7 @@ static void adjust_frame_rate(AV1_COMP *cpi, int64_t ts_start, int64_t ts_end) {
       // frame rate. If we haven't seen 1 second yet, then average
       // over the whole interval seen.
       const double interval =
-          AOMMIN((double)(ts_end - time_stamps->first_ever), 10000000.0);
+          AOMMIN((double)(ts_end - time_stamps->first_ts_start), 10000000.0);
       double avg_duration = 10000000.0 / cpi->framerate;
       avg_duration *= (interval - avg_duration + this_duration);
       avg_duration /= interval;
@@ -339,8 +339,8 @@ static void adjust_frame_rate(AV1_COMP *cpi, int64_t ts_start, int64_t ts_end) {
       av1_new_framerate(cpi, 10000000.0 / avg_duration);
     }
   }
-  time_stamps->prev_start_seen = ts_start;
-  time_stamps->prev_end_seen = ts_end;
+  time_stamps->prev_ts_start = ts_start;
+  time_stamps->prev_ts_end = ts_end;
 }
 
 // Determine whether there is a forced keyframe pending in the lookahead buffer
@@ -1196,9 +1196,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   *time_stamp = source->ts_start;
   *time_end = source->ts_end;
-  if (source->ts_start < cpi->time_stamps.first_ever) {
-    cpi->time_stamps.first_ever = source->ts_start;
-    cpi->time_stamps.prev_end_seen = source->ts_start;
+  if (source->ts_start < cpi->time_stamps.first_ts_start) {
+    cpi->time_stamps.first_ts_start = source->ts_start;
+    cpi->time_stamps.prev_ts_end = source->ts_start;
   }
 
   av1_apply_encoding_flags(cpi, source->flags);
