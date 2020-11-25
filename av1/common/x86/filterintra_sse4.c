@@ -20,7 +20,7 @@
 #include "av1/common/reconintra.h"
 
 //------------------------------------------------------------------------------
-// FilterIntraPredictor_SSE4_1
+// filter_intra_predictor_sse4_1
 
 // This shuffle mask selects 32-bit blocks in the order 0, 1, 0, 1, which
 // duplicates the first 8 bytes of a 128-bit vector into the second 8 bytes.
@@ -28,12 +28,12 @@
 
 // Apply all filter taps to the given 7 packed 16-bit values, keeping the 8th
 // at zero to preserve the sum.
-static inline void Filter4x2_SSE4_1(uint8_t *dst, const ptrdiff_t stride,
-                                    const __m128i *pixels,
-                                    const __m128i *taps_0_1,
-                                    const __m128i *taps_2_3,
-                                    const __m128i *taps_4_5,
-                                    const __m128i *taps_6_7) {
+static INLINE void filter_4x2_sse4_1(uint8_t *dst, const ptrdiff_t stride,
+                                     const __m128i *pixels,
+                                     const __m128i *taps_0_1,
+                                     const __m128i *taps_2_3,
+                                     const __m128i *taps_4_5,
+                                     const __m128i *taps_6_7) {
   const __m128i mul_0_01 = _mm_maddubs_epi16(*pixels, *taps_0_1);
   const __m128i mul_0_23 = _mm_maddubs_epi16(*pixels, *taps_2_3);
   // |output_half| contains 8 partial sums.
@@ -56,10 +56,10 @@ static inline void Filter4x2_SSE4_1(uint8_t *dst, const ptrdiff_t stride,
 // 4xH transform sizes are given special treatment because xx_loadl_64 goes out
 // of bounds and every block involves the left column. This implementation
 // loads TL from the top row for the first block, so it is not
-static inline void Filter4xH(uint8_t *dest, ptrdiff_t stride,
-                             const uint8_t *const top_ptr,
-                             const uint8_t *const left_ptr, int mode,
-                             const int height) {
+static INLINE void filter_4xh(uint8_t *dest, ptrdiff_t stride,
+                              const uint8_t *const top_ptr,
+                              const uint8_t *const left_ptr, int mode,
+                              const int height) {
   const __m128i taps_0_1 = xx_load_128(av1_filter_intra_taps[mode][0]);
   const __m128i taps_2_3 = xx_load_128(av1_filter_intra_taps[mode][2]);
   const __m128i taps_4_5 = xx_load_128(av1_filter_intra_taps[mode][4]);
@@ -75,8 +75,8 @@ static inline void Filter4xH(uint8_t *dest, ptrdiff_t stride,
 
   // Duplicate first 8 bytes.
   pixels = _mm_shuffle_epi32(pixels, DUPLICATE_FIRST_HALF);
-  Filter4x2_SSE4_1(dest, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
-                   &taps_6_7);
+  filter_4x2_sse4_1(dest, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
+                    &taps_6_7);
   dest += stride;  // Move to y = 1.
   pixels = xx_loadl_32(dest);
 
@@ -93,8 +93,8 @@ static inline void Filter4xH(uint8_t *dest, ptrdiff_t stride,
   const __m128i pixel_order1 = _mm_set1_epi64x(kInsertTopLeftFirstMask);
   pixels = _mm_shuffle_epi8(pixels, pixel_order1);
   dest += stride;  // Move to y = 2.
-  Filter4x2_SSE4_1(dest, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
-                   &taps_6_7);
+  filter_4x2_sse4_1(dest, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
+                    &taps_6_7);
   dest += stride;  // Move to y = 3.
 
   // Compute the middle 8 rows before using common code for the final 4 rows.
@@ -120,8 +120,8 @@ static inline void Filter4xH(uint8_t *dest, ptrdiff_t stride,
     dest += stride;  // Move to y = 4.
 
     // First 4x2 in the if body.
-    Filter4x2_SSE4_1(dest, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
-                     &taps_6_7);
+    filter_4x2_sse4_1(dest, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
+                      &taps_6_7);
 
     // Clear all but final pixel in the first 8 of left column.
     __m128i keep_top_left = _mm_srli_si128(left, 13);
@@ -138,8 +138,8 @@ static inline void Filter4xH(uint8_t *dest, ptrdiff_t stride,
     dest += stride;  // Move to y = 6.
 
     // Second 4x2 in the if body.
-    Filter4x2_SSE4_1(dest, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
-                     &taps_6_7);
+    filter_4x2_sse4_1(dest, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
+                      &taps_6_7);
 
     // Position TL value so we can use pixel_order1.
     keep_top_left = _mm_slli_si128(keep_top_left, 6);
@@ -155,8 +155,8 @@ static inline void Filter4xH(uint8_t *dest, ptrdiff_t stride,
     dest += stride;  // Move to y = 8.
 
     // Third 4x2 in the if body.
-    Filter4x2_SSE4_1(dest, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
-                     &taps_6_7);
+    filter_4x2_sse4_1(dest, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
+                      &taps_6_7);
     dest += stride;  // Move to y = 9.
 
     // Prepare final inputs.
@@ -170,8 +170,8 @@ static inline void Filter4xH(uint8_t *dest, ptrdiff_t stride,
     dest += stride;  // Move to y = 10.
 
     // Fourth 4x2 in the if body.
-    Filter4x2_SSE4_1(dest, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
-                     &taps_6_7);
+    filter_4x2_sse4_1(dest, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
+                      &taps_6_7);
     dest += stride;  // Move to y = 11.
   }
 
@@ -190,8 +190,8 @@ static inline void Filter4xH(uint8_t *dest, ptrdiff_t stride,
     dest += stride;  // Move to y = 12 or 4.
 
     // First of final two 4x2 blocks.
-    Filter4x2_SSE4_1(dest, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
-                     &taps_6_7);
+    filter_4x2_sse4_1(dest, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
+                      &taps_6_7);
     dest += stride;  // Move to y = 13 or 5.
     pixels = xx_loadl_32(dest);
     left = _mm_srli_si128(left, 2);
@@ -203,20 +203,22 @@ static inline void Filter4xH(uint8_t *dest, ptrdiff_t stride,
     dest += stride;  // Move to y = 14 or 6.
 
     // Last of final two 4x2 blocks.
-    Filter4x2_SSE4_1(dest, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
-                     &taps_6_7);
+    filter_4x2_sse4_1(dest, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
+                      &taps_6_7);
   }
 }
 
-static void FilterIntraPredictor_SSE4_1(void *const dest, ptrdiff_t stride,
-                                        const void *const top_row,
-                                        const void *const left_column, int mode,
-                                        const int width, const int height) {
+static INLINE void filter_intra_predictor_sse4_1(void *const dest,
+                                                 ptrdiff_t stride,
+                                                 const void *const top_row,
+                                                 const void *const left_column,
+                                                 int mode, const int width,
+                                                 const int height) {
   const uint8_t *const top_ptr = (const uint8_t *)top_row;
   const uint8_t *const left_ptr = (const uint8_t *)left_column;
   uint8_t *dst = (uint8_t *)dest;
   if (width == 4) {
-    Filter4xH(dst, stride, top_ptr, left_ptr, mode, height);
+    filter_4xh(dst, stride, top_ptr, left_ptr, mode, height);
     return;
   }
 
@@ -250,8 +252,8 @@ static void FilterIntraPredictor_SSE4_1(void *const dest, ptrdiff_t stride,
 
   // Two sets of the same pixels to multiply with two sets of taps.
   pixels = _mm_shuffle_epi8(pixels, pixel_order1);
-  Filter4x2_SSE4_1(dst, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
-                   &taps_6_7);
+  filter_4x2_sse4_1(dst, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
+                    &taps_6_7);
   left = _mm_srli_si128(left, 1);
 
   // Load
@@ -264,8 +266,8 @@ static void FilterIntraPredictor_SSE4_1(void *const dest, ptrdiff_t stride,
   pixels = _mm_shuffle_epi8(pixels, pixel_order2);
   const ptrdiff_t stride2 = stride << 1;
   const ptrdiff_t stride4 = stride << 2;
-  Filter4x2_SSE4_1(dst + stride2, stride, &pixels, &taps_0_1, &taps_2_3,
-                   &taps_4_5, &taps_6_7);
+  filter_4x2_sse4_1(dst + stride2, stride, &pixels, &taps_0_1, &taps_2_3,
+                    &taps_4_5, &taps_6_7);
   dst += 4;
   for (int x = 3; x < width - 4; x += 4) {
     pixels = xx_loadl_32(top_ptr + x);
@@ -275,8 +277,8 @@ static void FilterIntraPredictor_SSE4_1(void *const dest, ptrdiff_t stride,
 
     // Duplicate bottom half into upper half.
     pixels = _mm_shuffle_epi32(pixels, DUPLICATE_FIRST_HALF);
-    Filter4x2_SSE4_1(dst, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
-                     &taps_6_7);
+    filter_4x2_sse4_1(dst, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
+                      &taps_6_7);
     pixels = xx_loadl_32(dst + stride - 1);
     pixels = _mm_insert_epi8(pixels, (int8_t)dst[stride + 3], 4);
     pixels = _mm_insert_epi8(pixels, (int8_t)dst[stride2 - 1], 5);
@@ -284,8 +286,8 @@ static void FilterIntraPredictor_SSE4_1(void *const dest, ptrdiff_t stride,
 
     // Duplicate bottom half into upper half.
     pixels = _mm_shuffle_epi32(pixels, DUPLICATE_FIRST_HALF);
-    Filter4x2_SSE4_1(dst + stride2, stride, &pixels, &taps_0_1, &taps_2_3,
-                     &taps_4_5, &taps_6_7);
+    filter_4x2_sse4_1(dst + stride2, stride, &pixels, &taps_0_1, &taps_2_3,
+                      &taps_4_5, &taps_6_7);
     dst += 4;
   }
 
@@ -301,16 +303,16 @@ static void FilterIntraPredictor_SSE4_1(void *const dest, ptrdiff_t stride,
     left = _mm_insert_epi8(left, (int8_t)left_ptr[y + 3], 12);
     pixels = _mm_or_si128(pixels, left);
     pixels = _mm_shuffle_epi8(pixels, pixel_order2);
-    Filter4x2_SSE4_1(dst, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
-                     &taps_6_7);
+    filter_4x2_sse4_1(dst, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
+                      &taps_6_7);
 
     // The bytes shifted into positions 6 and 7 will be ignored by the shuffle.
     left = _mm_srli_si128(left, 2);
     pixels = xx_loadl_32(dst + stride);
     pixels = _mm_or_si128(pixels, left);
     pixels = _mm_shuffle_epi8(pixels, pixel_order2);
-    Filter4x2_SSE4_1(dst + stride2, stride, &pixels, &taps_0_1, &taps_2_3,
-                     &taps_4_5, &taps_6_7);
+    filter_4x2_sse4_1(dst + stride2, stride, &pixels, &taps_0_1, &taps_2_3,
+                      &taps_4_5, &taps_6_7);
 
     dst += 4;
 
@@ -323,8 +325,8 @@ static void FilterIntraPredictor_SSE4_1(void *const dest, ptrdiff_t stride,
 
       // Duplicate bottom half into upper half.
       pixels = _mm_shuffle_epi32(pixels, DUPLICATE_FIRST_HALF);
-      Filter4x2_SSE4_1(dst, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
-                       &taps_6_7);
+      filter_4x2_sse4_1(dst, stride, &pixels, &taps_0_1, &taps_2_3, &taps_4_5,
+                        &taps_6_7);
       pixels = xx_loadl_32(dst + stride - 1);
       pixels = _mm_insert_epi8(pixels, (int8_t)dst[stride + 3], 4);
       pixels = _mm_insert_epi8(pixels, (int8_t)dst[stride2 - 1], 5);
@@ -332,8 +334,8 @@ static void FilterIntraPredictor_SSE4_1(void *const dest, ptrdiff_t stride,
 
       // Duplicate bottom half into upper half.
       pixels = _mm_shuffle_epi32(pixels, DUPLICATE_FIRST_HALF);
-      Filter4x2_SSE4_1(dst + stride2, stride, &pixels, &taps_0_1, &taps_2_3,
-                       &taps_4_5, &taps_6_7);
+      filter_4x2_sse4_1(dst + stride2, stride, &pixels, &taps_0_1, &taps_2_3,
+                        &taps_4_5, &taps_6_7);
       dst += 4;
     }
   }
@@ -344,5 +346,5 @@ void av1_filter_intra_predictor_sse4_1(uint8_t *dst, ptrdiff_t stride,
                                        const uint8_t *left, int mode) {
   const int bw = tx_size_wide[tx_size];
   const int bh = tx_size_high[tx_size];
-  FilterIntraPredictor_SSE4_1(dst, stride, above, left, mode, bw, bh);
+  filter_intra_predictor_sse4_1(dst, stride, above, left, mode, bw, bh);
 }
