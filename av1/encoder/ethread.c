@@ -555,6 +555,8 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
 
     thread_data->cpi = cpi;
     thread_data->thread_id = i;
+    // Set the starting tile for each thread.
+    thread_data->start = i;
 
     if (i > 0) {
       // Set up sms_tree.
@@ -677,6 +679,8 @@ static AOM_INLINE void fp_create_enc_workers(AV1_COMP *cpi, int num_workers) {
 
     thread_data->cpi = cpi;
     thread_data->thread_id = i;
+    // Set the starting tile for each thread.
+    thread_data->start = i;
 
     if (i > 0) {
       // Set up firstpass PICK_MODE_CONTEXT.
@@ -696,17 +700,11 @@ static AOM_INLINE void fp_create_enc_workers(AV1_COMP *cpi, int num_workers) {
 }
 #endif
 
-static AOM_INLINE void launch_enc_workers(MultiThreadInfo *const mt_info,
-                                          int num_workers) {
+static AOM_INLINE void launch_workers(MultiThreadInfo *const mt_info,
+                                      int num_workers) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
-  // Encode a frame
   for (int i = num_workers - 1; i >= 0; i--) {
     AVxWorker *const worker = &mt_info->workers[i];
-    EncWorkerData *const thread_data = (EncWorkerData *)worker->data1;
-
-    // Set the starting tile for each thread.
-    thread_data->start = i;
-
     if (i == 0)
       winterface->execute(worker);
     else
@@ -891,7 +889,7 @@ void av1_encode_tiles_mt(AV1_COMP *cpi) {
     num_workers = AOMMIN(num_workers, mt_info->num_enc_workers);
   }
   prepare_enc_workers(cpi, enc_worker_hook, num_workers);
-  launch_enc_workers(&cpi->mt_info, num_workers);
+  launch_workers(&cpi->mt_info, num_workers);
   sync_enc_workers(&cpi->mt_info, cm, num_workers);
   accumulate_counters_enc_workers(cpi, num_workers);
 }
@@ -1036,7 +1034,7 @@ void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
   assign_tile_to_thread(thread_id_to_tile_id, tile_cols * tile_rows,
                         num_workers);
   prepare_enc_workers(cpi, enc_row_mt_worker_hook, num_workers);
-  launch_enc_workers(&cpi->mt_info, num_workers);
+  launch_workers(&cpi->mt_info, num_workers);
   sync_enc_workers(&cpi->mt_info, cm, num_workers);
   if (cm->delta_q_info.delta_lf_present_flag) update_delta_lf_for_row_mt(cpi);
   accumulate_counters_enc_workers(cpi, num_workers);
@@ -1101,7 +1099,7 @@ void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi) {
   assign_tile_to_thread(thread_id_to_tile_id, tile_cols * tile_rows,
                         num_workers);
   fp_prepare_enc_workers(cpi, fp_enc_row_mt_worker_hook, num_workers);
-  launch_enc_workers(&cpi->mt_info, num_workers);
+  launch_workers(&cpi->mt_info, num_workers);
   sync_enc_workers(&cpi->mt_info, cm, num_workers);
 }
 
@@ -1307,7 +1305,7 @@ void av1_mc_flow_dispenser_mt(AV1_COMP *cpi) {
          sizeof(*tpl_sync->num_finished_cols) * mb_rows);
 
   prepare_tpl_workers(cpi, tpl_worker_hook, num_workers);
-  launch_enc_workers(&cpi->mt_info, num_workers);
+  launch_workers(&cpi->mt_info, num_workers);
   sync_enc_workers(&cpi->mt_info, cm, num_workers);
 }
 
@@ -1438,7 +1436,7 @@ void av1_tf_do_filtering_mt(AV1_COMP *cpi) {
     num_workers = AOMMIN(num_workers, mt_info->num_enc_workers);
 
   prepare_tf_workers(cpi, tf_worker_hook, num_workers, is_highbitdepth);
-  launch_enc_workers(mt_info, num_workers);
+  launch_workers(mt_info, num_workers);
   sync_enc_workers(mt_info, cm, num_workers);
   tf_accumulate_frame_diff(cpi, num_workers);
   tf_dealloc_thread_data(cpi, num_workers, is_highbitdepth);
@@ -1660,7 +1658,7 @@ void av1_global_motion_estimation_mt(AV1_COMP *cpi) {
 
   assign_thread_to_dir(job_info->thread_id_to_dir, num_workers);
   prepare_gm_workers(cpi, gm_mt_worker_hook, num_workers);
-  launch_enc_workers(&cpi->mt_info, num_workers);
+  launch_workers(&cpi->mt_info, num_workers);
   sync_enc_workers(&cpi->mt_info, &cpi->common, num_workers);
 }
 #endif  // !CONFIG_REALTIME_ONLY
