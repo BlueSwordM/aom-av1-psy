@@ -201,30 +201,37 @@ char **argv_dup(int argc, const char **argv) {
   return new_argv;
 }
 
+// Use the formatting of the Linux man pages for cp, ls, mv, rm, etc.
 void arg_show_usage(FILE *fp, const struct arg_def *const *defs) {
-  char option_text[40] = { 0 };
-
   for (; *defs; defs++) {
     const struct arg_def *def = *defs;
     char *short_val = def->has_val ? " <arg>" : "";
     char *long_val = def->has_val ? "=<arg>" : "";
 
+    // Options start after 7 spaces.
+    fputs("       ", fp);
+    int n = 0;
     if (def->short_name && def->long_name) {
-      char *comma = def->has_val ? "," : ",      ";
-
-      snprintf(option_text, 37, "-%s%s%s --%s%6s", def->short_name, short_val,
-               comma, def->long_name, long_val);
+      n = fprintf(fp, "-%s%s, --%s%s", def->short_name, short_val,
+                  def->long_name, long_val);
     } else if (def->short_name)
-      snprintf(option_text, 37, "-%s%s", def->short_name, short_val);
+      n = fprintf(fp, "-%s%s", def->short_name, short_val);
     else if (def->long_name)
-      snprintf(option_text, 37, "          --%s%s", def->long_name, long_val);
+      n = fprintf(fp, "--%s%s", def->long_name, long_val);
 
-    fprintf(fp, "  %-37s\t%s\n", option_text, def->desc);
+    // Descriptions start after 14 spaces. If an option is shorter than 7
+    // characters, its description starts on the same line.
+    if (n < 7)
+      for (int i = 0; i < 7 - n; i++) fputc(' ', fp);
+    else
+      fputs("\n              ", fp);
+    fprintf(fp, "%s\n", def->desc);
 
     if (def->enums) {
       const struct arg_enum_list *listptr;
 
-      fprintf(fp, "  %-37s\t  ", "");
+      // Enums start after 16 spaces.
+      fputs("                ", fp);
 
       for (listptr = def->enums; listptr->name; listptr++)
         fprintf(fp, "%s%s", listptr->name, listptr[1].name ? ", " : "\n");
