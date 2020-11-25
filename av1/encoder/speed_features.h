@@ -795,10 +795,6 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // flag to allow skipping intra mode for inter frame prediction
   int skip_intra_in_interframe;
 
-  // variance threshold for intra mode gating when inter turned out to be skip
-  // in inter frame prediction
-  unsigned int src_var_thresh_intra_skip;
-
   // Prune intra mode candidates based on source block histogram of gradient.
   // Applies to luma plane only.
   int intra_pruning_with_hog;

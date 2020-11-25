@@ -5544,8 +5544,9 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
 #endif
   // Gate intra mode evaluation if best of inter is skip except when source
   // variance is extremely low
+  const unsigned int src_var_thresh_intra_skip = 1;
   if (sf->intra_sf.skip_intra_in_interframe &&
-      (x->source_variance > sf->intra_sf.src_var_thresh_intra_skip)) {
+      (x->source_variance > src_var_thresh_intra_skip)) {
     if (inter_cost >= 0 && intra_cost >= 0) {
       aom_clear_system_state();
       const NN_CONFIG *nn_config = (AOMMIN(cm->width, cm->height) <= 480)
