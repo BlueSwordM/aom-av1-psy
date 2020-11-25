@@ -123,11 +123,11 @@ enum {
   /*
    * Allow recode only for KF/ARF/GF frames
    */
-  ALLOW_RECODE_KFARFGF = 2,
+  ALLOW_RECODE_KFARFGF = 1,
   /*
    * Allow recode for all frame types based on bitrate constraints.
    */
-  ALLOW_RECODE = 3,
+  ALLOW_RECODE = 2,
 } UENUM1BYTE(RECODE_LOOP_TYPE);
 
 enum {

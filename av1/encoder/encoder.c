@@ -2552,19 +2552,11 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       recode_loop_update_q(cpi, &loop, &q, &q_low, &q_high, top_index,
                            bottom_index, &undershoot_seen, &overshoot_seen,
                            &low_cr_seen, loop_count);
-    }
 
-    // Special case for overlay frame.
-    if (loop && rc->is_src_frame_alt_ref &&
-        rc->projected_frame_size < rc->max_frame_bandwidth) {
-      loop = 0;
-    }
-
-    if (allow_recode && !cpi->sf.gm_sf.gm_disable_recode &&
-        av1_recode_loop_test_global_motion(cm->global_motion,
-                                           cpi->td.rd_counts.global_motion_used,
-                                           gm_info->params_cost)) {
-      loop = 1;
+      if (!loop && !cpi->sf.gm_sf.gm_disable_recode)
+        loop = av1_recode_loop_test_global_motion(
+            cm->global_motion, cpi->td.rd_counts.global_motion_used,
+            gm_info->params_cost);
     }
 
     if (loop) {
