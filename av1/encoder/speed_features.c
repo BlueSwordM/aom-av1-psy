@@ -395,7 +395,6 @@ static void set_good_speed_features_framesize_independent(
   sf->inter_sf.model_based_post_interp_filter_breakout = 1;
   sf->inter_sf.prune_compound_using_single_ref = 1;
   sf->inter_sf.prune_mode_search_simple_translation = 1;
-  sf->inter_sf.prune_motion_mode_level = 1;
   sf->inter_sf.prune_ref_frame_for_rect_partitions =
       (boosted || (allow_screen_content_tools))
           ? 0
@@ -449,7 +448,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 2 : 1;
     sf->inter_sf.prune_comp_type_by_comp_avg = 1;
     sf->inter_sf.prune_comp_type_by_model_rd = boosted ? 0 : 1;
-    sf->inter_sf.prune_motion_mode_level = 2;
     sf->inter_sf.prune_ref_frame_for_rect_partitions =
         (frame_is_intra_only(&cpi->common) || (allow_screen_content_tools))
             ? 0
@@ -758,7 +756,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->inter_sf.model_based_post_interp_filter_breakout = 1;
   sf->inter_sf.prune_compound_using_single_ref = 0;
   sf->inter_sf.prune_mode_search_simple_translation = 1;
-  sf->inter_sf.prune_motion_mode_level = 1;
   sf->inter_sf.prune_ref_frame_for_rect_partitions = !boosted;
   sf->inter_sf.prune_wedge_pred_diff_based = 1;
   sf->inter_sf.reduce_inter_modes = 1;
@@ -807,7 +804,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->inter_sf.skip_repeated_newmv = 1;
     sf->inter_sf.disable_wedge_search_var_thresh = 0;
     sf->inter_sf.prune_comp_type_by_comp_avg = 1;
-    sf->inter_sf.prune_motion_mode_level = 2;
 
     sf->interp_sf.cb_pred_filter_search = 1;
     sf->interp_sf.use_interp_filter = 1;
@@ -870,7 +866,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     // it with cpi->sf.disable_wedge_search_var_thresh.
     sf->inter_sf.disable_wedge_interintra_search = 1;
     sf->inter_sf.prune_comp_search_by_single_result = 2;
-    sf->inter_sf.prune_motion_mode_level = boosted ? 2 : 3;
     sf->inter_sf.selective_ref_frame = 4;
 
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
@@ -1164,7 +1159,6 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->disable_interinter_wedge_newmv_search = 0;
   inter_sf->enable_interinter_diffwtd_newmv_search = 0;
   inter_sf->disable_smooth_interintra = 0;
-  inter_sf->prune_motion_mode_level = 0;
   inter_sf->disable_wedge_interintra_search = 0;
   inter_sf->fast_interintra_wedge_search = 0;
   inter_sf->prune_comp_type_by_model_rd = 0;

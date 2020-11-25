@@ -686,12 +686,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Disable one sided compound modes.
   int disable_onesided_comp;
 
-  // Prune/gate motion mode evaluation based on token based rd
-  // during transform search for inter blocks
-  // Values are 0 (not used) , 1 - 3 with progressively increasing
-  // aggressiveness
-  int prune_motion_mode_level;
-
   // Prune obmc search using previous frame stats.
   int prune_obmc_prob_thresh;
 
