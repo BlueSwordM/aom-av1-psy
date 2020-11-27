@@ -816,6 +816,10 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
         tf_build_predictor(frames[frame], mbd, block_size, mb_row, mb_col,
                            num_planes, scale, subblock_mvs, pred);
 
+        // All variants of av1_apply_temporal_filter() contain floating point
+        // operations. Hence, clear the system state.
+        aom_clear_system_state();
+
         // TODO(any): avx2/sse2 version should be changed to align with C
         // function before using. In particular, current avx2/sse2 function
         // only supports 32x32 block size and 5x5 filtering window.
