@@ -1841,6 +1841,7 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                            int mi_col, RUN_TYPE dry_run, BLOCK_SIZE bsize,
                            PARTITION_TYPE partition,
                            PICK_MODE_CONTEXT *const ctx, int *rate) {
+  const AV1_COMMON *const cm = &cpi->common;
   TileInfo *const tile = &tile_data->tile_info;
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *xd = &x->e_mbd;
@@ -1849,8 +1850,6 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, NO_AQ, NULL);
   MB_MODE_INFO *mbmi = xd->mi[0];
   mbmi->partition = partition;
-  // Nonrd pickmode does not currently support second/combined reference.
-  assert(!has_second_ref(mbmi));
   av1_update_state(cpi, td, ctx, mi_row, mi_col, bsize, dry_run);
   const int subsampling_x = cpi->common.seq_params->subsampling_x;
   const int subsampling_y = cpi->common.seq_params->subsampling_y;
@@ -1866,6 +1865,41 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   encode_superblock(cpi, tile_data, td, tp, dry_run, bsize, rate);
   if (!dry_run) {
     update_cb_offsets(x, bsize, subsampling_x, subsampling_y);
+    if (has_second_ref(mbmi)) {
+      if (mbmi->compound_idx == 0 ||
+          mbmi->interinter_comp.type == COMPOUND_AVERAGE)
+        mbmi->comp_group_idx = 0;
+      else
+        mbmi->comp_group_idx = 1;
+      mbmi->compound_idx = 1;
+    }
+    RD_COUNTS *const rdc = &td->rd_counts;
+    if (mbmi->skip_mode) {
+      assert(!frame_is_intra_only(cm));
+      rdc->skip_mode_used_flag = 1;
+      if (cm->current_frame.reference_mode == REFERENCE_MODE_SELECT &&
+          has_second_ref(mbmi)) {
+        rdc->compound_ref_used_flag = 1;
+      }
+      set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
+    } else {
+      const int seg_ref_active =
+          segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_REF_FRAME);
+      if (!seg_ref_active) {
+        // If the segment reference feature is enabled we have only a single
+        // reference frame allowed for the segment so exclude it from
+        // the reference frame counts used to work out probabilities.
+        if (is_inter_block(mbmi)) {
+          av1_collect_neighbors_ref_counts(xd);
+          if (cm->current_frame.reference_mode == REFERENCE_MODE_SELECT &&
+              has_second_ref(mbmi)) {
+            // This flag is also updated for 4x4 blocks
+            rdc->compound_ref_used_flag = 1;
+          }
+          set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
+        }
+      }
+    }
     if (tile_data->allow_update_cdf) update_stats(&cpi->common, td);
   }
   if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && mbmi->skip_txfm)

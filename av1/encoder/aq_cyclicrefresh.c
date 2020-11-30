@@ -58,12 +58,14 @@ static int candidate_refresh_aq(const CYCLIC_REFRESH *cr,
                                 const MB_MODE_INFO *mbmi, int64_t rate,
                                 int64_t dist, int bsize) {
   MV mv = mbmi->mv[0].as_mv;
-  // Reject the block for lower-qp coding if projected distortion
-  // is above the threshold, and any of the following is true:
+  int is_compound = has_second_ref(mbmi);
+  // Reject the block for lower-qp coding for non-compound mode if
+  // projected distortion is above the threshold, and any of the following
+  // is true:
   // 1) mode uses large mv
   // 2) mode is an intra-mode
   // Otherwise accept for refresh.
-  if (dist > cr->thresh_dist_sb &&
+  if (!is_compound && dist > cr->thresh_dist_sb &&
       (mv.row > cr->motion_thresh || mv.row < -cr->motion_thresh ||
        mv.col > cr->motion_thresh || mv.col < -cr->motion_thresh ||
        !is_inter_block(mbmi)))
