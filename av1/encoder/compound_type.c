@@ -483,13 +483,11 @@ static int64_t estimate_yrd_for_sb(const AV1_COMP *const cpi, BLOCK_SIZE bs,
   MACROBLOCKD *const xd = &x->e_mbd;
   if (ref_best_rd < 0) return INT64_MAX;
   av1_subtract_plane(x, bs, 0);
-  x->rd_model = LOW_TXFM_RD;
   const int skip_trellis = (cpi->optimize_seg_arr[xd->mi[0]->segment_id] ==
                             NO_ESTIMATE_YRD_TRELLIS_OPT);
-  const int64_t rd =
-      av1_uniform_txfm_yrd(cpi, x, rd_stats, ref_best_rd, bs,
-                           max_txsize_rect_lookup[bs], FTXS_NONE, skip_trellis);
-  x->rd_model = FULL_TXFM_RD;
+  const int64_t rd = av1_estimate_txfm_yrd(cpi, x, rd_stats, ref_best_rd, bs,
+                                           max_txsize_rect_lookup[bs],
+                                           FTXS_NONE, skip_trellis);
   if (rd != INT64_MAX) {
     const int skip_ctx = av1_get_skip_txfm_context(xd);
     if (rd_stats->skip_txfm) {
