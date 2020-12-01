@@ -2620,6 +2620,11 @@ typedef struct AV1_COMP {
    * Number of frames left to be encoded, is 0 if limit is not set.
    */
   int frames_left;
+
+  /*!
+   * Block size of first pass encoding
+   */
+  BLOCK_SIZE fp_block_size;
 } AV1_COMP;
 
 /*!
