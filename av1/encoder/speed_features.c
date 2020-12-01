@@ -932,7 +932,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rd_sf.optimize_coefficients = NO_TRELLIS_OPT;
     sf->rd_sf.simple_model_rd_from_var = 1;
 
-    sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
+    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_Q;
 
     sf->rt_sf.mode_search_skip_flags |= FLAG_SKIP_INTRA_DIRMISMATCH;
@@ -953,6 +953,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
   if (speed >= 6) {
     sf->part_sf.adjust_var_based_rd_partitioning = 1;
+    sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
   }
 
   if (speed >= 7) {
@@ -966,7 +967,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
     sf->inter_sf.inter_mode_rd_model_estimation = 2;
 
-    sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_Q;
 
     sf->rt_sf.mode_search_skip_flags |= FLAG_SKIP_INTRA_DIRMISMATCH;
