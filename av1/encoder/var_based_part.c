@@ -847,6 +847,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   const uint8_t *d;
   int sp;
   int dp;
+  NOISE_LEVEL noise_level = kLow;
 
   int is_key_frame =
       (frame_is_intra_only(cm) ||
@@ -923,6 +924,8 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
     d = AV1_VAR_OFFS;
     dp = 0;
   }
+  if (cpi->noise_estimate.enabled)
+    noise_level = av1_noise_estimate_extract_level(&cpi->noise_estimate);
 
   if (low_res && threshold_4x4avg < INT64_MAX)
     CHECK_MEM_ERROR(cm, vt2, aom_malloc(sizeof(*vt2)));
@@ -996,14 +999,18 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
       var_64x64 = vt->split[m].part_variances.none.variance;
       max_var_64x64 = AOMMAX(var_64x64, max_var_64x64);
       min_var_64x64 = AOMMIN(var_64x64, min_var_64x64);
-      // If variance of this 64x64 block is above (some threshold of) the
-      // average variance over the sub-32x32 blocks, then force this block to
-      // split. Only checking this for noise level >= medium for now.
+      // If the difference of the max-min variances of sub-blocks or max
+      // variance of a sub-block is above some threshold of then force this
+      // block to split. Only checking this for noise level >= medium or if
+      // encoder is in SVC.
 
       if (!is_key_frame &&
           (max_var_32x32[m] - min_var_32x32[m]) > 3 * (thresholds[1] >> 3) &&
-          max_var_32x32[m] > thresholds[1] >> 1)
+          max_var_32x32[m] > thresholds[1] >> 1 &&
+          (noise_level >= kMedium || cpi->use_svc)) {
         force_split[1 + m] = 1;
+        force_split[0] = 1;
+      }
       avg_64x64 += var_64x64;
     }
     if (is_small_sb) force_split[0] = 1;
