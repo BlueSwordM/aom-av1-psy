@@ -247,7 +247,8 @@ static const InterpFilterParams av1_interp_4tap[SWITCHABLE_FILTERS + 1] = {
 static INLINE const InterpFilterParams *
 av1_get_interp_filter_params_with_block_size(const InterpFilter interp_filter,
                                              const int w) {
-  if (w <= 4) return &av1_interp_4tap[interp_filter];
+  if (w <= 4 && interp_filter != MULTITAP_SHARP2)
+    return &av1_interp_4tap[interp_filter];
   return &av1_interp_filter_params_list[interp_filter];
 }
 
