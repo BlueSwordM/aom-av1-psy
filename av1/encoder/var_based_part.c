@@ -1001,13 +1001,14 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
       min_var_64x64 = AOMMIN(var_64x64, min_var_64x64);
       // If the difference of the max-min variances of sub-blocks or max
       // variance of a sub-block is above some threshold of then force this
-      // block to split. Only checking this for noise level >= medium or if
-      // encoder is in SVC.
+      // block to split. Only checking this for noise level >= medium, if
+      // encoder is in SVC or if we already forced large blocks.
 
       if (!is_key_frame &&
           (max_var_32x32[m] - min_var_32x32[m]) > 3 * (thresholds[1] >> 3) &&
           max_var_32x32[m] > thresholds[1] >> 1 &&
-          (noise_level >= kMedium || cpi->use_svc)) {
+          (noise_level >= kMedium || cpi->use_svc ||
+           cpi->sf.rt_sf.force_large_partition_blocks)) {
         force_split[1 + m] = 1;
         force_split[0] = 1;
       }
