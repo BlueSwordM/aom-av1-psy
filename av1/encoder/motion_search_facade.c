@@ -713,7 +713,11 @@ int av1_interinter_compound_motion_search(const AV1_COMP *const cpi,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   int_mv tmp_mv[2];
   int tmp_rate_mv = 0;
-  mbmi->interinter_comp.seg_mask = xd->seg_mask;
+  // TODO(jingning): The average compound mode has proper SAD and variance
+  // functions implemented, and is triggerd by setting the mask pointer as
+  // Null. Need to further implement those for frame distance weighted mode.
+  mbmi->interinter_comp.seg_mask =
+      mbmi->interinter_comp.type == COMPOUND_AVERAGE ? NULL : xd->seg_mask;
   const INTERINTER_COMPOUND_DATA *compound_data = &mbmi->interinter_comp;
 
   if (this_mode == NEW_NEWMV) {
