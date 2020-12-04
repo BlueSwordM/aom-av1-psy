@@ -3202,8 +3202,7 @@ static AOM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
 
 int64_t av1_estimate_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
                               RD_STATS *rd_stats, int64_t ref_best_rd,
-                              BLOCK_SIZE bs, TX_SIZE tx_size,
-                              FAST_TX_SEARCH_MODE ftxs_mode, int skip_trellis) {
+                              BLOCK_SIZE bs, TX_SIZE tx_size) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
@@ -3237,8 +3236,6 @@ int64_t av1_estimate_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   args.cpi = cpi;
   args.best_rd = ref_best_rd;
   args.current_rd = AOMMIN(no_this_rd, skip_txfm_rd);
-  args.ftxs_mode = ftxs_mode;
-  args.skip_trellis = skip_trellis;
   av1_init_rd_stats(&args.rd_stats);
   av1_get_entropy_contexts(bs, &xd->plane[0], args.t_above, args.t_left);
   int i = 0;
