@@ -1002,6 +1002,14 @@ static INLINE void backup_stats(COMPOUND_TYPE cur_type, int32_t *comp_rate,
   comp_rs2[cur_type] = rs2;
 }
 
+static INLINE int save_mask_search_results(const PREDICTION_MODE this_mode,
+                                           const int reuse_level) {
+  if (reuse_level || (this_mode == NEW_NEWMV))
+    return 1;
+  else
+    return 0;
+}
+
 static int64_t masked_compound_type_rd(
     const AV1_COMP *const cpi, MACROBLOCK *x, const int_mv *const cur_mv,
     const BLOCK_SIZE bsize, const PREDICTION_MODE this_mode, int *rs2,
@@ -1402,7 +1410,8 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       }
 
       if (need_mask_search) {
-        if (this_mode == NEW_NEWMV) {
+        if (save_mask_search_results(
+                this_mode, cpi->sf.inter_sf.reuse_mask_search_results)) {
           args->wedge_index = best_mask_index;
           args->wedge_sign = best_wedge_sign;
         }
@@ -1477,7 +1486,9 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       }
 
       if (need_mask_search) {
-        if (this_mode == NEW_NEWMV) args->diffwtd_index = best_mask_index;
+        if (save_mask_search_results(
+                this_mode, cpi->sf.inter_sf.reuse_mask_search_results))
+          args->diffwtd_index = best_mask_index;
       } else {
         mbmi->interinter_comp.mask_type = args->diffwtd_index;
         rs2 = masked_type_cost[cur_type];

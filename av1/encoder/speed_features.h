@@ -745,6 +745,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Enable/disable the fast compound mode search.
   int enable_fast_compound_mode_search;
+
+  // Reuse masked compound type search results
+  int reuse_mask_search_results;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
