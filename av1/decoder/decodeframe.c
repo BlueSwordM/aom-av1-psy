@@ -4131,7 +4131,7 @@ void av1_read_timing_info_header(aom_timing_info_t *timing_info,
     if (num_ticks_per_picture_minus_1 == UINT32_MAX) {
       aom_internal_error(
           error, AOM_CODEC_UNSUP_BITSTREAM,
-          "num_ticks_per_picture_minus_1 cannot be (1 << 32) − 1.");
+          "num_ticks_per_picture_minus_1 cannot be (1 << 32) - 1.");
     }
     timing_info->num_ticks_per_picture = num_ticks_per_picture_minus_1 + 1;
   }
