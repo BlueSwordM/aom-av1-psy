@@ -128,7 +128,7 @@ set_aom_config_var(CONFIG_SHARP_SETTINGS 0 "AV1 experiment flag.")
 set_aom_config_var(CONFIG_DISABLE_FULL_PIXEL_SPLIT_8X8 1
                    "Disable full_pixel_motion_search_based_split on BLOCK_8X8.")
 set_aom_config_var(CONFIG_COLLECT_PARTITION_STATS 0
-                   "Collect stats on partition decisions.")
+                   "Collect partition timing stats. Can be 1 or 2.")
 set_aom_config_var(CONFIG_COLLECT_COMPONENT_TIMING 0
                    "Collect encoding component timing information.")
 set_aom_config_var(CONFIG_LPF_MASK 0
