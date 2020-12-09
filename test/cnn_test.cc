@@ -2625,7 +2625,7 @@ class CNNConvolveTest : public ::testing::TestWithParam<CNNConvolveTestFuncs> {
   CNNConvolveTestFuncs params_;
   libaom_test::ACMRandom rng_;
 };
-}  // namespace
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CNNConvolveTest);
 
 TEST_P(CNNConvolveTest, CheckOutput) { RunCNNConvolveSetup(1); }
 
@@ -2636,3 +2636,5 @@ INSTANTIATE_TEST_SUITE_P(AVX2, CNNConvolveTest,
                          ::testing::Values(CNNConvolveTestFuncs(
                              &av1_cnn_convolve_c, &av1_cnn_convolve_avx2)));
 #endif
+
+}  // namespace
