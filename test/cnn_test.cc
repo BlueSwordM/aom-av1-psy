@@ -2504,13 +2504,14 @@ TEST_F(CNNTest, TestMultiOutput) {
 }
 
 namespace {
-typedef void (*CNNConvolveFunc)(const float **input, int in_width,
-                                int in_height, int in_stride,
-                                const CNN_LAYER_CONFIG *layer_config,
-                                float **output, int out_stride, int start_idx,
-                                int step);
 
-typedef libaom_test::FuncParam<CNNConvolveFunc> CNNConvolveTestFuncs;
+typedef void (*CNNConvolveNoMaxpoolPaddingValidFunc)(
+    const float **input, int in_width, int in_height, int in_stride,
+    const CNN_LAYER_CONFIG *layer_config, float **output, int out_stride,
+    int start_idx, int cstep, int channel_step);
+
+typedef libaom_test::FuncParam<CNNConvolveNoMaxpoolPaddingValidFunc>
+    CNNConvolveTestFuncs;
 
 class CNNConvolveTest : public ::testing::TestWithParam<CNNConvolveTestFuncs> {
  protected:
@@ -2579,11 +2580,14 @@ class CNNConvolveTest : public ::testing::TestWithParam<CNNConvolveTestFuncs> {
                           int start_idx, int step, int run_times, int layer,
                           float **output_ref, float **output_mod,
                           int out_stride) {
+    const int cstep = layer_config->in_channels * layer_config->out_channels;
+    const int channel_step = AOMMAX(step, 1);
     aom_usec_timer timer;
     aom_usec_timer_start(&timer);
     for (int i = 0; i < run_times; ++i) {
       params_.ref_func((const float **)input, in_width, in_height, in_width,
-                       layer_config, output_ref, out_stride, start_idx, step);
+                       layer_config, output_ref, out_stride, start_idx, cstep,
+                       channel_step);
     }
     aom_usec_timer_mark(&timer);
     const double time1 = static_cast<double>(aom_usec_timer_elapsed(&timer));
@@ -2591,7 +2595,8 @@ class CNNConvolveTest : public ::testing::TestWithParam<CNNConvolveTestFuncs> {
     aom_usec_timer_start(&timer);
     for (int i = 0; i < run_times; ++i) {
       params_.tst_func((const float **)input, in_width, in_height, in_width,
-                       layer_config, output_mod, out_stride, start_idx, step);
+                       layer_config, output_mod, out_stride, start_idx, cstep,
+                       channel_step);
     }
     aom_usec_timer_mark(&timer);
     const double time2 = static_cast<double>(aom_usec_timer_elapsed(&timer));
@@ -2634,7 +2639,8 @@ TEST_P(CNNConvolveTest, DISABLED_Speed) { RunCNNConvolveSetup(100000); }
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(AVX2, CNNConvolveTest,
                          ::testing::Values(CNNConvolveTestFuncs(
-                             &av1_cnn_convolve_c, &av1_cnn_convolve_avx2)));
+                             &av1_cnn_convolve_no_maxpool_padding_valid_c,
+                             &av1_cnn_convolve_no_maxpool_padding_valid_avx2)));
 #endif
 
 }  // namespace

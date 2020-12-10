@@ -15,7 +15,6 @@
 #include "aom_dsp/aom_dsp_common.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/encoder/cnn.h"
-#include "av1/encoder/cnn_internal.h"
 
 #define CLAMPINDEX(a, hi) ((a) < 0 ? 0 : ((a) >= (hi) ? ((hi)-1) : (a)))
 
@@ -344,52 +343,9 @@ static void copy_active_tensor_to_branches(const TENSOR *layer_active_tensor,
   }
 }
 
-static int convolve_layer(void *arg1, void *arg2) {
-  const CONVOLVE_OPS *convolve_ops = arg1;
-  (void)arg2;
-  av1_cnn_convolve(
-      convolve_ops->input, convolve_ops->in_width, convolve_ops->in_height,
-      convolve_ops->in_stride, convolve_ops->layer_config, convolve_ops->output,
-      convolve_ops->out_stride, convolve_ops->start_idx, convolve_ops->th_step);
-  return 1;
-}
-
-static void convolve_layer_mt(const float **input, int in_width, int in_height,
-                              int in_stride,
-                              const CNN_LAYER_CONFIG *layer_config,
-                              const CNN_THREAD_DATA *thread_data,
-                              float **output, int out_stride) {
-  const AVxWorkerInterface *const winterface = aom_get_worker_interface();
-  const int num_workers = thread_data->num_workers;
-
-  CONVOLVE_OPS convolve_ops[CNN_MAX_THREADS];
-  for (int th = 0; th < AOMMIN(num_workers, CNN_MAX_THREADS); ++th) {
-    AVxWorker *const worker = &thread_data->workers[th];
-    winterface->reset(worker);
-
-    CONVOLVE_OPS convolve_op = { input,      in_width,     in_height,
-                                 in_stride,  layer_config, output,
-                                 out_stride, th,           num_workers };
-    convolve_ops[th] = convolve_op;
-    worker->hook = convolve_layer;
-    worker->data1 = &(convolve_ops[th]);
-    worker->data2 = NULL;
-
-    // Start convolving.
-    if (th == num_workers - 1) {
-      winterface->execute(worker);
-    } else {
-      winterface->launch(worker);
-    }
-  }
-
-  // Wait until all workers have finished.
-  for (int th = 0; th < AOMMIN(num_workers, CNN_MAX_THREADS); ++th) {
-    winterface->sync(&thread_data->workers[th]);
-  }
-}
-
-void av1_cnn_convolve_maxpool_padding_zero(
+// CNNConvolve specific to maxpool set as 1, either skip_width or skip_height
+// greater than 1 and padding equal to PADDING_SAME_ZERO.
+static void convolve_maxpool_padding_zero(
     const float **input, int in_width, int in_height, int in_stride,
     const CNN_LAYER_CONFIG *const layer_config, float **output, int out_stride,
     const int cstep, const int filter_width_half,
@@ -429,7 +385,9 @@ void av1_cnn_convolve_maxpool_padding_zero(
   }
 }
 
-void av1_cnn_convolve_maxpool_padding_replicate(
+// CNNConvolve specific to maxpool set as 1, either skip_width or skip_height
+// greater than 1 and padding equal to PADDING_SAME_REPLICATE.
+static void convolve_maxpool_padding_replicate(
     const float **input, int in_width, int in_height, int in_stride,
     const CNN_LAYER_CONFIG *const layer_config, float **output, int out_stride,
     const int cstep, const int filter_width_half,
@@ -470,7 +428,9 @@ void av1_cnn_convolve_maxpool_padding_replicate(
   }
 }
 
-void av1_cnn_convolve_maxpool_padding_valid(
+// CNNConvolve specific to maxpool set as 1, either skip_width or skip_height
+// greater than 1 and padding equal to PADDING_VALID.
+static void convolve_maxpool_padding_valid(
     const float **input, int in_width, int in_height, int in_stride,
     const CNN_LAYER_CONFIG *const layer_config, float **output, int out_stride,
     const int cstep) {
@@ -510,11 +470,13 @@ void av1_cnn_convolve_maxpool_padding_valid(
   }
 }
 
-void av1_cnn_convolve_element_wise(const float **input, int in_width,
-                                   int in_height, int in_stride,
-                                   const CNN_LAYER_CONFIG *const layer_config,
-                                   float **output, int out_stride,
-                                   int start_idx, int step) {
+// CNNConvolve specific to maxpool set as 0 with filter_height and filter_width
+// equal to 1.
+static void convolve_element_wise(const float **input, int in_width,
+                                  int in_height, int in_stride,
+                                  const CNN_LAYER_CONFIG *const layer_config,
+                                  float **output, int out_stride, int start_idx,
+                                  int step) {
   const int start_h = get_start_shift_convolve(
       in_height, layer_config->filter_height, layer_config->skip_height);
   const int start_w =
@@ -541,7 +503,9 @@ void av1_cnn_convolve_element_wise(const float **input, int in_width,
   }
 }
 
-void av1_cnn_convolve_no_maxpool_padding_zero(
+// CNNConvolve specific to maxpool set as 0 and padding equal to
+// PADDING_SAME_ZERO.
+static void convolve_no_maxpool_padding_zero(
     const float **input, int in_width, int in_height, int in_stride,
     const CNN_LAYER_CONFIG *const layer_config, float **output, int out_stride,
     int start_idx, const int cstep, const int filter_width_half,
@@ -591,7 +555,9 @@ void av1_cnn_convolve_no_maxpool_padding_zero(
   }
 }
 
-void av1_cnn_convolve_no_maxpool_padding_replicate(
+// CNNConvolve specific to maxpool set as 0 and padding equal to
+// PADDING_SAME_REPLICATE.
+static void convolve_no_maxpool_padding_replicate(
     const float **input, int in_width, int in_height, int in_stride,
     const CNN_LAYER_CONFIG *const layer_config, float **output, int out_stride,
     int start_idx, const int cstep, const int ii_shift, const int jj_shift,
@@ -637,10 +603,16 @@ void av1_cnn_convolve_no_maxpool_padding_replicate(
   }
 }
 
-void av1_cnn_convolve_no_maxpool_padding_valid(
+// CNNConvolve specific to maxpool set as 0 and padding equal to
+// PADDING_VALID.
+void av1_cnn_convolve_no_maxpool_padding_valid_c(
     const float **input, int in_width, int in_height, int in_stride,
-    const CNN_LAYER_CONFIG *const layer_config, float **output, int out_stride,
-    int start_idx, const int cstep, const int channel_step) {
+    const CNN_LAYER_CONFIG *layer_config, float **output, int out_stride,
+    int start_idx, int cstep, int channel_step) {
+  assert((layer_config->skip_height == 1 && layer_config->skip_width == 1) ||
+         !layer_config->maxpool);
+  assert(layer_config->filter_height > 1 || layer_config->filter_width > 1);
+  assert(layer_config->pad == PADDING_VALID);
   for (int i = start_idx; i < layer_config->out_channels; i += channel_step) {
     for (int h = 0, u = 0; h < in_height - layer_config->filter_height + 1;
          h += layer_config->skip_height, ++u) {
@@ -667,10 +639,11 @@ void av1_cnn_convolve_no_maxpool_padding_valid(
   }
 }
 
-void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
-                        int in_stride, const CNN_LAYER_CONFIG *layer_config,
-                        float **output, int out_stride, int start_idx,
-                        int step) {
+static void av1_cnn_convolve(const float **input, int in_width, int in_height,
+                             int in_stride,
+                             const CNN_LAYER_CONFIG *layer_config,
+                             float **output, int out_stride, int start_idx,
+                             int step) {
   assert(!layer_config->deconvolve);
   const int cstep = layer_config->in_channels * layer_config->out_channels;
   const int filter_height_half = layer_config->filter_height >> 1;
@@ -681,28 +654,26 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
       (layer_config->skip_height > 1 || layer_config->skip_width > 1)) {
     switch (layer_config->pad) {
       case PADDING_SAME_ZERO:
-        av1_cnn_convolve_maxpool_padding_zero(
-            input, in_width, in_height, in_stride, layer_config, output,
-            out_stride, cstep, filter_width_half, filter_height_half);
+        convolve_maxpool_padding_zero(input, in_width, in_height, in_stride,
+                                      layer_config, output, out_stride, cstep,
+                                      filter_width_half, filter_height_half);
         break;
       case PADDING_SAME_REPLICATE:
-        av1_cnn_convolve_maxpool_padding_replicate(
+        convolve_maxpool_padding_replicate(
             input, in_width, in_height, in_stride, layer_config, output,
             out_stride, cstep, filter_width_half, filter_height_half);
         break;
       case PADDING_VALID:
-        av1_cnn_convolve_maxpool_padding_valid(input, in_width, in_height,
-                                               in_stride, layer_config, output,
-                                               out_stride, cstep);
+        convolve_maxpool_padding_valid(input, in_width, in_height, in_stride,
+                                       layer_config, output, out_stride, cstep);
         break;
       default: assert(0 && "Unknown padding type");
     }
   } else {
     // Results in element-wise matrix multiplication.
     if (layer_config->filter_height == 1 && layer_config->filter_width == 1) {
-      av1_cnn_convolve_element_wise(input, in_width, in_height, in_stride,
-                                    layer_config, output, out_stride, start_idx,
-                                    step);
+      convolve_element_wise(input, in_width, in_height, in_stride, layer_config,
+                            output, out_stride, start_idx, step);
       return;
     }
     const int ii_shift =
@@ -711,13 +682,13 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
         filter_width_half - (layer_config->filter_width - 1) % 2;
     switch (layer_config->pad) {
       case PADDING_SAME_ZERO:
-        av1_cnn_convolve_no_maxpool_padding_zero(
+        convolve_no_maxpool_padding_zero(
             input, in_width, in_height, in_stride, layer_config, output,
             out_stride, start_idx, cstep, filter_width_half, filter_height_half,
             ii_shift, jj_shift, channel_step);
         break;
       case PADDING_SAME_REPLICATE:
-        av1_cnn_convolve_no_maxpool_padding_replicate(
+        convolve_no_maxpool_padding_replicate(
             input, in_width, in_height, in_stride, layer_config, output,
             out_stride, start_idx, cstep, ii_shift, jj_shift, channel_step);
         break;
@@ -728,6 +699,51 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
         break;
       default: assert(0 && "Unknown padding type");
     }
+  }
+}
+
+static int convolve_layer(void *arg1, void *arg2) {
+  const CONVOLVE_OPS *convolve_ops = arg1;
+  (void)arg2;
+  av1_cnn_convolve(
+      convolve_ops->input, convolve_ops->in_width, convolve_ops->in_height,
+      convolve_ops->in_stride, convolve_ops->layer_config, convolve_ops->output,
+      convolve_ops->out_stride, convolve_ops->start_idx, convolve_ops->th_step);
+  return 1;
+}
+
+static void convolve_layer_mt(const float **input, int in_width, int in_height,
+                              int in_stride,
+                              const CNN_LAYER_CONFIG *layer_config,
+                              const CNN_THREAD_DATA *thread_data,
+                              float **output, int out_stride) {
+  const AVxWorkerInterface *const winterface = aom_get_worker_interface();
+  const int num_workers = thread_data->num_workers;
+
+  CONVOLVE_OPS convolve_ops[CNN_MAX_THREADS];
+  for (int th = 0; th < AOMMIN(num_workers, CNN_MAX_THREADS); ++th) {
+    AVxWorker *const worker = &thread_data->workers[th];
+    winterface->reset(worker);
+
+    CONVOLVE_OPS convolve_op = { input,      in_width,     in_height,
+                                 in_stride,  layer_config, output,
+                                 out_stride, th,           num_workers };
+    convolve_ops[th] = convolve_op;
+    worker->hook = convolve_layer;
+    worker->data1 = &(convolve_ops[th]);
+    worker->data2 = NULL;
+
+    // Start convolving.
+    if (th == num_workers - 1) {
+      winterface->execute(worker);
+    } else {
+      winterface->launch(worker);
+    }
+  }
+
+  // Wait until all workers have finished.
+  for (int th = 0; th < AOMMIN(num_workers, CNN_MAX_THREADS); ++th) {
+    winterface->sync(&thread_data->workers[th]);
   }
 }
 

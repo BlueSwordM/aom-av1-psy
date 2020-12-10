@@ -16,7 +16,6 @@
 #include "aom_dsp/aom_dsp_common.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/encoder/cnn.h"
-#include "av1/encoder/cnn_internal.h"
 
 // This mask rearranges source pixels in the order shown below.
 // shuffle_src_layer0[0][8]: applied on source pixels 0 to 7.
@@ -256,74 +255,18 @@ static void cnn_convolve_no_maxpool_padding_valid_5x5_avx2(
   }
 }
 
-// AVX2 variant of av1_cnn_convolve_c().
-void av1_cnn_convolve_avx2(const float **input, int in_width, int in_height,
-                           int in_stride, const CNN_LAYER_CONFIG *layer_config,
-                           float **output, int out_stride, int start_idx,
-                           int step) {
-  assert(!layer_config->deconvolve);
-  const int cstep = layer_config->in_channels * layer_config->out_channels;
-  const int filter_height_half = layer_config->filter_height >> 1;
-  const int filter_width_half = layer_config->filter_width >> 1;
-  const int channel_step = AOMMAX(step, 1);
-
-  if (layer_config->maxpool &&
-      (layer_config->skip_height > 1 || layer_config->skip_width > 1)) {
-    switch (layer_config->pad) {
-      case PADDING_SAME_ZERO:
-        av1_cnn_convolve_maxpool_padding_zero(
-            input, in_width, in_height, in_stride, layer_config, output,
-            out_stride, cstep, filter_width_half, filter_height_half);
-        break;
-      case PADDING_SAME_REPLICATE:
-        av1_cnn_convolve_maxpool_padding_replicate(
-            input, in_width, in_height, in_stride, layer_config, output,
-            out_stride, cstep, filter_width_half, filter_height_half);
-        break;
-      case PADDING_VALID:
-        av1_cnn_convolve_maxpool_padding_valid(input, in_width, in_height,
-                                               in_stride, layer_config, output,
-                                               out_stride, cstep);
-        break;
-      default: assert(0 && "Unknown padding type");
-    }
+// AVX2 variant of av1_cnn_convolve_no_maxpool_padding_valid_c().
+void av1_cnn_convolve_no_maxpool_padding_valid_avx2(
+    const float **input, int in_width, int in_height, int in_stride,
+    const CNN_LAYER_CONFIG *layer_config, float **output, int out_stride,
+    int start_idx, int cstep, int channel_step) {
+  if (layer_config->filter_width == 5 && layer_config->filter_height == 5) {
+    cnn_convolve_no_maxpool_padding_valid_5x5_avx2(
+        input, in_width, in_height, in_stride, layer_config, output, out_stride,
+        start_idx, cstep, channel_step);
   } else {
-    // Results in element-wise matrix multiplication.
-    if (layer_config->filter_height == 1 && layer_config->filter_width == 1) {
-      av1_cnn_convolve_element_wise(input, in_width, in_height, in_stride,
-                                    layer_config, output, out_stride, start_idx,
-                                    step);
-      return;
-    }
-    const int ii_shift =
-        filter_height_half - (layer_config->filter_height - 1) % 2;
-    const int jj_shift =
-        filter_width_half - (layer_config->filter_width - 1) % 2;
-    switch (layer_config->pad) {
-      case PADDING_SAME_ZERO:
-        av1_cnn_convolve_no_maxpool_padding_zero(
-            input, in_width, in_height, in_stride, layer_config, output,
-            out_stride, start_idx, cstep, filter_width_half, filter_height_half,
-            ii_shift, jj_shift, channel_step);
-        break;
-      case PADDING_SAME_REPLICATE:
-        av1_cnn_convolve_no_maxpool_padding_replicate(
-            input, in_width, in_height, in_stride, layer_config, output,
-            out_stride, start_idx, cstep, ii_shift, jj_shift, channel_step);
-        break;
-      case PADDING_VALID:
-        if (layer_config->filter_width == 5 &&
-            layer_config->filter_height == 5) {
-          cnn_convolve_no_maxpool_padding_valid_5x5_avx2(
-              input, in_width, in_height, in_stride, layer_config, output,
-              out_stride, start_idx, cstep, channel_step);
-        } else {
-          av1_cnn_convolve_no_maxpool_padding_valid(
-              input, in_width, in_height, in_stride, layer_config, output,
-              out_stride, start_idx, cstep, channel_step);
-        }
-        break;
-      default: assert(0 && "Unknown padding type");
-    }
+    av1_cnn_convolve_no_maxpool_padding_valid_c(
+        input, in_width, in_height, in_stride, layer_config, output, out_stride,
+        start_idx, cstep, channel_step);
   }
 }

@@ -135,7 +135,6 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/block.h"
             "${AOM_ROOT}/av1/encoder/cnn.c"
             "${AOM_ROOT}/av1/encoder/cnn.h"
-            "${AOM_ROOT}/av1/encoder/cnn_internal.h"
             "${AOM_ROOT}/av1/encoder/compound_type.c"
             "${AOM_ROOT}/av1/encoder/compound_type.h"
             "${AOM_ROOT}/av1/encoder/context_tree.c"
@@ -501,7 +500,6 @@ if(CONFIG_REALTIME_ONLY)
   list(REMOVE_ITEM AOM_AV1_ENCODER_SOURCES
                    "${AOM_ROOT}/av1/encoder/cnn.c"
                    "${AOM_ROOT}/av1/encoder/cnn.h"
-                   "${AOM_ROOT}/av1/encoder/cnn_internal.h"
                    "${AOM_ROOT}/av1/encoder/firstpass.c"
                    "${AOM_ROOT}/av1/encoder/firstpass.h"
                    "${AOM_ROOT}/av1/encoder/global_motion.c"
