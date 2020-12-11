@@ -544,13 +544,8 @@ static void convolve_2d_facade_single(
     av1_convolve_x_sr(src, src_stride, dst, dst_stride, w, h, filter_params_x,
                       subpel_x_qn, conv_params);
   } else if (!need_x && need_y) {
-    if (filter_params_x->taps > 8 || filter_params_y->taps > 8) {
-      av1_convolve_y_sr_c(src, src_stride, dst, dst_stride, w, h,
-                          filter_params_y, subpel_y_qn);
-    } else {
-      av1_convolve_y_sr(src, src_stride, dst, dst_stride, w, h, filter_params_y,
-                        subpel_y_qn);
-    }
+    av1_convolve_y_sr(src, src_stride, dst, dst_stride, w, h, filter_params_y,
+                      subpel_y_qn);
   } else {
     assert(need_x && need_y);
 

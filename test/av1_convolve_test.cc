@@ -498,11 +498,20 @@ class AV1ConvolveYTest : public AV1ConvolveTest<convolve_y_func> {
  public:
   void RunTest() {
     for (int sub_y = 0; sub_y < 16; ++sub_y) {
-      for (int filter = EIGHTTAP_REGULAR; filter < INTERP_FILTERS_ALL;
+      for (int filter = EIGHTTAP_REGULAR; filter <= INTERP_FILTERS_ALL;
            ++filter) {
         InterpFilter f = static_cast<InterpFilter>(filter);
         TestConvolve(sub_y, f);
       }
+    }
+  }
+
+ public:
+  void SpeedTest() {
+    for (int filter = EIGHTTAP_REGULAR; filter <= INTERP_FILTERS_ALL;
+         ++filter) {
+      InterpFilter f = static_cast<InterpFilter>(filter);
+      TestConvolveSpeed(f, 10000);
     }
   }
 
@@ -515,16 +524,50 @@ class AV1ConvolveYTest : public AV1ConvolveTest<convolve_y_func> {
         av1_get_interp_filter_params_with_block_size(filter, height);
     const uint8_t *input = FirstRandomInput8(GetParam());
     DECLARE_ALIGNED(32, uint8_t, reference[MAX_SB_SQUARE]);
-    av1_convolve_y_sr(input, width, reference, kOutputStride, width, height,
-                      filter_params_y, sub_y);
+    av1_convolve_y_sr_c(input, width, reference, kOutputStride, width, height,
+                        filter_params_y, sub_y);
     DECLARE_ALIGNED(32, uint8_t, test[MAX_SB_SQUARE]);
     GetParam().TestFunction()(input, width, test, kOutputStride, width, height,
                               filter_params_y, sub_y);
     AssertOutputBufferEq(reference, test, width, height);
   }
+
+ private:
+  void TestConvolveSpeed(const InterpFilter filter, const int num_iters) {
+    const int width = GetParam().Block().Width();
+    const int height = GetParam().Block().Height();
+
+    const InterpFilterParams *filter_params_y =
+        av1_get_interp_filter_params_with_block_size(filter, height);
+    const uint8_t *input = FirstRandomInput8(GetParam());
+    DECLARE_ALIGNED(32, uint8_t, reference[MAX_SB_SQUARE]);
+
+    aom_usec_timer timer;
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < num_iters; ++i) {
+      av1_convolve_y_sr_c(input, width, reference, kOutputStride, width, height,
+                          filter_params_y, 0);
+    }
+    aom_usec_timer_mark(&timer);
+    const double time1 = static_cast<double>(aom_usec_timer_elapsed(&timer));
+
+    DECLARE_ALIGNED(32, uint8_t, test[MAX_SB_SQUARE]);
+
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < num_iters; ++i) {
+      GetParam().TestFunction()(input, width, test, kOutputStride, width,
+                                height, filter_params_y, 0);
+    }
+    aom_usec_timer_mark(&timer);
+    const double time2 = static_cast<double>(aom_usec_timer_elapsed(&timer));
+    printf("%d %3dx%-3d:%7.2f/%7.2fns (%3.2f)\n", filter, width, height, time1,
+           time2, time1 / time2);
+  }
 };
 
 TEST_P(AV1ConvolveYTest, RunTest) { RunTest(); }
+
+TEST_P(AV1ConvolveYTest, DISABLED_SpeedTest) { SpeedTest(); }
 
 INSTANTIATE_TEST_SUITE_P(C, AV1ConvolveYTest,
                          BuildLowbdParams(av1_convolve_y_sr_c));
