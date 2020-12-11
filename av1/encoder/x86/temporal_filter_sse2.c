@@ -110,8 +110,8 @@ static void apply_temporal_filter_planewise(
     unsigned int *accumulator, uint16_t *count, uint16_t *luma_sq_error,
     uint16_t *chroma_sq_error, int plane, int ss_x_shift, int ss_y_shift) {
   assert(TF_PLANEWISE_FILTER_WINDOW_LENGTH == 5);
-  assert(((block_width == 32) && (block_height == 32)) ||
-         ((block_width == 16) && (block_height == 16)));
+  assert(((block_width == 16) || (block_width == 32)) &&
+         ((block_height == 16) || (block_height == 32)));
   if (plane > PLANE_TYPE_Y) assert(chroma_sq_error != NULL);
 
   uint32_t acc_5x5_sse[BH][BW];
