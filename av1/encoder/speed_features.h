@@ -573,6 +573,9 @@ typedef struct MV_SPEED_FEATURES {
   // Whether to downsample the rows in sad calculation during motion search.
   // This is only active when there are at least 16 rows.
   int use_downsampled_sad;
+
+  // Enable/disable extensive joint motion search.
+  int disable_extensive_joint_motion_search;
 } MV_SPEED_FEATURES;
 
 typedef struct INTER_MODE_SPEED_FEATURES {
