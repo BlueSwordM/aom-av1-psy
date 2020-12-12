@@ -104,7 +104,8 @@ list(APPEND AOM_LIBYUV_SOURCES
             "${AOM_ROOT}/third_party/libyuv/source/scale_mips.cc"
             "${AOM_ROOT}/third_party/libyuv/source/scale_neon.cc"
             "${AOM_ROOT}/third_party/libyuv/source/scale_neon64.cc"
-            "${AOM_ROOT}/third_party/libyuv/source/scale_win.cc")
+            "${AOM_ROOT}/third_party/libyuv/source/scale_win.cc"
+            "${AOM_ROOT}/third_party/libyuv/source/scale_uv.cc")
 
 list(APPEND AOM_SOURCES
             "${AOM_CONFIG_DIR}/config/aom_config.c"
