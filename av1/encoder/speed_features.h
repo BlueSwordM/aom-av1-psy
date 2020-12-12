@@ -764,6 +764,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Reuse the best prediction modes found in PARTITION_SPLIT and PARTITION_RECT
   // when encoding PARTITION_AB.
   int reuse_best_prediction_for_part_ab;
+
+  // Enable/disable the fast compound mode search.
+  int enable_fast_compound_mode_search;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {

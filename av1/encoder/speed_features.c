@@ -668,6 +668,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.disable_interinter_wedge = 1;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 5;
+    sf->inter_sf.enable_fast_compound_mode_search = 1;
 
     sf->intra_sf.chroma_intra_pruning_with_hog = 3;
 
@@ -1175,6 +1176,7 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_inter_modes_if_skippable = 0;
   inter_sf->disable_masked_comp = 0;
   inter_sf->reuse_best_prediction_for_part_ab = 0;
+  inter_sf->enable_fast_compound_mode_search = 0;
 }
 
 static AOM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
