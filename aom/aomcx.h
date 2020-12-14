@@ -397,7 +397,8 @@ enum aome_enc_control_id {
    * unsigned int parameter
    *
    * - 0 = disable
-   * - 1 = enable (default)
+   * - 1 = enable without overlay (default)
+   * - 2 = enable with overlay
    */
   AV1E_SET_ENABLE_KEYFRAME_FILTERING = 36,
 
