@@ -64,12 +64,12 @@ DECLARE_ALIGNED(32, static const uint32_t,
 // Load weights needed for layer 0 (for 5x5 block processing),
 // and fill the registers appropriately to match source pixel mapping.
 static INLINE void prepare_weights_for_5x5_convolve(
-    const CNN_LAYER_CONFIG *const layer_config, int off, float weight[5][8],
+    const float *layer_config_weights, int off, float weight[5][8],
     const int cstep, __m256 *shuffle_weight, const __m256i weight_mask_0,
     const __m256i weight_mask_1) {
   for (int row = 0; row < 5; ++row) {
     for (int col = 0; col < 5; ++col) {
-      weight[row][col] = layer_config->weights[off];
+      weight[row][col] = layer_config_weights[off];
       off += cstep;
     }
   }
@@ -135,12 +135,12 @@ static INLINE void load_shuffle_masks_for_2x2_convolve(__m256i *output_mask,
 // Load weights needed for layer 1 and 2 (for 2x2 block processing),
 // and fill the registers appropriately to match source pixel mapping.
 static INLINE void prepare_weights_for_2x2_convolve(
-    const CNN_LAYER_CONFIG *const layer_config, int off, const int cstep,
+    const float *layer_config_weights, int off, const int cstep,
     __m256 *shuffle_weight, __m256i *weight_mask) {
   // Weights needed for 2x2 block.
   float weight[4] = { 0 };
   for (int i = 0; i < 4; ++i) {
-    weight[i] = layer_config->weights[off];
+    weight[i] = layer_config_weights[off];
     off += cstep;
   }
 
@@ -246,8 +246,14 @@ static void cnn_convolve_no_maxpool_padding_valid_5x5_avx2(
     const float **input, int in_width, int in_height, int in_stride,
     const CNN_LAYER_CONFIG *const layer_config, float **output, int out_stride,
     int start_idx, const int cstep, const int channel_step) {
-  assert(layer_config->filter_width == 5 && layer_config->filter_height == 5);
-  assert(layer_config->skip_width == 4 && layer_config->skip_height == 4);
+  const int kFilterWidth = 5;
+  const int kFilterHeight = 5;
+  const int kSkipWidth = 4;
+  const int kSkipHeight = 4;
+  assert(layer_config->filter_width == kFilterWidth &&
+         layer_config->filter_height == kFilterHeight);
+  assert(layer_config->skip_width == kSkipWidth &&
+         layer_config->skip_height == kSkipHeight);
 
   // Load shuffle buffers needed for source.
   const __m256i block0_1 =
@@ -262,15 +268,14 @@ static void cnn_convolve_no_maxpool_padding_valid_5x5_avx2(
       _mm256_load_si256((const __m256i *)shuffle_weight_layer0[1]);
 
   // Width needs to be moved to go to next iteration of processing 3 5x5 blocks.
-  const int skip_width_for_next_iter = layer_config->skip_width * 3;
+  const int kSkipWidthForNextIter = kSkipWidth * 3;
 
   // Minimum width required to process 3 5x5 blocks at a time.
   // min width (for processing 3 5x5 block) = 2*skip_width + filter_width
   // Here, skip_width specifies how much width we should move while processing
   // next block convolution and filter_width specifies for how many pixels
   // filter needs to be applied.
-  const int min_width_for_3_5x5_blocks =
-      (layer_config->skip_width * 2) + layer_config->filter_width;
+  const int kMinWidthFor3_5x5Blocks = (kSkipWidth * 2) + kFilterWidth;
   for (int i = start_idx; i < layer_config->out_channels; i += channel_step) {
     const float out_ch_bias = layer_config->bias[i];
     for (int k = 0; k < layer_config->in_channels; ++k) {
@@ -283,18 +288,18 @@ static void cnn_convolve_no_maxpool_padding_valid_5x5_avx2(
       // In layer 0, the convolution process happens at 5x5.
       // The weights needed for 5x5 block are same across the in-channels,
       // which is why the load of weights happens once for each in-channel.
-      prepare_weights_for_5x5_convolve(layer_config, off, weight, cstep,
-                                       shuffle_weight, weight_mask_0,
+      prepare_weights_for_5x5_convolve(layer_config->weights, off, weight,
+                                       cstep, shuffle_weight, weight_mask_0,
                                        weight_mask_1);
 
-      for (int h = 0, u = 0; h < in_height - layer_config->filter_height + 1;
-           h += layer_config->skip_height, ++u) {
+      for (int h = 0, u = 0; h < in_height - kFilterHeight + 1;
+           h += kSkipHeight, ++u) {
         const int out_h = u * out_stride;
         int v = 0;
         int w = 0;
         int rem_width = in_width;
         // Processing 3 5x5 blocks at a time, if sufficient width is present.
-        while (rem_width >= min_width_for_3_5x5_blocks) {
+        while (rem_width >= kMinWidthFor3_5x5Blocks) {
           __m256 load_src_0, load_src_1;
           __m256 accum_src_0 = _mm256_setzero_ps();
           __m256 accum_src_1 = _mm256_setzero_ps();
@@ -331,12 +336,12 @@ static void cnn_convolve_no_maxpool_padding_valid_5x5_avx2(
               _mm_cvtss_f32(_mm_shuffle_ps(accum_l, accum_l, 3));
 
           v += 3;
-          w += skip_width_for_next_iter;
-          rem_width -= skip_width_for_next_iter;
+          w += kSkipWidthForNextIter;
+          rem_width -= kSkipWidthForNextIter;
         }
 
         // Process remaining blocks as single 5x5 block at a time.
-        while (rem_width >= layer_config->filter_width) {
+        while (rem_width >= kFilterWidth) {
           float last_column_sum = 0;
           __m128 accum = _mm_setzero_ps();
           const float *input_ptr = &input[k][h * in_stride + w];
@@ -349,8 +354,8 @@ static void cnn_convolve_no_maxpool_padding_valid_5x5_avx2(
                                  _mm_cvtss_f32(_mm_shuffle_ps(accum, accum, 1));
 
           v += 1;
-          w += layer_config->skip_width;
-          rem_width -= layer_config->skip_width;
+          w += kSkipWidth;
+          rem_width -= kSkipWidth;
         }
       }
     }
@@ -359,13 +364,16 @@ static void cnn_convolve_no_maxpool_padding_valid_5x5_avx2(
 
 // AVX2 implementation for layer 1.
 static INLINE void cnn_convolve_no_maxpool_padding_valid_layer1_avx2(
-    const float **input, int in_height, int in_stride,
+    const float **input, int in_stride,
     const CNN_LAYER_CONFIG *const layer_config, float **output, int out_stride,
     int start_idx, const int cstep, const int channel_step) {
   __m256i weight_mask[2];
   __m256i shuffle_output_mask;
   load_shuffle_masks_for_2x2_convolve(&shuffle_output_mask, weight_mask);
 
+  const int kInHeight = 16;
+  const int kFilterHeight = 2;
+  const int kSkipHeight = 2;
   for (int i = start_idx; i < layer_config->out_channels; i += channel_step) {
     __m256 bias_reg = _mm256_set1_ps(layer_config->bias[i]);
     __m256 out_accum[8];
@@ -376,19 +384,19 @@ static INLINE void cnn_convolve_no_maxpool_padding_valid_layer1_avx2(
       // In layer 1, the convolution process happens at 2x2.
       // The weights needed for 2x2 block are same across the in-channels,
       // which is why the load of weights happens once for each in-channel.
-      prepare_weights_for_2x2_convolve(layer_config, off, cstep, shuffle_weight,
-                                       weight_mask);
+      prepare_weights_for_2x2_convolve(layer_config->weights, off, cstep,
+                                       shuffle_weight, weight_mask);
 
-      for (int h = 0, u = 0; h < in_height - layer_config->filter_height + 1;
-           h += layer_config->skip_height, ++u) {
+      for (int h = 0, u = 0; h < kInHeight - kFilterHeight + 1;
+           h += kSkipHeight, ++u) {
         const float *input_ptr = &input[k][h * in_stride];
         perform_convolve_for_8h_2x2_blocks(input_ptr, in_stride, shuffle_weight,
                                            &out_accum[u], shuffle_output_mask);
       }
     }
     // Store output of layer 1.
-    for (int h = 0, u = 0; h < in_height - layer_config->filter_height + 1;
-         h += layer_config->skip_height, ++u) {
+    for (int h = 0, u = 0; h < kInHeight - kFilterHeight + 1;
+         h += kSkipHeight, ++u) {
       _mm256_storeu_ps(&output[i][u * out_stride], out_accum[u]);
     }
   }
@@ -396,20 +404,23 @@ static INLINE void cnn_convolve_no_maxpool_padding_valid_layer1_avx2(
 
 // AVX2 implementation for layer 2.
 static INLINE void cnn_convolve_no_maxpool_padding_valid_layer2_avx2(
-    const float **input, int in_height, int in_stride,
+    const float **input, int in_stride,
     const CNN_LAYER_CONFIG *const layer_config, float **output, int out_stride,
     int start_idx, const int cstep, const int channel_step) {
   __m256i weight_mask[2];
   __m256i shuffle_output_mask;
   load_shuffle_masks_for_2x2_convolve(&shuffle_output_mask, weight_mask);
 
+  const int kInHeight = 8;
+  const int kFilterHeight = 2;
+  const int kSkipHeight = 2;
   for (int i = start_idx; i < layer_config->out_channels; i += channel_step) {
     __m256 bias_reg = _mm256_set1_ps(layer_config->bias[i]);
     __m256 out_accum[2];
 
     // Height needs to be moved to go to next iteration of processing
     // while processing 2 2x2 blocks vertically.
-    const int skip_height_for_next_iter = layer_config->skip_height * 2;
+    const int kSkipHeightForNextIter = kSkipHeight * 2;
     for (int j = 0; j < 2; ++j) out_accum[j] = bias_reg;
     for (int k = 0; k < layer_config->in_channels; ++k) {
       __m256 shuffle_weight[2];
@@ -417,11 +428,11 @@ static INLINE void cnn_convolve_no_maxpool_padding_valid_layer2_avx2(
       // In layer 2, the convolution process happens at 2x2.
       // The weights needed for 2x2 block are same across the in-channels,
       // which is why the load of weights happens once for each in-channel.
-      prepare_weights_for_2x2_convolve(layer_config, off, cstep, shuffle_weight,
-                                       weight_mask);
+      prepare_weights_for_2x2_convolve(layer_config->weights, off, cstep,
+                                       shuffle_weight, weight_mask);
 
-      for (int h = 0, u = 0; h < in_height - layer_config->filter_height + 1;
-           h += skip_height_for_next_iter, ++u) {
+      for (int h = 0, u = 0; h < kInHeight - kFilterHeight + 1;
+           h += kSkipHeightForNextIter, ++u) {
         const float *input_ptr = &input[k][h * in_stride];
         perform_convolve_for_4hx2v_2x2_blocks(input_ptr, in_stride,
                                               shuffle_weight, &out_accum[u],
@@ -429,8 +440,8 @@ static INLINE void cnn_convolve_no_maxpool_padding_valid_layer2_avx2(
       }
     }
     // Store output of layer 2.
-    for (int h = 0, u = 0; h < in_height - layer_config->filter_height + 1;
-         h += skip_height_for_next_iter, ++u) {
+    for (int h = 0, u = 0; h < kInHeight - kFilterHeight + 1;
+         h += kSkipHeightForNextIter, ++u) {
       _mm256_storeu_ps(&output[i][u * out_stride * 2], out_accum[u]);
     }
   }
@@ -452,14 +463,14 @@ void cnn_convolve_no_maxpool_padding_valid_2x2_avx2(
     // This case of in_width and in_height equal to 16 corresponds to layer 1.
     // The output size of this layer is 8x8.
     cnn_convolve_no_maxpool_padding_valid_layer1_avx2(
-        input, in_height, in_stride, layer_config, output, out_stride,
-        start_idx, cstep, channel_step);
+        input, in_stride, layer_config, output, out_stride, start_idx, cstep,
+        channel_step);
   } else if (in_width == 8 && in_height == 8) {
     // This case of in_width and in_height equal to 8 corresponds to layer 2.
     // The output size of this layer is 4x4.
     cnn_convolve_no_maxpool_padding_valid_layer2_avx2(
-        input, in_height, in_stride, layer_config, output, out_stride,
-        start_idx, cstep, channel_step);
+        input, in_stride, layer_config, output, out_stride, start_idx, cstep,
+        channel_step);
   } else {
     // For layer equal to 3 and 4, the input is of size 4x4 and 2x2
     // respectively. Implementing SIMD for these cases might not be optimal,
