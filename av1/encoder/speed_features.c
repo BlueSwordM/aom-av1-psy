@@ -534,6 +534,7 @@ static void set_good_speed_features_framesize_independent(
     // The values in x->pred_mv[] differ for single and multi-thread cases.
     // See aomedia:1778.
     // sf->mv_sf.adaptive_motion_search = 1;
+    sf->mv_sf.disable_extensive_joint_motion_search = 1;
     sf->mv_sf.full_pixel_search_level = 1;
     sf->mv_sf.simple_motion_subpel_force_stop = QUARTER_PEL;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
@@ -681,7 +682,6 @@ static void set_good_speed_features_framesize_independent(
         frame_is_intra_only(&cpi->common) ? 0 : 1;
     sf->lpf_sf.disable_lr_filter = 1;
 
-    sf->mv_sf.disable_extensive_joint_motion_search = 1;
     sf->mv_sf.prune_mesh_search = 1;
 
     sf->tpl_sf.prune_starting_mv = 3;
