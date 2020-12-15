@@ -1323,7 +1323,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
 
     // Case COMPOUND_AVERAGE and COMPOUND_DISTWTD
     if (cur_type < COMPOUND_WEDGE) {
-      if (cpi->sf.inter_sf.enable_fast_compound_mode_search) {
+      if (cpi->sf.inter_sf.enable_fast_compound_mode_search == 2) {
         int rate_sum, tmp_skip_txfm_sb;
         int64_t dist_sum, tmp_skip_sse_sb;
 
