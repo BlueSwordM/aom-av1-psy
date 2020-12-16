@@ -376,6 +376,14 @@ static INLINE void cnn_convolve_no_maxpool_padding_valid_layer1_avx2(
   const int kSkipHeight = 2;
   for (int i = start_idx; i < layer_config->out_channels; i += channel_step) {
     __m256 bias_reg = _mm256_set1_ps(layer_config->bias[i]);
+    // out_accum registers are used to store the 2x2 convolve outputs
+    // (calculated over input block size), which are accumulated across the
+    // in_channels. As per the design, each iteration of for loop processes 8
+    // (horizontal) 2x2 blocks and stores in corresponding out_accum register
+    // (as input size is 16x16, a total of 64 2x2 blocks are present and 8
+    // out_accum registers are enough to store the outputs).
+    // Hence for loops corresponding to 'j' and 'h', below, run over the number
+    // of out_accum registers.
     __m256 out_accum[8];
     for (int j = 0; j < 8; ++j) out_accum[j] = bias_reg;
     for (int k = 0; k < layer_config->in_channels; ++k) {
@@ -395,9 +403,8 @@ static INLINE void cnn_convolve_no_maxpool_padding_valid_layer1_avx2(
       }
     }
     // Store output of layer 1.
-    for (int h = 0, u = 0; h < kInHeight - kFilterHeight + 1;
-         h += kSkipHeight, ++u) {
-      _mm256_storeu_ps(&output[i][u * out_stride], out_accum[u]);
+    for (int j = 0; j < 8; ++j) {
+      _mm256_storeu_ps(&output[i][j * out_stride], out_accum[j]);
     }
   }
 }
@@ -416,6 +423,14 @@ static INLINE void cnn_convolve_no_maxpool_padding_valid_layer2_avx2(
   const int kSkipHeight = 2;
   for (int i = start_idx; i < layer_config->out_channels; i += channel_step) {
     __m256 bias_reg = _mm256_set1_ps(layer_config->bias[i]);
+    // out_accum registers are used to store the 2x2 convolve outputs
+    // (calculated over input block size), which are accumulated across the
+    // in_channels. As per the design, each iteration of for loop processes 8
+    // (4 horizontal x 2 vertical) 2x2 blocks and stores in corresponding
+    // out_accum register (as input size is 8x8, a total of 16 2x2 blocks are
+    // present and 2 out_accum registers are enough to store the outputs).
+    // Hence for loops corresponding to 'j' and 'h', below, run over the number
+    // of out_accum registers.
     __m256 out_accum[2];
 
     // Height needs to be moved to go to next iteration of processing
@@ -440,9 +455,8 @@ static INLINE void cnn_convolve_no_maxpool_padding_valid_layer2_avx2(
       }
     }
     // Store output of layer 2.
-    for (int h = 0, u = 0; h < kInHeight - kFilterHeight + 1;
-         h += kSkipHeightForNextIter, ++u) {
-      _mm256_storeu_ps(&output[i][u * out_stride * 2], out_accum[u]);
+    for (int j = 0; j < 2; ++j) {
+      _mm256_storeu_ps(&output[i][j * out_stride * 2], out_accum[j]);
     }
   }
 }
