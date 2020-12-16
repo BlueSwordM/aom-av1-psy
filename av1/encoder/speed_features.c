@@ -488,6 +488,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->mv_sf.auto_mv_step_size = 1;
     sf->mv_sf.subpel_iters_per_step = 1;
+    sf->mv_sf.disable_extensive_joint_motion_search = 1;
 
     // TODO(chiyotsai@google.com): We can get 10% speed up if we move
     // adaptive_rd_thresh to speed 1. But currently it performs poorly on some
@@ -503,6 +504,8 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.reuse_best_prediction_for_part_ab = 1;
     sf->inter_sf.selective_ref_frame = 3;
     sf->inter_sf.use_dist_wtd_comp_flag = DIST_WTD_COMP_DISABLED;
+    // Enable fast search only for COMPOUND_DIFFWTD type.
+    sf->inter_sf.enable_fast_compound_mode_search = 1;
 
     // TODO(Sachin): Enable/Enhance this speed feature for speed 2 & 3
     sf->interp_sf.adaptive_interp_filter_search = 1;
@@ -534,7 +537,6 @@ static void set_good_speed_features_framesize_independent(
     // The values in x->pred_mv[] differ for single and multi-thread cases.
     // See aomedia:1778.
     // sf->mv_sf.adaptive_motion_search = 1;
-    sf->mv_sf.disable_extensive_joint_motion_search = 1;
     sf->mv_sf.full_pixel_search_level = 1;
     sf->mv_sf.simple_motion_subpel_force_stop = QUARTER_PEL;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
@@ -556,7 +558,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.reuse_compound_type_decision = 1;
     sf->inter_sf.txfm_rd_gate_level =
         boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);
-    sf->inter_sf.enable_fast_compound_mode_search = 1;
 
     // TODO(chiyotsai@google.com): the thresholds chosen for intra hog are
     // inherited directly from luma hog with some minor tweaking. Eventually we
@@ -670,6 +671,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.disable_interinter_wedge = 1;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 5;
+    // Enable fast search for all valid compound modes.
     sf->inter_sf.enable_fast_compound_mode_search = 2;
 
     sf->intra_sf.chroma_intra_pruning_with_hog = 3;
