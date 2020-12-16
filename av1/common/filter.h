@@ -25,7 +25,7 @@
 extern "C" {
 #endif
 
-#define MAX_FILTER_TAP 8
+#define MAX_FILTER_TAP 12
 
 typedef enum ATTRIBUTE_PACKED {
   EIGHTTAP_REGULAR,

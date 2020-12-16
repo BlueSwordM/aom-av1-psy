@@ -947,569 +947,469 @@ void av1_convolve_2d_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
                              const InterpFilterParams *filter_params_y,
                              const int subpel_x_qn, const int subpel_y_qn,
                              ConvolveParams *conv_params) {
-  int im_dst_stride;
-  int width, height;
-#if defined(__aarch64__)
-  uint8x8_t t0;
-  uint8x8_t t1, t2, t3, t4, t5, t6, t7;
-  const uint8_t *s;
-#endif
-
-  DECLARE_ALIGNED(16, int16_t,
-                  im_block[(MAX_SB_SIZE + HORIZ_EXTRA_ROWS) * MAX_SB_SIZE]);
-
-  const int bd = 8;
-  const int im_h = h + filter_params_y->taps - 1;
-  const int im_stride = MAX_SB_SIZE;
-  const int vert_offset = filter_params_y->taps / 2 - 1;
-  const int horiz_offset = filter_params_x->taps / 2 - 1;
-
-  const uint8_t *src_ptr = src - vert_offset * src_stride - horiz_offset;
-
-  int16_t *dst_ptr;
-
-  dst_ptr = im_block;
-  im_dst_stride = im_stride;
-  height = im_h;
-  width = w;
-
-  const int16_t round_bits =
-      FILTER_BITS * 2 - conv_params->round_0 - conv_params->round_1;
-  const int16x8_t vec_round_bits = vdupq_n_s16(-round_bits);
-  const int offset_bits = bd + 2 * FILTER_BITS - conv_params->round_0;
-  const int16_t *x_filter = av1_get_interp_filter_subpel_kernel(
-      filter_params_x, subpel_x_qn & SUBPEL_MASK);
-
-  int16_t x_filter_tmp[8];
-  int16x8_t filter_x_coef = vld1q_s16(x_filter);
-
-  // filter coeffs are even, so downshifting by 1 to reduce intermediate
-  // precision requirements.
-  filter_x_coef = vshrq_n_s16(filter_x_coef, 1);
-  vst1q_s16(&x_filter_tmp[0], filter_x_coef);
-
-  assert(conv_params->round_0 > 0);
-
-  if (w <= 4) {
-    const int16x4_t horiz_const = vdup_n_s16((1 << (bd + FILTER_BITS - 2)));
-    const int16x4_t shift_round_0 = vdup_n_s16(-(conv_params->round_0 - 1));
-
-#if defined(__aarch64__)
-    int16x4_t s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, d0, d1, d2, d3;
-    do {
-      assert(height >= 4);
-      s = src_ptr;
-      __builtin_prefetch(s + 0 * src_stride);
-      __builtin_prefetch(s + 1 * src_stride);
-      __builtin_prefetch(s + 2 * src_stride);
-      __builtin_prefetch(s + 3 * src_stride);
-
-      load_u8_8x4(s, src_stride, &t0, &t1, &t2, &t3);
-      transpose_u8_8x4(&t0, &t1, &t2, &t3);
-
-      s0 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
-      s1 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
-      s2 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t2)));
-      s3 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t3)));
-      s4 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
-      s5 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
-      s6 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t2)));
-
-      __builtin_prefetch(dst_ptr + 0 * im_dst_stride);
-      __builtin_prefetch(dst_ptr + 1 * im_dst_stride);
-      __builtin_prefetch(dst_ptr + 2 * im_dst_stride);
-      __builtin_prefetch(dst_ptr + 3 * im_dst_stride);
-      s += 7;
-
-      load_u8_8x4(s, src_stride, &t0, &t1, &t2, &t3);
-      transpose_u8_8x4(&t0, &t1, &t2, &t3);
-
-      s7 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
-      s8 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
-      s9 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t2)));
-      s10 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t3)));
-
-      d0 = convolve8_4x4_s16(s0, s1, s2, s3, s4, s5, s6, s7, x_filter_tmp,
-                             horiz_const, shift_round_0);
-      d1 = convolve8_4x4_s16(s1, s2, s3, s4, s5, s6, s7, s8, x_filter_tmp,
-                             horiz_const, shift_round_0);
-      d2 = convolve8_4x4_s16(s2, s3, s4, s5, s6, s7, s8, s9, x_filter_tmp,
-                             horiz_const, shift_round_0);
-      d3 = convolve8_4x4_s16(s3, s4, s5, s6, s7, s8, s9, s10, x_filter_tmp,
-                             horiz_const, shift_round_0);
-
-      transpose_s16_4x4d(&d0, &d1, &d2, &d3);
-      if (w == 4) {
-        vst1_s16((dst_ptr + 0 * im_dst_stride), d0);
-        vst1_s16((dst_ptr + 1 * im_dst_stride), d1);
-        vst1_s16((dst_ptr + 2 * im_dst_stride), d2);
-        vst1_s16((dst_ptr + 3 * im_dst_stride), d3);
-      } else if (w == 2) {
-        vst1_lane_u32((uint32_t *)(dst_ptr + 0 * im_dst_stride),
-                      vreinterpret_u32_s16(d0), 0);
-        vst1_lane_u32((uint32_t *)(dst_ptr + 1 * im_dst_stride),
-                      vreinterpret_u32_s16(d1), 0);
-        vst1_lane_u32((uint32_t *)(dst_ptr + 2 * im_dst_stride),
-                      vreinterpret_u32_s16(d2), 0);
-        vst1_lane_u32((uint32_t *)(dst_ptr + 3 * im_dst_stride),
-                      vreinterpret_u32_s16(d3), 0);
-      }
-      src_ptr += 4 * src_stride;
-      dst_ptr += 4 * im_dst_stride;
-      height -= 4;
-    } while (height >= 4);
-
-    if (height) {
-      assert(height < 4);
-      horiz_filter_w4_single_row(src_ptr, src_stride, dst_ptr, im_dst_stride, w,
-                                 height, x_filter_tmp, horiz_const,
-                                 shift_round_0);
-    }
-#else
-    horiz_filter_w4_single_row(src_ptr, src_stride, dst_ptr, im_dst_stride, w,
-                               height, x_filter_tmp, horiz_const,
-                               shift_round_0);
-#endif
-
+  if (filter_params_x->taps > 8) {
+    av1_convolve_2d_sr_c(src, src_stride, dst, dst_stride, w, h,
+                         filter_params_x, filter_params_y, subpel_x_qn,
+                         subpel_y_qn, conv_params);
   } else {
-    const int16x8_t horiz_const = vdupq_n_s16((1 << (bd + FILTER_BITS - 2)));
-    const int16x8_t shift_round_0 = vdupq_n_s16(-(conv_params->round_0 - 1));
+    int im_dst_stride;
+    int width, height;
+#if defined(__aarch64__)
+    uint8x8_t t0;
+    uint8x8_t t1, t2, t3, t4, t5, t6, t7;
+    const uint8_t *s;
+#endif
+
+    DECLARE_ALIGNED(16, int16_t,
+                    im_block[(MAX_SB_SIZE + HORIZ_EXTRA_ROWS) * MAX_SB_SIZE]);
+
+    const int bd = 8;
+    const int im_h = h + filter_params_y->taps - 1;
+    const int im_stride = MAX_SB_SIZE;
+    const int vert_offset = filter_params_y->taps / 2 - 1;
+    const int horiz_offset = filter_params_x->taps / 2 - 1;
+
+    const uint8_t *src_ptr = src - vert_offset * src_stride - horiz_offset;
+
+    int16_t *dst_ptr;
+
+    dst_ptr = im_block;
+    im_dst_stride = im_stride;
+    height = im_h;
+    width = w;
+
+    const int16_t round_bits =
+        FILTER_BITS * 2 - conv_params->round_0 - conv_params->round_1;
+    const int16x8_t vec_round_bits = vdupq_n_s16(-round_bits);
+    const int offset_bits = bd + 2 * FILTER_BITS - conv_params->round_0;
+    const int16_t *x_filter = av1_get_interp_filter_subpel_kernel(
+        filter_params_x, subpel_x_qn & SUBPEL_MASK);
+
+    int16_t x_filter_tmp[8];
+    int16x8_t filter_x_coef = vld1q_s16(x_filter);
+
+    // filter coeffs are even, so downshifting by 1 to reduce intermediate
+    // precision requirements.
+    filter_x_coef = vshrq_n_s16(filter_x_coef, 1);
+    vst1q_s16(&x_filter_tmp[0], filter_x_coef);
+
+    assert(conv_params->round_0 > 0);
+
+    if (w <= 4) {
+      const int16x4_t horiz_const = vdup_n_s16((1 << (bd + FILTER_BITS - 2)));
+      const int16x4_t shift_round_0 = vdup_n_s16(-(conv_params->round_0 - 1));
 
 #if defined(__aarch64__)
-    int16_t *d_tmp;
-    int16x8_t s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14;
-    int16x8_t res0, res1, res2, res3, res4, res5, res6, res7;
-    do {
-      assert(height >= 8);
-      __builtin_prefetch(src_ptr + 0 * src_stride);
-      __builtin_prefetch(src_ptr + 1 * src_stride);
-      __builtin_prefetch(src_ptr + 2 * src_stride);
-      __builtin_prefetch(src_ptr + 3 * src_stride);
-      __builtin_prefetch(src_ptr + 4 * src_stride);
-      __builtin_prefetch(src_ptr + 5 * src_stride);
-      __builtin_prefetch(src_ptr + 6 * src_stride);
-      __builtin_prefetch(src_ptr + 7 * src_stride);
-
-      load_u8_8x8(src_ptr, src_stride, &t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
-
-      transpose_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
-
-      s0 = vreinterpretq_s16_u16(vmovl_u8(t0));
-      s1 = vreinterpretq_s16_u16(vmovl_u8(t1));
-      s2 = vreinterpretq_s16_u16(vmovl_u8(t2));
-      s3 = vreinterpretq_s16_u16(vmovl_u8(t3));
-      s4 = vreinterpretq_s16_u16(vmovl_u8(t4));
-      s5 = vreinterpretq_s16_u16(vmovl_u8(t5));
-      s6 = vreinterpretq_s16_u16(vmovl_u8(t6));
-
-      width = w;
-      s = src_ptr + 7;
-      d_tmp = dst_ptr;
-
-      __builtin_prefetch(dst_ptr + 0 * im_dst_stride);
-      __builtin_prefetch(dst_ptr + 1 * im_dst_stride);
-      __builtin_prefetch(dst_ptr + 2 * im_dst_stride);
-      __builtin_prefetch(dst_ptr + 3 * im_dst_stride);
-      __builtin_prefetch(dst_ptr + 4 * im_dst_stride);
-      __builtin_prefetch(dst_ptr + 5 * im_dst_stride);
-      __builtin_prefetch(dst_ptr + 6 * im_dst_stride);
-      __builtin_prefetch(dst_ptr + 7 * im_dst_stride);
-
+      int16x4_t s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, d0, d1, d2, d3;
       do {
-        load_u8_8x8(s, src_stride, &t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+        assert(height >= 4);
+        s = src_ptr;
+        __builtin_prefetch(s + 0 * src_stride);
+        __builtin_prefetch(s + 1 * src_stride);
+        __builtin_prefetch(s + 2 * src_stride);
+        __builtin_prefetch(s + 3 * src_stride);
 
-        transpose_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
-
-        s7 = vreinterpretq_s16_u16(vmovl_u8(t0));
-        s8 = vreinterpretq_s16_u16(vmovl_u8(t1));
-        s9 = vreinterpretq_s16_u16(vmovl_u8(t2));
-        s10 = vreinterpretq_s16_u16(vmovl_u8(t3));
-        s11 = vreinterpretq_s16_u16(vmovl_u8(t4));
-        s12 = vreinterpretq_s16_u16(vmovl_u8(t5));
-        s13 = vreinterpretq_s16_u16(vmovl_u8(t6));
-        s14 = vreinterpretq_s16_u16(vmovl_u8(t7));
-
-        res0 = convolve8_8x8_s16(s0, s1, s2, s3, s4, s5, s6, s7, x_filter_tmp,
-                                 horiz_const, shift_round_0);
-        res1 = convolve8_8x8_s16(s1, s2, s3, s4, s5, s6, s7, s8, x_filter_tmp,
-                                 horiz_const, shift_round_0);
-        res2 = convolve8_8x8_s16(s2, s3, s4, s5, s6, s7, s8, s9, x_filter_tmp,
-                                 horiz_const, shift_round_0);
-        res3 = convolve8_8x8_s16(s3, s4, s5, s6, s7, s8, s9, s10, x_filter_tmp,
-                                 horiz_const, shift_round_0);
-        res4 = convolve8_8x8_s16(s4, s5, s6, s7, s8, s9, s10, s11, x_filter_tmp,
-                                 horiz_const, shift_round_0);
-        res5 = convolve8_8x8_s16(s5, s6, s7, s8, s9, s10, s11, s12,
-                                 x_filter_tmp, horiz_const, shift_round_0);
-        res6 = convolve8_8x8_s16(s6, s7, s8, s9, s10, s11, s12, s13,
-                                 x_filter_tmp, horiz_const, shift_round_0);
-        res7 = convolve8_8x8_s16(s7, s8, s9, s10, s11, s12, s13, s14,
-                                 x_filter_tmp, horiz_const, shift_round_0);
-
-        transpose_s16_8x8(&res0, &res1, &res2, &res3, &res4, &res5, &res6,
-                          &res7);
-
-        store_s16_8x8(d_tmp, im_dst_stride, res0, res1, res2, res3, res4, res5,
-                      res6, res7);
-
-        s0 = s8;
-        s1 = s9;
-        s2 = s10;
-        s3 = s11;
-        s4 = s12;
-        s5 = s13;
-        s6 = s14;
-        s += 8;
-        d_tmp += 8;
-        width -= 8;
-      } while (width > 0);
-      src_ptr += 8 * src_stride;
-      dst_ptr += 8 * im_dst_stride;
-      height -= 8;
-    } while (height >= 8);
-
-    if (height >= 4) {
-      assert(height < 8);
-      int16x4_t reg0, reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8, reg9,
-          reg10, reg11, reg12, reg13, reg14;
-      int16x4_t d0, d1, d2, d3, d4, d5, d6, d7;
-      int16x8_t out0, out1, out2, out3;
-
-      __builtin_prefetch(src_ptr + 0 * src_stride);
-      __builtin_prefetch(src_ptr + 1 * src_stride);
-      __builtin_prefetch(src_ptr + 2 * src_stride);
-      __builtin_prefetch(src_ptr + 3 * src_stride);
-
-      load_u8_8x4(src_ptr, src_stride, &t0, &t1, &t2, &t3);
-      transpose_u8_8x4(&t0, &t1, &t2, &t3);
-
-      reg0 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
-      reg1 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
-      reg2 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t2)));
-      reg3 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t3)));
-      reg4 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
-      reg5 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
-      reg6 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t2)));
-
-      __builtin_prefetch(dst_ptr + 0 * dst_stride);
-      __builtin_prefetch(dst_ptr + 1 * dst_stride);
-      __builtin_prefetch(dst_ptr + 2 * dst_stride);
-      __builtin_prefetch(dst_ptr + 3 * dst_stride);
-
-      s = src_ptr + 7;
-      d_tmp = dst_ptr;
-      width = w;
-
-      do {
         load_u8_8x4(s, src_stride, &t0, &t1, &t2, &t3);
         transpose_u8_8x4(&t0, &t1, &t2, &t3);
 
-        reg7 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
-        reg8 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
-        reg9 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t2)));
-        reg10 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t3)));
-        reg11 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
-        reg12 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
-        reg13 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t2)));
-        reg14 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t3)));
+        s0 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
+        s1 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
+        s2 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t2)));
+        s3 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t3)));
+        s4 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
+        s5 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
+        s6 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t2)));
 
-        d0 = convolve8_4x4(reg0, reg1, reg2, reg3, reg4, reg5, reg6, reg7,
-                           x_filter_tmp);
+        __builtin_prefetch(dst_ptr + 0 * im_dst_stride);
+        __builtin_prefetch(dst_ptr + 1 * im_dst_stride);
+        __builtin_prefetch(dst_ptr + 2 * im_dst_stride);
+        __builtin_prefetch(dst_ptr + 3 * im_dst_stride);
+        s += 7;
 
-        d1 = convolve8_4x4(reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8,
-                           x_filter_tmp);
+        load_u8_8x4(s, src_stride, &t0, &t1, &t2, &t3);
+        transpose_u8_8x4(&t0, &t1, &t2, &t3);
 
-        d2 = convolve8_4x4(reg2, reg3, reg4, reg5, reg6, reg7, reg8, reg9,
-                           x_filter_tmp);
+        s7 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
+        s8 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
+        s9 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t2)));
+        s10 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t3)));
 
-        d3 = convolve8_4x4(reg3, reg4, reg5, reg6, reg7, reg8, reg9, reg10,
-                           x_filter_tmp);
+        d0 = convolve8_4x4_s16(s0, s1, s2, s3, s4, s5, s6, s7, x_filter_tmp,
+                               horiz_const, shift_round_0);
+        d1 = convolve8_4x4_s16(s1, s2, s3, s4, s5, s6, s7, s8, x_filter_tmp,
+                               horiz_const, shift_round_0);
+        d2 = convolve8_4x4_s16(s2, s3, s4, s5, s6, s7, s8, s9, x_filter_tmp,
+                               horiz_const, shift_round_0);
+        d3 = convolve8_4x4_s16(s3, s4, s5, s6, s7, s8, s9, s10, x_filter_tmp,
+                               horiz_const, shift_round_0);
 
-        d4 = convolve8_4x4(reg4, reg5, reg6, reg7, reg8, reg9, reg10, reg11,
-                           x_filter_tmp);
+        transpose_s16_4x4d(&d0, &d1, &d2, &d3);
+        if (w == 4) {
+          vst1_s16((dst_ptr + 0 * im_dst_stride), d0);
+          vst1_s16((dst_ptr + 1 * im_dst_stride), d1);
+          vst1_s16((dst_ptr + 2 * im_dst_stride), d2);
+          vst1_s16((dst_ptr + 3 * im_dst_stride), d3);
+        } else if (w == 2) {
+          vst1_lane_u32((uint32_t *)(dst_ptr + 0 * im_dst_stride),
+                        vreinterpret_u32_s16(d0), 0);
+          vst1_lane_u32((uint32_t *)(dst_ptr + 1 * im_dst_stride),
+                        vreinterpret_u32_s16(d1), 0);
+          vst1_lane_u32((uint32_t *)(dst_ptr + 2 * im_dst_stride),
+                        vreinterpret_u32_s16(d2), 0);
+          vst1_lane_u32((uint32_t *)(dst_ptr + 3 * im_dst_stride),
+                        vreinterpret_u32_s16(d3), 0);
+        }
+        src_ptr += 4 * src_stride;
+        dst_ptr += 4 * im_dst_stride;
+        height -= 4;
+      } while (height >= 4);
 
-        d5 = convolve8_4x4(reg5, reg6, reg7, reg8, reg9, reg10, reg11, reg12,
-                           x_filter_tmp);
+      if (height) {
+        assert(height < 4);
+        horiz_filter_w4_single_row(src_ptr, src_stride, dst_ptr, im_dst_stride,
+                                   w, height, x_filter_tmp, horiz_const,
+                                   shift_round_0);
+      }
+#else
+      horiz_filter_w4_single_row(src_ptr, src_stride, dst_ptr, im_dst_stride, w,
+                                 height, x_filter_tmp, horiz_const,
+                                 shift_round_0);
+#endif
 
-        d6 = convolve8_4x4(reg6, reg7, reg8, reg9, reg10, reg11, reg12, reg13,
-                           x_filter_tmp);
+    } else {
+      const int16x8_t horiz_const = vdupq_n_s16((1 << (bd + FILTER_BITS - 2)));
+      const int16x8_t shift_round_0 = vdupq_n_s16(-(conv_params->round_0 - 1));
 
-        d7 = convolve8_4x4(reg7, reg8, reg9, reg10, reg11, reg12, reg13, reg14,
-                           x_filter_tmp);
+#if defined(__aarch64__)
+      int16_t *d_tmp;
+      int16x8_t s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14;
+      int16x8_t res0, res1, res2, res3, res4, res5, res6, res7;
+      do {
+        assert(height >= 8);
+        __builtin_prefetch(src_ptr + 0 * src_stride);
+        __builtin_prefetch(src_ptr + 1 * src_stride);
+        __builtin_prefetch(src_ptr + 2 * src_stride);
+        __builtin_prefetch(src_ptr + 3 * src_stride);
+        __builtin_prefetch(src_ptr + 4 * src_stride);
+        __builtin_prefetch(src_ptr + 5 * src_stride);
+        __builtin_prefetch(src_ptr + 6 * src_stride);
+        __builtin_prefetch(src_ptr + 7 * src_stride);
 
-        transpose_s16_4x8(&d0, &d1, &d2, &d3, &d4, &d5, &d6, &d7, &out0, &out1,
-                          &out2, &out3);
+        load_u8_8x8(src_ptr, src_stride, &t0, &t1, &t2, &t3, &t4, &t5, &t6,
+                    &t7);
 
-        out0 = vaddq_s16(out0, horiz_const);
-        out0 = vqrshlq_s16(out0, shift_round_0);
+        transpose_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
 
-        out1 = vaddq_s16(out1, horiz_const);
-        out1 = vqrshlq_s16(out1, shift_round_0);
+        s0 = vreinterpretq_s16_u16(vmovl_u8(t0));
+        s1 = vreinterpretq_s16_u16(vmovl_u8(t1));
+        s2 = vreinterpretq_s16_u16(vmovl_u8(t2));
+        s3 = vreinterpretq_s16_u16(vmovl_u8(t3));
+        s4 = vreinterpretq_s16_u16(vmovl_u8(t4));
+        s5 = vreinterpretq_s16_u16(vmovl_u8(t5));
+        s6 = vreinterpretq_s16_u16(vmovl_u8(t6));
 
-        out2 = vaddq_s16(out2, horiz_const);
-        out2 = vqrshlq_s16(out2, shift_round_0);
+        width = w;
+        s = src_ptr + 7;
+        d_tmp = dst_ptr;
 
-        out3 = vaddq_s16(out3, horiz_const);
-        out3 = vqrshlq_s16(out3, shift_round_0);
+        __builtin_prefetch(dst_ptr + 0 * im_dst_stride);
+        __builtin_prefetch(dst_ptr + 1 * im_dst_stride);
+        __builtin_prefetch(dst_ptr + 2 * im_dst_stride);
+        __builtin_prefetch(dst_ptr + 3 * im_dst_stride);
+        __builtin_prefetch(dst_ptr + 4 * im_dst_stride);
+        __builtin_prefetch(dst_ptr + 5 * im_dst_stride);
+        __builtin_prefetch(dst_ptr + 6 * im_dst_stride);
+        __builtin_prefetch(dst_ptr + 7 * im_dst_stride);
 
-        store_s16_8x4(d_tmp, im_dst_stride, out0, out1, out2, out3);
+        do {
+          load_u8_8x8(s, src_stride, &t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
 
-        reg0 = reg8;
-        reg1 = reg9;
-        reg2 = reg10;
-        reg3 = reg11;
-        reg4 = reg12;
-        reg5 = reg13;
-        reg6 = reg14;
-        s += 8;
-        d_tmp += 8;
-        width -= 8;
-      } while (width > 0);
-      src_ptr += 4 * src_stride;
-      dst_ptr += 4 * im_dst_stride;
-      height -= 4;
-    }
+          transpose_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
 
-    if (height) {
-      assert(height < 4);
+          s7 = vreinterpretq_s16_u16(vmovl_u8(t0));
+          s8 = vreinterpretq_s16_u16(vmovl_u8(t1));
+          s9 = vreinterpretq_s16_u16(vmovl_u8(t2));
+          s10 = vreinterpretq_s16_u16(vmovl_u8(t3));
+          s11 = vreinterpretq_s16_u16(vmovl_u8(t4));
+          s12 = vreinterpretq_s16_u16(vmovl_u8(t5));
+          s13 = vreinterpretq_s16_u16(vmovl_u8(t6));
+          s14 = vreinterpretq_s16_u16(vmovl_u8(t7));
+
+          res0 = convolve8_8x8_s16(s0, s1, s2, s3, s4, s5, s6, s7, x_filter_tmp,
+                                   horiz_const, shift_round_0);
+          res1 = convolve8_8x8_s16(s1, s2, s3, s4, s5, s6, s7, s8, x_filter_tmp,
+                                   horiz_const, shift_round_0);
+          res2 = convolve8_8x8_s16(s2, s3, s4, s5, s6, s7, s8, s9, x_filter_tmp,
+                                   horiz_const, shift_round_0);
+          res3 = convolve8_8x8_s16(s3, s4, s5, s6, s7, s8, s9, s10,
+                                   x_filter_tmp, horiz_const, shift_round_0);
+          res4 = convolve8_8x8_s16(s4, s5, s6, s7, s8, s9, s10, s11,
+                                   x_filter_tmp, horiz_const, shift_round_0);
+          res5 = convolve8_8x8_s16(s5, s6, s7, s8, s9, s10, s11, s12,
+                                   x_filter_tmp, horiz_const, shift_round_0);
+          res6 = convolve8_8x8_s16(s6, s7, s8, s9, s10, s11, s12, s13,
+                                   x_filter_tmp, horiz_const, shift_round_0);
+          res7 = convolve8_8x8_s16(s7, s8, s9, s10, s11, s12, s13, s14,
+                                   x_filter_tmp, horiz_const, shift_round_0);
+
+          transpose_s16_8x8(&res0, &res1, &res2, &res3, &res4, &res5, &res6,
+                            &res7);
+
+          store_s16_8x8(d_tmp, im_dst_stride, res0, res1, res2, res3, res4,
+                        res5, res6, res7);
+
+          s0 = s8;
+          s1 = s9;
+          s2 = s10;
+          s3 = s11;
+          s4 = s12;
+          s5 = s13;
+          s6 = s14;
+          s += 8;
+          d_tmp += 8;
+          width -= 8;
+        } while (width > 0);
+        src_ptr += 8 * src_stride;
+        dst_ptr += 8 * im_dst_stride;
+        height -= 8;
+      } while (height >= 8);
+
+      if (height >= 4) {
+        assert(height < 8);
+        int16x4_t reg0, reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8, reg9,
+            reg10, reg11, reg12, reg13, reg14;
+        int16x4_t d0, d1, d2, d3, d4, d5, d6, d7;
+        int16x8_t out0, out1, out2, out3;
+
+        __builtin_prefetch(src_ptr + 0 * src_stride);
+        __builtin_prefetch(src_ptr + 1 * src_stride);
+        __builtin_prefetch(src_ptr + 2 * src_stride);
+        __builtin_prefetch(src_ptr + 3 * src_stride);
+
+        load_u8_8x4(src_ptr, src_stride, &t0, &t1, &t2, &t3);
+        transpose_u8_8x4(&t0, &t1, &t2, &t3);
+
+        reg0 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
+        reg1 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
+        reg2 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t2)));
+        reg3 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t3)));
+        reg4 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
+        reg5 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
+        reg6 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t2)));
+
+        __builtin_prefetch(dst_ptr + 0 * dst_stride);
+        __builtin_prefetch(dst_ptr + 1 * dst_stride);
+        __builtin_prefetch(dst_ptr + 2 * dst_stride);
+        __builtin_prefetch(dst_ptr + 3 * dst_stride);
+
+        s = src_ptr + 7;
+        d_tmp = dst_ptr;
+        width = w;
+
+        do {
+          load_u8_8x4(s, src_stride, &t0, &t1, &t2, &t3);
+          transpose_u8_8x4(&t0, &t1, &t2, &t3);
+
+          reg7 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
+          reg8 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
+          reg9 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t2)));
+          reg10 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t3)));
+          reg11 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
+          reg12 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
+          reg13 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t2)));
+          reg14 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t3)));
+
+          d0 = convolve8_4x4(reg0, reg1, reg2, reg3, reg4, reg5, reg6, reg7,
+                             x_filter_tmp);
+
+          d1 = convolve8_4x4(reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8,
+                             x_filter_tmp);
+
+          d2 = convolve8_4x4(reg2, reg3, reg4, reg5, reg6, reg7, reg8, reg9,
+                             x_filter_tmp);
+
+          d3 = convolve8_4x4(reg3, reg4, reg5, reg6, reg7, reg8, reg9, reg10,
+                             x_filter_tmp);
+
+          d4 = convolve8_4x4(reg4, reg5, reg6, reg7, reg8, reg9, reg10, reg11,
+                             x_filter_tmp);
+
+          d5 = convolve8_4x4(reg5, reg6, reg7, reg8, reg9, reg10, reg11, reg12,
+                             x_filter_tmp);
+
+          d6 = convolve8_4x4(reg6, reg7, reg8, reg9, reg10, reg11, reg12, reg13,
+                             x_filter_tmp);
+
+          d7 = convolve8_4x4(reg7, reg8, reg9, reg10, reg11, reg12, reg13,
+                             reg14, x_filter_tmp);
+
+          transpose_s16_4x8(&d0, &d1, &d2, &d3, &d4, &d5, &d6, &d7, &out0,
+                            &out1, &out2, &out3);
+
+          out0 = vaddq_s16(out0, horiz_const);
+          out0 = vqrshlq_s16(out0, shift_round_0);
+
+          out1 = vaddq_s16(out1, horiz_const);
+          out1 = vqrshlq_s16(out1, shift_round_0);
+
+          out2 = vaddq_s16(out2, horiz_const);
+          out2 = vqrshlq_s16(out2, shift_round_0);
+
+          out3 = vaddq_s16(out3, horiz_const);
+          out3 = vqrshlq_s16(out3, shift_round_0);
+
+          store_s16_8x4(d_tmp, im_dst_stride, out0, out1, out2, out3);
+
+          reg0 = reg8;
+          reg1 = reg9;
+          reg2 = reg10;
+          reg3 = reg11;
+          reg4 = reg12;
+          reg5 = reg13;
+          reg6 = reg14;
+          s += 8;
+          d_tmp += 8;
+          width -= 8;
+        } while (width > 0);
+        src_ptr += 4 * src_stride;
+        dst_ptr += 4 * im_dst_stride;
+        height -= 4;
+      }
+
+      if (height) {
+        assert(height < 4);
+        horiz_filter_w8_single_row(src_ptr, src_stride, dst_ptr, im_stride, w,
+                                   height, x_filter_tmp, horiz_const,
+                                   shift_round_0);
+      }
+#else
+
       horiz_filter_w8_single_row(src_ptr, src_stride, dst_ptr, im_stride, w,
                                  height, x_filter_tmp, horiz_const,
                                  shift_round_0);
+#endif
     }
-#else
 
-    horiz_filter_w8_single_row(src_ptr, src_stride, dst_ptr, im_stride, w,
-                               height, x_filter_tmp, horiz_const,
-                               shift_round_0);
-#endif
-  }
+    // vertical
+    {
+      uint8_t *dst_u8_ptr, *d_u8;
+      int16_t *v_src_ptr, *v_s;
 
-  // vertical
-  {
-    uint8_t *dst_u8_ptr, *d_u8;
-    int16_t *v_src_ptr, *v_s;
+      const int32_t sub_const = (1 << (offset_bits - conv_params->round_1)) +
+                                (1 << (offset_bits - conv_params->round_1 - 1));
+      const int16_t *y_filter = av1_get_interp_filter_subpel_kernel(
+          filter_params_y, subpel_y_qn & SUBPEL_MASK);
 
-    const int32_t sub_const = (1 << (offset_bits - conv_params->round_1)) +
-                              (1 << (offset_bits - conv_params->round_1 - 1));
-    const int16_t *y_filter = av1_get_interp_filter_subpel_kernel(
-        filter_params_y, subpel_y_qn & SUBPEL_MASK);
+      const int32x4_t round_shift_vec = vdupq_n_s32(-(conv_params->round_1));
+      const int32x4_t offset_const = vdupq_n_s32(1 << offset_bits);
+      const int32x4_t sub_const_vec = vdupq_n_s32(sub_const);
 
-    const int32x4_t round_shift_vec = vdupq_n_s32(-(conv_params->round_1));
-    const int32x4_t offset_const = vdupq_n_s32(1 << offset_bits);
-    const int32x4_t sub_const_vec = vdupq_n_s32(sub_const);
+      src_stride = im_stride;
+      v_src_ptr = im_block;
+      dst_u8_ptr = dst;
 
-    src_stride = im_stride;
-    v_src_ptr = im_block;
-    dst_u8_ptr = dst;
+      height = h;
+      width = w;
 
-    height = h;
-    width = w;
-
-    if (width <= 4) {
-      int16x4_t s0, s1, s2, s3, s4, s5, s6, s7;
-      uint16x4_t d0;
-      uint16x8_t dd0;
-      uint8x8_t d01;
+      if (width <= 4) {
+        int16x4_t s0, s1, s2, s3, s4, s5, s6, s7;
+        uint16x4_t d0;
+        uint16x8_t dd0;
+        uint8x8_t d01;
 
 #if defined(__aarch64__)
-      int16x4_t s8, s9, s10;
-      uint16x4_t d1, d2, d3;
-      uint16x8_t dd1;
-      uint8x8_t d23;
+        int16x4_t s8, s9, s10;
+        uint16x4_t d1, d2, d3;
+        uint16x8_t dd1;
+        uint8x8_t d23;
 #endif
-
-      d_u8 = dst_u8_ptr;
-      v_s = v_src_ptr;
-
-      __builtin_prefetch(v_s + 0 * im_stride);
-      __builtin_prefetch(v_s + 1 * im_stride);
-      __builtin_prefetch(v_s + 2 * im_stride);
-      __builtin_prefetch(v_s + 3 * im_stride);
-      __builtin_prefetch(v_s + 4 * im_stride);
-      __builtin_prefetch(v_s + 5 * im_stride);
-      __builtin_prefetch(v_s + 6 * im_stride);
-      __builtin_prefetch(v_s + 7 * im_stride);
-
-      load_s16_4x8(v_s, im_stride, &s0, &s1, &s2, &s3, &s4, &s5, &s6, &s7);
-      v_s += (7 * im_stride);
-
-      do {
-#if defined(__aarch64__)
-        load_s16_4x4(v_s, im_stride, &s7, &s8, &s9, &s10);
-        v_s += (im_stride << 2);
-
-        __builtin_prefetch(d_u8 + 0 * dst_stride);
-        __builtin_prefetch(d_u8 + 1 * dst_stride);
-        __builtin_prefetch(d_u8 + 2 * dst_stride);
-        __builtin_prefetch(d_u8 + 3 * dst_stride);
-
-        d0 = convolve8_vert_4x4_s32(s0, s1, s2, s3, s4, s5, s6, s7, y_filter,
-                                    round_shift_vec, offset_const,
-                                    sub_const_vec);
-        d1 = convolve8_vert_4x4_s32(s1, s2, s3, s4, s5, s6, s7, s8, y_filter,
-                                    round_shift_vec, offset_const,
-                                    sub_const_vec);
-        d2 = convolve8_vert_4x4_s32(s2, s3, s4, s5, s6, s7, s8, s9, y_filter,
-                                    round_shift_vec, offset_const,
-                                    sub_const_vec);
-        d3 = convolve8_vert_4x4_s32(s3, s4, s5, s6, s7, s8, s9, s10, y_filter,
-                                    round_shift_vec, offset_const,
-                                    sub_const_vec);
-
-        dd0 = vqrshlq_u16(vcombine_u16(d0, d1), vec_round_bits);
-        dd1 = vqrshlq_u16(vcombine_u16(d2, d3), vec_round_bits);
-
-        d01 = vqmovn_u16(dd0);
-        d23 = vqmovn_u16(dd1);
-
-        if ((w == 4) && (h != 2)) {
-          vst1_lane_u32((uint32_t *)d_u8, vreinterpret_u32_u8(d01),
-                        0);  // 00 01 02 03
-          d_u8 += dst_stride;
-          vst1_lane_u32((uint32_t *)d_u8, vreinterpret_u32_u8(d01),
-                        1);  // 10 11 12 13
-          d_u8 += dst_stride;
-          vst1_lane_u32((uint32_t *)d_u8, vreinterpret_u32_u8(d23),
-                        0);  // 20 21 22 23
-          d_u8 += dst_stride;
-          vst1_lane_u32((uint32_t *)d_u8, vreinterpret_u32_u8(d23),
-                        1);  // 30 31 32 33
-          d_u8 += dst_stride;
-        } else if ((w == 2) && (h != 2)) {
-          vst1_lane_u16((uint16_t *)d_u8, vreinterpret_u16_u8(d01),
-                        0);  // 00 01
-          d_u8 += dst_stride;
-          vst1_lane_u16((uint16_t *)d_u8, vreinterpret_u16_u8(d01),
-                        2);  // 10 11
-          d_u8 += dst_stride;
-          vst1_lane_u16((uint16_t *)d_u8, vreinterpret_u16_u8(d23),
-                        0);  // 20 21
-          d_u8 += dst_stride;
-          vst1_lane_u16((uint16_t *)d_u8, vreinterpret_u16_u8(d23),
-                        2);  // 30 31
-          d_u8 += dst_stride;
-        } else if ((w == 4) && (h == 2)) {
-          vst1_lane_u32((uint32_t *)d_u8, vreinterpret_u32_u8(d01),
-                        0);  // 00 01 02 03
-          d_u8 += dst_stride;
-          vst1_lane_u32((uint32_t *)d_u8, vreinterpret_u32_u8(d01),
-                        1);  // 10 11 12 13
-          d_u8 += dst_stride;
-        } else if ((w == 2) && (h == 2)) {
-          vst1_lane_u16((uint16_t *)d_u8, vreinterpret_u16_u8(d01),
-                        0);  // 00 01
-          d_u8 += dst_stride;
-          vst1_lane_u16((uint16_t *)d_u8, vreinterpret_u16_u8(d01),
-                        2);  // 10 11
-          d_u8 += dst_stride;
-        }
-
-        s0 = s4;
-        s1 = s5;
-        s2 = s6;
-        s3 = s7;
-        s4 = s8;
-        s5 = s9;
-        s6 = s10;
-        height -= 4;
-#else
-        s7 = vld1_s16(v_s);
-        v_s += im_stride;
-
-        __builtin_prefetch(d_u8 + 0 * dst_stride);
-
-        d0 = convolve8_vert_4x4_s32(s0, s1, s2, s3, s4, s5, s6, s7, y_filter,
-                                    round_shift_vec, offset_const,
-                                    sub_const_vec);
-
-        dd0 = vqrshlq_u16(vcombine_u16(d0, d0), vec_round_bits);
-        d01 = vqmovn_u16(dd0);
-
-        if (w == 4) {
-          vst1_lane_u32((uint32_t *)d_u8, vreinterpret_u32_u8(d01),
-                        0);  // 00 01 02 03
-          d_u8 += dst_stride;
-
-        } else if (w == 2) {
-          vst1_lane_u16((uint16_t *)d_u8, vreinterpret_u16_u8(d01),
-                        0);  // 00 01
-          d_u8 += dst_stride;
-        }
-
-        s0 = s1;
-        s1 = s2;
-        s2 = s3;
-        s3 = s4;
-        s4 = s5;
-        s5 = s6;
-        s6 = s7;
-        height -= 1;
-#endif
-      } while (height > 0);
-    } else {
-      // if width is a multiple of 8 & height is a multiple of 4
-      int16x8_t s0, s1, s2, s3, s4, s5, s6, s7;
-      uint8x8_t res0;
-#if defined(__aarch64__)
-      int16x8_t s8, s9, s10;
-      uint8x8_t res1, res2, res3;
-#endif
-
-      do {
-        __builtin_prefetch(v_src_ptr + 0 * im_stride);
-        __builtin_prefetch(v_src_ptr + 1 * im_stride);
-        __builtin_prefetch(v_src_ptr + 2 * im_stride);
-        __builtin_prefetch(v_src_ptr + 3 * im_stride);
-        __builtin_prefetch(v_src_ptr + 4 * im_stride);
-        __builtin_prefetch(v_src_ptr + 5 * im_stride);
-        __builtin_prefetch(v_src_ptr + 6 * im_stride);
-        __builtin_prefetch(v_src_ptr + 7 * im_stride);
-
-        v_s = v_src_ptr;
-        load_s16_8x8(v_s, im_stride, &s0, &s1, &s2, &s3, &s4, &s5, &s6, &s7);
-        v_s += (7 * im_stride);
 
         d_u8 = dst_u8_ptr;
-        height = h;
+        v_s = v_src_ptr;
+
+        __builtin_prefetch(v_s + 0 * im_stride);
+        __builtin_prefetch(v_s + 1 * im_stride);
+        __builtin_prefetch(v_s + 2 * im_stride);
+        __builtin_prefetch(v_s + 3 * im_stride);
+        __builtin_prefetch(v_s + 4 * im_stride);
+        __builtin_prefetch(v_s + 5 * im_stride);
+        __builtin_prefetch(v_s + 6 * im_stride);
+        __builtin_prefetch(v_s + 7 * im_stride);
+
+        load_s16_4x8(v_s, im_stride, &s0, &s1, &s2, &s3, &s4, &s5, &s6, &s7);
+        v_s += (7 * im_stride);
 
         do {
 #if defined(__aarch64__)
-          load_s16_8x4(v_s, im_stride, &s7, &s8, &s9, &s10);
+          load_s16_4x4(v_s, im_stride, &s7, &s8, &s9, &s10);
           v_s += (im_stride << 2);
 
-          __builtin_prefetch(d_u8 + 4 * dst_stride);
-          __builtin_prefetch(d_u8 + 5 * dst_stride);
-          __builtin_prefetch(d_u8 + 6 * dst_stride);
-          __builtin_prefetch(d_u8 + 7 * dst_stride);
+          __builtin_prefetch(d_u8 + 0 * dst_stride);
+          __builtin_prefetch(d_u8 + 1 * dst_stride);
+          __builtin_prefetch(d_u8 + 2 * dst_stride);
+          __builtin_prefetch(d_u8 + 3 * dst_stride);
 
-          res0 = convolve8_vert_8x4_s32(s0, s1, s2, s3, s4, s5, s6, s7,
-                                        y_filter, round_shift_vec, offset_const,
-                                        sub_const_vec, vec_round_bits);
-          res1 = convolve8_vert_8x4_s32(s1, s2, s3, s4, s5, s6, s7, s8,
-                                        y_filter, round_shift_vec, offset_const,
-                                        sub_const_vec, vec_round_bits);
-          res2 = convolve8_vert_8x4_s32(s2, s3, s4, s5, s6, s7, s8, s9,
-                                        y_filter, round_shift_vec, offset_const,
-                                        sub_const_vec, vec_round_bits);
-          res3 = convolve8_vert_8x4_s32(s3, s4, s5, s6, s7, s8, s9, s10,
-                                        y_filter, round_shift_vec, offset_const,
-                                        sub_const_vec, vec_round_bits);
+          d0 = convolve8_vert_4x4_s32(s0, s1, s2, s3, s4, s5, s6, s7, y_filter,
+                                      round_shift_vec, offset_const,
+                                      sub_const_vec);
+          d1 = convolve8_vert_4x4_s32(s1, s2, s3, s4, s5, s6, s7, s8, y_filter,
+                                      round_shift_vec, offset_const,
+                                      sub_const_vec);
+          d2 = convolve8_vert_4x4_s32(s2, s3, s4, s5, s6, s7, s8, s9, y_filter,
+                                      round_shift_vec, offset_const,
+                                      sub_const_vec);
+          d3 = convolve8_vert_4x4_s32(s3, s4, s5, s6, s7, s8, s9, s10, y_filter,
+                                      round_shift_vec, offset_const,
+                                      sub_const_vec);
 
-          if (h != 2) {
-            vst1_u8(d_u8, res0);
+          dd0 = vqrshlq_u16(vcombine_u16(d0, d1), vec_round_bits);
+          dd1 = vqrshlq_u16(vcombine_u16(d2, d3), vec_round_bits);
+
+          d01 = vqmovn_u16(dd0);
+          d23 = vqmovn_u16(dd1);
+
+          if ((w == 4) && (h != 2)) {
+            vst1_lane_u32((uint32_t *)d_u8, vreinterpret_u32_u8(d01),
+                          0);  // 00 01 02 03
             d_u8 += dst_stride;
-            vst1_u8(d_u8, res1);
+            vst1_lane_u32((uint32_t *)d_u8, vreinterpret_u32_u8(d01),
+                          1);  // 10 11 12 13
             d_u8 += dst_stride;
-            vst1_u8(d_u8, res2);
+            vst1_lane_u32((uint32_t *)d_u8, vreinterpret_u32_u8(d23),
+                          0);  // 20 21 22 23
             d_u8 += dst_stride;
-            vst1_u8(d_u8, res3);
+            vst1_lane_u32((uint32_t *)d_u8, vreinterpret_u32_u8(d23),
+                          1);  // 30 31 32 33
             d_u8 += dst_stride;
-          } else {
-            vst1_u8(d_u8, res0);
+          } else if ((w == 2) && (h != 2)) {
+            vst1_lane_u16((uint16_t *)d_u8, vreinterpret_u16_u8(d01),
+                          0);  // 00 01
             d_u8 += dst_stride;
-            vst1_u8(d_u8, res1);
+            vst1_lane_u16((uint16_t *)d_u8, vreinterpret_u16_u8(d01),
+                          2);  // 10 11
+            d_u8 += dst_stride;
+            vst1_lane_u16((uint16_t *)d_u8, vreinterpret_u16_u8(d23),
+                          0);  // 20 21
+            d_u8 += dst_stride;
+            vst1_lane_u16((uint16_t *)d_u8, vreinterpret_u16_u8(d23),
+                          2);  // 30 31
+            d_u8 += dst_stride;
+          } else if ((w == 4) && (h == 2)) {
+            vst1_lane_u32((uint32_t *)d_u8, vreinterpret_u32_u8(d01),
+                          0);  // 00 01 02 03
+            d_u8 += dst_stride;
+            vst1_lane_u32((uint32_t *)d_u8, vreinterpret_u32_u8(d01),
+                          1);  // 10 11 12 13
+            d_u8 += dst_stride;
+          } else if ((w == 2) && (h == 2)) {
+            vst1_lane_u16((uint16_t *)d_u8, vreinterpret_u16_u8(d01),
+                          0);  // 00 01
+            d_u8 += dst_stride;
+            vst1_lane_u16((uint16_t *)d_u8, vreinterpret_u16_u8(d01),
+                          2);  // 10 11
             d_u8 += dst_stride;
           }
+
           s0 = s4;
           s1 = s5;
           s2 = s6;
@@ -1519,17 +1419,28 @@ void av1_convolve_2d_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
           s6 = s10;
           height -= 4;
 #else
-          s7 = vld1q_s16(v_s);
+          s7 = vld1_s16(v_s);
           v_s += im_stride;
 
           __builtin_prefetch(d_u8 + 0 * dst_stride);
 
-          res0 = convolve8_vert_8x4_s32(s0, s1, s2, s3, s4, s5, s6, s7,
-                                        y_filter, round_shift_vec, offset_const,
-                                        sub_const_vec, vec_round_bits);
+          d0 = convolve8_vert_4x4_s32(s0, s1, s2, s3, s4, s5, s6, s7, y_filter,
+                                      round_shift_vec, offset_const,
+                                      sub_const_vec);
 
-          vst1_u8(d_u8, res0);
-          d_u8 += dst_stride;
+          dd0 = vqrshlq_u16(vcombine_u16(d0, d0), vec_round_bits);
+          d01 = vqmovn_u16(dd0);
+
+          if (w == 4) {
+            vst1_lane_u32((uint32_t *)d_u8, vreinterpret_u32_u8(d01),
+                          0);  // 00 01 02 03
+            d_u8 += dst_stride;
+
+          } else if (w == 2) {
+            vst1_lane_u16((uint16_t *)d_u8, vreinterpret_u16_u8(d01),
+                          0);  // 00 01
+            d_u8 += dst_stride;
+          }
 
           s0 = s1;
           s1 = s2;
@@ -1541,10 +1452,106 @@ void av1_convolve_2d_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
           height -= 1;
 #endif
         } while (height > 0);
-        v_src_ptr += 8;
-        dst_u8_ptr += 8;
-        w -= 8;
-      } while (w > 0);
+      } else {
+        // if width is a multiple of 8 & height is a multiple of 4
+        int16x8_t s0, s1, s2, s3, s4, s5, s6, s7;
+        uint8x8_t res0;
+#if defined(__aarch64__)
+        int16x8_t s8, s9, s10;
+        uint8x8_t res1, res2, res3;
+#endif
+
+        do {
+          __builtin_prefetch(v_src_ptr + 0 * im_stride);
+          __builtin_prefetch(v_src_ptr + 1 * im_stride);
+          __builtin_prefetch(v_src_ptr + 2 * im_stride);
+          __builtin_prefetch(v_src_ptr + 3 * im_stride);
+          __builtin_prefetch(v_src_ptr + 4 * im_stride);
+          __builtin_prefetch(v_src_ptr + 5 * im_stride);
+          __builtin_prefetch(v_src_ptr + 6 * im_stride);
+          __builtin_prefetch(v_src_ptr + 7 * im_stride);
+
+          v_s = v_src_ptr;
+          load_s16_8x8(v_s, im_stride, &s0, &s1, &s2, &s3, &s4, &s5, &s6, &s7);
+          v_s += (7 * im_stride);
+
+          d_u8 = dst_u8_ptr;
+          height = h;
+
+          do {
+#if defined(__aarch64__)
+            load_s16_8x4(v_s, im_stride, &s7, &s8, &s9, &s10);
+            v_s += (im_stride << 2);
+
+            __builtin_prefetch(d_u8 + 4 * dst_stride);
+            __builtin_prefetch(d_u8 + 5 * dst_stride);
+            __builtin_prefetch(d_u8 + 6 * dst_stride);
+            __builtin_prefetch(d_u8 + 7 * dst_stride);
+
+            res0 = convolve8_vert_8x4_s32(
+                s0, s1, s2, s3, s4, s5, s6, s7, y_filter, round_shift_vec,
+                offset_const, sub_const_vec, vec_round_bits);
+            res1 = convolve8_vert_8x4_s32(
+                s1, s2, s3, s4, s5, s6, s7, s8, y_filter, round_shift_vec,
+                offset_const, sub_const_vec, vec_round_bits);
+            res2 = convolve8_vert_8x4_s32(
+                s2, s3, s4, s5, s6, s7, s8, s9, y_filter, round_shift_vec,
+                offset_const, sub_const_vec, vec_round_bits);
+            res3 = convolve8_vert_8x4_s32(
+                s3, s4, s5, s6, s7, s8, s9, s10, y_filter, round_shift_vec,
+                offset_const, sub_const_vec, vec_round_bits);
+
+            if (h != 2) {
+              vst1_u8(d_u8, res0);
+              d_u8 += dst_stride;
+              vst1_u8(d_u8, res1);
+              d_u8 += dst_stride;
+              vst1_u8(d_u8, res2);
+              d_u8 += dst_stride;
+              vst1_u8(d_u8, res3);
+              d_u8 += dst_stride;
+            } else {
+              vst1_u8(d_u8, res0);
+              d_u8 += dst_stride;
+              vst1_u8(d_u8, res1);
+              d_u8 += dst_stride;
+            }
+            s0 = s4;
+            s1 = s5;
+            s2 = s6;
+            s3 = s7;
+            s4 = s8;
+            s5 = s9;
+            s6 = s10;
+            height -= 4;
+#else
+            s7 = vld1q_s16(v_s);
+            v_s += im_stride;
+
+            __builtin_prefetch(d_u8 + 0 * dst_stride);
+
+            res0 = convolve8_vert_8x4_s32(
+                s0, s1, s2, s3, s4, s5, s6, s7, y_filter, round_shift_vec,
+                offset_const, sub_const_vec, vec_round_bits);
+
+            vst1_u8(d_u8, res0);
+            d_u8 += dst_stride;
+
+            s0 = s1;
+            s1 = s2;
+            s2 = s3;
+            s3 = s4;
+            s4 = s5;
+            s5 = s6;
+            s6 = s7;
+            height -= 1;
+#endif
+          } while (height > 0);
+          v_src_ptr += 8;
+          dst_u8_ptr += 8;
+          w -= 8;
+        } while (w > 0);
+      }
     }
   }
 }

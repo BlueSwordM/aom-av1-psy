@@ -110,4 +110,11 @@ void av1_convolve_x_sr_12tap_sse2(const uint8_t *src, int src_stride,
                                   const InterpFilterParams *filter_params_x,
                                   int subpel_x_qn, ConvolveParams *conv_params);
 
+void av1_convolve_2d_sr_12tap_sse2(const uint8_t *src, int src_stride,
+                                   uint8_t *dst, int dst_stride, int w, int h,
+                                   const InterpFilterParams *filter_params_x,
+                                   const InterpFilterParams *filter_params_y,
+                                   const int subpel_x_qn, const int subpel_y_qn,
+                                   ConvolveParams *conv_params);
+
 #endif  // AOM_AOM_DSP_X86_CONVOLVE_COMMON_INTRIN_H_
