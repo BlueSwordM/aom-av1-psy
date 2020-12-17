@@ -184,7 +184,7 @@ static void apply_temporal_filter_planewise(
       }
 
       // Load next row to the last element
-      if (row <= block_width - 4) {
+      if (row <= block_height - 4) {
         vsrc[4] = xx_load_and_pad(src, col, block_width);
         src += SSE_STRIDE;
       } else {
