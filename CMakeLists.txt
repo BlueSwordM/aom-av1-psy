@@ -128,6 +128,8 @@ list(APPEND AOM_SOURCES
             "${AOM_ROOT}/aom/src/aom_integer.c")
 
 list(APPEND AOM_COMMON_APP_UTIL_SOURCES
+            "${AOM_ROOT}/av1/arg_defs.h"
+            "${AOM_ROOT}/av1/arg_defs.c"
             "${AOM_ROOT}/common/args_helper.c"
             "${AOM_ROOT}/common/args_helper.h"
             "${AOM_ROOT}/common/args.c"
