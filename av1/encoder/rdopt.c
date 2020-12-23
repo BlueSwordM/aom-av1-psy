@@ -2226,6 +2226,9 @@ static AOM_INLINE int prune_modes_based_on_tpl_stats(
   const int have_newmv = have_newmv_in_inter_mode(this_mode);
   if ((prune_mode_level < 2) && have_newmv) return 0;
 
+  const int64_t best_inter_cost = inter_cost_info_from_tpl->best_inter_cost;
+  if (best_inter_cost == INT64_MAX) return 0;
+
   const int prune_level = prune_mode_level - 1;
   int64_t cur_inter_cost;
 
@@ -2257,7 +2260,6 @@ static AOM_INLINE int prune_modes_based_on_tpl_stats(
 
   // Prune the mode if cur_inter_cost is greater than threshold times
   // best_inter_cost
-  const int64_t best_inter_cost = inter_cost_info_from_tpl->best_inter_cost;
   if (cur_inter_cost >
       ((tpl_inter_mode_prune_mul_factor[prune_level][prune_index] *
         best_inter_cost) >>
