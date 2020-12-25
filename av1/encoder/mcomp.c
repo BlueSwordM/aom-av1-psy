@@ -78,6 +78,13 @@ get_faster_search_method(SEARCH_METHODS search_method) {
   }
 }
 
+void av1_init_obmc_buffer(OBMCBuffer *obmc_buffer) {
+  obmc_buffer->wsrc = NULL;
+  obmc_buffer->mask = NULL;
+  obmc_buffer->above_pred = NULL;
+  obmc_buffer->left_pred = NULL;
+}
+
 void av1_make_default_fullpel_ms_params(
     FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const struct AV1_COMP *cpi,
     const MACROBLOCK *x, BLOCK_SIZE bsize, const MV *ref_mv,

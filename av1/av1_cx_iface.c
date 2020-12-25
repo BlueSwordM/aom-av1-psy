@@ -2277,10 +2277,15 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       num_workers = av1_fp_compute_num_enc_workers(cpi);
 #endif
     } else {
-      num_workers = av1_compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
+      av1_compute_num_workers_for_mt(cpi);
+      num_workers = av1_get_max_num_workers(cpi);
     }
-    if ((num_workers > 1) && (cpi->mt_info.num_workers == 0))
+    if ((num_workers > 1) && (cpi->mt_info.num_workers == 0)) {
       av1_create_workers(cpi, num_workers);
+      if (cpi->oxcf.pass != 1) {
+        av1_create_second_pass_workers(cpi, num_workers);
+      }
+    }
 
     // Call for LAP stage
     if (cpi_lap != NULL) {
