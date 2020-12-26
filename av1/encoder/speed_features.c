@@ -467,7 +467,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.tx_type_search.ml_tx_split_thresh = 4000;
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
     sf->tx_sf.tx_type_search.skip_tx_search = 1;
-    sf->tx_sf.use_intra_txb_hash = 1;
 
     sf->rd_sf.perform_coeff_opt = boosted ? 2 : 3;
     sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
@@ -575,6 +574,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tx_sf.adaptive_txb_search_level = boosted ? 2 : 3;
     sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
+    sf->tx_sf.use_intra_txb_hash = 1;
 
     // TODO(any): Refactor the code related to following winner mode speed
     // features
@@ -1353,6 +1353,13 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
         !sf->inter_sf.disable_masked_comp;
     cpi->common.seq_params.enable_interintra_compound &=
         (sf->inter_sf.disable_interintra_wedge_var_thresh != UINT_MAX);
+  }
+
+  // Enable use_intra_txb_hash in speed 1,2 for intra-only encoding.
+  // TODO(any) This speed feature may be useful for image encoding.
+  // Experiment and enable for image encoding later.
+  if (cpi->oxcf.kf_cfg.key_freq_max == 0 && speed <= 2) {
+    sf->tx_sf.use_intra_txb_hash = 1;
   }
 
   // sf->part_sf.partition_search_breakout_dist_thr is set assuming max 64x64
