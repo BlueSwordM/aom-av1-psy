@@ -328,6 +328,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
 
   // Motion compensated prediction
   xd->mi[0]->ref_frame[0] = INTRA_FRAME;
+  xd->mi[0]->ref_frame[1] = NONE_FRAME;
 
   int best_rf_idx = -1;
   int_mv best_mv;
@@ -478,7 +479,12 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   tpl_stats->srcrf_dist = recon_error << (TPL_DEP_COST_SCALE_LOG2);
 
   // Final encode
-  if (is_inter_mode(best_mode)) {
+  if (!is_inter_mode(best_mode)) {
+    av1_predict_intra_block(cm, xd, block_size_wide[bsize],
+                            block_size_high[bsize], tx_size, best_mode, 0, 0,
+                            FILTER_INTRA_MODES, dst_buffer, dst_buffer_stride,
+                            dst_buffer, dst_buffer_stride, 0, 0, 0);
+  } else {
     const YV12_BUFFER_CONFIG *ref_frame_ptr = tpl_data->ref_frame[best_rf_idx];
 
     InterPredParams inter_pred_params;
@@ -492,11 +498,6 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
 
     av1_enc_build_one_inter_predictor(dst_buffer, dst_buffer_stride,
                                       &best_mv.as_mv, &inter_pred_params);
-  } else {
-    av1_predict_intra_block(cm, xd, block_size_wide[bsize],
-                            block_size_high[bsize], tx_size, best_mode, 0, 0,
-                            FILTER_INTRA_MODES, dst_buffer, dst_buffer_stride,
-                            dst_buffer, dst_buffer_stride, 0, 0, 0);
   }
 
   int rate_cost;
