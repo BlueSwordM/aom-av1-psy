@@ -97,25 +97,25 @@ static INLINE int find_comp_rd_in_stats(const AV1_COMP *const cpi,
   return 0;  // no match result found
 }
 
-static INLINE bool enable_wedge_search(MACROBLOCK *const x,
-                                       const AV1_COMP *const cpi) {
+static INLINE bool enable_wedge_search(
+    MACROBLOCK *const x, const unsigned int disable_wedge_var_thresh) {
   // Enable wedge search if source variance and edge strength are above
   // the thresholds.
-  return x->source_variance > cpi->sf.inter_sf.disable_wedge_search_var_thresh;
+  return x->source_variance > disable_wedge_var_thresh;
 }
 
 static INLINE bool enable_wedge_interinter_search(MACROBLOCK *const x,
                                                   const AV1_COMP *const cpi) {
-  return enable_wedge_search(x, cpi) &&
-         cpi->oxcf.comp_type_cfg.enable_interinter_wedge &&
-         !cpi->sf.inter_sf.disable_interinter_wedge;
+  return enable_wedge_search(
+             x, cpi->sf.inter_sf.disable_interinter_wedge_var_thresh) &&
+         cpi->oxcf.comp_type_cfg.enable_interinter_wedge;
 }
 
 static INLINE bool enable_wedge_interintra_search(MACROBLOCK *const x,
                                                   const AV1_COMP *const cpi) {
-  return enable_wedge_search(x, cpi) &&
-         cpi->oxcf.comp_type_cfg.enable_interintra_wedge &&
-         !cpi->sf.inter_sf.disable_wedge_interintra_search;
+  return enable_wedge_search(
+             x, cpi->sf.inter_sf.disable_interintra_wedge_var_thresh) &&
+         cpi->oxcf.comp_type_cfg.enable_interintra_wedge;
 }
 
 static int8_t estimate_wedge_sign(const AV1_COMP *cpi, const MACROBLOCK *x,
