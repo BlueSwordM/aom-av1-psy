@@ -1813,7 +1813,19 @@ void av1_cdef_mse_calc_frame_mt(AV1_COMMON *cm, MultiThreadInfo *mt_info,
 
 // Computes num_workers for temporal filter multi-threading.
 static AOM_INLINE int compute_num_tf_workers(AV1_COMP *cpi) {
-  return compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
+  // For single-pass encode, using no. of workers as per tf block size was not
+  // found to improve speed. Hence the thread assignment for single-pass encode
+  // is kept based on compute_num_enc_workers().
+  if (cpi->oxcf.pass != 2)
+    return (compute_num_enc_workers(cpi, cpi->oxcf.max_threads));
+
+  if (cpi->oxcf.max_threads <= 1) return 1;
+
+  const int frame_height = cpi->common.height;
+  const BLOCK_SIZE block_size = TF_BLOCK_SIZE;
+  const int mb_height = block_size_high[block_size];
+  const int mb_rows = get_num_blocks(frame_height, mb_height);
+  return AOMMIN(cpi->oxcf.max_threads, mb_rows);
 }
 
 // Computes num_workers for tpl multi-threading.
