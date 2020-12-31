@@ -1983,6 +1983,13 @@ typedef struct {
   int subsampling_y;
 } FRAME_INFO;
 
+/*!
+ * \brief This structure stores different types of frame indices.
+ */
+typedef struct {
+  int show_frame_count;
+} FRAME_INDEX_SET;
+
 /*!\endcond */
 
 /*!
@@ -2390,6 +2397,11 @@ typedef struct AV1_COMP {
    * Stores the frame parameters during encoder initialization.
    */
   FRAME_INFO frame_info;
+
+  /*!
+   * Stores different types of frame indices.
+   */
+  FRAME_INDEX_SET frame_index_set;
 
   /*!
    * Structure to store the dimensions of current frame.

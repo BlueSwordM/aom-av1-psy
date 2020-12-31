@@ -1253,14 +1253,14 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     if (frame_update_type == LF_UPDATE)
       *pframe_qindex = gf_group->q_val[gf_index];
 
+    struct lookahead_entry *buf;
     if (gf_index == cur_frame_idx) {
-      struct lookahead_entry *buf = av1_lookahead_peek(
-          cpi->lookahead, lookahead_index, cpi->compressor_stage);
+      buf = av1_lookahead_peek(cpi->lookahead, lookahead_index,
+                               cpi->compressor_stage);
       tpl_frame->gf_picture = gop_eval ? &buf->img : frame_input->source;
     } else {
-      struct lookahead_entry *buf = av1_lookahead_peek(
-          cpi->lookahead, lookahead_index, cpi->compressor_stage);
-
+      buf = av1_lookahead_peek(cpi->lookahead, lookahead_index,
+                               cpi->compressor_stage);
       if (buf == NULL) break;
       tpl_frame->gf_picture = &buf->img;
     }
@@ -1278,6 +1278,8 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     // is the display index of the frame.
     tpl_frame->frame_display_index =
         frame_display_index + cm->current_frame.frame_number - anc_frame_offset;
+    assert(buf->display_idx == cpi->frame_index_set.show_frame_count -
+                                   anc_frame_offset + frame_display_index);
 
     if (frame_update_type != OVERLAY_UPDATE &&
         frame_update_type != INTNL_OVERLAY_UPDATE) {

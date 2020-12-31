@@ -815,6 +815,17 @@ static INLINE void init_frame_info(FRAME_INFO *frame_info,
   frame_info->subsampling_y = seq_params->subsampling_y;
 }
 
+static INLINE void init_frame_index_set(FRAME_INDEX_SET *frame_index_set) {
+  frame_index_set->show_frame_count = 0;
+}
+
+static INLINE void update_frame_index_set(FRAME_INDEX_SET *frame_index_set,
+                                          int is_show_frame) {
+  if (is_show_frame) {
+    frame_index_set->show_frame_count++;
+  }
+}
+
 AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
                                 FIRSTPASS_STATS *frame_stats_buf,
                                 COMPRESSOR_STAGE stage, int num_lap_buffers,
@@ -885,6 +896,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
     }
   }
   init_frame_info(&cpi->frame_info, cm);
+  init_frame_index_set(&cpi->frame_index_set);
 
   cm->current_frame.frame_number = 0;
   cm->current_frame_id = -1;
@@ -2963,6 +2975,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     }
 
     ++current_frame->frame_number;
+    update_frame_index_set(&cpi->frame_index_set, cm->show_frame);
     return AOM_CODEC_OK;
   }
 
@@ -3178,7 +3191,10 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   // A droppable frame might not be shown but it always
   // takes a space in the gf group. Therefore, even when
   // it is not shown, we still need update the count down.
-  if (cm->show_frame) ++current_frame->frame_number;
+  if (cm->show_frame) {
+    update_frame_index_set(&cpi->frame_index_set, cm->show_frame);
+    ++current_frame->frame_number;
+  }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, encode_frame_to_data_rate_time);
@@ -3214,8 +3230,9 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   memcpy(&cpi->refresh_frame, &frame_params->refresh_frame,
          sizeof(cpi->refresh_frame));
 
-  if (current_frame->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf)
+  if (current_frame->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
     current_frame->frame_number = 0;
+  }
 
   current_frame->order_hint =
       current_frame->frame_number + frame_params->order_offset;

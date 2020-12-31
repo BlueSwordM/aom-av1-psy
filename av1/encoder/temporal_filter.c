@@ -1000,7 +1000,7 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   } else if (filter_frame_lookahead_idx < 0 && q <= 10) {
     adjust_num = 0;
   }
-  num_frames = AOMMIN(num_frames + adjust_num, lookahead_depth + 1);
+  num_frames = AOMMIN(num_frames + adjust_num, lookahead_depth);
 
   if (filter_frame_lookahead_idx == -1 ||
       filter_frame_lookahead_idx == 0) {  // Key frame.

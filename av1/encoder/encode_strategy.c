@@ -368,7 +368,8 @@ int is_forced_keyframe_pending(struct lookahead_ctx *lookahead,
 // temporal_filtered, flush, and frame_update_type are outputs.
 // Return the frame source, or NULL if we couldn't find one
 static struct lookahead_entry *choose_frame_source(
-    AV1_COMP *const cpi, int *const flush, struct lookahead_entry **last_source,
+    AV1_COMP *const cpi, int *const flush, int *pop_lookahead,
+    struct lookahead_entry **last_source,
     EncodeFrameParams *const frame_params) {
   AV1_COMMON *const cm = &cpi->common;
   const GF_GROUP *const gf_group = &cpi->gf_group;
@@ -390,21 +391,21 @@ static struct lookahead_entry *choose_frame_source(
   // buffer. If the current frame is not arf, then pop it. This assumes the
   // first frame in the GF group is not arf. May need to change if it is not
   // true.
-  int pop_lookahead = (src_index == 0);
+  *pop_lookahead = (src_index == 0);
   // If this is a key frame and keyframe filtering is enabled with overlay,
   // then do not pop.
-  if (pop_lookahead && cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1 &&
+  if (*pop_lookahead && cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1 &&
       gf_group->update_type[gf_group->index] == ARF_UPDATE &&
       !is_stat_generation_stage(cpi) && cpi->lookahead) {
     if (cpi->lookahead->read_ctxs[cpi->compressor_stage].sz &&
         (*flush ||
          cpi->lookahead->read_ctxs[cpi->compressor_stage].sz ==
              cpi->lookahead->read_ctxs[cpi->compressor_stage].pop_sz)) {
-      pop_lookahead = 0;
+      *pop_lookahead = 0;
     }
   }
-  frame_params->show_frame = pop_lookahead;
-  if (pop_lookahead) {
+  frame_params->show_frame = *pop_lookahead;
+  if (*pop_lookahead) {
     // show frame, pop from buffer
     // Get last frame source.
     if (cm->current_frame.frame_number > 0) {
@@ -412,7 +413,7 @@ static struct lookahead_entry *choose_frame_source(
           av1_lookahead_peek(cpi->lookahead, -1, cpi->compressor_stage);
     }
     // Read in the source frame.
-    source = av1_lookahead_pop(cpi->lookahead, *flush, cpi->compressor_stage);
+    source = av1_lookahead_peek(cpi->lookahead, 0, cpi->compressor_stage);
   } else {
     // no show frames are arf frames
     source =
@@ -875,7 +876,6 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
 
   // Decide whether to apply temporal filtering to the source frame.
   int apply_filtering = 0;
-  int arf_src_index = -1;
   if (frame_params->frame_type == KEY_FRAME) {
     // Decide whether it is allowed to perform key frame filtering
     int allow_kf_filtering =
@@ -894,22 +894,11 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     // If we are doing kf filtering, set up a few things.
     if (apply_filtering) {
       av1_setup_past_independence(cm);
-      if (!frame_params->show_frame && cpi->no_show_fwd_kf) {
-        // fwd kf
-        arf_src_index = -1 * gf_group->arf_src_offset[gf_group->index];
-      } else if (!frame_params->show_frame) {
-        arf_src_index = 0;
-      } else {
-        arf_src_index = -1;
-      }
     }
   } else if (get_frame_update_type(&cpi->gf_group) == ARF_UPDATE ||
              get_frame_update_type(&cpi->gf_group) == INTNL_ARF_UPDATE) {
     // ARF
     apply_filtering = oxcf->algo_cfg.arnr_max_frames > 0;
-    if (apply_filtering) {
-      arf_src_index = gf_group->arf_src_offset[gf_group->index];
-    }
   }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -922,6 +911,11 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     int show_existing_alt_ref = 0;
     // TODO(bohanli): figure out why we need frame_type in cm here.
     cm->current_frame.frame_type = frame_params->frame_type;
+    int arf_src_index = gf_group->arf_src_offset[gf_group->index];
+    if (!frame_params->show_frame && cpi->no_show_fwd_kf) {
+      // fwd kf
+      arf_src_index = -1 * gf_group->arf_src_offset[gf_group->index];
+    }
     const int code_arf =
         av1_temporal_filter(cpi, arf_src_index, &show_existing_alt_ref);
     if (code_arf) {
@@ -1171,11 +1165,14 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   struct lookahead_entry *source = NULL;
   struct lookahead_entry *last_source = NULL;
+  int pop_lookahead = 0;
   if (frame_params.show_existing_frame) {
-    source = av1_lookahead_pop(cpi->lookahead, flush, cpi->compressor_stage);
+    source = av1_lookahead_peek(cpi->lookahead, 0, cpi->compressor_stage);
+    pop_lookahead = 1;
     frame_params.show_frame = 1;
   } else {
-    source = choose_frame_source(cpi, &flush, &last_source, &frame_params);
+    source = choose_frame_source(cpi, &flush, &pop_lookahead, &last_source,
+                                 &frame_params);
   }
 
   if (source == NULL) {  // If no source was found, we can't encode a frame.
@@ -1397,6 +1394,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     av1_update_vmaf_curve(cpi);
   }
 #endif
+  if (pop_lookahead == 1) {
+    av1_lookahead_pop(cpi->lookahead, flush, cpi->compressor_stage);
+  }
 
   if (!is_stat_generation_stage(cpi)) {
     update_fb_of_context_type(cpi, &frame_params, cpi->fb_of_context_type);
