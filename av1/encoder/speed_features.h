@@ -574,6 +574,9 @@ typedef struct MV_SPEED_FEATURES {
 
   // Enable/disable extensive joint motion search.
   int disable_extensive_joint_motion_search;
+
+  // Enable second best mv check in joint mv search.
+  int enable_second_mv;
 } MV_SPEED_FEATURES;
 
 typedef struct INTER_MODE_SPEED_FEATURES {

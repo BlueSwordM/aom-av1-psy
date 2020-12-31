@@ -372,8 +372,8 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
 
 int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                             BLOCK_SIZE bsize, int_mv *cur_mv,
-                            const uint8_t *mask, int mask_stride,
-                            int *rate_mv) {
+                            const uint8_t *mask, int mask_stride, int *rate_mv,
+                            int allow_second_mv) {
   const AV1_COMMON *const cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   const int pw = block_size_wide[bsize];
@@ -498,7 +498,8 @@ int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     }
 
     const int try_second = second_best_mv.as_int != INVALID_MV &&
-                           second_best_mv.as_int != best_mv.as_int;
+                           second_best_mv.as_int != best_mv.as_int &&
+                           allow_second_mv;
 
     // Restore the pointer to the first (possibly scaled) prediction buffer.
     if (id) xd->plane[plane].pre[0] = ref_yv12[0];
@@ -755,7 +756,8 @@ static AOM_INLINE void do_masked_motion_search_indexed(
     av1_compound_single_motion_search_interinter(cpi, x, bsize, tmp_mv, mask,
                                                  mask_stride, rate_mv, which);
   } else if (which == 2) {
-    av1_joint_motion_search(cpi, x, bsize, tmp_mv, mask, mask_stride, rate_mv);
+    av1_joint_motion_search(cpi, x, bsize, tmp_mv, mask, mask_stride, rate_mv,
+                            1);
   }
 }
 
