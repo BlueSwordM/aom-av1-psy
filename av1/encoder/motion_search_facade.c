@@ -535,53 +535,15 @@ int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
           xd, cm, &ms_params, start_mv, &best_mv.as_mv, &dis, &sse, NULL);
 
       if (try_second) {
-        struct macroblockd_plane *p = xd->plane;
-        const BUFFER_SET orig_dst = {
-          { p[0].dst.buf, p[1].dst.buf, p[2].dst.buf },
-          { p[0].dst.stride, p[1].dst.stride, p[2].dst.stride },
-        };
-        mbmi->mv[id].as_mv = best_mv.as_mv;
-        mbmi->mv[!id].as_mv = cur_mv[!id].as_mv;
-
-        xd->plane[plane].pre[0] = ref_yv12[0];
-        xd->plane[plane].pre[1] = ref_yv12[1];
-
-        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, &orig_dst, bsize,
-                                      0, 0);
-        av1_subtract_plane(x, bsize, 0);
-        RD_STATS this_rd_stats;
-        av1_init_rd_stats(&this_rd_stats);
-        av1_estimate_txfm_yrd(cpi, x, &this_rd_stats, INT64_MAX, bsize,
-                              max_txsize_rect_lookup[bsize]);
-        int this_mv_rate = av1_mv_bit_cost(
-            &best_mv.as_mv, &ref_mv[id].as_mv, mv_costs->nmv_joint_cost,
-            mv_costs->mv_cost_stack, MV_COST_WEIGHT);
-        int64_t rd = RDCOST(x->rdmult, this_mv_rate + this_rd_stats.rate,
-                            this_rd_stats.dist);
-
         MV this_best_mv;
         MV subpel_start_mv = get_mv_from_fullmv(&second_best_mv.as_fullmv);
         if (av1_is_subpelmv_in_range(&ms_params.mv_limits, subpel_start_mv)) {
-          const int this_var = cpi->mv_search_params.find_fractional_mv_step(
+          const int thissme = cpi->mv_search_params.find_fractional_mv_step(
               xd, cm, &ms_params, subpel_start_mv, &this_best_mv, &dis, &sse,
               NULL);
-          mbmi->mv[id].as_mv = this_best_mv;
-          mbmi->mv[!id].as_mv = cur_mv[!id].as_mv;
-          av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, &orig_dst,
-                                        bsize, 0, 0);
-          av1_subtract_plane(x, bsize, 0);
-          RD_STATS tmp_rd_stats;
-          av1_init_rd_stats(&tmp_rd_stats);
-          av1_estimate_txfm_yrd(cpi, x, &tmp_rd_stats, INT64_MAX, bsize,
-                                max_txsize_rect_lookup[bsize]);
-          int tmp_mv_rate = av1_mv_bit_cost(
-              &this_best_mv, &ref_mv[id].as_mv, mv_costs->nmv_joint_cost,
-              mv_costs->mv_cost_stack, MV_COST_WEIGHT);
-          int64_t tmp_rd = RDCOST(x->rdmult, tmp_rd_stats.rate + tmp_mv_rate,
-                                  tmp_rd_stats.dist);
-          if (tmp_rd < rd) {
+          if (thissme < bestsme) {
             best_mv.as_mv = this_best_mv;
-            bestsme = AOMMIN(bestsme, this_var);
+            bestsme = thissme;
           }
         }
       }

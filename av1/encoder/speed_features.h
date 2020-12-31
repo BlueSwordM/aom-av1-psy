@@ -369,6 +369,9 @@ typedef struct TPL_SPEED_FEATURES {
 
   // Prune reference frames in TPL.
   int prune_ref_frames_in_tpl;
+
+  // Support compound predictions.
+  int allow_compound_pred;
 } TPL_SPEED_FEATURES;
 
 typedef struct GLOBAL_MOTION_SPEED_FEATURES {

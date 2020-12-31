@@ -29,6 +29,7 @@
 #include "av1/encoder/encodeframe_utils.h"
 #include "av1/encoder/encode_strategy.h"
 #include "av1/encoder/hybrid_fwd_txfm.h"
+#include "av1/encoder/motion_search_facade.h"
 #include "av1/encoder/rd.h"
 #include "av1/encoder/rdopt.h"
 #include "av1/encoder/reconinter_enc.h"
@@ -434,16 +435,19 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   // Motion compensated prediction
   xd->mi[0]->ref_frame[0] = INTRA_FRAME;
   xd->mi[0]->ref_frame[1] = NONE_FRAME;
+  xd->mi[0]->compound_idx = 1;
 
   int best_rf_idx = -1;
   int_mv best_mv;
   int64_t inter_cost;
   int64_t best_inter_cost = INT64_MAX;
   int rf_idx;
+  int_mv single_mv[INTER_REFS_PER_FRAME];
 
   best_mv.as_int = INVALID_MV;
 
   for (rf_idx = 0; rf_idx < INTER_REFS_PER_FRAME; ++rf_idx) {
+    single_mv[rf_idx].as_int = INVALID_MV;
     if (tpl_data->ref_frame[rf_idx] == NULL ||
         tpl_data->src_ref_frame[rf_idx] == NULL) {
       tpl_stats->mv[rf_idx].as_int = INVALID_MV;
@@ -535,6 +539,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
     }
 
     tpl_stats->mv[rf_idx].as_int = best_rfidx_mv.as_int;
+    single_mv[rf_idx] = best_rfidx_mv;
 
     struct buf_2d ref_buf = { NULL, ref_frame_ptr->y_buffer,
                               ref_frame_ptr->y_width, ref_frame_ptr->y_height,
@@ -565,6 +570,68 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
         xd->mi[0]->mv[0].as_int = best_mv.as_int;
       }
     }
+  }
+
+  int comp_ref_frames[3][2] = {
+    { 0, 4 },
+    { 0, 6 },
+    { 3, 6 },
+  };
+
+  xd->mi_row = mi_row;
+  xd->mi_col = mi_col;
+  for (int cmp_rf_idx = 0; cmp_rf_idx < 3; ++cmp_rf_idx) {
+    int rf_idx0 = comp_ref_frames[cmp_rf_idx][0];
+    int rf_idx1 = comp_ref_frames[cmp_rf_idx][1];
+
+    if (tpl_data->ref_frame[rf_idx0] == NULL ||
+        tpl_data->src_ref_frame[rf_idx0] == NULL ||
+        tpl_data->ref_frame[rf_idx1] == NULL ||
+        tpl_data->src_ref_frame[rf_idx1] == NULL) {
+      continue;
+    }
+
+    const YV12_BUFFER_CONFIG *ref_frame_ptr[2] = {
+      tpl_data->src_ref_frame[rf_idx0],
+      tpl_data->src_ref_frame[rf_idx1],
+    };
+
+    xd->mi[0]->ref_frame[0] = LAST_FRAME;
+    xd->mi[0]->ref_frame[1] = ALTREF_FRAME;
+
+    struct buf_2d yv12_mb[2][MAX_MB_PLANE];
+    for (int i = 0; i < 2; ++i) {
+      av1_setup_pred_block(xd, yv12_mb[i], ref_frame_ptr[i],
+                           xd->block_ref_scale_factors[i],
+                           xd->block_ref_scale_factors[i], MAX_MB_PLANE);
+      for (int plane = 0; plane < MAX_MB_PLANE; ++plane) {
+        xd->plane[plane].pre[i] = yv12_mb[i][plane];
+      }
+    }
+
+    int_mv tmp_mv[2] = { single_mv[rf_idx0], single_mv[rf_idx1] };
+    int rate_mv;
+    av1_joint_motion_search(cpi, x, bsize, tmp_mv, NULL, 0, &rate_mv);
+
+    for (int ref = 0; ref < 2; ++ref) {
+      struct buf_2d ref_buf = { NULL, ref_frame_ptr[ref]->y_buffer,
+                                ref_frame_ptr[ref]->y_width,
+                                ref_frame_ptr[ref]->y_height,
+                                ref_frame_ptr[ref]->y_stride };
+      InterPredParams inter_pred_params;
+      av1_init_inter_params(&inter_pred_params, bw, bh, mi_row * MI_SIZE,
+                            mi_col * MI_SIZE, 0, 0, xd->bd, is_cur_buf_hbd(xd),
+                            0, &tpl_data->sf, &ref_buf, kernel);
+      av1_init_comp_mode(&inter_pred_params);
+
+      inter_pred_params.conv_params = get_conv_params_no_round(
+          ref, 0, xd->tmp_conv_dst, MAX_SB_SIZE, 1, xd->bd);
+
+      av1_enc_build_one_inter_predictor(predictor, bw, &tmp_mv[ref].as_mv,
+                                        &inter_pred_params);
+    }
+    tpl_get_satd_cost(x, src_diff, bw, src_mb_buffer, src_stride, predictor, bw,
+                      coeff, bw, bh, tx_size);
   }
 
   if (best_inter_cost < INT64_MAX) {
@@ -1257,6 +1324,9 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   tpl_row_mt->sync_read_ptr = av1_tpl_row_mt_sync_read_dummy;
   tpl_row_mt->sync_write_ptr = av1_tpl_row_mt_sync_write_dummy;
 
+  av1_setup_scale_factors_for_frame(&cm->sf_identity, cm->width, cm->height,
+                                    cm->width, cm->height);
+
   // Backward propagation from tpl_group_frames to 1.
   for (int frame_idx = gf_group->index; frame_idx < tpl_gf_group_frames;
        ++frame_idx) {
@@ -1265,7 +1335,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
       continue;
 
     init_mc_flow_dispenser(cpi, frame_idx, pframe_qindex);
-    if (mt_info->num_workers > 1) {
+    if (mt_info->num_workers > 1 && !cpi->sf.tpl_sf.allow_compound_pred) {
       tpl_row_mt->sync_read_ptr = av1_tpl_row_mt_sync_read;
       tpl_row_mt->sync_write_ptr = av1_tpl_row_mt_sync_write;
       av1_mc_flow_dispenser_mt(cpi);
