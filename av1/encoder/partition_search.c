@@ -3081,7 +3081,7 @@ static void prune_4_way_partition_search(
 
   // Pruning: pruning out some 4-way partitions using a DNN taking rd costs of
   // sub-blocks from basic partition types.
-  if (cpi->sf.part_sf.ml_prune_4_partition && partition4_allowed &&
+  if (cpi->sf.part_sf.ml_prune_partition && partition4_allowed &&
       part_search_state->partition_rect_allowed[HORZ] &&
       part_search_state->partition_rect_allowed[VERT]) {
     av1_ml_prune_4_partition(
@@ -3239,7 +3239,7 @@ static void prune_partitions_after_split(
   // Use the rd costs of PARTITION_NONE and subblocks from PARTITION_SPLIT
   // to prune out rectangular partitions in some directions.
   if (!cpi->sf.part_sf.ml_early_term_after_part_split_level &&
-      cpi->sf.part_sf.ml_prune_rect_partition && !frame_is_intra_only(cm) &&
+      cpi->sf.part_sf.ml_prune_partition && !frame_is_intra_only(cm) &&
       (part_search_state->partition_rect_allowed[HORZ] ||
        part_search_state->partition_rect_allowed[VERT]) &&
       !(part_search_state->prune_rect_part[HORZ] ||

@@ -383,9 +383,7 @@ static void set_good_speed_features_framesize_independent(
   sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3;
 
   sf->part_sf.less_rectangular_check_level = 1;
-  sf->part_sf.ml_prune_4_partition = 1;
-  sf->part_sf.ml_prune_ab_partition = 1;
-  sf->part_sf.ml_prune_rect_partition = 1;
+  sf->part_sf.ml_prune_partition = 1;
   sf->part_sf.prune_ext_partition_types_search_level = 1;
   sf->part_sf.simple_motion_search_prune_rect = 1;
   sf->part_sf.ml_predict_breakout_level = use_hbd ? 1 : 3;
@@ -750,9 +748,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3;
 
   sf->part_sf.less_rectangular_check_level = 1;
-  sf->part_sf.ml_prune_4_partition = 1;
-  sf->part_sf.ml_prune_ab_partition = 1;
-  sf->part_sf.ml_prune_rect_partition = 1;
+  sf->part_sf.ml_prune_partition = 1;
   sf->part_sf.prune_ext_partition_types_search_level = 1;
 
   // TODO(debargha): Test, tweak and turn on either 1 or 2
@@ -1095,9 +1091,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->partition_search_breakout_dist_thr = 0;
   part_sf->partition_search_breakout_rate_thr = 0;
   part_sf->prune_ext_partition_types_search_level = 0;
-  part_sf->ml_prune_rect_partition = 0;
-  part_sf->ml_prune_ab_partition = 0;
-  part_sf->ml_prune_4_partition = 0;
+  part_sf->ml_prune_partition = 0;
   part_sf->ml_early_term_after_part_split_level = 0;
   for (int i = 0; i < PARTITION_BLOCK_SIZES; ++i) {
     part_sf->ml_partition_search_breakout_thresh[i] =

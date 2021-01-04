@@ -399,14 +399,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   // aggressiveness of pruning in order.
   int prune_ext_partition_types_search_level;
 
-  // Use a ML model to prune horz and vert partitions
-  int ml_prune_rect_partition;
-
-  // Use a ML model to prune horz_a, horz_b, vert_a and vert_b partitions.
-  int ml_prune_ab_partition;
-
-  // Use a ML model to prune horz4 and vert4 partitions.
-  int ml_prune_4_partition;
+  // Use a ML model to prune rectangular, ab and 4-way horz
+  // and vert partitions
+  int ml_prune_partition;
 
   // Use a ML model to adaptively terminate partition search after trying
   // PARTITION_SPLIT. Can take values 0 - 2, 0 meaning not being enabled, and
