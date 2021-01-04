@@ -4452,7 +4452,7 @@ static INLINE void match_ref_frame(const MB_MODE_INFO *const mbmi,
 // Prune compound mode using ref frames of neighbor blocks.
 static INLINE int compound_skip_using_neighbor_refs(
     MACROBLOCKD *const xd, const PREDICTION_MODE this_mode,
-    const MV_REFERENCE_FRAME *ref_frames, int prune_compound_using_neighbors) {
+    const MV_REFERENCE_FRAME *ref_frames, int prune_extended_comp_mode) {
   // Exclude non-extended compound modes from pruning
   if (this_mode == NEAREST_NEARESTMV || this_mode == NEAR_NEARMV ||
       this_mode == NEW_NEWMV || this_mode == GLOBAL_GLOBALMV)
@@ -4472,7 +4472,7 @@ static INLINE int compound_skip_using_neighbor_refs(
   const int track_ref_match = is_ref_match[0] + is_ref_match[1];
 
   // Pruning based on ref frame match with neighbors.
-  if (track_ref_match >= prune_compound_using_neighbors) return 0;
+  if (track_ref_match >= prune_extended_comp_mode) return 0;
   return 1;
 }
 
@@ -4490,8 +4490,7 @@ static INLINE void update_best_single_mode(InterModeSearchState *search_state,
 // Prune compound mode using best single mode for the same reference.
 static INLINE int skip_compound_using_best_single_mode_ref(
     const PREDICTION_MODE this_mode, const MV_REFERENCE_FRAME *ref_frames,
-    const PREDICTION_MODE *best_single_mode,
-    int prune_comp_using_best_single_mode_ref) {
+    const PREDICTION_MODE *best_single_mode) {
   // Exclude non-extended compound modes from pruning
   if (this_mode == NEAREST_NEARESTMV || this_mode == NEAR_NEARMV ||
       this_mode == NEW_NEWMV || this_mode == GLOBAL_GLOBALMV)
@@ -4514,9 +4513,6 @@ static INLINE int skip_compound_using_best_single_mode_ref(
   const PREDICTION_MODE single_mode = best_single_mode[ref_frames[newmv_dir]];
   if (single_mode == NEWMV) return 0;
 
-  // Avoid pruning the compound mode when best single mode is not available
-  if (prune_comp_using_best_single_mode_ref == 1)
-    if (single_mode == MB_MODE_COUNT) return 0;
   return 1;
 }
 
@@ -4770,17 +4766,13 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
       return 1;
   }
 
-  if (sf->inter_sf.prune_compound_using_neighbors && comp_pred) {
+  if (sf->inter_sf.prune_extended_comp_mode && comp_pred) {
     if (compound_skip_using_neighbor_refs(
-            xd, this_mode, ref_frames,
-            sf->inter_sf.prune_compound_using_neighbors))
+            xd, this_mode, ref_frames, sf->inter_sf.prune_extended_comp_mode))
       return 1;
-  }
 
-  if (sf->inter_sf.prune_comp_using_best_single_mode_ref && comp_pred) {
     if (skip_compound_using_best_single_mode_ref(
-            this_mode, ref_frames, args->search_state->best_single_mode,
-            sf->inter_sf.prune_comp_using_best_single_mode_ref))
+            this_mode, ref_frames, args->search_state->best_single_mode))
       return 1;
   }
 
@@ -5472,7 +5464,7 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
       collect_single_states(x, &search_state, mbmi);
     }
 
-    if (sf->inter_sf.prune_comp_using_best_single_mode_ref > 0 &&
+    if (sf->inter_sf.prune_extended_comp_mode > 1 &&
         is_inter_singleref_mode(this_mode))
       update_best_single_mode(&search_state, this_mode, ref_frame, this_rd);
 
