@@ -228,7 +228,7 @@ static void get_rate_distortion(
     int *rate_cost, int64_t *recon_error, int16_t *src_diff, tran_low_t *coeff,
     tran_low_t *qcoeff, tran_low_t *dqcoeff, AV1_COMMON *cm, MACROBLOCK *x,
     const YV12_BUFFER_CONFIG *ref_frame_ptr[2], uint8_t *rec_buffer_pool[3],
-    int rec_stride_pool[3], TX_SIZE tx_size, PREDICTION_MODE best_mode,
+    const int rec_stride_pool[3], TX_SIZE tx_size, PREDICTION_MODE best_mode,
     int mi_row, int mi_col) {
   *rate_cost = 0;
   *recon_error = 1;
@@ -241,7 +241,7 @@ static void get_rate_distortion(
     xd->cur_buf->u_buffer,
     xd->cur_buf->v_buffer,
   };
-  int src_stride_pool[MAX_MB_PLANE] = {
+  const int src_stride_pool[MAX_MB_PLANE] = {
     xd->cur_buf->y_stride,
     xd->cur_buf->uv_stride,
     xd->cur_buf->uv_stride,
@@ -355,7 +355,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
     tpl_frame->rec_picture->v_buffer,
   };
 
-  int rec_stride_pool[3] = {
+  const int rec_stride_pool[3] = {
     tpl_frame->rec_picture->y_stride,
     tpl_frame->rec_picture->uv_stride,
     tpl_frame->rec_picture->uv_stride,
