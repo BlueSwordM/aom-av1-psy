@@ -3622,7 +3622,11 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
             (rc->frames_since_key > 0 && gf_group->arf_index > -1);
         if (is_temporal_filter_enabled) {
           int arf_src_index = gf_group->arf_src_offset[gf_group->arf_index];
-          av1_temporal_filter(cpi, arf_src_index, NULL);
+          FRAME_UPDATE_TYPE arf_update_type =
+              gf_group->update_type[gf_group->arf_index];
+          int is_forward_keyframe = 0;
+          av1_temporal_filter(cpi, arf_src_index, arf_update_type,
+                              is_forward_keyframe, NULL);
           aom_extend_frame_borders(&cpi->alt_ref_buffer,
                                    av1_num_planes(&cpi->common));
         }

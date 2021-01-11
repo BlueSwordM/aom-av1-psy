@@ -873,6 +873,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
   const GF_GROUP *const gf_group = &cpi->gf_group;
+  FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
 
   // Decide whether to apply temporal filtering to the source frame.
   int apply_filtering = 0;
@@ -895,8 +896,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     if (apply_filtering) {
       av1_setup_past_independence(cm);
     }
-  } else if (get_frame_update_type(&cpi->gf_group) == ARF_UPDATE ||
-             get_frame_update_type(&cpi->gf_group) == INTNL_ARF_UPDATE) {
+  } else if (update_type == ARF_UPDATE || update_type == INTNL_ARF_UPDATE) {
     // ARF
     apply_filtering = oxcf->algo_cfg.arnr_max_frames > 0;
   }
@@ -912,12 +912,15 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     // TODO(bohanli): figure out why we need frame_type in cm here.
     cm->current_frame.frame_type = frame_params->frame_type;
     int arf_src_index = gf_group->arf_src_offset[gf_group->index];
+    int is_forward_keyframe = 0;
     if (!frame_params->show_frame && cpi->no_show_fwd_kf) {
+      // TODO(angiebird): Figure out why this condition yields forward keyframe.
       // fwd kf
-      arf_src_index = -1 * gf_group->arf_src_offset[gf_group->index];
+      is_forward_keyframe = 1;
     }
     const int code_arf =
-        av1_temporal_filter(cpi, arf_src_index, &show_existing_alt_ref);
+        av1_temporal_filter(cpi, arf_src_index, update_type,
+                            is_forward_keyframe, &show_existing_alt_ref);
     if (code_arf) {
       aom_extend_frame_borders(&cpi->alt_ref_buffer, av1_num_planes(cm));
       frame_input->source = &cpi->alt_ref_buffer;
@@ -925,8 +928,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
                                         source_buffer->metadata);
     }
     // Currently INTNL_ARF_UPDATE only do show_existing.
-    if (get_frame_update_type(&cpi->gf_group) == ARF_UPDATE &&
-        !cpi->no_show_fwd_kf) {
+    if (update_type == ARF_UPDATE && !cpi->no_show_fwd_kf) {
       cpi->show_existing_alt_ref = show_existing_alt_ref;
     }
   }
