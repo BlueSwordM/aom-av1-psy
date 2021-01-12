@@ -49,7 +49,7 @@ void av1_convolve_2d_sr_avx2(const uint8_t *src, int src_stride, uint8_t *dst,
         ((1 << (offset_bits - conv_params->round_1)) >> 1));
     const __m128i round_shift_v = _mm_cvtsi32_si128(bits);
 
-    __m256i coeffs_h[6] = {}, coeffs_v[6] = {};
+    __m256i coeffs_h[6] = { 0 }, coeffs_v[6] = { 0 };
 
     int horiz_tap = 12;
     int vert_tap = 12;
