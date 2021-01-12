@@ -437,6 +437,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.exhaustive_searches_thresh <<= 1;
     sf->mv_sf.obmc_full_pixel_search_level = 1;
     sf->mv_sf.use_accurate_subpel_search = USE_4_TAPS;
+    sf->mv_sf.disable_extensive_joint_motion_search = 1;
 
     sf->inter_sf.disable_interinter_wedge_newmv_search = boosted ? 0 : 1;
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 2 : 1;
@@ -481,7 +482,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->mv_sf.auto_mv_step_size = 1;
     sf->mv_sf.subpel_iters_per_step = 1;
-    sf->mv_sf.disable_extensive_joint_motion_search = 1;
 
     // TODO(chiyotsai@google.com): We can get 10% speed up if we move
     // adaptive_rd_thresh to speed 1. But currently it performs poorly on some
