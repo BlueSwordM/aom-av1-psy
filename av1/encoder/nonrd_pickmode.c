@@ -639,9 +639,20 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
 
   rd_stats->sse = sse;
 
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  if (cpi->oxcf.noise_sensitivity > 0 && denoise_svc(cpi) &&
+      cpi->oxcf.speed > 5)
+    ac_thr = av1_scale_acskip_thresh(ac_thr, cpi->denoiser.denoising_level,
+                                     (abs(sum) >> (bw + bh)),
+                                     cpi->svc.temporal_layer_id);
+  else
+    ac_thr *= ac_thr_factor(cpi->oxcf.speed, cpi->common.width,
+                            cpi->common.height, abs(sum) >> (bw + bh));
+#else
   ac_thr *= ac_thr_factor(cpi->oxcf.speed, cpi->common.width,
                           cpi->common.height, abs(sum) >> (bw + bh));
 
+#endif
   tx_size = calculate_tx_size(cpi, bsize, x, var, sse);
   // The code below for setting skip flag assumes tranform size of at least 8x8,
   // so force this lower limit on transform.
@@ -1279,6 +1290,92 @@ static INLINE void update_thresh_freq_fact(AV1_COMP *cpi, MACROBLOCK *x,
     }
   }
 }
+
+#if CONFIG_AV1_TEMPORAL_DENOISING
+static void av1_pickmode_ctx_den_update(
+    AV1_PICKMODE_CTX_DEN *ctx_den, int64_t zero_last_cost_orig,
+    unsigned int ref_frame_cost[REF_FRAMES],
+    int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES], int reuse_inter_pred,
+    BEST_PICKMODE *bp) {
+  ctx_den->zero_last_cost_orig = zero_last_cost_orig;
+  ctx_den->ref_frame_cost = ref_frame_cost;
+  ctx_den->frame_mv = frame_mv;
+  ctx_den->reuse_inter_pred = reuse_inter_pred;
+  ctx_den->best_tx_size = bp->best_tx_size;
+  ctx_den->best_mode = bp->best_mode;
+  ctx_den->best_ref_frame = bp->best_ref_frame;
+  ctx_den->best_pred_filter = bp->best_pred_filter;
+  ctx_den->best_mode_skip_txfm = bp->best_mode_skip_txfm;
+}
+
+static void recheck_zeromv_after_denoising(
+    AV1_COMP *cpi, MB_MODE_INFO *const mi, MACROBLOCK *x, MACROBLOCKD *const xd,
+    AV1_DENOISER_DECISION decision, AV1_PICKMODE_CTX_DEN *ctx_den,
+    struct buf_2d yv12_mb[4][MAX_MB_PLANE], RD_STATS *best_rdc,
+    BEST_PICKMODE *best_pickmode, BLOCK_SIZE bsize, int mi_row, int mi_col) {
+  // If INTRA or GOLDEN reference was selected, re-evaluate ZEROMV on
+  // denoised result. Only do this under noise conditions, and if rdcost of
+  // ZEROMV onoriginal source is not significantly higher than rdcost of best
+  // mode.
+  if (cpi->noise_estimate.enabled && cpi->noise_estimate.level > kLow &&
+      ctx_den->zero_last_cost_orig < (best_rdc->rdcost << 3) &&
+      ((ctx_den->best_ref_frame == INTRA_FRAME && decision >= FILTER_BLOCK) ||
+       (ctx_den->best_ref_frame == GOLDEN_FRAME &&
+        cpi->svc.number_spatial_layers == 1 &&
+        decision == FILTER_ZEROMV_BLOCK))) {
+    // Check if we should pick ZEROMV on denoised signal.
+    AV1_COMMON *const cm = &cpi->common;
+    RD_STATS this_rdc;
+    const ModeCosts *mode_costs = &x->mode_costs;
+    TxfmSearchInfo *txfm_info = &x->txfm_search_info;
+    MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
+
+    mi->mode = GLOBALMV;
+    mi->ref_frame[0] = LAST_FRAME;
+    mi->ref_frame[1] = NONE_FRAME;
+    set_ref_ptrs(cm, xd, mi->ref_frame[0], NONE_FRAME);
+    mi->mv[0].as_int = 0;
+    mi->interp_filters = av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
+    xd->plane[0].pre[0] = yv12_mb[LAST_FRAME][0];
+    av1_enc_build_inter_predictor_y(xd, mi_row, mi_col);
+    model_rd_for_sb_y(cpi, bsize, x, xd, &this_rdc, 1);
+
+    const int16_t mode_ctx =
+        av1_mode_context_analyzer(mbmi_ext->mode_context, mi->ref_frame);
+    this_rdc.rate += cost_mv_ref(mode_costs, GLOBALMV, mode_ctx);
+
+    this_rdc.rate += ctx_den->ref_frame_cost[LAST_FRAME];
+    this_rdc.rdcost = RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist);
+    txfm_info->skip_txfm = this_rdc.skip_txfm;
+    // Don't switch to ZEROMV if the rdcost for ZEROMV on denoised source
+    // is higher than best_ref mode (on original source).
+    if (this_rdc.rdcost > best_rdc->rdcost) {
+      this_rdc = *best_rdc;
+      mi->mode = best_pickmode->best_mode;
+      mi->ref_frame[0] = best_pickmode->best_ref_frame;
+      set_ref_ptrs(cm, xd, mi->ref_frame[0], NONE_FRAME);
+      mi->interp_filters = best_pickmode->best_pred_filter;
+      if (best_pickmode->best_ref_frame == INTRA_FRAME) {
+        mi->mv[0].as_int = INVALID_MV;
+      } else {
+        mi->mv[0].as_int = ctx_den
+                               ->frame_mv[best_pickmode->best_mode]
+                                         [best_pickmode->best_ref_frame]
+                               .as_int;
+        if (ctx_den->reuse_inter_pred) {
+          xd->plane[0].pre[0] = yv12_mb[GOLDEN_FRAME][0];
+          av1_enc_build_inter_predictor_y(xd, mi_row, mi_col);
+        }
+      }
+      mi->tx_size = best_pickmode->best_tx_size;
+      txfm_info->skip_txfm = best_pickmode->best_mode_skip_txfm;
+    } else {
+      ctx_den->best_ref_frame = LAST_FRAME;
+      *best_rdc = this_rdc;
+    }
+  }
+}
+#endif  // CONFIG_AV1_TEMPORAL_DENOISING
 
 static INLINE int get_force_skip_low_temp_var_small_sb(uint8_t *variance_low,
                                                        int mi_row, int mi_col,
@@ -2009,6 +2106,17 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   int use_modeled_non_rd_cost = 0;
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  const int denoise_recheck_zeromv = 1;
+  AV1_PICKMODE_CTX_DEN ctx_den;
+  int64_t zero_last_cost_orig = INT64_MAX;
+  int denoise_svc_pickmode = 1;
+  const int resize_pending =
+      (cpi->resize_pending_params.width && cpi->resize_pending_params.height &&
+       (cpi->common.width != cpi->resize_pending_params.width ||
+        cpi->common.height != cpi->resize_pending_params.height));
+
+#endif
 
   init_best_pickmode(&best_pickmode);
 
@@ -2041,6 +2149,14 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   mi->bsize = bsize;
   mi->ref_frame[0] = NONE_FRAME;
   mi->ref_frame[1] = NONE_FRAME;
+
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  if (cpi->oxcf.noise_sensitivity > 0) {
+    // if (cpi->use_svc) denoise_svc_pickmode = av1_denoise_svc_non_key(cpi);
+    if (cpi->denoiser.denoising_level > kDenLowLow && denoise_svc_pickmode)
+      av1_denoiser_reset_frame_stats(ctx);
+  }
+#endif
 
   const int gf_temporal_ref = is_same_gf_and_last_scale(cm);
 
@@ -2232,6 +2348,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     const int skip_ctx = av1_get_skip_txfm_context(xd);
     const int skip_txfm_cost = mode_costs->skip_txfm_cost[skip_ctx][1];
     const int no_skip_txfm_cost = mode_costs->skip_txfm_cost[skip_ctx][0];
+    const int64_t sse_y = this_rdc.sse;
     if (this_early_term) {
       this_rdc.skip_txfm = 1;
       this_rdc.rate = skip_txfm_cost;
@@ -2300,6 +2417,17 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                       frame_mv[this_mode][ref_frame].as_mv.col, cpi->speed,
                       x->source_variance, x->content_state_sb);
     }
+#if CONFIG_AV1_TEMPORAL_DENOISING
+    if (cpi->oxcf.noise_sensitivity > 0 && denoise_svc_pickmode &&
+        cpi->denoiser.denoising_level > kDenLowLow) {
+      av1_denoiser_update_frame_stats(mi, sse_y, this_mode, ctx);
+      // Keep track of zero_last cost.
+      if (ref_frame == LAST_FRAME && frame_mv[this_mode][ref_frame].as_int == 0)
+        zero_last_cost_orig = this_rdc.rdcost;
+    }
+#else
+    (void)sse_y;
+#endif
 
     mode_checked[this_mode][ref_frame] = 1;
 #if COLLECT_PICK_MODE_STAT
@@ -2366,6 +2494,25 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                         pd->dst.stride, bw, bh);
     }
   }
+
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  if (cpi->oxcf.noise_sensitivity > 0 && resize_pending == 0 &&
+      denoise_svc_pickmode && cpi->denoiser.denoising_level > kDenLowLow &&
+      cpi->denoiser.reset == 0) {
+    AV1_DENOISER_DECISION decision = COPY_BLOCK;
+    ctx->sb_skip_denoising = 0;
+    av1_pickmode_ctx_den_update(&ctx_den, zero_last_cost_orig, ref_costs_single,
+                                frame_mv, reuse_inter_pred, &best_pickmode);
+    av1_denoiser_denoise(cpi, x, mi_row, mi_col, bsize, ctx, &decision,
+                         gf_temporal_ref);
+    if (denoise_recheck_zeromv)
+      recheck_zeromv_after_denoising(cpi, mi, x, xd, decision, &ctx_den,
+                                     yv12_mb, &best_rdc, &best_pickmode, bsize,
+                                     mi_row, mi_col);
+    best_pickmode.best_ref_frame = ctx_den.best_ref_frame;
+  }
+#endif
+
   if (cpi->sf.inter_sf.adaptive_rd_thresh) {
     THR_MODES best_mode_idx =
         mode_idx[best_pickmode.best_ref_frame][mode_offset(mi->mode)];

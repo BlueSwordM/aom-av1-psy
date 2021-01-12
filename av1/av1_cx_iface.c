@@ -962,6 +962,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->noise_block_size = extra_cfg->noise_block_size;
 #endif
 
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  oxcf->noise_sensitivity = extra_cfg->noise_sensitivity;
+#endif
   // Set Tile related configuration.
   tile_cfg->num_tile_groups = extra_cfg->num_tg;
   // In large-scale tile encoding mode, num_tile_groups is always 1.

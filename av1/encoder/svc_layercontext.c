@@ -311,21 +311,9 @@ void av1_svc_reset_temporal_layers(AV1_COMP *const cpi, int is_key) {
   av1_restore_layer_context(cpi);
 }
 
-/*!\brief Get resolution for current layer.
- *
- * \ingroup rate_control
- * \param[in]       width_org    Original width, unscaled
- * \param[in]       height_org   Original height, unscaled
- * \param[in]       num          Numerator for the scale ratio
- * \param[in]       den          Denominator for the scale ratio
- * \param[in]       width_out    Output width, scaled for current layer
- * \param[in]       height_out   Output height, scaled for current layer
- *
- * \return Nothing is returned. Instead the scaled width and height are set.
- */
-static void get_layer_resolution(const int width_org, const int height_org,
-                                 const int num, const int den, int *width_out,
-                                 int *height_out) {
+void av1_get_layer_resolution(const int width_org, const int height_org,
+                              const int num, const int den, int *width_out,
+                              int *height_out) {
   int w, h;
   if (width_out == NULL || height_out == NULL || den == 0) return;
   w = width_org * num / den;
@@ -343,8 +331,8 @@ void av1_one_pass_cbr_svc_start_layer(AV1_COMP *const cpi) {
   int width = 0, height = 0;
   lc = &svc->layer_context[svc->spatial_layer_id * svc->number_temporal_layers +
                            svc->temporal_layer_id];
-  get_layer_resolution(cpi->oxcf.frm_dim_cfg.width,
-                       cpi->oxcf.frm_dim_cfg.height, lc->scaling_factor_num,
-                       lc->scaling_factor_den, &width, &height);
+  av1_get_layer_resolution(cpi->oxcf.frm_dim_cfg.width,
+                           cpi->oxcf.frm_dim_cfg.height, lc->scaling_factor_num,
+                           lc->scaling_factor_den, &width, &height);
   av1_set_size_literal(cpi, width, height);
 }

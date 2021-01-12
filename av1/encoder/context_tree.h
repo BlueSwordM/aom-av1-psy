@@ -60,6 +60,16 @@ typedef struct PICK_MODE_CONTEXT {
 
   int rd_mode_is_ready;  // Flag to indicate whether rd pick mode decision has
                          // been made.
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  int64_t newmv_sse;
+  int64_t zeromv_sse;
+  int64_t zeromv_lastref_sse;
+  PREDICTION_MODE best_sse_inter_mode;
+  int_mv best_sse_mv;
+  MV_REFERENCE_FRAME best_reference_frame;
+  MV_REFERENCE_FRAME best_zeromv_reference_frame;
+  int sb_skip_denoising;
+#endif
 } PICK_MODE_CONTEXT;
 
 typedef struct PC_TREE {

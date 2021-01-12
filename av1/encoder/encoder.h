@@ -60,6 +60,9 @@
 #if CONFIG_TUNE_VMAF
 #include "av1/encoder/tune_vmaf.h"
 #endif
+#if CONFIG_AV1_TEMPORAL_DENOISING
+#include "av1/encoder/av1_temporal_denoiser.h"
+#endif
 
 #include "aom/internal/aom_codec_internal.h"
 #include "aom_util/aom_thread.h"
@@ -876,6 +879,10 @@ typedef struct AV1EncoderConfig {
   int noise_block_size;
 #endif
 
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  // Noise sensitivity.
+  int noise_sensitivity;
+#endif
   // Bit mask to specify which tier each of the 32 possible operating points
   // conforms to.
   unsigned int tier_mask;
@@ -2644,6 +2651,13 @@ typedef struct AV1_COMP {
    */
   NOISE_ESTIMATE noise_estimate;
 
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  /*!
+   * Temporal Denoiser
+   */
+  AV1_DENOISER denoiser;
+#endif
+
   /*!
    * Count on how many consecutive times a block uses small/zeromv for encoding
    * in a scale of 8x8 block.
@@ -3213,6 +3227,13 @@ static AOM_INLINE int is_psnr_calc_enabled(const AV1_COMP *cpi) {
   return cpi->b_calculate_psnr && !is_stat_generation_stage(cpi) &&
          cm->show_frame;
 }
+
+#if CONFIG_AV1_TEMPORAL_DENOISING
+static INLINE int denoise_svc(const struct AV1_COMP *const cpi) {
+  return (!cpi->use_svc || (cpi->use_svc && cpi->svc.spatial_layer_id >=
+                                                cpi->svc.first_layer_denoise));
+}
+#endif
 
 #if CONFIG_COLLECT_PARTITION_STATS == 2
 static INLINE void av1_print_fr_partition_timing_stats(

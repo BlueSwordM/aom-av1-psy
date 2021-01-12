@@ -87,6 +87,10 @@ FILE *yuv_rec_file;
 #define FILE_NAME_LEN 100
 #endif
 
+#ifdef OUTPUT_YUV_DENOISED
+FILE *yuv_denoised_file = NULL;
+#endif
+
 static INLINE void Scale2Ratio(AOM_SCALING mode, int *hr, int *hs) {
   switch (mode) {
     case NORMAL:
@@ -962,6 +966,9 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 #ifdef OUTPUT_YUV_REC
   yuv_rec_file = fopen("rec.yuv", "wb");
 #endif
+#ifdef OUTPUT_YUV_DENOISED
+  yuv_denoised_file = fopen("denoised.yuv", "wb");
+#endif
 
   assert(MAX_LAP_BUFFERS >= MAX_LAG_BUFFERS);
   int size = get_stats_buf_size(num_lap_buffers, MAX_LAG_BUFFERS);
@@ -1519,6 +1526,10 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 #endif
   }
 
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  av1_denoiser_free(&(cpi->denoiser));
+#endif
+
   TplParams *const tpl_data = &cpi->tpl_data;
   for (int frame = 0; frame < MAX_LAG_BUFFERS; ++frame) {
     aom_free(tpl_data->tpl_stats_pool[frame]);
@@ -1577,6 +1588,10 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 
 #ifdef OUTPUT_YUV_REC
   fclose(yuv_rec_file);
+#endif
+
+#ifdef OUTPUT_YUV_DENOISED
+  fclose(yuv_denoised_file);
 #endif
 }
 
@@ -1930,6 +1945,22 @@ void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
   }
 }
 
+#if CONFIG_AV1_TEMPORAL_DENOISING
+static void setup_denoiser_buffer(AV1_COMP *cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  if (cpi->oxcf.noise_sensitivity > 0 &&
+      !cpi->denoiser.frame_buffer_initialized) {
+    if (av1_denoiser_alloc(
+            cm, &cpi->svc, &cpi->denoiser, cpi->use_svc,
+            cpi->oxcf.noise_sensitivity, cm->width, cm->height,
+            cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
+            cm->seq_params.use_highbitdepth, AOM_BORDER_IN_PIXELS))
+      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate denoiser");
+  }
+}
+#endif
+
 // Returns 1 if the assigned width or height was <= 0.
 int av1_set_size_literal(AV1_COMP *cpi, int width, int height) {
   AV1_COMMON *cm = &cpi->common;
@@ -1942,6 +1973,10 @@ int av1_set_size_literal(AV1_COMP *cpi, int width, int height) {
 
   cm->width = width;
   cm->height = height;
+
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  setup_denoiser_buffer(cpi);
+#endif
 
   if (initial_dimensions->width && initial_dimensions->height &&
       (cm->width > initial_dimensions->width ||
@@ -1975,6 +2010,13 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
         cm->features.coded_lossless && !av1_superres_scaled(cm);
 
     av1_noise_estimate_init(&cpi->noise_estimate, cm->width, cm->height);
+#if CONFIG_AV1_TEMPORAL_DENOISING
+    // Reset the denoiser on the resized frame.
+    if (cpi->oxcf.noise_sensitivity > 0) {
+      av1_denoiser_free(&(cpi->denoiser));
+      setup_denoiser_buffer(cpi);
+    }
+#endif
   }
   set_mv_search_params(cpi);
 
@@ -2244,6 +2286,11 @@ static int encode_without_recode(AV1_COMP *cpi) {
   if (cpi->sf.rt_sf.use_temporal_noise_estimate) {
     av1_update_noise_estimate(cpi);
   }
+
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  if (cpi->oxcf.noise_sensitivity > 0 && cpi->use_svc)
+    av1_denoiser_reset_on_first_frame(cpi);
+#endif
 
   // For 1 spatial layer encoding: if the (non-LAST) reference has different
   // resolution from the source then disable that reference. This is to avoid
@@ -2639,6 +2686,14 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     return err;
   }
 
+#ifdef OUTPUT_YUV_DENOISED
+  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+  if (oxcf->noise_sensitivity > 0 && denoise_svc(cpi)) {
+    aom_write_yuv_frame(yuv_denoised_file,
+                        &cpi->denoiser.running_avg_y[INTRA_FRAME]);
+  }
+#endif
+
   AV1_COMMON *const cm = &cpi->common;
   SequenceHeader *const seq_params = &cm->seq_params;
 
@@ -2961,6 +3016,10 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     //       for the purpose to verify no mismatch between encoder and decoder.
     if (cm->show_frame) cpi->last_show_frame_buf = cm->cur_frame;
 
+#if CONFIG_AV1_TEMPORAL_DENOISING
+    av1_denoiser_update_ref_frame(cpi);
+#endif
+
     refresh_reference_frames(cpi);
 
     // Since we allocate a spot for the OVERLAY frame in the gf group, we need
@@ -3147,6 +3206,9 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   if (frame_is_intra_only(cm) == 0) {
     release_scaled_references(cpi);
   }
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  av1_denoiser_update_ref_frame(cpi);
+#endif
 
   // NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
   //       for the purpose to verify no mismatch between encoder and decoder.
@@ -3316,6 +3378,11 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
   struct aom_usec_timer timer;
   aom_usec_timer_start(&timer);
 #endif
+
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  setup_denoiser_buffer(cpi);
+#endif
+
 #if CONFIG_DENOISE
   if (cpi->oxcf.noise_level > 0)
     if (apply_denoise_2d(cpi, sd, cpi->oxcf.noise_block_size,
