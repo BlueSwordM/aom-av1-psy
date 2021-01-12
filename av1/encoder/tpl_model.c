@@ -43,7 +43,7 @@ static AOM_INLINE void get_quantize_error(const MACROBLOCK *x, int plane,
                                           int64_t *sse) {
   const struct macroblock_plane *const p = &x->plane[plane];
   const MACROBLOCKD *xd = &x->e_mbd;
-  const SCAN_ORDER *const scan_order = &av1_default_scan_orders[tx_size];
+  const SCAN_ORDER *const scan_order = &av1_scan_orders[tx_size][DCT_DCT];
   int pix_num = 1 << num_pels_log2_lookup[txsize_to_bsize[tx_size]];
   const int shift = tx_size == TX_32X32 ? 0 : 2;
 
@@ -104,7 +104,7 @@ static AOM_INLINE int64_t tpl_get_satd_cost(const MACROBLOCK *x,
 }
 
 static int rate_estimator(const tran_low_t *qcoeff, int eob, TX_SIZE tx_size) {
-  const SCAN_ORDER *const scan_order = &av1_default_scan_orders[tx_size];
+  const SCAN_ORDER *const scan_order = &av1_scan_orders[tx_size][DCT_DCT];
 
   assert((1 << num_pels_log2_lookup[txsize_to_bsize[tx_size]]) >= eob);
   aom_clear_system_state();
@@ -258,8 +258,8 @@ static void get_rate_distortion(
 
     int dst_buffer_stride = rec_stride_pool[plane];
     int dst_mb_offset =
-        (mi_row * MI_SIZE * dst_buffer_stride + mi_col * MI_SIZE) >>
-        pd->subsampling_x;
+        ((mi_row * MI_SIZE * dst_buffer_stride) >> pd->subsampling_y) +
+        ((mi_col * MI_SIZE) >> pd->subsampling_x);
     uint8_t *dst_buffer = rec_buffer_pool[plane] + dst_mb_offset;
     for (int ref = 0; ref < 1 + is_compound; ++ref) {
       if (!is_inter_mode(best_mode)) {
@@ -299,8 +299,8 @@ static void get_rate_distortion(
     }
 
     int src_stride = src_stride_pool[plane];
-    int src_mb_offset =
-        (mi_row * MI_SIZE * src_stride + mi_col * MI_SIZE) >> pd->subsampling_x;
+    int src_mb_offset = ((mi_row * MI_SIZE * src_stride) >> pd->subsampling_y) +
+                        ((mi_col * MI_SIZE) >> pd->subsampling_x);
 
     int this_rate = 1;
     int64_t this_recon_error = 1;
