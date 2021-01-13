@@ -951,7 +951,8 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   const int max_before = AOMMIN(filter_frame_lookahead_idx, key_to_curframe);
 
   // Number of buffered frames after the to-filter frame.
-  const int max_after = AOMMIN(lookahead_depth - max_before, curframe_to_key);
+  const int max_after =
+      AOMMIN(lookahead_depth - filter_frame_lookahead_idx - 1, curframe_to_key);
 
   // Estimate noises for each plane.
   const struct lookahead_entry *to_filter_buf = av1_lookahead_peek(
