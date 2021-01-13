@@ -645,6 +645,8 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
             cm, thread_data->td->vt64x64,
             aom_malloc(sizeof(*thread_data->td->vt64x64) * num_64x64_blocks));
       }
+    } else {
+      thread_data->td = &cpi->td;
     }
     if (cpi->oxcf.row_mt == 1)
       CHECK_MEM_ERROR(
@@ -1632,8 +1634,7 @@ static AOM_INLINE int compute_gm_workers(const AV1_COMP *cpi) {
   int num_gm_workers = cpi->sf.gm_sf.prune_ref_frame_for_gm_search
                            ? AOMMIN(MAX_DIRECTIONS, total_refs)
                            : total_refs;
-  num_gm_workers = AOMMIN(num_gm_workers, cpi->oxcf.max_threads);
-  assert(num_gm_workers <= cpi->mt_info.num_workers);
+  num_gm_workers = AOMMIN(num_gm_workers, cpi->mt_info.num_workers);
   return (num_gm_workers);
 }
 
