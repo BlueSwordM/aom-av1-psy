@@ -864,7 +864,7 @@ static void block_yrd(AV1_COMP *cpi, MACROBLOCK *x, int mi_row, int mi_col,
   for (int r = 0; r < max_blocks_high; r += block_step) {
     for (int c = 0; c < num_4x4_w; c += block_step) {
       if (c < max_blocks_wide) {
-        const SCAN_ORDER *const scan_order = &av1_default_scan_orders[tx_size];
+        const SCAN_ORDER *const scan_order = &av1_scan_orders[tx_size][DCT_DCT];
         const int block_offset = BLOCK_OFFSET(block);
 #if CONFIG_AV1_HIGHBITDEPTH
         tran_low_t *const coeff = p->coeff + block_offset;
