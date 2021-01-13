@@ -287,25 +287,33 @@ static INLINE void av1_set_error_per_bit(MvCosts *mv_costs, int rdmult) {
 
 // Get the threshold for R-D optimization of coefficients depending upon mode
 // decision/winner mode processing
-static INLINE uint32_t get_rd_opt_coeff_thresh(
-    const uint32_t *const coeff_opt_dist_threshold,
-    int enable_winner_mode_for_coeff_opt, int is_winner_mode) {
-  // Default initialization of threshold
-  uint32_t coeff_opt_thresh = coeff_opt_dist_threshold[DEFAULT_EVAL];
+static INLINE void get_rd_opt_coeff_thresh(
+    const uint32_t (*const coeff_opt_threshold)[2],
+    TxfmSearchParams *txfm_params, int enable_winner_mode_for_coeff_opt,
+    int is_winner_mode) {
+  if (!enable_winner_mode_for_coeff_opt) {
+    // Default initialization of threshold
+    txfm_params->coeff_opt_thresholds[0] = coeff_opt_threshold[DEFAULT_EVAL][0];
+    txfm_params->coeff_opt_thresholds[1] = coeff_opt_threshold[DEFAULT_EVAL][1];
+    return;
+  }
   // TODO(any): Experiment with coeff_opt_dist_threshold values when
   // enable_winner_mode_for_coeff_opt is ON
   // TODO(any): Skip the winner mode processing for blocks with lower residual
   // energy as R-D optimization of coefficients would have been enabled during
   // mode decision
-  if (enable_winner_mode_for_coeff_opt) {
-    // Use conservative threshold during mode decision and perform R-D
-    // optimization of coeffs always for winner modes
-    if (is_winner_mode)
-      coeff_opt_thresh = coeff_opt_dist_threshold[WINNER_MODE_EVAL];
-    else
-      coeff_opt_thresh = coeff_opt_dist_threshold[MODE_EVAL];
+
+  // Use conservative threshold during mode decision and perform R-D
+  // optimization of coeffs always for winner modes
+  if (is_winner_mode) {
+    txfm_params->coeff_opt_thresholds[0] =
+        coeff_opt_threshold[WINNER_MODE_EVAL][0];
+    txfm_params->coeff_opt_thresholds[1] =
+        coeff_opt_threshold[WINNER_MODE_EVAL][1];
+  } else {
+    txfm_params->coeff_opt_thresholds[0] = coeff_opt_threshold[MODE_EVAL][0];
+    txfm_params->coeff_opt_thresholds[1] = coeff_opt_threshold[MODE_EVAL][1];
   }
-  return coeff_opt_thresh;
 }
 
 // Used to reset the state of tx/mb rd hash information

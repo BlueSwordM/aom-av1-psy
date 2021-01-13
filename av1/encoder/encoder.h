@@ -1815,18 +1815,13 @@ typedef struct {
  */
 typedef struct {
   /*!
-   * Threshold to determine the best number of transform coefficients to keep
-   * using trellis optimization.
-   * Corresponds to enable_winner_mode_for_coeff_opt speed feature.
-   */
-  unsigned int coeff_opt_dist_threshold[MODE_EVAL_TYPES];
-
-  /*!
    * Threshold to determine if trellis optimization is to be enabled
-   * based on SATD.
+   * based on :
+   * 0 : dist threshold
+   * 1 : satd threshold
    * Corresponds to enable_winner_mode_for_coeff_opt speed feature.
    */
-  unsigned int coeff_opt_satd_threshold[MODE_EVAL_TYPES];
+  unsigned int coeff_opt_thresholds[MODE_EVAL_TYPES][2];
 
   /*!
    * Determines the tx size search method during rdopt.

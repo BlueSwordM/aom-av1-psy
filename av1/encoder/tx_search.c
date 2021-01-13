@@ -2345,7 +2345,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // TODO(any): Experiment with variance and mean based thresholds
   const int perform_block_coeff_opt =
       ((uint64_t)block_mse_q8 <=
-       (uint64_t)txfm_params->coeff_opt_dist_threshold * qstep * qstep);
+       (uint64_t)txfm_params->coeff_opt_thresholds[0] * qstep * qstep);
   skip_trellis |= !perform_block_coeff_opt;
 
   // Flag to indicate if distortion should be calculated in transform domain or
@@ -2403,8 +2403,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
     skip_trellis_based_on_satd[tx_type] = skip_trellis_opt_based_on_satd(
         x, &quant_param, plane, block, tx_size, cpi->oxcf.q_cfg.quant_b_adapt,
-        qstep, txfm_params->coeff_opt_satd_threshold, skip_trellis,
-        dc_only_blk);
+        qstep, txfm_params->coeff_opt_thresholds[1], skip_trellis, dc_only_blk);
 
     av1_quant(x, plane, block, &txfm_param, &quant_param);
 

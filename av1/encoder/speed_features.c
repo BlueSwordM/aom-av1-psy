@@ -66,6 +66,7 @@ static unsigned int tx_domain_dist_types[3][MODE_EVAL_TYPES] = { { 0, 2, 0 },
 // Threshold values to be used for disabling coeff RD-optimization
 // based on block MSE / qstep^2.
 // TODO(any): Experiment the threshold logic based on variance metric.
+// Table has satd and dist threshold value index 0 : dist,index 1: satd
 // For each row, the indices are as follows.
 // Index 0: Default mode evaluation, Winner mode processing is not applicable
 // (Eg : IntraBc)
@@ -74,20 +75,16 @@ static unsigned int tx_domain_dist_types[3][MODE_EVAL_TYPES] = { { 0, 2, 0 },
 // Index 1 and 2 are applicable when enable_winner_mode_for_coeff_opt speed
 // feature is ON
 // There are 7 levels with increasing speed, mapping to vertical indices.
-static unsigned int coeff_opt_dist_thresholds[7][MODE_EVAL_TYPES] = {
-  { UINT_MAX, UINT_MAX, UINT_MAX },
-  { 3200, 250, UINT_MAX },
-  { 1728, 142, UINT_MAX },
-  { 864, 142, UINT_MAX },
-  { 432, 86, UINT_MAX },
-  { 216, 86, UINT_MAX },
-  { 216, 0, UINT_MAX }
-};
-
-static unsigned int coeff_opt_satd_thresholds[3][MODE_EVAL_TYPES] = {
-  { UINT_MAX, UINT_MAX, UINT_MAX },
-  { 97, 16, UINT_MAX },
-  { 25, 10, UINT_MAX },
+static unsigned int coeff_opt_thresholds[9][MODE_EVAL_TYPES][2] = {
+  { { UINT_MAX, UINT_MAX }, { UINT_MAX, UINT_MAX }, { UINT_MAX, UINT_MAX } },
+  { { 3200, UINT_MAX }, { 250, UINT_MAX }, { UINT_MAX, UINT_MAX } },
+  { { 1728, UINT_MAX }, { 142, UINT_MAX }, { UINT_MAX, UINT_MAX } },
+  { { 864, UINT_MAX }, { 142, UINT_MAX }, { UINT_MAX, UINT_MAX } },
+  { { 432, UINT_MAX }, { 86, UINT_MAX }, { UINT_MAX, UINT_MAX } },
+  { { 864, 97 }, { 142, 16 }, { UINT_MAX, UINT_MAX } },
+  { { 432, 97 }, { 86, 16 }, { UINT_MAX, UINT_MAX } },
+  { { 216, 25 }, { 86, 10 }, { UINT_MAX, UINT_MAX } },
+  { { 216, 25 }, { 0, 10 }, { UINT_MAX, UINT_MAX } }
 };
 
 // Transform size to be used for default, mode and winner mode evaluation
@@ -645,9 +642,7 @@ static void set_good_speed_features_framesize_independent(
     // is reset during winner mode processing
     sf->tx_sf.use_intra_txb_hash = 0;
 
-    sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 5;
-    sf->rd_sf.perform_coeff_opt_based_on_satd =
-        is_boosted_arf2_bwd_type ? 1 : 2;
+    sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 5 : 7;
     sf->rd_sf.tx_domain_dist_thres_level = 2;
 
     // TODO(any): Extend multi-winner mode processing support for inter frames
@@ -719,7 +714,7 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.use_intra_txb_hash = 1;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 0;
 
-    sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 4 : 6;
+    sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 6 : 8;
 
     sf->winner_mode_sf.dc_blk_pred_level = 2;
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
@@ -1253,7 +1248,6 @@ static AOM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
   rd_sf->tx_domain_dist_level = 0;
   rd_sf->tx_domain_dist_thres_level = 0;
   rd_sf->perform_coeff_opt = 0;
-  rd_sf->perform_coeff_opt_based_on_satd = 0;
 }
 
 static AOM_INLINE void init_winner_mode_sf(
@@ -1424,20 +1418,12 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
          tx_domain_dist_types[cpi->sf.rd_sf.tx_domain_dist_level],
          sizeof(winner_mode_params->use_transform_domain_distortion));
 
-  // assert ensures that coeff_opt_dist_thresholds is accessed correctly
+  // assert ensures that coeff_opt_thresholds is accessed correctly
   assert(cpi->sf.rd_sf.perform_coeff_opt >= 0 &&
-         cpi->sf.rd_sf.perform_coeff_opt < 7);
-  memcpy(winner_mode_params->coeff_opt_dist_threshold,
-         coeff_opt_dist_thresholds[cpi->sf.rd_sf.perform_coeff_opt],
-         sizeof(winner_mode_params->coeff_opt_dist_threshold));
-
-  // assert ensures that coeff_opt_satd_thresholds is accessed correctly
-  assert(cpi->sf.rd_sf.perform_coeff_opt_based_on_satd >= 0 &&
-         cpi->sf.rd_sf.perform_coeff_opt_based_on_satd < 3);
-  memcpy(
-      winner_mode_params->coeff_opt_satd_threshold,
-      coeff_opt_satd_thresholds[cpi->sf.rd_sf.perform_coeff_opt_based_on_satd],
-      sizeof(winner_mode_params->coeff_opt_satd_threshold));
+         cpi->sf.rd_sf.perform_coeff_opt < 9);
+  memcpy(winner_mode_params->coeff_opt_thresholds,
+         &coeff_opt_thresholds[cpi->sf.rd_sf.perform_coeff_opt],
+         sizeof(winner_mode_params->coeff_opt_thresholds));
 
   // assert ensures that predict_skip_levels is accessed correctly
   assert(cpi->sf.tx_sf.tx_type_search.use_skip_flag_prediction >= 0 &&
@@ -1497,9 +1483,9 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
 
     if (is_720p_or_larger && cm->quant_params.base_qindex <= 128) {
       sf->rd_sf.perform_coeff_opt = 2 + is_1080p_or_larger;
-      memcpy(winner_mode_params->coeff_opt_dist_threshold,
-             coeff_opt_dist_thresholds[sf->rd_sf.perform_coeff_opt],
-             sizeof(winner_mode_params->coeff_opt_dist_threshold));
+      memcpy(winner_mode_params->coeff_opt_thresholds,
+             &coeff_opt_thresholds[sf->rd_sf.perform_coeff_opt],
+             sizeof(winner_mode_params->coeff_opt_thresholds));
       sf->part_sf.simple_motion_search_split =
           cm->features.allow_screen_content_tools ? 1 : 2;
       sf->tx_sf.inter_tx_size_search_init_depth_rect = 1;
