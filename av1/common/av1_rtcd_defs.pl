@@ -438,6 +438,12 @@ add_proto qw/void av1_calc_indices_dim2/, "const int *data, const int *centroids
     add_proto qw/void av1_cnn_deconvolve/, " const float **input, int in_width, int in_height, int in_stride, const CNN_LAYER_CONFIG *layer_config, float **output, int out_stride";
     add_proto qw/void av1_cnn_batchnorm/, "float **image, int channels, int width, int height, int stride, const float *gamma, const float *beta, const float *mean, const float *std";
   }
+
+  # Temporal Denoiser
+  if (aom_config("CONFIG_AV1_TEMPORAL_DENOISING") eq "yes") {
+    add_proto qw/int av1_denoiser_filter/, "const uint8_t *sig, int sig_stride, const uint8_t *mc_avg, int mc_avg_stride, uint8_t *avg, int avg_stride, int increase_denoising, BLOCK_SIZE bs, int motion_magnitude";
+    specialize qw/av1_denoiser_filter neon sse2/;
+  }
 }
 # end encoder functions
 

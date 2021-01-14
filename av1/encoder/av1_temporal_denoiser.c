@@ -352,9 +352,9 @@ void av1_denoiser_denoise(AV1_COMP *cpi, MACROBLOCK *mb, int mi_row, int mi_col,
         cpi->use_svc, cpi->svc.spatial_layer_id, use_gf_temporal_ref);
 
   if (decision == FILTER_BLOCK) {
-    decision = av1_denoiser_filter_c(src.buf, src.stride, mc_avg_start,
-                                     mc_avg.y_stride, avg_start, avg.y_stride,
-                                     increase_denoising, bs, motion_magnitude);
+    decision = av1_denoiser_filter(src.buf, src.stride, mc_avg_start,
+                                   mc_avg.y_stride, avg_start, avg.y_stride,
+                                   increase_denoising, bs, motion_magnitude);
   }
 
   if (decision == FILTER_BLOCK) {

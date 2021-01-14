@@ -963,7 +963,11 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #endif
 
 #if CONFIG_AV1_TEMPORAL_DENOISING
-  oxcf->noise_sensitivity = extra_cfg->noise_sensitivity;
+  if (cfg->g_bit_depth == AOM_BITS_8) {
+    oxcf->noise_sensitivity = extra_cfg->noise_sensitivity;
+  } else {
+    oxcf->noise_sensitivity = 0;
+  }
 #endif
   // Set Tile related configuration.
   tile_cfg->num_tile_groups = extra_cfg->num_tg;

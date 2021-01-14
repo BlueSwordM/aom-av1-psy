@@ -386,6 +386,11 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_SSE2
             "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/wedge_utils_sse2.c")
 
+if(CONFIG_AV1_TEMPORAL_DENOISING)
+  list(APPEND AOM_AV1_ENCODER_INTRIN_SSE2
+              "${AOM_ROOT}/av1/encoder/x86/av1_temporal_denoiser_sse2.c")
+endif()
+
 if(NOT CONFIG_AV1_HIGHBITDEPTH)
   list(
     REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_SSE2
@@ -454,6 +459,11 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
             "${AOM_ROOT}/av1/encoder/arm/neon/hybrid_fwd_txfm_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/av1_fwd_txfm2d_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/highbd_fwd_txfm_neon.c")
+
+if(CONFIG_AV1_TEMPORAL_DENOISING)
+  list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
+              "${AOM_ROOT}/av1/encoder/arm/neon/av1_temporal_denoiser_neon.c")
+endif()
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_MSA
             "${AOM_ROOT}/av1/encoder/mips/msa/error_msa.c"
