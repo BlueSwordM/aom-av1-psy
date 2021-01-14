@@ -940,6 +940,7 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
       av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage);
 
   int arf_src_offset = cpi->gf_group.arf_src_offset[cpi->gf_group.index];
+  const FRAME_TYPE frame_type = cpi->gf_group.frame_type[cpi->gf_group.index];
 
   // Temporal filtering should not go beyond key frames
   const int key_to_curframe =
@@ -1000,7 +1001,7 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   }
   num_frames = AOMMIN(num_frames + adjust_num, lookahead_depth);
 
-  if (update_type == KF_UPDATE && !is_forward_keyframe) {
+  if (frame_type == KEY_FRAME && !is_forward_keyframe) {
     num_before = 0;
     num_after = AOMMIN(num_frames - 1, max_after);
   } else if (is_forward_keyframe) {  // Key frame in one-pass mode.
