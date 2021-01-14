@@ -1478,6 +1478,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
   if (cpi->common.tiles.large_scale) return 0;
   if (gf_group->max_layer_depth_allowed == 0) return 1;
+  if (!gop_eval) return 0;
   assert(gf_group->arf_index >= 0);
 
   double beta[2] = { 0.0 };
@@ -1507,8 +1508,14 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
             (this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta;
       }
     }
-    beta[frame_idx - gf_group->arf_index] =
-        (double)mc_dep_cost_base / intra_cost_base;
+    if (intra_cost_base == 0) {
+      // This should happen very rarely and if it happens, assign a dummy value
+      // to it since it probably wouldn't influence things much
+      beta[frame_idx - gf_group->arf_index] = 0;
+    } else {
+      beta[frame_idx - gf_group->arf_index] =
+          (double)mc_dep_cost_base / intra_cost_base;
+    }
   }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING

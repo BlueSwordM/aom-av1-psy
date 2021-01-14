@@ -941,9 +941,10 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
                   !is_stat_generation_stage(cpi) &&
                   oxcf->algo_cfg.enable_tpl_model;
   if (frame_params->frame_type == KEY_FRAME) {
-    // Don't do tpl for fwd key frames
+    // Don't do tpl for fwd key frames or fwd key frame overlays
     allow_tpl = allow_tpl && !cpi->sf.tpl_sf.disable_filtered_key_tpl &&
-                !cpi->no_show_fwd_kf;
+                !cpi->no_show_fwd_kf &&
+                gf_group->update_type[gf_group->index] != OVERLAY_UPDATE;
   } else {
     // Do tpl after ARF is filtered, or if no ARF, at the second frame of GF
     // group.
