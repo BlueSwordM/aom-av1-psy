@@ -824,20 +824,6 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
   return 0;
 }
 
-static void alloc_compound_type_rd_buffers_no_check(
-    CompoundTypeRdBuffers *const bufs) {
-  bufs->pred0 =
-      (uint8_t *)aom_memalign(16, 2 * MAX_SB_SQUARE * sizeof(*bufs->pred0));
-  bufs->pred1 =
-      (uint8_t *)aom_memalign(16, 2 * MAX_SB_SQUARE * sizeof(*bufs->pred1));
-  bufs->residual1 =
-      (int16_t *)aom_memalign(32, MAX_SB_SQUARE * sizeof(*bufs->residual1));
-  bufs->diff10 =
-      (int16_t *)aom_memalign(32, MAX_SB_SQUARE * sizeof(*bufs->diff10));
-  bufs->tmp_best_mask_buf = (uint8_t *)aom_malloc(
-      2 * MAX_SB_SQUARE * sizeof(*bufs->tmp_best_mask_buf));
-}
-
 // Computes the valid compound_types to be evaluated
 static INLINE int compute_valid_comp_types(MACROBLOCK *x,
                                            const AV1_COMP *const cpi,
@@ -1104,10 +1090,6 @@ static int64_t masked_compound_type_rd(
         have_newmv_in_inter_mode(this_mode) &&
         (compound_type == COMPOUND_WEDGE) &&
         (!cpi->sf.inter_sf.disable_interinter_wedge_newmv_search);
-    int diffwtd_newmv_search =
-        cpi->sf.inter_sf.enable_interinter_diffwtd_newmv_search &&
-        compound_type == COMPOUND_DIFFWTD &&
-        have_newmv_in_inter_mode(this_mode);
 
     // Search for new MV if needed and build predictor
     if (wedge_newmv_search) {
@@ -1117,40 +1099,6 @@ static int64_t masked_compound_type_rd(
       const int mi_col = xd->mi_col;
       av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, ctx, bsize,
                                     AOM_PLANE_Y, AOM_PLANE_Y);
-    } else if (diffwtd_newmv_search) {
-      *out_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,
-                                                           bsize, this_mode);
-      // we need to update the mask according to the new motion vector
-      CompoundTypeRdBuffers tmp_buf;
-      int64_t tmp_rd = INT64_MAX;
-      alloc_compound_type_rd_buffers_no_check(&tmp_buf);
-
-      uint8_t *tmp_preds0[1] = { tmp_buf.pred0 };
-      uint8_t *tmp_preds1[1] = { tmp_buf.pred1 };
-
-      get_inter_predictors_masked_compound(x, bsize, tmp_preds0, tmp_preds1,
-                                           tmp_buf.residual1, tmp_buf.diff10,
-                                           strides);
-
-      tmp_rd = pick_interinter_mask[compound_type - COMPOUND_WEDGE](
-          cpi, x, bsize, *tmp_preds0, *tmp_preds1, tmp_buf.residual1,
-          tmp_buf.diff10, &cur_sse);
-      // we can reuse rs2 here
-      tmp_rd += RDCOST(x->rdmult, *rs2 + *out_rate_mv, 0);
-
-      if (tmp_rd >= best_rd_cur) {
-        // restore the motion vector
-        mbmi->mv[0].as_int = cur_mv[0].as_int;
-        mbmi->mv[1].as_int = cur_mv[1].as_int;
-        *out_rate_mv = rate_mv;
-        av1_build_wedge_inter_predictor_from_buf(xd, bsize, 0, 0, preds0,
-                                                 strides, preds1, strides);
-      } else {
-        // build the final prediciton using the updated mv
-        av1_build_wedge_inter_predictor_from_buf(xd, bsize, 0, 0, tmp_preds0,
-                                                 strides, tmp_preds1, strides);
-      }
-      release_compound_type_rd_buffers(&tmp_buf);
     } else {
       *out_rate_mv = rate_mv;
       av1_build_wedge_inter_predictor_from_buf(xd, bsize, 0, 0, preds0, strides,
