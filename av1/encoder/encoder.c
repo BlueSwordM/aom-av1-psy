@@ -3606,14 +3606,26 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   // show_existing_frame and lag-in-frames.
   if (cpi->oxcf.pass == 2 && cpi->frame_component_time[0] > 100) {
     int i;
+    uint64_t frame_total = 0, total = 0;
+
     fprintf(stderr, "\n Frame number: %d, Frame type: %s, Show Frame: %d\n",
             cm->current_frame.frame_number,
             get_frame_type_enum(cm->current_frame.frame_type), cm->show_frame);
     for (i = 0; i < kTimingComponents; i++) {
       cpi->component_time[i] += cpi->frame_component_time[i];
-      fprintf(stderr, " %s:  %" PRId64 " us (total: %" PRId64 " us)\n",
+      // Use av1_encode_strategy_time (i = 0) as the total time.
+      if (i == 0) {
+        frame_total = cpi->frame_component_time[0];
+        total = cpi->component_time[0];
+      }
+      fprintf(stderr,
+              " %50s:  %15" PRId64 " us [%6.2f%%] (total: %15" PRId64
+              " us [%6.2f%%])\n",
               get_component_name(i), cpi->frame_component_time[i],
-              cpi->component_time[i]);
+              (float)((float)cpi->frame_component_time[i] * 100.0 /
+                      (float)frame_total),
+              cpi->component_time[i],
+              (float)((float)cpi->component_time[i] * 100.0 / (float)total));
       cpi->frame_component_time[i] = 0;
     }
   }
