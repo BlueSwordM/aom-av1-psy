@@ -717,10 +717,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Decide when and how to use joint_comp.
   DIST_WTD_COMP_FLAG use_dist_wtd_comp_flag;
 
-  // Whether to override and disable sb level coeff cost updates, if
-  // cpi->oxcf.cost_upd_freq.coeff = COST_UPD_SB (i.e. set at SB level)
-  int disable_sb_level_coeff_cost_upd;
-
   // To skip cost update for mv.
   // mv_cost_upd_level indicates the aggressiveness of skipping.
   // 0: update happens at each sb level.
