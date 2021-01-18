@@ -1035,8 +1035,7 @@ static int64_t masked_compound_type_rd(
                                          diff10, strides);
     *calc_pred_masked_compound = 0;
   }
-  if (cpi->sf.inter_sf.prune_wedge_pred_diff_based &&
-      compound_type == COMPOUND_WEDGE) {
+  if (compound_type == COMPOUND_WEDGE) {
     unsigned int sse;
     if (is_cur_buf_hbd(xd))
       (void)cpi->fn_ptr[bsize].vf(CONVERT_TO_BYTEPTR(*preds0), *strides,

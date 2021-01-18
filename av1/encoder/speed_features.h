@@ -705,9 +705,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Whether fast wedge sign estimate is used
   int fast_wedge_sign_estimate;
 
-  // Whether to prune wedge search based on predictor difference
-  int prune_wedge_pred_diff_based;
-
   // Enable/disable ME for interinter wedge search.
   int disable_interinter_wedge_newmv_search;
 
