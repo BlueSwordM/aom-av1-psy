@@ -1476,8 +1476,8 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     }
   }
 
-  if (!cpi->sf.inter_sf.disable_obmc &&
-      cpi->sf.inter_sf.prune_obmc_prob_thresh > 0) {
+  if (cpi->sf.inter_sf.prune_obmc_prob_thresh > 0 &&
+      cpi->sf.inter_sf.prune_obmc_prob_thresh < INT_MAX) {
     const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
 
     for (i = 0; i < BLOCK_SIZES_ALL; i++) {

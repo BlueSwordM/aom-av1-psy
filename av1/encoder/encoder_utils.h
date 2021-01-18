@@ -861,8 +861,8 @@ static AOM_INLINE void copy_frame_prob_info(AV1_COMP *cpi) {
   if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats) {
     av1_copy(frame_probs->tx_type_probs, default_tx_type_probs);
   }
-  if (!cpi->sf.inter_sf.disable_obmc &&
-      cpi->sf.inter_sf.prune_obmc_prob_thresh > 0) {
+  if (cpi->sf.inter_sf.prune_obmc_prob_thresh > 0 &&
+      cpi->sf.inter_sf.prune_obmc_prob_thresh < INT_MAX) {
     av1_copy(frame_probs->obmc_probs, default_obmc_probs);
   }
   if (cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {

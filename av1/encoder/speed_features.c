@@ -266,7 +266,7 @@ static void set_good_speed_feature_framesize_dependent(
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 2;
     }
 
-    sf->inter_sf.prune_obmc_prob_thresh = 16;
+    sf->inter_sf.prune_obmc_prob_thresh = INT_MAX;
   }
 
   if (speed >= 5) {
@@ -609,7 +609,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 2;
     sf->inter_sf.prune_extended_comp_mode = 2;
     sf->inter_sf.disable_smooth_interintra = 1;
-    sf->inter_sf.disable_obmc = 1;
+    sf->inter_sf.prune_obmc_prob_thresh = INT_MAX;
     sf->inter_sf.disable_onesided_comp = 1;
 
     sf->interp_sf.cb_pred_filter_search = 1;
@@ -1157,7 +1157,6 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_comp_type_by_model_rd = 0;
   inter_sf->perform_best_rd_based_gating_for_chroma = 0;
   inter_sf->prune_obmc_prob_thresh = 0;
-  inter_sf->disable_obmc = 0;
   inter_sf->disable_interinter_wedge_var_thresh = 0;
   inter_sf->disable_interintra_wedge_var_thresh = 0;
   inter_sf->prune_ref_mv_idx_search = 0;

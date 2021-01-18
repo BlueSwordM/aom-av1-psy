@@ -1246,8 +1246,8 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     if (tile_data->allow_update_cdf) update_stats(&cpi->common, td);
 
     // Gather obmc and warped motion count to update the probability.
-    if ((!cpi->sf.inter_sf.disable_obmc &&
-         cpi->sf.inter_sf.prune_obmc_prob_thresh > 0) ||
+    if ((cpi->sf.inter_sf.prune_obmc_prob_thresh > 0 &&
+         cpi->sf.inter_sf.prune_obmc_prob_thresh < INT_MAX) ||
         (cm->features.allow_warped_motion &&
          cpi->sf.inter_sf.prune_warped_prob_thresh > 0)) {
       const int inter_block = is_inter_block(mbmi);

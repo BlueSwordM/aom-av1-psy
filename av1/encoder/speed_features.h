@@ -684,10 +684,8 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   int disable_onesided_comp;
 
   // Prune obmc search using previous frame stats.
+  // INT_MAX : disable obmc search
   int prune_obmc_prob_thresh;
-
-  // Disable obmc.
-  int disable_obmc;
 
   // Prune warped motion search using previous frame stats.
   int prune_warped_prob_thresh;
