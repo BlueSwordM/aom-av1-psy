@@ -1075,7 +1075,6 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->less_rectangular_check_level = 0;
   part_sf->use_square_partition_only_threshold = BLOCK_128X128;
   part_sf->auto_max_partition_based_on_simple_motion = NOT_IN_USE;
-  part_sf->auto_min_partition_based_on_simple_motion = 0;
   part_sf->default_max_partition_size = BLOCK_LARGEST;
   part_sf->default_min_partition_size = BLOCK_4X4;
   part_sf->adjust_var_based_rd_partitioning = 0;
