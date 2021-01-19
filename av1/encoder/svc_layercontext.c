@@ -192,21 +192,21 @@ void av1_restore_layer_context(AV1_COMP *const cpi) {
     cr->actual_num_seg1_blocks = lc->actual_num_seg1_blocks;
     cr->actual_num_seg2_blocks = lc->actual_num_seg2_blocks;
   }
-  svc->skip_nonzeromv_last = 0;
-  svc->skip_nonzeromv_gf = 0;
-  // For each reference (LAST/GOLDEN) set the skip_nonzero_last/gf frame flags.
-  // This is to skip testing nonzero-mv for that reference if it was last
+  svc->skip_mvsearch_last = 0;
+  svc->skip_mvsearch_gf = 0;
+  // For each reference (LAST/GOLDEN) set the skip_mvsearch_last/gf frame flags.
+  // This is to skip searching mv for that reference if it was last
   // refreshed (i.e., buffer slot holding that reference was refreshed) on the
   // previous spatial layer(s) at the same time (current_superframe).
   if (svc->external_ref_frame_config && svc->force_zero_mode_spatial_ref) {
     int ref_frame_idx = svc->ref_idx[LAST_FRAME - 1];
     if (svc->buffer_time_index[ref_frame_idx] == svc->current_superframe &&
         svc->buffer_spatial_layer[ref_frame_idx] <= svc->spatial_layer_id - 1)
-      svc->skip_nonzeromv_last = 1;
+      svc->skip_mvsearch_last = 1;
     ref_frame_idx = svc->ref_idx[GOLDEN_FRAME - 1];
     if (svc->buffer_time_index[ref_frame_idx] == svc->current_superframe &&
         svc->buffer_spatial_layer[ref_frame_idx] <= svc->spatial_layer_id - 1)
-      svc->skip_nonzeromv_gf = 1;
+      svc->skip_mvsearch_gf = 1;
   }
 }
 
@@ -334,5 +334,8 @@ void av1_one_pass_cbr_svc_start_layer(AV1_COMP *const cpi) {
   av1_get_layer_resolution(cpi->oxcf.frm_dim_cfg.width,
                            cpi->oxcf.frm_dim_cfg.height, lc->scaling_factor_num,
                            lc->scaling_factor_den, &width, &height);
+  // Use Eightap_smooth for low resolutions.
+  if (width * height <= 320 * 240)
+    svc->downsample_filter_type[svc->spatial_layer_id] = EIGHTTAP_SMOOTH;
   av1_set_size_literal(cpi, width, height);
 }

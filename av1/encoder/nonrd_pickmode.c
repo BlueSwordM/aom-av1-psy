@@ -1829,6 +1829,14 @@ static void estimate_intra_mode(
       cm->seq_params.bit_depth);
   int64_t inter_mode_thresh = RDCOST(x->rdmult, intra_cost_penalty, 0);
   int perform_intra_pred = cpi->sf.rt_sf.check_intra_pred_nonrd;
+  // For spatial enhancemanent layer: turn off intra prediction if the
+  // previous spatial layer as golden ref is not chosen as best reference.
+  // only do this for temporal enhancement layer and on non-key frames.
+  if (cpi->svc.spatial_layer_id > 0 &&
+      best_pickmode->best_ref_frame != GOLDEN_FRAME &&
+      cpi->svc.temporal_layer_id > 0 &&
+      !cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame)
+    perform_intra_pred = 0;
 
   int do_early_exit_rdthresh = 1;
 
@@ -2053,6 +2061,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                   MACROBLOCK *x, RD_STATS *rd_cost,
                                   BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx) {
   AV1_COMMON *const cm = &cpi->common;
+  SVC *const svc = &cpi->svc;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mi = xd->mi[0];
   struct macroblockd_plane *const pd = &xd->plane[0];
@@ -2105,6 +2114,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int64_t thresh_sad_pred = INT64_MAX;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
+  int svc_mv_col = 0;
+  int svc_mv_row = 0;
+  int force_mv_inter_layer = 0;
   int use_modeled_non_rd_cost = 0;
 #if CONFIG_AV1_TEMPORAL_DENOISING
   const int denoise_recheck_zeromv = 1;
@@ -2159,6 +2171,18 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #endif
 
   const int gf_temporal_ref = is_same_gf_and_last_scale(cm);
+
+  // If the lower spatial layer uses an averaging filter for downsampling
+  // (phase = 8), the target decimated pixel is shifted by (1/2, 1/2) relative
+  // to source, so use subpel motion vector to compensate. The nonzero motion
+  // is half pixel shifted to left and top, so (-4, -4). This has more effect
+  // on higher resolutins, so condition it on that for now.
+  if (cpi->use_svc && svc->spatial_layer_id > 0 &&
+      svc->downsample_filter_phase[svc->spatial_layer_id - 1] == 8 &&
+      cm->width * cm->height > 640 * 480) {
+    svc_mv_col = -4;
+    svc_mv_row = -4;
+  }
 
   get_ref_frame_use_mask(cpi, x, mi, mi_row, mi_col, bsize, gf_temporal_ref,
                          use_ref_frame_mask, &force_skip_low_temp_var);
@@ -2233,12 +2257,21 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
     if (!use_ref_frame_mask[ref_frame]) continue;
 
-    // Skip non-zero motion for SVC if skip_nonzeromv_ref is set.
-    if (cpi->use_svc && frame_mv[this_mode][ref_frame].as_int != 0) {
-      if (ref_frame == LAST_FRAME && cpi->svc.skip_nonzeromv_last)
+    force_mv_inter_layer = 0;
+    if (cpi->use_svc && svc->spatial_layer_id > 0 &&
+        ((ref_frame == LAST_FRAME && svc->skip_mvsearch_last) ||
+         (ref_frame == GOLDEN_FRAME && svc->skip_mvsearch_gf))) {
+      // Only test mode if NEARESTMV/NEARMV is (svc_mv_col, svc_mv_row),
+      // otherwise set NEWMV to (svc_mv_col, svc_mv_row).
+      // Skip newmv and filter search.
+      force_mv_inter_layer = 1;
+      if (this_mode == NEWMV) {
+        frame_mv[this_mode][ref_frame].as_mv.col = svc_mv_col;
+        frame_mv[this_mode][ref_frame].as_mv.row = svc_mv_row;
+      } else if (frame_mv[this_mode][ref_frame].as_mv.col != svc_mv_col ||
+                 frame_mv[this_mode][ref_frame].as_mv.row != svc_mv_row) {
         continue;
-      else if (ref_frame == GOLDEN_FRAME && cpi->svc.skip_nonzeromv_gf)
-        continue;
+      }
     }
 
     // If the segment reference frame feature is enabled then do nothing if the
@@ -2284,7 +2317,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     mi->ref_frame[1] = NONE_FRAME;
     set_ref_ptrs(cm, xd, ref_frame, NONE_FRAME);
 
-    if (this_mode == NEWMV) {
+    if (this_mode == NEWMV && !force_mv_inter_layer) {
       if (search_new_mv(cpi, x, frame_mv, ref_frame, gf_temporal_ref, bsize,
                         mi_row, mi_col, &rate_mv, &best_rdc))
         continue;
@@ -2318,7 +2351,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #if COLLECT_PICK_MODE_STAT
     ms_stat.num_nonskipped_searches[bsize][this_mode]++;
 #endif
-    if (enable_filter_search &&
+    if (enable_filter_search && !force_mv_inter_layer &&
         ((mi->mv[0].as_mv.row & 0x07) || (mi->mv[0].as_mv.col & 0x07)) &&
         (ref_frame == LAST_FRAME || !x->nonrd_prune_ref_frame_search)) {
       search_filter_ref(cpi, x, &this_rdc, mi_row, mi_col, tmp, bsize,
@@ -2329,6 +2362,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
           (filter_ref == SWITCHABLE)
               ? av1_broadcast_interp_filter(default_interp_filter)
               : av1_broadcast_interp_filter(filter_ref);
+      if (force_mv_inter_layer)
+        mi->interp_filters = av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
+
       av1_enc_build_inter_predictor_y(xd, mi_row, mi_col);
       if (use_model_yrd_large) {
         model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd, &this_rdc,
