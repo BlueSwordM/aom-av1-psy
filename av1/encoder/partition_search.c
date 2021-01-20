@@ -3044,6 +3044,16 @@ static void prune_4_way_partition_search(
     int pb_source_variance, int ext_partition_allowed,
     int part4_search_allowed[NUM_PART4_TYPES]) {
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
+
+  // Disable 4-way partition search flags for width less than a multiple of the
+  // minimum partition width.
+  if (blk_params.width < (blk_params.min_partition_size_1d
+                          << cpi->sf.part_sf.prune_part4_search)) {
+    part4_search_allowed[HORZ4] = 0;
+    part4_search_allowed[VERT4] = 0;
+    return;
+  }
+
   const int mi_row = blk_params.mi_row;
   const int mi_col = blk_params.mi_col;
   const int bsize = blk_params.bsize;
@@ -3696,18 +3706,10 @@ BEGIN_PARTITION_SEARCH:
 
   // 4-way partitions search stage.
   int part4_search_allowed[NUM_PART4_TYPES] = { 1, 1 };
-
-  // Disable 4-way partition search flags for width less than twice the minimum
-  // width.
-  if (blk_params.width < (blk_params.min_partition_size_1d << 2)) {
-    part4_search_allowed[HORZ4] = 0;
-    part4_search_allowed[VERT4] = 0;
-  } else {
-    // Prune 4-way partition search.
-    prune_4_way_partition_search(cpi, x, pc_tree, &part_search_state, &best_rdc,
-                                 pb_source_variance, ext_partition_allowed,
-                                 part4_search_allowed);
-  }
+  // Prune 4-way partition search.
+  prune_4_way_partition_search(cpi, x, pc_tree, &part_search_state, &best_rdc,
+                               pb_source_variance, ext_partition_allowed,
+                               part4_search_allowed);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, rd_pick_4partition_time);

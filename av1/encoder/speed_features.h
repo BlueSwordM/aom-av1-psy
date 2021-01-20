@@ -404,6 +404,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   // aggressiveness of pruning in order.
   int prune_ext_partition_types_search_level;
 
+  // Prune part4 based on block size
+  int prune_part4_search;
+
   // Use a ML model to prune rectangular, ab and 4-way horz
   // and vert partitions
   int ml_prune_partition;

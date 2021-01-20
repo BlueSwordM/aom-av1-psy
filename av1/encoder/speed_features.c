@@ -384,6 +384,7 @@ static void set_good_speed_features_framesize_independent(
   sf->part_sf.less_rectangular_check_level = 1;
   sf->part_sf.ml_prune_partition = 1;
   sf->part_sf.prune_ext_partition_types_search_level = 1;
+  sf->part_sf.prune_part4_search = 2;
   sf->part_sf.simple_motion_search_prune_rect = 1;
   sf->part_sf.ml_predict_breakout_level = use_hbd ? 1 : 3;
 
@@ -703,6 +704,7 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.prune_sub_8x8_partition_level =
         allow_screen_content_tools ? 0
                                    : frame_is_intra_only(&cpi->common) ? 1 : 2;
+    sf->part_sf.prune_part4_search = 3;
 
     sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
     sf->mv_sf.use_bsize_dependent_search_method = 1;
@@ -1089,6 +1091,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->partition_search_breakout_dist_thr = 0;
   part_sf->partition_search_breakout_rate_thr = 0;
   part_sf->prune_ext_partition_types_search_level = 0;
+  part_sf->prune_part4_search = 0;
   part_sf->ml_prune_partition = 0;
   part_sf->ml_early_term_after_part_split_level = 0;
   for (int i = 0; i < PARTITION_BLOCK_SIZES; ++i) {
