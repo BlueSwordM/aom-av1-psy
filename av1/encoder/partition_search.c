@@ -3022,7 +3022,7 @@ static void prune_4_partition_using_split_info(
   const int num_win_thresh = AOMMIN(3 * (MAXQ - x->qindex) / MAXQ + 1, 3);
 
   for (RECT_PART_TYPE i = HORZ; i < NUM_RECT_PARTS; i++) {
-    if (!(cpi->sf.part_sf.prune_4_partition_using_split_info &&
+    if (!(cpi->sf.part_sf.prune_ext_part_using_split_info &&
           part4_search_allowed[cur_part[i]]))
       continue;
     // Loop over split partitions.

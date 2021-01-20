@@ -482,11 +482,11 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Disable extended partition search for lower block sizes.
   int ext_partition_eval_thresh;
 
-  // Prune 1:4 partition search based on winner info from split partitions
-  int prune_4_partition_using_split_info;
-
-  // Prune AB partition search using split and HORZ/VERT info
-  int prune_ab_partition_using_split_info;
+  // prune extended partition search
+  // 0 : no pruning
+  // 1 : prune 1:4 partition search using winner info from split partitions
+  // 2 : prune 1:4 and AB partition search using split and HORZ/VERT info
+  int prune_ext_part_using_split_info;
 
   // Prunt rectangular, AB and 4-way partition based on q index and block size
   int prune_rectangular_split_based_on_qidx;
