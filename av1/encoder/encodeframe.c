@@ -803,15 +803,20 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
         // restore frame context at the 1st column sb
         memcpy(xd->tile_ctx, x->row_ctx, sizeof(*xd->tile_ctx));
       } else {
-        // update context
-        int wt_left = AVG_CDF_WEIGHT_LEFT;
-        int wt_tr = AVG_CDF_WEIGHT_TOP_RIGHT;
-        if (tile_info->mi_col_end > (mi_col + mib_size))
-          av1_avg_cdf_symbols(xd->tile_ctx, x->row_ctx + sb_col_in_tile,
-                              wt_left, wt_tr);
-        else
-          av1_avg_cdf_symbols(xd->tile_ctx, x->row_ctx + sb_col_in_tile - 1,
-                              wt_left, wt_tr);
+        if (!cpi->sf.rt_sf.use_nonrd_pick_mode ||
+            cpi->oxcf.cost_upd_freq.coeff < 2 ||
+            cpi->oxcf.cost_upd_freq.mode < 2 ||
+            cpi->oxcf.cost_upd_freq.mv < 2) {
+          // update context
+          int wt_left = AVG_CDF_WEIGHT_LEFT;
+          int wt_tr = AVG_CDF_WEIGHT_TOP_RIGHT;
+          if (tile_info->mi_col_end > (mi_col + mib_size))
+            av1_avg_cdf_symbols(xd->tile_ctx, x->row_ctx + sb_col_in_tile,
+                                wt_left, wt_tr);
+          else
+            av1_avg_cdf_symbols(xd->tile_ctx, x->row_ctx + sb_col_in_tile - 1,
+                                wt_left, wt_tr);
+        }
       }
     }
 
