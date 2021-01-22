@@ -173,19 +173,6 @@ typedef struct {
 #endif  // CONFIG_COLLECT_PARTITION_STATS
 } PartitionSearchState;
 
-static AOM_INLINE void update_global_motion_used(PREDICTION_MODE mode,
-                                                 BLOCK_SIZE bsize,
-                                                 const MB_MODE_INFO *mbmi,
-                                                 RD_COUNTS *rdc) {
-  if (mode == GLOBALMV || mode == GLOBAL_GLOBALMV) {
-    const int num_4x4s = mi_size_wide[bsize] * mi_size_high[bsize];
-    int ref;
-    for (ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-      rdc->global_motion_used[mbmi->ref_frame[ref]] += num_4x4s;
-    }
-  }
-}
-
 static AOM_INLINE void update_filter_type_cdf(const MACROBLOCKD *xd,
                                               const MB_MODE_INFO *mbmi,
                                               int dual_filter) {

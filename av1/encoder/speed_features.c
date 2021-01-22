@@ -378,7 +378,6 @@ static void set_good_speed_features_framesize_independent(
   }
 
   // Speed 0 for all speed features that give neutral coding performance change.
-  sf->gm_sf.gm_disable_recode = 1;
   sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3;
 
   sf->part_sf.less_rectangular_check_level = 1;
@@ -743,7 +742,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   const int boosted = frame_is_boosted(cpi);
 
   // Speed 0 for all speed features that give neutral coding performance change.
-  sf->gm_sf.gm_disable_recode = 1;
   sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3;
 
   sf->part_sf.less_rectangular_check_level = 1;
@@ -1070,7 +1068,6 @@ static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
 static AOM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
   gm_sf->selective_ref_gm = 1;
   gm_sf->gm_search_type = GM_FULL_SEARCH;
-  gm_sf->gm_disable_recode = 0;
   gm_sf->prune_ref_frame_for_gm_search = 0;
 }
 
