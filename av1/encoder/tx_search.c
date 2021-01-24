@@ -12,7 +12,6 @@
 #include "av1/common/cfl.h"
 #include "av1/common/reconintra.h"
 #include "av1/encoder/block.h"
-#include "av1/encoder/encodetxb.h"
 #include "av1/encoder/hybrid_fwd_txfm.h"
 #include "av1/common/idct.h"
 #include "av1/encoder/model_rd.h"
@@ -20,6 +19,7 @@
 #include "av1/encoder/rdopt_utils.h"
 #include "av1/encoder/tx_prune_model_weights.h"
 #include "av1/encoder/tx_search.h"
+#include "av1/encoder/txb_rdopt.h"
 
 struct rdcost_block_args {
   const AV1_COMP *cpi;
