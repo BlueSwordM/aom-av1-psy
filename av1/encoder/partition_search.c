@@ -3827,6 +3827,7 @@ BEGIN_PARTITION_SEARCH:
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
+#if CONFIG_RT_ML_PARTITIONING
 #define FEATURES 6
 #define LABELS 2
 static int ml_predict_var_paritioning(AV1_COMP *cpi, MACROBLOCK *x,
@@ -4220,3 +4221,4 @@ void av1_nonrd_pick_partition(AV1_COMP *cpi, ThreadData *td,
     assert(tp_orig == *tp);
   }
 }
+#endif  // CONFIG_RT_ML_PARTITIONING

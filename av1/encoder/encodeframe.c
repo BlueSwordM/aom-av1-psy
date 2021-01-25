@@ -442,6 +442,7 @@ static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
+#if CONFIG_RT_ML_PARTITIONING
 // Get a prediction(stored in x->est_pred) for the whole superblock.
 static void get_estimated_pred(AV1_COMP *cpi, const TileInfo *const tile,
                                MACROBLOCK *x, int mi_row, int mi_col) {
@@ -489,6 +490,7 @@ static void get_estimated_pred(AV1_COMP *cpi, const TileInfo *const tile,
 #endif  // CONFIG_VP9_HIGHBITDEPTH
   }
 }
+#endif  // CONFIG_RT_ML_PARTITIONING
 
 #define AVG_CDF_WEIGHT_LEFT 3
 #define AVG_CDF_WEIGHT_TOP_RIGHT 1
@@ -520,7 +522,7 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
     int offset = cpi->source->y_stride * (mi_row << 2) + (mi_col << 2);
     av1_source_content_sb(cpi, x, offset);
   }
-
+#if CONFIG_RT_ML_PARTITIONING
   if (sf->part_sf.partition_search_type == ML_BASED_PARTITION) {
     PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
     RD_STATS dummy_rdc;
@@ -530,7 +532,7 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
     av1_free_pc_tree_recursive(pc_root, av1_num_planes(cm), 0, 0);
     return;
   }
-
+#endif
   // Set the partition
   if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
     // set a fixed-size partition
