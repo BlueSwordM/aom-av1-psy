@@ -582,6 +582,11 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
   MACROBLOCK *const x = &cpi->td.mb;
   RD_OPT *const rd = &cpi->rd;
   MvCosts *mv_costs = &x->mv_costs;
+  int use_nonrd_pick_mode = cpi->sf.rt_sf.use_nonrd_pick_mode;
+  CostUpdateFreq cost_upd_freq = cpi->oxcf.cost_upd_freq;
+  int fill_costs =
+      frame_is_intra_only(cm) || (cm->current_frame.frame_number & 0x07) == 1;
+  int num_planes = av1_num_planes(cm);
 
   aom_clear_system_state();
 
@@ -592,13 +597,20 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
 
   set_block_thresholds(cm, rd);
 
-  if ((!cpi->sf.rt_sf.use_nonrd_pick_mode &&
-       cpi->oxcf.cost_upd_freq.mv != COST_UPD_OFF) ||
-      frame_is_intra_only(cm) || (cm->current_frame.frame_number & 0x07) == 1)
+  if ((!use_nonrd_pick_mode && cost_upd_freq.mv != COST_UPD_OFF) ||
+      cost_upd_freq.mv == COST_UPD_TILE || fill_costs)
     av1_fill_mv_costs(cm->fc, cm->features.cur_frame_force_integer_mv,
                       cm->features.allow_high_precision_mv, mv_costs);
 
-  if (!cpi->sf.rt_sf.use_nonrd_pick_mode && frame_is_intra_only(cm) &&
+  if ((!use_nonrd_pick_mode && cost_upd_freq.coeff != COST_UPD_OFF) ||
+      cost_upd_freq.coeff == COST_UPD_TILE || fill_costs)
+    av1_fill_coeff_costs(&x->coeff_costs, cm->fc, num_planes);
+
+  if ((!use_nonrd_pick_mode && cost_upd_freq.mode != COST_UPD_OFF) ||
+      cost_upd_freq.mode == COST_UPD_TILE || fill_costs)
+    av1_fill_mode_rates(cm, &x->mode_costs, cm->fc);
+
+  if (!use_nonrd_pick_mode && frame_is_intra_only(cm) &&
       cm->features.allow_screen_content_tools &&
       !is_stat_generation_stage(cpi)) {
     IntraBCMVCosts *const dv_costs = &cpi->dv_costs;
