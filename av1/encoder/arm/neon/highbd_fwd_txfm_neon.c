@@ -1117,6 +1117,7 @@ static INLINE void load_buffer_4x8(const int16_t *input, int32x4_t *out,
   load_buffer_4x4(botL, out + 4, stride, flipud, fliplr, v_shift);
 }
 
+#if !CONFIG_REALTIME_ONLY
 static INLINE void load_buffer_4x16(const int16_t *input, int32x4_t *out,
                                     const int stride, const int flipud,
                                     const int fliplr,
@@ -1134,6 +1135,7 @@ static INLINE void load_buffer_4x16(const int16_t *input, int32x4_t *out,
   load_buffer_4x8(topL, out, stride, flipud, fliplr, v_shift);
   load_buffer_4x8(botL, out + 8, stride, flipud, fliplr, v_shift);
 }
+#endif
 
 static INLINE void load_buffer_32x8n(const int16_t *input, int32x4_t *out,
                                      int stride, int flipud, int fliplr,
