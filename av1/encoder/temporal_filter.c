@@ -1190,17 +1190,6 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
     return 0;
   }
 
-  // TODO(yunqing): For INTNL_ARF_UPDATE type, the following me initialization
-  // is used somewhere unexpectedly. Should be resolved later.
-  // Initialize errorperbit and sadperbit
-  const int rdmult = av1_compute_rd_mult_based_on_qindex(cpi, TF_QINDEX);
-  MvCosts *mv_costs = cpi->td.mb.mv_costs;
-  av1_set_error_per_bit(&cpi->td.mb.errorperbit, rdmult);
-  av1_set_sad_per_bit(cpi, &cpi->td.mb.sadperbit, TF_QINDEX);
-  av1_fill_mv_costs(cpi->common.fc,
-                    cpi->common.features.cur_frame_force_integer_mv,
-                    cpi->common.features.allow_high_precision_mv, mv_costs);
-
   // Initialize temporal filter context structure.
   init_tf_ctx(cpi, filter_frame_lookahead_idx, is_second_arf, update_type,
               is_forward_keyframe);

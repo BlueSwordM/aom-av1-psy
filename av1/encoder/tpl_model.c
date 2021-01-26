@@ -1436,6 +1436,12 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   av1_setup_scale_factors_for_frame(&cm->sf_identity, cm->width, cm->height,
                                     cm->width, cm->height);
 
+  if (frame_params->frame_type == KEY_FRAME) {
+    av1_init_mv_probs(cm);
+  }
+  av1_fill_mv_costs(cm->fc, cm->features.cur_frame_force_integer_mv,
+                    cm->features.allow_high_precision_mv, cpi->td.mb.mv_costs);
+
   // Backward propagation from tpl_group_frames to 1.
   for (int frame_idx = gf_group->index; frame_idx < tpl_gf_group_frames;
        ++frame_idx) {
