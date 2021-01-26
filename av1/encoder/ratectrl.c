@@ -2638,6 +2638,9 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
           cpi, gf_group->update_type[gf_group->index]);
     }
   }
+  if (cpi->oxcf.rc_cfg.mode == AOM_Q)
+    rc->active_worst_quality = cpi->oxcf.rc_cfg.cq_level;
+
   av1_rc_set_frame_target(cpi, target, cm->width, cm->height);
   rc->base_frame_target = target;
   cm->current_frame.frame_type = frame_params->frame_type;
