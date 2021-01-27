@@ -884,7 +884,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
         !is_stat_generation_stage(cpi) && !frame_params->show_existing_frame &&
         cpi->rc.frames_to_key > cpi->oxcf.algo_cfg.arnr_max_frames &&
         !is_lossless_requested(&oxcf->rc_cfg) &&
-        oxcf->algo_cfg.arnr_max_frames > 0;
+        oxcf->algo_cfg.arnr_max_frames > 0 && oxcf->gf_cfg.lag_in_frames > 1;
     if (allow_kf_filtering) {
       const double y_noise_level = av1_estimate_noise_from_single_plane(
           frame_input->source, 0, cm->seq_params.bit_depth);
