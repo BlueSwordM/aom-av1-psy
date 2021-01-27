@@ -246,6 +246,7 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/tx_search.h"
             "${AOM_ROOT}/av1/encoder/txb_rdopt.c"
             "${AOM_ROOT}/av1/encoder/txb_rdopt.h"
+            "${AOM_ROOT}/av1/encoder/txb_rdopt_utils.h"
             "${AOM_ROOT}/av1/encoder/intra_mode_search.c"
             "${AOM_ROOT}/av1/encoder/intra_mode_search.h"
             "${AOM_ROOT}/av1/encoder/intra_mode_search_utils.h"
