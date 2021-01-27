@@ -2790,9 +2790,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   char *err_string = ctx->cpi->common.error.detail;
 
 #if __STDC_VERSION__ >= 201112L
-  static_assert(sizeof(ctx->cpi->common.error.detail) >= ARG_ERR_MSG_MAX_LEN,
-                "The size of the err_msg buffer for arg_match_helper must be "
-                "at least ARG_ERR_MSG_MAX_LEN");
+  // We use the keyword _Static_assert because clang-cl does not allow the
+  // convenience macro static_assert to be used in function scope.
+  _Static_assert(sizeof(ctx->cpi->common.error.detail) >= ARG_ERR_MSG_MAX_LEN,
+                 "The size of the err_msg buffer for arg_match_helper must be "
+                 "at least ARG_ERR_MSG_MAX_LEN");
 #else
   assert(sizeof(ctx->cpi->common.error.detail) >= ARG_ERR_MSG_MAX_LEN);
 #endif
