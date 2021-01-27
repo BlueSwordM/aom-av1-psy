@@ -23,24 +23,6 @@
 #include "av1/encoder/rdopt.h"
 #include "av1/encoder/tokenize.h"
 
-typedef struct LevelDownStats {
-  int update;
-  tran_low_t low_qc;
-  tran_low_t low_dqc;
-  int64_t dist0;
-  int rate;
-  int rate_low;
-  int64_t dist;
-  int64_t dist_low;
-  int64_t rd;
-  int64_t rd_low;
-  int64_t nz_rd;
-  int64_t rd_diff;
-  int cost_diff;
-  int64_t dist_diff;
-  int new_eob;
-} LevelDownStats;
-
 void av1_alloc_txb_buf(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   CoeffBufferPool *coeff_buf_pool = &cpi->coeff_buffer_pool;
@@ -414,12 +396,6 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     }
   }
 }
-
-typedef struct encode_txb_args {
-  const AV1_COMMON *cm;
-  MACROBLOCK *x;
-  aom_writer *w;
-} ENCODE_TXB_ARGS;
 
 void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
                                aom_writer *w, BLOCK_SIZE bsize) {
