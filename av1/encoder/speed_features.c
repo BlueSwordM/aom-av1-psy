@@ -1289,6 +1289,11 @@ void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
     set_rt_speed_feature_framesize_dependent(cpi, sf, speed);
   }
 
+  if (!cpi->seq_params_locked) {
+    cpi->common.seq_params.enable_masked_compound &=
+        !sf->inter_sf.disable_masked_comp;
+  }
+
   // This is only used in motion vector unit test.
   if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 1)
     cpi->mv_search_params.find_fractional_mv_step = av1_return_max_sub_pixel_mv;
@@ -1333,8 +1338,6 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
         !sf->interp_sf.disable_dual_filter;
     cpi->common.seq_params.enable_restoration &= !sf->lpf_sf.disable_lr_filter;
 
-    cpi->common.seq_params.enable_masked_compound &=
-        !sf->inter_sf.disable_masked_comp;
     cpi->common.seq_params.enable_interintra_compound &=
         (sf->inter_sf.disable_interintra_wedge_var_thresh != UINT_MAX);
   }
