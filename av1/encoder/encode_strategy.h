@@ -69,6 +69,10 @@ void av1_configure_buffer_updates(
 int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
                                 const EncodeFrameParams *const frame_params,
                                 FRAME_UPDATE_TYPE frame_update_type,
+#if CONFIG_FRAME_PARALLEL_ENCODE
+                                int cur_disp_order,
+                                RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
                                 const RefBufferStack *const ref_buffer_stack);
 
 int av1_get_refresh_ref_frame_map(int refresh_frame_flags);
@@ -92,6 +96,11 @@ void av1_update_ref_frame_map(AV1_COMP *cpi,
  *                                 in AV1Common.
  */
 void av1_get_ref_frames(const RefBufferStack *ref_buffer_stack,
+#if CONFIG_FRAME_PARALLEL_ENCODE
+                        AV1_COMP *cpi,
+                        RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
+                        int cur_frame_disp,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
                         int remapped_ref_idx[REF_FRAMES]);
 
 int is_forced_keyframe_pending(struct lookahead_ctx *lookahead,

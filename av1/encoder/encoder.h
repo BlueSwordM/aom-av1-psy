@@ -121,6 +121,26 @@ enum {
   FRAMEFLAGS_ERROR_RESILIENT = 1 << 6,
 } UENUM1BYTE(FRAMETYPE_FLAGS);
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+// 0 level frames are sometimes used for rate control purposes, but for
+// reference mapping purposes, the minimum level should be 1.
+#define MIN_PYR_LEVEL 1
+static INLINE int get_true_pyr_level(int frame_level, int frame_order,
+                                     int max_layer_depth) {
+  if (frame_order == 0) {
+    // Keyframe case
+    return MIN_PYR_LEVEL;
+  } else if (frame_level == MAX_ARF_LAYERS) {
+    // Leaves
+    return max_layer_depth;
+  } else if (frame_level == (MAX_ARF_LAYERS + 1)) {
+    // Altrefs
+    return MIN_PYR_LEVEL;
+  }
+  return AOMMAX(MIN_PYR_LEVEL, frame_level);
+}
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+
 enum {
   NO_AQ = 0,
   VARIANCE_AQ = 1,
@@ -3079,6 +3099,47 @@ void av1_set_screen_content_options(struct AV1_COMP *cpi,
                                     FeatureFlags *features);
 
 void av1_update_frame_size(AV1_COMP *cpi);
+
+#if CONFIG_FRAME_PARALLEL_ENCODE
+typedef struct {
+  int pyr_level;
+  int disp_order;
+} RefFrameMapPair;
+
+static INLINE void init_ref_map_pair(
+    AV1_COMP *cpi, RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
+  if (cpi->ppi->gf_group.update_type[cpi->gf_frame_index] == KF_UPDATE) {
+    memset(ref_frame_map_pairs, -1, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
+    return;
+  }
+  memset(ref_frame_map_pairs, 0, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
+  for (int map_idx = 0; map_idx < REF_FRAMES; map_idx++) {
+    // Get reference frame buffer.
+    const RefCntBuffer *const buf = cpi->common.ref_frame_map[map_idx];
+    if (ref_frame_map_pairs[map_idx].disp_order == -1) continue;
+    if (buf == NULL) {
+      ref_frame_map_pairs[map_idx].disp_order = -1;
+      ref_frame_map_pairs[map_idx].pyr_level = -1;
+      continue;
+    } else if (buf->ref_count > 1) {
+      // Once the keyframe is coded, the slots in ref_frame_map will all
+      // point to the same frame. In that case, all subsequent pointers
+      // matching the current are considered "free" slots. This will find
+      // the next occurance of the current pointer if ref_count indicates
+      // there are multiple instances of it and mark it as free.
+      for (int idx2 = map_idx + 1; idx2 < REF_FRAMES; ++idx2) {
+        const RefCntBuffer *const buf2 = cpi->common.ref_frame_map[idx2];
+        if (buf2 == buf) {
+          ref_frame_map_pairs[idx2].disp_order = -1;
+          ref_frame_map_pairs[idx2].pyr_level = -1;
+        }
+      }
+    }
+    ref_frame_map_pairs[map_idx].disp_order = (int)buf->display_order_hint;
+    ref_frame_map_pairs[map_idx].pyr_level = buf->pyramid_level;
+  }
+}
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
 // TODO(jingning): Move these functions as primitive members for the new cpi
 // class.
