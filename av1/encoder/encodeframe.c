@@ -996,8 +996,10 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
   if (cpi->oxcf.intra_mode_cfg.enable_cfl_intra)
     cfl_init(&td->mb.e_mbd.cfl, &cm->seq_params);
 
-  av1_crc32c_calculator_init(
-      &td->mb.txfm_search_info.mb_rd_record.crc_calculator);
+  if (td->mb.txfm_search_info.txb_rd_records != NULL) {
+    av1_crc32c_calculator_init(
+        &td->mb.txfm_search_info.txb_rd_records->mb_rd_record.crc_calculator);
+  }
 
   for (int mi_row = tile_info->mi_row_start; mi_row < tile_info->mi_row_end;
        mi_row += cm->seq_params.mib_size) {
@@ -1022,6 +1024,10 @@ static AOM_INLINE void encode_tiles(AV1_COMP *cpi) {
   if (cpi->allocated_tiles < tile_cols * tile_rows) av1_alloc_tile_data(cpi);
 
   av1_init_tile_data(cpi);
+  if (!cpi->sf.rt_sf.use_nonrd_pick_mode) {
+    cpi->td.mb.txfm_search_info.txb_rd_records =
+        (TxbRdRecords *)aom_malloc(sizeof(TxbRdRecords));
+  }
 
   for (tile_row = 0; tile_row < tile_rows; ++tile_row) {
     for (tile_col = 0; tile_col < tile_cols; ++tile_col) {
@@ -1035,6 +1041,11 @@ static AOM_INLINE void encode_tiles(AV1_COMP *cpi) {
       cpi->intrabc_used |= cpi->td.intrabc_used;
       cpi->deltaq_used |= cpi->td.deltaq_used;
     }
+  }
+
+  if (cpi->td.mb.txfm_search_info.txb_rd_records) {
+    aom_free(cpi->td.mb.txfm_search_info.txb_rd_records);
+    cpi->td.mb.txfm_search_info.txb_rd_records = NULL;
   }
 }
 
@@ -1535,7 +1546,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       }
     }
   }
-
   if (hash_table_created) {
     av1_hash_table_destroy(&intrabc_hash_info->intrabc_hash_table);
   }

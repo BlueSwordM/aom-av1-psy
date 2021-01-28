@@ -263,10 +263,12 @@ static INLINE void init_rd_record_tree(TXB_RD_INFO_NODE *tree,
 static int find_tx_size_rd_records(MACROBLOCK *x, BLOCK_SIZE bsize,
                                    TXB_RD_INFO_NODE *dst_rd_info) {
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
-  TXB_RD_RECORD *rd_records_table[4] = { txfm_info->txb_rd_record_8X8,
-                                         txfm_info->txb_rd_record_16X16,
-                                         txfm_info->txb_rd_record_32X32,
-                                         txfm_info->txb_rd_record_64X64 };
+  TXB_RD_RECORD *rd_records_table[4] = {
+    txfm_info->txb_rd_records->txb_rd_record_8X8,
+    txfm_info->txb_rd_records->txb_rd_record_16X16,
+    txfm_info->txb_rd_records->txb_rd_record_32X32,
+    txfm_info->txb_rd_records->txb_rd_record_64X64
+  };
   const TX_SIZE max_square_tx_size = max_txsize_lookup[bsize];
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
@@ -313,8 +315,8 @@ static int find_tx_size_rd_records(MACROBLOCK *x, BLOCK_SIZE bsize,
             cur_diff_row += diff_stride;
           }
           const int hash = av1_get_crc32c_value(
-              &txfm_info->mb_rd_record.crc_calculator, (uint8_t *)hash_data,
-              2 * cur_tx_bw * cur_tx_bh);
+              &txfm_info->txb_rd_records->mb_rd_record.crc_calculator,
+              (uint8_t *)hash_data, 2 * cur_tx_bw * cur_tx_bh);
           // Find corresponding RD info based on the hash value.
           const int record_idx =
               row_in_sb * (MAX_MIB_SIZE >> (tx_size_idx + 1)) + col_in_sb;
@@ -336,9 +338,9 @@ static INLINE uint32_t get_block_residue_hash(MACROBLOCK *x, BLOCK_SIZE bsize) {
   const int rows = block_size_high[bsize];
   const int cols = block_size_wide[bsize];
   const int16_t *diff = x->plane[0].src_diff;
-  const uint32_t hash =
-      av1_get_crc32c_value(&x->txfm_search_info.mb_rd_record.crc_calculator,
-                           (uint8_t *)diff, 2 * rows * cols);
+  const uint32_t hash = av1_get_crc32c_value(
+      &x->txfm_search_info.txb_rd_records->mb_rd_record.crc_calculator,
+      (uint8_t *)diff, 2 * rows * cols);
   return (hash << 5) + bsize;
 }
 
@@ -1293,7 +1295,8 @@ static uint32_t get_intra_txb_hash(MACROBLOCK *x, int plane, int blk_row,
     }
     hash_data = (uint8_t *)tmp_data;
   }
-  CRC32C *crc = &x->txfm_search_info.mb_rd_record.crc_calculator;
+  CRC32C *crc =
+      &x->txfm_search_info.txb_rd_records->mb_rd_record.crc_calculator;
   const uint32_t hash = av1_get_crc32c_value(crc, hash_data, 2 * txb_w * txb_h);
   return (hash << 5) + tx_size;
 }
@@ -1316,13 +1319,14 @@ static INLINE int is_intra_hash_match(const AV1_COMP *cpi, MACROBLOCK *x,
          plane == 0 && tx_size_wide[tx_size] == tx_size_high[tx_size]);
   const uint32_t intra_hash =
       get_intra_txb_hash(x, plane, blk_row, blk_col, plane_bsize, tx_size);
-  const int intra_hash_idx =
-      find_tx_size_rd_info(&txfm_info->txb_rd_record_intra, intra_hash);
-  *intra_txb_rd_info =
-      &txfm_info->txb_rd_record_intra.tx_rd_info[intra_hash_idx];
+  const int intra_hash_idx = find_tx_size_rd_info(
+      &txfm_info->txb_rd_records->txb_rd_record_intra, intra_hash);
+  *intra_txb_rd_info = &txfm_info->txb_rd_records->txb_rd_record_intra
+                            .tx_rd_info[intra_hash_idx];
   *cur_joint_ctx = (txb_ctx->dc_sign_ctx << 8) + txb_ctx->txb_skip_ctx;
   if ((*intra_txb_rd_info)->entropy_context == *cur_joint_ctx &&
-      txfm_info->txb_rd_record_intra.tx_rd_info[intra_hash_idx].valid) {
+      txfm_info->txb_rd_records->txb_rd_record_intra.tx_rd_info[intra_hash_idx]
+          .valid) {
     xd->tx_type_map[tx_type_map_idx] = (*intra_txb_rd_info)->tx_type;
     const TX_TYPE ref_tx_type =
         av1_get_tx_type(xd, get_plane_type(plane), blk_row, blk_col, tx_size,
@@ -3703,7 +3707,7 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
   const int n4 = bsize_to_num_blk(bsize);
   if (is_mb_rd_hash_enabled) {
     hash = get_block_residue_hash(x, bsize);
-    mb_rd_record = &x->txfm_search_info.mb_rd_record;
+    mb_rd_record = &x->txfm_search_info.txb_rd_records->mb_rd_record;
     const int match_index = find_mb_rd_info(mb_rd_record, ref_best_rd, hash);
     if (match_index != -1) {
       MB_RD_INFO *tx_rd_info = &mb_rd_record->tx_rd_info[match_index];
@@ -3785,7 +3789,7 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
         (mi_col + mi_size_wide[bs] < xd->tile.mi_col_end);
     if (within_border) {
       hash = get_block_residue_hash(x, bs);
-      mb_rd_record = &x->txfm_search_info.mb_rd_record;
+      mb_rd_record = &x->txfm_search_info.txb_rd_records->mb_rd_record;
       const int match_index = find_mb_rd_info(mb_rd_record, ref_best_rd, hash);
       if (match_index != -1) {
         MB_RD_INFO *tx_rd_info = &mb_rd_record->tx_rd_info[match_index];
