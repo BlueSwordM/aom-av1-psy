@@ -707,9 +707,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Enable/disable ME for interinter wedge search.
   int disable_interinter_wedge_newmv_search;
 
-  // Enable/disable smooth inter-intra mode
-  int disable_smooth_interintra;
-
   // Decide when and how to use joint_comp.
   DIST_WTD_COMP_FLAG use_dist_wtd_comp_flag;
 
