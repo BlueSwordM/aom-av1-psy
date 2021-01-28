@@ -2427,13 +2427,8 @@ static int process_compound_inter_mode(
   const int num_planes = av1_num_planes(cm);
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-  // Find matching interp filter or set to default interp filter
-  const int need_search = av1_is_interp_needed(xd);
-  const InterpFilter assign_filter = cm->features.interp_filter;
   int is_luma_interp_done = 0;
-  av1_find_interp_filter_match(mbmi, cpi, assign_filter, need_search,
-                               args->interp_filter_stats,
-                               args->interp_filter_stats_idx);
+  set_default_interp_filters(mbmi, cm->features.interp_filter);
 
   int64_t best_rd_compound;
   int64_t rd_thresh;
