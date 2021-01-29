@@ -894,7 +894,7 @@ typedef struct AV1EncoderConfig {
   // Indicates the maximum number of threads that may be used by the encoder.
   int max_threads;
 
-  // Indicates the spped preset to be used.
+  // Indicates the speed preset to be used.
   int speed;
 
   // Indicates the target sequence level index for each operating point(OP).
