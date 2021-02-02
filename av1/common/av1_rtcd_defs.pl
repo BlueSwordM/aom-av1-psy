@@ -425,8 +425,9 @@ add_proto qw/void av1_calc_indices_dim2/, "const int *data, const int *centroids
   add_proto qw/void av1_get_horver_correlation_full/, " const int16_t *diff, int stride, int w, int h, float *hcorr, float *vcorr";
   specialize qw/av1_get_horver_correlation_full sse4_1 avx2 neon/;
 
+  # TODO(any): av1_nn_predict sse3 optimization causes SIMD/c mismatch that needs to be fixed.
   add_proto qw/void av1_nn_predict/, " const float *input_nodes, const NN_CONFIG *const nn_config, int reduce_prec, float *const output";
-  specialize qw/av1_nn_predict sse3 neon/;
+  specialize qw/av1_nn_predict neon/;
 
   # CNN functions
   if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
