@@ -254,7 +254,7 @@ TEST_P(AV1KmeansTest2, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(0), GET_PARAM(1), 8);
 }
 
-#if HAVE_SSE2 || HAVE_AVX2
+#if HAVE_AVX2 || HAVE_SSE2
 const BLOCK_SIZE kValidBlockSize[] = { BLOCK_8X8,   BLOCK_8X16,  BLOCK_8X32,
                                        BLOCK_16X8,  BLOCK_16X16, BLOCK_16X32,
                                        BLOCK_32X8,  BLOCK_32X16, BLOCK_32X32,
@@ -277,11 +277,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
     SSE2, AV1KmeansTest1,
-    ::testing::Combine(::testing::Values(&av1_calc_indices_dim1_avx2),
+    ::testing::Combine(::testing::Values(&av1_calc_indices_dim1_sse2),
                        ::testing::ValuesIn(kValidBlockSize)));
 INSTANTIATE_TEST_SUITE_P(
     SSE2, AV1KmeansTest2,
-    ::testing::Combine(::testing::Values(&av1_calc_indices_dim2_avx2),
+    ::testing::Combine(::testing::Values(&av1_calc_indices_dim2_sse2),
                        ::testing::ValuesIn(kValidBlockSize)));
 #endif
 

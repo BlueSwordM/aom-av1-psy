@@ -27,7 +27,10 @@ void av1_calc_indices_dim1_sse2(const int *data, const int *centroids,
     for (int j = 0; j < k; j++) {
       __m128i cent = _mm_set1_epi32((uint32_t)centroids[j]);
       __m128i d1 = _mm_sub_epi32(ind[l], cent);
-      dist[j] = _mm_madd_epi16(d1, d1);
+      __m128i d2 = _mm_packs_epi32(d1, d1);
+      __m128i d3 = _mm_mullo_epi16(d2, d2);
+      __m128i d4 = _mm_mulhi_epi16(d2, d2);
+      dist[j] = _mm_unpacklo_epi16(d3, d4);
     }
 
     ind[l] = _mm_setzero_si128();
@@ -39,8 +42,8 @@ void av1_calc_indices_dim1_sse2(const int *data, const int *centroids,
       __m128i ind1 = _mm_set1_epi32(j);
       ind[l] =
           _mm_or_si128(_mm_andnot_si128(cmp, ind[l]), _mm_and_si128(cmp, ind1));
-      ind[l] = _mm_packus_epi16(ind[l], v_zero);
     }
+    ind[l] = _mm_packus_epi16(ind[l], v_zero);
     if (l == 1) {
       __m128i p2 = _mm_packus_epi16(_mm_unpacklo_epi64(ind[0], ind[1]), v_zero);
       _mm_storel_epi64((__m128i *)indices, p2);
@@ -84,8 +87,8 @@ void av1_calc_indices_dim2_sse2(const int *data, const int *centroids,
       ind1 = _mm_set1_epi32(j);
       ind[l] =
           _mm_or_si128(_mm_andnot_si128(cmp, ind[l]), _mm_and_si128(cmp, ind1));
-      ind[l] = _mm_packus_epi16(ind[l], v_zero);
     }
+    ind[l] = _mm_packus_epi16(ind[l], v_zero);
     if (l == 1) {
       __m128i p2 = _mm_packus_epi16(_mm_unpacklo_epi64(ind[0], ind[1]), v_zero);
       _mm_storel_epi64((__m128i *)indices, p2);
