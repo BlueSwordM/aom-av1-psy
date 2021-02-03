@@ -3258,7 +3258,9 @@ static INLINE void av1_print_fr_partition_timing_stats(
   }
   fclose(f);
 }
+#endif  // CONFIG_COLLECT_PARTITION_STATS == 2
 
+#if CONFIG_COLLECT_PARTITION_STATS
 static INLINE int av1_get_bsize_idx_for_part_stats(BLOCK_SIZE bsize) {
   assert(bsize == BLOCK_128X128 || bsize == BLOCK_64X64 ||
          bsize == BLOCK_32X32 || bsize == BLOCK_16X16 || bsize == BLOCK_8X8 ||
@@ -3273,7 +3275,7 @@ static INLINE int av1_get_bsize_idx_for_part_stats(BLOCK_SIZE bsize) {
     default: assert(0 && "Invalid bsize for partition_stats."); return -1;
   }
 }
-#endif
+#endif  // CONFIG_COLLECT_PARTITION_STATS
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
 static INLINE void start_timing(AV1_COMP *cpi, int component) {
