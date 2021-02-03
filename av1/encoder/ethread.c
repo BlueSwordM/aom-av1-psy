@@ -779,6 +779,10 @@ static AOM_INLINE void accumulate_counters_enc_workers(AV1_COMP *cpi,
       aom_free(thread_data->td->mb.txfm_search_info.txb_rd_records);
       thread_data->td->mb.txfm_search_info.txb_rd_records = NULL;
     }
+    if (thread_data->td != &cpi->td &&
+        cpi->oxcf.cost_upd_freq.mv < COST_UPD_OFF) {
+      aom_free(thread_data->td->mb.mv_costs);
+    }
 
     // Accumulate counters.
     if (i > 0) {
@@ -797,6 +801,7 @@ static AOM_INLINE void accumulate_counters_enc_workers(AV1_COMP *cpi,
 static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
                                            int num_workers) {
   MultiThreadInfo *const mt_info = &cpi->mt_info;
+  AV1_COMMON *const cm = &cpi->common;
   for (int i = num_workers - 1; i >= 0; i--) {
     AVxWorker *const worker = &mt_info->workers[i];
     EncWorkerData *const thread_data = &mt_info->tile_thr_data[i];
@@ -830,10 +835,16 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
               thread_data->td->hash_value_buffer[x][y];
         }
       }
+      if (cpi->oxcf.cost_upd_freq.mv < COST_UPD_OFF) {
+        CHECK_MEM_ERROR(cm, thread_data->td->mb.mv_costs,
+                        (MvCosts *)aom_malloc(sizeof(MvCosts)));
+        memcpy(thread_data->td->mb.mv_costs, cpi->td.mb.mv_costs,
+               sizeof(MvCosts));
+      }
     }
     if (!cpi->sf.rt_sf.use_nonrd_pick_mode) {
-      thread_data->td->mb.txfm_search_info.txb_rd_records =
-          (TxbRdRecords *)aom_malloc(sizeof(TxbRdRecords));
+      CHECK_MEM_ERROR(cm, thread_data->td->mb.txfm_search_info.txb_rd_records,
+                      (TxbRdRecords *)aom_malloc(sizeof(TxbRdRecords)));
     }
 
     if (thread_data->td->counts != &cpi->counts) {
@@ -861,6 +872,7 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
 #if !CONFIG_REALTIME_ONLY
 static AOM_INLINE void fp_prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
                                               int num_workers) {
+  AV1_COMMON *const cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   for (int i = num_workers - 1; i >= 0; i--) {
     AVxWorker *const worker = &mt_info->workers[i];
@@ -878,10 +890,16 @@ static AOM_INLINE void fp_prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     // Before encoding a frame, copy the thread data from cpi.
     if (thread_data->td != &cpi->td) {
       thread_data->td->mb = cpi->td.mb;
+      if (cpi->oxcf.cost_upd_freq.mv < COST_UPD_OFF) {
+        CHECK_MEM_ERROR(cm, thread_data->td->mb.mv_costs,
+                        (MvCosts *)aom_malloc(sizeof(MvCosts)));
+        memcpy(thread_data->td->mb.mv_costs, cpi->td.mb.mv_costs,
+               sizeof(MvCosts));
+      }
     }
     if (!cpi->sf.rt_sf.use_nonrd_pick_mode) {
-      thread_data->td->mb.txfm_search_info.txb_rd_records =
-          (TxbRdRecords *)aom_malloc(sizeof(TxbRdRecords));
+      CHECK_MEM_ERROR(cm, thread_data->td->mb.txfm_search_info.txb_rd_records,
+                      (TxbRdRecords *)aom_malloc(sizeof(TxbRdRecords)));
     }
   }
 }
@@ -1165,6 +1183,10 @@ void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi) {
   sync_enc_workers(&cpi->mt_info, cm, num_workers);
   for (int i = num_workers - 1; i >= 0; i--) {
     EncWorkerData *const thread_data = &cpi->mt_info.tile_thr_data[i];
+    if (thread_data->td != &cpi->td &&
+        cpi->oxcf.cost_upd_freq.mv < COST_UPD_OFF) {
+      aom_free(thread_data->td->mb.mv_costs);
+    }
     if (thread_data->td->mb.txfm_search_info.txb_rd_records) {
       aom_free(thread_data->td->mb.txfm_search_info.txb_rd_records);
     }

@@ -430,7 +430,8 @@ static void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   }
 
   if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIM) {
-    av1_set_ssim_rdmult(cpi, &x->mv_costs, bsize, mi_row, mi_col, &x->rdmult);
+    av1_set_ssim_rdmult(cpi, &x->errorperbit, bsize, mi_row, mi_col,
+                        &x->rdmult);
   }
 #if CONFIG_TUNE_VMAF
   if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
@@ -661,7 +662,7 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
   const int orig_rdmult = x->rdmult;
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, aq_mode, mbmi);
   // Set error per bit for current rdmult
-  av1_set_error_per_bit(&x->mv_costs, x->rdmult);
+  av1_set_error_per_bit(&x->errorperbit, x->rdmult);
   av1_rd_cost_update(x->rdmult, &best_rd);
 
   // Find best coding mode & reconstruct the MB so it is available
@@ -1881,7 +1882,7 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
   const int orig_rdmult = x->rdmult;
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, aq_mode, mbmi);
   // Set error per bit for current rdmult
-  av1_set_error_per_bit(&x->mv_costs, x->rdmult);
+  av1_set_error_per_bit(&x->errorperbit, x->rdmult);
   // Find best coding mode & reconstruct the MB so it is available
   // as a predictor for MBs that follow in the SB
   if (frame_is_intra_only(cm)) {

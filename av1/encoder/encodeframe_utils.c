@@ -26,7 +26,7 @@ static AOM_INLINE int set_deltaq_rdmult(const AV1_COMP *const cpi,
                                       quant_params->y_dc_delta_q);
 }
 
-void av1_set_ssim_rdmult(const AV1_COMP *const cpi, MvCosts *const mv_costs,
+void av1_set_ssim_rdmult(const AV1_COMP *const cpi, int *errorperbit,
                          const BLOCK_SIZE bsize, const int mi_row,
                          const int mi_col, int *const rdmult) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -58,7 +58,7 @@ void av1_set_ssim_rdmult(const AV1_COMP *const cpi, MvCosts *const mv_costs,
 
   *rdmult = (int)((double)(*rdmult) * geom_mean_of_scale + 0.5);
   *rdmult = AOMMAX(*rdmult, 0);
-  av1_set_error_per_bit(mv_costs, *rdmult);
+  av1_set_error_per_bit(errorperbit, *rdmult);
   aom_clear_system_state();
 }
 
@@ -131,7 +131,7 @@ int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   geom_mean_of_scale = exp(geom_mean_of_scale / base_block_count);
   int rdmult = (int)((double)orig_rdmult * geom_mean_of_scale + 0.5);
   rdmult = AOMMAX(rdmult, 0);
-  av1_set_error_per_bit(&x->mv_costs, rdmult);
+  av1_set_error_per_bit(&x->errorperbit, rdmult);
   aom_clear_system_state();
   if (bsize == cm->seq_params.sb_size) {
     const int rdmult_sb = set_deltaq_rdmult(cpi, x);
@@ -1371,7 +1371,7 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
       // Checks for skip status of mv cost update.
       if (skip_mv_cost_update(cpi, tile_info, mi_row, mi_col)) break;
       av1_fill_mv_costs(xd->tile_ctx, cm->features.cur_frame_force_integer_mv,
-                        cm->features.allow_high_precision_mv, &x->mv_costs);
+                        cm->features.allow_high_precision_mv, x->mv_costs);
       break;
     default: assert(0);
   }

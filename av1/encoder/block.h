@@ -751,16 +751,6 @@ typedef struct {
  */
 typedef struct {
   /*****************************************************************************
-   * \name Rate to Distortion Multipliers
-   ****************************************************************************/
-  /**@{*/
-  //! A multiplier that converts mv cost to l2 error.
-  int errorperbit;
-  //! A multiplier that converts mv cost to l1 error.
-  int sadperbit;
-  /**@}*/
-
-  /*****************************************************************************
    * \name Encoding Costs
    * Here are the entropy costs needed to encode a given mv.
    * \ref nmv_cost_alloc and \ref nmv_cost_hp_alloc are two arrays that holds
@@ -953,10 +943,20 @@ typedef struct macroblock {
 
   //! The rate needed to encode a new motion vector to the bitstream and some
   //! multipliers for motion search.
-  MvCosts mv_costs;
+  MvCosts *mv_costs;
 
   //! The rate needed to signal the txfm coefficients to the bitstream.
   CoeffCosts coeff_costs;
+  /**@}*/
+
+  /*****************************************************************************
+   * \name Rate to Distortion Multipliers
+   ****************************************************************************/
+  /**@{*/
+  //! A multiplier that converts mv cost to l2 error.
+  int errorperbit;
+  //! A multiplier that converts mv cost to l1 error.
+  int sadperbit;
   /**@}*/
 
   /******************************************************************************

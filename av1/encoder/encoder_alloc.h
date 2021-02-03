@@ -71,6 +71,12 @@ static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
   if (!is_stat_generation_stage(cpi)) {
     alloc_token_info(cm, token_info);
   }
+  if (cpi->td.mb.mv_costs) {
+    aom_free(cpi->td.mb.mv_costs);
+    cpi->td.mb.mv_costs = NULL;
+  }
+  CHECK_MEM_ERROR(cm, cpi->td.mb.mv_costs,
+                  (MvCosts *)aom_calloc(1, sizeof(MvCosts)));
 
   av1_setup_shared_coeff_buffer(&cpi->common, &cpi->td.shared_coeff_buf);
   av1_setup_sms_tree(cpi, &cpi->td);
@@ -254,6 +260,11 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 #endif
 
   release_obmc_buffers(&cpi->td.mb.obmc_buffer);
+
+  if (cpi->td.mb.mv_costs) {
+    aom_free(cpi->td.mb.mv_costs);
+    cpi->td.mb.mv_costs = NULL;
+  }
 
   aom_free(cpi->td.mb.inter_modes_info);
   cpi->td.mb.inter_modes_info = NULL;

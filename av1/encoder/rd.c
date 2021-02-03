@@ -432,11 +432,11 @@ static int compute_rd_thresh_factor(int qindex, aom_bit_depth_t bit_depth) {
   return AOMMAX((int)(pow(q, RD_THRESH_POW) * 5.12), 8);
 }
 
-void av1_set_sad_per_bit(const AV1_COMP *cpi, MvCosts *mv_costs, int qindex) {
+void av1_set_sad_per_bit(const AV1_COMP *cpi, int *sadperbit, int qindex) {
   switch (cpi->common.seq_params.bit_depth) {
-    case AOM_BITS_8: mv_costs->sadperbit = sad_per_bit_lut_8[qindex]; break;
-    case AOM_BITS_10: mv_costs->sadperbit = sad_per_bit_lut_10[qindex]; break;
-    case AOM_BITS_12: mv_costs->sadperbit = sad_per_bit_lut_12[qindex]; break;
+    case AOM_BITS_8: *sadperbit = sad_per_bit_lut_8[qindex]; break;
+    case AOM_BITS_10: *sadperbit = sad_per_bit_lut_10[qindex]; break;
+    case AOM_BITS_12: *sadperbit = sad_per_bit_lut_12[qindex]; break;
     default:
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
   }
@@ -581,7 +581,7 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &cpi->td.mb;
   RD_OPT *const rd = &cpi->rd;
-  MvCosts *mv_costs = &x->mv_costs;
+  MvCosts *mv_costs = x->mv_costs;
   int use_nonrd_pick_mode = cpi->sf.rt_sf.use_nonrd_pick_mode;
   CostUpdateFreq cost_upd_freq = cpi->oxcf.cost_upd_freq;
   int fill_costs =
@@ -593,7 +593,7 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
   rd->RDMULT = av1_compute_rd_mult(
       cpi, cm->quant_params.base_qindex + cm->quant_params.y_dc_delta_q);
 
-  av1_set_error_per_bit(mv_costs, rd->RDMULT);
+  av1_set_error_per_bit(&x->errorperbit, rd->RDMULT);
 
   set_block_thresholds(cm, rd);
 

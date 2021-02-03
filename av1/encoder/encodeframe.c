@@ -1381,7 +1381,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
   av1_frame_init_quantizer(cpi);
   av1_initialize_rd_consts(cpi);
-  av1_set_sad_per_bit(cpi, &x->mv_costs, quant_params->base_qindex);
+  av1_set_sad_per_bit(cpi, &x->sadperbit, quant_params->base_qindex);
 
   init_encode_frame_mb_context(cpi);
   set_default_interp_skip_flags(cm, &cpi->interp_search_flags);

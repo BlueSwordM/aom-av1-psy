@@ -1087,8 +1087,8 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       for (int i = 0; i < 2; ++i) {
         const int_mv ref_mv = av1_get_ref_mv(x, i);
         *rate_mv += av1_mv_bit_cost(&cur_mv[i].as_mv, &ref_mv.as_mv,
-                                    x->mv_costs.nmv_joint_cost,
-                                    x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
+                                    x->mv_costs->nmv_joint_cost,
+                                    x->mv_costs->mv_cost_stack, MV_COST_WEIGHT);
       }
     } else if (this_mode == NEAREST_NEWMV || this_mode == NEAR_NEWMV) {
       if (valid_mv1) {
@@ -1097,8 +1097,8 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       }
       const int_mv ref_mv = av1_get_ref_mv(x, 1);
       *rate_mv = av1_mv_bit_cost(&cur_mv[1].as_mv, &ref_mv.as_mv,
-                                 x->mv_costs.nmv_joint_cost,
-                                 x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
+                                 x->mv_costs->nmv_joint_cost,
+                                 x->mv_costs->mv_cost_stack, MV_COST_WEIGHT);
     } else {
       assert(this_mode == NEW_NEARESTMV || this_mode == NEW_NEARMV);
       if (valid_mv0) {
@@ -1107,8 +1107,8 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       }
       const int_mv ref_mv = av1_get_ref_mv(x, 0);
       *rate_mv = av1_mv_bit_cost(&cur_mv[0].as_mv, &ref_mv.as_mv,
-                                 x->mv_costs.nmv_joint_cost,
-                                 x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
+                                 x->mv_costs->nmv_joint_cost,
+                                 x->mv_costs->mv_cost_stack, MV_COST_WEIGHT);
     }
   } else {
     // Single ref case.
@@ -1420,8 +1420,8 @@ static int64_t motion_mode_rd(
           if (mv0.as_int != mbmi->mv[0].as_int) {
             // Keep the refined MV and WM parameters.
             tmp_rate_mv = av1_mv_bit_cost(
-                &mbmi->mv[0].as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
-                x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
+                &mbmi->mv[0].as_mv, &ref_mv.as_mv, x->mv_costs->nmv_joint_cost,
+                x->mv_costs->mv_cost_stack, MV_COST_WEIGHT);
             tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
           } else {
             // Restore the old MV and WM parameters.
@@ -2304,8 +2304,8 @@ static int skip_repeated_newmv(
         const int compare_cost = mode_info[i].rate_mv + mode_info[i].drl_cost;
         const int_mv ref_mv = av1_get_ref_mv(x, 0);
         this_rate_mv = av1_mv_bit_cost(
-            &mode_info[i].mv.as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
-            x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
+            &mode_info[i].mv.as_mv, &ref_mv.as_mv, x->mv_costs->nmv_joint_cost,
+            x->mv_costs->mv_cost_stack, MV_COST_WEIGHT);
         const int this_cost = this_rate_mv + drl_cost;
 
         if (compare_cost <= this_cost) {

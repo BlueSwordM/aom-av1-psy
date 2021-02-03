@@ -132,7 +132,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
       av1_get_scaled_ref_frame(cpi, ref);
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-  const MvCosts *mv_costs = &x->mv_costs;
+  const MvCosts *mv_costs = x->mv_costs;
 
   if (scaled_ref_frame) {
     // Swap out the reference frame for a version that's been scaled to
@@ -385,7 +385,7 @@ int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   assert(has_second_ref(mbmi));
   const int_mv init_mv[2] = { cur_mv[0], cur_mv[1] };
   const int refs[2] = { mbmi->ref_frame[0], mbmi->ref_frame[1] };
-  const MvCosts *mv_costs = &x->mv_costs;
+  const MvCosts *mv_costs = x->mv_costs;
   int_mv ref_mv[2];
   int ite, ref;
 
@@ -586,7 +586,7 @@ int av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   const int ref = mbmi->ref_frame[ref_idx];
   const int_mv ref_mv = av1_get_ref_mv(x, ref_idx);
   struct macroblockd_plane *const pd = &xd->plane[0];
-  const MvCosts *mv_costs = &x->mv_costs;
+  const MvCosts *mv_costs = x->mv_costs;
 
   struct buf_2d backup_yv12[MAX_MB_PLANE];
   const YV12_BUFFER_CONFIG *const scaled_ref_frame =
