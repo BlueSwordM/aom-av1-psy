@@ -1662,3 +1662,21 @@ double av1_laplace_entropy(double q_step, double b, double zero_bin_ratio) {
   double r = -(1 - z) * log2(1 - z) - z * log2(z) + z * (h + 1);
   return r;
 }
+
+double av1_laplace_estimate_frame_rate(int q_index, int block_count,
+                                       const double *abs_coeff_mean,
+                                       int coeff_num) {
+  double zero_bin_ratio = 2;
+  double dc_q_step = av1_dc_quant_QTX(q_index, 0, AOM_BITS_8) / 4.;
+  double ac_q_step = av1_ac_quant_QTX(q_index, 0, AOM_BITS_8) / 4.;
+  double est_rate = 0;
+  // dc coeff
+  est_rate += av1_laplace_entropy(dc_q_step, abs_coeff_mean[0], zero_bin_ratio);
+  // ac coeff
+  for (int i = 1; i < coeff_num; ++i) {
+    est_rate +=
+        av1_laplace_entropy(ac_q_step, abs_coeff_mean[i], zero_bin_ratio);
+  }
+  est_rate *= block_count;
+  return est_rate;
+}

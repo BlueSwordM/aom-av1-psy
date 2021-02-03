@@ -252,6 +252,27 @@ double av1_exponential_entropy(double q_step, double b);
  * \return entropy cost
  */
 double av1_laplace_entropy(double q_step, double b, double zero_bin_ratio);
+
+/*!\brief  Compute the frame rate using transform block stats
+ *
+ * Assume each position i in the transform block is of Laplace distribution
+ * with maximum absolute deviation abs_coeff_mean[i]
+ *
+ * Then we can use av1_laplace_entropy() to compute the expected frame
+ * rate.
+ *
+ *\ingroup tpl_modelling
+ *
+ * \param[in]    q_index         quantizer index
+ * \param[in]    block_count     number of transform blocks
+ * \param[in]    abs_coeff_mean  array of maximum absolute deviation
+ * \param[in]    coeff_num       number of coefficients per transform block
+ *
+ * \return expected frame rate
+ */
+double av1_laplace_estimate_frame_rate(int q_index, int block_count,
+                                       const double *abs_coeff_mean,
+                                       int coeff_num);
 /*!\endcond */
 #ifdef __cplusplus
 }  // extern "C"
