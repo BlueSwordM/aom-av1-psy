@@ -211,9 +211,8 @@ TEST_P(NnPredictTest, DISABLED_Speed) {
 }
 
 #if HAVE_SSE3
-// TODO(any): enable sse3 optimization test after the SIMD/c mismatch is fixed.
-// INSTANTIATE_TEST_SUITE_P(SSE3, NnPredictTest,
-//                         ::testing::Values(av1_nn_predict_sse3));
+INSTANTIATE_TEST_SUITE_P(SSE3, NnPredictTest,
+                         ::testing::Values(av1_nn_predict_sse3));
 #endif
 
 #if HAVE_NEON

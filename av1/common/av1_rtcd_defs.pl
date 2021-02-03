@@ -425,9 +425,10 @@ add_proto qw/void av1_calc_indices_dim2/, "const int *data, const int *centroids
   add_proto qw/void av1_get_horver_correlation_full/, " const int16_t *diff, int stride, int w, int h, float *hcorr, float *vcorr";
   specialize qw/av1_get_horver_correlation_full sse4_1 avx2 neon/;
 
-  # TODO(any): av1_nn_predict sse3 optimization causes SIMD/c mismatch that needs to be fixed.
   add_proto qw/void av1_nn_predict/, " const float *input_nodes, const NN_CONFIG *const nn_config, int reduce_prec, float *const output";
-  specialize qw/av1_nn_predict neon/;
+  if (aom_config("CONFIG_EXCLUDE_SIMD_MISMATCH") ne "yes") {
+    specialize qw/av1_nn_predict sse3 neon/;
+  }
 
   # CNN functions
   if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
@@ -435,7 +436,9 @@ add_proto qw/void av1_calc_indices_dim2/, "const int *data, const int *centroids
     add_proto qw/void av1_cnn_add/, " float **input, int channels, int width, int height, int stride, const float **add";
     add_proto qw/void av1_cnn_predict/, " const float **input, int in_width, int in_height, int in_stride, const CNN_CONFIG *cnn_config, const CNN_THREAD_DATA *thread_data, CNN_MULTI_OUT *output_struct";
     add_proto qw/void av1_cnn_convolve_no_maxpool_padding_valid/, " const float **input, int in_width, int in_height, int in_stride, const CNN_LAYER_CONFIG *layer_config, float **output, int out_stride, int start_idx, int cstep, int channel_step";
-    specialize qw/av1_cnn_convolve_no_maxpool_padding_valid avx2/;
+    if (aom_config("CONFIG_EXCLUDE_SIMD_MISMATCH") ne "yes") {
+      specialize qw/av1_cnn_convolve_no_maxpool_padding_valid avx2/;
+    }
     add_proto qw/void av1_cnn_deconvolve/, " const float **input, int in_width, int in_height, int in_stride, const CNN_LAYER_CONFIG *layer_config, float **output, int out_stride";
     add_proto qw/void av1_cnn_batchnorm/, "float **image, int channels, int width, int height, int stride, const float *gamma, const float *beta, const float *mean, const float *std";
   }

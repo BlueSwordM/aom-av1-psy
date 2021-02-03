@@ -92,6 +92,8 @@ set_aom_config_var(CONFIG_AV1_TEMPORAL_DENOISING 0
 # Debugging flags.
 set_aom_config_var(CONFIG_DEBUG 0 "Enable debug-only code.")
 set_aom_config_var(CONFIG_MISMATCH_DEBUG 0 "Mismatch debugging flag.")
+set_aom_config_var(CONFIG_EXCLUDE_SIMD_MISMATCH 0
+                   "Exclude mismatch in SIMD functions for testing/debugging.")
 
 # AV1 feature flags.
 set_aom_config_var(CONFIG_ACCOUNTING 0 "Enables bit accounting.")
