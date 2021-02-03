@@ -223,6 +223,35 @@ void av1_tpl_rdmult_setup_sb(struct AV1_COMP *cpi, MACROBLOCK *const x,
 
 void av1_mc_flow_dispenser_row(struct AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
                                BLOCK_SIZE bsize, TX_SIZE tx_size);
+
+/*!\brief  Compute the entropy of an exponential probability distribution
+ * function (pdf) subjected to uniform quantization.
+ *
+ * pdf(x) = b*exp(-b*x)
+ *
+ *\ingroup tpl_modelling
+ *
+ * \param[in]    q_step        quantizer step size
+ * \param[in]    b             parameter of exponential distribution
+ *
+ * \return entropy cost
+ */
+double av1_exponential_entropy(double q_step, double b);
+
+/*!\brief  Compute the entropy of a Laplace probability distribution
+ * function (pdf) subjected to non-uniform quantization.
+ *
+ * pdf(x) = 0.5*b*exp(-0.5*b*|x|)
+ *
+ *\ingroup tpl_modelling
+ *
+ * \param[in]    q_step          quantizer step size for non-zero bins
+ * \param[in]    b               parameter of Laplace distribution
+ * \param[in]    zero_bin_ratio  zero bin's size is zero_bin_ratio * q_step
+ *
+ * \return entropy cost
+ */
+double av1_laplace_entropy(double q_step, double b, double zero_bin_ratio);
 /*!\endcond */
 #ifdef __cplusplus
 }  // extern "C"
