@@ -9,6 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include "aom/aomcx.h"
+
 #include "aom_ports/system_state.h"
 
 #include "av1/encoder/bitstream.h"
@@ -595,6 +597,13 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
 
     aom_film_grain_table_read(cpi->film_grain_table,
                               tune_cfg->film_grain_table_filename, &cm->error);
+  } else if (tune_cfg->content == AOM_CONTENT_FILM) {
+    cm->seq_params.film_grain_params_present = 1;
+    cm->film_grain_params.bit_depth = cm->seq_params.bit_depth;
+    if (oxcf->tool_cfg.enable_monochrome)
+      reset_film_grain_chroma_params(&cm->film_grain_params);
+    if (cm->seq_params.color_range == AOM_CR_FULL_RANGE)
+      cm->film_grain_params.clip_to_restricted_range = 0;
   } else {
 #if CONFIG_DENOISE
     cm->seq_params.film_grain_params_present = (cpi->oxcf.noise_level > 0);
