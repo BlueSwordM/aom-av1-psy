@@ -375,8 +375,6 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   tran_low_t *coeff = aom_memalign(32, tpl_block_pels * sizeof(tran_low_t));
   tran_low_t *qcoeff = aom_memalign(32, tpl_block_pels * sizeof(tran_low_t));
   tran_low_t *dqcoeff = aom_memalign(32, tpl_block_pels * sizeof(tran_low_t));
-  tran_low_t *best_coeff =
-      aom_memalign(32, tpl_block_pels * sizeof(tran_low_t));
   uint8_t *predictor =
       is_cur_buf_hbd(xd) ? CONVERT_TO_BYTEPTR(predictor8) : predictor8;
   int64_t recon_error = 1;
@@ -568,7 +566,6 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
     tpl_stats->pred_error[rf_idx] = AOMMAX(1, inter_cost);
 
     if (inter_cost < best_inter_cost) {
-      memcpy(best_coeff, coeff, tpl_block_pels * sizeof(best_coeff[0]));
       best_rf_idx = rf_idx;
 
       best_inter_cost = inter_cost;
@@ -775,7 +772,6 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   aom_free(coeff);
   aom_free(qcoeff);
   aom_free(dqcoeff);
-  aom_free(best_coeff);
 }
 
 static int round_floor(int ref_pos, int bsize_pix) {
