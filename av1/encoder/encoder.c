@@ -3147,8 +3147,12 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       // compression loss).
       // TODO(huisu@google.com): design schemes for various trade-offs between
       // compression quality and decoding speed.
-      features->disable_cdf_update =
-          (frame_is_intra_only(cm) || !cm->show_frame) ? 0 : 1;
+      if (oxcf->mode == GOOD) {
+        features->disable_cdf_update =
+            (frame_is_intra_only(cm) || !cm->show_frame) ? 0 : 1;
+      } else {
+        features->disable_cdf_update = cm->current_frame.frame_number & 1;
+      }
       break;
   }
   seq_params->timing_info_present &= !seq_params->reduced_still_picture_hdr;

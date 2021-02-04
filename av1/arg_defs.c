@@ -563,7 +563,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "cdf-update-mode", 1,
               "CDF update mode for entropy coding "
               "(0: no CDF update, 1: update CDF on all frames(default), "
-              "2: selectively update CDF on some frames"),
+              "2: selectively update CDF on some frames)"),
 
   .superblock_size = ARG_DEF_ENUM(NULL, "sb-size", 1, "Superblock size to use",
                                   superblock_size_enum),
