@@ -12,6 +12,8 @@
 #ifndef AOM_AV1_ENCODER_ENCODEFRAME_UTILS_H_
 #define AOM_AV1_ENCODER_ENCODEFRAME_UTILS_H_
 
+#include "aom_ports/aom_timer.h"
+
 #include "av1/common/reconinter.h"
 
 #include "av1/encoder/encoder.h"
