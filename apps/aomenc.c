@@ -220,6 +220,8 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_TIER_MASK,
                                         AV1E_SET_MIN_CR,
                                         AV1E_SET_VBR_CORPUS_COMPLEXITY_LAP,
+                                        AV1E_SET_CHROMA_SUBSAMPLING_X,
+                                        AV1E_SET_CHROMA_SUBSAMPLING_Y,
 #if CONFIG_TUNE_VMAF
                                         AV1E_SET_VMAF_MODEL_PATH,
 #endif
@@ -270,11 +272,13 @@ const arg_def_t *global_args[] = {
   &g_av1_codec_arg_defs.framerate,
   &g_av1_codec_arg_defs.global_error_resilient,
   &g_av1_codec_arg_defs.bitdeptharg,
+  &g_av1_codec_arg_defs.inbitdeptharg,
   &g_av1_codec_arg_defs.lag_in_frames,
   &g_av1_codec_arg_defs.large_scale_tile,
   &g_av1_codec_arg_defs.monochrome,
   &g_av1_codec_arg_defs.full_still_picture_hdr,
   &g_av1_codec_arg_defs.use_16bit_internal,
+  &g_av1_codec_arg_defs.save_as_annexb,
   NULL
 };
 
@@ -304,7 +308,10 @@ const arg_def_t *rc_args[] = { &g_av1_codec_arg_defs.dropframe_thresh,
 const arg_def_t *kf_args[] = { &g_av1_codec_arg_defs.fwd_kf_enabled,
                                &g_av1_codec_arg_defs.kf_min_dist,
                                &g_av1_codec_arg_defs.kf_max_dist,
-                               &g_av1_codec_arg_defs.kf_disabled, NULL };
+                               &g_av1_codec_arg_defs.kf_disabled,
+                               &g_av1_codec_arg_defs.sframe_dist,
+                               &g_av1_codec_arg_defs.sframe_mode,
+                               NULL };
 
 const arg_def_t *av1_args[] = {
   &g_av1_codec_arg_defs.cpu_used_av1,
@@ -404,13 +411,8 @@ const arg_def_t *av1_args[] = {
   &g_av1_codec_arg_defs.set_tier_mask,
   &g_av1_codec_arg_defs.set_min_cr,
   &g_av1_codec_arg_defs.vbr_corpus_complexity_lap,
-  &g_av1_codec_arg_defs.bitdeptharg,
-  &g_av1_codec_arg_defs.inbitdeptharg,
   &g_av1_codec_arg_defs.input_chroma_subsampling_x,
   &g_av1_codec_arg_defs.input_chroma_subsampling_y,
-  &g_av1_codec_arg_defs.sframe_dist,
-  &g_av1_codec_arg_defs.sframe_mode,
-  &g_av1_codec_arg_defs.save_as_annexb,
 #if CONFIG_TUNE_VMAF
   &g_av1_codec_arg_defs.vmaf_model_path,
 #endif
