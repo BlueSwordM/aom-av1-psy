@@ -2248,6 +2248,7 @@ static int rd_try_subblock(AV1_COMP *const cpi, ThreadData *td,
 static bool rd_test_partition3(AV1_COMP *const cpi, ThreadData *td,
                                TileDataEnc *tile_data, TokenExtra **tp,
                                PC_TREE *pc_tree, RD_STATS *best_rdc,
+                               int64_t *this_rdcost,
                                PICK_MODE_CONTEXT *ctxs[SUB_PARTITIONS_AB],
                                int mi_row, int mi_col, BLOCK_SIZE bsize,
                                PARTITION_TYPE partition,
@@ -2279,8 +2280,10 @@ static bool rd_test_partition3(AV1_COMP *const cpi, ThreadData *td,
   }
 
   av1_rd_cost_update(x->rdmult, &sum_rdc);
+  *this_rdcost = sum_rdc.rdcost;
   if (sum_rdc.rdcost >= best_rdc->rdcost) return false;
   sum_rdc.rdcost = RDCOST(x->rdmult, sum_rdc.rate, sum_rdc.dist);
+  *this_rdcost = sum_rdc.rdcost;
   if (sum_rdc.rdcost >= best_rdc->rdcost) return false;
 
   *best_rdc = sum_rdc;
@@ -2303,13 +2306,42 @@ static INLINE void start_partition_block_timer(
 }
 
 static INLINE void end_partition_block_timer(
-    PartitionTimingStats *part_timing_stats, PARTITION_TYPE partition_type) {
+    PartitionTimingStats *part_timing_stats, PARTITION_TYPE partition_type,
+    int64_t rdcost) {
   if (part_timing_stats->timer_is_on) {
     aom_usec_timer_mark(&part_timing_stats->timer);
     const int64_t time = aom_usec_timer_elapsed(&part_timing_stats->timer);
     part_timing_stats->partition_times[partition_type] += time;
+    part_timing_stats->partition_rdcost[partition_type] = rdcost;
     part_timing_stats->timer_is_on = 0;
   }
+}
+static INLINE void print_partition_timing_stats_with_rdcost(
+    const PartitionTimingStats *part_timing_stats, int mi_row, int mi_col,
+    BLOCK_SIZE bsize, FRAME_UPDATE_TYPE frame_update_type, int frame_number,
+    const RD_STATS *best_rdc, const char *filename) {
+  FILE *f = fopen(filename, "a");
+  fprintf(f, "%d,%d,%d,%d,%d,%d,%ld,%ld,", bsize, frame_number,
+          frame_update_type, mi_row, mi_col, best_rdc->rate, best_rdc->dist,
+          best_rdc->rdcost);
+  for (int idx = 0; idx < EXT_PARTITION_TYPES; idx++) {
+    fprintf(f, "%d,", part_timing_stats->partition_decisions[idx]);
+  }
+  for (int idx = 0; idx < EXT_PARTITION_TYPES; idx++) {
+    fprintf(f, "%d,", part_timing_stats->partition_attempts[idx]);
+  }
+  for (int idx = 0; idx < EXT_PARTITION_TYPES; idx++) {
+    fprintf(f, "%ld,", part_timing_stats->partition_times[idx]);
+  }
+  for (int idx = 0; idx < EXT_PARTITION_TYPES; idx++) {
+    if (part_timing_stats->partition_rdcost[idx] == INT64_MAX) {
+      fprintf(f, "%d,", -1);
+    } else {
+      fprintf(f, "%ld,", part_timing_stats->partition_rdcost[idx]);
+    }
+  }
+  fprintf(f, "\n");
+  fclose(f);
 }
 
 static INLINE void print_partition_timing_stats(
@@ -2657,11 +2689,6 @@ static void rectangular_partition_search(
           best_rdc, 1, mi_pos_rect[i][sub_part_idx][0],
           mi_pos_rect[i][sub_part_idx][1], blk_params.subsize, partition_type);
     }
-#if CONFIG_COLLECT_PARTITION_STATS
-    if (part_timing_stats->timer_is_on) {
-      end_partition_block_timer(part_timing_stats, partition_type);
-    }
-#endif
     // Update HORZ / VERT best partition.
     if (sum_rdc->rdcost < best_rdc->rdcost) {
       sum_rdc->rdcost = RDCOST(x->rdmult, sum_rdc->rate, sum_rdc->dist);
@@ -2675,6 +2702,12 @@ static void rectangular_partition_search(
       if (rect_part_win_info != NULL)
         rect_part_win_info->rect_part_win[i] = false;
     }
+#if CONFIG_COLLECT_PARTITION_STATS
+    if (part_timing_stats->timer_is_on) {
+      end_partition_block_timer(part_timing_stats, partition_type,
+                                sum_rdc->rdcost);
+    }
+#endif
     av1_restore_context(x, x_ctx, blk_params.mi_row, blk_params.mi_col,
                         blk_params.bsize, av1_num_planes(cm));
   }
@@ -2694,6 +2727,7 @@ static void rd_pick_ab_part(
   const int mi_row = blk_params.mi_row;
   const int mi_col = blk_params.mi_col;
   const int bsize = blk_params.bsize;
+  int64_t this_rdcost = 0;
 
 #if CONFIG_COLLECT_PARTITION_STATS
   PartitionTimingStats *part_timing_stats =
@@ -2710,13 +2744,15 @@ static void rd_pick_ab_part(
 #endif
 
   // Test this partition and update the best partition.
-  part_search_state->found_best_partition |= rd_test_partition3(
-      cpi, td, tile_data, tp, pc_tree, best_rdc, dst_ctxs, mi_row, mi_col,
-      bsize, part_type, ab_subsize, ab_mi_pos, mode_cache);
+  const bool find_best_ab_part = rd_test_partition3(
+      cpi, td, tile_data, tp, pc_tree, best_rdc, &this_rdcost, dst_ctxs, mi_row,
+      mi_col, bsize, part_type, ab_subsize, ab_mi_pos, mode_cache);
+  part_search_state->found_best_partition |= find_best_ab_part;
 
 #if CONFIG_COLLECT_PARTITION_STATS
   if (part_timing_stats->timer_is_on) {
-    end_partition_block_timer(part_timing_stats, part_type);
+    if (!find_best_ab_part) this_rdcost = INT64_MAX;
+    end_partition_block_timer(part_timing_stats, part_type, this_rdcost);
   }
 #endif
   av1_restore_context(x, x_ctx, mi_row, mi_col, bsize, av1_num_planes(cm));
@@ -3001,7 +3037,8 @@ static void rd_pick_4partition(
   }
 #if CONFIG_COLLECT_PARTITION_STATS
   if (part_timing_stats->timer_is_on) {
-    start_partition_block_timer(part_timing_stats, partition_type);
+    end_partition_block_timer(part_timing_stats, partition_type,
+                              part_search_state->sum_rdc.rdcost);
   }
 #endif
   av1_restore_context(x, x_ctx, blk_params.mi_row, blk_params.mi_col,
@@ -3306,7 +3343,19 @@ static void none_partition_search(
 #if CONFIG_COLLECT_PARTITION_STATS
   // Timer end for partition None.
   if (part_timing_stats->timer_is_on) {
-    end_partition_block_timer(part_timing_stats, PARTITION_NONE);
+    RD_STATS tmp_rdc;
+    av1_init_rd_stats(&tmp_rdc);
+    if (this_rdc->rate != INT_MAX) {
+      tmp_rdc.rate = this_rdc->rate;
+      tmp_rdc.dist = this_rdc->dist;
+      tmp_rdc.rdcost = this_rdc->rdcost;
+      if (blk_params.bsize_at_least_8x8) {
+        tmp_rdc.rate += pt_cost;
+        tmp_rdc.rdcost = RDCOST(x->rdmult, tmp_rdc.rate, tmp_rdc.dist);
+      }
+    }
+    end_partition_block_timer(part_timing_stats, PARTITION_NONE,
+                              tmp_rdc.rdcost);
   }
 #endif
   *pb_source_variance = x->source_variance;
@@ -3439,7 +3488,8 @@ static void split_partition_search(
   }
 #if CONFIG_COLLECT_PARTITION_STATS
   if (part_timing_stats->timer_is_on) {
-    end_partition_block_timer(part_timing_stats, PARTITION_SPLIT);
+    end_partition_block_timer(part_timing_stats, PARTITION_SPLIT,
+                              sum_rdc.rdcost);
   }
 #endif
   const int reached_last_index = (idx == SUB_PARTITIONS_SPLIT);
@@ -3771,9 +3821,15 @@ BEGIN_PARTITION_SEARCH:
 
   // If CONFIG_COLLECT_PARTITION_STATS is 1, then print out the stats for each
   // prediction block.
+  print_partition_timing_stats_with_rdcost(
+      part_timing_stats, mi_row, mi_col, bsize,
+      cpi->gf_group.update_type[cpi->gf_group.index],
+      cm->current_frame.frame_number, &best_rdc, "part_timing.csv");
+  /*
   print_partition_timing_stats(part_timing_stats, cm->show_frame,
                                frame_is_intra_only(cm), bsize,
                                "part_timing_data.csv");
+  */
   // If CONFIG_COLLECTION_PARTITION_STATS is 2, then we print out the stats for
   // the whole clip. So we need to pass the information upstream to the encoder.
   accumulate_partition_timing_stats(fr_part_timing_stats, part_timing_stats,

@@ -109,6 +109,9 @@ typedef struct PartitionTimingStats {
   // Tracks the time spent on each partition search in the current call to \ref
   // av1_rd_pick_partition
   int64_t partition_times[EXT_PARTITION_TYPES];
+  // Tracks the rdcost spent on each partition search in the current call to
+  // \ref av1_rd_pick_partition
+  int64_t partition_rdcost[EXT_PARTITION_TYPES];
   // Timer used to time the partitions.
   struct aom_usec_timer timer;
   // Whether the timer is on
