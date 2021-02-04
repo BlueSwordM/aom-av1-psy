@@ -3063,9 +3063,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_cfl_intra,
                               argv, err_string)) {
     extra_cfg.enable_cfl_intra = arg_parse_int_helper(&arg, err_string);
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.superres_mode, argv,
-                              err_string)) {
-    extra_cfg.enable_superres = arg_parse_int_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_overlay, argv,
                               err_string)) {
     extra_cfg.enable_overlay = arg_parse_int_helper(&arg, err_string);
@@ -3115,6 +3112,34 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.mv_cost_upd_freq,
                               argv, err_string)) {
     extra_cfg.mv_cost_upd_freq = arg_parse_uint_helper(&arg, err_string);
+  }
+#if CONFIG_DENOISE
+  else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.denoise_noise_level,
+                            argv, err_string)) {
+    extra_cfg.noise_level =
+        (float)arg_parse_int_helper(&arg, err_string) / 10.0f;
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.denoise_block_size,
+                              argv, err_string)) {
+    extra_cfg.noise_block_size = arg_parse_uint_helper(&arg, err_string);
+  }
+#endif
+  else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.target_seq_level_idx,
+                            argv, err_string)) {
+    const int val = arg_parse_int_helper(&arg, err_string);
+    const int level = val % 100;
+    const int operating_point_idx = val / 100;
+    if (operating_point_idx >= 0 &&
+        operating_point_idx < MAX_NUM_OPERATING_POINTS) {
+      extra_cfg.target_seq_level_idx[operating_point_idx] = (AV1_LEVEL)level;
+    }
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.input_chroma_subsampling_x,
+                              argv, err_string)) {
+    extra_cfg.chroma_subsampling_x = arg_parse_uint_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.input_chroma_subsampling_y,
+                              argv, err_string)) {
+    extra_cfg.chroma_subsampling_y = arg_parse_uint_helper(&arg, err_string);
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
