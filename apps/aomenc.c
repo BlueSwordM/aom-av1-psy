@@ -314,6 +314,13 @@ const arg_def_t *kf_args[] = { &g_av1_codec_arg_defs.fwd_kf_enabled,
                                &g_av1_codec_arg_defs.sframe_mode,
                                NULL };
 
+// The first part of this array should match the control IDs in the array
+// av1_arg_ctrl_map. To add a new option with its control ID, insert the option
+// before the comment "Option that supports the control ID API ends here."
+// Alternatively, to add a new option supported by the key & value API, just
+// append the option to this array.
+// TODO(bohanli): Currently all options are supported by the key & value API.
+// Consider removing the control ID usages?
 const arg_def_t *av1_args[] = {
   &g_av1_codec_arg_defs.cpu_used_av1,
   &g_av1_codec_arg_defs.auto_altref,
@@ -417,7 +424,7 @@ const arg_def_t *av1_args[] = {
   &g_av1_codec_arg_defs.input_chroma_subsampling_y,
 #if CONFIG_TUNE_VMAF
   &g_av1_codec_arg_defs.vmaf_model_path,
-#endif
+#endif  // Option that supports the control ID API ends here.
   NULL
 };
 
@@ -485,6 +492,8 @@ struct stream_config {
   stereo_format_t stereo_fmt;
   int arg_ctrls[ARG_CTRL_CNT_MAX][2];
   int arg_ctrl_cnt;
+  const char *arg_key_vals[ARG_CTRL_CNT_MAX][2];
+  int arg_key_val_cnt;
   int write_webm;
   const char *film_grain_filename;
   int write_ivf;
@@ -824,11 +833,40 @@ static void set_config_arg_ctrls(struct stream_config *config, int key,
   if (j == config->arg_ctrl_cnt) config->arg_ctrl_cnt++;
 }
 
+static void set_config_arg_key_vals(struct stream_config *config,
+                                    const char *name, const char *val) {
+  int j;
+
+  // For target level, the settings should accumulate rather than overwrite,
+  // so we simply append it.
+  if (strcmp(name, "target-seq-level-idx") == 0) {
+    j = config->arg_key_val_cnt;
+    assert(j < (int)ARG_CTRL_CNT_MAX);
+    config->arg_key_vals[j][0] = name;
+    config->arg_key_vals[j][1] = val;
+    ++config->arg_key_val_cnt;
+    return;
+  }
+
+  /* Point either to the next free element or the first instance of this
+   * control.
+   */
+  for (j = 0; j < config->arg_ctrl_cnt; j++)
+    if (strcmp(name, config->arg_key_vals[j][0]) == 0) break;
+
+  /* Update/insert */
+  assert(j < (int)ARG_CTRL_CNT_MAX);
+  config->arg_key_vals[j][0] = name;
+  config->arg_key_vals[j][1] = val;
+
+  if (j == config->arg_key_val_cnt) config->arg_key_val_cnt++;
+}
+
 static int parse_stream_params(struct AvxEncoderConfig *global,
                                struct stream_state *stream, char **argv) {
   char **argi, **argj;
   struct arg arg;
-  static const arg_def_t **ctrl_args = no_args;
+  static const arg_def_t **args_list = no_args;
   static const int *ctrl_args_map = NULL;
   struct stream_config *config = &stream->config;
   int eos_mark_found = 0;
@@ -840,7 +878,7 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
   } else if (strcmp(get_short_name_by_aom_encoder(global->codec), "av1") == 0) {
     // TODO(jingning): Reuse AV1 specific encoder configuration parameters.
     // Consider to expand this set for AV1 encoder control.
-    ctrl_args = av1_args;
+    args_list = av1_args;
     ctrl_args_map = av1_arg_ctrl_map;
 #endif
   }
@@ -1039,12 +1077,21 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       }
     } else {
       int i, match = 0;
-      for (i = 0; ctrl_args[i]; i++) {
-        if (arg_match(&arg, ctrl_args[i], argi)) {
+      // check if the ctrl APIs supports this arg
+      for (i = 0; ctrl_args_map && ctrl_args_map[i] && args_list[i]; i++) {
+        if (arg_match(&arg, args_list[i], argi)) {
           match = 1;
           if (ctrl_args_map) {
             set_config_arg_ctrls(config, ctrl_args_map[i], &arg);
           }
+          break;
+        }
+      }
+      // check if the key & value API supports this arg
+      for (i = 0; !match && args_list[i]; i++) {
+        if (arg_match(&arg, args_list[i], argi)) {
+          match = 1;
+          set_config_arg_key_vals(config, args_list[i]->long_name, arg.val);
           break;
         }
       }
@@ -1356,6 +1403,15 @@ static void initialize_encoder(struct stream_state *stream,
       fprintf(stderr, "Error: Tried to set control %d = %d\n", ctrl, value);
 
     ctx_exit_on_error(&stream->encoder, "Failed to control codec");
+  }
+
+  for (i = 0; i < stream->config.arg_key_val_cnt; i++) {
+    const char *name = stream->config.arg_key_vals[i][0];
+    const char *val = stream->config.arg_key_vals[i][1];
+    if (aom_codec_set_option(&stream->encoder, name, val))
+      fprintf(stderr, "Error: Tried to set option %s = %s\n", name, val);
+
+    ctx_exit_on_error(&stream->encoder, "Failed to set codec option");
   }
 
 #if CONFIG_TUNE_VMAF

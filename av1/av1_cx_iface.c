@@ -30,6 +30,7 @@
 #include "av1/arg_defs.h"
 
 #include "common/args_helper.h"
+#include "common/tools_common.h"
 
 struct av1_extracfg {
   int cpu_used;
@@ -2842,6 +2843,10 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.auto_altref, argv,
                               err_string)) {
     extra_cfg.enable_auto_alt_ref = arg_parse_uint_helper(&arg, err_string);
+    if (strlen(err_string) == 0 && extra_cfg.enable_auto_alt_ref > 1) {
+      warn("auto-alt-ref > 1 is deprecated... setting auto-alt-ref=1\n");
+      extra_cfg.enable_auto_alt_ref = 1;
+    }
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.noise_sens, argv,
                               err_string)) {
     extra_cfg.noise_sensitivity = arg_parse_uint_helper(&arg, err_string);
