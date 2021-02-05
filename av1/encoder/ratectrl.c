@@ -976,7 +976,6 @@ static int get_active_cq_level(const RATE_CONTROL *rc,
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   static const double cq_adjust_threshold = 0.1;
   int active_cq_level = rc_cfg->cq_level;
-  (void)intra_only;
   if (rc_cfg->mode == AOM_CQ || rc_cfg->mode == AOM_Q) {
     // printf("Superres %d %d %d = %d\n", superres_denom, intra_only,
     //        rc->frames_to_key, !(intra_only && rc->frames_to_key <= 1));
