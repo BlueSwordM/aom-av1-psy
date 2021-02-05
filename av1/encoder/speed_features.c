@@ -516,6 +516,10 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.prune_wiener_based_on_src_var = 1;
     sf->lpf_sf.prune_sgr_based_on_wiener = 1;
 
+    // TODO(any): Move this from speed 3 to speed 2 so that TPL multithread
+    // is re-enabled at speed 2. This also makes encoder faster. After TPL MT is
+    // fixed and works with compound pred, we can re-evaluate this feature.
+    sf->tpl_sf.allow_compound_pred = 0;
     sf->tpl_sf.prune_ref_frames_in_tpl = 1;
   }
 
@@ -567,7 +571,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.reduce_first_step_size = 6;
     sf->tpl_sf.subpel_force_stop = QUARTER_PEL;
     sf->tpl_sf.search_method = DIAMOND;
-    sf->tpl_sf.allow_compound_pred = 0;
 
     sf->tx_sf.adaptive_txb_search_level = boosted ? 2 : 3;
     sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
