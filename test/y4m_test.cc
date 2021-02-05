@@ -259,7 +259,7 @@ TEST(Y4MHeaderTest, FullRangeHeader) {
 
 TEST(Y4MHeaderTest, WriteStudioColorRange) {
   char buf[128];
-  struct AvxRational framerate = { .numerator = 30, .denominator = 1 };
+  struct AvxRational framerate = { /*numerator=*/30, /*denominator=*/1 };
   EXPECT_GE(y4m_write_file_header(
                 buf, /*len=*/128, /*width=*/4, /*height=*/5, &framerate,
                 /*monochrome=*/0, AOM_CSP_UNKNOWN, AOM_IMG_FMT_I420,
@@ -270,7 +270,7 @@ TEST(Y4MHeaderTest, WriteStudioColorRange) {
 
 TEST(Y4MHeaderTest, WriteFullColorRange) {
   char buf[128];
-  struct AvxRational framerate = { .numerator = 30, .denominator = 1 };
+  struct AvxRational framerate = { /*numerator=*/30, /*denominator=*/1 };
   EXPECT_GE(y4m_write_file_header(
                 buf, /*len=*/128, /*width=*/4, /*height=*/5, &framerate,
                 /*monochrome=*/0, AOM_CSP_UNKNOWN, AOM_IMG_FMT_I420,
