@@ -13,9 +13,13 @@
 #include <float.h>
 #include <math.h>
 #include <stdio.h>
+#include <time.h>
+#include <stdlib.h>
 
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
+
+#include "aom/aomcx.h"
 
 #if CONFIG_DENOISE
 #include "aom_dsp/grain_table.h"
@@ -2632,6 +2636,36 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
+// TODO(jingning, paulwilkins): Set up high grain level to test
+// hardware decoders. Need to adapt the actual noise variance
+// according to the difference between reconstructed frame and the
+// source signal.
+static void set_grain_syn_params(AV1_COMMON *cm) {
+  aom_film_grain_t *film_grain_params = &cm->film_grain_params;
+  film_grain_params->apply_grain = 1;
+  film_grain_params->update_parameters = 1;
+  film_grain_params->random_seed = rand() & 0xffff;
+
+  film_grain_params->num_y_points = 1;
+  film_grain_params->scaling_points_y[0][0] = 128;
+  film_grain_params->scaling_points_y[0][1] = 100;
+
+  film_grain_params->num_cb_points = 1;
+  film_grain_params->scaling_points_cb[0][0] = 128;
+  film_grain_params->scaling_points_cb[0][1] = 100;
+
+  film_grain_params->num_cr_points = 1;
+  film_grain_params->scaling_points_cr[0][0] = 128;
+  film_grain_params->scaling_points_cr[0][1] = 100;
+
+  film_grain_params->chroma_scaling_from_luma = 0;
+  film_grain_params->scaling_shift = 1;
+  film_grain_params->ar_coeff_lag = 0;
+  film_grain_params->ar_coeff_shift = 1;
+  film_grain_params->overlap_flag = 1;
+  film_grain_params->grain_scale_shift = 0;
+}
+
 /*!\brief Recode loop or a single loop for encoding one frame, followed by
  * in-loop deblocking filters, CDEF filters, and restoration filters.
  *
@@ -2740,6 +2774,10 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #ifdef OUTPUT_YUV_REC
   aom_write_one_yuv_frame(cm, &cm->cur_frame->buf);
 #endif
+
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_FILM) {
+    set_grain_syn_params(cm);
+  }
 
   av1_finalize_encoded_frame(cpi);
   // Build the bitstream
