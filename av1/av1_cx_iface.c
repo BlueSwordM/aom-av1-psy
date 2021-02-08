@@ -2128,8 +2128,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
   if (img != NULL) {
     res = validate_img(ctx, img);
-    // TODO(jzern) the checks related to cpi's validity should be treated as a
-    // failure condition, encoder setup is done fully in init() currently.
     if (res == AOM_CODEC_OK) {
       size_t data_sz = ALIGN_POWER_OF_TWO(ctx->cfg.g_w, 5) *
                        ALIGN_POWER_OF_TWO(ctx->cfg.g_h, 5) * get_image_bps(img);
