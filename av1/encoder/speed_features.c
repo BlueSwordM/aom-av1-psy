@@ -1345,10 +1345,10 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
         (sf->inter_sf.disable_interintra_wedge_var_thresh != UINT_MAX);
   }
 
-  // Enable use_intra_txb_hash in speed 1,2 for intra-only encoding.
-  // TODO(any) This speed feature may be useful for image encoding.
-  // Experiment and enable for image encoding later.
-  if (cpi->oxcf.kf_cfg.key_freq_max == 0 && speed <= 2) {
+  // TODO(any) Currently use_intra_txb_hash is enabled in speed 1,2 for
+  // intra-only encoding (key_freq_max == 0). Experiment with this speed feature
+  // by enabling for image encoding in speed 1 and 2.
+  if (cpi->oxcf.kf_cfg.key_freq_max == 0 && speed >= 1 && speed <= 2) {
     sf->tx_sf.use_intra_txb_hash = 1;
   }
 
