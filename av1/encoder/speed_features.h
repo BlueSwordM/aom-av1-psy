@@ -374,6 +374,9 @@ typedef struct TPL_SPEED_FEATURES {
 
   // Support compound predictions.
   int allow_compound_pred;
+
+  // Calculate rate and distortion based on Y plane only.
+  int use_y_only_rate_distortion;
 } TPL_SPEED_FEATURES;
 
 typedef struct GLOBAL_MOTION_SPEED_FEATURES {

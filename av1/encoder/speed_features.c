@@ -1006,6 +1006,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.prune_mesh_search = 1;
 
     sf->tpl_sf.prune_starting_mv = 3;
+    sf->tpl_sf.use_y_only_rate_distortion = 1;
 
     sf->winner_mode_sf.dc_blk_pred_level = 1;
   }
@@ -1386,6 +1387,7 @@ static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
   tpl_sf->disable_filtered_key_tpl = 0;
   tpl_sf->prune_ref_frames_in_tpl = 0;
   tpl_sf->allow_compound_pred = 1;
+  tpl_sf->use_y_only_rate_distortion = 0;
 }
 
 static AOM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
