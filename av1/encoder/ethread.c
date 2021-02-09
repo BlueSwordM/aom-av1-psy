@@ -719,7 +719,7 @@ static AOM_INLINE void fp_create_enc_workers(AV1_COMP *cpi, int num_workers) {
     if (i > 0) {
       // Set up firstpass PICK_MODE_CONTEXT.
       thread_data->td->firstpass_ctx =
-          av1_alloc_pmc(cm, BLOCK_16X16, &thread_data->td->shared_coeff_buf);
+          av1_alloc_pmc(cpi, BLOCK_16X16, &thread_data->td->shared_coeff_buf);
 
       if (create_workers) {
         // Create threads
