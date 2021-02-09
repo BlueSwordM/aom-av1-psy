@@ -1187,7 +1187,7 @@ enum aome_enc_control_id {
   /*!\brief Control to select maximum height for the GF group pyramid structure,
    * unsigned int parameter
    *
-   * Valid range: 0..4
+   * Valid range: 0..5
    */
   AV1E_SET_GF_MAX_PYRAMID_HEIGHT = 123,
 
@@ -1297,7 +1297,7 @@ enum aome_enc_control_id {
   /*!\brief Control to select minimum height for the GF group pyramid structure,
    * unsigned int parameter
    *
-   * Valid values: 0..4
+   * Valid values: 0..5
    */
   AV1E_SET_GF_MIN_PYRAMID_HEIGHT = 156,
 
