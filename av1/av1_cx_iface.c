@@ -963,7 +963,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #endif
 
 #if CONFIG_AV1_TEMPORAL_DENOISING
-  if (cfg->g_bit_depth == AOM_BITS_8) {
+  // Temporal denoiser is for nonrd pickmode so disable it for speed < 7.
+  // Also disable it for speed 7 for now since it needs to be modified for
+  // the check_partition_merge_mode feature.
+  if (cfg->g_bit_depth == AOM_BITS_8 && oxcf->speed > 7) {
     oxcf->noise_sensitivity = extra_cfg->noise_sensitivity;
   } else {
     oxcf->noise_sensitivity = 0;
