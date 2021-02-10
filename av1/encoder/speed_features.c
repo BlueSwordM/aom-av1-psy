@@ -508,7 +508,7 @@ static void set_good_speed_features_framesize_independent(
     sf->interp_sf.disable_dual_filter = 1;
 
     sf->intra_sf.disable_smooth_intra =
-        !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key != 1);
+        !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key > 1);
     sf->intra_sf.intra_pruning_with_hog = 2;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 4;
