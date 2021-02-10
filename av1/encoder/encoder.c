@@ -3189,7 +3189,13 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
         features->disable_cdf_update =
             (frame_is_intra_only(cm) || !cm->show_frame) ? 0 : 1;
       } else {
-        features->disable_cdf_update = cm->current_frame.frame_number & 1;
+        if (cpi->svc.number_spatial_layers == 1 &&
+            cpi->svc.number_temporal_layers == 1)
+          features->disable_cdf_update = cm->current_frame.frame_number & 1;
+        else if (cpi->svc.number_temporal_layers > 1)
+          // Disable only on top temporal enhancement layer for now.
+          features->disable_cdf_update = (cpi->svc.temporal_layer_id ==
+                                          cpi->svc.number_temporal_layers - 1);
       }
       break;
   }

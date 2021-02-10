@@ -1061,9 +1061,10 @@ int main(int argc, const char **argv) {
   aom_codec_control(&codec, AV1E_SET_ENABLE_ORDER_HINT, 0);
   aom_codec_control(&codec, AV1E_SET_ENABLE_TPL_MODEL, 0);
   aom_codec_control(&codec, AV1E_SET_DELTAQ_MODE, 0);
-  aom_codec_control(&codec, AV1E_SET_COEFF_COST_UPD_FREQ, 2);
-  aom_codec_control(&codec, AV1E_SET_MODE_COST_UPD_FREQ, 2);
+  aom_codec_control(&codec, AV1E_SET_COEFF_COST_UPD_FREQ, 3);
+  aom_codec_control(&codec, AV1E_SET_MODE_COST_UPD_FREQ, 3);
   aom_codec_control(&codec, AV1E_SET_MV_COST_UPD_FREQ, 3);
+  aom_codec_control(&codec, AV1E_SET_CDF_UPDATE_MODE, 1);
   aom_codec_control(&codec, AV1E_SET_TILE_COLUMNS,
                     cfg.g_threads ? get_msb(cfg.g_threads) : 0);
   if (cfg.g_threads > 1) aom_codec_control(&codec, AV1E_SET_ROW_MT, 1);
