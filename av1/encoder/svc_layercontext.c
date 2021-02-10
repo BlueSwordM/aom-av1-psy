@@ -354,7 +354,7 @@ void av1_one_pass_cbr_svc_start_layer(AV1_COMP *const cpi) {
 
   cpi->common.width = width;
   cpi->common.height = height;
-  update_frame_size(cpi);
+  av1_update_frame_size(cpi);
 }
 
 void av1_svc_set_mt_per_spatial_layer(AV1_COMP *const cpi) {

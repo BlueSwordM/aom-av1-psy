@@ -292,7 +292,7 @@ static void set_tile_info(AV1_COMMON *const cm,
   av1_calculate_tile_rows(seq_params, mi_params->mi_rows, tiles);
 }
 
-void update_frame_size(AV1_COMP *cpi) {
+void av1_update_frame_size(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
 
@@ -774,7 +774,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
       initial_dimensions->width = initial_dimensions->height = 0;
     }
   }
-  update_frame_size(cpi);
+  av1_update_frame_size(cpi);
 
   rc->is_src_frame_alt_ref = 0;
 
@@ -1994,7 +1994,7 @@ int av1_set_size_literal(AV1_COMP *cpi, int width, int height) {
     realloc_segmentation_maps(cpi);
     initial_dimensions->width = initial_dimensions->height = 0;
   }
-  update_frame_size(cpi);
+  av1_update_frame_size(cpi);
 
   return 0;
 }

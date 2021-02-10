@@ -2854,7 +2854,7 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *input_size);
 void av1_set_screen_content_options(struct AV1_COMP *cpi,
                                     FeatureFlags *features);
 
-void update_frame_size(AV1_COMP *cpi);
+void av1_update_frame_size(AV1_COMP *cpi);
 
 // TODO(jingning): Move these functions as primitive members for the new cpi
 // class.
