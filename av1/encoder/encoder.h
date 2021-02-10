@@ -63,6 +63,9 @@
 #if CONFIG_AV1_TEMPORAL_DENOISING
 #include "av1/encoder/av1_temporal_denoiser.h"
 #endif
+#if CONFIG_TUNE_BUTTERAUGLI
+#include "av1/encoder/tune_butteraugli.h"
+#endif
 
 #include "aom/internal/aom_codec_internal.h"
 #include "aom_util/aom_thread.h"
@@ -2581,6 +2584,13 @@ typedef struct AV1_COMP {
    * Parameters for VMAF tuning.
    */
   TuneVMAFInfo vmaf_info;
+#endif
+
+#if CONFIG_TUNE_BUTTERAUGLI
+  /*!
+   * Parameters for Butteraugli tuning.
+   */
+  TuneButteraugliInfo butteraugli_info;
 #endif
 
   /*!

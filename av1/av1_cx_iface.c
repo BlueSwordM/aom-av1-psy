@@ -523,6 +523,14 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
         "VBR corpus complexity is supported only in the case of single pass "
         "VBR mode.");
 
+#if !CONFIG_TUNE_BUTTERAUGLI
+  if (extra_cfg->tuning == AOM_TUNE_BUTTERAUGLI) {
+    ERROR(
+        "This error may be related to the wrong configuration options: try to "
+        "set -DCONFIG_TUNE_BUTTERAUGLI=1 at the time CMake is run.");
+  }
+#endif
+
 #if !CONFIG_TUNE_VMAF
   if (extra_cfg->tuning >= AOM_TUNE_VMAF_WITH_PREPROCESSING &&
       extra_cfg->tuning <= AOM_TUNE_VMAF_NEG_MAX_GAIN) {
@@ -541,11 +549,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   }
 #endif
 
-#if CONFIG_TUNE_VMAF
-  RANGE_CHECK(extra_cfg, tuning, AOM_TUNE_PSNR, AOM_TUNE_VMAF_NEG_MAX_GAIN);
-#else
-  RANGE_CHECK(extra_cfg, tuning, AOM_TUNE_PSNR, AOM_TUNE_SSIM);
-#endif
+  RANGE_CHECK(extra_cfg, tuning, AOM_TUNE_PSNR, AOM_TUNE_BUTTERAUGLI);
 
   RANGE_CHECK(extra_cfg, timing_info_type, AOM_TIMING_UNSPECIFIED,
               AOM_TIMING_DEC_MODEL);
@@ -612,6 +616,12 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
 
   if (img->d_w != ctx->cfg.g_w || img->d_h != ctx->cfg.g_h)
     ERROR("Image size must match encoder init configuration size");
+
+#if CONFIG_TUNE_BUTTERAUGLI
+  if (img->x_chroma_shift != 1 || img->y_chroma_shift != 1) {
+    ERROR("Only I420 images supported in tune=butteraugli mode.");
+  }
+#endif
 
   return AOM_CODEC_OK;
 }
