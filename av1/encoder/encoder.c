@@ -292,7 +292,7 @@ static void set_tile_info(AV1_COMMON *const cm,
   av1_calculate_tile_rows(seq_params, mi_params->mi_rows, tiles);
 }
 
-static void update_frame_size(AV1_COMP *cpi) {
+void update_frame_size(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
 

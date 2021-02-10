@@ -351,7 +351,10 @@ void av1_one_pass_cbr_svc_start_layer(AV1_COMP *const cpi) {
   // Use Eightap_smooth for low resolutions.
   if (width * height <= 320 * 240)
     svc->downsample_filter_type[svc->spatial_layer_id] = EIGHTTAP_SMOOTH;
-  av1_set_size_literal(cpi, width, height);
+
+  cpi->common.width = width;
+  cpi->common.height = height;
+  update_frame_size(cpi);
 }
 
 void av1_svc_set_mt_per_spatial_layer(AV1_COMP *const cpi) {
