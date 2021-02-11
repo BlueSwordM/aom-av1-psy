@@ -65,7 +65,8 @@ void av1_free_shared_coeff_buffer(PC_TREE_SHARED_BUFFERS *shared_bufs) {
   }
 }
 
-PICK_MODE_CONTEXT *av1_alloc_pmc(const struct AV1_COMP *cpi, BLOCK_SIZE bsize,
+PICK_MODE_CONTEXT *av1_alloc_pmc(const struct AV1_COMP *const cpi,
+                                 BLOCK_SIZE bsize,
                                  PC_TREE_SHARED_BUFFERS *shared_bufs) {
   PICK_MODE_CONTEXT *ctx = NULL;
   const AV1_COMMON *const cm = &cpi->common;
