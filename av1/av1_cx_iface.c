@@ -31,8 +31,6 @@
 
 #include "common/args_helper.h"
 
-#define MAG_SIZE (4)
-
 struct av1_extracfg {
   int cpu_used;
   unsigned int enable_auto_alt_ref;
@@ -298,8 +296,6 @@ struct aom_codec_alg_priv {
   size_t cx_data_sz;
   unsigned char *pending_cx_data;
   size_t pending_cx_data_sz;
-  int pending_frame_count;
-  size_t pending_frame_sizes[8];
   aom_image_t preview_img;
   aom_enc_frame_flags_t next_frame_flags;
   aom_codec_pkt_list_decl(256) pkt_list;
@@ -2284,7 +2280,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     size_t frame_size = 0;
     unsigned int lib_flags = 0;
     int is_frame_visible = 0;
-    int index_size = 0;
     int has_no_show_keyframe = 0;
     int num_workers = 0;
 
@@ -2329,8 +2324,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     // visible frame.
     int64_t dst_time_stamp;
     int64_t dst_end_time_stamp;
-    while (cx_data_sz - index_size >= ctx->cx_data_sz / 2 &&
-           !is_frame_visible) {
+    while (cx_data_sz >= ctx->cx_data_sz / 2 && !is_frame_visible) {
       const int status = av1_get_compressed_data(
           cpi, &lib_flags, &frame_size, cx_data, &dst_time_stamp,
           &dst_end_time_stamp, !img, timestamp_ratio);
@@ -2344,7 +2338,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
 
         const int write_temporal_delimiter =
-            !cpi->common.spatial_layer_id && !ctx->pending_frame_count;
+            !cpi->common.spatial_layer_id && !ctx->pending_cx_data_sz;
 
         if (write_temporal_delimiter) {
           uint32_t obu_header_size = 1;
@@ -2392,13 +2386,10 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           frame_size += length_field_size;
         }
 
-        ctx->pending_frame_sizes[ctx->pending_frame_count++] = frame_size;
         ctx->pending_cx_data_sz += frame_size;
 
         cx_data += frame_size;
         cx_data_sz -= frame_size;
-
-        index_size = MAG_SIZE * (ctx->pending_frame_count - 1) + 2;
 
         is_frame_visible = cpi->common.show_frame;
 
@@ -2452,7 +2443,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
       ctx->pending_cx_data = NULL;
       ctx->pending_cx_data_sz = 0;
-      ctx->pending_frame_count = 0;
     }
   }
 
