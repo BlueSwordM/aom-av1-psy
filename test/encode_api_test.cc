@@ -44,7 +44,7 @@ TEST(EncodeAPI, InvalidParams) {
   EXPECT_EQ(AOM_CODEC_INVALID_PARAM, aom_codec_enc_init(NULL, iface, NULL, 0));
   EXPECT_EQ(AOM_CODEC_INVALID_PARAM, aom_codec_enc_init(&enc, iface, NULL, 0));
   EXPECT_EQ(AOM_CODEC_INVALID_PARAM,
-            aom_codec_enc_config_default(iface, &cfg, 2));
+            aom_codec_enc_config_default(iface, &cfg, 3));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_default(iface, &cfg, 0));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_init(&enc, iface, &cfg, 0));
   EXPECT_EQ(NULL, aom_codec_get_global_headers(NULL));
