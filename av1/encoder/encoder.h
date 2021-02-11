@@ -2925,17 +2925,6 @@ static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf(
   return buf != NULL ? &buf->buf : NULL;
 }
 
-static INLINE int enc_is_ref_frame_buf(const AV1_COMMON *const cm,
-                                       const RefCntBuffer *const frame_buf) {
-  MV_REFERENCE_FRAME ref_frame;
-  for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
-    const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-    if (buf == NULL) continue;
-    if (frame_buf == buf) break;
-  }
-  return (ref_frame <= ALTREF_FRAME);
-}
-
 static INLINE void alloc_frame_mvs(AV1_COMMON *const cm, RefCntBuffer *buf) {
   assert(buf != NULL);
   ensure_mv_buffer(buf, cm);
