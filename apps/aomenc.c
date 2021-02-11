@@ -667,6 +667,11 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
     warn("Enforcing one-pass encoding in realtime mode\n");
     global->passes = 1;
   }
+
+  if (global->usage == AOM_USAGE_ALL_INTRA && global->passes > 1) {
+    warn("Enforcing one-pass encoding in all intra mode\n");
+    global->passes = 1;
+  }
 }
 
 static void open_input_file(struct AvxInputContext *input,
@@ -1047,6 +1052,19 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
   if (global->usage == AOM_USAGE_REALTIME && config->cfg.g_lag_in_frames != 0) {
     warn("non-zero lag-in-frames option ignored in realtime mode.\n");
     config->cfg.g_lag_in_frames = 0;
+  }
+
+  if (global->usage == AOM_USAGE_ALL_INTRA) {
+    if (config->cfg.g_lag_in_frames != 0) {
+      warn("non-zero lag-in-frames option ignored in all intra mode.\n");
+      config->cfg.g_lag_in_frames = 0;
+    }
+    if (config->cfg.kf_max_dist != 0) {
+      warn(
+          "non-zero max key frame distance option ignored in all intra "
+          "mode.\n");
+      config->cfg.kf_max_dist = 0;
+    }
   }
   return eos_mark_found;
 }
