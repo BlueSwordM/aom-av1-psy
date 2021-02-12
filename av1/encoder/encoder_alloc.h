@@ -383,13 +383,20 @@ static AOM_INLINE void alloc_util_frame_buffers(AV1_COMP *cpi) {
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate last frame buffer");
 
-  if (aom_realloc_frame_buffer(
-          &cpi->trial_frame_rst, cm->superres_upscaled_width,
-          cm->superres_upscaled_height, seq_params->subsampling_x,
-          seq_params->subsampling_y, seq_params->use_highbitdepth,
-          AOM_RESTORATION_FRAME_BORDER, byte_alignment, NULL, NULL, NULL))
-    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                       "Failed to allocate trial restored frame buffer");
+  // The frame buffer trial_frame_rst is used during loop restoration filter
+  // search. Hence it is allocated only when loop restoration is used.
+  const int use_restoration = cm->seq_params.enable_restoration &&
+                              !cm->features.all_lossless &&
+                              !cm->tiles.large_scale;
+  if (use_restoration) {
+    if (aom_realloc_frame_buffer(
+            &cpi->trial_frame_rst, cm->superres_upscaled_width,
+            cm->superres_upscaled_height, seq_params->subsampling_x,
+            seq_params->subsampling_y, seq_params->use_highbitdepth,
+            AOM_RESTORATION_FRAME_BORDER, byte_alignment, NULL, NULL, NULL))
+      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate trial restored frame buffer");
+  }
 
   if (aom_realloc_frame_buffer(
           &cpi->scaled_source, cm->width, cm->height, seq_params->subsampling_x,
