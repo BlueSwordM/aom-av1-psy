@@ -743,6 +743,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   switch (cfg->g_usage) {
     case AOM_USAGE_REALTIME: oxcf->mode = REALTIME; break;
+    case AOM_USAGE_ALL_INTRA: oxcf->mode = ALLINTRA; break;
     default: oxcf->mode = GOOD; break;
   }
 
@@ -2144,10 +2145,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         }
       }
     }
-  }
-  if (ctx->oxcf.mode != GOOD && ctx->oxcf.mode != REALTIME) {
-    ctx->oxcf.mode = GOOD;
-    av1_change_config(ctx->cpi, &ctx->oxcf);
   }
 
   aom_codec_pkt_list_init(&ctx->pkt_list);
