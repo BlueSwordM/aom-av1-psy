@@ -138,21 +138,6 @@ typedef struct SVC {
    * Force zero-mv in mode search for the spatial/inter-layer reference.
    */
   int force_zero_mode_spatial_ref;
-
-  /*!
-   *  max threads per spatial layer.
-   */
-  int max_threads[AOM_MAX_SS_LAYERS];
-
-  /*!
-   *  tile columns per spatial layer.
-   */
-  int tile_columns[AOM_MAX_SS_LAYERS];
-
-  /*!
-   *  tile rows per spatial layer.
-   */
-  int tile_rows[AOM_MAX_SS_LAYERS];
 } SVC;
 
 struct AV1_COMP;
@@ -286,17 +271,6 @@ int av1_svc_primary_ref_frame(const struct AV1_COMP *const cpi);
 void av1_get_layer_resolution(const int width_org, const int height_org,
                               const int num, const int den, int *width_out,
                               int *height_out);
-
-/*!\brief Set multi-threading for the current spatial layer.
- *
- * \ingroup SVC
- * \param[in]       cpi  Top level encoder structure
- *
- * \return Nothing is returned. Instead the max_threads, tile_columns and
- tile_rows are set for the current spatial layer.
- */
-void av1_svc_set_mt_per_spatial_layer(struct AV1_COMP *const cpi);
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif

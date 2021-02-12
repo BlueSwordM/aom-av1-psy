@@ -80,9 +80,6 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
     }
     svc->downsample_filter_type[sl] = BILINEAR;
     svc->downsample_filter_phase[sl] = 8;
-    svc->max_threads[sl] = 1;
-    svc->tile_columns[sl] = 0;
-    svc->tile_rows[sl] = 0;
   }
   if (svc->number_spatial_layers == 3) {
     svc->downsample_filter_type[0] = EIGHTTAP_SMOOTH;
@@ -125,17 +122,6 @@ void av1_update_layer_context_change_config(AV1_COMP *const cpi,
       lrc->max_frame_bandwidth = rc->max_frame_bandwidth;
       lrc->worst_quality = av1_quantizer_to_qindex(lc->max_q);
       lrc->best_quality = av1_quantizer_to_qindex(lc->min_q);
-    }
-    // The user settings of mult-threading are only applied to top
-    // spatial layer for now, keep lower spatial layers at 1 thread.
-    if (sl == svc->number_spatial_layers - 1) {
-      svc->max_threads[sl] = cpi->oxcf.max_threads;
-      svc->tile_columns[sl] = cpi->oxcf.tile_cfg.tile_columns;
-      svc->tile_rows[sl] = cpi->oxcf.tile_cfg.tile_rows;
-    } else {
-      svc->max_threads[sl] = 1;
-      svc->tile_columns[sl] = 0;
-      svc->tile_rows[sl] = 0;
     }
   }
 }
@@ -355,11 +341,4 @@ void av1_one_pass_cbr_svc_start_layer(AV1_COMP *const cpi) {
   cpi->common.width = width;
   cpi->common.height = height;
   av1_update_frame_size(cpi);
-}
-
-void av1_svc_set_mt_per_spatial_layer(AV1_COMP *const cpi) {
-  int sl = cpi->svc.spatial_layer_id;
-  cpi->oxcf.max_threads = cpi->svc.max_threads[sl];
-  cpi->oxcf.tile_cfg.tile_columns = cpi->svc.tile_columns[sl];
-  cpi->oxcf.tile_cfg.tile_rows = cpi->svc.tile_rows[sl];
 }

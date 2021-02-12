@@ -2289,8 +2289,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       num_workers = av1_fp_compute_num_enc_workers(cpi);
 #endif
     } else {
-      if (cpi->use_svc && cpi->svc.number_spatial_layers > 1)
-        av1_svc_set_mt_per_spatial_layer(cpi);
       av1_compute_num_workers_for_mt(cpi);
       num_workers = av1_get_max_num_workers(cpi);
     }
