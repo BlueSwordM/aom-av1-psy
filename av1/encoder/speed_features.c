@@ -566,8 +566,7 @@ static void set_allintra_speed_features_framesize_independent(
 
     sf->mv_sf.auto_mv_step_size = 1;
 
-    sf->intra_sf.disable_smooth_intra =
-        !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key > 1);
+    sf->intra_sf.disable_smooth_intra = 0;
     sf->intra_sf.intra_pruning_with_hog = 2;
 
     sf->rd_sf.perform_coeff_opt = 3;
@@ -656,8 +655,7 @@ static void set_allintra_speed_features_framesize_independent(
 
     sf->intra_sf.chroma_intra_pruning_with_hog = 3;
 
-    sf->lpf_sf.use_coarse_filter_level_search =
-        frame_is_intra_only(&cpi->common) ? 0 : 1;
+    sf->lpf_sf.use_coarse_filter_level_search = 0;
     sf->lpf_sf.disable_lr_filter = 1;
 
     sf->mv_sf.prune_mesh_search = 1;
@@ -670,8 +668,7 @@ static void set_allintra_speed_features_framesize_independent(
     sf->part_sf.prune_rectangular_split_based_on_qidx =
         allow_screen_content_tools ? 0 : 1;
     sf->part_sf.prune_sub_8x8_partition_level =
-        allow_screen_content_tools ? 0
-                                   : frame_is_intra_only(&cpi->common) ? 1 : 2;
+        allow_screen_content_tools ? 0 : 1;
     sf->part_sf.prune_part4_search = 3;
 
     sf->mv_sf.use_bsize_dependent_search_method = 1;
