@@ -2021,11 +2021,10 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
       if (priv->oxcf.rc_cfg.mode != AOM_CBR && priv->oxcf.pass == 0 &&
           priv->oxcf.mode == GOOD) {
         // Enable look ahead - enabled for AOM_Q, AOM_CQ, AOM_VBR
-        *num_lap_buffers = priv->cfg.g_lag_in_frames;
         *num_lap_buffers =
-            clamp(*num_lap_buffers, 0,
-                  AOMMIN(MAX_LAP_BUFFERS, priv->oxcf.kf_cfg.key_freq_max +
-                                              SCENE_CUT_KEY_TEST_INTERVAL));
+            AOMMIN((int)priv->cfg.g_lag_in_frames,
+                   AOMMIN(MAX_LAP_BUFFERS, priv->oxcf.kf_cfg.key_freq_max +
+                                               SCENE_CUT_KEY_TEST_INTERVAL));
         if ((int)priv->cfg.g_lag_in_frames - (*num_lap_buffers) >=
             LAP_LAG_IN_FRAMES) {
           lap_lag_in_frames = LAP_LAG_IN_FRAMES;
