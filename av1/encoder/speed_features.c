@@ -566,7 +566,7 @@ static void set_allintra_speed_features_framesize_independent(
 
     sf->mv_sf.auto_mv_step_size = 1;
 
-    sf->intra_sf.disable_smooth_intra = 0;
+    sf->intra_sf.disable_smooth_intra = 1;
     sf->intra_sf.intra_pruning_with_hog = 2;
 
     sf->rd_sf.perform_coeff_opt = 3;
