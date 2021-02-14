@@ -27,6 +27,7 @@ list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
             "${AOM_ROOT}/test/acm_random.h"
             "${AOM_ROOT}/test/aom_integer_test.cc"
             "${AOM_ROOT}/test/av1_config_test.cc"
+            "${AOM_ROOT}/test/av1_key_value_api_test.cc"
             "${AOM_ROOT}/test/block_test.cc"
             "${AOM_ROOT}/test/clear_system_state.h"
             "${AOM_ROOT}/test/codec_factory.h"
@@ -99,7 +100,6 @@ list(APPEND AOM_TEST_INTRA_PRED_SPEED_SOURCES "${AOM_GEN_SRC_DIR}/usage_exit.c"
 if(NOT BUILD_SHARED_LIBS)
   list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
               "${AOM_ROOT}/test/av1_common_int_test.cc"
-              "${AOM_ROOT}/test/av1_key_value_api_test.cc"
               "${AOM_ROOT}/test/cdef_test.cc"
               "${AOM_ROOT}/test/cfl_test.cc"
               "${AOM_ROOT}/test/convolve_test.cc"
