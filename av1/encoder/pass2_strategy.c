@@ -2107,9 +2107,9 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
 
 static void correct_frames_to_key(AV1_COMP *cpi) {
   int lookahead_size =
-      (int)av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage);
+      (int)av1_lookahead_depth(cpi->ppi->lookahead, cpi->compressor_stage);
   if (lookahead_size <
-      av1_lookahead_pop_sz(cpi->lookahead, cpi->compressor_stage)) {
+      av1_lookahead_pop_sz(cpi->ppi->lookahead, cpi->compressor_stage)) {
     assert(IMPLIES(cpi->oxcf.pass != 0 && cpi->frames_left > 0,
                    lookahead_size == cpi->frames_left));
     cpi->rc.frames_to_key = AOMMIN(cpi->rc.frames_to_key, lookahead_size);
@@ -2788,7 +2788,7 @@ static int test_candidate_kf(TWO_PASS *twopass,
 static int detect_app_forced_key(AV1_COMP *cpi) {
   if (cpi->oxcf.kf_cfg.fwd_kf_enabled) cpi->rc.next_is_fwd_key = 1;
   int num_frames_to_app_forced_key = is_forced_keyframe_pending(
-      cpi->lookahead, cpi->lookahead->max_sz, cpi->compressor_stage);
+      cpi->ppi->lookahead, cpi->ppi->lookahead->max_sz, cpi->compressor_stage);
   if (num_frames_to_app_forced_key != -1) cpi->rc.next_is_fwd_key = 0;
   return num_frames_to_app_forced_key;
 }

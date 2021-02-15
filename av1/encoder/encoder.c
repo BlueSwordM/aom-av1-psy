@@ -1423,7 +1423,7 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
 
 void av1_remove_primary_compressor(AV1_PRIMARY *ppi) {
   if (!ppi) return;
-
+  av1_lookahead_destroy(ppi->lookahead);
   aom_free(ppi);
 }
 
@@ -1885,7 +1885,7 @@ static void init_motion_estimation(AV1_COMP *cpi) {
                              cpi->oxcf.frm_dim_cfg.height != cm->height) ||
                             av1_superres_scaled(cm))
                                ? y_stride
-                               : cpi->lookahead->buf->img.y_stride;
+                               : cpi->ppi->lookahead->buf->img.y_stride;
   int fpf_y_stride = cm->cur_frame != NULL ? cm->cur_frame->buf.y_stride
                                            : cpi->scaled_source.y_stride;
 
@@ -3511,7 +3511,7 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
       res = -1;
 #endif  //  CONFIG_DENOISE
 
-  if (av1_lookahead_push(cpi->lookahead, sd, time_stamp, end_time,
+  if (av1_lookahead_push(cpi->ppi->lookahead, sd, time_stamp, end_time,
                          use_highbitdepth, frame_flags))
     res = -1;
 #if CONFIG_INTERNAL_STATS

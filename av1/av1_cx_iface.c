@@ -2135,10 +2135,6 @@ static aom_codec_err_t encoder_destroy(aom_codec_alg_priv_t *ctx) {
     AV1_PRIMARY *ppi = ctx->ppi;
     destroy_context_and_bufferpool(ppi->cpi, ctx->buffer_pool);
     if (ppi->cpi_lap) {
-      // As both cpi and cpi_lap have the same lookahead_ctx, it is already
-      // freed when destroy is called on cpi. Thus, setting lookahead_ctx to
-      // null here, so that it doesn't attempt to free it again.
-      ppi->cpi_lap->lookahead = NULL;
       destroy_context_and_bufferpool(ppi->cpi_lap, ctx->buffer_pool_lap);
     }
     av1_remove_primary_compressor(ppi);
@@ -2178,12 +2174,12 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
                                       aom_enc_frame_flags_t enc_flags) {
   const size_t kMinCompressedSize = 8192;
   volatile aom_codec_err_t res = AOM_CODEC_OK;
-  AV1_COMP *const cpi = ctx->ppi->cpi;
+  AV1_PRIMARY *const ppi = ctx->ppi;
+  AV1_COMP *const cpi = ppi->cpi;
   const aom_rational64_t *const timestamp_ratio = &ctx->timestamp_ratio;
   volatile aom_codec_pts_t ptsvol = pts;
   // LAP context
-  AV1_COMP *cpi_lap = ctx->ppi->cpi_lap;
-
+  AV1_COMP *cpi_lap = ppi->cpi_lap;
   if (cpi == NULL) return AOM_CODEC_INVALID_PARAM;
 
   if (cpi->lap_enabled && cpi_lap == NULL && cpi->oxcf.pass == 0)
@@ -2298,25 +2294,24 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       int subsampling_x = sd.subsampling_x;
       int subsampling_y = sd.subsampling_y;
 
-      if (!cpi->lookahead) {
+      if (!ppi->lookahead) {
         int lag_in_frames = cpi_lap != NULL ? cpi_lap->oxcf.gf_cfg.lag_in_frames
                                             : cpi->oxcf.gf_cfg.lag_in_frames;
 
-        cpi->lookahead = av1_lookahead_init(
+        ppi->lookahead = av1_lookahead_init(
             cpi->oxcf.frm_dim_cfg.width, cpi->oxcf.frm_dim_cfg.height,
             subsampling_x, subsampling_y, use_highbitdepth, lag_in_frames,
             cpi->oxcf.border_in_pixels, cpi->common.features.byte_alignment,
             ctx->num_lap_buffers, (cpi->oxcf.kf_cfg.key_freq_max == 0),
             cpi->oxcf.tool_cfg.enable_global_motion);
       }
-      if (!cpi->lookahead)
+      if (!ppi->lookahead)
         aom_internal_error(&cpi->common.error, AOM_CODEC_MEM_ERROR,
                            "Failed to allocate lag buffers");
 
       av1_check_initial_width(cpi, use_highbitdepth, subsampling_x,
                               subsampling_y);
       if (cpi_lap != NULL) {
-        cpi_lap->lookahead = cpi->lookahead;
         av1_check_initial_width(cpi_lap, use_highbitdepth, subsampling_x,
                                 subsampling_y);
       }

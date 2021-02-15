@@ -2058,6 +2058,11 @@ typedef struct AV1_PRIMARY {
    * Lookahead processing stage top level structure
    */
   struct AV1_COMP *cpi_lap;
+
+  /*!
+   * Look-ahead context.
+   */
+  struct lookahead_ctx *lookahead;
 } AV1_PRIMARY;
 
 /*!
@@ -2112,11 +2117,6 @@ typedef struct AV1_COMP {
    * Encoder configuration related parameters.
    */
   AV1EncoderConfig oxcf;
-
-  /*!
-   * Look-ahead context.
-   */
-  struct lookahead_ctx *lookahead;
 
   /*!
    * When set, this flag indicates that the current frame is a forward keyframe.

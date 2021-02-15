@@ -1026,7 +1026,7 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       (current_frame->frame_number % FIRST_PASS_ALT_REF_DISTANCE);
   if (alt_ref_offset < FIRST_PASS_ALT_REF_DISTANCE) {
     const struct lookahead_entry *const alt_ref_frame_buffer =
-        av1_lookahead_peek(cpi->lookahead, alt_ref_offset,
+        av1_lookahead_peek(cpi->ppi->lookahead, alt_ref_offset,
                            cpi->compressor_stage);
     if (alt_ref_frame_buffer != NULL) {
       alt_ref_frame = &alt_ref_frame_buffer->img;

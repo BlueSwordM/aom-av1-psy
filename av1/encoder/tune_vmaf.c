@@ -1029,10 +1029,10 @@ static AOM_INLINE void get_neighbor_frames(const AV1_COMP *const cpi,
   const GF_GROUP *gf_group = &cpi->gf_group;
   const int src_index =
       cm->show_frame != 0 ? 0 : gf_group->arf_src_offset[gf_group->index];
-  struct lookahead_entry *last_entry =
-      av1_lookahead_peek(cpi->lookahead, src_index - 1, cpi->compressor_stage);
-  struct lookahead_entry *next_entry =
-      av1_lookahead_peek(cpi->lookahead, src_index + 1, cpi->compressor_stage);
+  struct lookahead_entry *last_entry = av1_lookahead_peek(
+      cpi->ppi->lookahead, src_index - 1, cpi->compressor_stage);
+  struct lookahead_entry *next_entry = av1_lookahead_peek(
+      cpi->ppi->lookahead, src_index + 1, cpi->compressor_stage);
   *next = &next_entry->img;
   *last = cm->show_frame ? cpi->last_source : &last_entry->img;
 }
@@ -1066,8 +1066,8 @@ int av1_get_vmaf_base_qindex(const AV1_COMP *const cpi, int current_qindex) {
   YV12_BUFFER_CONFIG *cur_buf = cpi->source;
   if (cm->show_frame == 0) {
     const int src_index = gf_group->arf_src_offset[gf_group->index];
-    struct lookahead_entry *cur_entry =
-        av1_lookahead_peek(cpi->lookahead, src_index, cpi->compressor_stage);
+    struct lookahead_entry *cur_entry = av1_lookahead_peek(
+        cpi->ppi->lookahead, src_index, cpi->compressor_stage);
     cur_buf = &cur_entry->img;
   }
   assert(cur_buf);

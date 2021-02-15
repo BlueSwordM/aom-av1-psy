@@ -937,7 +937,7 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   int num_before = 0;  // Number of filtering frames before the to-filter frame.
   int num_after = 0;   // Number of filtering frames after the to-filer frame.
   const int lookahead_depth =
-      av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage);
+      av1_lookahead_depth(cpi->ppi->lookahead, cpi->compressor_stage);
 
   int arf_src_offset = cpi->gf_group.arf_src_offset[cpi->gf_group.index];
   const FRAME_TYPE frame_type = cpi->gf_group.frame_type[cpi->gf_group.index];
@@ -957,7 +957,7 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
 
   // Estimate noises for each plane.
   const struct lookahead_entry *to_filter_buf = av1_lookahead_peek(
-      cpi->lookahead, filter_frame_lookahead_idx, cpi->compressor_stage);
+      cpi->ppi->lookahead, filter_frame_lookahead_idx, cpi->compressor_stage);
   assert(to_filter_buf != NULL);
   const YV12_BUFFER_CONFIG *to_filter_frame = &to_filter_buf->img;
   const int num_planes = av1_num_planes(&cpi->common);
@@ -1042,7 +1042,7 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   for (int frame = 0; frame < num_frames; ++frame) {
     const int lookahead_idx = frame - num_before + filter_frame_lookahead_idx;
     struct lookahead_entry *buf = av1_lookahead_peek(
-        cpi->lookahead, lookahead_idx, cpi->compressor_stage);
+        cpi->ppi->lookahead, lookahead_idx, cpi->compressor_stage);
     assert(buf != NULL);
     frames[frame] = &buf->img;
   }

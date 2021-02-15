@@ -380,7 +380,7 @@ static struct lookahead_entry *choose_frame_source(
 
   // TODO(Aasaipriya): Forced key frames need to be fixed when rc_mode != AOM_Q
   if (src_index &&
-      (is_forced_keyframe_pending(cpi->lookahead, src_index,
+      (is_forced_keyframe_pending(cpi->ppi->lookahead, src_index,
                                   cpi->compressor_stage) != -1) &&
       cpi->oxcf.rc_cfg.mode != AOM_Q) {
     src_index = 0;
@@ -396,11 +396,11 @@ static struct lookahead_entry *choose_frame_source(
   // then do not pop.
   if (*pop_lookahead && cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1 &&
       gf_group->update_type[gf_group->index] == ARF_UPDATE &&
-      !is_stat_generation_stage(cpi) && cpi->lookahead) {
-    if (cpi->lookahead->read_ctxs[cpi->compressor_stage].sz &&
+      !is_stat_generation_stage(cpi) && cpi->ppi->lookahead) {
+    if (cpi->ppi->lookahead->read_ctxs[cpi->compressor_stage].sz &&
         (*flush ||
-         cpi->lookahead->read_ctxs[cpi->compressor_stage].sz ==
-             cpi->lookahead->read_ctxs[cpi->compressor_stage].pop_sz)) {
+         cpi->ppi->lookahead->read_ctxs[cpi->compressor_stage].sz ==
+             cpi->ppi->lookahead->read_ctxs[cpi->compressor_stage].pop_sz)) {
       *pop_lookahead = 0;
     }
   }
@@ -410,14 +410,14 @@ static struct lookahead_entry *choose_frame_source(
     // Get last frame source.
     if (cm->current_frame.frame_number > 0) {
       *last_source =
-          av1_lookahead_peek(cpi->lookahead, -1, cpi->compressor_stage);
+          av1_lookahead_peek(cpi->ppi->lookahead, -1, cpi->compressor_stage);
     }
     // Read in the source frame.
-    source = av1_lookahead_peek(cpi->lookahead, 0, cpi->compressor_stage);
+    source = av1_lookahead_peek(cpi->ppi->lookahead, 0, cpi->compressor_stage);
   } else {
     // no show frames are arf frames
-    source =
-        av1_lookahead_peek(cpi->lookahead, src_index, cpi->compressor_stage);
+    source = av1_lookahead_peek(cpi->ppi->lookahead, src_index,
+                                cpi->compressor_stage);
     // When src_index == rc->frames_to_key, it indicates a fwd_kf
     if (src_index == cpi->rc.frames_to_key && src_index != 0) {
       cpi->no_show_fwd_kf = 1;
@@ -437,7 +437,7 @@ static int allow_show_existing(const AV1_COMP *const cpi,
   if (cpi->common.current_frame.frame_number == 0) return 0;
 
   const struct lookahead_entry *lookahead_src =
-      av1_lookahead_peek(cpi->lookahead, 0, cpi->compressor_stage);
+      av1_lookahead_peek(cpi->ppi->lookahead, 0, cpi->compressor_stage);
   if (lookahead_src == NULL) return 1;
 
   const int is_error_resilient =
@@ -1102,14 +1102,15 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   // Check if we need to stuff more src frames
   if (flush == 0) {
     int srcbuf_size =
-        av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage);
-    int pop_size = av1_lookahead_pop_sz(cpi->lookahead, cpi->compressor_stage);
+        av1_lookahead_depth(cpi->ppi->lookahead, cpi->compressor_stage);
+    int pop_size =
+        av1_lookahead_pop_sz(cpi->ppi->lookahead, cpi->compressor_stage);
 
     // Continue buffering look ahead buffer.
     if (srcbuf_size < pop_size) return -1;
   }
 
-  if (!av1_lookahead_peek(cpi->lookahead, 0, cpi->compressor_stage)) {
+  if (!av1_lookahead_peek(cpi->ppi->lookahead, 0, cpi->compressor_stage)) {
 #if !CONFIG_REALTIME_ONLY
     if (flush && oxcf->pass == 1 && !cpi->twopass.first_pass_done) {
       av1_end_first_pass(cpi); /* get last stats packet */
@@ -1170,7 +1171,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   struct lookahead_entry *last_source = NULL;
   int pop_lookahead = 0;
   if (frame_params.show_existing_frame) {
-    source = av1_lookahead_peek(cpi->lookahead, 0, cpi->compressor_stage);
+    source = av1_lookahead_peek(cpi->ppi->lookahead, 0, cpi->compressor_stage);
     pop_lookahead = 1;
     frame_params.show_frame = 1;
   } else {
@@ -1403,7 +1404,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 #endif
   if (pop_lookahead == 1) {
-    av1_lookahead_pop(cpi->lookahead, flush, cpi->compressor_stage);
+    av1_lookahead_pop(cpi->ppi->lookahead, flush, cpi->compressor_stage);
   }
 
   if (!is_stat_generation_stage(cpi)) {

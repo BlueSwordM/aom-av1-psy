@@ -1306,11 +1306,11 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
     struct lookahead_entry *buf;
     if (gf_index == cur_frame_idx) {
-      buf = av1_lookahead_peek(cpi->lookahead, lookahead_index,
+      buf = av1_lookahead_peek(cpi->ppi->lookahead, lookahead_index,
                                cpi->compressor_stage);
       tpl_frame->gf_picture = gop_eval ? &buf->img : frame_input->source;
     } else {
-      buf = av1_lookahead_peek(cpi->lookahead, lookahead_index,
+      buf = av1_lookahead_peek(cpi->ppi->lookahead, lookahead_index,
                                cpi->compressor_stage);
       if (buf == NULL) break;
       tpl_frame->gf_picture = &buf->img;
@@ -1378,7 +1378,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
     int lookahead_index = frame_display_index - anc_frame_offset;
     struct lookahead_entry *buf = av1_lookahead_peek(
-        cpi->lookahead, lookahead_index, cpi->compressor_stage);
+        cpi->ppi->lookahead, lookahead_index, cpi->compressor_stage);
 
     if (buf == NULL) break;
 
