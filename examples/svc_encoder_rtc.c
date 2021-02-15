@@ -565,7 +565,7 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
   for (i = 0; i < REF_FRAMES; i++) ref_frame_config->refresh[i] = 0;
 
   if (ksvc_mode) {
-    // Same pattern as case 8.
+    // Same pattern as case 9.
     layering_mode = 9;
     if (!is_key_frame)
       // No inter-layer prediction on inter-frames.
@@ -836,12 +836,14 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
           ref_frame_config->refresh[4] = 1;
         }
       }
-      if (layer_id->spatial_layer_id > 0 && !ksvc_mode)
+      if (layer_id->spatial_layer_id > 0 && !ksvc_mode) {
         // Reference GOLDEN.
         ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
+      }
+      break;
     case 8:
       // 3 spatial and 3 temporal layer.
-      // Same as case 8 but overalap in the buffer slot updates.
+      // Same as case 9 but overalap in the buffer slot updates.
       // (shift = 2). The slots 3 and 4 updated by first TL2 are
       // reused for update in TL1 superframe.
       // Note for this case, frame order hint must be disabled for
@@ -970,7 +972,7 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
       if (layer_id->spatial_layer_id > 0 && !ksvc_mode)
         // Reference GOLDEN.
         ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
-      // For 3 spatial layer case 7 (where there is free buffer slot):
+      // For 3 spatial layer case 8 (where there is free buffer slot):
       // allow for top spatial layer to use additional temporal reference.
       // Additional reference is only updated on base temporal layer, every
       // 10 TL0 frames here.
