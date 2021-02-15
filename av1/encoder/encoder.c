@@ -1075,7 +1075,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
 #if CONFIG_TUNE_BUTTERAUGLI
   {
-    const int bsize = BLOCK_8X8;
+    const int bsize = BLOCK_16X16;
     const int w = mi_size_wide[bsize];
     const int h = mi_size_high[bsize];
     const int num_cols = (mi_params->mi_cols + w - 1) / w;

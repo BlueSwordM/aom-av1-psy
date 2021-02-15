@@ -50,7 +50,7 @@ void av1_set_mb_butteraugli_rdmult_scaling(AV1_COMP *cpi) {
   CHECK_MEM_ERROR(cm, diffmap, aom_malloc(width * height * sizeof(*diffmap)));
   aom_calc_butteraugli(source, recon, bit_depth, diffmap);
 
-  const int block_size = BLOCK_8X8;
+  const int block_size = BLOCK_16X16;
   const int num_mi_w = mi_size_wide[block_size];
   const int num_mi_h = mi_size_high[block_size];
   const int num_cols = (mi_params->mi_cols + num_mi_w - 1) / num_mi_w;
@@ -72,7 +72,7 @@ void av1_set_mb_butteraugli_rdmult_scaling(AV1_COMP *cpi) {
       // Loop through each pixel.
       for (int y = y_start; y < y_start + block_h && y < height; y++) {
         for (int x = x_start; x < x_start + block_w && x < width; x++) {
-          dbutteraugli += powf(diffmap[y * width + x], 12.0f);
+          dbutteraugli += powf(diffmap[y * width + x], 6.0f);
           float px_diff = source->y_buffer[y * source->y_stride + x] -
                           recon->y_buffer[y * recon->y_stride + x];
           dmse += px_diff * px_diff;
@@ -89,16 +89,20 @@ void av1_set_mb_butteraugli_rdmult_scaling(AV1_COMP *cpi) {
         }
       }
 
-      dbutteraugli = powf(dbutteraugli, 1.0f / 12.0f);
+      dbutteraugli = powf(dbutteraugli, 1.0f / 6.0f);
       dmse = dmse / (2.0f * (float)block_w * (float)block_h);
-      const double K = 0.4;
+      // 'K' is used to balance the rate-distortion distribution between PSNR
+      // and Butteraugli.
+      const double K = 0.28;
       const float eps = 0.01f;
       double weight;
       if (dbutteraugli < eps || dmse < eps) {
         weight = -1.0;
       } else {
         blk_count += 1.0;
-        weight = dmse / dbutteraugli + K;
+        weight = dmse / dbutteraugli;
+        weight = AOMMIN(weight, 4.0);
+        weight += K;
         log_sum += log(weight);
       }
       cpi->butteraugli_info.rdmult_scaling_factors[index] = weight;
@@ -132,7 +136,7 @@ void av1_set_butteraugli_rdmult(const AV1_COMP *cpi, MACROBLOCK *x,
   }
   const AV1_COMMON *const cm = &cpi->common;
 
-  const int bsize_base = BLOCK_8X8;
+  const int bsize_base = BLOCK_16X16;
   const int num_mi_w = mi_size_wide[bsize_base];
   const int num_mi_h = mi_size_high[bsize_base];
   const int num_cols = (cm->mi_params.mi_cols + num_mi_w - 1) / num_mi_w;
