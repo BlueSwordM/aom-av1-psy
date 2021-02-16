@@ -1997,11 +1997,10 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
     ctx->priv = (aom_codec_priv_t *)priv;
     ctx->priv->init_flags = ctx->init_flags;
 
-    if (ctx->config.enc) {
-      // Update the reference to the config structure to an internal copy.
-      priv->cfg = *ctx->config.enc;
-      ctx->config.enc = &priv->cfg;
-    }
+    // Update the reference to the config structure to an internal copy.
+    assert(ctx->config.enc);
+    priv->cfg = *ctx->config.enc;
+    ctx->config.enc = &priv->cfg;
 
     priv->extra_cfg = default_extra_cfg;
     aom_once(av1_initialize_enc);
