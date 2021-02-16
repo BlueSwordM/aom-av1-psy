@@ -662,6 +662,7 @@ static void set_allintra_speed_features_framesize_independent(
   }
 
   if (speed >= 6) {
+    sf->intra_sf.disable_filter_intra = 1;
     sf->intra_sf.chroma_intra_pruning_with_hog = 4;
     sf->intra_sf.intra_pruning_with_hog = 4;
 
@@ -1515,6 +1516,7 @@ static AOM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
     intra_sf->intra_uv_mode_mask[i] = UV_INTRA_ALL;
   }
   intra_sf->disable_smooth_intra = 0;
+  intra_sf->disable_filter_intra = 0;
 }
 
 static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {

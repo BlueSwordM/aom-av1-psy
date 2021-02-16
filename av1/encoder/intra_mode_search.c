@@ -1076,10 +1076,22 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     int this_rate, this_rate_tokenonly, s;
     int64_t this_distortion, this_rd;
     mbmi->mode = intra_rd_search_mode_order[mode_idx];
+    // The smooth prediction mode appears to be more frequently picked
+    // than horizontal / vertical smooth prediction modes. Hence treat
+    // them differently in speed features.
     if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
          cpi->sf.intra_sf.disable_smooth_intra) &&
-        (mbmi->mode == SMOOTH_PRED || mbmi->mode == SMOOTH_H_PRED ||
-         mbmi->mode == SMOOTH_V_PRED))
+        (mbmi->mode == SMOOTH_H_PRED || mbmi->mode == SMOOTH_V_PRED))
+      continue;
+    if (!cpi->oxcf.intra_mode_cfg.enable_smooth_intra &&
+        mbmi->mode == SMOOTH_PRED)
+      continue;
+
+    // The functionality of filter intra modes and smooth prediction
+    // overlap. Retain the smooth prediction if filter intra modes are
+    // disabled.
+    if (cpi->sf.intra_sf.disable_smooth_intra &&
+        !cpi->sf.intra_sf.disable_filter_intra && mbmi->mode == SMOOTH_PRED)
       continue;
     if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
         mbmi->mode == PAETH_PRED)
@@ -1154,7 +1166,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   }
 
   // Searches filter_intra
-  if (beat_best_rd && av1_filter_intra_allowed_bsize(&cpi->common, bsize)) {
+  if (beat_best_rd && av1_filter_intra_allowed_bsize(&cpi->common, bsize) &&
+      !cpi->sf.intra_sf.disable_filter_intra) {
     if (rd_pick_filter_intra_sby(cpi, x, rate, rate_tokenonly, distortion,
                                  skippable, bsize, bmode_costs[DC_PRED],
                                  &best_rd, &best_model_rd, ctx)) {

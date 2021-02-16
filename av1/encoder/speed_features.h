@@ -796,6 +796,9 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // Enable/disable smooth intra modes.
   int disable_smooth_intra;
 
+  // Enable/disable filter intra modes.
+  int disable_filter_intra;
+
   // prune palette search
   // 0: No pruning
   // 1: Perform coarse search to prune the palette colors. For winner colors,
