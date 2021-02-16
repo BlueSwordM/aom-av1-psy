@@ -189,7 +189,8 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .input_chroma_subsampling_y = ARG_DEF(NULL, "input-chroma-subsampling-y", 1,
                                         "chroma subsampling y value."),
 
-  .usage = ARG_DEF("u", "usage", 1, "Usage profile number to use"),
+  .usage = ARG_DEF("u", "usage", 1,
+                   "Usage profile number to use (0: good, 1: rt, 2: allintra"),
   .threads = ARG_DEF("t", "threads", 1, "Max number of threads to use"),
   .profile = ARG_DEF(NULL, "profile", 1, "Bitstream profile number to use"),
   .width = ARG_DEF("w", "width", 1, "Frame width"),
