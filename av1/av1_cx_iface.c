@@ -392,6 +392,12 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   } else {
     RANGE_CHECK_HI(cfg, g_lag_in_frames, MAX_LAG_BUFFERS);
   }
+  if (cfg->g_usage == AOM_USAGE_ALL_INTRA) {
+    if (cfg->g_lag_in_frames != 0)
+      ERROR("g_lag_in_frames must be zero in all intra mode");
+    if (cfg->kf_max_dist != 0)
+      ERROR("kf_max_dist must be zero in all intra mode");
+  }
   RANGE_CHECK_HI(extra_cfg, min_gf_interval, MAX_LAG_BUFFERS - 1);
   RANGE_CHECK_HI(extra_cfg, max_gf_interval, MAX_LAG_BUFFERS - 1);
   if (extra_cfg->max_gf_interval > 0) {
