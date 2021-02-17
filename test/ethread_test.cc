@@ -472,17 +472,10 @@ AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTest,
                            ::testing::Values(0, 2), ::testing::Values(0, 1));
 
 // Test cpu_used 7, 8, 9 here.
-// TODO(chiyotsai@google.com): The test on speed 9 is temporarily disabled due
-// to BUG=aomedia:2956. Re-enable it once it's fixed.
 AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadRTTest,
                            ::testing::Values(::libaom_test::kRealTime),
-                           ::testing::Values(7, 8), ::testing::Values(0, 2),
+                           ::testing::Values(7, 8, 9), ::testing::Values(0, 2),
                            ::testing::Values(0, 2), ::testing::Values(0, 1));
-// AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadRTTest,
-//                            ::testing::Values(::libaom_test::kRealTime),
-//                            ::testing::Values(7, 8, 9), ::testing::Values(0,
-//                            2),
-//                            ::testing::Values(0, 2), ::testing::Values(0, 1));
 
 // Test cpu_used 0, 1, 3 and 5.
 AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTestLarge,
