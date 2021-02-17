@@ -801,9 +801,12 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 2) {
+    sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
+
     sf->part_sf.allow_partition_search_skip = 1;
 
     sf->mv_sf.auto_mv_step_size = 1;
+    sf->mv_sf.simple_motion_subpel_force_stop = QUARTER_PEL;
     sf->mv_sf.subpel_iters_per_step = 1;
 
     // TODO(chiyotsai@google.com): We can get 10% speed up if we move
@@ -834,6 +837,9 @@ static void set_good_speed_features_framesize_independent(
         !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key > 1);
     sf->intra_sf.intra_pruning_with_hog = 2;
 
+    sf->tpl_sf.prune_starting_mv = 1;
+    sf->tpl_sf.search_method = DIAMOND;
+
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 4;
 
     sf->lpf_sf.prune_wiener_based_on_src_var = 1;
@@ -848,7 +854,6 @@ static void set_good_speed_features_framesize_independent(
 
   if (speed >= 3) {
     sf->hl_sf.high_precision_mv_usage = CURRENT_Q;
-    sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
     sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
 
@@ -861,7 +866,6 @@ static void set_good_speed_features_framesize_independent(
     // See aomedia:1778.
     // sf->mv_sf.adaptive_motion_search = 1;
     sf->mv_sf.full_pixel_search_level = 1;
-    sf->mv_sf.simple_motion_subpel_force_stop = QUARTER_PEL;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
     sf->mv_sf.search_method = DIAMOND;
 
@@ -890,10 +894,8 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tpl_sf.skip_alike_starting_mv = 2;
     sf->tpl_sf.prune_intra_modes = 1;
-    sf->tpl_sf.prune_starting_mv = 1;
     sf->tpl_sf.reduce_first_step_size = 6;
     sf->tpl_sf.subpel_force_stop = QUARTER_PEL;
-    sf->tpl_sf.search_method = DIAMOND;
 
     sf->tx_sf.adaptive_txb_search_level = boosted ? 2 : 3;
     sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
