@@ -2334,7 +2334,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
       cpi->seq_params_locked = 1;
       if (frame_size) {
-        if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
+        if (ctx->pending_cx_data == NULL) ctx->pending_cx_data = cx_data;
 
         const int write_temporal_delimiter =
             !cpi->common.spatial_layer_id && !ctx->pending_cx_data_sz;
@@ -2345,15 +2345,12 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           const size_t length_field_size =
               aom_uleb_size_in_bytes(obu_payload_size);
 
-          if (ctx->pending_cx_data) {
-            const size_t move_offset = length_field_size + 1;
-            memmove(ctx->pending_cx_data + move_offset, ctx->pending_cx_data,
-                    frame_size);
-          }
-          const uint32_t obu_header_offset = 0;
-          obu_header_size = av1_write_obu_header(
-              &cpi->level_params, OBU_TEMPORAL_DELIMITER, 0,
-              (uint8_t *)(ctx->pending_cx_data + obu_header_offset));
+          const size_t move_offset = obu_header_size + length_field_size;
+          memmove(ctx->pending_cx_data + move_offset, ctx->pending_cx_data,
+                  frame_size);
+          obu_header_size =
+              av1_write_obu_header(&cpi->level_params, OBU_TEMPORAL_DELIMITER,
+                                   0, ctx->pending_cx_data);
 
           // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
           if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
@@ -2374,10 +2371,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
           // B_PRIME (add frame size)
           const size_t length_field_size = aom_uleb_size_in_bytes(frame_size);
-          if (ctx->pending_cx_data) {
-            const size_t move_offset = length_field_size;
-            memmove(cx_data + move_offset, cx_data, frame_size);
-          }
+          memmove(cx_data + length_field_size, cx_data, frame_size);
           if (av1_write_uleb_obu_size(0, (uint32_t)frame_size, cx_data) !=
               AOM_CODEC_OK) {
             aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
@@ -2407,11 +2401,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         //  B_PRIME (add TU size)
         size_t tu_size = ctx->pending_cx_data_sz;
         const size_t length_field_size = aom_uleb_size_in_bytes(tu_size);
-        if (ctx->pending_cx_data) {
-          const size_t move_offset = length_field_size;
-          memmove(ctx->pending_cx_data + move_offset, ctx->pending_cx_data,
-                  tu_size);
-        }
+        memmove(ctx->pending_cx_data + length_field_size, ctx->pending_cx_data,
+                tu_size);
         if (av1_write_uleb_obu_size(0, (uint32_t)tu_size,
                                     ctx->pending_cx_data) != AOM_CODEC_OK) {
           aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
