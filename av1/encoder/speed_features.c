@@ -861,15 +861,12 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.simple_motion_search_prune_agg = 1;
     sf->part_sf.prune_ext_part_using_split_info = 1;
 
-    // adaptive_motion_search breaks encoder multi-thread tests.
-    // The values in x->pred_mv[] differ for single and multi-thread cases.
-    // See aomedia:1778.
-    // sf->mv_sf.adaptive_motion_search = 1;
     sf->mv_sf.full_pixel_search_level = 1;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
     sf->mv_sf.search_method = DIAMOND;
 
     sf->inter_sf.mv_cost_upd_level = 1;
+    sf->inter_sf.disable_onesided_comp = 1;
     // TODO(yunqing): evaluate this speed feature for speed 1 & 2, and combine
     // it with cpi->sf.disable_wedge_search_var_thresh.
     sf->inter_sf.disable_interintra_wedge_var_thresh = UINT_MAX;
@@ -884,6 +881,8 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.reuse_compound_type_decision = 1;
     sf->inter_sf.txfm_rd_gate_level =
         boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);
+
+    sf->interp_sf.adaptive_interp_filter_search = 2;
 
     // TODO(chiyotsai@google.com): the thresholds chosen for intra hog are
     // inherited directly from luma hog with some minor tweaking. Eventually we
@@ -938,12 +937,10 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 2;
     sf->inter_sf.prune_compound_using_neighbors = 2;
     sf->inter_sf.prune_obmc_prob_thresh = INT_MAX;
-    sf->inter_sf.disable_onesided_comp = 1;
 
     sf->interp_sf.cb_pred_filter_search = 1;
     sf->interp_sf.skip_sharp_interp_filter_search = 1;
     sf->interp_sf.use_interp_filter = 2;
-    sf->interp_sf.adaptive_interp_filter_search = 2;
 
     sf->intra_sf.intra_uv_mode_mask[TX_16X16] = UV_INTRA_DC_H_V_CFL;
     sf->intra_sf.intra_uv_mode_mask[TX_32X32] = UV_INTRA_DC_H_V_CFL;
