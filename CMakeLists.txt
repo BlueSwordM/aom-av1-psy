@@ -88,6 +88,7 @@ list(APPEND AOM_LIBYUV_SOURCES
             "${AOM_ROOT}/third_party/libyuv/include/libyuv/row.h"
             "${AOM_ROOT}/third_party/libyuv/include/libyuv/scale.h"
             "${AOM_ROOT}/third_party/libyuv/include/libyuv/scale_row.h"
+            "${AOM_ROOT}/third_party/libyuv/source/convert_argb.cc"
             "${AOM_ROOT}/third_party/libyuv/source/cpu_id.cc"
             "${AOM_ROOT}/third_party/libyuv/source/planar_functions.cc"
             "${AOM_ROOT}/third_party/libyuv/source/row_any.cc"
@@ -381,6 +382,14 @@ if(CONFIG_AV1_DECODER AND ENABLE_EXAMPLES)
   list(APPEND AOM_APP_TARGETS ${AOM_DECODER_EXAMPLE_TARGETS})
 endif()
 
+if(CONFIG_LIBYUV OR CONFIG_TUNE_BUTTERAUGLI)
+  add_library(yuv OBJECT ${AOM_LIBYUV_SOURCES})
+  if(NOT MSVC)
+    target_compile_options(yuv PRIVATE -Wno-unused-parameter)
+  endif()
+  include_directories("${AOM_ROOT}/third_party/libyuv/include")
+endif()
+
 if(CONFIG_AV1_ENCODER)
   if(ENABLE_EXAMPLES)
     add_executable(aomenc "${AOM_ROOT}/apps/aomenc.c"
@@ -438,31 +447,39 @@ if(CONFIG_AV1_ENCODER)
               ${AOM_ENCODER_TOOL_TARGETS})
 
   if(CONFIG_TUNE_BUTTERAUGLI)
-    find_package(PkgConfig)
-    pkg_check_modules(LIBJXL REQUIRED libjxl)
-    target_link_libraries(aom PRIVATE ${LIBJXL_LDFLAGS} ${LIBJXL_LIBRARIES})
+    find_library(LIBJXL_LIBRARIES libjxl.a)
+    find_library(LIBHWY_LIBRARIES libhwy.a)
+    find_library(LIBSKCMS_LIBRARIES libskcms.a)
+    find_path(LIBJXL_INCLUDE_DIRS butteraugli.h PATH_SUFFIXES jxl)
+    if(LIBJXL_LIBRARIES
+       AND LIBHWY_LIBRARIES
+       AND LIBSKCMS_LIBRARIES
+       AND LIBJXL_INCLUDE_DIRS)
+      message(STATUS "Found JXL library: ${LIBJXL_LIBRARIES} "
+                     "${LIBHWY_LIBRARIES} ${LIBJXLT_LIBRARIES} "
+                     "${LIBSKCMS_LIBRARIES}")
+      message(STATUS "Found JXL include: ${LIBJXL_INCLUDE_DIRS}")
+    else()
+      message(FATAL_ERROR "JXL library not found.")
+    endif()
+    target_link_libraries(aom
+                          PRIVATE ${LIBJXL_LDFLAGS} ${LIBJXL_LIBRARIES}
+                                  ${LIBHWY_LIBRARIES} ${LIBJXLT_LIBRARIES}
+                                  ${LIBSKCMS_LIBRARIES})
     target_include_directories(aom PRIVATE ${LIBJXL_INCLUDE_DIRS})
     if(LIBJXL_CFLAGS)
       append_compiler_flag("${LIBJXL_CFLAGS}")
     endif()
 
-    pkg_check_modules(LIBHWY REQUIRED libhwy)
-    target_link_libraries(aom PRIVATE ${LIBHWY_LDFLAGS} ${LIBHWY_LIBRARIES})
-    target_include_directories(aom PRIVATE ${LIBLIBHWY_INCLUDE_DIRS})
-    if(LIBHWY_CFLAGS)
-      append_compiler_flag("${LIBHWY_CFLAGS}")
-    endif()
-
-    pkg_check_modules(LIBJXLT REQUIRED libjxl_threads)
-    target_link_libraries(aom PRIVATE ${LIBJXLT_LDFLAGS} ${LIBJXLT_LIBRARIES})
-    target_include_directories(aom PRIVATE ${LIBJXLT_INCLUDE_DIRS})
-    if(LIBJXLT_CFLAGS)
-      append_compiler_flag("${LIBJXLT_CFLAGS}")
-    endif()
-
     set_target_properties(aom PROPERTIES LINKER_LANGUAGE CXX)
     if(BUILD_SHARED_LIBS)
       set_target_properties(aom_static PROPERTIES LINKER_LANGUAGE CXX)
+    endif()
+
+    list(APPEND AOM_LIB_TARGETS yuv)
+    target_sources(aom PRIVATE $<TARGET_OBJECTS:yuv>)
+    if(BUILD_SHARED_LIBS)
+      target_sources(aom_static PRIVATE $<TARGET_OBJECTS:yuv>)
     endif()
   endif()
 
@@ -588,12 +605,6 @@ endforeach()
 
 if(ENABLE_EXAMPLES OR ENABLE_TESTS OR ENABLE_TOOLS)
   if(CONFIG_LIBYUV)
-    add_library(yuv OBJECT ${AOM_LIBYUV_SOURCES})
-    if(NOT MSVC)
-      target_compile_options(yuv PRIVATE -Wno-unused-parameter)
-    endif()
-    include_directories("${AOM_ROOT}/third_party/libyuv/include")
-
     # Add to existing targets.
     foreach(aom_app ${AOM_APP_TARGETS})
       target_sources(${aom_app} PRIVATE $<TARGET_OBJECTS:yuv>)

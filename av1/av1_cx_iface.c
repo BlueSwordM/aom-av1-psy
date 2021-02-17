@@ -619,7 +619,13 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
 
 #if CONFIG_TUNE_BUTTERAUGLI
   if (img->x_chroma_shift != 1 || img->y_chroma_shift != 1) {
-    ERROR("Only I420 images supported in tune=butteraugli mode.");
+    ERROR("Only YV12/I420 images supported in tune=butteraugli mode.");
+  }
+
+  if ((img->cp != 0 && img->cp != AOM_CICP_CP_BT_709) ||
+      (img->tc != 0 && img->tc != AOM_CICP_TC_BT_709) ||
+      (img->mc != 0 && img->mc != AOM_CICP_MC_BT_709)) {
+    ERROR("Only BT.709 images supported in tune=butteraugli mode.");
   }
 #endif
 
