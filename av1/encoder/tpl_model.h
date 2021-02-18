@@ -111,6 +111,10 @@ typedef struct TplDepFrame {
   int mi_cols;
   int base_rdmult;
   uint32_t frame_display_index;
+  double abs_coeff_sum[256];  // Assume we are using 16x16 transform block
+  double abs_coeff_mean[256];
+  int coeff_num;  // number of coefficients in a transform block
+  int txfm_block_count;
 } TplDepFrame;
 
 /*!\endcond */
@@ -284,6 +288,17 @@ double av1_laplace_entropy(double q_step, double b, double zero_bin_ratio);
 double av1_laplace_estimate_frame_rate(int q_index, int block_count,
                                        const double *abs_coeff_mean,
                                        int coeff_num);
+
+/*!\brief  Init data structure storing transform stats
+ *
+ *\ingroup tpl_modelling
+ *
+ * \param[in]    tpl_frame       pointer of tpl frame data structure
+ * \param[in]    coeff_num       number of coefficients per transform block
+ *
+ */
+void av1_tpl_stats_init_txfm_stats(TplDepFrame *tpl_frame, int coeff_num);
+
 /*!\endcond */
 #ifdef __cplusplus
 }  // extern "C"
