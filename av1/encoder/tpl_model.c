@@ -1761,11 +1761,13 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
 #define EPSILON (0.0000001)
 
 double av1_exponential_entropy(double q_step, double b) {
+  aom_clear_system_state();
   double z = fmax(exp(-q_step / b), EPSILON);
   return -log2(1 - z) - z * log2(z) / (1 - z);
 }
 
 double av1_laplace_entropy(double q_step, double b, double zero_bin_ratio) {
+  aom_clear_system_state();
   // zero bin's size is zero_bin_ratio * q_step
   // non-zero bin's size is q_step
   double z = fmax(exp(-zero_bin_ratio / 2 * q_step / b), EPSILON);
@@ -1777,6 +1779,7 @@ double av1_laplace_entropy(double q_step, double b, double zero_bin_ratio) {
 double av1_laplace_estimate_frame_rate(int q_index, int block_count,
                                        const double *abs_coeff_mean,
                                        int coeff_num) {
+  aom_clear_system_state();
   double zero_bin_ratio = 2;
   double dc_q_step = av1_dc_quant_QTX(q_index, 0, AOM_BITS_8) / 4.;
   double ac_q_step = av1_ac_quant_QTX(q_index, 0, AOM_BITS_8) / 4.;
