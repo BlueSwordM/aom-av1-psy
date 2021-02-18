@@ -1309,6 +1309,13 @@ enum aome_enc_control_id {
   /*!\brief Control to get baseline gf interval
    */
   AV1E_GET_BASELINE_GF_INTERVAL = 158,
+
+  /*\brief Control to set encoding the denoised frame from denoise-noise-level
+   *
+   * - 0 = disabled/encode the original frame
+   * - 1 = enabled/encode the denoised frame (default)
+   */
+  AV1E_SET_ENABLE_DNL_DENOISING = 159,
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1831,6 +1838,9 @@ AOM_CTRL_USE_TYPE(AV1E_ENABLE_SB_MULTIPASS_UNIT_TEST, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_VBR_CORPUS_COMPLEXITY_LAP, unsigned int)
 #define AOM_CTRL_AV1E_SET_VBR_CORPUS_COMPLEXITY_LAP
+
+AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_DNL_DENOISING, int)
+#define AOM_CTRL_AV1E_SET_ENABLE_DNL_DENOISING
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */
