@@ -620,9 +620,6 @@ static void set_allintra_speed_features_framesize_independent(
     sf->intra_sf.intra_y_mode_mask[TX_16X16] = INTRA_DC_H_V;
     sf->intra_sf.intra_y_mode_mask[TX_32X32] = INTRA_DC_H_V;
     sf->intra_sf.intra_y_mode_mask[TX_64X64] = INTRA_DC_H_V;
-    // TODO(any): Experiment with this speed feature set to 2 for higher quality
-    // presets as well
-    sf->intra_sf.skip_intra_in_interframe = 2;
 
     sf->mv_sf.simple_motion_subpel_force_stop = HALF_PEL;
 
