@@ -123,7 +123,7 @@ void aom_hadamard_4x4_c(const int16_t *src_diff, ptrdiff_t src_stride,
     ++tmp_buf;
   }
 
-  for (idx = 0; idx < 16; ++idx) coeff[idx] = (tran_low_t)(buffer2[idx] << 1);
+  for (idx = 0; idx < 16; ++idx) coeff[idx] = (tran_low_t)buffer2[idx];
 }
 
 // src_diff: first pass, 9 bit, dynamic range [-255, 255]
