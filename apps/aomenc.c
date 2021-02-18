@@ -212,6 +212,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
 #if CONFIG_DENOISE
                                         AV1E_SET_DENOISE_NOISE_LEVEL,
                                         AV1E_SET_DENOISE_BLOCK_SIZE,
+                                        AV1E_SET_ENABLE_DNL_DENOISING,
 #endif  // CONFIG_DENOISE
                                         AV1E_SET_MAX_REFERENCE_FRAMES,
                                         AV1E_SET_REDUCED_REFERENCE_SET,
@@ -403,6 +404,7 @@ const arg_def_t *av1_args[] = {
 #if CONFIG_DENOISE
   &g_av1_codec_arg_defs.denoise_noise_level,
   &g_av1_codec_arg_defs.denoise_block_size,
+  &g_av1_codec_arg_defs.enable_dnl_denoising,
 #endif  // CONFIG_DENOISE
   &g_av1_codec_arg_defs.max_reference_frames,
   &g_av1_codec_arg_defs.reduced_reference_set,

@@ -133,6 +133,7 @@ struct av1_extracfg {
 #if CONFIG_DENOISE
   float noise_level;
   int noise_block_size;
+  int enable_dnl_denoising;
 #endif
 
   unsigned int chroma_subsampling_x;
@@ -256,6 +257,7 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_DENOISE
   0,   // noise_level
   32,  // noise_block_size
+  1,   // enable_dnl_denoising
 #endif
   0,  // chroma_subsampling_x
   0,  // chroma_subsampling_y
@@ -965,6 +967,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_DENOISE
   oxcf->noise_level = extra_cfg->noise_level;
   oxcf->noise_block_size = extra_cfg->noise_block_size;
+  oxcf->enable_dnl_denoising = extra_cfg->enable_dnl_denoising;
 #endif
 
 #if CONFIG_AV1_TEMPORAL_DENOISING
@@ -1836,6 +1839,19 @@ static aom_codec_err_t ctrl_set_denoise_block_size(aom_codec_alg_priv_t *ctx,
 #else
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.noise_block_size = CAST(AV1E_SET_DENOISE_BLOCK_SIZE, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+#endif
+}
+
+static aom_codec_err_t ctrl_set_enable_dnl_denoising(aom_codec_alg_priv_t *ctx,
+                                                     va_list args) {
+#if !CONFIG_DENOISE
+  (void)ctx;
+  (void)args;
+  return AOM_CODEC_INCAPABLE;
+#else
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_dnl_denoising = CAST(AV1E_SET_ENABLE_DNL_DENOISING, args);
   return update_extra_cfg(ctx, &extra_cfg);
 #endif
 }
@@ -3105,6 +3121,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.denoise_block_size,
                               argv, err_string)) {
     extra_cfg.noise_block_size = arg_parse_uint_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_dnl_denoising,
+                              argv, err_string)) {
+    extra_cfg.enable_dnl_denoising = arg_parse_uint_helper(&arg, err_string);
   }
 #endif
   else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.target_seq_level_idx,
@@ -3267,6 +3286,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_FILM_GRAIN_TABLE, ctrl_set_film_grain_table },
   { AV1E_SET_DENOISE_NOISE_LEVEL, ctrl_set_denoise_noise_level },
   { AV1E_SET_DENOISE_BLOCK_SIZE, ctrl_set_denoise_block_size },
+  { AV1E_SET_ENABLE_DNL_DENOISING, ctrl_set_enable_dnl_denoising },
   { AV1E_ENABLE_MOTION_VECTOR_UNIT_TEST, ctrl_enable_motion_vector_unit_test },
   { AV1E_ENABLE_EXT_TILE_DEBUG, ctrl_enable_ext_tile_debug },
   { AV1E_SET_TARGET_SEQ_LEVEL_IDX, ctrl_set_target_seq_level_idx },

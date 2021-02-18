@@ -183,6 +183,7 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_DENOISE
   arg_def_t denoise_noise_level;
   arg_def_t denoise_block_size;
+  arg_def_t enable_dnl_denoising;
 #endif
   arg_def_t enable_ref_frame_mvs;
   arg_def_t frame_parallel_decoding;

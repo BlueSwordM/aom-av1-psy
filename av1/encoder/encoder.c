@@ -3393,7 +3393,8 @@ static int apply_denoise_2d(AV1_COMP *cpi, YV12_BUFFER_CONFIG *sd,
     memset(cpi->film_grain_table, 0, sizeof(*cpi->film_grain_table));
   }
   if (aom_denoise_and_model_run(cpi->denoise_and_model, sd,
-                                &cm->film_grain_params)) {
+                                &cm->film_grain_params,
+                                cpi->oxcf.enable_dnl_denoising)) {
     if (cm->film_grain_params.apply_grain) {
       aom_film_grain_table_append(cpi->film_grain_table, time_stamp, end_time,
                                   &cm->film_grain_params);
@@ -3434,7 +3435,11 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
 #endif
 
 #if CONFIG_DENOISE
-  if (cpi->oxcf.noise_level > 0)
+  // even if denoise_noise_level is > 0, we don't need need to denoise on pass
+  // 1 of 2 if enable_dnl_denoising is disabled since the 2nd pass will be
+  // encoding the original (non-denoised) frame
+  if (cpi->oxcf.noise_level > 0 &&
+      !(cpi->oxcf.pass == AOM_RC_FIRST_PASS && !cpi->oxcf.enable_dnl_denoising))
     if (apply_denoise_2d(cpi, sd, cpi->oxcf.noise_block_size,
                          cpi->oxcf.noise_level, time_stamp, end_time) < 0)
       res = -1;

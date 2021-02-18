@@ -879,6 +879,8 @@ typedef struct AV1EncoderConfig {
   float noise_level;
   // Indicates the the denoisers block size.
   int noise_block_size;
+  // Indicates whether to apply denoising to the frame to be encoded
+  int enable_dnl_denoising;
 #endif
 
 #if CONFIG_AV1_TEMPORAL_DENOISING
