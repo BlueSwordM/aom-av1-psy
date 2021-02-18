@@ -2114,7 +2114,10 @@ typedef struct AV1_COMP {
 
   /*!
    * Pointer to the frame buffer holding the last raw source frame.
-   * NULL for first frame and alt_ref frames.
+   * last_source is NULL for the following cases:
+   * 1) First frame
+   * 2) Alt-ref frames
+   * 3) All frames for all-intra frame encoding.
    */
   YV12_BUFFER_CONFIG *last_source;
 

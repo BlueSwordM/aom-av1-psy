@@ -45,15 +45,23 @@ void av1_lookahead_destroy(struct lookahead_ctx *ctx) {
 struct lookahead_ctx *av1_lookahead_init(
     unsigned int width, unsigned int height, unsigned int subsampling_x,
     unsigned int subsampling_y, int use_highbitdepth, unsigned int depth,
-    const int border_in_pixels, int byte_alignment, int num_lap_buffers) {
+    const int border_in_pixels, int byte_alignment, int num_lap_buffers,
+    bool is_all_intra) {
   int lag_in_frames = AOMMAX(1, depth);
+
+  // For all-intra frame encoding, previous source frames are not required.
+  // Hence max_pre_frames is set to 0 in this case. As previous source frames
+  // are accessed using a negative index to av1_lookahead_peek(), setting
+  // max_pre_frames to 0 will cause av1_lookahead_peek() to return NULL for a
+  // negative index.
+  const uint8_t max_pre_frames = is_all_intra ? 0 : MAX_PRE_FRAMES;
 
   // Add the lags to depth and clamp
   depth += num_lap_buffers;
   depth = clamp(depth, 1, MAX_TOTAL_BUFFERS);
 
   // Allocate memory to keep previous source frames available.
-  depth += MAX_PRE_FRAMES;
+  depth += max_pre_frames;
 
   // Allocate the lookahead structures
   struct lookahead_ctx *ctx = calloc(1, sizeof(*ctx));
@@ -61,7 +69,8 @@ struct lookahead_ctx *av1_lookahead_init(
     unsigned int i;
     ctx->max_sz = depth;
     ctx->push_frame_count = 0;
-    ctx->read_ctxs[ENCODE_STAGE].pop_sz = ctx->max_sz - MAX_PRE_FRAMES;
+    ctx->max_pre_frames = max_pre_frames;
+    ctx->read_ctxs[ENCODE_STAGE].pop_sz = ctx->max_sz - ctx->max_pre_frames;
     ctx->read_ctxs[ENCODE_STAGE].valid = 1;
     if (num_lap_buffers) {
       ctx->read_ctxs[LAP_STAGE].pop_sz = lag_in_frames;
@@ -95,7 +104,7 @@ int av1_lookahead_push(struct lookahead_ctx *ctx, const YV12_BUFFER_CONFIG *src,
   int larger_dimensions, new_dimensions;
 
   assert(ctx->read_ctxs[ENCODE_STAGE].valid == 1);
-  if (ctx->read_ctxs[ENCODE_STAGE].sz + 1 + MAX_PRE_FRAMES > ctx->max_sz)
+  if (ctx->read_ctxs[ENCODE_STAGE].sz + 1 + ctx->max_pre_frames > ctx->max_sz)
     return 1;
   ctx->read_ctxs[ENCODE_STAGE].sz++;
   if (ctx->read_ctxs[LAP_STAGE].valid) {
@@ -174,7 +183,7 @@ struct lookahead_entry *av1_lookahead_peek(struct lookahead_ctx *ctx, int index,
     }
   } else if (index < 0) {
     // Backward peek
-    if (-index <= MAX_PRE_FRAMES) {
+    if (-index <= ctx->max_pre_frames) {
       index += (int)(read_ctx->read_idx);
       if (index < 0) index += (int)(ctx->max_sz);
       buf = ctx->buf + index;

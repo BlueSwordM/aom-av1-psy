@@ -15,6 +15,8 @@
 #ifndef AOM_AV1_ENCODER_LOOKAHEAD_H_
 #define AOM_AV1_ENCODER_LOOKAHEAD_H_
 
+#include <stdbool.h>
+
 #include "aom_scale/yv12config.h"
 #include "aom/aom_integer.h"
 
@@ -54,6 +56,8 @@ struct lookahead_ctx {
   struct read_ctx read_ctxs[MAX_STAGES]; /* Read context */
   struct lookahead_entry *buf;           /* Buffer list */
   int push_frame_count; /* Number of frames that have been pushed in the queue*/
+  uint8_t
+      max_pre_frames; /* Maximum number of past frames allowed in the queue */
 };
 /*!\endcond */
 
@@ -65,7 +69,8 @@ struct lookahead_ctx {
 struct lookahead_ctx *av1_lookahead_init(
     unsigned int width, unsigned int height, unsigned int subsampling_x,
     unsigned int subsampling_y, int use_highbitdepth, unsigned int depth,
-    const int border_in_pixels, int byte_alignment, int num_lap_buffers);
+    const int border_in_pixels, int byte_alignment, int num_lap_buffers,
+    bool is_all_intra);
 
 /**\brief Destroys the lookahead stage
  */

@@ -1270,7 +1270,11 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
         cpi->oxcf.rc_cfg.mode == AOM_CBR)
       sf->rt_sf.overshoot_detection_cbr = FAST_DETECTION_MAXQ;
     // Enable noise estimation only for high resolutions for now.
-    if (cm->width * cm->height > 640 * 480)
+    //
+    // Since use_temporal_noise_estimate has no effect for all-intra frame
+    // encoding, it is disabled for this case.
+    if (cpi->oxcf.kf_cfg.key_freq_max != 0 &&
+        cm->width * cm->height > 640 * 480)
       sf->rt_sf.use_temporal_noise_estimate = 1;
   }
 
