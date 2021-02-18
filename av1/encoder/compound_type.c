@@ -1341,11 +1341,22 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
                                       AOM_PLANE_Y, AOM_PLANE_Y);
         if (cur_type == COMPOUND_AVERAGE) *is_luma_interp_done = 1;
 
-        RD_STATS est_rd_stats;
-        estimate_yrd_for_sb(cpi, bsize, x, INT64_MAX, &est_rd_stats);
+        int eval_txfm = 1;
+        // Check if the mode is good enough based on skip rd
+        if (cpi->sf.inter_sf.txfm_rd_gate_level) {
+          int64_t sse_y = compute_sse_plane(x, xd, PLANE_TYPE_Y, bsize);
+          int64_t skip_rd = RDCOST(x->rdmult, rs2 + *rate_mv, (sse_y << 4));
+          eval_txfm = check_txfm_eval(x, bsize, ref_skip_rd, skip_rd,
+                                      cpi->sf.inter_sf.txfm_rd_gate_level, 1);
+        }
 
-        best_rd_cur = RDCOST(x->rdmult, rs2 + tmp_rate_mv + est_rd_stats.rate,
-                             est_rd_stats.dist);
+        if (eval_txfm) {
+          RD_STATS est_rd_stats;
+          estimate_yrd_for_sb(cpi, bsize, x, INT64_MAX, &est_rd_stats);
+
+          best_rd_cur = RDCOST(x->rdmult, rs2 + tmp_rate_mv + est_rd_stats.rate,
+                               est_rd_stats.dist);
+        }
       }
 
       // use spare buffer for following compound type try
@@ -1390,8 +1401,19 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
           }
 
           RD_STATS est_rd_stats;
-          int64_t this_rd_cur = estimate_yrd_for_sb(
-              cpi, bsize, x, AOMMIN(best_rd_cur, ref_best_rd), &est_rd_stats);
+          int64_t this_rd_cur = INT64_MAX;
+          int eval_txfm = 1;
+          // Check if the mode is good enough based on skip rd
+          if (cpi->sf.inter_sf.txfm_rd_gate_level) {
+            int64_t sse_y = compute_sse_plane(x, xd, PLANE_TYPE_Y, bsize);
+            int64_t skip_rd = RDCOST(x->rdmult, rs2 + *rate_mv, (sse_y << 4));
+            eval_txfm = check_txfm_eval(x, bsize, ref_skip_rd, skip_rd,
+                                        cpi->sf.inter_sf.txfm_rd_gate_level, 1);
+          }
+          if (eval_txfm) {
+            this_rd_cur = estimate_yrd_for_sb(
+                cpi, bsize, x, AOMMIN(best_rd_cur, ref_best_rd), &est_rd_stats);
+          }
           if (this_rd_cur < INT64_MAX) {
             this_rd_cur =
                 RDCOST(x->rdmult, rs2 + tmp_rate_mv + est_rd_stats.rate,
@@ -1435,11 +1457,22 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
         best_rs2 += get_interinter_compound_mask_rate(&x->mode_costs, mbmi);
         av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
                                       AOM_PLANE_Y, AOM_PLANE_Y);
-        RD_STATS est_rd_stats;
-        estimate_yrd_for_sb(cpi, bsize, x, INT64_MAX, &est_rd_stats);
-        best_rd_cur =
-            RDCOST(x->rdmult, best_rs2 + tmp_rate_mv + est_rd_stats.rate,
-                   est_rd_stats.dist);
+        int eval_txfm = 1;
+        // Check if the mode is good enough based on skip rd
+        if (cpi->sf.inter_sf.txfm_rd_gate_level) {
+          int64_t sse_y = compute_sse_plane(x, xd, PLANE_TYPE_Y, bsize);
+          int64_t skip_rd =
+              RDCOST(x->rdmult, best_rs2 + *rate_mv, (sse_y << 4));
+          eval_txfm = check_txfm_eval(x, bsize, ref_skip_rd, skip_rd,
+                                      cpi->sf.inter_sf.txfm_rd_gate_level, 1);
+        }
+        if (eval_txfm) {
+          RD_STATS est_rd_stats;
+          estimate_yrd_for_sb(cpi, bsize, x, INT64_MAX, &est_rd_stats);
+          best_rd_cur =
+              RDCOST(x->rdmult, best_rs2 + tmp_rate_mv + est_rd_stats.rate,
+                     est_rd_stats.dist);
+        }
       }
 
       mbmi->interinter_comp.wedge_index = best_mask_index;
@@ -1470,8 +1503,19 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
         av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
                                       AOM_PLANE_Y, AOM_PLANE_Y);
         RD_STATS est_rd_stats;
-        int64_t this_rd_cur =
-            estimate_yrd_for_sb(cpi, bsize, x, ref_best_rd, &est_rd_stats);
+        int64_t this_rd_cur = INT64_MAX;
+        int eval_txfm = 1;
+        // Check if the mode is good enough based on skip rd
+        if (cpi->sf.inter_sf.txfm_rd_gate_level) {
+          int64_t sse_y = compute_sse_plane(x, xd, PLANE_TYPE_Y, bsize);
+          int64_t skip_rd = RDCOST(x->rdmult, rs2 + *rate_mv, (sse_y << 4));
+          eval_txfm = check_txfm_eval(x, bsize, ref_skip_rd, skip_rd,
+                                      cpi->sf.inter_sf.txfm_rd_gate_level, 1);
+        }
+        if (eval_txfm) {
+          this_rd_cur =
+              estimate_yrd_for_sb(cpi, bsize, x, ref_best_rd, &est_rd_stats);
+        }
         if (this_rd_cur < INT64_MAX) {
           this_rd_cur = RDCOST(x->rdmult, rs2 + tmp_rate_mv + est_rd_stats.rate,
                                est_rd_stats.dist);
@@ -1507,8 +1551,19 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
         av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
                                       AOM_PLANE_Y, AOM_PLANE_Y);
         RD_STATS est_rd_stats;
-        int64_t this_rd_cur =
-            estimate_yrd_for_sb(cpi, bsize, x, ref_best_rd, &est_rd_stats);
+        int64_t this_rd_cur = INT64_MAX;
+        int eval_txfm = 1;
+        // Check if the mode is good enough based on skip rd
+        if (cpi->sf.inter_sf.txfm_rd_gate_level) {
+          int64_t sse_y = compute_sse_plane(x, xd, PLANE_TYPE_Y, bsize);
+          int64_t skip_rd = RDCOST(x->rdmult, rs2 + *rate_mv, (sse_y << 4));
+          eval_txfm = check_txfm_eval(x, bsize, ref_skip_rd, skip_rd,
+                                      cpi->sf.inter_sf.txfm_rd_gate_level, 1);
+        }
+        if (eval_txfm) {
+          this_rd_cur =
+              estimate_yrd_for_sb(cpi, bsize, x, ref_best_rd, &est_rd_stats);
+        }
         if (this_rd_cur < INT64_MAX) {
           best_rd_cur = RDCOST(x->rdmult, rs2 + tmp_rate_mv + est_rd_stats.rate,
                                est_rd_stats.dist);
