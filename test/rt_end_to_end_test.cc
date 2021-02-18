@@ -89,7 +89,6 @@ class RTEndToEndTest
     InitializeConfig();
     SetMode(::libaom_test::kRealTime);
 
-    cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_threads = threads_;
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_buf_initial_sz = 500;
