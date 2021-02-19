@@ -256,12 +256,24 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
     // Else for cyclic refresh mode update the segment map, set the segment id
     // and then update the quantizer.
     if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ) {
-      av1_cyclic_refresh_update_segment(cpi, mi_addr, mi_row, mi_col, bsize,
+      av1_cyclic_refresh_update_segment(cpi, x, mi_row, mi_col, bsize,
                                         ctx->rd_stats.rate, ctx->rd_stats.dist,
-                                        txfm_info->skip_txfm);
+                                        txfm_info->skip_txfm, dry_run);
     }
     if (mi_addr->uv_mode == UV_CFL_PRED && !is_cfl_allowed(xd))
       mi_addr->uv_mode = UV_DC_PRED;
+  }
+
+  // Count zero motion vector.
+  if (!dry_run && cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+      !frame_is_intra_only(cm)) {
+    const MV mv = mi->mv[0].as_mv;
+    if (is_inter_block(mi) && mi->ref_frame[0] == LAST_FRAME &&
+        abs(mv.row) < 8 && abs(mv.col) < 8) {
+      const int ymis = AOMMIN(cm->mi_params.mi_rows - mi_row, bh);
+      // Accumulate low_content_frame.
+      for (int mi_y = 0; mi_y < ymis; mi_y += 2) x->cnt_zeromv += bw << 1;
+    }
   }
 
   for (i = 0; i < num_planes; ++i) {

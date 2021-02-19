@@ -775,6 +775,11 @@ static AOM_INLINE void accumulate_counters_enc_workers(AV1_COMP *cpi,
     EncWorkerData *const thread_data = (EncWorkerData *)worker->data1;
     cpi->intrabc_used |= thread_data->td->intrabc_used;
     cpi->deltaq_used |= thread_data->td->deltaq_used;
+    // Accumulate cyclic refresh params.
+    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+        !frame_is_intra_only(&cpi->common))
+      av1_accumulate_cyclic_refresh_counters(cpi->cyclic_refresh,
+                                             &thread_data->td->mb);
     if (thread_data->td->mb.txfm_search_info.txb_rd_records) {
       aom_free(thread_data->td->mb.txfm_search_info.txb_rd_records);
       thread_data->td->mb.txfm_search_info.txb_rd_records = NULL;
@@ -842,6 +847,9 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
                sizeof(MvCosts));
       }
     }
+    // Reset cyclic refresh counters.
+    av1_init_cyclic_refresh_counters(&thread_data->td->mb);
+
     if (!cpi->sf.rt_sf.use_nonrd_pick_mode) {
       CHECK_MEM_ERROR(cm, thread_data->td->mb.txfm_search_info.txb_rd_records,
                       (TxbRdRecords *)aom_malloc(sizeof(TxbRdRecords)));

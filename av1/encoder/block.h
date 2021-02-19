@@ -969,6 +969,22 @@ typedef struct macroblock {
    * set 0 and all txfms are skipped.
    */
   int seg_skip_block;
+
+  /*! \brief Number of segment 1 blocks
+   * Actual number of (4x4) blocks that were applied delta-q,
+   * for segment 1.
+   */
+  int actual_num_seg1_blocks;
+
+  /*!\brief Number of segment 2 blocks
+   * Actual number of (4x4) blocks that were applied delta-q,
+   * for segment 2.
+   */
+  int actual_num_seg2_blocks;
+
+  /*!\brief Number of zero motion vectors
+   */
+  int cnt_zeromv;
   /**@}*/
 
   /*****************************************************************************
