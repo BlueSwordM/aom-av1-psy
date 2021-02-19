@@ -22,10 +22,7 @@ class AV1FrameSizeTests : public ::testing::Test,
       : EncoderTest(&::libaom_test::kAV1), expected_res_(AOM_CODEC_OK) {}
   virtual ~AV1FrameSizeTests() {}
 
-  virtual void SetUp() {
-    InitializeConfig();
-    SetMode(::libaom_test::kRealTime);
-  }
+  virtual void SetUp() { InitializeConfig(::libaom_test::kRealTime); }
 
   virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
                                   libaom_test::Decoder *decoder) {

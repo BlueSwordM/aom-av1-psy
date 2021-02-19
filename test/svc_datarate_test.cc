@@ -46,8 +46,7 @@ class DatarateTestSVC
 
  protected:
   virtual void SetUp() {
-    InitializeConfig();
-    SetMode(GET_PARAM(1));
+    InitializeConfig(GET_PARAM(1));
     ResetModel();
   }
 

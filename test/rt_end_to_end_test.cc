@@ -86,8 +86,7 @@ class RTEndToEndTest
   virtual ~RTEndToEndTest() {}
 
   virtual void SetUp() {
-    InitializeConfig();
-    SetMode(::libaom_test::kRealTime);
+    InitializeConfig(::libaom_test::kRealTime);
 
     cfg_.g_threads = threads_;
     cfg_.rc_buf_sz = 1000;

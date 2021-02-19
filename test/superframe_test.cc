@@ -34,10 +34,9 @@ class SuperframeTest
   virtual ~SuperframeTest() {}
 
   virtual void SetUp() {
-    InitializeConfig();
     const SuperframeTestParam input = GET_PARAM(1);
     const libaom_test::TestMode mode = std::get<kTestMode>(input);
-    SetMode(mode);
+    InitializeConfig(mode);
     sf_count_ = 0;
     sf_count_max_ = INT_MAX;
     n_tile_cols_ = std::get<kTileCols>(input);

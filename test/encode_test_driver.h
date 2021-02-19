@@ -186,11 +186,9 @@ class EncoderTest {
 
   virtual ~EncoderTest() {}
 
-  // Initialize the cfg_ member with the default configuration.
-  void InitializeConfig();
-
-  // Map the TestMode enum to the passes_ variables.
-  void SetMode(TestMode mode);
+  // Initialize the cfg_ member with the default configuration for the
+  // TestMode enum and maps the TestMode enum to the passes_ variable.
+  void InitializeConfig(TestMode mode);
 
   // Set encoder flag.
   void set_init_flags(aom_codec_flags_t flag) { init_flags_ = flag; }

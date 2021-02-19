@@ -58,10 +58,7 @@ class ErrorResilienceTestLarge
     init_flags_ = AOM_CODEC_USE_PSNR;
   }
 
-  virtual void SetUp() {
-    InitializeConfig();
-    SetMode(encoding_mode_);
-  }
+  virtual void SetUp() { InitializeConfig(encoding_mode_); }
 
   virtual void BeginPassHook(unsigned int /*pass*/) {
     psnr_ = 0.0;
@@ -478,8 +475,7 @@ class SFramePresenceTestLarge
   virtual ~SFramePresenceTestLarge() {}
 
   virtual void SetUp() {
-    InitializeConfig();
-    SetMode(encoding_mode_);
+    InitializeConfig(encoding_mode_);
     const aom_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
     cfg_.rc_end_usage = rc_end_usage_;
