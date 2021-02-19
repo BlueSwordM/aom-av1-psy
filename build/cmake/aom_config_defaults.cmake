@@ -142,6 +142,8 @@ set_aom_config_var(CONFIG_OPTICAL_FLOW_API 0
                    "AV1 experiment flag for optical flow API.")
 set_aom_config_var(CONFIG_RT_ML_PARTITIONING 0
                    "Build with ML-based partitioning for Real Time.")
+set_aom_config_var(CONFIG_PARTITION_SEARCH_ORDER 0
+                   "AV1 experiment with alternative partition search order.")
 
 #
 # Variables in this section control optional features of the build system.

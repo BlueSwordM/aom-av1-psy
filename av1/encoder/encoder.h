@@ -2695,6 +2695,12 @@ typedef struct AV1_COMP {
    * Block size of first pass encoding
    */
   BLOCK_SIZE fp_block_size;
+
+  /*!
+   * The counter of encoded super block, used to differentiate block names.
+   * This number starts from 0 and increases whenever a super block is encoded.
+   */
+  int sb_counter;
 } AV1_COMP;
 
 /*!
