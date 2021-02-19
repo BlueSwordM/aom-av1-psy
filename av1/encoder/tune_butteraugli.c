@@ -93,7 +93,7 @@ void av1_set_mb_butteraugli_rdmult_scaling(AV1_COMP *cpi) {
       dmse = dmse / (2.0f * (float)block_w * (float)block_h);
       // 'K' is used to balance the rate-distortion distribution between PSNR
       // and Butteraugli.
-      const double K = 0.28;
+      const double K = 0.2;
       const float eps = 0.01f;
       double weight;
       if (dbutteraugli < eps || dmse < eps) {
@@ -101,7 +101,7 @@ void av1_set_mb_butteraugli_rdmult_scaling(AV1_COMP *cpi) {
       } else {
         blk_count += 1.0;
         weight = dmse / dbutteraugli;
-        weight = AOMMIN(weight, 4.0);
+        weight = AOMMIN(weight, 3.0);
         weight += K;
         log_sum += log(weight);
       }
