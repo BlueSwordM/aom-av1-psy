@@ -1073,9 +1073,11 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   }
 #endif
 
+#if !CONFIG_REALTIME_ONLY
   if (!is_stat_generation_stage(cpi)) {
-    setup_tpl_buffers(cm, &cpi->tpl_data, cpi->oxcf.gf_cfg.lag_in_frames);
+    av1_setup_tpl_buffers(cm, &cpi->tpl_data, cpi->oxcf.gf_cfg.lag_in_frames);
   }
+#endif
 
 #if CONFIG_COLLECT_PARTITION_STATS
   av1_zero(cpi->partition_stats);

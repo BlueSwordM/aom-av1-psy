@@ -194,6 +194,17 @@ typedef struct TplParams {
   int skip_tpl_setup_stats;
 } TplParams;
 
+/*!\brief Allocate buffers used by tpl model
+ *
+ * \param[in]    Top-level encode/decode structure
+ * \param[in]    lag_in_frames  number of lookahead frames
+ *
+ * \param[out]   tpl_data  tpl data structure
+ */
+
+void av1_setup_tpl_buffers(AV1_COMMON *const cm, TplParams *const tpl_data,
+                           int lag_in_frames);
+
 /*!\brief Implements temporal dependency modelling for a GOP (GF/ARF
  * group) and selects between 16 and 32 frame GOP structure.
  *
