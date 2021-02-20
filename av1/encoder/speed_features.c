@@ -855,6 +855,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.full_pixel_search_level = 1;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
     sf->mv_sf.search_method = DIAMOND;
+    sf->mv_sf.disable_second_mv = 1;
 
     sf->inter_sf.mv_cost_upd_level = 1;
     sf->inter_sf.disable_onesided_comp = 1;
@@ -1441,6 +1442,7 @@ static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->use_fullpel_costlist = 0;
   mv_sf->use_downsampled_sad = 0;
   mv_sf->disable_extensive_joint_motion_search = 0;
+  mv_sf->disable_second_mv = 0;
 }
 
 static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {

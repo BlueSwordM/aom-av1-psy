@@ -711,7 +711,8 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
 
     int_mv tmp_mv[2] = { single_mv[rf_idx0], single_mv[rf_idx1] };
     int rate_mv;
-    av1_joint_motion_search(cpi, x, bsize, tmp_mv, NULL, 0, &rate_mv, 1);
+    av1_joint_motion_search(cpi, x, bsize, tmp_mv, NULL, 0, &rate_mv,
+                            !cpi->sf.mv_sf.disable_second_mv);
 
     for (int ref = 0; ref < 2; ++ref) {
       struct buf_2d ref_buf = { NULL, ref_frame_ptr[ref]->y_buffer,

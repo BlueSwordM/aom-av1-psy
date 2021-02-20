@@ -303,7 +303,8 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
       case SIMPLE_TRANSLATION:
         if (cpi->sf.mv_sf.use_accurate_subpel_search) {
           const int try_second = second_best_mv.as_int != INVALID_MV &&
-                                 second_best_mv.as_int != best_mv->as_int;
+                                 second_best_mv.as_int != best_mv->as_int &&
+                                 !cpi->sf.mv_sf.disable_second_mv;
           mv_search_params->find_fractional_mv_step(
               xd, cm, &ms_params, subpel_start_mv, &best_mv->as_mv, &dis,
               &x->pred_sse[ref], fractional_ms_list);
@@ -757,7 +758,7 @@ static AOM_INLINE void do_masked_motion_search_indexed(
                                                  mask_stride, rate_mv, which);
   } else if (which == 2) {
     av1_joint_motion_search(cpi, x, bsize, tmp_mv, mask, mask_stride, rate_mv,
-                            1);
+                            !cpi->sf.mv_sf.disable_second_mv);
   }
 }
 
