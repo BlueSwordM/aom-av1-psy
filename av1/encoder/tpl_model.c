@@ -1048,62 +1048,22 @@ static AOM_INLINE void tpl_model_update(TplParams *const tpl_data, int mi_row,
 }
 
 static AOM_INLINE void tpl_model_store(TplDepStats *tpl_stats_ptr, int mi_row,
-                                       int mi_col, BLOCK_SIZE bsize, int stride,
+                                       int mi_col, int stride,
                                        const TplDepStats *src_stats,
                                        uint8_t block_mis_log2) {
-  const int mi_height = mi_size_high[bsize];
-  const int mi_width = mi_size_wide[bsize];
-  const int step = 1 << block_mis_log2;
-  const int div = (mi_height >> block_mis_log2) * (mi_width >> block_mis_log2);
-
-  int64_t intra_cost = src_stats->intra_cost / div;
-  int64_t inter_cost = src_stats->inter_cost / div;
-  int64_t srcrf_dist = src_stats->srcrf_dist / div;
-  int64_t recrf_dist = src_stats->recrf_dist / div;
-  int64_t srcrf_rate = src_stats->srcrf_rate / div;
-  int64_t recrf_rate = src_stats->recrf_rate / div;
-  int64_t cmp_recrf_dist[2] = {
-    src_stats->cmp_recrf_dist[0] / div,
-    src_stats->cmp_recrf_dist[1] / div,
-  };
-  int64_t cmp_recrf_rate[2] = {
-    src_stats->cmp_recrf_rate[0] / div,
-    src_stats->cmp_recrf_rate[1] / div,
-  };
-
-  intra_cost = AOMMAX(1, intra_cost);
-  inter_cost = AOMMAX(1, inter_cost);
-  srcrf_dist = AOMMAX(1, srcrf_dist);
-  recrf_dist = AOMMAX(1, recrf_dist);
-  srcrf_rate = AOMMAX(1, srcrf_rate);
-  recrf_rate = AOMMAX(1, recrf_rate);
-  cmp_recrf_dist[0] = AOMMAX(1, cmp_recrf_dist[0]);
-  cmp_recrf_dist[1] = AOMMAX(1, cmp_recrf_dist[1]);
-  cmp_recrf_rate[0] = AOMMAX(1, cmp_recrf_rate[0]);
-  cmp_recrf_rate[1] = AOMMAX(1, cmp_recrf_rate[1]);
-
-  for (int idy = 0; idy < mi_height; idy += step) {
-    TplDepStats *tpl_ptr = &tpl_stats_ptr[av1_tpl_ptr_pos(
-        mi_row + idy, mi_col, stride, block_mis_log2)];
-    for (int idx = 0; idx < mi_width; idx += step) {
-      tpl_ptr->intra_cost = intra_cost;
-      tpl_ptr->inter_cost = inter_cost;
-      tpl_ptr->srcrf_dist = srcrf_dist;
-      tpl_ptr->recrf_dist = recrf_dist;
-      tpl_ptr->srcrf_rate = srcrf_rate;
-      tpl_ptr->recrf_rate = recrf_rate;
-      tpl_ptr->cmp_recrf_dist[0] = cmp_recrf_dist[0];
-      tpl_ptr->cmp_recrf_dist[1] = cmp_recrf_dist[1];
-      tpl_ptr->cmp_recrf_rate[0] = cmp_recrf_rate[0];
-      tpl_ptr->cmp_recrf_rate[1] = cmp_recrf_rate[1];
-      memcpy(tpl_ptr->mv, src_stats->mv, sizeof(tpl_ptr->mv));
-      memcpy(tpl_ptr->pred_error, src_stats->pred_error,
-             sizeof(tpl_ptr->pred_error));
-      tpl_ptr->ref_frame_index[0] = src_stats->ref_frame_index[0];
-      tpl_ptr->ref_frame_index[1] = src_stats->ref_frame_index[1];
-      ++tpl_ptr;
-    }
-  }
+  int index = av1_tpl_ptr_pos(mi_row, mi_col, stride, block_mis_log2);
+  TplDepStats *tpl_ptr = &tpl_stats_ptr[index];
+  *tpl_ptr = *src_stats;
+  tpl_ptr->intra_cost = AOMMAX(1, tpl_ptr->intra_cost);
+  tpl_ptr->inter_cost = AOMMAX(1, tpl_ptr->inter_cost);
+  tpl_ptr->srcrf_dist = AOMMAX(1, tpl_ptr->srcrf_dist);
+  tpl_ptr->recrf_dist = AOMMAX(1, tpl_ptr->recrf_dist);
+  tpl_ptr->srcrf_rate = AOMMAX(1, tpl_ptr->srcrf_rate);
+  tpl_ptr->recrf_rate = AOMMAX(1, tpl_ptr->recrf_rate);
+  tpl_ptr->cmp_recrf_dist[0] = AOMMAX(1, tpl_ptr->cmp_recrf_dist[0]);
+  tpl_ptr->cmp_recrf_dist[1] = AOMMAX(1, tpl_ptr->cmp_recrf_dist[1]);
+  tpl_ptr->cmp_recrf_rate[0] = AOMMAX(1, tpl_ptr->cmp_recrf_rate[0]);
+  tpl_ptr->cmp_recrf_rate[1] = AOMMAX(1, tpl_ptr->cmp_recrf_rate[1]);
 }
 
 // Reset the ref and source frame pointers of tpl_data.
@@ -1249,9 +1209,8 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
     mode_estimation(cpi, x, mi_row, mi_col, bsize, tx_size, &tpl_stats);
 
     // Motion flow dependency dispenser.
-    tpl_model_store(tpl_frame->tpl_stats_ptr, mi_row, mi_col, bsize,
-                    tpl_frame->stride, &tpl_stats,
-                    tpl_data->tpl_stats_block_mis_log2);
+    tpl_model_store(tpl_frame->tpl_stats_ptr, mi_row, mi_col, tpl_frame->stride,
+                    &tpl_stats, tpl_data->tpl_stats_block_mis_log2);
     (*tpl_row_mt->sync_write_ptr)(&tpl_data->tpl_mt_sync, tplb_row,
                                   tplb_col_in_tile, tplb_cols_in_tile);
   }
