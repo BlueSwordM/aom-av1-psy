@@ -911,8 +911,8 @@ static int get_overlap_area(int grid_pos_row, int grid_pos_col, int ref_pos_row,
       break;
     default: assert(0);
   }
-
-  return width * height;
+  int overlap_area = width * height;
+  return overlap_area;
 }
 
 int av1_tpl_ptr_pos(int mi_row, int mi_col, int stride, uint8_t right_shift) {
@@ -951,6 +951,7 @@ static int64_t delta_rate_cost(int64_t delta_rate, int64_t recrf_dist,
 static AOM_INLINE void tpl_model_update_b(TplParams *const tpl_data, int mi_row,
                                           int mi_col, const BLOCK_SIZE bsize,
                                           int frame_idx, int ref) {
+  aom_clear_system_state();
   TplDepFrame *tpl_frame_ptr = &tpl_data->tpl_frame[frame_idx];
   TplDepStats *tpl_ptr = tpl_frame_ptr->tpl_stats_ptr;
   TplDepFrame *tpl_frame = tpl_data->tpl_frame;
@@ -1009,21 +1010,14 @@ static AOM_INLINE void tpl_model_update_b(TplParams *const tpl_data, int mi_row,
           grid_pos_row, grid_pos_col, ref_pos_row, ref_pos_col, block, bsize);
       int ref_mi_row = round_floor(grid_pos_row, bh) * mi_height;
       int ref_mi_col = round_floor(grid_pos_col, bw) * mi_width;
-      const int step = 1 << block_mis_log2;
-
-      for (int idy = 0; idy < mi_height; idy += step) {
-        for (int idx = 0; idx < mi_width; idx += step) {
-          TplDepStats *des_stats = &ref_stats_ptr[av1_tpl_ptr_pos(
-              ref_mi_row + idy, ref_mi_col + idx, ref_tpl_frame->stride,
-              block_mis_log2)];
-          des_stats->mc_dep_dist +=
-              ((cur_dep_dist + mc_dep_dist) * overlap_area) / pix_num;
-          des_stats->mc_dep_rate +=
-              ((delta_rate + mc_dep_rate) * overlap_area) / pix_num;
-
-          assert(overlap_area >= 0);
-        }
-      }
+      assert((1 << block_mis_log2) == mi_height);
+      assert((1 << block_mis_log2) == mi_width);
+      TplDepStats *des_stats = &ref_stats_ptr[av1_tpl_ptr_pos(
+          ref_mi_row, ref_mi_col, ref_tpl_frame->stride, block_mis_log2)];
+      des_stats->mc_dep_dist +=
+          ((cur_dep_dist + mc_dep_dist) * overlap_area) / pix_num;
+      des_stats->mc_dep_rate +=
+          ((delta_rate + mc_dep_rate) * overlap_area) / pix_num;
     }
   }
 }
@@ -1193,6 +1187,8 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   const int tplb_cols_in_tile =
       ROUND_POWER_OF_TWO(mi_params->mi_cols, mi_size_wide_log2[bsize]);
   const int tplb_row = ROUND_POWER_OF_TWO(mi_row, mi_size_high_log2[bsize]);
+  assert(mi_size_high[bsize] == (1 << tpl_data->tpl_stats_block_mis_log2));
+  assert(mi_size_wide[bsize] == (1 << tpl_data->tpl_stats_block_mis_log2));
 
   for (int mi_col = 0, tplb_col_in_tile = 0; mi_col < mi_params->mi_cols;
        mi_col += mi_width, tplb_col_in_tile++) {
