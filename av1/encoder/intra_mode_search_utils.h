@@ -411,7 +411,7 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
       av1_subtract_block(
           xd, txbh, txbw, p->src_diff, block_size_wide[bsize],
           p->src.buf + (((row * p->src.stride) + col) << 2), p->src.stride,
-          pd->dst.buf + (((row * p->src.stride) + col) << 2), pd->dst.stride);
+          pd->dst.buf + (((row * pd->dst.stride) + col) << 2), pd->dst.stride);
       switch (tx_size) {
         case TX_4X4:
           aom_hadamard_4x4(p->src_diff, block_size_wide[bsize], p->coeff);
