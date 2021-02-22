@@ -349,7 +349,8 @@ static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
   ++p;
   --num;
   for (int i = 0; i < num; ++i) {
-    assert((p->color_ctx >= 0) && (p->color_ctx < CDF_SIZE(PALETTE_COLORS)));
+    assert((p->color_ctx >= 0) &&
+           (p->color_ctx < PALETTE_COLOR_INDEX_CONTEXTS));
     aom_cdf_prob *color_map_cdf = map_pb_cdf[palette_size_idx][p->color_ctx];
     aom_write_symbol(w, p->token, color_map_cdf, n);
     ++p;
