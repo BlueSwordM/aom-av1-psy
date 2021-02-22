@@ -372,6 +372,8 @@ static void set_good_speed_feature_framesize_dependent(
     } else {
       if (use_hbd) sf->tx_sf.prune_tx_size_level = 3;
     }
+
+    if (!is_720p_or_larger) sf->mv_sf.disable_second_mv = 1;
   }
 
   if (speed >= 3) {
@@ -859,7 +861,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.full_pixel_search_level = 1;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
     sf->mv_sf.search_method = DIAMOND;
-    sf->mv_sf.disable_second_mv = 1;
+    sf->mv_sf.disable_second_mv = 2;
 
     sf->inter_sf.mv_cost_upd_level = 1;
     sf->inter_sf.disable_onesided_comp = 1;

@@ -576,6 +576,9 @@ typedef struct MV_SPEED_FEATURES {
   int disable_extensive_joint_motion_search;
 
   // Enable second best mv check in joint mv search.
+  // 0: allow second MV (use rd cost as the metric)
+  // 1: use var as the metric
+  // 2: disable second MV
   int disable_second_mv;
 } MV_SPEED_FEATURES;
 
