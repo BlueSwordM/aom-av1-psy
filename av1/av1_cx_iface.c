@@ -2151,22 +2151,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   if (img != NULL) {
     res = validate_img(ctx, img);
     if (res == AOM_CODEC_OK) {
-      // Worst case buffer size needed to hold bit stream corresponding
-      // to one frame.
-      const size_t frame_sz = ALIGN_POWER_OF_TWO(ctx->cfg.g_w, 5) *
-                              ALIGN_POWER_OF_TWO(ctx->cfg.g_h, 5) *
-                              get_image_bps(img) / 8;
-
-      // Due to the presence of no-show frames, bit stream buffer constitutes
-      // data corresponding to multiple frames. Hence bit stream buffer is
-      // allocated with a smaller size for all intra frame encoding with no
-      // forward key frames, as no-show frames are not possible in this case.
-      int max_num_frames = 8;
-      if (cpi->oxcf.kf_cfg.key_freq_max == 0 &&
-          !cpi->oxcf.kf_cfg.fwd_kf_enabled)
-        max_num_frames = 1;
-      size_t data_sz = frame_sz * max_num_frames;
-
+      size_t data_sz = ALIGN_POWER_OF_TWO(ctx->cfg.g_w, 5) *
+                       ALIGN_POWER_OF_TWO(ctx->cfg.g_h, 5) * get_image_bps(img);
       if (data_sz < kMinCompressedSize) data_sz = kMinCompressedSize;
       if (ctx->cx_data == NULL || ctx->cx_data_sz < data_sz) {
         ctx->cx_data_sz = data_sz;
