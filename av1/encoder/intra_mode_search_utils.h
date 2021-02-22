@@ -440,7 +440,7 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
  * \callergraph
  * This function first makes a quick luma prediction and estimates the rdcost
  * with a model without going through the txfm, then try to prune the current
- * mode if the new estimate y_rd > 1.5 * best_model_rd.
+ * mode if the new estimate y_rd > 1.25 * best_model_rd.
  *
  * \return Returns 1 if the given mode is prune; 0 otherwise.
  */
