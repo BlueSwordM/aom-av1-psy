@@ -1689,10 +1689,11 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
     mi->tx_size = intra_tx_size;
     av1_foreach_transformed_block_in_plane(xd, bsize, 0, estimate_block_intra,
                                            &args);
+    const int skip_ctx = av1_get_skip_txfm_context(xd);
     if (args.skippable) {
-      this_rdc.rate = av1_cost_symbol(av1_get_skip_txfm_cdf(xd)[1]);
+      this_rdc.rate = x->mode_costs.skip_txfm_cost[skip_ctx][1];
     } else {
-      this_rdc.rate += av1_cost_symbol(av1_get_skip_txfm_cdf(xd)[0]);
+      this_rdc.rate += x->mode_costs.skip_txfm_cost[skip_ctx][0];
     }
     this_rdc.rate += bmode_costs[this_mode];
     this_rdc.rdcost = RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist);
