@@ -226,7 +226,8 @@ typedef struct {
   int fast_intra_tx_type_search;
   int fast_inter_tx_type_search;
 
-  // prune two least frequently chosen transforms for each intra mode
+  // Prune less likely chosen transforms for each intra mode. The speed
+  // feature ranges from 0 to 2, for different speed / compression trade offs.
   int use_reduced_intra_txset;
 
   // Use a skip flag prediction model to detect blocks with skip = 1 early

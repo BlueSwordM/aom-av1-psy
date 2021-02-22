@@ -672,6 +672,7 @@ static void set_allintra_speed_features_framesize_independent(
     // Use largest txfm block size.
     sf->tx_sf.intra_tx_size_search_init_depth_sqr = 2;
     sf->tx_sf.intra_tx_size_search_init_depth_rect = 2;
+    sf->tx_sf.tx_type_search.use_reduced_intra_txset = 2;
 
     sf->rd_sf.perform_coeff_opt = 6;
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
