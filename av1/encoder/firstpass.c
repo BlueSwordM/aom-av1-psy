@@ -635,7 +635,7 @@ static int firstpass_inter_prediction(
   raw_motion_err_list[raw_motion_err_counts] = raw_motion_error;
 
   // TODO(pengchong): Replace the hard-coded threshold
-  if (raw_motion_error > LOW_MOTION_ERROR_THRESH && cpi->oxcf.speed > 2) {
+  if (raw_motion_error > LOW_MOTION_ERROR_THRESH || cpi->oxcf.speed <= 2) {
     // Test last reference frame using the previous best mv as the
     // starting point (best reference) for the search.
     first_pass_motion_search(cpi, x, best_ref_mv, &mv, &motion_error);
