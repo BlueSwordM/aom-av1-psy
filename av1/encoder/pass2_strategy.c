@@ -1953,7 +1953,7 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
   max_intervals = cpi->lap_enabled ? 1 : max_intervals;
   int count_cuts = 1;
   // If cpi->gf_state.arf_gf_boost_lst is 0, we are starting with a KF or GF.
-  int cur_start = -1 + !cpi->gf_state.arf_gf_boost_lst, cur_last;
+  int cur_start = -1 + !cpi->ppi->gf_state.arf_gf_boost_lst, cur_last;
   int cut_pos[MAX_NUM_GF_INTERVALS + 1] = { -1 };
   int cut_here;
   GF_GROUP_STATS gf_stats;
@@ -2633,7 +2633,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
 
   // TODO(jingning): Generalize this condition.
   if (is_final_pass) {
-    cpi->gf_state.arf_gf_boost_lst = use_alt_ref;
+    cpi->ppi->gf_state.arf_gf_boost_lst = use_alt_ref;
 
     // Reset rolling actual and target bits counters for ARF groups.
     twopass->rolling_arf_group_target_bits = 1;
@@ -3662,7 +3662,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
         rc->frames_since_key == 0) {
       // If we start from a scenecut, then the last GOP's arf boost is not
       // needed for this GOP.
-      cpi->gf_state.arf_gf_boost_lst = 0;
+      cpi->ppi->gf_state.arf_gf_boost_lst = 0;
     }
 
     // TODO(jingning): Resoleve the redundant calls here.
