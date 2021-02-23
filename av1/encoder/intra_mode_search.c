@@ -1098,11 +1098,6 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       continue;
     mbmi->angle_delta[PLANE_TYPE_Y] = 0;
 
-    if (model_intra_yrd_and_prune(cpi, x, bsize, bmode_costs[mbmi->mode],
-                                  &best_model_rd)) {
-      continue;
-    }
-
     is_directional_mode = av1_is_directional_mode(mbmi->mode);
     if (is_directional_mode && directional_mode_skip_mask[mbmi->mode]) continue;
     if (is_directional_mode && av1_use_angle_delta(bsize) &&
@@ -1113,6 +1108,11 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
                               bmode_costs[mbmi->mode], best_rd, &best_model_rd,
                               1);
     } else {
+      if (model_intra_yrd_and_prune(cpi, x, bsize, bmode_costs[mbmi->mode],
+                                    &best_model_rd)) {
+        continue;
+      }
+
       // Builds the actual prediction. The prediction from
       // model_intra_yrd_and_prune was just an estimation that did not take into
       // account the effect of txfm pipeline, so we need to redo it for real
