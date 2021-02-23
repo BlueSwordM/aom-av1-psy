@@ -2097,8 +2097,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   PRED_BUFFER tmp[4];
   DECLARE_ALIGNED(16, uint8_t, pred_buf[3 * 128 * 128]);
   PRED_BUFFER *this_mode_pred = NULL;
-  const int reuse_inter_pred =
-      cpi->sf.rt_sf.reuse_inter_pred_nonrd && cm->seq_params.bit_depth == 8;
+  const int reuse_inter_pred = cpi->sf.rt_sf.reuse_inter_pred_nonrd &&
+                               cm->seq_params.bit_depth == AOM_BITS_8;
 
   const int bh = block_size_high[bsize];
   const int bw = block_size_wide[bsize];
