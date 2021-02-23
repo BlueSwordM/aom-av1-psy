@@ -1261,8 +1261,13 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     av1_cyclic_refresh_update_parameters(cpi);
   } else if (is_stat_generation_stage(cpi)) {
     cpi->td.mb.e_mbd.lossless[0] = is_lossless_requested(&oxcf->rc_cfg);
-    const int kf_requested = (cm->current_frame.frame_number == 0 ||
-                              (*frame_flags & FRAMEFLAGS_KEY));
+    // Current frame is coded as a key-frame for any of the following cases:
+    // 1) First frame of a video
+    // 2) For all-intra frame encoding
+    // 3) When a key-frame is forced
+    const int kf_requested =
+        (cm->current_frame.frame_number == 0 ||
+         oxcf->kf_cfg.key_freq_max == 0 || (*frame_flags & FRAMEFLAGS_KEY));
     if (kf_requested && frame_update_type != OVERLAY_UPDATE &&
         frame_update_type != INTNL_OVERLAY_UPDATE) {
       frame_params.frame_type = KEY_FRAME;
