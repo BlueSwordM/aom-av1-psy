@@ -344,8 +344,11 @@ static AOM_INLINE unsigned int get_num_refs_to_disable(
   unsigned int num_refs_to_disable = 0;
   if (cpi->sf.inter_sf.selective_ref_frame >= 3) {
     num_refs_to_disable++;
-    if (cpi->sf.inter_sf.selective_ref_frame >= 5 &&
-        *ref_frame_flags & av1_ref_frame_flag_list[LAST2_FRAME]) {
+    if (cpi->sf.inter_sf.selective_ref_frame >= 6) {
+      // Disable LAST2_FRAME  and ALTREF2_FRAME
+      num_refs_to_disable += 2;
+    } else if (cpi->sf.inter_sf.selective_ref_frame == 5 &&
+               *ref_frame_flags & av1_ref_frame_flag_list[LAST2_FRAME]) {
       const int last2_frame_dist = av1_encoder_get_relative_dist(
           ref_display_order_hint[LAST2_FRAME - LAST_FRAME],
           cur_frame_display_index);
