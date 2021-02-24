@@ -87,9 +87,9 @@ static unsigned int residual_variance(const AV1_COMP *cpi,
   assert(y_stride == ref->y_stride);
   const int y_offset = mb_row * mb_height * y_stride + mb_col * mb_width;
   const int mv_offset = ref_mv.row * y_stride + ref_mv.col;
-  const unsigned int var =
-      cpi->fn_ptr[block_size].vf(ref->y_buffer + y_offset + mv_offset, y_stride,
-                                 src->y_buffer + y_offset, y_stride, sse);
+  const unsigned int var = cpi->ppi->fn_ptr[block_size].vf(
+      ref->y_buffer + y_offset + mv_offset, y_stride, src->y_buffer + y_offset,
+      y_stride, sse);
   return var;
 }
 
@@ -679,9 +679,9 @@ void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
       uint8_t *const blurred_buf =
           blurred.y_buffer + row_offset_y * blurred.y_stride + col_offset_y;
 
-      cpi->fn_ptr[resized_block_size].vf(orig_buf, resized_source.y_stride,
-                                         blurred_buf, blurred.y_stride,
-                                         &sses[index]);
+      cpi->ppi->fn_ptr[resized_block_size].vf(orig_buf, resized_source.y_stride,
+                                              blurred_buf, blurred.y_stride,
+                                              &sses[index]);
 
       uint8_t *const recon_buf =
           recon.y_buffer + row_offset_y * recon.y_stride + col_offset_y;

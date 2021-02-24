@@ -356,7 +356,7 @@ static int simple_motion_search_get_best_ref(
       int_mv best_mv =
           av1_simple_motion_search(cpi, x, mi_row, mi_col, bsize, ref,
                                    start_mvs[ref], num_planes, use_subpixel);
-      curr_var = cpi->fn_ptr[bsize].vf(
+      curr_var = cpi->ppi->fn_ptr[bsize].vf(
           x->plane[0].src.buf, x->plane[0].src.stride, xd->plane[0].dst.buf,
           xd->plane[0].dst.stride, &curr_sse);
       if (curr_sse < *best_sse) {

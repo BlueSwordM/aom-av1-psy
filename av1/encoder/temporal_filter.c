@@ -155,7 +155,7 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
     best_mv.as_mv.row = GET_MV_SUBPEL(mv_row);
     best_mv.as_mv.col = GET_MV_SUBPEL(mv_col);
     const int mv_offset = mv_row * y_stride + mv_col;
-    error = cpi->fn_ptr[block_size].vf(
+    error = cpi->ppi->fn_ptr[block_size].vf(
         ref_frame->y_buffer + y_offset + mv_offset, y_stride,
         frame_to_filter->y_buffer + y_offset, y_stride, &sse);
     block_mse = DIVIDE_AND_ROUND(error, mb_pels);
@@ -874,7 +874,7 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
       const int filter_offset =
           mb_row * y_height * filter_y_stride + mb_col * y_width;
       unsigned int sse = 0;
-      cpi->fn_ptr[block_size].vf(
+      cpi->ppi->fn_ptr[block_size].vf(
           frame_to_filter->y_buffer + source_offset, source_y_stride,
           cpi->ppi->alt_ref_buffer.y_buffer + filter_offset, filter_y_stride,
           &sse);

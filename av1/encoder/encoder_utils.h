@@ -125,14 +125,14 @@ static AOM_INLINE void init_buffer_indices(
 }
 
 #define HIGHBD_BFP(BT, SDF, SDAF, VF, SVF, SVAF, SDX4DF, JSDAF, JSVAF) \
-  cpi->fn_ptr[BT].sdf = SDF;                                           \
-  cpi->fn_ptr[BT].sdaf = SDAF;                                         \
-  cpi->fn_ptr[BT].vf = VF;                                             \
-  cpi->fn_ptr[BT].svf = SVF;                                           \
-  cpi->fn_ptr[BT].svaf = SVAF;                                         \
-  cpi->fn_ptr[BT].sdx4df = SDX4DF;                                     \
-  cpi->fn_ptr[BT].jsdaf = JSDAF;                                       \
-  cpi->fn_ptr[BT].jsvaf = JSVAF;
+  ppi->fn_ptr[BT].sdf = SDF;                                           \
+  ppi->fn_ptr[BT].sdaf = SDAF;                                         \
+  ppi->fn_ptr[BT].vf = VF;                                             \
+  ppi->fn_ptr[BT].svf = SVF;                                           \
+  ppi->fn_ptr[BT].svaf = SVAF;                                         \
+  ppi->fn_ptr[BT].sdx4df = SDX4DF;                                     \
+  ppi->fn_ptr[BT].jsdaf = JSDAF;                                       \
+  ppi->fn_ptr[BT].jsvaf = JSVAF;
 
 #define HIGHBD_BFP_WRAPPER(WIDTH, HEIGHT, BD)                                \
   HIGHBD_BFP(                                                                \
@@ -325,8 +325,8 @@ MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad64x16_avg)
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #define HIGHBD_MBFP(BT, MCSDF, MCSVF) \
-  cpi->fn_ptr[BT].msdf = MCSDF;       \
-  cpi->fn_ptr[BT].msvf = MCSVF;
+  ppi->fn_ptr[BT].msdf = MCSDF;       \
+  ppi->fn_ptr[BT].msvf = MCSVF;
 
 #define HIGHBD_MBFP_WRAPPER(WIDTH, HEIGHT, BD)                    \
   HIGHBD_MBFP(BLOCK_##WIDTH##X##HEIGHT,                           \
@@ -386,8 +386,8 @@ MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad64x16)
 #endif
 
 #define HIGHBD_SDSFP(BT, SDSF, SDSX4DF) \
-  cpi->fn_ptr[BT].sdsf = SDSF;          \
-  cpi->fn_ptr[BT].sdsx4df = SDSX4DF;
+  ppi->fn_ptr[BT].sdsf = SDSF;          \
+  ppi->fn_ptr[BT].sdsx4df = SDSX4DF;
 
 #define HIGHBD_SDSFP_WRAPPER(WIDTH, HEIGHT, BD)                   \
   HIGHBD_SDSFP(BLOCK_##WIDTH##X##HEIGHT,                          \
@@ -487,9 +487,9 @@ MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_8x32x4d)
               aom_highbd_obmc_sub_pixel_variance##WIDTH##x##HEIGHT)
 
 #define HIGHBD_OBFP(BT, OSDF, OVF, OSVF) \
-  cpi->fn_ptr[BT].osdf = OSDF;           \
-  cpi->fn_ptr[BT].ovf = OVF;             \
-  cpi->fn_ptr[BT].osvf = OSVF;
+  ppi->fn_ptr[BT].osdf = OSDF;           \
+  ppi->fn_ptr[BT].ovf = OVF;             \
+  ppi->fn_ptr[BT].osvf = OSVF;
 
 #define HIGHBD_OBFP_WRAPPER(WIDTH, HEIGHT, BD)                   \
   HIGHBD_OBFP(BLOCK_##WIDTH##X##HEIGHT,                          \
@@ -542,10 +542,10 @@ MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad16x64)
 MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad64x16)
 #endif
 
-static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
-  AV1_COMMON *const cm = &cpi->common;
-  if (cm->seq_params->use_highbitdepth) {
-    switch (cm->seq_params->bit_depth) {
+static AOM_INLINE void highbd_set_var_fns(AV1_PRIMARY *const ppi) {
+  SequenceHeader *const seq_params = &ppi->seq_params;
+  if (seq_params->use_highbitdepth) {
+    switch (seq_params->bit_depth) {
       case AOM_BITS_8:
 #if !CONFIG_REALTIME_ONLY
         HIGHBD_BFP_WRAPPER(64, 16, 8)

@@ -1180,8 +1180,8 @@ void av1_source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, int offset) {
 #endif
   src_y += offset;
   last_src_y += offset;
-  tmp_variance = cpi->fn_ptr[bsize].vf(src_y, src_ystride, last_src_y,
-                                       last_src_ystride, &tmp_sse);
+  tmp_variance = cpi->ppi->fn_ptr[bsize].vf(src_y, src_ystride, last_src_y,
+                                            last_src_ystride, &tmp_sse);
   if (tmp_sse < avg_source_sse_threshold)
     x->content_state_sb.source_sad = kLowSad;
   else if (tmp_sse > avg_source_sse_threshold_high)

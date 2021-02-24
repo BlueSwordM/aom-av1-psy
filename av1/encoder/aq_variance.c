@@ -126,14 +126,14 @@ int av1_log_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs) {
     for (j = 0; j < bw; j += 4) {
       if (is_cur_buf_hbd(xd)) {
         var +=
-            log(1.0 + cpi->fn_ptr[BLOCK_4X4].vf(
+            log(1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
                           x->plane[0].src.buf + i * x->plane[0].src.stride + j,
                           x->plane[0].src.stride,
                           CONVERT_TO_BYTEPTR(av1_highbd_all_zeros), 0, &sse) /
                           16);
       } else {
         var +=
-            log(1.0 + cpi->fn_ptr[BLOCK_4X4].vf(
+            log(1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
                           x->plane[0].src.buf + i * x->plane[0].src.stride + j,
                           x->plane[0].src.stride, av1_all_zeros, 0, &sse) /
                           16);

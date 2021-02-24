@@ -668,8 +668,8 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
         get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
 
     if (bs != BLOCK_INVALID)
-      uv_sad = cpi->fn_ptr[bs].sdf(p->src.buf, p->src.stride, pd->dst.buf,
-                                   pd->dst.stride);
+      uv_sad = cpi->ppi->fn_ptr[bs].sdf(p->src.buf, p->src.stride, pd->dst.buf,
+                                        pd->dst.stride);
 
     x->color_sensitivity[i - 1] = uv_sad > (y_sad >> 2);
   }
@@ -814,7 +814,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
     if (yv12_g && yv12_g != yv12) {
       av1_setup_pre_planes(xd, 0, yv12_g, mi_row, mi_col,
                            get_ref_scale_factors(cm, GOLDEN_FRAME), num_planes);
-      *y_sad_g = cpi->fn_ptr[bsize].sdf(
+      *y_sad_g = cpi->ppi->fn_ptr[bsize].sdf(
           x->plane[0].src.buf, x->plane[0].src.stride, xd->plane[0].pre[0].buf,
           xd->plane[0].pre[0].stride);
     }
@@ -835,9 +835,9 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
     }
   }
   if (*y_sad == UINT_MAX) {
-    *y_sad = cpi->fn_ptr[bsize].sdf(x->plane[0].src.buf, x->plane[0].src.stride,
-                                    xd->plane[0].pre[0].buf,
-                                    xd->plane[0].pre[0].stride);
+    *y_sad = cpi->ppi->fn_ptr[bsize].sdf(
+        x->plane[0].src.buf, x->plane[0].src.stride, xd->plane[0].pre[0].buf,
+        xd->plane[0].pre[0].stride);
   }
 
   // Pick the ref frame for partitioning, use golden frame only if its

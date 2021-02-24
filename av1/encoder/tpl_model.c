@@ -590,7 +590,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
       for (idx = 0; idx < refmv_count; ++idx) {
         FULLPEL_MV mv = get_fullmv_from_mv(&center_mvs[idx].mv.as_mv);
         clamp_fullmv(&mv, &x->mv_limits);
-        center_mvs[idx].sad = (int)cpi->fn_ptr[bsize].sdf(
+        center_mvs[idx].sad = (int)cpi->ppi->fn_ptr[bsize].sdf(
             src_mb_buffer, src_stride, &ref_mb[mv.row * ref_stride + mv.col],
             ref_stride);
       }

@@ -920,7 +920,7 @@ int_mv av1_simple_motion_sse_var(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   const uint8_t *dst = xd->plane[0].dst.buf;
   const int dst_stride = xd->plane[0].dst.stride;
 
-  *var = cpi->fn_ptr[bsize].vf(src, src_stride, dst, dst_stride, sse);
+  *var = cpi->ppi->fn_ptr[bsize].vf(src, src_stride, dst, dst_stride, sse);
 
   return best_mv;
 }

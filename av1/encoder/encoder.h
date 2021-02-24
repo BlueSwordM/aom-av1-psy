@@ -2208,6 +2208,13 @@ typedef struct AV1_PRIMARY {
    * Code and details about current error status.
    */
   struct aom_internal_error_info error;
+
+  /*!
+   * Function pointers to variants of sse/sad/variance computation functions.
+   * fn_ptr[i] indicates the list of function pointers corresponding to block
+   * size i.
+   */
+  aom_variance_fn_ptr_t fn_ptr[BLOCK_SIZES_ALL];
 } AV1_PRIMARY;
 
 /*!
@@ -2459,13 +2466,6 @@ typedef struct AV1_COMP {
    * if there is any activity on a 4x4 block basis.
    */
   ActiveMap active_map;
-
-  /*!
-   * Function pointers to variants of sse/sad/variance computation functions.
-   * fn_ptr[i] indicates the list of function pointers corresponding to block
-   * size i.
-   */
-  aom_variance_fn_ptr_t fn_ptr[BLOCK_SIZES_ALL];
 
   /*!
    * The frame processing order within a GOP.

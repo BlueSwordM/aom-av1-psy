@@ -729,9 +729,9 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
               (puv->dequant_QTX[1] * puv->dequant_QTX[1]) >> 3;
           av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, i,
                                         i);
-          var_uv[j] = cpi->fn_ptr[uv_bsize].vf(puv->src.buf, puv->src.stride,
-                                               puvd->dst.buf, puvd->dst.stride,
-                                               &sse_uv[j]);
+          var_uv[j] = cpi->ppi->fn_ptr[uv_bsize].vf(
+              puv->src.buf, puv->src.stride, puvd->dst.buf, puvd->dst.stride,
+              &sse_uv[j]);
           if ((var_uv[j] < uv_ac_thr || var_uv[j] == 0) &&
               (sse_uv[j] - var_uv[j] < uv_dc_thr || sse_uv[j] == var_uv[j]))
             skip_uv[j] = 1;
@@ -776,8 +776,8 @@ static void model_rd_for_sb_y(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   int rate;
   int64_t dist;
 
-  unsigned int var = cpi->fn_ptr[bsize].vf(p->src.buf, p->src.stride,
-                                           pd->dst.buf, pd->dst.stride, &sse);
+  unsigned int var = cpi->ppi->fn_ptr[bsize].vf(
+      p->src.buf, p->src.stride, pd->dst.buf, pd->dst.stride, &sse);
   xd->mi[0]->tx_size = calculate_tx_size(cpi, bsize, x, var, sse);
 
   if (calculate_rd) {
@@ -1171,8 +1171,8 @@ static void model_rd_for_sb_uv(AV1_COMP *cpi, BLOCK_SIZE plane_bsize,
     unsigned int var;
     if (!x->color_sensitivity[i - 1]) continue;
 
-    var = cpi->fn_ptr[bs].vf(p->src.buf, p->src.stride, pd->dst.buf,
-                             pd->dst.stride, &sse);
+    var = cpi->ppi->fn_ptr[bs].vf(p->src.buf, p->src.stride, pd->dst.buf,
+                                  pd->dst.stride, &sse);
     assert(sse >= var);
     tot_sse += sse;
 

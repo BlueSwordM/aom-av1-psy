@@ -282,7 +282,7 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
                                   &this_best_mv, NULL);
 
   if (tmp_err < INT_MAX) {
-    aom_variance_fn_ptr_t v_fn_ptr = cpi->fn_ptr[bsize];
+    aom_variance_fn_ptr_t v_fn_ptr = cpi->ppi->fn_ptr[bsize];
     const MSBuffers *ms_buffers = &ms_params.ms_buffers;
     tmp_err = av1_get_mvpred_sse(&ms_params.mv_cost_params, this_best_mv,
                                  &v_fn_ptr, ms_buffers->src, ms_buffers->ref) +

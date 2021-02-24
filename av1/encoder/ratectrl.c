@@ -2319,12 +2319,12 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
              (sbi_row < sb_rows - 1 && sbi_col < sb_cols - 1) &&
              ((sbi_row % 2 == 0 && sbi_col % 2 == 0) ||
               (sbi_row % 2 != 0 && sbi_col % 2 != 0)))) {
-          tmp_sad = cpi->fn_ptr[bsize].sdf(src_y, src_ystride, last_src_y,
-                                           last_src_ystride);
+          tmp_sad = cpi->ppi->fn_ptr[bsize].sdf(src_y, src_ystride, last_src_y,
+                                                last_src_ystride);
           if (check_light_change) {
             unsigned int sse, variance;
-            variance = cpi->fn_ptr[bsize].vf(src_y, src_ystride, last_src_y,
-                                             last_src_ystride, &sse);
+            variance = cpi->ppi->fn_ptr[bsize].vf(
+                src_y, src_ystride, last_src_y, last_src_ystride, &sse);
             // Note: sse - variance = ((sum * sum) >> 12)
             // Detect large lighting change.
             if (variance < (sse >> 1) && (sse - variance) > sum_sq_thresh) {

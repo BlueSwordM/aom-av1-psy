@@ -151,7 +151,7 @@ unsigned int av1_get_sby_perpixel_variance(const AV1_COMP *cpi,
                                            BLOCK_SIZE bs) {
   unsigned int sse;
   const unsigned int var =
-      cpi->fn_ptr[bs].vf(ref->buf, ref->stride, AV1_VAR_OFFS, 0, &sse);
+      cpi->ppi->fn_ptr[bs].vf(ref->buf, ref->stride, AV1_VAR_OFFS, 0, &sse);
   return ROUND_POWER_OF_TWO(var, num_pels_log2_lookup[bs]);
 }
 
@@ -164,9 +164,9 @@ unsigned int av1_high_get_sby_perpixel_variance(const AV1_COMP *cpi,
   const uint16_t *high_var_offs[3] = { AV1_HIGH_VAR_OFFS_8,
                                        AV1_HIGH_VAR_OFFS_10,
                                        AV1_HIGH_VAR_OFFS_12 };
-  var =
-      cpi->fn_ptr[bs].vf(ref->buf, ref->stride,
-                         CONVERT_TO_BYTEPTR(high_var_offs[off_index]), 0, &sse);
+  var = cpi->ppi->fn_ptr[bs].vf(ref->buf, ref->stride,
+                                CONVERT_TO_BYTEPTR(high_var_offs[off_index]), 0,
+                                &sse);
   return ROUND_POWER_OF_TWO(var, num_pels_log2_lookup[bs]);
 }
 
@@ -182,7 +182,8 @@ static unsigned int get_sby_perpixel_diff_variance(const AV1_COMP *const cpi,
   assert(last != NULL);
   last_y =
       &last->y_buffer[mi_row * MI_SIZE * last->y_stride + mi_col * MI_SIZE];
-  var = cpi->fn_ptr[bs].vf(ref->buf, ref->stride, last_y, last->y_stride, &sse);
+  var = cpi->ppi->fn_ptr[bs].vf(ref->buf, ref->stride, last_y, last->y_stride,
+                                &sse);
   return ROUND_POWER_OF_TWO(var, num_pels_log2_lookup[bs]);
 }
 

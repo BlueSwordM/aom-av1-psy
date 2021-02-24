@@ -1020,7 +1020,7 @@ void av1_mv_pred(const AV1_COMP *cpi, MACROBLOCK *x, uint8_t *ref_y_buffer,
     const uint8_t *const ref_y_ptr =
         &ref_y_buffer[ref_y_stride * fp_row + fp_col];
     // Find sad for current vector.
-    const int this_sad = cpi->fn_ptr[block_size].sdf(
+    const int this_sad = cpi->ppi->fn_ptr[block_size].sdf(
         src_y_ptr, x->plane[0].src.stride, ref_y_ptr, ref_y_stride);
     // Note if it is the best so far.
     if (this_sad < best_sad) {

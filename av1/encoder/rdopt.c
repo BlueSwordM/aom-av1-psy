@@ -627,8 +627,8 @@ static int64_t get_sse(const AV1_COMP *cpi, const MACROBLOCK *x,
         get_plane_block_size(mbmi->bsize, pd->subsampling_x, pd->subsampling_y);
     unsigned int sse;
 
-    cpi->fn_ptr[bs].vf(p->src.buf, p->src.stride, pd->dst.buf, pd->dst.stride,
-                       &sse);
+    cpi->ppi->fn_ptr[bs].vf(p->src.buf, p->src.stride, pd->dst.buf,
+                            pd->dst.stride, &sse);
     total_sse += sse;
     if (!plane && sse_y) *sse_y = sse;
   }
@@ -2842,7 +2842,7 @@ static int64_t handle_inter_mode(
     if (cpi->sf.gm_sf.prune_zero_mv_with_sse &&
         cpi->sf.gm_sf.gm_search_type == GM_DISABLE_SEARCH &&
         (this_mode == GLOBALMV || this_mode == GLOBAL_GLOBALMV)) {
-      if (prune_zero_mv_with_sse(cpi->fn_ptr, x, bsize, args)) {
+      if (prune_zero_mv_with_sse(cpi->ppi->fn_ptr, x, bsize, args)) {
         continue;
       }
     }

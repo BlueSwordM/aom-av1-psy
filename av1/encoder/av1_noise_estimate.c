@@ -227,7 +227,7 @@ void av1_update_noise_estimate(AV1_COMP *const cpi) {
             unsigned int sse;
             // Compute variance between co-located blocks from current and
             // last input frames.
-            unsigned int variance = cpi->fn_ptr[bsize].vf(
+            unsigned int variance = cpi->ppi->fn_ptr[bsize].vf(
                 src_y, src_ystride, last_src_y, last_src_ystride, &sse);
             unsigned int hist_index = variance / bin_size;
             if (hist_index < MAX_VAR_HIST_BINS)
