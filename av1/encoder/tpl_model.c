@@ -1023,22 +1023,13 @@ static AOM_INLINE void tpl_model_update_b(TplParams *const tpl_data, int mi_row,
 }
 
 static AOM_INLINE void tpl_model_update(TplParams *const tpl_data, int mi_row,
-                                        int mi_col, const BLOCK_SIZE bsize,
-                                        int frame_idx) {
-  const int mi_height = mi_size_high[bsize];
-  const int mi_width = mi_size_wide[bsize];
-  const int step = 1 << tpl_data->tpl_stats_block_mis_log2;
+                                        int mi_col, int frame_idx) {
   const BLOCK_SIZE tpl_stats_block_size =
       convert_length_to_bsize(MI_SIZE << tpl_data->tpl_stats_block_mis_log2);
-
-  for (int idy = 0; idy < mi_height; idy += step) {
-    for (int idx = 0; idx < mi_width; idx += step) {
-      tpl_model_update_b(tpl_data, mi_row + idy, mi_col + idx,
-                         tpl_stats_block_size, frame_idx, 0);
-      tpl_model_update_b(tpl_data, mi_row + idy, mi_col + idx,
-                         tpl_stats_block_size, frame_idx, 1);
-    }
-  }
+  tpl_model_update_b(tpl_data, mi_row, mi_col, tpl_stats_block_size, frame_idx,
+                     0);
+  tpl_model_update_b(tpl_data, mi_row, mi_col, tpl_stats_block_size, frame_idx,
+                     1);
 }
 
 static AOM_INLINE void tpl_model_store(TplDepStats *tpl_stats_ptr, int mi_row,
@@ -1244,11 +1235,13 @@ static void mc_flow_synthesizer(AV1_COMP *cpi, int frame_idx) {
   const BLOCK_SIZE bsize = convert_length_to_bsize(tpl_data->tpl_bsize_1d);
   const int mi_height = mi_size_high[bsize];
   const int mi_width = mi_size_wide[bsize];
+  assert(mi_height == (1 << tpl_data->tpl_stats_block_mis_log2));
+  assert(mi_width == (1 << tpl_data->tpl_stats_block_mis_log2));
 
   for (int mi_row = 0; mi_row < cm->mi_params.mi_rows; mi_row += mi_height) {
     for (int mi_col = 0; mi_col < cm->mi_params.mi_cols; mi_col += mi_width) {
       if (frame_idx) {
-        tpl_model_update(tpl_data, mi_row, mi_col, bsize, frame_idx);
+        tpl_model_update(tpl_data, mi_row, mi_col, frame_idx);
       }
     }
   }
