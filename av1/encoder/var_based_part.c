@@ -1021,7 +1021,8 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
           (max_var_32x32[m] - min_var_32x32[m]) > 3 * (thresholds[1] >> 3) &&
           max_var_32x32[m] > thresholds[1] >> 1 &&
           (noise_level >= kMedium || cpi->use_svc ||
-           cpi->sf.rt_sf.force_large_partition_blocks)) {
+           cpi->sf.rt_sf.force_large_partition_blocks ||
+           !cpi->sf.rt_sf.use_nonrd_pick_mode)) {
         force_split[1 + m] = 1;
         force_split[0] = 1;
       }
