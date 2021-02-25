@@ -51,7 +51,7 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
           color_map, plane_block_width, i, j, &color_new_idx);
       assert(color_new_idx >= 0 && color_new_idx < n);
       if (calc_rate) {
-        this_rate += (*color_cost)[palette_size_idx][color_ctx][color_new_idx];
+        this_rate += color_cost[palette_size_idx][color_ctx][color_new_idx];
       } else {
         (*t)->token = color_new_idx;
         (*t)->color_ctx = color_ctx;
@@ -82,8 +82,8 @@ static void get_palette_params(const MACROBLOCK *const x, int plane,
   params->color_map = xd->plane[plane].color_index_map;
   params->map_cdf = plane ? xd->tile_ctx->palette_uv_color_index_cdf
                           : xd->tile_ctx->palette_y_color_index_cdf;
-  params->color_cost = plane ? &x->mode_costs.palette_uv_color_cost
-                             : &x->mode_costs.palette_y_color_cost;
+  params->color_cost = plane ? x->mode_costs.palette_uv_color_cost
+                             : x->mode_costs.palette_y_color_cost;
   params->n_colors = pmi->palette_size[plane];
   av1_get_block_dimensions(bsize, plane, xd, &params->plane_width, NULL,
                            &params->rows, &params->cols);

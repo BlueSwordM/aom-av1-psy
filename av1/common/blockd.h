@@ -1529,10 +1529,12 @@ static INLINE void av1_get_block_dimensions(BLOCK_SIZE bsize, int plane,
 }
 
 /* clang-format off */
+// Pointer to a three-dimensional array whose first dimension is PALETTE_SIZES.
 typedef aom_cdf_prob (*MapCdf)[PALETTE_COLOR_INDEX_CONTEXTS]
                               [CDF_SIZE(PALETTE_COLORS)];
-typedef const int (*ColorCost)[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS]
-                              [PALETTE_COLORS];
+// Pointer to a const three-dimensional array whose first dimension is
+// PALETTE_SIZES.
+typedef const int (*ColorCost)[PALETTE_COLOR_INDEX_CONTEXTS][PALETTE_COLORS];
 /* clang-format on */
 
 typedef struct {
