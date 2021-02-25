@@ -39,8 +39,8 @@ static void yv12_copy_plane(const YV12_BUFFER_CONFIG *src_bc,
 
 int av1_get_max_filter_level(const AV1_COMP *cpi) {
   if (is_stat_consumption_stage_twopass(cpi)) {
-    return cpi->twopass.section_intra_rating > 8 ? MAX_LOOP_FILTER * 3 / 4
-                                                 : MAX_LOOP_FILTER;
+    return cpi->ppi->twopass.section_intra_rating > 8 ? MAX_LOOP_FILTER * 3 / 4
+                                                      : MAX_LOOP_FILTER;
   } else {
     return MAX_LOOP_FILTER;
   }
@@ -153,8 +153,8 @@ static int search_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
     int64_t bias = (best_err >> (15 - (filt_mid / 8))) * filter_step;
 
     if ((is_stat_consumption_stage_twopass(cpi)) &&
-        (cpi->twopass.section_intra_rating < 20))
-      bias = (bias * cpi->twopass.section_intra_rating) / 20;
+        (cpi->ppi->twopass.section_intra_rating < 20))
+      bias = (bias * cpi->ppi->twopass.section_intra_rating) / 20;
 
     // yx, bias less for large block size
     if (cm->features.tx_mode != ONLY_4X4) bias >>= 1;

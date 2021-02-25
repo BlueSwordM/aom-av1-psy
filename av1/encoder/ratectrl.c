@@ -1328,7 +1328,7 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
     int qindex;
 
     if (is_stat_consumption_stage_twopass(cpi) &&
-        cpi->twopass.last_kfgroup_zeromotion_pct >= STATIC_MOTION_THRESH) {
+        cpi->ppi->twopass.last_kfgroup_zeromotion_pct >= STATIC_MOTION_THRESH) {
       qindex = AOMMIN(rc->last_kf_qindex, rc->last_boosted_qindex);
       active_best_quality = qindex;
       last_boosted_q = av1_convert_qindex_to_q(qindex, bit_depth);
@@ -1356,7 +1356,7 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
     }
 
     if (is_stat_consumption_stage_twopass(cpi) &&
-        cpi->twopass.kf_zeromotion_pct >= STATIC_KF_GROUP_THRESH) {
+        cpi->ppi->twopass.kf_zeromotion_pct >= STATIC_KF_GROUP_THRESH) {
       active_best_quality /= 3;
     }
 
@@ -1367,7 +1367,8 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
 
     // Make a further adjustment based on the kf zero motion measure.
     if (is_stat_consumption_stage_twopass(cpi))
-      q_adj_factor += 0.05 - (0.001 * (double)cpi->twopass.kf_zeromotion_pct);
+      q_adj_factor +=
+          0.05 - (0.001 * (double)cpi->ppi->twopass.kf_zeromotion_pct);
 
     // Convert the adjustment factor to a qindex delta
     // on active_best_quality.
@@ -1410,12 +1411,13 @@ static void adjust_active_best_and_worst_quality(const AV1_COMP *cpi,
          (refresh_frame_flags->golden_frame || is_intrl_arf_boost ||
           refresh_frame_flags->alt_ref_frame))) {
       active_best_quality -=
-          (cpi->twopass.extend_minq + cpi->twopass.extend_minq_fast);
-      active_worst_quality += (cpi->twopass.extend_maxq / 2);
+          (cpi->ppi->twopass.extend_minq + cpi->ppi->twopass.extend_minq_fast);
+      active_worst_quality += (cpi->ppi->twopass.extend_maxq / 2);
     } else {
       active_best_quality -=
-          (cpi->twopass.extend_minq + cpi->twopass.extend_minq_fast) / 2;
-      active_worst_quality += cpi->twopass.extend_maxq;
+          (cpi->ppi->twopass.extend_minq + cpi->ppi->twopass.extend_minq_fast) /
+          2;
+      active_worst_quality += cpi->ppi->twopass.extend_maxq;
     }
   }
 
@@ -1423,7 +1425,7 @@ static void adjust_active_best_and_worst_quality(const AV1_COMP *cpi,
 #ifndef STRICT_RC
   // Static forced key frames Q restrictions dealt with elsewhere.
   if (!(frame_is_intra_only(cm)) || !rc->this_key_frame_forced ||
-      (cpi->twopass.last_kfgroup_zeromotion_pct < STATIC_MOTION_THRESH)) {
+      (cpi->ppi->twopass.last_kfgroup_zeromotion_pct < STATIC_MOTION_THRESH)) {
     const int qdelta = av1_frame_type_qdelta(cpi, active_worst_quality);
     active_worst_quality =
         AOMMAX(active_worst_quality + qdelta, active_best_quality);
@@ -1472,13 +1474,13 @@ static int get_q(const AV1_COMP *cpi, const int width, const int height,
 
   if (cpi->oxcf.rc_cfg.mode == AOM_Q ||
       (frame_is_intra_only(cm) && !rc->this_key_frame_forced &&
-       cpi->twopass.kf_zeromotion_pct >= STATIC_KF_GROUP_THRESH &&
+       cpi->ppi->twopass.kf_zeromotion_pct >= STATIC_KF_GROUP_THRESH &&
        rc->frames_to_key > 1)) {
     q = active_best_quality;
     // Special case code to try and match quality with forced key frames.
   } else if (frame_is_intra_only(cm) && rc->this_key_frame_forced) {
     // If static since last kf use better of last boosted and last kf q.
-    if (cpi->twopass.last_kfgroup_zeromotion_pct >= STATIC_MOTION_THRESH) {
+    if (cpi->ppi->twopass.last_kfgroup_zeromotion_pct >= STATIC_MOTION_THRESH) {
       q = AOMMIN(rc->last_kf_qindex, rc->last_boosted_qindex);
     } else {
       q = AOMMIN(rc->last_boosted_qindex,
@@ -2007,8 +2009,8 @@ static void vbr_rate_correction(AV1_COMP *cpi, int *this_frame_target) {
   RATE_CONTROL *const rc = &cpi->rc;
   int64_t vbr_bits_off_target = rc->vbr_bits_off_target;
   const int stats_count =
-      cpi->twopass.stats_buf_ctx->total_stats != NULL
-          ? (int)cpi->twopass.stats_buf_ctx->total_stats->count
+      cpi->ppi->twopass.stats_buf_ctx->total_stats != NULL
+          ? (int)cpi->ppi->twopass.stats_buf_ctx->total_stats->count
           : 0;
   const int frame_window = AOMMIN(
       16, (int)(stats_count - (int)cpi->common.current_frame.frame_number));

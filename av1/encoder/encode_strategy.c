@@ -1122,9 +1122,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   if (!av1_lookahead_peek(cpi->ppi->lookahead, 0, cpi->compressor_stage)) {
 #if !CONFIG_REALTIME_ONLY
-    if (flush && oxcf->pass == 1 && !cpi->twopass.first_pass_done) {
+    if (flush && oxcf->pass == 1 && !cpi->ppi->twopass.first_pass_done) {
       av1_end_first_pass(cpi); /* get last stats packet */
-      cpi->twopass.first_pass_done = 1;
+      cpi->ppi->twopass.first_pass_done = 1;
     }
 #endif
     return -1;
@@ -1191,9 +1191,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   if (source == NULL) {  // If no source was found, we can't encode a frame.
 #if !CONFIG_REALTIME_ONLY
-    if (flush && oxcf->pass == 1 && !cpi->twopass.first_pass_done) {
+    if (flush && oxcf->pass == 1 && !cpi->ppi->twopass.first_pass_done) {
       av1_end_first_pass(cpi); /* get last stats packet */
-      cpi->twopass.first_pass_done = 1;
+      cpi->ppi->twopass.first_pass_done = 1;
     }
 #endif
     return -1;

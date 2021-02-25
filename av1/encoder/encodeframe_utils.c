@@ -761,7 +761,7 @@ int av1_active_h_edge(const AV1_COMP *cpi, int mi_row, int mi_step) {
   if (is_stat_consumption_stage_twopass(cpi)) {
     const AV1_COMMON *const cm = &cpi->common;
     const FIRSTPASS_STATS *const this_frame_stats = read_one_frame_stats(
-        &cpi->twopass, cm->current_frame.display_order_hint);
+        &cpi->ppi->twopass, cm->current_frame.display_order_hint);
     if (this_frame_stats == NULL) return AOM_CODEC_ERROR;
 
     // The inactive region is specified in MBs not mi units.
@@ -791,7 +791,7 @@ int av1_active_v_edge(const AV1_COMP *cpi, int mi_col, int mi_step) {
   if (is_stat_consumption_stage_twopass(cpi)) {
     const AV1_COMMON *const cm = &cpi->common;
     const FIRSTPASS_STATS *const this_frame_stats = read_one_frame_stats(
-        &cpi->twopass, cm->current_frame.display_order_hint);
+        &cpi->ppi->twopass, cm->current_frame.display_order_hint);
     if (this_frame_stats == NULL) return AOM_CODEC_ERROR;
 
     // The inactive region is specified in MBs not mi units.

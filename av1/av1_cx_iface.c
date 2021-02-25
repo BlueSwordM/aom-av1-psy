@@ -2011,9 +2011,8 @@ static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
 
 static aom_codec_err_t create_context_and_bufferpool(
     AV1_PRIMARY *ppi, AV1_COMP **p_cpi, BufferPool **p_buffer_pool,
-    AV1EncoderConfig *oxcf, FIRSTPASS_STATS *frame_stats_buf,
-    COMPRESSOR_STAGE stage, int num_lap_buffers, int lap_lag_in_frames,
-    STATS_BUFFER_CTX *stats_buf_context) {
+    AV1EncoderConfig *oxcf, COMPRESSOR_STAGE stage, int num_lap_buffers,
+    int lap_lag_in_frames) {
   aom_codec_err_t res = AOM_CODEC_OK;
 
   *p_buffer_pool = (BufferPool *)aom_calloc(1, sizeof(BufferPool));
@@ -2024,9 +2023,8 @@ static aom_codec_err_t create_context_and_bufferpool(
     return AOM_CODEC_MEM_ERROR;
   }
 #endif
-  *p_cpi = av1_create_compressor(ppi, oxcf, *p_buffer_pool, frame_stats_buf,
-                                 stage, num_lap_buffers, lap_lag_in_frames,
-                                 stats_buf_context);
+  *p_cpi = av1_create_compressor(ppi, oxcf, *p_buffer_pool, stage,
+                                 num_lap_buffers, lap_lag_in_frames);
   if (*p_cpi == NULL) res = AOM_CODEC_MEM_ERROR;
 
   return res;
@@ -2085,20 +2083,27 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
       res = create_stats_buffer(&priv->frame_stats_buffer,
                                 &priv->stats_buf_context, *num_lap_buffers);
       if (res != AOM_CODEC_OK) return AOM_CODEC_MEM_ERROR;
+
+      assert(MAX_LAP_BUFFERS >= MAX_LAG_BUFFERS);
+      int size = get_stats_buf_size(*num_lap_buffers, MAX_LAG_BUFFERS);
+      for (int i = 0; i < size; i++)
+        priv->ppi->twopass.frame_stats_arr[i] = &priv->frame_stats_buffer[i];
+
+      priv->ppi->twopass.stats_buf_ctx = &priv->stats_buf_context;
+      priv->ppi->twopass.stats_in =
+          priv->ppi->twopass.stats_buf_ctx->stats_in_start;
 #endif
 
-      res = create_context_and_bufferpool(
-          priv->ppi, &priv->ppi->cpi, &priv->buffer_pool, &priv->oxcf,
-          priv->frame_stats_buffer, ENCODE_STAGE, *num_lap_buffers, -1,
-          &priv->stats_buf_context);
+      res = create_context_and_bufferpool(priv->ppi, &priv->ppi->cpi,
+                                          &priv->buffer_pool, &priv->oxcf,
+                                          ENCODE_STAGE, *num_lap_buffers, -1);
 
       // Create another compressor if look ahead is enabled
       if (res == AOM_CODEC_OK && *num_lap_buffers) {
         res = create_context_and_bufferpool(
             priv->ppi, &priv->ppi->cpi_lap, &priv->buffer_pool_lap, &priv->oxcf,
-            priv->frame_stats_buffer, LAP_STAGE, *num_lap_buffers,
-            clamp(lap_lag_in_frames, 0, MAX_LAG_BUFFERS),
-            &priv->stats_buf_context);
+            LAP_STAGE, *num_lap_buffers,
+            clamp(lap_lag_in_frames, 0, MAX_LAG_BUFFERS));
       }
     }
   }

@@ -190,7 +190,7 @@ static int construct_multi_layer_gf_structure(
 void av1_gop_setup_structure(AV1_COMP *cpi) {
   RATE_CONTROL *const rc = &cpi->rc;
   GF_GROUP *const gf_group = &cpi->ppi->gf_group;
-  TWO_PASS *const twopass = &cpi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
   FRAME_INFO *const frame_info = &cpi->frame_info;
   const int key_frame = rc->frames_since_key == 0;
   const FRAME_UPDATE_TYPE first_frame_update_type =

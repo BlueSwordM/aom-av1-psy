@@ -857,11 +857,8 @@ AV1_PRIMARY *av1_create_primary_compressor(
 }
 
 AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
-                                BufferPool *const pool,
-                                FIRSTPASS_STATS *frame_stats_buf,
-                                COMPRESSOR_STAGE stage, int num_lap_buffers,
-                                int lap_lag_in_frames,
-                                STATS_BUFFER_CTX *stats_buf_context) {
+                                BufferPool *const pool, COMPRESSOR_STAGE stage,
+                                int num_lap_buffers, int lap_lag_in_frames) {
   AV1_COMP *volatile const cpi = aom_memalign(32, sizeof(AV1_COMP));
   AV1_COMMON *volatile const cm = cpi != NULL ? &cpi->common : NULL;
 
@@ -994,14 +991,6 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
   yuv_denoised_file = fopen("denoised.yuv", "wb");
 #endif
 
-  assert(MAX_LAP_BUFFERS >= MAX_LAG_BUFFERS);
-  int size = get_stats_buf_size(num_lap_buffers, MAX_LAG_BUFFERS);
-  for (int i = 0; i < size; i++)
-    cpi->twopass.frame_stats_arr[i] = &frame_stats_buf[i];
-
-  cpi->twopass.stats_buf_ctx = stats_buf_context;
-  cpi->twopass.stats_in = cpi->twopass.stats_buf_ctx->stats_in_start;
-
 #if !CONFIG_REALTIME_ONLY
   if (is_stat_consumption_stage(cpi)) {
     const size_t packet_sz = sizeof(FIRSTPASS_STATS);
@@ -1010,10 +999,12 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
     if (!cpi->ppi->lap_enabled) {
       /*Re-initialize to stats buffer, populated by application in the case of
        * two pass*/
-      cpi->twopass.stats_buf_ctx->stats_in_start = oxcf->twopass_stats_in.buf;
-      cpi->twopass.stats_in = cpi->twopass.stats_buf_ctx->stats_in_start;
-      cpi->twopass.stats_buf_ctx->stats_in_end =
-          &cpi->twopass.stats_buf_ctx->stats_in_start[packets - 1];
+      cpi->ppi->twopass.stats_buf_ctx->stats_in_start =
+          oxcf->twopass_stats_in.buf;
+      cpi->ppi->twopass.stats_in =
+          cpi->ppi->twopass.stats_buf_ctx->stats_in_start;
+      cpi->ppi->twopass.stats_buf_ctx->stats_in_end =
+          &cpi->ppi->twopass.stats_buf_ctx->stats_in_start[packets - 1];
 
       av1_init_second_pass(cpi);
     } else {

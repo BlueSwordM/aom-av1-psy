@@ -2121,6 +2121,11 @@ typedef struct AV1_PRIMARY {
    * Number of frames left to be encoded, is 0 if limit is not set.
    */
   int frames_left;
+
+  /*!
+   * Information related to two pass encoding.
+   */
+  TWO_PASS twopass;
 } AV1_PRIMARY;
 
 /*!
@@ -2379,11 +2384,6 @@ typedef struct AV1_COMP {
    * size i.
    */
   aom_variance_fn_ptr_t fn_ptr[BLOCK_SIZES_ALL];
-
-  /*!
-   * Information related to two pass encoding.
-   */
-  TWO_PASS twopass;
 
   /*!
    * The frame processing order within a GOP.
@@ -2795,11 +2795,9 @@ void av1_initialize_enc(void);
 
 struct AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
                                        BufferPool *const pool,
-                                       FIRSTPASS_STATS *frame_stats_buf,
                                        COMPRESSOR_STAGE stage,
                                        int num_lap_buffers,
-                                       int lap_lag_in_frames,
-                                       STATS_BUFFER_CTX *stats_buf_context);
+                                       int lap_lag_in_frames);
 
 struct AV1_PRIMARY *av1_create_primary_compressor(
     struct aom_codec_pkt_list *pkt_list_head, int num_lap_buffers,

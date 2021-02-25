@@ -160,7 +160,7 @@ void av1_caq_select_segment(const AV1_COMP *cpi, MACROBLOCK *mb, BLOCK_SIZE bs,
     aom_clear_system_state();
     low_var_thresh =
         (is_stat_consumption_stage_twopass(cpi))
-            ? AOMMAX(exp(cpi->twopass.mb_av_energy), MIN_DEFAULT_LV_THRESH)
+            ? AOMMAX(exp(cpi->ppi->twopass.mb_av_energy), MIN_DEFAULT_LV_THRESH)
             : DEFAULT_LV_THRESH;
 
     av1_setup_src_planes(mb, cpi->source, mi_row, mi_col, num_planes, bs);

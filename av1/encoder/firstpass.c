@@ -177,8 +177,8 @@ static int get_num_mbs(const BLOCK_SIZE fp_block_size,
 }
 
 void av1_end_first_pass(AV1_COMP *cpi) {
-  if (cpi->twopass.stats_buf_ctx->total_stats && !cpi->ppi->lap_enabled)
-    output_stats(cpi->twopass.stats_buf_ctx->total_stats,
+  if (cpi->ppi->twopass.stats_buf_ctx->total_stats && !cpi->ppi->lap_enabled)
+    output_stats(cpi->ppi->twopass.stats_buf_ctx->total_stats,
                  cpi->ppi->output_pkt_list);
 }
 
@@ -780,7 +780,7 @@ static void update_firstpass_stats(AV1_COMP *cpi,
                                    const int frame_number,
                                    const int64_t ts_duration,
                                    const BLOCK_SIZE fp_block_size) {
-  TWO_PASS *twopass = &cpi->twopass;
+  TWO_PASS *twopass = &cpi->ppi->twopass;
   AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   FIRSTPASS_STATS *this_frame_stats = twopass->stats_buf_ctx->stats_in_end;
@@ -851,8 +851,8 @@ static void update_firstpass_stats(AV1_COMP *cpi,
   *this_frame_stats = fps;
   if (!cpi->ppi->lap_enabled)
     output_stats(this_frame_stats, cpi->ppi->output_pkt_list);
-  if (cpi->twopass.stats_buf_ctx->total_stats != NULL) {
-    av1_accumulate_stats(cpi->twopass.stats_buf_ctx->total_stats, &fps);
+  if (cpi->ppi->twopass.stats_buf_ctx->total_stats != NULL) {
+    av1_accumulate_stats(cpi->ppi->twopass.stats_buf_ctx->total_stats, &fps);
   }
   /*In the case of two pass, first pass uses it as a circular buffer,
    * when LAP is enabled it is used as a linear buffer*/
@@ -1268,7 +1268,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
                       (stats.image_data_start_row * unit_cols * 2));
   }
 
-  TWO_PASS *twopass = &cpi->twopass;
+  TWO_PASS *twopass = &cpi->ppi->twopass;
   const int num_mbs_16X16 = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
                                 ? cpi->initial_mbs
                                 : mi_params->MBs;

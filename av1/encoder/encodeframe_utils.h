@@ -410,7 +410,7 @@ static AOM_INLINE unsigned int get_num_refs_to_disable(
 #if !CONFIG_REALTIME_ONLY
       else if (is_stat_consumption_stage_twopass(cpi)) {
         const FIRSTPASS_STATS *const this_frame_stats =
-            read_one_frame_stats(&cpi->twopass, cur_frame_display_index);
+            read_one_frame_stats(&cpi->ppi->twopass, cur_frame_display_index);
         aom_clear_system_state();
         const double coded_error_per_mb =
             this_frame_stats->coded_error / cpi->frame_info.num_mbs;

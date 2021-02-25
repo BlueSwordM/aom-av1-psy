@@ -182,7 +182,7 @@ static double calc_correction_factor(double err_per_mb, int q) {
 
 // Based on history adjust expectations of bits per macroblock.
 static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
-  TWO_PASS *twopass = &cpi->twopass;
+  TWO_PASS *twopass = &cpi->ppi->twopass;
   const RATE_CONTROL *const rc = &cpi->rc;
   int err_estimate = rc->rate_error_estimate;
 
@@ -201,7 +201,7 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
     } else {
       rate_err_factor =
           1.0 - ((double)(rc->vbr_bits_off_target) /
-                 AOMMAX(rc->total_actual_bits, cpi->twopass.bits_left));
+                 AOMMAX(rc->total_actual_bits, cpi->ppi->twopass.bits_left));
     }
 
     rate_err_factor = AOMMAX(min_fac, AOMMIN(max_fac, rate_err_factor));
@@ -303,8 +303,8 @@ static int get_twopass_worst_quality(AV1_COMP *cpi, const double av_frame_err,
     // content at the given rate.
     int q = find_qindex_by_rate_with_correction(
         target_norm_bits_per_mb, cpi->common.seq_params.bit_depth,
-        av_err_per_mb, cpi->twopass.bpm_factor, rate_err_tol, rc->best_quality,
-        rc->worst_quality);
+        av_err_per_mb, cpi->ppi->twopass.bpm_factor, rate_err_tol,
+        rc->best_quality, rc->worst_quality);
 
     // Restriction on active max q for constrained quality mode.
     if (rc_cfg->mode == AOM_CQ) q = AOMMAX(q, rc_cfg->cq_level);
@@ -767,7 +767,7 @@ static int calculate_section_intra_ratio(const FIRSTPASS_STATS *begin,
 static int64_t calculate_total_gf_group_bits(AV1_COMP *cpi,
                                              double gf_group_err) {
   const RATE_CONTROL *const rc = &cpi->rc;
-  const TWO_PASS *const twopass = &cpi->twopass;
+  const TWO_PASS *const twopass = &cpi->ppi->twopass;
   const int max_bits = frame_max_bits(rc, &cpi->oxcf);
   int64_t total_group_bits;
 
@@ -968,7 +968,7 @@ static INLINE int detect_gf_cut(AV1_COMP *cpi, int frame_index, int cur_start,
                                 int active_min_gf_interval,
                                 GF_GROUP_STATS *gf_stats) {
   RATE_CONTROL *const rc = &cpi->rc;
-  TWO_PASS *const twopass = &cpi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
   InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
   // Motion breakout threshold for loop below depends on image size.
   const double mv_ratio_accumulator_thresh =
@@ -1923,7 +1923,7 @@ static int find_regions_index(const REGIONS *regions, int num_regions,
 static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
                                 int max_intervals) {
   RATE_CONTROL *const rc = &cpi->rc;
-  TWO_PASS *const twopass = &cpi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
   FIRSTPASS_STATS next_frame;
   const FIRSTPASS_STATS *const start_pos = twopass->stats_in;
   FRAME_INFO *frame_info = &cpi->frame_info;
@@ -2245,7 +2245,7 @@ static INLINE void set_baseline_gf_interval(AV1_COMP *cpi, int arf_position,
                                             int use_alt_ref,
                                             int is_final_pass) {
   RATE_CONTROL *const rc = &cpi->rc;
-  TWO_PASS *const twopass = &cpi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
   // Set the interval until the next gf.
   // If forward keyframes are enabled, ensure the final gf group obeys the
   // MIN_FWD_KF_INTERVAL.
@@ -2328,7 +2328,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
-  TWO_PASS *const twopass = &cpi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
   FIRSTPASS_STATS next_frame;
   const FIRSTPASS_STATS *const start_pos = twopass->stats_in;
   GF_GROUP *gf_group = &cpi->ppi->gf_group;
@@ -2881,7 +2881,7 @@ static int get_projected_kf_boost(AV1_COMP *cpi) {
 static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
                               double *kf_group_err,
                               int num_frames_to_detect_scenecut) {
-  TWO_PASS *const twopass = &cpi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
   RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const KeyFrameCfg *const kf_cfg = &oxcf->kf_cfg;
@@ -3017,7 +3017,7 @@ static double get_kf_group_avg_error(TWO_PASS *twopass,
 static int64_t get_kf_group_bits(AV1_COMP *cpi, double kf_group_err,
                                  double kf_group_avg_error) {
   RATE_CONTROL *const rc = &cpi->rc;
-  TWO_PASS *const twopass = &cpi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
   int64_t kf_group_bits;
   if (cpi->ppi->lap_enabled) {
     kf_group_bits = (int64_t)rc->frames_to_key * rc->avg_frame_bandwidth;
@@ -3043,7 +3043,7 @@ static int64_t get_kf_group_bits(AV1_COMP *cpi, double kf_group_err,
 
 static int calc_avg_stats(AV1_COMP *cpi, FIRSTPASS_STATS *avg_frame_stat) {
   RATE_CONTROL *const rc = &cpi->rc;
-  TWO_PASS *const twopass = &cpi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
   FIRSTPASS_STATS cur_frame;
   av1_zero(cur_frame);
   int num_frames = 0;
@@ -3092,7 +3092,7 @@ static double get_kf_boost_score(AV1_COMP *cpi, double kf_raw_err,
                                  double *zero_motion_accumulator,
                                  double *sr_accumulator, int use_avg_stat) {
   RATE_CONTROL *const rc = &cpi->rc;
-  TWO_PASS *const twopass = &cpi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
   FRAME_INFO *const frame_info = &cpi->frame_info;
   FIRSTPASS_STATS frame_stat;
   av1_zero(frame_stat);
@@ -3155,7 +3155,7 @@ static double get_kf_boost_score(AV1_COMP *cpi, double kf_raw_err,
  */
 static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   RATE_CONTROL *const rc = &cpi->rc;
-  TWO_PASS *const twopass = &cpi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
   GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   FRAME_INFO *const frame_info = &cpi->frame_info;
   AV1_COMMON *const cm = &cpi->common;
@@ -3387,7 +3387,7 @@ static int is_skippable_frame(const AV1_COMP *cpi) {
   // first  pass, and so do its previous and forward frames, then this frame
   // can be skipped for partition check, and the partition size is assigned
   // according to the variance
-  const TWO_PASS *const twopass = &cpi->twopass;
+  const TWO_PASS *const twopass = &cpi->ppi->twopass;
 
   return (!frame_is_intra_only(&cpi->common) &&
           twopass->stats_in - 2 > twopass->stats_buf_ctx->stats_in_start &&
@@ -3410,7 +3410,7 @@ static int get_section_target_bandwidth(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
   RATE_CONTROL *const rc = &cpi->rc;
-  TWO_PASS *const twopass = &cpi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
   int section_target_bandwidth;
   const int frames_left = (int)(twopass->stats_buf_ctx->total_stats->count -
                                 current_frame->frame_number);
@@ -3426,18 +3426,19 @@ static void process_first_pass_stats(AV1_COMP *cpi,
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
   RATE_CONTROL *const rc = &cpi->rc;
-  TWO_PASS *const twopass = &cpi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
 
   if (cpi->oxcf.rc_cfg.mode != AOM_Q && current_frame->frame_number == 0 &&
-      cpi->gf_frame_index == 0 && cpi->twopass.stats_buf_ctx->total_stats &&
-      cpi->twopass.stats_buf_ctx->total_left_stats) {
+      cpi->gf_frame_index == 0 &&
+      cpi->ppi->twopass.stats_buf_ctx->total_stats &&
+      cpi->ppi->twopass.stats_buf_ctx->total_left_stats) {
     if (cpi->ppi->lap_enabled) {
       /*
        * Accumulate total_stats using available limited number of stats,
        * and assign it to total_left_stats.
        */
-      *cpi->twopass.stats_buf_ctx->total_left_stats =
-          *cpi->twopass.stats_buf_ctx->total_stats;
+      *cpi->ppi->twopass.stats_buf_ctx->total_left_stats =
+          *cpi->ppi->twopass.stats_buf_ctx->total_stats;
     }
     // Special case code for first frame.
     const int section_target_bandwidth = get_section_target_bandwidth(cpi);
@@ -3509,7 +3510,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
                                 const EncodeFrameInput *const frame_input,
                                 unsigned int frame_flags) {
   RATE_CONTROL *const rc = &cpi->rc;
-  TWO_PASS *const twopass = &cpi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
   GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
 
@@ -3768,7 +3769,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
 void av1_init_second_pass(AV1_COMP *cpi) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
-  TWO_PASS *const twopass = &cpi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
   FRAME_INFO *const frame_info = &cpi->frame_info;
   double frame_rate;
   FIRSTPASS_STATS *stats;
@@ -3831,7 +3832,7 @@ void av1_init_second_pass(AV1_COMP *cpi) {
 }
 
 void av1_init_single_pass_lap(AV1_COMP *cpi) {
-  TWO_PASS *const twopass = &cpi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
 
   if (!twopass->stats_buf_ctx->stats_in_end) return;
 
@@ -3865,7 +3866,7 @@ void av1_init_single_pass_lap(AV1_COMP *cpi) {
 #define MINQ_ADJ_LIMIT_CQ 20
 #define HIGH_UNDERSHOOT_RATIO 2
 void av1_twopass_postencode_update(AV1_COMP *cpi) {
-  TWO_PASS *const twopass = &cpi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
   RATE_CONTROL *const rc = &cpi->rc;
   const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
 

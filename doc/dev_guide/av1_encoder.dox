@@ -106,12 +106,12 @@ encoder and referenced elsewhere in this overview document:
 - \ref AV1_PRIMARY
     - \ref AV1_PRIMARY.gf_group (\ref GF_GROUP)
     - \ref AV1_PRIMARY.lap_enabled
+    - \ref AV1_PRIMARY.twopass (\ref TWO_PASS)
 
 - \ref AV1_COMP
     - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
     - \ref AV1_COMP.alt_ref_buffer (\ref yv12_buffer_config)
     - \ref AV1_COMP.rc (\ref RATE_CONTROL)
-    - \ref AV1_COMP.twopass (\ref TWO_PASS)
     - \ref AV1_COMP.speed
     - \ref AV1_COMP.sf (\ref SPEED_FEATURES)
 
@@ -484,10 +484,12 @@ Inside \ref av1_temporal_filter(), the reader's attention is directed to
 The following are the main data structures referenced in this section
 (see also \ref architecture_enc_data_structures):
 
+ - \ref AV1_PRIMARY ppi (the primary compressor instance data structure)
+    - \ref AV1_PRIMARY.twopass (\ref TWO_PASS)
+
  - \ref AV1_COMP cpi (the main compressor instance data structure)
     - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
     - \ref AV1_COMP.rc (\ref RATE_CONTROL)
-    - \ref AV1_COMP.twopass (\ref TWO_PASS)
     - \ref AV1_COMP.sf (\ref SPEED_FEATURES)
 
  - \ref AV1EncoderConfig (Encoder configuration parameters)
