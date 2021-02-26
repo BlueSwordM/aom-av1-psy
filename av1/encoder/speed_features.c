@@ -663,6 +663,9 @@ static void set_allintra_speed_features_framesize_independent(
     sf->part_sf.prune_sub_8x8_partition_level =
         allow_screen_content_tools ? 0 : 1;
     sf->part_sf.prune_part4_search = 3;
+    // TODO(jingning): This might not be a good trade off if the
+    // target image quality is very low.
+    sf->part_sf.default_max_partition_size = BLOCK_32X32;
 
     sf->mv_sf.use_bsize_dependent_search_method = 1;
 
