@@ -296,7 +296,6 @@ struct aom_codec_alg_priv {
   AV1_COMP *cpi;
   unsigned char *cx_data;
   size_t cx_data_sz;
-  unsigned char *pending_cx_data;
   size_t pending_cx_data_sz;
   aom_image_t preview_img;
   aom_enc_frame_flags_t next_frame_flags;
@@ -2291,12 +2290,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     unsigned char *cx_data = ctx->cx_data;
     size_t cx_data_sz = ctx->cx_data_sz;
 
-    assert(!(cx_data == NULL && cx_data_sz != 0));
-
     /* Any pending invisible frames? */
-    if (ctx->pending_cx_data) {
-      memmove(cx_data, ctx->pending_cx_data, ctx->pending_cx_data_sz);
-      ctx->pending_cx_data = cx_data;
+    if (ctx->pending_cx_data_sz) {
       cx_data += ctx->pending_cx_data_sz;
       cx_data_sz -= ctx->pending_cx_data_sz;
 
@@ -2367,8 +2362,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
       cpi->seq_params_locked = 1;
       if (frame_size) {
-        if (ctx->pending_cx_data == NULL) ctx->pending_cx_data = cx_data;
-
+        assert(cx_data != NULL && cx_data_sz != 0);
         const int write_temporal_delimiter =
             !cpi->common.spatial_layer_id && !ctx->pending_cx_data_sz;
 
@@ -2379,15 +2373,13 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
               aom_uleb_size_in_bytes(obu_payload_size);
 
           const size_t move_offset = obu_header_size + length_field_size;
-          memmove(ctx->pending_cx_data + move_offset, ctx->pending_cx_data,
-                  frame_size);
-          obu_header_size =
-              av1_write_obu_header(&cpi->level_params, OBU_TEMPORAL_DELIMITER,
-                                   0, ctx->pending_cx_data);
+          memmove(ctx->cx_data + move_offset, ctx->cx_data, frame_size);
+          obu_header_size = av1_write_obu_header(
+              &cpi->level_params, OBU_TEMPORAL_DELIMITER, 0, ctx->cx_data);
 
           // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
           if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
-                                      ctx->pending_cx_data) != AOM_CODEC_OK) {
+                                      ctx->cx_data) != AOM_CODEC_OK) {
             aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
           }
 
@@ -2434,10 +2426,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         //  B_PRIME (add TU size)
         size_t tu_size = ctx->pending_cx_data_sz;
         const size_t length_field_size = aom_uleb_size_in_bytes(tu_size);
-        memmove(ctx->pending_cx_data + length_field_size, ctx->pending_cx_data,
-                tu_size);
-        if (av1_write_uleb_obu_size(0, (uint32_t)tu_size,
-                                    ctx->pending_cx_data) != AOM_CODEC_OK) {
+        memmove(ctx->cx_data + length_field_size, ctx->cx_data, tu_size);
+        if (av1_write_uleb_obu_size(0, (uint32_t)tu_size, ctx->cx_data) !=
+            AOM_CODEC_OK) {
           aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
         }
         ctx->pending_cx_data_sz += length_field_size;
@@ -2445,7 +2436,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
       pkt.kind = AOM_CODEC_CX_FRAME_PKT;
 
-      pkt.data.frame.buf = ctx->pending_cx_data;
+      pkt.data.frame.buf = ctx->cx_data;
       pkt.data.frame.sz = ctx->pending_cx_data_sz;
       pkt.data.frame.partition_id = -1;
       pkt.data.frame.vis_frame_size = frame_size;
@@ -2464,7 +2455,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
       aom_codec_pkt_list_add(&ctx->pkt_list.head, &pkt);
 
-      ctx->pending_cx_data = NULL;
       ctx->pending_cx_data_sz = 0;
     }
   }
