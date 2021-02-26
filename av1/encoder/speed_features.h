@@ -815,6 +815,12 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // colors to remaining colors) and terminate the search if current number of
   // palette colors is not the winner.
   int prune_palette_search_level;
+
+  // Prune chroma intra modes based on luma intra mode winner.
+  // 0: No pruning
+  // 1: Prune chroma intra modes other than UV_DC_PRED, UV_SMOOTH_PRED,
+  // UV_CFL_PRED and the mode that corresponds to luma intra mode winner.
+  int prune_chroma_modes_using_luma_winner;
 } INTRA_MODE_SPEED_FEATURES;
 
 typedef struct TX_SPEED_FEATURES {

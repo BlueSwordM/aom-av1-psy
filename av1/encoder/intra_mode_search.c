@@ -31,6 +31,33 @@ static const UV_PREDICTION_MODE uv_rd_search_mode_order[UV_INTRA_MODES] = {
   UV_D135_PRED,   UV_D203_PRED,  UV_D157_PRED,     UV_D67_PRED,
   UV_D113_PRED,   UV_D45_PRED,
 };
+
+// The bitmask corresponds to the chroma intra modes as defined in enums.h
+// UV_PREDICTION_MODE enumeration type. Setting a bit to 0 in the mask means to
+// disable the evaluation of corresponding chroma intra mode. The table
+// av1_derived_chroma_intra_mode_used_flag is used when speed feature
+// prune_chroma_modes_using_luma_winner is enabled. The evaluated chroma
+// intra modes are union of the following:
+// 1) UV_DC_PRED
+// 2) UV_SMOOTH_PRED
+// 3) UV_CFL_PRED
+// 4) mode that corresponds to luma intra mode winner (Eg : UV_V_PRED if luma
+// intra mode winner is V_PRED).
+static const uint16_t av1_derived_chroma_intra_mode_used_flag[INTRA_MODES] = {
+  0x2201,  // DC_PRED:           0010 0010 0000 0001
+  0x2203,  // V_PRED:            0010 0010 0000 0011
+  0x2205,  // H_PRED:            0010 0010 0000 0101
+  0x2209,  // D45_PRED:          0010 0010 0000 1001
+  0x2211,  // D135_PRED:         0010 0010 0001 0001
+  0x2221,  // D113_PRED:         0010 0010 0010 0001
+  0x2241,  // D157_PRED:         0010 0010 0100 0001
+  0x2281,  // D203_PRED:         0010 0010 1000 0001
+  0x2301,  // D67_PRED:          0010 0011 0000 0001
+  0x2201,  // SMOOTH_PRED:       0010 0010 0000 0001
+  0x2601,  // SMOOTH_V_PRED:     0010 0110 0000 0001
+  0x2a01,  // SMOOTH_H_PRED:     0010 1010 0000 0001
+  0x3201   // PAETH_PRED:        0011 0010 0000 0001
+};
 /*!\endcond */
 
 /*!\brief Calculate the rdcost of a given luma intra angle
@@ -496,6 +523,11 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       continue;
 
     if (!intra_mode_cfg->enable_paeth_intra && mode == UV_PAETH_PRED) continue;
+
+    assert(mbmi->mode < INTRA_MODES);
+    if (cpi->sf.intra_sf.prune_chroma_modes_using_luma_winner &&
+        !(av1_derived_chroma_intra_mode_used_flag[mbmi->mode] & (1 << mode)))
+      continue;
 
     mbmi->uv_mode = mode;
 
