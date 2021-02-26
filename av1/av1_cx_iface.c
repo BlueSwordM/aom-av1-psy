@@ -2176,6 +2176,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         free(ctx->cx_data);
         ctx->cx_data = (unsigned char *)malloc(ctx->cx_data_sz);
         if (ctx->cx_data == NULL) {
+          ctx->cx_data_sz = 0;
           return AOM_CODEC_MEM_ERROR;
         }
       }
