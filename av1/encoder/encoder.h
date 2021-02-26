@@ -3213,6 +3213,12 @@ static AOM_INLINE int is_psnr_calc_enabled(const AV1_COMP *cpi) {
          cm->show_frame;
 }
 
+static AOM_INLINE int is_rtc_mode(const CostUpdateFreq *cost_upd_freq,
+                                  int use_non_rd_mode) {
+  return (use_non_rd_mode && cost_upd_freq->coeff >= 2 &&
+          cost_upd_freq->mode >= 2 && cost_upd_freq->mv >= 2);
+}
+
 #if CONFIG_AV1_TEMPORAL_DENOISING
 static INLINE int denoise_svc(const struct AV1_COMP *const cpi) {
   return (!cpi->use_svc || (cpi->use_svc && cpi->svc.spatial_layer_id >=

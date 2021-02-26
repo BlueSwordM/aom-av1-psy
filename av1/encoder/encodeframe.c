@@ -775,6 +775,10 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
   const int mib_size_log2 = cm->seq_params.mib_size_log2;
   const int sb_row = (mi_row - tile_info->mi_row_start) >> mib_size_log2;
   const int use_nonrd_mode = cpi->sf.rt_sf.use_nonrd_pick_mode;
+  const CostUpdateFreq *const cost_upd_freq = &cpi->oxcf.cost_upd_freq;
+  const int rtc_mode = is_rtc_mode(cost_upd_freq, use_nonrd_mode);
+  const int update_cdf =
+      tile_data->allow_update_cdf && row_mt_enabled && !rtc_mode;
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, encode_sb_row_time);
@@ -799,26 +803,20 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
        mi_col < tile_info->mi_col_end; mi_col += mib_size, sb_col_in_tile++) {
     (*(enc_row_mt->sync_read_ptr))(row_mt_sync, sb_row, sb_col_in_tile);
 
-    if (tile_data->allow_update_cdf && row_mt_enabled &&
-        (tile_info->mi_row_start != mi_row)) {
+    if (update_cdf && (tile_info->mi_row_start != mi_row)) {
       if ((tile_info->mi_col_start == mi_col)) {
         // restore frame context at the 1st column sb
         memcpy(xd->tile_ctx, x->row_ctx, sizeof(*xd->tile_ctx));
       } else {
-        if (!cpi->sf.rt_sf.use_nonrd_pick_mode ||
-            cpi->oxcf.cost_upd_freq.coeff < 2 ||
-            cpi->oxcf.cost_upd_freq.mode < 2 ||
-            cpi->oxcf.cost_upd_freq.mv < 2) {
-          // update context
-          int wt_left = AVG_CDF_WEIGHT_LEFT;
-          int wt_tr = AVG_CDF_WEIGHT_TOP_RIGHT;
-          if (tile_info->mi_col_end > (mi_col + mib_size))
-            av1_avg_cdf_symbols(xd->tile_ctx, x->row_ctx + sb_col_in_tile,
-                                wt_left, wt_tr);
-          else
-            av1_avg_cdf_symbols(xd->tile_ctx, x->row_ctx + sb_col_in_tile - 1,
-                                wt_left, wt_tr);
-        }
+        // update context
+        int wt_left = AVG_CDF_WEIGHT_LEFT;
+        int wt_tr = AVG_CDF_WEIGHT_TOP_RIGHT;
+        if (tile_info->mi_col_end > (mi_col + mib_size))
+          av1_avg_cdf_symbols(xd->tile_ctx, x->row_ctx + sb_col_in_tile,
+                              wt_left, wt_tr);
+        else
+          av1_avg_cdf_symbols(xd->tile_ctx, x->row_ctx + sb_col_in_tile - 1,
+                              wt_left, wt_tr);
       }
     }
 
@@ -856,8 +854,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     }
 
     // Update the top-right context in row_mt coding
-    if (tile_data->allow_update_cdf && row_mt_enabled &&
-        (tile_info->mi_row_end > (mi_row + mib_size))) {
+    if (update_cdf && (tile_info->mi_row_end > (mi_row + mib_size))) {
       if (sb_cols_in_tile == 1)
         memcpy(x->row_ctx, xd->tile_ctx, sizeof(*xd->tile_ctx));
       else if (sb_col_in_tile >= 1)
@@ -959,6 +956,7 @@ void av1_encode_sb_row(AV1_COMP *cpi, ThreadData *td, int tile_row,
 
   get_start_tok(cpi, tile_row, tile_col, mi_row, &tok,
                 cm->seq_params.mib_size_log2 + MI_SIZE_LOG2, num_planes);
+  assert(tplist != NULL);
   tplist[sb_row_in_tile].start = tok;
 
   encode_sb_row(cpi, td, this_tile, mi_row, &tok);

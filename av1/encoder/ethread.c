@@ -432,6 +432,9 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
   int thread_id = thread_data->thread_id;
   AV1EncRowMultiThreadInfo *const enc_row_mt = &cpi->mt_info.enc_row_mt;
   int cur_tile_id = enc_row_mt->thread_id_to_tile_id[thread_id];
+  const CostUpdateFreq *const cost_upd_freq = &cpi->oxcf.cost_upd_freq;
+  const int rtc_mode =
+      is_rtc_mode(cost_upd_freq, cpi->sf.rt_sf.use_nonrd_pick_mode);
 #if CONFIG_MULTITHREAD
   pthread_mutex_t *enc_row_mt_mutex_ = enc_row_mt->mutex_;
 #endif
@@ -471,7 +474,7 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
     td->mb.e_mbd.tile_ctx = td->tctx;
     td->mb.tile_pb_ctx = &this_tile->tctx;
 
-    if (this_tile->allow_update_cdf) {
+    if (this_tile->allow_update_cdf && !rtc_mode) {
       td->mb.row_ctx = this_tile->row_ctx;
       if (current_mi_row == tile_info->mi_row_start)
         memcpy(td->mb.e_mbd.tile_ctx, &this_tile->tctx, sizeof(FRAME_CONTEXT));
