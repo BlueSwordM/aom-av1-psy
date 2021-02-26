@@ -89,6 +89,7 @@ void EncoderTest::InitializeConfig(TestMode mode) {
     case kOnePassGood:
     case kTwoPassGood: break;
     case kRealTime: usage = AOM_USAGE_REALTIME; break;
+    case kAllIntra: usage = AOM_USAGE_ALL_INTRA; break;
     default: ASSERT_TRUE(false) << "Unexpected mode " << mode;
   }
   mode_ = mode;
