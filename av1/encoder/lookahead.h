@@ -53,7 +53,7 @@ struct lookahead_ctx {
   int write_idx;                         /* Write index */
   struct read_ctx read_ctxs[MAX_STAGES]; /* Read context */
   struct lookahead_entry *buf;           /* Buffer list */
-  int push_frame_count; /* Number of frames has been pushed in the queue*/
+  int push_frame_count; /* Number of frames that have been pushed in the queue*/
 };
 /*!\endcond */
 
@@ -75,9 +75,6 @@ void av1_lookahead_destroy(struct lookahead_ctx *ctx);
  *
  * This function will copy the source image into a new framebuffer with
  * the expected stride/border.
- *
- * If active_map is non-NULL and there is only one frame in the queue, then copy
- * only active macroblocks.
  *
  * \param[in] ctx         Pointer to the lookahead context
  * \param[in] src         Pointer to the image to enqueue
