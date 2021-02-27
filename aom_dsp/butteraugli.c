@@ -16,9 +16,9 @@
 #include "aom_mem/aom_mem.h"
 #include "third_party/libyuv/include/libyuv/convert_argb.h"
 
-void aom_calc_butteraugli(const YV12_BUFFER_CONFIG *source,
-                          const YV12_BUFFER_CONFIG *distorted, int bit_depth,
-                          float *dist_map) {
+int aom_calc_butteraugli(const YV12_BUFFER_CONFIG *source,
+                         const YV12_BUFFER_CONFIG *distorted, int bit_depth,
+                         float *dist_map) {
   (void)bit_depth;
   assert(bit_depth == 8);
   assert(source->y_width == source->uv_width * 2);
@@ -28,7 +28,12 @@ void aom_calc_butteraugli(const YV12_BUFFER_CONFIG *source,
   size_t buffer_size = width * height * 3;
   uint8_t *src_rgb = (uint8_t *)aom_malloc(buffer_size);
   uint8_t *distorted_rgb = (uint8_t *)aom_malloc(buffer_size);
-  // TODO(sdeng): Convert them to sRGB.
+  if (!src_rgb || !distorted_rgb) {
+    aom_free(src_rgb);
+    aom_free(distorted_rgb);
+    return 0;
+  }
+
   I420ToRGB24Matrix(source->y_buffer, source->y_stride, source->u_buffer,
                     source->uv_stride, source->v_buffer, source->uv_stride,
                     src_rgb, width * 3, &kYuvH709Constants, width, height);
@@ -45,9 +50,16 @@ void aom_calc_butteraugli(const YV12_BUFFER_CONFIG *source,
       api, width, height, &pixel_format, src_rgb, buffer_size, &pixel_format,
       distorted_rgb, buffer_size);
 
-  const float *distmap;
+  const float *distmap = NULL;
   uint32_t row_stride;
   JxlButteraugliResultGetDistmap(result, &distmap, &row_stride);
+  if (distmap == NULL) {
+    JxlButteraugliApiDestroy(api);
+    JxlButteraugliResultDestroy(result);
+    aom_free(src_rgb);
+    aom_free(distorted_rgb);
+    return 0;
+  }
 
   for (int j = 0; j < height; ++j) {
     for (int i = 0; i < width; ++i) {
@@ -55,7 +67,9 @@ void aom_calc_butteraugli(const YV12_BUFFER_CONFIG *source,
     }
   }
 
+  JxlButteraugliApiDestroy(api);
   JxlButteraugliResultDestroy(result);
   aom_free(src_rgb);
   aom_free(distorted_rgb);
+  return 1;
 }

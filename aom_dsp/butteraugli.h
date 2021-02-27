@@ -14,8 +14,8 @@
 
 #include "aom_scale/yv12config.h"
 
-void aom_calc_butteraugli(const YV12_BUFFER_CONFIG *source,
-                          const YV12_BUFFER_CONFIG *distorted, int bit_depth,
-                          float *dist_map);
+int aom_calc_butteraugli(const YV12_BUFFER_CONFIG *source,
+                         const YV12_BUFFER_CONFIG *distorted, int bit_depth,
+                         float *dist_map);
 
 #endif  // AOM_AOM_DSP_BUTTERAUGLI_H_

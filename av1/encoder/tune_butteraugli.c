@@ -48,7 +48,10 @@ void av1_set_mb_butteraugli_rdmult_scaling(AV1_COMP *cpi) {
   const YV12_BUFFER_CONFIG *recon = &cpi->butteraugli_info.recon;
   float *diffmap;
   CHECK_MEM_ERROR(cm, diffmap, aom_malloc(width * height * sizeof(*diffmap)));
-  aom_calc_butteraugli(source, recon, bit_depth, diffmap);
+  if (!aom_calc_butteraugli(source, recon, bit_depth, diffmap)) {
+    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                       "Failed to calculate Butteraugli distances.");
+  }
 
   const int block_size = BLOCK_16X16;
   const int num_mi_w = mi_size_wide[block_size];
