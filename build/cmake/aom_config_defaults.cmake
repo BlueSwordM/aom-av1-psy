@@ -118,6 +118,7 @@ set_aom_config_var(CONFIG_TUNE_VMAF 0 "Enable encoding tuning for VMAF.")
 set_aom_config_var(CONFIG_USE_VMAF_RC 0 "Use libvmaf_rc tune for VMAF_NEG.")
 set_aom_config_var(CONFIG_TUNE_BUTTERAUGLI 0
                    "Enable encoding tuning for Butteraugli.")
+set_aom_config_var(STATIC_LINK_JXL 0 "Statically link the JPEG-XL library.")
 
 # AV1 experiment flags.
 set_aom_config_var(CONFIG_SPEED_STATS 0 "AV1 experiment flag.")

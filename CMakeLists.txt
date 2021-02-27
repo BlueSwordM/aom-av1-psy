@@ -447,28 +447,52 @@ if(CONFIG_AV1_ENCODER)
               ${AOM_ENCODER_TOOL_TARGETS})
 
   if(CONFIG_TUNE_BUTTERAUGLI)
-    find_library(LIBJXL_LIBRARIES libjxl.a)
-    find_library(LIBHWY_LIBRARIES libhwy.a)
-    find_library(LIBSKCMS_LIBRARIES libskcms.a)
-    find_path(LIBJXL_INCLUDE_DIRS butteraugli.h PATH_SUFFIXES jxl)
-    if(LIBJXL_LIBRARIES
-       AND LIBHWY_LIBRARIES
-       AND LIBSKCMS_LIBRARIES
-       AND LIBJXL_INCLUDE_DIRS)
-      message(STATUS "Found JXL library: ${LIBJXL_LIBRARIES} "
-                     "${LIBHWY_LIBRARIES} ${LIBJXLT_LIBRARIES} "
-                     "${LIBSKCMS_LIBRARIES}")
-      message(STATUS "Found JXL include: ${LIBJXL_INCLUDE_DIRS}")
+    find_package(PkgConfig)
+    # Use find_library() with STATIC_LINK_JXL for static build since
+    # pkg_check_modules() with LIBJXL_STATIC is not working.
+    if(STATIC_LINK_JXL OR NOT PKG_CONFIG_FOUND)
+      find_library(LIBJXL_LIBRARIES libjxl.a)
+      find_library(LIBHWY_LIBRARIES libhwy.a)
+      find_library(LIBSKCMS_LIBRARIES libskcms.a)
+      find_library(LIBBROTLICOMMON_LIBRARIES libbrotlicommon-static.a)
+      find_library(LIBBROTLIENC_LIBRARIES libbrotlienc-static.a)
+      find_library(LIBBROTLIDEC_LIBRARIES libbrotlidec-static.a)
+      find_path(LIBJXL_INCLUDE_DIRS butteraugli.h PATH_SUFFIXES jxl)
+      if(LIBJXL_LIBRARIES
+         AND LIBHWY_LIBRARIES
+         AND LIBSKCMS_LIBRARIES
+         AND LIBBROTLICOMMON_LIBRARIES
+         AND LIBBROTLIENC_LIBRARIES
+         AND LIBBROTLIDEC_LIBRARIES
+         AND LIBJXL_INCLUDE_DIRS)
+        message(STATUS "Found JXL library: ${LIBJXL_LIBRARIES} "
+                       "${LIBHWY_LIBRARIES} ${LIBSKCMS_LIBRARIES} "
+                       "${LIBBROTLICOMMON_LIBRARIES} ${LIBBROTLIENC_LIBRARIES}"
+                       "${LIBBROTLIDEC_LIBRARIES}")
+        message(STATUS "Found JXL include: ${LIBJXL_INCLUDE_DIRS}")
+      else()
+        message(FATAL_ERROR "JXL library not found.")
+      endif()
+      target_link_libraries(aom
+                            PRIVATE ${LIBJXL_LIBRARIES} ${LIBHWY_LIBRARIES}
+                                    ${LIBSKCMS_LIBRARIES}
+                                    ${LIBBROTLIENC_LIBRARIES}
+                                    ${LIBBROTLIDEC_LIBRARIES}
+                                    ${LIBBROTLICOMMON_LIBRARIES})
+      target_include_directories(aom PRIVATE ${LIBJXL_INCLUDE_DIRS})
     else()
-      message(FATAL_ERROR "JXL library not found.")
-    endif()
-    target_link_libraries(aom
-                          PRIVATE ${LIBJXL_LDFLAGS} ${LIBJXL_LIBRARIES}
-                                  ${LIBHWY_LIBRARIES} ${LIBJXLT_LIBRARIES}
-                                  ${LIBSKCMS_LIBRARIES})
-    target_include_directories(aom PRIVATE ${LIBJXL_INCLUDE_DIRS})
-    if(LIBJXL_CFLAGS)
-      append_compiler_flag("${LIBJXL_CFLAGS}")
+      pkg_check_modules(LIBJXL REQUIRED libjxl)
+      target_link_libraries(aom PRIVATE ${LIBJXL_LDFLAGS} ${LIBJXL_LIBRARIES})
+      target_include_directories(aom PRIVATE ${LIBJXL_INCLUDE_DIRS})
+      if(LIBJXL_CFLAGS)
+        append_compiler_flag("${LIBJXL_CFLAGS}")
+      endif()
+      pkg_check_modules(LIBHWY REQUIRED libhwy)
+      target_link_libraries(aom PRIVATE ${LIBHWY_LDFLAGS} ${LIBHWY_LIBRARIES})
+      target_include_directories(aom PRIVATE ${LIBLIBHWY_INCLUDE_DIRS})
+      if(LIBHWY_CFLAGS)
+        append_compiler_flag("${LIBHWY_CFLAGS}")
+      endif()
     endif()
 
     set_target_properties(aom PROPERTIES LINKER_LANGUAGE CXX)
