@@ -2670,7 +2670,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     }
 
 #if CONFIG_TUNE_BUTTERAUGLI
-    if (loop_count == 0) {
+    if (loop_count == 0 && oxcf->tune_cfg.tuning == AOM_TUNE_BUTTERAUGLI) {
       loop = 1;
       av1_setup_butteraugli_recon(cpi, &cm->cur_frame->buf);
     }
