@@ -801,7 +801,11 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
   // Code each SB in the row
   for (int mi_col = tile_info->mi_col_start, sb_col_in_tile = 0;
        mi_col < tile_info->mi_col_end; mi_col += mib_size, sb_col_in_tile++) {
-    (*(enc_row_mt->sync_read_ptr))(row_mt_sync, sb_row, sb_col_in_tile);
+    // In non-rd mode and when frequency of cost updates is off/tile, wait for
+    // the top superblock to finish encoding. Otherwise, wait for the top-right
+    // superblock to finish encoding.
+    (*(enc_row_mt->sync_read_ptr))(row_mt_sync, sb_row,
+                                   sb_col_in_tile - rtc_mode);
 
     if (update_cdf && (tile_info->mi_row_start != mi_row)) {
       if ((tile_info->mi_col_start == mi_col)) {
