@@ -824,6 +824,7 @@ static void set_good_speed_features_framesize_independent(
     // Enable fast search only for COMPOUND_DIFFWTD type.
     sf->inter_sf.enable_fast_compound_mode_search = 1;
     sf->inter_sf.reuse_mask_search_results = 1;
+    sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 1;
 
     // TODO(Sachin): Enable/Enhance this speed feature for speed 2 & 3
     sf->interp_sf.adaptive_interp_filter_search = 1;
