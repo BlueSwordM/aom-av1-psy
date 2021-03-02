@@ -22,8 +22,8 @@ int aom_calc_butteraugli(const YV12_BUFFER_CONFIG *source,
   (void)bit_depth;
   assert(bit_depth == 8);
   assert(source->y_width == source->uv_width * 2);
-  const int width = source->y_width;
-  const int height = source->y_height;
+  const int width = source->y_crop_width;
+  const int height = source->y_crop_height;
 
   size_t buffer_size = width * height * 3;
   uint8_t *src_rgb = (uint8_t *)aom_malloc(buffer_size);

@@ -1075,17 +1075,18 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
 #if CONFIG_TUNE_BUTTERAUGLI
   {
-    const int bsize = BLOCK_16X16;
-    const int w = mi_size_wide[bsize];
-    const int h = mi_size_high[bsize];
+    const int w = mi_size_wide[butteraugli_rdo_bsize];
+    const int h = mi_size_high[butteraugli_rdo_bsize];
     const int num_cols = (mi_params->mi_cols + w - 1) / w;
     const int num_rows = (mi_params->mi_rows + h - 1) / h;
     CHECK_MEM_ERROR(
         cm, cpi->butteraugli_info.rdmult_scaling_factors,
         aom_malloc(num_rows * num_cols *
                    sizeof(*cpi->butteraugli_info.rdmult_scaling_factors)));
-    memset(&cpi->butteraugli_info.recon, 0,
-           sizeof(cpi->butteraugli_info.recon));
+    memset(&cpi->butteraugli_info.source, 0,
+           sizeof(cpi->butteraugli_info.source));
+    memset(&cpi->butteraugli_info.resized_source, 0,
+           sizeof(cpi->butteraugli_info.resized_source));
     cpi->butteraugli_info.recon_set = false;
   }
 #endif
@@ -2521,6 +2522,20 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
         av1_scale_if_required(cm, cpi->unscaled_source, &cpi->scaled_source,
                               EIGHTTAP_REGULAR, 0, false, false);
 
+#if CONFIG_TUNE_BUTTERAUGLI
+    if (oxcf->tune_cfg.tuning == AOM_TUNE_BUTTERAUGLI) {
+      if (loop_count == 0) {
+        original_q = q;
+        // TODO(sdeng): different q here does not make big difference. Use a
+        // faster pass instead.
+        q = 96;
+        av1_setup_butteraugli_source(cpi);
+      } else {
+        q = original_q;
+      }
+    }
+#endif
+
     if (cpi->unscaled_last_source != NULL) {
       cpi->last_source = av1_scale_if_required(
           cm, cpi->unscaled_last_source, &cpi->scaled_last_source,
@@ -2533,6 +2548,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       }
       av1_scale_references(cpi, EIGHTTAP_REGULAR, 0, 0);
     }
+
 #if CONFIG_TUNE_VMAF
     if (oxcf->tune_cfg.tuning >= AOM_TUNE_VMAF_WITH_PREPROCESSING &&
         oxcf->tune_cfg.tuning <= AOM_TUNE_VMAF_NEG_MAX_GAIN) {
@@ -2540,18 +2556,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       q = av1_get_vmaf_base_qindex(cpi, q);
     }
 #endif
-#if CONFIG_TUNE_BUTTERAUGLI
-    if (oxcf->tune_cfg.tuning == AOM_TUNE_BUTTERAUGLI) {
-      if (loop_count == 0) {
-        original_q = q;
-        // TODO(sdeng): different q here does not make big difference. Use a
-        //  faster pass instead.
-        q = 96;
-      } else {
-        q = original_q;
-      }
-    }
-#endif
+
     av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                       q_cfg->enable_chroma_deltaq);
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
@@ -2611,12 +2616,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       last_loop_allow_hp = cm->features.allow_high_precision_mv;
     }
 
-#if CONFIG_TUNE_BUTTERAUGLI
-    if (oxcf->tune_cfg.tuning == AOM_TUNE_BUTTERAUGLI) {
-      av1_set_mb_butteraugli_rdmult_scaling(cpi);
-    }
-#endif
-
     // transform / motion compensation build reconstruction frame
     av1_encode_frame(cpi);
 
@@ -2672,7 +2671,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #if CONFIG_TUNE_BUTTERAUGLI
     if (loop_count == 0 && oxcf->tune_cfg.tuning == AOM_TUNE_BUTTERAUGLI) {
       loop = 1;
-      av1_setup_butteraugli_recon(cpi, &cm->cur_frame->buf);
+      av1_restore_butteraugli_source(cpi);
     }
 #endif
 
