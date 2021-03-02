@@ -2170,8 +2170,24 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   if (img != NULL) {
     res = validate_img(ctx, img);
     if (res == AOM_CODEC_OK) {
-      size_t data_sz = ALIGN_POWER_OF_TWO(ctx->cfg.g_w, 5) *
-                       ALIGN_POWER_OF_TWO(ctx->cfg.g_h, 5) * get_image_bps(img);
+      const size_t uncompressed_frame_sz = ALIGN_POWER_OF_TWO(ctx->cfg.g_w, 5) *
+                                           ALIGN_POWER_OF_TWO(ctx->cfg.g_h, 5) *
+                                           get_image_bps(img) / 8;
+
+      // Due to the presence of no-show frames, the ctx->cx_data buffer holds
+      // compressed data corresponding to multiple frames. As no-show frames are
+      // not possible for all intra frame encoding with no forward key frames,
+      // the buffer is allocated with a smaller size in this case.
+      //
+      // For pseudo random input, the compressed frame size is seen to exceed
+      // the uncompressed frame size, but is less than 2 times the uncompressed
+      // frame size. Hence the size of the buffer is chosen as 2 times the
+      // uncompressed frame size.
+      int multiplier = 8;
+      if (cpi->oxcf.kf_cfg.key_freq_max == 0 &&
+          !cpi->oxcf.kf_cfg.fwd_kf_enabled)
+        multiplier = 2;
+      size_t data_sz = uncompressed_frame_sz * multiplier;
       if (data_sz < kMinCompressedSize) data_sz = kMinCompressedSize;
       if (ctx->cx_data == NULL || ctx->cx_data_sz < data_sz) {
         ctx->cx_data_sz = data_sz;
