@@ -487,8 +487,8 @@ typedef struct {
  * - MB_RD_RECORD: records a whole *partition block*'s inter-mode txfm result.
  *   Since this operates on the partition block level, this can give us a
  *   whole txfm partition tree.
- * - TXB_RD_RECORD: records a txfm search result within a transform blcok
- *   itself. This operates on txb level only and onlyt appplies to square
+ * - TXB_RD_RECORD: records a txfm search result within a transform block
+ *   itself. This operates on txb level only and only appplies to square
  *   txfms.
  */
 typedef struct {
