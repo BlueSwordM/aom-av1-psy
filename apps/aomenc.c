@@ -430,7 +430,7 @@ const arg_def_t *av1_key_val_args[] = {
 static const arg_def_t *no_args[] = { NULL };
 
 static void show_help(FILE *fout, int shorthelp) {
-  fprintf(fout, "Usage: %s <options> -o dst_filename src_filename \n",
+  fprintf(fout, "Usage: %s <options> -o dst_filename src_filename\n",
           exec_name);
 
   if (shorthelp) {

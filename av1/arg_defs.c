@@ -140,7 +140,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .debugmode =
       ARG_DEF("D", "debug", 0, "Debug mode (makes output deterministic)"),
   .outputfile = ARG_DEF("o", "output", 1, "Output filename"),
-  .use_yv12 = ARG_DEF(NULL, "yv12", 0, "Input file is YV12 "),
+  .use_yv12 = ARG_DEF(NULL, "yv12", 0, "Input file is YV12"),
   .use_i420 = ARG_DEF(NULL, "i420", 0, "Input file is I420 (default)"),
   .use_i422 = ARG_DEF(NULL, "i422", 0, "Input file is I422"),
   .use_i444 = ARG_DEF(NULL, "i444", 0, "Input file is I444"),
@@ -191,7 +191,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                                         "chroma subsampling y value."),
 
   .usage = ARG_DEF("u", "usage", 1,
-                   "Usage profile number to use (0: good, 1: rt, 2: allintra"),
+                   "Usage profile number to use (0: good, 1: rt, 2: allintra)"),
   .threads = ARG_DEF("t", "threads", 1, "Max number of threads to use"),
   .profile = ARG_DEF(NULL, "profile", 1, "Bitstream profile number to use"),
   .width = ARG_DEF("w", "width", 1, "Frame width"),
