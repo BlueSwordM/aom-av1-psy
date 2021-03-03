@@ -280,221 +280,6 @@ static void set_allintra_speed_feature_framesize_dependent(
   }
 }
 
-static void set_good_speed_feature_framesize_dependent(
-    const AV1_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
-  const AV1_COMMON *const cm = &cpi->common;
-  const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
-  const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
-  const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
-  const int is_4k_or_larger = AOMMIN(cm->width, cm->height) >= 2160;
-  const bool use_hbd = cpi->oxcf.use_highbitdepth;
-
-  if (is_480p_or_larger) {
-    sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
-    if (is_720p_or_larger)
-      sf->part_sf.auto_max_partition_based_on_simple_motion = ADAPT_PRED;
-    else
-      sf->part_sf.auto_max_partition_based_on_simple_motion = RELAXED_PRED;
-  } else {
-    sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
-    sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
-    if (use_hbd) sf->tx_sf.prune_tx_size_level = 1;
-  }
-
-  if (is_4k_or_larger) {
-    sf->part_sf.default_min_partition_size = BLOCK_8X8;
-  }
-
-  // TODO(huisu@google.com): train models for 720P and above.
-  if (!is_720p_or_larger) {
-    sf->part_sf.ml_partition_search_breakout_thresh[0] = 200;  // BLOCK_8X8
-    sf->part_sf.ml_partition_search_breakout_thresh[1] = 250;  // BLOCK_16X16
-    sf->part_sf.ml_partition_search_breakout_thresh[2] = 300;  // BLOCK_32X32
-    sf->part_sf.ml_partition_search_breakout_thresh[3] = 500;  // BLOCK_64X64
-    sf->part_sf.ml_partition_search_breakout_thresh[4] = -1;   // BLOCK_128X128
-    sf->part_sf.ml_early_term_after_part_split_level = 1;
-  }
-
-  if (is_720p_or_larger) {
-    // TODO(chiyotsai@google.com): make this speed feature adaptive based on
-    // current block's vertical texture instead of hardcoded with resolution
-    sf->mv_sf.use_downsampled_sad = 1;
-  }
-
-  if (speed >= 1) {
-    if (is_720p_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
-    } else if (is_480p_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
-    } else {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
-    }
-
-    if (!is_720p_or_larger) {
-      sf->part_sf.ml_partition_search_breakout_thresh[0] = 200;  // BLOCK_8X8
-      sf->part_sf.ml_partition_search_breakout_thresh[1] = 250;  // BLOCK_16X16
-      sf->part_sf.ml_partition_search_breakout_thresh[2] = 300;  // BLOCK_32X32
-      sf->part_sf.ml_partition_search_breakout_thresh[3] = 300;  // BLOCK_64X64
-      sf->part_sf.ml_partition_search_breakout_thresh[4] = -1;  // BLOCK_128X128
-    }
-    sf->part_sf.ml_early_term_after_part_split_level = 2;
-  }
-
-  if (speed >= 2) {
-    if (is_720p_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
-    } else if (is_480p_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
-    } else {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
-    }
-
-    if (is_720p_or_larger) {
-      sf->part_sf.partition_search_breakout_dist_thr = (1 << 24);
-      sf->part_sf.partition_search_breakout_rate_thr = 120;
-    } else {
-      sf->part_sf.partition_search_breakout_dist_thr = (1 << 22);
-      sf->part_sf.partition_search_breakout_rate_thr = 100;
-    }
-
-    if (is_720p_or_larger) {
-      sf->inter_sf.prune_obmc_prob_thresh = 16;
-    } else {
-      sf->inter_sf.prune_obmc_prob_thresh = 8;
-    }
-
-    if (is_480p_or_larger) {
-      sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
-      if (use_hbd) sf->tx_sf.prune_tx_size_level = 2;
-    } else {
-      if (use_hbd) sf->tx_sf.prune_tx_size_level = 3;
-    }
-
-    if (!is_720p_or_larger) sf->mv_sf.disable_second_mv = 1;
-  }
-
-  if (speed >= 3) {
-    sf->part_sf.ml_early_term_after_part_split_level = 0;
-
-    if (is_720p_or_larger) {
-      sf->part_sf.partition_search_breakout_dist_thr = (1 << 25);
-      sf->part_sf.partition_search_breakout_rate_thr = 200;
-    } else {
-      sf->part_sf.max_intra_bsize = BLOCK_32X32;
-      sf->part_sf.partition_search_breakout_dist_thr = (1 << 23);
-      sf->part_sf.partition_search_breakout_rate_thr = 120;
-    }
-    if (use_hbd) sf->tx_sf.prune_tx_size_level = 3;
-  }
-
-  if (speed >= 4) {
-    if (is_720p_or_larger) {
-      sf->part_sf.partition_search_breakout_dist_thr = (1 << 26);
-    } else {
-      sf->part_sf.partition_search_breakout_dist_thr = (1 << 24);
-    }
-
-    if (is_480p_or_larger) {
-      sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 2;
-    }
-
-    sf->inter_sf.prune_obmc_prob_thresh = INT_MAX;
-  }
-
-  if (speed >= 5) {
-    if (is_720p_or_larger) {
-      sf->inter_sf.prune_warped_prob_thresh = 16;
-    } else if (is_480p_or_larger) {
-      sf->inter_sf.prune_warped_prob_thresh = 8;
-    }
-  }
-
-  if (speed >= 6) {
-    if (is_720p_or_larger) {
-      sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
-    } else if (is_480p_or_larger) {
-      sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
-    }
-
-    if (is_1080p_or_larger) {
-      sf->part_sf.default_min_partition_size = BLOCK_8X8;
-    }
-
-    if (is_720p_or_larger) {
-      sf->inter_sf.disable_masked_comp = 1;
-    }
-
-    if (!is_720p_or_larger) {
-      sf->inter_sf.mv_cost_upd_level = 2;
-    }
-
-    // TODO(yunqing): use BLOCK_32X32 for >= 4k.
-    if (is_4k_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
-    } else if (is_720p_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
-    } else {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_16X16;
-    }
-
-    if (is_720p_or_larger) {
-      sf->inter_sf.prune_ref_mv_idx_search = 2;
-    } else {
-      sf->inter_sf.prune_ref_mv_idx_search = 1;
-    }
-  }
-}
-
-static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
-                                                     SPEED_FEATURES *const sf,
-                                                     int speed) {
-  const AV1_COMMON *const cm = &cpi->common;
-  const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
-  const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
-  const int is_360p_or_larger = AOMMIN(cm->width, cm->height) >= 360;
-
-  (void)is_720p_or_larger;  // Not used so far
-
-  if (!is_360p_or_larger) {
-    if (speed >= 6) sf->rt_sf.force_tx_search_off = 1;
-    if (speed >= 8) {
-      sf->rt_sf.use_modeled_non_rd_cost = 0;
-      sf->rt_sf.use_nonrd_filter_search = 0;
-    }
-    if (speed >= 9) {
-      sf->rt_sf.use_modeled_non_rd_cost = 1;
-      sf->rt_sf.nonrd_agressive_skip = 1;
-// TODO(kyslov) Re-enable when AV1 models are trained
-#if 0
-#if CONFIG_RT_ML_PARTITIONING
-      if (!frame_is_intra_only(cm)) {
-        sf->part_sf.partition_search_type = ML_BASED_PARTITION;
-        sf->rt_sf.reuse_inter_pred_nonrd = 0;
-      }
-#endif
-#endif
-    }
-  } else {
-    if (speed == 8 && !cpi->use_svc) {
-      sf->rt_sf.short_circuit_low_temp_var = 0;
-      sf->rt_sf.use_nonrd_altref_frame = 1;
-    }
-  }
-  if (!is_480p_or_larger) {
-    if (speed == 7) {
-      sf->rt_sf.nonrd_check_partition_merge_mode = 2;
-    }
-    if (speed >= 8) {
-      sf->mv_sf.subpel_search_method = SUBPEL_TREE;
-      sf->rt_sf.estimate_motion_for_var_based_partition = 1;
-    }
-    if (speed >= 9) {
-      sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
-      sf->rt_sf.estimate_motion_for_var_based_partition = 0;
-    }
-  }
-}
-
 static void set_allintra_speed_features_framesize_independent(
     const AV1_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -677,6 +462,171 @@ static void set_allintra_speed_features_framesize_independent(
 
     sf->rd_sf.perform_coeff_opt = 6;
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
+  }
+}
+
+static void set_good_speed_feature_framesize_dependent(
+    const AV1_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
+  const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
+  const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
+  const int is_4k_or_larger = AOMMIN(cm->width, cm->height) >= 2160;
+  const bool use_hbd = cpi->oxcf.use_highbitdepth;
+
+  if (is_480p_or_larger) {
+    sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
+    if (is_720p_or_larger)
+      sf->part_sf.auto_max_partition_based_on_simple_motion = ADAPT_PRED;
+    else
+      sf->part_sf.auto_max_partition_based_on_simple_motion = RELAXED_PRED;
+  } else {
+    sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
+    sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
+    if (use_hbd) sf->tx_sf.prune_tx_size_level = 1;
+  }
+
+  if (is_4k_or_larger) {
+    sf->part_sf.default_min_partition_size = BLOCK_8X8;
+  }
+
+  // TODO(huisu@google.com): train models for 720P and above.
+  if (!is_720p_or_larger) {
+    sf->part_sf.ml_partition_search_breakout_thresh[0] = 200;  // BLOCK_8X8
+    sf->part_sf.ml_partition_search_breakout_thresh[1] = 250;  // BLOCK_16X16
+    sf->part_sf.ml_partition_search_breakout_thresh[2] = 300;  // BLOCK_32X32
+    sf->part_sf.ml_partition_search_breakout_thresh[3] = 500;  // BLOCK_64X64
+    sf->part_sf.ml_partition_search_breakout_thresh[4] = -1;   // BLOCK_128X128
+    sf->part_sf.ml_early_term_after_part_split_level = 1;
+  }
+
+  if (is_720p_or_larger) {
+    // TODO(chiyotsai@google.com): make this speed feature adaptive based on
+    // current block's vertical texture instead of hardcoded with resolution
+    sf->mv_sf.use_downsampled_sad = 1;
+  }
+
+  if (speed >= 1) {
+    if (is_720p_or_larger) {
+      sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
+    } else if (is_480p_or_larger) {
+      sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
+    } else {
+      sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
+    }
+
+    if (!is_720p_or_larger) {
+      sf->part_sf.ml_partition_search_breakout_thresh[0] = 200;  // BLOCK_8X8
+      sf->part_sf.ml_partition_search_breakout_thresh[1] = 250;  // BLOCK_16X16
+      sf->part_sf.ml_partition_search_breakout_thresh[2] = 300;  // BLOCK_32X32
+      sf->part_sf.ml_partition_search_breakout_thresh[3] = 300;  // BLOCK_64X64
+      sf->part_sf.ml_partition_search_breakout_thresh[4] = -1;  // BLOCK_128X128
+    }
+    sf->part_sf.ml_early_term_after_part_split_level = 2;
+  }
+
+  if (speed >= 2) {
+    if (is_720p_or_larger) {
+      sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
+    } else if (is_480p_or_larger) {
+      sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
+    } else {
+      sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
+    }
+
+    if (is_720p_or_larger) {
+      sf->part_sf.partition_search_breakout_dist_thr = (1 << 24);
+      sf->part_sf.partition_search_breakout_rate_thr = 120;
+    } else {
+      sf->part_sf.partition_search_breakout_dist_thr = (1 << 22);
+      sf->part_sf.partition_search_breakout_rate_thr = 100;
+    }
+
+    if (is_720p_or_larger) {
+      sf->inter_sf.prune_obmc_prob_thresh = 16;
+    } else {
+      sf->inter_sf.prune_obmc_prob_thresh = 8;
+    }
+
+    if (is_480p_or_larger) {
+      sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
+      if (use_hbd) sf->tx_sf.prune_tx_size_level = 2;
+    } else {
+      if (use_hbd) sf->tx_sf.prune_tx_size_level = 3;
+    }
+
+    if (!is_720p_or_larger) sf->mv_sf.disable_second_mv = 1;
+  }
+
+  if (speed >= 3) {
+    sf->part_sf.ml_early_term_after_part_split_level = 0;
+
+    if (is_720p_or_larger) {
+      sf->part_sf.partition_search_breakout_dist_thr = (1 << 25);
+      sf->part_sf.partition_search_breakout_rate_thr = 200;
+    } else {
+      sf->part_sf.max_intra_bsize = BLOCK_32X32;
+      sf->part_sf.partition_search_breakout_dist_thr = (1 << 23);
+      sf->part_sf.partition_search_breakout_rate_thr = 120;
+    }
+    if (use_hbd) sf->tx_sf.prune_tx_size_level = 3;
+  }
+
+  if (speed >= 4) {
+    if (is_720p_or_larger) {
+      sf->part_sf.partition_search_breakout_dist_thr = (1 << 26);
+    } else {
+      sf->part_sf.partition_search_breakout_dist_thr = (1 << 24);
+    }
+
+    if (is_480p_or_larger) {
+      sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 2;
+    }
+
+    sf->inter_sf.prune_obmc_prob_thresh = INT_MAX;
+  }
+
+  if (speed >= 5) {
+    if (is_720p_or_larger) {
+      sf->inter_sf.prune_warped_prob_thresh = 16;
+    } else if (is_480p_or_larger) {
+      sf->inter_sf.prune_warped_prob_thresh = 8;
+    }
+  }
+
+  if (speed >= 6) {
+    if (is_720p_or_larger) {
+      sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
+    } else if (is_480p_or_larger) {
+      sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
+    }
+
+    if (is_1080p_or_larger) {
+      sf->part_sf.default_min_partition_size = BLOCK_8X8;
+    }
+
+    if (is_720p_or_larger) {
+      sf->inter_sf.disable_masked_comp = 1;
+    }
+
+    if (!is_720p_or_larger) {
+      sf->inter_sf.mv_cost_upd_level = 2;
+    }
+
+    // TODO(yunqing): use BLOCK_32X32 for >= 4k.
+    if (is_4k_or_larger) {
+      sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
+    } else if (is_720p_or_larger) {
+      sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
+    } else {
+      sf->part_sf.use_square_partition_only_threshold = BLOCK_16X16;
+    }
+
+    if (is_720p_or_larger) {
+      sf->inter_sf.prune_ref_mv_idx_search = 2;
+    } else {
+      sf->inter_sf.prune_ref_mv_idx_search = 1;
+    }
   }
 }
 
@@ -1052,6 +1002,56 @@ static void set_good_speed_features_framesize_independent(
   assert(IMPLIES(
       sf->winner_mode_sf.multi_winner_mode_type != MULTI_WINNER_MODE_OFF,
       !sf->tx_sf.use_intra_txb_hash));
+}
+
+static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
+                                                     SPEED_FEATURES *const sf,
+                                                     int speed) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
+  const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
+  const int is_360p_or_larger = AOMMIN(cm->width, cm->height) >= 360;
+
+  (void)is_720p_or_larger;  // Not used so far
+
+  if (!is_360p_or_larger) {
+    if (speed >= 6) sf->rt_sf.force_tx_search_off = 1;
+    if (speed >= 8) {
+      sf->rt_sf.use_modeled_non_rd_cost = 0;
+      sf->rt_sf.use_nonrd_filter_search = 0;
+    }
+    if (speed >= 9) {
+      sf->rt_sf.use_modeled_non_rd_cost = 1;
+      sf->rt_sf.nonrd_agressive_skip = 1;
+// TODO(kyslov) Re-enable when AV1 models are trained
+#if 0
+#if CONFIG_RT_ML_PARTITIONING
+      if (!frame_is_intra_only(cm)) {
+        sf->part_sf.partition_search_type = ML_BASED_PARTITION;
+        sf->rt_sf.reuse_inter_pred_nonrd = 0;
+      }
+#endif
+#endif
+    }
+  } else {
+    if (speed == 8 && !cpi->use_svc) {
+      sf->rt_sf.short_circuit_low_temp_var = 0;
+      sf->rt_sf.use_nonrd_altref_frame = 1;
+    }
+  }
+  if (!is_480p_or_larger) {
+    if (speed == 7) {
+      sf->rt_sf.nonrd_check_partition_merge_mode = 2;
+    }
+    if (speed >= 8) {
+      sf->mv_sf.subpel_search_method = SUBPEL_TREE;
+      sf->rt_sf.estimate_motion_for_var_based_partition = 1;
+    }
+    if (speed >= 9) {
+      sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
+      sf->rt_sf.estimate_motion_for_var_based_partition = 0;
+    }
+  }
 }
 
 // TODO(kyslov): now this is very similar to
