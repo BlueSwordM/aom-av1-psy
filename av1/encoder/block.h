@@ -238,7 +238,7 @@ typedef struct {
   TX_SIZE inter_tx_size[INTER_TX_SIZE_BUF_LEN];
   //! Map showing which txfm block skips the txfm process.
   uint8_t blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
-  //! Map showing the txfm types for each blcok.
+  //! Map showing the txfm types for each block.
   uint8_t tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
   //! Rd_stats for the whole partition block.
   RD_STATS rd_stats;
@@ -488,7 +488,7 @@ typedef struct {
  *   Since this operates on the partition block level, this can give us a
  *   whole txfm partition tree.
  * - TXB_RD_RECORD: records a txfm search result within a transform block
- *   itself. This operates on txb level only and only appplies to square
+ *   itself. This operates on txb level only and only applies to square
  *   txfms.
  */
 typedef struct {
@@ -548,8 +548,8 @@ typedef struct {
    * - MB_RD_RECORD: records a whole *partition block*'s inter-mode txfm result.
    *   Since this operates on the partition block level, this can give us a
    *   whole txfm partition tree.
-   * - TXB_RD_RECORD: records a txfm search result within a transform blcok
-   *   itself. This operates on txb level only and onlyt appplies to square
+   * - TXB_RD_RECORD: records a txfm search result within a transform block
+   *   itself. This operates on txb level only and only applies to square
    *   txfms.
    */
   TxbRdRecords *txb_rd_records;
@@ -897,7 +897,7 @@ typedef struct macroblock {
    *
    * Points to a buffer that is used to hold temporary prediction results. This
    * is used in two ways:
-   * - This is a temporary buffer used to pingpong the prediction in
+   * - This is a temporary buffer used to ping-pong the prediction in
    *   handle_inter_mode.
    * - xd->tmp_obmc_bufs also points to this buffer, and is used in ombc
    *   prediction.
