@@ -1297,6 +1297,9 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
 // Checks for skip status of mv cost update.
 static int skip_mv_cost_update(AV1_COMP *cpi, const TileInfo *const tile_info,
                                const int mi_row, const int mi_col) {
+  // For intra frames, mv cdfs are not updated during the encode. Hence, the mv
+  // cost calculation is skipped in this case.
+  if (frame_is_intra_only(&cpi->common)) return 1;
   // mv_cost_upd_level=0: update happens at each sb,
   //                      so return skip status as 0.
   // mv_cost_upd_level=1: update happens once for each sb row,
