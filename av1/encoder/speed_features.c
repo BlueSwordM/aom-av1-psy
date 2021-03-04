@@ -880,7 +880,7 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.ml_predict_breakout_level = 3;
 
     sf->inter_sf.alt_ref_search_fp = 1;
-    sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
+    sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 3;
 
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 2;
     sf->inter_sf.prune_compound_using_neighbors = 2;
@@ -936,7 +936,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->inter_sf.disable_interinter_wedge_var_thresh = UINT_MAX;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
-    sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 5;
+    sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
     // Enable fast search for all valid compound modes.
     sf->inter_sf.enable_fast_compound_mode_search = 2;
 
