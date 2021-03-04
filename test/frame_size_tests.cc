@@ -80,6 +80,12 @@ typedef struct {
 
 const FrameSizeParam FrameSizeTestParams[] = { { 96, 96 }, { 176, 144 } };
 
+// This unit test is used to validate the allocated size of compressed data
+// (ctx->cx_data) buffer, by feeding pseudo random input to the encoder in
+// lossless encoding mode.
+//
+// If compressed data buffer is not large enough, the av1_get_compressed_data()
+// call in av1/av1_cx_iface.c will overflow the buffer.
 class AV1LosslessFrameSizeTests
     : public ::libaom_test::CodecTestWith2Params<FrameSizeParam,
                                                  ::libaom_test::TestMode>,
