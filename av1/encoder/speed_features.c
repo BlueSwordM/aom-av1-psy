@@ -1343,6 +1343,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
   if (speed >= 8) {
     sf->tx_sf.intra_tx_size_search_init_depth_sqr = 2;
+    sf->intra_sf.intra_pruning_with_hog = 1;
     sf->rt_sf.estimate_motion_for_var_based_partition = 1;
     sf->rt_sf.short_circuit_low_temp_var = 1;
 #if !CONFIG_AV1_TEMPORAL_DENOISING

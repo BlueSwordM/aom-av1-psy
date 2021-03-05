@@ -484,7 +484,7 @@ class DatarateTestSVC
                                          1, 0, 400);
     cfg_.g_w = 640;
     cfg_.g_h = 480;
-    const int bitrate_array[2] = { 80, 100 };
+    const int bitrate_array[2] = { 80, 90 };
     cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
     ResetModel();
     number_temporal_layers_ = 3;
