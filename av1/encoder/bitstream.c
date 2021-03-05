@@ -185,12 +185,13 @@ static AOM_INLINE void write_tx_size_vartx(MACROBLOCKD *xd,
     }
 
     assert(bsw > 0 && bsh > 0);
-    for (int row = 0; row < tx_size_high_unit[tx_size]; row += bsh)
+    for (int row = 0; row < tx_size_high_unit[tx_size]; row += bsh) {
+      const int offsetr = blk_row + row;
       for (int col = 0; col < tx_size_wide_unit[tx_size]; col += bsw) {
-        int offsetr = blk_row + row;
-        int offsetc = blk_col + col;
+        const int offsetc = blk_col + col;
         write_tx_size_vartx(xd, mbmi, sub_txs, depth + 1, offsetr, offsetc, w);
       }
+    }
   }
 }
 
@@ -388,14 +389,17 @@ static AOM_INLINE void pack_txb_tokens(
     const int bsw = tx_size_wide_unit[sub_txs];
     const int bsh = tx_size_high_unit[sub_txs];
     const int step = bsh * bsw;
+    const int row_end =
+        AOMMIN(tx_size_high_unit[tx_size], max_blocks_high - blk_row);
+    const int col_end =
+        AOMMIN(tx_size_wide_unit[tx_size], max_blocks_wide - blk_col);
 
     assert(bsw > 0 && bsh > 0);
 
-    for (int r = 0; r < tx_size_high_unit[tx_size]; r += bsh) {
-      for (int c = 0; c < tx_size_wide_unit[tx_size]; c += bsw) {
-        const int offsetr = blk_row + r;
+    for (int r = 0; r < row_end; r += bsh) {
+      const int offsetr = blk_row + r;
+      for (int c = 0; c < col_end; c += bsw) {
         const int offsetc = blk_col + c;
-        if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
         pack_txb_tokens(w, cm, x, tp, tok_end, xd, mbmi, plane, plane_bsize,
                         bit_depth, block, offsetr, offsetc, sub_txs,
                         token_stats);

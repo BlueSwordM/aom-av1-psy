@@ -2720,11 +2720,12 @@ static AOM_INLINE void try_tx_block_split(
       x->mode_costs.txfm_partition_cost[txfm_partition_ctx][1];
 
   for (int r = 0, blk_idx = 0; r < txb_height; r += sub_txb_height) {
+    const int offsetr = blk_row + r;
+    if (offsetr >= max_blocks_high) break;
     for (int c = 0; c < txb_width; c += sub_txb_width, ++blk_idx) {
       assert(blk_idx < 4);
-      const int offsetr = blk_row + r;
       const int offsetc = blk_col + c;
-      if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
+      if (offsetc >= max_blocks_wide) continue;
 
       RD_STATS this_rd_stats;
       int this_cost_valid = 1;
@@ -3452,15 +3453,18 @@ static AOM_INLINE void tx_block_yrd(
     const int txb_width = tx_size_wide_unit[sub_txs];
     const int txb_height = tx_size_high_unit[sub_txs];
     const int step = txb_height * txb_width;
+    const int row_end =
+        AOMMIN(tx_size_high_unit[tx_size], max_blocks_high - blk_row);
+    const int col_end =
+        AOMMIN(tx_size_wide_unit[tx_size], max_blocks_wide - blk_col);
     RD_STATS pn_rd_stats;
     int64_t this_rd = 0;
     assert(txb_width > 0 && txb_height > 0);
 
-    for (int row = 0; row < tx_size_high_unit[tx_size]; row += txb_height) {
-      for (int col = 0; col < tx_size_wide_unit[tx_size]; col += txb_width) {
-        const int offsetr = blk_row + row;
+    for (int row = 0; row < row_end; row += txb_height) {
+      const int offsetr = blk_row + row;
+      for (int col = 0; col < col_end; col += txb_width) {
         const int offsetc = blk_col + col;
-        if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
 
         av1_init_rd_stats(&pn_rd_stats);
         tx_block_yrd(cpi, x, offsetr, offsetc, block, sub_txs, plane_bsize,

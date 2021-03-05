@@ -151,11 +151,14 @@ static void set_txfm_context(MACROBLOCKD *xd, TX_SIZE tx_size, int blk_row,
     const TX_SIZE sub_txs = sub_tx_size_map[tx_size];
     const int bsw = tx_size_wide_unit[sub_txs];
     const int bsh = tx_size_high_unit[sub_txs];
-    for (int row = 0; row < tx_size_high_unit[tx_size]; row += bsh) {
-      for (int col = 0; col < tx_size_wide_unit[tx_size]; col += bsw) {
-        const int offsetr = blk_row + row;
+    const int row_end =
+        AOMMIN(tx_size_high_unit[tx_size], max_blocks_high - blk_row);
+    const int col_end =
+        AOMMIN(tx_size_wide_unit[tx_size], max_blocks_wide - blk_col);
+    for (int row = 0; row < row_end; row += bsh) {
+      const int offsetr = blk_row + row;
+      for (int col = 0; col < col_end; col += bsw) {
         const int offsetc = blk_col + col;
-        if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
         set_txfm_context(xd, sub_txs, offsetr, offsetc);
       }
     }
