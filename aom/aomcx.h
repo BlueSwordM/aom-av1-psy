@@ -264,6 +264,8 @@ enum aome_enc_control_id {
 
   /*!\brief Codec control function to set visual tuning, aom_tune_metric (int)
    * parameter
+   *
+   * The default is AOM_TUNE_PSNR.
    */
   AOME_SET_TUNING = AOME_SET_ARNR_STRENGTH + 2,  // 24
 
