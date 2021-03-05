@@ -1535,6 +1535,13 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   cm->current_frame.frame_type = frame_params->frame_type;
   cm->show_frame = frame_params->show_frame;
 
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  // Record the time if the function returns.
+  if (cpi->common.tiles.large_scale || gf_group->max_layer_depth_allowed == 0 ||
+      !gop_eval)
+    end_timing(cpi, av1_tpl_setup_stats_time);
+#endif
+
   if (cpi->common.tiles.large_scale) return 0;
   if (gf_group->max_layer_depth_allowed == 0) return 1;
   if (!gop_eval) return 0;
