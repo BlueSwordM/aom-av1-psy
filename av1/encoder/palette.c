@@ -253,8 +253,7 @@ static AOM_INLINE void palette_rd_y(
 
   const int palette_mode_cost =
       intra_mode_info_cost_y(cpi, x, mbmi, bsize, dc_mode_cost);
-  if (model_intra_yrd_and_prune(cpi, x, bsize, palette_mode_cost,
-                                best_model_rd)) {
+  if (model_intra_yrd_and_prune(cpi, x, bsize, best_model_rd)) {
     return;
   }
 

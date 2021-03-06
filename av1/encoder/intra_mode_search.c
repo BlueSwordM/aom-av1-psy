@@ -57,7 +57,7 @@ static int64_t calc_rd_given_intra_angle(
   assert(!is_inter_block(mbmi));
   mbmi->angle_delta[PLANE_TYPE_Y] = angle_delta;
   if (!skip_model_rd) {
-    if (model_intra_yrd_and_prune(cpi, x, bsize, mode_cost, best_model_rd)) {
+    if (model_intra_yrd_and_prune(cpi, x, bsize, best_model_rd)) {
       return INT64_MAX;
     }
   }
@@ -118,7 +118,7 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
     RD_STATS tokenonly_rd_stats;
     mbmi->filter_intra_mode_info.filter_intra_mode = mode;
 
-    if (model_intra_yrd_and_prune(cpi, x, bsize, mode_cost, best_model_rd)) {
+    if (model_intra_yrd_and_prune(cpi, x, bsize, best_model_rd)) {
       continue;
     }
     av1_pick_uniform_tx_size_type_yrd(cpi, x, &tokenonly_rd_stats, bsize,
@@ -1108,8 +1108,7 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
                               bmode_costs[mbmi->mode], best_rd, &best_model_rd,
                               1);
     } else {
-      if (model_intra_yrd_and_prune(cpi, x, bsize, bmode_costs[mbmi->mode],
-                                    &best_model_rd)) {
+      if (model_intra_yrd_and_prune(cpi, x, bsize, &best_model_rd)) {
         continue;
       }
 

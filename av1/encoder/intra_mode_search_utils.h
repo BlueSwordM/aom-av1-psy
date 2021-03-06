@@ -385,45 +385,46 @@ static AOM_INLINE int intra_mode_info_cost_uv(const AV1_COMP *cpi,
 /*!\cond */
 // Makes a quick luma prediction and estimate the rdcost with a model without
 // going through the whole txfm/quantize/itxfm process.
-static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
-                               BLOCK_SIZE bsize, int mode_cost) {
+static int64_t intra_model_rd(const AV1_COMP *const cpi, MACROBLOCK *const x,
+                              int plane, BLOCK_SIZE plane_bsize,
+                              TX_SIZE tx_size) {
   const AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   int row, col;
   assert(!is_inter_block(mbmi));
-  (void)mode_cost;
-  TX_SIZE tx_size = AOMMIN(TX_32X32, max_txsize_lookup[bsize]);
   const int stepr = tx_size_high_unit[tx_size];
   const int stepc = tx_size_wide_unit[tx_size];
   const int txbw = tx_size_wide[tx_size];
   const int txbh = tx_size_high[tx_size];
-  const int max_blocks_wide = max_block_wide(xd, bsize, 0);
-  const int max_blocks_high = max_block_high(xd, bsize, 0);
+  const int max_blocks_wide = max_block_wide(xd, plane_bsize, plane);
+  const int max_blocks_high = max_block_high(xd, plane_bsize, plane);
   mbmi->tx_size = tx_size;
   int64_t satd_cost = 0;
-  struct macroblock_plane *p = &x->plane[0];
-  struct macroblockd_plane *pd = &xd->plane[0];
+  struct macroblock_plane *p = &x->plane[plane];
+  struct macroblockd_plane *pd = &xd->plane[plane];
   // Prediction.
   for (row = 0; row < max_blocks_high; row += stepr) {
     for (col = 0; col < max_blocks_wide; col += stepc) {
-      av1_predict_intra_block_facade(cm, xd, 0, col, row, tx_size);
+      av1_predict_intra_block_facade(cm, xd, plane, col, row, tx_size);
       av1_subtract_block(
-          xd, txbh, txbw, p->src_diff, block_size_wide[bsize],
+          xd, txbh, txbw, p->src_diff, block_size_wide[plane_bsize],
           p->src.buf + (((row * p->src.stride) + col) << 2), p->src.stride,
           pd->dst.buf + (((row * pd->dst.stride) + col) << 2), pd->dst.stride);
       switch (tx_size) {
         case TX_4X4:
-          aom_hadamard_4x4(p->src_diff, block_size_wide[bsize], p->coeff);
+          aom_hadamard_4x4(p->src_diff, block_size_wide[plane_bsize], p->coeff);
           break;
         case TX_8X8:
-          aom_hadamard_8x8(p->src_diff, block_size_wide[bsize], p->coeff);
+          aom_hadamard_8x8(p->src_diff, block_size_wide[plane_bsize], p->coeff);
           break;
         case TX_16X16:
-          aom_hadamard_16x16(p->src_diff, block_size_wide[bsize], p->coeff);
+          aom_hadamard_16x16(p->src_diff, block_size_wide[plane_bsize],
+                             p->coeff);
           break;
         case TX_32X32:
-          aom_hadamard_32x32(p->src_diff, block_size_wide[bsize], p->coeff);
+          aom_hadamard_32x32(p->src_diff, block_size_wide[plane_bsize],
+                             p->coeff);
           break;
         default: assert(0);
       }
@@ -446,9 +447,10 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
  */
 static AOM_INLINE int model_intra_yrd_and_prune(const AV1_COMP *const cpi,
                                                 MACROBLOCK *x, BLOCK_SIZE bsize,
-                                                int mode_info_cost,
                                                 int64_t *best_model_rd) {
-  const int64_t this_model_rd = intra_model_yrd(cpi, x, bsize, mode_info_cost);
+  const TX_SIZE tx_size = AOMMIN(TX_32X32, max_txsize_lookup[bsize]);
+  const int plane = 0;
+  const int64_t this_model_rd = intra_model_rd(cpi, x, plane, bsize, tx_size);
   if (*best_model_rd != INT64_MAX &&
       this_model_rd > *best_model_rd + (*best_model_rd >> 2)) {
     return 1;
