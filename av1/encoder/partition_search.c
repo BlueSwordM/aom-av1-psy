@@ -521,9 +521,9 @@ void av1_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
  * \ingroup intra_mode_search
  * \callgraph
  * \callergraph
- * This is top level function for mode srarch for intra frames in non-RD
- * optimized case. Depending on speed feature, rate control mode and block
- * size it calls either non-RD or RD optimized intra mode search
+ * This is top level function for mode search for intra frames in non-RD
+ * optimized case. Depending on speed feature and block size it calls
+ * either non-RD or RD optimized intra mode search.
  *
  * \param[in]    cpi            Top-level encoder structure
  * \param[in]    x              Pointer to structure holding all the data for
@@ -544,10 +544,7 @@ static AOM_INLINE void hybrid_intra_mode_search(AV1_COMP *cpi,
                                                 RD_STATS *rd_cost,
                                                 BLOCK_SIZE bsize,
                                                 PICK_MODE_CONTEXT *ctx) {
-  // TODO(jianj): Investigate the failure of ScalabilityTest in AOM_Q mode,
-  // which sets base_qindex to 0 on keyframe.
-  if (cpi->oxcf.rc_cfg.mode != AOM_CBR ||
-      !cpi->sf.rt_sf.hybrid_intra_pickmode || bsize < BLOCK_16X16)
+  if (!cpi->sf.rt_sf.hybrid_intra_pickmode || bsize < BLOCK_16X16)
     av1_rd_pick_intra_mode_sb(cpi, x, rd_cost, bsize, ctx, INT64_MAX);
   else
     av1_nonrd_pick_intra_mode(cpi, x, rd_cost, bsize, ctx);
