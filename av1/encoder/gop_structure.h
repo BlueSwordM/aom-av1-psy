@@ -69,7 +69,7 @@ void av1_gop_bit_allocation(const AV1_COMP *cpi, RATE_CONTROL *const rc,
 int av1_calc_arf_boost(const TWO_PASS *twopass, const RATE_CONTROL *rc,
                        FRAME_INFO *frame_info, int offset, int f_frames,
                        int b_frames, int *num_fpstats_used,
-                       int *num_fpstats_required);
+                       int *num_fpstats_required, int project_gfu_boost);
 /*!\endcond */
 
 #ifdef __cplusplus

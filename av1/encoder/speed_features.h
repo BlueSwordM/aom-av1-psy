@@ -375,8 +375,12 @@ typedef struct FIRST_PASS_SPEED_FEATURES {
 
 /*!\cond */
 typedef struct TPL_SPEED_FEATURES {
-  // Enable/disable GOP length adaptive decision.
-  int disable_gop_length_decision;
+  // GOP length adaptive decision.
+  // If set to 0, tpl model decides whether a shorter gf interval is better.
+  // If set to 1, approximate tpl model and GF boost decide whether a
+  // shorter gf interval is better. If set to 2, gop length adaptive decision is
+  // disabled.
+  int gop_length_decision_method;
   // Prune the intra modes search by tpl.
   // If set to 0, we will search all intra modes from DC_PRED to PAETH_PRED.
   // If set to 1, we only search DC_PRED, V_PRED, and H_PRED.

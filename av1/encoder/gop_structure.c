@@ -45,7 +45,7 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
       gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
       gf_group->layer_depth[*frame_ind] = MAX_ARF_LAYERS;
       gf_group->arf_boost[*frame_ind] = av1_calc_arf_boost(
-          twopass, rc, frame_info, start, end - start, 0, NULL, NULL);
+          twopass, rc, frame_info, start, end - start, 0, NULL, NULL, 0);
       gf_group->frame_type[*frame_ind] = INTER_FRAME;
       gf_group->refbuf_state[*frame_ind] = REFBUF_UPDATE;
       gf_group->max_layer_depth =
@@ -67,7 +67,7 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
 
     // Get the boost factor for intermediate ARF frames.
     gf_group->arf_boost[*frame_ind] = av1_calc_arf_boost(
-        twopass, rc, frame_info, m, end - m, m - start, NULL, NULL);
+        twopass, rc, frame_info, m, end - m, m - start, NULL, NULL, 0);
     ++(*frame_ind);
 
     // Frames displayed before this internal ARF.

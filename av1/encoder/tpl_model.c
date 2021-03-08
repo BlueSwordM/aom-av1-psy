@@ -1452,6 +1452,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   int bottom_index, top_index;
   EncodeFrameParams this_frame_params = *frame_params;
   TplParams *const tpl_data = &cpi->tpl_data;
+  int approx_gop_eval = (gop_eval == 2);
 
   if (cpi->superres_mode != AOM_SUPERRES_NONE) {
     assert(cpi->superres_mode != AOM_SUPERRES_AUTO);
@@ -1499,8 +1500,13 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   av1_fill_mv_costs(&cm->fc->nmvc, cm->features.cur_frame_force_integer_mv,
                     cm->features.allow_high_precision_mv, cpi->td.mb.mv_costs);
 
+  // When approx_gop_eval = 1 tpl stats calculation is done for base layer
+  // and the next layer ARF.
+  int frame_idx_end =
+      approx_gop_eval ? AOMMIN(tpl_gf_group_frames - 1, gf_group->arf_index + 1)
+                      : tpl_gf_group_frames - 1;
   // Backward propagation from tpl_group_frames to 1.
-  for (int frame_idx = cpi->gf_frame_index; frame_idx < tpl_gf_group_frames;
+  for (int frame_idx = cpi->gf_frame_index; frame_idx <= frame_idx_end;
        ++frame_idx) {
     if (gf_group->update_type[frame_idx] == INTNL_OVERLAY_UPDATE ||
         gf_group->update_type[frame_idx] == OVERLAY_UPDATE)
@@ -1520,8 +1526,8 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
                              av1_num_planes(cm));
   }
 
-  for (int frame_idx = tpl_gf_group_frames - 1;
-       frame_idx >= cpi->gf_frame_index; --frame_idx) {
+  for (int frame_idx = frame_idx_end; frame_idx >= cpi->gf_frame_index;
+       --frame_idx) {
     if (gf_group->update_type[frame_idx] == INTNL_OVERLAY_UPDATE ||
         gf_group->update_type[frame_idx] == OVERLAY_UPDATE)
       continue;
@@ -1588,6 +1594,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_tpl_setup_stats_time);
 #endif
+  if (approx_gop_eval) return beta[0] > 1.1;
 
   // Allow larger GOP size if the base layer ARF has higher dependency factor
   // than the intermediate ARF and both ARFs have reasonably high dependency
