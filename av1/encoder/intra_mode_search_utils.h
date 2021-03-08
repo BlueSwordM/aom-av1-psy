@@ -383,7 +383,7 @@ static AOM_INLINE int intra_mode_info_cost_uv(const AV1_COMP *cpi,
 }
 
 /*!\cond */
-// Makes a quick luma prediction and estimate the rdcost with a model without
+// Makes a quick intra prediction and estimate the rdcost with a model without
 // going through the whole txfm/quantize/itxfm process.
 static int64_t intra_model_rd(const AV1_COMP *const cpi, MACROBLOCK *const x,
                               int plane, BLOCK_SIZE plane_bsize,
