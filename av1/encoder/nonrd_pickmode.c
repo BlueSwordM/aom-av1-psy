@@ -1666,6 +1666,7 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
       AOMMIN(max_txsize_lookup[bsize],
              tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]);
   int *bmode_costs;
+  PREDICTION_MODE best_mode = DC_PRED;
   const MB_MODE_INFO *above_mi = xd->above_mbmi;
   const MB_MODE_INFO *left_mi = xd->left_mbmi;
   const PREDICTION_MODE A = av1_above_block_mode(above_mi);
@@ -1687,6 +1688,7 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
     args.skippable = 1;
     args.rdc = &this_rdc;
     mi->tx_size = intra_tx_size;
+    mi->mode = this_mode;
     av1_foreach_transformed_block_in_plane(xd, bsize, 0, estimate_block_intra,
                                            &args);
     const int skip_ctx = av1_get_skip_txfm_context(xd);
@@ -1700,10 +1702,13 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
 
     if (this_rdc.rdcost < best_rdc.rdcost) {
       best_rdc = this_rdc;
-      mi->mode = this_mode;
+      best_mode = this_mode;
     }
   }
 
+  mi->mode = best_mode;
+  // Keep DC for UV since mode test is based on Y channel only.
+  mi->uv_mode = DC_PRED;
   *rd_cost = best_rdc;
 
 #if CONFIG_INTERNAL_STATS
