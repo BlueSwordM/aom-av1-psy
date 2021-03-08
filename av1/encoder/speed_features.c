@@ -556,6 +556,8 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     if (!is_720p_or_larger) sf->mv_sf.disable_second_mv = 1;
+
+    if (!is_720p_or_larger) sf->hl_sf.recode_tolerance = 50;
   }
 
   if (speed >= 3) {
