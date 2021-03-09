@@ -304,6 +304,17 @@ void av1_simple_motion_search_based_split(
       score < no_split_thresh) {
     *do_square_split = 0;
   }
+
+  // If the score is very low, prune rectangular split since it is unlikely to
+  // occur.
+  if (cpi->sf.part_sf.simple_motion_search_rect_split) {
+    const float scale = res_idx >= 2 ? 3 : 2;
+    const float rect_split_thresh =
+        scale * av1_simple_motion_search_no_split_thresh
+                    [cpi->sf.part_sf.simple_motion_search_rect_split][res_idx]
+                    [bsize_idx];
+    if (score < rect_split_thresh) *do_rectangular_split = 0;
+  }
 }
 
 // Given a list of ref frames in refs, performs simple_motion_search on each of

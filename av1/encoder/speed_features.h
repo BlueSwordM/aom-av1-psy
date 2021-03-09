@@ -507,6 +507,10 @@ typedef struct PARTITION_SPEED_FEATURES {
   // 1 : pruning based on neighbour block information
   // 2 : prune always
   int prune_sub_8x8_partition_level;
+
+  // Prune rectangular split based on simple motion search split/no_split score.
+  // 0: disable pruning, 1: enable pruning
+  int simple_motion_search_rect_split;
 } PARTITION_SPEED_FEATURES;
 
 typedef struct MV_SPEED_FEATURES {

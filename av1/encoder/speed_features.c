@@ -812,6 +812,7 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.less_rectangular_check_level = 2;
     sf->part_sf.simple_motion_search_prune_agg = 1;
     sf->part_sf.prune_ext_part_using_split_info = 1;
+    sf->part_sf.simple_motion_search_rect_split = 1;
 
     sf->mv_sf.full_pixel_search_level = 1;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
@@ -1440,6 +1441,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->early_term_after_none_split = 0;
   part_sf->ml_predict_breakout_level = 0;
   part_sf->prune_sub_8x8_partition_level = 0;
+  part_sf->simple_motion_search_rect_split = 0;
 }
 
 static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
