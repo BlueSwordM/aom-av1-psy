@@ -665,7 +665,7 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
                   &new_fb->buf, cm->width, cm->height,
                   cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
                   cm->seq_params.use_highbitdepth, AOM_BORDER_IN_PIXELS,
-                  cm->features.byte_alignment, NULL, NULL, NULL)) {
+                  cm->features.byte_alignment, NULL, NULL, NULL, 0)) {
             if (force_scaling) {
               // Release the reference acquired in the get_free_fb() call above.
               --new_fb->ref_count;
