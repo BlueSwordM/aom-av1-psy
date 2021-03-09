@@ -1031,8 +1031,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // If set forces interpolation filter to EIGHTTAP_REGULAR
   int skip_interp_filter_search;
 
-  // Use hybrid (rd for bsize < 16x16, otherwise nonrd) intra search for intra
-  // only frames.
+  // For nonrd mode: use hybrid (rd for bsize < 16x16, otherwise nonrd)
+  // intra mode search for intra only frames. If set to 0 then nonrd pick
+  // intra is used for all blocks.
   int hybrid_intra_pickmode;
 
   // Compute variance/sse on source difference, prior to encoding superblock.

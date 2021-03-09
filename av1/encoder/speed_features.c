@@ -1097,7 +1097,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
   sf->rt_sf.check_intra_pred_nonrd = 1;
   sf->rt_sf.estimate_motion_for_var_based_partition = 1;
-  sf->rt_sf.hybrid_intra_pickmode = 0;
+  sf->rt_sf.hybrid_intra_pickmode = 1;
   sf->rt_sf.nonrd_prune_ref_frame_search = 0;
   sf->rt_sf.reuse_inter_pred_nonrd = 0;
   sf->rt_sf.use_comp_ref_nonrd = 1;
@@ -1316,7 +1316,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.use_nonrd_pick_mode = 1;
     sf->rt_sf.nonrd_check_partition_merge_mode = 1;
     sf->rt_sf.nonrd_check_partition_split = 0;
-    sf->rt_sf.hybrid_intra_pickmode = 1;
     sf->rt_sf.skip_intra_pred_if_tx_skip = 1;
     // For SVC: use better mv search on base temporal layer, and only
     // on base spatial layer if highest resolution is above 640x360.
