@@ -168,6 +168,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_ENABLE_SMOOTH_INTRA,
                                         AV1E_SET_ENABLE_PAETH_INTRA,
                                         AV1E_SET_ENABLE_CFL_INTRA,
+                                        AV1E_SET_ENABLE_DIAGONAL_INTRA,
                                         AV1E_SET_FORCE_VIDEO_MODE,
                                         AV1E_SET_ENABLE_OBMC,
                                         AV1E_SET_ENABLE_OVERLAY,
@@ -362,6 +363,7 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.enable_smooth_intra,
   &g_av1_codec_arg_defs.enable_paeth_intra,
   &g_av1_codec_arg_defs.enable_cfl_intra,
+  &g_av1_codec_arg_defs.enable_diagonal_intra,
   &g_av1_codec_arg_defs.force_video_mode,
   &g_av1_codec_arg_defs.enable_obmc,
   &g_av1_codec_arg_defs.enable_overlay,
@@ -1299,6 +1301,7 @@ static void show_stream_config(struct stream_state *stream,
     SHOW_PARAMS(disable_intrabc);
     SHOW_PARAMS(disable_cfl);
     SHOW_PARAMS(disable_smooth_intra);
+    SHOW_PARAMS(disable_diagonal_intra);
     SHOW_PARAMS(disable_filter_intra);
     SHOW_PARAMS(disable_dual_filter);
     SHOW_PARAMS(disable_intra_angle_delta);

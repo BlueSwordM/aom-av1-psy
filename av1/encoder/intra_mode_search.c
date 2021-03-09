@@ -482,7 +482,12 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     int this_rate;
     RD_STATS tokenonly_rd_stats;
     UV_PREDICTION_MODE mode = uv_rd_search_mode_order[mode_idx];
+    const int is_diagonal_mode = av1_is_diagonal_mode(get_uv_mode(mode));
     const int is_directional_mode = av1_is_directional_mode(get_uv_mode(mode));
+
+    if (is_diagonal_mode && !cpi->oxcf.intra_mode_cfg.enable_diagonal_intra)
+      continue;
+
     if (!(cpi->sf.intra_sf.intra_uv_mode_mask[txsize_sqr_up_map[max_tx_size]] &
           (1 << mode)))
       continue;
@@ -1074,8 +1079,14 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   for (int mode_idx = INTRA_MODE_START; mode_idx < INTRA_MODE_END; ++mode_idx) {
     RD_STATS this_rd_stats;
     int this_rate, this_rate_tokenonly, s;
+    int is_diagonal_mode;
     int64_t this_distortion, this_rd;
     mbmi->mode = intra_rd_search_mode_order[mode_idx];
+
+    is_diagonal_mode = av1_is_diagonal_mode(mbmi->mode);
+    if (is_diagonal_mode && !cpi->oxcf.intra_mode_cfg.enable_diagonal_intra)
+      continue;
+
     // The smooth prediction mode appears to be more frequently picked
     // than horizontal / vertical smooth prediction modes. Hence treat
     // them differently in speed features.

@@ -1318,6 +1318,16 @@ enum aome_enc_control_id {
    * - 1 = enabled/encode the denoised frame (default)
    */
   AV1E_SET_ENABLE_DNL_DENOISING = 159,
+
+  /*!\brief Codec control function to turn on / off D45 to D203 intra mode
+   * usage, int parameter
+   *
+   * This will enable or disable usage of D45 to D203 intra modes.
+   *
+   * - 0 = disable
+   * - 1 = enable (default)
+   */
+  AV1E_SET_ENABLE_DIAGONAL_INTRA = 160,
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1670,6 +1680,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_PAETH_INTRA, int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_CFL_INTRA, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_CFL_INTRA
+
+AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_DIAGONAL_INTRA, int)
+#define AOM_CTRL_AV1E_SET_ENABLE_DIAGONAL_INTRA
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_SUPERRES, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_SUPERRES
