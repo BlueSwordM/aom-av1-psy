@@ -561,16 +561,45 @@ class IDStatusNode():
     else:
       return str(self.name) + ' -> ' + ' '.join(self.link_id_chain)
 
-  def show(self, id_chain=None):
+  def collect_assign_refer_status(self,
+                                  id_chain=None,
+                                  assign_ls=None,
+                                  refer_ls=None):
     if id_chain == None:
       id_chain = []
+    if assign_ls == None:
+      assign_ls = []
+    if refer_ls == None:
+      refer_ls = []
     id_chain.append(self.name)
-    if self.assign or self.refer:
-      print(' '.join(id_chain[1:]), 'a:', int(self.assign), 'r:',
-            int(self.refer))
+    if self.assign:
+      info_str = ' '.join([
+          ' '.join(id_chain[1:]), 'a:',
+          str(int(self.assign)), 'r:',
+          str(int(self.refer))
+      ])
+      assign_ls.append(info_str)
+    if self.refer:
+      info_str = ' '.join([
+          ' '.join(id_chain[1:]), 'a:',
+          str(int(self.assign)), 'r:',
+          str(int(self.refer))
+      ])
+      refer_ls.append(info_str)
     for c in self.children:
-      self.children[c].show(id_chain)
+      self.children[c].collect_assign_refer_status(id_chain, assign_ls,
+                                                   refer_ls)
     id_chain.pop()
+    return assign_ls, refer_ls
+
+  def show(self):
+    assign_ls, refer_ls = self.collect_assign_refer_status()
+    print('---- assign ----')
+    for item in assign_ls:
+      print(item)
+    print('---- refer ----')
+    for item in refer_ls:
+      print(item)
 
 
 class FuncInOutVisitor(c_ast.NodeVisitor):
