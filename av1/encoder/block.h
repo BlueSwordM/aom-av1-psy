@@ -1169,10 +1169,11 @@ typedef struct macroblock {
    */
   IntraBCHashInfo intrabc_hash_info;
 
-  /*! \brief Whether to reuse the mode stored in intermode_cache. */
-  int use_intermode_cache;
-  /*! \brief The mode to reuse during \ref av1_rd_pick_inter_mode. */
-  const MB_MODE_INFO *intermode_cache;
+  /*! \brief Whether to reuse the mode stored in mb_mode_cache. */
+  int use_mb_mode_cache;
+  /*! \brief The mode to reuse during \ref av1_rd_pick_intra_mode_sb and
+   *  \ref av1_rd_pick_inter_mode. */
+  const MB_MODE_INFO *mb_mode_cache;
   /**@}*/
 
   /*****************************************************************************

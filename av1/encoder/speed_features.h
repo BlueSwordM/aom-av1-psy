@@ -511,6 +511,10 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Prune rectangular split based on simple motion search split/no_split score.
   // 0: disable pruning, 1: enable pruning
   int simple_motion_search_rect_split;
+
+  // Reuse the best prediction modes found in PARTITION_SPLIT and PARTITION_RECT
+  // when encoding PARTITION_AB.
+  int reuse_best_prediction_for_part_ab;
 } PARTITION_SPEED_FEATURES;
 
 typedef struct MV_SPEED_FEATURES {
@@ -750,10 +754,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Enable/disable masked compound.
   int disable_masked_comp;
-
-  // Reuse the best prediction modes found in PARTITION_SPLIT and PARTITION_RECT
-  // when encoding PARTITION_AB.
-  int reuse_best_prediction_for_part_ab;
 
   // Enable/disable the fast compound mode search.
   int enable_fast_compound_mode_search;

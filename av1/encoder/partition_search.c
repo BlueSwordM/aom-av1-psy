@@ -2307,15 +2307,15 @@ static bool rd_test_partition3(AV1_COMP *const cpi, ThreadData *td,
   // Loop over sub-partitions in AB partition type.
   for (int i = 0; i < SUB_PARTITIONS_AB; i++) {
     if (mode_cache && mode_cache[i]) {
-      x->use_intermode_cache = 1;
-      x->intermode_cache = mode_cache[i];
+      x->use_mb_mode_cache = 1;
+      x->mb_mode_cache = mode_cache[i];
     }
     const int mode_search_success =
         rd_try_subblock(cpi, td, tile_data, tp, i == SUB_PARTITIONS_AB - 1,
                         ab_mi_pos[i][0], ab_mi_pos[i][1], ab_subsize[i],
                         *best_rdc, &sum_rdc, partition, ctxs[i]);
-    x->use_intermode_cache = 0;
-    x->intermode_cache = NULL;
+    x->use_mb_mode_cache = 0;
+    x->mb_mode_cache = NULL;
     if (!mode_search_success) {
       return false;
     }
@@ -2988,7 +2988,7 @@ static void ab_partitions_search(
     // Even if the contexts don't match, we can still speed up by reusing the
     // previous prediction mode.
     const MB_MODE_INFO *mode_cache[3] = { NULL, NULL, NULL };
-    if (cpi->sf.inter_sf.reuse_best_prediction_for_part_ab) {
+    if (cpi->sf.part_sf.reuse_best_prediction_for_part_ab) {
       set_mode_cache_for_partition_ab(mode_cache, pc_tree, ab_part_type);
     }
 

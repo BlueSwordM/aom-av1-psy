@@ -319,6 +319,7 @@ static void set_allintra_speed_features_framesize_independent(
     // speed feature accordingly
     sf->part_sf.simple_motion_search_split = allow_screen_content_tools ? 1 : 2;
     sf->part_sf.ml_predict_breakout_level = use_hbd ? 2 : 3;
+    sf->part_sf.reuse_best_prediction_for_part_ab = 1;
 
     sf->mv_sf.exhaustive_searches_thresh <<= 1;
 
@@ -768,6 +769,8 @@ static void set_good_speed_features_framesize_independent(
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
     sf->part_sf.allow_partition_search_skip = 1;
+    sf->part_sf.reuse_best_prediction_for_part_ab =
+        !frame_is_intra_only(&cpi->common);
 
     sf->mv_sf.auto_mv_step_size = 1;
     sf->mv_sf.simple_motion_subpel_force_stop = QUARTER_PEL;
@@ -786,7 +789,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_compound_using_neighbors = 1;
     sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
     sf->inter_sf.prune_comp_type_by_comp_avg = 2;
-    sf->inter_sf.reuse_best_prediction_for_part_ab = 1;
     sf->inter_sf.selective_ref_frame = 3;
     sf->inter_sf.use_dist_wtd_comp_flag = DIST_WTD_COMP_DISABLED;
     // Enable fast search only for COMPOUND_DIFFWTD type.
@@ -1456,6 +1458,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->ml_predict_breakout_level = 0;
   part_sf->prune_sub_8x8_partition_level = 0;
   part_sf->simple_motion_search_rect_split = 0;
+  part_sf->reuse_best_prediction_for_part_ab = 0;
 }
 
 static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
@@ -1516,7 +1519,6 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->txfm_rd_gate_level = 0;
   inter_sf->prune_inter_modes_if_skippable = 0;
   inter_sf->disable_masked_comp = 0;
-  inter_sf->reuse_best_prediction_for_part_ab = 0;
   inter_sf->enable_fast_compound_mode_search = 0;
   inter_sf->reuse_mask_search_results = 0;
 }

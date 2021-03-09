@@ -3763,7 +3763,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
       // compound ref.
       if (skip_ref_frame_mask & (1 << ref_frame) &&
           !is_ref_frame_used_by_compound_ref(ref_frame, skip_ref_frame_mask) &&
-          !is_ref_frame_used_in_cache(ref_frame, x->intermode_cache)) {
+          !is_ref_frame_used_in_cache(ref_frame, x->mb_mode_cache)) {
         continue;
       }
       assert(get_ref_frame_yv12_buf(cm, ref_frame) != NULL);
@@ -3789,7 +3789,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
       }
 
       if (skip_ref_frame_mask & (1 << ref_frame) &&
-          !is_ref_frame_used_in_cache(ref_frame, x->intermode_cache)) {
+          !is_ref_frame_used_in_cache(ref_frame, x->mb_mode_cache)) {
         continue;
       }
       // Ref mv list population is not required, when compound references are
@@ -4025,8 +4025,8 @@ static int inter_mode_search_order_independent_skip(
   }
 
   // Reuse the prediction mode in cache
-  if (x->use_intermode_cache) {
-    const MB_MODE_INFO *cached_mi = x->intermode_cache;
+  if (x->use_mb_mode_cache) {
+    const MB_MODE_INFO *cached_mi = x->mb_mode_cache;
     const PREDICTION_MODE cached_mode = cached_mi->mode;
     const MV_REFERENCE_FRAME *cached_frame = cached_mi->ref_frame;
     const int cached_mode_is_single = cached_frame[1] <= INTRA_FRAME;
@@ -4121,12 +4121,12 @@ static int inter_mode_search_order_independent_skip(
     }
     // If we are reusing the prediction from cache, and the current frame is
     // required by the cache, then we cannot prune it.
-    if (is_ref_frame_used_in_cache(ref_type, x->intermode_cache)) {
+    if (is_ref_frame_used_in_cache(ref_type, x->mb_mode_cache)) {
       skip_ref = 0;
       // If the cache only needs the current reference type for compound
       // prediction, then we can skip motion mode search.
       skip_motion_mode = (ref_type <= ALTREF_FRAME &&
-                          x->intermode_cache->ref_frame[1] > INTRA_FRAME);
+                          x->mb_mode_cache->ref_frame[1] > INTRA_FRAME);
     }
     if (skip_ref) return 1;
   }
