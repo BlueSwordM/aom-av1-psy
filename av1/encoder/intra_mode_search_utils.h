@@ -390,16 +390,14 @@ static int64_t intra_model_rd(const AV1_COMP *const cpi, MACROBLOCK *const x,
                               TX_SIZE tx_size) {
   const AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
-  MB_MODE_INFO *const mbmi = xd->mi[0];
   int row, col;
-  assert(!is_inter_block(mbmi));
+  assert(!is_inter_block(xd->mi[0]));
   const int stepr = tx_size_high_unit[tx_size];
   const int stepc = tx_size_wide_unit[tx_size];
   const int txbw = tx_size_wide[tx_size];
   const int txbh = tx_size_high[tx_size];
   const int max_blocks_wide = max_block_wide(xd, plane_bsize, plane);
   const int max_blocks_high = max_block_high(xd, plane_bsize, plane);
-  mbmi->tx_size = tx_size;
   int64_t satd_cost = 0;
   struct macroblock_plane *p = &x->plane[plane];
   struct macroblockd_plane *pd = &xd->plane[plane];
