@@ -5222,6 +5222,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 static AOM_INLINE void setup_frame_info(AV1Decoder *pbi) {
   AV1_COMMON *const cm = &pbi->common;
 
+  av1_alloc_cdef_linebuf(cm);
 #if !CONFIG_REALTIME_ONLY
   if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
       cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||

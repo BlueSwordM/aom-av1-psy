@@ -17,6 +17,7 @@
 #include "av1/common/alloccommon.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
+#include "av1/common/cdef_block.h"
 #include "av1/common/entropymode.h"
 #include "av1/common/entropymv.h"
 
@@ -49,6 +50,42 @@ void av1_free_ref_frame_buffers(BufferPool *pool) {
     pool->frame_bufs[i].seg_map = NULL;
     aom_free_frame_buffer(&pool->frame_bufs[i].buf);
   }
+}
+
+void av1_free_cdef_linebuf(AV1_COMMON *const cm) {
+  const int num_planes = av1_num_planes(cm);
+
+  for (uint8_t plane = 0; plane < num_planes; plane++) {
+    if (cm->cdef_info.linebuf[plane] != NULL)
+      aom_free(cm->cdef_info.linebuf[plane]);
+    cm->cdef_info.linebuf[plane] = NULL;
+  }
+}
+
+void av1_alloc_cdef_linebuf(AV1_COMMON *const cm) {
+  const int num_planes = av1_num_planes(cm);
+  const int luma_stride = cm->mi_params.mi_cols << MI_SIZE_LOG2;
+  const int is_frame_scaled =
+      (cm->cdef_info.allocated_mi_cols != cm->mi_params.mi_cols ||
+       cm->cdef_info.allocated_mi_rows != cm->mi_params.mi_rows);
+  // num-bufs=2 represents ping-pong buffers for top linebuf.
+  // this is to avoid linebuf over-write by consecutive row.
+  int num_bufs = 2;
+
+  if (is_frame_scaled) av1_free_cdef_linebuf(cm);
+
+  for (uint8_t plane = 0; plane < num_planes; plane++) {
+    if (cm->cdef_info.linebuf[plane] == NULL) {
+      const int stride =
+          luma_stride >>
+          (plane == AOM_PLANE_Y ? 0 : cm->seq_params.subsampling_x);
+      CHECK_MEM_ERROR(cm, cm->cdef_info.linebuf[plane],
+                      aom_malloc(sizeof(*cm->cdef_info.linebuf) * num_bufs *
+                                 (CDEF_VBORDER << 1) * stride));
+    }
+  }
+  cm->cdef_info.allocated_mi_cols = cm->mi_params.mi_cols;
+  cm->cdef_info.allocated_mi_rows = cm->mi_params.mi_rows;
 }
 
 #if !CONFIG_REALTIME_ONLY

@@ -119,6 +119,7 @@ static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
     aom_free(frame_worker_data->pbi->common.tpl_mvs);
     frame_worker_data->pbi->common.tpl_mvs = NULL;
     av1_remove_common(&frame_worker_data->pbi->common);
+    av1_free_cdef_linebuf(&frame_worker_data->pbi->common);
 #if !CONFIG_REALTIME_ONLY
     av1_free_restoration_buffers(&frame_worker_data->pbi->common);
 #endif

@@ -26,6 +26,7 @@ enum { TOP, LEFT, BOTTOM, RIGHT, BOUNDARIES } UENUM1BYTE(BOUNDARY);
 /*!\brief Parameters related to CDEF Block */
 typedef struct {
   uint16_t *src;
+  uint16_t *top_linebuf[MAX_MB_PLANE];
   uint8_t *dst;
   uint16_t *colbuf[MAX_MB_PLANE];
   cdef_list dlist[MI_SIZE_64X64 * MI_SIZE_64X64];
@@ -151,20 +152,17 @@ static INLINE void copy_rect(uint16_t *dst, int dstride, const uint16_t *src,
 // Inputs:
 //   cm: Pointer to common structure.
 //   fb_info: Pointer to the CDEF block-level parameter structure.
-//   linebuf: Top feedback buffer for CDEF.
 //   cdef_left: Left block is filtered or not.
 //   fbc, fbr: col and row index of a block.
 //   plane: plane index Y/CB/CR.
-//   prev_row_cdef: Top blocks are filtered or not.
 // Returns:
 //   Nothing will be returned.
 static void cdef_prepare_fb(AV1_COMMON *cm, CdefBlockInfo *fb_info,
-                            uint16_t **linebuf, const int *cdef_left, int fbc,
-                            int fbr, uint8_t plane,
-                            unsigned char *prev_row_cdef) {
+                            const int *cdef_left, int fbc, int fbr,
+                            uint8_t plane) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   uint16_t *src = fb_info->src;
-  const int stride = (mi_params->mi_cols << MI_SIZE_LOG2) + 2 * CDEF_HBORDER;
+  const int stride = mi_params->mi_cols << MI_SIZE_LOG2;
   const int nvfb = (mi_params->mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   const int nhfb = (mi_params->mi_cols + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   int cstart = 0;
@@ -174,6 +172,7 @@ static void cdef_prepare_fb(AV1_COMMON *cm, CdefBlockInfo *fb_info,
   int nvb = AOMMIN(MI_SIZE_64X64, mi_params->mi_rows - MI_SIZE_64X64 * fbr);
   int hsize = nhb << fb_info->mi_wide_l2;
   int vsize = nvb << fb_info->mi_high_l2;
+  const uint16_t *top_linebuf = fb_info->top_linebuf[plane];
 
   if (fbc == nhfb - 1)
     cend = hsize;
@@ -185,12 +184,6 @@ static void cdef_prepare_fb(AV1_COMMON *cm, CdefBlockInfo *fb_info,
   else
     rend = vsize + CDEF_VBORDER;
 
-  if (fbc == nhfb - 1) {
-    /* On the last superblock column, fill in the right border with
-    CDEF_VERY_LARGE to avoid filtering with the outside. */
-    fill_rect(&src[cend + CDEF_HBORDER], CDEF_BSTRIDE, rend + CDEF_VBORDER,
-              hsize + CDEF_HBORDER - cend, CDEF_VERY_LARGE);
-  }
   if (fbr == nvfb - 1) {
     /* On the last superblock row, fill in the bottom border with
     CDEF_VERY_LARGE to avoid filtering with the outside. */
@@ -203,36 +196,23 @@ static void cdef_prepare_fb(AV1_COMMON *cm, CdefBlockInfo *fb_info,
               CDEF_BSTRIDE, fb_info->dst, fb_info->roffset,
               fb_info->coffset + cstart, fb_info->dst_stride, rend,
               cend - cstart);
-  if (!prev_row_cdef[fbc]) {
-    copy_sb8_16(cm, &src[CDEF_HBORDER], CDEF_BSTRIDE, fb_info->dst,
-                fb_info->roffset - CDEF_VBORDER, fb_info->coffset,
-                fb_info->dst_stride, CDEF_VBORDER, hsize);
-  } else if (fbr > 0) {
-    copy_rect(&src[CDEF_HBORDER], CDEF_BSTRIDE,
-              &linebuf[plane][fb_info->coffset], stride, CDEF_VBORDER, hsize);
+  /* Copy in the pixels we need from the current superblock from top buffer.*/
+  if (fbr > 0) {
+    copy_rect(&src[CDEF_HBORDER], CDEF_BSTRIDE, &top_linebuf[fb_info->coffset],
+              stride, CDEF_VBORDER, hsize);
   } else {
     fill_rect(&src[CDEF_HBORDER], CDEF_BSTRIDE, CDEF_VBORDER, hsize,
               CDEF_VERY_LARGE);
   }
-  if (!prev_row_cdef[fbc - 1]) {
-    copy_sb8_16(cm, src, CDEF_BSTRIDE, fb_info->dst,
-                fb_info->roffset - CDEF_VBORDER,
-                fb_info->coffset - CDEF_HBORDER, fb_info->dst_stride,
-                CDEF_VBORDER, CDEF_HBORDER);
-  } else if (fbr > 0 && fbc > 0) {
-    copy_rect(src, CDEF_BSTRIDE,
-              &linebuf[plane][fb_info->coffset - CDEF_HBORDER], stride,
-              CDEF_VBORDER, CDEF_HBORDER);
+  if (fbr > 0 && fbc > 0) {
+    copy_rect(src, CDEF_BSTRIDE, &top_linebuf[fb_info->coffset - CDEF_HBORDER],
+              stride, CDEF_VBORDER, CDEF_HBORDER);
   } else {
     fill_rect(src, CDEF_BSTRIDE, CDEF_VBORDER, CDEF_HBORDER, CDEF_VERY_LARGE);
   }
-  if (!prev_row_cdef[fbc + 1]) {
-    copy_sb8_16(cm, &src[CDEF_HBORDER + hsize], CDEF_BSTRIDE, fb_info->dst,
-                fb_info->roffset - CDEF_VBORDER, fb_info->coffset + hsize,
-                fb_info->dst_stride, CDEF_VBORDER, CDEF_HBORDER);
-  } else if (fbr > 0 && fbc < nhfb - 1) {
+  if (fbr > 0 && fbc < nhfb - 1) {
     copy_rect(&src[hsize + CDEF_HBORDER], CDEF_BSTRIDE,
-              &linebuf[plane][fb_info->coffset + hsize], stride, CDEF_VBORDER,
+              &top_linebuf[fb_info->coffset + hsize], stride, CDEF_VBORDER,
               CDEF_HBORDER);
   } else {
     fill_rect(&src[hsize + CDEF_HBORDER], CDEF_BSTRIDE, CDEF_VBORDER,
@@ -248,21 +228,10 @@ static void cdef_prepare_fb(AV1_COMMON *cm, CdefBlockInfo *fb_info,
   right. */
   copy_rect(fb_info->colbuf[plane], CDEF_HBORDER, src + hsize, CDEF_BSTRIDE,
             rend + CDEF_VBORDER, CDEF_HBORDER);
-  copy_sb8_16(cm, &linebuf[plane][fb_info->coffset], stride, fb_info->dst,
-              (MI_SIZE_64X64 << fb_info->mi_high_l2) * (fbr + 1) - CDEF_VBORDER,
-              fb_info->coffset, fb_info->dst_stride, CDEF_VBORDER, hsize);
 
-  if (fb_info->frame_boundary[TOP]) {
-    fill_rect(src, CDEF_BSTRIDE, CDEF_VBORDER, hsize + 2 * CDEF_HBORDER,
-              CDEF_VERY_LARGE);
-  }
   if (fb_info->frame_boundary[LEFT]) {
     fill_rect(src, CDEF_BSTRIDE, vsize + 2 * CDEF_VBORDER, CDEF_HBORDER,
               CDEF_VERY_LARGE);
-  }
-  if (fb_info->frame_boundary[BOTTOM]) {
-    fill_rect(&src[(vsize + CDEF_VBORDER) * CDEF_BSTRIDE], CDEF_BSTRIDE,
-              CDEF_VBORDER, hsize + 2 * CDEF_HBORDER, CDEF_VERY_LARGE);
   }
   if (fb_info->frame_boundary[RIGHT]) {
     fill_rect(&src[hsize + CDEF_HBORDER], CDEF_BSTRIDE,
@@ -328,9 +297,8 @@ static INLINE void cdef_init_fb_col(MACROBLOCKD *xd,
   fb_info->coffset = MI_SIZE_64X64 * fbc << fb_info->mi_wide_l2;
 }
 
-static bool cdef_fb_col(AV1_COMMON *cm, MACROBLOCKD *xd, CdefBlockInfo *fb_info,
-                        int fbc, int fbr, int *cdef_left, uint16_t **linebuf,
-                        unsigned char *prev_row_cdef) {
+static void cdef_fb_col(AV1_COMMON *cm, MACROBLOCKD *xd, CdefBlockInfo *fb_info,
+                        int *cdef_left, int fbc, int fbr) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mbmi_cdef_strength =
       mi_params
@@ -343,7 +311,7 @@ static bool cdef_fb_col(AV1_COMMON *cm, MACROBLOCKD *xd, CdefBlockInfo *fb_info,
                               MI_SIZE_64X64 * fbc] == NULL ||
       mbmi_cdef_strength == -1) {
     *cdef_left = 0;
-    return 0;
+    return;
   }
   for (uint8_t plane = 0; plane < num_planes; plane++) {
     cdef_init_fb_col(xd, &cm->cdef_info, fb_info, mbmi_cdef_strength, fbc, fbr,
@@ -353,20 +321,21 @@ static bool cdef_fb_col(AV1_COMMON *cm, MACROBLOCKD *xd, CdefBlockInfo *fb_info,
              mi_params, fbr * MI_SIZE_64X64, fbc * MI_SIZE_64X64,
              fb_info->dlist, BLOCK_64X64)) == 0) {
       *cdef_left = 0;
-      return 0;
+      return;
     }
-    cdef_prepare_fb(cm, fb_info, linebuf, cdef_left, fbc, fbr, plane,
-                    prev_row_cdef);
+    cdef_prepare_fb(cm, fb_info, cdef_left, fbc, fbr, plane);
     cdef_filter_fb(fb_info, plane, cm->seq_params.use_highbitdepth);
   }
   *cdef_left = 1;
-  return 1;
 }
 
-static INLINE void cdef_init_fb_row(CdefBlockInfo *fb_info, int mi_rows,
-                                    int fbr) {
-  const int nvfb = (mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
-
+static INLINE void cdef_init_fb_row(AV1_COMMON *cm, const MACROBLOCKD *const xd,
+                                    CdefBlockInfo *const fb_info,
+                                    uint16_t **const linebuf, int fbr) {
+  const int num_planes = av1_num_planes(cm);
+  const int nvfb = (cm->mi_params.mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
+  const int stride = cm->mi_params.mi_cols << MI_SIZE_LOG2;
+  const bool ping_pong = fbr & 1;
   // for the current filter block, it's top left corner mi structure (mi_tl)
   // is first accessed to check whether the top and left boundaries are
   // frame boundaries. Then bottom-left and top-right mi structures are
@@ -379,19 +348,33 @@ static INLINE void cdef_init_fb_row(CdefBlockInfo *fb_info, int mi_rows,
   fb_info->frame_boundary[TOP] = (MI_SIZE_64X64 * fbr == 0) ? 1 : 0;
   if (fbr != nvfb - 1)
     fb_info->frame_boundary[BOTTOM] =
-        (MI_SIZE_64X64 * (fbr + 1) == mi_rows) ? 1 : 0;
+        (MI_SIZE_64X64 * (fbr + 1) == cm->mi_params.mi_rows) ? 1 : 0;
   else
     fb_info->frame_boundary[BOTTOM] = 1;
+
+  for (uint8_t plane = 0; plane < num_planes; plane++) {
+    const int mi_high_l2 = MI_SIZE_LOG2 - xd->plane[plane].subsampling_y;
+    const int offset = MI_SIZE_64X64 * (fbr + 1) << mi_high_l2;
+    // here ping-pong buffers are maintained for top linebuf
+    // to avoid linebuf over-write by consecutive row.
+    uint16_t *const top_linebuf =
+        &linebuf[plane][ping_pong * CDEF_VBORDER * stride];
+
+    if (fbr != nvfb - 1)  // top line buffer copy
+      copy_sb8_16(cm, top_linebuf, stride, xd->plane[plane].dst.buf,
+                  offset - CDEF_VBORDER, 0, xd->plane[plane].dst.stride,
+                  CDEF_VBORDER, stride);
+    fb_info->top_linebuf[plane] =
+        &linebuf[plane][(!ping_pong) * CDEF_VBORDER * stride];
+  }
 }
 
 static void cdef_fb_row(AV1_COMMON *cm, MACROBLOCKD *xd, CdefBlockInfo *fb_info,
-                        uint16_t **linebuf, int fbr,
-                        unsigned char *curr_row_cdef,
-                        unsigned char *prev_row_cdef) {
+                        uint16_t **const linebuf, int fbr) {
   int cdef_left = 1;
   const int nhfb = (cm->mi_params.mi_cols + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
 
-  cdef_init_fb_row(fb_info, cm->mi_params.mi_rows, fbr);
+  cdef_init_fb_row(cm, xd, fb_info, linebuf, fbr);
   for (int fbc = 0; fbc < nhfb; fbc++) {
     fb_info->frame_boundary[LEFT] = (MI_SIZE_64X64 * fbc == 0) ? 1 : 0;
     if (fbc != nhfb - 1)
@@ -399,8 +382,7 @@ static void cdef_fb_row(AV1_COMMON *cm, MACROBLOCKD *xd, CdefBlockInfo *fb_info,
           (MI_SIZE_64X64 * (fbc + 1) == cm->mi_params.mi_cols) ? 1 : 0;
     else
       fb_info->frame_boundary[RIGHT] = 1;
-    curr_row_cdef[fbc] = cdef_fb_col(cm, xd, fb_info, fbc, fbr, &cdef_left,
-                                     linebuf, prev_row_cdef);
+    cdef_fb_col(cm, xd, fb_info, &cdef_left, fbc, fbr);
   }
 }
 
@@ -411,21 +393,17 @@ static void cdef_fb_row(AV1_COMMON *cm, MACROBLOCKD *xd, CdefBlockInfo *fb_info,
 //   xd: Pointer to common current coding block structure.
 //   fb_info: Pointer to the CDEF block-level parameter structure.
 //   src: Intermediate input buffer for CDEF.
-//   colbuf: Left feedback buffer for CDEF.
-//   linebuf: Top feedback buffer for CDEF.
+//   colbuf: Left line buffer for CDEF.
 // Returns:
 //   Nothing will be returned.
 static void cdef_prepare_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                                MACROBLOCKD *xd, CdefBlockInfo *fb_info,
-                               uint16_t *src, uint16_t **colbuf,
-                               uint16_t **linebuf) {
+                               uint16_t *src, uint16_t **colbuf) {
   const int num_planes = av1_num_planes(cm);
-  const int stride = (cm->mi_params.mi_cols << MI_SIZE_LOG2) + 2 * CDEF_HBORDER;
   av1_setup_dst_planes(xd->plane, cm->seq_params.sb_size, frame, 0, 0, 0,
                        num_planes);
 
   for (uint8_t plane = 0; plane < num_planes; plane++) {
-    linebuf[plane] = aom_malloc(sizeof(*linebuf) * CDEF_VBORDER * stride);
     const int mi_high_l2 = MI_SIZE_LOG2 - xd->plane[plane].subsampling_y;
     const int block_height = (MI_SIZE_64X64 << mi_high_l2) + 2 * CDEF_VBORDER;
     colbuf[plane] = aom_malloc(
@@ -445,13 +423,8 @@ static void cdef_prepare_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   memset(fb_info->var, 0, sizeof(fb_info->var));
 }
 
-static void cdef_free(unsigned char *row_cdef, uint16_t **colbuf,
-                      uint16_t **linebuf, const int num_planes) {
-  aom_free(row_cdef);
-  for (uint8_t plane = 0; plane < num_planes; plane++) {
-    aom_free(colbuf[plane]);
-    aom_free(linebuf[plane]);
-  }
+static void cdef_free(uint16_t **colbuf, const int num_planes) {
+  for (uint8_t plane = 0; plane < num_planes; plane++) aom_free(colbuf[plane]);
 }
 
 // Perform CDEF on input frame.
@@ -465,25 +438,14 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                     MACROBLOCKD *xd) {
   DECLARE_ALIGNED(16, uint16_t, src[CDEF_INBUF_SIZE]);
   uint16_t *colbuf[MAX_MB_PLANE] = { NULL };
-  uint16_t *linebuf[MAX_MB_PLANE] = { NULL };
   CdefBlockInfo fb_info;
-  unsigned char *row_cdef, *prev_row_cdef, *curr_row_cdef;
   const int num_planes = av1_num_planes(cm);
   const int nvfb = (cm->mi_params.mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
-  const int nhfb = (cm->mi_params.mi_cols + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
 
-  row_cdef = aom_malloc(sizeof(*row_cdef) * (nhfb + 2) * 2);
-  memset(row_cdef, 1, sizeof(*row_cdef) * (nhfb + 2) * 2);
-  prev_row_cdef = row_cdef + 1;
-  curr_row_cdef = prev_row_cdef + nhfb + 2;
-  cdef_prepare_frame(frame, cm, xd, &fb_info, src, colbuf, linebuf);
+  cdef_prepare_frame(frame, cm, xd, &fb_info, src, colbuf);
 
-  for (int fbr = 0; fbr < nvfb; fbr++) {
-    unsigned char *tmp;
-    cdef_fb_row(cm, xd, &fb_info, linebuf, fbr, curr_row_cdef, prev_row_cdef);
-    tmp = prev_row_cdef;
-    prev_row_cdef = curr_row_cdef;
-    curr_row_cdef = tmp;
-  }
-  cdef_free(row_cdef, colbuf, linebuf, num_planes);
+  for (int fbr = 0; fbr < nvfb; fbr++)
+    cdef_fb_row(cm, xd, &fb_info, cm->cdef_info.linebuf, fbr);
+
+  cdef_free(colbuf, num_planes);
 }

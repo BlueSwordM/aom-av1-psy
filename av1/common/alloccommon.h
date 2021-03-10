@@ -36,6 +36,8 @@ void av1_init_mi_buffers(struct CommonModeInfoParams *mi_params);
 void av1_free_context_buffers(struct AV1Common *cm);
 
 void av1_free_ref_frame_buffers(struct BufferPool *pool);
+void av1_alloc_cdef_linebuf(struct AV1Common *const cm);
+void av1_free_cdef_linebuf(struct AV1Common *const cm);
 #if !CONFIG_REALTIME_ONLY
 void av1_alloc_restoration_buffers(struct AV1Common *cm);
 void av1_free_restoration_buffers(struct AV1Common *cm);
