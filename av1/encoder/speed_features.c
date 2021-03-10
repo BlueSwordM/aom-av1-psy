@@ -420,6 +420,11 @@ static void set_allintra_speed_features_framesize_independent(
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
 
     sf->mv_sf.reduce_search_range = 1;
+
+    sf->winner_mode_sf.enable_winner_mode_for_coeff_opt = 1;
+    sf->winner_mode_sf.enable_winner_mode_for_use_tx_domain_dist = 1;
+    sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_DEFAULT;
+    sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
   }
 
   if (speed >= 5) {
@@ -433,6 +438,8 @@ static void set_allintra_speed_features_framesize_independent(
     sf->lpf_sf.disable_lr_filter = 1;
 
     sf->mv_sf.prune_mesh_search = 1;
+
+    sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_FAST;
   }
 
   if (speed >= 6) {
@@ -459,7 +466,15 @@ static void set_allintra_speed_features_framesize_independent(
 
     sf->rd_sf.perform_coeff_opt = 6;
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
+
+    sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
   }
+
+  // Intra txb hash is currently not compatible with multi-winner mode as the
+  // hashes got reset during multi-winner mode processing.
+  assert(IMPLIES(
+      sf->winner_mode_sf.multi_winner_mode_type != MULTI_WINNER_MODE_OFF,
+      !sf->tx_sf.use_intra_txb_hash));
 }
 
 static void set_good_speed_feature_framesize_dependent(
