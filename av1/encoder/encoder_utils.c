@@ -753,7 +753,7 @@ void av1_setup_frame(AV1_COMP *cpi) {
 
   if ((cm->current_frame.frame_type == KEY_FRAME && cm->show_frame) ||
       frame_is_sframe(cm)) {
-    if (!cpi->seq_params_locked) {
+    if (!cpi->ppi->seq_params_locked) {
       set_sb_size(&cm->seq_params, av1_select_sb_size(cpi));
     }
   } else {

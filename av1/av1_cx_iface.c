@@ -2381,7 +2381,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         if (status != AOM_CODEC_OK) {
           aom_internal_error(&cpi_lap->common.error, AOM_CODEC_ERROR, NULL);
         }
-        cpi_lap->seq_params_locked = 1;
+        cpi_lap->ppi->seq_params_locked = 1;
       }
       lib_flags = 0;
       frame_size = 0;
@@ -2400,7 +2400,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
       }
 
-      cpi->seq_params_locked = 1;
+      cpi->ppi->seq_params_locked = 1;
       if (!frame_size) continue;
       assert(cx_data != NULL && cx_data_sz != 0);
       const int write_temporal_delimiter =
@@ -2715,7 +2715,7 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
       }
     }
     if (cm->current_frame.frame_number == 0) {
-      if (!cpi->seq_params_locked) {
+      if (!cpi->ppi->seq_params_locked) {
         SequenceHeader *const seq_params = &cm->seq_params;
         seq_params->operating_points_cnt_minus_1 =
             cm->number_spatial_layers * cm->number_temporal_layers - 1;

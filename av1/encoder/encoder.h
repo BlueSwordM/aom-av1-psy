@@ -2065,6 +2065,13 @@ typedef struct AV1_PRIMARY {
    * Look-ahead context.
    */
   struct lookahead_ctx *lookahead;
+
+  /*!
+   * Sequence parameters have been transmitted already and locked
+   * or not. Once locked av1_change_config cannot change the seq
+   * parameters.
+   */
+  int seq_params_locked;
 } AV1_PRIMARY;
 
 /*!
@@ -2458,13 +2465,6 @@ typedef struct AV1_COMP {
    * Structure to store the palette token related information.
    */
   TokenInfo token_info;
-
-  /*!
-   * Sequence parameters have been transmitted already and locked
-   * or not. Once locked av1_change_config cannot change the seq
-   * parameters.
-   */
-  int seq_params_locked;
 
   /*!
    * VARIANCE_AQ segment map refresh.

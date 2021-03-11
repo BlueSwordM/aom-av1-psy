@@ -1654,7 +1654,7 @@ void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
       break;
   }
 
-  if (!cpi->seq_params_locked) {
+  if (!cpi->ppi->seq_params_locked) {
     cpi->common.seq_params.enable_masked_compound &=
         !sf->inter_sf.disable_masked_comp;
   }
@@ -1705,7 +1705,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
       break;
   }
 
-  if (!cpi->seq_params_locked) {
+  if (!cpi->ppi->seq_params_locked) {
     cpi->common.seq_params.enable_dual_filter &=
         !sf->interp_sf.disable_dual_filter;
     cpi->common.seq_params.enable_restoration &= !sf->lpf_sf.disable_lr_filter;

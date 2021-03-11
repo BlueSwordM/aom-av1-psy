@@ -308,7 +308,7 @@ void av1_update_frame_size(AV1_COMP *cpi) {
   if (!is_stat_generation_stage(cpi))
     alloc_context_buffers_ext(cm, &cpi->mbmi_ext_info);
 
-  if (!cpi->seq_params_locked)
+  if (!cpi->ppi->seq_params_locked)
     set_sb_size(&cm->seq_params, av1_select_sb_size(cpi));
 
   set_tile_info(cm, &cpi->oxcf.tile_cfg);
@@ -754,7 +754,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   int sb_size = seq_params->sb_size;
   // Superblock size should not be updated after the first key frame.
-  if (!cpi->seq_params_locked) {
+  if (!cpi->ppi->seq_params_locked) {
     set_sb_size(&cm->seq_params, av1_select_sb_size(cpi));
     for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i)
       seq_params->tier[i] = (oxcf->tier_mask >> i) & 1;
@@ -790,7 +790,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   // Init sequence level coding tools
   // This should not be called after the first key frame.
-  if (!cpi->seq_params_locked) {
+  if (!cpi->ppi->seq_params_locked) {
     seq_params->operating_points_cnt_minus_1 =
         (cm->number_spatial_layers > 1 || cm->number_temporal_layers > 1)
             ? cm->number_spatial_layers * cm->number_temporal_layers - 1
@@ -839,6 +839,7 @@ AV1_PRIMARY *av1_create_primary_compressor() {
   if (!ppi) return NULL;
   av1_zero(*ppi);
 
+  ppi->seq_params_locked = 0;
   return ppi;
 }
 
@@ -919,7 +920,6 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
 
   cm->current_frame.frame_number = 0;
   cm->current_frame_id = -1;
-  cpi->seq_params_locked = 0;
   cpi->partition_search_skippable_frame = 0;
   cpi->tile_data = NULL;
   cpi->last_show_frame_buf = NULL;
@@ -3110,7 +3110,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
         cm->ref_frame_id[i] = display_frame_id;
     }
 
-    cpi->seq_params_locked = 1;
+    cpi->ppi->seq_params_locked = 1;
 
 #if DUMP_RECON_FRAMES == 1
     // NOTE(zoeliu): For debug - Output the filtered reconstructed video.
@@ -3290,7 +3290,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     cpi->superres_mode = orig_superres_mode;  // restore
   }
 
-  cpi->seq_params_locked = 1;
+  cpi->ppi->seq_params_locked = 1;
 
   // Update reference frame ids for reference frames this frame will overwrite
   if (seq_params->frame_id_numbers_present_flag) {
