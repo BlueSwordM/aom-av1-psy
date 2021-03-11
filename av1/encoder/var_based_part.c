@@ -354,8 +354,8 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
     thresholds[0] = threshold_base;
     thresholds[1] = threshold_base;
     if (cm->width * cm->height < 1280 * 720) {
-      thresholds[2] = threshold_base >> 1;
-      thresholds[3] = threshold_base;
+      thresholds[2] = threshold_base / 3;
+      thresholds[3] = threshold_base >> 1;
     } else {
       thresholds[2] = threshold_base >> 2;
       thresholds[3] = threshold_base >> 2;
