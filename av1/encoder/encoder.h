@@ -2046,9 +2046,29 @@ typedef struct {
 } CoeffBufferPool;
 
 /*!
+ * \brief Top level primary encoder structure
+ */
+typedef struct AV1_PRIMARY {
+  /*!
+   * Encode stage top level structure
+   */
+  struct AV1_COMP *cpi;
+
+  /*!
+   * Lookahead processing stage top level structure
+   */
+  struct AV1_COMP *cpi_lap;
+} AV1_PRIMARY;
+
+/*!
  * \brief Top level encoder structure.
  */
 typedef struct AV1_COMP {
+  /*!
+   * Pointer to top level primary encoder structure
+   */
+  AV1_PRIMARY *ppi;
+
   /*!
    * Quantization and dequantization parameters for internal quantizer setup
    * in the encoder.
@@ -2751,14 +2771,19 @@ typedef struct {
 // Must not be called more than once.
 void av1_initialize_enc(void);
 
-struct AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf,
+struct AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
                                        BufferPool *const pool,
                                        FIRSTPASS_STATS *frame_stats_buf,
                                        COMPRESSOR_STAGE stage,
                                        int num_lap_buffers,
                                        int lap_lag_in_frames,
                                        STATS_BUFFER_CTX *stats_buf_context);
+
+struct AV1_PRIMARY *av1_create_primary_compressor();
+
 void av1_remove_compressor(AV1_COMP *cpi);
+
+void av1_remove_primary_compressor(AV1_PRIMARY *ppi);
 
 void av1_change_config(AV1_COMP *cpi, const AV1EncoderConfig *oxcf);
 

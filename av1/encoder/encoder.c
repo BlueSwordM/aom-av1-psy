@@ -834,7 +834,16 @@ static INLINE void update_frame_index_set(FRAME_INDEX_SET *frame_index_set,
   }
 }
 
-AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
+AV1_PRIMARY *av1_create_primary_compressor() {
+  AV1_PRIMARY *volatile const ppi = aom_memalign(32, sizeof(AV1_PRIMARY));
+  if (!ppi) return NULL;
+  av1_zero(*ppi);
+
+  return ppi;
+}
+
+AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
+                                BufferPool *const pool,
                                 FIRSTPASS_STATS *frame_stats_buf,
                                 COMPRESSOR_STAGE stage, int num_lap_buffers,
                                 int lap_lag_in_frames,
@@ -845,6 +854,8 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   if (!cm) return NULL;
 
   av1_zero(*cpi);
+
+  cpi->ppi = ppi;
 
   // The jmp_buf is valid only for the duration of the function that calls
   // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
@@ -1408,6 +1419,12 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
     av1_free_sms_tree(thread_data->td);
     aom_free(thread_data->td);
   }
+}
+
+void av1_remove_primary_compressor(AV1_PRIMARY *ppi) {
+  if (!ppi) return;
+
+  aom_free(ppi);
 }
 
 void av1_remove_compressor(AV1_COMP *cpi) {

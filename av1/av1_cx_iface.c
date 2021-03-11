@@ -295,7 +295,7 @@ struct aom_codec_alg_priv {
   aom_codec_pts_t pts_offset;
   unsigned char pts_offset_initialized;
   AV1EncoderConfig oxcf;
-  AV1_COMP *cpi;
+  AV1_PRIMARY *ppi;
   unsigned char *cx_data;
   size_t cx_data_sz;
   size_t pending_cx_data_sz;
@@ -308,7 +308,6 @@ struct aom_codec_alg_priv {
 
   // lookahead instance variables
   BufferPool *buffer_pool_lap;
-  AV1_COMP *cpi_lap;
   FIRSTPASS_STATS *frame_stats_buffer;
   // Number of stats buffers required for look ahead
   int num_lap_buffers;
@@ -1147,7 +1146,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
 static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
                                           const aom_codec_enc_cfg_t *cfg) {
-  InitialDimensions *const initial_dimensions = &ctx->cpi->initial_dimensions;
+  InitialDimensions *const initial_dimensions =
+      &ctx->ppi->cpi->initial_dimensions;
   aom_codec_err_t res;
   int force_key = 0;
 
@@ -1179,10 +1179,10 @@ static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
     ctx->cfg = *cfg;
     set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg);
     // On profile change, request a key frame
-    force_key |= ctx->cpi->common.seq_params.profile != ctx->oxcf.profile;
-    av1_change_config(ctx->cpi, &ctx->oxcf);
-    if (ctx->cpi_lap != NULL) {
-      av1_change_config(ctx->cpi_lap, &ctx->oxcf);
+    force_key |= ctx->ppi->cpi->common.seq_params.profile != ctx->oxcf.profile;
+    av1_change_config(ctx->ppi->cpi, &ctx->oxcf);
+    if (ctx->ppi->cpi_lap != NULL) {
+      av1_change_config(ctx->ppi->cpi_lap, &ctx->oxcf);
     }
   }
 
@@ -1192,14 +1192,14 @@ static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
 }
 
 static aom_fixed_buf_t *encoder_get_global_headers(aom_codec_alg_priv_t *ctx) {
-  return av1_get_global_headers(ctx->cpi);
+  return av1_get_global_headers(ctx->ppi->cpi);
 }
 
 static aom_codec_err_t ctrl_get_quantizer(aom_codec_alg_priv_t *ctx,
                                           va_list args) {
   int *const arg = va_arg(args, int *);
   if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
-  *arg = av1_get_quantizer(ctx->cpi);
+  *arg = av1_get_quantizer(ctx->ppi->cpi);
   return AOM_CODEC_OK;
 }
 
@@ -1207,7 +1207,7 @@ static aom_codec_err_t ctrl_get_quantizer64(aom_codec_alg_priv_t *ctx,
                                             va_list args) {
   int *const arg = va_arg(args, int *);
   if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
-  *arg = av1_qindex_to_quantizer(av1_get_quantizer(ctx->cpi));
+  *arg = av1_qindex_to_quantizer(av1_get_quantizer(ctx->ppi->cpi));
   return AOM_CODEC_OK;
 }
 
@@ -1215,7 +1215,7 @@ static aom_codec_err_t ctrl_get_baseline_gf_interval(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   int *const arg = va_arg(args, int *);
   if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
-  *arg = ctx->cpi->rc.baseline_gf_interval;
+  *arg = ctx->ppi->cpi->rc.baseline_gf_interval;
   return AOM_CODEC_OK;
 }
 
@@ -1225,9 +1225,9 @@ static aom_codec_err_t update_extra_cfg(aom_codec_alg_priv_t *ctx,
   if (res == AOM_CODEC_OK) {
     ctx->extra_cfg = *extra_cfg;
     set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg);
-    av1_change_config(ctx->cpi, &ctx->oxcf);
-    if (ctx->cpi_lap != NULL) {
-      av1_change_config(ctx->cpi_lap, &ctx->oxcf);
+    av1_change_config(ctx->ppi->cpi, &ctx->oxcf);
+    if (ctx->ppi->cpi_lap != NULL) {
+      av1_change_config(ctx->ppi->cpi_lap, &ctx->oxcf);
     }
   }
   return res;
@@ -2013,9 +2013,10 @@ static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
 #endif
 
 static aom_codec_err_t create_context_and_bufferpool(
-    AV1_COMP **p_cpi, BufferPool **p_buffer_pool, AV1EncoderConfig *oxcf,
-    struct aom_codec_pkt_list *pkt_list_head, FIRSTPASS_STATS *frame_stats_buf,
-    COMPRESSOR_STAGE stage, int num_lap_buffers, int lap_lag_in_frames,
+    AV1_PRIMARY *ppi, AV1_COMP **p_cpi, BufferPool **p_buffer_pool,
+    AV1EncoderConfig *oxcf, struct aom_codec_pkt_list *pkt_list_head,
+    FIRSTPASS_STATS *frame_stats_buf, COMPRESSOR_STAGE stage,
+    int num_lap_buffers, int lap_lag_in_frames,
     STATS_BUFFER_CTX *stats_buf_context) {
   aom_codec_err_t res = AOM_CODEC_OK;
 
@@ -2027,8 +2028,8 @@ static aom_codec_err_t create_context_and_bufferpool(
     return AOM_CODEC_MEM_ERROR;
   }
 #endif
-  *p_cpi = av1_create_compressor(oxcf, *p_buffer_pool, frame_stats_buf, stage,
-                                 num_lap_buffers, lap_lag_in_frames,
+  *p_cpi = av1_create_compressor(ppi, oxcf, *p_buffer_pool, frame_stats_buf,
+                                 stage, num_lap_buffers, lap_lag_in_frames,
                                  stats_buf_context);
   if (*p_cpi == NULL)
     res = AOM_CODEC_MEM_ERROR;
@@ -2083,6 +2084,9 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
       priv->oxcf.use_highbitdepth =
           (ctx->init_flags & AOM_CODEC_USE_HIGHBITDEPTH) ? 1 : 0;
 
+      priv->ppi = av1_create_primary_compressor();
+      if (!priv->ppi) return AOM_CODEC_MEM_ERROR;
+
 #if !CONFIG_REALTIME_ONLY
       res = create_stats_buffer(&priv->frame_stats_buffer,
                                 &priv->stats_buf_context, *num_lap_buffers);
@@ -2090,15 +2094,15 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
 #endif
 
       res = create_context_and_bufferpool(
-          &priv->cpi, &priv->buffer_pool, &priv->oxcf, &priv->pkt_list.head,
-          priv->frame_stats_buffer, ENCODE_STAGE, *num_lap_buffers, -1,
-          &priv->stats_buf_context);
+          priv->ppi, &priv->ppi->cpi, &priv->buffer_pool, &priv->oxcf,
+          &priv->pkt_list.head, priv->frame_stats_buffer, ENCODE_STAGE,
+          *num_lap_buffers, -1, &priv->stats_buf_context);
 
       // Create another compressor if look ahead is enabled
       if (res == AOM_CODEC_OK && *num_lap_buffers) {
         res = create_context_and_bufferpool(
-            &priv->cpi_lap, &priv->buffer_pool_lap, &priv->oxcf, NULL,
-            priv->frame_stats_buffer, LAP_STAGE, *num_lap_buffers,
+            priv->ppi, &priv->ppi->cpi_lap, &priv->buffer_pool_lap, &priv->oxcf,
+            NULL, priv->frame_stats_buffer, LAP_STAGE, *num_lap_buffers,
             clamp(lap_lag_in_frames, 0, MAX_LAG_BUFFERS),
             &priv->stats_buf_context);
       }
@@ -2126,15 +2130,21 @@ static void destroy_stats_buffer(STATS_BUFFER_CTX *stats_buf_context,
 
 static aom_codec_err_t encoder_destroy(aom_codec_alg_priv_t *ctx) {
   free(ctx->cx_data);
-  destroy_context_and_bufferpool(ctx->cpi, ctx->buffer_pool);
-  if (ctx->cpi_lap) {
-    // As both cpi and cpi_lap have the same lookahead_ctx, it is already freed
-    // when destroy is called on cpi. Thus, setting lookahead_ctx to null here,
-    // so that it doesn't attempt to free it again.
-    ctx->cpi_lap->lookahead = NULL;
-    destroy_context_and_bufferpool(ctx->cpi_lap, ctx->buffer_pool_lap);
+
+  if (ctx->ppi) {
+    AV1_PRIMARY *ppi = ctx->ppi;
+    destroy_context_and_bufferpool(ppi->cpi, ctx->buffer_pool);
+    if (ppi->cpi_lap) {
+      // As both cpi and cpi_lap have the same lookahead_ctx, it is already
+      // freed when destroy is called on cpi. Thus, setting lookahead_ctx to
+      // null here, so that it doesn't attempt to free it again.
+      ppi->cpi_lap->lookahead = NULL;
+      destroy_context_and_bufferpool(ppi->cpi_lap, ctx->buffer_pool_lap);
+    }
+    av1_remove_primary_compressor(ppi);
   }
   destroy_stats_buffer(&ctx->stats_buf_context, ctx->frame_stats_buffer);
+
   aom_free(ctx);
   return AOM_CODEC_OK;
 }
@@ -2168,11 +2178,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
                                       aom_enc_frame_flags_t enc_flags) {
   const size_t kMinCompressedSize = 8192;
   volatile aom_codec_err_t res = AOM_CODEC_OK;
-  AV1_COMP *const cpi = ctx->cpi;
+  AV1_COMP *const cpi = ctx->ppi->cpi;
   const aom_rational64_t *const timestamp_ratio = &ctx->timestamp_ratio;
   volatile aom_codec_pts_t ptsvol = pts;
   // LAP context
-  AV1_COMP *cpi_lap = ctx->cpi_lap;
+  AV1_COMP *cpi_lap = ctx->ppi->cpi_lap;
 
   if (cpi == NULL) return AOM_CODEC_INVALID_PARAM;
 
@@ -2508,7 +2518,7 @@ static aom_codec_err_t ctrl_set_reference(aom_codec_alg_priv_t *ctx,
     YV12_BUFFER_CONFIG sd;
 
     image2yuvconfig(&frame->img, &sd);
-    av1_set_reference_enc(ctx->cpi, frame->idx, &sd);
+    av1_set_reference_enc(ctx->ppi->cpi, frame->idx, &sd);
     return AOM_CODEC_OK;
   } else {
     return AOM_CODEC_INVALID_PARAM;
@@ -2523,7 +2533,7 @@ static aom_codec_err_t ctrl_copy_reference(aom_codec_alg_priv_t *ctx,
     YV12_BUFFER_CONFIG sd;
 
     image2yuvconfig(&frame->img, &sd);
-    av1_copy_reference_enc(ctx->cpi, frame->idx, &sd);
+    av1_copy_reference_enc(ctx->ppi->cpi, frame->idx, &sd);
     return AOM_CODEC_OK;
   } else {
     return AOM_CODEC_INVALID_PARAM;
@@ -2535,7 +2545,7 @@ static aom_codec_err_t ctrl_get_reference(aom_codec_alg_priv_t *ctx,
   av1_ref_frame_t *const frame = va_arg(args, av1_ref_frame_t *);
 
   if (frame != NULL) {
-    YV12_BUFFER_CONFIG *fb = get_ref_frame(&ctx->cpi->common, frame->idx);
+    YV12_BUFFER_CONFIG *fb = get_ref_frame(&ctx->ppi->cpi->common, frame->idx);
     if (fb == NULL) return AOM_CODEC_ERROR;
 
     yuvconfig2image(&frame->img, fb, NULL);
@@ -2552,7 +2562,7 @@ static aom_codec_err_t ctrl_get_new_frame_image(aom_codec_alg_priv_t *ctx,
   if (new_img != NULL) {
     YV12_BUFFER_CONFIG new_frame;
 
-    if (av1_get_last_show_frame(ctx->cpi, &new_frame) == 0) {
+    if (av1_get_last_show_frame(ctx->ppi->cpi, &new_frame) == 0) {
       yuvconfig2image(new_img, &new_frame, NULL);
       return AOM_CODEC_OK;
     } else {
@@ -2570,10 +2580,10 @@ static aom_codec_err_t ctrl_copy_new_frame_image(aom_codec_alg_priv_t *ctx,
   if (new_img != NULL) {
     YV12_BUFFER_CONFIG new_frame;
 
-    if (av1_get_last_show_frame(ctx->cpi, &new_frame) == 0) {
+    if (av1_get_last_show_frame(ctx->ppi->cpi, &new_frame) == 0) {
       YV12_BUFFER_CONFIG sd;
       image2yuvconfig(new_img, &sd);
-      return av1_copy_new_frame_enc(&ctx->cpi->common, &new_frame, &sd);
+      return av1_copy_new_frame_enc(&ctx->ppi->cpi->common, &new_frame, &sd);
     } else {
       return AOM_CODEC_ERROR;
     }
@@ -2585,7 +2595,7 @@ static aom_codec_err_t ctrl_copy_new_frame_image(aom_codec_alg_priv_t *ctx,
 static aom_image_t *encoder_get_preview(aom_codec_alg_priv_t *ctx) {
   YV12_BUFFER_CONFIG sd;
 
-  if (av1_get_preview_raw_frame(ctx->cpi, &sd) == 0) {
+  if (av1_get_preview_raw_frame(ctx->ppi->cpi, &sd) == 0) {
     yuvconfig2image(&ctx->preview_img, &sd, NULL);
     return &ctx->preview_img;
   } else {
@@ -2597,7 +2607,8 @@ static aom_codec_err_t ctrl_use_reference(aom_codec_alg_priv_t *ctx,
                                           va_list args) {
   const int reference_flag = va_arg(args, int);
 
-  av1_use_as_reference(&ctx->cpi->ext_flags.ref_frame_flags, reference_flag);
+  av1_use_as_reference(&ctx->ppi->cpi->ext_flags.ref_frame_flags,
+                       reference_flag);
   return AOM_CODEC_OK;
 }
 
@@ -2615,7 +2626,7 @@ static aom_codec_err_t ctrl_set_active_map(aom_codec_alg_priv_t *ctx,
   aom_active_map_t *const map = va_arg(args, aom_active_map_t *);
 
   if (map) {
-    if (!av1_set_active_map(ctx->cpi, map->active_map, (int)map->rows,
+    if (!av1_set_active_map(ctx->ppi->cpi, map->active_map, (int)map->rows,
                             (int)map->cols))
       return AOM_CODEC_OK;
     else
@@ -2630,7 +2641,7 @@ static aom_codec_err_t ctrl_get_active_map(aom_codec_alg_priv_t *ctx,
   aom_active_map_t *const map = va_arg(args, aom_active_map_t *);
 
   if (map) {
-    if (!av1_get_active_map(ctx->cpi, map->active_map, (int)map->rows,
+    if (!av1_get_active_map(ctx->ppi->cpi, map->active_map, (int)map->rows,
                             (int)map->cols))
       return AOM_CODEC_OK;
     else
@@ -2646,7 +2657,7 @@ static aom_codec_err_t ctrl_set_scale_mode(aom_codec_alg_priv_t *ctx,
 
   if (mode) {
     const int res = av1_set_internal_size(
-        &ctx->cpi->oxcf, &ctx->cpi->resize_pending_params,
+        &ctx->ppi->cpi->oxcf, &ctx->ppi->cpi->resize_pending_params,
         (AOM_SCALING)mode->h_scaling_mode, (AOM_SCALING)mode->v_scaling_mode);
     return (res == 0) ? AOM_CODEC_OK : AOM_CODEC_INVALID_PARAM;
   } else {
@@ -2659,7 +2670,7 @@ static aom_codec_err_t ctrl_set_spatial_layer_id(aom_codec_alg_priv_t *ctx,
   const int spatial_layer_id = va_arg(args, int);
   if (spatial_layer_id >= MAX_NUM_SPATIAL_LAYERS)
     return AOM_CODEC_INVALID_PARAM;
-  ctx->cpi->common.spatial_layer_id = spatial_layer_id;
+  ctx->ppi->cpi->common.spatial_layer_id = spatial_layer_id;
   return AOM_CODEC_OK;
 }
 
@@ -2668,23 +2679,23 @@ static aom_codec_err_t ctrl_set_number_spatial_layers(aom_codec_alg_priv_t *ctx,
   const int number_spatial_layers = va_arg(args, int);
   if (number_spatial_layers > MAX_NUM_SPATIAL_LAYERS)
     return AOM_CODEC_INVALID_PARAM;
-  ctx->cpi->common.number_spatial_layers = number_spatial_layers;
+  ctx->ppi->cpi->common.number_spatial_layers = number_spatial_layers;
   return AOM_CODEC_OK;
 }
 
 static aom_codec_err_t ctrl_set_layer_id(aom_codec_alg_priv_t *ctx,
                                          va_list args) {
   aom_svc_layer_id_t *const data = va_arg(args, aom_svc_layer_id_t *);
-  ctx->cpi->common.spatial_layer_id = data->spatial_layer_id;
-  ctx->cpi->common.temporal_layer_id = data->temporal_layer_id;
-  ctx->cpi->svc.spatial_layer_id = data->spatial_layer_id;
-  ctx->cpi->svc.temporal_layer_id = data->temporal_layer_id;
+  ctx->ppi->cpi->common.spatial_layer_id = data->spatial_layer_id;
+  ctx->ppi->cpi->common.temporal_layer_id = data->temporal_layer_id;
+  ctx->ppi->cpi->svc.spatial_layer_id = data->spatial_layer_id;
+  ctx->ppi->cpi->svc.temporal_layer_id = data->temporal_layer_id;
   return AOM_CODEC_OK;
 }
 
 static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
                                            va_list args) {
-  AV1_COMP *const cpi = ctx->cpi;
+  AV1_COMP *const cpi = ctx->ppi->cpi;
   AV1_COMMON *const cm = &cpi->common;
   aom_svc_params_t *const params = va_arg(args, aom_svc_params_t *);
   cm->number_spatial_layers = params->number_spatial_layers;
@@ -2723,7 +2734,7 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
 
 static aom_codec_err_t ctrl_set_svc_ref_frame_config(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
-  AV1_COMP *const cpi = ctx->cpi;
+  AV1_COMP *const cpi = ctx->ppi->cpi;
   aom_svc_ref_frame_config_t *const data =
       va_arg(args, aom_svc_ref_frame_config_t *);
   cpi->svc.external_ref_frame_config = 1;
@@ -2825,17 +2836,18 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   // Used to mock the argv with just one string "--{name}={value}"
   char *argv[2] = { NULL, "" };
   size_t len = strlen(name) + strlen(value) + 4;
-  char *err_string = ctx->cpi->common.error.detail;
+  char *err_string = ctx->ppi->cpi->common.error.detail;
 
 #if __STDC_VERSION__ >= 201112L
   // We use the keyword _Static_assert because clang-cl does not allow the
   // convenience macro static_assert to be used in function scope. See
   // https://bugs.llvm.org/show_bug.cgi?id=48904.
-  _Static_assert(sizeof(ctx->cpi->common.error.detail) >= ARG_ERR_MSG_MAX_LEN,
-                 "The size of the err_msg buffer for arg_match_helper must be "
-                 "at least ARG_ERR_MSG_MAX_LEN");
+  _Static_assert(
+      sizeof(ctx->ppi->cpi->common.error.detail) >= ARG_ERR_MSG_MAX_LEN,
+      "The size of the err_msg buffer for arg_match_helper must be "
+      "at least ARG_ERR_MSG_MAX_LEN");
 #else
-  assert(sizeof(ctx->cpi->common.error.detail) >= ARG_ERR_MSG_MAX_LEN);
+  assert(sizeof(ctx->ppi->cpi->common.error.detail) >= ARG_ERR_MSG_MAX_LEN);
 #endif
 
   argv[0] = aom_malloc(len * sizeof(argv[1][0]));
@@ -3208,7 +3220,7 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
 static aom_codec_err_t ctrl_get_seq_level_idx(aom_codec_alg_priv_t *ctx,
                                               va_list args) {
   int *const arg = va_arg(args, int *);
-  const AV1_COMP *const cpi = ctx->cpi;
+  const AV1_COMP *const cpi = ctx->ppi->cpi;
   if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
   return av1_get_seq_level_idx(&cpi->common.seq_params, &cpi->level_params,
                                arg);
