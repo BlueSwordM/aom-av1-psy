@@ -5333,10 +5333,11 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
     get_block_level_tpl_stats(cpi, bsize, mi_row, mi_col, valid_refs,
                               &inter_cost_info_from_tpl);
   }
-#endif
+
   const int do_pruning =
       (AOMMIN(cm->width, cm->height) > 480 && cpi->speed <= 1) ? 0 : 1;
-  if (do_pruning && sf->intra_sf.skip_intra_in_interframe) {
+  if (do_pruning && sf->intra_sf.skip_intra_in_interframe &&
+      cpi->oxcf.algo_cfg.enable_tpl_model) {
     // Only consider full SB.
     const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
     const int tpl_bsize_1d = cpi->tpl_data.tpl_bsize_1d;
@@ -5366,6 +5367,7 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
       }
     }
   }
+#endif  // !CONFIG_REALTIME_ONLY
 
   // Initialize best mode stats for winner mode processing
   av1_zero(x->winner_mode_stats);
