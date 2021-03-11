@@ -559,7 +559,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
   }
 }
 
-void av1_fill_mv_costs(const FRAME_CONTEXT *fc, int integer_mv, int usehp,
+void av1_fill_mv_costs(const nmv_context *nmvc, int integer_mv, int usehp,
                        MvCosts *mv_costs) {
   mv_costs->nmv_cost[0] = &mv_costs->nmv_cost_alloc[0][MV_MAX];
   mv_costs->nmv_cost[1] = &mv_costs->nmv_cost_alloc[1][MV_MAX];
@@ -568,12 +568,12 @@ void av1_fill_mv_costs(const FRAME_CONTEXT *fc, int integer_mv, int usehp,
   if (integer_mv) {
     mv_costs->mv_cost_stack = (int **)&mv_costs->nmv_cost;
     av1_build_nmv_cost_table(mv_costs->nmv_joint_cost, mv_costs->mv_cost_stack,
-                             &fc->nmvc, MV_SUBPEL_NONE);
+                             nmvc, MV_SUBPEL_NONE);
   } else {
     mv_costs->mv_cost_stack =
         usehp ? mv_costs->nmv_cost_hp : mv_costs->nmv_cost;
     av1_build_nmv_cost_table(mv_costs->nmv_joint_cost, mv_costs->mv_cost_stack,
-                             &fc->nmvc, usehp);
+                             nmvc, usehp);
   }
 }
 
@@ -599,7 +599,7 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
 
   if ((!use_nonrd_pick_mode && cost_upd_freq.mv != COST_UPD_OFF) ||
       cost_upd_freq.mv == COST_UPD_TILE || fill_costs)
-    av1_fill_mv_costs(cm->fc, cm->features.cur_frame_force_integer_mv,
+    av1_fill_mv_costs(&cm->fc->nmvc, cm->features.cur_frame_force_integer_mv,
                       cm->features.allow_high_precision_mv, mv_costs);
 
   if ((!use_nonrd_pick_mode && cost_upd_freq.coeff != COST_UPD_OFF) ||

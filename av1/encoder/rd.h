@@ -372,7 +372,7 @@ void av1_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc);
 void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
                           const int num_planes);
 
-void av1_fill_mv_costs(const FRAME_CONTEXT *fc, int integer_mv, int usehp,
+void av1_fill_mv_costs(const nmv_context *nmvc, int integer_mv, int usehp,
                        MvCosts *mv_costs);
 
 int av1_get_adaptive_rdmult(const struct AV1_COMP *cpi, double beta);

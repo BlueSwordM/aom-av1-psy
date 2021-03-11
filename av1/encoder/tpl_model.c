@@ -1497,7 +1497,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   if (frame_params->frame_type == KEY_FRAME) {
     av1_init_mv_probs(cm);
   }
-  av1_fill_mv_costs(cm->fc, cm->features.cur_frame_force_integer_mv,
+  av1_fill_mv_costs(&cm->fc->nmvc, cm->features.cur_frame_force_integer_mv,
                     cm->features.allow_high_precision_mv, cpi->td.mb.mv_costs);
 
   // Backward propagation from tpl_group_frames to 1.

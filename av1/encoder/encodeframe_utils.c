@@ -1379,7 +1379,8 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
     case COST_UPD_SB:  // SB level
       // Checks for skip status of mv cost update.
       if (skip_mv_cost_update(cpi, tile_info, mi_row, mi_col)) break;
-      av1_fill_mv_costs(xd->tile_ctx, cm->features.cur_frame_force_integer_mv,
+      av1_fill_mv_costs(&xd->tile_ctx->nmvc,
+                        cm->features.cur_frame_force_integer_mv,
                         cm->features.allow_high_precision_mv, x->mv_costs);
       break;
     default: assert(0);
