@@ -1305,6 +1305,7 @@ typedef struct ThreadData {
   int32_t num_64x64_blocks;
   PICK_MODE_CONTEXT *firstpass_ctx;
   TemporalFilterData tf_data;
+  TplTxfmStats tpl_txfm_stats;
 } ThreadData;
 
 struct EncWorkerData;

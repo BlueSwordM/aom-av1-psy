@@ -35,27 +35,28 @@
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/tpl_model.h"
 
-static AOM_INLINE int tpl_use_multithread(const AV1_COMP *cpi) {
-  return cpi->mt_info.num_workers > 1 && !cpi->sf.tpl_sf.allow_compound_pred;
-}
-
-static AOM_INLINE void tpl_stats_record_txfm_block(TplDepFrame *tpl_frame,
-                                                   const tran_low_t *coeff) {
+static AOM_INLINE void tpl_stats_record_txfm_block(TplTxfmStats *tpl_txfm_stats,
+                                                   const tran_low_t *coeff,
+                                                   int coeff_num) {
   aom_clear_system_state();
   // For transform larger than 16x16, the scale of coeff need to be adjusted.
   // It's not LOSSLESS_Q_STEP.
-  assert(tpl_frame->coeff_num <= 256);
-  for (int i = 0; i < tpl_frame->coeff_num; ++i) {
-    tpl_frame->abs_coeff_sum[i] += abs(coeff[i]) / (double)LOSSLESS_Q_STEP;
+  assert(coeff_num <= 256);
+  for (int i = 0; i < coeff_num; ++i) {
+    tpl_txfm_stats->abs_coeff_sum[i] += abs(coeff[i]) / (double)LOSSLESS_Q_STEP;
   }
-  ++tpl_frame->txfm_block_count;
+  ++tpl_txfm_stats->txfm_block_count;
 }
 
-static AOM_INLINE void tpl_stats_update_abs_coeff_mean(TplDepFrame *tpl_frame) {
+static AOM_INLINE void tpl_stats_update_abs_coeff_mean(
+    TplParams *tpl_data, TplTxfmStats *tpl_txfm_stats) {
   aom_clear_system_state();
+  TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_data->frame_idx];
+  tpl_frame->txfm_block_count = tpl_txfm_stats->txfm_block_count;
   for (int i = 0; i < tpl_frame->coeff_num; ++i) {
+    tpl_frame->abs_coeff_sum[i] = tpl_txfm_stats->abs_coeff_sum[i];
     tpl_frame->abs_coeff_mean[i] =
-        tpl_frame->abs_coeff_sum[i] / tpl_frame->txfm_block_count;
+        tpl_frame->abs_coeff_sum[i] / tpl_txfm_stats->txfm_block_count;
   }
 }
 
@@ -409,9 +410,10 @@ static void get_rate_distortion(
   }
 }
 
-static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
-                                       int mi_col, BLOCK_SIZE bsize,
-                                       TX_SIZE tx_size,
+static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
+                                       TplTxfmStats *tpl_txfm_stats,
+                                       MACROBLOCK *x, int mi_row, int mi_col,
+                                       BLOCK_SIZE bsize, TX_SIZE tx_size,
                                        TplDepStats *tpl_stats) {
   AV1_COMMON *cm = &cpi->common;
   const GF_GROUP *gf_group = &cpi->gf_group;
@@ -791,10 +793,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
                       rec_stride_pool, tx_size, best_mode, mi_row, mi_col,
                       use_y_only_rate_distortion);
 
-  if (!tpl_use_multithread(cpi)) {
-    // TODO(angiebird): make this work for multithread
-    tpl_stats_record_txfm_block(tpl_frame, coeff);
-  }
+  tpl_stats_record_txfm_block(tpl_txfm_stats, coeff, tpl_frame->coeff_num);
 
   tpl_stats->recrf_dist = recon_error << (TPL_DEP_COST_SCALE_LOG2);
   tpl_stats->recrf_rate = rate_cost << TPL_DEP_COST_SCALE_LOG2;
@@ -1084,6 +1083,7 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
   ThreadData *td = &cpi->td;
   MACROBLOCK *x = &td->mb;
   MACROBLOCKD *xd = &x->e_mbd;
+  TplTxfmStats *tpl_txfm_stats = &td->tpl_txfm_stats;
   tpl_data->frame_idx = frame_idx;
   tpl_reset_src_ref_frames(tpl_data);
   av1_tile_init(&xd->tile, cm, 0, 0);
@@ -1161,12 +1161,15 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
 
   tpl_frame->base_rdmult =
       av1_compute_rd_mult_based_on_qindex(cpi, pframe_qindex) / 6;
+
+  memset(tpl_txfm_stats, 0, sizeof(*tpl_txfm_stats));
 }
 
 // This function stores the motion estimation dependencies of all the blocks in
 // a row
-void av1_mc_flow_dispenser_row(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
-                               BLOCK_SIZE bsize, TX_SIZE tx_size) {
+void av1_mc_flow_dispenser_row(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
+                               MACROBLOCK *x, int mi_row, BLOCK_SIZE bsize,
+                               TX_SIZE tx_size) {
   AV1_COMMON *const cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   AV1TplRowMultiThreadInfo *const tpl_row_mt = &mt_info->tpl_row_mt;
@@ -1194,7 +1197,8 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
     xd->mb_to_left_edge = -GET_MV_SUBPEL(mi_col * MI_SIZE);
     xd->mb_to_right_edge =
         GET_MV_SUBPEL(mi_params->mi_cols - mi_width - mi_col);
-    mode_estimation(cpi, x, mi_row, mi_col, bsize, tx_size, &tpl_stats);
+    mode_estimation(cpi, tpl_txfm_stats, x, mi_row, mi_col, bsize, tx_size,
+                    &tpl_stats);
 
     // Motion flow dependency dispenser.
     tpl_model_store(tpl_frame->tpl_stats_ptr, mi_row, mi_col, tpl_frame->stride,
@@ -1220,12 +1224,8 @@ static AOM_INLINE void mc_flow_dispenser(AV1_COMP *cpi) {
     xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
     xd->mb_to_bottom_edge =
         GET_MV_SUBPEL((mi_params->mi_rows - mi_height - mi_row) * MI_SIZE);
-    av1_mc_flow_dispenser_row(cpi, x, mi_row, bsize, tx_size);
-  }
-  if (!tpl_use_multithread(cpi)) {
-    // TODO(angiebird): make this work for multithread
-    TplDepFrame *tpl_frame = &cpi->tpl_data.tpl_frame[cpi->tpl_data.frame_idx];
-    tpl_stats_update_abs_coeff_mean(tpl_frame);
+    av1_mc_flow_dispenser_row(cpi, &td->tpl_txfm_stats, x, mi_row, bsize,
+                              tx_size);
   }
 }
 
@@ -1513,13 +1513,14 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
       continue;
 
     init_mc_flow_dispenser(cpi, frame_idx, pframe_qindex);
-    if (tpl_use_multithread(cpi)) {
+    if (mt_info->num_workers > 1) {
       tpl_row_mt->sync_read_ptr = av1_tpl_row_mt_sync_read;
       tpl_row_mt->sync_write_ptr = av1_tpl_row_mt_sync_write;
       av1_mc_flow_dispenser_mt(cpi);
     } else {
       mc_flow_dispenser(cpi);
     }
+    tpl_stats_update_abs_coeff_mean(tpl_data, &cpi->td.tpl_txfm_stats);
 
     aom_extend_frame_borders(tpl_data->tpl_frame[frame_idx].rec_picture,
                              av1_num_planes(cm));
