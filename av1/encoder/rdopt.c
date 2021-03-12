@@ -2983,7 +2983,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   av1_make_default_fullpel_ms_params(&fullms_params, cpi, x, bsize,
                                      &dv_ref.as_mv, lookahead_search_sites,
                                      /*fine_search_interval=*/0);
-  fullms_params.is_intra_mode = 1;
+  const IntraBCMVCosts *const dv_costs = &cpi->dv_costs;
+  av1_set_ms_to_intra_mode(&fullms_params, dv_costs);
 
   for (enum IntrabcMotionDirection dir = IBC_MOTION_ABOVE;
        dir < IBC_MOTION_DIRECTIONS; ++dir) {
@@ -3064,7 +3065,6 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
                                   av1_num_planes(cm) - 1);
 
-    const IntraBCMVCosts *const dv_costs = &cpi->dv_costs;
     int *dvcost[2] = { (int *)&dv_costs->mv_component[0][MV_MAX],
                        (int *)&dv_costs->mv_component[1][MV_MAX] };
     // TODO(aconverse@google.com): The full motion field defining discount

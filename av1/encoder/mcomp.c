@@ -138,6 +138,17 @@ void av1_make_default_fullpel_ms_params(
                       x->errorperbit, x->sadperbit);
 }
 
+void av1_set_ms_to_intra_mode(FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
+                              const IntraBCMVCosts *dv_costs) {
+  ms_params->is_intra_mode = 1;
+
+  MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
+
+  mv_cost_params->mvjcost = dv_costs->joint_mv;
+  mv_cost_params->mvcost[0] = &dv_costs->mv_component[0][MV_MAX];
+  mv_cost_params->mvcost[1] = &dv_costs->mv_component[1][MV_MAX];
+}
+
 void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                        const struct AV1_COMP *cpi,
                                        const MACROBLOCK *x, BLOCK_SIZE bsize,
