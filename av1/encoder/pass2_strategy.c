@@ -2339,7 +2339,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   int64_t gf_group_bits;
   const int is_intra_only = rc->frames_since_key == 0;
 
-  cpi->internal_altref_allowed = (gf_cfg->gf_max_pyr_height > 1);
+  cpi->ppi->internal_altref_allowed = (gf_cfg->gf_max_pyr_height > 1);
 
   // Reset the GF group data structures unless this is a key
   // frame in which case it will already have been done.
@@ -2457,7 +2457,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
       gf_stats.zero_motion_accumulator > MIN_ZERO_MOTION &&
       gf_stats.avg_sr_coded_error / num_mbs < MAX_SR_CODED_ERROR &&
       gf_stats.avg_raw_err_stdev < MAX_RAW_ERR_VAR) {
-    cpi->internal_altref_allowed = 0;
+    cpi->ppi->internal_altref_allowed = 0;
   }
 
   int use_alt_ref;
@@ -2493,7 +2493,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // work well for certain other cases.
   const int allow_gf_length_reduction =
       ((rc_cfg->mode == AOM_Q && rc_cfg->cq_level <= 128) ||
-       !cpi->internal_altref_allowed) &&
+       !cpi->ppi->internal_altref_allowed) &&
       !is_lossless_requested(rc_cfg);
 
   if (allow_gf_length_reduction && use_alt_ref) {

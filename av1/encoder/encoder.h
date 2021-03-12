@@ -2082,6 +2082,11 @@ typedef struct AV1_PRIMARY {
    * structures.
    */
   struct aom_codec_pkt_list *output_pkt_list;
+
+  /*!
+   * When set, indicates that internal ARFs are enabled.
+   */
+  int internal_altref_allowed;
 } AV1_PRIMARY;
 
 /*!
@@ -2496,11 +2501,6 @@ typedef struct AV1_COMP {
    * INVALID_IDX.
    */
   int existing_fb_idx_to_show;
-
-  /*!
-   * When set, indicates that internal ARFs are enabled.
-   */
-  int internal_altref_allowed;
 
   /*!
    * A flag to indicate if intrabc is ever used in current frame.
