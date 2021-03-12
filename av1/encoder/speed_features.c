@@ -272,11 +272,7 @@ static void set_allintra_speed_feature_framesize_dependent(
       sf->part_sf.default_min_partition_size = BLOCK_8X8;
     }
 
-    if (is_4k_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
-    } else {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_16X16;
-    }
+    sf->part_sf.use_square_partition_only_threshold = BLOCK_16X16;
   }
 }
 
