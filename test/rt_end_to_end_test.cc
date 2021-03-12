@@ -111,6 +111,10 @@ class RTEndToEndTest
     if (video->frame() == 0) {
       encoder->Control(AV1E_SET_ENABLE_RESTORATION, 0);
       encoder->Control(AV1E_SET_ENABLE_OBMC, 0);
+      encoder->Control(AV1E_SET_ENABLE_GLOBAL_MOTION, 0);
+      encoder->Control(AV1E_SET_ENABLE_WARPED_MOTION, 0);
+      encoder->Control(AV1E_SET_DELTAQ_MODE, 0);
+      encoder->Control(AV1E_SET_ENABLE_TPL_MODEL, 0);
       encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 1);
       encoder->Control(AV1E_SET_TILE_COLUMNS, tile_columns_);
       encoder->Control(AOME_SET_CPUUSED, cpu_used_);
@@ -118,6 +122,9 @@ class RTEndToEndTest
       encoder->Control(AV1E_SET_AQ_MODE, aq_mode_);
       encoder->Control(AV1E_SET_ROW_MT, 1);
       encoder->Control(AV1E_SET_ENABLE_CDEF, 1);
+      encoder->Control(AV1E_SET_COEFF_COST_UPD_FREQ, 2);
+      encoder->Control(AV1E_SET_MODE_COST_UPD_FREQ, 2);
+      encoder->Control(AV1E_SET_MV_COST_UPD_FREQ, 2);
     }
   }
 
