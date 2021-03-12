@@ -134,6 +134,7 @@ list(APPEND AOM_SOURCES
             "${AOM_ROOT}/aom/aom_codec.h"
             "${AOM_ROOT}/aom/aom_decoder.h"
             "${AOM_ROOT}/aom/aom_encoder.h"
+            "${AOM_ROOT}/aom/aom_external_partition.h"
             "${AOM_ROOT}/aom/aom_frame_buffer.h"
             "${AOM_ROOT}/aom/aom_image.h"
             "${AOM_ROOT}/aom/aom_integer.h"

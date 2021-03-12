@@ -19,7 +19,8 @@ endif()
 
 if(CONFIG_AV1_ENCODER)
   list(APPEND AOM_INSTALL_INCS "${AOM_ROOT}/aom/aomcx.h"
-              "${AOM_ROOT}/aom/aom_encoder.h")
+              "${AOM_ROOT}/aom/aom_encoder.h"
+              "${AOM_ROOT}/aom/aom_external_partition.h")
 endif()
 
 # Generate aom.pc and setup dependencies to ensure it is created when necessary.
