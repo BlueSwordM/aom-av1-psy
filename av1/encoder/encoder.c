@@ -834,12 +834,14 @@ static INLINE void update_frame_index_set(FRAME_INDEX_SET *frame_index_set,
   }
 }
 
-AV1_PRIMARY *av1_create_primary_compressor() {
+AV1_PRIMARY *av1_create_primary_compressor(
+    struct aom_codec_pkt_list *pkt_list_head) {
   AV1_PRIMARY *volatile const ppi = aom_memalign(32, sizeof(AV1_PRIMARY));
   if (!ppi) return NULL;
   av1_zero(*ppi);
 
   ppi->seq_params_locked = 0;
+  ppi->output_pkt_list = pkt_list_head;
   return ppi;
 }
 
@@ -1667,7 +1669,7 @@ static void generate_psnr_packet(AV1_COMP *cpi) {
 #endif
 
   pkt.kind = AOM_CODEC_PSNR_PKT;
-  aom_codec_pkt_list_add(cpi->output_pkt_list, &pkt);
+  aom_codec_pkt_list_add(cpi->ppi->output_pkt_list, &pkt);
 }
 
 int av1_use_as_reference(int *ext_ref_frame_flags, int ref_frame_flags) {

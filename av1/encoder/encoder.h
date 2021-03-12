@@ -2076,6 +2076,12 @@ typedef struct AV1_PRIMARY {
    * parameters.
    */
   int seq_params_locked;
+
+  /*!
+   * Pointer to internal utility functions that manipulate aom_codec_* data
+   * structures.
+   */
+  struct aom_codec_pkt_list *output_pkt_list;
 } AV1_PRIMARY;
 
 /*!
@@ -2286,12 +2292,6 @@ typedef struct AV1_COMP {
    * Frame rate of the video.
    */
   double framerate;
-
-  /*!
-   * Pointer to internal utility functions that manipulate aom_codec_* data
-   * structures.
-   */
-  struct aom_codec_pkt_list *output_pkt_list;
 
   /*!
    * Bitmask indicating which reference buffers may be referenced by this frame.
@@ -2780,7 +2780,8 @@ struct AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
                                        int lap_lag_in_frames,
                                        STATS_BUFFER_CTX *stats_buf_context);
 
-struct AV1_PRIMARY *av1_create_primary_compressor();
+struct AV1_PRIMARY *av1_create_primary_compressor(
+    struct aom_codec_pkt_list *pkt_list_head);
 
 void av1_remove_compressor(AV1_COMP *cpi);
 

@@ -2016,9 +2016,8 @@ static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
 
 static aom_codec_err_t create_context_and_bufferpool(
     AV1_PRIMARY *ppi, AV1_COMP **p_cpi, BufferPool **p_buffer_pool,
-    AV1EncoderConfig *oxcf, struct aom_codec_pkt_list *pkt_list_head,
-    FIRSTPASS_STATS *frame_stats_buf, COMPRESSOR_STAGE stage,
-    int num_lap_buffers, int lap_lag_in_frames,
+    AV1EncoderConfig *oxcf, FIRSTPASS_STATS *frame_stats_buf,
+    COMPRESSOR_STAGE stage, int num_lap_buffers, int lap_lag_in_frames,
     STATS_BUFFER_CTX *stats_buf_context) {
   aom_codec_err_t res = AOM_CODEC_OK;
 
@@ -2033,10 +2032,7 @@ static aom_codec_err_t create_context_and_bufferpool(
   *p_cpi = av1_create_compressor(ppi, oxcf, *p_buffer_pool, frame_stats_buf,
                                  stage, num_lap_buffers, lap_lag_in_frames,
                                  stats_buf_context);
-  if (*p_cpi == NULL)
-    res = AOM_CODEC_MEM_ERROR;
-  else
-    (*p_cpi)->output_pkt_list = pkt_list_head;
+  if (*p_cpi == NULL) res = AOM_CODEC_MEM_ERROR;
 
   return res;
 }
@@ -2086,7 +2082,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
       priv->oxcf.use_highbitdepth =
           (ctx->init_flags & AOM_CODEC_USE_HIGHBITDEPTH) ? 1 : 0;
 
-      priv->ppi = av1_create_primary_compressor();
+      priv->ppi = av1_create_primary_compressor(&priv->pkt_list.head);
       if (!priv->ppi) return AOM_CODEC_MEM_ERROR;
 
 #if !CONFIG_REALTIME_ONLY
@@ -2097,14 +2093,14 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
 
       res = create_context_and_bufferpool(
           priv->ppi, &priv->ppi->cpi, &priv->buffer_pool, &priv->oxcf,
-          &priv->pkt_list.head, priv->frame_stats_buffer, ENCODE_STAGE,
-          *num_lap_buffers, -1, &priv->stats_buf_context);
+          priv->frame_stats_buffer, ENCODE_STAGE, *num_lap_buffers, -1,
+          &priv->stats_buf_context);
 
       // Create another compressor if look ahead is enabled
       if (res == AOM_CODEC_OK && *num_lap_buffers) {
         res = create_context_and_bufferpool(
             priv->ppi, &priv->ppi->cpi_lap, &priv->buffer_pool_lap, &priv->oxcf,
-            NULL, priv->frame_stats_buffer, LAP_STAGE, *num_lap_buffers,
+            priv->frame_stats_buffer, LAP_STAGE, *num_lap_buffers,
             clamp(lap_lag_in_frames, 0, MAX_LAG_BUFFERS),
             &priv->stats_buf_context);
       }
