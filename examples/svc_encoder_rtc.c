@@ -35,6 +35,7 @@ typedef struct {
   int speed;
   int aq_mode;
   int layering_mode;
+  int output_obu;
 } AppInput;
 
 typedef enum {
@@ -82,6 +83,9 @@ static const arg_def_t dropframe_thresh_arg =
     ARG_DEF(NULL, "drop-frame", 1, "Temporal resampling threshold (buf %)");
 static const arg_def_t error_resilient_arg =
     ARG_DEF(NULL, "error-resilient", 1, "Error resilient flag");
+static const arg_def_t output_obu_arg =
+    ARG_DEF(NULL, "output-obu", 1,
+            "Write OBUs when set to 1. Otherwise write IVF files.");
 
 #if CONFIG_AV1_HIGHBITDEPTH
 static const struct arg_enum_list bitdepth_enum[] = {
@@ -93,16 +97,16 @@ static const arg_def_t bitdepth_arg = ARG_DEF_ENUM(
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 static const arg_def_t *svc_args[] = {
-  &frames_arg,          &outputfile,   &width_arg,
-  &height_arg,          &timebase_arg, &bitrate_arg,
-  &spatial_layers_arg,  &kf_dist_arg,  &scale_factors_arg,
-  &min_q_arg,           &max_q_arg,    &temporal_layers_arg,
-  &layering_mode_arg,   &threads_arg,  &aqmode_arg,
+  &frames_arg,          &outputfile,     &width_arg,
+  &height_arg,          &timebase_arg,   &bitrate_arg,
+  &spatial_layers_arg,  &kf_dist_arg,    &scale_factors_arg,
+  &min_q_arg,           &max_q_arg,      &temporal_layers_arg,
+  &layering_mode_arg,   &threads_arg,    &aqmode_arg,
 #if CONFIG_AV1_HIGHBITDEPTH
   &bitdepth_arg,
 #endif
-  &speed_arg,           &bitrates_arg, &dropframe_thresh_arg,
-  &error_resilient_arg, NULL
+  &speed_arg,           &bitrates_arg,   &dropframe_thresh_arg,
+  &error_resilient_arg, &output_obu_arg, NULL
 };
 
 #define zero(Dest) memset(&(Dest), 0, sizeof(Dest));
@@ -254,6 +258,7 @@ static void parse_command_line(int argc, const char **argv_,
   svc_params->number_spatial_layers = 1;
   svc_params->number_temporal_layers = 1;
   app_input->layering_mode = 0;
+  app_input->output_obu = 0;
   enc_cfg->g_threads = 1;
   enc_cfg->rc_end_usage = AOM_CBR;
 
@@ -326,6 +331,11 @@ static void parse_command_line(int argc, const char **argv_,
       if (enc_cfg->g_error_resilient != 0 && enc_cfg->g_error_resilient != 1)
         die("Invalid value for error resilient (0, 1): %d.",
             enc_cfg->g_error_resilient);
+    } else if (arg_match(&arg, &output_obu_arg, argi)) {
+      app_input->output_obu = arg_parse_uint(&arg);
+      if (app_input->output_obu != 0 && app_input->output_obu != 1)
+        die("Invalid value for obu output flag (0, 1): %d.",
+            app_input->output_obu);
     } else {
       ++argj;
     }
@@ -991,7 +1001,9 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
 int main(int argc, const char **argv) {
   AppInput app_input;
   AvxVideoWriter *outfile[AOM_MAX_LAYERS] = { NULL };
+  FILE *obu_files[AOM_MAX_LAYERS] = { NULL };
   AvxVideoWriter *total_layer_file = NULL;
+  FILE *total_layer_obu_file = NULL;
   aom_codec_enc_cfg_t cfg;
   int frame_cnt = 0;
   aom_image_t raw;
@@ -1123,17 +1135,27 @@ int main(int argc, const char **argv) {
     for (unsigned tl = 0; tl < ts_number_layers; ++tl) {
       i = sl * ts_number_layers + tl;
       char file_name[PATH_MAX];
-
       snprintf(file_name, sizeof(file_name), "%s_%u.av1",
                app_input.output_filename, i);
-      outfile[i] = aom_video_writer_open(file_name, kContainerIVF, &info);
-      if (!outfile[i]) die("Failed to open %s for writing", file_name);
+      if (app_input.output_obu) {
+        obu_files[i] = fopen(file_name, "wb");
+        if (!obu_files[i]) die("Failed to open %s for writing", file_name);
+      } else {
+        outfile[i] = aom_video_writer_open(file_name, kContainerIVF, &info);
+        if (!outfile[i]) die("Failed to open %s for writing", file_name);
+      }
     }
   }
-  total_layer_file =
-      aom_video_writer_open(app_input.output_filename, kContainerIVF, &info);
-  if (!total_layer_file)
-    die("Failed to open %s for writing", app_input.output_filename);
+  if (app_input.output_obu) {
+    total_layer_obu_file = fopen(app_input.output_filename, "wb");
+    if (!total_layer_obu_file)
+      die("Failed to open %s for writing", app_input.output_filename);
+  } else {
+    total_layer_file =
+        aom_video_writer_open(app_input.output_filename, kContainerIVF, &info);
+    if (!total_layer_file)
+      die("Failed to open %s for writing", app_input.output_filename);
+  }
 
   // Initialize codec.
   aom_codec_ctx_t codec;
@@ -1249,15 +1271,26 @@ int main(int argc, const char **argv) {
               for (unsigned tl = layer_id.temporal_layer_id;
                    tl < ts_number_layers; ++tl) {
                 unsigned int j = sl * ts_number_layers + tl;
-                aom_video_writer_write_frame(outfile[j], pkt->data.frame.buf,
-                                             pkt->data.frame.sz, pts);
+                if (app_input.output_obu) {
+                  fwrite(pkt->data.frame.buf, 1, pkt->data.frame.sz,
+                         obu_files[j]);
+                } else {
+                  aom_video_writer_write_frame(outfile[j], pkt->data.frame.buf,
+                                               pkt->data.frame.sz, pts);
+                }
                 if (sl == (unsigned int)layer_id.spatial_layer_id)
                   rc.layer_encoding_bitrate[j] += 8.0 * pkt->data.frame.sz;
               }
             }
             // Write everything into the top layer.
-            aom_video_writer_write_frame(total_layer_file, pkt->data.frame.buf,
-                                         pkt->data.frame.sz, pts);
+            if (app_input.output_obu) {
+              fwrite(pkt->data.frame.buf, 1, pkt->data.frame.sz,
+                     total_layer_obu_file);
+            } else {
+              aom_video_writer_write_frame(total_layer_file,
+                                           pkt->data.frame.buf,
+                                           pkt->data.frame.sz, pts);
+            }
             // Keep count of rate control stats per layer (for non-key).
             if (!(pkt->data.frame.flags & AOM_FRAME_IS_KEY)) {
               unsigned int j = layer_id.spatial_layer_id * ts_number_layers +
