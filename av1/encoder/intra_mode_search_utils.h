@@ -24,6 +24,7 @@
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/model_rd.h"
 #include "av1/encoder/palette.h"
+#include "av1/encoder/hybrid_fwd_txfm.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -382,13 +383,39 @@ static AOM_INLINE int intra_mode_info_cost_uv(const AV1_COMP *cpi,
   return total_rate;
 }
 
+/*!\brief Apply Hadamard or DCT transform
+ *
+ * \callergraph
+ */
+static void av1_quick_txfm(int use_hadamard, TX_SIZE tx_size, int is_hbd,
+                           int bd, const int16_t *src_diff, int src_stride,
+                           tran_low_t *coeff) {
+  if (use_hadamard) {
+    switch (tx_size) {
+      case TX_4X4: aom_hadamard_4x4(src_diff, src_stride, coeff); break;
+      case TX_8X8: aom_hadamard_8x8(src_diff, src_stride, coeff); break;
+      case TX_16X16: aom_hadamard_16x16(src_diff, src_stride, coeff); break;
+      case TX_32X32: aom_hadamard_32x32(src_diff, src_stride, coeff); break;
+      default: assert(0);
+    }
+  } else {
+    assert(IMPLIES(is_hbd == 0, bd == 8));
+    TxfmParam txfm_param;
+    txfm_param.tx_type = DCT_DCT;
+    txfm_param.tx_size = tx_size;
+    txfm_param.lossless = 0;
+    txfm_param.bd = bd;
+    txfm_param.is_hbd = is_hbd;
+    av1_fwd_txfm(src_diff, coeff, src_stride, &txfm_param);
+  }
+}
+
 /*!\cond */
 // Makes a quick intra prediction and estimate the rdcost with a model without
 // going through the whole txfm/quantize/itxfm process.
-static int64_t intra_model_rd(const AV1_COMP *const cpi, MACROBLOCK *const x,
+static int64_t intra_model_rd(const AV1_COMMON *cm, MACROBLOCK *const x,
                               int plane, BLOCK_SIZE plane_bsize,
-                              TX_SIZE tx_size) {
-  const AV1_COMMON *cm = &cpi->common;
+                              TX_SIZE tx_size, int use_hadamard) {
   MACROBLOCKD *const xd = &x->e_mbd;
   int row, col;
   assert(!is_inter_block(xd->mi[0]));
@@ -405,27 +432,16 @@ static int64_t intra_model_rd(const AV1_COMP *const cpi, MACROBLOCK *const x,
   for (row = 0; row < max_blocks_high; row += stepr) {
     for (col = 0; col < max_blocks_wide; col += stepc) {
       av1_predict_intra_block_facade(cm, xd, plane, col, row, tx_size);
+      // Here we use p->src_diff and p->coeff as temporary buffers for
+      // prediction residue and transform coefficients. The buffers are only
+      // used in this for loop, therefore we don't need to properly add offset
+      // to the buffers.
       av1_subtract_block(
           xd, txbh, txbw, p->src_diff, block_size_wide[plane_bsize],
           p->src.buf + (((row * p->src.stride) + col) << 2), p->src.stride,
           pd->dst.buf + (((row * pd->dst.stride) + col) << 2), pd->dst.stride);
-      switch (tx_size) {
-        case TX_4X4:
-          aom_hadamard_4x4(p->src_diff, block_size_wide[plane_bsize], p->coeff);
-          break;
-        case TX_8X8:
-          aom_hadamard_8x8(p->src_diff, block_size_wide[plane_bsize], p->coeff);
-          break;
-        case TX_16X16:
-          aom_hadamard_16x16(p->src_diff, block_size_wide[plane_bsize],
-                             p->coeff);
-          break;
-        case TX_32X32:
-          aom_hadamard_32x32(p->src_diff, block_size_wide[plane_bsize],
-                             p->coeff);
-          break;
-        default: assert(0);
-      }
+      av1_quick_txfm(use_hadamard, tx_size, is_cur_buf_hbd(xd), xd->bd,
+                     p->src_diff, block_size_wide[plane_bsize], p->coeff);
       satd_cost += aom_satd(p->coeff, tx_size_2d[tx_size]);
     }
   }
@@ -448,7 +464,9 @@ static AOM_INLINE int model_intra_yrd_and_prune(const AV1_COMP *const cpi,
                                                 int64_t *best_model_rd) {
   const TX_SIZE tx_size = AOMMIN(TX_32X32, max_txsize_lookup[bsize]);
   const int plane = 0;
-  const int64_t this_model_rd = intra_model_rd(cpi, x, plane, bsize, tx_size);
+  const AV1_COMMON *cm = &cpi->common;
+  const int64_t this_model_rd =
+      intra_model_rd(cm, x, plane, bsize, tx_size, /*use_hadamard=*/1);
   if (*best_model_rd != INT64_MAX &&
       this_model_rd > *best_model_rd + (*best_model_rd >> 2)) {
     return 1;
