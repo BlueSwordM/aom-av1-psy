@@ -399,13 +399,14 @@ static void av1_quick_txfm(int use_hadamard, TX_SIZE tx_size, int is_hbd,
       default: assert(0);
     }
   } else {
-    assert(IMPLIES(is_hbd == 0, bd == 8));
+    assert(IMPLIES(!is_hbd, bd == 8));
     TxfmParam txfm_param;
     txfm_param.tx_type = DCT_DCT;
     txfm_param.tx_size = tx_size;
     txfm_param.lossless = 0;
     txfm_param.bd = bd;
     txfm_param.is_hbd = is_hbd;
+    txfm_param.tx_set_type = EXT_TX_SET_ALL16;
     av1_fwd_txfm(src_diff, coeff, src_stride, &txfm_param);
   }
 }

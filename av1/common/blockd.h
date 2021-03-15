@@ -552,10 +552,6 @@ typedef struct cfl_ctx {
 
   // Whether the reconstructed luma pixels need to be stored
   int store_y;
-
-#if CONFIG_DEBUG
-  int rate;
-#endif  // CONFIG_DEBUG
 } CFL_CTX;
 
 typedef struct dist_wtd_comp_params {
