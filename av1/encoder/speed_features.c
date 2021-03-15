@@ -776,6 +776,8 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 2) {
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
+    sf->fp_sf.skip_motion_search_threshold = 25;
+
     sf->part_sf.allow_partition_search_skip = 1;
     sf->part_sf.reuse_best_prediction_for_part_ab =
         !frame_is_intra_only(&cpi->common);
@@ -1412,6 +1414,11 @@ static AOM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   hl_sf->second_alt_ref_filtering = 1;
 }
 
+static AOM_INLINE void init_fp_sf(FIRST_PASS_SPEED_FEATURES *fp_sf) {
+  fp_sf->reduce_mv_step_param = 3;
+  fp_sf->skip_motion_search_threshold = 0;
+}
+
 static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
   tpl_sf->disable_gop_length_decision = 0;
   tpl_sf->prune_intra_modes = 0;
@@ -1693,6 +1700,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   int i;
 
   init_hl_sf(&sf->hl_sf);
+  init_fp_sf(&sf->fp_sf);
   init_tpl_sf(&sf->tpl_sf);
   init_gm_sf(&sf->gm_sf);
   init_part_sf(&sf->part_sf);

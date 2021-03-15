@@ -262,15 +262,12 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   const BLOCK_SIZE bsize = xd->mi[0]->bsize;
   const int new_mv_mode_penalty = NEW_MV_MODE_PENALTY;
   const int sr = get_search_range(&cpi->initial_dimensions);
-  const int step_param = 3 + sr;
+  const int step_param = cpi->sf.fp_sf.reduce_mv_step_param + sr;
 
   const search_site_config *first_pass_search_sites =
       cpi->mv_search_params.search_site_cfg[SS_CFG_FPF];
   const int fine_search_interval =
       cpi->is_screen_content_type && cpi->common.features.allow_intrabc;
-  if (fine_search_interval) {
-    av1_set_speed_features_framesize_independent(cpi, cpi->oxcf.speed);
-  }
   FULLPEL_MOTION_SEARCH_PARAMS ms_params;
   av1_make_default_fullpel_ms_params(&ms_params, cpi, x, bsize, ref_mv,
                                      first_pass_search_sites,
@@ -556,7 +553,6 @@ static void accumulate_mv_stats(const MV best_mv, const FULLPEL_MV mv,
   }
 }
 
-#define LOW_MOTION_ERROR_THRESH 25
 // Computes and returns the inter prediction error from the last frame.
 // Computes inter prediction errors from the golden and alt ref frams and
 // Updates stats accordingly.
@@ -637,8 +633,7 @@ static int firstpass_inter_prediction(
       &unscaled_last_source_buf_2d);
   raw_motion_err_list[raw_motion_err_counts] = raw_motion_error;
 
-  // TODO(pengchong): Replace the hard-coded threshold
-  if (raw_motion_error > LOW_MOTION_ERROR_THRESH || cpi->oxcf.speed <= 2) {
+  if (raw_motion_error > cpi->sf.fp_sf.skip_motion_search_threshold) {
     // Test last reference frame using the previous best mv as the
     // starting point (best reference) for the search.
     first_pass_motion_search(cpi, x, &ref_mv, &mv, &motion_error);
@@ -1166,6 +1161,10 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
     FeatureFlags *const features = &cm->features;
     av1_set_screen_content_options(cpi, features);
   }
+
+  // Prepare the speed features
+  av1_set_speed_features_framesize_independent(cpi, cpi->oxcf.speed);
+
   // Unit size for the first pass encoding.
   const BLOCK_SIZE fp_block_size =
       cpi->is_screen_content_type ? BLOCK_8X8 : BLOCK_16X16;

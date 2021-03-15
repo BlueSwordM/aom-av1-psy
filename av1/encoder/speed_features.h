@@ -308,11 +308,9 @@ typedef enum {
  * \brief Sequence/frame level speed vs quality features
  */
 typedef struct HIGH_LEVEL_SPEED_FEATURES {
-  /*!\cond */
-  // Frame level coding parameter update
+  /*! Frame level coding parameter update. */
   int frame_parameter_update;
 
-  /*!\endcond */
   /*!
    * Cases and frame types for which the recode loop is enabled.
    */
@@ -324,25 +322,27 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    */
   int recode_tolerance;
 
-  /*!\cond */
-  // Determine how motion vector precision is chosen. The possibilities are:
-  // LAST_MV_DATA: use the mv data from the last coded frame
-  // CURRENT_Q: use the current q as a threshold
-  // QTR_ONLY: use quarter pel precision only.
+  /*!
+   * Determine how motion vector precision is chosen. The possibilities are:
+   * LAST_MV_DATA: use the mv data from the last coded frame
+   * CURRENT_Q: use the current q as a threshold
+   * QTR_ONLY: use quarter pel precision only.
+   */
   MV_PREC_LOGIC high_precision_mv_usage;
 
-  // Always set to 0. If on it enables 0 cost background transmission
-  // (except for the initial transmission of the segmentation). The feature is
-  // disabled because the addition of very large block sizes make the
-  // backgrounds very to cheap to encode, and the segmentation we have
-  // adds overhead.
+  /*!
+   * Always set to 0. If on it enables 0 cost background transmission
+   * (except for the initial transmission of the segmentation). The feature is
+   * disabled because the addition of very large block sizes make the
+   * backgrounds very to cheap to encode, and the segmentation we have
+   * adds overhead.
+   */
   int static_segmentation;
 
   /*!
    * Superres-auto mode search type:
    */
   SUPERRES_AUTO_SEARCH_TYPE superres_auto_search_type;
-  /*!\endcond */
 
   /*!
    * Enable/disable extra screen content test by encoding key frame twice.
@@ -354,6 +354,24 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    */
   int second_alt_ref_filtering;
 } HIGH_LEVEL_SPEED_FEATURES;
+
+/*!
+ * Speed features for the first pass.
+ */
+typedef struct FIRST_PASS_SPEED_FEATURES {
+  /*!
+   * \brief Reduces the mv search window.
+   * By default, the initial search window is around
+   * MIN(MIN(dims), MAX_FULL_PEL_VAL) = MIN(MIN(dims), 1023).
+   * Each step reduction decrease the window size by about a factor of 2.
+   */
+  int reduce_mv_step_param;
+
+  /*!
+   * \brief Skips the motion search when the zero mv has small sse.
+   */
+  int skip_motion_search_threshold;
+} FIRST_PASS_SPEED_FEATURES;
 
 /*!\cond */
 typedef struct TPL_SPEED_FEATURES {
@@ -1128,6 +1146,11 @@ typedef struct SPEED_FEATURES {
    * Sequence/frame level speed features:
    */
   HIGH_LEVEL_SPEED_FEATURES hl_sf;
+
+  /*!
+   * Speed features for the first pass.
+   */
+  FIRST_PASS_SPEED_FEATURES fp_sf;
 
   /*!
    * Speed features related to how tpl's searches are done.
