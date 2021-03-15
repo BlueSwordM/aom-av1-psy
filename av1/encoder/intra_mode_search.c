@@ -1090,7 +1090,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->angle_delta[PLANE_TYPE_Y] = 0;
   if (cpi->sf.intra_sf.intra_pruning_with_hog) {
     // Less aggressive thresholds are used here than those used in inter frame
-    // encoding.
+    // encoding in av1_handle_intra_y_mode() because we want key frames/intra
+    // frames to have higher quality.
     const float thresh[4] = { -1.2f, -1.2f, -0.6f, 0.4f };
     const int is_chroma = 0;
     prune_intra_mode_with_hog(

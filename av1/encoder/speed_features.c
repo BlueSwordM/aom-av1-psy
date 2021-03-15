@@ -1529,9 +1529,9 @@ static AOM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
 }
 
 static AOM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
-  intra_sf->chroma_intra_pruning_with_hog = 0;
   intra_sf->skip_intra_in_interframe = 1;
   intra_sf->intra_pruning_with_hog = 0;
+  intra_sf->chroma_intra_pruning_with_hog = 0;
   intra_sf->prune_palette_search_level = 0;
 
   for (int i = 0; i < TX_SIZES; i++) {
