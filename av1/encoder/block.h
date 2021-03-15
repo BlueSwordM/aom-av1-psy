@@ -778,6 +778,23 @@ typedef struct {
   /**@}*/
 } MvCosts;
 
+/*! \brief Holds mv costs for intrabc.
+ */
+typedef struct {
+  /*! Costs for coding the joint mv. */
+  int joint_mv[MV_JOINTS];
+
+  /*! \brief Cost of transmitting the actual motion vector.
+   *  mv_costs_alloc[0][i] is the cost of motion vector with horizontal
+   * component (mv_row) equal to i - MV_MAX. mv_costs_alloc[1][i] is the cost of
+   * motion vector with vertical component (mv_col) equal to i - MV_MAX.
+   */
+  int dv_costs_alloc[2][MV_VALS];
+
+  /*! Points to the middle of \ref dv_costs_alloc. */
+  int *dv_costs[2];
+} IntraBCMVCosts;
+
 /*! \brief Holds the costs needed to encode the coefficients
  */
 typedef struct {
@@ -944,6 +961,11 @@ typedef struct macroblock {
   //! The rate needed to encode a new motion vector to the bitstream and some
   //! multipliers for motion search.
   MvCosts *mv_costs;
+
+  /*! The rate needed to encode a new motion vector to the bitstream in intrabc
+   *  mode.
+   */
+  IntraBCMVCosts *dv_costs;
 
   //! The rate needed to signal the txfm coefficients to the bitstream.
   CoeffCosts coeff_costs;

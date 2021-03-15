@@ -1294,29 +1294,29 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
 #endif  // CONFIG_INTERNAL_STATS
 }
 
-// Checks for skip status of mv cost update.
-static int skip_mv_cost_update(AV1_COMP *cpi, const TileInfo *const tile_info,
-                               const int mi_row, const int mi_col) {
-  // For intra frames, mv cdfs are not updated during the encode. Hence, the mv
-  // cost calculation is skipped in this case.
-  if (frame_is_intra_only(&cpi->common)) return 1;
-  // mv_cost_upd_level=0: update happens at each sb,
-  //                      so return skip status as 0.
-  // mv_cost_upd_level=1: update happens once for each sb row,
-  //                      so return skip status as 1 for
-  //                      mi_col != tile_info->mi_col_start.
-  // mv_cost_upd_level=2: update happens once for a set of rows,
+static int skip_cost_update(const SequenceHeader *seq_params,
+                            const TileInfo *const tile_info, const int mi_row,
+                            const int mi_col, int upd_level) {
+  // upd_level=0: update happens at each sb,
+  //              so return skip status as 0.
+  // upd_level=1: update happens once for each sb row,
+  //              so return skip status as 1 for
+  //              mi_col != tile_info->mi_col_start.
+  // upd_level=2: update happens once for a set of rows,
   //                      so return skip status as 1 appropriately.
-  if (!cpi->sf.inter_sf.mv_cost_upd_level) return 0;
+  // upd_level=3: don't update, so return 1 immediately.
+  if (!upd_level) return 0;
   if (mi_col != tile_info->mi_col_start) return 1;
-  if (cpi->sf.inter_sf.mv_cost_upd_level == 2) {
-    AV1_COMMON *const cm = &cpi->common;
-    const int mib_size_log2 = cm->seq_params.mib_size_log2;
+  if (upd_level == 3) {
+    return 1;
+  }
+  if (upd_level == 2) {
+    const int mib_size_log2 = seq_params->mib_size_log2;
     const int sb_row = (mi_row - tile_info->mi_row_start) >> mib_size_log2;
-    const int sb_size = cm->seq_params.mib_size * MI_SIZE;
+    const int sb_size = seq_params->mib_size * MI_SIZE;
     const int tile_height =
         (tile_info->mi_row_end - tile_info->mi_row_start) * MI_SIZE;
-    // When mv_cost_upd_level = 2, the cost update happens once for 2, 4 sb
+    // When upd_level = 2, the cost update happens once for 2, 4 sb
     // rows for sb size 128, sb size 64 respectively. However, as the update
     // will not be equally spaced in smaller resolutions making it equally
     // spaced by calculating (mv_num_rows_cost_update) the number of rows
@@ -1335,6 +1335,32 @@ static int skip_mv_cost_update(AV1_COMP *cpi, const TileInfo *const tile_info,
     if ((sb_row % num_sb_rows_per_update) != 0) return 1;
   }
   return 0;
+}
+
+// Checks for skip status of mv cost update.
+static int skip_mv_cost_update(AV1_COMP *cpi, const TileInfo *const tile_info,
+                               const int mi_row, const int mi_col) {
+  const AV1_COMMON *cm = &cpi->common;
+  // For intra frames, mv cdfs are not updated during the encode. Hence, the mv
+  // cost calculation is skipped in this case.
+  if (frame_is_intra_only(cm)) return 1;
+
+  return skip_cost_update(&cm->seq_params, tile_info, mi_row, mi_col,
+                          cpi->sf.inter_sf.mv_cost_upd_level);
+}
+
+// Checks for skip status of dv cost update.
+static int skip_dv_cost_update(AV1_COMP *cpi, const TileInfo *const tile_info,
+                               const int mi_row, const int mi_col) {
+  const AV1_COMMON *cm = &cpi->common;
+  // Intrabc is only applicable to intra frames. So skip if current frame isn't
+  // intra frame.
+  if (!av1_allow_intrabc(cm) || is_stat_generation_stage(cpi)) {
+    return 1;
+  }
+
+  return skip_cost_update(&cm->seq_params, tile_info, mi_row, mi_col,
+                          cpi->sf.intra_sf.dv_cost_upd_level);
 }
 
 // Update the rate costs of some symbols according to the frequency directed
@@ -1385,6 +1411,21 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
       av1_fill_mv_costs(&xd->tile_ctx->nmvc,
                         cm->features.cur_frame_force_integer_mv,
                         cm->features.allow_high_precision_mv, x->mv_costs);
+      break;
+    default: assert(0);
+  }
+
+  switch (cpi->oxcf.cost_upd_freq.dv) {
+    case COST_UPD_OFF:
+    case COST_UPD_TILE:  // Tile level
+      break;
+    case COST_UPD_SBROW:  // SB row level in tile
+      if (mi_col != tile_info->mi_col_start) break;
+      AOM_FALLTHROUGH_INTENDED;
+    case COST_UPD_SB:  // SB level
+      // Checks for skip status of dv cost update.
+      if (skip_dv_cost_update(cpi, tile_info, mi_row, mi_col)) break;
+      av1_fill_dv_costs(x->dv_costs, &xd->tile_ctx->ndvc);
       break;
     default: assert(0);
   }

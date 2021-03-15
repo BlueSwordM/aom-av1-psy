@@ -2932,7 +2932,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   const int sb_col = mi_col >> cm->seq_params.mib_size_log2;
 
   MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
-  MV_REFERENCE_FRAME ref_frame = INTRA_FRAME;
+  const MV_REFERENCE_FRAME ref_frame = INTRA_FRAME;
   av1_find_mv_refs(cm, xd, mbmi, ref_frame, mbmi_ext->ref_mv_count,
                    xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
                    mbmi_ext->mode_context);
@@ -2983,7 +2983,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   av1_make_default_fullpel_ms_params(&fullms_params, cpi, x, bsize,
                                      &dv_ref.as_mv, lookahead_search_sites,
                                      /*fine_search_interval=*/0);
-  const IntraBCMVCosts *const dv_costs = &cpi->dv_costs;
+  const IntraBCMVCosts *const dv_costs = x->dv_costs;
   av1_set_ms_to_intra_mode(&fullms_params, dv_costs);
 
   for (enum IntrabcMotionDirection dir = IBC_MOTION_ABOVE;
@@ -3065,12 +3065,10 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
                                   av1_num_planes(cm) - 1);
 
-    int *dvcost[2] = { (int *)&dv_costs->mv_component[0][MV_MAX],
-                       (int *)&dv_costs->mv_component[1][MV_MAX] };
     // TODO(aconverse@google.com): The full motion field defining discount
     // in MV_COST_WEIGHT is too large. Explore other values.
     const int rate_mv = av1_mv_bit_cost(&dv, &dv_ref.as_mv, dv_costs->joint_mv,
-                                        dvcost, MV_COST_WEIGHT_SUB);
+                                        dv_costs->dv_costs, MV_COST_WEIGHT_SUB);
     const int rate_mode = x->mode_costs.intrabc_cost[1];
     RD_STATS rd_stats_yuv, rd_stats_y, rd_stats_uv;
     if (!av1_txfm_search(cpi, x, bsize, &rd_stats_yuv, &rd_stats_y,

@@ -916,6 +916,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->cost_upd_freq.coeff = (COST_UPDATE_TYPE)extra_cfg->coeff_cost_upd_freq;
   oxcf->cost_upd_freq.mode = (COST_UPDATE_TYPE)extra_cfg->mode_cost_upd_freq;
   oxcf->cost_upd_freq.mv = (COST_UPDATE_TYPE)extra_cfg->mv_cost_upd_freq;
+  // TODO(chiyotsai@google.com): Add command line support in a separate cl.
+  oxcf->cost_upd_freq.dv = COST_UPD_SB;
 
   // Set frame resize mode configuration.
   resize_cfg->resize_mode = (RESIZE_MODE)cfg->rc_resize_mode;

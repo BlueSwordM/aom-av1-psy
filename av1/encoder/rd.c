@@ -577,6 +577,13 @@ void av1_fill_mv_costs(const nmv_context *nmvc, int integer_mv, int usehp,
   }
 }
 
+void av1_fill_dv_costs(IntraBCMVCosts *dv_costs, const nmv_context *ndvc) {
+  dv_costs->dv_costs[0] = &dv_costs->dv_costs_alloc[0][MV_MAX];
+  dv_costs->dv_costs[1] = &dv_costs->dv_costs_alloc[1][MV_MAX];
+  av1_build_nmv_cost_table(dv_costs->joint_mv, dv_costs->dv_costs, ndvc,
+                           MV_SUBPEL_NONE);
+}
+
 void av1_initialize_rd_consts(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &cpi->td.mb;
@@ -613,11 +620,7 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
   if (!use_nonrd_pick_mode && frame_is_intra_only(cm) &&
       cm->features.allow_screen_content_tools &&
       !is_stat_generation_stage(cpi)) {
-    IntraBCMVCosts *const dv_costs = &cpi->dv_costs;
-    int *dvcost[2] = { &dv_costs->mv_component[0][MV_MAX],
-                       &dv_costs->mv_component[1][MV_MAX] };
-    av1_build_nmv_cost_table(dv_costs->joint_mv, dvcost, &cm->fc->ndvc,
-                             MV_SUBPEL_NONE);
+    av1_fill_dv_costs(x->dv_costs, &cm->fc->ndvc);
   }
 }
 

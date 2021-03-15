@@ -727,6 +727,7 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 0: update happens at each sb level.
   // 1: update happens once for each sb row.
   // 2: update happens once for a set of rows.
+  // 3: skips updates
   int mv_cost_upd_level;
   // Prune inter modes based on tpl stats
   // 0 : no pruning
@@ -825,6 +826,14 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // 1: Prune chroma intra modes other than UV_DC_PRED, UV_SMOOTH_PRED,
   // UV_CFL_PRED and the mode that corresponds to luma intra mode winner.
   int prune_chroma_modes_using_luma_winner;
+
+  // To skip cost update for mv.
+  // dv_cost_upd_level indicates the aggressiveness of skipping.
+  // 0: update happens at each sb level.
+  // 1: update happens once for each sb row.
+  // 2: update happens once for a set of rows.
+  // 3: skips updates
+  int dv_cost_upd_level;
 } INTRA_MODE_SPEED_FEATURES;
 
 typedef struct TX_SPEED_FEATURES {

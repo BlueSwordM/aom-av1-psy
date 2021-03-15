@@ -788,6 +788,10 @@ static AOM_INLINE void accumulate_counters_enc_workers(AV1_COMP *cpi,
         cpi->oxcf.cost_upd_freq.mv < COST_UPD_OFF) {
       aom_free(thread_data->td->mb.mv_costs);
     }
+    if (thread_data->td != &cpi->td &&
+        cpi->oxcf.cost_upd_freq.dv < COST_UPD_OFF) {
+      aom_free(thread_data->td->mb.dv_costs);
+    }
 
     // Accumulate counters.
     if (i > 0) {
@@ -846,6 +850,13 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
         memcpy(thread_data->td->mb.mv_costs, cpi->td.mb.mv_costs,
                sizeof(MvCosts));
       }
+      if (cpi->oxcf.cost_upd_freq.dv < COST_UPD_OFF) {
+        CHECK_MEM_ERROR(cm, thread_data->td->mb.dv_costs,
+                        (IntraBCMVCosts *)aom_malloc(
+                            sizeof(*thread_data->td->mb.dv_costs)));
+        memcpy(thread_data->td->mb.dv_costs, cpi->td.mb.dv_costs,
+               sizeof(*thread_data->td->mb.dv_costs));
+      }
     }
     // Reset cyclic refresh counters.
     av1_init_cyclic_refresh_counters(&thread_data->td->mb);
@@ -903,6 +914,13 @@ static AOM_INLINE void fp_prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
                         (MvCosts *)aom_malloc(sizeof(MvCosts)));
         memcpy(thread_data->td->mb.mv_costs, cpi->td.mb.mv_costs,
                sizeof(MvCosts));
+      }
+      if (cpi->oxcf.cost_upd_freq.dv < COST_UPD_OFF) {
+        CHECK_MEM_ERROR(cm, thread_data->td->mb.dv_costs,
+                        (IntraBCMVCosts *)aom_malloc(
+                            sizeof(*thread_data->td->mb.dv_costs)));
+        memcpy(thread_data->td->mb.dv_costs, cpi->td.mb.dv_costs,
+               sizeof(*thread_data->td->mb.dv_costs));
       }
     }
     if (!cpi->sf.rt_sf.use_nonrd_pick_mode) {
@@ -1194,6 +1212,10 @@ void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi) {
     if (thread_data->td != &cpi->td &&
         cpi->oxcf.cost_upd_freq.mv < COST_UPD_OFF) {
       aom_free(thread_data->td->mb.mv_costs);
+    }
+    if (thread_data->td != &cpi->td &&
+        cpi->oxcf.cost_upd_freq.dv < COST_UPD_OFF) {
+      aom_free(thread_data->td->mb.dv_costs);
     }
     if (thread_data->td->mb.txfm_search_info.txb_rd_records) {
       aom_free(thread_data->td->mb.txfm_search_info.txb_rd_records);

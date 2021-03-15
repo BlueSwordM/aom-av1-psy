@@ -78,6 +78,13 @@ static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
   CHECK_MEM_ERROR(cm, cpi->td.mb.mv_costs,
                   (MvCosts *)aom_calloc(1, sizeof(MvCosts)));
 
+  if (cpi->td.mb.dv_costs) {
+    aom_free(cpi->td.mb.dv_costs);
+    cpi->td.mb.dv_costs = NULL;
+  }
+  CHECK_MEM_ERROR(cm, cpi->td.mb.dv_costs,
+                  (IntraBCMVCosts *)aom_malloc(sizeof(*cpi->td.mb.dv_costs)));
+
   av1_setup_shared_coeff_buffer(&cpi->common, &cpi->td.shared_coeff_buf);
   av1_setup_sms_tree(cpi, &cpi->td);
   cpi->td.firstpass_ctx =
@@ -213,6 +220,11 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   if (cpi->td.mb.mv_costs) {
     aom_free(cpi->td.mb.mv_costs);
     cpi->td.mb.mv_costs = NULL;
+  }
+
+  if (cpi->td.mb.dv_costs) {
+    aom_free(cpi->td.mb.dv_costs);
+    cpi->td.mb.dv_costs = NULL;
   }
 
   aom_free(cpi->td.mb.inter_modes_info);

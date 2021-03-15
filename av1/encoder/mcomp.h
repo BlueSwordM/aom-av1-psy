@@ -84,7 +84,7 @@ typedef struct {
 } MV_COST_PARAMS;
 
 int av1_mv_bit_cost(const MV *mv, const MV *ref_mv, const int *mvjcost,
-                    int *mvcost[2], int weight);
+                    int *const mvcost[2], int weight);
 
 int av1_get_mvpred_sse(const MV_COST_PARAMS *mv_cost_params,
                        const FULLPEL_MV best_mv,

@@ -145,8 +145,8 @@ void av1_set_ms_to_intra_mode(FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
   MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
 
   mv_cost_params->mvjcost = dv_costs->joint_mv;
-  mv_cost_params->mvcost[0] = &dv_costs->mv_component[0][MV_MAX];
-  mv_cost_params->mvcost[1] = &dv_costs->mv_component[1][MV_MAX];
+  mv_cost_params->mvcost[0] = dv_costs->dv_costs[0];
+  mv_cost_params->mvcost[1] = dv_costs->dv_costs[1];
 }
 
 void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
@@ -253,7 +253,7 @@ static INLINE int mv_cost(const MV *mv, const int *joint_cost,
 // nearest 2 ** 7.
 // This is NOT used during motion compensation.
 int av1_mv_bit_cost(const MV *mv, const MV *ref_mv, const int *mvjcost,
-                    int *mvcost[2], int weight) {
+                    int *const mvcost[2], int weight) {
   const MV diff = { mv->row - ref_mv->row, mv->col - ref_mv->col };
   return ROUND_POWER_OF_TWO(
       mv_cost(&diff, mvjcost, CONVERT_TO_CONST_MVCOST(mvcost)) * weight, 7);

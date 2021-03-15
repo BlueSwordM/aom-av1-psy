@@ -623,6 +623,8 @@ typedef struct {
   COST_UPDATE_TYPE mode;
   // Indicates the update frequency for mv costs.
   COST_UPDATE_TYPE mv;
+  // Indicates the update frequency for dv costs.
+  COST_UPDATE_TYPE dv;
 } CostUpdateFreq;
 
 typedef struct {
@@ -2500,11 +2502,6 @@ typedef struct AV1_COMP {
    * A flag to indicate if intrabc is ever used in current frame.
    */
   int intrabc_used;
-
-  /*!
-   * Tables to calculate IntraBC MV cost.
-   */
-  IntraBCMVCosts dv_costs;
 
   /*!
    * Mark which ref frames can be skipped for encoding current frame during RDO.
