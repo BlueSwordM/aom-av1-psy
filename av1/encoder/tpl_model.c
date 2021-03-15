@@ -63,6 +63,7 @@ void av1_tpl_stats_init_txfm_stats(TplDepFrame *tpl_frame, int tpl_bsize_1d) {
   aom_clear_system_state();
   tpl_frame->txfm_block_count = 0;
   tpl_frame->coeff_num = tpl_bsize_1d * tpl_bsize_1d;
+  memset(tpl_frame->abs_coeff_sum, 0, sizeof(tpl_frame->abs_coeff_sum));
   assert(sizeof(tpl_frame->abs_coeff_mean) /
              sizeof(tpl_frame->abs_coeff_mean[0]) ==
          tpl_frame->coeff_num);
@@ -1428,16 +1429,20 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 }
 
 void av1_init_tpl_stats(TplParams *const tpl_data) {
+  int frame_idx;
   set_tpl_stats_block_size(&tpl_data->tpl_stats_block_mis_log2,
                            &tpl_data->tpl_bsize_1d);
-  for (int frame_idx = 0; frame_idx < MAX_LAG_BUFFERS; ++frame_idx) {
+  for (frame_idx = 0; frame_idx < MAX_LAG_BUFFERS; ++frame_idx) {
     TplDepFrame *tpl_frame = &tpl_data->tpl_stats_buffer[frame_idx];
-    av1_tpl_stats_init_txfm_stats(tpl_frame, tpl_data->tpl_bsize_1d);
     if (tpl_data->tpl_stats_pool[frame_idx] == NULL) continue;
     memset(tpl_data->tpl_stats_pool[frame_idx], 0,
            tpl_frame->height * tpl_frame->width *
                sizeof(*tpl_frame->tpl_stats_ptr));
     tpl_frame->is_valid = 0;
+  }
+  for (frame_idx = 0; frame_idx < MAX_LENGTH_TPL_FRAME_STATS; ++frame_idx) {
+    TplDepFrame *tpl_frame = &tpl_data->tpl_stats_buffer[frame_idx];
+    av1_tpl_stats_init_txfm_stats(tpl_frame, tpl_data->tpl_bsize_1d);
   }
 }
 
