@@ -690,7 +690,7 @@ void av1_decoder_model_process_frame(const AV1_COMP *const cpi,
 void av1_init_level_info(AV1_COMP *cpi) {
   for (int op_index = 0; op_index < MAX_NUM_OPERATING_POINTS; ++op_index) {
     AV1LevelInfo *const this_level_info =
-        cpi->level_params.level_info[op_index];
+        cpi->ppi->level_params.level_info[op_index];
     if (!this_level_info) continue;
     memset(this_level_info, 0, sizeof(*this_level_info));
     AV1LevelSpec *const level_spec = &this_level_info->level_spec;
@@ -1048,7 +1048,7 @@ static void scan_past_frames(const FrameWindowBuffer *const buffer,
 void av1_update_level_info(AV1_COMP *cpi, size_t size, int64_t ts_start,
                            int64_t ts_end) {
   AV1_COMMON *const cm = &cpi->common;
-  const AV1LevelParams *const level_params = &cpi->level_params;
+  const AV1LevelParams *const level_params = &cpi->ppi->level_params;
 
   const int upscaled_width = cm->superres_upscaled_width;
   const int width = cm->width;

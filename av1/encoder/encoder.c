@@ -588,7 +588,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   SequenceHeader *const seq_params = &cm->seq_params;
   RATE_CONTROL *const rc = &cpi->rc;
   MACROBLOCK *const x = &cpi->td.mb;
-  AV1LevelParams *const level_params = &cpi->level_params;
+  AV1LevelParams *const level_params = &cpi->ppi->level_params;
   InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
   RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
   const FrameDimensionCfg *const frm_dim_cfg = &cpi->oxcf.frm_dim_cfg;
@@ -1429,6 +1429,9 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
 
 void av1_remove_primary_compressor(AV1_PRIMARY *ppi) {
   if (!ppi) return;
+  for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i) {
+    aom_free(ppi->level_params.level_info[i]);
+  }
   av1_lookahead_destroy(ppi->lookahead);
   aom_free(ppi);
 }
@@ -3781,7 +3784,8 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
     }
   }
 
-  if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
+  if (cpi->ppi->level_params.keep_level_stats &&
+      !is_stat_generation_stage(cpi)) {
     // Initialize level info. at the beginning of each sequence.
     if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
       av1_init_level_info(cpi);
@@ -4055,7 +4059,7 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi) {
   if (payload_offset + sequence_header_size > sizeof(header_buf)) return NULL;
   memmove(&header_buf[payload_offset], &header_buf[0], sequence_header_size);
 
-  if (av1_write_obu_header(&cpi->level_params, &cpi->frame_header_count,
+  if (av1_write_obu_header(&cpi->ppi->level_params, &cpi->frame_header_count,
                            OBU_SEQUENCE_HEADER, 0,
                            &header_buf[0]) != obu_header_size) {
     return NULL;

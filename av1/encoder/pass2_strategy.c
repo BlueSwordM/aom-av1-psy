@@ -845,7 +845,7 @@ static int adjust_boost_bits_for_target_level(const AV1_COMP *const cpi,
     }
 
     const AV1_LEVEL target_level =
-        cpi->level_params.target_seq_level_idx[index];
+        cpi->ppi->level_params.target_seq_level_idx[index];
     if (target_level >= SEQ_LEVELS) continue;
 
     assert(is_valid_seq_level_idx(target_level));

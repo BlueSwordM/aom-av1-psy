@@ -2106,6 +2106,11 @@ typedef struct AV1_PRIMARY {
    * Flag indicating whether look ahead processing (LAP) is enabled.
    */
   int lap_enabled;
+
+  /*!
+   * Parameters for AV1 bitstream levels.
+   */
+  AV1LevelParams level_params;
 } AV1_PRIMARY;
 
 /*!
@@ -2589,11 +2594,6 @@ typedef struct AV1_COMP {
    * Count the number of OBU_FRAME and OBU_FRAME_HEADER for level calculation.
    */
   int frame_header_count;
-
-  /*!
-   * Parameters for AV1 bitstream levels.
-   */
-  AV1LevelParams level_params;
 
   /*!
    * Whether any no-zero delta_q was actually used.

@@ -281,10 +281,6 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
     cpi->film_grain_table = NULL;
   }
 
-  for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i) {
-    aom_free(cpi->level_params.level_info[i]);
-  }
-
   if (cpi->use_svc) av1_free_svc_cyclic_refresh(cpi);
 
   if (cpi->consec_zero_mv) {
