@@ -177,7 +177,7 @@ static int get_num_mbs(const BLOCK_SIZE fp_block_size,
 }
 
 void av1_end_first_pass(AV1_COMP *cpi) {
-  if (cpi->twopass.stats_buf_ctx->total_stats && !cpi->lap_enabled)
+  if (cpi->twopass.stats_buf_ctx->total_stats && !cpi->ppi->lap_enabled)
     output_stats(cpi->twopass.stats_buf_ctx->total_stats,
                  cpi->ppi->output_pkt_list);
 }
@@ -849,7 +849,7 @@ static void update_firstpass_stats(AV1_COMP *cpi,
   // We will store the stats inside the persistent twopass struct (and NOT the
   // local variable 'fps'), and then cpi->output_pkt_list will point to it.
   *this_frame_stats = fps;
-  if (!cpi->lap_enabled)
+  if (!cpi->ppi->lap_enabled)
     output_stats(this_frame_stats, cpi->ppi->output_pkt_list);
   if (cpi->twopass.stats_buf_ctx->total_stats != NULL) {
     av1_accumulate_stats(cpi->twopass.stats_buf_ctx->total_stats, &fps);

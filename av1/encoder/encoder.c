@@ -599,7 +599,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   // calculated at init time. This stores and restores LAP's lag in frames to
   // prevent override by new cfg.
   int lap_lag_in_frames = -1;
-  if (cpi->lap_enabled && cpi->compressor_stage == LAP_STAGE) {
+  if (cpi->ppi->lap_enabled && cpi->compressor_stage == LAP_STAGE) {
     lap_lag_in_frames = cpi->oxcf.gf_cfg.lag_in_frames;
   }
 
@@ -841,12 +841,13 @@ static INLINE void update_frame_index_set(FRAME_INDEX_SET *frame_index_set,
 }
 
 AV1_PRIMARY *av1_create_primary_compressor(
-    struct aom_codec_pkt_list *pkt_list_head) {
+    struct aom_codec_pkt_list *pkt_list_head, int num_lap_buffers) {
   AV1_PRIMARY *volatile const ppi = aom_memalign(32, sizeof(AV1_PRIMARY));
   if (!ppi) return NULL;
   av1_zero(*ppi);
 
   ppi->seq_params_locked = 0;
+  ppi->lap_enabled = num_lap_buffers > 0;
   ppi->output_pkt_list = pkt_list_head;
   return ppi;
 }
@@ -876,7 +877,6 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
   }
 
   cm->error.setjmp = 1;
-  cpi->lap_enabled = num_lap_buffers > 0;
   cpi->compressor_stage = stage;
 
   CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -909,7 +909,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
 
   // For two pass and lag_in_frames > 33 in LAP.
   cpi->rc.enable_scenecut_detection = ENABLE_SCENECUT_MODE_2;
-  if (cpi->lap_enabled) {
+  if (cpi->ppi->lap_enabled) {
     if ((num_lap_buffers <
          (MAX_GF_LENGTH_LAP + SCENE_CUT_KEY_TEST_INTERVAL + 1)) &&
         num_lap_buffers >= (MAX_GF_LENGTH_LAP + 3)) {
@@ -1006,7 +1006,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
     const size_t packet_sz = sizeof(FIRSTPASS_STATS);
     const int packets = (int)(oxcf->twopass_stats_in.sz / packet_sz);
 
-    if (!cpi->lap_enabled) {
+    if (!cpi->ppi->lap_enabled) {
       /*Re-initialize to stats buffer, populated by application in the case of
        * two pass*/
       cpi->twopass.stats_buf_ctx->stats_in_start = oxcf->twopass_stats_in.buf;

@@ -105,6 +105,7 @@ encoder and referenced elsewhere in this overview document:
 
 - \ref AV1_PRIMARY
     - \ref AV1_PRIMARY.gf_group (\ref GF_GROUP)
+    - \ref AV1_PRIMARY.lap_enabled
 
 - \ref AV1_COMP
     - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
@@ -113,7 +114,6 @@ encoder and referenced elsewhere in this overview document:
     - \ref AV1_COMP.twopass (\ref TWO_PASS)
     - \ref AV1_COMP.speed
     - \ref AV1_COMP.sf (\ref SPEED_FEATURES)
-    - \ref AV1_COMP.lap_enabled
 
 - \ref AV1EncoderConfig (Encoder configuration parameters)
     - \ref AV1EncoderConfig.pass
@@ -664,7 +664,7 @@ first pass starts encoding the clip and the second pass lags behind it by a
 few frames.  When using this method, full sequence level statistics are not
 available, but it is possible to collect and use frame or group of frame level
 data to help in the allocation of bits and in defining ARF/GF coding
-hierarchies.  The reader is referred to the \ref AV1_COMP.lap_enabled field
+hierarchies.  The reader is referred to the \ref AV1_PRIMARY.lap_enabled field
 in the main compressor instance (where <b>lap</b> stands for
 <b>look ahead processing</b>). This encoding mode for the most part uses the
 same rate control pathways as two pass VBR encoding.
@@ -792,7 +792,7 @@ calculate_gf_length(). The following encoder use cases are supported:
   current and the following GF groups (a total number of MAX_NUM_GF_INTERVALS
   groups) to be the maximum value allowed.</li>
 
-  <li><b>Single pass with look-ahead enabled (\ref AV1_COMP.lap_enabled):</b>
+  <li><b>Single pass with look-ahead enabled (\ref AV1_PRIMARY.lap_enabled):</b>
   look-ahead processing is enabled for single pass, therefore there is a
   limited amount of information available regarding future frames. In this
   case the function will determine the length based on \ref FIRSTPASS_STATS
@@ -901,7 +901,7 @@ special case is indicated by the setting parameter <b>is_final_pass</b> for to
 zero.
 
 For single pass encodes where look-ahead processing is disabled
-(\ref AV1_COMP.lap_enabled = 0), \ref define_gf_group_pass0() is used
+(\ref AV1_PRIMARY.lap_enabled = 0), \ref define_gf_group_pass0() is used
 instead of \ref define_gf_group().
 
 \subsection architecture_enc_kf_groups Key Frame Groups

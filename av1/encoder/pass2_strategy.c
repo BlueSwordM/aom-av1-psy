@@ -194,7 +194,7 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
   const double max_fac = 1.0 + adj_limit;
 
   if (rc->vbr_bits_off_target && rc->total_actual_bits > 0) {
-    if (cpi->lap_enabled) {
+    if (cpi->ppi->lap_enabled) {
       rate_err_factor =
           (double)twopass->rolling_arf_group_actual_bits /
           DOUBLE_DIVIDE_CHECK((double)twopass->rolling_arf_group_target_bits);
@@ -209,7 +209,7 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
     // Adjustment is damped if this is 1 pass with look ahead processing
     // (as there are only ever a few frames of data) and for all but the first
     // GOP in normal two pass.
-    if ((twopass->bpm_factor != 1.0) || cpi->lap_enabled) {
+    if ((twopass->bpm_factor != 1.0) || cpi->ppi->lap_enabled) {
       rate_err_factor = 1.0 + ((rate_err_factor - 1.0) / damp_fac);
     }
   }
@@ -998,7 +998,7 @@ static INLINE int detect_gf_cut(AV1_COMP *cpi, int frame_index, int cur_start,
   // so we can continue for more frames.
   if (((frame_index - cur_start) >= active_max_gf_interval + 1) &&
       !is_almost_static(gf_stats->zero_motion_accumulator,
-                        twopass->kf_zeromotion_pct, cpi->lap_enabled)) {
+                        twopass->kf_zeromotion_pct, cpi->ppi->lap_enabled)) {
     return 1;
   }
   return 0;
@@ -1950,7 +1950,7 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
   const int min_shrink_int = AOMMAX(MIN_SHRINK_LEN, active_min_gf_interval);
 
   i = (rc->frames_since_key == 0);
-  max_intervals = cpi->lap_enabled ? 1 : max_intervals;
+  max_intervals = cpi->ppi->lap_enabled ? 1 : max_intervals;
   int count_cuts = 1;
   // If cpi->gf_state.arf_gf_boost_lst is 0, we are starting with a KF or GF.
   int cur_start = -1 + !cpi->ppi->gf_state.arf_gf_boost_lst, cur_last;
@@ -2357,7 +2357,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   }
 
   // correct frames_to_key when lookahead queue is emptying
-  if (cpi->lap_enabled) {
+  if (cpi->ppi->lap_enabled) {
     correct_frames_to_key(cpi);
   }
 
@@ -2465,7 +2465,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   if (can_disable_arf) {
     use_alt_ref =
         !is_almost_static(gf_stats.zero_motion_accumulator,
-                          twopass->kf_zeromotion_pct, cpi->lap_enabled) &&
+                          twopass->kf_zeromotion_pct, cpi->ppi->lap_enabled) &&
         rc->use_arf_in_this_kf_group && (i < gf_cfg->lag_in_frames) &&
         (i >= MIN_GF_INTERVAL);
 
@@ -2538,8 +2538,8 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
     // Calculate the boost for alt ref.
     rc->gfu_boost = av1_calc_arf_boost(
         twopass, rc, frame_info, alt_offset, forward_frames, ext_len,
-        cpi->lap_enabled ? &rc->num_stats_used_for_gfu_boost : NULL,
-        cpi->lap_enabled ? &rc->num_stats_required_for_gfu_boost : NULL);
+        cpi->ppi->lap_enabled ? &rc->num_stats_used_for_gfu_boost : NULL,
+        cpi->ppi->lap_enabled ? &rc->num_stats_required_for_gfu_boost : NULL);
   } else {
     reset_fpf_position(twopass, start_pos);
     gf_group->max_layer_depth_allowed = 0;
@@ -2550,8 +2550,9 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
         MAX_GF_BOOST,
         av1_calc_arf_boost(
             twopass, rc, frame_info, alt_offset, ext_len, 0,
-            cpi->lap_enabled ? &rc->num_stats_used_for_gfu_boost : NULL,
-            cpi->lap_enabled ? &rc->num_stats_required_for_gfu_boost : NULL));
+            cpi->ppi->lap_enabled ? &rc->num_stats_used_for_gfu_boost : NULL,
+            cpi->ppi->lap_enabled ? &rc->num_stats_required_for_gfu_boost
+                                  : NULL));
   }
 
 #define LAST_ALR_BOOST_FACTOR 0.2f
@@ -2569,7 +2570,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // Reset the file position.
   reset_fpf_position(twopass, start_pos);
 
-  if (cpi->lap_enabled) {
+  if (cpi->ppi->lap_enabled) {
     // Since we don't have enough stats to know the actual error of the
     // gf group, we assume error of each frame to be equal to 1 and set
     // the error of the group as baseline_gf_interval.
@@ -2981,7 +2982,7 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   if (kf_group_err != NULL)
     rc->num_stats_used_for_kf_boost = num_stats_used_for_kf_boost;
 
-  if (cpi->lap_enabled && !scenecut_detected)
+  if (cpi->ppi->lap_enabled && !scenecut_detected)
     frames_to_key = num_frames_to_next_key;
 
   if (!kf_cfg->fwd_kf_enabled || scenecut_detected ||
@@ -3017,7 +3018,7 @@ static int64_t get_kf_group_bits(AV1_COMP *cpi, double kf_group_err,
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->twopass;
   int64_t kf_group_bits;
-  if (cpi->lap_enabled) {
+  if (cpi->ppi->lap_enabled) {
     kf_group_bits = (int64_t)rc->frames_to_key * rc->avg_frame_bandwidth;
     if (cpi->oxcf.rc_cfg.vbr_corpus_complexity_lap) {
       const int num_mbs = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
@@ -3219,7 +3220,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   else
     rc->frames_to_key = kf_cfg->key_freq_max;
 
-  if (cpi->lap_enabled) correct_frames_to_key(cpi);
+  if (cpi->ppi->lap_enabled) correct_frames_to_key(cpi);
 
   // If there is a max kf interval set by the user we must obey it.
   // We already breakout of the loop above at 2x max.
@@ -3262,7 +3263,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
 
   // Calculate the number of bits that should be assigned to the kf group.
   if ((twopass->bits_left > 0 && twopass->modified_error_left > 0.0) ||
-      (cpi->lap_enabled && oxcf->rc_cfg.mode != AOM_Q)) {
+      (cpi->ppi->lap_enabled && oxcf->rc_cfg.mode != AOM_Q)) {
     // Maximum number of bits for a single normal frame (not key frame).
     const int max_bits = frame_max_bits(rc, oxcf);
 
@@ -3287,7 +3288,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   }
   twopass->kf_group_bits = AOMMAX(0, twopass->kf_group_bits);
 
-  if (cpi->lap_enabled) {
+  if (cpi->ppi->lap_enabled) {
     // In the case of single pass based on LAP, frames to  key may have an
     // inaccurate value, and hence should be clipped to an appropriate
     // interval.
@@ -3320,7 +3321,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
 
   rc->kf_boost = (int)boost_score;
 
-  if (cpi->lap_enabled) {
+  if (cpi->ppi->lap_enabled) {
     if (oxcf->rc_cfg.mode == AOM_Q) {
       rc->kf_boost = get_projected_kf_boost(cpi);
     } else {
@@ -3365,7 +3366,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   gf_group->update_type[0] = KF_UPDATE;
 
   // Note the total error score of the kf group minus the key frame itself.
-  if (cpi->lap_enabled)
+  if (cpi->ppi->lap_enabled)
     // As we don't have enough stats to know the actual error of the group,
     // we assume the complexity of each frame to be equal to 1, and set the
     // error as the number of frames in the group(minus the keyframe).
@@ -3412,7 +3413,7 @@ static int get_section_target_bandwidth(AV1_COMP *cpi) {
   int section_target_bandwidth;
   const int frames_left = (int)(twopass->stats_buf_ctx->total_stats->count -
                                 current_frame->frame_number);
-  if (cpi->lap_enabled)
+  if (cpi->ppi->lap_enabled)
     section_target_bandwidth = (int)rc->avg_frame_bandwidth;
   else
     section_target_bandwidth = (int)(twopass->bits_left / frames_left);
@@ -3429,7 +3430,7 @@ static void process_first_pass_stats(AV1_COMP *cpi,
   if (cpi->oxcf.rc_cfg.mode != AOM_Q && current_frame->frame_number == 0 &&
       cpi->gf_frame_index == 0 && cpi->twopass.stats_buf_ctx->total_stats &&
       cpi->twopass.stats_buf_ctx->total_left_stats) {
-    if (cpi->lap_enabled) {
+    if (cpi->ppi->lap_enabled) {
       /*
        * Accumulate total_stats using available limited number of stats,
        * and assign it to total_left_stats.
@@ -3463,7 +3464,7 @@ static void process_first_pass_stats(AV1_COMP *cpi,
   }
 
   int err = 0;
-  if (cpi->lap_enabled) {
+  if (cpi->ppi->lap_enabled) {
     err = input_stats_lap(twopass, this_frame);
   } else {
     err = input_stats(twopass, this_frame);
@@ -3609,7 +3610,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
            cpi->gf_frame_index == gf_group->size);
     const FIRSTPASS_STATS *const start_position = twopass->stats_in;
 
-    if (cpi->lap_enabled && cpi->rc.enable_scenecut_detection) {
+    if (cpi->ppi->lap_enabled && cpi->rc.enable_scenecut_detection) {
       int num_frames_to_detect_scenecut, frames_to_key;
       num_frames_to_detect_scenecut = MAX_GF_LENGTH_LAP + 1;
       frames_to_key = define_kf_interval(cpi, &this_frame, NULL,

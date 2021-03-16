@@ -2073,7 +2073,8 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
       priv->oxcf.use_highbitdepth =
           (ctx->init_flags & AOM_CODEC_USE_HIGHBITDEPTH) ? 1 : 0;
 
-      priv->ppi = av1_create_primary_compressor(&priv->pkt_list.head);
+      priv->ppi =
+          av1_create_primary_compressor(&priv->pkt_list.head, *num_lap_buffers);
       if (!priv->ppi) return AOM_CODEC_MEM_ERROR;
 
 #if !CONFIG_REALTIME_ONLY
@@ -2171,7 +2172,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   AV1_COMP *cpi_lap = ppi->cpi_lap;
   if (cpi == NULL) return AOM_CODEC_INVALID_PARAM;
 
-  if (cpi->lap_enabled && cpi_lap == NULL && cpi->oxcf.pass == 0)
+  if (cpi->ppi->lap_enabled && cpi_lap == NULL && cpi->oxcf.pass == 0)
     return AOM_CODEC_INVALID_PARAM;
 
   if (img != NULL) {
