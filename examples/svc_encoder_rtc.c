@@ -24,6 +24,7 @@
 #include "common/args.h"
 #include "common/tools_common.h"
 #include "common/video_writer.h"
+#include "examples/encoder_util.h"
 #include "aom_ports/aom_timer.h"
 
 #define OPTION_BUFFER_SIZE 1024
@@ -998,6 +999,64 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
   }
 }
 
+#if CONFIG_AV1_DECODER
+static void test_decode(aom_codec_ctx_t *encoder, aom_codec_ctx_t *decoder,
+                        const int frames_out, int *mismatch_seen) {
+  aom_image_t enc_img, dec_img;
+
+  if (*mismatch_seen) return;
+
+  /* Get the internal reference frame */
+  AOM_CODEC_CONTROL_TYPECHECKED(encoder, AV1_GET_NEW_FRAME_IMAGE, &enc_img);
+  AOM_CODEC_CONTROL_TYPECHECKED(decoder, AV1_GET_NEW_FRAME_IMAGE, &dec_img);
+
+#if CONFIG_AV1_HIGHBITDEPTH
+  if ((enc_img.fmt & AOM_IMG_FMT_HIGHBITDEPTH) !=
+      (dec_img.fmt & AOM_IMG_FMT_HIGHBITDEPTH)) {
+    if (enc_img.fmt & AOM_IMG_FMT_HIGHBITDEPTH) {
+      aom_image_t enc_hbd_img;
+      aom_img_alloc(&enc_hbd_img, enc_img.fmt - AOM_IMG_FMT_HIGHBITDEPTH,
+                    enc_img.d_w, enc_img.d_h, 16);
+      aom_img_truncate_16_to_8(&enc_hbd_img, &enc_img);
+      enc_img = enc_hbd_img;
+    }
+    if (dec_img.fmt & AOM_IMG_FMT_HIGHBITDEPTH) {
+      aom_image_t dec_hbd_img;
+      aom_img_alloc(&dec_hbd_img, dec_img.fmt - AOM_IMG_FMT_HIGHBITDEPTH,
+                    dec_img.d_w, dec_img.d_h, 16);
+      aom_img_truncate_16_to_8(&dec_hbd_img, &dec_img);
+      dec_img = dec_hbd_img;
+    }
+  }
+#endif
+
+  if (!aom_compare_img(&enc_img, &dec_img)) {
+    int y[4], u[4], v[4];
+#if CONFIG_AV1_HIGHBITDEPTH
+    if (enc_img.fmt & AOM_IMG_FMT_HIGHBITDEPTH) {
+      aom_find_mismatch_high(&enc_img, &dec_img, y, u, v);
+    } else {
+      aom_find_mismatch(&enc_img, &dec_img, y, u, v);
+    }
+#else
+    aom_find_mismatch(&enc_img, &dec_img, y, u, v);
+#endif
+    decoder->err = 1;
+    printf(
+        "Encode/decode mismatch on frame %d at"
+        " Y[%d, %d] {%d/%d},"
+        " U[%d, %d] {%d/%d},"
+        " V[%d, %d] {%d/%d}",
+        frames_out, y[0], y[1], y[2], y[3], u[0], u[1], u[2], u[3], v[0], v[1],
+        v[2], v[3]);
+    *mismatch_seen = frames_out;
+  }
+
+  aom_img_free(&enc_img);
+  aom_img_free(&dec_img);
+}
+#endif  // CONFIG_AV1_DECODER
+
 int main(int argc, const char **argv) {
   AppInput app_input;
   AvxVideoWriter *outfile[AOM_MAX_LAYERS] = { NULL };
@@ -1016,6 +1075,17 @@ int main(int argc, const char **argv) {
   aom_svc_layer_id_t layer_id;
   aom_svc_params_t svc_params;
   aom_svc_ref_frame_config_t ref_frame_config;
+
+#if CONFIG_INTERNAL_STATS
+  FILE *stats_file = fopen("opsnr.stt", "a");
+  if (stats_file == NULL) {
+    die("Cannot open opsnr.stt\n");
+  }
+#endif
+#if CONFIG_AV1_DECODER
+  int mismatch_seen = 0;
+  aom_codec_ctx_t decoder;
+#endif
 
   struct RateControlMetrics rc;
   int64_t cx_time = 0;
@@ -1161,6 +1231,12 @@ int main(int argc, const char **argv) {
   aom_codec_ctx_t codec;
   if (aom_codec_enc_init(&codec, encoder, &cfg, 0))
     die("Failed to initialize encoder");
+
+#if CONFIG_AV1_DECODER
+  if (aom_codec_dec_init(&decoder, get_aom_decoder_by_index(0), NULL, 0)) {
+    die("Failed to initialize decoder");
+  }
+#endif
 
   aom_codec_control(&codec, AOME_SET_CPUUSED, app_input.speed);
   aom_codec_control(&codec, AV1E_SET_AQ_MODE, app_input.aq_mode ? 3 : 0);
@@ -1332,14 +1408,31 @@ int main(int argc, const char **argv) {
                 sum_bitrate2 = 0.0;
               }
             }
+
+#if CONFIG_AV1_DECODER
+            if (aom_codec_decode(&decoder, pkt->data.frame.buf,
+                                 (unsigned int)pkt->data.frame.sz, NULL))
+              die_codec(&decoder, "Failed to decode frame.");
+#endif
+
             break;
           default: break;
         }
       }
+#if CONFIG_AV1_DECODER
+      // Don't look for mismatch on top spatial and top temporal layers as they
+      // are non reference frames.
+      if ((ss_number_layers > 1 || ts_number_layers > 1) &&
+          !(layer_id.temporal_layer_id > 0 &&
+            layer_id.temporal_layer_id == (int)ts_number_layers - 1)) {
+        test_decode(&codec, &decoder, frame_cnt, &mismatch_seen);
+      }
+#endif
     }  // loop over spatial layers
     ++frame_cnt;
     pts += frame_duration;
   }
+
   close_input_file(&(app_input.input_ctx));
   printout_rate_control_summary(&rc, frame_cnt, ss_number_layers,
                                 ts_number_layers);
@@ -1357,6 +1450,15 @@ int main(int argc, const char **argv) {
   }
 
   if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec");
+
+#if CONFIG_INTERNAL_STATS
+  if (mismatch_seen) {
+    fprintf(stats_file, "First mismatch occurred in frame %d\n", mismatch_seen);
+  } else {
+    fprintf(stats_file, "No mismatch detected in recon buffers\n");
+  }
+  fclose(stats_file);
+#endif
 
   // Try to rewrite the output file headers with the actual frame count.
   for (i = 0; i < ss_number_layers * ts_number_layers; ++i)
