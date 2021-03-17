@@ -28,6 +28,8 @@ void set_mb_butteraugli_rdmult_scaling(AV1_COMP *cpi,
   const int bit_depth = cpi->td.mb.e_mbd.bd;
   const int width = source->y_crop_width;
   const int height = source->y_crop_height;
+  const int ss_x = source->subsampling_x;
+  const int ss_y = source->subsampling_y;
 
   float *diffmap;
   CHECK_MEM_ERROR(cm, diffmap, aom_malloc(width * height * sizeof(*diffmap)));
@@ -55,6 +57,7 @@ void set_mb_butteraugli_rdmult_scaling(AV1_COMP *cpi,
       const int x_start = col * block_w;
       float dbutteraugli = 0.0f;
       float dmse = 0.0f;
+      float px_count = 0.0f;
 
       // Loop through each pixel.
       for (int y = y_start; y < y_start + block_h && y < height; y++) {
@@ -63,22 +66,28 @@ void set_mb_butteraugli_rdmult_scaling(AV1_COMP *cpi,
           float px_diff = source->y_buffer[y * source->y_stride + x] -
                           recon->y_buffer[y * recon->y_stride + x];
           dmse += px_diff * px_diff;
+          px_count += 1.0f;
         }
       }
-      for (int y = y_start; y < y_start + block_h && y < height; y += 2) {
-        for (int x = x_start; x < x_start + block_w && x < width; x += 2) {
-          const int src_px_index = y / 2 * source->uv_stride + x / 2;
-          const int recon_px_index = y / 2 * recon->uv_stride + x / 2;
+      const int y_end = AOMMIN((y_start >> ss_y) + (block_h >> ss_y),
+                               (height + ss_y) >> ss_y);
+      for (int y = y_start >> ss_y; y < y_end; y++) {
+        const int x_end = AOMMIN((x_start >> ss_x) + (block_w >> ss_x),
+                                 (width + ss_x) >> ss_x);
+        for (int x = x_start >> ss_x; x < x_end; x++) {
+          const int src_px_index = y * source->uv_stride + x;
+          const int recon_px_index = y * recon->uv_stride + x;
           const float px_diff_u = (float)(source->u_buffer[src_px_index] -
                                           recon->u_buffer[recon_px_index]);
           const float px_diff_v = (float)(source->v_buffer[src_px_index] -
                                           recon->v_buffer[recon_px_index]);
           dmse += px_diff_u * px_diff_u + px_diff_v * px_diff_v;
+          px_count += 2.0f;
         }
       }
 
       dbutteraugli = powf(dbutteraugli, 1.0f / 12.0f);
-      dmse = dmse / (2.0f * (float)block_w * (float)block_h);
+      dmse = dmse / px_count;
       // 'K' is used to balance the rate-distortion distribution between PSNR
       // and Butteraugli.
       const double K = 0.4;
@@ -166,10 +175,12 @@ static void copy_img(const YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *dst,
                      int width, int height) {
   copy_plane(src->y_buffer, src->y_stride, dst->y_buffer, dst->y_stride, width,
              height);
+  const int width_uv = (width + src->subsampling_x) >> src->subsampling_x;
+  const int height_uv = (height + src->subsampling_y) >> src->subsampling_y;
   copy_plane(src->u_buffer, src->uv_stride, dst->u_buffer, dst->uv_stride,
-             width / 2, height / 2);
+             width_uv, height_uv);
   copy_plane(src->v_buffer, src->uv_stride, dst->v_buffer, dst->uv_stride,
-             width / 2, height / 2);
+             width_uv, height_uv);
 }
 
 static void zero_plane(uint8_t *dst, int dst_stride, int h) {
@@ -192,9 +203,11 @@ void av1_setup_butteraugli_source(AV1_COMP *cpi) {
   const int width = cpi->source->y_crop_width;
   const int height = cpi->source->y_crop_height;
   const int bit_depth = cpi->td.mb.e_mbd.bd;
+  const int ss_x = cpi->source->subsampling_x;
+  const int ss_y = cpi->source->subsampling_y;
   if (dst->buffer_alloc_sz == 0) {
     aom_alloc_frame_buffer(
-        dst, width, height, 1, 1, cm->seq_params.use_highbitdepth,
+        dst, width, height, ss_x, ss_y, cm->seq_params.use_highbitdepth,
         cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
   }
   av1_copy_and_extend_frame(cpi->source, dst);
@@ -202,7 +215,7 @@ void av1_setup_butteraugli_source(AV1_COMP *cpi) {
   YV12_BUFFER_CONFIG *const resized_dst = &cpi->butteraugli_info.resized_source;
   if (resized_dst->buffer_alloc_sz == 0) {
     aom_alloc_frame_buffer(
-        resized_dst, width / resize_factor, height / resize_factor, 1, 1,
+        resized_dst, width / resize_factor, height / resize_factor, ss_x, ss_y,
         cm->seq_params.use_highbitdepth, cpi->oxcf.border_in_pixels,
         cm->features.byte_alignment);
   }
@@ -221,11 +234,13 @@ void av1_restore_butteraugli_source(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   const int width = cpi->source->y_crop_width;
   const int height = cpi->source->y_crop_height;
+  const int ss_x = cpi->source->subsampling_x;
+  const int ss_y = cpi->source->subsampling_y;
 
   YV12_BUFFER_CONFIG resized_recon;
   memset(&resized_recon, 0, sizeof(resized_recon));
   aom_alloc_frame_buffer(
-      &resized_recon, width / resize_factor, height / resize_factor, 1, 1,
+      &resized_recon, width / resize_factor, height / resize_factor, ss_x, ss_y,
       cm->seq_params.use_highbitdepth, cpi->oxcf.border_in_pixels,
       cm->features.byte_alignment);
   copy_img(&cpi->common.cur_frame->buf, &resized_recon, width / resize_factor,

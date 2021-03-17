@@ -619,8 +619,8 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
 
 #if CONFIG_TUNE_BUTTERAUGLI
   if (ctx->extra_cfg.tuning == AOM_TUNE_BUTTERAUGLI) {
-    if (img->x_chroma_shift != 1 || img->y_chroma_shift != 1) {
-      ERROR("Only YV12/I420 images supported in tune=butteraugli mode.");
+    if (img->bit_depth > 8) {
+      ERROR("Only 8 bit depth images supported in tune=butteraugli mode.");
     }
     if ((img->cp != 0 && img->cp != AOM_CICP_CP_BT_709) ||
         (img->tc != 0 && img->tc != AOM_CICP_TC_BT_709) ||
