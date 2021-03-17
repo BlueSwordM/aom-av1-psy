@@ -3233,7 +3233,6 @@ static AOM_INLINE void rd_pick_skip_mode(
 
   assert(this_mode == NEAREST_NEARESTMV);
   if (!build_cur_mv(mbmi->mv, this_mode, cm, x, 0)) {
-    build_cur_mv(mbmi->mv, this_mode, cm, x, 0);
     return;
   }
 
