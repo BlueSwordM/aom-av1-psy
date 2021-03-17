@@ -3244,6 +3244,8 @@ static AOM_INLINE void rd_pick_skip_mode(
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->ref_mv_idx = 0;
   mbmi->skip_mode = mbmi->skip_txfm = 1;
+  mbmi->palette_mode_info.palette_size[0] = 0;
+  mbmi->palette_mode_info.palette_size[1] = 0;
 
   set_default_interp_filters(mbmi, cm->features.interp_filter);
 
