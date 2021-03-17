@@ -374,7 +374,7 @@ int av1_compute_rd_mult(const AV1_COMP *cpi, int qindex) {
       cpi->common.seq_params.bit_depth, qindex);
   if (is_stat_consumption_stage(cpi) &&
       (cpi->common.current_frame.frame_type != KEY_FRAME)) {
-    const GF_GROUP *const gf_group = &cpi->gf_group;
+    const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
     const int boost_index = AOMMIN(15, (cpi->rc.gfu_boost / 100));
     const int layer_depth =
         AOMMIN(gf_group->layer_depth[cpi->gf_frame_index], 6);

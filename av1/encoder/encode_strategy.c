@@ -216,7 +216,7 @@ static int get_current_frame_ref_type(
   // TODO(jingning): This table should be a lot simpler with the new
   // ARF system in place. Keep frame_params for the time being as we are
   // still evaluating a few design options.
-  switch (cpi->gf_group.layer_depth[cpi->gf_frame_index]) {
+  switch (cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index]) {
     case 0: return 0;
     case 1: return 1;
     case MAX_ARF_LAYERS:
@@ -238,7 +238,7 @@ static int choose_primary_ref_frame(
 
   // In large scale case, always use Last frame's frame contexts.
   // Note(yunqing): In other cases, primary_ref_frame is chosen based on
-  // cpi->gf_group.layer_depth[cpi->gf_frame_index], which also controls
+  // cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index], which also controls
   // frame bit allocation.
   if (cm->tiles.large_scale) return (LAST_FRAME - LAST_FRAME);
 
@@ -372,7 +372,7 @@ static struct lookahead_entry *choose_frame_source(
     struct lookahead_entry **last_source,
     EncodeFrameParams *const frame_params) {
   AV1_COMMON *const cm = &cpi->common;
-  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   struct lookahead_entry *source = NULL;
 
   // Source index in lookahead buffer.
@@ -879,9 +879,9 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
 #endif
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
-  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   FRAME_UPDATE_TYPE update_type =
-      get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
+      get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
 
   // Decide whether to apply temporal filtering to the source frame.
   int apply_filtering = 0;
@@ -1098,7 +1098,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                         int flush) {
   AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
-  GF_GROUP *gf_group = &cpi->gf_group;
+  GF_GROUP *gf_group = &cpi->ppi->gf_group;
   ExternalFlags *const ext_flags = &cpi->ext_flags;
   GFConfig *const gf_cfg = &oxcf->gf_cfg;
 

@@ -41,7 +41,7 @@ static int compare_weight(const void *a, const void *b) {
 // Allow more mesh searches for screen content type on the ARF.
 static int use_fine_search_interval(const AV1_COMP *const cpi) {
   return cpi->is_screen_content_type &&
-         cpi->gf_group.update_type[cpi->gf_frame_index] == ARF_UPDATE &&
+         cpi->ppi->gf_group.update_type[cpi->gf_frame_index] == ARF_UPDATE &&
          cpi->oxcf.speed <= 2;
 }
 

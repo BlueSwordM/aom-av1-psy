@@ -745,7 +745,7 @@ static void tf_normalize_filtered_frame(
 }
 
 int av1_get_q(const AV1_COMP *cpi) {
-  const GF_GROUP *gf_group = &cpi->gf_group;
+  const GF_GROUP *gf_group = &cpi->ppi->gf_group;
   const FRAME_TYPE frame_type = gf_group->frame_type[cpi->gf_frame_index];
   const int q = (int)av1_convert_qindex_to_q(
       cpi->rc.avg_frame_qindex[frame_type], cpi->common.seq_params.bit_depth);
@@ -939,8 +939,9 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   const int lookahead_depth =
       av1_lookahead_depth(cpi->ppi->lookahead, cpi->compressor_stage);
 
-  int arf_src_offset = cpi->gf_group.arf_src_offset[cpi->gf_frame_index];
-  const FRAME_TYPE frame_type = cpi->gf_group.frame_type[cpi->gf_frame_index];
+  int arf_src_offset = cpi->ppi->gf_group.arf_src_offset[cpi->gf_frame_index];
+  const FRAME_TYPE frame_type =
+      cpi->ppi->gf_group.frame_type[cpi->gf_frame_index];
 
   // Temporal filtering should not go beyond key frames
   const int key_to_curframe =
@@ -1174,7 +1175,7 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
                         int *show_existing_arf) {
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   // Basic informaton of the current frame.
-  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   const uint8_t group_idx = cpi->gf_frame_index;
   TemporalFilterCtx *tf_ctx = &cpi->tf_ctx;
   TemporalFilterData *tf_data = &cpi->td.tf_data;

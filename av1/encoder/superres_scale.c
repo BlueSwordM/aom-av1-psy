@@ -143,7 +143,7 @@ static uint8_t get_superres_denom_from_qindex_energy(int qindex, double *energy,
 static uint8_t get_superres_denom_for_qindex(const AV1_COMP *cpi, int qindex,
                                              int sr_kf, int sr_arf) {
   // Use superres for Key-frames and Alt-ref frames only.
-  const GF_GROUP *gf_group = &cpi->gf_group;
+  const GF_GROUP *gf_group = &cpi->ppi->gf_group;
   if (gf_group->update_type[cpi->gf_frame_index] != KF_UPDATE &&
       gf_group->update_type[cpi->gf_frame_index] != ARF_UPDATE) {
     return SCALE_NUMERATOR;

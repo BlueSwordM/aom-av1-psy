@@ -327,7 +327,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
 static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
                                  int mi_col) {
   const AV1_COMMON *cm = &cpi->common;
-  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   MACROBLOCK *x = &td->mb;
   const int frame_idx = cpi->gf_frame_index;
@@ -342,7 +342,8 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
   if (frame_idx >= MAX_TPL_FRAME_IDX) return;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return;
 
-  const int is_overlay = cpi->gf_group.update_type[frame_idx] == OVERLAY_UPDATE;
+  const int is_overlay =
+      cpi->ppi->gf_group.update_type[frame_idx] == OVERLAY_UPDATE;
   if (is_overlay) {
     memset(x->tpl_keep_ref_frame, 1, sizeof(x->tpl_keep_ref_frame));
     return;
@@ -430,12 +431,12 @@ static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
   const BLOCK_SIZE sb_size = cpi->common.seq_params.sb_size;
   const int orig_rdmult = cpi->rd.RDMULT;
 
-  assert(IMPLIES(cpi->gf_group.size > 0,
-                 cpi->gf_frame_index < cpi->gf_group.size));
+  assert(IMPLIES(cpi->ppi->gf_group.size > 0,
+                 cpi->gf_frame_index < cpi->ppi->gf_group.size));
   const int gf_group_index = cpi->gf_frame_index;
   if (cpi->oxcf.algo_cfg.enable_tpl_model && cpi->oxcf.q_cfg.aq_mode == NO_AQ &&
       cpi->oxcf.q_cfg.deltaq_mode == NO_DELTA_Q && gf_group_index > 0 &&
-      cpi->gf_group.update_type[gf_group_index] == ARF_UPDATE) {
+      cpi->ppi->gf_group.update_type[gf_group_index] == ARF_UPDATE) {
     const int dr =
         av1_get_rdmult_delta(cpi, sb_size, mi_row, mi_col, orig_rdmult);
     x->rdmult = dr;
@@ -1289,7 +1290,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   if (features->allow_warped_motion &&
       cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
     const FRAME_UPDATE_TYPE update_type =
-        get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
+        get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
     if (frame_probs->warped_probs[update_type] <
         cpi->sf.inter_sf.prune_warped_prob_thresh)
       features->allow_warped_motion = 0;
@@ -1388,7 +1389,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     // is used for ineligible frames. That effectively will turn off row_mt
     // usage. Note objective delta_q and tpl eligible frames are only altref
     // frames currently.
-    const GF_GROUP *gf_group = &cpi->gf_group;
+    const GF_GROUP *gf_group = &cpi->ppi->gf_group;
     if (cm->delta_q_info.delta_q_present_flag) {
       if (deltaq_mode == DELTA_Q_OBJECTIVE &&
           !is_frame_tpl_eligible(gf_group, cpi->gf_frame_index))
@@ -1512,8 +1513,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
   if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats) {
     const FRAME_UPDATE_TYPE update_type =
-        get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
-
+        get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
     for (i = 0; i < TX_SIZES_ALL; i++) {
       int sum = 0;
       int j;
@@ -1538,7 +1538,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   if (cpi->sf.inter_sf.prune_obmc_prob_thresh > 0 &&
       cpi->sf.inter_sf.prune_obmc_prob_thresh < INT_MAX) {
     const FRAME_UPDATE_TYPE update_type =
-        get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
+        get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
 
     for (i = 0; i < BLOCK_SIZES_ALL; i++) {
       int sum = 0;
@@ -1554,7 +1554,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   if (features->allow_warped_motion &&
       cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
     const FRAME_UPDATE_TYPE update_type =
-        get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
+        get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
     int sum = 0;
     for (i = 0; i < 2; i++) sum += cpi->td.rd_counts.warped_used[i];
     const int new_prob = sum ? 128 * cpi->td.rd_counts.warped_used[1] / sum : 0;
@@ -1566,7 +1566,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       cpi->sf.interp_sf.adaptive_interp_filter_search == 2 &&
       features->interp_filter == SWITCHABLE) {
     const FRAME_UPDATE_TYPE update_type =
-        get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
+        get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
 
     for (i = 0; i < SWITCHABLE_FILTER_CONTEXTS; i++) {
       int sum = 0;

@@ -284,7 +284,7 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
   AV1_COMMON *const cm = &cpi->common;
   int *num_past_ref_frames = &num_ref_frames[0];
   int *num_future_ref_frames = &num_ref_frames[1];
-  const GF_GROUP *gf_group = &cpi->gf_group;
+  const GF_GROUP *gf_group = &cpi->ppi->gf_group;
   int ref_pruning_enabled = is_frame_eligible_for_ref_pruning(
       gf_group, cpi->sf.inter_sf.selective_ref_frame, 1, cpi->gf_frame_index);
 

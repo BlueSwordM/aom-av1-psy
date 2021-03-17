@@ -1356,7 +1356,7 @@ static int64_t motion_mode_rd(
     // Do not search OBMC if the probability of selecting it is below a
     // predetermined threshold for this update_type and block size.
     const FRAME_UPDATE_TYPE update_type =
-        get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
+        get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
     const int prune_obmc = cpi->frame_probs.obmc_probs[update_type][bsize] <
                            cpi->sf.inter_sf.prune_obmc_prob_thresh;
     if ((!cpi->oxcf.motion_mode_cfg.enable_obmc ||
@@ -2174,8 +2174,8 @@ static AOM_INLINE void get_block_level_tpl_stats(
     PruneInfoFromTpl *inter_cost_info_from_tpl) {
   AV1_COMMON *const cm = &cpi->common;
 
-  assert(IMPLIES(cpi->gf_group.size > 0,
-                 cpi->gf_frame_index < cpi->gf_group.size));
+  assert(IMPLIES(cpi->ppi->gf_group.size > 0,
+                 cpi->gf_frame_index < cpi->ppi->gf_group.size));
   const int tpl_idx = cpi->gf_frame_index;
   TplParams *const tpl_data = &cpi->tpl_data;
   const TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_idx];
@@ -3895,7 +3895,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
 
   av1_count_overlappable_neighbors(cm, xd);
   const FRAME_UPDATE_TYPE update_type =
-      get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
+      get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
   const int prune_obmc = cpi->frame_probs.obmc_probs[update_type][bsize] <
                          cpi->sf.inter_sf.prune_obmc_prob_thresh;
   if (cpi->oxcf.motion_mode_cfg.enable_obmc && !prune_obmc) {

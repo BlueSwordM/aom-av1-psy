@@ -459,7 +459,7 @@ void av1_apply_active_map(AV1_COMP *cpi) {
 
 #if !CONFIG_REALTIME_ONLY
 static void process_tpl_stats_frame(AV1_COMP *cpi) {
-  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   AV1_COMMON *const cm = &cpi->common;
 
   assert(IMPLIES(gf_group->size > 0, cpi->gf_frame_index < gf_group->size));
@@ -529,7 +529,7 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
   av1_set_speed_features_framesize_dependent(cpi, cpi->speed);
 
 #if !CONFIG_REALTIME_ONLY
-  GF_GROUP *gf_group = &cpi->gf_group;
+  GF_GROUP *gf_group = &cpi->ppi->gf_group;
   if (cpi->oxcf.algo_cfg.enable_tpl_model &&
       is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) {
     process_tpl_stats_frame(cpi);
@@ -1302,10 +1302,10 @@ void av1_dump_filtered_recon_frames(AV1_COMP *cpi) {
       "refresh_alt_ref_frame=%d, "
       "y_stride=%4d, uv_stride=%4d, cm->width=%4d, cm->height=%4d\n\n",
       current_frame->frame_number, cpi->gf_frame_index,
-      cpi->gf_group.update_type[cpi->gf_frame_index], current_frame->order_hint,
-      cm->show_frame, cm->show_existing_frame, cpi->rc.source_alt_ref_active,
-      cpi->refresh_frame.alt_ref_frame, recon_buf->y_stride,
-      recon_buf->uv_stride, cm->width, cm->height);
+      cpi->ppi->gf_group.update_type[cpi->gf_frame_index],
+      current_frame->order_hint, cm->show_frame, cm->show_existing_frame,
+      cpi->rc.source_alt_ref_active, cpi->refresh_frame.alt_ref_frame,
+      recon_buf->y_stride, recon_buf->uv_stride, cm->width, cm->height);
 #if 0
   int ref_frame;
   printf("get_ref_frame_map_idx: [");

@@ -403,7 +403,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
                                        BLOCK_SIZE bsize, TX_SIZE tx_size,
                                        TplDepStats *tpl_stats) {
   AV1_COMMON *cm = &cpi->common;
-  const GF_GROUP *gf_group = &cpi->gf_group;
+  const GF_GROUP *gf_group = &cpi->ppi->gf_group;
 
   (void)gf_group;
 
@@ -1065,7 +1065,7 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
   const YV12_BUFFER_CONFIG *this_frame = tpl_frame->gf_picture;
   const YV12_BUFFER_CONFIG *ref_frames_ordered[INTER_REFS_PER_FRAME];
   uint32_t ref_frame_display_indices[INTER_REFS_PER_FRAME];
-  GF_GROUP *gf_group = &cpi->gf_group;
+  GF_GROUP *gf_group = &cpi->ppi->gf_group;
   int ref_pruning_enabled = is_frame_eligible_for_ref_pruning(
       gf_group, cpi->sf.inter_sf.selective_ref_frame,
       cpi->sf.tpl_sf.prune_ref_frames_in_tpl, frame_idx);
@@ -1448,7 +1448,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   AV1_COMMON *cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   AV1TplRowMultiThreadInfo *const tpl_row_mt = &mt_info->tpl_row_mt;
-  GF_GROUP *gf_group = &cpi->gf_group;
+  GF_GROUP *gf_group = &cpi->ppi->gf_group;
   int bottom_index, top_index;
   EncodeFrameParams this_frame_params = *frame_params;
   TplParams *const tpl_data = &cpi->tpl_data;
@@ -1599,7 +1599,8 @@ void av1_tpl_rdmult_setup(AV1_COMP *cpi) {
   const AV1_COMMON *const cm = &cpi->common;
   const int tpl_idx = cpi->gf_frame_index;
 
-  assert(IMPLIES(cpi->gf_group.size > 0, tpl_idx < cpi->gf_group.size));
+  assert(
+      IMPLIES(cpi->ppi->gf_group.size > 0, tpl_idx < cpi->ppi->gf_group.size));
 
   TplParams *const tpl_data = &cpi->tpl_data;
   const TplDepFrame *const tpl_frame = &tpl_data->tpl_frame[tpl_idx];
@@ -1651,9 +1652,9 @@ void av1_tpl_rdmult_setup(AV1_COMP *cpi) {
 void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
                              BLOCK_SIZE sb_size, int mi_row, int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
-  GF_GROUP *gf_group = &cpi->gf_group;
-  assert(IMPLIES(cpi->gf_group.size > 0,
-                 cpi->gf_frame_index < cpi->gf_group.size));
+  GF_GROUP *gf_group = &cpi->ppi->gf_group;
+  assert(IMPLIES(cpi->ppi->gf_group.size > 0,
+                 cpi->gf_frame_index < cpi->ppi->gf_group.size));
   const int tpl_idx = cpi->gf_frame_index;
   TplDepFrame *tpl_frame = &cpi->tpl_data.tpl_frame[tpl_idx];
 

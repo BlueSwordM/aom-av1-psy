@@ -86,9 +86,9 @@ int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
                             const BLOCK_SIZE bsize, const int mi_row,
                             const int mi_col, int orig_rdmult) {
   const AV1_COMMON *const cm = &cpi->common;
-  const GF_GROUP *const gf_group = &cpi->gf_group;
-  assert(IMPLIES(cpi->gf_group.size > 0,
-                 cpi->gf_frame_index < cpi->gf_group.size));
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
+  assert(IMPLIES(cpi->ppi->gf_group.size > 0,
+                 cpi->gf_frame_index < cpi->ppi->gf_group.size));
   const int tpl_idx = cpi->gf_frame_index;
   const TplDepFrame *tpl_frame = &cpi->tpl_data.tpl_frame[tpl_idx];
   const int deltaq_rdmult = set_deltaq_rdmult(cpi, x);
@@ -683,9 +683,9 @@ int av1_is_leaf_split_partition(AV1_COMMON *cm, int mi_row, int mi_col,
 int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
                          int mi_col, int orig_rdmult) {
   AV1_COMMON *const cm = &cpi->common;
-  const GF_GROUP *const gf_group = &cpi->gf_group;
-  assert(IMPLIES(cpi->gf_group.size > 0,
-                 cpi->gf_frame_index < cpi->gf_group.size));
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
+  assert(IMPLIES(cpi->ppi->gf_group.size > 0,
+                 cpi->gf_frame_index < cpi->ppi->gf_group.size));
   const int tpl_idx = cpi->gf_frame_index;
   TplParams *const tpl_data = &cpi->tpl_data;
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_idx];
@@ -816,11 +816,11 @@ void av1_get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
   if (!cpi->oxcf.algo_cfg.enable_tpl_model) return;
   if (cpi->common.current_frame.frame_type == KEY_FRAME) return;
   const FRAME_UPDATE_TYPE update_type =
-      get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
+      get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
   if (update_type == INTNL_OVERLAY_UPDATE || update_type == OVERLAY_UPDATE)
     return;
-  assert(IMPLIES(cpi->gf_group.size > 0,
-                 cpi->gf_frame_index < cpi->gf_group.size));
+  assert(IMPLIES(cpi->ppi->gf_group.size > 0,
+                 cpi->gf_frame_index < cpi->ppi->gf_group.size));
 
   AV1_COMMON *const cm = &cpi->common;
   const int gf_group_index = cpi->gf_frame_index;
@@ -891,9 +891,9 @@ void av1_get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
 int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
                                    int mi_row, int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
-  const GF_GROUP *const gf_group = &cpi->gf_group;
-  assert(IMPLIES(cpi->gf_group.size > 0,
-                 cpi->gf_frame_index < cpi->gf_group.size));
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
+  assert(IMPLIES(cpi->ppi->gf_group.size > 0,
+                 cpi->gf_frame_index < cpi->ppi->gf_group.size));
   const int tpl_idx = cpi->gf_frame_index;
   TplParams *const tpl_data = &cpi->tpl_data;
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_idx];

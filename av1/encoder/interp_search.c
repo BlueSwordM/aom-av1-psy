@@ -450,7 +450,7 @@ static INLINE void find_best_non_dual_interp_filter(
 
   if (cpi->sf.interp_sf.adaptive_interp_filter_search == 2) {
     const FRAME_UPDATE_TYPE update_type =
-        get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
+        get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
     const int ctx0 = av1_get_pred_context_switchable_interp(xd, 0);
     const int ctx1 = av1_get_pred_context_switchable_interp(xd, 1);
     const int *switchable_interp_p0 =

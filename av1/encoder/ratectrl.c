@@ -482,7 +482,7 @@ static double get_rate_correction_factor(const AV1_COMP *cpi, int width,
     rcf = rc->rate_correction_factors[KF_STD];
   } else if (is_stat_consumption_stage(cpi)) {
     const RATE_FACTOR_LEVEL rf_lvl =
-        get_rate_factor_level(&cpi->gf_group, cpi->gf_frame_index);
+        get_rate_factor_level(&cpi->ppi->gf_group, cpi->gf_frame_index);
     rcf = rc->rate_correction_factors[rf_lvl];
   } else {
     if ((refresh_frame_flags->alt_ref_frame ||
@@ -527,7 +527,7 @@ static void set_rate_correction_factor(AV1_COMP *cpi, double factor, int width,
     rc->rate_correction_factors[KF_STD] = factor;
   } else if (is_stat_consumption_stage(cpi)) {
     const RATE_FACTOR_LEVEL rf_lvl =
-        get_rate_factor_level(&cpi->gf_group, cpi->gf_frame_index);
+        get_rate_factor_level(&cpi->ppi->gf_group, cpi->gf_frame_index);
     rc->rate_correction_factors[rf_lvl] = factor;
   } else {
     if ((refresh_frame_flags->alt_ref_frame ||
@@ -1087,7 +1087,7 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
   const CurrentFrame *const current_frame = &cm->current_frame;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
-  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   const enum aom_rc_mode rc_mode = oxcf->rc_cfg.mode;
 
   assert(has_no_stats_stage(cpi));
@@ -1254,7 +1254,7 @@ static const double arf_layer_deltas[MAX_ARF_LAYERS + 1] = { 2.50, 2.00, 1.75,
                                                              1.50, 1.25, 1.15,
                                                              1.0 };
 int av1_frame_type_qdelta(const AV1_COMP *cpi, int q) {
-  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   const RATE_FACTOR_LEVEL rf_lvl =
       get_rate_factor_level(gf_group, cpi->gf_frame_index);
   const FRAME_TYPE frame_type = gf_group->frame_type[cpi->gf_frame_index];
@@ -1512,7 +1512,7 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
-  const GF_GROUP *gf_group = &cpi->gf_group;
+  const GF_GROUP *gf_group = &cpi->ppi->gf_group;
   const enum aom_rc_mode rc_mode = oxcf->rc_cfg.mode;
   int *inter_minq;
   ASSIGN_MINQ_TABLE(bit_depth, inter_minq);
@@ -1591,7 +1591,7 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
-  const GF_GROUP *gf_group = &cpi->gf_group;
+  const GF_GROUP *gf_group = &cpi->ppi->gf_group;
   assert(IMPLIES(has_no_stats_stage(cpi),
                  cpi->oxcf.rc_cfg.mode == AOM_Q &&
                      gf_group->update_type[gf_index] != ARF_UPDATE));
@@ -1678,7 +1678,7 @@ int av1_rc_pick_q_and_bounds(const AV1_COMP *cpi, RATE_CONTROL *rc, int width,
   int q;
   // TODO(sarahparker) merge no-stats vbr and altref q computation
   // with rc_pick_q_and_bounds().
-  const GF_GROUP *gf_group = &cpi->gf_group;
+  const GF_GROUP *gf_group = &cpi->ppi->gf_group;
   if ((cpi->oxcf.rc_cfg.mode != AOM_Q ||
        gf_group->update_type[gf_index] == ARF_UPDATE) &&
       has_no_stats_stage(cpi)) {
@@ -1760,7 +1760,7 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
   const AV1_COMMON *const cm = &cpi->common;
   const CurrentFrame *const current_frame = &cm->current_frame;
   RATE_CONTROL *const rc = &cpi->rc;
-  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
 
   const int is_intrnl_arf =
@@ -2348,7 +2348,7 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
 static int set_gf_interval_update_onepass_rt(AV1_COMP *cpi,
                                              FRAME_TYPE frame_type) {
   RATE_CONTROL *const rc = &cpi->rc;
-  GF_GROUP *const gf_group = &cpi->gf_group;
+  GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   ResizePendingParams *const resize_pending_params =
       &cpi->resize_pending_params;
   int gf_update = 0;
@@ -2553,7 +2553,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
                                 unsigned int frame_flags) {
   RATE_CONTROL *const rc = &cpi->rc;
   AV1_COMMON *const cm = &cpi->common;
-  GF_GROUP *const gf_group = &cpi->gf_group;
+  GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   SVC *const svc = &cpi->svc;
   ResizePendingParams *const resize_pending_params =
       &cpi->resize_pending_params;

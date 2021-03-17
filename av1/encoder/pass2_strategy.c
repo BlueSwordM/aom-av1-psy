@@ -2179,11 +2179,11 @@ static void correct_frames_to_key(AV1_COMP *cpi) {
  *
  * \param[in]    cpi             Top-level encoder structure
  *
- * \return Nothing is returned. Instead, cpi->gf_group is changed.
+ * \return Nothing is returned. Instead, cpi->ppi->gf_group is changed.
  */
 static void define_gf_group_pass0(AV1_COMP *cpi) {
   RATE_CONTROL *const rc = &cpi->rc;
-  GF_GROUP *const gf_group = &cpi->gf_group;
+  GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const GFConfig *const gf_cfg = &oxcf->gf_cfg;
   int target;
@@ -2319,7 +2319,7 @@ static void init_gf_stats(GF_GROUP_STATS *gf_stats) {
  * \param[in]    is_final_pass   Whether this is the final pass for the
  *                               GF group, or a trial (non-zero)
  *
- * \return Nothing is returned. Instead, cpi->gf_group is changed.
+ * \return Nothing is returned. Instead, cpi->ppi->gf_group is changed.
  */
 static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
                             EncodeFrameParams *frame_params, int max_gop_length,
@@ -2330,7 +2330,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   TWO_PASS *const twopass = &cpi->twopass;
   FIRSTPASS_STATS next_frame;
   const FIRSTPASS_STATS *const start_pos = twopass->stats_in;
-  GF_GROUP *gf_group = &cpi->gf_group;
+  GF_GROUP *gf_group = &cpi->ppi->gf_group;
   FRAME_INFO *frame_info = &cpi->frame_info;
   const GFConfig *const gf_cfg = &oxcf->gf_cfg;
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
@@ -2344,7 +2344,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // Reset the GF group data structures unless this is a key
   // frame in which case it will already have been done.
   if (!is_intra_only) {
-    av1_zero(cpi->gf_group);
+    av1_zero(cpi->ppi->gf_group);
     cpi->gf_frame_index = 0;
   }
 
@@ -3154,7 +3154,7 @@ static double get_kf_boost_score(AV1_COMP *cpi, double kf_raw_err,
 static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->twopass;
-  GF_GROUP *const gf_group = &cpi->gf_group;
+  GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   FRAME_INFO *const frame_info = &cpi->frame_info;
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
@@ -3490,7 +3490,7 @@ static void process_first_pass_stats(AV1_COMP *cpi,
 
 static void setup_target_rate(AV1_COMP *cpi) {
   RATE_CONTROL *const rc = &cpi->rc;
-  GF_GROUP *const gf_group = &cpi->gf_group;
+  GF_GROUP *const gf_group = &cpi->ppi->gf_group;
 
   int target_rate = gf_group->bit_allocation[cpi->gf_frame_index];
 
@@ -3508,7 +3508,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
                                 unsigned int frame_flags) {
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->twopass;
-  GF_GROUP *const gf_group = &cpi->gf_group;
+  GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
 
   const FIRSTPASS_STATS *const start_pos = twopass->stats_in;
@@ -3890,7 +3890,8 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
 
   // Update the active best quality pyramid.
   if (!rc->is_src_frame_alt_ref) {
-    const int pyramid_level = cpi->gf_group.layer_depth[cpi->gf_frame_index];
+    const int pyramid_level =
+        cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index];
     int i;
     for (i = pyramid_level; i <= MAX_ARF_LAYERS; ++i) {
       rc->active_best_quality[i] = cpi->common.quant_params.base_qindex;

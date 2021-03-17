@@ -661,7 +661,7 @@ static void set_good_speed_feature_framesize_dependent(
 static void set_good_speed_features_framesize_independent(
     const AV1_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   const AV1_COMMON *const cm = &cpi->common;
-  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   const int boosted = frame_is_boosted(cpi);
   const int is_boosted_arf2_bwd_type =
       boosted || gf_group->update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE;
@@ -1856,7 +1856,7 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
   const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
   const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
   const int is_arf2_bwd_type =
-      cpi->gf_group.update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE;
+      cpi->ppi->gf_group.update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE;
 
   if (cpi->oxcf.mode == REALTIME) return;
 

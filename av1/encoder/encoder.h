@@ -2091,6 +2091,11 @@ typedef struct AV1_PRIMARY {
    * When set, indicates that internal ARFs are enabled.
    */
   int internal_altref_allowed;
+
+  /*!
+   * Information related to a gf group.
+   */
+  GF_GROUP gf_group;
 } AV1_PRIMARY;
 
 /*!
@@ -2354,11 +2359,6 @@ typedef struct AV1_COMP {
    * Information related to two pass encoding.
    */
   TWO_PASS twopass;
-
-  /*!
-   * Information related to a gf group.
-   */
-  GF_GROUP gf_group;
 
   /*!
    * The frame processing order within a GOP.
@@ -2966,7 +2966,7 @@ ticks_to_timebase_units(const aom_rational64_t *timestamp_ratio, int64_t n) {
 }
 
 static INLINE int frame_is_kf_gf_arf(const AV1_COMP *cpi) {
-  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   const FRAME_UPDATE_TYPE update_type =
       gf_group->update_type[cpi->gf_frame_index];
 
