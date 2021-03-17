@@ -115,7 +115,6 @@ set_aom_config_var(CONFIG_SPATIAL_RESAMPLING 1 "Spatial resampling.")
 set_aom_config_var(DECODE_HEIGHT_LIMIT 0 "Set limit for decode height.")
 set_aom_config_var(DECODE_WIDTH_LIMIT 0 "Set limit for decode width.")
 set_aom_config_var(CONFIG_TUNE_VMAF 0 "Enable encoding tuning for VMAF.")
-set_aom_config_var(CONFIG_USE_VMAF_RC 0 "Use libvmaf_rc tune for VMAF_NEG.")
 set_aom_config_var(CONFIG_TUNE_BUTTERAUGLI 0
                    "Enable encoding tuning for Butteraugli.")
 set_aom_config_var(STATIC_LINK_JXL 0 "Statically link the JPEG-XL library.")

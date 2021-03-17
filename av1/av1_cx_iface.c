@@ -177,25 +177,25 @@ static struct av1_extracfg default_extra_cfg = {
   0,              // gf_min_pyr_height
   5,              // gf_max_pyr_height
   AOM_TUNE_PSNR,  // tuning
-  "/usr/local/share/model/vmaf_v0.6.1.pkl",  // VMAF model path
-  10,                                        // cq_level
-  0,                                         // rc_max_intra_bitrate_pct
-  0,                                         // rc_max_inter_bitrate_pct
-  0,                                         // gf_cbr_boost_pct
-  0,                                         // lossless
-  1,                                         // enable_cdef
-  1,                                         // enable_restoration
-  0,                                         // force_video_mode
-  1,                                         // enable_obmc
-  3,                                         // disable_trellis_quant
-  0,                                         // enable_qm
-  DEFAULT_QM_Y,                              // qm_y
-  DEFAULT_QM_U,                              // qm_u
-  DEFAULT_QM_V,                              // qm_v
-  DEFAULT_QM_FIRST,                          // qm_min
-  DEFAULT_QM_LAST,                           // qm_max
-  1,                                         // max number of tile groups
-  0,                                         // mtu_size
+  "/usr/local/share/model/vmaf_v0.6.1.json",  // VMAF model path
+  10,                                         // cq_level
+  0,                                          // rc_max_intra_bitrate_pct
+  0,                                          // rc_max_inter_bitrate_pct
+  0,                                          // gf_cbr_boost_pct
+  0,                                          // lossless
+  1,                                          // enable_cdef
+  1,                                          // enable_restoration
+  0,                                          // force_video_mode
+  1,                                          // enable_obmc
+  3,                                          // disable_trellis_quant
+  0,                                          // enable_qm
+  DEFAULT_QM_Y,                               // qm_y
+  DEFAULT_QM_U,                               // qm_u
+  DEFAULT_QM_V,                               // qm_v
+  DEFAULT_QM_FIRST,                           // qm_min
+  DEFAULT_QM_LAST,                            // qm_max
+  1,                                          // max number of tile groups
+  0,                                          // mtu_size
   AOM_TIMING_UNSPECIFIED,       // No picture timing signaling in bitstream
   0,                            // frame_parallel_decoding_mode
   1,                            // enable dual filter
@@ -537,15 +537,6 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
     ERROR(
         "This error may be related to the wrong configuration options: try to "
         "set -DCONFIG_TUNE_VMAF=1 at the time CMake is run.");
-  }
-#endif
-
-#if !CONFIG_USE_VMAF_RC
-  if (extra_cfg->tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN) {
-    ERROR(
-        "This error may be related to the wrong configuration options: try to "
-        "set -DCONFIG_TUNE_VMAF=1 and -DCONFIG_USE_VMAF_RC=1 at the time CMake"
-        " is run.");
   }
 #endif
 
@@ -2249,9 +2240,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     av1_apply_encoding_flags(cpi_lap, flags);
   }
 
-#if CONFIG_USE_VMAF_RC
-  aom_init_vmaf_model_rc(&cpi->vmaf_info.vmaf_model,
-                         cpi->oxcf.tune_cfg.vmaf_model_path);
+#if CONFIG_TUNE_VMAF
+  aom_init_vmaf_model(&cpi->vmaf_info.vmaf_model,
+                      cpi->oxcf.tune_cfg.vmaf_model_path);
 #endif
 
   // Handle fixed keyframe intervals

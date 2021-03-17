@@ -202,10 +202,7 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 #if CONFIG_TUNE_VMAF
   aom_free(cpi->vmaf_info.rdmult_scaling_factors);
   cpi->vmaf_info.rdmult_scaling_factors = NULL;
-
-#if CONFIG_USE_VMAF_RC
-  aom_close_vmaf_model_rc(cpi->vmaf_info.vmaf_model);
-#endif
+  aom_close_vmaf_model(cpi->vmaf_info.vmaf_model);
 #endif
 
 #if CONFIG_TUNE_BUTTERAUGLI

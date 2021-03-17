@@ -1079,10 +1079,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
       cpi->vmaf_info.last_frame_vmaf[i] = -1.0;
     }
     cpi->vmaf_info.original_qindex = -1;
-
-#if CONFIG_USE_VMAF_RC
     cpi->vmaf_info.vmaf_model = NULL;
-#endif
   }
 #endif
 
@@ -2506,7 +2503,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   if (!cpi->sf.hl_sf.disable_extra_sc_testing)
     av1_determine_sc_tools_with_encoding(cpi, q);
 
-#if CONFIG_USE_VMAF_RC
+#if CONFIG_TUNE_VMAF
   if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN) {
     av1_vmaf_neg_preprocessing(cpi, cpi->unscaled_source);
   }
