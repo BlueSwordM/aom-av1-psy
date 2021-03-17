@@ -1253,7 +1253,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     GF_GROUP *gf_group, int gop_eval, int *tpl_group_frames,
     const EncodeFrameInput *const frame_input, int *pframe_qindex) {
   AV1_COMMON *cm = &cpi->common;
-  int cur_frame_idx = gf_group->index;
+  int cur_frame_idx = cpi->gf_frame_index;
   *pframe_qindex = 0;
 
   RefBufferStack ref_buffer_stack = cpi->ref_buffer_stack;
@@ -1467,7 +1467,8 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   }
 
   cm->current_frame.frame_type = frame_params->frame_type;
-  for (int gf_index = gf_group->index; gf_index < gf_group->size; ++gf_index) {
+  for (int gf_index = cpi->gf_frame_index; gf_index < gf_group->size;
+       ++gf_index) {
     cm->current_frame.frame_type = gf_group->frame_type[gf_index];
     av1_configure_buffer_updates(cpi, &this_frame_params.refresh_frame,
                                  gf_group->update_type[gf_index],
@@ -1506,7 +1507,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
                     cm->features.allow_high_precision_mv, cpi->td.mb.mv_costs);
 
   // Backward propagation from tpl_group_frames to 1.
-  for (int frame_idx = gf_group->index; frame_idx < tpl_gf_group_frames;
+  for (int frame_idx = cpi->gf_frame_index; frame_idx < tpl_gf_group_frames;
        ++frame_idx) {
     if (gf_group->update_type[frame_idx] == INTNL_OVERLAY_UPDATE ||
         gf_group->update_type[frame_idx] == OVERLAY_UPDATE)
@@ -1526,8 +1527,8 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
                              av1_num_planes(cm));
   }
 
-  for (int frame_idx = tpl_gf_group_frames - 1; frame_idx >= gf_group->index;
-       --frame_idx) {
+  for (int frame_idx = tpl_gf_group_frames - 1;
+       frame_idx >= cpi->gf_frame_index; --frame_idx) {
     if (gf_group->update_type[frame_idx] == INTNL_OVERLAY_UPDATE ||
         gf_group->update_type[frame_idx] == OVERLAY_UPDATE)
       continue;
@@ -1536,7 +1537,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   }
 
   av1_configure_buffer_updates(cpi, &this_frame_params.refresh_frame,
-                               gf_group->update_type[gf_group->index],
+                               gf_group->update_type[cpi->gf_frame_index],
                                frame_params->frame_type, 0);
   cm->current_frame.frame_type = frame_params->frame_type;
   cm->show_frame = frame_params->show_frame;
@@ -1602,10 +1603,9 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
 void av1_tpl_rdmult_setup(AV1_COMP *cpi) {
   const AV1_COMMON *const cm = &cpi->common;
-  const GF_GROUP *const gf_group = &cpi->gf_group;
-  const int tpl_idx = gf_group->index;
+  const int tpl_idx = cpi->gf_frame_index;
 
-  assert(IMPLIES(gf_group->size > 0, tpl_idx < gf_group->size));
+  assert(IMPLIES(cpi->gf_group.size > 0, tpl_idx < cpi->gf_group.size));
 
   TplParams *const tpl_data = &cpi->tpl_data;
   const TplDepFrame *const tpl_frame = &tpl_data->tpl_frame[tpl_idx];
@@ -1659,12 +1659,12 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
   AV1_COMMON *const cm = &cpi->common;
   GF_GROUP *gf_group = &cpi->gf_group;
   assert(IMPLIES(cpi->gf_group.size > 0,
-                 cpi->gf_group.index < cpi->gf_group.size));
-  const int tpl_idx = cpi->gf_group.index;
+                 cpi->gf_frame_index < cpi->gf_group.size));
+  const int tpl_idx = cpi->gf_frame_index;
   TplDepFrame *tpl_frame = &cpi->tpl_data.tpl_frame[tpl_idx];
 
   if (tpl_frame->is_valid == 0) return;
-  if (!is_frame_tpl_eligible(gf_group, gf_group->index)) return;
+  if (!is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) return;
   if (tpl_idx >= MAX_TPL_FRAME_IDX) return;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return;
 

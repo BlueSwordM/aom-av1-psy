@@ -2357,6 +2357,11 @@ typedef struct AV1_COMP {
   GF_GROUP gf_group;
 
   /*!
+   * The frame processing order within a GOP.
+   */
+  unsigned char gf_frame_index;
+
+  /*!
    * Track prior gf group state.
    */
   GF_STATE gf_state;
@@ -2958,7 +2963,8 @@ ticks_to_timebase_units(const aom_rational64_t *timestamp_ratio, int64_t n) {
 
 static INLINE int frame_is_kf_gf_arf(const AV1_COMP *cpi) {
   const GF_GROUP *const gf_group = &cpi->gf_group;
-  const FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_group->index];
+  const FRAME_UPDATE_TYPE update_type =
+      gf_group->update_type[cpi->gf_frame_index];
 
   return frame_is_intra_only(&cpi->common) || update_type == ARF_UPDATE ||
          update_type == GF_UPDATE;
@@ -3237,9 +3243,9 @@ static INLINE int is_frame_eligible_for_ref_pruning(const GF_GROUP *gf_group,
 }
 
 // Get update type of the current frame.
-static INLINE FRAME_UPDATE_TYPE
-get_frame_update_type(const GF_GROUP *gf_group) {
-  return gf_group->update_type[gf_group->index];
+static INLINE FRAME_UPDATE_TYPE get_frame_update_type(const GF_GROUP *gf_group,
+                                                      int gf_frame_index) {
+  return gf_group->update_type[gf_frame_index];
 }
 
 static INLINE int av1_pixels_to_mi(int pixels) {

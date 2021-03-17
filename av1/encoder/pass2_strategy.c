@@ -2345,6 +2345,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // frame in which case it will already have been done.
   if (!is_intra_only) {
     av1_zero(cpi->gf_group);
+    cpi->gf_frame_index = 0;
   }
 
   aom_clear_system_state();
@@ -2627,8 +2628,8 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   frame_params->frame_type =
       rc->frames_since_key == 0 ? KEY_FRAME : INTER_FRAME;
   frame_params->show_frame =
-      !(gf_group->update_type[gf_group->index] == ARF_UPDATE ||
-        gf_group->update_type[gf_group->index] == INTNL_ARF_UPDATE);
+      !(gf_group->update_type[cpi->gf_frame_index] == ARF_UPDATE ||
+        gf_group->update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE);
 
   // TODO(jingning): Generalize this condition.
   if (is_final_pass) {
@@ -3170,6 +3171,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
 
   // Reset the GF group data structures.
   av1_zero(*gf_group);
+  cpi->gf_frame_index = 0;
 
   // KF is always a GF so clear frames till next gf counter.
   rc->frames_till_gf_update_due = 0;
@@ -3425,7 +3427,7 @@ static void process_first_pass_stats(AV1_COMP *cpi,
   TWO_PASS *const twopass = &cpi->twopass;
 
   if (cpi->oxcf.rc_cfg.mode != AOM_Q && current_frame->frame_number == 0 &&
-      cpi->gf_group.index == 0 && cpi->twopass.stats_buf_ctx->total_stats &&
+      cpi->gf_frame_index == 0 && cpi->twopass.stats_buf_ctx->total_stats &&
       cpi->twopass.stats_buf_ctx->total_left_stats) {
     if (cpi->lap_enabled) {
       /*
@@ -3490,7 +3492,7 @@ static void setup_target_rate(AV1_COMP *cpi) {
   RATE_CONTROL *const rc = &cpi->rc;
   GF_GROUP *const gf_group = &cpi->gf_group;
 
-  int target_rate = gf_group->bit_allocation[gf_group->index];
+  int target_rate = gf_group->bit_allocation[cpi->gf_frame_index];
 
   if (has_no_stats_stage(cpi)) {
     av1_rc_set_frame_target(cpi, target_rate, cpi->common.width,
@@ -3513,11 +3515,11 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
   if (is_stat_consumption_stage(cpi) && !twopass->stats_in) return;
 
-  const int update_type = gf_group->update_type[gf_group->index];
-  frame_params->frame_type = gf_group->frame_type[gf_group->index];
+  const int update_type = gf_group->update_type[cpi->gf_frame_index];
+  frame_params->frame_type = gf_group->frame_type[cpi->gf_frame_index];
 
-  if (gf_group->index < gf_group->size && !(frame_flags & FRAMEFLAGS_KEY)) {
-    assert(gf_group->index < gf_group->size);
+  if (cpi->gf_frame_index < gf_group->size && !(frame_flags & FRAMEFLAGS_KEY)) {
+    assert(cpi->gf_frame_index < gf_group->size);
 
     setup_target_rate(cpi);
 
@@ -3541,7 +3543,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   av1_zero(this_frame);
   // call above fn
   if (is_stat_consumption_stage(cpi)) {
-    if (gf_group->index < gf_group->size || rc->frames_to_key == 0)
+    if (cpi->gf_frame_index < gf_group->size || rc->frames_to_key == 0)
       process_first_pass_stats(cpi, &this_frame);
   } else {
     rc->active_worst_quality = oxcf->rc_cfg.cq_level;
@@ -3552,7 +3554,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   this_frame_copy = this_frame;
   int is_overlay_forward_kf =
       rc->frames_to_key == 0 &&
-      gf_group->update_type[gf_group->index] == OVERLAY_UPDATE;
+      gf_group->update_type[cpi->gf_frame_index] == OVERLAY_UPDATE;
   if (rc->frames_to_key <= 0 && !is_overlay_forward_kf) {
     assert(rc->frames_to_key >= -1);
     // Define next KF group and assign bits to it.
@@ -3602,9 +3604,9 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   }
 
   // Define a new GF/ARF group. (Should always enter here for key frames).
-  if (gf_group->index == gf_group->size) {
+  if (cpi->gf_frame_index == gf_group->size) {
     assert(cpi->common.current_frame.frame_number == 0 ||
-           gf_group->index == gf_group->size);
+           cpi->gf_frame_index == gf_group->size);
     const FIRSTPASS_STATS *const start_position = twopass->stats_in;
 
     if (cpi->lap_enabled && cpi->rc.enable_scenecut_detection) {
@@ -3717,14 +3719,14 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     }
     define_gf_group(cpi, &this_frame, frame_params, max_gop_length, 0);
 
-    if (gf_group->update_type[gf_group->index] != ARF_UPDATE &&
+    if (gf_group->update_type[cpi->gf_frame_index] != ARF_UPDATE &&
         rc->frames_since_key > 0)
       process_first_pass_stats(cpi, &this_frame);
 
     define_gf_group(cpi, &this_frame, frame_params, max_gop_length, 1);
 
     rc->frames_till_gf_update_due = rc->baseline_gf_interval;
-    assert(gf_group->index == 0);
+    assert(cpi->gf_frame_index == 0);
 #if ARF_STATS_OUTPUT
     {
       FILE *fpfile;
@@ -3739,10 +3741,10 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     }
 #endif
   }
-  assert(gf_group->index < gf_group->size);
+  assert(cpi->gf_frame_index < gf_group->size);
 
-  if (gf_group->update_type[gf_group->index] == ARF_UPDATE ||
-      gf_group->update_type[gf_group->index] == INTNL_ARF_UPDATE) {
+  if (gf_group->update_type[cpi->gf_frame_index] == ARF_UPDATE ||
+      gf_group->update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE) {
     reset_fpf_position(twopass, start_pos);
   } else {
     // Update the total stats remaining structure.
@@ -3751,7 +3753,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
                      &this_frame_copy);
   }
 
-  frame_params->frame_type = gf_group->frame_type[gf_group->index];
+  frame_params->frame_type = gf_group->frame_type[cpi->gf_frame_index];
 
   // Do the firstpass stats indicate that this frame is skippable for the
   // partition search?
@@ -3888,7 +3890,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
 
   // Update the active best quality pyramid.
   if (!rc->is_src_frame_alt_ref) {
-    const int pyramid_level = cpi->gf_group.layer_depth[cpi->gf_group.index];
+    const int pyramid_level = cpi->gf_group.layer_depth[cpi->gf_frame_index];
     int i;
     for (i = pyramid_level; i <= MAX_ARF_LAYERS; ++i) {
       rc->active_best_quality[i] = cpi->common.quant_params.base_qindex;

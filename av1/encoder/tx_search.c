@@ -2024,7 +2024,8 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
     assert(plane == 0);
     allowed_tx_mask = ext_tx_used_flag;
     int num_allowed = 0;
-    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
+    const FRAME_UPDATE_TYPE update_type =
+        get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
     const int *tx_type_probs =
         cpi->frame_probs.tx_type_probs[update_type][tx_size];
     int i;

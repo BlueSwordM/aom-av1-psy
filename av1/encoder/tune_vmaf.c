@@ -388,7 +388,7 @@ void av1_vmaf_neg_preprocessing(AV1_COMP *const cpi,
 
   const GF_GROUP *const gf_group = &cpi->gf_group;
   const int layer_depth =
-      AOMMIN(gf_group->layer_depth[gf_group->index], MAX_ARF_LAYERS - 1);
+      AOMMIN(gf_group->layer_depth[cpi->gf_frame_index], MAX_ARF_LAYERS - 1);
   const double best_frame_unsharp_amount =
       get_layer_value(cpi->vmaf_info.last_frame_unsharp_amount, layer_depth);
 
@@ -433,7 +433,7 @@ void av1_vmaf_frame_preprocessing(AV1_COMP *const cpi,
 
   const GF_GROUP *const gf_group = &cpi->gf_group;
   const int layer_depth =
-      AOMMIN(gf_group->layer_depth[gf_group->index], MAX_ARF_LAYERS - 1);
+      AOMMIN(gf_group->layer_depth[cpi->gf_frame_index], MAX_ARF_LAYERS - 1);
   const double last_frame_unsharp_amount =
       get_layer_value(cpi->vmaf_info.last_frame_unsharp_amount, layer_depth);
 
@@ -475,7 +475,7 @@ void av1_vmaf_blk_preprocessing(AV1_COMP *const cpi,
 
   const GF_GROUP *const gf_group = &cpi->gf_group;
   const int layer_depth =
-      AOMMIN(gf_group->layer_depth[gf_group->index], MAX_ARF_LAYERS - 1);
+      AOMMIN(gf_group->layer_depth[cpi->gf_frame_index], MAX_ARF_LAYERS - 1);
   const double last_frame_unsharp_amount =
       get_layer_value(cpi->vmaf_info.last_frame_unsharp_amount, layer_depth);
 
@@ -891,7 +891,7 @@ static AOM_INLINE void get_neighbor_frames(const AV1_COMP *const cpi,
   const AV1_COMMON *const cm = &cpi->common;
   const GF_GROUP *gf_group = &cpi->gf_group;
   const int src_index =
-      cm->show_frame != 0 ? 0 : gf_group->arf_src_offset[gf_group->index];
+      cm->show_frame != 0 ? 0 : gf_group->arf_src_offset[cpi->gf_frame_index];
   struct lookahead_entry *last_entry = av1_lookahead_peek(
       cpi->ppi->lookahead, src_index - 1, cpi->compressor_stage);
   struct lookahead_entry *next_entry = av1_lookahead_peek(
@@ -911,7 +911,7 @@ int av1_get_vmaf_base_qindex(const AV1_COMP *const cpi, int current_qindex) {
   aom_clear_system_state();
   const GF_GROUP *const gf_group = &cpi->gf_group;
   const int layer_depth =
-      AOMMIN(gf_group->layer_depth[gf_group->index], MAX_ARF_LAYERS - 1);
+      AOMMIN(gf_group->layer_depth[cpi->gf_frame_index], MAX_ARF_LAYERS - 1);
   const double last_frame_ysse =
       get_layer_value(cpi->vmaf_info.last_frame_ysse, layer_depth);
   const double last_frame_vmaf =
@@ -928,7 +928,7 @@ int av1_get_vmaf_base_qindex(const AV1_COMP *const cpi, int current_qindex) {
   }
   YV12_BUFFER_CONFIG *cur_buf = cpi->source;
   if (cm->show_frame == 0) {
-    const int src_index = gf_group->arf_src_offset[gf_group->index];
+    const int src_index = gf_group->arf_src_offset[cpi->gf_frame_index];
     struct lookahead_entry *cur_entry = av1_lookahead_peek(
         cpi->ppi->lookahead, src_index, cpi->compressor_stage);
     cur_buf = &cur_entry->img;
@@ -1086,7 +1086,7 @@ void av1_update_vmaf_curve(AV1_COMP *cpi) {
   const int bit_depth = cpi->td.mb.e_mbd.bd;
   const GF_GROUP *const gf_group = &cpi->gf_group;
   const int layer_depth =
-      AOMMIN(gf_group->layer_depth[gf_group->index], MAX_ARF_LAYERS - 1);
+      AOMMIN(gf_group->layer_depth[cpi->gf_frame_index], MAX_ARF_LAYERS - 1);
   double base_score;
   const bool cal_vmaf_neg =
       cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN;

@@ -656,7 +656,7 @@ static void set_good_speed_features_framesize_independent(
   const GF_GROUP *const gf_group = &cpi->gf_group;
   const int boosted = frame_is_boosted(cpi);
   const int is_boosted_arf2_bwd_type =
-      boosted || gf_group->update_type[gf_group->index] == INTNL_ARF_UPDATE;
+      boosted || gf_group->update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE;
   const int allow_screen_content_tools =
       cm->features.allow_screen_content_tools;
   const int use_hbd = cpi->oxcf.use_highbitdepth;
@@ -878,10 +878,10 @@ static void set_good_speed_features_framesize_independent(
         frame_is_intra_only(&cpi->common) ? 0 : 1;
     sf->winner_mode_sf.enable_winner_mode_for_use_tx_domain_dist = 1;
     sf->winner_mode_sf.motion_mode_for_winner_cand =
-        boosted
-            ? 0
-            : gf_group->update_type[gf_group->index] == INTNL_ARF_UPDATE ? 1
-                                                                         : 2;
+        boosted ? 0
+                : gf_group->update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE
+                      ? 1
+                      : 2;
 
     // TODO(any): evaluate if these lpf features can be moved to speed 2.
     // For screen content, "prune_sgr_based_on_wiener = 2" cause large quality
@@ -1831,7 +1831,7 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
   const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
   const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
   const int is_arf2_bwd_type =
-      cpi->gf_group.update_type[cpi->gf_group.index] == INTNL_ARF_UPDATE;
+      cpi->gf_group.update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE;
 
   if (cpi->oxcf.mode == REALTIME) return;
 

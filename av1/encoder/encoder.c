@@ -2904,8 +2904,8 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     int superres_largest_tile_ids[SCALE_NUMERATOR];
     // Use superres for Key-frames and Alt-ref frames only.
     const GF_GROUP *const gf_group = &cpi->gf_group;
-    if (gf_group->update_type[gf_group->index] != OVERLAY_UPDATE &&
-        gf_group->update_type[gf_group->index] != INTNL_OVERLAY_UPDATE) {
+    if (gf_group->update_type[cpi->gf_frame_index] != OVERLAY_UPDATE &&
+        gf_group->update_type[cpi->gf_frame_index] != INTNL_OVERLAY_UPDATE) {
       for (int denom = SCALE_NUMERATOR + 1; denom <= 2 * SCALE_NUMERATOR;
            ++denom) {
         superres_cfg->superres_scale_denominator = denom;

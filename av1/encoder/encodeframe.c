@@ -329,7 +329,7 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
   const GF_GROUP *const gf_group = &cpi->gf_group;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   MACROBLOCK *x = &td->mb;
-  const int frame_idx = cpi->gf_group.index;
+  const int frame_idx = cpi->gf_frame_index;
   TplParams *const tpl_data = &cpi->tpl_data;
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[frame_idx];
   const uint8_t block_mis_log2 = tpl_data->tpl_stats_block_mis_log2;
@@ -337,7 +337,7 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
   av1_zero(x->tpl_keep_ref_frame);
 
   if (tpl_frame->is_valid == 0) return;
-  if (!is_frame_tpl_eligible(gf_group, gf_group->index)) return;
+  if (!is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) return;
   if (frame_idx >= MAX_TPL_FRAME_IDX) return;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return;
 
@@ -430,8 +430,8 @@ static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
   const int orig_rdmult = cpi->rd.RDMULT;
 
   assert(IMPLIES(cpi->gf_group.size > 0,
-                 cpi->gf_group.index < cpi->gf_group.size));
-  const int gf_group_index = cpi->gf_group.index;
+                 cpi->gf_frame_index < cpi->gf_group.size));
+  const int gf_group_index = cpi->gf_frame_index;
   if (cpi->oxcf.algo_cfg.enable_tpl_model && cpi->oxcf.q_cfg.aq_mode == NO_AQ &&
       cpi->oxcf.q_cfg.deltaq_mode == NO_DELTA_Q && gf_group_index > 0 &&
       cpi->gf_group.update_type[gf_group_index] == ARF_UPDATE) {
@@ -1281,7 +1281,8 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
   if (features->allow_warped_motion &&
       cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
-    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
+    const FRAME_UPDATE_TYPE update_type =
+        get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
     if (frame_probs->warped_probs[update_type] <
         cpi->sf.inter_sf.prune_warped_prob_thresh)
       features->allow_warped_motion = 0;
@@ -1383,7 +1384,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     const GF_GROUP *gf_group = &cpi->gf_group;
     if (cm->delta_q_info.delta_q_present_flag) {
       if (deltaq_mode == DELTA_Q_OBJECTIVE &&
-          !is_frame_tpl_eligible(gf_group, gf_group->index))
+          !is_frame_tpl_eligible(gf_group, cpi->gf_frame_index))
         cm->delta_q_info.delta_q_present_flag = 0;
     }
 
@@ -1503,7 +1504,8 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   features->tx_mode = select_tx_mode(cm, tx_search_type);
 
   if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats) {
-    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
+    const FRAME_UPDATE_TYPE update_type =
+        get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
 
     for (i = 0; i < TX_SIZES_ALL; i++) {
       int sum = 0;
@@ -1528,7 +1530,8 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
   if (cpi->sf.inter_sf.prune_obmc_prob_thresh > 0 &&
       cpi->sf.inter_sf.prune_obmc_prob_thresh < INT_MAX) {
-    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
+    const FRAME_UPDATE_TYPE update_type =
+        get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
 
     for (i = 0; i < BLOCK_SIZES_ALL; i++) {
       int sum = 0;
@@ -1543,7 +1546,8 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
   if (features->allow_warped_motion &&
       cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
-    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
+    const FRAME_UPDATE_TYPE update_type =
+        get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
     int sum = 0;
     for (i = 0; i < 2; i++) sum += cpi->td.rd_counts.warped_used[i];
     const int new_prob = sum ? 128 * cpi->td.rd_counts.warped_used[1] / sum : 0;
@@ -1554,7 +1558,8 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   if (cm->current_frame.frame_type != KEY_FRAME &&
       cpi->sf.interp_sf.adaptive_interp_filter_search == 2 &&
       features->interp_filter == SWITCHABLE) {
-    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
+    const FRAME_UPDATE_TYPE update_type =
+        get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
 
     for (i = 0; i < SWITCHABLE_FILTER_CONTEXTS; i++) {
       int sum = 0;

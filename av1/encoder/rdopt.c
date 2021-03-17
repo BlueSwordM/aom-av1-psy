@@ -1355,7 +1355,8 @@ static int64_t motion_mode_rd(
 
     // Do not search OBMC if the probability of selecting it is below a
     // predetermined threshold for this update_type and block size.
-    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
+    const FRAME_UPDATE_TYPE update_type =
+        get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
     const int prune_obmc = cpi->frame_probs.obmc_probs[update_type][bsize] <
                            cpi->sf.inter_sf.prune_obmc_prob_thresh;
     if ((!cpi->oxcf.motion_mode_cfg.enable_obmc ||
@@ -2171,11 +2172,11 @@ typedef struct {
 static AOM_INLINE void get_block_level_tpl_stats(
     AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row, int mi_col, int *valid_refs,
     PruneInfoFromTpl *inter_cost_info_from_tpl) {
-  const GF_GROUP *const gf_group = &cpi->gf_group;
   AV1_COMMON *const cm = &cpi->common;
 
-  assert(IMPLIES(gf_group->size > 0, gf_group->index < gf_group->size));
-  const int tpl_idx = gf_group->index;
+  assert(IMPLIES(cpi->gf_group.size > 0,
+                 cpi->gf_frame_index < cpi->gf_group.size));
+  const int tpl_idx = cpi->gf_frame_index;
   TplParams *const tpl_data = &cpi->tpl_data;
   const TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_idx];
   if (tpl_idx >= MAX_TPL_FRAME_IDX || !tpl_frame->is_valid) {
@@ -2589,8 +2590,7 @@ static int64_t handle_inter_mode(
   const int is_comp_pred = has_second_ref(mbmi);
   const PREDICTION_MODE this_mode = mbmi->mode;
 
-  const GF_GROUP *const gf_group = &cpi->gf_group;
-  const int tpl_idx = gf_group->index;
+  const int tpl_idx = cpi->gf_frame_index;
   TplDepFrame *tpl_frame = &cpi->tpl_data.tpl_frame[tpl_idx];
   const int prune_modes_based_on_tpl =
       cpi->sf.inter_sf.prune_inter_modes_based_on_tpl &&
@@ -3807,7 +3807,8 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
   }
 
   av1_count_overlappable_neighbors(cm, xd);
-  const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
+  const FRAME_UPDATE_TYPE update_type =
+      get_frame_update_type(&cpi->gf_group, cpi->gf_frame_index);
   const int prune_obmc = cpi->frame_probs.obmc_probs[update_type][bsize] <
                          cpi->sf.inter_sf.prune_obmc_prob_thresh;
   if (cpi->oxcf.motion_mode_cfg.enable_obmc && !prune_obmc) {

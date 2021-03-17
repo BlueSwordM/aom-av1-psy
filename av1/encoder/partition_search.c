@@ -4267,7 +4267,7 @@ BEGIN_PARTITION_SEARCH:
   // prediction block.
   print_partition_timing_stats_with_rdcost(
       part_timing_stats, mi_row, mi_col, bsize,
-      cpi->gf_group.update_type[cpi->gf_group.index],
+      cpi->gf_group.update_type[cpi->gf_frame_index],
       cm->current_frame.frame_number, &best_rdc, "part_timing.csv");
   /*
   print_partition_timing_stats(part_timing_stats, cm->show_frame,
