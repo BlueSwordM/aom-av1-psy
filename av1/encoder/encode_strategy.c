@@ -382,7 +382,7 @@ static struct lookahead_entry *choose_frame_source(
   if (src_index &&
       (is_forced_keyframe_pending(cpi->ppi->lookahead, src_index,
                                   cpi->compressor_stage) != -1) &&
-      cpi->oxcf.rc_cfg.mode != AOM_Q) {
+      cpi->oxcf.rc_cfg.mode != AOM_Q && !is_stat_generation_stage(cpi)) {
     src_index = 0;
     *flush = 1;
   }
@@ -404,6 +404,13 @@ static struct lookahead_entry *choose_frame_source(
       *pop_lookahead = 0;
     }
   }
+
+  // LAP stage does not have ARFs or forward key-frames,
+  // hence, always pop_lookahead here.
+  if (is_stat_generation_stage(cpi)) {
+    *pop_lookahead = 1;
+  }
+
   frame_params->show_frame = *pop_lookahead;
   if (*pop_lookahead) {
     // show frame, pop from buffer
@@ -900,6 +907,9 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   } else if (update_type == ARF_UPDATE || update_type == INTNL_ARF_UPDATE) {
     // ARF
     apply_filtering = oxcf->algo_cfg.arnr_max_frames > 0;
+  }
+  if (is_stat_generation_stage(cpi)) {
+    apply_filtering = 0;
   }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
