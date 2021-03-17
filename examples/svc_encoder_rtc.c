@@ -1179,20 +1179,16 @@ int main(int argc, const char **argv) {
     svc_params.framerate_factor[2] = 1;
   }
 
+  if (app_input.input_ctx.file_type == FILE_TYPE_Y4M) {
+    // Override these settings with the info from Y4M file.
+    cfg.g_w = app_input.input_ctx.width;
+    cfg.g_h = app_input.input_ctx.height;
+    // g_timebase is the reciprocal of frame rate.
+    cfg.g_timebase.num = app_input.input_ctx.framerate.denominator;
+    cfg.g_timebase.den = app_input.input_ctx.framerate.numerator;
+  }
   framerate = cfg.g_timebase.den / cfg.g_timebase.num;
   set_rate_control_metrics(&rc, framerate, ss_number_layers, ts_number_layers);
-
-  if (app_input.input_ctx.file_type == FILE_TYPE_Y4M) {
-    if (app_input.input_ctx.width != cfg.g_w ||
-        app_input.input_ctx.height != cfg.g_h) {
-      die("Incorrect width or height: %d x %d", cfg.g_w, cfg.g_h);
-    }
-    if (app_input.input_ctx.framerate.numerator != cfg.g_timebase.den ||
-        app_input.input_ctx.framerate.denominator != cfg.g_timebase.num) {
-      die("Incorrect framerate: numerator %d denominator %d",
-          cfg.g_timebase.num, cfg.g_timebase.den);
-    }
-  }
 
   AvxVideoInfo info;
   info.codec_fourcc = get_fourcc_by_aom_encoder(encoder);
