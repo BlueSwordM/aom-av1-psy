@@ -804,7 +804,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     const int is_intrabc = is_intrabc_block(mbmi);
     update_cdf(fc->intrabc_cdf, is_intrabc, 2);
 #if CONFIG_ENTROPY_STATS
-    ++td->counts->intrabc[is_intrabc_block(mbmi)];
+    ++td->counts->intrabc[is_intrabc];
 #endif  // CONFIG_ENTROPY_STATS
     if (is_intrabc) {
       const int_mv dv_ref = x->mbmi_ext_frame->ref_mv_stack[0].this_mv;

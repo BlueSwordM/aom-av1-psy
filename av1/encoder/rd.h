@@ -361,7 +361,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
 void av1_fill_mv_costs(const nmv_context *nmvc, int integer_mv, int usehp,
                        MvCosts *mv_costs);
 
-void av1_fill_dv_costs(IntraBCMVCosts *dv_costs, const nmv_context *ndvc);
+void av1_fill_dv_costs(const nmv_context *ndvc, IntraBCMVCosts *dv_costs);
 
 int av1_get_adaptive_rdmult(const struct AV1_COMP *cpi, double beta);
 

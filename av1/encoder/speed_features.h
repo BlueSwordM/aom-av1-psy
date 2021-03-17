@@ -287,8 +287,23 @@ enum {
   SUPERRES_AUTO_DUAL,  // Tries no superres and q-based superres ratios
   SUPERRES_AUTO_SOLO,  // Only apply the q-based superres ratio
 } UENUM1BYTE(SUPERRES_AUTO_SEARCH_TYPE);
-
 /*!\endcond */
+
+/*!\enum INTERNAL_COST_UPDATE_TYPE
+ * \brief This enum decides internally how often to update the entropy costs
+ *
+ * INTERNAL_COST_UPD_TYPE is similar to \ref COST_UPDATE_TYPE but has slightly
+ * more flexibility in update frequency. This enum is separate from \ref
+ * COST_UPDATE_TYPE because although \ref COST_UPDATE_TYPE is not exposed, its
+ * values are public so it cannot be modified without breaking public API.
+ */
+typedef enum {
+  INTERNAL_COST_UPD_OFF,       /*!< Turn off cost updates. */
+  INTERNAL_COST_UPD_SBROW_SET, /*!< Update every row_set of height 256 pixs. */
+  INTERNAL_COST_UPD_SBROW,     /*!< Update every sb rows inside a tile. */
+  INTERNAL_COST_UPD_SB,        /*!< Update every sb. */
+} INTERNAL_COST_UPDATE_TYPE;
+
 /*!
  * \brief Sequence/frame level speed vs quality features
  */
@@ -726,13 +741,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Decide when and how to use joint_comp.
   DIST_WTD_COMP_FLAG use_dist_wtd_comp_flag;
 
-  // To skip cost update for mv.
-  // mv_cost_upd_level indicates the aggressiveness of skipping.
-  // 0: update happens at each sb level.
-  // 1: update happens once for each sb row.
-  // 2: update happens once for a set of rows.
-  // 3: skips updates
-  int mv_cost_upd_level;
+  // Clip the frequency of updating the mv cost.
+  INTERNAL_COST_UPDATE_TYPE mv_cost_upd_level;
+
   // Prune inter modes based on tpl stats
   // 0 : no pruning
   // 1 - 3 indicate increasing aggressiveness in order.
@@ -827,13 +838,8 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // UV_CFL_PRED and the mode that corresponds to luma intra mode winner.
   int prune_chroma_modes_using_luma_winner;
 
-  // To skip cost update for mv.
-  // dv_cost_upd_level indicates the aggressiveness of skipping.
-  // 0: update happens at each sb level.
-  // 1: update happens once for each sb row.
-  // 2: update happens once for a set of rows.
-  // 3: skips updates
-  int dv_cost_upd_level;
+  // Clip the frequency of updating the mv cost for intrabc.
+  INTERNAL_COST_UPDATE_TYPE dv_cost_upd_level;
 } INTRA_MODE_SPEED_FEATURES;
 
 typedef struct TX_SPEED_FEATURES {

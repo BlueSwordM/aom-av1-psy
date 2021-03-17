@@ -785,8 +785,8 @@ typedef struct {
   int joint_mv[MV_JOINTS];
 
   /*! \brief Cost of transmitting the actual motion vector.
-   *  mv_costs_alloc[0][i] is the cost of motion vector with horizontal
-   * component (mv_row) equal to i - MV_MAX. mv_costs_alloc[1][i] is the cost of
+   *  dv_costs_alloc[0][i] is the cost of motion vector with horizontal
+   * component (mv_row) equal to i - MV_MAX. dv_costs_alloc[1][i] is the cost of
    * motion vector with vertical component (mv_col) equal to i - MV_MAX.
    */
   int dv_costs_alloc[2][MV_VALS];

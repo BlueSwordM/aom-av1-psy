@@ -1294,33 +1294,32 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
 #endif  // CONFIG_INTERNAL_STATS
 }
 
+/*! Checks whether to skip updating the entropy cost based on tile info.
+ *
+ * This function contains codes common to both \ref skip_mv_cost_update and
+ * \ref skip_dv_cost_update.
+ */
 static int skip_cost_update(const SequenceHeader *seq_params,
                             const TileInfo *const tile_info, const int mi_row,
-                            const int mi_col, int upd_level) {
-  // upd_level=0: update happens at each sb,
-  //              so return skip status as 0.
-  // upd_level=1: update happens once for each sb row,
-  //              so return skip status as 1 for
-  //              mi_col != tile_info->mi_col_start.
-  // upd_level=2: update happens once for a set of rows,
-  //                      so return skip status as 1 appropriately.
-  // upd_level=3: don't update, so return 1 immediately.
-  if (!upd_level) return 0;
+                            const int mi_col,
+                            INTERNAL_COST_UPDATE_TYPE upd_level) {
+  if (upd_level == INTERNAL_COST_UPD_SB) return 0;
+  if (upd_level == INTERNAL_COST_UPD_OFF) return 1;
+
+  // upd_level is at most as frequent as each sb_row in a tile.
   if (mi_col != tile_info->mi_col_start) return 1;
-  if (upd_level == 3) {
-    return 1;
-  }
-  if (upd_level == 2) {
+
+  if (upd_level == INTERNAL_COST_UPD_SBROW_SET) {
     const int mib_size_log2 = seq_params->mib_size_log2;
     const int sb_row = (mi_row - tile_info->mi_row_start) >> mib_size_log2;
     const int sb_size = seq_params->mib_size * MI_SIZE;
     const int tile_height =
         (tile_info->mi_row_end - tile_info->mi_row_start) * MI_SIZE;
-    // When upd_level = 2, the cost update happens once for 2, 4 sb
-    // rows for sb size 128, sb size 64 respectively. However, as the update
-    // will not be equally spaced in smaller resolutions making it equally
-    // spaced by calculating (mv_num_rows_cost_update) the number of rows
-    // after which the cost update should happen.
+    // When upd_level = INTERNAL_COST_UPD_SBROW_SET, the cost update happens
+    // once for 2, 4 sb rows for sb size 128, sb size 64 respectively. However,
+    // as the update will not be equally spaced in smaller resolutions making
+    // it equally spaced by calculating (mv_num_rows_cost_update) the number of
+    // rows after which the cost update should happen.
     const int sb_size_update_freq_map[2] = { 2, 4 };
     const int update_freq_sb_rows =
         sb_size_update_freq_map[sb_size != MAX_SB_SIZE];
@@ -1353,8 +1352,8 @@ static int skip_mv_cost_update(AV1_COMP *cpi, const TileInfo *const tile_info,
 static int skip_dv_cost_update(AV1_COMP *cpi, const TileInfo *const tile_info,
                                const int mi_row, const int mi_col) {
   const AV1_COMMON *cm = &cpi->common;
-  // Intrabc is only applicable to intra frames. So skip if current frame isn't
-  // intra frame.
+  // Intrabc is only applicable to intra frames. So skip if intrabc is not
+  // allowed.
   if (!av1_allow_intrabc(cm) || is_stat_generation_stage(cpi)) {
     return 1;
   }
@@ -1425,7 +1424,7 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
     case COST_UPD_SB:  // SB level
       // Checks for skip status of dv cost update.
       if (skip_dv_cost_update(cpi, tile_info, mi_row, mi_col)) break;
-      av1_fill_dv_costs(x->dv_costs, &xd->tile_ctx->ndvc);
+      av1_fill_dv_costs(&xd->tile_ctx->ndvc, x->dv_costs);
       break;
     default: assert(0);
   }

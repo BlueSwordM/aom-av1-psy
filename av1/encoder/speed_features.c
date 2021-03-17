@@ -291,7 +291,7 @@ static void set_allintra_speed_features_framesize_independent(
   sf->part_sf.ml_predict_breakout_level = use_hbd ? 1 : 3;
 
   sf->intra_sf.intra_pruning_with_hog = 1;
-  sf->intra_sf.dv_cost_upd_level = 3;
+  sf->intra_sf.dv_cost_upd_level = INTERNAL_COST_UPD_OFF;
 
   sf->tx_sf.adaptive_txb_search_level = 1;
   sf->tx_sf.intra_tx_size_search_init_depth_sqr = 1;
@@ -632,7 +632,7 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     if (!is_720p_or_larger) {
-      sf->inter_sf.mv_cost_upd_level = 2;
+      sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW_SET;
     }
 
     if (is_720p_or_larger) {
@@ -834,7 +834,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.search_method = DIAMOND;
     sf->mv_sf.disable_second_mv = 2;
 
-    sf->inter_sf.mv_cost_upd_level = 1;
+    sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW;
     sf->inter_sf.disable_onesided_comp = 1;
     // TODO(yunqing): evaluate this speed feature for speed 1 & 2, and combine
     // it with cpi->sf.disable_wedge_search_var_thresh.
@@ -1106,7 +1106,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
   sf->interp_sf.use_fast_interpolation_filter_search = 1;
 
-  sf->intra_sf.dv_cost_upd_level = 3;
+  sf->intra_sf.dv_cost_upd_level = INTERNAL_COST_UPD_OFF;
   sf->intra_sf.intra_pruning_with_hog = 1;
 
   sf->mv_sf.full_pixel_search_level = 1;
@@ -1206,7 +1206,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     // sf->mv_sf.adaptive_motion_search = 1;
 
     sf->inter_sf.adaptive_rd_thresh = 2;
-    sf->inter_sf.mv_cost_upd_level = 1;
+    sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW;
     // TODO(yunqing): evaluate this speed feature for speed 1 & 2, and combine
     // it with cpi->sf.disable_wedge_search_var_thresh.
     sf->inter_sf.disable_interintra_wedge_var_thresh = UINT_MAX;
@@ -1492,7 +1492,7 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->fast_wedge_sign_estimate = 0;
   inter_sf->use_dist_wtd_comp_flag = DIST_WTD_COMP_ENABLED;
   inter_sf->reuse_inter_intra_mode = 0;
-  inter_sf->mv_cost_upd_level = 0;
+  inter_sf->mv_cost_upd_level = INTERNAL_COST_UPD_SB;
   inter_sf->prune_inter_modes_based_on_tpl = 0;
   inter_sf->prune_nearmv_using_neighbors = 0;
   inter_sf->prune_comp_search_by_single_result = 0;
@@ -1533,8 +1533,7 @@ static AOM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
 }
 
 static AOM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
-  intra_sf->chroma_intra_pruning_with_hog = 0;
-  intra_sf->dv_cost_upd_level = 0;
+  intra_sf->dv_cost_upd_level = INTERNAL_COST_UPD_SB;
   intra_sf->skip_intra_in_interframe = 1;
   intra_sf->intra_pruning_with_hog = 0;
   intra_sf->chroma_intra_pruning_with_hog = 0;
@@ -1668,9 +1667,9 @@ void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
     cpi->mv_search_params.find_fractional_mv_step = av1_return_min_sub_pixel_mv;
 
   if ((cpi->oxcf.row_mt == 1) && (cpi->oxcf.max_threads > 1)) {
-    if (sf->inter_sf.mv_cost_upd_level > 1) {
+    if (sf->inter_sf.mv_cost_upd_level < INTERNAL_COST_UPD_SBROW) {
       // Set mv_cost_upd_level to use row level update.
-      sf->inter_sf.mv_cost_upd_level = 1;
+      sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW;
     }
   }
 }

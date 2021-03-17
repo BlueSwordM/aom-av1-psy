@@ -159,13 +159,6 @@ enum {
 /*!\cond */
 
 typedef enum {
-  COST_UPD_SB,
-  COST_UPD_SBROW,
-  COST_UPD_TILE,
-  COST_UPD_OFF,
-} COST_UPDATE_TYPE;
-
-typedef enum {
   MOD_FP,           // First pass
   MOD_TF,           // Temporal filtering
   MOD_TPL,          // TPL
@@ -178,6 +171,16 @@ typedef enum {
 } MULTI_THREADED_MODULES;
 
 /*!\endcond */
+
+/*!\enum COST_UPDATE_TYPE
+ * \brief This enum controls how often the entropy costs should be updated.
+ */
+typedef enum {
+  COST_UPD_SB,    /*!< Update every sb. */
+  COST_UPD_SBROW, /*!< Update every sb rows inside a tile. */
+  COST_UPD_TILE,  /*!< Update every tile. */
+  COST_UPD_OFF,   /*!< Turn off cost updates. */
+} COST_UPDATE_TYPE;
 
 /*!
  * \brief Encoder config related to resize.
