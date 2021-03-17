@@ -518,7 +518,7 @@ static TX_SIZE calculate_tx_size(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   TX_SIZE tx_size;
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   if (txfm_params->tx_mode_search_type == TX_MODE_SELECT) {
-    if (sse > (var << 2))
+    if (sse > (var << 1))
       tx_size =
           AOMMIN(max_txsize_lookup[bsize],
                  tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]);
