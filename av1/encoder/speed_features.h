@@ -820,8 +820,11 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // Enable/disable smooth intra modes.
   int disable_smooth_intra;
 
-  // Enable/disable filter intra modes.
-  int disable_filter_intra;
+  // Prune filter intra modes in intra frames.
+  // 0 : No pruning
+  // 1 : Evaluate applicable filter intra modes based on best intra mode so far
+  // 2 : Do not evaluate filter intra modes
+  int prune_filter_intra_level;
 
   // prune palette search
   // 0: No pruning

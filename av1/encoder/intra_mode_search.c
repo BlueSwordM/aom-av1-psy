@@ -32,6 +32,31 @@ static const UV_PREDICTION_MODE uv_rd_search_mode_order[UV_INTRA_MODES] = {
   UV_D113_PRED,   UV_D45_PRED,
 };
 
+// The bitmask corresponds to the filter intra modes as defined in enums.h
+// FILTER_INTRA_MODE enumeration type. Setting a bit to 0 in the mask means to
+// disable the evaluation of corresponding filter intra mode. The table
+// av1_derived_filter_intra_mode_used_flag is used when speed feature
+// prune_filter_intra_level is 1. The evaluated filter intra modes are union
+// of the following:
+// 1) FILTER_DC_PRED
+// 2) mode that corresponds to best mode so far of DC_PRED, V_PRED, H_PRED,
+// D157_PRED and PAETH_PRED. (Eg: FILTER_V_PRED if best mode so far is V_PRED).
+static const uint8_t av1_derived_filter_intra_mode_used_flag[INTRA_MODES] = {
+  0x01,  // DC_PRED:           0000 0001
+  0x03,  // V_PRED:            0000 0011
+  0x05,  // H_PRED:            0000 0101
+  0x01,  // D45_PRED:          0000 0001
+  0x01,  // D135_PRED:         0000 0001
+  0x01,  // D113_PRED:         0000 0001
+  0x09,  // D157_PRED:         0000 1001
+  0x01,  // D203_PRED:         0000 0001
+  0x01,  // D67_PRED:          0000 0001
+  0x01,  // SMOOTH_PRED:       0000 0001
+  0x01,  // SMOOTH_V_PRED:     0000 0001
+  0x01,  // SMOOTH_H_PRED:     0000 0001
+  0x11   // PAETH_PRED:        0001 0001
+};
+
 // The bitmask corresponds to the chroma intra modes as defined in enums.h
 // UV_PREDICTION_MODE enumeration type. Setting a bit to 0 in the mask means to
 // disable the evaluation of corresponding chroma intra mode. The table
@@ -125,8 +150,12 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
                                     int *rate, int *rate_tokenonly,
                                     int64_t *distortion, int *skippable,
                                     BLOCK_SIZE bsize, int mode_cost,
+                                    PREDICTION_MODE best_mode_so_far,
                                     int64_t *best_rd, int64_t *best_model_rd,
                                     PICK_MODE_CONTEXT *ctx) {
+  // Skip the evaluation of filter intra modes.
+  if (cpi->sf.intra_sf.prune_filter_intra_level == 2) return 0;
+
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   int filter_intra_selected_flag = 0;
@@ -149,6 +178,11 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
     int64_t this_rd;
     RD_STATS tokenonly_rd_stats;
     mbmi->filter_intra_mode_info.filter_intra_mode = mode;
+
+    if ((cpi->sf.intra_sf.prune_filter_intra_level == 1) &&
+        !(av1_derived_filter_intra_mode_used_flag[best_mode_so_far] &
+          (1 << mode)))
+      continue;
 
     // Skip the evaluation of modes that do not match with the winner mode in
     // x->mb_mode_cache.
@@ -1225,10 +1259,11 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       continue;
 
     // The functionality of filter intra modes and smooth prediction
-    // overlap. Retain the smooth prediction if filter intra modes are
-    // disabled.
+    // overlap. Hence smooth prediction is pruned only if all the
+    // filter intra modes are enabled.
     if (cpi->sf.intra_sf.disable_smooth_intra &&
-        !cpi->sf.intra_sf.disable_filter_intra && mbmi->mode == SMOOTH_PRED)
+        cpi->sf.intra_sf.prune_filter_intra_level == 0 &&
+        mbmi->mode == SMOOTH_PRED)
       continue;
     if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
         mbmi->mode == PAETH_PRED)
@@ -1306,11 +1341,11 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   }
 
   // Searches filter_intra
-  if (beat_best_rd && av1_filter_intra_allowed_bsize(&cpi->common, bsize) &&
-      !cpi->sf.intra_sf.disable_filter_intra) {
+  if (beat_best_rd && av1_filter_intra_allowed_bsize(&cpi->common, bsize)) {
     if (rd_pick_filter_intra_sby(cpi, x, rate, rate_tokenonly, distortion,
                                  skippable, bsize, bmode_costs[DC_PRED],
-                                 &best_rd, &best_model_rd, ctx)) {
+                                 best_mbmi.mode, &best_rd, &best_model_rd,
+                                 ctx)) {
       best_mbmi = *mbmi;
     }
   }
