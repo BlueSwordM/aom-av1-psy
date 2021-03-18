@@ -308,7 +308,7 @@ void av1_simple_motion_search_based_split(
   // If the score is very low, prune rectangular split since it is unlikely to
   // occur.
   if (cpi->sf.part_sf.simple_motion_search_rect_split) {
-    const float scale = res_idx >= 2 ? 3 : 2;
+    const float scale = res_idx >= 2 ? 3.0f : 2.0f;
     const float rect_split_thresh =
         scale * av1_simple_motion_search_no_split_thresh
                     [cpi->sf.part_sf.simple_motion_search_rect_split][res_idx]
