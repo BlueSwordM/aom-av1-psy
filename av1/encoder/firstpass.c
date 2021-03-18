@@ -984,11 +984,27 @@ static void first_pass_tiles(AV1_COMP *cpi, const BLOCK_SIZE fp_block_size) {
   AV1_COMMON *const cm = &cpi->common;
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
+  const int num_planes = av1_num_planes(&cpi->common);
+  for (int plane = 0; plane < num_planes; plane++) {
+    const int subsampling_xy =
+        plane ? cm->seq_params.subsampling_x + cm->seq_params.subsampling_y : 0;
+    const int sb_size = MAX_SB_SQUARE >> subsampling_xy;
+    CHECK_MEM_ERROR(
+        cm, cpi->td.mb.plane[plane].src_diff,
+        (int16_t *)aom_memalign(
+            32, sizeof(*cpi->td.mb.plane[plane].src_diff) * sb_size));
+  }
   for (int tile_row = 0; tile_row < tile_rows; ++tile_row) {
     for (int tile_col = 0; tile_col < tile_cols; ++tile_col) {
       TileDataEnc *const tile_data =
           &cpi->tile_data[tile_row * tile_cols + tile_col];
       first_pass_tile(cpi, &cpi->td, tile_data, fp_block_size);
+    }
+  }
+  for (int plane = 0; plane < num_planes; plane++) {
+    if (cpi->td.mb.plane[plane].src_diff) {
+      aom_free(cpi->td.mb.plane[plane].src_diff);
+      cpi->td.mb.plane[plane].src_diff = NULL;
     }
   }
 }

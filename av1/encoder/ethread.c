@@ -792,6 +792,17 @@ static AOM_INLINE void accumulate_counters_enc_workers(AV1_COMP *cpi,
         aom_free(thread_data->td->mb.dv_costs);
       }
     }
+    const int num_planes = av1_num_planes(&cpi->common);
+    for (int plane = 0; plane < num_planes; plane++) {
+      if (thread_data->td->mb.plane[plane].src_diff) {
+        aom_free(thread_data->td->mb.plane[plane].src_diff);
+        thread_data->td->mb.plane[plane].src_diff = NULL;
+      }
+    }
+    aom_free(thread_data->td->mb.e_mbd.seg_mask);
+    thread_data->td->mb.e_mbd.seg_mask = NULL;
+    aom_free(thread_data->td->mb.winner_mode_stats);
+    thread_data->td->mb.winner_mode_stats = NULL;
 
     // Accumulate counters.
     if (i > 0) {
@@ -857,6 +868,29 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
                sizeof(IntraBCMVCosts));
       }
     }
+    const int num_planes = av1_num_planes(&cpi->common);
+    for (int plane = 0; plane < num_planes; plane++) {
+      const int subsampling_xy =
+          plane ? cm->seq_params.subsampling_x + cm->seq_params.subsampling_y
+                : 0;
+      const int sb_size = MAX_SB_SQUARE >> subsampling_xy;
+      CHECK_MEM_ERROR(
+          cm, thread_data->td->mb.plane[plane].src_diff,
+          (int16_t *)aom_memalign(
+              32,
+              sizeof(*thread_data->td->mb.plane[plane].src_diff) * sb_size));
+    }
+    CHECK_MEM_ERROR(cm, thread_data->td->mb.e_mbd.seg_mask,
+                    (uint8_t *)aom_memalign(
+                        16, 2 * MAX_SB_SQUARE *
+                                sizeof(thread_data->td->mb.e_mbd.seg_mask[0])));
+    const int winner_mode_count = frame_is_intra_only(cm)
+                                      ? MAX_WINNER_MODE_COUNT_INTRA
+                                      : MAX_WINNER_MODE_COUNT_INTER;
+    CHECK_MEM_ERROR(cm, thread_data->td->mb.winner_mode_stats,
+                    (WinnerModeStats *)aom_malloc(
+                        winner_mode_count *
+                        sizeof(thread_data->td->mb.winner_mode_stats[0])));
     // Reset cyclic refresh counters.
     av1_init_cyclic_refresh_counters(&thread_data->td->mb);
 
@@ -921,6 +955,30 @@ static AOM_INLINE void fp_prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
                sizeof(IntraBCMVCosts));
       }
     }
+
+    const int num_planes = av1_num_planes(&cpi->common);
+    for (int plane = 0; plane < num_planes; plane++) {
+      const int subsampling_xy =
+          plane ? cm->seq_params.subsampling_x + cm->seq_params.subsampling_y
+                : 0;
+      const int sb_size = MAX_SB_SQUARE >> subsampling_xy;
+      CHECK_MEM_ERROR(
+          cm, thread_data->td->mb.plane[plane].src_diff,
+          (int16_t *)aom_memalign(
+              32,
+              sizeof(*thread_data->td->mb.plane[plane].src_diff) * sb_size));
+    }
+    CHECK_MEM_ERROR(cm, thread_data->td->mb.e_mbd.seg_mask,
+                    (uint8_t *)aom_memalign(
+                        16, 2 * MAX_SB_SQUARE *
+                                sizeof(thread_data->td->mb.e_mbd.seg_mask[0])));
+    const int winner_mode_count = frame_is_intra_only(cm)
+                                      ? MAX_WINNER_MODE_COUNT_INTRA
+                                      : MAX_WINNER_MODE_COUNT_INTER;
+    CHECK_MEM_ERROR(cm, thread_data->td->mb.winner_mode_stats,
+                    (WinnerModeStats *)aom_malloc(
+                        winner_mode_count *
+                        sizeof(thread_data->td->mb.winner_mode_stats[0])));
     if (!cpi->sf.rt_sf.use_nonrd_pick_mode) {
       CHECK_MEM_ERROR(cm, thread_data->td->mb.txfm_search_info.txb_rd_records,
                       (TxbRdRecords *)aom_malloc(sizeof(TxbRdRecords)));
@@ -1218,6 +1276,17 @@ void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi) {
     if (thread_data->td->mb.txfm_search_info.txb_rd_records) {
       aom_free(thread_data->td->mb.txfm_search_info.txb_rd_records);
     }
+    const int num_planes = av1_num_planes(&cpi->common);
+    for (int plane = 0; plane < num_planes; plane++) {
+      if (thread_data->td->mb.plane[plane].src_diff) {
+        aom_free(thread_data->td->mb.plane[plane].src_diff);
+        thread_data->td->mb.plane[plane].src_diff = NULL;
+      }
+    }
+    aom_free(thread_data->td->mb.e_mbd.seg_mask);
+    thread_data->td->mb.e_mbd.seg_mask = NULL;
+    aom_free(thread_data->td->mb.winner_mode_stats);
+    thread_data->td->mb.winner_mode_stats = NULL;
   }
 }
 

@@ -893,7 +893,7 @@ typedef struct macroblockd {
   /*!
    * Mask for this block used for compound prediction.
    */
-  DECLARE_ALIGNED(16, uint8_t, seg_mask[2 * MAX_SB_SQUARE]);
+  uint8_t *seg_mask;
 
   /*!
    * CFL (chroma from luma) related parameters.

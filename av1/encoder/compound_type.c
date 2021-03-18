@@ -1342,7 +1342,8 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
               &inter_pred_params.conv_params.bck_offset,
               &inter_pred_params.conv_params.use_dist_wtd_comp_avg, 1);
           int mask_value = inter_pred_params.conv_params.fwd_offset * 4;
-          memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
+          memset(xd->seg_mask, mask_value,
+                 sizeof(xd->seg_mask[0]) * 2 * MAX_SB_SQUARE);
           tmp_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,
                                                               bsize, this_mode);
         }
@@ -1485,7 +1486,8 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
         if (have_newmv_in_inter_mode(this_mode)) {
           // hard coded number for diff wtd
           int mask_value = mask_index == 0 ? 38 : 26;
-          memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
+          memset(xd->seg_mask, mask_value,
+                 sizeof(xd->seg_mask[0]) * 2 * MAX_SB_SQUARE);
           tmp_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,
                                                               bsize, this_mode);
         }
@@ -1522,7 +1524,8 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
         rs2 += get_interinter_compound_mask_rate(&x->mode_costs, mbmi);
 
         int mask_value = mbmi->interinter_comp.mask_type == 0 ? 38 : 26;
-        memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
+        memset(xd->seg_mask, mask_value,
+               sizeof(xd->seg_mask[0]) * 2 * MAX_SB_SQUARE);
 
         if (have_newmv_in_inter_mode(this_mode)) {
           tmp_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,

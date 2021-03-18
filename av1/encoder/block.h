@@ -102,7 +102,7 @@ typedef struct {
  */
 typedef struct macroblock_plane {
   //! Stores source - pred so the txfm can be computed later
-  DECLARE_ALIGNED(32, int16_t, src_diff[MAX_SB_SQUARE]);
+  int16_t *src_diff;
   //! Dequantized coefficients
   tran_low_t *dqcoeff;
   //! Quantized coefficients
@@ -1114,8 +1114,7 @@ typedef struct macroblock {
    * In the second pass, we retry the winner modes with more thorough txfm
    * options.
    */
-  WinnerModeStats winner_mode_stats[AOMMAX(MAX_WINNER_MODE_COUNT_INTRA,
-                                           MAX_WINNER_MODE_COUNT_INTER)];
+  WinnerModeStats *winner_mode_stats;
   //! Tracks how many winner modes there are.
   int winner_mode_count;
 
