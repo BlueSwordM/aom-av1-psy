@@ -840,6 +840,19 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
 
   // Clip the frequency of updating the mv cost for intrabc.
   INTERNAL_COST_UPDATE_TYPE dv_cost_upd_level;
+
+  // We use DCT_DCT transform followed by computing SATD (Sum of Absolute
+  // Transformed Differences) as an estimation of RD score to quickly find the
+  // best possible Chroma from Luma (CFL) parameter. Then we do a full RD search
+  // near the best possible parameter. The search range is set here.
+  // The range of cfl_searh_range should be [1, 33], and the following are the
+  // recommended values.
+  // 1: Fastest mode.
+  // 3: Default mode that provides good speedup without losing compression
+  // performance at speed 0.
+  // 33: Exhaustive rd search (33 == CFL_MAGS_SIZE). This mode should only
+  // be used for debugging purpose.
+  int cfl_search_range;
 } INTRA_MODE_SPEED_FEATURES;
 
 typedef struct TX_SPEED_FEATURES {

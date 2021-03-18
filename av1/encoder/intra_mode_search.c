@@ -488,6 +488,7 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
                              int cfl_search_range, int *token_rate,
                              uint8_t *best_cfl_alpha_idx,
                              int8_t *best_cfl_alpha_signs) {
+  assert(cfl_search_range >= 1 && cfl_search_range <= CFL_MAGS_SIZE);
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const ModeCosts *mode_costs = &x->mode_costs;
@@ -626,21 +627,20 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     // Init variables for cfl and angle delta
     int cfl_alpha_rate = 0;
     int cfl_token_rate = INT_MAX;
+    const SPEED_FEATURES *sf = &cpi->sf;
     if (mode == UV_CFL_PRED) {
       if (!is_cfl_allowed(xd) || !intra_mode_cfg->enable_cfl_intra) continue;
       assert(!is_directional_mode);
       const TX_SIZE uv_tx_size = av1_get_tx_size(AOM_PLANE_U, xd);
-      int cfl_search_range = 3;
       cfl_alpha_rate = cfl_rd_pick_alpha(
-          x, cpi, uv_tx_size, best_rd, cfl_search_range, &cfl_token_rate,
-          &mbmi->cfl_alpha_idx, &mbmi->cfl_alpha_signs);
+          x, cpi, uv_tx_size, best_rd, sf->intra_sf.cfl_search_range,
+          &cfl_token_rate, &mbmi->cfl_alpha_idx, &mbmi->cfl_alpha_signs);
       if (cfl_alpha_rate == INT_MAX) continue;
     }
     mbmi->angle_delta[PLANE_TYPE_UV] = 0;
 
     if (is_directional_mode && av1_use_angle_delta(mbmi->bsize) &&
         intra_mode_cfg->enable_angle_delta) {
-      const SPEED_FEATURES *sf = &cpi->sf;
       if (sf->intra_sf.chroma_intra_pruning_with_hog &&
           !intra_search_state.dir_mode_skip_mask_ready) {
         static const float thresh[2][4] = {
