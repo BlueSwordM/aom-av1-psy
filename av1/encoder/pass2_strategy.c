@@ -943,7 +943,8 @@ static void allocate_gf_group_bits(GF_GROUP *gf_group, RATE_CONTROL *const rc,
   // in the next GOP. For GF group, next GOP will overwrite the rate allocation.
   // Setting this frame to use 0 bit (of out the current GOP budget) will
   // simplify logics in reference frame management.
-  gf_group->bit_allocation[gf_group_size] = 0;
+  if (gf_group_size < MAX_STATIC_GF_GROUP_LENGTH)
+    gf_group->bit_allocation[gf_group_size] = 0;
 }
 
 // Returns true if KF group and GF group both are almost completely static.
