@@ -143,7 +143,7 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
   // Skip the evaluation of filter-intra if cached MB_MODE_INFO does not have
   // filter-intra as winner.
   if (x->use_mb_mode_cache &&
-      x->mb_mode_cache->filter_intra_mode_info.use_filter_intra == 0)
+      !x->mb_mode_cache->filter_intra_mode_info.use_filter_intra)
     return 0;
 
   for (mode = 0; mode < FILTER_INTRA_MODES; ++mode) {
@@ -151,8 +151,8 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
     RD_STATS tokenonly_rd_stats;
     mbmi->filter_intra_mode_info.filter_intra_mode = mode;
 
-    // Skip the evaluation of modes, which are not matching with the winner mode
-    // in x->mb_mode_cache.
+    // Skip the evaluation of modes that do not match with the winner mode in
+    // x->mb_mode_cache.
     if (x->use_mb_mode_cache &&
         mode != x->mb_mode_cache->filter_intra_mode_info.filter_intra_mode)
       continue;
@@ -1154,8 +1154,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       continue;
     mbmi->angle_delta[PLANE_TYPE_Y] = 0;
 
-    // Skip the evaluation of modes, which are not matching with the winner mode
-    // in x->mb_mode_cache.
+    // Skip the evaluation of modes that do not match with the winner mode in
+    // x->mb_mode_cache.
     if (x->use_mb_mode_cache && mbmi->mode != x->mb_mode_cache->mode) continue;
 
     is_directional_mode = av1_is_directional_mode(mbmi->mode);
