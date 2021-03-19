@@ -565,6 +565,23 @@ static void reset_film_grain_chroma_params(aom_film_grain_t *pars) {
   memset(pars->ar_coeffs_cb, 0, sizeof(pars->ar_coeffs_cb));
 }
 
+void av1_update_film_grain_parameters_seq(struct AV1_PRIMARY *ppi,
+                                          const AV1EncoderConfig *oxcf) {
+  SequenceHeader *const seq_params = &ppi->seq_params;
+  const TuneCfg *const tune_cfg = &oxcf->tune_cfg;
+
+  if (tune_cfg->film_grain_test_vector || tune_cfg->film_grain_table_filename ||
+      tune_cfg->content == AOM_CONTENT_FILM) {
+    seq_params->film_grain_params_present = 1;
+  } else {
+#if CONFIG_DENOISE
+    seq_params->film_grain_params_present = (oxcf->noise_level > 0);
+#else
+    seq_params->film_grain_params_present = 0;
+#endif
+  }
+}
+
 void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
                                       const AV1EncoderConfig *oxcf) {
   AV1_COMMON *const cm = &cpi->common;
@@ -578,7 +595,6 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
   }
 
   if (tune_cfg->film_grain_test_vector) {
-    cm->seq_params->film_grain_params_present = 1;
     if (cm->current_frame.frame_type == KEY_FRAME) {
       memcpy(&cm->film_grain_params,
              film_grain_test_vectors + tune_cfg->film_grain_test_vector - 1,
@@ -591,26 +607,18 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
       }
     }
   } else if (tune_cfg->film_grain_table_filename) {
-    cm->seq_params->film_grain_params_present = 1;
-
     cpi->film_grain_table = aom_malloc(sizeof(*cpi->film_grain_table));
     memset(cpi->film_grain_table, 0, sizeof(aom_film_grain_table_t));
 
     aom_film_grain_table_read(cpi->film_grain_table,
                               tune_cfg->film_grain_table_filename, cm->error);
   } else if (tune_cfg->content == AOM_CONTENT_FILM) {
-    cm->seq_params->film_grain_params_present = 1;
     cm->film_grain_params.bit_depth = cm->seq_params->bit_depth;
     if (oxcf->tool_cfg.enable_monochrome)
       reset_film_grain_chroma_params(&cm->film_grain_params);
     if (cm->seq_params->color_range == AOM_CR_FULL_RANGE)
       cm->film_grain_params.clip_to_restricted_range = 0;
   } else {
-#if CONFIG_DENOISE
-    cm->seq_params->film_grain_params_present = (cpi->oxcf.noise_level > 0);
-#else
-    cm->seq_params->film_grain_params_present = 0;
-#endif
     memset(&cm->film_grain_params, 0, sizeof(cm->film_grain_params));
   }
 }

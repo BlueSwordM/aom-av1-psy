@@ -232,8 +232,8 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   pbi->current_operating_point =
       seq_params->operating_point_idc[operating_point];
   if (aom_get_num_layers_from_operating_point_idc(
-          pbi->current_operating_point, &cm->number_spatial_layers,
-          &cm->number_temporal_layers) != AOM_CODEC_OK) {
+          pbi->current_operating_point, &pbi->number_spatial_layers,
+          &pbi->number_temporal_layers) != AOM_CODEC_OK) {
     pbi->error.error_code = AOM_CODEC_ERROR;
     return 0;
   }

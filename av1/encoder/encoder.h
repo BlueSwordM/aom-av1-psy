@@ -2195,6 +2195,16 @@ typedef struct AV1_PRIMARY {
   bool buffer_removal_time_present;
 
   /*!
+   * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
+   */
+  unsigned int number_temporal_layers;
+
+  /*!
+   * Number of spatial layers: may be > 1 for SVC (scalable vector coding).
+   */
+  unsigned int number_spatial_layers;
+
+  /*!
    * Code and details about current error status.
    */
   struct aom_internal_error_info error;
@@ -2873,12 +2883,16 @@ void av1_remove_compressor(AV1_COMP *cpi);
 
 void av1_remove_primary_compressor(AV1_PRIMARY *ppi);
 
-void av1_change_config(AV1_COMP *cpi, const AV1EncoderConfig *oxcf);
+void av1_change_config_seq(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
+                           bool *sb_size_changed);
+
+void av1_change_config(AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
+                       bool sb_size_changed);
 
 void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
                              int subsampling_x, int subsampling_y);
 
-void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi, AV1_COMMON *cm,
+void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi,
                                const AV1EncoderConfig *oxcf, int use_svc);
 
 /*!\endcond */

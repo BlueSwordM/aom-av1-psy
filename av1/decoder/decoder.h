@@ -350,6 +350,16 @@ typedef struct AV1Decoder {
    * Code and details about current error status.
    */
   struct aom_internal_error_info error;
+
+  /*!
+   * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
+   */
+  unsigned int number_temporal_layers;
+
+  /*!
+   * Number of spatial layers: may be > 1 for SVC (scalable vector coding).
+   */
+  unsigned int number_spatial_layers;
 } AV1Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error

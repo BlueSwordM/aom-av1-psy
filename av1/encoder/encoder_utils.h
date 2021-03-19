@@ -973,6 +973,8 @@ static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
   }
 }
 
+void av1_update_film_grain_parameters_seq(struct AV1_PRIMARY *ppi,
+                                          const AV1EncoderConfig *oxcf);
 void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
                                       const AV1EncoderConfig *oxcf);
 

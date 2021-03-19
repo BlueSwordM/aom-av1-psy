@@ -1030,19 +1030,11 @@ typedef struct AV1Common {
   int8_t ref_frame_side[REF_FRAMES];
 
   /*!
-   * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
-   */
-  unsigned int number_temporal_layers;
-  /*!
    * Temporal layer ID of this frame
    * (in the range 0 ... (number_temporal_layers - 1)).
    */
   int temporal_layer_id;
 
-  /*!
-   * Number of spatial layers: may be > 1 for SVC (scalable vector coding).
-   */
-  unsigned int number_spatial_layers;
   /*!
    * Spatial layer ID of this frame
    * (in the range 0 ... (number_spatial_layers - 1)).

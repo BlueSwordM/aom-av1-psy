@@ -1328,16 +1328,19 @@ static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
     set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg);
     // On profile change, request a key frame
     force_key |= ctx->ppi->seq_params.profile != ctx->oxcf.profile;
+    bool is_sb_size_changed = false;
+    av1_change_config_seq(ctx->ppi, &ctx->oxcf, &is_sb_size_changed);
 #if CONFIG_FRAME_PARALLEL_ENCODE
     int i;
     for (i = 0; i < ctx->ppi->num_fp_contexts; i++) {
-      av1_change_config(ctx->ppi->parallel_cpi[i], &ctx->oxcf);
+      av1_change_config(ctx->ppi->parallel_cpi[i], &ctx->oxcf,
+                        is_sb_size_changed);
     }
 #else
-    av1_change_config(ctx->ppi->cpi, &ctx->oxcf);
+    av1_change_config(ctx->ppi->cpi, &ctx->oxcf, is_sb_size_changed);
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
     if (ctx->ppi->cpi_lap != NULL) {
-      av1_change_config(ctx->ppi->cpi_lap, &ctx->oxcf);
+      av1_change_config(ctx->ppi->cpi_lap, &ctx->oxcf, is_sb_size_changed);
     }
   }
 
@@ -1380,16 +1383,19 @@ static aom_codec_err_t update_extra_cfg(aom_codec_alg_priv_t *ctx,
   if (res == AOM_CODEC_OK) {
     ctx->extra_cfg = *extra_cfg;
     set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg);
+    bool is_sb_size_changed = false;
+    av1_change_config_seq(ctx->ppi, &ctx->oxcf, &is_sb_size_changed);
 #if CONFIG_FRAME_PARALLEL_ENCODE
     int i;
     for (i = 0; i < ctx->ppi->num_fp_contexts; i++) {
-      av1_change_config(ctx->ppi->parallel_cpi[i], &ctx->oxcf);
+      av1_change_config(ctx->ppi->parallel_cpi[i], &ctx->oxcf,
+                        is_sb_size_changed);
     }
 #else
-    av1_change_config(ctx->ppi->cpi, &ctx->oxcf);
+    av1_change_config(ctx->ppi->cpi, &ctx->oxcf, is_sb_size_changed);
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
     if (ctx->ppi->cpi_lap != NULL) {
-      av1_change_config(ctx->ppi->cpi_lap, &ctx->oxcf);
+      av1_change_config(ctx->ppi->cpi_lap, &ctx->oxcf, is_sb_size_changed);
     }
   }
   return res;
@@ -2621,7 +2627,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         if (status != AOM_CODEC_OK) {
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
-        cpi_lap->ppi->seq_params_locked = 1;
       }
       lib_flags = 0;
       frame_size = 0;
@@ -2917,7 +2922,7 @@ static aom_codec_err_t ctrl_set_number_spatial_layers(aom_codec_alg_priv_t *ctx,
   const int number_spatial_layers = va_arg(args, int);
   if (number_spatial_layers > MAX_NUM_SPATIAL_LAYERS)
     return AOM_CODEC_INVALID_PARAM;
-  ctx->ppi->cpi->common.number_spatial_layers = number_spatial_layers;
+  ctx->ppi->number_spatial_layers = number_spatial_layers;
   return AOM_CODEC_OK;
 }
 
@@ -2933,19 +2938,20 @@ static aom_codec_err_t ctrl_set_layer_id(aom_codec_alg_priv_t *ctx,
 
 static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
                                            va_list args) {
-  AV1_COMP *const cpi = ctx->ppi->cpi;
+  AV1_PRIMARY *const ppi = ctx->ppi;
+  AV1_COMP *const cpi = ppi->cpi;
   AV1_COMMON *const cm = &cpi->common;
   aom_svc_params_t *const params = va_arg(args, aom_svc_params_t *);
-  cm->number_spatial_layers = params->number_spatial_layers;
-  cm->number_temporal_layers = params->number_temporal_layers;
+  ppi->number_spatial_layers = params->number_spatial_layers;
+  ppi->number_temporal_layers = params->number_temporal_layers;
   cpi->svc.number_spatial_layers = params->number_spatial_layers;
   cpi->svc.number_temporal_layers = params->number_temporal_layers;
-  if (cm->number_spatial_layers > 1 || cm->number_temporal_layers > 1) {
+  if (ppi->number_spatial_layers > 1 || ppi->number_temporal_layers > 1) {
     unsigned int sl, tl;
     ctx->ppi->use_svc = 1;
-    for (sl = 0; sl < cm->number_spatial_layers; ++sl) {
-      for (tl = 0; tl < cm->number_temporal_layers; ++tl) {
-        const int layer = LAYER_IDS_TO_IDX(sl, tl, cm->number_temporal_layers);
+    for (sl = 0; sl < ppi->number_spatial_layers; ++sl) {
+      for (tl = 0; tl < ppi->number_temporal_layers; ++tl) {
+        const int layer = LAYER_IDS_TO_IDX(sl, tl, ppi->number_temporal_layers);
         LAYER_CONTEXT *lc = &cpi->svc.layer_context[layer];
         lc->max_q = params->max_quantizers[layer];
         lc->min_q = params->min_quantizers[layer];
@@ -2957,10 +2963,10 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
     }
     if (cm->current_frame.frame_number == 0) {
       if (!cpi->ppi->seq_params_locked) {
-        SequenceHeader *const seq_params = cm->seq_params;
+        SequenceHeader *const seq_params = &ppi->seq_params;
         seq_params->operating_points_cnt_minus_1 =
-            cm->number_spatial_layers * cm->number_temporal_layers - 1;
-        av1_init_seq_coding_tools(cpi->ppi, cm, &cpi->oxcf, 1);
+            ppi->number_spatial_layers * ppi->number_temporal_layers - 1;
+        av1_init_seq_coding_tools(ppi, &cpi->oxcf, 1);
       }
       av1_init_layer_context(cpi);
     }
