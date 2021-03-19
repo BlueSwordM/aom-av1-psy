@@ -2131,11 +2131,11 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
       // reset pointers to the shrinked location
       twopass->stats_in = start_pos + cur_last;
       cur_start = cur_last;
-      if (regions[find_regions_index(regions, num_regions,
-                                     cur_start + 1 + offset)]
-              .type == SCENECUT_REGION) {
-        cur_start++;
-      }
+      int cur_region_idx =
+          find_regions_index(regions, num_regions, cur_start + 1 + offset);
+      if (cur_region_idx >= 0)
+        if (regions[cur_region_idx].type == SCENECUT_REGION) cur_start++;
+
       i = cur_last;
 
       if (cut_here > 1 && cur_last == ori_last) break;
