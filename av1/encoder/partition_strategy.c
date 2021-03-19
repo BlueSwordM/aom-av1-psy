@@ -732,6 +732,16 @@ void av1_get_max_min_partition_features(AV1_COMP *const cpi, MACROBLOCK *x,
   assert(f_idx == FEATURE_SIZE_MAX_MIN_PART_PRED);
 }
 
+// Convert result index to block size.
+// result idx     block size
+//     0          BLOCK_16X16
+//     1          BLOCK_32X32
+//     2          BLOCK_64X64
+//     3          BLOCK_128X128
+static BLOCK_SIZE get_block_size(int idx) {
+  return (BLOCK_SIZE)((idx + 2) * 3);
+}
+
 BLOCK_SIZE av1_predict_max_partition(const AV1_COMP *const cpi,
                                      const MACROBLOCK *const x,
                                      const float *features) {
@@ -755,7 +765,7 @@ BLOCK_SIZE av1_predict_max_partition(const AV1_COMP *const cpi,
         result = i;
       }
     }
-    return (BLOCK_SIZE)((result + 2) * 3);
+    return get_block_size(result);
   }
 
   float probs[MAX_NUM_CLASSES_MAX_MIN_PART_PRED] = { 0.0f };
@@ -793,7 +803,7 @@ BLOCK_SIZE av1_predict_max_partition(const AV1_COMP *const cpi,
     }
   }
 
-  return (BLOCK_SIZE)((result + 2) * 3);
+  return get_block_size(result);
 }
 
 // Get the minimum partition block width and height(in log scale) under a
