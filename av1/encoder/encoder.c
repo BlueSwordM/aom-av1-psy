@@ -841,7 +841,8 @@ static INLINE void update_frame_index_set(FRAME_INDEX_SET *frame_index_set,
 }
 
 AV1_PRIMARY *av1_create_primary_compressor(
-    struct aom_codec_pkt_list *pkt_list_head, int num_lap_buffers) {
+    struct aom_codec_pkt_list *pkt_list_head, int num_lap_buffers,
+    AV1EncoderConfig *oxcf) {
   AV1_PRIMARY *volatile const ppi = aom_memalign(32, sizeof(AV1_PRIMARY));
   if (!ppi) return NULL;
   av1_zero(*ppi);
@@ -850,6 +851,8 @@ AV1_PRIMARY *av1_create_primary_compressor(
   ppi->lap_enabled = num_lap_buffers > 0;
   ppi->output_pkt_list = pkt_list_head;
   ppi->b_calculate_psnr = CONFIG_INTERNAL_STATS;
+  ppi->frames_left = oxcf->input_cfg.limit;
+
   return ppi;
 }
 
@@ -903,8 +906,6 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
   if (cpi->compressor_stage == LAP_STAGE) {
     cpi->oxcf.gf_cfg.lag_in_frames = lap_lag_in_frames;
   }
-
-  cpi->frames_left = cpi->oxcf.input_cfg.limit;
 
   av1_rc_init(&cpi->oxcf, oxcf->pass, &cpi->rc);
 

@@ -2073,8 +2073,8 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
       priv->oxcf.use_highbitdepth =
           (ctx->init_flags & AOM_CODEC_USE_HIGHBITDEPTH) ? 1 : 0;
 
-      priv->ppi =
-          av1_create_primary_compressor(&priv->pkt_list.head, *num_lap_buffers);
+      priv->ppi = av1_create_primary_compressor(&priv->pkt_list.head,
+                                                *num_lap_buffers, &priv->oxcf);
       if (!priv->ppi) return AOM_CODEC_MEM_ERROR;
 
 #if !CONFIG_REALTIME_ONLY
@@ -2453,7 +2453,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       aom_codec_cx_pkt_t pkt;
 
       // decrement frames_left counter
-      cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
+      cpi->ppi->frames_left = AOMMAX(0, cpi->ppi->frames_left - 1);
       if (ctx->oxcf.save_as_annexb) {
         //  B_PRIME (add TU size)
         size_t tu_size = ctx->pending_cx_data_sz;

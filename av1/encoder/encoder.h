@@ -2116,6 +2116,11 @@ typedef struct AV1_PRIMARY {
    * Calculates PSNR on each frame when set to 1.
    */
   int b_calculate_psnr;
+
+  /*!
+   * Number of frames left to be encoded, is 0 if limit is not set.
+   */
+  int frames_left;
 } AV1_PRIMARY;
 
 /*!
@@ -2702,11 +2707,6 @@ typedef struct AV1_COMP {
   uint8_t *consec_zero_mv;
 
   /*!
-   * Number of frames left to be encoded, is 0 if limit is not set.
-   */
-  int frames_left;
-
-  /*!
    * Block size of first pass encoding
    */
   BLOCK_SIZE fp_block_size;
@@ -2802,7 +2802,8 @@ struct AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
                                        STATS_BUFFER_CTX *stats_buf_context);
 
 struct AV1_PRIMARY *av1_create_primary_compressor(
-    struct aom_codec_pkt_list *pkt_list_head, int num_lap_buffers);
+    struct aom_codec_pkt_list *pkt_list_head, int num_lap_buffers,
+    AV1EncoderConfig *oxcf);
 
 void av1_remove_compressor(AV1_COMP *cpi);
 
