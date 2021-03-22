@@ -2111,6 +2111,11 @@ typedef struct AV1_PRIMARY {
    * Parameters for AV1 bitstream levels.
    */
   AV1LevelParams level_params;
+
+  /*!
+   * Calculates PSNR on each frame when set to 1.
+   */
+  int b_calculate_psnr;
 } AV1_PRIMARY;
 
 /*!
@@ -2432,11 +2437,6 @@ typedef struct AV1_COMP {
   Metrics metrics;
   /*!\endcond */
 #endif
-
-  /*!
-   * Calculates PSNR on each frame when set to 1.
-   */
-  int b_calculate_psnr;
 
 #if CONFIG_SPEED_STATS
   /*!
@@ -3266,7 +3266,7 @@ static INLINE int av1_pixels_to_mi(int pixels) {
 static AOM_INLINE int is_psnr_calc_enabled(const AV1_COMP *cpi) {
   const AV1_COMMON *const cm = &cpi->common;
 
-  return cpi->b_calculate_psnr && !is_stat_generation_stage(cpi) &&
+  return cpi->ppi->b_calculate_psnr && !is_stat_generation_stage(cpi) &&
          cm->show_frame;
 }
 

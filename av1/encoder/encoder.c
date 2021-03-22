@@ -849,6 +849,7 @@ AV1_PRIMARY *av1_create_primary_compressor(
   ppi->seq_params_locked = 0;
   ppi->lap_enabled = num_lap_buffers > 0;
   ppi->output_pkt_list = pkt_list_head;
+  ppi->b_calculate_psnr = CONFIG_INTERNAL_STATS;
   return ppi;
 }
 
@@ -935,7 +936,6 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
 
   cpi->refresh_frame.alt_ref_frame = false;
 
-  cpi->b_calculate_psnr = CONFIG_INTERNAL_STATS;
 #if CONFIG_INTERNAL_STATS
   cpi->b_calculate_blockiness = 1;
   cpi->b_calculate_consistency = 1;
@@ -952,7 +952,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
   cpi->tx_search_count = 0;
 #endif  // CONFIG_SPEED_STATS
 
-  if (cpi->b_calculate_psnr) {
+  if (cpi->ppi->b_calculate_psnr) {
     cpi->total_sq_error[0] = 0;
     cpi->total_samples[0] = 0;
     cpi->total_sq_error[1] = 0;
@@ -1469,7 +1469,7 @@ void av1_remove_compressor(AV1_COMP *cpi) {
           (double)cpi->oxcf.rc_cfg.target_bandwidth / 1000;
       const double rate_err = ((100.0 * (dr - target_rate)) / target_rate);
 
-      if (cpi->b_calculate_psnr) {
+      if (cpi->ppi->b_calculate_psnr) {
         const double total_psnr =
             aom_sse_to_psnr((double)cpi->total_samples[0], peak,
                             (double)cpi->total_sq_error[0]);
@@ -3593,7 +3593,7 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
 
     cpi->count[0]++;
     cpi->count[1]++;
-    if (cpi->b_calculate_psnr) {
+    if (cpi->ppi->b_calculate_psnr) {
       PSNR_STATS psnr;
       double weight[2] = { 0.0, 0.0 };
       double frame_ssim2[2] = { 0.0, 0.0 };
@@ -3777,7 +3777,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   cpi->time_compress_data += aom_usec_timer_elapsed(&cmptimer);
 #endif  // CONFIG_INTERNAL_STATS
   // Note *size = 0 indicates a dropped frame for which psnr is not calculated
-  if (cpi->b_calculate_psnr && *size > 0) {
+  if (cpi->ppi->b_calculate_psnr && *size > 0) {
     if (cm->show_existing_frame ||
         (!is_stat_generation_stage(cpi) && cm->show_frame)) {
       generate_psnr_packet(cpi);
