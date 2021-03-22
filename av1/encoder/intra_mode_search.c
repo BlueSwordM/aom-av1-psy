@@ -438,8 +438,7 @@ static int64_t cfl_compute_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
 static void cfl_pick_plane_parameter(const AV1_COMP *const cpi, MACROBLOCK *x,
                                      int plane, TX_SIZE tx_size,
                                      int cfl_search_range,
-                                     int cfl_rate_arr[CFL_MAGS_SIZE],
-                                     int64_t cfl_dist_arr[CFL_MAGS_SIZE]) {
+                                     RD_STATS cfl_rd_arr[CFL_MAGS_SIZE]) {
   assert(cfl_search_range >= 1 && cfl_search_range <= CFL_MAGS_SIZE);
   MACROBLOCKD *const xd = &x->e_mbd;
 
@@ -477,27 +476,20 @@ static void cfl_pick_plane_parameter(const AV1_COMP *const cpi, MACROBLOCK *x,
   }
 
   for (int cfl_idx = 0; cfl_idx < CFL_MAGS_SIZE; ++cfl_idx) {
-    cfl_rate_arr[cfl_idx] = INT_MAX;
-    cfl_dist_arr[cfl_idx] = INT64_MAX;
+    av1_invalid_rd_stats(&cfl_rd_arr[cfl_idx]);
   }
 
   int fast_mode = 0;
   int start_cfl_idx = est_best_cfl_idx;
-  RD_STATS rd_stats;
   cfl_compute_rd(cpi, x, plane, tx_size, plane_bsize, start_cfl_idx, fast_mode,
-                 &rd_stats);
-  cfl_rate_arr[start_cfl_idx] = rd_stats.rate;
-  cfl_dist_arr[start_cfl_idx] = rd_stats.dist;
-  // TODO(angiebird): simplify this search loop.
+                 &cfl_rd_arr[start_cfl_idx]);
   for (int si = 0; si < 2; ++si) {
     const int dir = dir_ls[si];
     for (int i = 1; i < cfl_search_range; ++i) {
       int cfl_idx = start_cfl_idx + dir * i;
       if (cfl_idx < 0 || cfl_idx >= CFL_MAGS_SIZE) break;
       cfl_compute_rd(cpi, x, plane, tx_size, plane_bsize, cfl_idx, fast_mode,
-                     &rd_stats);
-      cfl_rate_arr[cfl_idx] = rd_stats.rate;
-      cfl_dist_arr[cfl_idx] = rd_stats.dist;
+                     &cfl_rd_arr[cfl_idx]);
     }
   }
   xd->cfl.use_dc_pred_cache = 0;
@@ -510,44 +502,51 @@ static void cfl_pick_plane_parameter(const AV1_COMP *const cpi, MACROBLOCK *x,
  * \ingroup intra_mode_search
  * \callergraph
  *
+ * This function will use DCT_DCT followed by computing SATD (sum of absolute
+ * transformed differences) to estimate the RD score and find the best possible
+ * CFL parameter.
+ *
+ * Then the function will apply a full RD search near the best possible CFL
+ * parameter to find the best actual CFL parameter.
+ *
  * Side effect:
  * We use ths buffers in x->plane[] and xd->plane[] as throw-away buffers for RD
  * search.
  *
- * \return CFL mode overhead
+ * \param[in] x                Encoder prediction block structure.
+ * \param[in] cpi              Top-level encoder instance structure.
+ * \param[in] tx_size          Transform size.
+ * \param[in] ref_best_rd      Reference best RD.
+ * \param[in] cfl_search_range The search range of full RD search near the
+ *                             estimated best CFL parameter.
+ *
+ * \param[out]   best_rd_stats          RD stats of the best CFL parameter
+ * \param[out]   best_cfl_alpha_idx     Best CFL alpha index
+ * \param[out]   best_cfl_alpha_signs   Best CFL joint signs
+ *
  */
 static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
                              TX_SIZE tx_size, int64_t ref_best_rd,
-                             int cfl_search_range, int *token_rate,
+                             int cfl_search_range, RD_STATS *best_rd_stats,
                              uint8_t *best_cfl_alpha_idx,
                              int8_t *best_cfl_alpha_signs) {
   assert(cfl_search_range >= 1 && cfl_search_range <= CFL_MAGS_SIZE);
-  MACROBLOCKD *const xd = &x->e_mbd;
-  MB_MODE_INFO *const mbmi = xd->mi[0];
   const ModeCosts *mode_costs = &x->mode_costs;
-  const int64_t mode_rd = RDCOST(
-      x->rdmult,
-      mode_costs->intra_uv_mode_cost[CFL_ALLOWED][mbmi->mode][UV_CFL_PRED], 0);
-  int cfl_rate_arr_u[CFL_MAGS_SIZE];
-  int cfl_rate_arr_v[CFL_MAGS_SIZE];
-  int64_t cfl_dist_arr_u[CFL_MAGS_SIZE];
-  int64_t cfl_dist_arr_v[CFL_MAGS_SIZE];
-  cfl_pick_plane_parameter(cpi, x, 1, tx_size, cfl_search_range, cfl_rate_arr_u,
-                           cfl_dist_arr_u);
-  cfl_pick_plane_parameter(cpi, x, 2, tx_size, cfl_search_range, cfl_rate_arr_v,
-                           cfl_dist_arr_v);
-  int64_t best_rd = ref_best_rd;
-  int best_token_rate = INT_MAX;
-  int best_joint_sign = 0;
-  int best_cfl_alpha_u = 0;
-  int best_cfl_alpha_v = 0;
+  RD_STATS cfl_rd_arr_u[CFL_MAGS_SIZE];
+  RD_STATS cfl_rd_arr_v[CFL_MAGS_SIZE];
+
+  av1_invalid_rd_stats(best_rd_stats);
+
+  cfl_pick_plane_parameter(cpi, x, 1, tx_size, cfl_search_range, cfl_rd_arr_u);
+  cfl_pick_plane_parameter(cpi, x, 2, tx_size, cfl_search_range, cfl_rd_arr_v);
+
   for (int ui = 0; ui < CFL_MAGS_SIZE; ++ui) {
-    if (cfl_rate_arr_u[ui] == INT_MAX) continue;
+    if (cfl_rd_arr_u[ui].rate == INT_MAX) continue;
     int cfl_alpha_u;
     CFL_SIGN_TYPE cfl_sign_u;
     cfl_idx_to_sign_and_alpha(ui, &cfl_sign_u, &cfl_alpha_u);
     for (int vi = 0; vi < CFL_MAGS_SIZE; ++vi) {
-      if (cfl_rate_arr_v[vi] == INT_MAX) continue;
+      if (cfl_rd_arr_v[vi].rate == INT_MAX) continue;
       int cfl_alpha_v;
       CFL_SIGN_TYPE cfl_sign_v;
       cfl_idx_to_sign_and_alpha(vi, &cfl_sign_v, &cfl_alpha_v);
@@ -555,38 +554,32 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
       // valid parameter for CFL
       if (cfl_sign_u == CFL_SIGN_ZERO && cfl_sign_v == CFL_SIGN_ZERO) continue;
       int joint_sign = cfl_sign_u * CFL_SIGNS + cfl_sign_v - 1;
-
-      int64_t dist = cfl_dist_arr_u[ui] + cfl_dist_arr_v[vi];
-      int this_token_rate = cfl_rate_arr_u[ui] + cfl_rate_arr_v[vi];
-      int rate = this_token_rate;
-      rate += mode_costs->cfl_cost[joint_sign][CFL_PRED_U][cfl_alpha_u];
-      rate += mode_costs->cfl_cost[joint_sign][CFL_PRED_V][cfl_alpha_v];
-      int64_t this_rd = RDCOST(x->rdmult, rate, dist) + mode_rd;
-      if (this_rd < best_rd) {
-        best_token_rate = this_token_rate;
-        best_rd = this_rd;
-        best_joint_sign = joint_sign;
-        best_cfl_alpha_u = cfl_alpha_u;
-        best_cfl_alpha_v = cfl_alpha_v;
+      RD_STATS rd_stats = cfl_rd_arr_u[ui];
+      av1_merge_rd_stats(&rd_stats, &cfl_rd_arr_v[vi]);
+      if (rd_stats.rate != INT_MAX) {
+        rd_stats.rate +=
+            mode_costs->cfl_cost[joint_sign][CFL_PRED_U][cfl_alpha_u];
+        rd_stats.rate +=
+            mode_costs->cfl_cost[joint_sign][CFL_PRED_V][cfl_alpha_v];
+      }
+      av1_rd_cost_update(x->rdmult, &rd_stats);
+      if (rd_stats.rdcost < best_rd_stats->rdcost) {
+        *best_rd_stats = rd_stats;
+        *best_cfl_alpha_idx =
+            (cfl_alpha_u << CFL_ALPHABET_SIZE_LOG2) + cfl_alpha_v;
+        *best_cfl_alpha_signs = joint_sign;
       }
     }
   }
-  int best_rate_overhead = INT_MAX;
-  if (best_rd < ref_best_rd) {
-    int mode_cost_u =
-        mode_costs->cfl_cost[best_joint_sign][CFL_PRED_U][best_cfl_alpha_u];
-    int mode_cost_v =
-        mode_costs->cfl_cost[best_joint_sign][CFL_PRED_V][best_cfl_alpha_v];
-    best_rate_overhead = mode_cost_u + mode_cost_v;
-    *best_cfl_alpha_idx =
-        (best_cfl_alpha_u << CFL_ALPHABET_SIZE_LOG2) + best_cfl_alpha_v;
-    *best_cfl_alpha_signs = best_joint_sign;
-    *token_rate = best_token_rate;
-  } else {
+  if (best_rd_stats->rdcost >= ref_best_rd) {
+    av1_invalid_rd_stats(best_rd_stats);
+    // Set invalid CFL parameters here since the rdcost is not better than
+    // ref_best_rd.
     *best_cfl_alpha_idx = 0;
     *best_cfl_alpha_signs = 0;
+    return 0;
   }
-  return best_rate_overhead;
+  return 1;
 }
 
 int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
@@ -658,22 +651,19 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     mbmi->uv_mode = mode;
 
     // Init variables for cfl and angle delta
-    int cfl_alpha_rate = 0;
-    int cfl_token_rate = INT_MAX;
     const SPEED_FEATURES *sf = &cpi->sf;
+    mbmi->angle_delta[PLANE_TYPE_UV] = 0;
     if (mode == UV_CFL_PRED) {
       if (!is_cfl_allowed(xd) || !intra_mode_cfg->enable_cfl_intra) continue;
       assert(!is_directional_mode);
       const TX_SIZE uv_tx_size = av1_get_tx_size(AOM_PLANE_U, xd);
-      cfl_alpha_rate = cfl_rd_pick_alpha(
-          x, cpi, uv_tx_size, best_rd, sf->intra_sf.cfl_search_range,
-          &cfl_token_rate, &mbmi->cfl_alpha_idx, &mbmi->cfl_alpha_signs);
-      if (cfl_alpha_rate == INT_MAX) continue;
-    }
-    mbmi->angle_delta[PLANE_TYPE_UV] = 0;
-
-    if (is_directional_mode && av1_use_angle_delta(mbmi->bsize) &&
-        intra_mode_cfg->enable_angle_delta) {
+      if (!cfl_rd_pick_alpha(x, cpi, uv_tx_size, best_rd,
+                             sf->intra_sf.cfl_search_range, &tokenonly_rd_stats,
+                             &mbmi->cfl_alpha_idx, &mbmi->cfl_alpha_signs)) {
+        continue;
+      }
+    } else if (is_directional_mode && av1_use_angle_delta(mbmi->bsize) &&
+               intra_mode_cfg->enable_angle_delta) {
       if (sf->intra_sf.chroma_intra_pruning_with_hog &&
           !intra_search_state.dir_mode_skip_mask_ready) {
         static const float thresh[2][4] = {
@@ -706,15 +696,9 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       }
     }
     const int mode_cost =
-        mode_costs->intra_uv_mode_cost[is_cfl_allowed(xd)][mbmi->mode][mode] +
-        cfl_alpha_rate;
+        mode_costs->intra_uv_mode_cost[is_cfl_allowed(xd)][mbmi->mode][mode];
     this_rate = tokenonly_rd_stats.rate +
                 intra_mode_info_cost_uv(cpi, x, mbmi, bsize, mode_cost);
-    if (mode == UV_CFL_PRED) {
-      assert(is_cfl_allowed(xd) && intra_mode_cfg->enable_cfl_intra);
-      assert(IMPLIES(!xd->lossless[mbmi->segment_id],
-                     cfl_token_rate == tokenonly_rd_stats.rate));
-    }
     this_rd = RDCOST(x->rdmult, this_rate, tokenonly_rd_stats.dist);
 
     if (this_rd < best_rd) {

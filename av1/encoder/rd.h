@@ -121,7 +121,12 @@ static INLINE void av1_invalid_rd_stats(RD_STATS *rd_stats) {
 
 static INLINE void av1_merge_rd_stats(RD_STATS *rd_stats_dst,
                                       const RD_STATS *rd_stats_src) {
-  assert(rd_stats_dst->rate != INT_MAX && rd_stats_src->rate != INT_MAX);
+  if (rd_stats_dst->rate == INT_MAX || rd_stats_src->rate == INT_MAX) {
+    // If rd_stats_dst or rd_stats_src has invalid rate, we will make
+    // rd_stats_dst invalid.
+    av1_invalid_rd_stats(rd_stats_dst);
+    return;
+  }
   rd_stats_dst->rate = (int)AOMMIN(
       ((int64_t)rd_stats_dst->rate + (int64_t)rd_stats_src->rate), INT_MAX);
   if (!rd_stats_dst->zero_rate)
