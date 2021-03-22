@@ -3174,8 +3174,6 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   // KF is always a GF so clear frames till next gf counter.
   rc->frames_till_gf_update_due = 0;
 
-  rc->frames_to_key = 1;
-
   if (has_no_stats_stage(cpi)) {
     int num_frames_to_app_forced_key = detect_app_forced_key(cpi);
     rc->this_key_frame_forced =
