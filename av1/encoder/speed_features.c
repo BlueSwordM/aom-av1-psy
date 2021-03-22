@@ -728,7 +728,6 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.use_accurate_subpel_search = USE_4_TAPS;
     sf->mv_sf.disable_extensive_joint_motion_search = 1;
 
-    sf->inter_sf.disable_interinter_wedge_newmv_search = boosted ? 0 : 1;
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 2 : 1;
     sf->inter_sf.prune_comp_type_by_comp_avg = 1;
     sf->inter_sf.prune_comp_type_by_model_rd = boosted ? 0 : 1;
@@ -835,6 +834,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.search_method = DIAMOND;
     sf->mv_sf.disable_second_mv = 2;
 
+    sf->inter_sf.disable_interinter_wedge_newmv_search = boosted ? 0 : 1;
     sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW;
     sf->inter_sf.disable_onesided_comp = 1;
     // TODO(yunqing): evaluate this speed feature for speed 1 & 2, and combine

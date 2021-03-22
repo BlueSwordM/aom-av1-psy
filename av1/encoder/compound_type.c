@@ -48,31 +48,31 @@ static INLINE int is_comp_rd_match(const AV1_COMP *const cpi,
     if (is_global_mv_block(mi, wm->wmtype) != st->is_global[i]) return 0;
   }
 
-  // Store the stats for COMPOUND_AVERAGE and COMPOUND_DISTWTD
-  for (int comp_type = COMPOUND_AVERAGE; comp_type <= COMPOUND_DISTWTD;
-       comp_type++) {
-    comp_rate[comp_type] = st->rate[comp_type];
-    comp_dist[comp_type] = st->dist[comp_type];
-    comp_model_rate[comp_type] = st->model_rate[comp_type];
-    comp_model_dist[comp_type] = st->model_dist[comp_type];
-    comp_rs2[comp_type] = st->comp_rs2[comp_type];
-  }
-
-  // For compound wedge/segment, reuse data only if NEWMV is not present in
-  // either of the directions
+  int reuse_data[COMPOUND_TYPES] = { 1, 1, 0, 0 };
+  // For compound wedge, reuse data if newmv search is disabled when NEWMV is
+  // present or if NEWMV is not present in either of the directions
   if ((!have_newmv_in_inter_mode(mi->mode) &&
        !have_newmv_in_inter_mode(st->mode)) ||
-      (cpi->sf.inter_sf.disable_interinter_wedge_newmv_search)) {
-    memcpy(&comp_rate[COMPOUND_WEDGE], &st->rate[COMPOUND_WEDGE],
-           sizeof(comp_rate[COMPOUND_WEDGE]) * 2);
-    memcpy(&comp_dist[COMPOUND_WEDGE], &st->dist[COMPOUND_WEDGE],
-           sizeof(comp_dist[COMPOUND_WEDGE]) * 2);
-    memcpy(&comp_model_rate[COMPOUND_WEDGE], &st->model_rate[COMPOUND_WEDGE],
-           sizeof(comp_model_rate[COMPOUND_WEDGE]) * 2);
-    memcpy(&comp_model_dist[COMPOUND_WEDGE], &st->model_dist[COMPOUND_WEDGE],
-           sizeof(comp_model_dist[COMPOUND_WEDGE]) * 2);
-    memcpy(&comp_rs2[COMPOUND_WEDGE], &st->comp_rs2[COMPOUND_WEDGE],
-           sizeof(comp_rs2[COMPOUND_WEDGE]) * 2);
+      (cpi->sf.inter_sf.disable_interinter_wedge_newmv_search))
+    reuse_data[COMPOUND_WEDGE] = 1;
+  // For compound diffwtd, reuse data if fast search is enabled (no newmv search
+  // when NEWMV is present) or if NEWMV is not present in either of the
+  // directions
+  if (cpi->sf.inter_sf.enable_fast_compound_mode_search ||
+      (!have_newmv_in_inter_mode(mi->mode) &&
+       !have_newmv_in_inter_mode(st->mode)))
+    reuse_data[COMPOUND_DIFFWTD] = 1;
+
+  // Store the stats for the different compound types
+  for (int comp_type = COMPOUND_AVERAGE; comp_type < COMPOUND_TYPES;
+       comp_type++) {
+    if (reuse_data[comp_type]) {
+      comp_rate[comp_type] = st->rate[comp_type];
+      comp_dist[comp_type] = st->dist[comp_type];
+      comp_model_rate[comp_type] = st->model_rate[comp_type];
+      comp_model_dist[comp_type] = st->model_dist[comp_type];
+      comp_rs2[comp_type] = st->comp_rs2[comp_type];
+    }
   }
   return 1;
 }
@@ -1164,7 +1164,8 @@ static int64_t masked_compound_type_rd(
     assert(comp_dist[compound_type] != INT64_MAX);
     // When disable_interinter_wedge_newmv_search is set, motion refinement is
     // disabled. Hence rate and distortion can be reused in this case as well
-    assert(IMPLIES(have_newmv_in_inter_mode(this_mode),
+    assert(IMPLIES((have_newmv_in_inter_mode(this_mode) &&
+                    (compound_type == COMPOUND_WEDGE)),
                    cpi->sf.inter_sf.disable_interinter_wedge_newmv_search));
     assert(mbmi->mv[0].as_int == cur_mv[0].as_int);
     assert(mbmi->mv[1].as_int == cur_mv[1].as_int);
@@ -1393,7 +1394,8 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
           mode_rd = RDCOST(x->rdmult, rs2 + rd_stats->rate, 0);
           if (mode_rd >= ref_best_rd / 2) continue;
 
-          if (have_newmv_in_inter_mode(this_mode)) {
+          if (have_newmv_in_inter_mode(this_mode) &&
+              !cpi->sf.inter_sf.disable_interinter_wedge_newmv_search) {
             tmp_rate_mv = av1_interinter_compound_motion_search(
                 cpi, x, cur_mv, bsize, this_mode);
             av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst,
@@ -1440,7 +1442,8 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
         rs2 = masked_type_cost[cur_type];
         rs2 += get_interinter_compound_mask_rate(&x->mode_costs, mbmi);
 
-        if (have_newmv_in_inter_mode(this_mode)) {
+        if (have_newmv_in_inter_mode(this_mode) &&
+            !cpi->sf.inter_sf.disable_interinter_wedge_newmv_search) {
           tmp_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,
                                                               bsize, this_mode);
         }
