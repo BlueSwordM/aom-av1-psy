@@ -358,6 +358,10 @@ TEST_P(ErrorResilienceTestLarge, OnVersusOff) {
 // if we lose (i.e., drop before decoding) a set of droppable
 // frames (i.e., frames that don't update any reference buffers).
 TEST_P(ErrorResilienceTestLarge, DropFramesWithoutRecovery) {
+  if (GET_PARAM(1) == ::libaom_test::kOnePassGood && GET_PARAM(2) == 1) {
+    fprintf(stderr, "Skipping test case #1 because of bug aomedia:3002\n");
+    return;
+  }
   SetupEncoder(500, 10);
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
