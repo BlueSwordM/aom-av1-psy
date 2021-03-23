@@ -2177,7 +2177,7 @@ void av1_set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
   int gld_idx = 0;
   int alt_ref_idx = 0;
   ext_refresh_frame_flags->update_pending = 1;
-  svc->external_ref_frame_config = 1;
+  svc->set_ref_frame_config = 1;
   ext_flags->ref_frame_flags = 0;
   ext_refresh_frame_flags->last_frame = 1;
   ext_refresh_frame_flags->golden_frame = 0;

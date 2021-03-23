@@ -2236,6 +2236,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     cpi_lap->common.error.setjmp = 1;
   }
 
+  if (cpi->use_svc && cpi->svc.use_flexible_mode == 0 && flags == 0)
+    av1_set_svc_fixed_mode(cpi);
+
   // Note(yunqing): While applying encoding flags, always start from enabling
   // all, and then modifying according to the flags. Previous frame's flags are
   // overwritten.
@@ -2690,6 +2693,7 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
   cm->number_temporal_layers = params->number_temporal_layers;
   cpi->svc.number_spatial_layers = params->number_spatial_layers;
   cpi->svc.number_temporal_layers = params->number_temporal_layers;
+  cpi->svc.ksvc_fixed_mode = params->ksvc_fixed_mode;
   if (cm->number_spatial_layers > 1 || cm->number_temporal_layers > 1) {
     unsigned int sl, tl;
     cpi->use_svc = 1;
@@ -2725,13 +2729,15 @@ static aom_codec_err_t ctrl_set_svc_ref_frame_config(aom_codec_alg_priv_t *ctx,
   AV1_COMP *const cpi = ctx->ppi->cpi;
   aom_svc_ref_frame_config_t *const data =
       va_arg(args, aom_svc_ref_frame_config_t *);
-  cpi->svc.external_ref_frame_config = 1;
+  cpi->svc.set_ref_frame_config = 1;
   for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     cpi->svc.reference[i] = data->reference[i];
     cpi->svc.ref_idx[i] = data->ref_idx[i];
   }
   for (unsigned int i = 0; i < REF_FRAMES; ++i)
     cpi->svc.refresh[i] = data->refresh[i];
+  cpi->svc.use_flexible_mode = 1;
+  cpi->svc.ksvc_fixed_mode = 0;
   return AOM_CODEC_OK;
 }
 

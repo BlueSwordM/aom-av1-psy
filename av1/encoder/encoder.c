@@ -560,7 +560,7 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 
   // Set init SVC parameters.
   cpi->use_svc = 0;
-  cpi->svc.external_ref_frame_config = 0;
+  cpi->svc.set_ref_frame_config = 0;
   cpi->svc.non_reference_frame = 0;
   cpi->svc.number_spatial_layers = 1;
   cpi->svc.number_temporal_layers = 1;
@@ -780,7 +780,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   set_tile_info(cm, &cpi->oxcf.tile_cfg);
 
-  if (!cpi->svc.external_ref_frame_config)
+  if (!cpi->svc.set_ref_frame_config)
     cpi->ext_flags.refresh_frame.update_pending = 0;
   cpi->ext_flags.refresh_frame_context_pending = 0;
 
@@ -3922,7 +3922,7 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *frame_size) {
   return AOM_CODEC_OK;
 }
 
-static void svc_set_updates_external_ref_frame_config(
+static void svc_set_updates_ref_frame_config(
     ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags, SVC *const svc) {
   ext_refresh_frame_flags->update_pending = 1;
   ext_refresh_frame_flags->last_frame = svc->refresh[svc->ref_idx[0]];
@@ -3983,7 +3983,7 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
 
     av1_use_as_reference(&ext_flags->ref_frame_flags, ref);
   } else {
-    if (cpi->svc.external_ref_frame_config) {
+    if (cpi->svc.set_ref_frame_config) {
       int ref = svc_set_references_external_ref_frame_config(cpi);
       av1_use_as_reference(&ext_flags->ref_frame_flags, ref);
     }
@@ -4011,9 +4011,8 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
     ext_refresh_frame_flags->alt2_ref_frame = (upd & AOM_ALT2_FLAG) != 0;
     ext_refresh_frame_flags->update_pending = 1;
   } else {
-    if (cpi->svc.external_ref_frame_config)
-      svc_set_updates_external_ref_frame_config(ext_refresh_frame_flags,
-                                                &cpi->svc);
+    if (cpi->svc.set_ref_frame_config)
+      svc_set_updates_ref_frame_config(ext_refresh_frame_flags, &cpi->svc);
     else
       ext_refresh_frame_flags->update_pending = 0;
   }

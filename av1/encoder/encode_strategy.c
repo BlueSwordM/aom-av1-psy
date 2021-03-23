@@ -141,7 +141,7 @@ static INLINE int is_frame_droppable(
     const ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags) {
   // Droppable frame is only used by external refresh flags. VoD setting won't
   // trigger its use case.
-  if (svc->external_ref_frame_config)
+  if (svc->set_ref_frame_config)
     return svc->non_reference_frame;
   else if (ext_refresh_frame_flags->update_pending)
     return !(ext_refresh_frame_flags->alt_ref_frame ||
@@ -733,7 +733,7 @@ int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
   int refresh_mask = 0;
 
   if (ext_refresh_frame_flags->update_pending) {
-    if (svc->external_ref_frame_config) {
+    if (svc->set_ref_frame_config) {
       for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++) {
         int ref_frame_map_idx = svc->ref_idx[i];
         refresh_mask |= svc->refresh[ref_frame_map_idx] << ref_frame_map_idx;
@@ -1304,7 +1304,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
     if (!ext_flags->refresh_frame.update_pending) {
       av1_get_ref_frames(cpi, &cpi->ref_buffer_stack);
-    } else if (cpi->svc.external_ref_frame_config) {
+    } else if (cpi->svc.set_ref_frame_config) {
       for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++)
         cm->remapped_ref_idx[i] = cpi->svc.ref_idx[i];
     }

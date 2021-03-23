@@ -796,12 +796,10 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
         } else if (layer_id->spatial_layer_id == 1) {
           // Reference LAST and GOLDEN. Set buffer_idx for LAST to slot 1,
           // GOLDEN (and all other refs) to slot 3.
-          // Set LAST2 to slot 4 and Update slot 4.
+          // No update.
           for (i = 0; i < INTER_REFS_PER_FRAME; i++)
             ref_frame_config->ref_idx[i] = 3;
           ref_frame_config->ref_idx[SVC_LAST_FRAME] = 1;
-          ref_frame_config->ref_idx[SVC_LAST2_FRAME] = 4;
-          ref_frame_config->refresh[4] = 1;
         }
       } else if ((superframe_cnt - 2) % 4 == 0) {
         // Middle temporal enhancement layer.
@@ -838,13 +836,11 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
           ref_frame_config->refresh[3] = 1;
         } else if (layer_id->spatial_layer_id == 1) {
           // Reference LAST and GOLDEN. Set buffer_idx for LAST to slot 6,
-          // GOLDEN to slot 3. Set LAST2 to slot 4 and update slot 4.
+          // GOLDEN to slot 3. No update.
           for (i = 0; i < INTER_REFS_PER_FRAME; i++)
             ref_frame_config->ref_idx[i] = 0;
           ref_frame_config->ref_idx[SVC_LAST_FRAME] = 6 - shift;
           ref_frame_config->ref_idx[SVC_GOLDEN_FRAME] = 3;
-          ref_frame_config->ref_idx[SVC_LAST2_FRAME] = 4;
-          ref_frame_config->refresh[4] = 1;
         }
       }
       if (layer_id->spatial_layer_id > 0 && !ksvc_mode) {
@@ -1141,10 +1137,13 @@ int main(int argc, const char **argv) {
   unsigned int width = cfg.g_w;
   unsigned int height = cfg.g_h;
 
-  if (ts_number_layers !=
-          mode_to_num_temporal_layers[app_input.layering_mode] ||
-      ss_number_layers != mode_to_num_spatial_layers[app_input.layering_mode]) {
-    die("Number of layers doesn't match layering mode.");
+  if (app_input.layering_mode >= 0) {
+    if (ts_number_layers !=
+            mode_to_num_temporal_layers[app_input.layering_mode] ||
+        ss_number_layers !=
+            mode_to_num_spatial_layers[app_input.layering_mode]) {
+      die("Number of layers doesn't match layering mode.");
+    }
   }
 
   // Y4M reader has its own allocation.
@@ -1268,7 +1267,7 @@ int main(int argc, const char **argv) {
     svc_params.scaling_factor_num[1] = 1;
     svc_params.scaling_factor_den[1] = 2;
   }
-
+  svc_params.ksvc_fixed_mode = 0;  // Set to 1 to do KSVC in fixed mode.
   aom_codec_control(&codec, AV1E_SET_SVC_PARAMS, &svc_params);
 
   // This controls the maximum target size of the key frame.
@@ -1292,15 +1291,34 @@ int main(int argc, const char **argv) {
       const aom_codec_cx_pkt_t *pkt;
       int layer = 0;
 
-      // Set the reference/update flags, layer_id, and reference_map
-      // buffer index.
-      set_layer_pattern(app_input.layering_mode, frame_cnt, &layer_id,
-                        &ref_frame_config, &use_svc_control, slx, is_key_frame,
-                        (app_input.layering_mode == 10));
-      aom_codec_control(&codec, AV1E_SET_SVC_LAYER_ID, &layer_id);
-      if (use_svc_control)
-        aom_codec_control(&codec, AV1E_SET_SVC_REF_FRAME_CONFIG,
-                          &ref_frame_config);
+      // For flexible mode:
+      if (app_input.layering_mode >= 0) {
+        // Set the reference/update flags, layer_id, and reference_map
+        // buffer index.
+        set_layer_pattern(app_input.layering_mode, frame_cnt, &layer_id,
+                          &ref_frame_config, &use_svc_control, slx,
+                          is_key_frame, (app_input.layering_mode == 10));
+        aom_codec_control(&codec, AV1E_SET_SVC_LAYER_ID, &layer_id);
+        if (use_svc_control)
+          aom_codec_control(&codec, AV1E_SET_SVC_REF_FRAME_CONFIG,
+                            &ref_frame_config);
+      } else {
+        // Only up to 3 temporal layers supported in fixed mode.
+        // Only need to set spatial and temporal layer_id: reference
+        // prediction, refresh, and buffer_idx are set internally.
+        layer_id.spatial_layer_id = slx;
+        layer_id.temporal_layer_id = 0;
+        if (ts_number_layers == 2) {
+          layer_id.temporal_layer_id = (frame_cnt % 2) != 0;
+        } else if (ts_number_layers == 3) {
+          if (frame_cnt % 2 != 0)
+            layer_id.temporal_layer_id = 2;
+          else if ((frame_cnt > 1) && ((frame_cnt - 2) % 4 == 0))
+            layer_id.temporal_layer_id = 1;
+        }
+        aom_codec_control(&codec, AV1E_SET_SVC_LAYER_ID, &layer_id);
+      }
+
       if (set_err_resil_frame) {
         // Set error_resilient per frame: off/0 for base layer and
         // on/1 for enhancement layer frames.
