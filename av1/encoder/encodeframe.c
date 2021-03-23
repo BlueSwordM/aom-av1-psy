@@ -1044,28 +1044,7 @@ static AOM_INLINE void encode_tiles(AV1_COMP *cpi) {
   if (cpi->allocated_tiles < tile_cols * tile_rows) av1_alloc_tile_data(cpi);
 
   av1_init_tile_data(cpi);
-  if (!cpi->sf.rt_sf.use_nonrd_pick_mode) {
-    cpi->td.mb.txfm_search_info.txb_rd_records =
-        (TxbRdRecords *)aom_malloc(sizeof(TxbRdRecords));
-  }
-  const int num_planes = av1_num_planes(&cpi->common);
-  for (int plane = 0; plane < num_planes; plane++) {
-    const int subsampling_xy =
-        plane ? cm->seq_params.subsampling_x + cm->seq_params.subsampling_y : 0;
-    const int sb_size = MAX_SB_SQUARE >> subsampling_xy;
-    CHECK_MEM_ERROR(cm, mb->plane[plane].src_diff,
-                    (int16_t *)aom_memalign(
-                        32, sizeof(*mb->plane[plane].src_diff) * sb_size));
-  }
-  CHECK_MEM_ERROR(cm, mb->e_mbd.seg_mask,
-                  (uint8_t *)aom_memalign(
-                      16, 2 * MAX_SB_SQUARE * sizeof(mb->e_mbd.seg_mask[0])));
-  const int winner_mode_count = frame_is_intra_only(cm)
-                                    ? MAX_WINNER_MODE_COUNT_INTRA
-                                    : MAX_WINNER_MODE_COUNT_INTER;
-  CHECK_MEM_ERROR(cm, mb->winner_mode_stats,
-                  (WinnerModeStats *)aom_malloc(
-                      winner_mode_count * sizeof(mb->winner_mode_stats[0])));
+  av1_alloc_mb_data(cm, mb, cpi->sf.rt_sf.use_nonrd_pick_mode);
 
   for (tile_row = 0; tile_row < tile_rows; ++tile_row) {
     for (tile_col = 0; tile_col < tile_cols; ++tile_col) {
@@ -1089,20 +1068,7 @@ static AOM_INLINE void encode_tiles(AV1_COMP *cpi) {
     }
   }
 
-  if (cpi->td.mb.txfm_search_info.txb_rd_records) {
-    aom_free(cpi->td.mb.txfm_search_info.txb_rd_records);
-    cpi->td.mb.txfm_search_info.txb_rd_records = NULL;
-  }
-  for (int plane = 0; plane < num_planes; plane++) {
-    if (cpi->td.mb.plane[plane].src_diff) {
-      aom_free(cpi->td.mb.plane[plane].src_diff);
-      cpi->td.mb.plane[plane].src_diff = NULL;
-    }
-  }
-  aom_free(cpi->td.mb.e_mbd.seg_mask);
-  cpi->td.mb.e_mbd.seg_mask = NULL;
-  aom_free(cpi->td.mb.winner_mode_stats);
-  cpi->td.mb.winner_mode_stats = NULL;
+  av1_dealloc_mb_data(cm, mb);
 }
 
 // Set the relative distance of a reference frame w.r.t. current frame

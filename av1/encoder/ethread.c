@@ -14,6 +14,7 @@
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encoder_alloc.h"
+#include "av1/encoder/encodeframe_utils.h"
 #include "av1/encoder/ethread.h"
 #if !CONFIG_REALTIME_ONLY
 #include "av1/encoder/firstpass.h"
@@ -780,10 +781,6 @@ static AOM_INLINE void accumulate_counters_enc_workers(AV1_COMP *cpi,
         !frame_is_intra_only(&cpi->common))
       av1_accumulate_cyclic_refresh_counters(cpi->cyclic_refresh,
                                              &thread_data->td->mb);
-    if (thread_data->td->mb.txfm_search_info.txb_rd_records) {
-      aom_free(thread_data->td->mb.txfm_search_info.txb_rd_records);
-      thread_data->td->mb.txfm_search_info.txb_rd_records = NULL;
-    }
     if (thread_data->td != &cpi->td) {
       if (cpi->oxcf.cost_upd_freq.mv < COST_UPD_OFF) {
         aom_free(thread_data->td->mb.mv_costs);
@@ -792,17 +789,7 @@ static AOM_INLINE void accumulate_counters_enc_workers(AV1_COMP *cpi,
         aom_free(thread_data->td->mb.dv_costs);
       }
     }
-    const int num_planes = av1_num_planes(&cpi->common);
-    for (int plane = 0; plane < num_planes; plane++) {
-      if (thread_data->td->mb.plane[plane].src_diff) {
-        aom_free(thread_data->td->mb.plane[plane].src_diff);
-        thread_data->td->mb.plane[plane].src_diff = NULL;
-      }
-    }
-    aom_free(thread_data->td->mb.e_mbd.seg_mask);
-    thread_data->td->mb.e_mbd.seg_mask = NULL;
-    aom_free(thread_data->td->mb.winner_mode_stats);
-    thread_data->td->mb.winner_mode_stats = NULL;
+    av1_dealloc_mb_data(&cpi->common, &thread_data->td->mb);
 
     // Accumulate counters.
     if (i > 0) {
@@ -868,36 +855,11 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
                sizeof(IntraBCMVCosts));
       }
     }
-    const int num_planes = av1_num_planes(&cpi->common);
-    for (int plane = 0; plane < num_planes; plane++) {
-      const int subsampling_xy =
-          plane ? cm->seq_params.subsampling_x + cm->seq_params.subsampling_y
-                : 0;
-      const int sb_size = MAX_SB_SQUARE >> subsampling_xy;
-      CHECK_MEM_ERROR(
-          cm, thread_data->td->mb.plane[plane].src_diff,
-          (int16_t *)aom_memalign(
-              32,
-              sizeof(*thread_data->td->mb.plane[plane].src_diff) * sb_size));
-    }
-    CHECK_MEM_ERROR(cm, thread_data->td->mb.e_mbd.seg_mask,
-                    (uint8_t *)aom_memalign(
-                        16, 2 * MAX_SB_SQUARE *
-                                sizeof(thread_data->td->mb.e_mbd.seg_mask[0])));
-    const int winner_mode_count = frame_is_intra_only(cm)
-                                      ? MAX_WINNER_MODE_COUNT_INTRA
-                                      : MAX_WINNER_MODE_COUNT_INTER;
-    CHECK_MEM_ERROR(cm, thread_data->td->mb.winner_mode_stats,
-                    (WinnerModeStats *)aom_malloc(
-                        winner_mode_count *
-                        sizeof(thread_data->td->mb.winner_mode_stats[0])));
+    av1_alloc_mb_data(cm, &thread_data->td->mb,
+                      cpi->sf.rt_sf.use_nonrd_pick_mode);
+
     // Reset cyclic refresh counters.
     av1_init_cyclic_refresh_counters(&thread_data->td->mb);
-
-    if (!cpi->sf.rt_sf.use_nonrd_pick_mode) {
-      CHECK_MEM_ERROR(cm, thread_data->td->mb.txfm_search_info.txb_rd_records,
-                      (TxbRdRecords *)aom_malloc(sizeof(TxbRdRecords)));
-    }
 
     if (thread_data->td->counts != &cpi->counts) {
       memcpy(thread_data->td->counts, &cpi->counts, sizeof(cpi->counts));
@@ -956,33 +918,8 @@ static AOM_INLINE void fp_prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
       }
     }
 
-    const int num_planes = av1_num_planes(&cpi->common);
-    for (int plane = 0; plane < num_planes; plane++) {
-      const int subsampling_xy =
-          plane ? cm->seq_params.subsampling_x + cm->seq_params.subsampling_y
-                : 0;
-      const int sb_size = MAX_SB_SQUARE >> subsampling_xy;
-      CHECK_MEM_ERROR(
-          cm, thread_data->td->mb.plane[plane].src_diff,
-          (int16_t *)aom_memalign(
-              32,
-              sizeof(*thread_data->td->mb.plane[plane].src_diff) * sb_size));
-    }
-    CHECK_MEM_ERROR(cm, thread_data->td->mb.e_mbd.seg_mask,
-                    (uint8_t *)aom_memalign(
-                        16, 2 * MAX_SB_SQUARE *
-                                sizeof(thread_data->td->mb.e_mbd.seg_mask[0])));
-    const int winner_mode_count = frame_is_intra_only(cm)
-                                      ? MAX_WINNER_MODE_COUNT_INTRA
-                                      : MAX_WINNER_MODE_COUNT_INTER;
-    CHECK_MEM_ERROR(cm, thread_data->td->mb.winner_mode_stats,
-                    (WinnerModeStats *)aom_malloc(
-                        winner_mode_count *
-                        sizeof(thread_data->td->mb.winner_mode_stats[0])));
-    if (!cpi->sf.rt_sf.use_nonrd_pick_mode) {
-      CHECK_MEM_ERROR(cm, thread_data->td->mb.txfm_search_info.txb_rd_records,
-                      (TxbRdRecords *)aom_malloc(sizeof(TxbRdRecords)));
-    }
+    av1_alloc_mb_data(cm, &thread_data->td->mb,
+                      cpi->sf.rt_sf.use_nonrd_pick_mode);
   }
 }
 #endif
@@ -1273,20 +1210,7 @@ void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi) {
         aom_free(thread_data->td->mb.dv_costs);
       }
     }
-    if (thread_data->td->mb.txfm_search_info.txb_rd_records) {
-      aom_free(thread_data->td->mb.txfm_search_info.txb_rd_records);
-    }
-    const int num_planes = av1_num_planes(&cpi->common);
-    for (int plane = 0; plane < num_planes; plane++) {
-      if (thread_data->td->mb.plane[plane].src_diff) {
-        aom_free(thread_data->td->mb.plane[plane].src_diff);
-        thread_data->td->mb.plane[plane].src_diff = NULL;
-      }
-    }
-    aom_free(thread_data->td->mb.e_mbd.seg_mask);
-    thread_data->td->mb.e_mbd.seg_mask = NULL;
-    aom_free(thread_data->td->mb.winner_mode_stats);
-    thread_data->td->mb.winner_mode_stats = NULL;
+    av1_dealloc_mb_data(cm, &thread_data->td->mb);
   }
 }
 

@@ -13,6 +13,7 @@
 #define AOM_AV1_ENCODER_ENCODEFRAME_UTILS_H_
 
 #include "aom_ports/aom_timer.h"
+#include "aom_ports/system_state.h"
 
 #include "av1/common/reconinter.h"
 
@@ -334,6 +335,56 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
 void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
                            const TileInfo *const tile_info, const int mi_row,
                            const int mi_col);
+
+static AOM_INLINE void av1_dealloc_mb_data(struct AV1Common *cm,
+                                           struct macroblock *mb) {
+  if (mb->txfm_search_info.txb_rd_records) {
+    aom_free(mb->txfm_search_info.txb_rd_records);
+    mb->txfm_search_info.txb_rd_records = NULL;
+  }
+  const int num_planes = av1_num_planes(cm);
+  for (int plane = 0; plane < num_planes; plane++) {
+    if (mb->plane[plane].src_diff) {
+      aom_free(mb->plane[plane].src_diff);
+      mb->plane[plane].src_diff = NULL;
+    }
+  }
+  if (mb->e_mbd.seg_mask) {
+    aom_free(mb->e_mbd.seg_mask);
+    mb->e_mbd.seg_mask = NULL;
+  }
+  if (mb->winner_mode_stats) {
+    aom_free(mb->winner_mode_stats);
+    mb->winner_mode_stats = NULL;
+  }
+}
+
+static AOM_INLINE void av1_alloc_mb_data(struct AV1Common *cm,
+                                         struct macroblock *mb,
+                                         int use_nonrd_pick_mode) {
+  if (!use_nonrd_pick_mode) {
+    mb->txfm_search_info.txb_rd_records =
+        (TxbRdRecords *)aom_malloc(sizeof(TxbRdRecords));
+  }
+  const int num_planes = av1_num_planes(cm);
+  for (int plane = 0; plane < num_planes; plane++) {
+    const int subsampling_xy =
+        plane ? cm->seq_params.subsampling_x + cm->seq_params.subsampling_y : 0;
+    const int sb_size = MAX_SB_SQUARE >> subsampling_xy;
+    CHECK_MEM_ERROR(cm, mb->plane[plane].src_diff,
+                    (int16_t *)aom_memalign(
+                        32, sizeof(*mb->plane[plane].src_diff) * sb_size));
+  }
+  CHECK_MEM_ERROR(cm, mb->e_mbd.seg_mask,
+                  (uint8_t *)aom_memalign(
+                      16, 2 * MAX_SB_SQUARE * sizeof(mb->e_mbd.seg_mask[0])));
+  const int winner_mode_count = frame_is_intra_only(cm)
+                                    ? MAX_WINNER_MODE_COUNT_INTRA
+                                    : MAX_WINNER_MODE_COUNT_INTER;
+  CHECK_MEM_ERROR(cm, mb->winner_mode_stats,
+                  (WinnerModeStats *)aom_malloc(
+                      winner_mode_count * sizeof(mb->winner_mode_stats[0])));
+}
 
 // This function will compute the number of reference frames to be disabled
 // based on selective_ref_frame speed feature.
