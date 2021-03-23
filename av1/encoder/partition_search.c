@@ -3780,7 +3780,7 @@ static int read_partition_tree(AV1_COMP *const cpi, PC_TREE *const pc_tree,
   return num_configs;
 }
 
-static int64_t rd_search_for_fixed_partition(
+static RD_STATS rd_search_for_fixed_partition(
     AV1_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data,
     TokenExtra **tp, SIMPLE_MOTION_DATA_TREE *sms_tree, int mi_row, int mi_col,
     const BLOCK_SIZE bsize, PC_TREE *pc_tree) {
@@ -3790,11 +3790,10 @@ static int64_t rd_search_for_fixed_partition(
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
   TileInfo *const tile_info = &tile_data->tile_info;
-  int64_t rdcost = INT64_MAX;
-  RD_STATS this_rdc;
   RD_STATS best_rdc;
-  av1_invalid_rd_stats(&this_rdc);
   av1_invalid_rd_stats(&best_rdc);
+  int sum_subblock_rate = 0;
+  int64_t sum_subblock_dist = 0;
   PartitionSearchState part_search_state;
   init_partition_search_state_params(x, cpi, &part_search_state, mi_row, mi_col,
                                      bsize);
@@ -3869,7 +3868,6 @@ static int64_t rd_search_for_fixed_partition(
                          inc_step, PARTITION_VERT_4);
       break;
     case PARTITION_SPLIT:
-      rdcost = 0;
       for (int idx = 0; idx < SUB_PARTITIONS_SPLIT; ++idx) {
         const BLOCK_SIZE subsize =
             get_partition_subsize(bsize, PARTITION_SPLIT);
@@ -3882,10 +3880,15 @@ static int64_t rd_search_for_fixed_partition(
             next_mi_col >= cm->mi_params.mi_cols) {
           continue;
         }
-        rdcost += rd_search_for_fixed_partition(
+        const RD_STATS subblock_rdc = rd_search_for_fixed_partition(
             cpi, td, tile_data, tp, sms_tree->split[idx], next_mi_row,
             next_mi_col, subsize, pc_tree->split[idx]);
+        sum_subblock_rate += subblock_rdc.rate;
+        sum_subblock_dist += subblock_rdc.dist;
       }
+      best_rdc.rate = sum_subblock_rate;
+      best_rdc.dist = sum_subblock_dist;
+      av1_rd_cost_update(x->rdmult, &best_rdc);
       break;
     default: assert(0 && "invalid partition type."); exit(0);
   }
@@ -3898,10 +3901,7 @@ static int64_t rd_search_for_fixed_partition(
   }
   x->rdmult = orig_rdmult;
 
-  if (rdcost == INT64_MAX) {
-    rdcost = RDCOST(x->rdmult, best_rdc.rate, best_rdc.dist);
-  }
-  return rdcost;
+  return best_rdc;
 }
 
 bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
@@ -3914,13 +3914,13 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
   int best_idx = 0;
   int64_t min_rdcost = INT64_MAX;
   int num_configs;
-  int64_t *rdcost = NULL;
+  RD_STATS *rdcost = NULL;
   int i = 0;
   do {
     PC_TREE *const pc_tree = av1_alloc_pc_tree_node(bsize);
     num_configs = read_partition_tree(cpi, pc_tree, i);
     if (i == 0) {
-      rdcost = aom_calloc(num_configs, sizeof(int64_t));
+      rdcost = aom_calloc(num_configs, sizeof(*rdcost));
     }
     if (num_configs <= 0) {
       av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0);
@@ -3934,15 +3934,14 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
     rdcost[i] = rd_search_for_fixed_partition(cpi, td, tile_data, tp, sms_root,
                                               mi_row, mi_col, bsize, pc_tree);
 
-    if (rdcost[i] < min_rdcost) {
-      min_rdcost = rdcost[i];
+    if (rdcost[i].rdcost < min_rdcost) {
+      min_rdcost = rdcost[i].rdcost;
       best_idx = i;
+      *best_rd_cost = rdcost[i];
     }
     av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0);
     ++i;
   } while (i < num_configs);
-
-  best_rd_cost->rdcost = min_rdcost;
 
   // Encode with the partition configuration with the smallest rdcost.
   PC_TREE *const pc_tree = av1_alloc_pc_tree_node(bsize);
