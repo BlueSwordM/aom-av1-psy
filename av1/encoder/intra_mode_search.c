@@ -134,7 +134,6 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
   TX_SIZE best_tx_size = TX_8X8;
   FILTER_INTRA_MODE_INFO filter_intra_mode_info;
   uint8_t best_tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
-  (void)ctx;
   av1_zero(filter_intra_mode_info);
   mbmi->filter_intra_mode_info.use_filter_intra = 1;
   mbmi->mode = DC_PRED;
