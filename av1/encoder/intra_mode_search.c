@@ -673,7 +673,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         const int is_chroma = 1;
         const int is_intra_frame = frame_is_intra_only(cm);
         prune_intra_mode_with_hog(
-            x, bsize,
+            x, bsize, cm->seq_params.sb_size,
             thresh[is_intra_frame]
                   [sf->intra_sf.chroma_intra_pruning_with_hog - 1],
             intra_search_state.directional_mode_skip_mask, is_chroma);
@@ -1057,9 +1057,10 @@ int av1_handle_intra_y_mode(IntraModeSearchState *intra_search_state,
         !intra_search_state->dir_mode_skip_mask_ready) {
       const float thresh[4] = { -1.2f, 0.0f, 0.0f, 1.2f };
       const int is_chroma = 0;
-      prune_intra_mode_with_hog(
-          x, bsize, thresh[sf->intra_sf.intra_pruning_with_hog - 1],
-          intra_search_state->directional_mode_skip_mask, is_chroma);
+      prune_intra_mode_with_hog(x, bsize, cm->seq_params.sb_size,
+                                thresh[sf->intra_sf.intra_pruning_with_hog - 1],
+                                intra_search_state->directional_mode_skip_mask,
+                                is_chroma);
       intra_search_state->dir_mode_skip_mask_ready = 1;
     }
     if (intra_search_state->directional_mode_skip_mask[mode]) return 0;
@@ -1206,7 +1207,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     const float thresh[4] = { -1.2f, -1.2f, -0.6f, 0.4f };
     const int is_chroma = 0;
     prune_intra_mode_with_hog(
-        x, bsize, thresh[cpi->sf.intra_sf.intra_pruning_with_hog - 1],
+        x, bsize, cpi->common.seq_params.sb_size,
+        thresh[cpi->sf.intra_sf.intra_pruning_with_hog - 1],
         directional_mode_skip_mask, is_chroma);
   }
   mbmi->filter_intra_mode_info.use_filter_intra = 0;

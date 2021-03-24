@@ -834,6 +834,14 @@ typedef struct {
   int lighting_change;
   int low_sumdiff;
 } CONTENT_STATE_SB;
+
+// Structure to hold pixel level gradient info.
+typedef struct {
+  uint16_t abs_dx_abs_dy_sum;
+  int8_t hist_bin_idx;
+  bool is_dx_zero;
+} PixelLevelGradientInfo;
+
 /*!\endcond */
 
 /*! \brief Encoder's parameters related to the current coding block.
@@ -1173,6 +1181,15 @@ typedef struct macroblock {
   /*! \brief The mode to reuse during \ref av1_rd_pick_intra_mode_sb and
    *  \ref av1_rd_pick_inter_mode. */
   const MB_MODE_INFO *mb_mode_cache;
+  /*! \brief Pointer to the buffer which caches gradient information.
+   *
+   * Pointer to the array of structures to store gradient information of each
+   * pixel in a superblock. The buffer constitutes of MAX_SB_SQUARE pixel level
+   * structures for each of the plane types (PLANE_TYPE_Y and PLANE_TYPE_UV).
+   */
+  PixelLevelGradientInfo *pixel_gradient_info;
+  /*! \brief Flags indicating the availability of cached gradient info. */
+  bool is_sb_gradient_cached[PLANE_TYPES];
   /**@}*/
 
   /*****************************************************************************

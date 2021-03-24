@@ -720,6 +720,12 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
     }
   }
 
+  if (x->pixel_gradient_info == NULL) {
+    CHECK_MEM_ERROR(cm, x->pixel_gradient_info,
+                    aom_malloc(sizeof(*x->pixel_gradient_info) * PLANE_TYPES *
+                               MAX_SB_SQUARE));
+  }
+
   av1_reset_segment_features(cm);
 
   av1_set_high_precision_mv(cpi, 1, 0);
@@ -1401,6 +1407,7 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
     for (int j = 0; j < 2; ++j) {
       aom_free(thread_data->td->tmp_pred_bufs[j]);
     }
+    aom_free(thread_data->td->pixel_gradient_info);
     release_obmc_buffers(&thread_data->td->obmc_buffer);
     aom_free(thread_data->td->vt64x64);
 

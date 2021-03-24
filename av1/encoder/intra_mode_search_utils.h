@@ -22,6 +22,7 @@
 #include "av1/common/reconintra.h"
 
 #include "av1/encoder/encoder.h"
+#include "av1/encoder/encodeframe.h"
 #include "av1/encoder/model_rd.h"
 #include "av1/encoder/palette.h"
 #include "av1/encoder/hybrid_fwd_txfm.h"
@@ -135,6 +136,11 @@ static AOM_INLINE int get_hist_bin_idx(int dx, int dy) {
 }
 #undef FIX_PREC_BITS
 
+// Normalizes the hog data.
+static AOM_INLINE void normalize_hog(float total, float *hist) {
+  for (int i = 0; i < BINS; ++i) hist[i] /= total;
+}
+
 static AOM_INLINE void generate_hog(const uint8_t *src, int stride, int rows,
                                     int cols, float *hist) {
   float total = 0.1f;
@@ -166,7 +172,123 @@ static AOM_INLINE void generate_hog(const uint8_t *src, int stride, int rows,
     src += stride;
   }
 
-  for (int i = 0; i < BINS; ++i) hist[i] /= total;
+  normalize_hog(total, hist);
+}
+
+// Computes and stores pixel level gradient information for the given
+// superblock.
+static AOM_INLINE void compute_gradient_info_sb(MACROBLOCK *const x,
+                                                BLOCK_SIZE sb_size,
+                                                PLANE_TYPE plane) {
+  PixelLevelGradientInfo *grad_info_sb =
+      x->pixel_gradient_info + plane * MAX_SB_SQUARE;
+  const uint8_t *src = x->plane[plane].src.buf;
+  const int stride = x->plane[plane].src.stride;
+  const int ss_x = x->e_mbd.plane[plane].subsampling_x;
+  const int ss_y = x->e_mbd.plane[plane].subsampling_y;
+  const int sb_height = block_size_high[sb_size] >> ss_y;
+  const int sb_width = block_size_wide[sb_size] >> ss_x;
+  src += stride;
+  for (int r = 1; r < sb_height - 1; ++r) {
+    for (int c = 1; c < sb_width - 1; ++c) {
+      const uint8_t *above = &src[c - stride];
+      const uint8_t *below = &src[c + stride];
+      const uint8_t *left = &src[c - 1];
+      const uint8_t *right = &src[c + 1];
+      // Calculate gradient using Sobel filters.
+      const int dx = (right[-stride] + 2 * right[0] + right[stride]) -
+                     (left[-stride] + 2 * left[0] + left[stride]);
+      const int dy = (below[-1] + 2 * below[0] + below[1]) -
+                     (above[-1] + 2 * above[0] + above[1]);
+      grad_info_sb[r * sb_width + c].is_dx_zero = (dx == 0);
+      grad_info_sb[r * sb_width + c].abs_dx_abs_dy_sum =
+          (uint16_t)(abs(dx) + abs(dy));
+      grad_info_sb[r * sb_width + c].hist_bin_idx =
+          (dx != 0) ? get_hist_bin_idx(dx, dy) : -1;
+    }
+    src += stride;
+  }
+}
+
+// Function to generate pixel level gradient information for a given superblock.
+// Sets the flags 'is_sb_gradient_cached' for the specific plane-type if
+// gradient info is generated for the same.
+static AOM_INLINE void produce_gradients_for_sb(AV1_COMP *cpi, MACROBLOCK *x,
+                                                BLOCK_SIZE sb_size, int mi_row,
+                                                int mi_col) {
+  const SPEED_FEATURES *sf = &cpi->sf;
+  // Initialise flags related to hog data caching.
+  x->is_sb_gradient_cached[PLANE_TYPE_Y] = false;
+  x->is_sb_gradient_cached[PLANE_TYPE_UV] = false;
+
+  // SB level caching of gradient data may not help in speedup for the following
+  // cases:
+  // (1) Inter frames (due to early intra gating)
+  // (2) When partition_search_type is not SEARCH_PARTITION
+  // Hence, gradient data is computed at block level in such cases.
+
+  // TODO(https://crbug.com/aomedia/2996) Enable SB level caching of gradient
+  // data in high-bd path.
+  if (!frame_is_intra_only(&cpi->common) ||
+      sf->part_sf.partition_search_type != SEARCH_PARTITION ||
+      is_cur_buf_hbd(&x->e_mbd))
+    return;
+
+  av1_setup_src_planes(x, cpi->source, mi_row, mi_col,
+                       av1_num_planes(&cpi->common), sb_size);
+
+  if (sf->intra_sf.intra_pruning_with_hog) {
+    compute_gradient_info_sb(x, sb_size, PLANE_TYPE_Y);
+    x->is_sb_gradient_cached[PLANE_TYPE_Y] = true;
+  }
+  if (sf->intra_sf.chroma_intra_pruning_with_hog) {
+    compute_gradient_info_sb(x, sb_size, PLANE_TYPE_UV);
+    x->is_sb_gradient_cached[PLANE_TYPE_UV] = true;
+  }
+}
+
+// Reuses the pixel level gradient data generated at superblock level for block
+// level histogram computation.
+static AOM_INLINE void generate_hog_using_gradient_cache(const MACROBLOCK *x,
+                                                         int rows, int cols,
+                                                         BLOCK_SIZE sb_size,
+                                                         PLANE_TYPE plane,
+                                                         float *hist) {
+  float total = 0.1f;
+  const int ss_x = x->e_mbd.plane[plane].subsampling_x;
+  const int ss_y = x->e_mbd.plane[plane].subsampling_y;
+  const int sb_width = block_size_wide[sb_size] >> ss_x;
+
+  // Derive the offset from the starting of the superblock in order to locate
+  // the block level gradient data in the cache.
+  const int mi_row_in_sb = x->e_mbd.mi_row & (mi_size_high[sb_size] - 1);
+  const int mi_col_in_sb = x->e_mbd.mi_col & (mi_size_wide[sb_size] - 1);
+  const int block_offset_in_grad_cache =
+      sb_width * (mi_row_in_sb << (MI_SIZE_LOG2 - ss_y)) +
+      (mi_col_in_sb << (MI_SIZE_LOG2 - ss_x));
+  const PixelLevelGradientInfo *grad_info_blk = x->pixel_gradient_info +
+                                                plane * MAX_SB_SQUARE +
+                                                block_offset_in_grad_cache;
+
+  // Retrieve the cached gradient information and generate the histogram.
+  for (int r = 1; r < rows - 1; ++r) {
+    for (int c = 1; c < cols - 1; ++c) {
+      const uint16_t abs_dx_abs_dy_sum =
+          grad_info_blk[r * sb_width + c].abs_dx_abs_dy_sum;
+      if (!abs_dx_abs_dy_sum) continue;
+      total += abs_dx_abs_dy_sum;
+      const bool is_dx_zero = grad_info_blk[r * sb_width + c].is_dx_zero;
+      if (is_dx_zero) {
+        hist[0] += abs_dx_abs_dy_sum >> 1;
+        hist[BINS - 1] += abs_dx_abs_dy_sum >> 1;
+      } else {
+        const int8_t idx = grad_info_blk[r * sb_width + c].hist_bin_idx;
+        assert(idx >= 0 && idx < BINS);
+        hist[idx] += abs_dx_abs_dy_sum;
+      }
+    }
+  }
+  normalize_hog(total, hist);
 }
 
 static AOM_INLINE void generate_hog_hbd(const uint8_t *src8, int stride,
@@ -201,11 +323,11 @@ static AOM_INLINE void generate_hog_hbd(const uint8_t *src8, int stride,
     src += stride;
   }
 
-  for (int i = 0; i < BINS; ++i) hist[i] /= total;
+  normalize_hog(total, hist);
 }
 
 static INLINE void collect_hog_data(const MACROBLOCK *x, BLOCK_SIZE bsize,
-                                    int plane, float *hog) {
+                                    BLOCK_SIZE sb_size, int plane, float *hog) {
   const MACROBLOCKD *xd = &x->e_mbd;
   const struct macroblockd_plane *const pd = &xd->plane[plane];
   const int ss_x = pd->subsampling_x;
@@ -218,12 +340,19 @@ static INLINE void collect_hog_data(const MACROBLOCK *x, BLOCK_SIZE bsize,
   const int cols =
       ((xd->mb_to_right_edge >= 0) ? bw : (xd->mb_to_right_edge >> 3) + bw) >>
       ss_x;
-  const int src_stride = x->plane[plane].src.stride;
-  const uint8_t *src = x->plane[plane].src.buf;
-  if (is_cur_buf_hbd(xd)) {
-    generate_hog_hbd(src, src_stride, rows, cols, hog);
+
+  // If gradient data is already generated at SB level, reuse the cached data.
+  // Otherwise, compute the data.
+  if (x->is_sb_gradient_cached[plane]) {
+    generate_hog_using_gradient_cache(x, rows, cols, sb_size, plane, hog);
   } else {
-    generate_hog(src, src_stride, rows, cols, hog);
+    const uint8_t *src = x->plane[plane].src.buf;
+    const int src_stride = x->plane[plane].src.stride;
+    if (is_cur_buf_hbd(xd)) {
+      generate_hog_hbd(src, src_stride, rows, cols, hog);
+    } else {
+      generate_hog(src, src_stride, rows, cols, hog);
+    }
   }
 
   // Scale the hog so the luma and chroma are on the same scale
@@ -233,13 +362,13 @@ static INLINE void collect_hog_data(const MACROBLOCK *x, BLOCK_SIZE bsize,
 }
 
 static AOM_INLINE void prune_intra_mode_with_hog(
-    const MACROBLOCK *x, BLOCK_SIZE bsize, float th,
+    const MACROBLOCK *x, BLOCK_SIZE bsize, BLOCK_SIZE sb_size, float th,
     uint8_t *directional_mode_skip_mask, int is_chroma) {
   aom_clear_system_state();
 
   const int plane = is_chroma ? AOM_PLANE_U : AOM_PLANE_Y;
   float hist[BINS] = { 0.0f };
-  collect_hog_data(x, bsize, plane, hist);
+  collect_hog_data(x, bsize, sb_size, plane, hist);
 
   // Make prediction for each of the mode
   float scores[DIRECTIONAL_MODES] = { 0.0f };
