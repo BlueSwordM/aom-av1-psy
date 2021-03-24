@@ -521,6 +521,13 @@ static void set_good_speed_feature_framesize_dependent(
     sf->mv_sf.use_downsampled_sad = 1;
   }
 
+  if (!is_720p_or_larger) {
+    const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
+    const int rate_tolerance =
+        AOMMIN(rc_cfg->under_shoot_pct, rc_cfg->over_shoot_pct);
+    sf->hl_sf.recode_tolerance = 25 + (rate_tolerance >> 2);
+  }
+
   if (speed >= 1) {
     if (is_720p_or_larger) {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
