@@ -420,6 +420,10 @@ typedef struct GLOBAL_MOTION_SPEED_FEATURES {
   // given direction(past/future), if the evaluated ref_frame in that direction
   // yields gm_type as INVALID/TRANSLATION/IDENTITY
   int prune_ref_frame_for_gm_search;
+
+  // When the current GM type is set to ZEROMV, prune ZEROMV if its performance
+  // is worse than NEWMV under SSE metric.
+  int prune_zero_mv_with_sse;
 } GLOBAL_MOTION_SPEED_FEATURES;
 
 typedef struct PARTITION_SPEED_FEATURES {

@@ -2507,6 +2507,76 @@ static int prune_ref_mv_idx_search(int ref_mv_idx, int best_ref_mv_idx,
   return 0;
 }
 
+/*!\brief Prunes ZeroMV Search Using Best NEWMV's SSE
+ *
+ * \ingroup inter_mode_search
+ *
+ * Compares the sse of zero mv and the best sse found in single new_mv. If the
+ * sse of the zero_mv is higher, return 1 to signal zero_mv can be skipped. Else
+ * returns 0.
+ *
+ * Note that the sse of here comes from single_motion_search. So it is
+ * interpolated with the filter in motion search, not the actual interpolation
+ * filter used in encoding.
+ *
+ * \param[in]     fn_ptr            A table of function pointers to compute SSE.
+ * \param[in]     x                 Pointer to struct holding all the data for
+ *                                  the current macroblock.
+ * \param[in]     bsize             The current block_size.
+ * \param[in]     args              The args to handle_inter_mode, used to track
+ *                                  the best SSE.
+ * \return Returns 1 if zero_mv is pruned, 0 otherwise.
+ */
+static AOM_INLINE int prune_zero_mv_with_sse(
+    const aom_variance_fn_ptr_t *fn_ptr, const MACROBLOCK *x, BLOCK_SIZE bsize,
+    const HandleInterModeArgs *args) {
+  const MACROBLOCKD *xd = &x->e_mbd;
+  const MB_MODE_INFO *mbmi = xd->mi[0];
+
+  const int is_comp_pred = has_second_ref(mbmi);
+  const MV_REFERENCE_FRAME *refs = mbmi->ref_frame;
+
+  // Check that the global mv is the same as ZEROMV
+  assert(mbmi->mv[0].as_int == 0);
+  assert(IMPLIES(is_comp_pred, mbmi->mv[0].as_int == 0));
+  assert(xd->global_motion[refs[0]].wmtype == TRANSLATION ||
+         xd->global_motion[refs[0]].wmtype == IDENTITY);
+
+  // Don't prune if we have invalid data
+  for (int idx = 0; idx < 1 + is_comp_pred; idx++) {
+    assert(mbmi->mv[0].as_int == 0);
+    if (args->best_single_sse_in_refs[refs[idx]] == INT32_MAX) {
+      return 0;
+    }
+  }
+
+  // Sum up the sse of ZEROMV and best NEWMV
+  unsigned int this_sse_sum = 0;
+  unsigned int best_sse_sum = 0;
+  for (int idx = 0; idx < 1 + is_comp_pred; idx++) {
+    const struct macroblock_plane *const p = &x->plane[AOM_PLANE_Y];
+    const struct macroblockd_plane *pd = xd->plane;
+    const struct buf_2d *src_buf = &p->src;
+    const struct buf_2d *ref_buf = &pd->pre[idx];
+    const uint8_t *src = src_buf->buf;
+    const uint8_t *ref = ref_buf->buf;
+    const int src_stride = src_buf->stride;
+    const int ref_stride = ref_buf->stride;
+
+    unsigned int this_sse;
+    fn_ptr[bsize].vf(ref, ref_stride, src, src_stride, &this_sse);
+    this_sse_sum += this_sse;
+
+    const unsigned int best_sse = args->best_single_sse_in_refs[refs[idx]];
+    best_sse_sum += best_sse;
+  }
+  if (this_sse_sum > best_sse_sum) {
+    return 1;
+  }
+
+  return 0;
+}
+
 /*!\brief AV1 inter mode RD computation
  *
  * \ingroup inter_mode_search
@@ -2606,10 +2676,10 @@ static int64_t handle_inter_mode(
   // of these currently holds the best predictor, and use the other
   // one for future predictions. In the end, copy from tmp_buf to
   // dst if necessary.
-  struct macroblockd_plane *p = xd->plane;
+  struct macroblockd_plane *pd = xd->plane;
   const BUFFER_SET orig_dst = {
-    { p[0].dst.buf, p[1].dst.buf, p[2].dst.buf },
-    { p[0].dst.stride, p[1].dst.stride, p[2].dst.stride },
+    { pd[0].dst.buf, pd[1].dst.buf, pd[2].dst.buf },
+    { pd[0].dst.stride, pd[1].dst.stride, pd[2].dst.stride },
   };
   const BUFFER_SET tmp_dst = { { tmp_buf, tmp_buf + 1 * MAX_SB_SQUARE,
                                  tmp_buf + 2 * MAX_SB_SQUARE },
@@ -2731,6 +2801,15 @@ static int64_t handle_inter_mode(
 
       if (newmv_ret_val != 0) continue;
 
+      if (is_inter_singleref_mode(this_mode) &&
+          cur_mv[0].as_int != INVALID_MV) {
+        const MV_REFERENCE_FRAME ref = refs[0];
+        const unsigned int this_sse = x->pred_sse[ref];
+        if (this_sse < args->best_single_sse_in_refs[ref]) {
+          args->best_single_sse_in_refs[ref] = this_sse;
+        }
+      }
+
       rd_stats->rate += rate_mv;
 
       // skip NEWMV mode in drl if the motion search result is the same
@@ -2759,6 +2838,14 @@ static int64_t handle_inter_mode(
         prune_ref_mv_idx_search(ref_mv_idx, best_ref_mv_idx, save_mv, mbmi,
                                 cpi->sf.inter_sf.prune_ref_mv_idx_search))
       continue;
+
+    if (cpi->sf.gm_sf.prune_zero_mv_with_sse &&
+        cpi->sf.gm_sf.gm_search_type == GM_DISABLE_SEARCH &&
+        (this_mode == GLOBALMV || this_mode == GLOBAL_GLOBALMV)) {
+      if (prune_zero_mv_with_sse(cpi->fn_ptr, x, bsize, args)) {
+        continue;
+      }
+    }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, compound_type_rd_time);
@@ -3841,6 +3928,10 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
   set_mode_eval_params(cpi, x, MODE_EVAL);
 
   x->comp_rd_stats_idx = 0;
+
+  for (int idx = 0; idx < REF_FRAMES; idx++) {
+    args->best_single_sse_in_refs[idx] = INT32_MAX;
+  }
 }
 
 static AOM_INLINE void init_inter_mode_search_state(
@@ -4596,10 +4687,10 @@ static AOM_INLINE void evaluate_motion_mode_for_winner_candidates(
     if (!is_inter_singleref_mode(mbmi->mode)) continue;
 
     x->txfm_search_info.skip_txfm = 0;
-    struct macroblockd_plane *p = xd->plane;
+    struct macroblockd_plane *pd = xd->plane;
     const BUFFER_SET orig_dst = {
-      { p[0].dst.buf, p[1].dst.buf, p[2].dst.buf },
-      { p[0].dst.stride, p[1].dst.stride, p[2].dst.stride },
+      { pd[0].dst.buf, pd[1].dst.buf, pd[2].dst.buf },
+      { pd[0].dst.stride, pd[1].dst.stride, pd[2].dst.stride },
     };
 
     set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
@@ -5198,7 +5289,8 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
                                -1,
                                -1,
                                -1,
-                               { 0 } };
+                               { 0 },
+                               {} };
   for (i = 0; i < MODE_CTX_REF_FRAMES; ++i) args.cmp_mode[i] = -1;
   // Indicates the appropriate number of simple translation winner modes for
   // exhaustive motion mode evaluation

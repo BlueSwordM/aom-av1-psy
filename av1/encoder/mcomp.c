@@ -290,6 +290,9 @@ static INLINE int mv_err_cost(const MV *mv, const MV *ref_mv,
 
 static INLINE int mv_err_cost_(const MV *mv,
                                const MV_COST_PARAMS *mv_cost_params) {
+  if (mv_cost_params->mv_cost_type == MV_COST_NONE) {
+    return 0;
+  }
   return mv_err_cost(mv, mv_cost_params->ref_mv, mv_cost_params->mvjcost,
                      mv_cost_params->mvcost, mv_cost_params->error_per_bit,
                      mv_cost_params->mv_cost_type);
@@ -2265,7 +2268,6 @@ static INLINE int get_subpel_part(int x) { return x & 7; }
 
 // Gets the address of the ref buffer at subpel location (r, c), rounded to the
 // nearest fullpel precision toward - \infty
-
 static INLINE const uint8_t *get_buf_from_mv(const struct buf_2d *buf,
                                              const MV mv) {
   const int offset = (mv.row >> 3) * buf->stride + (mv.col >> 3);

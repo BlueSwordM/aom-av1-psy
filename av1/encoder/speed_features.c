@@ -904,6 +904,8 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 4) {
+    sf->gm_sf.prune_zero_mv_with_sse = 1;
+
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
 
     sf->part_sf.simple_motion_search_prune_agg = 2;
@@ -1436,6 +1438,7 @@ static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
 static AOM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
   gm_sf->gm_search_type = GM_FULL_SEARCH;
   gm_sf->prune_ref_frame_for_gm_search = 0;
+  gm_sf->prune_zero_mv_with_sse = 0;
 }
 
 static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
