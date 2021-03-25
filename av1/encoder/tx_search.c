@@ -2098,23 +2098,11 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
 
 #if CONFIG_RD_DEBUG
 static INLINE void update_txb_coeff_cost(RD_STATS *rd_stats, int plane,
-                                         TX_SIZE tx_size, int blk_row,
-                                         int blk_col, int txb_coeff_cost) {
+                                         int blk_row, int blk_col,
+                                         int txb_coeff_cost) {
   (void)blk_row;
   (void)blk_col;
-  (void)tx_size;
   rd_stats->txb_coeff_cost[plane] += txb_coeff_cost;
-
-  {
-    const int txb_h = tx_size_high_unit[tx_size];
-    const int txb_w = tx_size_wide_unit[tx_size];
-    int idx, idy;
-    for (idy = 0; idy < txb_h; ++idy)
-      for (idx = 0; idx < txb_w; ++idx)
-        rd_stats->txb_coeff_cost_map[plane][blk_row + idy][blk_col + idx] = 0;
-
-    rd_stats->txb_coeff_cost_map[plane][blk_row][blk_col] = txb_coeff_cost;
-  }
   assert(blk_row < TXB_COEFF_COST_MAP_SIZE);
   assert(blk_col < TXB_COEFF_COST_MAP_SIZE);
 }
@@ -2675,7 +2663,7 @@ static AOM_INLINE void try_tx_block_no_split(
            RDCOST(x->rdmult, zero_blk_rate, rd_stats->sse));
   if (pick_skip_txfm) {
 #if CONFIG_RD_DEBUG
-    update_txb_coeff_cost(rd_stats, 0, tx_size, blk_row, blk_col,
+    update_txb_coeff_cost(rd_stats, 0, blk_row, blk_col,
                           zero_blk_rate - rd_stats->rate);
 #endif  // CONFIG_RD_DEBUG
     rd_stats->rate = zero_blk_rate;
@@ -3175,7 +3163,7 @@ static AOM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
   }
 
 #if CONFIG_RD_DEBUG
-  update_txb_coeff_cost(&this_rd_stats, plane, tx_size, blk_row, blk_col,
+  update_txb_coeff_cost(&this_rd_stats, plane, blk_row, blk_col,
                         this_rd_stats.rate);
 #endif  // CONFIG_RD_DEBUG
   av1_set_txb_context(x, plane, block, tx_size, a, l);

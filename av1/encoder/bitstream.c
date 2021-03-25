@@ -381,7 +381,6 @@ static AOM_INLINE void pack_txb_tokens(
 #if CONFIG_RD_DEBUG
     TOKEN_STATS tmp_token_stats;
     init_token_stats(&tmp_token_stats);
-    token_stats->txb_coeff_cost_map[blk_row][blk_col] = tmp_token_stats.cost;
     token_stats->cost += tmp_token_stats.cost;
 #endif
   } else {
@@ -1299,24 +1298,8 @@ static AOM_INLINE void dump_mode_info(MB_MODE_INFO *mi) {
 static int rd_token_stats_mismatch(RD_STATS *rd_stats, TOKEN_STATS *token_stats,
                                    int plane) {
   if (rd_stats->txb_coeff_cost[plane] != token_stats->cost) {
-    int r, c;
     printf("\nplane %d rd_stats->txb_coeff_cost %d token_stats->cost %d\n",
            plane, rd_stats->txb_coeff_cost[plane], token_stats->cost);
-    printf("rd txb_coeff_cost_map\n");
-    for (r = 0; r < TXB_COEFF_COST_MAP_SIZE; ++r) {
-      for (c = 0; c < TXB_COEFF_COST_MAP_SIZE; ++c) {
-        printf("%d ", rd_stats->txb_coeff_cost_map[plane][r][c]);
-      }
-      printf("\n");
-    }
-
-    printf("pack txb_coeff_cost_map\n");
-    for (r = 0; r < TXB_COEFF_COST_MAP_SIZE; ++r) {
-      for (c = 0; c < TXB_COEFF_COST_MAP_SIZE; ++c) {
-        printf("%d ", token_stats->txb_coeff_cost_map[r][c]);
-      }
-      printf("\n");
-    }
     return 1;
   }
   return 0;

@@ -96,12 +96,6 @@ static INLINE void av1_init_rd_stats(RD_STATS *rd_stats) {
   // encoded, as there will only be 1 plane
   for (plane = 0; plane < MAX_MB_PLANE; ++plane) {
     rd_stats->txb_coeff_cost[plane] = 0;
-    {
-      int r, c;
-      for (r = 0; r < TXB_COEFF_COST_MAP_SIZE; ++r)
-        for (c = 0; c < TXB_COEFF_COST_MAP_SIZE; ++c)
-          rd_stats->txb_coeff_cost_map[plane][r][c] = 0;
-    }
   }
 #endif
 }
@@ -121,12 +115,6 @@ static INLINE void av1_invalid_rd_stats(RD_STATS *rd_stats) {
   // encoded, as there will only be 1 plane
   for (plane = 0; plane < MAX_MB_PLANE; ++plane) {
     rd_stats->txb_coeff_cost[plane] = INT_MAX;
-    {
-      int r, c;
-      for (r = 0; r < TXB_COEFF_COST_MAP_SIZE; ++r)
-        for (c = 0; c < TXB_COEFF_COST_MAP_SIZE; ++c)
-          rd_stats->txb_coeff_cost_map[plane][r][c] = INT16_MAX;
-    }
   }
 #endif
 }
@@ -146,18 +134,6 @@ static INLINE void av1_merge_rd_stats(RD_STATS *rd_stats_dst,
   // encoded, as there will only be 1 plane
   for (int plane = 0; plane < MAX_MB_PLANE; ++plane) {
     rd_stats_dst->txb_coeff_cost[plane] += rd_stats_src->txb_coeff_cost[plane];
-    {
-      // TODO(angiebird): optimize this part
-      int r, c;
-      int ref_txb_coeff_cost = 0;
-      for (r = 0; r < TXB_COEFF_COST_MAP_SIZE; ++r)
-        for (c = 0; c < TXB_COEFF_COST_MAP_SIZE; ++c) {
-          rd_stats_dst->txb_coeff_cost_map[plane][r][c] +=
-              rd_stats_src->txb_coeff_cost_map[plane][r][c];
-          ref_txb_coeff_cost += rd_stats_dst->txb_coeff_cost_map[plane][r][c];
-        }
-      assert(ref_txb_coeff_cost == rd_stats_dst->txb_coeff_cost[plane]);
-    }
   }
 #endif
 }
