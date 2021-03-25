@@ -1004,12 +1004,11 @@ static INLINE int find_unused_ref_frame(const int *used_ref_frames,
   return INVALID_IDX;
 }
 
-void av1_get_ref_frames(AV1_COMP *const cpi, RefBufferStack *ref_buffer_stack) {
-  AV1_COMMON *cm = &cpi->common;
-  int *const remapped_ref_idx = cm->remapped_ref_idx;
-  int *const arf_stack = ref_buffer_stack->arf_stack;
-  int *const lst_stack = ref_buffer_stack->lst_stack;
-  int *const gld_stack = ref_buffer_stack->gld_stack;
+void av1_get_ref_frames(const RefBufferStack *ref_buffer_stack,
+                        int remapped_ref_idx[REF_FRAMES]) {
+  const int *const arf_stack = ref_buffer_stack->arf_stack;
+  const int *const lst_stack = ref_buffer_stack->lst_stack;
+  const int *const gld_stack = ref_buffer_stack->gld_stack;
   const int arf_stack_size = ref_buffer_stack->arf_stack_size;
   const int lst_stack_size = ref_buffer_stack->lst_stack_size;
   const int gld_stack_size = ref_buffer_stack->gld_stack_size;
@@ -1305,7 +1304,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     const YV12_BUFFER_CONFIG *ref_frame_buf[INTER_REFS_PER_FRAME];
 
     if (!ext_flags->refresh_frame.update_pending) {
-      av1_get_ref_frames(cpi, &cpi->ref_buffer_stack);
+      av1_get_ref_frames(&cpi->ref_buffer_stack, cm->remapped_ref_idx);
     } else if (cpi->svc.set_ref_frame_config) {
       for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++)
         cm->remapped_ref_idx[i] = cpi->svc.ref_idx[i];
