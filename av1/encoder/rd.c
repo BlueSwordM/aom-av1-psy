@@ -354,11 +354,11 @@ static const int rd_layer_depth_factor[7] = {
   160, 160, 160, 160, 192, 208, 224
 };
 
-int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
-  const int q = av1_dc_quant_QTX(qindex, 0, cpi->common.seq_params.bit_depth);
+int av1_compute_rd_mult_based_on_qindex(aom_bit_depth_t bit_depth, int qindex) {
+  const int q = av1_dc_quant_QTX(qindex, 0, bit_depth);
   int rdmult = (int)(((int64_t)88 * q * q) / 24);
 
-  switch (cpi->common.seq_params.bit_depth) {
+  switch (bit_depth) {
     case AOM_BITS_8: break;
     case AOM_BITS_10: rdmult = ROUND_POWER_OF_TWO(rdmult, 4); break;
     case AOM_BITS_12: rdmult = ROUND_POWER_OF_TWO(rdmult, 8); break;
@@ -370,7 +370,8 @@ int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
 }
 
 int av1_compute_rd_mult(const AV1_COMP *cpi, int qindex) {
-  int64_t rdmult = av1_compute_rd_mult_based_on_qindex(cpi, qindex);
+  int64_t rdmult = av1_compute_rd_mult_based_on_qindex(
+      cpi->common.seq_params.bit_depth, qindex);
   if (is_stat_consumption_stage(cpi) &&
       (cpi->common.current_frame.frame_type != KEY_FRAME)) {
     const GF_GROUP *const gf_group = &cpi->gf_group;
