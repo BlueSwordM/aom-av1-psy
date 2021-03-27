@@ -771,6 +771,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Reuse masked compound type search results
   int reuse_mask_search_results;
+
+  // Enable/disable fast search for wedge masks
+  int enable_fast_wedge_mask_search;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
