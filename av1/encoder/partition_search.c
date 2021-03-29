@@ -3797,6 +3797,11 @@ static RD_STATS rd_search_for_fixed_partition(
   PartitionSearchState part_search_state;
   init_partition_search_state_params(x, cpi, &part_search_state, mi_row, mi_col,
                                      bsize);
+  // Override partition costs at the edges of the frame in the same
+  // way as in read_partition (see decodeframe.c).
+  PartitionBlkParams blk_params = part_search_state.part_blk_params;
+  if (!(blk_params.has_rows && blk_params.has_cols))
+    set_partition_cost_for_edge_blk(cm, &part_search_state);
 
   av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize);
 
