@@ -517,13 +517,13 @@ static int get_prediction_error_bitdepth(const int is_high_bitdepth,
 static void accumulate_mv_stats(const MV best_mv, const FULLPEL_MV mv,
                                 const int mb_row, const int mb_col,
                                 const int mb_rows, const int mb_cols,
-                                MV *last_mv, FRAME_STATS *stats) {
+                                MV *last_non_zero_mv, FRAME_STATS *stats) {
   if (is_zero_mv(&best_mv)) return;
 
   ++stats->mv_count;
   // Non-zero vector, was it different from the last non zero vector?
-  if (!is_equal_mv(&best_mv, last_mv)) ++stats->new_mv_count;
-  *last_mv = best_mv;
+  if (!is_equal_mv(&best_mv, last_non_zero_mv)) ++stats->new_mv_count;
+  *last_non_zero_mv = best_mv;
 
   // Does the row vector point inwards or outwards?
   if (mb_row < mb_rows / 2) {
@@ -577,8 +577,9 @@ static void accumulate_mv_stats(const MV best_mv, const FULLPEL_MV mv,
 //   this_intra_error: the intra prediction error of this block.
 //   raw_motion_err_counts: the count of raw motion vectors.
 //   raw_motion_err_list: the array that records the raw motion error.
-//   best_ref_mv: best reference mv found so far.
-//   last_mv: last mv.
+//   ref_mv: the reference used to start the motion search
+//   best_mv: the best mv found
+//   last_non_zero_mv: the last non zero mv found in this tile row.
 //   stats: frame encoding stats.
 //  Modifies:
 //    raw_motion_err_list
@@ -594,8 +595,8 @@ static int firstpass_inter_prediction(
     const int unit_col, const int recon_yoffset, const int recon_uvoffset,
     const int src_yoffset, const int alt_ref_frame_yoffset,
     const BLOCK_SIZE fp_block_size, const int this_intra_error,
-    const int raw_motion_err_counts, int *raw_motion_err_list, MV *best_ref_mv,
-    MV *last_mv, FRAME_STATS *stats) {
+    const int raw_motion_err_counts, int *raw_motion_err_list, const MV ref_mv,
+    MV *best_mv, MV *last_non_zero_mv, FRAME_STATS *stats) {
   int this_inter_error = this_intra_error;
   AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -613,7 +614,6 @@ static int firstpass_inter_prediction(
   const int unit_cols = get_unit_cols(fp_block_size, mi_params->mb_cols);
   // Assume 0,0 motion with no mv overhead.
   FULLPEL_MV mv = kZeroFullMv;
-  FULLPEL_MV tmp_mv = kZeroFullMv;
   xd->plane[0].pre[0].buf = last_frame->y_buffer + recon_yoffset;
   // Set up limit values for motion vectors to prevent them extending
   // outside the UMV borders.
@@ -641,11 +641,12 @@ static int firstpass_inter_prediction(
   if (raw_motion_error > LOW_MOTION_ERROR_THRESH || cpi->oxcf.speed <= 2) {
     // Test last reference frame using the previous best mv as the
     // starting point (best reference) for the search.
-    first_pass_motion_search(cpi, x, best_ref_mv, &mv, &motion_error);
+    first_pass_motion_search(cpi, x, &ref_mv, &mv, &motion_error);
 
     // If the current best reference mv is not centered on 0,0 then do a
     // 0,0 based search as well.
-    if (!is_zero_mv(best_ref_mv)) {
+    if (!is_zero_mv(&ref_mv)) {
+      FULLPEL_MV tmp_mv = kZeroFullMv;
       int tmp_err = INT_MAX;
       first_pass_motion_search(cpi, x, &kZeroMv, &tmp_mv, &tmp_err);
 
@@ -658,6 +659,7 @@ static int firstpass_inter_prediction(
     // Motion search in 2nd reference frame.
     int gf_motion_error = motion_error;
     if ((current_frame->frame_number > 1) && golden_frame != NULL) {
+      FULLPEL_MV tmp_mv = kZeroFullMv;
       // Assume 0,0 motion with no mv overhead.
       xd->plane[0].pre[0].buf = golden_frame->y_buffer + recon_yoffset;
       xd->plane[0].pre[0].stride = golden_frame->y_stride;
@@ -684,6 +686,7 @@ static int firstpass_inter_prediction(
     // Motion search in 3rd reference frame.
     int alt_motion_error = motion_error;
     if (alt_ref_frame != NULL) {
+      FULLPEL_MV tmp_mv = kZeroFullMv;
       xd->plane[0].pre[0].buf = alt_ref_frame->y_buffer + alt_ref_frame_yoffset;
       xd->plane[0].pre[0].stride = alt_ref_frame->y_stride;
       alt_motion_error =
@@ -717,8 +720,7 @@ static int firstpass_inter_prediction(
   }
 
   // Start by assuming that intra mode is best.
-  best_ref_mv->row = 0;
-  best_ref_mv->col = 0;
+  *best_mv = kZeroMv;
 
   if (motion_error <= this_intra_error) {
     aom_clear_system_state();
@@ -737,10 +739,10 @@ static int firstpass_inter_prediction(
           (double)motion_error / DOUBLE_DIVIDE_CHECK((double)this_intra_error);
     }
 
-    const MV best_mv = get_mv_from_fullmv(&mv);
+    *best_mv = get_mv_from_fullmv(&mv);
     this_inter_error = motion_error;
     xd->mi[0]->mode = NEWMV;
-    xd->mi[0]->mv[0].as_mv = best_mv;
+    xd->mi[0]->mv[0].as_mv = *best_mv;
     xd->mi[0]->tx_size = TX_4X4;
     xd->mi[0]->ref_frame[0] = LAST_FRAME;
     xd->mi[0]->ref_frame[1] = NONE_FRAME;
@@ -748,17 +750,16 @@ static int firstpass_inter_prediction(
                                   unit_col * unit_scale, NULL, bsize,
                                   AOM_PLANE_Y, AOM_PLANE_Y);
     av1_encode_sby_pass1(cpi, x, bsize);
-    stats->sum_mvr += best_mv.row;
-    stats->sum_mvr_abs += abs(best_mv.row);
-    stats->sum_mvc += best_mv.col;
-    stats->sum_mvc_abs += abs(best_mv.col);
-    stats->sum_mvrs += best_mv.row * best_mv.row;
-    stats->sum_mvcs += best_mv.col * best_mv.col;
+    stats->sum_mvr += best_mv->row;
+    stats->sum_mvr_abs += abs(best_mv->row);
+    stats->sum_mvc += best_mv->col;
+    stats->sum_mvc_abs += abs(best_mv->col);
+    stats->sum_mvrs += best_mv->row * best_mv->row;
+    stats->sum_mvcs += best_mv->col * best_mv->col;
     ++stats->inter_count;
 
-    *best_ref_mv = best_mv;
-    accumulate_mv_stats(best_mv, mv, unit_row, unit_col, unit_rows, unit_cols,
-                        last_mv, stats);
+    accumulate_mv_stats(*best_mv, mv, unit_row, unit_col, unit_rows, unit_cols,
+                        last_non_zero_mv, stats);
   }
 
   return this_inter_error;
@@ -1123,7 +1124,7 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
           cpi, td, last_frame, golden_frame, alt_ref_frame, unit_row, unit_col,
           recon_yoffset, recon_uvoffset, src_yoffset, alt_ref_frame_yoffset,
           fp_block_size, this_intra_error, raw_motion_err_counts,
-          raw_motion_err_list, &best_ref_mv, &last_mv, mb_stats);
+          raw_motion_err_list, best_ref_mv, &best_ref_mv, &last_mv, mb_stats);
       if (unit_col_in_tile == 0) {
         *first_top_mv = last_mv;
       }
