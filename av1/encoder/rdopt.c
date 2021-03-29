@@ -5516,7 +5516,8 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
   // Gate intra mode evaluation if best of inter is skip except when source
   // variance is extremely low
   const unsigned int src_var_thresh_intra_skip = 1;
-  if (sf->intra_sf.skip_intra_in_interframe &&
+  const int skip_intra_in_interframe = sf->intra_sf.skip_intra_in_interframe;
+  if (skip_intra_in_interframe &&
       (x->source_variance > src_var_thresh_intra_skip)) {
     if (inter_cost >= 0 && intra_cost >= 0) {
       aom_clear_system_state();
@@ -5525,7 +5526,6 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
                                        : &av1_intrap_hd_nn_config;
       float nn_features[6];
       float scores[2] = { 0.0f };
-      float probs[2] = { 0.0f };
 
       nn_features[0] = (float)search_state.best_mbmode.skip_txfm;
       nn_features[1] = (float)mi_size_wide_log2[bsize];
@@ -5538,11 +5538,16 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
 
       av1_nn_predict(nn_features, nn_config, 1, scores);
       aom_clear_system_state();
-      av1_nn_softmax(scores, probs, 2);
 
-      if (probs[1] > 0.8) search_state.intra_search_state.skip_intra_modes = 1;
+      // For two parameters, the max prob returned from av1_nn_softmax equals
+      // 1.0 / (1.0 + e^(-|diff_score|)). Here use scores directly to avoid the
+      // calling of av1_nn_softmax.
+      const float thresh[2] = { 1.4f, 1.4f };
+      if (scores[1] > scores[0] + thresh[skip_intra_in_interframe - 1]) {
+        search_state.intra_search_state.skip_intra_modes = 1;
+      }
     } else if ((search_state.best_mbmode.skip_txfm) &&
-               (sf->intra_sf.skip_intra_in_interframe >= 2)) {
+               (skip_intra_in_interframe >= 2)) {
       search_state.intra_search_state.skip_intra_modes = 1;
     }
   }
