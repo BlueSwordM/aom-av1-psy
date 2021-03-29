@@ -2161,6 +2161,13 @@ typedef struct AV1_PRIMARY {
    * encode set.
    */
   struct AV1_FP_OUT_DATA parallel_frames_data[MAX_PARALLEL_FRAMES - 1];
+
+  /*!
+   * Loopfilter levels of the previous encoded frame.
+   */
+  int filter_level[2];
+  int filter_level_u;
+  int filter_level_v;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
   /*!
    * Encode stage top level structure
