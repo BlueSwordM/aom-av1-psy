@@ -3675,7 +3675,7 @@ static void verify_write_partition_tree(const AV1_COMP *const cpi,
   (void)mi_col;
   char filename[128];
   snprintf(filename, sizeof(filename), "verify_partition_tree_sb%d_c%d",
-           cpi->sb_counter - 1, config_id);
+           cpi->sb_counter, config_id);
   FILE *pfile = fopen(filename, "w");
   fprintf(pfile, "%d", bsize);
 
