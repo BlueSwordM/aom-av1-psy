@@ -261,7 +261,6 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   aom_free_frame_buffer(&cpi->trial_frame_rst);
   aom_free_frame_buffer(&cpi->scaled_source);
   aom_free_frame_buffer(&cpi->scaled_last_source);
-  aom_free_frame_buffer(&cpi->alt_ref_buffer);
 
   free_token_info(token_info);
 
@@ -323,7 +322,7 @@ static AOM_INLINE void alloc_altref_frame_buffer(AV1_COMP *cpi) {
 
   // TODO(agrange) Check if ARF is enabled and skip allocation if not.
   if (aom_realloc_frame_buffer(
-          &cpi->alt_ref_buffer, oxcf->frm_dim_cfg.width,
+          &cpi->ppi->alt_ref_buffer, oxcf->frm_dim_cfg.width,
           oxcf->frm_dim_cfg.height, seq_params->subsampling_x,
           seq_params->subsampling_y, seq_params->use_highbitdepth,
           cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,

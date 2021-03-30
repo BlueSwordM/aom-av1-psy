@@ -1040,7 +1040,7 @@ static int is_shorter_gf_interval_better(AV1_COMP *cpi,
       int is_forward_keyframe = 0;
       av1_temporal_filter(cpi, arf_src_index, arf_update_type,
                           is_forward_keyframe, NULL);
-      aom_extend_frame_borders(&cpi->alt_ref_buffer,
+      aom_extend_frame_borders(&cpi->ppi->alt_ref_buffer,
                                av1_num_planes(&cpi->common));
     }
 

@@ -108,10 +108,10 @@ encoder and referenced elsewhere in this overview document:
     - \ref AV1_PRIMARY.lap_enabled
     - \ref AV1_PRIMARY.twopass (\ref TWO_PASS)
     - \ref AV1_PRIMARY.p_rc (\ref PRIMARY_RATE_CONTROL)
+    - \ref AV1_PRIMARY.alt_ref_buffer (\ref yv12_buffer_config)
 
 - \ref AV1_COMP
     - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
-    - \ref AV1_COMP.alt_ref_buffer (\ref yv12_buffer_config)
     - \ref AV1_COMP.rc (\ref RATE_CONTROL)
     - \ref AV1_COMP.speed
     - \ref AV1_COMP.sf (\ref SPEED_FEATURES)
@@ -327,9 +327,11 @@ value is estimated based on the prediction error and quantizer setting.
 The following are the main data structures referenced in this section
 (see also \ref architecture_enc_data_structures):
 
+- \ref AV1_PRIMARY ppi (the primary compressor instance data structure)
+    - \ref AV1_PRIMARY.alt_ref_buffer (\ref yv12_buffer_config)
+
 - \ref AV1_COMP cpi (the main compressor instance data structure)
     - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
-    - \ref AV1_COMP.alt_ref_buffer (\ref yv12_buffer_config)
 
 - \ref AV1EncoderConfig (Encoder configuration parameters)
     - \ref AV1EncoderConfig.algo_cfg (\ref AlgoCfg)
@@ -451,7 +453,7 @@ It is recommended that the reader refers to the code for more details.
 The main entry point for temporal filtering is \ref av1_temporal_filter().
 This function returns 1 if temporal filtering is successful, otherwise 0.
 When temporal filtering is applied, the filtered frame will be held in
-the frame buffer \ref AV1_COMP.alt_ref_buffer, which is the frame to be
+the frame buffer \ref AV1_PRIMARY.alt_ref_buffer, which is the frame to be
 encoded in the following encoding process.
 
 Almost all temporal filter related code is in av1/encoder/temporal_filter.c

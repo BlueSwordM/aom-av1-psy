@@ -2140,6 +2140,12 @@ typedef struct AV1_PRIMARY {
    * Rate control related parameters.
    */
   PRIMARY_RATE_CONTROL p_rc;
+
+  /*!
+   * Frame buffer holding the temporally filtered source frame. It can be KEY
+   * frame or ARF frame.
+   */
+  YV12_BUFFER_CONFIG alt_ref_buffer;
 } AV1_PRIMARY;
 
 /*!
@@ -2408,12 +2414,6 @@ typedef struct AV1_COMP {
    * To control the reference frame buffer and selection.
    */
   RefBufferStack ref_buffer_stack;
-
-  /*!
-   * Frame buffer holding the temporally filtered source frame. It can be KEY
-   * frame or ARF frame.
-   */
-  YV12_BUFFER_CONFIG alt_ref_buffer;
 
   /*!
    * Tell if OVERLAY frame shows existing alt_ref frame.

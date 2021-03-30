@@ -862,13 +862,13 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
       }
     }
     tf_normalize_filtered_frame(mbd, block_size, mb_row, mb_col, num_planes,
-                                accum, count, &cpi->alt_ref_buffer);
+                                accum, count, &cpi->ppi->alt_ref_buffer);
 
     if (check_show_existing) {
       const int y_height = mb_height >> mbd->plane[0].subsampling_y;
       const int y_width = mb_width >> mbd->plane[0].subsampling_x;
       const int source_y_stride = frame_to_filter->y_stride;
-      const int filter_y_stride = cpi->alt_ref_buffer.y_stride;
+      const int filter_y_stride = cpi->ppi->alt_ref_buffer.y_stride;
       const int source_offset =
           mb_row * y_height * source_y_stride + mb_col * y_width;
       const int filter_offset =
@@ -876,7 +876,8 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
       unsigned int sse = 0;
       cpi->fn_ptr[block_size].vf(
           frame_to_filter->y_buffer + source_offset, source_y_stride,
-          cpi->alt_ref_buffer.y_buffer + filter_offset, filter_y_stride, &sse);
+          cpi->ppi->alt_ref_buffer.y_buffer + filter_offset, filter_y_stride,
+          &sse);
       diff->sum += sse;
       diff->sse += sse * (int64_t)sse;
     }

@@ -1431,6 +1431,7 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
 
 void av1_remove_primary_compressor(AV1_PRIMARY *ppi) {
   if (!ppi) return;
+  aom_free_frame_buffer(&ppi->alt_ref_buffer);
   for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i) {
     aom_free(ppi->level_params.level_info[i]);
   }
