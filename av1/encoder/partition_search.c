@@ -3894,7 +3894,7 @@ static RD_STATS rd_search_for_fixed_partition(
       best_rdc.rate = sum_subblock_rate;
       best_rdc.rate += part_search_state.partition_cost[PARTITION_SPLIT];
       best_rdc.dist = sum_subblock_dist;
-      av1_rd_cost_update(x->rdmult, &best_rdc);
+      best_rdc.rdcost = RDCOST(x->rdmult, best_rdc.rate, best_rdc.dist);
       break;
     default: assert(0 && "invalid partition type."); exit(0);
   }
