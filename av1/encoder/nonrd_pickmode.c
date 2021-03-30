@@ -1251,11 +1251,11 @@ static void estimate_block_intra(int plane, int block, int row, int col,
 
   (void)block;
 
-  p->src.buf = &src_buf_base[4 * (row * src_stride + col)];
-  pd->dst.buf = &dst_buf_base[4 * (row * dst_stride + col)];
-
   av1_predict_intra_block_facade(cm, xd, plane, col, row, tx_size);
   av1_invalid_rd_stats(&this_rdc);
+
+  p->src.buf = &src_buf_base[4 * (row * src_stride + col)];
+  pd->dst.buf = &dst_buf_base[4 * (row * dst_stride + col)];
 
   if (plane == 0) {
     block_yrd(cpi, x, 0, 0, &this_rdc, &args->skippable, bsize_tx,
