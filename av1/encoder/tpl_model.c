@@ -166,20 +166,6 @@ void av1_setup_tpl_buffers(AV1_COMMON *const cm, TplParams *const tpl_data,
   }
 }
 
-static AOM_INLINE void tpl_fwd_txfm(const int16_t *src_diff, int bw,
-                                    tran_low_t *coeff, TX_SIZE tx_size,
-                                    int bit_depth, int is_hbd) {
-  TxfmParam txfm_param;
-  txfm_param.tx_type = DCT_DCT;
-  txfm_param.tx_size = tx_size;
-  txfm_param.lossless = 0;
-  txfm_param.tx_set_type = EXT_TX_SET_ALL16;
-
-  txfm_param.bd = bit_depth;
-  txfm_param.is_hbd = is_hbd;
-  av1_fwd_txfm(src_diff, coeff, bw, &txfm_param);
-}
-
 static AOM_INLINE int64_t tpl_get_satd_cost(BitDepthInfo bd_info,
                                             int16_t *src_diff, int diff_stride,
                                             const uint8_t *src, int src_stride,
@@ -190,8 +176,7 @@ static AOM_INLINE int64_t tpl_get_satd_cost(BitDepthInfo bd_info,
 
   av1_subtract_block(bd_info, bh, bw, src_diff, diff_stride, src, src_stride,
                      dst, dst_stride);
-  tpl_fwd_txfm(src_diff, bw, coeff, tx_size, bd_info.bit_depth,
-               bd_info.use_highbitdepth_buf);
+  av1_quick_txfm(/*use_hadamard=*/0, tx_size, bd_info, src_diff, bw, coeff);
   return aom_satd(coeff, pix_num);
 }
 
@@ -220,8 +205,7 @@ static AOM_INLINE void txfm_quant_rdcost(
   uint16_t eob;
   av1_subtract_block(bd_info, bh, bw, src_diff, diff_stride, src, src_stride,
                      dst, dst_stride);
-  tpl_fwd_txfm(src_diff, diff_stride, coeff, tx_size, xd->bd,
-               is_cur_buf_hbd(xd));
+  av1_quick_txfm(/*use_hadamard=*/0, tx_size, bd_info, src_diff, bw, coeff);
 
   get_quantize_error(x, 0, coeff, qcoeff, dqcoeff, tx_size, &eob, recon_error,
                      sse);

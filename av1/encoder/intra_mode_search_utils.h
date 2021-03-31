@@ -512,34 +512,6 @@ static AOM_INLINE int intra_mode_info_cost_uv(const AV1_COMP *cpi,
   return total_rate;
 }
 
-/*!\brief Apply Hadamard or DCT transform
- *
- * \callergraph
- */
-static void av1_quick_txfm(int use_hadamard, TX_SIZE tx_size, int is_hbd,
-                           int bd, const int16_t *src_diff, int src_stride,
-                           tran_low_t *coeff) {
-  if (use_hadamard) {
-    switch (tx_size) {
-      case TX_4X4: aom_hadamard_4x4(src_diff, src_stride, coeff); break;
-      case TX_8X8: aom_hadamard_8x8(src_diff, src_stride, coeff); break;
-      case TX_16X16: aom_hadamard_16x16(src_diff, src_stride, coeff); break;
-      case TX_32X32: aom_hadamard_32x32(src_diff, src_stride, coeff); break;
-      default: assert(0);
-    }
-  } else {
-    assert(IMPLIES(!is_hbd, bd == 8));
-    TxfmParam txfm_param;
-    txfm_param.tx_type = DCT_DCT;
-    txfm_param.tx_size = tx_size;
-    txfm_param.lossless = 0;
-    txfm_param.bd = bd;
-    txfm_param.is_hbd = is_hbd;
-    txfm_param.tx_set_type = EXT_TX_SET_ALL16;
-    av1_fwd_txfm(src_diff, coeff, src_stride, &txfm_param);
-  }
-}
-
 /*!\cond */
 // Makes a quick intra prediction and estimate the rdcost with a model without
 // going through the whole txfm/quantize/itxfm process.
@@ -571,8 +543,8 @@ static int64_t intra_model_rd(const AV1_COMMON *cm, MACROBLOCK *const x,
           bd_info, txbh, txbw, p->src_diff, block_size_wide[plane_bsize],
           p->src.buf + (((row * p->src.stride) + col) << 2), p->src.stride,
           pd->dst.buf + (((row * pd->dst.stride) + col) << 2), pd->dst.stride);
-      av1_quick_txfm(use_hadamard, tx_size, is_cur_buf_hbd(xd), xd->bd,
-                     p->src_diff, block_size_wide[plane_bsize], p->coeff);
+      av1_quick_txfm(use_hadamard, tx_size, bd_info, p->src_diff,
+                     block_size_wide[plane_bsize], p->coeff);
       satd_cost += aom_satd(p->coeff, tx_size_2d[tx_size]);
     }
   }
