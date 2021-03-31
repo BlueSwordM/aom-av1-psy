@@ -1006,6 +1006,10 @@ static void set_good_speed_features_framesize_independent(
 
     sf->intra_sf.chroma_intra_pruning_with_hog = 4;
     sf->intra_sf.intra_pruning_with_hog = 4;
+    sf->intra_sf.intra_uv_mode_mask[TX_32X32] = UV_INTRA_DC;
+    sf->intra_sf.intra_uv_mode_mask[TX_64X64] = UV_INTRA_DC;
+    sf->intra_sf.intra_y_mode_mask[TX_32X32] = INTRA_DC;
+    sf->intra_sf.intra_y_mode_mask[TX_64X64] = INTRA_DC;
 
     sf->part_sf.prune_rectangular_split_based_on_qidx =
         boosted || allow_screen_content_tools ? 0 : 1;
