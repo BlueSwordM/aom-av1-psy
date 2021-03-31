@@ -1429,15 +1429,26 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
           }
         }
         // Consider the asymmetric partitions for oblique angle only if the
-        // corresponding symmetric partition is the best so far
+        // corresponding symmetric partition is the best so far.
+        // Note: For horizontal and vertical types, both symmetric and
+        // asymmetric partitions are always considered.
         if (cpi->sf.inter_sf.enable_fast_wedge_mask_search) {
+          // The first 4 entries in wedge_codebook_16_heqw/hltw/hgtw[16]
+          // correspond to symmetric partitions of the 4 oblique angles, the
+          // next 4 entries correspond to the vertical/horizontal
+          // symmetric/asymmetric partitions and the last 8 entries correspond
+          // to the asymmetric partitions of oblique types.
           const int idx_before_asym_oblique = 7;
           const int last_oblique_sym_idx = 3;
           if (wedge_mask == idx_before_asym_oblique) {
             if (best_mask_index > last_oblique_sym_idx) {
               break;
             } else {
-              // Asymmetric (Index-1) map for the corresponding oblique masks
+              // Asymmetric (Index-1) map for the corresponding oblique masks.
+              // WEDGE_OBLIQUE27: sym - 0, asym - 8, 9
+              // WEDGE_OBLIQUE63: sym - 1, asym - 12, 13
+              // WEDGE_OBLIQUE117: sym - 2, asym - 14, 15
+              // WEDGE_OBLIQUE153: sym - 3, asym - 10, 11
               const int asym_mask_idx[4] = { 7, 11, 13, 9 };
               wedge_mask = asym_mask_idx[best_mask_index];
               wedge_mask_size = wedge_mask + 3;
