@@ -393,7 +393,6 @@ static int firstpass_intra_prediction(
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
   const int unit_scale = mi_size_wide[fp_block_size];
-  const int use_dc_pred = (unit_col || unit_row) && (!unit_col || !unit_row);
   const int num_planes = av1_num_planes(cm);
   const BLOCK_SIZE bsize =
       get_bsize(mi_params, fp_block_size, unit_row, unit_col);
@@ -413,7 +412,7 @@ static int firstpass_intra_prediction(
   xd->mi[0]->segment_id = 0;
   xd->lossless[xd->mi[0]->segment_id] = (qindex == 0);
   xd->mi[0]->mode = DC_PRED;
-  xd->mi[0]->tx_size = use_dc_pred ? max_txsize_lookup[bsize] : TX_4X4;
+  xd->mi[0]->tx_size = TX_4X4;
 
   av1_encode_intra_block_plane(cpi, x, bsize, 0, DRY_RUN_NORMAL, 0);
   int this_intra_error = aom_get_mb_ss(x->plane[0].src_diff);
