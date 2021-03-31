@@ -193,7 +193,7 @@ static const uint8_t *get_has_tr_table(PARTITION_TYPE partition,
   return ret;
 }
 
-static int has_top_right(const AV1_COMMON *cm, BLOCK_SIZE bsize, int mi_row,
+static int has_top_right(BLOCK_SIZE sb_size, BLOCK_SIZE bsize, int mi_row,
                          int mi_col, int top_available, int right_available,
                          PARTITION_TYPE partition, TX_SIZE txsz, int row_off,
                          int col_off, int ss_x, int ss_y) {
@@ -223,7 +223,7 @@ static int has_top_right(const AV1_COMMON *cm, BLOCK_SIZE bsize, int mi_row,
 
     const int bw_in_mi_log2 = mi_size_wide_log2[bsize];
     const int bh_in_mi_log2 = mi_size_high_log2[bsize];
-    const int sb_mi_size = mi_size_high[cm->seq_params.sb_size];
+    const int sb_mi_size = mi_size_high[sb_size];
     const int blk_row_in_sb = (mi_row & (sb_mi_size - 1)) >> bh_in_mi_log2;
     const int blk_col_in_sb = (mi_col & (sb_mi_size - 1)) >> bw_in_mi_log2;
 
@@ -378,7 +378,7 @@ static const uint8_t *get_has_bl_table(PARTITION_TYPE partition,
   return ret;
 }
 
-static int has_bottom_left(const AV1_COMMON *cm, BLOCK_SIZE bsize, int mi_row,
+static int has_bottom_left(BLOCK_SIZE sb_size, BLOCK_SIZE bsize, int mi_row,
                            int mi_col, int bottom_available, int left_available,
                            PARTITION_TYPE partition, TX_SIZE txsz, int row_off,
                            int col_off, int ss_x, int ss_y) {
@@ -415,7 +415,7 @@ static int has_bottom_left(const AV1_COMMON *cm, BLOCK_SIZE bsize, int mi_row,
 
     const int bw_in_mi_log2 = mi_size_wide_log2[bsize];
     const int bh_in_mi_log2 = mi_size_high_log2[bsize];
-    const int sb_mi_size = mi_size_high[cm->seq_params.sb_size];
+    const int sb_mi_size = mi_size_high[sb_size];
     const int blk_row_in_sb = (mi_row & (sb_mi_size - 1)) >> bh_in_mi_log2;
     const int blk_col_in_sb = (mi_col & (sb_mi_size - 1)) >> bw_in_mi_log2;
 
@@ -1620,12 +1620,12 @@ void av1_predict_intra_block(
     bsize = scale_chroma_bsize(bsize, ss_x, ss_y);
   }
 
-  const int have_top_right =
-      has_top_right(cm, bsize, mi_row, mi_col, have_top, right_available,
-                    partition, tx_size, row_off, col_off, ss_x, ss_y);
-  const int have_bottom_left =
-      has_bottom_left(cm, bsize, mi_row, mi_col, bottom_available, have_left,
-                      partition, tx_size, row_off, col_off, ss_x, ss_y);
+  const int have_top_right = has_top_right(
+      cm->seq_params.sb_size, bsize, mi_row, mi_col, have_top, right_available,
+      partition, tx_size, row_off, col_off, ss_x, ss_y);
+  const int have_bottom_left = has_bottom_left(
+      cm->seq_params.sb_size, bsize, mi_row, mi_col, bottom_available,
+      have_left, partition, tx_size, row_off, col_off, ss_x, ss_y);
 
   const int disable_edge_filter = !cm->seq_params.enable_intra_edge_filter;
   const int intra_edge_filter_type = get_intra_edge_filter_type(xd, plane);
