@@ -363,7 +363,7 @@ void av1_set_svc_fixed_mode(AV1_COMP *const cpi) {
          svc->number_temporal_layers >= 1 && svc->number_temporal_layers <= 3);
   svc->set_ref_frame_config = 1;
   int superframe_cnt = svc->current_superframe;
-  // Set the referende map buffer idx for the 7 references:
+  // Set the reference map buffer idx for the 7 references:
   // LAST_FRAME (0), LAST2_FRAME(1), LAST3_FRAME(2), GOLDEN_FRAME(3),
   // BWDREF_FRAME(4), ALTREF2_FRAME(5), ALTREF_FRAME(6).
   for (i = 0; i < INTER_REFS_PER_FRAME; i++) svc->ref_idx[i] = i;

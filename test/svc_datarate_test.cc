@@ -176,7 +176,7 @@ class DatarateTestSVC
     int lag_index = 0;
     int base_count = frame_cnt >> 2;
     layer_id->spatial_layer_id = spatial_layer;
-    // Set the referende map buffer idx for the 7 references:
+    // Set the reference map buffer idx for the 7 references:
     // LAST_FRAME (0), LAST2_FRAME(1), LAST3_FRAME(2), GOLDEN_FRAME(3),
     // BWDREF_FRAME(4), ALTREF2_FRAME(5), ALTREF_FRAME(6).
     for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
