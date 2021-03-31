@@ -1230,21 +1230,20 @@ static AOM_INLINE void mc_flow_dispenser(AV1_COMP *cpi) {
   }
 }
 
-static void mc_flow_synthesizer(AV1_COMP *cpi, int frame_idx) {
-  AV1_COMMON *cm = &cpi->common;
-  TplParams *const tpl_data = &cpi->tpl_data;
-
+static void mc_flow_synthesizer(TplParams *tpl_data, int frame_idx, int mi_rows,
+                                int mi_cols) {
+  if (!frame_idx) {
+    return;
+  }
   const BLOCK_SIZE bsize = convert_length_to_bsize(tpl_data->tpl_bsize_1d);
   const int mi_height = mi_size_high[bsize];
   const int mi_width = mi_size_wide[bsize];
   assert(mi_height == (1 << tpl_data->tpl_stats_block_mis_log2));
   assert(mi_width == (1 << tpl_data->tpl_stats_block_mis_log2));
 
-  for (int mi_row = 0; mi_row < cm->mi_params.mi_rows; mi_row += mi_height) {
-    for (int mi_col = 0; mi_col < cm->mi_params.mi_cols; mi_col += mi_width) {
-      if (frame_idx) {
-        tpl_model_update(tpl_data, mi_row, mi_col, frame_idx);
-      }
+  for (int mi_row = 0; mi_row < mi_rows; mi_row += mi_height) {
+    for (int mi_col = 0; mi_col < mi_cols; mi_col += mi_width) {
+      tpl_model_update(tpl_data, mi_row, mi_col, frame_idx);
     }
   }
 }
@@ -1534,7 +1533,8 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
         gf_group->update_type[frame_idx] == OVERLAY_UPDATE)
       continue;
 
-    mc_flow_synthesizer(cpi, frame_idx);
+    mc_flow_synthesizer(tpl_data, frame_idx, cm->mi_params.mi_rows,
+                        cm->mi_params.mi_cols);
   }
 
   av1_configure_buffer_updates(cpi, &this_frame_params.refresh_frame,
