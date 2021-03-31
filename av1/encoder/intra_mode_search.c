@@ -422,7 +422,7 @@ static int64_t cfl_compute_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   int64_t cfl_cost;
   if (fast_mode) {
     cfl_cost =
-        intra_model_rd(cm, x, plane, plane_bsize, tx_size, /*use_hardamard=*/0);
+        intra_model_rd(cm, x, plane, plane_bsize, tx_size, /*use_hadamard=*/0);
   } else {
     av1_init_rd_stats(rd_stats);
     av1_txfm_rd_in_plane(x, cpi, rd_stats, INT64_MAX, 0, plane, plane_bsize,
@@ -497,7 +497,7 @@ static void cfl_pick_plane_parameter(const AV1_COMP *const cpi, MACROBLOCK *x,
   xd->cfl.dc_pred_is_cached[1] = 0;
 }
 
-/*!\brief Pick the optimal parameters for Chroma to Luma (CFL) compoenent
+/*!\brief Pick the optimal parameters for Chroma to Luma (CFL) component
  *
  * \ingroup intra_mode_search
  * \callergraph
