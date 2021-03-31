@@ -180,15 +180,12 @@ static AOM_INLINE void tpl_fwd_txfm(const int16_t *src_diff, int bw,
   av1_fwd_txfm(src_diff, coeff, bw, &txfm_param);
 }
 
-// TODO(angiebird): Replace x with bd_info.
-static AOM_INLINE int64_t tpl_get_satd_cost(const MACROBLOCK *x,
+static AOM_INLINE int64_t tpl_get_satd_cost(BitDepthInfo bd_info,
                                             int16_t *src_diff, int diff_stride,
                                             const uint8_t *src, int src_stride,
                                             const uint8_t *dst, int dst_stride,
                                             tran_low_t *coeff, int bw, int bh,
                                             TX_SIZE tx_size) {
-  const MACROBLOCKD *xd = &x->e_mbd;
-  const BitDepthInfo bd_info = get_bit_depth_info(xd);
   const int pix_num = bw * bh;
 
   av1_subtract_block(bd_info, bh, bw, src_diff, diff_stride, src, src_stride,
@@ -425,6 +422,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
   (void)gf_group;
 
   MACROBLOCKD *xd = &x->e_mbd;
+  const BitDepthInfo bd_info = get_bit_depth_info(xd);
   TplParams *tpl_data = &cpi->tpl_data;
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_data->frame_idx];
   const uint8_t block_mis_log2 = tpl_data->tpl_stats_block_mis_log2;
@@ -528,8 +526,9 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
                             FILTER_INTRA_MODES, dst_buffer, dst_buffer_stride,
                             predictor, bw, 0, 0, 0);
 
-    intra_cost = tpl_get_satd_cost(x, src_diff, bw, src_mb_buffer, src_stride,
-                                   predictor, bw, coeff, bw, bh, tx_size);
+    intra_cost =
+        tpl_get_satd_cost(bd_info, src_diff, bw, src_mb_buffer, src_stride,
+                          predictor, bw, coeff, bw, bh, tx_size);
 
     if (intra_cost < best_intra_cost) {
       best_intra_cost = intra_cost;
@@ -659,8 +658,9 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
     av1_enc_build_one_inter_predictor(predictor, bw, &best_rfidx_mv.as_mv,
                                       &inter_pred_params);
 
-    inter_cost = tpl_get_satd_cost(x, src_diff, bw, src_mb_buffer, src_stride,
-                                   predictor, bw, coeff, bw, bh, tx_size);
+    inter_cost =
+        tpl_get_satd_cost(bd_info, src_diff, bw, src_mb_buffer, src_stride,
+                          predictor, bw, coeff, bw, bh, tx_size);
     // Store inter cost for each ref frame
     tpl_stats->pred_error[rf_idx] = AOMMAX(1, inter_cost);
 
@@ -738,8 +738,9 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
       av1_enc_build_one_inter_predictor(predictor, bw, &tmp_mv[ref].as_mv,
                                         &inter_pred_params);
     }
-    inter_cost = tpl_get_satd_cost(x, src_diff, bw, src_mb_buffer, src_stride,
-                                   predictor, bw, coeff, bw, bh, tx_size);
+    inter_cost =
+        tpl_get_satd_cost(bd_info, src_diff, bw, src_mb_buffer, src_stride,
+                          predictor, bw, coeff, bw, bh, tx_size);
     if (inter_cost < best_inter_cost) {
       best_cmp_rf_idx = cmp_rf_idx;
       best_inter_cost = inter_cost;
