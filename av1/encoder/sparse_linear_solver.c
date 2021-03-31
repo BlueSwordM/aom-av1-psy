@@ -8,7 +8,6 @@
  * Media Patent License 1.0 was not distributed with this source code in the
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
-#include <float.h>
 #include "av1/common/av1_common_int.h"
 #include "av1/encoder/sparse_linear_solver.h"
 #include "config/aom_config.h"
@@ -408,4 +407,4 @@ void av1_steepest_descent_sparse(const SPARSE_MTX *A, const double *b, int bl,
   aom_free(Ad);
 }
 
-#endif  // CONFIG_OPFL
+#endif  // CONFIG_OPTICAL_FLOW_API

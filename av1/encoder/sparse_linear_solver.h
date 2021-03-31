@@ -9,8 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AV1_COMMON_SPARSE_LINEAR_SOLVER_H_
-#define AV1_COMMON_SPARSE_LINEAR_SOLVER_H_
+#ifndef AOM_AV1_ENCODER_SPARSE_LINEAR_SOLVER_H_
+#define AOM_AV1_ENCODER_SPARSE_LINEAR_SOLVER_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,4 +64,4 @@ void av1_steepest_descent_sparse(const SPARSE_MTX *A, const double *b, int bl,
 }  // extern "C"
 #endif
 
-#endif /* AV1_COMMON_SPARSE_LINEAR_SOLVER_H_ */
+#endif /* AOM_AV1_ENCODER_SPARSE_LINEAR_SOLVER_H_ */

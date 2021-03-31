@@ -819,7 +819,7 @@ static void solve_horn_schunck(const double *ix, const double *iy,
   }
   av1_init_sparse_mtx(row_pos, col_pos, values, c, 2 * width * height,
                       2 * width * height, &A);
-  // substract init mv part from b
+  // subtract init mv part from b
   av1_mtx_vect_multi_left(&A, mv_init_vec, temp_b, 2 * width * height);
   for (int i = 0; i < 2 * width * height; i++) {
     b[i] = -temp_b[i];
@@ -882,10 +882,11 @@ static void solve_horn_schunck(const double *ix, const double *iy,
 }
 
 // Calculate optical flow from from_frame to to_frame using the H-S method.
-void horn_schunck(const YV12_BUFFER_CONFIG *from_frame,
-                  const YV12_BUFFER_CONFIG *to_frame, const int level,
-                  const int mv_stride, const int mv_height, const int mv_width,
-                  const OPFL_PARAMS *opfl_params, LOCALMV *mvs) {
+static void horn_schunck(const YV12_BUFFER_CONFIG *from_frame,
+                         const YV12_BUFFER_CONFIG *to_frame, const int level,
+                         const int mv_stride, const int mv_height,
+                         const int mv_width, const OPFL_PARAMS *opfl_params,
+                         LOCALMV *mvs) {
   // mvs are always on level 0, here we define two new mv arrays that is of size
   // of this level.
   const int fw = from_frame->y_crop_width;
