@@ -937,6 +937,25 @@ static INLINE uint8_t *get_buf_by_bd(const MACROBLOCKD *xd, uint8_t *buf16) {
              : buf16;
 }
 
+typedef struct BitDepthInfo {
+  int bit_depth;
+  /*! Is the image buffer high bit depth?
+   * Low bit depth buffer uses uint8_t.
+   * High bit depth buffer uses uint16_t.
+   * Equivalent to cm->seq_params.use_highbitdepth
+   */
+  int use_highbitdepth_buf;
+} BitDepthInfo;
+
+static INLINE BitDepthInfo get_bit_depth_info(const MACROBLOCKD *xd) {
+  BitDepthInfo bit_depth_info;
+  bit_depth_info.bit_depth = xd->bd;
+  bit_depth_info.use_highbitdepth_buf = is_cur_buf_hbd(xd);
+  assert(IMPLIES(!bit_depth_info.use_highbitdepth_buf,
+                 bit_depth_info.bit_depth == 8));
+  return bit_depth_info;
+}
+
 static INLINE int get_sqr_bsize_idx(BLOCK_SIZE bsize) {
   switch (bsize) {
     case BLOCK_4X4: return 0;

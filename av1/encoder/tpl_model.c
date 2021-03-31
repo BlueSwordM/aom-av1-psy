@@ -180,6 +180,7 @@ static AOM_INLINE void tpl_fwd_txfm(const int16_t *src_diff, int bw,
   av1_fwd_txfm(src_diff, coeff, bw, &txfm_param);
 }
 
+// TODO(angiebird): Replace x with bd_info.
 static AOM_INLINE int64_t tpl_get_satd_cost(const MACROBLOCK *x,
                                             int16_t *src_diff, int diff_stride,
                                             const uint8_t *src, int src_stride,
@@ -187,11 +188,13 @@ static AOM_INLINE int64_t tpl_get_satd_cost(const MACROBLOCK *x,
                                             tran_low_t *coeff, int bw, int bh,
                                             TX_SIZE tx_size) {
   const MACROBLOCKD *xd = &x->e_mbd;
+  const BitDepthInfo bd_info = get_bit_depth_info(xd);
   const int pix_num = bw * bh;
 
-  av1_subtract_block(xd, bh, bw, src_diff, diff_stride, src, src_stride, dst,
-                     dst_stride);
-  tpl_fwd_txfm(src_diff, bw, coeff, tx_size, xd->bd, is_cur_buf_hbd(xd));
+  av1_subtract_block(bd_info, bh, bw, src_diff, diff_stride, src, src_stride,
+                     dst, dst_stride);
+  tpl_fwd_txfm(src_diff, bw, coeff, tx_size, bd_info.bit_depth,
+               bd_info.use_highbitdepth_buf);
   return aom_satd(coeff, pix_num);
 }
 
@@ -216,9 +219,10 @@ static AOM_INLINE void txfm_quant_rdcost(
     tran_low_t *qcoeff, tran_low_t *dqcoeff, int bw, int bh, TX_SIZE tx_size,
     int *rate_cost, int64_t *recon_error, int64_t *sse) {
   const MACROBLOCKD *xd = &x->e_mbd;
+  const BitDepthInfo bd_info = get_bit_depth_info(xd);
   uint16_t eob;
-  av1_subtract_block(xd, bh, bw, src_diff, diff_stride, src, src_stride, dst,
-                     dst_stride);
+  av1_subtract_block(bd_info, bh, bw, src_diff, diff_stride, src, src_stride,
+                     dst, dst_stride);
   tpl_fwd_txfm(src_diff, diff_stride, coeff, tx_size, xd->bd,
                is_cur_buf_hbd(xd));
 

@@ -547,6 +547,7 @@ static int64_t intra_model_rd(const AV1_COMMON *cm, MACROBLOCK *const x,
                               int plane, BLOCK_SIZE plane_bsize,
                               TX_SIZE tx_size, int use_hadamard) {
   MACROBLOCKD *const xd = &x->e_mbd;
+  const BitDepthInfo bd_info = get_bit_depth_info(xd);
   int row, col;
   assert(!is_inter_block(xd->mi[0]));
   const int stepr = tx_size_high_unit[tx_size];
@@ -567,7 +568,7 @@ static int64_t intra_model_rd(const AV1_COMMON *cm, MACROBLOCK *const x,
       // used in this for loop, therefore we don't need to properly add offset
       // to the buffers.
       av1_subtract_block(
-          xd, txbh, txbw, p->src_diff, block_size_wide[plane_bsize],
+          bd_info, txbh, txbw, p->src_diff, block_size_wide[plane_bsize],
           p->src.buf + (((row * p->src.stride) + col) << 2), p->src.stride,
           pd->dst.buf + (((row * pd->dst.stride) + col) << 2), pd->dst.stride);
       av1_quick_txfm(use_hadamard, tx_size, is_cur_buf_hbd(xd), xd->bd,
