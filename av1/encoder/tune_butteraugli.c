@@ -20,9 +20,9 @@
 
 static const int resize_factor = 2;
 
-void set_mb_butteraugli_rdmult_scaling(AV1_COMP *cpi,
-                                       const YV12_BUFFER_CONFIG *source,
-                                       const YV12_BUFFER_CONFIG *recon) {
+static void set_mb_butteraugli_rdmult_scaling(AV1_COMP *cpi,
+                                              const YV12_BUFFER_CONFIG *source,
+                                              const YV12_BUFFER_CONFIG *recon) {
   AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int bit_depth = cpi->td.mb.e_mbd.bd;
