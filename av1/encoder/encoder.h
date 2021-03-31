@@ -2586,6 +2586,11 @@ typedef struct AV1_COMP {
 #endif
 
   /*!
+   * Count the number of OBU_FRAME and OBU_FRAME_HEADER for level calculation.
+   */
+  int frame_header_count;
+
+  /*!
    * Parameters for AV1 bitstream levels.
    */
   AV1LevelParams level_params;

@@ -2405,8 +2405,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
         const size_t move_offset = obu_header_size + length_field_size;
         memmove(ctx->cx_data + move_offset, ctx->cx_data, frame_size);
-        obu_header_size = av1_write_obu_header(
-            &cpi->level_params, OBU_TEMPORAL_DELIMITER, 0, ctx->cx_data);
+        obu_header_size =
+            av1_write_obu_header(&cpi->level_params, &cpi->frame_header_count,
+                                 OBU_TEMPORAL_DELIMITER, 0, ctx->cx_data);
 
         // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
         if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,

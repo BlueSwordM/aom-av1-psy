@@ -4055,7 +4055,8 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi) {
   if (payload_offset + sequence_header_size > sizeof(header_buf)) return NULL;
   memmove(&header_buf[payload_offset], &header_buf[0], sequence_header_size);
 
-  if (av1_write_obu_header(&cpi->level_params, OBU_SEQUENCE_HEADER, 0,
+  if (av1_write_obu_header(&cpi->level_params, &cpi->frame_header_count,
+                           OBU_SEQUENCE_HEADER, 0,
                            &header_buf[0]) != obu_header_size) {
     return NULL;
   }

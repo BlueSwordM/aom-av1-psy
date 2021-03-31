@@ -1057,7 +1057,7 @@ void av1_update_level_info(AV1_COMP *cpi, size_t size, int64_t ts_start,
   const int tile_rows = cm->tiles.rows;
   const int tiles = tile_cols * tile_rows;
   const int luma_pic_size = upscaled_width * height;
-  const int frame_header_count = level_params->frame_header_count;
+  const int frame_header_count = cpi->frame_header_count;
   const int show_frame = cm->show_frame;
   const int show_existing_frame = cm->show_existing_frame;
 
