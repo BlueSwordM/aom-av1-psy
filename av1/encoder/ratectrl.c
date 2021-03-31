@@ -2648,6 +2648,15 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
   av1_rc_set_frame_target(cpi, target, cm->width, cm->height);
   rc->base_frame_target = target;
   cm->current_frame.frame_type = frame_params->frame_type;
+  // For fixed mode SVC: if KSVC is enabled remove inter layer
+  // prediction on spatial enhancement layer frames for frames
+  // whose base is not KEY frame.
+  if (cpi->use_svc && !svc->use_flexible_mode && svc->ksvc_fixed_mode &&
+      svc->number_spatial_layers > 1 &&
+      !svc->layer_context[layer].is_key_frame) {
+    ExternalFlags *const ext_flags = &cpi->ext_flags;
+    ext_flags->ref_frame_flags ^= AOM_GOLD_FLAG;
+  }
 }
 
 int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {

@@ -369,12 +369,11 @@ void av1_set_svc_fixed_mode(AV1_COMP *const cpi) {
   for (i = 0; i < INTER_REFS_PER_FRAME; i++) svc->ref_idx[i] = i;
   for (i = 0; i < INTER_REFS_PER_FRAME; i++) svc->reference[i] = 0;
   for (i = 0; i < REF_FRAMES; i++) svc->refresh[i] = 0;
-  // Always reference LAST, and reference GOLDEN on SL > 0 for non-ksvc.
+  // Always reference LAST, and reference GOLDEN on SL > 0.
+  // For KSVC: GOLDEN reference will be removed on INTER_FRAMES later
+  // when frame_type is set.
   svc->reference[SVC_LAST_FRAME] = 1;
-  if (svc->spatial_layer_id > 0 &&
-      (!svc->ksvc_fixed_mode ||
-       cpi->common.current_frame.frame_type == KEY_FRAME))
-    svc->reference[SVC_GOLDEN_FRAME] = 1;
+  if (svc->spatial_layer_id > 0) svc->reference[SVC_GOLDEN_FRAME] = 1;
   if (svc->temporal_layer_id == 0) {
     // Base temporal layer.
     if (svc->spatial_layer_id == 0) {
