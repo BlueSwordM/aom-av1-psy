@@ -1363,10 +1363,12 @@ void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
   assert(xd->mi[0]->angle_delta[PLANE_TYPE_UV] == 0);
   assert(xd->mi[0]->filter_intra_mode_info.use_filter_intra == 0);
   assert(xd->mi[0]->use_intrabc == 0);
+  const SequenceHeader *seq_params = &cm->seq_params;
 
-  av1_predict_intra_block(cm, xd, pd->width, pd->height,
-                          max_txsize_rect_lookup[plane_bsize], mode, 0, 0,
-                          FILTER_INTRA_MODES, ctx->plane[plane],
+  av1_predict_intra_block(xd, seq_params->sb_size,
+                          seq_params->enable_intra_edge_filter, pd->width,
+                          pd->height, max_txsize_rect_lookup[plane_bsize], mode,
+                          0, 0, FILTER_INTRA_MODES, ctx->plane[plane],
                           ctx->stride[plane], dst, dst_stride, 0, 0, plane);
 }
 

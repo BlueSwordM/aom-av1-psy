@@ -307,6 +307,7 @@ static void get_rate_distortion(
     const YV12_BUFFER_CONFIG *ref_frame_ptr[2], uint8_t *rec_buffer_pool[3],
     const int rec_stride_pool[3], TX_SIZE tx_size, PREDICTION_MODE best_mode,
     int mi_row, int mi_col, int use_y_only_rate_distortion) {
+  const SequenceHeader *seq_params = &cm->seq_params;
   *rate_cost = 0;
   *recon_error = 1;
 
@@ -342,7 +343,8 @@ static void get_rate_distortion(
     for (int ref = 0; ref < 1 + is_compound; ++ref) {
       if (!is_inter_mode(best_mode)) {
         av1_predict_intra_block(
-            cm, xd, block_size_wide[bsize_plane], block_size_high[bsize_plane],
+            xd, seq_params->sb_size, seq_params->enable_intra_edge_filter,
+            block_size_wide[bsize_plane], block_size_high[bsize_plane],
             max_txsize_rect_lookup[bsize_plane], best_mode, 0, 0,
             FILTER_INTRA_MODES, dst_buffer, dst_buffer_stride, dst_buffer,
             dst_buffer_stride, 0, 0, plane);
@@ -503,12 +505,14 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
   // H_PRED, and V_PRED
   const PREDICTION_MODE last_intra_mode =
       cpi->sf.tpl_sf.prune_intra_modes ? D45_PRED : INTRA_MODE_END;
+  const SequenceHeader *seq_params = &cm->seq_params;
   for (PREDICTION_MODE mode = INTRA_MODE_START; mode < last_intra_mode;
        ++mode) {
-    av1_predict_intra_block(cm, xd, block_size_wide[bsize],
-                            block_size_high[bsize], tx_size, mode, 0, 0,
-                            FILTER_INTRA_MODES, dst_buffer, dst_buffer_stride,
-                            predictor, bw, 0, 0, 0);
+    av1_predict_intra_block(xd, seq_params->sb_size,
+                            seq_params->enable_intra_edge_filter,
+                            block_size_wide[bsize], block_size_high[bsize],
+                            tx_size, mode, 0, 0, FILTER_INTRA_MODES, dst_buffer,
+                            dst_buffer_stride, predictor, bw, 0, 0, 0);
 
     intra_cost =
         tpl_get_satd_cost(bd_info, src_diff, bw, src_mb_buffer, src_stride,

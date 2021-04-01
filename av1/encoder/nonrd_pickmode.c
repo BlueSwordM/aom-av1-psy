@@ -1618,6 +1618,7 @@ typedef struct _mode_search_stat {
 static void compute_intra_yprediction(const AV1_COMMON *cm,
                                       PREDICTION_MODE mode, BLOCK_SIZE bsize,
                                       MACROBLOCK *x, MACROBLOCKD *xd) {
+  const SequenceHeader *seq_params = &cm->seq_params;
   struct macroblockd_plane *const pd = &xd->plane[0];
   struct macroblock_plane *const p = &x->plane[0];
   uint8_t *const src_buf_base = p->src.buf;
@@ -1644,10 +1645,11 @@ static void compute_intra_yprediction(const AV1_COMMON *cm,
     for (col = 0; col < max_blocks_wide; col += (1 << tx_size)) {
       p->src.buf = &src_buf_base[4 * (row * (int64_t)src_stride + col)];
       pd->dst.buf = &dst_buf_base[4 * (row * (int64_t)dst_stride + col)];
-      av1_predict_intra_block(cm, xd, block_size_wide[bsize],
-                              block_size_high[bsize], tx_size, mode, 0, 0,
-                              FILTER_INTRA_MODES, pd->dst.buf, dst_stride,
-                              pd->dst.buf, dst_stride, 0, 0, plane);
+      av1_predict_intra_block(
+          xd, seq_params->sb_size, seq_params->enable_intra_edge_filter,
+          block_size_wide[bsize], block_size_high[bsize], tx_size, mode, 0, 0,
+          FILTER_INTRA_MODES, pd->dst.buf, dst_stride, pd->dst.buf, dst_stride,
+          0, 0, plane);
     }
   }
   p->src.buf = src_buf_base;
