@@ -143,13 +143,15 @@ if(NOT BUILD_SHARED_LIBS)
                 "${AOM_ROOT}/test/screen_content_test.cc"
                 "${AOM_ROOT}/test/segment_binarization_sync.cc"
                 "${AOM_ROOT}/test/still_picture_test.cc"
+                "${AOM_ROOT}/test/temporal_filter_test.cc"
                 "${AOM_ROOT}/test/tile_config_test.cc"
                 "${AOM_ROOT}/test/tile_independence_test.cc"
-                "${AOM_ROOT}/test/temporal_filter_test.cc")
+                "${AOM_ROOT}/test/tpl_model_test.cc")
     if(CONFIG_REALTIME_ONLY)
       list(REMOVE_ITEM AOM_UNIT_TEST_COMMON_SOURCES
                        "${AOM_ROOT}/test/cnn_test.cc"
-                       "${AOM_ROOT}/test/selfguided_filter_test.cc")
+                       "${AOM_ROOT}/test/selfguided_filter_test.cc"
+                       "${AOM_ROOT}/test/tpl_model_test.cc")
     endif()
     if(NOT CONFIG_AV1_HIGHBITDEPTH)
       list(REMOVE_ITEM AOM_UNIT_TEST_COMMON_SOURCES

@@ -1722,11 +1722,9 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
   aom_clear_system_state();
 }
 
-#define EPSILON (0.0000001)
-
 double av1_exponential_entropy(double q_step, double b) {
   aom_clear_system_state();
-  double z = fmax(exp(-q_step / b), EPSILON);
+  double z = fmax(exp(-q_step / b), TPL_EPSILON);
   return -log2(1 - z) - z * log2(z) / (1 - z);
 }
 
@@ -1734,7 +1732,7 @@ double av1_laplace_entropy(double q_step, double b, double zero_bin_ratio) {
   aom_clear_system_state();
   // zero bin's size is zero_bin_ratio * q_step
   // non-zero bin's size is q_step
-  double z = fmax(exp(-zero_bin_ratio / 2 * q_step / b), EPSILON);
+  double z = fmax(exp(-zero_bin_ratio / 2 * q_step / b), TPL_EPSILON);
   double h = av1_exponential_entropy(q_step, b);
   double r = -(1 - z) * log2(1 - z) - z * log2(z) + z * (h + 1);
   return r;
@@ -1756,5 +1754,37 @@ double av1_laplace_estimate_frame_rate(int q_index, int block_count,
         av1_laplace_entropy(ac_q_step, abs_coeff_mean[i], zero_bin_ratio);
   }
   est_rate *= block_count;
+  return est_rate;
+}
+
+double av1_estimate_coeff_entropy(double q_step, double b,
+                                  double zero_bin_ratio, int qcoeff) {
+  int abs_qcoeff = abs(qcoeff);
+  double z0 = fmax(exp(-zero_bin_ratio / 2 * q_step / b), TPL_EPSILON);
+  if (abs_qcoeff == 0) {
+    double r = -log2(1 - z0);
+    return r;
+  } else {
+    double z = fmax(exp(-q_step / b), TPL_EPSILON);
+    double r = 1 - log2(z0) - log2(1 - z) - (abs_qcoeff - 1) * log2(z);
+    return r;
+  }
+}
+
+double av1_estimate_txfm_block_entropy(int q_index,
+                                       const double *abs_coeff_mean,
+                                       int *qcoeff_arr, int coeff_num) {
+  double zero_bin_ratio = 2;
+  double dc_q_step = av1_dc_quant_QTX(q_index, 0, AOM_BITS_8) / 4.;
+  double ac_q_step = av1_ac_quant_QTX(q_index, 0, AOM_BITS_8) / 4.;
+  double est_rate = 0;
+  // dc coeff
+  est_rate += av1_estimate_coeff_entropy(dc_q_step, abs_coeff_mean[0],
+                                         zero_bin_ratio, qcoeff_arr[0]);
+  // ac coeff
+  for (int i = 1; i < coeff_num; ++i) {
+    est_rate += av1_estimate_coeff_entropy(ac_q_step, abs_coeff_mean[i],
+                                           zero_bin_ratio, qcoeff_arr[i]);
+  }
   return est_rate;
 }

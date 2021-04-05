@@ -22,7 +22,14 @@ struct AV1_COMP;
 struct EncodeFrameParams;
 struct EncodeFrameInput;
 
-#include "av1/encoder/encoder.h"
+#include "config/aom_config.h"
+
+#include "aom_scale/yv12config.h"
+
+#include "av1/common/mv.h"
+#include "av1/common/scale.h"
+#include "av1/encoder/block.h"
+#include "av1/encoder/lookahead.h"
 
 static INLINE BLOCK_SIZE convert_length_to_bsize(int length) {
   switch (length) {
@@ -81,6 +88,8 @@ typedef struct AV1TplRowMultiThreadInfo {
 #define MAX_LENGTH_TPL_FRAME_STATS (MAX_TPL_FRAME_IDX + REF_FRAMES + 1)
 #define MAX_TPL_EXTEND (MAX_LAG_BUFFERS - MAX_GF_INTERVAL)
 #define TPL_DEP_COST_SCALE_LOG2 4
+
+#define TPL_EPSILON 0.0000001
 
 typedef struct TplTxfmStats {
   double abs_coeff_sum[256];  // Assume we are using 16x16 transform block
@@ -277,7 +286,7 @@ double av1_laplace_entropy(double q_step, double b, double zero_bin_ratio);
 /*!\brief  Compute the frame rate using transform block stats
  *
  * Assume each position i in the transform block is of Laplace distribution
- * with maximum absolute deviation abs_coeff_mean[i]
+ * with mean absolute deviation abs_coeff_mean[i]
  *
  * Then we can use av1_laplace_entropy() to compute the expected frame
  * rate.
@@ -286,7 +295,7 @@ double av1_laplace_entropy(double q_step, double b, double zero_bin_ratio);
  *
  * \param[in]    q_index         quantizer index
  * \param[in]    block_count     number of transform blocks
- * \param[in]    abs_coeff_mean  array of maximum absolute deviation
+ * \param[in]    abs_coeff_mean  array of mean absolute deviation
  * \param[in]    coeff_num       number of coefficients per transform block
  *
  * \return expected frame rate
@@ -304,6 +313,40 @@ double av1_laplace_estimate_frame_rate(int q_index, int block_count,
  *
  */
 void av1_tpl_stats_init_txfm_stats(TplDepFrame *tpl_frame, int coeff_num);
+
+/*!\brief  Estimate coefficient entropy using Laplace dsitribution
+ *
+ *\ingroup tpl_modelling
+ *
+ * This function is equivalent to -log2(laplace_prob()), where laplace_prob() is
+ * defined in tpl_model_test.cc
+ *
+ * \param[in]    q_step          quantizer step size without any scaling
+ * \param[in]    b               mean absolute deviation of Laplace distribution
+ * \param[in]    zero_bin_ratio  zero bin's size is zero_bin_ratio * q_step
+ * \param[in]    qcoeff          quantized coefficient
+ *
+ * \return estimated coefficient entropy
+ *
+ */
+double av1_estimate_coeff_entropy(double q_step, double b,
+                                  double zero_bin_ratio, int qcoeff);
+
+/*!\brief  Estimate entropy of a transform block using Laplace dsitribution
+ *
+ *\ingroup tpl_modelling
+ *
+ * \param[in]    q_index         quantizer index
+ * \param[in]    abs_coeff_mean  array of mean absolute deviations
+ * \param[in]    qcoeff_arr      array of quantized coefficients
+ * \param[in]    coeff_num       number of coefficients per transform block
+ *
+ * \return estimated transform block entropy
+ *
+ */
+double av1_estimate_txfm_block_entropy(int q_index,
+                                       const double *abs_coeff_mean,
+                                       int *qcoeff_arr, int coeff_num);
 
 /*!\endcond */
 #ifdef __cplusplus
