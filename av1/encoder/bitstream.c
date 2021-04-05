@@ -3459,7 +3459,7 @@ typedef struct {
 typedef struct {
   struct aom_write_bit_buffer *saved_wb;
   TileBufferEnc buf;
-  uint32_t *obu_header_size;
+  uint32_t obu_header_size;
   uint32_t *total_size;
   uint8_t *dst;
   uint8_t *tile_data_curr;
@@ -3691,7 +3691,7 @@ static void pack_tile_info(AV1_COMP *const cpi,
     *curr_tg_hdr_size = av1_write_obu_header(
         &cpi->ppi->level_params, &cpi->frame_header_count, obu_type,
         pack_bs_params->obu_extn_header, tile_data_curr);
-    *pack_bs_params->obu_header_size = *curr_tg_hdr_size;
+    pack_bs_params->obu_header_size = *curr_tg_hdr_size;
 
     if (cpi->num_tg == 1)
       *curr_tg_hdr_size += write_frame_header_obu(
@@ -3722,6 +3722,55 @@ static void pack_tile_info(AV1_COMP *const cpi,
     // size of this tile
     mem_put_le32(pack_bs_params->buf.data, tile_size - AV1_MIN_TILE_SIZE_BYTES);
   }
+}
+
+void write_last_tile_info(AV1_COMP *const cpi, const FrameHeaderInfo *fh_info,
+                          struct aom_write_bit_buffer *saved_wb,
+                          size_t *curr_tg_data_size, uint8_t *curr_tg_start,
+                          uint32_t *const total_size, uint8_t **tile_data_start,
+                          int *const largest_tile_id, int *const is_first_tg,
+                          uint32_t obu_header_size, uint8_t obu_extn_header) {
+  // write current tile group size
+  const uint32_t obu_payload_size =
+      (uint32_t)(*curr_tg_data_size) - obu_header_size;
+  const size_t length_field_size =
+      obu_memmove(obu_header_size, obu_payload_size, curr_tg_start);
+  if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
+                              curr_tg_start) != AOM_CODEC_OK) {
+    assert(0);
+  }
+  *curr_tg_data_size += (int)length_field_size;
+  *total_size += (uint32_t)length_field_size;
+  *tile_data_start += length_field_size;
+  if (cpi->num_tg == 1) {
+    // if this tg is combined with the frame header then update saved
+    // frame header base offset accroding to length field size
+    saved_wb->bit_buffer += length_field_size;
+  }
+
+  if (!(*is_first_tg) && cpi->common.features.error_resilient_mode) {
+    // Make room for a duplicate Frame Header OBU.
+    memmove(curr_tg_start + fh_info->total_length, curr_tg_start,
+            *curr_tg_data_size);
+
+    // Insert a copy of the Frame Header OBU.
+    memcpy(curr_tg_start, fh_info->frame_header, fh_info->total_length);
+
+    // Force context update tile to be the first tile in error
+    // resiliant mode as the duplicate frame headers will have
+    // context_update_tile_id set to 0
+    *largest_tile_id = 0;
+
+    // Rewrite the OBU header to change the OBU type to Redundant Frame
+    // Header.
+    av1_write_obu_header(&cpi->ppi->level_params, &cpi->frame_header_count,
+                         OBU_REDUNDANT_FRAME_HEADER, obu_extn_header,
+                         &curr_tg_start[fh_info->obu_header_byte_offset]);
+
+    *curr_tg_data_size += (int)(fh_info->total_length);
+    *total_size += (uint32_t)(fh_info->total_length);
+  }
+  *is_first_tg = 0;
 }
 
 // Store information related to each default tile in the OBU header.
@@ -3771,7 +3820,7 @@ static void write_tile_obu(
       pack_bs_params.is_last_tile_in_tg = is_last_tile_in_tg;
       pack_bs_params.new_tg = new_tg;
       pack_bs_params.obu_extn_header = obu_extn_header;
-      pack_bs_params.obu_header_size = obu_header_size;
+      pack_bs_params.obu_header_size = 0;
       pack_bs_params.saved_wb = saved_wb;
       pack_bs_params.tile_col = tile_col;
       pack_bs_params.tile_row = tile_row;
@@ -3783,6 +3832,7 @@ static void write_tile_obu(
       if (new_tg) {
         curr_tg_data_size = pack_bs_params.curr_tg_hdr_size;
         *tile_data_start += pack_bs_params.curr_tg_hdr_size;
+        *obu_header_size = pack_bs_params.obu_header_size;
         new_tg = 0;
       }
       if (is_last_tile_in_tg) new_tg = 1;
@@ -3795,51 +3845,11 @@ static void write_tile_obu(
         *max_tile_size = (unsigned int)pack_bs_params.buf.size;
       }
 
-      if (is_last_tile_in_tg) {
-        // write current tile group size
-        const uint32_t obu_payload_size =
-            (uint32_t)curr_tg_data_size - *obu_header_size;
-        const size_t length_field_size =
-            obu_memmove(*obu_header_size, obu_payload_size, tile_data_curr);
-        if (av1_write_uleb_obu_size(*obu_header_size, obu_payload_size,
-                                    tile_data_curr) != AOM_CODEC_OK) {
-          assert(0);
-        }
-        curr_tg_data_size += (int)length_field_size;
-        *total_size += (uint32_t)length_field_size;
-        *tile_data_start += length_field_size;
-        if (num_tg_hdrs == 1) {
-          // if this tg is combined with the frame header then update saved
-          // frame header base offset accroding to length field size
-          saved_wb->bit_buffer += length_field_size;
-        }
-
-        if (!is_first_tg && cm->features.error_resilient_mode) {
-          // Make room for a duplicate Frame Header OBU.
-          memmove(tile_data_curr + fh_info->total_length, tile_data_curr,
-                  curr_tg_data_size);
-
-          // Insert a copy of the Frame Header OBU.
-          memcpy(tile_data_curr, fh_info->frame_header, fh_info->total_length);
-
-          // Force context update tile to be the first tile in error
-          // resiliant mode as the duplicate frame headers will have
-          // context_update_tile_id set to 0
-          *largest_tile_id = 0;
-
-          // Rewrite the OBU header to change the OBU type to Redundant Frame
-          // Header.
-          av1_write_obu_header(
-              &cpi->ppi->level_params, &cpi->frame_header_count,
-              OBU_REDUNDANT_FRAME_HEADER, obu_extn_header,
-              &tile_data_curr[fh_info->obu_header_byte_offset]);
-          tile_data_curr += fh_info->total_length;
-
-          curr_tg_data_size += (int)(fh_info->total_length);
-          *total_size += (uint32_t)(fh_info->total_length);
-        }
-        is_first_tg = 0;
-      }
+      if (is_last_tile_in_tg)
+        write_last_tile_info(cpi, fh_info, saved_wb, &curr_tg_data_size,
+                             tile_data_curr, total_size, tile_data_start,
+                             largest_tile_id, &is_first_tg, *obu_header_size,
+                             obu_extn_header);
       *total_size += (uint32_t)pack_bs_params.buf.size;
     }
   }
