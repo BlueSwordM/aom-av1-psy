@@ -274,6 +274,17 @@ static void set_allintra_speed_feature_framesize_dependent(
 
     sf->part_sf.use_square_partition_only_threshold = BLOCK_16X16;
   }
+
+  // TODO(kyslov@): Please move the real-time key frame coding speed features
+  // here accordingly.
+  if (speed >= 7) {
+  }
+
+  if (speed >= 8) {
+  }
+
+  if (speed >= 9) {
+  }
 }
 
 static void set_allintra_speed_features_framesize_independent(
@@ -472,6 +483,17 @@ static void set_allintra_speed_features_framesize_independent(
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
 
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
+  }
+
+  // TODO(kyslov@): Please move the real-time key frame coding speed features
+  // here accordingly.
+  if (speed >= 7) {
+  }
+
+  if (speed >= 8) {
+  }
+
+  if (speed >= 9) {
   }
 
   // Intra txb hash is currently not compatible with multi-winner mode as the
