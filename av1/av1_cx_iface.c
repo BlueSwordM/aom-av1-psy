@@ -380,7 +380,11 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, deltaq_mode, DELTA_Q_MODE_COUNT - 1);
   RANGE_CHECK_HI(extra_cfg, deltalf_mode, 1);
   RANGE_CHECK_HI(extra_cfg, frame_periodic_boost, 1);
-  RANGE_CHECK_HI(cfg, g_usage, 2);
+#if CONFIG_REALTIME_ONLY
+  RANGE_CHECK(cfg, g_usage, AOM_USAGE_REALTIME, AOM_USAGE_REALTIME);
+#else
+  RANGE_CHECK_HI(cfg, g_usage, AOM_USAGE_ALL_INTRA);
+#endif
   RANGE_CHECK_HI(cfg, g_threads, MAX_NUM_THREADS);
   RANGE_CHECK(cfg, rc_end_usage, AOM_VBR, AOM_Q);
   RANGE_CHECK_HI(cfg, rc_undershoot_pct, 100);
@@ -3362,6 +3366,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
 };
 
 static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
+#if !CONFIG_REALTIME_ONLY
   {
       // NOLINT
       AOM_USAGE_GOOD_QUALITY,  // g_usage - non-realtime usage
@@ -3432,6 +3437,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       { 0, 128, 128, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // cfg
   },
+#endif  // !CONFIG_REALTIME_ONLY
   {
       // NOLINT
       AOM_USAGE_REALTIME,  // g_usage - real-time usage
@@ -3502,6 +3508,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       { 0, 128, 128, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // cfg
   },
+#if !CONFIG_REALTIME_ONLY
   {
       // NOLINT
       AOM_USAGE_ALL_INTRA,  // g_usage - all intra usage
@@ -3572,6 +3579,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       { 0, 128, 128, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // cfg
   },
+#endif  // !CONFIG_REALTIME_ONLY
 };
 
 // This data structure and function are exported in aom/aomcx.h
@@ -3596,13 +3604,13 @@ aom_codec_iface_t aom_codec_av1_cx_algo = {
   },
   {
       // NOLINT
-      3,                           // 3 cfg
-      encoder_usage_cfg,           // aom_codec_enc_cfg_t
-      encoder_encode,              // aom_codec_encode_fn_t
-      encoder_get_cxdata,          // aom_codec_get_cx_data_fn_t
-      encoder_set_config,          // aom_codec_enc_config_set_fn_t
-      encoder_get_global_headers,  // aom_codec_get_global_headers_fn_t
-      encoder_get_preview          // aom_codec_get_preview_frame_fn_t
+      NELEMENTS(encoder_usage_cfg),  // cfg count
+      encoder_usage_cfg,             // aom_codec_enc_cfg_t
+      encoder_encode,                // aom_codec_encode_fn_t
+      encoder_get_cxdata,            // aom_codec_get_cx_data_fn_t
+      encoder_set_config,            // aom_codec_enc_config_set_fn_t
+      encoder_get_global_headers,    // aom_codec_get_global_headers_fn_t
+      encoder_get_preview            // aom_codec_get_preview_frame_fn_t
   },
   encoder_set_option  // aom_codec_set_option_fn_t
 };
