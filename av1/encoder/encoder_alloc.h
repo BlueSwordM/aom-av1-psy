@@ -244,7 +244,6 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
   cpi->td.firstpass_ctx = NULL;
 
-  av1_free_ref_frame_buffers(cm->buffer_pool);
   av1_free_txb_buf(cpi);
   av1_free_context_buffers(cm);
 

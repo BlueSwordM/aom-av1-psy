@@ -860,6 +860,9 @@ AV1_PRIMARY *av1_create_primary_compressor(
   ppi->output_pkt_list = pkt_list_head;
   ppi->b_calculate_psnr = CONFIG_INTERNAL_STATS;
   ppi->frames_left = oxcf->input_cfg.limit;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  ppi->num_fp_contexts = 1;
+#endif
 
   av1_primary_rc_init(oxcf, &ppi->p_rc);
 
@@ -1636,7 +1639,6 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 #endif  // CONFIG_INTERNAL_STATS
 
   av1_remove_common(cm);
-  av1_free_ref_frame_buffers(cm->buffer_pool);
 
   aom_free(cpi);
 

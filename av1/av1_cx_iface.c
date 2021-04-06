@@ -1324,7 +1324,14 @@ static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
     set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg);
     // On profile change, request a key frame
     force_key |= ctx->ppi->cpi->common.seq_params.profile != ctx->oxcf.profile;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    int i;
+    for (i = 0; i < ctx->ppi->num_fp_contexts; i++) {
+      av1_change_config(ctx->ppi->parallel_cpi[i], &ctx->oxcf);
+    }
+#else
     av1_change_config(ctx->ppi->cpi, &ctx->oxcf);
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
     if (ctx->ppi->cpi_lap != NULL) {
       av1_change_config(ctx->ppi->cpi_lap, &ctx->oxcf);
     }
@@ -1369,7 +1376,14 @@ static aom_codec_err_t update_extra_cfg(aom_codec_alg_priv_t *ctx,
   if (res == AOM_CODEC_OK) {
     ctx->extra_cfg = *extra_cfg;
     set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg);
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    int i;
+    for (i = 0; i < ctx->ppi->num_fp_contexts; i++) {
+      av1_change_config(ctx->ppi->parallel_cpi[i], &ctx->oxcf);
+    }
+#else
     av1_change_config(ctx->ppi->cpi, &ctx->oxcf);
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
     if (ctx->ppi->cpi_lap != NULL) {
       av1_change_config(ctx->ppi->cpi_lap, &ctx->oxcf);
     }
@@ -2204,14 +2218,16 @@ static aom_codec_err_t create_context_and_bufferpool(
     AV1EncoderConfig *oxcf, COMPRESSOR_STAGE stage, int lap_lag_in_frames) {
   aom_codec_err_t res = AOM_CODEC_OK;
 
-  *p_buffer_pool = (BufferPool *)aom_calloc(1, sizeof(BufferPool));
-  if (*p_buffer_pool == NULL) return AOM_CODEC_MEM_ERROR;
+  if (*p_buffer_pool == NULL) {
+    *p_buffer_pool = (BufferPool *)aom_calloc(1, sizeof(BufferPool));
+    if (*p_buffer_pool == NULL) return AOM_CODEC_MEM_ERROR;
 
 #if CONFIG_MULTITHREAD
-  if (pthread_mutex_init(&((*p_buffer_pool)->pool_mutex), NULL)) {
-    return AOM_CODEC_MEM_ERROR;
-  }
+    if (pthread_mutex_init(&((*p_buffer_pool)->pool_mutex), NULL)) {
+      return AOM_CODEC_MEM_ERROR;
+    }
 #endif
+  }
   *p_cpi = av1_create_compressor(ppi, oxcf, *p_buffer_pool, stage,
                                  lap_lag_in_frames);
   if (*p_cpi == NULL) res = AOM_CODEC_MEM_ERROR;
@@ -2283,9 +2299,23 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
           priv->ppi->twopass.stats_buf_ctx->stats_in_start;
 #endif
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+      assert(priv->ppi->num_fp_contexts >= 1);
+      int i;
+      for (i = 0; i < priv->ppi->num_fp_contexts; i++) {
+        res = create_context_and_bufferpool(
+            priv->ppi, &priv->ppi->parallel_cpi[i], &priv->buffer_pool,
+            &priv->oxcf, ENCODE_STAGE, -1);
+        if (res != AOM_CODEC_OK) {
+          return res;
+        }
+      }
+      priv->ppi->cpi = priv->ppi->parallel_cpi[0];
+#else
       res = create_context_and_bufferpool(priv->ppi, &priv->ppi->cpi,
                                           &priv->buffer_pool, &priv->oxcf,
                                           ENCODE_STAGE, -1);
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
       // Create another compressor if look ahead is enabled
       if (res == AOM_CODEC_OK && *num_lap_buffers) {
@@ -2300,12 +2330,16 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
 }
 
 static void destroy_context_and_bufferpool(AV1_COMP *cpi,
-                                           BufferPool *buffer_pool) {
+                                           BufferPool **p_buffer_pool) {
   av1_remove_compressor(cpi);
+  if (*p_buffer_pool) {
+    av1_free_ref_frame_buffers(*p_buffer_pool);
 #if CONFIG_MULTITHREAD
-  if (buffer_pool) pthread_mutex_destroy(&buffer_pool->pool_mutex);
+    pthread_mutex_destroy(&(*p_buffer_pool)->pool_mutex);
 #endif
-  aom_free(buffer_pool);
+    aom_free(*p_buffer_pool);
+    *p_buffer_pool = NULL;
+  }
 }
 
 static void destroy_stats_buffer(STATS_BUFFER_CTX *stats_buf_context,
@@ -2320,9 +2354,17 @@ static aom_codec_err_t encoder_destroy(aom_codec_alg_priv_t *ctx) {
 
   if (ctx->ppi) {
     AV1_PRIMARY *ppi = ctx->ppi;
-    destroy_context_and_bufferpool(ppi->cpi, ctx->buffer_pool);
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    int i;
+    for (i = 0; i < ppi->num_fp_contexts; i++) {
+      destroy_context_and_bufferpool(ppi->parallel_cpi[i], &ctx->buffer_pool);
+    }
+    ppi->cpi = NULL;
+#else
+    destroy_context_and_bufferpool(ppi->cpi, &ctx->buffer_pool);
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
     if (ppi->cpi_lap) {
-      destroy_context_and_bufferpool(ppi->cpi_lap, ctx->buffer_pool_lap);
+      destroy_context_and_bufferpool(ppi->cpi_lap, &ctx->buffer_pool_lap);
     }
     av1_remove_primary_compressor(ppi);
   }
@@ -2499,9 +2541,16 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       if (!ppi->lookahead)
         aom_internal_error(&cpi->common.error, AOM_CODEC_MEM_ERROR,
                            "Failed to allocate lag buffers");
-
+#if CONFIG_FRAME_PARALLEL_ENCODE
+      int i;
+      for (i = 0; i < ppi->num_fp_contexts; i++) {
+        av1_check_initial_width(ppi->parallel_cpi[i], use_highbitdepth,
+                                subsampling_x, subsampling_y);
+      }
+#else
       av1_check_initial_width(cpi, use_highbitdepth, subsampling_x,
                               subsampling_y);
+#endif
       if (cpi_lap != NULL) {
         av1_check_initial_width(cpi_lap, use_highbitdepth, subsampling_x,
                                 subsampling_y);

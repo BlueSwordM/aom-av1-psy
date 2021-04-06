@@ -2064,12 +2064,29 @@ typedef struct {
   uint8_t *entropy_ctx;
 } CoeffBufferPool;
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+#define MAX_PARALLEL_FRAMES 4
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+
 /*!
  * \brief Top level primary encoder structure
  */
 typedef struct AV1_PRIMARY {
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  /*!
+   * Array of frame level encoder stage top level structures
+   */
+  struct AV1_COMP *parallel_cpi[MAX_PARALLEL_FRAMES];
+
+  /*!
+   * Number of frame level contexts(cpis)
+   */
+  int num_fp_contexts;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   /*!
    * Encode stage top level structure
+   * When CONFIG_FRAME_PARALLEL_ENCODE is enabled this is the same as
+   * parallel_cpi[0]
    */
   struct AV1_COMP *cpi;
 
