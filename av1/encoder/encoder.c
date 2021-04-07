@@ -309,7 +309,9 @@ void av1_update_frame_size(AV1_COMP *cpi) {
     alloc_context_buffers_ext(cm, &cpi->mbmi_ext_info);
 
   if (!cpi->ppi->seq_params_locked)
-    set_sb_size(&cm->seq_params, av1_select_sb_size(cpi));
+    set_sb_size(&cm->seq_params,
+                av1_select_sb_size(&cpi->oxcf, cm->width, cm->height,
+                                   cpi->svc.number_spatial_layers));
 
   set_tile_info(cm, &cpi->oxcf.tile_cfg);
 }
@@ -549,8 +551,9 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 
   cm->width = oxcf->frm_dim_cfg.width;
   cm->height = oxcf->frm_dim_cfg.height;
-  set_sb_size(seq_params,
-              av1_select_sb_size(cpi));  // set sb size before allocations
+  // set sb size before allocations
+  set_sb_size(seq_params, av1_select_sb_size(&cpi->oxcf, cm->width, cm->height,
+                                             cpi->svc.number_spatial_layers));
   alloc_compressor_data(cpi);
 
   av1_update_film_grain_parameters(cpi, oxcf);
@@ -761,7 +764,10 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   int sb_size = seq_params->sb_size;
   // Superblock size should not be updated after the first key frame.
   if (!cpi->ppi->seq_params_locked) {
-    set_sb_size(&cm->seq_params, av1_select_sb_size(cpi));
+    set_sb_size(
+        &cm->seq_params,
+        av1_select_sb_size(oxcf, frm_dim_cfg->width, frm_dim_cfg->height,
+                           cpi->svc.number_spatial_layers));
     for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i)
       seq_params->tier[i] = (oxcf->tier_mask >> i) & 1;
   }

@@ -704,10 +704,8 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
   }
 }
 
-BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi) {
-  const AV1_COMMON *const cm = &cpi->common;
-  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
-
+BLOCK_SIZE av1_select_sb_size(const AV1EncoderConfig *const oxcf, int width,
+                              int height, int number_spatial_layers) {
   if (oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_64X64)
     return BLOCK_64X64;
   if (oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_128X128)
@@ -715,7 +713,7 @@ BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi) {
 
   assert(oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_DYNAMIC);
 
-  if (cpi->svc.number_spatial_layers > 1 ||
+  if (number_spatial_layers > 1 ||
       oxcf->resize_cfg.resize_mode != RESIZE_NONE) {
     // Use the configured size (top resolution) for spatial layers or
     // on resize.
@@ -732,7 +730,7 @@ BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi) {
   // speed-feature.
   if (oxcf->superres_cfg.superres_mode == AOM_SUPERRES_NONE &&
       oxcf->resize_cfg.resize_mode == RESIZE_NONE && oxcf->speed >= 1) {
-    return AOMMIN(cm->width, cm->height) > 480 ? BLOCK_128X128 : BLOCK_64X64;
+    return AOMMIN(width, height) > 480 ? BLOCK_128X128 : BLOCK_64X64;
   }
 
   return BLOCK_128X128;
@@ -754,7 +752,9 @@ void av1_setup_frame(AV1_COMP *cpi) {
   if ((cm->current_frame.frame_type == KEY_FRAME && cm->show_frame) ||
       frame_is_sframe(cm)) {
     if (!cpi->ppi->seq_params_locked) {
-      set_sb_size(&cm->seq_params, av1_select_sb_size(cpi));
+      set_sb_size(&cm->seq_params,
+                  av1_select_sb_size(&cpi->oxcf, cm->width, cm->height,
+                                     cpi->svc.number_spatial_layers));
     }
   } else {
     const RefCntBuffer *const primary_ref_buf = get_primary_ref_frame_buf(cm);

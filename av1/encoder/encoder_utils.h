@@ -981,7 +981,8 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
 
 void av1_setup_frame(AV1_COMP *cpi);
 
-BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi);
+BLOCK_SIZE av1_select_sb_size(const AV1EncoderConfig *const oxcf, int width,
+                              int height, int number_spatial_layers);
 
 void av1_apply_active_map(AV1_COMP *cpi);
 
