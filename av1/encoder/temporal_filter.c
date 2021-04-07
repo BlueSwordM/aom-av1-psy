@@ -561,9 +561,16 @@ void av1_apply_temporal_filter_c(
       (double)TF_WINDOW_BLOCK_BALANCE_WEIGHT * inv_factor;
   // Decay factors for non-local mean approach.
   double decay_factor[MAX_MB_PLANE] = { 0 };
-  // Smaller q -> smaller filtering weight.
+  // Adjust filtering based on q.
+  // Larger q -> stronger filtering -> larger weight.
+  // Smaller q -> weaker filtering -> smaller weight.
   double q_decay = pow((double)q_factor / TF_Q_DECAY_THRESHOLD, 2);
   q_decay = CLIP(q_decay, 1e-5, 1);
+  if (q_factor >= TF_QINDEX_CUTOFF) {
+    // Max q_factor is 255, therefore the upper bound of q_decay is 8.
+    // We do not need a clip here.
+    q_decay = 0.5 * pow((double)q_factor / 64, 2);
+  }
   // Smaller strength -> smaller filtering weight.
   double s_decay = pow((double)filter_strength / TF_STRENGTH_THRESHOLD, 2);
   s_decay = CLIP(s_decay, 1e-5, 1);
@@ -871,7 +878,7 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
           frame_to_filter->y_buffer + source_offset, source_y_stride,
           cpi->alt_ref_buffer.y_buffer + filter_offset, filter_y_stride, &sse);
       diff->sum += sse;
-      diff->sse += sse * sse;
+      diff->sse += sse * (int64_t)sse;
     }
   }
 }
