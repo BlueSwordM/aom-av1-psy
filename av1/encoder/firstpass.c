@@ -108,6 +108,9 @@ void av1_twopass_zero_stats(FIRSTPASS_STATS *section) {
   section->new_mv_count = 0.0;
   section->count = 0.0;
   section->duration = 1.0;
+  section->is_flash = 0;
+  section->noise_var = 0;
+  section->cor_coeff = 1.0;
 }
 
 void av1_accumulate_stats(FIRSTPASS_STATS *section,
@@ -814,6 +817,9 @@ static void update_firstpass_stats(AV1_COMP *cpi,
   fps.inactive_zone_rows = (double)stats->image_data_start_row;
   fps.inactive_zone_cols = (double)0;  // TODO(paulwilkins): fix
   fps.raw_error_stdev = raw_err_stdev;
+  fps.is_flash = 0;
+  fps.noise_var = (double)0;
+  fps.cor_coeff = (double)1.0;
 
   if (stats->mv_count > 0) {
     fps.MVr = (double)stats->sum_mvr / stats->mv_count;

@@ -206,8 +206,6 @@ typedef struct {
   /*!\cond */
   int num_regions;
   REGIONS regions[MAX_FIRSTPASS_ANALYSIS_FRAMES];
-  double cor_coeff[MAX_FIRSTPASS_ANALYSIS_FRAMES];
-  double noise_var[MAX_FIRSTPASS_ANALYSIS_FRAMES];
   int regions_offset;  // offset of regions from the last keyframe
   int frames_till_regions_update;
 

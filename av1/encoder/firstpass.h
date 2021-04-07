@@ -152,6 +152,18 @@ typedef struct {
    * standard deviation for (0, 0) motion prediction error
    */
   double raw_error_stdev;
+  /*!
+   * Whether the frame contains a flash
+   */
+  int64_t is_flash;
+  /*!
+   * Estimated noise variance
+   */
+  double noise_var;
+  /*!
+   * Correlation coefficient with the previous frame
+   */
+  double cor_coeff;
 } FIRSTPASS_STATS;
 
 /*!\cond */

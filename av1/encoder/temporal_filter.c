@@ -957,10 +957,10 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
       AOMMAX(cpi->rc.frames_to_key - arf_src_offset - 1, 0);
 
   // Number of buffered frames before the to-filter frame.
-  const int max_before = AOMMIN(filter_frame_lookahead_idx, key_to_curframe);
+  int max_before = AOMMIN(filter_frame_lookahead_idx, key_to_curframe);
 
   // Number of buffered frames after the to-filter frame.
-  const int max_after =
+  int max_after =
       AOMMIN(lookahead_depth - filter_frame_lookahead_idx - 1, curframe_to_key);
 
   // Estimate noises for each plane.
@@ -976,22 +976,30 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   }
   // Get quantization factor.
   const int q = av1_get_q(cpi);
-  // Get correlation estimates from first-pass
-  RATE_CONTROL *rc = &cpi->rc;
-  const double *coeff = rc->cor_coeff;
-  const int offset = rc->regions_offset;
-  int cur_frame_idx =
-      filter_frame_lookahead_idx + rc->frames_since_key - offset;
-
+  // Get correlation estimates from first-pass;
+  const FIRSTPASS_STATS *stats =
+      cpi->ppi->twopass.stats_in - (cpi->rc.frames_since_key == 0);
   double accu_coeff0 = 1.0, accu_coeff1 = 1.0;
   for (int i = 1; i <= max_after; i++) {
-    accu_coeff1 *= coeff[cur_frame_idx + i];
+    if (stats + filter_frame_lookahead_idx + i >=
+        cpi->ppi->twopass.stats_buf_ctx->stats_in_end) {
+      max_after = i - 1;
+      break;
+    }
+    accu_coeff1 *=
+        AOMMAX(stats[filter_frame_lookahead_idx + i].cor_coeff, 0.001);
   }
   if (max_after >= 1) {
     accu_coeff1 = pow(accu_coeff1, 1.0 / (double)max_after);
   }
   for (int i = 1; i <= max_before; i++) {
-    accu_coeff0 *= coeff[cur_frame_idx - i + 1];
+    if (stats + filter_frame_lookahead_idx - i + 1 <=
+        cpi->ppi->twopass.stats_buf_ctx->stats_in_start) {
+      max_before = i - 1;
+      break;
+    }
+    accu_coeff0 *=
+        AOMMAX(stats[filter_frame_lookahead_idx - i + 1].cor_coeff, 0.001);
   }
   if (max_before >= 1) {
     accu_coeff0 = pow(accu_coeff0, 1.0 / (double)max_before);
