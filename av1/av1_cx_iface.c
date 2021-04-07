@@ -158,6 +158,148 @@ struct av1_extracfg {
   unsigned int sb_multipass_unit_test;
 };
 
+#if CONFIG_REALTIME_ONLY
+// Settings changed for realtime only build:
+// cpu_used: 7
+// enable_tpl_model: 0
+// enable_restoration: 0
+// enable_obmc: 0
+// deltaq_mode: NO_DELTA_Q
+// enable_global_motion usage: 0
+// enable_warped_motion at sequence level: 0
+// allow_warped_motion at frame level: 0
+// coeff_cost_upd_freq: COST_UPD_OFF
+// mode_cost_upd_freq: COST_UPD_OFF
+// mv_cost_upd_freq: COST_UPD_OFF
+static struct av1_extracfg default_extra_cfg = {
+  7,              // cpu_used
+  1,              // enable_auto_alt_ref
+  0,              // enable_auto_bwd_ref
+  0,              // noise_sensitivity
+  0,              // sharpness
+  0,              // static_thresh
+  1,              // row_mt
+  0,              // tile_columns
+  0,              // tile_rows
+  0,              // enable_tpl_model
+  1,              // enable_keyframe_filtering
+  7,              // arnr_max_frames
+  5,              // arnr_strength
+  0,              // min_gf_interval; 0 -> default decision
+  0,              // max_gf_interval; 0 -> default decision
+  0,              // gf_min_pyr_height
+  5,              // gf_max_pyr_height
+  AOM_TUNE_PSNR,  // tuning
+  "/usr/local/share/model/vmaf_v0.6.1.json",  // VMAF model path
+  10,                                         // cq_level
+  0,                                          // rc_max_intra_bitrate_pct
+  0,                                          // rc_max_inter_bitrate_pct
+  0,                                          // gf_cbr_boost_pct
+  0,                                          // lossless
+  1,                                          // enable_cdef
+  0,                                          // enable_restoration
+  0,                                          // force_video_mode
+  0,                                          // enable_obmc
+  3,                                          // disable_trellis_quant
+  0,                                          // enable_qm
+  DEFAULT_QM_Y,                               // qm_y
+  DEFAULT_QM_U,                               // qm_u
+  DEFAULT_QM_V,                               // qm_v
+  DEFAULT_QM_FIRST,                           // qm_min
+  DEFAULT_QM_LAST,                            // qm_max
+  1,                                          // max number of tile groups
+  0,                                          // mtu_size
+  AOM_TIMING_UNSPECIFIED,       // No picture timing signaling in bitstream
+  0,                            // frame_parallel_decoding_mode
+  1,                            // enable dual filter
+  0,                            // enable delta quant in chroma planes
+  NO_AQ,                        // aq_mode
+  NO_DELTA_Q,                   // deltaq_mode
+  0,                            // delta lf mode
+  0,                            // frame_periodic_boost
+  AOM_BITS_8,                   // Bit depth
+  AOM_CONTENT_DEFAULT,          // content
+  AOM_CICP_CP_UNSPECIFIED,      // CICP color primaries
+  AOM_CICP_TC_UNSPECIFIED,      // CICP transfer characteristics
+  AOM_CICP_MC_UNSPECIFIED,      // CICP matrix coefficients
+  AOM_CSP_UNKNOWN,              // chroma sample position
+  0,                            // color range
+  0,                            // render width
+  0,                            // render height
+  AOM_SUPERBLOCK_SIZE_DYNAMIC,  // superblock_size
+  1,                            // this depends on large_scale_tile.
+  0,                            // error_resilient_mode off by default.
+  0,                            // s_frame_mode off by default.
+  0,                            // film_grain_test_vector
+  0,                            // film_grain_table_filename
+  0,                            // motion_vector_unit_test
+  1,                            // CDF update mode
+  1,                            // enable rectangular partitions
+  1,                            // enable ab shape partitions
+  1,                            // enable 1:4 and 4:1 partitions
+  4,                            // min_partition_size
+  128,                          // max_partition_size
+  1,                            // enable intra edge filter
+  1,                            // frame order hint
+  1,                            // enable 64-pt transform usage
+  1,                            // enable flip and identity transform
+  1,                            // enable rectangular transform usage
+  1,                            // dist-wtd compound
+  7,                            // max_reference_frames
+  0,                            // enable_reduced_reference_set
+  1,                            // enable_ref_frame_mvs sequence level
+  1,                            // allow ref_frame_mvs frame level
+  1,                            // enable masked compound at sequence level
+  1,                            // enable one sided compound at sequence level
+  1,                            // enable interintra compound at sequence level
+  1,                            // enable smooth interintra mode
+  1,                            // enable difference-weighted compound
+  1,                            // enable interinter wedge compound
+  1,                            // enable interintra wedge compound
+  0,                            // enable_global_motion usage
+  0,                            // enable_warped_motion at sequence level
+  0,                            // allow_warped_motion at frame level
+  1,                            // enable filter intra at sequence level
+  1,                            // enable smooth intra modes usage for sequence
+  1,                            // enable Paeth intra mode usage for sequence
+  1,                            // enable CFL uv intra mode usage for sequence
+  1,                       // enable D45 to D203 intra mode usage for sequence
+  1,                       // superres
+  1,                       // enable overlay
+  1,                       // enable palette
+  !CONFIG_SHARP_SETTINGS,  // enable intrabc
+  1,                       // enable angle delta
+#if CONFIG_DENOISE
+  0,   // noise_level
+  32,  // noise_block_size
+  1,   // enable_dnl_denoising
+#endif
+  0,  // chroma_subsampling_x
+  0,  // chroma_subsampling_y
+  0,  // reduced_tx_type_set
+  0,  // use_intra_dct_only
+  0,  // use_inter_dct_only
+  0,  // use_intra_default_tx_only
+  0,  // quant_b_adapt
+  0,  // vbr_corpus_complexity_lap
+  {
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+  },             // target_seq_level_idx
+  0,             // tier_mask
+  0,             // min_cr
+  COST_UPD_OFF,  // coeff_cost_upd_freq
+  COST_UPD_OFF,  // mode_cost_upd_freq
+  COST_UPD_OFF,  // mv_cost_upd_freq
+  0,             // ext_tile_debug
+  0,             // sb_multipass_unit_test
+};
+#else
 static struct av1_extracfg default_extra_cfg = {
   0,              // cpu_used
   1,              // enable_auto_alt_ref
@@ -257,18 +399,18 @@ static struct av1_extracfg default_extra_cfg = {
   !CONFIG_SHARP_SETTINGS,  // enable intrabc
   1,                       // enable angle delta
 #if CONFIG_DENOISE
-  0,   // noise_level
-  32,  // noise_block_size
-  1,   // enable_dnl_denoising
+  0,                       // noise_level
+  32,                      // noise_block_size
+  1,                       // enable_dnl_denoising
 #endif
-  0,  // chroma_subsampling_x
-  0,  // chroma_subsampling_y
-  0,  // reduced_tx_type_set
-  0,  // use_intra_dct_only
-  0,  // use_inter_dct_only
-  0,  // use_intra_default_tx_only
-  0,  // quant_b_adapt
-  0,  // vbr_corpus_complexity_lap
+  0,                       // chroma_subsampling_x
+  0,                       // chroma_subsampling_y
+  0,                       // reduced_tx_type_set
+  0,                       // use_intra_dct_only
+  0,                       // use_inter_dct_only
+  0,                       // use_intra_default_tx_only
+  0,                       // quant_b_adapt
+  0,                       // vbr_corpus_complexity_lap
   {
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
@@ -286,6 +428,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,            // ext_tile_debug
   0,            // sb_multipass_unit_test
 };
+#endif
 
 struct aom_codec_alg_priv {
   aom_codec_priv_t base;
@@ -1296,6 +1439,11 @@ static aom_codec_err_t ctrl_set_tile_rows(aom_codec_alg_priv_t *ctx,
 static aom_codec_err_t ctrl_set_enable_tpl_model(aom_codec_alg_priv_t *ctx,
                                                  va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
+#if CONFIG_REALTIME_ONLY
+  if (CAST(AV1E_SET_ENABLE_TPL_MODEL, args)) {
+    ERROR("TPL model can't be turned on in realtime only build.");
+  }
+#endif
   extra_cfg.enable_tpl_model = CAST(AV1E_SET_ENABLE_TPL_MODEL, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
@@ -1376,6 +1524,11 @@ static aom_codec_err_t ctrl_set_enable_cdef(aom_codec_alg_priv_t *ctx,
 static aom_codec_err_t ctrl_set_enable_restoration(aom_codec_alg_priv_t *ctx,
                                                    va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
+#if CONFIG_REALTIME_ONLY
+  if (CAST(AV1E_SET_ENABLE_RESTORATION, args)) {
+    ERROR("Restoration can't be turned on in realtime only build.");
+  }
+#endif
   extra_cfg.enable_restoration = CAST(AV1E_SET_ENABLE_RESTORATION, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
@@ -1390,6 +1543,11 @@ static aom_codec_err_t ctrl_set_force_video_mode(aom_codec_alg_priv_t *ctx,
 static aom_codec_err_t ctrl_set_enable_obmc(aom_codec_alg_priv_t *ctx,
                                             va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
+#if CONFIG_REALTIME_ONLY
+  if (CAST(AV1E_SET_ENABLE_OBMC, args)) {
+    ERROR("OBMC can't be enabled in realtime only build.");
+  }
+#endif
   extra_cfg.enable_obmc = CAST(AV1E_SET_ENABLE_OBMC, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
@@ -1634,6 +1792,11 @@ static aom_codec_err_t ctrl_set_enable_interintra_wedge(
 static aom_codec_err_t ctrl_set_enable_global_motion(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
+#if CONFIG_REALTIME_ONLY
+  if (CAST(AV1E_SET_ENABLE_GLOBAL_MOTION, args)) {
+    ERROR("Global motion can't be enabled in realtime only build.");
+  }
+#endif
   extra_cfg.enable_global_motion = CAST(AV1E_SET_ENABLE_GLOBAL_MOTION, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
@@ -1641,6 +1804,11 @@ static aom_codec_err_t ctrl_set_enable_global_motion(aom_codec_alg_priv_t *ctx,
 static aom_codec_err_t ctrl_set_enable_warped_motion(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
+#if CONFIG_REALTIME_ONLY
+  if (CAST(AV1E_SET_ENABLE_WARPED_MOTION, args)) {
+    ERROR("Warped motion can't be enabled in realtime only build.");
+  }
+#endif
   extra_cfg.enable_warped_motion = CAST(AV1E_SET_ENABLE_WARPED_MOTION, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
@@ -1887,6 +2055,11 @@ static aom_codec_err_t ctrl_set_enable_dnl_denoising(aom_codec_alg_priv_t *ctx,
 static aom_codec_err_t ctrl_set_deltaq_mode(aom_codec_alg_priv_t *ctx,
                                             va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
+#if CONFIG_REALTIME_ONLY
+  if (CAST(AV1E_SET_DELTAQ_MODE, args) > NO_DELTA_Q) {
+    ERROR("Delta Q mode can't be enabled in realtime only build.");
+  }
+#endif
   extra_cfg.deltaq_mode = CAST(AV1E_SET_DELTAQ_MODE, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
