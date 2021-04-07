@@ -62,4 +62,15 @@ TEST(TplModelTest, TransformCoeffEntropyTest2) {
   EXPECT_NEAR(expected_rate, est_expected_rate, 0.001);
 }
 
+TEST(TplModelTest, DeltaRateCostZeroFlow) {
+  // When srcrf_dist equal to recrf_dist, av1_delta_rate_cost should return 0
+  int64_t srcrf_dist = 256;
+  int64_t recrf_dist = 256;
+  int64_t delta_rate = 512;
+  int pixel_num = 256;
+  int64_t rate_cost =
+      av1_delta_rate_cost(delta_rate, recrf_dist, srcrf_dist, pixel_num);
+  EXPECT_EQ(rate_cost, 0);
+}
+
 }  // namespace

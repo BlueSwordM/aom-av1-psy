@@ -912,8 +912,8 @@ int av1_tpl_ptr_pos(int mi_row, int mi_col, int stride, uint8_t right_shift) {
   return (mi_row >> right_shift) * stride + (mi_col >> right_shift);
 }
 
-static int64_t delta_rate_cost(int64_t delta_rate, int64_t recrf_dist,
-                               int64_t srcrf_dist, int pix_num) {
+int64_t av1_delta_rate_cost(int64_t delta_rate, int64_t recrf_dist,
+                            int64_t srcrf_dist, int pix_num) {
   double beta = (double)srcrf_dist / recrf_dist;
   int64_t rate_cost = delta_rate;
 
@@ -990,8 +990,8 @@ static AOM_INLINE void tpl_model_update_b(TplParams *const tpl_data, int mi_row,
                  tpl_stats_ptr->recrf_dist));
   int64_t delta_rate = tpl_stats_ptr->recrf_rate - srcrf_rate;
   int64_t mc_dep_rate =
-      delta_rate_cost(tpl_stats_ptr->mc_dep_rate, tpl_stats_ptr->recrf_dist,
-                      srcrf_dist, pix_num);
+      av1_delta_rate_cost(tpl_stats_ptr->mc_dep_rate, tpl_stats_ptr->recrf_dist,
+                          srcrf_dist, pix_num);
 
   for (block = 0; block < 4; ++block) {
     int grid_pos_row = grid_pos_row_base + bh * (block >> 1);

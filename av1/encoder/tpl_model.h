@@ -348,6 +348,10 @@ double av1_estimate_txfm_block_entropy(int q_index,
                                        const double *abs_coeff_mean,
                                        int *qcoeff_arr, int coeff_num);
 
+// TODO(angiebird): Add doxygen description here.
+int64_t av1_delta_rate_cost(int64_t delta_rate, int64_t recrf_dist,
+                            int64_t srcrf_dist, int pix_num);
+
 /*!\endcond */
 #ifdef __cplusplus
 }  // extern "C"
