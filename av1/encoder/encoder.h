@@ -166,6 +166,7 @@ typedef enum {
   MOD_ENC,          // Encode stage
   MOD_LPF,          // Deblocking loop filter
   MOD_CDEF_SEARCH,  // CDEF search
+  MOD_CDEF,         // CDEF frame
   MOD_LR,           // Loop restoration filtering
   NUM_MT_MODULES
 } MULTI_THREADED_MODULES;
@@ -1453,6 +1454,11 @@ typedef struct MultiThreadInfo {
    * CDEF search multi-threading object.
    */
   AV1CdefSync cdef_sync;
+
+  /*!
+   * CDEF row multi-threading data.
+   */
+  AV1CdefWorkerData *cdef_worker;
 } MultiThreadInfo;
 
 /*!\cond */

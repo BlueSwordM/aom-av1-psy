@@ -2102,7 +2102,10 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
 
-  if (!is_stat_generation_stage(cpi)) av1_alloc_cdef_linebuf(cm);
+  if (!is_stat_generation_stage(cpi))
+    av1_alloc_cdef_buffers(cm, &cpi->mt_info.cdef_worker,
+                           &cpi->mt_info.cdef_sync,
+                           cpi->mt_info.num_mod_workers[MOD_CDEF]);
 
 #if !CONFIG_REALTIME_ONLY
   const int use_restoration = cm->seq_params.enable_restoration &&
@@ -2159,13 +2162,21 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, cdef_time);
 #endif
+    const int num_workers = cpi->mt_info.num_mod_workers[MOD_CDEF];
     // Find CDEF parameters
     av1_cdef_search(&cpi->mt_info, &cm->cur_frame->buf, cpi->source, cm, xd,
                     cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult);
 
     // Apply the filter
-    if (!cpi->sf.rt_sf.skip_loopfilter_non_reference)
-      av1_cdef_frame(&cm->cur_frame->buf, cm, xd);
+    if (!cpi->sf.rt_sf.skip_loopfilter_non_reference) {
+      if (num_workers > 1) {
+        av1_cdef_frame_mt(cm, xd, cpi->mt_info.cdef_worker,
+                          cpi->mt_info.workers, &cpi->mt_info.cdef_sync,
+                          num_workers, av1_cdef_init_fb_row_mt);
+      } else {
+        av1_cdef_frame(&cm->cur_frame->buf, cm, xd, av1_cdef_init_fb_row);
+      }
+    }
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, cdef_time);
 #endif

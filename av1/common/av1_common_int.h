@@ -202,11 +202,13 @@ typedef struct {
                                                 chroma */
   int cdef_bits;                 /*!< Number of CDEF strength values in bits */
   int allocated_mi_cols;         /*!< Number of cols in the frame in 4 pixel */
+  int allocated_mi_rows;         /*!< Number of rows in the frame in 4 pixel */
   int allocated_subsampling_x;   /*!< Chroma subsampling for x */
   int allocated_subsampling_y;   /*!< Chroma subsampling for y */
   uint8_t prev_cdef_enable_flag; /*!< CDEF on/off flag */
   unsigned int prev_large_scale_tile_flag; /*!< Large scale tile on/off flag */
   int prev_num_planes;                     /*!< Number of planes */
+  int allocated_num_workers;               /*!< Number of CDEF workers */
 } CdefInfo;
 
 /*!\cond */

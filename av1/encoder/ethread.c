@@ -1826,6 +1826,9 @@ static void update_next_job_info(AV1CdefSync *cdef_sync, int nvfb, int nhfb) {
 
 // Initializes cdef_sync parameters.
 static AOM_INLINE void cdef_reset_job_info(AV1CdefSync *cdef_sync) {
+#if CONFIG_MULTITHREAD
+  if (cdef_sync->mutex_) pthread_mutex_init(cdef_sync->mutex_, NULL);
+#endif  // CONFIG_MULTITHREAD
   cdef_sync->end_of_frame = 0;
   cdef_sync->fbr = 0;
   cdef_sync->fbc = 0;
@@ -1961,6 +1964,7 @@ int compute_num_mod_workers(AV1_COMP *cpi, MULTI_THREADED_MODULES mod_name) {
     case MOD_CDEF_SEARCH:
       num_mod_workers = compute_num_cdef_workers(cpi);
       break;
+    case MOD_CDEF: num_mod_workers = compute_num_cdef_workers(cpi); break;
     case MOD_LR: num_mod_workers = compute_num_lr_workers(cpi); break;
     default: assert(0); break;
   }
