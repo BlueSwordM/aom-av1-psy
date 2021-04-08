@@ -2204,6 +2204,9 @@ static aom_codec_err_t ctrl_enable_sb_multipass_unit_test(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+// TODO(chengchen): implement this function
+static aom_codec_err_t ctrl_set_external_partition() { return AOM_CODEC_OK; }
+
 #if !CONFIG_REALTIME_ONLY
 static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
@@ -3607,6 +3610,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_VBR_CORPUS_COMPLEXITY_LAP, ctrl_set_vbr_corpus_complexity_lap },
   { AV1E_ENABLE_SB_MULTIPASS_UNIT_TEST, ctrl_enable_sb_multipass_unit_test },
   { AV1E_SET_DV_COST_UPD_FREQ, ctrl_set_dv_cost_upd_freq },
+  { AV1E_SET_EXTERNAL_PARTITION, ctrl_set_external_partition },
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
