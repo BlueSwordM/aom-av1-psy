@@ -1439,12 +1439,13 @@ static aom_codec_err_t ctrl_set_tile_rows(aom_codec_alg_priv_t *ctx,
 static aom_codec_err_t ctrl_set_enable_tpl_model(aom_codec_alg_priv_t *ctx,
                                                  va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  const unsigned int tpl_model_arg = CAST(AV1E_SET_ENABLE_TPL_MODEL, args);
 #if CONFIG_REALTIME_ONLY
-  if (CAST(AV1E_SET_ENABLE_TPL_MODEL, args)) {
+  if (tpl_model_arg) {
     ERROR("TPL model can't be turned on in realtime only build.");
   }
 #endif
-  extra_cfg.enable_tpl_model = CAST(AV1E_SET_ENABLE_TPL_MODEL, args);
+  extra_cfg.enable_tpl_model = tpl_model_arg;
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -1524,12 +1525,13 @@ static aom_codec_err_t ctrl_set_enable_cdef(aom_codec_alg_priv_t *ctx,
 static aom_codec_err_t ctrl_set_enable_restoration(aom_codec_alg_priv_t *ctx,
                                                    va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  const unsigned int restoration_arg = CAST(AV1E_SET_ENABLE_RESTORATION, args);
 #if CONFIG_REALTIME_ONLY
-  if (CAST(AV1E_SET_ENABLE_RESTORATION, args)) {
+  if (restoration_arg) {
     ERROR("Restoration can't be turned on in realtime only build.");
   }
 #endif
-  extra_cfg.enable_restoration = CAST(AV1E_SET_ENABLE_RESTORATION, args);
+  extra_cfg.enable_restoration = restoration_arg;
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -1543,12 +1545,13 @@ static aom_codec_err_t ctrl_set_force_video_mode(aom_codec_alg_priv_t *ctx,
 static aom_codec_err_t ctrl_set_enable_obmc(aom_codec_alg_priv_t *ctx,
                                             va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  const unsigned int obmc_arg = CAST(AV1E_SET_ENABLE_OBMC, args);
 #if CONFIG_REALTIME_ONLY
-  if (CAST(AV1E_SET_ENABLE_OBMC, args)) {
+  if (obmc_arg) {
     ERROR("OBMC can't be enabled in realtime only build.");
   }
 #endif
-  extra_cfg.enable_obmc = CAST(AV1E_SET_ENABLE_OBMC, args);
+  extra_cfg.enable_obmc = obmc_arg;
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -1792,24 +1795,26 @@ static aom_codec_err_t ctrl_set_enable_interintra_wedge(
 static aom_codec_err_t ctrl_set_enable_global_motion(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  const int global_motion_arg = CAST(AV1E_SET_ENABLE_GLOBAL_MOTION, args);
 #if CONFIG_REALTIME_ONLY
-  if (CAST(AV1E_SET_ENABLE_GLOBAL_MOTION, args)) {
+  if (global_motion_arg) {
     ERROR("Global motion can't be enabled in realtime only build.");
   }
 #endif
-  extra_cfg.enable_global_motion = CAST(AV1E_SET_ENABLE_GLOBAL_MOTION, args);
+  extra_cfg.enable_global_motion = global_motion_arg;
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
 static aom_codec_err_t ctrl_set_enable_warped_motion(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  const int warped_motion_arg = CAST(AV1E_SET_ENABLE_WARPED_MOTION, args);
 #if CONFIG_REALTIME_ONLY
-  if (CAST(AV1E_SET_ENABLE_WARPED_MOTION, args)) {
+  if (warped_motion_arg) {
     ERROR("Warped motion can't be enabled in realtime only build.");
   }
 #endif
-  extra_cfg.enable_warped_motion = CAST(AV1E_SET_ENABLE_WARPED_MOTION, args);
+  extra_cfg.enable_warped_motion = warped_motion_arg;
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -2055,12 +2060,13 @@ static aom_codec_err_t ctrl_set_enable_dnl_denoising(aom_codec_alg_priv_t *ctx,
 static aom_codec_err_t ctrl_set_deltaq_mode(aom_codec_alg_priv_t *ctx,
                                             va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  const DELTAQ_MODE deltaq_arg = CAST(AV1E_SET_DELTAQ_MODE, args);
 #if CONFIG_REALTIME_ONLY
-  if (CAST(AV1E_SET_DELTAQ_MODE, args) > NO_DELTA_Q) {
+  if (deltaq_arg > NO_DELTA_Q) {
     ERROR("Delta Q mode can't be enabled in realtime only build.");
   }
 #endif
-  extra_cfg.deltaq_mode = CAST(AV1E_SET_DELTAQ_MODE, args);
+  extra_cfg.deltaq_mode = deltaq_arg;
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
