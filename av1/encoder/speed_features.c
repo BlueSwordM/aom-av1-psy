@@ -153,6 +153,7 @@ static int frame_is_boosted(const AV1_COMP *cpi) {
 static void set_allintra_speed_feature_framesize_dependent(
     const AV1_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   const AV1_COMMON *const cm = &cpi->common;
+  const int is_360p_or_larger = AOMMIN(cm->width, cm->height) >= 360;
   const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
   const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
   const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
@@ -275,15 +276,29 @@ static void set_allintra_speed_feature_framesize_dependent(
     sf->part_sf.use_square_partition_only_threshold = BLOCK_16X16;
   }
 
-  // TODO(kyslov@): Please move the real-time key frame coding speed features
-  // here accordingly.
   if (speed >= 7) {
+    if (!is_480p_or_larger) {
+      sf->rt_sf.nonrd_check_partition_merge_mode = 2;
+    }
+    if (!is_360p_or_larger) {
+      sf->rt_sf.force_tx_search_off = 1;
+    }
   }
 
   if (speed >= 8) {
+    if (!is_360p_or_larger) {
+      sf->rt_sf.use_modeled_non_rd_cost = 0;
+    } else {
+      if (speed == 8) {
+        sf->rt_sf.short_circuit_low_temp_var = 0;
+      }
+    }
   }
 
   if (speed >= 9) {
+    if (!is_360p_or_larger) {
+      sf->rt_sf.use_modeled_non_rd_cost = 1;
+    }
   }
 }
 
@@ -485,15 +500,43 @@ static void set_allintra_speed_features_framesize_independent(
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
   }
 
-  // TODO(kyslov@): Please move the real-time key frame coding speed features
-  // here accordingly.
   if (speed >= 7) {
+    sf->part_sf.default_min_partition_size = BLOCK_8X8;
+    sf->part_sf.partition_search_type = VAR_BASED_PARTITION;
+
+    sf->lpf_sf.lpf_pick = LPF_PICK_FROM_Q;
+    sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
+
+    sf->rt_sf.mode_search_skip_flags |= FLAG_SKIP_INTRA_DIRMISMATCH;
+    sf->rt_sf.use_nonrd_pick_mode = 1;
+    sf->rt_sf.nonrd_check_partition_merge_mode = 1;
+    sf->rt_sf.nonrd_check_partition_split = 0;
+    sf->rt_sf.skip_intra_pred_if_tx_skip = 1;
+    // Set mask for intra modes.
+    for (int i = 0; i < BLOCK_SIZES; ++i)
+      if (i >= BLOCK_32X32)
+        sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC;
+      else
+        // Use DC, H, V intra mode for block sizes < 32X32.
+        sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC_H_V;
   }
 
   if (speed >= 8) {
+    sf->tx_sf.intra_tx_size_search_init_depth_sqr = 2;
+    sf->intra_sf.intra_pruning_with_hog = 1;
+    sf->rt_sf.estimate_motion_for_var_based_partition = 1;
+    sf->rt_sf.short_circuit_low_temp_var = 1;
+    sf->rt_sf.nonrd_check_partition_merge_mode = 0;
+    sf->rt_sf.nonrd_check_partition_split = 0;
+    sf->rt_sf.use_modeled_non_rd_cost = 1;
+    sf->rt_sf.source_metrics_sb_nonrd = 1;
+    sf->rt_sf.skip_intra_pred_if_tx_skip = 0;
   }
-
   if (speed >= 9) {
+    sf->rt_sf.estimate_motion_for_var_based_partition = 0;
+    sf->rt_sf.force_large_partition_blocks = 1;
+    for (int i = 0; i < BLOCK_SIZES; ++i)
+      sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC;
   }
 
   // Intra txb hash is currently not compatible with multi-winner mode as the
