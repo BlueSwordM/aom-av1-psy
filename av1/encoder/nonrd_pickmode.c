@@ -1673,7 +1673,9 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
   const MB_MODE_INFO *left_mi = xd->left_mbmi;
   const PREDICTION_MODE A = av1_above_block_mode(above_mi);
   const PREDICTION_MODE L = av1_left_block_mode(left_mi);
-  bmode_costs = x->mode_costs.y_mode_costs[A][L];
+  const int above_ctx = intra_mode_context[A];
+  const int left_ctx = intra_mode_context[L];
+  bmode_costs = x->mode_costs.y_mode_costs[above_ctx][left_ctx];
 
   av1_invalid_rd_stats(&best_rdc);
   av1_invalid_rd_stats(&this_rdc);
