@@ -27,24 +27,11 @@ const unsigned int kHeight = 90;
 const unsigned int kFramerate = 50;
 const unsigned int kFrames = 10;
 const int kBitrate = 500;
-// List of psnr thresholds for speed settings 0-7 and 5 encoding modes
-const double kPsnrThreshold[][5] = {
-// Note:
-// AV1 HBD average PSNR is slightly lower than AV1.
-// We make two cases here to enable the testing and
-// guard picture quality.
-#if CONFIG_AV1_ENCODER
-  { 36.0, 37.0, 37.0, 37.0, 37.0 }, { 31.0, 36.0, 36.0, 36.0, 36.0 },
-  { 31.0, 35.0, 35.0, 35.0, 35.0 }, { 31.0, 34.0, 34.0, 34.0, 34.0 },
-  { 31.0, 33.0, 33.0, 33.0, 33.0 }, { 31.0, 32.0, 32.0, 32.0, 32.0 },
-  { 30.0, 31.0, 31.0, 31.0, 31.0 }, { 29.0, 30.0, 30.0, 30.0, 30.0 },
-#else
-  { 36.0, 37.0, 37.0, 37.0, 37.0 }, { 35.0, 36.0, 36.0, 36.0, 36.0 },
-  { 34.0, 35.0, 35.0, 35.0, 35.0 }, { 33.0, 34.0, 34.0, 34.0, 34.0 },
-  { 32.0, 33.0, 33.0, 33.0, 33.0 }, { 31.0, 32.0, 32.0, 32.0, 32.0 },
-  { 30.0, 31.0, 31.0, 31.0, 31.0 }, { 29.0, 30.0, 30.0, 30.0, 30.0 },
-#endif  // CONFIG_AV1_ENCODER
-};
+// List of psnr thresholds for speed settings 0-6 and 3 encoding modes
+const double kPsnrThreshold[][3] = { { 35.7, 44.4, 39.5 }, { 35.7, 44.4, 39.5 },
+                                     { 35.7, 44.4, 39.4 }, { 35.7, 44.4, 39.1 },
+                                     { 35.6, 44.4, 39.1 }, { 35.0, 44.3, 38.7 },
+                                     { 35.0, 44.3, 38.7 } };
 
 typedef struct {
   const char *filename;
@@ -201,7 +188,7 @@ AV1_INSTANTIATE_TEST_SUITE(EndToEndTestLarge,
                            ::testing::ValuesIn(kCpuUsedVectors));
 
 AV1_INSTANTIATE_TEST_SUITE(EndToEndTest,
-                           ::testing::Values(kEncodingModeVectors[0]),
+                           ::testing::Values(::libaom_test::kTwoPassGood),
                            ::testing::Values(kTestVectors[2]),  // 444
-                           ::testing::Values(kCpuUsedVectors[2]));
+                           ::testing::Values(3));               // cpu_used
 }  // namespace
