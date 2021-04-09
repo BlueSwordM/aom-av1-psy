@@ -282,16 +282,15 @@ static AOM_INLINE void highbd_compute_gradient_info_sb(MACROBLOCK *const x,
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
-static AOM_INLINE void generate_hog(const MACROBLOCKD *const xd,
-                                    const uint8_t *src8, int stride, int rows,
-                                    int cols, float *hist) {
+static AOM_INLINE void generate_hog(const uint8_t *src8, int stride, int rows,
+                                    int cols, float *hist, int highbd) {
 #if CONFIG_AV1_HIGHBITDEPTH
-  if (is_cur_buf_hbd(xd)) {
+  if (highbd) {
     highbd_generate_hog(src8, stride, rows, cols, hist);
     return;
   }
 #else
-  (void)xd;
+  (void)highbd;
 #endif  // CONFIG_AV1_HIGHBITDEPTH
   lowbd_generate_hog(src8, stride, rows, cols, hist);
 }
@@ -408,7 +407,7 @@ static INLINE void collect_hog_data(const MACROBLOCK *x, BLOCK_SIZE bsize,
   } else {
     const uint8_t *src = x->plane[plane].src.buf;
     const int src_stride = x->plane[plane].src.stride;
-    generate_hog(xd, src, src_stride, rows, cols, hog);
+    generate_hog(src, src_stride, rows, cols, hog, is_cur_buf_hbd(xd));
   }
 
   // Scale the hog so the luma and chroma are on the same scale
