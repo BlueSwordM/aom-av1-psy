@@ -53,9 +53,7 @@ void av1_free_ref_frame_buffers(BufferPool *pool) {
 }
 
 void av1_free_cdef_linebuf(AV1_COMMON *const cm) {
-  const int num_planes = av1_num_planes(cm);
-
-  for (uint8_t plane = 0; plane < num_planes; plane++) {
+  for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
     if (cm->cdef_info.linebuf[plane] != NULL)
       aom_free(cm->cdef_info.linebuf[plane]);
     cm->cdef_info.linebuf[plane] = NULL;
@@ -74,7 +72,7 @@ void av1_alloc_cdef_linebuf(AV1_COMMON *const cm) {
 
   if (is_frame_scaled) av1_free_cdef_linebuf(cm);
 
-  for (uint8_t plane = 0; plane < num_planes; plane++) {
+  for (int plane = 0; plane < num_planes; plane++) {
     if (cm->cdef_info.linebuf[plane] == NULL) {
       const int stride =
           luma_stride >>
