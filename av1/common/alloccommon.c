@@ -63,27 +63,46 @@ void av1_free_cdef_linebuf(AV1_COMMON *const cm) {
 void av1_alloc_cdef_linebuf(AV1_COMMON *const cm) {
   const int num_planes = av1_num_planes(cm);
   const int luma_stride = cm->mi_params.mi_cols << MI_SIZE_LOG2;
+  CdefInfo *cdef_info = &cm->cdef_info;
+  // Check for configuration change
+  const int is_sub_sampling_changed =
+      (cdef_info->allocated_subsampling_x != cm->seq_params.subsampling_x ||
+       cdef_info->allocated_subsampling_y != cm->seq_params.subsampling_y);
   const int is_frame_scaled =
-      (cm->cdef_info.allocated_mi_cols != cm->mi_params.mi_cols ||
-       cm->cdef_info.allocated_mi_rows != cm->mi_params.mi_rows);
+      cdef_info->allocated_mi_cols != cm->mi_params.mi_cols;
+  const int is_cdef_flag_changed =
+      cdef_info->prev_cdef_enable_flag != cm->seq_params.enable_cdef;
+  const int is_large_scale_tile_changed =
+      cdef_info->prev_large_scale_tile_flag != cm->tiles.large_scale;
+  const int is_num_planes_changed = cdef_info->prev_num_planes != num_planes;
   // num-bufs=2 represents ping-pong buffers for top linebuf.
   // this is to avoid linebuf over-write by consecutive row.
   int num_bufs = 2;
 
-  if (is_frame_scaled) av1_free_cdef_linebuf(cm);
+  if (is_frame_scaled || is_sub_sampling_changed || is_cdef_flag_changed ||
+      is_large_scale_tile_changed || is_num_planes_changed)
+    av1_free_cdef_linebuf(cm);
+
+  // Store configuration to check change in configuration
+  cdef_info->allocated_mi_cols = cm->mi_params.mi_cols;
+  cdef_info->allocated_subsampling_x = cm->seq_params.subsampling_x;
+  cdef_info->allocated_subsampling_y = cm->seq_params.subsampling_y;
+  cdef_info->prev_cdef_enable_flag = cm->seq_params.enable_cdef;
+  cdef_info->prev_large_scale_tile_flag = cm->tiles.large_scale;
+  cdef_info->prev_num_planes = num_planes;
+
+  if (!cm->seq_params.enable_cdef && cm->tiles.large_scale) return;
 
   for (int plane = 0; plane < num_planes; plane++) {
-    if (cm->cdef_info.linebuf[plane] == NULL) {
+    if (cdef_info->linebuf[plane] == NULL) {
       const int stride =
           luma_stride >>
           (plane == AOM_PLANE_Y ? 0 : cm->seq_params.subsampling_x);
-      CHECK_MEM_ERROR(cm, cm->cdef_info.linebuf[plane],
-                      aom_malloc(sizeof(*cm->cdef_info.linebuf) * num_bufs *
+      CHECK_MEM_ERROR(cm, cdef_info->linebuf[plane],
+                      aom_malloc(sizeof(*cdef_info->linebuf) * num_bufs *
                                  (CDEF_VBORDER << 1) * stride));
     }
   }
-  cm->cdef_info.allocated_mi_cols = cm->mi_params.mi_cols;
-  cm->cdef_info.allocated_mi_rows = cm->mi_params.mi_rows;
 }
 
 #if !CONFIG_REALTIME_ONLY

@@ -252,8 +252,8 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 #if !CONFIG_REALTIME_ONLY
   av1_free_restoration_buffers(cm);
 #endif
-  const int use_cdef = cm->seq_params.enable_cdef && !cm->tiles.large_scale;
-  if (use_cdef) av1_free_cdef_linebuf(cm);
+
+  if (!is_stat_generation_stage(cpi)) av1_free_cdef_linebuf(cm);
 
   aom_free_frame_buffer(&cpi->trial_frame_rst);
   aom_free_frame_buffer(&cpi->scaled_source);
