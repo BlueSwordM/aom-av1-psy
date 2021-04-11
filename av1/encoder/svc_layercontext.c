@@ -91,6 +91,7 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
 void av1_update_layer_context_change_config(AV1_COMP *const cpi,
                                             const int64_t target_bandwidth) {
   const RATE_CONTROL *const rc = &cpi->rc;
+  const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   SVC *const svc = &cpi->svc;
   int layer = 0;
   int64_t spatial_layer_target = 0;
@@ -107,17 +108,18 @@ void av1_update_layer_context_change_config(AV1_COMP *const cpi,
       LAYER_CONTEXT *const lc =
           &svc->layer_context[sl * svc->number_temporal_layers + tl];
       RATE_CONTROL *const lrc = &lc->rc;
+      PRIMARY_RATE_CONTROL *const lp_rc = &lc->p_rc;
       lc->spatial_layer_target_bandwidth = spatial_layer_target;
       bitrate_alloc = (float)lc->target_bandwidth / target_bandwidth;
-      lrc->starting_buffer_level =
-          (int64_t)(rc->starting_buffer_level * bitrate_alloc);
-      lrc->optimal_buffer_level =
-          (int64_t)(rc->optimal_buffer_level * bitrate_alloc);
-      lrc->maximum_buffer_size =
-          (int64_t)(rc->maximum_buffer_size * bitrate_alloc);
+      lp_rc->starting_buffer_level =
+          (int64_t)(p_rc->starting_buffer_level * bitrate_alloc);
+      lp_rc->optimal_buffer_level =
+          (int64_t)(p_rc->optimal_buffer_level * bitrate_alloc);
+      lp_rc->maximum_buffer_size =
+          (int64_t)(p_rc->maximum_buffer_size * bitrate_alloc);
       lrc->bits_off_target =
-          AOMMIN(lrc->bits_off_target, lrc->maximum_buffer_size);
-      lrc->buffer_level = AOMMIN(lrc->buffer_level, lrc->maximum_buffer_size);
+          AOMMIN(lrc->bits_off_target, lp_rc->maximum_buffer_size);
+      lrc->buffer_level = AOMMIN(lrc->buffer_level, lp_rc->maximum_buffer_size);
       lc->framerate = cpi->framerate / lc->framerate_factor;
       lrc->avg_frame_bandwidth = (int)(lc->target_bandwidth / lc->framerate);
       lrc->max_frame_bandwidth = rc->max_frame_bandwidth;
@@ -172,6 +174,7 @@ void av1_restore_layer_context(AV1_COMP *const cpi) {
   const int old_frame_to_key = cpi->rc.frames_to_key;
   // Restore layer rate control.
   cpi->rc = lc->rc;
+  cpi->ppi->p_rc = lc->p_rc;
   cpi->oxcf.rc_cfg.target_bandwidth = lc->target_bandwidth;
   cpi->gf_frame_index = 0;
   cpi->mv_search_params.max_mv_magnitude = lc->max_mv_magnitude;
@@ -215,6 +218,7 @@ void av1_save_layer_context(AV1_COMP *const cpi) {
   const AV1_COMMON *const cm = &cpi->common;
   LAYER_CONTEXT *lc = get_layer_context(cpi);
   lc->rc = cpi->rc;
+  lc->p_rc = cpi->ppi->p_rc;
   lc->target_bandwidth = (int)cpi->oxcf.rc_cfg.target_bandwidth;
   lc->group_index = cpi->gf_frame_index;
   lc->max_mv_magnitude = cpi->mv_search_params.max_mv_magnitude;

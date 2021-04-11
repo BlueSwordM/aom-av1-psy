@@ -590,6 +590,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   AV1_COMMON *const cm = &cpi->common;
   SequenceHeader *const seq_params = &cm->seq_params;
   RATE_CONTROL *const rc = &cpi->rc;
+  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   MACROBLOCK *const x = &cpi->td.mb;
   AV1LevelParams *const level_params = &cpi->ppi->level_params;
   InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
@@ -683,10 +684,10 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
                         seq_params->tier[0]);
   }
 
-  if ((has_no_stats_stage(cpi)) && (rc_cfg->mode == AOM_Q)) {
-    rc->baseline_gf_interval = FIXED_GF_INTERVAL;
+  if (has_no_stats_stage(cpi) && (rc_cfg->mode == AOM_Q)) {
+    p_rc->baseline_gf_interval = FIXED_GF_INTERVAL;
   } else {
-    rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
+    p_rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
   }
 
   refresh_frame_flags->golden_frame = false;
@@ -733,12 +734,12 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   av1_set_high_precision_mv(cpi, 1, 0);
 
-  set_rc_buffer_sizes(rc, rc_cfg);
+  set_rc_buffer_sizes(p_rc, rc_cfg);
 
   // Under a configuration change, where maximum_buffer_size may change,
   // keep buffer level clipped to the maximum allowed buffer size.
-  rc->bits_off_target = AOMMIN(rc->bits_off_target, rc->maximum_buffer_size);
-  rc->buffer_level = AOMMIN(rc->buffer_level, rc->maximum_buffer_size);
+  rc->bits_off_target = AOMMIN(rc->bits_off_target, p_rc->maximum_buffer_size);
+  rc->buffer_level = AOMMIN(rc->buffer_level, p_rc->maximum_buffer_size);
 
   // Set up frame rate and related parameters rate control values.
   av1_new_framerate(cpi, cpi->framerate);
@@ -859,12 +860,31 @@ AV1_PRIMARY *av1_create_primary_compressor(
   ppi->b_calculate_psnr = CONFIG_INTERNAL_STATS;
   ppi->frames_left = oxcf->input_cfg.limit;
 
+  av1_primary_rc_init(oxcf, &ppi->p_rc);
+
+  // For two pass and lag_in_frames > 33 in LAP.
+  ppi->p_rc.enable_scenecut_detection = ENABLE_SCENECUT_MODE_2;
+  if (ppi->lap_enabled) {
+    if ((num_lap_buffers <
+         (MAX_GF_LENGTH_LAP + SCENE_CUT_KEY_TEST_INTERVAL + 1)) &&
+        num_lap_buffers >= (MAX_GF_LENGTH_LAP + 3)) {
+      /*
+       * For lag in frames >= 19 and <33, enable scenecut
+       * with limited future frame prediction.
+       */
+      ppi->p_rc.enable_scenecut_detection = ENABLE_SCENECUT_MODE_1;
+    } else if (num_lap_buffers < (MAX_GF_LENGTH_LAP + 3)) {
+      // Disable scenecut when lag_in_frames < 19.
+      ppi->p_rc.enable_scenecut_detection = DISABLE_SCENECUT;
+    }
+  }
+
   return ppi;
 }
 
 AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
                                 BufferPool *const pool, COMPRESSOR_STAGE stage,
-                                int num_lap_buffers, int lap_lag_in_frames) {
+                                int lap_lag_in_frames) {
   AV1_COMP *volatile const cpi = aom_memalign(32, sizeof(AV1_COMP));
   AV1_COMMON *volatile const cm = cpi != NULL ? &cpi->common : NULL;
 
@@ -910,24 +930,8 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
     cpi->oxcf.gf_cfg.lag_in_frames = lap_lag_in_frames;
   }
 
-  av1_rc_init(&cpi->oxcf, oxcf->pass, &cpi->rc);
+  av1_rc_init(&cpi->oxcf, oxcf->pass, &cpi->rc, &cpi->ppi->p_rc);
 
-  // For two pass and lag_in_frames > 33 in LAP.
-  cpi->rc.enable_scenecut_detection = ENABLE_SCENECUT_MODE_2;
-  if (cpi->ppi->lap_enabled) {
-    if ((num_lap_buffers <
-         (MAX_GF_LENGTH_LAP + SCENE_CUT_KEY_TEST_INTERVAL + 1)) &&
-        num_lap_buffers >= (MAX_GF_LENGTH_LAP + 3)) {
-      /*
-       * For lag in frames >= 19 and <33, enable scenecut
-       * with limited future frame prediction.
-       */
-      cpi->rc.enable_scenecut_detection = ENABLE_SCENECUT_MODE_1;
-    } else if (num_lap_buffers < (MAX_GF_LENGTH_LAP + 3)) {
-      // Disable scenecut when lag_in_frames < 19.
-      cpi->rc.enable_scenecut_detection = DISABLE_SCENECUT;
-    }
-  }
   init_frame_info(&cpi->frame_info, cm);
   init_frame_index_set(&cpi->frame_index_set);
 
@@ -2811,7 +2815,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   // Special case code to reduce pulsing when key frames are forced at a
   // fixed interval. Note the reconstruction error if it is the frame before
   // the force key frame
-  if (cpi->rc.next_key_frame_forced && cpi->rc.frames_to_key == 1) {
+  if (cpi->ppi->p_rc.next_key_frame_forced && cpi->rc.frames_to_key == 1) {
 #if CONFIG_AV1_HIGHBITDEPTH
     if (seq_params->use_highbitdepth) {
       cpi->ambient_err = aom_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);

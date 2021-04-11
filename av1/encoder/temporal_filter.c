@@ -1024,7 +1024,7 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
     num_before = AOMMIN(num_frames - 1, max_before);
     num_after = 0;
   } else {
-    num_frames = AOMMIN(num_frames, cpi->rc.gfu_boost / 150);
+    num_frames = AOMMIN(num_frames, cpi->ppi->p_rc.gfu_boost / 150);
     num_frames += !(num_frames & 1);  // Make the number odd.
     // Only use 2 neighbours for the second ARF.
     if (is_second_arf) num_frames = AOMMIN(num_frames, 3);
@@ -1252,8 +1252,8 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
     int top_index = 0;
     int bottom_index = 0;
     const int q = av1_rc_pick_q_and_bounds(
-        cpi, &cpi->rc, cpi->oxcf.frm_dim_cfg.width,
-        cpi->oxcf.frm_dim_cfg.height, group_idx, &bottom_index, &top_index);
+        cpi, cpi->oxcf.frm_dim_cfg.width, cpi->oxcf.frm_dim_cfg.height,
+        group_idx, &bottom_index, &top_index);
     const int ac_q = av1_ac_quant_QTX(q, 0, cpi->common.seq_params.bit_depth);
     const float threshold = 0.7f * ac_q * ac_q;
 

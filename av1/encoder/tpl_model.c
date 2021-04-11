@@ -1276,7 +1276,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     TplDepFrame *tpl_frame = &tpl_data->tpl_frame[gf_index];
     FRAME_UPDATE_TYPE frame_update_type = gf_group->update_type[gf_index];
     int frame_display_index = gf_index == gf_group->size
-                                  ? cpi->rc.baseline_gf_interval
+                                  ? cpi->ppi->p_rc.baseline_gf_interval
                                   : gf_group->cur_frame_idx[gf_index] +
                                         gf_group->arf_src_offset[gf_index];
 
@@ -1348,8 +1348,9 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   if (cpi->rc.frames_since_key == 0) return;
 
   int extend_frame_count = 0;
-  int extend_frame_length = AOMMIN(
-      MAX_TPL_EXTEND, cpi->rc.frames_to_key - cpi->rc.baseline_gf_interval);
+  int extend_frame_length =
+      AOMMIN(MAX_TPL_EXTEND,
+             cpi->rc.frames_to_key - cpi->ppi->p_rc.baseline_gf_interval);
   int frame_display_index = gf_group->cur_frame_idx[gop_length - 1] +
                             gf_group->arf_src_offset[gop_length - 1] + 1;
 
@@ -1496,9 +1497,8 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
     cm->show_frame = gf_group->update_type[gf_index] != ARF_UPDATE &&
                      gf_group->update_type[gf_index] != INTNL_ARF_UPDATE;
 
-    gf_group->q_val[gf_index] =
-        av1_rc_pick_q_and_bounds(cpi, &cpi->rc, cm->width, cm->height, gf_index,
-                                 &bottom_index, &top_index);
+    gf_group->q_val[gf_index] = av1_rc_pick_q_and_bounds(
+        cpi, cm->width, cm->height, gf_index, &bottom_index, &top_index);
   }
 
   int pframe_qindex;
@@ -1506,7 +1506,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   init_gop_frames_for_tpl(cpi, frame_params, gf_group, gop_eval,
                           &tpl_gf_group_frames, frame_input, &pframe_qindex);
 
-  cpi->rc.base_layer_qp = pframe_qindex;
+  cpi->ppi->p_rc.base_layer_qp = pframe_qindex;
 
   av1_init_tpl_stats(tpl_data);
 

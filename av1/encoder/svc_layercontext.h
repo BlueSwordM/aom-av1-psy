@@ -26,6 +26,7 @@ extern "C" {
 typedef struct {
   /*!\cond */
   RATE_CONTROL rc;
+  PRIMARY_RATE_CONTROL p_rc;
   int framerate_factor;
   int64_t layer_target_bitrate;
   int scaling_factor_num;

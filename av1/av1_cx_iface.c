@@ -1355,7 +1355,7 @@ static aom_codec_err_t ctrl_get_baseline_gf_interval(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   int *const arg = va_arg(args, int *);
   if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
-  *arg = ctx->ppi->cpi->rc.baseline_gf_interval;
+  *arg = ctx->ppi->p_rc.baseline_gf_interval;
   return AOM_CODEC_OK;
 }
 
@@ -2190,8 +2190,7 @@ static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
 
 static aom_codec_err_t create_context_and_bufferpool(
     AV1_PRIMARY *ppi, AV1_COMP **p_cpi, BufferPool **p_buffer_pool,
-    AV1EncoderConfig *oxcf, COMPRESSOR_STAGE stage, int num_lap_buffers,
-    int lap_lag_in_frames) {
+    AV1EncoderConfig *oxcf, COMPRESSOR_STAGE stage, int lap_lag_in_frames) {
   aom_codec_err_t res = AOM_CODEC_OK;
 
   *p_buffer_pool = (BufferPool *)aom_calloc(1, sizeof(BufferPool));
@@ -2203,7 +2202,7 @@ static aom_codec_err_t create_context_and_bufferpool(
   }
 #endif
   *p_cpi = av1_create_compressor(ppi, oxcf, *p_buffer_pool, stage,
-                                 num_lap_buffers, lap_lag_in_frames);
+                                 lap_lag_in_frames);
   if (*p_cpi == NULL) res = AOM_CODEC_MEM_ERROR;
 
   return res;
@@ -2275,14 +2274,13 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
 
       res = create_context_and_bufferpool(priv->ppi, &priv->ppi->cpi,
                                           &priv->buffer_pool, &priv->oxcf,
-                                          ENCODE_STAGE, *num_lap_buffers, -1);
+                                          ENCODE_STAGE, -1);
 
       // Create another compressor if look ahead is enabled
       if (res == AOM_CODEC_OK && *num_lap_buffers) {
         res = create_context_and_bufferpool(
             priv->ppi, &priv->ppi->cpi_lap, &priv->buffer_pool_lap, &priv->oxcf,
-            LAP_STAGE, *num_lap_buffers,
-            clamp(lap_lag_in_frames, 0, MAX_LAG_BUFFERS));
+            LAP_STAGE, clamp(lap_lag_in_frames, 0, MAX_LAG_BUFFERS));
       }
     }
   }

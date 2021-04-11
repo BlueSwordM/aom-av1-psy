@@ -499,20 +499,21 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
       cpi->rd.r0 = (double)intra_cost_base / mc_dep_cost_base;
       if (is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) {
         if (cpi->ppi->lap_enabled) {
-          double min_boost_factor = sqrt(cpi->rc.baseline_gf_interval);
+          double min_boost_factor = sqrt(cpi->ppi->p_rc.baseline_gf_interval);
           const int gfu_boost = get_gfu_boost_from_r0_lap(
               min_boost_factor, MAX_GFUBOOST_FACTOR, cpi->rd.r0,
-              cpi->rc.num_stats_required_for_gfu_boost);
+              cpi->ppi->p_rc.num_stats_required_for_gfu_boost);
           // printf("old boost %d new boost %d\n", cpi->rc.gfu_boost,
           //        gfu_boost);
-          cpi->rc.gfu_boost = combine_prior_with_tpl_boost(
-              min_boost_factor, MAX_BOOST_COMBINE_FACTOR, cpi->rc.gfu_boost,
-              gfu_boost, cpi->rc.num_stats_used_for_gfu_boost);
+          cpi->ppi->p_rc.gfu_boost = combine_prior_with_tpl_boost(
+              min_boost_factor, MAX_BOOST_COMBINE_FACTOR,
+              cpi->ppi->p_rc.gfu_boost, gfu_boost,
+              cpi->ppi->p_rc.num_stats_used_for_gfu_boost);
         } else {
           const int gfu_boost = (int)(200.0 / cpi->rd.r0);
-          cpi->rc.gfu_boost = combine_prior_with_tpl_boost(
+          cpi->ppi->p_rc.gfu_boost = combine_prior_with_tpl_boost(
               MIN_BOOST_COMBINE_FACTOR, MAX_BOOST_COMBINE_FACTOR,
-              cpi->rc.gfu_boost, gfu_boost, cpi->rc.frames_to_key);
+              cpi->ppi->p_rc.gfu_boost, gfu_boost, cpi->rc.frames_to_key);
         }
       }
       aom_clear_system_state();
@@ -538,8 +539,8 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
 #endif
 
   // Decide q and q bounds.
-  *q = av1_rc_pick_q_and_bounds(cpi, &cpi->rc, cm->width, cm->height,
-                                cpi->gf_frame_index, bottom_index, top_index);
+  *q = av1_rc_pick_q_and_bounds(cpi, cm->width, cm->height, cpi->gf_frame_index,
+                                bottom_index, top_index);
 
   // Configure experimental use of segmentation for enhanced coding of
   // static regions if indicated.
@@ -1304,7 +1305,7 @@ void av1_dump_filtered_recon_frames(AV1_COMP *cpi) {
       current_frame->frame_number, cpi->gf_frame_index,
       cpi->ppi->gf_group.update_type[cpi->gf_frame_index],
       current_frame->order_hint, cm->show_frame, cm->show_existing_frame,
-      cpi->rc.source_alt_ref_active, cpi->refresh_frame.alt_ref_frame,
+      cpi->p_rc.source_alt_ref_active, cpi->refresh_frame.alt_ref_frame,
       recon_buf->y_stride, recon_buf->uv_stride, cm->width, cm->height);
 #if 0
   int ref_frame;

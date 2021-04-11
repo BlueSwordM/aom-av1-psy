@@ -168,7 +168,7 @@ static uint8_t get_superres_denom_for_qindex(const AV1_COMP *cpi, int qindex,
   printf("]\n");
   printf("boost = %d\n",
          (gf_group->update_type[cpi->gf_frame_index] == KF_UPDATE)
-             ? cpi->rc.kf_boost
+             ? cpi->ppi->p_rc.kf_boost
              : cpi->rc.gfu_boost);
   printf("denom = %d\n", denom);
   */
@@ -223,8 +223,8 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
       // Now decide the use of superres based on 'q'.
       int bottom_index, top_index;
       const int q = av1_rc_pick_q_and_bounds(
-          cpi, &cpi->rc, frm_dim_cfg->width, frm_dim_cfg->height,
-          cpi->gf_frame_index, &bottom_index, &top_index);
+          cpi, frm_dim_cfg->width, frm_dim_cfg->height, cpi->gf_frame_index,
+          &bottom_index, &top_index);
 
       const int qthresh = (frame_is_intra_only(&cpi->common))
                               ? superres_cfg->superres_kf_qthresh
@@ -244,8 +244,8 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
       // Now decide the use of superres based on 'q'.
       int bottom_index, top_index;
       const int q = av1_rc_pick_q_and_bounds(
-          cpi, &cpi->rc, frm_dim_cfg->width, frm_dim_cfg->height,
-          cpi->gf_frame_index, &bottom_index, &top_index);
+          cpi, frm_dim_cfg->width, frm_dim_cfg->height, cpi->gf_frame_index,
+          &bottom_index, &top_index);
 
       const SUPERRES_AUTO_SEARCH_TYPE sr_search_type =
           cpi->sf.hl_sf.superres_auto_search_type;

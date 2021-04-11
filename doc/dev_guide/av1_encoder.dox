@@ -107,6 +107,7 @@ encoder and referenced elsewhere in this overview document:
     - \ref AV1_PRIMARY.gf_group (\ref GF_GROUP)
     - \ref AV1_PRIMARY.lap_enabled
     - \ref AV1_PRIMARY.twopass (\ref TWO_PASS)
+    - \ref AV1_PRIMARY.p_rc (\ref PRIMARY_RATE_CONTROL)
 
 - \ref AV1_COMP
     - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
@@ -143,10 +144,12 @@ encoder and referenced elsewhere in this overview document:
     - \ref RateControlCfg.vbrmin_section
     - \ref RateControlCfg.vbrmax_section
 
+- \ref PRIMARY_RATE_CONTROL (Primary Rate control status)
+    - \ref PRIMARY_RATE_CONTROL.gf_intervals[]
+    - \ref PRIMARY_RATE_CONTROL.cur_gf_index
+
 - \ref RATE_CONTROL (Rate control status)
     - \ref RATE_CONTROL.intervals_till_gf_calculate_due
-    - \ref RATE_CONTROL.gf_intervals[]
-    - \ref RATE_CONTROL.cur_gf_index
     - \ref RATE_CONTROL.frames_till_gf_update_due
     - \ref RATE_CONTROL.frames_to_key
 
@@ -833,9 +836,9 @@ into two parts:
 As mentioned, for two-pass encoding, the function \ref
 calculate_gf_length() tries to determine the length of as many as
 MAX_NUM_GF_INTERVALS groups. The decisions are stored in
-\ref RATE_CONTROL.gf_intervals[]. The variables
+\ref PRIMARY_RATE_CONTROL.gf_intervals[]. The variables
 \ref RATE_CONTROL.intervals_till_gf_calculate_due and
-\ref RATE_CONTROL.cur_gf_index help with managing and updating the stored
+\ref PRIMARY_RATE_CONTROL.gf_intervals[] help with managing and updating the stored
 decisions. In the function \ref define_gf_group(), the corresponding
 stored length decision will be used to define the current GF group.
 
@@ -859,7 +862,7 @@ processing of the current GF group is done, the encoder will check whether
 \ref RATE_CONTROL.intervals_till_gf_calculate_due is zero. If it is, as
 discussed above, \ref calculate_gf_length() is called with original
 maximum length. If it is not zero, then the GF group length value stored
-in \ref RATE_CONTROL.gf_intervals[\ref RATE_CONTROL.cur_gf_index] is used
+in \ref PRIMARY_RATE_CONTROL.gf_intervals[\ref PRIMARY_RATE_CONTROL.cur_gf_index] is used
 (subject to change as discussed above).
 
 \subsection architecture_enc_gf_structure Defining a GF Group's Structure
@@ -872,7 +875,7 @@ The function first iterates through the first pass statistics in the GF group to
 accumulate various stats, using accumulate_this_frame_stats() and
 accumulate_next_frame_stats(). The accumulated statistics are then used to
 determine the use of the use of ALTREF frame along with other properties of the
-GF group. The values of \ref RATE_CONTROL.cur_gf_index, \ref
+GF group. The values of \ref PRIMARY_RATE_CONTROL.cur_gf_index, \ref
 RATE_CONTROL.intervals_till_gf_calculate_due and \ref
 RATE_CONTROL.frames_till_gf_update_due are also updated accordingly.
 

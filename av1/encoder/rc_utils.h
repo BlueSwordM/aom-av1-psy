@@ -19,17 +19,17 @@
 extern "C" {
 #endif
 
-static AOM_INLINE void set_rc_buffer_sizes(RATE_CONTROL *rc,
+static AOM_INLINE void set_rc_buffer_sizes(PRIMARY_RATE_CONTROL *p_rc,
                                            const RateControlCfg *rc_cfg) {
   const int64_t bandwidth = rc_cfg->target_bandwidth;
   const int64_t starting = rc_cfg->starting_buffer_level_ms;
   const int64_t optimal = rc_cfg->optimal_buffer_level_ms;
   const int64_t maximum = rc_cfg->maximum_buffer_size_ms;
 
-  rc->starting_buffer_level = starting * bandwidth / 1000;
-  rc->optimal_buffer_level =
+  p_rc->starting_buffer_level = starting * bandwidth / 1000;
+  p_rc->optimal_buffer_level =
       (optimal == 0) ? bandwidth / 8 : optimal * bandwidth / 1000;
-  rc->maximum_buffer_size =
+  p_rc->maximum_buffer_size =
       (maximum == 0) ? bandwidth / 8 : maximum * bandwidth / 1000;
 }
 
@@ -226,6 +226,7 @@ static AOM_INLINE void recode_loop_update_q(
     int *const low_cr_seen, const int loop_count) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
+  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
   *loop = 0;
 
@@ -263,7 +264,8 @@ static AOM_INLINE void recode_loop_update_q(
                                    &frame_over_shoot_limit);
   if (frame_over_shoot_limit == 0) frame_over_shoot_limit = 1;
 
-  if (cm->current_frame.frame_type == KEY_FRAME && rc->this_key_frame_forced &&
+  if (cm->current_frame.frame_type == KEY_FRAME &&
+      p_rc->this_key_frame_forced &&
       rc->projected_frame_size < rc->max_frame_bandwidth) {
     int64_t kf_err;
     const int64_t high_err_target = cpi->ambient_err;

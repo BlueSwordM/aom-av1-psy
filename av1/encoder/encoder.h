@@ -2129,6 +2129,11 @@ typedef struct AV1_PRIMARY {
    * Information related to two pass encoding.
    */
   TWO_PASS twopass;
+
+  /*!
+   * Rate control related parameters.
+   */
+  PRIMARY_RATE_CONTROL p_rc;
 } AV1_PRIMARY;
 
 /*!
@@ -2799,7 +2804,6 @@ void av1_initialize_enc(void);
 struct AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
                                        BufferPool *const pool,
                                        COMPRESSOR_STAGE stage,
-                                       int num_lap_buffers,
                                        int lap_lag_in_frames);
 
 struct AV1_PRIMARY *av1_create_primary_compressor(

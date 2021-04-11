@@ -257,15 +257,16 @@ void av1_cyclic_refresh_postencode(AV1_COMP *const cpi) {
 
 void av1_cyclic_refresh_set_golden_update(AV1_COMP *const cpi) {
   RATE_CONTROL *const rc = &cpi->rc;
+  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
   // Set minimum gf_interval for GF update to a multiple of the refresh period,
   // with some max limit. Depending on past encoding stats, GF flag may be
   // reset and update may not occur until next baseline_gf_interval.
   if (cr->percent_refresh > 0)
-    rc->baseline_gf_interval = AOMMIN(2 * (100 / cr->percent_refresh), 40);
+    p_rc->baseline_gf_interval = AOMMIN(2 * (100 / cr->percent_refresh), 40);
   else
-    rc->baseline_gf_interval = 20;
-  if (rc->avg_frame_low_motion < 40) rc->baseline_gf_interval = 8;
+    p_rc->baseline_gf_interval = 20;
+  if (rc->avg_frame_low_motion < 40) p_rc->baseline_gf_interval = 8;
 }
 
 // Update the segmentation map, and related quantities: cyclic refresh map,

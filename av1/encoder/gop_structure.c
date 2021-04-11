@@ -28,10 +28,11 @@
 
 // Set parameters for frames between 'start' and 'end' (excluding both).
 static void set_multi_layer_params(const TWO_PASS *twopass,
-                                   GF_GROUP *const gf_group, RATE_CONTROL *rc,
-                                   FRAME_INFO *frame_info, int start, int end,
-                                   int *cur_frame_idx, int *frame_ind,
-                                   int layer_depth) {
+                                   GF_GROUP *const gf_group,
+                                   const PRIMARY_RATE_CONTROL *p_rc,
+                                   RATE_CONTROL *rc, FRAME_INFO *frame_info,
+                                   int start, int end, int *cur_frame_idx,
+                                   int *frame_ind, int layer_depth) {
   const int num_frames_to_process = end - start;
 
   // Either we are at the last level of the pyramid, or we don't have enough
@@ -45,7 +46,7 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
       gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
       gf_group->layer_depth[*frame_ind] = MAX_ARF_LAYERS;
       gf_group->arf_boost[*frame_ind] = av1_calc_arf_boost(
-          twopass, rc, frame_info, start, end - start, 0, NULL, NULL, 0);
+          twopass, p_rc, rc, frame_info, start, end - start, 0, NULL, NULL, 0);
       gf_group->frame_type[*frame_ind] = INTER_FRAME;
       gf_group->refbuf_state[*frame_ind] = REFBUF_UPDATE;
       gf_group->max_layer_depth =
@@ -67,11 +68,11 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
 
     // Get the boost factor for intermediate ARF frames.
     gf_group->arf_boost[*frame_ind] = av1_calc_arf_boost(
-        twopass, rc, frame_info, m, end - m, m - start, NULL, NULL, 0);
+        twopass, p_rc, rc, frame_info, m, end - m, m - start, NULL, NULL, 0);
     ++(*frame_ind);
 
     // Frames displayed before this internal ARF.
-    set_multi_layer_params(twopass, gf_group, rc, frame_info, start, m,
+    set_multi_layer_params(twopass, gf_group, p_rc, rc, frame_info, start, m,
                            cur_frame_idx, frame_ind, layer_depth + 1);
 
     // Overlay for internal ARF.
@@ -86,7 +87,7 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
     ++(*cur_frame_idx);
 
     // Frames displayed after this internal ARF.
-    set_multi_layer_params(twopass, gf_group, rc, frame_info, m + 1, end,
+    set_multi_layer_params(twopass, gf_group, p_rc, rc, frame_info, m + 1, end,
                            cur_frame_idx, frame_ind, layer_depth + 1);
   }
 }
@@ -95,6 +96,7 @@ static int construct_multi_layer_gf_structure(
     AV1_COMP *cpi, TWO_PASS *twopass, GF_GROUP *const gf_group,
     RATE_CONTROL *rc, FRAME_INFO *const frame_info, int gf_interval,
     FRAME_UPDATE_TYPE first_frame_update_type) {
+  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   int frame_index = 0;
   int cur_frame_index = 0;
 
@@ -146,7 +148,7 @@ static int construct_multi_layer_gf_structure(
     gf_group->arf_src_offset[frame_index] = gf_interval - cur_frame_index;
     gf_group->cur_frame_idx[frame_index] = cur_frame_index;
     gf_group->layer_depth[frame_index] = 1;
-    gf_group->arf_boost[frame_index] = cpi->rc.gfu_boost;
+    gf_group->arf_boost[frame_index] = cpi->ppi->p_rc.gfu_boost;
     gf_group->frame_type[frame_index] = is_fwd_kf ? KEY_FRAME : INTER_FRAME;
     gf_group->refbuf_state[frame_index] = REFBUF_UPDATE;
     gf_group->max_layer_depth = 1;
@@ -157,9 +159,9 @@ static int construct_multi_layer_gf_structure(
   }
 
   // Rest of the frames.
-  set_multi_layer_params(twopass, gf_group, rc, frame_info, cur_frame_index,
-                         gf_interval, &cur_frame_index, &frame_index,
-                         use_altref + 1);
+  set_multi_layer_params(twopass, gf_group, p_rc, rc, frame_info,
+                         cur_frame_index, gf_interval, &cur_frame_index,
+                         &frame_index, use_altref + 1);
 
   if (use_altref) {
     gf_group->update_type[frame_index] = OVERLAY_UPDATE;
@@ -189,6 +191,7 @@ static int construct_multi_layer_gf_structure(
 
 void av1_gop_setup_structure(AV1_COMP *cpi) {
   RATE_CONTROL *const rc = &cpi->rc;
+  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   TWO_PASS *const twopass = &cpi->ppi->twopass;
   FRAME_INFO *const frame_info = &cpi->frame_info;
@@ -196,10 +199,10 @@ void av1_gop_setup_structure(AV1_COMP *cpi) {
   const FRAME_UPDATE_TYPE first_frame_update_type =
       key_frame ? KF_UPDATE
                 : cpi->ppi->gf_state.arf_gf_boost_lst ||
-                          (rc->baseline_gf_interval == 1)
+                          (p_rc->baseline_gf_interval == 1)
                       ? OVERLAY_UPDATE
                       : GF_UPDATE;
   gf_group->size = construct_multi_layer_gf_structure(
-      cpi, twopass, gf_group, rc, frame_info, rc->baseline_gf_interval - 1,
+      cpi, twopass, gf_group, rc, frame_info, p_rc->baseline_gf_interval - 1,
       first_frame_update_type);
 }
