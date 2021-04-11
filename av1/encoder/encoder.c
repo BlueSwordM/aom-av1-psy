@@ -1150,6 +1150,38 @@ AV1_PRIMARY *av1_create_primary_compressor(
   highbd_set_var_fns(ppi);
 #endif
 
+  {
+    // As cm->mi_params is a part of the frame level context (cpi), it is
+    // unavailable at this point. mi_params is created as a local temporary
+    // variable, to be passed into the functions used for allocating tpl
+    // buffers. The values in this variable are populated according to initial
+    // width and height of the frame.
+    CommonModeInfoParams mi_params;
+    enc_set_mb_mi(&mi_params, oxcf->frm_dim_cfg.width,
+                  oxcf->frm_dim_cfg.height);
+
+    const int bsize = BLOCK_16X16;
+    const int w = mi_size_wide[bsize];
+    const int h = mi_size_high[bsize];
+    const int num_cols = (mi_params.mi_cols + w - 1) / w;
+    const int num_rows = (mi_params.mi_rows + h - 1) / h;
+    AOM_CHECK_MEM_ERROR(&ppi->error, ppi->tpl_rdmult_scaling_factors,
+                        aom_calloc(num_rows * num_cols,
+                                   sizeof(*ppi->tpl_rdmult_scaling_factors)));
+    AOM_CHECK_MEM_ERROR(
+        &ppi->error, ppi->tpl_sb_rdmult_scaling_factors,
+        aom_calloc(num_rows * num_cols,
+                   sizeof(*ppi->tpl_sb_rdmult_scaling_factors)));
+
+#if !CONFIG_REALTIME_ONLY
+    if (oxcf->pass != 1) {
+      av1_setup_tpl_buffers(ppi, &mi_params, oxcf->frm_dim_cfg.width,
+                            oxcf->frm_dim_cfg.height, 0,
+                            oxcf->gf_cfg.lag_in_frames);
+    }
+#endif
+  }
+
   ppi->error.setjmp = 0;
 
   return ppi;
@@ -1327,20 +1359,6 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
     const int h = mi_size_high[bsize];
     const int num_cols = (mi_params->mi_cols + w - 1) / w;
     const int num_rows = (mi_params->mi_rows + h - 1) / h;
-    CHECK_MEM_ERROR(cm, cpi->tpl_rdmult_scaling_factors,
-                    aom_calloc(num_rows * num_cols,
-                               sizeof(*cpi->tpl_rdmult_scaling_factors)));
-    CHECK_MEM_ERROR(cm, cpi->tpl_sb_rdmult_scaling_factors,
-                    aom_calloc(num_rows * num_cols,
-                               sizeof(*cpi->tpl_sb_rdmult_scaling_factors)));
-  }
-
-  {
-    const int bsize = BLOCK_16X16;
-    const int w = mi_size_wide[bsize];
-    const int h = mi_size_high[bsize];
-    const int num_cols = (mi_params->mi_cols + w - 1) / w;
-    const int num_rows = (mi_params->mi_rows + h - 1) / h;
     CHECK_MEM_ERROR(cm, cpi->ssim_rdmult_scaling_factors,
                     aom_calloc(num_rows * num_cols,
                                sizeof(*cpi->ssim_rdmult_scaling_factors)));
@@ -1381,12 +1399,6 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
     memset(&cpi->butteraugli_info.resized_source, 0,
            sizeof(cpi->butteraugli_info.resized_source));
     cpi->butteraugli_info.recon_set = false;
-  }
-#endif
-
-#if !CONFIG_REALTIME_ONLY
-  if (!is_stat_generation_stage(cpi)) {
-    av1_setup_tpl_buffers(cm, &cpi->tpl_data, cpi->oxcf.gf_cfg.lag_in_frames);
   }
 #endif
 
@@ -1474,6 +1486,22 @@ void av1_remove_primary_compressor(AV1_PRIMARY *ppi) {
     aom_free(ppi->level_params.level_info[i]);
   }
   av1_lookahead_destroy(ppi->lookahead);
+
+  aom_free(ppi->tpl_rdmult_scaling_factors);
+  ppi->tpl_rdmult_scaling_factors = NULL;
+  aom_free(ppi->tpl_sb_rdmult_scaling_factors);
+  ppi->tpl_sb_rdmult_scaling_factors = NULL;
+
+  TplParams *const tpl_data = &ppi->tpl_data;
+  for (int frame = 0; frame < MAX_LAG_BUFFERS; ++frame) {
+    aom_free(tpl_data->tpl_stats_pool[frame]);
+    aom_free_frame_buffer(&tpl_data->tpl_rec_pool[frame]);
+  }
+
+#if !CONFIG_REALTIME_ONLY
+  av1_tpl_dealloc(&tpl_data->tpl_mt_sync);
+#endif
+
   aom_free(ppi);
 }
 
@@ -1621,12 +1649,6 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   av1_denoiser_free(&(cpi->denoiser));
 #endif
 
-  TplParams *const tpl_data = &cpi->tpl_data;
-  for (int frame = 0; frame < MAX_LAG_BUFFERS; ++frame) {
-    aom_free(tpl_data->tpl_stats_pool[frame]);
-    aom_free_frame_buffer(&tpl_data->tpl_rec_pool[frame]);
-  }
-
   if (cpi->compressor_stage != LAP_STAGE) {
     terminate_worker_data(cpi);
     free_thread_data(cpi);
@@ -1656,9 +1678,6 @@ void av1_remove_compressor(AV1_COMP *cpi) {
     aom_free(mt_info->workers);
   }
 
-#if !CONFIG_REALTIME_ONLY
-  av1_tpl_dealloc(&tpl_data->tpl_mt_sync);
-#endif
   if (mt_info->num_workers > 1) {
     av1_loop_filter_dealloc(&mt_info->lf_row_sync);
     av1_cdef_mt_dealloc(&mt_info->cdef_sync);

@@ -2215,6 +2215,27 @@ typedef struct AV1_PRIMARY {
    * size i.
    */
   aom_variance_fn_ptr_t fn_ptr[BLOCK_SIZES_ALL];
+
+  /*!
+   * Scaling factors used in the RD multiplier modulation.
+   * TODO(sdeng): consider merge the following arrays.
+   * tpl_rdmult_scaling_factors is a temporary buffer used to store the
+   * intermediate scaling factors which are used in the calculation of
+   * tpl_sb_rdmult_scaling_factors. tpl_rdmult_scaling_factors[i] stores the
+   * intermediate scaling factor of the ith 16 x 16 block in raster scan order.
+   */
+  double *tpl_rdmult_scaling_factors;
+
+  /*!
+   * tpl_sb_rdmult_scaling_factors[i] stores the RD multiplier scaling factor of
+   * the ith 16 x 16 block in raster scan order.
+   */
+  double *tpl_sb_rdmult_scaling_factors;
+
+  /*!
+   * Parameters related to tpl.
+   */
+  TplParams tpl_data;
 } AV1_PRIMARY;
 
 /*!
@@ -2325,9 +2346,9 @@ typedef struct AV1_COMP {
   YV12_BUFFER_CONFIG *unfiltered_source;
 
   /*!
-   * Parameters related to tpl.
+   * Skip tpl setup when tpl data from gop length decision can be reused.
    */
-  TplParams tpl_data;
+  int skip_tpl_setup_stats;
 
   /*!
    * Temporal filter context.
@@ -2686,20 +2707,6 @@ typedef struct AV1_COMP {
    */
   RefFrameDistanceInfo ref_frame_dist_info;
 
-  /*!
-   * Scaling factors used in the RD multiplier modulation.
-   * TODO(sdeng): consider merge the following arrays.
-   * tpl_rdmult_scaling_factors is a temporary buffer used to store the
-   * intermediate scaling factors which are used in the calculation of
-   * tpl_sb_rdmult_scaling_factors. tpl_rdmult_scaling_factors[i] stores the
-   * intermediate scaling factor of the ith 16 x 16 block in raster scan order.
-   */
-  double *tpl_rdmult_scaling_factors;
-  /*!
-   * tpl_sb_rdmult_scaling_factors[i] stores the RD multiplier scaling factor of
-   * the ith 16 x 16 block in raster scan order.
-   */
-  double *tpl_sb_rdmult_scaling_factors;
   /*!
    * ssim_rdmult_scaling_factors[i] stores the RD multiplier scaling factor of
    * the ith 16 x 16 block in raster scan order. This scaling factor is used for

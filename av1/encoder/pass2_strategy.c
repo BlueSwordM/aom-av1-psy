@@ -1063,7 +1063,7 @@ static int is_shorter_gf_interval_better(AV1_COMP *cpi,
       // Tpl stats is reused when the ARF is temporally filtered and GF
       // interval is not shortened.
       if (is_temporal_filter_enabled && !shorten_gf_interval)
-        cpi->tpl_data.skip_tpl_setup_stats = 1;
+        cpi->skip_tpl_setup_stats = 1;
     }
   }
   return shorten_gf_interval;

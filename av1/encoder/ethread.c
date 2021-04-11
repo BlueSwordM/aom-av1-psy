@@ -1303,10 +1303,10 @@ static int tpl_worker_hook(void *arg1, void *unused) {
   MACROBLOCKD *xd = &x->e_mbd;
   TplTxfmStats *tpl_txfm_stats = &thread_data->td->tpl_txfm_stats;
   CommonModeInfoParams *mi_params = &cm->mi_params;
-  BLOCK_SIZE bsize = convert_length_to_bsize(cpi->tpl_data.tpl_bsize_1d);
+  BLOCK_SIZE bsize = convert_length_to_bsize(cpi->ppi->tpl_data.tpl_bsize_1d);
   TX_SIZE tx_size = max_txsize_lookup[bsize];
   int mi_height = mi_size_high[bsize];
-  int num_active_workers = cpi->tpl_data.tpl_mt_sync.num_threads_working;
+  int num_active_workers = cpi->ppi->tpl_data.tpl_mt_sync.num_threads_working;
 
   memset(tpl_txfm_stats, 0, sizeof(*tpl_txfm_stats));
 
@@ -1408,7 +1408,7 @@ static AOM_INLINE void prepare_tpl_workers(AV1_COMP *cpi, AVxWorkerHook hook,
 static void tpl_accumulate_txfm_stats(AV1_COMP *cpi, int num_workers) {
   double *total_abs_coeff_sum = cpi->td.tpl_txfm_stats.abs_coeff_sum;
   int *txfm_block_count = &cpi->td.tpl_txfm_stats.txfm_block_count;
-  TplParams *tpl_data = &cpi->tpl_data;
+  TplParams *tpl_data = &cpi->ppi->tpl_data;
   int coeff_num = tpl_data->tpl_frame[tpl_data->frame_idx].coeff_num;
   for (int i = num_workers - 1; i >= 0; i--) {
     AVxWorker *const worker = &cpi->mt_info.workers[i];
@@ -1429,7 +1429,7 @@ void av1_mc_flow_dispenser_mt(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   CommonModeInfoParams *mi_params = &cm->mi_params;
   MultiThreadInfo *mt_info = &cpi->mt_info;
-  TplParams *tpl_data = &cpi->tpl_data;
+  TplParams *tpl_data = &cpi->ppi->tpl_data;
   AV1TplRowMultiThreadSync *tpl_sync = &tpl_data->tpl_mt_sync;
   int mb_rows = mi_params->mb_rows;
   int num_workers =

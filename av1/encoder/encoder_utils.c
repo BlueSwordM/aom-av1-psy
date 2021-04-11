@@ -465,7 +465,7 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
   assert(IMPLIES(gf_group->size > 0, cpi->gf_frame_index < gf_group->size));
 
   const int tpl_idx = cpi->gf_frame_index;
-  TplParams *const tpl_data = &cpi->tpl_data;
+  TplParams *const tpl_data = &cpi->ppi->tpl_data;
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_idx];
   TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
 

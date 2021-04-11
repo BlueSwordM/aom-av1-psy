@@ -62,7 +62,7 @@ static INLINE void get_mv_candidate_from_tpl(const AV1_COMP *const cpi,
   const int mi_col = xd->mi_col;
 
   const BLOCK_SIZE tpl_bsize =
-      convert_length_to_bsize(cpi->tpl_data.tpl_bsize_1d);
+      convert_length_to_bsize(cpi->ppi->tpl_data.tpl_bsize_1d);
   const int tplw = mi_size_wide[tpl_bsize];
   const int tplh = mi_size_high[tpl_bsize];
   const int nw = mi_size_wide[bsize] / tplw;

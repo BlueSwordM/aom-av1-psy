@@ -2177,7 +2177,7 @@ static AOM_INLINE void get_block_level_tpl_stats(
   assert(IMPLIES(cpi->ppi->gf_group.size > 0,
                  cpi->gf_frame_index < cpi->ppi->gf_group.size));
   const int tpl_idx = cpi->gf_frame_index;
-  TplParams *const tpl_data = &cpi->tpl_data;
+  TplParams *const tpl_data = &cpi->ppi->tpl_data;
   const TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_idx];
   if (tpl_idx >= MAX_TPL_FRAME_IDX || !tpl_frame->is_valid) {
     return;
@@ -2661,7 +2661,7 @@ static int64_t handle_inter_mode(
   const PREDICTION_MODE this_mode = mbmi->mode;
 
   const int tpl_idx = cpi->gf_frame_index;
-  TplDepFrame *tpl_frame = &cpi->tpl_data.tpl_frame[tpl_idx];
+  TplDepFrame *tpl_frame = &cpi->ppi->tpl_data.tpl_frame[tpl_idx];
   const int prune_modes_based_on_tpl =
       cpi->sf.inter_sf.prune_inter_modes_based_on_tpl &&
       tpl_idx < MAX_TPL_FRAME_IDX && tpl_frame->is_valid;
@@ -5421,7 +5421,7 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
       cpi->oxcf.algo_cfg.enable_tpl_model) {
     // Only consider full SB.
     const BLOCK_SIZE sb_size = cm->seq_params->sb_size;
-    const int tpl_bsize_1d = cpi->tpl_data.tpl_bsize_1d;
+    const int tpl_bsize_1d = cpi->ppi->tpl_data.tpl_bsize_1d;
     const int len = (block_size_wide[sb_size] / tpl_bsize_1d) *
                     (block_size_high[sb_size] / tpl_bsize_1d);
     SuperBlockEnc *sb_enc = &x->sb_enc;
