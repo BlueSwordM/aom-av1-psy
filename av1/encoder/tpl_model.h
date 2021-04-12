@@ -309,10 +309,10 @@ double av1_laplace_estimate_frame_rate(int q_index, int block_count,
  *\ingroup tpl_modelling
  *
  * \param[in]    tpl_frame       pointer of tpl frame data structure
- * \param[in]    coeff_num       number of coefficients per transform block
+ * \param[in]    tpl_bsize_1d    length of the side of a square transform block
  *
  */
-void av1_tpl_stats_init_txfm_stats(TplDepFrame *tpl_frame, int coeff_num);
+void av1_tpl_stats_init_txfm_stats(TplDepFrame *tpl_frame, int tpl_bsize_1d);
 
 /*!\brief  Estimate coefficient entropy using Laplace dsitribution
  *
