@@ -1434,6 +1434,26 @@ void av1_init_tpl_stats(TplParams *const tpl_data) {
   }
 }
 
+static AOM_INLINE int eval_gop_length(double *beta, int gop_eval) {
+  switch (gop_eval) {
+    case 1:
+      // Allow larger GOP size if the base layer ARF has higher dependency
+      // factor than the intermediate ARF and both ARFs have reasonably high
+      // dependency factors.
+      return (beta[0] >= beta[1] + 0.7) && beta[0] > 8.0;
+    case 2:
+      if ((beta[0] >= beta[1] + 0.4) && beta[0] > 1.6)
+        return 1;  // Don't shorten the gf interval
+      else if ((beta[0] < beta[1] + 0.1) || beta[0] <= 1.4)
+        return 0;  // Shorten the gf interval
+      else
+        return 2;  // Cannot decide the gf interval, so redo the
+                   // tpl stats calculation.
+    case 3: return beta[0] > 1.1;
+    default: return 2;
+  }
+}
+
 int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
                         const EncodeFrameParams *const frame_params,
                         const EncodeFrameInput *const frame_input) {
@@ -1447,7 +1467,14 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   int bottom_index, top_index;
   EncodeFrameParams this_frame_params = *frame_params;
   TplParams *const tpl_data = &cpi->tpl_data;
-  int approx_gop_eval = (gop_eval == 2);
+  int approx_gop_eval = (gop_eval > 1);
+  int num_arf_layers = MAX_ARF_LAYERS;
+
+  // When gop_eval is set to 2, tpl stats calculation is done for ARFs from base
+  // layer, (base+1) layer and (base+2) layer. When gop_eval is set to 3,
+  // tpl stats calculation is limited to ARFs from base layer and (base+1)
+  // layer.
+  if (approx_gop_eval) num_arf_layers = (gop_eval == 2) ? 3 : 2;
 
   if (cpi->superres_mode != AOM_SUPERRES_NONE) {
     assert(cpi->superres_mode != AOM_SUPERRES_AUTO);
@@ -1495,16 +1522,18 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   av1_fill_mv_costs(&cm->fc->nmvc, cm->features.cur_frame_force_integer_mv,
                     cm->features.allow_high_precision_mv, cpi->td.mb.mv_costs);
 
-  // When approx_gop_eval = 1 tpl stats calculation is done for base layer
-  // and the next layer ARF.
-  int frame_idx_end =
-      approx_gop_eval ? AOMMIN(tpl_gf_group_frames - 1, gf_group->arf_index + 1)
-                      : tpl_gf_group_frames - 1;
+  const int gop_length = get_gop_length(gf_group);
   // Backward propagation from tpl_group_frames to 1.
-  for (int frame_idx = cpi->gf_frame_index; frame_idx <= frame_idx_end;
+  for (int frame_idx = cpi->gf_frame_index; frame_idx < tpl_gf_group_frames;
        ++frame_idx) {
     if (gf_group->update_type[frame_idx] == INTNL_OVERLAY_UPDATE ||
         gf_group->update_type[frame_idx] == OVERLAY_UPDATE)
+      continue;
+
+    // When approx_gop_eval = 1, skip tpl stats calculation for higher layer
+    // frames and for frames beyond gop length.
+    if (approx_gop_eval && (gf_group->layer_depth[frame_idx] > num_arf_layers ||
+                            frame_idx >= gop_length))
       continue;
 
     init_mc_flow_dispenser(cpi, frame_idx, pframe_qindex);
@@ -1521,10 +1550,14 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
                              av1_num_planes(cm));
   }
 
-  for (int frame_idx = frame_idx_end; frame_idx >= cpi->gf_frame_index;
-       --frame_idx) {
+  for (int frame_idx = tpl_gf_group_frames - 1;
+       frame_idx >= cpi->gf_frame_index; --frame_idx) {
     if (gf_group->update_type[frame_idx] == INTNL_OVERLAY_UPDATE ||
         gf_group->update_type[frame_idx] == OVERLAY_UPDATE)
+      continue;
+
+    if (approx_gop_eval && (gf_group->layer_depth[frame_idx] > num_arf_layers ||
+                            frame_idx >= gop_length))
       continue;
 
     mc_flow_synthesizer(tpl_data, frame_idx, cm->mi_params.mi_rows,
@@ -1589,12 +1622,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_tpl_setup_stats_time);
 #endif
-  if (approx_gop_eval) return beta[0] > 1.1;
-
-  // Allow larger GOP size if the base layer ARF has higher dependency factor
-  // than the intermediate ARF and both ARFs have reasonably high dependency
-  // factors.
-  return (beta[0] >= beta[1] + 0.7) && beta[0] > 8.0;
+  return eval_gop_length(beta, gop_eval);
 }
 
 void av1_tpl_rdmult_setup(AV1_COMP *cpi) {
