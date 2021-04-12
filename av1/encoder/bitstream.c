@@ -314,14 +314,16 @@ static AOM_INLINE void write_delta_qindex(const MACROBLOCKD *xd,
 
 static AOM_INLINE void write_delta_lflevel(const AV1_COMMON *cm,
                                            const MACROBLOCKD *xd, int lf_id,
-                                           int delta_lflevel, aom_writer *w) {
+                                           int delta_lflevel,
+                                           int delta_lf_multi, aom_writer *w) {
   int sign = delta_lflevel < 0;
   int abs = sign ? -delta_lflevel : delta_lflevel;
   int rem_bits, thr;
   int smallval = abs < DELTA_LF_SMALL ? 1 : 0;
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+  (void)cm;
 
-  if (cm->delta_q_info.delta_lf_multi) {
+  if (delta_lf_multi) {
     assert(lf_id >= 0 && lf_id < (av1_num_planes(cm) > 1 ? FRAME_LF_COUNT
                                                          : FRAME_LF_COUNT - 2));
     aom_write_symbol(w, AOMMIN(abs, DELTA_LF_SMALL),
@@ -448,7 +450,7 @@ int av1_neg_interleave(int x, int ref, int max) {
   }
 }
 
-static AOM_INLINE void write_segment_id(AV1_COMP *cpi,
+static AOM_INLINE void write_segment_id(AV1_COMP *cpi, MACROBLOCKD *const xd,
                                         const MB_MODE_INFO *const mbmi,
                                         aom_writer *w,
                                         const struct segmentation *seg,
@@ -457,7 +459,6 @@ static AOM_INLINE void write_segment_id(AV1_COMP *cpi,
   if (!seg->enabled || !seg->update_map) return;
 
   AV1_COMMON *const cm = &cpi->common;
-  MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   int cdf_num;
   const int pred = av1_get_spatial_seg_pred(cm, xd, &cdf_num);
   const int mi_row = xd->mi_row;
@@ -912,9 +913,9 @@ static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
 }
 
 static AOM_INLINE void write_inter_segment_id(
-    AV1_COMP *cpi, aom_writer *w, const struct segmentation *const seg,
-    struct segmentation_probs *const segp, int skip, int preskip) {
-  MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
+    AV1_COMP *cpi, MACROBLOCKD *const xd, aom_writer *w,
+    const struct segmentation *const seg, struct segmentation_probs *const segp,
+    int skip, int preskip) {
   MB_MODE_INFO *const mbmi = xd->mi[0];
   AV1_COMMON *const cm = &cpi->common;
   const int mi_row = xd->mi_row;
@@ -926,7 +927,7 @@ static AOM_INLINE void write_inter_segment_id(
     } else {
       if (seg->segid_preskip) return;
       if (skip) {
-        write_segment_id(cpi, mbmi, w, seg, segp, 1);
+        write_segment_id(cpi, xd, mbmi, w, seg, segp, 1);
         if (seg->temporal_update) mbmi->seg_id_predicted = 0;
         return;
       }
@@ -936,28 +937,26 @@ static AOM_INLINE void write_inter_segment_id(
       aom_cdf_prob *pred_cdf = av1_get_pred_cdf_seg_id(segp, xd);
       aom_write_symbol(w, pred_flag, pred_cdf, 2);
       if (!pred_flag) {
-        write_segment_id(cpi, mbmi, w, seg, segp, 0);
+        write_segment_id(cpi, xd, mbmi, w, seg, segp, 0);
       }
       if (pred_flag) {
         set_spatial_segment_id(&cm->mi_params, cm->cur_frame->seg_map,
                                mbmi->bsize, mi_row, mi_col, mbmi->segment_id);
       }
     } else {
-      write_segment_id(cpi, mbmi, w, seg, segp, 0);
+      write_segment_id(cpi, xd, mbmi, w, seg, segp, 0);
     }
   }
 }
 
 // If delta q is present, writes delta_q index.
 // Also writes delta_q loop filter levels, if present.
-static AOM_INLINE void write_delta_q_params(AV1_COMP *cpi, int skip,
+static AOM_INLINE void write_delta_q_params(AV1_COMMON *const cm,
+                                            MACROBLOCKD *const xd, int skip,
                                             aom_writer *w) {
-  AV1_COMMON *const cm = &cpi->common;
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
 
   if (delta_q_info->delta_q_present_flag) {
-    MACROBLOCK *const x = &cpi->td.mb;
-    MACROBLOCKD *const xd = &x->e_mbd;
     const MB_MODE_INFO *const mbmi = xd->mi[0];
     const BLOCK_SIZE bsize = mbmi->bsize;
     const int super_block_upper_left =
@@ -980,14 +979,14 @@ static AOM_INLINE void write_delta_q_params(AV1_COMP *cpi, int skip,
             int reduced_delta_lflevel =
                 (mbmi->delta_lf[lf_id] - xd->delta_lf[lf_id]) /
                 delta_q_info->delta_lf_res;
-            write_delta_lflevel(cm, xd, lf_id, reduced_delta_lflevel, w);
+            write_delta_lflevel(cm, xd, lf_id, reduced_delta_lflevel, 1, w);
             xd->delta_lf[lf_id] = mbmi->delta_lf[lf_id];
           }
         } else {
           int reduced_delta_lflevel =
               (mbmi->delta_lf_from_base - xd->delta_lf_from_base) /
               delta_q_info->delta_lf_res;
-          write_delta_lflevel(cm, xd, -1, reduced_delta_lflevel, w);
+          write_delta_lflevel(cm, xd, -1, reduced_delta_lflevel, 0, w);
           xd->delta_lf_from_base = mbmi->delta_lf_from_base;
         }
       }
@@ -995,12 +994,10 @@ static AOM_INLINE void write_delta_q_params(AV1_COMP *cpi, int skip,
   }
 }
 
-static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
+static AOM_INLINE void write_intra_prediction_modes(const AV1_COMMON *cm,
+                                                    MACROBLOCKD *const xd,
                                                     int is_keyframe,
                                                     aom_writer *w) {
-  const AV1_COMMON *const cm = &cpi->common;
-  MACROBLOCK *const x = &cpi->td.mb;
-  MACROBLOCKD *const xd = &x->e_mbd;
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const PREDICTION_MODE mode = mbmi->mode;
@@ -1085,9 +1082,10 @@ static INLINE int_mv get_ref_mv(const MACROBLOCK *x, int ref_idx) {
                                x->mbmi_ext_frame);
 }
 
-static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
+static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, ThreadData *const td,
+                                           aom_writer *w) {
   AV1_COMMON *const cm = &cpi->common;
-  MACROBLOCK *const x = &cpi->td.mb;
+  MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   const struct segmentation *const seg = &cm->seg;
@@ -1102,7 +1100,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   const int is_compound = has_second_ref(mbmi);
   int ref;
 
-  write_inter_segment_id(cpi, w, seg, segp, 0, 1);
+  write_inter_segment_id(cpi, xd, w, seg, segp, 0, 1);
 
   write_skip_mode(cm, xd, segment_id, mbmi, w);
 
@@ -1110,18 +1108,18 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   const int skip =
       mbmi->skip_mode ? 1 : write_skip(cm, xd, segment_id, mbmi, w);
 
-  write_inter_segment_id(cpi, w, seg, segp, skip, 0);
+  write_inter_segment_id(cpi, xd, w, seg, segp, skip, 0);
 
   write_cdef(cm, xd, w, skip);
 
-  write_delta_q_params(cpi, skip, w);
+  write_delta_q_params(cm, xd, skip, w);
 
   if (!mbmi->skip_mode) write_is_inter(cm, xd, mbmi->segment_id, w, is_inter);
 
   if (mbmi->skip_mode) return;
 
   if (!is_inter) {
-    write_intra_prediction_modes(cpi, 0, w);
+    write_intra_prediction_modes(cm, xd, 0, w);
   } else {
     int16_t mode_ctx;
 
@@ -1267,23 +1265,23 @@ static AOM_INLINE void write_mb_modes_kf(
   const MB_MODE_INFO *const mbmi = xd->mi[0];
 
   if (seg->segid_preskip && seg->update_map)
-    write_segment_id(cpi, mbmi, w, seg, segp, 0);
+    write_segment_id(cpi, xd, mbmi, w, seg, segp, 0);
 
   const int skip = write_skip(cm, xd, mbmi->segment_id, mbmi, w);
 
   if (!seg->segid_preskip && seg->update_map)
-    write_segment_id(cpi, mbmi, w, seg, segp, skip);
+    write_segment_id(cpi, xd, mbmi, w, seg, segp, skip);
 
   write_cdef(cm, xd, w, skip);
 
-  write_delta_q_params(cpi, skip, w);
+  write_delta_q_params(cm, xd, skip, w);
 
   if (av1_allow_intrabc(cm)) {
     write_intrabc_info(xd, mbmi_ext_frame, w);
     if (is_intrabc_block(mbmi)) return;
   }
 
-  write_intra_prediction_modes(cpi, 1, w);
+  write_intra_prediction_modes(cm, xd, 1, w);
 }
 
 #if CONFIG_RD_DEBUG
@@ -1363,13 +1361,14 @@ static AOM_INLINE void enc_dump_logs(
 }
 #endif  // ENC_MISMATCH_DEBUG
 
-static AOM_INLINE void write_mbmi_b(AV1_COMP *cpi, aom_writer *w) {
+static AOM_INLINE void write_mbmi_b(AV1_COMP *cpi, ThreadData *const td,
+                                    aom_writer *w) {
   AV1_COMMON *const cm = &cpi->common;
-  MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
+  MACROBLOCKD *const xd = &td->mb.e_mbd;
   MB_MODE_INFO *m = xd->mi[0];
 
   if (frame_is_intra_only(cm)) {
-    write_mb_modes_kf(cpi, xd, cpi->td.mb.mbmi_ext_frame, w);
+    write_mb_modes_kf(cpi, xd, td->mb.mbmi_ext_frame, w);
   } else {
     // has_subpel_mv_component needs the ref frame buffers set up to look
     // up if they are scaled. has_subpel_mv_component is in turn needed by
@@ -1380,7 +1379,7 @@ static AOM_INLINE void write_mbmi_b(AV1_COMP *cpi, aom_writer *w) {
     enc_dump_logs(cm, &cpi->mbmi_ext_info, xd->mi_row, xd->mi_col);
 #endif  // ENC_MISMATCH_DEBUG
 
-    pack_inter_mode_mvs(cpi, w);
+    pack_inter_mode_mvs(cpi, td, w);
   }
 }
 
@@ -1420,11 +1419,10 @@ static AOM_INLINE void write_inter_txb_coeff(
   }
 }
 
-static AOM_INLINE void write_tokens_b(AV1_COMP *cpi, aom_writer *w,
-                                      const TokenExtra **tok,
+static AOM_INLINE void write_tokens_b(AV1_COMP *cpi, MACROBLOCK *const x,
+                                      aom_writer *w, const TokenExtra **tok,
                                       const TokenExtra *const tok_end) {
   AV1_COMMON *const cm = &cpi->common;
-  MACROBLOCK *const x = &cpi->td.mb;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const BLOCK_SIZE bsize = mbmi->bsize;
@@ -1474,17 +1472,18 @@ static AOM_INLINE void write_tokens_b(AV1_COMP *cpi, aom_writer *w,
   }
 }
 
-static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
-                                     aom_writer *w, const TokenExtra **tok,
+static AOM_INLINE void write_modes_b(AV1_COMP *cpi, ThreadData *const td,
+                                     const TileInfo *const tile, aom_writer *w,
+                                     const TokenExtra **tok,
                                      const TokenExtra *const tok_end,
                                      int mi_row, int mi_col) {
   const AV1_COMMON *cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
-  MACROBLOCKD *xd = &cpi->td.mb.e_mbd;
+  MACROBLOCKD *xd = &td->mb.e_mbd;
   FRAME_CONTEXT *tile_ctx = xd->tile_ctx;
   const int grid_idx = mi_row * mi_params->mi_stride + mi_col;
   xd->mi = mi_params->mi_grid_base + grid_idx;
-  cpi->td.mb.mbmi_ext_frame =
+  td->mb.mbmi_ext_frame =
       cpi->mbmi_ext_info.frame_base +
       get_mi_ext_idx(mi_row, mi_col, cm->mi_params.mi_alloc_bsize,
                      cpi->mbmi_ext_info.stride);
@@ -1505,7 +1504,7 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   xd->left_txfm_context =
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
 
-  write_mbmi_b(cpi, w);
+  write_mbmi_b(cpi, td, w);
 
   for (int plane = 0; plane < AOMMIN(2, av1_num_planes(cm)); ++plane) {
     const uint8_t palette_size_plane =
@@ -1554,7 +1553,7 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   if (!mbmi->skip_txfm) {
     int start = aom_tell_size(w);
 
-    write_tokens_b(cpi, w, tok, tok_end);
+    write_tokens_b(cpi, &td->mb, w, tok, tok_end);
 
     const int end = aom_tell_size(w);
     cpi->rc.coefficient_size += end - start;
@@ -1599,12 +1598,12 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
 }
 
 static AOM_INLINE void write_modes_sb(
-    AV1_COMP *const cpi, const TileInfo *const tile, aom_writer *const w,
-    const TokenExtra **tok, const TokenExtra *const tok_end, int mi_row,
-    int mi_col, BLOCK_SIZE bsize) {
+    AV1_COMP *const cpi, ThreadData *const td, const TileInfo *const tile,
+    aom_writer *const w, const TokenExtra **tok,
+    const TokenExtra *const tok_end, int mi_row, int mi_col, BLOCK_SIZE bsize) {
   const AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
-  MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
+  MACROBLOCKD *const xd = &td->mb.e_mbd;
   assert(bsize < BLOCK_SIZES_ALL);
   const int hbs = mi_size_wide[bsize] / 2;
   const int quarter_step = mi_size_wide[bsize] / 4;
@@ -1626,8 +1625,7 @@ static AOM_INLINE void write_modes_sb(
           const int runit_idx = rcol + rrow * rstride;
           const RestorationUnitInfo *rui =
               &cm->rst_info[plane].unit_info[runit_idx];
-          loop_restoration_write_sb_coeffs(cm, xd, rui, w, plane,
-                                           cpi->td.counts);
+          loop_restoration_write_sb_coeffs(cm, xd, rui, w, plane, td->counts);
         }
       }
     }
@@ -1637,51 +1635,53 @@ static AOM_INLINE void write_modes_sb(
   write_partition(cm, xd, hbs, mi_row, mi_col, partition, bsize, w);
   switch (partition) {
     case PARTITION_NONE:
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
+      write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row, mi_col);
       break;
     case PARTITION_HORZ:
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
+      write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row, mi_col);
       if (mi_row + hbs < mi_params->mi_rows)
-        write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col);
+        write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row + hbs, mi_col);
       break;
     case PARTITION_VERT:
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
+      write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row, mi_col);
       if (mi_col + hbs < mi_params->mi_cols)
-        write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + hbs);
+        write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row, mi_col + hbs);
       break;
     case PARTITION_SPLIT:
-      write_modes_sb(cpi, tile, w, tok, tok_end, mi_row, mi_col, subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, mi_row, mi_col + hbs, subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col, subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col + hbs,
+      write_modes_sb(cpi, td, tile, w, tok, tok_end, mi_row, mi_col, subsize);
+      write_modes_sb(cpi, td, tile, w, tok, tok_end, mi_row, mi_col + hbs,
+                     subsize);
+      write_modes_sb(cpi, td, tile, w, tok, tok_end, mi_row + hbs, mi_col,
+                     subsize);
+      write_modes_sb(cpi, td, tile, w, tok, tok_end, mi_row + hbs, mi_col + hbs,
                      subsize);
       break;
     case PARTITION_HORZ_A:
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + hbs);
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col);
+      write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row, mi_col);
+      write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row, mi_col + hbs);
+      write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row + hbs, mi_col);
       break;
     case PARTITION_HORZ_B:
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col);
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col + hbs);
+      write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row, mi_col);
+      write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row + hbs, mi_col);
+      write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row + hbs, mi_col + hbs);
       break;
     case PARTITION_VERT_A:
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col);
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + hbs);
+      write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row, mi_col);
+      write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row + hbs, mi_col);
+      write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row, mi_col + hbs);
       break;
     case PARTITION_VERT_B:
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + hbs);
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col + hbs);
+      write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row, mi_col);
+      write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row, mi_col + hbs);
+      write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row + hbs, mi_col + hbs);
       break;
     case PARTITION_HORZ_4:
       for (i = 0; i < 4; ++i) {
         int this_mi_row = mi_row + i * quarter_step;
         if (i > 0 && this_mi_row >= mi_params->mi_rows) break;
 
-        write_modes_b(cpi, tile, w, tok, tok_end, this_mi_row, mi_col);
+        write_modes_b(cpi, td, tile, w, tok, tok_end, this_mi_row, mi_col);
       }
       break;
     case PARTITION_VERT_4:
@@ -1689,7 +1689,7 @@ static AOM_INLINE void write_modes_sb(
         int this_mi_col = mi_col + i * quarter_step;
         if (i > 0 && this_mi_col >= mi_params->mi_cols) break;
 
-        write_modes_b(cpi, tile, w, tok, tok_end, mi_row, this_mi_col);
+        write_modes_b(cpi, td, tile, w, tok, tok_end, mi_row, this_mi_col);
       }
       break;
     default: assert(0);
@@ -1699,12 +1699,12 @@ static AOM_INLINE void write_modes_sb(
   update_ext_partition_context(xd, mi_row, mi_col, subsize, bsize, partition);
 }
 
-static AOM_INLINE void write_modes(AV1_COMP *const cpi,
+static AOM_INLINE void write_modes(AV1_COMP *const cpi, ThreadData *const td,
                                    const TileInfo *const tile,
                                    aom_writer *const w, int tile_row,
                                    int tile_col) {
   AV1_COMMON *const cm = &cpi->common;
-  MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
+  MACROBLOCKD *const xd = &td->mb.e_mbd;
   const int mi_row_start = tile->mi_row_start;
   const int mi_row_end = tile->mi_row_end;
   const int mi_col_start = tile->mi_col_start;
@@ -1734,8 +1734,8 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
 
     for (int mi_col = mi_col_start; mi_col < mi_col_end;
          mi_col += cm->seq_params.mib_size) {
-      cpi->td.mb.cb_coef_buff = av1_get_cb_coeff_buffer(cpi, mi_row, mi_col);
-      write_modes_sb(cpi, tile, w, &tok, tok_end, mi_row, mi_col,
+      td->mb.cb_coef_buff = av1_get_cb_coeff_buffer(cpi, mi_row, mi_col);
+      write_modes_sb(cpi, td, tile, w, &tok, tok_end, mi_row, mi_col,
                      cm->seq_params.sb_size);
     }
     assert(tok == tok_end);
@@ -2828,12 +2828,11 @@ static int check_frame_refs_short_signaling(AV1_COMMON *const cm) {
 
 // New function based on HLS R18
 static AOM_INLINE void write_uncompressed_header_obu(
-    AV1_COMP *cpi, struct aom_write_bit_buffer *saved_wb,
+    AV1_COMP *cpi, MACROBLOCKD *const xd, struct aom_write_bit_buffer *saved_wb,
     struct aom_write_bit_buffer *wb) {
   AV1_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   const CommonQuantParams *quant_params = &cm->quant_params;
-  MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   CurrentFrame *const current_frame = &cm->current_frame;
   FeatureFlags *const features = &cm->features;
 
@@ -3413,12 +3412,12 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
   return size;
 }
 
-static uint32_t write_frame_header_obu(AV1_COMP *cpi,
+static uint32_t write_frame_header_obu(AV1_COMP *cpi, MACROBLOCKD *const xd,
                                        struct aom_write_bit_buffer *saved_wb,
                                        uint8_t *const dst,
                                        int append_trailing_bits) {
   struct aom_write_bit_buffer wb = { dst, 0 };
-  write_uncompressed_header_obu(cpi, saved_wb, &wb);
+  write_uncompressed_header_obu(cpi, xd, saved_wb, &wb);
   if (append_trailing_bits) add_trailing_bits(&wb);
   return aom_wb_bytes_written(&wb);
 }
@@ -3485,7 +3484,7 @@ static uint32_t init_large_scale_tile_obu_header(
   *data += lst_obu->tg_hdr_size;
 
   const uint32_t frame_header_size =
-      write_frame_header_obu(cpi, saved_wb, *data, 0);
+      write_frame_header_obu(cpi, &cpi->td.mb.e_mbd, saved_wb, *data, 0);
   *data += frame_header_size;
   lst_obu->frame_header_size = frame_header_size;
   // (yunqing) This test ensures the correctness of large scale tile coding.
@@ -3582,7 +3581,7 @@ static void write_large_scale_tile_obu(
       mode_bc.allow_update_cdf =
           mode_bc.allow_update_cdf && !cm->features.disable_cdf_update;
       aom_start_encode(&mode_bc, buf->data + data_offset);
-      write_modes(cpi, &tile_info, &mode_bc, tile_row, tile_col);
+      write_modes(cpi, &cpi->td, &tile_info, &mode_bc, tile_row, tile_col);
       aom_stop_encode(&mode_bc);
       tile_size = mode_bc.pos;
       buf->size = tile_size;
@@ -3661,7 +3660,7 @@ static INLINE uint32_t pack_large_scale_tiles_in_tg_obus(
 
 // Pack tile data in the bitstream with tile_group, frame
 // and OBU header.
-static void pack_tile_info(AV1_COMP *const cpi,
+static void pack_tile_info(AV1_COMP *const cpi, ThreadData *const td,
                            PackBSParams *const pack_bs_params) {
   aom_writer mode_bc;
   AV1_COMMON *const cm = &cpi->common;
@@ -3694,8 +3693,9 @@ static void pack_tile_info(AV1_COMP *const cpi,
     pack_bs_params->obu_header_size = *curr_tg_hdr_size;
 
     if (cpi->num_tg == 1)
-      *curr_tg_hdr_size += write_frame_header_obu(
-          cpi, pack_bs_params->saved_wb, tile_data_curr + *curr_tg_hdr_size, 0);
+      *curr_tg_hdr_size +=
+          write_frame_header_obu(cpi, &td->mb.e_mbd, pack_bs_params->saved_wb,
+                                 tile_data_curr + *curr_tg_hdr_size, 0);
     *curr_tg_hdr_size += write_tile_group_header(
         tile_data_curr + *curr_tg_hdr_size, tile_idx,
         AOMMIN(tile_idx + tg_size - 1, tiles->cols * tiles->rows - 1),
@@ -3710,7 +3710,7 @@ static void pack_tile_info(AV1_COMP *const cpi,
 
   // Pack tile data
   aom_start_encode(&mode_bc, pack_bs_params->dst + *total_size);
-  write_modes(cpi, &tile_info, &mode_bc, tile_row, tile_col);
+  write_modes(cpi, td, &tile_info, &mode_bc, tile_row, tile_col);
   aom_stop_encode(&mode_bc);
   tile_size = mode_bc.pos;
   assert(tile_size >= AV1_MIN_TILE_SIZE_BYTES);
@@ -3827,7 +3827,7 @@ static void write_tile_obu(
       pack_bs_params.tile_data_curr = tile_data_curr;
       pack_bs_params.total_size = total_size;
 
-      pack_tile_info(cpi, &pack_bs_params);
+      pack_tile_info(cpi, &cpi->td, &pack_bs_params);
 
       if (new_tg) {
         curr_tg_data_size = pack_bs_params.curr_tg_hdr_size;
@@ -4058,8 +4058,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     obu_header_size =
         av1_write_obu_header(level_params, &cpi->frame_header_count,
                              OBU_FRAME_HEADER, obu_extension_header, data);
-    obu_payload_size =
-        write_frame_header_obu(cpi, &saved_wb, data + obu_header_size, 1);
+    obu_payload_size = write_frame_header_obu(cpi, &cpi->td.mb.e_mbd, &saved_wb,
+                                              data + obu_header_size, 1);
 
     length_field = obu_memmove(obu_header_size, obu_payload_size, data);
     if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
