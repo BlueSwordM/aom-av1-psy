@@ -3808,7 +3808,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
            p_rc->regions[next_region].type == SCENECUT_REGION);
       int ori_gf_int = p_rc->gf_intervals[p_rc->cur_gf_index];
 
-      if (p_rc->gf_intervals[p_rc->cur_gf_index] > 16) {
+      if (p_rc->gf_intervals[p_rc->cur_gf_index] > 16 &&
+          rc->min_gf_interval <= 16) {
         // The calculate_gf_length function is previously used with
         // max_gop_length = 32 with look-ahead gf intervals.
         define_gf_group(cpi, &this_frame, frame_params, max_gop_length, 0);
