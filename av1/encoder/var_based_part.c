@@ -436,6 +436,15 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
       thresholds[2] = (5 * threshold_base) >> 1;
     }
     if (cpi->sf.rt_sf.force_large_partition_blocks) {
+      double weight;
+      const int win = 20;
+      if (current_qindex < QINDEX_LARGE_BLOCK_THR - win)
+        weight = 1.0;
+      else if (current_qindex > QINDEX_LARGE_BLOCK_THR + win)
+        weight = 0.0;
+      else
+        weight =
+            1.0 - (current_qindex - QINDEX_LARGE_BLOCK_THR + win) / (2 * win);
       if (cm->width * cm->height <= 352 * 288) {
         thresholds[1] <<= 2;
         thresholds[2] <<= 5;
@@ -450,13 +459,17 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
         thresholds[0] = (3 * thresholds[0]) >> 1;
         thresholds[3] = INT32_MAX;
         if (current_qindex > QINDEX_LARGE_BLOCK_THR) {
-          thresholds[1] <<= 1;
-          thresholds[2] <<= 1;
+          thresholds[1] = (int)((1 - weight) * (thresholds[1] << 1) +
+                                weight * thresholds[1]);
+          thresholds[2] = (int)((1 - weight) * (thresholds[2] << 1) +
+                                weight * thresholds[2]);
         }
       } else if (current_qindex > QINDEX_LARGE_BLOCK_THR && segment_id == 0 &&
                  (source_sad != kHighSad || cpi->rc.avg_source_sad > 50000)) {
-        thresholds[1] <<= 2;
-        thresholds[2] <<= 5;
+        thresholds[1] =
+            (int)((1 - weight) * (thresholds[1] << 2) + weight * thresholds[1]);
+        thresholds[2] =
+            (int)((1 - weight) * (thresholds[2] << 5) + weight * thresholds[2]);
         thresholds[3] = INT32_MAX;
       }
     }
