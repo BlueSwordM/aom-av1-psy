@@ -272,10 +272,13 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
     lf->filter_level_u = clamp(filt_guess, min_filter_level, max_filter_level);
     lf->filter_level_v = clamp(filt_guess, min_filter_level, max_filter_level);
   } else {
-    const int last_frame_filter_level[4] = { lf->filter_level[0],
-                                             lf->filter_level[1],
-                                             lf->filter_level_u,
-                                             lf->filter_level_v };
+    int last_frame_filter_level[4] = { 0 };
+    if (!frame_is_intra_only(cm)) {
+      last_frame_filter_level[0] = lf->filter_level[0];
+      last_frame_filter_level[1] = lf->filter_level[1];
+      last_frame_filter_level[2] = lf->filter_level_u;
+      last_frame_filter_level[3] = lf->filter_level_v;
+    }
 
     lf->filter_level[0] = lf->filter_level[1] =
         search_filter_level(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
