@@ -24,7 +24,10 @@ static void set_mb_butteraugli_rdmult_scaling(AV1_COMP *cpi,
                                               const YV12_BUFFER_CONFIG *source,
                                               const YV12_BUFFER_CONFIG *recon) {
   AV1_COMMON *const cm = &cpi->common;
+  SequenceHeader *const seq_params = &cm->seq_params;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const aom_color_range_t color_range =
+      seq_params->color_range != 0 ? AOM_CR_FULL_RANGE : AOM_CR_STUDIO_RANGE;
   const int bit_depth = cpi->td.mb.e_mbd.bd;
   const int width = source->y_crop_width;
   const int height = source->y_crop_height;
@@ -33,7 +36,9 @@ static void set_mb_butteraugli_rdmult_scaling(AV1_COMP *cpi,
 
   float *diffmap;
   CHECK_MEM_ERROR(cm, diffmap, aom_malloc(width * height * sizeof(*diffmap)));
-  if (!aom_calc_butteraugli(source, recon, bit_depth, diffmap)) {
+  if (!aom_calc_butteraugli(source, recon, bit_depth,
+                            seq_params->matrix_coefficients, color_range,
+                            diffmap)) {
     aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                        "Failed to calculate Butteraugli distances.");
   }
