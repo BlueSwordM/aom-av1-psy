@@ -853,9 +853,9 @@ static void set_config_arg_key_vals(struct stream_config *config,
   }
 
   /* Point either to the next free element or the first instance of this
-   * control.
+   * option.
    */
-  for (j = 0; j < config->arg_ctrl_cnt; j++)
+  for (j = 0; j < config->arg_key_val_cnt; j++)
     if (strcmp(name, config->arg_key_vals[j][0]) == 0) break;
 
   /* Update/insert */
