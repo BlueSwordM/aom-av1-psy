@@ -617,8 +617,8 @@ static AOM_INLINE void write_angle_delta(aom_writer *w, int angle_delta,
 }
 
 static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
-                                              const MACROBLOCKD *xd,
-                                              aom_writer *w) {
+                                              ThreadData *td, aom_writer *w) {
+  const MACROBLOCKD *xd = &td->mb.e_mbd;
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
@@ -637,7 +637,7 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
           av1_extract_interp_filter(mbmi->interp_filters, dir);
       aom_write_symbol(w, filter, ec_ctx->switchable_interp_cdf[ctx],
                        SWITCHABLE_FILTERS);
-      ++cm->cur_frame->interp_filter_selected[filter];
+      ++td->interp_filter_selected[filter];
       if (cm->seq_params.enable_dual_filter == 0) return;
     }
   }
@@ -1147,17 +1147,19 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, ThreadData *const td,
       for (ref = 0; ref < 1 + is_compound; ++ref) {
         nmv_context *nmvc = &ec_ctx->nmvc;
         const int_mv ref_mv = get_ref_mv(x, ref);
-        av1_encode_mv(cpi, w, &mbmi->mv[ref].as_mv, &ref_mv.as_mv, nmvc,
+        av1_encode_mv(cpi, w, td, &mbmi->mv[ref].as_mv, &ref_mv.as_mv, nmvc,
                       allow_hp);
       }
     } else if (mode == NEAREST_NEWMV || mode == NEAR_NEWMV) {
       nmv_context *nmvc = &ec_ctx->nmvc;
       const int_mv ref_mv = get_ref_mv(x, 1);
-      av1_encode_mv(cpi, w, &mbmi->mv[1].as_mv, &ref_mv.as_mv, nmvc, allow_hp);
+      av1_encode_mv(cpi, w, td, &mbmi->mv[1].as_mv, &ref_mv.as_mv, nmvc,
+                    allow_hp);
     } else if (mode == NEW_NEARESTMV || mode == NEW_NEARMV) {
       nmv_context *nmvc = &ec_ctx->nmvc;
       const int_mv ref_mv = get_ref_mv(x, 0);
-      av1_encode_mv(cpi, w, &mbmi->mv[0].as_mv, &ref_mv.as_mv, nmvc, allow_hp);
+      av1_encode_mv(cpi, w, td, &mbmi->mv[0].as_mv, &ref_mv.as_mv, nmvc,
+                    allow_hp);
     }
 
     if (cpi->common.current_frame.reference_mode != COMPOUND_REFERENCE &&
@@ -1235,7 +1237,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, ThreadData *const td,
         }
       }
     }
-    write_mb_interp_filter(cm, xd, w);
+    write_mb_interp_filter(cm, td, w);
   }
 }
 
@@ -1556,7 +1558,7 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, ThreadData *const td,
     write_tokens_b(cpi, &td->mb, w, tok, tok_end);
 
     const int end = aom_tell_size(w);
-    cpi->rc.coefficient_size += end - start;
+    td->coefficient_size += end - start;
   }
 }
 
@@ -2828,9 +2830,10 @@ static int check_frame_refs_short_signaling(AV1_COMMON *const cm) {
 
 // New function based on HLS R18
 static AOM_INLINE void write_uncompressed_header_obu(
-    AV1_COMP *cpi, MACROBLOCKD *const xd, struct aom_write_bit_buffer *saved_wb,
+    AV1_COMP *cpi, MACROBLOCK *const x, struct aom_write_bit_buffer *saved_wb,
     struct aom_write_bit_buffer *wb) {
   AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
   const SequenceHeader *const seq_params = &cm->seq_params;
   const CommonQuantParams *quant_params = &cm->quant_params;
   CurrentFrame *const current_frame = &cm->current_frame;
@@ -2911,7 +2914,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
     if (cm->superres_upscaled_width > seq_params->max_frame_width ||
         cm->superres_upscaled_height > seq_params->max_frame_height) {
-      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+      aom_internal_error(x->error_info, AOM_CODEC_UNSUP_BITSTREAM,
                          "Frame dimensions are larger than the maximum values");
     }
 
@@ -2950,7 +2953,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
                 seq_params->decoder_model_info.buffer_removal_time_length);
             cm->buffer_removal_times[op_num]++;
             if (cm->buffer_removal_times[op_num] == 0) {
-              aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+              aom_internal_error(x->error_info, AOM_CODEC_UNSUP_BITSTREAM,
                                  "buffer_removal_time overflowed");
             }
           }
@@ -3037,7 +3040,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
               1;
           if (delta_frame_id_minus_1 < 0 ||
               delta_frame_id_minus_1 >= (1 << diff_len)) {
-            aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
+            aom_internal_error(x->error_info, AOM_CODEC_ERROR,
                                "Invalid delta_frame_id_minus_1");
           }
           aom_wb_write_literal(wb, delta_frame_id_minus_1, diff_len);
@@ -3412,12 +3415,12 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
   return size;
 }
 
-static uint32_t write_frame_header_obu(AV1_COMP *cpi, MACROBLOCKD *const xd,
+static uint32_t write_frame_header_obu(AV1_COMP *cpi, MACROBLOCK *const x,
                                        struct aom_write_bit_buffer *saved_wb,
                                        uint8_t *const dst,
                                        int append_trailing_bits) {
   struct aom_write_bit_buffer wb = { dst, 0 };
-  write_uncompressed_header_obu(cpi, xd, saved_wb, &wb);
+  write_uncompressed_header_obu(cpi, x, saved_wb, &wb);
   if (append_trailing_bits) add_trailing_bits(&wb);
   return aom_wb_bytes_written(&wb);
 }
@@ -3484,7 +3487,7 @@ static uint32_t init_large_scale_tile_obu_header(
   *data += lst_obu->tg_hdr_size;
 
   const uint32_t frame_header_size =
-      write_frame_header_obu(cpi, &cpi->td.mb.e_mbd, saved_wb, *data, 0);
+      write_frame_header_obu(cpi, &cpi->td.mb, saved_wb, *data, 0);
   *data += frame_header_size;
   lst_obu->frame_header_size = frame_header_size;
   // (yunqing) This test ensures the correctness of large scale tile coding.
@@ -3553,6 +3556,7 @@ static void write_large_scale_tile_obu(
   const int tile_rows = tiles->rows;
   unsigned int tile_size = 0;
 
+  reset_pack_bs_thread_data(&cpi->td);
   for (int tile_col = 0; tile_col < tile_cols; tile_col++) {
     TileInfo tile_info;
     const int is_last_col = (tile_col == tile_cols - 1);
@@ -3577,6 +3581,7 @@ static void write_large_scale_tile_obu(
       // even for the last one, unless no tiling is used at all.
       *total_size += data_offset;
       cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
+      cpi->td.mb.error_info = &cm->error;
       mode_bc.allow_update_cdf = !tiles->large_scale;
       mode_bc.allow_update_cdf =
           mode_bc.allow_update_cdf && !cm->features.disable_cdf_update;
@@ -3629,6 +3634,7 @@ static void write_large_scale_tile_obu(
       *max_tile_col_size = AOMMAX(*max_tile_col_size, col_size);
     }
   }
+  accumulate_pack_bs_thread_data(cpi, &cpi->td);
 }
 
 // Packs information in the obu header for large scale tiles.
@@ -3694,7 +3700,7 @@ static void pack_tile_info(AV1_COMP *const cpi, ThreadData *const td,
 
     if (cpi->num_tg == 1)
       *curr_tg_hdr_size +=
-          write_frame_header_obu(cpi, &td->mb.e_mbd, pack_bs_params->saved_wb,
+          write_frame_header_obu(cpi, &td->mb, pack_bs_params->saved_wb,
                                  tile_data_curr + *curr_tg_hdr_size, 0);
     *curr_tg_hdr_size += write_tile_group_header(
         tile_data_curr + *curr_tg_hdr_size, tile_idx,
@@ -3773,6 +3779,24 @@ void write_last_tile_info(AV1_COMP *const cpi, const FrameHeaderInfo *fh_info,
   *is_first_tg = 0;
 }
 
+void reset_pack_bs_thread_data(ThreadData *const td) {
+  td->coefficient_size = 0;
+  td->max_mv_magnitude = 0;
+  av1_zero(td->interp_filter_selected);
+}
+
+void accumulate_pack_bs_thread_data(AV1_COMP *const cpi, ThreadData const *td) {
+  cpi->rc.coefficient_size += td->coefficient_size;
+
+  if (cpi->sf.mv_sf.auto_mv_step_size)
+    cpi->mv_search_params.max_mv_magnitude =
+        AOMMAX(cpi->mv_search_params.max_mv_magnitude, td->max_mv_magnitude);
+
+  for (InterpFilter filter = EIGHTTAP_REGULAR; filter < SWITCHABLE; filter++)
+    cpi->common.cur_frame->interp_filter_selected[filter] +=
+        td->interp_filter_selected[filter];
+}
+
 // Store information related to each default tile in the OBU header.
 static void write_tile_obu(
     AV1_COMP *const cpi, uint8_t *const dst, uint32_t *total_size,
@@ -3793,6 +3817,7 @@ static void write_tile_obu(
   int new_tg = 1;
   int is_first_tg = 1;
 
+  reset_pack_bs_thread_data(&cpi->td);
   for (int tile_row = 0; tile_row < tile_rows; tile_row++) {
     for (int tile_col = 0; tile_col < tile_cols; tile_col++) {
       const int tile_idx = tile_row * tile_cols + tile_col;
@@ -3809,6 +3834,7 @@ static void write_tile_obu(
         is_last_tile_in_tg = 1;
 
       cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
+      cpi->td.mb.error_info = &cm->error;
       const int num_planes = av1_num_planes(cm);
       av1_reset_loop_restoration(&cpi->td.mb.e_mbd, num_planes);
 
@@ -3853,6 +3879,7 @@ static void write_tile_obu(
       *total_size += (uint32_t)pack_bs_params.buf.size;
     }
   }
+  accumulate_pack_bs_thread_data(cpi, &cpi->td);
 }
 
 // Write total buffer size and related information into the OBU header for
@@ -4058,7 +4085,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     obu_header_size =
         av1_write_obu_header(level_params, &cpi->frame_header_count,
                              OBU_FRAME_HEADER, obu_extension_header, data);
-    obu_payload_size = write_frame_header_obu(cpi, &cpi->td.mb.e_mbd, &saved_wb,
+    obu_payload_size = write_frame_header_obu(cpi, &cpi->td.mb, &saved_wb,
                                               data + obu_header_size, 1);
 
     length_field = obu_memmove(obu_header_size, obu_payload_size, data);

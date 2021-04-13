@@ -1303,6 +1303,9 @@ typedef struct ThreadData {
   uint8_t *tmp_pred_bufs[2];
   int intrabc_used;
   int deltaq_used;
+  int coefficient_size;
+  int max_mv_magnitude;
+  int interp_filter_selected[SWITCHABLE];
   FRAME_CONTEXT *tctx;
   VP64x64 *vt64x64;
   int32_t num_64x64_blocks;

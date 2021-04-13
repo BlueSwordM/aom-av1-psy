@@ -46,6 +46,9 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
                        TX_TYPE tx_type, TX_SIZE tx_size, aom_writer *w);
 
+void reset_pack_bs_thread_data(ThreadData *const td);
+
+void accumulate_pack_bs_thread_data(AV1_COMP *const cpi, ThreadData const *td);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
