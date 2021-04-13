@@ -681,6 +681,8 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
 
   if (global->usage == AOM_USAGE_REALTIME && global->passes > 1) {
     warn("Enforcing one-pass encoding in realtime mode\n");
+    if (global->pass > 1)
+      die("Error: Invalid --pass=%d for one-pass encoding\n", global->pass);
     global->passes = 1;
   }
 
