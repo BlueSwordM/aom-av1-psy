@@ -287,6 +287,9 @@ static void parse_command_line(int argc, const char **argv_,
       if (app_input->speed > 9) {
         warn("Mapping speed %d to speed 9.\n", app_input->speed);
       }
+      if (app_input->speed <= 6) {
+        die("Encoder speed setting should be in [7, 9].\n");
+      }
     } else if (arg_match(&arg, &aqmode_arg, argi)) {
       app_input->aq_mode = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &threads_arg, argi)) {
@@ -1105,6 +1108,7 @@ int main(int argc, const char **argv) {
   app_input.input_ctx.framerate.denominator = 1;
   app_input.input_ctx.only_i420 = 1;
   app_input.input_ctx.bit_depth = 0;
+  app_input.speed = 7;
   exec_name = argv[0];
 
   // start with default encoder configuration
