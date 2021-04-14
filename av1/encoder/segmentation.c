@@ -175,6 +175,14 @@ void av1_choose_segmap_coding_method(AV1_COMMON *cm, MACROBLOCKD *xd) {
   int no_pred_cost;
   int t_pred_cost = INT_MAX;
   int tile_col, tile_row, mi_row, mi_col;
+
+  if (!seg->update_map) return;
+  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
+    seg->temporal_update = 0;
+    assert(seg->update_data == 1);
+    return;
+  }
+
   unsigned temporal_predictor_count[SEG_TEMPORAL_PRED_CTXS][2] = { { 0 } };
   unsigned no_pred_segcounts[MAX_SEGMENTS] = { 0 };
   unsigned t_unpred_seg_counts[MAX_SEGMENTS] = { 0 };

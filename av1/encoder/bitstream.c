@@ -2082,7 +2082,7 @@ static AOM_INLINE void encode_quantization(
   }
 }
 
-static AOM_INLINE void encode_segmentation(AV1_COMMON *cm, MACROBLOCKD *xd,
+static AOM_INLINE void encode_segmentation(AV1_COMMON *cm,
                                            struct aom_write_bit_buffer *wb) {
   int i, j;
   struct segmentation *seg = &cm->seg;
@@ -2091,17 +2091,9 @@ static AOM_INLINE void encode_segmentation(AV1_COMMON *cm, MACROBLOCKD *xd,
   if (!seg->enabled) return;
 
   // Write update flags
-  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
-    assert(seg->update_map == 1);
-    seg->temporal_update = 0;
-    assert(seg->update_data == 1);
-  } else {
+  if (cm->features.primary_ref_frame != PRIMARY_REF_NONE) {
     aom_wb_write_bit(wb, seg->update_map);
-    if (seg->update_map) {
-      // Select the coding strategy (temporal or spatial)
-      av1_choose_segmap_coding_method(cm, xd);
-      aom_wb_write_bit(wb, seg->temporal_update);
-    }
+    if (seg->update_map) aom_wb_write_bit(wb, seg->temporal_update);
     aom_wb_write_bit(wb, seg->update_data);
   }
 
@@ -3078,7 +3070,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
   write_tile_info(cm, saved_wb, wb);
   encode_quantization(quant_params, av1_num_planes(cm),
                       cm->seq_params.separate_uv_delta_q, wb);
-  encode_segmentation(cm, xd, wb);
+  encode_segmentation(cm, wb);
 
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
   if (delta_q_info->delta_q_present_flag) assert(quant_params->base_qindex > 0);
@@ -3969,6 +3961,9 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
   AV1_COMMON *const cm = &cpi->common;
   const CommonTileParams *const tiles = &cm->tiles;
   *largest_tile_id = 0;
+
+  // Select the coding strategy (temporal or spatial)
+  if (cm->seg.enabled) av1_choose_segmap_coding_method(cm, &cpi->td.mb.e_mbd);
 
   if (tiles->large_scale)
     return pack_large_scale_tiles_in_tg_obus(cpi, dst, saved_wb,
