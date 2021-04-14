@@ -38,7 +38,6 @@
 static AOM_INLINE void tpl_stats_record_txfm_block(TplTxfmStats *tpl_txfm_stats,
                                                    const tran_low_t *coeff,
                                                    int coeff_num) {
-  aom_clear_system_state();
   // For transform larger than 16x16, the scale of coeff need to be adjusted.
   // It's not LOSSLESS_Q_STEP.
   assert(coeff_num <= 256);
@@ -50,7 +49,6 @@ static AOM_INLINE void tpl_stats_record_txfm_block(TplTxfmStats *tpl_txfm_stats,
 
 static AOM_INLINE void tpl_stats_update_abs_coeff_mean(
     TplParams *tpl_data, TplTxfmStats *tpl_txfm_stats) {
-  aom_clear_system_state();
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_data->frame_idx];
   tpl_frame->txfm_block_count = tpl_txfm_stats->txfm_block_count;
   for (int i = 0; i < tpl_frame->coeff_num; ++i) {
@@ -61,7 +59,6 @@ static AOM_INLINE void tpl_stats_update_abs_coeff_mean(
 }
 
 void av1_tpl_stats_init_txfm_stats(TplDepFrame *tpl_frame, int tpl_bsize_1d) {
-  aom_clear_system_state();
   tpl_frame->txfm_block_count = 0;
   tpl_frame->coeff_num = tpl_bsize_1d * tpl_bsize_1d;
   memset(tpl_frame->abs_coeff_sum, 0, sizeof(tpl_frame->abs_coeff_sum));
@@ -184,7 +181,6 @@ static int rate_estimator(const tran_low_t *qcoeff, int eob, TX_SIZE tx_size) {
   const SCAN_ORDER *const scan_order = &av1_scan_orders[tx_size][DCT_DCT];
 
   assert((1 << num_pels_log2_lookup[txsize_to_bsize[tx_size]]) >= eob);
-  aom_clear_system_state();
   int rate_cost = 1;
 
   for (int idx = 0; idx < eob; ++idx) {
@@ -944,7 +940,6 @@ int64_t av1_delta_rate_cost(int64_t delta_rate, int64_t recrf_dist,
 static AOM_INLINE void tpl_model_update_b(TplParams *const tpl_data, int mi_row,
                                           int mi_col, const BLOCK_SIZE bsize,
                                           int frame_idx, int ref) {
-  aom_clear_system_state();
   TplDepFrame *tpl_frame_ptr = &tpl_data->tpl_frame[frame_idx];
   TplDepStats *tpl_ptr = tpl_frame_ptr->tpl_stats_ptr;
   TplDepFrame *tpl_frame = tpl_data->tpl_frame;
@@ -1626,8 +1621,6 @@ void av1_tpl_rdmult_setup(AV1_COMP *cpi) {
   const double c = 1.2;
   const int step = 1 << tpl_data->tpl_stats_block_mis_log2;
 
-  aom_clear_system_state();
-
   // Loop through each 'block_size' X 'block_size' block.
   for (int row = 0; row < num_rows; row++) {
     for (int col = 0; col < num_cols; col++) {
@@ -1653,7 +1646,6 @@ void av1_tpl_rdmult_setup(AV1_COMP *cpi) {
       cpi->tpl_rdmult_scaling_factors[index] = rk / cpi->rd.r0 + c;
     }
   }
-  aom_clear_system_state();
 }
 
 void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
@@ -1688,7 +1680,6 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
   double base_block_count = 0.0;
   double log_sum = 0.0;
 
-  aom_clear_system_state();
   for (row = mi_row / num_mi_w;
        row < num_rows && row < mi_row / num_mi_w + num_brows; ++row) {
     for (col = mi_col_sr / num_mi_h;
@@ -1719,17 +1710,14 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
           scale_adj * cpi->tpl_rdmult_scaling_factors[index];
     }
   }
-  aom_clear_system_state();
 }
 
 double av1_exponential_entropy(double q_step, double b) {
-  aom_clear_system_state();
   double z = fmax(exp(-q_step / b), TPL_EPSILON);
   return -log2(1 - z) - z * log2(z) / (1 - z);
 }
 
 double av1_laplace_entropy(double q_step, double b, double zero_bin_ratio) {
-  aom_clear_system_state();
   // zero bin's size is zero_bin_ratio * q_step
   // non-zero bin's size is q_step
   double z = fmax(exp(-zero_bin_ratio / 2 * q_step / b), TPL_EPSILON);
@@ -1741,7 +1729,6 @@ double av1_laplace_entropy(double q_step, double b, double zero_bin_ratio) {
 double av1_laplace_estimate_frame_rate(int q_index, int block_count,
                                        const double *abs_coeff_mean,
                                        int coeff_num) {
-  aom_clear_system_state();
   double zero_bin_ratio = 2;
   double dc_q_step = av1_dc_quant_QTX(q_index, 0, AOM_BITS_8) / 4.;
   double ac_q_step = av1_ac_quant_QTX(q_index, 0, AOM_BITS_8) / 4.;
