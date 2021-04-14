@@ -394,7 +394,6 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
         scale_part_thresh_content(threshold_base, cpi->oxcf.speed, cm->width,
                                   cm->height, cpi->svc.non_reference_frame);
 #endif
-
     thresholds[0] = threshold_base >> 1;
     thresholds[1] = threshold_base;
     thresholds[3] = threshold_base << cpi->oxcf.speed;
@@ -445,6 +444,11 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
       else
         weight =
             1.0 - (current_qindex - QINDEX_LARGE_BLOCK_THR + win) / (2 * win);
+      if (cm->width * cm->height > 640 * 360) {
+        for (int i = 0; i < 4; i++) {
+          thresholds[i] <<= 1;
+        }
+      }
       if (cm->width * cm->height <= 352 * 288) {
         thresholds[1] <<= 2;
         thresholds[2] <<= 5;
@@ -469,7 +473,7 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
         thresholds[1] =
             (int)((1 - weight) * (thresholds[1] << 2) + weight * thresholds[1]);
         thresholds[2] =
-            (int)((1 - weight) * (thresholds[2] << 5) + weight * thresholds[2]);
+            (int)((1 - weight) * (thresholds[2] << 4) + weight * thresholds[2]);
         thresholds[3] = INT32_MAX;
       }
     }
