@@ -163,7 +163,8 @@ static void cdef_prepare_fb(AV1_COMMON *cm, CdefBlockInfo *fb_info,
                             int fbc, int fbr, uint8_t plane) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   uint16_t *src = fb_info->src;
-  const int luma_stride = mi_params->mi_cols << MI_SIZE_LOG2;
+  const int luma_stride =
+      ALIGN_POWER_OF_TWO(mi_params->mi_cols << MI_SIZE_LOG2, 4);
   const int nvfb = (mi_params->mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   const int nhfb = (mi_params->mi_cols + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   int cstart = 0;
@@ -361,7 +362,8 @@ static INLINE void cdef_init_fb_row(AV1_COMMON *cm, MACROBLOCKD *const xd,
                                     uint16_t *const src, int fbr) {
   const int num_planes = av1_num_planes(cm);
   const int nvfb = (cm->mi_params.mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
-  const int luma_stride = cm->mi_params.mi_cols << MI_SIZE_LOG2;
+  const int luma_stride =
+      ALIGN_POWER_OF_TWO(cm->mi_params.mi_cols << MI_SIZE_LOG2, 4);
   const bool ping_pong = fbr & 1;
   // for the current filter block, it's top left corner mi structure (mi_tl)
   // is first accessed to check whether the top and left boundaries are

@@ -68,7 +68,8 @@ void av1_free_cdef_linebuf(AV1_COMMON *const cm) {
 
 void av1_alloc_cdef_linebuf(AV1_COMMON *const cm) {
   const int num_planes = av1_num_planes(cm);
-  const int luma_stride = cm->mi_params.mi_cols << MI_SIZE_LOG2;
+  const int luma_stride =
+      ALIGN_POWER_OF_TWO(cm->mi_params.mi_cols << MI_SIZE_LOG2, 4);
   CdefInfo *cdef_info = &cm->cdef_info;
   // Check for configuration change
   const int is_sub_sampling_changed =
