@@ -1928,11 +1928,13 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
             double base_score = 0.0;
             // Accumulate base_score in
             for (int j = cur_start + 1; j < cur_start + min_shrink_int; j++) {
+              if (stats + j >= twopass->stats_buf_ctx->stats_in_end) break;
               base_score = (base_score + 1.0) * stats[j].cor_coeff;
             }
             int met_blending = 0;   // Whether we have met blending areas before
             int last_blending = 0;  // Whether the previous frame if blending
             for (int j = cur_start + min_shrink_int; j <= cur_last; j++) {
+              if (stats + j >= twopass->stats_buf_ctx->stats_in_end) break;
               base_score = (base_score + 1.0) * stats[j].cor_coeff;
               int this_reg =
                   find_regions_index(regions, num_regions, j + offset);
