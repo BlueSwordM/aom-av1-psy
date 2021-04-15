@@ -114,7 +114,7 @@ void av1_alloc_cdef_linebuf(AV1_COMMON *const cm) {
   if (cm->cdef_info.srcbuf == NULL)
     CHECK_MEM_ERROR(
         cm, cm->cdef_info.srcbuf,
-        aom_malloc(sizeof(*cm->cdef_info.srcbuf) * CDEF_INBUF_SIZE));
+        aom_memalign(16, sizeof(*cm->cdef_info.srcbuf) * CDEF_INBUF_SIZE));
 
   for (int plane = 0; plane < num_planes; plane++) {
     const int shift = plane == AOM_PLANE_Y ? 0 : cm->seq_params.subsampling_x;
