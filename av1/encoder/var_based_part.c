@@ -444,7 +444,7 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
       else
         weight =
             1.0 - (current_qindex - QINDEX_LARGE_BLOCK_THR + win) / (2 * win);
-      if (cm->width * cm->height > 640 * 360) {
+      if (cm->width * cm->height > 640 * 480) {
         for (int i = 0; i < 4; i++) {
           thresholds[i] <<= 1;
         }
