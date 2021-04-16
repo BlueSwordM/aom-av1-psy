@@ -917,12 +917,10 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
           const TX_SIZE tx_size = av1_get_tx_size(plane, xd);
 #if CONFIG_REALTIME_ONLY
           // Realtime only build doesn't support 4x rectangular txfm sizes.
-          if (tx_size == TX_4X16 || tx_size == TX_16X4 || tx_size == TX_8X32 ||
-              tx_size == TX_32X8 || tx_size == TX_16X64 ||
-              tx_size == TX_64X16) {
-            aom_internal_error(
-                xd->error_info, AOM_CODEC_UNSUP_FEATURE,
-                "Realtime only build doesn't support rectangular txfm sizes");
+          if (tx_size >= TX_4X16) {
+            aom_internal_error(xd->error_info, AOM_CODEC_UNSUP_FEATURE,
+                               "Realtime only build doesn't support 4x "
+                               "rectangular txfm sizes");
           }
 #endif
           const int stepr = tx_size_high_unit[tx_size];
