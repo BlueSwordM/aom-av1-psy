@@ -425,12 +425,6 @@ class AVxEncoderThreadTest
   std::vector<std::string> md5_dec_;
 };
 
-TEST_P(AVxEncoderThreadTest, EncoderResultTest) {
-  cfg_.large_scale_tile = 0;
-  decoder_->Control(AV1_SET_TILE_MODE, 0);
-  DoTest();
-}
-
 class AVxEncoderThreadRTTest : public AVxEncoderThreadTest {};
 
 TEST_P(AVxEncoderThreadRTTest, EncoderResultTest) {
@@ -438,6 +432,12 @@ TEST_P(AVxEncoderThreadRTTest, EncoderResultTest) {
   decoder_->Control(AV1_SET_TILE_MODE, 0);
   DoTest();
 }
+
+// Test cpu_used 7, 8, 9 here.
+AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadRTTest,
+                           ::testing::Values(::libaom_test::kRealTime),
+                           ::testing::Values(7, 8, 9), ::testing::Values(0, 2),
+                           ::testing::Values(0, 2), ::testing::Values(0, 1));
 
 #if !CONFIG_REALTIME_ONLY
 class AVxEncoderThreadTestLarge : public AVxEncoderThreadTest {};
@@ -456,6 +456,12 @@ TEST_P(AVxEncoderThreadRTTestLarge, EncoderResultTest) {
   DoTest();
 }
 
+TEST_P(AVxEncoderThreadTest, EncoderResultTest) {
+  cfg_.large_scale_tile = 0;
+  decoder_->Control(AV1_SET_TILE_MODE, 0);
+  DoTest();
+}
+
 // first pass stats test
 AV1_INSTANTIATE_TEST_SUITE(AVxFirstPassEncoderThreadTest,
                            ::testing::Values(::libaom_test::kTwoPassGood),
@@ -468,15 +474,7 @@ AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTest,
                            ::testing::Values(::libaom_test::kTwoPassGood),
                            ::testing::Values(2), ::testing::Values(0, 2),
                            ::testing::Values(0, 2), ::testing::Values(0, 1));
-#endif
 
-// Test cpu_used 7, 8, 9 here.
-AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadRTTest,
-                           ::testing::Values(::libaom_test::kRealTime),
-                           ::testing::Values(7, 8, 9), ::testing::Values(0, 2),
-                           ::testing::Values(0, 2), ::testing::Values(0, 1));
-
-#if !CONFIG_REALTIME_ONLY
 // Test cpu_used 0, 1, 3 and 5.
 AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTestLarge,
                            ::testing::Values(::libaom_test::kTwoPassGood,
