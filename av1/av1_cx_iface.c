@@ -154,6 +154,7 @@ struct av1_extracfg {
   COST_UPDATE_TYPE coeff_cost_upd_freq;
   COST_UPDATE_TYPE mode_cost_upd_freq;
   COST_UPDATE_TYPE mv_cost_upd_freq;
+  COST_UPDATE_TYPE dv_cost_upd_freq;
   unsigned int ext_tile_debug;
   unsigned int sb_multipass_unit_test;
 };
@@ -296,6 +297,7 @@ static struct av1_extracfg default_extra_cfg = {
   COST_UPD_OFF,  // coeff_cost_upd_freq
   COST_UPD_OFF,  // mode_cost_upd_freq
   COST_UPD_OFF,  // mv_cost_upd_freq
+  COST_UPD_OFF,  // dv_cost_upd_freq
   0,             // ext_tile_debug
   0,             // sb_multipass_unit_test
 };
@@ -425,6 +427,7 @@ static struct av1_extracfg default_extra_cfg = {
   COST_UPD_SB,  // coeff_cost_upd_freq
   COST_UPD_SB,  // mode_cost_upd_freq
   COST_UPD_SB,  // mv_cost_upd_freq
+  COST_UPD_SB,  // dv_cost_upd_freq
   0,            // ext_tile_debug
   0,            // sb_multipass_unit_test
 };
@@ -710,6 +713,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(extra_cfg, coeff_cost_upd_freq, 0, 3);
   RANGE_CHECK(extra_cfg, mode_cost_upd_freq, 0, 3);
   RANGE_CHECK(extra_cfg, mv_cost_upd_freq, 0, 3);
+  RANGE_CHECK(extra_cfg, dv_cost_upd_freq, 0, 3);
 
   RANGE_CHECK(extra_cfg, min_partition_size, 4, 128);
   RANGE_CHECK(extra_cfg, max_partition_size, 4, 128);
@@ -1054,8 +1058,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->cost_upd_freq.coeff = (COST_UPDATE_TYPE)extra_cfg->coeff_cost_upd_freq;
   oxcf->cost_upd_freq.mode = (COST_UPDATE_TYPE)extra_cfg->mode_cost_upd_freq;
   oxcf->cost_upd_freq.mv = (COST_UPDATE_TYPE)extra_cfg->mv_cost_upd_freq;
-  // TODO(chiyotsai@google.com): Add command line support in a separate cl.
-  oxcf->cost_upd_freq.dv = COST_UPD_SB;
+  oxcf->cost_upd_freq.dv = (COST_UPDATE_TYPE)extra_cfg->dv_cost_upd_freq;
 
   // Set frame resize mode configuration.
   resize_cfg->resize_mode = (RESIZE_MODE)cfg->rc_resize_mode;
@@ -1992,6 +1995,13 @@ static aom_codec_err_t ctrl_set_mv_cost_upd_freq(aom_codec_alg_priv_t *ctx,
                                                  va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.mv_cost_upd_freq = CAST(AV1E_SET_MV_COST_UPD_FREQ, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_dv_cost_upd_freq(aom_codec_alg_priv_t *ctx,
+                                                 va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.dv_cost_upd_freq = CAST(AV1E_SET_DV_COST_UPD_FREQ, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -3345,6 +3355,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.mv_cost_upd_freq,
                               argv, err_string)) {
     extra_cfg.mv_cost_upd_freq = arg_parse_uint_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.dv_cost_upd_freq,
+                              argv, err_string)) {
+    extra_cfg.dv_cost_upd_freq = arg_parse_uint_helper(&arg, err_string);
   }
 #if CONFIG_DENOISE
   else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.denoise_noise_level,
@@ -3531,6 +3544,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_SVC_REF_FRAME_CONFIG, ctrl_set_svc_ref_frame_config },
   { AV1E_SET_VBR_CORPUS_COMPLEXITY_LAP, ctrl_set_vbr_corpus_complexity_lap },
   { AV1E_ENABLE_SB_MULTIPASS_UNIT_TEST, ctrl_enable_sb_multipass_unit_test },
+  { AV1E_SET_DV_COST_UPD_FREQ, ctrl_set_dv_cost_upd_freq },
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },

@@ -173,6 +173,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t coeff_cost_upd_freq;
   arg_def_t mode_cost_upd_freq;
   arg_def_t mv_cost_upd_freq;
+  arg_def_t dv_cost_upd_freq;
   arg_def_t num_tg;
   arg_def_t mtu_size;
   arg_def_t timing_info;

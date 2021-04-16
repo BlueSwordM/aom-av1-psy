@@ -448,13 +448,16 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "Use Default-transform only for INTRA modes"),
   .quant_b_adapt = ARG_DEF(NULL, "quant-b-adapt", 1, "Use adaptive quantize_b"),
   .coeff_cost_upd_freq = ARG_DEF(NULL, "coeff-cost-upd-freq", 1,
-                                 "Update freq for coeff costs"
+                                 "Update freq for coeff costs. "
                                  "0: SB, 1: SB Row per Tile, 2: Tile, 3: Off"),
   .mode_cost_upd_freq = ARG_DEF(NULL, "mode-cost-upd-freq", 1,
-                                "Update freq for mode costs"
+                                "Update freq for mode costs. "
                                 "0: SB, 1: SB Row per Tile, 2: Tile, 3: Off"),
   .mv_cost_upd_freq = ARG_DEF(NULL, "mv-cost-upd-freq", 1,
-                              "Update freq for mv costs"
+                              "Update freq for mv costs. "
+                              "0: SB, 1: SB Row per Tile, 2: Tile, 3: Off"),
+  .dv_cost_upd_freq = ARG_DEF(NULL, "dv-cost-upd-freq", 1,
+                              "Update freq for dv costs. "
                               "0: SB, 1: SB Row per Tile, 2: Tile, 3: Off"),
   .num_tg = ARG_DEF(NULL, "num-tile-groups", 1,
                     "Maximum number of tile groups, default is 1"),
@@ -605,6 +608,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .vbr_corpus_complexity_lap = ARG_DEF(
       NULL, "vbr-corpus-complexity-lap", 1,
       "Set average corpus complexity per mb for single pass VBR using lap. "
-      "(0..10000), default is 0")
+      "(0..10000), default is 0"),
 #endif  // CONFIG_AV1_ENCODER
 };

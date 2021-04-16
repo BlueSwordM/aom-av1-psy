@@ -227,6 +227,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
 #if CONFIG_TUNE_VMAF
                                         AV1E_SET_VMAF_MODEL_PATH,
 #endif
+                                        AV1E_SET_DV_COST_UPD_FREQ,
                                         0 };
 
 const arg_def_t *main_args[] = { &g_av1_codec_arg_defs.help,
@@ -422,6 +423,7 @@ const arg_def_t *av1_ctrl_args[] = {
 #if CONFIG_TUNE_VMAF
   &g_av1_codec_arg_defs.vmaf_model_path,
 #endif
+  &g_av1_codec_arg_defs.dv_cost_upd_freq,
   NULL,
 };
 
