@@ -328,14 +328,15 @@ static AOM_INLINE void produce_gradients_for_sb(AV1_COMP *cpi, MACROBLOCK *x,
       sf->part_sf.partition_search_type != SEARCH_PARTITION)
     return;
 
-  av1_setup_src_planes(x, cpi->source, mi_row, mi_col,
-                       av1_num_planes(&cpi->common), sb_size);
+  const int num_planes = av1_num_planes(&cpi->common);
+
+  av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, sb_size);
 
   if (sf->intra_sf.intra_pruning_with_hog) {
     compute_gradient_info_sb(x, sb_size, PLANE_TYPE_Y);
     x->is_sb_gradient_cached[PLANE_TYPE_Y] = true;
   }
-  if (sf->intra_sf.chroma_intra_pruning_with_hog) {
+  if (sf->intra_sf.chroma_intra_pruning_with_hog && num_planes > 1) {
     compute_gradient_info_sb(x, sb_size, PLANE_TYPE_UV);
     x->is_sb_gradient_cached[PLANE_TYPE_UV] = true;
   }
