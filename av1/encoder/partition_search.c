@@ -3609,8 +3609,9 @@ static void write_partition_tree(AV1_COMP *const cpi,
                                  const int mi_col) {
   (void)mi_row;
   (void)mi_col;
-  char filename[128];
-  snprintf(filename, sizeof(filename), "partition_tree_sb%d_c%d",
+  const char *path = cpi->oxcf.partition_info_path;
+  char filename[256];
+  snprintf(filename, sizeof(filename), "%s/partition_tree_sb%d_c%d", path,
            cpi->sb_counter, 0);
   ++cpi->sb_counter;
   FILE *pfile = fopen(filename, "w");
@@ -3673,9 +3674,10 @@ static void verify_write_partition_tree(const AV1_COMP *const cpi,
                                         const int mi_col) {
   (void)mi_row;
   (void)mi_col;
-  char filename[128];
-  snprintf(filename, sizeof(filename), "verify_partition_tree_sb%d_c%d",
-           cpi->sb_counter, config_id);
+  const char *path = cpi->oxcf.partition_info_path;
+  char filename[256];
+  snprintf(filename, sizeof(filename), "%s/verify_partition_tree_sb%d_c%d",
+           path, cpi->sb_counter, config_id);
   FILE *pfile = fopen(filename, "w");
   fprintf(pfile, "%d", bsize);
 
@@ -3733,8 +3735,9 @@ static void verify_write_partition_tree(const AV1_COMP *const cpi,
 
 static int read_partition_tree(AV1_COMP *const cpi, PC_TREE *const pc_tree,
                                const int config_id) {
-  char filename[128];
-  snprintf(filename, sizeof(filename), "partition_tree_sb%d_c%d",
+  const char *path = cpi->oxcf.partition_info_path;
+  char filename[256];
+  snprintf(filename, sizeof(filename), "%s/partition_tree_sb%d_c%d", path,
            cpi->sb_counter, config_id);
   FILE *pfile = fopen(filename, "r");
   if (pfile == NULL) {

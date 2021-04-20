@@ -51,6 +51,7 @@ struct av1_extracfg {
   unsigned int gf_max_pyr_height;
   aom_tune_metric tuning;
   const char *vmaf_model_path;
+  const char *partition_info_path;
   unsigned int cq_level;  // constrained quality level
   unsigned int rc_max_intra_bitrate_pct;
   unsigned int rc_max_inter_bitrate_pct;
@@ -192,6 +193,7 @@ static struct av1_extracfg default_extra_cfg = {
   5,              // gf_max_pyr_height
   AOM_TUNE_PSNR,  // tuning
   "/usr/local/share/model/vmaf_v0.6.1.json",  // VMAF model path
+  ".",                                        // partition info path
   10,                                         // cq_level
   0,                                          // rc_max_intra_bitrate_pct
   0,                                          // rc_max_inter_bitrate_pct
@@ -322,6 +324,7 @@ static struct av1_extracfg default_extra_cfg = {
   5,              // gf_max_pyr_height
   AOM_TUNE_PSNR,  // tuning
   "/usr/local/share/model/vmaf_v0.6.1.json",  // VMAF model path
+  ".",                                        // partition info path
   10,                                         // cq_level
   0,                                          // rc_max_intra_bitrate_pct
   0,                                          // rc_max_inter_bitrate_pct
@@ -1285,6 +1288,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
          sizeof(oxcf->target_seq_level_idx));
   oxcf->tier_mask = extra_cfg->tier_mask;
 
+  oxcf->partition_info_path = extra_cfg->partition_info_path;
+
   return AOM_CODEC_OK;
 }
 
@@ -2024,6 +2029,13 @@ static aom_codec_err_t ctrl_set_vmaf_model_path(aom_codec_alg_priv_t *ctx,
                                                 va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.vmaf_model_path = CAST(AV1E_SET_VMAF_MODEL_PATH, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_partition_info_path(aom_codec_alg_priv_t *ctx,
+                                                    va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.partition_info_path = CAST(AV1E_SET_PARTITION_INFO_PATH, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -3152,8 +3164,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
     extra_cfg.vmaf_model_path = value;
   }
 #endif
-  else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.cq_level, argv,
-                            err_string)) {
+  else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.partition_info_path,
+                            argv, err_string)) {
+    extra_cfg.partition_info_path = value;
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.cq_level, argv,
+                              err_string)) {
     extra_cfg.cq_level = arg_parse_uint_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.max_intra_rate_pct,
                               argv, err_string)) {
@@ -3578,6 +3593,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_SUPERBLOCK_SIZE, ctrl_set_superblock_size },
   { AV1E_SET_SINGLE_TILE_DECODING, ctrl_set_single_tile_decoding },
   { AV1E_SET_VMAF_MODEL_PATH, ctrl_set_vmaf_model_path },
+  { AV1E_SET_PARTITION_INFO_PATH, ctrl_set_partition_info_path },
   { AV1E_SET_FILM_GRAIN_TEST_VECTOR, ctrl_set_film_grain_test_vector },
   { AV1E_SET_FILM_GRAIN_TABLE, ctrl_set_film_grain_table },
   { AV1E_SET_DENOISE_NOISE_LEVEL, ctrl_set_denoise_noise_level },

@@ -946,6 +946,10 @@ typedef struct AV1EncoderConfig {
   // format.
   bool save_as_annexb;
 
+  // The path for partition stats reading and writing, used in the experiment
+  // CONFIG_PARTITION_SEARCH_ORDER.
+  const char *partition_info_path;
+
   /*!\endcond */
 } AV1EncoderConfig;
 

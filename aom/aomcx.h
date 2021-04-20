@@ -1337,6 +1337,11 @@ enum aome_enc_control_id {
    */
   AV1E_SET_DV_COST_UPD_FREQ = 142,
 
+  /*!\brief Codec control to set the path for partition stats read and write.
+   * const char * parameter.
+   */
+  AV1E_SET_PARTITION_INFO_PATH = 143,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -1872,6 +1877,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_DNL_DENOISING, int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_DV_COST_UPD_FREQ, unsigned int)
 #define AOM_CTRL_AV1E_SET_DV_COST_UPD_FREQ
+
+AOM_CTRL_USE_TYPE(AV1E_SET_PARTITION_INFO_PATH, const char *)
+#define AOM_CTRL_AV1E_SET_PARTITION_INFO_PATH
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

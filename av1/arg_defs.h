@@ -180,6 +180,7 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_TUNE_VMAF
   arg_def_t vmaf_model_path;
 #endif
+  arg_def_t partition_info_path;
   arg_def_t film_grain_test;
   arg_def_t film_grain_table;
 #if CONFIG_DENOISE
