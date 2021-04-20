@@ -439,24 +439,17 @@ TEST_P(AVxEncoderThreadRTTest, EncoderResultTest) {
   DoTest();
 }
 
-// Test cpu_used 7, 8, 9 here.
+// For real time mode, test speed 6, 7, 8, 9.
 AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadRTTest,
                            ::testing::Values(::libaom_test::kRealTime),
-                           ::testing::Values(7, 8, 9), ::testing::Values(0, 2),
-                           ::testing::Values(0, 2), ::testing::Values(0, 1));
+                           ::testing::Values(6, 7, 8, 9),
+                           ::testing::Values(0, 2), ::testing::Values(0, 2),
+                           ::testing::Values(0, 1));
 
 #if !CONFIG_REALTIME_ONLY
 class AVxEncoderThreadTestLarge : public AVxEncoderThreadTest {};
 
 TEST_P(AVxEncoderThreadTestLarge, EncoderResultTest) {
-  cfg_.large_scale_tile = 0;
-  decoder_->Control(AV1_SET_TILE_MODE, 0);
-  DoTest();
-}
-
-class AVxEncoderThreadRTTestLarge : public AVxEncoderThreadTest {};
-
-TEST_P(AVxEncoderThreadRTTestLarge, EncoderResultTest) {
   cfg_.large_scale_tile = 0;
   decoder_->Control(AV1_SET_TILE_MODE, 0);
   DoTest();
@@ -509,13 +502,6 @@ AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTestLarge,
                            ::testing::Values(::libaom_test::kTwoPassGood,
                                              ::libaom_test::kOnePassGood),
                            ::testing::Values(0, 1, 3, 5),
-                           ::testing::Values(1, 6), ::testing::Values(1, 6),
-                           ::testing::Values(0, 1));
-
-// Test cpu_used 0, 2, 4 and 6.
-AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadRTTestLarge,
-                           ::testing::Values(::libaom_test::kRealTime),
-                           ::testing::Values(0, 2, 4, 6),
                            ::testing::Values(1, 6), ::testing::Values(1, 6),
                            ::testing::Values(0, 1));
 
