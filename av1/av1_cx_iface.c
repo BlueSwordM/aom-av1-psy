@@ -3800,7 +3800,7 @@ aom_codec_iface_t aom_codec_av1_cx_algo = {
   },
   {
       // NOLINT
-      NELEMENTS(encoder_usage_cfg),  // cfg count
+      NELEMENTS(encoder_usage_cfg),  // cfg_count
       encoder_usage_cfg,             // aom_codec_enc_cfg_t
       encoder_encode,                // aom_codec_encode_fn_t
       encoder_get_cxdata,            // aom_codec_get_cx_data_fn_t
