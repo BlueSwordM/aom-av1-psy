@@ -635,9 +635,10 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
                                  sizeof(*thread_data->td->tmp_pred_bufs[j])));
       }
 
+      const int plane_types = PLANE_TYPES >> cm->seq_params.monochrome;
       CHECK_MEM_ERROR(cm, thread_data->td->pixel_gradient_info,
                       aom_malloc(sizeof(*thread_data->td->pixel_gradient_info) *
-                                 PLANE_TYPES * MAX_SB_SQUARE));
+                                 plane_types * MAX_SB_SQUARE));
 
       if (cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION) {
         const int num_64x64_blocks =
