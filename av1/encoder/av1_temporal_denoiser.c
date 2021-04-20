@@ -485,8 +485,8 @@ static int av1_denoiser_realloc_svc_helper(AV1_COMMON *cm,
   if (denoiser->running_avg_y[fb_idx].buffer_alloc == NULL) {
     fail = aom_alloc_frame_buffer(
         &denoiser->running_avg_y[fb_idx], cm->width, cm->height,
-        cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
-        cm->seq_params.use_highbitdepth, AOM_BORDER_IN_PIXELS,
+        cm->seq_params->subsampling_x, cm->seq_params->subsampling_y,
+        cm->seq_params->use_highbitdepth, AOM_BORDER_IN_PIXELS,
         cm->features.byte_alignment);
     if (fail) {
       av1_denoiser_free(denoiser);

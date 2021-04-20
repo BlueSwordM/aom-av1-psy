@@ -344,7 +344,7 @@ static void configure_static_seg_features(AV1_COMP *cpi) {
       seg->update_data = 1;
 
       qi_delta = av1_compute_qdelta(rc, rc->avg_q, rc->avg_q * 0.875,
-                                    cm->seq_params.bit_depth);
+                                    cm->seq_params->bit_depth);
       av1_set_segdata(seg, 1, SEG_LVL_ALT_Q, qi_delta - 2);
       av1_set_segdata(seg, 1, SEG_LVL_ALT_LF_Y_H, -2);
       av1_set_segdata(seg, 1, SEG_LVL_ALT_LF_Y_V, -2);
@@ -578,20 +578,20 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
   }
 
   if (tune_cfg->film_grain_test_vector) {
-    cm->seq_params.film_grain_params_present = 1;
+    cm->seq_params->film_grain_params_present = 1;
     if (cm->current_frame.frame_type == KEY_FRAME) {
       memcpy(&cm->film_grain_params,
              film_grain_test_vectors + tune_cfg->film_grain_test_vector - 1,
              sizeof(cm->film_grain_params));
       if (oxcf->tool_cfg.enable_monochrome)
         reset_film_grain_chroma_params(&cm->film_grain_params);
-      cm->film_grain_params.bit_depth = cm->seq_params.bit_depth;
-      if (cm->seq_params.color_range == AOM_CR_FULL_RANGE) {
+      cm->film_grain_params.bit_depth = cm->seq_params->bit_depth;
+      if (cm->seq_params->color_range == AOM_CR_FULL_RANGE) {
         cm->film_grain_params.clip_to_restricted_range = 0;
       }
     }
   } else if (tune_cfg->film_grain_table_filename) {
-    cm->seq_params.film_grain_params_present = 1;
+    cm->seq_params->film_grain_params_present = 1;
 
     cpi->film_grain_table = aom_malloc(sizeof(*cpi->film_grain_table));
     memset(cpi->film_grain_table, 0, sizeof(aom_film_grain_table_t));
@@ -599,17 +599,17 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
     aom_film_grain_table_read(cpi->film_grain_table,
                               tune_cfg->film_grain_table_filename, &cm->error);
   } else if (tune_cfg->content == AOM_CONTENT_FILM) {
-    cm->seq_params.film_grain_params_present = 1;
-    cm->film_grain_params.bit_depth = cm->seq_params.bit_depth;
+    cm->seq_params->film_grain_params_present = 1;
+    cm->film_grain_params.bit_depth = cm->seq_params->bit_depth;
     if (oxcf->tool_cfg.enable_monochrome)
       reset_film_grain_chroma_params(&cm->film_grain_params);
-    if (cm->seq_params.color_range == AOM_CR_FULL_RANGE)
+    if (cm->seq_params->color_range == AOM_CR_FULL_RANGE)
       cm->film_grain_params.clip_to_restricted_range = 0;
   } else {
 #if CONFIG_DENOISE
-    cm->seq_params.film_grain_params_present = (cpi->oxcf.noise_level > 0);
+    cm->seq_params->film_grain_params_present = (cpi->oxcf.noise_level > 0);
 #else
-    cm->seq_params.film_grain_params_present = 0;
+    cm->seq_params->film_grain_params_present = 0;
 #endif
     memset(&cm->film_grain_params, 0, sizeof(cm->film_grain_params));
   }
@@ -664,8 +664,8 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
             new_fb->buf.y_crop_height != cm->height) {
           if (aom_realloc_frame_buffer(
                   &new_fb->buf, cm->width, cm->height,
-                  cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
-                  cm->seq_params.use_highbitdepth, AOM_BORDER_IN_PIXELS,
+                  cm->seq_params->subsampling_x, cm->seq_params->subsampling_y,
+                  cm->seq_params->use_highbitdepth, AOM_BORDER_IN_PIXELS,
                   cm->features.byte_alignment, NULL, NULL, NULL, 0)) {
             if (force_scaling) {
               // Release the reference acquired in the get_free_fb() call above.
@@ -675,19 +675,19 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
                                "Failed to allocate frame buffer");
           }
 #if CONFIG_AV1_HIGHBITDEPTH
-          if (use_optimized_scaler && cm->seq_params.bit_depth == AOM_BITS_8)
+          if (use_optimized_scaler && cm->seq_params->bit_depth == AOM_BITS_8)
             av1_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
                                         num_planes);
           else
             av1_resize_and_extend_frame_nonnormative(
-                ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
+                ref, &new_fb->buf, (int)cm->seq_params->bit_depth, num_planes);
 #else
           if (use_optimized_scaler)
             av1_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
                                         num_planes);
           else
             av1_resize_and_extend_frame_nonnormative(
-                ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
+                ref, &new_fb->buf, (int)cm->seq_params->bit_depth, num_planes);
 #endif
           cpi->scaled_ref_buf[ref_frame - 1] = new_fb;
           alloc_frame_mvs(cm, new_fb);
@@ -753,7 +753,7 @@ void av1_setup_frame(AV1_COMP *cpi) {
   if ((cm->current_frame.frame_type == KEY_FRAME && cm->show_frame) ||
       frame_is_sframe(cm)) {
     if (!cpi->ppi->seq_params_locked) {
-      set_sb_size(&cm->seq_params,
+      set_sb_size(cm->seq_params,
                   av1_select_sb_size(&cpi->oxcf, cm->width, cm->height,
                                      cpi->svc.number_spatial_layers));
     }
@@ -960,7 +960,7 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
     if (q_cfg->deltaq_mode != NO_DELTA_Q || q_cfg->enable_chroma_deltaq)
       av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
-                         cm->seq_params.bit_depth);
+                         cm->seq_params->bit_depth);
 
     av1_set_variance_partition_thresholds(cpi, q_for_screen_content_quick_run,
                                           0);
@@ -1006,7 +1006,7 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
 
-  if (!cm->seq_params.reduced_still_picture_hdr &&
+  if (!cm->seq_params->reduced_still_picture_hdr &&
       encode_show_existing_frame(cm)) {
     RefCntBuffer *const frame_to_show =
         cm->ref_frame_map[cpi->existing_fb_idx_to_show];
@@ -1020,7 +1020,7 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
   }
 
   if (!encode_show_existing_frame(cm) &&
-      cm->seq_params.film_grain_params_present &&
+      cm->seq_params->film_grain_params_present &&
       (cm->show_frame || cm->showable_frame)) {
     // Copy the current frame's film grain params to the its corresponding
     // RefCntBuffer slot.

@@ -302,7 +302,7 @@ static int get_twopass_worst_quality(AV1_COMP *cpi, const double av_frame_err,
     // Try and pick a max Q that will be high enough to encode the
     // content at the given rate.
     int q = find_qindex_by_rate_with_correction(
-        target_norm_bits_per_mb, cpi->common.seq_params.bit_depth,
+        target_norm_bits_per_mb, cpi->common.seq_params->bit_depth,
         av_err_per_mb, cpi->ppi->twopass.bpm_factor, rate_err_tol,
         rc->best_quality, rc->worst_quality);
 
@@ -837,7 +837,7 @@ static int adjust_boost_bits_for_target_level(const AV1_COMP *const cpi,
                                               int64_t group_bits,
                                               int frame_type) {
   const AV1_COMMON *const cm = &cpi->common;
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   const int temporal_layer_id = cm->temporal_layer_id;
   const int spatial_layer_id = cm->spatial_layer_id;
@@ -3415,7 +3415,7 @@ static void process_first_pass_stats(AV1_COMP *cpi,
     rc->active_worst_quality = tmp_q;
     rc->ni_av_qi = tmp_q;
     rc->last_q[INTER_FRAME] = tmp_q;
-    rc->avg_q = av1_convert_qindex_to_q(tmp_q, cm->seq_params.bit_depth);
+    rc->avg_q = av1_convert_qindex_to_q(tmp_q, cm->seq_params->bit_depth);
     rc->avg_frame_qindex[INTER_FRAME] = tmp_q;
     rc->last_q[KEY_FRAME] = (tmp_q + cpi->oxcf.rc_cfg.best_allowed_q) / 2;
     rc->avg_frame_qindex[KEY_FRAME] = rc->last_q[KEY_FRAME];
@@ -4013,9 +4013,9 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
                 (double)twopass->rolling_arf_group_target_bits,
             twopass->bpm_factor,
             av1_convert_qindex_to_q(cpi->common.quant_params.base_qindex,
-                                    cm->seq_params.bit_depth),
+                                    cm->seq_params->bit_depth),
             av1_convert_qindex_to_q(rc->active_worst_quality,
-                                    cm->seq_params.bit_depth));
+                                    cm->seq_params->bit_depth));
     fclose(fpfile);
   }
 #endif

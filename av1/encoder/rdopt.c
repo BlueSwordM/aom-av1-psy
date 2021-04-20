@@ -1276,7 +1276,7 @@ static int64_t motion_mode_rd(
   uint8_t best_blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
   uint8_t best_tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
   const int rate_mv0 = *rate_mv;
-  const int interintra_allowed = cm->seq_params.enable_interintra_compound &&
+  const int interintra_allowed = cm->seq_params->enable_interintra_compound &&
                                  is_interintra_allowed(mbmi) &&
                                  mbmi->compound_idx;
   WARP_SAMPLE_INFO *const warp_sample_info =
@@ -1319,7 +1319,7 @@ static int64_t motion_mode_rd(
   const int switchable_rate =
       av1_is_interp_needed(xd)
           ? av1_get_switchable_rate(x, xd, interp_filter,
-                                    cm->seq_params.enable_dual_filter)
+                                    cm->seq_params->enable_dual_filter)
           : 0;
   int64_t best_rd = INT64_MAX;
   int best_rate_mv = rate_mv0;
@@ -2428,7 +2428,7 @@ static int process_compound_inter_mode(
   MB_MODE_INFO *mbmi = xd->mi[0];
   const AV1_COMMON *cm = &cpi->common;
   const int masked_compound_used = is_any_masked_compound_used(bsize) &&
-                                   cm->seq_params.enable_masked_compound;
+                                   cm->seq_params->enable_masked_compound;
   int mode_search_mask = (1 << COMPOUND_AVERAGE) | (1 << COMPOUND_DISTWTD) |
                          (1 << COMPOUND_WEDGE) | (1 << COMPOUND_DIFFWTD);
 
@@ -3015,8 +3015,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   const int mi_col = xd->mi_col;
   const int w = block_size_wide[bsize];
   const int h = block_size_high[bsize];
-  const int sb_row = mi_row >> cm->seq_params.mib_size_log2;
-  const int sb_col = mi_col >> cm->seq_params.mib_size_log2;
+  const int sb_row = mi_row >> cm->seq_params->mib_size_log2;
+  const int sb_col = mi_col >> cm->seq_params->mib_size_log2;
 
   MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
   const MV_REFERENCE_FRAME ref_frame = INTRA_FRAME;
@@ -3039,7 +3039,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 
   int_mv dv_ref = nearestmv.as_int == 0 ? nearmv : nearestmv;
   if (dv_ref.as_int == 0) {
-    av1_find_ref_dv(&dv_ref, tile, cm->seq_params.mib_size, mi_row);
+    av1_find_ref_dv(&dv_ref, tile, cm->seq_params->mib_size, mi_row);
   }
   // Ref DV should not have sub-pel.
   assert((dv_ref.as_mv.col & 7) == 0);
@@ -3084,19 +3084,19 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
         fullms_params.mv_limits.row_min =
             (tile->mi_row_start - mi_row) * MI_SIZE;
         fullms_params.mv_limits.row_max =
-            (sb_row * cm->seq_params.mib_size - mi_row) * MI_SIZE - h;
+            (sb_row * cm->seq_params->mib_size - mi_row) * MI_SIZE - h;
         break;
       case IBC_MOTION_LEFT:
         fullms_params.mv_limits.col_min =
             (tile->mi_col_start - mi_col) * MI_SIZE;
         fullms_params.mv_limits.col_max =
-            (sb_col * cm->seq_params.mib_size - mi_col) * MI_SIZE - w;
+            (sb_col * cm->seq_params->mib_size - mi_col) * MI_SIZE - w;
         // TODO(aconverse@google.com): Minimize the overlap between above and
         // left areas.
         fullms_params.mv_limits.row_min =
             (tile->mi_row_start - mi_row) * MI_SIZE;
         int bottom_coded_mi_edge =
-            AOMMIN((sb_row + 1) * cm->seq_params.mib_size, tile->mi_row_end);
+            AOMMIN((sb_row + 1) * cm->seq_params->mib_size, tile->mi_row_end);
         fullms_params.mv_limits.row_max =
             (bottom_coded_mi_edge - mi_row) * MI_SIZE - h;
         break;
@@ -3134,7 +3134,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                                 get_fullmv_from_mv(&dv)))
       continue;
     if (!av1_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize,
-                         cm->seq_params.mib_size_log2))
+                         cm->seq_params->mib_size_log2))
       continue;
 
     // DV should not have sub-pel.
@@ -5230,7 +5230,7 @@ static AOM_INLINE void search_intra_modes_in_interframe(
   if (mode != DC_PRED && mode != PAETH_PRED) {
     const int intra_cost_penalty = av1_get_intra_cost_penalty(
         cm->quant_params.base_qindex, cm->quant_params.y_dc_delta_q,
-        cm->seq_params.bit_depth);
+        cm->seq_params->bit_depth);
     intra_rd_stats.rate += intra_cost_penalty;
   }
 
@@ -5346,7 +5346,7 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
          mbmi->partition != PARTITION_HORZ) ||
         cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions >= 2) {
       picked_ref_frames_mask =
-          fetch_picked_ref_frames_mask(x, bsize, cm->seq_params.mib_size);
+          fetch_picked_ref_frames_mask(x, bsize, cm->seq_params->mib_size);
     }
   }
 
@@ -5420,7 +5420,7 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
   if (do_pruning && sf->intra_sf.skip_intra_in_interframe &&
       cpi->oxcf.algo_cfg.enable_tpl_model) {
     // Only consider full SB.
-    const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+    const BLOCK_SIZE sb_size = cm->seq_params->sb_size;
     const int tpl_bsize_1d = cpi->tpl_data.tpl_bsize_1d;
     const int len = (block_size_wide[sb_size] / tpl_bsize_1d) *
                     (block_size_high[sb_size] / tpl_bsize_1d);
@@ -5889,7 +5889,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
       for (i = 0; i < SWITCHABLE_FILTERS; ++i) {
         mbmi->interp_filters = av1_broadcast_interp_filter(i);
         rs = av1_get_switchable_rate(x, xd, interp_filter,
-                                     cm->seq_params.enable_dual_filter);
+                                     cm->seq_params->enable_dual_filter);
         if (rs < best_rs) {
           best_rs = rs;
           best_filter = mbmi->interp_filters.as_filters.y_filter;
@@ -5900,7 +5900,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   // Set the appropriate filter
   mbmi->interp_filters = av1_broadcast_interp_filter(best_filter);
   rate2 += av1_get_switchable_rate(x, xd, interp_filter,
-                                   cm->seq_params.enable_dual_filter);
+                                   cm->seq_params->enable_dual_filter);
 
   if (cm->current_frame.reference_mode == REFERENCE_MODE_SELECT)
     rate2 += comp_inter_cost[comp_pred];

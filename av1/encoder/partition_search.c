@@ -322,7 +322,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                            xd->block_ref_scale_factors[ref], num_planes);
     }
     const int start_plane = (cpi->sf.rt_sf.reuse_inter_pred_nonrd &&
-                             cm->seq_params.bit_depth == AOM_BITS_8)
+                             cm->seq_params->bit_depth == AOM_BITS_8)
                                 ? 1
                                 : 0;
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
@@ -791,11 +791,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_ENTROPY_STATS
   // delta quant applies to both intra and inter
   const int super_block_upper_left =
-      ((xd->mi_row & (cm->seq_params.mib_size - 1)) == 0) &&
-      ((xd->mi_col & (cm->seq_params.mib_size - 1)) == 0);
+      ((xd->mi_row & (cm->seq_params->mib_size - 1)) == 0) &&
+      ((xd->mi_col & (cm->seq_params->mib_size - 1)) == 0);
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
   if (delta_q_info->delta_q_present_flag &&
-      (bsize != cm->seq_params.sb_size || !mbmi->skip_txfm) &&
+      (bsize != cm->seq_params->sb_size || !mbmi->skip_txfm) &&
       super_block_upper_left) {
     const int dq = (mbmi->current_qindex - xd->current_base_qindex) /
                    delta_q_info->delta_q_res;
@@ -994,7 +994,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         }
       }
 
-      if (cm->seq_params.enable_interintra_compound &&
+      if (cm->seq_params->enable_interintra_compound &&
           is_interintra_allowed(mbmi)) {
         const int bsize_group = size_group_lookup[bsize];
         if (mbmi->ref_frame[1] == INTRA_FRAME) {
@@ -1055,7 +1055,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                mbmi->motion_mode == SIMPLE_TRANSLATION);
 
         const int masked_compound_used = is_any_masked_compound_used(bsize) &&
-                                         cm->seq_params.enable_masked_compound;
+                                         cm->seq_params->enable_masked_compound;
         if (masked_compound_used) {
           const int comp_group_idx_ctx = get_comp_group_idx_context(xd);
 #if CONFIG_ENTROPY_STATS
@@ -1100,7 +1100,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   if (inter_block && cm->features.interp_filter == SWITCHABLE &&
       mbmi->motion_mode != WARPED_CAUSAL &&
       !is_nontrans_global_motion(xd, mbmi)) {
-    update_filter_type_cdf(xd, mbmi, cm->seq_params.enable_dual_filter);
+    update_filter_type_cdf(xd, mbmi, cm->seq_params->enable_dual_filter);
   }
   if (inter_block &&
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
@@ -1207,8 +1207,8 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   TileInfo *const tile = &tile_data->tile_info;
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *xd = &x->e_mbd;
-  const int subsampling_x = cm->seq_params.subsampling_x;
-  const int subsampling_y = cm->seq_params.subsampling_y;
+  const int subsampling_x = cm->seq_params->subsampling_x;
+  const int subsampling_y = cm->seq_params->subsampling_y;
 
   av1_set_offsets_without_segment_id(cpi, tile, x, mi_row, mi_col, bsize);
   const int origin_mult = x->rdmult;
@@ -1221,9 +1221,9 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     set_cb_offsets(x->mbmi_ext_frame->cb_offset, x->cb_offset[PLANE_TYPE_Y],
                    x->cb_offset[PLANE_TYPE_UV]);
     assert(x->cb_offset[PLANE_TYPE_Y] <
-           (1 << num_pels_log2_lookup[cpi->common.seq_params.sb_size]));
+           (1 << num_pels_log2_lookup[cpi->common.seq_params->sb_size]));
     assert(x->cb_offset[PLANE_TYPE_UV] <
-           ((1 << num_pels_log2_lookup[cpi->common.seq_params.sb_size]) >>
+           ((1 << num_pels_log2_lookup[cpi->common.seq_params->sb_size]) >>
             (subsampling_x + subsampling_y)));
   }
 
@@ -1231,7 +1231,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 
   if (!dry_run) {
     update_cb_offsets(x, bsize, subsampling_x, subsampling_y);
-    if (bsize == cpi->common.seq_params.sb_size && mbmi->skip_txfm == 1 &&
+    if (bsize == cpi->common.seq_params->sb_size && mbmi->skip_txfm == 1 &&
         cm->delta_q_info.delta_lf_present_flag) {
       const int frame_lf_count =
           av1_num_planes(cm) > 1 ? FRAME_LF_COUNT : FRAME_LF_COUNT - 2;
@@ -1249,11 +1249,11 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 
     // delta quant applies to both intra and inter
     const int super_block_upper_left =
-        ((mi_row & (cm->seq_params.mib_size - 1)) == 0) &&
-        ((mi_col & (cm->seq_params.mib_size - 1)) == 0);
+        ((mi_row & (cm->seq_params->mib_size - 1)) == 0) &&
+        ((mi_col & (cm->seq_params->mib_size - 1)) == 0);
     const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
     if (delta_q_info->delta_q_present_flag &&
-        (bsize != cm->seq_params.sb_size || !mbmi->skip_txfm) &&
+        (bsize != cm->seq_params->sb_size || !mbmi->skip_txfm) &&
         super_block_upper_left) {
       xd->current_base_qindex = mbmi->current_qindex;
       if (delta_q_info->delta_lf_present_flag) {
@@ -1800,11 +1800,11 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
 
   // We must have chosen a partitioning and encoding or we'll fail later on.
   // No other opportunities for success.
-  if (bsize == cm->seq_params.sb_size)
+  if (bsize == cm->seq_params->sb_size)
     assert(chosen_rdc.rate < INT_MAX && chosen_rdc.dist < INT64_MAX);
 
   if (do_recon) {
-    if (bsize == cm->seq_params.sb_size) {
+    if (bsize == cm->seq_params->sb_size) {
       // NOTE: To get estimate for rate due to the tokens, use:
       // int rate_coeffs = 0;
       // encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_COSTCOEFFS,
@@ -1839,15 +1839,15 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   // Nonrd pickmode does not currently support second/combined reference.
   assert(!has_second_ref(mbmi));
   av1_update_state(cpi, td, ctx, mi_row, mi_col, bsize, dry_run);
-  const int subsampling_x = cpi->common.seq_params.subsampling_x;
-  const int subsampling_y = cpi->common.seq_params.subsampling_y;
+  const int subsampling_x = cpi->common.seq_params->subsampling_x;
+  const int subsampling_y = cpi->common.seq_params->subsampling_y;
   if (!dry_run) {
     set_cb_offsets(x->mbmi_ext_frame->cb_offset, x->cb_offset[PLANE_TYPE_Y],
                    x->cb_offset[PLANE_TYPE_UV]);
     assert(x->cb_offset[PLANE_TYPE_Y] <
-           (1 << num_pels_log2_lookup[cpi->common.seq_params.sb_size]));
+           (1 << num_pels_log2_lookup[cpi->common.seq_params->sb_size]));
     assert(x->cb_offset[PLANE_TYPE_UV] <
-           ((1 << num_pels_log2_lookup[cpi->common.seq_params.sb_size]) >>
+           ((1 << num_pels_log2_lookup[cpi->common.seq_params->sb_size]) >>
             (subsampling_x + subsampling_y)));
   }
   encode_superblock(cpi, tile_data, td, tp, dry_run, bsize, rate);
@@ -1936,8 +1936,8 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
   int i;
 
   wait_for_top_right_sb(&cpi->mt_info.enc_row_mt, &tile_data->row_mt_sync,
-                        &tile_data->tile_info, cm->seq_params.sb_size,
-                        cm->seq_params.mib_size_log2, bsize, mi_row, mi_col);
+                        &tile_data->tile_info, cm->seq_params->sb_size,
+                        cm->seq_params->mib_size_log2, bsize, mi_row, mi_col);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, rd_pick_sb_modes_time);
@@ -3452,7 +3452,7 @@ static void none_partition_search(
     if (cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions) {
       const int ref_type = av1_ref_frame_type(pc_tree->none->mic.ref_frame);
       av1_update_picked_ref_frames_mask(
-          x, ref_type, bsize, cm->seq_params.mib_size, mi_row, mi_col);
+          x, ref_type, bsize, cm->seq_params->mib_size, mi_row, mi_col);
     }
 
     // Calculate the total cost and update the best partition.
@@ -3749,7 +3749,7 @@ static int read_partition_tree(AV1_COMP *const cpi, PC_TREE *const pc_tree,
   int num_nodes;
   int num_configs;
   fscanf(pfile, "%d,%d,%d", &read_bsize, &num_nodes, &num_configs);
-  assert(read_bsize == cpi->common.seq_params.sb_size);
+  assert(read_bsize == cpi->common.seq_params->sb_size);
   BLOCK_SIZE bsize = (BLOCK_SIZE)read_bsize;
 
   PC_TREE *tree_node_queue[1024] = { NULL };
@@ -3904,7 +3904,7 @@ static RD_STATS rd_search_for_fixed_partition(
   // Note: it is necessary to restore context information.
   av1_restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
 
-  if (bsize != cm->seq_params.sb_size) {
+  if (bsize != cm->seq_params->sb_size) {
     encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_NORMAL, bsize,
               pc_tree, NULL);
   }
@@ -4032,7 +4032,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
     av1_invalid_rd_stats(rd_cost);
     return part_search_state.found_best_partition;
   }
-  if (bsize == cm->seq_params.sb_size) x->must_find_valid_partition = 0;
+  if (bsize == cm->seq_params->sb_size) x->must_find_valid_partition = 0;
 
   // Override skipping rectangular partition operations for edge blocks.
   if (none_rd) *none_rd = 0;
@@ -4157,7 +4157,7 @@ BEGIN_PARTITION_SEARCH:
   // when NONE and SPLIT partition rd_costs are INT64_MAX.
   if (cpi->sf.part_sf.early_term_after_none_split &&
       part_none_rd == INT64_MAX && part_split_rd == INT64_MAX &&
-      !x->must_find_valid_partition && (bsize != cm->seq_params.sb_size)) {
+      !x->must_find_valid_partition && (bsize != cm->seq_params->sb_size)) {
     part_search_state.terminate_partition_search = 1;
   }
 
@@ -4248,7 +4248,7 @@ BEGIN_PARTITION_SEARCH:
   end_timing(cpi, rd_pick_4partition_time);
 #endif
 
-  if (bsize == cm->seq_params.sb_size &&
+  if (bsize == cm->seq_params->sb_size &&
       !part_search_state.found_best_partition) {
     // Did not find a valid partition, go back and search again, with less
     // constraint on which partition types to search.
@@ -4297,7 +4297,7 @@ BEGIN_PARTITION_SEARCH:
   // If a valid partition is found and reconstruction is required for future
   // sub-blocks in the same group.
   if (part_search_state.found_best_partition && pc_tree->index != 3) {
-    if (bsize == cm->seq_params.sb_size) {
+    if (bsize == cm->seq_params->sb_size) {
       // Encode the superblock.
       const int emit_output = multi_pass_mode != SB_DRY_PASS;
       const RUN_TYPE run_type = emit_output ? OUTPUT_ENABLED : DRY_RUN_NORMAL;
@@ -4326,7 +4326,7 @@ BEGIN_PARTITION_SEARCH:
   if (pc_tree_dealloc == 0)
     av1_free_pc_tree_recursive(pc_tree, num_planes, 1, 1);
 
-  if (bsize == cm->seq_params.sb_size) {
+  if (bsize == cm->seq_params->sb_size) {
     assert(best_rdc.rate < INT_MAX);
     assert(best_rdc.dist < INT64_MAX);
   } else {
@@ -4377,7 +4377,7 @@ static int ml_predict_var_paritioning(AV1_COMP *cpi, MACROBLOCK *x,
     const float thresh = cpi->oxcf.speed <= 5 ? 1.25f : 0.0f;
     float features[FEATURES] = { 0.0f };
     const int dc_q = av1_dc_quant_QTX(cm->quant_params.base_qindex, 0,
-                                      cm->seq_params.bit_depth);
+                                      cm->seq_params->bit_depth);
     int feature_idx = 0;
     float score[LABELS];
 
@@ -4457,7 +4457,7 @@ static int store_partition_data(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
 
   {
     const int dc_q = av1_dc_quant_QTX(cm->quant_params.base_qindex, 0,
-                                      cm->seq_params.bit_depth);
+                                      cm->seq_params->bit_depth);
     int feature_idx = 0;
 
     features[feature_idx++] = logf((float)(dc_q * dc_q) / 256.0f + 1.0f);
@@ -4605,7 +4605,7 @@ void av1_nonrd_pick_partition(AV1_COMP *cpi, ThreadData *td,
   int partition_none_allowed = !force_horz_split && !force_vert_split;
 
   assert(mi_size_wide[bsize] == mi_size_high[bsize]);  // Square partition only
-  assert(cm->seq_params.sb_size == BLOCK_64X64);       // Small SB so far
+  assert(cm->seq_params->sb_size == BLOCK_64X64);      // Small SB so far
 
   (void)*tp_orig;
 
@@ -4712,7 +4712,7 @@ void av1_nonrd_pick_partition(AV1_COMP *cpi, ThreadData *td,
   fill_mode_info_sb(cpi, x, mi_row, mi_col, bsize, pc_tree);
 
   if (do_recon) {
-    if (bsize == cm->seq_params.sb_size) {
+    if (bsize == cm->seq_params->sb_size) {
       // NOTE: To get estimate for rate due to the tokens, use:
       // int rate_coeffs = 0;
       // encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_COSTCOEFFS,

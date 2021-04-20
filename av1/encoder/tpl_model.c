@@ -155,8 +155,8 @@ void av1_setup_tpl_buffers(AV1_COMMON *const cm, TplParams *const tpl_data,
                    sizeof(*tpl_data->tpl_stats_buffer[frame].tpl_stats_ptr)));
     if (aom_alloc_frame_buffer(
             &tpl_data->tpl_rec_pool[frame], cm->width, cm->height,
-            cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
-            cm->seq_params.use_highbitdepth, tpl_data->border_in_pixels,
+            cm->seq_params->subsampling_x, cm->seq_params->subsampling_y,
+            cm->seq_params->use_highbitdepth, tpl_data->border_in_pixels,
             cm->features.byte_alignment))
       aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate frame buffer");
@@ -303,7 +303,7 @@ static void get_rate_distortion(
     const YV12_BUFFER_CONFIG *ref_frame_ptr[2], uint8_t *rec_buffer_pool[3],
     const int rec_stride_pool[3], TX_SIZE tx_size, PREDICTION_MODE best_mode,
     int mi_row, int mi_col, int use_y_only_rate_distortion) {
-  const SequenceHeader *seq_params = &cm->seq_params;
+  const SequenceHeader *seq_params = cm->seq_params;
   *rate_cost = 0;
   *recon_error = 1;
 
@@ -501,7 +501,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
   // H_PRED, and V_PRED
   const PREDICTION_MODE last_intra_mode =
       cpi->sf.tpl_sf.prune_intra_modes ? D45_PRED : INTRA_MODE_END;
-  const SequenceHeader *seq_params = &cm->seq_params;
+  const SequenceHeader *seq_params = cm->seq_params;
   for (PREDICTION_MODE mode = INTRA_MODE_START; mode < last_intra_mode;
        ++mode) {
     av1_predict_intra_block(xd, seq_params->sb_size,
@@ -1148,7 +1148,7 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
   av1_frame_init_quantizer(cpi);
 
   tpl_frame->base_rdmult = av1_compute_rd_mult_based_on_qindex(
-                               cm->seq_params.bit_depth, pframe_qindex) /
+                               cm->seq_params->bit_depth, pframe_qindex) /
                            6;
 
   memset(tpl_txfm_stats, 0, sizeof(*tpl_txfm_stats));

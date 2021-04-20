@@ -61,7 +61,7 @@ static int enable_noise_estimation(AV1_COMP *const cpi) {
         cpi->common.height != resize_pending_params->height));
 
 #if CONFIG_AV1_HIGHBITDEPTH
-  if (cpi->common.seq_params.use_highbitdepth) return 0;
+  if (cpi->common.seq_params->use_highbitdepth) return 0;
 #endif
 // Enable noise estimation if denoising is on.
 #if CONFIG_AV1_TEMPORAL_DENOISING

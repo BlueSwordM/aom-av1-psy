@@ -755,7 +755,7 @@ int av1_get_q(const AV1_COMP *cpi) {
   const GF_GROUP *gf_group = &cpi->ppi->gf_group;
   const FRAME_TYPE frame_type = gf_group->frame_type[cpi->gf_frame_index];
   const int q = (int)av1_convert_qindex_to_q(
-      cpi->rc.avg_frame_qindex[frame_type], cpi->common.seq_params.bit_depth);
+      cpi->rc.avg_frame_qindex[frame_type], cpi->common.seq_params->bit_depth);
   return q;
 }
 
@@ -973,7 +973,7 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   double *noise_levels = tf_ctx->noise_levels;
   for (int plane = 0; plane < num_planes; ++plane) {
     noise_levels[plane] = av1_estimate_noise_from_single_plane(
-        to_filter_frame, plane, cpi->common.seq_params.bit_depth);
+        to_filter_frame, plane, cpi->common.seq_params->bit_depth);
   }
   // Get quantization factor.
   const int q = av1_get_q(cpi);
@@ -1068,10 +1068,10 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   assert(frames[tf_ctx->filter_frame_idx] == to_filter_frame);
 
   av1_setup_src_planes(&cpi->td.mb, &to_filter_buf->img, 0, 0, num_planes,
-                       cpi->common.seq_params.sb_size);
+                       cpi->common.seq_params->sb_size);
   av1_setup_block_planes(&cpi->td.mb.e_mbd,
-                         cpi->common.seq_params.subsampling_x,
-                         cpi->common.seq_params.subsampling_y, num_planes);
+                         cpi->common.seq_params->subsampling_x,
+                         cpi->common.seq_params->subsampling_y, num_planes);
 }
 
 /*!\cond */
@@ -1255,7 +1255,7 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
     const int q = av1_rc_pick_q_and_bounds(
         cpi, cpi->oxcf.frm_dim_cfg.width, cpi->oxcf.frm_dim_cfg.height,
         group_idx, &bottom_index, &top_index);
-    const int ac_q = av1_ac_quant_QTX(q, 0, cpi->common.seq_params.bit_depth);
+    const int ac_q = av1_ac_quant_QTX(q, 0, cpi->common.seq_params->bit_depth);
     const float threshold = 0.7f * ac_q * ac_q;
 
     if (!is_second_arf) {

@@ -801,7 +801,7 @@ typedef struct macroblockd {
   FRAME_CONTEXT *tile_ctx;
 
   /*!
-   * Bit depth: copied from cm->seq_params.bit_depth for convenience.
+   * Bit depth: copied from cm->seq_params->bit_depth for convenience.
    */
   int bd;
 
@@ -942,7 +942,7 @@ typedef struct BitDepthInfo {
   /*! Is the image buffer high bit depth?
    * Low bit depth buffer uses uint8_t.
    * High bit depth buffer uses uint16_t.
-   * Equivalent to cm->seq_params.use_highbitdepth
+   * Equivalent to cm->seq_params->use_highbitdepth
    */
   int use_highbitdepth_buf;
 } BitDepthInfo;

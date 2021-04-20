@@ -110,7 +110,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
   // Use a local variable to store the information as we decode. At the end,
   // if no errors have occurred, cm->seq_params is updated.
-  SequenceHeader sh = cm->seq_params;
+  SequenceHeader sh = *cm->seq_params;
   SequenceHeader *const seq_params = &sh;
 
   seq_params->profile = av1_read_profile(rb);
@@ -260,11 +260,11 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   // If a sequence header has been decoded before, we check if the new
   // one is consistent with the old one.
   if (pbi->sequence_header_ready) {
-    if (!are_seq_headers_consistent(&cm->seq_params, seq_params))
+    if (!are_seq_headers_consistent(cm->seq_params, seq_params))
       pbi->sequence_header_changed = 1;
   }
 
-  cm->seq_params = *seq_params;
+  *cm->seq_params = *seq_params;
   pbi->sequence_header_ready = 1;
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
@@ -388,13 +388,14 @@ static void alloc_tile_list_buffer(AV1Decoder *pbi) {
              (pbi->output_frame_height_in_tiles_minus_1 + 1));
 
   // Allocate the tile list output buffer.
-  // Note: if cm->seq_params.use_highbitdepth is 1 and cm->seq_params.bit_depth
-  // is 8, we could allocate less memory, namely, 8 bits/pixel.
+  // Note: if cm->seq_params->use_highbitdepth is 1 and
+  // cm->seq_params->bit_depth is 8, we could allocate less memory, namely, 8
+  // bits/pixel.
   if (aom_alloc_frame_buffer(&pbi->tile_list_outbuf, output_frame_width,
-                             output_frame_height, cm->seq_params.subsampling_x,
-                             cm->seq_params.subsampling_y,
-                             (cm->seq_params.use_highbitdepth &&
-                              (cm->seq_params.bit_depth > AOM_BITS_8)),
+                             output_frame_height, cm->seq_params->subsampling_x,
+                             cm->seq_params->subsampling_y,
+                             (cm->seq_params->use_highbitdepth &&
+                              (cm->seq_params->bit_depth > AOM_BITS_8)),
                              0, cm->features.byte_alignment))
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate the tile list output buffer");
@@ -430,8 +431,8 @@ static void copy_decoded_tile_to_tile_list_buffer(AV1Decoder *pbi,
   av1_get_uniform_tile_size(cm, &tile_width, &tile_height);
   const int tile_width_in_pixels = tile_width * MI_SIZE;
   const int tile_height_in_pixels = tile_height * MI_SIZE;
-  const int ssy = cm->seq_params.subsampling_y;
-  const int ssx = cm->seq_params.subsampling_x;
+  const int ssy = cm->seq_params->subsampling_y;
+  const int ssx = cm->seq_params->subsampling_x;
   const int num_planes = av1_num_planes(cm);
 
   YV12_BUFFER_CONFIG *cur_frame = &cm->cur_frame->buf;
@@ -455,8 +456,8 @@ static void copy_decoded_tile_to_tile_list_buffer(AV1Decoder *pbi,
     int vstart2 = tr * h;
     int hstart2 = tc * w;
 
-    if (cm->seq_params.use_highbitdepth &&
-        cm->seq_params.bit_depth == AOM_BITS_8) {
+    if (cm->seq_params->use_highbitdepth &&
+        cm->seq_params->bit_depth == AOM_BITS_8) {
       yv12_tile_copy(cur_frame, hstart1, hend1, vstart1, vend1,
                      &pbi->tile_list_outbuf, hstart2, vstart2, plane);
     } else {

@@ -1562,7 +1562,7 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
     else
       model_rd_for_sb_y(cpi, bsize, x, xd, &pf_rd_stats[i], 1);
     pf_rd_stats[i].rate += av1_get_switchable_rate(
-        x, xd, cm->features.interp_filter, cm->seq_params.enable_dual_filter);
+        x, xd, cm->features.interp_filter, cm->seq_params->enable_dual_filter);
     cost = RDCOST(x->rdmult, pf_rd_stats[i].rate, pf_rd_stats[i].dist);
     pf_tx_size[i] = mi->tx_size;
     if (cost < best_cost) {
@@ -1618,7 +1618,7 @@ typedef struct _mode_search_stat {
 static void compute_intra_yprediction(const AV1_COMMON *cm,
                                       PREDICTION_MODE mode, BLOCK_SIZE bsize,
                                       MACROBLOCK *x, MACROBLOCKD *xd) {
-  const SequenceHeader *seq_params = &cm->seq_params;
+  const SequenceHeader *seq_params = cm->seq_params;
   struct macroblockd_plane *const pd = &xd->plane[0];
   struct macroblock_plane *const p = &x->plane[0];
   uint8_t *const src_buf_base = p->src.buf;
@@ -1738,7 +1738,7 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
                                               int *force_skip_low_temp_var) {
   AV1_COMMON *const cm = &cpi->common;
   const struct segmentation *const seg = &cm->seg;
-  const int is_small_sb = (cm->seq_params.sb_size == BLOCK_64X64);
+  const int is_small_sb = (cm->seq_params->sb_size == BLOCK_64X64);
 
   // For SVC the usage of alt_ref is determined by the ref_frame_flags.
   int use_alt_ref_frame = cpi->use_svc || cpi->sf.rt_sf.use_nonrd_altref_frame;
@@ -1836,7 +1836,7 @@ static void estimate_intra_mode(
 
   int intra_cost_penalty = av1_get_intra_cost_penalty(
       quant_params->base_qindex, quant_params->y_dc_delta_q,
-      cm->seq_params.bit_depth);
+      cm->seq_params->bit_depth);
   int64_t inter_mode_thresh = RDCOST(x->rdmult, intra_cost_penalty, 0);
   int perform_intra_pred = cpi->sf.rt_sf.check_intra_pred_nonrd;
   // For spatial enhancemanent layer: turn off intra prediction if the
@@ -2108,7 +2108,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   DECLARE_ALIGNED(16, uint8_t, pred_buf[3 * 128 * 128]);
   PRED_BUFFER *this_mode_pred = NULL;
   const int reuse_inter_pred = cpi->sf.rt_sf.reuse_inter_pred_nonrd &&
-                               cm->seq_params.bit_depth == AOM_BITS_8;
+                               cm->seq_params->bit_depth == AOM_BITS_8;
 
   const int bh = block_size_high[bsize];
   const int bw = block_size_wide[bsize];
@@ -2214,7 +2214,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   const int use_model_yrd_large =
       cpi->oxcf.rc_cfg.mode == AOM_CBR && large_block &&
       !cyclic_refresh_segment_id_boosted(xd->mi[0]->segment_id) &&
-      quant_params->base_qindex && cm->seq_params.bit_depth == 8;
+      quant_params->base_qindex && cm->seq_params->bit_depth == 8;
 
   const int enable_filter_search =
       is_filter_search_enabled(cpi, mi_row, mi_col, bsize);

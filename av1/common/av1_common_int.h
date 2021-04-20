@@ -613,12 +613,12 @@ struct CommonQuantParams {
 
   /*!
    * Delta of qindex (from base_qindex) for V plane DC coefficients.
-   * Same as those for U plane if cm->seq_params.separate_uv_delta_q == 0.
+   * Same as those for U plane if cm->seq_params->separate_uv_delta_q == 0.
    */
   int u_ac_delta_q;
   /*!
    * Delta of qindex (from base_qindex) for V plane AC coefficients.
-   * Same as those for U plane if cm->seq_params.separate_uv_delta_q == 0.
+   * Same as those for U plane if cm->seq_params->separate_uv_delta_q == 0.
    */
   int v_ac_delta_q;
 
@@ -961,7 +961,7 @@ typedef struct AV1Common {
    * Elements part of the sequence header, that are applicable for all the
    * frames in the video.
    */
-  SequenceHeader seq_params;
+  SequenceHeader *seq_params;
 
   /*!
    * Current CDFs of all the symbols for the current frame.
@@ -993,7 +993,7 @@ typedef struct AV1Common {
   CommonContexts above_contexts;
 
   /**
-   * \name Signaled when cm->seq_params.frame_id_numbers_present_flag == 1
+   * \name Signaled when cm->seq_params->frame_id_numbers_present_flag == 1
    */
   /**@{*/
   int current_frame_id;         /*!< frame ID for the current frame. */
@@ -1203,15 +1203,15 @@ static INLINE RefCntBuffer *get_primary_ref_frame_buf(
 // Returns 1 if this frame might allow mvs from some reference frame.
 static INLINE int frame_might_allow_ref_frame_mvs(const AV1_COMMON *cm) {
   return !cm->features.error_resilient_mode &&
-         cm->seq_params.order_hint_info.enable_ref_frame_mvs &&
-         cm->seq_params.order_hint_info.enable_order_hint &&
+         cm->seq_params->order_hint_info.enable_ref_frame_mvs &&
+         cm->seq_params->order_hint_info.enable_order_hint &&
          !frame_is_intra_only(cm);
 }
 
 // Returns 1 if this frame might use warped_motion
 static INLINE int frame_might_allow_warped_motion(const AV1_COMMON *cm) {
   return !cm->features.error_resilient_mode && !frame_is_intra_only(cm) &&
-         cm->seq_params.enable_warped_motion;
+         cm->seq_params->enable_warped_motion;
 }
 
 static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
@@ -1251,7 +1251,7 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
 void cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params);
 
 static INLINE int av1_num_planes(const AV1_COMMON *cm) {
-  return cm->seq_params.monochrome ? 1 : MAX_MB_PLANE;
+  return cm->seq_params->monochrome ? 1 : MAX_MB_PLANE;
 }
 
 static INLINE void av1_init_above_context(CommonContexts *above_contexts,
@@ -1291,7 +1291,7 @@ static INLINE void av1_init_macroblockd(AV1_COMMON *cm, MACROBLOCKD *xd) {
   }
   xd->mi_stride = cm->mi_params.mi_stride;
   xd->error_info = &cm->error;
-  cfl_init(&xd->cfl, &cm->seq_params);
+  cfl_init(&xd->cfl, cm->seq_params);
 }
 
 static INLINE void set_entropy_context(MACROBLOCKD *xd, int mi_row, int mi_col,
@@ -1573,7 +1573,7 @@ static INLINE void av1_zero_above_context(AV1_COMMON *const cm,
                                           const MACROBLOCKD *xd,
                                           int mi_col_start, int mi_col_end,
                                           const int tile_row) {
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
   const int num_planes = av1_num_planes(cm);
   const int width = mi_col_end - mi_col_start;
   const int aligned_width =

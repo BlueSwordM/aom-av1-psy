@@ -1327,7 +1327,7 @@ static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
     ctx->cfg = *cfg;
     set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg);
     // On profile change, request a key frame
-    force_key |= ctx->ppi->cpi->common.seq_params.profile != ctx->oxcf.profile;
+    force_key |= ctx->ppi->seq_params.profile != ctx->oxcf.profile;
 #if CONFIG_FRAME_PARALLEL_ENCODE
     int i;
     for (i = 0; i < ctx->ppi->num_fp_contexts; i++) {
@@ -2966,10 +2966,10 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
     }
     if (cm->current_frame.frame_number == 0) {
       if (!cpi->ppi->seq_params_locked) {
-        SequenceHeader *const seq_params = &cm->seq_params;
+        SequenceHeader *const seq_params = cm->seq_params;
         seq_params->operating_points_cnt_minus_1 =
             cm->number_spatial_layers * cm->number_temporal_layers - 1;
-        av1_init_seq_coding_tools(&cm->seq_params, cm, &cpi->oxcf, 1);
+        av1_init_seq_coding_tools(cm->seq_params, cm, &cpi->oxcf, 1);
       }
       av1_init_layer_context(cpi);
     }
@@ -3477,7 +3477,7 @@ static aom_codec_err_t ctrl_get_seq_level_idx(aom_codec_alg_priv_t *ctx,
   int *const arg = va_arg(args, int *);
   const AV1_COMP *const cpi = ctx->ppi->cpi;
   if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
-  return av1_get_seq_level_idx(&cpi->common.seq_params, &cpi->ppi->level_params,
+  return av1_get_seq_level_idx(cpi->common.seq_params, &cpi->ppi->level_params,
                                arg);
 }
 

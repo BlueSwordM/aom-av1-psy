@@ -66,13 +66,13 @@ void av1_set_ssim_rdmult(const AV1_COMP *const cpi, int *errorperbit,
 static int get_superblock_tpl_column_end(const AV1_COMMON *const cm, int mi_col,
                                          int num_mi_w) {
   // Find the start column of this superblock.
-  const int sb_mi_col_start = (mi_col >> cm->seq_params.mib_size_log2)
-                              << cm->seq_params.mib_size_log2;
+  const int sb_mi_col_start = (mi_col >> cm->seq_params->mib_size_log2)
+                              << cm->seq_params->mib_size_log2;
   // Same but in superres upscaled dimension.
   const int sb_mi_col_start_sr =
       coded_to_superres_mi(sb_mi_col_start, cm->superres_scale_denominator);
   // Width of this superblock in mi units.
-  const int sb_mi_width = mi_size_wide[cm->seq_params.sb_size];
+  const int sb_mi_width = mi_size_wide[cm->seq_params->sb_size];
   // Same but in superres upscaled dimension.
   const int sb_mi_width_sr =
       coded_to_superres_mi(sb_mi_width, cm->superres_scale_denominator);
@@ -134,7 +134,7 @@ int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   rdmult = AOMMAX(rdmult, 0);
   av1_set_error_per_bit(&x->errorperbit, rdmult);
   aom_clear_system_state();
-  if (bsize == cm->seq_params.sb_size) {
+  if (bsize == cm->seq_params->sb_size) {
     const int rdmult_sb = set_deltaq_rdmult(cpi, x);
     assert(rdmult_sb == rdmult);
     (void)rdmult_sb;
@@ -342,7 +342,7 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
 
   const int x_mis = AOMMIN(bw, mi_params->mi_cols - mi_col);
   const int y_mis = AOMMIN(bh, mi_params->mi_rows - mi_row);
-  if (cm->seq_params.order_hint_info.enable_ref_frame_mvs)
+  if (cm->seq_params->order_hint_info.enable_ref_frame_mvs)
     av1_copy_frame_mvs(cm, mi, mi_row, mi_col, x_mis, y_mis);
 }
 
@@ -605,9 +605,9 @@ static void set_partial_sb_partition(const AV1_COMMON *const cm,
                                      MB_MODE_INFO **mib) {
   int bh = bh_in;
   int r, c;
-  for (r = 0; r < cm->seq_params.mib_size; r += bh) {
+  for (r = 0; r < cm->seq_params->mib_size; r += bh) {
     int bw = bw_in;
-    for (c = 0; c < cm->seq_params.mib_size; c += bw) {
+    for (c = 0; c < cm->seq_params->mib_size; c += bw) {
       const int grid_index = get_mi_grid_idx(&cm->mi_params, r, c);
       const int mi_index = get_alloc_mi_idx(&cm->mi_params, r, c);
       mib[grid_index] = mi + mi_index;
@@ -639,11 +639,11 @@ void av1_set_fixed_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   assert((mi_rows_remaining > 0) && (mi_cols_remaining > 0));
 
   // Apply the requested partition size to the SB if it is all "in image"
-  if ((mi_cols_remaining >= cm->seq_params.mib_size) &&
-      (mi_rows_remaining >= cm->seq_params.mib_size)) {
-    for (int block_row = 0; block_row < cm->seq_params.mib_size;
+  if ((mi_cols_remaining >= cm->seq_params->mib_size) &&
+      (mi_rows_remaining >= cm->seq_params->mib_size)) {
+    for (int block_row = 0; block_row < cm->seq_params->mib_size;
          block_row += bh) {
-      for (int block_col = 0; block_col < cm->seq_params.mib_size;
+      for (int block_col = 0; block_col < cm->seq_params->mib_size;
            block_col += bw) {
         const int grid_index = get_mi_grid_idx(mi_params, block_row, block_col);
         const int mi_index = get_alloc_mi_idx(mi_params, block_row, block_col);
@@ -1166,7 +1166,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 void av1_source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, int offset) {
   unsigned int tmp_sse;
   unsigned int tmp_variance;
-  const BLOCK_SIZE bsize = cpi->common.seq_params.sb_size;
+  const BLOCK_SIZE bsize = cpi->common.seq_params->sb_size;
   uint8_t *src_y = cpi->source->y_buffer;
   int src_ystride = cpi->source->y_stride;
   uint8_t *last_src_y = cpi->last_source->y_buffer;
@@ -1235,7 +1235,7 @@ void av1_backup_sb_state(SB_FIRST_PASS_STATS *sb_fp_stats, const AV1_COMP *cpi,
 
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
-  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+  const BLOCK_SIZE sb_size = cm->seq_params->sb_size;
 
   xd->above_txfm_context =
       cm->above_contexts.txfm[tile_info->tile_row] + mi_col;
@@ -1271,7 +1271,7 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
 
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
-  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+  const BLOCK_SIZE sb_size = cm->seq_params->sb_size;
 
   av1_restore_context(x, &sb_fp_stats->x_ctx, mi_row, mi_col, sb_size,
                       num_planes);
@@ -1346,7 +1346,7 @@ static int skip_mv_cost_update(AV1_COMP *cpi, const TileInfo *const tile_info,
   // cost calculation is skipped in this case.
   if (frame_is_intra_only(cm)) return 1;
 
-  return skip_cost_update(&cm->seq_params, tile_info, mi_row, mi_col,
+  return skip_cost_update(cm->seq_params, tile_info, mi_row, mi_col,
                           cpi->sf.inter_sf.mv_cost_upd_level);
 }
 
@@ -1360,7 +1360,7 @@ static int skip_dv_cost_update(AV1_COMP *cpi, const TileInfo *const tile_info,
     return 1;
   }
 
-  return skip_cost_update(&cm->seq_params, tile_info, mi_row, mi_col,
+  return skip_cost_update(cm->seq_params, tile_info, mi_row, mi_col,
                           cpi->sf.intra_sf.dv_cost_upd_level);
 }
 

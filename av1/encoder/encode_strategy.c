@@ -859,10 +859,10 @@ void setup_mi(AV1_COMP *const cpi, YV12_BUFFER_CONFIG *src) {
   MACROBLOCK *const x = &cpi->td.mb;
   MACROBLOCKD *const xd = &x->e_mbd;
 
-  av1_setup_src_planes(x, src, 0, 0, num_planes, cm->seq_params.sb_size);
+  av1_setup_src_planes(x, src, 0, 0, num_planes, cm->seq_params->sb_size);
 
-  av1_setup_block_planes(xd, cm->seq_params.subsampling_x,
-                         cm->seq_params.subsampling_y, num_planes);
+  av1_setup_block_planes(xd, cm->seq_params->subsampling_x,
+                         cm->seq_params->subsampling_y, num_planes);
 
   set_mi_offsets(&cm->mi_params, xd, 0, 0);
 }
@@ -895,7 +895,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
         oxcf->algo_cfg.arnr_max_frames > 0 && oxcf->gf_cfg.lag_in_frames > 1;
     if (allow_kf_filtering) {
       const double y_noise_level = av1_estimate_noise_from_single_plane(
-          frame_input->source, 0, cm->seq_params.bit_depth);
+          frame_input->source, 0, cm->seq_params->bit_depth);
       apply_filtering = y_noise_level > 0;
     } else {
       apply_filtering = 0;
@@ -1226,7 +1226,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
           &cm->film_grain_params);
     } else {
       cm->cur_frame->film_grain_params_present =
-          cm->seq_params.film_grain_params_present;
+          cm->seq_params->film_grain_params_present;
     }
     // only one operating point supported now
     const int64_t pts64 = ticks_to_timebase_units(timestamp_ratio, *time_stamp);

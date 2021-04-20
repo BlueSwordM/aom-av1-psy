@@ -2167,6 +2167,12 @@ typedef struct AV1_PRIMARY {
    * frame or ARF frame.
    */
   YV12_BUFFER_CONFIG alt_ref_buffer;
+
+  /*!
+   * Elements part of the sequence header, that are applicable for all the
+   * frames in the video.
+   */
+  SequenceHeader seq_params;
 } AV1_PRIMARY;
 
 /*!

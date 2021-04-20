@@ -342,7 +342,7 @@ static INLINE void thread_loop_filter_rows(
              mi_col += MAX_MIB_SIZE) {
           c = mi_col >> MAX_MIB_SIZE_LOG2;
 
-          av1_setup_dst_planes(planes, cm->seq_params.sb_size, frame_buffer,
+          av1_setup_dst_planes(planes, cm->seq_params->sb_size, frame_buffer,
                                mi_row, mi_col, plane, plane + 1);
 
           av1_filter_block_plane_vert(cm, xd, plane, &planes[plane], mi_row,
@@ -362,7 +362,7 @@ static INLINE void thread_loop_filter_rows(
           // completed
           sync_read(lf_sync, r + 1, c, plane);
 
-          av1_setup_dst_planes(planes, cm->seq_params.sb_size, frame_buffer,
+          av1_setup_dst_planes(planes, cm->seq_params->sb_size, frame_buffer,
                                mi_row, mi_col, plane, plane + 1);
           av1_filter_block_plane_horz(cm, xd, plane, &planes[plane], mi_row,
                                       mi_col);
@@ -565,7 +565,7 @@ void av1_loop_filter_frame_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
 
       // TODO(chengchen): can we remove this?
       struct macroblockd_plane *pd = xd->plane;
-      av1_setup_dst_planes(pd, cm->seq_params.sb_size, frame, 0, 0, plane,
+      av1_setup_dst_planes(pd, cm->seq_params->sb_size, frame, 0, 0, plane,
                            plane + 1);
 
       av1_build_bitmask_vert_info(cm, &pd[plane], plane);
@@ -773,7 +773,7 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
   for (int plane = 0; plane < num_planes; plane++) {
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
     const int is_uv = plane > 0;
-    const int ss_y = is_uv && cm->seq_params.subsampling_y;
+    const int ss_y = is_uv && cm->seq_params->subsampling_y;
 
     AV1PixelRect tile_rect = ctxt[plane].tile_rect;
     const int unit_size = ctxt[plane].rsi->restoration_unit_size;
@@ -1119,7 +1119,7 @@ void av1_cdef_init_fb_row_mt(AV1_COMMON *cm, MACROBLOCKD *const xd,
 
   fb_info->src = src;
   fb_info->damping = cm->cdef_info.cdef_damping;
-  fb_info->coeff_shift = AOMMAX(cm->seq_params.bit_depth - 8, 0);
+  fb_info->coeff_shift = AOMMAX(cm->seq_params->bit_depth - 8, 0);
   av1_zero(fb_info->dir);
   av1_zero(fb_info->var);
 
@@ -1168,7 +1168,7 @@ void av1_cdef_frame_mt(AV1_COMMON *cm, MACROBLOCKD *xd,
   YV12_BUFFER_CONFIG *frame = &cm->cur_frame->buf;
   const int num_planes = av1_num_planes(cm);
 
-  av1_setup_dst_planes(xd->plane, cm->seq_params.sb_size, frame, 0, 0, 0,
+  av1_setup_dst_planes(xd->plane, cm->seq_params->sb_size, frame, 0, 0, 0,
                        num_planes);
 
   reset_cdef_job_info(cdef_sync);

@@ -314,7 +314,7 @@ static int64_t pick_interinter_wedge(
   int8_t wedge_sign = 0;
 
   assert(is_interinter_compound_used(COMPOUND_WEDGE, bsize));
-  assert(cpi->common.seq_params.enable_masked_compound);
+  assert(cpi->common.seq_params->enable_masked_compound);
 
   if (cpi->sf.inter_sf.fast_wedge_sign_estimate) {
     wedge_sign = estimate_wedge_sign(cpi, x, bsize, p0, bw, p1, bw);
@@ -392,7 +392,7 @@ static int64_t pick_interintra_wedge(const AV1_COMP *const cpi,
   const MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   assert(av1_is_wedge_used(bsize));
-  assert(cpi->common.seq_params.enable_interintra_compound);
+  assert(cpi->common.seq_params->enable_interintra_compound);
 
   const struct buf_2d *const src = &x->plane[0].src;
   const int bw = block_size_wide[bsize];
@@ -836,7 +836,7 @@ static INLINE int compute_valid_comp_types(MACROBLOCK *x,
   const int try_average_comp = (mode_search_mask & (1 << COMPOUND_AVERAGE));
   const int try_distwtd_comp =
       ((mode_search_mask & (1 << COMPOUND_DISTWTD)) &&
-       cm->seq_params.order_hint_info.enable_dist_wtd_comp == 1 &&
+       cm->seq_params->order_hint_info.enable_dist_wtd_comp == 1 &&
        cpi->sf.inter_sf.use_dist_wtd_comp_flag != DIST_WTD_COMP_DISABLED);
 
   // Check if COMPOUND_AVERAGE and COMPOUND_DISTWTD are valid cases

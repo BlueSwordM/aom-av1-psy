@@ -90,7 +90,7 @@ void cdef_copy_rect8_16bit_to_16bit_c(uint16_t *dst, int dstride,
 void av1_cdef_copy_sb8_16(AV1_COMMON *cm, uint16_t *dst, int dstride,
                           const uint8_t *src, int src_voffset, int src_hoffset,
                           int sstride, int vsize, int hsize) {
-  if (cm->seq_params.use_highbitdepth) {
+  if (cm->seq_params->use_highbitdepth) {
     const uint16_t *base =
         &CONVERT_TO_SHORTPTR(src)[src_voffset * sstride + src_hoffset];
     cdef_copy_rect8_16bit_to_16bit(dst, dstride, base, sstride, vsize, hsize);
@@ -148,7 +148,7 @@ static void cdef_prepare_fb(AV1_COMMON *cm, CdefBlockInfo *fb_info,
   const uint16_t *bot_linebuf = fb_info->bot_linebuf[plane];
   const int bot_offset = (vsize + CDEF_VBORDER) * CDEF_BSTRIDE;
   const int stride =
-      luma_stride >> (plane == AOM_PLANE_Y ? 0 : cm->seq_params.subsampling_x);
+      luma_stride >> (plane == AOM_PLANE_Y ? 0 : cm->seq_params->subsampling_x);
 
   if (fbc == nhfb - 1)
     cend = hsize;
@@ -321,7 +321,7 @@ static void cdef_fb_col(AV1_COMMON *cm, MACROBLOCKD *xd, CdefBlockInfo *fb_info,
       return;
     }
     cdef_prepare_fb(cm, fb_info, colbuf, cdef_left, fbc, fbr, plane);
-    cdef_filter_fb(fb_info, plane, cm->seq_params.use_highbitdepth);
+    cdef_filter_fb(fb_info, plane, cm->seq_params->use_highbitdepth);
   }
   *cdef_left = 1;
 }
@@ -355,7 +355,7 @@ void av1_cdef_init_fb_row(AV1_COMMON *cm, MACROBLOCKD *const xd,
 
   fb_info->src = src;
   fb_info->damping = cm->cdef_info.cdef_damping;
-  fb_info->coeff_shift = AOMMAX(cm->seq_params.bit_depth - 8, 0);
+  fb_info->coeff_shift = AOMMAX(cm->seq_params->bit_depth - 8, 0);
   av1_zero(fb_info->dir);
   av1_zero(fb_info->var);
 
@@ -415,7 +415,7 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm, MACROBLOCKD *xd,
   const int num_planes = av1_num_planes(cm);
   const int nvfb = (cm->mi_params.mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
 
-  av1_setup_dst_planes(xd->plane, cm->seq_params.sb_size, frame, 0, 0, 0,
+  av1_setup_dst_planes(xd->plane, cm->seq_params->sb_size, frame, 0, 0, 0,
                        num_planes);
 
   for (int fbr = 0; fbr < nvfb; fbr++)

@@ -491,7 +491,7 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
       const int n_cache = av1_get_palette_cache(xd, 0, color_cache);
       palette_mode_cost +=
           av1_palette_color_cost_y(&mbmi->palette_mode_info, color_cache,
-                                   n_cache, cpi->common.seq_params.bit_depth);
+                                   n_cache, cpi->common.seq_params->bit_depth);
       palette_mode_cost +=
           av1_cost_color_map(x, 0, bsize, mbmi->tx_size, PALETTE_MAP);
       total_rate += palette_mode_cost;
@@ -551,7 +551,7 @@ static AOM_INLINE int intra_mode_info_cost_uv(const AV1_COMP *cpi,
       uint16_t color_cache[2 * PALETTE_MAX_SIZE];
       const int n_cache = av1_get_palette_cache(xd, 1, color_cache);
       palette_mode_cost += av1_palette_color_cost_uv(
-          pmi, color_cache, n_cache, cpi->common.seq_params.bit_depth);
+          pmi, color_cache, n_cache, cpi->common.seq_params->bit_depth);
       palette_mode_cost +=
           av1_cost_color_map(x, 1, bsize, mbmi->tx_size, PALETTE_MAP);
       total_rate += palette_mode_cost;

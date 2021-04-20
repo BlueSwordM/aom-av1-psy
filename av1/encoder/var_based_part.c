@@ -629,7 +629,7 @@ static AOM_INLINE void set_low_temp_var_flag(
         xd->mi[0]->mv[0].as_mv.col > -mv_thr &&
         xd->mi[0]->mv[0].as_mv.row < mv_thr &&
         xd->mi[0]->mv[0].as_mv.row > -mv_thr))) {
-    const int is_small_sb = (cm->seq_params.sb_size == BLOCK_64X64);
+    const int is_small_sb = (cm->seq_params->sb_size == BLOCK_64X64);
     if (is_small_sb)
       set_low_temp_var_flag_64x64(&cm->mi_params, part_info, xd,
                                   &(vt->split[0]), thresholds, mi_col, mi_row);
@@ -683,7 +683,7 @@ static void fill_variance_tree_leaves(
   AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   const int is_key_frame = frame_is_intra_only(cm);
-  const int is_small_sb = (cm->seq_params.sb_size == BLOCK_64X64);
+  const int is_small_sb = (cm->seq_params->sb_size == BLOCK_64X64);
   const int num_64x64_blocks = is_small_sb ? 1 : 4;
   // TODO(kyslov) Bring back compute_minmax_variance with content type detection
   const int compute_minmax_variance = 0;
@@ -797,7 +797,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   const int num_planes = av1_num_planes(cm);
-  const int is_small_sb = (cm->seq_params.sb_size == BLOCK_64X64);
+  const int is_small_sb = (cm->seq_params->sb_size == BLOCK_64X64);
   BLOCK_SIZE bsize = is_small_sb ? BLOCK_64X64 : BLOCK_128X128;
   // TODO(kyslov): we are assuming that the ref is LAST_FRAME! Check if it
   // is!!
@@ -824,13 +824,13 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                        get_ref_scale_factors(cm, LAST_FRAME), num_planes);
   mi->ref_frame[0] = LAST_FRAME;
   mi->ref_frame[1] = NONE_FRAME;
-  mi->bsize = cm->seq_params.sb_size;
+  mi->bsize = cm->seq_params->sb_size;
   mi->mv[0].as_int = 0;
   mi->interp_filters = av1_broadcast_interp_filter(BILINEAR);
   if (cpi->sf.rt_sf.estimate_motion_for_var_based_partition) {
     if (xd->mb_to_right_edge >= 0 && xd->mb_to_bottom_edge >= 0) {
       const MV dummy_mv = { 0, 0 };
-      *y_sad = av1_int_pro_motion_estimation(cpi, x, cm->seq_params.sb_size,
+      *y_sad = av1_int_pro_motion_estimation(cpi, x, cm->seq_params->sb_size,
                                              mi_row, mi_col, &dummy_mv);
     }
   }
@@ -859,7 +859,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
 
   set_ref_ptrs(cm, xd, mi->ref_frame[0], mi->ref_frame[1]);
   av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL,
-                                cm->seq_params.sb_size, AOM_PLANE_Y,
+                                cm->seq_params->sb_size, AOM_PLANE_Y,
                                 AOM_PLANE_Y);
 }
 
@@ -897,9 +897,9 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
        (cpi->use_svc &&
         cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame));
 
-  assert(cm->seq_params.sb_size == BLOCK_64X64 ||
-         cm->seq_params.sb_size == BLOCK_128X128);
-  const int is_small_sb = (cm->seq_params.sb_size == BLOCK_64X64);
+  assert(cm->seq_params->sb_size == BLOCK_64X64 ||
+         cm->seq_params->sb_size == BLOCK_128X128);
+  const int is_small_sb = (cm->seq_params->sb_size == BLOCK_64X64);
   const int num_64x64_blocks = is_small_sb ? 1 : 4;
 
   unsigned int y_sad = UINT_MAX;

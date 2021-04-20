@@ -544,8 +544,8 @@ MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad64x16)
 
 static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
-  if (cm->seq_params.use_highbitdepth) {
-    switch (cm->seq_params.bit_depth) {
+  if (cm->seq_params->use_highbitdepth) {
+    switch (cm->seq_params->bit_depth) {
       case AOM_BITS_8:
 #if !CONFIG_REALTIME_ONLY
         HIGHBD_BFP_WRAPPER(64, 16, 8)
@@ -850,7 +850,7 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
 
       default:
         assert(0 &&
-               "cm->seq_params.bit_depth should be AOM_BITS_8, "
+               "cm->seq_params->bit_depth should be AOM_BITS_8, "
                "AOM_BITS_10 or AOM_BITS_12");
     }
   }

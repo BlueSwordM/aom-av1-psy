@@ -111,7 +111,7 @@ static INLINE void alloc_cdef_bufs(AV1_COMMON *const cm, uint16_t **colbuf,
                     aom_memalign(16, sizeof(**srcbuf) * CDEF_INBUF_SIZE));
 
   for (int plane = 0; plane < num_planes; plane++) {
-    const int shift = plane == AOM_PLANE_Y ? 0 : cm->seq_params.subsampling_x;
+    const int shift = plane == AOM_PLANE_Y ? 0 : cm->seq_params->subsampling_x;
     const int block_height =
         (CDEF_BLOCKSIZE << (MI_SIZE_LOG2 - shift)) * 2 * CDEF_VBORDER;
 
@@ -153,12 +153,12 @@ void av1_alloc_cdef_buffers(AV1_COMMON *const cm,
   CdefInfo *cdef_info = &cm->cdef_info;
   // Check for configuration change
   const int is_sub_sampling_changed =
-      (cdef_info->allocated_subsampling_x != cm->seq_params.subsampling_x ||
-       cdef_info->allocated_subsampling_y != cm->seq_params.subsampling_y);
+      (cdef_info->allocated_subsampling_x != cm->seq_params->subsampling_x ||
+       cdef_info->allocated_subsampling_y != cm->seq_params->subsampling_y);
   const int is_frame_scaled =
       cdef_info->allocated_mi_cols != cm->mi_params.mi_cols;
   const int is_cdef_flag_changed =
-      cdef_info->prev_cdef_enable_flag != cm->seq_params.enable_cdef;
+      cdef_info->prev_cdef_enable_flag != cm->seq_params->enable_cdef;
   const int is_large_scale_tile_changed =
       cdef_info->prev_large_scale_tile_flag != cm->tiles.large_scale;
   const int is_num_planes_changed = cdef_info->prev_num_planes != num_planes;
@@ -186,20 +186,20 @@ void av1_alloc_cdef_buffers(AV1_COMMON *const cm,
   // Store configuration to check change in configuration
   cdef_info->allocated_mi_cols = cm->mi_params.mi_cols;
   cdef_info->allocated_mi_rows = num_mi_rows;
-  cdef_info->allocated_subsampling_x = cm->seq_params.subsampling_x;
-  cdef_info->allocated_subsampling_y = cm->seq_params.subsampling_y;
-  cdef_info->prev_cdef_enable_flag = cm->seq_params.enable_cdef;
+  cdef_info->allocated_subsampling_x = cm->seq_params->subsampling_x;
+  cdef_info->allocated_subsampling_y = cm->seq_params->subsampling_y;
+  cdef_info->prev_cdef_enable_flag = cm->seq_params->enable_cdef;
   cdef_info->prev_large_scale_tile_flag = cm->tiles.large_scale;
   cdef_info->prev_num_planes = num_planes;
   cdef_info->allocated_num_workers = num_workers;
 
-  if (!cm->seq_params.enable_cdef && cm->tiles.large_scale) return;
+  if (!cm->seq_params->enable_cdef && cm->tiles.large_scale) return;
 
   for (int plane = 0; plane < num_planes; plane++) {
     if (cdef_info->linebuf[plane] == NULL) {
       const int stride =
           luma_stride >>
-          (plane == AOM_PLANE_Y ? 0 : cm->seq_params.subsampling_x);
+          (plane == AOM_PLANE_Y ? 0 : cm->seq_params->subsampling_x);
       CHECK_MEM_ERROR(cm, cdef_info->linebuf[plane],
                       aom_malloc(sizeof(*cdef_info->linebuf) * num_bufs *
                                  (CDEF_VBORDER << 1) * stride));
@@ -260,11 +260,11 @@ void av1_alloc_restoration_buffers(AV1_COMMON *cm) {
   // Now we need to allocate enough space to store the line buffers for the
   // stripes
   const int frame_w = cm->superres_upscaled_width;
-  const int use_highbd = cm->seq_params.use_highbitdepth;
+  const int use_highbd = cm->seq_params->use_highbitdepth;
 
   for (int p = 0; p < num_planes; ++p) {
     const int is_uv = p > 0;
-    const int ss_x = is_uv && cm->seq_params.subsampling_x;
+    const int ss_x = is_uv && cm->seq_params->subsampling_x;
     const int plane_w = ((frame_w + ss_x) >> ss_x) + 2 * RESTORATION_EXTRA_HORZ;
     const int stride = ALIGN_POWER_OF_TWO(plane_w, 5);
     const int buf_size = num_stripes * stride * RESTORATION_CTX_VERT

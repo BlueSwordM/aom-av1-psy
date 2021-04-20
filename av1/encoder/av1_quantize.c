@@ -767,7 +767,7 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
       aom_get_qmlevel(quant_params->base_qindex + quant_params->u_ac_delta_q,
                       min_qmlevel, max_qmlevel);
 
-  if (!cm->seq_params.separate_uv_delta_q)
+  if (!cm->seq_params->separate_uv_delta_q)
     quant_params->qmatrix_level_v = quant_params->qmatrix_level_u;
   else
     quant_params->qmatrix_level_v =

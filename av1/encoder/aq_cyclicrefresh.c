@@ -82,7 +82,7 @@ static int compute_deltaq(const AV1_COMP *cpi, int q, double rate_factor) {
   const RATE_CONTROL *const rc = &cpi->rc;
   int deltaq = av1_compute_qdelta_by_rate(
       rc, cpi->common.current_frame.frame_type, q, rate_factor,
-      cpi->is_screen_content_type, cpi->common.seq_params.bit_depth);
+      cpi->is_screen_content_type, cpi->common.seq_params->bit_depth);
   if ((-deltaq) > cr->max_qdelta_perc * q / 100) {
     deltaq = -cr->max_qdelta_perc * q / 100;
   }
@@ -94,7 +94,7 @@ int av1_cyclic_refresh_estimate_bits_at_q(const AV1_COMP *cpi,
   const AV1_COMMON *const cm = &cpi->common;
   const FRAME_TYPE frame_type = cm->current_frame.frame_type;
   const int base_qindex = cm->quant_params.base_qindex;
-  const int bit_depth = cm->seq_params.bit_depth;
+  const int bit_depth = cm->seq_params->bit_depth;
   const CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
   const int mbs = cm->mi_params.MBs;
   const int num4x4bl = mbs << 4;
@@ -138,11 +138,11 @@ int av1_cyclic_refresh_rc_bits_per_mb(const AV1_COMP *cpi, int i,
   bits_per_mb =
       (int)((1.0 - weight_segment) *
                 av1_rc_bits_per_mb(cm->current_frame.frame_type, i,
-                                   correction_factor, cm->seq_params.bit_depth,
+                                   correction_factor, cm->seq_params->bit_depth,
                                    cpi->is_screen_content_type) +
             weight_segment * av1_rc_bits_per_mb(cm->current_frame.frame_type,
                                                 i + deltaq, correction_factor,
-                                                cm->seq_params.bit_depth,
+                                                cm->seq_params->bit_depth,
                                                 cpi->is_screen_content_type));
   return bits_per_mb;
 }
@@ -283,10 +283,10 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
   int i, block_count, bl_index, sb_rows, sb_cols, sbs_in_frame;
   int xmis, ymis, x, y;
   memset(seg_map, CR_SEGMENT_ID_BASE, mi_params->mi_rows * mi_params->mi_cols);
-  sb_cols = (mi_params->mi_cols + cm->seq_params.mib_size - 1) /
-            cm->seq_params.mib_size;
-  sb_rows = (mi_params->mi_rows + cm->seq_params.mib_size - 1) /
-            cm->seq_params.mib_size;
+  sb_cols = (mi_params->mi_cols + cm->seq_params->mib_size - 1) /
+            cm->seq_params->mib_size;
+  sb_rows = (mi_params->mi_rows + cm->seq_params->mib_size - 1) /
+            cm->seq_params->mib_size;
   sbs_in_frame = sb_cols * sb_rows;
   // Number of target blocks to get the q delta (segment 1).
   block_count =
@@ -303,8 +303,8 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
     // Get the mi_row/mi_col corresponding to superblock index i.
     int sb_row_index = (i / sb_cols);
     int sb_col_index = i - sb_row_index * sb_cols;
-    int mi_row = sb_row_index * cm->seq_params.mib_size;
-    int mi_col = sb_col_index * cm->seq_params.mib_size;
+    int mi_row = sb_row_index * cm->seq_params->mib_size;
+    int mi_col = sb_col_index * cm->seq_params->mib_size;
     // TODO(any): Ensure the population of
     // cpi->common.features.allow_screen_content_tools and use the same instead
     // of cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN
@@ -316,8 +316,8 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
     assert(mi_col >= 0 && mi_col < mi_params->mi_cols);
     bl_index = mi_row * mi_params->mi_cols + mi_col;
     // Loop through all MI blocks in superblock and update map.
-    xmis = AOMMIN(mi_params->mi_cols - mi_col, cm->seq_params.mib_size);
-    ymis = AOMMIN(mi_params->mi_rows - mi_row, cm->seq_params.mib_size);
+    xmis = AOMMIN(mi_params->mi_cols - mi_col, cm->seq_params->mib_size);
+    ymis = AOMMIN(mi_params->mi_rows - mi_row, cm->seq_params->mib_size);
     // cr_map only needed at 8x8 blocks.
     for (y = 0; y < ymis; y += 2) {
       for (x = 0; x < xmis; x += 2) {
@@ -447,7 +447,7 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
     return;
   } else {
     const double q = av1_convert_qindex_to_q(cm->quant_params.base_qindex,
-                                             cm->seq_params.bit_depth);
+                                             cm->seq_params->bit_depth);
     aom_clear_system_state();
     // Set rate threshold to some multiple (set to 2 for now) of the target
     // rate (target is given by sb64_target_rate and scaled by 256).

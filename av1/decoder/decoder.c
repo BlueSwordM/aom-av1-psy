@@ -97,6 +97,7 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   av1_zero(*pbi);
 
   AV1_COMMON *volatile const cm = &pbi->common;
+  cm->seq_params = &pbi->seq_params;
 
   // The jmp_buf is valid only for the duration of the function that calls
   // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
@@ -129,7 +130,7 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   pbi->decoding_first_frame = 1;
   pbi->common.buffer_pool = pool;
 
-  cm->seq_params.bit_depth = AOM_BITS_8;
+  cm->seq_params->bit_depth = AOM_BITS_8;
 
   cm->mi_params.free_mi = dec_free_mi;
   cm->mi_params.setup_mi = dec_setup_mi;

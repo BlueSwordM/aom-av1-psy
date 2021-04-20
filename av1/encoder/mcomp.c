@@ -1833,7 +1833,7 @@ int av1_intrabc_hash_search(const AV1_COMP *cpi, const MACROBLOCKD *xd,
       const MV dv = { GET_MV_SUBPEL(ref_block_hash.y - y_pos),
                       GET_MV_SUBPEL(ref_block_hash.x - x_pos) };
       if (!av1_is_dv_valid(dv, &cpi->common, xd, mi_row, mi_col, bsize,
-                           cpi->common.seq_params.mib_size_log2))
+                           cpi->common.seq_params->mib_size_log2))
         continue;
 
       FULLPEL_MV hash_mv;

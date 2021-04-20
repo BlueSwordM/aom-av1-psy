@@ -212,7 +212,7 @@ void av1_setup_butteraugli_source(AV1_COMP *cpi) {
   const int ss_y = cpi->source->subsampling_y;
   if (dst->buffer_alloc_sz == 0) {
     aom_alloc_frame_buffer(
-        dst, width, height, ss_x, ss_y, cm->seq_params.use_highbitdepth,
+        dst, width, height, ss_x, ss_y, cm->seq_params->use_highbitdepth,
         cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
   }
   av1_copy_and_extend_frame(cpi->source, dst);
@@ -221,7 +221,7 @@ void av1_setup_butteraugli_source(AV1_COMP *cpi) {
   if (resized_dst->buffer_alloc_sz == 0) {
     aom_alloc_frame_buffer(
         resized_dst, width / resize_factor, height / resize_factor, ss_x, ss_y,
-        cm->seq_params.use_highbitdepth, cpi->oxcf.border_in_pixels,
+        cm->seq_params->use_highbitdepth, cpi->oxcf.border_in_pixels,
         cm->features.byte_alignment);
   }
   av1_resize_and_extend_frame_nonnormative(cpi->source, resized_dst, bit_depth,
@@ -246,7 +246,7 @@ void av1_restore_butteraugli_source(AV1_COMP *cpi) {
   memset(&resized_recon, 0, sizeof(resized_recon));
   aom_alloc_frame_buffer(
       &resized_recon, width / resize_factor, height / resize_factor, ss_x, ss_y,
-      cm->seq_params.use_highbitdepth, cpi->oxcf.border_in_pixels,
+      cm->seq_params->use_highbitdepth, cpi->oxcf.border_in_pixels,
       cm->features.byte_alignment);
   copy_img(&cpi->common.cur_frame->buf, &resized_recon, width / resize_factor,
            height / resize_factor);

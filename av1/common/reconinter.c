@@ -734,10 +734,10 @@ void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
   if (bck_buf != NULL) bck_frame_index = bck_buf->order_hint;
   if (fwd_buf != NULL) fwd_frame_index = fwd_buf->order_hint;
 
-  int d0 = clamp(abs(get_relative_dist(&cm->seq_params.order_hint_info,
+  int d0 = clamp(abs(get_relative_dist(&cm->seq_params->order_hint_info,
                                        fwd_frame_index, cur_frame_index)),
                  0, MAX_FRAME_DISTANCE);
-  int d1 = clamp(abs(get_relative_dist(&cm->seq_params.order_hint_info,
+  int d1 = clamp(abs(get_relative_dist(&cm->seq_params->order_hint_info,
                                        cur_frame_index, bck_frame_index)),
                  0, MAX_FRAME_DISTANCE);
 
@@ -1363,7 +1363,7 @@ void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
   assert(xd->mi[0]->angle_delta[PLANE_TYPE_UV] == 0);
   assert(xd->mi[0]->filter_intra_mode_info.use_filter_intra == 0);
   assert(xd->mi[0]->use_intrabc == 0);
-  const SequenceHeader *seq_params = &cm->seq_params;
+  const SequenceHeader *seq_params = cm->seq_params;
 
   av1_predict_intra_block(xd, seq_params->sb_size,
                           seq_params->enable_intra_edge_filter, pd->width,

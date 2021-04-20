@@ -80,7 +80,7 @@ static uint8_t calculate_next_resize_scale(const AV1_COMP *cpi) {
   if (is_stat_generation_stage(cpi)) return SCALE_NUMERATOR;
   uint8_t new_denom = SCALE_NUMERATOR;
 
-  if (cpi->common.seq_params.reduced_still_picture_hdr) return SCALE_NUMERATOR;
+  if (cpi->common.seq_params->reduced_still_picture_hdr) return SCALE_NUMERATOR;
   switch (resize_cfg->resize_mode) {
     case RESIZE_NONE: new_denom = SCALE_NUMERATOR; break;
     case RESIZE_FIXED:
@@ -195,8 +195,8 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
   // Make sure that superres mode of the frame is consistent with the
   // sequence-level flag.
   assert(IMPLIES(superres_cfg->superres_mode != AOM_SUPERRES_NONE,
-                 cpi->common.seq_params.enable_superres));
-  assert(IMPLIES(!cpi->common.seq_params.enable_superres,
+                 cpi->common.seq_params->enable_superres));
+  assert(IMPLIES(!cpi->common.seq_params->enable_superres,
                  superres_cfg->superres_mode == AOM_SUPERRES_NONE));
   // Make sure that superres mode for current encoding is consistent with user
   // provided superres mode.

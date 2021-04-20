@@ -178,7 +178,7 @@ static INLINE int64_t interpolation_filter_rd(
   mbmi->interp_filters = filter_sets[filter_idx];
   const int tmp_rs =
       get_switchable_rate(x, mbmi->interp_filters, switchable_ctx,
-                          cm->seq_params.enable_dual_filter);
+                          cm->seq_params->enable_dual_filter);
 
   int64_t min_rd = RDCOST(x->rdmult, tmp_rs, 0);
   if (min_rd > *rd) {
@@ -684,7 +684,7 @@ int64_t av1_interpolation_filter_search(
   switchable_ctx[1] = av1_get_pred_context_switchable_interp(xd, 1);
   *switchable_rate =
       get_switchable_rate(x, mbmi->interp_filters, switchable_ctx,
-                          cm->seq_params.enable_dual_filter);
+                          cm->seq_params->enable_dual_filter);
 
   // Do MC evaluation for default filter_type.
   // Luma MC
@@ -748,7 +748,7 @@ int64_t av1_interpolation_filter_search(
   restore_dst_buf(xd, *tmp_dst, num_planes);
   const BUFFER_SET *dst_bufs[2] = { tmp_dst, orig_dst };
   // Evaluate dual interp filters
-  if (cm->seq_params.enable_dual_filter) {
+  if (cm->seq_params->enable_dual_filter) {
     if (cpi->sf.interp_sf.use_fast_interpolation_filter_search) {
       fast_dual_interp_filter_rd(x, cpi, tile_data, bsize, orig_dst, rd,
                                  &rd_stats_luma, &rd_stats, switchable_rate,

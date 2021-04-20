@@ -364,7 +364,7 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
                                          PARTITION_TYPE partition,
                                          BLOCK_SIZE bsize) {
   AV1_COMMON *const cm = &pbi->common;
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
   const int bw = mi_size_wide[bsize];
   const int bh = mi_size_high[bsize];
   const int x_mis = AOMMIN(bw, cm->mi_params.mi_cols - mi_col);
@@ -1231,9 +1231,9 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
                                       : (j == 1 ? quant_params->u_ac_delta_q
                                                 : quant_params->v_ac_delta_q);
         xd->plane[j].seg_dequant_QTX[i][0] = av1_dc_quant_QTX(
-            current_qindex, dc_delta_q, cm->seq_params.bit_depth);
+            current_qindex, dc_delta_q, cm->seq_params->bit_depth);
         xd->plane[j].seg_dequant_QTX[i][1] = av1_ac_quant_QTX(
-            current_qindex, ac_delta_q, cm->seq_params.bit_depth);
+            current_qindex, ac_delta_q, cm->seq_params->bit_depth);
       }
     }
   }
@@ -1566,9 +1566,9 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     }
   }
   if (!all_none) {
-    assert(cm->seq_params.sb_size == BLOCK_64X64 ||
-           cm->seq_params.sb_size == BLOCK_128X128);
-    const int sb_size = cm->seq_params.sb_size == BLOCK_128X128 ? 128 : 64;
+    assert(cm->seq_params->sb_size == BLOCK_64X64 ||
+           cm->seq_params->sb_size == BLOCK_128X128);
+    const int sb_size = cm->seq_params->sb_size == BLOCK_128X128 ? 128 : 64;
 
     for (int p = 0; p < num_planes; ++p)
       cm->rst_info[p].restoration_unit_size = sb_size;
@@ -1588,7 +1588,8 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
   }
 
   if (num_planes > 1) {
-    int s = AOMMIN(cm->seq_params.subsampling_x, cm->seq_params.subsampling_y);
+    int s =
+        AOMMIN(cm->seq_params->subsampling_x, cm->seq_params->subsampling_y);
     if (s && !chroma_none) {
       cm->rst_info[1].restoration_unit_size =
           cm->rst_info[0].restoration_unit_size >> (aom_rb_read_bit(rb) * s);
@@ -1859,7 +1860,7 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
 // Build y/uv dequant values based on segmentation.
 static AOM_INLINE void setup_segmentation_dequant(AV1_COMMON *const cm,
                                                   MACROBLOCKD *const xd) {
-  const int bit_depth = cm->seq_params.bit_depth;
+  const int bit_depth = cm->seq_params->bit_depth;
   // When segmentation is disabled, only the first value is used.  The
   // remaining are don't cares.
   const int max_segments = cm->seg.enabled ? MAX_SEGMENTS : 1;
@@ -1921,7 +1922,7 @@ static AOM_INLINE void setup_superres(AV1_COMMON *const cm,
   cm->superres_upscaled_width = *width;
   cm->superres_upscaled_height = *height;
 
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
   if (!seq_params->enable_superres) return;
 
   if (aom_rb_read_bit(rb)) {
@@ -1980,7 +1981,7 @@ static AOM_INLINE void resize_context_buffers(AV1_COMMON *cm, int width,
 
 static AOM_INLINE void setup_buffer_pool(AV1_COMMON *cm) {
   BufferPool *const pool = cm->buffer_pool;
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
 
   lock_buffer_pool(pool);
   if (aom_realloc_frame_buffer(
@@ -2011,7 +2012,7 @@ static AOM_INLINE void setup_buffer_pool(AV1_COMMON *cm) {
 static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
                                         int frame_size_override_flag,
                                         struct aom_read_bit_buffer *rb) {
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
   int width, height;
 
   if (frame_size_override_flag) {
@@ -2077,7 +2078,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
     }
   }
 
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
   if (!found) {
     int num_bits_width = seq_params->num_bits_width;
     int num_bits_height = seq_params->num_bits_height;
@@ -2129,7 +2130,7 @@ static int rb_read_uniform(struct aom_read_bit_buffer *const rb, int n) {
 
 static AOM_INLINE void read_tile_info_max_tile(
     AV1_COMMON *const cm, struct aom_read_bit_buffer *const rb) {
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
   CommonTileParams *const tiles = &cm->tiles;
   int width_mi =
       ALIGN_POWER_OF_TWO(cm->mi_params.mi_cols, seq_params->mib_size_log2);
@@ -2472,7 +2473,7 @@ static AOM_INLINE void set_cb_buffer(AV1Decoder *pbi, DecoderCodingBlock *dcb,
                                      const int num_planes, int mi_row,
                                      int mi_col) {
   AV1_COMMON *const cm = &pbi->common;
-  int mib_size_log2 = cm->seq_params.mib_size_log2;
+  int mib_size_log2 = cm->seq_params->mib_size_log2;
   int stride = (cm->mi_params.mi_cols >> mib_size_log2) + 1;
   int offset = (mi_row >> mib_size_log2) * stride + (mi_col >> mib_size_log2);
   CB_BUFFER *cb_buffer = cb_buffer_base + offset;
@@ -2641,11 +2642,11 @@ static AOM_INLINE void decode_tile_sb_row(AV1Decoder *pbi, ThreadData *const td,
       pbi->tile_data + tile_info.tile_row * cm->tiles.cols + tile_info.tile_col;
   const int sb_cols_in_tile = av1_get_sb_cols_in_tile(cm, tile_info);
   const int sb_row_in_tile =
-      (mi_row - tile_info.mi_row_start) >> cm->seq_params.mib_size_log2;
+      (mi_row - tile_info.mi_row_start) >> cm->seq_params->mib_size_log2;
   int sb_col_in_tile = 0;
 
   for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
-       mi_col += cm->seq_params.mib_size, sb_col_in_tile++) {
+       mi_col += cm->seq_params->mib_size, sb_col_in_tile++) {
     set_cb_buffer(pbi, &td->dcb, pbi->cb_buffer_base, num_planes, mi_row,
                   mi_col);
 
@@ -2653,7 +2654,7 @@ static AOM_INLINE void decode_tile_sb_row(AV1Decoder *pbi, ThreadData *const td,
 
     // Decoding of the super-block
     decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                     cm->seq_params.sb_size, 0x2);
+                     cm->seq_params->sb_size, 0x2);
 
     sync_write(&tile_data->dec_row_mt_sync, sb_row_in_tile, sb_col_in_tile,
                sb_cols_in_tile);
@@ -2723,16 +2724,16 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
   av1_reset_loop_restoration(xd, num_planes);
 
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
-       mi_row += cm->seq_params.mib_size) {
+       mi_row += cm->seq_params->mib_size) {
     av1_zero_left_context(xd);
 
     for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
-         mi_col += cm->seq_params.mib_size) {
+         mi_col += cm->seq_params->mib_size) {
       set_cb_buffer(pbi, dcb, &td->cb_buffer_base, num_planes, 0, 0);
 
       // Bit-stream parsing and decoding of the superblock
       decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                       cm->seq_params.sb_size, 0x3);
+                       cm->seq_params->sb_size, 0x3);
 
       if (aom_reader_has_overflowed(td->bit_reader)) {
         aom_merge_corrupted_flag(&dcb->corrupted, 1);
@@ -3033,7 +3034,7 @@ static int get_next_job_info(AV1Decoder *const pbi,
   const int tile_cols_end = frame_row_mt_info->tile_cols_end;
   const int start_tile = frame_row_mt_info->start_tile;
   const int end_tile = frame_row_mt_info->end_tile;
-  const int sb_mi_size = mi_size_wide[cm->seq_params.sb_size];
+  const int sb_mi_size = mi_size_wide[cm->seq_params->sb_size];
   int num_mis_to_decode, num_threads_working;
   int num_mis_waiting_for_decode;
   int min_threads_working = INT_MAX;
@@ -3151,7 +3152,7 @@ static INLINE void signal_parse_sb_row_done(AV1Decoder *const pbi,
 static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
                                          TileDataDec *const tile_data) {
   AV1_COMMON *const cm = &pbi->common;
-  const int sb_mi_size = mi_size_wide[cm->seq_params.sb_size];
+  const int sb_mi_size = mi_size_wide[cm->seq_params->sb_size];
   const int num_planes = av1_num_planes(cm);
   TileInfo tile_info = tile_data->tile_info;
   int tile_row = tile_info.tile_row;
@@ -3164,16 +3165,16 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
   av1_reset_loop_restoration(xd, num_planes);
 
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
-       mi_row += cm->seq_params.mib_size) {
+       mi_row += cm->seq_params->mib_size) {
     av1_zero_left_context(xd);
 
     for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
-         mi_col += cm->seq_params.mib_size) {
+         mi_col += cm->seq_params->mib_size) {
       set_cb_buffer(pbi, dcb, pbi->cb_buffer_base, num_planes, mi_row, mi_col);
 
       // Bit-stream parsing of the superblock
       decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                       cm->seq_params.sb_size, 0x1);
+                       cm->seq_params->sb_size, 0x1);
 
       if (aom_reader_has_overflowed(td->bit_reader)) {
         aom_merge_corrupted_flag(&dcb->corrupted, 1);
@@ -3522,7 +3523,7 @@ static AOM_INLINE void decode_mt_init(AV1Decoder *pbi) {
       thread_data->error_info.setjmp = 0;
     }
   }
-  const int use_highbd = cm->seq_params.use_highbitdepth;
+  const int use_highbd = cm->seq_params->use_highbitdepth;
   const int buf_size = MC_TEMP_BUF_PELS << use_highbd;
   for (worker_idx = 1; worker_idx < pbi->max_threads; ++worker_idx) {
     DecWorkerData *const thread_data = pbi->thread_data + worker_idx;
@@ -3652,8 +3653,8 @@ static const uint8_t *decode_tiles_mt(AV1Decoder *pbi, const uint8_t *data,
 
 static AOM_INLINE void dec_alloc_cb_buf(AV1Decoder *pbi) {
   AV1_COMMON *const cm = &pbi->common;
-  int size = ((cm->mi_params.mi_rows >> cm->seq_params.mib_size_log2) + 1) *
-             ((cm->mi_params.mi_cols >> cm->seq_params.mib_size_log2) + 1);
+  int size = ((cm->mi_params.mi_rows >> cm->seq_params->mib_size_log2) + 1) *
+             ((cm->mi_params.mi_cols >> cm->seq_params->mib_size_log2) + 1);
 
   if (pbi->cb_buffer_alloc_size < size) {
     av1_dec_free_cb_buf(pbi);
@@ -3697,10 +3698,10 @@ static AOM_INLINE void row_mt_frame_init(AV1Decoder *pbi, int tile_rows_start,
       tile_data->dec_row_mt_sync.num_threads_working = 0;
       tile_data->dec_row_mt_sync.mi_rows =
           ALIGN_POWER_OF_TWO(tile_info.mi_row_end - tile_info.mi_row_start,
-                             cm->seq_params.mib_size_log2);
+                             cm->seq_params->mib_size_log2);
       tile_data->dec_row_mt_sync.mi_cols =
           ALIGN_POWER_OF_TWO(tile_info.mi_col_end - tile_info.mi_col_start,
-                             cm->seq_params.mib_size_log2);
+                             cm->seq_params->mib_size_log2);
 
       frame_row_mt_info->mi_rows_to_decode +=
           tile_data->dec_row_mt_sync.mi_rows;
@@ -3892,7 +3893,7 @@ static AOM_INLINE void read_bitdepth(
 void av1_read_film_grain_params(AV1_COMMON *cm,
                                 struct aom_read_bit_buffer *rb) {
   aom_film_grain_t *pars = &cm->film_grain_params;
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
 
   pars->apply_grain = aom_rb_read_bit(rb);
   if (!pars->apply_grain) {
@@ -4056,13 +4057,13 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
 
 static AOM_INLINE void read_film_grain(AV1_COMMON *cm,
                                        struct aom_read_bit_buffer *rb) {
-  if (cm->seq_params.film_grain_params_present &&
+  if (cm->seq_params->film_grain_params_present &&
       (cm->show_frame || cm->showable_frame)) {
     av1_read_film_grain_params(cm, rb);
   } else {
     memset(&cm->film_grain_params, 0, sizeof(cm->film_grain_params));
   }
-  cm->film_grain_params.bit_depth = cm->seq_params.bit_depth;
+  cm->film_grain_params.bit_depth = cm->seq_params->bit_depth;
   memcpy(&cm->cur_frame->film_grain_params, &cm->film_grain_params,
          sizeof(aom_film_grain_t));
 }
@@ -4196,7 +4197,7 @@ void av1_read_op_parameters_info(aom_dec_model_op_parameters_t *op_params,
 static AOM_INLINE void read_temporal_point_info(
     AV1_COMMON *const cm, struct aom_read_bit_buffer *rb) {
   cm->frame_presentation_time = aom_rb_read_unsigned_literal(
-      rb, cm->seq_params.decoder_model_info.frame_presentation_time_length);
+      rb, cm->seq_params->decoder_model_info.frame_presentation_time_length);
 }
 
 void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
@@ -4478,7 +4479,7 @@ static INLINE void reset_frame_buffers(AV1_COMMON *cm) {
 static int read_uncompressed_header(AV1Decoder *pbi,
                                     struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
   CurrentFrame *const current_frame = &cm->current_frame;
   FeatureFlags *const features = &cm->features;
   MACROBLOCKD *const xd = &pbi->dcb.xd;
@@ -5011,7 +5012,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   CommonQuantParams *const quant_params = &cm->quant_params;
   setup_quantization(quant_params, av1_num_planes(cm),
-                     cm->seq_params.separate_uv_delta_q, rb);
+                     cm->seq_params->separate_uv_delta_q, rb);
   xd->bd = (int)seq_params->bit_depth;
 
   CommonContexts *const above_contexts = &cm->above_contexts;
@@ -5212,8 +5213,8 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 
   av1_setup_motion_field(cm);
 
-  av1_setup_block_planes(xd, cm->seq_params.subsampling_x,
-                         cm->seq_params.subsampling_y, num_planes);
+  av1_setup_block_planes(xd, cm->seq_params->subsampling_x,
+                         cm->seq_params->subsampling_y, num_planes);
   if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
     // use the default frame context values
     *cm->fc = *cm->default_frame_context;
@@ -5239,7 +5240,7 @@ static AOM_INLINE void setup_frame_info(AV1Decoder *pbi) {
     av1_alloc_restoration_buffers(cm);
   }
 #endif
-  const int use_highbd = cm->seq_params.use_highbitdepth;
+  const int use_highbd = cm->seq_params->use_highbitdepth;
   const int buf_size = MC_TEMP_BUF_PELS << use_highbd;
   if (pbi->td.mc_buf_size != buf_size) {
     av1_free_mc_tmp_buf(&pbi->td);
@@ -5274,7 +5275,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 
   // If the bit stream is monochrome, set the U and V buffers to a constant.
   if (num_planes < 3) {
-    set_planes_to_neutral_grey(&cm->seq_params, xd->cur_buf, 1);
+    set_planes_to_neutral_grey(cm->seq_params, xd->cur_buf, 1);
   }
 
   if (end_tile != tiles->rows * tiles->cols - 1) {

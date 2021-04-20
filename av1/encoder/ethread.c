@@ -53,7 +53,7 @@ static AOM_INLINE void accumulate_rd_opt(ThreadData *td, ThreadData *td_t) {
 static AOM_INLINE void update_delta_lf_for_row_mt(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &cpi->td.mb.e_mbd;
-  const int mib_size = cm->seq_params.mib_size;
+  const int mib_size = cm->seq_params->mib_size;
   const int frame_lf_count =
       av1_num_planes(cm) > 1 ? FRAME_LF_COUNT : FRAME_LF_COUNT - 2;
   for (int row = 0; row < cm->tiles.rows; row++) {
@@ -69,7 +69,8 @@ static AOM_INLINE void update_delta_lf_for_row_mt(AV1_COMP *cpi) {
           const int idx_str = cm->mi_params.mi_stride * mi_row + mi_col;
           MB_MODE_INFO **mi = cm->mi_params.mi_grid_base + idx_str;
           MB_MODE_INFO *mbmi = mi[0];
-          if (mbmi->skip_txfm == 1 && (mbmi->bsize == cm->seq_params.sb_size)) {
+          if (mbmi->skip_txfm == 1 &&
+              (mbmi->bsize == cm->seq_params->sb_size)) {
             for (int lf_id = 0; lf_id < frame_lf_count; ++lf_id)
               mbmi->delta_lf[lf_id] = xd->delta_lf[lf_id];
             mbmi->delta_lf_from_base = xd->delta_lf_from_base;
@@ -363,7 +364,7 @@ static AOM_INLINE void switch_tile_and_get_next_job(
     *cur_tile_id = tile_id;
     const int unit_height = mi_size_high[fp_block_size];
     get_next_job(&tile_data[tile_id], current_mi_row,
-                 is_firstpass ? unit_height : cm->seq_params.mib_size);
+                 is_firstpass ? unit_height : cm->seq_params->mib_size);
   }
 }
 
@@ -448,7 +449,7 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
     pthread_mutex_lock(enc_row_mt_mutex_);
 #endif
     if (!get_next_job(&cpi->tile_data[cur_tile_id], &current_mi_row,
-                      cm->seq_params.mib_size)) {
+                      cm->seq_params->mib_size)) {
       // No jobs are available for the current tile. Query for the status of
       // other tiles and get the next job if available
       switch_tile_and_get_next_job(cm, cpi->tile_data, &cur_tile_id,
@@ -483,7 +484,7 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
     av1_init_above_context(&cm->above_contexts, av1_num_planes(cm), tile_row,
                            &td->mb.e_mbd);
 
-    cfl_init(&td->mb.e_mbd.cfl, &cm->seq_params);
+    cfl_init(&td->mb.e_mbd.cfl, cm->seq_params);
     if (td->mb.txfm_search_info.txb_rd_records != NULL) {
       av1_crc32c_calculator_init(
           &td->mb.txfm_search_info.txb_rd_records->mb_rd_record.crc_calculator);
@@ -635,14 +636,14 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
                                  sizeof(*thread_data->td->tmp_pred_bufs[j])));
       }
 
-      const int plane_types = PLANE_TYPES >> cm->seq_params.monochrome;
+      const int plane_types = PLANE_TYPES >> cm->seq_params->monochrome;
       CHECK_MEM_ERROR(cm, thread_data->td->pixel_gradient_info,
                       aom_malloc(sizeof(*thread_data->td->pixel_gradient_info) *
                                  plane_types * MAX_SB_SQUARE));
 
       if (cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION) {
         const int num_64x64_blocks =
-            (cm->seq_params.sb_size == BLOCK_64X64) ? 1 : 4;
+            (cm->seq_params->sb_size == BLOCK_64X64) ? 1 : 4;
         CHECK_MEM_ERROR(
             cm, thread_data->td->vt64x64,
             aom_malloc(sizeof(*thread_data->td->vt64x64) * num_64x64_blocks));

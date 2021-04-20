@@ -389,7 +389,7 @@ static int firstpass_intra_prediction(
     const int qindex, FRAME_STATS *const stats) {
   const AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
   const int unit_scale = mi_size_wide[fp_block_size];
@@ -988,7 +988,8 @@ static void first_pass_tiles(AV1_COMP *cpi, const BLOCK_SIZE fp_block_size) {
   const int num_planes = av1_num_planes(&cpi->common);
   for (int plane = 0; plane < num_planes; plane++) {
     const int subsampling_xy =
-        plane ? cm->seq_params.subsampling_x + cm->seq_params.subsampling_y : 0;
+        plane ? cm->seq_params->subsampling_x + cm->seq_params->subsampling_y
+              : 0;
     const int sb_size = MAX_SB_SQUARE >> subsampling_xy;
     CHECK_MEM_ERROR(
         cm, cpi->td.mb.plane[plane].src_diff,
@@ -1016,7 +1017,7 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   CurrentFrame *const current_frame = &cm->current_frame;
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
   TileInfo *tile = &tile_data->tile_info;
@@ -1157,7 +1158,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   CurrentFrame *const current_frame = &cm->current_frame;
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
   const int qindex = find_fp_qindex(seq_params->bit_depth);

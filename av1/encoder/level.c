@@ -353,7 +353,7 @@ static double time_to_decode_frame(const AV1_COMMON *const cm,
     if (spatial_layer_dimensions_present_flag) {
       assert(0 && "Spatial layer dimensions not supported yet.");
     } else {
-      const SequenceHeader *const seq_params = &cm->seq_params;
+      const SequenceHeader *const seq_params = cm->seq_params;
       const int max_frame_width = seq_params->max_frame_width;
       const int max_frame_height = seq_params->max_frame_height;
       luma_samples = max_frame_width * max_frame_height;
@@ -473,7 +473,7 @@ void av1_decoder_model_init(const AV1_COMP *const cpi, AV1_LEVEL level,
   decoder_model->level = level;
 
   const AV1_COMMON *const cm = &cpi->common;
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
   decoder_model->bit_rate = get_max_bitrate(
       av1_level_defs + level, seq_params->tier[op_index], seq_params->profile);
 
@@ -1075,7 +1075,7 @@ void av1_update_level_info(AV1_COMP *cpi, size_t size, int64_t ts_start,
 
   const int temporal_layer_id = cm->temporal_layer_id;
   const int spatial_layer_id = cm->spatial_layer_id;
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
   const BITSTREAM_PROFILE profile = seq_params->profile;
   const int is_still_picture = seq_params->still_picture;
   // update level_stats

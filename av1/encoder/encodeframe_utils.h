@@ -245,9 +245,9 @@ static AOM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
       AOMMAX(sf->part_sf.default_min_partition_size,
              dim_to_size(cpi->oxcf.part_cfg.min_partition_size));
   sb_enc->max_partition_size =
-      AOMMIN(sb_enc->max_partition_size, cm->seq_params.sb_size);
+      AOMMIN(sb_enc->max_partition_size, cm->seq_params->sb_size);
   sb_enc->min_partition_size =
-      AOMMIN(sb_enc->min_partition_size, cm->seq_params.sb_size);
+      AOMMIN(sb_enc->min_partition_size, cm->seq_params->sb_size);
 
   if (use_auto_max_partition(cpi, sb_size, mi_row, mi_col)) {
     float features[FEATURE_SIZE_MAX_MIN_PART_PRED] = { 0.0f };
@@ -369,7 +369,8 @@ static AOM_INLINE void av1_alloc_mb_data(struct AV1Common *cm,
   const int num_planes = av1_num_planes(cm);
   for (int plane = 0; plane < num_planes; plane++) {
     const int subsampling_xy =
-        plane ? cm->seq_params.subsampling_x + cm->seq_params.subsampling_y : 0;
+        plane ? cm->seq_params->subsampling_x + cm->seq_params->subsampling_y
+              : 0;
     const int sb_size = MAX_SB_SQUARE >> subsampling_xy;
     CHECK_MEM_ERROR(cm, mb->plane[plane].src_diff,
                     (int16_t *)aom_memalign(

@@ -1667,7 +1667,7 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
           ? mbmi->filter_intra_mode_info.filter_intra_mode
           : FILTER_INTRA_MODES;
   const int angle_delta = mbmi->angle_delta[plane != AOM_PLANE_Y] * ANGLE_STEP;
-  const SequenceHeader *seq_params = &cm->seq_params;
+  const SequenceHeader *seq_params = cm->seq_params;
 
   if (plane != AOM_PLANE_Y && mbmi->uv_mode == UV_CFL_PRED) {
 #if CONFIG_DEBUG

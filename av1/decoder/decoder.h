@@ -334,6 +334,12 @@ typedef struct AV1Decoder {
   int is_arf_frame_present;
   int num_tile_groups;
   aom_s_frame_info sframe_info;
+
+  /*!
+   * Elements part of the sequence header, that are applicable for all the
+   * frames in the video.
+   */
+  SequenceHeader seq_params;
 } AV1Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error

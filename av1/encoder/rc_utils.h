@@ -38,7 +38,7 @@ static AOM_INLINE void config_target_level(AV1_COMP *const cpi,
   aom_clear_system_state();
 
   AV1EncoderConfig *const oxcf = &cpi->oxcf;
-  SequenceHeader *const seq_params = &cpi->common.seq_params;
+  SequenceHeader *const seq_params = cpi->common.seq_params;
   TileConfig *const tile_cfg = &oxcf->tile_cfg;
   RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
 
@@ -272,7 +272,7 @@ static AOM_INLINE void recode_loop_update_q(
     const int64_t low_err_target = cpi->ambient_err >> 1;
 
 #if CONFIG_AV1_HIGHBITDEPTH
-    if (cm->seq_params.use_highbitdepth) {
+    if (cm->seq_params->use_highbitdepth) {
       kf_err = aom_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
     } else {
       kf_err = aom_get_y_sse(cpi->source, &cm->cur_frame->buf);
@@ -325,11 +325,11 @@ static AOM_INLINE void recode_loop_update_q(
       if (*q == *q_high &&
           rc->projected_frame_size >= rc->max_frame_bandwidth) {
         const double q_val_high_current =
-            av1_convert_qindex_to_q(*q_high, cm->seq_params.bit_depth);
+            av1_convert_qindex_to_q(*q_high, cm->seq_params->bit_depth);
         const double q_val_high_new =
             q_val_high_current *
             ((double)rc->projected_frame_size / rc->max_frame_bandwidth);
-        *q_high = av1_find_qindex(q_val_high_new, cm->seq_params.bit_depth,
+        *q_high = av1_find_qindex(q_val_high_new, cm->seq_params->bit_depth,
                                   rc->best_quality, rc->worst_quality);
       }
 

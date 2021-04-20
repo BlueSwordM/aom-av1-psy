@@ -295,7 +295,7 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 
 static AOM_INLINE void variance_partition_alloc(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
-  const int num_64x64_blocks = (cm->seq_params.sb_size == BLOCK_64X64) ? 1 : 4;
+  const int num_64x64_blocks = (cm->seq_params->sb_size == BLOCK_64X64) ? 1 : 4;
   if (cpi->td.vt64x64) {
     if (num_64x64_blocks != cpi->td.num_64x64_blocks) {
       aom_free(cpi->td.vt64x64);
@@ -311,7 +311,7 @@ static AOM_INLINE void variance_partition_alloc(AV1_COMP *cpi) {
 
 static AOM_INLINE void alloc_altref_frame_buffer(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
   const AV1EncoderConfig *oxcf = &cpi->oxcf;
 
   // When lag_in_frames <= 1, alt-ref frames are not enabled. In this case,
@@ -332,7 +332,7 @@ static AOM_INLINE void alloc_altref_frame_buffer(AV1_COMP *cpi) {
 
 static AOM_INLINE void alloc_util_frame_buffers(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
-  const SequenceHeader *const seq_params = &cm->seq_params;
+  const SequenceHeader *const seq_params = cm->seq_params;
   const int byte_alignment = cm->features.byte_alignment;
   if (aom_realloc_frame_buffer(
           &cpi->last_frame_uf, cm->width, cm->height, seq_params->subsampling_x,
@@ -343,7 +343,7 @@ static AOM_INLINE void alloc_util_frame_buffers(AV1_COMP *cpi) {
 
   // The frame buffer trial_frame_rst is used during loop restoration filter
   // search. Hence it is allocated only when loop restoration is used.
-  const int use_restoration = cm->seq_params.enable_restoration &&
+  const int use_restoration = cm->seq_params->enable_restoration &&
                               !cm->features.all_lossless &&
                               !cm->tiles.large_scale;
   if (use_restoration) {
@@ -394,8 +394,8 @@ static AOM_INLINE YV12_BUFFER_CONFIG *realloc_and_scale_source(
 
   if (aom_realloc_frame_buffer(
           &cpi->scaled_source, scaled_width, scaled_height,
-          cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
-          cm->seq_params.use_highbitdepth, AOM_BORDER_IN_PIXELS,
+          cm->seq_params->subsampling_x, cm->seq_params->subsampling_y,
+          cm->seq_params->use_highbitdepth, AOM_BORDER_IN_PIXELS,
           cm->features.byte_alignment, NULL, NULL, NULL,
           cpi->oxcf.tool_cfg.enable_global_motion))
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
@@ -403,7 +403,7 @@ static AOM_INLINE YV12_BUFFER_CONFIG *realloc_and_scale_source(
   assert(cpi->scaled_source.y_crop_width == scaled_width);
   assert(cpi->scaled_source.y_crop_height == scaled_height);
   av1_resize_and_extend_frame_nonnormative(
-      cpi->unscaled_source, &cpi->scaled_source, (int)cm->seq_params.bit_depth,
+      cpi->unscaled_source, &cpi->scaled_source, (int)cm->seq_params->bit_depth,
       num_planes);
   return &cpi->scaled_source;
 }
