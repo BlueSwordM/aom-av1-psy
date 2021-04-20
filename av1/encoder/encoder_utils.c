@@ -1305,7 +1305,7 @@ void av1_dump_filtered_recon_frames(AV1_COMP *cpi) {
       current_frame->frame_number, cpi->gf_frame_index,
       cpi->ppi->gf_group.update_type[cpi->gf_frame_index],
       current_frame->order_hint, cm->show_frame, cm->show_existing_frame,
-      cpi->p_rc.source_alt_ref_active, cpi->refresh_frame.alt_ref_frame,
+      cpi->rc.source_alt_ref_active, cpi->refresh_frame.alt_ref_frame,
       recon_buf->y_stride, recon_buf->uv_stride, cm->width, cm->height);
 #if 0
   int ref_frame;

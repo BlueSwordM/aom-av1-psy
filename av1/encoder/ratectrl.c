@@ -1297,11 +1297,11 @@ static int rc_pick_q_and_bounds_no_stats_cq(const AV1_COMP *cpi, int width,
                                             int height, int *bottom_index,
                                             int *top_index) {
   const AV1_COMMON *const cm = &cpi->common;
-  const RATE_CONTROL *const p_rc = &cpi->p_rc;
+  const RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const int cq_level =
-      get_active_cq_level(p_rc, oxcf, frame_is_intra_only(cm),
-                          cpi->superres_mode, cm->superres_scale_denominator);
+      get_active_cq_level(rc, oxcf, frame_is_intra_only(cm), cpi->superres_mode,
+                          cm->superres_scale_denominator);
   const int bit_depth = cm->seq_params.bit_depth;
   const int q = (int)av1_convert_qindex_to_q(cq_level, bit_depth);
   (void)width;
@@ -2096,7 +2096,7 @@ int av1_calc_pframe_target_size_one_pass_vbr(
   }
   if (target > INT_MAX) target = INT_MAX;
 #else
-  target = p_rc->avg_frame_bandwidth;
+  target = rc->avg_frame_bandwidth;
 #endif
   return av1_rc_clamp_pframe_target_size(cpi, (int)target, frame_update_type);
 }

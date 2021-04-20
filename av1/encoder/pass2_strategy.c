@@ -3818,8 +3818,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       ++arf_count;
       fprintf(fpfile, "%10d %10d %10d %10d %10d\n",
               cpi->common.current_frame.frame_number,
-              p_rc->frames_till_gf_update_due, cpi->ppi->p_rc.kf_boost,
-              arf_count, p_rc->gfu_boost);
+              rc->frames_till_gf_update_due, cpi->ppi->p_rc.kf_boost, arf_count,
+              p_rc->gfu_boost);
 
       fclose(fpfile);
     }
@@ -4004,9 +4004,9 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
     fprintf(fpfile,
             "%10d %10d %10d %10" PRId64 " %10" PRId64
             " %10d %10d %10d %10.4lf %10.4lf %10.4lf %10.4lf\n",
-            cm->current_frame.frame_number, p_rc->base_frame_target,
-            p_rc->projected_frame_size, p_rc->total_actual_bits,
-            p_rc->vbr_bits_off_target, p_rc->rate_error_estimate,
+            cm->current_frame.frame_number, rc->base_frame_target,
+            rc->projected_frame_size, rc->total_actual_bits,
+            rc->vbr_bits_off_target, rc->rate_error_estimate,
             twopass->rolling_arf_group_target_bits,
             twopass->rolling_arf_group_actual_bits,
             (double)twopass->rolling_arf_group_actual_bits /
@@ -4014,7 +4014,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
             twopass->bpm_factor,
             av1_convert_qindex_to_q(cpi->common.quant_params.base_qindex,
                                     cm->seq_params.bit_depth),
-            av1_convert_qindex_to_q(p_rc->active_worst_quality,
+            av1_convert_qindex_to_q(rc->active_worst_quality,
                                     cm->seq_params.bit_depth));
     fclose(fpfile);
   }
