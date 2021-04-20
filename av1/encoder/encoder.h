@@ -2747,6 +2747,11 @@ typedef struct AV1_COMP {
    * This number starts from 0 and increases whenever a super block is encoded.
    */
   int sb_counter;
+
+  /*!
+   * Available bitstream buffer size in bytes
+   */
+  size_t available_bs_size;
 } AV1_COMP;
 
 /*!
@@ -2879,6 +2884,7 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
  * \param[in]    cpi         Top-level encoder structure
  * \param[in]    frame_flags Flags to decide how to encoding the frame
  * \param[in]    size        Bitstream size
+ * \param[in]    avail_size  Available bitstream buffer size
  * \param[in]    dest        Bitstream output
  * \param[out]   time_stamp  Time stamp of the frame
  * \param[out]   time_end    Time end
@@ -2892,8 +2898,8 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
  * \retval #AOM_CODEC_ERROR
  */
 int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
-                            size_t *size, uint8_t *dest, int64_t *time_stamp,
-                            int64_t *time_end, int flush,
+                            size_t *size, size_t avail_size, uint8_t *dest,
+                            int64_t *time_stamp, int64_t *time_end, int flush,
                             const aom_rational64_t *timebase);
 
 /*!\brief Run 1-pass/2-pass encoding

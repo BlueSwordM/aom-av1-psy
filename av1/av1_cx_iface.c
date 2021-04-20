@@ -2613,8 +2613,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       }
       cpi_lap->mt_info.num_workers = cpi->mt_info.num_workers;
       const int status = av1_get_compressed_data(
-          cpi_lap, &lib_flags, &frame_size, NULL, &dst_time_stamp_la,
-          &dst_end_time_stamp_la, !img, timestamp_ratio);
+          cpi_lap, &lib_flags, &frame_size, cx_data_sz, NULL,
+          &dst_time_stamp_la, &dst_end_time_stamp_la, !img, timestamp_ratio);
       if (status != -1) {
         if (status != AOM_CODEC_OK) {
           aom_internal_error(&cpi_lap->common.error, AOM_CODEC_ERROR, NULL);
@@ -2631,7 +2631,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     int64_t dst_end_time_stamp;
     while (cx_data_sz >= ctx->cx_data_sz / 2 && !is_frame_visible) {
       const int status = av1_get_compressed_data(
-          cpi, &lib_flags, &frame_size, cx_data, &dst_time_stamp,
+          cpi, &lib_flags, &frame_size, cx_data_sz, cx_data, &dst_time_stamp,
           &dst_end_time_stamp, !img, timestamp_ratio);
       if (status == -1) break;
       if (status != AOM_CODEC_OK) {

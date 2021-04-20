@@ -3705,8 +3705,8 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
 #endif  // CONFIG_INTERNAL_STATS
 
 int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
-                            size_t *size, uint8_t *dest, int64_t *time_stamp,
-                            int64_t *time_end, int flush,
+                            size_t *size, size_t avail_size, uint8_t *dest,
+                            int64_t *time_stamp, int64_t *time_end, int flush,
                             const aom_rational64_t *timestamp_ratio) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
@@ -3724,6 +3724,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
 
   cm->showable_frame = 0;
   *size = 0;
+  cpi->available_bs_size = avail_size;
 #if CONFIG_INTERNAL_STATS
   struct aom_usec_timer cmptimer;
   aom_usec_timer_start(&cmptimer);
