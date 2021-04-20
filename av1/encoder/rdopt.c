@@ -2512,8 +2512,8 @@ static int prune_ref_mv_idx_search(int ref_mv_idx, int best_ref_mv_idx,
  * \ingroup inter_mode_search
  *
  * Compares the sse of zero mv and the best sse found in single new_mv. If the
- * sse of the zero_mv is higher, return 1 to signal zero_mv can be skipped. Else
- * returns 0.
+ * sse of the zero_mv is higher, returns 1 to signal zero_mv can be skipped.
+ * Else returns 0.
  *
  * Note that the sse of here comes from single_motion_search. So it is
  * interpolated with the filter in motion search, not the actual interpolation

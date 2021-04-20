@@ -3742,7 +3742,7 @@ void write_last_tile_info(AV1_COMP *const cpi, const FrameHeaderInfo *fh_info,
   *tile_data_start += length_field_size;
   if (cpi->num_tg == 1) {
     // if this tg is combined with the frame header then update saved
-    // frame header base offset accroding to length field size
+    // frame header base offset according to length field size
     saved_wb->bit_buffer += length_field_size;
   }
 
@@ -3755,7 +3755,7 @@ void write_last_tile_info(AV1_COMP *const cpi, const FrameHeaderInfo *fh_info,
     memcpy(curr_tg_start, fh_info->frame_header, fh_info->total_length);
 
     // Force context update tile to be the first tile in error
-    // resiliant mode as the duplicate frame headers will have
+    // resilient mode as the duplicate frame headers will have
     // context_update_tile_id set to 0
     *largest_tile_id = 0;
 
