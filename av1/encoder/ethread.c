@@ -550,18 +550,20 @@ void av1_create_second_pass_workers(AV1_COMP *cpi, int num_workers) {
                     aom_malloc(sizeof(*(gm_sync->mutex_))));
     if (gm_sync->mutex_) pthread_mutex_init(gm_sync->mutex_, NULL);
   }
+#if !CONFIG_REALTIME_ONLY
   AV1TemporalFilterSync *tf_sync = &mt_info->tf_sync;
   if (tf_sync->mutex_ == NULL) {
     CHECK_MEM_ERROR(cm, tf_sync->mutex_, aom_malloc(sizeof(*tf_sync->mutex_)));
     if (tf_sync->mutex_) pthread_mutex_init(tf_sync->mutex_, NULL);
   }
+#endif  // !CONFIG_REALTIME_ONLY
   AV1CdefSync *cdef_sync = &mt_info->cdef_sync;
   if (cdef_sync->mutex_ == NULL) {
     CHECK_MEM_ERROR(cm, cdef_sync->mutex_,
                     aom_malloc(sizeof(*(cdef_sync->mutex_))));
     if (cdef_sync->mutex_) pthread_mutex_init(cdef_sync->mutex_, NULL);
   }
-#endif
+#endif  // CONFIG_MULTITHREAD
 
   for (int i = num_workers - 1; i >= 0; i--) {
     AVxWorker *const worker = &mt_info->workers[i];
