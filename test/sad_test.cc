@@ -705,8 +705,6 @@ TEST_P(SADTest, ShortSrc) {
   source_stride_ = tmp_stride;
 }
 
-#define SPEED_TEST (0)
-#if SPEED_TEST
 TEST_P(SADTest, DISABLED_Speed) {
   const int tmp_stride = source_stride_;
   source_stride_ >>= 1;
@@ -715,7 +713,6 @@ TEST_P(SADTest, DISABLED_Speed) {
   SpeedSAD();
   source_stride_ = tmp_stride;
 }
-#endif
 
 TEST_P(SADSkipTest, MaxRef) {
   FillConstant(source_data_, source_stride_, 0);
@@ -762,7 +759,6 @@ TEST_P(SADSkipTest, ShortSrc) {
   source_stride_ = tmp_stride;
 }
 
-#if SPEED_TEST
 TEST_P(SADSkipTest, DISABLED_Speed) {
   const int tmp_stride = source_stride_;
   source_stride_ >>= 1;
@@ -771,7 +767,6 @@ TEST_P(SADSkipTest, DISABLED_Speed) {
   SpeedSAD();
   source_stride_ = tmp_stride;
 }
-#endif
 
 TEST_P(SADavgTest, MaxRef) {
   FillConstant(source_data_, source_stride_, 0);
@@ -1020,7 +1015,6 @@ TEST_P(SADx4Test, SrcAlignedByWidth) {
   source_data_ = tmp_source_data;
 }
 
-#if SPEED_TEST
 TEST_P(SADx4Test, DISABLED_Speed) {
   FillRandom(source_data_, source_stride_);
   FillRandom(GetReference(0), reference_stride_);
@@ -1029,7 +1023,6 @@ TEST_P(SADx4Test, DISABLED_Speed) {
   FillRandom(GetReference(3), reference_stride_);
   SpeedSAD();
 }
-#endif
 
 // SADSkipx4
 TEST_P(SADSkipx4Test, MaxRef) {
@@ -1104,7 +1097,6 @@ TEST_P(SADSkipx4Test, SrcAlignedByWidth) {
   source_data_ = tmp_source_data;
 }
 
-#if SPEED_TEST
 TEST_P(SADSkipx4Test, DISABLED_Speed) {
   FillRandom(source_data_, source_stride_);
   FillRandom(GetReference(0), reference_stride_);
@@ -1113,11 +1105,9 @@ TEST_P(SADSkipx4Test, DISABLED_Speed) {
   FillRandom(GetReference(3), reference_stride_);
   SpeedSAD();
 }
-#endif
 
 using std::make_tuple;
 
-#if SPEED_TEST
 TEST_P(SADx4AvgTest, DISABLED_Speed) {
   int tmp_stride = reference_stride_;
   reference_stride_ >>= 1;
@@ -1130,7 +1120,6 @@ TEST_P(SADx4AvgTest, DISABLED_Speed) {
   SpeedSAD();
   reference_stride_ = tmp_stride;
 }
-#endif
 
 TEST_P(SADx4AvgTest, MaxRef) {
   FillConstant(source_data_, source_stride_, 0);
