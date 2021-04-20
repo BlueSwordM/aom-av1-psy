@@ -1033,6 +1033,8 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 5) {
+    sf->fp_sf.reduce_mv_step_param = 4;
+
     sf->part_sf.simple_motion_search_prune_agg = 3;
     sf->part_sf.ext_partition_eval_thresh =
         allow_screen_content_tools ? BLOCK_8X8 : BLOCK_16X16;
