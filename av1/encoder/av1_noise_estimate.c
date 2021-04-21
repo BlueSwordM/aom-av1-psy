@@ -27,8 +27,8 @@
 #if CONFIG_AV1_TEMPORAL_DENOISING
 // For SVC: only do noise estimation on top spatial layer.
 static INLINE int noise_est_svc(const struct AV1_COMP *const cpi) {
-  return (!cpi->use_svc ||
-          (cpi->use_svc &&
+  return (!cpi->ppi->use_svc ||
+          (cpi->ppi->use_svc &&
            cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1));
 }
 #endif
@@ -75,7 +75,7 @@ static int enable_noise_estimation(AV1_COMP *const cpi) {
   // Not enabled for low resolutions.
   if (cpi->oxcf.pass == 0 && cpi->oxcf.rc_cfg.mode == AOM_CBR &&
       cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && cpi->oxcf.speed >= 5 &&
-      resize_pending == 0 && !cpi->use_svc &&
+      resize_pending == 0 && !cpi->ppi->use_svc &&
       cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN &&
       cpi->common.width * cpi->common.height >= 640 * 360)
     return 1;

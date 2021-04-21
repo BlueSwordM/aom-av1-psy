@@ -1146,7 +1146,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
 #endif
     }
   } else {
-    if (speed == 8 && !cpi->use_svc) {
+    if (speed == 8 && !cpi->ppi->use_svc) {
       sf->rt_sf.short_circuit_low_temp_var = 0;
       sf->rt_sf.use_nonrd_altref_frame = 1;
     }
@@ -1443,7 +1443,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     // TODO(marpan): Look into why enabling skip_loopfilter_non_reference is
     // not bitexact on rtc testset, its very close (< ~0.01 bdrate), but not
     // always bitexact.
-    if (cpi->use_svc && cpi->svc.non_reference_frame &&
+    if (cpi->ppi->use_svc && cpi->svc.non_reference_frame &&
         sf->lpf_sf.cdef_pick_method == CDEF_PICK_FROM_Q &&
         sf->lpf_sf.lpf_pick == LPF_PICK_FROM_Q)
       sf->rt_sf.skip_loopfilter_non_reference = 1;

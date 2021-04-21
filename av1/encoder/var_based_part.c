@@ -808,7 +808,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
 
   // For non-SVC GOLDEN is another temporal reference. Check if it should be
   // used as reference for partitioning.
-  if (!cpi->use_svc && (cpi->ref_frame_flags & AOM_GOLD_FLAG) &&
+  if (!cpi->ppi->use_svc && (cpi->ref_frame_flags & AOM_GOLD_FLAG) &&
       cpi->sf.rt_sf.use_nonrd_pick_mode) {
     yv12_g = get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
     if (yv12_g && yv12_g != yv12) {
@@ -894,7 +894,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
 
   int is_key_frame =
       (frame_is_intra_only(cm) ||
-       (cpi->use_svc &&
+       (cpi->ppi->use_svc &&
         cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame));
 
   assert(cm->seq_params->sb_size == BLOCK_64X64 ||
@@ -1052,7 +1052,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
       if (!is_key_frame &&
           (max_var_32x32[m] - min_var_32x32[m]) > 3 * (thresholds[1] >> 3) &&
           max_var_32x32[m] > thresholds[1] >> 1 &&
-          (noise_level >= kMedium || cpi->use_svc ||
+          (noise_level >= kMedium || cpi->ppi->use_svc ||
            cpi->sf.rt_sf.force_large_partition_blocks ||
            !cpi->sf.rt_sf.use_nonrd_pick_mode)) {
         force_split[1 + m] = 1;

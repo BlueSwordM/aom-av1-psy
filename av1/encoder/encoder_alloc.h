@@ -285,7 +285,7 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
     cpi->film_grain_table = NULL;
   }
 
-  if (cpi->use_svc) av1_free_svc_cyclic_refresh(cpi);
+  if (cpi->ppi->use_svc) av1_free_svc_cyclic_refresh(cpi);
 
   if (cpi->consec_zero_mv) {
     aom_free(cpi->consec_zero_mv);

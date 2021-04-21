@@ -2173,6 +2173,11 @@ typedef struct AV1_PRIMARY {
    * frames in the video.
    */
   SequenceHeader seq_params;
+
+  /*!
+   * Indicates whether to use SVC.
+   */
+  int use_svc;
 } AV1_PRIMARY;
 
 /*!
@@ -2686,10 +2691,6 @@ typedef struct AV1_COMP {
   TuneButteraugliInfo butteraugli_info;
 #endif
 
-  /*!
-   * Indicates whether to use SVC.
-   */
-  int use_svc;
   /*!
    * Parameters for scalable video coding.
    */
@@ -3317,8 +3318,9 @@ static AOM_INLINE int is_psnr_calc_enabled(const AV1_COMP *cpi) {
 
 #if CONFIG_AV1_TEMPORAL_DENOISING
 static INLINE int denoise_svc(const struct AV1_COMP *const cpi) {
-  return (!cpi->use_svc || (cpi->use_svc && cpi->svc.spatial_layer_id >=
-                                                cpi->svc.first_layer_denoise));
+  return (!cpi->ppi->use_svc ||
+          (cpi->ppi->use_svc &&
+           cpi->svc.spatial_layer_id >= cpi->svc.first_layer_denoise));
 }
 #endif
 

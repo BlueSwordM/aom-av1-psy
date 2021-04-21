@@ -436,8 +436,8 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   if (!dry_run) {
     if (cpi->oxcf.pass == 0 && cpi->svc.temporal_layer_id == 0 &&
         cpi->sf.rt_sf.use_temporal_noise_estimate &&
-        (!cpi->use_svc ||
-         (cpi->use_svc &&
+        (!cpi->ppi->use_svc ||
+         (cpi->ppi->use_svc &&
           !cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame &&
           cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1)))
       update_zeromv_cnt(cpi, mbmi, mi_row, mi_col, bsize);

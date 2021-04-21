@@ -242,7 +242,7 @@ static int choose_primary_ref_frame(
   // frame bit allocation.
   if (cm->tiles.large_scale) return (LAST_FRAME - LAST_FRAME);
 
-  if (cpi->use_svc) return av1_svc_primary_ref_frame(cpi);
+  if (cpi->ppi->use_svc) return av1_svc_primary_ref_frame(cpi);
 
   // Find the most recent reference frame with the same reference type as the
   // current frame
@@ -303,7 +303,7 @@ static void adjust_frame_rate(AV1_COMP *cpi, int64_t ts_start, int64_t ts_end) {
   // Clear down mmx registers
   aom_clear_system_state();
 
-  if (cpi->use_svc && cpi->svc.spatial_layer_id > 0) {
+  if (cpi->ppi->use_svc && cpi->svc.spatial_layer_id > 0) {
     cpi->framerate = cpi->svc.base_framerate;
     av1_rc_update_framerate(cpi, cpi->common.width, cpi->common.height);
     return;
@@ -1432,7 +1432,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     cpi->droppable = is_frame_droppable(&cpi->svc, &ext_flags->refresh_frame);
   }
 
-  if (cpi->use_svc) av1_save_layer_context(cpi);
+  if (cpi->ppi->use_svc) av1_save_layer_context(cpi);
 
   return AOM_CODEC_OK;
 }

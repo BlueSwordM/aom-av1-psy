@@ -234,15 +234,15 @@ void av1_cyclic_refresh_postencode(AV1_COMP *const cpi) {
   const int avg_cnt_zeromv =
       100 * cr->cnt_zeromv / (mi_params->mi_rows * mi_params->mi_cols);
 
-  if (!cpi->use_svc ||
-      (cpi->use_svc &&
+  if (!cpi->ppi->use_svc ||
+      (cpi->ppi->use_svc &&
        !cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame &&
        cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1)) {
     rc->avg_frame_low_motion =
         (3 * rc->avg_frame_low_motion + avg_cnt_zeromv) / 4;
     // For SVC: set avg_frame_low_motion (only computed on top spatial layer)
     // to all lower spatial layers.
-    if (cpi->use_svc &&
+    if (cpi->ppi->use_svc &&
         svc->spatial_layer_id == svc->number_spatial_layers - 1) {
       for (int i = 0; i < svc->number_spatial_layers - 1; ++i) {
         const int layer = LAYER_IDS_TO_IDX(i, svc->temporal_layer_id,

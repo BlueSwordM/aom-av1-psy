@@ -258,7 +258,8 @@ static void update_buffer_level(AV1_COMP *cpi, int encoded_frame_size) {
   rc->bits_off_target = AOMMIN(rc->bits_off_target, p_rc->maximum_buffer_size);
   rc->buffer_level = rc->bits_off_target;
 
-  if (cpi->use_svc) update_layer_buffer_level(&cpi->svc, encoded_frame_size);
+  if (cpi->ppi->use_svc)
+    update_layer_buffer_level(&cpi->svc, encoded_frame_size);
 }
 
 int av1_rc_get_default_min_gf_interval(int width, int height,
@@ -415,7 +416,7 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality) {
       (cm->width != cm->prev_frame->width ||
        cm->height != cm->prev_frame->height || change_avg_frame_bandwidth);
   // Apply some control/clamp to QP under certain conditions.
-  if (cm->current_frame.frame_type != KEY_FRAME && !cpi->use_svc &&
+  if (cm->current_frame.frame_type != KEY_FRAME && !cpi->ppi->use_svc &&
       rc->frames_since_key > 1 && !change_target_bits_mb &&
       (!cpi->oxcf.rc_cfg.gf_cbr_boost_pct ||
        !(refresh_frame_flags->alt_ref_frame ||
@@ -505,7 +506,7 @@ static double get_rate_correction_factor(const AV1_COMP *cpi, int width,
   } else {
     if ((refresh_frame_flags->alt_ref_frame ||
          refresh_frame_flags->golden_frame) &&
-        !rc->is_src_frame_alt_ref && !cpi->use_svc &&
+        !rc->is_src_frame_alt_ref && !cpi->ppi->use_svc &&
         (cpi->oxcf.rc_cfg.mode != AOM_CBR ||
          cpi->oxcf.rc_cfg.gf_cbr_boost_pct > 20))
       rcf = rc->rate_correction_factors[GF_ARF_STD];
@@ -550,7 +551,7 @@ static void set_rate_correction_factor(AV1_COMP *cpi, double factor, int width,
   } else {
     if ((refresh_frame_flags->alt_ref_frame ||
          refresh_frame_flags->golden_frame) &&
-        !rc->is_src_frame_alt_ref && !cpi->use_svc &&
+        !rc->is_src_frame_alt_ref && !cpi->ppi->use_svc &&
         (cpi->oxcf.rc_cfg.mode != AOM_CBR ||
          cpi->oxcf.rc_cfg.gf_cbr_boost_pct > 20))
       rc->rate_correction_factors[GF_ARF_STD] = factor;
@@ -892,7 +893,7 @@ static int calc_active_best_quality_no_stats_cbr(const AV1_COMP *cpi,
       active_best_quality +=
           av1_compute_qdelta(rc, q_val, q_val * q_adj_factor, bit_depth);
     }
-  } else if (!rc->is_src_frame_alt_ref && !cpi->use_svc &&
+  } else if (!rc->is_src_frame_alt_ref && !cpi->ppi->use_svc &&
              cpi->oxcf.rc_cfg.gf_cbr_boost_pct &&
              (refresh_frame_flags->golden_frame ||
               refresh_frame_flags->alt_ref_frame)) {
@@ -1810,7 +1811,7 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
     rc->avg_frame_qindex[KEY_FRAME] =
         ROUND_POWER_OF_TWO(3 * rc->avg_frame_qindex[KEY_FRAME] + qindex, 2);
   } else {
-    if ((cpi->use_svc && cpi->oxcf.rc_cfg.mode == AOM_CBR) ||
+    if ((cpi->ppi->use_svc && cpi->oxcf.rc_cfg.mode == AOM_CBR) ||
         (!rc->is_src_frame_alt_ref &&
          !(refresh_frame_flags->golden_frame || is_intrnl_arf ||
            refresh_frame_flags->alt_ref_frame))) {
@@ -2133,7 +2134,7 @@ int av1_calc_pframe_target_size_one_pass_cbr(
   } else {
     target = rc->avg_frame_bandwidth;
   }
-  if (cpi->use_svc) {
+  if (cpi->ppi->use_svc) {
     // Note that for layers, avg_frame_bandwidth is the cumulative
     // per-frame-bandwidth. For the target size of this frame, use the
     // layer average frame size (i.e., non-cumulative per-frame-bw).
@@ -2408,7 +2409,7 @@ static int set_gf_interval_update_onepass_rt(AV1_COMP *cpi,
     cpi->gf_frame_index = 0;
     // SVC does not use GF as periodic boost.
     // TODO(marpan): Find better way to disable this for SVC.
-    if (cpi->use_svc) {
+    if (cpi->ppi->use_svc) {
       SVC *const svc = &cpi->svc;
       p_rc->baseline_gf_interval = MAX_STATIC_GF_GROUP_LENGTH - 1;
       p_rc->gfu_boost = 1;
@@ -2600,13 +2601,13 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
                        svc->number_temporal_layers);
   // Turn this on to explicitly set the reference structure rather than
   // relying on internal/default structure.
-  if (cpi->use_svc) {
+  if (cpi->ppi->use_svc) {
     av1_update_temporal_layer_framerate(cpi);
     av1_restore_layer_context(cpi);
   }
   // Set frame type.
-  if ((!cpi->use_svc && rc->frames_to_key == 0) ||
-      (cpi->use_svc && svc->spatial_layer_id == 0 &&
+  if ((!cpi->ppi->use_svc && rc->frames_to_key == 0) ||
+      (cpi->ppi->use_svc && svc->spatial_layer_id == 0 &&
        (cpi->oxcf.kf_cfg.key_freq_max == 0 ||
         svc->current_superframe % cpi->oxcf.kf_cfg.key_freq_max == 0)) ||
       (frame_flags & FRAMEFLAGS_KEY)) {
@@ -2618,7 +2619,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
     gf_group->update_type[cpi->gf_frame_index] = KF_UPDATE;
     gf_group->frame_type[cpi->gf_frame_index] = KEY_FRAME;
     gf_group->refbuf_state[cpi->gf_frame_index] = REFBUF_RESET;
-    if (cpi->use_svc) {
+    if (cpi->ppi->use_svc) {
       if (cm->current_frame.frame_number > 0)
         av1_svc_reset_temporal_layers(cpi, 1);
       svc->layer_context[layer].is_key_frame = 1;
@@ -2628,7 +2629,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
     gf_group->update_type[cpi->gf_frame_index] = LF_UPDATE;
     gf_group->frame_type[cpi->gf_frame_index] = INTER_FRAME;
     gf_group->refbuf_state[cpi->gf_frame_index] = REFBUF_UPDATE;
-    if (cpi->use_svc) {
+    if (cpi->ppi->use_svc) {
       LAYER_CONTEXT *lc = &svc->layer_context[layer];
       lc->is_key_frame =
           svc->spatial_layer_id == 0
@@ -2637,7 +2638,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
     }
   }
   // Check for scene change, for non-SVC for now.
-  if (!cpi->use_svc && cpi->sf.rt_sf.check_scene_detection)
+  if (!cpi->ppi->use_svc && cpi->sf.rt_sf.check_scene_detection)
     rc_scene_detection_onepass_rt(cpi);
   // Check for dynamic resize, for single spatial layer for now.
   // For temporal layers only check on base temporal layer.
@@ -2688,7 +2689,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
   // For fixed mode SVC: if KSVC is enabled remove inter layer
   // prediction on spatial enhancement layer frames for frames
   // whose base is not KEY frame.
-  if (cpi->use_svc && !svc->use_flexible_mode && svc->ksvc_fixed_mode &&
+  if (cpi->ppi->use_svc && !svc->use_flexible_mode && svc->ksvc_fixed_mode &&
       svc->number_spatial_layers > 1 &&
       !svc->layer_context[layer].is_key_frame) {
     ExternalFlags *const ext_flags = &cpi->ext_flags;

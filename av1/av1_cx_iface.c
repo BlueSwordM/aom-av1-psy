@@ -2391,7 +2391,7 @@ static aom_codec_frame_flags_t get_frame_pkt_flags(const AV1_COMP *cpi,
   aom_codec_frame_flags_t flags = lib_flags << 16;
 
   if (lib_flags & FRAMEFLAGS_KEY ||
-      (cpi->use_svc &&
+      (cpi->ppi->use_svc &&
        svc->layer_context[svc->spatial_layer_id * svc->number_temporal_layers +
                           svc->temporal_layer_id]
            .is_key_frame))
@@ -2483,7 +2483,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     cpi_lap->common.error.setjmp = 1;
   }
 
-  if (cpi->use_svc && cpi->svc.use_flexible_mode == 0 && flags == 0)
+  if (cpi->ppi->use_svc && cpi->svc.use_flexible_mode == 0 && flags == 0)
     av1_set_svc_fixed_mode(cpi);
 
   // Note(yunqing): While applying encoding flags, always start from enabling
@@ -2951,7 +2951,7 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
   cpi->svc.number_temporal_layers = params->number_temporal_layers;
   if (cm->number_spatial_layers > 1 || cm->number_temporal_layers > 1) {
     unsigned int sl, tl;
-    cpi->use_svc = 1;
+    ctx->ppi->use_svc = 1;
     for (sl = 0; sl < cm->number_spatial_layers; ++sl) {
       for (tl = 0; tl < cm->number_temporal_layers; ++tl) {
         const int layer = LAYER_IDS_TO_IDX(sl, tl, cm->number_temporal_layers);

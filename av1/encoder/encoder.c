@@ -562,7 +562,7 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   cpi->td.counts = &cpi->counts;
 
   // Set init SVC parameters.
-  cpi->use_svc = 0;
+  cpi->ppi->use_svc = 0;
   cpi->svc.set_ref_frame_config = 0;
   cpi->svc.non_reference_frame = 0;
   cpi->svc.number_spatial_layers = 1;
@@ -809,10 +809,10 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
         (cm->number_spatial_layers > 1 || cm->number_temporal_layers > 1)
             ? cm->number_spatial_layers * cm->number_temporal_layers - 1
             : 0;
-    av1_init_seq_coding_tools(cm->seq_params, cm, oxcf, cpi->use_svc);
+    av1_init_seq_coding_tools(cm->seq_params, cm, oxcf, cpi->ppi->use_svc);
   }
 
-  if (cpi->use_svc)
+  if (cpi->ppi->use_svc)
     av1_update_layer_context_change_config(cpi, rc_cfg->target_bandwidth);
 
   // restore the value of lag_in_frame for LAP stage.
@@ -2010,7 +2010,7 @@ static void setup_denoiser_buffer(AV1_COMP *cpi) {
   if (cpi->oxcf.noise_sensitivity > 0 &&
       !cpi->denoiser.frame_buffer_initialized) {
     if (av1_denoiser_alloc(
-            cm, &cpi->svc, &cpi->denoiser, cpi->use_svc,
+            cm, &cpi->svc, &cpi->denoiser, cpi->ppi->use_svc,
             cpi->oxcf.noise_sensitivity, cm->width, cm->height,
             cm->seq_params->subsampling_x, cm->seq_params->subsampling_y,
             cm->seq_params->use_highbitdepth, AOM_BORDER_IN_PIXELS))
@@ -2308,16 +2308,17 @@ static int encode_without_recode(AV1_COMP *cpi) {
   int top_index = 0, bottom_index = 0, q = 0;
   YV12_BUFFER_CONFIG *unscaled = cpi->unscaled_source;
   InterpFilter filter_scaler =
-      cpi->use_svc ? svc->downsample_filter_type[svc->spatial_layer_id]
-                   : EIGHTTAP_SMOOTH;
-  int phase_scaler =
-      cpi->use_svc ? svc->downsample_filter_phase[svc->spatial_layer_id] : 0;
+      cpi->ppi->use_svc ? svc->downsample_filter_type[svc->spatial_layer_id]
+                        : EIGHTTAP_SMOOTH;
+  int phase_scaler = cpi->ppi->use_svc
+                         ? svc->downsample_filter_phase[svc->spatial_layer_id]
+                         : 0;
 
   set_size_independent_vars(cpi);
   av1_setup_frame_size(cpi);
   av1_set_size_dependent_vars(cpi, &q, &bottom_index, &top_index);
 
-  if (!cpi->use_svc) {
+  if (!cpi->ppi->use_svc) {
     phase_scaler = 8;
     // 2:1 scaling.
     if ((cm->width << 1) == unscaled->y_crop_width &&
@@ -2366,7 +2367,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
   }
 
 #if CONFIG_AV1_TEMPORAL_DENOISING
-  if (cpi->oxcf.noise_sensitivity > 0 && cpi->use_svc)
+  if (cpi->oxcf.noise_sensitivity > 0 && cpi->ppi->use_svc)
     av1_denoiser_reset_on_first_frame(cpi);
 #endif
 
@@ -2395,7 +2396,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
   // (zero_mode is forced), and since the scaled references are only
   // use for newmv search, we can avoid scaling here.
   if (!frame_is_intra_only(cm) &&
-      !(cpi->use_svc && cpi->svc.force_zero_mode_spatial_ref))
+      !(cpi->ppi->use_svc && cpi->svc.force_zero_mode_spatial_ref))
     av1_scale_references(cpi, filter_scaler, phase_scaler, 1);
 
   av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
@@ -3599,7 +3600,7 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
 
-  if (cpi->use_svc &&
+  if (cpi->ppi->use_svc &&
       cpi->svc.spatial_layer_id < cpi->svc.number_spatial_layers - 1)
     return;
 
@@ -3719,7 +3720,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   aom_bitstream_queue_set_frame_write(cm->current_frame.order_hint * 2 +
                                       cm->show_frame);
 #endif
-  if (cpi->use_svc && cm->number_spatial_layers > 1) {
+  if (cpi->ppi->use_svc && cm->number_spatial_layers > 1) {
     av1_one_pass_cbr_svc_start_layer(cpi);
   }
 

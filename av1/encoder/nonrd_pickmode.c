@@ -1741,7 +1741,8 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   const int is_small_sb = (cm->seq_params->sb_size == BLOCK_64X64);
 
   // For SVC the usage of alt_ref is determined by the ref_frame_flags.
-  int use_alt_ref_frame = cpi->use_svc || cpi->sf.rt_sf.use_nonrd_altref_frame;
+  int use_alt_ref_frame =
+      cpi->ppi->use_svc || cpi->sf.rt_sf.use_nonrd_altref_frame;
   int use_golden_ref_frame = 1;
 
   use_ref_frame[LAST_FRAME] = 1;  // we never skip LAST
@@ -1855,8 +1856,8 @@ static void estimate_intra_mode(
   // Adjust thresholds to make intra mode likely tested if the other
   // references (golden, alt) are skipped/not checked. For now always
   // adjust for svc mode.
-  if (cpi->use_svc || (cpi->sf.rt_sf.use_nonrd_altref_frame == 0 &&
-                       cpi->sf.rt_sf.nonrd_prune_ref_frame_search > 0)) {
+  if (cpi->ppi->use_svc || (cpi->sf.rt_sf.use_nonrd_altref_frame == 0 &&
+                            cpi->sf.rt_sf.nonrd_prune_ref_frame_search > 0)) {
     spatial_var_thresh = 150;
     motion_thresh = 0;
   }
@@ -2187,7 +2188,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   // to source, so use subpel motion vector to compensate. The nonzero motion
   // is half pixel shifted to left and top, so (-4, -4). This has more effect
   // on higher resolutins, so condition it on that for now.
-  if (cpi->use_svc && svc->spatial_layer_id > 0 &&
+  if (cpi->ppi->use_svc && svc->spatial_layer_id > 0 &&
       svc->downsample_filter_phase[svc->spatial_layer_id - 1] == 8 &&
       cm->width * cm->height > 640 * 480) {
     svc_mv_col = -4;
@@ -2268,7 +2269,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     if (!use_ref_frame_mask[ref_frame]) continue;
 
     force_mv_inter_layer = 0;
-    if (cpi->use_svc && svc->spatial_layer_id > 0 &&
+    if (cpi->ppi->use_svc && svc->spatial_layer_id > 0 &&
         ((ref_frame == LAST_FRAME && svc->skip_mvsearch_last) ||
          (ref_frame == GOLDEN_FRAME && svc->skip_mvsearch_gf))) {
       // Only test mode if NEARESTMV/NEARMV is (svc_mv_col, svc_mv_row),
