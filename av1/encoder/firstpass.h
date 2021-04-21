@@ -201,6 +201,17 @@ typedef struct {
   REFBUF_STATE refbuf_state[MAX_STATIC_GF_GROUP_LENGTH];
   int arf_index;  // the index in the gf group of ARF, if no arf, then -1
   int size;       // The total length of a GOP
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  // Indicates the level of parallelism in frame parallel encodes.
+  // 0 : frame is independently encoded (not part of parallel encodes).
+  // 1 : frame is the first in encode order in a given parallel encode set.
+  // 2 : frame occurs later in encode order in a given parallel encode set.
+  int frame_parallel_level[MAX_STATIC_GF_GROUP_LENGTH];
+  // Indicates whether a frame should act as non-reference frame.
+  // 0 : frame is a reference frame.
+  // 1 : frame is a non-reference frame.
+  int is_frame_non_ref[MAX_STATIC_GF_GROUP_LENGTH];
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   /*!\endcond */
 } GF_GROUP;
 /*!\cond */
