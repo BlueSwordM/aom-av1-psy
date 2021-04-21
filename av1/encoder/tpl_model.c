@@ -479,7 +479,6 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
   // Pre-load the bottom left line.
   if (xd->left_available &&
       mi_row + tx_size_high_unit[tx_size] < xd->tile.mi_row_end) {
-#if CONFIG_AV1_HIGHBITDEPTH
     if (is_cur_buf_hbd(xd)) {
       uint16_t *dst = CONVERT_TO_SHORTPTR(dst_buffer);
       for (int i = 0; i < bw; ++i)
@@ -490,11 +489,6 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
         dst_buffer[(bw + i) * dst_buffer_stride - 1] =
             dst_buffer[(bw - 1) * dst_buffer_stride - 1];
     }
-#else
-    for (int i = 0; i < bw; ++i)
-      dst_buffer[(bw + i) * dst_buffer_stride - 1] =
-          dst_buffer[(bw - 1) * dst_buffer_stride - 1];
-#endif
   }
 
   // if cpi->sf.tpl_sf.prune_intra_modes is on, then search only DC_PRED,
