@@ -717,7 +717,10 @@ typedef struct {
  */
 typedef struct {
   /*!
-   * Indicates the loop filter sharpness.
+   * Controls the level at which transform coeff RD favours sharpness in the
+   * block. Has no impact on RD when set to zero (default). For values 1-7, eob
+   * and skip block optimization are avoided and rdmult is adjusted in favour of
+   * block sharpness.
    */
   int sharpness;
 

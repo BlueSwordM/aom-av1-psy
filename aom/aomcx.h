@@ -222,10 +222,14 @@ enum aome_enc_control_id {
 
   /* NOTE: enum 15 unused */
 
-  /*!\brief Codec control function to set loop filter sharpness,
+  /*!\brief Codec control function to set the sharpness parameter,
    * unsigned int parameter.
    *
-   * Valid range: 0..7. The default is 0.
+   * This parameter controls the level at which transform coeff RD favours
+   * sharpness in the block.
+   *
+   * Valid range: 0..7. The default is 0. Values 1-7 will avoid eob and skip
+   * block optimization and will change rdmult in favour of block sharpness.
    */
   AOME_SET_SHARPNESS = AOME_SET_ENABLEAUTOALTREF + 2,  // 16
 
