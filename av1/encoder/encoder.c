@@ -510,7 +510,7 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
     // set the decoder model parameters in schedule mode
     seq_params->decoder_model_info.num_units_in_decoding_tick =
         dec_model_cfg->num_units_in_decoding_tick;
-    cm->buffer_removal_time_present = 1;
+    cpi->ppi->buffer_removal_time_present = 1;
     av1_set_aom_dec_model_info(&seq_params->decoder_model_info);
     av1_set_dec_model_op_parameters(&seq_params->op_params[0]);
   } else if (seq_params->timing_info_present &&
@@ -636,7 +636,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
     // set the decoder model parameters in schedule mode
     seq_params->decoder_model_info.num_units_in_decoding_tick =
         dec_model_cfg->num_units_in_decoding_tick;
-    cm->buffer_removal_time_present = 1;
+    cpi->ppi->buffer_removal_time_present = 1;
     av1_set_aom_dec_model_info(&seq_params->decoder_model_info);
     av1_set_dec_model_op_parameters(&seq_params->op_params[0]);
   } else if (seq_params->timing_info_present &&

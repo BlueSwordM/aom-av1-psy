@@ -2922,8 +2922,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
   }
 
   if (seq_params->decoder_model_info_present_flag) {
-    aom_wb_write_bit(wb, cm->buffer_removal_time_present);
-    if (cm->buffer_removal_time_present) {
+    aom_wb_write_bit(wb, cpi->ppi->buffer_removal_time_present);
+    if (cpi->ppi->buffer_removal_time_present) {
       for (int op_num = 0;
            op_num < seq_params->operating_points_cnt_minus_1 + 1; op_num++) {
         if (seq_params->op_params[op_num].decoder_model_param_present_flag) {

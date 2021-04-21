@@ -791,10 +791,6 @@ typedef struct AV1Common {
   uint8_t superres_scale_denominator;
 
   /*!
-   * If true, buffer removal times are present.
-   */
-  bool buffer_removal_time_present;
-  /*!
    * buffer_removal_times[op_num] specifies the frame removal time in units of
    * DecCT clock ticks counted from the removal time of the last random access
    * point for operating point op_num.

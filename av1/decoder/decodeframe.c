@@ -4705,8 +4705,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 
   if (seq_params->decoder_model_info_present_flag) {
-    cm->buffer_removal_time_present = aom_rb_read_bit(rb);
-    if (cm->buffer_removal_time_present) {
+    pbi->buffer_removal_time_present = aom_rb_read_bit(rb);
+    if (pbi->buffer_removal_time_present) {
       for (int op_num = 0;
            op_num < seq_params->operating_points_cnt_minus_1 + 1; op_num++) {
         if (seq_params->op_params[op_num].decoder_model_param_present_flag) {

@@ -2178,6 +2178,11 @@ typedef struct AV1_PRIMARY {
    * Indicates whether to use SVC.
    */
   int use_svc;
+
+  /*!
+   * If true, buffer removal times are present.
+   */
+  bool buffer_removal_time_present;
 } AV1_PRIMARY;
 
 /*!
