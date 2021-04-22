@@ -2689,7 +2689,6 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
   cm->number_temporal_layers = params->number_temporal_layers;
   cpi->svc.number_spatial_layers = params->number_spatial_layers;
   cpi->svc.number_temporal_layers = params->number_temporal_layers;
-  cpi->svc.ksvc_fixed_mode = params->ksvc_fixed_mode;
   if (cm->number_spatial_layers > 1 || cm->number_temporal_layers > 1) {
     unsigned int sl, tl;
     cpi->use_svc = 1;
