@@ -351,8 +351,14 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
   const uint32_t scale_vert = plane_ptr->subsampling_y;
   uint8_t *const dst_ptr = plane_ptr->dst.buf;
   const int dst_stride = plane_ptr->dst.stride;
-  const int y_range = (MAX_MIB_SIZE >> scale_vert);
-  const int x_range = (MAX_MIB_SIZE >> scale_horz);
+  const int plane_mi_rows =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, scale_vert);
+  const int plane_mi_cols =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, scale_horz);
+  const int y_range = AOMMIN((int)(plane_mi_rows - (mi_row >> scale_vert)),
+                             (MAX_MIB_SIZE >> scale_vert));
+  const int x_range = AOMMIN((int)(plane_mi_cols - (mi_col >> scale_horz)),
+                             (MAX_MIB_SIZE >> scale_horz));
   for (int y = 0; y < y_range; y++) {
     uint8_t *p = dst_ptr + y * MI_SIZE * dst_stride;
     for (int x = 0; x < x_range;) {
@@ -464,8 +470,14 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
   const uint32_t scale_vert = plane_ptr->subsampling_y;
   uint8_t *const dst_ptr = plane_ptr->dst.buf;
   const int dst_stride = plane_ptr->dst.stride;
-  const int y_range = (MAX_MIB_SIZE >> scale_vert);
-  const int x_range = (MAX_MIB_SIZE >> scale_horz);
+  const int plane_mi_rows =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, scale_vert);
+  const int plane_mi_cols =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, scale_horz);
+  const int y_range = AOMMIN((int)(plane_mi_rows - (mi_row >> scale_vert)),
+                             (MAX_MIB_SIZE >> scale_vert));
+  const int x_range = AOMMIN((int)(plane_mi_cols - (mi_col >> scale_horz)),
+                             (MAX_MIB_SIZE >> scale_horz));
   for (int x = 0; x < x_range; x++) {
     uint8_t *p = dst_ptr + x * MI_SIZE;
     for (int y = 0; y < y_range;) {
