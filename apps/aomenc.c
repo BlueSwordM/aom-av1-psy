@@ -1301,7 +1301,6 @@ static void show_stream_config(struct stream_state *stream,
     SHOW_PARAMS(disable_intrabc);
     SHOW_PARAMS(disable_cfl);
     SHOW_PARAMS(disable_smooth_intra);
-    SHOW_PARAMS(disable_diagonal_intra);
     SHOW_PARAMS(disable_filter_intra);
     SHOW_PARAMS(disable_dual_filter);
     SHOW_PARAMS(disable_intra_angle_delta);
