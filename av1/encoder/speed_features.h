@@ -802,6 +802,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Enable/disable fast search for wedge masks
   int enable_fast_wedge_mask_search;
+
+  // Early breakout from transform search of inter modes
+  int inter_mode_txfm_breakout;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {

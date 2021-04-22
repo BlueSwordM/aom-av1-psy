@@ -4909,8 +4909,9 @@ static void tx_search_best_inter_candidates(
           : INT64_MAX;
   *yrd = INT64_MAX;
   int64_t best_rd_in_this_partition = INT64_MAX;
+  int num_inter_mode_cands = inter_modes_info->num;
   // Iterate over best inter mode candidates and perform tx search
-  for (int j = 0; j < inter_modes_info->num; ++j) {
+  for (int j = 0; j < num_inter_mode_cands; ++j) {
     const int data_idx = inter_modes_info->rd_idx_pair_arr[j].idx;
     *mbmi = inter_modes_info->mbmi_arr[data_idx];
     int64_t curr_est_rd = inter_modes_info->est_rd_arr[data_idx];
@@ -4988,6 +4989,27 @@ static void tx_search_best_inter_candidates(
       update_search_state(search_state, rd_cost, ctx, &rd_stats, &rd_stats_y,
                           &rd_stats_uv, mode_enum, x, txfm_search_done);
       search_state->best_skip_rd[0] = skip_rd;
+      // Limit the total number of modes to be evaluated if the first is valid
+      // and transform skip or compound
+      if (cpi->sf.inter_sf.inter_mode_txfm_breakout) {
+        if (!j && (search_state->best_mbmode.skip_txfm || rd_stats.skip_txfm)) {
+          // Evaluate more candidates at high quantizers where occurrence of
+          // transform skip is high.
+          const int max_cands_cap[5] = { 2, 3, 5, 7, 9 };
+          const int qindex_band = (5 * x->qindex) >> QINDEX_BITS;
+          num_inter_mode_cands =
+              AOMMIN(max_cands_cap[qindex_band], inter_modes_info->num);
+        } else if (!j && has_second_ref(&search_state->best_mbmode)) {
+          const int aggr = cpi->sf.inter_sf.inter_mode_txfm_breakout - 1;
+          // Evaluate more candidates at low quantizers where occurrence of
+          // single reference mode is high.
+          const int max_cands_cap_cmp[2][4] = { { 10, 7, 5, 4 },
+                                                { 10, 7, 5, 3 } };
+          const int qindex_band_cmp = (4 * x->qindex) >> QINDEX_BITS;
+          num_inter_mode_cands = AOMMIN(
+              max_cands_cap_cmp[aggr][qindex_band_cmp], inter_modes_info->num);
+        }
+      }
     }
   }
 }
