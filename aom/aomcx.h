@@ -1459,8 +1459,6 @@ typedef struct aom_svc_params {
   int layer_target_bitrate[AOM_MAX_LAYERS];
   /*! Frame rate factor for each temporal layer */
   int framerate_factor[AOM_MAX_TS_LAYERS];
-  /*! Flag to do KSVC for fixed mode */
-  int ksvc_fixed_mode;
 } aom_svc_params_t;
 
 /*!brief Parameters for setting ref frame config */
