@@ -3656,18 +3656,45 @@ static INLINE uint32_t pack_large_scale_tiles_in_tg_obus(
   return total_size;
 }
 
+// Writes obu, tile group and uncompressed headers to bitstream.
+void av1_write_obu_tg_tile_headers(AV1_COMP *const cpi, MACROBLOCK *const x,
+                                   PackBSParams *const pack_bs_params,
+                                   const int tile_idx) {
+  AV1_COMMON *const cm = &cpi->common;
+  const CommonTileParams *const tiles = &cm->tiles;
+  int *const curr_tg_hdr_size = &pack_bs_params->curr_tg_hdr_size;
+  const int tg_size =
+      (tiles->rows * tiles->cols + cpi->num_tg - 1) / cpi->num_tg;
+
+  // Write Tile group, frame and OBU header
+  // A new tile group begins at this tile.  Write the obu header and
+  // tile group header
+  const OBU_TYPE obu_type = (cpi->num_tg == 1) ? OBU_FRAME : OBU_TILE_GROUP;
+  *curr_tg_hdr_size = av1_write_obu_header(
+      &cpi->ppi->level_params, &cpi->frame_header_count, obu_type,
+      pack_bs_params->obu_extn_header, pack_bs_params->tile_data_curr);
+  pack_bs_params->obu_header_size = *curr_tg_hdr_size;
+
+  if (cpi->num_tg == 1)
+    *curr_tg_hdr_size += write_frame_header_obu(
+        cpi, x, pack_bs_params->saved_wb,
+        pack_bs_params->tile_data_curr + *curr_tg_hdr_size, 0);
+  *curr_tg_hdr_size += write_tile_group_header(
+      pack_bs_params->tile_data_curr + *curr_tg_hdr_size, tile_idx,
+      AOMMIN(tile_idx + tg_size - 1, tiles->cols * tiles->rows - 1),
+      (tiles->log2_rows + tiles->log2_cols), cpi->num_tg > 1);
+  *pack_bs_params->total_size += *curr_tg_hdr_size;
+}
+
 // Pack tile data in the bitstream with tile_group, frame
 // and OBU header.
 static void pack_tile_info(AV1_COMP *const cpi, ThreadData *const td,
                            PackBSParams *const pack_bs_params) {
   aom_writer mode_bc;
   AV1_COMMON *const cm = &cpi->common;
-  const CommonTileParams *const tiles = &cm->tiles;
   int tile_row = pack_bs_params->tile_row;
   int tile_col = pack_bs_params->tile_col;
-  int *const curr_tg_hdr_size = &pack_bs_params->curr_tg_hdr_size;
   uint32_t *const total_size = pack_bs_params->total_size;
-  uint8_t *tile_data_curr = pack_bs_params->tile_data_curr;
   TileInfo tile_info;
   av1_tile_set_col(&tile_info, cm, tile_col);
   av1_tile_set_row(&tile_info, cm, tile_row);
@@ -3675,31 +3702,10 @@ static void pack_tile_info(AV1_COMP *const cpi, ThreadData *const td,
   mode_bc.allow_update_cdf =
       mode_bc.allow_update_cdf && !cm->features.disable_cdf_update;
 
-  const int tile_idx = tile_row * tiles->cols + tile_col;
-  const int tg_size =
-      (tiles->rows * tiles->cols + cpi->num_tg - 1) / cpi->num_tg;
   unsigned int tile_size;
 
-  // Write Tile group, frame and OBU header
-  if (pack_bs_params->new_tg) {
-    // A new tile group begins at this tile.  Write the obu header and
-    // tile group header
-    const OBU_TYPE obu_type = (cpi->num_tg == 1) ? OBU_FRAME : OBU_TILE_GROUP;
-    *curr_tg_hdr_size = av1_write_obu_header(
-        &cpi->ppi->level_params, &cpi->frame_header_count, obu_type,
-        pack_bs_params->obu_extn_header, tile_data_curr);
-    pack_bs_params->obu_header_size = *curr_tg_hdr_size;
-
-    if (cpi->num_tg == 1)
-      *curr_tg_hdr_size +=
-          write_frame_header_obu(cpi, &td->mb, pack_bs_params->saved_wb,
-                                 tile_data_curr + *curr_tg_hdr_size, 0);
-    *curr_tg_hdr_size += write_tile_group_header(
-        tile_data_curr + *curr_tg_hdr_size, tile_idx,
-        AOMMIN(tile_idx + tg_size - 1, tiles->cols * tiles->rows - 1),
-        (tiles->log2_rows + tiles->log2_cols), cpi->num_tg > 1);
-    *total_size += *curr_tg_hdr_size;
-  }
+  const int num_planes = av1_num_planes(cm);
+  av1_reset_loop_restoration(&td->mb.e_mbd, num_planes);
 
   pack_bs_params->buf.data = pack_bs_params->dst + *total_size;
 
@@ -3797,6 +3803,7 @@ static void write_tile_obu(
     unsigned int *max_tile_size, uint32_t *const obu_header_size,
     uint8_t **tile_data_start) {
   AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCK *const x = &cpi->td.mb;
   const CommonTileParams *const tiles = &cm->tiles;
   const int tile_cols = tiles->cols;
   const int tile_rows = tiles->rows;
@@ -3827,8 +3834,6 @@ static void write_tile_obu(
 
       cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
       cpi->td.mb.error_info = &cm->error;
-      const int num_planes = av1_num_planes(cm);
-      av1_reset_loop_restoration(&cpi->td.mb.e_mbd, num_planes);
 
       // PackBSParams stores all parameters required to pack tile and header
       // info.
@@ -3844,6 +3849,9 @@ static void write_tile_obu(
       pack_bs_params.tile_row = tile_row;
       pack_bs_params.tile_data_curr = tile_data_curr;
       pack_bs_params.total_size = total_size;
+
+      if (new_tg)
+        av1_write_obu_tg_tile_headers(cpi, x, &pack_bs_params, tile_idx);
 
       pack_tile_info(cpi, &cpi->td, &pack_bs_params);
 
