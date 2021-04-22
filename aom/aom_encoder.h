@@ -293,10 +293,6 @@ typedef struct cfg_options {
    *
    */
   unsigned int disable_smooth_intra;
-  /*!\brief disable D45 to D203 intra modes
-   *
-   */
-  unsigned int disable_diagonal_intra;
   /*!\brief disable filter intra
    *
    */
