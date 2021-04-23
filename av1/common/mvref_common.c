@@ -1360,11 +1360,11 @@ void av1_set_frame_refs(AV1_COMMON *const cm, int *remapped_ref_idx,
   // Confirm both LAST_FRAME and GOLDEN_FRAME are valid forward reference
   // frames.
   if (lst_frame_sort_idx == -1 || lst_frame_sort_idx >= cur_frame_sort_idx) {
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+    aom_internal_error(cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "Inter frame requests a look-ahead frame as LAST");
   }
   if (gld_frame_sort_idx == -1 || gld_frame_sort_idx >= cur_frame_sort_idx) {
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+    aom_internal_error(cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "Inter frame requests a look-ahead frame as GOLDEN");
   }
 

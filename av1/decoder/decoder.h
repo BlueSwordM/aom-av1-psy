@@ -345,6 +345,11 @@ typedef struct AV1Decoder {
    * If true, buffer removal times are present.
    */
   bool buffer_removal_time_present;
+
+  /*!
+   * Code and details about current error status.
+   */
+  struct aom_internal_error_info error;
 } AV1Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error

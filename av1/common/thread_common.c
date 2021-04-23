@@ -1019,7 +1019,7 @@ static AOM_INLINE void sync_cdef_workers(AVxWorker *const workers,
     had_error |= !winterface->sync(worker);
   }
   if (had_error)
-    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+    aom_internal_error(cm->error, AOM_CODEC_ERROR,
                        "Failed to process cdef frame");
 }
 

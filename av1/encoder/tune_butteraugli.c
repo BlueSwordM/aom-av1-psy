@@ -42,7 +42,7 @@ static void set_mb_butteraugli_rdmult_scaling(AV1_COMP *cpi,
   if (!aom_calc_butteraugli(source, recon, bit_depth,
                             seq_params->matrix_coefficients, color_range,
                             diffmap)) {
-    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+    aom_internal_error(cm->error, AOM_CODEC_ERROR,
                        "Failed to calculate Butteraugli distances.");
   }
 

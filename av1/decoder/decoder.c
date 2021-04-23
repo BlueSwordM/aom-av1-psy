@@ -98,17 +98,18 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
 
   AV1_COMMON *volatile const cm = &pbi->common;
   cm->seq_params = &pbi->seq_params;
+  cm->error = &pbi->error;
 
   // The jmp_buf is valid only for the duration of the function that calls
   // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
   // before it returns.
-  if (setjmp(cm->error.jmp)) {
-    cm->error.setjmp = 0;
+  if (setjmp(pbi->error.jmp)) {
+    pbi->error.setjmp = 0;
     av1_decoder_remove(pbi);
     return NULL;
   }
 
-  cm->error.setjmp = 1;
+  pbi->error.setjmp = 1;
 
   CHECK_MEM_ERROR(cm, cm->fc,
                   (FRAME_CONTEXT *)aom_memalign(32, sizeof(*cm->fc)));
@@ -147,7 +148,7 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   aom_accounting_init(&pbi->accounting);
 #endif
 
-  cm->error.setjmp = 0;
+  pbi->error.setjmp = 0;
 
   aom_get_worker_interface()->init(&pbi->lf_worker);
   pbi->lf_worker.thread_name = "aom lf worker";
@@ -263,16 +264,16 @@ aom_codec_err_t av1_copy_reference_dec(AV1Decoder *pbi, int idx,
 
   const YV12_BUFFER_CONFIG *const cfg = get_ref_frame(cm, idx);
   if (cfg == NULL) {
-    aom_internal_error(&cm->error, AOM_CODEC_ERROR, "No reference frame");
+    aom_internal_error(&pbi->error, AOM_CODEC_ERROR, "No reference frame");
     return AOM_CODEC_ERROR;
   }
   if (!equal_dimensions(cfg, sd))
-    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+    aom_internal_error(&pbi->error, AOM_CODEC_ERROR,
                        "Incorrect buffer dimensions");
   else
     aom_yv12_copy_frame(cfg, sd, num_planes);
 
-  return cm->error.error_code;
+  return pbi->error.error_code;
 }
 
 static int equal_dimensions_and_border(const YV12_BUFFER_CONFIG *a,
@@ -295,13 +296,13 @@ aom_codec_err_t av1_set_reference_dec(AV1_COMMON *cm, int idx,
   ref_buf = get_ref_frame(cm, idx);
 
   if (ref_buf == NULL) {
-    aom_internal_error(&cm->error, AOM_CODEC_ERROR, "No reference frame");
+    aom_internal_error(cm->error, AOM_CODEC_ERROR, "No reference frame");
     return AOM_CODEC_ERROR;
   }
 
   if (!use_external_ref) {
     if (!equal_dimensions(ref_buf, sd)) {
-      aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+      aom_internal_error(cm->error, AOM_CODEC_ERROR,
                          "Incorrect buffer dimensions");
     } else {
       // Overwrite the reference frame buffer.
@@ -309,7 +310,7 @@ aom_codec_err_t av1_set_reference_dec(AV1_COMMON *cm, int idx,
     }
   } else {
     if (!equal_dimensions_and_border(ref_buf, sd)) {
-      aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+      aom_internal_error(cm->error, AOM_CODEC_ERROR,
                          "Incorrect buffer dimensions");
     } else {
       // Overwrite the reference frame buffer pointers.
@@ -325,7 +326,7 @@ aom_codec_err_t av1_set_reference_dec(AV1_COMMON *cm, int idx,
     }
   }
 
-  return cm->error.error_code;
+  return cm->error->error_code;
 }
 
 aom_codec_err_t av1_copy_new_frame_dec(AV1_COMMON *cm,
@@ -334,12 +335,12 @@ aom_codec_err_t av1_copy_new_frame_dec(AV1_COMMON *cm,
   const int num_planes = av1_num_planes(cm);
 
   if (!equal_dimensions_and_border(new_frame, sd))
-    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+    aom_internal_error(cm->error, AOM_CODEC_ERROR,
                        "Incorrect buffer dimensions");
   else
     aom_yv12_copy_frame(new_frame, sd, num_planes);
 
-  return cm->error.error_code;
+  return cm->error->error_code;
 }
 
 static void release_current_frame(AV1Decoder *pbi) {
@@ -357,7 +358,7 @@ static void release_current_frame(AV1Decoder *pbi) {
 // Consumes a reference to cm->cur_frame.
 //
 // This functions returns void. It reports failure by setting
-// cm->error.error_code.
+// pbi->error.error_code.
 static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
   int ref_index = 0, mask;
   AV1_COMMON *const cm = &pbi->common;
@@ -390,7 +391,7 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
           // error
           cm->cur_frame->buf.corrupted = 1;
           decrease_ref_count(cm->cur_frame, pool);
-          cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
+          pbi->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
         } else {
           pbi->output_frames[pbi->num_output_frames] = cm->cur_frame;
           pbi->num_output_frames++;
@@ -429,8 +430,8 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
                                 const uint8_t **psource) {
   AV1_COMMON *volatile const cm = &pbi->common;
   const uint8_t *source = *psource;
-  cm->error.error_code = AOM_CODEC_OK;
-  cm->error.has_detail = 0;
+  pbi->error.error_code = AOM_CODEC_OK;
+  pbi->error.has_detail = 0;
 
   if (size == 0) {
     // This is used to signal that we are missing frames.
@@ -446,18 +447,18 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
   }
 
   if (assign_cur_frame_new_fb(cm) == NULL) {
-    cm->error.error_code = AOM_CODEC_MEM_ERROR;
+    pbi->error.error_code = AOM_CODEC_MEM_ERROR;
     return 1;
   }
 
   // The jmp_buf is valid only for the duration of the function that calls
   // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
   // before it returns.
-  if (setjmp(cm->error.jmp)) {
+  if (setjmp(pbi->error.jmp)) {
     const AVxWorkerInterface *const winterface = aom_get_worker_interface();
     int i;
 
-    cm->error.setjmp = 0;
+    pbi->error.setjmp = 0;
 
     // Synchronize all threads immediately as a subsequent decode call may
     // cause a resize invalidating some allocations.
@@ -471,15 +472,15 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
     return -1;
   }
 
-  cm->error.setjmp = 1;
+  pbi->error.setjmp = 1;
 
   int frame_decoded =
       aom_decode_frame_from_obus(pbi, source, source + size, psource);
 
   if (frame_decoded < 0) {
-    assert(cm->error.error_code != AOM_CODEC_OK);
+    assert(pbi->error.error_code != AOM_CODEC_OK);
     release_current_frame(pbi);
-    cm->error.setjmp = 0;
+    pbi->error.setjmp = 0;
     return 1;
   }
 
@@ -500,8 +501,8 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
     pbi->decoding_first_frame = 0;
   }
 
-  if (cm->error.error_code != AOM_CODEC_OK) {
-    cm->error.setjmp = 0;
+  if (pbi->error.error_code != AOM_CODEC_OK) {
+    pbi->error.setjmp = 0;
     return 1;
   }
 
@@ -520,7 +521,7 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
   }
 
   // Update progress in frame parallel decode.
-  cm->error.setjmp = 0;
+  pbi->error.setjmp = 0;
 
   return 0;
 }

@@ -1148,7 +1148,7 @@ void av1_update_level_info(AV1_COMP *cpi, size_t size, int64_t ts_start,
       if (fail_id != TARGET_LEVEL_OK) {
         const int target_level_major = 2 + (target_level >> 2);
         const int target_level_minor = target_level & 3;
-        aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+        aom_internal_error(cm->error, AOM_CODEC_ERROR,
                            "Failed to encode to the target level %d_%d. %s",
                            target_level_major, target_level_minor,
                            level_fail_messages[fail_id]);

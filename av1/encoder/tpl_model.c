@@ -158,7 +158,7 @@ void av1_setup_tpl_buffers(AV1_COMMON *const cm, TplParams *const tpl_data,
             cm->seq_params->subsampling_x, cm->seq_params->subsampling_y,
             cm->seq_params->use_highbitdepth, tpl_data->border_in_pixels,
             cm->features.byte_alignment))
-      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+      aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate frame buffer");
   }
 }

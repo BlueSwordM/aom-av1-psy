@@ -597,7 +597,7 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
     memset(cpi->film_grain_table, 0, sizeof(aom_film_grain_table_t));
 
     aom_film_grain_table_read(cpi->film_grain_table,
-                              tune_cfg->film_grain_table_filename, &cm->error);
+                              tune_cfg->film_grain_table_filename, cm->error);
   } else if (tune_cfg->content == AOM_CONTENT_FILM) {
     cm->seq_params->film_grain_params_present = 1;
     cm->film_grain_params.bit_depth = cm->seq_params->bit_depth;
@@ -644,7 +644,7 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
           if (aom_yv12_realloc_with_new_border(
                   &ref_fb->buf, AOM_BORDER_IN_PIXELS,
                   cm->features.byte_alignment, num_planes) != 0) {
-            aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+            aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                                "Failed to allocate frame buffer");
           }
         }
@@ -653,7 +653,7 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
         if (new_fb == NULL) {
           const int new_fb_idx = get_free_fb(cm);
           if (new_fb_idx == INVALID_IDX) {
-            aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+            aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                                "Unable to find free frame buffer");
           }
           force_scaling = 1;
@@ -671,7 +671,7 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
               // Release the reference acquired in the get_free_fb() call above.
               --new_fb->ref_count;
             }
-            aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+            aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                                "Failed to allocate frame buffer");
           }
 #if CONFIG_AV1_HIGHBITDEPTH
@@ -1012,7 +1012,7 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
         cm->ref_frame_map[cpi->existing_fb_idx_to_show];
 
     if (frame_to_show == NULL) {
-      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+      aom_internal_error(cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Buffer does not contain a reconstructed frame");
     }
     assert(frame_to_show->ref_count > 0);

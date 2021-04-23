@@ -746,7 +746,7 @@ void av1_denoiser_update_ref_frame(AV1_COMP *const cpi) {
                                    cpi->refresh_golden_frame,
                                    cpi->refresh_last_frame, cpi->alt_fb_idx,
                                    cpi->gld_fb_idx, cpi->lst_fb_idx))
-        aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+        aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                            "Failed to re-allocate denoiser for SVC");
 #endif
     }

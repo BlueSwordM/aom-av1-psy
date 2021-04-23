@@ -298,7 +298,7 @@ void av1_update_frame_size(AV1_COMP *cpi) {
 
   // We need to reallocate the context buffers here in case we need more mis.
   if (av1_alloc_context_buffers(cm, cm->width, cm->height)) {
-    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate context buffers");
   }
   av1_init_mi_buffers(&cm->mi_params);
@@ -385,7 +385,7 @@ static void set_bitstream_level_tier(SequenceHeader *seq, AV1_COMMON *cm,
     // check
     if (seq_params->op_params[i].bitrate == 0)
       aom_internal_error(
-          &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+          cm->error, AOM_CODEC_UNSUP_BITSTREAM,
           "AV1 does not support this combination of profile, level, and tier.");
     // Buffer size in bits/s is bitrate in bits/s * 1 s
     seq_params->op_params[i].buffer_size = seq_params->op_params[i].bitrate;
@@ -857,6 +857,16 @@ AV1_PRIMARY *av1_create_primary_compressor(
   if (!ppi) return NULL;
   av1_zero(*ppi);
 
+  // The jmp_buf is valid only for the duration of the function that calls
+  // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
+  // before it returns.
+  if (setjmp(ppi->error.jmp)) {
+    ppi->error.setjmp = 0;
+    av1_remove_primary_compressor(ppi);
+    return 0;
+  }
+  ppi->error.setjmp = 1;
+
   ppi->seq_params_locked = 0;
   ppi->lap_enabled = num_lap_buffers > 0;
   ppi->output_pkt_list = pkt_list_head;
@@ -885,6 +895,7 @@ AV1_PRIMARY *av1_create_primary_compressor(
     }
   }
 
+  ppi->error.setjmp = 0;
   return ppi;
 }
 
@@ -900,17 +911,18 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
 
   cpi->ppi = ppi;
   cm->seq_params = &ppi->seq_params;
+  cm->error = &ppi->error;
 
   // The jmp_buf is valid only for the duration of the function that calls
   // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
   // before it returns.
-  if (setjmp(cm->error.jmp)) {
-    cm->error.setjmp = 0;
+  if (setjmp(cm->error->jmp)) {
+    cm->error->setjmp = 0;
     av1_remove_compressor(cpi);
     return 0;
   }
 
-  cm->error.setjmp = 1;
+  cm->error->setjmp = 1;
   cpi->compressor_stage = stage;
 
   CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -1379,7 +1391,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
 #if !CONFIG_REALTIME_ONLY
   av1_loop_restoration_precal();
 #endif
-  cm->error.setjmp = 0;
+  cm->error->setjmp = 0;
 
   return cpi;
 }
@@ -2021,7 +2033,7 @@ static void setup_denoiser_buffer(AV1_COMP *cpi) {
             cpi->oxcf.noise_sensitivity, cm->width, cm->height,
             cm->seq_params->subsampling_x, cm->seq_params->subsampling_y,
             cm->seq_params->use_highbitdepth, AOM_BORDER_IN_PIXELS))
-      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+      aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate denoiser");
   }
 }
@@ -2101,7 +2113,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
     if (av1_alloc_above_context_buffers(above_contexts, cm->tiles.rows,
                                         cm->mi_params.mi_cols,
                                         av1_num_planes(cm)))
-      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+      aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate context buffers");
   }
 
@@ -2111,7 +2123,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
           seq_params->subsampling_y, seq_params->use_highbitdepth,
           cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
           NULL, cpi->oxcf.tool_cfg.enable_global_motion))
-    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
 
   if (!is_stat_generation_stage(cpi))
@@ -3488,7 +3500,7 @@ static int apply_denoise_2d(AV1_COMP *cpi, YV12_BUFFER_CONFIG *sd,
     cpi->denoise_and_model = aom_denoise_and_model_alloc(
         cm->seq_params->bit_depth, block_size, noise_level);
     if (!cpi->denoise_and_model) {
-      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+      aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                          "Error allocating denoise and model");
       return -1;
     }
@@ -3496,7 +3508,7 @@ static int apply_denoise_2d(AV1_COMP *cpi, YV12_BUFFER_CONFIG *sd,
   if (!cpi->film_grain_table) {
     cpi->film_grain_table = aom_malloc(sizeof(*cpi->film_grain_table));
     if (!cpi->film_grain_table) {
-      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+      aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                          "Error allocating grain table");
       return -1;
     }
@@ -3572,20 +3584,20 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
   // header.
   if ((seq_params->profile == PROFILE_0) && !seq_params->monochrome &&
       (subsampling_x != 1 || subsampling_y != 1)) {
-    aom_internal_error(&cm->error, AOM_CODEC_INVALID_PARAM,
+    aom_internal_error(cm->error, AOM_CODEC_INVALID_PARAM,
                        "Non-4:2:0 color format requires profile 1 or 2");
     res = -1;
   }
   if ((seq_params->profile == PROFILE_1) &&
       !(subsampling_x == 0 && subsampling_y == 0)) {
-    aom_internal_error(&cm->error, AOM_CODEC_INVALID_PARAM,
+    aom_internal_error(cm->error, AOM_CODEC_INVALID_PARAM,
                        "Profile 1 requires 4:4:4 color format");
     res = -1;
   }
   if ((seq_params->profile == PROFILE_2) &&
       (seq_params->bit_depth <= AOM_BITS_10) &&
       !(subsampling_x == 1 && subsampling_y == 0)) {
-    aom_internal_error(&cm->error, AOM_CODEC_INVALID_PARAM,
+    aom_internal_error(cm->error, AOM_CODEC_INVALID_PARAM,
                        "Profile 2 bit-depth <= 10 requires 4:2:2 color format");
     res = -1;
   }
@@ -3879,12 +3891,12 @@ aom_codec_err_t av1_copy_new_frame_enc(AV1_COMMON *cm,
                                        YV12_BUFFER_CONFIG *sd) {
   const int num_planes = av1_num_planes(cm);
   if (!equal_dimensions_and_border(new_frame, sd))
-    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+    aom_internal_error(cm->error, AOM_CODEC_ERROR,
                        "Incorrect buffer dimensions");
   else
     aom_yv12_copy_frame(new_frame, sd, num_planes);
 
-  return cm->error.error_code;
+  return cm->error->error_code;
 }
 
 int av1_set_internal_size(AV1EncoderConfig *const oxcf,

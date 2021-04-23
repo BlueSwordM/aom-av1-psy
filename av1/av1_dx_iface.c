@@ -396,7 +396,7 @@ static void init_buffer_callbacks(aom_codec_alg_priv_t *ctx) {
     pool->release_fb_cb = av1_release_frame_buffer;
 
     if (av1_alloc_internal_frame_buffers(&pool->int_frame_buffers))
-      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+      aom_internal_error(&pbi->error, AOM_CODEC_MEM_ERROR,
                          "Failed to initialize internal frame buffers");
 
     pool->cb_priv = &pool->int_frame_buffers;
@@ -531,7 +531,7 @@ static aom_codec_err_t decode_one(aom_codec_alg_priv_t *ctx,
   *data = frame_worker_data->data_end;
 
   if (worker->had_error)
-    return update_error_state(ctx, &frame_worker_data->pbi->common.error);
+    return update_error_state(ctx, &frame_worker_data->pbi->error);
 
   check_resync(ctx, frame_worker_data->pbi);
 
@@ -562,7 +562,7 @@ static aom_codec_err_t decoder_inspect(aom_codec_alg_priv_t *ctx,
   check_resync(ctx, frame_worker_data->pbi);
 
   if (ctx->frame_worker->had_error)
-    return update_error_state(ctx, &frame_worker_data->pbi->common.error);
+    return update_error_state(ctx, &frame_worker_data->pbi->error);
 
   // Allow extra zero bytes after the frame end
   while (data < data_end) {
@@ -827,7 +827,7 @@ static aom_image_t *decoder_get_frame(aom_codec_alg_priv_t *ctx,
         aom_image_t *res =
             add_grain_if_needed(ctx, img, &ctx->image_with_grain, grain_params);
         if (!res) {
-          aom_internal_error(&pbi->common.error, AOM_CODEC_CORRUPT_FRAME,
+          aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                              "Grain systhesis failed\n");
         }
         *index += 1;  // Advance the iterator to point to the next image

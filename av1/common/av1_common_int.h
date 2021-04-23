@@ -748,7 +748,7 @@ typedef struct AV1Common {
   /*!
    * Code and details about current error status.
    */
-  struct aom_internal_error_info error;
+  struct aom_internal_error_info *error;
 
   /*!
    * AV1 allows two types of frame scaling operations:
@@ -1295,7 +1295,7 @@ static INLINE void av1_init_macroblockd(AV1_COMMON *cm, MACROBLOCKD *xd) {
     }
   }
   xd->mi_stride = cm->mi_params.mi_stride;
-  xd->error_info = &cm->error;
+  xd->error_info = cm->error;
   cfl_init(&xd->cfl, cm->seq_params);
 }
 

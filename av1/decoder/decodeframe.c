@@ -76,12 +76,11 @@
 // Checks that the remaining bits start with a 1 and ends with 0s.
 // It consumes an additional byte, if already byte aligned before the check.
 int av1_check_trailing_bits(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
-  AV1_COMMON *const cm = &pbi->common;
   // bit_offset is set to 0 (mod 8) when the reader is already byte aligned
   int bits_before_alignment = 8 - rb->bit_offset % 8;
   int trailing = aom_rb_read_literal(rb, bits_before_alignment);
   if (trailing != (1 << (bits_before_alignment - 1))) {
-    cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+    pbi->error.error_code = AOM_CODEC_CORRUPT_FRAME;
     return -1;
   }
   return 0;
@@ -1943,7 +1942,7 @@ static AOM_INLINE void resize_context_buffers(AV1_COMMON *cm, int width,
                                               int height) {
 #if CONFIG_SIZE_LIMIT
   if (width > DECODE_WIDTH_LIMIT || height > DECODE_HEIGHT_LIMIT)
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+    aom_internal_error(cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "Dimensions of %dx%d beyond allowed size of %dx%d.",
                        width, height, DECODE_WIDTH_LIMIT, DECODE_HEIGHT_LIMIT);
 #endif
@@ -1963,7 +1962,7 @@ static AOM_INLINE void resize_context_buffers(AV1_COMMON *cm, int width,
         // consistent and to force a realloc next time.
         cm->width = 0;
         cm->height = 0;
-        aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+        aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                            "Failed to allocate context buffers");
       }
     } else {
@@ -1991,7 +1990,7 @@ static AOM_INLINE void setup_buffer_pool(AV1_COMMON *cm) {
           &cm->cur_frame->raw_frame_buffer, pool->get_fb_cb, pool->cb_priv,
           0)) {
     unlock_buffer_pool(pool);
-    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
   }
   unlock_buffer_pool(pool);
@@ -2021,7 +2020,7 @@ static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
     av1_read_frame_size(rb, num_bits_width, num_bits_height, &width, &height);
     if (width > seq_params->max_frame_width ||
         height > seq_params->max_frame_height) {
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+      aom_internal_error(cm->error, AOM_CODEC_CORRUPT_FRAME,
                          "Frame dimensions are larger than the maximum values");
     }
   } else {
@@ -2062,7 +2061,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
       // the middle of a stream, and static analysis will error if we don't do
       // a null check here.
       if (ref_buf == NULL) {
-        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+        aom_internal_error(cm->error, AOM_CODEC_CORRUPT_FRAME,
                            "Invalid condition: invalid reference buffer");
       } else {
         const YV12_BUFFER_CONFIG *const buf = &ref_buf->buf;
@@ -2090,7 +2089,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
   }
 
   if (width <= 0 || height <= 0)
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+    aom_internal_error(cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "Invalid frame size");
 
   // Check to make sure at least one of frames that this frame references
@@ -2102,7 +2101,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
                              ref_frame->buf.y_crop_height, width, height);
   }
   if (!has_valid_ref_frame)
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+    aom_internal_error(cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "Referenced frame has invalid size");
   for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
     const RefCntBuffer *const ref_frame = get_ref_frame_buf(cm, i);
@@ -2110,7 +2109,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
             ref_frame->buf.bit_depth, ref_frame->buf.subsampling_x,
             ref_frame->buf.subsampling_y, seq_params->bit_depth,
             seq_params->subsampling_x, seq_params->subsampling_y))
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+      aom_internal_error(cm->error, AOM_CODEC_CORRUPT_FRAME,
                          "Referenced frame has incompatible color format");
   }
   setup_buffer_pool(cm);
@@ -2226,7 +2225,7 @@ static AOM_INLINE void read_tile_info(AV1Decoder *const pbi,
     pbi->context_update_tile_id =
         aom_rb_read_literal(rb, cm->tiles.log2_rows + cm->tiles.log2_cols);
     if (pbi->context_update_tile_id >= cm->tiles.rows * cm->tiles.cols) {
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+      aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                          "Invalid context_update_tile_id");
     }
     // tile size magnitude
@@ -2379,7 +2378,7 @@ static const uint8_t *get_ls_tile_buffers(
 
       // Get the whole of the last column, otherwise stop at the required tile.
       for (int r = 0; r < (is_last ? tile_rows : tile_rows_end); ++r) {
-        get_ls_tile_buffer(tile_col_data_end[c], &pbi->common.error, &data,
+        get_ls_tile_buffer(tile_col_data_end[c], &pbi->error, &data,
                            tile_buffers, tile_size_bytes, c, r, tile_copy_mode);
       }
     }
@@ -2391,7 +2390,7 @@ static const uint8_t *get_ls_tile_buffers(
       data = tile_col_data_end[c - 1];
 
       for (int r = 0; r < tile_rows; ++r) {
-        get_ls_tile_buffer(tile_col_data_end[c], &pbi->common.error, &data,
+        get_ls_tile_buffer(tile_col_data_end[c], &pbi->error, &data,
                            tile_buffers, tile_size_bytes, c, r, tile_copy_mode);
       }
     }
@@ -2459,11 +2458,11 @@ static AOM_INLINE void get_tile_buffers(
       if (tc < start_tile || tc > end_tile) continue;
 
       if (data + hdr_offset >= data_end)
-        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+        aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                            "Data ended before all tiles were read.");
       data += hdr_offset;
-      get_tile_buffer(data_end, pbi->tile_size_bytes, is_last,
-                      &pbi->common.error, &data, buf);
+      get_tile_buffer(data_end, pbi->tile_size_bytes, is_last, &pbi->error,
+                      &data, buf);
     }
   }
 }
@@ -2854,7 +2853,7 @@ static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,
       av1_tile_init(&td->dcb.xd.tile, cm, row, col);
       td->dcb.xd.current_base_qindex = cm->quant_params.base_qindex;
       setup_bool_decoder(tile_bs_buf->data, data_end, tile_bs_buf->size,
-                         &cm->error, td->bit_reader, allow_update_cdf);
+                         &pbi->error, td->bit_reader, allow_update_cdf);
 #if CONFIG_ACCOUNTING
       if (pbi->acct_enabled) {
         td->bit_reader->accounting = &pbi->accounting;
@@ -2876,7 +2875,7 @@ static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,
       decode_tile(pbi, td, row, col);
       aom_merge_corrupted_flag(&pbi->dcb.corrupted, td->dcb.corrupted);
       if (pbi->dcb.corrupted)
-        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+        aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                            "Failed to decode tile data");
     }
   }
@@ -3506,7 +3505,7 @@ static AOM_INLINE void decode_mt_init(AV1Decoder *pbi) {
       winterface->init(worker);
       worker->thread_name = "aom tile worker";
       if (worker_idx != 0 && !winterface->reset(worker)) {
-        aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+        aom_internal_error(&pbi->error, AOM_CODEC_ERROR,
                            "Tile decoder thread creation failed");
       }
 
@@ -3635,7 +3634,7 @@ static const uint8_t *decode_tiles_mt(AV1Decoder *pbi, const uint8_t *data,
   sync_dec_workers(pbi, num_workers);
 
   if (pbi->dcb.corrupted)
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+    aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                        "Failed to decode tile data");
 
   if (tiles->large_scale) {
@@ -3844,7 +3843,7 @@ static const uint8_t *decode_tiles_row_mt(AV1Decoder *pbi, const uint8_t *data,
   sync_dec_workers(pbi, num_workers);
 
   if (pbi->dcb.corrupted)
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+    aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                        "Failed to decode tile data");
 
   if (tiles->large_scale) {
@@ -3862,7 +3861,7 @@ static const uint8_t *decode_tiles_row_mt(AV1Decoder *pbi, const uint8_t *data,
 
 static AOM_INLINE void error_handler(void *data) {
   AV1_COMMON *const cm = (AV1_COMMON *)data;
-  aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME, "Truncated packet");
+  aom_internal_error(cm->error, AOM_CODEC_CORRUPT_FRAME, "Truncated packet");
 }
 
 // Reads the high_bitdepth and twelve_bit fields in color_config() and sets
@@ -3923,7 +3922,7 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
       }
     }
     if (!found) {
-      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+      aom_internal_error(cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Invalid film grain reference idx %d. ref_frame_idx = "
                          "{%d, %d, %d, %d, %d, %d, %d}",
                          film_grain_params_ref_idx, cm->remapped_ref_idx[0],
@@ -3933,11 +3932,11 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
     }
     RefCntBuffer *const buf = cm->ref_frame_map[film_grain_params_ref_idx];
     if (buf == NULL) {
-      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+      aom_internal_error(cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Invalid Film grain reference idx");
     }
     if (!buf->film_grain_params_present) {
-      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+      aom_internal_error(cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Film grain reference parameters not available");
     }
     uint16_t random_seed = pars->random_seed;
@@ -3949,13 +3948,13 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
   // Scaling functions parameters
   pars->num_y_points = aom_rb_read_literal(rb, 4);  // max 14
   if (pars->num_y_points > 14)
-    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+    aom_internal_error(cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                        "Number of points for film grain luma scaling function "
                        "exceeds the maximum value.");
   for (int i = 0; i < pars->num_y_points; i++) {
     pars->scaling_points_y[i][0] = aom_rb_read_literal(rb, 8);
     if (i && pars->scaling_points_y[i - 1][0] >= pars->scaling_points_y[i][0])
-      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+      aom_internal_error(cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "First coordinate of the scaling function points "
                          "shall be increasing.");
     pars->scaling_points_y[i][1] = aom_rb_read_literal(rb, 8);
@@ -3974,14 +3973,14 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
   } else {
     pars->num_cb_points = aom_rb_read_literal(rb, 4);  // max 10
     if (pars->num_cb_points > 10)
-      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+      aom_internal_error(cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Number of points for film grain cb scaling function "
                          "exceeds the maximum value.");
     for (int i = 0; i < pars->num_cb_points; i++) {
       pars->scaling_points_cb[i][0] = aom_rb_read_literal(rb, 8);
       if (i &&
           pars->scaling_points_cb[i - 1][0] >= pars->scaling_points_cb[i][0])
-        aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+        aom_internal_error(cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "First coordinate of the scaling function points "
                            "shall be increasing.");
       pars->scaling_points_cb[i][1] = aom_rb_read_literal(rb, 8);
@@ -3989,14 +3988,14 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
 
     pars->num_cr_points = aom_rb_read_literal(rb, 4);  // max 10
     if (pars->num_cr_points > 10)
-      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+      aom_internal_error(cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Number of points for film grain cr scaling function "
                          "exceeds the maximum value.");
     for (int i = 0; i < pars->num_cr_points; i++) {
       pars->scaling_points_cr[i][0] = aom_rb_read_literal(rb, 8);
       if (i &&
           pars->scaling_points_cr[i - 1][0] >= pars->scaling_points_cr[i][0])
-        aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+        aom_internal_error(cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "First coordinate of the scaling function points "
                            "shall be increasing.");
       pars->scaling_points_cr[i][1] = aom_rb_read_literal(rb, 8);
@@ -4005,7 +4004,7 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
     if ((seq_params->subsampling_x == 1) && (seq_params->subsampling_y == 1) &&
         (((pars->num_cb_points == 0) && (pars->num_cr_points != 0)) ||
          ((pars->num_cb_points != 0) && (pars->num_cr_points == 0))))
-      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+      aom_internal_error(cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "In YCbCr 4:2:0, film grain shall be applied "
                          "to both chroma components or neither.");
   }
@@ -4225,7 +4224,7 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
     seq_params->frame_id_length =
         aom_rb_read_literal(rb, 3) + seq_params->delta_frame_id_length + 1;
     if (seq_params->frame_id_length > 16)
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+      aom_internal_error(cm->error, AOM_CODEC_CORRUPT_FRAME,
                          "Invalid frame_id_length");
   }
 
@@ -4490,7 +4489,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   sframe_info->is_s_frame_at_altref = 0;
 
   if (!pbi->sequence_header_ready) {
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+    aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                        "No sequence header");
   }
 
@@ -4512,14 +4511,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     if (cm->show_existing_frame) {
       if (pbi->sequence_header_changed) {
         aom_internal_error(
-            &cm->error, AOM_CODEC_CORRUPT_FRAME,
+            &pbi->error, AOM_CODEC_CORRUPT_FRAME,
             "New sequence header starts with a show_existing_frame.");
       }
       // Show an existing frame directly.
       const int existing_frame_idx = aom_rb_read_literal(rb, 3);
       RefCntBuffer *const frame_to_show = cm->ref_frame_map[existing_frame_idx];
       if (frame_to_show == NULL) {
-        aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+        aom_internal_error(&pbi->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "Buffer does not contain a decoded frame");
       }
       if (seq_params->decoder_model_info_present_flag &&
@@ -4533,7 +4532,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
          * referencing */
         if (display_frame_id != cm->ref_frame_id[existing_frame_idx] ||
             pbi->valid_for_referencing[existing_frame_idx] == 0)
-          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+          aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                              "Reference buffer frame ID mismatch");
       }
       lock_buffer_pool(pool);
@@ -4559,7 +4558,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // show_existing_frame is used to show a previous frame, that the value
       // of showable_frame for the previous frame was equal to 1.
       if (!frame_to_show->showable_frame) {
-        aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+        aom_internal_error(&pbi->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "Buffer does not contain a showable frame");
       }
       // Section 6.8.2: It is a requirement of bitstream conformance that when
@@ -4587,7 +4586,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         pbi->decoding_first_frame = 1;
         reset_frame_buffers(cm);
       } else {
-        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+        aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                            "Sequence header has changed without a keyframe.");
       }
     }
@@ -4602,7 +4601,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
     if (seq_params->still_picture &&
         (current_frame->frame_type != KEY_FRAME || !cm->show_frame)) {
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+      aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                          "Still pictures must be coded as shown keyframes");
     }
     cm->showable_frame = current_frame->frame_type != KEY_FRAME;
@@ -4674,7 +4673,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         /* Check current_frame_id for conformance */
         if (prev_frame_id == cm->current_frame_id ||
             diff_frame_id >= (1 << (frame_id_length - 1))) {
-          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+          aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                              "Invalid value of current_frame_id");
         }
       }
@@ -4746,7 +4745,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     if (current_frame->frame_type == INTRA_ONLY_FRAME) {
       current_frame->refresh_frame_flags = aom_rb_read_literal(rb, REF_FRAMES);
       if (current_frame->refresh_frame_flags == 0xFF) {
-        aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+        aom_internal_error(&pbi->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "Intra only frames cannot have refresh flags 0xFF");
       }
       if (pbi->need_resync) {
@@ -4780,7 +4779,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           // pixels set to neutral grey.
           int buf_idx = get_free_fb(cm);
           if (buf_idx == INVALID_IDX) {
-            aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+            aom_internal_error(&pbi->error, AOM_CODEC_MEM_ERROR,
                                "Unable to find free frame buffer");
           }
           buf = &frame_bufs[buf_idx];
@@ -4793,7 +4792,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                   &buf->raw_frame_buffer, pool->get_fb_cb, pool->cb_priv, 0)) {
             decrease_ref_count(buf, pool);
             unlock_buffer_pool(pool);
-            aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+            aom_internal_error(&pbi->error, AOM_CODEC_MEM_ERROR,
                                "Failed to allocate frame buffer");
           }
           unlock_buffer_pool(pool);
@@ -4860,10 +4859,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         // reference to a slot that hasn't been set yet. That's what we are
         // checking here.
         if (lst_buf == NULL)
-          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+          aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                              "Inter frame requests nonexistent reference");
         if (gld_buf == NULL)
-          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+          aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                              "Inter frame requests nonexistent reference");
 
         av1_set_frame_refs(cm, cm->remapped_ref_idx, lst_ref, gld_ref);
@@ -4881,7 +4880,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           // reference to a slot that hasn't been set yet. That's what we are
           // checking here.
           if (cm->ref_frame_map[ref] == NULL)
-            aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+            aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                                "Inter frame requests nonexistent reference");
           cm->remapped_ref_idx[i] = ref;
         } else {
@@ -4889,7 +4888,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }
         // Check valid for referencing
         if (pbi->valid_for_referencing[ref] == 0)
-          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+          aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                              "Reference frame not valid for referencing");
 
         cm->ref_frame_sign_bias[LAST_FRAME + i] = 0;
@@ -4905,7 +4904,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           // Compare values derived from delta_frame_id_minus_1 and
           // refresh_frame_flags.
           if (ref_frame_id != cm->ref_frame_id[ref])
-            aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+            aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                                "Reference buffer frame ID mismatch");
         }
       }
@@ -4928,7 +4927,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->prev_frame = get_primary_ref_frame_buf(cm);
     if (features->primary_ref_frame != PRIMARY_REF_NONE &&
         get_primary_ref_frame_buf(cm) == NULL) {
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+      aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                          "Reference frame containing this frame's initial "
                          "frame context is unavailable.");
     }
@@ -4948,7 +4947,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             ref_scale_factors, ref_buf->buf.y_crop_width,
             ref_buf->buf.y_crop_height, cm->width, cm->height);
         if ((!av1_is_valid_scale(ref_scale_factors)))
-          aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+          aom_internal_error(&pbi->error, AOM_CODEC_UNSUP_BITSTREAM,
                              "Reference frame has invalid dimensions");
       }
     }
@@ -4985,7 +4984,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   cm->cur_frame->buf.render_height = cm->render_height;
 
   if (pbi->need_resync) {
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+    aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                        "Keyframe / intra-only frame required to reset decoder"
                        " state");
   }
@@ -5006,7 +5005,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   read_tile_info(pbi, rb);
   if (!av1_is_min_tile_width_satisfied(cm)) {
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+    aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                        "Minimum tile width requirement not satisfied");
   }
 
@@ -5023,7 +5022,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     if (av1_alloc_above_context_buffers(above_contexts, cm->tiles.rows,
                                         cm->mi_params.mi_cols,
                                         av1_num_planes(cm))) {
-      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+      aom_internal_error(&pbi->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate context buffers");
     }
   }
@@ -5103,7 +5102,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   features->reduced_tx_set_used = aom_rb_read_bit(rb);
 
   if (features->allow_ref_frame_mvs && !frame_might_allow_ref_frame_mvs(cm)) {
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+    aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                        "Frame wrongly requests reference frame MVs");
   }
 
@@ -5203,7 +5202,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
       // Use the default frame context values.
       *cm->fc = *cm->default_frame_context;
       if (!cm->fc->initialized)
-        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+        aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                            "Uninitialized entropy context.");
     }
     return uncomp_hdr_size;
@@ -5222,7 +5221,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
     *cm->fc = get_primary_ref_frame_buf(cm)->frame_context;
   }
   if (!cm->fc->initialized)
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+    aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                        "Uninitialized entropy context.");
 
   pbi->dcb.corrupted = 0;
@@ -5390,7 +5389,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       av1_reset_cdf_symbol_counters(cm->fc);
     }
   } else {
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+    aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
                        "Decode failed. Frame data is corrupted.");
   }
 

@@ -2193,6 +2193,11 @@ typedef struct AV1_PRIMARY {
    * If true, buffer removal times are present.
    */
   bool buffer_removal_time_present;
+
+  /*!
+   * Code and details about current error status.
+   */
+  struct aom_internal_error_info error;
 } AV1_PRIMARY;
 
 /*!

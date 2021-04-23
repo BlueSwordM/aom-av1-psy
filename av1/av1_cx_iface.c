@@ -2466,22 +2466,13 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   // The jmp_buf is valid only for the duration of the function that calls
   // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
   // before it returns.
-  if (setjmp(cpi->common.error.jmp)) {
-    cpi->common.error.setjmp = 0;
-    res = update_error_state(ctx, &cpi->common.error);
+  if (setjmp(ppi->error.jmp)) {
+    ppi->error.setjmp = 0;
+    res = update_error_state(ctx, &ppi->error);
     aom_clear_system_state();
     return res;
   }
-  cpi->common.error.setjmp = 1;
-  if (cpi_lap != NULL) {
-    if (setjmp(cpi_lap->common.error.jmp)) {
-      cpi_lap->common.error.setjmp = 0;
-      res = update_error_state(ctx, &cpi_lap->common.error);
-      aom_clear_system_state();
-      return res;
-    }
-    cpi_lap->common.error.setjmp = 1;
-  }
+  ppi->error.setjmp = 1;
 
   if (cpi->ppi->use_svc && cpi->svc.use_flexible_mode == 0 && flags == 0)
     av1_set_svc_fixed_mode(cpi);
@@ -2550,7 +2541,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
             cpi->oxcf.tool_cfg.enable_global_motion);
       }
       if (!ppi->lookahead)
-        aom_internal_error(&cpi->common.error, AOM_CODEC_MEM_ERROR,
+        aom_internal_error(&ppi->error, AOM_CODEC_MEM_ERROR,
                            "Failed to allocate lag buffers");
 #if CONFIG_FRAME_PARALLEL_ENCODE
       int i;
@@ -2571,7 +2562,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       // key frame flag when we actually encode this frame.
       if (av1_receive_raw_frame(cpi, flags | ctx->next_frame_flags, &sd,
                                 src_time_stamp, src_end_time_stamp)) {
-        res = update_error_state(ctx, &cpi->common.error);
+        res = update_error_state(ctx, &ppi->error);
       }
       ctx->next_frame_flags = 0;
     }
@@ -2588,7 +2579,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
        * the buffer size anyway.
        */
       if (cx_data_sz < ctx->cx_data_sz / 2) {
-        aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
+        aom_internal_error(&ppi->error, AOM_CODEC_ERROR,
                            "Compressed data buffer too small");
       }
     }
@@ -2628,7 +2619,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           &dst_time_stamp_la, &dst_end_time_stamp_la, !img, timestamp_ratio);
       if (status != -1) {
         if (status != AOM_CODEC_OK) {
-          aom_internal_error(&cpi_lap->common.error, AOM_CODEC_ERROR, NULL);
+          aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
         cpi_lap->ppi->seq_params_locked = 1;
       }
@@ -2646,7 +2637,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           &dst_end_time_stamp, !img, timestamp_ratio);
       if (status == -1) break;
       if (status != AOM_CODEC_OK) {
-        aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
+        aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
       }
 
       cpi->ppi->seq_params_locked = 1;
@@ -2670,7 +2661,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
         if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
                                     ctx->cx_data) != AOM_CODEC_OK) {
-          aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
+          aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
 
         frame_size += obu_header_size + obu_payload_size + length_field_size;
@@ -2680,7 +2671,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         size_t curr_frame_size = frame_size;
         if (av1_convert_sect5obus_to_annexb(cx_data, &curr_frame_size) !=
             AOM_CODEC_OK) {
-          aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
+          aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
         frame_size = curr_frame_size;
 
@@ -2689,7 +2680,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         memmove(cx_data + length_field_size, cx_data, frame_size);
         if (av1_write_uleb_obu_size(0, (uint32_t)frame_size, cx_data) !=
             AOM_CODEC_OK) {
-          aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
+          aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
         frame_size += length_field_size;
       }
@@ -2718,7 +2709,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         memmove(ctx->cx_data + length_field_size, ctx->cx_data, tu_size);
         if (av1_write_uleb_obu_size(0, (uint32_t)tu_size, ctx->cx_data) !=
             AOM_CODEC_OK) {
-          aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
+          aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
         ctx->pending_cx_data_sz += length_field_size;
       }
@@ -2748,7 +2739,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     }
   }
 
-  cpi->common.error.setjmp = 0;
+  ppi->error.setjmp = 0;
   return res;
 }
 
@@ -3085,18 +3076,17 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   // Used to mock the argv with just one string "--{name}={value}"
   char *argv[2] = { NULL, "" };
   size_t len = strlen(name) + strlen(value) + 4;
-  char *err_string = ctx->ppi->cpi->common.error.detail;
+  char *err_string = ctx->ppi->error.detail;
 
 #if __STDC_VERSION__ >= 201112L
   // We use the keyword _Static_assert because clang-cl does not allow the
   // convenience macro static_assert to be used in function scope. See
   // https://bugs.llvm.org/show_bug.cgi?id=48904.
-  _Static_assert(
-      sizeof(ctx->ppi->cpi->common.error.detail) >= ARG_ERR_MSG_MAX_LEN,
-      "The size of the err_msg buffer for arg_match_helper must be "
-      "at least ARG_ERR_MSG_MAX_LEN");
+  _Static_assert(sizeof(ctx->ppi->error.detail) >= ARG_ERR_MSG_MAX_LEN,
+                 "The size of the err_msg buffer for arg_match_helper must be "
+                 "at least ARG_ERR_MSG_MAX_LEN");
 #else
-  assert(sizeof(ctx->ppi->cpi->common.error.detail) >= ARG_ERR_MSG_MAX_LEN);
+  assert(sizeof(ctx->ppi->error.detail) >= ARG_ERR_MSG_MAX_LEN);
 #endif
 
   argv[0] = aom_malloc(len * sizeof(argv[1][0]));

@@ -56,7 +56,7 @@ static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
   TokenInfo *token_info = &cpi->token_info;
 
   if (av1_alloc_context_buffers(cm, cm->width, cm->height)) {
-    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate context buffers");
   }
 
@@ -326,7 +326,7 @@ static AOM_INLINE void alloc_altref_frame_buffer(AV1_COMP *cpi) {
           seq_params->subsampling_y, seq_params->use_highbitdepth,
           cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
           NULL, cpi->oxcf.tool_cfg.enable_global_motion))
-    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate altref buffer");
 }
 
@@ -338,7 +338,7 @@ static AOM_INLINE void alloc_util_frame_buffers(AV1_COMP *cpi) {
           &cpi->last_frame_uf, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, seq_params->use_highbitdepth,
           cpi->oxcf.border_in_pixels, byte_alignment, NULL, NULL, NULL, 0))
-    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate last frame buffer");
 
   // The frame buffer trial_frame_rst is used during loop restoration filter
@@ -352,7 +352,7 @@ static AOM_INLINE void alloc_util_frame_buffers(AV1_COMP *cpi) {
             cm->superres_upscaled_height, seq_params->subsampling_x,
             seq_params->subsampling_y, seq_params->use_highbitdepth,
             AOM_RESTORATION_FRAME_BORDER, byte_alignment, NULL, NULL, NULL, 0))
-      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+      aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate trial restored frame buffer");
   }
 
@@ -361,7 +361,7 @@ static AOM_INLINE void alloc_util_frame_buffers(AV1_COMP *cpi) {
           seq_params->subsampling_y, seq_params->use_highbitdepth,
           cpi->oxcf.border_in_pixels, byte_alignment, NULL, NULL, NULL,
           cpi->oxcf.tool_cfg.enable_global_motion))
-    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate scaled source buffer");
 
   // The frame buffer cpi->scaled_last_source is used to hold the previous
@@ -377,7 +377,7 @@ static AOM_INLINE void alloc_util_frame_buffers(AV1_COMP *cpi) {
             seq_params->use_highbitdepth, cpi->oxcf.border_in_pixels,
             byte_alignment, NULL, NULL, NULL,
             cpi->oxcf.tool_cfg.enable_global_motion))
-      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+      aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate scaled last source buffer");
   }
 }
@@ -398,7 +398,7 @@ static AOM_INLINE YV12_BUFFER_CONFIG *realloc_and_scale_source(
           cm->seq_params->use_highbitdepth, AOM_BORDER_IN_PIXELS,
           cm->features.byte_alignment, NULL, NULL, NULL,
           cpi->oxcf.tool_cfg.enable_global_motion))
-    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to reallocate scaled source buffer");
   assert(cpi->scaled_source.y_crop_width == scaled_width);
   assert(cpi->scaled_source.y_crop_height == scaled_height);

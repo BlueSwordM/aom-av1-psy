@@ -1118,7 +1118,7 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
           lr_ctxt->dst, frame_width, frame_height, seq_params->subsampling_x,
           seq_params->subsampling_y, highbd, AOM_RESTORATION_FRAME_BORDER,
           cm->features.byte_alignment, NULL, NULL, NULL, 0) < 0)
-    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate restoration dst buffer");
 
   lr_ctxt->on_rest_unit = filter_frame_on_unit;

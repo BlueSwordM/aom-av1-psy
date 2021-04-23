@@ -3547,7 +3547,7 @@ static void write_large_scale_tile_obu(
       // even for the last one, unless no tiling is used at all.
       *total_size += data_offset;
       cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
-      cpi->td.mb.error_info = &cm->error;
+      cpi->td.mb.error_info = cm->error;
       mode_bc.allow_update_cdf = !tiles->large_scale;
       mode_bc.allow_update_cdf =
           mode_bc.allow_update_cdf && !cm->features.disable_cdf_update;
@@ -3808,7 +3808,7 @@ static void write_tile_obu(
         is_last_tile_in_tg = 1;
 
       cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
-      cpi->td.mb.error_info = &cm->error;
+      cpi->td.mb.error_info = cm->error;
 
       // PackBSParams stores all parameters required to pack tile and header
       // info.
@@ -4013,7 +4013,7 @@ static size_t av1_write_metadata_array(AV1_COMP *const cpi, uint8_t *dst) {
           dst += obu_size + length_field_size;
           total_bytes_written += obu_size + length_field_size;
         } else {
-          aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
+          aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
                              "Error writing metadata OBU size");
         }
       }
