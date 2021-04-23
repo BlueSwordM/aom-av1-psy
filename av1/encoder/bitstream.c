@@ -2226,13 +2226,6 @@ static AOM_INLINE void write_ext_tile_info(
   }
 }
 
-// Stores the location and size of a tile's data in the bitstream.  Used for
-// later identifying identical tiles
-typedef struct TileBufferEnc {
-  uint8_t *data;
-  size_t size;
-} TileBufferEnc;
-
 static INLINE int find_identical_tile(
     const int tile_row, const int tile_col,
     TileBufferEnc (*const tile_buffers)[MAX_TILE_COLS]) {
@@ -3308,8 +3301,8 @@ int av1_write_uleb_obu_size(size_t obu_header_size, size_t obu_payload_size,
   return AOM_CODEC_OK;
 }
 
-static size_t obu_memmove(size_t obu_header_size, size_t obu_payload_size,
-                          uint8_t *data) {
+size_t av1_obu_memmove(size_t obu_header_size, size_t obu_payload_size,
+                       uint8_t *data) {
   const size_t length_field_size = aom_uleb_size_in_bytes(obu_payload_size);
   const size_t move_dst_offset = length_field_size + obu_header_size;
   const size_t move_src_offset = obu_header_size;
@@ -3437,12 +3430,6 @@ static uint32_t write_tile_group_header(uint8_t *const dst, int start_tile,
   return size;
 }
 
-typedef struct {
-  uint8_t *frame_header;
-  size_t obu_header_byte_offset;
-  size_t total_length;
-} FrameHeaderInfo;
-
 extern void av1_print_uncompressed_frame_header(const uint8_t *data, int size,
                                                 const char *filename);
 
@@ -3450,21 +3437,6 @@ typedef struct {
   uint32_t tg_hdr_size;
   uint32_t frame_header_size;
 } LargeTileFrameOBU;
-
-typedef struct {
-  struct aom_write_bit_buffer *saved_wb;
-  TileBufferEnc buf;
-  uint32_t obu_header_size;
-  uint32_t *total_size;
-  uint8_t *dst;
-  uint8_t *tile_data_curr;
-  uint8_t obu_extn_header;
-  int curr_tg_hdr_size;
-  int tile_row;
-  int tile_col;
-  int is_last_tile_in_tg;
-  int new_tg;
-} PackBSParams;
 
 // Initialize OBU header for large scale tile case.
 static uint32_t init_large_scale_tile_obu_header(
@@ -3518,7 +3490,7 @@ static void write_large_scale_tile_obu_size(
   *total_size += lst_obu->tg_hdr_size;
   const uint32_t obu_payload_size = *total_size - lst_obu->tg_hdr_size;
   const size_t length_field_size =
-      obu_memmove(lst_obu->tg_hdr_size, obu_payload_size, dst);
+      av1_obu_memmove(lst_obu->tg_hdr_size, obu_payload_size, dst);
   if (av1_write_uleb_obu_size(lst_obu->tg_hdr_size, obu_payload_size, dst) !=
       AOM_CODEC_OK)
     assert(0);
@@ -3549,7 +3521,7 @@ static void write_large_scale_tile_obu(
   const int tile_rows = tiles->rows;
   unsigned int tile_size = 0;
 
-  reset_pack_bs_thread_data(&cpi->td);
+  av1_reset_pack_bs_thread_data(&cpi->td);
   for (int tile_col = 0; tile_col < tile_cols; tile_col++) {
     TileInfo tile_info;
     const int is_last_col = (tile_col == tile_cols - 1);
@@ -3627,7 +3599,7 @@ static void write_large_scale_tile_obu(
       *max_tile_col_size = AOMMAX(*max_tile_col_size, col_size);
     }
   }
-  accumulate_pack_bs_thread_data(cpi, &cpi->td);
+  av1_accumulate_pack_bs_thread_data(cpi, &cpi->td);
 }
 
 // Packs information in the obu header for large scale tiles.
@@ -3689,8 +3661,8 @@ void av1_write_obu_tg_tile_headers(AV1_COMP *const cpi, MACROBLOCK *const x,
 
 // Pack tile data in the bitstream with tile_group, frame
 // and OBU header.
-static void pack_tile_info(AV1_COMP *const cpi, ThreadData *const td,
-                           PackBSParams *const pack_bs_params) {
+void av1_pack_tile_info(AV1_COMP *const cpi, ThreadData *const td,
+                        PackBSParams *const pack_bs_params) {
   aom_writer mode_bc;
   AV1_COMMON *const cm = &cpi->common;
   int tile_row = pack_bs_params->tile_row;
@@ -3729,17 +3701,17 @@ static void pack_tile_info(AV1_COMP *const cpi, ThreadData *const td,
   }
 }
 
-void write_last_tile_info(AV1_COMP *const cpi, const FrameHeaderInfo *fh_info,
-                          struct aom_write_bit_buffer *saved_wb,
-                          size_t *curr_tg_data_size, uint8_t *curr_tg_start,
-                          uint32_t *const total_size, uint8_t **tile_data_start,
-                          int *const largest_tile_id, int *const is_first_tg,
-                          uint32_t obu_header_size, uint8_t obu_extn_header) {
+void av1_write_last_tile_info(
+    AV1_COMP *const cpi, const FrameHeaderInfo *fh_info,
+    struct aom_write_bit_buffer *saved_wb, size_t *curr_tg_data_size,
+    uint8_t *curr_tg_start, uint32_t *const total_size,
+    uint8_t **tile_data_start, int *const largest_tile_id,
+    int *const is_first_tg, uint32_t obu_header_size, uint8_t obu_extn_header) {
   // write current tile group size
   const uint32_t obu_payload_size =
       (uint32_t)(*curr_tg_data_size) - obu_header_size;
   const size_t length_field_size =
-      obu_memmove(obu_header_size, obu_payload_size, curr_tg_start);
+      av1_obu_memmove(obu_header_size, obu_payload_size, curr_tg_start);
   if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
                               curr_tg_start) != AOM_CODEC_OK) {
     assert(0);
@@ -3778,13 +3750,14 @@ void write_last_tile_info(AV1_COMP *const cpi, const FrameHeaderInfo *fh_info,
   *is_first_tg = 0;
 }
 
-void reset_pack_bs_thread_data(ThreadData *const td) {
+void av1_reset_pack_bs_thread_data(ThreadData *const td) {
   td->coefficient_size = 0;
   td->max_mv_magnitude = 0;
   av1_zero(td->interp_filter_selected);
 }
 
-void accumulate_pack_bs_thread_data(AV1_COMP *const cpi, ThreadData const *td) {
+void av1_accumulate_pack_bs_thread_data(AV1_COMP *const cpi,
+                                        ThreadData const *td) {
   cpi->rc.coefficient_size += td->coefficient_size;
 
   if (cpi->sf.mv_sf.auto_mv_step_size)
@@ -3817,7 +3790,7 @@ static void write_tile_obu(
   int new_tg = 1;
   int is_first_tg = 1;
 
-  reset_pack_bs_thread_data(&cpi->td);
+  av1_reset_pack_bs_thread_data(&cpi->td);
   for (int tile_row = 0; tile_row < tile_rows; tile_row++) {
     for (int tile_col = 0; tile_col < tile_cols; tile_col++) {
       const int tile_idx = tile_row * tile_cols + tile_col;
@@ -3854,7 +3827,7 @@ static void write_tile_obu(
       if (new_tg)
         av1_write_obu_tg_tile_headers(cpi, x, &pack_bs_params, tile_idx);
 
-      pack_tile_info(cpi, &cpi->td, &pack_bs_params);
+      av1_pack_tile_info(cpi, &cpi->td, &pack_bs_params);
 
       if (new_tg) {
         curr_tg_data_size = pack_bs_params.curr_tg_hdr_size;
@@ -3873,14 +3846,14 @@ static void write_tile_obu(
       }
 
       if (is_last_tile_in_tg)
-        write_last_tile_info(cpi, fh_info, saved_wb, &curr_tg_data_size,
-                             tile_data_curr, total_size, tile_data_start,
-                             largest_tile_id, &is_first_tg, *obu_header_size,
-                             obu_extn_header);
+        av1_write_last_tile_info(cpi, fh_info, saved_wb, &curr_tg_data_size,
+                                 tile_data_curr, total_size, tile_data_start,
+                                 largest_tile_id, &is_first_tg,
+                                 *obu_header_size, obu_extn_header);
       *total_size += (uint32_t)pack_bs_params.buf.size;
     }
   }
-  accumulate_pack_bs_thread_data(cpi, &cpi->td);
+  av1_accumulate_pack_bs_thread_data(cpi, &cpi->td);
 }
 
 // Write total buffer size and related information into the OBU header for
@@ -4018,7 +3991,8 @@ static size_t av1_write_metadata_array(AV1_COMP *const cpi, uint8_t *dst) {
                                                OBU_METADATA, 0, dst);
         obu_payload_size =
             av1_write_metadata_obu(current_metadata, dst + obu_header_size);
-        length_field_size = obu_memmove(obu_header_size, obu_payload_size, dst);
+        length_field_size =
+            av1_obu_memmove(obu_header_size, obu_payload_size, dst);
         if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, dst) ==
             AOM_CODEC_OK) {
           const size_t obu_size = obu_header_size + obu_payload_size;
@@ -4067,7 +4041,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     obu_payload_size =
         av1_write_sequence_header_obu(cm->seq_params, data + obu_header_size);
     const size_t length_field_size =
-        obu_memmove(obu_header_size, obu_payload_size, data);
+        av1_obu_memmove(obu_header_size, obu_payload_size, data);
     if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
         AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;
@@ -4092,7 +4066,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     obu_payload_size = write_frame_header_obu(cpi, &cpi->td.mb, &saved_wb,
                                               data + obu_header_size, 1);
 
-    length_field = obu_memmove(obu_header_size, obu_payload_size, data);
+    length_field = av1_obu_memmove(obu_header_size, obu_payload_size, data);
     if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
         AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;
