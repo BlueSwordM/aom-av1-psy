@@ -48,14 +48,34 @@ typedef struct {
   uint32_t *total_size;  // Size of the bitstream buffer for the tile in bytes
   uint8_t *dst;          // Base address of tile bitstream buffer
   uint8_t *tile_data_curr;   // Base address of tile-group bitstream buffer
+  size_t tile_buf_size;      // Available bitstream buffer for the tile in bytes
   uint8_t obu_extn_header;   // Presence of OBU extension header
   uint32_t obu_header_size;  // Size of the OBU header
   int curr_tg_hdr_size;      // Size of the obu, tg, frame headers
+  int tile_size_mi;          // Tile size in mi units
   int tile_row;              // Number of tile rows
   int tile_col;              // Number of tile columns
   int is_last_tile_in_tg;    // Flag to indicate last tile in a tile-group
   int new_tg;                // Flag to indicate starting of a new tile-group
 } PackBSParams;
+
+typedef struct {
+  uint16_t tile_idx;
+  int tile_size_mi;
+} PackBSTileOrder;
+
+// Pack bitstream data for pack bitstream multi-threading.
+typedef struct {
+#if CONFIG_MULTITHREAD
+  // Mutex lock used while dispatching jobs.
+  pthread_mutex_t *mutex_;
+#endif
+  // Tile order structure of pack bitstream multithreading.
+  PackBSTileOrder pack_bs_tile_order[MAX_TILES];
+
+  // Index of next job to be processed.
+  int next_job_idx;
+} AV1EncPackBSSync;
 
 /*!\endcond */
 

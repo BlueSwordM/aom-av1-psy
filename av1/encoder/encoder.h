@@ -49,6 +49,7 @@
 #include "av1/encoder/tokenize.h"
 #include "av1/encoder/tpl_model.h"
 #include "av1/encoder/av1_noise_estimate.h"
+#include "av1/encoder/bitstream.h"
 
 #if CONFIG_INTERNAL_STATS
 #include "aom_dsp/ssim.h"
@@ -168,6 +169,7 @@ typedef enum {
   MOD_CDEF_SEARCH,  // CDEF search
   MOD_CDEF,         // CDEF frame
   MOD_LR,           // Loop restoration filtering
+  MOD_PACK_BS,      // Pack bitstream
   NUM_MT_MODULES
 } MULTI_THREADED_MODULES;
 
@@ -1446,6 +1448,11 @@ typedef struct MultiThreadInfo {
    * Loop Restoration multi-threading object.
    */
   AV1LrSync lr_row_sync;
+
+  /*!
+   * Pack bitstream multi-threading object.
+   */
+  AV1EncPackBSSync pack_bs_sync;
 
   /*!
    * Global Motion multi-threading object.

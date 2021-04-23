@@ -41,6 +41,7 @@
 #include "av1/encoder/cost.h"
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/encodetxb.h"
+#include "av1/encoder/ethread.h"
 #include "av1/encoder/mcomp.h"
 #include "av1/encoder/palette.h"
 #include "av1/encoder/segmentation.h"
@@ -3920,16 +3921,29 @@ static INLINE uint32_t pack_tiles_in_tg_obus(
   unsigned int max_tile_size = 0;
   uint32_t obu_header_size = 0;
   uint8_t *tile_data_start = dst;
-
-  write_tile_obu(cpi, dst, &total_size, saved_wb, obu_extension_header, fh_info,
-                 largest_tile_id, &max_tile_size, &obu_header_size,
-                 &tile_data_start);
-
+  const int num_workers = cpi->mt_info.num_mod_workers[MOD_PACK_BS];
   const int tile_cols = tiles->cols;
   const int tile_rows = tiles->rows;
-  const int have_tiles = tile_cols * tile_rows > 1;
+  const int num_tiles = tile_rows * tile_cols;
 
-  if (have_tiles)
+  // As per the experiments, single-thread bitstream packing is better for
+  // source alt-ref frames. This behavior is due to setup time overhead of
+  // multithread function would be more than that of time required to pack
+  // the smaller bitstream of source alt-ref frame.
+  const int enable_mt =
+      AOMMIN(num_workers, num_tiles) > 1 && !cpi->rc.is_src_frame_alt_ref;
+
+  if (enable_mt) {
+    av1_write_tile_obu_mt(cpi, dst, &total_size, saved_wb, obu_extension_header,
+                          fh_info, largest_tile_id, &max_tile_size,
+                          &obu_header_size, &tile_data_start);
+  } else {
+    write_tile_obu(cpi, dst, &total_size, saved_wb, obu_extension_header,
+                   fh_info, largest_tile_id, &max_tile_size, &obu_header_size,
+                   &tile_data_start);
+  }
+
+  if (num_tiles > 1)
     write_tile_obu_size(cpi, dst, saved_wb, *largest_tile_id, &total_size,
                         max_tile_size, obu_header_size, tile_data_start);
   return total_size;

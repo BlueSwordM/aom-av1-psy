@@ -1603,6 +1603,7 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 #if CONFIG_MULTITHREAD
   pthread_mutex_t *const enc_row_mt_mutex_ = mt_info->enc_row_mt.mutex_;
   pthread_mutex_t *const gm_mt_mutex_ = mt_info->gm_sync.mutex_;
+  pthread_mutex_t *const pack_bs_mt_mutex_ = mt_info->pack_bs_sync.mutex_;
   if (enc_row_mt_mutex_ != NULL) {
     pthread_mutex_destroy(enc_row_mt_mutex_);
     aom_free(enc_row_mt_mutex_);
@@ -1610,6 +1611,10 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   if (gm_mt_mutex_ != NULL) {
     pthread_mutex_destroy(gm_mt_mutex_);
     aom_free(gm_mt_mutex_);
+  }
+  if (pack_bs_mt_mutex_ != NULL) {
+    pthread_mutex_destroy(pack_bs_mt_mutex_);
+    aom_free(pack_bs_mt_mutex_);
   }
 #endif
   av1_row_mt_mem_dealloc(cpi);
