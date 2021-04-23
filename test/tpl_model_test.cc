@@ -76,10 +76,10 @@ TEST(TplModelTest, DeltaRateCostZeroFlow) {
 
 // a reference function of av1_delta_rate_cost() with delta_rate using bit as
 // basic unit
-double ref_delta_rate_cost(double delta_rate, double src_rec_ratio,
+double ref_delta_rate_cost(int64_t delta_rate, double src_rec_ratio,
                            int pixel_count) {
   assert(src_rec_ratio <= 1 && src_rec_ratio >= 0);
-  double bits_per_pixel = delta_rate / pixel_count;
+  double bits_per_pixel = (double)delta_rate / pixel_count;
   double p = pow(2, bits_per_pixel);
   double flow_rate_per_pixel =
       sqrt(p * p / (src_rec_ratio * p * p + (1 - src_rec_ratio)));
@@ -88,7 +88,7 @@ double ref_delta_rate_cost(double delta_rate, double src_rec_ratio,
 }
 
 TEST(TplModelTest, DeltaRateCostReference) {
-  int64_t scale = 1 << (TPL_DEP_COST_SCALE_LOG2 + AV1_PROB_COST_SHIFT);
+  const int64_t scale = TPL_DEP_COST_SCALE_LOG2 + AV1_PROB_COST_SHIFT;
   std::vector<int64_t> srcrf_dist_arr = { 256, 257, 312 };
   std::vector<int64_t> recrf_dist_arr = { 512, 288, 620 };
   std::vector<int64_t> delta_rate_arr = { 10, 278, 100 };
@@ -96,15 +96,15 @@ TEST(TplModelTest, DeltaRateCostReference) {
     int64_t srcrf_dist = srcrf_dist_arr[t];
     int64_t recrf_dist = recrf_dist_arr[t];
     int64_t delta_rate = delta_rate_arr[t];
-    int64_t scaled_delta_rate = delta_rate * scale;
+    int64_t scaled_delta_rate = delta_rate << scale;
     int pixel_count = 256;
-    double rate_cost = av1_delta_rate_cost(scaled_delta_rate, recrf_dist,
-                                           srcrf_dist, pixel_count);
-    rate_cost /= scale;
+    int64_t rate_cost = av1_delta_rate_cost(scaled_delta_rate, recrf_dist,
+                                            srcrf_dist, pixel_count);
+    rate_cost >>= scale;
     double src_rec_ratio = (double)srcrf_dist / recrf_dist;
     double ref_rate_cost =
         ref_delta_rate_cost(delta_rate, src_rec_ratio, pixel_count);
-    EXPECT_NEAR(rate_cost, ref_rate_cost, 1);
+    EXPECT_NEAR((double)rate_cost, ref_rate_cost, 1);
   }
 }
 
