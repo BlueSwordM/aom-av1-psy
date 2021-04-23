@@ -1180,10 +1180,59 @@ AV1_PRIMARY *av1_create_primary_compressor(
                             oxcf->gf_cfg.lag_in_frames);
     }
 #endif
+
+#if CONFIG_INTERNAL_STATS
+    ppi->b_calculate_blockiness = 1;
+    ppi->b_calculate_consistency = 1;
+
+    for (int i = 0; i <= STAT_ALL; i++) {
+      ppi->psnr[0].stat[i] = 0;
+      ppi->psnr[1].stat[i] = 0;
+
+      ppi->fastssim.stat[i] = 0;
+      ppi->psnrhvs.stat[i] = 0;
+    }
+
+    ppi->psnr[0].worst = 100.0;
+    ppi->psnr[1].worst = 100.0;
+    ppi->worst_ssim = 100.0;
+    ppi->worst_ssim_hbd = 100.0;
+
+    ppi->count[0] = 0;
+    ppi->count[1] = 0;
+    ppi->total_bytes = 0;
+
+    if (ppi->b_calculate_psnr) {
+      ppi->total_sq_error[0] = 0;
+      ppi->total_samples[0] = 0;
+      ppi->total_sq_error[1] = 0;
+      ppi->total_samples[1] = 0;
+      ppi->total_recode_hits = 0;
+      ppi->summed_quality = 0;
+      ppi->summed_weights = 0;
+      ppi->summed_quality_hbd = 0;
+      ppi->summed_weights_hbd = 0;
+    }
+
+    ppi->fastssim.worst = 100.0;
+    ppi->psnrhvs.worst = 100.0;
+
+    if (ppi->b_calculate_blockiness) {
+      ppi->total_blockiness = 0;
+      ppi->worst_blockiness = 0.0;
+    }
+
+    ppi->total_inconsistency = 0;
+    ppi->worst_consistency = 100.0;
+    if (ppi->b_calculate_consistency) {
+      AOM_CHECK_MEM_ERROR(&ppi->error, ppi->ssim_vars,
+                          aom_malloc(sizeof(*ppi->ssim_vars) * 4 *
+                                     mi_params.mi_rows * mi_params.mi_cols));
+    }
+#endif
   }
 
   ppi->error.setjmp = 0;
-
   return ppi;
 }
 
@@ -1251,50 +1300,9 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
 
   cpi->refresh_frame.alt_ref_frame = false;
 
-#if CONFIG_INTERNAL_STATS
-  cpi->b_calculate_blockiness = 1;
-  cpi->b_calculate_consistency = 1;
-  cpi->total_inconsistency = 0;
-  cpi->psnr[0].worst = 100.0;
-  cpi->psnr[1].worst = 100.0;
-  cpi->worst_ssim = 100.0;
-  cpi->worst_ssim_hbd = 100.0;
-
-  cpi->count[0] = 0;
-  cpi->count[1] = 0;
-  cpi->bytes = 0;
 #if CONFIG_SPEED_STATS
   cpi->tx_search_count = 0;
 #endif  // CONFIG_SPEED_STATS
-
-  if (cpi->ppi->b_calculate_psnr) {
-    cpi->total_sq_error[0] = 0;
-    cpi->total_samples[0] = 0;
-    cpi->total_sq_error[1] = 0;
-    cpi->total_samples[1] = 0;
-    cpi->tot_recode_hits = 0;
-    cpi->summed_quality = 0;
-    cpi->summed_weights = 0;
-    cpi->summed_quality_hbd = 0;
-    cpi->summed_weights_hbd = 0;
-  }
-
-  cpi->fastssim.worst = 100.0;
-  cpi->psnrhvs.worst = 100.0;
-
-  if (cpi->b_calculate_blockiness) {
-    cpi->total_blockiness = 0;
-    cpi->worst_blockiness = 0.0;
-  }
-
-  if (cpi->b_calculate_consistency) {
-    CHECK_MEM_ERROR(
-        cm, cpi->ssim_vars,
-        aom_malloc(sizeof(*cpi->ssim_vars) * 4 * cpi->common.mi_params.mi_rows *
-                   cpi->common.mi_params.mi_cols));
-    cpi->worst_consistency = 100.0;
-  }
-#endif
 #if CONFIG_ENTROPY_STATS
   av1_zero(aggregate_fc);
 #endif  // CONFIG_ENTROPY_STATS
@@ -1518,119 +1526,6 @@ void av1_remove_compressor(AV1_COMP *cpi) {
       fclose(f);
     }
 #endif  // CONFIG_ENTROPY_STATS
-#if CONFIG_INTERNAL_STATS
-    aom_clear_system_state();
-
-    if (!is_stat_generation_stage(cpi)) {
-      char headings[512] = { 0 };
-      char results[512] = { 0 };
-      FILE *f = fopen("opsnr.stt", "a");
-      double time_encoded =
-          (cpi->time_stamps.prev_ts_end - cpi->time_stamps.first_ts_start) /
-          10000000.000;
-      double total_encode_time =
-          (cpi->time_receive_data + cpi->time_compress_data) / 1000.000;
-      const double dr =
-          (double)cpi->bytes * (double)8 / (double)1000 / time_encoded;
-      const double peak =
-          (double)((1 << cpi->oxcf.input_cfg.input_bit_depth) - 1);
-      const double target_rate =
-          (double)cpi->oxcf.rc_cfg.target_bandwidth / 1000;
-      const double rate_err = ((100.0 * (dr - target_rate)) / target_rate);
-
-      if (cpi->ppi->b_calculate_psnr) {
-        const double total_psnr =
-            aom_sse_to_psnr((double)cpi->total_samples[0], peak,
-                            (double)cpi->total_sq_error[0]);
-        const double total_ssim =
-            100 * pow(cpi->summed_quality / cpi->summed_weights, 8.0);
-        snprintf(headings, sizeof(headings),
-                 "Bitrate\tAVGPsnr\tGLBPsnr\tAVPsnrP\tGLPsnrP\t"
-                 "AOMSSIM\tVPSSIMP\tFASTSIM\tPSNRHVS\t"
-                 "WstPsnr\tWstSsim\tWstFast\tWstHVS\t"
-                 "AVPsrnY\tAPsnrCb\tAPsnrCr");
-        snprintf(results, sizeof(results),
-                 "%7.2f\t%7.3f\t%7.3f\t%7.3f\t%7.3f\t"
-                 "%7.3f\t%7.3f\t%7.3f\t%7.3f\t"
-                 "%7.3f\t%7.3f\t%7.3f\t%7.3f\t"
-                 "%7.3f\t%7.3f\t%7.3f",
-                 dr, cpi->psnr[0].stat[STAT_ALL] / cpi->count[0], total_psnr,
-                 cpi->psnr[0].stat[STAT_ALL] / cpi->count[0], total_psnr,
-                 total_ssim, total_ssim,
-                 cpi->fastssim.stat[STAT_ALL] / cpi->count[0],
-                 cpi->psnrhvs.stat[STAT_ALL] / cpi->count[0],
-                 cpi->psnr[0].worst, cpi->worst_ssim, cpi->fastssim.worst,
-                 cpi->psnrhvs.worst, cpi->psnr[0].stat[STAT_Y] / cpi->count[0],
-                 cpi->psnr[0].stat[STAT_U] / cpi->count[0],
-                 cpi->psnr[0].stat[STAT_V] / cpi->count[0]);
-
-        if (cpi->b_calculate_blockiness) {
-          SNPRINT(headings, "\t  Block\tWstBlck");
-          SNPRINT2(results, "\t%7.3f", cpi->total_blockiness / cpi->count[0]);
-          SNPRINT2(results, "\t%7.3f", cpi->worst_blockiness);
-        }
-
-        if (cpi->b_calculate_consistency) {
-          double consistency =
-              aom_sse_to_psnr((double)cpi->total_samples[0], peak,
-                              (double)cpi->total_inconsistency);
-
-          SNPRINT(headings, "\tConsist\tWstCons");
-          SNPRINT2(results, "\t%7.3f", consistency);
-          SNPRINT2(results, "\t%7.3f", cpi->worst_consistency);
-        }
-
-        SNPRINT(headings, "\t   Time\tRcErr\tAbsErr");
-        SNPRINT2(results, "\t%8.0f", total_encode_time);
-        SNPRINT2(results, " %7.2f", rate_err);
-        SNPRINT2(results, " %7.2f", fabs(rate_err));
-
-        SNPRINT(headings, "\tAPsnr611");
-        SNPRINT2(results, " %7.3f",
-                 (6 * cpi->psnr[0].stat[STAT_Y] + cpi->psnr[0].stat[STAT_U] +
-                  cpi->psnr[0].stat[STAT_V]) /
-                     (cpi->count[0] * 8));
-
-#if CONFIG_AV1_HIGHBITDEPTH
-        const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
-        const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
-        if ((cpi->source->flags & YV12_FLAG_HIGHBITDEPTH) &&
-            (in_bit_depth < bit_depth)) {
-          const double peak_hbd = (double)((1 << bit_depth) - 1);
-          const double total_psnr_hbd =
-              aom_sse_to_psnr((double)cpi->total_samples[1], peak_hbd,
-                              (double)cpi->total_sq_error[1]);
-          const double total_ssim_hbd =
-              100 * pow(cpi->summed_quality_hbd / cpi->summed_weights_hbd, 8.0);
-          SNPRINT(headings,
-                  "\t AVGPsnrH GLBPsnrH AVPsnrPH GLPsnrPH"
-                  " AVPsnrYH APsnrCbH APsnrCrH WstPsnrH"
-                  " AOMSSIMH VPSSIMPH WstSsimH");
-          SNPRINT2(results, "\t%7.3f",
-                   cpi->psnr[1].stat[STAT_ALL] / cpi->count[1]);
-          SNPRINT2(results, "  %7.3f", total_psnr_hbd);
-          SNPRINT2(results, "  %7.3f",
-                   cpi->psnr[1].stat[STAT_ALL] / cpi->count[1]);
-          SNPRINT2(results, "  %7.3f", total_psnr_hbd);
-          SNPRINT2(results, "  %7.3f",
-                   cpi->psnr[1].stat[STAT_Y] / cpi->count[1]);
-          SNPRINT2(results, "  %7.3f",
-                   cpi->psnr[1].stat[STAT_U] / cpi->count[1]);
-          SNPRINT2(results, "  %7.3f",
-                   cpi->psnr[1].stat[STAT_V] / cpi->count[1]);
-          SNPRINT2(results, "  %7.3f", cpi->psnr[1].worst);
-          SNPRINT2(results, "  %7.3f", total_ssim_hbd);
-          SNPRINT2(results, "  %7.3f", total_ssim_hbd);
-          SNPRINT2(results, "  %7.3f", cpi->worst_ssim_hbd);
-        }
-#endif
-        fprintf(f, "%s\n", headings);
-        fprintf(f, "%s\n", results);
-      }
-
-      fclose(f);
-    }
-#endif  // CONFIG_INTERNAL_STATS
 #if CONFIG_SPEED_STATS
     if (!is_stat_generation_stage(cpi)) {
       fprintf(stdout, "tx_search_count = %d\n", cpi->tx_search_count);
@@ -1690,11 +1585,6 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   }
 
   dealloc_compressor_data(cpi);
-
-#if CONFIG_INTERNAL_STATS
-  aom_free(cpi->ssim_vars);
-  cpi->ssim_vars = NULL;
-#endif  // CONFIG_INTERNAL_STATS
 
   av1_remove_common(cm);
 
@@ -2526,7 +2416,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
   end_timing(cpi, av1_encode_frame_time);
 #endif
 #if CONFIG_INTERNAL_STATS
-  ++cpi->tot_recode_hits;
+  ++cpi->frame_recode_hits;
 #endif
 
   aom_clear_system_state();
@@ -2790,7 +2680,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       ++loop_count;
 
 #if CONFIG_INTERNAL_STATS
-      ++cpi->tot_recode_hits;
+      ++cpi->frame_recode_hits;
 #endif
     }
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -3610,7 +3500,7 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
     res = -1;
 #if CONFIG_INTERNAL_STATS
   aom_usec_timer_mark(&timer);
-  cpi->time_receive_data += aom_usec_timer_elapsed(&timer);
+  cpi->ppi->total_time_receive_data += aom_usec_timer_elapsed(&timer);
 #endif
 
   // Note: Regarding profile setting, the following checks are added to help
@@ -3658,6 +3548,7 @@ static void adjust_image_stat(double y, double u, double v, double all,
 }
 
 static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
+  AV1_PRIMARY *const ppi = cpi->ppi;
   AV1_COMMON *const cm = &cpi->common;
   double samples = 0.0;
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
@@ -3676,8 +3567,8 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
     const YV12_BUFFER_CONFIG *recon = &cpi->common.cur_frame->buf;
     double y, u, v, frame_all;
 
-    cpi->count[0]++;
-    cpi->count[1]++;
+    ppi->count[0]++;
+    ppi->count[1]++;
     if (cpi->ppi->b_calculate_psnr) {
       PSNR_STATS psnr;
       double weight[2] = { 0.0, 0.0 };
@@ -3689,9 +3580,9 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
       aom_calc_psnr(orig, recon, &psnr);
 #endif
       adjust_image_stat(psnr.psnr[1], psnr.psnr[2], psnr.psnr[3], psnr.psnr[0],
-                        &(cpi->psnr[0]));
-      cpi->total_sq_error[0] += psnr.sse[0];
-      cpi->total_samples[0] += psnr.samples[0];
+                        &(ppi->psnr[0]));
+      ppi->total_sq_error[0] += psnr.sse[0];
+      ppi->total_samples[0] += psnr.samples[0];
       samples = psnr.samples[0];
 
       // TODO(yaowu): unify these two versions into one.
@@ -3701,22 +3592,22 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
       else
         aom_calc_ssim(orig, recon, &weight[0], &frame_ssim2[0]);
 
-      cpi->worst_ssim = AOMMIN(cpi->worst_ssim, frame_ssim2[0]);
-      cpi->summed_quality += frame_ssim2[0] * weight[0];
-      cpi->summed_weights += weight[0];
+      ppi->worst_ssim = AOMMIN(ppi->worst_ssim, frame_ssim2[0]);
+      ppi->summed_quality += frame_ssim2[0] * weight[0];
+      ppi->summed_weights += weight[0];
 
 #if CONFIG_AV1_HIGHBITDEPTH
       // Compute PSNR based on stream bit depth
       if ((cpi->source->flags & YV12_FLAG_HIGHBITDEPTH) &&
           (in_bit_depth < bit_depth)) {
         adjust_image_stat(psnr.psnr_hbd[1], psnr.psnr_hbd[2], psnr.psnr_hbd[3],
-                          psnr.psnr_hbd[0], &cpi->psnr[1]);
-        cpi->total_sq_error[1] += psnr.sse_hbd[0];
-        cpi->total_samples[1] += psnr.samples_hbd[0];
+                          psnr.psnr_hbd[0], &ppi->psnr[1]);
+        ppi->total_sq_error[1] += psnr.sse_hbd[0];
+        ppi->total_samples[1] += psnr.samples_hbd[0];
 
-        cpi->worst_ssim_hbd = AOMMIN(cpi->worst_ssim_hbd, frame_ssim2[1]);
-        cpi->summed_quality_hbd += frame_ssim2[1] * weight[1];
-        cpi->summed_weights_hbd += weight[1];
+        ppi->worst_ssim_hbd = AOMMIN(ppi->worst_ssim_hbd, frame_ssim2[1]);
+        ppi->summed_quality_hbd += frame_ssim2[1] * weight[1];
+        ppi->summed_weights_hbd += weight[1];
       }
 #endif
 
@@ -3734,37 +3625,158 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
       }
 #endif
     }
-    if (cpi->b_calculate_blockiness) {
+    if (ppi->b_calculate_blockiness) {
       if (!cm->seq_params->use_highbitdepth) {
         const double frame_blockiness =
             av1_get_blockiness(orig->y_buffer, orig->y_stride, recon->y_buffer,
                                recon->y_stride, orig->y_width, orig->y_height);
-        cpi->worst_blockiness = AOMMAX(cpi->worst_blockiness, frame_blockiness);
-        cpi->total_blockiness += frame_blockiness;
+        ppi->worst_blockiness = AOMMAX(ppi->worst_blockiness, frame_blockiness);
+        ppi->total_blockiness += frame_blockiness;
       }
 
-      if (cpi->b_calculate_consistency) {
+      if (ppi->b_calculate_consistency) {
         if (!cm->seq_params->use_highbitdepth) {
           const double this_inconsistency = aom_get_ssim_metrics(
               orig->y_buffer, orig->y_stride, recon->y_buffer, recon->y_stride,
-              orig->y_width, orig->y_height, cpi->ssim_vars, &cpi->metrics, 1);
+              orig->y_width, orig->y_height, ppi->ssim_vars, &ppi->metrics, 1);
 
           const double peak = (double)((1 << in_bit_depth) - 1);
           const double consistency =
-              aom_sse_to_psnr(samples, peak, cpi->total_inconsistency);
+              aom_sse_to_psnr(samples, peak, ppi->total_inconsistency);
           if (consistency > 0.0)
-            cpi->worst_consistency =
-                AOMMIN(cpi->worst_consistency, consistency);
-          cpi->total_inconsistency += this_inconsistency;
+            ppi->worst_consistency =
+                AOMMIN(ppi->worst_consistency, consistency);
+          ppi->total_inconsistency += this_inconsistency;
         }
       }
     }
 
     frame_all =
         aom_calc_fastssim(orig, recon, &y, &u, &v, bit_depth, in_bit_depth);
-    adjust_image_stat(y, u, v, frame_all, &cpi->fastssim);
+    adjust_image_stat(y, u, v, frame_all, &ppi->fastssim);
     frame_all = aom_psnrhvs(orig, recon, &y, &u, &v, bit_depth, in_bit_depth);
-    adjust_image_stat(y, u, v, frame_all, &cpi->psnrhvs);
+    adjust_image_stat(y, u, v, frame_all, &ppi->psnrhvs);
+  }
+}
+
+void print_internal_stats(AV1_PRIMARY *const ppi) {
+  if (!ppi->cpi) return;
+  AV1_COMP *const cpi = ppi->cpi;
+
+  if (ppi->cpi->oxcf.pass != 1 &&
+      ppi->cpi->common.current_frame.frame_number > 0) {
+    aom_clear_system_state();
+    char headings[512] = { 0 };
+    char results[512] = { 0 };
+    FILE *f = fopen("opsnr.stt", "a");
+    double time_encoded =
+        (cpi->time_stamps.prev_ts_end - cpi->time_stamps.first_ts_start) /
+        10000000.000;
+    double total_encode_time =
+        (ppi->total_time_receive_data + ppi->total_time_compress_data) /
+        1000.000;
+    const double dr =
+        (double)ppi->total_bytes * (double)8 / (double)1000 / time_encoded;
+    const double peak =
+        (double)((1 << ppi->cpi->oxcf.input_cfg.input_bit_depth) - 1);
+    const double target_rate =
+        (double)ppi->cpi->oxcf.rc_cfg.target_bandwidth / 1000;
+    const double rate_err = ((100.0 * (dr - target_rate)) / target_rate);
+
+    if (ppi->b_calculate_psnr) {
+      const double total_psnr = aom_sse_to_psnr(
+          (double)ppi->total_samples[0], peak, (double)ppi->total_sq_error[0]);
+      const double total_ssim =
+          100 * pow(ppi->summed_quality / ppi->summed_weights, 8.0);
+      snprintf(headings, sizeof(headings),
+               "Bitrate\tAVGPsnr\tGLBPsnr\tAVPsnrP\tGLPsnrP\t"
+               "AOMSSIM\tVPSSIMP\tFASTSIM\tPSNRHVS\t"
+               "WstPsnr\tWstSsim\tWstFast\tWstHVS\t"
+               "AVPsrnY\tAPsnrCb\tAPsnrCr");
+      snprintf(results, sizeof(results),
+               "%7.2f\t%7.3f\t%7.3f\t%7.3f\t%7.3f\t"
+               "%7.3f\t%7.3f\t%7.3f\t%7.3f\t"
+               "%7.3f\t%7.3f\t%7.3f\t%7.3f\t"
+               "%7.3f\t%7.3f\t%7.3f",
+               dr, ppi->psnr[0].stat[STAT_ALL] / ppi->count[0], total_psnr,
+               ppi->psnr[0].stat[STAT_ALL] / ppi->count[0], total_psnr,
+               total_ssim, total_ssim,
+               ppi->fastssim.stat[STAT_ALL] / ppi->count[0],
+               ppi->psnrhvs.stat[STAT_ALL] / ppi->count[0], ppi->psnr[0].worst,
+               ppi->worst_ssim, ppi->fastssim.worst, ppi->psnrhvs.worst,
+               ppi->psnr[0].stat[STAT_Y] / ppi->count[0],
+               ppi->psnr[0].stat[STAT_U] / ppi->count[0],
+               ppi->psnr[0].stat[STAT_V] / ppi->count[0]);
+
+      if (ppi->b_calculate_blockiness) {
+        SNPRINT(headings, "\t  Block\tWstBlck");
+        SNPRINT2(results, "\t%7.3f", ppi->total_blockiness / ppi->count[0]);
+        SNPRINT2(results, "\t%7.3f", ppi->worst_blockiness);
+      }
+
+      if (ppi->b_calculate_consistency) {
+        double consistency =
+            aom_sse_to_psnr((double)ppi->total_samples[0], peak,
+                            (double)ppi->total_inconsistency);
+
+        SNPRINT(headings, "\tConsist\tWstCons");
+        SNPRINT2(results, "\t%7.3f", consistency);
+        SNPRINT2(results, "\t%7.3f", ppi->worst_consistency);
+      }
+
+      SNPRINT(headings, "\t   Time\tRcErr\tAbsErr");
+      SNPRINT2(results, "\t%8.0f", total_encode_time);
+      SNPRINT2(results, " %7.2f", rate_err);
+      SNPRINT2(results, " %7.2f", fabs(rate_err));
+
+      SNPRINT(headings, "\tAPsnr611");
+      SNPRINT2(results, " %7.3f",
+               (6 * ppi->psnr[0].stat[STAT_Y] + ppi->psnr[0].stat[STAT_U] +
+                ppi->psnr[0].stat[STAT_V]) /
+                   (ppi->count[0] * 8));
+
+#if CONFIG_AV1_HIGHBITDEPTH
+      const uint32_t in_bit_depth = ppi->cpi->oxcf.input_cfg.input_bit_depth;
+      const uint32_t bit_depth = ppi->seq_params.bit_depth;
+      // Since cpi->source->flags is not available here, but total_samples[1]
+      // will be non-zero if cpi->source->flags & YV12_FLAG_HIGHBITDEPTH was
+      // true in compute_internal_stats
+      if ((ppi->total_samples[1] > 0) && (in_bit_depth < bit_depth)) {
+        const double peak_hbd = (double)((1 << bit_depth) - 1);
+        const double total_psnr_hbd =
+            aom_sse_to_psnr((double)ppi->total_samples[1], peak_hbd,
+                            (double)ppi->total_sq_error[1]);
+        const double total_ssim_hbd =
+            100 * pow(ppi->summed_quality_hbd / ppi->summed_weights_hbd, 8.0);
+        SNPRINT(headings,
+                "\t AVGPsnrH GLBPsnrH AVPsnrPH GLPsnrPH"
+                " AVPsnrYH APsnrCbH APsnrCrH WstPsnrH"
+                " AOMSSIMH VPSSIMPH WstSsimH");
+        SNPRINT2(results, "\t%7.3f",
+                 ppi->psnr[1].stat[STAT_ALL] / ppi->count[1]);
+        SNPRINT2(results, "  %7.3f", total_psnr_hbd);
+        SNPRINT2(results, "  %7.3f",
+                 ppi->psnr[1].stat[STAT_ALL] / ppi->count[1]);
+        SNPRINT2(results, "  %7.3f", total_psnr_hbd);
+        SNPRINT2(results, "  %7.3f", ppi->psnr[1].stat[STAT_Y] / ppi->count[1]);
+        SNPRINT2(results, "  %7.3f", ppi->psnr[1].stat[STAT_U] / ppi->count[1]);
+        SNPRINT2(results, "  %7.3f", ppi->psnr[1].stat[STAT_V] / ppi->count[1]);
+        SNPRINT2(results, "  %7.3f", ppi->psnr[1].worst);
+        SNPRINT2(results, "  %7.3f", total_ssim_hbd);
+        SNPRINT2(results, "  %7.3f", total_ssim_hbd);
+        SNPRINT2(results, "  %7.3f", ppi->worst_ssim_hbd);
+      }
+#endif
+      fprintf(f, "%s\n", headings);
+      fprintf(f, "%s\n", results);
+    }
+
+    fclose(f);
+
+    if (ppi->ssim_vars != NULL) {
+      aom_free(ppi->ssim_vars);
+      ppi->ssim_vars = NULL;
+    }
   }
 }
 #endif  // CONFIG_INTERNAL_STATS
@@ -3775,6 +3787,12 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
                             const aom_rational64_t *timestamp_ratio) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
+
+#if CONFIG_INTERNAL_STATS
+  cpi->frame_recode_hits = 0;
+  cpi->time_compress_data = 0;
+  cpi->bytes = 0;
+#endif
 
 #if CONFIG_BITSTREAM_DEBUG
   assert(cpi->oxcf.max_threads <= 1 &&

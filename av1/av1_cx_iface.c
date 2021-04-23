@@ -2384,6 +2384,10 @@ static aom_codec_err_t encoder_destroy(aom_codec_alg_priv_t *ctx) {
 
   if (ctx->ppi) {
     AV1_PRIMARY *ppi = ctx->ppi;
+
+#if CONFIG_INTERNAL_STATS
+    print_internal_stats(ppi);
+#endif
 #if CONFIG_FRAME_PARALLEL_ENCODE
     int i;
     for (i = 0; i < ppi->num_fp_contexts; i++) {
@@ -2660,6 +2664,17 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       if (status != AOM_CODEC_OK) {
         aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
       }
+
+#if CONFIG_INTERNAL_STATS
+      if (ppi->cpi->oxcf.pass != 1) {
+        ppi->total_time_compress_data += cpi->time_compress_data;
+        ppi->total_recode_hits += cpi->frame_recode_hits;
+        ppi->total_bytes += cpi->bytes;
+        for (int i = 0; i < MAX_MODES; i++) {
+          ppi->total_mode_chosen_counts[i] += cpi->mode_chosen_counts[i];
+        }
+      }
+#endif  // CONFIG_INTERNAL_STATS
 
       cpi->ppi->seq_params_locked = 1;
       if (!frame_size) continue;

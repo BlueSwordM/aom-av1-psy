@@ -2237,6 +2237,43 @@ typedef struct AV1_PRIMARY {
    * Parameters related to tpl.
    */
   TplParams tpl_data;
+
+#if CONFIG_INTERNAL_STATS
+  /*!\cond */
+  uint64_t total_time_receive_data;
+  uint64_t total_time_compress_data;
+
+  unsigned int total_mode_chosen_counts[MAX_MODES];
+
+  int count[2];
+  uint64_t total_sq_error[2];
+  uint64_t total_samples[2];
+  ImageStat psnr[2];
+
+  double total_blockiness;
+  double worst_blockiness;
+
+  int total_bytes;
+  double summed_quality;
+  double summed_weights;
+  double summed_quality_hbd;
+  double summed_weights_hbd;
+  unsigned int total_recode_hits;
+  double worst_ssim;
+  double worst_ssim_hbd;
+
+  ImageStat fastssim;
+  ImageStat psnrhvs;
+
+  int b_calculate_blockiness;
+  int b_calculate_consistency;
+
+  double total_inconsistency;
+  double worst_consistency;
+  Ssimv *ssim_vars;
+  Metrics metrics;
+  /*!\endcond */
+#endif
 } AV1_PRIMARY;
 
 /*!
@@ -2506,38 +2543,11 @@ typedef struct AV1_COMP {
 
 #if CONFIG_INTERNAL_STATS
   /*!\cond */
-  uint64_t time_receive_data;
   uint64_t time_compress_data;
 
   unsigned int mode_chosen_counts[MAX_MODES];
-
-  int count[2];
-  uint64_t total_sq_error[2];
-  uint64_t total_samples[2];
-  ImageStat psnr[2];
-
-  double total_blockiness;
-  double worst_blockiness;
-
   int bytes;
-  double summed_quality;
-  double summed_weights;
-  double summed_quality_hbd;
-  double summed_weights_hbd;
-  unsigned int tot_recode_hits;
-  double worst_ssim;
-  double worst_ssim_hbd;
-
-  ImageStat fastssim;
-  ImageStat psnrhvs;
-
-  int b_calculate_blockiness;
-  int b_calculate_consistency;
-
-  double total_inconsistency;
-  double worst_consistency;
-  Ssimv *ssim_vars;
-  Metrics metrics;
+  unsigned int frame_recode_hits;
   /*!\endcond */
 #endif
 
@@ -2896,6 +2906,10 @@ struct AV1_PRIMARY *av1_create_primary_compressor(
 void av1_remove_compressor(AV1_COMP *cpi);
 
 void av1_remove_primary_compressor(AV1_PRIMARY *ppi);
+
+#if CONFIG_INTERNAL_STATS
+void print_internal_stats(AV1_PRIMARY *ppi);
+#endif
 
 void av1_change_config_seq(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
                            bool *sb_size_changed);
