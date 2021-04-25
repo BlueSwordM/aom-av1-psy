@@ -75,11 +75,10 @@ int av1_cdef_compute_sb_list(const CommonModeInfoParams *const mi_params,
                              int mi_row, int mi_col, cdef_list *dlist,
                              BLOCK_SIZE bsize);
 
-typedef void (*cdef_init_fb_row_t)(AV1_COMMON *cm, MACROBLOCKD *const xd,
-                                   CdefBlockInfo *fb_info,
-                                   uint16_t **const linebuf,
-                                   uint16_t *const src,
-                                   struct AV1CdefSyncData *cdef_sync, int fbr);
+typedef void (*cdef_init_fb_row_t)(
+    const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
+    CdefBlockInfo *const fb_info, uint16_t **const linebuf, uint16_t *const src,
+    struct AV1CdefSyncData *const cdef_sync, int fbr);
 
 /*!\brief Function for applying CDEF to a frame
  *
@@ -94,16 +93,18 @@ typedef void (*cdef_init_fb_row_t)(AV1_COMMON *cm, MACROBLOCKD *const xd,
  * \return Nothing is returned. Instead, the filtered frame is output in
  * \c frame.
  */
-void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm, MACROBLOCKD *xd,
-                    cdef_init_fb_row_t cdef_init_fb_row_fn);
-void av1_cdef_fb_row(AV1_COMMON *cm, MACROBLOCKD *xd, uint16_t **const linebuf,
-                     uint16_t **const colbuf, uint16_t *const src, int fbr,
+void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *const cm,
+                    MACROBLOCKD *xd, cdef_init_fb_row_t cdef_init_fb_row_fn);
+void av1_cdef_fb_row(const AV1_COMMON *const cm, MACROBLOCKD *xd,
+                     uint16_t **const linebuf, uint16_t **const colbuf,
+                     uint16_t *const src, int fbr,
                      cdef_init_fb_row_t cdef_init_fb_row_fn,
-                     struct AV1CdefSyncData *cdef_sync);
-void av1_cdef_init_fb_row(AV1_COMMON *cm, MACROBLOCKD *const xd,
-                          CdefBlockInfo *fb_info, uint16_t **const linebuf,
-                          uint16_t *const src,
-                          struct AV1CdefSyncData *cdef_sync, int fbr);
+                     struct AV1CdefSyncData *const cdef_sync);
+void av1_cdef_init_fb_row(const AV1_COMMON *const cm,
+                          const MACROBLOCKD *const xd,
+                          CdefBlockInfo *const fb_info,
+                          uint16_t **const linebuf, uint16_t *const src,
+                          struct AV1CdefSyncData *const cdef_sync, int fbr);
 
 #ifdef __cplusplus
 }  // extern "C"

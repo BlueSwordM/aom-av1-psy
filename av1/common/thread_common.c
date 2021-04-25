@@ -152,7 +152,7 @@ static void loop_filter_data_reset(LFWorkerData *lf_data,
   }
 }
 
-void av1_alloc_cdef_sync(AV1_COMMON *cm, AV1CdefSync *cdef_sync,
+void av1_alloc_cdef_sync(AV1_COMMON *const cm, AV1CdefSync *cdef_sync,
                          int num_workers) {
   if (num_workers < 1) return;
 #if CONFIG_MULTITHREAD
@@ -177,10 +177,11 @@ void av1_free_cdef_sync(AV1CdefSync *cdef_sync) {
 #endif  // CONFIG_MULTITHREAD
 }
 
-static INLINE void cdef_row_mt_sync_read(AV1CdefSync *cdef_sync, int row) {
+static INLINE void cdef_row_mt_sync_read(AV1CdefSync *const cdef_sync,
+                                         int row) {
   if (!row) return;
 #if CONFIG_MULTITHREAD
-  AV1CdefRowSync *cdef_row_mt = cdef_sync->cdef_row_mt;
+  AV1CdefRowSync *const cdef_row_mt = cdef_sync->cdef_row_mt;
   pthread_mutex_lock(cdef_row_mt[row - 1].row_mutex_);
   while (cdef_row_mt[row - 1].is_row_done != 1)
     pthread_cond_wait(cdef_row_mt[row - 1].row_cond_,
@@ -192,9 +193,10 @@ static INLINE void cdef_row_mt_sync_read(AV1CdefSync *cdef_sync, int row) {
 #endif  // CONFIG_MULTITHREAD
 }
 
-static INLINE void cdef_row_mt_sync_write(AV1CdefSync *cdef_sync, int row) {
+static INLINE void cdef_row_mt_sync_write(AV1CdefSync *const cdef_sync,
+                                          int row) {
 #if CONFIG_MULTITHREAD
-  AV1CdefRowSync *cdef_row_mt = cdef_sync->cdef_row_mt;
+  AV1CdefRowSync *const cdef_row_mt = cdef_sync->cdef_row_mt;
   pthread_mutex_lock(cdef_row_mt[row].row_mutex_);
   pthread_cond_signal(cdef_row_mt[row].row_cond_);
   cdef_row_mt[row].is_row_done = 1;
@@ -987,7 +989,7 @@ void av1_loop_restoration_filter_frame_mt(YV12_BUFFER_CONFIG *frame,
 #endif
 
 // Initializes cdef_sync parameters.
-static AOM_INLINE void reset_cdef_job_info(AV1CdefSync *cdef_sync) {
+static AOM_INLINE void reset_cdef_job_info(AV1CdefSync *const cdef_sync) {
   cdef_sync->end_of_frame = 0;
   cdef_sync->fbr = 0;
   cdef_sync->fbc = 0;
@@ -1023,7 +1025,8 @@ static AOM_INLINE void sync_cdef_workers(AVxWorker *const workers,
 
 // Updates the row index of the next job to be processed.
 // Also updates end_of_frame flag when the processing of all rows is complete.
-static void update_cdef_row_next_job_info(AV1CdefSync *cdef_sync, int nvfb) {
+static void update_cdef_row_next_job_info(AV1CdefSync *const cdef_sync,
+                                          const int nvfb) {
   cdef_sync->fbr++;
   if (cdef_sync->fbr == nvfb) {
     cdef_sync->end_of_frame = 1;
@@ -1032,7 +1035,7 @@ static void update_cdef_row_next_job_info(AV1CdefSync *cdef_sync, int nvfb) {
 
 // Checks if a job is available. If job is available,
 // populates next job information and returns 1, else returns 0.
-static AOM_INLINE int get_cdef_row_next_job(AV1CdefSync *cdef_sync,
+static AOM_INLINE int get_cdef_row_next_job(AV1CdefSync *const cdef_sync,
                                             int *cur_fbr, const int nvfb) {
 #if CONFIG_MULTITHREAD
   pthread_mutex_lock(cdef_sync->mutex_);
@@ -1054,7 +1057,7 @@ static AOM_INLINE int get_cdef_row_next_job(AV1CdefSync *cdef_sync,
 // Hook function for each thread in CDEF multi-threading.
 static int cdef_sb_row_worker_hook(void *arg1, void *arg2) {
   AV1CdefSync *const cdef_sync = (AV1CdefSync *)arg1;
-  AV1CdefWorkerData *cdef_worker = (AV1CdefWorkerData *)arg2;
+  AV1CdefWorkerData *const cdef_worker = (AV1CdefWorkerData *)arg2;
   const int nvfb =
       (cdef_worker->cm->mi_params.mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   int cur_fbr;
@@ -1067,18 +1070,17 @@ static int cdef_sb_row_worker_hook(void *arg1, void *arg2) {
 }
 
 // Assigns CDEF hook function and thread data to each worker.
-static void prepare_cdef_frame_workers(AV1_COMMON *cm, MACROBLOCKD *xd,
-                                       AV1CdefWorkerData *cdef_worker,
-                                       AVxWorkerHook hook, AVxWorker *workers,
-                                       AV1CdefSync *cdef_sync, int num_workers,
-                                       cdef_init_fb_row_t cdef_init_fb_row_fn) {
+static void prepare_cdef_frame_workers(
+    AV1_COMMON *const cm, MACROBLOCKD *xd, AV1CdefWorkerData *const cdef_worker,
+    AVxWorkerHook hook, AVxWorker *const workers, AV1CdefSync *const cdef_sync,
+    int num_workers, cdef_init_fb_row_t cdef_init_fb_row_fn) {
   const int num_planes = av1_num_planes(cm);
 
   cdef_worker[0].srcbuf = cm->cdef_info.srcbuf;
   for (int plane = 0; plane < num_planes; plane++)
     cdef_worker[0].colbuf[plane] = cm->cdef_info.colbuf[plane];
   for (int i = num_workers - 1; i >= 0; i--) {
-    AVxWorker *worker = &workers[i];
+    AVxWorker *const worker = &workers[i];
     cdef_worker[i].cm = cm;
     cdef_worker[i].xd = xd;
     cdef_worker[i].cdef_init_fb_row_fn = cdef_init_fb_row_fn;
@@ -1092,10 +1094,11 @@ static void prepare_cdef_frame_workers(AV1_COMMON *cm, MACROBLOCKD *xd,
 }
 
 // Initializes row-level parameters for CDEF frame.
-void av1_cdef_init_fb_row_mt(AV1_COMMON *cm, MACROBLOCKD *const xd,
-                             CdefBlockInfo *fb_info, uint16_t **const linebuf,
-                             uint16_t *const src,
-                             struct AV1CdefSyncData *cdef_sync, int fbr) {
+void av1_cdef_init_fb_row_mt(const AV1_COMMON *const cm,
+                             const MACROBLOCKD *const xd,
+                             CdefBlockInfo *const fb_info,
+                             uint16_t **const linebuf, uint16_t *const src,
+                             struct AV1CdefSyncData *const cdef_sync, int fbr) {
   const int num_planes = av1_num_planes(cm);
   const int nvfb = (cm->mi_params.mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   const int luma_stride =
@@ -1161,9 +1164,10 @@ void av1_cdef_init_fb_row_mt(AV1_COMMON *cm, MACROBLOCKD *const xd,
 //   xd: Pointer to common current coding block structure.
 // Returns:
 //   Nothing will be returned.
-void av1_cdef_frame_mt(AV1_COMMON *cm, MACROBLOCKD *xd,
-                       AV1CdefWorkerData *cdef_worker, AVxWorker *workers,
-                       AV1CdefSync *cdef_sync, int num_workers,
+void av1_cdef_frame_mt(AV1_COMMON *const cm, MACROBLOCKD *const xd,
+                       AV1CdefWorkerData *const cdef_worker,
+                       AVxWorker *const workers, AV1CdefSync *const cdef_sync,
+                       int num_workers,
                        cdef_init_fb_row_t cdef_init_fb_row_fn) {
   YV12_BUFFER_CONFIG *frame = &cm->cur_frame->buf;
   const int num_planes = av1_num_planes(cm);
