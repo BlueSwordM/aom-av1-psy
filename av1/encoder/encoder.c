@@ -329,9 +329,9 @@ static INLINE int does_level_match(int width, int height, double fps,
          height <= lvl_height * lvl_dim_mult;
 }
 
-static void set_bitstream_level_tier(SequenceHeader *seq, AV1_COMMON *cm,
-                                     int width, int height,
-                                     double init_framerate) {
+static void set_bitstream_level_tier(AV1_PRIMARY *const ppi, int width,
+                                     int height, double init_framerate) {
+  SequenceHeader *const seq_params = &ppi->seq_params;
   // TODO(any): This is a placeholder function that only addresses dimensions
   // and max display sample rates.
   // Need to add checks for max bit rate, max decoded luma sample rate, header
@@ -374,26 +374,26 @@ static void set_bitstream_level_tier(SequenceHeader *seq, AV1_COMMON *cm,
     level = SEQ_LEVEL_6_2;
   }
 
-  SequenceHeader *const seq_params = cm->seq_params;
   for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i) {
-    seq->seq_level_idx[i] = level;
+    seq_params->seq_level_idx[i] = level;
     // Set the maximum parameters for bitrate and buffer size for this profile,
     // level, and tier
     seq_params->op_params[i].bitrate = av1_max_level_bitrate(
-        cm->seq_params->profile, seq->seq_level_idx[i], seq->tier[i]);
+        seq_params->profile, seq_params->seq_level_idx[i], seq_params->tier[i]);
     // Level with seq_level_idx = 31 returns a high "dummy" bitrate to pass the
     // check
     if (seq_params->op_params[i].bitrate == 0)
       aom_internal_error(
-          cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+          &ppi->error, AOM_CODEC_UNSUP_BITSTREAM,
           "AV1 does not support this combination of profile, level, and tier.");
     // Buffer size in bits/s is bitrate in bits/s * 1 s
     seq_params->op_params[i].buffer_size = seq_params->op_params[i].bitrate;
   }
 }
 
-void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
+void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi, AV1_COMMON *cm,
                                const AV1EncoderConfig *oxcf, int use_svc) {
+  SequenceHeader *const seq = &ppi->seq_params;
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
   const ToolCfg *const tool_cfg = &oxcf->tool_cfg;
 
@@ -451,7 +451,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_intra_edge_filter = oxcf->intra_mode_cfg.enable_intra_edge_filter;
   seq->enable_filter_intra = oxcf->intra_mode_cfg.enable_filter_intra;
 
-  set_bitstream_level_tier(seq, cm, frm_dim_cfg->width, frm_dim_cfg->height,
+  set_bitstream_level_tier(ppi, frm_dim_cfg->width, frm_dim_cfg->height,
                            oxcf->input_cfg.init_framerate);
 
   if (seq->operating_points_cnt_minus_1 == 0) {
@@ -809,7 +809,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
         (cm->number_spatial_layers > 1 || cm->number_temporal_layers > 1)
             ? cm->number_spatial_layers * cm->number_temporal_layers - 1
             : 0;
-    av1_init_seq_coding_tools(cm->seq_params, cm, oxcf, cpi->ppi->use_svc);
+    av1_init_seq_coding_tools(cpi->ppi, cm, oxcf, cpi->ppi->use_svc);
   }
 
   if (cpi->ppi->use_svc)
@@ -4091,12 +4091,12 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
   }
 }
 
-aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi) {
-  if (!cpi) return NULL;
+aom_fixed_buf_t *av1_get_global_headers(AV1_PRIMARY *ppi) {
+  if (!ppi) return NULL;
 
   uint8_t header_buf[512] = { 0 };
   const uint32_t sequence_header_size =
-      av1_write_sequence_header_obu(cpi->common.seq_params, &header_buf[0]);
+      av1_write_sequence_header_obu(&ppi->seq_params, &header_buf[0]);
   assert(sequence_header_size <= sizeof(header_buf));
   if (sequence_header_size == 0) return NULL;
 
@@ -4107,7 +4107,7 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi) {
   if (payload_offset + sequence_header_size > sizeof(header_buf)) return NULL;
   memmove(&header_buf[payload_offset], &header_buf[0], sequence_header_size);
 
-  if (av1_write_obu_header(&cpi->ppi->level_params, &cpi->frame_header_count,
+  if (av1_write_obu_header(&ppi->level_params, &ppi->cpi->frame_header_count,
                            OBU_SEQUENCE_HEADER, 0,
                            &header_buf[0]) != obu_header_size) {
     return NULL;
