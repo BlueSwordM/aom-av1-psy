@@ -869,33 +869,16 @@ static int round_floor(int ref_pos, int bsize_pix) {
   return round;
 }
 
-static int get_overlap_area(int grid_pos_row, int grid_pos_col, int ref_pos_row,
-                            int ref_pos_col, int block, BLOCK_SIZE bsize) {
-  int width = 0, height = 0;
-  int bw = 4 << mi_size_wide_log2[bsize];
-  int bh = 4 << mi_size_high_log2[bsize];
-
-  switch (block) {
-    case 0:
-      width = grid_pos_col + bw - ref_pos_col;
-      height = grid_pos_row + bh - ref_pos_row;
-      break;
-    case 1:
-      width = ref_pos_col + bw - grid_pos_col;
-      height = grid_pos_row + bh - ref_pos_row;
-      break;
-    case 2:
-      width = grid_pos_col + bw - ref_pos_col;
-      height = ref_pos_row + bh - grid_pos_row;
-      break;
-    case 3:
-      width = ref_pos_col + bw - grid_pos_col;
-      height = ref_pos_row + bh - grid_pos_row;
-      break;
-    default: assert(0);
+int av1_get_overlap_area(int row_a, int col_a, int row_b, int col_b, int width,
+                         int height) {
+  int min_row = AOMMAX(row_a, row_b);
+  int max_row = AOMMIN(row_a + height, row_b + height);
+  int min_col = AOMMAX(col_a, col_b);
+  int max_col = AOMMIN(col_a + width, col_b + width);
+  if (min_row < max_row && min_col < max_col) {
+    return (max_row - min_row) * (max_col - min_col);
   }
-  int overlap_area = width * height;
-  return overlap_area;
+  return 0;
 }
 
 int av1_tpl_ptr_pos(int mi_row, int mi_col, int stride, uint8_t right_shift) {
@@ -988,8 +971,8 @@ static AOM_INLINE void tpl_model_update_b(TplParams *const tpl_data, int mi_row,
 
     if (grid_pos_row >= 0 && grid_pos_row < ref_tpl_frame->mi_rows * MI_SIZE &&
         grid_pos_col >= 0 && grid_pos_col < ref_tpl_frame->mi_cols * MI_SIZE) {
-      int overlap_area = get_overlap_area(
-          grid_pos_row, grid_pos_col, ref_pos_row, ref_pos_col, block, bsize);
+      int overlap_area = av1_get_overlap_area(grid_pos_row, grid_pos_col,
+                                              ref_pos_row, ref_pos_col, bw, bh);
       int ref_mi_row = round_floor(grid_pos_row, bh) * mi_height;
       int ref_mi_col = round_floor(grid_pos_col, bw) * mi_width;
       assert((1 << block_mis_log2) == mi_height);

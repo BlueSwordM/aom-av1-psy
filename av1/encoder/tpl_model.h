@@ -352,6 +352,24 @@ double av1_estimate_txfm_block_entropy(int q_index,
 int64_t av1_delta_rate_cost(int64_t delta_rate, int64_t recrf_dist,
                             int64_t srcrf_dist, int pix_num);
 
+/*!\brief  Compute the overlap area between two blocks with the same size
+ *
+ *\ingroup tpl_modelling
+ *
+ * If there is no overlap, this function should return zero.
+ *
+ * \param[in]    row_a  row position of the first block
+ * \param[in]    col_a  column position of the first block
+ * \param[in]    row_b  row position of the second block
+ * \param[in]    col_b  column position of the second block
+ * \param[in]    width  width shared by the two blocks
+ * \param[in]    height height shared by the two blocks
+ *
+ * \return overlap area of the two blocks
+ */
+int av1_get_overlap_area(int row_a, int col_a, int row_b, int col_b, int width,
+                         int height);
+
 /*!\endcond */
 #ifdef __cplusplus
 }  // extern "C"
