@@ -1566,12 +1566,6 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
     return active_best_quality;
   }
 
-  // TODO(chengchen): can we remove this condition?
-  if (rc_mode == AOM_Q && !refresh_frame_flags->alt_ref_frame &&
-      !refresh_frame_flags->golden_frame && !is_intrl_arf_boost) {
-    return cq_level;
-  }
-
   // Determine active_best_quality for frames that are not leaf or overlay.
   int q = active_worst_quality;
   // Use the lower of active_worst_quality and recent
