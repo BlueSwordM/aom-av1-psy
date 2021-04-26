@@ -124,9 +124,6 @@ TEST_P(MonochromeTest, TestMonochromeEncoding) {
 
   init_flags_ = AOM_CODEC_USE_PSNR;
 
-  cfg_.g_w = 352;
-  cfg_.g_h = 288;
-
   cfg_.rc_buf_initial_sz = 500;
   cfg_.rc_buf_optimal_sz = 600;
   cfg_.rc_buf_sz = 1000;
@@ -135,13 +132,10 @@ TEST_P(MonochromeTest, TestMonochromeEncoding) {
   cfg_.rc_undershoot_pct = 50;
   cfg_.rc_overshoot_pct = 50;
   cfg_.rc_end_usage = AOM_CBR;
-  cfg_.kf_mode = AOM_KF_AUTO;
   cfg_.g_lag_in_frames = 1;
   cfg_.kf_min_dist = cfg_.kf_max_dist = 3000;
   // Enable dropped frames.
   cfg_.rc_dropframe_thresh = 1;
-  // Disable error_resilience mode.
-  cfg_.g_error_resilient = 0;
   // Run at low bitrate.
   cfg_.rc_target_bitrate = 40;
   // Set monochrome encoding flag
