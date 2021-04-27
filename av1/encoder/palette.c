@@ -222,6 +222,7 @@ static AOM_INLINE void palette_rd_y(
     int *rate, int *rate_tokenonly, int64_t *distortion, int *skippable,
     int *beat_best_rd, PICK_MODE_CONTEXT *ctx, uint8_t *blk_skip,
     uint8_t *tx_type_map, int *beat_best_palette_rd) {
+  (void)best_model_rd;
   optimize_palette_colors(color_cache, n_cache, n, 1, centroids,
                           cpi->common.seq_params->bit_depth);
   const int num_unique_colors = av1_remove_duplicates(centroids, n);
@@ -250,10 +251,6 @@ static AOM_INLINE void palette_rd_y(
   av1_calc_indices(data, centroids, color_map, rows * cols, num_unique_colors,
                    1);
   extend_palette_color_map(color_map, cols, rows, block_width, block_height);
-
-  if (model_intra_yrd_and_prune(cpi, x, bsize, best_model_rd)) {
-    return;
-  }
 
   RD_STATS tokenonly_rd_stats;
   av1_pick_uniform_tx_size_type_yrd(cpi, x, &tokenonly_rd_stats, bsize,
