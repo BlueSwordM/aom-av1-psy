@@ -1853,7 +1853,7 @@ static void init_tile_pack_bs_params(AV1_COMP *const cpi, uint8_t *const dst,
                                      struct aom_write_bit_buffer *saved_wb,
                                      PackBSParams *const pack_bs_params_arr,
                                      uint8_t obu_extn_header) {
-  MACROBLOCK *const x = &cpi->td.mb;
+  MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   AV1_COMMON *const cm = &cpi->common;
   const CommonTileParams *const tiles = &cm->tiles;
   const int num_tiles = tiles->cols * tiles->rows;
@@ -1869,10 +1869,6 @@ static void init_tile_pack_bs_params(AV1_COMP *const cpi, uint8_t *const dst,
   int tg_idx = 0;
   int tile_count_in_tg = 0;
   int new_tg = 1;
-  // TODO(Cherma): As header preparation is moved out of multithreading scope,
-  // error_info need not be in thread specific memory. Modify error_info access
-  // from MACROBLOCK structure to AV1_COMMON in av1_write_obu_tg_tile_headers().
-  x->error_info = cm->error;
 
   // Populate pack bitstream params of all tiles.
   for (tile_idx = 0; tile_idx < num_tiles; tile_idx++) {
@@ -1928,7 +1924,7 @@ static void init_tile_pack_bs_params(AV1_COMP *const cpi, uint8_t *const dst,
 
     // Write obu, tile group and frame header at first tile in the tile
     // group.
-    av1_write_obu_tg_tile_headers(cpi, x, pack_bs_params, tile_idx);
+    av1_write_obu_tg_tile_headers(cpi, xd, pack_bs_params, tile_idx);
     tile_dst += tg_buf_size[tg_idx];
 
     // Exclude headers from tile group buffer size.

@@ -20,7 +20,6 @@ extern "C" {
 #include "av1/common/blockd.h"
 #include "av1/common/enums.h"
 #include "av1/encoder/level.h"
-#include "av1/encoder/block.h"
 #include "aom_dsp/bitwriter.h"
 
 struct aom_write_bit_buffer;
@@ -123,7 +122,7 @@ void av1_accumulate_pack_bs_thread_data(struct AV1_COMP *const cpi,
                                         struct ThreadData const *td);
 
 void av1_write_obu_tg_tile_headers(struct AV1_COMP *const cpi,
-                                   MACROBLOCK *const x,
+                                   MACROBLOCKD *const xd,
                                    PackBSParams *const pack_bs_params,
                                    const int tile_idx);
 #ifdef __cplusplus
