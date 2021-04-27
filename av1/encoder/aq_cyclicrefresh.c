@@ -12,6 +12,7 @@
 #include <limits.h>
 #include <math.h>
 
+#include "av1/common/pred_common.h"
 #include "av1/common/seg_common.h"
 #include "av1/encoder/aq_cyclicrefresh.h"
 #include "av1/encoder/ratectrl.h"
@@ -147,6 +148,42 @@ int av1_cyclic_refresh_rc_bits_per_mb(const AV1_COMP *cpi, int i,
   return bits_per_mb;
 }
 
+void av1_cyclic_reset_segment_skip(const AV1_COMP *cpi, MACROBLOCK *const x,
+                                   int mi_row, int mi_col, BLOCK_SIZE bsize) {
+  int cdf_num;
+  const AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  const int prev_segment_id = mbmi->segment_id;
+  mbmi->segment_id = av1_get_spatial_seg_pred(cm, xd, &cdf_num);
+  if (prev_segment_id != mbmi->segment_id) {
+    CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
+    const int bw = mi_size_wide[bsize];
+    const int bh = mi_size_high[bsize];
+    const int xmis = AOMMIN(cm->mi_params.mi_cols - mi_col, bw);
+    const int ymis = AOMMIN(cm->mi_params.mi_rows - mi_row, bh);
+    const int block_index = mi_row * cm->mi_params.mi_cols + mi_col;
+    for (int mi_y = 0; mi_y < ymis; mi_y++) {
+      for (int mi_x = 0; mi_x < xmis; mi_x++) {
+        const int map_offset =
+            block_index + mi_y * cm->mi_params.mi_cols + mi_x;
+        cr->map[map_offset] = 0;
+        cpi->enc_seg.map[map_offset] = mbmi->segment_id;
+        cm->cur_frame->seg_map[map_offset] = mbmi->segment_id;
+      }
+    }
+    if (cyclic_refresh_segment_id(prev_segment_id) == CR_SEGMENT_ID_BOOST1)
+      x->actual_num_seg1_blocks -= xmis * ymis;
+    else if (cyclic_refresh_segment_id(prev_segment_id) == CR_SEGMENT_ID_BOOST2)
+      x->actual_num_seg2_blocks -= xmis * ymis;
+    if (cyclic_refresh_segment_id(mbmi->segment_id) == CR_SEGMENT_ID_BOOST1)
+      x->actual_num_seg1_blocks += xmis * ymis;
+    else if (cyclic_refresh_segment_id(mbmi->segment_id) ==
+             CR_SEGMENT_ID_BOOST2)
+      x->actual_num_seg2_blocks += xmis * ymis;
+  }
+}
+
 void av1_cyclic_refresh_update_segment(const AV1_COMP *cpi, MACROBLOCK *const x,
                                        int mi_row, int mi_col, BLOCK_SIZE bsize,
                                        int64_t rate, int64_t dist, int skip,
@@ -191,22 +228,21 @@ void av1_cyclic_refresh_update_segment(const AV1_COMP *cpi, MACROBLOCK *const x,
 
   // Update entries in the cyclic refresh map with new_map_value, and
   // copy mbmi->segment_id into global segmentation map.
-  // 8x8 is smallest coding block size for non-key frames.
-  const int sh = bw << 1;
-  for (int mi_y = 0; mi_y < ymis; mi_y += 2) {
-    for (int mi_x = 0; mi_x < xmis; mi_x += 2) {
-      int map_offset = block_index + mi_y * cm->mi_params.mi_cols + mi_x;
+  for (int mi_y = 0; mi_y < ymis; mi_y++) {
+    for (int mi_x = 0; mi_x < xmis; mi_x++) {
+      const int map_offset = block_index + mi_y * cm->mi_params.mi_cols + mi_x;
       cr->map[map_offset] = new_map_value;
       cpi->enc_seg.map[map_offset] = mbmi->segment_id;
+      cm->cur_frame->seg_map[map_offset] = mbmi->segment_id;
     }
-    // Accumulate cyclic refresh update counters.
-    if (!dry_run && !frame_is_intra_only(cm)) {
-      if (cyclic_refresh_segment_id(mbmi->segment_id) == CR_SEGMENT_ID_BOOST1)
-        x->actual_num_seg1_blocks += sh;
-      else if (cyclic_refresh_segment_id(mbmi->segment_id) ==
-               CR_SEGMENT_ID_BOOST2)
-        x->actual_num_seg2_blocks += sh;
-    }
+  }
+  // Accumulate cyclic refresh update counters.
+  if (!dry_run) {
+    if (cyclic_refresh_segment_id(mbmi->segment_id) == CR_SEGMENT_ID_BOOST1)
+      x->actual_num_seg1_blocks += xmis * ymis;
+    else if (cyclic_refresh_segment_id(mbmi->segment_id) ==
+             CR_SEGMENT_ID_BOOST2)
+      x->actual_num_seg2_blocks += xmis * ymis;
   }
 }
 
