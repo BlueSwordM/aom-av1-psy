@@ -27,7 +27,7 @@ static void set_mb_butteraugli_rdmult_scaling(AV1_COMP *cpi,
                                               const YV12_BUFFER_CONFIG *recon,
                                               const double K) {
   AV1_COMMON *const cm = &cpi->common;
-  SequenceHeader *const seq_params = &cm->seq_params;
+  SequenceHeader *const seq_params = cm->seq_params;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const aom_color_range_t color_range =
       seq_params->color_range != 0 ? AOM_CR_FULL_RANGE : AOM_CR_STUDIO_RANGE;
@@ -307,7 +307,7 @@ void av1_setup_butteraugli_rdmult(AV1_COMP *cpi) {
   av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
   if (q_cfg->deltaq_mode != NO_DELTA_Q || q_cfg->enable_chroma_deltaq)
     av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
-                       cm->seq_params.bit_depth);
+                       cm->seq_params->bit_depth);
 
   av1_set_variance_partition_thresholds(cpi, q_index, 0);
   av1_encode_frame(cpi);
