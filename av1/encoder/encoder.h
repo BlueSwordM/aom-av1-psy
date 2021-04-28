@@ -2080,7 +2080,36 @@ typedef struct {
 } CoeffBufferPool;
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
+/*!
+ * \brief Max number of frames that can be encoded in a parallel encode set.
+ */
 #define MAX_PARALLEL_FRAMES 4
+
+/*!
+ * \brief Structure to hold data of frame encoded in a given parallel encode
+ * set.
+ */
+typedef struct AV1_FP_OUT_DATA {
+  /*!
+   * Buffer to store packed bitstream data of a frame.
+   */
+  unsigned char *cx_data_frame;
+
+  /*!
+   * Allocated size of the cx_data_frame buffer.
+   */
+  size_t cx_data_sz;
+
+  /*!
+   * Size of data written in the cx_data_frame buffer.
+   */
+  size_t frame_size;
+
+  /*!
+   * Display order hint of frame whose packed data is in cx_data_frame buffer.
+   */
+  int frame_display_order_hint;
+} AV1_FP_OUT_DATA;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
 /*!
@@ -2097,6 +2126,12 @@ typedef struct AV1_PRIMARY {
    * Number of frame level contexts(cpis)
    */
   int num_fp_contexts;
+
+  /*!
+   * Array of structures to hold data of frames encoded in a given parallel
+   * encode set.
+   */
+  struct AV1_FP_OUT_DATA parallel_frames_data[MAX_PARALLEL_FRAMES - 1];
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
   /*!
    * Encode stage top level structure

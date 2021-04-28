@@ -2381,6 +2381,13 @@ static void destroy_stats_buffer(STATS_BUFFER_CTX *stats_buf_context,
 
 static aom_codec_err_t encoder_destroy(aom_codec_alg_priv_t *ctx) {
   free(ctx->cx_data);
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  for (int i = 0; i < ctx->ppi->num_fp_contexts - 1; i++) {
+    if (ctx->ppi->parallel_frames_data[i].cx_data_frame) {
+      free(ctx->ppi->parallel_frames_data[i].cx_data_frame);
+    }
+  }
+#endif
 
   if (ctx->ppi) {
     AV1_PRIMARY *ppi = ctx->ppi;
@@ -2479,6 +2486,22 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           return AOM_CODEC_MEM_ERROR;
         }
       }
+#if CONFIG_FRAME_PARALLEL_ENCODE
+      for (int i = 0; i < cpi->ppi->num_fp_contexts - 1; i++) {
+        if (cpi->ppi->parallel_frames_data[i].cx_data_frame == NULL) {
+          cpi->ppi->parallel_frames_data[i].cx_data_sz = uncompressed_frame_sz;
+          cpi->ppi->parallel_frames_data[i].frame_display_order_hint = -1;
+          cpi->ppi->parallel_frames_data[i].frame_size = 0;
+          cpi->ppi->parallel_frames_data[i].cx_data_frame =
+              (unsigned char *)malloc(
+                  cpi->ppi->parallel_frames_data[i].cx_data_sz);
+          if (cpi->ppi->parallel_frames_data[i].cx_data_frame == NULL) {
+            cpi->ppi->parallel_frames_data[i].cx_data_sz = 0;
+            return AOM_CODEC_MEM_ERROR;
+          }
+        }
+      }
+#endif
     }
   }
 
