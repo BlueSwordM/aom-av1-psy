@@ -3188,6 +3188,16 @@ static INLINE int is_altref_enabled(int lag_in_frames, bool enable_auto_arf) {
   return lag_in_frames >= ALT_MIN_LAG && enable_auto_arf;
 }
 
+static AOM_INLINE int can_disable_altref(const GFConfig *gf_cfg) {
+  return is_altref_enabled(gf_cfg->lag_in_frames, gf_cfg->enable_auto_arf) &&
+         (gf_cfg->gf_min_pyr_height == 0);
+}
+
+static AOM_INLINE int use_ml_model_to_decide_flat_gop(
+    const RateControlCfg *rc_cfg) {
+  return (rc_cfg->mode == AOM_Q && rc_cfg->cq_level <= 200);
+}
+
 // Check if statistics generation stage
 static INLINE int is_stat_generation_stage(const AV1_COMP *const cpi) {
   assert(IMPLIES(cpi->compressor_stage == LAP_STAGE,

@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 
+#include "common/tools_common.h"
 #include "config/aom_config.h"
 #include "config/aom_scale_rtcd.h"
 
@@ -43,6 +44,10 @@
 #define DEFAULT_KF_BOOST 2300
 #define DEFAULT_GF_BOOST 2000
 #define GROUP_ADAPTIVE_MAXQ 1
+
+#define IS_FP_STATS_TO_PREDICT_FLAT_GOP_INVALID(fp_stats) \
+  (((fp_stats)->tr_coded_error < 0) || ((fp_stats)->pcnt_third_ref < 0))
+
 static void init_gf_stats(GF_GROUP_STATS *gf_stats);
 
 // Calculate an active area of the image that discounts formatting
@@ -2425,8 +2430,10 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
         p_rc->use_arf_in_this_kf_group && (i < gf_cfg->lag_in_frames) &&
         (i >= MIN_GF_INTERVAL);
 
+    FIRSTPASS_STATS *total_stats = twopass->stats_buf_ctx->total_stats;
     // TODO(urvang): Improve and use model for VBR, CQ etc as well.
-    if (use_alt_ref && rc_cfg->mode == AOM_Q && rc_cfg->cq_level <= 200) {
+    if (use_alt_ref && use_ml_model_to_decide_flat_gop(rc_cfg) &&
+        !IS_FP_STATS_TO_PREDICT_FLAT_GOP_INVALID(total_stats)) {
       aom_clear_system_state();
       float features[21];
       get_features_from_gf_stats(
@@ -3384,18 +3391,28 @@ static void process_first_pass_stats(AV1_COMP *cpi,
   CurrentFrame *const current_frame = &cm->current_frame;
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->ppi->twopass;
+  FIRSTPASS_STATS *total_stats = twopass->stats_buf_ctx->total_stats;
+
+  if (current_frame->frame_number == 0) {
+    const GFConfig *const gf_cfg = &cpi->oxcf.gf_cfg;
+    const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
+    if (use_ml_model_to_decide_flat_gop(rc_cfg) && can_disable_altref(gf_cfg) &&
+        IS_FP_STATS_TO_PREDICT_FLAT_GOP_INVALID(total_stats))
+      warn(
+          "First pass stats required in the ML model to predict a flat GOP "
+          "structure is invalid. Continuing encoding by disabling the ML "
+          "model.\n");
+  }
 
   if (cpi->oxcf.rc_cfg.mode != AOM_Q && current_frame->frame_number == 0 &&
-      cpi->gf_frame_index == 0 &&
-      cpi->ppi->twopass.stats_buf_ctx->total_stats &&
+      cpi->gf_frame_index == 0 && total_stats &&
       cpi->ppi->twopass.stats_buf_ctx->total_left_stats) {
     if (cpi->ppi->lap_enabled) {
       /*
        * Accumulate total_stats using available limited number of stats,
        * and assign it to total_left_stats.
        */
-      *cpi->ppi->twopass.stats_buf_ctx->total_left_stats =
-          *cpi->ppi->twopass.stats_buf_ctx->total_stats;
+      *cpi->ppi->twopass.stats_buf_ctx->total_left_stats = *total_stats;
     }
     // Special case code for first frame.
     const int section_target_bandwidth = get_section_target_bandwidth(cpi);
