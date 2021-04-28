@@ -1927,6 +1927,7 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
   SPEED_FEATURES *const sf = &cpi->sf;
   WinnerModeParams *const winner_mode_params = &cpi->winner_mode_params;
   const int boosted = frame_is_boosted(cpi);
+  const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
   const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
   const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
   const int is_arf2_bwd_type =
@@ -1972,28 +1973,25 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
     }
   }
 
-  if (speed >= 3) {
+  if (speed >= 2) {
     // Disable extended partitions for lower quantizers
-    const int qindex_thresh =
-        cm->features.allow_screen_content_tools ? 50 : 100;
-    if (cm->quant_params.base_qindex <= qindex_thresh && !boosted) {
-      sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
+    const int aggr = AOMMIN(3, speed - 2);
+    const int qindex_thresh1[4] = { 50, 50, 80, 100 };
+    const int qindex_thresh2[4] = { 80, 100, 120, 160 };
+    int qindex_thresh;
+    int disable_ext_part;
+    if (aggr <= 1) {
+      const int qthresh2 =
+          (!aggr && !is_480p_or_larger) ? 70 : qindex_thresh2[aggr];
+      qindex_thresh = cm->features.allow_screen_content_tools
+                          ? qindex_thresh1[aggr]
+                          : qthresh2;
+      disable_ext_part = !boosted;
+    } else {
+      qindex_thresh = boosted ? qindex_thresh1[aggr] : qindex_thresh2[aggr];
+      disable_ext_part = !frame_is_intra_only(cm);
     }
-  }
-
-  if (speed >= 4) {
-    // Disable extended partitions for lower quantizers
-    const int qindex_thresh = boosted ? 80 : 120;
-    if (cm->quant_params.base_qindex <= qindex_thresh &&
-        !frame_is_intra_only(&cpi->common)) {
-      sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
-    }
-  }
-
-  if (speed >= 5) {
-    const int qindex_thresh = boosted ? 100 : 160;
-    if (cm->quant_params.base_qindex <= qindex_thresh &&
-        !frame_is_intra_only(&cpi->common)) {
+    if (cm->quant_params.base_qindex <= qindex_thresh && disable_ext_part) {
       sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
     }
   }
