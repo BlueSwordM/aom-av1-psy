@@ -2108,7 +2108,8 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     const int num_workers = cpi->mt_info.num_mod_workers[MOD_CDEF];
     // Find CDEF parameters
     av1_cdef_search(&cpi->mt_info, &cm->cur_frame->buf, cpi->source, cm, xd,
-                    cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult);
+                    cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult,
+                    cpi->sf.rt_sf.skip_cdef_sb, cpi->rc.frames_since_key);
 
     // Apply the filter
     if (!cpi->sf.rt_sf.skip_loopfilter_non_reference) {

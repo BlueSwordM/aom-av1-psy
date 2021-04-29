@@ -1163,6 +1163,9 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.short_circuit_low_temp_var = 0;
       sf->rt_sf.use_nonrd_altref_frame = 1;
     }
+    if (speed >= 9) {
+      sf->rt_sf.skip_cdef_sb = 1;
+    }
   }
   if (!is_480p_or_larger) {
     if (speed == 7) {

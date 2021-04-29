@@ -1160,6 +1160,11 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Skips mode checks more agressively in nonRD mode
   int nonrd_agressive_skip;
+
+  // Skip cdef on 64x64 blocks when NEWMV or INTRA is not picked or color
+  // sensitivity is off. When color sensitivity is on for a superblock, all
+  // 64x64 blocks within will not skip.
+  int skip_cdef_sb;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */
