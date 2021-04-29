@@ -2175,7 +2175,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
 #if CONFIG_AV1_TEMPORAL_DENOISING
   if (cpi->oxcf.noise_sensitivity > 0) {
-    // if (cpi->use_svc) denoise_svc_pickmode = av1_denoise_svc_non_key(cpi);
+    // if (cpi->ppi->use_svc) denoise_svc_pickmode =
+    // av1_denoise_svc_non_key(cpi);
     if (cpi->denoiser.denoising_level > kDenLowLow && denoise_svc_pickmode)
       av1_denoiser_reset_frame_stats(ctx);
   }

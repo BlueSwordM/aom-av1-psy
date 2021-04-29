@@ -349,7 +349,7 @@ void av1_denoiser_denoise(AV1_COMP *cpi, MACROBLOCK *mb, int mi_row, int mi_col,
         &cpi->common, denoiser, mb, bs, increase_denoising, mi_row, mi_col, ctx,
         motion_magnitude, &zeromv_filter, cpi->svc.number_spatial_layers,
         cpi->source->y_width, cpi->svc.ref_idx[0], cpi->svc.ref_idx[3],
-        cpi->use_svc, cpi->svc.spatial_layer_id, use_gf_temporal_ref);
+        cpi->ppi->use_svc, cpi->svc.spatial_layer_id, use_gf_temporal_ref);
 
   if (decision == FILTER_BLOCK) {
     decision = av1_denoiser_filter(src.buf, src.stride, mc_avg_start,
@@ -724,7 +724,7 @@ void av1_denoiser_update_ref_frame(AV1_COMP *const cpi) {
          (cpi->common.width != cpi->resize_pending_params.width ||
           cpi->common.height != cpi->resize_pending_params.height));
 
-    if (cpi->use_svc) {
+    if (cpi->ppi->use_svc) {
 // TODO(kyslov) Enable when SVC temporal denosing is implemented
 #if 0
       const int svc_buf_shift =
