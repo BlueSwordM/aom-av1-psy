@@ -488,3 +488,28 @@ void av1_set_svc_fixed_mode(AV1_COMP *const cpi) {
     }
   }
 }
+
+void av1_svc_check_reset_layer_rc_flag(AV1_COMP *const cpi) {
+  SVC *const svc = &cpi->svc;
+  for (int sl = 0; sl < svc->number_spatial_layers; ++sl) {
+    // Check for reset based on avg_frame_bandwidth for spatial layer sl.
+    int layer = LAYER_IDS_TO_IDX(sl, svc->number_temporal_layers - 1,
+                                 svc->number_temporal_layers);
+    LAYER_CONTEXT *lc = &svc->layer_context[layer];
+    RATE_CONTROL *lrc = &lc->rc;
+    if (lrc->avg_frame_bandwidth > (3 * lrc->prev_avg_frame_bandwidth >> 1) ||
+        lrc->avg_frame_bandwidth < (lrc->prev_avg_frame_bandwidth >> 1)) {
+      // Reset for all temporal layers with spatial layer sl.
+      for (int tl = 0; tl < svc->number_temporal_layers; ++tl) {
+        int layer2 = LAYER_IDS_TO_IDX(sl, tl, svc->number_temporal_layers);
+        LAYER_CONTEXT *lc2 = &svc->layer_context[layer2];
+        RATE_CONTROL *lrc2 = &lc2->rc;
+        PRIMARY_RATE_CONTROL *const lp_rc = &lc2->p_rc;
+        lrc2->rc_1_frame = 0;
+        lrc2->rc_2_frame = 0;
+        lrc2->bits_off_target = lp_rc->optimal_buffer_level;
+        lrc2->buffer_level = lp_rc->optimal_buffer_level;
+      }
+    }
+  }
+}

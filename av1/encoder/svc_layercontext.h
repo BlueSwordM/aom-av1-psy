@@ -277,6 +277,8 @@ void av1_get_layer_resolution(const int width_org, const int height_org,
 
 void av1_set_svc_fixed_mode(struct AV1_COMP *const cpi);
 
+void av1_svc_check_reset_layer_rc_flag(struct AV1_COMP *const cpi);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

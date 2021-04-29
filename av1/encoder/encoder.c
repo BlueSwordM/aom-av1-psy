@@ -735,7 +735,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   av1_set_high_precision_mv(cpi, 1, 0);
 
-  set_rc_buffer_sizes(p_rc, rc_cfg);
+  set_rc_buffer_sizes(cpi);
 
   // Under a configuration change, where maximum_buffer_size may change,
   // keep buffer level clipped to the maximum allowed buffer size.
@@ -814,6 +814,8 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   if (cpi->ppi->use_svc)
     av1_update_layer_context_change_config(cpi, rc_cfg->target_bandwidth);
+
+  check_reset_rc_flag(cpi);
 
   // restore the value of lag_in_frame for LAP stage.
   if (lap_lag_in_frames != -1) {

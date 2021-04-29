@@ -1882,6 +1882,7 @@ void av1_rc_postencode_update_drop_frame(AV1_COMP *cpi) {
   cpi->rc.frames_to_key--;
   cpi->rc.rc_2_frame = 0;
   cpi->rc.rc_1_frame = 0;
+  cpi->rc.prev_avg_frame_bandwidth = cpi->rc.avg_frame_bandwidth;
 }
 
 int av1_find_qindex(double desired_q, aom_bit_depth_t bit_depth,
