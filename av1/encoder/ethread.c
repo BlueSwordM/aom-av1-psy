@@ -2042,7 +2042,7 @@ static void prepare_pack_bs_workers(AV1_COMP *const cpi,
   }
 
   // Sort tiles in descending order based on tile area.
-  qsort(pack_bs_tile_order, num_tiles, sizeof(pack_bs_tile_order),
+  qsort(pack_bs_tile_order, num_tiles, sizeof(*pack_bs_tile_order),
         compare_tile_order);
 }
 
