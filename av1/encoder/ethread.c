@@ -1839,7 +1839,8 @@ static AOM_INLINE size_t get_bs_chunk_size(int tg_or_tile_size,
     this_chunk_size = *remain_buf_size;
     *remain_buf_size = 0;
   } else {
-    this_chunk_size = (max_buf_size * tg_or_tile_size) / frame_or_tg_size;
+    const uint64_t size_scale = (uint64_t)max_buf_size * tg_or_tile_size;
+    this_chunk_size = (size_t)(size_scale / frame_or_tg_size);
     *remain_buf_size -= this_chunk_size;
     assert(*remain_buf_size > 0);
   }
