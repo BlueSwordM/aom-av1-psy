@@ -2243,8 +2243,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   }
 
 #if CONFIG_TUNE_VMAF
-  aom_init_vmaf_model(&cpi->vmaf_info.vmaf_model,
-                      cpi->oxcf.tune_cfg.vmaf_model_path);
+  if (ctx->extra_cfg.tuning >= AOM_TUNE_VMAF_WITH_PREPROCESSING &&
+      ctx->extra_cfg.tuning <= AOM_TUNE_VMAF_NEG_MAX_GAIN) {
+    aom_init_vmaf_model(&cpi->vmaf_info.vmaf_model,
+                        cpi->oxcf.tune_cfg.vmaf_model_path);
+  }
 #endif
 
   // Handle fixed keyframe intervals
