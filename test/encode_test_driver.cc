@@ -270,6 +270,10 @@ void EncoderTest::RunLoop(VideoSource *video) {
 #if CONFIG_AV1_DECODER
         if (has_dxdata && has_cxdata) {
           const aom_image_t *img_enc = encoder->GetPreviewFrame();
+          if (img_enc) {
+            CalculateFrameLevelSSIM(video->img(), img_enc, cfg_.g_bit_depth,
+                                    cfg_.g_input_bit_depth);
+          }
           DxDataIterator dec_iter = decoder->GetDxData();
           const aom_image_t *img_dec = dec_iter.Next();
           if (img_enc && img_dec) {

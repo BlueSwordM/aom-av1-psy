@@ -78,7 +78,7 @@ list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
             "${AOM_ROOT}/test/encode_small_width_height_test.cc"
             "${AOM_ROOT}/test/encode_test_driver.cc"
             "${AOM_ROOT}/test/encode_test_driver.h"
-            "${AOM_ROOT}/test/end_to_end_test.cc"
+            "${AOM_ROOT}/test/end_to_end_psnr_test.cc"
             "${AOM_ROOT}/test/gf_pyr_height_test.cc"
             "${AOM_ROOT}/test/rt_end_to_end_test.cc"
             "${AOM_ROOT}/test/frame_size_tests.cc"
@@ -99,7 +99,7 @@ if(CONFIG_REALTIME_ONLY)
                    "${AOM_ROOT}/test/av1_external_partition_test.cc"
                    "${AOM_ROOT}/test/borders_test.cc"
                    "${AOM_ROOT}/test/cpu_speed_test.cc"
-                   "${AOM_ROOT}/test/end_to_end_test.cc"
+                   "${AOM_ROOT}/test/end_to_end_psnr_test.cc"
                    "${AOM_ROOT}/test/gf_pyr_height_test.cc"
                    "${AOM_ROOT}/test/horz_superres_test.cc"
                    "${AOM_ROOT}/test/level_test.cc"
@@ -255,6 +255,7 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/edge_detect_test.cc"
               "${AOM_ROOT}/test/encodemb_test.cc"
               "${AOM_ROOT}/test/encodetxb_test.cc"
+              "${AOM_ROOT}/test/end_to_end_ssim_test.cc"
               "${AOM_ROOT}/test/error_block_test.cc"
               "${AOM_ROOT}/test/fft_test.cc"
               "${AOM_ROOT}/test/fwht4x4_test.cc"
@@ -285,6 +286,7 @@ if(NOT BUILD_SHARED_LIBS)
 
   if(CONFIG_REALTIME_ONLY)
     list(REMOVE_ITEM AOM_UNIT_TEST_ENCODER_SOURCES
+                     "${AOM_ROOT}/test/end_to_end_ssim_test.cc"
                      "${AOM_ROOT}/test/frame_error_test.cc"
                      "${AOM_ROOT}/test/motion_vector_test.cc"
                      "${AOM_ROOT}/test/obmc_sad_test.cc"

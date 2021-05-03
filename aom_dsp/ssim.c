@@ -18,6 +18,7 @@
 #include "aom_ports/mem.h"
 #include "aom_ports/system_state.h"
 
+#if CONFIG_INTERNAL_STATS
 void aom_ssim_parms_16x16_c(const uint8_t *s, int sp, const uint8_t *r, int rp,
                             uint32_t *sum_s, uint32_t *sum_r,
                             uint32_t *sum_sq_s, uint32_t *sum_sq_r,
@@ -33,6 +34,7 @@ void aom_ssim_parms_16x16_c(const uint8_t *s, int sp, const uint8_t *r, int rp,
     }
   }
 }
+#endif  // CONFIG_INTERNAL_STATS
 
 void aom_ssim_parms_8x8_c(const uint8_t *s, int sp, const uint8_t *r, int rp,
                           uint32_t *sum_s, uint32_t *sum_r, uint32_t *sum_sq_s,
@@ -60,7 +62,7 @@ static double similarity(uint32_t sum_s, uint32_t sum_r, uint32_t sum_sq_s,
                          uint32_t sum_sq_r, uint32_t sum_sxr, int count,
                          uint32_t bd) {
   double ssim_n, ssim_d;
-  int64_t c1, c2;
+  int64_t c1 = 0, c2 = 0;
   if (bd == 8) {
     // scale the constants by number of pixels
     c1 = (cc1 * count * count) >> 12;
@@ -72,8 +74,9 @@ static double similarity(uint32_t sum_s, uint32_t sum_r, uint32_t sum_sq_s,
     c1 = (cc1_12 * count * count) >> 12;
     c2 = (cc2_12 * count * count) >> 12;
   } else {
-    c1 = c2 = 0;
     assert(0);
+    // Return similarity as zero for unsupported bit-depth values.
+    return 0;
   }
 
   ssim_n = (2.0 * sum_s * sum_r + c1) *
@@ -96,9 +99,8 @@ static double ssim_8x8(const uint8_t *s, int sp, const uint8_t *r, int rp) {
 // We are using a 8x8 moving window with starting location of each 8x8 window
 // on the 4x4 pixel grid. Such arrangement allows the windows to overlap
 // block boundaries to penalize blocking artifacts.
-static double aom_ssim2(const uint8_t *img1, const uint8_t *img2,
-                        int stride_img1, int stride_img2, int width,
-                        int height) {
+double aom_ssim2(const uint8_t *img1, const uint8_t *img2, int stride_img1,
+                 int stride_img2, int width, int height) {
   int i, j;
   int samples = 0;
   double ssim_total = 0;
@@ -116,6 +118,7 @@ static double aom_ssim2(const uint8_t *img1, const uint8_t *img2,
   return ssim_total;
 }
 
+#if CONFIG_INTERNAL_STATS
 void aom_lowbd_calc_ssim(const YV12_BUFFER_CONFIG *source,
                          const YV12_BUFFER_CONFIG *dest, double *weight,
                          double *fast_ssim) {
@@ -372,6 +375,7 @@ double aom_get_ssim_metrics(uint8_t *img1, int img1_pitch, uint8_t *img2,
   m->dssim = dssim_total;
   return inconsistency_total;
 }
+#endif  // CONFIG_INTERNAL_STATS
 
 #if CONFIG_AV1_HIGHBITDEPTH
 void aom_highbd_ssim_parms_8x8_c(const uint16_t *s, int sp, const uint16_t *r,
@@ -399,9 +403,9 @@ static double highbd_ssim_8x8(const uint16_t *s, int sp, const uint16_t *r,
                     sum_sq_r >> (2 * shift), sum_sxr >> (2 * shift), 64, bd);
 }
 
-static double aom_highbd_ssim2(const uint8_t *img1, const uint8_t *img2,
-                               int stride_img1, int stride_img2, int width,
-                               int height, uint32_t bd, uint32_t shift) {
+double aom_highbd_ssim2(const uint8_t *img1, const uint8_t *img2,
+                        int stride_img1, int stride_img2, int width, int height,
+                        uint32_t bd, uint32_t shift) {
   int i, j;
   int samples = 0;
   double ssim_total = 0;
@@ -421,6 +425,7 @@ static double aom_highbd_ssim2(const uint8_t *img1, const uint8_t *img2,
   return ssim_total;
 }
 
+#if CONFIG_INTERNAL_STATS
 void aom_highbd_calc_ssim(const YV12_BUFFER_CONFIG *source,
                           const YV12_BUFFER_CONFIG *dest, double *weight,
                           uint32_t bd, uint32_t in_bd, double *fast_ssim) {
@@ -454,8 +459,10 @@ void aom_highbd_calc_ssim(const YV12_BUFFER_CONFIG *source,
     fast_ssim[1] = abc[0] * .8 + .1 * (abc[1] + abc[2]);
   }
 }
+#endif  // CONFIG_INTERNAL_STATS
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
+#if CONFIG_INTERNAL_STATS
 void aom_calc_ssim(const YV12_BUFFER_CONFIG *orig,
                    const YV12_BUFFER_CONFIG *recon, const uint32_t bit_depth,
                    const uint32_t in_bit_depth, int is_hbd, double *weight,
@@ -473,3 +480,4 @@ void aom_calc_ssim(const YV12_BUFFER_CONFIG *orig,
 #endif  // CONFIG_AV1_HIGHBITDEPTH
   aom_lowbd_calc_ssim(orig, recon, weight, frame_ssim2);
 }
+#endif  // CONFIG_INTERNAL_STATS
