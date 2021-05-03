@@ -271,7 +271,8 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .noise_sens = ARG_DEF(NULL, "noise-sensitivity", 1,
                         "Noise sensitivity (frames to blur)"),
   .sharpness = ARG_DEF(NULL, "sharpness", 1,
-                       "Bias towards block sharpness in transform coeff RD "
+                       "Bias towards block sharpness in rate-distortion "
+                       "optimization of transform coefficients "
                        "(0..7), default is 0"),
   .static_thresh =
       ARG_DEF(NULL, "static-thresh", 1, "Motion detection threshold"),

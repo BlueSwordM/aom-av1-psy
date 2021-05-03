@@ -225,8 +225,8 @@ enum aome_enc_control_id {
   /*!\brief Codec control function to set the sharpness parameter,
    * unsigned int parameter.
    *
-   * This parameter controls the level at which transform coeff RD favours
-   * sharpness in the block.
+   * This parameter controls the level at which rate-distortion optimization of
+   * transform coefficients favours sharpness in the block.
    *
    * Valid range: 0..7. The default is 0. Values 1-7 will avoid eob and skip
    * block optimization and will change rdmult in favour of block sharpness.

@@ -719,10 +719,10 @@ typedef struct {
  */
 typedef struct {
   /*!
-   * Controls the level at which transform coeff RD favours sharpness in the
-   * block. Has no impact on RD when set to zero (default). For values 1-7, eob
-   * and skip block optimization are avoided and rdmult is adjusted in favour of
-   * block sharpness.
+   * Controls the level at which rate-distortion optimization of transform
+   * coefficients favours sharpness in the block. Has no impact on RD when set
+   * to zero (default). For values 1-7, eob and skip block optimization are
+   * avoided and rdmult is adjusted in favour of block sharpness.
    */
   int sharpness;
 
