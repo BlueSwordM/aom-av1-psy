@@ -438,8 +438,7 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Used if partition_search_type = FIXED_PARTITION
   BLOCK_SIZE fixed_partition_size;
 
-  // Prune extended partition types search based on the current partition type
-  // and the rdcost found in the subblocks.
+  // Prune extended partition types search
   // Can take values 0 - 2, 0 referring to no pruning, and 1 - 2 increasing
   // aggressiveness of pruning in order.
   int prune_ext_partition_types_search_level;
@@ -524,12 +523,10 @@ typedef struct PARTITION_SPEED_FEATURES {
   // perform split/no_split decision on intra-frames.
   int intra_cnn_split;
 
-  // Disable extended partition search if the current bsize is greater than the
-  // threshold.
-  BLOCK_SIZE ext_partition_eval_thresh;
+  // Disable extended partition search for lower block sizes.
+  int ext_partition_eval_thresh;
 
-  // Prune extended partition search based on whether the split/rect partitions
-  // provided an improvement in the previous search.
+  // prune extended partition search
   // 0 : no pruning
   // 1 : prune 1:4 partition search using winner info from split partitions
   // 2 : prune 1:4 and AB partition search using split and HORZ/VERT info
