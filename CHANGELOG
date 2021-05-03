@@ -1,4 +1,4 @@
-2021-04-23 v3.1.0
+2021-05-03 v3.1.0
   This release adds an "all intra" mode to the encoder, which significantly
   speeds up the encoding of AVIF still images at speed 6.
 
@@ -24,6 +24,8 @@
     reduced.
 
   - Bug fixes:
+    Issue 2601: third_party/libaom fails licensecheck
+
     Issue 2950: Conditional expression for rc->this_key_frame_forced is always
     true in find_next_key_frame()
 
