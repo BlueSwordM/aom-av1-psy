@@ -151,7 +151,7 @@ void av1_loop_filter_frame(YV12_BUFFER_CONFIG *frame, struct AV1Common *cm,
 #else
 void av1_loop_filter_frame(YV12_BUFFER_CONFIG *frame, struct AV1Common *cm,
                            struct macroblockd *xd, int plane_start,
-                           int plane_end, int partial_frame);
+                           int plane_end, int partial_frame, int is_realtime);
 #endif
 
 void av1_filter_block_plane_vert(const struct AV1Common *const cm,
@@ -163,6 +163,20 @@ void av1_filter_block_plane_horz(const struct AV1Common *const cm,
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
                                  const uint32_t mi_row, const uint32_t mi_col);
+
+void av1_filter_block_plane_vert_rt(const struct AV1Common *const cm,
+                                    const MACROBLOCKD *const xd,
+                                    const int plane,
+                                    const MACROBLOCKD_PLANE *const plane_ptr,
+                                    const uint32_t mi_row,
+                                    const uint32_t mi_col);
+
+void av1_filter_block_plane_horz_rt(const struct AV1Common *const cm,
+                                    const MACROBLOCKD *const xd,
+                                    const int plane,
+                                    const MACROBLOCKD_PLANE *const plane_ptr,
+                                    const uint32_t mi_row,
+                                    const uint32_t mi_col);
 
 uint8_t av1_get_filter_level(const struct AV1Common *cm,
                              const loop_filter_info_n *lfi_n, const int dir_idx,
