@@ -25,6 +25,7 @@
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/motion_search_facade.h"
 #include "av1/encoder/partition_search.h"
+#include "av1/encoder/partition_strategy.h"
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/tokenize.h"
 #include "av1/encoder/var_based_part.h"
