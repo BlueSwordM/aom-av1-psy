@@ -98,9 +98,8 @@ void av1_ml_prune_ab_partition(
 
 // Use a ML model to predict if horz4 and vert4 should be considered.
 void av1_ml_prune_4_partition(
-    const AV1_COMP *const cpi, MACROBLOCK *const x, BLOCK_SIZE bsize,
-    int part_ctx, int64_t best_rd,
-    int64_t rect_part_rd[NUM_RECT_PARTS][SUB_PARTITIONS_RECT],
+    AV1_COMP *const cpi, MACROBLOCK *const x, BLOCK_SIZE bsize, int part_ctx,
+    int64_t best_rd, int64_t rect_part_rd[NUM_RECT_PARTS][SUB_PARTITIONS_RECT],
     int64_t split_rd[SUB_PARTITIONS_SPLIT], int *const partition_horz4_allowed,
     int *const partition_vert4_allowed, unsigned int pb_source_variance,
     int mi_row, int mi_col);
@@ -135,7 +134,7 @@ void av1_prune_partitions_by_max_min_bsize(
 // Prune out AB partitions based on rd decisions made from testing the
 // basic partitions.
 void av1_prune_ab_partitions(
-    const AV1_COMP *cpi, const MACROBLOCK *x, const PC_TREE *pc_tree,
+    AV1_COMP *cpi, const MACROBLOCK *x, const PC_TREE *pc_tree,
     BLOCK_SIZE bsize, int pb_source_variance, int64_t best_rdcost,
     int64_t rect_part_rd[NUM_RECT_PARTS][SUB_PARTITIONS_RECT],
     int64_t split_rd[SUB_PARTITIONS_SPLIT],
@@ -274,5 +273,16 @@ static AOM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
                sb_enc->min_partition_size);
   }
 }
+
+bool av1_ext_ml_model_decision_after_none(
+    AV1_COMP *const cpi, MACROBLOCK *const x, SIMPLE_MOTION_DATA_TREE *sms_tree,
+    PartitionSearchState *part_search_state,
+    const unsigned int pb_source_variance);
+
+bool av1_ext_ml_model_decision_after_split(
+    AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
+    PartitionSearchState *part_search_state, RD_STATS *best_rdc,
+    const int64_t partition_none_rdcost, const int64_t partition_split_rdcost,
+    const int64_t *split_block_rdcost);
 #endif  // !CONFIG_REALTIME_ONLY
 #endif  // AOM_AV1_ENCODER_PARTITION_STRATEGY_H_
