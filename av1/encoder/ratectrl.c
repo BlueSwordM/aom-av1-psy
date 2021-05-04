@@ -1611,9 +1611,6 @@ static int rc_pick_q_and_bounds_q_mode(const AV1_COMP *cpi, int width,
                           cm->show_frame == 0 && cpi->no_show_fwd_kf;
     get_intra_q_and_bounds(cpi, width, height, &active_best_quality,
                            &active_worst_quality, cq_level, is_fwd_kf);
-#ifdef STRICT_RC
-    active_best_quality = 0;
-#endif
   } else {
     //  Active best quality limited by previous layer.
     active_best_quality =
