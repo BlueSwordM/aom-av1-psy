@@ -1593,6 +1593,46 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   return active_best_quality;
 }
 
+static int rc_pick_q_and_bounds_q_mode(const AV1_COMP *cpi, int width,
+                                       int height, int gf_index,
+                                       int *bottom_index, int *top_index) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const RATE_CONTROL *const rc = &cpi->rc;
+  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+  const int cq_level =
+      get_active_cq_level(rc, oxcf, frame_is_intra_only(cm), cpi->superres_mode,
+                          cm->superres_scale_denominator);
+  int active_best_quality = 0;
+  int active_worst_quality = rc->active_worst_quality;
+  int q;
+
+  if (frame_is_intra_only(cm)) {
+    const int is_fwd_kf = cm->current_frame.frame_type == KEY_FRAME &&
+                          cm->show_frame == 0 && cpi->no_show_fwd_kf;
+    get_intra_q_and_bounds(cpi, width, height, &active_best_quality,
+                           &active_worst_quality, cq_level, is_fwd_kf);
+#ifdef STRICT_RC
+    active_best_quality = 0;
+#endif
+  } else {
+    //  Active best quality limited by previous layer.
+    active_best_quality =
+        get_active_best_quality(cpi, active_worst_quality, cq_level, gf_index);
+  }
+
+  q = active_best_quality;
+
+  *top_index = active_worst_quality;
+  *bottom_index = active_best_quality;
+
+  assert(*top_index <= rc->worst_quality && *top_index >= rc->best_quality);
+  assert(*bottom_index <= rc->worst_quality &&
+         *bottom_index >= rc->best_quality);
+  assert(q <= rc->worst_quality && q >= rc->best_quality);
+
+  return q;
+}
+
 /*!\brief Picks q and q bounds given rate control parameters in \c cpi->rc.
  *
  * Handles the the general cases not covered by
@@ -1629,6 +1669,11 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
                                      cq_level, bit_depth);
   }
 
+  if (oxcf->mode == AOM_Q) {
+    return rc_pick_q_and_bounds_q_mode(cpi, width, height, gf_index,
+                                       bottom_index, top_index);
+  }
+
   int active_best_quality = 0;
   int active_worst_quality = rc->active_worst_quality;
   int q;
@@ -1648,8 +1693,7 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
     //  Active best quality limited by previous layer.
     const int pyramid_level = gf_group_pyramid_level(gf_group, gf_index);
 
-    if ((pyramid_level <= 1) || (pyramid_level > MAX_ARF_LAYERS) ||
-        (oxcf->rc_cfg.mode == AOM_Q)) {
+    if ((pyramid_level <= 1) || (pyramid_level > MAX_ARF_LAYERS)) {
       active_best_quality = get_active_best_quality(cpi, active_worst_quality,
                                                     cq_level, gf_index);
     } else {
