@@ -2392,6 +2392,9 @@ static aom_codec_err_t encoder_destroy(aom_codec_alg_priv_t *ctx) {
   if (ctx->ppi) {
     AV1_PRIMARY *ppi = ctx->ppi;
 
+#if CONFIG_ENTROPY_STATS
+    print_entropy_stats(ppi);
+#endif
 #if CONFIG_INTERNAL_STATS
     print_internal_stats(ppi);
 #endif
@@ -2688,6 +2691,10 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
       }
 
+#if CONFIG_ENTROPY_STATS
+      if (ppi->cpi->oxcf.pass != 1 && !cpi->common.show_existing_frame)
+        av1_accumulate_frame_counts(&ppi->aggregate_fc, &cpi->counts);
+#endif
 #if CONFIG_INTERNAL_STATS
       if (ppi->cpi->oxcf.pass != 1) {
         ppi->total_time_compress_data += cpi->time_compress_data;

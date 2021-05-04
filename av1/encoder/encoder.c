@@ -81,10 +81,6 @@
 
 #define DEFAULT_EXPLICIT_ORDER_HINT_BITS 7
 
-#if CONFIG_ENTROPY_STATS
-FRAME_COUNTS aggregate_fc;
-#endif  // CONFIG_ENTROPY_STATS
-
 // #define OUTPUT_YUV_REC
 #ifdef OUTPUT_YUV_REC
 FILE *yuv_rec_file;
@@ -894,6 +890,10 @@ AV1_PRIMARY *av1_create_primary_compressor(
 
   init_config_sequence(ppi, oxcf);
 
+#if CONFIG_ENTROPY_STATS
+  av1_zero(ppi->aggregate_fc);
+#endif  // CONFIG_ENTROPY_STATS
+
   av1_primary_rc_init(oxcf, &ppi->p_rc);
 
   // For two pass and lag_in_frames > 33 in LAP.
@@ -1303,9 +1303,6 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
 #if CONFIG_SPEED_STATS
   cpi->tx_search_count = 0;
 #endif  // CONFIG_SPEED_STATS
-#if CONFIG_ENTROPY_STATS
-  av1_zero(aggregate_fc);
-#endif  // CONFIG_ENTROPY_STATS
 
   cpi->time_stamps.first_ts_start = INT64_MAX;
 
@@ -1518,14 +1515,6 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 
   AV1_COMMON *cm = &cpi->common;
   if (cm->current_frame.frame_number > 0) {
-#if CONFIG_ENTROPY_STATS
-    if (!is_stat_generation_stage(cpi)) {
-      fprintf(stderr, "Writing counts.stt\n");
-      FILE *f = fopen("counts.stt", "wb");
-      fwrite(&aggregate_fc, sizeof(aggregate_fc), 1, f);
-      fclose(f);
-    }
-#endif  // CONFIG_ENTROPY_STATS
 #if CONFIG_SPEED_STATS
     if (!is_stat_generation_stage(cpi)) {
       fprintf(stdout, "tx_search_count = %d\n", cpi->tx_search_count);
@@ -3317,10 +3306,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   refresh_reference_frames(cpi);
 
-#if CONFIG_ENTROPY_STATS
-  av1_accumulate_frame_counts(&aggregate_fc, &cpi->counts);
-#endif  // CONFIG_ENTROPY_STATS
-
   if (features->refresh_frame_context == REFRESH_FRAME_CONTEXT_BACKWARD) {
     *cm->fc = cpi->tile_data[largest_tile_id].tctx;
     av1_reset_cdf_symbol_counters(cm->fc);
@@ -3533,6 +3518,20 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
 
   return res;
 }
+
+#if CONFIG_ENTROPY_STATS
+void print_entropy_stats(AV1_PRIMARY *const ppi) {
+  if (!ppi->cpi) return;
+
+  if (ppi->cpi->oxcf.pass != 1 &&
+      ppi->cpi->common.current_frame.frame_number > 0) {
+    fprintf(stderr, "Writing counts.stt\n");
+    FILE *f = fopen("counts.stt", "wb");
+    fwrite(&ppi->aggregate_fc, sizeof(ppi->aggregate_fc), 1, f);
+    fclose(f);
+  }
+}
+#endif  // CONFIG_ENTROPY_STATS
 
 #if CONFIG_INTERNAL_STATS
 extern double av1_get_blockiness(const unsigned char *img1, int img1_pitch,
@@ -3793,6 +3792,11 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   cpi->frame_recode_hits = 0;
   cpi->time_compress_data = 0;
   cpi->bytes = 0;
+#endif
+#if CONFIG_ENTROPY_STATS
+  if (cpi->compressor_stage == ENCODE_STAGE) {
+    av1_zero(cpi->counts);
+  }
 #endif
 
 #if CONFIG_BITSTREAM_DEBUG
