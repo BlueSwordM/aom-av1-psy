@@ -26,6 +26,7 @@
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/ethread.h"
+#include "av1/encoder/external_partition.h"
 #include "av1/encoder/firstpass.h"
 #include "av1/arg_defs.h"
 
@@ -2204,8 +2205,17 @@ static aom_codec_err_t ctrl_enable_sb_multipass_unit_test(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
-// TODO(chengchen): implement this function
-static aom_codec_err_t ctrl_set_external_partition() { return AOM_CODEC_OK; }
+static aom_codec_err_t ctrl_set_external_partition(aom_codec_alg_priv_t *ctx,
+                                                   va_list args) {
+  AV1_COMP *const cpi = ctx->ppi->cpi;
+  aom_ext_part_funcs_t funcs = *CAST(AV1E_SET_EXTERNAL_PARTITION, args);
+  aom_ext_part_config_t config;
+  // TODO(chengchen): verify the sb_size has been set at this point.
+  config.superblock_size = cpi->common.seq_params->sb_size;
+  const aom_codec_err_t status =
+      av1_ext_part_create(funcs, config, &cpi->ext_part_controller);
+  return status;
+}
 
 #if !CONFIG_REALTIME_ONLY
 static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,

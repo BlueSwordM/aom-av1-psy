@@ -35,6 +35,7 @@
 #include "av1/encoder/block.h"
 #include "av1/encoder/context_tree.h"
 #include "av1/encoder/encodemb.h"
+#include "av1/encoder/external_partition.h"
 #include "av1/encoder/firstpass.h"
 #include "av1/encoder/global_motion.h"
 #include "av1/encoder/level.h"
@@ -2800,6 +2801,12 @@ typedef struct AV1_COMP {
    * Available bitstream buffer size in bytes
    */
   size_t available_bs_size;
+
+  /*!
+   * The controller of the external partition model.
+   * It is used to do partition type selection based on external models.
+   */
+  ExtPartController ext_part_controller;
 } AV1_COMP;
 
 /*!

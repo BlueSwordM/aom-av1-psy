@@ -170,6 +170,8 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/ethread.h"
             "${AOM_ROOT}/av1/encoder/extend.c"
             "${AOM_ROOT}/av1/encoder/extend.h"
+            "${AOM_ROOT}/av1/encoder/external_partition.c"
+            "${AOM_ROOT}/av1/encoder/external_partition.h"
             "${AOM_ROOT}/av1/encoder/firstpass.c"
             "${AOM_ROOT}/av1/encoder/firstpass.h"
             "${AOM_ROOT}/av1/encoder/global_motion.c"
