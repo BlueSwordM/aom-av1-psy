@@ -49,6 +49,47 @@ typedef struct aom_ext_part_config {
 } aom_ext_part_config_t;
 
 /*!\brief Features pass to the external model to make partition decisions.
+ * Specifically, features collected before NONE partition.
+ */
+typedef struct aom_partition_features_before_none {
+  float f[17]; /**< features to determine whether partition types allowed */
+} aom_partition_features_before_none_t;
+
+/*!\brief Features pass to the external model to make partition decisions.
+ * Specifically, features collected after NONE partition.
+ */
+typedef struct aom_partition_features_none {
+  float rate;            /**< normalized rate cost of the partition */
+  float dist;            /**< normalized distortion of the partition */
+  float q;               /**< normalized quantization parameter */
+  float source_variance; /**< normalized variance of the source */
+  float f_terminate[28]; /**< features to determine termination of partition */
+} aom_partition_features_none_t;
+
+/*!\brief Features pass to the external model to make partition decisions.
+ * Specifically, features collected after SPLIT partition.
+ */
+typedef struct aom_partition_features_split {
+  float f_terminate[31]; /**< features to determine termination of partition */
+  float f_prune_rect[9]; /**< features to determine pruning rect partition */
+} aom_partition_features_split_t;
+
+/*!\brief Features pass to the external model to make partition decisions.
+ * Specifically, features collected after RECTANGULAR partition.
+ */
+typedef struct aom_partition_features_rect {
+  float f[10]; /**< features to determine pruning AB partition */
+} aom_partition_features_rect_t;
+
+/*!\brief Features pass to the external model to make partition decisions.
+ * Specifically, features collected after AB partition: HORZ_A, HORZ_B, VERT_A,
+ * VERT_B.
+ */
+typedef struct aom_partition_features_ab {
+  float f[18]; /**< features to determine pruning 4-way partition */
+} aom_partition_features_ab_t;
+
+/*!\brief Features pass to the external model to make partition decisions.
  *
  * The encoder sends these features to the external model through
  * "func()" defined in .....
@@ -57,10 +98,16 @@ typedef struct aom_ext_part_config {
  * Once new features are finalized, bump the major version of libaom.
  */
 typedef struct aom_partition_features {
-  // Features are unclear yet
-  // Candidates include:
-  // mv
-  int64_t sse; /**< sum squared error */
+  aom_partition_features_before_none_t
+      before_part_none; /**< Features collected before NONE partition */
+  aom_partition_features_none_t
+      after_part_none; /**< Features collected after NONE partition */
+  aom_partition_features_split_t
+      after_part_split; /**< Features collected after SPLIT partition */
+  aom_partition_features_rect_t
+      after_part_rect; /**< Features collected after RECTANGULAR partition */
+  aom_partition_features_ab_t
+      after_part_ab; /**< Features collected after AB partition */
 } aom_partition_features_t;
 
 /*!\brief Partition decisions received from the external model.
@@ -73,8 +120,23 @@ typedef struct aom_partition_features {
  * Once new features are finalized, bump the major version of libaom.
  */
 typedef struct aom_partition_decision {
+  // Decisions for directly set partition types
   int is_final_decision;       /**< The flag whether it is the final decision */
   int partition_decision[256]; /**< Partition decisions */
+
+  // Decisions for partition type pruning
+  int terminate_partition_search; /**< Terminate further partition search */
+  int partition_none_allowed;     /**< Allow partition none type */
+  int partition_rect_allowed[2];  /**< Allow rectangular partitions */
+  int do_rectangular_split;       /**< Try rectangular split partition */
+  int do_square_split;            /**< Try square split partition */
+  int prune_rect_part[2];         /**< Prune rectangular partition */
+  int horza_partition_allowed;    /**< Allow HORZ_A partitioin */
+  int horzb_partition_allowed;    /**< Allow HORZ_B partitioin */
+  int verta_partition_allowed;    /**< Allow VERT_A partitioin */
+  int vertb_partition_allowed;    /**< Allow VERT_B partitioin */
+  int partition_horz4_allowed;    /**< Allow HORZ4 partition */
+  int partition_vert4_allowed;    /**< Allow VERT4 partition */
 } aom_partition_decision_t;
 
 /*!\brief Encoding stats for the given partition decision.
