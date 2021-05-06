@@ -49,7 +49,7 @@ if(CONFIG_AV1_DECODER)
               "${AOM_ROOT}/test/decode_test_driver.h")
 endif()
 
-if(CONFIG_INTERNAL_STATS)
+if(CONFIG_INTERNAL_STATS AND CONFIG_AV1_HIGHBITDEPTH)
   list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
               "${AOM_ROOT}/test/hbd_metrics_test.cc")
 endif()

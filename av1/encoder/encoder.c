@@ -3585,12 +3585,8 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
       ppi->total_samples[0] += psnr.samples[0];
       samples = psnr.samples[0];
 
-      // TODO(yaowu): unify these two versions into one.
-      if (cm->seq_params->use_highbitdepth)
-        aom_highbd_calc_ssim(orig, recon, weight, bit_depth, in_bit_depth,
-                             frame_ssim2);
-      else
-        aom_calc_ssim(orig, recon, &weight[0], &frame_ssim2[0]);
+      aom_calc_ssim(orig, recon, bit_depth, in_bit_depth,
+                    cm->seq_params->use_highbitdepth, weight, frame_ssim2);
 
       ppi->worst_ssim = AOMMIN(ppi->worst_ssim, frame_ssim2[0]);
       ppi->summed_quality += frame_ssim2[0] * weight[0];

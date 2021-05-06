@@ -68,18 +68,25 @@ double aom_get_ssim_metrics(uint8_t *img1, int img1_pitch, uint8_t *img2,
                             int img2_pitch, int width, int height, Ssimv *sv2,
                             Metrics *m, int do_inconsistency);
 
-void aom_calc_ssim(const YV12_BUFFER_CONFIG *source,
-                   const YV12_BUFFER_CONFIG *dest, double *weight,
-                   double *fast_ssim);
+void aom_lowbd_calc_ssim(const YV12_BUFFER_CONFIG *source,
+                         const YV12_BUFFER_CONFIG *dest, double *weight,
+                         double *fast_ssim);
 
 double aom_calc_fastssim(const YV12_BUFFER_CONFIG *source,
                          const YV12_BUFFER_CONFIG *dest, double *ssim_y,
                          double *ssim_u, double *ssim_v, uint32_t bd,
                          uint32_t in_bd);
 
+#if CONFIG_AV1_HIGHBITDEPTH
 void aom_highbd_calc_ssim(const YV12_BUFFER_CONFIG *source,
                           const YV12_BUFFER_CONFIG *dest, double *weight,
                           uint32_t bd, uint32_t in_bd, double *fast_ssim);
+#endif  // CONFIG_AV1_HIGHBITDEPTH
+
+void aom_calc_ssim(const YV12_BUFFER_CONFIG *orig,
+                   const YV12_BUFFER_CONFIG *recon, const uint32_t bit_depth,
+                   const uint32_t in_bit_depth, int is_hbd, double *weight,
+                   double *frame_ssim2);
 
 #ifdef __cplusplus
 }  // extern "C"
