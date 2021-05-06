@@ -68,6 +68,7 @@ endif()
 list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
             "${AOM_ROOT}/test/active_map_test.cc"
             "${AOM_ROOT}/test/aq_segment_test.cc"
+            "${AOM_ROOT}/test/av1_external_partition_test.cc"
             "${AOM_ROOT}/test/borders_test.cc"
             "${AOM_ROOT}/test/cpu_speed_test.cc"
             "${AOM_ROOT}/test/datarate_test.cc"
