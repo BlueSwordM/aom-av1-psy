@@ -50,9 +50,16 @@ typedef struct aom_ext_part_config {
 
 /*!\brief Features pass to the external model to make partition decisions.
  * Specifically, features collected before NONE partition.
+ * Features "f" are used to determine:
+ * partition_none_allowed, partition_horz_allowed, partition_vert_allowed,
+ * do_rectangular_split, do_square_split
+ * Features "f_part2" are used to determine:
+ * prune_horz, prune_vert.
  */
 typedef struct aom_partition_features_before_none {
   float f[17]; /**< features to determine whether partition types allowed */
+  float
+      f_part2[25]; /**< features to determine whether partition types allowed */
 } aom_partition_features_before_none_t;
 
 /*!\brief Features pass to the external model to make partition decisions.
@@ -89,6 +96,18 @@ typedef struct aom_partition_features_ab {
   float f[18]; /**< features to determine pruning 4-way partition */
 } aom_partition_features_ab_t;
 
+/*!\brief Feature id to tell the external model the current stage in partition
+ * pruning and what features to use to make decisions accordingly.
+ */
+typedef enum {
+  FEATURE_BEFORE_PART_NONE,
+  FEATURE_BEFORE_PART_NONE_PART2,
+  FEATURE_AFTER_PART_NONE,
+  FEATURE_AFTER_PART_SPLIT,
+  FEATURE_AFTER_PART_RECT,
+  FEATURE_AFTER_PART_AB
+} PART_FEATURE_ID;
+
 /*!\brief Features pass to the external model to make partition decisions.
  *
  * The encoder sends these features to the external model through
@@ -98,6 +117,7 @@ typedef struct aom_partition_features_ab {
  * Once new features are finalized, bump the major version of libaom.
  */
 typedef struct aom_partition_features {
+  PART_FEATURE_ID id; /**< Feature ID to indicate active features */
   aom_partition_features_before_none_t
       before_part_none; /**< Features collected before NONE partition */
   aom_partition_features_none_t

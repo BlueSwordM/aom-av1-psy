@@ -2022,6 +2022,7 @@ static bool ext_ml_model_decision_before_none(
 
   // Setup features.
   aom_partition_features_t features;
+  features.id = FEATURE_BEFORE_PART_NONE;
   for (int i = 0; i < FEATURE_SIZE_SMS_SPLIT; ++i) {
     features.before_part_none.f[i] = features_from_motion[i];
   }
@@ -2058,8 +2059,9 @@ static bool ext_ml_model_decision_before_none_part2(
 
   // Setup features.
   aom_partition_features_t features;
+  features.id = FEATURE_BEFORE_PART_NONE_PART2;
   for (int i = 0; i < FEATURE_SIZE_SMS_PRUNE_PART; ++i) {
-    features.before_part_none.f[i] = features_from_motion[i];
+    features.before_part_none.f_part2[i] = features_from_motion[i];
   }
 
   // Send necessary features to the external model.
@@ -2094,6 +2096,7 @@ bool av1_ext_ml_model_decision_after_none(
   if (!frame_is_intra_only(cm) && ext_part_controller->ready) {
     // Setup features.
     aom_partition_features_t features;
+    features.id = FEATURE_AFTER_PART_NONE;
     prepare_features_after_part_none(cpi, cm, x, sms_tree, part_search_state,
                                      pb_source_variance, &features);
 
@@ -2135,6 +2138,7 @@ bool av1_ext_ml_model_decision_after_split(
   if (!frame_is_intra_only(cm) && cpi->ext_part_controller.ready) {
     // Setup features.
     aom_partition_features_t features;
+    features.id = FEATURE_AFTER_PART_SPLIT;
     prepare_features_after_split(cpi, x, sms_tree, part_search_state, best_rdc,
                                  partition_none_rdcost, partition_split_rdcost,
                                  split_block_rdcost, &features);
@@ -2189,6 +2193,7 @@ static bool ext_ml_model_decision_after_rect(
       ab_partition_allowed) {
     // Setup features.
     aom_partition_features_t features;
+    features.id = FEATURE_AFTER_PART_RECT;
     prepare_features_after_part_rect(cpi, x, pc_tree, bsize, best_rdcost,
                                      rect_part_rd, split_rd, &features);
 
@@ -2230,6 +2235,7 @@ static bool ext_ml_model_decision_after_part_ab(
   if (!frame_is_intra_only(cm) && ext_part_controller->ready) {
     // Setup features.
     aom_partition_features_t features;
+    features.id = FEATURE_AFTER_PART_AB;
     prepare_features_after_part_ab(cpi, x, bsize, part_ctx, best_rd,
                                    rect_part_rd, split_rd, pb_source_variance,
                                    mi_row, mi_col, &features);
