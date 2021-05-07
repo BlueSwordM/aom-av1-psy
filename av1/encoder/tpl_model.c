@@ -1747,6 +1747,7 @@ double av1_exponential_entropy(double q_step, double b) {
 double av1_laplace_entropy(double q_step, double b, double zero_bin_ratio) {
   // zero bin's size is zero_bin_ratio * q_step
   // non-zero bin's size is q_step
+  b = AOMMAX(b, TPL_EPSILON);
   double z = fmax(exp(-zero_bin_ratio / 2 * q_step / b), TPL_EPSILON);
   double h = av1_exponential_entropy(q_step, b);
   double r = -(1 - z) * log2(1 - z) - z * log2(z) + z * (h + 1);
@@ -1769,6 +1770,28 @@ double av1_laplace_estimate_frame_rate(int q_index, int block_count,
   }
   est_rate *= block_count;
   return est_rate;
+}
+
+double av1_estimate_gop_bitrate(const unsigned char *q_index_list,
+                                const int frame_count,
+                                const TplTxfmStats *stats_list) {
+  double gop_bitrate = 0;
+  for (int frame_index = 0; frame_index < frame_count; frame_index++) {
+    int q_index = q_index_list[frame_index];
+    TplTxfmStats frame_stats = stats_list[frame_index];
+
+    /* Convert to mean absolute deviation */
+    double abs_coeff_mean[256] = { 0 };
+    for (int i = 0; i < 256; i++) {
+      abs_coeff_mean[i] =
+          frame_stats.abs_coeff_sum[i] / frame_stats.txfm_block_count;
+    }
+
+    double frame_bitrate = av1_laplace_estimate_frame_rate(
+        q_index, frame_stats.txfm_block_count, abs_coeff_mean, 256);
+    gop_bitrate += frame_bitrate;
+  }
+  return gop_bitrate;
 }
 
 double av1_estimate_coeff_entropy(double q_step, double b,

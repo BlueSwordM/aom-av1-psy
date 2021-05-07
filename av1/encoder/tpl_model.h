@@ -306,6 +306,18 @@ double av1_laplace_estimate_frame_rate(int q_index, int block_count,
                                        const double *abs_coeff_mean,
                                        int coeff_num);
 
+/*
+ *!\brief Compute the number of bits needed to encode a GOP
+ *
+ * \param[in]    q_index_list    array of q_index, one per frame
+ * \param[in]    frame_count     number of frames in the GOP
+ * \param[in]    stats           array of transform stats, one per frame
+ *
+ */
+double av1_estimate_gop_bitrate(const unsigned char *q_index_list,
+                                const int frame_count,
+                                const TplTxfmStats *stats);
+
 /*!\brief  Init data structure storing transform stats
  *
  *\ingroup tpl_modelling
