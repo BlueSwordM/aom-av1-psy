@@ -444,6 +444,13 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
 
   const BLOCK_SIZE fp_block_size = cpi->fp_block_size;
   int end_of_frame = 0;
+
+  // When master thread does not have a valid job to process, xd->tile_ctx
+  // is not set and it contains NULL pointer. This can result in NULL pointer
+  // access violation if accessed beyond the encode stage. Hence, updating
+  // thread_data->td->mb.e_mbd.tile_ctx is initialized with common frame
+  // context to avoid NULL pointer access in subsequent stages.
+  thread_data->td->mb.e_mbd.tile_ctx = cm->fc;
   while (1) {
     int current_mi_row = -1;
 #if CONFIG_MULTITHREAD
