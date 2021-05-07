@@ -266,7 +266,7 @@ static void enqueue_lf_jobs(AV1LfSync *lf_sync, AV1_COMMON *cm, int start,
 #if CONFIG_LPF_MASK
                             int is_decoding,
 #endif
-                            int plane_start, int plane_end, int is_realtime) {
+                            int plane_start, int plane_end) {
   int mi_row, plane, dir;
   AV1LfMTInfo *lf_job_queue = lf_sync->job_queue;
   lf_sync->jobs_enqueued = 0;
@@ -293,7 +293,6 @@ static void enqueue_lf_jobs(AV1LfSync *lf_sync, AV1_COMMON *cm, int start,
         lf_job_queue->mi_row = mi_row;
         lf_job_queue->plane = plane;
         lf_job_queue->dir = dir;
-        lf_job_queue->is_realtime = is_realtime;
         lf_job_queue++;
         lf_sync->jobs_enqueued++;
       }
@@ -328,7 +327,7 @@ static INLINE void thread_loop_filter_rows(
   const int sb_cols =
       ALIGN_POWER_OF_TWO(cm->mi_params.mi_cols, MAX_MIB_SIZE_LOG2) >>
       MAX_MIB_SIZE_LOG2;
-  int mi_row, mi_col, plane, dir, is_realtime;
+  int mi_row, mi_col, plane, dir;
   int r, c;
 
   while (1) {
@@ -339,7 +338,6 @@ static INLINE void thread_loop_filter_rows(
       plane = cur_job_info->plane;
       dir = cur_job_info->dir;
       r = mi_row >> MAX_MIB_SIZE_LOG2;
-      is_realtime = cur_job_info->is_realtime && !plane;
 
       if (dir == 0) {
         for (mi_col = 0; mi_col < cm->mi_params.mi_cols;
@@ -348,20 +346,9 @@ static INLINE void thread_loop_filter_rows(
 
           av1_setup_dst_planes(planes, cm->seq_params->sb_size, frame_buffer,
                                mi_row, mi_col, plane, plane + 1);
-#if CONFIG_AV1_HIGHBITDEPTH
-          (void)is_realtime;
+
           av1_filter_block_plane_vert(cm, xd, plane, &planes[plane], mi_row,
                                       mi_col);
-#else
-          if (is_realtime) {
-            av1_filter_block_plane_vert_rt(cm, xd, plane, &planes[plane],
-                                           mi_row, mi_col);
-
-          } else {
-            av1_filter_block_plane_vert(cm, xd, plane, &planes[plane], mi_row,
-                                        mi_col);
-          }
-#endif
           sync_write(lf_sync, r, c, sb_cols, plane);
         }
       } else if (dir == 1) {
@@ -379,19 +366,8 @@ static INLINE void thread_loop_filter_rows(
 
           av1_setup_dst_planes(planes, cm->seq_params->sb_size, frame_buffer,
                                mi_row, mi_col, plane, plane + 1);
-#if CONFIG_AV1_HIGHBITDEPTH
-          (void)is_realtime;
           av1_filter_block_plane_horz(cm, xd, plane, &planes[plane], mi_row,
                                       mi_col);
-#else
-          if (is_realtime) {
-            av1_filter_block_plane_horz_rt(cm, xd, plane, &planes[plane],
-                                           mi_row, mi_col);
-          } else {
-            av1_filter_block_plane_horz(cm, xd, plane, &planes[plane], mi_row,
-                                        mi_col);
-          }
-#endif
         }
       }
     } else {
@@ -484,7 +460,7 @@ static void loop_filter_rows_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                                 int is_decoding,
 #endif
                                 AVxWorker *workers, int nworkers,
-                                AV1LfSync *lf_sync, int is_realtime) {
+                                AV1LfSync *lf_sync) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
 #if CONFIG_LPF_MASK
   int sb_rows;
@@ -520,7 +496,7 @@ static void loop_filter_rows_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
 #if CONFIG_LPF_MASK
                   is_decoding,
 #endif
-                  plane_start, plane_end, is_realtime);
+                  plane_start, plane_end);
 
   // Set up loopfilter thread data.
   for (i = num_workers - 1; i >= 0; --i) {
@@ -563,7 +539,7 @@ void av1_loop_filter_frame_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                               int is_decoding,
 #endif
                               AVxWorker *workers, int num_workers,
-                              AV1LfSync *lf_sync, int is_realtime) {
+                              AV1LfSync *lf_sync) {
   int start_mi_row, end_mi_row, mi_rows_to_filter;
 
   start_mi_row = 0;
@@ -605,7 +581,7 @@ void av1_loop_filter_frame_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   }
 #else
   loop_filter_rows_mt(frame, cm, xd, start_mi_row, end_mi_row, plane_start,
-                      plane_end, workers, num_workers, lf_sync, is_realtime);
+                      plane_end, workers, num_workers, lf_sync);
 #endif
 }
 

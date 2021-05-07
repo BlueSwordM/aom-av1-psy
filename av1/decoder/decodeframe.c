@@ -5293,13 +5293,13 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_LPF_MASK
             1,
 #endif
-            pbi->tile_workers, pbi->num_workers, &pbi->lf_row_sync, 0);
+            pbi->tile_workers, pbi->num_workers, &pbi->lf_row_sync);
       } else {
         av1_loop_filter_frame(&cm->cur_frame->buf, cm, &pbi->dcb.xd,
 #if CONFIG_LPF_MASK
                               1,
 #endif
-                              0, num_planes, 0, 0);
+                              0, num_planes, 0);
       }
     }
 
