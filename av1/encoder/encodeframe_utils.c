@@ -937,7 +937,7 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
     beta = (r0 / rk);
     assert(beta > 0.0);
   }
-  offset = av1_get_deltaq_offset(cpi, base_qindex, beta);
+  offset = av1_get_deltaq_offset(cm->seq_params->bit_depth, base_qindex, beta);
 
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
   offset = AOMMIN(offset, delta_q_info->delta_q_res * 9 - 1);

@@ -388,21 +388,30 @@ int av1_compute_rd_mult(const AV1_COMP *cpi, int qindex) {
   return (int)rdmult;
 }
 
-int av1_get_deltaq_offset(const AV1_COMP *cpi, int qindex, double beta) {
+int av1_get_deltaq_offset(aom_bit_depth_t bit_depth, int qindex, double beta) {
   assert(beta > 0.0);
-  int q = av1_dc_quant_QTX(qindex, 0, cpi->common.seq_params->bit_depth);
+  int q = av1_dc_quant_QTX(qindex, 0, bit_depth);
   int newq = (int)rint(q / sqrt(beta));
   int orig_qindex = qindex;
+  if (newq == q) {
+    return 0;
+  }
   if (newq < q) {
-    do {
+    while (qindex > 0) {
       qindex--;
-      q = av1_dc_quant_QTX(qindex, 0, cpi->common.seq_params->bit_depth);
-    } while (newq < q && qindex > 0);
+      q = av1_dc_quant_QTX(qindex, 0, bit_depth);
+      if (newq >= q) {
+        break;
+      }
+    }
   } else {
-    do {
+    while (qindex < MAXQ) {
       qindex++;
-      q = av1_dc_quant_QTX(qindex, 0, cpi->common.seq_params->bit_depth);
-    } while (newq > q && qindex < MAXQ);
+      q = av1_dc_quant_QTX(qindex, 0, bit_depth);
+      if (newq <= q) {
+        break;
+      }
+    }
   }
   return qindex - orig_qindex;
 }
