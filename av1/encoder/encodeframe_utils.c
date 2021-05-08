@@ -44,7 +44,6 @@ void av1_set_ssim_rdmult(const AV1_COMP *const cpi, int *errorperbit,
 
   assert(cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIM);
 
-  aom_clear_system_state();
   for (row = mi_row / num_mi_w;
        row < num_rows && row < mi_row / num_mi_w + num_brows; ++row) {
     for (col = mi_col / num_mi_h;
@@ -59,7 +58,6 @@ void av1_set_ssim_rdmult(const AV1_COMP *const cpi, int *errorperbit,
   *rdmult = (int)((double)(*rdmult) * geom_mean_of_scale + 0.5);
   *rdmult = AOMMAX(*rdmult, 0);
   av1_set_error_per_bit(errorperbit, *rdmult);
-  aom_clear_system_state();
 }
 
 // Return the end column for the current superblock, in unit of TPL blocks.
@@ -117,7 +115,6 @@ int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   int row, col;
   double base_block_count = 0.0;
   double geom_mean_of_scale = 0.0;
-  aom_clear_system_state();
   for (row = mi_row / num_mi_w;
        row < num_rows && row < mi_row / num_mi_w + num_brows; ++row) {
     for (col = mi_col_sr / num_mi_h;
@@ -133,7 +130,6 @@ int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   int rdmult = (int)((double)orig_rdmult * geom_mean_of_scale + 0.5);
   rdmult = AOMMAX(rdmult, 0);
   av1_set_error_per_bit(&x->errorperbit, rdmult);
-  aom_clear_system_state();
   if (bsize == cm->seq_params->sb_size) {
     const int rdmult_sb = set_deltaq_rdmult(cpi, x);
     assert(rdmult_sb == rdmult);
@@ -728,8 +724,6 @@ int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
   }
   assert(mi_count <= MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB);
 
-  aom_clear_system_state();
-
   double beta = 1.0;
   if (mc_dep_cost > 0 && intra_cost > 0) {
     const double r0 = cpi->rd.r0;
@@ -738,8 +732,6 @@ int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
   }
 
   int rdmult = av1_get_adaptive_rdmult(cpi, beta);
-
-  aom_clear_system_state();
 
   rdmult = AOMMIN(rdmult, orig_rdmult * 3 / 2);
   rdmult = AOMMAX(rdmult, orig_rdmult * 1 / 2);
@@ -937,8 +929,6 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   }
   assert(mi_count <= MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB);
 
-  aom_clear_system_state();
-
   int offset = 0;
   double beta = 1.0;
   if (mc_dep_cost > 0 && intra_cost > 0) {
@@ -948,7 +938,6 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
     assert(beta > 0.0);
   }
   offset = av1_get_deltaq_offset(cpi, base_qindex, beta);
-  aom_clear_system_state();
 
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
   offset = AOMMIN(offset, delta_q_info->delta_q_res * 9 - 1);
