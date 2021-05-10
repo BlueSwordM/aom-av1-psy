@@ -59,8 +59,8 @@ typedef struct {
 } PackBSParams;
 
 typedef struct {
+  uint64_t abs_sum_level;
   uint16_t tile_idx;
-  int tile_size_mi;
 } PackBSTileOrder;
 
 // Pack bitstream data for pack bitstream multi-threading.

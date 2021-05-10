@@ -1283,6 +1283,7 @@ typedef struct TileDataEnc {
   TileInfo tile_info;
   DECLARE_ALIGNED(16, FRAME_CONTEXT, tctx);
   FRAME_CONTEXT *row_ctx;
+  uint64_t abs_sum_level;
   uint8_t allow_update_cdf;
   InterModeRdModel inter_mode_rd_models[BLOCK_SIZES_ALL];
   AV1EncRowMultiThreadSync row_mt_sync;
@@ -1311,6 +1312,7 @@ typedef struct ThreadData {
   PALETTE_BUFFER *palette_buffer;
   CompoundTypeRdBuffers comp_rd_buffer;
   CONV_BUF_TYPE *tmp_conv_dst;
+  uint64_t abs_sum_level;
   uint8_t *tmp_pred_bufs[2];
   int intrabc_used;
   int deltaq_used;

@@ -944,6 +944,7 @@ void av1_init_tile_data(AV1_COMP *cpi) {
       TileInfo *const tile_info = &tile_data->tile_info;
       av1_tile_init(tile_info, cm, tile_row, tile_col);
       tile_data->firstpass_top_mv = kZeroMv;
+      tile_data->abs_sum_level = 0;
 
       if (pre_tok != NULL && tplist != NULL) {
         token_info->tile_tok[tile_row][tile_col] = pre_tok + tile_tok;
@@ -1033,6 +1034,7 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
        mi_row += cm->seq_params->mib_size) {
     av1_encode_sb_row(cpi, td, tile_row, tile_col, mi_row);
   }
+  this_tile->abs_sum_level = td->abs_sum_level;
 }
 
 /*!\brief Break one frame into tiles and encode the tiles
@@ -1061,6 +1063,7 @@ static AOM_INLINE void encode_tiles(AV1_COMP *cpi) {
           &cpi->tile_data[tile_row * cm->tiles.cols + tile_col];
       cpi->td.intrabc_used = 0;
       cpi->td.deltaq_used = 0;
+      cpi->td.abs_sum_level = 0;
       cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
       cpi->td.mb.tile_pb_ctx = &this_tile->tctx;
       // Reset cyclic refresh counters.

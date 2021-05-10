@@ -480,6 +480,7 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
 
     td->mb.e_mbd.tile_ctx = td->tctx;
     td->mb.tile_pb_ctx = &this_tile->tctx;
+    td->abs_sum_level = 0;
 
     if (this_tile->allow_update_cdf) {
       td->mb.row_ctx = this_tile->row_ctx;
@@ -502,6 +503,7 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
 #if CONFIG_MULTITHREAD
     pthread_mutex_lock(enc_row_mt_mutex_);
 #endif
+    this_tile->abs_sum_level += td->abs_sum_level;
     row_mt_sync->num_threads_working--;
 #if CONFIG_MULTITHREAD
     pthread_mutex_unlock(enc_row_mt_mutex_);
@@ -840,6 +842,7 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
 
     thread_data->td->intrabc_used = 0;
     thread_data->td->deltaq_used = 0;
+    thread_data->td->abs_sum_level = 0;
 
     // Before encoding a frame, copy the thread data from cpi.
     if (thread_data->td != &cpi->td) {
@@ -1810,14 +1813,14 @@ void av1_global_motion_estimation_mt(AV1_COMP *cpi) {
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
-// Compare and order tiles based on tile size.
+// Compare and order tiles based on absolute sum of tx coeffs.
 static int compare_tile_order(const void *a, const void *b) {
   const PackBSTileOrder *const tile_a = (const PackBSTileOrder *)a;
   const PackBSTileOrder *const tile_b = (const PackBSTileOrder *)b;
 
-  if (tile_a->tile_size_mi > tile_b->tile_size_mi)
+  if (tile_a->abs_sum_level > tile_b->abs_sum_level)
     return -1;
-  else if (tile_a->tile_size_mi == tile_b->tile_size_mi)
+  else if (tile_a->abs_sum_level == tile_b->abs_sum_level)
     return (tile_a->tile_idx > tile_b->tile_idx ? 1 : -1);
   else
     return 1;
@@ -2040,8 +2043,8 @@ static void prepare_pack_bs_workers(AV1_COMP *const cpi,
 
   // Populate pack bitstream tile order structure
   for (uint16_t tile_idx = 0; tile_idx < num_tiles; tile_idx++) {
-    pack_bs_tile_order[tile_idx].tile_size_mi =
-        pack_bs_params[tile_idx].tile_size_mi;
+    pack_bs_tile_order[tile_idx].abs_sum_level =
+        cpi->tile_data[tile_idx].abs_sum_level;
     pack_bs_tile_order[tile_idx].tile_idx = tile_idx;
   }
 
