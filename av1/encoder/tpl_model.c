@@ -1436,6 +1436,24 @@ static AOM_INLINE int eval_gop_length(double *beta, int gop_eval) {
   }
 }
 
+// TODO(jingning): Restructure av1_rc_pick_q_and_bounds() to narrow down
+// the scope of input arguments.
+void av1_tpl_preload_rc_estimate(AV1_COMP *cpi,
+                                 const EncodeFrameParams *const frame_params) {
+  AV1_COMMON *cm = &cpi->common;
+  GF_GROUP *gf_group = &cpi->ppi->gf_group;
+  int bottom_index, top_index;
+  cm->current_frame.frame_type = frame_params->frame_type;
+  for (int gf_index = cpi->gf_frame_index; gf_index < gf_group->size;
+       ++gf_index) {
+    cm->current_frame.frame_type = gf_group->frame_type[gf_index];
+    cm->show_frame = gf_group->update_type[gf_index] != ARF_UPDATE &&
+                     gf_group->update_type[gf_index] != INTNL_ARF_UPDATE;
+    gf_group->q_val[gf_index] = av1_rc_pick_q_and_bounds(
+        cpi, cm->width, cm->height, gf_index, &bottom_index, &top_index);
+  }
+}
+
 int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
                         const EncodeFrameParams *const frame_params,
                         const EncodeFrameInput *const frame_input) {
@@ -1446,7 +1464,6 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   AV1TplRowMultiThreadInfo *const tpl_row_mt = &mt_info->tpl_row_mt;
   GF_GROUP *gf_group = &cpi->ppi->gf_group;
-  int bottom_index, top_index;
   EncodeFrameParams this_frame_params = *frame_params;
   TplParams *const tpl_data = &cpi->ppi->tpl_data;
   int approx_gop_eval = (gop_eval > 1);
@@ -1474,12 +1491,6 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
     memcpy(&cpi->refresh_frame, &this_frame_params.refresh_frame,
            sizeof(cpi->refresh_frame));
-
-    cm->show_frame = gf_group->update_type[gf_index] != ARF_UPDATE &&
-                     gf_group->update_type[gf_index] != INTNL_ARF_UPDATE;
-
-    gf_group->q_val[gf_index] = av1_rc_pick_q_and_bounds(
-        cpi, cm->width, cm->height, gf_index, &bottom_index, &top_index);
   }
 
   int pframe_qindex;

@@ -239,6 +239,9 @@ int av1_tpl_setup_stats(struct AV1_COMP *cpi, int gop_eval,
 
 /*!\cond */
 
+void av1_tpl_preload_rc_estimate(
+    struct AV1_COMP *cpi, const struct EncodeFrameParams *const frame_params);
+
 int av1_tpl_ptr_pos(int mi_row, int mi_col, int stride, uint8_t right_shift);
 
 void av1_init_tpl_stats(TplParams *const tpl_data);

@@ -976,8 +976,10 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     if (cpi->gf_frame_index == 0 && !is_stat_generation_stage(cpi))
       av1_init_tpl_stats(&cpi->ppi->tpl_data);
   } else {
-    if (!cpi->skip_tpl_setup_stats)
+    if (!cpi->skip_tpl_setup_stats) {
+      av1_tpl_preload_rc_estimate(cpi, frame_params);
       av1_tpl_setup_stats(cpi, 0, frame_params, frame_input);
+    }
   }
 
   if (av1_encode(cpi, dest, frame_input, frame_params, frame_results) !=

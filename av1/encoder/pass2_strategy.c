@@ -1020,6 +1020,8 @@ static int is_shorter_gf_interval_better(AV1_COMP *cpi,
   int gop_length_decision_method = cpi->sf.tpl_sf.gop_length_decision_method;
   int shorten_gf_interval;
 
+  av1_tpl_preload_rc_estimate(cpi, frame_params);
+
   if (gop_length_decision_method == 2) {
     // GF group length is decided based on GF boost and tpl stats of ARFs from
     // base layer, (base+1) layer.
