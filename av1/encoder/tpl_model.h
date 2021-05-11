@@ -106,6 +106,7 @@ typedef struct TplDepStats {
   int64_t cmp_recrf_dist[2];
   int64_t srcrf_rate;
   int64_t recrf_rate;
+  int64_t srcrf_sse;
   int64_t cmp_recrf_rate[2];
   int64_t mc_dep_rate;
   int64_t mc_dep_dist;
