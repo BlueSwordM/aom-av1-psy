@@ -2940,9 +2940,9 @@ static void ab_partitions_search(
   int ab_partitions_allowed[NUM_AB_PARTS] = { 1, 1, 1, 1 };
   // Prune AB partitions
   av1_prune_ab_partitions(
-      cpi, x, pc_tree, bsize, pb_source_variance, best_rdc->rdcost,
-      part_search_state->rect_part_rd, part_search_state->split_rd,
-      rect_part_win_info, ext_partition_allowed,
+      cpi, x, pc_tree, bsize, mi_row, mi_col, pb_source_variance,
+      best_rdc->rdcost, part_search_state->rect_part_rd,
+      part_search_state->split_rd, rect_part_win_info, ext_partition_allowed,
       part_search_state->partition_rect_allowed[HORZ],
       part_search_state->partition_rect_allowed[VERT],
       &ab_partitions_allowed[HORZ_A], &ab_partitions_allowed[HORZ_B],
@@ -3304,8 +3304,8 @@ static void prune_partitions_after_none(AV1_COMP *const cpi, MACROBLOCK *x,
         bsize <= cpi->sf.part_sf.use_square_partition_only_threshold &&
         bsize > BLOCK_4X4 && cpi->sf.part_sf.ml_predict_breakout_level >= 1;
     if (use_ml_based_breakout) {
-      if (av1_ml_predict_breakout(cpi, bsize, x, this_rdc, *pb_source_variance,
-                                  xd->bd)) {
+      if (av1_ml_predict_breakout(cpi, bsize, x, this_rdc, blk_params,
+                                  *pb_source_variance, xd->bd)) {
         part_search_state->do_square_split = 0;
         part_search_state->do_rectangular_split = 0;
       }
@@ -3392,10 +3392,11 @@ static void prune_partitions_after_split(
       !part_search_state->terminate_partition_search) {
     av1_setup_src_planes(x, cpi->source, mi_row, mi_col, av1_num_planes(cm),
                          bsize);
-    av1_ml_prune_rect_partition(
-        cpi, x, bsize, best_rdc->rdcost, part_search_state->none_rd,
-        part_search_state->split_rd, &part_search_state->prune_rect_part[HORZ],
-        &part_search_state->prune_rect_part[VERT]);
+    av1_ml_prune_rect_partition(cpi, x, bsize, mi_row, mi_col, best_rdc->rdcost,
+                                part_search_state->none_rd,
+                                part_search_state->split_rd,
+                                &part_search_state->prune_rect_part[HORZ],
+                                &part_search_state->prune_rect_part[VERT]);
   }
 }
 

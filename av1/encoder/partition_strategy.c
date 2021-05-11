@@ -72,9 +72,42 @@ static INLINE int convert_bsize_to_idx(BLOCK_SIZE bsize) {
     default: assert(0 && "Invalid bsize"); return -1;
   }
 }
-#endif
 
-#if !CONFIG_REALTIME_ONLY
+static char *get_feature_file_name(int id) {
+  static char *feature_file_names[] = {
+    "feature_before_partition_none",
+    "feature_before_partition_none_prune_rect",
+    "feature_after_partition_none_prune",
+    "feature_after_partition_none_terminate",
+    "feature_after_partition_split_terminate",
+    "feature_after_partition_split_prune_rect",
+    "feature_after_partition_rect",
+    "feature_after_partition_ab",
+  };
+
+  return feature_file_names[id];
+}
+
+static void write_features_to_file(const char *const path,
+                                   const float *features,
+                                   const int feature_size, const int id,
+                                   const int bsize, const int mi_row,
+                                   const int mi_col) {
+  if (!WRITE_FEATURE_TO_FILE) return;
+
+  char filename[256];
+  snprintf(filename, sizeof(filename), "%s/%s", path,
+           get_feature_file_name(id));
+  FILE *pfile = fopen(filename, "a");
+  fprintf(pfile, "%d,%d,%d,%d,%d\n", id, bsize, mi_row, mi_col, feature_size);
+  for (int i = 0; i < feature_size; ++i) {
+    fprintf(pfile, "%.6f", features[i]);
+    if (i < feature_size - 1) fprintf(pfile, ",");
+  }
+  fprintf(pfile, "\n");
+  fclose(pfile);
+}
+
 // TODO(chiyotsai@google.com): This is very much a work in progress. We still
 // need to the following:
 //   -- add support for hdres
@@ -311,6 +344,10 @@ void av1_simple_motion_search_based_split(
   simple_motion_search_prune_part_features(cpi, x, sms_tree, mi_row, mi_col,
                                            bsize, features,
                                            FEATURE_SMS_SPLIT_MODEL_FLAG);
+
+  // Write features to file
+  write_features_to_file(cpi->oxcf.partition_info_path, features,
+                         FEATURE_SIZE_SMS_SPLIT, 0, bsize, mi_row, mi_col);
 
   // Note: it is intended to not normalize the features here, to keep it
   // consistent for all features collected and passed to the external model.
@@ -586,6 +623,11 @@ void av1_simple_motion_search_prune_rect(
       !frame_is_intra_only(cm) &&
       (partition_horz_allowed || partition_vert_allowed) &&
       bsize >= BLOCK_8X8 && !av1_superres_scaled(cm)) {
+    // Write features to file
+    write_features_to_file(cpi->oxcf.partition_info_path, features,
+                           FEATURE_SIZE_SMS_PRUNE_PART, 1, bsize, mi_row,
+                           mi_col);
+
     if (ext_ml_model_decision_before_none_part2(cpi, features, prune_horz,
                                                 prune_vert)) {
       return;
@@ -665,6 +707,10 @@ void av1_simple_motion_search_early_term_none(
   } else {
     assert(0 && "Unexpected block size in simple_motion_term_none");
   }
+
+  // Write features to file
+  write_features_to_file(cpi->oxcf.partition_info_path, features,
+                         FEATURE_SIZE_SMS_TERM_NONE, 3, bsize, mi_row, mi_col);
 
   if (ml_model) {
     float score = 0.0f;
@@ -979,6 +1025,10 @@ void av1_ml_early_term_after_split(AV1_COMP *const cpi, MACROBLOCK *const x,
 
   assert(f_idx == FEATURES);
 
+  // Write features to file
+  write_features_to_file(cpi->oxcf.partition_info_path, features, FEATURES, 4,
+                         bsize, mi_row, mi_col);
+
   float score = 0.0f;
   av1_nn_predict(features, nn_config, 1, &score);
   // Score is indicator of confidence that we should NOT terminate.
@@ -988,6 +1038,7 @@ void av1_ml_early_term_after_split(AV1_COMP *const cpi, MACROBLOCK *const x,
 
 void av1_ml_prune_rect_partition(const AV1_COMP *const cpi,
                                  const MACROBLOCK *const x, BLOCK_SIZE bsize,
+                                 const int mi_row, const int mi_col,
                                  int64_t best_rd, int64_t none_rd,
                                  int64_t *split_rd, int *const dst_prune_horz,
                                  int *const dst_prune_vert) {
@@ -1066,6 +1117,10 @@ void av1_ml_prune_rect_partition(const AV1_COMP *const cpi,
   for (int i = 0; i < SUB_PARTITIONS_SPLIT; i++)
     features[5 + i] = (float)split_variance[i] / (float)whole_block_variance;
 
+  // Write features to file
+  write_features_to_file(cpi->oxcf.partition_info_path, features,
+                         /*feature_size=*/9, 5, bsize, mi_row, mi_col);
+
   // 2. Do the prediction and prune 0-2 partitions based on their probabilities
   float raw_scores[3] = { 0.0f };
   av1_nn_predict(features, nn_config, 1, raw_scores);
@@ -1082,7 +1137,8 @@ void av1_ml_prune_rect_partition(const AV1_COMP *const cpi,
 // Use a ML model to predict if horz_a, horz_b, vert_a, and vert_b should be
 // considered.
 void av1_ml_prune_ab_partition(
-    BLOCK_SIZE bsize, int part_ctx, int var_ctx, int64_t best_rd,
+    const AV1_COMP *const cpi, BLOCK_SIZE bsize, const int mi_row,
+    const int mi_col, int part_ctx, int var_ctx, int64_t best_rd,
     int64_t horz_rd[SUB_PARTITIONS_RECT], int64_t vert_rd[SUB_PARTITIONS_RECT],
     int64_t split_rd[SUB_PARTITIONS_SPLIT], int *const horza_partition_allowed,
     int *const horzb_partition_allowed, int *const verta_partition_allowed,
@@ -1132,6 +1188,10 @@ void av1_ml_prune_ab_partition(
     features[feature_index++] = rd_ratio;
   }
   assert(feature_index == 10);
+
+  // Write features to file
+  write_features_to_file(cpi->oxcf.partition_info_path, features,
+                         /*feature_size=*/10, 6, bsize, mi_row, mi_col);
 
   // Calculate scores using the NN model.
   float score[16] = { 0.0f };
@@ -1279,6 +1339,10 @@ void av1_ml_prune_4_partition(
   }
   assert(feature_index == FEATURES);
 
+  // Write features to file
+  write_features_to_file(cpi->oxcf.partition_info_path, features, FEATURES, 7,
+                         bsize, mi_row, mi_col);
+
   // Calculate scores using the NN model.
   float score[LABELS] = { 0.0f };
   av1_nn_predict(features, nn_config, 1, score);
@@ -1314,6 +1378,7 @@ void av1_ml_prune_4_partition(
 int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
                             const MACROBLOCK *const x,
                             const RD_STATS *const rd_stats,
+                            const PartitionBlkParams blk_params,
                             unsigned int pb_source_variance, int bit_depth) {
   const NN_CONFIG *nn_config = NULL;
   int thresh = 0;
@@ -1367,6 +1432,11 @@ int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   const int dc_q = (int)x->plane[0].dequant_QTX[0] >> (bit_depth - 8);
   features[feature_index++] = (float)(dc_q * dc_q) / 256.0f;
   assert(feature_index == FEATURES);
+
+  // Write features to file
+  write_features_to_file(cpi->oxcf.partition_info_path, features, FEATURES, 2,
+                         blk_params.bsize, blk_params.mi_row,
+                         blk_params.mi_col);
 
   // Calculate score using the NN model.
   float score = 0.0f;
@@ -1557,7 +1627,8 @@ int evaluate_ab_partition_based_on_split(
 
 void av1_prune_ab_partitions(
     AV1_COMP *cpi, const MACROBLOCK *x, const PC_TREE *pc_tree,
-    BLOCK_SIZE bsize, int pb_source_variance, int64_t best_rdcost,
+    BLOCK_SIZE bsize, const int mi_row, const int mi_col,
+    int pb_source_variance, int64_t best_rdcost,
     int64_t rect_part_rd[NUM_RECT_PARTS][SUB_PARTITIONS_RECT],
     int64_t split_rd[SUB_PARTITIONS_SPLIT],
     const RD_RECT_PART_WIN_INFO *rect_part_win_info, int ext_partition_allowed,
@@ -1661,7 +1732,7 @@ void av1_prune_ab_partitions(
     // TODO(huisu@google.com): x->source_variance may not be the current
     // block's variance. The correct one to use is pb_source_variance. Need to
     // re-train the model to fix it.
-    av1_ml_prune_ab_partition(bsize, pc_tree->partitioning,
+    av1_ml_prune_ab_partition(cpi, bsize, mi_row, mi_col, pc_tree->partitioning,
                               get_unsigned_bits(x->source_variance),
                               best_rdcost, horz_rd, vert_rd, split_rd,
                               horza_partition_allowed, horzb_partition_allowed,
