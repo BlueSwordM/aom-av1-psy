@@ -40,6 +40,42 @@ extern "C" {
  */
 typedef void *aom_ext_part_model_t;
 
+/*!\brief Number of features to determine whether to skip partition none and
+ * do partition split directly. The same as "FEATURE_SIZE_SMS_SPLIT".
+ */
+#define SIZE_DIRECT_SPLIT 17
+
+/*!\brief Number of features to use simple motion search to prune out
+ * rectangular partition in some direction. The same as
+ * "FEATURE_SIZE_SMS_PRUNE_PART".
+ */
+#define SIZE_PRUNE_PART 25
+
+/*!\brief Number of features to terminates partition after partition none using
+ * simple_motion_search features and the rate, distortion, and rdcost of
+ * PARTITION_NONE. The same as "FEATURE_SIZE_SMS_TERM_NONE".
+ */
+#define SIZE_TERM_NONE 28
+
+/*!\brief Number of features to terminates partition after partition split.
+ */
+#define SIZE_TERM_SPLIT 31
+
+/*!\brief Number of features to prune rectangular partition using stats
+ * collected after partition split.
+ */
+#define SIZE_PRUNE_RECT 9
+
+/*!\brief Number of features to prune AB partition using stats
+ * collected after rectangular partition..
+ */
+#define SIZE_PRUNE_AB 10
+
+/*!\brief Number of features to prune 4-way partition using stats
+ * collected after AB partition.
+ */
+#define SIZE_PRUNE_4_WAY 18
+
 /*!\brief Config information sent to the external partition model.
  *
  * For example, the maximum superblock size determined by the sequence header.
@@ -57,9 +93,10 @@ typedef struct aom_ext_part_config {
  * prune_horz, prune_vert.
  */
 typedef struct aom_partition_features_before_none {
-  float f[17]; /**< features to determine whether partition types allowed */
-  float
-      f_part2[25]; /**< features to determine whether partition types allowed */
+  float f[SIZE_DIRECT_SPLIT]; /**< features to determine whether skip partition
+                                 none and do split directly */
+  float f_part2[SIZE_PRUNE_PART]; /**< features to determine whether to prune
+                                     rectangular partition */
 } aom_partition_features_before_none_t;
 
 /*!\brief Features pass to the external model to make partition decisions.
@@ -70,22 +107,25 @@ typedef struct aom_partition_features_none {
   float dist;            /**< normalized distortion of the partition */
   float q;               /**< normalized quantization parameter */
   float source_variance; /**< normalized variance of the source */
-  float f_terminate[28]; /**< features to determine termination of partition */
+  float f_terminate[SIZE_TERM_NONE]; /**< features to determine termination of
+                                        partition */
 } aom_partition_features_none_t;
 
 /*!\brief Features pass to the external model to make partition decisions.
  * Specifically, features collected after SPLIT partition.
  */
 typedef struct aom_partition_features_split {
-  float f_terminate[31]; /**< features to determine termination of partition */
-  float f_prune_rect[9]; /**< features to determine pruning rect partition */
+  float f_terminate[SIZE_TERM_SPLIT];  /**< features to determine termination of
+                                          partition */
+  float f_prune_rect[SIZE_PRUNE_RECT]; /**< features to determine pruning rect
+                                          partition */
 } aom_partition_features_split_t;
 
 /*!\brief Features pass to the external model to make partition decisions.
  * Specifically, features collected after RECTANGULAR partition.
  */
 typedef struct aom_partition_features_rect {
-  float f[10]; /**< features to determine pruning AB partition */
+  float f[SIZE_PRUNE_AB]; /**< features to determine pruning AB partition */
 } aom_partition_features_rect_t;
 
 /*!\brief Features pass to the external model to make partition decisions.
@@ -93,7 +133,8 @@ typedef struct aom_partition_features_rect {
  * VERT_B.
  */
 typedef struct aom_partition_features_ab {
-  float f[18]; /**< features to determine pruning 4-way partition */
+  float
+      f[SIZE_PRUNE_4_WAY]; /**< features to determine pruning 4-way partition */
 } aom_partition_features_ab_t;
 
 /*!\brief Feature id to tell the external model the current stage in partition
