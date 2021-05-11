@@ -3283,8 +3283,8 @@ static void prune_partitions_after_none(AV1_COMP *const cpi, MACROBLOCK *x,
                                         PartitionSearchState *part_search_state,
                                         RD_STATS *best_rdc,
                                         unsigned int *pb_source_variance) {
-  if (av1_ext_ml_model_decision_after_none(cpi, x, sms_tree, part_search_state,
-                                           *pb_source_variance)) {
+  if (av1_ext_ml_model_decision_after_none(
+          cpi, x, sms_tree, ctx_none, part_search_state, *pb_source_variance)) {
     return;
   }
 

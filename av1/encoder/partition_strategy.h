@@ -276,7 +276,7 @@ static AOM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
 
 bool av1_ext_ml_model_decision_after_none(
     AV1_COMP *const cpi, MACROBLOCK *const x, SIMPLE_MOTION_DATA_TREE *sms_tree,
-    PartitionSearchState *part_search_state,
+    PICK_MODE_CONTEXT *ctx_none, PartitionSearchState *part_search_state,
     const unsigned int pb_source_variance);
 
 bool av1_ext_ml_model_decision_after_split(
