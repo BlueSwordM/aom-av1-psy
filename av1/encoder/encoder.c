@@ -1575,6 +1575,8 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 
   dealloc_compressor_data(cpi);
 
+  av1_ext_part_delete(&cpi->ext_part_controller);
+
   av1_remove_common(cm);
 
   aom_free(cpi);
