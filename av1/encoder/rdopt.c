@@ -4516,6 +4516,8 @@ static INLINE int compound_skip_using_neighbor_refs(
       this_mode == NEW_NEWMV || this_mode == GLOBAL_GLOBALMV)
     return 0;
 
+  if (prune_compound_using_neighbors >= 3) return 1;
+
   int is_ref_match[2] = { 0 };  // 0 - match for forward refs
                                 // 1 - match for backward refs
   // Check if ref frames of this block matches with left neighbor.
