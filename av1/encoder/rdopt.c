@@ -4741,8 +4741,7 @@ typedef struct {
   int skip_ref_frame_mask;
   int reach_first_comp_mode;
   int mode_thresh_mul_fact;
-  int intra_mode_idx_ls[INTRA_MODES];
-  int intra_mode_num;
+  int *intra_mode_idx_ls;
   int num_single_modes_processed;
   int prune_cpd_using_sr_stats_ready;
 } InterModeSFArgs;
@@ -4753,7 +4752,6 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
                            InterModeSFArgs *args) {
   const SPEED_FEATURES *const sf = &cpi->sf;
   MACROBLOCKD *const xd = &x->e_mbd;
-  MB_MODE_INFO *const mbmi = xd->mi[0];
   // Get the actual prediction mode we are trying in this iteration
   const THR_MODES mode_enum = av1_default_mode_order[midx];
   const MODE_DEFINITION *mode_def = &av1_mode_defs[mode_enum];
@@ -4762,6 +4760,8 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
   const MV_REFERENCE_FRAME ref_frame = ref_frames[0];
   const MV_REFERENCE_FRAME second_ref_frame = ref_frames[1];
   const int comp_pred = second_ref_frame > INTRA_FRAME;
+
+  if (ref_frame == INTRA_FRAME) return 1;
 
   // Check if this mode should be skipped because it is incompatible with the
   // current frame
@@ -4797,23 +4797,6 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
     if (compound_skip_by_single_states(cpi, args->search_state, this_mode,
                                        ref_frame, second_ref_frame, x))
       return 1;
-  }
-
-  // Speed features to prune out INTRA frames
-  if (ref_frame == INTRA_FRAME) {
-    if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
-         sf->intra_sf.disable_smooth_intra) &&
-        (mbmi->mode == SMOOTH_PRED || mbmi->mode == SMOOTH_H_PRED ||
-         mbmi->mode == SMOOTH_V_PRED))
-      return 1;
-    if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
-        mbmi->mode == PAETH_PRED)
-      return 1;
-
-    // Intra modes will be handled in another loop later.
-    assert(args->intra_mode_num < INTRA_MODES);
-    args->intra_mode_idx_ls[args->intra_mode_num++] = mode_enum;
-    return 1;
   }
 
   if (sf->inter_sf.prune_compound_using_single_ref && comp_pred) {
@@ -5132,13 +5115,36 @@ static AOM_INLINE void search_intra_modes_in_interframe(
   const int num_4x4 = bsize_to_num_blk(bsize);
 
   // Performs luma search
-  for (int j = 0; j < sf_args->intra_mode_num; ++j) {
+  int64_t best_model_rd = INT64_MAX;
+  int64_t top_intra_model_rd[TOP_INTRA_MODEL_COUNT];
+  for (int i = 0; i < TOP_INTRA_MODEL_COUNT; i++) {
+    top_intra_model_rd[i] = INT64_MAX;
+  }
+  for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
+       ++mode_idx) {
     if (sf->intra_sf.skip_intra_in_interframe &&
         search_state->intra_search_state.skip_intra_modes)
       break;
-    const THR_MODES mode_enum = sf_args->intra_mode_idx_ls[j];
-    const MODE_DEFINITION *mode_def = &av1_mode_defs[mode_enum];
-    const PREDICTION_MODE this_mode = mode_def->mode;
+    set_y_mode_and_delta_angle(mode_idx, mbmi);
+    THR_MODES mode_enum = 0;
+    for (int i = 0; i < INTRA_MODE_END; ++i) {
+      if (mbmi->mode == av1_mode_defs[sf_args->intra_mode_idx_ls[i]].mode) {
+        mode_enum = sf_args->intra_mode_idx_ls[i];
+        break;
+      }
+    }
+    if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
+         cpi->sf.intra_sf.disable_smooth_intra) &&
+        (mbmi->mode == SMOOTH_PRED || mbmi->mode == SMOOTH_H_PRED ||
+         mbmi->mode == SMOOTH_V_PRED))
+      continue;
+    if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
+        mbmi->mode == PAETH_PRED)
+      continue;
+    if (av1_is_directional_mode(mbmi->mode) &&
+        av1_use_angle_delta(bsize) == 0 && mbmi->angle_delta[PLANE_TYPE_Y] != 0)
+      continue;
+    const PREDICTION_MODE this_mode = mbmi->mode;
 
     assert(av1_mode_defs[mode_enum].ref_frame[0] == INTRA_FRAME);
     assert(av1_mode_defs[mode_enum].ref_frame[1] == NONE_FRAME);
@@ -5166,7 +5172,8 @@ static AOM_INLINE void search_intra_modes_in_interframe(
     int64_t intra_rd_y = INT64_MAX;
     const int is_luma_result_valid = av1_handle_intra_y_mode(
         intra_search_state, cpi, x, bsize, intra_ref_frame_cost, ctx,
-        &intra_rd_stats_y, search_state->best_rd, &mode_cost_y, &intra_rd_y);
+        &intra_rd_stats_y, search_state->best_rd, &mode_cost_y, &intra_rd_y,
+        &best_model_rd, top_intra_model_rd);
     if (is_luma_result_valid && intra_rd_y < yrd_threshold) {
       is_best_y_mode_intra = 1;
       if (intra_rd_y < best_rd_y) {
@@ -5228,12 +5235,6 @@ static AOM_INLINE void search_intra_modes_in_interframe(
     intra_rd_stats.rate +=
         intra_rd_stats_uv.rate +
         intra_mode_info_cost_uv(cpi, x, mbmi, bsize, uv_mode_cost);
-  }
-  if (mode != DC_PRED && mode != PAETH_PRED) {
-    const int intra_cost_penalty = av1_get_intra_cost_penalty(
-        cm->quant_params.base_qindex, cm->quant_params.y_dc_delta_q,
-        cm->seq_params->bit_depth);
-    intra_rd_stats.rate += intra_cost_penalty;
   }
 
   // Intra block is always coded as non-skip
@@ -5453,6 +5454,10 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
         cpi->sf.rt_sf.force_tx_search_off);
   InterModesInfo *inter_modes_info = x->inter_modes_info;
   inter_modes_info->num = 0;
+  int intra_mode_idx_ls[INTRA_MODES];
+  for (i = 0; i < INTRA_MODES; ++i) {
+    intra_mode_idx_ls[i] = i + THR_DC;
+  }
 
   // Temporary buffers used by handle_inter_mode().
   uint8_t *const tmp_buf = get_buf_by_bd(xd, x->tmp_pred_bufs[0]);
@@ -5523,8 +5528,7 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
                               skip_ref_frame_mask,
                               0,
                               mode_thresh_mul_fact,
-                              { 0 },
-                              0,
+                              intra_mode_idx_ls,
                               0,
                               0 };
   int64_t best_inter_yrd = INT64_MAX;
