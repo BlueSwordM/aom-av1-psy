@@ -1390,6 +1390,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   int extend_frame_length =
       AOMMIN(MAX_TPL_EXTEND,
              cpi->rc.frames_to_key - cpi->ppi->p_rc.baseline_gf_interval);
+
   int frame_display_index = gf_group->cur_frame_idx[gop_length - 1] +
                             gf_group->arf_src_offset[gop_length - 1] + 1;
 

@@ -542,6 +542,19 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
   *q = av1_rc_pick_q_and_bounds(cpi, cm->width, cm->height, cpi->gf_frame_index,
                                 bottom_index, top_index);
 
+#if !CONFIG_REALTIME_ONLY
+  if (cpi->oxcf.rc_cfg.mode == AOM_Q &&
+      cpi->ppi->tpl_data.tpl_frame[cpi->gf_frame_index].is_valid &&
+      is_frame_tpl_eligible(gf_group, cpi->gf_frame_index) &&
+      !frame_is_intra_only(cm)) {
+    *q = av1_get_arf_q_index_q_mode(
+        cpi, &cpi->ppi->tpl_data.tpl_frame[cpi->gf_frame_index]);
+    *top_index = *bottom_index = *q;
+    if (gf_group->update_type[cpi->gf_frame_index] == ARF_UPDATE)
+      cpi->ppi->p_rc.arf_q = *q;
+  }
+#endif
+
   // Configure experimental use of segmentation for enhanced coding of
   // static regions if indicated.
   // Only allowed in the second pass of a two pass encode, as it requires

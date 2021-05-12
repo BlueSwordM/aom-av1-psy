@@ -1667,6 +1667,50 @@ int av1_get_arf_q_index(int base_q_index, int gfu_boost, int bit_depth,
   return min_boost - (int)(boost * arf_boost_factor);
 }
 
+#if !CONFIG_REALTIME_ONLY
+// TODO(jingning): Need further refactoring to reduce the data structure
+// access scope.
+int av1_get_arf_q_index_q_mode(AV1_COMP *cpi, TplDepFrame *tpl_frame) {
+  AV1_COMMON *cm = &cpi->common;
+  double lef_qstep = av1_dc_quant_QTX(cpi->rc.active_worst_quality, 0,
+                                      cm->seq_params->bit_depth);
+
+  TplParams *tpl_data = &cpi->ppi->tpl_data;
+  TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
+
+  int tpl_stride = tpl_frame->stride;
+  int64_t intra_cost_base = 0;
+  int64_t mc_dep_cost_base = 0;
+  int64_t pred_error = 1;
+  int64_t recn_error = 1;
+  const int step = 1 << tpl_data->tpl_stats_block_mis_log2;
+
+  for (int row = 0; row < cm->mi_params.mi_rows; row += step) {
+    for (int col = 0; col < cm->mi_params.mi_cols; col += step) {
+      TplDepStats *this_stats = &tpl_stats[av1_tpl_ptr_pos(
+          row, col, tpl_stride, tpl_data->tpl_stats_block_mis_log2)];
+      int64_t mc_dep_delta =
+          RDCOST(tpl_frame->base_rdmult, this_stats->mc_dep_rate,
+                 this_stats->mc_dep_dist);
+      intra_cost_base += (this_stats->recrf_dist << RDDIV_BITS);
+      pred_error += (this_stats->srcrf_sse << RDDIV_BITS);
+      recn_error += (this_stats->srcrf_dist << RDDIV_BITS);
+      mc_dep_cost_base += (this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta;
+    }
+  }
+  double r0 = (double)intra_cost_base / mc_dep_cost_base;
+
+  int arf_qp;
+  double tgt_qstep;
+  for (arf_qp = cpi->rc.active_worst_quality; arf_qp > 0; --arf_qp) {
+    tgt_qstep = av1_dc_quant_QTX(arf_qp, 0, cm->seq_params->bit_depth);
+    if (tgt_qstep + 0.1 <= lef_qstep * sqrt(r0)) break;
+  }
+
+  return arf_qp;
+}
+#endif
+
 static int rc_pick_q_and_bounds_q_mode(const AV1_COMP *cpi, int width,
                                        int height, int gf_index,
                                        int *bottom_index, int *top_index) {
