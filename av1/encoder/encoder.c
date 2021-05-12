@@ -2184,6 +2184,14 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   const int use_restoration = cm->seq_params->enable_restoration &&
                               !cm->features.all_lossless &&
                               !cm->tiles.large_scale;
+  const int cur_width = cm->cur_frame->width;
+  const int cur_height = cm->cur_frame->height;
+  const int cur_width_mib = cm->mi_params.mi_cols * MI_SIZE;
+  const int cur_height_mib = cm->mi_params.mi_rows * MI_SIZE;
+  const int is_realtime =
+      cpi->sf.rt_sf.use_nonrd_pick_mode && !(cm->mi_params.mi_cols % 2) &&
+      !(cm->mi_params.mi_rows % 2) && (cur_width_mib - cur_width < MI_SIZE) &&
+      (cur_height_mib - cur_height < MI_SIZE);
 
   struct loopfilter *lf = &cm->lf;
 
@@ -2206,13 +2214,13 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
                                0,
 #endif
                                mt_info->workers, num_workers,
-                               &mt_info->lf_row_sync);
+                               &mt_info->lf_row_sync, is_realtime);
     else
       av1_loop_filter_frame(&cm->cur_frame->buf, cm, xd,
 #if CONFIG_LPF_MASK
                             0,
 #endif
-                            0, num_planes, 0);
+                            0, num_planes, 0, is_realtime);
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, loop_filter_time);
