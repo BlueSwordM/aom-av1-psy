@@ -1617,10 +1617,19 @@ static int rc_pick_q_and_bounds_q_mode(const AV1_COMP *cpi, int width,
         get_active_best_quality(cpi, active_worst_quality, cq_level, gf_index);
   }
 
-  q = active_best_quality;
-
   *top_index = active_worst_quality;
   *bottom_index = active_best_quality;
+
+  *top_index = AOMMAX(*top_index, rc->best_quality);
+  *top_index = AOMMIN(*top_index, rc->worst_quality);
+
+  *bottom_index = AOMMAX(*bottom_index, rc->best_quality);
+  *bottom_index = AOMMIN(*bottom_index, rc->worst_quality);
+
+  q = active_best_quality;
+
+  q = AOMMAX(q, rc->best_quality);
+  q = AOMMIN(q, rc->worst_quality);
 
   assert(*top_index <= rc->worst_quality && *top_index >= rc->best_quality);
   assert(*bottom_index <= rc->worst_quality &&
@@ -1666,7 +1675,7 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
                                      cq_level, bit_depth);
   }
 
-  if (oxcf->mode == AOM_Q) {
+  if (oxcf->rc_cfg.mode == AOM_Q) {
     return rc_pick_q_and_bounds_q_mode(cpi, width, height, gf_index,
                                        bottom_index, top_index);
   }
