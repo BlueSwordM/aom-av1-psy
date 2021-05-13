@@ -4510,13 +4510,13 @@ static INLINE void match_ref_frame(const MB_MODE_INFO *const mbmi,
 // Prune compound mode using ref frames of neighbor blocks.
 static INLINE int compound_skip_using_neighbor_refs(
     MACROBLOCKD *const xd, const PREDICTION_MODE this_mode,
-    const MV_REFERENCE_FRAME *ref_frames, int prune_compound_using_neighbors) {
+    const MV_REFERENCE_FRAME *ref_frames, int prune_ext_comp_using_neighbors) {
   // Exclude non-extended compound modes from pruning
   if (this_mode == NEAREST_NEARESTMV || this_mode == NEAR_NEARMV ||
       this_mode == NEW_NEWMV || this_mode == GLOBAL_GLOBALMV)
     return 0;
 
-  if (prune_compound_using_neighbors >= 3) return 1;
+  if (prune_ext_comp_using_neighbors >= 3) return 1;
 
   int is_ref_match[2] = { 0 };  // 0 - match for forward refs
                                 // 1 - match for backward refs
@@ -4532,7 +4532,7 @@ static INLINE int compound_skip_using_neighbor_refs(
   const int track_ref_match = is_ref_match[0] + is_ref_match[1];
 
   // Pruning based on ref frame match with neighbors.
-  if (track_ref_match >= prune_compound_using_neighbors) return 0;
+  if (track_ref_match >= prune_ext_comp_using_neighbors) return 0;
   return 1;
 }
 
@@ -4830,10 +4830,10 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
       return 1;
   }
 
-  if (sf->inter_sf.prune_compound_using_neighbors && comp_pred) {
+  if (sf->inter_sf.prune_ext_comp_using_neighbors && comp_pred) {
     if (compound_skip_using_neighbor_refs(
             xd, this_mode, ref_frames,
-            sf->inter_sf.prune_compound_using_neighbors))
+            sf->inter_sf.prune_ext_comp_using_neighbors))
       return 1;
   }
 

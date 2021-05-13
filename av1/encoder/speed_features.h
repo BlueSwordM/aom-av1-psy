@@ -724,12 +724,14 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // the single reference modes, it is one of the two best performers.
   int prune_compound_using_single_ref;
 
-  // Skip extended compound mode using ref frames of above and left neighbor
+  // Skip extended compound mode (NEAREST_NEWMV, NEW_NEARESTMV, NEAR_NEWMV,
+  // NEW_NEARMV) using ref frames of above and left neighbor
   // blocks.
   // 0 : no pruning
-  // 1 : prune extended compound mode (less aggressiveness)
-  // 2 : prune extended compound mode (high aggressiveness)
-  int prune_compound_using_neighbors;
+  // 1 : prune ext compound modes using neighbor blocks (less aggressiveness)
+  // 2 : prune ext compound modes using neighbor blocks (high aggressiveness)
+  // 3 : prune ext compound modes unconditionally (highest aggressiveness)
+  int prune_ext_comp_using_neighbors;
 
   // Skip extended compound mode when ref frame corresponding to NEWMV does not
   // have NEWMV as single mode winner.
