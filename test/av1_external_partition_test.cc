@@ -21,6 +21,7 @@
 #include "test/util.h"
 
 #if CONFIG_AV1_ENCODER
+#if !CONFIG_REALTIME_ONLY
 namespace {
 
 constexpr int kFrameNum = 8;
@@ -174,4 +175,5 @@ AV1_INSTANTIATE_TEST_SUITE(ExternalPartitionTest,
                            ::testing::Values(4));  // cpu_used
 
 }  // namespace
+#endif  // !CONFIG_REALTIME_ONLY
 #endif  // CONFIG_AV1_ENCODER
