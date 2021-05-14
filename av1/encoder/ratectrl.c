@@ -1549,9 +1549,16 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   int active_best_quality = 0;
   const int is_intrl_arf_boost =
       gf_group->update_type[gf_index] == INTNL_ARF_UPDATE;
-  const int is_leaf_frame =
-      !(refresh_frame_flags->golden_frame ||
-        refresh_frame_flags->alt_ref_frame || is_intrl_arf_boost);
+  int is_leaf_frame =
+      !(gf_group->update_type[gf_index] == ARF_UPDATE ||
+        gf_group->update_type[gf_index] == GF_UPDATE || is_intrl_arf_boost);
+
+  // TODO(jingning): Consider to rework this hack that covers issues incurred
+  // in lightfield setting.
+  if (cm->tiles.large_scale) {
+    is_leaf_frame = !(refresh_frame_flags->golden_frame ||
+                      refresh_frame_flags->alt_ref_frame || is_intrl_arf_boost);
+  }
   const int is_overlay_frame = rc->is_src_frame_alt_ref;
 
   if (is_leaf_frame || is_overlay_frame) {

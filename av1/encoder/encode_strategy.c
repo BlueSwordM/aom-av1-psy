@@ -106,11 +106,19 @@ void av1_configure_buffer_updates(
   }
 
   if (ext_refresh_frame_flags->update_pending &&
-      (!is_stat_generation_stage(cpi)))
+      (!is_stat_generation_stage(cpi))) {
     set_refresh_frame_flags(refresh_frame_flags,
                             ext_refresh_frame_flags->golden_frame,
                             ext_refresh_frame_flags->bwd_ref_frame,
                             ext_refresh_frame_flags->alt_ref_frame);
+    GF_GROUP *gf_group = &cpi->ppi->gf_group;
+    if (ext_refresh_frame_flags->golden_frame)
+      gf_group->update_type[cpi->gf_frame_index] = GF_UPDATE;
+    if (ext_refresh_frame_flags->alt_ref_frame)
+      gf_group->update_type[cpi->gf_frame_index] = ARF_UPDATE;
+    if (ext_refresh_frame_flags->bwd_ref_frame)
+      gf_group->update_type[cpi->gf_frame_index] = INTNL_ARF_UPDATE;
+  }
 
   if (force_refresh_all)
     set_refresh_frame_flags(refresh_frame_flags, true, true, true);
