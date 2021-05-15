@@ -337,9 +337,10 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
             subpel_start_mv = get_mv_from_fullmv(&second_best_mv.as_fullmv);
             if (av1_is_subpelmv_in_range(&ms_params.mv_limits,
                                          subpel_start_mv)) {
+              unsigned int sse;
               const int this_var = mv_search_params->find_fractional_mv_step(
                   xd, cm, &ms_params, subpel_start_mv, &this_best_mv, &dis,
-                  &x->pred_sse[ref], fractional_ms_list);
+                  &sse, fractional_ms_list);
 
               if (!cpi->sf.mv_sf.disable_second_mv) {
                 // If cpi->sf.mv_sf.disable_second_mv is 0, use actual rd cost
@@ -358,11 +359,17 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
                 int64_t tmp_rd =
                     RDCOST(x->rdmult, tmp_rd_stats.rate + tmp_mv_rate,
                            tmp_rd_stats.dist);
-                if (tmp_rd < rd) best_mv->as_mv = this_best_mv;
+                if (tmp_rd < rd) {
+                  best_mv->as_mv = this_best_mv;
+                  x->pred_sse[ref] = sse;
+                }
               } else {
                 // If cpi->sf.mv_sf.disable_second_mv = 1, use var to decide the
                 // best MV.
-                if (this_var < best_mv_var) best_mv->as_mv = this_best_mv;
+                if (this_var < best_mv_var) {
+                  best_mv->as_mv = this_best_mv;
+                  x->pred_sse[ref] = sse;
+                }
               }
             }
           }
