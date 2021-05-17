@@ -1740,6 +1740,7 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
 }
 
 double av1_exponential_entropy(double q_step, double b) {
+  b = AOMMAX(b, TPL_EPSILON);
   double z = fmax(exp(-q_step / b), TPL_EPSILON);
   return -log2(1 - z) - z * log2(z) / (1 - z);
 }
@@ -1796,6 +1797,7 @@ double av1_estimate_gop_bitrate(const unsigned char *q_index_list,
 
 double av1_estimate_coeff_entropy(double q_step, double b,
                                   double zero_bin_ratio, int qcoeff) {
+  b = AOMMAX(b, TPL_EPSILON);
   int abs_qcoeff = abs(qcoeff);
   double z0 = fmax(exp(-zero_bin_ratio / 2 * q_step / b), TPL_EPSILON);
   if (abs_qcoeff == 0) {

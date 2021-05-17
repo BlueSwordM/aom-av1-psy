@@ -33,6 +33,12 @@ double laplace_prob(double q_step, double b, double zero_bin_ratio,
     return p;
   }
 }
+TEST(TplModelTest, ExponentialEntropyBoundaryTest1) {
+  double b = 0;
+  double q_step = 1;
+  double entropy = av1_exponential_entropy(q_step, b);
+  EXPECT_NEAR(entropy, 0, 0.00001);
+}
 
 TEST(TplModelTest, TransformCoeffEntropyTest1) {
   // Check the consistency between av1_estimate_coeff_entropy() and
