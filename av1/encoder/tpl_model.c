@@ -42,6 +42,14 @@ void av1_init_tpl_txfm_stats(TplTxfmStats *tpl_txfm_stats) {
          sizeof(tpl_txfm_stats->abs_coeff_sum[0]) * tpl_txfm_stats->coeff_num);
 }
 
+void av1_accumulate_tpl_txfm_stats(const TplTxfmStats *sub_stats,
+                                   TplTxfmStats *accumulated_stats) {
+  accumulated_stats->txfm_block_count += sub_stats->txfm_block_count;
+  for (int i = 0; i < accumulated_stats->coeff_num; ++i) {
+    accumulated_stats->abs_coeff_sum[i] += sub_stats->abs_coeff_sum[i];
+  }
+}
+
 static AOM_INLINE void tpl_stats_record_txfm_block(TplTxfmStats *tpl_txfm_stats,
                                                    const tran_low_t *coeff,
                                                    int coeff_num) {

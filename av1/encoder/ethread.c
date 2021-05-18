@@ -1415,21 +1415,17 @@ static AOM_INLINE void prepare_tpl_workers(AV1_COMP *cpi, AVxWorkerHook hook,
 }
 
 // Accumulate transform stats after tpl.
-static void tpl_accumulate_txfm_stats(AV1_COMP *cpi, int num_workers) {
-  double *total_abs_coeff_sum = cpi->td.tpl_txfm_stats.abs_coeff_sum;
-  int *txfm_block_count = &cpi->td.tpl_txfm_stats.txfm_block_count;
-  TplParams *tpl_data = &cpi->ppi->tpl_data;
-  int coeff_num = tpl_data->tpl_frame[tpl_data->frame_idx].coeff_num;
+static void tpl_accumulate_txfm_stats(ThreadData *main_td,
+                                      const MultiThreadInfo *mt_info,
+                                      int num_workers) {
+  TplTxfmStats *accumulated_stats = &main_td->tpl_txfm_stats;
   for (int i = num_workers - 1; i >= 0; i--) {
-    AVxWorker *const worker = &cpi->mt_info.workers[i];
+    AVxWorker *const worker = &mt_info->workers[i];
     EncWorkerData *const thread_data = (EncWorkerData *)worker->data1;
     ThreadData *td = thread_data->td;
-    if (td != &cpi->td) {
-      TplTxfmStats *tpl_txfm_stats = &td->tpl_txfm_stats;
-      *txfm_block_count += tpl_txfm_stats->txfm_block_count;
-      for (int j = 0; j < coeff_num; j++) {
-        total_abs_coeff_sum[j] += tpl_txfm_stats->abs_coeff_sum[j];
-      }
+    if (td != main_td) {
+      const TplTxfmStats *tpl_txfm_stats = &td->tpl_txfm_stats;
+      av1_accumulate_tpl_txfm_stats(tpl_txfm_stats, accumulated_stats);
     }
   }
 }
@@ -1458,7 +1454,7 @@ void av1_mc_flow_dispenser_mt(AV1_COMP *cpi) {
   prepare_tpl_workers(cpi, tpl_worker_hook, num_workers);
   launch_workers(&cpi->mt_info, num_workers);
   sync_enc_workers(&cpi->mt_info, cm, num_workers);
-  tpl_accumulate_txfm_stats(cpi, num_workers);
+  tpl_accumulate_txfm_stats(&cpi->td, &cpi->mt_info, num_workers);
 }
 
 // Deallocate memory for temporal filter multi-thread synchronization.

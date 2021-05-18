@@ -182,4 +182,26 @@ TEST(TPLModelTest, TxfmStatsInitTest) {
   }
 }
 
+TEST(TPLModelTest, TxfmStatsAccumulateTest) {
+  TplTxfmStats sub_stats;
+  av1_init_tpl_txfm_stats(&sub_stats);
+  sub_stats.txfm_block_count = 17;
+  for (int i = 0; i < sub_stats.coeff_num; ++i) {
+    sub_stats.abs_coeff_sum[i] = i;
+  }
+
+  TplTxfmStats accumulated_stats;
+  av1_init_tpl_txfm_stats(&accumulated_stats);
+  accumulated_stats.txfm_block_count = 13;
+  for (int i = 0; i < accumulated_stats.coeff_num; ++i) {
+    accumulated_stats.abs_coeff_sum[i] = 5 * i;
+  }
+
+  av1_accumulate_tpl_txfm_stats(&sub_stats, &accumulated_stats);
+  EXPECT_DOUBLE_EQ(accumulated_stats.txfm_block_count, 30);
+  for (int i = 0; i < accumulated_stats.coeff_num; ++i) {
+    EXPECT_DOUBLE_EQ(accumulated_stats.abs_coeff_sum[i], 6 * i);
+  }
+}
+
 }  // namespace

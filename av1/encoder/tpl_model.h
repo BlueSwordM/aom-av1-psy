@@ -328,6 +328,17 @@ double av1_estimate_gop_bitrate(const unsigned char *q_index_list,
  */
 void av1_init_tpl_txfm_stats(TplTxfmStats *tpl_txfm_stats);
 
+/*
+ *!\brief Accumulate TplTxfmStats
+ *
+ * \param[in]  sub_stats          a structure for storing sub transform stats
+ * \param[out] accumulated_stats  a structure for storing accumulated transform
+ *stats
+ *
+ */
+void av1_accumulate_tpl_txfm_stats(const TplTxfmStats *sub_stats,
+                                   TplTxfmStats *accumulated_stats);
+
 /*!\brief  Init data structure storing transform stats
  *
  *\ingroup tpl_modelling
