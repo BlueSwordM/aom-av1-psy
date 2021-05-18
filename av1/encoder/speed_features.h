@@ -668,9 +668,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   int alt_ref_search_fp;
 
-  // flag to skip NEWMV mode in drl if the motion search result is the same
-  int skip_repeated_newmv;
-
   // Skip the current ref_mv in NEW_MV mode if we have already encountered
   // another ref_mv in the drl such that:
   //  1. The other drl has the same fullpel_mv during the SIMPLE_TRANSLATION

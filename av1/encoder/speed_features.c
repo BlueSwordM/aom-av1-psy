@@ -812,7 +812,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.reduce_inter_modes = boosted ? 1 : 3;
     sf->inter_sf.reuse_inter_intra_mode = 1;
     sf->inter_sf.selective_ref_frame = 2;
-    sf->inter_sf.skip_repeated_newmv = 1;
 
     sf->interp_sf.use_interp_filter = 1;
 
@@ -1237,7 +1236,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->inter_sf.prune_comp_search_by_single_result = 1;
     sf->inter_sf.reuse_inter_intra_mode = 1;
     sf->inter_sf.selective_ref_frame = 2;
-    sf->inter_sf.skip_repeated_newmv = 1;
     sf->inter_sf.disable_interintra_wedge_var_thresh = 0;
     sf->inter_sf.disable_interinter_wedge_var_thresh = 0;
     sf->inter_sf.prune_comp_type_by_comp_avg = 1;
@@ -1597,7 +1595,6 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_nearmv_using_neighbors = 0;
   inter_sf->prune_comp_search_by_single_result = 0;
   inter_sf->skip_repeated_ref_mv = 0;
-  inter_sf->skip_repeated_newmv = 0;
   inter_sf->skip_repeated_full_newmv = 0;
   inter_sf->inter_mode_rd_model_estimation = 0;
   inter_sf->prune_compound_using_single_ref = 0;
@@ -1942,7 +1939,6 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
     // qindex_thresh for resolution < 720p
     const int qindex_thresh = boosted ? 70 : (is_arf2_bwd_type ? 110 : 140);
     if (!is_720p_or_larger && cm->quant_params.base_qindex <= qindex_thresh) {
-      sf->inter_sf.skip_repeated_newmv = 1;
       sf->part_sf.simple_motion_search_split =
           cm->features.allow_screen_content_tools ? 1 : 2;
       sf->part_sf.simple_motion_search_early_term_none = 1;
@@ -1959,7 +1955,6 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
       sf->tx_sf.inter_tx_size_search_init_depth_rect = 1;
       sf->tx_sf.inter_tx_size_search_init_depth_sqr = 1;
       sf->tx_sf.intra_tx_size_search_init_depth_rect = 1;
-      sf->inter_sf.skip_repeated_newmv = 1;
       sf->tx_sf.model_based_prune_tx_search_level = 0;
 
       if (is_1080p_or_larger && cm->quant_params.base_qindex <= 108) {
