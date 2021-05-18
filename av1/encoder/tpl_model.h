@@ -339,6 +339,17 @@ void av1_init_tpl_txfm_stats(TplTxfmStats *tpl_txfm_stats);
 void av1_accumulate_tpl_txfm_stats(const TplTxfmStats *sub_stats,
                                    TplTxfmStats *accumulated_stats);
 
+/*
+ *!\brief Record a transform block into  TplTxfmStats
+ *
+ * \param[in]  tpl_txfm_stats     A structure for storing transform stats
+ * \param[out] coeff              An array of transform coefficients. Its size
+ *                                should equal to tpl_txfm_stats.coeff_num.
+ *
+ */
+void av1_record_tpl_txfm_block(TplTxfmStats *tpl_txfm_stats,
+                               const tran_low_t *coeff);
+
 /*!\brief  Init data structure storing transform stats
  *
  *\ingroup tpl_modelling

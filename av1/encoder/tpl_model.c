@@ -50,13 +50,12 @@ void av1_accumulate_tpl_txfm_stats(const TplTxfmStats *sub_stats,
   }
 }
 
-static AOM_INLINE void tpl_stats_record_txfm_block(TplTxfmStats *tpl_txfm_stats,
-                                                   const tran_low_t *coeff,
-                                                   int coeff_num) {
+void av1_record_tpl_txfm_block(TplTxfmStats *tpl_txfm_stats,
+                               const tran_low_t *coeff) {
   // For transform larger than 16x16, the scale of coeff need to be adjusted.
   // It's not LOSSLESS_Q_STEP.
-  assert(coeff_num <= 256);
-  for (int i = 0; i < coeff_num; ++i) {
+  assert(tpl_txfm_stats->coeff_num <= 256);
+  for (int i = 0; i < tpl_txfm_stats->coeff_num; ++i) {
     tpl_txfm_stats->abs_coeff_sum[i] += abs(coeff[i]) / (double)LOSSLESS_Q_STEP;
   }
   ++tpl_txfm_stats->txfm_block_count;
@@ -799,7 +798,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
                       rec_stride_pool, tx_size, best_mode, mi_row, mi_col,
                       use_y_only_rate_distortion);
 
-  tpl_stats_record_txfm_block(tpl_txfm_stats, coeff, tpl_frame->coeff_num);
+  av1_record_tpl_txfm_block(tpl_txfm_stats, coeff);
 
   tpl_stats->recrf_dist = recon_error << (TPL_DEP_COST_SCALE_LOG2);
   tpl_stats->recrf_rate = rate_cost << TPL_DEP_COST_SCALE_LOG2;

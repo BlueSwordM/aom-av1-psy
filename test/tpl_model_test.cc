@@ -204,4 +204,29 @@ TEST(TPLModelTest, TxfmStatsAccumulateTest) {
   }
 }
 
+TEST(TPLModelTest, TxfmStatsRecordTest) {
+  TplTxfmStats stats1;
+  TplTxfmStats stats2;
+  av1_init_tpl_txfm_stats(&stats1);
+  av1_init_tpl_txfm_stats(&stats2);
+
+  tran_low_t coeff[256];
+  for (int i = 0; i < 256; ++i) {
+    coeff[i] = i;
+  }
+  av1_record_tpl_txfm_block(&stats1, coeff);
+  EXPECT_EQ(stats1.txfm_block_count, 1);
+
+  // we record the same transform block twice for testing purpose
+  av1_record_tpl_txfm_block(&stats2, coeff);
+  av1_record_tpl_txfm_block(&stats2, coeff);
+  EXPECT_EQ(stats2.txfm_block_count, 2);
+
+  EXPECT_EQ(stats1.coeff_num, 256);
+  EXPECT_EQ(stats2.coeff_num, 256);
+  for (int i = 0; i < 256; ++i) {
+    EXPECT_DOUBLE_EQ(stats2.abs_coeff_sum[i], 2 * stats1.abs_coeff_sum[i]);
+  }
+}
+
 }  // namespace
