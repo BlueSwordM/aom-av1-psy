@@ -35,6 +35,13 @@
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/tpl_model.h"
 
+void av1_init_tpl_txfm_stats(TplTxfmStats *tpl_txfm_stats) {
+  tpl_txfm_stats->coeff_num = 256;
+  tpl_txfm_stats->txfm_block_count = 0;
+  memset(tpl_txfm_stats->abs_coeff_sum, 0,
+         sizeof(tpl_txfm_stats->abs_coeff_sum[0]) * tpl_txfm_stats->coeff_num);
+}
+
 static AOM_INLINE void tpl_stats_record_txfm_block(TplTxfmStats *tpl_txfm_stats,
                                                    const tran_low_t *coeff,
                                                    int coeff_num) {
@@ -1138,7 +1145,7 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
                                cm->seq_params->bit_depth, pframe_qindex) /
                            6;
 
-  memset(tpl_txfm_stats, 0, sizeof(*tpl_txfm_stats));
+  av1_init_tpl_txfm_stats(tpl_txfm_stats);
 }
 
 // This function stores the motion estimation dependencies of all the blocks in

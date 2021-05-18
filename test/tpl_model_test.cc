@@ -172,4 +172,14 @@ TEST(TPLModelTest, EstimateFrameRateTest) {
   EXPECT_NEAR(result, 0, 0.1);
 }
 
+TEST(TPLModelTest, TxfmStatsInitTest) {
+  TplTxfmStats tpl_txfm_stats;
+  av1_init_tpl_txfm_stats(&tpl_txfm_stats);
+  EXPECT_EQ(tpl_txfm_stats.coeff_num, 256);
+  EXPECT_EQ(tpl_txfm_stats.txfm_block_count, 0);
+  for (int i = 0; i < tpl_txfm_stats.coeff_num; ++i) {
+    EXPECT_DOUBLE_EQ(tpl_txfm_stats.abs_coeff_sum[i], 0);
+  }
+}
+
 }  // namespace

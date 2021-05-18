@@ -96,6 +96,7 @@ typedef struct AV1TplRowMultiThreadInfo {
 typedef struct TplTxfmStats {
   double abs_coeff_sum[256];  // Assume we are using 16x16 transform block
   int txfm_block_count;
+  int coeff_num;
 } TplTxfmStats;
 
 typedef struct TplDepStats {
@@ -317,6 +318,15 @@ double av1_laplace_estimate_frame_rate(int q_index, int block_count,
 double av1_estimate_gop_bitrate(const unsigned char *q_index_list,
                                 const int frame_count,
                                 const TplTxfmStats *stats);
+
+/*
+ *!\brief Init TplTxfmStats
+ *
+ * \param[in]    tpl_txfm_stats  a structure for storing transform stats
+ *
+ *
+ */
+void av1_init_tpl_txfm_stats(TplTxfmStats *tpl_txfm_stats);
 
 /*!\brief  Init data structure storing transform stats
  *
