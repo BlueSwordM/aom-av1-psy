@@ -65,6 +65,7 @@ void av1_reset_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->simple_motion_search_reduce_search_steps = 0;
   part_sf->intra_cnn_based_part_prune_level = 0;
   part_sf->ext_partition_eval_thresh = BLOCK_8X8;
+  part_sf->rect_partition_eval_thresh = BLOCK_128X128;
   part_sf->prune_ext_part_using_split_info = 0;
   part_sf->prune_rectangular_split_based_on_qidx = 0;
   part_sf->early_term_after_none_split = 0;

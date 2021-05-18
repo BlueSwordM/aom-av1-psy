@@ -1568,6 +1568,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->simple_motion_search_reduce_search_steps = 0;
   part_sf->intra_cnn_based_part_prune_level = 0;
   part_sf->ext_partition_eval_thresh = BLOCK_8X8;
+  part_sf->rect_partition_eval_thresh = BLOCK_128X128;
   part_sf->prune_ext_part_using_split_info = 0;
   part_sf->prune_rectangular_split_based_on_qidx = 0;
   part_sf->early_term_after_none_split = 0;
@@ -2051,6 +2052,18 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
     }
     if (cm->quant_params.base_qindex <= qindex_thresh && disable_ext_part) {
       sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
+    }
+  }
+
+  if (speed >= 4) {
+    // Disable rectangular partitions for lower quantizers
+    const int aggr = AOMMIN(1, speed - 4);
+    const int qindex_thresh[2] = { 65, 80 };
+    int disable_rect_part;
+    disable_rect_part = !boosted;
+    if (cm->quant_params.base_qindex <= qindex_thresh[aggr] &&
+        disable_rect_part && is_480p_or_larger) {
+      sf->part_sf.rect_partition_eval_thresh = BLOCK_8X8;
     }
   }
 

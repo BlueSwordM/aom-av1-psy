@@ -1534,6 +1534,13 @@ void av1_prune_partitions_before_search(AV1_COMP *const cpi,
   const PartitionBlkParams *blk_params = &part_state->part_blk_params;
   const BLOCK_SIZE bsize = blk_params->bsize;
 
+  // Prune rectangular partitions for larger blocks.
+  if (bsize > cpi->sf.part_sf.rect_partition_eval_thresh) {
+    part_state->do_rectangular_split = 0;
+    part_state->partition_rect_allowed[HORZ] = 0;
+    part_state->partition_rect_allowed[VERT] = 0;
+  }
+
   // Prune rectangular, AB and 4-way partition based on q index and block size
   if (cpi->sf.part_sf.prune_rectangular_split_based_on_qidx) {
     // Enumeration difference between two square partitions
