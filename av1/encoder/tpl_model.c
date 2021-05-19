@@ -35,6 +35,18 @@
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/tpl_model.h"
 
+static INLINE double exp_bounded(double v) {
+  // When v > 700 or <-700, the exp function will be close to overflow
+  // For details, see the "Notes" in the following link.
+  // https://en.cppreference.com/w/c/numeric/math/exp
+  if (v > 700) {
+    return DBL_MAX;
+  } else if (v < -700) {
+    return 0;
+  }
+  return exp(v);
+}
+
 void av1_init_tpl_txfm_stats(TplTxfmStats *tpl_txfm_stats) {
   tpl_txfm_stats->coeff_num = 256;
   tpl_txfm_stats->txfm_block_count = 0;
@@ -1739,7 +1751,7 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
   const double scaling_factor = (double)new_rdmult / (double)orig_rdmult;
 
   double scale_adj = log(scaling_factor) - log_sum / base_block_count;
-  scale_adj = exp(scale_adj);
+  scale_adj = exp_bounded(scale_adj);
 
   for (row = mi_row / num_mi_w;
        row < num_rows && row < mi_row / num_mi_w + num_brows; ++row) {
@@ -1754,7 +1766,7 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
 
 double av1_exponential_entropy(double q_step, double b) {
   b = AOMMAX(b, TPL_EPSILON);
-  double z = fmax(exp(-q_step / b), TPL_EPSILON);
+  double z = fmax(exp_bounded(-q_step / b), TPL_EPSILON);
   return -log2(1 - z) - z * log2(z) / (1 - z);
 }
 
@@ -1762,7 +1774,7 @@ double av1_laplace_entropy(double q_step, double b, double zero_bin_ratio) {
   // zero bin's size is zero_bin_ratio * q_step
   // non-zero bin's size is q_step
   b = AOMMAX(b, TPL_EPSILON);
-  double z = fmax(exp(-zero_bin_ratio / 2 * q_step / b), TPL_EPSILON);
+  double z = fmax(exp_bounded(-zero_bin_ratio / 2 * q_step / b), TPL_EPSILON);
   double h = av1_exponential_entropy(q_step, b);
   double r = -(1 - z) * log2(1 - z) - z * log2(z) + z * (h + 1);
   return r;
@@ -1812,12 +1824,12 @@ double av1_estimate_coeff_entropy(double q_step, double b,
                                   double zero_bin_ratio, int qcoeff) {
   b = AOMMAX(b, TPL_EPSILON);
   int abs_qcoeff = abs(qcoeff);
-  double z0 = fmax(exp(-zero_bin_ratio / 2 * q_step / b), TPL_EPSILON);
+  double z0 = fmax(exp_bounded(-zero_bin_ratio / 2 * q_step / b), TPL_EPSILON);
   if (abs_qcoeff == 0) {
     double r = -log2(1 - z0);
     return r;
   } else {
-    double z = fmax(exp(-q_step / b), TPL_EPSILON);
+    double z = fmax(exp_bounded(-q_step / b), TPL_EPSILON);
     double r = 1 - log2(z0) - log2(1 - z) - (abs_qcoeff - 1) * log2(z);
     return r;
   }
