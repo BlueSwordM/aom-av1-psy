@@ -2682,6 +2682,15 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     int64_t dst_time_stamp;
     int64_t dst_end_time_stamp;
     while (cx_data_sz >= ctx->cx_data_sz / 2 && !is_frame_visible) {
+#if CONFIG_FRAME_PARALLEL_ENCODE
+      cpi->do_frame_data_update = true;
+      if (ppi->num_fp_contexts > 1 && ppi->gf_group.size > 1) {
+        if (cpi->gf_frame_index < ppi->gf_group.size) {
+          calc_frame_data_update_flag(&ppi->gf_group, cpi->gf_frame_index,
+                                      &cpi->do_frame_data_update);
+        }
+      }
+#endif
       const int status = av1_get_compressed_data(
           cpi, &lib_flags, &frame_size, cx_data_sz, cx_data, &dst_time_stamp,
           &dst_end_time_stamp, !img, timestamp_ratio);

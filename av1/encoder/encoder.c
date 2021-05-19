@@ -1262,6 +1262,10 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
   cm->error->setjmp = 1;
   cpi->compressor_stage = stage;
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  cpi->do_frame_data_update = true;
+#endif
+
   CommonModeInfoParams *const mi_params = &cm->mi_params;
   mi_params->free_mi = enc_free_mi;
   mi_params->setup_mi = enc_setup_mi;

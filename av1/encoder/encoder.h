@@ -2888,6 +2888,15 @@ typedef struct AV1_COMP {
    * It is used to do partition type selection based on external models.
    */
   ExtPartController ext_part_controller;
+
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  /*!
+   * A flag to indicate frames that will update their data to the primary
+   * context at the end of the encode. It is set for non-parallel frames and the
+   * last frame in encode order in a given parallel encode set.
+   */
+  bool do_frame_data_update;
+#endif
 } AV1_COMP;
 
 /*!
@@ -3144,6 +3153,30 @@ static INLINE void init_ref_map_pair(
     }
     ref_frame_map_pairs[map_idx].disp_order = (int)buf->display_order_hint;
     ref_frame_map_pairs[map_idx].pyr_level = buf->pyramid_level;
+  }
+}
+
+static AOM_INLINE void calc_frame_data_update_flag(
+    GF_GROUP *const gf_group, int gf_frame_index,
+    bool *const do_frame_data_update) {
+  *do_frame_data_update = true;
+  // Set the flag to false for all frames in a given parallel encode set except
+  // the last frame in the set with frame_parallel_level = 2.
+  if (gf_group->frame_parallel_level[gf_frame_index] == 1) {
+    *do_frame_data_update = false;
+  } else if (gf_group->frame_parallel_level[gf_frame_index] == 2) {
+    // Check if this is the last frame in the set with frame_parallel_level = 2.
+    for (int i = gf_frame_index + 1; i < gf_group->size; i++) {
+      if ((gf_group->frame_parallel_level[i] == 0 &&
+           (gf_group->update_type[i] == ARF_UPDATE ||
+            gf_group->update_type[i] == INTNL_ARF_UPDATE)) ||
+          gf_group->frame_parallel_level[i] == 1) {
+        break;
+      } else if (gf_group->frame_parallel_level[i] == 2) {
+        *do_frame_data_update = false;
+        break;
+      }
+    }
   }
 }
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
