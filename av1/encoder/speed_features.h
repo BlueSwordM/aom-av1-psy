@@ -774,6 +774,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Clip the frequency of updating the coeff cost.
   INTERNAL_COST_UPDATE_TYPE coeff_cost_upd_level;
 
+  // Clip the frequency of updating the mode cost.
+  INTERNAL_COST_UPDATE_TYPE mode_cost_upd_level;
+
   // Prune inter modes based on tpl stats
   // 0 : no pruning
   // 1 - 3 indicate increasing aggressiveness in order.

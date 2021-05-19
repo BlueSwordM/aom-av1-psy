@@ -1388,6 +1388,9 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
       if (mi_col != tile_info->mi_col_start) break;
       AOM_FALLTHROUGH_INTENDED;
     case COST_UPD_SB:  // SB level
+      if (cpi->sf.inter_sf.mode_cost_upd_level == INTERNAL_COST_UPD_SBROW &&
+          mi_col != tile_info->mi_col_start)
+        break;
       av1_fill_mode_rates(cm, &x->mode_costs, xd->tile_ctx);
       break;
     default: assert(0);

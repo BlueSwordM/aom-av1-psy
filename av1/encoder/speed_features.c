@@ -708,6 +708,7 @@ static void set_good_speed_feature_framesize_dependent(
     if (!is_720p_or_larger) {
       sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW_SET;
       sf->inter_sf.coeff_cost_upd_level = INTERNAL_COST_UPD_SBROW;
+      sf->inter_sf.mode_cost_upd_level = INTERNAL_COST_UPD_SBROW;
     }
 
     if (is_720p_or_larger) {
@@ -1591,6 +1592,7 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->reuse_inter_intra_mode = 0;
   inter_sf->mv_cost_upd_level = INTERNAL_COST_UPD_SB;
   inter_sf->coeff_cost_upd_level = INTERNAL_COST_UPD_SB;
+  inter_sf->mode_cost_upd_level = INTERNAL_COST_UPD_SB;
   inter_sf->prune_inter_modes_based_on_tpl = 0;
   inter_sf->prune_nearmv_using_neighbors = 0;
   inter_sf->prune_comp_search_by_single_result = 0;
