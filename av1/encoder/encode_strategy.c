@@ -1689,8 +1689,19 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.ref_frame_flags = get_ref_frame_flags(
         &cpi->sf, ref_frame_buf, ext_flags->ref_frame_flags);
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    // Set primary_ref_frame of non-reference frames as PRIMARY_REF_NONE.
+    if (cpi->ppi->gf_group.is_frame_non_ref[cpi->gf_frame_index]) {
+      frame_params.primary_ref_frame = PRIMARY_REF_NONE;
+    } else {
+      frame_params.primary_ref_frame =
+          choose_primary_ref_frame(cpi, &frame_params);
+    }
+#else
     frame_params.primary_ref_frame =
         choose_primary_ref_frame(cpi, &frame_params);
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+
     frame_params.order_offset = gf_group->arf_src_offset[cpi->gf_frame_index];
 
     frame_params.refresh_frame_flags =
@@ -1699,6 +1710,13 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                                     cur_frame_disp, ref_frame_map_pairs,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                                     &cpi->ref_buffer_stack);
+
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    // Make the frames marked as is_frame_non_ref to non-reference frames.
+    if (gf_group->is_frame_non_ref[cpi->gf_frame_index])
+      frame_params.refresh_frame_flags = 0;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+
 #if CONFIG_FRAME_PARALLEL_ENCODE
     frame_params.existing_fb_idx_to_show = INVALID_IDX;
     // Find the frame buffer to show based on display order.
