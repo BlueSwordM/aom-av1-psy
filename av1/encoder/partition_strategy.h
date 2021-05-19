@@ -81,18 +81,18 @@ void av1_ml_early_term_after_split(AV1_COMP *const cpi, MACROBLOCK *const x,
 // no information about rectangular partitions. Preliminary experiments suggest
 // that we can get better performance by adding in q_index and rectangular
 // sse/var from SMS. We should retrain and tune this model later.
-void av1_ml_prune_rect_partition(const AV1_COMP *const cpi,
-                                 const MACROBLOCK *const x, BLOCK_SIZE bsize,
-                                 const int mi_row, const int mi_col,
-                                 int64_t best_rd, int64_t none_rd,
-                                 int64_t *split_rd, int *const dst_prune_horz,
+void av1_ml_prune_rect_partition(AV1_COMP *const cpi, const MACROBLOCK *const x,
+                                 BLOCK_SIZE bsize, const int mi_row,
+                                 const int mi_col, int64_t best_rd,
+                                 int64_t none_rd, int64_t *split_rd,
+                                 int *const dst_prune_horz,
                                  int *const dst_prune_vert);
 
 // Use a ML model to predict if horz_a, horz_b, vert_a, and vert_b should be
 // considered.
 void av1_ml_prune_ab_partition(
-    const AV1_COMP *const cpi, BLOCK_SIZE bsize, const int mi_row,
-    const int mi_col, int part_ctx, int var_ctx, int64_t best_rd,
+    AV1_COMP *const cpi, BLOCK_SIZE bsize, const int mi_row, const int mi_col,
+    int part_ctx, int var_ctx, int64_t best_rd,
     int64_t horz_rd[SUB_PARTITIONS_RECT], int64_t vert_rd[SUB_PARTITIONS_RECT],
     int64_t split_rd[SUB_PARTITIONS_SPLIT], int *const horza_partition_allowed,
     int *const horzb_partition_allowed, int *const verta_partition_allowed,
@@ -107,11 +107,12 @@ void av1_ml_prune_4_partition(
     int mi_row, int mi_col);
 
 // ML-based partition search breakout after PARTITION_NONE.
-int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
-                            const MACROBLOCK *const x,
-                            const RD_STATS *const rd_stats,
-                            const PartitionBlkParams blk_params,
-                            unsigned int pb_source_variance, int bit_depth);
+void av1_ml_predict_breakout(AV1_COMP *const cpi, BLOCK_SIZE bsize,
+                             const MACROBLOCK *const x,
+                             const RD_STATS *const rd_stats,
+                             const PartitionBlkParams blk_params,
+                             unsigned int pb_source_variance, int bit_depth,
+                             int *do_square_split, int *do_rectangular_split);
 
 // The first round of partition pruning determined before any partition
 // has been tested. The decisions will be updated and passed back
@@ -277,16 +278,5 @@ static AOM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
                sb_enc->min_partition_size);
   }
 }
-
-bool av1_ext_ml_model_decision_after_none(
-    AV1_COMP *const cpi, MACROBLOCK *const x, SIMPLE_MOTION_DATA_TREE *sms_tree,
-    PICK_MODE_CONTEXT *ctx_none, PartitionSearchState *part_search_state,
-    const unsigned int pb_source_variance);
-
-bool av1_ext_ml_model_decision_after_split(
-    AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
-    PartitionSearchState *part_search_state, RD_STATS *best_rdc,
-    const int64_t partition_none_rdcost, const int64_t partition_split_rdcost,
-    const int64_t *split_block_rdcost);
 #endif  // !CONFIG_REALTIME_ONLY
 #endif  // AOM_AV1_ENCODER_PARTITION_STRATEGY_H_

@@ -23,9 +23,14 @@ aom_codec_err_t av1_ext_part_create(aom_ext_part_funcs_t funcs,
   const aom_ext_part_status_t status = ext_part_controller->funcs.create_model(
       ext_part_controller->funcs.priv, &ext_part_controller->config,
       &ext_part_controller->model);
-  if (status != AOM_EXT_PART_OK) {
+  if (status == AOM_EXT_PART_ERROR) {
     return AOM_CODEC_ERROR;
+  } else if (status == AOM_EXT_PART_TEST) {
+    ext_part_controller->test_mode = 1;
+    ext_part_controller->ready = 0;
+    return AOM_CODEC_OK;
   }
+  assert(status == AOM_EXT_PART_OK);
   ext_part_controller->ready = 1;
   return AOM_CODEC_OK;
 }

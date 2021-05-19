@@ -24,6 +24,7 @@ extern "C" {
 
 typedef struct ExtPartController {
   int ready;
+  int test_mode;
   aom_ext_part_config_t config;
   aom_ext_part_model_t model;
   aom_ext_part_funcs_t funcs;

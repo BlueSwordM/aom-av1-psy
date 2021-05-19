@@ -46,14 +46,29 @@ static bool ext_ml_model_decision_before_none_part2(
     const float features_from_motion[FEATURE_SIZE_SMS_PRUNE_PART],
     int *prune_horz, int *prune_vert);
 
+static bool ext_ml_model_decision_after_none(
+    ExtPartController *const ext_part_controller, const int is_intra_frame,
+    const float *const features_after_none, int *do_square_split,
+    int *do_rectangular_split);
+
+static bool ext_ml_model_decision_after_none_part2(
+    AV1_COMP *const cpi, const float *const features_terminate,
+    int *terminate_partition_search);
+
+static bool ext_ml_model_decision_after_split(
+    AV1_COMP *const cpi, const float *const features_terminate,
+    int *terminate_partition_search);
+
+static bool ext_ml_model_decision_after_split_part2(
+    ExtPartController *const ext_part_controller, const int is_intra_frame,
+    const float *const features_prune, int *prune_rect_part_horz,
+    int *prune_rect_part_vert);
+
 static bool ext_ml_model_decision_after_rect(
-    AV1_COMP *cpi, const MACROBLOCK *x, const PC_TREE *pc_tree,
-    BLOCK_SIZE bsize, int pb_source_variance, int64_t best_rdcost,
-    int64_t rect_part_rd[NUM_RECT_PARTS][SUB_PARTITIONS_RECT],
-    int64_t split_rd[SUB_PARTITIONS_SPLIT], int ext_partition_allowed,
-    int partition_horz_allowed, int partition_vert_allowed,
-    int *horza_partition_allowed, int *horzb_partition_allowed,
-    int *verta_partition_allowed, int *vertb_partition_allowed);
+    ExtPartController *const ext_part_controller, const int is_intra_frame,
+    const float *const features_after_rect, int *horza_partition_allowed,
+    int *horzb_partition_allowed, int *verta_partition_allowed,
+    int *vertb_partition_allowed);
 
 static bool ext_ml_model_decision_after_part_ab(
     AV1_COMP *const cpi, MACROBLOCK *const x, BLOCK_SIZE bsize, int part_ctx,
@@ -89,17 +104,20 @@ static char *get_feature_file_name(int id) {
 }
 
 static void write_features_to_file(const char *const path,
+                                   const bool is_test_mode,
                                    const float *features,
                                    const int feature_size, const int id,
                                    const int bsize, const int mi_row,
                                    const int mi_col) {
-  if (!WRITE_FEATURE_TO_FILE) return;
+  if (!WRITE_FEATURE_TO_FILE && !is_test_mode) return;
 
   char filename[256];
   snprintf(filename, sizeof(filename), "%s/%s", path,
            get_feature_file_name(id));
   FILE *pfile = fopen(filename, "a");
-  fprintf(pfile, "%d,%d,%d,%d,%d\n", id, bsize, mi_row, mi_col, feature_size);
+  if (!is_test_mode) {
+    fprintf(pfile, "%d,%d,%d,%d,%d\n", id, bsize, mi_row, mi_col, feature_size);
+  }
   for (int i = 0; i < feature_size; ++i) {
     fprintf(pfile, "%.6f", features[i]);
     if (i < feature_size - 1) fprintf(pfile, ",");
@@ -346,7 +364,8 @@ void av1_simple_motion_search_based_split(
                                            FEATURE_SMS_SPLIT_MODEL_FLAG);
 
   // Write features to file
-  write_features_to_file(cpi->oxcf.partition_info_path, features,
+  write_features_to_file(cpi->oxcf.partition_info_path,
+                         cpi->ext_part_controller.test_mode, features,
                          FEATURE_SIZE_SMS_SPLIT, 0, bsize, mi_row, mi_col);
 
   // Note: it is intended to not normalize the features here, to keep it
@@ -624,9 +643,9 @@ void av1_simple_motion_search_prune_rect(
       (partition_horz_allowed || partition_vert_allowed) &&
       bsize >= BLOCK_8X8 && !av1_superres_scaled(cm)) {
     // Write features to file
-    write_features_to_file(cpi->oxcf.partition_info_path, features,
-                           FEATURE_SIZE_SMS_PRUNE_PART, 1, bsize, mi_row,
-                           mi_col);
+    write_features_to_file(
+        cpi->oxcf.partition_info_path, cpi->ext_part_controller.test_mode,
+        features, FEATURE_SIZE_SMS_PRUNE_PART, 1, bsize, mi_row, mi_col);
 
     if (ext_ml_model_decision_before_none_part2(cpi, features, prune_horz,
                                                 prune_vert)) {
@@ -709,8 +728,13 @@ void av1_simple_motion_search_early_term_none(
   }
 
   // Write features to file
-  write_features_to_file(cpi->oxcf.partition_info_path, features,
+  write_features_to_file(cpi->oxcf.partition_info_path,
+                         cpi->ext_part_controller.test_mode, features,
                          FEATURE_SIZE_SMS_TERM_NONE, 3, bsize, mi_row, mi_col);
+
+  if (ext_ml_model_decision_after_none_part2(cpi, features, early_terminate)) {
+    return;
+  }
 
   if (ml_model) {
     float score = 0.0f;
@@ -1026,8 +1050,14 @@ void av1_ml_early_term_after_split(AV1_COMP *const cpi, MACROBLOCK *const x,
   assert(f_idx == FEATURES);
 
   // Write features to file
-  write_features_to_file(cpi->oxcf.partition_info_path, features, FEATURES, 4,
-                         bsize, mi_row, mi_col);
+  write_features_to_file(cpi->oxcf.partition_info_path,
+                         cpi->ext_part_controller.test_mode, features, FEATURES,
+                         4, bsize, mi_row, mi_col);
+
+  if (ext_ml_model_decision_after_split(cpi, features,
+                                        terminate_partition_search)) {
+    return;
+  }
 
   float score = 0.0f;
   av1_nn_predict(features, nn_config, 1, &score);
@@ -1036,11 +1066,11 @@ void av1_ml_early_term_after_split(AV1_COMP *const cpi, MACROBLOCK *const x,
 }
 #undef FEATURES
 
-void av1_ml_prune_rect_partition(const AV1_COMP *const cpi,
-                                 const MACROBLOCK *const x, BLOCK_SIZE bsize,
-                                 const int mi_row, const int mi_col,
-                                 int64_t best_rd, int64_t none_rd,
-                                 int64_t *split_rd, int *const dst_prune_horz,
+void av1_ml_prune_rect_partition(AV1_COMP *const cpi, const MACROBLOCK *const x,
+                                 BLOCK_SIZE bsize, const int mi_row,
+                                 const int mi_col, int64_t best_rd,
+                                 int64_t none_rd, int64_t *split_rd,
+                                 int *const dst_prune_horz,
                                  int *const dst_prune_vert) {
   if (bsize < BLOCK_8X8 || best_rd >= 1000000000) return;
   best_rd = AOMMAX(best_rd, 1);
@@ -1118,8 +1148,15 @@ void av1_ml_prune_rect_partition(const AV1_COMP *const cpi,
     features[5 + i] = (float)split_variance[i] / (float)whole_block_variance;
 
   // Write features to file
-  write_features_to_file(cpi->oxcf.partition_info_path, features,
+  write_features_to_file(cpi->oxcf.partition_info_path,
+                         cpi->ext_part_controller.test_mode, features,
                          /*feature_size=*/9, 5, bsize, mi_row, mi_col);
+
+  if (ext_ml_model_decision_after_split_part2(
+          &cpi->ext_part_controller, frame_is_intra_only(&cpi->common),
+          features, dst_prune_horz, dst_prune_vert)) {
+    return;
+  }
 
   // 2. Do the prediction and prune 0-2 partitions based on their probabilities
   float raw_scores[3] = { 0.0f };
@@ -1137,8 +1174,8 @@ void av1_ml_prune_rect_partition(const AV1_COMP *const cpi,
 // Use a ML model to predict if horz_a, horz_b, vert_a, and vert_b should be
 // considered.
 void av1_ml_prune_ab_partition(
-    const AV1_COMP *const cpi, BLOCK_SIZE bsize, const int mi_row,
-    const int mi_col, int part_ctx, int var_ctx, int64_t best_rd,
+    AV1_COMP *const cpi, BLOCK_SIZE bsize, const int mi_row, const int mi_col,
+    int part_ctx, int var_ctx, int64_t best_rd,
     int64_t horz_rd[SUB_PARTITIONS_RECT], int64_t vert_rd[SUB_PARTITIONS_RECT],
     int64_t split_rd[SUB_PARTITIONS_SPLIT], int *const horza_partition_allowed,
     int *const horzb_partition_allowed, int *const verta_partition_allowed,
@@ -1190,8 +1227,18 @@ void av1_ml_prune_ab_partition(
   assert(feature_index == 10);
 
   // Write features to file
-  write_features_to_file(cpi->oxcf.partition_info_path, features,
-                         /*feature_size=*/10, 6, bsize, mi_row, mi_col);
+  if (!frame_is_intra_only(&cpi->common)) {
+    write_features_to_file(cpi->oxcf.partition_info_path,
+                           cpi->ext_part_controller.test_mode, features,
+                           /*feature_size=*/10, 6, bsize, mi_row, mi_col);
+  }
+
+  if (ext_ml_model_decision_after_rect(
+          &cpi->ext_part_controller, frame_is_intra_only(&cpi->common),
+          features, horza_partition_allowed, horzb_partition_allowed,
+          verta_partition_allowed, vertb_partition_allowed)) {
+    return;
+  }
 
   // Calculate scores using the NN model.
   float score[16] = { 0.0f };
@@ -1340,8 +1387,11 @@ void av1_ml_prune_4_partition(
   assert(feature_index == FEATURES);
 
   // Write features to file
-  write_features_to_file(cpi->oxcf.partition_info_path, features, FEATURES, 7,
-                         bsize, mi_row, mi_col);
+  if (!frame_is_intra_only(&cpi->common)) {
+    write_features_to_file(cpi->oxcf.partition_info_path,
+                           cpi->ext_part_controller.test_mode, features,
+                           FEATURES, 7, bsize, mi_row, mi_col);
+  }
 
   // Calculate scores using the NN model.
   float score[LABELS] = { 0.0f };
@@ -1375,11 +1425,12 @@ void av1_ml_prune_4_partition(
 #undef LABELS
 
 #define FEATURES 4
-int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
-                            const MACROBLOCK *const x,
-                            const RD_STATS *const rd_stats,
-                            const PartitionBlkParams blk_params,
-                            unsigned int pb_source_variance, int bit_depth) {
+void av1_ml_predict_breakout(AV1_COMP *const cpi, BLOCK_SIZE bsize,
+                             const MACROBLOCK *const x,
+                             const RD_STATS *const rd_stats,
+                             const PartitionBlkParams blk_params,
+                             unsigned int pb_source_variance, int bit_depth,
+                             int *do_square_split, int *do_rectangular_split) {
   const NN_CONFIG *nn_config = NULL;
   int thresh = 0;
   switch (bsize) {
@@ -1405,7 +1456,7 @@ int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
       break;
     default: assert(0 && "Unexpected bsize.");
   }
-  if (!nn_config || thresh < 0) return 0;
+  if (!nn_config || thresh < 0) return;
 
   const float ml_predict_breakout_thresh_scale[3] = { 1.15f, 1.05f, 1.0f };
   thresh = (int)((float)thresh *
@@ -1434,9 +1485,16 @@ int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   assert(feature_index == FEATURES);
 
   // Write features to file
-  write_features_to_file(cpi->oxcf.partition_info_path, features, FEATURES, 2,
-                         blk_params.bsize, blk_params.mi_row,
+  write_features_to_file(cpi->oxcf.partition_info_path,
+                         cpi->ext_part_controller.test_mode, features, FEATURES,
+                         2, blk_params.bsize, blk_params.mi_row,
                          blk_params.mi_col);
+
+  if (ext_ml_model_decision_after_none(
+          &cpi->ext_part_controller, frame_is_intra_only(&cpi->common),
+          features, do_square_split, do_rectangular_split)) {
+    return;
+  }
 
   // Calculate score using the NN model.
   float score = 0.0f;
@@ -1444,7 +1502,10 @@ int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   aom_clear_system_state();
 
   // Make decision.
-  return (int)(score * 100) >= thresh;
+  if ((int)(score * 100) >= thresh) {
+    *do_square_split = 0;
+    *do_rectangular_split = 0;
+  }
 }
 #undef FEATURES
 
@@ -1635,14 +1696,6 @@ void av1_prune_ab_partitions(
     int partition_horz_allowed, int partition_vert_allowed,
     int *horza_partition_allowed, int *horzb_partition_allowed,
     int *verta_partition_allowed, int *vertb_partition_allowed) {
-  if (ext_ml_model_decision_after_rect(
-          cpi, x, pc_tree, bsize, pb_source_variance, best_rdcost, rect_part_rd,
-          split_rd, ext_partition_allowed, partition_horz_allowed,
-          partition_vert_allowed, horza_partition_allowed,
-          horzb_partition_allowed, verta_partition_allowed,
-          vertb_partition_allowed))
-    return;
-
   int64_t *horz_rd = rect_part_rd[HORZ];
   int64_t *vert_rd = rect_part_rd[VERT];
   const PartitionCfg *const part_cfg = &cpi->oxcf.part_cfg;
@@ -1767,267 +1820,6 @@ void av1_prune_ab_partitions(
     *vertb_partition_allowed &= evaluate_ab_partition_based_on_split(
         pc_tree, PARTITION_VERT, rect_part_win_info, x->qindex, 1, 3);
   }
-}
-
-// Prepare features for the external model. Specifically, features after
-// none partition is searched.
-static void prepare_features_after_part_none(
-    AV1_COMP *const cpi, AV1_COMMON *const cm, MACROBLOCK *const x,
-    SIMPLE_MOTION_DATA_TREE *sms_tree, PICK_MODE_CONTEXT *ctx_none,
-    PartitionSearchState *part_search_state,
-    const unsigned int pb_source_variance,
-    aom_partition_features_t *const features) {
-  aom_clear_system_state();
-  const CommonModeInfoParams *const mi_params = &cm->mi_params;
-  const MACROBLOCKD *const xd = &x->e_mbd;
-  PartitionBlkParams blk_params = part_search_state->part_blk_params;
-  RD_STATS *this_rdc = &part_search_state->this_rdc;
-  const BLOCK_SIZE bsize = blk_params.bsize;
-  const int bit_depth = cm->seq_params->bit_depth;
-
-  // 4 features defined in av1_ml_predict_breakout().
-  const int num_pels_log2 = num_pels_log2_lookup[bsize];
-  float rate_f = (float)AOMMIN(this_rdc->rate, INT_MAX);
-  rate_f = ((float)x->rdmult / 128.0f / 512.0f / (float)(1 << num_pels_log2)) *
-           rate_f;
-  const float dist_f =
-      (float)(AOMMIN(this_rdc->dist, INT_MAX) >> num_pels_log2);
-  const int dc_q = (int)x->plane[0].dequant_QTX[0] >> (bit_depth - 8);
-  const float dc_q_f = (float)(dc_q * dc_q) / 256.0f;
-
-  if (!frame_is_intra_only(cm) &&
-      (part_search_state->do_square_split ||
-       part_search_state->do_rectangular_split) &&
-      !x->e_mbd.lossless[xd->mi[0]->segment_id] && ctx_none->skippable &&
-      bsize <= cpi->sf.part_sf.use_square_partition_only_threshold &&
-      bsize > BLOCK_4X4 && cpi->sf.part_sf.ml_predict_breakout_level >= 1) {
-    features->after_part_none.rate = rate_f;
-    features->after_part_none.dist = dist_f;
-    // TODO(chengchen): is this normalized variance?
-    features->after_part_none.source_variance = (float)pb_source_variance;
-    features->after_part_none.q = dc_q_f;
-  } else {
-    features->after_part_none.rate = -1;
-    features->after_part_none.dist = -1;
-    features->after_part_none.source_variance = -1;
-    features->after_part_none.q = -1;
-  }
-
-  if (cpi->sf.part_sf.simple_motion_search_early_term_none && cm->show_frame &&
-      !frame_is_intra_only(cm) && bsize >= BLOCK_16X16 &&
-      blk_params.mi_row_edge < mi_params->mi_rows &&
-      blk_params.mi_col_edge < mi_params->mi_cols &&
-      this_rdc->rdcost < INT64_MAX && this_rdc->rdcost >= 0 &&
-      this_rdc->rate < INT_MAX && this_rdc->rate >= 0 &&
-      (part_search_state->do_square_split ||
-       part_search_state->do_rectangular_split)) {
-    // features below are used to decide "terminate_partition_search"
-    // defined in av1_simple_motion_search_early_term_none().
-    float features_terminate[FEATURE_SIZE_SMS_TERM_NONE] = { 0.0f };
-    simple_motion_search_prune_part_features(
-        cpi, x, sms_tree, blk_params.mi_row, blk_params.mi_col, bsize,
-        features_terminate, FEATURE_SMS_PRUNE_PART_FLAG);
-    int f_idx = FEATURE_SIZE_SMS_PRUNE_PART;
-
-    features_terminate[f_idx++] = logf(1.0f + (float)this_rdc->rate);
-    features_terminate[f_idx++] = logf(1.0f + (float)this_rdc->dist);
-    features_terminate[f_idx++] = logf(1.0f + (float)this_rdc->rdcost);
-
-    assert(f_idx == FEATURE_SIZE_SMS_TERM_NONE);
-    for (int i = 0; i < FEATURE_SIZE_SMS_TERM_NONE; ++i) {
-      features->after_part_none.f_terminate[i] = features_terminate[i];
-    }
-  } else {
-    for (int i = 0; i < FEATURE_SIZE_SMS_TERM_NONE; ++i) {
-      features->after_part_none.f_terminate[i] = -1;
-    }
-  }
-}
-
-// Prepare features for the external model. Specifically, features after
-// split partition is searched.
-static void prepare_features_after_split(
-    AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
-    PartitionSearchState *part_search_state, RD_STATS *best_rdc,
-    const int64_t partition_none_rdcost, const int64_t partition_split_rdcost,
-    const int64_t *split_block_rdcost,
-    aom_partition_features_t *const features) {
-  aom_clear_system_state();
-  const AV1_COMMON *const cm = &cpi->common;
-  PartitionBlkParams blk_params = part_search_state->part_blk_params;
-  const BLOCK_SIZE bsize = blk_params.bsize;
-  const int bs = block_size_wide[bsize];
-  const int bit_depth = cm->seq_params->bit_depth;
-  const int dc_q =
-      av1_dc_quant_QTX(cm->quant_params.base_qindex, 0, bit_depth) >>
-      (bit_depth - 8);
-
-  // 31 features in av1_ml_early_term_after_split()
-  int feature_idx = 0;
-  if (cpi->sf.part_sf.ml_early_term_after_part_split_level &&
-      !frame_is_intra_only(cm) &&
-      !part_search_state->terminate_partition_search &&
-      part_search_state->do_rectangular_split &&
-      (part_search_state->partition_rect_allowed[HORZ] ||
-       part_search_state->partition_rect_allowed[VERT])) {
-    features->after_part_split.f_terminate[feature_idx++] =
-        logf(1.0f + (float)dc_q / 4.0f);
-    features->after_part_split.f_terminate[feature_idx++] =
-        logf(1.0f + (float)best_rdc->rdcost / bs / bs / 1024.0f);
-
-    add_rd_feature(partition_none_rdcost, best_rdc->rdcost,
-                   features->after_part_split.f_terminate, &feature_idx);
-    add_rd_feature(partition_split_rdcost, best_rdc->rdcost,
-                   features->after_part_split.f_terminate, &feature_idx);
-
-    for (int i = 0; i < SUB_PARTITIONS_SPLIT; ++i) {
-      add_rd_feature(split_block_rdcost[i], best_rdc->rdcost,
-                     features->after_part_split.f_terminate, &feature_idx);
-      int min_bw = MAX_SB_SIZE_LOG2;
-      int min_bh = MAX_SB_SIZE_LOG2;
-      get_min_bsize(sms_tree->split[i], &min_bw, &min_bh);
-      features->after_part_split.f_terminate[feature_idx++] = (float)min_bw;
-      features->after_part_split.f_terminate[feature_idx++] = (float)min_bh;
-    }
-
-    simple_motion_search_prune_part_features(
-        cpi, x, sms_tree, blk_params.mi_row, blk_params.mi_col, bsize, NULL,
-        FEATURE_SMS_PRUNE_PART_FLAG);
-
-    features->after_part_split.f_terminate[feature_idx++] =
-        logf(1.0f + (float)sms_tree->sms_none_feat[1]);
-
-    features->after_part_split.f_terminate[feature_idx++] =
-        logf(1.0f + (float)sms_tree->split[0]->sms_none_feat[1]);
-    features->after_part_split.f_terminate[feature_idx++] =
-        logf(1.0f + (float)sms_tree->split[1]->sms_none_feat[1]);
-    features->after_part_split.f_terminate[feature_idx++] =
-        logf(1.0f + (float)sms_tree->split[2]->sms_none_feat[1]);
-    features->after_part_split.f_terminate[feature_idx++] =
-        logf(1.0f + (float)sms_tree->split[3]->sms_none_feat[1]);
-
-    features->after_part_split.f_terminate[feature_idx++] =
-        logf(1.0f + (float)sms_tree->sms_rect_feat[1]);
-    features->after_part_split.f_terminate[feature_idx++] =
-        logf(1.0f + (float)sms_tree->sms_rect_feat[3]);
-    features->after_part_split.f_terminate[feature_idx++] =
-        logf(1.0f + (float)sms_tree->sms_rect_feat[5]);
-    features->after_part_split.f_terminate[feature_idx++] =
-        logf(1.0f + (float)sms_tree->sms_rect_feat[7]);
-
-    assert(feature_idx == 31);
-  } else {
-    for (int i = 0; i < 31; ++i) {
-      features->after_part_split.f_terminate[i] = -1;
-    }
-  }
-
-  // 9 features av1_ml_prune_rect_partition()
-  if (!cpi->sf.part_sf.ml_early_term_after_part_split_level &&
-      cpi->sf.part_sf.ml_prune_partition && !frame_is_intra_only(cm) &&
-      (part_search_state->partition_rect_allowed[HORZ] ||
-       part_search_state->partition_rect_allowed[VERT]) &&
-      !(part_search_state->prune_rect_part[HORZ] ||
-        part_search_state->prune_rect_part[VERT]) &&
-      !part_search_state->terminate_partition_search) {
-    av1_setup_src_planes(x, cpi->source, blk_params.mi_row, blk_params.mi_col,
-                         av1_num_planes(cm), bsize);
-    for (int i = 0; i < 5; i++)
-      features->after_part_split.f_prune_rect[i] = 1.0f;
-    if (part_search_state->none_rd > 0 &&
-        part_search_state->none_rd < 1000000000)
-      features->after_part_split.f_prune_rect[0] =
-          (float)part_search_state->none_rd / (float)best_rdc->rdcost;
-    for (int i = 0; i < SUB_PARTITIONS_SPLIT; i++) {
-      if (part_search_state->split_rd[i] > 0 &&
-          part_search_state->split_rd[i] < 1000000000)
-        features->after_part_split.f_prune_rect[1 + i] =
-            (float)part_search_state->split_rd[i] / (float)best_rdc->rdcost;
-    }
-
-    // Variance ratios
-    const MACROBLOCKD *const xd = &x->e_mbd;
-    int whole_block_variance;
-    if (is_cur_buf_hbd(xd)) {
-      whole_block_variance = av1_high_get_sby_perpixel_variance(
-          cpi, &x->plane[0].src, bsize, xd->bd);
-    } else {
-      whole_block_variance =
-          av1_get_sby_perpixel_variance(cpi, &x->plane[0].src, bsize);
-    }
-    whole_block_variance = AOMMAX(whole_block_variance, 1);
-
-    int split_variance[SUB_PARTITIONS_SPLIT];
-    const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
-    struct buf_2d buf;
-    buf.stride = x->plane[0].src.stride;
-    const int bw = block_size_wide[bsize];
-    for (int i = 0; i < SUB_PARTITIONS_SPLIT; ++i) {
-      const int x_idx = (i & 1) * bw / 2;
-      const int y_idx = (i >> 1) * bw / 2;
-      buf.buf = x->plane[0].src.buf + x_idx + y_idx * buf.stride;
-      if (is_cur_buf_hbd(xd)) {
-        split_variance[i] =
-            av1_high_get_sby_perpixel_variance(cpi, &buf, subsize, xd->bd);
-      } else {
-        split_variance[i] = av1_get_sby_perpixel_variance(cpi, &buf, subsize);
-      }
-    }
-
-    for (int i = 0; i < SUB_PARTITIONS_SPLIT; i++)
-      features->after_part_split.f_prune_rect[5 + i] =
-          (float)split_variance[i] / (float)whole_block_variance;
-  } else {
-    for (int i = 0; i < 9; i++) {
-      features->after_part_split.f_prune_rect[i] = -1;
-    }
-  }
-}
-
-// Prepare features for the external model. Specifically, features after
-// rectangular partition is searched.
-static void prepare_features_after_part_rect(
-    const AV1_COMP *cpi, const MACROBLOCK *x, const PC_TREE *pc_tree,
-    BLOCK_SIZE bsize, int64_t best_rdcost,
-    int64_t rect_part_rd[NUM_RECT_PARTS][SUB_PARTITIONS_RECT],
-    int64_t split_rd[SUB_PARTITIONS_SPLIT],
-    aom_partition_features_t *const features) {
-  (void)cpi;
-  if (bsize < BLOCK_8X8) return;
-
-  int64_t *horz_rd = rect_part_rd[HORZ];
-  int64_t *vert_rd = rect_part_rd[VERT];
-
-  int feature_index = 0;
-  features->after_part_rect.f[feature_index++] = (float)pc_tree->partitioning;
-  features->after_part_rect.f[feature_index++] =
-      (float)get_unsigned_bits(x->source_variance);
-  const int rdcost = (int)AOMMIN(INT_MAX, best_rdcost);
-  int sub_block_rdcost[8] = { 0 };
-  int rd_index = 0;
-  for (int i = 0; i < SUB_PARTITIONS_RECT; ++i) {
-    if (horz_rd[i] > 0 && horz_rd[i] < 1000000000)
-      sub_block_rdcost[rd_index] = (int)horz_rd[i];
-    ++rd_index;
-  }
-  for (int i = 0; i < SUB_PARTITIONS_RECT; ++i) {
-    if (vert_rd[i] > 0 && vert_rd[i] < 1000000000)
-      sub_block_rdcost[rd_index] = (int)vert_rd[i];
-    ++rd_index;
-  }
-  for (int i = 0; i < SUB_PARTITIONS_SPLIT; ++i) {
-    if (split_rd[i] > 0 && split_rd[i] < 1000000000)
-      sub_block_rdcost[rd_index] = (int)split_rd[i];
-    ++rd_index;
-  }
-  for (int i = 0; i < 8; ++i) {
-    // Ratio between the sub-block RD and the whole-block RD.
-    float rd_ratio = 1.0f;
-    if (sub_block_rdcost[i] > 0 && sub_block_rdcost[i] < rdcost)
-      rd_ratio = (float)sub_block_rdcost[i] / (float)rdcost;
-    features->after_part_rect.f[feature_index++] = rd_ratio;
-  }
-  assert(feature_index == 10);
 }
 
 // Prepare features for the external model. Specifically, features after
@@ -2208,83 +2000,134 @@ static bool ext_ml_model_decision_before_none_part2(
 // decisions after none partition. Specifically, these parameters:
 // do_square_split
 // do_rectangular_split
-// terminate_partition_search
-bool av1_ext_ml_model_decision_after_none(
-    AV1_COMP *const cpi, MACROBLOCK *const x, SIMPLE_MOTION_DATA_TREE *sms_tree,
-    PICK_MODE_CONTEXT *ctx_none, PartitionSearchState *part_search_state,
-    const unsigned int pb_source_variance) {
-  AV1_COMMON *const cm = &cpi->common;
-  ExtPartController *const ext_part_controller = &cpi->ext_part_controller;
+bool ext_ml_model_decision_after_none(
+    ExtPartController *const ext_part_controller, const int is_intra_frame,
+    const float *const features_after_none, int *do_square_split,
+    int *do_rectangular_split) {
+  if (!ext_part_controller->ready || is_intra_frame) return false;
 
-  if (!frame_is_intra_only(cm) && ext_part_controller->ready) {
-    // Setup features.
-    aom_partition_features_t features;
-    features.id = FEATURE_AFTER_PART_NONE;
-    prepare_features_after_part_none(cpi, cm, x, sms_tree, ctx_none,
-                                     part_search_state, pb_source_variance,
-                                     &features);
-
-    // Send necessary features to the external model.
-    av1_ext_part_send_features(ext_part_controller, &features);
-
-    // Get partition decisions from the external model.
-    aom_partition_decision_t decision;
-    const bool valid_decision =
-        av1_ext_part_get_partition_decision(ext_part_controller, &decision);
-    if (!valid_decision) return false;
-
-    // Populate decisions
-    part_search_state->do_square_split = decision.do_square_split;
-    part_search_state->do_rectangular_split = decision.do_rectangular_split;
-    part_search_state->terminate_partition_search =
-        decision.terminate_partition_search;
-
-    return true;
+  // Setup features.
+  aom_partition_features_t features;
+  features.id = FEATURE_AFTER_PART_NONE;
+  for (int i = 0; i < 4; ++i) {
+    features.after_part_none.f[i] = features_after_none[i];
   }
 
-  return false;
+  // Send necessary features to the external model.
+  av1_ext_part_send_features(ext_part_controller, &features);
+
+  // Get partition decisions from the external model.
+  aom_partition_decision_t decision;
+  const bool valid_decision =
+      av1_ext_part_get_partition_decision(ext_part_controller, &decision);
+  if (!valid_decision) return false;
+
+  // Populate decisions
+  *do_square_split = decision.do_square_split;
+  *do_rectangular_split = decision.do_rectangular_split;
+
+  return true;
 }
 
 // If the external partition model is used, we let it determine partition
 // decisions after none partition. Specifically, these parameters:
 // terminate_partition_search
-// prune_rect_part[HORZ]
-// prune_rect_part[VERT]
-bool av1_ext_ml_model_decision_after_split(
-    AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
-    PartitionSearchState *part_search_state, RD_STATS *best_rdc,
-    const int64_t partition_none_rdcost, const int64_t partition_split_rdcost,
-    const int64_t *split_block_rdcost) {
-  const AV1_COMMON *const cm = &cpi->common;
+bool ext_ml_model_decision_after_none_part2(
+    AV1_COMP *const cpi, const float *const features_terminate,
+    int *terminate_partition_search) {
+  AV1_COMMON *const cm = &cpi->common;
   ExtPartController *const ext_part_controller = &cpi->ext_part_controller;
+  if (!ext_part_controller->ready || frame_is_intra_only(cm)) return false;
 
-  if (!frame_is_intra_only(cm) && cpi->ext_part_controller.ready) {
-    // Setup features.
-    aom_partition_features_t features;
-    features.id = FEATURE_AFTER_PART_SPLIT;
-    prepare_features_after_split(cpi, x, sms_tree, part_search_state, best_rdc,
-                                 partition_none_rdcost, partition_split_rdcost,
-                                 split_block_rdcost, &features);
-
-    // Send necessary features to the external model.
-    av1_ext_part_send_features(ext_part_controller, &features);
-
-    // Get partition decisions from the external model.
-    aom_partition_decision_t decision;
-    const bool valid_decision =
-        av1_ext_part_get_partition_decision(ext_part_controller, &decision);
-    if (!valid_decision) return false;
-
-    // Populate decisions
-    part_search_state->terminate_partition_search =
-        decision.terminate_partition_search;
-    part_search_state->prune_rect_part[HORZ] = decision.prune_rect_part[0];
-    part_search_state->prune_rect_part[VERT] = decision.prune_rect_part[1];
-
-    return true;
+  // Setup features.
+  aom_partition_features_t features;
+  features.id = FEATURE_AFTER_PART_NONE_PART2;
+  for (int i = 0; i < FEATURE_SIZE_SMS_TERM_NONE; ++i) {
+    features.after_part_none.f_terminate[i] = features_terminate[i];
   }
 
-  return false;
+  // Send necessary features to the external model.
+  av1_ext_part_send_features(ext_part_controller, &features);
+
+  // Get partition decisions from the external model.
+  aom_partition_decision_t decision;
+  const bool valid_decision =
+      av1_ext_part_get_partition_decision(ext_part_controller, &decision);
+  if (!valid_decision) return false;
+
+  // Populate decisions
+  *terminate_partition_search = decision.terminate_partition_search;
+
+  return true;
+}
+
+// If the external partition model is used, we let it determine partition
+// decisions after none partition. Specifically, these parameters:
+// terminate_partition_search
+bool ext_ml_model_decision_after_split(AV1_COMP *const cpi,
+                                       const float *const features_terminate,
+                                       int *terminate_partition_search) {
+  const AV1_COMMON *const cm = &cpi->common;
+  ExtPartController *const ext_part_controller = &cpi->ext_part_controller;
+  if (frame_is_intra_only(cm) || !cpi->ext_part_controller.ready) {
+    return false;
+  }
+
+  // Setup features.
+  aom_partition_features_t features;
+  features.id = FEATURE_AFTER_PART_SPLIT;
+  for (int i = 0; i < 31; ++i) {
+    features.after_part_split.f_terminate[i] = features_terminate[i];
+  }
+
+  // Send necessary features to the external model.
+  av1_ext_part_send_features(ext_part_controller, &features);
+
+  // Get partition decisions from the external model.
+  aom_partition_decision_t decision;
+  const bool valid_decision =
+      av1_ext_part_get_partition_decision(ext_part_controller, &decision);
+  if (!valid_decision) return false;
+
+  // Populate decisions
+  *terminate_partition_search = decision.terminate_partition_search;
+
+  return true;
+}
+
+// If the external partition model is used, we let it determine partition
+// decisions after none partition. Specifically, these parameters:
+// prune_rect_part[HORZ]
+// prune_rect_part[VERT]
+bool ext_ml_model_decision_after_split_part2(
+    ExtPartController *const ext_part_controller, const int is_intra_frame,
+    const float *const features_prune, int *prune_rect_part_horz,
+    int *prune_rect_part_vert) {
+  if (is_intra_frame || !ext_part_controller->ready) {
+    return false;
+  }
+
+  // Setup features.
+  aom_partition_features_t features;
+  features.id = FEATURE_AFTER_PART_SPLIT_PART2;
+  for (int i = 0; i < 9; ++i) {
+    features.after_part_split.f_prune_rect[i] = features_prune[i];
+  }
+
+  // Send necessary features to the external model.
+  av1_ext_part_send_features(ext_part_controller, &features);
+
+  // Get partition decisions from the external model.
+  aom_partition_decision_t decision;
+  const bool valid_decision =
+      av1_ext_part_get_partition_decision(ext_part_controller, &decision);
+  if (!valid_decision) return false;
+
+  // Populate decisions
+  *prune_rect_part_horz = decision.prune_rect_part[0];
+  *prune_rect_part_vert = decision.prune_rect_part[1];
+
+  return true;
 }
 
 // If the external partition model is used, we let it determine partition
@@ -2294,50 +2137,35 @@ bool av1_ext_ml_model_decision_after_split(
 // verta_partition_allowed
 // vertb_partition_allowed
 static bool ext_ml_model_decision_after_rect(
-    AV1_COMP *cpi, const MACROBLOCK *x, const PC_TREE *pc_tree,
-    BLOCK_SIZE bsize, int pb_source_variance, int64_t best_rdcost,
-    int64_t rect_part_rd[NUM_RECT_PARTS][SUB_PARTITIONS_RECT],
-    int64_t split_rd[SUB_PARTITIONS_SPLIT], int ext_partition_allowed,
-    int partition_horz_allowed, int partition_vert_allowed,
-    int *horza_partition_allowed, int *horzb_partition_allowed,
-    int *verta_partition_allowed, int *vertb_partition_allowed) {
-  (void)pb_source_variance;
-  const AV1_COMMON *const cm = &cpi->common;
-  ExtPartController *const ext_part_controller = &cpi->ext_part_controller;
-  const PartitionCfg *const part_cfg = &cpi->oxcf.part_cfg;
-  // The standard AB partitions are allowed initially if ext-partition-types are
-  // allowed.
-  int ab_partition_allowed =
-      ext_partition_allowed & part_cfg->enable_ab_partitions;
+    ExtPartController *const ext_part_controller, const int is_intra_frame,
+    const float *const features_after_rect, int *horza_partition_allowed,
+    int *horzb_partition_allowed, int *verta_partition_allowed,
+    int *vertb_partition_allowed) {
+  if (is_intra_frame || !ext_part_controller->ready) return false;
 
-  if (!frame_is_intra_only(cm) && ext_part_controller->ready &&
-      partition_horz_allowed && partition_vert_allowed &&
-      ab_partition_allowed) {
-    // Setup features.
-    aom_partition_features_t features;
-    features.id = FEATURE_AFTER_PART_RECT;
-    prepare_features_after_part_rect(cpi, x, pc_tree, bsize, best_rdcost,
-                                     rect_part_rd, split_rd, &features);
-
-    // Send necessary features to the external model.
-    av1_ext_part_send_features(ext_part_controller, &features);
-
-    // Get partition decisions from the external model.
-    aom_partition_decision_t decision;
-    const bool valid_decision =
-        av1_ext_part_get_partition_decision(ext_part_controller, &decision);
-    if (!valid_decision) return false;
-
-    // Populate decisions
-    *horza_partition_allowed = decision.horza_partition_allowed;
-    *horzb_partition_allowed = decision.horzb_partition_allowed;
-    *verta_partition_allowed = decision.verta_partition_allowed;
-    *vertb_partition_allowed = decision.vertb_partition_allowed;
-
-    return true;
+  // Setup features.
+  aom_partition_features_t features;
+  features.id = FEATURE_AFTER_PART_RECT;
+  for (int i = 0; i < 10; ++i) {
+    features.after_part_rect.f[i] = features_after_rect[i];
   }
 
-  return false;
+  // Send necessary features to the external model.
+  av1_ext_part_send_features(ext_part_controller, &features);
+
+  // Get partition decisions from the external model.
+  aom_partition_decision_t decision;
+  const bool valid_decision =
+      av1_ext_part_get_partition_decision(ext_part_controller, &decision);
+  if (!valid_decision) return false;
+
+  // Populate decisions
+  *horza_partition_allowed = decision.horza_partition_allowed;
+  *horzb_partition_allowed = decision.horzb_partition_allowed;
+  *verta_partition_allowed = decision.verta_partition_allowed;
+  *vertb_partition_allowed = decision.vertb_partition_allowed;
+
+  return true;
 }
 
 // If the external partition model is used, we let it determine partition

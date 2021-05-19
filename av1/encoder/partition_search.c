@@ -3283,11 +3283,6 @@ static void prune_partitions_after_none(AV1_COMP *const cpi, MACROBLOCK *x,
                                         PartitionSearchState *part_search_state,
                                         RD_STATS *best_rdc,
                                         unsigned int *pb_source_variance) {
-  if (av1_ext_ml_model_decision_after_none(
-          cpi, x, sms_tree, ctx_none, part_search_state, *pb_source_variance)) {
-    return;
-  }
-
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
@@ -3304,11 +3299,10 @@ static void prune_partitions_after_none(AV1_COMP *const cpi, MACROBLOCK *x,
         bsize <= cpi->sf.part_sf.use_square_partition_only_threshold &&
         bsize > BLOCK_4X4 && cpi->sf.part_sf.ml_predict_breakout_level >= 1;
     if (use_ml_based_breakout) {
-      if (av1_ml_predict_breakout(cpi, bsize, x, this_rdc, blk_params,
-                                  *pb_source_variance, xd->bd)) {
-        part_search_state->do_square_split = 0;
-        part_search_state->do_rectangular_split = 0;
-      }
+      av1_ml_predict_breakout(cpi, bsize, x, this_rdc, blk_params,
+                              *pb_source_variance, xd->bd,
+                              &part_search_state->do_square_split,
+                              &part_search_state->do_rectangular_split);
     }
 
     // Adjust dist breakout threshold according to the partition size.
@@ -3354,12 +3348,6 @@ static void prune_partitions_after_split(
     AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
     PartitionSearchState *part_search_state, RD_STATS *best_rdc,
     int64_t part_none_rd, int64_t part_split_rd) {
-  if (av1_ext_ml_model_decision_after_split(
-          cpi, x, sms_tree, part_search_state, best_rdc, part_none_rd,
-          part_split_rd, part_search_state->split_rd)) {
-    return;
-  }
-
   const AV1_COMMON *const cm = &cpi->common;
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
   const int mi_row = blk_params.mi_row;

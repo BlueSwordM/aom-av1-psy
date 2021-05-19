@@ -51,6 +51,11 @@ typedef void *aom_ext_part_model_t;
  */
 #define SIZE_PRUNE_PART 25
 
+/*!\brief Number of features to prune split and rectangular partition
+ * after PARTITION_NONE.
+ */
+#define SIZE_PRUNE_NONE 4
+
 /*!\brief Number of features to terminates partition after partition none using
  * simple_motion_search features and the rate, distortion, and rdcost of
  * PARTITION_NONE. The same as "FEATURE_SIZE_SMS_TERM_NONE".
@@ -103,10 +108,8 @@ typedef struct aom_partition_features_before_none {
  * Specifically, features collected after NONE partition.
  */
 typedef struct aom_partition_features_none {
-  float rate;            /**< normalized rate cost of the partition */
-  float dist;            /**< normalized distortion of the partition */
-  float q;               /**< normalized quantization parameter */
-  float source_variance; /**< normalized variance of the source */
+  float f[SIZE_PRUNE_NONE]; /**< features to prune split and rectangular
+                               partition*/
   float f_terminate[SIZE_TERM_NONE]; /**< features to determine termination of
                                         partition */
 } aom_partition_features_none_t;
@@ -144,7 +147,9 @@ typedef enum {
   FEATURE_BEFORE_PART_NONE,
   FEATURE_BEFORE_PART_NONE_PART2,
   FEATURE_AFTER_PART_NONE,
+  FEATURE_AFTER_PART_NONE_PART2,
   FEATURE_AFTER_PART_SPLIT,
+  FEATURE_AFTER_PART_SPLIT_PART2,
   FEATURE_AFTER_PART_RECT,
   FEATURE_AFTER_PART_AB
 } PART_FEATURE_ID;
@@ -218,6 +223,7 @@ typedef struct aom_partition_stats {
 typedef enum aom_ext_part_status {
   AOM_EXT_PART_OK = 0,    /**< Status of success */
   AOM_EXT_PART_ERROR = 1, /**< Status of failure */
+  AOM_EXT_PART_TEST = 2,  /**< Status used for tests */
 } aom_ext_part_status_t;
 
 /*!\brief Callback of creating an external partition model.
