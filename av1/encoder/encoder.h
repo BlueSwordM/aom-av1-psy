@@ -1617,10 +1617,13 @@ enum {
   rd_pick_sb_modes_time,
   av1_rd_pick_intra_mode_sb_time,
   av1_rd_pick_inter_mode_sb_time,
+  set_params_rd_pick_inter_mode_time,
+  skip_inter_mode_time,
   handle_inter_mode_time,
   evaluate_motion_mode_for_winner_candidates_time,
-  handle_intra_mode_time,
   do_tx_search_time,
+  handle_intra_mode_time,
+  refine_winner_mode_tx_time,
   av1_search_palette_mode_time,
   handle_newmv_time,
   compound_type_rd_time,
@@ -1665,11 +1668,15 @@ static INLINE char const *get_component_name(int index) {
       return "av1_rd_pick_intra_mode_sb_time";
     case av1_rd_pick_inter_mode_sb_time:
       return "av1_rd_pick_inter_mode_sb_time";
+    case set_params_rd_pick_inter_mode_time:
+      return "set_params_rd_pick_inter_mode_time";
+    case skip_inter_mode_time: return "skip_inter_mode_time";
     case handle_inter_mode_time: return "handle_inter_mode_time";
     case evaluate_motion_mode_for_winner_candidates_time:
       return "evaluate_motion_mode_for_winner_candidates_time";
-    case handle_intra_mode_time: return "handle_intra_mode_time";
     case do_tx_search_time: return "do_tx_search_time";
+    case handle_intra_mode_time: return "handle_intra_mode_time";
+    case refine_winner_mode_tx_time: return "refine_winner_mode_tx_time";
     case av1_search_palette_mode_time: return "av1_search_palette_mode_time";
     case handle_newmv_time: return "handle_newmv_time";
     case compound_type_rd_time: return "compound_type_rd_time";

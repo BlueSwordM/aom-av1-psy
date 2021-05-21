@@ -5319,6 +5319,9 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
     }
   }
 
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(cpi, set_params_rd_pick_inter_mode_time);
+#endif
   // Skip ref frames that never selected by square blocks.
   const int skip_ref_frame_mask =
       picked_ref_frames_mask ? ~picked_ref_frames_mask : 0;
@@ -5330,6 +5333,9 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
   set_params_rd_pick_inter_mode(cpi, x, &args, bsize, &mode_skip_mask,
                                 skip_ref_frame_mask, ref_costs_single,
                                 ref_costs_comp, yv12_mb);
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, set_params_rd_pick_inter_mode_time);
+#endif
 
   int64_t best_est_rd = INT64_MAX;
   const InterModeRdModel *md = &tile_data->inter_mode_rd_models[bsize];
@@ -5446,9 +5452,16 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
     txfm_info->skip_txfm = 0;
     sf_args.num_single_modes_processed += is_single_pred;
     set_ref_ptrs(cm, xd, ref_frame, second_ref_frame);
-
+#if CONFIG_COLLECT_COMPONENT_TIMING
+    start_timing(cpi, skip_inter_mode_time);
+#endif
     // Apply speed features to decide if this inter mode can be skipped
-    if (skip_inter_mode(cpi, x, bsize, ref_frame_rd, midx, &sf_args)) continue;
+    const int is_skip_inter_mode =
+        skip_inter_mode(cpi, x, bsize, ref_frame_rd, midx, &sf_args);
+#if CONFIG_COLLECT_COMPONENT_TIMING
+    end_timing(cpi, skip_inter_mode_time);
+#endif
+    if (is_skip_inter_mode) continue;
 
     // Select prediction reference frames.
     for (i = 0; i < num_planes; i++) {
@@ -5589,6 +5602,9 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
   end_timing(cpi, handle_intra_mode_time);
 #endif
 
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(cpi, refine_winner_mode_tx_time);
+#endif
   int winner_mode_count =
       cpi->sf.winner_mode_sf.multi_winner_mode_type ? x->winner_mode_count : 1;
   // In effect only when fast tx search speed features are enabled.
@@ -5596,6 +5612,9 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
       cpi, x, rd_cost, bsize, ctx, &search_state.best_mode_index,
       &search_state.best_mbmode, yv12_mb, search_state.best_rate_y,
       search_state.best_rate_uv, &search_state.best_skip2, winner_mode_count);
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, refine_winner_mode_tx_time);
+#endif
 
   // Initialize default mode evaluation params
   set_mode_eval_params(cpi, x, DEFAULT_EVAL);
