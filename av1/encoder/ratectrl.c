@@ -1063,13 +1063,16 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
       return cq_level;
     }
     offset_idx = 0;
-  } else if (update_type == ARF_UPDATE || update_type == GF_UPDATE) {
-    offset_idx = 1;
-  } else if (update_type == INTNL_ARF_UPDATE) {
-    offset_idx =
-        AOMMIN(gf_group->layer_depth[gf_index], FIXED_QP_OFFSET_COUNT - 1);
-  } else {  // Leaf level / overlay frame.
-    assert(update_type == LF_UPDATE || update_type == OVERLAY_UPDATE ||
+  } else if (update_type == ARF_UPDATE || update_type == GF_UPDATE ||
+             update_type == INTNL_ARF_UPDATE || update_type == LF_UPDATE) {
+    if (gf_group->layer_depth[gf_index] >=
+        gf_group->max_layer_depth_allowed + 1) {  // Leaf.
+      return cq_level;  // Directly Return worst quality allowed.
+    }
+    offset_idx = AOMMIN(gf_group->layer_depth[gf_index],
+                        gf_group->max_layer_depth_allowed);
+  } else {  // Overlay frame.
+    assert(update_type == OVERLAY_UPDATE ||
            update_type == INTNL_OVERLAY_UPDATE);
     return cq_level;  // Directly Return worst quality allowed.
   }
