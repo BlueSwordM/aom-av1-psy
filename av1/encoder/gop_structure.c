@@ -40,6 +40,25 @@ static void set_frame_parallel_level(int *frame_parallel_level,
   (*parallel_frame_count)++;
   if (*parallel_frame_count > max_parallel_frames) *parallel_frame_count = 1;
 }
+
+// This function sets gf_group->src_offset based on frame_parallel_level.
+// Outputs are gf_group->src_offset and first_frame_index
+static void set_src_offset(GF_GROUP *const gf_group, int *first_frame_index,
+                           int cur_frame_idx, int frame_ind) {
+  if (gf_group->frame_parallel_level[frame_ind] > 0) {
+    if (gf_group->frame_parallel_level[frame_ind] == 1) {
+      *first_frame_index = cur_frame_idx;
+    }
+
+    // Obtain the offset of the frame at frame_ind in the lookahead queue by
+    // subtracting the display order hints of the current frame from the display
+    // order hint of the first frame in parallel encoding set (at
+    // first_frame_index).
+    gf_group->src_offset[frame_ind] =
+        (cur_frame_idx + gf_group->arf_src_offset[frame_ind]) -
+        *first_frame_index;
+  }
+}
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
 // Set parameters for frames between 'start' and 'end' (excluding both).
@@ -49,7 +68,7 @@ static void set_multi_layer_params(
     int start, int end, int *cur_frame_idx, int *frame_ind,
 #if CONFIG_FRAME_PARALLEL_ENCODE
     int *parallel_frame_count, int max_parallel_frames,
-    int do_frame_parallel_encode,
+    int do_frame_parallel_encode, int *first_frame_index,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
     int layer_depth) {
   const int num_frames_to_process = end - start;
@@ -78,6 +97,7 @@ static void set_multi_layer_params(
         // Set LF_UPDATE frames as non-reference frames.
         gf_group->is_frame_non_ref[*frame_ind] = 1;
       }
+      set_src_offset(gf_group, first_frame_index, *cur_frame_idx, *frame_ind);
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
       ++(*frame_ind);
       ++(*cur_frame_idx);
@@ -104,6 +124,7 @@ static void set_multi_layer_params(
         *parallel_frame_count = 1;
       }
     }
+    set_src_offset(gf_group, first_frame_index, *cur_frame_idx, *frame_ind);
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     // Get the boost factor for intermediate ARF frames.
@@ -116,7 +137,7 @@ static void set_multi_layer_params(
                            cur_frame_idx, frame_ind,
 #if CONFIG_FRAME_PARALLEL_ENCODE
                            parallel_frame_count, max_parallel_frames,
-                           do_frame_parallel_encode,
+                           do_frame_parallel_encode, first_frame_index,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                            layer_depth + 1);
 
@@ -128,6 +149,10 @@ static void set_multi_layer_params(
     gf_group->layer_depth[*frame_ind] = layer_depth;
     gf_group->frame_type[*frame_ind] = INTER_FRAME;
     gf_group->refbuf_state[*frame_ind] = REFBUF_UPDATE;
+
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    set_src_offset(gf_group, first_frame_index, *cur_frame_idx, *frame_ind);
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
     ++(*frame_ind);
     ++(*cur_frame_idx);
 
@@ -136,7 +161,7 @@ static void set_multi_layer_params(
                            cur_frame_idx, frame_ind,
 #if CONFIG_FRAME_PARALLEL_ENCODE
                            parallel_frame_count, max_parallel_frames,
-                           do_frame_parallel_encode,
+                           do_frame_parallel_encode, first_frame_index,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                            layer_depth + 1);
   }
@@ -163,6 +188,8 @@ static int construct_multi_layer_gf_structure(
       sizeof(gf_group->frame_parallel_level[0]) * MAX_STATIC_GF_GROUP_LENGTH);
   memset(gf_group->is_frame_non_ref, 0,
          sizeof(gf_group->is_frame_non_ref[0]) * MAX_STATIC_GF_GROUP_LENGTH);
+  memset(gf_group->src_offset, 0,
+         sizeof(gf_group->src_offset[0]) * MAX_STATIC_GF_GROUP_LENGTH);
 #endif
 
   if (first_frame_update_type == KF_UPDATE &&
@@ -225,6 +252,8 @@ static int construct_multi_layer_gf_structure(
   // Enable parallel encode of frames if gf_group has a multi-layer pyramid
   // structure.
   int do_frame_parallel_encode = (cpi->ppi->num_fp_contexts > 1 && use_altref);
+
+  int first_frame_index = cur_frame_index;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
   // Rest of the frames.
@@ -233,7 +262,7 @@ static int construct_multi_layer_gf_structure(
                          &frame_index,
 #if CONFIG_FRAME_PARALLEL_ENCODE
                          &parallel_frame_count, cpi->ppi->num_fp_contexts,
-                         do_frame_parallel_encode,
+                         do_frame_parallel_encode, &first_frame_index,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                          use_altref + 1);
 
@@ -257,6 +286,10 @@ static int construct_multi_layer_gf_structure(
       gf_group->frame_type[frame_index] = INTER_FRAME;
       gf_group->refbuf_state[frame_index] = REFBUF_UPDATE;
       gf_group->max_layer_depth = AOMMAX(gf_group->max_layer_depth, 2);
+#if CONFIG_FRAME_PARALLEL_ENCODE
+      set_src_offset(gf_group, &first_frame_index, cur_frame_index,
+                     frame_index);
+#endif
       ++frame_index;
     }
   }

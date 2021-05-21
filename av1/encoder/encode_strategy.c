@@ -417,18 +417,32 @@ static struct lookahead_entry *choose_frame_source(
   // hence, always pop_lookahead here.
   if (is_stat_generation_stage(cpi)) {
     *pop_lookahead = 1;
+    src_index = 0;
   }
 
   frame_params->show_frame = *pop_lookahead;
-  if (*pop_lookahead) {
+
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  // Future frame in parallel encode set
+  if (gf_group->src_offset[cpi->gf_frame_index] != 0 &&
+      !is_stat_generation_stage(cpi) &&
+      0 /*will be turned on along with frame parallel encode*/) {
+    src_index = gf_group->src_offset[cpi->gf_frame_index];
+    // Don't remove future frames from lookahead_ctx. They will be
+    // removed in their actual encode call.
+    *pop_lookahead = 0;
+  }
+#endif
+  if (frame_params->show_frame) {
     // show frame, pop from buffer
     // Get last frame source.
     if (cm->current_frame.frame_number > 0) {
-      *last_source =
-          av1_lookahead_peek(cpi->ppi->lookahead, -1, cpi->compressor_stage);
+      *last_source = av1_lookahead_peek(cpi->ppi->lookahead, src_index - 1,
+                                        cpi->compressor_stage);
     }
     // Read in the source frame.
-    source = av1_lookahead_peek(cpi->ppi->lookahead, 0, cpi->compressor_stage);
+    source = av1_lookahead_peek(cpi->ppi->lookahead, src_index,
+                                cpi->compressor_stage);
   } else {
     // no show frames are arf frames
     source = av1_lookahead_peek(cpi->ppi->lookahead, src_index,
@@ -1545,6 +1559,13 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #endif
     return -1;
   }
+
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  // reset src_offset to allow actual encode call for this frame to get its
+  // source.
+  gf_group->src_offset[cpi->gf_frame_index] = 0;
+#endif
+
   // Source may be changed if temporal filtered later.
   frame_input.source = &source->img;
   frame_input.last_source = last_source != NULL ? &last_source->img : NULL;

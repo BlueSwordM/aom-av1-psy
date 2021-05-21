@@ -211,6 +211,10 @@ typedef struct {
   // 0 : frame is a reference frame.
   // 1 : frame is a non-reference frame.
   int is_frame_non_ref[MAX_STATIC_GF_GROUP_LENGTH];
+
+  // The offset into lookahead_ctx for choosing
+  // source of frame parallel encodes.
+  int src_offset[MAX_STATIC_GF_GROUP_LENGTH];
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
   /*!\endcond */
 } GF_GROUP;
