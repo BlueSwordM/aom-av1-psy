@@ -15,6 +15,7 @@
 
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/encoder.h"
+#include "av1/encoder/interp_search.h"
 #include "av1/encoder/mcomp.h"
 #include "av1/encoder/motion_search_facade.h"
 #include "av1/encoder/partition_strategy.h"
@@ -119,7 +120,8 @@ static INLINE void get_mv_candidate_from_tpl(const AV1_COMP *const cpi,
 void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
                               BLOCK_SIZE bsize, int ref_idx, int *rate_mv,
                               int search_range, inter_mode_info *mode_info,
-                              int_mv *best_mv) {
+                              int_mv *best_mv,
+                              struct HandleInterModeArgs *const args) {
   MACROBLOCKD *xd = &x->e_mbd;
   const AV1_COMMON *cm = &cpi->common;
   const MotionVectorSearchParams *mv_search_params = &cpi->mv_search_params;
@@ -249,7 +251,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   //     search process as the current fullpel_mv.
   //  2. The rate needed to encode the current fullpel_mv is larger than that
   //     for the other ref_mv.
-  if (cpi->sf.inter_sf.skip_repeated_full_newmv &&
+  if (cpi->sf.inter_sf.skip_repeated_newmv == 2 &&
       mbmi->motion_mode == SIMPLE_TRANSLATION &&
       best_mv->as_int != INVALID_MV) {
     int_mv this_mv;
@@ -289,6 +291,8 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
 
   const int use_fractional_mv =
       bestsme < INT_MAX && cpi->common.features.cur_frame_force_integer_mv == 0;
+  int best_mv_rate = 0;
+  int mv_rate_calculated = 0;
   if (use_fractional_mv) {
     int_mv fractional_ms_list[3];
     av1_set_fractional_mv(fractional_ms_list);
@@ -386,9 +390,50 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
         break;
       default: assert(0 && "Invalid motion mode!\n");
     }
+
+    if (cpi->sf.inter_sf.skip_repeated_newmv == 1 && args != NULL &&
+        mbmi->motion_mode == SIMPLE_TRANSLATION &&
+        best_mv->as_int != INVALID_MV) {
+      const int ref_mv_idx = mbmi->ref_mv_idx;
+      best_mv_rate =
+          av1_mv_bit_cost(&best_mv->as_mv, &ref_mv, mv_costs->nmv_joint_cost,
+                          mv_costs->mv_cost_stack, MV_COST_WEIGHT);
+      mv_rate_calculated = 1;
+
+      for (int prev_ref_idx = 0; prev_ref_idx < ref_mv_idx; ++prev_ref_idx) {
+        if (!args->single_newmv_valid[prev_ref_idx][ref]) continue;
+        // Check if the motion vectors are the same.
+        if (best_mv->as_int == args->single_newmv[prev_ref_idx][ref].as_int) {
+          // Skip this evaluation if the previous one is skipped.
+          if (mode_info[prev_ref_idx].skip) {
+            mode_info[ref_mv_idx].skip = 1;
+            break;
+          }
+          // Compare the rate cost that we current know.
+          const int prev_rate_cost =
+              args->single_newmv_rate[prev_ref_idx][ref] +
+              mode_info[prev_ref_idx].drl_cost;
+          const int this_rate_cost =
+              best_mv_rate + mode_info[ref_mv_idx].drl_cost;
+
+          if (prev_rate_cost <= this_rate_cost) {
+            // If the current rate_cost is worse than the previous rate_cost,
+            // then we terminate the search for this ref_mv_idx.
+            mode_info[ref_mv_idx].skip = 1;
+            break;
+          }
+        }
+      }
+    }
   }
-  *rate_mv = av1_mv_bit_cost(&best_mv->as_mv, &ref_mv, mv_costs->nmv_joint_cost,
-                             mv_costs->mv_cost_stack, MV_COST_WEIGHT);
+
+  if (mv_rate_calculated) {
+    *rate_mv = best_mv_rate;
+  } else {
+    *rate_mv =
+        av1_mv_bit_cost(&best_mv->as_mv, &ref_mv, mv_costs->nmv_joint_cost,
+                        mv_costs->mv_cost_stack, MV_COST_WEIGHT);
+  }
 }
 
 int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,

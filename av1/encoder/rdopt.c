@@ -1156,13 +1156,16 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
     int_mv best_mv;
     av1_single_motion_search(cpi, x, bsize, ref_idx, rate_mv, search_range,
-                             mode_info, &best_mv);
+                             mode_info, &best_mv, args);
     if (best_mv.as_int == INVALID_MV) return INT64_MAX;
 
     args->single_newmv[ref_mv_idx][refs[0]] = best_mv;
     args->single_newmv_rate[ref_mv_idx][refs[0]] = *rate_mv;
     args->single_newmv_valid[ref_mv_idx][refs[0]] = 1;
     cur_mv[0].as_int = best_mv.as_int;
+
+    // Return after single_newmv is set.
+    if (mode_info[mbmi->ref_mv_idx].skip) return INT64_MAX;
   }
 
   return 0;
@@ -1374,7 +1377,7 @@ static int64_t motion_mode_rd(
       assert(!is_comp_pred);
       if (have_newmv_in_inter_mode(this_mode)) {
         av1_single_motion_search(cpi, x, bsize, 0, &tmp_rate_mv, INT_MAX, NULL,
-                                 &mbmi->mv[0]);
+                                 &mbmi->mv[0], NULL);
         tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
       }
       if ((mbmi->mv[0].as_int != cur_mv) || eval_motion_mode) {
@@ -2653,6 +2656,7 @@ static int64_t handle_inter_mode(
     const int drl_cost = get_drl_cost(
         mbmi, mbmi_ext, mode_costs->drl_mode_cost0, ref_frame_type);
     mode_info[ref_mv_idx].drl_cost = drl_cost;
+    mode_info[ref_mv_idx].skip = 0;
 
     if (!mask_check_bit(idx_mask, ref_mv_idx)) {
       // MV did not perform well in simple translation search. Skip it.

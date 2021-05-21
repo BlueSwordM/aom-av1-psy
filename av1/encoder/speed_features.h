@@ -670,11 +670,14 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Skip the current ref_mv in NEW_MV mode if we have already encountered
   // another ref_mv in the drl such that:
-  //  1. The other drl has the same fullpel_mv during the SIMPLE_TRANSLATION
-  //     search process as the current fullpel_mv.
-  //  2. The rate needed to encode the current fullpel_mv is larger than that
-  //     for the other ref_mv.
-  int skip_repeated_full_newmv;
+  //  1. The other drl has the same mv during the SIMPLE_TRANSLATION search
+  //     process as the current mv.
+  //  2. The rate needed to encode the current mv is larger than that for the
+  //     other ref_mv.
+  // 0 means no skipping
+  // 1 means using subpel mv in the comparison
+  // 2 means using fullpel mv in the comparison
+  int skip_repeated_newmv;
 
   // This speed feature checks duplicate ref MVs among NEARESTMV, NEARMV,
   // GLOBALMV and skips NEARMV or GLOBALMV (in order) if a duplicate is found
