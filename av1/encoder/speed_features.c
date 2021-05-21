@@ -1041,6 +1041,9 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.simple_motion_search_prune_agg = 3;
     sf->part_sf.ext_partition_eval_thresh =
         allow_screen_content_tools ? BLOCK_8X8 : BLOCK_16X16;
+    sf->part_sf.prune_sub_8x8_partition_level =
+        (allow_screen_content_tools || frame_is_intra_only(&cpi->common)) ? 0
+                                                                          : 2;
 
     sf->inter_sf.disable_interinter_wedge_var_thresh = UINT_MAX;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
