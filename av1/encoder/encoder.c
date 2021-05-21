@@ -2660,8 +2660,10 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       rc->projected_frame_size = (int)(*size) << 3;
 
 #if CONFIG_BITRATE_ACCURACY
-      printf("\nframe: %d, projected frame size: %d\n", cpi->gf_frame_index,
-             rc->projected_frame_size);
+      cpi->ppi->tpl_data.actual_gop_bitrate += rc->projected_frame_size;
+      printf("\nframe: %d, projected frame size: %d, total: %f\n",
+             cpi->gf_frame_index, rc->projected_frame_size,
+             cpi->ppi->tpl_data.actual_gop_bitrate);
 #endif
     }
 

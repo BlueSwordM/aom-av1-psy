@@ -215,6 +215,14 @@ typedef struct TplParams {
    * Frame border for tpl frame.
    */
   int border_in_pixels;
+
+#if CONFIG_BITRATE_ACCURACY
+  /*
+   * Estimated and actual GOP bitrate.
+   */
+  double estimated_gop_bitrate;
+  double actual_gop_bitrate;
+#endif
 } TplParams;
 
 /*!\brief Allocate buffers used by tpl model

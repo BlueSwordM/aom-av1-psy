@@ -1502,6 +1502,10 @@ void av1_init_tpl_stats(TplParams *const tpl_data) {
     TplDepFrame *tpl_frame = &tpl_data->tpl_stats_buffer[frame_idx];
     av1_tpl_stats_init_txfm_stats(tpl_frame, tpl_data->tpl_bsize_1d);
   }
+#if CONFIG_BITRATE_ACCURACY
+  tpl_data->estimated_gop_bitrate = 0;
+  tpl_data->actual_gop_bitrate = 0;
+#endif
 }
 
 static AOM_INLINE int eval_gop_length(double *beta, int gop_eval) {
@@ -1631,9 +1635,12 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   }
 
 #if CONFIG_BITRATE_ACCURACY
-  double gop_bitrate = av1_estimate_gop_bitrate(gf_group->q_val, gf_group->size,
-                                                tpl_data->txfm_stats_list);
-  printf("\nestimated bitrate: %f\n", gop_bitrate);
+  tpl_data->estimated_gop_bitrate = av1_estimate_gop_bitrate(
+      gf_group->q_val, gf_group->size, tpl_data->txfm_stats_list);
+  if (gf_group->update_type[cpi->gf_frame_index] == ARF_UPDATE &&
+      gop_eval == 0) {
+    printf("\nestimated bitrate: %f\n", tpl_data->estimated_gop_bitrate);
+  }
 #endif
 
   for (int frame_idx = tpl_gf_group_frames - 1;
