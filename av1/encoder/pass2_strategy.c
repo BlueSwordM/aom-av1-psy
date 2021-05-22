@@ -19,7 +19,6 @@
 
 #include <stdint.h>
 
-#include "common/tools_common.h"
 #include "config/aom_config.h"
 #include "config/aom_scale_rtcd.h"
 
