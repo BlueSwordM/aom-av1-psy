@@ -3439,30 +3439,11 @@ static void process_first_pass_stats(AV1_COMP *cpi,
     rc->avg_frame_qindex[KEY_FRAME] = rc->last_q[KEY_FRAME];
   }
 
-  int err = 0;
   if (cpi->ppi->lap_enabled) {
-    err = input_stats_lap(twopass, this_frame);
+    input_stats_lap(twopass, this_frame);
   } else {
-    err = input_stats(twopass, this_frame);
+    input_stats(twopass, this_frame);
   }
-  if (err == EOF) return;
-
-  {
-    const int num_mbs = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
-                            ? cpi->initial_mbs
-                            : cm->mi_params.MBs;
-    // The multiplication by 256 reverses a scaling factor of (>> 8)
-    // applied when combining MB error values for the frame.
-    twopass->mb_av_energy = log((this_frame->intra_error / num_mbs) + 1.0);
-    twopass->frame_avg_haar_energy =
-        log((this_frame->frame_avg_wavelet_energy / num_mbs) + 1.0);
-  }
-
-  // Set the frame content type flag.
-  if (this_frame->intra_skip_pct >= FC_ANIMATION_THRESH)
-    twopass->fr_content_type = FC_GRAPHICS_ANIMATION;
-  else
-    twopass->fr_content_type = FC_NORMAL;
 }
 
 static void setup_target_rate(AV1_COMP *cpi) {
@@ -3627,8 +3608,28 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
   if (is_stat_consumption_stage(cpi) && !twopass->stats_in) return;
 
+  assert(twopass->stats_in != NULL);
   const int update_type = gf_group->update_type[cpi->gf_frame_index];
   frame_params->frame_type = gf_group->frame_type[cpi->gf_frame_index];
+
+  const FIRSTPASS_STATS *const this_frame_ptr =
+      read_frame_stats(twopass, gf_group->arf_src_offset[cpi->gf_frame_index]);
+  if (this_frame_ptr != NULL) {
+    const int num_mbs = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
+                            ? cpi->initial_mbs
+                            : cpi->common.mi_params.MBs;
+    // The multiplication by 256 reverses a scaling factor of (>> 8)
+    // applied when combining MB error values for the frame.
+    twopass->mb_av_energy = log((this_frame_ptr->intra_error / num_mbs) + 1.0);
+    twopass->frame_avg_haar_energy =
+        log((this_frame_ptr->frame_avg_wavelet_energy / num_mbs) + 1.0);
+
+    // Set the frame content type flag.
+    if (this_frame_ptr->intra_skip_pct >= FC_ANIMATION_THRESH)
+      twopass->fr_content_type = FC_GRAPHICS_ANIMATION;
+    else
+      twopass->fr_content_type = FC_NORMAL;
+  }
 
   if (cpi->gf_frame_index < gf_group->size && !(frame_flags & FRAMEFLAGS_KEY)) {
     assert(cpi->gf_frame_index < gf_group->size);
