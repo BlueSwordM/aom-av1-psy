@@ -570,7 +570,7 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
             r * MI_SIZE_64X64 * cm->mi_params.mi_stride + c * MI_SIZE_64X64;
         if (mi[idx_in_sb])
           mi[idx_in_sb]->skip_cdef_curr_sb =
-              !(x->color_sensitivity[0] || x->color_sensitivity[1]);
+              !(x->color_sensitivity_sb[0] || x->color_sensitivity_sb[1]);
       }
     }
   }
@@ -858,6 +858,8 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     av1_set_cost_upd_freq(cpi, td, tile_info, mi_row, mi_col);
 
     // Reset color coding related parameters
+    x->color_sensitivity_sb[0] = 0;
+    x->color_sensitivity_sb[1] = 0;
     x->color_sensitivity[0] = 0;
     x->color_sensitivity[1] = 0;
     x->content_state_sb.source_sad = kMedSad;

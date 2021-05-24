@@ -353,6 +353,8 @@ static INLINE void find_predictors(AV1_COMP *cpi, MACROBLOCK *x,
   (void)tile_data;
 
   x->pred_mv_sad[ref_frame] = INT_MAX;
+  x->pred_mv0_sad[ref_frame] = INT_MAX;
+  x->pred_mv1_sad[ref_frame] = INT_MAX;
   frame_mv[NEWMV][ref_frame].as_int = INVALID_MV;
   // TODO(kyslov) this needs various further optimizations. to be continued..
   assert(yv12 != NULL);
@@ -2068,6 +2070,40 @@ static AOM_INLINE int skip_mode_by_bsize_and_ref_frame(
   return 0;
 }
 
+void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
+                           BLOCK_SIZE bsize, int y_sad,
+                           unsigned int source_variance) {
+  const int factor = (bsize >= BLOCK_32X32) ? 2 : 3;
+  NOISE_LEVEL noise_level = kLow;
+  int norm_sad =
+      y_sad >> (b_width_log2_lookup[bsize] + b_height_log2_lookup[bsize]);
+  // If the spatial source variance is high and the normalized y_sad
+  // is low, then y-channel is likely good for mode estimation, so keep
+  // color_sensitivity off. For low noise content for now, since there is
+  // some bdrate regression for noisy color clip.
+  if (cpi->noise_estimate.enabled)
+    noise_level = av1_noise_estimate_extract_level(&cpi->noise_estimate);
+  if (noise_level == kLow && source_variance > 1000 && norm_sad < 50) {
+    x->color_sensitivity[0] = 0;
+    x->color_sensitivity[1] = 0;
+    return;
+  }
+  for (int i = 1; i <= 2; ++i) {
+    if (x->color_sensitivity[i - 1] == 2) {
+      struct macroblock_plane *const p = &x->plane[i];
+      struct macroblockd_plane *const pd = &xd->plane[i];
+      const BLOCK_SIZE bs =
+          get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+      const int uv_sad = cpi->ppi->fn_ptr[bs].sdf(p->src.buf, p->src.stride,
+                                                  pd->dst.buf, pd->dst.stride);
+      const int norm_uv_sad =
+          uv_sad >> (b_width_log2_lookup[bs] + b_height_log2_lookup[bs]);
+      x->color_sensitivity[i - 1] =
+          uv_sad > (factor * (y_sad >> 3)) && norm_uv_sad > 40;
+    }
+  }
+}
+
 void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                   MACROBLOCK *x, RD_STATS *rd_cost,
                                   BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx) {
@@ -2140,7 +2176,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         cpi->common.height != cpi->resize_pending_params.height));
 
 #endif
-
+  x->color_sensitivity[0] = x->color_sensitivity_sb[0];
+  x->color_sensitivity[1] = x->color_sensitivity_sb[1];
   init_best_pickmode(&best_pickmode);
 
   const ModeCosts *mode_costs = &x->mode_costs;
@@ -2312,6 +2349,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         if ((int64_t)(x->pred_mv_sad[ref_frame]) > thresh_sad_pred) continue;
       }
     }
+    // Check for skipping NEARMV based on pred_mv_sad.
+    if (this_mode == NEARMV && x->pred_mv1_sad[ref_frame] != INT_MAX &&
+        x->pred_mv1_sad[ref_frame] > (x->pred_mv0_sad[ref_frame] << 1))
+      continue;
 
     if (skip_mode_by_threshold(
             this_mode, ref_frame, frame_mv[this_mode][ref_frame],
@@ -2363,6 +2404,22 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #if COLLECT_PICK_MODE_STAT
     ms_stat.num_nonskipped_searches[bsize][this_mode]++;
 #endif
+
+    if (idx == 0) {
+      // Set color sensitivity on first tested mode only.
+      // Use y-sad already computed in find_predictors: take the sad with motion
+      // vector closest to 0; the uv-sad computed below in set_color_sensitivity
+      // is for zeromv.
+      int y_sad = x->pred_mv0_sad[LAST_FRAME];
+      if (x->pred_mv1_sad[LAST_FRAME] != INT_MAX &&
+          (abs(frame_mv[NEARMV][LAST_FRAME].as_mv.col) +
+           abs(frame_mv[NEARMV][LAST_FRAME].as_mv.row)) <
+              (abs(frame_mv[NEARESTMV][LAST_FRAME].as_mv.col) +
+               abs(frame_mv[NEARESTMV][LAST_FRAME].as_mv.row)))
+        y_sad = x->pred_mv1_sad[LAST_FRAME];
+      set_color_sensitivity(cpi, x, xd, bsize, y_sad, x->source_variance);
+    }
+
     if (enable_filter_search && !force_mv_inter_layer &&
         ((mi->mv[0].as_mv.row & 0x07) || (mi->mv[0].as_mv.col & 0x07)) &&
         (ref_frame == LAST_FRAME || !x->nonrd_prune_ref_frame_search)) {

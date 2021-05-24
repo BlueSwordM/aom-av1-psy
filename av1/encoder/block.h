@@ -1044,6 +1044,9 @@ typedef struct macroblock {
   int pred_mv_sad[REF_FRAMES];
   //! The minimum of \ref pred_mv_sad.
   int best_pred_mv_sad;
+  //! The sad of the 2 mv refs.
+  int pred_mv0_sad[REF_FRAMES];
+  int pred_mv1_sad[REF_FRAMES];
 
   /*! \brief Disables certain ref frame pruning based on tpl.
    *
@@ -1234,6 +1237,7 @@ typedef struct macroblock {
    * Used in REALTIME coding mode to enhance the visual quality at the boundary
    * of moving color objects.
    */
+  uint8_t color_sensitivity_sb[2];
   uint8_t color_sensitivity[2];
   /**@}*/
 

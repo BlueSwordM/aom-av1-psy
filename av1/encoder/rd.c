@@ -1068,6 +1068,10 @@ void av1_mv_pred(const AV1_COMP *cpi, MACROBLOCK *x, uint8_t *ref_y_buffer,
     if (this_sad < best_sad) {
       best_sad = this_sad;
     }
+    if (i == 0)
+      x->pred_mv0_sad[ref_frame] = this_sad;
+    else if (i == 1)
+      x->pred_mv1_sad[ref_frame] = this_sad;
   }
 
   // Note the index of the mv that worked best in the reference list.
