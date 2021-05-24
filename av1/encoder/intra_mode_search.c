@@ -253,21 +253,20 @@ void set_y_mode_and_delta_angle(const int mode_idx, MB_MODE_INFO *const mbmi) {
 }
 
 int prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
-                       int64_t top_intra_model_rd[]) {
+                       int64_t top_intra_model_rd[], int model_cnt_allowed) {
   const double thresh_best = 1.50;
   const double thresh_top = 1.00;
-  for (int i = 0; i < TOP_INTRA_MODEL_COUNT; i++) {
+  for (int i = 0; i < model_cnt_allowed; i++) {
     if (this_model_rd < top_intra_model_rd[i]) {
-      for (int j = TOP_INTRA_MODEL_COUNT - 1; j > i; j--) {
+      for (int j = model_cnt_allowed - 1; j > i; j--) {
         top_intra_model_rd[j] = top_intra_model_rd[j - 1];
       }
       top_intra_model_rd[i] = this_model_rd;
       break;
     }
   }
-  if (top_intra_model_rd[TOP_INTRA_MODEL_COUNT - 1] != INT64_MAX &&
-      this_model_rd >
-          thresh_top * top_intra_model_rd[TOP_INTRA_MODEL_COUNT - 1])
+  if (top_intra_model_rd[model_cnt_allowed - 1] != INT64_MAX &&
+      this_model_rd > thresh_top * top_intra_model_rd[model_cnt_allowed - 1])
     return 1;
 
   if (this_model_rd != INT64_MAX &&
@@ -980,7 +979,8 @@ int av1_handle_intra_y_mode(IntraModeSearchState *intra_search_state,
   const TX_SIZE tx_size = AOMMIN(TX_32X32, max_txsize_lookup[bsize]);
   const int64_t this_model_rd =
       intra_model_rd(&cpi->common, x, 0, bsize, tx_size, /*use_hadamard=*/1);
-  if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd))
+  if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd,
+                         sf->intra_sf.top_intra_model_count_allowed))
     return 0;
   av1_init_rd_stats(rd_stats_y);
   av1_pick_uniform_tx_size_type_yrd(cpi, x, rd_stats_y, bsize, best_rd);
@@ -1184,7 +1184,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     const TX_SIZE tx_size = AOMMIN(TX_32X32, max_txsize_lookup[bsize]);
     const int64_t this_model_rd =
         intra_model_rd(&cpi->common, x, 0, bsize, tx_size, /*use_hadamard=*/1);
-    if (prune_intra_y_mode(this_model_rd, &best_model_rd, top_intra_model_rd))
+    if (prune_intra_y_mode(this_model_rd, &best_model_rd, top_intra_model_rd,
+                           cpi->sf.intra_sf.top_intra_model_count_allowed))
       continue;
 
     // Builds the actual prediction. The prediction from

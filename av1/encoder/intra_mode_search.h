@@ -285,9 +285,10 @@ void set_y_mode_and_delta_angle(const int mode_idx, MB_MODE_INFO *const mbmi);
  *                                  far.
  * \param[in]    top_intra_model_rd Top intra model RD seen for this
  *                                  block so far.
+ * \param[in]    model_cnt_allowed  The number of top intra model RD allowed.
  */
 int prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
-                       int64_t top_intra_model_rd[]);
+                       int64_t top_intra_model_rd[], int model_cnt_allowed);
 
 #ifdef __cplusplus
 }  // extern "C"

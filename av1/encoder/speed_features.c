@@ -665,6 +665,8 @@ static void set_good_speed_feature_framesize_dependent(
       sf->part_sf.partition_search_breakout_rate_thr = 120;
     }
     if (use_hbd) sf->tx_sf.prune_tx_size_level = 3;
+
+    if (is_480p_or_larger) sf->intra_sf.top_intra_model_count_allowed = 2;
   }
 
   if (speed >= 4) {
@@ -684,6 +686,8 @@ static void set_good_speed_feature_framesize_dependent(
       sf->hl_sf.recode_tolerance = 32;
     else
       sf->hl_sf.recode_tolerance = 55;
+
+    sf->intra_sf.top_intra_model_count_allowed = 2;
   }
 
   if (speed >= 5) {
@@ -1655,6 +1659,7 @@ static AOM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
   intra_sf->prune_filter_intra_level = 0;
   intra_sf->prune_chroma_modes_using_luma_winner = 0;
   intra_sf->cfl_search_range = 3;
+  intra_sf->top_intra_model_count_allowed = TOP_INTRA_MODEL_COUNT;
 }
 
 static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {

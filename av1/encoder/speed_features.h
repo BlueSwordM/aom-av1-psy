@@ -898,6 +898,11 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // 33: Exhaustive rd search (33 == CFL_MAGS_SIZE). This mode should only
   // be used for debugging purpose.
   int cfl_search_range;
+
+  // TOP_INTRA_MODEL_COUNT is 4 that is the number of top model rd to store in
+  // intra mode decision. Here, add a speed feature to reduce this number for
+  // higher speeds.
+  int top_intra_model_count_allowed;
 } INTRA_MODE_SPEED_FEATURES;
 
 typedef struct TX_SPEED_FEATURES {
