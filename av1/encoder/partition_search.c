@@ -3630,6 +3630,11 @@ static void split_partition_search(
   av1_restore_context(x, x_ctx, mi_row, mi_col, bsize, av1_num_planes(cm));
 }
 
+// The max number of nodes in the partition tree.
+// The number of leaf nodes is (128x128) / (4x4) = 1024.
+// The number of All possible parent nodes is 1 + 2 + ... + 512 = 1023.
+#define NUM_NODES 2048
+
 static void write_partition_tree(AV1_COMP *const cpi,
                                  const PC_TREE *const pc_tree,
                                  const BLOCK_SIZE bsize, const int mi_row,
@@ -3645,7 +3650,7 @@ static void write_partition_tree(AV1_COMP *const cpi,
   fprintf(pfile, "%d", bsize);
 
   // Write partition type with BFS order.
-  const PC_TREE *tree_node_queue[1024] = { NULL };
+  const PC_TREE *tree_node_queue[NUM_NODES] = { NULL };
   int q_idx = 0;
   int depth = 0;
   int last_idx = 1;
@@ -3709,7 +3714,7 @@ static void verify_write_partition_tree(const AV1_COMP *const cpi,
   fprintf(pfile, "%d", bsize);
 
   // Write partition type with BFS order.
-  const PC_TREE *tree_node_queue[1024] = { NULL };
+  const PC_TREE *tree_node_queue[NUM_NODES] = { NULL };
   int q_idx = 0;
   int depth = 0;
   int last_idx = 1;
@@ -3779,7 +3784,7 @@ static int read_partition_tree(AV1_COMP *const cpi, PC_TREE *const pc_tree,
   assert(read_bsize == cpi->common.seq_params->sb_size);
   BLOCK_SIZE bsize = (BLOCK_SIZE)read_bsize;
 
-  PC_TREE *tree_node_queue[1024] = { NULL };
+  PC_TREE *tree_node_queue[NUM_NODES] = { NULL };
   int last_idx = 1;
   int q_idx = 0;
   tree_node_queue[q_idx] = pc_tree;
