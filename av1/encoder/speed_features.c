@@ -596,7 +596,7 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (speed >= 1) {
-    if (is_480p_or_lesser) sf->inter_sf.skip_repeated_newmv = 1;
+    if (is_480p_or_lesser) sf->inter_sf.skip_newmv_in_drl = 1;
 
     if (is_720p_or_larger) {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
@@ -652,7 +652,7 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (speed >= 3) {
-    sf->inter_sf.skip_repeated_newmv = 2;
+    sf->inter_sf.skip_newmv_in_drl = 2;
 
     sf->part_sf.ml_early_term_after_part_split_level = 0;
 
@@ -697,6 +697,8 @@ static void set_good_speed_feature_framesize_dependent(
       sf->inter_sf.prune_warped_prob_thresh = 8;
     }
     if (is_720p_or_larger) sf->hl_sf.recode_tolerance = 40;
+
+    sf->inter_sf.skip_newmv_in_drl = 3;
   }
 
   if (speed >= 6) {
@@ -1612,7 +1614,7 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_nearmv_using_neighbors = 0;
   inter_sf->prune_comp_search_by_single_result = 0;
   inter_sf->skip_repeated_ref_mv = 0;
-  inter_sf->skip_repeated_newmv = 0;
+  inter_sf->skip_newmv_in_drl = 0;
   inter_sf->inter_mode_rd_model_estimation = 0;
   inter_sf->prune_compound_using_single_ref = 0;
   inter_sf->prune_ext_comp_using_neighbors = 0;

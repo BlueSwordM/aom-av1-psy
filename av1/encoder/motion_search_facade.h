@@ -24,6 +24,7 @@ typedef struct {
   int drl_cost;
   int_mv full_search_mv;
   int full_mv_rate;
+  int full_mv_bestsme;
   int skip;
 } inter_mode_info;
 
