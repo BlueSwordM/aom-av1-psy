@@ -3256,21 +3256,6 @@ static void prune_4_way_partition_search(
                                      part4_search_allowed);
 }
 
-// Set PARTITION_NONE allowed flag.
-static AOM_INLINE void set_part_none_allowed_flag(
-    AV1_COMP *const cpi, PartitionSearchState *part_search_state) {
-  PartitionBlkParams blk_params = part_search_state->part_blk_params;
-  if ((blk_params.width <= blk_params.min_partition_size_1d) &&
-      blk_params.has_rows && blk_params.has_cols)
-    part_search_state->partition_none_allowed = 1;
-  assert(part_search_state->terminate_partition_search == 0);
-
-  // Set PARTITION_NONE for screen content.
-  if (cpi->use_screen_content_tools)
-    part_search_state->partition_none_allowed =
-        blk_params.has_rows && blk_params.has_cols;
-}
-
 // Set params needed for PARTITION_NONE search.
 static void set_none_partition_params(const AV1_COMP *const cpi, ThreadData *td,
                                       MACROBLOCK *x, PC_TREE *pc_tree,
@@ -3428,7 +3413,6 @@ static void none_partition_search(
   assert(bsize < BLOCK_SIZES_ALL);
 
   // Set PARTITION_NONE allowed flag.
-  set_part_none_allowed_flag(cpi, part_search_state);
   if (!part_search_state->partition_none_allowed) return;
 
   int pt_cost = 0;
