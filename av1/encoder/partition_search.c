@@ -554,12 +554,14 @@ static void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
     }
   }
 
+#if !CONFIG_REALTIME_ONLY
   const AV1_COMMON *const cm = &cpi->common;
   if (cm->delta_q_info.delta_q_present_flag &&
       !cpi->sf.rt_sf.use_nonrd_pick_mode) {
     x->rdmult =
         av1_get_hier_tpl_rdmult(cpi, x, bsize, mi_row, mi_col, x->rdmult);
   }
+#endif  // !CONFIG_REALTIME_ONLY
 
   if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIM) {
     av1_set_ssim_rdmult(cpi, &x->errorperbit, bsize, mi_row, mi_col,

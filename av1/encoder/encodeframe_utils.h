@@ -281,15 +281,15 @@ void av1_get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
 
 int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
                                    int mi_row, int mi_col);
+
+int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
+                            const BLOCK_SIZE bsize, const int mi_row,
+                            const int mi_col, int orig_rdmult);
 #endif  // !CONFIG_REALTIME_ONLY
 
 void av1_set_ssim_rdmult(const AV1_COMP *const cpi, int *errorperbit,
                          const BLOCK_SIZE bsize, const int mi_row,
                          const int mi_col, int *const rdmult);
-
-int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
-                            const BLOCK_SIZE bsize, const int mi_row,
-                            const int mi_col, int orig_rdmult);
 
 void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
                       const PICK_MODE_CONTEXT *const ctx, int mi_row,

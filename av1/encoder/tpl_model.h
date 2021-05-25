@@ -137,6 +137,11 @@ typedef struct TplDepFrame {
  */
 typedef struct TplParams {
   /*!
+   * Whether the tpl stats is ready.
+   */
+  int ready;
+
+  /*!
    * Block granularity of tpl score storage.
    */
   uint8_t tpl_stats_block_mis_log2;
@@ -275,6 +280,8 @@ void av1_tpl_preload_rc_estimate(
 int av1_tpl_ptr_pos(int mi_row, int mi_col, int stride, uint8_t right_shift);
 
 void av1_init_tpl_stats(TplParams *const tpl_data);
+
+int av1_tpl_stats_ready(const TplParams *tpl_data, int gf_frame_index);
 
 void av1_tpl_rdmult_setup(struct AV1_COMP *cpi);
 

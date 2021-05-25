@@ -60,6 +60,8 @@ void av1_set_ssim_rdmult(const AV1_COMP *const cpi, int *errorperbit,
   av1_set_error_per_bit(errorperbit, *rdmult);
 }
 
+// TODO(angiebird): Move these function to tpl_model.c
+#if !CONFIG_REALTIME_ONLY
 // Return the end column for the current superblock, in unit of TPL blocks.
 static int get_superblock_tpl_column_end(const AV1_COMMON *const cm, int mi_col,
                                          int num_mi_w) {
@@ -89,9 +91,7 @@ int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
                  cpi->gf_frame_index < cpi->ppi->gf_group.size));
   const int tpl_idx = cpi->gf_frame_index;
   const int deltaq_rdmult = set_deltaq_rdmult(cpi, x);
-  if (tpl_idx >= MAX_TPL_FRAME_IDX) return deltaq_rdmult;
-  const TplDepFrame *tpl_frame = &cpi->ppi->tpl_data.tpl_frame[tpl_idx];
-  if (!tpl_frame->is_valid) return deltaq_rdmult;
+  if (!av1_tpl_stats_ready(&cpi->ppi->tpl_data, tpl_idx)) return deltaq_rdmult;
   if (!is_frame_tpl_eligible(gf_group, cpi->gf_frame_index))
     return deltaq_rdmult;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return deltaq_rdmult;
@@ -139,6 +139,7 @@ int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
 #endif  // !CONFIG_RD_COMMAND
   return rdmult;
 }
+#endif  // !CONFIG_REALTIME_ONLY
 
 static AOM_INLINE void update_filter_type_count(FRAME_COUNTS *counts,
                                                 const MACROBLOCKD *xd,
@@ -692,14 +693,16 @@ int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
   const int mi_wide = mi_size_wide[bsize];
   const int mi_high = mi_size_high[bsize];
 
-  if (tpl_idx >= MAX_TPL_FRAME_IDX) return orig_rdmult;
-
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_idx];
   TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
   int tpl_stride = tpl_frame->stride;
-  if (!tpl_frame->is_valid) return orig_rdmult;
 
-  if (!is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) return orig_rdmult;
+  if (!av1_tpl_stats_ready(&cpi->ppi->tpl_data, cpi->gf_frame_index)) {
+    return orig_rdmult;
+  }
+  if (!is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) {
+    return orig_rdmult;
+  }
 
   int mi_count = 0;
   const int mi_col_sr =
@@ -819,15 +822,13 @@ void av1_get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
   AV1_COMMON *const cm = &cpi->common;
   const int gf_group_index = cpi->gf_frame_index;
   TplParams *const tpl_data = &cpi->ppi->tpl_data;
+  if (!av1_tpl_stats_ready(tpl_data, gf_group_index)) return;
   const int mi_wide = mi_size_wide[bsize];
   const int mi_high = mi_size_high[bsize];
-
-  if (gf_group_index >= MAX_TPL_FRAME_IDX) return;
 
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[gf_group_index];
   TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
   int tpl_stride = tpl_frame->stride;
-  if (!tpl_frame->is_valid) return;
 
   int mi_count = 0;
   int count = 0;

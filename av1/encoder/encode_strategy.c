@@ -980,6 +980,10 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   int allow_tpl = oxcf->gf_cfg.lag_in_frames > 1 &&
                   !is_stat_generation_stage(cpi) &&
                   oxcf->algo_cfg.enable_tpl_model;
+
+  if (gf_group->size > MAX_LENGTH_TPL_FRAME_STATS) {
+    allow_tpl = 0;
+  }
   if (frame_params->frame_type == KEY_FRAME) {
     // Don't do tpl for fwd key frames or fwd key frame overlays
     allow_tpl = allow_tpl && !cpi->sf.tpl_sf.disable_filtered_key_tpl &&
@@ -1006,7 +1010,6 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     av1_read_rd_command(filepath, &cpi->rd_command);
   }
 #endif  // CONFIG_RD_COMMAND
-
   if (allow_tpl == 0) {
     // Avoid the use of unintended TPL stats from previous GOP's results.
     if (cpi->gf_frame_index == 0 && !is_stat_generation_stage(cpi))
