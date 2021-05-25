@@ -885,6 +885,7 @@ AV1_PRIMARY *av1_create_primary_compressor(
   ppi->b_calculate_psnr = CONFIG_INTERNAL_STATS;
   ppi->frames_left = oxcf->input_cfg.limit;
 #if CONFIG_FRAME_PARALLEL_ENCODE
+  ppi->max_mv_magnitude = 0;
   ppi->num_fp_contexts = 1;
 #endif
 
@@ -1739,7 +1740,12 @@ static void set_mv_search_params(AV1_COMP *cpi) {
         mv_search_params->mv_step_param = av1_init_search_range(
             AOMMIN(max_mv_def, 2 * mv_search_params->max_mv_magnitude));
       }
+#if CONFIG_FRAME_PARALLEL_ENCODE
+      // Reset max_mv_magnitude for parallel frames based on update flag.
+      if (cpi->do_frame_data_update) mv_search_params->max_mv_magnitude = -1;
+#else
       mv_search_params->max_mv_magnitude = -1;
+#endif
     }
   }
 }

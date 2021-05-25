@@ -1756,6 +1756,12 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     cm->quant_params.using_qmatrix = oxcf->q_cfg.using_qm;
   }
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  // Copy previous frame's largest MV component from ppi to cpi.
+  if (!is_stat_generation_stage(cpi) && cpi->do_frame_data_update)
+    cpi->mv_search_params.max_mv_magnitude = cpi->ppi->max_mv_magnitude;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+
 #if CONFIG_REALTIME_ONLY
   if (av1_encode(cpi, dest, &frame_input, &frame_params, &frame_results) !=
       AOM_CODEC_OK) {
@@ -1773,6 +1779,12 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     return AOM_CODEC_ERROR;
   }
 #endif  // CONFIG_REALTIME_ONLY
+
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  // Store current frame's largest MV component in ppi.
+  if (!is_stat_generation_stage(cpi) && cpi->do_frame_data_update)
+    cpi->ppi->max_mv_magnitude = cpi->mv_search_params.max_mv_magnitude;
+#endif
 
   if (!is_stat_generation_stage(cpi)) {
     // First pass doesn't modify reference buffer assignment or produce frame

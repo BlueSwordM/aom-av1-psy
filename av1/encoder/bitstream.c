@@ -3757,9 +3757,15 @@ void av1_reset_pack_bs_thread_data(ThreadData *const td) {
 
 void av1_accumulate_pack_bs_thread_data(AV1_COMP *const cpi,
                                         ThreadData const *td) {
+  int do_max_mv_magnitude_update = 1;
   cpi->rc.coefficient_size += td->coefficient_size;
 
-  if (cpi->sf.mv_sf.auto_mv_step_size)
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  // Disable max_mv_magnitude update for parallel frames based on update flag.
+  if (!cpi->do_frame_data_update) do_max_mv_magnitude_update = 0;
+#endif
+
+  if (cpi->sf.mv_sf.auto_mv_step_size && do_max_mv_magnitude_update)
     cpi->mv_search_params.max_mv_magnitude =
         AOMMAX(cpi->mv_search_params.max_mv_magnitude, td->max_mv_magnitude);
 

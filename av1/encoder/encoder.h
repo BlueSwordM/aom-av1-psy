@@ -2168,6 +2168,12 @@ typedef struct AV1_PRIMARY {
   int filter_level[2];
   int filter_level_u;
   int filter_level_v;
+
+  /*!
+   * Largest MV component used in previous encoded frame during
+   * stats consumption stage.
+   */
+  int max_mv_magnitude;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
   /*!
    * Encode stage top level structure
