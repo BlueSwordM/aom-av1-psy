@@ -2519,6 +2519,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
   do {
     loop = 0;
+    int do_mv_stats_collection = 1;
     aom_clear_system_state();
 
     // if frame was scaled calculate global_motion_search again if already
@@ -2630,14 +2631,19 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     // transform / motion compensation build reconstruction frame
     av1_encode_frame(cpi);
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    // Disable mv_stats collection for parallel frames based on update flag.
+    if (!cpi->do_frame_data_update) do_mv_stats_collection = 0;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+
     // Reset the mv_stats in case we are interrupted by an intraframe or an
     // overlay frame.
-    if (cpi->mv_stats.valid) {
-      av1_zero(cpi->mv_stats);
+    if (cpi->ppi->mv_stats.valid && do_mv_stats_collection) {
+      av1_zero(cpi->ppi->mv_stats);
     }
     // Gather the mv_stats for the next frame
     if (cpi->sf.hl_sf.high_precision_mv_usage == LAST_MV_DATA &&
-        av1_frame_allows_smart_mv(cpi)) {
+        av1_frame_allows_smart_mv(cpi) && do_mv_stats_collection) {
       av1_collect_mv_stats(cpi, q);
     }
 

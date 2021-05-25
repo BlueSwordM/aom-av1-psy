@@ -2315,6 +2315,11 @@ typedef struct AV1_PRIMARY {
    */
   TplParams tpl_data;
 
+  /*!
+   * Motion vector stats of the previous encoded frame.
+   */
+  MV_STATS mv_stats;
+
 #if CONFIG_INTERNAL_STATS
   /*!\cond */
   uint64_t total_time_receive_data;
@@ -2832,12 +2837,6 @@ typedef struct AV1_COMP {
    * Indicates whether current processing stage is encode stage or LAP stage.
    */
   COMPRESSOR_STAGE compressor_stage;
-
-  /*!
-   * Some motion vector stats from the last encoded frame to help us decide what
-   * precision to use to encode the current frame.
-   */
-  MV_STATS mv_stats;
 
   /*!
    * Frame type of the last frame. May be used in some heuristics for speeding

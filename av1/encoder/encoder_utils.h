@@ -893,7 +893,7 @@ static AOM_INLINE void restore_extra_coding_context(AV1_COMP *cpi) {
   cm->lf = cc->lf;
   restore_cdef_coding_context(&cm->cdef_info, &cc->cdef_info);
   cpi->rc = cc->rc;
-  cpi->mv_stats = cc->mv_stats;
+  cpi->ppi->mv_stats = cc->mv_stats;
 }
 
 static AOM_INLINE int equal_dimensions_and_border(const YV12_BUFFER_CONFIG *a,
