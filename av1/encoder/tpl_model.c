@@ -79,15 +79,6 @@ static AOM_INLINE void av1_tpl_store_txfm_stats(
   tpl_data->txfm_stats_list[frame_index] = *tpl_txfm_stats;
 }
 
-void av1_tpl_stats_init_txfm_stats(TplDepFrame *tpl_frame, int tpl_bsize_1d) {
-  tpl_frame->txfm_block_count = 0;
-  tpl_frame->coeff_num = tpl_bsize_1d * tpl_bsize_1d;
-  memset(tpl_frame->abs_coeff_sum, 0, sizeof(tpl_frame->abs_coeff_sum));
-  assert(sizeof(tpl_frame->abs_coeff_mean) /
-             sizeof(tpl_frame->abs_coeff_mean[0]) ==
-         tpl_frame->coeff_num);
-}
-
 static AOM_INLINE void get_quantize_error(const MACROBLOCK *x, int plane,
                                           const tran_low_t *coeff,
                                           tran_low_t *qcoeff,
@@ -160,7 +151,6 @@ void av1_setup_tpl_buffers(AV1_PRIMARY *const ppi,
     tpl_frame->stride = tpl_data->tpl_stats_buffer[frame].width;
     tpl_frame->mi_rows = mi_params->mi_rows;
     tpl_frame->mi_cols = mi_params->mi_cols;
-    av1_tpl_stats_init_txfm_stats(tpl_frame, tpl_data->tpl_bsize_1d);
   }
   tpl_data->tpl_frame = &tpl_data->tpl_stats_buffer[REF_FRAMES + 1];
 
@@ -1502,10 +1492,6 @@ void av1_init_tpl_stats(TplParams *const tpl_data) {
            tpl_frame->height * tpl_frame->width *
                sizeof(*tpl_frame->tpl_stats_ptr));
     tpl_frame->is_valid = 0;
-  }
-  for (frame_idx = 0; frame_idx < MAX_LENGTH_TPL_FRAME_STATS; ++frame_idx) {
-    TplDepFrame *tpl_frame = &tpl_data->tpl_stats_buffer[frame_idx];
-    av1_tpl_stats_init_txfm_stats(tpl_frame, tpl_data->tpl_bsize_1d);
   }
 #if CONFIG_BITRATE_ACCURACY
   tpl_data->estimated_gop_bitrate = 0;
