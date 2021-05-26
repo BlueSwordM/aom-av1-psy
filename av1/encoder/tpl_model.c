@@ -1770,7 +1770,7 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
 
   if (tpl_idx >= MAX_TPL_FRAME_IDX) return;
   TplDepFrame *tpl_frame = &cpi->ppi->tpl_data.tpl_frame[tpl_idx];
-  if (tpl_frame->is_valid == 0) return;
+  if (!tpl_frame->is_valid) return;
   if (!is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) return;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return;
 

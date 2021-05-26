@@ -339,7 +339,7 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
 
   if (frame_idx >= MAX_TPL_FRAME_IDX) return;
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[frame_idx];
-  if (tpl_frame->is_valid == 0) return;
+  if (!tpl_frame->is_valid) return;
   if (!is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) return;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return;
 
