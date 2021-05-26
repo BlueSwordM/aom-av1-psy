@@ -678,8 +678,8 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   //     other ref_mv.
   // The speed feature equaling 1 means using subpel mv in the comparison.
   // The speed feature equaling 2 means using fullpel mv in the comparison.
-  // If the speed feature equals 3, skip the current ref_mv in NEW_MV mode based
-  // on known full_mv bestsme and drl cost.
+  // If the speed feature >= 3, skip the current ref_mv in NEW_MV mode based on
+  // known full_mv bestsme and drl cost.
   int skip_newmv_in_drl;
 
   // This speed feature checks duplicate ref MVs among NEARESTMV, NEARMV,

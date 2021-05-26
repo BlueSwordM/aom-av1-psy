@@ -681,6 +681,7 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     sf->inter_sf.prune_obmc_prob_thresh = INT_MAX;
+    if (is_480p_or_lesser) sf->inter_sf.skip_newmv_in_drl = 3;
 
     if (is_720p_or_larger)
       sf->hl_sf.recode_tolerance = 32;
@@ -698,7 +699,7 @@ static void set_good_speed_feature_framesize_dependent(
     }
     if (is_720p_or_larger) sf->hl_sf.recode_tolerance = 40;
 
-    sf->inter_sf.skip_newmv_in_drl = 3;
+    sf->inter_sf.skip_newmv_in_drl = 4;
   }
 
   if (speed >= 6) {
