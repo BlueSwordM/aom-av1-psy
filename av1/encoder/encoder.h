@@ -2179,6 +2179,12 @@ typedef struct AV1_PRIMARY {
    * Temporary variable simulating the delayed frame_probability update.
    */
   FrameProbInfo temp_frame_probs;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * avg_frame_qindex.
+   */
+  int temp_avg_frame_qindex[FRAME_TYPES];
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
   /*!
    * Encode stage top level structure

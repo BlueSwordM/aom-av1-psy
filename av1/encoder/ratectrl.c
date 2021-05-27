@@ -1175,10 +1175,25 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
     // Use the lower of active_worst_quality and recent
     // average Q as basis for GF/ARF best Q limit unless last frame was
     // a key frame.
+    int avg_frame_qindex_inter_frame;
+    int avg_frame_qindex_key_frame;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    avg_frame_qindex_inter_frame =
+        (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+            ? cpi->ppi->temp_avg_frame_qindex[INTER_FRAME]
+            : cpi->rc.avg_frame_qindex[INTER_FRAME];
+    avg_frame_qindex_key_frame =
+        (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+            ? cpi->ppi->temp_avg_frame_qindex[KEY_FRAME]
+            : cpi->rc.avg_frame_qindex[KEY_FRAME];
+#else
+    avg_frame_qindex_inter_frame = rc->avg_frame_qindex[INTER_FRAME];
+    avg_frame_qindex_key_frame = rc->avg_frame_qindex[KEY_FRAME];
+#endif
     q = (rc->frames_since_key > 1 &&
-         rc->avg_frame_qindex[INTER_FRAME] < active_worst_quality)
-            ? rc->avg_frame_qindex[INTER_FRAME]
-            : rc->avg_frame_qindex[KEY_FRAME];
+         avg_frame_qindex_inter_frame < active_worst_quality)
+            ? avg_frame_qindex_inter_frame
+            : avg_frame_qindex_key_frame;
     // For constrained quality dont allow Q less than the cq level
     if (rc_mode == AOM_CQ) {
       if (q < cq_level) q = cq_level;
@@ -1545,6 +1560,7 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   const GF_GROUP *gf_group = &cpi->ppi->gf_group;
   const enum aom_rc_mode rc_mode = oxcf->rc_cfg.mode;
   int *inter_minq;
+  int avg_frame_qindex_inter_frame;
   ASSIGN_MINQ_TABLE(bit_depth, inter_minq);
   int active_best_quality = 0;
   const int is_intrl_arf_boost =
@@ -1575,12 +1591,22 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
 
   // Determine active_best_quality for frames that are not leaf or overlay.
   int q = active_worst_quality;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  // For quality simulation purpose - for parallel frames use previous
+  // avg_frame_qindex
+  avg_frame_qindex_inter_frame =
+      (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+          ? cpi->ppi->temp_avg_frame_qindex[INTER_FRAME]
+          : rc->avg_frame_qindex[INTER_FRAME];
+#else
+  avg_frame_qindex_inter_frame = rc->avg_frame_qindex[INTER_FRAME];
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   // Use the lower of active_worst_quality and recent
   // average Q as basis for GF/ARF best Q limit unless last frame was
   // a key frame.
   if (rc->frames_since_key > 1 &&
-      rc->avg_frame_qindex[INTER_FRAME] < active_worst_quality) {
-    q = rc->avg_frame_qindex[INTER_FRAME];
+      avg_frame_qindex_inter_frame < active_worst_quality) {
+    q = avg_frame_qindex_inter_frame;
   }
   if (rc_mode == AOM_CQ && q < cq_level) q = cq_level;
   active_best_quality = get_gf_active_quality(p_rc, q, bit_depth);
@@ -1878,7 +1904,23 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
       rc->ni_av_qi = rc->ni_tot_qi / rc->ni_frames;
     }
   }
-
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  /* TODO(FPMT): The current update is happening in cpi->rc.avg_frame_qindex,
+   * this need to be taken care appropriately in final FPMT implementation
+   * to carry these values to subsequent frames. The avg_frame_qindex update
+   * is accumulated across frames, so the values from all individual parallel
+   * frames need to be taken into account after all the parallel frames are
+   * encoded.
+   *
+   * The variable temp_avg_frame_qindex introduced only for quality simulation
+   * purpose, it retains the value previous to the parallel encode frames. The
+   * variable is updated based on the update flag.
+   */
+  if (cpi->do_frame_data_update && !rc->is_src_frame_alt_ref) {
+    for (int index = 0; index < FRAME_TYPES; index++)
+      cpi->ppi->temp_avg_frame_qindex[index] = rc->avg_frame_qindex[index];
+  }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   // Keep record of last boosted (KF/GF/ARF) Q value.
   // If the current frame is coded at a lower Q then we also update it.
   // If all mbs in this group are skipped only update if the Q value is
