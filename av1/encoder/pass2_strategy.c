@@ -3401,6 +3401,12 @@ static void process_first_pass_stats(AV1_COMP *cpi,
       //     "First pass stats required in the ML model to predict a flat GOP "
       //     "structure is invalid. Continuing encoding by disabling the ML "
       //     "model.\n");
+      // The first pass statistics like tr_coded_error, pcnt_third_ref,
+      // frame_avg_wavelet_energy are invalid as their calculations were
+      // skipped in the first pass of encoding. As these stats are required
+      // in the ML model to predict a flat GOP structure, the ML model would be
+      // disabled. This case arises when the encode configuration used in first
+      // pass encoding is different from second pass encoding.
     }
   }
 
