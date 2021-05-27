@@ -3825,6 +3825,33 @@ void print_internal_stats(AV1_PRIMARY *const ppi) {
 }
 #endif  // CONFIG_INTERNAL_STATS
 
+void av1_post_encode_updates(AV1_COMP *const cpi, size_t size,
+                             int64_t time_stamp, int64_t time_end) {
+  AV1_PRIMARY *const ppi = cpi->ppi;
+  AV1_COMMON *const cm = &cpi->common;
+  // Note *size = 0 indicates a dropped frame for which psnr is not calculated
+  if (ppi->b_calculate_psnr && size > 0) {
+    if (cm->show_existing_frame ||
+        (!is_stat_generation_stage(cpi) && cm->show_frame)) {
+      generate_psnr_packet(cpi);
+    }
+  }
+
+  if (ppi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
+    // Initialize level info. at the beginning of each sequence.
+    if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
+      av1_init_level_info(cpi);
+    }
+    av1_update_level_info(cpi, size, time_stamp, time_end);
+  }
+
+#if CONFIG_INTERNAL_STATS
+  if (!is_stat_generation_stage(cpi)) {
+    compute_internal_stats(cpi, (int)size);
+  }
+#endif  // CONFIG_INTERNAL_STATS
+}
+
 int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
                             size_t *size, size_t avail_size, uint8_t *dest,
                             int64_t *time_stamp, int64_t *time_end, int flush,
@@ -3929,28 +3956,9 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   aom_usec_timer_mark(&cmptimer);
   cpi->time_compress_data += aom_usec_timer_elapsed(&cmptimer);
 #endif  // CONFIG_INTERNAL_STATS
-  // Note *size = 0 indicates a dropped frame for which psnr is not calculated
-  if (cpi->ppi->b_calculate_psnr && *size > 0) {
-    if (cm->show_existing_frame ||
-        (!is_stat_generation_stage(cpi) && cm->show_frame)) {
-      generate_psnr_packet(cpi);
-    }
-  }
 
-  if (cpi->ppi->level_params.keep_level_stats &&
-      !is_stat_generation_stage(cpi)) {
-    // Initialize level info. at the beginning of each sequence.
-    if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
-      av1_init_level_info(cpi);
-    }
-    av1_update_level_info(cpi, *size, *time_stamp, *time_end);
-  }
+  av1_post_encode_updates(cpi, *size, *time_stamp, *time_end);
 
-#if CONFIG_INTERNAL_STATS
-  if (!is_stat_generation_stage(cpi)) {
-    compute_internal_stats(cpi, (int)(*size));
-  }
-#endif  // CONFIG_INTERNAL_STATS
 #if CONFIG_SPEED_STATS
   if (!is_stat_generation_stage(cpi) && !cm->show_existing_frame) {
     cpi->tx_search_count += cpi->td.mb.txfm_search_info.tx_search_count;

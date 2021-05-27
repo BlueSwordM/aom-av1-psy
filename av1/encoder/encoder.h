@@ -3018,6 +3018,9 @@ void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
 void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi,
                                const AV1EncoderConfig *oxcf, int use_svc);
 
+void av1_post_encode_updates(AV1_COMP *const cpi, size_t size,
+                             int64_t time_stamp, int64_t time_end);
+
 /*!\endcond */
 
 /*!\brief Obtain the raw frame data
