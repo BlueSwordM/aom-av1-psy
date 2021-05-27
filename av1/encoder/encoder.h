@@ -2363,6 +2363,14 @@ typedef struct AV1_PRIMARY {
    */
   FRAME_COUNTS aggregate_fc;
 #endif  // CONFIG_ENTROPY_STATS
+
+  /*!
+   * For each type of reference frame, this contains the index of a reference
+   * frame buffer for a reference frame of the same type.  We use this to
+   * choose our primary reference frame (which is the most recent reference
+   * frame of the same type as the current frame).
+   */
+  int fb_of_context_type[REF_FRAMES];
 } AV1_PRIMARY;
 
 /*!
@@ -2507,14 +2515,6 @@ typedef struct AV1_COMP {
    * Refresh frame flags for golden, bwd-ref and alt-ref frames.
    */
   RefreshFrameFlagsInfo refresh_frame;
-
-  /*!
-   * For each type of reference frame, this contains the index of a reference
-   * frame buffer for a reference frame of the same type.  We use this to
-   * choose our primary reference frame (which is the most recent reference
-   * frame of the same type as the current frame).
-   */
-  int fb_of_context_type[REF_FRAMES];
 
   /*!
    * Flags signalled by the external interface at frame level.

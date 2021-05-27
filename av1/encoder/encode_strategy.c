@@ -255,7 +255,7 @@ static int choose_primary_ref_frame(
   // Find the most recent reference frame with the same reference type as the
   // current frame
   const int current_ref_type = get_current_frame_ref_type(cpi, frame_params);
-  int wanted_fb = cpi->fb_of_context_type[current_ref_type];
+  int wanted_fb = cpi->ppi->fb_of_context_type[current_ref_type];
 
   int primary_ref_frame = PRIMARY_REF_NONE;
   for (int ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ref_frame++) {
@@ -1848,7 +1848,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 
   if (!is_stat_generation_stage(cpi)) {
-    update_fb_of_context_type(cpi, &frame_params, cpi->fb_of_context_type);
+    update_fb_of_context_type(cpi, &frame_params, cpi->ppi->fb_of_context_type);
     set_additional_frame_flags(cm, frame_flags);
     update_rc_counts(cpi);
   }
