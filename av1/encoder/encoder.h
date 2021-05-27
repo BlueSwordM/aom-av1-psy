@@ -2174,6 +2174,11 @@ typedef struct AV1_PRIMARY {
    * stats consumption stage.
    */
   int max_mv_magnitude;
+
+  /*!
+   * Temporary variable simulating the delayed frame_probability update.
+   */
+  FrameProbInfo temp_frame_probs;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
   /*!
    * Encode stage top level structure

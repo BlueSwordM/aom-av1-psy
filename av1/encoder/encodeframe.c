@@ -1277,6 +1277,9 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   MACROBLOCKD *const xd = &x->e_mbd;
   RD_COUNTS *const rdc = &cpi->td.rd_counts;
   FrameProbInfo *const frame_probs = &cpi->frame_probs;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  FrameProbInfo *const temp_frame_probs = &cpi->ppi->temp_frame_probs;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   IntraBCHashInfo *const intrabc_hash_info = &x->intrabc_hash_info;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   AV1EncRowMultiThreadInfo *const enc_row_mt = &mt_info->enc_row_mt;
@@ -1309,8 +1312,13 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
     const FRAME_UPDATE_TYPE update_type =
         get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
-    if (frame_probs->warped_probs[update_type] <
-        cpi->sf.inter_sf.prune_warped_prob_thresh)
+    int warped_probability;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    warped_probability = temp_frame_probs->warped_probs[update_type];
+#else
+    warped_probability = frame_probs->warped_probs[update_type];
+#endif
+    if (warped_probability < cpi->sf.inter_sf.prune_warped_prob_thresh)
       features->allow_warped_motion = 0;
   }
 
@@ -1549,6 +1557,25 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         left -= prob;
         if (j == 0) prob += left;
         frame_probs->tx_type_probs[update_type][i][j] = prob;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+        /* TODO(FPMT): The current update is happening in cpi->frame_probs,
+         * this need to be taken care appropriately in final FPMT implementation
+         * to carry these values to subsequent frames. The frame_probs update is
+         * accumulated across frames, so the values from all individual parallel
+         * frames need to be taken into account after all the parallel frames
+         * are encoded.
+         *
+         * Only for quality simulation purpose - Update the accumulated frame
+         * probabilities in ppi->temp_variable based on the update flag.
+         */
+        if (cpi->do_frame_data_update) {
+          for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
+               update_type_idx++) {
+            temp_frame_probs->tx_type_probs[update_type_idx][i][j] =
+                frame_probs->tx_type_probs[update_type_idx][i][j];
+          }
+        }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
       }
     }
   }
@@ -1566,6 +1593,25 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
           sum ? 128 * cpi->td.rd_counts.obmc_used[i][1] / sum : 0;
       frame_probs->obmc_probs[update_type][i] =
           (frame_probs->obmc_probs[update_type][i] + new_prob) >> 1;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+      /* TODO(FPMT): The current update is happening in cpi->frame_probs,
+       * this need to be taken care appropriately in final FPMT
+       * implementation to carry these values to subsequent frames.
+       * The frame_probs update is accumulated across frames, so the
+       * values from all individual parallel frames need to be taken
+       * into account after all the parallel frames are encoded.
+       *
+       * Only for quality simulation purpose - Update the accumulated frame
+       * probabilities in ppi->temp_variable based on the update flag.
+       */
+      if (cpi->do_frame_data_update) {
+        for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
+             update_type_idx++) {
+          temp_frame_probs->obmc_probs[update_type_idx][i] =
+              frame_probs->obmc_probs[update_type_idx][i];
+        }
+      }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
     }
   }
 
@@ -1578,6 +1624,25 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     const int new_prob = sum ? 128 * cpi->td.rd_counts.warped_used[1] / sum : 0;
     frame_probs->warped_probs[update_type] =
         (frame_probs->warped_probs[update_type] + new_prob) >> 1;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    /* TODO(FPMT): The current update is happening in cpi->frame_probs,
+     * this need to be taken care appropriately in final FPMT
+     * implementation to carry these values to subsequent frames.
+     * The frame_probs update is accumulated across frames, so the
+     * values from all individual parallel frames need to be taken
+     * into account after all the parallel frames are encoded.
+     *
+     * Only for quality simulation purpose - Update the accumulated frame
+     * probabilities in ppi->temp_variable based on the update flag.
+     */
+    if (cpi->do_frame_data_update) {
+      for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
+           update_type_idx++) {
+        temp_frame_probs->warped_probs[update_type_idx] =
+            frame_probs->warped_probs[update_type_idx];
+      }
+    }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   }
 
   if (cm->current_frame.frame_type != KEY_FRAME &&
@@ -1605,6 +1670,25 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         left -= prob;
         if (j == 0) prob += left;
         frame_probs->switchable_interp_probs[update_type][i][j] = prob;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+        /* TODO(FPMT): The current update is happening in cpi->frame_probs,
+         * this need to be taken care appropriately in final FPMT
+         * implementation to carry these values to subsequent frames.
+         * The frame_probs update is accumulated across frames, so the
+         * values from all individual parallel frames need to be taken
+         * into account after all the parallel frames are encoded.
+         *
+         * Only for quality simulation purpose - Update the accumulated frame
+         * probabilities in ppi->temp_variable based on the update flag.
+         */
+        if (cpi->do_frame_data_update) {
+          for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
+               update_type_idx++) {
+            temp_frame_probs->switchable_interp_probs[update_type_idx][i][j] =
+                frame_probs->switchable_interp_probs[update_type_idx][i][j];
+          }
+        }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
       }
     }
   }
