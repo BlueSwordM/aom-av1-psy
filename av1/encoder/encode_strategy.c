@@ -138,7 +138,8 @@ static void set_additional_frame_flags(const AV1_COMMON *const cm,
 }
 
 static INLINE void update_keyframe_counters(AV1_COMP *cpi) {
-  if (cpi->common.show_frame && cpi->rc.frames_to_key) {
+  if (cpi->common.show_frame &&
+      (cpi->rc.frames_to_key || cpi->oxcf.kf_cfg.fwd_kf_enabled)) {
     cpi->rc.frames_since_key++;
     cpi->rc.frames_to_key--;
   }
