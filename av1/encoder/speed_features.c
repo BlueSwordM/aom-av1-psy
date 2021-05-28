@@ -338,6 +338,7 @@ static void set_allintra_speed_features_framesize_independent(
     sf->mv_sf.exhaustive_searches_thresh <<= 1;
 
     sf->intra_sf.prune_palette_search_level = 1;
+    sf->intra_sf.top_intra_model_count_allowed = 3;
 
     sf->tx_sf.adaptive_txb_search_level = 2;
     sf->tx_sf.inter_tx_size_search_init_depth_rect = 1;
