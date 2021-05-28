@@ -2927,13 +2927,13 @@ static AOM_INLINE void write_uncompressed_header_obu(
       for (int op_num = 0;
            op_num < seq_params->operating_points_cnt_minus_1 + 1; op_num++) {
         if (seq_params->op_params[op_num].decoder_model_param_present_flag) {
-          if (((seq_params->operating_point_idc[op_num] >>
+          if (seq_params->operating_point_idc[op_num] == 0 ||
+              ((seq_params->operating_point_idc[op_num] >>
                 cm->temporal_layer_id) &
                    0x1 &&
                (seq_params->operating_point_idc[op_num] >>
                 (cm->spatial_layer_id + 8)) &
-                   0x1) ||
-              seq_params->operating_point_idc[op_num] == 0) {
+                   0x1)) {
             aom_wb_write_unsigned_literal(
                 wb, cm->buffer_removal_times[op_num],
                 seq_params->decoder_model_info.buffer_removal_time_length);
