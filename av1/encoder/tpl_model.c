@@ -1912,3 +1912,23 @@ double av1_estimate_txfm_block_entropy(int q_index,
   }
   return est_rate;
 }
+
+#if CONFIG_RD_COMMAND
+void av1_read_rd_command(const char *filepath, RD_COMMAND *rd_command) {
+  FILE *fptr = fopen(filepath, "r");
+  fscanf(fptr, "%d", &rd_command->frame_count);
+  rd_command->frame_index = 0;
+  for (int i = 0; i < rd_command->frame_count; ++i) {
+    int option;
+    fscanf(fptr, "%d", &option);
+    rd_command->option_ls[i] = (RD_OPTION)option;
+    if (option == RD_OPTION_SET_Q) {
+      fscanf(fptr, "%d", &rd_command->q_index_ls[i]);
+    } else if (option == RD_OPTION_SET_Q_RDMULT) {
+      fscanf(fptr, "%d", &rd_command->q_index_ls[i]);
+      fscanf(fptr, "%d", &rd_command->rdmult_ls[i]);
+    }
+  }
+  fclose(fptr);
+}
+#endif  // CONFIG_RD_COMMAND

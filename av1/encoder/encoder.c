@@ -2495,9 +2495,11 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   printf("\n Encoding a frame:");
 #endif
 
+#if !CONFIG_RD_COMMAND
   // Determine whether to use screen content tools using two fast encoding.
   if (!cpi->sf.hl_sf.disable_extra_sc_testing)
     av1_determine_sc_tools_with_encoding(cpi, q);
+#endif  // !CONFIG_RD_COMMAND
 
 #if CONFIG_TUNE_VMAF
   if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN) {
@@ -2569,6 +2571,14 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       q = av1_get_vmaf_base_qindex(cpi, q);
     }
 #endif
+
+#if CONFIG_RD_COMMAND
+    RD_COMMAND *rd_command = &cpi->rd_command;
+    RD_OPTION option = rd_command->option_ls[rd_command->frame_index];
+    if (option == RD_OPTION_SET_Q || option == RD_OPTION_SET_Q_RDMULT) {
+      q = rd_command->q_index_ls[rd_command->frame_index];
+    }
+#endif  // CONFIG_RD_COMMAND
 
     av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                       q_cfg->enable_chroma_deltaq);
@@ -2654,7 +2664,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
     aom_clear_system_state();
 
-#if CONFIG_BITRATE_ACCURACY
+#if CONFIG_BITRATE_ACCURACY || CONFIG_RD_COMMAND
     const int do_dummy_pack = 1;
 #else   // CONFIG_BITRATE_ACCURACY
     // Dummy pack of the bitstream using up to date stats to get an
@@ -2676,6 +2686,16 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
       // bits used for this frame
       rc->projected_frame_size = (int)(*size) << 3;
+#if CONFIG_RD_COMMAND
+      PSNR_STATS psnr;
+      aom_calc_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr);
+      printf("q %d rdmult %d rate %d dist %lu\n", q, cpi->rd.RDMULT,
+             rc->projected_frame_size, psnr.sse[0]);
+      ++rd_command->frame_index;
+      if (rd_command->frame_index == rd_command->frame_count) {
+        exit(0);
+      }
+#endif  // CONFIG_RD_COMMAND
 
 #if CONFIG_BITRATE_ACCURACY
       cpi->ppi->tpl_data.actual_gop_bitrate += rc->projected_frame_size;
@@ -2705,9 +2725,9 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     }
 #endif
 
-#if CONFIG_BITRATE_ACCURACY
+#if CONFIG_BITRATE_ACCURACY || CONFIG_RD_COMMAND
     loop = 0;  // turn off recode loop when CONFIG_BITRATE_ACCURACY is on
-#endif         // CONFIG_BITRATE_ACCURACY
+#endif         // CONFIG_BITRATE_ACCURACY || CONFIG_RD_COMMAND
 
     if (loop) {
       ++loop_count;

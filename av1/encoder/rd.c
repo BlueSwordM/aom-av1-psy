@@ -643,6 +643,15 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
 
   rd->RDMULT = av1_compute_rd_mult(
       cpi, cm->quant_params.base_qindex + cm->quant_params.y_dc_delta_q);
+#if CONFIG_RD_COMMAND
+  if (cpi->oxcf.pass == 2) {
+    const RD_COMMAND *rd_command = &cpi->rd_command;
+    if (rd_command->option_ls[rd_command->frame_index] ==
+        RD_OPTION_SET_Q_RDMULT) {
+      rd->RDMULT = rd_command->rdmult_ls[rd_command->frame_index];
+    }
+  }
+#endif  // CONFIG_RD_COMMAND
 
   av1_set_error_per_bit(&x->errorperbit, rd->RDMULT);
 

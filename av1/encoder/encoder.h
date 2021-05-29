@@ -2920,6 +2920,13 @@ typedef struct AV1_COMP {
    */
   bool do_frame_data_update;
 #endif
+#if CONFIG_RD_COMMAND
+  /*!
+   *  A structure for assigning external q_index / rdmult for experiments
+   */
+  RD_COMMAND rd_command;
+#endif  // CONFIG_RD_COMMAND
+
 } AV1_COMP;
 
 /*!

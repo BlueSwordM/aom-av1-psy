@@ -130,11 +130,13 @@ int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   int rdmult = (int)((double)orig_rdmult * geom_mean_of_scale + 0.5);
   rdmult = AOMMAX(rdmult, 0);
   av1_set_error_per_bit(&x->errorperbit, rdmult);
+#if !CONFIG_RD_COMMAND
   if (bsize == cm->seq_params->sb_size) {
     const int rdmult_sb = set_deltaq_rdmult(cpi, x);
     assert(rdmult_sb == rdmult);
     (void)rdmult_sb;
   }
+#endif  // !CONFIG_RD_COMMAND
   return rdmult;
 }
 

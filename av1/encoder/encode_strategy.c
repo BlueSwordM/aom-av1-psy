@@ -1077,6 +1077,13 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     }
   }
 
+#if CONFIG_RD_COMMAND
+  if (frame_params->frame_type == KEY_FRAME) {
+    char filepath[] = "rd_command.txt";
+    av1_read_rd_command(filepath, &cpi->rd_command);
+  }
+#endif  // CONFIG_RD_COMMAND
+
   if (allow_tpl == 0) {
     // Avoid the use of unintended TPL stats from previous GOP's results.
     if (cpi->gf_frame_index == 0 && !is_stat_generation_stage(cpi))

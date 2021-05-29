@@ -221,6 +221,24 @@ typedef struct TplParams {
 #endif
 } TplParams;
 
+#if CONFIG_RD_COMMAND
+typedef enum {
+  RD_OPTION_NONE,
+  RD_OPTION_SET_Q,
+  RD_OPTION_SET_Q_RDMULT
+} RD_OPTION;
+
+typedef struct RD_COMMAND {
+  RD_OPTION option_ls[MAX_LENGTH_TPL_FRAME_STATS];
+  int q_index_ls[MAX_LENGTH_TPL_FRAME_STATS];
+  int rdmult_ls[MAX_LENGTH_TPL_FRAME_STATS];
+  int frame_count;
+  int frame_index;
+} RD_COMMAND;
+
+void av1_read_rd_command(const char *filepath, RD_COMMAND *rd_command);
+#endif  // CONFIG_RD_COMMAND
+
 /*!\brief Allocate buffers used by tpl model
  *
  * \param[in]    Top-level encode/decode structure

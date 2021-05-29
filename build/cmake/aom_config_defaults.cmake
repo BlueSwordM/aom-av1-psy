@@ -130,6 +130,8 @@ set_aom_config_var(CONFIG_INTER_STATS_ONLY 0 "AV1 experiment flag.")
 set_aom_config_var(CONFIG_BITSTREAM_DEBUG 0
                    "AV1 experiment flag for bitstream debugging.")
 set_aom_config_var(CONFIG_RD_DEBUG 0 "AV1 experiment flag.")
+set_aom_config_var(CONFIG_RD_COMMAND 0
+                   "An experiment flag for using external rdmult and q_index.")
 set_aom_config_var(CONFIG_SHARP_SETTINGS 0 "AV1 experiment flag.")
 set_aom_config_var(CONFIG_DISABLE_FULL_PIXEL_SPLIT_8X8 1
                    "Disable full_pixel_motion_search_based_split on BLOCK_8X8.")
