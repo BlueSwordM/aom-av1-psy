@@ -221,6 +221,9 @@ typedef struct GF_GROUP {
   // Stores the display order hint of the frames not to be
   // refreshed by the current frame.
   int skip_frame_refresh[MAX_STATIC_GF_GROUP_LENGTH][REF_FRAMES];
+  // Stores the display order hint of the frame to be excluded during reference
+  // assignment.
+  int skip_frame_as_ref[MAX_STATIC_GF_GROUP_LENGTH];
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
   /*!\endcond */

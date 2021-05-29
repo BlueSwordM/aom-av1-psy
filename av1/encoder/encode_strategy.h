@@ -104,6 +104,9 @@ void av1_get_ref_frames(const RefBufferStack *ref_buffer_stack,
                         AV1_COMP *cpi,
                         RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
                         int cur_frame_disp,
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+                        int gf_index,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                         int remapped_ref_idx[REF_FRAMES]);
 

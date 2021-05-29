@@ -143,6 +143,10 @@ static AOM_INLINE void set_params_for_internal_arfs(
             gf_group->display_idx[(*frame_ind) - 1];
         gf_group->skip_frame_refresh[*frame_ind][1] =
             gf_group->display_idx[(*frame_ind) - 2];
+        // Set the display_idx of frame_parallel_level 1 frame in
+        // gf_group->skip_frame_as_ref.
+        gf_group->skip_frame_as_ref[*frame_ind] =
+            gf_group->display_idx[(*frame_ind) - 1];
       }
     }
     // If max_parallel_frames is not exceeded, encode the next internal ARF
@@ -297,6 +301,10 @@ static AOM_INLINE void set_params_for_internal_arfs_in_gf14(
       // layer depth to 2.
       assert(gf_group->frame_parallel_level[(*frame_ind) - 1] == 1);
       gf_group->frame_parallel_level[*frame_ind] = 2;
+      // Set the display_idx of frame_parallel_level 1 frame in
+      // gf_group->skip_frame_as_ref.
+      gf_group->skip_frame_as_ref[*frame_ind] =
+          gf_group->display_idx[(*frame_ind) - 1];
     }
   }
   ++(*frame_ind);
@@ -538,12 +546,15 @@ static int construct_multi_layer_gf_structure(
   memset(gf_group->src_offset, 0,
          sizeof(gf_group->src_offset[0]) * MAX_STATIC_GF_GROUP_LENGTH);
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
-  // Initialize gf_group->skip_frame_refresh with INVALID_IDX.
+  // Initialize gf_group->skip_frame_refresh and gf_group->skip_frame_as_ref
+  // with INVALID_IDX.
   memset(gf_group->skip_frame_refresh, INVALID_IDX,
          sizeof(gf_group->skip_frame_refresh[0][0]) *
              MAX_STATIC_GF_GROUP_LENGTH * REF_FRAMES);
+  memset(gf_group->skip_frame_as_ref, INVALID_IDX,
+         sizeof(gf_group->skip_frame_as_ref[0]) * MAX_STATIC_GF_GROUP_LENGTH);
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
-#endif
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
   if (first_frame_update_type == KF_UPDATE &&
       cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1) {

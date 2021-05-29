@@ -1336,6 +1336,9 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     av1_get_ref_frames(&ref_buffer_stack,
 #if CONFIG_FRAME_PARALLEL_ENCODE
                        cpi, ref_frame_map_pairs, true_disp,
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+                       gf_index,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                        cm->remapped_ref_idx);
 
@@ -1431,6 +1434,9 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     av1_get_ref_frames(&ref_buffer_stack,
 #if CONFIG_FRAME_PARALLEL_ENCODE
                        cpi, ref_frame_map_pairs, true_disp,
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+                       gf_index,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                        cm->remapped_ref_idx);
     int refresh_mask =
@@ -1483,6 +1489,9 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   av1_get_ref_frames(&cpi->ref_buffer_stack,
 #if CONFIG_FRAME_PARALLEL_ENCODE
                      cpi, ref_frame_map_pairs, true_disp,
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+                     gf_index,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                      cm->remapped_ref_idx);
 }

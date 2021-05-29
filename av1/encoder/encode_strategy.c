@@ -1129,6 +1129,9 @@ static void set_unmapped_ref(RefBufMapData *buffer_map, int n_bufs,
 
 static void get_ref_frames(AV1_COMP *const cpi,
                            RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+                           int gf_index,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
                            int cur_frame_disp) {
   AV1_COMMON *cm = &cpi->common;
   int *const remapped_ref_idx = cm->remapped_ref_idx;
@@ -1143,6 +1146,11 @@ static void get_ref_frames(AV1_COMP *const cpi,
   memset(buffer_map, 0, REF_FRAMES * sizeof(buffer_map[0]));
   int min_level = MAX_ARF_LAYERS;
   int max_level = 0;
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+  GF_GROUP *gf_group = &cpi->ppi->gf_group;
+  int skip_ref_unmapping = 0;
+  int is_one_pass_rt = is_one_pass_rt_params(cpi);
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 
   // Go through current reference buffers and store display order, pyr level,
   // and map index.
@@ -1202,6 +1210,25 @@ static void get_ref_frames(AV1_COMP *const cpi,
         buffer_map[i].pyr_level != min_level)
       n_past_high_level++;
 
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+    // During parallel encodes of lower layer frames, exclude the first frame
+    // (frame_parallel_level 1) from being used for the reference assignment of
+    // the second frame (frame_parallel_level 2).
+    if (!is_one_pass_rt &&
+        gf_group->skip_frame_as_ref[gf_index] != INVALID_IDX) {
+      assert(gf_group->frame_parallel_level[gf_index] == 2 &&
+             gf_group->update_type[gf_index] == INTNL_ARF_UPDATE);
+      assert(gf_group->frame_parallel_level[gf_index - 1] == 1 &&
+             gf_group->update_type[gf_index - 1] == INTNL_ARF_UPDATE);
+      if (buffer_map[i].disp_order == gf_group->skip_frame_as_ref[gf_index]) {
+        buffer_map[i].used = 1;
+        // In case a ref frame is excluded from being used during assignment,
+        // skip the call to set_unmapped_ref(). Applicable in steady state.
+        skip_ref_unmapping = 1;
+      }
+    }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+
     // Keep track of where the frames change from being past frames to future
     // frames.
     if (buffer_map[i].disp_order < cur_frame_disp && closest_past_ref < 0)
@@ -1220,8 +1247,11 @@ static void get_ref_frames(AV1_COMP *const cpi,
   }
 
   // Find the buffer to be excluded from the mapping.
-  set_unmapped_ref(buffer_map, n_bufs, n_min_level_refs, min_level,
-                   cur_frame_disp);
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+  if (!skip_ref_unmapping)
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+    set_unmapped_ref(buffer_map, n_bufs, n_min_level_refs, min_level,
+                     cur_frame_disp);
 
   // Place past frames in LAST_FRAME, LAST2_FRAME, and LAST3_FRAME.
   for (int frame = LAST_FRAME; frame < GOLDEN_FRAME; frame++) {
@@ -1306,12 +1336,19 @@ void av1_get_ref_frames(const RefBufferStack *ref_buffer_stack,
                         AV1_COMP *cpi,
                         RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
                         int cur_frame_disp,
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+                        int gf_index,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                         int remapped_ref_idx[REF_FRAMES]) {
 #if CONFIG_FRAME_PARALLEL_ENCODE
   (void)ref_buffer_stack;
   (void)remapped_ref_idx;
-  get_ref_frames(cpi, ref_frame_map_pairs, cur_frame_disp);
+  get_ref_frames(cpi, ref_frame_map_pairs,
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+                 gf_index,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+                 cur_frame_disp);
   return;
 #else
   const int *const arf_stack = ref_buffer_stack->arf_stack;
@@ -1630,6 +1667,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       av1_get_ref_frames(&cpi->ref_buffer_stack,
 #if CONFIG_FRAME_PARALLEL_ENCODE
                          cpi, ref_frame_map_pairs, cur_frame_disp,
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+                         cpi->gf_frame_index,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                          cm->remapped_ref_idx);
     } else if (cpi->svc.set_ref_frame_config) {
