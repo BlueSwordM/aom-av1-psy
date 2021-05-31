@@ -1425,18 +1425,6 @@ typedef struct MultiThreadInfo {
   int num_mod_workers[NUM_MT_MODULES];
 
   /*!
-   * Flag to indicate whether thread specific buffers need to be allocated for
-   * tile/row based multi-threading of first pass stage.
-   */
-  int fp_mt_buf_init_done;
-
-  /*!
-   * Flag to indicate whether thread specific buffers need to be allocated for
-   * tile/row based multi-threading of encode stage.
-   */
-  int enc_mt_buf_init_done;
-
-  /*!
    * Synchronization object used to launch job in the worker thread.
    */
   AVxWorker *workers;
