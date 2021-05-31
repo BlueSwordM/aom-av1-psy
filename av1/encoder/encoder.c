@@ -51,6 +51,7 @@
 #include "av1/encoder/aq_variance.h"
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/context_tree.h"
+#include "av1/encoder/dwt.h"
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/encode_strategy.h"
@@ -3085,6 +3086,44 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   if (frame_is_intra_only(cm)) {
     av1_set_screen_content_options(cpi, features);
   }
+
+#if !CONFIG_REALTIME_ONLY
+  if (is_one_pass_rt_params(cpi) == 0) {
+    TWO_PASS *const twopass = &cpi->ppi->twopass;
+    const FIRSTPASS_STATS *const total_stats =
+        twopass->stats_buf_ctx->total_stats;
+    if ((oxcf->q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL) &&
+        is_fp_wavelet_energy_invalid(total_stats)) {
+      const int num_mbs = (oxcf->resize_cfg.resize_mode != RESIZE_NONE)
+                              ? cpi->initial_mbs
+                              : cm->mi_params.MBs;
+      const YV12_BUFFER_CONFIG *const unfiltered_source =
+          cpi->unfiltered_source;
+      const uint8_t *const src = unfiltered_source->y_buffer;
+      const int hbd = unfiltered_source->flags & YV12_FLAG_HIGHBITDEPTH;
+      const int stride = unfiltered_source->y_stride;
+      const BLOCK_SIZE fp_block_size =
+          get_fp_block_size(cpi->is_screen_content_type);
+      const int fp_block_size_width = block_size_wide[fp_block_size];
+      const int fp_block_size_height = block_size_high[fp_block_size];
+      const int num_unit_cols =
+          get_num_blocks(unfiltered_source->y_crop_width, fp_block_size_width);
+      const int num_unit_rows = get_num_blocks(unfiltered_source->y_crop_height,
+                                               fp_block_size_height);
+      const int num_8x8_cols = num_unit_cols * (fp_block_size_width / 8);
+      const int num_8x8_rows = num_unit_rows * (fp_block_size_height / 8);
+      int64_t frame_avg_wavelet_energy = 0;
+      for (int r8 = 0; r8 < num_8x8_rows; ++r8) {
+        for (int c8 = 0; c8 < num_8x8_cols; ++c8) {
+          frame_avg_wavelet_energy += av1_haar_ac_sad_8x8_uint8_input(
+              src + c8 * 8 + r8 * 8 * stride, stride, hbd);
+        }
+      }
+      twopass->frame_avg_haar_energy =
+          log(((double)frame_avg_wavelet_energy / num_mbs) + 1.0);
+    }
+  }
+#endif
 
   // frame type has been decided outside of this function call
   cm->cur_frame->frame_type = current_frame->frame_type;

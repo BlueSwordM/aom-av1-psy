@@ -44,8 +44,11 @@
 #define DEFAULT_GF_BOOST 2000
 #define GROUP_ADAPTIVE_MAXQ 1
 
-#define IS_FP_STATS_TO_PREDICT_FLAT_GOP_INVALID(fp_stats) \
-  (((fp_stats)->tr_coded_error < 0) || ((fp_stats)->pcnt_third_ref < 0))
+static INLINE int is_fp_stats_to_predict_flat_gop_invalid(
+    const FIRSTPASS_STATS *fp_stats) {
+  return ((fp_stats->tr_coded_error < 0) || (fp_stats->pcnt_third_ref < 0) ||
+          (fp_stats->frame_avg_wavelet_energy < 0));
+}
 
 static void init_gf_stats(GF_GROUP_STATS *gf_stats);
 
@@ -2432,7 +2435,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
     FIRSTPASS_STATS *total_stats = twopass->stats_buf_ctx->total_stats;
     // TODO(urvang): Improve and use model for VBR, CQ etc as well.
     if (use_alt_ref && use_ml_model_to_decide_flat_gop(rc_cfg) &&
-        !IS_FP_STATS_TO_PREDICT_FLAT_GOP_INVALID(total_stats)) {
+        !is_fp_stats_to_predict_flat_gop_invalid(total_stats)) {
       aom_clear_system_state();
       float features[21];
       get_features_from_gf_stats(
@@ -3395,8 +3398,13 @@ static INLINE void set_twopass_params_based_on_fp_stats(
   // The multiplication by 256 reverses a scaling factor of (>> 8)
   // applied when combining MB error values for the frame.
   twopass->mb_av_energy = log((this_frame_ptr->intra_error / num_mbs) + 1.0);
-  twopass->frame_avg_haar_energy =
-      log((this_frame_ptr->frame_avg_wavelet_energy / num_mbs) + 1.0);
+
+  const FIRSTPASS_STATS *const total_stats =
+      twopass->stats_buf_ctx->total_stats;
+  if (is_fp_wavelet_energy_invalid(total_stats) == 0) {
+    twopass->frame_avg_haar_energy =
+        log((this_frame_ptr->frame_avg_wavelet_energy / num_mbs) + 1.0);
+  }
 
   // Set the frame content type flag.
   if (this_frame_ptr->intra_skip_pct >= FC_ANIMATION_THRESH)
@@ -3417,7 +3425,7 @@ static void process_first_pass_stats(AV1_COMP *cpi,
     const GFConfig *const gf_cfg = &cpi->oxcf.gf_cfg;
     const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
     if (use_ml_model_to_decide_flat_gop(rc_cfg) && can_disable_altref(gf_cfg) &&
-        IS_FP_STATS_TO_PREDICT_FLAT_GOP_INVALID(total_stats)) {
+        is_fp_stats_to_predict_flat_gop_invalid(total_stats)) {
       // warn(
       //     "First pass stats required in the ML model to predict a flat GOP "
       //     "structure is invalid. Continuing encoding by disabling the ML "

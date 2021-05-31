@@ -3325,6 +3325,11 @@ static AOM_INLINE int use_ml_model_to_decide_flat_gop(
   return (rc_cfg->mode == AOM_Q && rc_cfg->cq_level <= 200);
 }
 
+// Helper function to compute number of blocks on either side of the frame.
+static INLINE int get_num_blocks(const int frame_length, const int mb_length) {
+  return (frame_length + mb_length - 1) / mb_length;
+}
+
 // Check if statistics generation stage
 static INLINE int is_stat_generation_stage(const AV1_COMP *const cpi) {
   assert(IMPLIES(cpi->compressor_stage == LAP_STAGE,
@@ -3357,7 +3362,13 @@ static INLINE int has_no_stats_stage(const AV1_COMP *const cpi) {
       IMPLIES(!cpi->ppi->lap_enabled, cpi->compressor_stage == ENCODE_STAGE));
   return (cpi->oxcf.pass == 0 && !cpi->ppi->lap_enabled);
 }
+
 /*!\cond */
+
+static INLINE int is_one_pass_rt_params(const AV1_COMP *cpi) {
+  return has_no_stats_stage(cpi) && cpi->oxcf.mode == REALTIME &&
+         cpi->oxcf.gf_cfg.lag_in_frames == 0;
+}
 
 // Function return size of frame stats buffer
 static INLINE int get_stats_buf_size(int num_lap_buffer, int num_lag_buffer) {
