@@ -260,6 +260,19 @@ static void update_buffer_level(AV1_COMP *cpi, int encoded_frame_size) {
 
   if (cpi->ppi->use_svc)
     update_layer_buffer_level(&cpi->svc, encoded_frame_size);
+
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  /* TODO(FPMT): The current  update is happening in cpi->rc member,
+   * this need to be taken care appropriately in final FPMT implementation
+   * to carry this value to subsequent frames.
+   * The variable temp_buffer_level is introduced for quality
+   * simulation purpose, it retains the value previous to the parallel
+   * encode frames. The variable is updated based on the update flag.
+   */
+  if (cpi->do_frame_data_update) {
+    p_rc->temp_buffer_level = rc->buffer_level;
+  }
+#endif
 }
 
 int av1_rc_get_default_min_gf_interval(int width, int height,
@@ -361,17 +374,29 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, int pass, RATE_CONTROL *rc,
   rc->resize_avg_qp = 0;
   rc->resize_buffer_underflow = 0;
   rc->resize_count = 0;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  rc->frame_level_fast_extra_bits = 0;
+#endif
 }
 
 int av1_rc_drop_frame(AV1_COMP *cpi) {
   const AV1EncoderConfig *oxcf = &cpi->oxcf;
   RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
+  int64_t buffer_level;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  buffer_level =
+      (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+          ? p_rc->temp_buffer_level
+          : rc->buffer_level;
+#else
+  buffer_level = rc->buffer_level;
+#endif
 
   if (!oxcf->rc_cfg.drop_frames_water_mark) {
     return 0;
   } else {
-    if (rc->buffer_level < 0) {
+    if (buffer_level < 0) {
       // Always drop if buffer is below 0.
       return 1;
     } else {
@@ -379,9 +404,9 @@ int av1_rc_drop_frame(AV1_COMP *cpi) {
       // (starting with the next frame) until it increases back over drop_mark.
       int drop_mark = (int)(oxcf->rc_cfg.drop_frames_water_mark *
                             p_rc->optimal_buffer_level / 100);
-      if ((rc->buffer_level > drop_mark) && (rc->decimation_factor > 0)) {
+      if ((buffer_level > drop_mark) && (rc->decimation_factor > 0)) {
         --rc->decimation_factor;
-      } else if (rc->buffer_level <= drop_mark && rc->decimation_factor == 0) {
+      } else if (buffer_level <= drop_mark && rc->decimation_factor == 0) {
         rc->decimation_factor = 1;
       }
       if (rc->decimation_factor > 0) {
@@ -496,22 +521,53 @@ static double get_rate_correction_factor(const AV1_COMP *cpi, int width,
   const RATE_CONTROL *const rc = &cpi->rc;
   const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
   double rcf;
+  double rate_correction_factors_kfstd;
+  double rate_correction_factors_gfarfstd;
+  double rate_correction_factors_internormal;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  rate_correction_factors_kfstd =
+      (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+          ? cpi->ppi->p_rc.temp_rate_correction_factors[KF_STD]
+          : rc->rate_correction_factors[KF_STD];
+  rate_correction_factors_gfarfstd =
+      (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+          ? cpi->ppi->p_rc.temp_rate_correction_factors[GF_ARF_STD]
+          : rc->rate_correction_factors[GF_ARF_STD];
+  rate_correction_factors_internormal =
+      (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+          ? cpi->ppi->p_rc.temp_rate_correction_factors[INTER_NORMAL]
+          : rc->rate_correction_factors[INTER_NORMAL];
+#else
+  rate_correction_factors_kfstd = rc->rate_correction_factors[KF_STD];
+  rate_correction_factors_gfarfstd = rc->rate_correction_factors[GF_ARF_STD];
+  rate_correction_factors_internormal =
+      rc->rate_correction_factors[INTER_NORMAL];
+#endif
 
   if (cpi->common.current_frame.frame_type == KEY_FRAME) {
-    rcf = rc->rate_correction_factors[KF_STD];
+    rcf = rate_correction_factors_kfstd;
   } else if (is_stat_consumption_stage(cpi)) {
     const RATE_FACTOR_LEVEL rf_lvl =
         get_rate_factor_level(&cpi->ppi->gf_group, cpi->gf_frame_index);
-    rcf = rc->rate_correction_factors[rf_lvl];
+    double rate_correction_factors_rflvl;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    rate_correction_factors_rflvl =
+        (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+            ? cpi->ppi->p_rc.temp_rate_correction_factors[rf_lvl]
+            : rc->rate_correction_factors[rf_lvl];
+#else
+    rate_correction_factors_rflvl = rc->rate_correction_factors[rf_lvl];
+#endif
+    rcf = rate_correction_factors_rflvl;
   } else {
     if ((refresh_frame_flags->alt_ref_frame ||
          refresh_frame_flags->golden_frame) &&
         !rc->is_src_frame_alt_ref && !cpi->ppi->use_svc &&
         (cpi->oxcf.rc_cfg.mode != AOM_CBR ||
          cpi->oxcf.rc_cfg.gf_cbr_boost_pct > 20))
-      rcf = rc->rate_correction_factors[GF_ARF_STD];
+      rcf = rate_correction_factors_gfarfstd;
     else
-      rcf = rc->rate_correction_factors[INTER_NORMAL];
+      rcf = rate_correction_factors_internormal;
   }
   rcf *= resize_rate_factor(&cpi->oxcf.frm_dim_cfg, width, height);
   return fclamp(rcf, MIN_BPB_FACTOR, MAX_BPB_FACTOR);
@@ -2118,6 +2174,10 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
     }
     p_rc->temp_avg_q = rc->avg_q;
     p_rc->temp_last_boosted_qindex = rc->last_boosted_qindex;
+    p_rc->temp_total_actual_bits = rc->total_actual_bits;
+    p_rc->temp_projected_frame_size = rc->projected_frame_size;
+    for (int i = 0; i < RATE_FACTOR_LEVELS; i++)
+      p_rc->temp_rate_correction_factors[i] = rc->rate_correction_factors[i];
   }
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
@@ -2286,7 +2346,15 @@ void av1_rc_update_framerate(AV1_COMP *cpi, int width, int height) {
 // For VBR...adjustment to the frame target based on error from previous frames
 static void vbr_rate_correction(AV1_COMP *cpi, int *this_frame_target) {
   RATE_CONTROL *const rc = &cpi->rc;
-  int64_t vbr_bits_off_target = rc->vbr_bits_off_target;
+  int64_t vbr_bits_off_target;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  vbr_bits_off_target =
+      (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+          ? cpi->ppi->p_rc.temp_vbr_bits_off_target
+          : rc->vbr_bits_off_target;
+#else
+  vbr_bits_off_target = rc->vbr_bits_off_target;
+#endif
   const int stats_count =
       cpi->ppi->twopass.stats_buf_ctx->total_stats != NULL
           ? (int)cpi->ppi->twopass.stats_buf_ctx->total_stats->count
@@ -2308,14 +2376,34 @@ static void vbr_rate_correction(AV1_COMP *cpi, int *this_frame_target) {
   // Dont do it for kf,arf,gf or overlay frames.
   if (!frame_is_kf_gf_arf(cpi) && !rc->is_src_frame_alt_ref &&
       rc->vbr_bits_off_target_fast) {
+    int64_t vbr_bits_off_target_fast;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    vbr_bits_off_target_fast =
+        (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+            ? cpi->ppi->p_rc.temp_vbr_bits_off_target_fast
+            : rc->vbr_bits_off_target_fast;
+#else
+    vbr_bits_off_target_fast = rc->vbr_bits_off_target_fast;
+#endif
     int one_frame_bits = AOMMAX(rc->avg_frame_bandwidth, *this_frame_target);
     int fast_extra_bits;
-    fast_extra_bits = (int)AOMMIN(rc->vbr_bits_off_target_fast, one_frame_bits);
-    fast_extra_bits = (int)AOMMIN(
-        fast_extra_bits,
-        AOMMAX(one_frame_bits / 8, rc->vbr_bits_off_target_fast / 8));
+    fast_extra_bits = (int)AOMMIN(vbr_bits_off_target_fast, one_frame_bits);
+    fast_extra_bits =
+        (int)AOMMIN(fast_extra_bits,
+                    AOMMAX(one_frame_bits / 8, vbr_bits_off_target_fast / 8));
     *this_frame_target += (int)fast_extra_bits;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    rc->frame_level_fast_extra_bits += fast_extra_bits;
+    if (cpi->do_frame_data_update) {
+      // Subtract the previously accumulated fast extra bits.
+      rc->vbr_bits_off_target_fast -= rc->frame_level_fast_extra_bits;
+      cpi->ppi->p_rc.temp_vbr_bits_off_target_fast =
+          rc->vbr_bits_off_target_fast;
+      rc->frame_level_fast_extra_bits = 0;
+    }
+#else
     rc->vbr_bits_off_target_fast -= fast_extra_bits;
+#endif
   }
 }
 

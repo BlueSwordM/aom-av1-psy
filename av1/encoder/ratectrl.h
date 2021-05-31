@@ -261,6 +261,9 @@ typedef struct {
   int resize_avg_qp;
   int resize_buffer_underflow;
   int resize_count;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  int frame_level_fast_extra_bits;
+#endif
   /*!\endcond */
 } RATE_CONTROL;
 
@@ -381,6 +384,66 @@ typedef struct {
    * last_q.
    */
   int temp_last_q[FRAME_TYPES];
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * projected_frame_size.
+   */
+  int temp_projected_frame_size;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * total_actual_bits.
+   */
+  int64_t temp_total_actual_bits;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * buffer_level.
+   */
+  int64_t temp_buffer_level;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * vbr_bits_off_target.
+   */
+  int64_t temp_vbr_bits_off_target;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * vbr_bits_off_target_fast.
+   */
+  int64_t temp_vbr_bits_off_target_fast;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * rate_correction_factors.
+   */
+  double temp_rate_correction_factors[RATE_FACTOR_LEVELS];
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * rate_error_estimate.
+   */
+  int temp_rate_error_estimate;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * rolling_arf_group_target_bits.
+   */
+  int temp_rolling_arf_group_target_bits;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * rolling_arf_group_actual_bits;.
+   */
+  int temp_rolling_arf_group_actual_bits;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * bits_left;.
+   */
+  int64_t temp_bits_left;
 #endif
 } PRIMARY_RATE_CONTROL;
 
