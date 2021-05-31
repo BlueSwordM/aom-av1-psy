@@ -137,54 +137,6 @@ static void set_additional_frame_flags(const AV1_COMMON *const cm,
   }
 }
 
-static INLINE void update_keyframe_counters(AV1_COMP *cpi) {
-  if (cpi->common.show_frame && cpi->rc.frames_to_key) {
-    cpi->rc.frames_since_key++;
-    cpi->rc.frames_to_key--;
-  }
-}
-
-static INLINE int is_frame_droppable(
-    const SVC *const svc,
-    const ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags) {
-  // Droppable frame is only used by external refresh flags. VoD setting won't
-  // trigger its use case.
-  if (svc->set_ref_frame_config)
-    return svc->non_reference_frame;
-  else if (ext_refresh_frame_flags->update_pending)
-    return !(ext_refresh_frame_flags->alt_ref_frame ||
-             ext_refresh_frame_flags->alt2_ref_frame ||
-             ext_refresh_frame_flags->bwd_ref_frame ||
-             ext_refresh_frame_flags->golden_frame ||
-             ext_refresh_frame_flags->last_frame);
-  else
-    return 0;
-}
-
-static INLINE void update_frames_till_gf_update(AV1_COMP *cpi) {
-  // TODO(weitinglin): Updating this counter for is_frame_droppable
-  // is a work-around to handle the condition when a frame is drop.
-  // We should fix the cpi->common.show_frame flag
-  // instead of checking the other condition to update the counter properly.
-  if (cpi->common.show_frame ||
-      is_frame_droppable(&cpi->svc, &cpi->ext_flags.refresh_frame)) {
-    // Decrement count down till next gf
-    if (cpi->rc.frames_till_gf_update_due > 0)
-      cpi->rc.frames_till_gf_update_due--;
-  }
-}
-
-static INLINE void update_gf_group_index(AV1_COMP *cpi) {
-  // Increment the gf group index ready for the next frame.
-  ++cpi->gf_frame_index;
-}
-
-static void update_rc_counts(AV1_COMP *cpi) {
-  update_keyframe_counters(cpi);
-  update_frames_till_gf_update(cpi);
-  update_gf_group_index(cpi);
-}
-
 static void set_ext_overrides(AV1_COMMON *const cm,
                               EncodeFrameParams *const frame_params,
                               ExternalFlags *const ext_flags) {
@@ -210,22 +162,6 @@ static void set_ext_overrides(AV1_COMMON *const cm,
   frame_params->error_resilient_mode &= frame_params->frame_type != KEY_FRAME;
   // For bitstream conformance, s-frames must be error-resilient
   frame_params->error_resilient_mode |= frame_params->frame_type == S_FRAME;
-}
-
-static int get_current_frame_ref_type(const AV1_COMP *const cpi) {
-  // We choose the reference "type" of this frame from the flags which indicate
-  // which reference frames will be refreshed by it.  More than one  of these
-  // flags may be set, so the order here implies an order of precedence. This is
-  // just used to choose the primary_ref_frame (as the most recent reference
-  // buffer of the same reference-type as the current frame)
-
-  switch (cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index]) {
-    case 0: return 0;
-    case 1: return 1;
-    case MAX_ARF_LAYERS:
-    case MAX_ARF_LAYERS + 1: return 4;
-    default: return 7;
-  }
 }
 
 static int choose_primary_ref_frame(
@@ -260,40 +196,6 @@ static int choose_primary_ref_frame(
   }
 
   return primary_ref_frame;
-}
-
-static void update_fb_of_context_type(const AV1_COMP *const cpi,
-                                      int *const fb_of_context_type) {
-  const AV1_COMMON *const cm = &cpi->common;
-  const int current_frame_ref_type = get_current_frame_ref_type(cpi);
-
-  if (frame_is_intra_only(cm) || cm->features.error_resilient_mode ||
-      cpi->ext_flags.use_primary_ref_none) {
-    for (int i = 0; i < REF_FRAMES; i++) {
-      fb_of_context_type[i] = -1;
-    }
-    fb_of_context_type[current_frame_ref_type] =
-        cm->show_frame ? get_ref_frame_map_idx(cm, GOLDEN_FRAME)
-                       : get_ref_frame_map_idx(cm, ALTREF_FRAME);
-  }
-
-  if (!encode_show_existing_frame(cm)) {
-    // Refresh fb_of_context_type[]: see encoder.h for explanation
-    if (cm->current_frame.frame_type == KEY_FRAME) {
-      // All ref frames are refreshed, pick one that will live long enough
-      fb_of_context_type[current_frame_ref_type] = 0;
-    } else {
-      // If more than one frame is refreshed, it doesn't matter which one we
-      // pick so pick the first.  LST sometimes doesn't refresh any: this is ok
-
-      for (int i = 0; i < REF_FRAMES; i++) {
-        if (cm->current_frame.refresh_frame_flags & (1 << i)) {
-          fb_of_context_type[current_frame_ref_type] = i;
-          break;
-        }
-      }
-    }
-  }
 }
 
 static void adjust_frame_rate(AV1_COMP *cpi, int64_t ts_start, int64_t ts_end) {
@@ -1456,7 +1358,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                         uint8_t *const dest, unsigned int *frame_flags,
                         int64_t *const time_stamp, int64_t *const time_end,
                         const aom_rational64_t *const timestamp_ratio,
-                        int flush) {
+                        int *const pop_lookahead, int flush) {
   AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
   GF_GROUP *gf_group = &cpi->ppi->gf_group;
@@ -1539,13 +1441,12 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   struct lookahead_entry *source = NULL;
   struct lookahead_entry *last_source = NULL;
-  int pop_lookahead = 0;
   if (frame_params.show_existing_frame) {
     source = av1_lookahead_peek(cpi->ppi->lookahead, 0, cpi->compressor_stage);
-    pop_lookahead = 1;
+    *pop_lookahead = 1;
     frame_params.show_frame = 1;
   } else {
-    source = choose_frame_source(cpi, &flush, &pop_lookahead, &last_source,
+    source = choose_frame_source(cpi, &flush, pop_lookahead, &last_source,
                                  &frame_params);
   }
 
@@ -1811,6 +1712,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     // First pass doesn't modify reference buffer assignment or produce frame
     // flags
     update_frame_flags(&cpi->common, &cpi->refresh_frame, frame_flags);
+    set_additional_frame_flags(cm, frame_flags);
 #if !CONFIG_FRAME_PARALLEL_ENCODE
     if (!ext_flags->refresh_frame.update_pending) {
       int ref_map_index =
@@ -1823,17 +1725,16 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 
 #if !CONFIG_REALTIME_ONLY
-  if (!is_stat_generation_stage(cpi)) {
 #if TXCOEFF_COST_TIMER
+  if (!is_stat_generation_stage(cpi)) {
     cm->cum_txcoeff_cost_timer += cm->txcoeff_cost_timer;
     fprintf(stderr,
             "\ntxb coeff cost block number: %ld, frame time: %ld, cum time %ld "
             "in us\n",
             cm->txcoeff_cost_count, cm->txcoeff_cost_timer,
             cm->cum_txcoeff_cost_timer);
-#endif
-    if (!has_no_stats_stage(cpi)) av1_twopass_postencode_update(cpi);
   }
+#endif
 #endif  // !CONFIG_REALTIME_ONLY
 
 #if CONFIG_TUNE_VMAF
@@ -1843,15 +1744,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     av1_update_vmaf_curve(cpi);
   }
 #endif
-  if (pop_lookahead == 1) {
-    av1_lookahead_pop(cpi->ppi->lookahead, flush, cpi->compressor_stage);
-  }
-
-  if (!is_stat_generation_stage(cpi)) {
-    update_fb_of_context_type(cpi, cpi->ppi->fb_of_context_type);
-    set_additional_frame_flags(cm, frame_flags);
-    update_rc_counts(cpi);
-  }
 
   // Unpack frame_results:
   *size = frame_results.size;
@@ -1860,8 +1752,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (*size > 0) {
     cpi->droppable = is_frame_droppable(&cpi->svc, &ext_flags->refresh_frame);
   }
-
-  if (cpi->ppi->use_svc) av1_save_layer_context(cpi);
 
   return AOM_CODEC_OK;
 }

@@ -3069,7 +3069,8 @@ void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi,
                                const AV1EncoderConfig *oxcf, int use_svc);
 
 void av1_post_encode_updates(AV1_COMP *const cpi, size_t size,
-                             int64_t time_stamp, int64_t time_end);
+                             int64_t time_stamp, int64_t time_end,
+                             int pop_lookahead, int flush);
 
 /*!\endcond */
 

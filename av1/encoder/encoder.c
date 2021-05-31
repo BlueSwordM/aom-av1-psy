@@ -4089,10 +4089,91 @@ void print_internal_stats(AV1_PRIMARY *const ppi) {
 }
 #endif  // CONFIG_INTERNAL_STATS
 
+static AOM_INLINE void update_keyframe_counters(AV1_COMP *cpi) {
+  if (cpi->common.show_frame && cpi->rc.frames_to_key) {
+    cpi->rc.frames_since_key++;
+    cpi->rc.frames_to_key--;
+  }
+}
+
+static AOM_INLINE void update_frames_till_gf_update(AV1_COMP *cpi) {
+  // TODO(weitinglin): Updating this counter for is_frame_droppable
+  // is a work-around to handle the condition when a frame is drop.
+  // We should fix the cpi->common.show_frame flag
+  // instead of checking the other condition to update the counter properly.
+  if (cpi->common.show_frame ||
+      is_frame_droppable(&cpi->svc, &cpi->ext_flags.refresh_frame)) {
+    // Decrement count down till next gf
+    if (cpi->rc.frames_till_gf_update_due > 0)
+      cpi->rc.frames_till_gf_update_due--;
+  }
+}
+
+static AOM_INLINE void update_gf_group_index(AV1_COMP *cpi) {
+  // Increment the gf group index ready for the next frame.
+  ++cpi->gf_frame_index;
+}
+
+static void update_fb_of_context_type(const AV1_COMP *const cpi,
+                                      int *const fb_of_context_type) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const int current_frame_ref_type = get_current_frame_ref_type(cpi);
+
+  if (frame_is_intra_only(cm) || cm->features.error_resilient_mode ||
+      cpi->ext_flags.use_primary_ref_none) {
+    for (int i = 0; i < REF_FRAMES; i++) {
+      fb_of_context_type[i] = -1;
+    }
+    fb_of_context_type[current_frame_ref_type] =
+        cm->show_frame ? get_ref_frame_map_idx(cm, GOLDEN_FRAME)
+                       : get_ref_frame_map_idx(cm, ALTREF_FRAME);
+  }
+
+  if (!encode_show_existing_frame(cm)) {
+    // Refresh fb_of_context_type[]: see encoder.h for explanation
+    if (cm->current_frame.frame_type == KEY_FRAME) {
+      // All ref frames are refreshed, pick one that will live long enough
+      fb_of_context_type[current_frame_ref_type] = 0;
+    } else {
+      // If more than one frame is refreshed, it doesn't matter which one we
+      // pick so pick the first.  LST sometimes doesn't refresh any: this is ok
+
+      for (int i = 0; i < REF_FRAMES; i++) {
+        if (cm->current_frame.refresh_frame_flags & (1 << i)) {
+          fb_of_context_type[current_frame_ref_type] = i;
+          break;
+        }
+      }
+    }
+  }
+}
+
+static void update_rc_counts(AV1_COMP *cpi) {
+  update_keyframe_counters(cpi);
+  update_frames_till_gf_update(cpi);
+  update_gf_group_index(cpi);
+}
+
 void av1_post_encode_updates(AV1_COMP *const cpi, size_t size,
-                             int64_t time_stamp, int64_t time_end) {
+                             int64_t time_stamp, int64_t time_end,
+                             int pop_lookahead, int flush) {
   AV1_PRIMARY *const ppi = cpi->ppi;
   AV1_COMMON *const cm = &cpi->common;
+
+  if (pop_lookahead == 1) {
+    av1_lookahead_pop(cpi->ppi->lookahead, flush, cpi->compressor_stage);
+  }
+
+  if (!is_stat_generation_stage(cpi)) {
+#if !CONFIG_REALTIME_ONLY
+    if (!has_no_stats_stage(cpi)) av1_twopass_postencode_update(cpi);
+#endif
+    update_fb_of_context_type(cpi, ppi->fb_of_context_type);
+    update_rc_counts(cpi);
+  }
+
+  if (ppi->use_svc) av1_save_layer_context(cpi);
+
   // Note *size = 0 indicates a dropped frame for which psnr is not calculated
   if (ppi->b_calculate_psnr && size > 0) {
     if (cm->show_existing_frame ||
@@ -4122,6 +4203,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
                             const aom_rational64_t *timestamp_ratio) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
+  int pop_lookahead = 0;
 
 #if CONFIG_INTERNAL_STATS
   cpi->frame_recode_hits = 0;
@@ -4174,7 +4256,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
 
   const int result =
       av1_encode_strategy(cpi, size, dest, frame_flags, time_stamp, time_end,
-                          timestamp_ratio, flush);
+                          timestamp_ratio, &pop_lookahead, flush);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   if (cpi->oxcf.pass == 2) end_timing(cpi, av1_encode_strategy_time);
@@ -4221,7 +4303,8 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   cpi->time_compress_data += aom_usec_timer_elapsed(&cmptimer);
 #endif  // CONFIG_INTERNAL_STATS
 
-  av1_post_encode_updates(cpi, *size, *time_stamp, *time_end);
+  av1_post_encode_updates(cpi, *size, *time_stamp, *time_end, pop_lookahead,
+                          flush);
 
 #if CONFIG_SPEED_STATS
   if (!is_stat_generation_stage(cpi) && !cm->show_existing_frame) {
