@@ -538,16 +538,12 @@ static int enc_worker_hook(void *arg1, void *unused) {
   return 1;
 }
 
-void av1_create_second_pass_workers(AV1_COMP *cpi, int num_workers) {
+#if CONFIG_MULTITHREAD
+void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass) {
   AV1_COMMON *const cm = &cpi->common;
-  const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   MultiThreadInfo *const mt_info = &cpi->mt_info;
 
-  assert(mt_info->workers != NULL);
-  assert(mt_info->tile_thr_data != NULL);
-
-#if CONFIG_MULTITHREAD
-  if (cpi->oxcf.row_mt == 1) {
+  if (is_first_pass || cpi->oxcf.row_mt == 1) {
     AV1EncRowMultiThreadInfo *enc_row_mt = &mt_info->enc_row_mt;
     if (enc_row_mt->mutex_ == NULL) {
       CHECK_MEM_ERROR(cm, enc_row_mt->mutex_,
@@ -555,26 +551,39 @@ void av1_create_second_pass_workers(AV1_COMP *cpi, int num_workers) {
       if (enc_row_mt->mutex_) pthread_mutex_init(enc_row_mt->mutex_, NULL);
     }
   }
-  AV1GlobalMotionSync *gm_sync = &mt_info->gm_sync;
-  if (gm_sync->mutex_ == NULL) {
-    CHECK_MEM_ERROR(cm, gm_sync->mutex_,
-                    aom_malloc(sizeof(*(gm_sync->mutex_))));
-    if (gm_sync->mutex_) pthread_mutex_init(gm_sync->mutex_, NULL);
-  }
+
+  if (!is_first_pass) {
+    AV1GlobalMotionSync *gm_sync = &mt_info->gm_sync;
+    if (gm_sync->mutex_ == NULL) {
+      CHECK_MEM_ERROR(cm, gm_sync->mutex_,
+                      aom_malloc(sizeof(*(gm_sync->mutex_))));
+      if (gm_sync->mutex_) pthread_mutex_init(gm_sync->mutex_, NULL);
+    }
 #if !CONFIG_REALTIME_ONLY
-  AV1TemporalFilterSync *tf_sync = &mt_info->tf_sync;
-  if (tf_sync->mutex_ == NULL) {
-    CHECK_MEM_ERROR(cm, tf_sync->mutex_, aom_malloc(sizeof(*tf_sync->mutex_)));
-    if (tf_sync->mutex_) pthread_mutex_init(tf_sync->mutex_, NULL);
-  }
+    AV1TemporalFilterSync *tf_sync = &mt_info->tf_sync;
+    if (tf_sync->mutex_ == NULL) {
+      CHECK_MEM_ERROR(cm, tf_sync->mutex_,
+                      aom_malloc(sizeof(*tf_sync->mutex_)));
+      if (tf_sync->mutex_) pthread_mutex_init(tf_sync->mutex_, NULL);
+    }
 #endif  // !CONFIG_REALTIME_ONLY
-  AV1CdefSync *cdef_sync = &mt_info->cdef_sync;
-  if (cdef_sync->mutex_ == NULL) {
-    CHECK_MEM_ERROR(cm, cdef_sync->mutex_,
-                    aom_malloc(sizeof(*(cdef_sync->mutex_))));
-    if (cdef_sync->mutex_) pthread_mutex_init(cdef_sync->mutex_, NULL);
+    AV1CdefSync *cdef_sync = &mt_info->cdef_sync;
+    if (cdef_sync->mutex_ == NULL) {
+      CHECK_MEM_ERROR(cm, cdef_sync->mutex_,
+                      aom_malloc(sizeof(*(cdef_sync->mutex_))));
+      if (cdef_sync->mutex_) pthread_mutex_init(cdef_sync->mutex_, NULL);
+    }
   }
+}
 #endif  // CONFIG_MULTITHREAD
+
+void av1_create_second_pass_workers(AV1_COMP *cpi, int num_workers) {
+  AV1_COMMON *const cm = &cpi->common;
+  const AVxWorkerInterface *const winterface = aom_get_worker_interface();
+  MultiThreadInfo *const mt_info = &cpi->mt_info;
+
+  assert(mt_info->workers != NULL);
+  assert(mt_info->tile_thr_data != NULL);
 
   for (int i = num_workers - 1; i >= 0; i--) {
     AVxWorker *const worker = &mt_info->workers[i];

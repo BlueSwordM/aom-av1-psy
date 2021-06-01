@@ -2651,6 +2651,12 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     }
     if ((num_workers > 1) && (cpi->mt_info.num_workers == 0)) {
       av1_create_workers(cpi, num_workers);
+#if CONFIG_MULTITHREAD
+      av1_init_mt_sync(cpi, cpi->oxcf.pass == 1);
+      if (cpi_lap != NULL) {
+        av1_init_mt_sync(cpi_lap, 1);
+      }
+#endif  // CONFIG_MULTITHREAD
       if (cpi->oxcf.pass != 1) {
         av1_create_second_pass_workers(cpi, num_workers);
       }
