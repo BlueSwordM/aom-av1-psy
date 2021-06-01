@@ -3588,6 +3588,19 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       }
       break;
   }
+
+#if CONFIG_FRAME_PARALLEL_ENCODE
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+  // Disable cdf update for the INTNL_ARF_UPDATE frame with
+  // frame_parallel_level 1.
+  if (!cpi->do_frame_data_update &&
+      cpi->ppi->gf_group.update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE) {
+    assert(cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 1);
+    features->disable_cdf_update = 1;
+  }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+
   seq_params->timing_info_present &= !seq_params->reduced_still_picture_hdr;
 
   int largest_tile_id = 0;
