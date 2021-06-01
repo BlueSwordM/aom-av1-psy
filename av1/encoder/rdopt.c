@@ -5448,14 +5448,15 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
                               0 };
   int64_t best_inter_yrd = INT64_MAX;
 
-  // This is the main loop of this function. It loops over all possible modes
-  // and calls handle_inter_mode() to compute the RD for each.
+  // This is the main loop of this function. It loops over all possible inter
+  // modes and calls handle_inter_mode() to compute the RD for each.
   // Here midx is just an iterator index that should not be used by itself
   // except to keep track of the number of modes searched. It should be used
   // with av1_default_mode_order to get the enum that defines the mode, which
   // can be used with av1_mode_defs to get the prediction mode and the ref
   // frames.
-  for (THR_MODES midx = THR_MODE_START; midx < THR_MODE_END; ++midx) {
+  for (THR_MODES midx = THR_INTER_MODE_START; midx < THR_INTER_MODE_END;
+       ++midx) {
     // Get the actual prediction mode we are trying in this iteration
     const THR_MODES mode_enum = av1_default_mode_order[midx];
     const MODE_DEFINITION *mode_def = &av1_mode_defs[mode_enum];
