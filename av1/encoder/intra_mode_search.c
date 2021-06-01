@@ -1181,6 +1181,12 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     if (is_directional_mode && av1_use_angle_delta(bsize) == 0 &&
         mbmi->angle_delta[PLANE_TYPE_Y] != 0)
       continue;
+
+    // Use intra_y_mode_mask speed feature to skip intra mode evaluation.
+    if (!(cpi->sf.intra_sf.intra_y_mode_mask[max_txsize_lookup[bsize]] &
+          (1 << mbmi->mode)))
+      continue;
+
     const TX_SIZE tx_size = AOMMIN(TX_32X32, max_txsize_lookup[bsize]);
     const int64_t this_model_rd =
         intra_model_rd(&cpi->common, x, 0, bsize, tx_size, /*use_hadamard=*/1);

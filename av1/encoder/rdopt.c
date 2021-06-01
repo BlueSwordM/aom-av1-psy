@@ -5035,6 +5035,11 @@ static AOM_INLINE void search_intra_modes_in_interframe(
         search_state->intra_search_state.skip_intra_modes)
       break;
     set_y_mode_and_delta_angle(mode_idx, mbmi);
+
+    // Use intra_y_mode_mask speed feature to skip intra mode evaluation.
+    if (sf_args->mode_skip_mask->pred_modes[INTRA_FRAME] & (1 << mbmi->mode))
+      continue;
+
     THR_MODES mode_enum = 0;
     for (int i = 0; i < INTRA_MODE_END; ++i) {
       if (mbmi->mode == av1_mode_defs[sf_args->intra_mode_idx_ls[i]].mode) {
