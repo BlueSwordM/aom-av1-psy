@@ -555,6 +555,39 @@ typedef struct PARTITION_SPEED_FEATURES {
   // 0: disable pruning, 1: enable pruning
   int simple_motion_search_rect_split;
 
+  // The current encoder adopts a DFS search for block partitions.
+  // Therefore the mode selection and associated rdcost is ready for smaller
+  // blocks before the mode selection for some partition types.
+  // AB partition could use previous rd information and skip mode search.
+  // An example is:
+  //
+  //  current block
+  //  +---+---+
+  //  |       |
+  //  +       +
+  //  |       |
+  //  +-------+
+  //
+  //  SPLIT partition has been searched first before trying HORZ_A
+  //  +---+---+
+  //  | R | R |
+  //  +---+---+
+  //  | R | R |
+  //  +---+---+
+  //
+  //  HORZ_A
+  //  +---+---+
+  //  |   |   |
+  //  +---+---+
+  //  |       |
+  //  +-------+
+  //
+  //  With this speed feature, the top two sub blocks can directly use rdcost
+  //  searched in split partition, and the mode info is also copied from
+  //  saved info. Similarly, the bottom rectangular block can also use
+  //  the available information from previous rectangular search.
+  int reuse_prev_rd_results_for_part_ab;
+
   // Reuse the best prediction modes found in PARTITION_SPLIT and PARTITION_RECT
   // when encoding PARTITION_AB.
   int reuse_best_prediction_for_part_ab;

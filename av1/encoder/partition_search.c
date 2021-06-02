@@ -71,6 +71,9 @@ void av1_reset_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->early_term_after_none_split = 0;
   part_sf->ml_predict_breakout_level = 0;
   part_sf->prune_sub_8x8_partition_level = 0;
+  part_sf->simple_motion_search_rect_split = 0;
+  part_sf->reuse_prev_rd_results_for_part_ab = 0;
+  part_sf->reuse_best_prediction_for_part_ab = 0;
 }
 
 static void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
@@ -641,7 +644,8 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 
   av1_set_offsets(cpi, &tile_data->tile_info, x, mi_row, mi_col, bsize);
 
-  if (ctx->rd_mode_is_ready) {
+  if (cpi->sf.part_sf.reuse_prev_rd_results_for_part_ab &&
+      ctx->rd_mode_is_ready) {
     assert(ctx->mic.bsize == bsize);
     assert(ctx->mic.partition == partition);
     rd_cost->rate = ctx->rd_stats.rate;
@@ -3032,26 +3036,28 @@ static void ab_partitions_search(
       continue;
 
     blk_params.subsize = get_partition_subsize(bsize, part_type);
-    for (int i = 0; i < SUB_PARTITIONS_AB; i++) {
-      // Set AB partition context.
-      cur_part_ctxs[ab_part_type][i] = av1_alloc_pmc(
-          cpi, ab_subsize[ab_part_type][i], &td->shared_coeff_buf);
-      // Set mode as not ready.
-      cur_part_ctxs[ab_part_type][i]->rd_mode_is_ready = 0;
-    }
+    if (cpi->sf.part_sf.reuse_prev_rd_results_for_part_ab) {
+      for (int i = 0; i < SUB_PARTITIONS_AB; i++) {
+        // Set AB partition context.
+        cur_part_ctxs[ab_part_type][i] = av1_alloc_pmc(
+            cpi, ab_subsize[ab_part_type][i], &td->shared_coeff_buf);
+        // Set mode as not ready.
+        cur_part_ctxs[ab_part_type][i]->rd_mode_is_ready = 0;
+      }
 
-    // We can copy directly the mode search results if we have already searched
-    // the current block and the contexts match.
-    if (is_ctx_ready[ab_part_type][0]) {
-      av1_copy_tree_context(cur_part_ctxs[ab_part_type][0],
-                            mode_srch_ctx[ab_part_type][0][0]);
-      cur_part_ctxs[ab_part_type][0]->mic.partition = part_type;
-      cur_part_ctxs[ab_part_type][0]->rd_mode_is_ready = 1;
-      if (is_ctx_ready[ab_part_type][1]) {
-        av1_copy_tree_context(cur_part_ctxs[ab_part_type][1],
-                              mode_srch_ctx[ab_part_type][1][0]);
-        cur_part_ctxs[ab_part_type][1]->mic.partition = part_type;
-        cur_part_ctxs[ab_part_type][1]->rd_mode_is_ready = 1;
+      // We can copy directly the mode search results if we have already
+      // searched the current block and the contexts match.
+      if (is_ctx_ready[ab_part_type][0]) {
+        av1_copy_tree_context(cur_part_ctxs[ab_part_type][0],
+                              mode_srch_ctx[ab_part_type][0][0]);
+        cur_part_ctxs[ab_part_type][0]->mic.partition = part_type;
+        cur_part_ctxs[ab_part_type][0]->rd_mode_is_ready = 1;
+        if (is_ctx_ready[ab_part_type][1]) {
+          av1_copy_tree_context(cur_part_ctxs[ab_part_type][1],
+                                mode_srch_ctx[ab_part_type][1][0]);
+          cur_part_ctxs[ab_part_type][1]->mic.partition = part_type;
+          cur_part_ctxs[ab_part_type][1]->rd_mode_is_ready = 1;
+        }
       }
     }
 

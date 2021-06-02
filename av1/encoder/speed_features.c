@@ -303,6 +303,7 @@ static void set_allintra_speed_features_framesize_independent(
   sf->part_sf.prune_part4_search = 2;
   sf->part_sf.simple_motion_search_prune_rect = 1;
   sf->part_sf.ml_predict_breakout_level = use_hbd ? 1 : 3;
+  sf->part_sf.reuse_prev_rd_results_for_part_ab = 1;
 
   sf->intra_sf.intra_pruning_with_hog = 1;
   sf->intra_sf.dv_cost_upd_level = INTERNAL_COST_UPD_OFF;
@@ -739,6 +740,7 @@ static void set_good_speed_features_framesize_independent(
   sf->part_sf.prune_part4_search = 2;
   sf->part_sf.simple_motion_search_prune_rect = 1;
   sf->part_sf.ml_predict_breakout_level = use_hbd ? 1 : 3;
+  sf->part_sf.reuse_prev_rd_results_for_part_ab = 1;
 
   // TODO(debargha): Test, tweak and turn on either 1 or 2
   sf->inter_sf.inter_mode_rd_model_estimation = 1;
@@ -1182,6 +1184,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->part_sf.less_rectangular_check_level = 1;
   sf->part_sf.ml_prune_partition = 1;
   sf->part_sf.prune_ext_partition_types_search_level = 1;
+  sf->part_sf.reuse_prev_rd_results_for_part_ab = 1;
 
   // TODO(debargha): Test, tweak and turn on either 1 or 2
   sf->inter_sf.inter_mode_rd_model_estimation = 0;
@@ -1560,6 +1563,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->ml_predict_breakout_level = 0;
   part_sf->prune_sub_8x8_partition_level = 0;
   part_sf->simple_motion_search_rect_split = 0;
+  part_sf->reuse_prev_rd_results_for_part_ab = 0;
   part_sf->reuse_best_prediction_for_part_ab = 0;
 }
 
