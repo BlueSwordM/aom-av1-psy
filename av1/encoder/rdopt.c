@@ -1369,8 +1369,7 @@ static int64_t motion_mode_rd(
 #endif
     const int prune_obmc =
         obmc_probability < cpi->sf.inter_sf.prune_obmc_prob_thresh;
-    if ((!cpi->oxcf.motion_mode_cfg.enable_obmc ||
-         cpi->sf.rt_sf.use_nonrd_pick_mode || prune_obmc) &&
+    if ((!cpi->oxcf.motion_mode_cfg.enable_obmc || prune_obmc) &&
         mbmi->motion_mode == OBMC_CAUSAL)
       continue;
 

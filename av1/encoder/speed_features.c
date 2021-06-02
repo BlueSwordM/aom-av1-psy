@@ -1285,7 +1285,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   if (speed >= 3) {
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
-    sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
+    sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3_ARF2;
 
     sf->part_sf.less_rectangular_check_level = 2;
 
