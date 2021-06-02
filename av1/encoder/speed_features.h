@@ -591,6 +591,16 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Reuse the best prediction modes found in PARTITION_SPLIT and PARTITION_RECT
   // when encoding PARTITION_AB.
   int reuse_best_prediction_for_part_ab;
+
+  // The current partition search records the best rdcost so far and uses it
+  // in mode search and transform search to early skip when some criteria is
+  // met. For example, when the current rdcost is larger than the best rdcost,
+  // or the model rdcost is larger than the best rdcost times some thresholds.
+  // By default, this feature is turned on to speed up the encoder partition
+  // search.
+  // If disabling it, at speed 0, 30 frames, we could get
+  // about -0.25% quality gain (psnr, ssim, vmaf), with about 13% slowdown.
+  int use_best_rd_for_pruning;
 } PARTITION_SPEED_FEATURES;
 
 typedef struct MV_SPEED_FEATURES {
