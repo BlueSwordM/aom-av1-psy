@@ -3051,6 +3051,42 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
   return err;
 }
 
+#if !CONFIG_REALTIME_ONLY
+static void calculate_frame_avg_haar_energy(AV1_COMP *cpi) {
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
+  const FIRSTPASS_STATS *const total_stats =
+      twopass->stats_buf_ctx->total_stats;
+
+  if (is_one_pass_rt_params(cpi) ||
+      (cpi->oxcf.q_cfg.deltaq_mode != DELTA_Q_PERCEPTUAL) ||
+      (is_fp_wavelet_energy_invalid(total_stats) == 0))
+    return;
+
+  const int num_mbs = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
+                          ? cpi->initial_mbs
+                          : cpi->common.mi_params.MBs;
+  const YV12_BUFFER_CONFIG *const unfiltered_source = cpi->unfiltered_source;
+  const uint8_t *const src = unfiltered_source->y_buffer;
+  const int hbd = unfiltered_source->flags & YV12_FLAG_HIGHBITDEPTH;
+  const int stride = unfiltered_source->y_stride;
+  const BLOCK_SIZE fp_block_size =
+      get_fp_block_size(cpi->is_screen_content_type);
+  const int fp_block_size_width = block_size_wide[fp_block_size];
+  const int fp_block_size_height = block_size_high[fp_block_size];
+  const int num_unit_cols =
+      get_num_blocks(unfiltered_source->y_crop_width, fp_block_size_width);
+  const int num_unit_rows =
+      get_num_blocks(unfiltered_source->y_crop_height, fp_block_size_height);
+  const int num_8x8_cols = num_unit_cols * (fp_block_size_width / 8);
+  const int num_8x8_rows = num_unit_rows * (fp_block_size_height / 8);
+  int64_t frame_avg_wavelet_energy = av1_haar_ac_sad_mxn_uint8_input(
+      src, stride, hbd, num_8x8_rows, num_8x8_cols);
+
+  twopass->frame_avg_haar_energy =
+      log(((double)frame_avg_wavelet_energy / num_mbs) + 1.0);
+}
+#endif
+
 extern void av1_print_frame_contexts(const FRAME_CONTEXT *fc,
                                      const char *filename);
 
@@ -3088,41 +3124,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 
 #if !CONFIG_REALTIME_ONLY
-  if (is_one_pass_rt_params(cpi) == 0) {
-    TWO_PASS *const twopass = &cpi->ppi->twopass;
-    const FIRSTPASS_STATS *const total_stats =
-        twopass->stats_buf_ctx->total_stats;
-    if ((oxcf->q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL) &&
-        is_fp_wavelet_energy_invalid(total_stats)) {
-      const int num_mbs = (oxcf->resize_cfg.resize_mode != RESIZE_NONE)
-                              ? cpi->initial_mbs
-                              : cm->mi_params.MBs;
-      const YV12_BUFFER_CONFIG *const unfiltered_source =
-          cpi->unfiltered_source;
-      const uint8_t *const src = unfiltered_source->y_buffer;
-      const int hbd = unfiltered_source->flags & YV12_FLAG_HIGHBITDEPTH;
-      const int stride = unfiltered_source->y_stride;
-      const BLOCK_SIZE fp_block_size =
-          get_fp_block_size(cpi->is_screen_content_type);
-      const int fp_block_size_width = block_size_wide[fp_block_size];
-      const int fp_block_size_height = block_size_high[fp_block_size];
-      const int num_unit_cols =
-          get_num_blocks(unfiltered_source->y_crop_width, fp_block_size_width);
-      const int num_unit_rows = get_num_blocks(unfiltered_source->y_crop_height,
-                                               fp_block_size_height);
-      const int num_8x8_cols = num_unit_cols * (fp_block_size_width / 8);
-      const int num_8x8_rows = num_unit_rows * (fp_block_size_height / 8);
-      int64_t frame_avg_wavelet_energy = 0;
-      for (int r8 = 0; r8 < num_8x8_rows; ++r8) {
-        for (int c8 = 0; c8 < num_8x8_cols; ++c8) {
-          frame_avg_wavelet_energy += av1_haar_ac_sad_8x8_uint8_input(
-              src + c8 * 8 + r8 * 8 * stride, stride, hbd);
-        }
-      }
-      twopass->frame_avg_haar_energy =
-          log(((double)frame_avg_wavelet_energy / num_mbs) + 1.0);
-    }
-  }
+  calculate_frame_avg_haar_energy(cpi);
 #endif
 
   // frame type has been decided outside of this function call

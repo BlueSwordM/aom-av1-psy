@@ -507,12 +507,8 @@ static int firstpass_intra_prediction(
     const int num_8x8_rows = block_size_high[fp_block_size] / 8;
     const int num_8x8_cols = block_size_wide[fp_block_size] / 8;
     const uint8_t *buf = x->plane[0].src.buf;
-    for (int r8 = 0; r8 < num_8x8_rows; ++r8) {
-      for (int c8 = 0; c8 < num_8x8_cols; ++c8) {
-        stats->frame_avg_wavelet_energy += av1_haar_ac_sad_8x8_uint8_input(
-            buf + c8 * 8 + r8 * 8 * stride, stride, hbd);
-      }
-    }
+    stats->frame_avg_wavelet_energy += av1_haar_ac_sad_mxn_uint8_input(
+        buf, stride, hbd, num_8x8_rows, num_8x8_cols);
   } else {
     stats->frame_avg_wavelet_energy = INVALID_FP_STATS_TO_PREDICT_FLAT_GOP;
   }
