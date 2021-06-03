@@ -721,7 +721,7 @@ if(ENABLE_EXAMPLES AND "${CMAKE_GENERATOR}" MATCHES "Makefiles$")
 endif()
 
 if(BUILD_SHARED_LIBS)
-  if(NOT MSVC AND NOT APPLE)
+  if(NOT WIN32 AND NOT APPLE)
     # The -z defs linker option reports unresolved symbol references from object
     # files when building a shared library.
     if("${CMAKE_VERSION}" VERSION_LESS "3.13")
