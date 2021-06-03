@@ -2118,8 +2118,9 @@ static void correct_frames_to_key(AV1_COMP *cpi) {
       (int)av1_lookahead_depth(cpi->ppi->lookahead, cpi->compressor_stage);
   if (lookahead_size <
       av1_lookahead_pop_sz(cpi->ppi->lookahead, cpi->compressor_stage)) {
-    assert(IMPLIES(cpi->oxcf.pass != 0 && cpi->ppi->frames_left > 0,
-                   lookahead_size == cpi->ppi->frames_left));
+    assert(
+        IMPLIES(cpi->oxcf.pass != AOM_RC_ONE_PASS && cpi->ppi->frames_left > 0,
+                lookahead_size == cpi->ppi->frames_left));
     cpi->rc.frames_to_key = AOMMIN(cpi->rc.frames_to_key, lookahead_size);
   } else if (cpi->ppi->frames_left > 0) {
     // Correct frames to key based on limit
@@ -3658,7 +3659,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     if (update_type == ARF_UPDATE || update_type == INTNL_ARF_UPDATE) {
       // Do the firstpass stats indicate that this frame is skippable for the
       // partition search?
-      if (cpi->sf.part_sf.allow_partition_search_skip && oxcf->pass == 2) {
+      if (cpi->sf.part_sf.allow_partition_search_skip &&
+          oxcf->pass >= AOM_RC_SECOND_PASS) {
         cpi->partition_search_skippable_frame = is_skippable_frame(cpi);
       }
       const FIRSTPASS_STATS *const this_frame_ptr = read_frame_stats(
@@ -3885,7 +3887,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
   // Do the firstpass stats indicate that this frame is skippable for the
   // partition search?
-  if (cpi->sf.part_sf.allow_partition_search_skip && oxcf->pass == 2) {
+  if (cpi->sf.part_sf.allow_partition_search_skip &&
+      oxcf->pass >= AOM_RC_SECOND_PASS) {
     cpi->partition_search_skippable_frame = is_skippable_frame(cpi);
   }
 

@@ -309,7 +309,7 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, int pass, RATE_CONTROL *rc,
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   int i;
 
-  if (pass == 0 && rc_cfg->mode == AOM_CBR) {
+  if (pass == AOM_RC_ONE_PASS && rc_cfg->mode == AOM_CBR) {
     rc->avg_frame_qindex[KEY_FRAME] = rc_cfg->worst_allowed_q;
     rc->avg_frame_qindex[INTER_FRAME] = rc_cfg->worst_allowed_q;
   } else {

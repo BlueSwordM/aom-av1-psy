@@ -1177,7 +1177,7 @@ AV1_PRIMARY *av1_create_primary_compressor(
                    sizeof(*ppi->tpl_sb_rdmult_scaling_factors)));
 
 #if !CONFIG_REALTIME_ONLY
-    if (oxcf->pass != 1) {
+    if (oxcf->pass != AOM_RC_FIRST_PASS) {
       av1_setup_tpl_buffers(ppi, &mi_params, oxcf->frm_dim_cfg.width,
                             oxcf->frm_dim_cfg.height, 0,
                             oxcf->gf_cfg.lag_in_frames);
@@ -1272,9 +1272,10 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
   CommonModeInfoParams *const mi_params = &cm->mi_params;
   mi_params->free_mi = enc_free_mi;
   mi_params->setup_mi = enc_setup_mi;
-  mi_params->set_mb_mi = (oxcf->pass == 1 || cpi->compressor_stage == LAP_STAGE)
-                             ? stat_stage_set_mb_mi
-                             : enc_set_mb_mi;
+  mi_params->set_mb_mi =
+      (oxcf->pass == AOM_RC_FIRST_PASS || cpi->compressor_stage == LAP_STAGE)
+          ? stat_stage_set_mb_mi
+          : enc_set_mb_mi;
 
   mi_params->mi_alloc_bsize = BLOCK_4X4;
 
@@ -3703,7 +3704,8 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
 #if !CONFIG_REALTIME_ONLY
     av1_first_pass(cpi, frame_input->ts_duration);
 #endif
-  } else if (cpi->oxcf.pass == 0 || cpi->oxcf.pass == 2) {
+  } else if (cpi->oxcf.pass == AOM_RC_ONE_PASS ||
+             cpi->oxcf.pass >= AOM_RC_SECOND_PASS) {
     if (encode_frame_to_data_rate(cpi, &frame_results->size, dest) !=
         AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;

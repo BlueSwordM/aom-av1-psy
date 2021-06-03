@@ -950,13 +950,16 @@ typedef struct AV1EncoderConfig {
   /*!\endcond */
   /*!
    * Indicates the current encoder pass :
-   * 0 = 1 Pass encode,
-   * 1 = First pass of two pass,
-   * 2 = Second pass of two pass.
-   *
+   * AOM_RC_ONE_PASS = One pass encode,
+   * AOM_RC_FIRST_PASS = First pass of multiple-pass
+   * AOM_RC_SECOND_PASS = Second pass of multiple-pass
+   * AOM_RC_THIRD_PASS = Third pass of multiple-pass
    */
   enum aom_enc_pass pass;
   /*!\cond */
+
+  // Total number of encoding passes.
+  int passes;
 
   // Indicates if the encoding is GOOD or REALTIME.
   MODE mode;
@@ -3372,19 +3375,20 @@ static INLINE int get_num_blocks(const int frame_length, const int mb_length) {
 // Check if statistics generation stage
 static INLINE int is_stat_generation_stage(const AV1_COMP *const cpi) {
   assert(IMPLIES(cpi->compressor_stage == LAP_STAGE,
-                 cpi->oxcf.pass == 0 && cpi->ppi->lap_enabled));
-  return (cpi->oxcf.pass == 1 || (cpi->compressor_stage == LAP_STAGE));
+                 cpi->oxcf.pass == AOM_RC_ONE_PASS && cpi->ppi->lap_enabled));
+  return (cpi->oxcf.pass == AOM_RC_FIRST_PASS ||
+          (cpi->compressor_stage == LAP_STAGE));
 }
 // Check if statistics consumption stage
 static INLINE int is_stat_consumption_stage_twopass(const AV1_COMP *const cpi) {
-  return (cpi->oxcf.pass == 2);
+  return (cpi->oxcf.pass >= AOM_RC_SECOND_PASS);
 }
 
 // Check if statistics consumption stage
 static INLINE int is_stat_consumption_stage(const AV1_COMP *const cpi) {
   return (is_stat_consumption_stage_twopass(cpi) ||
-          (cpi->oxcf.pass == 0 && (cpi->compressor_stage == ENCODE_STAGE) &&
-           cpi->ppi->lap_enabled));
+          (cpi->oxcf.pass == AOM_RC_ONE_PASS &&
+           (cpi->compressor_stage == ENCODE_STAGE) && cpi->ppi->lap_enabled));
 }
 
 /*!\endcond */
@@ -3399,7 +3403,7 @@ static INLINE int is_stat_consumption_stage(const AV1_COMP *const cpi) {
 static INLINE int has_no_stats_stage(const AV1_COMP *const cpi) {
   assert(
       IMPLIES(!cpi->ppi->lap_enabled, cpi->compressor_stage == ENCODE_STAGE));
-  return (cpi->oxcf.pass == 0 && !cpi->ppi->lap_enabled);
+  return (cpi->oxcf.pass == AOM_RC_ONE_PASS && !cpi->ppi->lap_enabled);
 }
 
 /*!\cond */

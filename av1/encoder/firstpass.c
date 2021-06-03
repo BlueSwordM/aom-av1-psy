@@ -974,8 +974,9 @@ static void update_firstpass_stats(AV1_COMP *cpi,
   /*In the case of two pass, first pass uses it as a circular buffer,
    * when LAP is enabled it is used as a linear buffer*/
   twopass->stats_buf_ctx->stats_in_end++;
-  if ((cpi->oxcf.pass == 1) && (twopass->stats_buf_ctx->stats_in_end >=
-                                twopass->stats_buf_ctx->stats_in_buf_end)) {
+  if ((cpi->oxcf.pass == AOM_RC_FIRST_PASS) &&
+      (twopass->stats_buf_ctx->stats_in_end >=
+       twopass->stats_buf_ctx->stats_in_buf_end)) {
     twopass->stats_buf_ctx->stats_in_end =
         twopass->stats_buf_ctx->stats_in_start;
   }

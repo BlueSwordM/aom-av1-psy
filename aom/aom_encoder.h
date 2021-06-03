@@ -155,11 +155,19 @@ typedef struct aom_rational {
   int den;        /**< fraction denominator */
 } aom_rational_t; /**< alias for struct aom_rational */
 
-/*!\brief Multi-pass Encoding Pass */
+/*!\brief Multi-pass Encoding Pass
+ *
+ * AOM_RC_LAST_PASS is kept for backward compatibility.
+ * If passes is not given and pass==2, the codec will assume passes=2.
+ * For new code, it is recommended to use AOM_RC_SECOND_PASS and set
+ * the "passes" member to 2 via the key & val API for two-pass encoding.
+ */
 enum aom_enc_pass {
-  AOM_RC_ONE_PASS,   /**< Single pass mode */
-  AOM_RC_FIRST_PASS, /**< First pass of multi-pass mode */
-  AOM_RC_LAST_PASS   /**< Final pass of multi-pass mode */
+  AOM_RC_ONE_PASS = 0,    /**< Single pass mode */
+  AOM_RC_FIRST_PASS = 1,  /**< First pass of multi-pass mode */
+  AOM_RC_SECOND_PASS = 2, /**< Second pass of multi-pass mode */
+  AOM_RC_THIRD_PASS = 3,  /**< Third pass of multi-pass mode */
+  AOM_RC_LAST_PASS = 2,   /**< Final pass of two-pass mode */
 };
 
 /*!\brief Rate control mode */

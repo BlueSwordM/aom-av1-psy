@@ -439,7 +439,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     cfl_store_block(xd, mbmi->bsize, mbmi->tx_size);
   }
   if (!dry_run) {
-    if (cpi->oxcf.pass == 0 && cpi->svc.temporal_layer_id == 0 &&
+    if (cpi->oxcf.pass == AOM_RC_ONE_PASS && cpi->svc.temporal_layer_id == 0 &&
         cpi->sf.rt_sf.use_temporal_noise_estimate &&
         (!cpi->ppi->use_svc ||
          (cpi->ppi->use_svc &&
