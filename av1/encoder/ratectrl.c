@@ -756,14 +756,19 @@ static int get_kf_active_quality(const PRIMARY_RATE_CONTROL *const p_rc, int q,
                             kf_low_motion_minq, kf_high_motion_minq);
 }
 
-static int get_gf_active_quality(const PRIMARY_RATE_CONTROL *const p_rc, int q,
-                                 aom_bit_depth_t bit_depth) {
+static int get_gf_active_quality_no_rc(int gfu_boost, int q,
+                                       aom_bit_depth_t bit_depth) {
   int *arfgf_low_motion_minq;
   int *arfgf_high_motion_minq;
   ASSIGN_MINQ_TABLE(bit_depth, arfgf_low_motion_minq);
   ASSIGN_MINQ_TABLE(bit_depth, arfgf_high_motion_minq);
-  return get_active_quality(q, p_rc->gfu_boost, gf_low, gf_high,
+  return get_active_quality(q, gfu_boost, gf_low, gf_high,
                             arfgf_low_motion_minq, arfgf_high_motion_minq);
+}
+
+static int get_gf_active_quality(const PRIMARY_RATE_CONTROL *const p_rc, int q,
+                                 aom_bit_depth_t bit_depth) {
+  return get_gf_active_quality_no_rc(p_rc->gfu_boost, q, bit_depth);
 }
 
 static int get_gf_high_motion_quality(int q, aom_bit_depth_t bit_depth) {
@@ -1627,6 +1632,39 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
     --this_height;
   }
   return active_best_quality;
+}
+
+// We assume at the start of the function that rc_mode = AOM_Q.
+int av1_q_mode_get_q_index(int base_q_index, const GF_GROUP *gf_group,
+                           const int gf_index, int arf_q) {
+  const int is_intrl_arf_boost =
+      gf_group->update_type[gf_index] == INTNL_ARF_UPDATE;
+  int is_leaf_or_overlay_frame =
+      gf_group->update_type[gf_index] == LF_UPDATE ||
+      gf_group->update_type[gf_index] == OVERLAY_UPDATE ||
+      gf_group->update_type[gf_index] == INTNL_OVERLAY_UPDATE;
+
+  if (is_leaf_or_overlay_frame) return base_q_index;
+
+  if (!is_intrl_arf_boost) return arf_q;
+
+  int active_best_quality = arf_q;
+  int active_worst_quality = base_q_index;
+  int this_height = gf_group_pyramid_level(gf_group, gf_index);
+  while (this_height > 1) {
+    active_best_quality = (active_best_quality + active_worst_quality + 1) / 2;
+    --this_height;
+  }
+  return active_best_quality;
+}
+
+int av1_get_arf_q_index(int base_q_index, int gfu_boost, int bit_depth,
+                        int arf_boost_factor) {
+  int active_best_quality =
+      get_gf_active_quality_no_rc(gfu_boost, base_q_index, bit_depth);
+  const int min_boost = get_gf_high_motion_quality(base_q_index, bit_depth);
+  const int boost = min_boost - active_best_quality;
+  return min_boost - (int)(boost * arf_boost_factor);
 }
 
 static int rc_pick_q_and_bounds_q_mode(const AV1_COMP *cpi, int width,
