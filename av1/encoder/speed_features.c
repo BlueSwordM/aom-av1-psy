@@ -1356,9 +1356,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->inter_sf.inter_mode_rd_model_estimation = 2;
 
     for (int i = 0; i < TX_SIZES; ++i) {
-      // TODO(yunqing): comment this out to keep rt performance unchanged. Will
-      // explore it further.
-      // sf->intra_sf.intra_y_mode_mask[i] = INTRA_DC;
+      sf->intra_sf.intra_y_mode_mask[i] = INTRA_DC;
       sf->intra_sf.intra_uv_mode_mask[i] = UV_INTRA_DC_CFL;
     }
 
@@ -1407,6 +1405,12 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
 
     sf->inter_sf.inter_mode_rd_model_estimation = 2;
+
+    // Disable intra_y_mode_mask pruning since the performance at speed 7 isn't
+    // good. May need more study.
+    for (int i = 0; i < TX_SIZES; ++i) {
+      sf->intra_sf.intra_y_mode_mask[i] = INTRA_ALL;
+    }
 
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_Q;
 
