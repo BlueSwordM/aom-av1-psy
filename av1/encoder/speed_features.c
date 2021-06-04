@@ -1107,7 +1107,7 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.gop_length_decision_method = 3;
     sf->tpl_sf.disable_filtered_key_tpl = 1;
 
-    sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 3;
+    sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 4;
     sf->tx_sf.use_intra_txb_hash = 1;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 0;
 
