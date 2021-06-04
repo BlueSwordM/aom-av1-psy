@@ -4257,10 +4257,10 @@ void av1_post_encode_updates(AV1_COMP *const cpi, size_t size,
 int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
                             size_t *size, size_t avail_size, uint8_t *dest,
                             int64_t *time_stamp, int64_t *time_end, int flush,
-                            const aom_rational64_t *timestamp_ratio) {
+                            const aom_rational64_t *timestamp_ratio,
+                            int *const pop_lookahead) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
-  int pop_lookahead = 0;
 
 #if CONFIG_INTERNAL_STATS
   cpi->frame_recode_hits = 0;
@@ -4314,7 +4314,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
 
   const int result =
       av1_encode_strategy(cpi, size, dest, frame_flags, time_stamp, time_end,
-                          timestamp_ratio, &pop_lookahead, flush);
+                          timestamp_ratio, pop_lookahead, flush);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   if (cpi->oxcf.pass == 2) end_timing(cpi, av1_encode_strategy_time);
@@ -4360,9 +4360,6 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   aom_usec_timer_mark(&cmptimer);
   cpi->time_compress_data += aom_usec_timer_elapsed(&cmptimer);
 #endif  // CONFIG_INTERNAL_STATS
-
-  av1_post_encode_updates(cpi, *size, *time_stamp, *time_end, pop_lookahead,
-                          flush);
 
 #if CONFIG_SPEED_STATS
   if (!is_stat_generation_stage(cpi) && !cm->show_existing_frame) {

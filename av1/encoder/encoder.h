@@ -3117,6 +3117,7 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
  * \param[out]   time_end    Time end
  * \param[in]    flush       Decide to encode one frame or the rest of frames
  * \param[in]    timebase    Time base used
+ * \param[in]    pop_lookahead  Decide to pop the source frame from queue
  *
  * \return Returns a value to indicate if the encoding is done successfully.
  * \retval #AOM_CODEC_OK
@@ -3127,7 +3128,8 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
 int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
                             size_t *size, size_t avail_size, uint8_t *dest,
                             int64_t *time_stamp, int64_t *time_end, int flush,
-                            const aom_rational64_t *timebase);
+                            const aom_rational64_t *timebase,
+                            int *const pop_lookahead);
 
 /*!\brief Run 1-pass/2-pass encoding
  *

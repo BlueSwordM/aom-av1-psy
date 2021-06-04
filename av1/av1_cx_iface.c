@@ -2662,6 +2662,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     int is_frame_visible = 0;
     int has_no_show_keyframe = 0;
     int num_workers = 0;
+    int pop_lookahead = 0;
 
     if (cpi->oxcf.pass == AOM_RC_FIRST_PASS) {
 #if !CONFIG_REALTIME_ONLY
@@ -2703,14 +2704,18 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       int64_t dst_end_time_stamp_la;
       const int status = av1_get_compressed_data(
           cpi_lap, &lib_flags, &frame_size, cx_data_sz, NULL,
-          &dst_time_stamp_la, &dst_end_time_stamp_la, !img, timestamp_ratio);
+          &dst_time_stamp_la, &dst_end_time_stamp_la, !img, timestamp_ratio,
+          &pop_lookahead);
       if (status != -1) {
         if (status != AOM_CODEC_OK) {
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
       }
+      av1_post_encode_updates(cpi_lap, frame_size, dst_time_stamp_la,
+                              dst_end_time_stamp_la, pop_lookahead, !img);
       lib_flags = 0;
       frame_size = 0;
+      pop_lookahead = 0;
     }
 
     // Get the next visible frame. Invisible frames get packed with the next
@@ -2729,11 +2734,13 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 #endif
       const int status = av1_get_compressed_data(
           cpi, &lib_flags, &frame_size, cx_data_sz, cx_data, &dst_time_stamp,
-          &dst_end_time_stamp, !img, timestamp_ratio);
+          &dst_end_time_stamp, !img, timestamp_ratio, &pop_lookahead);
       if (status == -1) break;
       if (status != AOM_CODEC_OK) {
         aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
       }
+      av1_post_encode_updates(cpi, frame_size, dst_time_stamp,
+                              dst_end_time_stamp, pop_lookahead, !img);
 
 #if CONFIG_ENTROPY_STATS
       if (ppi->cpi->oxcf.pass != 1 && !cpi->common.show_existing_frame)
