@@ -27,6 +27,7 @@
 #include "av1/common/entropymv.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/reconinter.h"  // av1_setup_dst_planes()
+#include "av1/common/reconintra.h"
 #include "av1/common/txb_common.h"
 #include "av1/encoder/aq_variance.h"
 #include "av1/encoder/av1_quantize.h"
@@ -370,6 +371,75 @@ static AOM_INLINE int calc_wavelet_energy(const AV1EncoderConfig *oxcf) {
           can_disable_altref(&oxcf->gf_cfg)) ||
          (oxcf->q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL);
 }
+typedef struct intra_pred_block_pass1_args {
+  const SequenceHeader *seq_params;
+  MACROBLOCK *x;
+} intra_pred_block_pass1_args;
+
+static INLINE void copy_rect(uint8_t *dst, int dstride, const uint8_t *src,
+                             int sstride, int width, int height, int use_hbd) {
+#if CONFIG_AV1_HIGHBITDEPTH
+  if (use_hbd) {
+    aom_highbd_convolve_copy(CONVERT_TO_SHORTPTR(src), sstride,
+                             CONVERT_TO_SHORTPTR(dst), dstride, width, height);
+  } else {
+    aom_convolve_copy(src, sstride, dst, dstride, width, height);
+  }
+#else
+  (void)use_hbd;
+  aom_convolve_copy(src, sstride, dst, dstride, width, height);
+#endif
+}
+
+static void first_pass_intra_pred_and_calc_diff(int plane, int block,
+                                                int blk_row, int blk_col,
+                                                BLOCK_SIZE plane_bsize,
+                                                TX_SIZE tx_size, void *arg) {
+  (void)block;
+  struct intra_pred_block_pass1_args *const args = arg;
+  MACROBLOCK *const x = args->x;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MACROBLOCKD_PLANE *const pd = &xd->plane[plane];
+  MACROBLOCK_PLANE *const p = &x->plane[plane];
+  const int dst_stride = pd->dst.stride;
+  uint8_t *dst = &pd->dst.buf[(blk_row * dst_stride + blk_col) << MI_SIZE_LOG2];
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  const SequenceHeader *seq_params = args->seq_params;
+  const int src_stride = p->src.stride;
+  uint8_t *src = &p->src.buf[(blk_row * src_stride + blk_col) << MI_SIZE_LOG2];
+
+  av1_predict_intra_block(
+      xd, seq_params->sb_size, seq_params->enable_intra_edge_filter, pd->width,
+      pd->height, tx_size, mbmi->mode, 0, 0, FILTER_INTRA_MODES, src,
+      src_stride, dst, dst_stride, blk_col, blk_row, plane);
+
+  av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size);
+}
+
+static void first_pass_predict_intra_block_for_luma_plane(
+    const SequenceHeader *seq_params, MACROBLOCK *x, BLOCK_SIZE bsize) {
+  assert(bsize < BLOCK_SIZES_ALL);
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  const int plane = AOM_PLANE_Y;
+  const MACROBLOCKD_PLANE *const pd = &xd->plane[plane];
+  const int ss_x = pd->subsampling_x;
+  const int ss_y = pd->subsampling_y;
+  const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ss_x, ss_y);
+  const int dst_stride = pd->dst.stride;
+  uint8_t *dst = pd->dst.buf;
+  const MACROBLOCK_PLANE *const p = &x->plane[plane];
+  const int src_stride = p->src.stride;
+  const uint8_t *src = p->src.buf;
+
+  intra_pred_block_pass1_args args = { seq_params, x };
+  av1_foreach_transformed_block_in_plane(
+      xd, plane_bsize, plane, first_pass_intra_pred_and_calc_diff, &args);
+
+  // copy source data to recon buffer, as the recon buffer will be used as a
+  // reference frame subsequently.
+  copy_rect(dst, dst_stride, src, src_stride, block_size_wide[bsize],
+            block_size_high[bsize], seq_params->use_highbitdepth);
+}
 
 #define UL_INTRA_THRESH 50
 #define INVALID_ROW -1
@@ -429,7 +499,10 @@ static int firstpass_intra_prediction(
   xd->mi[0]->mode = DC_PRED;
   xd->mi[0]->tx_size = TX_4X4;
 
-  av1_encode_intra_block_plane(cpi, x, bsize, 0, DRY_RUN_NORMAL, 0);
+  if (cpi->sf.fp_sf.disable_recon)
+    first_pass_predict_intra_block_for_luma_plane(seq_params, x, bsize);
+  else
+    av1_encode_intra_block_plane(cpi, x, bsize, 0, DRY_RUN_NORMAL, 0);
   int this_intra_error = aom_get_mb_ss(x->plane[0].src_diff);
   if (seq_params->use_highbitdepth) {
     switch (seq_params->bit_depth) {
@@ -772,10 +845,13 @@ static int firstpass_inter_prediction(
     xd->mi[0]->tx_size = TX_4X4;
     xd->mi[0]->ref_frame[0] = LAST_FRAME;
     xd->mi[0]->ref_frame[1] = NONE_FRAME;
-    av1_enc_build_inter_predictor(cm, xd, unit_row * unit_scale,
-                                  unit_col * unit_scale, NULL, bsize,
-                                  AOM_PLANE_Y, AOM_PLANE_Y);
-    av1_encode_sby_pass1(cpi, x, bsize);
+
+    if (cpi->sf.fp_sf.disable_recon == 0) {
+      av1_enc_build_inter_predictor(cm, xd, unit_row * unit_scale,
+                                    unit_col * unit_scale, NULL, bsize,
+                                    AOM_PLANE_Y, AOM_PLANE_Y);
+      av1_encode_sby_pass1(cpi, x, bsize);
+    }
     stats->sum_mvr += best_mv->row;
     stats->sum_mvr_abs += abs(best_mv->row);
     stats->sum_mvc += best_mv->col;

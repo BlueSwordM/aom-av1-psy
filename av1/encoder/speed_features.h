@@ -371,6 +371,11 @@ typedef struct FIRST_PASS_SPEED_FEATURES {
    * \brief Skips the motion search when the zero mv has small sse.
    */
   int skip_motion_search_threshold;
+
+  /*!
+   * \brief Skips reconstruction by using source buffers for prediction
+   */
+  int disable_recon;
 } FIRST_PASS_SPEED_FEATURES;
 
 /*!\cond */

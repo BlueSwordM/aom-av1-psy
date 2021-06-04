@@ -1066,6 +1066,8 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.gop_length_decision_method = 2;
 
     sf->winner_mode_sf.dc_blk_pred_level = 1;
+
+    sf->fp_sf.disable_recon = 1;
   }
 
   if (speed >= 6) {
@@ -1507,6 +1509,7 @@ static AOM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
 static AOM_INLINE void init_fp_sf(FIRST_PASS_SPEED_FEATURES *fp_sf) {
   fp_sf->reduce_mv_step_param = 3;
   fp_sf->skip_motion_search_threshold = 0;
+  fp_sf->disable_recon = 0;
 }
 
 static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
