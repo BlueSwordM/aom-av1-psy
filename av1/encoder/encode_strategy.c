@@ -212,18 +212,13 @@ static void set_ext_overrides(AV1_COMMON *const cm,
   frame_params->error_resilient_mode |= frame_params->frame_type == S_FRAME;
 }
 
-static int get_current_frame_ref_type(
-    const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params) {
+static int get_current_frame_ref_type(const AV1_COMP *const cpi) {
   // We choose the reference "type" of this frame from the flags which indicate
   // which reference frames will be refreshed by it.  More than one  of these
   // flags may be set, so the order here implies an order of precedence. This is
   // just used to choose the primary_ref_frame (as the most recent reference
   // buffer of the same reference-type as the current frame)
 
-  (void)frame_params;
-  // TODO(jingning): This table should be a lot simpler with the new
-  // ARF system in place. Keep frame_params for the time being as we are
-  // still evaluating a few design options.
   switch (cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index]) {
     case 0: return 0;
     case 1: return 1;
@@ -254,7 +249,7 @@ static int choose_primary_ref_frame(
 
   // Find the most recent reference frame with the same reference type as the
   // current frame
-  const int current_ref_type = get_current_frame_ref_type(cpi, frame_params);
+  const int current_ref_type = get_current_frame_ref_type(cpi);
   int wanted_fb = cpi->ppi->fb_of_context_type[current_ref_type];
 
   int primary_ref_frame = PRIMARY_REF_NONE;
@@ -267,12 +262,10 @@ static int choose_primary_ref_frame(
   return primary_ref_frame;
 }
 
-static void update_fb_of_context_type(
-    const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,
-    int *const fb_of_context_type) {
+static void update_fb_of_context_type(const AV1_COMP *const cpi,
+                                      int *const fb_of_context_type) {
   const AV1_COMMON *const cm = &cpi->common;
-  const int current_frame_ref_type =
-      get_current_frame_ref_type(cpi, frame_params);
+  const int current_frame_ref_type = get_current_frame_ref_type(cpi);
 
   if (frame_is_intra_only(cm) || cm->features.error_resilient_mode ||
       cpi->ext_flags.use_primary_ref_none) {
@@ -1855,7 +1848,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 
   if (!is_stat_generation_stage(cpi)) {
-    update_fb_of_context_type(cpi, &frame_params, cpi->ppi->fb_of_context_type);
+    update_fb_of_context_type(cpi, cpi->ppi->fb_of_context_type);
     set_additional_frame_flags(cm, frame_flags);
     update_rc_counts(cpi);
   }
