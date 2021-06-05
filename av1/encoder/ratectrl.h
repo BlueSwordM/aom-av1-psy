@@ -356,6 +356,32 @@ typedef struct {
    * Q used for last boosted (non leaf) frame
    */
   int last_kf_qindex;
+
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * active_best_quality.
+   */
+  int temp_active_best_quality[MAX_ARF_LAYERS + 1];
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * last_boosted_qindex.
+   */
+  int temp_last_boosted_qindex;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * avg_q.
+   */
+  double temp_avg_q;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * last_q.
+   */
+  int temp_last_q[FRAME_TYPES];
+#endif
 } PRIMARY_RATE_CONTROL;
 
 struct AV1_COMP;

@@ -4132,4 +4132,24 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
       }
     }
   }
+
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  /* TODO(FPMT): The current  update is happening in cpi->rc members,
+   * this need to be taken care appropriately in final FPMT implementation
+   * to carry these values to subsequent frames.
+   *
+   * The variable temp_active_best_quality is introduced only for quality
+   * simulation purpose, it retains the value previous to the parallel
+   * encode frames. The variable is updated based on the update flag.
+   */
+  if (cpi->do_frame_data_update) {
+    int i;
+    const int pyramid_level =
+        cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index];
+    if (!rc->is_src_frame_alt_ref) {
+      for (i = pyramid_level; i <= MAX_ARF_LAYERS; ++i)
+        cpi->ppi->p_rc.temp_active_best_quality[i] = rc->active_best_quality[i];
+    }
+  }
+#endif
 }

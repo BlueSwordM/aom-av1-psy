@@ -782,19 +782,34 @@ static int calc_active_worst_quality_no_stats_vbr(const AV1_COMP *cpi) {
   const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
   const unsigned int curr_frame = cpi->common.current_frame.frame_number;
   int active_worst_quality;
+  int last_q_key_frame;
+  int last_q_inter_frame;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  last_q_key_frame =
+      (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+          ? cpi->ppi->p_rc.temp_last_q[KEY_FRAME]
+          : cpi->rc.last_q[KEY_FRAME];
+  last_q_inter_frame =
+      (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+          ? cpi->ppi->p_rc.temp_last_q[INTER_FRAME]
+          : cpi->rc.last_q[INTER_FRAME];
+#else
+  last_q_key_frame = rc->last_q[KEY_FRAME];
+  last_q_inter_frame = rc->last_q[INTER_FRAME];
+#endif
 
   if (cpi->common.current_frame.frame_type == KEY_FRAME) {
     active_worst_quality =
-        curr_frame == 0 ? rc->worst_quality : rc->last_q[KEY_FRAME] * 2;
+        curr_frame == 0 ? rc->worst_quality : last_q_key_frame * 2;
   } else {
     if (!rc->is_src_frame_alt_ref && (refresh_frame_flags->golden_frame ||
                                       refresh_frame_flags->bwd_ref_frame ||
                                       refresh_frame_flags->alt_ref_frame)) {
-      active_worst_quality = curr_frame == 1 ? rc->last_q[KEY_FRAME] * 5 / 4
-                                             : rc->last_q[INTER_FRAME];
+      active_worst_quality =
+          curr_frame == 1 ? last_q_key_frame * 5 / 4 : last_q_inter_frame;
     } else {
-      active_worst_quality = curr_frame == 1 ? rc->last_q[KEY_FRAME] * 2
-                                             : rc->last_q[INTER_FRAME] * 2;
+      active_worst_quality =
+          curr_frame == 1 ? last_q_key_frame * 2 : last_q_inter_frame * 2;
     }
   }
   return AOMMIN(active_worst_quality, rc->worst_quality);
@@ -1153,7 +1168,15 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
           av1_compute_qdelta(rc, q_val, q_val * 0.25, bit_depth);
       active_best_quality = AOMMAX(qindex + delta_qindex, rc->best_quality);
     } else if (p_rc->this_key_frame_forced) {
-      const int qindex = rc->last_boosted_qindex;
+      int qindex;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+      qindex =
+          (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+              ? p_rc->temp_last_boosted_qindex
+              : rc->last_boosted_qindex;
+#else
+      qindex = rc->last_boosted_qindex;
+#endif
       const double last_boosted_q = av1_convert_qindex_to_q(qindex, bit_depth);
       const int delta_qindex = av1_compute_qdelta(
           rc, last_boosted_q, last_boosted_q * 0.75, bit_depth);
@@ -1277,7 +1300,13 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
     // Special case code to try and match quality with forced key frames
   } else if ((current_frame->frame_type == KEY_FRAME) &&
              p_rc->this_key_frame_forced) {
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    q = (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+            ? p_rc->temp_last_boosted_qindex
+            : rc->last_boosted_qindex;
+#else
     q = rc->last_boosted_qindex;
+#endif
   } else {
     q = av1_rc_regulate_q(cpi, rc->this_frame_target, active_best_quality,
                           active_worst_quality, width, height);
@@ -1362,7 +1391,14 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
     // Handle the special case for forward reference key frames.
     // Increase the boost because this keyframe is used as a forward and
     // backward reference.
-    const int qindex = rc->last_boosted_qindex;
+    int qindex;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    qindex = (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+                 ? p_rc->temp_last_boosted_qindex
+                 : rc->last_boosted_qindex;
+#else
+    qindex = rc->last_boosted_qindex;
+#endif
     const double last_boosted_q = av1_convert_qindex_to_q(qindex, bit_depth);
     const int delta_qindex = av1_compute_qdelta(
         rc, last_boosted_q, last_boosted_q * 0.25, bit_depth);
@@ -1374,10 +1410,18 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
     double last_boosted_q;
     int delta_qindex;
     int qindex;
-
+    int last_boosted_qindex;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    last_boosted_qindex =
+        (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+            ? p_rc->temp_last_boosted_qindex
+            : rc->last_boosted_qindex;
+#else
+    last_boosted_qindex = rc->last_boosted_qindex;
+#endif
     if (is_stat_consumption_stage_twopass(cpi) &&
         cpi->ppi->twopass.last_kfgroup_zeromotion_pct >= STATIC_MOTION_THRESH) {
-      qindex = AOMMIN(p_rc->last_kf_qindex, rc->last_boosted_qindex);
+      qindex = AOMMIN(p_rc->last_kf_qindex, last_boosted_qindex);
       active_best_quality = qindex;
       last_boosted_q = av1_convert_qindex_to_q(qindex, bit_depth);
       delta_qindex = av1_compute_qdelta(rc, last_boosted_q,
@@ -1385,7 +1429,7 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
       active_worst_quality =
           AOMMIN(qindex + delta_qindex, active_worst_quality);
     } else {
-      qindex = rc->last_boosted_qindex;
+      qindex = last_boosted_qindex;
       last_boosted_q = av1_convert_qindex_to_q(qindex, bit_depth);
       delta_qindex = av1_compute_qdelta(rc, last_boosted_q,
                                         last_boosted_q * 0.50, bit_depth);
@@ -1521,6 +1565,15 @@ static int get_q(const AV1_COMP *cpi, const int width, const int height,
   const RATE_CONTROL *const rc = &cpi->rc;
   const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   int q;
+  int last_boosted_qindex;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  last_boosted_qindex =
+      (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+          ? p_rc->temp_last_boosted_qindex
+          : rc->last_boosted_qindex;
+#else
+  last_boosted_qindex = rc->last_boosted_qindex;
+#endif
 
   if (cpi->oxcf.rc_cfg.mode == AOM_Q ||
       (frame_is_intra_only(cm) && !p_rc->this_key_frame_forced &&
@@ -1531,9 +1584,9 @@ static int get_q(const AV1_COMP *cpi, const int width, const int height,
   } else if (frame_is_intra_only(cm) && p_rc->this_key_frame_forced) {
     // If static since last kf use better of last boosted and last kf q.
     if (cpi->ppi->twopass.last_kfgroup_zeromotion_pct >= STATIC_MOTION_THRESH) {
-      q = AOMMIN(p_rc->last_kf_qindex, rc->last_boosted_qindex);
+      q = AOMMIN(p_rc->last_kf_qindex, last_boosted_qindex);
     } else {
-      q = AOMMIN(rc->last_boosted_qindex,
+      q = AOMMIN(last_boosted_qindex,
                  (active_best_quality + active_worst_quality) / 2);
     }
     q = clamp(q, active_best_quality, active_worst_quality);
@@ -1821,7 +1874,16 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
       active_best_quality = get_active_best_quality(cpi, active_worst_quality,
                                                     cq_level, gf_index);
     } else {
-      active_best_quality = rc->active_best_quality[pyramid_level - 1] + 1;
+      int local_active_best_quality;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+      local_active_best_quality =
+          (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+              ? cpi->ppi->p_rc.temp_active_best_quality[pyramid_level - 1]
+              : cpi->rc.active_best_quality[pyramid_level - 1];
+#else
+      local_active_best_quality = rc->active_best_quality[pyramid_level - 1];
+#endif
+      active_best_quality = local_active_best_quality + 1;
       active_best_quality = AOMMIN(active_best_quality, active_worst_quality);
 #ifdef STRICT_RC
       active_best_quality += (active_worst_quality - active_best_quality) / 16;
@@ -1989,23 +2051,6 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
       rc->ni_av_qi = rc->ni_tot_qi / rc->ni_frames;
     }
   }
-#if CONFIG_FRAME_PARALLEL_ENCODE
-  /* TODO(FPMT): The current update is happening in cpi->rc.avg_frame_qindex,
-   * this need to be taken care appropriately in final FPMT implementation
-   * to carry these values to subsequent frames. The avg_frame_qindex update
-   * is accumulated across frames, so the values from all individual parallel
-   * frames need to be taken into account after all the parallel frames are
-   * encoded.
-   *
-   * The variable temp_avg_frame_qindex introduced only for quality simulation
-   * purpose, it retains the value previous to the parallel encode frames. The
-   * variable is updated based on the update flag.
-   */
-  if (cpi->do_frame_data_update && !rc->is_src_frame_alt_ref) {
-    for (int index = 0; index < FRAME_TYPES; index++)
-      cpi->ppi->temp_avg_frame_qindex[index] = rc->avg_frame_qindex[index];
-  }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   // Keep record of last boosted (KF/GF/ARF) Q value.
   // If the current frame is coded at a lower Q then we also update it.
   // If all mbs in this group are skipped only update if the Q value is
@@ -2049,6 +2094,32 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
   else
     // Update the Golden frame stats as appropriate.
     update_golden_frame_stats(cpi);
+
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  /* TODO(FPMT): The current update is happening to cpi->rc members,
+   * this need to be taken care appropriately in final FPMT implementation
+   * to carry these values to subsequent frames. The avg_frame_qindex,
+   * last_q, avg_q and last_boosted_qindex update are accumulated across
+   * frames, so the values from all individual parallel frames need to be
+   * taken into account after all the parallel frames are encoded.
+   *
+   * The variables temp_avg_frame_qindex, temp_last_q, temp_avg_q,
+   * temp_last_boosted_qindex are introduced only for quality simulation
+   * purpose, it retains the value previous to the parallel encode frames. The
+   * variables are updated based on the update flag.
+   */
+  if (cpi->do_frame_data_update) {
+    if (!rc->is_src_frame_alt_ref) {
+      for (int index = 0; index < FRAME_TYPES; index++)
+        cpi->ppi->temp_avg_frame_qindex[index] = rc->avg_frame_qindex[index];
+    }
+    for (int i = 0; i < FRAME_TYPES; i++) {
+      p_rc->temp_last_q[i] = rc->last_q[i];
+    }
+    p_rc->temp_avg_q = rc->avg_q;
+    p_rc->temp_last_boosted_qindex = rc->last_boosted_qindex;
+  }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
   if (current_frame->frame_type == KEY_FRAME) rc->frames_since_key = 0;
   // if (current_frame->frame_number == 1 && cm->show_frame)

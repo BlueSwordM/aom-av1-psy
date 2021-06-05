@@ -311,7 +311,16 @@ static void configure_static_seg_features(AV1_COMP *cpi) {
   const RATE_CONTROL *const rc = &cpi->rc;
   struct segmentation *const seg = &cm->seg;
 
-  int high_q = (int)(rc->avg_q > 48.0);
+  double avg_q;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  avg_q = (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+              ? cpi->ppi->p_rc.temp_avg_q
+              : cpi->rc.avg_q;
+#else
+  avg_q = rc->avg_q;
+#endif
+
+  int high_q = (int)(avg_q > 48.0);
   int qi_delta;
 
   // Disable and clear down for KF
@@ -343,7 +352,7 @@ static void configure_static_seg_features(AV1_COMP *cpi) {
       seg->update_map = 1;
       seg->update_data = 1;
 
-      qi_delta = av1_compute_qdelta(rc, rc->avg_q, rc->avg_q * 0.875,
+      qi_delta = av1_compute_qdelta(rc, avg_q, avg_q * 0.875,
                                     cm->seq_params->bit_depth);
       av1_set_segdata(seg, 1, SEG_LVL_ALT_Q, qi_delta - 2);
       av1_set_segdata(seg, 1, SEG_LVL_ALT_LF_Y_H, -2);
