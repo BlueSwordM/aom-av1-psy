@@ -727,8 +727,7 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
   int rate2 = 0;
-  int64_t distortion2 = 0, best_rd_palette = best_rd, this_rd,
-          best_model_rd_palette = INT64_MAX;
+  int64_t distortion2 = 0, best_rd_palette = best_rd, this_rd;
   int skippable = 0;
   uint8_t *const best_palette_color_map =
       x->palette_buffer->best_palette_color_map;
@@ -750,11 +749,11 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
 
   RD_STATS rd_stats_y;
   av1_invalid_rd_stats(&rd_stats_y);
-  av1_rd_pick_palette_intra_sby(
-      cpi, x, bsize, intra_mode_cost[DC_PRED], &best_mbmi_palette,
-      best_palette_color_map, &best_rd_palette, &best_model_rd_palette,
-      &rd_stats_y.rate, NULL, &rd_stats_y.dist, &rd_stats_y.skip_txfm, NULL,
-      ctx, best_blk_skip, best_tx_type_map);
+  av1_rd_pick_palette_intra_sby(cpi, x, bsize, intra_mode_cost[DC_PRED],
+                                &best_mbmi_palette, best_palette_color_map,
+                                &best_rd_palette, &rd_stats_y.rate, NULL,
+                                &rd_stats_y.dist, &rd_stats_y.skip_txfm, NULL,
+                                ctx, best_blk_skip, best_tx_type_map);
   if (rd_stats_y.rate == INT_MAX || pmi->palette_size[0] == 0) {
     this_rd_cost->rdcost = INT64_MAX;
     return skippable;
@@ -1241,8 +1240,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   if (try_palette) {
     av1_rd_pick_palette_intra_sby(
         cpi, x, bsize, bmode_costs[DC_PRED], &best_mbmi, best_palette_color_map,
-        &best_rd, &best_model_rd, rate, rate_tokenonly, distortion, skippable,
-        &beat_best_rd, ctx, ctx->blk_skip, ctx->tx_type_map);
+        &best_rd, rate, rate_tokenonly, distortion, skippable, &beat_best_rd,
+        ctx, ctx->blk_skip, ctx->tx_type_map);
   }
 
   // Searches filter_intra
