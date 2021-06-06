@@ -62,6 +62,7 @@
 #include "av1/encoder/ethread.h"
 #include "av1/encoder/firstpass.h"
 #include "av1/encoder/hash_motion.h"
+#include "av1/encoder/hybrid_fwd_txfm.h"
 #include "av1/encoder/intra_mode_search.h"
 #include "av1/encoder/mv_prec.h"
 #include "av1/encoder/pass2_strategy.h"
@@ -1363,6 +1364,8 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
   CHECK_MEM_ERROR(cm, cpi->consec_zero_mv,
                   aom_calloc((mi_params->mi_rows * mi_params->mi_cols) >> 2,
                              sizeof(*cpi->consec_zero_mv)));
+
+  cpi->mb_wiener_variance = NULL;
 
   {
     const int bsize = BLOCK_16X16;
@@ -3107,6 +3110,108 @@ static void calculate_frame_avg_haar_energy(AV1_COMP *cpi) {
 }
 #endif
 
+// Process the wiener variance in 16x16 block basis.
+static int qsort_comp(const void *elem1, const void *elem2) {
+  int a = *((const int *)elem1);
+  int b = *((const int *)elem2);
+  if (a > b) return 1;
+  if (a < b) return -1;
+  return 0;
+}
+
+static void init_mb_wiener_var_buffer(AV1_COMP *cpi) {
+  AV1_COMMON *cm = &cpi->common;
+
+  if (cpi->mb_wiener_variance) return;
+
+  aom_free(cpi->mb_wiener_variance);
+  cpi->mb_wiener_variance = NULL;
+
+  CHECK_MEM_ERROR(cm, cpi->mb_wiener_variance,
+                  aom_calloc(cpi->frame_info.mb_rows * cpi->frame_info.mb_cols,
+                             sizeof(*cpi->mb_wiener_variance)));
+}
+
+static void set_mb_wiener_variance(AV1_COMP *cpi) {
+  uint8_t *buffer = cpi->source->y_buffer;
+  int buf_stride = cpi->source->y_stride;
+  ThreadData *td = &cpi->td;
+  MACROBLOCK *x = &td->mb;
+  MACROBLOCKD *xd = &x->e_mbd;
+
+#if CONFIG_AV1_HIGHBITDEPTH
+  DECLARE_ALIGNED(32, uint16_t, zero_pred16[32 * 32]);
+  DECLARE_ALIGNED(32, uint8_t, zero_pred8[32 * 32]);
+  uint8_t *zero_pred;
+#else
+  DECLARE_ALIGNED(32, uint8_t, zero_pred[32 * 32]);
+#endif
+
+  DECLARE_ALIGNED(32, int16_t, src_diff[32 * 32]);
+  DECLARE_ALIGNED(32, tran_low_t, coeff[32 * 32]);
+
+  int mb_row, mb_col, count = 0;
+  const TX_SIZE tx_size = TX_16X16;
+  const int block_size = tx_size_wide[tx_size];
+  const int coeff_count = block_size * block_size;
+
+#if CONFIG_AV1_HIGHBITDEPTH
+  xd->cur_buf = cpi->source;
+  if (xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) {
+    zero_pred = CONVERT_TO_BYTEPTR(zero_pred16);
+    memset(zero_pred16, 0, sizeof(*zero_pred16) * coeff_count);
+  } else {
+    zero_pred = zero_pred8;
+    memset(zero_pred8, 0, sizeof(*zero_pred8) * coeff_count);
+  }
+#else
+  memset(zero_pred, 0, sizeof(*zero_pred) * coeff_count);
+#endif
+
+  cpi->norm_wiener_variance = 0;
+
+  for (mb_row = 0; mb_row < cpi->frame_info.mb_rows; ++mb_row) {
+    for (mb_col = 0; mb_col < cpi->frame_info.mb_cols; ++mb_col) {
+      int idx;
+      int16_t median_val = 0;
+      uint8_t *mb_buffer =
+          buffer + mb_row * block_size * buf_stride + mb_col * block_size;
+      int64_t wiener_variance = 0;
+      const BitDepthInfo bd_info = get_bit_depth_info(xd);
+      av1_subtract_block(bd_info, block_size, block_size, src_diff, block_size,
+                         mb_buffer, buf_stride, zero_pred, block_size);
+      av1_quick_txfm(/*use_hadamard=*/0, tx_size, bd_info, src_diff, block_size,
+                     coeff);
+      coeff[0] = 0;
+      for (idx = 1; idx < coeff_count; ++idx) coeff[idx] = abs(coeff[idx]);
+
+      qsort(coeff, coeff_count - 1, sizeof(*coeff), qsort_comp);
+
+      // Noise level estimation
+      median_val = coeff[coeff_count / 2];
+
+      // Wiener filter
+      for (idx = 1; idx < coeff_count; ++idx) {
+        int64_t sqr_coeff = (int64_t)coeff[idx] * coeff[idx];
+        int64_t tmp_coeff = (int64_t)coeff[idx];
+        if (median_val) {
+          tmp_coeff = (sqr_coeff * coeff[idx]) /
+                      (sqr_coeff + (int64_t)median_val * median_val);
+        }
+        wiener_variance += tmp_coeff * tmp_coeff;
+      }
+      cpi->mb_wiener_variance[mb_row * cpi->frame_info.mb_cols + mb_col] =
+          wiener_variance / coeff_count;
+      cpi->norm_wiener_variance +=
+          cpi->mb_wiener_variance[mb_row * cpi->frame_info.mb_cols + mb_col];
+      ++count;
+    }
+  }
+
+  if (count) cpi->norm_wiener_variance /= count;
+  cpi->norm_wiener_variance = AOMMAX(1, cpi->norm_wiener_variance);
+}
+
 extern void av1_print_frame_contexts(const FRAME_CONTEXT *fc,
                                      const char *filename);
 
@@ -3287,6 +3392,9 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #endif
 
   aom_clear_system_state();
+
+  init_mb_wiener_var_buffer(cpi);
+  set_mb_wiener_variance(cpi);
 
 #if CONFIG_INTERNAL_STATS
   memset(cpi->mode_chosen_counts, 0,
