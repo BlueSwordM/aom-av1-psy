@@ -621,6 +621,12 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     if (is_480p_or_larger) {
+      sf->inter_sf.disable_interintra_wedge_var_thresh = 100;
+    } else {
+      sf->inter_sf.disable_interintra_wedge_var_thresh = UINT_MAX;
+    }
+
+    if (is_480p_or_larger) {
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
       if (use_hbd) sf->tx_sf.prune_tx_size_level = 2;
     } else {
@@ -648,6 +654,8 @@ static void set_good_speed_feature_framesize_dependent(
     if (use_hbd) sf->tx_sf.prune_tx_size_level = 3;
 
     if (is_480p_or_larger) sf->intra_sf.top_intra_model_count_allowed = 2;
+
+    sf->inter_sf.disable_interintra_wedge_var_thresh = UINT_MAX;
   }
 
   if (speed >= 4) {
@@ -853,7 +861,6 @@ static void set_good_speed_features_framesize_independent(
     // bit more closely to figure out why.
     sf->inter_sf.adaptive_rd_thresh = 1;
     sf->inter_sf.comp_inter_joint_search_thresh = BLOCK_SIZES_ALL;
-    sf->inter_sf.disable_interintra_wedge_var_thresh = 100;
     sf->inter_sf.disable_interinter_wedge_var_thresh = 100;
     sf->inter_sf.fast_interintra_wedge_search = 1;
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 4 : 1;
@@ -1778,6 +1785,8 @@ void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
   if (!cpi->ppi->seq_params_locked) {
     cpi->common.seq_params->enable_masked_compound &=
         !sf->inter_sf.disable_masked_comp;
+    cpi->common.seq_params->enable_interintra_compound &=
+        (sf->inter_sf.disable_interintra_wedge_var_thresh != UINT_MAX);
   }
 
   // This is only used in motion vector unit test.
