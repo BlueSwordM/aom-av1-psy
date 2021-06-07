@@ -3212,6 +3212,49 @@ static void set_mb_wiener_variance(AV1_COMP *cpi) {
   cpi->norm_wiener_variance = AOMMAX(1, cpi->norm_wiener_variance);
 }
 
+int av1_get_sbq_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
+                              int mi_col) {
+  AV1_COMMON *const cm = &cpi->common;
+  const int mi_wide = mi_size_wide[bsize];
+  const int mi_high = mi_size_high[bsize];
+  const int base_qindex = cm->quant_params.base_qindex;
+
+  const int mi_step = mi_size_wide[BLOCK_16X16];
+  int64_t sb_wiener_var;
+  int mb_stride = cpi->frame_info.mb_cols;
+  int mb_count = 0;
+  int mb_wiener_var[64];
+
+  for (int row = mi_row; row < mi_row + mi_high; row += mi_step) {
+    for (int col = mi_col; col < mi_col + mi_wide; col += mi_step) {
+      if (row >= cm->mi_params.mi_rows || col >= cm->mi_params.mi_cols)
+        continue;
+
+      mb_wiener_var[mb_count] =
+          (int)cpi->mb_wiener_variance[(row / mi_step) * mb_stride +
+                                       (col / mi_step)];
+      ++mb_count;
+    }
+  }
+  qsort(mb_wiener_var, mb_count - 1, sizeof(*mb_wiener_var), qsort_comp);
+
+  sb_wiener_var = mb_wiener_var[mb_count / 2];
+  sb_wiener_var = AOMMAX(1, sb_wiener_var);
+
+  int offset = 0;
+  double beta = (double)cpi->norm_wiener_variance / sb_wiener_var;
+  offset = av1_get_deltaq_offset(cm->seq_params->bit_depth, base_qindex, beta);
+  const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
+  offset = AOMMIN(offset, delta_q_info->delta_q_res * 9 - 1);
+  offset = AOMMAX(offset, -delta_q_info->delta_q_res * 9 + 1);
+  int qindex = cm->quant_params.base_qindex + offset;
+  qindex = AOMMIN(qindex, MAXQ);
+  qindex = AOMMAX(qindex, MINQ);
+  if (base_qindex > MINQ) qindex = AOMMAX(qindex, MINQ + 1);
+
+  return qindex;
+}
+
 extern void av1_print_frame_contexts(const FRAME_CONTEXT *fc,
                                      const char *filename);
 
