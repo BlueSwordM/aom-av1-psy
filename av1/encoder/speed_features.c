@@ -417,9 +417,6 @@ static void set_allintra_speed_features_framesize_independent(
     sf->intra_sf.intra_uv_mode_mask[TX_16X16] = UV_INTRA_DC_H_V_CFL;
     sf->intra_sf.intra_uv_mode_mask[TX_32X32] = UV_INTRA_DC_H_V_CFL;
     sf->intra_sf.intra_uv_mode_mask[TX_64X64] = UV_INTRA_DC_H_V_CFL;
-    sf->intra_sf.intra_y_mode_mask[TX_16X16] = INTRA_DC_H_V;
-    sf->intra_sf.intra_y_mode_mask[TX_32X32] = INTRA_DC_H_V;
-    sf->intra_sf.intra_y_mode_mask[TX_64X64] = INTRA_DC_H_V;
     sf->intra_sf.prune_chroma_modes_using_luma_winner = 1;
 
     sf->mv_sf.simple_motion_subpel_force_stop = HALF_PEL;
