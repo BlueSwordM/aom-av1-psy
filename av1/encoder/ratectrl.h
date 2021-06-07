@@ -263,6 +263,7 @@ typedef struct {
   int resize_count;
 #if CONFIG_FRAME_PARALLEL_ENCODE
   int frame_level_fast_extra_bits;
+  double frame_level_rate_correction_factors[RATE_FACTOR_LEVELS];
 #endif
   /*!\endcond */
 } RATE_CONTROL;
@@ -512,8 +513,11 @@ void av1_rc_postencode_update_drop_frame(struct AV1_COMP *cpi);
  *
  * \return None but updates the relevant rate correction factor in cpi->rc
  */
-void av1_rc_update_rate_correction_factors(struct AV1_COMP *cpi, int width,
-                                           int height);
+void av1_rc_update_rate_correction_factors(struct AV1_COMP *cpi,
+#if CONFIG_FRAME_PARALLEL_ENCODE
+                                           int is_encode_stage,
+#endif
+                                           int width, int height);
 /*!\cond */
 
 // Decide if we should drop this frame: For 1-pass CBR.

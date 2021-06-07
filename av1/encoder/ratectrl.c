@@ -527,15 +527,15 @@ static double get_rate_correction_factor(const AV1_COMP *cpi, int width,
 #if CONFIG_FRAME_PARALLEL_ENCODE
   rate_correction_factors_kfstd =
       (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
-          ? cpi->ppi->p_rc.temp_rate_correction_factors[KF_STD]
+          ? rc->frame_level_rate_correction_factors[KF_STD]
           : rc->rate_correction_factors[KF_STD];
   rate_correction_factors_gfarfstd =
       (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
-          ? cpi->ppi->p_rc.temp_rate_correction_factors[GF_ARF_STD]
+          ? rc->frame_level_rate_correction_factors[GF_ARF_STD]
           : rc->rate_correction_factors[GF_ARF_STD];
   rate_correction_factors_internormal =
       (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
-          ? cpi->ppi->p_rc.temp_rate_correction_factors[INTER_NORMAL]
+          ? rc->frame_level_rate_correction_factors[INTER_NORMAL]
           : rc->rate_correction_factors[INTER_NORMAL];
 #else
   rate_correction_factors_kfstd = rc->rate_correction_factors[KF_STD];
@@ -553,7 +553,7 @@ static double get_rate_correction_factor(const AV1_COMP *cpi, int width,
 #if CONFIG_FRAME_PARALLEL_ENCODE
     rate_correction_factors_rflvl =
         (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
-            ? cpi->ppi->p_rc.temp_rate_correction_factors[rf_lvl]
+            ? rc->frame_level_rate_correction_factors[rf_lvl]
             : rc->rate_correction_factors[rf_lvl];
 #else
     rate_correction_factors_rflvl = rc->rate_correction_factors[rf_lvl];
@@ -588,11 +588,14 @@ static double get_rate_correction_factor(const AV1_COMP *cpi, int width,
  * \return None but updates the rate correction factor for the
  *         current frame type in cpi->rc.
  */
-static void set_rate_correction_factor(AV1_COMP *cpi, double factor, int width,
-                                       int height) {
+static void set_rate_correction_factor(AV1_COMP *cpi,
+#if CONFIG_FRAME_PARALLEL_ENCODE
+                                       int is_encode_stage,
+#endif
+                                       double factor, int width, int height) {
   RATE_CONTROL *const rc = &cpi->rc;
   const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
-
+  int update_default_rcf = 1;
   // Normalize RCF to account for the size-dependent scaling factor.
   factor /= resize_rate_factor(&cpi->oxcf.frm_dim_cfg, width, height);
 
@@ -603,21 +606,40 @@ static void set_rate_correction_factor(AV1_COMP *cpi, double factor, int width,
   } else if (is_stat_consumption_stage(cpi)) {
     const RATE_FACTOR_LEVEL rf_lvl =
         get_rate_factor_level(&cpi->ppi->gf_group, cpi->gf_frame_index);
-    rc->rate_correction_factors[rf_lvl] = factor;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    if (is_encode_stage &&
+        cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
+      rc->frame_level_rate_correction_factors[rf_lvl] = factor;
+      update_default_rcf = 0;
+    }
+#endif
+    if (update_default_rcf) rc->rate_correction_factors[rf_lvl] = factor;
   } else {
     if ((refresh_frame_flags->alt_ref_frame ||
          refresh_frame_flags->golden_frame) &&
         !rc->is_src_frame_alt_ref && !cpi->ppi->use_svc &&
         (cpi->oxcf.rc_cfg.mode != AOM_CBR ||
-         cpi->oxcf.rc_cfg.gf_cbr_boost_pct > 20))
+         cpi->oxcf.rc_cfg.gf_cbr_boost_pct > 20)) {
       rc->rate_correction_factors[GF_ARF_STD] = factor;
-    else
-      rc->rate_correction_factors[INTER_NORMAL] = factor;
+    } else {
+#if CONFIG_FRAME_PARALLEL_ENCODE
+      if (is_encode_stage &&
+          cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
+        rc->frame_level_rate_correction_factors[INTER_NORMAL] = factor;
+        update_default_rcf = 0;
+      }
+#endif
+      if (update_default_rcf)
+        rc->rate_correction_factors[INTER_NORMAL] = factor;
+    }
   }
 }
 
-void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int width,
-                                           int height) {
+void av1_rc_update_rate_correction_factors(AV1_COMP *cpi,
+#if CONFIG_FRAME_PARALLEL_ENCODE
+                                           int is_encode_stage,
+#endif
+                                           int width, int height) {
   const AV1_COMMON *const cm = &cpi->common;
   int correction_factor = 100;
   double rate_correction_factor =
@@ -688,7 +710,11 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int width,
       rate_correction_factor = MIN_BPB_FACTOR;
   }
 
-  set_rate_correction_factor(cpi, rate_correction_factor, width, height);
+  set_rate_correction_factor(cpi,
+#if CONFIG_FRAME_PARALLEL_ENCODE
+                             is_encode_stage,
+#endif
+                             rate_correction_factor, width, height);
 }
 
 // Calculate rate for the given 'q'.
@@ -2084,7 +2110,11 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
   rc->projected_frame_size = (int)(bytes_used << 3);
 
   // Post encode loop adjustment of Q prediction.
-  av1_rc_update_rate_correction_factors(cpi, cm->width, cm->height);
+  av1_rc_update_rate_correction_factors(cpi,
+#if CONFIG_FRAME_PARALLEL_ENCODE
+                                        0,
+#endif
+                                        cm->width, cm->height);
 
   // Keep a record of last Q and ambient average Q.
   if (current_frame->frame_type == KEY_FRAME) {
