@@ -136,6 +136,13 @@ static AOM_INLINE void set_params_for_internal_arfs(
         // layer to 2.
         assert(gf_group->frame_parallel_level[(*frame_ind) - 1] == 1);
         gf_group->frame_parallel_level[*frame_ind] = 2;
+        // Store the display order hints of the past 2 INTNL_ARF_UPDATE
+        // frames which would not have been displayed at the time of the encode
+        // of current frame.
+        gf_group->skip_frame_refresh[*frame_ind][0] =
+            gf_group->display_idx[(*frame_ind) - 1];
+        gf_group->skip_frame_refresh[*frame_ind][1] =
+            gf_group->display_idx[(*frame_ind) - 2];
       }
     }
     // If max_parallel_frames is not exceeded, encode the next internal ARF
@@ -530,6 +537,12 @@ static int construct_multi_layer_gf_structure(
          sizeof(gf_group->is_frame_non_ref[0]) * MAX_STATIC_GF_GROUP_LENGTH);
   memset(gf_group->src_offset, 0,
          sizeof(gf_group->src_offset[0]) * MAX_STATIC_GF_GROUP_LENGTH);
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+  // Initialize gf_group->skip_frame_refresh with INVALID_IDX.
+  memset(gf_group->skip_frame_refresh, INVALID_IDX,
+         sizeof(gf_group->skip_frame_refresh[0][0]) *
+             MAX_STATIC_GF_GROUP_LENGTH * REF_FRAMES);
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif
 
   if (first_frame_update_type == KF_UPDATE &&
@@ -661,6 +674,22 @@ static int construct_multi_layer_gf_structure(
           &count_arf_frames, doh_gf_index_map, &parallel_frame_count,
           &first_frame_index, &cur_disp_index, actual_gf_length, use_altref + 1,
           cpi->ppi->num_fp_contexts);
+
+      // Set gf_group->skip_frame_refresh.
+      for (int i = 0; i < actual_gf_length; i++) {
+        int count = 0;
+        if (gf_group->update_type[i] == INTNL_ARF_UPDATE) {
+          for (int j = 0; j < i; j++) {
+            // Store the display order hint of the frames which would not
+            // have been displayed at the encode call of frame 'i'.
+            if ((gf_group->display_idx[j] < gf_group->display_idx[i]) &&
+                gf_group->update_type[j] == INTNL_ARF_UPDATE) {
+              gf_group->skip_frame_refresh[i][count++] =
+                  gf_group->display_idx[j];
+            }
+          }
+        }
+      }
     } else {
       // Set layer depth threshold for reordering as per the gf length.
       int depth_thr =

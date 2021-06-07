@@ -643,7 +643,12 @@ static int get_free_ref_map_index(
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
 static int get_refresh_idx(RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
-                           int update_arf, int cur_frame_disp) {
+                           int update_arf,
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+                           GF_GROUP *gf_group, int gf_index,
+                           int enable_refresh_skip,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+                           int cur_frame_disp) {
   int arf_count = 0;
   int oldest_arf_order = INT32_MAX;
   int oldest_arf_idx = -1;
@@ -658,6 +663,22 @@ static int get_refresh_idx(RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
     const int reference_frame_level = ref_pair.pyr_level;
     // Do not refresh a future frame.
     if (frame_order > cur_frame_disp) continue;
+
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+    if (enable_refresh_skip) {
+      int skip_frame = 0;
+      // Prevent refreshing a frame in gf_group->skip_frame_refresh.
+      for (int i = 0; i < REF_FRAMES; i++) {
+        int frame_to_skip = gf_group->skip_frame_refresh[gf_index][i];
+        if (frame_to_skip == INVALID_IDX) break;
+        if (frame_order == frame_to_skip) {
+          skip_frame = 1;
+          break;
+        }
+      }
+      if (skip_frame) continue;
+    }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 
     // Keep track of the oldest level 1 frame if the current frame is also level
     // 1.
@@ -681,6 +702,12 @@ static int get_refresh_idx(RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
   if (update_arf && arf_count > 2) return oldest_arf_idx;
   if (oldest_idx >= 0) return oldest_idx;
   if (oldest_arf_idx >= 0) return oldest_arf_idx;
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+  if (oldest_idx == -1) {
+    assert(arf_count > 2 && enable_refresh_skip);
+    return oldest_arf_idx;
+  }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
   assert(0 && "No valid refresh index found");
   return -1;
 }
@@ -692,6 +719,9 @@ int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
 #if CONFIG_FRAME_PARALLEL_ENCODE
                                 int cur_disp_order,
                                 RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+                                int gf_index,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                                 const RefBufferStack *const ref_buffer_stack) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -779,10 +809,16 @@ int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
     refresh_mask = 1 << free_fb_index;
     return refresh_mask;
   }
-
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+  const int enable_refresh_skip = !is_one_pass_rt_params(cpi);
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
   const int update_arf = frame_update_type == ARF_UPDATE;
   const int refresh_idx =
-      get_refresh_idx(ref_frame_map_pairs, update_arf, cur_disp_order);
+      get_refresh_idx(ref_frame_map_pairs, update_arf,
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+                      &cpi->ppi->gf_group, gf_index, enable_refresh_skip,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+                      cur_disp_order);
   return 1 << refresh_idx;
 #else
   switch (frame_update_type) {
@@ -1630,6 +1666,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
 #if CONFIG_FRAME_PARALLEL_ENCODE
                                     cur_frame_disp, ref_frame_map_pairs,
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+                                    cpi->gf_frame_index,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                                     &cpi->ref_buffer_stack);
 

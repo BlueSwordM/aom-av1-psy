@@ -218,6 +218,9 @@ typedef struct GF_GROUP {
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
   // Stores the display order hint of each frame in the current GF_GROUP.
   int display_idx[MAX_STATIC_GF_GROUP_LENGTH];
+  // Stores the display order hint of the frames not to be
+  // refreshed by the current frame.
+  int skip_frame_refresh[MAX_STATIC_GF_GROUP_LENGTH][REF_FRAMES];
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
   /*!\endcond */

@@ -1343,6 +1343,9 @@ static AOM_INLINE void init_gop_frames_for_tpl(
         av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
 #if CONFIG_FRAME_PARALLEL_ENCODE
                                     true_disp, ref_frame_map_pairs,
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+                                    gf_index,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                                     &ref_buffer_stack);
 
@@ -1434,6 +1437,9 @@ static AOM_INLINE void init_gop_frames_for_tpl(
         av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
 #if CONFIG_FRAME_PARALLEL_ENCODE
                                     true_disp, ref_frame_map_pairs,
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+                                    gf_index,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                                     &ref_buffer_stack);
     int refresh_frame_map_index = av1_get_refresh_ref_frame_map(refresh_mask);
