@@ -1408,6 +1408,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->part_sf.default_min_partition_size = BLOCK_8X8;
     sf->part_sf.partition_search_type = VAR_BASED_PARTITION;
 
+    sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
+
     sf->mv_sf.search_method = FAST_DIAMOND;
     sf->mv_sf.subpel_force_stop = QUARTER_PEL;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
