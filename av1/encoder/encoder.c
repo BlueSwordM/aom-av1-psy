@@ -746,7 +746,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
   }
 
   if (x->comp_rd_buffer.pred0 == NULL) {
-    alloc_compound_type_rd_buffers(cm, &x->comp_rd_buffer);
+    alloc_compound_type_rd_buffers(&cpi->ppi->error, &x->comp_rd_buffer);
   }
 
   if (x->tmp_conv_dst == NULL) {
@@ -1342,7 +1342,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
   }
 #endif
 
-  alloc_obmc_buffers(&cpi->td.mb.obmc_buffer, cm);
+  alloc_obmc_buffers(&cpi->td.mb.obmc_buffer, &ppi->error);
 
   CHECK_MEM_ERROR(
       cm, cpi->td.mb.inter_modes_info,
@@ -1451,22 +1451,20 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
 // This function will change the state and free the mutex of corresponding
 // workers and terminate the object. The object can not be re-used unless a call
 // to reset() is made.
-static AOM_INLINE void terminate_worker_data(AV1_COMP *cpi) {
-  MultiThreadInfo *const mt_info = &cpi->mt_info;
-  for (int t = mt_info->num_workers - 1; t >= 0; --t) {
-    AVxWorker *const worker = &mt_info->workers[t];
+static AOM_INLINE void terminate_worker_data(AV1_PRIMARY *ppi) {
+  PrimaryMultiThreadInfo *const p_mt_info = &ppi->p_mt_info;
+  for (int t = p_mt_info->num_workers - 1; t >= 0; --t) {
+    AVxWorker *const worker = &p_mt_info->workers[t];
     aom_get_worker_interface()->end(worker);
   }
 }
 
 // Deallocate allocated thread_data.
-static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
-  MultiThreadInfo *const mt_info = &cpi->mt_info;
-  AV1_COMMON *cm = &cpi->common;
-  for (int t = 0; t < mt_info->num_workers; ++t) {
-    EncWorkerData *const thread_data = &mt_info->tile_thr_data[t];
+static AOM_INLINE void free_thread_data(AV1_PRIMARY *ppi) {
+  PrimaryMultiThreadInfo *const p_mt_info = &ppi->p_mt_info;
+  for (int t = 1; t < p_mt_info->num_workers; ++t) {
+    EncWorkerData *const thread_data = &p_mt_info->tile_thr_data[t];
     aom_free(thread_data->td->tctx);
-    if (t == 0) continue;
     aom_free(thread_data->td->palette_buffer);
     aom_free(thread_data->td->tmp_conv_dst);
     release_compound_type_rd_buffers(&thread_data->td->comp_rd_buffer);
@@ -1485,7 +1483,8 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
       }
     }
     aom_free(thread_data->td->counts);
-    av1_free_pmc(thread_data->td->firstpass_ctx, av1_num_planes(cm));
+    av1_free_pmc(thread_data->td->firstpass_ctx,
+                 ppi->seq_params.monochrome ? 1 : MAX_MB_PLANE);
     thread_data->td->firstpass_ctx = NULL;
     av1_free_shared_coeff_buffer(&thread_data->td->shared_coeff_buf);
     av1_free_sms_tree(thread_data->td);
@@ -1516,6 +1515,12 @@ void av1_remove_primary_compressor(AV1_PRIMARY *ppi) {
   av1_tpl_dealloc(&tpl_data->tpl_mt_sync);
 #endif
 
+  terminate_worker_data(ppi);
+  free_thread_data(ppi);
+
+  aom_free(ppi->p_mt_info.tile_thr_data);
+  aom_free(ppi->p_mt_info.workers);
+
   aom_free(ppi);
 }
 
@@ -1542,11 +1547,7 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   av1_denoiser_free(&(cpi->denoiser));
 #endif
 
-  if (cpi->compressor_stage != LAP_STAGE) {
-    terminate_worker_data(cpi);
-    free_thread_data(cpi);
-  }
-
+  aom_free(cpi->td.tctx);
   MultiThreadInfo *const mt_info = &cpi->mt_info;
 #if CONFIG_MULTITHREAD
   pthread_mutex_t *const enc_row_mt_mutex_ = mt_info->enc_row_mt.mutex_;
@@ -1566,10 +1567,6 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   }
 #endif
   av1_row_mt_mem_dealloc(cpi);
-  if (cpi->compressor_stage != LAP_STAGE) {
-    aom_free(mt_info->tile_thr_data);
-    aom_free(mt_info->workers);
-  }
 
   if (mt_info->num_workers > 1) {
     av1_loop_filter_dealloc(&mt_info->lf_row_sync);

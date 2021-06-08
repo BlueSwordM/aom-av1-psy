@@ -78,13 +78,15 @@ void av1_compute_num_workers_for_mt(AV1_COMP *cpi);
 
 int av1_get_max_num_workers(AV1_COMP *cpi);
 
-void av1_create_workers(AV1_COMP *cpi, int num_workers);
+void av1_create_workers(AV1_PRIMARY *ppi, int num_workers);
+
+void av1_init_frame_mt(AV1_PRIMARY *ppi, AV1_COMP *cpi);
 
 #if CONFIG_MULTITHREAD
 void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass);
 #endif  // CONFIG_MULTITHREAD
 
-void av1_init_tile_thread_data(AV1_COMP *cpi, int is_first_pass);
+void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass);
 
 void av1_cdef_mse_calc_frame_mt(AV1_COMMON *cm, MultiThreadInfo *mt_info,
                                 CdefSearchCtx *cdef_search_ctx);

@@ -1411,6 +1411,32 @@ typedef struct {
 } AV1EncRowMultiThreadInfo;
 
 /*!
+ * \brief Primary Encoder parameters related to multi-threading.
+ */
+typedef struct PrimaryMultiThreadInfo {
+  /*!
+   * Number of workers created for multi-threading.
+   */
+  int num_workers;
+
+  /*!
+   * Number of workers used for different MT modules.
+   */
+  int num_mod_workers[NUM_MT_MODULES];
+
+  /*!
+   * Synchronization object used to launch job in the worker thread.
+   */
+  AVxWorker *workers;
+
+  /*!
+   * Data specific to each worker in encoder multi-threading.
+   * tile_thr_data[i] stores the worker data of the ith thread.
+   */
+  struct EncWorkerData *tile_thr_data;
+} PrimaryMultiThreadInfo;
+
+/*!
  * \brief Encoder parameters related to multi-threading.
  */
 typedef struct MultiThreadInfo {
@@ -2371,6 +2397,11 @@ typedef struct AV1_PRIMARY {
    * frame of the same type as the current frame).
    */
   int fb_of_context_type[REF_FRAMES];
+
+  /*!
+   * Primary Multi-threading parameters.
+   */
+  PrimaryMultiThreadInfo p_mt_info;
 } AV1_PRIMARY;
 
 /*!

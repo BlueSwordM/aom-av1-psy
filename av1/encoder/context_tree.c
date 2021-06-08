@@ -41,16 +41,16 @@ void av1_copy_tree_context(PICK_MODE_CONTEXT *dst_ctx,
   dst_ctx->rd_mode_is_ready = src_ctx->rd_mode_is_ready;
 }
 
-void av1_setup_shared_coeff_buffer(AV1_COMMON *cm,
+void av1_setup_shared_coeff_buffer(struct aom_internal_error_info *error,
                                    PC_TREE_SHARED_BUFFERS *shared_bufs) {
   for (int i = 0; i < 3; i++) {
     const int max_num_pix = MAX_SB_SIZE * MAX_SB_SIZE;
-    CHECK_MEM_ERROR(cm, shared_bufs->coeff_buf[i],
-                    aom_memalign(32, max_num_pix * sizeof(tran_low_t)));
-    CHECK_MEM_ERROR(cm, shared_bufs->qcoeff_buf[i],
-                    aom_memalign(32, max_num_pix * sizeof(tran_low_t)));
-    CHECK_MEM_ERROR(cm, shared_bufs->dqcoeff_buf[i],
-                    aom_memalign(32, max_num_pix * sizeof(tran_low_t)));
+    AOM_CHECK_MEM_ERROR(error, shared_bufs->coeff_buf[i],
+                        aom_memalign(32, max_num_pix * sizeof(tran_low_t)));
+    AOM_CHECK_MEM_ERROR(error, shared_bufs->qcoeff_buf[i],
+                        aom_memalign(32, max_num_pix * sizeof(tran_low_t)));
+    AOM_CHECK_MEM_ERROR(error, shared_bufs->dqcoeff_buf[i],
+                        aom_memalign(32, max_num_pix * sizeof(tran_low_t)));
   }
 }
 

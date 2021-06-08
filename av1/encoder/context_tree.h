@@ -21,6 +21,7 @@
 extern "C" {
 #endif
 
+struct AV1_PRIMARY;
 struct AV1_COMP;
 struct AV1Common;
 struct ThreadData;
@@ -101,7 +102,7 @@ typedef struct SIMPLE_MOTION_DATA_TREE {
   int sms_rect_valid;
 } SIMPLE_MOTION_DATA_TREE;
 
-void av1_setup_shared_coeff_buffer(AV1_COMMON *cm,
+void av1_setup_shared_coeff_buffer(struct aom_internal_error_info *error,
                                    PC_TREE_SHARED_BUFFERS *shared_bufs);
 void av1_free_shared_coeff_buffer(PC_TREE_SHARED_BUFFERS *shared_bufs);
 
