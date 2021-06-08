@@ -3132,7 +3132,39 @@ static void init_mb_wiener_var_buffer(AV1_COMP *cpi) {
                              sizeof(*cpi->mb_wiener_variance)));
 }
 
+static int get_var_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize,
+                                 int mi_row, int mi_col) {
+  AV1_COMMON *const cm = &cpi->common;
+  const int mi_wide = mi_size_wide[bsize];
+  const int mi_high = mi_size_high[bsize];
+
+  const int mi_step = mi_size_wide[BLOCK_16X16];
+  int sb_wiener_var = 0;
+  int mb_stride = cpi->frame_info.mb_cols;
+  int mb_count = 0;
+  int mb_wiener_var[64];
+
+  for (int row = mi_row; row < mi_row + mi_high; row += mi_step) {
+    for (int col = mi_col; col < mi_col + mi_wide; col += mi_step) {
+      if (row >= cm->mi_params.mi_rows || col >= cm->mi_params.mi_cols)
+        continue;
+
+      mb_wiener_var[mb_count] =
+          (int)cpi->mb_wiener_variance[(row / mi_step) * mb_stride +
+                                       (col / mi_step)];
+      ++mb_count;
+    }
+  }
+  qsort(mb_wiener_var, mb_count - 1, sizeof(*mb_wiener_var), qsort_comp);
+
+  sb_wiener_var = mb_wiener_var[mb_count / 3];
+  sb_wiener_var = AOMMAX(1, sb_wiener_var);
+
+  return sb_wiener_var;
+}
+
 static void set_mb_wiener_variance(AV1_COMP *cpi) {
+  AV1_COMMON *const cm = &cpi->common;
   uint8_t *buffer = cpi->source->y_buffer;
   int buf_stride = cpi->source->y_stride;
   ThreadData *td = &cpi->td;
@@ -3208,45 +3240,36 @@ static void set_mb_wiener_variance(AV1_COMP *cpi) {
     }
   }
 
-  if (count) cpi->norm_wiener_variance /= count;
+  int sb_step = mi_size_wide[cm->seq_params->sb_size];
+  double sb_wiener_log = 0;
+  int sb_count = 0;
+
+  for (int mi_row = 0; mi_row < cm->mi_params.mi_rows; mi_row += sb_step) {
+    for (int mi_col = 0; mi_col < cm->mi_params.mi_cols; mi_col += sb_step) {
+      int sb_wiener_var =
+          get_var_perceptual_ai(cpi, cm->seq_params->sb_size, mi_row, mi_col);
+      sb_wiener_log += log(sb_wiener_var);
+      ++sb_count;
+    }
+  }
+
+  if (sb_count)
+    cpi->norm_wiener_variance = (int64_t)(exp(sb_wiener_log / sb_count));
   cpi->norm_wiener_variance = AOMMAX(1, cpi->norm_wiener_variance);
 }
 
 int av1_get_sbq_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
                               int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
-  const int mi_wide = mi_size_wide[bsize];
-  const int mi_high = mi_size_high[bsize];
   const int base_qindex = cm->quant_params.base_qindex;
-
-  const int mi_step = mi_size_wide[BLOCK_16X16];
-  int64_t sb_wiener_var;
-  int mb_stride = cpi->frame_info.mb_cols;
-  int mb_count = 0;
-  int mb_wiener_var[64];
-
-  for (int row = mi_row; row < mi_row + mi_high; row += mi_step) {
-    for (int col = mi_col; col < mi_col + mi_wide; col += mi_step) {
-      if (row >= cm->mi_params.mi_rows || col >= cm->mi_params.mi_cols)
-        continue;
-
-      mb_wiener_var[mb_count] =
-          (int)cpi->mb_wiener_variance[(row / mi_step) * mb_stride +
-                                       (col / mi_step)];
-      ++mb_count;
-    }
-  }
-  qsort(mb_wiener_var, mb_count - 1, sizeof(*mb_wiener_var), qsort_comp);
-
-  sb_wiener_var = mb_wiener_var[mb_count / 2];
-  sb_wiener_var = AOMMAX(1, sb_wiener_var);
-
+  int sb_wiener_var = get_var_perceptual_ai(cpi, bsize, mi_row, mi_col);
   int offset = 0;
   double beta = (double)cpi->norm_wiener_variance / sb_wiener_var;
   offset = av1_get_deltaq_offset(cm->seq_params->bit_depth, base_qindex, beta);
+
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
-  offset = AOMMIN(offset, delta_q_info->delta_q_res * 9 - 1);
-  offset = AOMMAX(offset, -delta_q_info->delta_q_res * 9 + 1);
+  offset = AOMMIN(offset, delta_q_info->delta_q_res * 20 - 1);
+  offset = AOMMAX(offset, -delta_q_info->delta_q_res * 20 + 1);
   int qindex = cm->quant_params.base_qindex + offset;
   qindex = AOMMIN(qindex, MAXQ);
   qindex = AOMMAX(qindex, MINQ);
@@ -3436,8 +3459,10 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   aom_clear_system_state();
 
-  init_mb_wiener_var_buffer(cpi);
-  set_mb_wiener_variance(cpi);
+  if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL_AI) {
+    init_mb_wiener_var_buffer(cpi);
+    set_mb_wiener_variance(cpi);
+  }
 
 #if CONFIG_INTERNAL_STATS
   memset(cpi->mode_chosen_counts, 0,
