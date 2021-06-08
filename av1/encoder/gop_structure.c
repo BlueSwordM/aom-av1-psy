@@ -219,6 +219,132 @@ static void set_multi_layer_params_for_fp(
                                   depth_thr, layer_depth + 1);
   }
 }
+
+// Structure for bookkeeping start, end and display indices to configure
+// INTNL_ARF_UPDATE frames.
+typedef struct {
+  int start;
+  int end;
+  int display_index;
+} FRAME_REORDER_INFO;
+
+// Updates the stats required to configure the GF_GROUP.
+static AOM_INLINE void fill_arf_frame_stats(FRAME_REORDER_INFO *arf_frame_stats,
+                                            int arf_frame_index,
+                                            int display_idx, int start,
+                                            int end) {
+  arf_frame_stats[arf_frame_index].start = start;
+  arf_frame_stats[arf_frame_index].end = end;
+  arf_frame_stats[arf_frame_index].display_index = display_idx;
+}
+
+// Sets GF_GROUP params for INTNL_ARF_UPDATE frames. Also populates
+// doh_gf_index_map and arf_frame_stats.
+static AOM_INLINE void set_params_for_internal_arfs_in_gf14(
+    GF_GROUP *const gf_group, FRAME_REORDER_INFO *arf_frame_stats,
+    int *cur_frame_idx, int *frame_ind, int *count_arf_frames,
+    int *doh_gf_index_map, int start, int end, int layer_depth) {
+  int index = (start + end - 1) / 2;
+  gf_group->update_type[*frame_ind] = INTNL_ARF_UPDATE;
+  gf_group->arf_src_offset[*frame_ind] = index - 1;
+  gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
+  gf_group->layer_depth[*frame_ind] = layer_depth;
+  gf_group->frame_type[*frame_ind] = INTER_FRAME;
+  gf_group->refbuf_state[*frame_ind] = REFBUF_UPDATE;
+  // Update the display index of the current frame with its gf index.
+  doh_gf_index_map[index] = *frame_ind;
+  ++(*frame_ind);
+
+  // Update arf_frame_stats.
+  fill_arf_frame_stats(arf_frame_stats, *count_arf_frames, index, start, end);
+  ++(*count_arf_frames);
+}
+
+// Sets GF_GROUP params for all INTNL_ARF_UPDATE frames in the given layer
+// dpeth.
+static AOM_INLINE void set_params_for_cur_layer_frames(
+    GF_GROUP *const gf_group, FRAME_REORDER_INFO *arf_frame_stats,
+    int *cur_frame_idx, int *frame_ind, int *count_arf_frames,
+    int *doh_gf_index_map, int num_dir, int node_start, int node_end,
+    int layer_depth) {
+  assert(num_dir < 3);
+  int start, end;
+  // Iterate through the nodes in the previous layer depth.
+  for (int i = node_start; i < node_end; i++) {
+    // For each node, check if a frame can be coded as INTNL_ARF_UPDATE frame on
+    // either direction.
+    for (int dir = 0; dir < num_dir; dir++) {
+      // Checks for a frame to the left of current node.
+      if (dir == 0) {
+        start = arf_frame_stats[i].start;
+        end = arf_frame_stats[i].display_index;
+      } else {
+        // Checks for a frame to the right of current node.
+        start = arf_frame_stats[i].display_index + 1;
+        end = arf_frame_stats[i].end;
+      }
+      const int num_frames_to_process = end - start;
+      // Checks if a frame can be coded as INTNL_ARF_UPDATE frame. If
+      // num_frames_to_process is less than 3, then there are not enough frames
+      // between 'start' and 'end' to create another level.
+      if (num_frames_to_process >= 3) {
+        set_params_for_internal_arfs_in_gf14(
+            gf_group, arf_frame_stats, cur_frame_idx, frame_ind,
+            count_arf_frames, doh_gf_index_map, start, end, layer_depth);
+      }
+    }
+  }
+}
+
+// Configures multi-layers of the GF_GROUP when consecutive encode of frames in
+// the same layer depth is enbaled.
+static AOM_INLINE void set_multi_layer_params_for_gf14(
+    GF_GROUP *const gf_group, FRAME_REORDER_INFO *arf_frame_stats,
+    int *cur_frame_idx, int *frame_ind, int *count_arf_frames,
+    int *doh_gf_index_map, int *parallel_frame_count, int *first_frame_index,
+    int gf_interval, int layer_depth, int max_parallel_frames) {
+  assert(layer_depth == 2);
+  assert(gf_group->max_layer_depth_allowed >= 4);
+  int layer, node_start, node_end = 0;
+  // Maximum layer depth excluding LF_UPDATE frames is 4 since applicable only
+  // for gf-interval 14.
+  const int max_layer_depth = 4;
+  // Iterate through each layer depth starting from 2 till 'max_layer_depth'.
+  for (layer = layer_depth; layer <= max_layer_depth; layer++) {
+    // 'node_start' and 'node_end' indicate the number of nodes from the
+    // previous layer depth to be considered. It also corresponds to the indices
+    // of arf_frame_stats.
+    node_start = node_end;
+    node_end = (*count_arf_frames);
+    // 'num_dir' indicates the number of directions to traverse w.r.t. a given
+    // node in order to choose an INTNL_ARF_UPDATE frame. Layer depth 2 would
+    // have only one frame and hence needs to traverse only in the left
+    // direction w.r.t the node in the previous layer.
+    int num_dir = layer == 2 ? 1 : 2;
+    set_params_for_cur_layer_frames(
+        gf_group, arf_frame_stats, cur_frame_idx, frame_ind, count_arf_frames,
+        doh_gf_index_map, num_dir, node_start, node_end, layer);
+  }
+
+  for (int i = 1; i < gf_interval; i++) {
+    // Since doh_gf_index_map is already populated for all INTNL_ARF_UPDATE
+    // frames in the GF_GROUP, any frame with INVALID_IDX would correspond to an
+    // LF_UPDATE frame.
+    if (doh_gf_index_map[i] == INVALID_IDX) {
+      // LF_UPDATE frames.
+      set_params_for_leaf_frames(gf_group, cur_frame_idx, frame_ind,
+                                 parallel_frame_count, max_parallel_frames, 1,
+                                 first_frame_index, layer);
+    } else {
+      // In order to obtain the layer depths of INTNL_OVERLAY_UPDATE frames, get
+      // the gf index of corresponding INTNL_ARF_UPDATE frames.
+      int intnl_arf_index = doh_gf_index_map[i];
+      int ld = gf_group->layer_depth[intnl_arf_index];
+      set_params_for_intnl_overlay_frames(gf_group, cur_frame_idx, frame_ind,
+                                          first_frame_index, ld);
+    }
+  }
+}
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
@@ -429,20 +555,48 @@ static int construct_multi_layer_gf_structure(
                                ? gf_interval
                                : gf_interval + 1;
 
-    // Set layer depth threshold for reordering as per the gf length.
-    // Currently encode reordering for second highest layer depth frames
-    // in order to faciliate frame parallel encoding in these layers is
-    // enabled only for gf-intervals 16 and 32 owing to their dyadic structure.
-    int depth_thr =
-        (actual_gf_length == 16) ? 3 : (actual_gf_length == 32) ? 4 : INT_MAX;
+    // In order to facilitate parallel encoding of frames in lower layer depths,
+    // encode reordering is done. Currently encode reordering is enabled only
+    // for gf-intervals 14, 16 and 32. NOTE: Since the buffer holding the
+    // reference frames is of size 8 (ref_frame_map[REF_FRAMES]), there is a
+    // limitation on the number of hidden frames possible at any given point and
+    // hence the reordering is enabled only for gf-intervals 14, 16 and 32.
+    if (actual_gf_length == 14) {
+      // This array holds the gf index of INTNL_ARF_UPDATE frames in the slot
+      // corresponding to their display order hint. This is used while
+      // configuring the LF_UPDATE frames and INTNL_OVERLAY_UPDATE frames.
+      int doh_gf_index_map[FIXED_GF_INTERVAL];
+      // Initialize doh_gf_index_map with INVALID_IDX.
+      memset(&doh_gf_index_map[0], INVALID_IDX,
+             (sizeof(doh_gf_index_map[0]) * FIXED_GF_INTERVAL));
 
-    // TODO(Remya): Set GF_GROUP param 'arf_boost' for all frames.
-    set_multi_layer_params_for_fp(
-        twopass, gf_group, p_rc, rc, frame_info, cur_frame_index, gf_interval,
-        &cur_frame_index, &frame_index, &parallel_frame_count,
-        cpi->ppi->num_fp_contexts, do_frame_parallel_encode, &first_frame_index,
-        depth_thr, use_altref + 1);
+      FRAME_REORDER_INFO arf_frame_stats[REF_FRAMES - 1];
+      // Store the stats corresponding to layer 1 frame.
+      fill_arf_frame_stats(arf_frame_stats, 0, actual_gf_length, 1,
+                           actual_gf_length);
+      int count_arf_frames = 1;
 
+      // Sets multi-layer params for gf-interval 14 to consecutively encode
+      // frames in the same layer depth, i.e., encode order would be 0-> 14->
+      // 7-> 3-> 10-> 5-> 12-> 1-> 2-> 4-> 6-> 8-> 9-> 11-> 13.
+      // TODO(Remya): Set GF_GROUP param 'arf_boost' for all frames.
+      set_multi_layer_params_for_gf14(
+          gf_group, arf_frame_stats, &cur_frame_index, &frame_index,
+          &count_arf_frames, doh_gf_index_map, &parallel_frame_count,
+          &first_frame_index, actual_gf_length, use_altref + 1,
+          cpi->ppi->num_fp_contexts);
+    } else {
+      // Set layer depth threshold for reordering as per the gf length.
+      int depth_thr =
+          (actual_gf_length == 16) ? 3 : (actual_gf_length == 32) ? 4 : INT_MAX;
+
+      // TODO(Remya): Set GF_GROUP param 'arf_boost' for all frames.
+      set_multi_layer_params_for_fp(
+          twopass, gf_group, p_rc, rc, frame_info, cur_frame_index, gf_interval,
+          &cur_frame_index, &frame_index, &parallel_frame_count,
+          cpi->ppi->num_fp_contexts, do_frame_parallel_encode,
+          &first_frame_index, depth_thr, use_altref + 1);
+    }
     is_multi_layer_configured = 1;
   }
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
