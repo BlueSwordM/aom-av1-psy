@@ -107,8 +107,8 @@ static AOM_INLINE void set_params_for_intnl_overlay_frames(
 static AOM_INLINE void set_params_for_internal_arfs(
     GF_GROUP *const gf_group, int *cur_frame_idx, int *frame_ind,
     int *parallel_frame_count, int max_parallel_frames,
-    int do_frame_parallel_encode, int *first_frame_index, int layer_depth,
-    int arf_src_offset) {
+    int do_frame_parallel_encode, int *first_frame_index, int depth_thr,
+    int layer_depth, int arf_src_offset) {
   gf_group->update_type[*frame_ind] = INTNL_ARF_UPDATE;
   gf_group->arf_src_offset[*frame_ind] = arf_src_offset;
   gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
@@ -117,6 +117,20 @@ static AOM_INLINE void set_params_for_internal_arfs(
   gf_group->refbuf_state[*frame_ind] = REFBUF_UPDATE;
 
   if (do_frame_parallel_encode) {
+    if (depth_thr != INT_MAX) {
+      assert(depth_thr == 3 || depth_thr == 4);
+      assert(IMPLIES(depth_thr == 3, layer_depth == 4));
+      assert(IMPLIES(depth_thr == 4, layer_depth == 5));
+      // Set frame_parallel_level of the first frame in the given layer to 1.
+      if (gf_group->layer_depth[(*frame_ind) - 1] != layer_depth) {
+        gf_group->frame_parallel_level[*frame_ind] = 1;
+      } else {
+        // Set frame_parallel_level of the consecutive frame in the same given
+        // layer to 2.
+        assert(gf_group->frame_parallel_level[(*frame_ind) - 1] == 1);
+        gf_group->frame_parallel_level[*frame_ind] = 2;
+      }
+    }
     // If max_parallel_frames is not exceeded, encode the next internal ARF
     // frame in parallel.
     if (*parallel_frame_count > 1 &&
@@ -159,7 +173,7 @@ static void set_multi_layer_params_for_fp(
     set_params_for_internal_arfs(gf_group, cur_frame_idx, frame_ind,
                                  parallel_frame_count, max_parallel_frames,
                                  do_frame_parallel_encode, first_frame_index,
-                                 layer_depth, arf_src_offset);
+                                 INT_MAX, layer_depth, arf_src_offset);
 
     // If encode reordering is enabled, configure the multi-layers accordingly
     // and return. For e.g., the encode order for gf-interval 16 after
@@ -175,7 +189,7 @@ static void set_multi_layer_params_for_fp(
         set_params_for_internal_arfs(
             gf_group, cur_frame_idx, frame_ind, parallel_frame_count,
             max_parallel_frames, do_frame_parallel_encode, first_frame_index,
-            layer_depth + 1, arf_src_offsets[i]);
+            depth_thr, layer_depth + 1, arf_src_offsets[i]);
       }
 
       // Initialize the start and end indices to configure LF_UPDATE frames.
@@ -243,7 +257,8 @@ static AOM_INLINE void fill_arf_frame_stats(FRAME_REORDER_INFO *arf_frame_stats,
 static AOM_INLINE void set_params_for_internal_arfs_in_gf14(
     GF_GROUP *const gf_group, FRAME_REORDER_INFO *arf_frame_stats,
     int *cur_frame_idx, int *frame_ind, int *count_arf_frames,
-    int *doh_gf_index_map, int start, int end, int layer_depth) {
+    int *doh_gf_index_map, int start, int end, int layer_depth,
+    int layer_with_parallel_encodes) {
   int index = (start + end - 1) / 2;
   gf_group->update_type[*frame_ind] = INTNL_ARF_UPDATE;
   gf_group->arf_src_offset[*frame_ind] = index - 1;
@@ -253,6 +268,19 @@ static AOM_INLINE void set_params_for_internal_arfs_in_gf14(
   gf_group->refbuf_state[*frame_ind] = REFBUF_UPDATE;
   // Update the display index of the current frame with its gf index.
   doh_gf_index_map[index] = *frame_ind;
+  if (layer_with_parallel_encodes) {
+    assert(layer_depth == 4);
+    // Set frame_parallel_level of the first frame in the given layer depth
+    // to 1.
+    if (gf_group->layer_depth[(*frame_ind) - 1] != layer_depth) {
+      gf_group->frame_parallel_level[*frame_ind] = 1;
+    } else {
+      // Set frame_parallel_level of the consecutive frame in the same given
+      // layer depth to 2.
+      assert(gf_group->frame_parallel_level[(*frame_ind) - 1] == 1);
+      gf_group->frame_parallel_level[*frame_ind] = 2;
+    }
+  }
   ++(*frame_ind);
 
   // Update arf_frame_stats.
@@ -288,9 +316,13 @@ static AOM_INLINE void set_params_for_cur_layer_frames(
       // num_frames_to_process is less than 3, then there are not enough frames
       // between 'start' and 'end' to create another level.
       if (num_frames_to_process >= 3) {
+        // Flag to indicate the lower layer depths for which parallel encoding
+        // is enabled. Currently enabled for layer 4 frames.
+        int layer_with_parallel_encodes = layer_depth == 4;
         set_params_for_internal_arfs_in_gf14(
             gf_group, arf_frame_stats, cur_frame_idx, frame_ind,
-            count_arf_frames, doh_gf_index_map, start, end, layer_depth);
+            count_arf_frames, doh_gf_index_map, start, end, layer_depth,
+            layer_with_parallel_encodes);
       }
     }
   }
