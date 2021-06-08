@@ -215,6 +215,10 @@ typedef struct GF_GROUP {
   // The offset into lookahead_ctx for choosing
   // source of frame parallel encodes.
   int src_offset[MAX_STATIC_GF_GROUP_LENGTH];
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+  // Stores the display order hint of each frame in the current GF_GROUP.
+  int display_idx[MAX_STATIC_GF_GROUP_LENGTH];
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
   /*!\endcond */
 } GF_GROUP;
