@@ -1634,7 +1634,8 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   return active_best_quality;
 }
 
-// We assume at the start of the function that rc_mode = AOM_Q.
+// Returns the q_index for a single frame in the GOP.
+// This function assumes that rc_mode == AOM_Q mode.
 int av1_q_mode_get_q_index(int base_q_index, const GF_GROUP *gf_group,
                            const int gf_index, int arf_q) {
   const int is_intrl_arf_boost =
@@ -1658,6 +1659,7 @@ int av1_q_mode_get_q_index(int base_q_index, const GF_GROUP *gf_group,
   return active_best_quality;
 }
 
+// Returns the q_index for the ARF in the GOP.
 int av1_get_arf_q_index(int base_q_index, int gfu_boost, int bit_depth,
                         int arf_boost_factor) {
   int active_best_quality =
