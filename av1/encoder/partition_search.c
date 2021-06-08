@@ -2017,6 +2017,8 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
     MB_MODE_INFO **mi_sb =
         cm->mi_params.mi_grid_base +
         get_mi_grid_idx(&cm->mi_params, mi_row_sb, mi_col_sb);
+    mi_sb[0]->skip_cdef_curr_sb =
+        !(x->color_sensitivity[0] || x->color_sensitivity[1]);
     // Do not skip if intra or new mv is picked.
     const int skip = mi_sb[0]->skip_cdef_curr_sb &&
                      !(mbmi->mode < INTRA_MODES || mbmi->mode == NEWMV);
