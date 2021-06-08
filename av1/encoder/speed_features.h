@@ -784,6 +784,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 3 : prune ext compound modes unconditionally (highest aggressiveness)
   int prune_ext_comp_using_neighbors;
 
+  // Skip NEW_NEARMV and NEAR_NEWMV extended compound modes
+  int skip_ext_comp_nearmv_mode;
+
   // Skip extended compound mode when ref frame corresponding to NEWMV does not
   // have NEWMV as single mode winner.
   // 0 : no pruning

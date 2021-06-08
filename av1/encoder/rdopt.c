@@ -4721,6 +4721,12 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
       return 1;
   }
 
+  // Skip NEW_NEARMV and NEAR_NEWMV extended compound modes
+  if (sf->inter_sf.skip_ext_comp_nearmv_mode &&
+      (this_mode == NEW_NEARMV || this_mode == NEAR_NEWMV)) {
+    return 1;
+  }
+
   if (sf->inter_sf.prune_ext_comp_using_neighbors && comp_pred) {
     if (compound_skip_using_neighbor_refs(
             xd, this_mode, ref_frames,
