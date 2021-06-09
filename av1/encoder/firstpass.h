@@ -180,7 +180,7 @@ enum {
  * \brief  Data related to the current GF/ARF group and the
  * individual frames within the group
  */
-typedef struct {
+typedef struct GF_GROUP {
   /*!\cond */
   // Frame update type, e.g. ARF/GF/LF/Overlay
   FRAME_UPDATE_TYPE update_type[MAX_STATIC_GF_GROUP_LENGTH];

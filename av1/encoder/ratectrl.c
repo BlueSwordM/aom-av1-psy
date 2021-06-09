@@ -1636,14 +1636,12 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
 
 // Returns the q_index for a single frame in the GOP.
 // This function assumes that rc_mode == AOM_Q mode.
-int av1_q_mode_get_q_index(int base_q_index, const GF_GROUP *gf_group,
-                           const int gf_index, int arf_q) {
-  const int is_intrl_arf_boost =
-      gf_group->update_type[gf_index] == INTNL_ARF_UPDATE;
-  int is_leaf_or_overlay_frame =
-      gf_group->update_type[gf_index] == LF_UPDATE ||
-      gf_group->update_type[gf_index] == OVERLAY_UPDATE ||
-      gf_group->update_type[gf_index] == INTNL_OVERLAY_UPDATE;
+int av1_q_mode_get_q_index(int base_q_index, int gf_update_type,
+                           int gf_pyramid_level, int arf_q) {
+  const int is_intrl_arf_boost = gf_update_type == INTNL_ARF_UPDATE;
+  int is_leaf_or_overlay_frame = gf_update_type == LF_UPDATE ||
+                                 gf_update_type == OVERLAY_UPDATE ||
+                                 gf_update_type == INTNL_OVERLAY_UPDATE;
 
   if (is_leaf_or_overlay_frame) return base_q_index;
 
@@ -1651,17 +1649,17 @@ int av1_q_mode_get_q_index(int base_q_index, const GF_GROUP *gf_group,
 
   int active_best_quality = arf_q;
   int active_worst_quality = base_q_index;
-  int this_height = gf_group_pyramid_level(gf_group, gf_index);
-  while (this_height > 1) {
+
+  while (gf_pyramid_level > 1) {
     active_best_quality = (active_best_quality + active_worst_quality + 1) / 2;
-    --this_height;
+    --gf_pyramid_level;
   }
   return active_best_quality;
 }
 
 // Returns the q_index for the ARF in the GOP.
 int av1_get_arf_q_index(int base_q_index, int gfu_boost, int bit_depth,
-                        int arf_boost_factor) {
+                        double arf_boost_factor) {
   int active_best_quality =
       get_gf_active_quality_no_rc(gfu_boost, base_q_index, bit_depth);
   const int min_boost = get_gf_high_motion_quality(base_q_index, bit_depth);
@@ -2883,5 +2881,23 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
     return 1;
   } else {
     return 0;
+  }
+}
+
+/*
+ * Compute the q_indices for the entire GOP.
+ * Intended to be used only with AOM_Q mode.
+ */
+void av1_q_mode_compute_gop_q_indices(int gf_frame_index, int base_q_index,
+                                      int gfu_boost, int bit_depth,
+                                      double arf_boost_factor,
+                                      struct GF_GROUP *gf_group) {
+  int arf_q =
+      av1_get_arf_q_index(base_q_index, gfu_boost, bit_depth, arf_boost_factor);
+
+  for (int gf_index = gf_frame_index; gf_index < gf_group->size; ++gf_index) {
+    int height = gf_group_pyramid_level(gf_group, gf_index);
+    gf_group->q_val[gf_index] = av1_q_mode_get_q_index(
+        base_q_index, gf_group->update_type[gf_index], height, arf_q);
   }
 }
