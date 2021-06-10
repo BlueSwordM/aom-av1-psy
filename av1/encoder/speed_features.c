@@ -533,6 +533,7 @@ static void set_good_speed_feature_framesize_dependent(
   const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
   const int is_4k_or_larger = AOMMIN(cm->width, cm->height) >= 2160;
   const bool use_hbd = cpi->oxcf.use_highbitdepth;
+  const int boosted = frame_is_boosted(cpi);
 
   if (is_480p_or_larger) {
     sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
@@ -651,6 +652,11 @@ static void set_good_speed_feature_framesize_dependent(
     if (use_hbd) sf->tx_sf.prune_tx_size_level = 3;
 
     if (is_480p_or_larger) sf->intra_sf.top_intra_model_count_allowed = 2;
+    if (is_720p_or_larger) {
+      sf->intra_sf.skip_intra_in_interframe = boosted ? 1 : 2;
+    } else {
+      sf->intra_sf.skip_intra_in_interframe = boosted ? 1 : 3;
+    }
 
     sf->inter_sf.disable_interintra_wedge_var_thresh = UINT_MAX;
   }
@@ -675,6 +681,7 @@ static void set_good_speed_feature_framesize_dependent(
       sf->hl_sf.recode_tolerance = 55;
 
     sf->intra_sf.top_intra_model_count_allowed = 2;
+    sf->intra_sf.skip_intra_in_interframe = 4;
   }
 
   if (speed >= 5) {
@@ -1005,7 +1012,7 @@ static void set_good_speed_features_framesize_independent(
     // sf->intra_sf.intra_y_mode_mask[TX_64X64] = INTRA_DC_H_V;
     // TODO(any): Experiment with this speed feature set to 2 for higher quality
     // presets as well
-    sf->intra_sf.skip_intra_in_interframe = 2;
+    sf->intra_sf.skip_intra_in_interframe = 4;
 
     sf->mv_sf.simple_motion_subpel_force_stop = HALF_PEL;
 
