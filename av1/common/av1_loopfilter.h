@@ -97,8 +97,6 @@ struct loopfilter {
   // 0 = ZERO_MV, MV
   int8_t mode_deltas[MAX_MODE_LF_DELTAS];
 
-  int combine_vert_horz_lf;
-
 #if CONFIG_LPF_MASK
   LoopFilterMask *lfm;
   size_t lfm_num;

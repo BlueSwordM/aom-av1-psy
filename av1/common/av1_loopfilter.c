@@ -106,8 +106,6 @@ void av1_loop_filter_init(AV1_COMMON *cm) {
   struct loopfilter *lf = &cm->lf;
   int lvl;
 
-  lf->combine_vert_horz_lf = 1;
-
   // init limits for given sharpness
   update_sharpness(lfi, lf->sharpness_level);
 
@@ -884,108 +882,61 @@ static void loop_filter_rows(YV12_BUFFER_CONFIG *frame_buffer, AV1_COMMON *cm,
       continue;
     else if (plane == 2 && !(cm->lf.filter_level_v))
       continue;
-    if (cm->lf.combine_vert_horz_lf) {
-      // filter all vertical and horizontal edges in every 128x128 super block
-      for (mi_row = start; mi_row < stop; mi_row += MAX_MIB_SIZE) {
-        for (mi_col = col_start; mi_col < col_end; mi_col += MAX_MIB_SIZE) {
-          // filter vertical edges
-          av1_setup_dst_planes(pd, cm->seq_params->sb_size, frame_buffer,
-                               mi_row, mi_col, plane, plane + 1);
-#if CONFIG_AV1_HIGHBITDEPTH
-          (void)is_realtime;
-          av1_filter_block_plane_vert(cm, xd, plane, &pd[plane], mi_row,
-                                      mi_col);
-#else
-          if (is_realtime && !plane) {
-            av1_filter_block_plane_vert_rt(cm, xd, plane, &pd[plane], mi_row,
-                                           mi_col);
-
-          } else {
-            av1_filter_block_plane_vert(cm, xd, plane, &pd[plane], mi_row,
-                                        mi_col);
-          }
-#endif
-          // filter horizontal edges
-          if (mi_col - MAX_MIB_SIZE >= 0) {
-            av1_setup_dst_planes(pd, cm->seq_params->sb_size, frame_buffer,
-                                 mi_row, mi_col - MAX_MIB_SIZE, plane,
-                                 plane + 1);
-#if CONFIG_AV1_HIGHBITDEPTH
-            (void)is_realtime;
-            av1_filter_block_plane_horz(cm, xd, plane, &pd[plane], mi_row,
-                                        mi_col - MAX_MIB_SIZE);
-#else
-            if (is_realtime && !plane) {
-              av1_filter_block_plane_horz_rt(cm, xd, plane, &pd[plane], mi_row,
-                                             mi_col - MAX_MIB_SIZE);
-            } else {
-              av1_filter_block_plane_horz(cm, xd, plane, &pd[plane], mi_row,
-                                          mi_col - MAX_MIB_SIZE);
-            }
-#endif
-          }
-        }
-        // filter horizontal edges
+    // filter all vertical and horizontal edges in every 128x128 super block
+    for (mi_row = start; mi_row < stop; mi_row += MAX_MIB_SIZE) {
+      for (mi_col = col_start; mi_col < col_end; mi_col += MAX_MIB_SIZE) {
+        // filter vertical edges
         av1_setup_dst_planes(pd, cm->seq_params->sb_size, frame_buffer, mi_row,
-                             mi_col - MAX_MIB_SIZE, plane, plane + 1);
+                             mi_col, plane, plane + 1);
 #if CONFIG_AV1_HIGHBITDEPTH
         (void)is_realtime;
-        av1_filter_block_plane_horz(cm, xd, plane, &pd[plane], mi_row,
-                                    mi_col - MAX_MIB_SIZE);
+        av1_filter_block_plane_vert(cm, xd, plane, &pd[plane], mi_row, mi_col);
 #else
         if (is_realtime && !plane) {
-          av1_filter_block_plane_horz_rt(cm, xd, plane, &pd[plane], mi_row,
-                                         mi_col - MAX_MIB_SIZE);
+          av1_filter_block_plane_vert_rt(cm, xd, plane, &pd[plane], mi_row,
+                                         mi_col);
 
         } else {
-          av1_filter_block_plane_horz(cm, xd, plane, &pd[plane], mi_row,
-                                      mi_col - MAX_MIB_SIZE);
-        }
-#endif
-      }
-    } else {
-      // filter all vertical edges in every 128x128 super block
-      for (mi_row = start; mi_row < stop; mi_row += MAX_MIB_SIZE) {
-        for (mi_col = col_start; mi_col < col_end; mi_col += MAX_MIB_SIZE) {
-          av1_setup_dst_planes(pd, cm->seq_params->sb_size, frame_buffer,
-                               mi_row, mi_col, plane, plane + 1);
-#if CONFIG_AV1_HIGHBITDEPTH
-          (void)is_realtime;
           av1_filter_block_plane_vert(cm, xd, plane, &pd[plane], mi_row,
                                       mi_col);
-#else
-          if (is_realtime && !plane) {
-            av1_filter_block_plane_vert_rt(cm, xd, plane, &pd[plane], mi_row,
-                                           mi_col);
-          } else {
-            av1_filter_block_plane_vert(cm, xd, plane, &pd[plane], mi_row,
-                                        mi_col);
-          }
-#endif
         }
-      }
-
-      // filter all horizontal edges in every 128x128 super block
-      for (mi_row = start; mi_row < stop; mi_row += MAX_MIB_SIZE) {
-        for (mi_col = col_start; mi_col < col_end; mi_col += MAX_MIB_SIZE) {
+#endif
+        // filter horizontal edges
+        if (mi_col - MAX_MIB_SIZE >= 0) {
           av1_setup_dst_planes(pd, cm->seq_params->sb_size, frame_buffer,
-                               mi_row, mi_col, plane, plane + 1);
+                               mi_row, mi_col - MAX_MIB_SIZE, plane, plane + 1);
 #if CONFIG_AV1_HIGHBITDEPTH
           (void)is_realtime;
           av1_filter_block_plane_horz(cm, xd, plane, &pd[plane], mi_row,
-                                      mi_col);
+                                      mi_col - MAX_MIB_SIZE);
 #else
           if (is_realtime && !plane) {
             av1_filter_block_plane_horz_rt(cm, xd, plane, &pd[plane], mi_row,
-                                           mi_col);
-
+                                           mi_col - MAX_MIB_SIZE);
           } else {
             av1_filter_block_plane_horz(cm, xd, plane, &pd[plane], mi_row,
-                                        mi_col);
+                                        mi_col - MAX_MIB_SIZE);
           }
 #endif
         }
       }
+      // filter horizontal edges
+      av1_setup_dst_planes(pd, cm->seq_params->sb_size, frame_buffer, mi_row,
+                           mi_col - MAX_MIB_SIZE, plane, plane + 1);
+#if CONFIG_AV1_HIGHBITDEPTH
+      (void)is_realtime;
+      av1_filter_block_plane_horz(cm, xd, plane, &pd[plane], mi_row,
+                                  mi_col - MAX_MIB_SIZE);
+#else
+      if (is_realtime && !plane) {
+        av1_filter_block_plane_horz_rt(cm, xd, plane, &pd[plane], mi_row,
+                                       mi_col - MAX_MIB_SIZE);
+
+      } else {
+        av1_filter_block_plane_horz(cm, xd, plane, &pd[plane], mi_row,
+                                    mi_col - MAX_MIB_SIZE);
+      }
+#endif
     }
   }
 }
