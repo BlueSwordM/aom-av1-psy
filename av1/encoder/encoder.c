@@ -3129,7 +3129,7 @@ static void init_mb_wiener_var_buffer(AV1_COMP *cpi) {
                              sizeof(*cpi->mb_wiener_variance)));
 }
 
-static int get_var_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize,
+static int get_window_wiener_var(AV1_COMP *const cpi, BLOCK_SIZE bsize,
                                  int mi_row, int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
   const int mi_wide = mi_size_wide[bsize];
@@ -3156,6 +3156,38 @@ static int get_var_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize,
 
   sb_wiener_var = mb_wiener_var[mb_count / 3];
   sb_wiener_var = AOMMAX(1, sb_wiener_var);
+
+  return sb_wiener_var;
+}
+
+static int get_var_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize,
+                                 int mi_row, int mi_col) {
+  AV1_COMMON *const cm = &cpi->common;
+  const int mi_wide = mi_size_wide[bsize];
+  const int mi_high = mi_size_high[bsize];
+
+  int sb_wiener_var = get_window_wiener_var(cpi, bsize, mi_row, mi_col);
+
+  if (mi_row >= (mi_high / 2)) {
+    sb_wiener_var =
+        AOMMIN(sb_wiener_var,
+               get_window_wiener_var(cpi, bsize, mi_row - mi_high / 2, mi_col));
+  }
+  if (mi_row <= (cm->mi_params.mi_rows - mi_high - (mi_high / 2))) {
+    sb_wiener_var =
+        AOMMIN(sb_wiener_var,
+               get_window_wiener_var(cpi, bsize, mi_row + mi_high / 2, mi_col));
+  }
+  if (mi_col >= (mi_wide / 2)) {
+    sb_wiener_var =
+        AOMMIN(sb_wiener_var,
+               get_window_wiener_var(cpi, bsize, mi_row, mi_col - mi_wide / 2));
+  }
+  if (mi_col <= (cm->mi_params.mi_cols - mi_wide - (mi_wide / 2))) {
+    sb_wiener_var =
+        AOMMIN(sb_wiener_var,
+               get_window_wiener_var(cpi, bsize, mi_row, mi_col + mi_wide / 2));
+  }
 
   return sb_wiener_var;
 }
@@ -3263,7 +3295,6 @@ int av1_get_sbq_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
   int offset = 0;
   double beta = (double)cpi->norm_wiener_variance / sb_wiener_var;
   offset = av1_get_deltaq_offset(cm->seq_params->bit_depth, base_qindex, beta);
-
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
   offset = AOMMIN(offset, delta_q_info->delta_q_res * 20 - 1);
   offset = AOMMAX(offset, -delta_q_info->delta_q_res * 20 + 1);
