@@ -147,6 +147,10 @@ void av1_prune_ab_partitions(
     int partition_horz_allowed, int partition_vert_allowed,
     int *horza_partition_allowed, int *horzb_partition_allowed,
     int *verta_partition_allowed, int *vertb_partition_allowed);
+
+void av1_collect_motion_search_features_sb(AV1_COMP *const cpi, ThreadData *td,
+                                           const int mi_row, const int mi_col,
+                                           const BLOCK_SIZE bsize);
 #endif  // !CONFIG_REALTIME_ONLY
 
 // A simplified version of set_offsets meant to be used for

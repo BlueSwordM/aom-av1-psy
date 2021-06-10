@@ -35,6 +35,8 @@
 #include "av1/encoder/tune_vmaf.h"
 #endif
 
+#define COLLECT_MOTION_SEARCH_FEATURE_SB 0
+
 void av1_reset_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->partition_search_type = SEARCH_PARTITION;
   part_sf->less_rectangular_check_level = 0;
@@ -3678,7 +3680,6 @@ static void write_partition_tree(AV1_COMP *const cpi,
   char filename[256];
   snprintf(filename, sizeof(filename), "%s/partition_tree_sb%d_c%d", path,
            cpi->sb_counter, 0);
-  ++cpi->sb_counter;
   FILE *pfile = fopen(filename, "w");
   fprintf(pfile, "%d", bsize);
 
@@ -4142,6 +4143,16 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   const int orig_rdmult = x->rdmult;
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, NO_AQ, NULL);
 
+  // Apply simple motion search for the entire super block with fixed block
+  // size, e.g., 16x16, to collect features and write to files for the
+  // external ML model.
+  // TODO(chengchen): reduce motion search. This function is similar to
+  // av1_get_max_min_partition_features().
+  if (COLLECT_MOTION_SEARCH_FEATURE_SB && !frame_is_intra_only(cm) &&
+      bsize == cm->seq_params->sb_size) {
+    av1_collect_motion_search_features_sb(cpi, td, mi_row, mi_col, bsize);
+  }
+
   // Update rd cost of the bound using the current multiplier.
   av1_rd_cost_update(x->rdmult, &best_rdc);
 
@@ -4368,7 +4379,10 @@ BEGIN_PARTITION_SEARCH:
       const RUN_TYPE run_type = emit_output ? OUTPUT_ENABLED : DRY_RUN_NORMAL;
 
       // Write partition tree to file. Not used by default.
-      if (0) write_partition_tree(cpi, pc_tree, bsize, mi_row, mi_col);
+      if (COLLECT_MOTION_SEARCH_FEATURE_SB) {
+        write_partition_tree(cpi, pc_tree, bsize, mi_row, mi_col);
+        ++cpi->sb_counter;
+      }
 
       set_cb_offsets(x->cb_offset, 0, 0);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, run_type, bsize,
@@ -4403,6 +4417,8 @@ BEGIN_PARTITION_SEARCH:
   return part_search_state.found_best_partition;
 }
 #endif  // !CONFIG_REALTIME_ONLY
+
+#undef COLLECT_MOTION_SEARCH_FEATURE_SB
 
 #if CONFIG_RT_ML_PARTITIONING
 #define FEATURES 6

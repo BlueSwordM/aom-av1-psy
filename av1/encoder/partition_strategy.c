@@ -2208,4 +2208,124 @@ static bool ext_ml_model_decision_after_part_ab(
   return false;
 }
 
+// This function resembles "av1_setup_sms_tree()" in context_tree.c
+// with function signature change.
+SIMPLE_MOTION_DATA_TREE *setup_sms_tree(AV1_COMP *const cpi,
+                                        SIMPLE_MOTION_DATA_TREE *sms_tree) {
+  AV1_COMMON *const cm = &cpi->common;
+  const int stat_generation_stage = is_stat_generation_stage(cpi);
+  const int is_sb_size_128 = cm->seq_params->sb_size == BLOCK_128X128;
+  const int tree_nodes =
+      av1_get_pc_tree_nodes(is_sb_size_128, stat_generation_stage);
+  int sms_tree_index = 0;
+  SIMPLE_MOTION_DATA_TREE *this_sms;
+  int square_index = 1;
+  int nodes;
+
+  aom_free(sms_tree);
+  CHECK_MEM_ERROR(cm, sms_tree, aom_calloc(tree_nodes, sizeof(*sms_tree)));
+  this_sms = &sms_tree[0];
+
+  if (!stat_generation_stage) {
+    const int leaf_factor = is_sb_size_128 ? 4 : 1;
+    const int leaf_nodes = 256 * leaf_factor;
+
+    // Sets up all the leaf nodes in the tree.
+    for (sms_tree_index = 0; sms_tree_index < leaf_nodes; ++sms_tree_index) {
+      SIMPLE_MOTION_DATA_TREE *const tree = &sms_tree[sms_tree_index];
+      tree->block_size = square[0];
+    }
+
+    // Each node has 4 leaf nodes, fill each block_size level of the tree
+    // from leafs to the root.
+    for (nodes = leaf_nodes >> 2; nodes > 0; nodes >>= 2) {
+      for (int i = 0; i < nodes; ++i) {
+        SIMPLE_MOTION_DATA_TREE *const tree = &sms_tree[sms_tree_index];
+        tree->block_size = square[square_index];
+        for (int j = 0; j < 4; j++) tree->split[j] = this_sms++;
+        ++sms_tree_index;
+      }
+      ++square_index;
+    }
+  } else {
+    // Allocation for firstpass/LAP stage
+    // TODO(Mufaddal): refactor square_index to use a common block_size macro
+    // from firstpass.c
+    SIMPLE_MOTION_DATA_TREE *const tree = &sms_tree[sms_tree_index];
+    square_index = 2;
+    tree->block_size = square[square_index];
+  }
+
+  // Set up the root node for the largest superblock size
+  return &sms_tree[tree_nodes - 1];
+}
+
+static void write_motion_feature_to_file(
+    const char *const path, const int sb_counter, const unsigned int *block_sse,
+    const unsigned int *block_var, const int num_blocks, const BLOCK_SIZE bsize,
+    const BLOCK_SIZE fixed_block_size, const int mi_row, const int mi_col) {
+  char filename[256];
+  snprintf(filename, sizeof(filename), "%s/motion_search_feature_sb%d", path,
+           sb_counter);
+  FILE *pfile = fopen(filename, "w");
+  fprintf(pfile, "%d,%d,%d,%d,%d\n", mi_row, mi_col, bsize, fixed_block_size,
+          num_blocks);
+  for (int i = 0; i < num_blocks; ++i) {
+    fprintf(pfile, "%d", block_sse[i]);
+    if (i < num_blocks - 1) fprintf(pfile, ",");
+  }
+  fprintf(pfile, "\n");
+  for (int i = 0; i < num_blocks; ++i) {
+    fprintf(pfile, "%d", block_var[i]);
+    if (i < num_blocks - 1) fprintf(pfile, ",");
+  }
+  fprintf(pfile, "\n");
+  fclose(pfile);
+}
+
+void av1_collect_motion_search_features_sb(AV1_COMP *const cpi, ThreadData *td,
+                                           const int mi_row, const int mi_col,
+                                           const BLOCK_SIZE bsize) {
+  const AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCK *const x = &td->mb;
+  const BLOCK_SIZE fixed_block_size = BLOCK_16X16;
+  const int col_step = mi_size_wide[bsize] / mi_size_wide[fixed_block_size];
+  const int row_step = mi_size_high[bsize] / mi_size_high[fixed_block_size];
+  SIMPLE_MOTION_DATA_TREE *sms_tree = NULL;
+  SIMPLE_MOTION_DATA_TREE *sms_root = setup_sms_tree(cpi, sms_tree);
+  init_simple_motion_search_mvs(sms_root);
+  av1_reset_simple_motion_tree_partition(sms_root, bsize);
+  const int ref_list[] = { cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME
+                                                        : LAST_FRAME };
+  const int num_blocks = col_step * row_step;
+  unsigned int *block_sse = aom_calloc(num_blocks, sizeof(*block_sse));
+  unsigned int *block_var = aom_calloc(num_blocks, sizeof(*block_var));
+  int idx = 0;
+
+  for (int row = mi_row;
+       row < AOMMIN(mi_row + mi_size_high[bsize], cm->mi_params.mi_rows);
+       row += row_step) {
+    for (int col = mi_col;
+         col < AOMMIN(mi_col + mi_size_wide[bsize], cm->mi_params.mi_cols);
+         col += col_step) {
+      simple_motion_search_get_best_ref(
+          cpi, x, sms_root, row, col, fixed_block_size, ref_list,
+          /*num_refs=*/1, /*use_subpixel=*/1,
+          /*save_mv=*/1, &block_sse[idx], &block_var[idx]);
+      ++idx;
+    }
+  }
+  write_motion_feature_to_file(cpi->oxcf.partition_info_path, cpi->sb_counter,
+                               block_sse, block_var, idx, bsize,
+                               fixed_block_size, mi_row, mi_col);
+
+  aom_free(block_sse);
+  aom_free(block_var);
+  aom_free(sms_tree);
+  if (sms_tree != NULL) {
+    aom_free(sms_tree);
+    sms_tree = NULL;
+  }
+}
+
 #endif  // !CONFIG_REALTIME_ONLY
