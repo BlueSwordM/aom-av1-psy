@@ -1113,7 +1113,8 @@ enum aome_enc_control_id {
    *
    * - 0 = deltaq signaling off
    * - 1 = use modulation to maximize objective quality (default)
-   * - 2 = use modulation to maximize perceptual quality
+   * - 2 = use modulation for local test
+   * - 3 = use modulation for key frame perceptual quality optimization
    */
   AV1E_SET_DELTAQ_MODE = 107,
 
