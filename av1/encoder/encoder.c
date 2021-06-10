@@ -3149,7 +3149,7 @@ static int get_window_wiener_var(AV1_COMP *const cpi, BLOCK_SIZE bsize,
       ++mb_count;
     }
   }
-  qsort(mb_wiener_var, mb_count - 1, sizeof(*mb_wiener_var), qsort_comp);
+  qsort(mb_wiener_var, mb_count, sizeof(*mb_wiener_var), qsort_comp);
 
   sb_wiener_var = mb_wiener_var[mb_count / 3];
   sb_wiener_var = AOMMAX(1, sb_wiener_var);
