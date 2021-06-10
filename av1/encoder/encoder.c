@@ -559,6 +559,7 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 
   cm->width = oxcf->frm_dim_cfg.width;
   cm->height = oxcf->frm_dim_cfg.height;
+  cpi->is_dropped_frame = false;
 
   alloc_compressor_data(cpi);
 
@@ -3445,7 +3446,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     // Since we allocate a spot for the OVERLAY frame in the gf group, we need
     // to do post-encoding update accordingly.
     av1_set_target_rate(cpi, cm->width, cm->height);
-    av1_rc_postencode_update(cpi, *size);
 
     if (is_psnr_calc_enabled(cpi)) {
       cpi->source =
@@ -3508,6 +3508,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       av1_setup_frame_size(cpi);
       av1_rc_postencode_update_drop_frame(cpi);
       release_scaled_references(cpi);
+      cpi->is_dropped_frame = true;
       return AOM_CODEC_OK;
     }
   }
@@ -3686,8 +3687,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 
   cpi->last_frame_type = current_frame->frame_type;
-
-  av1_rc_postencode_update(cpi, *size);
 
   // Clear the one shot update flags for segmentation map and mode/ref loop
   // filter deltas.
@@ -4214,6 +4213,10 @@ void av1_post_encode_updates(AV1_COMP *const cpi, size_t size,
   AV1_PRIMARY *const ppi = cpi->ppi;
   AV1_COMMON *const cm = &cpi->common;
 
+  if (!is_stat_generation_stage(cpi) && !cpi->is_dropped_frame) {
+    av1_rc_postencode_update(cpi, size);
+  }
+
   if (pop_lookahead == 1) {
     av1_lookahead_pop(cpi->ppi->lookahead, flush, cpi->compressor_stage);
   }
@@ -4281,6 +4284,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
     av1_one_pass_cbr_svc_start_layer(cpi);
   }
 
+  cpi->is_dropped_frame = false;
   cm->showable_frame = 0;
   *size = 0;
   cpi->available_bs_size = avail_size;

@@ -391,8 +391,7 @@ int av1_rc_get_default_max_gf_interval(double framerate, int min_gf_interval);
 //
 // Then, call encode_frame_to_data_rate() to perform the
 // actual encode. This function will in turn call encode_frame()
-// one or more times, followed by one of:
-//   av1_rc_postencode_update()
+// one or more times, followed by:
 //   av1_rc_postencode_update_drop_frame()
 //
 // The majority of rate control parameters are only expected
