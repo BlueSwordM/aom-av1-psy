@@ -3121,9 +3121,6 @@ static void init_mb_wiener_var_buffer(AV1_COMP *cpi) {
 
   if (cpi->mb_wiener_variance) return;
 
-  aom_free(cpi->mb_wiener_variance);
-  cpi->mb_wiener_variance = NULL;
-
   CHECK_MEM_ERROR(cm, cpi->mb_wiener_variance,
                   aom_calloc(cpi->frame_info.mb_rows * cpi->frame_info.mb_cols,
                              sizeof(*cpi->mb_wiener_variance)));
