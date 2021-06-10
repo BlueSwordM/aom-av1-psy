@@ -268,20 +268,10 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
     // Setup deltaq based on tpl stats
     current_qindex =
         av1_get_q_for_deltaq_objective(cpi, sb_size, mi_row, mi_col);
+    current_qindex = clamp(current_qindex, delta_q_res, 256 - delta_q_res);
   } else if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL_AI) {
     current_qindex = av1_get_sbq_perceptual_ai(cpi, sb_size, mi_row, mi_col);
-    current_qindex =
-        clamp(current_qindex, delta_q_res, 256 - delta_q_info->delta_q_res);
-  }
-
-  // Right now deltaq only works with tpl model. So if tpl is disabled, we set
-  // the current_qindex to base_qindex.
-  if (cpi->oxcf.algo_cfg.enable_tpl_model &&
-      cpi->oxcf.q_cfg.deltaq_mode != NO_DELTA_Q) {
-    current_qindex =
-        clamp(current_qindex, delta_q_res, 256 - delta_q_info->delta_q_res);
-  } else {
-    current_qindex = cm->quant_params.base_qindex;
+    current_qindex = clamp(current_qindex, delta_q_res, 256 - delta_q_res);
   }
 
   MACROBLOCKD *const xd = &x->e_mbd;
