@@ -3196,6 +3196,10 @@ static void set_mb_wiener_variance(AV1_COMP *cpi) {
   ThreadData *td = &cpi->td;
   MACROBLOCK *x = &td->mb;
   MACROBLOCKD *xd = &x->e_mbd;
+  MB_MODE_INFO mbmi;
+  memset(&mbmi, 0, sizeof(mbmi));
+  MB_MODE_INFO *mbmi_ptr = &mbmi;
+  xd->mi = &mbmi_ptr;
 
 #if CONFIG_AV1_HIGHBITDEPTH
   DECLARE_ALIGNED(32, uint16_t, zero_pred16[32 * 32]);
@@ -3226,20 +3230,56 @@ static void set_mb_wiener_variance(AV1_COMP *cpi) {
   memset(zero_pred, 0, sizeof(*zero_pred) * coeff_count);
 #endif
 
+  const BitDepthInfo bd_info = get_bit_depth_info(xd);
   cpi->norm_wiener_variance = 0;
+
+  int mb_step = mi_size_wide[BLOCK_16X16];
 
   for (mb_row = 0; mb_row < cpi->frame_info.mb_rows; ++mb_row) {
     for (mb_col = 0; mb_col < cpi->frame_info.mb_cols; ++mb_col) {
+      PREDICTION_MODE best_mode = DC_PRED;
+      int best_intra_cost = INT_MAX;
+
+      int mi_row = mb_row * mb_step;
+      int mi_col = mb_col * mb_step;
+
+      xd->up_available = mi_row > 0;
+      xd->left_available = mi_col > 0;
+
+      int dst_mb_offset = mi_row * MI_SIZE * buf_stride + mi_col * MI_SIZE;
+      uint8_t *dst_buffer = xd->cur_buf->y_buffer + dst_mb_offset;
+
+      for (PREDICTION_MODE mode = INTRA_MODE_START; mode < INTRA_MODE_END;
+           ++mode) {
+        av1_predict_intra_block(xd, cm->seq_params->sb_size,
+                                cm->seq_params->enable_intra_edge_filter,
+                                block_size, block_size, tx_size, mode, 0, 0,
+                                FILTER_INTRA_MODES, dst_buffer, buf_stride,
+                                zero_pred, block_size, 0, 0, 0);
+
+        av1_subtract_block(bd_info, block_size, block_size, src_diff,
+                           block_size, dst_buffer, buf_stride, zero_pred,
+                           block_size);
+        av1_quick_txfm(0, tx_size, bd_info, src_diff, block_size, coeff);
+        int intra_cost = aom_satd(coeff, coeff_count);
+        if (intra_cost < best_intra_cost) {
+          best_intra_cost = intra_cost;
+          best_mode = mode;
+        }
+      }
+
       int idx;
       int16_t median_val = 0;
       uint8_t *mb_buffer =
           buffer + mb_row * block_size * buf_stride + mb_col * block_size;
       int64_t wiener_variance = 0;
-      const BitDepthInfo bd_info = get_bit_depth_info(xd);
+      av1_predict_intra_block(
+          xd, cm->seq_params->sb_size, cm->seq_params->enable_intra_edge_filter,
+          block_size, block_size, tx_size, best_mode, 0, 0, FILTER_INTRA_MODES,
+          dst_buffer, buf_stride, zero_pred, block_size, 0, 0, 0);
       av1_subtract_block(bd_info, block_size, block_size, src_diff, block_size,
                          mb_buffer, buf_stride, zero_pred, block_size);
-      av1_quick_txfm(/*use_hadamard=*/0, tx_size, bd_info, src_diff, block_size,
-                     coeff);
+      av1_quick_txfm(0, tx_size, bd_info, src_diff, block_size, coeff);
       coeff[0] = 0;
       for (idx = 1; idx < coeff_count; ++idx) coeff[idx] = abs(coeff[idx]);
 
@@ -3260,8 +3300,6 @@ static void set_mb_wiener_variance(AV1_COMP *cpi) {
       }
       cpi->mb_wiener_variance[mb_row * cpi->frame_info.mb_cols + mb_col] =
           wiener_variance / coeff_count;
-      cpi->norm_wiener_variance +=
-          cpi->mb_wiener_variance[mb_row * cpi->frame_info.mb_cols + mb_col];
       ++count;
     }
   }
