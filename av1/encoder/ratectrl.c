@@ -2349,6 +2349,7 @@ void av1_set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
   int last_idx_refresh = 0;
   int gld_idx = 0;
   int alt_ref_idx = 0;
+  int last2_idx = 0;
   ext_refresh_frame_flags->update_pending = 1;
   svc->set_ref_frame_config = 1;
   ext_flags->ref_frame_flags = 0;
@@ -2361,6 +2362,8 @@ void av1_set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
   ext_flags->ref_frame_flags ^= AOM_LAST_FLAG;
   ext_flags->ref_frame_flags ^= AOM_GOLD_FLAG;
   ext_flags->ref_frame_flags ^= AOM_ALT_FLAG;
+  if (cpi->sf.rt_sf.ref_frame_comp_nonrd == 1)
+    ext_flags->ref_frame_flags ^= AOM_LAST2_FLAG;
   const int sh = 7 - gld_fixed_slot;
   // Moving index slot for last: 0 - (sh - 1).
   if (cm->current_frame.frame_number > 1)
@@ -2378,10 +2381,19 @@ void av1_set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
   // Moving index for alt_ref, lag behind LAST by lag_alt frames.
   if (cm->current_frame.frame_number > lag_alt)
     alt_ref_idx = ((cm->current_frame.frame_number - lag_alt) % sh);
+  if (cpi->sf.rt_sf.ref_frame_comp_nonrd == 1) {
+    // Moving index for LAST2, lag behind LAST by 2 frames.
+    if (cm->current_frame.frame_number > 2)
+      last2_idx = ((cm->current_frame.frame_number - 2) % sh);
+  }
   svc->ref_idx[0] = last_idx;          // LAST
   svc->ref_idx[1] = last_idx_refresh;  // LAST2 (for refresh of last).
-  svc->ref_idx[3] = gld_idx;           // GOLDEN
-  svc->ref_idx[6] = alt_ref_idx;       // ALT_REF
+  if (cpi->sf.rt_sf.ref_frame_comp_nonrd == 1) {
+    svc->ref_idx[1] = last2_idx;         // LAST2
+    svc->ref_idx[2] = last_idx_refresh;  // LAST3 (for refresh of last).
+  }
+  svc->ref_idx[3] = gld_idx;      // GOLDEN
+  svc->ref_idx[6] = alt_ref_idx;  // ALT_REF
   // Refresh this slot, which will become LAST on next frame.
   svc->refresh[last_idx_refresh] = 1;
   // Update GOLDEN on period for fixed slot case.

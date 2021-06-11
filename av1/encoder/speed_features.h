@@ -1149,6 +1149,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Use compound reference for non-RD mode.
   int use_comp_ref_nonrd;
 
+  // Reference frames for compound prediction for nonrd pickmode:
+  // LAST_GOLDEN (0, default) or LAST_LAST2 (1).
+  int ref_frame_comp_nonrd;
+
   // use reduced ref set for real-time mode
   int use_real_time_ref_set;
 
