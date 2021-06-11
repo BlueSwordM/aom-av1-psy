@@ -623,6 +623,32 @@ void av1_q_mode_compute_gop_q_indices(int gf_frame_index, int base_q_index,
                                       double arf_boost_factor,
                                       struct GF_GROUP *gf_group);
 
+/*!\brief Compute the q_indices for a single frame.
+ *
+ * Intended to be used with AOM_Q mode.
+ *
+ * \param[in]       base_q_index      Base q index
+ * \param[in]       gf_update_type    GOP update type
+ * \param[in]       gf_pyramid_level  GOP level of the current frame
+ * \param[in]       arf_q             ARF q_index
+ *
+ * \return Returns the q_index for the current frame.
+ */
+int av1_q_mode_get_q_index(int base_q_index, int gf_update_type,
+                           int gf_pyramid_level, int arf_q);
+
+/*!\brief Compute the q_indices for the ARF of a GOP.
+ *
+ * \param[in]       base_q_index      Base q index
+ * \param[in]       gfu_boost         GFU boost
+ * \param[in]       bit_depth         Bit depth
+ * \param[in]       arf_boost_factor  ARF boost factor
+ *
+ * \return Returns the q_index for the ARF frame.
+ */
+int av1_get_arf_q_index(int base_q_index, int gfu_boost, int bit_depth,
+                        double arf_boost_factor);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
