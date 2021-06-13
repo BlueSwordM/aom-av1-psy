@@ -1134,6 +1134,8 @@ static void set_good_speed_features_framesize_independent(
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
 
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
+
+    sf->fp_sf.skip_zeromv_motion_search = 1;
   }
 
   // Intra txb hash is currently not compatible with multi-winner mode as the
@@ -1542,6 +1544,7 @@ static AOM_INLINE void init_fp_sf(FIRST_PASS_SPEED_FEATURES *fp_sf) {
   fp_sf->reduce_mv_step_param = 3;
   fp_sf->skip_motion_search_threshold = 0;
   fp_sf->disable_recon = 0;
+  fp_sf->skip_zeromv_motion_search = 0;
 }
 
 static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {

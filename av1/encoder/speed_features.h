@@ -376,6 +376,11 @@ typedef struct FIRST_PASS_SPEED_FEATURES {
    * \brief Skips reconstruction by using source buffers for prediction
    */
   int disable_recon;
+
+  /*!
+   * \brief Skips the motion search centered on 0,0 mv.
+   */
+  int skip_zeromv_motion_search;
 } FIRST_PASS_SPEED_FEATURES;
 
 /*!\cond */

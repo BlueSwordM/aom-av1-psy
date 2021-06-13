@@ -721,15 +721,16 @@ static int firstpass_inter_prediction(
       is_high_bitdepth, bitdepth, bsize, &x->plane[0].src,
       &unscaled_last_source_buf_2d);
   raw_motion_err_list[raw_motion_err_counts] = raw_motion_error;
+  const FIRST_PASS_SPEED_FEATURES *const fp_sf = &cpi->sf.fp_sf;
 
-  if (raw_motion_error > cpi->sf.fp_sf.skip_motion_search_threshold) {
+  if (raw_motion_error > fp_sf->skip_motion_search_threshold) {
     // Test last reference frame using the previous best mv as the
     // starting point (best reference) for the search.
     first_pass_motion_search(cpi, x, &ref_mv, &mv, &motion_error);
 
     // If the current best reference mv is not centered on 0,0 then do a
     // 0,0 based search as well.
-    if (!is_zero_mv(&ref_mv)) {
+    if ((fp_sf->skip_zeromv_motion_search == 0) && !is_zero_mv(&ref_mv)) {
       FULLPEL_MV tmp_mv = kZeroFullMv;
       int tmp_err = INT_MAX;
       first_pass_motion_search(cpi, x, &kZeroMv, &tmp_mv, &tmp_err);
@@ -831,7 +832,7 @@ static int firstpass_inter_prediction(
     xd->mi[0]->ref_frame[0] = LAST_FRAME;
     xd->mi[0]->ref_frame[1] = NONE_FRAME;
 
-    if (cpi->sf.fp_sf.disable_recon == 0) {
+    if (fp_sf->disable_recon == 0) {
       av1_enc_build_inter_predictor(cm, xd, unit_row * unit_scale,
                                     unit_col * unit_scale, NULL, bsize,
                                     AOM_PLANE_Y, AOM_PLANE_Y);
