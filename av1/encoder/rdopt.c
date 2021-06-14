@@ -5236,13 +5236,22 @@ static AOM_INLINE void skip_intra_modes_in_interframe(
     InterModeSearchState *search_state, int64_t inter_cost, int64_t intra_cost,
     int skip_intra_in_interframe) {
   MACROBLOCKD *const xd = &x->e_mbd;
-  const int qindex_thresh[2] = { 200, MAXQ };
-  const int ind = (skip_intra_in_interframe >= 3) ? 1 : 0;
-  if ((skip_intra_in_interframe >= 2) && search_state->best_mbmode.skip_txfm &&
-      !have_newmv_in_inter_mode(search_state->best_mbmode.mode) &&
-      (x->qindex <= qindex_thresh[ind])) {
-    search_state->intra_search_state.skip_intra_modes = 1;
-  } else if (inter_cost >= 0 && intra_cost >= 0) {
+  // Prune intra search based on best inter mode being transfrom skip.
+  if ((skip_intra_in_interframe >= 2) && search_state->best_mbmode.skip_txfm) {
+    const int qindex_thresh[2] = { 200, MAXQ };
+    const int ind = (skip_intra_in_interframe >= 3) ? 1 : 0;
+    if (!have_newmv_in_inter_mode(search_state->best_mbmode.mode) &&
+        (x->qindex <= qindex_thresh[ind])) {
+      search_state->intra_search_state.skip_intra_modes = 1;
+      return;
+    } else if ((skip_intra_in_interframe >= 4) &&
+               (inter_cost < 0 || intra_cost < 0)) {
+      search_state->intra_search_state.skip_intra_modes = 1;
+      return;
+    }
+  }
+  // Use ML model to prune intra search.
+  if (inter_cost >= 0 && intra_cost >= 0) {
     aom_clear_system_state();
     const NN_CONFIG *nn_config = (AOMMIN(cm->width, cm->height) <= 480)
                                      ? &av1_intrap_nn_config
@@ -5269,9 +5278,6 @@ static AOM_INLINE void skip_intra_modes_in_interframe(
     if (scores[1] > scores[0] + thresh[skip_intra_in_interframe - 1]) {
       search_state->intra_search_state.skip_intra_modes = 1;
     }
-  } else if ((search_state->best_mbmode.skip_txfm) &&
-             (skip_intra_in_interframe >= 4)) {
-    search_state->intra_search_state.skip_intra_modes = 1;
   }
 }
 
