@@ -2534,7 +2534,7 @@ static int set_gf_interval_update_onepass_rt(AV1_COMP *cpi,
     if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ)
       av1_cyclic_refresh_set_golden_update(cpi);
     else
-      p_rc->baseline_gf_interval = MAX_GF_INTERVAL;
+      p_rc->baseline_gf_interval = FIXED_GF_INTERVAL;
     if (p_rc->baseline_gf_interval > rc->frames_to_key)
       p_rc->baseline_gf_interval = rc->frames_to_key;
     p_rc->gfu_boost = DEFAULT_GF_BOOST_RT;
