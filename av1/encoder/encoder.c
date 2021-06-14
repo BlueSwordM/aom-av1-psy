@@ -3201,13 +3201,13 @@ static void set_mb_wiener_variance(AV1_COMP *cpi) {
   MB_MODE_INFO *mbmi_ptr = &mbmi;
   xd->mi = &mbmi_ptr;
 
+  union {
 #if CONFIG_AV1_HIGHBITDEPTH
-  DECLARE_ALIGNED(32, uint16_t, zero_pred16[32 * 32]);
-  DECLARE_ALIGNED(32, uint8_t, zero_pred8[32 * 32]);
-  uint8_t *zero_pred;
-#else
-  DECLARE_ALIGNED(32, uint8_t, zero_pred[32 * 32]);
+    DECLARE_ALIGNED(32, uint16_t, zero_pred16[32 * 32]);
 #endif
+    DECLARE_ALIGNED(32, uint8_t, zero_pred8[32 * 32]);
+  } pred_buffer_mem;
+  uint8_t *pred_buf;
 
   DECLARE_ALIGNED(32, int16_t, src_diff[32 * 32]);
   DECLARE_ALIGNED(32, tran_low_t, coeff[32 * 32]);
@@ -3220,14 +3220,18 @@ static void set_mb_wiener_variance(AV1_COMP *cpi) {
 #if CONFIG_AV1_HIGHBITDEPTH
   xd->cur_buf = cpi->source;
   if (xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) {
-    zero_pred = CONVERT_TO_BYTEPTR(zero_pred16);
-    memset(zero_pred16, 0, sizeof(*zero_pred16) * coeff_count);
+    pred_buf = CONVERT_TO_BYTEPTR(pred_buffer_mem.zero_pred16);
+    memset(pred_buffer_mem.zero_pred16, 0,
+           sizeof(*pred_buffer_mem.zero_pred16) * coeff_count);
   } else {
-    zero_pred = zero_pred8;
-    memset(zero_pred8, 0, sizeof(*zero_pred8) * coeff_count);
+    pred_buf = pred_buffer_mem.zero_pred8;
+    memset(pred_buffer_mem.zero_pred8, 0,
+           sizeof(*pred_buffer_mem.zero_pred8) * coeff_count);
   }
 #else
-  memset(zero_pred, 0, sizeof(*zero_pred) * coeff_count);
+  pred_buf = pred_buffer_mem.zero_pred8;
+  memset(pred_buffer_mem.zero_pred8, 0,
+         sizeof(*pred_buffer_mem.zero_pred8) * coeff_count);
 #endif
 
   const BitDepthInfo bd_info = get_bit_depth_info(xd);
@@ -3255,10 +3259,10 @@ static void set_mb_wiener_variance(AV1_COMP *cpi) {
                                 cm->seq_params->enable_intra_edge_filter,
                                 block_size, block_size, tx_size, mode, 0, 0,
                                 FILTER_INTRA_MODES, dst_buffer, buf_stride,
-                                zero_pred, block_size, 0, 0, 0);
+                                pred_buf, block_size, 0, 0, 0);
 
         av1_subtract_block(bd_info, block_size, block_size, src_diff,
-                           block_size, dst_buffer, buf_stride, zero_pred,
+                           block_size, dst_buffer, buf_stride, pred_buf,
                            block_size);
         av1_quick_txfm(0, tx_size, bd_info, src_diff, block_size, coeff);
         int intra_cost = aom_satd(coeff, coeff_count);
@@ -3276,9 +3280,9 @@ static void set_mb_wiener_variance(AV1_COMP *cpi) {
       av1_predict_intra_block(
           xd, cm->seq_params->sb_size, cm->seq_params->enable_intra_edge_filter,
           block_size, block_size, tx_size, best_mode, 0, 0, FILTER_INTRA_MODES,
-          dst_buffer, buf_stride, zero_pred, block_size, 0, 0, 0);
+          dst_buffer, buf_stride, pred_buf, block_size, 0, 0, 0);
       av1_subtract_block(bd_info, block_size, block_size, src_diff, block_size,
-                         mb_buffer, buf_stride, zero_pred, block_size);
+                         mb_buffer, buf_stride, pred_buf, block_size);
       av1_quick_txfm(0, tx_size, bd_info, src_diff, block_size, coeff);
       coeff[0] = 0;
       for (idx = 1; idx < coeff_count; ++idx) coeff[idx] = abs(coeff[idx]);
