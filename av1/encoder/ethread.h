@@ -98,7 +98,7 @@ void av1_write_tile_obu_mt(
     struct aom_write_bit_buffer *saved_wb, uint8_t obu_extn_header,
     const FrameHeaderInfo *fh_info, int *const largest_tile_id,
     unsigned int *max_tile_size, uint32_t *const obu_header_size,
-    uint8_t **tile_data_start);
+    uint8_t **tile_data_start, const int num_workers);
 
 #ifdef __cplusplus
 }  // extern "C"

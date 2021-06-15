@@ -48,6 +48,8 @@
 #include "av1/encoder/tokenize.h"
 
 #define ENC_MISMATCH_DEBUG 0
+#define SETUP_TIME_OH_CONST 5     // Setup time overhead constant per worker
+#define JOB_DISP_TIME_OH_CONST 1  // Job dispatch time overhead per tile
 
 static INLINE void write_uniform(aom_writer *w, int n, int v) {
   const int l = get_unsigned_bits(n);
@@ -3918,19 +3920,36 @@ static void write_tile_obu_size(AV1_COMP *const cpi, uint8_t *const dst,
 // As per the experiments, single-thread bitstream packing is better for
 // frames with a smaller bitstream size. This behavior is due to setup time
 // overhead of multithread function would be more than that of time required
-// to pack the smaller bitstream of such frames. We set a threshold on the
-// total absolute sum of transform coeffs to detect such frames and disable
-// Multithreading.
-int enable_pack_bitstream_mt(const TileDataEnc *tile_data, int num_tiles,
-                             int num_workers) {
-  if (AOMMIN(num_workers, num_tiles) <= 1) return 0;
+// to pack the smaller bitstream of such frames. This function computes the
+// number of required number of workers based on setup time overhead and job
+// dispatch time overhead for given tiles and available workers.
+int calc_pack_bs_mt_workers(const TileDataEnc *tile_data, int num_tiles,
+                            int avail_workers) {
+  if (AOMMIN(avail_workers, num_tiles) <= 1) return 1;
 
-  const int num_work_sqr = num_workers * num_workers;
-  const uint64_t thresh = 50;
   uint64_t frame_abs_sum_level = 0;
+
   for (int idx = 0; idx < num_tiles; idx++)
     frame_abs_sum_level += tile_data[idx].abs_sum_level;
-  return ((frame_abs_sum_level > (num_work_sqr * thresh) / (num_workers - 1)));
+
+  aom_clear_system_state();
+  int ideal_num_workers = 1;
+  const float job_disp_time_const = (float)num_tiles * JOB_DISP_TIME_OH_CONST;
+  float max_sum = 0.0;
+
+  for (int num_workers = avail_workers; num_workers > 1; num_workers--) {
+    const float fas_per_worker_const =
+        ((float)(num_workers - 1) / num_workers) * frame_abs_sum_level;
+    const float setup_time_const = (float)num_workers * SETUP_TIME_OH_CONST;
+    const float this_sum = fas_per_worker_const - setup_time_const -
+                           job_disp_time_const / num_workers;
+
+    if (this_sum > max_sum) {
+      max_sum = this_sum;
+      ideal_num_workers = num_workers;
+    }
+  }
+  return ideal_num_workers;
 }
 
 static INLINE uint32_t pack_tiles_in_tg_obus(
@@ -3942,18 +3961,17 @@ static INLINE uint32_t pack_tiles_in_tg_obus(
   unsigned int max_tile_size = 0;
   uint32_t obu_header_size = 0;
   uint8_t *tile_data_start = dst;
-  const int num_workers = cpi->mt_info.num_mod_workers[MOD_PACK_BS];
   const int tile_cols = tiles->cols;
   const int tile_rows = tiles->rows;
   const int num_tiles = tile_rows * tile_cols;
 
-  const int enable_mt =
-      enable_pack_bitstream_mt(cpi->tile_data, num_tiles, num_workers);
+  const int num_workers = calc_pack_bs_mt_workers(
+      cpi->tile_data, num_tiles, cpi->mt_info.num_mod_workers[MOD_PACK_BS]);
 
-  if (enable_mt) {
+  if (num_workers > 1) {
     av1_write_tile_obu_mt(cpi, dst, &total_size, saved_wb, obu_extension_header,
                           fh_info, largest_tile_id, &max_tile_size,
-                          &obu_header_size, &tile_data_start);
+                          &obu_header_size, &tile_data_start, num_workers);
   } else {
     write_tile_obu(cpi, dst, &total_size, saved_wb, obu_extension_header,
                    fh_info, largest_tile_id, &max_tile_size, &obu_header_size,

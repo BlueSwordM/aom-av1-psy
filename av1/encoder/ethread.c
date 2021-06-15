@@ -2074,9 +2074,8 @@ void av1_write_tile_obu_mt(
     struct aom_write_bit_buffer *saved_wb, uint8_t obu_extn_header,
     const FrameHeaderInfo *fh_info, int *const largest_tile_id,
     unsigned int *max_tile_size, uint32_t *const obu_header_size,
-    uint8_t **tile_data_start) {
+    uint8_t **tile_data_start, const int num_workers) {
   MultiThreadInfo *const mt_info = &cpi->mt_info;
-  const int num_workers = mt_info->num_mod_workers[MOD_PACK_BS];
 
   PackBSParams pack_bs_params[MAX_TILES];
   uint32_t tile_size[MAX_TILES] = { 0 };
