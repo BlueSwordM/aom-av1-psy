@@ -3207,6 +3207,11 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
  */
 int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data);
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+AV1_COMP *av1_get_parallel_frame_enc_data(AV1_PRIMARY *const ppi,
+                                          AV1_COMP_DATA *const first_cpi_data);
+#endif
+
 /*!\brief Run 1-pass/2-pass encoding
  *
  * \ingroup high_level_algo

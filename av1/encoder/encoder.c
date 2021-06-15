@@ -4387,6 +4387,48 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
   return AOM_CODEC_OK;
 }
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+AV1_COMP *av1_get_parallel_frame_enc_data(AV1_PRIMARY *const ppi,
+                                          AV1_COMP_DATA *const first_cpi_data) {
+  int cpi_idx = 0;
+
+  // Loop over parallel_cpi to find the cpi that processed the current
+  // gf_frame_index ahead of time.
+  for (int i = 1; i < ppi->num_fp_contexts; i++) {
+    if (ppi->cpi->gf_frame_index == ppi->parallel_cpi[i]->gf_frame_index) {
+      cpi_idx = i;
+      break;
+    }
+  }
+
+  assert(cpi_idx > 0);
+  assert(!ppi->parallel_cpi[cpi_idx]->common.show_existing_frame);
+
+  // Swap the appropriate parallel_cpi with the parallel_cpi[0].
+  ppi->cpi = ppi->parallel_cpi[cpi_idx];
+  ppi->parallel_cpi[cpi_idx] = ppi->parallel_cpi[0];
+  ppi->parallel_cpi[0] = ppi->cpi;
+
+  // Copy appropriate parallel_frames_data to local data.
+  {
+    AV1_COMP_DATA *data = &ppi->parallel_frames_data[cpi_idx - 1];
+    assert(data->frame_size > 0);
+    assert(first_cpi_data->cx_data_sz > data->frame_size);
+
+    first_cpi_data->lib_flags = data->lib_flags;
+    first_cpi_data->ts_frame_start = data->ts_frame_start;
+    first_cpi_data->ts_frame_end = data->ts_frame_end;
+    memcpy(first_cpi_data->cx_data, data->cx_data, data->frame_size);
+    first_cpi_data->frame_size += data->frame_size;
+    if (ppi->cpi->common.show_frame) {
+      first_cpi_data->pop_lookahead = 1;
+    }
+  }
+
+  return ppi->cpi;
+}
+#endif
+
 int av1_get_preview_raw_frame(AV1_COMP *cpi, YV12_BUFFER_CONFIG *dest) {
   AV1_COMMON *cm = &cpi->common;
   if (!cm->show_frame) {
