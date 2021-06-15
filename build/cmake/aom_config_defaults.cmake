@@ -144,8 +144,6 @@ set_aom_config_var(CONFIG_COLLECT_PARTITION_STATS 0
                    "Collect partition timing stats. Can be 1 or 2.")
 set_aom_config_var(CONFIG_COLLECT_COMPONENT_TIMING 0
                    "Collect encoding component timing information.")
-set_aom_config_var(CONFIG_LPF_MASK 0
-                   "Enable the use loop filter bitmasks for optimizations.")
 set_aom_config_var(CONFIG_NN_V2 0 "Fully-connected neural nets ver.2.")
 set_aom_config_var(CONFIG_OPTICAL_FLOW_API 0
                    "AV1 experiment flag for optical flow API.")

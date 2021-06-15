@@ -1024,10 +1024,6 @@ static AOM_INLINE void set_inter_tx_size(MB_MODE_INFO *mbmi, int stride_log2,
 
 static AOM_INLINE void read_tx_size_vartx(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
                                           TX_SIZE tx_size, int depth,
-#if CONFIG_LPF_MASK
-                                          AV1_COMMON *cm, int mi_row,
-                                          int mi_col, int store_bitmask,
-#endif
                                           int blk_row, int blk_col,
                                           aom_reader *r) {
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
@@ -1070,32 +1066,15 @@ static AOM_INLINE void read_tx_size_vartx(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
       mbmi->tx_size = sub_txs;
       txfm_partition_update(xd->above_txfm_context + blk_col,
                             xd->left_txfm_context + blk_row, sub_txs, tx_size);
-#if CONFIG_LPF_MASK
-      if (store_bitmask) {
-        av1_store_bitmask_vartx(cm, mi_row + blk_row, mi_col + blk_col,
-                                txsize_to_bsize[tx_size], TX_4X4, mbmi);
-      }
-#endif
       return;
     }
-#if CONFIG_LPF_MASK
-    if (depth + 1 == MAX_VARTX_DEPTH && store_bitmask) {
-      av1_store_bitmask_vartx(cm, mi_row + blk_row, mi_col + blk_col,
-                              txsize_to_bsize[tx_size], sub_txs, mbmi);
-      store_bitmask = 0;
-    }
-#endif
 
     assert(bsw > 0 && bsh > 0);
     for (int row = 0; row < tx_size_high_unit[tx_size]; row += bsh) {
       for (int col = 0; col < tx_size_wide_unit[tx_size]; col += bsw) {
         int offsetr = blk_row + row;
         int offsetc = blk_col + col;
-        read_tx_size_vartx(xd, mbmi, sub_txs, depth + 1,
-#if CONFIG_LPF_MASK
-                           cm, mi_row, mi_col, store_bitmask,
-#endif
-                           offsetr, offsetc, r);
+        read_tx_size_vartx(xd, mbmi, sub_txs, depth + 1, offsetr, offsetc, r);
       }
     }
   } else {
@@ -1104,12 +1083,6 @@ static AOM_INLINE void read_tx_size_vartx(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
     mbmi->tx_size = tx_size;
     txfm_partition_update(xd->above_txfm_context + blk_col,
                           xd->left_txfm_context + blk_row, tx_size, tx_size);
-#if CONFIG_LPF_MASK
-    if (store_bitmask) {
-      av1_store_bitmask_vartx(cm, mi_row + blk_row, mi_col + blk_col,
-                              txsize_to_bsize[tx_size], tx_size, mbmi);
-    }
-#endif
   }
 }
 
@@ -1173,11 +1146,7 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
 
     for (int idy = 0; idy < height; idy += bh)
       for (int idx = 0; idx < width; idx += bw)
-        read_tx_size_vartx(xd, mbmi, max_tx_size, 0,
-#if CONFIG_LPF_MASK
-                           cm, mi_row, mi_col, 1,
-#endif
-                           idy, idx, r);
+        read_tx_size_vartx(xd, mbmi, max_tx_size, 0, idy, idx, r);
   } else {
     mbmi->tx_size = read_tx_size(xd, cm->features.tx_mode, inter_block_tx,
                                  !mbmi->skip_txfm, r);
@@ -1185,35 +1154,7 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
       memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
     set_txfm_ctxs(mbmi->tx_size, xd->width, xd->height,
                   mbmi->skip_txfm && is_inter_block(mbmi), xd);
-#if CONFIG_LPF_MASK
-    const int w = mi_size_wide[bsize];
-    const int h = mi_size_high[bsize];
-    if (w <= mi_size_wide[BLOCK_64X64] && h <= mi_size_high[BLOCK_64X64]) {
-      av1_store_bitmask_univariant_tx(cm, mi_row, mi_col, bsize, mbmi);
-    } else {
-      for (int row = 0; row < h; row += mi_size_high[BLOCK_64X64]) {
-        for (int col = 0; col < w; col += mi_size_wide[BLOCK_64X64]) {
-          av1_store_bitmask_univariant_tx(cm, mi_row + row, mi_col + col,
-                                          BLOCK_64X64, mbmi);
-        }
-      }
-    }
-#endif
   }
-#if CONFIG_LPF_MASK
-  const int w = mi_size_wide[bsize];
-  const int h = mi_size_high[bsize];
-  if (w <= mi_size_wide[BLOCK_64X64] && h <= mi_size_high[BLOCK_64X64]) {
-    av1_store_bitmask_other_info(cm, mi_row, mi_col, bsize, mbmi, 1, 1);
-  } else {
-    for (int row = 0; row < h; row += mi_size_high[BLOCK_64X64]) {
-      for (int col = 0; col < w; col += mi_size_wide[BLOCK_64X64]) {
-        av1_store_bitmask_other_info(cm, mi_row + row, mi_col + col,
-                                     BLOCK_64X64, mbmi, row == 0, col == 0);
-      }
-    }
-  }
-#endif
 
   if (cm->delta_q_info.delta_q_present_flag) {
     for (int i = 0; i < MAX_SEGMENTS; i++) {
@@ -5262,9 +5203,6 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 
   if (initialize_flag) setup_frame_info(pbi);
   const int num_planes = av1_num_planes(cm);
-#if CONFIG_LPF_MASK
-  av1_loop_filter_frame_init(cm, 0, num_planes);
-#endif
 
   if (pbi->max_threads > 1 && !(tiles->large_scale && !pbi->ext_tile_debug) &&
       pbi->row_mt)
@@ -5292,18 +5230,12 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   if (!cm->features.allow_intrabc && !tiles->single_tile_decoding) {
     if (cm->lf.filter_level[0] || cm->lf.filter_level[1]) {
       if (pbi->num_workers > 1) {
-        av1_loop_filter_frame_mt(
-            &cm->cur_frame->buf, cm, &pbi->dcb.xd, 0, num_planes, 0,
-#if CONFIG_LPF_MASK
-            1,
-#endif
-            pbi->tile_workers, pbi->num_workers, &pbi->lf_row_sync, 0);
+        av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, &pbi->dcb.xd, 0,
+                                 num_planes, 0, pbi->tile_workers,
+                                 pbi->num_workers, &pbi->lf_row_sync, 0);
       } else {
-        av1_loop_filter_frame(&cm->cur_frame->buf, cm, &pbi->dcb.xd,
-#if CONFIG_LPF_MASK
-                              1,
-#endif
-                              0, num_planes, 0, 0);
+        av1_loop_filter_frame(&cm->cur_frame->buf, cm, &pbi->dcb.xd, 0,
+                              num_planes, 0, 0);
       }
     }
 
@@ -5382,9 +5314,6 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     }
 #endif  // !CONFIG_REALTIME_ONLY
   }
-#if CONFIG_LPF_MASK
-  av1_zero_array(cm->lf.lfm, cm->lf.lfm_num);
-#endif
 
   if (!pbi->dcb.corrupted) {
     if (cm->features.refresh_frame_context == REFRESH_FRAME_CONTEXT_BACKWARD) {

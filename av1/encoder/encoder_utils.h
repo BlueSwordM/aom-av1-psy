@@ -73,10 +73,6 @@ static AOM_INLINE void set_mb_mi(CommonModeInfoParams *mi_params, int width,
 
   assert(mi_size_wide[mi_params->mi_alloc_bsize] ==
          mi_size_high[mi_params->mi_alloc_bsize]);
-
-#if CONFIG_LPF_MASK
-  av1_alloc_loop_filter_mask(mi_params);
-#endif
 }
 
 static AOM_INLINE void enc_free_mi(CommonModeInfoParams *mi_params) {

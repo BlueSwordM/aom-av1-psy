@@ -99,10 +99,6 @@ if(CONFIG_REALTIME_ONLY)
                    "${AOM_ROOT}/av1/common/warped_motion.h")
 endif()
 
-if(CONFIG_LPF_MASK)
-  list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/loopfiltermask.c")
-endif()
-
 list(APPEND AOM_AV1_DECODER_SOURCES
             "${AOM_ROOT}/av1/av1_dx_iface.c"
             "${AOM_ROOT}/av1/decoder/decodeframe.c"
