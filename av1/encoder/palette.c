@@ -639,7 +639,7 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
   const SequenceHeader *const seq_params = cpi->common.seq_params;
   int this_rate;
   int64_t this_rd;
-  int colors_u, colors_v, colors;
+  int colors_u, colors_v;
   int colors_threshold_u = 0, colors_threshold_v = 0, colors_threshold = 0;
   const int src_stride = x->plane[1].src.stride;
   const uint8_t *const src_u = x->plane[1].src.buf;
@@ -670,7 +670,6 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
   uint16_t color_cache[2 * PALETTE_MAX_SIZE];
   const int n_cache = av1_get_palette_cache(xd, 1, color_cache);
 
-  colors = colors_u > colors_v ? colors_u : colors_v;
   colors_threshold = colors_threshold_u > colors_threshold_v
                          ? colors_threshold_u
                          : colors_threshold_v;
@@ -720,8 +719,10 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
       }
     }
 
-    for (n = colors > PALETTE_MAX_SIZE ? PALETTE_MAX_SIZE : colors; n >= 2;
-         --n) {
+    const int colors = colors_u > colors_v ? colors_u : colors_v;
+    const int max_colors =
+        colors > PALETTE_MAX_SIZE ? PALETTE_MAX_SIZE : colors;
+    for (n = PALETTE_MIN_SIZE; n <= max_colors; ++n) {
       for (i = 0; i < n; ++i) {
         centroids[i * 2] = lb_u + (2 * i + 1) * (ub_u - lb_u) / n / 2;
         centroids[i * 2 + 1] = lb_v + (2 * i + 1) * (ub_v - lb_v) / n / 2;
