@@ -881,7 +881,6 @@ static void set_good_speed_features_framesize_independent(
         is_boosted_arf2_bwd_type ? 0 : 1;
     sf->inter_sf.inter_mode_txfm_breakout = boosted ? 0 : 1;
 
-    // TODO(Sachin): Enable/Enhance this speed feature for speed 2 & 3
     sf->interp_sf.adaptive_interp_filter_search = 1;
     sf->interp_sf.disable_dual_filter = 1;
 
@@ -897,9 +896,7 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.prune_wiener_based_on_src_var = 1;
     sf->lpf_sf.prune_sgr_based_on_wiener = 1;
 
-    // TODO(any): Move this from speed 3 to speed 2 so that TPL multithread
-    // is re-enabled at speed 2. This also makes encoder faster. After TPL MT is
-    // fixed and works with compound pred, we can re-evaluate this feature.
+    // TODO(any): Re-evaluate this feature set to 1 in speed 2.
     sf->tpl_sf.allow_compound_pred = 0;
     sf->tpl_sf.prune_ref_frames_in_tpl = 1;
   }
@@ -922,8 +919,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.disable_interinter_wedge_newmv_search = boosted ? 0 : 1;
     sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW;
     sf->inter_sf.disable_onesided_comp = 1;
-    // TODO(yunqing): evaluate this speed feature for speed 1 & 2, and combine
-    // it with cpi->sf.disable_wedge_search_var_thresh.
     sf->inter_sf.disable_interintra_wedge_var_thresh = UINT_MAX;
     // TODO(any): Experiment with the early exit mechanism for speeds 0, 1 and 2
     // and clean-up the speed feature
@@ -962,7 +957,6 @@ static void set_good_speed_features_framesize_independent(
     // TODO(any): Refactor the code related to following winner mode speed
     // features
     sf->winner_mode_sf.enable_winner_mode_for_coeff_opt = 1;
-    // TODO(any): Experiment with this speed feature by enabling for key frames
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch =
         frame_is_intra_only(&cpi->common) ? 0 : 1;
     sf->winner_mode_sf.enable_winner_mode_for_use_tx_domain_dist = 1;
@@ -1010,8 +1004,6 @@ static void set_good_speed_features_framesize_independent(
     // sf->intra_sf.intra_y_mode_mask[TX_16X16] = INTRA_DC_H_V;
     // sf->intra_sf.intra_y_mode_mask[TX_32X32] = INTRA_DC_H_V;
     // sf->intra_sf.intra_y_mode_mask[TX_64X64] = INTRA_DC_H_V;
-    // TODO(any): Experiment with this speed feature set to 2 for higher quality
-    // presets as well
     sf->intra_sf.skip_intra_in_interframe = 4;
 
     sf->mv_sf.simple_motion_subpel_force_stop = HALF_PEL;
