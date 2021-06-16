@@ -624,6 +624,8 @@ static void set_good_speed_feature_framesize_dependent(
       sf->inter_sf.disable_interintra_wedge_var_thresh = UINT_MAX;
     }
 
+    if (is_480p_or_lesser) sf->inter_sf.skip_ext_comp_nearmv_mode = 1;
+
     if (is_480p_or_larger) {
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
       if (use_hbd) sf->tx_sf.prune_tx_size_level = 2;
@@ -642,6 +644,7 @@ static void set_good_speed_feature_framesize_dependent(
 
   if (speed >= 3) {
     sf->inter_sf.skip_newmv_in_drl = 2;
+    sf->inter_sf.skip_ext_comp_nearmv_mode = 1;
 
     sf->part_sf.ml_early_term_after_part_split_level = 0;
 
@@ -938,7 +941,6 @@ static void set_good_speed_features_framesize_independent(
         boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);
     sf->inter_sf.enable_fast_wedge_mask_search = 1;
     sf->inter_sf.inter_mode_txfm_breakout = boosted ? 0 : 2;
-    sf->inter_sf.skip_ext_comp_nearmv_mode = 1;
 
     sf->interp_sf.adaptive_interp_filter_search = 2;
 
