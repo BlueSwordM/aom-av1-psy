@@ -748,6 +748,10 @@ static void set_good_speed_feature_framesize_dependent(
     } else {
       sf->inter_sf.prune_ref_mv_idx_search = 1;
     }
+
+    if (!is_720p_or_larger) {
+      sf->tx_sf.tx_type_search.fast_inter_tx_type_search = 1;
+    }
   }
 }
 
@@ -1358,7 +1362,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
     sf->interp_sf.skip_sharp_interp_filter_search = 1;
 
-    sf->tx_sf.tx_type_search.fast_inter_tx_type_search = 1;
+    sf->tx_sf.tx_type_search.fast_inter_tx_type_search = 2;
     sf->tx_sf.tx_type_search.fast_intra_tx_type_search = 1;
     sf->tx_sf.use_intra_txb_hash = 0;
 

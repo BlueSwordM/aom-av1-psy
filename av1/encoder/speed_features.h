@@ -224,6 +224,10 @@ enum {
 typedef struct {
   TX_TYPE_PRUNE_MODE prune_2d_txfm_mode;
   int fast_intra_tx_type_search;
+
+  // 1: Force tx type based on probability of the tx type, during mode search.
+  // 2: Force tx type to be DCT_DCT unconditionally, during mode search. (More
+  // aggressive).
   int fast_inter_tx_type_search;
 
   // Prune less likely chosen transforms for each intra mode. The speed

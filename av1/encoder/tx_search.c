@@ -21,6 +21,9 @@
 #include "av1/encoder/tx_search.h"
 #include "av1/encoder/txb_rdopt.h"
 
+#define PROB_THRESH_DCT_DCT_TX_TYPE 150
+#define PROB_THRESH_TX_TYPE 250
+
 struct rdcost_block_args {
   const AV1_COMP *cpi;
   MACROBLOCK *x;
@@ -1964,8 +1967,36 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
   // TX_TYPES, only that specific tx type is allowed.
   TX_TYPE txk_allowed = TX_TYPES;
 
-  if ((!is_inter && txfm_params->use_default_intra_tx_type) ||
-      (is_inter && txfm_params->use_default_inter_tx_type)) {
+  const FRAME_UPDATE_TYPE update_type =
+      get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
+  int *tx_type_probs;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  tx_type_probs =
+      (int *)cpi->ppi->temp_frame_probs.tx_type_probs[update_type][tx_size];
+#else
+  tx_type_probs = (int *)cpi->frame_probs.tx_type_probs[update_type][tx_size];
+#endif
+
+  if (is_inter && txfm_params->use_default_inter_tx_type == 1) {
+    if (tx_type_probs[DEFAULT_INTER_TX_TYPE] > PROB_THRESH_DCT_DCT_TX_TYPE) {
+      txk_allowed = DEFAULT_INTER_TX_TYPE;
+    } else {
+      int force_tx_type = 0;
+      int max_prob = 0;
+      for (int i = 1; i < TX_TYPES; i++) {  // find maximum probability.
+        if (tx_type_probs[i] > max_prob) {
+          max_prob = tx_type_probs[i];
+          force_tx_type = i;
+        }
+      }
+      if (max_prob > PROB_THRESH_TX_TYPE)  // force tx type with max prob.
+        txk_allowed = force_tx_type;
+      else if (x->rd_model == LOW_TXFM_RD) {
+        if (plane == 0) txk_allowed = DCT_DCT;
+      }
+    }
+  } else if ((!is_inter && txfm_params->use_default_intra_tx_type) ||
+             (is_inter && txfm_params->use_default_inter_tx_type == 2)) {
     txk_allowed =
         get_default_tx_type(0, xd, tx_size, cpi->use_screen_content_tools);
   } else if (x->rd_model == LOW_TXFM_RD) {
@@ -2016,15 +2047,6 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
     assert(plane == 0);
     allowed_tx_mask = ext_tx_used_flag;
     int num_allowed = 0;
-    const FRAME_UPDATE_TYPE update_type =
-        get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
-    int *tx_type_probs;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-    tx_type_probs =
-        (int *)cpi->ppi->temp_frame_probs.tx_type_probs[update_type][tx_size];
-#else
-    tx_type_probs = (int *)cpi->frame_probs.tx_type_probs[update_type][tx_size];
-#endif
     int i;
 
     if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats) {
