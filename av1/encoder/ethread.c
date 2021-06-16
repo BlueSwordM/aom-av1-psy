@@ -2279,3 +2279,50 @@ void av1_compute_num_workers_for_mt(AV1_COMP *cpi) {
     cpi->ppi->p_mt_info.num_mod_workers[i] =
         compute_num_mod_workers(cpi, (MULTI_THREADED_MODULES)i);
 }
+
+#if CONFIG_FRAME_PARALLEL_ENCODE
+// Initialises frames belonging to a parallel encode set.
+static AOM_INLINE int init_parallel_frame_context(AV1_PRIMARY *const ppi) {
+  AV1_COMP *const first_cpi = ppi->cpi;
+  GF_GROUP *const gf_group = &ppi->gf_group;
+  int gf_index_start = first_cpi->gf_frame_index;
+  assert(gf_group->frame_parallel_level[gf_index_start] == 1);
+  int parallel_frame_count = 0;
+  int cur_frame_num = first_cpi->common.current_frame.frame_number;
+
+  // Set do_frame_data_update flag as false for frame_parallel_level 1 frame.
+  first_cpi->do_frame_data_update = false;
+  parallel_frame_count++;
+  if (gf_group->arf_src_offset[gf_index_start] == 0) cur_frame_num++;
+
+  // Iterate through the GF_GROUP to find the remaining frame_parallel_level 2
+  // frames which are part of the current parallel encode set and initialize the
+  // required cpi elements.
+  for (int i = gf_index_start + 1; i < gf_group->size; i++) {
+    if (gf_group->frame_parallel_level[i] == 2) {
+      AV1_COMP *cur_cpi = ppi->parallel_cpi[parallel_frame_count];
+      cur_cpi->gf_frame_index = i;
+      cur_cpi->common.current_frame.frame_number = cur_frame_num;
+      cur_cpi->do_frame_data_update = false;
+      parallel_frame_count++;
+    }
+
+    // Set do_frame_data_update to true for the last frame_parallel_level 2
+    // frame in the current parallel encode set.
+    if (i == (gf_group->size - 1) ||
+        (gf_group->frame_parallel_level[i + 1] == 0 &&
+         (gf_group->update_type[i + 1] == ARF_UPDATE ||
+          gf_group->update_type[i + 1] == INTNL_ARF_UPDATE)) ||
+        gf_group->frame_parallel_level[i + 1] == 1) {
+      ppi->parallel_cpi[parallel_frame_count - 1]->do_frame_data_update = true;
+      break;
+    }
+
+    // Incremet cur_frame_num for show frame(s) and show existing frame(s).
+    if (gf_group->arf_src_offset[i] == 0) cur_frame_num++;
+  }
+
+  // Return the number of frames in the parallel encode set.
+  return parallel_frame_count;
+}
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
