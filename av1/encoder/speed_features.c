@@ -655,7 +655,12 @@ static void set_good_speed_feature_framesize_dependent(
     }
     if (use_hbd) sf->tx_sf.prune_tx_size_level = 3;
 
-    if (is_480p_or_larger) sf->intra_sf.top_intra_model_count_allowed = 2;
+    if (is_480p_or_larger) {
+      sf->intra_sf.top_intra_model_count_allowed = 2;
+      sf->part_sf.early_term_after_none_split = 1;
+    } else {
+      sf->part_sf.early_term_after_none_split = 0;
+    }
     if (is_720p_or_larger) {
       sf->intra_sf.skip_intra_in_interframe = boosted ? 1 : 2;
     } else {
@@ -671,6 +676,7 @@ static void set_good_speed_feature_framesize_dependent(
     } else {
       sf->part_sf.partition_search_breakout_dist_thr = (1 << 24);
     }
+    sf->part_sf.early_term_after_none_split = 1;
 
     if (is_480p_or_larger) {
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 2;
@@ -985,7 +991,6 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.simple_motion_search_prune_agg = 2;
     sf->part_sf.simple_motion_search_reduce_search_steps = 4;
     sf->part_sf.prune_ext_part_using_split_info = 2;
-    sf->part_sf.early_term_after_none_split = 1;
     sf->part_sf.ml_predict_breakout_level = 3;
 
     sf->inter_sf.alt_ref_search_fp = 1;
