@@ -523,11 +523,6 @@ static int construct_multi_layer_gf_structure(
   int frame_index = 0;
   int cur_frame_index = 0;
 
-  // Keyframe / Overlay frame / Golden frame.
-  assert(first_frame_update_type == KF_UPDATE ||
-         first_frame_update_type == OVERLAY_UPDATE ||
-         first_frame_update_type == GF_UPDATE);
-
 #if CONFIG_FRAME_PARALLEL_ENCODE
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
   // Set the display order hint for the first frame in the GF_GROUP.
@@ -556,9 +551,9 @@ static int construct_multi_layer_gf_structure(
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
-  if (first_frame_update_type == KF_UPDATE &&
-      cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1) {
-    gf_group->update_type[frame_index] = ARF_UPDATE;
+  const int kf_decomp = cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1;
+  if (first_frame_update_type == KF_UPDATE) {
+    gf_group->update_type[frame_index] = kf_decomp ? ARF_UPDATE : KF_UPDATE;
     gf_group->arf_src_offset[frame_index] = 0;
     gf_group->cur_frame_idx[frame_index] = cur_frame_index;
     gf_group->layer_depth[frame_index] = 0;
@@ -572,38 +567,33 @@ static int construct_multi_layer_gf_structure(
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
     ++frame_index;
 
-    gf_group->update_type[frame_index] = OVERLAY_UPDATE;
+    if (kf_decomp) {
+      gf_group->update_type[frame_index] = OVERLAY_UPDATE;
+      gf_group->arf_src_offset[frame_index] = 0;
+      gf_group->cur_frame_idx[frame_index] = cur_frame_index;
+      gf_group->layer_depth[frame_index] = 0;
+      gf_group->frame_type[frame_index] = INTER_FRAME;
+      gf_group->refbuf_state[frame_index] = REFBUF_UPDATE;
+      gf_group->max_layer_depth = 0;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+      gf_group->display_idx[frame_index] = cur_disp_index;
+      cur_disp_index++;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+      ++frame_index;
+    }
+    cur_frame_index++;
+  }
+
+  if (first_frame_update_type == GF_UPDATE) {
+    gf_group->update_type[frame_index] = GF_UPDATE;
     gf_group->arf_src_offset[frame_index] = 0;
     gf_group->cur_frame_idx[frame_index] = cur_frame_index;
     gf_group->layer_depth[frame_index] = 0;
     gf_group->frame_type[frame_index] = INTER_FRAME;
     gf_group->refbuf_state[frame_index] = REFBUF_UPDATE;
     gf_group->max_layer_depth = 0;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
-    gf_group->display_idx[frame_index] = cur_disp_index;
-    cur_disp_index++;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
-    ++frame_index;
-    cur_frame_index++;
-  } else if (first_frame_update_type != OVERLAY_UPDATE) {
-    gf_group->update_type[frame_index] = first_frame_update_type;
-    gf_group->arf_src_offset[frame_index] = 0;
-    gf_group->cur_frame_idx[frame_index] = cur_frame_index;
-    gf_group->layer_depth[frame_index] =
-        first_frame_update_type == OVERLAY_UPDATE ? MAX_ARF_LAYERS + 1 : 0;
-    gf_group->frame_type[frame_index] =
-        (first_frame_update_type == KF_UPDATE) ? KEY_FRAME : INTER_FRAME;
-    gf_group->refbuf_state[frame_index] =
-        (first_frame_update_type == KF_UPDATE) ? REFBUF_RESET : REFBUF_UPDATE;
-    gf_group->max_layer_depth = 0;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
-    gf_group->display_idx[frame_index] = cur_disp_index;
-    cur_disp_index++;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
     ++frame_index;
     ++cur_frame_index;
   }
@@ -786,12 +776,13 @@ void av1_gop_setup_structure(AV1_COMP *cpi) {
   TWO_PASS *const twopass = &cpi->ppi->twopass;
   FRAME_INFO *const frame_info = &cpi->frame_info;
   const int key_frame = rc->frames_since_key == 0;
-  const FRAME_UPDATE_TYPE first_frame_update_type =
-      key_frame ? KF_UPDATE
-                : cpi->ppi->gf_state.arf_gf_boost_lst ||
-                          (p_rc->baseline_gf_interval == 1)
-                      ? OVERLAY_UPDATE
-                      : GF_UPDATE;
+  FRAME_UPDATE_TYPE first_frame_update_type = ARF_UPDATE;
+
+  if (key_frame)
+    first_frame_update_type = KF_UPDATE;
+  else if (!cpi->ppi->gf_state.arf_gf_boost_lst)
+    first_frame_update_type = GF_UPDATE;
+
   gf_group->size = construct_multi_layer_gf_structure(
       cpi, twopass, gf_group, rc, frame_info, p_rc->baseline_gf_interval - 1,
       first_frame_update_type);
