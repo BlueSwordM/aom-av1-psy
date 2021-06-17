@@ -1563,6 +1563,10 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     }
   }
   if (!all_none) {
+#if CONFIG_REALTIME_ONLY
+    aom_internal_error(cm->error, AOM_CODEC_UNSUP_FEATURE,
+                       "Realtime only build doesn't support loop restoration");
+#endif
     assert(cm->seq_params->sb_size == BLOCK_64X64 ||
            cm->seq_params->sb_size == BLOCK_128X128);
     const int sb_size = cm->seq_params->sb_size == BLOCK_128X128 ? 128 : 64;
