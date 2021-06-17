@@ -1339,9 +1339,11 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                                                      parse_decode_block };
 
   if (parse_decode_flag & 1) {
-#if !CONFIG_REALTIME_ONLY
     const int num_planes = av1_num_planes(cm);
     for (int plane = 0; plane < num_planes; ++plane) {
+#if CONFIG_REALTIME_ONLY
+      assert(cm->rst_info[plane].frame_restoration_type == RESTORE_NONE);
+#else
       int rcol0, rcol1, rrow0, rrow1;
       if (av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
                                              &rcol0, &rcol1, &rrow0, &rrow1)) {
@@ -1353,8 +1355,8 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
           }
         }
       }
-    }
 #endif
+    }
 
     partition = (bsize < BLOCK_8X8) ? PARTITION_NONE
                                     : read_partition(xd, mi_row, mi_col, reader,
