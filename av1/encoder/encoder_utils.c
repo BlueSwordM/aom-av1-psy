@@ -546,7 +546,7 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
   if (cpi->oxcf.rc_cfg.mode == AOM_Q &&
       cpi->ppi->tpl_data.tpl_frame[cpi->gf_frame_index].is_valid &&
       is_frame_tpl_eligible(gf_group, cpi->gf_frame_index) &&
-      !frame_is_intra_only(cm)) {
+      !is_lossless_requested(&cpi->oxcf.rc_cfg) && !frame_is_intra_only(cm)) {
     *q = av1_get_arf_q_index_q_mode(
         cpi, &cpi->ppi->tpl_data.tpl_frame[cpi->gf_frame_index]);
     *top_index = *bottom_index = *q;
