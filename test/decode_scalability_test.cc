@@ -82,6 +82,12 @@ TEST_P(DecodeScalabilityTest, ObuExtensionHeader) { RunTest(); }
 //   operatingPoint = 0
 //   OperatingPointIdc = operating_point_idc[ 0 ]
 
+// av1-1-b8-01-size-16x16.ivf:
+//   operating_points_cnt_minus_1 = 0
+//   operating_point_idc[ 0 ] = 0x0
+const ObuExtensionHeader kSize16x16Headers[1] = { { 0, 0 } };
+
+#if !CONFIG_REALTIME_ONLY
 // av1-1-b8-22-svc-L1T2.ivf:
 //   operating_points_cnt_minus_1 = 1
 //   operating_point_idc[ 0 ] = 0x103
@@ -103,12 +109,18 @@ const ObuExtensionHeader kL2T1Headers[2] = { { 0, 0 }, { 0, 1 } };
 const ObuExtensionHeader kL2T2Headers[4] = {
   { 0, 0 }, { 0, 1 }, { 1, 0 }, { 1, 1 }
 };
+#endif  // !CONFIG_REALTIME_ONLY
 
 const DecodeParam kAV1DecodeScalabilityTests[] = {
   // { filename, headers, num_headers }
+  { "av1-1-b8-01-size-16x16.ivf", kSize16x16Headers, 1 },
+#if !CONFIG_REALTIME_ONLY
+  // These test vectors use loop restoration, which is not supported in
+  // the CONFIG_REALTIME_ONLY builds.
   { "av1-1-b8-22-svc-L1T2.ivf", kL1T2Headers, 2 },
   { "av1-1-b8-22-svc-L2T1.ivf", kL2T1Headers, 2 },
   { "av1-1-b8-22-svc-L2T2.ivf", kL2T2Headers, 4 },
+#endif  // !CONFIG_REALTIME_ONLY
 };
 
 AV1_INSTANTIATE_TEST_SUITE(DecodeScalabilityTest,
