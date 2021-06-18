@@ -716,23 +716,25 @@ static int get_refresh_idx(RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
 int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
                                 const EncodeFrameParams *const frame_params,
                                 FRAME_UPDATE_TYPE frame_update_type,
+                                int gf_index,
 #if CONFIG_FRAME_PARALLEL_ENCODE
                                 int cur_disp_order,
                                 RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
-                                int gf_index,
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                                 const RefBufferStack *const ref_buffer_stack) {
   const AV1_COMMON *const cm = &cpi->common;
   const ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
       &cpi->ext_flags.refresh_frame;
 
-  const SVC *const svc = &cpi->svc;
+  GF_GROUP *gf_group = &cpi->ppi->gf_group;
+  if (gf_group->refbuf_state[gf_index] == REFBUF_RESET)
+    return SELECT_ALL_BUF_SLOTS;
+
+  // TODO(jingning): Deprecate the following operations.
   // Switch frames and shown key-frames overwrite all reference slots
   if ((frame_params->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) ||
       frame_params->frame_type == S_FRAME)
-    return 0xFF;
+    return SELECT_ALL_BUF_SLOTS;
 
   // show_existing_frames don't actually send refresh_frame_flags so set the
   // flags to 0 to keep things consistent.
@@ -742,6 +744,7 @@ int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
     return 0;
   }
 
+  const SVC *const svc = &cpi->svc;
   if (is_frame_droppable(svc, ext_refresh_frame_flags)) return 0;
 
   int refresh_mask = 0;
@@ -1702,15 +1705,12 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
     frame_params.order_offset = gf_group->arf_src_offset[cpi->gf_frame_index];
 
-    frame_params.refresh_frame_flags =
-        av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
+    frame_params.refresh_frame_flags = av1_get_refresh_frame_flags(
+        cpi, &frame_params, frame_update_type, cpi->gf_frame_index,
 #if CONFIG_FRAME_PARALLEL_ENCODE
-                                    cur_frame_disp, ref_frame_map_pairs,
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
-                                    cpi->gf_frame_index,
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+        cur_frame_disp, ref_frame_map_pairs,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
-                                    &cpi->ref_buffer_stack);
+        &cpi->ref_buffer_stack);
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
     // Make the frames marked as is_frame_non_ref to non-reference frames.

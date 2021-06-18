@@ -70,12 +70,10 @@ void av1_configure_buffer_updates(
 int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
                                 const EncodeFrameParams *const frame_params,
                                 FRAME_UPDATE_TYPE frame_update_type,
+                                int gf_index,
 #if CONFIG_FRAME_PARALLEL_ENCODE
                                 int cur_disp_order,
                                 RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
-                                int gf_index,
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                                 const RefBufferStack *const ref_buffer_stack);
 

@@ -766,6 +766,19 @@ static int construct_multi_layer_gf_structure(
     }
   }
 #endif
+
+  for (int gf_idx = frame_index; gf_idx < MAX_STATIC_GF_GROUP_LENGTH;
+       ++gf_idx) {
+    gf_group->update_type[gf_idx] = LF_UPDATE;
+    gf_group->arf_src_offset[gf_idx] = 0;
+    gf_group->cur_frame_idx[gf_idx] = gf_idx;
+    gf_group->layer_depth[gf_idx] = MAX_ARF_LAYERS;
+    gf_group->arf_boost[gf_idx] = NORMAL_BOOST;
+    gf_group->frame_type[gf_idx] = INTER_FRAME;
+    gf_group->refbuf_state[gf_idx] = REFBUF_UPDATE;
+    gf_group->max_layer_depth = AOMMAX(gf_group->max_layer_depth, 2);
+  }
+
   return frame_index;
 }
 
