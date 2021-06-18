@@ -1580,7 +1580,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
     cm->current_frame.frame_type = gf_group->frame_type[gf_index];
     av1_configure_buffer_updates(cpi, &this_frame_params.refresh_frame,
                                  gf_group->update_type[gf_index],
-                                 cm->current_frame.frame_type, 0);
+                                 gf_group->refbuf_state[gf_index], 0);
 
     memcpy(&cpi->refresh_frame, &this_frame_params.refresh_frame,
            sizeof(cpi->refresh_frame));
@@ -1660,7 +1660,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
   av1_configure_buffer_updates(cpi, &this_frame_params.refresh_frame,
                                gf_group->update_type[cpi->gf_frame_index],
-                               frame_params->frame_type, 0);
+                               gf_group->update_type[cpi->gf_frame_index], 0);
   cm->current_frame.frame_type = frame_params->frame_type;
   cm->show_frame = frame_params->show_frame;
 

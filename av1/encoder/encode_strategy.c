@@ -51,11 +51,10 @@ static INLINE void set_refresh_frame_flags(
 
 void av1_configure_buffer_updates(
     AV1_COMP *const cpi, RefreshFrameFlagsInfo *const refresh_frame_flags,
-    const FRAME_UPDATE_TYPE type, const FRAME_TYPE frame_type,
+    const FRAME_UPDATE_TYPE type, const REFBUF_STATE refbuf_state,
     int force_refresh_all) {
   // NOTE(weitinglin): Should we define another function to take care of
   // cpi->rc.is_$Source_Type to make this function as it is in the comment?
-
   const ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
       &cpi->ext_flags.refresh_frame;
   cpi->rc.is_src_frame_alt_ref = 0;
@@ -74,23 +73,21 @@ void av1_configure_buffer_updates(
       break;
 
     case OVERLAY_UPDATE:
-      if (frame_type == KEY_FRAME && cpi->rc.frames_to_key == 0) {
+      if (refbuf_state == REFBUF_RESET)
         set_refresh_frame_flags(refresh_frame_flags, true, true, true);
-      } else {
+      else
         set_refresh_frame_flags(refresh_frame_flags, true, false, false);
-      }
+
       cpi->rc.is_src_frame_alt_ref = 1;
       break;
 
     case ARF_UPDATE:
       // NOTE: BWDREF does not get updated along with ALTREF_FRAME.
-      if (frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
-        // TODO(bohanli): consider moving this to force_refresh_all?
-        // This is Keyframe as arf
+      if (refbuf_state == REFBUF_RESET)
         set_refresh_frame_flags(refresh_frame_flags, true, true, true);
-      } else {
+      else
         set_refresh_frame_flags(refresh_frame_flags, false, false, true);
-      }
+
       break;
 
     case INTNL_OVERLAY_UPDATE:
@@ -1650,9 +1647,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
        frame_params.frame_type == S_FRAME) &&
       !frame_params.show_existing_frame;
 
-  av1_configure_buffer_updates(cpi, &frame_params.refresh_frame,
-                               frame_update_type, frame_params.frame_type,
-                               force_refresh_all);
+  av1_configure_buffer_updates(
+      cpi, &frame_params.refresh_frame, frame_update_type,
+      gf_group->refbuf_state[cpi->gf_frame_index], force_refresh_all);
 
   if (!is_stat_generation_stage(cpi)) {
     const RefCntBuffer *ref_frames[INTER_REFS_PER_FRAME];
