@@ -41,9 +41,7 @@ TEST(RatectrlTest, QModeGetQIndexTest) {
 
 TEST(RatectrlTest, QModeComputeGOPQIndicesTest) {
   int base_q_index = 36;
-  int gfu_boost = 500;
-  int bit_depth = AOM_BITS_8;
-  double arf_boost_factor = 0.20;
+  int arf_q = 36;
 
   int gf_frame_index = 0;
   GF_GROUP gf_group = {};
@@ -57,11 +55,15 @@ TEST(RatectrlTest, QModeComputeGOPQIndicesTest) {
     gf_group.update_type[i] = update_type[i];
   }
 
-  av1_q_mode_compute_gop_q_indices(gf_frame_index, base_q_index, gfu_boost,
-                                   bit_depth, arf_boost_factor, &gf_group);
+  av1_q_mode_compute_gop_q_indices(gf_frame_index, base_q_index, arf_q,
+                                   &gf_group);
 
   for (int i = 0; i < gf_group.size; i++) {
-    EXPECT_LE(gf_group.q_val[i], base_q_index);
+    if (arf_q == base_q_index) {
+      EXPECT_EQ(gf_group.q_val[i], base_q_index);
+    } else {
+      EXPECT_LE(gf_group.q_val[i], base_q_index);
+    }
   }
 }
 

@@ -3135,12 +3135,7 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
  * Intended to be used only with AOM_Q mode.
  */
 void av1_q_mode_compute_gop_q_indices(int gf_frame_index, int base_q_index,
-                                      int gfu_boost, int bit_depth,
-                                      double arf_boost_factor,
-                                      struct GF_GROUP *gf_group) {
-  int arf_q =
-      av1_get_arf_q_index(base_q_index, gfu_boost, bit_depth, arf_boost_factor);
-
+                                      int arf_q, struct GF_GROUP *gf_group) {
   for (int gf_index = gf_frame_index; gf_index < gf_group->size; ++gf_index) {
     int height = gf_group_pyramid_level(gf_group, gf_index);
     gf_group->q_val[gf_index] = av1_q_mode_get_q_index(

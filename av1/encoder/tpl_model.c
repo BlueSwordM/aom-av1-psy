@@ -1958,3 +1958,52 @@ void av1_read_rd_command(const char *filepath, RD_COMMAND *rd_command) {
   fclose(fptr);
 }
 #endif  // CONFIG_RD_COMMAND
+
+/*
+ * Estimate the optimal base q index for a GOP.
+ */
+int av1_q_mode_estimate_base_q(GF_GROUP *gf_group,
+                               const TplTxfmStats *txfm_stats_list,
+                               double bit_budget, int gf_frame_index,
+                               int arf_q) {
+  int q_max = 255;  // Maximum q value.
+  int q_min = 0;    // Minimum q value.
+  int q = (q_max + q_min) / 2;
+
+  av1_q_mode_compute_gop_q_indices(gf_frame_index, q_max, arf_q, gf_group);
+  double q_max_estimate = av1_estimate_gop_bitrate(
+      gf_group->q_val, gf_group->size, txfm_stats_list);
+  av1_q_mode_compute_gop_q_indices(gf_frame_index, q_min, arf_q, gf_group);
+  double q_min_estimate = av1_estimate_gop_bitrate(
+      gf_group->q_val, gf_group->size, txfm_stats_list);
+
+  while (true) {
+    av1_q_mode_compute_gop_q_indices(gf_frame_index, q, arf_q, gf_group);
+
+    double estimate = av1_estimate_gop_bitrate(gf_group->q_val, gf_group->size,
+                                               txfm_stats_list);
+
+    // We want to find the lowest q that satisfies the bit budget constraint.
+    // A binary search narrows the result down to two values: q_min and q_max.
+    if (q_max <= q_min + 1 || estimate == bit_budget) {
+      // Pick the estimate that lands closest to the budget.
+      if (fabs(q_max_estimate - bit_budget) <
+          fabs(q_min_estimate - bit_budget)) {
+        q = q_max;
+      } else {
+        q = q_min;
+      }
+      break;
+    } else if (estimate > bit_budget) {
+      q_min = q;
+      q_min_estimate = estimate;
+      q = (q_max + q_min) / 2;
+    } else if (estimate < bit_budget) {
+      q_max = q;
+      q_max_estimate = estimate;
+      q = (q_max + q_min) / 2;
+    }
+  }
+
+  return q;
+}

@@ -23,6 +23,7 @@ struct AV1_COMP;
 struct AV1_SEQ_CODING_TOOLS;
 struct EncodeFrameParams;
 struct EncodeFrameInput;
+struct GF_GROUP;
 
 #include "config/aom_config.h"
 
@@ -440,6 +441,26 @@ int64_t av1_delta_rate_cost(int64_t delta_rate, int64_t recrf_dist,
  */
 int av1_get_overlap_area(int row_a, int col_a, int row_b, int col_b, int width,
                          int height);
+
+/*!\brief Estimate the optimal base q index for a GOP.
+ *
+ * This function picks q based on a chosen bit rate. It
+ * estimates the bit rate using the starting base q, then uses
+ * a binary search to find q to achieve the specified bit rate.
+ *
+ * \param[in]       gf_group          GOP structure
+ * \param[in]       stats             Transform stats struct
+ * \param[in]       bit_budget        The specified bit budget to achieve
+ * \param[in]       gf_frame_index    current frame in the GOP
+ * \param[in]       bit_depth         Bit depth
+ * \param[in]       arf_q             ARF q index
+ *
+ * \return Returns the optimal base q index to use.
+ */
+int av1_q_mode_estimate_base_q(struct GF_GROUP *gf_group,
+                               const TplTxfmStats *txfm_stats_list,
+                               double bit_budget, int gf_frame_index,
+                               int arf_q);
 
 /*!\endcond */
 #ifdef __cplusplus
