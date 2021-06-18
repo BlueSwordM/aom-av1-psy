@@ -957,6 +957,18 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // intra mode decision. Here, add a speed feature to reduce this number for
   // higher speeds.
   int top_intra_model_count_allowed;
+
+  // Terminate early in chroma palette_size search.
+  // 0: No early termination
+  // 1: Terminate early for higher palette_size, if header rd cost of lower
+  // palette_size is more than best_rd.
+  // For allintra encode, this sf reduces instruction count by 0.45%,
+  // 0.62%, 1.73%, 2.50%, 2.89%, 3.09% and 3.86% for speed 0 to 6 on screen
+  // content set with coding performance change less than 0.01%.
+  // For AVIF image encode, this sf reduces instruction count by 0.45%, 0.81%,
+  // 0.85%, 1.05%, 1.45%, 1.66% and 1.95% for speed 0 to 6 on a typical image
+  // dataset with no quality drop.
+  int early_term_chroma_palette_size_search;
 } INTRA_MODE_SPEED_FEATURES;
 
 typedef struct TX_SPEED_FEATURES {

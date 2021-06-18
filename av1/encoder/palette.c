@@ -758,10 +758,23 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
         }
       }
 
-      av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, bsize, *best_rd);
-      if (tokenonly_rd_stats.rate == INT_MAX) continue;
-      this_rate = tokenonly_rd_stats.rate +
-                  intra_mode_info_cost_uv(cpi, x, mbmi, bsize, dc_mode_cost);
+      if (cpi->sf.intra_sf.early_term_chroma_palette_size_search) {
+        const int palette_mode_rate =
+            intra_mode_info_cost_uv(cpi, x, mbmi, bsize, dc_mode_cost);
+        const int64_t header_rd = RDCOST(x->rdmult, palette_mode_rate, 0);
+        // Terminate further palette_size search, if header cost corresponding
+        // to lower palette_size is more than the best_rd.
+        if (header_rd >= *best_rd) break;
+        av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, bsize, *best_rd);
+        if (tokenonly_rd_stats.rate == INT_MAX) continue;
+        this_rate = tokenonly_rd_stats.rate + palette_mode_rate;
+      } else {
+        av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, bsize, *best_rd);
+        if (tokenonly_rd_stats.rate == INT_MAX) continue;
+        this_rate = tokenonly_rd_stats.rate +
+                    intra_mode_info_cost_uv(cpi, x, mbmi, bsize, dc_mode_cost);
+      }
+
       this_rd = RDCOST(x->rdmult, this_rate, tokenonly_rd_stats.dist);
       if (this_rd < *best_rd) {
         *best_rd = this_rd;

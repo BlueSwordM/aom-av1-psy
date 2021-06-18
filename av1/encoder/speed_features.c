@@ -309,6 +309,7 @@ static void set_allintra_speed_features_framesize_independent(
 
   sf->intra_sf.intra_pruning_with_hog = 1;
   sf->intra_sf.dv_cost_upd_level = INTERNAL_COST_UPD_OFF;
+  sf->intra_sf.early_term_chroma_palette_size_search = 1;
 
   sf->tx_sf.adaptive_txb_search_level = 1;
   sf->tx_sf.intra_tx_size_search_init_depth_sqr = 1;
@@ -1103,6 +1104,7 @@ static void set_good_speed_features_framesize_independent(
     sf->intra_sf.intra_uv_mode_mask[TX_64X64] = UV_INTRA_DC;
     sf->intra_sf.intra_y_mode_mask[TX_32X32] = INTRA_DC;
     sf->intra_sf.intra_y_mode_mask[TX_64X64] = INTRA_DC;
+    sf->intra_sf.early_term_chroma_palette_size_search = 1;
 
     sf->part_sf.prune_rectangular_split_based_on_qidx =
         boosted || allow_screen_content_tools ? 0 : 1;
@@ -1686,6 +1688,7 @@ static AOM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
   intra_sf->prune_chroma_modes_using_luma_winner = 0;
   intra_sf->cfl_search_range = 3;
   intra_sf->top_intra_model_count_allowed = TOP_INTRA_MODEL_COUNT;
+  intra_sf->early_term_chroma_palette_size_search = 0;
 }
 
 static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
