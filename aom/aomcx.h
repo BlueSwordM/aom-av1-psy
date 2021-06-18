@@ -1326,7 +1326,9 @@ enum aome_enc_control_id {
   /*!\brief Codec control function to turn on / off D45 to D203 intra mode
    * usage, int parameter
    *
-   * This will enable or disable usage of D45 to D203 intra modes.
+   * This will enable or disable usage of D45 to D203 intra modes, whic hare a
+   * subset of directional modes. This control has no effect if directional
+   * modes are disabled (AV1E_SET_ENABLE_DIRECTIONAL_INTRA set to 0).
    *
    * - 0 = disable
    * - 1 = enable (default)
@@ -1353,6 +1355,14 @@ enum aome_enc_control_id {
    * to let the encoder encode with given partitions.
    */
   AV1E_SET_EXTERNAL_PARTITION = 144,
+
+  /*!\brief Codec control function to turn on / off directional intra mode
+   * usage, int parameter
+   *
+   * - 0 = disable
+   * - 1 = enable (default)
+   */
+  AV1E_SET_ENABLE_DIRECTIONAL_INTRA = 145,
 
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
@@ -1894,7 +1904,10 @@ AOM_CTRL_USE_TYPE(AV1E_SET_PARTITION_INFO_PATH, const char *)
 #define AOM_CTRL_AV1E_SET_PARTITION_INFO_PATH
 
 AOM_CTRL_USE_TYPE(AV1E_SET_EXTERNAL_PARTITION, aom_ext_part_funcs_t *)
-#define AOM_CTRL_AV1E_SET_ENABLE_DNL_DENOISING
+#define AOM_CTRL_AV1E_SET_EXTERNAL_PARTITION
+
+AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_DIRECTIONAL_INTRA, int)
+#define AOM_CTRL_AV1E_SET_ENABLE_DIRECTIONAL_INTRA
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

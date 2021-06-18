@@ -229,6 +229,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
 #endif
                                         AV1E_SET_DV_COST_UPD_FREQ,
                                         AV1E_SET_PARTITION_INFO_PATH,
+                                        AV1E_SET_ENABLE_DIRECTIONAL_INTRA,
                                         0 };
 
 const arg_def_t *main_args[] = { &g_av1_codec_arg_defs.help,
@@ -426,6 +427,7 @@ const arg_def_t *av1_ctrl_args[] = {
 #endif
   &g_av1_codec_arg_defs.dv_cost_upd_freq,
   &g_av1_codec_arg_defs.partition_info_path,
+  &g_av1_codec_arg_defs.enable_directional_intra,
   NULL,
 };
 

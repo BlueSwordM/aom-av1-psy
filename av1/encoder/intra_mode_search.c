@@ -616,6 +616,9 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
     if (is_diagonal_mode && !cpi->oxcf.intra_mode_cfg.enable_diagonal_intra)
       continue;
+    if (is_directional_mode &&
+        !cpi->oxcf.intra_mode_cfg.enable_directional_intra)
+      continue;
 
     if (!(cpi->sf.intra_sf.intra_uv_mode_mask[txsize_sqr_up_map[max_tx_size]] &
           (1 << mode)))
@@ -1147,6 +1150,9 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
     is_diagonal_mode = av1_is_diagonal_mode(mbmi->mode);
     if (is_diagonal_mode && !cpi->oxcf.intra_mode_cfg.enable_diagonal_intra)
+      continue;
+    if (av1_is_directional_mode(mbmi->mode) &&
+        !cpi->oxcf.intra_mode_cfg.enable_directional_intra)
       continue;
 
     // The smooth prediction mode appears to be more frequently picked

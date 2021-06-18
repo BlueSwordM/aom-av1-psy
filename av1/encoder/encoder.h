@@ -281,7 +281,12 @@ typedef struct {
    */
   bool enable_cfl_intra;
   /*!
-   * Flag to indicate if D45 to D203 intra prediction modes should be enabled.
+   * Flag to indicate if directional modes should be enabled.
+   */
+  bool enable_directional_intra;
+  /*!
+   * Flag to indicate if the subset of directional modes from D45 to D203 intra
+   * should be enabled. Has no effect if directional modes are disabled.
    */
   bool enable_diagonal_intra;
   /*!

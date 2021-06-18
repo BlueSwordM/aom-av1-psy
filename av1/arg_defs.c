@@ -407,10 +407,15 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_cfl_intra = ARG_DEF(NULL, "enable-cfl-intra", 1,
                               "Enable chroma from luma intra prediction mode "
                               "(0: false, 1: true (default))"),
+  .enable_directional_intra =
+      ARG_DEF(NULL, "enable-directional-intra", 1,
+              "Enable directional intra prediction modes "
+              "(0: false, 1: true (default))"),
   .enable_diagonal_intra =
       ARG_DEF(NULL, "enable-diagonal-intra", 1,
-              "Enable diagonal (D45 to D203) intra prediction modes "
-              "(0: false, 1: true (default))"),
+              "Enable diagonal (D45 to D203) intra prediction modes, which are "
+              "a subset of directional modes. Has no effect if "
+              "enable-directional-intra is 0 (0: false, 1: true (default))"),
   .force_video_mode = ARG_DEF(NULL, "force-video-mode", 1,
                               "Force video mode (0: false, 1: true (default))"),
   .enable_obmc = ARG_DEF(NULL, "enable-obmc", 1,

@@ -127,6 +127,7 @@ struct av1_extracfg {
   int enable_smooth_intra;           // enable smooth intra modes for sequence
   int enable_paeth_intra;            // enable Paeth intra mode for sequence
   int enable_cfl_intra;              // enable CFL uv intra mode for sequence
+  int enable_directional_intra;      // enable directional modes for sequence
   int enable_diagonal_intra;  // enable D45 to D203 intra modes for sequence
   int enable_superres;
   int enable_overlay;  // enable overlay for filtered arf frames
@@ -270,6 +271,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,                            // enable smooth intra modes usage for sequence
   1,                            // enable Paeth intra mode usage for sequence
   1,                            // enable CFL uv intra mode usage for sequence
+  1,                       // enable directional intra mode usage for sequence
   1,                       // enable D45 to D203 intra mode usage for sequence
   1,                       // superres
   1,                       // enable overlay
@@ -402,6 +404,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,                            // enable smooth intra modes usage for sequence
   1,                            // enable Paeth intra mode usage for sequence
   1,                            // enable CFL uv intra mode usage for sequence
+  1,                       // enable directional intra mode usage for sequence
   1,                       // enable D45 to D203 intra mode usage for sequence
   1,                       // superres
   1,                       // enable overlay
@@ -1231,6 +1234,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   intra_mode_cfg->enable_smooth_intra = extra_cfg->enable_smooth_intra;
   intra_mode_cfg->enable_paeth_intra = extra_cfg->enable_paeth_intra;
   intra_mode_cfg->enable_cfl_intra = extra_cfg->enable_cfl_intra;
+  intra_mode_cfg->enable_directional_intra =
+      extra_cfg->enable_directional_intra;
   intra_mode_cfg->enable_diagonal_intra = extra_cfg->enable_diagonal_intra;
 
   // Set transform size/type configuration.
@@ -1886,6 +1891,14 @@ static aom_codec_err_t ctrl_set_enable_smooth_intra(aom_codec_alg_priv_t *ctx,
                                                     va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_smooth_intra = CAST(AV1E_SET_ENABLE_SMOOTH_INTRA, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_enable_directional_intra(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_directional_intra =
+      CAST(AV1E_SET_ENABLE_DIRECTIONAL_INTRA, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -3474,6 +3487,10 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_cfl_intra,
                               argv, err_string)) {
     extra_cfg.enable_cfl_intra = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.enable_directional_intra,
+                              argv, err_string)) {
+    extra_cfg.enable_directional_intra = arg_parse_int_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_diagonal_intra,
                               argv, err_string)) {
     extra_cfg.enable_diagonal_intra = arg_parse_int_helper(&arg, err_string);
@@ -3668,6 +3685,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_SMOOTH_INTRA, ctrl_set_enable_smooth_intra },
   { AV1E_SET_ENABLE_PAETH_INTRA, ctrl_set_enable_paeth_intra },
   { AV1E_SET_ENABLE_CFL_INTRA, ctrl_set_enable_cfl_intra },
+  { AV1E_SET_ENABLE_DIRECTIONAL_INTRA, ctrl_set_enable_directional_intra },
   { AV1E_SET_ENABLE_DIAGONAL_INTRA, ctrl_set_enable_diagonal_intra },
   { AV1E_SET_ENABLE_SUPERRES, ctrl_set_enable_superres },
   { AV1E_SET_ENABLE_OVERLAY, ctrl_set_enable_overlay },
