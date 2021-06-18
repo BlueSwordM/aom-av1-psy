@@ -32,6 +32,10 @@ extern "C" {
 
 /*!
  * \brief The stucture of acummulated frame stats in the first pass.
+ *
+ * Errors (coded_error, intra_error, etc.) and counters (new_mv_count) are
+ * normalized to each MB. MV related stats (MVc, MVr, etc.) are normalized to
+ * the frame width and height. See function normalize_firstpass_stats.
  */
 typedef struct {
   /*!
@@ -273,7 +277,7 @@ typedef struct {
   int64_t kf_group_bits;
 
   // Error score of frames still to be coded in kf group
-  int64_t kf_group_error_left;
+  double kf_group_error_left;
 
   // Over time correction for bits per macro block estimation
   double bpm_factor;

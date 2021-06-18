@@ -329,7 +329,7 @@ static int get_twopass_worst_quality(AV1_COMP *cpi, const double av_frame_err,
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
-  inactive_zone = fclamp(inactive_zone, 0.0, 1.0);
+  inactive_zone = fclamp(inactive_zone, 0.0, 0.9999);
 
   if (av_target_bandwidth <= 0) {
     return rc->worst_quality;  // Highest value allowed
@@ -338,7 +338,7 @@ static int get_twopass_worst_quality(AV1_COMP *cpi, const double av_frame_err,
                             ? cpi->initial_mbs
                             : cpi->common.mi_params.MBs;
     const int active_mbs = AOMMAX(1, num_mbs - (int)(num_mbs * inactive_zone));
-    const double av_err_per_mb = av_frame_err / active_mbs;
+    const double av_err_per_mb = av_frame_err / (1.0 - inactive_zone);
     const int target_norm_bits_per_mb =
         (int)((uint64_t)av_target_bandwidth << BPER_MB_NORMBITS) / active_mbs;
     int rate_err_tol = AOMMIN(rc_cfg->under_shoot_pct, rc_cfg->over_shoot_pct);
@@ -361,9 +361,9 @@ static int get_twopass_worst_quality(AV1_COMP *cpi, const double av_frame_err,
 
 #define INTRA_PART 0.005
 #define DEFAULT_DECAY_LIMIT 0.75
-#define LOW_SR_DIFF_TRHESH 0.1
+#define LOW_SR_DIFF_TRHESH 0.01
 #define NCOUNT_FRAME_II_THRESH 5.0
-#define LOW_CODED_ERR_PER_MB 10.0
+#define LOW_CODED_ERR_PER_MB 0.01
 
 /* This function considers how the quality of prediction may be deteriorating
  * with distance. It comapres the coded error for the last frame and the
@@ -467,7 +467,8 @@ static int detect_flash(const TWO_PASS *twopass, const int offset) {
 
 // Update the motion related elements to the GF arf boost calculation.
 static void accumulate_frame_motion_stats(const FIRSTPASS_STATS *stats,
-                                          GF_GROUP_STATS *gf_stats) {
+                                          GF_GROUP_STATS *gf_stats, double f_w,
+                                          double f_h) {
   const double pct = stats->pcnt_motion;
 
   // Accumulate Motion In/Out of frame stats.
@@ -484,9 +485,11 @@ static void accumulate_frame_motion_stats(const FIRSTPASS_STATS *stats,
         fabs(stats->mvc_abs) / DOUBLE_DIVIDE_CHECK(fabs(stats->MVc));
 
     gf_stats->mv_ratio_accumulator +=
-        pct * (mvr_ratio < stats->mvr_abs ? mvr_ratio : stats->mvr_abs);
+        pct *
+        (mvr_ratio < stats->mvr_abs * f_h ? mvr_ratio : stats->mvr_abs * f_h);
     gf_stats->mv_ratio_accumulator +=
-        pct * (mvc_ratio < stats->mvc_abs ? mvc_ratio : stats->mvc_abs);
+        pct *
+        (mvc_ratio < stats->mvc_abs * f_w ? mvc_ratio : stats->mvc_abs * f_w);
   }
 }
 
@@ -505,8 +508,9 @@ static void accumulate_next_frame_stats(const FIRSTPASS_STATS *stats,
                                         const int flash_detected,
                                         const int frames_since_key,
                                         const int cur_idx,
-                                        GF_GROUP_STATS *gf_stats) {
-  accumulate_frame_motion_stats(stats, gf_stats);
+                                        GF_GROUP_STATS *gf_stats, int f_w,
+                                        int f_h) {
+  accumulate_frame_motion_stats(stats, gf_stats, f_w, f_h);
   // sum up the metric values of current gf group
   gf_stats->avg_sr_coded_error += stats->sr_coded_error;
   gf_stats->avg_tr_coded_error += stats->tr_coded_error;
@@ -562,28 +566,27 @@ static void average_gf_stats(const int total_frame,
 static void get_features_from_gf_stats(const GF_GROUP_STATS *gf_stats,
                                        const GF_FRAME_STATS *first_frame,
                                        const GF_FRAME_STATS *last_frame,
-                                       const int num_mbs,
                                        const int constrained_gf_group,
                                        const int kf_zeromotion_pct,
                                        const int num_frames, float *features) {
   *features++ = (float)gf_stats->abs_mv_in_out_accumulator;
-  *features++ = (float)(gf_stats->avg_new_mv_count / num_mbs);
+  *features++ = (float)(gf_stats->avg_new_mv_count);
   *features++ = (float)gf_stats->avg_pcnt_second_ref;
   *features++ = (float)gf_stats->avg_pcnt_third_ref;
   *features++ = (float)gf_stats->avg_pcnt_third_ref_nolast;
-  *features++ = (float)(gf_stats->avg_sr_coded_error / num_mbs);
-  *features++ = (float)(gf_stats->avg_tr_coded_error / num_mbs);
-  *features++ = (float)(gf_stats->avg_wavelet_energy / num_mbs);
+  *features++ = (float)(gf_stats->avg_sr_coded_error);
+  *features++ = (float)(gf_stats->avg_tr_coded_error);
+  *features++ = (float)(gf_stats->avg_wavelet_energy);
   *features++ = (float)(constrained_gf_group);
   *features++ = (float)gf_stats->decay_accumulator;
-  *features++ = (float)(first_frame->frame_coded_error / num_mbs);
-  *features++ = (float)(first_frame->frame_sr_coded_error / num_mbs);
-  *features++ = (float)(first_frame->frame_tr_coded_error / num_mbs);
-  *features++ = (float)(first_frame->frame_err / num_mbs);
+  *features++ = (float)(first_frame->frame_coded_error);
+  *features++ = (float)(first_frame->frame_sr_coded_error);
+  *features++ = (float)(first_frame->frame_tr_coded_error);
+  *features++ = (float)(first_frame->frame_err);
   *features++ = (float)(kf_zeromotion_pct);
-  *features++ = (float)(last_frame->frame_coded_error / num_mbs);
-  *features++ = (float)(last_frame->frame_sr_coded_error / num_mbs);
-  *features++ = (float)(last_frame->frame_tr_coded_error / num_mbs);
+  *features++ = (float)(last_frame->frame_coded_error);
+  *features++ = (float)(last_frame->frame_sr_coded_error);
+  *features++ = (float)(last_frame->frame_tr_coded_error);
   *features++ = (float)num_frames;
   *features++ = (float)gf_stats->mv_ratio_accumulator;
   *features++ = (float)gf_stats->non_zero_stdev_count;
@@ -611,13 +614,9 @@ static double calc_frame_boost(const RATE_CONTROL *rc,
                                             frame_info->bit_depth);
   const double boost_q_correction = AOMMIN((0.5 + (lq * 0.015)), 1.5);
   const double active_area = calculate_active_area(frame_info, this_frame);
-  int num_mbs = frame_info->num_mbs;
-
-  // Correct for any inactive region in the image
-  num_mbs = (int)AOMMAX(1, num_mbs * active_area);
 
   // Underlying boost factor is based on inter error ratio.
-  frame_boost = AOMMAX(baseline_err_per_mb(frame_info) * num_mbs,
+  frame_boost = AOMMAX(baseline_err_per_mb(frame_info) * active_area,
                        this_frame->intra_error * active_area) /
                 DOUBLE_DIVIDE_CHECK(this_frame->coded_error);
   frame_boost = frame_boost * BOOST_FACTOR * boost_q_correction;
@@ -643,13 +642,9 @@ static double calc_kf_frame_boost(const RATE_CONTROL *rc,
                                             frame_info->bit_depth);
   const double boost_q_correction = AOMMIN((0.50 + (lq * 0.015)), 2.00);
   const double active_area = calculate_active_area(frame_info, this_frame);
-  int num_mbs = frame_info->num_mbs;
-
-  // Correct for any inactive region in the image
-  num_mbs = (int)AOMMAX(1, num_mbs * active_area);
 
   // Underlying boost factor is based on inter error ratio.
-  frame_boost = AOMMAX(baseline_err_per_mb(frame_info) * num_mbs,
+  frame_boost = AOMMAX(baseline_err_per_mb(frame_info) * active_area,
                        this_frame->intra_error * active_area) /
                 DOUBLE_DIVIDE_CHECK(
                     (this_frame->coded_error + *sr_accumulator) * active_area);
@@ -714,7 +709,9 @@ int av1_calc_arf_boost(const TWO_PASS *twopass,
     if (this_frame == NULL) break;
 
     // Update the motion related elements to the boost calculation.
-    accumulate_frame_motion_stats(this_frame, &gf_stats);
+    accumulate_frame_motion_stats(this_frame, &gf_stats,
+                                  frame_info->frame_width,
+                                  frame_info->frame_height);
 
     // We want to discount the flash frame itself and the recovery
     // frame that follows as both will have poor scores.
@@ -747,7 +744,9 @@ int av1_calc_arf_boost(const TWO_PASS *twopass,
     if (this_frame == NULL) break;
 
     // Update the motion related elements to the boost calculation.
-    accumulate_frame_motion_stats(this_frame, &gf_stats);
+    accumulate_frame_motion_stats(this_frame, &gf_stats,
+                                  frame_info->frame_width,
+                                  frame_info->frame_height);
 
     // We want to discount the the flash frame itself and the recovery
     // frame that follows as both will have poor scores.
@@ -1919,6 +1918,9 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
   FIRSTPASS_STATS next_frame;
   const FIRSTPASS_STATS *const start_pos = twopass->stats_in;
   const FIRSTPASS_STATS *const stats = start_pos - (rc->frames_since_key == 0);
+
+  const int f_w = cpi->common.width;
+  const int f_h = cpi->common.height;
   int i;
 
   int flash_detected;
@@ -1968,7 +1970,7 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
       // TODO(bohanli): remove redundant accumulations here, or unify
       // this and the ones in define_gf_group
       accumulate_next_frame_stats(&next_frame, flash_detected,
-                                  rc->frames_since_key, i, &gf_stats);
+                                  rc->frames_since_key, i, &gf_stats, f_w, f_h);
 
       cut_here = detect_gf_cut(cpi, i, cur_start, flash_detected,
                                active_max_gf_interval, active_min_gf_interval,
@@ -2338,6 +2340,8 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   FRAME_INFO *frame_info = &cpi->frame_info;
   const GFConfig *const gf_cfg = &oxcf->gf_cfg;
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
+  const int f_w = cm->width;
+  const int f_h = cm->height;
   int i;
   int flash_detected;
   int64_t gf_group_bits;
@@ -2425,7 +2429,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
 
     // accumulate stats for next frame
     accumulate_next_frame_stats(&next_frame, flash_detected,
-                                rc->frames_since_key, i, &gf_stats);
+                                rc->frames_since_key, i, &gf_stats, f_w, f_h);
 
     ++i;
   }
@@ -2445,11 +2449,6 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // Was the group length constrained by the requirement for a new KF?
   p_rc->constrained_gf_group = (i >= rc->frames_to_key) ? 1 : 0;
 
-  const int num_mbs = (oxcf->resize_cfg.resize_mode != RESIZE_NONE)
-                          ? cpi->initial_mbs
-                          : cm->mi_params.MBs;
-  assert(num_mbs > 0);
-
   average_gf_stats(i, &next_frame, &gf_stats);
 
   // Disable internal ARFs for "still" gf groups.
@@ -2460,7 +2459,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   const int can_disable_internal_arfs = gf_cfg->gf_min_pyr_height <= 1;
   if (can_disable_internal_arfs &&
       gf_stats.zero_motion_accumulator > MIN_ZERO_MOTION &&
-      gf_stats.avg_sr_coded_error / num_mbs < MAX_SR_CODED_ERROR &&
+      gf_stats.avg_sr_coded_error < MAX_SR_CODED_ERROR &&
       gf_stats.avg_raw_err_stdev < MAX_RAW_ERR_VAR) {
     cpi->ppi->internal_altref_allowed = 0;
   }
@@ -2479,9 +2478,9 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
         !is_fp_stats_to_predict_flat_gop_invalid(total_stats)) {
       aom_clear_system_state();
       float features[21];
-      get_features_from_gf_stats(
-          &gf_stats, &first_frame_stats, &last_frame_stats, num_mbs,
-          p_rc->constrained_gf_group, twopass->kf_zeromotion_pct, i, features);
+      get_features_from_gf_stats(&gf_stats, &first_frame_stats,
+                                 &last_frame_stats, p_rc->constrained_gf_group,
+                                 twopass->kf_zeromotion_pct, i, features);
       // Infer using ML model.
       float score;
       av1_nn_predict(features, &av1_use_flat_gop_nn_config, 1, &score);
@@ -2612,8 +2611,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
 #endif
 
   // Adjust KF group bits and error remaining.
-  if (is_final_pass)
-    twopass->kf_group_error_left -= (int64_t)gf_stats.gf_group_err;
+  if (is_final_pass) twopass->kf_group_error_left -= gf_stats.gf_group_err;
 
   // Set up the structure of this Group-Of-Pictures (same as GF_GROUP)
   av1_gop_setup_structure(cpi);
@@ -2735,7 +2733,7 @@ static int test_candidate_kf(TWO_PASS *twopass,
                              const FIRSTPASS_STATS *this_frame,
                              const FIRSTPASS_STATS *next_frame,
                              int frame_count_so_far, enum aom_rc_mode rc_mode,
-                             int scenecut_mode) {
+                             int scenecut_mode, int num_mbs) {
   int is_viable_kf = 0;
   double pcnt_intra = 1.0 - this_frame->pcnt_inter;
   double modified_pcnt_inter =
@@ -2810,12 +2808,13 @@ static int test_candidate_kf(TWO_PASS *twopass,
       boost_score += (decay_accumulator * next_iiratio);
 
       // Test various breakout clauses.
+      // TODO(any): Test of intra error should be normalized to an MB.
       if ((local_next_frame.pcnt_inter < 0.05) || (next_iiratio < 1.5) ||
           (((local_next_frame.pcnt_inter - local_next_frame.pcnt_neutral) <
             0.20) &&
            (next_iiratio < 3.0)) ||
           ((boost_score - old_boost_score) < 3.0) ||
-          (local_next_frame.intra_error < 200)) {
+          (local_next_frame.intra_error < (200.0 / (double)num_mbs))) {
         break;
       }
 
@@ -2918,6 +2917,9 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   for (j = 0; j < FRAMES_TO_CHECK_DECAY; ++j) recent_loop_decay[j] = 1.0;
 
   i = 0;
+  const int num_mbs = (oxcf->resize_cfg.resize_mode != RESIZE_NONE)
+                          ? cpi->initial_mbs
+                          : cpi->common.mi_params.MBs;
   while (twopass->stats_in < twopass->stats_buf_ctx->stats_in_end &&
          frames_to_key < num_frames_to_detect_scenecut) {
     // Accumulate total number of stats available till next key frame
@@ -2941,7 +2943,8 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
       if (frames_since_key >= kf_cfg->key_freq_min &&
           test_candidate_kf(twopass, &last_frame, this_frame, twopass->stats_in,
                             frames_since_key, oxcf->rc_cfg.mode,
-                            cpi->ppi->p_rc.enable_scenecut_detection)) {
+                            cpi->ppi->p_rc.enable_scenecut_detection,
+                            num_mbs)) {
         scenecut_detected = 1;
         break;
       }
@@ -3027,14 +3030,9 @@ static int64_t get_kf_group_bits(AV1_COMP *cpi, double kf_group_err,
   if (cpi->ppi->lap_enabled) {
     kf_group_bits = (int64_t)rc->frames_to_key * rc->avg_frame_bandwidth;
     if (cpi->oxcf.rc_cfg.vbr_corpus_complexity_lap) {
-      const int num_mbs = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
-                              ? cpi->initial_mbs
-                              : cpi->common.mi_params.MBs;
-
       double vbr_corpus_complexity_lap =
           cpi->oxcf.rc_cfg.vbr_corpus_complexity_lap / 10.0;
       /* Get the average corpus complexity of the frame */
-      vbr_corpus_complexity_lap = vbr_corpus_complexity_lap * num_mbs;
       kf_group_bits = (int64_t)(
           kf_group_bits * (kf_group_avg_error / vbr_corpus_complexity_lap));
     }
@@ -3378,9 +3376,9 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     // As we don't have enough stats to know the actual error of the group,
     // we assume the complexity of each frame to be equal to 1, and set the
     // error as the number of frames in the group(minus the keyframe).
-    twopass->kf_group_error_left = (int)(rc->frames_to_key - 1);
+    twopass->kf_group_error_left = (double)(rc->frames_to_key - 1);
   else
-    twopass->kf_group_error_left = (int)(kf_group_err - kf_mod_err);
+    twopass->kf_group_error_left = kf_group_err - kf_mod_err;
 
   // Adjust the count of total modified error left.
   // The count of bits left is adjusted elsewhere based on real coded frame
@@ -3433,18 +3431,15 @@ static INLINE void set_twopass_params_based_on_fp_stats(
   if (this_frame_ptr == NULL) return;
 
   TWO_PASS *const twopass = &cpi->ppi->twopass;
-  const int num_mbs = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
-                          ? cpi->initial_mbs
-                          : cpi->common.mi_params.MBs;
   // The multiplication by 256 reverses a scaling factor of (>> 8)
   // applied when combining MB error values for the frame.
-  twopass->mb_av_energy = log((this_frame_ptr->intra_error / num_mbs) + 1.0);
+  twopass->mb_av_energy = log((this_frame_ptr->intra_error) + 1.0);
 
   const FIRSTPASS_STATS *const total_stats =
       twopass->stats_buf_ctx->total_stats;
   if (is_fp_wavelet_energy_invalid(total_stats) == 0) {
     twopass->frame_avg_haar_energy =
-        log((this_frame_ptr->frame_avg_wavelet_energy / num_mbs) + 1.0);
+        log((this_frame_ptr->frame_avg_wavelet_energy) + 1.0);
   }
 
   // Set the frame content type flag.

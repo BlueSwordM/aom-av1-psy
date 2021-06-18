@@ -3078,9 +3078,6 @@ static void calculate_frame_avg_haar_energy(AV1_COMP *cpi) {
       (is_fp_wavelet_energy_invalid(total_stats) == 0))
     return;
 
-  const int num_mbs = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
-                          ? cpi->initial_mbs
-                          : cpi->common.mi_params.MBs;
   const YV12_BUFFER_CONFIG *const unfiltered_source = cpi->unfiltered_source;
   const uint8_t *const src = unfiltered_source->y_buffer;
   const int hbd = unfiltered_source->flags & YV12_FLAG_HIGHBITDEPTH;
@@ -3099,7 +3096,7 @@ static void calculate_frame_avg_haar_energy(AV1_COMP *cpi) {
       src, stride, hbd, num_8x8_rows, num_8x8_cols);
 
   twopass->frame_avg_haar_energy =
-      log(((double)frame_avg_wavelet_energy / num_mbs) + 1.0);
+      log(((double)frame_avg_wavelet_energy) + 1.0);
 }
 #endif
 

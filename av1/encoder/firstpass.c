@@ -867,6 +867,27 @@ static int firstpass_inter_prediction(
   return this_inter_error;
 }
 
+// Normalize the first pass stats.
+// Error / counters are normalized to each MB.
+// MVs are normalized to the width/height of the frame.
+static void normalize_firstpass_stats(FIRSTPASS_STATS *fps,
+                                      double num_mbs_16x16, double f_w,
+                                      double f_h) {
+  fps->coded_error /= num_mbs_16x16;
+  fps->sr_coded_error /= num_mbs_16x16;
+  fps->tr_coded_error /= num_mbs_16x16;
+  fps->intra_error /= num_mbs_16x16;
+  fps->frame_avg_wavelet_energy /= num_mbs_16x16;
+
+  fps->MVr /= f_h;
+  fps->mvr_abs /= f_h;
+  fps->MVc /= f_w;
+  fps->mvc_abs /= f_w;
+  fps->MVrv /= (f_h * f_h);
+  fps->MVcv /= (f_w * f_w);
+  fps->new_mv_count /= num_mbs_16x16;
+}
+
 // Updates the first pass stats of this frame.
 // Input:
 //   cpi: the encoder setting. Only a few params in it will be used.
@@ -955,6 +976,8 @@ static void update_firstpass_stats(AV1_COMP *cpi,
   // something less than the full time between subsequent values of
   // cpi->source_time_stamp.
   fps.duration = (double)ts_duration;
+
+  normalize_firstpass_stats(&fps, num_mbs_16X16, cm->width, cm->height);
 
   // Invalidate the stats related to third ref motion search if not valid.
   // This helps to print a warning in second pass encoding.
