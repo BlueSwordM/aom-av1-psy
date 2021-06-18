@@ -516,12 +516,12 @@ void av1_update_ref_frame_map(AV1_COMP *cpi,
   // TODO(jingning): Consider the S-frame same as key frame for the
   // reference frame tracking purpose. The logic might be better
   // expressed than converting the frame update type.
-  if (frame_is_sframe(cm)) frame_update_type = KEY_FRAME;
+  if (frame_is_sframe(cm)) frame_update_type = KF_UPDATE;
 
   if (is_frame_droppable(&cpi->svc, &cpi->ext_flags.refresh_frame)) return;
 
   switch (frame_update_type) {
-    case KEY_FRAME:
+    case KF_UPDATE:
       if (show_existing_frame)
         ref_map_index = stack_pop(ref_buffer_stack->arf_stack,
                                   &ref_buffer_stack->arf_stack_size);
