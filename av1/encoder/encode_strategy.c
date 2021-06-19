@@ -731,11 +731,7 @@ int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
 
   // show_existing_frames don't actually send refresh_frame_flags so set the
   // flags to 0 to keep things consistent.
-  if (frame_params->show_existing_frame &&
-      (!frame_params->error_resilient_mode ||
-       frame_params->frame_type == KEY_FRAME)) {
-    return 0;
-  }
+  if (frame_params->show_existing_frame) return 0;
 
   const SVC *const svc = &cpi->svc;
   if (is_frame_droppable(svc, ext_refresh_frame_flags)) return 0;
