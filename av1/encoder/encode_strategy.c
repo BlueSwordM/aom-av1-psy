@@ -509,22 +509,18 @@ static void update_arf_stack(int ref_map_index,
 // Update reference frame stack info.
 void av1_update_ref_frame_map(AV1_COMP *cpi,
                               FRAME_UPDATE_TYPE frame_update_type,
-                              FRAME_TYPE frame_type, int show_existing_frame,
-                              int ref_map_index,
+                              REFBUF_STATE refbuf_state, int ref_map_index,
                               RefBufferStack *ref_buffer_stack) {
   AV1_COMMON *const cm = &cpi->common;
+
   // TODO(jingning): Consider the S-frame same as key frame for the
   // reference frame tracking purpose. The logic might be better
   // expressed than converting the frame update type.
   if (frame_is_sframe(cm)) frame_update_type = KF_UPDATE;
-
   if (is_frame_droppable(&cpi->svc, &cpi->ext_flags.refresh_frame)) return;
 
   switch (frame_update_type) {
     case KF_UPDATE:
-      if (show_existing_frame)
-        ref_map_index = stack_pop(ref_buffer_stack->arf_stack,
-                                  &ref_buffer_stack->arf_stack_size);
       stack_reset(ref_buffer_stack->lst_stack,
                   &ref_buffer_stack->lst_stack_size);
       stack_reset(ref_buffer_stack->gld_stack,
@@ -539,6 +535,8 @@ void av1_update_ref_frame_map(AV1_COMP *cpi,
       stack_push(ref_buffer_stack->gld_stack, &ref_buffer_stack->gld_stack_size,
                  ref_map_index);
       // For nonrd_mode: update LAST as well on GF_UPDATE frame.
+      // TODO(jingning, marpan): Why replacing both reference frames with the
+      // same decoded frame?
       if (cpi->sf.rt_sf.use_nonrd_pick_mode)
         stack_push(ref_buffer_stack->lst_stack,
                    &ref_buffer_stack->lst_stack_size, ref_map_index);
@@ -550,7 +548,7 @@ void av1_update_ref_frame_map(AV1_COMP *cpi,
       break;
     case ARF_UPDATE:
     case INTNL_ARF_UPDATE:
-      if (frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
+      if (refbuf_state == REFBUF_RESET) {
         stack_reset(ref_buffer_stack->lst_stack,
                     &ref_buffer_stack->lst_stack_size);
         stack_reset(ref_buffer_stack->gld_stack,
@@ -564,7 +562,7 @@ void av1_update_ref_frame_map(AV1_COMP *cpi,
                  ref_map_index);
       break;
     case OVERLAY_UPDATE:
-      if (frame_type == KEY_FRAME) {
+      if (refbuf_state == REFBUF_RESET) {
         ref_map_index = stack_pop(ref_buffer_stack->arf_stack,
                                   &ref_buffer_stack->arf_stack_size);
         stack_reset(ref_buffer_stack->lst_stack,
@@ -1793,9 +1791,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     if (!ext_flags->refresh_frame.update_pending) {
       int ref_map_index =
           av1_get_refresh_ref_frame_map(cm->current_frame.refresh_frame_flags);
-      av1_update_ref_frame_map(cpi, frame_update_type, frame_params.frame_type,
-                               cm->show_existing_frame, ref_map_index,
-                               &cpi->ref_buffer_stack);
+      av1_update_ref_frame_map(cpi, frame_update_type,
+                               gf_group->refbuf_state[cpi->gf_frame_index],
+                               ref_map_index, &cpi->ref_buffer_stack);
     }
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
   }
