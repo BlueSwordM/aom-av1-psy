@@ -727,9 +727,7 @@ int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
 
   // TODO(jingning): Deprecate the following operations.
   // Switch frames and shown key-frames overwrite all reference slots
-  if ((frame_params->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) ||
-      frame_params->frame_type == S_FRAME)
-    return SELECT_ALL_BUF_SLOTS;
+  if (frame_params->frame_type == S_FRAME) return SELECT_ALL_BUF_SLOTS;
 
   // show_existing_frames don't actually send refresh_frame_flags so set the
   // flags to 0 to keep things consistent.
