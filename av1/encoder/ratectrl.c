@@ -1832,10 +1832,11 @@ static int rc_pick_q_and_bounds_q_mode(const AV1_COMP *cpi, int width,
   int active_best_quality = 0;
   int active_worst_quality = rc->active_worst_quality;
   int q;
+  GF_GROUP *gf_group = &cpi->ppi->gf_group;
 
   if (frame_is_intra_only(cm)) {
-    const int is_fwd_kf = cm->current_frame.frame_type == KEY_FRAME &&
-                          cm->show_frame == 0 && cpi->no_show_fwd_kf;
+    const int is_fwd_kf = gf_group->update_type[gf_index] == ARF_UPDATE &&
+                          gf_group->refbuf_state[gf_index] == REFBUF_UPDATE;
     get_intra_q_and_bounds(cpi, width, height, &active_best_quality,
                            &active_worst_quality, cq_level, is_fwd_kf);
   } else {
@@ -1915,8 +1916,8 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
       gf_group->update_type[gf_index] == INTNL_ARF_UPDATE;
 
   if (frame_is_intra_only(cm)) {
-    const int is_fwd_kf = cm->current_frame.frame_type == KEY_FRAME &&
-                          cm->show_frame == 0 && cpi->no_show_fwd_kf;
+    const int is_fwd_kf = gf_group->update_type[gf_index] == ARF_UPDATE &&
+                          gf_group->refbuf_state[gf_index] == REFBUF_UPDATE;
     get_intra_q_and_bounds(cpi, width, height, &active_best_quality,
                            &active_worst_quality, cq_level, is_fwd_kf);
 #ifdef STRICT_RC
