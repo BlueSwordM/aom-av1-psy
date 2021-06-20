@@ -971,7 +971,8 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
                                         source_buffer->metadata);
     }
     // Currently INTNL_ARF_UPDATE only do show_existing.
-    if (update_type == ARF_UPDATE && !cpi->no_show_fwd_kf) {
+    if (update_type == ARF_UPDATE &&
+        gf_group->frame_type[cpi->gf_frame_index] != KEY_FRAME) {
       cpi->show_existing_alt_ref = show_existing_alt_ref;
     }
   }
