@@ -1486,11 +1486,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #endif
 
   if (!is_stat_generation_stage(cpi)) {
-    // If this is a forward keyframe, mark as a show_existing_frame
-    // TODO(bohanli): find a consistent condition for fwd keyframes
-    if (oxcf->kf_cfg.fwd_kf_enabled &&
-        gf_group->update_type[cpi->gf_frame_index] == OVERLAY_UPDATE &&
-        cpi->rc.frames_to_key == 0) {
+    // TODO(jingning): fwd key frame always uses show existing frame?
+    if (gf_group->update_type[cpi->gf_frame_index] == OVERLAY_UPDATE &&
+        gf_group->refbuf_state[cpi->gf_frame_index] == REFBUF_RESET) {
       frame_params.show_existing_frame = 1;
     } else {
       frame_params.show_existing_frame =
