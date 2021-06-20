@@ -957,11 +957,10 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     cm->current_frame.frame_type = frame_params->frame_type;
     int arf_src_index = gf_group->arf_src_offset[cpi->gf_frame_index];
     int is_forward_keyframe = 0;
-    if (!frame_params->show_frame && cpi->no_show_fwd_kf) {
-      // TODO(angiebird): Figure out why this condition yields forward keyframe.
-      // fwd kf
+    if (gf_group->frame_type[cpi->gf_frame_index] == KEY_FRAME &&
+        gf_group->refbuf_state[cpi->gf_frame_index] == REFBUF_UPDATE)
       is_forward_keyframe = 1;
-    }
+
     const int code_arf =
         av1_temporal_filter(cpi, arf_src_index, update_type,
                             is_forward_keyframe, &show_existing_alt_ref);
