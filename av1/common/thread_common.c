@@ -446,7 +446,7 @@ static void loop_filter_rows_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   }
 
   // Wait till all rows are finished
-  for (i = 0; i < num_workers; ++i) {
+  for (i = 1; i < num_workers; ++i) {
     winterface->sync(&workers[i]);
   }
 }
@@ -851,7 +851,7 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
   }
 
   // Wait till all rows are finished
-  for (i = 0; i < num_workers; ++i) {
+  for (i = 1; i < num_workers; ++i) {
     winterface->sync(&workers[i]);
   }
 }
@@ -900,7 +900,7 @@ static AOM_INLINE void sync_cdef_workers(AVxWorker *const workers,
   int had_error = 0;
 
   // Wait for completion of Cdef frame.
-  for (int i = num_workers - 1; i >= 0; i--) {
+  for (int i = num_workers - 1; i > 0; i--) {
     AVxWorker *const worker = &workers[i];
     had_error |= !winterface->sync(worker);
   }

@@ -747,7 +747,7 @@ static AOM_INLINE void sync_enc_workers(MultiThreadInfo *const mt_info,
   int had_error = 0;
 
   // Encoding ends.
-  for (int i = num_workers - 1; i >= 0; i--) {
+  for (int i = num_workers - 1; i > 0; i--) {
     AVxWorker *const worker = &mt_info->workers[i];
     had_error |= !winterface->sync(worker);
   }
