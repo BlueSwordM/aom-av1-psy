@@ -4322,9 +4322,11 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
     int i;
     uint64_t frame_total = 0, total = 0;
 
-    fprintf(stderr, "\n Frame number: %d, Frame type: %s, Show Frame: %d\n",
+    fprintf(stderr,
+            "\n Frame number: %d, Frame type: %s, Show Frame: %d, Q: %d\n",
             cm->current_frame.frame_number,
-            get_frame_type_enum(cm->current_frame.frame_type), cm->show_frame);
+            get_frame_type_enum(cm->current_frame.frame_type), cm->show_frame,
+            cm->quant_params.base_qindex);
     for (i = 0; i < kTimingComponents; i++) {
       cpi->component_time[i] += cpi->frame_component_time[i];
       // Use av1_encode_strategy_time (i = 0) as the total time.
