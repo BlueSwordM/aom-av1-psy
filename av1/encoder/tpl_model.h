@@ -226,6 +226,42 @@ typedef struct TplParams {
 #endif
 } TplParams;
 
+#if CONFIG_BITRATE_ACCURACY
+/*!
+ * \brief This structure stores information needed for bitrate accuracy
+ * experiment.
+ */
+typedef struct {
+  double keyframe_bitrate;
+  double total_bit_budget;  // The total bit budget of the entire video
+  int show_frame_count;     // Number of show frames in the entire video
+
+  int gop_showframe_count;  // The number of show frames in the current gop
+  double gop_bit_budget;    // The bitbudger for the current gop
+} VBR_RATECTRL_INFO;
+
+static INLINE void vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info,
+                               double total_bit_budget, int show_frame_count) {
+  vbr_rc_info->total_bit_budget = total_bit_budget;
+  vbr_rc_info->show_frame_count = show_frame_count;
+  vbr_rc_info->keyframe_bitrate = 0;
+}
+
+static INLINE void vbr_rc_set_gop_bit_budget(VBR_RATECTRL_INFO *vbr_rc_info,
+                                             int gop_showframe_count) {
+  vbr_rc_info->gop_showframe_count = gop_showframe_count;
+  vbr_rc_info->gop_bit_budget = vbr_rc_info->total_bit_budget *
+                                gop_showframe_count /
+                                vbr_rc_info->show_frame_count;
+}
+
+static INLINE void vbr_rc_set_keyframe_bitrate(VBR_RATECTRL_INFO *vbr_rc_info,
+                                               double keyframe_bitrate) {
+  vbr_rc_info->keyframe_bitrate = keyframe_bitrate;
+}
+
+#endif  // CONFIG_BITRATE_ACCURACY
+
 #if CONFIG_RD_COMMAND
 typedef enum {
   RD_OPTION_NONE,

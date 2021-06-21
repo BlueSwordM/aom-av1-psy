@@ -2572,6 +2572,9 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     }
 #endif  // CONFIG_RD_COMMAND
 
+#if CONFIG_BITRATE_ACCURACY
+    q = (int)cpi->ppi->gf_group.q_val[cpi->gf_frame_index];
+#endif
     av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                       q_cfg->enable_chroma_deltaq);
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
@@ -2689,9 +2692,10 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
 #if CONFIG_BITRATE_ACCURACY
       cpi->ppi->tpl_data.actual_gop_bitrate += rc->projected_frame_size;
-      printf("\nframe: %d, projected frame size: %d, total: %f\n",
-             cpi->gf_frame_index, rc->projected_frame_size,
-             cpi->ppi->tpl_data.actual_gop_bitrate);
+      if (cpi->ppi->gf_group.update_type[cpi->gf_frame_index] == KF_UPDATE) {
+        vbr_rc_set_keyframe_bitrate(&cpi->vbr_rc_info,
+                                    rc->projected_frame_size);
+      }
 #endif
     }
 

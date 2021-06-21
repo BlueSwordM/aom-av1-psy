@@ -3052,6 +3052,13 @@ typedef struct AV1_COMP {
    * Flag to indicate that current frame is dropped.
    */
   bool is_dropped_frame;
+
+#if CONFIG_BITRATE_ACCURACY
+  /*!
+   * Structure stores information needed for bitrate accuracy experiment.
+   */
+  VBR_RATECTRL_INFO vbr_rc_info;
+#endif
 } AV1_COMP;
 
 /*!
