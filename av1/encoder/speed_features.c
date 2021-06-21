@@ -667,6 +667,12 @@ static void set_good_speed_feature_framesize_dependent(
       sf->intra_sf.skip_intra_in_interframe = boosted ? 1 : 3;
     }
 
+    if (is_720p_or_larger) {
+      sf->inter_sf.disable_interinter_wedge_var_thresh = 100;
+    } else {
+      sf->inter_sf.disable_interinter_wedge_var_thresh = UINT_MAX;
+    }
+
     sf->inter_sf.disable_interintra_wedge_var_thresh = UINT_MAX;
   }
 
@@ -682,6 +688,7 @@ static void set_good_speed_feature_framesize_dependent(
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 2;
     }
 
+    sf->inter_sf.disable_interinter_wedge_var_thresh = UINT_MAX;
     sf->inter_sf.prune_obmc_prob_thresh = INT_MAX;
     if (is_480p_or_lesser) sf->inter_sf.skip_newmv_in_drl = 3;
 
@@ -999,6 +1006,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 2;
     sf->inter_sf.prune_ext_comp_using_neighbors = 2;
     sf->inter_sf.prune_obmc_prob_thresh = INT_MAX;
+    sf->inter_sf.disable_interinter_wedge_var_thresh = UINT_MAX;
 
     sf->interp_sf.cb_pred_filter_search = 1;
     sf->interp_sf.skip_sharp_interp_filter_search = 1;
@@ -1052,7 +1060,6 @@ static void set_good_speed_features_framesize_independent(
         (allow_screen_content_tools || frame_is_intra_only(&cpi->common)) ? 0
                                                                           : 2;
 
-    sf->inter_sf.disable_interinter_wedge_var_thresh = UINT_MAX;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
     // Enable fast search for all valid compound modes.
