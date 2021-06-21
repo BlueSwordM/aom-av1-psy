@@ -146,6 +146,7 @@ struct av1_extracfg {
   int use_intra_dct_only;
   int use_inter_dct_only;
   int use_intra_default_tx_only;
+  int enable_tx_size_search;
   int quant_b_adapt;
   unsigned int vbr_corpus_complexity_lap;
   AV1_LEVEL target_seq_level_idx[MAX_NUM_OPERATING_POINTS];
@@ -290,6 +291,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,  // use_intra_dct_only
   0,  // use_inter_dct_only
   0,  // use_intra_default_tx_only
+  1,  // enable_tx_size_search
   0,  // quant_b_adapt
   0,  // vbr_corpus_complexity_lap
   {
@@ -424,6 +426,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,                       // use_intra_dct_only
   0,                       // use_inter_dct_only
   0,                       // use_intra_default_tx_only
+  1,                       // enable_tx_size_search
   0,                       // quant_b_adapt
   0,                       // vbr_corpus_complexity_lap
   {
@@ -1250,6 +1253,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   txfm_cfg->use_intra_dct_only = extra_cfg->use_intra_dct_only;
   txfm_cfg->use_inter_dct_only = extra_cfg->use_inter_dct_only;
   txfm_cfg->use_intra_default_tx_only = extra_cfg->use_intra_default_tx_only;
+  txfm_cfg->enable_tx_size_search = extra_cfg->enable_tx_size_search;
 
   // Set compound type configuration.
   comp_type_cfg->enable_dist_wtd_comp =
@@ -2024,6 +2028,13 @@ static aom_codec_err_t ctrl_set_intra_default_tx_only(aom_codec_alg_priv_t *ctx,
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.use_intra_default_tx_only =
       CAST(AV1E_SET_INTRA_DEFAULT_TX_ONLY, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_enable_tx_size_search(aom_codec_alg_priv_t *ctx,
+                                                      va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_tx_size_search = CAST(AV1E_SET_ENABLE_TX_SIZE_SEARCH, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -3745,6 +3756,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_ENABLE_SB_MULTIPASS_UNIT_TEST, ctrl_enable_sb_multipass_unit_test },
   { AV1E_SET_DV_COST_UPD_FREQ, ctrl_set_dv_cost_upd_freq },
   { AV1E_SET_EXTERNAL_PARTITION, ctrl_set_external_partition },
+  { AV1E_SET_ENABLE_TX_SIZE_SEARCH, ctrl_set_enable_tx_size_search },
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },

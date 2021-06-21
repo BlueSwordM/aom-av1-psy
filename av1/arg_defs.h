@@ -218,6 +218,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t fixed_qp_offsets;
   arg_def_t vbr_corpus_complexity_lap;
   arg_def_t fwd_kf_dist;
+  arg_def_t enable_tx_size_search;
 #endif  // CONFIG_AV1_ENCODER
 } av1_codec_arg_definitions_t;
 

@@ -1048,6 +1048,7 @@ typedef struct WINNER_MODE_SPEED_FEATURES {
   // Level 0  : FULL RD     LARGEST ALL   FULL RD
   // Level 1  : FAST RD     LARGEST ALL   FULL RD
   // Level 2  : LARGEST ALL LARGEST ALL   FULL RD
+  // Level 3 :  LARGEST ALL LARGEST ALL   LARGEST ALL
   int tx_size_search_level;
 
   // Flag used to control the winner mode processing for use transform

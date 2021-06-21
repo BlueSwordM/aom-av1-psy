@@ -332,6 +332,10 @@ typedef struct {
    * (mode-dependent) only.
    */
   bool use_intra_default_tx_only;
+  /*!
+   * Flag to indicate if transform size search should be enabled.
+   */
+  bool enable_tx_size_search;
 } TxfmSizeTypeCfg;
 
 /*!

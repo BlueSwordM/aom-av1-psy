@@ -624,6 +624,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .fwd_kf_dist =
       ARG_DEF(NULL, "fwd-kf-dist", -1,
               "Set distance between forward keyframes. A value of -1 means no "
-              "repetitive forward keyframes. Default is -1.")
+              "repetitive forward keyframes. Default is -1."),
+
+  .enable_tx_size_search = ARG_DEF(
+      NULL, "enable-tx-size-search", 1,
+      "Enable transform size search to find the best size for each block. "
+      "If false, transforms always have the largest possible size "
+      "(0: false, 1: true (default))")
 #endif  // CONFIG_AV1_ENCODER
 };

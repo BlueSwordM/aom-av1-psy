@@ -1364,6 +1364,13 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_DIRECTIONAL_INTRA = 145,
 
+  /*!\brief Control to turn on / off transform size search.
+   *
+   * - 0 = disable, transforms always have the largest possible size
+   * - 1 = enable, search for the best transform size for each block (default)
+   */
+  AV1E_SET_ENABLE_TX_SIZE_SEARCH = 146,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -1908,6 +1915,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_EXTERNAL_PARTITION, aom_ext_part_funcs_t *)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_DIRECTIONAL_INTRA, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_DIRECTIONAL_INTRA
+
+AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_TX_SIZE_SEARCH, int)
+#define AOM_CTRL_AV1E_SET_ENABLE_TX_SIZE_SEARCH
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

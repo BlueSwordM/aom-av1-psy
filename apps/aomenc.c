@@ -230,6 +230,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_DV_COST_UPD_FREQ,
                                         AV1E_SET_PARTITION_INFO_PATH,
                                         AV1E_SET_ENABLE_DIRECTIONAL_INTRA,
+                                        AV1E_SET_ENABLE_TX_SIZE_SEARCH,
                                         0 };
 
 const arg_def_t *main_args[] = { &g_av1_codec_arg_defs.help,
@@ -428,6 +429,7 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.dv_cost_upd_freq,
   &g_av1_codec_arg_defs.partition_info_path,
   &g_av1_codec_arg_defs.enable_directional_intra,
+  &g_av1_codec_arg_defs.enable_tx_size_search,
   NULL,
 };
 

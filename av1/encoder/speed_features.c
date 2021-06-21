@@ -92,10 +92,11 @@ static unsigned int coeff_opt_thresholds[9][MODE_EVAL_TYPES][2] = {
 // (Eg : IntraBc) Index 1: Mode evaluation. Index 2: Winner mode evaluation.
 // Index 1 and 2 are applicable when enable_winner_mode_for_tx_size_srch speed
 // feature is ON
-static TX_SIZE_SEARCH_METHOD tx_size_search_methods[3][MODE_EVAL_TYPES] = {
+static TX_SIZE_SEARCH_METHOD tx_size_search_methods[4][MODE_EVAL_TYPES] = {
   { USE_FULL_RD, USE_LARGESTALL, USE_FULL_RD },
   { USE_FAST_RD, USE_LARGESTALL, USE_FULL_RD },
-  { USE_LARGESTALL, USE_LARGESTALL, USE_FULL_RD }
+  { USE_LARGESTALL, USE_LARGESTALL, USE_FULL_RD },
+  { USE_LARGESTALL, USE_LARGESTALL, USE_LARGESTALL }
 };
 
 // Predict transform skip levels to be used for default, mode and winner mode
@@ -1744,7 +1745,7 @@ static AOM_INLINE void init_winner_mode_sf(
     WINNER_MODE_SPEED_FEATURES *winner_mode_sf) {
   winner_mode_sf->motion_mode_for_winner_cand = 0;
   // Set this at the appropriate speed levels
-  winner_mode_sf->tx_size_search_level = USE_FULL_RD;
+  winner_mode_sf->tx_size_search_level = 0;
   winner_mode_sf->enable_winner_mode_for_coeff_opt = 0;
   winner_mode_sf->enable_winner_mode_for_tx_size_srch = 0;
   winner_mode_sf->enable_winner_mode_for_use_tx_domain_dist = 0;
@@ -1845,6 +1846,10 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
     case REALTIME:
       set_rt_speed_features_framesize_independent(cpi, sf, speed);
       break;
+  }
+
+  if (!oxcf->txfm_cfg.enable_tx_size_search) {
+    sf->winner_mode_sf.tx_size_search_level = 3;
   }
 
   if (!cpi->ppi->seq_params_locked) {
