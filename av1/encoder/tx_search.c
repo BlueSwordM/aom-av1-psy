@@ -3073,6 +3073,10 @@ static AOM_INLINE void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
     init_depth = get_search_init_depth(mi_size_wide[bs], mi_size_high[bs],
                                        is_inter_block(mbmi), &cpi->sf,
                                        txfm_params->tx_size_search_method);
+    if (init_depth == MAX_TX_DEPTH && !cpi->oxcf.txfm_cfg.enable_tx64 &&
+        txsize_sqr_up_map[start_tx] == TX_64X64) {
+      start_tx = sub_tx_size_map[start_tx];
+    }
   } else {
     const TX_SIZE chosen_tx_size =
         tx_size_from_tx_mode(bs, txfm_params->tx_mode_search_type);
