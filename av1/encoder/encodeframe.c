@@ -554,6 +554,20 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
          sf->part_sf.partition_search_type == VAR_BASED_PARTITION);
   set_cb_offsets(td->mb.cb_offset, 0, 0);
 
+  // Initialize the flag to skip cdef for 64x64 blocks: if color sensitivy is
+  // on, set to 0 (don't skip).
+  if (sf->rt_sf.skip_cdef_sb) {
+    const int block64_in_sb = (sb_size == BLOCK_128X128) ? 2 : 1;
+    for (int r = 0; r < block64_in_sb; ++r) {
+      for (int c = 0; c < block64_in_sb; ++c) {
+        const int idx_in_sb =
+            r * MI_SIZE_64X64 * cm->mi_params.mi_stride + c * MI_SIZE_64X64;
+        if (mi[idx_in_sb])
+          mi[idx_in_sb]->skip_cdef_curr_sb =
+              !(x->color_sensitivity_sb[0] || x->color_sensitivity_sb[1]);
+      }
+    }
+  }
   // Adjust and encode the superblock
   PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
   av1_nonrd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
