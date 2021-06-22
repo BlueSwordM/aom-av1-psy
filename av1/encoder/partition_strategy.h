@@ -196,21 +196,11 @@ static INLINE void set_offsets_for_motion_search(const AV1_COMP *const cpi,
   av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, bsize);
 }
 
-static INLINE void init_simple_motion_search_mvs(
-    SIMPLE_MOTION_DATA_TREE *sms_tree) {
-  av1_zero(sms_tree->start_mvs);
-  av1_zero(sms_tree->sms_none_feat);
-  av1_zero(sms_tree->sms_rect_feat);
-  av1_zero(sms_tree->sms_none_valid);
-  av1_zero(sms_tree->sms_rect_valid);
-
-  if (sms_tree->block_size >= BLOCK_8X8) {
-    init_simple_motion_search_mvs(sms_tree->split[0]);
-    init_simple_motion_search_mvs(sms_tree->split[1]);
-    init_simple_motion_search_mvs(sms_tree->split[2]);
-    init_simple_motion_search_mvs(sms_tree->split[3]);
-  }
-}
+void av1_init_simple_motion_search_mvs_for_sb(const AV1_COMP *cpi,
+                                              const TileInfo *tile_info,
+                                              MACROBLOCK *x,
+                                              SIMPLE_MOTION_DATA_TREE *sms_root,
+                                              int mi_row, int mi_col);
 
 static INLINE int is_full_sb(const CommonModeInfoParams *const mi_params,
                              int mi_row, int mi_col, BLOCK_SIZE sb_size) {

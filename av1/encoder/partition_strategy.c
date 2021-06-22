@@ -27,6 +27,7 @@
 
 #include "av1/encoder/motion_search_facade.h"
 #include "av1/encoder/partition_strategy.h"
+#include "av1/encoder/partition_search.h"
 #include "av1/encoder/rdopt.h"
 
 #if !CONFIG_REALTIME_ONLY
@@ -2293,7 +2294,8 @@ void av1_collect_motion_search_features_sb(AV1_COMP *const cpi, ThreadData *td,
   const int row_step = mi_size_high[bsize] / mi_size_high[fixed_block_size];
   SIMPLE_MOTION_DATA_TREE *sms_tree = NULL;
   SIMPLE_MOTION_DATA_TREE *sms_root = setup_sms_tree(cpi, sms_tree);
-  init_simple_motion_search_mvs(sms_root);
+  av1_init_simple_motion_search_mvs_for_sb(cpi, NULL, x, sms_root, mi_row,
+                                           mi_col);
   av1_reset_simple_motion_tree_partition(sms_root, bsize);
   const int ref_list[] = { cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME
                                                         : LAST_FRAME };
@@ -2329,3 +2331,48 @@ void av1_collect_motion_search_features_sb(AV1_COMP *const cpi, ThreadData *td,
 }
 
 #endif  // !CONFIG_REALTIME_ONLY
+
+static INLINE void init_simple_motion_search_mvs(
+    SIMPLE_MOTION_DATA_TREE *sms_tree, const FULLPEL_MV *start_mvs) {
+  memcpy(sms_tree->start_mvs, start_mvs, sizeof(sms_tree->start_mvs));
+  av1_zero(sms_tree->sms_none_feat);
+  av1_zero(sms_tree->sms_rect_feat);
+  av1_zero(sms_tree->sms_none_valid);
+  av1_zero(sms_tree->sms_rect_valid);
+
+  if (sms_tree->block_size >= BLOCK_8X8) {
+    init_simple_motion_search_mvs(sms_tree->split[0], start_mvs);
+    init_simple_motion_search_mvs(sms_tree->split[1], start_mvs);
+    init_simple_motion_search_mvs(sms_tree->split[2], start_mvs);
+    init_simple_motion_search_mvs(sms_tree->split[3], start_mvs);
+  }
+}
+
+void av1_init_simple_motion_search_mvs_for_sb(const AV1_COMP *cpi,
+                                              const TileInfo *tile_info,
+                                              MACROBLOCK *x,
+                                              SIMPLE_MOTION_DATA_TREE *sms_root,
+                                              int mi_row, int mi_col) {
+  // Use the NEARESTMV of the sb as the start mv
+  const AV1_COMMON *cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  FULLPEL_MV ref_mvs[REF_FRAMES];
+  const BLOCK_SIZE sb_size = cm->seq_params->sb_size;
+  av1_zero(ref_mvs);
+  // If tile_info is NULL, assume that the offsets have already been set.
+  if (tile_info) {
+    av1_set_offsets_without_segment_id(cpi, tile_info, x, mi_row, mi_col,
+                                       sb_size);
+  }
+
+  MB_MODE_INFO_EXT mbmi_ext;
+  const int ref_frame =
+      cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME : LAST_FRAME;
+  av1_find_mv_refs(cm, xd, xd->mi[0], ref_frame, mbmi_ext.ref_mv_count,
+                   xd->ref_mv_stack, xd->weight, NULL, mbmi_ext.global_mvs,
+                   mbmi_ext.mode_context);
+  ref_mvs[ref_frame] =
+      get_fullmv_from_mv(&xd->ref_mv_stack[ref_frame][0].this_mv.as_mv);
+
+  init_simple_motion_search_mvs(sms_root, ref_mvs);
+}

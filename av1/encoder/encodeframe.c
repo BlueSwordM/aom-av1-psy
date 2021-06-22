@@ -582,7 +582,8 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
        sf->part_sf.ml_early_term_after_part_split_level) &&
       !frame_is_intra_only(cm);
   if (use_simple_motion_search) {
-    init_simple_motion_search_mvs(sms_root);
+    av1_init_simple_motion_search_mvs_for_sb(cpi, tile_info, x, sms_root,
+                                             mi_row, mi_col);
   }
 
 #if !CONFIG_REALTIME_ONLY
