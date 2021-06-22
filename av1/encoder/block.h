@@ -26,7 +26,7 @@
 #include "av1/encoder/partition_cnn_weights.h"
 #endif
 
-#include "av1/encoder/hash.h"
+#include "av1/encoder/hash_motion.h"
 
 #ifdef __cplusplus
 extern "C" {
