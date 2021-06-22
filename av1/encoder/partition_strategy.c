@@ -134,6 +134,7 @@ static void write_features_to_file(const char *const path,
 //   -- use chroma pixels in addition to luma pixels
 void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
                                   int quad_tree_idx,
+                                  int intra_cnn_based_part_prune_level,
                                   PartitionSearchState *part_state) {
   assert(cm->seq_params->sb_size >= BLOCK_64X64 &&
          "Invalid sb_size for intra_cnn!");
@@ -315,7 +316,13 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
   }
 
   if (logits[0] > split_only_thresh) {
-    av1_set_square_split_only(part_state);
+    // As screen contents tend to choose larger partitions, do not prune
+    // PARTITION_NONE when intra_cnn_based_part_prune_level=1.
+    if (intra_cnn_based_part_prune_level != 1) {
+      part_state->partition_none_allowed = 0;
+    }
+    part_state->do_square_split = 1;
+    av1_disable_rect_partitions(part_state);
   }
 
   if (logits[0] < no_split_thresh) {
@@ -1567,16 +1574,17 @@ void av1_prune_partitions_before_search(AV1_COMP *const cpi,
 
   // A CNN-based speed feature pruning out either split or all non-split
   // partition in INTRA frame coding.
-  const int try_intra_cnn_split =
-      !cpi->use_screen_content_tools && frame_is_intra_only(cm) &&
-      cpi->sf.part_sf.intra_cnn_split &&
+  const int try_intra_cnn_based_part_prune =
+      frame_is_intra_only(cm) &&
+      cpi->sf.part_sf.intra_cnn_based_part_prune_level &&
       cm->seq_params->sb_size >= BLOCK_64X64 && bsize <= BLOCK_64X64 &&
       blk_params->bsize_at_least_8x8 &&
       av1_is_whole_blk_in_frame(blk_params, mi_params);
 
-  if (try_intra_cnn_split) {
-    av1_intra_mode_cnn_partition(&cpi->common, x,
-                                 x->part_search_info.quad_tree_idx, part_state);
+  if (try_intra_cnn_based_part_prune) {
+    av1_intra_mode_cnn_partition(
+        &cpi->common, x, x->part_search_info.quad_tree_idx,
+        cpi->sf.part_sf.intra_cnn_based_part_prune_level, part_state);
   }
 
   // Use simple motion search to prune out split or non-split partitions. This

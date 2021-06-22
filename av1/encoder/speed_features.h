@@ -534,8 +534,11 @@ typedef struct PARTITION_SPEED_FEATURES {
   BLOCK_SIZE max_intra_bsize;
 
   // Use CNN with luma pixels on source frame on each of the 64x64 subblock to
-  // perform split/no_split decision on intra-frames.
-  int intra_cnn_split;
+  // perform partition pruning in intra frames.
+  // 0: No Pruning
+  // 1: Prune split and rectangular partitions only
+  // 2: Prune none, split and rectangular partitions
+  int intra_cnn_based_part_prune_level;
 
   // Disable extended partition search for lower block sizes.
   int ext_partition_eval_thresh;
