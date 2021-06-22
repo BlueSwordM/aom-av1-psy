@@ -4501,9 +4501,9 @@ BEGIN_PARTITION_SEARCH:
 #if CONFIG_RT_ML_PARTITIONING
 #define FEATURES 6
 #define LABELS 2
-static int ml_predict_var_paritioning(AV1_COMP *cpi, MACROBLOCK *x,
-                                      BLOCK_SIZE bsize, int mi_row,
-                                      int mi_col) {
+static int ml_predict_var_partitioning(AV1_COMP *cpi, MACROBLOCK *x,
+                                       BLOCK_SIZE bsize, int mi_row,
+                                       int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
   const NN_CONFIG *nn_config = NULL;
   const float *means = NULL;
@@ -4773,7 +4773,7 @@ void av1_nonrd_pick_partition(AV1_COMP *cpi, ThreadData *td,
 #ifndef _COLLECT_GROUND_TRUTH_
   if (partition_none_allowed && do_split) {
     const int ml_predicted_partition =
-        ml_predict_var_paritioning(cpi, x, bsize, mi_row, mi_col);
+        ml_predict_var_partitioning(cpi, x, bsize, mi_row, mi_col);
     if (ml_predicted_partition == PARTITION_NONE) do_split = 0;
     if (ml_predicted_partition == PARTITION_SPLIT) partition_none_allowed = 0;
   }

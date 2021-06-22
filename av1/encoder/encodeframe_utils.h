@@ -55,10 +55,10 @@ extern "C" {
 // Number of sub-partitions in 4-way partition types.
 #define SUB_PARTITIONS_PART4 4
 
-// 4part parition types.
+// 4part partition types.
 enum { HORZ4 = 0, VERT4, NUM_PART4_TYPES } UENUM1BYTE(PART4_TYPES);
 
-// AB parition types.
+// AB partition types.
 enum {
   HORZ_A = 0,
   HORZ_B,
@@ -67,7 +67,7 @@ enum {
   NUM_AB_PARTS
 } UENUM1BYTE(AB_PART_TYPE);
 
-// Rectangular parition types.
+// Rectangular partition types.
 enum { HORZ = 0, VERT, NUM_RECT_PARTS } UENUM1BYTE(RECT_PART_TYPE);
 
 // Structure to keep win flags for HORZ and VERT partition evaluations.
