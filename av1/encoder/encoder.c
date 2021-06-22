@@ -2508,6 +2508,9 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   int original_q = 0;
 #endif
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  cpi->num_frame_recode = 0;
+#endif
   // Loop variables
   int loop = 0;
   int loop_count = 0;
@@ -2727,7 +2730,12 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
     if (loop) {
       ++loop_count;
-
+#if CONFIG_FRAME_PARALLEL_ENCODE
+      cpi->num_frame_recode =
+          (cpi->num_frame_recode < (NUM_RECODES_PER_FRAME - 1))
+              ? ++cpi->num_frame_recode
+              : NUM_RECODES_PER_FRAME - 1;
+#endif
 #if CONFIG_INTERNAL_STATS
       ++cpi->frame_recode_hits;
 #endif
@@ -2796,6 +2804,15 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, encode_with_recode_loop_time);
 #endif
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  for (int i = 0; i < NUM_RECODES_PER_FRAME; i++) {
+    cpi->do_update_frame_probs_txtype[i] = 0;
+    cpi->do_update_frame_probs_obmc[i] = 0;
+    cpi->do_update_frame_probs_warp[i] = 0;
+    cpi->do_update_frame_probs_interpfilter[i] = 0;
+  }
+#endif
+
   int err;
 #if CONFIG_REALTIME_ONLY
   err = encode_without_recode(cpi);

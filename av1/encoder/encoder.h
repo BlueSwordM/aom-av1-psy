@@ -1432,6 +1432,10 @@ typedef struct {
  * \brief Max number of frames that can be encoded in a parallel encode set.
  */
 #define MAX_PARALLEL_FRAMES 4
+/*!
+ * \brief Max number of recodes used to track the frame probabilities.
+ */
+#define NUM_RECODES_PER_FRAME 10
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
 /*!
@@ -2228,6 +2232,16 @@ typedef struct AV1_PRIMARY {
   FrameProbInfo temp_frame_probs;
 
   /*!
+   * TODO(FPMT): Temporary variable holding the updated frame probability across
+   * frames. Copy its value to temp_frame_probs for frame_parallel_level 0
+   * frames or last frame in parallel encode set. In final implementation we can
+   * remove cpi->frame_probs and convert this as main variable across the
+   * encoder by moving this temp variable outside the macro. Currently
+   * cpi->frame_probs is not used in FPMT path.
+   */
+  FrameProbInfo temp_frame_probs_simulation;
+
+  /*!
    * Temporary variable used in simulating the delayed update of
    * avg_frame_qindex.
    */
@@ -2778,6 +2792,19 @@ typedef struct AV1_COMP {
    */
   FrameProbInfo frame_probs;
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  // Number of recodes in the frame.
+  int num_frame_recode;
+
+  // Current frame probability of parallel frames, across recodes.
+  FrameProbInfo frame_new_probs[NUM_RECODES_PER_FRAME];
+
+  // Retain condition for frame_probability calculation
+  int do_update_frame_probs_txtype[NUM_RECODES_PER_FRAME];
+  int do_update_frame_probs_obmc[NUM_RECODES_PER_FRAME];
+  int do_update_frame_probs_warp[NUM_RECODES_PER_FRAME];
+  int do_update_frame_probs_interpfilter[NUM_RECODES_PER_FRAME];
+#endif
   /*!
    * Multi-threading parameters.
    */

@@ -4137,5 +4137,133 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
         cpi->ppi->p_rc.temp_active_best_quality[i] = rc->active_best_quality[i];
     }
   }
+
+  // Update the frame probabilities obtained from parallel encode frames
+  FrameProbInfo *const temp_frame_probs_simulation =
+      &cpi->ppi->temp_frame_probs_simulation;
+  FrameProbInfo *const temp_frame_probs = &cpi->ppi->temp_frame_probs;
+  int i, j, loop;
+  AV1_COMMON *const cm = &cpi->common;
+  FeatureFlags *const features = &cm->features;
+  // Sequentially do average on temp_frame_probs_simulation which holds
+  // probabilities of last frame before parallel encode
+  for (loop = 0; loop <= cpi->num_frame_recode; loop++) {
+    // Sequentially update tx_type_probs
+    if (cpi->do_update_frame_probs_txtype[loop] &&
+        (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)) {
+      const FRAME_UPDATE_TYPE update_type =
+          get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
+      for (i = 0; i < TX_SIZES_ALL; i++) {
+        int j;
+        int left = 1024;
+
+        for (j = TX_TYPES - 1; j >= 0; j--) {
+          const int new_prob =
+              cpi->frame_new_probs[loop].tx_type_probs[update_type][i][j];
+          int prob =
+              (temp_frame_probs_simulation->tx_type_probs[update_type][i][j] +
+               new_prob) >>
+              1;
+          left -= prob;
+          if (j == 0) prob += left;
+          temp_frame_probs_simulation->tx_type_probs[update_type][i][j] = prob;
+
+          if (cpi->do_frame_data_update) {
+            // Copying temp_frame_probs_simulation to temp_frame_probs based on
+            // the flag
+            for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
+                 update_type_idx++) {
+              temp_frame_probs->tx_type_probs[update_type_idx][i][j] =
+                  temp_frame_probs_simulation
+                      ->tx_type_probs[update_type_idx][i][j];
+            }
+          }
+        }
+      }
+    }
+
+    // Sequentially update obmc_probs
+    if (cpi->do_update_frame_probs_obmc[loop] &&
+        cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
+      const FRAME_UPDATE_TYPE update_type =
+          get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
+
+      for (i = 0; i < BLOCK_SIZES_ALL; i++) {
+        const int new_prob =
+            cpi->frame_new_probs[loop].obmc_probs[update_type][i];
+        temp_frame_probs_simulation->obmc_probs[update_type][i] =
+            (temp_frame_probs_simulation->obmc_probs[update_type][i] +
+             new_prob) >>
+            1;
+
+        if (cpi->do_frame_data_update) {
+          // Copying temp_frame_probs_simulation to temp_frame_probs based on
+          // the flag
+          for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
+               update_type_idx++) {
+            temp_frame_probs->obmc_probs[update_type_idx][i] =
+                temp_frame_probs_simulation->obmc_probs[update_type_idx][i];
+          }
+        }
+      }
+    }
+
+    // Sequentially update warped_probs
+    if (cpi->do_update_frame_probs_warp[loop] &&
+        cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
+      const FRAME_UPDATE_TYPE update_type =
+          get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
+      const int new_prob = cpi->frame_new_probs[loop].warped_probs[update_type];
+      temp_frame_probs_simulation->warped_probs[update_type] =
+          (temp_frame_probs_simulation->warped_probs[update_type] + new_prob) >>
+          1;
+
+      if (cpi->do_frame_data_update) {
+        // Copying temp_frame_probs_simulation to temp_frame_probs based on the
+        // flag
+        for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
+             update_type_idx++) {
+          temp_frame_probs->warped_probs[update_type_idx] =
+              temp_frame_probs_simulation->warped_probs[update_type_idx];
+        }
+      }
+    }
+
+    // Sequentially update switchable_interp_probs
+    if (cpi->do_update_frame_probs_interpfilter[loop] &&
+        cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
+      const FRAME_UPDATE_TYPE update_type =
+          get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
+
+      for (i = 0; i < SWITCHABLE_FILTER_CONTEXTS; i++) {
+        int j;
+        int left = 1536;
+
+        for (j = SWITCHABLE_FILTERS - 1; j >= 0; j--) {
+          const int new_prob = cpi->frame_new_probs[loop]
+                                   .switchable_interp_probs[update_type][i][j];
+          int prob = (temp_frame_probs_simulation
+                          ->switchable_interp_probs[update_type][i][j] +
+                      new_prob) >>
+                     1;
+          left -= prob;
+          if (j == 0) prob += left;
+          temp_frame_probs_simulation
+              ->switchable_interp_probs[update_type][i][j] = prob;
+
+          if (cpi->do_frame_data_update) {
+            // Copying temp_frame_probs_simulation to temp_frame_probs based on
+            // the flag
+            for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
+                 update_type_idx++) {
+              temp_frame_probs->switchable_interp_probs[update_type_idx][i][j] =
+                  temp_frame_probs_simulation
+                      ->switchable_interp_probs[update_type_idx][i][j];
+            }
+          }
+        }
+      }
+    }
+  }
 #endif
 }

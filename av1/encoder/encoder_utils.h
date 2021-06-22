@@ -886,6 +886,23 @@ static AOM_INLINE void copy_frame_prob_info(AV1_COMP *cpi) {
     av1_copy(temp_frame_probs->switchable_interp_probs,
              default_switchable_interp_probs);
   }
+
+  FrameProbInfo *const temp_frame_probs_simulation =
+      &cpi->ppi->temp_frame_probs_simulation;
+  if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats) {
+    av1_copy(temp_frame_probs_simulation->tx_type_probs, default_tx_type_probs);
+  }
+  if (cpi->sf.inter_sf.prune_obmc_prob_thresh > 0 &&
+      cpi->sf.inter_sf.prune_obmc_prob_thresh < INT_MAX) {
+    av1_copy(temp_frame_probs_simulation->obmc_probs, default_obmc_probs);
+  }
+  if (cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
+    av1_copy(temp_frame_probs_simulation->warped_probs, default_warped_probs);
+  }
+  if (cpi->sf.interp_sf.adaptive_interp_filter_search == 2) {
+    av1_copy(temp_frame_probs_simulation->switchable_interp_probs,
+             default_switchable_interp_probs);
+  }
 #endif
 }
 
