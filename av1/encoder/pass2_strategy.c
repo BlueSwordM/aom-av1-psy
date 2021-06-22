@@ -3780,8 +3780,6 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
   // Define a new GF/ARF group. (Should always enter here for key frames).
   if (cpi->gf_frame_index == gf_group->size) {
-    assert(cpi->common.current_frame.frame_number == 0 ||
-           cpi->gf_frame_index == gf_group->size);
     const FIRSTPASS_STATS *const start_position = twopass->stats_in;
 
     if (cpi->ppi->lap_enabled && cpi->ppi->p_rc.enable_scenecut_detection) {
