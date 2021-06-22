@@ -439,6 +439,11 @@ typedef struct {
   bool auto_key;
 
   /*!
+   * Indicates the forward key frame distance.
+   */
+  int fwd_kf_dist;
+
+  /*!
    * Indicates if forward keyframe reference should be enabled.
    */
   bool fwd_kf_enabled;

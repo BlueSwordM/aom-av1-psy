@@ -163,6 +163,7 @@ struct av1_extracfg {
   // Total number of passes. If this number is -1, then we assume passes = 1 or
   // 2 (passes = 1 if pass == AOM_RC_ONE_PASS and passes = 2 otherwise).
   int passes;
+  int fwd_kf_dist;
 };
 
 #if CONFIG_REALTIME_ONLY
@@ -309,6 +310,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,             // ext_tile_debug
   0,             // sb_multipass_unit_test
   -1,            // passes
+  -1,            // fwd_kf_dist
 };
 #else
 static struct av1_extracfg default_extra_cfg = {
@@ -442,6 +444,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,            // ext_tile_debug
   0,            // sb_multipass_unit_test
   -1,           // passes
+  -1,           // fwd_kf_dist
 };
 #endif
 
@@ -1122,6 +1125,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   kf_cfg->sframe_mode = cfg->sframe_mode;
   kf_cfg->enable_sframe = extra_cfg->s_frame_mode;
   kf_cfg->enable_keyframe_filtering = extra_cfg->enable_keyframe_filtering;
+  kf_cfg->fwd_kf_dist = extra_cfg->fwd_kf_dist;
   // Disable key frame filtering in all intra mode.
   if (cfg->kf_max_dist == 0) {
     kf_cfg->enable_keyframe_filtering = 0;
@@ -3580,6 +3584,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.passes, argv,
                               err_string)) {
     extra_cfg.passes = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.fwd_kf_dist, argv,
+                              err_string)) {
+    extra_cfg.fwd_kf_dist = arg_parse_int_helper(&arg, err_string);
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",

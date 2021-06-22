@@ -620,5 +620,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       NULL, "vbr-corpus-complexity-lap", 1,
       "Set average corpus complexity per mb for single pass VBR using lap. "
       "(0..10000), default is 0"),
+
+  .fwd_kf_dist =
+      ARG_DEF(NULL, "fwd-kf-dist", -1,
+              "Set distance between forward keyframes. A value of -1 means no "
+              "repetitive forward keyframes. Default is -1.")
 #endif  // CONFIG_AV1_ENCODER
 };
