@@ -729,6 +729,76 @@ void av1_create_workers(AV1_PRIMARY *ppi, int num_workers) {
   }
 }
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+// Prepare level 1 workers. This function is only called for
+// parallel_frame_count > 1. This function populates the mt_info structure of
+// frame level contexts appropriately by dividing the total number of available
+// workers amongst the frames as level 2 workers. It also populates the hook and
+// data members of level 1 workers.
+static AOM_INLINE void prepare_fp_workers(AV1_PRIMARY *ppi, AVxWorkerHook hook,
+                                          int parallel_frame_count) {
+  assert(parallel_frame_count <= ppi->num_fp_contexts &&
+         parallel_frame_count > 1);
+
+  PrimaryMultiThreadInfo *const p_mt_info = &ppi->p_mt_info;
+  int num_workers = p_mt_info->num_workers;
+
+  // Number of level 2 workers per frame context (ceil division)
+  int workers_per_frame = (num_workers / parallel_frame_count) +
+                          (num_workers % parallel_frame_count != 0);
+  int frame_idx = 0;
+  for (int i = 0; i < num_workers; i += workers_per_frame) {
+    // Assign level 1 worker
+    AVxWorker *frame_worker = p_mt_info->p_workers[frame_idx] =
+        &p_mt_info->workers[i];
+
+    // Assign start of level 2 worker pool
+    ppi->parallel_cpi[frame_idx]->mt_info.workers = &p_mt_info->workers[i];
+    ppi->parallel_cpi[frame_idx]->mt_info.num_workers =
+        AOMMIN(workers_per_frame, num_workers - i);
+    for (int j = MOD_FP; j < NUM_MT_MODULES; j++) {
+      ppi->parallel_cpi[frame_idx]->mt_info.num_mod_workers[j] =
+          AOMMIN(workers_per_frame, ppi->p_mt_info.num_mod_workers[j]);
+    }
+
+    frame_worker->hook = hook;
+    frame_worker->data1 = ppi->parallel_cpi[frame_idx];
+    frame_worker->data2 = NULL;
+    frame_idx++;
+  }
+  p_mt_info->p_num_workers = parallel_frame_count;
+}
+
+// Launch level 1 workers to perform frame parallel encode.
+static AOM_INLINE void launch_fp_workers(AV1_PRIMARY *ppi) {
+  const AVxWorkerInterface *const winterface = aom_get_worker_interface();
+  int num_workers = ppi->p_mt_info.p_num_workers;
+
+  for (int i = num_workers - 1; i >= 0; i--) {
+    AVxWorker *const worker = ppi->p_mt_info.p_workers[i];
+    if (i == 0)
+      winterface->execute(worker);
+    else
+      winterface->launch(worker);
+  }
+}
+
+// Synchronize level 1 workers.
+static AOM_INLINE void sync_fp_workers(AV1_PRIMARY *ppi) {
+  const AVxWorkerInterface *const winterface = aom_get_worker_interface();
+  int num_workers = ppi->p_mt_info.p_num_workers;
+  int had_error = 0;
+
+  // Encoding ends.
+  for (int i = num_workers - 1; i > 0; i--) {
+    AVxWorker *const worker = ppi->p_mt_info.p_workers[i];
+    had_error |= !winterface->sync(worker);
+  }
+
+  if (had_error)
+    aom_internal_error(&ppi->error, AOM_CODEC_ERROR, "Failed to encode frame");
+}
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 static AOM_INLINE void launch_workers(MultiThreadInfo *const mt_info,
                                       int num_workers) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();

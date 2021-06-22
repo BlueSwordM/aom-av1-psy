@@ -1427,6 +1427,13 @@ typedef struct {
   /**@}*/
 } AV1EncRowMultiThreadInfo;
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+/*!
+ * \brief Max number of frames that can be encoded in a parallel encode set.
+ */
+#define MAX_PARALLEL_FRAMES 4
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+
 /*!
  * \brief Primary Encoder parameters related to multi-threading.
  */
@@ -1451,6 +1458,19 @@ typedef struct PrimaryMultiThreadInfo {
    * tile_thr_data[i] stores the worker data of the ith thread.
    */
   struct EncWorkerData *tile_thr_data;
+
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  /*!
+   * Primary(Level 1) Synchronization object used to launch job in the worker
+   * thread.
+   */
+  AVxWorker *p_workers[MAX_PARALLEL_FRAMES];
+
+  /*!
+   * Number of primary workers created for multi-threading.
+   */
+  int p_num_workers;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 } PrimaryMultiThreadInfo;
 
 /*!
@@ -2141,11 +2161,6 @@ typedef struct {
 } CoeffBufferPool;
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
-/*!
- * \brief Max number of frames that can be encoded in a parallel encode set.
- */
-#define MAX_PARALLEL_FRAMES 4
-
 /*!
  * \brief Structure to hold data of frame encoded in a given parallel encode
  * set.
