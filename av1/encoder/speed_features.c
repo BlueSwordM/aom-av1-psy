@@ -277,13 +277,13 @@ static void set_allintra_speed_feature_framesize_dependent(
   }
 
   if (speed >= 7) {
-    if (!is_480p_or_larger) {
-      sf->rt_sf.nonrd_check_partition_merge_mode = 2;
-    }
+    // TODO(kyslov): add more speed features to control speed/quality
   }
 
   if (speed >= 8) {
-    // TODO(kyslov): add more speed features to control speed/quality
+    if (!is_480p_or_larger) {
+      sf->rt_sf.nonrd_check_partition_merge_mode = 2;
+    }
   }
 
   if (speed >= 9) {
@@ -483,18 +483,22 @@ static void set_allintra_speed_features_framesize_independent(
 
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
   }
-
+  // The following should make all-intra mode speed 7 approximately equal
+  // to real-time speed 6,
+  // all-intra speed 8 close to real-time speed 7, and all-intra speed 9
+  // close to real-time speed 8
   if (speed >= 7) {
     sf->part_sf.default_min_partition_size = BLOCK_8X8;
     sf->part_sf.partition_search_type = VAR_BASED_PARTITION;
-
     sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
-
     sf->rt_sf.mode_search_skip_flags |= FLAG_SKIP_INTRA_DIRMISMATCH;
+  }
+
+  if (speed >= 8) {
+    sf->rt_sf.hybrid_intra_pickmode = 1;
     sf->rt_sf.use_nonrd_pick_mode = 1;
     sf->rt_sf.nonrd_check_partition_merge_mode = 1;
     sf->rt_sf.nonrd_check_partition_split = 0;
-    sf->rt_sf.skip_intra_pred_if_tx_skip = 1;
     // Set mask for intra modes.
     for (int i = 0; i < BLOCK_SIZES; ++i)
       if (i >= BLOCK_32X32)
@@ -504,12 +508,9 @@ static void set_allintra_speed_features_framesize_independent(
         sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC_H_V;
   }
 
-  if (speed >= 8) {
-    // TODO(kyslov): add more speed features to control speed/quality
-  }
-
   if (speed >= 9) {
-    // TODO(kyslov): add more speed features to control speed/quality
+    sf->rt_sf.nonrd_check_partition_merge_mode = 0;
+    sf->rt_sf.hybrid_intra_pickmode = 0;
   }
 
   // Intra txb hash is currently not compatible with multi-winner mode as the
