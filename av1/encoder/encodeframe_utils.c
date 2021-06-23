@@ -18,14 +18,6 @@
 #include "av1/encoder/partition_strategy.h"
 #include "av1/encoder/rdopt.h"
 
-static AOM_INLINE int set_deltaq_rdmult(const AV1_COMP *const cpi,
-                                        const MACROBLOCK *const x) {
-  const AV1_COMMON *const cm = &cpi->common;
-  const CommonQuantParams *quant_params = &cm->quant_params;
-  return av1_compute_rd_mult(cpi, quant_params->base_qindex + x->delta_qindex +
-                                      quant_params->y_dc_delta_q);
-}
-
 void av1_set_ssim_rdmult(const AV1_COMP *const cpi, int *errorperbit,
                          const BLOCK_SIZE bsize, const int mi_row,
                          const int mi_col, int *const rdmult) {
@@ -62,6 +54,14 @@ void av1_set_ssim_rdmult(const AV1_COMP *const cpi, int *errorperbit,
 
 // TODO(angiebird): Move these function to tpl_model.c
 #if !CONFIG_REALTIME_ONLY
+static AOM_INLINE int set_deltaq_rdmult(const AV1_COMP *const cpi,
+                                        const MACROBLOCK *const x) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const CommonQuantParams *quant_params = &cm->quant_params;
+  return av1_compute_rd_mult(cpi, quant_params->base_qindex + x->delta_qindex +
+                                      quant_params->y_dc_delta_q);
+}
+
 // Return the end column for the current superblock, in unit of TPL blocks.
 static int get_superblock_tpl_column_end(const AV1_COMMON *const cm, int mi_col,
                                          int num_mi_w) {
