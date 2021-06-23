@@ -361,15 +361,8 @@ static double raw_motion_error_stdev(int *raw_motion_err_list,
   return raw_err_stdev;
 }
 
-static AOM_INLINE int do_third_ref_motion_search(const RateControlCfg *rc_cfg,
-                                                 const GFConfig *gf_cfg) {
-  return use_ml_model_to_decide_flat_gop(rc_cfg) && can_disable_altref(gf_cfg);
-}
-
 static AOM_INLINE int calc_wavelet_energy(const AV1EncoderConfig *oxcf) {
-  return (use_ml_model_to_decide_flat_gop(&oxcf->rc_cfg) &&
-          can_disable_altref(&oxcf->gf_cfg)) ||
-         (oxcf->q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL);
+  return oxcf->q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL;
 }
 typedef struct intra_pred_block_pass1_args {
   const SequenceHeader *seq_params;
@@ -776,22 +769,14 @@ static int firstpass_inter_prediction(
 
     // Motion search in 3rd reference frame.
     int alt_motion_error = motion_error;
-    // The ML model to predict if a flat structure (golden-frame only structure
-    // without ALT-REF and Internal-ARFs) is better requires stats based on
-    // motion search w.r.t 3rd reference frame in the first pass. As the ML
-    // model is enabled under certain conditions, motion search in 3rd reference
-    // frame is also enabled for those cases.
-    if (do_third_ref_motion_search(&cpi->oxcf.rc_cfg, &cpi->oxcf.gf_cfg)) {
-      if (alt_ref_frame != NULL) {
-        FULLPEL_MV tmp_mv = kZeroFullMv;
-        xd->plane[0].pre[0].buf =
-            alt_ref_frame->y_buffer + alt_ref_frame_yoffset;
-        xd->plane[0].pre[0].stride = alt_ref_frame->y_stride;
-        alt_motion_error = get_prediction_error_bitdepth(
-            is_high_bitdepth, bitdepth, bsize, &x->plane[0].src,
-            &xd->plane[0].pre[0]);
-        first_pass_motion_search(cpi, x, &kZeroMv, &tmp_mv, &alt_motion_error);
-      }
+    if (alt_ref_frame != NULL) {
+      FULLPEL_MV tmp_mv = kZeroFullMv;
+      xd->plane[0].pre[0].buf = alt_ref_frame->y_buffer + alt_ref_frame_yoffset;
+      xd->plane[0].pre[0].stride = alt_ref_frame->y_stride;
+      alt_motion_error =
+          get_prediction_error_bitdepth(is_high_bitdepth, bitdepth, bsize,
+                                        &x->plane[0].src, &xd->plane[0].pre[0]);
+      first_pass_motion_search(cpi, x, &kZeroMv, &tmp_mv, &alt_motion_error);
     }
     if (alt_motion_error < motion_error && alt_motion_error < gf_motion_error &&
         alt_motion_error < this_intra_error) {
@@ -978,13 +963,6 @@ static void update_firstpass_stats(AV1_COMP *cpi,
   fps.duration = (double)ts_duration;
 
   normalize_firstpass_stats(&fps, num_mbs_16X16, cm->width, cm->height);
-
-  // Invalidate the stats related to third ref motion search if not valid.
-  // This helps to print a warning in second pass encoding.
-  if (do_third_ref_motion_search(&cpi->oxcf.rc_cfg, &cpi->oxcf.gf_cfg) == 0) {
-    fps.pcnt_third_ref = INVALID_FP_STATS_TO_PREDICT_FLAT_GOP;
-    fps.tr_coded_error = INVALID_FP_STATS_TO_PREDICT_FLAT_GOP;
-  }
 
   // We will store the stats inside the persistent twopass struct (and NOT the
   // local variable 'fps'), and then cpi->output_pkt_list will point to it.

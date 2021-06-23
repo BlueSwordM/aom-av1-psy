@@ -44,12 +44,6 @@
 #define DEFAULT_GF_BOOST 2000
 #define GROUP_ADAPTIVE_MAXQ 1
 
-static INLINE int is_fp_stats_to_predict_flat_gop_invalid(
-    const FIRSTPASS_STATS *fp_stats) {
-  return ((fp_stats->tr_coded_error < 0) || (fp_stats->pcnt_third_ref < 0) ||
-          (fp_stats->frame_avg_wavelet_energy < 0));
-}
-
 static void init_gf_stats(GF_GROUP_STATS *gf_stats);
 
 // Calculate an active area of the image that discounts formatting
@@ -3387,24 +3381,6 @@ static void process_first_pass_stats(AV1_COMP *cpi,
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->ppi->twopass;
   FIRSTPASS_STATS *total_stats = twopass->stats_buf_ctx->total_stats;
-
-  if (current_frame->frame_number == 0) {
-    const GFConfig *const gf_cfg = &cpi->oxcf.gf_cfg;
-    const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
-    if (use_ml_model_to_decide_flat_gop(rc_cfg) && can_disable_altref(gf_cfg) &&
-        is_fp_stats_to_predict_flat_gop_invalid(total_stats)) {
-      // warn(
-      //     "First pass stats required in the ML model to predict a flat GOP "
-      //     "structure is invalid. Continuing encoding by disabling the ML "
-      //     "model.\n");
-      // The first pass statistics like tr_coded_error, pcnt_third_ref,
-      // frame_avg_wavelet_energy are invalid as their calculations were
-      // skipped in the first pass of encoding. As these stats are required
-      // in the ML model to predict a flat GOP structure, the ML model would be
-      // disabled. This case arises when the encode configuration used in first
-      // pass encoding is different from second pass encoding.
-    }
-  }
 
   if (cpi->oxcf.rc_cfg.mode != AOM_Q && current_frame->frame_number == 0 &&
       cpi->gf_frame_index == 0 && total_stats &&
