@@ -202,7 +202,6 @@ typedef struct {
   int ni_av_qi;
   int ni_tot_qi;
   int ni_frames;
-  int avg_frame_qindex[FRAME_TYPES];
   double tot_q;
   double avg_q;
 
@@ -362,6 +361,11 @@ typedef struct {
    */
   int last_kf_qindex;
 
+  /*!
+   * Average of q index of previous encoded frames in a sequence.
+   */
+  int avg_frame_qindex[FRAME_TYPES];
+
 #if CONFIG_FRAME_PARALLEL_ENCODE
   /*!
    * Temporary variable used in simulating the delayed update of
@@ -456,8 +460,8 @@ struct GF_GROUP;
 void av1_primary_rc_init(const struct AV1EncoderConfig *oxcf,
                          PRIMARY_RATE_CONTROL *p_rc);
 
-void av1_rc_init(const struct AV1EncoderConfig *oxcf, int pass,
-                 RATE_CONTROL *rc, const PRIMARY_RATE_CONTROL *const p_rc);
+void av1_rc_init(const struct AV1EncoderConfig *oxcf, RATE_CONTROL *rc,
+                 const PRIMARY_RATE_CONTROL *const p_rc);
 
 int av1_estimate_bits_at_q(FRAME_TYPE frame_kind, int q, int mbs,
                            double correction_factor, aom_bit_depth_t bit_depth,

@@ -568,12 +568,12 @@ static double baseline_err_per_mb(const FRAME_INFO *frame_info) {
   }
 }
 
-static double calc_frame_boost(const RATE_CONTROL *rc,
+static double calc_frame_boost(const PRIMARY_RATE_CONTROL *p_rc,
                                const FRAME_INFO *frame_info,
                                const FIRSTPASS_STATS *this_frame,
                                double this_frame_mv_in_out, double max_boost) {
   double frame_boost;
-  const double lq = av1_convert_qindex_to_q(rc->avg_frame_qindex[INTER_FRAME],
+  const double lq = av1_convert_qindex_to_q(p_rc->avg_frame_qindex[INTER_FRAME],
                                             frame_info->bit_depth);
   const double boost_q_correction = AOMMIN((0.5 + (lq * 0.015)), 1.5);
   const double active_area = calculate_active_area(frame_info, this_frame);
@@ -596,12 +596,12 @@ static double calc_frame_boost(const RATE_CONTROL *rc,
   return AOMMIN(frame_boost, max_boost * boost_q_correction);
 }
 
-static double calc_kf_frame_boost(const RATE_CONTROL *rc,
+static double calc_kf_frame_boost(const PRIMARY_RATE_CONTROL *p_rc,
                                   const FRAME_INFO *frame_info,
                                   const FIRSTPASS_STATS *this_frame,
                                   double *sr_accumulator, double max_boost) {
   double frame_boost;
-  const double lq = av1_convert_qindex_to_q(rc->avg_frame_qindex[INTER_FRAME],
+  const double lq = av1_convert_qindex_to_q(p_rc->avg_frame_qindex[INTER_FRAME],
                                             frame_info->bit_depth);
   const double boost_q_correction = AOMMIN((0.50 + (lq * 0.015)), 2.00);
   const double active_area = calculate_active_area(frame_info, this_frame);
@@ -654,10 +654,10 @@ static int get_projected_gfu_boost(const PRIMARY_RATE_CONTROL *p_rc,
 #define GF_MIN_BOOST 50
 #define MIN_DECAY_FACTOR 0.01
 int av1_calc_arf_boost(const TWO_PASS *twopass,
-                       const PRIMARY_RATE_CONTROL *p_rc, const RATE_CONTROL *rc,
-                       FRAME_INFO *frame_info, int offset, int f_frames,
-                       int b_frames, int *num_fpstats_used,
-                       int *num_fpstats_required, int project_gfu_boost) {
+                       const PRIMARY_RATE_CONTROL *p_rc, FRAME_INFO *frame_info,
+                       int offset, int f_frames, int b_frames,
+                       int *num_fpstats_used, int *num_fpstats_required,
+                       int project_gfu_boost) {
   int i;
   GF_GROUP_STATS gf_stats;
   init_gf_stats(&gf_stats);
@@ -691,7 +691,7 @@ int av1_calc_arf_boost(const TWO_PASS *twopass,
 
     boost_score +=
         gf_stats.decay_accumulator *
-        calc_frame_boost(rc, frame_info, this_frame,
+        calc_frame_boost(p_rc, frame_info, this_frame,
                          gf_stats.this_frame_mv_in_out, GF_MAX_BOOST);
     if (num_fpstats_used) (*num_fpstats_used)++;
   }
@@ -726,7 +726,7 @@ int av1_calc_arf_boost(const TWO_PASS *twopass,
 
     boost_score +=
         gf_stats.decay_accumulator *
-        calc_frame_boost(rc, frame_info, this_frame,
+        calc_frame_boost(p_rc, frame_info, this_frame,
                          gf_stats.this_frame_mv_in_out, GF_MAX_BOOST);
     if (num_fpstats_used) (*num_fpstats_used)++;
   }
@@ -2476,7 +2476,7 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
 
     // Calculate the boost for alt ref.
     p_rc->gfu_boost = av1_calc_arf_boost(
-        twopass, p_rc, rc, frame_info, alt_offset, forward_frames, ext_len,
+        twopass, p_rc, frame_info, alt_offset, forward_frames, ext_len,
         &p_rc->num_stats_used_for_gfu_boost,
         &p_rc->num_stats_required_for_gfu_boost, cpi->ppi->lap_enabled);
   } else {
@@ -2487,8 +2487,8 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
 
     p_rc->gfu_boost = AOMMIN(
         MAX_GF_BOOST,
-        av1_calc_arf_boost(twopass, p_rc, rc, frame_info, alt_offset, ext_len,
-                           0, &p_rc->num_stats_used_for_gfu_boost,
+        av1_calc_arf_boost(twopass, p_rc, frame_info, alt_offset, ext_len, 0,
+                           &p_rc->num_stats_used_for_gfu_boost,
                            &p_rc->num_stats_required_for_gfu_boost,
                            cpi->ppi->lap_enabled));
   }
@@ -3071,8 +3071,9 @@ static double get_kf_boost_score(AV1_COMP *cpi, double kf_raw_err,
       zm_factor = (0.75 + (*zero_motion_accumulator / 2.0));
 
       if (i < 2) *sr_accumulator = 0.0;
-      frame_boost = calc_kf_frame_boost(rc, frame_info, &frame_stat,
-                                        sr_accumulator, kf_max_boost);
+      frame_boost =
+          calc_kf_frame_boost(&cpi->ppi->p_rc, frame_info, &frame_stat,
+                              sr_accumulator, kf_max_boost);
       boost_score += frame_boost * zm_factor;
     }
   }
@@ -3388,6 +3389,7 @@ static void process_first_pass_stats(AV1_COMP *cpi,
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
   RATE_CONTROL *const rc = &cpi->rc;
+  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   TWO_PASS *const twopass = &cpi->ppi->twopass;
   FIRSTPASS_STATS *total_stats = twopass->stats_buf_ctx->total_stats;
 
@@ -3421,9 +3423,9 @@ static void process_first_pass_stats(AV1_COMP *cpi,
     rc->ni_av_qi = tmp_q;
     rc->last_q[INTER_FRAME] = tmp_q;
     rc->avg_q = av1_convert_qindex_to_q(tmp_q, cm->seq_params->bit_depth);
-    rc->avg_frame_qindex[INTER_FRAME] = tmp_q;
+    p_rc->avg_frame_qindex[INTER_FRAME] = tmp_q;
     rc->last_q[KEY_FRAME] = (tmp_q + cpi->oxcf.rc_cfg.best_allowed_q) / 2;
-    rc->avg_frame_qindex[KEY_FRAME] = rc->last_q[KEY_FRAME];
+    p_rc->avg_frame_qindex[KEY_FRAME] = rc->last_q[KEY_FRAME];
   }
 
   if (cpi->ppi->lap_enabled) {

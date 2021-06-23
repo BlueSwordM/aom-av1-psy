@@ -302,6 +302,10 @@ int av1_rc_get_default_max_gf_interval(double framerate, int min_gf_interval) {
 
 void av1_primary_rc_init(const AV1EncoderConfig *oxcf,
                          PRIMARY_RATE_CONTROL *p_rc) {
+  const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
+
+  int worst_allowed_q = rc_cfg->worst_allowed_q;
+
   int min_gf_interval = oxcf->gf_cfg.min_gf_interval;
   int max_gf_interval = oxcf->gf_cfg.max_gf_interval;
   if (min_gf_interval == 0)
@@ -314,22 +318,25 @@ void av1_primary_rc_init(const AV1EncoderConfig *oxcf,
   p_rc->baseline_gf_interval = (min_gf_interval + max_gf_interval) / 2;
   p_rc->this_key_frame_forced = 0;
   p_rc->next_key_frame_forced = 0;
+
+  if (oxcf->target_seq_level_idx[0] < SEQ_LEVELS) {
+    worst_allowed_q = 255;
+  }
+  if (oxcf->pass == AOM_RC_ONE_PASS && rc_cfg->mode == AOM_CBR) {
+    p_rc->avg_frame_qindex[KEY_FRAME] = worst_allowed_q;
+    p_rc->avg_frame_qindex[INTER_FRAME] = worst_allowed_q;
+  } else {
+    p_rc->avg_frame_qindex[KEY_FRAME] =
+        (worst_allowed_q + rc_cfg->best_allowed_q) / 2;
+    p_rc->avg_frame_qindex[INTER_FRAME] =
+        (worst_allowed_q + rc_cfg->best_allowed_q) / 2;
+  }
 }
 
-void av1_rc_init(const AV1EncoderConfig *oxcf, int pass, RATE_CONTROL *rc,
+void av1_rc_init(const AV1EncoderConfig *oxcf, RATE_CONTROL *rc,
                  const PRIMARY_RATE_CONTROL *const p_rc) {
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   int i;
-
-  if (pass == AOM_RC_ONE_PASS && rc_cfg->mode == AOM_CBR) {
-    rc->avg_frame_qindex[KEY_FRAME] = rc_cfg->worst_allowed_q;
-    rc->avg_frame_qindex[INTER_FRAME] = rc_cfg->worst_allowed_q;
-  } else {
-    rc->avg_frame_qindex[KEY_FRAME] =
-        (rc_cfg->worst_allowed_q + rc_cfg->best_allowed_q) / 2;
-    rc->avg_frame_qindex[INTER_FRAME] =
-        (rc_cfg->worst_allowed_q + rc_cfg->best_allowed_q) / 2;
-  }
 
   rc->last_q[KEY_FRAME] = rc_cfg->best_allowed_q;
   rc->last_q[INTER_FRAME] = rc_cfg->worst_allowed_q;
@@ -918,9 +925,9 @@ static int calc_active_worst_quality_no_stats_cbr(const AV1_COMP *cpi) {
   // So for first few frames following key, the qp of that key frame is weighted
   // into the active_worst_quality setting.
   ambient_qp = (cm->current_frame.frame_number < 5)
-                   ? AOMMIN(rc->avg_frame_qindex[INTER_FRAME],
-                            rc->avg_frame_qindex[KEY_FRAME])
-                   : rc->avg_frame_qindex[INTER_FRAME];
+                   ? AOMMIN(p_rc->avg_frame_qindex[INTER_FRAME],
+                            p_rc->avg_frame_qindex[KEY_FRAME])
+                   : p_rc->avg_frame_qindex[INTER_FRAME];
   active_worst_quality = AOMMIN(rc->worst_quality, ambient_qp * 5 / 4);
   if (rc->buffer_level > p_rc->optimal_buffer_level) {
     // Adjust down.
@@ -982,7 +989,7 @@ static int calc_active_best_quality_no_stats_cbr(const AV1_COMP *cpi,
       double q_adj_factor = 1.0;
       double q_val;
       active_best_quality = get_kf_active_quality(
-          p_rc, rc->avg_frame_qindex[KEY_FRAME], bit_depth);
+          p_rc, p_rc->avg_frame_qindex[KEY_FRAME], bit_depth);
       // Allow somewhat lower kf minq with small image formats.
       if ((width * height) <= (352 * 288)) {
         q_adj_factor -= 0.25;
@@ -1002,16 +1009,16 @@ static int calc_active_best_quality_no_stats_cbr(const AV1_COMP *cpi,
     // a key frame.
     int q = active_worst_quality;
     if (rc->frames_since_key > 1 &&
-        rc->avg_frame_qindex[INTER_FRAME] < active_worst_quality) {
-      q = rc->avg_frame_qindex[INTER_FRAME];
+        p_rc->avg_frame_qindex[INTER_FRAME] < active_worst_quality) {
+      q = p_rc->avg_frame_qindex[INTER_FRAME];
     }
     active_best_quality = get_gf_active_quality(p_rc, q, bit_depth);
   } else {
     // Use the lower of active_worst_quality and recent/average Q.
     FRAME_TYPE frame_type =
         (current_frame->frame_number > 1) ? INTER_FRAME : KEY_FRAME;
-    if (rc->avg_frame_qindex[frame_type] < active_worst_quality)
-      active_best_quality = rtc_minq[rc->avg_frame_qindex[frame_type]];
+    if (p_rc->avg_frame_qindex[frame_type] < active_worst_quality)
+      active_best_quality = rtc_minq[p_rc->avg_frame_qindex[frame_type]];
     else
       active_best_quality = rtc_minq[active_worst_quality];
   }
@@ -1264,7 +1271,7 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
       double q_adj_factor = 1.0;
 
       active_best_quality = get_kf_active_quality(
-          p_rc, rc->avg_frame_qindex[KEY_FRAME], bit_depth);
+          p_rc, p_rc->avg_frame_qindex[KEY_FRAME], bit_depth);
 
       // Allow somewhat lower kf minq with small image formats.
       if ((width * height) <= (352 * 288)) {
@@ -1285,25 +1292,10 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
     // Use the lower of active_worst_quality and recent
     // average Q as basis for GF/ARF best Q limit unless last frame was
     // a key frame.
-    int avg_frame_qindex_inter_frame;
-    int avg_frame_qindex_key_frame;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-    avg_frame_qindex_inter_frame =
-        (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
-            ? cpi->ppi->temp_avg_frame_qindex[INTER_FRAME]
-            : cpi->rc.avg_frame_qindex[INTER_FRAME];
-    avg_frame_qindex_key_frame =
-        (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
-            ? cpi->ppi->temp_avg_frame_qindex[KEY_FRAME]
-            : cpi->rc.avg_frame_qindex[KEY_FRAME];
-#else
-    avg_frame_qindex_inter_frame = rc->avg_frame_qindex[INTER_FRAME];
-    avg_frame_qindex_key_frame = rc->avg_frame_qindex[KEY_FRAME];
-#endif
     q = (rc->frames_since_key > 1 &&
-         avg_frame_qindex_inter_frame < active_worst_quality)
-            ? avg_frame_qindex_inter_frame
-            : avg_frame_qindex_key_frame;
+         p_rc->avg_frame_qindex[INTER_FRAME] < active_worst_quality)
+            ? p_rc->avg_frame_qindex[INTER_FRAME]
+            : p_rc->avg_frame_qindex[KEY_FRAME];
     // For constrained quality dont allow Q less than the cq level
     if (rc_mode == AOM_CQ) {
       if (q < cq_level) q = cq_level;
@@ -1334,9 +1326,10 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
       active_best_quality = AOMMAX(qindex + delta_qindex, rc->best_quality);
     } else {
       // Use the lower of active_worst_quality and recent/average Q.
-      active_best_quality = (current_frame->frame_number > 1)
-                                ? inter_minq[rc->avg_frame_qindex[INTER_FRAME]]
-                                : inter_minq[rc->avg_frame_qindex[KEY_FRAME]];
+      active_best_quality =
+          (current_frame->frame_number > 1)
+              ? inter_minq[p_rc->avg_frame_qindex[INTER_FRAME]]
+              : inter_minq[p_rc->avg_frame_qindex[KEY_FRAME]];
       // For the constrained quality mode we don't want
       // q to fall below the cq level.
       if ((rc_mode == AOM_CQ) && (active_best_quality < cq_level)) {
@@ -1698,7 +1691,6 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   const GF_GROUP *gf_group = &cpi->ppi->gf_group;
   const enum aom_rc_mode rc_mode = oxcf->rc_cfg.mode;
   int *inter_minq;
-  int avg_frame_qindex_inter_frame;
   ASSIGN_MINQ_TABLE(bit_depth, inter_minq);
   int active_best_quality = 0;
   const int is_intrl_arf_boost =
@@ -1729,22 +1721,12 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
 
   // Determine active_best_quality for frames that are not leaf or overlay.
   int q = active_worst_quality;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-  // For quality simulation purpose - for parallel frames use previous
-  // avg_frame_qindex
-  avg_frame_qindex_inter_frame =
-      (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
-          ? cpi->ppi->temp_avg_frame_qindex[INTER_FRAME]
-          : rc->avg_frame_qindex[INTER_FRAME];
-#else
-  avg_frame_qindex_inter_frame = rc->avg_frame_qindex[INTER_FRAME];
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   // Use the lower of active_worst_quality and recent
   // average Q as basis for GF/ARF best Q limit unless last frame was
   // a key frame.
   if (rc->frames_since_key > 1 &&
-      avg_frame_qindex_inter_frame < active_worst_quality) {
-    q = avg_frame_qindex_inter_frame;
+      p_rc->avg_frame_qindex[INTER_FRAME] < active_worst_quality) {
+    q = p_rc->avg_frame_qindex[INTER_FRAME];
   }
   if (rc_mode == AOM_CQ && q < cq_level) q = cq_level;
   active_best_quality = get_gf_active_quality(p_rc, q, bit_depth);
@@ -2114,16 +2096,16 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
   // Keep a record of last Q and ambient average Q.
   if (current_frame->frame_type == KEY_FRAME) {
     rc->last_q[KEY_FRAME] = qindex;
-    rc->avg_frame_qindex[KEY_FRAME] =
-        ROUND_POWER_OF_TWO(3 * rc->avg_frame_qindex[KEY_FRAME] + qindex, 2);
+    p_rc->avg_frame_qindex[KEY_FRAME] =
+        ROUND_POWER_OF_TWO(3 * p_rc->avg_frame_qindex[KEY_FRAME] + qindex, 2);
   } else {
     if ((cpi->ppi->use_svc && cpi->oxcf.rc_cfg.mode == AOM_CBR) ||
         (!rc->is_src_frame_alt_ref &&
          !(refresh_frame_flags->golden_frame || is_intrnl_arf ||
            refresh_frame_flags->alt_ref_frame))) {
       rc->last_q[INTER_FRAME] = qindex;
-      rc->avg_frame_qindex[INTER_FRAME] =
-          ROUND_POWER_OF_TWO(3 * rc->avg_frame_qindex[INTER_FRAME] + qindex, 2);
+      p_rc->avg_frame_qindex[INTER_FRAME] = ROUND_POWER_OF_TWO(
+          3 * p_rc->avg_frame_qindex[INTER_FRAME] + qindex, 2);
       rc->ni_frames++;
       rc->tot_q += av1_convert_qindex_to_q(qindex, cm->seq_params->bit_depth);
       rc->avg_q = rc->tot_q / rc->ni_frames;
@@ -2180,10 +2162,10 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
 #if CONFIG_FRAME_PARALLEL_ENCODE
   /* TODO(FPMT): The current update is happening to cpi->rc members,
    * this need to be taken care appropriately in final FPMT implementation
-   * to carry these values to subsequent frames. The avg_frame_qindex,
-   * last_q, avg_q and last_boosted_qindex update are accumulated across
-   * frames, so the values from all individual parallel frames need to be
-   * taken into account after all the parallel frames are encoded.
+   * to carry these values to subsequent frames. The last_q, avg_q and
+   * last_boosted_qindex update are accumulated across frames, so the values
+   * from all individual parallel frames need to be taken into account after all
+   * the parallel frames are encoded.
    *
    * The variables temp_avg_frame_qindex, temp_last_q, temp_avg_q,
    * temp_last_boosted_qindex are introduced only for quality simulation
@@ -2191,10 +2173,6 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
    * variables are updated based on the update flag.
    */
   if (cpi->do_frame_data_update) {
-    if (!rc->is_src_frame_alt_ref) {
-      for (int index = 0; index < FRAME_TYPES; index++)
-        cpi->ppi->temp_avg_frame_qindex[index] = rc->avg_frame_qindex[index];
-    }
     for (int i = 0; i < FRAME_TYPES; i++) {
       p_rc->temp_last_q[i] = rc->last_q[i];
     }
@@ -2832,10 +2810,10 @@ static void resize_reset_rc(AV1_COMP *cpi, int resize_width, int resize_height,
       av1_calc_pframe_target_size_one_pass_cbr(cpi, INTER_FRAME);
   target_bits_per_frame = rc->this_frame_target;
   if (tot_scale_change > 4.0)
-    rc->avg_frame_qindex[INTER_FRAME] = rc->worst_quality;
+    p_rc->avg_frame_qindex[INTER_FRAME] = rc->worst_quality;
   else if (tot_scale_change > 1.0)
-    rc->avg_frame_qindex[INTER_FRAME] =
-        (rc->avg_frame_qindex[INTER_FRAME] + rc->worst_quality) >> 1;
+    p_rc->avg_frame_qindex[INTER_FRAME] =
+        (p_rc->avg_frame_qindex[INTER_FRAME] + rc->worst_quality) >> 1;
   active_worst_quality = calc_active_worst_quality_no_stats_cbr(cpi);
   qindex = av1_rc_regulate_q(cpi, target_bits_per_frame, rc->best_quality,
                              active_worst_quality, resize_width, resize_height);
@@ -3101,7 +3079,7 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
     // these parameters will affect QP selection for subsequent frames. If they
     // have settled down to a very different (low QP) state, then not adjusting
     // them may cause next frame to select low QP and overshoot again.
-    cpi->rc.avg_frame_qindex[INTER_FRAME] = *q;
+    p_rc->avg_frame_qindex[INTER_FRAME] = *q;
     rc->buffer_level = p_rc->optimal_buffer_level;
     rc->bits_off_target = p_rc->optimal_buffer_level;
     // Reset rate under/over-shoot flags.

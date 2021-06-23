@@ -1294,7 +1294,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
     cpi->oxcf.gf_cfg.lag_in_frames = lap_lag_in_frames;
   }
 
-  av1_rc_init(&cpi->oxcf, oxcf->pass, &cpi->rc, &cpi->ppi->p_rc);
+  av1_rc_init(&cpi->oxcf, &cpi->rc, &cpi->ppi->p_rc);
 
   init_frame_info(&cpi->frame_info, cm);
   init_frame_index_set(&cpi->frame_index_set);
