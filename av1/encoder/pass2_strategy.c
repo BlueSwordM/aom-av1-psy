@@ -563,35 +563,6 @@ static void average_gf_stats(const int total_frame,
     gf_stats->avg_raw_err_stdev /= gf_stats->non_zero_stdev_count;
 }
 
-static void get_features_from_gf_stats(const GF_GROUP_STATS *gf_stats,
-                                       const GF_FRAME_STATS *first_frame,
-                                       const GF_FRAME_STATS *last_frame,
-                                       const int constrained_gf_group,
-                                       const int kf_zeromotion_pct,
-                                       const int num_frames, float *features) {
-  *features++ = (float)gf_stats->abs_mv_in_out_accumulator;
-  *features++ = (float)(gf_stats->avg_new_mv_count);
-  *features++ = (float)gf_stats->avg_pcnt_second_ref;
-  *features++ = (float)gf_stats->avg_pcnt_third_ref;
-  *features++ = (float)gf_stats->avg_pcnt_third_ref_nolast;
-  *features++ = (float)(gf_stats->avg_sr_coded_error);
-  *features++ = (float)(gf_stats->avg_tr_coded_error);
-  *features++ = (float)(gf_stats->avg_wavelet_energy);
-  *features++ = (float)(constrained_gf_group);
-  *features++ = (float)gf_stats->decay_accumulator;
-  *features++ = (float)(first_frame->frame_coded_error);
-  *features++ = (float)(first_frame->frame_sr_coded_error);
-  *features++ = (float)(first_frame->frame_tr_coded_error);
-  *features++ = (float)(first_frame->frame_err);
-  *features++ = (float)(kf_zeromotion_pct);
-  *features++ = (float)(last_frame->frame_coded_error);
-  *features++ = (float)(last_frame->frame_sr_coded_error);
-  *features++ = (float)(last_frame->frame_tr_coded_error);
-  *features++ = (float)num_frames;
-  *features++ = (float)gf_stats->mv_ratio_accumulator;
-  *features++ = (float)gf_stats->non_zero_stdev_count;
-}
-
 #define BOOST_FACTOR 12.5
 static double baseline_err_per_mb(const FRAME_INFO *frame_info) {
   unsigned int screen_area = frame_info->frame_height * frame_info->frame_width;
@@ -2318,7 +2289,6 @@ static void init_gf_stats(GF_GROUP_STATS *gf_stats) {
  * parameters regarding bit-allocation and quality setup.
  *
  * \param[in]    cpi             Top-level encoder structure
- * \param[in]    this_frame      First pass statistics structure
  * \param[in]    frame_params    Structure with frame parameters
  * \param[in]    max_gop_length  Maximum length of the GF group
  * \param[in]    is_final_pass   Whether this is the final pass for the
@@ -2326,9 +2296,8 @@ static void init_gf_stats(GF_GROUP_STATS *gf_stats) {
  *
  * \return Nothing is returned. Instead, cpi->ppi->gf_group is changed.
  */
-static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
-                            EncodeFrameParams *frame_params, int max_gop_length,
-                            int is_final_pass) {
+static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
+                            int max_gop_length, int is_final_pass) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
@@ -2371,20 +2340,8 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
 
   GF_GROUP_STATS gf_stats;
   init_gf_stats(&gf_stats);
-  GF_FRAME_STATS first_frame_stats, last_frame_stats;
 
   const int can_disable_arf = !gf_cfg->gf_min_pyr_height;
-
-  // Load stats for the current frame.
-  double mod_frame_err =
-      calculate_modified_err(frame_info, twopass, oxcf, this_frame);
-
-  // Note the error of the frame at the start of the group. This will be
-  // the GF frame error if we code a normal gf.
-  first_frame_stats.frame_err = mod_frame_err;
-  first_frame_stats.frame_coded_error = this_frame->coded_error;
-  first_frame_stats.frame_sr_coded_error = this_frame->sr_coded_error;
-  first_frame_stats.frame_tr_coded_error = this_frame->tr_coded_error;
 
   // If this is a key frame or the overlay from a previous arf then
   // the error score / cost of this frame has already been accounted for.
@@ -2400,18 +2357,10 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
     // read in the next frame
     if (EOF == input_stats(twopass, &next_frame)) break;
     // Accumulate error score of frames in this gf group.
-    mod_frame_err =
+    double mod_frame_err =
         calculate_modified_err(frame_info, twopass, oxcf, &next_frame);
     // accumulate stats for this frame
     accumulate_this_frame_stats(&next_frame, mod_frame_err, &gf_stats);
-
-    if (i == 0) {
-      first_frame_stats.frame_err = mod_frame_err;
-      first_frame_stats.frame_coded_error = next_frame.coded_error;
-      first_frame_stats.frame_sr_coded_error = next_frame.sr_coded_error;
-      first_frame_stats.frame_tr_coded_error = next_frame.tr_coded_error;
-    }
-
     ++i;
   }
 
@@ -2435,11 +2384,6 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   }
 
   i = p_rc->gf_intervals[p_rc->cur_gf_index];
-
-  // save the errs for the last frame
-  last_frame_stats.frame_coded_error = next_frame.coded_error;
-  last_frame_stats.frame_sr_coded_error = next_frame.sr_coded_error;
-  last_frame_stats.frame_tr_coded_error = next_frame.tr_coded_error;
 
   if (is_final_pass) {
     rc->intervals_till_gf_calculate_due--;
@@ -2471,21 +2415,6 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
                           twopass->kf_zeromotion_pct, cpi->ppi->lap_enabled) &&
         p_rc->use_arf_in_this_kf_group && (i < gf_cfg->lag_in_frames) &&
         (i >= MIN_GF_INTERVAL);
-
-    FIRSTPASS_STATS *total_stats = twopass->stats_buf_ctx->total_stats;
-    // TODO(urvang): Improve and use model for VBR, CQ etc as well.
-    if (use_alt_ref && use_ml_model_to_decide_flat_gop(rc_cfg) &&
-        !is_fp_stats_to_predict_flat_gop_invalid(total_stats)) {
-      aom_clear_system_state();
-      float features[21];
-      get_features_from_gf_stats(&gf_stats, &first_frame_stats,
-                                 &last_frame_stats, p_rc->constrained_gf_group,
-                                 twopass->kf_zeromotion_pct, i, features);
-      // Infer using ML model.
-      float score;
-      av1_nn_predict(features, &av1_use_flat_gop_nn_config, 1, &score);
-      use_alt_ref = (score <= 0.0);
-    }
   } else {
     use_alt_ref = p_rc->use_arf_in_this_kf_group &&
                   (i < gf_cfg->lag_in_frames) && (i > 2);
@@ -3867,7 +3796,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
           rc->min_gf_interval <= 16) {
         // The calculate_gf_length function is previously used with
         // max_gop_length = 32 with look-ahead gf intervals.
-        define_gf_group(cpi, &this_frame, frame_params, max_gop_length, 0);
+        define_gf_group(cpi, frame_params, max_gop_length, 0);
         this_frame = this_frame_copy;
 
         if (is_shorter_gf_interval_better(cpi, frame_params, frame_input)) {
@@ -3882,13 +3811,13 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
         }
       }
     }
-    define_gf_group(cpi, &this_frame, frame_params, max_gop_length, 0);
+    define_gf_group(cpi, frame_params, max_gop_length, 0);
 
     if (gf_group->update_type[cpi->gf_frame_index] != ARF_UPDATE &&
         rc->frames_since_key > 0)
       process_first_pass_stats(cpi, &this_frame);
 
-    define_gf_group(cpi, &this_frame, frame_params, max_gop_length, 1);
+    define_gf_group(cpi, frame_params, max_gop_length, 1);
 
     rc->frames_till_gf_update_due = p_rc->baseline_gf_interval;
     assert(cpi->gf_frame_index == 0);
