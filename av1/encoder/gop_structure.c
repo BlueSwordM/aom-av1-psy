@@ -607,7 +607,8 @@ static int construct_multi_layer_gf_structure(
 
   // ALTREF.
   const int use_altref = gf_group->max_layer_depth_allowed > 0;
-  int is_fwd_kf = (gf_interval == cpi->rc.frames_to_key);
+  int is_fwd_kf = rc->frames_to_fwd_kf == gf_interval;
+
   if (use_altref) {
     gf_group->update_type[frame_index] = ARF_UPDATE;
     gf_group->arf_src_offset[frame_index] = gf_interval - cur_frame_index;

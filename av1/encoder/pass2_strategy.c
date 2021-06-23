@@ -3224,6 +3224,8 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   else
     rc->frames_to_key = kf_cfg->key_freq_max;
 
+  rc->frames_to_fwd_kf = kf_cfg->fwd_kf_dist;
+
   if (cpi->ppi->lap_enabled) correct_frames_to_key(cpi);
 
   // If there is a max kf interval set by the user we must obey it.
@@ -3722,6 +3724,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   // Keyframe and section processing.
   FIRSTPASS_STATS this_frame_copy;
   this_frame_copy = this_frame;
+
   int is_overlay_forward_kf =
       rc->frames_to_key == 0 &&
       gf_group->update_type[cpi->gf_frame_index] == OVERLAY_UPDATE;
@@ -3772,6 +3775,9 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       }
     }
   }
+
+  if (rc->frames_to_fwd_kf <= 0)
+    rc->frames_to_fwd_kf = oxcf->kf_cfg.fwd_kf_dist;
 
   // Define a new GF/ARF group. (Should always enter here for key frames).
   if (cpi->gf_frame_index == gf_group->size) {

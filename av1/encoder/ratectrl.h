@@ -186,6 +186,7 @@ typedef struct {
   int frames_to_key;
   /*!\cond */
   int frames_since_key;
+  int frames_to_fwd_kf;
   int is_src_frame_alt_ref;
   int sframe_due;
 
