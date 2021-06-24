@@ -943,16 +943,22 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // palette colors is not the winner.
   int prune_palette_search_level;
 
-  // Terminate early in luma palette_size search.
+  // Terminate early in luma palette_size search. Speed feature values indicate
+  // increasing level of pruning.
   // 0: No early termination
   // 1: Terminate early for higher luma palette_size, if header rd cost of lower
+  // palette_size is more than 2 * best_rd. This level of pruning is more
+  // conservative when compared to sf level 2 as the cases which will get pruned
+  // with sf level 1 is a subset of the cases which will get pruned with sf
+  // level 2.
+  // 2: Terminate early for higher luma palette_size, if header rd cost of lower
   // palette_size is more than best_rd.
-  // For allintra encode, this sf reduces instruction count by 1.07% and 2.76%
-  // for speed 1 and 2 on screen content set with coding performance change less
-  // than 0.01%. For AVIF image encode, this sf reduces instruction count
-  // by 1.13% and 1.29% for speed 1 and 2 on a typical image dataset with coding
-  // performance change less than 0.01%.
-  int early_term_luma_palette_size_search;
+  // For allintra encode, this sf reduces instruction count by 2.49%, 1.07%
+  // and 2.76% for speed 0, 1 and 2 on screen content set with coding
+  // performance change less than 0.01%. For AVIF image encode, this sf reduces
+  // instruction count by 1.94%, 1.13% and 1.29% for speed 0, 1 and 2 on a
+  // typical image dataset with coding performance change less than 0.01%.
+  int prune_luma_palette_size_search_level;
 
   // Prune chroma intra modes based on luma intra mode winner.
   // 0: No pruning

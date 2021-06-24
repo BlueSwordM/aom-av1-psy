@@ -311,6 +311,7 @@ static void set_allintra_speed_features_framesize_independent(
   sf->part_sf.use_best_rd_for_pruning = 1;
 
   sf->intra_sf.intra_pruning_with_hog = 1;
+  sf->intra_sf.prune_luma_palette_size_search_level = 1;
   sf->intra_sf.dv_cost_upd_level = INTERNAL_COST_UPD_OFF;
   sf->intra_sf.early_term_chroma_palette_size_search = 1;
 
@@ -346,7 +347,7 @@ static void set_allintra_speed_features_framesize_independent(
     sf->mv_sf.exhaustive_searches_thresh <<= 1;
 
     sf->intra_sf.prune_palette_search_level = 1;
-    sf->intra_sf.early_term_luma_palette_size_search = 1;
+    sf->intra_sf.prune_luma_palette_size_search_level = 2;
     sf->intra_sf.top_intra_model_count_allowed = 3;
 
     sf->tx_sf.adaptive_txb_search_level = 2;
@@ -1651,7 +1652,7 @@ static AOM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
   intra_sf->intra_pruning_with_hog = 0;
   intra_sf->chroma_intra_pruning_with_hog = 0;
   intra_sf->prune_palette_search_level = 0;
-  intra_sf->early_term_luma_palette_size_search = 0;
+  intra_sf->prune_luma_palette_size_search_level = 0;
 
   for (int i = 0; i < TX_SIZES; i++) {
     intra_sf->intra_y_mode_mask[i] = INTRA_ALL;
