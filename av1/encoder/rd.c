@@ -449,6 +449,19 @@ int av1_get_deltaq_offset(aom_bit_depth_t bit_depth, int qindex, double beta) {
   return qindex - orig_qindex;
 }
 
+int av1_adjust_q_from_delta_q_res(int delta_q_res, int prev_qindex,
+                                  int curr_qindex) {
+  curr_qindex = clamp(curr_qindex, delta_q_res, 256 - delta_q_res);
+  const int sign_deltaq_index = curr_qindex - prev_qindex >= 0 ? 1 : -1;
+  const int deltaq_deadzone = delta_q_res / 4;
+  const int qmask = ~(delta_q_res - 1);
+  int abs_deltaq_index = abs(curr_qindex - prev_qindex);
+  abs_deltaq_index = (abs_deltaq_index + deltaq_deadzone) & qmask;
+  int adjust_qindex = prev_qindex + sign_deltaq_index * abs_deltaq_index;
+  adjust_qindex = AOMMAX(adjust_qindex, MINQ + 1);
+  return adjust_qindex;
+}
+
 int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
   assert(beta > 0.0);
   const AV1_COMMON *cm = &cpi->common;

@@ -268,23 +268,13 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
     // Setup deltaq based on tpl stats
     current_qindex =
         av1_get_q_for_deltaq_objective(cpi, sb_size, mi_row, mi_col);
-    current_qindex = clamp(current_qindex, delta_q_res, 256 - delta_q_res);
   } else if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL_AI) {
     current_qindex = av1_get_sbq_perceptual_ai(cpi, sb_size, mi_row, mi_col);
-    current_qindex = clamp(current_qindex, delta_q_res, 256 - delta_q_res);
   }
 
   MACROBLOCKD *const xd = &x->e_mbd;
-  const int sign_deltaq_index =
-      current_qindex - xd->current_base_qindex >= 0 ? 1 : -1;
-  const int deltaq_deadzone = delta_q_res / 4;
-  const int qmask = ~(delta_q_res - 1);
-  int abs_deltaq_index = abs(current_qindex - xd->current_base_qindex);
-  abs_deltaq_index = (abs_deltaq_index + deltaq_deadzone) & qmask;
-  current_qindex =
-      xd->current_base_qindex + sign_deltaq_index * abs_deltaq_index;
-  current_qindex = AOMMAX(current_qindex, MINQ + 1);
-  assert(current_qindex > 0);
+  current_qindex = av1_adjust_q_from_delta_q_res(
+      delta_q_res, xd->current_base_qindex, current_qindex);
 
   x->delta_qindex = current_qindex - cm->quant_params.base_qindex;
   av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);

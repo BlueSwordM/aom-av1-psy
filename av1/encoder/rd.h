@@ -348,6 +348,17 @@ int av1_get_adaptive_rdmult(const struct AV1_COMP *cpi, double beta);
 
 int av1_get_deltaq_offset(aom_bit_depth_t bit_depth, int qindex, double beta);
 
+/*!\brief Adjust current superblock's q_index based on delta q resolution
+ *
+ * \param[in]       delta_q_res       delta q resolution
+ * \param[in]       prev_qindex       previous superblock's q index
+ * \param[in]       curr_qindex       current superblock's q index
+ *
+ * \return the current superblock's adjusted q_index
+ */
+int av1_adjust_q_from_delta_q_res(int delta_q_res, int prev_qindex,
+                                  int curr_qindex);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
