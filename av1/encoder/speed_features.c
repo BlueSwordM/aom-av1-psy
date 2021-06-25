@@ -1168,6 +1168,10 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
 #endif
     }
   } else {
+    if (speed >= 7) {
+      sf->rt_sf.use_comp_ref_nonrd = 1;
+      sf->rt_sf.ref_frame_comp_nonrd = 1;  // LAST2_LAST
+    }
     if (speed == 8 && !cpi->ppi->use_svc) {
       sf->rt_sf.short_circuit_low_temp_var = 0;
       sf->rt_sf.use_nonrd_altref_frame = 1;
