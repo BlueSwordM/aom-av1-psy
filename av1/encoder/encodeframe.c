@@ -288,7 +288,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
     const int delta_lf_res = delta_q_info->delta_lf_res;
     const int lfmask = ~(delta_lf_res - 1);
     const int delta_lf_from_base =
-        ((x->delta_qindex / 2 + delta_lf_res / 2) & lfmask);
+        ((x->delta_qindex / 4 + delta_lf_res / 2) & lfmask);
     const int8_t delta_lf =
         (int8_t)clamp(delta_lf_from_base, -MAX_LOOP_FILTER, MAX_LOOP_FILTER);
     const int frame_lf_count =
@@ -300,9 +300,9 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
     for (int j = 0; j < AOMMIN(mib_size, mi_params->mi_rows - mi_row); j++) {
       for (int k = 0; k < AOMMIN(mib_size, mi_params->mi_cols - mi_col); k++) {
         const int grid_idx = get_mi_grid_idx(mi_params, mi_row + j, mi_col + k);
-        mi_params->mi_grid_base[grid_idx]->delta_lf_from_base = delta_lf;
+        mi_params->mi_alloc[grid_idx].delta_lf_from_base = delta_lf;
         for (int lf_id = 0; lf_id < frame_lf_count; ++lf_id) {
-          mi_params->mi_grid_base[grid_idx]->delta_lf[lf_id] = delta_lf;
+          mi_params->mi_alloc[grid_idx].delta_lf[lf_id] = delta_lf;
         }
       }
     }
