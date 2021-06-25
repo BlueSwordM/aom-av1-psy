@@ -182,6 +182,19 @@ INSTANTIATE_TEST_SUITE_P(
                       make_tuple(&av1_highbd_fwht4x4_c, &iwht4x4_12, DCT_DCT,
                                  AOM_BITS_12, 16,
                                  static_cast<FdctFunc>(NULL))));
+#if HAVE_SSE4_1
+
+INSTANTIATE_TEST_SUITE_P(
+    SSE4_1, Trans4x4WHT,
+    ::testing::Values(make_tuple(&av1_highbd_fwht4x4_sse4_1, &iwht4x4_10,
+                                 DCT_DCT, AOM_BITS_10, 16,
+                                 static_cast<FdctFunc>(NULL)),
+                      make_tuple(&av1_highbd_fwht4x4_sse4_1, &iwht4x4_12,
+                                 DCT_DCT, AOM_BITS_12, 16,
+                                 static_cast<FdctFunc>(NULL))));
+
+#endif  // HAVE_SSE4_1
+
 #if HAVE_NEON
 
 INSTANTIATE_TEST_SUITE_P(
