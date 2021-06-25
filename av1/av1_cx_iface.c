@@ -2388,6 +2388,15 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
         if (res != AOM_CODEC_OK) {
           return res;
         }
+        if (i == 0) {
+          // Calculate the maximum number of frames that can be encoded in
+          // parallel
+          priv->ppi->num_fp_contexts = av1_compute_num_fp_contexts(
+              priv->ppi, &priv->ppi->parallel_cpi[i]->oxcf,
+              av1_compute_num_enc_workers(
+                  priv->ppi->parallel_cpi[i],
+                  priv->ppi->parallel_cpi[i]->oxcf.max_threads));
+        }
       }
       priv->ppi->cpi = priv->ppi->parallel_cpi[0];
 #else

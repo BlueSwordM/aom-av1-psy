@@ -730,6 +730,50 @@ void av1_create_workers(AV1_PRIMARY *ppi, int num_workers) {
 }
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
+static int AOM_INLINE is_fp_config(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
+  // TODO(Mufaddal, Aasaipriya): Test and enable multi-tile, resize and vbr
+  // config.
+  if (oxcf->rc_cfg.mode != AOM_Q) {
+    return 0;
+  }
+  if (ppi->use_svc) {
+    return 0;
+  }
+  if (oxcf->tile_cfg.tile_columns > 0 || oxcf->tile_cfg.tile_rows > 0) {
+    return 0;
+  }
+  if (oxcf->dec_model_cfg.timing_info_present) {
+    return 0;
+  }
+  if (oxcf->mode != GOOD) {
+    return 0;
+  }
+  if (oxcf->tool_cfg.error_resilient_mode) {
+    return 0;
+  }
+  if (oxcf->resize_cfg.resize_mode) {
+    return 0;
+  }
+
+  return 1;
+}
+
+int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
+                                int max_num_enc_workers) {
+  if (!is_fp_config(ppi, oxcf)) {
+    return 1;
+  }
+
+  // A parallel frame encode must have at least half the theoretical limit of
+  // max enc workers. TODO(Mufaddal) : Tune this value based on empirical
+  // analysis.
+  int workers_per_frame = (max_num_enc_workers + 1) / 2;
+  int max_threads = oxcf->max_threads;
+  int num_fp_contexts = max_threads / workers_per_frame;
+
+  return AOMMIN(num_fp_contexts, MAX_PARALLEL_FRAMES);
+}
+
 // Prepare level 1 workers. This function is only called for
 // parallel_frame_count > 1. This function populates the mt_info structure of
 // frame level contexts appropriately by dividing the total number of available
@@ -1023,7 +1067,7 @@ int av1_get_max_num_workers(AV1_COMP *cpi) {
 }
 
 // Computes the number of workers for encoding stage (row/tile multi-threading)
-static AOM_INLINE int compute_num_enc_workers(AV1_COMP *cpi, int max_workers) {
+int av1_compute_num_enc_workers(AV1_COMP *cpi, int max_workers) {
   if (max_workers <= 1) return 1;
   if (cpi->oxcf.row_mt)
     return compute_num_enc_row_mt_workers(&cpi->common, max_workers);
@@ -2279,7 +2323,7 @@ static AOM_INLINE int compute_num_tf_workers(AV1_COMP *cpi) {
   // found to improve speed. Hence the thread assignment for single-pass encode
   // is kept based on compute_num_enc_workers().
   if (cpi->oxcf.pass < AOM_RC_SECOND_PASS)
-    return (compute_num_enc_workers(cpi, cpi->oxcf.max_threads));
+    return (av1_compute_num_enc_workers(cpi, cpi->oxcf.max_threads));
 
   if (cpi->oxcf.max_threads <= 1) return 1;
 
@@ -2292,22 +2336,22 @@ static AOM_INLINE int compute_num_tf_workers(AV1_COMP *cpi) {
 
 // Computes num_workers for tpl multi-threading.
 static AOM_INLINE int compute_num_tpl_workers(AV1_COMP *cpi) {
-  return compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
+  return av1_compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
 }
 
 // Computes num_workers for loop filter multi-threading.
 static AOM_INLINE int compute_num_lf_workers(AV1_COMP *cpi) {
-  return compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
+  return av1_compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
 }
 
 // Computes num_workers for cdef multi-threading.
 static AOM_INLINE int compute_num_cdef_workers(AV1_COMP *cpi) {
-  return compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
+  return av1_compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
 }
 
 // Computes num_workers for loop-restoration multi-threading.
 static AOM_INLINE int compute_num_lr_workers(AV1_COMP *cpi) {
-  return compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
+  return av1_compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
 }
 
 // Computes num_workers for pack bitstream multi-threading.
@@ -2323,13 +2367,14 @@ int compute_num_mod_workers(AV1_COMP *cpi, MULTI_THREADED_MODULES mod_name) {
       if (cpi->oxcf.pass >= AOM_RC_SECOND_PASS)
         num_mod_workers = 0;
       else
-        num_mod_workers = compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
+        num_mod_workers =
+            av1_compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
       break;
     case MOD_TF: num_mod_workers = compute_num_tf_workers(cpi); break;
     case MOD_TPL: num_mod_workers = compute_num_tpl_workers(cpi); break;
     case MOD_GME: num_mod_workers = 1; break;
     case MOD_ENC:
-      num_mod_workers = compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
+      num_mod_workers = av1_compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
       break;
     case MOD_LPF: num_mod_workers = compute_num_lf_workers(cpi); break;
     case MOD_CDEF_SEARCH:
