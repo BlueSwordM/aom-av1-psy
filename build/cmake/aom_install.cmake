@@ -26,7 +26,7 @@ endif()
 # Note: aom.pc generation uses GNUInstallDirs:
 # https://cmake.org/cmake/help/latest/module/GNUInstallDirs.html
 macro(setup_aom_install_targets)
-  if(NOT (MSVC OR XCODE))
+  if(NOT XCODE)
     include("GNUInstallDirs")
     set(AOM_PKG_CONFIG_FILE "${AOM_CONFIG_DIR}/aom.pc")
 
