@@ -2232,6 +2232,15 @@ typedef struct AV1_PRIMARY {
    * avg_frame_qindex.
    */
   int temp_avg_frame_qindex[FRAME_TYPES];
+
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+  /*!
+   * Copy of cm->ref_frame_map maintained to facilitate sequential update of
+   * ref_frame_map by lower layer depth frames encoded ahead of time in a
+   * parallel encode set.
+   */
+  RefCntBuffer *ref_frame_map_copy[REF_FRAMES];
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
   /*!
    * Encode stage top level structure

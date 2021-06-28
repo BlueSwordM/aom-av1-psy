@@ -2418,6 +2418,8 @@ static AOM_INLINE int init_parallel_frame_context(AV1_PRIMARY *const ppi) {
       cur_cpi->gf_frame_index = i;
       cur_cpi->common.current_frame.frame_number = cur_frame_num;
       cur_cpi->do_frame_data_update = false;
+      memcpy(cur_cpi->common.ref_frame_map, first_cpi->common.ref_frame_map,
+             sizeof(first_cpi->common.ref_frame_map));
       parallel_frame_count++;
     }
 

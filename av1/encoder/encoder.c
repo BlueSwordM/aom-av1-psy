@@ -3432,8 +3432,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     av1_denoiser_update_ref_frame(cpi);
 #endif
 
-    refresh_reference_frames(cpi);
-
     // Since we allocate a spot for the OVERLAY frame in the gf group, we need
     // to do post-encoding update accordingly.
     av1_set_target_rate(cpi, cm->width, cm->height);
@@ -3654,8 +3652,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   // NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
   //       for the purpose to verify no mismatch between encoder and decoder.
   if (cm->show_frame) cpi->last_show_frame_buf = cm->cur_frame;
-
-  refresh_reference_frames(cpi);
 
   if (features->refresh_frame_context == REFRESH_FRAME_CONTEXT_BACKWARD) {
     *cm->fc = cpi->tile_data[largest_tile_id].tctx;
@@ -4207,6 +4203,31 @@ void av1_post_encode_updates(AV1_COMP *const cpi, size_t size,
   AV1_COMMON *const cm = &cpi->common;
 
   if (!is_stat_generation_stage(cpi) && !cpi->is_dropped_frame) {
+#if CONFIG_FRAME_PARALLEL_ENCODE
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+    // Before calling refresh_reference_frames(), copy ppi->ref_frame_map_copy
+    // to cm->ref_frame_map for frame_parallel_level 2 frame in a parallel
+    // encode set of lower layer frames.
+    if (ppi->gf_group.frame_parallel_level[cpi->gf_frame_index - 1] == 1 &&
+        ppi->gf_group.update_type[cpi->gf_frame_index - 1] ==
+            INTNL_ARF_UPDATE) {
+      memcpy(cm->ref_frame_map, ppi->ref_frame_map_copy,
+             sizeof(cm->ref_frame_map));
+    }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+    refresh_reference_frames(cpi);
+#if CONFIG_FRAME_PARALLEL_ENCODE
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+    // For frame_parallel_level 1 frame in a parallel encode set of lower layer
+    // frames, store the updated cm->ref_frame_map in ppi->ref_frame_map_copy.
+    if (ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 1 &&
+        ppi->gf_group.update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE) {
+      memcpy(ppi->ref_frame_map_copy, cm->ref_frame_map,
+             sizeof(cm->ref_frame_map));
+    }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
     av1_rc_postencode_update(cpi, size);
   }
 
