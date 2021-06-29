@@ -2164,33 +2164,61 @@ typedef struct {
   uint8_t *entropy_ctx;
 } CoeffBufferPool;
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
 /*!
- * \brief Structure to hold data of frame encoded in a given parallel encode
- * set.
+ * \brief Structure to hold data corresponding to an encoded frame.
  */
-typedef struct AV1_FP_OUT_DATA {
+typedef struct AV1_COMP_DATA {
   /*!
    * Buffer to store packed bitstream data of a frame.
    */
-  unsigned char *cx_data_frame;
+  unsigned char *cx_data;
 
   /*!
-   * Allocated size of the cx_data_frame buffer.
+   * Allocated size of the cx_data buffer.
    */
   size_t cx_data_sz;
 
   /*!
-   * Size of data written in the cx_data_frame buffer.
+   * Size of data written in the cx_data buffer.
    */
   size_t frame_size;
 
   /*!
-   * Display order hint of frame whose packed data is in cx_data_frame buffer.
+   * Flags for the frame.
+   */
+  unsigned int lib_flags;
+
+  /*!
+   * Time stamp for start of frame.
+   */
+  int64_t ts_frame_start;
+
+  /*!
+   * Time stamp for end of frame.
+   */
+  int64_t ts_frame_end;
+
+  /*!
+   * Flag to indicate flush call.
+   */
+  int flush;
+
+  /*!
+   * Time base for sequence.
+   */
+  const aom_rational64_t *timestamp_ratio;
+
+  /*!
+   * Decide to pop the source for this frame from input buffer queue.
+   */
+  int pop_lookahead;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  /*!
+   * Display order hint of frame whose packed data is in cx_data buffer.
    */
   int frame_display_order_hint;
-} AV1_FP_OUT_DATA;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+#endif
+} AV1_COMP_DATA;
 
 /*!
  * \brief Top level primary encoder structure
@@ -2211,7 +2239,7 @@ typedef struct AV1_PRIMARY {
    * Array of structures to hold data of frames encoded in a given parallel
    * encode set.
    */
-  struct AV1_FP_OUT_DATA parallel_frames_data[MAX_PARALLEL_FRAMES - 1];
+  struct AV1_COMP_DATA parallel_frames_data[MAX_PARALLEL_FRAMES - 1];
 
   /*!
    * Loopfilter levels of the previous encoded frame.
