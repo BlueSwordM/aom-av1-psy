@@ -500,6 +500,7 @@ static void set_allintra_speed_features_framesize_independent(
     sf->rt_sf.use_nonrd_pick_mode = 1;
     sf->rt_sf.nonrd_check_partition_merge_mode = 1;
     sf->rt_sf.nonrd_check_partition_split = 0;
+    sf->rt_sf.force_large_partition_blocks_intra = 1;
     // Set mask for intra modes.
     for (int i = 0; i < BLOCK_SIZES; ++i)
       if (i >= BLOCK_32X32)
@@ -1783,6 +1784,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->nonrd_check_partition_merge_mode = 0;
   rt_sf->nonrd_check_partition_split = 0;
   rt_sf->skip_intra_pred_if_tx_skip = 0;
+  rt_sf->force_large_partition_blocks_intra = 0;
 }
 
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {

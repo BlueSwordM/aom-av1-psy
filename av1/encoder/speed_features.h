@@ -1236,6 +1236,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // sensitivity is off. When color sensitivity is on for a superblock, all
   // 64x64 blocks within will not skip.
   int skip_cdef_sb;
+
+  // Forces larger partition blocks in variance based partitioning for intra
+  // frames
+  int force_large_partition_blocks_intra;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

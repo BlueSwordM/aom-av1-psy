@@ -351,14 +351,22 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
   const int current_qindex = cm->quant_params.base_qindex;
 
   if (is_key_frame) {
+    if (cpi->sf.rt_sf.force_large_partition_blocks_intra) {
+      threshold_base <<= cpi->oxcf.speed - 7;
+    }
     thresholds[0] = threshold_base;
     thresholds[1] = threshold_base;
     if (cm->width * cm->height < 1280 * 720) {
       thresholds[2] = threshold_base / 3;
       thresholds[3] = threshold_base >> 1;
     } else {
-      thresholds[2] = threshold_base >> 2;
-      thresholds[3] = threshold_base >> 2;
+      int shift_val = 2;
+      if (cpi->sf.rt_sf.force_large_partition_blocks_intra) {
+        shift_val = 0;
+      }
+
+      thresholds[2] = threshold_base >> shift_val;
+      thresholds[3] = threshold_base >> shift_val;
     }
     thresholds[4] = threshold_base << 2;
   } else {
