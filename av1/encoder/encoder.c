@@ -4296,9 +4296,6 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   if (oxcf->tile_cfg.enable_large_scale_tile)
     cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 
-  // Initialize fields related to forward keyframes
-  cpi->no_show_fwd_kf = 0;
-
   if (assign_cur_frame_new_fb(cm) == NULL) return AOM_CODEC_ERROR;
 
 #if CONFIG_COLLECT_COMPONENT_TIMING

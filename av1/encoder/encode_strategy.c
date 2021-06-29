@@ -339,10 +339,6 @@ static struct lookahead_entry *choose_frame_source(
     // no show frames are arf frames
     source = av1_lookahead_peek(cpi->ppi->lookahead, src_index,
                                 cpi->compressor_stage);
-    // When src_index == rc->frames_to_key, it indicates a fwd_kf
-    if (src_index == cpi->rc.frames_to_key && src_index != 0) {
-      cpi->no_show_fwd_kf = 1;
-    }
     if (source != NULL) {
       cm->showable_frame = 1;
     }
@@ -987,7 +983,6 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   if (frame_params->frame_type == KEY_FRAME) {
     // Don't do tpl for fwd key frames or fwd key frame overlays
     allow_tpl = allow_tpl && !cpi->sf.tpl_sf.disable_filtered_key_tpl &&
-                !cpi->no_show_fwd_kf &&
                 gf_group->update_type[cpi->gf_frame_index] != OVERLAY_UPDATE;
   } else {
     // Do tpl after ARF is filtered, or if no ARF, at the second frame of GF

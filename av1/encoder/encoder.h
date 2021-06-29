@@ -2490,11 +2490,6 @@ typedef struct AV1_COMP {
   AV1EncoderConfig oxcf;
 
   /*!
-   * When set, this flag indicates that the current frame is a forward keyframe.
-   */
-  int no_show_fwd_kf;
-
-  /*!
    * Stores the trellis optimization type at segment level.
    * optimize_seg_arr[i] stores the trellis opt type for ith segment.
    */
