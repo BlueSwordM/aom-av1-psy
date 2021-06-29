@@ -3161,9 +3161,8 @@ void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
 void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi,
                                const AV1EncoderConfig *oxcf, int use_svc);
 
-void av1_post_encode_updates(AV1_COMP *const cpi, size_t size,
-                             int64_t time_stamp, int64_t time_end,
-                             int pop_lookahead, int flush);
+void av1_post_encode_updates(AV1_COMP *const cpi,
+                             const AV1_COMP_DATA *const cpi_data);
 
 /*!\endcond */
 
@@ -3194,18 +3193,11 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
  * \callergraph
  * This function encodes the raw frame data, and outputs the frame bit stream
  * to the designated buffer. The caller should use the output parameters
- * *time_stamp and *time_end only when this function returns AOM_CODEC_OK.
+ * cpi_data->ts_frame_start and cpi_data->ts_frame_end only when this function
+ * returns AOM_CODEC_OK.
  *
- * \param[in]    cpi         Top-level encoder structure
- * \param[in]    frame_flags Flags to decide how to encoding the frame
- * \param[in]    size        Bitstream size
- * \param[in]    avail_size  Available bitstream buffer size
- * \param[in]    dest        Bitstream output
- * \param[out]   time_stamp  Time stamp of the frame
- * \param[out]   time_end    Time end
- * \param[in]    flush       Decide to encode one frame or the rest of frames
- * \param[in]    timebase    Time base used
- * \param[in]    pop_lookahead  Decide to pop the source frame from queue
+ * \param[in]     cpi         Top-level encoder structure
+ * \param[in,out] cpi_data    Data corresponding to a frame encode
  *
  * \return Returns a value to indicate if the encoding is done successfully.
  * \retval #AOM_CODEC_OK
@@ -3213,11 +3205,7 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
  *     No frame encoded; more input is required.
  * \retval #AOM_CODEC_ERROR
  */
-int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
-                            size_t *size, size_t avail_size, uint8_t *dest,
-                            int64_t *time_stamp, int64_t *time_end, int flush,
-                            const aom_rational64_t *timebase,
-                            int *const pop_lookahead);
+int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data);
 
 /*!\brief Run 1-pass/2-pass encoding
  *

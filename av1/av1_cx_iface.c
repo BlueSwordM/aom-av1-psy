@@ -2506,8 +2506,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   volatile aom_codec_err_t res = AOM_CODEC_OK;
   AV1_PRIMARY *const ppi = ctx->ppi;
   AV1_COMP *const cpi = ppi->cpi;
-  const aom_rational64_t *const timestamp_ratio = &ctx->timestamp_ratio;
   volatile aom_codec_pts_t ptsvol = pts;
+  AV1_COMP_DATA cpi_data = { 0 };
+
+  cpi_data.timestamp_ratio = &ctx->timestamp_ratio;
+  cpi_data.flush = !img;
   // LAP context
   AV1_COMP *cpi_lap = ppi->cpi_lap;
   if (cpi == NULL) return AOM_CODEC_INVALID_PARAM;
@@ -2622,9 +2625,10 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         ctx->pts_offset_initialized = 1;
       }
       ptsvol -= ctx->pts_offset;
-      int64_t src_time_stamp = timebase_units_to_ticks(timestamp_ratio, ptsvol);
+      int64_t src_time_stamp =
+          timebase_units_to_ticks(cpi_data.timestamp_ratio, ptsvol);
       int64_t src_end_time_stamp =
-          timebase_units_to_ticks(timestamp_ratio, ptsvol + duration);
+          timebase_units_to_ticks(cpi_data.timestamp_ratio, ptsvol + duration);
 
       YV12_BUFFER_CONFIG sd;
       res = image2yuvconfig(img, &sd);
@@ -2676,29 +2680,26 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       ctx->next_frame_flags = 0;
     }
 
-    unsigned char *cx_data = ctx->cx_data;
-    size_t cx_data_sz = ctx->cx_data_sz;
+    cpi_data.cx_data = ctx->cx_data;
+    cpi_data.cx_data_sz = ctx->cx_data_sz;
 
     /* Any pending invisible frames? */
     if (ctx->pending_cx_data_sz) {
-      cx_data += ctx->pending_cx_data_sz;
-      cx_data_sz -= ctx->pending_cx_data_sz;
+      cpi_data.cx_data += ctx->pending_cx_data_sz;
+      cpi_data.cx_data_sz -= ctx->pending_cx_data_sz;
 
       /* TODO: this is a minimal check, the underlying codec doesn't respect
        * the buffer size anyway.
        */
-      if (cx_data_sz < ctx->cx_data_sz / 2) {
+      if (cpi_data.cx_data_sz < ctx->cx_data_sz / 2) {
         aom_internal_error(&ppi->error, AOM_CODEC_ERROR,
                            "Compressed data buffer too small");
       }
     }
 
-    size_t frame_size = 0;
-    unsigned int lib_flags = 0;
     int is_frame_visible = 0;
     int has_no_show_keyframe = 0;
     int num_workers = 0;
-    int pop_lookahead = 0;
 
     if (cpi->oxcf.pass == AOM_RC_FIRST_PASS) {
 #if !CONFIG_REALTIME_ONLY
@@ -2736,29 +2737,21 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
     // Call for LAP stage
     if (cpi_lap != NULL) {
-      int64_t dst_time_stamp_la;
-      int64_t dst_end_time_stamp_la;
-      const int status = av1_get_compressed_data(
-          cpi_lap, &lib_flags, &frame_size, cx_data_sz, NULL,
-          &dst_time_stamp_la, &dst_end_time_stamp_la, !img, timestamp_ratio,
-          &pop_lookahead);
+      AV1_COMP_DATA cpi_lap_data = { 0 };
+      cpi_lap_data.flush = !img;
+      cpi_lap_data.timestamp_ratio = &ctx->timestamp_ratio;
+      const int status = av1_get_compressed_data(cpi_lap, &cpi_lap_data);
       if (status != -1) {
         if (status != AOM_CODEC_OK) {
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
       }
-      av1_post_encode_updates(cpi_lap, frame_size, dst_time_stamp_la,
-                              dst_end_time_stamp_la, pop_lookahead, !img);
-      lib_flags = 0;
-      frame_size = 0;
-      pop_lookahead = 0;
+      av1_post_encode_updates(cpi_lap, &cpi_lap_data);
     }
 
     // Get the next visible frame. Invisible frames get packed with the next
     // visible frame.
-    int64_t dst_time_stamp;
-    int64_t dst_end_time_stamp;
-    while (cx_data_sz >= ctx->cx_data_sz / 2 && !is_frame_visible) {
+    while (cpi_data.cx_data_sz >= ctx->cx_data_sz / 2 && !is_frame_visible) {
 #if CONFIG_FRAME_PARALLEL_ENCODE
       cpi->do_frame_data_update = true;
       if (ppi->num_fp_contexts > 1 && ppi->gf_group.size > 1) {
@@ -2768,15 +2761,12 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         }
       }
 #endif
-      const int status = av1_get_compressed_data(
-          cpi, &lib_flags, &frame_size, cx_data_sz, cx_data, &dst_time_stamp,
-          &dst_end_time_stamp, !img, timestamp_ratio, &pop_lookahead);
+      const int status = av1_get_compressed_data(cpi, &cpi_data);
       if (status == -1) break;
       if (status != AOM_CODEC_OK) {
         aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
       }
-      av1_post_encode_updates(cpi, frame_size, dst_time_stamp,
-                              dst_end_time_stamp, pop_lookahead, !img);
+      av1_post_encode_updates(cpi, &cpi_data);
 
 #if CONFIG_ENTROPY_STATS
       if (ppi->cpi->oxcf.pass != 1 && !cpi->common.show_existing_frame)
@@ -2794,8 +2784,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 #endif  // CONFIG_INTERNAL_STATS
 
       cpi->ppi->seq_params_locked = 1;
-      if (!frame_size) continue;
-      assert(cx_data != NULL && cx_data_sz != 0);
+      if (!cpi_data.frame_size) continue;
+      assert(cpi_data.cx_data != NULL && cpi_data.cx_data_sz != 0);
       const int write_temporal_delimiter =
           !cpi->common.spatial_layer_id && !ctx->pending_cx_data_sz;
 
@@ -2806,7 +2796,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
             aom_uleb_size_in_bytes(obu_payload_size);
 
         const size_t move_offset = obu_header_size + length_field_size;
-        memmove(ctx->cx_data + move_offset, ctx->cx_data, frame_size);
+        memmove(ctx->cx_data + move_offset, ctx->cx_data, cpi_data.frame_size);
         obu_header_size = av1_write_obu_header(
             &cpi->ppi->level_params, &cpi->frame_header_count,
             OBU_TEMPORAL_DELIMITER, 0, ctx->cx_data);
@@ -2817,31 +2807,34 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
 
-        frame_size += obu_header_size + obu_payload_size + length_field_size;
+        cpi_data.frame_size +=
+            obu_header_size + obu_payload_size + length_field_size;
       }
 
       if (ctx->oxcf.save_as_annexb) {
-        size_t curr_frame_size = frame_size;
-        if (av1_convert_sect5obus_to_annexb(cx_data, &curr_frame_size) !=
-            AOM_CODEC_OK) {
+        size_t curr_frame_size = cpi_data.frame_size;
+        if (av1_convert_sect5obus_to_annexb(cpi_data.cx_data,
+                                            &curr_frame_size) != AOM_CODEC_OK) {
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
-        frame_size = curr_frame_size;
+        cpi_data.frame_size = curr_frame_size;
 
         // B_PRIME (add frame size)
-        const size_t length_field_size = aom_uleb_size_in_bytes(frame_size);
-        memmove(cx_data + length_field_size, cx_data, frame_size);
-        if (av1_write_uleb_obu_size(0, (uint32_t)frame_size, cx_data) !=
-            AOM_CODEC_OK) {
+        const size_t length_field_size =
+            aom_uleb_size_in_bytes(cpi_data.frame_size);
+        memmove(cpi_data.cx_data + length_field_size, cpi_data.cx_data,
+                cpi_data.frame_size);
+        if (av1_write_uleb_obu_size(0, (uint32_t)cpi_data.frame_size,
+                                    cpi_data.cx_data) != AOM_CODEC_OK) {
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
-        frame_size += length_field_size;
+        cpi_data.frame_size += length_field_size;
       }
 
-      ctx->pending_cx_data_sz += frame_size;
+      ctx->pending_cx_data_sz += cpi_data.frame_size;
 
-      cx_data += frame_size;
-      cx_data_sz -= frame_size;
+      cpi_data.cx_data += cpi_data.frame_size;
+      cpi_data.cx_data_sz -= cpi_data.frame_size;
 
       is_frame_visible = cpi->common.show_frame;
 
@@ -2872,19 +2865,20 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       pkt.data.frame.buf = ctx->cx_data;
       pkt.data.frame.sz = ctx->pending_cx_data_sz;
       pkt.data.frame.partition_id = -1;
-      pkt.data.frame.vis_frame_size = frame_size;
+      pkt.data.frame.vis_frame_size = cpi_data.frame_size;
 
-      pkt.data.frame.pts =
-          ticks_to_timebase_units(timestamp_ratio, dst_time_stamp) +
-          ctx->pts_offset;
-      pkt.data.frame.flags = get_frame_pkt_flags(cpi, lib_flags);
+      pkt.data.frame.pts = ticks_to_timebase_units(cpi_data.timestamp_ratio,
+                                                   cpi_data.ts_frame_start) +
+                           ctx->pts_offset;
+      pkt.data.frame.flags = get_frame_pkt_flags(cpi, cpi_data.lib_flags);
       if (has_no_show_keyframe) {
         // If one of the invisible frames in the packet is a keyframe, set
         // the delayed random access point flag.
         pkt.data.frame.flags |= AOM_FRAME_IS_DELAYED_RANDOM_ACCESS_POINT;
       }
       pkt.data.frame.duration = (uint32_t)ticks_to_timebase_units(
-          timestamp_ratio, dst_end_time_stamp - dst_time_stamp);
+          cpi_data.timestamp_ratio,
+          cpi_data.ts_frame_end - cpi_data.ts_frame_start);
 
       aom_codec_pkt_list_add(&ctx->pkt_list.head, &pkt);
 

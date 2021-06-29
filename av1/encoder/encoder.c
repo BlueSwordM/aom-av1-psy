@@ -4213,9 +4213,8 @@ static void update_rc_counts(AV1_COMP *cpi) {
   update_gf_group_index(cpi);
 }
 
-void av1_post_encode_updates(AV1_COMP *const cpi, size_t size,
-                             int64_t time_stamp, int64_t time_end,
-                             int pop_lookahead, int flush) {
+void av1_post_encode_updates(AV1_COMP *const cpi,
+                             const AV1_COMP_DATA *const cpi_data) {
   AV1_PRIMARY *const ppi = cpi->ppi;
   AV1_COMMON *const cm = &cpi->common;
 
@@ -4245,11 +4244,12 @@ void av1_post_encode_updates(AV1_COMP *const cpi, size_t size,
     }
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
-    av1_rc_postencode_update(cpi, size);
+    av1_rc_postencode_update(cpi, cpi_data->frame_size);
   }
 
-  if (pop_lookahead == 1) {
-    av1_lookahead_pop(cpi->ppi->lookahead, flush, cpi->compressor_stage);
+  if (cpi_data->pop_lookahead == 1) {
+    av1_lookahead_pop(cpi->ppi->lookahead, cpi_data->flush,
+                      cpi->compressor_stage);
   }
 
   if (ppi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
@@ -4258,7 +4258,8 @@ void av1_post_encode_updates(AV1_COMP *const cpi, size_t size,
         ppi->gf_group.refbuf_state[cpi->gf_frame_index] == REFBUF_RESET) {
       av1_init_level_info(cpi);
     }
-    av1_update_level_info(cpi, size, time_stamp, time_end);
+    av1_update_level_info(cpi, cpi_data->frame_size, cpi_data->ts_frame_start,
+                          cpi_data->ts_frame_end);
   }
 
   if (!is_stat_generation_stage(cpi)) {
@@ -4272,7 +4273,7 @@ void av1_post_encode_updates(AV1_COMP *const cpi, size_t size,
   if (ppi->use_svc) av1_save_layer_context(cpi);
 
   // Note *size = 0 indicates a dropped frame for which psnr is not calculated
-  if (ppi->b_calculate_psnr && size > 0) {
+  if (ppi->b_calculate_psnr && cpi_data->frame_size > 0) {
     if (cm->show_existing_frame ||
         (!is_stat_generation_stage(cpi) && cm->show_frame)) {
       generate_psnr_packet(cpi);
@@ -4281,16 +4282,12 @@ void av1_post_encode_updates(AV1_COMP *const cpi, size_t size,
 
 #if CONFIG_INTERNAL_STATS
   if (!is_stat_generation_stage(cpi)) {
-    compute_internal_stats(cpi, (int)size);
+    compute_internal_stats(cpi, (int)cpi_data->frame_size);
   }
 #endif  // CONFIG_INTERNAL_STATS
 }
 
-int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
-                            size_t *size, size_t avail_size, uint8_t *dest,
-                            int64_t *time_stamp, int64_t *time_end, int flush,
-                            const aom_rational64_t *timestamp_ratio,
-                            int *const pop_lookahead) {
+int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
 
@@ -4318,8 +4315,8 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
 
   cpi->is_dropped_frame = false;
   cm->showable_frame = 0;
-  *size = 0;
-  cpi->available_bs_size = avail_size;
+  cpi_data->frame_size = 0;
+  cpi->available_bs_size = cpi_data->cx_data_sz;
 #if CONFIG_INTERNAL_STATS
   struct aom_usec_timer cmptimer;
   aom_usec_timer_start(&cmptimer);
@@ -4341,9 +4338,10 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   if (cpi->oxcf.pass == 2) start_timing(cpi, av1_encode_strategy_time);
 #endif
 
-  const int result =
-      av1_encode_strategy(cpi, size, dest, frame_flags, time_stamp, time_end,
-                          timestamp_ratio, pop_lookahead, flush);
+  const int result = av1_encode_strategy(
+      cpi, &cpi_data->frame_size, cpi_data->cx_data, &cpi_data->lib_flags,
+      &cpi_data->ts_frame_start, &cpi_data->ts_frame_end,
+      cpi_data->timestamp_ratio, &cpi_data->pop_lookahead, cpi_data->flush);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   if (cpi->oxcf.pass == 2) end_timing(cpi, av1_encode_strategy_time);
