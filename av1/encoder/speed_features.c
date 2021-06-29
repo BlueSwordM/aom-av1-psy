@@ -934,6 +934,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
     sf->mv_sf.search_method = DIAMOND;
     sf->mv_sf.disable_second_mv = 2;
+    sf->mv_sf.reduce_search_range = 1;
 
     sf->inter_sf.disable_interinter_wedge_newmv_search = boosted ? 0 : 1;
     sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW;
@@ -961,6 +962,7 @@ static void set_good_speed_features_framesize_independent(
     sf->intra_sf.intra_pruning_with_hog = 3;
     sf->intra_sf.prune_palette_search_level = 2;
 
+    sf->tpl_sf.prune_starting_mv = 2;
     sf->tpl_sf.skip_alike_starting_mv = 2;
     sf->tpl_sf.prune_intra_modes = 1;
     sf->tpl_sf.reduce_first_step_size = 6;
@@ -1023,7 +1025,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->mv_sf.simple_motion_subpel_force_stop = HALF_PEL;
 
-    sf->tpl_sf.prune_starting_mv = 2;
     sf->tpl_sf.subpel_force_stop = HALF_PEL;
     sf->tpl_sf.search_method = FAST_BIGDIA;
     sf->tpl_sf.gop_length_decision_method = 1;
@@ -1046,8 +1047,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
-
-    sf->mv_sf.reduce_search_range = 1;
   }
 
   if (speed >= 5) {
