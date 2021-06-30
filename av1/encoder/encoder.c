@@ -3333,6 +3333,9 @@ int av1_get_sbq_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
   int sb_wiener_var = get_var_perceptual_ai(cpi, bsize, mi_row, mi_col);
   int offset = 0;
   double beta = (double)cpi->norm_wiener_variance / sb_wiener_var;
+  // Cap beta such that the delta q value is not much far away from the base q.
+  beta = AOMMIN(beta, 4);
+  beta = AOMMAX(beta, 0.25);
   offset = av1_get_deltaq_offset(cm->seq_params->bit_depth, base_qindex, beta);
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
   offset = AOMMIN(offset, delta_q_info->delta_q_res * 20 - 1);
