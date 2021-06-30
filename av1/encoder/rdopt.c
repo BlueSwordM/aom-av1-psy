@@ -22,7 +22,6 @@
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/aom_timer.h"
 #include "aom_ports/mem.h"
-#include "aom_ports/system_state.h"
 
 #include "av1/common/av1_common_int.h"
 #include "av1/common/cfl.h"
@@ -363,7 +362,6 @@ void av1_inter_mode_data_init(TileDataEnc *tile_data) {
 static int get_est_rate_dist(const TileDataEnc *tile_data, BLOCK_SIZE bsize,
                              int64_t sse, int *est_residue_cost,
                              int64_t *est_dist) {
-  aom_clear_system_state();
   const InterModeRdModel *md = &tile_data->inter_mode_rd_models[bsize];
   if (md->ready) {
     if (sse < md->dist_mean) {
@@ -396,7 +394,6 @@ static int get_est_rate_dist(const TileDataEnc *tile_data, BLOCK_SIZE bsize,
 }
 
 void av1_inter_mode_data_fit(TileDataEnc *tile_data, int rdmult) {
-  aom_clear_system_state();
   for (int bsize = 0; bsize < BLOCK_SIZES_ALL; ++bsize) {
     const int block_idx = inter_mode_data_block_idx(bsize);
     InterModeRdModel *md = &tile_data->inter_mode_rd_models[bsize];
@@ -454,7 +451,6 @@ static AOM_INLINE void inter_mode_data_push(TileDataEnc *tile_data,
   if (block_idx == -1) return;
   InterModeRdModel *rd_model = &tile_data->inter_mode_rd_models[bsize];
   if (rd_model->num < INTER_MODE_RD_DATA_OVERALL_SIZE) {
-    aom_clear_system_state();
     const double ld = (sse - dist) * 1. / residue_cost;
     ++rd_model->num;
     rd_model->dist_sum += dist;
@@ -1290,7 +1286,6 @@ static int64_t motion_mode_rd(
   assert(mbmi->ref_frame[1] != INTRA_FRAME);
   const MV_REFERENCE_FRAME ref_frame_1 = mbmi->ref_frame[1];
   av1_invalid_rd_stats(&best_rd_stats);
-  aom_clear_system_state();
   mbmi->num_proj_ref = 1;  // assume num_proj_ref >=1
   MOTION_MODE last_motion_mode_allowed = SIMPLE_TRANSLATION;
   *yrd = INT64_MAX;
@@ -5249,7 +5244,6 @@ static AOM_INLINE void skip_intra_modes_in_interframe(
   }
   // Use ML model to prune intra search.
   if (inter_cost >= 0 && intra_cost >= 0) {
-    aom_clear_system_state();
     const NN_CONFIG *nn_config = (AOMMIN(cm->width, cm->height) <= 480)
                                      ? &av1_intrap_nn_config
                                      : &av1_intrap_hd_nn_config;
@@ -5266,7 +5260,6 @@ static AOM_INLINE void skip_intra_modes_in_interframe(
     nn_features[5] = (float)(ac_q_max / ac_q);
 
     av1_nn_predict(nn_features, nn_config, 1, scores);
-    aom_clear_system_state();
 
     // For two parameters, the max prob returned from av1_nn_softmax equals
     // 1.0 / (1.0 + e^(-|diff_score|)). Here use scores directly to avoid the

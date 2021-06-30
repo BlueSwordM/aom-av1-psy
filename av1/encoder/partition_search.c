@@ -9,8 +9,6 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#include "aom_ports/system_state.h"
-
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
 #include "av1/common/enums.h"
@@ -752,8 +750,6 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, rd_pick_sb_modes_time);
 #endif
-
-  aom_clear_system_state();
 
   mbmi = xd->mi[0];
   mbmi->bsize = bsize;
@@ -2074,7 +2070,6 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, rd_pick_sb_modes_time);
 #endif
-  aom_clear_system_state();
   // Sets up the tx_type_map buffer in MACROBLOCKD.
   xd->tx_type_map = txfm_info->tx_type_map_;
   xd->tx_type_map_stride = mi_size_wide[bsize];
@@ -4532,8 +4527,6 @@ static int ml_predict_var_partitioning(AV1_COMP *cpi, MACROBLOCK *x,
 
   if (!nn_config) return -1;
 
-  aom_clear_system_state();
-
   {
     const float thresh = cpi->oxcf.speed <= 5 ? 1.25f : 0.0f;
     float features[FEATURES] = { 0.0f };
@@ -4613,8 +4606,6 @@ static int store_partition_data(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   float features[6];  // DC_Q, VAR, VAR_RATIO-0..3
 
   FILE *f = fopen(fname, "a");
-
-  aom_clear_system_state();
 
   {
     const int dc_q = av1_dc_quant_QTX(cm->quant_params.base_qindex, 0,

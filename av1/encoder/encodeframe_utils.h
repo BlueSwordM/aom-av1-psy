@@ -13,7 +13,6 @@
 #define AOM_AV1_ENCODER_ENCODEFRAME_UTILS_H_
 
 #include "aom_ports/aom_timer.h"
-#include "aom_ports/system_state.h"
 
 #include "av1/common/reconinter.h"
 
@@ -246,7 +245,6 @@ static AOM_INLINE int set_segment_rdmult(const AV1_COMP *const cpi,
                                          int8_t segment_id) {
   const AV1_COMMON *const cm = &cpi->common;
   av1_init_plane_quantizers(cpi, x, segment_id);
-  aom_clear_system_state();
   const int segment_qindex =
       av1_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex);
   return av1_compute_rd_mult(cpi,
@@ -421,7 +419,6 @@ static AOM_INLINE unsigned int get_num_refs_to_disable(
       else if (is_stat_consumption_stage_twopass(cpi)) {
         const FIRSTPASS_STATS *const this_frame_stats =
             read_one_frame_stats(&cpi->ppi->twopass, cur_frame_display_index);
-        aom_clear_system_state();
         const double coded_error_per_mb = this_frame_stats->coded_error;
         // Disable LAST2_FRAME if the coded error of the current frame based on
         // first pass stats is very low.

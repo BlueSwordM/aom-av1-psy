@@ -18,8 +18,6 @@
 #include "aom/aom_codec.h"
 #include "aom/aom_encoder.h"
 
-#include "aom_ports/system_state.h"
-
 #if CONFIG_MISMATCH_DEBUG
 #include "aom_util/debug_util.h"
 #endif  // CONFIG_MISMATCH_DEBUG
@@ -201,7 +199,6 @@ static void adjust_frame_rate(AV1_COMP *cpi, int64_t ts_start, int64_t ts_end) {
   int step = 0;
 
   // Clear down mmx registers
-  aom_clear_system_state();
 
   if (cpi->ppi->use_svc && cpi->svc.spatial_layer_id > 0) {
     cpi->framerate = cpi->svc.base_framerate;

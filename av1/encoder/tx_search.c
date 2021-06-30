@@ -421,7 +421,6 @@ static INLINE int64_t pixel_diff_stats(
   int sum = 0;
   sse = aom_sum_sse_2d_i16(diff, diff_stride, visible_cols, visible_rows, &sum);
   if (visible_cols > 0 && visible_rows > 0) {
-    aom_clear_system_state();
     double norm_factor = 1.0 / (visible_cols * visible_rows);
     int sign_sum = sum > 0 ? 1 : -1;
     // Conversion to transform domain
@@ -916,7 +915,6 @@ static int64_t get_sse(const AV1_COMP *cpi, const MACROBLOCK *x) {
 static int get_est_rate_dist(const TileDataEnc *tile_data, BLOCK_SIZE bsize,
                              int64_t sse, int *est_residue_cost,
                              int64_t *est_dist) {
-  aom_clear_system_state();
   const InterModeRdModel *md = &tile_data->inter_mode_rd_models[bsize];
   if (md->ready) {
     if (sse < md->dist_mean) {
@@ -1774,7 +1772,6 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
 #endif
   if (!nn_config_hor || !nn_config_ver) return;  // Model not established yet.
 
-  aom_clear_system_state();
   float hfeatures[16], vfeatures[16];
   float hscores[4], vscores[4];
   float scores_2D_raw[16];
@@ -1794,7 +1791,6 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
   av1_get_horver_correlation_full(diff, diff_stride, bw, bh,
                                   &hfeatures[hfeatures_num - 1],
                                   &vfeatures[vfeatures_num - 1]);
-  aom_clear_system_state();
 #if CONFIG_NN_V2
   av1_nn_predict_v2(hfeatures, nn_config_hor, 0, hscores);
   av1_nn_predict_v2(vfeatures, nn_config_ver, 0, vscores);
@@ -1802,7 +1798,6 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
   av1_nn_predict(hfeatures, nn_config_hor, 1, hscores);
   av1_nn_predict(vfeatures, nn_config_ver, 1, vscores);
 #endif
-  aom_clear_system_state();
 
   for (int i = 0; i < 4; i++) {
     float *cur_scores_2D = scores_2D_raw + i * 4;
@@ -1911,7 +1906,6 @@ static AOM_INLINE void get_mean_dev_features(const int16_t *data, int stride,
       total_x_sum += x_sum;
       total_x2_sum += x2_sum;
 
-      aom_clear_system_state();
       const float mean = (float)x_sum / sub_num;
       const float dev = get_dev(mean, (double)x2_sum, sub_num);
       feature[feature_idx++] = mean;
@@ -1944,14 +1938,12 @@ static int ml_predict_tx_split(MACROBLOCK *x, BLOCK_SIZE bsize, int blk_row,
       x->plane[0].src_diff + 4 * blk_row * diff_stride + 4 * blk_col;
   const int bw = tx_size_wide[tx_size];
   const int bh = tx_size_high[tx_size];
-  aom_clear_system_state();
 
   float features[64] = { 0.0f };
   get_mean_dev_features(diff, diff_stride, bw, bh, features);
 
   float score = 0.0f;
   av1_nn_predict(features, nn_config, 1, &score);
-  aom_clear_system_state();
 
   int int_score = (int)(score * 10000);
   return clamp(int_score, -80000, 80000);
@@ -2769,7 +2761,6 @@ static AOM_INLINE void get_blk_var_dev(const int16_t *data, int stride, int bw,
       total_x_sum += x_sum;
       total_x2_sum += x2_sum;
 
-      aom_clear_system_state();
       const float mean = (float)x_sum / sub_num;
       const float var = get_var(mean, (double)x2_sum, sub_num);
       mean_sum += mean;
@@ -2806,7 +2797,6 @@ static void prune_tx_split_no_split(MACROBLOCK *x, BLOCK_SIZE bsize,
       x->plane[0].src_diff + 4 * blk_row * diff_stride + 4 * blk_col;
   const int bw = tx_size_wide[tx_size];
   const int bh = tx_size_high[tx_size];
-  aom_clear_system_state();
   float dev_of_means = 0.0f;
   float var_of_vars = 0.0f;
 

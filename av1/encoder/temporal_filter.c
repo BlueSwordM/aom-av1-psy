@@ -34,7 +34,6 @@
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/aom_timer.h"
 #include "aom_ports/mem.h"
-#include "aom_ports/system_state.h"
 #include "aom_scale/aom_scale.h"
 
 /*!\cond */
@@ -834,7 +833,6 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
 
         // All variants of av1_apply_temporal_filter() contain floating point
         // operations. Hence, clear the system state.
-        aom_clear_system_state();
 
         // TODO(any): avx2/sse2 version should be changed to align with C
         // function before using. In particular, current avx2/sse2 function
@@ -1252,7 +1250,6 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
     const float mean = (float)diff->sum / num_mbs;
     const float std = (float)sqrt((float)diff->sse / num_mbs - mean * mean);
 
-    aom_clear_system_state();
     // TODO(yunqing): This can be combined with TPL q calculation later.
     cpi->rc.base_frame_target = gf_group->bit_allocation[group_idx];
     av1_set_target_rate(cpi, cpi->common.width, cpi->common.height);

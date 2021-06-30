@@ -19,7 +19,6 @@
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/mem.h"
-#include "aom_ports/system_state.h"
 
 #include "av1/common/alloccommon.h"
 #include "av1/encoder/aq_cyclicrefresh.h"
@@ -653,7 +652,6 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi,
   if (cpi->rc.is_src_frame_alt_ref) return;
 
   // Clear down mmx registers to allow floating point in what follows
-  aom_clear_system_state();
 
   // Work out how big we would have expected the frame to be at this Q given
   // the current correction factor.
@@ -1063,7 +1061,6 @@ static int rc_pick_q_and_bounds_no_stats_cbr(const AV1_COMP *cpi, int width,
   if (current_frame->frame_type == KEY_FRAME && !p_rc->this_key_frame_forced &&
       current_frame->frame_number != 0) {
     int qdelta = 0;
-    aom_clear_system_state();
     qdelta = av1_compute_qdelta_by_rate(&cpi->rc, current_frame->frame_type,
                                         active_worst_quality, 2.0,
                                         cpi->is_screen_content_type, bit_depth);
@@ -1360,7 +1357,6 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
   // Limit Q range for the adaptive loop.
   {
     int qdelta = 0;
-    aom_clear_system_state();
     if (current_frame->frame_type == KEY_FRAME &&
         !p_rc->this_key_frame_forced && current_frame->frame_number != 0) {
       qdelta = av1_compute_qdelta_by_rate(
@@ -1596,7 +1592,6 @@ static void adjust_active_best_and_worst_quality(const AV1_COMP *cpi,
     }
   }
 
-  aom_clear_system_state();
 #ifndef STRICT_RC
   // Static forced key frames Q restrictions dealt with elsewhere.
   if (!(frame_is_intra_only(cm)) || !p_rc->this_key_frame_forced ||

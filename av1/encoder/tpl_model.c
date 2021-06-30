@@ -17,7 +17,6 @@
 #include "config/aom_scale_rtcd.h"
 
 #include "aom/aom_codec.h"
-#include "aom_ports/system_state.h"
 
 #include "av1/common/av1_common_int.h"
 #include "av1/common/enums.h"

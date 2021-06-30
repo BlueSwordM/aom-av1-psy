@@ -23,7 +23,6 @@
 #include "aom_dsp/binary_codes_writer.h"
 #include "aom_ports/mem.h"
 #include "aom_ports/aom_timer.h"
-#include "aom_ports/system_state.h"
 
 #if CONFIG_MISMATCH_DEBUG
 #include "aom_util/debug_util.h"

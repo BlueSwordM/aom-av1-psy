@@ -13,8 +13,6 @@
 
 #include "config/aom_dsp_rtcd.h"
 
-#include "aom_ports/system_state.h"
-
 #include "av1/common/enums.h"
 #include "av1/common/reconinter.h"
 
@@ -152,7 +150,6 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
 
   // Precompute the CNN part and cache the result in MACROBLOCK
   if (bsize == BLOCK_64X64 && !part_info->cnn_output_valid) {
-    aom_clear_system_state();
     const CNN_CONFIG *cnn_config = &av1_intra_mode_cnn_partition_cnn_config;
 
     // Prepare the output
@@ -227,7 +224,6 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
 
   const NN_CONFIG *dnn_config = dnn_configs[bsize_idx];
 
-  aom_clear_system_state();
   float dnn_features[100];
   float logits[4] = { 0.0f };
 
@@ -297,7 +293,6 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
 
   // Make decision
   av1_nn_predict(dnn_features, dnn_config, 1, logits);
-  aom_clear_system_state();
 
   const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
   const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
@@ -336,8 +331,6 @@ void av1_simple_motion_search_based_split(
     int mi_row, int mi_col, BLOCK_SIZE bsize, int *partition_none_allowed,
     int *partition_horz_allowed, int *partition_vert_allowed,
     int *do_rectangular_split, int *do_square_split) {
-  aom_clear_system_state();
-
   const AV1_COMMON *const cm = &cpi->common;
   const int bsize_idx = convert_bsize_to_idx(bsize);
   const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
@@ -388,7 +381,6 @@ void av1_simple_motion_search_based_split(
   float score = 0.0f;
 
   av1_nn_predict(features, nn_config, 1, &score);
-  aom_clear_system_state();
 
   if (score > split_only_thresh) {
     *partition_none_allowed = 0;
@@ -565,7 +557,6 @@ static AOM_INLINE void simple_motion_search_prune_part_features(
 
   if (!features) return;
 
-  aom_clear_system_state();
   int f_idx = 0;
   if (features_to_get & FEATURE_SMS_NONE_FLAG) {
     for (int sub_idx = 0; sub_idx < 2; sub_idx++) {
@@ -586,7 +577,6 @@ static AOM_INLINE void simple_motion_search_prune_part_features(
       features[f_idx++] = logf(1.0f + sms_tree->sms_rect_feat[sub_idx]);
     }
   }
-  aom_clear_system_state();
 
   const MACROBLOCKD *xd = &x->e_mbd;
   set_offsets_for_motion_search(cpi, x, mi_row, mi_col, bsize);
@@ -612,7 +602,6 @@ void av1_simple_motion_search_prune_rect(
     AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
     int mi_row, int mi_col, BLOCK_SIZE bsize, int partition_horz_allowed,
     int partition_vert_allowed, int *prune_horz, int *prune_vert) {
-  aom_clear_system_state();
   const AV1_COMMON *const cm = &cpi->common;
   const int bsize_idx = convert_bsize_to_idx(bsize);
   const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
@@ -675,7 +664,6 @@ void av1_simple_motion_search_prune_rect(
                               : EXT_PARTITION_TYPES;
 
   av1_nn_predict(features, nn_config, 1, scores);
-  aom_clear_system_state();
 
   av1_nn_softmax(scores, probs, num_classes);
 
@@ -773,7 +761,6 @@ void av1_get_max_min_partition_features(AV1_COMP *const cpi, MACROBLOCK *x,
   int f_idx = 0;
 
   const int dc_q = av1_dc_quant_QTX(x->qindex, 0, xd->bd) >> (xd->bd - 8);
-  aom_clear_system_state();
   const float log_q_sq = logf(1.0f + (float)(dc_q * dc_q) / 256.0f);
 
   // Perform full-pixel single motion search in Y plane of 16x16 mbs in the sb
@@ -808,7 +795,6 @@ void av1_get_max_min_partition_features(AV1_COMP *const cpi, MACROBLOCK *x,
       int_mv best_mv = av1_simple_motion_sse_var(
           cpi, x, this_mi_row, this_mi_col, mb_size, start_mv, 0, &sse, &var);
 
-      aom_clear_system_state();
       const float mv_row = (float)(best_mv.as_mv.row / 8);
       const float mv_col = (float)(best_mv.as_mv.col / 8);
       const float log_sse = logf(1.0f + (float)sse);
@@ -830,7 +816,6 @@ void av1_get_max_min_partition_features(AV1_COMP *const cpi, MACROBLOCK *x,
       if (log_sse < min_log_sse) min_log_sse = log_sse;
       if (log_sse > max_log_sse) max_log_sse = log_sse;
     }
-  aom_clear_system_state();
   const int blks = mb_rows * mb_cols;
   const float avg_mv_row = sum_mv_row / (float)blks;
   const float var_mv_row =
@@ -880,7 +865,6 @@ BLOCK_SIZE av1_predict_max_partition(const AV1_COMP *const cpi,
   assert(cpi->sf.part_sf.auto_max_partition_based_on_simple_motion !=
          NOT_IN_USE);
 
-  aom_clear_system_state();
   av1_nn_predict(features, nn_config, 1, scores);
 
   int result = MAX_NUM_CLASSES_MAX_MIN_PART_PRED - 1;
@@ -1024,8 +1008,6 @@ void av1_ml_early_term_after_split(AV1_COMP *const cpi, MACROBLOCK *const x,
   int f_idx = 0;
   float features[FEATURES] = { 0.0f };
 
-  aom_clear_system_state();
-
   features[f_idx++] = logf(1.0f + (float)dc_q / 4.0f);
   features[f_idx++] = logf(1.0f + (float)best_rd / bs / bs / 1024.0f);
 
@@ -1111,7 +1093,6 @@ void av1_ml_prune_rect_partition(AV1_COMP *const cpi, const MACROBLOCK *const x,
     default: assert(0 && "Unexpected bsize.");
   }
   if (!nn_config) return;
-  aom_clear_system_state();
 
   // 1. Compute input features
   float features[9];
@@ -1171,7 +1152,6 @@ void av1_ml_prune_rect_partition(AV1_COMP *const cpi, const MACROBLOCK *const x,
   // 2. Do the prediction and prune 0-2 partitions based on their probabilities
   float raw_scores[3] = { 0.0f };
   av1_nn_predict(features, nn_config, 1, raw_scores);
-  aom_clear_system_state();
   float probs[3] = { 0.0f };
   av1_nn_softmax(raw_scores, probs, 3);
 
@@ -1201,8 +1181,6 @@ void av1_ml_prune_ab_partition(
     default: assert(0 && "Unexpected bsize.");
   }
   if (!nn_config) return;
-
-  aom_clear_system_state();
 
   // Generate features.
   float features[10];
@@ -1253,7 +1231,6 @@ void av1_ml_prune_ab_partition(
   // Calculate scores using the NN model.
   float score[16] = { 0.0f };
   av1_nn_predict(features, nn_config, 1, score);
-  aom_clear_system_state();
   int int_score[16];
   int max_score = -1000;
   for (int i = 0; i < 16; ++i) {
@@ -1308,8 +1285,6 @@ void av1_ml_prune_4_partition(
     default: assert(0 && "Unexpected bsize.");
   }
   if (!nn_config) return;
-
-  aom_clear_system_state();
 
   // Generate features.
   float features[FEATURES];
@@ -1406,7 +1381,6 @@ void av1_ml_prune_4_partition(
   // Calculate scores using the NN model.
   float score[LABELS] = { 0.0f };
   av1_nn_predict(features, nn_config, 1, score);
-  aom_clear_system_state();
   int int_score[LABELS];
   int max_score = -1000;
   for (int i = 0; i < LABELS; ++i) {
@@ -1476,7 +1450,6 @@ void av1_ml_predict_breakout(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   // Generate feature values.
   float features[FEATURES];
   int feature_index = 0;
-  aom_clear_system_state();
 
   const int num_pels_log2 = num_pels_log2_lookup[bsize];
   float rate_f = (float)AOMMIN(rd_stats->rate, INT_MAX);
@@ -1509,7 +1482,6 @@ void av1_ml_predict_breakout(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   // Calculate score using the NN model.
   float score = 0.0f;
   av1_nn_predict(features, nn_config, 1, &score);
-  aom_clear_system_state();
 
   // Make decision.
   if ((int)(score * 100) >= thresh) {
@@ -1840,8 +1812,6 @@ static void prepare_features_after_part_ab(
     int mi_row, int mi_col, aom_partition_features_t *const features) {
   int64_t *horz_rd = rect_part_rd[HORZ];
   int64_t *vert_rd = rect_part_rd[VERT];
-
-  aom_clear_system_state();
 
   // Generate features.
   int feature_index = 0;

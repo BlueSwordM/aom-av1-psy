@@ -22,7 +22,6 @@
 #include "aom_dsp/binary_codes_writer.h"
 #include "aom_ports/mem.h"
 #include "aom_ports/aom_timer.h"
-#include "aom_ports/system_state.h"
 
 #include "av1/common/reconinter.h"
 #include "av1/common/blockd.h"
@@ -857,7 +856,6 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
 
   // Pick the ref frame for partitioning, use golden frame only if its
   // lower sad.
-  aom_clear_system_state();
   if (*y_sad_g < 0.9 * *y_sad) {
     av1_setup_pre_planes(xd, 0, yv12_g, mi_row, mi_col,
                          get_ref_scale_factors(cm, GOLDEN_FRAME), num_planes);

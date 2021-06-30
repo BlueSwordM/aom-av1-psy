@@ -32,7 +32,6 @@
 #endif
 #include "aom_ports/aom_timer.h"
 #include "aom_ports/mem.h"
-#include "aom_ports/system_state.h"
 #include "aom_scale/aom_scale.h"
 #if CONFIG_BITSTREAM_DEBUG
 #include "aom_util/debug_util.h"
@@ -2213,7 +2212,6 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   start_timing(cpi, loop_filter_time);
 #endif
   if (use_loopfilter) {
-    aom_clear_system_state();
     av1_pick_filter_level(cpi->source, cpi, cpi->sf.lpf_sf.lpf_pick);
   } else {
     lf->filter_level[0] = 0;
@@ -2305,8 +2303,6 @@ static int encode_without_recode(AV1_COMP *cpi) {
     av1_setup_butteraugli_rdmult(cpi);
   }
 #endif
-
-  aom_clear_system_state();
 
   cpi->source = av1_scale_if_required(cm, unscaled, &cpi->scaled_source,
                                       filter_scaler, phase_scaler, true, false);
@@ -2426,8 +2422,6 @@ static int encode_without_recode(AV1_COMP *cpi) {
   ++cpi->frame_recode_hits;
 #endif
 
-  aom_clear_system_state();
-
   return AOM_CODEC_OK;
 }
 
@@ -2522,7 +2516,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   do {
     loop = 0;
     int do_mv_stats_collection = 1;
-    aom_clear_system_state();
 
     // if frame was scaled calculate global_motion_search again if already
     // done
@@ -2660,8 +2653,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, av1_encode_frame_time);
 #endif
-
-    aom_clear_system_state();
 
 #if CONFIG_BITRATE_ACCURACY || CONFIG_RD_COMMAND
     const int do_dummy_pack = 1;
@@ -3531,8 +3522,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 #endif
 
-  aom_clear_system_state();
-
   if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL_AI) {
     init_mb_wiener_var_buffer(cpi);
     set_mb_wiener_variance(cpi);
@@ -3943,7 +3932,6 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
       PSNR_STATS psnr;
       double weight[2] = { 0.0, 0.0 };
       double frame_ssim2[2] = { 0.0, 0.0 };
-      aom_clear_system_state();
 #if CONFIG_AV1_HIGHBITDEPTH
       aom_calc_highbd_psnr(orig, recon, &psnr, bit_depth, in_bit_depth);
 #else
@@ -4031,7 +4019,6 @@ void print_internal_stats(AV1_PRIMARY *const ppi) {
 
   if (ppi->cpi->oxcf.pass != 1 &&
       ppi->cpi->common.current_frame.frame_number > 0) {
-    aom_clear_system_state();
     char headings[512] = { 0 };
     char results[512] = { 0 };
     FILE *f = fopen("opsnr.stt", "a");
@@ -4397,8 +4384,6 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
   }
 #endif  // CONFIG_SPEED_STATS
 
-  aom_clear_system_state();
-
   return AOM_CODEC_OK;
 }
 
@@ -4418,7 +4403,6 @@ int av1_get_preview_raw_frame(AV1_COMP *cpi, YV12_BUFFER_CONFIG *dest) {
     } else {
       ret = -1;
     }
-    aom_clear_system_state();
     return ret;
   }
 }

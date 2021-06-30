@@ -21,11 +21,7 @@ namespace libaom_test {
 
 // Reset system to a known state. This function should be used for all non-API
 // test cases.
-inline void ClearSystemState() {
-#if ARCH_X86 || ARCH_X86_64
-  aom_reset_mmx_state();
-#endif
-}
+inline void ClearSystemState() {}
 
 }  // namespace libaom_test
 #endif  // AOM_TEST_CLEAR_SYSTEM_STATE_H_

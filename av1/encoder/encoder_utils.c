@@ -11,8 +11,6 @@
 
 #include "aom/aomcx.h"
 
-#include "aom_ports/system_state.h"
-
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/encoder.h"
@@ -504,7 +502,6 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
     if (mc_dep_cost_base == 0) {
       tpl_frame->is_valid = 0;
     } else {
-      aom_clear_system_state();
       cpi->rd.r0 = (double)intra_cost_base / mc_dep_cost_base;
       if (is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) {
         if (cpi->ppi->lap_enabled) {
@@ -525,7 +522,6 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
               cpi->ppi->p_rc.gfu_boost, gfu_boost, cpi->rc.frames_to_key);
         }
       }
-      aom_clear_system_state();
     }
   }
 }
@@ -963,7 +959,6 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
       cpi->sf.part_sf.fixed_partition_size;
 
   // Setup necessary params for encoding, including frame source, etc.
-  aom_clear_system_state();
 
   cpi->source =
       av1_scale_if_required(cm, cpi->unscaled_source, &cpi->scaled_source,
@@ -1089,7 +1084,6 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
 int av1_is_integer_mv(const YV12_BUFFER_CONFIG *cur_picture,
                       const YV12_BUFFER_CONFIG *last_picture,
                       ForceIntegerMVInfo *const force_intpel_info) {
-  aom_clear_system_state();
   // check use hash ME
   int k;
 

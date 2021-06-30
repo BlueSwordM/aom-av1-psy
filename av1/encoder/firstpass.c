@@ -20,7 +20,6 @@
 #include "aom_dsp/variance.h"
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/mem.h"
-#include "aom_ports/system_state.h"
 #include "aom_scale/aom_scale.h"
 #include "aom_scale/yv12config.h"
 
@@ -334,7 +333,6 @@ static BLOCK_SIZE get_bsize(const CommonModeInfoParams *const mi_params,
 }
 
 static int find_fp_qindex(aom_bit_depth_t bit_depth) {
-  aom_clear_system_state();
   return av1_find_qindex(FIRST_PASS_Q, bit_depth, 0, QINDEX_RANGE - 1);
 }
 
@@ -475,7 +473,6 @@ static int firstpass_intra_prediction(
   const BLOCK_SIZE bsize =
       get_bsize(mi_params, fp_block_size, unit_row, unit_col);
 
-  aom_clear_system_state();
   set_mi_offsets(mi_params, xd, unit_row * unit_scale, unit_col * unit_scale);
   xd->plane[0].dst.buf = this_frame->y_buffer + y_offset;
   xd->plane[1].dst.buf = this_frame->u_buffer + uv_offset;
@@ -516,7 +513,6 @@ static int firstpass_intra_prediction(
     stats->image_data_start_row = unit_row;
   }
 
-  aom_clear_system_state();
   double log_intra = log(this_intra_error + 1.0);
   if (log_intra < 10.0) {
     stats->intra_factor += 1.0 + ((10.0 - log_intra) * 0.05);
@@ -808,8 +804,6 @@ static int firstpass_inter_prediction(
   *best_mv = kZeroMv;
 
   if (motion_error <= this_intra_error) {
-    aom_clear_system_state();
-
     // Keep a count of cases where the inter and intra were very close
     // and very low. This helps with scene cut detection for example in
     // cropped clips with black bars at the sides or top and bottom.
@@ -1325,7 +1319,6 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   assert(frame_is_intra_only(cm) || (last_frame != NULL));
 
   av1_setup_frame_size(cpi);
-  aom_clear_system_state();
 
   set_mi_offsets(mi_params, xd, 0, 0);
   xd->mi[0]->bsize = fp_block_size;

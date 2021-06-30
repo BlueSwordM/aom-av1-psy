@@ -16,8 +16,6 @@
 
 #if ARCH_X86 || ARCH_X86_64
 void aom_reset_mmx_state(void);
-#define aom_clear_system_state()
 #else
-#define aom_clear_system_state()
 #endif  // ARCH_X86 || ARCH_X86_64
 #endif  // AOM_AOM_PORTS_SYSTEM_STATE_H_

@@ -17,7 +17,6 @@
 
 #include "aom_ports/aom_once.h"
 #include "aom_ports/mem_ops.h"
-#include "aom_ports/system_state.h"
 
 #include "aom/aom_encoder.h"
 #include "aom/internal/aom_codec_internal.h"
@@ -2578,7 +2577,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   if (setjmp(ppi->error.jmp)) {
     ppi->error.setjmp = 0;
     res = update_error_state(ctx, &ppi->error);
-    aom_clear_system_state();
     return res;
   }
   ppi->error.setjmp = 1;

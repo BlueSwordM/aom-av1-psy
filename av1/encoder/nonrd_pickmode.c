@@ -23,7 +23,6 @@
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/aom_timer.h"
 #include "aom_ports/mem.h"
-#include "aom_ports/system_state.h"
 
 #include "av1/encoder/model_rd.h"
 #include "av1/common/mvref_common.h"

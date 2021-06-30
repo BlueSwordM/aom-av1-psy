@@ -19,7 +19,6 @@
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/bitops.h"
 #include "aom_ports/mem.h"
-#include "aom_ports/system_state.h"
 
 #include "av1/common/common.h"
 #include "av1/common/entropy.h"
@@ -651,8 +650,6 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
   int fill_costs =
       frame_is_intra_only(cm) || (cm->current_frame.frame_number & 0x07) == 1;
   int num_planes = av1_num_planes(cm);
-
-  aom_clear_system_state();
 
   rd->RDMULT = av1_compute_rd_mult(
       cpi, cm->quant_params.base_qindex + cm->quant_params.y_dc_delta_q);
