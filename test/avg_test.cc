@@ -16,7 +16,6 @@
 #include "config/aom_dsp_rtcd.h"
 
 #include "test/acm_random.h"
-#include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 
@@ -34,7 +33,6 @@ class AverageTestBase : public ::testing::Test {
   virtual void TearDown() {
     aom_free(source_data_);
     source_data_ = NULL;
-    libaom_test::ClearSystemState();
   }
 
  protected:
@@ -338,7 +336,6 @@ class VectorVarTestBase : public ::testing::Test {
     ref_vector = NULL;
     aom_free(src_vector);
     src_vector = NULL;
-    libaom_test::ClearSystemState();
   }
 
   void FillConstant(int16_t fill_constant_ref, int16_t fill_constant_src) {
@@ -538,10 +535,7 @@ class SatdTest : public ::testing::Test,
         aom_memalign(32, sizeof(*src_) * satd_size_));
     ASSERT_TRUE(src_ != NULL);
   }
-  virtual void TearDown() {
-    libaom_test::ClearSystemState();
-    aom_free(src_);
-  }
+  virtual void TearDown() { aom_free(src_); }
   void FillConstant(const tran_low_t val) {
     for (int i = 0; i < satd_size_; ++i) src_[i] = val;
   }

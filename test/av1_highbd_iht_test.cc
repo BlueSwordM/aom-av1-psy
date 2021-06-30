@@ -17,7 +17,6 @@
 
 #include "test/acm_random.h"
 #include "test/av1_txfm_test.h"
-#include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 #include "av1/common/enums.h"
@@ -94,7 +93,6 @@ class AV1HighbdInvHTNxN : public ::testing::TestWithParam<IHbdHtParam> {
     aom_free(coeffs_);
     aom_free(output_);
     aom_free(output_ref_);
-    libaom_test::ClearSystemState();
   }
 
  protected:

@@ -17,7 +17,6 @@
 #include "config/av1_rtcd.h"
 
 #include "test/acm_random.h"
-#include "test/clear_system_state.h"
 #include "test/util.h"
 #include "test/register_state_check.h"
 
@@ -48,7 +47,7 @@ class AV1DenoiserTest
 
   virtual void SetUp() { bs_ = GET_PARAM(1); }
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() {}
 
  protected:
   BLOCK_SIZE bs_;

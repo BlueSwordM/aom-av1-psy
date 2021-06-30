@@ -22,7 +22,6 @@
 #include "av1/encoder/encoder.h"
 #include "av1/common/scan.h"
 #include "test/acm_random.h"
-#include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 
@@ -100,7 +99,6 @@ class QuantizeTestBase : public ::testing::TestWithParam<QuantizeParam> {
     qtab_ = NULL;
     aom_free(coeff_);
     coeff_ = NULL;
-    libaom_test::ClearSystemState();
   }
 
   void InitQuantizer() {

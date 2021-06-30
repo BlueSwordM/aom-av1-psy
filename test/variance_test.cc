@@ -20,7 +20,6 @@
 #include "config/aom_dsp_rtcd.h"
 
 #include "test/acm_random.h"
-#include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "aom/aom_codec.h"
 #include "aom/aom_integer.h"
@@ -338,7 +337,7 @@ class SumOfSquaresTest : public ::testing::TestWithParam<SumOfSquaresFunction> {
  public:
   SumOfSquaresTest() : func_(GetParam()) {}
 
-  virtual ~SumOfSquaresTest() { libaom_test::ClearSystemState(); }
+  virtual ~SumOfSquaresTest() {}
 
  protected:
   void ConstTest();
@@ -434,7 +433,6 @@ class MseWxHTestClass
     aom_free(dst_);
     src_ = NULL;
     dst_ = NULL;
-    libaom_test::ClearSystemState();
   }
 
  protected:
@@ -545,7 +543,6 @@ class MainTestClass
     delete[] ref_;
     src_ = NULL;
     ref_ = NULL;
-    libaom_test::ClearSystemState();
   }
 
  protected:
@@ -805,7 +802,6 @@ class SubpelVarianceTest
       aom_free(CONVERT_TO_SHORTPTR(ref_));
       aom_free(CONVERT_TO_SHORTPTR(sec_));
     }
-    libaom_test::ClearSystemState();
   }
 
  protected:
@@ -1060,7 +1056,6 @@ class ObmcVarianceTest
     }
     aom_free(wsrc_);
     aom_free(mask_);
-    libaom_test::ClearSystemState();
   }
 
  protected:
@@ -1433,7 +1428,6 @@ class MseHBDWxHTestClass
     aom_free(dst_);
     src_ = NULL;
     dst_ = NULL;
-    libaom_test::ClearSystemState();
   }
 
  protected:

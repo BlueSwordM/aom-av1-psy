@@ -22,7 +22,6 @@
 #include "av1/common/pred_common.h"
 #include "av1/common/reconintra.h"
 #include "test/acm_random.h"
-#include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 

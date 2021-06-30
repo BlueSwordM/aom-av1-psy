@@ -21,7 +21,6 @@
 #include "aom_ports/aom_timer.h"
 #include "av1/common/cdef_block.h"
 #include "test/acm_random.h"
-#include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 
@@ -44,7 +43,7 @@ class CDEFBlockTest : public ::testing::TestWithParam<cdef_dir_param_t> {
     depth = GET_PARAM(4);
   }
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() {}
 
  protected:
   int bsize;
@@ -198,7 +197,7 @@ class CDEFFindDirTest : public ::testing::TestWithParam<find_dir_param_t> {
     ref_finddir = GET_PARAM(1);
   }
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() {}
 
  protected:
   find_dir_t finddir;

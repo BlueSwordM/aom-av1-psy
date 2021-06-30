@@ -21,7 +21,6 @@
 
 #include "aom_ports/mem.h"
 #include "test/acm_random.h"
-#include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 #include "test/function_equivalence_test.h"
@@ -52,10 +51,7 @@ class SumSquaresTest : public ::testing::TestWithParam<TestFuncs> {
     ASSERT_TRUE(src_ != NULL);
   }
 
-  virtual void TearDown() {
-    libaom_test::ClearSystemState();
-    aom_free(src_);
-  }
+  virtual void TearDown() { aom_free(src_); }
   void RunTest(int isRandom);
   void RunSpeedTest();
 
@@ -268,7 +264,6 @@ class SSETest : public ::testing::TestWithParam<SSETestParam> {
   }
 
   virtual void TearDown() {
-    libaom_test::ClearSystemState();
     aom_free(src_);
     aom_free(ref_);
   }
@@ -453,10 +448,7 @@ class SSE_Sum_Test : public ::testing::TestWithParam<SSE_SumTestParam> {
     ASSERT_TRUE(src_ != NULL);
   }
 
-  virtual void TearDown() {
-    libaom_test::ClearSystemState();
-    aom_free(src_);
-  }
+  virtual void TearDown() { aom_free(src_); }
   void RunTest(int isRandom, int width, int height, int run_times);
 
   void GenRandomData(int width, int height, int stride) {
@@ -599,10 +591,7 @@ class Lowbd2dVarTest : public ::testing::TestWithParam<TestFuncVar2D> {
     ASSERT_TRUE(src_ != NULL);
   }
 
-  virtual void TearDown() {
-    libaom_test::ClearSystemState();
-    aom_free(src_);
-  }
+  virtual void TearDown() { aom_free(src_); }
   void RunTest(int isRandom);
   void RunSpeedTest();
 
@@ -730,10 +719,7 @@ class Highbd2dVarTest : public ::testing::TestWithParam<TestFuncVar2D> {
     ASSERT_TRUE(src_ != NULL);
   }
 
-  virtual void TearDown() {
-    libaom_test::ClearSystemState();
-    aom_free(src_);
-  }
+  virtual void TearDown() { aom_free(src_); }
   void RunTest(int isRandom);
   void RunSpeedTest();
 

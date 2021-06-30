@@ -16,7 +16,6 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/acm_random.h"
-#include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 
@@ -50,7 +49,7 @@ class MaskedSubPixelVarianceTest
     ref_func_ = GET_PARAM(1);
   }
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() {}
 
  protected:
   MaskedSubPixelVarianceFunc opt_func_;
@@ -187,7 +186,7 @@ class HighbdMaskedSubPixelVarianceTest
     bit_depth_ = GET_PARAM(2);
   }
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() {}
 
  protected:
   MaskedSubPixelVarianceFunc opt_func_;

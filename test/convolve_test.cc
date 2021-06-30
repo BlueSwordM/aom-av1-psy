@@ -24,7 +24,6 @@
 #include "aom_ports/mem.h"
 #include "av1/common/filter.h"
 #include "test/acm_random.h"
-#include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 
@@ -290,7 +289,7 @@ class ConvolveTest : public ::testing::TestWithParam<ConvolveParam> {
         aom_memalign(kDataAlignment, (kOutputBufferSize) * sizeof(uint16_t)));
   }
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() {}
 
   static void TearDownTestSuite() {
     aom_free(input_ - 1);

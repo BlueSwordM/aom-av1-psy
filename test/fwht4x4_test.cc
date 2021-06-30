@@ -20,7 +20,6 @@
 #include "config/av1_rtcd.h"
 #include "config/aom_dsp_rtcd.h"
 #include "test/acm_random.h"
-#include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/transform_test_base.h"
 #include "test/util.h"
@@ -69,7 +68,7 @@ class Trans4x4WHT : public libaom_test::TransformTestBase<tran_low_t>,
     num_coeffs_ = GET_PARAM(4);
     fwd_txfm_c_ = GET_PARAM(5);
   }
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() {}
 
  protected:
   void RunFwdTxfm(const int16_t *in, tran_low_t *out, int stride) {

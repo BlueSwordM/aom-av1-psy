@@ -15,7 +15,6 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/acm_random.h"
-#include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 
@@ -59,7 +58,7 @@ class MaskedSADTestBase : public ::testing::Test {
                        int msk_stride, int inv_mask, unsigned sads[],
                        int times) = 0;
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() {}
   void runMaskedSADTest(int run_times);
 };
 
@@ -254,7 +253,7 @@ class HighbdMaskedSADTest
     ref_maskedSAD_op_ = GET_PARAM(1);
   }
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() {}
   void runHighbdMaskedSADTest(int run_times);
 
  protected:

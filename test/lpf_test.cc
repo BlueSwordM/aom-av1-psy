@@ -20,7 +20,6 @@
 #include "config/aom_dsp_rtcd.h"
 
 #include "test/acm_random.h"
-#include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 #include "av1/common/av1_loopfilter.h"
@@ -136,7 +135,7 @@ class LoopTestParam : public ::testing::TestWithParam<params_t> {
     mask_ = (1 << bit_depth_) - 1;
   }
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() {}
 
  protected:
   int bit_depth_;

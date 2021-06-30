@@ -20,7 +20,6 @@
 #include "config/aom_dsp_rtcd.h"
 
 #include "test/acm_random.h"
-#include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 #include "aom/aom_codec.h"
@@ -129,7 +128,7 @@ class SADTestBase : public ::testing::Test {
     comp_pred16_test_ = NULL;
   }
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() {}
 
  protected:
   // Handle up to 4 128x128 blocks, with stride up to 256
