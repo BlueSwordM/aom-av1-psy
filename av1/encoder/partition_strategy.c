@@ -2371,8 +2371,13 @@ void av1_init_simple_motion_search_mvs_for_sb(const AV1_COMP *cpi,
   av1_find_mv_refs(cm, xd, xd->mi[0], ref_frame, mbmi_ext.ref_mv_count,
                    xd->ref_mv_stack, xd->weight, NULL, mbmi_ext.global_mvs,
                    mbmi_ext.mode_context);
-  ref_mvs[ref_frame] =
-      get_fullmv_from_mv(&xd->ref_mv_stack[ref_frame][0].this_mv.as_mv);
+  if (mbmi_ext.ref_mv_count[ref_frame] > 0) {
+    ref_mvs[ref_frame] =
+        get_fullmv_from_mv(&xd->ref_mv_stack[ref_frame][0].this_mv.as_mv);
+  } else {
+    ref_mvs[ref_frame] =
+        get_fullmv_from_mv(&mbmi_ext.global_mvs[ref_frame].as_mv);
+  }
 
   init_simple_motion_search_mvs(sms_root, ref_mvs);
 }
