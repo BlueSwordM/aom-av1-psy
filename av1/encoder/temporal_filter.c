@@ -936,13 +936,16 @@ static void tf_do_filtering(AV1_COMP *cpi) {
  *                              used for filtering.
  * \param[in]   update_type     This frame's update type.
  *
+ * \param[in]   is_forward_keyframe Indicate whether this is a forward keyframe.
+ *
  * \return Nothing will be returned. But the fields `frames`, `num_frames`,
  *         `filter_frame_idx` and `noise_levels` will be updated in cpi->tf_ctx.
  */
 static void tf_setup_filtering_buffer(AV1_COMP *cpi,
                                       const int filter_frame_lookahead_idx,
                                       const int is_second_arf,
-                                      FRAME_UPDATE_TYPE update_type) {
+                                      FRAME_UPDATE_TYPE update_type,
+                                      int is_forward_keyframe) {
   TemporalFilterCtx *tf_ctx = &cpi->tf_ctx;
   YV12_BUFFER_CONFIG **frames = tf_ctx->frames;
   // Number of frames used for filtering. Set `arnr_max_frames` as 1 to disable
@@ -1025,7 +1028,7 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   num_frames = AOMMIN(num_frames + adjust_num, lookahead_depth);
 
   if (frame_type == KEY_FRAME) {
-    num_before = 0;
+    num_before = is_forward_keyframe ? num_frames / 2 : 0;
     num_after = AOMMIN(num_frames - 1, max_after);
   } else {
     num_frames = AOMMIN(num_frames, cpi->ppi->p_rc.gfu_boost / 150);
@@ -1144,7 +1147,7 @@ static void init_tf_ctx(AV1_COMP *cpi, int filter_frame_lookahead_idx,
   tf_ctx->num_frames = 0;
   tf_ctx->filter_frame_idx = -1;
   tf_setup_filtering_buffer(cpi, filter_frame_lookahead_idx, is_second_arf,
-                            update_type);
+                            update_type, is_forward_keyframe);
   assert(tf_ctx->num_frames > 0);
   assert(tf_ctx->filter_frame_idx < tf_ctx->num_frames);
 
