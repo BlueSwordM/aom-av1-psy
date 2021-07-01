@@ -2398,26 +2398,30 @@ static void vbr_rate_correction(AV1_COMP *cpi, int *this_frame_target) {
     *this_frame_target += (vbr_bits_off_target >= 0) ? max_delta : -max_delta;
   }
 
+  int64_t vbr_bits_off_target_fast;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  vbr_bits_off_target_fast =
+      (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+          ? cpi->ppi->p_rc.temp_vbr_bits_off_target_fast
+          : rc->vbr_bits_off_target_fast;
+#else
+  vbr_bits_off_target_fast = rc->vbr_bits_off_target_fast;
+#endif
   // Fast redistribution of bits arising from massive local undershoot.
   // Dont do it for kf,arf,gf or overlay frames.
   if (!frame_is_kf_gf_arf(cpi) && !rc->is_src_frame_alt_ref &&
-      rc->vbr_bits_off_target_fast) {
-    int64_t vbr_bits_off_target_fast;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-    vbr_bits_off_target_fast =
-        (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
-            ? cpi->ppi->p_rc.temp_vbr_bits_off_target_fast
-            : rc->vbr_bits_off_target_fast;
-#else
-    vbr_bits_off_target_fast = rc->vbr_bits_off_target_fast;
-#endif
+      vbr_bits_off_target_fast) {
     int one_frame_bits = AOMMAX(rc->avg_frame_bandwidth, *this_frame_target);
     int fast_extra_bits;
     fast_extra_bits = (int)AOMMIN(vbr_bits_off_target_fast, one_frame_bits);
     fast_extra_bits =
         (int)AOMMIN(fast_extra_bits,
                     AOMMAX(one_frame_bits / 8, vbr_bits_off_target_fast / 8));
-    *this_frame_target += (int)fast_extra_bits;
+    if (fast_extra_bits > 0) {
+      // Update this_frame_target only if additional bits are available from
+      // local undershoot.
+      *this_frame_target += (int)fast_extra_bits;
+    }
 #if CONFIG_FRAME_PARALLEL_ENCODE
     rc->frame_level_fast_extra_bits += fast_extra_bits;
     if (cpi->do_frame_data_update) {
