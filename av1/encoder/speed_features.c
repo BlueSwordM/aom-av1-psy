@@ -284,6 +284,9 @@ static void set_allintra_speed_feature_framesize_dependent(
     if (!is_480p_or_larger) {
       sf->rt_sf.nonrd_check_partition_merge_mode = 2;
     }
+    if (is_720p_or_larger) {
+      sf->rt_sf.force_large_partition_blocks_intra = 1;
+    }
   }
 
   if (speed >= 9) {
@@ -500,7 +503,6 @@ static void set_allintra_speed_features_framesize_independent(
     sf->rt_sf.use_nonrd_pick_mode = 1;
     sf->rt_sf.nonrd_check_partition_merge_mode = 1;
     sf->rt_sf.nonrd_check_partition_split = 0;
-    sf->rt_sf.force_large_partition_blocks_intra = 1;
     // Set mask for intra modes.
     for (int i = 0; i < BLOCK_SIZES; ++i)
       if (i >= BLOCK_32X32)
