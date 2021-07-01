@@ -2396,7 +2396,11 @@ void av1_compute_num_workers_for_mt(AV1_COMP *cpi) {
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
 // Initialises frames belonging to a parallel encode set.
-static AOM_INLINE int init_parallel_frame_context(AV1_PRIMARY *const ppi) {
+static AOM_INLINE int init_parallel_frame_context(
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+    const AV1_COMP_DATA *const first_cpi_data,
+#endif
+    AV1_PRIMARY *const ppi) {
   AV1_COMP *const first_cpi = ppi->cpi;
   GF_GROUP *const gf_group = &ppi->gf_group;
   int gf_index_start = first_cpi->gf_frame_index;
@@ -2415,11 +2419,20 @@ static AOM_INLINE int init_parallel_frame_context(AV1_PRIMARY *const ppi) {
   for (int i = gf_index_start + 1; i < gf_group->size; i++) {
     if (gf_group->frame_parallel_level[i] == 2) {
       AV1_COMP *cur_cpi = ppi->parallel_cpi[parallel_frame_count];
+      AV1_COMP_DATA *cur_cpi_data =
+          &ppi->parallel_frames_data[parallel_frame_count - 1];
       cur_cpi->gf_frame_index = i;
       cur_cpi->common.current_frame.frame_number = cur_frame_num;
       cur_cpi->do_frame_data_update = false;
       memcpy(cur_cpi->common.ref_frame_map, first_cpi->common.ref_frame_map,
              sizeof(first_cpi->common.ref_frame_map));
+      // If the first frame in a parallel encode set is INTNL_ARF_UPDATE frame,
+      // initialize lib_flags of frame_parallel_level 2 frame in the set with
+      // that of frame_parallel_level 1 frame, 0 otherwise.
+      cur_cpi_data->lib_flags =
+          (gf_group->update_type[gf_index_start] == INTNL_ARF_UPDATE)
+              ? first_cpi_data->lib_flags
+              : 0;
       parallel_frame_count++;
     }
 
