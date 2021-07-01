@@ -122,7 +122,7 @@ void test_cdef(int bsize, int iterations, cdef_filter_block_func cdef,
                   // If cdef and ref_cdef are the same, we're just testing
                   // speed
                   if (cdef != ref_cdef)
-                    ASM_REGISTER_STATE_CHECK(
+                    API_REGISTER_STATE_CHECK(
                         cdef(depth == 8 ? (uint8_t *)d : 0, d, size,
                              s + CDEF_HBORDER + CDEF_VBORDER * CDEF_BSTRIDE,
                              pristrength, secstrength, dir, pridamping,
@@ -232,7 +232,7 @@ void test_finddir(int (*finddir)(const uint16_t *img, int stride, int32_t *var,
           for (int c = 0; c < 1 + 9 * (finddir == ref_finddir); c++)
             ref_res = ref_finddir(s, size, &ref_var, depth - 8);
           if (finddir != ref_finddir)
-            ASM_REGISTER_STATE_CHECK(res = finddir(s, size, &var, depth - 8));
+            API_REGISTER_STATE_CHECK(res = finddir(s, size, &var, depth - 8));
           if (ref_finddir != finddir) {
             if (res != ref_res || var != ref_var) error = 1;
             errdepth = depth;

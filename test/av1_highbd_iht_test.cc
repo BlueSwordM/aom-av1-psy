@@ -144,7 +144,7 @@ void AV1HighbdInvHTNxN::RunBitexactCheck() {
 
     txfm_ref_(input_, coeffs_, stride, tx_type_, bit_depth_);
     inv_txfm_ref_(coeffs_, output_ref_, stride, tx_type_, bit_depth_);
-    ASM_REGISTER_STATE_CHECK(
+    API_REGISTER_STATE_CHECK(
         inv_txfm_(coeffs_, output_, stride, tx_type_, bit_depth_));
 
     for (int j = 0; j < num_coeffs_; ++j) {

@@ -93,7 +93,7 @@ TEST_P(MaskedSubPixelVarianceTest, OperationCheck) {
           ref_ret = ref_func_(src_ptr, src_stride, xoffset, yoffset, ref_ptr,
                               ref_stride, second_pred_ptr, msk_ptr, msk_stride,
                               invert_mask, &ref_sse);
-          ASM_REGISTER_STATE_CHECK(
+          API_REGISTER_STATE_CHECK(
               opt_ret = opt_func_(src_ptr, src_stride, xoffset, yoffset,
                                   ref_ptr, ref_stride, second_pred_ptr, msk_ptr,
                                   msk_stride, invert_mask, &opt_sse));
@@ -146,7 +146,7 @@ TEST_P(MaskedSubPixelVarianceTest, ExtremeValues) {
           ref_ret = ref_func_(src_ptr, src_stride, xoffset, yoffset, ref_ptr,
                               ref_stride, second_pred_ptr, msk_ptr, msk_stride,
                               invert_mask, &ref_sse);
-          ASM_REGISTER_STATE_CHECK(
+          API_REGISTER_STATE_CHECK(
               opt_ret = opt_func_(src_ptr, src_stride, xoffset, yoffset,
                                   ref_ptr, ref_stride, second_pred_ptr, msk_ptr,
                                   msk_stride, invert_mask, &opt_sse));
@@ -229,7 +229,7 @@ TEST_P(HighbdMaskedSubPixelVarianceTest, OperationCheck) {
           ref_ret = ref_func_(src8_ptr, src_stride, xoffset, yoffset, ref8_ptr,
                               ref_stride, second_pred8_ptr, msk_ptr, msk_stride,
                               invert_mask, &ref_sse);
-          ASM_REGISTER_STATE_CHECK(
+          API_REGISTER_STATE_CHECK(
               opt_ret = opt_func_(src8_ptr, src_stride, xoffset, yoffset,
                                   ref8_ptr, ref_stride, second_pred8_ptr,
                                   msk_ptr, msk_stride, invert_mask, &opt_sse));
@@ -290,7 +290,7 @@ TEST_P(HighbdMaskedSubPixelVarianceTest, ExtremeValues) {
           ref_ret = ref_func_(src8_ptr, src_stride, xoffset, yoffset, ref8_ptr,
                               ref_stride, second_pred8_ptr, msk_ptr, msk_stride,
                               invert_mask, &ref_sse);
-          ASM_REGISTER_STATE_CHECK(
+          API_REGISTER_STATE_CHECK(
               opt_ret = opt_func_(src8_ptr, src_stride, xoffset, yoffset,
                                   ref8_ptr, ref_stride, second_pred8_ptr,
                                   msk_ptr, msk_stride, invert_mask, &opt_sse));

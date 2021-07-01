@@ -198,7 +198,7 @@ class HighbdIntraPredTest : public AV1IntraPredTest<HighbdIntraPred, uint16_t> {
   void Predict() {
     const int bit_depth = params_.bit_depth;
     params_.ref_fn(ref_dst_, stride_, above_row_, left_col_, bit_depth);
-    ASM_REGISTER_STATE_CHECK(
+    API_REGISTER_STATE_CHECK(
         params_.pred_fn(dst_, stride_, above_row_, left_col_, bit_depth));
   }
   void PredictRefSpeedTest(int num) {
@@ -222,7 +222,7 @@ class LowbdIntraPredTest : public AV1IntraPredTest<IntraPred, uint8_t> {
  protected:
   void Predict() {
     params_.ref_fn(ref_dst_, stride_, above_row_, left_col_);
-    ASM_REGISTER_STATE_CHECK(
+    API_REGISTER_STATE_CHECK(
         params_.pred_fn(dst_, stride_, above_row_, left_col_));
   }
   void PredictRefSpeedTest(int num) {

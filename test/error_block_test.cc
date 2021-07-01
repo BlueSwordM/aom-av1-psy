@@ -98,7 +98,7 @@ TEST_P(ErrorBlockTest, OperationCheck) {
     }
     ref_ret =
         ref_error_block_op_(coeff, dqcoeff, block_size, &ref_ssz, bit_depth_);
-    ASM_REGISTER_STATE_CHECK(
+    API_REGISTER_STATE_CHECK(
         ret = error_block_op_(coeff, dqcoeff, block_size, &ssz, bit_depth_));
     err_count += (ref_ret != ret) | (ref_ssz != ssz);
     if (err_count && !err_count_total) {
@@ -156,7 +156,7 @@ TEST_P(ErrorBlockTest, ExtremeValues) {
     }
     ref_ret =
         ref_error_block_op_(coeff, dqcoeff, block_size, &ref_ssz, bit_depth_);
-    ASM_REGISTER_STATE_CHECK(
+    API_REGISTER_STATE_CHECK(
         ret = error_block_op_(coeff, dqcoeff, block_size, &ssz, bit_depth_));
     err_count += (ref_ret != ret) | (ref_ssz != ssz);
     if (err_count && !err_count_total) {

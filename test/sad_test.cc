@@ -362,7 +362,7 @@ class SADx4Test : public ::testing::WithParamInterface<SadMxNx4Param>,
     const uint8_t *references[] = { GetReference(0), GetReference(1),
                                     GetReference(2), GetReference(3) };
 
-    ASM_REGISTER_STATE_CHECK(GET_PARAM(2)(
+    API_REGISTER_STATE_CHECK(GET_PARAM(2)(
         source_data_, source_stride_, references, reference_stride_, results));
   }
 
@@ -397,7 +397,7 @@ class SADSkipx4Test : public ::testing::WithParamInterface<SadMxNx4Param>,
     const uint8_t *references[] = { GetReference(0), GetReference(1),
                                     GetReference(2), GetReference(3) };
 
-    ASM_REGISTER_STATE_CHECK(GET_PARAM(2)(
+    API_REGISTER_STATE_CHECK(GET_PARAM(2)(
         source_data_, source_stride_, references, reference_stride_, results));
   }
 
@@ -432,7 +432,7 @@ class SADx4AvgTest : public ::testing::WithParamInterface<SadMxNx4AvgParam>,
     const uint8_t *references[] = { GetReference(0), GetReference(1),
                                     GetReference(2), GetReference(3) };
 
-    ASM_REGISTER_STATE_CHECK(GET_PARAM(2)(source_data_, source_stride_,
+    API_REGISTER_STATE_CHECK(GET_PARAM(2)(source_data_, source_stride_,
                                           references, reference_stride_,
                                           second_pred_, results));
   }
@@ -468,7 +468,7 @@ class SADTest : public ::testing::WithParamInterface<SadMxNParam>,
     unsigned int ret;
     const uint8_t *const reference = GetReference(block_idx);
 
-    ASM_REGISTER_STATE_CHECK(ret = GET_PARAM(2)(source_data_, source_stride_,
+    API_REGISTER_STATE_CHECK(ret = GET_PARAM(2)(source_data_, source_stride_,
                                                 reference, reference_stride_));
     return ret;
   }
@@ -499,7 +499,7 @@ class SADSkipTest : public ::testing::WithParamInterface<SadMxNParam>,
     unsigned int ret;
     const uint8_t *const reference = GetReference(block_idx);
 
-    ASM_REGISTER_STATE_CHECK(ret = GET_PARAM(2)(source_data_, source_stride_,
+    API_REGISTER_STATE_CHECK(ret = GET_PARAM(2)(source_data_, source_stride_,
                                                 reference, reference_stride_));
     return ret;
   }
@@ -530,7 +530,7 @@ class SADavgTest : public ::testing::WithParamInterface<SadMxNAvgParam>,
     unsigned int ret;
     const uint8_t *const reference = GetReference(block_idx);
 
-    ASM_REGISTER_STATE_CHECK(ret = GET_PARAM(2)(source_data_, source_stride_,
+    API_REGISTER_STATE_CHECK(ret = GET_PARAM(2)(source_data_, source_stride_,
                                                 reference, reference_stride_,
                                                 second_pred_));
     return ret;
@@ -555,7 +555,7 @@ class DistWtdCompAvgTest
   void dist_wtd_comp_avg(int block_idx) {
     const uint8_t *const reference = GetReference(block_idx);
 
-    ASM_REGISTER_STATE_CHECK(GET_PARAM(2)(comp_pred_test_, second_pred_, width_,
+    API_REGISTER_STATE_CHECK(GET_PARAM(2)(comp_pred_test_, second_pred_, width_,
                                           height_, reference, reference_stride_,
                                           &jcp_param_));
   }
@@ -588,7 +588,7 @@ class DistWtdSADTest : public ::testing::WithParamInterface<DistWtdSadMxhParam>,
     unsigned int ret;
     const uint8_t *const reference = GetReference(block_idx);
 
-    ASM_REGISTER_STATE_CHECK(ret = GET_PARAM(2)(source_data_, source_stride_,
+    API_REGISTER_STATE_CHECK(ret = GET_PARAM(2)(source_data_, source_stride_,
                                                 reference, reference_stride_,
                                                 GET_PARAM(0), GET_PARAM(1)));
     return ret;
@@ -622,7 +622,7 @@ class DistWtdSADavgTest
     unsigned int ret;
     const uint8_t *const reference = GetReference(block_idx);
 
-    ASM_REGISTER_STATE_CHECK(ret = GET_PARAM(2)(source_data_, source_stride_,
+    API_REGISTER_STATE_CHECK(ret = GET_PARAM(2)(source_data_, source_stride_,
                                                 reference, reference_stride_,
                                                 second_pred_, &jcp_param_));
     return ret;

@@ -97,7 +97,7 @@ class AV1QuantizeTest : public ::testing::TestWithParam<QuantizeFuncParams> {
                   quant_shift_ptr, ref_qcoeff_ptr, ref_dqcoeff_ptr, dequant_ptr,
                   &ref_eob, scanOrder.scan, scanOrder.iscan, log_scale);
 
-      ASM_REGISTER_STATE_CHECK(
+      API_REGISTER_STATE_CHECK(
           quanFunc(coeff_ptr, count, zbin_ptr, round_ptr, quant_ptr,
                    quant_shift_ptr, qcoeff_ptr, dqcoeff_ptr, dequant_ptr, &eob,
                    scanOrder.scan, scanOrder.iscan, log_scale));
@@ -174,7 +174,7 @@ class AV1QuantizeTest : public ::testing::TestWithParam<QuantizeFuncParams> {
                   quant_shift_ptr, ref_qcoeff_ptr, ref_dqcoeff_ptr, dequant_ptr,
                   &ref_eob, scanOrder.scan, scanOrder.iscan, log_scale);
 
-      ASM_REGISTER_STATE_CHECK(
+      API_REGISTER_STATE_CHECK(
           quanFunc(coeff_ptr, count, zbin_ptr, round_ptr, quant_ptr,
                    quant_shift_ptr, qcoeff_ptr, dqcoeff_ptr, dequant_ptr, &eob,
                    scanOrder.scan, scanOrder.iscan, log_scale));

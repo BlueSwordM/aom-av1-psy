@@ -117,7 +117,7 @@ class Trans4x4WHT : public libaom_test::TransformTestBase<tran_low_t>,
         aom_usec_timer c_timer_;
         aom_usec_timer_start(&c_timer_);
         for (int i = 0; i < numIter; i++) {
-          ASM_REGISTER_STATE_CHECK(
+          API_REGISTER_STATE_CHECK(
               fwd_txfm_c_(input_block, output_ref_block, stride));
         }
         aom_usec_timer_mark(&c_timer_);
@@ -126,7 +126,7 @@ class Trans4x4WHT : public libaom_test::TransformTestBase<tran_low_t>,
         aom_usec_timer_start(&simd_timer_);
 
         for (int i = 0; i < numIter; i++) {
-          ASM_REGISTER_STATE_CHECK(
+          API_REGISTER_STATE_CHECK(
               fwd_txfm_(input_block, output_block, stride));
         }
         aom_usec_timer_mark(&simd_timer_);

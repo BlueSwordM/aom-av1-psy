@@ -113,7 +113,7 @@ class ConvolveRoundTest : public ::testing::TestWithParam<ConvolveRoundParam> {
       GenerateBufferWithRandom(src_, src_stride, bits, w, h);
 
       func_ref_(src_, src_stride, dst_ref, dst_stride, w, h, bits);
-      ASM_REGISTER_STATE_CHECK(
+      API_REGISTER_STATE_CHECK(
           func_(src_, src_stride, dst, dst_stride, w, h, bits));
 
       if (data_path_ == LOWBITDEPTH_TEST) {

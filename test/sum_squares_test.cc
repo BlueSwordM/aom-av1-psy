@@ -99,7 +99,7 @@ void SumSquaresTest::RunTest(int isRandom) {
     }
     const uint64_t res_ref = params_.ref_func(src_, stride, width, height);
     uint64_t res_tst;
-    ASM_REGISTER_STATE_CHECK(res_tst =
+    API_REGISTER_STATE_CHECK(res_tst =
                                  params_.tst_func(src_, stride, width, height));
 
     if (!failed) {
@@ -204,7 +204,7 @@ TEST_P(SumSquares1DTest, RandomValues) {
 
     const uint64_t ref_res = params_.ref_func(src, N);
     uint64_t tst_res;
-    ASM_REGISTER_STATE_CHECK(tst_res = params_.tst_func(src, N));
+    API_REGISTER_STATE_CHECK(tst_res = params_.tst_func(src, N));
 
     ASSERT_EQ(ref_res, tst_res);
   }
@@ -225,7 +225,7 @@ TEST_P(SumSquares1DTest, ExtremeValues) {
 
     const uint64_t ref_res = params_.ref_func(src, N);
     uint64_t tst_res;
-    ASM_REGISTER_STATE_CHECK(tst_res = params_.tst_func(src, N));
+    API_REGISTER_STATE_CHECK(tst_res = params_.tst_func(src, N));
 
     ASSERT_EQ(ref_res, tst_res);
   }
@@ -640,7 +640,7 @@ void Lowbd2dVarTest::RunTest(int isRandom) {
 
     const uint64_t res_ref = params_.ref_func(src_, stride, width, height);
     uint64_t res_tst;
-    ASM_REGISTER_STATE_CHECK(res_tst =
+    API_REGISTER_STATE_CHECK(res_tst =
                                  params_.tst_func(src_, stride, width, height));
 
     if (!failed) {
@@ -769,7 +769,7 @@ void Highbd2dVarTest::RunTest(int isRandom) {
     const uint64_t res_ref =
         params_.ref_func(CONVERT_TO_BYTEPTR(src_), stride, width, height);
     uint64_t res_tst;
-    ASM_REGISTER_STATE_CHECK(
+    API_REGISTER_STATE_CHECK(
         res_tst =
             params_.tst_func(CONVERT_TO_BYTEPTR(src_), stride, width, height));
 

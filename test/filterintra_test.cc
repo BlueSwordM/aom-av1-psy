@@ -69,7 +69,7 @@ class AV1FilterIntraPredTest : public ::testing::TestWithParam<PredParams> {
     while (tstIndex < MaxTestNum) {
       PrepareBuffer();
       predFuncRef_(predRef_, stride, txSize_, &above[1], left, mode_);
-      ASM_REGISTER_STATE_CHECK(
+      API_REGISTER_STATE_CHECK(
           predFunc_(pred_, stride, txSize_, &above[1], left, mode_));
       DiffPred(tstIndex);
       tstIndex += 1;
