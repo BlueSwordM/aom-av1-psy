@@ -2426,13 +2426,14 @@ static AOM_INLINE int init_parallel_frame_context(
       cur_cpi->do_frame_data_update = false;
       memcpy(cur_cpi->common.ref_frame_map, first_cpi->common.ref_frame_map,
              sizeof(first_cpi->common.ref_frame_map));
+      cur_cpi_data->lib_flags = 0;
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
       // If the first frame in a parallel encode set is INTNL_ARF_UPDATE frame,
       // initialize lib_flags of frame_parallel_level 2 frame in the set with
-      // that of frame_parallel_level 1 frame, 0 otherwise.
-      cur_cpi_data->lib_flags =
-          (gf_group->update_type[gf_index_start] == INTNL_ARF_UPDATE)
-              ? first_cpi_data->lib_flags
-              : 0;
+      // that of frame_parallel_level 1 frame.
+      if (gf_group->update_type[gf_index_start] == INTNL_ARF_UPDATE)
+        cur_cpi_data->lib_flags = first_cpi_data->lib_flags;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
       parallel_frame_count++;
     }
 
