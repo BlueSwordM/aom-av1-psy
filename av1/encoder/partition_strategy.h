@@ -150,7 +150,8 @@ void av1_prune_ab_partitions(
 
 void av1_collect_motion_search_features_sb(AV1_COMP *const cpi, ThreadData *td,
                                            const int mi_row, const int mi_col,
-                                           const BLOCK_SIZE bsize);
+                                           const BLOCK_SIZE bsize,
+                                           aom_partition_features_t *features);
 #endif  // !CONFIG_REALTIME_ONLY
 
 // A simplified version of set_offsets meant to be used for

@@ -2246,8 +2246,8 @@ static void write_motion_feature_to_file(
   snprintf(filename, sizeof(filename), "%s/motion_search_feature_sb%d", path,
            sb_counter);
   FILE *pfile = fopen(filename, "w");
-  fprintf(pfile, "%d,%d,%d,%d,%d\n", mi_row, mi_col, bsize, fixed_block_size,
-          num_blocks);
+  fprintf(pfile, "%d,%d,%d,%d,%d\n", mi_row, mi_col, bsize,
+          block_size_wide[fixed_block_size], num_blocks);
   for (int i = 0; i < num_blocks; ++i) {
     fprintf(pfile, "%d", block_sse[i]);
     if (i < num_blocks - 1) fprintf(pfile, ",");
@@ -2263,7 +2263,8 @@ static void write_motion_feature_to_file(
 
 void av1_collect_motion_search_features_sb(AV1_COMP *const cpi, ThreadData *td,
                                            const int mi_row, const int mi_col,
-                                           const BLOCK_SIZE bsize) {
+                                           const BLOCK_SIZE bsize,
+                                           aom_partition_features_t *features) {
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
   const BLOCK_SIZE fixed_block_size = BLOCK_16X16;
@@ -2294,9 +2295,19 @@ void av1_collect_motion_search_features_sb(AV1_COMP *const cpi, ThreadData *td,
       ++idx;
     }
   }
-  write_motion_feature_to_file(cpi->oxcf.partition_info_path, cpi->sb_counter,
-                               block_sse, block_var, idx, bsize,
-                               fixed_block_size, mi_row, mi_col);
+  if (features == NULL) {
+    write_motion_feature_to_file(cpi->oxcf.partition_info_path, cpi->sb_counter,
+                                 block_sse, block_var, idx, bsize,
+                                 fixed_block_size, mi_row, mi_col);
+  } else {
+    features->sb_features.motion_features.unit_length =
+        block_size_wide[fixed_block_size];
+    features->sb_features.motion_features.num_units = idx;
+    for (int i = 0; i < idx; ++i) {
+      features->sb_features.motion_features.block_sse[i] = block_sse[i];
+      features->sb_features.motion_features.block_var[i] = block_var[i];
+    }
+  }
 
   aom_free(block_sse);
   aom_free(block_var);
