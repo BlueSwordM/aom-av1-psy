@@ -157,9 +157,7 @@ void av1_setup_tpl_buffers(AV1_PRIMARY *const ppi,
   // stats buffers are not allocated.
   if (lag_in_frames <= 1) return;
 
-  // TODO(aomedia:2873): Explore the allocation of tpl buffers based on
-  // lag_in_frames.
-  for (int frame = 0; frame < MAX_LAG_BUFFERS; ++frame) {
+  for (int frame = 0; frame < lag_in_frames; ++frame) {
     AOM_CHECK_MEM_ERROR(
         &ppi->error, tpl_data->tpl_stats_pool[frame],
         aom_calloc(tpl_data->tpl_stats_buffer[frame].width *
