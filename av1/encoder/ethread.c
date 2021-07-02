@@ -730,7 +730,9 @@ void av1_create_workers(AV1_PRIMARY *ppi, int num_workers) {
 }
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
-static int AOM_INLINE is_fp_config(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
+// This function returns 1 if frame parallel encode is supported for
+// the current configuration. Returns 0 otherwise.
+static AOM_INLINE int is_fp_config(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
   // TODO(Mufaddal, Aasaipriya): Test and enable multi-tile, resize and vbr
   // config.
   if (oxcf->rc_cfg.mode != AOM_Q) {
@@ -758,6 +760,8 @@ static int AOM_INLINE is_fp_config(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
   return 1;
 }
 
+// Computes the number of frame parallel(fp) contexts to be created
+// based on the number of max_enc_workers.
 int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
                                 int max_num_enc_workers) {
   if (!is_fp_config(ppi, oxcf)) {
@@ -771,7 +775,7 @@ int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
   int max_threads = oxcf->max_threads;
   int num_fp_contexts = max_threads / workers_per_frame;
 
-  return AOMMIN(num_fp_contexts, MAX_PARALLEL_FRAMES);
+  return AOMMAX(1, AOMMIN(num_fp_contexts, MAX_PARALLEL_FRAMES));
 }
 
 // Prepare level 1 workers. This function is only called for
