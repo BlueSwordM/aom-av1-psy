@@ -2396,6 +2396,14 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
     ctx->config.enc = &priv->cfg;
 
     priv->extra_cfg = default_extra_cfg;
+    // Special handling:
+    // By default, if omitted, --enable-cdef = 1.
+    // Here we set its default value to 0 when --allintra is turned on.
+    // However, if users set --enable-cdef = 1 from command line,
+    // The encoder still respects it.
+    if (priv->cfg.g_usage == ALLINTRA) {
+      priv->extra_cfg.enable_cdef = 0;
+    }
     aom_once(av1_initialize_enc);
 
     res = validate_config(priv, &priv->cfg, &priv->extra_cfg);
