@@ -102,7 +102,7 @@ void av1_get_ref_frames(const RefBufferStack *ref_buffer_stack,
                         RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
                         int cur_frame_disp,
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
-                        int gf_index,
+                        int gf_index, int is_parallel_encode,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                         int remapped_ref_idx[REF_FRAMES]);

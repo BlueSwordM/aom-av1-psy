@@ -2753,6 +2753,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 #if CONFIG_FRAME_PARALLEL_ENCODE
       cpi->do_frame_data_update = true;
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
+      cpi->ref_idx_to_skip = INVALID_IDX;
       cpi->ref_refresh_index = INVALID_IDX;
       cpi->refresh_idx_available = false;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2

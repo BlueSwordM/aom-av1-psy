@@ -1154,7 +1154,7 @@ static void set_unmapped_ref(RefBufMapData *buffer_map, int n_bufs,
 static void get_ref_frames(AV1_COMP *const cpi,
                            RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
-                           int gf_index,
+                           int gf_index, int is_parallel_encode,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
                            int cur_frame_disp) {
   AV1_COMMON *cm = &cpi->common;
@@ -1238,18 +1238,25 @@ static void get_ref_frames(AV1_COMP *const cpi,
     // During parallel encodes of lower layer frames, exclude the first frame
     // (frame_parallel_level 1) from being used for the reference assignment of
     // the second frame (frame_parallel_level 2).
-    if (!is_one_pass_rt &&
-        gf_group->skip_frame_as_ref[gf_index] != INVALID_IDX) {
-      assert(gf_group->frame_parallel_level[gf_index] == 2 &&
-             gf_group->update_type[gf_index] == INTNL_ARF_UPDATE);
-      assert(gf_group->frame_parallel_level[gf_index - 1] == 1 &&
-             gf_group->update_type[gf_index - 1] == INTNL_ARF_UPDATE);
-      if (buffer_map[i].disp_order == gf_group->skip_frame_as_ref[gf_index]) {
-        buffer_map[i].used = 1;
-        // In case a ref frame is excluded from being used during assignment,
-        // skip the call to set_unmapped_ref(). Applicable in steady state.
-        skip_ref_unmapping = 1;
-      }
+    if (!is_one_pass_rt && gf_group->frame_parallel_level[gf_index] == 2 &&
+        gf_group->frame_parallel_level[gf_index - 1] == 1 &&
+        gf_group->update_type[gf_index - 1] == INTNL_ARF_UPDATE) {
+      assert(gf_group->update_type[gf_index] == INTNL_ARF_UPDATE);
+      // TODO(Remya): Use original value of is_parallel_encode when FPMT is
+      // enabled.
+      is_parallel_encode = 0;
+      // If parallel cpis are active, use ref_idx_to_skip, else, use display
+      // index.
+      assert(IMPLIES(is_parallel_encode, cpi->ref_idx_to_skip != INVALID_IDX));
+      assert(IMPLIES(!is_parallel_encode,
+                     gf_group->skip_frame_as_ref[gf_index] != INVALID_IDX));
+      buffer_map[i].used = is_parallel_encode
+                               ? (buffer_map[i].map_idx == cpi->ref_idx_to_skip)
+                               : (buffer_map[i].disp_order ==
+                                  gf_group->skip_frame_as_ref[gf_index]);
+      // In case a ref frame is excluded from being used during assignment,
+      // skip the call to set_unmapped_ref(). Applicable in steady state.
+      if (buffer_map[i].used) skip_ref_unmapping = 1;
     }
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 
@@ -1361,7 +1368,7 @@ void av1_get_ref_frames(const RefBufferStack *ref_buffer_stack,
                         RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
                         int cur_frame_disp,
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
-                        int gf_index,
+                        int gf_index, int is_parallel_encode,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                         int remapped_ref_idx[REF_FRAMES]) {
@@ -1370,7 +1377,7 @@ void av1_get_ref_frames(const RefBufferStack *ref_buffer_stack,
   (void)remapped_ref_idx;
   get_ref_frames(cpi, ref_frame_map_pairs,
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
-                 gf_index,
+                 gf_index, is_parallel_encode,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
                  cur_frame_disp);
   return;
@@ -1700,7 +1707,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #if CONFIG_FRAME_PARALLEL_ENCODE
                          cpi, ref_frame_map_pairs, cur_frame_disp,
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
-                         cpi->gf_frame_index,
+                         cpi->gf_frame_index, 1,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                          cm->remapped_ref_idx);

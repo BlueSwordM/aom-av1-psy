@@ -1336,7 +1336,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 #if CONFIG_FRAME_PARALLEL_ENCODE
                        cpi, ref_frame_map_pairs, true_disp,
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
-                       gf_index,
+                       gf_index, 0,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                        cm->remapped_ref_idx);
@@ -1432,7 +1432,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 #if CONFIG_FRAME_PARALLEL_ENCODE
                        cpi, ref_frame_map_pairs, true_disp,
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
-                       gf_index,
+                       gf_index, 0,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                        cm->remapped_ref_idx);
@@ -1484,7 +1484,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 #if CONFIG_FRAME_PARALLEL_ENCODE
                      cpi, ref_frame_map_pairs, true_disp,
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
-                     gf_index,
+                     gf_index, 0,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                      cm->remapped_ref_idx);

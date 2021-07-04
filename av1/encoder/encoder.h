@@ -3035,6 +3035,13 @@ typedef struct AV1_COMP {
    * current frame.
    */
   bool refresh_idx_available;
+
+  /*!
+   * Reference frame index corresponding to the frame to be excluded from being
+   * used as a reference by frame_parallel_level 2 frame in a parallel
+   * encode set of lower layer frames.
+   */
+  int ref_idx_to_skip;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 #if CONFIG_RD_COMMAND
