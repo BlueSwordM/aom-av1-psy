@@ -3024,7 +3024,19 @@ typedef struct AV1_COMP {
    * last frame in encode order in a given parallel encode set.
    */
   bool do_frame_data_update;
-#endif
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+  /*!
+   * Stores the reference refresh index for the current frame.
+   */
+  int ref_refresh_index;
+
+  /*!
+   * A flag to indicate if the reference refresh index is available for the
+   * current frame.
+   */
+  bool refresh_idx_available;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 #if CONFIG_RD_COMMAND
   /*!
    *  A structure for assigning external q_index / rdmult for experiments

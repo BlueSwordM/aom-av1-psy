@@ -699,6 +699,29 @@ static int get_refresh_idx(RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
   assert(0 && "No valid refresh index found");
   return -1;
 }
+
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+// Computes the reference refresh index for INTNL_ARF_UPDATE frame.
+int av1_calc_refresh_idx_for_intnl_arf(
+    AV1_COMP *cpi, RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
+    int gf_index) {
+  GF_GROUP *const gf_group = &cpi->ppi->gf_group;
+
+  // Search for the open slot to store the current frame.
+  int free_fb_index = get_free_ref_map_index(ref_frame_map_pairs, NULL);
+
+  // Use a free slot if available.
+  if (free_fb_index != INVALID_IDX) {
+    return free_fb_index;
+  } else {
+    int enable_refresh_skip = !is_one_pass_rt_params(cpi);
+    int refresh_idx =
+        get_refresh_idx(ref_frame_map_pairs, 0, gf_group, gf_index,
+                        enable_refresh_skip, gf_group->display_idx[gf_index]);
+    return refresh_idx;
+  }
+}
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
 int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
@@ -1711,12 +1734,26 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
     frame_params.order_offset = gf_group->arf_src_offset[cpi->gf_frame_index];
 
-    frame_params.refresh_frame_flags = av1_get_refresh_frame_flags(
-        cpi, &frame_params, frame_update_type, cpi->gf_frame_index,
 #if CONFIG_FRAME_PARALLEL_ENCODE
-        cur_frame_disp, ref_frame_map_pairs,
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+    // Call av1_get_refresh_frame_flags() if refresh index not available.
+    if (!cpi->refresh_idx_available) {
+#endif
+#endif
+      frame_params.refresh_frame_flags = av1_get_refresh_frame_flags(
+          cpi, &frame_params, frame_update_type, cpi->gf_frame_index,
+#if CONFIG_FRAME_PARALLEL_ENCODE
+          cur_frame_disp, ref_frame_map_pairs,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
-        &cpi->ref_buffer_stack);
+          &cpi->ref_buffer_stack);
+#if CONFIG_FRAME_PARALLEL_ENCODE
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+    } else {
+      assert(cpi->ref_refresh_index != INVALID_IDX);
+      frame_params.refresh_frame_flags = (1 << cpi->ref_refresh_index);
+    }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
     // Make the frames marked as is_frame_non_ref to non-reference frames.

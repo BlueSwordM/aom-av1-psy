@@ -2752,6 +2752,10 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     while (cpi_data.cx_data_sz >= ctx->cx_data_sz / 2 && !is_frame_visible) {
 #if CONFIG_FRAME_PARALLEL_ENCODE
       cpi->do_frame_data_update = true;
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+      cpi->ref_refresh_index = INVALID_IDX;
+      cpi->refresh_idx_available = false;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
       if (ppi->num_fp_contexts > 1 && ppi->gf_group.size > 1) {
         if (cpi->gf_frame_index < ppi->gf_group.size) {
           calc_frame_data_update_flag(&ppi->gf_group, cpi->gf_frame_index,

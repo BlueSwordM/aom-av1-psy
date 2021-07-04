@@ -4413,6 +4413,24 @@ int av1_init_parallel_frame_context(
   assert(gf_group->frame_parallel_level[gf_index_start] == 1);
   int parallel_frame_count = 0;
   int cur_frame_num = first_cpi->common.current_frame.frame_number;
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+  RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
+  init_ref_map_pair(first_cpi, ref_frame_map_pairs);
+  // Store the reference refresh index of frame_parallel_level 1 frame in a
+  // parallel encode set of lower layer frames.
+  if (gf_group->update_type[gf_index_start] == INTNL_ARF_UPDATE) {
+    first_cpi->ref_refresh_index = av1_calc_refresh_idx_for_intnl_arf(
+        first_cpi, ref_frame_map_pairs, gf_index_start);
+    assert(first_cpi->ref_refresh_index != INVALID_IDX &&
+           first_cpi->ref_refresh_index < REF_FRAMES);
+    first_cpi->refresh_idx_available = true;
+    // Update ref_frame_map_pairs.
+    ref_frame_map_pairs[first_cpi->ref_refresh_index].disp_order =
+        gf_group->display_idx[gf_index_start];
+    ref_frame_map_pairs[first_cpi->ref_refresh_index].pyr_level =
+        gf_group->layer_depth[gf_index_start];
+  }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 
   // Set do_frame_data_update flag as false for frame_parallel_level 1 frame.
   first_cpi->do_frame_data_update = false;
@@ -4434,11 +4452,20 @@ int av1_init_parallel_frame_context(
              sizeof(first_cpi->common.ref_frame_map));
       cur_cpi_data->lib_flags = 0;
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
-      // If the first frame in a parallel encode set is INTNL_ARF_UPDATE frame,
-      // initialize lib_flags of frame_parallel_level 2 frame in the set with
-      // that of frame_parallel_level 1 frame.
-      if (gf_group->update_type[gf_index_start] == INTNL_ARF_UPDATE)
+      if (gf_group->update_type[gf_index_start] == INTNL_ARF_UPDATE) {
+        // If the first frame in a parallel encode set is INTNL_ARF_UPDATE
+        // frame, initialize lib_flags of frame_parallel_level 2 frame in the
+        // set with that of frame_parallel_level 1 frame.
         cur_cpi_data->lib_flags = first_cpi_data->lib_flags;
+        // Store the reference refresh index of frame_parallel_level 2 frame in
+        // a parallel encode set of lower layer frames.
+        cur_cpi->ref_refresh_index =
+            av1_calc_refresh_idx_for_intnl_arf(cur_cpi, ref_frame_map_pairs, i);
+        cur_cpi->refresh_idx_available = true;
+      } else {
+        cur_cpi->ref_refresh_index = INVALID_IDX;
+        cur_cpi->refresh_idx_available = false;
+      }
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
       parallel_frame_count++;
     }
