@@ -4183,7 +4183,8 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
     // encode set of lower layer frames.
     // TODO(Remya): Move ref_frame_map from AV1_COMMON to AV1_PRIMARY to avoid
     // copy.
-    if (ppi->gf_group.frame_parallel_level[cpi->gf_frame_index - 1] == 1 &&
+    if (ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 2 &&
+        ppi->gf_group.frame_parallel_level[cpi->gf_frame_index - 1] == 1 &&
         ppi->gf_group.update_type[cpi->gf_frame_index - 1] ==
             INTNL_ARF_UPDATE) {
       memcpy(cm->ref_frame_map, ppi->ref_frame_map_copy,
