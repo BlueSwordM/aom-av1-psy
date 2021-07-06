@@ -4140,9 +4140,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
   }
 
   // Update the frame probabilities obtained from parallel encode frames
-  FrameProbInfo *const temp_frame_probs_simulation =
-      &cpi->ppi->temp_frame_probs_simulation;
-  FrameProbInfo *const temp_frame_probs = &cpi->ppi->temp_frame_probs;
+  FrameProbInfo *const frame_probs = &cpi->ppi->frame_probs;
   int i, j, loop;
   // Sequentially do average on temp_frame_probs_simulation which holds
   // probabilities of last frame before parallel encode
@@ -4159,12 +4157,10 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
           const int new_prob =
               cpi->frame_new_probs[loop].tx_type_probs[update_type][i][j];
           int prob =
-              (temp_frame_probs_simulation->tx_type_probs[update_type][i][j] +
-               new_prob) >>
-              1;
+              (frame_probs->tx_type_probs[update_type][i][j] + new_prob) >> 1;
           left -= prob;
           if (j == 0) prob += left;
-          temp_frame_probs_simulation->tx_type_probs[update_type][i][j] = prob;
+          frame_probs->tx_type_probs[update_type][i][j] = prob;
         }
       }
     }
@@ -4178,10 +4174,8 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
       for (i = 0; i < BLOCK_SIZES_ALL; i++) {
         const int new_prob =
             cpi->frame_new_probs[loop].obmc_probs[update_type][i];
-        temp_frame_probs_simulation->obmc_probs[update_type][i] =
-            (temp_frame_probs_simulation->obmc_probs[update_type][i] +
-             new_prob) >>
-            1;
+        frame_probs->obmc_probs[update_type][i] =
+            (frame_probs->obmc_probs[update_type][i] + new_prob) >> 1;
       }
     }
 
@@ -4191,9 +4185,8 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
       const FRAME_UPDATE_TYPE update_type =
           get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
       const int new_prob = cpi->frame_new_probs[loop].warped_probs[update_type];
-      temp_frame_probs_simulation->warped_probs[update_type] =
-          (temp_frame_probs_simulation->warped_probs[update_type] + new_prob) >>
-          1;
+      frame_probs->warped_probs[update_type] =
+          (frame_probs->warped_probs[update_type] + new_prob) >> 1;
     }
 
     // Sequentially update switchable_interp_probs
@@ -4208,44 +4201,12 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
         for (j = SWITCHABLE_FILTERS - 1; j >= 0; j--) {
           const int new_prob = cpi->frame_new_probs[loop]
                                    .switchable_interp_probs[update_type][i][j];
-          int prob = (temp_frame_probs_simulation
-                          ->switchable_interp_probs[update_type][i][j] +
+          int prob = (frame_probs->switchable_interp_probs[update_type][i][j] +
                       new_prob) >>
                      1;
           left -= prob;
           if (j == 0) prob += left;
-          temp_frame_probs_simulation
-              ->switchable_interp_probs[update_type][i][j] = prob;
-        }
-      }
-    }
-  }
-  // Copying temp_frame_probs_simulation to temp_frame_probs based on
-  // the flag
-  if (cpi->do_frame_data_update &&
-      cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
-    for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
-         update_type_idx++) {
-      for (i = 0; i < BLOCK_SIZES_ALL; i++) {
-        temp_frame_probs->obmc_probs[update_type_idx][i] =
-            temp_frame_probs_simulation->obmc_probs[update_type_idx][i];
-      }
-
-      temp_frame_probs->warped_probs[update_type_idx] =
-          temp_frame_probs_simulation->warped_probs[update_type_idx];
-
-      for (i = 0; i < TX_SIZES_ALL; i++) {
-        for (j = 0; j < TX_TYPES; j++) {
-          temp_frame_probs->tx_type_probs[update_type_idx][i][j] =
-              temp_frame_probs_simulation->tx_type_probs[update_type_idx][i][j];
-        }
-      }
-
-      for (i = 0; i < SWITCHABLE_FILTER_CONTEXTS; i++) {
-        for (j = 0; j < SWITCHABLE_FILTERS; j++) {
-          temp_frame_probs->switchable_interp_probs[update_type_idx][i][j] =
-              temp_frame_probs_simulation
-                  ->switchable_interp_probs[update_type_idx][i][j];
+          frame_probs->switchable_interp_probs[update_type][i][j] = prob;
         }
       }
     }

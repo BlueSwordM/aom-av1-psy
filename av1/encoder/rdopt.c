@@ -1355,15 +1355,9 @@ static int64_t motion_mode_rd(
     // predetermined threshold for this update_type and block size.
     const FRAME_UPDATE_TYPE update_type =
         get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
-    int obmc_probability;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-    obmc_probability =
-        cpi->ppi->temp_frame_probs.obmc_probs[update_type][bsize];
-#else
-    obmc_probability = cpi->frame_probs.obmc_probs[update_type][bsize];
-#endif
     const int prune_obmc =
-        obmc_probability < cpi->sf.inter_sf.prune_obmc_prob_thresh;
+        cpi->ppi->frame_probs.obmc_probs[update_type][bsize] <
+        cpi->sf.inter_sf.prune_obmc_prob_thresh;
     if ((!cpi->oxcf.motion_mode_cfg.enable_obmc || prune_obmc) &&
         mbmi->motion_mode == OBMC_CAUSAL)
       continue;
@@ -3791,14 +3785,8 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
   av1_count_overlappable_neighbors(cm, xd);
   const FRAME_UPDATE_TYPE update_type =
       get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
-  int obmc_probability;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-  obmc_probability = cpi->ppi->temp_frame_probs.obmc_probs[update_type][bsize];
-#else
-  obmc_probability = cpi->frame_probs.obmc_probs[update_type][bsize];
-#endif
-  const int prune_obmc =
-      obmc_probability < cpi->sf.inter_sf.prune_obmc_prob_thresh;
+  const int prune_obmc = cpi->ppi->frame_probs.obmc_probs[update_type][bsize] <
+                         cpi->sf.inter_sf.prune_obmc_prob_thresh;
   if (cpi->oxcf.motion_mode_cfg.enable_obmc && !prune_obmc) {
     if (check_num_overlappable_neighbors(mbmi) &&
         is_motion_variation_allowed_bsize(bsize)) {

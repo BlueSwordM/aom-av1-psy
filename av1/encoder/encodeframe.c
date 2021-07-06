@@ -1212,13 +1212,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   FeatureFlags *const features = &cm->features;
   MACROBLOCKD *const xd = &x->e_mbd;
   RD_COUNTS *const rdc = &cpi->td.rd_counts;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-  FrameProbInfo *const temp_frame_probs = &cpi->ppi->temp_frame_probs;
-  FrameProbInfo *const temp_frame_probs_simulation =
-      &cpi->ppi->temp_frame_probs_simulation;
-#else
-  FrameProbInfo *const frame_probs = &cpi->frame_probs;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+  FrameProbInfo *const frame_probs = &cpi->ppi->frame_probs;
   IntraBCHashInfo *const intrabc_hash_info = &x->intrabc_hash_info;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   AV1EncRowMultiThreadInfo *const enc_row_mt = &mt_info->enc_row_mt;
@@ -1251,13 +1245,8 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
     const FRAME_UPDATE_TYPE update_type =
         get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
-    int warped_probability;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-    warped_probability = temp_frame_probs->warped_probs[update_type];
-#else
-    warped_probability = frame_probs->warped_probs[update_type];
-#endif
-    if (warped_probability < cpi->sf.inter_sf.prune_warped_prob_thresh)
+    if (frame_probs->warped_probs[update_type] <
+        cpi->sf.inter_sf.prune_warped_prob_thresh)
       features->allow_warped_motion = 0;
   }
 
@@ -1511,40 +1500,26 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         sum += cpi->td.rd_counts.tx_type_used[i][j];
 
       for (j = TX_TYPES - 1; j >= 0; j--) {
+        int update_txtype_frameprobs = 1;
         const int new_prob =
             sum ? 1024 * cpi->td.rd_counts.tx_type_used[i][j] / sum
                 : (j ? 0 : 1024);
 #if CONFIG_FRAME_PARALLEL_ENCODE
-        if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
-          int prob =
-              (temp_frame_probs_simulation->tx_type_probs[update_type][i][j] +
-               new_prob) >>
-              1;
-          left -= prob;
-          if (j == 0) prob += left;
-          temp_frame_probs_simulation->tx_type_probs[update_type][i][j] = prob;
-          // Copy temp_frame_probs_simulation to temp_frame_probs
-          for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
-               update_type_idx++) {
-            temp_frame_probs->tx_type_probs[update_type_idx][i][j] =
-                temp_frame_probs_simulation
-                    ->tx_type_probs[update_type_idx][i][j];
-          }
-        }
-        // Track the frame probabilities to update during postencode. The frame
-        // probabilities are updated in ppi->temp_frame_probabilities_simulation
-        // instead of cpi->frame_probs.
+        // Track the frame probabilities of parallel encode frames to update
+        // during postencode stage.
         if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
+          update_txtype_frameprobs = 0;
           cpi->frame_new_probs[cpi->num_frame_recode]
               .tx_type_probs[update_type][i][j] = new_prob;
         }
-#else
-        int prob =
-            (frame_probs->tx_type_probs[update_type][i][j] + new_prob) >> 1;
-        left -= prob;
-        if (j == 0) prob += left;
-        frame_probs->tx_type_probs[update_type][i][j] = prob;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
+        if (update_txtype_frameprobs) {
+          int prob =
+              (frame_probs->tx_type_probs[update_type][i][j] + new_prob) >> 1;
+          left -= prob;
+          if (j == 0) prob += left;
+          frame_probs->tx_type_probs[update_type][i][j] = prob;
+        }
       }
     }
   }
@@ -1556,34 +1531,24 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
     for (i = 0; i < BLOCK_SIZES_ALL; i++) {
       int sum = 0;
+      int update_obmc_frameprobs = 1;
       for (int j = 0; j < 2; j++) sum += cpi->td.rd_counts.obmc_used[i][j];
 
       const int new_prob =
           sum ? 128 * cpi->td.rd_counts.obmc_used[i][1] / sum : 0;
 #if CONFIG_FRAME_PARALLEL_ENCODE
-      if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
-        temp_frame_probs_simulation->obmc_probs[update_type][i] =
-            (temp_frame_probs_simulation->obmc_probs[update_type][i] +
-             new_prob) >>
-            1;
-        // Copy temp_frame_probs_simulation to temp_frame_probs
-        for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
-             update_type_idx++) {
-          temp_frame_probs->obmc_probs[update_type_idx][i] =
-              temp_frame_probs_simulation->obmc_probs[update_type_idx][i];
-        }
-      }
-      // Track the frame probabilities to update during postencode. The frame
-      // probabilities are updated in ppi->temp_frame_probabilities_simulation
-      // instead of cpi->frame_probs.
+      // Track the frame probabilities of parallel encode frames to update
+      // during postencode stage.
       if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
+        update_obmc_frameprobs = 0;
         cpi->frame_new_probs[cpi->num_frame_recode].obmc_probs[update_type][i] =
             new_prob;
       }
-#else
-      frame_probs->obmc_probs[update_type][i] =
-          (frame_probs->obmc_probs[update_type][i] + new_prob) >> 1;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
+      if (update_obmc_frameprobs) {
+        frame_probs->obmc_probs[update_type][i] =
+            (frame_probs->obmc_probs[update_type][i] + new_prob) >> 1;
+      }
     }
   }
 
@@ -1591,32 +1556,23 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
     const FRAME_UPDATE_TYPE update_type =
         get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
+    int update_warp_frameprobs = 1;
     int sum = 0;
     for (i = 0; i < 2; i++) sum += cpi->td.rd_counts.warped_used[i];
     const int new_prob = sum ? 128 * cpi->td.rd_counts.warped_used[1] / sum : 0;
 #if CONFIG_FRAME_PARALLEL_ENCODE
-    if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
-      temp_frame_probs_simulation->warped_probs[update_type] =
-          (temp_frame_probs_simulation->warped_probs[update_type] + new_prob) >>
-          1;
-      // Copy temp_frame_probs_simulation to temp_frame_probs
-      for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
-           update_type_idx++) {
-        temp_frame_probs->warped_probs[update_type_idx] =
-            temp_frame_probs_simulation->warped_probs[update_type_idx];
-      }
-    }
-    // Track the frame probabilities to update during postencode. The frame
-    // probabilities are updated in ppi->temp_frame_probabilities_simulation
-    // instead of cpi->frame_probs.
+    // Track the frame probabilities of parallel encode frames to update
+    // during postencode stage.
     if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
+      update_warp_frameprobs = 0;
       cpi->frame_new_probs[cpi->num_frame_recode].warped_probs[update_type] =
           new_prob;
     }
-#else
-    frame_probs->warped_probs[update_type] =
-        (frame_probs->warped_probs[update_type] + new_prob) >> 1;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
+    if (update_warp_frameprobs) {
+      frame_probs->warped_probs[update_type] =
+          (frame_probs->warped_probs[update_type] + new_prob) >> 1;
+    }
   }
 
   if (cm->current_frame.frame_type != KEY_FRAME &&
@@ -1635,42 +1591,27 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       }
 
       for (j = SWITCHABLE_FILTERS - 1; j >= 0; j--) {
+        int update_interpfilter_frameprobs = 1;
         const int new_prob =
             sum ? 1536 * cpi->td.counts->switchable_interp[i][j] / sum
                 : (j ? 0 : 1536);
 #if CONFIG_FRAME_PARALLEL_ENCODE
-        if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
-          int prob = (temp_frame_probs_simulation
-                          ->switchable_interp_probs[update_type][i][j] +
+        // Track the frame probabilities of parallel encode frames to update
+        // during postencode stage.
+        if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
+          update_interpfilter_frameprobs = 0;
+          cpi->frame_new_probs[cpi->num_frame_recode]
+              .switchable_interp_probs[update_type][i][j] = new_prob;
+        }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+        if (update_interpfilter_frameprobs) {
+          int prob = (frame_probs->switchable_interp_probs[update_type][i][j] +
                       new_prob) >>
                      1;
           left -= prob;
           if (j == 0) prob += left;
-          temp_frame_probs_simulation
-              ->switchable_interp_probs[update_type][i][j] = prob;
-          // Copy temp_frame_probs_simulation to temp_frame_probs
-          for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
-               update_type_idx++) {
-            temp_frame_probs->switchable_interp_probs[update_type_idx][i][j] =
-                temp_frame_probs_simulation
-                    ->switchable_interp_probs[update_type_idx][i][j];
-          }
+          frame_probs->switchable_interp_probs[update_type][i][j] = prob;
         }
-        // Track the frame probabilities to update during postencode. The frame
-        // probabilities are updated in ppi->temp_frame_probabilities_simulation
-        // instead of cpi->frame_probs.
-        if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
-          cpi->frame_new_probs[cpi->num_frame_recode]
-              .switchable_interp_probs[update_type][i][j] = new_prob;
-        }
-#else
-        int prob = (frame_probs->switchable_interp_probs[update_type][i][j] +
-                    new_prob) >>
-                   1;
-        left -= prob;
-        if (j == 0) prob += left;
-        frame_probs->switchable_interp_probs[update_type][i][j] = prob;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
       }
     }
   }

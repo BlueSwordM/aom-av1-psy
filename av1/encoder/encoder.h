@@ -2270,21 +2270,6 @@ typedef struct AV1_PRIMARY {
   int max_mv_magnitude;
 
   /*!
-   * Temporary variable simulating the delayed frame_probability update.
-   */
-  FrameProbInfo temp_frame_probs;
-
-  /*!
-   * TODO(FPMT): Temporary variable holding the updated frame probability across
-   * frames. Copy its value to temp_frame_probs for frame_parallel_level 0
-   * frames or last frame in parallel encode set. In final implementation we can
-   * remove cpi->frame_probs and convert this as main variable across the
-   * encoder by moving this temp variable outside the macro. Currently
-   * cpi->frame_probs is not used in FPMT path.
-   */
-  FrameProbInfo temp_frame_probs_simulation;
-
-  /*!
    * Start time stamp of the last encoded show frame
    */
   int64_t ts_start_last_show_frame;
@@ -2508,6 +2493,11 @@ typedef struct AV1_PRIMARY {
    * Primary Multi-threading parameters.
    */
   PrimaryMultiThreadInfo p_mt_info;
+
+  /*!
+   * Probabilities for pruning of various AV1 tools.
+   */
+  FrameProbInfo frame_probs;
 } AV1_PRIMARY;
 
 /*!
@@ -2827,11 +2817,6 @@ typedef struct AV1_COMP {
    * Thresholds for variance based partitioning.
    */
   VarBasedPartitionInfo vbp_info;
-
-  /*!
-   * Probabilities for pruning of various AV1 tools.
-   */
-  FrameProbInfo frame_probs;
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
   /*!

@@ -1994,13 +1994,8 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
 
   const FRAME_UPDATE_TYPE update_type =
       get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
-  int *tx_type_probs;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-  tx_type_probs =
-      (int *)cpi->ppi->temp_frame_probs.tx_type_probs[update_type][tx_size];
-#else
-  tx_type_probs = (int *)cpi->frame_probs.tx_type_probs[update_type][tx_size];
-#endif
+  const int *tx_type_probs =
+      cpi->ppi->frame_probs.tx_type_probs[update_type][tx_size];
 
   if (is_inter && txfm_params->use_default_inter_tx_type == 1) {
     if (tx_type_probs[DEFAULT_INTER_TX_TYPE] > PROB_THRESH_DCT_DCT_TX_TYPE) {
