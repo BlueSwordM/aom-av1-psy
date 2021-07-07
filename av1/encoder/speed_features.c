@@ -323,7 +323,7 @@ static void set_allintra_speed_features_framesize_independent(
   sf->rt_sf.use_nonrd_pick_mode = 0;
   sf->rt_sf.use_real_time_ref_set = 0;
 
-  if (cpi->ppi->twopass.fr_content_type == FC_GRAPHICS_ANIMATION ||
+  if (cpi->twopass_frame.fr_content_type == FC_GRAPHICS_ANIMATION ||
       cpi->use_screen_content_tools) {
     sf->mv_sf.exhaustive_searches_thresh = (1 << 20);
   } else {
@@ -814,7 +814,7 @@ static void set_good_speed_features_framesize_independent(
   sf->rt_sf.use_nonrd_pick_mode = 0;
   sf->rt_sf.use_real_time_ref_set = 0;
 
-  if (cpi->ppi->twopass.fr_content_type == FC_GRAPHICS_ANIMATION ||
+  if (cpi->twopass_frame.fr_content_type == FC_GRAPHICS_ANIMATION ||
       cpi->use_screen_content_tools) {
     sf->mv_sf.exhaustive_searches_thresh = (1 << 20);
   } else {

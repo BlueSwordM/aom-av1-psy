@@ -978,7 +978,7 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   const int q = av1_get_q(cpi);
   // Get correlation estimates from first-pass;
   const FIRSTPASS_STATS *stats =
-      cpi->ppi->twopass.stats_in - (cpi->rc.frames_since_key == 0);
+      cpi->twopass_frame.stats_in - (cpi->rc.frames_since_key == 0);
   double accu_coeff0 = 1.0, accu_coeff1 = 1.0;
   for (int i = 1; i <= max_after; i++) {
     if (stats + filter_frame_lookahead_idx + i >=

@@ -1332,7 +1332,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
        * two pass*/
       cpi->ppi->twopass.stats_buf_ctx->stats_in_start =
           oxcf->twopass_stats_in.buf;
-      cpi->ppi->twopass.stats_in =
+      cpi->twopass_frame.stats_in =
           cpi->ppi->twopass.stats_buf_ctx->stats_in_start;
       cpi->ppi->twopass.stats_buf_ctx->stats_in_end =
           &cpi->ppi->twopass.stats_buf_ctx->stats_in_start[packets - 1];
@@ -3113,7 +3113,7 @@ static void calculate_frame_avg_haar_energy(AV1_COMP *cpi) {
   int64_t frame_avg_wavelet_energy = av1_haar_ac_sad_mxn_uint8_input(
       src, stride, hbd, num_8x8_rows, num_8x8_cols);
 
-  twopass->frame_avg_haar_energy =
+  cpi->twopass_frame.frame_avg_haar_energy =
       log(((double)frame_avg_wavelet_energy / num_mbs) + 1.0);
 }
 #endif

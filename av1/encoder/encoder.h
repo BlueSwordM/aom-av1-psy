@@ -3105,6 +3105,11 @@ typedef struct AV1_COMP {
    */
   VBR_RATECTRL_INFO vbr_rc_info;
 #endif
+
+  /*!
+   * Frame level twopass status and control data
+   */
+  TWO_PASS_FRAME twopass_frame;
 } AV1_COMP;
 
 /*!

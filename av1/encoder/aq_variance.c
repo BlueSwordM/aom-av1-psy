@@ -51,7 +51,7 @@ void av1_vaq_frame_setup(AV1_COMP *cpi) {
   int resolution_change =
       cm->prev_frame && (cm->width != cm->prev_frame->width ||
                          cm->height != cm->prev_frame->height);
-  int avg_energy = (int)(cpi->ppi->twopass.mb_av_energy - 2);
+  int avg_energy = (int)(cpi->twopass_frame.mb_av_energy - 2);
   double avg_ratio;
   if (avg_energy > 7) avg_energy = 7;
   if (avg_energy < 0) avg_energy = 0;
@@ -166,7 +166,7 @@ int av1_block_wavelet_energy_level(const AV1_COMP *cpi, MACROBLOCK *x,
                                    BLOCK_SIZE bs) {
   double energy, energy_midpoint;
   energy_midpoint = (is_stat_consumption_stage_twopass(cpi))
-                        ? cpi->ppi->twopass.frame_avg_haar_energy
+                        ? cpi->twopass_frame.frame_avg_haar_energy
                         : DEFAULT_E_MIDPOINT;
   energy = av1_log_block_wavelet_energy(x, bs) - energy_midpoint;
   return clamp((int)round(energy), ENERGY_MIN, ENERGY_MAX);

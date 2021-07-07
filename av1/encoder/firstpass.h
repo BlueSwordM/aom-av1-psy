@@ -252,18 +252,12 @@ typedef struct {
   // here.
   FIRSTPASS_STATS *frame_stats_arr[MAX_LAP_BUFFERS + 1];
   int frame_stats_next_idx;  // Index to next unused element in frame_stats_arr.
-  const FIRSTPASS_STATS *stats_in;
   STATS_BUFFER_CTX *stats_buf_ctx;
   int first_pass_done;
   int64_t bits_left;
   double modified_error_min;
   double modified_error_max;
   double modified_error_left;
-  double mb_av_energy;
-  double frame_avg_haar_energy;
-
-  // An indication of the content type of the current frame
-  FRAME_CONTENT_TYPE fr_content_type;
 
   // Projected total bits available for a key frame group of frames
   int64_t kf_group_bits;
@@ -287,6 +281,19 @@ typedef struct {
   int extend_minq_fast;
   /*!\endcond */
 } TWO_PASS;
+
+/*!
+ * \brief Frame level Two pass status and control data.
+ */
+typedef struct {
+  /*!\cond */
+  const FIRSTPASS_STATS *stats_in;
+  double mb_av_energy;
+  // An indication of the content type of the current frame
+  FRAME_CONTENT_TYPE fr_content_type;
+  double frame_avg_haar_energy;
+  /*!\endcond */
+} TWO_PASS_FRAME;
 
 /*!\cond */
 
@@ -356,6 +363,7 @@ struct TileDataEnc;
 
 static INLINE int is_fp_wavelet_energy_invalid(
     const FIRSTPASS_STATS *fp_stats) {
+  assert(fp_stats != NULL);
   return (fp_stats->frame_avg_wavelet_energy < 0);
 }
 
