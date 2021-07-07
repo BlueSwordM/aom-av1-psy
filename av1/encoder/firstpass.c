@@ -123,11 +123,9 @@ void av1_accumulate_stats(FIRSTPASS_STATS *section,
   section->frame_avg_wavelet_energy += frame->frame_avg_wavelet_energy;
   section->coded_error += frame->coded_error;
   section->sr_coded_error += frame->sr_coded_error;
-  section->tr_coded_error += frame->tr_coded_error;
   section->pcnt_inter += frame->pcnt_inter;
   section->pcnt_motion += frame->pcnt_motion;
   section->pcnt_second_ref += frame->pcnt_second_ref;
-  section->pcnt_third_ref += frame->pcnt_third_ref;
   section->pcnt_neutral += frame->pcnt_neutral;
   section->intra_skip_pct += frame->intra_skip_pct;
   section->inactive_zone_rows += frame->inactive_zone_rows;
@@ -745,17 +743,12 @@ static int firstpass_inter_prediction(
       stats->sr_coded_error += motion_error;
     }
 
-    // TODO(chengchen): I believe logically this should also be changed to
-    // stats->tr_coded_error += AOMMIN(alt_motion_error, this_intra_error).
-    stats->tr_coded_error += motion_error;
-
     // Reset to last frame as reference buffer.
     xd->plane[0].pre[0].buf = last_frame->y_buffer + recon_yoffset;
     xd->plane[1].pre[0].buf = last_frame->u_buffer + recon_uvoffset;
     xd->plane[2].pre[0].buf = last_frame->v_buffer + recon_uvoffset;
   } else {
     stats->sr_coded_error += motion_error;
-    stats->tr_coded_error += motion_error;
   }
 
   // Start by assuming that intra mode is best.
@@ -813,7 +806,6 @@ static void normalize_firstpass_stats(FIRSTPASS_STATS *fps,
                                       double f_h) {
   fps->coded_error /= num_mbs_16x16;
   fps->sr_coded_error /= num_mbs_16x16;
-  fps->tr_coded_error /= num_mbs_16x16;
   fps->intra_error /= num_mbs_16x16;
   fps->frame_avg_wavelet_energy /= num_mbs_16x16;
 
@@ -868,13 +860,11 @@ static void update_firstpass_stats(AV1_COMP *cpi,
   fps.frame = frame_number;
   fps.coded_error = (double)(stats->coded_error >> 8) + min_err;
   fps.sr_coded_error = (double)(stats->sr_coded_error >> 8) + min_err;
-  fps.tr_coded_error = (double)(stats->tr_coded_error >> 8) + min_err;
   fps.intra_error = (double)(stats->intra_error >> 8) + min_err;
   fps.frame_avg_wavelet_energy = (double)stats->frame_avg_wavelet_energy;
   fps.count = 1.0;
   fps.pcnt_inter = (double)stats->inter_count / num_mbs;
   fps.pcnt_second_ref = (double)stats->second_ref_count / num_mbs;
-  fps.pcnt_third_ref = (double)stats->third_ref_count / num_mbs;
   fps.pcnt_neutral = (double)stats->neutral_count / num_mbs;
   fps.intra_skip_pct = (double)stats->intra_skip_count / num_mbs;
   fps.inactive_zone_rows = (double)stats->image_data_start_row;
@@ -988,7 +978,6 @@ static FRAME_STATS accumulate_frame_stats(FRAME_STATS *mb_stats, int mb_rows,
       stats.sum_mvr_abs += mb_stat.sum_mvr_abs;
       stats.sum_mvrs += mb_stat.sum_mvrs;
       stats.third_ref_count += mb_stat.third_ref_count;
-      stats.tr_coded_error += mb_stat.tr_coded_error;
     }
   }
   return stats;
@@ -1200,7 +1189,6 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       ++raw_motion_err_counts;
     } else {
       mb_stats->sr_coded_error += this_intra_error;
-      mb_stats->tr_coded_error += this_intra_error;
       mb_stats->coded_error += this_intra_error;
     }
 

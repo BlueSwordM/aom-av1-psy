@@ -505,9 +505,7 @@ static void accumulate_next_frame_stats(const FIRSTPASS_STATS *stats,
   accumulate_frame_motion_stats(stats, gf_stats, f_w, f_h);
   // sum up the metric values of current gf group
   gf_stats->avg_sr_coded_error += stats->sr_coded_error;
-  gf_stats->avg_tr_coded_error += stats->tr_coded_error;
   gf_stats->avg_pcnt_second_ref += stats->pcnt_second_ref;
-  gf_stats->avg_pcnt_third_ref += stats->pcnt_third_ref;
   gf_stats->avg_new_mv_count += stats->new_mv_count;
   gf_stats->avg_wavelet_energy += stats->frame_avg_wavelet_energy;
   if (fabs(stats->raw_error_stdev) > 0.000001) {
@@ -531,22 +529,10 @@ static void accumulate_next_frame_stats(const FIRSTPASS_STATS *stats,
   }
 }
 
-static void average_gf_stats(const int total_frame,
-                             const FIRSTPASS_STATS *last_stat,
-                             GF_GROUP_STATS *gf_stats) {
+static void average_gf_stats(const int total_frame, GF_GROUP_STATS *gf_stats) {
   if (total_frame) {
     gf_stats->avg_sr_coded_error /= total_frame;
-    gf_stats->avg_tr_coded_error /= total_frame;
     gf_stats->avg_pcnt_second_ref /= total_frame;
-    if (total_frame - 1) {
-      gf_stats->avg_pcnt_third_ref_nolast =
-          (gf_stats->avg_pcnt_third_ref - last_stat->pcnt_third_ref) /
-          (total_frame - 1);
-    } else {
-      gf_stats->avg_pcnt_third_ref_nolast =
-          gf_stats->avg_pcnt_third_ref / total_frame;
-    }
-    gf_stats->avg_pcnt_third_ref /= total_frame;
     gf_stats->avg_new_mv_count /= total_frame;
     gf_stats->avg_wavelet_energy /= total_frame;
   }
@@ -2276,10 +2262,7 @@ static void init_gf_stats(GF_GROUP_STATS *gf_stats) {
   gf_stats->abs_mv_in_out_accumulator = 0.0;
 
   gf_stats->avg_sr_coded_error = 0.0;
-  gf_stats->avg_tr_coded_error = 0.0;
   gf_stats->avg_pcnt_second_ref = 0.0;
-  gf_stats->avg_pcnt_third_ref = 0.0;
-  gf_stats->avg_pcnt_third_ref_nolast = 0.0;
   gf_stats->avg_new_mv_count = 0.0;
   gf_stats->avg_wavelet_energy = 0.0;
   gf_stats->avg_raw_err_stdev = 0.0;
@@ -2398,7 +2381,7 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
   // Was the group length constrained by the requirement for a new KF?
   p_rc->constrained_gf_group = (i >= rc->frames_to_key) ? 1 : 0;
 
-  average_gf_stats(i, &next_frame, &gf_stats);
+  average_gf_stats(i, &gf_stats);
 
   // Disable internal ARFs for "still" gf groups.
   //   zero_motion_accumulator: minimum percentage of (0,0) motion;
