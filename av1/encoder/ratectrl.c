@@ -597,7 +597,7 @@ static double get_rate_correction_factor(const AV1_COMP *cpi, int width,
 static void set_rate_correction_factor(AV1_COMP *cpi,
 #if CONFIG_FRAME_PARALLEL_ENCODE
                                        int is_encode_stage,
-#endif
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
                                        double factor, int width, int height) {
   RATE_CONTROL *const rc = &cpi->rc;
   const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;

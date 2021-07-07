@@ -2728,8 +2728,8 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #if CONFIG_FRAME_PARALLEL_ENCODE
       cpi->num_frame_recode =
           (cpi->num_frame_recode < (NUM_RECODES_PER_FRAME - 1))
-              ? ++cpi->num_frame_recode
-              : NUM_RECODES_PER_FRAME - 1;
+              ? (cpi->num_frame_recode + 1)
+              : (NUM_RECODES_PER_FRAME - 1);
 #endif
 #if CONFIG_INTERNAL_STATS
       ++cpi->frame_recode_hits;

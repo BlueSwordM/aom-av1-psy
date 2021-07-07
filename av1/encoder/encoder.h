@@ -2245,7 +2245,15 @@ typedef struct AV1_PRIMARY {
    * Loopfilter levels of the previous encoded frame.
    */
   int filter_level[2];
+
+  /*!
+   * Chrominance component loopfilter level of the previous encoded frame.
+   */
   int filter_level_u;
+
+  /*!
+   * Chrominance component loopfilter level of the previous encoded frame.
+   */
   int filter_level_v;
 
   /*!
@@ -2815,16 +2823,34 @@ typedef struct AV1_COMP {
   FrameProbInfo frame_probs;
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
-  // Number of recodes in the frame.
+  /*!
+   * Number of recodes in the frame.
+   */
   int num_frame_recode;
 
-  // Current frame probability of parallel frames, across recodes.
+  /*!
+   * Current frame probability of parallel frames, across recodes.
+   */
   FrameProbInfo frame_new_probs[NUM_RECODES_PER_FRAME];
 
-  // Retain condition for frame_probability calculation
+  /*!
+   * Retain condition for transform type frame_probability calculation
+   */
   int do_update_frame_probs_txtype[NUM_RECODES_PER_FRAME];
+
+  /*!
+   * Retain condition for obmc frame_probability calculation
+   */
   int do_update_frame_probs_obmc[NUM_RECODES_PER_FRAME];
+
+  /*!
+   * Retain condition for warped motion frame_probability calculation
+   */
   int do_update_frame_probs_warp[NUM_RECODES_PER_FRAME];
+
+  /*!
+   * Retain condition for interpolation filter frame_probability calculation
+   */
   int do_update_frame_probs_interpfilter[NUM_RECODES_PER_FRAME];
 #endif
   /*!

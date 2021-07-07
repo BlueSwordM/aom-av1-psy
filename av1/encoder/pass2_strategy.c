@@ -4156,8 +4156,6 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
       &cpi->ppi->temp_frame_probs_simulation;
   FrameProbInfo *const temp_frame_probs = &cpi->ppi->temp_frame_probs;
   int i, j, loop;
-  AV1_COMMON *const cm = &cpi->common;
-  FeatureFlags *const features = &cm->features;
   // Sequentially do average on temp_frame_probs_simulation which holds
   // probabilities of last frame before parallel encode
   for (loop = 0; loop <= cpi->num_frame_recode; loop++) {
@@ -4167,7 +4165,6 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
       const FRAME_UPDATE_TYPE update_type =
           get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
       for (i = 0; i < TX_SIZES_ALL; i++) {
-        int j;
         int left = 1024;
 
         for (j = TX_TYPES - 1; j >= 0; j--) {
@@ -4249,7 +4246,6 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
           get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
 
       for (i = 0; i < SWITCHABLE_FILTER_CONTEXTS; i++) {
-        int j;
         int left = 1536;
 
         for (j = SWITCHABLE_FILTERS - 1; j >= 0; j--) {
