@@ -308,8 +308,6 @@ typedef struct {
   int inter_count;
   // Count of blocks that pick second ref (golden frame).
   int second_ref_count;
-  // Count of blocks that pick third ref (altref frame).
-  int third_ref_count;
   // Count of blocks where the inter and intra are very close and very low.
   double neutral_count;
   // Count of blocks where intra error is very small.

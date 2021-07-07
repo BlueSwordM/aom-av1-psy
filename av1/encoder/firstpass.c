@@ -622,7 +622,6 @@ static void accumulate_mv_stats(const MV best_mv, const FULLPEL_MV mv,
 //   cpi: the encoder setting. Only a few params in it will be used.
 //   last_frame: the frame buffer of the last frame.
 //   golden_frame: the frame buffer of the golden frame.
-//   alt_ref_frame: the frame buffer of the alt ref frame.
 //   unit_row: row index in the unit of first pass block size.
 //   unit_col: column index in the unit of first pass block size.
 //   recon_yoffset: the y offset of the reconstructed  frame buffer,
@@ -630,7 +629,6 @@ static void accumulate_mv_stats(const MV best_mv, const FULLPEL_MV mv,
 //   recont_uvoffset: the u/v offset of the reconstructed frame buffer,
 //                    indicating the starting point of the current block.
 //   src_yoffset: the y offset of the source frame buffer.
-//   alt_ref_frame_offset: the y offset of the alt ref frame buffer.
 //   fp_block_size: first pass block size.
 //   this_intra_error: the intra prediction error of this block.
 //   raw_motion_err_counts: the count of raw motion vectors.
@@ -648,13 +646,12 @@ static void accumulate_mv_stats(const MV best_mv, const FULLPEL_MV mv,
 //    this_inter_error
 static int firstpass_inter_prediction(
     AV1_COMP *cpi, ThreadData *td, const YV12_BUFFER_CONFIG *const last_frame,
-    const YV12_BUFFER_CONFIG *const golden_frame,
-    const YV12_BUFFER_CONFIG *const alt_ref_frame, const int unit_row,
+    const YV12_BUFFER_CONFIG *const golden_frame, const int unit_row,
     const int unit_col, const int recon_yoffset, const int recon_uvoffset,
-    const int src_yoffset, const int alt_ref_frame_yoffset,
-    const BLOCK_SIZE fp_block_size, const int this_intra_error,
-    const int raw_motion_err_counts, int *raw_motion_err_list, const MV ref_mv,
-    MV *best_mv, MV *last_non_zero_mv, FRAME_STATS *stats) {
+    const int src_yoffset, const BLOCK_SIZE fp_block_size,
+    const int this_intra_error, const int raw_motion_err_counts,
+    int *raw_motion_err_list, const MV ref_mv, MV *best_mv,
+    MV *last_non_zero_mv, FRAME_STATS *stats) {
   int this_inter_error = this_intra_error;
   AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -670,8 +667,6 @@ static int firstpass_inter_prediction(
   const int unit_width = mi_size_wide[fp_block_size];
   const int unit_rows = get_unit_rows(fp_block_size, mi_params->mb_rows);
   const int unit_cols = get_unit_cols(fp_block_size, mi_params->mb_cols);
-  (void)alt_ref_frame;
-  (void)alt_ref_frame_yoffset;
   // Assume 0,0 motion with no mv overhead.
   FULLPEL_MV mv = kZeroFullMv;
   xd->plane[0].pre[0].buf = last_frame->y_buffer + recon_yoffset;
@@ -977,7 +972,6 @@ static FRAME_STATS accumulate_frame_stats(FRAME_STATS *mb_stats, int mb_rows,
       stats.sum_mvr += mb_stat.sum_mvr;
       stats.sum_mvr_abs += mb_stat.sum_mvr_abs;
       stats.sum_mvrs += mb_stat.sum_mvrs;
-      stats.third_ref_count += mb_stat.third_ref_count;
     }
   }
   return stats;
@@ -1072,7 +1066,6 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   MACROBLOCK *const x = &td->mb;
   AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
-  CurrentFrame *const current_frame = &cm->current_frame;
   const SequenceHeader *const seq_params = cm->seq_params;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -1096,18 +1089,6 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       get_ref_frame_yv12_buf(cm, LAST_FRAME);
   const YV12_BUFFER_CONFIG *golden_frame =
       get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
-  const YV12_BUFFER_CONFIG *alt_ref_frame = NULL;
-  const int alt_ref_offset =
-      FIRST_PASS_ALT_REF_DISTANCE -
-      (current_frame->frame_number % FIRST_PASS_ALT_REF_DISTANCE);
-  if (alt_ref_offset < FIRST_PASS_ALT_REF_DISTANCE) {
-    const struct lookahead_entry *const alt_ref_frame_buffer =
-        av1_lookahead_peek(cpi->ppi->lookahead, alt_ref_offset,
-                           cpi->compressor_stage);
-    if (alt_ref_frame_buffer != NULL) {
-      alt_ref_frame = &alt_ref_frame_buffer->img;
-    }
-  }
   YV12_BUFFER_CONFIG *const this_frame = &cm->cur_frame->buf;
 
   PICK_MODE_CONTEXT *ctx = td->firstpass_ctx;
@@ -1142,11 +1123,6 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                     (unit_col_start * fp_block_size_width);
   int recon_uvoffset = (unit_row * recon_uv_stride * uv_mb_height) +
                        (unit_col_start * uv_mb_height);
-  int alt_ref_frame_yoffset =
-      (alt_ref_frame != NULL)
-          ? (unit_row * alt_ref_frame->y_stride * fp_block_size_height) +
-                (unit_col_start * fp_block_size_width)
-          : -1;
 
   // Set up limit values for motion vectors to prevent them extending
   // outside the UMV borders.
@@ -1178,10 +1154,10 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
 
     if (!frame_is_intra_only(cm)) {
       const int this_inter_error = firstpass_inter_prediction(
-          cpi, td, last_frame, golden_frame, alt_ref_frame, unit_row, unit_col,
-          recon_yoffset, recon_uvoffset, src_yoffset, alt_ref_frame_yoffset,
-          fp_block_size, this_intra_error, raw_motion_err_counts,
-          raw_motion_err_list, best_ref_mv, &best_ref_mv, &last_mv, mb_stats);
+          cpi, td, last_frame, golden_frame, unit_row, unit_col, recon_yoffset,
+          recon_uvoffset, src_yoffset, fp_block_size, this_intra_error,
+          raw_motion_err_counts, raw_motion_err_list, best_ref_mv, &best_ref_mv,
+          &last_mv, mb_stats);
       if (unit_col_in_tile == 0) {
         *first_top_mv = last_mv;
       }
@@ -1200,7 +1176,6 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
     recon_yoffset += fp_block_size_width;
     src_yoffset += fp_block_size_width;
     recon_uvoffset += uv_mb_height;
-    alt_ref_frame_yoffset += fp_block_size_width;
     mb_stats++;
 
     (*(enc_row_mt->sync_write_ptr))(row_mt_sync, unit_row_in_tile,
