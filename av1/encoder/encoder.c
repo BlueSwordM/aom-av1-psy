@@ -2941,6 +2941,10 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
   int64_t rate2 = INT64_MAX;
   int largest_tile_id2;
   double proj_rdcost1 = DBL_MAX;
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
+  const FRAME_UPDATE_TYPE update_type =
+      gf_group->update_type[cpi->gf_frame_index];
+  const aom_bit_depth_t bit_depth = cm->seq_params->bit_depth;
 
   // Encode with superres.
   if (cpi->sf.hl_sf.superres_auto_search_type == SUPERRES_AUTO_ALL) {
@@ -2949,9 +2953,7 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     int64_t superres_rates[SCALE_NUMERATOR];
     int superres_largest_tile_ids[SCALE_NUMERATOR];
     // Use superres for Key-frames and Alt-ref frames only.
-    const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
-    if (gf_group->update_type[cpi->gf_frame_index] != OVERLAY_UPDATE &&
-        gf_group->update_type[cpi->gf_frame_index] != INTNL_OVERLAY_UPDATE) {
+    if (update_type != OVERLAY_UPDATE && update_type != INTNL_OVERLAY_UPDATE) {
       for (int denom = SCALE_NUMERATOR + 1; denom <= 2 * SCALE_NUMERATOR;
            ++denom) {
         superres_cfg->superres_scale_denominator = denom;
@@ -2985,8 +2987,8 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     if (err != AOM_CODEC_OK) return err;
 
     // Note: Both use common rdmult based on base qindex of fullres.
-    const int64_t rdmult =
-        av1_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
+    const int64_t rdmult = av1_compute_rd_mult_based_on_qindex(
+        bit_depth, update_type, cm->quant_params.base_qindex);
 
     // Find the best rdcost among all superres denoms.
     int best_denom = -1;
@@ -2997,7 +2999,7 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
       const int64_t this_rate = superres_rates[this_index];
       const int this_largest_tile_id = superres_largest_tile_ids[this_index];
       const double this_rdcost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-          rdmult, this_rate, this_sse, cm->seq_params->bit_depth);
+          rdmult, this_rate, this_sse, bit_depth);
       if (this_rdcost < proj_rdcost1) {
         sse1 = this_sse;
         rate1 = this_rate;
@@ -3006,8 +3008,8 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
         best_denom = denom;
       }
     }
-    const double proj_rdcost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-        rdmult, rate2, sse2, cm->seq_params->bit_depth);
+    const double proj_rdcost2 =
+        RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult, rate2, sse2, bit_depth);
     // Re-encode with superres if it's better.
     if (proj_rdcost1 < proj_rdcost2) {
       restore_all_coding_context(cpi);
@@ -3049,12 +3051,12 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     if (err != AOM_CODEC_OK) return err;
 
     // Note: Both use common rdmult based on base qindex of fullres.
-    const int64_t rdmult =
-        av1_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
-    proj_rdcost1 = RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult, rate1, sse1,
-                                                  cm->seq_params->bit_depth);
-    const double proj_rdcost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-        rdmult, rate2, sse2, cm->seq_params->bit_depth);
+    const int64_t rdmult = av1_compute_rd_mult_based_on_qindex(
+        bit_depth, update_type, cm->quant_params.base_qindex);
+    proj_rdcost1 =
+        RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult, rate1, sse1, bit_depth);
+    const double proj_rdcost2 =
+        RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult, rate2, sse2, bit_depth);
     // Re-encode with superres if it's better.
     if (proj_rdcost1 < proj_rdcost2) {
       restore_all_coding_context(cpi);

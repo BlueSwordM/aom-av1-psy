@@ -374,12 +374,11 @@ static double def_kf_rd_multiplier(int qindex) {
   return 3.3 + (0.0035 * (double)qindex);
 }
 
-int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
-  const int q = av1_dc_quant_QTX(qindex, 0, cpi->common.seq_params->bit_depth);
-  const FRAME_UPDATE_TYPE update_type =
-      cpi->ppi->gf_group.update_type[cpi->gf_frame_index];
+int av1_compute_rd_mult_based_on_qindex(aom_bit_depth_t bit_depth,
+                                        FRAME_UPDATE_TYPE update_type,
+                                        int qindex) {
+  const int q = av1_dc_quant_QTX(qindex, 0, bit_depth);
   int rdmult = q * q;
-
   if (update_type == KF_UPDATE) {
     double def_rd_q_mult = def_kf_rd_multiplier(qindex);
     rdmult = (int)((double)rdmult * def_rd_q_mult);
@@ -391,7 +390,7 @@ int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
     rdmult = (int)((double)rdmult * def_rd_q_mult);
   }
 
-  switch (cpi->common.seq_params->bit_depth) {
+  switch (bit_depth) {
     case AOM_BITS_8: break;
     case AOM_BITS_10: rdmult = ROUND_POWER_OF_TWO(rdmult, 4); break;
     case AOM_BITS_12: rdmult = ROUND_POWER_OF_TWO(rdmult, 8); break;
@@ -403,7 +402,11 @@ int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
 }
 
 int av1_compute_rd_mult(const AV1_COMP *cpi, int qindex) {
-  int64_t rdmult = av1_compute_rd_mult_based_on_qindex(cpi, qindex);
+  const aom_bit_depth_t bit_depth = cpi->common.seq_params->bit_depth;
+  const FRAME_UPDATE_TYPE update_type =
+      cpi->ppi->gf_group.update_type[cpi->gf_frame_index];
+  int64_t rdmult =
+      av1_compute_rd_mult_based_on_qindex(bit_depth, update_type, qindex);
   if (is_stat_consumption_stage(cpi) &&
       (cpi->common.current_frame.frame_type != KEY_FRAME)) {
     const GF_GROUP *const gf_group = &cpi->ppi->gf_group;

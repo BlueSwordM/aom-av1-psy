@@ -1057,7 +1057,7 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
   const YV12_BUFFER_CONFIG *this_frame = tpl_frame->gf_picture;
   const YV12_BUFFER_CONFIG *ref_frames_ordered[INTER_REFS_PER_FRAME];
   uint32_t ref_frame_display_indices[INTER_REFS_PER_FRAME];
-  GF_GROUP *gf_group = &cpi->ppi->gf_group;
+  const GF_GROUP *gf_group = &cpi->ppi->gf_group;
   int ref_pruning_enabled = is_frame_eligible_for_ref_pruning(
       gf_group, cpi->sf.inter_sf.selective_ref_frame,
       cpi->sf.tpl_sf.prune_ref_frames_in_tpl, frame_idx);
@@ -1144,8 +1144,12 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
   cm->quant_params.base_qindex = base_qindex;
   av1_frame_init_quantizer(cpi);
 
-  tpl_frame->base_rdmult =
-      av1_compute_rd_mult_based_on_qindex(cpi, pframe_qindex) / 6;
+  const BitDepthInfo bd_info = get_bit_depth_info(xd);
+  const FRAME_UPDATE_TYPE update_type =
+      gf_group->update_type[cpi->gf_frame_index];
+  tpl_frame->base_rdmult = av1_compute_rd_mult_based_on_qindex(
+                               bd_info.bit_depth, update_type, pframe_qindex) /
+                           6;
 
   av1_init_tpl_txfm_stats(tpl_txfm_stats);
 }
