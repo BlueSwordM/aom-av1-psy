@@ -3429,10 +3429,10 @@ static void process_first_pass_stats(AV1_COMP *cpi,
     p_rc->avg_frame_qindex[KEY_FRAME] = rc->last_q[KEY_FRAME];
   }
 
-  if (cpi->ppi->lap_enabled) {
-    input_stats_lap(twopass, &cpi->twopass_frame, this_frame);
-  } else {
-    input_stats(twopass, &cpi->twopass_frame, this_frame);
+  if (cpi->twopass_frame.stats_in <
+      cpi->ppi->twopass.stats_buf_ctx->stats_in_end) {
+    *this_frame = *cpi->twopass_frame.stats_in;
+    ++cpi->twopass_frame.stats_in;
   }
   set_twopass_params_based_on_fp_stats(cpi, this_frame);
 }
@@ -3967,6 +3967,25 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
   TWO_PASS *const twopass = &cpi->ppi->twopass;
   RATE_CONTROL *const rc = &cpi->rc;
   const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
+  const int update_type = cpi->ppi->gf_group.update_type[cpi->gf_frame_index];
+
+  // Increment the stats_in pointer.
+  if (is_stat_consumption_stage(cpi) &&
+      (cpi->gf_frame_index < cpi->ppi->gf_group.size ||
+       rc->frames_to_key == 0)) {
+    if (update_type != ARF_UPDATE && update_type != INTNL_ARF_UPDATE) {
+      FIRSTPASS_STATS this_frame;
+      --cpi->twopass_frame.stats_in;
+      if (cpi->ppi->lap_enabled) {
+        input_stats_lap(twopass, &cpi->twopass_frame, &this_frame);
+      } else {
+        input_stats(twopass, &cpi->twopass_frame, &this_frame);
+      }
+    } else if (cpi->ppi->lap_enabled) {
+      cpi->twopass_frame.stats_in =
+          cpi->ppi->twopass.stats_buf_ctx->stats_in_start;
+    }
+  }
 
   // VBR correction is done through rc->vbr_bits_off_target. Based on the
   // sign of this value, a limited % adjustment is made to the target rate
