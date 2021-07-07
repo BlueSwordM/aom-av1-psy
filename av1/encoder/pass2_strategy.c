@@ -35,7 +35,6 @@
 #include "av1/encoder/rc_utils.h"
 #include "av1/encoder/temporal_filter.h"
 #include "av1/encoder/tpl_model.h"
-#include "av1/encoder/use_flat_gop_model_params.h"
 #include "av1/encoder/encode_strategy.h"
 
 #define DEFAULT_KF_BOOST 2300
