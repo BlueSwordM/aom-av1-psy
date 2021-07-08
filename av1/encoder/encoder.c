@@ -4217,6 +4217,7 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
   int frames_since_key = first_cpi->rc.frames_since_key;
   int frames_to_key = first_cpi->rc.frames_to_key;
   int frames_to_fwd_kf = first_cpi->rc.frames_to_fwd_kf;
+  const FIRSTPASS_STATS *stats_in = first_cpi->twopass_frame.stats_in;
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
   init_ref_map_pair(first_cpi, ref_frame_map_pairs);
@@ -4254,6 +4255,7 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
         frames_to_key--;
         frames_to_fwd_kf--;
       }
+      stats_in++;
     }
     if (gf_group->frame_parallel_level[i] == 2) {
       AV1_COMP *cur_cpi = ppi->parallel_cpi[parallel_frame_count];
@@ -4305,6 +4307,7 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
         cur_cpi->refresh_idx_available = false;
       }
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+      cur_cpi->twopass_frame.stats_in = stats_in;
       parallel_frame_count++;
     }
 
