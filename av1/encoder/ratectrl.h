@@ -201,8 +201,6 @@ typedef struct {
 
   int ni_av_qi;
   int ni_tot_qi;
-  int ni_frames;
-  double tot_q;
   double avg_q;
 
   int64_t buffer_level;
@@ -354,6 +352,10 @@ typedef struct {
   int enable_scenecut_detection;
 
   int use_arf_in_this_kf_group;
+
+  int ni_frames;
+
+  double tot_q;
   /*!\endcond */
 
   /*!

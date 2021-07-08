@@ -41,9 +41,9 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
       lrc->ni_av_qi = oxcf->rc_cfg.worst_allowed_q;
       lrc->total_actual_bits = 0;
       lrc->ni_tot_qi = 0;
-      lrc->tot_q = 0.0;
+      lp_rc->tot_q = 0.0;
       lrc->avg_q = 0.0;
-      lrc->ni_frames = 0;
+      lp_rc->ni_frames = 0;
       lrc->decimation_count = 0;
       lrc->decimation_factor = 0;
       lrc->worst_quality = av1_quantizer_to_qindex(lc->max_q);

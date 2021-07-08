@@ -318,6 +318,9 @@ void av1_primary_rc_init(const AV1EncoderConfig *oxcf,
   p_rc->baseline_gf_interval = (min_gf_interval + max_gf_interval) / 2;
   p_rc->this_key_frame_forced = 0;
   p_rc->next_key_frame_forced = 0;
+  p_rc->ni_frames = 0;
+
+  p_rc->tot_q = 0.0;
 
   if (oxcf->target_seq_level_idx[0] < SEQ_LEVELS) {
     worst_allowed_q = 255;
@@ -355,9 +358,6 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, RATE_CONTROL *rc,
   rc->frames_till_gf_update_due = 0;
   rc->ni_av_qi = rc_cfg->worst_allowed_q;
   rc->ni_tot_qi = 0;
-  rc->ni_frames = 0;
-
-  rc->tot_q = 0.0;
   rc->avg_q = av1_convert_qindex_to_q(rc_cfg->worst_allowed_q,
                                       oxcf->tool_cfg.bit_depth);
 
@@ -2106,13 +2106,13 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
       rc->last_q[INTER_FRAME] = qindex;
       p_rc->avg_frame_qindex[INTER_FRAME] = ROUND_POWER_OF_TWO(
           3 * p_rc->avg_frame_qindex[INTER_FRAME] + qindex, 2);
-      rc->ni_frames++;
-      rc->tot_q += av1_convert_qindex_to_q(qindex, cm->seq_params->bit_depth);
-      rc->avg_q = rc->tot_q / rc->ni_frames;
+      p_rc->ni_frames++;
+      p_rc->tot_q += av1_convert_qindex_to_q(qindex, cm->seq_params->bit_depth);
+      rc->avg_q = p_rc->tot_q / p_rc->ni_frames;
       // Calculate the average Q for normal inter frames (not key or GFU
       // frames).
       rc->ni_tot_qi += qindex;
-      rc->ni_av_qi = rc->ni_tot_qi / rc->ni_frames;
+      rc->ni_av_qi = rc->ni_tot_qi / p_rc->ni_frames;
     }
   }
   // Keep record of last boosted (KF/GF/ARF) Q value.
