@@ -4413,6 +4413,10 @@ int av1_init_parallel_frame_context(
   assert(gf_group->frame_parallel_level[gf_index_start] == 1);
   int parallel_frame_count = 0;
   int cur_frame_num = first_cpi->common.current_frame.frame_number;
+  int show_frame_count = first_cpi->frame_index_set.show_frame_count;
+  int frames_since_key = first_cpi->rc.frames_since_key;
+  int frames_to_key = first_cpi->rc.frames_to_key;
+  int frames_to_fwd_kf = first_cpi->rc.frames_to_fwd_kf;
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
   init_ref_map_pair(first_cpi, ref_frame_map_pairs);
@@ -4435,18 +4439,32 @@ int av1_init_parallel_frame_context(
   // Set do_frame_data_update flag as false for frame_parallel_level 1 frame.
   first_cpi->do_frame_data_update = false;
   parallel_frame_count++;
-  if (gf_group->arf_src_offset[gf_index_start] == 0) cur_frame_num++;
 
   // Iterate through the GF_GROUP to find the remaining frame_parallel_level 2
   // frames which are part of the current parallel encode set and initialize the
   // required cpi elements.
   for (int i = gf_index_start + 1; i < gf_group->size; i++) {
+    // Update frame counters if previous frame was show frame or show existing
+    // frame.
+    if (gf_group->arf_src_offset[i - 1] == 0) {
+      cur_frame_num++;
+      show_frame_count++;
+      if (frames_to_key) {
+        frames_since_key++;
+        frames_to_key--;
+        frames_to_fwd_kf--;
+      }
+    }
     if (gf_group->frame_parallel_level[i] == 2) {
       AV1_COMP *cur_cpi = ppi->parallel_cpi[parallel_frame_count];
       AV1_COMP_DATA *cur_cpi_data =
           &ppi->parallel_frames_data[parallel_frame_count - 1];
       cur_cpi->gf_frame_index = i;
       cur_cpi->common.current_frame.frame_number = cur_frame_num;
+      cur_cpi->frame_index_set.show_frame_count = show_frame_count;
+      cur_cpi->rc.frames_since_key = frames_since_key;
+      cur_cpi->rc.frames_to_key = frames_to_key;
+      cur_cpi->rc.frames_to_fwd_kf = frames_to_fwd_kf;
       cur_cpi->do_frame_data_update = false;
       memcpy(cur_cpi->common.ref_frame_map, first_cpi->common.ref_frame_map,
              sizeof(first_cpi->common.ref_frame_map));
@@ -4485,9 +4503,6 @@ int av1_init_parallel_frame_context(
       ppi->parallel_cpi[parallel_frame_count - 1]->do_frame_data_update = true;
       break;
     }
-
-    // Incremet cur_frame_num for show frame(s) and show existing frame(s).
-    if (gf_group->arf_src_offset[i] == 0) cur_frame_num++;
   }
 
   // Return the number of frames in the parallel encode set.
