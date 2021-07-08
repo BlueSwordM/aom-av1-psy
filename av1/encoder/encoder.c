@@ -4466,6 +4466,18 @@ int av1_init_parallel_frame_context(
       cur_cpi->rc.frames_to_key = frames_to_key;
       cur_cpi->rc.frames_to_fwd_kf = frames_to_fwd_kf;
       cur_cpi->do_frame_data_update = false;
+      // Initialize prev_ts_start and prev_ts_end for show frame(s) and show
+      // existing frame(s).
+      if (gf_group->arf_src_offset[i] == 0) {
+        // Choose source of prev frame.
+        int src_index = gf_group->src_offset[i];
+        struct lookahead_entry *prev_source = av1_lookahead_peek(
+            ppi->lookahead, src_index - 1, cur_cpi->compressor_stage);
+        // Save timestamps of prev frame.
+        cur_cpi->time_stamps.prev_ts_start = prev_source->ts_start;
+        cur_cpi->time_stamps.prev_ts_end = prev_source->ts_end;
+      }
+
       memcpy(cur_cpi->common.ref_frame_map, first_cpi->common.ref_frame_map,
              sizeof(first_cpi->common.ref_frame_map));
       cur_cpi_data->lib_flags = 0;
