@@ -4402,11 +4402,8 @@ AV1_COMP *av1_get_parallel_frame_enc_data(AV1_PRIMARY *const ppi,
 }
 
 // Initialises frames belonging to a parallel encode set.
-int av1_init_parallel_frame_context(
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
-    const AV1_COMP_DATA *const first_cpi_data,
-#endif
-    AV1_PRIMARY *const ppi) {
+int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
+                                    AV1_PRIMARY *const ppi) {
   AV1_COMP *const first_cpi = ppi->cpi;
   GF_GROUP *const gf_group = &ppi->gf_group;
   int gf_index_start = first_cpi->gf_frame_index;
@@ -4481,6 +4478,9 @@ int av1_init_parallel_frame_context(
       memcpy(cur_cpi->common.ref_frame_map, first_cpi->common.ref_frame_map,
              sizeof(first_cpi->common.ref_frame_map));
       cur_cpi_data->lib_flags = 0;
+      cur_cpi_data->timestamp_ratio = first_cpi_data->timestamp_ratio;
+      cur_cpi_data->flush = first_cpi_data->flush;
+      cur_cpi_data->frame_size = 0;
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
       if (gf_group->update_type[gf_index_start] == INTNL_ARF_UPDATE) {
         // If the first frame in a parallel encode set is INTNL_ARF_UPDATE

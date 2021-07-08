@@ -3214,11 +3214,8 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
 AV1_COMP *av1_get_parallel_frame_enc_data(AV1_PRIMARY *const ppi,
                                           AV1_COMP_DATA *const first_cpi_data);
 
-int av1_init_parallel_frame_context(
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
-    const AV1_COMP_DATA *const first_cpi_data,
-#endif
-    AV1_PRIMARY *const ppi);
+int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
+                                    AV1_PRIMARY *const ppi);
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
 /*!\endcond */
