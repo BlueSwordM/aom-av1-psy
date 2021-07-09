@@ -1960,20 +1960,24 @@ void av1_read_rd_command(const char *filepath, RD_COMMAND *rd_command) {
 int av1_q_mode_estimate_base_q(GF_GROUP *gf_group,
                                const TplTxfmStats *txfm_stats_list,
                                double bit_budget, int gf_frame_index,
-                               int arf_q) {
+                               double arf_qstep_ratio,
+                               aom_bit_depth_t bit_depth) {
   int q_max = 255;  // Maximum q value.
   int q_min = 0;    // Minimum q value.
   int q = (q_max + q_min) / 2;
 
-  av1_q_mode_compute_gop_q_indices(gf_frame_index, q_max, arf_q, gf_group);
+  av1_q_mode_compute_gop_q_indices(gf_frame_index, q_max, arf_qstep_ratio,
+                                   bit_depth, gf_group);
   double q_max_estimate = av1_estimate_gop_bitrate(
       gf_group->q_val, gf_group->size, txfm_stats_list);
-  av1_q_mode_compute_gop_q_indices(gf_frame_index, q_min, arf_q, gf_group);
+  av1_q_mode_compute_gop_q_indices(gf_frame_index, q_min, arf_qstep_ratio,
+                                   bit_depth, gf_group);
   double q_min_estimate = av1_estimate_gop_bitrate(
       gf_group->q_val, gf_group->size, txfm_stats_list);
 
   while (true) {
-    av1_q_mode_compute_gop_q_indices(gf_frame_index, q, arf_q, gf_group);
+    av1_q_mode_compute_gop_q_indices(gf_frame_index, q, arf_qstep_ratio,
+                                     bit_depth, gf_group);
 
     double estimate = av1_estimate_gop_bitrate(gf_group->q_val, gf_group->size,
                                                txfm_stats_list);
@@ -2001,6 +2005,53 @@ int av1_q_mode_estimate_base_q(GF_GROUP *gf_group,
   }
 
   // Before returning, update the gop q_val.
-  av1_q_mode_compute_gop_q_indices(gf_frame_index, q, arf_q, gf_group);
+  av1_q_mode_compute_gop_q_indices(gf_frame_index, q, arf_qstep_ratio,
+                                   bit_depth, gf_group);
   return q;
+}
+
+double av1_tpl_get_qstep_ratio(const TplParams *tpl_data, int gf_frame_index) {
+  const TplDepFrame *tpl_frame = &tpl_data->tpl_frame[gf_frame_index];
+  const TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
+
+  const int tpl_stride = tpl_frame->stride;
+  int64_t intra_cost_base = 0;
+  int64_t mc_dep_cost_base = 0;
+  int64_t pred_error = 1;
+  int64_t recn_error = 1;
+  const int step = 1 << tpl_data->tpl_stats_block_mis_log2;
+
+  for (int row = 0; row < tpl_frame->mi_rows; row += step) {
+    for (int col = 0; col < tpl_frame->mi_cols; col += step) {
+      const TplDepStats *this_stats = &tpl_stats[av1_tpl_ptr_pos(
+          row, col, tpl_stride, tpl_data->tpl_stats_block_mis_log2)];
+      const int64_t mc_dep_delta =
+          RDCOST(tpl_frame->base_rdmult, this_stats->mc_dep_rate,
+                 this_stats->mc_dep_dist);
+      intra_cost_base += (this_stats->recrf_dist << RDDIV_BITS);
+      pred_error += (this_stats->srcrf_sse << RDDIV_BITS);
+      recn_error += (this_stats->srcrf_dist << RDDIV_BITS);
+      mc_dep_cost_base += (this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta;
+    }
+  }
+  const double r0 = (double)intra_cost_base / mc_dep_cost_base;
+  return sqrt(r0);
+}
+
+int av1_get_q_index_from_qstep_ratio(int leaf_qindex, double qstep_ratio,
+                                     aom_bit_depth_t bit_depth) {
+  const double leaf_qstep = av1_dc_quant_QTX(leaf_qindex, 0, bit_depth);
+  const double target_qstep = leaf_qstep * qstep_ratio;
+  int qindex = leaf_qindex;
+  for (qindex = leaf_qindex; qindex > 0; --qindex) {
+    const double qstep = av1_dc_quant_QTX(qindex, 0, bit_depth);
+    if (qstep + 0.1 <= target_qstep) break;
+  }
+  return qindex;
+}
+
+int av1_tpl_get_q_index(const TplParams *tpl_data, int gf_frame_index,
+                        int leaf_qindex, aom_bit_depth_t bit_depth) {
+  const double qstep_ratio = av1_tpl_get_qstep_ratio(tpl_data, gf_frame_index);
+  return av1_get_q_index_from_qstep_ratio(leaf_qindex, qstep_ratio, bit_depth);
 }

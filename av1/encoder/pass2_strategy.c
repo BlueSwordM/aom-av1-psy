@@ -1069,11 +1069,12 @@ static int is_shorter_gf_interval_better(AV1_COMP *cpi,
             gop_bit_budget -= cpi->vbr_rc_info.keyframe_bitrate;
           }
           // Use the gop_bit_budget to determine gf_group->q_val.
-          int arf_q =
-              av1_get_arf_q_index_q_mode(cpi, cpi->ppi->tpl_data.tpl_frame);
+          const double arf_qstep_ratio =
+              av1_tpl_get_qstep_ratio(&cpi->ppi->tpl_data, cpi->gf_frame_index);
           av1_q_mode_estimate_base_q(
               &cpi->ppi->gf_group, cpi->ppi->tpl_data.txfm_stats_list,
-              gop_bit_budget, cpi->gf_frame_index, arf_q);
+              gop_bit_budget, cpi->gf_frame_index, arf_qstep_ratio,
+              cpi->common.seq_params->bit_depth);
         }
 #endif  // CONFIG_BITRATE_ACCURACY
       }
@@ -3869,7 +3870,8 @@ void av1_init_second_pass(AV1_COMP *cpi) {
       (int64_t)(stats->duration * oxcf->rc_cfg.target_bandwidth / 10000000.0);
 
 #if CONFIG_BITRATE_ACCURACY
-  vbr_rc_init(&cpi->vbr_rc_info, cpi->ppi->twopass.bits_left, stats->count);
+  vbr_rc_init(&cpi->vbr_rc_info, cpi->ppi->twopass.bits_left,
+              (int)round(stats->count));
 #endif
 
   // This variable monitors how far behind the second ref update is lagging.

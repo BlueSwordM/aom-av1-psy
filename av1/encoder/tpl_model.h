@@ -487,15 +487,52 @@ int av1_get_overlap_area(int row_a, int col_a, int row_b, int col_b, int width,
  * \param[in]       stats             Transform stats struct
  * \param[in]       bit_budget        The specified bit budget to achieve
  * \param[in]       gf_frame_index    current frame in the GOP
- * \param[in]       bit_depth         Bit depth
- * \param[in]       arf_q             ARF q index
+ * \param[in]       arf_qstep_ratio   ARF q step ratio
+ * \param[in]       bit_depth         bit depth
  *
  * \return Returns the optimal base q index to use.
  */
 int av1_q_mode_estimate_base_q(struct GF_GROUP *gf_group,
                                const TplTxfmStats *txfm_stats_list,
                                double bit_budget, int gf_frame_index,
-                               int arf_q);
+                               double arf_qstep_ratio,
+                               aom_bit_depth_t bit_depth);
+
+/*!\brief Get current frame's q_index from tpl stats and leaf_qindex
+ *
+ * \param[in]       tpl_data          TPL struct
+ * \param[in]       gf_frame_index    current frame index in the GOP
+ * \param[in]       leaf_qindex       q index of leaf frame
+ * \param[in]       bit_depth         bit depth
+ *
+ * \return q_index
+ */
+int av1_tpl_get_q_index(const TplParams *tpl_data, int gf_frame_index,
+                        int leaf_qindex, aom_bit_depth_t bit_depth);
+
+/*!\brief Compute the ratio between arf q step and the leaf q step based on TPL
+ * stats
+ *
+ * \param[in]       tpl_data          TPL struct
+ * \param[in]       gf_frame_index    current frame index in the GOP
+ * \param[in]       leaf_qindex       q index of leaf frame
+ * \param[in]       bit_depth         bit depth
+ *
+ * \return qstep_ratio
+ */
+double av1_tpl_get_qstep_ratio(const TplParams *tpl_data, int gf_frame_index);
+
+/*!\brief Find a q index whose step size is near qstep_ratio * leaf_qstep
+ *
+ * \param[in]       leaf_qindex       q index of leaf frame
+ * \param[in]       qstep_ratio       step ratio between target q index and leaf
+ *                                    q index
+ * \param[in]       bit_depth         bit depth
+ *
+ * \return q_index
+ */
+int av1_get_q_index_from_qstep_ratio(int leaf_qindex, double qstep_ratio,
+                                     aom_bit_depth_t bit_depth);
 
 /*!\endcond */
 #ifdef __cplusplus
