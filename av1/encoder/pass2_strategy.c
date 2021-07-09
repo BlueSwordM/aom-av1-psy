@@ -3359,6 +3359,13 @@ static INLINE void set_twopass_params_based_on_fp_stats(
   // applied when combining MB error values for the frame.
   twopass->mb_av_energy = log((this_frame_ptr->intra_error) + 1.0);
 
+  const FIRSTPASS_STATS *const total_stats =
+      twopass->stats_buf_ctx->total_stats;
+  if (is_fp_wavelet_energy_invalid(total_stats) == 0) {
+    twopass->frame_avg_haar_energy =
+        log((this_frame_ptr->frame_avg_wavelet_energy) + 1.0);
+  }
+
   // Set the frame content type flag.
   if (this_frame_ptr->intra_skip_pct >= FC_ANIMATION_THRESH)
     twopass->fr_content_type = FC_GRAPHICS_ANIMATION;

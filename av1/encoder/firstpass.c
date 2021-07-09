@@ -357,6 +357,9 @@ static double raw_motion_error_stdev(int *raw_motion_err_list,
   return raw_err_stdev;
 }
 
+static AOM_INLINE int calc_wavelet_energy(const AV1EncoderConfig *oxcf) {
+  return oxcf->q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL;
+}
 typedef struct intra_pred_block_pass1_args {
   const SequenceHeader *seq_params;
   MACROBLOCK *x;
@@ -551,6 +554,24 @@ static int firstpass_intra_prediction(
 
   // Accumulate the intra error.
   stats->intra_error += (int64_t)this_intra_error;
+
+  // Stats based on wavelet energy is used in the following cases :
+  // 1. ML model which predicts if a flat structure (golden-frame only structure
+  // without ALT-REF and Internal-ARFs) is better. This ML model is enabled in
+  // constant quality mode under certain conditions.
+  // 2. Delta qindex mode is set as DELTA_Q_PERCEPTUAL.
+  // Thus, wavelet energy calculation is enabled for the above cases.
+  if (calc_wavelet_energy(&cpi->oxcf)) {
+    const int hbd = is_cur_buf_hbd(xd);
+    const int stride = x->plane[0].src.stride;
+    const int num_8x8_rows = block_size_high[fp_block_size] / 8;
+    const int num_8x8_cols = block_size_wide[fp_block_size] / 8;
+    const uint8_t *buf = x->plane[0].src.buf;
+    stats->frame_avg_wavelet_energy += av1_haar_ac_sad_mxn_uint8_input(
+        buf, stride, hbd, num_8x8_rows, num_8x8_cols);
+  } else {
+    stats->frame_avg_wavelet_energy = INVALID_FP_STATS_TO_PREDICT_FLAT_GOP;
+  }
 
   return this_intra_error;
 }
