@@ -1323,6 +1323,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
   if (speed >= 5) {
     sf->inter_sf.adaptive_rd_thresh = 4;
+    sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
 
     sf->rd_sf.tx_domain_dist_level = 2;
     sf->rd_sf.tx_domain_dist_thres_level = 2;
