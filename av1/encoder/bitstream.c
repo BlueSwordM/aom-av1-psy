@@ -2498,7 +2498,7 @@ static AOM_INLINE void write_film_grain_params(
       assert(ref_idx != INVALID_IDX);
       const RefCntBuffer *const buf = cm->ref_frame_map[ref_idx];
       if (buf->film_grain_params_present &&
-          av1_check_grain_params_equiv(pars, &buf->film_grain_params)) {
+          aom_check_grain_params_equiv(pars, &buf->film_grain_params)) {
         break;
       }
     }
