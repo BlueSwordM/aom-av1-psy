@@ -953,11 +953,14 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // level 2.
   // 2: Terminate early for higher luma palette_size, if header rd cost of lower
   // palette_size is more than best_rd.
-  // For allintra encode, this sf reduces instruction count by 2.49%, 1.07%
-  // and 2.76% for speed 0, 1 and 2 on screen content set with coding
-  // performance change less than 0.01%. For AVIF image encode, this sf reduces
-  // instruction count by 1.94%, 1.13% and 1.29% for speed 0, 1 and 2 on a
-  // typical image dataset with coding performance change less than 0.01%.
+  // For allintra encode, this sf reduces instruction count by 2.49%, 1.07%,
+  // 2.76%, 2.30%, 1.84%, 2.69%, 2.04%, 2.05% and 1.44% for speed 0, 1, 2, 3, 4,
+  // 5, 6, 7 and 8 on screen content set with coding performance change less
+  // than 0.01% for speed <= 2 and less than 0.03% for speed >= 3. For AVIF
+  // image encode, this sf reduces instruction count by 1.94%, 1.13%, 1.29%,
+  // 0.93%, 0.89%, 1.03%, 1.07%, 1.20% and 0.18% for speed 0, 1, 2, 3, 4, 5, 6,
+  // 7 and 8 on a typical image dataset with coding performance change less than
+  // 0.01%.
   int prune_luma_palette_size_search_level;
 
   // Prune chroma intra modes based on luma intra mode winner.
