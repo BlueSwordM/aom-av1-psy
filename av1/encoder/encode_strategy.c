@@ -985,7 +985,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     // Currently INTNL_ARF_UPDATE only do show_existing.
     if (update_type == ARF_UPDATE &&
         gf_group->frame_type[cpi->gf_frame_index] != KEY_FRAME) {
-      cpi->show_existing_alt_ref = show_existing_alt_ref;
+      cpi->ppi->show_existing_alt_ref = show_existing_alt_ref;
     }
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -1538,7 +1538,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       frame_params.show_existing_frame = 1;
     } else {
       frame_params.show_existing_frame =
-          (cpi->show_existing_alt_ref &&
+          (cpi->ppi->show_existing_alt_ref &&
            gf_group->update_type[cpi->gf_frame_index] == OVERLAY_UPDATE) ||
           gf_group->update_type[cpi->gf_frame_index] == INTNL_OVERLAY_UPDATE;
     }
@@ -1546,7 +1546,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
     // Reset show_existing_alt_ref decision to 0 after it is used.
     if (gf_group->update_type[cpi->gf_frame_index] == OVERLAY_UPDATE) {
-      cpi->show_existing_alt_ref = 0;
+      cpi->ppi->show_existing_alt_ref = 0;
     }
   } else {
     frame_params.show_existing_frame = 0;

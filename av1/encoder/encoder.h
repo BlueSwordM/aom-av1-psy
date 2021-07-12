@@ -2322,6 +2322,11 @@ typedef struct AV1_PRIMARY {
   int internal_altref_allowed;
 
   /*!
+   * Tell if OVERLAY frame shows existing alt_ref frame.
+   */
+  int show_existing_alt_ref;
+
+  /*!
    * Information related to a gf group.
    */
   GF_GROUP gf_group;
@@ -2735,11 +2740,6 @@ typedef struct AV1_COMP {
    * To control the reference frame buffer and selection.
    */
   RefBufferStack ref_buffer_stack;
-
-  /*!
-   * Tell if OVERLAY frame shows existing alt_ref frame.
-   */
-  int show_existing_alt_ref;
 
 #if CONFIG_INTERNAL_STATS
   /*!\cond */
