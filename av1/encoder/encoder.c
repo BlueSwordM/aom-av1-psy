@@ -4193,6 +4193,20 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
 }
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
+// Initialize parallel frame contexts with screen content decisions.
+void av1_init_sc_decisions(AV1_PRIMARY *const ppi) {
+  AV1_COMP *const first_cpi = ppi->cpi;
+  for (int i = 1; i < ppi->num_fp_contexts; ++i) {
+    AV1_COMP *cur_cpi = ppi->parallel_cpi[i];
+    cur_cpi->common.features.allow_screen_content_tools =
+        first_cpi->common.features.allow_screen_content_tools;
+    cur_cpi->common.features.allow_intrabc =
+        first_cpi->common.features.allow_intrabc;
+    cur_cpi->use_screen_content_tools = first_cpi->use_screen_content_tools;
+    cur_cpi->is_screen_content_type = first_cpi->is_screen_content_type;
+  }
+}
+
 AV1_COMP *av1_get_parallel_frame_enc_data(AV1_PRIMARY *const ppi,
                                           AV1_COMP_DATA *const first_cpi_data) {
   int cpi_idx = 0;

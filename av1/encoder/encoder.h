@@ -3224,6 +3224,8 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
                              const AV1_COMP_DATA *const cpi_data);
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
+void av1_init_sc_decisions(AV1_PRIMARY *const ppi);
+
 AV1_COMP *av1_get_parallel_frame_enc_data(AV1_PRIMARY *const ppi,
                                           AV1_COMP_DATA *const first_cpi_data);
 

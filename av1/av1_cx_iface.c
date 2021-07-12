@@ -2861,6 +2861,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       if (status != AOM_CODEC_OK) {
         aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
       }
+#if CONFIG_FRAME_PARALLEL_ENCODE
+      if (ppi->num_fp_contexts > 0 && frame_is_intra_only(&cpi->common)) {
+        av1_init_sc_decisions(ppi);
+      }
+#endif
       av1_post_encode_updates(cpi, &cpi_data);
 
 #if CONFIG_ENTROPY_STATS
