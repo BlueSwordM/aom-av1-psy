@@ -4170,6 +4170,53 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
   return true;
 }
 
+DECLARE_ALIGNED(16, static const uint8_t, all_zeros[MAX_SB_SIZE]) = { 0 };
+DECLARE_ALIGNED(16, static const uint16_t,
+                highbd_all_zeros[MAX_SB_SIZE]) = { 0 };
+static void log_sub_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs,
+                              double *var_min, double *var_max) {
+  // This functions returns a the minimum and maximum log variances for 4x4
+  // sub blocks in the current block.
+
+  MACROBLOCKD *xd = &x->e_mbd;
+  double var;
+  unsigned int sse;
+  int i, j;
+
+  int right_overflow =
+      (xd->mb_to_right_edge < 0) ? ((-xd->mb_to_right_edge) >> 3) : 0;
+  int bottom_overflow =
+      (xd->mb_to_bottom_edge < 0) ? ((-xd->mb_to_bottom_edge) >> 3) : 0;
+
+  const int bw = MI_SIZE * mi_size_wide[bs] - right_overflow;
+  const int bh = MI_SIZE * mi_size_high[bs] - bottom_overflow;
+
+  // Initialize min to a large value and max to 0 at
+  *var_min = 10.0;
+  *var_max = 0.0;
+
+  for (i = 0; i < bh; i += 4) {
+    for (j = 0; j < bw; j += 4) {
+      if (is_cur_buf_hbd(xd)) {
+        var =
+            log(1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
+                          x->plane[0].src.buf + i * x->plane[0].src.stride + j,
+                          x->plane[0].src.stride,
+                          CONVERT_TO_BYTEPTR(highbd_all_zeros), 0, &sse) /
+                          16);
+      } else {
+        var =
+            log(1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
+                          x->plane[0].src.buf + i * x->plane[0].src.stride + j,
+                          x->plane[0].src.stride, all_zeros, 0, &sse) /
+                          16);
+      }
+      *var_min = AOMMIN(*var_min, var);
+      *var_max = AOMMAX(*var_max, var);
+    }
+  }
+}
+
 /*!\brief AV1 block partition search (full search).
 *
 * \ingroup partition_search
@@ -4224,6 +4271,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   RD_SEARCH_MACROBLOCK_CONTEXT x_ctx;
   const TokenExtra *const tp_orig = *tp;
   PartitionSearchState part_search_state;
+
   // Initialization of state variables used in partition search.
   init_partition_search_state_params(x, cpi, &part_search_state, mi_row, mi_col,
                                      bsize);
@@ -4348,11 +4396,37 @@ BEGIN_PARTITION_SEARCH:
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, none_partition_search_time);
 #endif
+
+  // Further pruinging or in some cases reverse prunning when allintra is set
+  // This code helps visual and in some cases metrics quality where the current
+  // block comprises at least one very low variance sub-block and at least one
+  // where the variance is much higher.
+  //
+  // The idea is that in such cases there is danger of ringing and other visual
+  // artefacts from a high variance feature such as an edge into a very low
+  // variance region.
+  //
+  // The approach taken is to force break down / split to a smaller block size
+  // to try and seperate out the low variance and well rpedicted blocks from the
+  // more complex ones and to prevent propogation of ringing over a large
+  // region.
+  if ((cpi->oxcf.mode == ALLINTRA) && (bsize >= BLOCK_16X16)) {
+    double var_min, var_max;
+    log_sub_block_var(cpi, x, bsize, &var_min, &var_max);
+
+    if ((var_min < 0.5) && ((var_max - var_min) > 3.0)) {
+      part_search_state.partition_none_allowed = 0;
+      part_search_state.terminate_partition_search = 0;
+      part_search_state.do_square_split = 1;
+    }
+  }
+
   // PARTITION_NONE search stage.
   int64_t part_none_rd = INT64_MAX;
   none_partition_search(cpi, td, tile_data, x, pc_tree, sms_tree, &x_ctx,
                         &part_search_state, &best_rdc, &pb_source_variance,
                         none_rd, &part_none_rd);
+
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, none_partition_search_time);
 #endif
