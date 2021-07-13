@@ -1378,11 +1378,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
       sf->rt_sf.use_temporal_noise_estimate = 1;
   }
 
-  // TODO(Yunqing, any): speed 6 overall speed/quality tradeoff is bad. Need
-  // evaluate it.
   if (speed >= 6) {
     sf->part_sf.adjust_var_based_rd_partitioning = 1;
-    sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
   }
 
   if (speed >= 7) {
@@ -1404,6 +1401,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
       sf->intra_sf.intra_y_mode_mask[i] = INTRA_ALL;
     }
 
+    sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_Q;
 
     sf->rt_sf.mode_search_skip_flags |= FLAG_SKIP_INTRA_DIRMISMATCH;
