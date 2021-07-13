@@ -1242,6 +1242,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->inter_sf.disable_interintra_wedge_var_thresh = UINT_MAX;
   sf->inter_sf.prune_comp_search_by_single_result = 2;
   sf->inter_sf.selective_ref_frame = 4;
+  // TODO(any): need tuning for RT mode.
+  sf->inter_sf.alt_ref_search_fp = 1;
 
   sf->interp_sf.use_fast_interpolation_filter_search = 1;
   sf->interp_sf.use_interp_filter = 1;
@@ -1261,6 +1263,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->mv_sf.auto_mv_step_size = 1;
   sf->mv_sf.subpel_iters_per_step = 1;
   sf->mv_sf.use_accurate_subpel_search = USE_2_TAPS;
+  sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
 
   sf->part_sf.ml_prune_partition = 1;
   sf->part_sf.reuse_prev_rd_results_for_part_ab = 1;
@@ -1300,26 +1303,11 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->tx_sf.inter_tx_size_search_init_depth_sqr = 1;
   sf->tx_sf.model_based_prune_tx_search_level = 0;
   sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
+  // TODO(any, yunqing): somehow this is needed by sf->rt_sf.use_nonrd_pick_mode
+  // at speed 7? Need more investigation.
+  sf->tx_sf.use_intra_txb_hash = 0;
 
-  sf->winner_mode_sf.tx_size_search_level = boosted ? 0 : 2;
-
-  // TODO(Yunqing, any): speed 4 overall speed/quality tradeoff isn't good. Need
-  // evaluate it.
-  if (speed >= 4) {
-    sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
-
-    sf->inter_sf.alt_ref_search_fp = 1;
-
-    sf->interp_sf.skip_sharp_interp_filter_search = 1;
-
-    sf->tx_sf.tx_type_search.fast_inter_tx_type_search = 2;
-    sf->tx_sf.tx_type_search.fast_intra_tx_type_search = 1;
-    sf->tx_sf.use_intra_txb_hash = 0;
-
-    sf->rd_sf.use_mb_rd_hash = 0;
-
-    sf->winner_mode_sf.tx_size_search_level = frame_is_intra_only(cm) ? 0 : 2;
-  }
+  sf->winner_mode_sf.tx_size_search_level = frame_is_intra_only(cm) ? 0 : 2;
 
   if (speed >= 5) {
     sf->inter_sf.adaptive_rd_thresh = 4;
@@ -1360,6 +1348,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_3;
     sf->tx_sf.use_inter_txb_hash = 0;
     sf->tx_sf.refine_fast_tx_search_results = 0;
+    sf->tx_sf.tx_type_search.fast_intra_tx_type_search = 1;
 
     sf->rd_sf.optimize_coefficients = NO_TRELLIS_OPT;
     sf->rd_sf.simple_model_rd_from_var = 1;
