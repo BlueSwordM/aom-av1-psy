@@ -1074,7 +1074,7 @@ static int is_shorter_gf_interval_better(AV1_COMP *cpi,
           av1_q_mode_estimate_base_q(
               &cpi->ppi->gf_group, cpi->ppi->tpl_data.txfm_stats_list,
               gop_bit_budget, cpi->gf_frame_index, arf_qstep_ratio,
-              cpi->common.seq_params->bit_depth);
+              cpi->common.seq_params->bit_depth, cpi->vbr_rc_info.scale_factor);
         }
 #endif  // CONFIG_BITRATE_ACCURACY
       }

@@ -1965,7 +1965,7 @@ int av1_q_mode_estimate_base_q(GF_GROUP *gf_group,
                                const TplTxfmStats *txfm_stats_list,
                                double bit_budget, int gf_frame_index,
                                double arf_qstep_ratio,
-                               aom_bit_depth_t bit_depth) {
+                               aom_bit_depth_t bit_depth, double scale_factor) {
   int q_max = 255;  // Maximum q value.
   int q_min = 0;    // Minimum q value.
   int q = (q_max + q_min) / 2;
@@ -1985,6 +1985,8 @@ int av1_q_mode_estimate_base_q(GF_GROUP *gf_group,
 
     double estimate = av1_estimate_gop_bitrate(gf_group->q_val, gf_group->size,
                                                txfm_stats_list);
+
+    estimate *= scale_factor;
 
     // We want to find the lowest q that satisfies the bit budget constraint.
     // A binary search narrows the result down to two values: q_min and q_max.

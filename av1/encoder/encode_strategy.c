@@ -1042,10 +1042,10 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
         // Use the gop_bit_budget to determine gf_group->q_val.
         const double arf_qstep_ratio =
             av1_tpl_get_qstep_ratio(&cpi->ppi->tpl_data, cpi->gf_frame_index);
-        av1_q_mode_estimate_base_q(&cpi->ppi->gf_group,
-                                   cpi->ppi->tpl_data.txfm_stats_list,
-                                   gop_bit_budget, cpi->gf_frame_index,
-                                   arf_qstep_ratio, cm->seq_params->bit_depth);
+        av1_q_mode_estimate_base_q(
+            &cpi->ppi->gf_group, cpi->ppi->tpl_data.txfm_stats_list,
+            gop_bit_budget, cpi->gf_frame_index, arf_qstep_ratio,
+            cm->seq_params->bit_depth, cpi->vbr_rc_info.scale_factor);
       }
 #endif
     }

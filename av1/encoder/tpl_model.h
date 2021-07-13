@@ -237,7 +237,8 @@ typedef struct {
   int show_frame_count;     // Number of show frames in the entire video
 
   int gop_showframe_count;  // The number of show frames in the current gop
-  double gop_bit_budget;    // The bitbudger for the current gop
+  double gop_bit_budget;    // The bitbudget for the current gop
+  double scale_factor;      // Scale factor to improve the budget estimation
 } VBR_RATECTRL_INFO;
 
 static INLINE void vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info,
@@ -245,6 +246,7 @@ static INLINE void vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info,
   vbr_rc_info->total_bit_budget = total_bit_budget;
   vbr_rc_info->show_frame_count = show_frame_count;
   vbr_rc_info->keyframe_bitrate = 0;
+  vbr_rc_info->scale_factor = 1.0;
 }
 
 static INLINE void vbr_rc_set_gop_bit_budget(VBR_RATECTRL_INFO *vbr_rc_info,
@@ -489,6 +491,7 @@ int av1_get_overlap_area(int row_a, int col_a, int row_b, int col_b, int width,
  * \param[in]       gf_frame_index    current frame in the GOP
  * \param[in]       arf_qstep_ratio   ARF q step ratio
  * \param[in]       bit_depth         bit depth
+ * \param[in]       scale_factor      Used to improve budget estimation
  *
  * \return Returns the optimal base q index to use.
  */
@@ -496,7 +499,7 @@ int av1_q_mode_estimate_base_q(struct GF_GROUP *gf_group,
                                const TplTxfmStats *txfm_stats_list,
                                double bit_budget, int gf_frame_index,
                                double arf_qstep_ratio,
-                               aom_bit_depth_t bit_depth);
+                               aom_bit_depth_t bit_depth, double scale_factor);
 
 /*!\brief Get current frame's q_index from tpl stats and leaf_qindex
  *

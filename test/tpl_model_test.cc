@@ -271,6 +271,7 @@ TEST(TplModelTest, QModeEstimateBaseQTest) {
   const int gf_frame_index = 0;
   const double arf_qstep_ratio = 2;
   const aom_bit_depth_t bit_depth = AOM_BITS_8;
+  const double scale_factor = 1.0;
 
   for (int i = 0; i < gf_group.size; i++) {
     gf_group.update_type[i] = gf_group_update_types[i];
@@ -288,9 +289,9 @@ TEST(TplModelTest, QModeEstimateBaseQTest) {
 
   for (double bit_budget : bit_budgets) {
     // Binary search method to find the optimal q.
-    const int result =
-        av1_q_mode_estimate_base_q(&gf_group, stats_list, bit_budget,
-                                   gf_frame_index, arf_qstep_ratio, bit_depth);
+    const int result = av1_q_mode_estimate_base_q(
+        &gf_group, stats_list, bit_budget, gf_frame_index, arf_qstep_ratio,
+        bit_depth, scale_factor);
 
     const int test_result =
         find_gop_q_iterative(bit_budget, arf_qstep_ratio, gf_group, stats_list,
