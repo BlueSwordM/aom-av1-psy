@@ -9,14 +9,17 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AOM_AV1_ENCODER_MATHUTILS_H_
-#define AOM_AV1_ENCODER_MATHUTILS_H_
+#ifndef AOM_DSP_MATHUTILS_H_
+#define AOM_DSP_MATHUTILS_H_
 
 #include <memory.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+
+#include "aom_dsp/aom_dsp_common.h"
+#include "aom_mem/aom_mem.h"
 
 static const double TINY_NEAR_ZERO = 1.0E-16;
 
@@ -356,4 +359,4 @@ static INLINE int SVD(double *U, double *W, double *V, double *matx, int M,
   return 0;
 }
 
-#endif  // AOM_AV1_ENCODER_MATHUTILS_H_
+#endif  // AOM_DSP_MATHUTILS_H_
