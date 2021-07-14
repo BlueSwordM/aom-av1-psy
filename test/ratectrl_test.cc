@@ -63,7 +63,8 @@ TEST(RatectrlTest, QModeComputeGOPQIndicesTest) {
       base_q_index, arf_qstep_ratio, bit_depth);
 
   av1_q_mode_compute_gop_q_indices(gf_frame_index, base_q_index,
-                                   arf_qstep_ratio, bit_depth, &gf_group);
+                                   arf_qstep_ratio, bit_depth, &gf_group,
+                                   gf_group.q_val);
 
   for (int i = 0; i < gf_group.size; i++) {
     if (layer_depth[i] == 1) {

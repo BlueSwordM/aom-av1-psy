@@ -2574,7 +2574,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #endif  // CONFIG_RD_COMMAND
 
 #if CONFIG_BITRATE_ACCURACY
-    q = (int)cpi->ppi->gf_group.q_val[cpi->gf_frame_index];
+    q = cpi->vbr_rc_info.q_index_list[cpi->gf_frame_index];
 #endif
     av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                       q_cfg->enable_chroma_deltaq);

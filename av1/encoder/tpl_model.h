@@ -239,6 +239,8 @@ typedef struct {
   int gop_showframe_count;  // The number of show frames in the current gop
   double gop_bit_budget;    // The bitbudget for the current gop
   double scale_factor;      // Scale factor to improve the budget estimation
+  int q_index_list[MAX_LENGTH_TPL_FRAME_STATS];  // q indices for the current
+                                                 // GOP
 } VBR_RATECTRL_INFO;
 
 static INLINE void vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info,
@@ -388,8 +390,7 @@ double av1_laplace_estimate_frame_rate(int q_index, int block_count,
  * \param[in]    stats           array of transform stats, one per frame
  *
  */
-double av1_estimate_gop_bitrate(const unsigned char *q_index_list,
-                                const int frame_count,
+double av1_estimate_gop_bitrate(const int *q_index_list, const int frame_count,
                                 const TplTxfmStats *stats);
 
 /*
@@ -492,14 +493,19 @@ int av1_get_overlap_area(int row_a, int col_a, int row_b, int col_b, int width,
  * \param[in]       arf_qstep_ratio   ARF q step ratio
  * \param[in]       bit_depth         bit depth
  * \param[in]       scale_factor      Used to improve budget estimation
+ * \param[out]      q_index_list      An array to store output gop
+ *                                    q indices. The array size should
+ *                                    be equal or greater than
+ *                                    gf_group.size().
  *
  * \return Returns the optimal base q index to use.
  */
-int av1_q_mode_estimate_base_q(struct GF_GROUP *gf_group,
+int av1_q_mode_estimate_base_q(const struct GF_GROUP *gf_group,
                                const TplTxfmStats *txfm_stats_list,
                                double bit_budget, int gf_frame_index,
                                double arf_qstep_ratio,
-                               aom_bit_depth_t bit_depth, double scale_factor);
+                               aom_bit_depth_t bit_depth, double scale_factor,
+                               int *q_index_list);
 
 /*!\brief Get current frame's q_index from tpl stats and leaf_qindex
  *
@@ -536,6 +542,23 @@ double av1_tpl_get_qstep_ratio(const TplParams *tpl_data, int gf_frame_index);
  */
 int av1_get_q_index_from_qstep_ratio(int leaf_qindex, double qstep_ratio,
                                      aom_bit_depth_t bit_depth);
+
+#if CONFIG_BITRATE_ACCURACY
+/*!\brief Update q_index_list in vbr_rc_info based on tpl stats
+ *
+ * \param[out]      vbr_rc_info    Rate control info for BITRATE_ACCURACY
+ *                                 experiment
+ * \param[in]       tpl_data       TPL struct
+ * \param[in]       gf_group       GOP struct
+ * \param[in]       gf_frame_index current frame index in the GOP
+ * \param[in]       bit_depth      bit depth
+ */
+void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
+                                    const TplParams *tpl_data,
+                                    const struct GF_GROUP *gf_group,
+                                    int gf_frame_index,
+                                    aom_bit_depth_t bit_depth);
+#endif  // CONFIG_BITRATE_ACCURACY
 
 /*!\endcond */
 #ifdef __cplusplus

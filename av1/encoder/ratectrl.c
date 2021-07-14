@@ -3072,12 +3072,13 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
 void av1_q_mode_compute_gop_q_indices(int gf_frame_index, int base_q_index,
                                       double arf_qstep_ratio,
                                       aom_bit_depth_t bit_depth,
-                                      struct GF_GROUP *gf_group) {
+                                      const struct GF_GROUP *gf_group,
+                                      int *q_index_list) {
   const int arf_q = av1_get_q_index_from_qstep_ratio(
       base_q_index, arf_qstep_ratio, bit_depth);
   for (int gf_index = gf_frame_index; gf_index < gf_group->size; ++gf_index) {
     const int height = gf_group_pyramid_level(gf_group, gf_index);
-    gf_group->q_val[gf_index] = av1_q_mode_get_q_index(
+    q_index_list[gf_index] = av1_q_mode_get_q_index(
         base_q_index, gf_group->update_type[gf_index], height, arf_q);
   }
 }

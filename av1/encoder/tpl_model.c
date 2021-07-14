@@ -1883,8 +1883,7 @@ double av1_laplace_estimate_frame_rate(int q_index, int block_count,
   return est_rate;
 }
 
-double av1_estimate_gop_bitrate(const unsigned char *q_index_list,
-                                const int frame_count,
+double av1_estimate_gop_bitrate(const int *q_index_list, const int frame_count,
                                 const TplTxfmStats *stats_list) {
   double gop_bitrate = 0;
   for (int frame_index = 0; frame_index < frame_count; frame_index++) {
@@ -1961,30 +1960,31 @@ void av1_read_rd_command(const char *filepath, RD_COMMAND *rd_command) {
 /*
  * Estimate the optimal base q index for a GOP.
  */
-int av1_q_mode_estimate_base_q(GF_GROUP *gf_group,
+int av1_q_mode_estimate_base_q(const GF_GROUP *gf_group,
                                const TplTxfmStats *txfm_stats_list,
                                double bit_budget, int gf_frame_index,
                                double arf_qstep_ratio,
-                               aom_bit_depth_t bit_depth, double scale_factor) {
+                               aom_bit_depth_t bit_depth, double scale_factor,
+                               int *q_index_list) {
   int q_max = 255;  // Maximum q value.
   int q_min = 0;    // Minimum q value.
   int q = (q_max + q_min) / 2;
 
   av1_q_mode_compute_gop_q_indices(gf_frame_index, q_max, arf_qstep_ratio,
-                                   bit_depth, gf_group);
-  double q_max_estimate = av1_estimate_gop_bitrate(
-      gf_group->q_val, gf_group->size, txfm_stats_list);
+                                   bit_depth, gf_group, q_index_list);
+  double q_max_estimate =
+      av1_estimate_gop_bitrate(q_index_list, gf_group->size, txfm_stats_list);
   av1_q_mode_compute_gop_q_indices(gf_frame_index, q_min, arf_qstep_ratio,
-                                   bit_depth, gf_group);
-  double q_min_estimate = av1_estimate_gop_bitrate(
-      gf_group->q_val, gf_group->size, txfm_stats_list);
+                                   bit_depth, gf_group, q_index_list);
+  double q_min_estimate =
+      av1_estimate_gop_bitrate(q_index_list, gf_group->size, txfm_stats_list);
 
   while (true) {
     av1_q_mode_compute_gop_q_indices(gf_frame_index, q, arf_qstep_ratio,
-                                     bit_depth, gf_group);
+                                     bit_depth, gf_group, q_index_list);
 
-    double estimate = av1_estimate_gop_bitrate(gf_group->q_val, gf_group->size,
-                                               txfm_stats_list);
+    double estimate =
+        av1_estimate_gop_bitrate(q_index_list, gf_group->size, txfm_stats_list);
 
     estimate *= scale_factor;
 
@@ -2010,9 +2010,9 @@ int av1_q_mode_estimate_base_q(GF_GROUP *gf_group,
     }
   }
 
-  // Before returning, update the gop q_val.
+  // Before returning, update the q_index_list.
   av1_q_mode_compute_gop_q_indices(gf_frame_index, q, arf_qstep_ratio,
-                                   bit_depth, gf_group);
+                                   bit_depth, gf_group, q_index_list);
   return q;
 }
 
@@ -2061,3 +2061,26 @@ int av1_tpl_get_q_index(const TplParams *tpl_data, int gf_frame_index,
   const double qstep_ratio = av1_tpl_get_qstep_ratio(tpl_data, gf_frame_index);
   return av1_get_q_index_from_qstep_ratio(leaf_qindex, qstep_ratio, bit_depth);
 }
+
+#if CONFIG_BITRATE_ACCURACY
+void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
+                                    const TplParams *tpl_data,
+                                    const GF_GROUP *gf_group,
+                                    int gf_frame_index,
+                                    aom_bit_depth_t bit_depth) {
+  // We always update q_index_list when gf_frame_index is zero.
+  // This will make the q indices for the entire gop more consistent
+  if (gf_frame_index == 0) {
+    double gop_bit_budget = vbr_rc_info->gop_bit_budget;
+    // Use the gop_bit_budget to determine q_index_list.
+    const double arf_qstep_ratio =
+        av1_tpl_get_qstep_ratio(tpl_data, gf_frame_index);
+    // We update the q indices in vbr_rc_info in vbr_rc_info->q_index_list
+    // rather than gf_group->q_val to avoid conflicts with the existing code.
+    av1_q_mode_estimate_base_q(gf_group, tpl_data->txfm_stats_list,
+                               gop_bit_budget, gf_frame_index, arf_qstep_ratio,
+                               bit_depth, vbr_rc_info->scale_factor,
+                               vbr_rc_info->q_index_list);
+  }
+}
+#endif  // CONFIG_BITRATE_ACCURACY
