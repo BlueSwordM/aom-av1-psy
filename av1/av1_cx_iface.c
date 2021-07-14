@@ -164,6 +164,8 @@ struct av1_extracfg {
   // 2 (passes = 1 if pass == AOM_RC_ONE_PASS and passes = 2 otherwise).
   int passes;
   int fwd_kf_dist;
+  // the name of the second pass output file when passes > 2
+  const char *two_pass_output;
 };
 
 #if CONFIG_REALTIME_ONLY
@@ -312,6 +314,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,             // sb_multipass_unit_test
   -1,            // passes
   -1,            // fwd_kf_dist
+  NULL,          // two_pass_output
 };
 #else
 static struct av1_extracfg default_extra_cfg = {
@@ -447,6 +450,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,            // sb_multipass_unit_test
   -1,           // passes
   -1,           // fwd_kf_dist
+  NULL,         // two_pass_output
 };
 #endif
 
@@ -1116,6 +1120,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   // Set two-pass stats configuration.
   oxcf->twopass_stats_in = cfg->rc_twopass_stats_in;
+
+  if (extra_cfg->two_pass_output)
+    oxcf->two_pass_output = extra_cfg->two_pass_output;
 
   // Set Key frame configuration.
   kf_cfg->fwd_kf_enabled = cfg->fwd_kf_enabled;
@@ -3608,6 +3615,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.fwd_kf_dist, argv,
                               err_string)) {
     extra_cfg.fwd_kf_dist = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.two_pass_output, argv,
+                              err_string)) {
+    extra_cfg.two_pass_output = value;
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",

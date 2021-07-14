@@ -976,6 +976,9 @@ typedef struct AV1EncoderConfig {
   // Total number of encoding passes.
   int passes;
 
+  // the name of the second pass output file when passes > 2
+  const char *two_pass_output;
+
   // Indicates if the encoding is GOOD or REALTIME.
   MODE mode;
 
@@ -994,7 +997,6 @@ typedef struct AV1EncoderConfig {
   // The path for partition stats reading and writing, used in the experiment
   // CONFIG_PARTITION_SEARCH_ORDER.
   const char *partition_info_path;
-
   /*!\endcond */
 } AV1EncoderConfig;
 
