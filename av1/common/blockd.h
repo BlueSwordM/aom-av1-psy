@@ -41,6 +41,10 @@ extern "C" {
 
 #define DEFAULT_INTER_TX_TYPE DCT_DCT
 
+#define MAX_PALETTE_BLOCK_WIDTH 64
+
+#define MAX_PALETTE_BLOCK_HEIGHT 64
+
 /*!\cond */
 
 // DIFFWTD_MASK_TYPES should not surpass 1 << MAX_DIFFWTD_MASK_BITS
@@ -1501,8 +1505,10 @@ static INLINE int is_neighbor_overlappable(const MB_MODE_INFO *mbmi) {
 static INLINE int av1_allow_palette(int allow_screen_content_tools,
                                     BLOCK_SIZE sb_type) {
   assert(sb_type < BLOCK_SIZES_ALL);
-  return allow_screen_content_tools && block_size_wide[sb_type] <= 64 &&
-         block_size_high[sb_type] <= 64 && sb_type >= BLOCK_8X8;
+  return allow_screen_content_tools &&
+         block_size_wide[sb_type] <= MAX_PALETTE_BLOCK_WIDTH &&
+         block_size_high[sb_type] <= MAX_PALETTE_BLOCK_HEIGHT &&
+         sb_type >= BLOCK_8X8;
 }
 
 // Returns sub-sampled dimensions of the given block.
