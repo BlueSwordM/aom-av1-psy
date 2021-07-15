@@ -489,8 +489,6 @@ list(APPEND AOM_AV1_COMMON_INTRIN_NEON
             "${AOM_ROOT}/av1/common/arm/convolve_neon.c"
             "${AOM_ROOT}/av1/common/arm/convolve_neon.h"
             "${AOM_ROOT}/av1/common/arm/jnt_convolve_neon.c"
-            "${AOM_ROOT}/av1/common/arm/mem_neon.h"
-            "${AOM_ROOT}/av1/common/arm/transpose_neon.h"
             "${AOM_ROOT}/av1/common/arm/blend_a64_hmask_neon.c"
             "${AOM_ROOT}/av1/common/arm/blend_a64_vmask_neon.c"
             "${AOM_ROOT}/av1/common/arm/reconinter_neon.c"
