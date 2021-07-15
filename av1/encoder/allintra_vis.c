@@ -23,11 +23,11 @@ static int qsort_comp(const void *elem1, const void *elem2) {
 void av1_init_mb_wiener_var_buffer(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
 
-  if (cpi->mb_wiener_variance) return;
+  if (cpi->mb_weber_stats) return;
 
-  CHECK_MEM_ERROR(cm, cpi->mb_wiener_variance,
+  CHECK_MEM_ERROR(cm, cpi->mb_weber_stats,
                   aom_calloc(cpi->frame_info.mb_rows * cpi->frame_info.mb_cols,
-                             sizeof(*cpi->mb_wiener_variance)));
+                             sizeof(*cpi->mb_weber_stats)));
 }
 
 static int get_window_wiener_var(AV1_COMP *const cpi, BLOCK_SIZE bsize,
@@ -48,8 +48,9 @@ static int get_window_wiener_var(AV1_COMP *const cpi, BLOCK_SIZE bsize,
         continue;
 
       mb_wiener_sum +=
-          (int)cpi->mb_wiener_variance[(row / mi_step) * mb_stride +
-                                       (col / mi_step)];
+          (int)cpi
+              ->mb_weber_stats[(row / mi_step) * mb_stride + (col / mi_step)]
+              .mb_wiener_variance;
       ++mb_count;
     }
   }
@@ -205,8 +206,8 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
         }
         wiener_variance += tmp_coeff * tmp_coeff;
       }
-      cpi->mb_wiener_variance[mb_row * cpi->frame_info.mb_cols + mb_col] =
-          wiener_variance / coeff_count;
+      cpi->mb_weber_stats[mb_row * cpi->frame_info.mb_cols + mb_col]
+          .mb_wiener_variance = wiener_variance / coeff_count;
       ++count;
     }
   }

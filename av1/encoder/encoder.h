@@ -30,6 +30,7 @@
 #include "av1/common/resize.h"
 #include "av1/common/thread_common.h"
 #include "av1/common/timing.h"
+
 #include "av1/encoder/aq_cyclicrefresh.h"
 #include "av1/encoder/av1_quantize.h"
 #include "av1/encoder/block.h"
@@ -2079,6 +2080,10 @@ typedef struct {
   int valid;
 } MV_STATS;
 
+typedef struct WeberStats {
+  int64_t mb_wiener_variance;
+} WeberStats;
+
 typedef struct {
   struct loopfilter lf;
   CdefInfo cdef_info;
@@ -3080,7 +3085,7 @@ typedef struct AV1_COMP {
   /*!
    * Buffer to store MB variance after Wiener filter.
    */
-  int64_t *mb_wiener_variance;
+  WeberStats *mb_weber_stats;
 
   /*!
    * Frame level Wiener filter normalization.

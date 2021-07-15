@@ -1367,7 +1367,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
                   aom_calloc((mi_params->mi_rows * mi_params->mi_cols) >> 2,
                              sizeof(*cpi->consec_zero_mv)));
 
-  cpi->mb_wiener_variance = NULL;
+  cpi->mb_weber_stats = NULL;
 
   {
     const int bsize = BLOCK_16X16;
