@@ -560,6 +560,27 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
                                     aom_bit_depth_t bit_depth);
 #endif  // CONFIG_BITRATE_ACCURACY
 
+/*!\brief For a GOP, calculate the bits used by motion vectors.
+ *
+ * \param[in]       tpl_data          TPL struct
+ * \param[in]       gf_group          Pointer to the GOP
+ * \param[in]       gf_frame_index    Current frame index
+ *
+ * \return Bits used by the motion vectors for the GOP.
+ */
+double av1_tpl_compute_mv_bits(const TplParams *tpl_data, int gf_group_size,
+                               int gf_frame_index);
+
+/*!\brief Compute the entropy of motion vectors for a single frame.
+ *
+ * \param[in]       tpl_frame         TPL frame struct
+ * \param[in]       right_shift       right shift value for step
+ *
+ * \return Bits used by the motion vectors for one frame.
+ */
+double av1_tpl_compute_frame_mv_entropy(const TplDepFrame *tpl_frame,
+                                        uint8_t right_shift);
+
 /*!\endcond */
 #ifdef __cplusplus
 }  // extern "C"

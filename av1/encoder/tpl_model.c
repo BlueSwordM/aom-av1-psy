@@ -2084,3 +2084,60 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
   }
 }
 #endif  // CONFIG_BITRATE_ACCURACY
+
+/* For a GOP, calculate the bits used by motion vectors. */
+double av1_tpl_compute_mv_bits(const TplParams *tpl_data, int gf_group_size,
+                               int gf_frame_index) {
+  double total_mv_bits = 0;
+
+  // Loop through each frame.
+  for (int i = gf_frame_index; i < gf_group_size; i++) {
+    TplDepFrame *tpl_frame = &tpl_data->tpl_frame[i];
+    total_mv_bits += av1_tpl_compute_frame_mv_entropy(
+        tpl_frame, tpl_data->tpl_stats_block_mis_log2);
+  }
+
+  return total_mv_bits;
+}
+
+/* Compute the entropy of motion vectors for a single frame. */
+double av1_tpl_compute_frame_mv_entropy(const TplDepFrame *tpl_frame,
+                                        uint8_t right_shift) {
+  if (!tpl_frame->is_valid) {
+    return 0;
+  }
+
+  int count_row[500] = { 0 };
+  int count_col[500] = { 0 };
+  int n = 0;  // number of MVs to process
+
+  const int tpl_stride = tpl_frame->stride;
+  const int step = 1 << right_shift;
+
+  for (int row = 0; row < tpl_frame->mi_rows; row += step) {
+    for (int col = 0; col < tpl_frame->mi_cols; col += step) {
+      const TplDepStats *tpl_stats = &tpl_frame->tpl_stats_ptr[av1_tpl_ptr_pos(
+          row, col, tpl_stride, right_shift)];
+      int_mv mv = tpl_stats->mv[tpl_stats->ref_frame_index[0]];
+      count_row[clamp(mv.as_mv.row, 0, 499)] += 1;
+      count_col[clamp(mv.as_mv.row, 0, 499)] += 1;
+      n += 1;
+    }
+  }
+
+  // Estimate the bits used using the entropy formula.
+  double rate_row = 0;
+  double rate_col = 0;
+  for (int i = 0; i < 500; i++) {
+    if (count_row[i] != 0) {
+      double p = count_row[i] / (double)n;
+      rate_row += count_row[i] * -log2(p);
+    }
+    if (count_col[i] != 0) {
+      double p = count_col[i] / (double)n;
+      rate_col += count_col[i] * -log2(p);
+    }
+  }
+
+  return rate_row + rate_col;
+}
