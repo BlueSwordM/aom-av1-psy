@@ -1647,7 +1647,7 @@ void av1_prune_partitions_by_max_min_bsize(SuperBlockEnc *sb_enc,
 
     // only disable square split when current block is not at the picture
     // boundary. otherwise, inherit the square split flag from previous logic
-    if (!av1_blk_has_rows_and_cols(blk_params)) {
+    if (av1_blk_has_rows_and_cols(blk_params)) {
       part_state->do_square_split = 0;
     }
     part_state->partition_none_allowed = !(part_state->do_square_split);
