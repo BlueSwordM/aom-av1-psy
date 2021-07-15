@@ -3319,9 +3319,6 @@ void av1_set_screen_content_options(struct AV1_COMP *cpi,
 
 void av1_update_frame_size(AV1_COMP *cpi);
 
-int av1_get_sbq_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
-                              int mi_col);
-
 #if CONFIG_FRAME_PARALLEL_ENCODE
 typedef struct {
   int pyr_level;

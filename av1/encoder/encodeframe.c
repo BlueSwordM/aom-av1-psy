@@ -43,6 +43,7 @@
 #include "av1/common/tile_common.h"
 #include "av1/common/warped_motion.h"
 
+#include "av1/encoder/allintra_vis.h"
 #include "av1/encoder/aq_complexity.h"
 #include "av1/encoder/aq_cyclicrefresh.h"
 #include "av1/encoder/aq_variance.h"
