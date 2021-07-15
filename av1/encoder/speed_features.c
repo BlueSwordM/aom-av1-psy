@@ -1344,6 +1344,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
       sf->intra_sf.intra_uv_mode_mask[i] = UV_INTRA_DC_CFL;
     }
     sf->intra_sf.skip_intra_in_interframe = 5;
+    sf->intra_sf.disable_smooth_intra = 1;
 
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_3;
     sf->tx_sf.use_inter_txb_hash = 0;
@@ -1355,6 +1356,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_Q;
+    sf->lpf_sf.disable_lr_filter = 1;
 
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
 
