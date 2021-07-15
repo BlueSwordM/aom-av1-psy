@@ -20,7 +20,6 @@
 
 #include "aom_ports/mem.h"
 
-#include "av1/common/av1_common_int.h"
 #include "av1/common/filter.h"
 #include "av1/common/reconinter.h"
 #include "av1/encoder/reconinter_enc.h"
