@@ -508,6 +508,41 @@ static aom_codec_err_t update_error_state(
   return res;
 }
 
+// This function deep copies a string src to *dst. For default string we will
+// use a string literal, and otherwise we will allocate memory for the string.
+static aom_codec_err_t allocate_and_set_string(const char *src,
+                                               const char *default_src,
+                                               const char **dst,
+                                               char *err_detail) {
+  if (!src) {
+    snprintf(err_detail, ARG_ERR_MSG_MAX_LEN,
+             "Null pointer given to a string parameter.");
+    return AOM_CODEC_INVALID_PARAM;
+  }
+  if (*dst && strcmp(src, *dst) == 0) return AOM_CODEC_OK;
+  // If the input is exactly the same as default, we will use the string
+  // literal, so do not free here.
+  if (*dst != default_src) {
+    aom_free((void *)*dst);
+  }
+
+  if (default_src && strcmp(src, default_src) == 0) {
+    // default_src should be a string literal
+    *dst = default_src;
+  } else {
+    size_t len = strlen(src) + 1;
+    char *tmp = aom_malloc(len * sizeof(*tmp));
+    if (!tmp) {
+      snprintf(err_detail, ARG_ERR_MSG_MAX_LEN,
+               "Failed to allocate memory for copying parameters.");
+      return AOM_CODEC_MEM_ERROR;
+    }
+    memcpy(tmp, src, len);
+    *dst = tmp;
+  }
+  return 0;
+}
+
 #undef ERROR
 #define ERROR(str)                  \
   do {                              \
@@ -2094,14 +2129,22 @@ static aom_codec_err_t ctrl_set_dv_cost_upd_freq(aom_codec_alg_priv_t *ctx,
 static aom_codec_err_t ctrl_set_vmaf_model_path(aom_codec_alg_priv_t *ctx,
                                                 va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.vmaf_model_path = CAST(AV1E_SET_VMAF_MODEL_PATH, args);
+  const char *str = CAST(AV1E_SET_VMAF_MODEL_PATH, args);
+  const aom_codec_err_t ret = allocate_and_set_string(
+      str, default_extra_cfg.vmaf_model_path, &extra_cfg.vmaf_model_path,
+      ctx->ppi->error.detail);
+  if (ret != AOM_CODEC_OK) return ret;
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
 static aom_codec_err_t ctrl_set_partition_info_path(aom_codec_alg_priv_t *ctx,
                                                     va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.partition_info_path = CAST(AV1E_SET_PARTITION_INFO_PATH, args);
+  const char *str = CAST(AV1E_SET_PARTITION_INFO_PATH, args);
+  const aom_codec_err_t ret = allocate_and_set_string(
+      str, default_extra_cfg.partition_info_path,
+      &extra_cfg.partition_info_path, ctx->ppi->error.detail);
+  if (ret != AOM_CODEC_OK) return ret;
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -2116,7 +2159,16 @@ static aom_codec_err_t ctrl_set_film_grain_test_vector(
 static aom_codec_err_t ctrl_set_film_grain_table(aom_codec_alg_priv_t *ctx,
                                                  va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.film_grain_table_filename = CAST(AV1E_SET_FILM_GRAIN_TABLE, args);
+  const char *str = CAST(AV1E_SET_FILM_GRAIN_TABLE, args);
+  if (str == NULL) {
+    // this parameter allows NULL as its value
+    extra_cfg.film_grain_table_filename = str;
+  } else {
+    const aom_codec_err_t ret = allocate_and_set_string(
+        str, default_extra_cfg.film_grain_table_filename,
+        &extra_cfg.film_grain_table_filename, ctx->ppi->error.detail);
+    if (ret != AOM_CODEC_OK) return ret;
+  }
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -2454,8 +2506,31 @@ static void destroy_stats_buffer(STATS_BUFFER_CTX *stats_buf_context,
   aom_free(frame_stats_buffer);
 }
 
+static void check_and_free_string(const char *default_str, const char **ptr) {
+  if (*ptr == default_str) {
+    // Default should be a literal. Do not free.
+    return;
+  }
+  aom_free((void *)*ptr);
+  *ptr = NULL;
+}
+
+static void destroy_extra_config(struct av1_extracfg *extra_cfg) {
+#if CONFIG_TUNE_VMAF
+  check_and_free_string(default_extra_cfg.vmaf_model_path,
+                        &extra_cfg->vmaf_model_path);
+#endif
+  check_and_free_string(default_extra_cfg.two_pass_output,
+                        &extra_cfg->two_pass_output);
+  check_and_free_string(default_extra_cfg.partition_info_path,
+                        &extra_cfg->partition_info_path);
+  check_and_free_string(default_extra_cfg.film_grain_table_filename,
+                        &extra_cfg->film_grain_table_filename);
+}
+
 static aom_codec_err_t encoder_destroy(aom_codec_alg_priv_t *ctx) {
   free(ctx->cx_data);
+  destroy_extra_config(&ctx->extra_cfg);
 
   if (ctx->ppi) {
     AV1_PRIMARY *ppi = ctx->ppi;
@@ -2487,7 +2562,6 @@ static aom_codec_err_t encoder_destroy(aom_codec_alg_priv_t *ctx) {
     av1_remove_primary_compressor(ppi);
   }
   destroy_stats_buffer(&ctx->stats_buf_context, ctx->frame_stats_buffer);
-
   aom_free(ctx);
   return AOM_CODEC_OK;
 }
@@ -3246,7 +3320,7 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   // Used to mock the argv with just one string "--{name}={value}"
   char *argv[2] = { NULL, "" };
   size_t len = strlen(name) + strlen(value) + 4;
-  char *err_string = ctx->ppi->error.detail;
+  char *const err_string = ctx->ppi->error.detail;
 
 #if __STDC_VERSION__ >= 201112L
   // We use the keyword _Static_assert because clang-cl does not allow the
@@ -3262,6 +3336,7 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   argv[0] = aom_malloc(len * sizeof(argv[1][0]));
   snprintf(argv[0], len, "--%s=%s", name, value);
   struct arg arg;
+  aom_codec_err_t err = AOM_CODEC_OK;
 
   int match = 1;
   if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_keyframe_filtering,
@@ -3320,12 +3395,14 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
 #if CONFIG_TUNE_VMAF
   else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.vmaf_model_path, argv,
                             err_string)) {
-    extra_cfg.vmaf_model_path = value;
+    err = allocate_and_set_string(value, default_extra_cfg.vmaf_model_path,
+                                  &extra_cfg.vmaf_model_path, err_string);
   }
 #endif
   else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.partition_info_path,
                             argv, err_string)) {
-    extra_cfg.partition_info_path = value;
+    err = allocate_and_set_string(value, default_extra_cfg.partition_info_path,
+                                  &extra_cfg.partition_info_path, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.cq_level, argv,
                               err_string)) {
     extra_cfg.cq_level = arg_parse_uint_helper(&arg, err_string);
@@ -3432,7 +3509,14 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
     extra_cfg.film_grain_test_vector = arg_parse_int_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.film_grain_table,
                               argv, err_string)) {
-    extra_cfg.film_grain_table_filename = value;
+    if (value == NULL) {
+      // this parameter allows NULL as its value
+      extra_cfg.film_grain_table_filename = value;
+    } else {
+      err = allocate_and_set_string(
+          value, default_extra_cfg.film_grain_table_filename,
+          &extra_cfg.film_grain_table_filename, err_string);
+    }
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.cdf_update_mode, argv,
                               err_string)) {
     extra_cfg.cdf_update_mode = arg_parse_int_helper(&arg, err_string);
@@ -3624,13 +3708,19 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
     extra_cfg.fwd_kf_dist = arg_parse_int_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.two_pass_output, argv,
                               err_string)) {
-    extra_cfg.two_pass_output = value;
+    err = allocate_and_set_string(value, default_extra_cfg.two_pass_output,
+                                  &extra_cfg.two_pass_output, err_string);
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
              name);
   }
   aom_free(argv[0]);
+
+  if (err != AOM_CODEC_OK) {
+    ctx->base.err_detail = err_string;
+    return err;
+  }
 
   if (strlen(err_string) != 0) {
     ctx->base.err_detail = err_string;
