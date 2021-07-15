@@ -22,9 +22,6 @@
 extern "C" {
 #endif
 
-#define EOB_FACTOR 325
-#define SKIP_EOB_FACTOR_ADJUST 200
-
 typedef struct QUANT_PARAM {
   int log_scale;
   TX_SIZE tx_size;
