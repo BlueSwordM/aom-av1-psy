@@ -60,8 +60,6 @@ list(APPEND AOM_AV1_COMMON_SOURCES
             "${AOM_ROOT}/av1/common/mvref_common.h"
             "${AOM_ROOT}/av1/common/obu_util.c"
             "${AOM_ROOT}/av1/common/obu_util.h"
-            "${AOM_ROOT}/av1/common/odintrin.c"
-            "${AOM_ROOT}/av1/common/odintrin.h"
             "${AOM_ROOT}/av1/common/pred_common.c"
             "${AOM_ROOT}/av1/common/pred_common.h"
             "${AOM_ROOT}/av1/common/quant_common.c"

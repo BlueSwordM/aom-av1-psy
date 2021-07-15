@@ -14,9 +14,14 @@
 
 #include "config/aom_config.h"
 
+#include "aom_dsp/aom_dsp_common.h"
+#include "aom_dsp/odintrin.h"
+#include "aom_mem/aom_mem.h"
+#include "aom_ports/aom_timer.h"
+#include "aom_ports/mem.h"
+#include "aom_scale/aom_scale.h"
 #include "av1/common/alloccommon.h"
 #include "av1/common/av1_common_int.h"
-#include "av1/common/odintrin.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/reconinter.h"
 #include "av1/encoder/av1_quantize.h"
@@ -30,11 +35,6 @@
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/temporal_filter.h"
-#include "aom_dsp/aom_dsp_common.h"
-#include "aom_mem/aom_mem.h"
-#include "aom_ports/aom_timer.h"
-#include "aom_ports/mem.h"
-#include "aom_scale/aom_scale.h"
 
 /*!\cond */
 
