@@ -1821,6 +1821,8 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   }
 
   if (!cpi->ppi->seq_params_locked) {
+    cpi->common.seq_params->order_hint_info.enable_dist_wtd_comp &=
+        (sf->inter_sf.use_dist_wtd_comp_flag != DIST_WTD_COMP_DISABLED);
     cpi->common.seq_params->enable_dual_filter &=
         !sf->interp_sf.disable_dual_filter;
     cpi->common.seq_params->enable_restoration &= !sf->lpf_sf.disable_lr_filter;
