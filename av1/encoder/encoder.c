@@ -4040,7 +4040,12 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
     av1_lookahead_pop(cpi->ppi->lookahead, cpi_data->flush,
                       cpi->compressor_stage);
   }
-
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  if (cpi->common.show_frame) {
+    cpi->ppi->ts_start_last_show_frame = cpi_data->ts_frame_start;
+    cpi->ppi->ts_end_last_show_frame = cpi_data->ts_frame_end;
+  }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   if (ppi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
     // Initialize level info. at the beginning of each sequence.
     if (cm->current_frame.frame_type == KEY_FRAME &&
@@ -4282,6 +4287,10 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
 
   // Set do_frame_data_update flag as false for frame_parallel_level 1 frame.
   first_cpi->do_frame_data_update = false;
+  if (gf_group->arf_src_offset[gf_index_start] == 0) {
+    first_cpi->time_stamps.prev_ts_start = ppi->ts_start_last_show_frame;
+    first_cpi->time_stamps.prev_ts_end = ppi->ts_end_last_show_frame;
+  }
   parallel_frame_count++;
 
   // Iterate through the GF_GROUP to find the remaining frame_parallel_level 2
@@ -4293,6 +4302,8 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
     if (gf_group->arf_src_offset[i - 1] == 0) {
       cur_frame_num++;
       show_frame_count++;
+      if (frames_to_fwd_kf <= 0)
+        frames_to_fwd_kf = first_cpi->oxcf.kf_cfg.fwd_kf_dist;
       if (frames_to_key) {
         frames_since_key++;
         frames_to_key--;
@@ -4324,6 +4335,8 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
         cur_cpi->time_stamps.prev_ts_start = prev_source->ts_start;
         cur_cpi->time_stamps.prev_ts_end = prev_source->ts_end;
       }
+      cur_cpi->time_stamps.first_ts_start =
+          first_cpi->time_stamps.first_ts_start;
 
       memcpy(cur_cpi->common.ref_frame_map, first_cpi->common.ref_frame_map,
              sizeof(first_cpi->common.ref_frame_map));

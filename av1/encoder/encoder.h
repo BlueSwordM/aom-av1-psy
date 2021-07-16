@@ -2284,6 +2284,15 @@ typedef struct AV1_PRIMARY {
    */
   FrameProbInfo temp_frame_probs_simulation;
 
+  /*!
+   * Start time stamp of the last encoded show frame
+   */
+  int64_t ts_start_last_show_frame;
+
+  /*!
+   * End time stamp of the last encoded show frame
+   */
+  int64_t ts_end_last_show_frame;
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
   /*!
    * Copy of cm->ref_frame_map maintained to facilitate sequential update of
