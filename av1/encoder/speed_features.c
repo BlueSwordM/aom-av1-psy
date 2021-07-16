@@ -1461,7 +1461,12 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.estimate_motion_for_var_based_partition = 1;
     sf->rt_sf.short_circuit_low_temp_var = 1;
 #if !CONFIG_AV1_TEMPORAL_DENOISING
+#if !CONFIG_REALTIME_ONLY
+    sf->rt_sf.reuse_inter_pred_nonrd =
+        (cpi->oxcf.motion_mode_cfg.enable_warped_motion == 0);
+#else
     sf->rt_sf.reuse_inter_pred_nonrd = 1;
+#endif
 #endif
     sf->rt_sf.use_nonrd_altref_frame = 0;
     sf->rt_sf.nonrd_prune_ref_frame_search = 2;

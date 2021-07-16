@@ -1220,10 +1220,15 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   // Set motion mode related configuration.
   oxcf->motion_mode_cfg.enable_obmc = extra_cfg->enable_obmc;
   oxcf->motion_mode_cfg.enable_warped_motion = extra_cfg->enable_warped_motion;
+#if !CONFIG_REALTIME_ONLY
+  oxcf->motion_mode_cfg.allow_warped_motion =
+      (extra_cfg->allow_warped_motion & extra_cfg->enable_warped_motion);
+#else
   oxcf->motion_mode_cfg.allow_warped_motion =
       (cfg->g_usage == AOM_USAGE_REALTIME && oxcf->speed >= 7)
           ? false
           : (extra_cfg->allow_warped_motion & extra_cfg->enable_warped_motion);
+#endif
 
   // Set partition related configuration.
   part_cfg->enable_rect_partitions = extra_cfg->enable_rect_partitions;
