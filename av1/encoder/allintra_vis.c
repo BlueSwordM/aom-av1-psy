@@ -9,7 +9,10 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include "av1/common/idct.h"
+
 #include "av1/encoder/allintra_vis.h"
+#include "av1/encoder/hybrid_fwd_txfm.h"
 
 // Process the wiener variance in 16x16 block basis.
 static int qsort_comp(const void *elem1, const void *elem2) {
@@ -47,10 +50,10 @@ static int get_window_wiener_var(AV1_COMP *const cpi, BLOCK_SIZE bsize,
       if (row >= cm->mi_params.mi_rows || col >= cm->mi_params.mi_cols)
         continue;
 
-      mb_wiener_sum +=
-          (int)cpi
-              ->mb_weber_stats[(row / mi_step) * mb_stride + (col / mi_step)]
-              .mb_wiener_variance;
+      mb_wiener_sum += (int)(cpi->mb_weber_stats[(row / mi_step) * mb_stride +
+                                                 (col / mi_step)]
+                                 .alpha *
+                             10000);
       ++mb_count;
     }
   }
@@ -58,7 +61,7 @@ static int get_window_wiener_var(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   if (mb_count) sb_wiener_var = (int)(mb_wiener_sum / mb_count);
   sb_wiener_var = AOMMAX(1, sb_wiener_var);
 
-  return (int)(sqrt(sb_wiener_var));
+  return (int)sb_wiener_var;
 }
 
 static int get_var_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize,
@@ -105,6 +108,9 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
   MB_MODE_INFO *mbmi_ptr = &mbmi;
   xd->mi = &mbmi_ptr;
 
+  cm->quant_params.base_qindex = cpi->oxcf.rc_cfg.cq_level;
+  av1_frame_init_quantizer(cpi);
+
   union {
 #if CONFIG_AV1_HIGHBITDEPTH
     DECLARE_ALIGNED(32, uint16_t, zero_pred16[32 * 32]);
@@ -115,6 +121,8 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
 
   DECLARE_ALIGNED(32, int16_t, src_diff[32 * 32]);
   DECLARE_ALIGNED(32, tran_low_t, coeff[32 * 32]);
+  DECLARE_ALIGNED(32, tran_low_t, qcoeff[32 * 32]);
+  DECLARE_ALIGNED(32, tran_low_t, dqcoeff[32 * 32]);
 
   int mb_row, mb_col, count = 0;
   const TX_SIZE tx_size = TX_16X16;
@@ -188,6 +196,73 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
       av1_subtract_block(bd_info, block_size, block_size, src_diff, block_size,
                          mb_buffer, buf_stride, pred_buf, block_size);
       av1_quick_txfm(0, tx_size, bd_info, src_diff, block_size, coeff);
+
+      const struct macroblock_plane *const p = &x->plane[0];
+      uint16_t eob;
+      const SCAN_ORDER *const scan_order = &av1_scan_orders[tx_size][DCT_DCT];
+      QUANT_PARAM quant_param;
+      int pix_num = 1 << num_pels_log2_lookup[txsize_to_bsize[tx_size]];
+      av1_setup_quant(tx_size, 0, AV1_XFORM_QUANT_FP, 0, &quant_param);
+#if CONFIG_AV1_HIGHBITDEPTH
+      if (is_cur_buf_hbd(xd)) {
+        av1_highbd_quantize_fp_facade(coeff, pix_num, p, qcoeff, dqcoeff, &eob,
+                                      scan_order, &quant_param);
+      } else {
+        av1_quantize_fp_facade(coeff, pix_num, p, qcoeff, dqcoeff, &eob,
+                               scan_order, &quant_param);
+      }
+#else
+      av1_quantize_fp_facade(coeff, pix_num, p, qcoeff, dqcoeff, &eob,
+                             scan_order, &quant_param);
+#endif  // CONFIG_AV1_HIGHBITDEPTH
+      av1_inverse_transform_block(xd, dqcoeff, 0, DCT_DCT, tx_size, pred_buf,
+                                  block_size, eob, 0);
+
+      WeberStats *weber_stats =
+          &cpi->mb_weber_stats[mb_row * cpi->frame_info.mb_cols + mb_col];
+
+      weber_stats->rec_pix_max = 1;
+      weber_stats->rec_variance = 0;
+      weber_stats->src_pix_max = 1;
+      weber_stats->src_variance = 0;
+      weber_stats->distortion = 0;
+
+      int64_t src_mean = 0;
+      int64_t rec_mean = 0;
+      int64_t dist_mean = 0;
+
+      for (int pix_row = 0; pix_row < block_size; ++pix_row) {
+        for (int pix_col = 0; pix_col < block_size; ++pix_col) {
+          int src_pix = dst_buffer[pix_row * buf_stride + pix_col];
+          int rec_pix = pred_buf[pix_row * block_size + pix_col];
+          src_mean += src_pix;
+          rec_mean += rec_pix;
+          dist_mean += src_pix - rec_pix;
+          weber_stats->src_variance += src_pix * src_pix;
+          weber_stats->rec_variance += rec_pix * rec_pix;
+          weber_stats->src_pix_max = AOMMAX(weber_stats->src_pix_max, src_pix);
+          weber_stats->rec_pix_max = AOMMAX(weber_stats->rec_pix_max, rec_pix);
+          weber_stats->distortion += (src_pix - rec_pix) * (src_pix - rec_pix);
+        }
+      }
+
+      weber_stats->src_variance -= (src_mean * src_mean) / pix_num;
+      weber_stats->rec_variance -= (rec_mean * rec_mean) / pix_num;
+      weber_stats->distortion -= (dist_mean * dist_mean) / pix_num;
+
+      double reg =
+          sqrt(weber_stats->distortion) * sqrt(weber_stats->src_pix_max) * 0.1;
+      double alpha_den =
+          fabs(weber_stats->rec_pix_max * sqrt(weber_stats->src_variance) -
+               weber_stats->src_pix_max * sqrt(weber_stats->rec_variance)) +
+          reg;
+      double alpha_num = sqrt(weber_stats->distortion) *
+                             sqrt(weber_stats->src_variance) *
+                             weber_stats->rec_pix_max +
+                         reg;
+
+      weber_stats->alpha = AOMMAX(alpha_num, 1.0) / AOMMAX(alpha_den, 1.0);
+
       coeff[0] = 0;
       for (idx = 1; idx < coeff_count; ++idx) coeff[idx] = abs(coeff[idx]);
 

@@ -16,7 +16,6 @@
 
 #include "av1/encoder/block.h"
 #include "av1/encoder/encoder.h"
-#include "av1/encoder/hybrid_fwd_txfm.h"
 
 void av1_init_mb_wiener_var_buffer(AV1_COMP *cpi);
 

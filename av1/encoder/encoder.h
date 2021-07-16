@@ -2084,6 +2084,12 @@ typedef struct {
 
 typedef struct WeberStats {
   int64_t mb_wiener_variance;
+  int64_t src_variance;
+  int64_t rec_variance;
+  int16_t src_pix_max;
+  int16_t rec_pix_max;
+  int64_t distortion;
+  double alpha;
 } WeberStats;
 
 typedef struct {
