@@ -1386,6 +1386,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     if (cpi->oxcf.kf_cfg.key_freq_max != 0 &&
         cm->width * cm->height > 640 * 480)
       sf->rt_sf.use_temporal_noise_estimate = 1;
+    sf->rt_sf.use_golden_frame = 0;
   }
 
   if (speed >= 6) {
@@ -1393,6 +1394,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   }
 
   if (speed >= 7) {
+    sf->rt_sf.use_golden_frame = 1;
     sf->part_sf.default_max_partition_size = BLOCK_128X128;
     sf->part_sf.default_min_partition_size = BLOCK_8X8;
     sf->part_sf.partition_search_type = VAR_BASED_PARTITION;

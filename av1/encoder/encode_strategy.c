@@ -1716,8 +1716,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     }
 
     // Work out which reference frame slots may be used.
-    frame_params.ref_frame_flags = get_ref_frame_flags(
-        &cpi->sf, ref_frame_buf, ext_flags->ref_frame_flags);
+    frame_params.ref_frame_flags =
+        get_ref_frame_flags(&cpi->sf, is_one_pass_rt_params(cpi), ref_frame_buf,
+                            ext_flags->ref_frame_flags);
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
     // Set primary_ref_frame of non-reference frames as PRIMARY_REF_NONE.

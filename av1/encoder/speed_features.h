@@ -1191,6 +1191,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Use ALTREF frame in non-RD mode decision.
   int use_nonrd_altref_frame;
 
+  // Use GOLDEN frame in pickmode decision.
+  int use_golden_frame;
+
   // Use compound reference for non-RD mode.
   int use_comp_ref_nonrd;
 

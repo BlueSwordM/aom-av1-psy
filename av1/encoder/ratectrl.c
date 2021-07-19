@@ -2525,10 +2525,11 @@ void av1_set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
   ext_refresh_frame_flags->alt_ref_frame = 0;
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) svc->ref_idx[i] = 7;
   for (int i = 0; i < REF_FRAMES; ++i) svc->refresh[i] = 0;
-  // Always reference LAST, GOLDEN, ALTREF
+  // Set the reference frame flags.
   ext_flags->ref_frame_flags ^= AOM_LAST_FLAG;
-  ext_flags->ref_frame_flags ^= AOM_GOLD_FLAG;
   ext_flags->ref_frame_flags ^= AOM_ALT_FLAG;
+  if (cpi->sf.rt_sf.use_golden_frame)
+    ext_flags->ref_frame_flags ^= AOM_GOLD_FLAG;
   if (cpi->sf.rt_sf.ref_frame_comp_nonrd == 1)
     ext_flags->ref_frame_flags ^= AOM_LAST2_FLAG;
   const int sh = 7 - gld_fixed_slot;
@@ -2743,6 +2744,8 @@ static int set_gf_interval_update_onepass_rt(AV1_COMP *cpi,
     gf_group->size = p_rc->baseline_gf_interval;
     gf_group->update_type[0] =
         (frame_type == KEY_FRAME) ? KF_UPDATE : GF_UPDATE;
+    gf_group->refbuf_state[cpi->gf_frame_index] =
+        (frame_type == KEY_FRAME) ? REFBUF_RESET : REFBUF_UPDATE;
     gf_update = 1;
   }
   return gf_update;
