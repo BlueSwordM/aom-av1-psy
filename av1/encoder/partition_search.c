@@ -3168,15 +3168,15 @@ static void ab_partitions_search(
     }
 
     blk_params.subsize = get_partition_subsize(bsize, part_type);
-    if (cpi->sf.part_sf.reuse_prev_rd_results_for_part_ab) {
-      for (int i = 0; i < SUB_PARTITIONS_AB; i++) {
-        // Set AB partition context.
-        cur_part_ctxs[ab_part_type][i] = av1_alloc_pmc(
-            cpi, ab_subsize[ab_part_type][i], &td->shared_coeff_buf);
-        // Set mode as not ready.
-        cur_part_ctxs[ab_part_type][i]->rd_mode_is_ready = 0;
-      }
+    for (int i = 0; i < SUB_PARTITIONS_AB; i++) {
+      // Set AB partition context.
+      cur_part_ctxs[ab_part_type][i] = av1_alloc_pmc(
+          cpi, ab_subsize[ab_part_type][i], &td->shared_coeff_buf);
+      // Set mode as not ready.
+      cur_part_ctxs[ab_part_type][i]->rd_mode_is_ready = 0;
+    }
 
+    if (cpi->sf.part_sf.reuse_prev_rd_results_for_part_ab) {
       // We can copy directly the mode search results if we have already
       // searched the current block and the contexts match.
       if (is_ctx_ready[ab_part_type][0]) {
