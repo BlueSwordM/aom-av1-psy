@@ -107,8 +107,8 @@ static void collect_tpl_stats_sb(const AV1_COMP *const cpi,
       AOMMIN(mi_size_wide[bsize], cm->mi_params.mi_cols - mi_col);
   const int mi_height =
       AOMMIN(mi_size_high[bsize], cm->mi_params.mi_rows - mi_row);
-  const int col_steps = mi_width / step;
-  const int row_steps = mi_height / step;
+  const int col_steps = (mi_width / step) + ((mi_width % step) > 0);
+  const int row_steps = (mi_height / step) + ((mi_height % step) > 0);
   const int num_blocks = col_steps * row_steps;
 
   if (features == NULL) {

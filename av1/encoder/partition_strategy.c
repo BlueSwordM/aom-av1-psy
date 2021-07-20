@@ -2291,8 +2291,8 @@ void av1_collect_motion_search_features_sb(AV1_COMP *const cpi, ThreadData *td,
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
   const BLOCK_SIZE fixed_block_size = BLOCK_16X16;
-  const int col_step = mi_size_wide[bsize] / mi_size_wide[fixed_block_size];
-  const int row_step = mi_size_high[bsize] / mi_size_high[fixed_block_size];
+  const int col_step = mi_size_wide[fixed_block_size];
+  const int row_step = mi_size_high[fixed_block_size];
   SIMPLE_MOTION_DATA_TREE *sms_tree = NULL;
   SIMPLE_MOTION_DATA_TREE *sms_root = setup_sms_tree(cpi, sms_tree);
   av1_init_simple_motion_search_mvs_for_sb(cpi, NULL, x, sms_root, mi_row,
@@ -2300,7 +2300,13 @@ void av1_collect_motion_search_features_sb(AV1_COMP *const cpi, ThreadData *td,
   av1_reset_simple_motion_tree_partition(sms_root, bsize);
   const int ref_list[] = { cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME
                                                         : LAST_FRAME };
-  const int num_blocks = col_step * row_step;
+  const int mi_width =
+      AOMMIN(mi_size_wide[bsize], cm->mi_params.mi_cols - mi_col);
+  const int mi_height =
+      AOMMIN(mi_size_high[bsize], cm->mi_params.mi_rows - mi_row);
+  const int col_steps = (mi_width / col_step) + ((mi_width % col_step) > 0);
+  const int row_steps = (mi_height / row_step) + ((mi_height % row_step) > 0);
+  const int num_blocks = col_steps * row_steps;
   unsigned int *block_sse = aom_calloc(num_blocks, sizeof(*block_sse));
   unsigned int *block_var = aom_calloc(num_blocks, sizeof(*block_var));
   int idx = 0;
