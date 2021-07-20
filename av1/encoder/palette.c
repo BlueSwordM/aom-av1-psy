@@ -619,36 +619,6 @@ void av1_rd_pick_palette_intra_sby(
             distortion, skippable, beat_best_rd, ctx, best_blk_skip,
             tx_type_map, color_map, rows * cols, NULL);
       }
-    } else if (cpi->sf.intra_sf.prune_palette_search_level == 0) {
-      const int max_n = AOMMIN(colors, PALETTE_MAX_SIZE),
-                min_n = PALETTE_MIN_SIZE;
-      // Perform top color palette search in ascending order.
-      perform_top_color_palette_search(
-          cpi, x, mbmi, bsize, dc_mode_cost, data, top_colors, min_n, max_n + 1,
-          1, do_header_rd_based_gating, &unused, color_cache, n_cache,
-          best_mbmi, best_palette_color_map, best_rd, rate, rate_tokenonly,
-          distortion, skippable, beat_best_rd, ctx, best_blk_skip, tx_type_map,
-          NULL);
-      // K-means clustering.
-      if (colors == PALETTE_MIN_SIZE) {
-        // Special case: These colors automatically become the centroids.
-        assert(colors == 2);
-        centroids[0] = lower_bound;
-        centroids[1] = upper_bound;
-        palette_rd_y(cpi, x, mbmi, bsize, dc_mode_cost, data, centroids, colors,
-                     color_cache, n_cache, /*do_header_rd_based_gating=*/false,
-                     best_mbmi, best_palette_color_map, best_rd, rate,
-                     rate_tokenonly, distortion, skippable, beat_best_rd, ctx,
-                     best_blk_skip, tx_type_map, NULL, NULL);
-      } else {
-        // Perform k-means palette search in ascending order.
-        perform_k_means_palette_search(
-            cpi, x, mbmi, bsize, dc_mode_cost, data, lower_bound, upper_bound,
-            min_n, max_n + 1, 1, do_header_rd_based_gating, &unused,
-            color_cache, n_cache, best_mbmi, best_palette_color_map, best_rd,
-            rate, rate_tokenonly, distortion, skippable, beat_best_rd, ctx,
-            best_blk_skip, tx_type_map, color_map, rows * cols, NULL);
-      }
     } else {
       const int max_n = AOMMIN(colors, PALETTE_MAX_SIZE),
                 min_n = PALETTE_MIN_SIZE;
