@@ -2228,13 +2228,9 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
 
   if ((lf->filter_level[0] || lf->filter_level[1]) &&
       !cpi->sf.rt_sf.skip_loopfilter_non_reference) {
-    if (num_workers > 1)
-      av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0,
-                               mt_info->workers, num_workers,
-                               &mt_info->lf_row_sync, is_realtime);
-    else
-      av1_loop_filter_frame(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0,
-                            is_realtime);
+    av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0,
+                             mt_info->workers, num_workers,
+                             &mt_info->lf_row_sync, is_realtime);
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, loop_filter_time);

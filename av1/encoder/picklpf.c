@@ -69,15 +69,9 @@ static int64_t try_filter_frame(const YV12_BUFFER_CONFIG *sd,
     case 2: cm->lf.filter_level_v = filter_level[0]; break;
   }
 
-  // TODO(any): please enable multi-thread and remove the flag when loop
-  // filter mask is compatible with multi-thread.
-  if (num_workers > 1)
-    av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, &cpi->td.mb.e_mbd, plane,
-                             plane + 1, partial_frame, mt_info->workers,
-                             num_workers, &mt_info->lf_row_sync, 0);
-  else
-    av1_loop_filter_frame(&cm->cur_frame->buf, cm, &cpi->td.mb.e_mbd, plane,
-                          plane + 1, partial_frame, 0);
+  av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, &cpi->td.mb.e_mbd, plane,
+                           plane + 1, partial_frame, mt_info->workers,
+                           num_workers, &mt_info->lf_row_sync, 0);
 
   filt_err = aom_get_sse_plane(sd, &cm->cur_frame->buf, plane,
                                cm->seq_params->use_highbitdepth);
