@@ -2406,16 +2406,20 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
                   priv->ppi->parallel_cpi[i],
                   priv->ppi->parallel_cpi[i]->oxcf.max_threads));
         }
+#if !CONFIG_REALTIME_ONLY
         priv->ppi->parallel_cpi[i]->twopass_frame.stats_in =
             priv->ppi->twopass.stats_buf_ctx->stats_in_start;
+#endif
       }
       priv->ppi->cpi = priv->ppi->parallel_cpi[0];
 #else
       res = create_context_and_bufferpool(priv->ppi, &priv->ppi->cpi,
                                           &priv->buffer_pool, &priv->oxcf,
                                           ENCODE_STAGE, -1);
+#if !CONFIG_REALTIME_ONLY
       priv->ppi->cpi->twopass_frame.stats_in =
           priv->ppi->twopass.stats_buf_ctx->stats_in_start;
+#endif
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
       // Create another compressor if look ahead is enabled
