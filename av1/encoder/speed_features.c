@@ -1317,10 +1317,10 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   if (speed >= 5) {
     sf->inter_sf.adaptive_rd_thresh = 4;
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
+    sf->inter_sf.prune_nearmv_using_neighbors = 1;
 
     sf->rd_sf.tx_domain_dist_level = 2;
     sf->rd_sf.tx_domain_dist_thres_level = 2;
-    sf->winner_mode_sf.tx_size_search_level = 1;
 
     sf->rt_sf.mode_search_skip_flags =
         (cm->current_frame.frame_type == KEY_FRAME)
@@ -1364,6 +1364,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->lpf_sf.disable_lr_filter = 1;
 
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
+    sf->winner_mode_sf.tx_size_search_level = 1;
 
     sf->rt_sf.mode_search_skip_flags |= FLAG_SKIP_INTRA_DIRMISMATCH;
     sf->rt_sf.num_inter_modes_for_tx_search = 5;
