@@ -2089,6 +2089,7 @@ typedef struct WeberStats {
   int16_t src_pix_max;
   int16_t rec_pix_max;
   int64_t distortion;
+  int64_t satd;
   double alpha;
 } WeberStats;
 
