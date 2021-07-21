@@ -367,6 +367,8 @@ typedef struct {
 typedef struct {
   /*!\cond */
   const FIRSTPASS_STATS *stats_in;
+  // Pointer to the stats of the current frame.
+  const FIRSTPASS_STATS *this_frame;
   double mb_av_energy;
   // An indication of the content type of the current frame
   FRAME_CONTENT_TYPE fr_content_type;

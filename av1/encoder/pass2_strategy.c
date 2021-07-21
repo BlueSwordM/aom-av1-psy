@@ -129,33 +129,6 @@ static const FIRSTPASS_STATS *read_frame_stats(const TWO_PASS *p,
   return &p_frame->stats_in[offset];
 }
 
-static void subtract_stats(FIRSTPASS_STATS *section,
-                           const FIRSTPASS_STATS *frame) {
-  section->frame -= frame->frame;
-  section->weight -= frame->weight;
-  section->intra_error -= frame->intra_error;
-  section->frame_avg_wavelet_energy -= frame->frame_avg_wavelet_energy;
-  section->coded_error -= frame->coded_error;
-  section->sr_coded_error -= frame->sr_coded_error;
-  section->pcnt_inter -= frame->pcnt_inter;
-  section->pcnt_motion -= frame->pcnt_motion;
-  section->pcnt_second_ref -= frame->pcnt_second_ref;
-  section->pcnt_neutral -= frame->pcnt_neutral;
-  section->intra_skip_pct -= frame->intra_skip_pct;
-  section->inactive_zone_rows -= frame->inactive_zone_rows;
-  section->inactive_zone_cols -= frame->inactive_zone_cols;
-  section->MVr -= frame->MVr;
-  section->mvr_abs -= frame->mvr_abs;
-  section->MVc -= frame->MVc;
-  section->mvc_abs -= frame->mvc_abs;
-  section->MVrv -= frame->MVrv;
-  section->MVcv -= frame->MVcv;
-  section->mv_in_out_count -= frame->mv_in_out_count;
-  section->new_mv_count -= frame->new_mv_count;
-  section->count -= frame->count;
-  section->duration -= frame->duration;
-}
-
 // This function returns the maximum target rate per frame.
 static int frame_max_bits(const RATE_CONTROL *rc,
                           const AV1EncoderConfig *oxcf) {
@@ -3573,6 +3546,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
 
   const FIRSTPASS_STATS *const start_pos = cpi->twopass_frame.stats_in;
+  int update_total_stats = 0;
 
   if (is_stat_consumption_stage(cpi) && !cpi->twopass_frame.stats_in) return;
 
@@ -3602,8 +3576,10 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   av1_zero(this_frame);
   // call above fn
   if (is_stat_consumption_stage(cpi)) {
-    if (cpi->gf_frame_index < gf_group->size || rc->frames_to_key == 0)
+    if (cpi->gf_frame_index < gf_group->size || rc->frames_to_key == 0) {
       process_first_pass_stats(cpi, &this_frame);
+      update_total_stats = 1;
+    }
   } else {
     rc->active_worst_quality = oxcf->rc_cfg.cq_level;
   }
@@ -3806,10 +3782,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
                          gf_group->arf_src_offset[cpi->gf_frame_index]);
     set_twopass_params_based_on_fp_stats(cpi, this_frame_ptr);
   } else {
-    // Update the total stats remaining structure.
-    if (twopass->stats_buf_ctx->total_left_stats)
-      subtract_stats(twopass->stats_buf_ctx->total_left_stats,
-                     &this_frame_copy);
+    // Back up this frame's stats for updating total stats during post encode.
+    cpi->twopass_frame.this_frame = update_total_stats ? start_pos : NULL;
   }
 
   frame_params->frame_type = gf_group->frame_type[cpi->gf_frame_index];
