@@ -1363,6 +1363,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_Q;
     sf->lpf_sf.disable_lr_filter = 1;
 
+    sf->winner_mode_sf.dc_blk_pred_level = 1;
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
     sf->winner_mode_sf.tx_size_search_level = 1;
 
@@ -1459,6 +1460,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
       else
         // Use DC, H, V intra mode for block sizes < 32X32.
         sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC_H_V;
+
+    sf->winner_mode_sf.dc_blk_pred_level = 0;
   }
 
   if (speed >= 8) {
