@@ -17,6 +17,7 @@
 #include "av1/encoder/model_rd.h"
 #include "av1/encoder/random.h"
 #include "av1/encoder/rdopt_utils.h"
+#include "av1/encoder/sorting_network.h"
 #include "av1/encoder/tx_prune_model_weights.h"
 #include "av1/encoder/tx_search.h"
 #include "av1/encoder/txb_rdopt.h"
@@ -1646,32 +1647,6 @@ static const float *prune_2D_adaptive_thresholds[] = {
   NULL,
 };
 
-// Probablities are sorted in descending order.
-static INLINE void sort_probability(float prob[], int txk[], int len) {
-  int i, j, k;
-
-  for (i = 1; i <= len - 1; ++i) {
-    for (j = 0; j < i; ++j) {
-      if (prob[j] < prob[i]) {
-        float temp;
-        int tempi;
-
-        temp = prob[i];
-        tempi = txk[i];
-
-        for (k = i; k > j; k--) {
-          prob[k] = prob[k - 1];
-          txk[k] = txk[k - 1];
-        }
-
-        prob[j] = temp;
-        txk[j] = tempi;
-        break;
-      }
-    }
-  }
-}
-
 static INLINE float get_adaptive_thresholds(
     TX_SIZE tx_size, TxSetType tx_set_type,
     TX_TYPE_PRUNE_MODE prune_2d_txfm_mode) {
@@ -1769,7 +1744,9 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
                         int blk_row, int blk_col, TxSetType tx_set_type,
                         TX_TYPE_PRUNE_MODE prune_2d_txfm_mode, int *txk_map,
                         uint16_t *allowed_tx_mask) {
-  int tx_type_table_2D[16] = {
+  // This table is used because the search order is different from the enum
+  // order.
+  static const int tx_type_table_2D[16] = {
     DCT_DCT,      DCT_ADST,      DCT_FLIPADST,      V_DCT,
     ADST_DCT,     ADST_ADST,     ADST_FLIPADST,     V_ADST,
     FLIPADST_DCT, FLIPADST_ADST, FLIPADST_FLIPADST, V_FLIPADST,
@@ -1790,7 +1767,6 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
   float hfeatures[16], vfeatures[16];
   float hscores[4], vscores[4];
   float scores_2D_raw[16];
-  float scores_2D[16];
   const int bw = tx_size_wide[tx_size];
   const int bh = tx_size_high[tx_size];
   const int hfeatures_num = bw <= 8 ? bw : bw / 2;
@@ -1828,7 +1804,7 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
   // This version of the function only works when there are at most 16 classes.
   // So we will need to change the optimization or use av1_nn_softmax instead if
   // this ever gets changed.
-  av1_nn_fast_softmax_16(scores_2D_raw, scores_2D);
+  av1_nn_fast_softmax_16(scores_2D_raw, scores_2D_raw);
 
   const float score_thresh =
       get_adaptive_thresholds(tx_size, tx_set_type, prune_2d_txfm_mode);
@@ -1841,19 +1817,36 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
   float sum_score = 0.0;
   // Calculate sum of allowed tx type score and Populate allow bit mask based
   // on score_thresh and allowed_tx_mask
+  int allow_count = 0;
+  int tx_type_allowed[16] = { TX_2D_INVALID, TX_2D_INVALID, TX_2D_INVALID,
+                              TX_2D_INVALID, TX_2D_INVALID, TX_2D_INVALID,
+                              TX_2D_INVALID, TX_2D_INVALID, TX_2D_INVALID,
+                              TX_2D_INVALID, TX_2D_INVALID, TX_2D_INVALID,
+                              TX_2D_INVALID, TX_2D_INVALID, TX_2D_INVALID,
+                              TX_2D_INVALID };
+  float scores_2D[16] = {
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+  };
   for (int tx_idx = 0; tx_idx < TX_TYPES; tx_idx++) {
-    int allow_tx_type =
+    const int allow_tx_type =
         check_bit_mask(*allowed_tx_mask, tx_type_table_2D[tx_idx]);
-    if (scores_2D[tx_idx] > max_score && allow_tx_type) {
-      max_score = scores_2D[tx_idx];
+    if (!allow_tx_type) {
+      continue;
+    }
+    if (scores_2D_raw[tx_idx] > max_score) {
+      max_score = scores_2D_raw[tx_idx];
       max_score_i = tx_idx;
     }
-    if (scores_2D[tx_idx] >= score_thresh && allow_tx_type) {
+    if (scores_2D_raw[tx_idx] >= score_thresh) {
       // Set allow mask based on score_thresh
       set_bit_mask(&allow_bitmask, tx_type_table_2D[tx_idx]);
 
       // Accumulate score of allowed tx type
-      sum_score += scores_2D[tx_idx];
+      sum_score += scores_2D_raw[tx_idx];
+
+      scores_2D[allow_count] = scores_2D_raw[tx_idx];
+      tx_type_allowed[allow_count] = tx_type_table_2D[tx_idx];
+      allow_count += 1;
     }
   }
   if (!check_bit_mask(allow_bitmask, tx_type_table_2D[max_score_i])) {
@@ -1867,7 +1860,11 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
   }
 
   // Sort tx type probability of all types
-  sort_probability(scores_2D, tx_type_table_2D, TX_TYPES);
+  if (allow_count <= 8) {
+    av1_sort_fi32_8(scores_2D, tx_type_allowed);
+  } else {
+    av1_sort_fi32_16(scores_2D, tx_type_allowed);
+  }
 
   // Enable more pruning based on tx type probability and number of allowed tx
   // types
@@ -1877,27 +1874,25 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
     int tx_idx, tx_count = 0;
     const float inv_sum_score = 100 / sum_score;
     // Get allowed tx types based on sorted probability score and tx count
-    for (tx_idx = 0; tx_idx < TX_TYPES; tx_idx++) {
+    for (tx_idx = 0; tx_idx < allow_count; tx_idx++) {
       // Skip the tx type which has more than 30% of cumulative
       // probability and allowed tx type count is more than 2
       if (score_ratio > 30.0 && tx_count >= 2) break;
 
-      // Calculate cumulative probability of allowed tx types
-      if (check_bit_mask(allow_bitmask, tx_type_table_2D[tx_idx])) {
-        // Calculate cumulative probability
-        temp_score += scores_2D[tx_idx];
+      assert(check_bit_mask(allow_bitmask, tx_type_allowed[tx_idx]));
+      // Calculate cumulative probability
+      temp_score += scores_2D[tx_idx];
 
-        // Calculate percentage of cumulative probability of allowed tx type
-        score_ratio = temp_score * inv_sum_score;
-        tx_count++;
-      }
+      // Calculate percentage of cumulative probability of allowed tx type
+      score_ratio = temp_score * inv_sum_score;
+      tx_count++;
     }
     // Set remaining tx types as pruned
-    for (; tx_idx < TX_TYPES; tx_idx++)
-      unset_bit_mask(&allow_bitmask, tx_type_table_2D[tx_idx]);
+    for (; tx_idx < allow_count; tx_idx++)
+      unset_bit_mask(&allow_bitmask, tx_type_allowed[tx_idx]);
   }
 
-  memcpy(txk_map, tx_type_table_2D, sizeof(tx_type_table_2D));
+  memcpy(txk_map, tx_type_allowed, sizeof(tx_type_table_2D));
   *allowed_tx_mask = allow_bitmask;
 }
 
@@ -2417,7 +2412,8 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // Iterate through all transform type candidates.
   for (int idx = 0; idx < TX_TYPES; ++idx) {
     const TX_TYPE tx_type = (TX_TYPE)txk_map[idx];
-    if (!(allowed_tx_mask & (1 << tx_type))) continue;
+    if (tx_type == TX_2D_INVALID || !check_bit_mask(allowed_tx_mask, tx_type))
+      continue;
     txfm_param.tx_type = tx_type;
     if (av1_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id)) {
       av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
