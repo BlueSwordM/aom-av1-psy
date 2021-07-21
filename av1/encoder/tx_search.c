@@ -1753,6 +1753,18 @@ static AOM_INLINE void get_energy_distribution_finer(const int16_t *diff,
   for (i = 0; i < esq_h - 1; i++) verdist[i] *= e_recip;
 }
 
+static AOM_INLINE bool check_bit_mask(uint16_t mask, int val) {
+  return mask & (1 << val);
+}
+
+static AOM_INLINE void set_bit_mask(uint16_t *mask, int val) {
+  *mask |= (1 << val);
+}
+
+static AOM_INLINE void unset_bit_mask(uint16_t *mask, int val) {
+  *mask &= ~(1 << val);
+}
+
 static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
                         int blk_row, int blk_col, TxSetType tx_set_type,
                         TX_TYPE_PRUNE_MODE prune_2d_txfm_mode, int *txk_map,
@@ -1830,22 +1842,23 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
   // Calculate sum of allowed tx type score and Populate allow bit mask based
   // on score_thresh and allowed_tx_mask
   for (int tx_idx = 0; tx_idx < TX_TYPES; tx_idx++) {
-    int allow_tx_type = *allowed_tx_mask & (1 << tx_type_table_2D[tx_idx]);
+    int allow_tx_type =
+        check_bit_mask(*allowed_tx_mask, tx_type_table_2D[tx_idx]);
     if (scores_2D[tx_idx] > max_score && allow_tx_type) {
       max_score = scores_2D[tx_idx];
       max_score_i = tx_idx;
     }
     if (scores_2D[tx_idx] >= score_thresh && allow_tx_type) {
       // Set allow mask based on score_thresh
-      allow_bitmask |= (1 << tx_type_table_2D[tx_idx]);
+      set_bit_mask(&allow_bitmask, tx_type_table_2D[tx_idx]);
 
       // Accumulate score of allowed tx type
       sum_score += scores_2D[tx_idx];
     }
   }
-  if (!((allow_bitmask >> max_score_i) & 0x01)) {
+  if (!check_bit_mask(allow_bitmask, tx_type_table_2D[max_score_i])) {
     // Set allow mask based on tx type with max score
-    allow_bitmask |= (1 << tx_type_table_2D[max_score_i]);
+    set_bit_mask(&allow_bitmask, tx_type_table_2D[max_score_i]);
     sum_score += scores_2D[max_score_i];
   }
 
@@ -1866,7 +1879,7 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
       if (score_ratio > 30.0 && tx_count >= 2) break;
 
       // Calculate cumulative probability of allowed tx types
-      if (allow_bitmask & (1 << tx_type_table_2D[tx_idx])) {
+      if (check_bit_mask(allow_bitmask, tx_type_table_2D[tx_idx])) {
         // Calculate cumulative probability
         temp_score += scores_2D[tx_idx];
 
@@ -1877,7 +1890,7 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
     }
     // Set remaining tx types as pruned
     for (; tx_idx < TX_TYPES; tx_idx++)
-      allow_bitmask &= ~(1 << tx_type_table_2D[tx_idx]);
+      unset_bit_mask(&allow_bitmask, tx_type_table_2D[tx_idx]);
   }
 
   memcpy(txk_map, tx_type_table_2D, sizeof(tx_type_table_2D));
