@@ -77,8 +77,11 @@ static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
     aom_free(cpi->td.mb.mv_costs);
     cpi->td.mb.mv_costs = NULL;
   }
-  CHECK_MEM_ERROR(cm, cpi->td.mb.mv_costs,
-                  (MvCosts *)aom_calloc(1, sizeof(MvCosts)));
+  // Avoid the memory allocation of 'mv_costs' for allintra encoding mode.
+  if (cpi->oxcf.kf_cfg.key_freq_max != 0) {
+    CHECK_MEM_ERROR(cm, cpi->td.mb.mv_costs,
+                    (MvCosts *)aom_calloc(1, sizeof(MvCosts)));
+  }
 
   if (cpi->td.mb.dv_costs) {
     aom_free(cpi->td.mb.dv_costs);
