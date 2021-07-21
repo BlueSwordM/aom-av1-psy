@@ -431,8 +431,11 @@ add_proto qw/void av1_calc_indices_dim2/, "const int *data, const int *centroids
   specialize qw/av1_get_horver_correlation_full sse4_1 avx2 neon/;
 
   add_proto qw/void av1_nn_predict/, " const float *input_nodes, const NN_CONFIG *const nn_config, int reduce_prec, float *const output";
+
+  add_proto qw/void av1_nn_fast_softmax_16/, " const float *input_nodes, float *output";
   if (aom_config("CONFIG_EXCLUDE_SIMD_MISMATCH") ne "yes") {
     specialize qw/av1_nn_predict sse3 neon/;
+    specialize qw/av1_nn_fast_softmax_16 sse3/;
   }
 
   # CNN functions

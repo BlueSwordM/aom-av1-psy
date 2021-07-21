@@ -1791,9 +1791,11 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
   const int16_t *diff = p->src_diff + 4 * blk_row * diff_stride + 4 * blk_col;
   get_energy_distribution_finer(diff, diff_stride, bw, bh, hfeatures,
                                 vfeatures);
+
   av1_get_horver_correlation_full(diff, diff_stride, bw, bh,
                                   &hfeatures[hfeatures_num - 1],
                                   &vfeatures[vfeatures_num - 1]);
+
 #if CONFIG_NN_V2
   av1_nn_predict_v2(hfeatures, nn_config_hor, 0, hscores);
   av1_nn_predict_v2(vfeatures, nn_config_ver, 0, vscores);
@@ -1810,7 +1812,11 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
     cur_scores_2D[3] = vscores[i] * hscores[3];
   }
 
-  av1_nn_softmax(scores_2D_raw, scores_2D, 16);
+  assert(TX_TYPES == 16);
+  // This version of the function only works when there are at most 16 classes.
+  // So we will need to change the optimization or use av1_nn_softmax instead if
+  // this ever gets changed.
+  av1_nn_fast_softmax_16(scores_2D_raw, scores_2D);
 
   const float score_thresh =
       get_adaptive_thresholds(tx_size, tx_set_type, prune_2d_txfm_mode);
@@ -1842,6 +1848,7 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
     allow_bitmask |= (1 << tx_type_table_2D[max_score_i]);
     sum_score += scores_2D[max_score_i];
   }
+
   // Sort tx type probability of all types
   sort_probability(scores_2D, tx_type_table_2D, TX_TYPES);
 
@@ -1872,6 +1879,7 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
     for (; tx_idx < TX_TYPES; tx_idx++)
       allow_bitmask &= ~(1 << tx_type_table_2D[tx_idx]);
   }
+
   memcpy(txk_map, tx_type_table_2D, sizeof(tx_type_table_2D));
   *allowed_tx_mask = allow_bitmask;
 }

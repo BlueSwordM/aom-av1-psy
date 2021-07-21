@@ -248,6 +248,7 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/av1_inv_txfm2d_test.cc"
               "${AOM_ROOT}/test/av1_nn_predict_test.cc"
               "${AOM_ROOT}/test/av1_round_shift_array_test.cc"
+              "${AOM_ROOT}/test/av1_softmax_test.cc"
               "${AOM_ROOT}/test/av1_txfm_test.cc"
               "${AOM_ROOT}/test/av1_txfm_test.h"
               "${AOM_ROOT}/test/av1_wedge_utils_test.cc"
