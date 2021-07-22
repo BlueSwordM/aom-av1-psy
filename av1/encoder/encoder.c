@@ -4267,6 +4267,8 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
       cur_cpi->rc.frames_since_key = frames_since_key;
       cur_cpi->rc.frames_to_key = frames_to_key;
       cur_cpi->rc.frames_to_fwd_kf = frames_to_fwd_kf;
+      if (gf_group->update_type[cur_cpi->gf_frame_index] == INTNL_ARF_UPDATE)
+        cur_cpi->rc.active_worst_quality = first_cpi->rc.active_worst_quality;
       cur_cpi->do_frame_data_update = false;
       // Initialize prev_ts_start and prev_ts_end for show frame(s) and show
       // existing frame(s).
