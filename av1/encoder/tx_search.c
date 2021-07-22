@@ -1857,9 +1857,13 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
     }
   }
   if (!check_bit_mask(allow_bitmask, tx_type_table_2D[max_score_i])) {
-    // Set allow mask based on tx type with max score
+    // If even the tx_type with max score is pruned, this means that no other
+    // tx_type is feasible. When this happens, we force enable max_score_i and
+    // end the search.
     set_bit_mask(&allow_bitmask, tx_type_table_2D[max_score_i]);
-    sum_score += scores_2D[max_score_i];
+    memcpy(txk_map, tx_type_table_2D, sizeof(tx_type_table_2D));
+    *allowed_tx_mask = allow_bitmask;
+    return;
   }
 
   // Sort tx type probability of all types
