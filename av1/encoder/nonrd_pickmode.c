@@ -2480,10 +2480,15 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                          use_ref_frame_mask, &force_skip_low_temp_var);
 
   // Test compound modes: LAST_GOLDEN for 0/NEARESST/NEAR.
-  // For now to reduce slowdowm, uses only 0/0 for blocks above 16x16.
-  if (cpi->sf.rt_sf.use_comp_ref_nonrd && is_comp_ref_allowed(bsize) &&
-      bsize > BLOCK_16X16)
-    num_comp_modes = 1;
+  // For now to reduce slowdowm, use only 0/0 for blocks above 16x16
+  // for non-svc case or on enhancement layers for svc.
+  if (cpi->sf.rt_sf.use_comp_ref_nonrd && is_comp_ref_allowed(bsize)) {
+    if (cpi->ppi->use_svc && cpi->svc.use_comp_pred &&
+        cpi->svc.temporal_layer_id == 0)
+      num_comp_modes = 3;
+    else if (bsize > BLOCK_16X16)
+      num_comp_modes = 1;
+  }
 
   for (MV_REFERENCE_FRAME ref_frame_iter = LAST_FRAME;
        ref_frame_iter <= ALTREF_FRAME; ++ref_frame_iter) {
