@@ -2646,7 +2646,11 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     // Reset the mv_stats in case we are interrupted by an intraframe or an
     // overlay frame.
     if (cpi->ppi->mv_stats.valid && do_mv_stats_collection) {
+#if CONFIG_FRAME_PARALLEL_ENCODE
+      av1_zero(cpi->mv_stats);
+#else
       av1_zero(cpi->ppi->mv_stats);
+#endif
     }
     // Gather the mv_stats for the next frame
     if (cpi->sf.hl_sf.high_precision_mv_usage == LAST_MV_DATA &&
@@ -3973,6 +3977,29 @@ static void update_rc_counts(AV1_COMP *cpi) {
   update_gf_group_index(cpi);
 }
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+static void update_end_of_frame_stats(AV1_COMP *cpi) {
+  if (cpi->do_frame_data_update) {
+    // Store current frame loopfilter levels in ppi, if update flag is set.
+    if (!cpi->common.show_existing_frame) {
+      AV1_COMMON *const cm = &cpi->common;
+      struct loopfilter *const lf = &cm->lf;
+      cpi->ppi->filter_level[0] = lf->filter_level[0];
+      cpi->ppi->filter_level[1] = lf->filter_level[1];
+      cpi->ppi->filter_level_u = lf->filter_level_u;
+      cpi->ppi->filter_level_v = lf->filter_level_v;
+    }
+
+    // Store current frame max_mv_magnitude in ppi, if update flag is set.
+    if (!is_stat_generation_stage(cpi))
+      cpi->ppi->max_mv_magnitude = cpi->mv_search_params.max_mv_magnitude;
+  }
+
+  // Store frame level mv_stats from cpi to ppi.
+  cpi->ppi->mv_stats = cpi->mv_stats;
+}
+#endif
+
 void av1_post_encode_updates(AV1_COMP *const cpi,
                              const AV1_COMP_DATA *const cpi_data) {
   AV1_PRIMARY *const ppi = cpi->ppi;
@@ -4031,6 +4058,9 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
 #endif
     update_fb_of_context_type(cpi, ppi->fb_of_context_type);
     update_rc_counts(cpi);
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    update_end_of_frame_stats(cpi);
+#endif
   }
 
   if (ppi->use_svc) av1_save_layer_context(cpi);

@@ -3057,6 +3057,12 @@ typedef struct AV1_COMP {
    * last frame in encode order in a given parallel encode set.
    */
   bool do_frame_data_update;
+
+  /*!
+   * Motion vector stats of the current encoded frame, used to update the
+   * ppi->mv_stats during postencode.
+   */
+  MV_STATS mv_stats;
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
   /*!
    * Stores the reference refresh index for the current frame.

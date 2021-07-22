@@ -300,14 +300,5 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
           search_filter_level(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
                               last_frame_filter_level, NULL, 2, 0);
     }
-#if CONFIG_FRAME_PARALLEL_ENCODE
-    // Store current frame loopfilter levels if update flag is set.
-    if (cpi->do_frame_data_update) {
-      cpi->ppi->filter_level[0] = lf->filter_level[0];
-      cpi->ppi->filter_level[1] = lf->filter_level[1];
-      cpi->ppi->filter_level_u = lf->filter_level_u;
-      cpi->ppi->filter_level_v = lf->filter_level_v;
-    }
-#endif
   }
 }

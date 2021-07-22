@@ -1513,6 +1513,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         cpi->rc.frame_level_rate_correction_factors[i] =
             cpi->ppi->p_rc.temp_rate_correction_factors[i];
     }
+    // copy mv_stats from ppi to frame_level cpi.
+    cpi->mv_stats = cpi->ppi->mv_stats;
 #endif
     av1_get_second_pass_params(cpi, &frame_params, &frame_input, *frame_flags);
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -1821,12 +1823,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     return AOM_CODEC_ERROR;
   }
 #endif  // CONFIG_REALTIME_ONLY
-
-#if CONFIG_FRAME_PARALLEL_ENCODE
-  // Store current frame's largest MV component in ppi.
-  if (!is_stat_generation_stage(cpi) && cpi->do_frame_data_update)
-    cpi->ppi->max_mv_magnitude = cpi->mv_search_params.max_mv_magnitude;
-#endif
 
   if (!is_stat_generation_stage(cpi)) {
     // First pass doesn't modify reference buffer assignment or produce frame
