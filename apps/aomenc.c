@@ -2385,6 +2385,10 @@ int main(int argc, const char **argv_) {
                   cx_time > 9999999 ? "ms" : "us", fps >= 1.0 ? fps : fps * 60,
                   fps >= 1.0 ? "fps" : "fpm");
           print_time("ETA", estimated_time_left);
+          // mingw-w64 gcc does not match msvc for stderr buffering behavior
+          // and uses line buffering, thus the progress output is not
+          // real-time. The fflush() is here to make sure the progress output
+          // is sent out while the clip is being processed.
           fflush(stderr);
         }
 
@@ -2491,6 +2495,8 @@ int main(int argc, const char **argv_) {
                                           : stream->cx_time,
                 stream->cx_time > 9999999 ? "ms" : "us",
                 usec_to_fps(stream->cx_time, seen_frames));
+        // This instance of cr does not need fflush as it is followed by a
+        // newline in the same string.
       }
     }
 
