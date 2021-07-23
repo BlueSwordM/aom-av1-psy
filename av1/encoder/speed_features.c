@@ -1326,6 +1326,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
     sf->inter_sf.prune_nearmv_using_neighbors = 1;
+    sf->inter_sf.reduce_inter_modes = boosted ? 1 : 3;
 
     sf->rd_sf.tx_domain_dist_level = 2;
     sf->rd_sf.tx_domain_dist_thres_level = 2;
