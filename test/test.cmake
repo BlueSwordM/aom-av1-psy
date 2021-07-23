@@ -264,6 +264,7 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/end_to_end_ssim_test.cc"
               "${AOM_ROOT}/test/error_block_test.cc"
               "${AOM_ROOT}/test/fft_test.cc"
+              "${AOM_ROOT}/test/firstpass_test.cc"
               "${AOM_ROOT}/test/fwht4x4_test.cc"
               "${AOM_ROOT}/test/fdct4x4_test.cc"
               "${AOM_ROOT}/test/hadamard_test.cc"
@@ -293,6 +294,7 @@ if(NOT BUILD_SHARED_LIBS)
   if(CONFIG_REALTIME_ONLY)
     list(REMOVE_ITEM AOM_UNIT_TEST_ENCODER_SOURCES
                      "${AOM_ROOT}/test/end_to_end_ssim_test.cc"
+                     "${AOM_ROOT}/test/firstpass_test.cc"
                      "${AOM_ROOT}/test/frame_error_test.cc"
                      "${AOM_ROOT}/test/motion_vector_test.cc"
                      "${AOM_ROOT}/test/obmc_sad_test.cc"

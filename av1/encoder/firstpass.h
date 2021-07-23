@@ -163,6 +163,85 @@ typedef struct {
 } FIRSTPASS_STATS;
 
 /*!\cond */
+typedef struct {
+  /*!
+   * An static buffer that will be used when no ext_stats_buf is assigned.
+   * The ext_stats_buf is assigned through av1_firstpass_info_init() when
+   * user already has an pre-existing firstpass stats that store in an
+   * external buffer. The ext_stats_buf is usually use in two pass mode.
+   * When using one pass mode, we generate "firstpass" stats and
+   * encode the video in the same pass. In this scenario, the stats will
+   * be pushed and popped from static_stats_buf.
+   */
+  FIRSTPASS_STATS static_stats_buf[MAX_LAP_BUFFERS];
+  /*!
+   * A pointer point to first pass stats.
+   * Note that this buffer will be used as ring buffer.
+   */
+  FIRSTPASS_STATS *stats_buf;
+  /*!
+   * size of stats_buf
+   */
+  int stats_buf_size;
+  /*!
+   * start_index of the current frame's stats
+   */
+  int start_index;
+  /*!
+   * count available stats stored in stats_buf
+   */
+  int stats_count;
+} FIRSTPASS_INFO;
+
+/*!\brief Init firstpass_info
+ *
+ * If using ext_stats_buf, the buffer needs to stay available during encoding
+ * process.
+ *
+ * \ingroup rate_control
+ * \param[out]   firstpass_info      struct of firstpass_info.
+ * \param[in]    ext_stats_buf       external stats buffer. Pass in NULL if
+ *                                   choose to use internal static_stats_buf.
+ * \param[in]    ext_stats_buf_size  external stats buffer size. Pass in 0 if
+ * choose to use internal static_stats_buf. \return status
+ */
+aom_codec_err_t av1_firstpass_info_init(FIRSTPASS_INFO *firstpass_info,
+                                        FIRSTPASS_STATS *ext_stats_buf,
+                                        int ext_stats_buf_size);
+
+/*!\brief Pop a stats from firstpass_info
+ *
+ * \ingroup rate_control
+ * \param[out]   firstpass_info      struct of firstpass_info.
+ * \param[out]   output_stats        output stats
+ * \return status
+ */
+aom_codec_err_t av1_firstpass_info_pop(FIRSTPASS_INFO *firstpass_info,
+                                       FIRSTPASS_STATS *output_stats);
+
+/*!\brief Push a stats from firstpass_info
+ *
+ * Note that he input stats will be coppied into firstpass_copy.
+ * \ingroup rate_control
+ * \param[out]   firstpass_info      struct of firstpass_info.
+ * \param[in]   input_stats          input stats
+ * \return status
+ */
+aom_codec_err_t av1_firstpass_info_push(FIRSTPASS_INFO *firstpass_info,
+                                        const FIRSTPASS_STATS *input_stats);
+
+/*!\brief Peak a stats from firstpass_info
+ *
+ * Note that he input stats will be coppied into firstpass_copy.
+ * \ingroup rate_control
+ * \param[in]  firstpass_info      struct of firstpass_info.
+ * \param[in]  stats_index_offset  index offset.
+ * \param[out] out_stats           input stats.
+ * \return status
+ */
+aom_codec_err_t av1_firstpass_info_peak(const FIRSTPASS_INFO *firstpass_info,
+                                        int stats_index_offset,
+                                        FIRSTPASS_STATS *output_stats);
 
 #define FC_ANIMATION_THRESH 0.15
 enum {

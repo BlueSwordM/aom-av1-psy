@@ -1376,3 +1376,69 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
 
   ++current_frame->frame_number;
 }
+
+aom_codec_err_t av1_firstpass_info_init(FIRSTPASS_INFO *firstpass_info,
+                                        FIRSTPASS_STATS *ext_stats_buf,
+                                        int ext_stats_buf_size) {
+  assert(IMPLIES(ext_stats_buf == NULL, ext_stats_buf_size == 0));
+  if (ext_stats_buf == NULL) {
+    firstpass_info->stats_buf = firstpass_info->static_stats_buf;
+    firstpass_info->stats_buf_size =
+        sizeof(firstpass_info->static_stats_buf) /
+        sizeof(firstpass_info->static_stats_buf[0]);
+    firstpass_info->start_index = 0;
+    firstpass_info->stats_count = 0;
+    if (ext_stats_buf_size == 0) {
+      return AOM_CODEC_OK;
+    } else {
+      return AOM_CODEC_ERROR;
+    }
+  } else {
+    firstpass_info->stats_buf = ext_stats_buf;
+    firstpass_info->stats_buf_size = ext_stats_buf_size;
+    firstpass_info->start_index = 0;
+    firstpass_info->stats_count = firstpass_info->stats_buf_size;
+  }
+  return AOM_CODEC_OK;
+}
+
+aom_codec_err_t av1_firstpass_info_pop(FIRSTPASS_INFO *firstpass_info,
+                                       FIRSTPASS_STATS *output_stats) {
+  if (firstpass_info->stats_count > 0) {
+    const int next_start =
+        (firstpass_info->start_index + 1) % firstpass_info->stats_buf_size;
+    *output_stats = firstpass_info->stats_buf[firstpass_info->start_index];
+    firstpass_info->start_index = next_start;
+    --firstpass_info->stats_count;
+    return AOM_CODEC_OK;
+  } else {
+    return AOM_CODEC_ERROR;
+  }
+}
+
+aom_codec_err_t av1_firstpass_info_push(FIRSTPASS_INFO *firstpass_info,
+                                        const FIRSTPASS_STATS *input_stats) {
+  if (firstpass_info->stats_count < firstpass_info->stats_buf_size) {
+    const int next_index =
+        (firstpass_info->start_index + firstpass_info->stats_count) %
+        firstpass_info->stats_buf_size;
+    firstpass_info->stats_buf[next_index] = *input_stats;
+    ++firstpass_info->stats_count;
+    return AOM_CODEC_OK;
+  } else {
+    return AOM_CODEC_ERROR;
+  }
+}
+
+aom_codec_err_t av1_firstpass_info_peak(const FIRSTPASS_INFO *firstpass_info,
+                                        int index_offset,
+                                        FIRSTPASS_STATS *output_stats) {
+  if (index_offset < firstpass_info->stats_count) {
+    const int index = (firstpass_info->start_index + index_offset) %
+                      firstpass_info->stats_buf_size;
+    *output_stats = firstpass_info->stats_buf[index];
+    return AOM_CODEC_OK;
+  } else {
+    return AOM_CODEC_ERROR;
+  }
+}
