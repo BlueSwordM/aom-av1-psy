@@ -883,7 +883,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->fp_sf.skip_motion_search_threshold = 25;
 
-    sf->part_sf.allow_partition_search_skip = 1;
+    sf->part_sf.allow_partition_search_skip = 0;
     sf->part_sf.reuse_best_prediction_for_part_ab =
         !frame_is_intra_only(&cpi->common);
 
