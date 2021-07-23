@@ -4165,17 +4165,6 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
           left -= prob;
           if (j == 0) prob += left;
           temp_frame_probs_simulation->tx_type_probs[update_type][i][j] = prob;
-
-          if (cpi->do_frame_data_update) {
-            // Copying temp_frame_probs_simulation to temp_frame_probs based on
-            // the flag
-            for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
-                 update_type_idx++) {
-              temp_frame_probs->tx_type_probs[update_type_idx][i][j] =
-                  temp_frame_probs_simulation
-                      ->tx_type_probs[update_type_idx][i][j];
-            }
-          }
         }
       }
     }
@@ -4193,16 +4182,6 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
             (temp_frame_probs_simulation->obmc_probs[update_type][i] +
              new_prob) >>
             1;
-
-        if (cpi->do_frame_data_update) {
-          // Copying temp_frame_probs_simulation to temp_frame_probs based on
-          // the flag
-          for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
-               update_type_idx++) {
-            temp_frame_probs->obmc_probs[update_type_idx][i] =
-                temp_frame_probs_simulation->obmc_probs[update_type_idx][i];
-          }
-        }
       }
     }
 
@@ -4215,16 +4194,6 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
       temp_frame_probs_simulation->warped_probs[update_type] =
           (temp_frame_probs_simulation->warped_probs[update_type] + new_prob) >>
           1;
-
-      if (cpi->do_frame_data_update) {
-        // Copying temp_frame_probs_simulation to temp_frame_probs based on the
-        // flag
-        for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
-             update_type_idx++) {
-          temp_frame_probs->warped_probs[update_type_idx] =
-              temp_frame_probs_simulation->warped_probs[update_type_idx];
-        }
-      }
     }
 
     // Sequentially update switchable_interp_probs
@@ -4247,17 +4216,36 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
           if (j == 0) prob += left;
           temp_frame_probs_simulation
               ->switchable_interp_probs[update_type][i][j] = prob;
+        }
+      }
+    }
+  }
+  // Copying temp_frame_probs_simulation to temp_frame_probs based on
+  // the flag
+  if (cpi->do_frame_data_update &&
+      cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
+    for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
+         update_type_idx++) {
+      for (i = 0; i < BLOCK_SIZES_ALL; i++) {
+        temp_frame_probs->obmc_probs[update_type_idx][i] =
+            temp_frame_probs_simulation->obmc_probs[update_type_idx][i];
+      }
 
-          if (cpi->do_frame_data_update) {
-            // Copying temp_frame_probs_simulation to temp_frame_probs based on
-            // the flag
-            for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
-                 update_type_idx++) {
-              temp_frame_probs->switchable_interp_probs[update_type_idx][i][j] =
-                  temp_frame_probs_simulation
-                      ->switchable_interp_probs[update_type_idx][i][j];
-            }
-          }
+      temp_frame_probs->warped_probs[update_type_idx] =
+          temp_frame_probs_simulation->warped_probs[update_type_idx];
+
+      for (i = 0; i < TX_SIZES_ALL; i++) {
+        for (j = 0; j < TX_TYPES; j++) {
+          temp_frame_probs->tx_type_probs[update_type_idx][i][j] =
+              temp_frame_probs_simulation->tx_type_probs[update_type_idx][i][j];
+        }
+      }
+
+      for (i = 0; i < SWITCHABLE_FILTER_CONTEXTS; i++) {
+        for (j = 0; j < SWITCHABLE_FILTERS; j++) {
+          temp_frame_probs->switchable_interp_probs[update_type_idx][i][j] =
+              temp_frame_probs_simulation
+                  ->switchable_interp_probs[update_type_idx][i][j];
         }
       }
     }
