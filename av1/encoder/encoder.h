@@ -2614,11 +2614,6 @@ typedef struct AV1_COMP {
   TemporalFilterCtx tf_ctx;
 
   /*!
-   * For a still frame, this flag is set to 1 to skip partition search.
-   */
-  int partition_search_skippable_frame;
-
-  /*!
    * Variables related to forcing integer mv decisions for the current frame.
    */
   ForceIntegerMVInfo force_intpel_info;

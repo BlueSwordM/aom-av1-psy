@@ -369,8 +369,6 @@ static void set_allintra_speed_features_framesize_independent(
   }
 
   if (speed >= 2) {
-    sf->part_sf.allow_partition_search_skip = 1;
-
     sf->mv_sf.auto_mv_step_size = 1;
 
     sf->intra_sf.disable_smooth_intra = 1;
@@ -883,7 +881,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->fp_sf.skip_motion_search_threshold = 25;
 
-    sf->part_sf.allow_partition_search_skip = 0;
     sf->part_sf.reuse_best_prediction_for_part_ab =
         !frame_is_intra_only(&cpi->common);
 
@@ -1282,7 +1279,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->part_sf.use_best_rd_for_pruning = 1;
   sf->part_sf.prune_ext_partition_types_search_level = 2;
   sf->part_sf.simple_motion_search_prune_rect = 1;
-  sf->part_sf.allow_partition_search_skip = 1;
   sf->part_sf.partition_search_breakout_rate_thr = 80;
   sf->part_sf.less_rectangular_check_level = 2;
 
@@ -1553,7 +1549,6 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->default_max_partition_size = BLOCK_LARGEST;
   part_sf->default_min_partition_size = BLOCK_4X4;
   part_sf->adjust_var_based_rd_partitioning = 0;
-  part_sf->allow_partition_search_skip = 0;
   part_sf->max_intra_bsize = BLOCK_LARGEST;
   // This setting only takes effect when partition_search_type is set
   // to FIXED_PARTITION.

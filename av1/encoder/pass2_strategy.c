@@ -3319,29 +3319,6 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   twopass->modified_error_left -= kf_group_err;
 }
 
-static int is_skippable_frame(const AV1_COMP *cpi) {
-  if (has_no_stats_stage(cpi)) return 0;
-  // If the current frame does not have non-zero motion vector detected in the
-  // first  pass, and so do its previous and forward frames, then this frame
-  // can be skipped for partition check, and the partition size is assigned
-  // according to the variance
-  const TWO_PASS *const twopass = &cpi->ppi->twopass;
-
-  return (!frame_is_intra_only(&cpi->common) &&
-          cpi->twopass_frame.stats_in - 2 >
-              twopass->stats_buf_ctx->stats_in_start &&
-          cpi->twopass_frame.stats_in < twopass->stats_buf_ctx->stats_in_end &&
-          (cpi->twopass_frame.stats_in - 1)->pcnt_inter -
-                  (cpi->twopass_frame.stats_in - 1)->pcnt_motion ==
-              1 &&
-          (cpi->twopass_frame.stats_in - 2)->pcnt_inter -
-                  (cpi->twopass_frame.stats_in - 2)->pcnt_motion ==
-              1 &&
-          cpi->twopass_frame.stats_in->pcnt_inter -
-                  cpi->twopass_frame.stats_in->pcnt_motion ==
-              1);
-}
-
 #define ARF_STATS_OUTPUT 0
 #if ARF_STATS_OUTPUT
 unsigned int arf_count = 0;
@@ -3611,12 +3588,6 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     // If this is an arf frame then we dont want to read the stats file or
     // advance the input pointer as we already have what we need.
     if (update_type == ARF_UPDATE || update_type == INTNL_ARF_UPDATE) {
-      // Do the firstpass stats indicate that this frame is skippable for the
-      // partition search?
-      if (cpi->sf.part_sf.allow_partition_search_skip &&
-          oxcf->pass >= AOM_RC_SECOND_PASS) {
-        cpi->partition_search_skippable_frame = is_skippable_frame(cpi);
-      }
       const FIRSTPASS_STATS *const this_frame_ptr =
           read_frame_stats(twopass, &cpi->twopass_frame,
                            gf_group->arf_src_offset[cpi->gf_frame_index]);
@@ -3842,14 +3813,6 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   }
 
   frame_params->frame_type = gf_group->frame_type[cpi->gf_frame_index];
-
-  // Do the firstpass stats indicate that this frame is skippable for the
-  // partition search?
-  if (cpi->sf.part_sf.allow_partition_search_skip &&
-      oxcf->pass >= AOM_RC_SECOND_PASS) {
-    cpi->partition_search_skippable_frame = is_skippable_frame(cpi);
-  }
-
   setup_target_rate(cpi);
 }
 
