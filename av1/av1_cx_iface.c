@@ -181,7 +181,7 @@ struct av1_extracfg {
 // coeff_cost_upd_freq: COST_UPD_OFF
 // mode_cost_upd_freq: COST_UPD_OFF
 // mv_cost_upd_freq: COST_UPD_OFF
-static const struct av1_extracfg default_extra_cfg = {
+static struct av1_extracfg default_extra_cfg = {
   7,              // cpu_used
   1,              // enable_auto_alt_ref
   0,              // enable_auto_bwd_ref
@@ -242,7 +242,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,                            // error_resilient_mode off by default.
   0,                            // s_frame_mode off by default.
   0,                            // film_grain_test_vector
-  NULL,                         // film_grain_table_filename
+  0,                            // film_grain_table_filename
   0,                            // motion_vector_unit_test
   1,                            // CDF update mode
   1,                            // enable rectangular partitions
@@ -317,7 +317,7 @@ static const struct av1_extracfg default_extra_cfg = {
   NULL,          // two_pass_output
 };
 #else
-static const struct av1_extracfg default_extra_cfg = {
+static struct av1_extracfg default_extra_cfg = {
   0,              // cpu_used
   1,              // enable_auto_alt_ref
   0,              // enable_auto_bwd_ref
@@ -378,7 +378,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,                            // error_resilient_mode off by default.
   0,                            // s_frame_mode off by default.
   0,                            // film_grain_test_vector
-  NULL,                         // film_grain_table_filename
+  0,                            // film_grain_table_filename
   0,                            // motion_vector_unit_test
   1,                            // CDF update mode
   1,                            // enable rectangular partitions
@@ -3743,7 +3743,7 @@ static aom_codec_err_t ctrl_get_seq_level_idx(aom_codec_alg_priv_t *ctx,
                                arg);
 }
 
-static const aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
+static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1_COPY_REFERENCE, ctrl_copy_reference },
   { AOME_USE_REFERENCE, ctrl_use_reference },
 
