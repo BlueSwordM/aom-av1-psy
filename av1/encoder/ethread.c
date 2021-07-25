@@ -870,7 +870,30 @@ static AOM_INLINE void sync_fpmt_workers(AV1_PRIMARY *ppi) {
   if (had_error)
     aom_internal_error(&ppi->error, AOM_CODEC_ERROR, "Failed to encode frame");
 }
+
+static int get_compressed_data_hook(void *arg1, void *arg2) {
+  AV1_COMP *cpi = (AV1_COMP *)arg1;
+  AV1_COMP_DATA *cpi_data = (AV1_COMP_DATA *)arg2;
+  av1_get_compressed_data(cpi, cpi_data);
+
+  return 1;
+}
+
+// This function encodes the raw frame data for each frame in parallel encode
+// set, and outputs the frame bit stream to the designated buffers.
+int av1_compress_parallel_frames(AV1_PRIMARY *const ppi,
+                                 AV1_COMP_DATA *const first_cpi_data) {
+  int frames_in_parallel_set =
+      av1_init_parallel_frame_context(first_cpi_data, ppi);
+  prepare_fpmt_workers(ppi, first_cpi_data, get_compressed_data_hook,
+                       frames_in_parallel_set);
+  launch_fpmt_workers(ppi);
+  sync_fpmt_workers(ppi);
+
+  return AOM_CODEC_OK;
+}
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
+
 static AOM_INLINE void launch_workers(MultiThreadInfo *const mt_info,
                                       int num_workers) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();

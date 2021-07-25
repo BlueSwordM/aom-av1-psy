@@ -314,12 +314,8 @@ static struct lookahead_entry *choose_frame_source(
 #if CONFIG_FRAME_PARALLEL_ENCODE
   // Future frame in parallel encode set
   if (gf_group->src_offset[cpi->gf_frame_index] != 0 &&
-      !is_stat_generation_stage(cpi) &&
-      0 /*will be turned on along with frame parallel encode*/) {
+      !is_stat_generation_stage(cpi)) {
     src_index = gf_group->src_offset[cpi->gf_frame_index];
-    // Don't remove future frames from lookahead_ctx. They will be
-    // removed in their actual encode call.
-    *pop_lookahead = 0;
   }
 #endif
   if (frame_params->show_frame) {

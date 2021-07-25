@@ -3904,12 +3904,12 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
   TWO_PASS *const twopass = &cpi->ppi->twopass;
   RATE_CONTROL *const rc = &cpi->rc;
   const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
-  const int update_type = cpi->ppi->gf_group.update_type[cpi->gf_frame_index];
 
   // Increment the stats_in pointer.
   if (is_stat_consumption_stage(cpi) &&
       (cpi->gf_frame_index < cpi->ppi->gf_group.size ||
        rc->frames_to_key == 0)) {
+    const int update_type = cpi->ppi->gf_group.update_type[cpi->gf_frame_index];
     if (update_type != ARF_UPDATE && update_type != INTNL_ARF_UPDATE) {
       FIRSTPASS_STATS this_frame;
       --cpi->twopass_frame.stats_in;

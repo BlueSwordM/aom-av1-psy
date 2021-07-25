@@ -108,6 +108,11 @@ void av1_write_tile_obu_mt(
 
 int av1_compute_num_enc_workers(AV1_COMP *cpi, int max_workers);
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+int av1_compress_parallel_frames(AV1_PRIMARY *const ppi,
+                                 AV1_COMP_DATA *const first_cpi_data);
+#endif
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

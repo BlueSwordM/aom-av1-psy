@@ -2599,7 +2599,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   const size_t kMinCompressedSize = 8192;
   volatile aom_codec_err_t res = AOM_CODEC_OK;
   AV1_PRIMARY *const ppi = ctx->ppi;
-  AV1_COMP *const cpi = ppi->cpi;
+  AV1_COMP *cpi = ppi->cpi;
   volatile aom_codec_pts_t ptsvol = pts;
   AV1_COMP_DATA cpi_data = { 0 };
 
@@ -2849,20 +2849,24 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     // visible frame.
     while (cpi_data.cx_data_sz >= ctx->cx_data_sz / 2 && !is_frame_visible) {
 #if CONFIG_FRAME_PARALLEL_ENCODE
+      int status = -1;
       cpi->do_frame_data_update = true;
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
       cpi->ref_idx_to_skip = INVALID_IDX;
       cpi->ref_refresh_index = INVALID_IDX;
       cpi->refresh_idx_available = false;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
-      if (ppi->num_fp_contexts > 1 && ppi->gf_group.size > 1) {
-        if (cpi->gf_frame_index < ppi->gf_group.size) {
-          calc_frame_data_update_flag(&ppi->gf_group, cpi->gf_frame_index,
-                                      &cpi->do_frame_data_update);
-        }
+      if (ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
+        status = av1_get_compressed_data(cpi, &cpi_data);
+      } else if (ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 1) {
+        status = av1_compress_parallel_frames(ppi, &cpi_data);
+      } else {
+        cpi = av1_get_parallel_frame_enc_data(ppi, &cpi_data);
+        status = AOM_CODEC_OK;
       }
-#endif
+#else
       const int status = av1_get_compressed_data(cpi, &cpi_data);
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
       if (status == -1) break;
       if (status != AOM_CODEC_OK) {
         aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
