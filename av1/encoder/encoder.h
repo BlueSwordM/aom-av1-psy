@@ -193,6 +193,7 @@ typedef enum {
   MOD_CDEF,         // CDEF frame
   MOD_LR,           // Loop restoration filtering
   MOD_PACK_BS,      // Pack bitstream
+  MOD_FRAME_ENC,    // Frame Parallel encode
   NUM_MT_MODULES
 } MULTI_THREADED_MODULES;
 

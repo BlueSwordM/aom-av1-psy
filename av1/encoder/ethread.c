@@ -595,7 +595,14 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
   assert(p_mt_info->tile_thr_data != NULL);
 
   int num_workers = p_mt_info->num_workers;
-
+  int num_enc_workers = p_mt_info->num_mod_workers[MOD_ENC];
+  if (p_mt_info->num_mod_workers[MOD_FRAME_ENC] > 1) {
+    // TODO(anyone): Change num_enc_workers to num_mod_workers[MOD_FRAME_ENC].
+    // As frame parallel jobs will only perform multi-threading for the encode
+    // stage, we can limit the allocations according to num_enc_workers per
+    // frame parallel encode(a.k.a num_mod_workers[MOD_FRAME_ENC]).
+    num_enc_workers = num_workers;
+  }
   for (int i = num_workers - 1; i >= 0; i--) {
     EncWorkerData *const thread_data = &p_mt_info->tile_thr_data[i];
 
@@ -604,6 +611,9 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
       AOM_CHECK_MEM_ERROR(&ppi->error, thread_data->td,
                           aom_memalign(32, sizeof(*thread_data->td)));
       av1_zero(*thread_data->td);
+#if CONFIG_FRAME_PARALLEL_ENCODE
+      thread_data->original_td = thread_data->td;
+#endif
 
       // Set up shared coeff buffers.
       av1_setup_shared_coeff_buffer(&ppi->error,
@@ -619,7 +629,7 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
             ppi->cpi, BLOCK_16X16, &thread_data->td->shared_coeff_buf);
       }
 
-      if (!is_first_pass && i < p_mt_info->num_mod_workers[MOD_ENC]) {
+      if (!is_first_pass && i < num_enc_workers) {
         // Set up sms_tree.
         av1_setup_sms_tree(ppi->cpi, thread_data->td);
 
@@ -672,8 +682,7 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
       }
     }
 
-    if (!is_first_pass && ppi->cpi->oxcf.row_mt == 1 &&
-        i < p_mt_info->num_mod_workers[MOD_ENC]) {
+    if (!is_first_pass && ppi->cpi->oxcf.row_mt == 1 && i < num_enc_workers) {
       if (i == 0) {
 #if CONFIG_FRAME_PARALLEL_ENCODE
         for (int j = 0; j < ppi->num_fp_contexts; j++) {
@@ -764,6 +773,7 @@ static AOM_INLINE int is_fp_config(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
 // based on the number of max_enc_workers.
 int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
                                 int max_num_enc_workers) {
+  ppi->p_mt_info.num_mod_workers[MOD_FRAME_ENC] = 0;
   if (!is_fp_config(ppi, oxcf)) {
     return 1;
   }
@@ -775,7 +785,15 @@ int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
   int max_threads = oxcf->max_threads;
   int num_fp_contexts = max_threads / workers_per_frame;
 
-  return AOMMAX(1, AOMMIN(num_fp_contexts, MAX_PARALLEL_FRAMES));
+  num_fp_contexts = AOMMAX(1, AOMMIN(num_fp_contexts, MAX_PARALLEL_FRAMES));
+  // TODO(anyone): Test and enable for more than 2 frames in parallel.
+  num_fp_contexts = AOMMIN(num_fp_contexts, 2);
+  if (num_fp_contexts > 1) {
+    assert(max_threads >= 2);
+    ppi->p_mt_info.num_mod_workers[MOD_FRAME_ENC] =
+        AOMMIN(max_num_enc_workers * num_fp_contexts, oxcf->max_threads);
+  }
+  return num_fp_contexts;
 }
 
 // Prepare level 1 workers. This function is only called for
@@ -783,8 +801,10 @@ int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
 // frame level contexts appropriately by dividing the total number of available
 // workers amongst the frames as level 2 workers. It also populates the hook and
 // data members of level 1 workers.
-static AOM_INLINE void prepare_fp_workers(AV1_PRIMARY *ppi, AVxWorkerHook hook,
-                                          int parallel_frame_count) {
+static AOM_INLINE void prepare_fpmt_workers(AV1_PRIMARY *ppi,
+                                            AV1_COMP_DATA *first_cpi_data,
+                                            AVxWorkerHook hook,
+                                            int parallel_frame_count) {
   assert(parallel_frame_count <= ppi->num_fp_contexts &&
          parallel_frame_count > 1);
 
@@ -802,6 +822,8 @@ static AOM_INLINE void prepare_fp_workers(AV1_PRIMARY *ppi, AVxWorkerHook hook,
 
     // Assign start of level 2 worker pool
     ppi->parallel_cpi[frame_idx]->mt_info.workers = &p_mt_info->workers[i];
+    ppi->parallel_cpi[frame_idx]->mt_info.tile_thr_data =
+        &p_mt_info->tile_thr_data[i];
     ppi->parallel_cpi[frame_idx]->mt_info.num_workers =
         AOMMIN(workers_per_frame, num_workers - i);
     for (int j = MOD_FP; j < NUM_MT_MODULES; j++) {
@@ -811,14 +833,16 @@ static AOM_INLINE void prepare_fp_workers(AV1_PRIMARY *ppi, AVxWorkerHook hook,
 
     frame_worker->hook = hook;
     frame_worker->data1 = ppi->parallel_cpi[frame_idx];
-    frame_worker->data2 = NULL;
+    frame_worker->data2 = (frame_idx == 0)
+                              ? first_cpi_data
+                              : &ppi->parallel_frames_data[frame_idx - 1];
     frame_idx++;
   }
   p_mt_info->p_num_workers = parallel_frame_count;
 }
 
 // Launch level 1 workers to perform frame parallel encode.
-static AOM_INLINE void launch_fp_workers(AV1_PRIMARY *ppi) {
+static AOM_INLINE void launch_fpmt_workers(AV1_PRIMARY *ppi) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   int num_workers = ppi->p_mt_info.p_num_workers;
 
@@ -832,7 +856,7 @@ static AOM_INLINE void launch_fp_workers(AV1_PRIMARY *ppi) {
 }
 
 // Synchronize level 1 workers.
-static AOM_INLINE void sync_fp_workers(AV1_PRIMARY *ppi) {
+static AOM_INLINE void sync_fpmt_workers(AV1_PRIMARY *ppi) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   int num_workers = ppi->p_mt_info.p_num_workers;
   int had_error = 0;
@@ -923,10 +947,20 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     worker->data1 = thread_data;
     worker->data2 = NULL;
 
+    thread_data->thread_id = i;
+    // Set the starting tile for each thread.
+    thread_data->start = i;
+
     thread_data->cpi = cpi;
     if (i == 0) {
       thread_data->td = &cpi->td;
+#if !CONFIG_FRAME_PARALLEL_ENCODE
     }
+#else
+    } else {
+      thread_data->td = thread_data->original_td;
+    }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     thread_data->td->intrabc_used = 0;
     thread_data->td->deltaq_used = 0;
@@ -1005,10 +1039,20 @@ static AOM_INLINE void fp_prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     worker->data1 = thread_data;
     worker->data2 = NULL;
 
+    thread_data->thread_id = i;
+    // Set the starting tile for each thread.
+    thread_data->start = i;
+
     thread_data->cpi = cpi;
     if (i == 0) {
       thread_data->td = &cpi->td;
+#if !CONFIG_FRAME_PARALLEL_ENCODE
     }
+#else
+    } else {
+      thread_data->td = thread_data->original_td;
+    }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     // Before encoding a frame, copy the thread data from cpi.
     if (thread_data->td != &cpi->td) {
@@ -1475,10 +1519,20 @@ static AOM_INLINE void prepare_tpl_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     worker->data1 = thread_data;
     worker->data2 = NULL;
 
+    thread_data->thread_id = i;
+    // Set the starting tile for each thread.
+    thread_data->start = i;
+
     thread_data->cpi = cpi;
     if (i == 0) {
       thread_data->td = &cpi->td;
+#if !CONFIG_FRAME_PARALLEL_ENCODE
     }
+#else
+    } else {
+      thread_data->td = thread_data->original_td;
+    }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     // Before encoding a frame, copy the thread data from cpi.
     if (thread_data->td != &cpi->td) {
@@ -1608,10 +1662,20 @@ static void prepare_tf_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     worker->data1 = thread_data;
     worker->data2 = NULL;
 
+    thread_data->thread_id = i;
+    // Set the starting tile for each thread.
+    thread_data->start = i;
+
     thread_data->cpi = cpi;
     if (i == 0) {
       thread_data->td = &cpi->td;
+#if !CONFIG_FRAME_PARALLEL_ENCODE
     }
+#else
+    } else {
+      thread_data->td = thread_data->original_td;
+    }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     // Before encoding a frame, copy the thread data from cpi.
     if (thread_data->td != &cpi->td) {
@@ -1794,7 +1858,20 @@ static AOM_INLINE void prepare_gm_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     worker->data1 = thread_data;
     worker->data2 = NULL;
 
+    thread_data->thread_id = i;
+    // Set the starting tile for each thread.
+    thread_data->start = i;
+
     thread_data->cpi = cpi;
+    if (i == 0) {
+      thread_data->td = &cpi->td;
+#if !CONFIG_FRAME_PARALLEL_ENCODE
+    }
+#else
+    } else {
+      thread_data->td = thread_data->original_td;
+    }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   }
 }
 
@@ -2085,7 +2162,15 @@ static void prepare_pack_bs_workers(AV1_COMP *const cpi,
   for (int i = num_workers - 1; i >= 0; i--) {
     AVxWorker *worker = &mt_info->workers[i];
     EncWorkerData *const thread_data = &mt_info->tile_thr_data[i];
-    if (i == 0) thread_data->td = &cpi->td;
+    if (i == 0) {
+      thread_data->td = &cpi->td;
+#if !CONFIG_FRAME_PARALLEL_ENCODE
+    }
+#else
+    } else {
+      thread_data->td = thread_data->original_td;
+    }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     if (thread_data->td != &cpi->td) thread_data->td->mb = cpi->td.mb;
 
@@ -2387,6 +2472,9 @@ int compute_num_mod_workers(AV1_COMP *cpi, MULTI_THREADED_MODULES mod_name) {
     case MOD_CDEF: num_mod_workers = compute_num_cdef_workers(cpi); break;
     case MOD_LR: num_mod_workers = compute_num_lr_workers(cpi); break;
     case MOD_PACK_BS: num_mod_workers = compute_num_pack_bs_workers(cpi); break;
+    case MOD_FRAME_ENC:
+      num_mod_workers = cpi->ppi->p_mt_info.num_mod_workers[MOD_FRAME_ENC];
+      break;
     default: assert(0); break;
   }
   return (num_mod_workers);

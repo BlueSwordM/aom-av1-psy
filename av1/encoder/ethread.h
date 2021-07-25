@@ -22,6 +22,9 @@ struct ThreadData;
 typedef struct EncWorkerData {
   struct AV1_COMP *cpi;
   struct ThreadData *td;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  struct ThreadData *original_td;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   int start;
   int thread_id;
 } EncWorkerData;

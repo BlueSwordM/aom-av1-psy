@@ -2803,29 +2803,32 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       av1_compute_num_workers_for_mt(cpi);
       num_workers = av1_get_max_num_workers(cpi);
     }
-    if ((num_workers > 1) && (cpi->mt_info.num_workers == 0)) {
+    if ((num_workers > 1) && (ppi->p_mt_info.num_workers == 0)) {
       av1_create_workers(ppi, num_workers);
       av1_init_tile_thread_data(ppi, cpi->oxcf.pass == AOM_RC_FIRST_PASS);
+#if CONFIG_MULTITHREAD
 #if CONFIG_FRAME_PARALLEL_ENCODE
       for (int i = 0; i < ppi->num_fp_contexts; i++) {
-        av1_init_frame_mt(ppi, ppi->parallel_cpi[i]);
-#if CONFIG_MULTITHREAD
         av1_init_mt_sync(ppi->parallel_cpi[i],
                          ppi->parallel_cpi[i]->oxcf.pass == AOM_RC_FIRST_PASS);
-#endif  // CONFIG_MULTITHREAD
       }
 #else
-      av1_init_frame_mt(ppi, cpi);
-#if CONFIG_MULTITHREAD
       av1_init_mt_sync(cpi, cpi->oxcf.pass == 1);
-#endif  // CONFIG_MULTITHREAD
-#endif
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
       if (cpi_lap != NULL) {
-        av1_init_frame_mt(ppi, cpi_lap);
-#if CONFIG_MULTITHREAD
         av1_init_mt_sync(cpi_lap, 1);
-#endif  // CONFIG_MULTITHREAD
       }
+#endif  // CONFIG_MULTITHREAD
+    }
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    for (int i = 0; i < ppi->num_fp_contexts; i++) {
+      av1_init_frame_mt(ppi, ppi->parallel_cpi[i]);
+    }
+#else
+    av1_init_frame_mt(ppi, cpi);
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+    if (cpi_lap != NULL) {
+      av1_init_frame_mt(ppi, cpi_lap);
     }
 
     // Call for LAP stage
