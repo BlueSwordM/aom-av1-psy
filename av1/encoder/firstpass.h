@@ -191,6 +191,11 @@ typedef struct {
    * count available stats stored in stats_buf
    */
   int stats_count;
+
+  /*!
+   * Accumulation of the stats being pushed into firstpass_info
+   */
+  FIRSTPASS_STATS total_stats;
 } FIRSTPASS_INFO;
 
 /*!\brief Init firstpass_info
@@ -219,29 +224,27 @@ aom_codec_err_t av1_firstpass_info_init(FIRSTPASS_INFO *firstpass_info,
 aom_codec_err_t av1_firstpass_info_pop(FIRSTPASS_INFO *firstpass_info,
                                        FIRSTPASS_STATS *output_stats);
 
-/*!\brief Push a stats from firstpass_info
+/*!\brief Push a stats into firstpass_info
  *
- * Note that he input stats will be coppied into firstpass_copy.
+ * Note that the input stats will be copied into firstpass_info.
  * \ingroup rate_control
- * \param[out]   firstpass_info      struct of firstpass_info.
- * \param[in]   input_stats          input stats
+ * \param[out]  firstpass_info      struct of firstpass_info.
+ * \param[in]   input_stats         input stats
  * \return status
  */
 aom_codec_err_t av1_firstpass_info_push(FIRSTPASS_INFO *firstpass_info,
                                         const FIRSTPASS_STATS *input_stats);
 
-/*!\brief Peak a stats from firstpass_info
+/*!\brief Peek at a stats from firstpass_info
  *
- * Note that he input stats will be coppied into firstpass_copy.
  * \ingroup rate_control
  * \param[in]  firstpass_info      struct of firstpass_info.
  * \param[in]  stats_index_offset  index offset.
- * \param[out] out_stats           input stats.
- * \return status
+ * \return pointer to the stats. The pointer will be NULL if
+ *         stats_index_offset is invalid.
  */
-aom_codec_err_t av1_firstpass_info_peak(const FIRSTPASS_INFO *firstpass_info,
-                                        int stats_index_offset,
-                                        FIRSTPASS_STATS *output_stats);
+const FIRSTPASS_STATS *av1_firstpass_info_peek(
+    const FIRSTPASS_INFO *firstpass_info, int stats_index_offset);
 
 #define FC_ANIMATION_THRESH 0.15
 enum {
@@ -332,6 +335,8 @@ typedef struct {
   FIRSTPASS_STATS *frame_stats_arr[MAX_LAP_BUFFERS + 1];
   int frame_stats_next_idx;  // Index to next unused element in frame_stats_arr.
   STATS_BUFFER_CTX *stats_buf_ctx;
+  FIRSTPASS_INFO firstpass_info;  // This is the first pass data structure
+                                  // intended to replace stats_in
   int first_pass_done;
   int64_t bits_left;
   double modified_error_min;

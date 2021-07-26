@@ -926,8 +926,11 @@ static void update_firstpass_stats(AV1_COMP *cpi,
   // We will store the stats inside the persistent twopass struct (and NOT the
   // local variable 'fps'), and then cpi->output_pkt_list will point to it.
   *this_frame_stats = fps;
-  if (!cpi->ppi->lap_enabled)
+  if (!cpi->ppi->lap_enabled) {
     output_stats(this_frame_stats, cpi->ppi->output_pkt_list);
+  } else {
+    av1_firstpass_info_push(&twopass->firstpass_info, this_frame_stats);
+  }
   if (cpi->ppi->twopass.stats_buf_ctx->total_stats != NULL) {
     av1_accumulate_stats(cpi->ppi->twopass.stats_buf_ctx->total_stats, &fps);
   }
@@ -1388,6 +1391,7 @@ aom_codec_err_t av1_firstpass_info_init(FIRSTPASS_INFO *firstpass_info,
         sizeof(firstpass_info->static_stats_buf[0]);
     firstpass_info->start_index = 0;
     firstpass_info->stats_count = 0;
+    av1_zero(firstpass_info->total_stats);
     if (ext_stats_buf_size == 0) {
       return AOM_CODEC_OK;
     } else {
@@ -1398,6 +1402,11 @@ aom_codec_err_t av1_firstpass_info_init(FIRSTPASS_INFO *firstpass_info,
     firstpass_info->stats_buf_size = ext_stats_buf_size;
     firstpass_info->start_index = 0;
     firstpass_info->stats_count = firstpass_info->stats_buf_size;
+    av1_zero(firstpass_info->total_stats);
+    for (int i = 0; i < firstpass_info->stats_count; ++i) {
+      av1_accumulate_stats(&firstpass_info->total_stats,
+                           &firstpass_info->stats_buf[i]);
+    }
   }
   return AOM_CODEC_OK;
 }
@@ -1424,21 +1433,20 @@ aom_codec_err_t av1_firstpass_info_push(FIRSTPASS_INFO *firstpass_info,
         firstpass_info->stats_buf_size;
     firstpass_info->stats_buf[next_index] = *input_stats;
     ++firstpass_info->stats_count;
+    av1_accumulate_stats(&firstpass_info->total_stats, input_stats);
     return AOM_CODEC_OK;
   } else {
     return AOM_CODEC_ERROR;
   }
 }
 
-aom_codec_err_t av1_firstpass_info_peak(const FIRSTPASS_INFO *firstpass_info,
-                                        int index_offset,
-                                        FIRSTPASS_STATS *output_stats) {
-  if (index_offset < firstpass_info->stats_count) {
+const FIRSTPASS_STATS *av1_firstpass_info_peek(
+    const FIRSTPASS_INFO *firstpass_info, int index_offset) {
+  if (index_offset >= 0 && index_offset < firstpass_info->stats_count) {
     const int index = (firstpass_info->start_index + index_offset) %
                       firstpass_info->stats_buf_size;
-    *output_stats = firstpass_info->stats_buf[index];
-    return AOM_CODEC_OK;
+    return &firstpass_info->stats_buf[index];
   } else {
-    return AOM_CODEC_ERROR;
+    return NULL;
   }
 }

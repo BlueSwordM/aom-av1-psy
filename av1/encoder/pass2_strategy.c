@@ -59,20 +59,21 @@ static double calculate_active_area(const FRAME_INFO *frame_info,
 // Calculate a modified Error used in distributing bits between easier and
 // harder frames.
 #define ACT_AREA_CORRECTION 0.5
-static double calculate_modified_err(const FRAME_INFO *frame_info,
-                                     const TWO_PASS *twopass,
-                                     const AV1EncoderConfig *oxcf,
-                                     const FIRSTPASS_STATS *this_frame) {
-  const FIRSTPASS_STATS *const stats = twopass->stats_buf_ctx->total_stats;
-  if (stats == NULL) {
+static double calculate_modified_err_new(const FRAME_INFO *frame_info,
+                                         const FIRSTPASS_STATS *total_stats,
+                                         const FIRSTPASS_STATS *this_stats,
+                                         int vbrbias, double modified_error_min,
+                                         double modified_error_max) {
+  if (total_stats == NULL) {
     return 0;
   }
-  const double av_weight = stats->weight / stats->count;
-  const double av_err = (stats->coded_error * av_weight) / stats->count;
+  const double av_weight = total_stats->weight / total_stats->count;
+  const double av_err =
+      (total_stats->coded_error * av_weight) / total_stats->count;
   double modified_error =
-      av_err * pow(this_frame->coded_error * this_frame->weight /
+      av_err * pow(this_stats->coded_error * this_stats->weight /
                        DOUBLE_DIVIDE_CHECK(av_err),
-                   oxcf->rc_cfg.vbrbias / 100.0);
+                   vbrbias / 100.0);
 
   // Correction for active area. Frames with a reduced active area
   // (eg due to formatting bars) have a higher error per mb for the
@@ -80,10 +81,19 @@ static double calculate_modified_err(const FRAME_INFO *frame_info,
   // 0.5N blocks of complexity 2X is a little easier than coding N
   // blocks of complexity X.
   modified_error *=
-      pow(calculate_active_area(frame_info, this_frame), ACT_AREA_CORRECTION);
+      pow(calculate_active_area(frame_info, this_stats), ACT_AREA_CORRECTION);
 
-  return fclamp(modified_error, twopass->modified_error_min,
-                twopass->modified_error_max);
+  return fclamp(modified_error, modified_error_min, modified_error_max);
+}
+
+static double calculate_modified_err(const FRAME_INFO *frame_info,
+                                     const TWO_PASS *twopass,
+                                     const AV1EncoderConfig *oxcf,
+                                     const FIRSTPASS_STATS *this_frame) {
+  const FIRSTPASS_STATS *total_stats = twopass->stats_buf_ctx->total_stats;
+  return calculate_modified_err_new(
+      frame_info, total_stats, this_frame, oxcf->rc_cfg.vbrbias,
+      twopass->modified_error_min, twopass->modified_error_max);
 }
 
 // Resets the first pass file to the given position using a relative seek from
@@ -395,8 +405,8 @@ static double get_prediction_decay_rate(const FIRSTPASS_STATS *frame_stats) {
 // Function to test for a condition where a complex transition is followed
 // by a static section. For example in slide shows where there is a fade
 // between slides. This is to help with more optimal kf and gf positioning.
-static int detect_transition_to_still(TWO_PASS *const twopass,
-                                      TWO_PASS_FRAME *const twopass_frame,
+static int detect_transition_to_still(const FIRSTPASS_INFO *firstpass_info,
+                                      int next_stats_index,
                                       const int min_gf_interval,
                                       const int frame_interval,
                                       const int still_interval,
@@ -407,16 +417,18 @@ static int detect_transition_to_still(TWO_PASS *const twopass,
   // instead of a clean scene cut.
   if (frame_interval > min_gf_interval && loop_decay_rate >= 0.999 &&
       last_decay_rate < 0.9) {
-    int j;
-    // Look ahead a few frames to see if static condition persists...
-    for (j = 0; j < still_interval; ++j) {
-      const FIRSTPASS_STATS *stats = &twopass_frame->stats_in[j];
-      if (stats >= twopass->stats_buf_ctx->stats_in_end) break;
-
-      if (stats->pcnt_inter - stats->pcnt_motion < 0.999) break;
+    int stats_left = firstpass_info->stats_count - next_stats_index;
+    if (stats_left >= still_interval) {
+      int j;
+      // Look ahead a few frames to see if static condition persists...
+      for (j = 0; j < still_interval; ++j) {
+        const FIRSTPASS_STATS *stats =
+            av1_firstpass_info_peek(firstpass_info, next_stats_index + j);
+        if (stats->pcnt_inter - stats->pcnt_motion < 0.999) break;
+      }
+      // Only if it does do we signal a transition to still.
+      return j == still_interval;
     }
-    // Only if it does do we signal a transition to still.
-    return j == still_interval;
   }
   return 0;
 }
@@ -966,7 +978,12 @@ static INLINE int detect_gf_cut(AV1_COMP *cpi, int frame_index, int cur_start,
   if (!flash_detected) {
     // Break clause to detect very still sections after motion. For example,
     // a static image after a fade or other transition.
-    if (detect_transition_to_still(twopass, &cpi->twopass_frame,
+
+    // TODO(angiebird): This is a temporary change, we will avoid using
+    // twopass_frame.stats_in in the follow-up CL
+    int index = (int)(cpi->twopass_frame.stats_in -
+                      twopass->stats_buf_ctx->stats_in_start);
+    if (detect_transition_to_still(&twopass->firstpass_info, index,
                                    rc->min_gf_interval, frame_index - cur_start,
                                    5, gf_stats->loop_decay_rate,
                                    gf_stats->last_loop_decay_rate)) {
@@ -2628,93 +2645,99 @@ static double get_second_ref_usage_thresh(int frame_count_so_far) {
              second_ref_usage_thresh_max_delta;
 }
 
-static int test_candidate_kf(TWO_PASS *twopass, TWO_PASS_FRAME *twopass_frame,
-                             const FIRSTPASS_STATS *last_frame,
-                             const FIRSTPASS_STATS *this_frame,
-                             const FIRSTPASS_STATS *next_frame,
-                             int frame_count_so_far, enum aom_rc_mode rc_mode,
-                             int scenecut_mode, int num_mbs) {
+static int test_candidate_kf(const FIRSTPASS_INFO *firstpass_info,
+                             int this_stats_index, int frame_count_so_far,
+                             enum aom_rc_mode rc_mode, int scenecut_mode,
+                             int num_mbs) {
+  if (this_stats_index < 1 ||
+      this_stats_index + 1 >= firstpass_info->stats_count) {
+    return 0;
+  }
+  const FIRSTPASS_STATS *last_stats =
+      av1_firstpass_info_peek(firstpass_info, this_stats_index - 1);
+  const FIRSTPASS_STATS *this_stats =
+      av1_firstpass_info_peek(firstpass_info, this_stats_index);
+  const FIRSTPASS_STATS *next_stats =
+      av1_firstpass_info_peek(firstpass_info, this_stats_index + 1);
+
   int is_viable_kf = 0;
-  double pcnt_intra = 1.0 - this_frame->pcnt_inter;
+  double pcnt_intra = 1.0 - this_stats->pcnt_inter;
   double modified_pcnt_inter =
-      this_frame->pcnt_inter - this_frame->pcnt_neutral;
+      this_stats->pcnt_inter - this_stats->pcnt_neutral;
   const double second_ref_usage_thresh =
       get_second_ref_usage_thresh(frame_count_so_far);
-  int total_frames_to_test = SCENE_CUT_KEY_TEST_INTERVAL;
+  int frames_to_test_after_candidate_key = SCENE_CUT_KEY_TEST_INTERVAL;
   int count_for_tolerable_prediction = 3;
-  int num_future_frames = 0;
-  FIRSTPASS_STATS curr_frame;
 
   if (scenecut_mode == ENABLE_SCENECUT_MODE_1) {
-    curr_frame = *this_frame;
-    const FIRSTPASS_STATS *const start_position = twopass_frame->stats_in;
-    for (num_future_frames = 0; num_future_frames < SCENE_CUT_KEY_TEST_INTERVAL;
-         num_future_frames++)
-      if (EOF == input_stats(twopass, twopass_frame, &curr_frame)) break;
-    reset_fpf_position(twopass_frame, start_position);
-    if (num_future_frames < 3) {
+    if (this_stats_index + 3 >= firstpass_info->stats_count) {
       return 0;
     } else {
-      total_frames_to_test = 3;
+      frames_to_test_after_candidate_key = 3;
       count_for_tolerable_prediction = 1;
     }
   }
+  // Make sure we have enough stats after the candidate key.
+  // We do "-1" because the candidate key is not counted.
+  frames_to_test_after_candidate_key =
+      AOMMIN(frames_to_test_after_candidate_key,
+             firstpass_info->stats_count - this_stats_index - 1);
 
   // Does the frame satisfy the primary criteria of a key frame?
   // See above for an explanation of the test criteria.
   // If so, then examine how well it predicts subsequent frames.
   if (IMPLIES(rc_mode == AOM_Q, frame_count_so_far >= 3) &&
-      (this_frame->pcnt_second_ref < second_ref_usage_thresh) &&
-      (next_frame->pcnt_second_ref < second_ref_usage_thresh) &&
-      ((this_frame->pcnt_inter < VERY_LOW_INTER_THRESH) ||
-       slide_transition(this_frame, last_frame, next_frame) ||
+      (this_stats->pcnt_second_ref < second_ref_usage_thresh) &&
+      (next_stats->pcnt_second_ref < second_ref_usage_thresh) &&
+      ((this_stats->pcnt_inter < VERY_LOW_INTER_THRESH) ||
+       slide_transition(this_stats, last_stats, next_stats) ||
        ((pcnt_intra > MIN_INTRA_LEVEL) &&
         (pcnt_intra > (INTRA_VS_INTER_THRESH * modified_pcnt_inter)) &&
-        ((this_frame->intra_error /
-          DOUBLE_DIVIDE_CHECK(this_frame->coded_error)) <
+        ((this_stats->intra_error /
+          DOUBLE_DIVIDE_CHECK(this_stats->coded_error)) <
          KF_II_ERR_THRESHOLD) &&
-        ((fabs(last_frame->coded_error - this_frame->coded_error) /
-              DOUBLE_DIVIDE_CHECK(this_frame->coded_error) >
+        ((fabs(last_stats->coded_error - this_stats->coded_error) /
+              DOUBLE_DIVIDE_CHECK(this_stats->coded_error) >
           ERR_CHANGE_THRESHOLD) ||
-         (fabs(last_frame->intra_error - this_frame->intra_error) /
-              DOUBLE_DIVIDE_CHECK(this_frame->intra_error) >
+         (fabs(last_stats->intra_error - this_stats->intra_error) /
+              DOUBLE_DIVIDE_CHECK(this_stats->intra_error) >
           ERR_CHANGE_THRESHOLD) ||
-         ((next_frame->intra_error /
-           DOUBLE_DIVIDE_CHECK(next_frame->coded_error)) >
+         ((next_stats->intra_error /
+           DOUBLE_DIVIDE_CHECK(next_stats->coded_error)) >
           II_IMPROVEMENT_THRESHOLD))))) {
     int i;
-    const FIRSTPASS_STATS *start_pos = twopass_frame->stats_in;
     double boost_score = 0.0;
     double old_boost_score = 0.0;
     double decay_accumulator = 1.0;
 
     // Examine how well the key frame predicts subsequent frames.
-    for (i = 0; i < total_frames_to_test; ++i) {
+    for (i = 1; i <= frames_to_test_after_candidate_key; ++i) {
       // Get the next frame details
-      FIRSTPASS_STATS local_next_frame;
-      if (EOF == input_stats(twopass, twopass_frame, &local_next_frame)) break;
-      double next_iiratio = (BOOST_FACTOR * local_next_frame.intra_error /
-                             DOUBLE_DIVIDE_CHECK(local_next_frame.coded_error));
+      const FIRSTPASS_STATS *local_next_frame =
+          av1_firstpass_info_peek(firstpass_info, this_stats_index + i);
+      double next_iiratio =
+          (BOOST_FACTOR * local_next_frame->intra_error /
+           DOUBLE_DIVIDE_CHECK(local_next_frame->coded_error));
 
       if (next_iiratio > KF_II_MAX) next_iiratio = KF_II_MAX;
 
       // Cumulative effect of decay in prediction quality.
-      if (local_next_frame.pcnt_inter > 0.85)
-        decay_accumulator *= local_next_frame.pcnt_inter;
+      if (local_next_frame->pcnt_inter > 0.85)
+        decay_accumulator *= local_next_frame->pcnt_inter;
       else
-        decay_accumulator *= (0.85 + local_next_frame.pcnt_inter) / 2.0;
+        decay_accumulator *= (0.85 + local_next_frame->pcnt_inter) / 2.0;
 
       // Keep a running total.
       boost_score += (decay_accumulator * next_iiratio);
 
       // Test various breakout clauses.
       // TODO(any): Test of intra error should be normalized to an MB.
-      if ((local_next_frame.pcnt_inter < 0.05) || (next_iiratio < 1.5) ||
-          (((local_next_frame.pcnt_inter - local_next_frame.pcnt_neutral) <
+      if ((local_next_frame->pcnt_inter < 0.05) || (next_iiratio < 1.5) ||
+          (((local_next_frame->pcnt_inter - local_next_frame->pcnt_neutral) <
             0.20) &&
            (next_iiratio < 3.0)) ||
           ((boost_score - old_boost_score) < 3.0) ||
-          (local_next_frame.intra_error < (200.0 / (double)num_mbs))) {
+          (local_next_frame->intra_error < (200.0 / (double)num_mbs))) {
         break;
       }
 
@@ -2728,9 +2751,6 @@ static int test_candidate_kf(TWO_PASS *twopass, TWO_PASS_FRAME *twopass_frame,
     } else {
       is_viable_kf = 0;
     }
-
-    // Reset the file position
-    reset_fpf_position(twopass_frame, start_pos);
   }
   return is_viable_kf;
 }
@@ -2776,13 +2796,14 @@ static int get_projected_kf_boost(AV1_COMP *cpi) {
  * scenecut is detected or the maximum key frame distance is reached.
  *
  * \param[in]    cpi              Top-level encoder structure
- * \param[in]    this_frame       Pointer to first pass stats
+ * \param[in]    firstpass_info   struct for firstpass info
  * \param[out]   kf_group_err     The total error in the KF group
  * \param[in]    num_frames_to_detect_scenecut Maximum lookahead frames.
  *
  * \return       Number of frames to the next key.
  */
-static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
+static int define_kf_interval(AV1_COMP *cpi,
+                              const FIRSTPASS_INFO *firstpass_info,
                               double *kf_group_err,
                               int num_frames_to_detect_scenecut) {
   TWO_PASS *const twopass = &cpi->ppi->twopass;
@@ -2791,7 +2812,6 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const KeyFrameCfg *const kf_cfg = &oxcf->kf_cfg;
   double recent_loop_decay[FRAMES_TO_CHECK_DECAY];
-  FIRSTPASS_STATS last_frame;
   double decay_accumulator = 1.0;
   int i = 0, j;
   int frames_to_key = 1;
@@ -2820,37 +2840,44 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   const int num_mbs = (oxcf->resize_cfg.resize_mode != RESIZE_NONE)
                           ? cpi->initial_mbs
                           : cpi->common.mi_params.MBs;
-  while (cpi->twopass_frame.stats_in < twopass->stats_buf_ctx->stats_in_end &&
+  const FIRSTPASS_STATS *this_stats =
+      av1_firstpass_info_peek(firstpass_info, 0);
+  while (frames_to_key < firstpass_info->stats_count &&
          frames_to_key < num_frames_to_detect_scenecut) {
     // Accumulate total number of stats available till next key frame
     num_stats_used_for_kf_boost++;
 
     // Accumulate kf group error.
-    if (kf_group_err != NULL)
-      *kf_group_err +=
-          calculate_modified_err(frame_info, twopass, oxcf, this_frame);
+    if (kf_group_err != NULL) {
+      *kf_group_err += calculate_modified_err_new(
+          frame_info, &firstpass_info->total_stats, this_stats,
+          oxcf->rc_cfg.vbrbias, twopass->modified_error_min,
+          twopass->modified_error_max);
+    }
 
     // Load the next frame's stats.
-    last_frame = *this_frame;
-    input_stats(twopass, &cpi->twopass_frame, this_frame);
+    this_stats = av1_firstpass_info_peek(firstpass_info, frames_to_key);
 
     // Provided that we are not at the end of the file...
     if ((cpi->ppi->p_rc.enable_scenecut_detection > 0) && kf_cfg->auto_key &&
-        cpi->twopass_frame.stats_in < twopass->stats_buf_ctx->stats_in_end) {
+        frames_to_key + 1 < firstpass_info->stats_count) {
+      const FIRSTPASS_STATS *next_stats =
+          av1_firstpass_info_peek(firstpass_info, frames_to_key + 1);
       double loop_decay_rate;
 
       // Check for a scene cut.
-      if (frames_since_key >= kf_cfg->key_freq_min &&
-          test_candidate_kf(
-              twopass, &cpi->twopass_frame, &last_frame, this_frame,
-              cpi->twopass_frame.stats_in, frames_since_key, oxcf->rc_cfg.mode,
-              cpi->ppi->p_rc.enable_scenecut_detection, num_mbs)) {
-        scenecut_detected = 1;
-        break;
+      if (frames_since_key >= kf_cfg->key_freq_min) {
+        scenecut_detected = test_candidate_kf(
+            &twopass->firstpass_info, frames_to_key, frames_since_key,
+            oxcf->rc_cfg.mode, cpi->ppi->p_rc.enable_scenecut_detection,
+            num_mbs);
+        if (scenecut_detected) {
+          break;
+        }
       }
 
       // How fast is the prediction quality decaying?
-      loop_decay_rate = get_prediction_decay_rate(cpi->twopass_frame.stats_in);
+      loop_decay_rate = get_prediction_decay_rate(next_stats);
 
       // We want to know something about the recent past... rather than
       // as used elsewhere where we are concerned with decay in prediction
@@ -2862,16 +2889,17 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
 
       // Special check for transition or high motion followed by a
       // static scene.
-      if (frames_since_key >= kf_cfg->key_freq_min &&
-          detect_transition_to_still(
-              twopass, &cpi->twopass_frame, rc->min_gf_interval, i,
-              kf_cfg->key_freq_max - i, loop_decay_rate, decay_accumulator)) {
-        scenecut_detected = 1;
-        // In the case of transition followed by a static scene, the key frame
-        // could be a good predictor for the following frames, therefore we
-        // do not use an arf.
-        p_rc->use_arf_in_this_kf_group = 0;
-        break;
+      if (frames_since_key >= kf_cfg->key_freq_min) {
+        scenecut_detected = detect_transition_to_still(
+            firstpass_info, frames_to_key + 1, rc->min_gf_interval, i,
+            kf_cfg->key_freq_max - i, loop_decay_rate, decay_accumulator);
+        if (scenecut_detected) {
+          // In the case of transition followed by a static scene, the key frame
+          // could be a good predictor for the following frames, therefore we
+          // do not use an arf.
+          p_rc->use_arf_in_this_kf_group = 0;
+          break;
+        }
       }
 
       // Step on to the next frame.
@@ -2880,7 +2908,9 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
 
       // If we don't have a real key frame within the next two
       // key_freq_max intervals then break out of the loop.
-      if (frames_to_key >= 2 * kf_cfg->key_freq_max) break;
+      if (frames_to_key >= 2 * kf_cfg->key_freq_max) {
+        break;
+      }
     } else {
       ++frames_to_key;
       ++frames_since_key;
@@ -2895,8 +2925,9 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
     frames_to_key = num_frames_to_next_key;
 
   if (!kf_cfg->fwd_kf_enabled || scenecut_detected ||
-      cpi->twopass_frame.stats_in >= twopass->stats_buf_ctx->stats_in_end)
+      frames_to_key == firstpass_info->stats_count) {
     p_rc->next_is_fwd_key = 0;
+  }
 
   return frames_to_key;
 }
@@ -3071,6 +3102,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   const KeyFrameCfg *const kf_cfg = &oxcf->kf_cfg;
   const FIRSTPASS_STATS first_frame = *this_frame;
   FIRSTPASS_STATS next_frame;
+  const FIRSTPASS_INFO *firstpass_info = &twopass->firstpass_info;
   av1_zero(next_frame);
 
   rc->frames_since_key = 0;
@@ -3120,8 +3152,8 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   kf_raw_err = this_frame->intra_error;
   kf_mod_err = calculate_modified_err(frame_info, twopass, oxcf, this_frame);
 
-  frames_to_key =
-      define_kf_interval(cpi, this_frame, &kf_group_err, kf_cfg->key_freq_max);
+  frames_to_key = define_kf_interval(cpi, firstpass_info, &kf_group_err,
+                                     kf_cfg->key_freq_max);
 
   if (frames_to_key != -1)
     rc->frames_to_key = AOMMIN(kf_cfg->key_freq_max, frames_to_key);
@@ -3166,10 +3198,16 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     p_rc->next_is_fwd_key |= p_rc->next_key_frame_forced;
 
   // Special case for the last key frame of the file.
-  if (cpi->twopass_frame.stats_in >= twopass->stats_buf_ctx->stats_in_end) {
+  if (frames_to_key == firstpass_info->stats_count) {
     // Accumulate kf group error.
-    kf_group_err +=
-        calculate_modified_err(frame_info, twopass, oxcf, this_frame);
+    // TODO(angiebird): Why do we need to add last frame's stats
+    // here? Move it to a proper place.
+    const FIRSTPASS_STATS *last_stats =
+        av1_firstpass_info_peek(firstpass_info, frames_to_key - 1);
+    kf_group_err += calculate_modified_err_new(
+        frame_info, &firstpass_info->total_stats, last_stats,
+        oxcf->rc_cfg.vbrbias, twopass->modified_error_min,
+        twopass->modified_error_max);
     p_rc->next_is_fwd_key = 0;
   }
 
@@ -3651,7 +3689,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     if (cpi->ppi->lap_enabled && cpi->ppi->p_rc.enable_scenecut_detection) {
       int num_frames_to_detect_scenecut, frames_to_key;
       num_frames_to_detect_scenecut = MAX_GF_LENGTH_LAP + 1;
-      frames_to_key = define_kf_interval(cpi, &this_frame, NULL,
+      frames_to_key = define_kf_interval(cpi, &twopass->firstpass_info, NULL,
                                          num_frames_to_detect_scenecut);
       if (frames_to_key != -1)
         rc->frames_to_key = AOMMIN(rc->frames_to_key, frames_to_key);

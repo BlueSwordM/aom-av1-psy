@@ -1337,8 +1337,12 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
       cpi->ppi->twopass.stats_buf_ctx->stats_in_end =
           &cpi->ppi->twopass.stats_buf_ctx->stats_in_start[packets - 1];
 
+      // The buffer size is packets - 1 because the last packet is total_stats.
+      av1_firstpass_info_init(&cpi->ppi->twopass.firstpass_info,
+                              oxcf->twopass_stats_in.buf, packets - 1);
       av1_init_second_pass(cpi);
     } else {
+      av1_firstpass_info_init(&cpi->ppi->twopass.firstpass_info, NULL, 0);
       av1_init_single_pass_lap(cpi);
     }
   }
@@ -3937,6 +3941,10 @@ void print_internal_stats(AV1_PRIMARY *const ppi) {
 
 static AOM_INLINE void update_keyframe_counters(AV1_COMP *cpi) {
   if (cpi->common.show_frame && cpi->rc.frames_to_key) {
+#if !CONFIG_REALTIME_ONLY
+    FIRSTPASS_STATS dummy_stats;
+    av1_firstpass_info_pop(&cpi->ppi->twopass.firstpass_info, &dummy_stats);
+#endif
     cpi->rc.frames_since_key++;
     cpi->rc.frames_to_key--;
     cpi->rc.frames_to_fwd_kf--;
