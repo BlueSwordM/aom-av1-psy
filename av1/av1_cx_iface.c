@@ -181,7 +181,7 @@ struct av1_extracfg {
 // coeff_cost_upd_freq: COST_UPD_OFF
 // mode_cost_upd_freq: COST_UPD_OFF
 // mv_cost_upd_freq: COST_UPD_OFF
-static struct av1_extracfg default_extra_cfg = {
+static const struct av1_extracfg default_extra_cfg = {
   7,              // cpu_used
   1,              // enable_auto_alt_ref
   0,              // enable_auto_bwd_ref
@@ -242,7 +242,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,                            // error_resilient_mode off by default.
   0,                            // s_frame_mode off by default.
   0,                            // film_grain_test_vector
-  0,                            // film_grain_table_filename
+  NULL,                         // film_grain_table_filename
   0,                            // motion_vector_unit_test
   1,                            // CDF update mode
   1,                            // enable rectangular partitions
@@ -317,7 +317,7 @@ static struct av1_extracfg default_extra_cfg = {
   NULL,          // two_pass_output
 };
 #else
-static struct av1_extracfg default_extra_cfg = {
+static const struct av1_extracfg default_extra_cfg = {
   0,              // cpu_used
   1,              // enable_auto_alt_ref
   0,              // enable_auto_bwd_ref
@@ -378,7 +378,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,                            // error_resilient_mode off by default.
   0,                            // s_frame_mode off by default.
   0,                            // film_grain_test_vector
-  0,                            // film_grain_table_filename
+  NULL,                         // film_grain_table_filename
   0,                            // motion_vector_unit_test
   1,                            // CDF update mode
   1,                            // enable rectangular partitions
