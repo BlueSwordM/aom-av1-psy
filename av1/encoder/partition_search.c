@@ -2153,19 +2153,11 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
     MB_MODE_INFO **mi_sb =
         cm->mi_params.mi_grid_base +
         get_mi_grid_idx(&cm->mi_params, mi_row_sb, mi_col_sb);
-    // Do not skip if intra or new mv is picked.
-    const int skip = mi_sb[0]->skip_cdef_curr_sb &&
-                     !(mbmi->mode < INTRA_MODES || mbmi->mode == NEWMV);
-    // If 128x128 block is used, we need to set the flag for all 4 64x64 sub
-    // "blocks".
-    const int block64_in_sb = (bsize == BLOCK_128X128) ? 2 : 1;
-    for (int r = 0; r < block64_in_sb; ++r) {
-      for (int c = 0; c < block64_in_sb; ++c) {
-        const int idx_in_sb =
-            r * MI_SIZE_64X64 * cm->mi_params.mi_stride + c * MI_SIZE_64X64;
-        if (mi_sb[idx_in_sb]) mi_sb[idx_in_sb]->skip_cdef_curr_sb = skip;
-      }
-    }
+    // Do not skip if intra or new mv is picked, or color sensitivity is set.
+    mi_sb[0]->skip_cdef_curr_sb =
+        mi_sb[0]->skip_cdef_curr_sb &&
+        !(x->color_sensitivity[0] || x->color_sensitivity[1]) &&
+        !(mbmi->mode < INTRA_MODES || mbmi->mode == NEWMV);
     // Store in the pickmode context.
     ctx->mic.skip_cdef_curr_sb = mi_sb[0]->skip_cdef_curr_sb;
   }
