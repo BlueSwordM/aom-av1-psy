@@ -887,7 +887,6 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   VP128x128 *vt;
   VP16x16 *vt2 = NULL;
   unsigned char force_split[85];
-  int avg_32x32;
   int avg_64x64;
   int max_var_32x32[4];
   int min_var_32x32[4];
@@ -995,7 +994,6 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
 
   avg_64x64 = 0;
   for (m = 0; m < num_64x64_blocks; ++m) {
-    avg_32x32 = 0;
     max_var_32x32[m] = 0;
     min_var_32x32[m] = INT_MAX;
     const int m2 = m << 2;
@@ -1048,7 +1046,6 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
           force_split[m + 1] = 1;
           force_split[0] = 1;
         }
-        avg_32x32 += var_32x32;
       }
     }
     if (!force_split[1 + m]) {
