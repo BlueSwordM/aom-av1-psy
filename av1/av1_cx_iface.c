@@ -1186,7 +1186,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   color_cfg->chroma_sample_position = extra_cfg->chroma_sample_position;
 
   // Set Group of frames configuration.
-  gf_cfg->lag_in_frames = clamp(cfg->g_lag_in_frames, 0, MAX_LAG_BUFFERS);
+  // Force lag_in_frames to 0 for REALTIME mode
+  gf_cfg->lag_in_frames = (oxcf->mode == REALTIME)
+                              ? 0
+                              : clamp(cfg->g_lag_in_frames, 0, MAX_LAG_BUFFERS);
   gf_cfg->enable_auto_arf = extra_cfg->enable_auto_alt_ref;
   gf_cfg->enable_auto_brf = extra_cfg->enable_auto_bwd_ref;
   gf_cfg->min_gf_interval = extra_cfg->min_gf_interval;
