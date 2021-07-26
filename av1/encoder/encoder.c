@@ -663,6 +663,7 @@ void av1_change_config_seq(struct AV1_PRIMARY *ppi,
             : 0;
     av1_init_seq_coding_tools(ppi, oxcf, ppi->use_svc);
   }
+  seq_params->timing_info_present &= !seq_params->reduced_still_picture_hdr;
 
 #if CONFIG_AV1_HIGHBITDEPTH
   highbd_set_var_fns(ppi);
@@ -3231,8 +3232,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
         cm->ref_frame_id[i] = display_frame_id;
     }
 
-    cpi->ppi->seq_params_locked = 1;
-
 #if DUMP_RECON_FRAMES == 1
     // NOTE(zoeliu): For debug - Output the filtered reconstructed video.
     av1_dump_filtered_recon_frames(cpi);
@@ -3407,8 +3406,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
-  seq_params->timing_info_present &= !seq_params->reduced_still_picture_hdr;
-
   int largest_tile_id = 0;
   if (av1_superres_in_recode_allowed(cpi)) {
     if (encode_with_and_without_superres(cpi, size, dest, &largest_tile_id) !=
@@ -3424,8 +3421,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     }
     cpi->superres_mode = orig_superres_mode;  // restore
   }
-
-  cpi->ppi->seq_params_locked = 1;
 
   // Update reference frame ids for reference frames this frame will overwrite
   if (seq_params->frame_id_numbers_present_flag) {

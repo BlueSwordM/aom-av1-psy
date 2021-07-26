@@ -2876,6 +2876,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         av1_init_sc_decisions(ppi);
       }
 #endif
+
+      cpi->ppi->seq_params_locked = 1;
       av1_post_encode_updates(cpi, &cpi_data);
 
 #if CONFIG_ENTROPY_STATS
@@ -2893,7 +2895,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       }
 #endif  // CONFIG_INTERNAL_STATS
 
-      cpi->ppi->seq_params_locked = 1;
       if (!cpi_data.frame_size) continue;
       assert(cpi_data.cx_data != NULL && cpi_data.cx_data_sz != 0);
       const int write_temporal_delimiter =
