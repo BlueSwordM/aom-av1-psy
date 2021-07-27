@@ -1878,14 +1878,16 @@ av1_init_search_site_config
 static void init_motion_estimation(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MotionVectorSearchParams *const mv_search_params = &cpi->mv_search_params;
-  const int y_stride = cpi->scaled_source.y_stride;
+  const int aligned_width = (cm->width + 7) & ~7;
+  const int y_stride =
+      aom_calc_y_stride(aligned_width, cpi->oxcf.border_in_pixels);
   const int y_stride_src = ((cpi->oxcf.frm_dim_cfg.width != cm->width ||
                              cpi->oxcf.frm_dim_cfg.height != cm->height) ||
                             av1_superres_scaled(cm))
                                ? y_stride
                                : cpi->ppi->lookahead->buf->img.y_stride;
-  int fpf_y_stride = cm->cur_frame != NULL ? cm->cur_frame->buf.y_stride
-                                           : cpi->scaled_source.y_stride;
+  int fpf_y_stride =
+      cm->cur_frame != NULL ? cm->cur_frame->buf.y_stride : y_stride;
 
   // Update if search_site_cfg is uninitialized or the current frame has a new
   // stride
@@ -2331,8 +2333,10 @@ static int encode_without_recode(AV1_COMP *cpi) {
   }
 #endif
 
-  cpi->source = av1_scale_if_required(cm, unscaled, &cpi->scaled_source,
-                                      filter_scaler, phase_scaler, true, false);
+  cpi->source = av1_realloc_and_scale_if_required(
+      cm, unscaled, &cpi->scaled_source, filter_scaler, phase_scaler, true,
+      false, cpi->oxcf.border_in_pixels,
+      cpi->oxcf.tool_cfg.enable_global_motion);
   if (frame_is_intra_only(cm) || resize_pending != 0) {
     memset(cpi->consec_zero_mv, 0,
            ((cm->mi_params.mi_rows * cm->mi_params.mi_cols) >> 2) *
@@ -2340,9 +2344,10 @@ static int encode_without_recode(AV1_COMP *cpi) {
   }
 
   if (cpi->unscaled_last_source != NULL) {
-    cpi->last_source = av1_scale_if_required(
+    cpi->last_source = av1_realloc_and_scale_if_required(
         cm, cpi->unscaled_last_source, &cpi->scaled_last_source, filter_scaler,
-        phase_scaler, true, false);
+        phase_scaler, true, false, cpi->oxcf.border_in_pixels,
+        cpi->oxcf.tool_cfg.enable_global_motion);
   }
 
   if (cpi->sf.rt_sf.use_temporal_noise_estimate) {
@@ -2567,9 +2572,10 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
         gm_info->search_done = 0;
       }
     }
-    cpi->source =
-        av1_scale_if_required(cm, cpi->unscaled_source, &cpi->scaled_source,
-                              EIGHTTAP_REGULAR, 0, false, false);
+    cpi->source = av1_realloc_and_scale_if_required(
+        cm, cpi->unscaled_source, &cpi->scaled_source, EIGHTTAP_REGULAR, 0,
+        false, false, cpi->oxcf.border_in_pixels,
+        cpi->oxcf.tool_cfg.enable_global_motion);
 
 #if CONFIG_TUNE_BUTTERAUGLI
     if (oxcf->tune_cfg.tuning == AOM_TUNE_BUTTERAUGLI) {
@@ -2586,9 +2592,10 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #endif
 
     if (cpi->unscaled_last_source != NULL) {
-      cpi->last_source = av1_scale_if_required(
+      cpi->last_source = av1_realloc_and_scale_if_required(
           cm, cpi->unscaled_last_source, &cpi->scaled_last_source,
-          EIGHTTAP_REGULAR, 0, false, false);
+          EIGHTTAP_REGULAR, 0, false, false, cpi->oxcf.border_in_pixels,
+          cpi->oxcf.tool_cfg.enable_global_motion);
     }
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
