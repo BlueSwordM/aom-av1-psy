@@ -3447,7 +3447,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       } else {
         if (cpi->svc.number_spatial_layers == 1 &&
             cpi->svc.number_temporal_layers == 1)
-          features->disable_cdf_update = cm->current_frame.frame_number & 1;
+          features->disable_cdf_update =
+              !((cm->current_frame.frame_number % 2) == 0);
         else if (cpi->svc.number_temporal_layers > 1)
           // Disable only on top temporal enhancement layer for now.
           features->disable_cdf_update = (cpi->svc.temporal_layer_id ==

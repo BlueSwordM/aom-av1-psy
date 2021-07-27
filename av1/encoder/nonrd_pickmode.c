@@ -1848,7 +1848,6 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   if (cpi->rc.frames_since_golden == 0 && gf_temporal_ref) {
     use_golden_ref_frame = 0;
   }
-
   if (cpi->sf.rt_sf.short_circuit_low_temp_var &&
       x->nonrd_prune_ref_frame_search) {
     if (is_small_sb)
@@ -2166,6 +2165,10 @@ static AOM_INLINE int skip_mode_by_bsize_and_ref_frame(
     if (ref_frame != LAST_FRAME && mode == NEARMV) return 1;
 
     if (more_prune && bsize >= BLOCK_32X32 && mode == NEARMV) return 1;
+
+    if (extra_prune > 2 && ref_frame != LAST_FRAME) {
+      return 1;
+    }
   }
   return 0;
 }

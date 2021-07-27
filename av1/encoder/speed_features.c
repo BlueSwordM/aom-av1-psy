@@ -1231,6 +1231,9 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
       sf->rt_sf.estimate_motion_for_var_based_partition = 0;
     }
+    if (speed >= 10) {
+      sf->rt_sf.use_comp_ref_nonrd = 0;
+    }
   }
   if (cpi->ppi->use_svc) {
     sf->rt_sf.use_comp_ref_nonrd = 0;
@@ -1522,6 +1525,12 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.force_large_partition_blocks = 1;
     for (int i = 0; i < BLOCK_SIZES; ++i)
       sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC;
+  }
+  if (speed >= 10) {
+    sf->rt_sf.source_metrics_sb_nonrd = 0;
+    sf->rt_sf.skip_intra_pred_if_tx_skip = 1;
+    sf->rt_sf.nonrd_agressive_skip = 1;
+    sf->rt_sf.nonrd_prune_ref_frame_search = 3;
   }
 }
 
