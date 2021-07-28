@@ -2083,11 +2083,21 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
                                vbr_rc_info->q_index_list);
   }
 }
+
+/* Estimate the entropy of motion vectors and update vbr_rc_info. */
+void av1_vbr_estimate_mv_and_update(const TplParams *tpl_data,
+                                    int gf_group_size, int gf_frame_index,
+                                    VBR_RATECTRL_INFO *vbr_rc_info) {
+  double mv_bits = av1_tpl_compute_mv_bits(
+      tpl_data, gf_group_size, gf_frame_index, vbr_rc_info->mv_scale_factor);
+  // Subtract the motion vector entropy from the bit budget.
+  vbr_rc_info->gop_bit_budget -= mv_bits;
+}
 #endif  // CONFIG_BITRATE_ACCURACY
 
 /* For a GOP, calculate the bits used by motion vectors. */
 double av1_tpl_compute_mv_bits(const TplParams *tpl_data, int gf_group_size,
-                               int gf_frame_index) {
+                               int gf_frame_index, double mv_scale_factor) {
   double total_mv_bits = 0;
 
   // Loop through each frame.
@@ -2097,7 +2107,8 @@ double av1_tpl_compute_mv_bits(const TplParams *tpl_data, int gf_group_size,
         tpl_frame, tpl_data->tpl_stats_block_mis_log2);
   }
 
-  return total_mv_bits;
+  // Scale the final result by the scale factor.
+  return total_mv_bits * mv_scale_factor;
 }
 
 /* Compute the entropy of motion vectors for a single frame. */

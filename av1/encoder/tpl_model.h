@@ -239,6 +239,7 @@ typedef struct {
   int gop_showframe_count;  // The number of show frames in the current gop
   double gop_bit_budget;    // The bitbudget for the current gop
   double scale_factor;      // Scale factor to improve the budget estimation
+  double mv_scale_factor;   // Scale factor to improve MV entropy estimation
   int q_index_list[MAX_LENGTH_TPL_FRAME_STATS];  // q indices for the current
                                                  // GOP
 } VBR_RATECTRL_INFO;
@@ -248,7 +249,8 @@ static INLINE void vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info,
   vbr_rc_info->total_bit_budget = total_bit_budget;
   vbr_rc_info->show_frame_count = show_frame_count;
   vbr_rc_info->keyframe_bitrate = 0;
-  vbr_rc_info->scale_factor = 1.0;
+  vbr_rc_info->scale_factor = 1.2;
+  vbr_rc_info->mv_scale_factor = 4.0;
 }
 
 static INLINE void vbr_rc_set_gop_bit_budget(VBR_RATECTRL_INFO *vbr_rc_info,
@@ -558,6 +560,17 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
                                     const struct GF_GROUP *gf_group,
                                     int gf_frame_index,
                                     aom_bit_depth_t bit_depth);
+
+/*!\brief Estimate the entropy of motion vectors and update vbr_rc_info.
+ *
+ * \param[in]       tpl_data          TPL struct
+ * \param[in]       gf_group_size     Number of frames in the gf_group
+ * \param[in]       gf_frame_index    Current frame index
+ * \param[in]       vbr_rc_info       Rate control info struct
+ */
+void av1_vbr_estimate_mv_and_update(const TplParams *tpl_data,
+                                    int gf_group_size, int gf_frame_index,
+                                    VBR_RATECTRL_INFO *vbr_rc_info);
 #endif  // CONFIG_BITRATE_ACCURACY
 
 /*!\brief For a GOP, calculate the bits used by motion vectors.
@@ -569,7 +582,7 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
  * \return Bits used by the motion vectors for the GOP.
  */
 double av1_tpl_compute_mv_bits(const TplParams *tpl_data, int gf_group_size,
-                               int gf_frame_index);
+                               int gf_frame_index, double mv_scale_factor);
 
 /*!\brief Compute the entropy of motion vectors for a single frame.
  *

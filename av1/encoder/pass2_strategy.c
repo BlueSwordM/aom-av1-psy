@@ -1049,6 +1049,8 @@ static int is_shorter_gf_interval_better(AV1_COMP *cpi,
       if (is_temporal_filter_enabled && !shorten_gf_interval) {
         cpi->skip_tpl_setup_stats = 1;
 #if CONFIG_BITRATE_ACCURACY
+        av1_vbr_estimate_mv_and_update(&cpi->ppi->tpl_data, gf_group->size,
+                                       cpi->gf_frame_index, &cpi->vbr_rc_info);
         av1_vbr_rc_update_q_index_list(&cpi->vbr_rc_info, &cpi->ppi->tpl_data,
                                        gf_group, cpi->gf_frame_index,
                                        cpi->common.seq_params->bit_depth);
