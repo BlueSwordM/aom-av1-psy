@@ -67,7 +67,7 @@ enum {
   H_FLIPADST,         // Identity in vertical, FLIPADST in horizontal
   TX_TYPES,
   DCT_ADST_TX_MASK = 0x000F,  // Either DCT or ADST in each direction
-  TX_2D_INVALID = 255         // Invalid transform size
+  TX_TYPE_INVALID = 255,      // Invalid transform type
 } UENUM1BYTE(TX_TYPE);
 
 enum {

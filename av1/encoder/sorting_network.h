@@ -23,7 +23,7 @@
 #include "aom/aom_integer.h"
 
 #define SWAP(i, j)                                   \
-  {                                                  \
+  do {                                               \
     const float maxf = (k[i] >= k[j]) ? k[i] : k[j]; \
     const float minf = (k[i] >= k[j]) ? k[j] : k[i]; \
     const int maxi = (k[i] >= k[j]) ? v[i] : v[j];   \
@@ -32,13 +32,14 @@
     k[j] = minf;                                     \
     v[i] = maxi;                                     \
     v[j] = mini;                                     \
-  }
+  } while (0)
 
-/*!\brief Sorts two arrays of key and value of size 16 in descending order.
+/*!\brief Sorts two size-16 arrays of keys and values in descending order of
+ * keys.
  *
  * \param[in,out]    k          An length-16 array of float serves as the keys.
  * \param[in,out]    v          An length-16 array of int32 serves as the
- * values.
+ *                              value.
  */
 static AOM_INLINE void av1_sort_fi32_16(float k[], int32_t v[]) {
   SWAP(0, 1);
@@ -108,7 +109,8 @@ static AOM_INLINE void av1_sort_fi32_16(float k[], int32_t v[]) {
   SWAP(7, 8);
 }
 
-/*!\brief Sorts two arrays of key and value of size 8 in descending order.
+/*!\brief Sorts two size-8 arrays of keys and values in descending order of
+ * keys.
  *
  * \param[in,out]    k          An length-8 array of float serves as the keys.
  * \param[in,out]    v          An length-8 array of int32 serves as the values.

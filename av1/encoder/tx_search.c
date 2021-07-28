@@ -1818,12 +1818,12 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
   // Calculate sum of allowed tx type score and Populate allow bit mask based
   // on score_thresh and allowed_tx_mask
   int allow_count = 0;
-  int tx_type_allowed[16] = { TX_2D_INVALID, TX_2D_INVALID, TX_2D_INVALID,
-                              TX_2D_INVALID, TX_2D_INVALID, TX_2D_INVALID,
-                              TX_2D_INVALID, TX_2D_INVALID, TX_2D_INVALID,
-                              TX_2D_INVALID, TX_2D_INVALID, TX_2D_INVALID,
-                              TX_2D_INVALID, TX_2D_INVALID, TX_2D_INVALID,
-                              TX_2D_INVALID };
+  int tx_type_allowed[16] = { TX_TYPE_INVALID, TX_TYPE_INVALID, TX_TYPE_INVALID,
+                              TX_TYPE_INVALID, TX_TYPE_INVALID, TX_TYPE_INVALID,
+                              TX_TYPE_INVALID, TX_TYPE_INVALID, TX_TYPE_INVALID,
+                              TX_TYPE_INVALID, TX_TYPE_INVALID, TX_TYPE_INVALID,
+                              TX_TYPE_INVALID, TX_TYPE_INVALID, TX_TYPE_INVALID,
+                              TX_TYPE_INVALID };
   float scores_2D[16] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
   };
@@ -2412,7 +2412,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // Iterate through all transform type candidates.
   for (int idx = 0; idx < TX_TYPES; ++idx) {
     const TX_TYPE tx_type = (TX_TYPE)txk_map[idx];
-    if (tx_type == TX_2D_INVALID || !check_bit_mask(allowed_tx_mask, tx_type))
+    if (tx_type == TX_TYPE_INVALID || !check_bit_mask(allowed_tx_mask, tx_type))
       continue;
     txfm_param.tx_type = tx_type;
     if (av1_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id)) {
