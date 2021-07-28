@@ -1519,7 +1519,7 @@ int av1_tpl_stats_ready(const TplParams *tpl_data, int gf_frame_index) {
     return 0;
   }
   if (gf_frame_index >= MAX_TPL_FRAME_IDX) {
-    assert(gf_frame_index >= MAX_TPL_FRAME_IDX && "Invalid gf_frame_index\n");
+    assert(gf_frame_index < MAX_TPL_FRAME_IDX && "Invalid gf_frame_index\n");
     return 0;
   }
   return tpl_data->tpl_frame[gf_frame_index].is_valid;
