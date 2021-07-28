@@ -396,6 +396,7 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_SSE2
             "${AOM_ROOT}/av1/encoder/x86/temporal_filter_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/av1_k_means_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_sse2.c"
+            "${AOM_ROOT}/av1/encoder/x86/reconinter_enc_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/wedge_utils_sse2.c")
 
 if(CONFIG_AV1_TEMPORAL_DENOISING)
@@ -411,6 +412,9 @@ if(NOT CONFIG_AV1_HIGHBITDEPTH)
 endif()
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_SSE3 "${AOM_ROOT}/av1/encoder/x86/ml_sse3.c")
+
+list(APPEND AOM_AV1_ENCODER_INTRIN_SSSE3
+            "${AOM_ROOT}/av1/encoder/x86/reconinter_enc_ssse3.c")
 
 list(APPEND AOM_AV1_ENCODER_ASM_SSSE3_X86_64
             "${AOM_ROOT}/av1/encoder/x86/av1_quantize_ssse3_x86_64.asm")
@@ -617,6 +621,12 @@ function(setup_av1_targets)
       if(AOM_AV1_DECODER_INTRIN_SSSE3)
         add_intrinsics_object_library("-mssse3" "ssse3" "aom_av1_decoder"
                                       "AOM_AV1_DECODER_INTRIN_SSSE3")
+      endif()
+    endif()
+    if(CONFIG_AV1_ENCODER)
+      if(AOM_AV1_ENCODER_INTRIN_SSSE3)
+        add_intrinsics_object_library("-mssse3" "ssse3" "aom_av1_encoder"
+                                      "AOM_AV1_ENCODER_INTRIN_SSSE3")
       endif()
     endif()
   endif()
