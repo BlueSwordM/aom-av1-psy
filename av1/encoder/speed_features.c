@@ -1186,7 +1186,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
   } else {
     if (speed >= 7) {
       sf->rt_sf.use_comp_ref_nonrd = 1;
-      sf->rt_sf.ref_frame_comp_nonrd = 1;  // LAST2_LAST
+      sf->rt_sf.ref_frame_comp_nonrd = 2;  // LAST_ALTREF
     }
     if (speed == 8 && !cpi->ppi->use_svc) {
       sf->rt_sf.short_circuit_low_temp_var = 0;
@@ -1209,12 +1209,17 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.estimate_motion_for_var_based_partition = 0;
     }
   }
+  // TODO(marpan): Fix this for SVC: allow for any combination
+  // of the 3 reference pairs for compound prediction in nonrd.
   if (cpi->ppi->use_svc && cpi->svc.use_comp_pred &&
       (cpi->svc.reference[GOLDEN_FRAME - 1] == 1 ||
-       cpi->svc.reference[LAST2_FRAME - 1] == 1)) {
+       cpi->svc.reference[LAST2_FRAME - 1] == 1 ||
+       cpi->svc.reference[ALTREF_FRAME - 1] == 1)) {
     sf->rt_sf.use_comp_ref_nonrd = 1;
     sf->rt_sf.ref_frame_comp_nonrd =
-        (cpi->svc.reference[GOLDEN_FRAME - 1] == 1) ? 0 : 1;
+        (cpi->svc.reference[GOLDEN_FRAME - 1] == 1)
+            ? 0
+            : ((cpi->svc.reference[LAST2_FRAME - 1] == 1) ? 1 : 2);
   }
 }
 

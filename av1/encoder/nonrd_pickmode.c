@@ -2305,9 +2305,43 @@ void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
   }
 }
 
+void setup_compound_prediction(AV1_COMP *cpi, MACROBLOCK *x,
+                               struct buf_2d yv12_mb[8][MAX_MB_PLANE],
+                               int *use_ref_frame_mask, int flag_comp_nonrd,
+                               int *ref_mv_idx) {
+  AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
+  MV_REFERENCE_FRAME rf[2] = { LAST_FRAME, GOLDEN_FRAME };
+  MV_REFERENCE_FRAME ref_frame_comp;
+  if (flag_comp_nonrd == 1) {
+    rf[1] = LAST2_FRAME;
+  } else if (flag_comp_nonrd == 2) {
+    rf[1] = ALTREF_FRAME;
+  }
+  if (!use_ref_frame_mask[rf[1]]) {
+    // Need to setup pred_block, if it hasn't been done in find_predictors.
+    const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, rf[1]);
+    const int num_planes = av1_num_planes(cm);
+    if (yv12 != NULL) {
+      const struct scale_factors *const sf =
+          get_ref_scale_factors_const(cm, rf[1]);
+      av1_setup_pred_block(xd, yv12_mb[rf[1]], yv12, sf, sf, num_planes);
+    }
+  }
+  ref_frame_comp = av1_ref_frame_type(rf);
+  mbmi_ext->mode_context[ref_frame_comp] = 0;
+  mbmi_ext->ref_mv_count[ref_frame_comp] = UINT8_MAX;
+  av1_find_mv_refs(cm, xd, mbmi, ref_frame_comp, mbmi_ext->ref_mv_count,
+                   xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
+                   mbmi_ext->mode_context);
+  av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame_comp);
+  *ref_mv_idx = mbmi->ref_mv_idx + 1;
+}
+
 static void set_compound_mode(MACROBLOCK *x, int idx, int num_inter_modes,
                               int ref_frame, int ref_frame2, int ref_mv_idx,
-                              int ref_frame_comp_nonrd,
                               int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES],
                               PREDICTION_MODE *this_mode) {
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -2318,11 +2352,7 @@ static void set_compound_mode(MACROBLOCK *x, int idx, int num_inter_modes,
   mi->compound_idx = 1;
   mi->comp_group_idx = 0;
   mi->interinter_comp.type = COMPOUND_AVERAGE;
-  MV_REFERENCE_FRAME ref_frame_comp;
-  if (ref_frame_comp_nonrd == 1)
-    ref_frame_comp = REF_FRAMES + FWD_REFS * BWD_REFS + LAST_LAST2_FRAMES;
-  else
-    ref_frame_comp = REF_FRAMES + FWD_REFS * BWD_REFS + LAST_GOLDEN_FRAMES;
+  MV_REFERENCE_FRAME ref_frame_comp = av1_ref_frame_type(mi->ref_frame);
   if (idx == num_inter_modes) {
     frame_mv[*this_mode][ref_frame].as_int = 0;
     frame_mv[*this_mode][ref_frame2].as_int = 0;
@@ -2479,7 +2509,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   get_ref_frame_use_mask(cpi, x, mi, mi_row, mi_col, bsize, gf_temporal_ref,
                          use_ref_frame_mask, &force_skip_low_temp_var);
 
-  // Test compound modes: LAST_GOLDEN for 0/NEARESST/NEAR.
+  // Compound modes: LAST_GOLDEN/LAST_LAST2/LAST_ALTREF for 0/NEARESST/NEAR.
   // For now to reduce slowdowm, use only 0/0 for blocks above 16x16
   // for non-svc case or on enhancement layers for svc.
   if (cpi->sf.rt_sf.use_comp_ref_nonrd && is_comp_ref_allowed(bsize)) {
@@ -2496,30 +2526,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       find_predictors(cpi, x, ref_frame_iter, frame_mv, tile_data, yv12_mb,
                       bsize, force_skip_low_temp_var);
     }
-  }
-  if (num_comp_modes > 0) {
-    MB_MODE_INFO *const mbmi = xd->mi[0];
-    MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
-    MV_REFERENCE_FRAME ref_frame_comp;
-    if (cpi->sf.rt_sf.ref_frame_comp_nonrd == 1) {
-      ref_frame_comp = REF_FRAMES + FWD_REFS * BWD_REFS + LAST_LAST2_FRAMES;
-      // Need to setup pred_block for LAST2 if it's used for compound mode.
-      const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, LAST2_FRAME);
-      const int num_planes = av1_num_planes(cm);
-      if (yv12 != NULL) {
-        const struct scale_factors *const sf =
-            get_ref_scale_factors_const(cm, LAST2_FRAME);
-        av1_setup_pred_block(xd, yv12_mb[LAST2_FRAME], yv12, sf, sf,
-                             num_planes);
-      }
-    } else {
-      ref_frame_comp = REF_FRAMES + FWD_REFS * BWD_REFS + LAST_GOLDEN_FRAMES;
-    }
-    av1_find_mv_refs(cm, xd, mbmi, ref_frame_comp, mbmi_ext->ref_mv_count,
-                     xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
-                     mbmi_ext->mode_context);
-    av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame_comp);
-    ref_mv_idx = mbmi->ref_mv_idx + 1;
   }
 
   thresh_sad_pred = ((int64_t)x->pred_mv_sad[LAST_FRAME]) << 1;
@@ -2575,16 +2581,24 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
     if (idx >= num_inter_modes) {
       ref_frame = LAST_FRAME;
-      if (cpi->sf.rt_sf.ref_frame_comp_nonrd == 1) {
+      if (cpi->sf.rt_sf.ref_frame_comp_nonrd == 2) {
+        ref_frame2 = ALTREF_FRAME;
+        if (!(cpi->ref_frame_flags & AOM_ALT_FLAG)) continue;
+      } else if (cpi->sf.rt_sf.ref_frame_comp_nonrd == 1) {
         ref_frame2 = LAST2_FRAME;
         if (!(cpi->ref_frame_flags & AOM_LAST2_FLAG)) continue;
       } else {
         ref_frame2 = GOLDEN_FRAME;
-        if (!use_ref_frame_mask[GOLDEN_FRAME]) continue;
+        if (!(cpi->ref_frame_flags & AOM_GOLD_FLAG)) continue;
+      }
+      if (idx == num_inter_modes) {
+        // Only needs to be done once on first compound mode.
+        setup_compound_prediction(cpi, x, yv12_mb, use_ref_frame_mask,
+                                  cpi->sf.rt_sf.ref_frame_comp_nonrd,
+                                  &ref_mv_idx);
       }
       set_compound_mode(x, idx, num_inter_modes, ref_frame, ref_frame2,
-                        ref_mv_idx, cpi->sf.rt_sf.ref_frame_comp_nonrd,
-                        frame_mv, &this_mode);
+                        ref_mv_idx, frame_mv, &this_mode);
       if (this_mode != GLOBAL_GLOBALMV &&
           frame_mv[this_mode][ref_frame].as_int == 0 &&
           frame_mv[this_mode][ref_frame2].as_int == 0)
