@@ -748,7 +748,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
   }
 
   if (x->comp_rd_buffer.pred0 == NULL) {
-    alloc_compound_type_rd_buffers(&cpi->ppi->error, &x->comp_rd_buffer);
+    alloc_compound_type_rd_buffers(cm->error, &x->comp_rd_buffer);
   }
 
   if (x->tmp_conv_dst == NULL) {
@@ -1253,7 +1253,12 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
 
   cpi->ppi = ppi;
   cm->seq_params = &ppi->seq_params;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  cm->error =
+      (struct aom_internal_error_info *)aom_calloc(1, sizeof(*cm->error));
+#else
   cm->error = &ppi->error;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
   // The jmp_buf is valid only for the duration of the function that calls
   // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
@@ -1348,7 +1353,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
   }
 #endif
 
-  alloc_obmc_buffers(&cpi->td.mb.obmc_buffer, &ppi->error);
+  alloc_obmc_buffers(&cpi->td.mb.obmc_buffer, cm->error);
 
   CHECK_MEM_ERROR(
       cm, cpi->td.mb.inter_modes_info,
@@ -1556,6 +1561,9 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   av1_denoiser_free(&(cpi->denoiser));
 #endif
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  aom_free(cm->error);
+#endif
   aom_free(cpi->td.tctx);
   MultiThreadInfo *const mt_info = &cpi->mt_info;
 #if CONFIG_MULTITHREAD
@@ -4132,6 +4140,17 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  // The jmp_buf is valid only for the duration of the function that calls
+  // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
+  // before it returns.
+  if (setjmp(cm->error->jmp)) {
+    cm->error->setjmp = 0;
+    return cm->error->error_code;
+  }
+  cm->error->setjmp = 1;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+
 #if CONFIG_INTERNAL_STATS
   cpi->frame_recode_hits = 0;
   cpi->time_compress_data = 0;
@@ -4172,7 +4191,14 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
   if (oxcf->tile_cfg.enable_large_scale_tile)
     cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 
-  if (assign_cur_frame_new_fb(cm) == NULL) return AOM_CODEC_ERROR;
+  if (assign_cur_frame_new_fb(cm) == NULL) {
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
+                       "Failed to allocate new cur_frame");
+#else
+    return AOM_CODEC_ERROR;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+  }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   // Only accumulate 2nd pass time.
@@ -4220,11 +4246,19 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
 #endif
 
   if (result == -1) {
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    cm->error->setjmp = 0;
+#endif
     // Returning -1 indicates no frame encoded; more input is required
     return -1;
   }
   if (result != AOM_CODEC_OK) {
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
+                       "Failed to encode frame");
+#else
     return AOM_CODEC_ERROR;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   }
 #if CONFIG_INTERNAL_STATS
   aom_usec_timer_mark(&cmptimer);
@@ -4238,6 +4272,9 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
   }
 #endif  // CONFIG_SPEED_STATS
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  cm->error->setjmp = 0;
+#endif
   return AOM_CODEC_OK;
 }
 
