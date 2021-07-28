@@ -4498,6 +4498,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->lf.filter_level[0] = 0;
       cm->lf.filter_level[1] = 0;
       cm->show_frame = 1;
+      current_frame->order_hint = frame_to_show->order_hint;
 
       // Section 6.8.2: It is a requirement of bitstream conformance that when
       // show_existing_frame is used to show a previous frame, that the value

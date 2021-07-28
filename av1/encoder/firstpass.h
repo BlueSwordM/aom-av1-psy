@@ -29,6 +29,7 @@ extern "C" {
 #define MIN_MV_IN_OUT 0.4
 
 #define VLOW_MOTION_THRESHOLD 950
+struct ThreadData;
 
 /*!
  * \brief The stucture of acummulated frame stats in the first pass.

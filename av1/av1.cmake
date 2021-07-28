@@ -237,6 +237,8 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/svc_layercontext.h"
             "${AOM_ROOT}/av1/encoder/temporal_filter.c"
             "${AOM_ROOT}/av1/encoder/temporal_filter.h"
+            "${AOM_ROOT}/av1/encoder/thirdpass.c"
+            "${AOM_ROOT}/av1/encoder/thirdpass.h"
             "${AOM_ROOT}/av1/encoder/tokenize.c"
             "${AOM_ROOT}/av1/encoder/tokenize.h"
             "${AOM_ROOT}/av1/encoder/tpl_model.c"

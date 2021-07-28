@@ -48,6 +48,7 @@
 #include "av1/encoder/speed_features.h"
 #include "av1/encoder/svc_layercontext.h"
 #include "av1/encoder/temporal_filter.h"
+#include "av1/encoder/thirdpass.h"
 #include "av1/encoder/tokenize.h"
 #include "av1/encoder/tpl_model.h"
 #include "av1/encoder/av1_noise_estimate.h"
@@ -3171,6 +3172,11 @@ typedef struct AV1_COMP {
    * Frame level twopass status and control data
    */
   TWO_PASS_FRAME twopass_frame;
+
+  /*!
+   * Context needed for third pass encoding.
+   */
+  THIRD_PASS_DEC_CTX *third_pass_ctx;
 } AV1_COMP;
 
 /*!

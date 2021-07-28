@@ -77,6 +77,7 @@
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/speed_features.h"
 #include "av1/encoder/superres_scale.h"
+#include "av1/encoder/thirdpass.h"
 #include "av1/encoder/tpl_model.h"
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/var_based_part.h"
@@ -1438,8 +1439,13 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
 #if !CONFIG_REALTIME_ONLY
   av1_loop_restoration_precal();
 #endif
-  cm->error->setjmp = 0;
 
+  cpi->third_pass_ctx = NULL;
+  if (cpi->oxcf.pass == AOM_RC_THIRD_PASS) {
+    av1_init_thirdpass_ctx(cm, &cpi->third_pass_ctx, NULL);
+  }
+
+  cm->error->setjmp = 0;
   return cpi;
 }
 
@@ -1586,6 +1592,8 @@ void av1_remove_compressor(AV1_COMP *cpi) {
     av1_tf_mt_dealloc(&mt_info->tf_sync);
 #endif
   }
+
+  av1_free_thirdpass_ctx(cpi->third_pass_ctx);
 
   dealloc_compressor_data(cpi);
 
@@ -4164,6 +4172,10 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
 #if CONFIG_FRAME_PARALLEL_ENCODE
     update_end_of_frame_stats(cpi);
 #endif
+  }
+
+  if (cpi->oxcf.pass == AOM_RC_THIRD_PASS && cpi->third_pass_ctx) {
+    av1_pop_third_pass_info(cpi->third_pass_ctx);
   }
 
   if (ppi->use_svc) av1_save_layer_context(cpi);

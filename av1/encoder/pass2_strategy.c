@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 
+#include "av1/encoder/thirdpass.h"
 #include "config/aom_config.h"
 #include "config/aom_scale_rtcd.h"
 
@@ -3655,50 +3656,70 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       cpi->ppi->gf_state.arf_gf_boost_lst = 0;
     }
 
-    // TODO(jingning): Resoleve the redundant calls here.
-    if (rc->intervals_till_gf_calculate_due == 0 || 1) {
-      calculate_gf_length(cpi, max_gop_length, MAX_NUM_GF_INTERVALS);
+    int need_gf_len = 1;
+    if (cpi->third_pass_ctx && oxcf->pass == AOM_RC_THIRD_PASS) {
+      if (!cpi->third_pass_ctx->input_file_name && oxcf->two_pass_output) {
+        cpi->third_pass_ctx->input_file_name = oxcf->two_pass_output;
+      }
+      if (cpi->third_pass_ctx->input_file_name) {
+        int gf_len;
+        const int order_hint_bits =
+            cpi->common.seq_params->order_hint_info.order_hint_bits_minus_1 + 1;
+        av1_set_gop_third_pass(cpi->third_pass_ctx, gf_group, order_hint_bits,
+                               &gf_len);
+        p_rc->cur_gf_index = 0;
+        p_rc->gf_intervals[0] = gf_len;
+        need_gf_len = 0;
+      }
     }
 
-    if (max_gop_length > 16 && oxcf->algo_cfg.enable_tpl_model &&
-        cpi->sf.tpl_sf.gop_length_decision_method != 3) {
-      int this_idx = rc->frames_since_key +
-                     p_rc->gf_intervals[p_rc->cur_gf_index] -
-                     p_rc->regions_offset - 1;
-      int this_region =
-          find_regions_index(p_rc->regions, p_rc->num_regions, this_idx);
-      int next_region =
-          find_regions_index(p_rc->regions, p_rc->num_regions, this_idx + 1);
-      // TODO(angiebird): Figure out why this_region and next_region are -1 in
-      // unit test like AltRefFramePresenceTestLarge (aomedia:3134)
-      int is_last_scenecut =
-          p_rc->gf_intervals[p_rc->cur_gf_index] >= rc->frames_to_key ||
-          (this_region != -1 &&
-           p_rc->regions[this_region].type == SCENECUT_REGION) ||
-          (next_region != -1 &&
-           p_rc->regions[next_region].type == SCENECUT_REGION);
+    if (need_gf_len) {
+      // TODO(jingning): Resolve the redundant calls here.
+      if (rc->intervals_till_gf_calculate_due == 0 || 1) {
+        calculate_gf_length(cpi, max_gop_length, MAX_NUM_GF_INTERVALS);
+      }
 
-      int ori_gf_int = p_rc->gf_intervals[p_rc->cur_gf_index];
+      if (max_gop_length > 16 && oxcf->algo_cfg.enable_tpl_model &&
+          cpi->sf.tpl_sf.gop_length_decision_method != 3) {
+        int this_idx = rc->frames_since_key +
+                       p_rc->gf_intervals[p_rc->cur_gf_index] -
+                       p_rc->regions_offset - 1;
+        int this_region =
+            find_regions_index(p_rc->regions, p_rc->num_regions, this_idx);
+        int next_region =
+            find_regions_index(p_rc->regions, p_rc->num_regions, this_idx + 1);
+        // TODO(angiebird): Figure out why this_region and next_region are -1 in
+        // unit test like AltRefFramePresenceTestLarge (aomedia:3134)
+        int is_last_scenecut =
+            p_rc->gf_intervals[p_rc->cur_gf_index] >= rc->frames_to_key ||
+            (this_region != -1 &&
+             p_rc->regions[this_region].type == SCENECUT_REGION) ||
+            (next_region != -1 &&
+             p_rc->regions[next_region].type == SCENECUT_REGION);
 
-      if (p_rc->gf_intervals[p_rc->cur_gf_index] > 16 &&
-          rc->min_gf_interval <= 16) {
-        // The calculate_gf_length function is previously used with
-        // max_gop_length = 32 with look-ahead gf intervals.
-        define_gf_group(cpi, frame_params, max_gop_length, 0);
-        this_frame = this_frame_copy;
+        int ori_gf_int = p_rc->gf_intervals[p_rc->cur_gf_index];
 
-        if (is_shorter_gf_interval_better(cpi, frame_params, frame_input)) {
-          // A shorter gf interval is better.
-          // TODO(jingning): Remove redundant computations here.
-          max_gop_length = 16;
-          calculate_gf_length(cpi, max_gop_length, 1);
-          if (is_last_scenecut &&
-              (ori_gf_int - p_rc->gf_intervals[p_rc->cur_gf_index] < 4)) {
-            p_rc->gf_intervals[p_rc->cur_gf_index] = ori_gf_int;
+        if (p_rc->gf_intervals[p_rc->cur_gf_index] > 16 &&
+            rc->min_gf_interval <= 16) {
+          // The calculate_gf_length function is previously used with
+          // max_gop_length = 32 with look-ahead gf intervals.
+          define_gf_group(cpi, frame_params, max_gop_length, 0);
+          this_frame = this_frame_copy;
+
+          if (is_shorter_gf_interval_better(cpi, frame_params, frame_input)) {
+            // A shorter gf interval is better.
+            // TODO(jingning): Remove redundant computations here.
+            max_gop_length = 16;
+            calculate_gf_length(cpi, max_gop_length, 1);
+            if (is_last_scenecut &&
+                (ori_gf_int - p_rc->gf_intervals[p_rc->cur_gf_index] < 4)) {
+              p_rc->gf_intervals[p_rc->cur_gf_index] = ori_gf_int;
+            }
           }
         }
       }
     }
+
     define_gf_group(cpi, frame_params, max_gop_length, 0);
 
     if (gf_group->update_type[cpi->gf_frame_index] != ARF_UPDATE &&
