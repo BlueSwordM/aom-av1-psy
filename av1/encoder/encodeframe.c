@@ -1413,6 +1413,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, av1_setup_motion_field_time);
 #endif
+  av1_calculate_ref_frame_side(cm);
   if (features->allow_ref_frame_mvs) av1_setup_motion_field(cm);
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_setup_motion_field_time);
