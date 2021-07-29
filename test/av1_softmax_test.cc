@@ -102,7 +102,8 @@ void AnchorSoftmax16Fn(const float *input, float *output) {
 }
 
 const FastSoftmaxTestParams kArrayParams_c[] = {
-  { AnchorSoftmax16Fn, 16 }, { av1_nn_fast_softmax_16_c, 16 }
+  FastSoftmaxTestParams(AnchorSoftmax16Fn, 16),
+  FastSoftmaxTestParams(av1_nn_fast_softmax_16_c, 16)
 };
 INSTANTIATE_TEST_SUITE_P(C, FastSoftmaxTest,
                          ::testing::ValuesIn(kArrayParams_c));
