@@ -2111,6 +2111,49 @@ double av1_tpl_compute_mv_bits(const TplParams *tpl_data, int gf_group_size,
   return total_mv_bits * mv_scale_factor;
 }
 
+// Use upper and left neighbor block as the reference MVs.
+// Compute the minimum difference between current MV and reference MV.
+int_mv av1_compute_mv_difference(const TplDepFrame *tpl_frame, int row, int col,
+                                 int step, int tpl_stride, int right_shift) {
+  const TplDepStats *tpl_stats =
+      &tpl_frame
+           ->tpl_stats_ptr[av1_tpl_ptr_pos(row, col, tpl_stride, right_shift)];
+  int_mv current_mv = tpl_stats->mv[tpl_stats->ref_frame_index[0]];
+  int current_mv_magnitude =
+      abs(current_mv.as_mv.row) + abs(current_mv.as_mv.col);
+
+  // Retrieve the up and left neighbors.
+  int up_error = INT_MAX;
+  int_mv up_mv_diff;
+  if (row - step >= 0) {
+    tpl_stats = &tpl_frame->tpl_stats_ptr[av1_tpl_ptr_pos(
+        row - step, col, tpl_stride, right_shift)];
+    up_mv_diff = tpl_stats->mv[tpl_stats->ref_frame_index[0]];
+    up_mv_diff.as_mv.row = current_mv.as_mv.row - up_mv_diff.as_mv.row;
+    up_mv_diff.as_mv.col = current_mv.as_mv.col - up_mv_diff.as_mv.col;
+    up_error = abs(up_mv_diff.as_mv.row) + abs(up_mv_diff.as_mv.col);
+  }
+
+  int left_error = INT_MAX;
+  int_mv left_mv_diff;
+  if (col - step >= 0) {
+    tpl_stats = &tpl_frame->tpl_stats_ptr[av1_tpl_ptr_pos(
+        row, col - step, tpl_stride, right_shift)];
+    left_mv_diff = tpl_stats->mv[tpl_stats->ref_frame_index[0]];
+    left_mv_diff.as_mv.row = current_mv.as_mv.row - left_mv_diff.as_mv.row;
+    left_mv_diff.as_mv.col = current_mv.as_mv.col - left_mv_diff.as_mv.col;
+    left_error = abs(left_mv_diff.as_mv.row) + abs(left_mv_diff.as_mv.col);
+  }
+
+  // Return the MV with the minimum distance from current.
+  if (up_error < left_error && up_error < current_mv_magnitude) {
+    return up_mv_diff;
+  } else if (left_error < up_error && left_error < current_mv_magnitude) {
+    return left_mv_diff;
+  }
+  return current_mv;
+}
+
 /* Compute the entropy of motion vectors for a single frame. */
 double av1_tpl_compute_frame_mv_entropy(const TplDepFrame *tpl_frame,
                                         uint8_t right_shift) {
@@ -2127,9 +2170,8 @@ double av1_tpl_compute_frame_mv_entropy(const TplDepFrame *tpl_frame,
 
   for (int row = 0; row < tpl_frame->mi_rows; row += step) {
     for (int col = 0; col < tpl_frame->mi_cols; col += step) {
-      const TplDepStats *tpl_stats = &tpl_frame->tpl_stats_ptr[av1_tpl_ptr_pos(
-          row, col, tpl_stride, right_shift)];
-      int_mv mv = tpl_stats->mv[tpl_stats->ref_frame_index[0]];
+      int_mv mv = av1_compute_mv_difference(tpl_frame, row, col, step,
+                                            tpl_stride, right_shift);
       count_row[clamp(mv.as_mv.row, 0, 499)] += 1;
       count_col[clamp(mv.as_mv.row, 0, 499)] += 1;
       n += 1;

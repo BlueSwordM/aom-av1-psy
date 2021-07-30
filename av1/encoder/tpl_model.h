@@ -250,7 +250,7 @@ static INLINE void vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info,
   vbr_rc_info->show_frame_count = show_frame_count;
   vbr_rc_info->keyframe_bitrate = 0;
   vbr_rc_info->scale_factor = 1.2;
-  vbr_rc_info->mv_scale_factor = 4.0;
+  vbr_rc_info->mv_scale_factor = 5.0;
 }
 
 static INLINE void vbr_rc_set_gop_bit_budget(VBR_RATECTRL_INFO *vbr_rc_info,
@@ -583,6 +583,21 @@ void av1_vbr_estimate_mv_and_update(const TplParams *tpl_data,
  */
 double av1_tpl_compute_mv_bits(const TplParams *tpl_data, int gf_group_size,
                                int gf_frame_index, double mv_scale_factor);
+
+/*!\brief Improve the motion vector estimation by taking neighbors into account.
+ *
+ * Use the upper and left neighbor block as the reference MVs.
+ * Compute the minimum difference between current MV and reference MV.
+ *
+ * \param[in]       tpl_frame         Tpl frame struct
+ * \param[in]       row               Current row
+ * \param[in]       col               Current column
+ * \param[in]       step              Step parameter for av1_tpl_ptr_pos
+ * \param[in]       tpl_stride        Stride parameter for av1_tpl_ptr_pos
+ * \param[in]       right_shift       Right shift parameter for av1_tpl_ptr_pos
+ */
+int_mv av1_compute_mv_difference(const TplDepFrame *tpl_frame, int row, int col,
+                                 int step, int tpl_stride, int right_shift);
 
 /*!\brief Compute the entropy of motion vectors for a single frame.
  *

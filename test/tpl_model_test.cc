@@ -306,6 +306,50 @@ TEST(TplModelTest, QModeEstimateBaseQTest) {
   }
 }
 
+TEST(TplModelTest, ComputeMVDifferenceTest) {
+  TplDepFrame tpl_frame_small;
+  tpl_frame_small.is_valid = true;
+  tpl_frame_small.mi_rows = 4;
+  tpl_frame_small.mi_cols = 4;
+  tpl_frame_small.stride = 1;
+  uint8_t right_shift_small = 1;
+  int step_small = 1 << right_shift_small;
+
+  // Test values for motion vectors.
+  int mv_vals_small[4] = { 1, 2, 3, 4 };
+  int index = 0;
+
+  // 4x4 blocks means we need to allocate a 4 size array.
+  // According to av1_tpl_ptr_pos:
+  // (row >> right_shift) * stride + (col >> right_shift)
+  // (4 >> 1) * 1 + (4 >> 1) = 4
+  TplDepStats stats_buf_small[4];
+  tpl_frame_small.tpl_stats_ptr = stats_buf_small;
+
+  for (int row = 0; row < tpl_frame_small.mi_rows; row += step_small) {
+    for (int col = 0; col < tpl_frame_small.mi_cols; col += step_small) {
+      TplDepStats tpl_stats;
+      tpl_stats.ref_frame_index[0] = 0;
+      int_mv mv;
+      mv.as_mv.row = mv_vals_small[index];
+      mv.as_mv.col = mv_vals_small[index];
+      index++;
+      tpl_stats.mv[0] = mv;
+      tpl_frame_small.tpl_stats_ptr[av1_tpl_ptr_pos(
+          row, col, tpl_frame_small.stride, right_shift_small)] = tpl_stats;
+    }
+  }
+
+  int_mv result_mv =
+      av1_compute_mv_difference(&tpl_frame_small, 1, 1, step_small,
+                                tpl_frame_small.stride, right_shift_small);
+
+  // Expect the result to be exactly equal to 1 because this is the difference
+  // between neighboring motion vectors in this instance.
+  EXPECT_EQ(result_mv.as_mv.row, 1);
+  EXPECT_EQ(result_mv.as_mv.col, 1);
+}
+
 TEST(TplModelTest, ComputeMVBitsTest) {
   TplDepFrame tpl_frame;
   tpl_frame.is_valid = true;
@@ -314,7 +358,11 @@ TEST(TplModelTest, ComputeMVBitsTest) {
   tpl_frame.stride = 24;
   uint8_t right_shift = 2;
   int step = 1 << right_shift;
-  int mv_val = 0;  // Example values for motion vectors.
+  // Test values for motion vectors.
+  int mv_vals_ordered[16] = { 1, 2,  3,  4,  5,  6,  7,  8,
+                              9, 10, 11, 12, 13, 14, 15, 16 };
+  int mv_vals[16] = { 1, 16, 2, 15, 3, 14, 4, 13, 5, 12, 6, 11, 7, 10, 8, 9 };
+  int index = 0;
 
   // 16x16 blocks means we need to allocate a 100 size array.
   // According to av1_tpl_ptr_pos:
@@ -328,9 +376,9 @@ TEST(TplModelTest, ComputeMVBitsTest) {
       TplDepStats tpl_stats;
       tpl_stats.ref_frame_index[0] = 0;
       int_mv mv;
-      mv.as_mv.row = mv_val;
-      mv.as_mv.col = mv_val;
-      mv_val++;
+      mv.as_mv.row = mv_vals_ordered[index];
+      mv.as_mv.col = mv_vals_ordered[index];
+      index++;
       tpl_stats.mv[0] = mv;
       tpl_frame.tpl_stats_ptr[av1_tpl_ptr_pos(row, col, tpl_frame.stride,
                                               right_shift)] = tpl_stats;
@@ -338,7 +386,31 @@ TEST(TplModelTest, ComputeMVBitsTest) {
   }
 
   double result = av1_tpl_compute_frame_mv_entropy(&tpl_frame, right_shift);
-  EXPECT_EQ(result, 128);
+
+  // Expect the result to be low because the motion vectors are ordered.
+  // The estimation algorithm takes this into account and reduces the cost.
+  EXPECT_NEAR(result, 20, 5);
+
+  index = 0;
+  for (int row = 0; row < tpl_frame.mi_rows; row += step) {
+    for (int col = 0; col < tpl_frame.mi_cols; col += step) {
+      TplDepStats tpl_stats;
+      tpl_stats.ref_frame_index[0] = 0;
+      int_mv mv;
+      mv.as_mv.row = mv_vals[index];
+      mv.as_mv.col = mv_vals[index];
+      index++;
+      tpl_stats.mv[0] = mv;
+      tpl_frame.tpl_stats_ptr[av1_tpl_ptr_pos(row, col, tpl_frame.stride,
+                                              right_shift)] = tpl_stats;
+    }
+  }
+
+  result = av1_tpl_compute_frame_mv_entropy(&tpl_frame, right_shift);
+
+  // Expect the result to be higher because the vectors are not ordered.
+  // Neighboring vectors will have different values, increasing the cost.
+  EXPECT_NEAR(result, 70, 5);
 }
 
 }  // namespace
