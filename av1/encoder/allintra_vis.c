@@ -117,15 +117,16 @@ static int get_window_wiener_var(AV1_COMP *const cpi, BLOCK_SIZE bsize,
                                  .alpha *
                              10000);
 
-      base_num += sqrt(weber_stats->distortion) *
-                  sqrt(weber_stats->src_variance) * weber_stats->rec_pix_max;
+      base_num += sqrt((double)weber_stats->distortion) *
+                  sqrt((double)weber_stats->src_variance) *
+                  weber_stats->rec_pix_max;
 
-      base_den +=
-          fabs(weber_stats->rec_pix_max * sqrt(weber_stats->src_variance) -
-               weber_stats->src_pix_max * sqrt(weber_stats->rec_variance));
+      base_den += fabs(
+          weber_stats->rec_pix_max * sqrt((double)weber_stats->src_variance) -
+          weber_stats->src_pix_max * sqrt((double)weber_stats->rec_variance));
 
-      base_reg +=
-          sqrt(weber_stats->distortion) * sqrt(weber_stats->src_pix_max) * 0.1;
+      base_reg += sqrt((double)weber_stats->distortion) *
+                  sqrt((double)weber_stats->src_pix_max) * 0.1;
       ++mb_count;
     }
   }
@@ -336,14 +337,15 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
       weber_stats->distortion -= (dist_mean * dist_mean) / pix_num;
       weber_stats->satd = best_intra_cost;
 
-      double reg =
-          sqrt(weber_stats->distortion) * sqrt(weber_stats->src_pix_max) * 0.1;
-      double alpha_den =
-          fabs(weber_stats->rec_pix_max * sqrt(weber_stats->src_variance) -
-               weber_stats->src_pix_max * sqrt(weber_stats->rec_variance)) +
-          reg;
-      double alpha_num = sqrt(weber_stats->distortion) *
-                             sqrt(weber_stats->src_variance) *
+      double reg = sqrt((double)weber_stats->distortion) *
+                   sqrt((double)weber_stats->src_pix_max) * 0.1;
+      double alpha_den = fabs(weber_stats->rec_pix_max *
+                                  sqrt((double)weber_stats->src_variance) -
+                              weber_stats->src_pix_max *
+                                  sqrt((double)weber_stats->rec_variance)) +
+                         reg;
+      double alpha_num = sqrt((double)weber_stats->distortion) *
+                             sqrt((double)weber_stats->src_variance) *
                              weber_stats->rec_pix_max +
                          reg;
 
@@ -383,7 +385,7 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
           get_var_perceptual_ai(cpi, cm->seq_params->sb_size, mi_row, mi_col);
       int64_t satd = get_satd(cpi, cm->seq_params->sb_size, mi_row, mi_col);
       int64_t sse = get_sse(cpi, cm->seq_params->sb_size, mi_row, mi_col);
-      double scaled_satd = (double)satd / sqrt(sse);
+      double scaled_satd = (double)satd / sqrt((double)sse);
       sb_wiener_log += scaled_satd * log(sb_wiener_var);
       sb_count += scaled_satd;
     }
