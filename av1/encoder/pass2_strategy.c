@@ -417,7 +417,8 @@ static int detect_transition_to_still(const FIRSTPASS_INFO *firstpass_info,
   // instead of a clean scene cut.
   if (frame_interval > min_gf_interval && loop_decay_rate >= 0.999 &&
       last_decay_rate < 0.9) {
-    int stats_left = firstpass_info->stats_count - next_stats_index;
+    int stats_left =
+        av1_firstpass_info_future_count(firstpass_info, next_stats_index);
     if (stats_left >= still_interval) {
       int j;
       // Look ahead a few frames to see if static condition persists...
@@ -2649,16 +2650,15 @@ static int test_candidate_kf(const FIRSTPASS_INFO *firstpass_info,
                              int this_stats_index, int frame_count_so_far,
                              enum aom_rc_mode rc_mode, int scenecut_mode,
                              int num_mbs) {
-  if (this_stats_index < 1 ||
-      this_stats_index + 1 >= firstpass_info->stats_count) {
-    return 0;
-  }
   const FIRSTPASS_STATS *last_stats =
       av1_firstpass_info_peek(firstpass_info, this_stats_index - 1);
   const FIRSTPASS_STATS *this_stats =
       av1_firstpass_info_peek(firstpass_info, this_stats_index);
   const FIRSTPASS_STATS *next_stats =
       av1_firstpass_info_peek(firstpass_info, this_stats_index + 1);
+  if (last_stats == NULL || this_stats == NULL || next_stats == NULL) {
+    return 0;
+  }
 
   int is_viable_kf = 0;
   double pcnt_intra = 1.0 - this_stats->pcnt_inter;
@@ -2669,8 +2669,12 @@ static int test_candidate_kf(const FIRSTPASS_INFO *firstpass_info,
   int frames_to_test_after_candidate_key = SCENE_CUT_KEY_TEST_INTERVAL;
   int count_for_tolerable_prediction = 3;
 
+  // We do "-1" because the candidate key is not counted.
+  int stats_after_this_stats =
+      av1_firstpass_info_future_count(firstpass_info, this_stats_index) - 1;
+
   if (scenecut_mode == ENABLE_SCENECUT_MODE_1) {
-    if (this_stats_index + 3 >= firstpass_info->stats_count) {
+    if (stats_after_this_stats < 3) {
       return 0;
     } else {
       frames_to_test_after_candidate_key = 3;
@@ -2678,10 +2682,8 @@ static int test_candidate_kf(const FIRSTPASS_INFO *firstpass_info,
     }
   }
   // Make sure we have enough stats after the candidate key.
-  // We do "-1" because the candidate key is not counted.
   frames_to_test_after_candidate_key =
-      AOMMIN(frames_to_test_after_candidate_key,
-             firstpass_info->stats_count - this_stats_index - 1);
+      AOMMIN(frames_to_test_after_candidate_key, stats_after_this_stats);
 
   // Does the frame satisfy the primary criteria of a key frame?
   // See above for an explanation of the test criteria.
@@ -2842,7 +2844,9 @@ static int define_kf_interval(AV1_COMP *cpi,
                           : cpi->common.mi_params.MBs;
   const FIRSTPASS_STATS *this_stats =
       av1_firstpass_info_peek(firstpass_info, 0);
-  while (frames_to_key < firstpass_info->stats_count &&
+  const int future_stats_count =
+      av1_firstpass_info_future_count(firstpass_info, 0);
+  while (frames_to_key < future_stats_count &&
          frames_to_key < num_frames_to_detect_scenecut) {
     // Accumulate total number of stats available till next key frame
     num_stats_used_for_kf_boost++;
@@ -2860,7 +2864,7 @@ static int define_kf_interval(AV1_COMP *cpi,
 
     // Provided that we are not at the end of the file...
     if ((cpi->ppi->p_rc.enable_scenecut_detection > 0) && kf_cfg->auto_key &&
-        frames_to_key + 1 < firstpass_info->stats_count) {
+        frames_to_key + 1 < future_stats_count) {
       const FIRSTPASS_STATS *next_stats =
           av1_firstpass_info_peek(firstpass_info, frames_to_key + 1);
       double loop_decay_rate;
@@ -2925,7 +2929,7 @@ static int define_kf_interval(AV1_COMP *cpi,
     frames_to_key = num_frames_to_next_key;
 
   if (!kf_cfg->fwd_kf_enabled || scenecut_detected ||
-      frames_to_key == firstpass_info->stats_count) {
+      frames_to_key == future_stats_count) {
     p_rc->next_is_fwd_key = 0;
   }
 
@@ -3197,8 +3201,10 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   if (kf_cfg->fwd_kf_enabled)
     p_rc->next_is_fwd_key |= p_rc->next_key_frame_forced;
 
+  const int future_stats_count =
+      av1_firstpass_info_future_count(firstpass_info, 0);
   // Special case for the last key frame of the file.
-  if (frames_to_key == firstpass_info->stats_count) {
+  if (frames_to_key == future_stats_count) {
     // Accumulate kf group error.
     // TODO(angiebird): Why do we need to add last frame's stats
     // here? Move it to a proper place.

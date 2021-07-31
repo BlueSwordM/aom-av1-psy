@@ -1390,7 +1390,10 @@ aom_codec_err_t av1_firstpass_info_init(FIRSTPASS_INFO *firstpass_info,
         sizeof(firstpass_info->static_stats_buf) /
         sizeof(firstpass_info->static_stats_buf[0]);
     firstpass_info->start_index = 0;
+    firstpass_info->cur_index = 0;
     firstpass_info->stats_count = 0;
+    firstpass_info->future_stats_count = 0;
+    firstpass_info->past_stats_count = 0;
     av1_zero(firstpass_info->total_stats);
     if (ext_stats_buf_size == 0) {
       return AOM_CODEC_OK;
@@ -1401,7 +1404,10 @@ aom_codec_err_t av1_firstpass_info_init(FIRSTPASS_INFO *firstpass_info,
     firstpass_info->stats_buf = ext_stats_buf;
     firstpass_info->stats_buf_size = ext_stats_buf_size;
     firstpass_info->start_index = 0;
+    firstpass_info->cur_index = 0;
     firstpass_info->stats_count = firstpass_info->stats_buf_size;
+    firstpass_info->future_stats_count = firstpass_info->stats_count;
+    firstpass_info->past_stats_count = 0;
     av1_zero(firstpass_info->total_stats);
     for (int i = 0; i < firstpass_info->stats_count; ++i) {
       av1_accumulate_stats(&firstpass_info->total_stats,
@@ -1411,18 +1417,41 @@ aom_codec_err_t av1_firstpass_info_init(FIRSTPASS_INFO *firstpass_info,
   return AOM_CODEC_OK;
 }
 
-aom_codec_err_t av1_firstpass_info_pop(FIRSTPASS_INFO *firstpass_info,
-                                       FIRSTPASS_STATS *output_stats) {
-  if (firstpass_info->stats_count > 0) {
-    const int next_start =
-        (firstpass_info->start_index + 1) % firstpass_info->stats_buf_size;
-    *output_stats = firstpass_info->stats_buf[firstpass_info->start_index];
-    firstpass_info->start_index = next_start;
-    --firstpass_info->stats_count;
+aom_codec_err_t av1_firstpass_info_move_cur_index(
+    FIRSTPASS_INFO *firstpass_info) {
+  assert(firstpass_info->future_stats_count +
+             firstpass_info->past_stats_count ==
+         firstpass_info->stats_count);
+  if (firstpass_info->future_stats_count > 1) {
+    firstpass_info->cur_index =
+        (firstpass_info->cur_index + 1) % firstpass_info->stats_buf_size;
+    --firstpass_info->future_stats_count;
+    ++firstpass_info->past_stats_count;
     return AOM_CODEC_OK;
   } else {
     return AOM_CODEC_ERROR;
   }
+}
+
+aom_codec_err_t av1_firstpass_info_pop(FIRSTPASS_INFO *firstpass_info) {
+  if (firstpass_info->stats_count > 0 && firstpass_info->past_stats_count > 0) {
+    const int next_start =
+        (firstpass_info->start_index + 1) % firstpass_info->stats_buf_size;
+    firstpass_info->start_index = next_start;
+    --firstpass_info->stats_count;
+    --firstpass_info->past_stats_count;
+    return AOM_CODEC_OK;
+  } else {
+    return AOM_CODEC_ERROR;
+  }
+}
+
+aom_codec_err_t av1_firstpass_info_move_cur_index_and_pop(
+    FIRSTPASS_INFO *firstpass_info) {
+  aom_codec_err_t ret = av1_firstpass_info_move_cur_index(firstpass_info);
+  if (ret != AOM_CODEC_OK) return ret;
+  ret = av1_firstpass_info_pop(firstpass_info);
+  return ret;
 }
 
 aom_codec_err_t av1_firstpass_info_push(FIRSTPASS_INFO *firstpass_info,
@@ -1433,6 +1462,7 @@ aom_codec_err_t av1_firstpass_info_push(FIRSTPASS_INFO *firstpass_info,
         firstpass_info->stats_buf_size;
     firstpass_info->stats_buf[next_index] = *input_stats;
     ++firstpass_info->stats_count;
+    ++firstpass_info->future_stats_count;
     av1_accumulate_stats(&firstpass_info->total_stats, input_stats);
     return AOM_CODEC_OK;
   } else {
@@ -1441,12 +1471,29 @@ aom_codec_err_t av1_firstpass_info_push(FIRSTPASS_INFO *firstpass_info,
 }
 
 const FIRSTPASS_STATS *av1_firstpass_info_peek(
-    const FIRSTPASS_INFO *firstpass_info, int index_offset) {
-  if (index_offset >= 0 && index_offset < firstpass_info->stats_count) {
-    const int index = (firstpass_info->start_index + index_offset) %
+    const FIRSTPASS_INFO *firstpass_info, int offset_from_cur) {
+  if (offset_from_cur >= -firstpass_info->past_stats_count &&
+      offset_from_cur < firstpass_info->future_stats_count) {
+    const int index = (firstpass_info->cur_index + offset_from_cur) %
                       firstpass_info->stats_buf_size;
     return &firstpass_info->stats_buf[index];
   } else {
     return NULL;
   }
+}
+
+int av1_firstpass_info_future_count(const FIRSTPASS_INFO *firstpass_info,
+                                    int offset_from_cur) {
+  if (offset_from_cur < firstpass_info->future_stats_count) {
+    return firstpass_info->future_stats_count - offset_from_cur;
+  }
+  return 0;
+}
+
+int av1_firstpass_info_past_count(const FIRSTPASS_INFO *firstpass_info,
+                                  int offset_from_cur) {
+  if (offset_from_cur >= -firstpass_info->past_stats_count) {
+    return offset_from_cur + firstpass_info->past_stats_count;
+  }
+  return 0;
 }
