@@ -725,6 +725,10 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_720p_or_larger) sf->hl_sf.recode_tolerance = 40;
 
     sf->inter_sf.skip_newmv_in_drl = 4;
+
+    if (!is_720p_or_larger) {
+      sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW_SET;
+    }
   }
 
   if (speed >= 6) {
@@ -743,7 +747,6 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     if (!is_720p_or_larger) {
-      sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW_SET;
       sf->inter_sf.coeff_cost_upd_level = INTERNAL_COST_UPD_SBROW;
       sf->inter_sf.mode_cost_upd_level = INTERNAL_COST_UPD_SBROW;
     }
