@@ -1293,16 +1293,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->rt_sf.check_intra_pred_nonrd = 1;
   sf->rt_sf.estimate_motion_for_var_based_partition = 1;
   sf->rt_sf.hybrid_intra_pickmode = 1;
-  sf->rt_sf.nonrd_prune_ref_frame_search = 0;
-  sf->rt_sf.reuse_inter_pred_nonrd = 0;
   sf->rt_sf.use_comp_ref_nonrd = 1;
   sf->rt_sf.use_nonrd_filter_search = 1;
-  sf->rt_sf.use_nonrd_pick_mode = 0;
-  sf->rt_sf.use_real_time_ref_set = 0;
-  sf->rt_sf.check_scene_detection = 0;
-  sf->rt_sf.overshoot_detection_cbr = NO_DETECTION;
-  sf->rt_sf.fullpel_search_step_param = 0;
-  sf->rt_sf.skip_loopfilter_non_reference = 0;
 
   sf->tx_sf.intra_tx_size_search_init_depth_sqr = 1;
   sf->tx_sf.tx_type_search.use_reduced_intra_txset = 1;
@@ -1763,14 +1755,39 @@ static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
 }
 
 static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
-  rt_sf->mode_search_skip_flags = 0;
-  rt_sf->skip_interp_filter_search = 0;
-  rt_sf->force_tx_search_off = 0;
-  rt_sf->num_inter_modes_for_tx_search = INT_MAX;
-  rt_sf->use_simple_rd_model = 0;
+  rt_sf->check_intra_pred_nonrd = 0;
+  rt_sf->skip_intra_pred_if_tx_skip = 0;
+  rt_sf->estimate_motion_for_var_based_partition = 0;
   rt_sf->nonrd_check_partition_merge_mode = 0;
   rt_sf->nonrd_check_partition_split = 0;
-  rt_sf->skip_intra_pred_if_tx_skip = 0;
+  rt_sf->mode_search_skip_flags = 0;
+  rt_sf->nonrd_prune_ref_frame_search = 0;
+  rt_sf->use_nonrd_pick_mode = 0;
+  rt_sf->use_nonrd_altref_frame = 0;
+  rt_sf->use_golden_frame = 0;
+  rt_sf->use_comp_ref_nonrd = 0;
+  rt_sf->ref_frame_comp_nonrd = 0;
+  rt_sf->use_real_time_ref_set = 0;
+  rt_sf->short_circuit_low_temp_var = 0;
+  rt_sf->use_modeled_non_rd_cost = 0;
+  rt_sf->reuse_inter_pred_nonrd = 0;
+  rt_sf->num_inter_modes_for_tx_search = INT_MAX;
+  rt_sf->force_tx_search_off = 0;
+  rt_sf->use_nonrd_filter_search = 0;
+  rt_sf->use_simple_rd_model = 0;
+  rt_sf->skip_interp_filter_search = 0;
+  rt_sf->hybrid_intra_pickmode = 0;
+  rt_sf->source_metrics_sb_nonrd = 0;
+  rt_sf->overshoot_detection_cbr = NO_DETECTION;
+  rt_sf->check_scene_detection = 0;
+  rt_sf->force_large_partition_blocks = 0;
+  rt_sf->use_temporal_noise_estimate = 0;
+  rt_sf->fullpel_search_step_param = 0;
+  rt_sf->skip_loopfilter_non_reference = 0;
+  for (int i = 0; i < BLOCK_SIZES; ++i)
+    rt_sf->intra_y_mode_bsize_mask_nrd[i] = INTRA_ALL;
+  rt_sf->nonrd_agressive_skip = 0;
+  rt_sf->skip_cdef_sb = 0;
   rt_sf->force_large_partition_blocks_intra = 0;
 }
 
