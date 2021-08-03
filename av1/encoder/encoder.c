@@ -1378,6 +1378,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
                              sizeof(*cpi->consec_zero_mv)));
 
   cpi->mb_weber_stats = NULL;
+  cpi->mb_variance = NULL;
 
   {
     const int bsize = BLOCK_16X16;
@@ -3381,6 +3382,11 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL_AI) {
     av1_init_mb_wiener_var_buffer(cpi);
     av1_set_mb_wiener_variance(cpi);
+  }
+
+  if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_USER_RATING_BASED) {
+    av1_init_mb_ur_var_buffer(cpi);
+    av1_set_mb_ur_variance(cpi);
   }
 
 #if CONFIG_INTERNAL_STATS

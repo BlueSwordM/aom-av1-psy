@@ -1115,6 +1115,7 @@ enum aome_enc_control_id {
    * - 1 = use modulation to maximize objective quality (default)
    * - 2 = use modulation for local test
    * - 3 = use modulation for key frame perceptual quality optimization
+   * - 4 = use modulation for user rating based perceptual quality optimization
    */
   AV1E_SET_DELTAQ_MODE = 107,
 

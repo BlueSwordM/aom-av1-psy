@@ -154,6 +154,7 @@ enum {
   DELTA_Q_OBJECTIVE = 1,      // Modulation to improve objective quality
   DELTA_Q_PERCEPTUAL = 2,     // Modulation to improve video perceptual quality
   DELTA_Q_PERCEPTUAL_AI = 3,  // Perceptual quality opt for all intra mode
+  DELTA_Q_USER_RATING_BASED = 4,  // User rating based delta q mode
   DELTA_Q_MODE_COUNT  // This should always be the last member of the enum
 } UENUM1BYTE(DELTAQ_MODE);
 
@@ -3107,6 +3108,11 @@ typedef struct AV1_COMP {
    * Frame level Wiener filter normalization.
    */
   int64_t norm_wiener_variance;
+
+  /*!
+   * Buffer to store MB variance.
+   */
+  double *mb_variance;
 
   /*!
    * Flag to indicate that current frame is dropped.

@@ -289,6 +289,9 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 
   aom_free(cpi->mb_weber_stats);
   cpi->mb_weber_stats = NULL;
+
+  aom_free(cpi->mb_variance);
+  cpi->mb_variance = NULL;
 }
 
 static AOM_INLINE void variance_partition_alloc(AV1_COMP *cpi) {

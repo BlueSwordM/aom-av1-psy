@@ -13,6 +13,7 @@
 
 #include "av1/encoder/allintra_vis.h"
 #include "av1/encoder/hybrid_fwd_txfm.h"
+#include "av1/encoder/rdopt_utils.h"
 
 // Process the wiener variance in 16x16 block basis.
 static int qsort_comp(const void *elem1, const void *elem2) {
@@ -414,6 +415,87 @@ int av1_get_sbq_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
   qindex = AOMMIN(qindex, MAXQ);
   qindex = AOMMAX(qindex, MINQ);
   if (base_qindex > MINQ) qindex = AOMMAX(qindex, MINQ + 1);
+
+  return qindex;
+}
+
+void av1_init_mb_ur_var_buffer(AV1_COMP *cpi) {
+  AV1_COMMON *cm = &cpi->common;
+
+  if (cpi->mb_variance) return;
+
+  CHECK_MEM_ERROR(cm, cpi->mb_variance,
+                  aom_calloc(cpi->frame_info.mb_rows * cpi->frame_info.mb_cols,
+                             sizeof(*cpi->mb_variance)));
+}
+
+void av1_set_mb_ur_variance(AV1_COMP *cpi) {
+  const CommonModeInfoParams *const mi_params = &cpi->common.mi_params;
+  ThreadData *td = &cpi->td;
+  MACROBLOCK *x = &td->mb;
+  MACROBLOCKD *xd = &x->e_mbd;
+  uint8_t *y_buffer = cpi->source->y_buffer;
+  const int y_stride = cpi->source->y_stride;
+  const int block_size = cpi->common.seq_params->sb_size;
+
+  const int num_mi_w = mi_size_wide[block_size];
+  const int num_mi_h = mi_size_high[block_size];
+  const int num_cols = (mi_params->mi_cols + num_mi_w - 1) / num_mi_w;
+  const int num_rows = (mi_params->mi_rows + num_mi_h - 1) / num_mi_h;
+  const int use_hbd = cpi->source->flags & YV12_FLAG_HIGHBITDEPTH;
+
+  // Loop through each SB block.
+  for (int row = 0; row < num_rows; ++row) {
+    for (int col = 0; col < num_cols; ++col) {
+      double var = 0.0, num_of_var = 0.0;
+      const int index = row * num_cols + col;
+
+      // Loop through each 8x8 block.
+      for (int mi_row = row * num_mi_h;
+           mi_row < mi_params->mi_rows && mi_row < (row + 1) * num_mi_h;
+           mi_row += 2) {
+        for (int mi_col = col * num_mi_w;
+             mi_col < mi_params->mi_cols && mi_col < (col + 1) * num_mi_w;
+             mi_col += 2) {
+          struct buf_2d buf;
+          const int row_offset_y = mi_row << 2;
+          const int col_offset_y = mi_col << 2;
+
+          buf.buf = y_buffer + row_offset_y * y_stride + col_offset_y;
+          buf.stride = y_stride;
+
+          if (use_hbd) {
+            var += av1_high_get_sby_perpixel_variance(cpi, &buf, BLOCK_8X8,
+                                                      xd->bd);
+          } else {
+            var += av1_get_sby_perpixel_variance(cpi, &buf, BLOCK_8X8);
+          }
+
+          num_of_var += 1.0;
+        }
+      }
+      var = var / num_of_var;
+      cpi->mb_variance[index] = var;
+    }
+  }
+}
+
+int av1_get_sbq_user_rating_based(AV1_COMP *const cpi, int mi_row, int mi_col) {
+  const BLOCK_SIZE bsize = cpi->common.seq_params->sb_size;
+  const CommonModeInfoParams *const mi_params = &cpi->common.mi_params;
+  AV1_COMMON *const cm = &cpi->common;
+  const int base_qindex = cm->quant_params.base_qindex;
+  if (base_qindex == 0) return base_qindex;
+  const int num_mi_w = mi_size_wide[bsize];
+  const int num_mi_h = mi_size_high[bsize];
+  const int num_cols = (mi_params->mi_cols + num_mi_w - 1) / num_mi_w;
+  const int index = (mi_row / num_mi_h) * num_cols + (mi_col / num_mi_w);
+  const double var = cpi->mb_variance[index];
+  const double delta_qindex =
+      4.0 * 23.5 * (1.0 - exp(-0.002 * var)) - 2.0 * 23.5;
+  int qindex = (int)((double)base_qindex + delta_qindex + 0.5);
+  qindex = AOMMIN(qindex, MAXQ);
+  qindex = AOMMAX(qindex, MINQ + 1);
 
   return qindex;
 }
