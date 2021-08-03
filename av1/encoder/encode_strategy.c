@@ -1058,6 +1058,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
+#if !CONFIG_FRAME_PARALLEL_ENCODE
 static INLINE int find_unused_ref_frame(const int *used_ref_frames,
                                         const int *stack, int stack_size) {
   for (int i = 0; i < stack_size; ++i) {
@@ -1073,6 +1074,7 @@ static INLINE int find_unused_ref_frame(const int *used_ref_frames,
 
   return INVALID_IDX;
 }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
 /*!\cond */
@@ -1140,10 +1142,10 @@ static void set_unmapped_ref(RefBufMapData *buffer_map, int n_bufs,
   buffer_map[unmapped_idx].used = 1;
 }
 
-static void get_ref_frames(const AV1_COMP *const cpi,
-                           RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
+static void get_ref_frames(RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
-                           int gf_index, int is_parallel_encode,
+                           const AV1_COMP *const cpi, int gf_index,
+                           int is_parallel_encode,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
                            int cur_frame_disp,
                            int remapped_ref_idx[REF_FRAMES]) {
@@ -1351,19 +1353,19 @@ static void get_ref_frames(const AV1_COMP *const cpi,
 
 void av1_get_ref_frames(const RefBufferStack *ref_buffer_stack,
 #if CONFIG_FRAME_PARALLEL_ENCODE
-                        const AV1_COMP *cpi,
                         RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
                         int cur_frame_disp,
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
-                        int gf_index, int is_parallel_encode,
+                        const AV1_COMP *cpi, int gf_index,
+                        int is_parallel_encode,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
                         int remapped_ref_idx[REF_FRAMES]) {
 #if CONFIG_FRAME_PARALLEL_ENCODE
   (void)ref_buffer_stack;
-  get_ref_frames(cpi, ref_frame_map_pairs,
+  get_ref_frames(ref_frame_map_pairs,
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
-                 gf_index, is_parallel_encode,
+                 cpi, gf_index, is_parallel_encode,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
                  cur_frame_disp, remapped_ref_idx);
   return;
@@ -1697,18 +1699,24 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         cpi->common.current_frame.frame_number + order_offset;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
-    if (!ext_flags->refresh_frame.update_pending) {
-      av1_get_ref_frames(&cpi->ref_buffer_stack,
 #if CONFIG_FRAME_PARALLEL_ENCODE
-                         cpi, ref_frame_map_pairs, cur_frame_disp,
+    if (gf_group->frame_parallel_level[cpi->gf_frame_index] == 0) {
+#else
+    {
+#endif
+      if (!ext_flags->refresh_frame.update_pending) {
+        av1_get_ref_frames(&cpi->ref_buffer_stack,
+#if CONFIG_FRAME_PARALLEL_ENCODE
+                           ref_frame_map_pairs, cur_frame_disp,
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
-                         cpi->gf_frame_index, 1,
+                           cpi, cpi->gf_frame_index, 1,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
-                         cm->remapped_ref_idx);
-    } else if (cpi->svc.set_ref_frame_config) {
-      for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++)
-        cm->remapped_ref_idx[i] = cpi->svc.ref_idx[i];
+                           cm->remapped_ref_idx);
+      } else if (cpi->svc.set_ref_frame_config) {
+        for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++)
+          cm->remapped_ref_idx[i] = cpi->svc.ref_idx[i];
+      }
     }
 
     // Get the reference frames

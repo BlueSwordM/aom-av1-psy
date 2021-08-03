@@ -889,13 +889,23 @@ static int get_compressed_data_hook(void *arg1, void *arg2) {
 // set, and outputs the frame bit stream to the designated buffers.
 int av1_compress_parallel_frames(AV1_PRIMARY *const ppi,
                                  AV1_COMP_DATA *const first_cpi_data) {
-  int frames_in_parallel_set =
-      av1_init_parallel_frame_context(first_cpi_data, ppi);
+  // Bitmask for the frame buffers referenced by cpi->scaled_ref_buf
+  // corresponding to frames in the current parallel encode set.
+  int ref_buffers_used_map = 0;
+  int frames_in_parallel_set = av1_init_parallel_frame_context(
+      first_cpi_data, ppi, &ref_buffers_used_map);
   prepare_fpmt_workers(ppi, first_cpi_data, get_compressed_data_hook,
                        frames_in_parallel_set);
   launch_fpmt_workers(ppi);
   sync_fpmt_workers(ppi);
 
+  // Release cpi->scaled_ref_buf corresponding to frames in the current parallel
+  // encode set.
+  for (int i = 0; i < frames_in_parallel_set; ++i) {
+    av1_release_scaled_references_fpmt(ppi->parallel_cpi[i]);
+  }
+  av1_decrement_ref_counts_fpmt(ppi->cpi->common.buffer_pool,
+                                ref_buffers_used_map);
   return AOM_CODEC_OK;
 }
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE

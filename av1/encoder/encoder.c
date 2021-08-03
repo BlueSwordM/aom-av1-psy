@@ -2360,12 +2360,18 @@ static int encode_without_recode(AV1_COMP *cpi) {
     }
   }
 
-  // For SVC the inter-layer/spatial prediction is not done for newmv
-  // (zero_mode is forced), and since the scaled references are only
-  // use for newmv search, we can avoid scaling here.
-  if (!frame_is_intra_only(cm) &&
-      !(cpi->ppi->use_svc && cpi->svc.force_zero_mode_spatial_ref))
-    av1_scale_references(cpi, filter_scaler, phase_scaler, 1);
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
+#else
+  {
+#endif
+    // For SVC the inter-layer/spatial prediction is not done for newmv
+    // (zero_mode is forced), and since the scaled references are only
+    // use for newmv search, we can avoid scaling here.
+    if (!frame_is_intra_only(cm) &&
+        !(cpi->ppi->use_svc && cpi->svc.force_zero_mode_spatial_ref))
+      av1_scale_references(cpi, filter_scaler, phase_scaler, 1);
+  }
 
   av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                     q_cfg->enable_chroma_deltaq);
@@ -2561,11 +2567,17 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
           EIGHTTAP_REGULAR, 0, false, false);
     }
 
-    if (!frame_is_intra_only(cm)) {
-      if (loop_count > 0) {
-        release_scaled_references(cpi);
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
+#else
+    {
+#endif
+      if (!frame_is_intra_only(cm)) {
+        if (loop_count > 0) {
+          release_scaled_references(cpi);
+        }
+        av1_scale_references(cpi, EIGHTTAP_REGULAR, 0, 0);
       }
-      av1_scale_references(cpi, EIGHTTAP_REGULAR, 0, 0);
     }
 
 #if CONFIG_TUNE_VMAF
@@ -3485,8 +3497,14 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     }
   }
 
-  if (frame_is_intra_only(cm) == 0) {
-    release_scaled_references(cpi);
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
+#else
+  {
+#endif
+    if (frame_is_intra_only(cm) == 0) {
+      release_scaled_references(cpi);
+    }
   }
 #if CONFIG_AV1_TEMPORAL_DENOISING
   av1_denoiser_update_ref_frame(cpi);
@@ -4310,6 +4328,74 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
 }
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
+// Populates cpi->scaled_ref_buf corresponding to frames in a parallel encode
+// set. Also sets the bitmask 'ref_buffers_used_map'.
+void av1_scale_references_fpmt(AV1_COMP *cpi, int *ref_buffers_used_map) {
+  AV1_COMMON *cm = &cpi->common;
+  MV_REFERENCE_FRAME ref_frame;
+
+  for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
+    // Need to convert from AOM_REFFRAME to index into ref_mask (subtract 1).
+    if (cpi->ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
+      const YV12_BUFFER_CONFIG *const ref =
+          get_ref_frame_yv12_buf(cm, ref_frame);
+
+      if (ref == NULL) {
+        cpi->scaled_ref_buf[ref_frame - 1] = NULL;
+        continue;
+      }
+
+      // FPMT does not support scaling yet.
+      assert(ref->y_crop_width == cm->width &&
+             ref->y_crop_height == cm->height);
+
+      RefCntBuffer *buf = get_ref_frame_buf(cm, ref_frame);
+      cpi->scaled_ref_buf[ref_frame - 1] = buf;
+      for (int i = 0; i < FRAME_BUFFERS; ++i) {
+        if (&cm->buffer_pool->frame_bufs[i] == buf) {
+          *ref_buffers_used_map |= (1 << i);
+        }
+      }
+    } else {
+      if (!has_no_stats_stage(cpi)) cpi->scaled_ref_buf[ref_frame - 1] = NULL;
+    }
+  }
+}
+
+// Increments the ref_count of frame buffers referenced by cpi->scaled_ref_buf
+// corresponding to frames in a parallel encode set.
+void av1_increment_scaled_ref_counts_fpmt(BufferPool *buffer_pool,
+                                          int ref_buffers_used_map) {
+  for (int i = 0; i < FRAME_BUFFERS; ++i) {
+    if (ref_buffers_used_map & (1 << i)) {
+      ++buffer_pool->frame_bufs[i].ref_count;
+    }
+  }
+}
+
+// Releases cpi->scaled_ref_buf corresponding to frames in a parallel encode
+// set.
+void av1_release_scaled_references_fpmt(AV1_COMP *cpi) {
+  // TODO(isbs): only refresh the necessary frames, rather than all of them
+  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
+    RefCntBuffer *const buf = cpi->scaled_ref_buf[i];
+    if (buf != NULL) {
+      cpi->scaled_ref_buf[i] = NULL;
+    }
+  }
+}
+
+// Decrements the ref_count of frame buffers referenced by cpi->scaled_ref_buf
+// corresponding to frames in a parallel encode set.
+void av1_decrement_ref_counts_fpmt(BufferPool *buffer_pool,
+                                   int ref_buffers_used_map) {
+  for (int i = 0; i < FRAME_BUFFERS; ++i) {
+    if (ref_buffers_used_map & (1 << i)) {
+      --buffer_pool->frame_bufs[i].ref_count;
+    }
+  }
+}
+
 // Initialize parallel frame contexts with screen content decisions.
 void av1_init_sc_decisions(AV1_PRIMARY *const ppi) {
   AV1_COMP *const first_cpi = ppi->cpi;
@@ -4372,7 +4458,8 @@ AV1_COMP *av1_get_parallel_frame_enc_data(AV1_PRIMARY *const ppi,
 
 // Initialises frames belonging to a parallel encode set.
 int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
-                                    AV1_PRIMARY *const ppi) {
+                                    AV1_PRIMARY *const ppi,
+                                    int *ref_buffers_used_map) {
   AV1_COMP *const first_cpi = ppi->cpi;
   GF_GROUP *const gf_group = &ppi->gf_group;
   int gf_index_start = first_cpi->gf_frame_index;
@@ -4383,10 +4470,18 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
   int frames_since_key = first_cpi->rc.frames_since_key;
   int frames_to_key = first_cpi->rc.frames_to_key;
   int frames_to_fwd_kf = first_cpi->rc.frames_to_fwd_kf;
+  int cur_frame_disp = cur_frame_num + gf_group->arf_src_offset[gf_index_start];
   const FIRSTPASS_STATS *stats_in = first_cpi->twopass_frame.stats_in;
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
+
+  assert(*ref_buffers_used_map == 0);
+
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
-  init_ref_map_pair(first_cpi, ref_frame_map_pairs);
+  RefFrameMapPair first_ref_frame_map_pairs[REF_FRAMES];
+  init_ref_map_pair(first_cpi, first_ref_frame_map_pairs);
+  memcpy(ref_frame_map_pairs, first_ref_frame_map_pairs,
+         sizeof(RefFrameMapPair) * REF_FRAMES);
+
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
   // Store the reference refresh index of frame_parallel_level 1 frame in a
   // parallel encode set of lower layer frames.
   if (gf_group->update_type[gf_index_start] == INTNL_ARF_UPDATE) {
@@ -4409,6 +4504,14 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
     first_cpi->time_stamps.prev_ts_start = ppi->ts_start_last_show_frame;
     first_cpi->time_stamps.prev_ts_end = ppi->ts_end_last_show_frame;
   }
+
+  av1_get_ref_frames(NULL, first_ref_frame_map_pairs, cur_frame_disp,
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+                     first_cpi, gf_index_start, 1,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+                     first_cpi->common.remapped_ref_idx);
+
+  av1_scale_references_fpmt(first_cpi, ref_buffers_used_map);
   parallel_frame_count++;
 
   // Iterate through the GF_GROUP to find the remaining frame_parallel_level 2
@@ -4429,6 +4532,7 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
       }
       stats_in++;
     }
+    cur_frame_disp = cur_frame_num + gf_group->arf_src_offset[i];
     if (gf_group->frame_parallel_level[i] == 2) {
       AV1_COMP *cur_cpi = ppi->parallel_cpi[parallel_frame_count];
       AV1_COMP_DATA *cur_cpi_data =
@@ -4484,6 +4588,13 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
       }
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
       cur_cpi->twopass_frame.stats_in = stats_in;
+
+      av1_get_ref_frames(NULL, first_ref_frame_map_pairs, cur_frame_disp,
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+                         cur_cpi, i, 1,
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+                         cur_cpi->common.remapped_ref_idx);
+      av1_scale_references_fpmt(cur_cpi, ref_buffers_used_map);
       parallel_frame_count++;
     }
 
@@ -4498,6 +4609,9 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
       break;
     }
   }
+
+  av1_increment_scaled_ref_counts_fpmt(first_cpi->common.buffer_pool,
+                                       *ref_buffers_used_map);
 
   // Return the number of frames in the parallel encode set.
   return parallel_frame_count;
