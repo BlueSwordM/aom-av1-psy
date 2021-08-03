@@ -537,6 +537,8 @@ static void set_good_speed_feature_framesize_dependent(
   const int is_4k_or_larger = AOMMIN(cm->width, cm->height) >= 2160;
   const bool use_hbd = cpi->oxcf.use_highbitdepth;
   const int boosted = frame_is_boosted(cpi);
+  const int is_lf_frame =
+      cpi->ppi->gf_group.frame_type[cpi->gf_frame_index] == LF_UPDATE;
 
   if (is_480p_or_larger) {
     sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
@@ -629,6 +631,12 @@ static void set_good_speed_feature_framesize_dependent(
 
     if (is_480p_or_lesser) sf->inter_sf.skip_ext_comp_nearmv_mode = 1;
 
+    if (is_720p_or_larger) {
+      sf->inter_sf.limit_inter_mode_cands = is_lf_frame ? 1 : 0;
+    } else {
+      sf->inter_sf.limit_inter_mode_cands = is_lf_frame ? 2 : 0;
+    }
+
     if (is_480p_or_larger) {
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
       if (use_hbd) sf->tx_sf.prune_tx_size_level = 2;
@@ -648,6 +656,7 @@ static void set_good_speed_feature_framesize_dependent(
   if (speed >= 3) {
     sf->inter_sf.skip_newmv_in_drl = 2;
     sf->inter_sf.skip_ext_comp_nearmv_mode = 1;
+    sf->inter_sf.limit_inter_mode_cands = is_lf_frame ? 3 : 0;
 
     sf->part_sf.ml_early_term_after_part_split_level = 0;
 
@@ -1644,6 +1653,7 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->reuse_mask_search_results = 0;
   inter_sf->enable_fast_wedge_mask_search = 0;
   inter_sf->inter_mode_txfm_breakout = 0;
+  inter_sf->limit_inter_mode_cands = 0;
 }
 
 static AOM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
