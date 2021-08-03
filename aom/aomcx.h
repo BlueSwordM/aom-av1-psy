@@ -1502,8 +1502,10 @@ typedef struct aom_svc_ref_frame_config {
   int reference[7]; /**< Reference flag for each of the 7 references. */
   /*! Buffer slot index for each of 7 references. */
   int ref_idx[7];
-  int refresh[8];    /**< Refresh flag for each of the 8 slots. */
-  int use_comp_pred; /**< Use compound prediction. */
+  int refresh[8]; /**< Refresh flag for each of the 8 slots. */
+  // Use compound prediction for the ref_frame pairs GOLDEN_LAST (0),
+  // LAST2_LAST (1), and ALTREF_LAST (2).
+  int ref_frame_comp[3]; /**<Compound reference flag. */
 } aom_svc_ref_frame_config_t;
 
 /*!\cond */

@@ -86,6 +86,9 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
   if (svc->number_spatial_layers == 3) {
     svc->downsample_filter_type[0] = EIGHTTAP_SMOOTH;
   }
+  svc->ref_frame_comp[0] = 0;
+  svc->ref_frame_comp[1] = 0;
+  svc->ref_frame_comp[2] = 0;
 }
 
 // Update the layer context from a change_config() call.
