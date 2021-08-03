@@ -407,7 +407,7 @@ int av1_compute_rd_mult(const AV1_COMP *cpi, int qindex) {
       cpi->ppi->gf_group.update_type[cpi->gf_frame_index];
   int64_t rdmult =
       av1_compute_rd_mult_based_on_qindex(bit_depth, update_type, qindex);
-  if (is_stat_consumption_stage(cpi) &&
+  if (is_stat_consumption_stage(cpi) && !cpi->oxcf.q_cfg.use_fixed_qp_offsets &&
       (cpi->common.current_frame.frame_type != KEY_FRAME)) {
     const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
     const int boost_index = AOMMIN(15, (cpi->ppi->p_rc.gfu_boost / 100));

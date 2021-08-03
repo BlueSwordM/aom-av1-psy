@@ -23,6 +23,7 @@
 #include "av1/encoder/rdopt.h"
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/superres_scale.h"
+#include "av1/encoder/tpl_model.h"
 #include "av1/encoder/var_based_part.h"
 
 #if CONFIG_TUNE_VMAF
@@ -555,6 +556,17 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
     *q = av1_tpl_get_q_index(&cpi->ppi->tpl_data, cpi->gf_frame_index,
                              cpi->rc.active_worst_quality,
                              cm->seq_params->bit_depth);
+    *top_index = *bottom_index = *q;
+    if (gf_group->update_type[cpi->gf_frame_index] == ARF_UPDATE)
+      cpi->ppi->p_rc.arf_q = *q;
+  }
+
+  if (cpi->oxcf.q_cfg.use_fixed_qp_offsets && cpi->oxcf.rc_cfg.mode == AOM_Q &&
+      is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) {
+    const double qstep_ratio =
+        0.2 + (1.0 - (double)cpi->rc.active_worst_quality / MAXQ) * 0.3;
+    *q = av1_get_q_index_from_qstep_ratio(
+        cpi->rc.active_worst_quality, qstep_ratio, cm->seq_params->bit_depth);
     *top_index = *bottom_index = *q;
     if (gf_group->update_type[cpi->gf_frame_index] == ARF_UPDATE)
       cpi->ppi->p_rc.arf_q = *q;
