@@ -4340,6 +4340,12 @@ AV1_COMP *av1_get_parallel_frame_enc_data(AV1_PRIMARY *const ppi,
   assert(cpi_idx > 0);
   assert(!ppi->parallel_cpi[cpi_idx]->common.show_existing_frame);
 
+  // Release the previously-used frame-buffer.
+  if (ppi->cpi->common.cur_frame != NULL) {
+    --ppi->cpi->common.cur_frame->ref_count;
+    ppi->cpi->common.cur_frame = NULL;
+  }
+
   // Swap the appropriate parallel_cpi with the parallel_cpi[0].
   ppi->cpi = ppi->parallel_cpi[cpi_idx];
   ppi->parallel_cpi[cpi_idx] = ppi->parallel_cpi[0];
