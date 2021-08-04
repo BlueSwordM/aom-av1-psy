@@ -221,6 +221,14 @@ enum {
   MULTI_WINNER_MODE_DEFAULT = 2,
 } UENUM1BYTE(MULTI_WINNER_MODE_TYPE);
 
+enum {
+  PRUNE_NEARMV_OFF = 0,     // Turn off nearmv pruning
+  PRUNE_NEARMV_LEVEL1 = 1,  // Prune nearmv for qindex (0-85)
+  PRUNE_NEARMV_LEVEL2 = 2,  // Prune nearmv for qindex (0-170)
+  PRUNE_NEARMV_LEVEL3 = 3,  // Prune nearmv more aggressively for qindex (0-170)
+  PRUNE_NEARMV_MAX = PRUNE_NEARMV_LEVEL3,
+} UENUM1BYTE(PRUNE_NEARMV_LEVEL);
+
 typedef struct {
   TX_TYPE_PRUNE_MODE prune_2d_txfm_mode;
   int fast_intra_tx_type_search;
@@ -856,7 +864,7 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Skip NEARMV and NEAR_NEARMV modes using ref frames of above and left
   // neighbor blocks and qindex.
-  int prune_nearmv_using_neighbors;
+  PRUNE_NEARMV_LEVEL prune_nearmv_using_neighbors;
 
   // Model based breakout after interpolation filter search
   // 0: no breakout

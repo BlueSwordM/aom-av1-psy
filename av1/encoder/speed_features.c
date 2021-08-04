@@ -734,9 +734,16 @@ static void set_good_speed_feature_framesize_dependent(
       sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh =
           boosted ? INT_MAX : 250;
     }
+
+    if (is_480p_or_lesser) {
+      sf->inter_sf.prune_nearmv_using_neighbors = PRUNE_NEARMV_LEVEL1;
+    } else {
+      sf->inter_sf.prune_nearmv_using_neighbors = PRUNE_NEARMV_LEVEL2;
+    }
   }
 
   if (speed >= 6) {
+    sf->inter_sf.prune_nearmv_using_neighbors = PRUNE_NEARMV_LEVEL3;
     if (is_720p_or_larger) {
       sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
     } else if (is_480p_or_larger) {
@@ -1128,7 +1135,6 @@ static void set_good_speed_features_framesize_independent(
     sf->hl_sf.recode_tolerance = 55;
 
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
-    sf->inter_sf.prune_nearmv_using_neighbors = 1;
     sf->inter_sf.selective_ref_frame = 6;
     sf->inter_sf.prune_ext_comp_using_neighbors = 3;
 
@@ -1342,7 +1348,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->inter_sf.adaptive_rd_thresh = 4;
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
-    sf->inter_sf.prune_nearmv_using_neighbors = 1;
+    sf->inter_sf.prune_nearmv_using_neighbors = PRUNE_NEARMV_LEVEL3;
     sf->inter_sf.reduce_inter_modes = boosted ? 1 : 3;
     sf->inter_sf.skip_newmv_in_drl = 4;
 
@@ -1639,7 +1645,7 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->coeff_cost_upd_level = INTERNAL_COST_UPD_SB;
   inter_sf->mode_cost_upd_level = INTERNAL_COST_UPD_SB;
   inter_sf->prune_inter_modes_based_on_tpl = 0;
-  inter_sf->prune_nearmv_using_neighbors = 0;
+  inter_sf->prune_nearmv_using_neighbors = PRUNE_NEARMV_OFF;
   inter_sf->prune_comp_search_by_single_result = 0;
   inter_sf->skip_repeated_ref_mv = 0;
   inter_sf->skip_newmv_in_drl = 0;

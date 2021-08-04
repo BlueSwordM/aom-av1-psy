@@ -4065,8 +4065,17 @@ static int inter_mode_search_order_independent_skip(
     const MACROBLOCKD *const xd = &x->e_mbd;
     if (search_state->best_rd != INT64_MAX && xd->left_available &&
         xd->up_available) {
+      const int thresholds[PRUNE_NEARMV_MAX][3] = { { 1, 0, 0 },
+                                                    { 1, 1, 0 },
+                                                    { 2, 1, 0 } };
+      const int qindex_sub_range = x->qindex * 3 / QINDEX_RANGE;
+
+      assert(sf->inter_sf.prune_nearmv_using_neighbors <= PRUNE_NEARMV_MAX &&
+             qindex_sub_range < 3);
       const int num_ref_frame_pair_match_thresh =
-          2 - (x->qindex * 3 / QINDEX_RANGE);
+          thresholds[sf->inter_sf.prune_nearmv_using_neighbors - 1]
+                    [qindex_sub_range];
+
       assert(num_ref_frame_pair_match_thresh <= 2 &&
              num_ref_frame_pair_match_thresh >= 0);
       int num_ref_frame_pair_match = 0;
@@ -4075,10 +4084,7 @@ static int inter_mode_search_order_independent_skip(
       num_ref_frame_pair_match +=
           match_ref_frame_pair(xd->above_mbmi, ref_frame);
 
-      // Prune modes if:
-      // num_ref_frame_pair_match < 2 for qindex   0 to 85
-      // num_ref_frame_pair_match < 1 for qindex  86 to 170
-      // No pruning for qindex 171 to 255
+      // Pruning based on ref frame pair match with neighbors.
       if (num_ref_frame_pair_match < num_ref_frame_pair_match_thresh) return 1;
     }
   }
