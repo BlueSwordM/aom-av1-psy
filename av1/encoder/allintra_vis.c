@@ -9,8 +9,10 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include "av1/common/enums.h"
 #include "av1/common/idct.h"
 
+#include "av1/common/reconinter.h"
 #include "av1/encoder/allintra_vis.h"
 #include "av1/encoder/hybrid_fwd_txfm.h"
 #include "av1/encoder/rdopt_utils.h"
@@ -181,17 +183,19 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
   memset(&mbmi, 0, sizeof(mbmi));
   MB_MODE_INFO *mbmi_ptr = &mbmi;
   xd->mi = &mbmi_ptr;
+  xd->cur_buf = cpi->source;
+
+  const SequenceHeader *const seq_params = cm->seq_params;
+  if (aom_realloc_frame_buffer(
+          &cm->cur_frame->buf, cm->width, cm->height, seq_params->subsampling_x,
+          seq_params->subsampling_y, seq_params->use_highbitdepth,
+          cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
+          NULL, cpi->oxcf.tool_cfg.enable_global_motion))
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                       "Failed to allocate frame buffer");
 
   cm->quant_params.base_qindex = cpi->oxcf.rc_cfg.cq_level;
   av1_frame_init_quantizer(cpi);
-
-  union {
-#if CONFIG_AV1_HIGHBITDEPTH
-    DECLARE_ALIGNED(32, uint16_t, zero_pred16[32 * 32]);
-#endif
-    DECLARE_ALIGNED(32, uint8_t, zero_pred8[32 * 32]);
-  } pred_buffer_mem;
-  uint8_t *pred_buf;
 
   DECLARE_ALIGNED(32, int16_t, src_diff[32 * 32]);
   DECLARE_ALIGNED(32, tran_low_t, coeff[32 * 32]);
@@ -203,27 +207,11 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
   const int block_size = tx_size_wide[tx_size];
   const int coeff_count = block_size * block_size;
 
-#if CONFIG_AV1_HIGHBITDEPTH
-  xd->cur_buf = cpi->source;
-  if (xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) {
-    pred_buf = CONVERT_TO_BYTEPTR(pred_buffer_mem.zero_pred16);
-    memset(pred_buffer_mem.zero_pred16, 0,
-           sizeof(*pred_buffer_mem.zero_pred16) * coeff_count);
-  } else {
-    pred_buf = pred_buffer_mem.zero_pred8;
-    memset(pred_buffer_mem.zero_pred8, 0,
-           sizeof(*pred_buffer_mem.zero_pred8) * coeff_count);
-  }
-#else
-  pred_buf = pred_buffer_mem.zero_pred8;
-  memset(pred_buffer_mem.zero_pred8, 0,
-         sizeof(*pred_buffer_mem.zero_pred8) * coeff_count);
-#endif
-
   const BitDepthInfo bd_info = get_bit_depth_info(xd);
   cpi->norm_wiener_variance = 0;
 
   int mb_step = mi_size_wide[BLOCK_16X16];
+  BLOCK_SIZE bsize = BLOCK_16X16;
 
   for (mb_row = 0; mb_row < cpi->frame_info.mb_rows; ++mb_row) {
     for (mb_col = 0; mb_col < cpi->frame_info.mb_cols; ++mb_col) {
@@ -236,20 +224,36 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
       xd->up_available = mi_row > 0;
       xd->left_available = mi_col > 0;
 
-      int dst_mb_offset = mi_row * MI_SIZE * buf_stride + mi_col * MI_SIZE;
-      uint8_t *dst_buffer = xd->cur_buf->y_buffer + dst_mb_offset;
+      const int mi_width = mi_size_wide[bsize];
+      const int mi_height = mi_size_high[bsize];
+      set_mode_info_offsets(&cpi->common.mi_params, &cpi->mbmi_ext_info, x, xd,
+                            mi_row, mi_col);
+      set_mi_row_col(xd, &xd->tile, mi_row, mi_height, mi_col, mi_width,
+                     cm->mi_params.mi_rows, cm->mi_params.mi_cols);
+      set_plane_n4(xd, mi_size_wide[bsize], mi_size_high[bsize],
+                   av1_num_planes(cm));
+      xd->mi[0]->bsize = bsize;
+      xd->mi[0]->motion_mode = SIMPLE_TRANSLATION;
+
+      av1_setup_dst_planes(xd->plane, bsize, &cm->cur_frame->buf, mi_row,
+                           mi_col, 0, av1_num_planes(cm));
+
+      int dst_buffer_stride = xd->plane[0].dst.stride;
+      uint8_t *dst_buffer = xd->plane[0].dst.buf;
+      uint8_t *mb_buffer =
+          buffer + mi_row * MI_SIZE * buf_stride + mi_col * MI_SIZE;
 
       for (PREDICTION_MODE mode = INTRA_MODE_START; mode < INTRA_MODE_END;
            ++mode) {
-        av1_predict_intra_block(xd, cm->seq_params->sb_size,
-                                cm->seq_params->enable_intra_edge_filter,
-                                block_size, block_size, tx_size, mode, 0, 0,
-                                FILTER_INTRA_MODES, dst_buffer, buf_stride,
-                                pred_buf, block_size, 0, 0, 0);
+        av1_predict_intra_block(
+            xd, cm->seq_params->sb_size,
+            cm->seq_params->enable_intra_edge_filter, block_size, block_size,
+            tx_size, mode, 0, 0, FILTER_INTRA_MODES, dst_buffer,
+            dst_buffer_stride, dst_buffer, dst_buffer_stride, 0, 0, 0);
 
         av1_subtract_block(bd_info, block_size, block_size, src_diff,
-                           block_size, dst_buffer, buf_stride, pred_buf,
-                           block_size);
+                           block_size, mb_buffer, buf_stride, dst_buffer,
+                           dst_buffer_stride);
         av1_quick_txfm(0, tx_size, bd_info, src_diff, block_size, coeff);
         int intra_cost = aom_satd(coeff, coeff_count);
         if (intra_cost < best_intra_cost) {
@@ -260,15 +264,14 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
 
       int idx;
       int16_t median_val = 0;
-      uint8_t *mb_buffer =
-          buffer + mb_row * block_size * buf_stride + mb_col * block_size;
       int64_t wiener_variance = 0;
-      av1_predict_intra_block(
-          xd, cm->seq_params->sb_size, cm->seq_params->enable_intra_edge_filter,
-          block_size, block_size, tx_size, best_mode, 0, 0, FILTER_INTRA_MODES,
-          dst_buffer, buf_stride, pred_buf, block_size, 0, 0, 0);
+      av1_predict_intra_block(xd, cm->seq_params->sb_size,
+                              cm->seq_params->enable_intra_edge_filter,
+                              block_size, block_size, tx_size, best_mode, 0, 0,
+                              FILTER_INTRA_MODES, dst_buffer, dst_buffer_stride,
+                              dst_buffer, dst_buffer_stride, 0, 0, 0);
       av1_subtract_block(bd_info, block_size, block_size, src_diff, block_size,
-                         mb_buffer, buf_stride, pred_buf, block_size);
+                         mb_buffer, buf_stride, dst_buffer, dst_buffer_stride);
       av1_quick_txfm(0, tx_size, bd_info, src_diff, block_size, coeff);
 
       const struct macroblock_plane *const p = &x->plane[0];
@@ -289,9 +292,8 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
       av1_quantize_fp_facade(coeff, pix_num, p, qcoeff, dqcoeff, &eob,
                              scan_order, &quant_param);
 #endif  // CONFIG_AV1_HIGHBITDEPTH
-      av1_inverse_transform_block(xd, dqcoeff, 0, DCT_DCT, tx_size, pred_buf,
-                                  block_size, eob, 0);
-
+      av1_inverse_transform_block(xd, dqcoeff, 0, DCT_DCT, tx_size, dst_buffer,
+                                  dst_buffer_stride, eob, 0);
       WeberStats *weber_stats =
           &cpi->mb_weber_stats[mb_row * cpi->frame_info.mb_cols + mb_col];
 
@@ -310,17 +312,17 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
           int src_pix, rec_pix;
 #if CONFIG_AV1_HIGHBITDEPTH
           if (is_cur_buf_hbd(xd)) {
-            uint16_t *dst = CONVERT_TO_SHORTPTR(dst_buffer);
-            uint16_t *rec = CONVERT_TO_SHORTPTR(pred_buf);
-            src_pix = dst[pix_row * buf_stride + pix_col];
-            rec_pix = rec[pix_row * block_size + pix_col];
+            uint16_t *src = CONVERT_TO_SHORTPTR(mb_buffer);
+            uint16_t *rec = CONVERT_TO_SHORTPTR(dst_buffer);
+            src_pix = src[pix_row * buf_stride + pix_col];
+            rec_pix = rec[pix_row * dst_buffer_stride + pix_col];
           } else {
-            src_pix = dst_buffer[pix_row * buf_stride + pix_col];
-            rec_pix = pred_buf[pix_row * block_size + pix_col];
+            src_pix = mb_buffer[pix_row * buf_stride + pix_col];
+            rec_pix = dst_buffer[pix_row * dst_buffer_stride + pix_col];
           }
 #else
-          src_pix = dst_buffer[pix_row * buf_stride + pix_col];
-          rec_pix = pred_buf[pix_row * block_size + pix_col];
+          src_pix = mb_buffer[pix_row * buf_stride + pix_col];
+          rec_pix = dst_buffer[pix_row * dst_buffer_stride + pix_col];
 #endif
           src_mean += src_pix;
           rec_mean += rec_pix;
@@ -395,6 +397,8 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
   if (sb_count > 0)
     cpi->norm_wiener_variance = (int64_t)(exp(sb_wiener_log / sb_count));
   cpi->norm_wiener_variance = AOMMAX(1, cpi->norm_wiener_variance);
+
+  aom_free_frame_buffer(&cm->cur_frame->buf);
 }
 
 int av1_get_sbq_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
