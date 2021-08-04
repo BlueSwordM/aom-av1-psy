@@ -5270,7 +5270,8 @@ static AOM_INLINE void skip_intra_modes_in_interframe(
     // For two parameters, the max prob returned from av1_nn_softmax equals
     // 1.0 / (1.0 + e^(-|diff_score|)). Here use scores directly to avoid the
     // calling of av1_nn_softmax.
-    const float thresh[4] = { 1.4f, 1.4f, 1.4f, 1.4f };
+    const float thresh[5] = { 1.4f, 1.4f, 1.4f, 1.4f, 1.4f };
+    assert(skip_intra_in_interframe <= 5);
     if (scores[1] > scores[0] + thresh[skip_intra_in_interframe - 1]) {
       search_state->intra_search_state.skip_intra_modes = 1;
     }

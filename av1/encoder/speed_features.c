@@ -776,6 +776,8 @@ static void set_good_speed_features_framesize_independent(
   const int boosted = frame_is_boosted(cpi);
   const int is_boosted_arf2_bwd_type =
       boosted || gf_group->update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE;
+  const int is_lf_frame =
+      gf_group->frame_type[cpi->gf_frame_index] == LF_UPDATE;
   const int allow_screen_content_tools =
       cm->features.allow_screen_content_tools;
   const int use_hbd = cpi->oxcf.use_highbitdepth;
@@ -928,6 +930,7 @@ static void set_good_speed_features_framesize_independent(
     sf->intra_sf.disable_smooth_intra =
         !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key > 1);
     sf->intra_sf.intra_pruning_with_hog = 2;
+    sf->intra_sf.skip_intra_in_interframe = is_lf_frame ? 2 : 1;
 
     sf->tpl_sf.prune_starting_mv = 1;
     sf->tpl_sf.search_method = DIAMOND;
