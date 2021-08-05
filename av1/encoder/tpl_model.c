@@ -1252,6 +1252,8 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
   RefBufferStack ref_buffer_stack = cpi->ref_buffer_stack;
+  int remapped_ref_idx[REF_FRAMES];
+
   EncodeFrameParams frame_params = *init_frame_params;
   TplParams *const tpl_data = &cpi->ppi->tpl_data;
 
@@ -1344,7 +1346,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
                        gf_index, 0,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
-                       cm->remapped_ref_idx);
+                       remapped_ref_idx);
 
     int refresh_mask = av1_get_refresh_frame_flags(
         cpi, &frame_params, frame_update_type, gf_index,
@@ -1378,7 +1380,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
     for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i)
       tpl_frame->ref_map_index[i - LAST_FRAME] =
-          ref_picture_map[cm->remapped_ref_idx[i - LAST_FRAME]];
+          ref_picture_map[remapped_ref_idx[i - LAST_FRAME]];
 
     if (refresh_mask) ref_picture_map[refresh_frame_map_index] = gf_index;
 
@@ -1440,7 +1442,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
                        gf_index, 0,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
-                       cm->remapped_ref_idx);
+                       remapped_ref_idx);
     int refresh_mask = av1_get_refresh_frame_flags(
         cpi, &frame_params, frame_update_type, gf_index,
 #if CONFIG_FRAME_PARALLEL_ENCODE
@@ -1480,19 +1482,6 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     ++extend_frame_count;
     ++frame_display_index;
   }
-#if CONFIG_FRAME_PARALLEL_ENCODE
-  TplDepFrame *tpl_frame = &tpl_data->tpl_frame[cur_frame_idx];
-  const int true_disp = (int)(tpl_frame->frame_display_index);
-  init_ref_map_pair(cpi, ref_frame_map_pairs);
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
-  av1_get_ref_frames(&cpi->ref_buffer_stack,
-#if CONFIG_FRAME_PARALLEL_ENCODE
-                     cpi, ref_frame_map_pairs, true_disp,
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
-                     gf_index, 0,
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
-                     cm->remapped_ref_idx);
 }
 
 void av1_init_tpl_stats(TplParams *const tpl_data) {

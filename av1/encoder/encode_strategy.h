@@ -79,7 +79,7 @@ int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
 
 int av1_get_refresh_ref_frame_map(int refresh_frame_flags);
 
-void av1_update_ref_frame_map(AV1_COMP *cpi,
+void av1_update_ref_frame_map(const AV1_COMP *cpi,
                               FRAME_UPDATE_TYPE frame_update_type,
                               REFBUF_STATE refbuf_state, int ref_map_index,
                               RefBufferStack *ref_buffer_stack);
@@ -98,7 +98,7 @@ void av1_update_ref_frame_map(AV1_COMP *cpi,
  */
 void av1_get_ref_frames(const RefBufferStack *ref_buffer_stack,
 #if CONFIG_FRAME_PARALLEL_ENCODE
-                        AV1_COMP *cpi,
+                        const AV1_COMP *cpi,
                         RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
                         int cur_frame_disp,
 #if CONFIG_FRAME_PARALLEL_ENCODE_2

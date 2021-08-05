@@ -496,11 +496,11 @@ static void update_arf_stack(int ref_map_index,
 }
 
 // Update reference frame stack info.
-void av1_update_ref_frame_map(AV1_COMP *cpi,
+void av1_update_ref_frame_map(const AV1_COMP *cpi,
                               FRAME_UPDATE_TYPE frame_update_type,
                               REFBUF_STATE refbuf_state, int ref_map_index,
                               RefBufferStack *ref_buffer_stack) {
-  AV1_COMMON *const cm = &cpi->common;
+  const AV1_COMMON *const cm = &cpi->common;
 
   // TODO(jingning): Consider the S-frame same as key frame for the
   // reference frame tracking purpose. The logic might be better
@@ -1140,15 +1140,13 @@ static void set_unmapped_ref(RefBufMapData *buffer_map, int n_bufs,
   buffer_map[unmapped_idx].used = 1;
 }
 
-static void get_ref_frames(AV1_COMP *const cpi,
+static void get_ref_frames(const AV1_COMP *const cpi,
                            RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
                            int gf_index, int is_parallel_encode,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
-                           int cur_frame_disp) {
-  AV1_COMMON *cm = &cpi->common;
-  int *const remapped_ref_idx = cm->remapped_ref_idx;
-
+                           int cur_frame_disp,
+                           int remapped_ref_idx[REF_FRAMES]) {
   int buf_map_idx = 0;
 
   // Initialize reference frame mappings.
@@ -1353,7 +1351,7 @@ static void get_ref_frames(AV1_COMP *const cpi,
 
 void av1_get_ref_frames(const RefBufferStack *ref_buffer_stack,
 #if CONFIG_FRAME_PARALLEL_ENCODE
-                        AV1_COMP *cpi,
+                        const AV1_COMP *cpi,
                         RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
                         int cur_frame_disp,
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
@@ -1363,12 +1361,11 @@ void av1_get_ref_frames(const RefBufferStack *ref_buffer_stack,
                         int remapped_ref_idx[REF_FRAMES]) {
 #if CONFIG_FRAME_PARALLEL_ENCODE
   (void)ref_buffer_stack;
-  (void)remapped_ref_idx;
   get_ref_frames(cpi, ref_frame_map_pairs,
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
                  gf_index, is_parallel_encode,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
-                 cur_frame_disp);
+                 cur_frame_disp, remapped_ref_idx);
   return;
 #else
   const int *const arf_stack = ref_buffer_stack->arf_stack;
