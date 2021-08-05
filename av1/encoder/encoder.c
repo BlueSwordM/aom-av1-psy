@@ -2687,6 +2687,10 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     if (do_dummy_pack) {
       av1_finalize_encoded_frame(cpi);
       int largest_tile_id = 0;  // Output from bitstream: unused here
+#if CONFIG_BITRATE_ACCURACY
+      cpi->vbr_rc_info.actual_coeff_bitrate_byframe[cpi->gf_frame_index] =
+          rc->coefficient_size;
+#endif
       rc->coefficient_size = 0;
       if (av1_pack_bitstream(cpi, dest, size, &largest_tile_id) !=
           AOM_CODEC_OK) {
@@ -2707,11 +2711,35 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #endif  // CONFIG_RD_COMMAND
 
 #if CONFIG_BITRATE_ACCURACY
+      cpi->vbr_rc_info.actual_bitrate_byframe[cpi->gf_frame_index] =
+          rc->projected_frame_size;
+      cpi->vbr_rc_info.actual_mv_bitrate_byframe[cpi->gf_frame_index] =
+          rc->projected_frame_size -
+          cpi->vbr_rc_info.actual_coeff_bitrate_byframe[cpi->gf_frame_index];
       cpi->ppi->tpl_data.actual_gop_bitrate += rc->projected_frame_size;
       if (cpi->ppi->gf_group.update_type[cpi->gf_frame_index] == KF_UPDATE) {
         vbr_rc_set_keyframe_bitrate(&cpi->vbr_rc_info,
                                     rc->projected_frame_size);
       }
+
+#if 0
+      // Add +2 here because this is the last frame this method is called at.
+      if (cpi->gf_frame_index + 2 >= cpi->ppi->gf_group.size) {
+        printf(
+            "\ni, \test_bitrate, \test_mv_bitrate, \tact_bitrate, "
+            "\tact_mv_bitrate, \tact_coeff_bitrate, \tq, \tupdate_type\n");
+        VBR_RATECTRL_INFO info = cpi->vbr_rc_info;
+        for (int i = 0; i < cpi->ppi->gf_group.size; i++) {
+          printf(
+              "%d, \t%f, \t%f, \t%d, \t%d, \t%d, \t%d, \t%d\n", i,
+              info.estimated_bitrate_byframe[i],
+              info.estimated_mv_bitrate_byframe[i],
+              info.actual_bitrate_byframe[i], info.actual_mv_bitrate_byframe[i],
+              info.actual_coeff_bitrate_byframe[i], cpi->ppi->gf_group.q_val[i],
+              cpi->ppi->gf_group.update_type[i]);
+        }
+      }
+#endif
 #endif
     }
 

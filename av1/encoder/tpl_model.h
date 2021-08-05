@@ -242,6 +242,13 @@ typedef struct {
   double mv_scale_factor;   // Scale factor to improve MV entropy estimation
   int q_index_list[MAX_LENGTH_TPL_FRAME_STATS];  // q indices for the current
                                                  // GOP
+
+  // Arrays to store frame level bitrate accuracy data.
+  double estimated_bitrate_byframe[MAX_LENGTH_TPL_FRAME_STATS];
+  double estimated_mv_bitrate_byframe[MAX_LENGTH_TPL_FRAME_STATS];
+  int actual_bitrate_byframe[MAX_LENGTH_TPL_FRAME_STATS];
+  int actual_mv_bitrate_byframe[MAX_LENGTH_TPL_FRAME_STATS];
+  int actual_coeff_bitrate_byframe[MAX_LENGTH_TPL_FRAME_STATS];
 } VBR_RATECTRL_INFO;
 
 static INLINE void vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info,
@@ -251,6 +258,11 @@ static INLINE void vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info,
   vbr_rc_info->keyframe_bitrate = 0;
   vbr_rc_info->scale_factor = 1.2;
   vbr_rc_info->mv_scale_factor = 5.0;
+  av1_zero(vbr_rc_info->estimated_bitrate_byframe);
+  av1_zero(vbr_rc_info->estimated_mv_bitrate_byframe);
+  av1_zero(vbr_rc_info->actual_bitrate_byframe);
+  av1_zero(vbr_rc_info->actual_mv_bitrate_byframe);
+  av1_zero(vbr_rc_info->actual_coeff_bitrate_byframe);
 }
 
 static INLINE void vbr_rc_set_gop_bit_budget(VBR_RATECTRL_INFO *vbr_rc_info,
@@ -390,16 +402,19 @@ double av1_laplace_estimate_frame_rate(int q_index, int block_count,
  * \param[in]    q_index_list    array of q_index, one per frame
  * \param[in]    frame_count     number of frames in the GOP
  * \param[in]    stats           array of transform stats, one per frame
+ * \param[in]    bitrate_byframe_list    Array to keep track of frame bitrate
+ *
+ * \return The estimated GOP bitrate.
  *
  */
 double av1_estimate_gop_bitrate(const int *q_index_list, const int frame_count,
-                                const TplTxfmStats *stats);
+                                const TplTxfmStats *stats,
+                                double *bitrate_byframe_list);
 
 /*
  *!\brief Init TplTxfmStats
  *
  * \param[in]    tpl_txfm_stats  a structure for storing transform stats
- *
  *
  */
 void av1_init_tpl_txfm_stats(TplTxfmStats *tpl_txfm_stats);
@@ -494,11 +509,9 @@ int av1_get_overlap_area(int row_a, int col_a, int row_b, int col_b, int width,
  * \param[in]       gf_frame_index    current frame in the GOP
  * \param[in]       arf_qstep_ratio   ARF q step ratio
  * \param[in]       bit_depth         bit depth
- * \param[in]       scale_factor      Used to improve budget estimation
- * \param[out]      q_index_list      An array to store output gop
- *                                    q indices. The array size should
- *                                    be equal or greater than
- *                                    gf_group.size().
+ * \param[in]       scale_factor      Scale factor to improve budget estimation
+ * \param[in]       q_index_list      array of q_index, one per frame
+ * \param[in]       estimated_bitrate_byframe    bit depth
  *
  * \return Returns the optimal base q index to use.
  */
@@ -507,7 +520,8 @@ int av1_q_mode_estimate_base_q(const struct GF_GROUP *gf_group,
                                double bit_budget, int gf_frame_index,
                                double arf_qstep_ratio,
                                aom_bit_depth_t bit_depth, double scale_factor,
-                               int *q_index_list);
+                               int *q_index_list,
+                               double *estimated_bitrate_byframe);
 
 /*!\brief Get current frame's q_index from tpl stats and leaf_qindex
  *
@@ -571,18 +585,20 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
 void av1_vbr_estimate_mv_and_update(const TplParams *tpl_data,
                                     int gf_group_size, int gf_frame_index,
                                     VBR_RATECTRL_INFO *vbr_rc_info);
-#endif  // CONFIG_BITRATE_ACCURACY
 
 /*!\brief For a GOP, calculate the bits used by motion vectors.
  *
  * \param[in]       tpl_data          TPL struct
  * \param[in]       gf_group          Pointer to the GOP
  * \param[in]       gf_frame_index    Current frame index
+ * \param[in]       vbr_rc_info       Rate control info struct
  *
  * \return Bits used by the motion vectors for the GOP.
  */
 double av1_tpl_compute_mv_bits(const TplParams *tpl_data, int gf_group_size,
-                               int gf_frame_index, double mv_scale_factor);
+                               int gf_frame_index,
+                               VBR_RATECTRL_INFO *vbr_rc_info);
+#endif  // CONFIG_BITRATE_ACCURACY
 
 /*!\brief Improve the motion vector estimation by taking neighbors into account.
  *
