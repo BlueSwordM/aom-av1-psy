@@ -1694,11 +1694,15 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
 
   // Save rdmult before it might be changed, so it can be restored later.
   const int orig_rdmult = x->rdmult;
+  const int is_not_lowres = AOMMIN(cm->width, cm->height) >= 360;
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, NO_AQ, NULL);
 
   if (cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION &&
-      ((cpi->sf.part_sf.adjust_var_based_rd_partitioning == 2 &&
+      ((cpi->sf.part_sf.adjust_var_based_rd_partitioning == 3 &&
         bsize <= BLOCK_32X32) ||
+       (cpi->sf.part_sf.adjust_var_based_rd_partitioning == 2 &&
+        (bsize <= BLOCK_32X32 || (is_not_lowres && bsize == BLOCK_64X64 &&
+                                  cm->quant_params.base_qindex > 190))) ||
        (cpi->sf.part_sf.adjust_var_based_rd_partitioning == 1 &&
         cm->quant_params.base_qindex > 190 && bsize <= BLOCK_32X32 &&
         !frame_is_intra_only(cm)))) {
@@ -1805,6 +1809,18 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
         av1_invalid_rd_stats(&last_part_rdc);
         break;
       }
+
+      if (cpi->sf.part_sf.adjust_var_based_rd_partitioning == 2 &&
+          none_rdc.rate < INT_MAX && none_rdc.skip_txfm == 1) {
+        const MB_MODE_INFO *mbmi = xd->mi[0];
+        // Try to skip split partition evaluation based on none partition
+        // characteristics.
+        if (is_inter_block(mbmi) && mbmi->mode != NEWMV) {
+          av1_invalid_rd_stats(&last_part_rdc);
+          break;
+        }
+      }
+
       last_part_rdc.rate = 0;
       last_part_rdc.dist = 0;
       last_part_rdc.rdcost = 0;
@@ -1848,7 +1864,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   }
 
   if ((cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION &&
-       cpi->sf.part_sf.adjust_var_based_rd_partitioning > 2) &&
+       cpi->sf.part_sf.adjust_var_based_rd_partitioning > 3) &&
       partition != PARTITION_SPLIT && bsize > BLOCK_8X8 &&
       (mi_row + bs < mi_params->mi_rows ||
        mi_row + hbs == mi_params->mi_rows) &&

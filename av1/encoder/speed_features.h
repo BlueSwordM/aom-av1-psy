@@ -492,8 +492,9 @@ typedef struct PARTITION_SPEED_FEATURES {
 
   // Sets level of adjustment of variance-based partitioning during
   // rd_use_partition 0 - no partition adjustment, 1 - try to merge partitions
-  // for small blocks and high QP, 2 - always try to merge leaf partitions, 3 -
-  // try to merge and split leaf partitions
+  // for small blocks and high QP, 2 - try to merge partitions, 3 - always try
+  // to merge leaf partitions for small blocks, 4 - try to merge and split leaf
+  // partitions and 0 - 4 decreasing aggressiveness in order.
   int adjust_var_based_rd_partitioning;
 
   // Partition search early breakout thresholds.
