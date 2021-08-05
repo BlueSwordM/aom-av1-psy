@@ -300,7 +300,7 @@ const FIRSTPASS_STATS *av1_firstpass_info_peek(
 /*!\brief Count the future stats from the target in firstpass_info
  * Note that the target stats will be counted as well.
  * The target index is as follows.
- * (cur_index + offset_from_curr) % firstpass_info->stats_buf_size
+ * (cur_index + offset_from_cur) % firstpass_info->stats_buf_size
  *
  * \ingroup rate_control
  * \param[in]  firstpass_info    struct of firstpass_info.
