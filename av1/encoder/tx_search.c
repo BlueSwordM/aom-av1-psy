@@ -2343,7 +2343,11 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     predict_dc_only_block(x, plane, plane_bsize, tx_size, block, blk_row,
                           blk_col, best_rd_stats, &block_sse, &block_mse_q8,
                           &per_px_mean, &dc_only_blk);
-    if (best_rd_stats->skip_txfm == 1) return;
+    if (best_rd_stats->skip_txfm == 1) {
+      const TX_TYPE tx_type = DCT_DCT;
+      if (plane == 0) xd->tx_type_map[tx_type_map_idx] = tx_type;
+      return;
+    }
   } else {
     block_sse = pixel_diff_dist(x, plane, blk_row, blk_col, plane_bsize,
                                 txsize_to_bsize[tx_size], &block_mse_q8);
