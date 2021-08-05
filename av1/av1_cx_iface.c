@@ -2607,7 +2607,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   const size_t kMinCompressedSize = 8192;
   volatile aom_codec_err_t res = AOM_CODEC_OK;
   AV1_PRIMARY *const ppi = ctx->ppi;
-  AV1_COMP *cpi = ppi->cpi;
   volatile aom_codec_pts_t ptsvol = pts;
   AV1_COMP_DATA cpi_data = { 0 };
 
@@ -2615,10 +2614,10 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   cpi_data.flush = !img;
   // LAP context
   AV1_COMP *cpi_lap = ppi->cpi_lap;
-  if (cpi == NULL) return AOM_CODEC_INVALID_PARAM;
+  if (ppi->cpi == NULL) return AOM_CODEC_INVALID_PARAM;
 
-  if (cpi->ppi->lap_enabled && cpi_lap == NULL &&
-      cpi->oxcf.pass == AOM_RC_ONE_PASS)
+  if (ppi->lap_enabled && cpi_lap == NULL &&
+      ppi->cpi->oxcf.pass == AOM_RC_ONE_PASS)
     return AOM_CODEC_INVALID_PARAM;
 
   if (img != NULL) {
@@ -2638,8 +2637,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       // frame size. Hence the size of the buffer is chosen as 2 times the
       // uncompressed frame size.
       int multiplier = 8;
-      if (cpi->oxcf.kf_cfg.key_freq_max == 0 &&
-          !cpi->oxcf.kf_cfg.fwd_kf_enabled)
+      if (ppi->cpi->oxcf.kf_cfg.key_freq_max == 0 &&
+          !ppi->cpi->oxcf.kf_cfg.fwd_kf_enabled)
         multiplier = 2;
       size_t data_sz = uncompressed_frame_sz * multiplier;
       if (data_sz < kMinCompressedSize) data_sz = kMinCompressedSize;
@@ -2653,15 +2652,15 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         }
       }
 #if CONFIG_FRAME_PARALLEL_ENCODE
-      for (int i = 0; i < cpi->ppi->num_fp_contexts - 1; i++) {
-        if (cpi->ppi->parallel_frames_data[i].cx_data == NULL) {
-          cpi->ppi->parallel_frames_data[i].cx_data_sz = uncompressed_frame_sz;
-          cpi->ppi->parallel_frames_data[i].frame_display_order_hint = -1;
-          cpi->ppi->parallel_frames_data[i].frame_size = 0;
-          cpi->ppi->parallel_frames_data[i].cx_data = (unsigned char *)malloc(
-              cpi->ppi->parallel_frames_data[i].cx_data_sz);
-          if (cpi->ppi->parallel_frames_data[i].cx_data == NULL) {
-            cpi->ppi->parallel_frames_data[i].cx_data_sz = 0;
+      for (int i = 0; i < ppi->num_fp_contexts - 1; i++) {
+        if (ppi->parallel_frames_data[i].cx_data == NULL) {
+          ppi->parallel_frames_data[i].cx_data_sz = uncompressed_frame_sz;
+          ppi->parallel_frames_data[i].frame_display_order_hint = -1;
+          ppi->parallel_frames_data[i].frame_size = 0;
+          ppi->parallel_frames_data[i].cx_data =
+              (unsigned char *)malloc(ppi->parallel_frames_data[i].cx_data_sz);
+          if (ppi->parallel_frames_data[i].cx_data == NULL) {
+            ppi->parallel_frames_data[i].cx_data_sz = 0;
             return AOM_CODEC_MEM_ERROR;
           }
         }
@@ -2684,13 +2683,13 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   }
   ppi->error.setjmp = 1;
 
-  if (cpi->ppi->use_svc && cpi->svc.use_flexible_mode == 0 && flags == 0)
-    av1_set_svc_fixed_mode(cpi);
+  if (ppi->use_svc && ppi->cpi->svc.use_flexible_mode == 0 && flags == 0)
+    av1_set_svc_fixed_mode(ppi->cpi);
 
   // Note(yunqing): While applying encoding flags, always start from enabling
   // all, and then modifying according to the flags. Previous frame's flags are
   // overwritten.
-  av1_apply_encoding_flags(cpi, flags);
+  av1_apply_encoding_flags(ppi->cpi, flags);
   if (cpi_lap != NULL) {
     av1_apply_encoding_flags(cpi_lap, flags);
   }
@@ -2698,16 +2697,16 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 #if CONFIG_TUNE_VMAF
   if (ctx->extra_cfg.tuning >= AOM_TUNE_VMAF_WITH_PREPROCESSING &&
       ctx->extra_cfg.tuning <= AOM_TUNE_VMAF_NEG_MAX_GAIN) {
-    aom_init_vmaf_model(&cpi->vmaf_info.vmaf_model,
-                        cpi->oxcf.tune_cfg.vmaf_model_path);
+    aom_init_vmaf_model(&ppi->cpi->vmaf_info.vmaf_model,
+                        ppi->cpi->oxcf.tune_cfg.vmaf_model_path);
   }
 #endif
 
   // Handle fixed keyframe intervals
-  if (is_stat_generation_stage(cpi)) {
+  if (is_stat_generation_stage(ppi->cpi)) {
     if (ctx->cfg.kf_mode == AOM_KF_AUTO &&
         ctx->cfg.kf_min_dist == ctx->cfg.kf_max_dist) {
-      if (cpi->common.spatial_layer_id == 0 &&
+      if (ppi->cpi->common.spatial_layer_id == 0 &&
           ++ctx->fixed_kf_cntr > ctx->cfg.kf_min_dist) {
         flags |= AOM_EFLAG_FORCE_KF;
         ctx->fixed_kf_cntr = 1;
@@ -2716,9 +2715,14 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   }
 
   if (res == AOM_CODEC_OK) {
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    AV1_COMP *cpi = ppi->cpi;
+#else
+    AV1_COMP *const cpi = ppi->cpi;
+#endif
+
     // Set up internal flags
-    if (ctx->base.init_flags & AOM_CODEC_USE_PSNR)
-      cpi->ppi->b_calculate_psnr = 1;
+    if (ctx->base.init_flags & AOM_CODEC_USE_PSNR) ppi->b_calculate_psnr = 1;
 
     if (img != NULL) {
       if (!ctx->pts_offset_initialized) {
@@ -2885,7 +2889,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       }
 #endif
 
-      cpi->ppi->seq_params_locked = 1;
+      ppi->seq_params_locked = 1;
       av1_post_encode_updates(cpi, &cpi_data);
 
 #if CONFIG_ENTROPY_STATS
@@ -2916,9 +2920,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
         const size_t move_offset = obu_header_size + length_field_size;
         memmove(ctx->cx_data + move_offset, ctx->cx_data, cpi_data.frame_size);
-        obu_header_size = av1_write_obu_header(
-            &cpi->ppi->level_params, &cpi->frame_header_count,
-            OBU_TEMPORAL_DELIMITER, 0, ctx->cx_data);
+        obu_header_size =
+            av1_write_obu_header(&ppi->level_params, &cpi->frame_header_count,
+                                 OBU_TEMPORAL_DELIMITER, 0, ctx->cx_data);
 
         // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
         if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
@@ -2966,7 +2970,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       aom_codec_cx_pkt_t pkt;
 
       // decrement frames_left counter
-      cpi->ppi->frames_left = AOMMAX(0, cpi->ppi->frames_left - 1);
+      ppi->frames_left = AOMMAX(0, ppi->frames_left - 1);
       if (ctx->oxcf.save_as_annexb) {
         //  B_PRIME (add TU size)
         size_t tu_size = ctx->pending_cx_data_sz;
