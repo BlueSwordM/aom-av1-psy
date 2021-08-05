@@ -1262,7 +1262,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   for (int i = 0; i < REF_FRAMES; ++i) {
     if (frame_params.frame_type == KEY_FRAME) {
       tpl_data->tpl_frame[-i - 1].gf_picture = NULL;
-      tpl_data->tpl_frame[-1 - 1].rec_picture = NULL;
+      tpl_data->tpl_frame[-i - 1].rec_picture = NULL;
       tpl_data->tpl_frame[-i - 1].frame_display_index = 0;
     } else {
       tpl_data->tpl_frame[-i - 1].gf_picture = &cm->ref_frame_map[i]->buf;
