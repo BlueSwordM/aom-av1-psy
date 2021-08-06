@@ -12,7 +12,6 @@
 #ifndef AOM_AOM_DSP_X86_CONVOLVE_SSE2_H_
 #define AOM_AOM_DSP_X86_CONVOLVE_SSE2_H_
 
-#include "config/av1_rtcd.h"
 #include "config/aom_scale_rtcd.h"
 
 // Note:
