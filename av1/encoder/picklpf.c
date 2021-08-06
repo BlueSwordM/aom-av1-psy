@@ -192,6 +192,7 @@ static int search_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
 void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
                            LPF_PICK_METHOD method) {
   AV1_COMMON *const cm = &cpi->common;
+  const SequenceHeader *const seq_params = cm->seq_params;
   const int num_planes = av1_num_planes(cm);
   struct loopfilter *const lf = &cm->lf;
   (void)sd;
@@ -206,7 +207,7 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
     const int min_filter_level = 0;
     const int max_filter_level = av1_get_max_filter_level(cpi);
     const int q = av1_ac_quant_QTX(cm->quant_params.base_qindex, 0,
-                                   cm->seq_params->bit_depth);
+                                   seq_params->bit_depth);
     // based on tests result for rtc test set
     // 0.04590 boosted or 0.02295 non-booseted in 18-bit fixed point
     const int strength_boost_q_treshold = 0;
@@ -224,7 +225,7 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
     // And high bit depth separately:
     // filt_guess = q * 0.316206 + 3.87252
     int filt_guess;
-    switch (cm->seq_params->bit_depth) {
+    switch (seq_params->bit_depth) {
       case AOM_BITS_8:
         filt_guess =
             (cm->current_frame.frame_type == KEY_FRAME)
@@ -243,7 +244,7 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
                "or AOM_BITS_12");
         return;
     }
-    if (cm->seq_params->bit_depth != AOM_BITS_8 &&
+    if (seq_params->bit_depth != AOM_BITS_8 &&
         cm->current_frame.frame_type == KEY_FRAME)
       filt_guess -= 4;
     // TODO(chengchen): retrain the model for Y, U, V filter levels
@@ -266,6 +267,15 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
       last_frame_filter_level[3] = lf->filter_level_v;
 #endif
     }
+    // The frame buffer last_frame_uf is used to store the non-loop filtered
+    // reconstructed frame in search_filter_level().
+    if (aom_realloc_frame_buffer(
+            &cpi->last_frame_uf, cm->width, cm->height,
+            seq_params->subsampling_x, seq_params->subsampling_y,
+            seq_params->use_highbitdepth, cpi->oxcf.border_in_pixels,
+            cm->features.byte_alignment, NULL, NULL, NULL, 0))
+      aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate last frame buffer");
 
     lf->filter_level[0] = lf->filter_level[1] =
         search_filter_level(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
