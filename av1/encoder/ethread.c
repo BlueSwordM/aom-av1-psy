@@ -765,6 +765,9 @@ static AOM_INLINE int is_fp_config(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
   if (oxcf->resize_cfg.resize_mode) {
     return 0;
   }
+  if (oxcf->passes == 1) {
+    return 0;
+  }
 
   return 1;
 }
