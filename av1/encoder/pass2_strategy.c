@@ -3143,7 +3143,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   // We assume the current frame is a key frame and we are looking for the next
   // key frame. Therefore search_start_idx = 1
   frames_to_key = define_kf_interval(cpi, firstpass_info, kf_cfg->key_freq_max,
-                                     1 /*search_start_idx*/);
+                                     /*search_start_idx=*/1);
 
   if (frames_to_key != -1) {
     rc->frames_to_key = AOMMIN(kf_cfg->key_freq_max, frames_to_key);
@@ -3622,7 +3622,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       const int num_frames_to_detect_scenecut = MAX_GF_LENGTH_LAP + 1;
       const int frames_to_key = define_kf_interval(
           cpi, &twopass->firstpass_info, num_frames_to_detect_scenecut,
-          0 /*search_start_idx*/);
+          /*search_start_idx=*/0);
       if (frames_to_key != -1)
         rc->frames_to_key = AOMMIN(rc->frames_to_key, frames_to_key);
     }
