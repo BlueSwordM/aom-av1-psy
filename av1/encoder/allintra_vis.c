@@ -485,15 +485,27 @@ int av1_get_sbq_user_rating_based(AV1_COMP *const cpi, int mi_row, int mi_col) {
   const CommonModeInfoParams *const mi_params = &cpi->common.mi_params;
   AV1_COMMON *const cm = &cpi->common;
   const int base_qindex = cm->quant_params.base_qindex;
-  if (base_qindex == 0) return base_qindex;
+  if (base_qindex == MINQ || base_qindex == MAXQ) return base_qindex;
+
   const int num_mi_w = mi_size_wide[bsize];
   const int num_mi_h = mi_size_high[bsize];
   const int num_cols = (mi_params->mi_cols + num_mi_w - 1) / num_mi_w;
   const int index = (mi_row / num_mi_h) * num_cols + (mi_col / num_mi_w);
   const double var = cpi->mb_variance[index];
-  const double delta_qindex =
-      4.0 * 23.5 * (1.0 - exp(-0.002 * var)) - 2.0 * 23.5;
-  int qindex = (int)((double)base_qindex + delta_qindex + 0.5);
+
+  const int beta = 80;
+  double a = -23.5 * 4.0, b = 0.00198, c = 30.65 * 4.0;
+  if (base_qindex <= beta) {
+    const double alpha = (double)base_qindex / (double)beta;
+    a *= alpha;
+    c *= alpha;
+  } else {
+    const double alpha = (double)(base_qindex - beta) / (double)(MAXQ - beta);
+    a = a - a * alpha;
+    c = c + ((double)MAXQ - c) * alpha;
+  }
+
+  int qindex = (int)(a * exp(-b * var) + c + 0.5);
   qindex = AOMMIN(qindex, MAXQ);
   qindex = AOMMAX(qindex, MINQ + 1);
 
