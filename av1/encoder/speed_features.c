@@ -729,6 +729,11 @@ static void set_good_speed_feature_framesize_dependent(
     if (!is_720p_or_larger) {
       sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW_SET;
     }
+
+    if (!is_480p_or_larger) {
+      sf->tx_sf.tx_type_search.fast_inter_tx_type_search = boosted ? 0 : 1;
+      sf->tx_sf.tx_type_search.default_inter_tx_type_prob_thresh = 250;
+    }
   }
 
   if (speed >= 6) {
@@ -765,6 +770,7 @@ static void set_good_speed_feature_framesize_dependent(
 
     if (!is_720p_or_larger) {
       sf->tx_sf.tx_type_search.fast_inter_tx_type_search = 1;
+      sf->tx_sf.tx_type_search.default_inter_tx_type_prob_thresh = 150;
     }
   }
 }

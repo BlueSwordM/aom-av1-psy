@@ -230,6 +230,9 @@ typedef struct {
   // aggressive).
   int fast_inter_tx_type_search;
 
+  // Probability threshold used for conditionally forcing tx type
+  unsigned int default_inter_tx_type_prob_thresh;
+
   // Prune less likely chosen transforms for each intra mode. The speed
   // feature ranges from 0 to 2, for different speed / compression trade offs.
   int use_reduced_intra_txset;

@@ -1510,7 +1510,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     for (i = 0; i < TX_SIZES_ALL; i++) {
       int sum = 0;
       int j;
-      int left = 1024;
+      int left = MAX_TX_TYPE_PROB;
 
       for (j = 0; j < TX_TYPES; j++)
         sum += cpi->td.rd_counts.tx_type_used[i][j];
@@ -1518,8 +1518,8 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       for (j = TX_TYPES - 1; j >= 0; j--) {
         int update_txtype_frameprobs = 1;
         const int new_prob =
-            sum ? 1024 * cpi->td.rd_counts.tx_type_used[i][j] / sum
-                : (j ? 0 : 1024);
+            sum ? MAX_TX_TYPE_PROB * cpi->td.rd_counts.tx_type_used[i][j] / sum
+                : (j ? 0 : MAX_TX_TYPE_PROB);
 #if CONFIG_FRAME_PARALLEL_ENCODE
         // Track the frame probabilities of parallel encode frames to update
         // during postencode stage.

@@ -22,8 +22,7 @@
 #include "av1/encoder/tx_search.h"
 #include "av1/encoder/txb_rdopt.h"
 
-#define PROB_THRESH_DCT_DCT_TX_TYPE 150
-#define PROB_THRESH_TX_TYPE 250
+#define PROB_THRESH_OFFSET_TX_TYPE 100
 
 struct rdcost_block_args {
   const AV1_COMP *cpi;
@@ -1993,18 +1992,22 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
       cpi->ppi->frame_probs.tx_type_probs[update_type][tx_size];
 
   if (is_inter && txfm_params->use_default_inter_tx_type == 1) {
-    if (tx_type_probs[DEFAULT_INTER_TX_TYPE] > PROB_THRESH_DCT_DCT_TX_TYPE) {
+    if (tx_type_probs[DEFAULT_INTER_TX_TYPE] >
+        txfm_params->default_inter_tx_type_prob_thresh) {
       txk_allowed = DEFAULT_INTER_TX_TYPE;
     } else {
       int force_tx_type = 0;
       int max_prob = 0;
+      const int tx_type_prob_threshold =
+          txfm_params->default_inter_tx_type_prob_thresh +
+          PROB_THRESH_OFFSET_TX_TYPE;
       for (int i = 1; i < TX_TYPES; i++) {  // find maximum probability.
         if (tx_type_probs[i] > max_prob) {
           max_prob = tx_type_probs[i];
           force_tx_type = i;
         }
       }
-      if (max_prob > PROB_THRESH_TX_TYPE)  // force tx type with max prob.
+      if (max_prob > tx_type_prob_threshold)  // force tx type with max prob.
         txk_allowed = force_tx_type;
       else if (x->rd_model == LOW_TXFM_RD) {
         if (plane == 0) txk_allowed = DCT_DCT;

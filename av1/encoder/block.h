@@ -45,6 +45,8 @@ extern "C" {
 //! Number of txfm hash records kept for the txfm block.
 #define TX_SIZE_RD_RECORD_BUFFER_LEN 256
 
+/*! Maximum value taken by transform type probabilities */
+#define MAX_TX_TYPE_PROB 1024
 /*! \brief Superblock level encoder info
  *
  * SuperblockEnc stores superblock level information used by the encoder for
@@ -434,6 +436,8 @@ typedef struct {
    * \copydetails use_default_intra_tx_type
    */
   int use_default_inter_tx_type;
+  /*! Probability threshold used for conditionally forcing tx type*/
+  int default_inter_tx_type_prob_thresh;
 
   //! Whether to prune 2d transforms based on 1d transform results.
   int prune_2d_txfm_mode;
