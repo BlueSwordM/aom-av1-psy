@@ -1765,6 +1765,7 @@ static AOM_INLINE void init_winner_mode_sf(
 
 static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->disable_loop_restoration_chroma = 0;
+  lpf_sf->disable_loop_restoration_luma = 0;
   lpf_sf->prune_wiener_based_on_src_var = 0;
   lpf_sf->prune_sgr_based_on_wiener = 0;
   lpf_sf->enable_sgr_ep_pruning = 0;
@@ -2104,6 +2105,19 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
         sf->tpl_sf.search_method = search_method;
       } else if (cm->quant_params.base_qindex > qindex_thresh2) {
         sf->mv_sf.search_method = NSTEP_8PT;
+      }
+    }
+  }
+
+  if (speed >= 4) {
+    // Disable LR search at low and high quantizers and enable only for
+    // mid-quantizer range.
+    if (!boosted && !is_arf2_bwd_type) {
+      const int qindex_low[2] = { 100, 60 };
+      const int qindex_high[2] = { 180, 160 };
+      if (cm->quant_params.base_qindex <= qindex_low[is_720p_or_larger] ||
+          cm->quant_params.base_qindex > qindex_high[is_720p_or_larger]) {
+        sf->lpf_sf.disable_loop_restoration_luma = 1;
       }
     }
   }
