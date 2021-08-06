@@ -238,6 +238,7 @@ typedef struct aom_partition_decision {
   int is_final_decision; /**< The flag whether it is the final decision */
   int num_nodes;         /**< The number of leaf nodes */
   int partition_decision[2048]; /**< Partition decisions */
+  int current_decision;         /**< Partition decision for the current block */
 
   // Decisions for partition type pruning
   int terminate_partition_search; /**< Terminate further partition search */
