@@ -218,6 +218,10 @@ typedef struct aom_partition_features {
 
   // Features for a new ML model.
   aom_sb_features_t sb_features; /**< Features collected for the super block */
+  int mi_row;                    /**< Mi_row position of the block */
+  int mi_col;                    /**< Mi_col position of the block */
+  int frame_width;               /**< Frame width */
+  int frame_height;              /**< Frame height */
 } aom_partition_features_t;
 
 /*!\brief Partition decisions received from the external model.

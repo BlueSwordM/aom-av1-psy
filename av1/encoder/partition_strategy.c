@@ -2296,6 +2296,8 @@ void av1_collect_motion_search_features_sb(AV1_COMP *const cpi, ThreadData *td,
                                            const BLOCK_SIZE bsize,
                                            aom_partition_features_t *features) {
   const AV1_COMMON *const cm = &cpi->common;
+  if (frame_is_intra_only(cm)) return;
+
   MACROBLOCK *const x = &td->mb;
   const BLOCK_SIZE fixed_block_size = BLOCK_16X16;
   const int col_step = mi_size_wide[fixed_block_size];

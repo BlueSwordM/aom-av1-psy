@@ -683,10 +683,17 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 
     if (num_passes == 1) {
 #if CONFIG_PARTITION_SEARCH_ORDER
-      av1_reset_part_sf(&cpi->sf.part_sf);
-      RD_STATS this_rdc;
-      av1_rd_partition_search(cpi, td, tile_data, tp, sms_root, mi_row, mi_col,
-                              sb_size, &this_rdc);
+      if (cpi->ext_part_controller.ready && !frame_is_intra_only(cm)) {
+        av1_reset_part_sf(&cpi->sf.part_sf);
+        RD_STATS this_rdc;
+        av1_rd_partition_search(cpi, td, tile_data, tp, sms_root, mi_row,
+                                mi_col, sb_size, &this_rdc);
+      } else {
+        PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
+        av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
+                              &dummy_rdc, dummy_rdc, pc_root, sms_root, NULL,
+                              SB_SINGLE_PASS, NULL);
+      }
 #else
       PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
       av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
