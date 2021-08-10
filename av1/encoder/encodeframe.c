@@ -1510,7 +1510,9 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 #endif
 
   if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats ||
-      (cpi->sf.tx_sf.tx_type_search.fast_inter_tx_type_search == 1)) {
+      ((cpi->sf.tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh !=
+        INT_MAX) &&
+       (cpi->sf.tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh != 0))) {
     const FRAME_UPDATE_TYPE update_type =
         get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
     for (i = 0; i < TX_SIZES_ALL; i++) {

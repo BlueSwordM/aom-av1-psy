@@ -225,13 +225,12 @@ typedef struct {
   TX_TYPE_PRUNE_MODE prune_2d_txfm_mode;
   int fast_intra_tx_type_search;
 
-  // 1: Force tx type based on probability of the tx type, during mode search.
-  // 2: Force tx type to be DCT_DCT unconditionally, during mode search. (More
-  // aggressive).
-  int fast_inter_tx_type_search;
-
-  // Probability threshold used for conditionally forcing tx type
-  unsigned int default_inter_tx_type_prob_thresh;
+  // INT_MAX: Disable fast search.
+  // 1 - 1024: Probability threshold used for conditionally forcing tx type,
+  // during mode search.
+  // 0: Force tx type to be DCT_DCT unconditionally, during
+  // mode search.
+  int fast_inter_tx_type_prob_thresh;
 
   // Prune less likely chosen transforms for each intra mode. The speed
   // feature ranges from 0 to 2, for different speed / compression trade offs.

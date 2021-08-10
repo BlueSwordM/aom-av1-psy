@@ -1991,7 +1991,12 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
   const int *tx_type_probs =
       cpi->ppi->frame_probs.tx_type_probs[update_type][tx_size];
 
-  if (is_inter && txfm_params->use_default_inter_tx_type == 1) {
+  if ((!is_inter && txfm_params->use_default_intra_tx_type) ||
+      (is_inter && txfm_params->default_inter_tx_type_prob_thresh == 0)) {
+    txk_allowed =
+        get_default_tx_type(0, xd, tx_size, cpi->use_screen_content_tools);
+  } else if (is_inter &&
+             txfm_params->default_inter_tx_type_prob_thresh != INT_MAX) {
     if (tx_type_probs[DEFAULT_INTER_TX_TYPE] >
         txfm_params->default_inter_tx_type_prob_thresh) {
       txk_allowed = DEFAULT_INTER_TX_TYPE;
@@ -2013,10 +2018,6 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
         if (plane == 0) txk_allowed = DCT_DCT;
       }
     }
-  } else if ((!is_inter && txfm_params->use_default_intra_tx_type) ||
-             (is_inter && txfm_params->use_default_inter_tx_type == 2)) {
-    txk_allowed =
-        get_default_tx_type(0, xd, tx_size, cpi->use_screen_content_tools);
   } else if (x->rd_model == LOW_TXFM_RD) {
     if (plane == 0) txk_allowed = DCT_DCT;
   }

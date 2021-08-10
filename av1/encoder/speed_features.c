@@ -731,8 +731,8 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     if (!is_480p_or_larger) {
-      sf->tx_sf.tx_type_search.fast_inter_tx_type_search = boosted ? 0 : 1;
-      sf->tx_sf.tx_type_search.default_inter_tx_type_prob_thresh = 250;
+      sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh =
+          boosted ? INT_MAX : 250;
     }
   }
 
@@ -769,8 +769,7 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     if (!is_720p_or_larger) {
-      sf->tx_sf.tx_type_search.fast_inter_tx_type_search = 1;
-      sf->tx_sf.tx_type_search.default_inter_tx_type_prob_thresh = 150;
+      sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh = 150;
     }
   }
 }
@@ -1710,7 +1709,7 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->tx_type_search.use_skip_flag_prediction = 1;
   tx_sf->tx_type_search.use_reduced_intra_txset = 0;
   tx_sf->tx_type_search.fast_intra_tx_type_search = 0;
-  tx_sf->tx_type_search.fast_inter_tx_type_search = 0;
+  tx_sf->tx_type_search.fast_inter_tx_type_prob_thresh = INT_MAX;
   tx_sf->tx_type_search.skip_tx_search = 0;
   tx_sf->tx_type_search.prune_tx_type_using_stats = 0;
   tx_sf->tx_type_search.prune_tx_type_est_rd = 0;

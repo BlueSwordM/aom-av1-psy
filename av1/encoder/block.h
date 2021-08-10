@@ -431,11 +431,7 @@ typedef struct {
    * features.
    */
   int use_default_intra_tx_type;
-  /*! \brief Whether to limit the inter txfm search type to the default txfm.
-   *
-   * \copydetails use_default_intra_tx_type
-   */
-  int use_default_inter_tx_type;
+
   /*! Probability threshold used for conditionally forcing tx type*/
   int default_inter_tx_type_prob_thresh;
 
