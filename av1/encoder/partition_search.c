@@ -1936,6 +1936,9 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   if (bsize == cm->seq_params->sb_size)
     assert(chosen_rdc.rate < INT_MAX && chosen_rdc.dist < INT64_MAX);
 
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(cpi, encode_sb_time);
+#endif
   if (do_recon) {
     if (bsize == cm->seq_params->sb_size) {
       // NOTE: To get estimate for rate due to the tokens, use:
@@ -1950,6 +1953,9 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                 pc_tree, NULL);
     }
   }
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, encode_sb_time);
+#endif
 
   *rate = chosen_rdc.rate;
   *dist = chosen_rdc.dist;

@@ -630,6 +630,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 
   // Encode the superblock
   if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION) {
+#if CONFIG_COLLECT_COMPONENT_TIMING
+    start_timing(cpi, rd_use_partition_time);
+#endif
     // partition search starting from a variance-based partition
     av1_set_offsets_without_segment_id(cpi, tile_info, x, mi_row, mi_col,
                                        sb_size);
@@ -638,6 +641,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
                          &dummy_rate, &dummy_dist, 1, pc_root);
     av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
+#if CONFIG_COLLECT_COMPONENT_TIMING
+    end_timing(cpi, rd_use_partition_time);
+#endif
   }
 #if !CONFIG_REALTIME_ONLY
   else if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {

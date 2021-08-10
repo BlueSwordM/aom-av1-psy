@@ -1604,6 +1604,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     cm->frame_presentation_time = (uint32_t)pts64;
   }
 
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(cpi, av1_get_one_pass_rt_params_time);
+#endif
 #if CONFIG_REALTIME_ONLY
   av1_get_one_pass_rt_params(cpi, &frame_params, *frame_flags);
   if (cpi->oxcf.speed >= 5 && cpi->ppi->number_spatial_layers == 1 &&
@@ -1616,6 +1619,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         cpi->ppi->number_temporal_layers == 1)
       av1_set_reference_structure_one_pass_rt(cpi, cpi->gf_frame_index == 0);
   }
+#endif
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, av1_get_one_pass_rt_params_time);
 #endif
 
   FRAME_UPDATE_TYPE frame_update_type =

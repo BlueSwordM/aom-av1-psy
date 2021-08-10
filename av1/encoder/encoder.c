@@ -2813,7 +2813,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
                                               int64_t *rate,
                                               int *largest_tile_id) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
-  start_timing(cpi, encode_with_recode_loop_time);
+  start_timing(cpi, encode_with_or_without_recode_time);
 #endif
 #if CONFIG_FRAME_PARALLEL_ENCODE
   for (int i = 0; i < NUM_RECODES_PER_FRAME; i++) {
@@ -2834,7 +2834,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     err = encode_with_recode_loop(cpi, size, dest);
 #endif
 #if CONFIG_COLLECT_COMPONENT_TIMING
-  end_timing(cpi, encode_with_recode_loop_time);
+  end_timing(cpi, encode_with_or_without_recode_time);
 #endif
   if (err != AOM_CODEC_OK) {
     if (err == -1) {
@@ -4201,8 +4201,9 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
   }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
-  // Only accumulate 2nd pass time.
-  if (cpi->oxcf.pass == 2) start_timing(cpi, av1_encode_strategy_time);
+  // Accumulate 2nd pass time in 2-pass case or 1 pass time in 1-pass case.
+  if (cpi->oxcf.pass == 2 || cpi->oxcf.pass == 0)
+    start_timing(cpi, av1_encode_strategy_time);
 #endif
 
   const int result = av1_encode_strategy(
@@ -4211,12 +4212,14 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
       cpi_data->timestamp_ratio, &cpi_data->pop_lookahead, cpi_data->flush);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
-  if (cpi->oxcf.pass == 2) end_timing(cpi, av1_encode_strategy_time);
+  if (cpi->oxcf.pass == 2 || cpi->oxcf.pass == 0)
+    end_timing(cpi, av1_encode_strategy_time);
 
   // Print out timing information.
   // Note: Use "cpi->frame_component_time[0] > 100 us" to avoid showing of
   // show_existing_frame and lag-in-frames.
-  if (cpi->oxcf.pass == 2 && cpi->frame_component_time[0] > 100) {
+  if ((cpi->oxcf.pass == 2 || cpi->oxcf.pass == 0) &&
+      cpi->frame_component_time[0] > 100) {
     int i;
     uint64_t frame_total = 0, total = 0;
 

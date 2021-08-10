@@ -2741,9 +2741,6 @@ static int64_t handle_inter_mode(
       }
     }
 
-#if CONFIG_COLLECT_COMPONENT_TIMING
-    start_timing(cpi, compound_type_rd_time);
-#endif
     int skip_build_pred = 0;
     const int mi_row = xd->mi_row;
     const int mi_col = xd->mi_col;
@@ -2751,16 +2748,18 @@ static int64_t handle_inter_mode(
     // Handle a compound predictor, continue if it is determined this
     // cannot be the best compound mode
     if (is_comp_pred) {
+#if CONFIG_COLLECT_COMPONENT_TIMING
+      start_timing(cpi, compound_type_rd_time);
+#endif
       const int not_best_mode = process_compound_inter_mode(
           cpi, x, args, ref_best_rd, cur_mv, bsize, &compmode_interinter_cost,
           rd_buffers, &orig_dst, &tmp_dst, &rate_mv, rd_stats, skip_rd,
           &skip_build_pred);
+#if CONFIG_COLLECT_COMPONENT_TIMING
+      end_timing(cpi, compound_type_rd_time);
+#endif
       if (not_best_mode) continue;
     }
-
-#if CONFIG_COLLECT_COMPONENT_TIMING
-    end_timing(cpi, compound_type_rd_time);
-#endif
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, interpolation_filter_search_time);

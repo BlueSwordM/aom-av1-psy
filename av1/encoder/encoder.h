@@ -1650,12 +1650,13 @@ typedef struct FramePartitionTimingStats {
 // Adjust the following to add new components.
 enum {
   av1_encode_strategy_time,
+  av1_get_one_pass_rt_params_time,
   av1_get_second_pass_params_time,
   denoise_and_encode_time,
   apply_filtering_time,
   av1_tpl_setup_stats_time,
   encode_frame_to_data_rate_time,
-  encode_with_recode_loop_time,
+  encode_with_or_without_recode_time,
   loop_filter_time,
   cdef_time,
   loop_restoration_time,
@@ -1666,6 +1667,7 @@ enum {
   encode_sb_row_time,
 
   rd_pick_partition_time,
+  rd_use_partition_time,
   av1_prune_partitions_time,
   none_partition_search_time,
   split_partition_search_time,
@@ -1695,6 +1697,8 @@ enum {
 static INLINE char const *get_component_name(int index) {
   switch (index) {
     case av1_encode_strategy_time: return "av1_encode_strategy_time";
+    case av1_get_one_pass_rt_params_time:
+      return "av1_get_one_pass_rt_params_time";
     case av1_get_second_pass_params_time:
       return "av1_get_second_pass_params_time";
     case denoise_and_encode_time: return "denoise_and_encode_time";
@@ -1702,7 +1706,8 @@ static INLINE char const *get_component_name(int index) {
     case av1_tpl_setup_stats_time: return "av1_tpl_setup_stats_time";
     case encode_frame_to_data_rate_time:
       return "encode_frame_to_data_rate_time";
-    case encode_with_recode_loop_time: return "encode_with_recode_loop_time";
+    case encode_with_or_without_recode_time:
+      return "encode_with_or_without_recode_time";
     case loop_filter_time: return "loop_filter_time";
     case cdef_time: return "cdef_time";
     case loop_restoration_time: return "loop_restoration_time";
@@ -1714,6 +1719,7 @@ static INLINE char const *get_component_name(int index) {
     case encode_sb_row_time: return "encode_sb_row_time";
 
     case rd_pick_partition_time: return "rd_pick_partition_time";
+    case rd_use_partition_time: return "rd_use_partition_time";
     case av1_prune_partitions_time: return "av1_prune_partitions_time";
     case none_partition_search_time: return "none_partition_search_time";
     case split_partition_search_time: return "split_partition_search_time";
