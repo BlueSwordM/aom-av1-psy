@@ -1203,6 +1203,11 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
     return 0;
   }
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  // Only parallel level 0 frames go through temporal filtering.
+  assert(gf_group->frame_parallel_level[group_idx] == 0);
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+
   // Initialize temporal filter context structure.
   init_tf_ctx(cpi, filter_frame_lookahead_idx, is_second_arf, update_type,
               is_forward_keyframe);
