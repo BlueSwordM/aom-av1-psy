@@ -1606,6 +1606,27 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
   update_ext_partition_context(xd, mi_row, mi_col, subsize, bsize, partition);
 }
 
+static AOM_INLINE int is_adjust_var_based_part_enabled(
+    AV1_COMMON *const cm, const PARTITION_SPEED_FEATURES *const part_sf,
+    BLOCK_SIZE bsize) {
+  if (part_sf->partition_search_type != VAR_BASED_PARTITION) return 0;
+  if (part_sf->adjust_var_based_rd_partitioning == 0 ||
+      part_sf->adjust_var_based_rd_partitioning > 3)
+    return 0;
+
+  const int is_larger_qindex = cm->quant_params.base_qindex > 190;
+  if (part_sf->adjust_var_based_rd_partitioning == 1) {
+    return !frame_is_intra_only(cm) && is_larger_qindex && bsize <= BLOCK_32X32;
+  } else {
+    if (bsize <= BLOCK_32X32) return 1;
+    if (part_sf->adjust_var_based_rd_partitioning == 2) {
+      const int is_360p_or_larger = AOMMIN(cm->width, cm->height) >= 360;
+      return is_360p_or_larger && is_larger_qindex && bsize == BLOCK_64X64;
+    }
+  }
+  return 0;
+}
+
 /*!\brief AV1 block partition search (partition estimation and partial search).
 *
 * \ingroup partition_search
@@ -1694,18 +1715,9 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
 
   // Save rdmult before it might be changed, so it can be restored later.
   const int orig_rdmult = x->rdmult;
-  const int is_not_lowres = AOMMIN(cm->width, cm->height) >= 360;
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, NO_AQ, NULL);
 
-  if (cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION &&
-      ((cpi->sf.part_sf.adjust_var_based_rd_partitioning == 3 &&
-        bsize <= BLOCK_32X32) ||
-       (cpi->sf.part_sf.adjust_var_based_rd_partitioning == 2 &&
-        (bsize <= BLOCK_32X32 || (is_not_lowres && bsize == BLOCK_64X64 &&
-                                  cm->quant_params.base_qindex > 190))) ||
-       (cpi->sf.part_sf.adjust_var_based_rd_partitioning == 1 &&
-        cm->quant_params.base_qindex > 190 && bsize <= BLOCK_32X32 &&
-        !frame_is_intra_only(cm)))) {
+  if (is_adjust_var_based_part_enabled(cm, &cpi->sf.part_sf, bsize)) {
     // Check if any of the sub blocks are further split.
     if (partition == PARTITION_SPLIT && subsize > BLOCK_8X8) {
       sub_subsize = get_partition_subsize(subsize, PARTITION_SPLIT);
@@ -1804,18 +1816,13 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       }
       break;
     case PARTITION_SPLIT:
-      if (cpi->sf.part_sf.adjust_var_based_rd_partitioning == 1 &&
-          none_rdc.rate < INT_MAX && none_rdc.skip_txfm == 1) {
-        av1_invalid_rd_stats(&last_part_rdc);
-        break;
-      }
-
-      if (cpi->sf.part_sf.adjust_var_based_rd_partitioning == 2 &&
-          none_rdc.rate < INT_MAX && none_rdc.skip_txfm == 1) {
+      if (none_rdc.rate < INT_MAX && none_rdc.skip_txfm == 1) {
         const MB_MODE_INFO *mbmi = xd->mi[0];
         // Try to skip split partition evaluation based on none partition
         // characteristics.
-        if (is_inter_block(mbmi) && mbmi->mode != NEWMV) {
+        if (cpi->sf.part_sf.adjust_var_based_rd_partitioning == 1 ||
+            (cpi->sf.part_sf.adjust_var_based_rd_partitioning == 2 &&
+             is_inter_block(mbmi) && mbmi->mode != NEWMV)) {
           av1_invalid_rd_stats(&last_part_rdc);
           break;
         }
