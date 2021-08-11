@@ -31,10 +31,12 @@ void av1_alloc_txb_buf(AV1_COMP *cpi) {
   const int num_planes = av1_num_planes(cm);
   const int subsampling_x = cm->seq_params->subsampling_x;
   const int subsampling_y = cm->seq_params->subsampling_y;
+  const int luma_max_sb_square =
+      1 << num_pels_log2_lookup[cm->seq_params->sb_size];
   const int chroma_max_sb_square =
-      MAX_SB_SQUARE >> (subsampling_x + subsampling_y);
+      luma_max_sb_square >> (subsampling_x + subsampling_y);
   const int num_tcoeffs =
-      size * (MAX_SB_SQUARE + (num_planes - 1) * chroma_max_sb_square);
+      size * (luma_max_sb_square + (num_planes - 1) * chroma_max_sb_square);
   const int txb_unit_size = TX_SIZE_W_MIN * TX_SIZE_H_MIN;
 
   av1_free_txb_buf(cpi);
@@ -54,7 +56,7 @@ void av1_alloc_txb_buf(AV1_COMP *cpi) {
   for (int i = 0; i < size; i++) {
     for (int plane = 0; plane < num_planes; plane++) {
       const int max_sb_square =
-          (plane == AOM_PLANE_Y) ? MAX_SB_SQUARE : chroma_max_sb_square;
+          (plane == AOM_PLANE_Y) ? luma_max_sb_square : chroma_max_sb_square;
       cpi->coeff_buffer_base[i].tcoeff[plane] = tcoeff_ptr;
       cpi->coeff_buffer_base[i].eobs[plane] = eob_ptr;
       cpi->coeff_buffer_base[i].entropy_ctx[plane] = entropy_ctx_ptr;
