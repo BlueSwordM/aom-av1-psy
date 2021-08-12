@@ -742,9 +742,9 @@ void av1_create_workers(AV1_PRIMARY *ppi, int num_workers) {
 // This function returns 1 if frame parallel encode is supported for
 // the current configuration. Returns 0 otherwise.
 static AOM_INLINE int is_fp_config(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
-  // TODO(Mufaddal, Aasaipriya): Test and enable multi-tile, resize and vbr
-  // config.
-  if (oxcf->rc_cfg.mode != AOM_Q) {
+  // FPMT is enabled for AOM_Q and AOM_VBR.
+  // TODO(Mufaddal, Aasaipriya): Test and enable multi-tile and resize config.
+  if (oxcf->rc_cfg.mode == AOM_CBR || oxcf->rc_cfg.mode == AOM_CQ) {
     return 0;
   }
   if (ppi->use_svc) {
