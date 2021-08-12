@@ -2862,6 +2862,11 @@ typedef struct AV1_COMP {
    * Retain condition for interpolation filter frame_probability calculation
    */
   int do_update_frame_probs_interpfilter[NUM_RECODES_PER_FRAME];
+
+  /*!
+   * Retain condition for fast_extra_bits calculation.
+   */
+  int do_update_vbr_bits_off_target_fast;
 #endif
   /*!
    * Multi-threading parameters.

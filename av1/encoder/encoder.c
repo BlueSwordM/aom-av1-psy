@@ -2862,6 +2862,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     cpi->do_update_frame_probs_warp[i] = 0;
     cpi->do_update_frame_probs_interpfilter[i] = 0;
   }
+  cpi->do_update_vbr_bits_off_target_fast = 0;
 #endif
 
   int err;

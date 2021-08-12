@@ -452,6 +452,24 @@ typedef struct {
    * bits_left;.
    */
   int64_t temp_bits_left;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * extend_minq.
+   */
+  int temp_extend_minq;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * extend_maxq.
+   */
+  int temp_extend_maxq;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * extend_minq_fast.
+   */
+  int temp_extend_minq_fast;
 #endif
 } PRIMARY_RATE_CONTROL;
 
