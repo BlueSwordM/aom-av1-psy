@@ -656,7 +656,7 @@ reflect any undershoot or overshoot on previous frames to give
 As well as \ref RATE_CONTROL.active_worst_quality, the two pass code also
 maintains a record of the actual Q value used to encode previous frames
 at each level in the current pyramid hierarchy
-(\ref RATE_CONTROL.active_best_quality). The function
+(\ref PRIMARY_RATE_CONTROL.active_best_quality). The function
 \ref rc_pick_q_and_bounds(), uses these values to set a permitted Q range
 for each frame.
 

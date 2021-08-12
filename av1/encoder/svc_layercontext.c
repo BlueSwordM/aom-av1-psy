@@ -42,7 +42,7 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
       lrc->total_actual_bits = 0;
       lrc->ni_tot_qi = 0;
       lp_rc->tot_q = 0.0;
-      lrc->avg_q = 0.0;
+      lp_rc->avg_q = 0.0;
       lp_rc->ni_frames = 0;
       lrc->decimation_count = 0;
       lrc->decimation_factor = 0;
@@ -52,7 +52,7 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
         lrc->rate_correction_factors[i] = 1.0;
       }
       lc->target_bandwidth = lc->layer_target_bitrate;
-      lrc->last_q[INTER_FRAME] = lrc->worst_quality;
+      lp_rc->last_q[INTER_FRAME] = lrc->worst_quality;
       lp_rc->avg_frame_qindex[INTER_FRAME] = lrc->worst_quality;
       lp_rc->avg_frame_qindex[KEY_FRAME] = lrc->worst_quality;
       lrc->buffer_level =

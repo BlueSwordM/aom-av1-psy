@@ -3405,11 +3405,11 @@ static void process_first_pass_stats(AV1_COMP *cpi,
 
     rc->active_worst_quality = tmp_q;
     rc->ni_av_qi = tmp_q;
-    rc->last_q[INTER_FRAME] = tmp_q;
-    rc->avg_q = av1_convert_qindex_to_q(tmp_q, cm->seq_params->bit_depth);
+    p_rc->last_q[INTER_FRAME] = tmp_q;
+    p_rc->avg_q = av1_convert_qindex_to_q(tmp_q, cm->seq_params->bit_depth);
     p_rc->avg_frame_qindex[INTER_FRAME] = tmp_q;
-    rc->last_q[KEY_FRAME] = (tmp_q + cpi->oxcf.rc_cfg.best_allowed_q) / 2;
-    p_rc->avg_frame_qindex[KEY_FRAME] = rc->last_q[KEY_FRAME];
+    p_rc->last_q[KEY_FRAME] = (tmp_q + cpi->oxcf.rc_cfg.best_allowed_q) / 2;
+    p_rc->avg_frame_qindex[KEY_FRAME] = p_rc->last_q[KEY_FRAME];
   }
 
   if (cpi->twopass_frame.stats_in <
@@ -3889,6 +3889,7 @@ void av1_init_single_pass_lap(AV1_COMP *cpi) {
 void av1_twopass_postencode_update(AV1_COMP *cpi) {
   TWO_PASS *const twopass = &cpi->ppi->twopass;
   RATE_CONTROL *const rc = &cpi->rc;
+  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
 
   // Increment the stats_in pointer.
@@ -3972,12 +3973,12 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
         cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index];
     int i;
     for (i = pyramid_level; i <= MAX_ARF_LAYERS; ++i) {
-      rc->active_best_quality[i] = cpi->common.quant_params.base_qindex;
+      p_rc->active_best_quality[i] = cpi->common.quant_params.base_qindex;
 #if CONFIG_TUNE_VMAF
       if (cpi->vmaf_info.original_qindex != -1 &&
           (cpi->oxcf.tune_cfg.tuning >= AOM_TUNE_VMAF_WITH_PREPROCESSING &&
            cpi->oxcf.tune_cfg.tuning <= AOM_TUNE_VMAF_NEG_MAX_GAIN)) {
-        rc->active_best_quality[i] = cpi->vmaf_info.original_qindex;
+        p_rc->active_best_quality[i] = cpi->vmaf_info.original_qindex;
       }
 #endif
     }
@@ -4083,26 +4084,6 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
   }
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
-  /* TODO(FPMT): The current  update is happening in cpi->rc members,
-   * this need to be taken care appropriately in final FPMT implementation
-   * to carry these values to subsequent frames.
-   *
-   * The variable temp_active_best_quality is introduced only for quality
-   * simulation purpose, it retains the value previous to the parallel
-   * encode frames. The variable is updated based on the update flag.
-   *
-   * If there exist show_existing_frames between parallel frames, then to
-   * retain the temp state do not update it. */
-  if (cpi->do_frame_data_update && !show_existing_between_parallel_frames) {
-    int i;
-    const int pyramid_level =
-        cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index];
-    if (!rc->is_src_frame_alt_ref) {
-      for (i = pyramid_level; i <= MAX_ARF_LAYERS; ++i)
-        cpi->ppi->p_rc.temp_active_best_quality[i] = rc->active_best_quality[i];
-    }
-  }
-
   // Update the frame probabilities obtained from parallel encode frames
   FrameProbInfo *const frame_probs = &cpi->ppi->frame_probs;
   int i, j, loop;

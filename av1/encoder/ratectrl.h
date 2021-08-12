@@ -145,16 +145,6 @@ typedef struct {
   int sb64_target_rate;
 
   /*!
-   * Q used on last encoded frame of the given type.
-   */
-  int last_q[FRAME_TYPES];
-
-  /*!
-   * Q used for last boosted (non leaf) frame (GF/KF/ARF)
-   */
-  int last_boosted_qindex;
-
-  /*!
    * Correction factors used to adjust the q estimate for a given target rate
    * in the encode loop.
    */
@@ -201,7 +191,6 @@ typedef struct {
 
   int ni_av_qi;
   int ni_tot_qi;
-  double avg_q;
 
   int64_t buffer_level;
   int64_t bits_off_target;
@@ -245,10 +234,6 @@ typedef struct {
    * Proposed maximum alloed Q for current frame
    */
   int active_worst_quality;
-  /*!
-   * Proposed minimum allowed Q different layers in a coding pyramid
-   */
-  int active_best_quality[MAX_ARF_LAYERS + 1];
 
   /*!\cond */
   // Track amount of low motion in scene
@@ -368,31 +353,26 @@ typedef struct {
    */
   int avg_frame_qindex[FRAME_TYPES];
 
+  /*!
+   * Proposed minimum allowed Q different layers in a coding pyramid
+   */
+  int active_best_quality[MAX_ARF_LAYERS + 1];
+
+  /*!
+   * Q used for last boosted (non leaf) frame (GF/KF/ARF)
+   */
+  int last_boosted_qindex;
+
+  /*!
+   * Average Q value of previous inter frames
+   */
+  double avg_q;
+
+  /*!
+   * Q used on last encoded frame of the given type.
+   */
+  int last_q[FRAME_TYPES];
 #if CONFIG_FRAME_PARALLEL_ENCODE
-  /*!
-   * Temporary variable used in simulating the delayed update of
-   * active_best_quality.
-   */
-  int temp_active_best_quality[MAX_ARF_LAYERS + 1];
-
-  /*!
-   * Temporary variable used in simulating the delayed update of
-   * last_boosted_qindex.
-   */
-  int temp_last_boosted_qindex;
-
-  /*!
-   * Temporary variable used in simulating the delayed update of
-   * avg_q.
-   */
-  double temp_avg_q;
-
-  /*!
-   * Temporary variable used in simulating the delayed update of
-   * last_q.
-   */
-  int temp_last_q[FRAME_TYPES];
-
   /*!
    * Temporary variable used in simulating the delayed update of
    * projected_frame_size.

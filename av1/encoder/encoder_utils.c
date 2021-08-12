@@ -310,15 +310,7 @@ static void configure_static_seg_features(AV1_COMP *cpi) {
   const RATE_CONTROL *const rc = &cpi->rc;
   struct segmentation *const seg = &cm->seg;
 
-  double avg_q;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-  avg_q = (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
-              ? cpi->ppi->p_rc.temp_avg_q
-              : cpi->rc.avg_q;
-#else
-  avg_q = rc->avg_q;
-#endif
-
+  double avg_q = cpi->ppi->p_rc.avg_q;
   int high_q = (int)(avg_q > 48.0);
   int qi_delta;
 
