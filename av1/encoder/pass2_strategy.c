@@ -171,8 +171,7 @@ static double calc_correction_factor(double err_per_mb, int q) {
 // Based on history adjust expectations of bits per macroblock.
 static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
   TWO_PASS *twopass = &cpi->ppi->twopass;
-  const RATE_CONTROL *const rc = &cpi->rc;
-  int err_estimate;
+  const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
 
   // Based on recent history adjust expectations of bits per macroblock.
   double damp_fac = AOMMAX(5.0, rate_err_tol / 10.0);
@@ -180,56 +179,17 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
   const double adj_limit = AOMMAX(0.20, (double)(100 - rate_err_tol) / 200.0);
   const double min_fac = 1.0 - adj_limit;
   const double max_fac = 1.0 + adj_limit;
-  int64_t local_total_actual_bits, local_vbr_bits_off_target, local_bits_left;
-  double local_rolling_arf_group_actual_bits,
-      local_rolling_arf_group_target_bits;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-  local_total_actual_bits =
-      (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
-          ? cpi->ppi->p_rc.temp_total_actual_bits
-          : rc->total_actual_bits;
-  local_vbr_bits_off_target =
-      (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
-          ? cpi->ppi->p_rc.temp_vbr_bits_off_target
-          : rc->vbr_bits_off_target;
-  local_bits_left =
-      (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
-          ? cpi->ppi->p_rc.temp_bits_left
-          : cpi->ppi->twopass.bits_left;
-  local_rolling_arf_group_target_bits =
-      (double)((cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] >
-                0)
-                   ? cpi->ppi->p_rc.temp_rolling_arf_group_target_bits
-                   : twopass->rolling_arf_group_target_bits);
-  local_rolling_arf_group_actual_bits =
-      (double)((cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] >
-                0)
-                   ? cpi->ppi->p_rc.temp_rolling_arf_group_actual_bits
-                   : twopass->rolling_arf_group_actual_bits);
-  err_estimate =
-      (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
-          ? cpi->ppi->p_rc.temp_rate_error_estimate
-          : rc->rate_error_estimate;
-#else
-  local_total_actual_bits = rc->total_actual_bits;
-  local_vbr_bits_off_target = rc->vbr_bits_off_target;
-  local_bits_left = cpi->ppi->twopass.bits_left;
-  local_rolling_arf_group_target_bits =
-      (double)twopass->rolling_arf_group_target_bits;
-  local_rolling_arf_group_actual_bits =
-      (double)twopass->rolling_arf_group_actual_bits;
-  err_estimate = rc->rate_error_estimate;
-#endif
+  int err_estimate = p_rc->rate_error_estimate;
 
-  if (local_vbr_bits_off_target && local_total_actual_bits > 0) {
+  if (p_rc->vbr_bits_off_target && p_rc->total_actual_bits > 0) {
     if (cpi->ppi->lap_enabled) {
       rate_err_factor =
-          local_rolling_arf_group_actual_bits /
-          DOUBLE_DIVIDE_CHECK(local_rolling_arf_group_target_bits);
+          (double)twopass->rolling_arf_group_actual_bits /
+          DOUBLE_DIVIDE_CHECK((double)twopass->rolling_arf_group_target_bits);
     } else {
       rate_err_factor =
-          1.0 - ((double)(local_vbr_bits_off_target) /
-                 AOMMAX(local_total_actual_bits, local_bits_left));
+          1.0 - ((double)(p_rc->vbr_bits_off_target) /
+                 AOMMAX(p_rc->total_actual_bits, cpi->ppi->twopass.bits_left));
     }
 
     rate_err_factor = AOMMAX(min_fac, AOMMIN(max_fac, rate_err_factor));
@@ -3835,10 +3795,10 @@ void av1_init_second_pass(AV1_COMP *cpi) {
   }
 
   // Reset the vbr bits off target counters
-  cpi->rc.vbr_bits_off_target = 0;
-  cpi->rc.vbr_bits_off_target_fast = 0;
+  cpi->ppi->p_rc.vbr_bits_off_target = 0;
+  cpi->ppi->p_rc.vbr_bits_off_target_fast = 0;
 
-  cpi->rc.rate_error_estimate = 0;
+  cpi->ppi->p_rc.rate_error_estimate = 0;
 
   // Static sequence monitor variables.
   twopass->kf_zeromotion_pct = 100;
@@ -3866,10 +3826,10 @@ void av1_init_single_pass_lap(AV1_COMP *cpi) {
   twopass->modified_error_left = 0.0;
 
   // Reset the vbr bits off target counters
-  cpi->rc.vbr_bits_off_target = 0;
-  cpi->rc.vbr_bits_off_target_fast = 0;
+  cpi->ppi->p_rc.vbr_bits_off_target = 0;
+  cpi->ppi->p_rc.vbr_bits_off_target_fast = 0;
 
-  cpi->rc.rate_error_estimate = 0;
+  cpi->ppi->p_rc.rate_error_estimate = 0;
 
   // Static sequence monitor variables.
   twopass->kf_zeromotion_pct = 100;
@@ -3916,13 +3876,13 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
   // of subsequent frames, to try and push it back towards 0. This method
   // is designed to prevent extreme behaviour at the end of a clip
   // or group of frames.
-  rc->vbr_bits_off_target += rc->base_frame_target - rc->projected_frame_size;
+  p_rc->vbr_bits_off_target += rc->base_frame_target - rc->projected_frame_size;
   twopass->bits_left = AOMMAX(twopass->bits_left - rc->base_frame_target, 0);
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
   if (cpi->do_update_vbr_bits_off_target_fast) {
     // Subtract current frame's fast_extra_bits.
-    rc->vbr_bits_off_target_fast -= rc->frame_level_fast_extra_bits;
+    p_rc->vbr_bits_off_target_fast -= rc->frame_level_fast_extra_bits;
     rc->frame_level_fast_extra_bits = 0;
   }
 #endif
@@ -3932,40 +3892,13 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
   twopass->rolling_arf_group_actual_bits += rc->projected_frame_size;
 
   // Calculate the pct rc error.
-  if (rc->total_actual_bits) {
-    rc->rate_error_estimate =
-        (int)((rc->vbr_bits_off_target * 100) / rc->total_actual_bits);
-    rc->rate_error_estimate = clamp(rc->rate_error_estimate, -100, 100);
+  if (p_rc->total_actual_bits) {
+    p_rc->rate_error_estimate =
+        (int)((p_rc->vbr_bits_off_target * 100) / p_rc->total_actual_bits);
+    p_rc->rate_error_estimate = clamp(p_rc->rate_error_estimate, -100, 100);
   } else {
-    rc->rate_error_estimate = 0;
+    p_rc->rate_error_estimate = 0;
   }
-#if CONFIG_FRAME_PARALLEL_ENCODE
-  /* TODO(FPMT): The current  update is happening in cpi->rc members,
-   * this need to be taken care appropriately in final FPMT implementation
-   * to carry these values to subsequent frames.
-   * The variables temp_vbr_bits_off_target, temp_bits_left,
-   * temp_rolling_arf_group_target_bits, temp_rolling_arf_group_actual_bits
-   * temp_rate_error_estimate are introduced for quality simulation purpose,
-   * it retains the value previous to the parallel encode frames. The
-   * variables are updated based on the update flag.
-   *
-   * If there exist show_existing_frames between parallel frames, then to
-   * retain the temp state do not update it. */
-  int show_existing_between_parallel_frames =
-      (cpi->ppi->gf_group.update_type[cpi->gf_frame_index] ==
-           INTNL_OVERLAY_UPDATE &&
-       cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index + 1] == 2);
-
-  if (cpi->do_frame_data_update && !show_existing_between_parallel_frames) {
-    cpi->ppi->p_rc.temp_vbr_bits_off_target = rc->vbr_bits_off_target;
-    cpi->ppi->p_rc.temp_bits_left = twopass->bits_left;
-    cpi->ppi->p_rc.temp_rolling_arf_group_target_bits =
-        twopass->rolling_arf_group_target_bits;
-    cpi->ppi->p_rc.temp_rolling_arf_group_actual_bits =
-        twopass->rolling_arf_group_actual_bits;
-    cpi->ppi->p_rc.temp_rate_error_estimate = rc->rate_error_estimate;
-  }
-#endif
 
   // Update the active best quality pyramid.
   if (!rc->is_src_frame_alt_ref) {
@@ -3994,7 +3927,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
             " %10d %10d %10d %10.4lf %10.4lf %10.4lf %10.4lf\n",
             cm->current_frame.frame_number, rc->base_frame_target,
             rc->projected_frame_size, rc->total_actual_bits,
-            rc->vbr_bits_off_target, rc->rate_error_estimate,
+            rc->vbr_bits_off_target, p_rc->rate_error_estimate,
             twopass->rolling_arf_group_target_bits,
             twopass->rolling_arf_group_actual_bits,
             (double)twopass->rolling_arf_group_actual_bits /
@@ -4022,12 +3955,12 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
     minq_adj_limit =
         (rc_cfg->mode == AOM_CQ ? MINQ_ADJ_LIMIT_CQ : MINQ_ADJ_LIMIT);
     // Undershoot.
-    if (rc->rate_error_estimate > rc_cfg->under_shoot_pct) {
+    if (p_rc->rate_error_estimate > rc_cfg->under_shoot_pct) {
       --twopass->extend_maxq;
       if (rc->rolling_target_bits >= rc->rolling_actual_bits)
         ++twopass->extend_minq;
       // Overshoot.
-    } else if (rc->rate_error_estimate < -rc_cfg->over_shoot_pct) {
+    } else if (p_rc->rate_error_estimate < -rc_cfg->over_shoot_pct) {
       --twopass->extend_minq;
       if (rc->rolling_target_bits < rc->rolling_actual_bits)
         ++twopass->extend_maxq;
@@ -4045,6 +3978,14 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
     twopass->extend_minq = clamp(twopass->extend_minq, 0, minq_adj_limit);
     twopass->extend_maxq = clamp(twopass->extend_maxq, 0, maxq_adj_limit);
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    if (!frame_is_kf_gf_arf(cpi) && !rc->is_src_frame_alt_ref &&
+        p_rc->vbr_bits_off_target_fast) {
+      // Subtract current frame's fast_extra_bits.
+      p_rc->vbr_bits_off_target_fast -= rc->frame_level_fast_extra_bits;
+    }
+#endif
+
     // If there is a big and undexpected undershoot then feed the extra
     // bits back in quickly. One situation where this may happen is if a
     // frame is unexpectedly almost perfectly predicted by the ARF or GF
@@ -4052,35 +3993,25 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
     if (!frame_is_kf_gf_arf(cpi) && !cpi->rc.is_src_frame_alt_ref) {
       int fast_extra_thresh = rc->base_frame_target / HIGH_UNDERSHOOT_RATIO;
       if (rc->projected_frame_size < fast_extra_thresh) {
-        rc->vbr_bits_off_target_fast +=
+        p_rc->vbr_bits_off_target_fast +=
             fast_extra_thresh - rc->projected_frame_size;
-        rc->vbr_bits_off_target_fast =
-            AOMMIN(rc->vbr_bits_off_target_fast, (4 * rc->avg_frame_bandwidth));
+        p_rc->vbr_bits_off_target_fast = AOMMIN(p_rc->vbr_bits_off_target_fast,
+                                                (4 * rc->avg_frame_bandwidth));
 
         // Fast adaptation of minQ if necessary to use up the extra bits.
         if (rc->avg_frame_bandwidth) {
-          twopass->extend_minq_fast =
-              (int)(rc->vbr_bits_off_target_fast * 8 / rc->avg_frame_bandwidth);
+          twopass->extend_minq_fast = (int)(p_rc->vbr_bits_off_target_fast * 8 /
+                                            rc->avg_frame_bandwidth);
         }
         twopass->extend_minq_fast = AOMMIN(
             twopass->extend_minq_fast, minq_adj_limit - twopass->extend_minq);
-      } else if (rc->vbr_bits_off_target_fast) {
+      } else if (p_rc->vbr_bits_off_target_fast) {
         twopass->extend_minq_fast = AOMMIN(
             twopass->extend_minq_fast, minq_adj_limit - twopass->extend_minq);
       } else {
         twopass->extend_minq_fast = 0;
       }
     }
-
-#if CONFIG_FRAME_PARALLEL_ENCODE
-    if (cpi->do_frame_data_update && !show_existing_between_parallel_frames) {
-      cpi->ppi->p_rc.temp_vbr_bits_off_target_fast =
-          rc->vbr_bits_off_target_fast;
-      cpi->ppi->p_rc.temp_extend_minq = twopass->extend_minq;
-      cpi->ppi->p_rc.temp_extend_maxq = twopass->extend_maxq;
-      cpi->ppi->p_rc.temp_extend_minq_fast = twopass->extend_minq_fast;
-    }
-#endif
   }
 
 #if CONFIG_FRAME_PARALLEL_ENCODE

@@ -145,12 +145,6 @@ typedef struct {
   int sb64_target_rate;
 
   /*!
-   * Correction factors used to adjust the q estimate for a given target rate
-   * in the encode loop.
-   */
-  double rate_correction_factors[RATE_FACTOR_LEVELS];
-
-  /*!
    * Number of frames since the last ARF / GF.
    */
   int frames_since_golden;
@@ -192,21 +186,11 @@ typedef struct {
   int ni_av_qi;
   int ni_tot_qi;
 
-  int64_t buffer_level;
-  int64_t bits_off_target;
-  int64_t vbr_bits_off_target;
-  int64_t vbr_bits_off_target_fast;
-
   int decimation_factor;
   int decimation_count;
 
   int rolling_target_bits;
   int rolling_actual_bits;
-
-  int rate_error_estimate;
-
-  int64_t total_actual_bits;
-  int64_t total_target_bits;
 
   /*!\endcond */
   /*!
@@ -372,85 +356,48 @@ typedef struct {
    * Q used on last encoded frame of the given type.
    */
   int last_q[FRAME_TYPES];
-#if CONFIG_FRAME_PARALLEL_ENCODE
-  /*!
-   * Temporary variable used in simulating the delayed update of
-   * projected_frame_size.
-   */
-  int temp_projected_frame_size;
 
   /*!
-   * Temporary variable used in simulating the delayed update of
-   * total_actual_bits.
+   * Correction factors used to adjust the q estimate for a given target rate
+   * in the encode loop.
    */
-  int64_t temp_total_actual_bits;
+  double rate_correction_factors[RATE_FACTOR_LEVELS];
 
   /*!
-   * Temporary variable used in simulating the delayed update of
-   * buffer_level.
+   * Current total consumed bits.
    */
-  int64_t temp_buffer_level;
+  int64_t total_actual_bits;
 
   /*!
-   * Temporary variable used in simulating the delayed update of
-   * vbr_bits_off_target.
+   * Current total target bits.
    */
-  int64_t temp_vbr_bits_off_target;
+  int64_t total_target_bits;
 
   /*!
-   * Temporary variable used in simulating the delayed update of
-   * vbr_bits_off_target_fast.
+   * Current buffer level.
    */
-  int64_t temp_vbr_bits_off_target_fast;
+  int64_t buffer_level;
 
   /*!
-   * Temporary variable used in simulating the delayed update of
-   * rate_correction_factors.
+   * PCT rc error.
    */
-  double temp_rate_correction_factors[RATE_FACTOR_LEVELS];
+  int rate_error_estimate;
 
   /*!
-   * Temporary variable used in simulating the delayed update of
-   * rate_error_estimate.
+   * Error bits available from previously encoded frames.
    */
-  int temp_rate_error_estimate;
+  int64_t vbr_bits_off_target;
 
   /*!
-   * Temporary variable used in simulating the delayed update of
-   * rolling_arf_group_target_bits.
+   * Error bits available from previously encoded frames undershoot.
    */
-  int temp_rolling_arf_group_target_bits;
+  int64_t vbr_bits_off_target_fast;
 
   /*!
-   * Temporary variable used in simulating the delayed update of
-   * rolling_arf_group_actual_bits;.
+   * Total bits deviated from the average frame target, from previously
+   * encoded frames.
    */
-  int temp_rolling_arf_group_actual_bits;
-
-  /*!
-   * Temporary variable used in simulating the delayed update of
-   * bits_left;.
-   */
-  int64_t temp_bits_left;
-
-  /*!
-   * Temporary variable used in simulating the delayed update of
-   * extend_minq.
-   */
-  int temp_extend_minq;
-
-  /*!
-   * Temporary variable used in simulating the delayed update of
-   * extend_maxq.
-   */
-  int temp_extend_maxq;
-
-  /*!
-   * Temporary variable used in simulating the delayed update of
-   * extend_minq_fast.
-   */
-  int temp_extend_minq_fast;
-#endif
+  int64_t bits_off_target;
 } PRIMARY_RATE_CONTROL;
 
 struct AV1_COMP;
@@ -460,8 +407,7 @@ struct GF_GROUP;
 void av1_primary_rc_init(const struct AV1EncoderConfig *oxcf,
                          PRIMARY_RATE_CONTROL *p_rc);
 
-void av1_rc_init(const struct AV1EncoderConfig *oxcf, RATE_CONTROL *rc,
-                 const PRIMARY_RATE_CONTROL *const p_rc);
+void av1_rc_init(const struct AV1EncoderConfig *oxcf, RATE_CONTROL *rc);
 
 int av1_estimate_bits_at_q(FRAME_TYPE frame_kind, int q, int mbs,
                            double correction_factor, aom_bit_depth_t bit_depth,

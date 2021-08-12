@@ -668,6 +668,8 @@ void av1_change_config_seq(struct AV1_PRIMARY *ppi,
 #if CONFIG_AV1_HIGHBITDEPTH
   highbd_set_var_fns(ppi);
 #endif
+
+  set_primary_rc_buffer_sizes(oxcf, ppi);
 }
 
 void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
@@ -777,12 +779,11 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
 
   av1_set_high_precision_mv(cpi, 1, 0);
 
-  set_rc_buffer_sizes(cpi);
-
   // Under a configuration change, where maximum_buffer_size may change,
   // keep buffer level clipped to the maximum allowed buffer size.
-  rc->bits_off_target = AOMMIN(rc->bits_off_target, p_rc->maximum_buffer_size);
-  rc->buffer_level = AOMMIN(rc->buffer_level, p_rc->maximum_buffer_size);
+  p_rc->bits_off_target =
+      AOMMIN(p_rc->bits_off_target, p_rc->maximum_buffer_size);
+  p_rc->buffer_level = AOMMIN(p_rc->buffer_level, p_rc->maximum_buffer_size);
 
   // Set up frame rate and related parameters rate control values.
   av1_new_framerate(cpi, cpi->framerate);
@@ -1301,7 +1302,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
     cpi->oxcf.gf_cfg.lag_in_frames = lap_lag_in_frames;
   }
 
-  av1_rc_init(&cpi->oxcf, &cpi->rc, &cpi->ppi->p_rc);
+  av1_rc_init(&cpi->oxcf, &cpi->rc);
 
   init_frame_info(&cpi->frame_info, cm);
   init_frame_index_set(&cpi->frame_index_set);

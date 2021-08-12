@@ -1509,7 +1509,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
       for (int i = 0; i < RATE_FACTOR_LEVELS; i++)
         cpi->rc.frame_level_rate_correction_factors[i] =
-            cpi->ppi->p_rc.temp_rate_correction_factors[i];
+            cpi->ppi->p_rc.rate_correction_factors[i];
     }
     // copy mv_stats from ppi to frame_level cpi.
     cpi->mv_stats = cpi->ppi->mv_stats;

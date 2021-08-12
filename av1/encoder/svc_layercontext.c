@@ -39,7 +39,7 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
       RATE_CONTROL *const lrc = &lc->rc;
       PRIMARY_RATE_CONTROL *const lp_rc = &lc->p_rc;
       lrc->ni_av_qi = oxcf->rc_cfg.worst_allowed_q;
-      lrc->total_actual_bits = 0;
+      lp_rc->total_actual_bits = 0;
       lrc->ni_tot_qi = 0;
       lp_rc->tot_q = 0.0;
       lp_rc->avg_q = 0.0;
@@ -49,15 +49,15 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
       lrc->worst_quality = av1_quantizer_to_qindex(lc->max_q);
       lrc->best_quality = av1_quantizer_to_qindex(lc->min_q);
       for (int i = 0; i < RATE_FACTOR_LEVELS; ++i) {
-        lrc->rate_correction_factors[i] = 1.0;
+        lp_rc->rate_correction_factors[i] = 1.0;
       }
       lc->target_bandwidth = lc->layer_target_bitrate;
       lp_rc->last_q[INTER_FRAME] = lrc->worst_quality;
       lp_rc->avg_frame_qindex[INTER_FRAME] = lrc->worst_quality;
       lp_rc->avg_frame_qindex[KEY_FRAME] = lrc->worst_quality;
-      lrc->buffer_level =
+      lp_rc->buffer_level =
           oxcf->rc_cfg.starting_buffer_level_ms * lc->target_bandwidth / 1000;
-      lrc->bits_off_target = lrc->buffer_level;
+      lp_rc->bits_off_target = lp_rc->buffer_level;
       // Initialize the cyclic refresh parameters. If spatial layers are used
       // (i.e., ss_number_layers > 1), these need to be updated per spatial
       // layer. Cyclic refresh is only applied on base temporal layer.
@@ -121,9 +121,10 @@ void av1_update_layer_context_change_config(AV1_COMP *const cpi,
           (int64_t)(p_rc->optimal_buffer_level * bitrate_alloc);
       lp_rc->maximum_buffer_size =
           (int64_t)(p_rc->maximum_buffer_size * bitrate_alloc);
-      lrc->bits_off_target =
-          AOMMIN(lrc->bits_off_target, lp_rc->maximum_buffer_size);
-      lrc->buffer_level = AOMMIN(lrc->buffer_level, lp_rc->maximum_buffer_size);
+      lp_rc->bits_off_target =
+          AOMMIN(lp_rc->bits_off_target, lp_rc->maximum_buffer_size);
+      lp_rc->buffer_level =
+          AOMMIN(lp_rc->buffer_level, lp_rc->maximum_buffer_size);
       lc->framerate = cpi->framerate / lc->framerate_factor;
       lrc->avg_frame_bandwidth = (int)(lc->target_bandwidth / lc->framerate);
       lrc->max_frame_bandwidth = rc->max_frame_bandwidth;
@@ -508,11 +509,12 @@ void av1_svc_check_reset_layer_rc_flag(AV1_COMP *const cpi) {
         int layer2 = LAYER_IDS_TO_IDX(sl, tl, svc->number_temporal_layers);
         LAYER_CONTEXT *lc2 = &svc->layer_context[layer2];
         RATE_CONTROL *lrc2 = &lc2->rc;
+        PRIMARY_RATE_CONTROL *lp_rc2 = &lc2->p_rc;
         PRIMARY_RATE_CONTROL *const lp_rc = &lc2->p_rc;
         lrc2->rc_1_frame = 0;
         lrc2->rc_2_frame = 0;
-        lrc2->bits_off_target = lp_rc->optimal_buffer_level;
-        lrc2->buffer_level = lp_rc->optimal_buffer_level;
+        lp_rc2->bits_off_target = lp_rc->optimal_buffer_level;
+        lp_rc2->buffer_level = lp_rc->optimal_buffer_level;
       }
     }
   }

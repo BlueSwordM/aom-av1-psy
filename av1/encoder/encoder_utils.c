@@ -871,16 +871,7 @@ static void screen_content_tools_determination(
     int *projected_size_pass, PSNR_STATS *psnr) {
   AV1_COMMON *const cm = &cpi->common;
   FeatureFlags *const features = &cm->features;
-  int projected_frame_size;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-  projected_frame_size =
-      (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
-          ? cpi->ppi->p_rc.temp_projected_frame_size
-          : cpi->rc.projected_frame_size;
-#else
-  projected_frame_size = cpi->rc.projected_frame_size;
-#endif
-  projected_size_pass[pass] = projected_frame_size;
+  projected_size_pass[pass] = cpi->rc.projected_frame_size;
 #if CONFIG_AV1_HIGHBITDEPTH
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
