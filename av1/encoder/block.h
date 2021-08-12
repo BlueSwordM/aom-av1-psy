@@ -1256,6 +1256,14 @@ typedef struct macroblock {
   DECLARE_ALIGNED(16, uint8_t, est_pred[128 * 128]);
 #endif
   /**@}*/
+
+  /*! \brief NONE partition evaluated for merge.
+   *
+   * In variance based partitioning scheme, NONE & SPLIT partitions are
+   * evaluated to check the SPLIT can be merged as NONE. This flag signifies the
+   * partition is evaluated in the scheme.
+   */
+  int try_merge_partition;
 } MACROBLOCK;
 #undef SINGLE_REF_MODES
 

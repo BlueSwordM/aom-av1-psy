@@ -2906,6 +2906,10 @@ static AOM_INLINE void select_tx_block(
                             cpi->sf.tx_sf.prune_tx_size_level);
   }
 
+  if (cpi->sf.rt_sf.skip_tx_no_split_var_based_partition) {
+    if (x->try_merge_partition && try_split && p->eobs[block]) try_no_split = 0;
+  }
+
   // Try using current block as a single transform block without split.
   if (try_no_split) {
     try_tx_block_no_split(cpi, x, blk_row, blk_col, block, tx_size, depth,

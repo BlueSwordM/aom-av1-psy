@@ -1417,6 +1417,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
         cm->width * cm->height > 640 * 480)
       sf->rt_sf.use_temporal_noise_estimate = 1;
     sf->rt_sf.use_golden_frame = 0;
+    sf->rt_sf.skip_tx_no_split_var_based_partition = 1;
   }
 
   if (speed >= 6) {
@@ -1826,6 +1827,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->nonrd_agressive_skip = 0;
   rt_sf->skip_cdef_sb = 0;
   rt_sf->force_large_partition_blocks_intra = 0;
+  rt_sf->skip_tx_no_split_var_based_partition = 0;
 }
 
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
