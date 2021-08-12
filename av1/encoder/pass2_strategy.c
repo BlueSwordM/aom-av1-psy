@@ -3957,12 +3957,12 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
     // Undershoot.
     if (p_rc->rate_error_estimate > rc_cfg->under_shoot_pct) {
       --twopass->extend_maxq;
-      if (rc->rolling_target_bits >= rc->rolling_actual_bits)
+      if (p_rc->rolling_target_bits >= p_rc->rolling_actual_bits)
         ++twopass->extend_minq;
       // Overshoot.
     } else if (p_rc->rate_error_estimate < -rc_cfg->over_shoot_pct) {
       --twopass->extend_minq;
-      if (rc->rolling_target_bits < rc->rolling_actual_bits)
+      if (p_rc->rolling_target_bits < p_rc->rolling_actual_bits)
         ++twopass->extend_maxq;
     } else {
       // Adjustment for extreme local overshoot.
@@ -3970,9 +3970,9 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
           rc->projected_frame_size > (2 * rc->avg_frame_bandwidth))
         ++twopass->extend_maxq;
       // Unwind undershoot or overshoot adjustment.
-      if (rc->rolling_target_bits < rc->rolling_actual_bits)
+      if (p_rc->rolling_target_bits < p_rc->rolling_actual_bits)
         --twopass->extend_minq;
-      else if (rc->rolling_target_bits > rc->rolling_actual_bits)
+      else if (p_rc->rolling_target_bits > p_rc->rolling_actual_bits)
         --twopass->extend_maxq;
     }
     twopass->extend_minq = clamp(twopass->extend_minq, 0, minq_adj_limit);

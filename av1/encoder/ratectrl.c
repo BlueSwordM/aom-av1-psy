@@ -334,13 +334,15 @@ void av1_primary_rc_init(const AV1EncoderConfig *oxcf,
   }
   p_rc->rate_correction_factors[KF_STD] = 1.0;
   p_rc->bits_off_target = p_rc->starting_buffer_level;
+
+  p_rc->rolling_target_bits =
+      (int)(oxcf->rc_cfg.target_bandwidth / oxcf->input_cfg.init_framerate);
+  p_rc->rolling_actual_bits =
+      (int)(oxcf->rc_cfg.target_bandwidth / oxcf->input_cfg.init_framerate);
 }
 
 void av1_rc_init(const AV1EncoderConfig *oxcf, RATE_CONTROL *rc) {
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
-
-  rc->rolling_target_bits = rc->avg_frame_bandwidth;
-  rc->rolling_actual_bits = rc->avg_frame_bandwidth;
 
   rc->frames_since_key = 8;  // Sensible default for first frame.
 
@@ -2020,10 +2022,10 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
                                   resize_rate_factor(&cpi->oxcf.frm_dim_cfg,
                                                      cm->width, cm->height));
   if (current_frame->frame_type != KEY_FRAME) {
-    rc->rolling_target_bits = (int)ROUND_POWER_OF_TWO_64(
-        rc->rolling_target_bits * 3 + rc->this_frame_target, 2);
-    rc->rolling_actual_bits = (int)ROUND_POWER_OF_TWO_64(
-        rc->rolling_actual_bits * 3 + rc->projected_frame_size, 2);
+    p_rc->rolling_target_bits = (int)ROUND_POWER_OF_TWO_64(
+        p_rc->rolling_target_bits * 3 + rc->this_frame_target, 2);
+    p_rc->rolling_actual_bits = (int)ROUND_POWER_OF_TWO_64(
+        p_rc->rolling_actual_bits * 3 + rc->projected_frame_size, 2);
   }
 
   // Actual bits spent

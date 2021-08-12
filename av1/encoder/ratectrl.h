@@ -189,9 +189,6 @@ typedef struct {
   int decimation_factor;
   int decimation_count;
 
-  int rolling_target_bits;
-  int rolling_actual_bits;
-
   /*!\endcond */
   /*!
    * User specified maximum Q allowed for current frame
@@ -398,6 +395,17 @@ typedef struct {
    * encoded frames.
    */
   int64_t bits_off_target;
+
+  /*!
+   * Rolling monitor target bits updated based on current frame target size.
+   */
+  int rolling_target_bits;
+
+  /*!
+   * Rolling monitor actual bits updated based on current frame final projected
+   * size.
+   */
+  int rolling_actual_bits;
 } PRIMARY_RATE_CONTROL;
 
 struct AV1_COMP;
