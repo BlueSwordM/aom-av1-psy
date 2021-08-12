@@ -1371,10 +1371,14 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->unit_test_cfg.sb_multipass_unit_test =
       extra_cfg->sb_multipass_unit_test;
 
+  // For allintra encoding mode, inter-frame motion search is not applicable and
+  // the intraBC motion vectors are restricted within the tile boundaries. Hence
+  // a smaller frame border size (AOM_ENC_ALLINTRA_BORDER) is used in this case.
   oxcf->border_in_pixels =
       (resize_cfg->resize_mode || superres_cfg->superres_mode)
           ? AOM_BORDER_IN_PIXELS
-          : AOM_ENC_NO_SCALE_BORDER;
+          : (oxcf->kf_cfg.key_freq_max == 0) ? AOM_ENC_ALLINTRA_BORDER
+                                             : AOM_ENC_NO_SCALE_BORDER;
   memcpy(oxcf->target_seq_level_idx, extra_cfg->target_seq_level_idx,
          sizeof(oxcf->target_seq_level_idx));
   oxcf->tier_mask = extra_cfg->tier_mask;
