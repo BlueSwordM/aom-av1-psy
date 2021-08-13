@@ -3604,6 +3604,9 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
   // Define a new GF/ARF group. (Should always enter here for key frames).
   if (cpi->gf_frame_index == gf_group->size) {
+#if CONFIG_BITRATE_ACCURACY
+    vbr_rc_reset_gop_data(&cpi->vbr_rc_info);
+#endif  // CONFIG_BITRATE_ACCURACY
     int max_gop_length =
         (oxcf->gf_cfg.lag_in_frames >= 32)
             ? AOMMIN(MAX_GF_INTERVAL, oxcf->gf_cfg.lag_in_frames -

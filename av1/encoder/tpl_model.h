@@ -240,9 +240,10 @@ typedef struct {
   double gop_bit_budget;    // The bitbudget for the current gop
   double scale_factor;      // Scale factor to improve the budget estimation
   double mv_scale_factor;   // Scale factor to improve MV entropy estimation
+
+  // === Below this line are GOP related data that will be updated per GOP ===
   int q_index_list[MAX_LENGTH_TPL_FRAME_STATS];  // q indices for the current
                                                  // GOP
-
   // Arrays to store frame level bitrate accuracy data.
   double estimated_bitrate_byframe[MAX_LENGTH_TPL_FRAME_STATS];
   double estimated_mv_bitrate_byframe[MAX_LENGTH_TPL_FRAME_STATS];
@@ -251,6 +252,15 @@ typedef struct {
   int actual_coeff_bitrate_byframe[MAX_LENGTH_TPL_FRAME_STATS];
 } VBR_RATECTRL_INFO;
 
+static INLINE void vbr_rc_reset_gop_data(VBR_RATECTRL_INFO *vbr_rc_info) {
+  av1_zero(vbr_rc_info->q_index_list);
+  av1_zero(vbr_rc_info->estimated_bitrate_byframe);
+  av1_zero(vbr_rc_info->estimated_mv_bitrate_byframe);
+  av1_zero(vbr_rc_info->actual_bitrate_byframe);
+  av1_zero(vbr_rc_info->actual_mv_bitrate_byframe);
+  av1_zero(vbr_rc_info->actual_coeff_bitrate_byframe);
+}
+
 static INLINE void vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info,
                                double total_bit_budget, int show_frame_count) {
   vbr_rc_info->total_bit_budget = total_bit_budget;
@@ -258,11 +268,7 @@ static INLINE void vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info,
   vbr_rc_info->keyframe_bitrate = 0;
   vbr_rc_info->scale_factor = 1.2;
   vbr_rc_info->mv_scale_factor = 5.0;
-  av1_zero(vbr_rc_info->estimated_bitrate_byframe);
-  av1_zero(vbr_rc_info->estimated_mv_bitrate_byframe);
-  av1_zero(vbr_rc_info->actual_bitrate_byframe);
-  av1_zero(vbr_rc_info->actual_mv_bitrate_byframe);
-  av1_zero(vbr_rc_info->actual_coeff_bitrate_byframe);
+  vbr_rc_reset_gop_data(vbr_rc_info);
 }
 
 static INLINE void vbr_rc_set_gop_bit_budget(VBR_RATECTRL_INFO *vbr_rc_info,
