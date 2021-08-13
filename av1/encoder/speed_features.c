@@ -1344,6 +1344,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
     sf->inter_sf.prune_nearmv_using_neighbors = 1;
     sf->inter_sf.reduce_inter_modes = boosted ? 1 : 3;
+    sf->inter_sf.skip_newmv_in_drl = 4;
 
     sf->rd_sf.tx_domain_dist_level = 2;
     sf->rd_sf.tx_domain_dist_thres_level = 2;
@@ -1432,6 +1433,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
 
     sf->inter_sf.inter_mode_rd_model_estimation = 2;
+    // This sf is not applicable in non-rd path.
+    sf->inter_sf.skip_newmv_in_drl = 0;
 
     // Disable intra_y_mode_mask pruning since the performance at speed 7 isn't
     // good. May need more study.
