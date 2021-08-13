@@ -616,8 +616,9 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
 #endif
 
       // Set up shared coeff buffers.
-      av1_setup_shared_coeff_buffer(&ppi->error,
-                                    &thread_data->td->shared_coeff_buf);
+      av1_setup_shared_coeff_buffer(
+          &ppi->error, &thread_data->td->shared_coeff_buf, &ppi->seq_params,
+          av1_num_planes(&ppi->cpi->common));
       AOM_CHECK_MEM_ERROR(
           &ppi->error, thread_data->td->tmp_conv_dst,
           aom_memalign(32, MAX_SB_SIZE * MAX_SB_SIZE *
