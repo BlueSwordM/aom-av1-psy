@@ -3631,56 +3631,12 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   // Keyframe and section processing.
   FIRSTPASS_STATS this_frame_copy;
   this_frame_copy = this_frame;
-
-  int is_overlay_forward_kf =
-      rc->frames_to_key == 0 &&
-      gf_group->update_type[cpi->gf_frame_index] == OVERLAY_UPDATE;
-  if (rc->frames_to_key <= 0 && !is_overlay_forward_kf) {
-    assert(rc->frames_to_key >= -1);
+  if (rc->frames_to_key <= 0) {
+    assert(rc->frames_to_key == 0);
     // Define next KF group and assign bits to it.
-    int kf_offset = rc->frames_to_key;
-    if (rc->frames_to_key < 0) {
-      this_frame = *(cpi->twopass_frame.stats_in - 1);
-    } else {
-      frame_params->frame_type = KEY_FRAME;
-    }
+    frame_params->frame_type = KEY_FRAME;
     find_next_key_frame(cpi, &this_frame);
-    rc->frames_since_key -= kf_offset;
-    rc->frames_to_key += kf_offset;
     this_frame = this_frame_copy;
-  } else {
-    const int altref_enabled = is_altref_enabled(oxcf->gf_cfg.lag_in_frames,
-                                                 oxcf->gf_cfg.enable_auto_arf);
-    const int sframe_dist = oxcf->kf_cfg.sframe_dist;
-    const int sframe_mode = oxcf->kf_cfg.sframe_mode;
-    CurrentFrame *const current_frame = &cpi->common.current_frame;
-    if (sframe_dist != 0) {
-      if (altref_enabled) {
-        if (sframe_mode == 1) {
-          // sframe_mode == 1: insert sframe if it matches altref frame.
-          if (current_frame->frame_number % sframe_dist == 0 &&
-              current_frame->frame_number != 0 && update_type == ARF_UPDATE) {
-            frame_params->frame_type = S_FRAME;
-          }
-        } else {
-          // sframe_mode != 1: if sframe will be inserted at the next available
-          // altref frame
-          if (current_frame->frame_number % sframe_dist == 0 &&
-              current_frame->frame_number != 0) {
-            rc->sframe_due = 1;
-          }
-          if (rc->sframe_due && update_type == ARF_UPDATE) {
-            frame_params->frame_type = S_FRAME;
-            rc->sframe_due = 0;
-          }
-        }
-      } else {
-        if (current_frame->frame_number % sframe_dist == 0 &&
-            current_frame->frame_number != 0) {
-          frame_params->frame_type = S_FRAME;
-        }
-      }
-    }
   }
 
   if (rc->frames_to_fwd_kf <= 0)
