@@ -684,15 +684,33 @@ void av1_set_q_index(const EncQuantDequantParams *enc_quant_dequant_params,
   x->qindex = qindex;
   x->seg_skip_block =
       0;  // TODO(angiebird): Find a proper place to init this variable.
-  for (int i = 0; i < MAX_MB_PLANE; ++i) {
-    x->plane[i].quant_QTX = quants->y_quant[qindex];
-    x->plane[i].quant_fp_QTX = quants->y_quant_fp[qindex];
-    x->plane[i].round_fp_QTX = quants->y_round_fp[qindex];
-    x->plane[i].quant_shift_QTX = quants->y_quant_shift[qindex];
-    x->plane[i].zbin_QTX = quants->y_zbin[qindex];
-    x->plane[i].round_QTX = quants->y_round[qindex];
-    x->plane[i].dequant_QTX = dequants->y_dequant_QTX[qindex];
-  }
+
+  // Y
+  x->plane[0].quant_QTX = quants->y_quant[qindex];
+  x->plane[0].quant_fp_QTX = quants->y_quant_fp[qindex];
+  x->plane[0].round_fp_QTX = quants->y_round_fp[qindex];
+  x->plane[0].quant_shift_QTX = quants->y_quant_shift[qindex];
+  x->plane[0].zbin_QTX = quants->y_zbin[qindex];
+  x->plane[0].round_QTX = quants->y_round[qindex];
+  x->plane[0].dequant_QTX = dequants->y_dequant_QTX[qindex];
+
+  // U
+  x->plane[1].quant_QTX = quants->u_quant[qindex];
+  x->plane[1].quant_fp_QTX = quants->u_quant_fp[qindex];
+  x->plane[1].round_fp_QTX = quants->u_round_fp[qindex];
+  x->plane[1].quant_shift_QTX = quants->u_quant_shift[qindex];
+  x->plane[1].zbin_QTX = quants->u_zbin[qindex];
+  x->plane[1].round_QTX = quants->u_round[qindex];
+  x->plane[1].dequant_QTX = dequants->u_dequant_QTX[qindex];
+
+  // V
+  x->plane[2].quant_QTX = quants->v_quant[qindex];
+  x->plane[2].quant_fp_QTX = quants->v_quant_fp[qindex];
+  x->plane[2].round_fp_QTX = quants->v_round_fp[qindex];
+  x->plane[2].quant_shift_QTX = quants->v_quant_shift[qindex];
+  x->plane[2].zbin_QTX = quants->v_zbin[qindex];
+  x->plane[2].round_QTX = quants->v_round[qindex];
+  x->plane[2].dequant_QTX = dequants->v_dequant_QTX[qindex];
 }
 
 void av1_set_qmatrix(const CommonQuantParams *quant_params, int segment_id,
