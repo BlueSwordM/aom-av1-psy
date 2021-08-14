@@ -1869,25 +1869,28 @@ double av1_laplace_estimate_frame_rate(int q_index, int block_count,
 
 double av1_estimate_gop_bitrate(const int *q_index_list, const int frame_count,
                                 const TplTxfmStats *stats_list,
+                                const int *stats_valid_list,
                                 double *bitrate_byframe_list) {
   double gop_bitrate = 0;
   for (int frame_index = 0; frame_index < frame_count; frame_index++) {
-    int q_index = q_index_list[frame_index];
-    TplTxfmStats frame_stats = stats_list[frame_index];
+    if (stats_valid_list[frame_index]) {
+      int q_index = q_index_list[frame_index];
+      TplTxfmStats frame_stats = stats_list[frame_index];
 
-    /* Convert to mean absolute deviation */
-    double abs_coeff_mean[256] = { 0 };
-    for (int i = 0; i < 256; i++) {
-      abs_coeff_mean[i] =
-          frame_stats.abs_coeff_sum[i] / frame_stats.txfm_block_count;
-    }
+      /* Convert to mean absolute deviation */
+      double abs_coeff_mean[256] = { 0 };
+      for (int i = 0; i < 256; i++) {
+        abs_coeff_mean[i] =
+            frame_stats.abs_coeff_sum[i] / frame_stats.txfm_block_count;
+      }
 
-    double frame_bitrate = av1_laplace_estimate_frame_rate(
-        q_index, frame_stats.txfm_block_count, abs_coeff_mean, 256);
-    gop_bitrate += frame_bitrate;
+      double frame_bitrate = av1_laplace_estimate_frame_rate(
+          q_index, frame_stats.txfm_block_count, abs_coeff_mean, 256);
+      gop_bitrate += frame_bitrate;
 
-    if (bitrate_byframe_list != NULL) {
-      bitrate_byframe_list[frame_index] = frame_bitrate;
+      if (bitrate_byframe_list != NULL) {
+        bitrate_byframe_list[frame_index] = frame_bitrate;
+      }
     }
   }
   return gop_bitrate;
@@ -1946,13 +1949,20 @@ void av1_read_rd_command(const char *filepath, RD_COMMAND *rd_command) {
 }
 #endif  // CONFIG_RD_COMMAND
 
+void get_tpl_stats_valid_list(const TplParams *tpl_data, int gop_size,
+                              int *stats_valid_list) {
+  for (int i = 0; i < gop_size; ++i) {
+    stats_valid_list[i] = av1_tpl_stats_ready(tpl_data, i);
+  }
+}
+
 /*
  * Estimate the optimal base q index for a GOP.
  */
 int av1_q_mode_estimate_base_q(const GF_GROUP *gf_group,
                                const TplTxfmStats *txfm_stats_list,
-                               double bit_budget, int gf_frame_index,
-                               double arf_qstep_ratio,
+                               const int *stats_valid_list, double bit_budget,
+                               int gf_frame_index, double arf_qstep_ratio,
                                aom_bit_depth_t bit_depth, double scale_factor,
                                int *q_index_list,
                                double *estimated_bitrate_byframe) {
@@ -1962,19 +1972,19 @@ int av1_q_mode_estimate_base_q(const GF_GROUP *gf_group,
 
   av1_q_mode_compute_gop_q_indices(gf_frame_index, q_max, arf_qstep_ratio,
                                    bit_depth, gf_group, q_index_list);
-  double q_max_estimate = av1_estimate_gop_bitrate(q_index_list, gf_group->size,
-                                                   txfm_stats_list, NULL);
+  double q_max_estimate = av1_estimate_gop_bitrate(
+      q_index_list, gf_group->size, txfm_stats_list, stats_valid_list, NULL);
   av1_q_mode_compute_gop_q_indices(gf_frame_index, q_min, arf_qstep_ratio,
                                    bit_depth, gf_group, q_index_list);
-  double q_min_estimate = av1_estimate_gop_bitrate(q_index_list, gf_group->size,
-                                                   txfm_stats_list, NULL);
+  double q_min_estimate = av1_estimate_gop_bitrate(
+      q_index_list, gf_group->size, txfm_stats_list, stats_valid_list, NULL);
 
   while (true) {
     av1_q_mode_compute_gop_q_indices(gf_frame_index, q, arf_qstep_ratio,
                                      bit_depth, gf_group, q_index_list);
 
-    double estimate = av1_estimate_gop_bitrate(q_index_list, gf_group->size,
-                                               txfm_stats_list, NULL);
+    double estimate = av1_estimate_gop_bitrate(
+        q_index_list, gf_group->size, txfm_stats_list, stats_valid_list, NULL);
 
     estimate *= scale_factor;
 
@@ -2004,7 +2014,7 @@ int av1_q_mode_estimate_base_q(const GF_GROUP *gf_group,
   av1_q_mode_compute_gop_q_indices(gf_frame_index, q, arf_qstep_ratio,
                                    bit_depth, gf_group, q_index_list);
   av1_estimate_gop_bitrate(q_index_list, gf_group->size, txfm_stats_list,
-                           estimated_bitrate_byframe);
+                           stats_valid_list, estimated_bitrate_byframe);
   return q;
 }
 
@@ -2069,9 +2079,11 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
         av1_tpl_get_qstep_ratio(tpl_data, gf_frame_index);
     // We update the q indices in vbr_rc_info in vbr_rc_info->q_index_list
     // rather than gf_group->q_val to avoid conflicts with the existing code.
+    int stats_valid_list[MAX_LENGTH_TPL_FRAME_STATS] = { 0 };
+    get_tpl_stats_valid_list(tpl_data, gf_group->size, stats_valid_list);
     av1_q_mode_estimate_base_q(
-        gf_group, tpl_data->txfm_stats_list, gop_bit_budget, gf_frame_index,
-        arf_qstep_ratio, bit_depth, vbr_rc_info->scale_factor,
+        gf_group, tpl_data->txfm_stats_list, stats_valid_list, gop_bit_budget,
+        gf_frame_index, arf_qstep_ratio, bit_depth, vbr_rc_info->scale_factor,
         vbr_rc_info->q_index_list, vbr_rc_info->estimated_bitrate_byframe);
   }
 }
