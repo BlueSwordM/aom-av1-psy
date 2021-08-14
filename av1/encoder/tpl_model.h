@@ -586,17 +586,6 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
                                     int gf_frame_index,
                                     aom_bit_depth_t bit_depth);
 
-/*!\brief Estimate the entropy of motion vectors and update vbr_rc_info.
- *
- * \param[in]       tpl_data          TPL struct
- * \param[in]       gf_group_size     Number of frames in the gf_group
- * \param[in]       gf_frame_index    Current frame index
- * \param[in]       vbr_rc_info       Rate control info struct
- */
-void av1_vbr_estimate_mv_and_update(const TplParams *tpl_data,
-                                    int gf_group_size, int gf_frame_index,
-                                    VBR_RATECTRL_INFO *vbr_rc_info);
-
 /*!\brief For a GOP, calculate the bits used by motion vectors.
  *
  * \param[in]       tpl_data          TPL struct

@@ -2081,21 +2081,15 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
     // rather than gf_group->q_val to avoid conflicts with the existing code.
     int stats_valid_list[MAX_LENGTH_TPL_FRAME_STATS] = { 0 };
     get_tpl_stats_valid_list(tpl_data, gf_group->size, stats_valid_list);
+
+    double mv_bits = av1_tpl_compute_mv_bits(tpl_data, gf_group->size,
+                                             gf_frame_index, vbr_rc_info);
+    gop_bit_budget -= mv_bits;
     av1_q_mode_estimate_base_q(
         gf_group, tpl_data->txfm_stats_list, stats_valid_list, gop_bit_budget,
         gf_frame_index, arf_qstep_ratio, bit_depth, vbr_rc_info->scale_factor,
         vbr_rc_info->q_index_list, vbr_rc_info->estimated_bitrate_byframe);
   }
-}
-
-/* Estimate the entropy of motion vectors and update vbr_rc_info. */
-void av1_vbr_estimate_mv_and_update(const TplParams *tpl_data,
-                                    int gf_group_size, int gf_frame_index,
-                                    VBR_RATECTRL_INFO *vbr_rc_info) {
-  double mv_bits = av1_tpl_compute_mv_bits(tpl_data, gf_group_size,
-                                           gf_frame_index, vbr_rc_info);
-  // Subtract the motion vector entropy from the bit budget.
-  vbr_rc_info->gop_bit_budget -= mv_bits;
 }
 
 /* For a GOP, calculate the bits used by motion vectors. */
@@ -2106,11 +2100,15 @@ double av1_tpl_compute_mv_bits(const TplParams *tpl_data, int gf_group_size,
 
   // Loop through each frame.
   for (int i = gf_frame_index; i < gf_group_size; i++) {
-    TplDepFrame *tpl_frame = &tpl_data->tpl_frame[i];
-    double frame_mv_bits = av1_tpl_compute_frame_mv_entropy(
-        tpl_frame, tpl_data->tpl_stats_block_mis_log2);
-    total_mv_bits += frame_mv_bits;
-    vbr_rc_info->estimated_mv_bitrate_byframe[i] = frame_mv_bits;
+    if (av1_tpl_stats_ready(tpl_data, i)) {
+      TplDepFrame *tpl_frame = &tpl_data->tpl_frame[i];
+      double frame_mv_bits = av1_tpl_compute_frame_mv_entropy(
+          tpl_frame, tpl_data->tpl_stats_block_mis_log2);
+      total_mv_bits += frame_mv_bits;
+      vbr_rc_info->estimated_mv_bitrate_byframe[i] = frame_mv_bits;
+    } else {
+      vbr_rc_info->estimated_mv_bitrate_byframe[i] = 0;
+    }
   }
 
   // Scale the final result by the scale factor.
