@@ -2073,6 +2073,7 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
   // We always update q_index_list when gf_frame_index is zero.
   // This will make the q indices for the entire gop more consistent
   if (gf_frame_index == 0) {
+    vbr_rc_info->q_index_list_ready = 1;
     double gop_bit_budget = vbr_rc_info->gop_bit_budget;
     // Use the gop_bit_budget to determine q_index_list.
     const double arf_qstep_ratio =

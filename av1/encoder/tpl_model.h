@@ -242,6 +242,7 @@ typedef struct {
   double mv_scale_factor;   // Scale factor to improve MV entropy estimation
 
   // === Below this line are GOP related data that will be updated per GOP ===
+  int q_index_list_ready;
   int q_index_list[MAX_LENGTH_TPL_FRAME_STATS];  // q indices for the current
                                                  // GOP
   // Arrays to store frame level bitrate accuracy data.
@@ -253,6 +254,7 @@ typedef struct {
 } VBR_RATECTRL_INFO;
 
 static INLINE void vbr_rc_reset_gop_data(VBR_RATECTRL_INFO *vbr_rc_info) {
+  vbr_rc_info->q_index_list_ready = 0;
   av1_zero(vbr_rc_info->q_index_list);
   av1_zero(vbr_rc_info->estimated_bitrate_byframe);
   av1_zero(vbr_rc_info->estimated_mv_bitrate_byframe);
