@@ -4161,6 +4161,7 @@ static bool ml_partition_search_whole_tree(AV1_COMP *const cpi, ThreadData *td,
   features.mi_col = mi_col;
   features.frame_width = cpi->frame_info.frame_width;
   features.frame_height = cpi->frame_info.frame_height;
+  features.block_size = bsize;
   av1_ext_part_send_features(ext_part_controller, &features);
   PC_TREE *pc_tree;
 
@@ -4210,6 +4211,13 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
   }
   aom_partition_decision_t partition_decision;
   do {
+    aom_partition_features_t features;
+    features.mi_row = mi_row;
+    features.mi_col = mi_col;
+    features.frame_width = cpi->frame_info.frame_width;
+    features.frame_height = cpi->frame_info.frame_height;
+    features.block_size = bsize;
+    av1_ext_part_send_features(ext_part_controller, &features);
     const bool valid_decision = av1_ext_part_get_partition_decision(
         ext_part_controller, &partition_decision);
     if (!valid_decision) return false;
@@ -4221,6 +4229,11 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
     // all possible partition types.
     init_partition_search_state_params(x, cpi, &part_search_state, mi_row,
                                        mi_col, bsize);
+    // Override partition costs at the edges of the frame in the same
+    // way as in read_partition (see decodeframe.c).
+    PartitionBlkParams blk_params = part_search_state.part_blk_params;
+    if (!av1_blk_has_rows_and_cols(&blk_params))
+      set_partition_cost_for_edge_blk(cm, &part_search_state);
 
     av1_init_rd_stats(this_rdcost);
     if (partition_decision.current_decision == PARTITION_SPLIT) {
@@ -4233,6 +4246,9 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
           pc_tree->split[i] = av1_alloc_pc_tree_node(subsize);
         pc_tree->split[i]->index = i;
       }
+      const int orig_rdmult = x->rdmult;
+      setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, NO_AQ, NULL);
+      (void)orig_rdmult;
       // TODO(chengchen): check boundary conditions
       // top-left
       recursive_partition(cpi, td, tile_data, tp, sms_root, pc_tree->split[0],
@@ -4251,11 +4267,13 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
                           mi_col + mi_size_wide[subsize], subsize,
                           &split_rdc[3]);
       this_rdcost->rate += part_search_state.partition_cost[PARTITION_SPLIT];
+      // problem is here, the rdmult is different from the rdmult in sub block.
       for (int i = 0; i < SUB_PARTITIONS_SPLIT; ++i) {
         this_rdcost->rate += split_rdc[i].rate;
         this_rdcost->dist += split_rdc[i].dist;
         av1_rd_cost_update(x->rdmult, this_rdcost);
       }
+      x->rdmult = orig_rdmult;
     } else {
       *this_rdcost = rd_search_for_fixed_partition(
           cpi, td, tile_data, tp, sms_root, mi_row, mi_col, bsize, pc_tree);
@@ -4291,6 +4309,11 @@ static bool ml_partition_search_partial(AV1_COMP *const cpi, ThreadData *td,
   ExtPartController *const ext_part_controller = &cpi->ext_part_controller;
   aom_partition_features_t features;
   prepare_sb_features_before_search(cpi, td, mi_row, mi_col, bsize, &features);
+  features.mi_row = mi_row;
+  features.mi_col = mi_col;
+  features.frame_width = cpi->frame_info.frame_width;
+  features.frame_height = cpi->frame_info.frame_height;
+  features.block_size = bsize;
   av1_ext_part_send_features(ext_part_controller, &features);
   PC_TREE *pc_tree;
   pc_tree = av1_alloc_pc_tree_node(bsize);

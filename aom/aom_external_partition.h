@@ -235,6 +235,7 @@ typedef struct aom_partition_features {
   int mi_col;                    /**< Mi_col position of the block */
   int frame_width;               /**< Frame width */
   int frame_height;              /**< Frame height */
+  int block_size;                /**< As "BLOCK_SIZE" in av1/common/enums.h */
 } aom_partition_features_t;
 
 /*!\brief Partition decisions received from the external model.

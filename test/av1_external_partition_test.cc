@@ -42,6 +42,7 @@ typedef struct ToyModel {
   int mi_col;
   int frame_width;
   int frame_height;
+  BLOCK_SIZE block_size;
 } ToyModel;
 
 // Note:
@@ -71,6 +72,7 @@ aom_ext_part_status_t ext_part_send_features(
   toy_model->mi_col = part_features->mi_col;
   toy_model->frame_width = part_features->frame_width;
   toy_model->frame_height = part_features->frame_height;
+  toy_model->block_size = static_cast<BLOCK_SIZE>(part_features->block_size);
   return AOM_EXT_PART_OK;
 }
 
@@ -181,6 +183,43 @@ aom_ext_part_status_t ext_part_get_partition_decision_whole_tree(
   return AOM_EXT_PART_OK;
 }
 
+aom_ext_part_status_t ext_part_get_partition_decision_recursive(
+    aom_ext_part_model_t ext_part_model,
+    aom_partition_decision_t *ext_part_decision) {
+  ext_part_decision->current_decision = PARTITION_NONE;
+  ext_part_decision->is_final_decision = 1;
+  ToyModel *toy_model = static_cast<ToyModel *>(ext_part_model);
+  // Note: super block size is fixed to BLOCK_64X64 for the
+  // input video. It is determined inside the encoder, see the
+  // check in "ext_part_create_model".
+  const int is_last_sb_col =
+      toy_model->mi_col * 4 + 64 > toy_model->frame_width;
+  const int is_last_sb_row =
+      toy_model->mi_row * 4 + 64 > toy_model->frame_height;
+  if (is_last_sb_row && is_last_sb_col) {
+    if (block_size_wide[toy_model->block_size] == 64) {
+      ext_part_decision->current_decision = PARTITION_SPLIT;
+    } else {
+      ext_part_decision->current_decision = PARTITION_NONE;
+    }
+  } else if (is_last_sb_row) {
+    if (block_size_wide[toy_model->block_size] == 64) {
+      ext_part_decision->current_decision = PARTITION_SPLIT;
+    } else {
+      ext_part_decision->current_decision = PARTITION_NONE;
+    }
+  } else if (is_last_sb_col) {
+    if (block_size_wide[toy_model->block_size] == 64) {
+      ext_part_decision->current_decision = PARTITION_SPLIT;
+    } else {
+      ext_part_decision->current_decision = PARTITION_NONE;
+    }
+  } else {
+    ext_part_decision->current_decision = PARTITION_NONE;
+  }
+  return AOM_EXT_PART_OK;
+}
+
 aom_ext_part_status_t ext_part_send_partition_stats(
     aom_ext_part_model_t ext_part_model,
     const aom_partition_stats_t *ext_part_stats) {
@@ -240,39 +279,79 @@ class ExternalPartitionTestAPI
 
   void SetPartitionControlMode(int mode) { partition_control_mode_ = mode; }
 
+  void SetDecisionMode(aom_ext_part_decision_mode_t mode) {
+    decision_mode_ = mode;
+  }
+
   virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      aom_ext_part_funcs_t ext_part_funcs;
-      ext_part_funcs.priv = reinterpret_cast<void *>(&test_data_);
-      ext_part_funcs.decision_mode = WHOLE_TREE_DECISION;
-      ext_part_funcs.create_model = ext_part_create_model;
-      ext_part_funcs.send_features = ext_part_send_features;
-      ext_part_funcs.get_partition_decision =
-          ext_part_get_partition_decision_whole_tree;
-      ext_part_funcs.send_partition_stats = ext_part_send_partition_stats;
-      ext_part_funcs.delete_model = ext_part_delete_model;
+      if (decision_mode_ == WHOLE_TREE_DECISION) {
+        aom_ext_part_funcs_t ext_part_funcs;
+        ext_part_funcs.priv = reinterpret_cast<void *>(&test_data_);
+        ext_part_funcs.decision_mode = WHOLE_TREE_DECISION;
+        ext_part_funcs.create_model = ext_part_create_model;
+        ext_part_funcs.send_features = ext_part_send_features;
+        ext_part_funcs.get_partition_decision =
+            ext_part_get_partition_decision_whole_tree;
+        ext_part_funcs.send_partition_stats = ext_part_send_partition_stats;
+        ext_part_funcs.delete_model = ext_part_delete_model;
 
-      encoder->Control(AOME_SET_CPUUSED, cpu_used_);
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      if (use_external_partition_) {
-        encoder->Control(AV1E_SET_EXTERNAL_PARTITION, &ext_part_funcs);
-      }
-      if (partition_control_mode_ == -1) {
-        encoder->Control(AV1E_SET_MAX_PARTITION_SIZE, 128);
-        encoder->Control(AV1E_SET_MIN_PARTITION_SIZE, 4);
-      } else {
-        switch (partition_control_mode_) {
-          case 1:
-            encoder->Control(AV1E_SET_MAX_PARTITION_SIZE, 64);
-            encoder->Control(AV1E_SET_MIN_PARTITION_SIZE, 64);
-            break;
-          case 2:
-            encoder->Control(AV1E_SET_MAX_PARTITION_SIZE, 4);
-            encoder->Control(AV1E_SET_MIN_PARTITION_SIZE, 4);
-            break;
-          default: assert(0 && "Invalid partition control mode."); break;
+        encoder->Control(AOME_SET_CPUUSED, cpu_used_);
+        encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
+        if (use_external_partition_) {
+          encoder->Control(AV1E_SET_EXTERNAL_PARTITION, &ext_part_funcs);
         }
+        if (partition_control_mode_ == -1) {
+          encoder->Control(AV1E_SET_MAX_PARTITION_SIZE, 128);
+          encoder->Control(AV1E_SET_MIN_PARTITION_SIZE, 4);
+        } else {
+          switch (partition_control_mode_) {
+            case 1:
+              encoder->Control(AV1E_SET_MAX_PARTITION_SIZE, 64);
+              encoder->Control(AV1E_SET_MIN_PARTITION_SIZE, 64);
+              break;
+            case 2:
+              encoder->Control(AV1E_SET_MAX_PARTITION_SIZE, 4);
+              encoder->Control(AV1E_SET_MIN_PARTITION_SIZE, 4);
+              break;
+            default: assert(0 && "Invalid partition control mode."); break;
+          }
+        }
+      } else if (decision_mode_ == RECURSIVE_DECISION) {
+        aom_ext_part_funcs_t ext_part_funcs;
+        ext_part_funcs.priv = reinterpret_cast<void *>(&test_data_);
+        ext_part_funcs.decision_mode = RECURSIVE_DECISION;
+        ext_part_funcs.create_model = ext_part_create_model;
+        ext_part_funcs.send_features = ext_part_send_features;
+        ext_part_funcs.get_partition_decision =
+            ext_part_get_partition_decision_recursive;
+        ext_part_funcs.send_partition_stats = ext_part_send_partition_stats;
+        ext_part_funcs.delete_model = ext_part_delete_model;
+
+        encoder->Control(AOME_SET_CPUUSED, cpu_used_);
+        encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
+        if (use_external_partition_) {
+          encoder->Control(AV1E_SET_EXTERNAL_PARTITION, &ext_part_funcs);
+        }
+        if (partition_control_mode_ == -1) {
+          encoder->Control(AV1E_SET_MAX_PARTITION_SIZE, 128);
+          encoder->Control(AV1E_SET_MIN_PARTITION_SIZE, 4);
+        } else {
+          switch (partition_control_mode_) {
+            case 1:
+              encoder->Control(AV1E_SET_MAX_PARTITION_SIZE, 64);
+              encoder->Control(AV1E_SET_MIN_PARTITION_SIZE, 64);
+              break;
+            case 2:
+              encoder->Control(AV1E_SET_MAX_PARTITION_SIZE, 4);
+              encoder->Control(AV1E_SET_MIN_PARTITION_SIZE, 4);
+              break;
+            default: assert(0 && "Invalid partition control mode."); break;
+          }
+        }
+      } else {
+        assert(0 && "Invalid decision mode.");
       }
     }
   }
@@ -285,6 +364,7 @@ class ExternalPartitionTestAPI
   bool use_external_partition_ = false;
   TestData test_data_;
   int partition_control_mode_ = -1;
+  aom_ext_part_decision_mode_t decision_mode_;
 };
 
 // Encode twice and expect the same psnr value.
@@ -298,15 +378,37 @@ TEST_P(ExternalPartitionTestAPI, WholePartitionTree4x4Block) {
   ::libaom_test::Y4mVideoSource video("paris_352_288_30.y4m", 0, kFrameNum);
   SetExternalPartition(false);
   SetPartitionControlMode(2);
+  SetDecisionMode(WHOLE_TREE_DECISION);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   const double psnr = GetAveragePsnr();
 
   SetExternalPartition(true);
   SetPartitionControlMode(2);
+  SetDecisionMode(WHOLE_TREE_DECISION);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   const double psnr2 = GetAveragePsnr();
 
+  printf("psnr %.5f\n", psnr);
+
   EXPECT_DOUBLE_EQ(psnr, psnr2);
+}
+
+TEST_P(ExternalPartitionTestAPI, RecursivePartition) {
+  ::libaom_test::Y4mVideoSource video("paris_352_288_30.y4m", 0, kFrameNum);
+  SetExternalPartition(false);
+  SetPartitionControlMode(1);
+  SetDecisionMode(RECURSIVE_DECISION);
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  const double psnr = GetAveragePsnr();
+
+  SetExternalPartition(true);
+  SetPartitionControlMode(1);
+  SetDecisionMode(RECURSIVE_DECISION);
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  const double psnr2 = GetAveragePsnr();
+
+  const double psnr_thresh = 0.001;
+  EXPECT_NEAR(psnr, psnr2, psnr_thresh);
 }
 
 AV1_INSTANTIATE_TEST_SUITE(ExternalPartitionTestAPI,
