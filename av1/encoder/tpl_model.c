@@ -1469,7 +1469,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
     for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i)
       tpl_frame->ref_map_index[i - LAST_FRAME] =
-          ref_picture_map[cm->remapped_ref_idx[i - LAST_FRAME]];
+          ref_picture_map[remapped_ref_idx[i - LAST_FRAME]];
 
     tpl_frame->ref_map_index[ALTREF_FRAME - LAST_FRAME] = -1;
     tpl_frame->ref_map_index[LAST3_FRAME - LAST_FRAME] = -1;
