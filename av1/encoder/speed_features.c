@@ -1066,6 +1066,7 @@ static void set_good_speed_features_framesize_independent(
     sf->intra_sf.skip_intra_in_interframe = 4;
 
     sf->mv_sf.simple_motion_subpel_force_stop = HALF_PEL;
+    sf->mv_sf.prune_mesh_search = 1;
 
     sf->tpl_sf.subpel_force_stop = HALF_PEL;
     sf->tpl_sf.search_method = FAST_BIGDIA;
@@ -1116,8 +1117,6 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.use_coarse_filter_level_search =
         frame_is_intra_only(&cpi->common) ? 0 : 1;
     sf->lpf_sf.disable_lr_filter = 1;
-
-    sf->mv_sf.prune_mesh_search = 1;
 
     sf->tpl_sf.prune_starting_mv = 3;
     sf->tpl_sf.use_y_only_rate_distortion = 1;
