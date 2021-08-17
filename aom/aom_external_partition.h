@@ -81,6 +81,19 @@ typedef void *aom_ext_part_model_t;
  */
 #define SIZE_PRUNE_4_WAY 18
 
+/*!\brief Decision mode of the external partition model.
+ * WHOLE_TREE_DECISION: the external partition model should provide the
+ * whole partition tree for the superblock.
+ *
+ * RECURSIVE_DECISION: the external partition model provides the partition
+ * decision of the current block only. The decision process starts from
+ * the superblock size, down to the smallest block size (4x4) recursively.
+ */
+typedef enum aom_ext_part_decision_mode {
+  WHOLE_TREE_DECISION = 0,
+  RECURSIVE_DECISION = 1,
+} aom_ext_part_decision_mode_t;
+
 /*!\brief Config information sent to the external partition model.
  *
  * For example, the maximum superblock size determined by the sequence header.
@@ -366,6 +379,11 @@ typedef struct aom_ext_part_funcs {
    * Delete the external partition model.
    */
   aom_ext_part_delete_model_fn_t delete_model;
+
+  /*!
+   * The decision mode of the model.
+   */
+  aom_ext_part_decision_mode_t decision_mode;
 
   /*!
    * Private data for the external partition model.

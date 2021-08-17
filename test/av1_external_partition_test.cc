@@ -245,6 +245,7 @@ class ExternalPartitionTestAPI
     if (video->frame() == 0) {
       aom_ext_part_funcs_t ext_part_funcs;
       ext_part_funcs.priv = reinterpret_cast<void *>(&test_data_);
+      ext_part_funcs.decision_mode = WHOLE_TREE_DECISION;
       ext_part_funcs.create_model = ext_part_create_model;
       ext_part_funcs.send_features = ext_part_send_features;
       ext_part_funcs.get_partition_decision =

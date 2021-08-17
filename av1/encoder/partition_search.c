@@ -4320,12 +4320,17 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
                              RD_STATS *best_rd_cost) {
   if (cpi->ext_part_controller.ready) {
     bool valid_search = true;
-    if (ML_PARTITION_WHOLE_TREE_DECISION) {
+    const aom_ext_part_decision_mode_t decision_mode =
+        av1_get_ext_part_decision_mode(&cpi->ext_part_controller);
+    if (decision_mode == WHOLE_TREE_DECISION) {
       valid_search = ml_partition_search_whole_tree(
           cpi, td, tile_data, tp, sms_root, mi_row, mi_col, bsize);
-    } else {
+    } else if (decision_mode == RECURSIVE_DECISION) {
       valid_search = ml_partition_search_partial(
           cpi, td, tile_data, tp, sms_root, mi_row, mi_col, bsize);
+    } else {
+      assert(0 && "Unknown decision mode.");
+      return false;
     }
     if (!valid_search) {
       assert(0 && "Invalid search from ML model, partition search failed.");
