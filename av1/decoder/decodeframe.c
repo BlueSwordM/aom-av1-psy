@@ -5225,7 +5225,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   }
 
   av1_alloc_cdef_buffers(cm, &pbi->cdef_worker, &pbi->cdef_sync,
-                         pbi->num_workers);
+                         pbi->num_workers, 1);
   av1_alloc_cdef_sync(cm, &pbi->cdef_sync, pbi->num_workers);
 
   if (!cm->features.allow_intrabc && !tiles->single_tile_decoding) {

@@ -2078,7 +2078,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   if (!is_stat_generation_stage(cpi))
     av1_alloc_cdef_buffers(cm, &cpi->mt_info.cdef_worker,
                            &cpi->mt_info.cdef_sync,
-                           cpi->mt_info.num_mod_workers[MOD_CDEF]);
+                           cpi->mt_info.num_mod_workers[MOD_CDEF], 1);
 
 #if !CONFIG_REALTIME_ONLY
   const int use_restoration = cm->seq_params->enable_restoration &&
