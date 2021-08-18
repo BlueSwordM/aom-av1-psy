@@ -416,110 +416,6 @@ static void estimate_single_ref_frame_costs(const AV1_COMMON *cm,
   }
 }
 
-static void estimate_comp_ref_frame_costs(
-    const AV1_COMMON *cm, const MACROBLOCKD *xd, const ModeCosts *mode_costs,
-    int segment_id, unsigned int (*ref_costs_comp)[REF_FRAMES]) {
-  if (segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME)) {
-    for (int ref_frame = 0; ref_frame < REF_FRAMES; ++ref_frame)
-      memset(ref_costs_comp[ref_frame], 0,
-             REF_FRAMES * sizeof((*ref_costs_comp)[0]));
-  } else {
-    int intra_inter_ctx = av1_get_intra_inter_context(xd);
-    unsigned int base_cost = mode_costs->intra_inter_cost[intra_inter_ctx][1];
-
-    if (cm->current_frame.reference_mode != SINGLE_REFERENCE) {
-      // Similar to single ref, determine cost of compound ref frames.
-      // cost_compound_refs = cost_first_ref + cost_second_ref
-      const int bwdref_comp_ctx_p = av1_get_pred_context_comp_bwdref_p(xd);
-      const int bwdref_comp_ctx_p1 = av1_get_pred_context_comp_bwdref_p1(xd);
-      const int ref_comp_ctx_p = av1_get_pred_context_comp_ref_p(xd);
-      const int ref_comp_ctx_p1 = av1_get_pred_context_comp_ref_p1(xd);
-      const int ref_comp_ctx_p2 = av1_get_pred_context_comp_ref_p2(xd);
-
-      const int comp_ref_type_ctx = av1_get_comp_reference_type_context(xd);
-      unsigned int ref_bicomp_costs[REF_FRAMES] = { 0 };
-
-      ref_bicomp_costs[LAST_FRAME] = ref_bicomp_costs[LAST2_FRAME] =
-          ref_bicomp_costs[LAST3_FRAME] = ref_bicomp_costs[GOLDEN_FRAME] =
-              base_cost + mode_costs->comp_ref_type_cost[comp_ref_type_ctx][1];
-      ref_bicomp_costs[BWDREF_FRAME] = ref_bicomp_costs[ALTREF2_FRAME] = 0;
-      ref_bicomp_costs[ALTREF_FRAME] = 0;
-
-      // cost of first ref frame
-      ref_bicomp_costs[LAST_FRAME] +=
-          mode_costs->comp_ref_cost[ref_comp_ctx_p][0][0];
-      ref_bicomp_costs[LAST2_FRAME] +=
-          mode_costs->comp_ref_cost[ref_comp_ctx_p][0][0];
-      ref_bicomp_costs[LAST3_FRAME] +=
-          mode_costs->comp_ref_cost[ref_comp_ctx_p][0][1];
-      ref_bicomp_costs[GOLDEN_FRAME] +=
-          mode_costs->comp_ref_cost[ref_comp_ctx_p][0][1];
-
-      ref_bicomp_costs[LAST_FRAME] +=
-          mode_costs->comp_ref_cost[ref_comp_ctx_p1][1][0];
-      ref_bicomp_costs[LAST2_FRAME] +=
-          mode_costs->comp_ref_cost[ref_comp_ctx_p1][1][1];
-
-      ref_bicomp_costs[LAST3_FRAME] +=
-          mode_costs->comp_ref_cost[ref_comp_ctx_p2][2][0];
-      ref_bicomp_costs[GOLDEN_FRAME] +=
-          mode_costs->comp_ref_cost[ref_comp_ctx_p2][2][1];
-
-      // cost of second ref frame
-      ref_bicomp_costs[BWDREF_FRAME] +=
-          mode_costs->comp_bwdref_cost[bwdref_comp_ctx_p][0][0];
-      ref_bicomp_costs[ALTREF2_FRAME] +=
-          mode_costs->comp_bwdref_cost[bwdref_comp_ctx_p][0][0];
-      ref_bicomp_costs[ALTREF_FRAME] +=
-          mode_costs->comp_bwdref_cost[bwdref_comp_ctx_p][0][1];
-
-      ref_bicomp_costs[BWDREF_FRAME] +=
-          mode_costs->comp_bwdref_cost[bwdref_comp_ctx_p1][1][0];
-      ref_bicomp_costs[ALTREF2_FRAME] +=
-          mode_costs->comp_bwdref_cost[bwdref_comp_ctx_p1][1][1];
-
-      // cost: if one ref frame is forward ref, the other ref is backward ref
-      for (int ref0 = LAST_FRAME; ref0 <= GOLDEN_FRAME; ++ref0) {
-        for (int ref1 = BWDREF_FRAME; ref1 <= ALTREF_FRAME; ++ref1) {
-          ref_costs_comp[ref0][ref1] =
-              ref_bicomp_costs[ref0] + ref_bicomp_costs[ref1];
-        }
-      }
-
-      // cost: if both ref frames are the same side.
-      const int uni_comp_ref_ctx_p = av1_get_pred_context_uni_comp_ref_p(xd);
-      const int uni_comp_ref_ctx_p1 = av1_get_pred_context_uni_comp_ref_p1(xd);
-      const int uni_comp_ref_ctx_p2 = av1_get_pred_context_uni_comp_ref_p2(xd);
-      ref_costs_comp[LAST_FRAME][LAST2_FRAME] =
-          base_cost + mode_costs->comp_ref_type_cost[comp_ref_type_ctx][0] +
-          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p][0][0] +
-          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p1][1][0];
-      ref_costs_comp[LAST_FRAME][LAST3_FRAME] =
-          base_cost + mode_costs->comp_ref_type_cost[comp_ref_type_ctx][0] +
-          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p][0][0] +
-          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p1][1][1] +
-          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p2][2][0];
-      ref_costs_comp[LAST_FRAME][GOLDEN_FRAME] =
-          base_cost + mode_costs->comp_ref_type_cost[comp_ref_type_ctx][0] +
-          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p][0][0] +
-          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p1][1][1] +
-          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p2][2][1];
-      ref_costs_comp[BWDREF_FRAME][ALTREF_FRAME] =
-          base_cost + mode_costs->comp_ref_type_cost[comp_ref_type_ctx][0] +
-          mode_costs->uni_comp_ref_cost[uni_comp_ref_ctx_p][0][1];
-    } else {
-      for (int ref0 = LAST_FRAME; ref0 <= GOLDEN_FRAME; ++ref0) {
-        for (int ref1 = BWDREF_FRAME; ref1 <= ALTREF_FRAME; ++ref1)
-          ref_costs_comp[ref0][ref1] = 512;
-      }
-      ref_costs_comp[LAST_FRAME][LAST2_FRAME] = 512;
-      ref_costs_comp[LAST_FRAME][LAST3_FRAME] = 512;
-      ref_costs_comp[LAST_FRAME][GOLDEN_FRAME] = 512;
-      ref_costs_comp[BWDREF_FRAME][ALTREF_FRAME] = 512;
-    }
-  }
-}
-
 static TX_SIZE calculate_tx_size(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
                                  MACROBLOCK *const x, unsigned int var,
                                  unsigned int sse) {
@@ -2395,8 +2291,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   const int *const rd_threshes = cpi->rd.threshes[segment_id][bsize];
   const int *const rd_thresh_freq_fact = x->thresh_freq_fact[bsize];
   int best_early_term = 0;
-  unsigned int ref_costs_single[REF_FRAMES],
-      ref_costs_comp[REF_FRAMES][REF_FRAMES];
+  unsigned int ref_costs_single[REF_FRAMES];
   int force_skip_low_temp_var = 0;
   int use_ref_frame_mask[REF_FRAMES] = { 0 };
   unsigned int sse_zeromv_norm = UINT_MAX;
@@ -2455,9 +2350,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   estimate_single_ref_frame_costs(cm, xd, mode_costs, segment_id,
                                   ref_costs_single);
-  if (cpi->sf.rt_sf.use_comp_ref_nonrd)
-    estimate_comp_ref_frame_costs(cm, xd, mode_costs, segment_id,
-                                  ref_costs_comp);
 
   memset(&mode_checked[0][0], 0, MB_MODE_COUNT * REF_FRAMES);
   if (reuse_inter_pred) {
