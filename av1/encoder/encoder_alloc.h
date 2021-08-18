@@ -14,6 +14,7 @@
 
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encodetxb.h"
+#include "av1/encoder/ethread.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -247,10 +248,12 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   av1_free_restoration_buffers(cm);
 #endif
 
-  if (!is_stat_generation_stage(cpi))
-    av1_free_cdef_buffers(cm, &cpi->mt_info.cdef_worker,
-                          &cpi->mt_info.cdef_sync,
-                          cpi->mt_info.num_mod_workers[MOD_CDEF]);
+  if (!is_stat_generation_stage(cpi)) {
+    int num_cdef_workers =
+        av1_get_num_mod_workers_for_alloc(&cpi->ppi->p_mt_info, MOD_CDEF);
+    av1_free_cdef_buffers(cm, &cpi->ppi->p_mt_info.cdef_worker,
+                          &cpi->mt_info.cdef_sync, num_cdef_workers);
+  }
 
   aom_free_frame_buffer(&cpi->trial_frame_rst);
   aom_free_frame_buffer(&cpi->scaled_source);

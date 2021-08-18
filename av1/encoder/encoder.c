@@ -1591,8 +1591,9 @@ void av1_remove_compressor(AV1_COMP *cpi) {
     av1_loop_filter_dealloc(&mt_info->lf_row_sync);
     av1_cdef_mt_dealloc(&mt_info->cdef_sync);
 #if !CONFIG_REALTIME_ONLY
-    av1_loop_restoration_dealloc(&mt_info->lr_row_sync,
-                                 mt_info->num_mod_workers[MOD_LR]);
+    int num_lr_workers =
+        av1_get_num_mod_workers_for_alloc(&cpi->ppi->p_mt_info, MOD_LR);
+    av1_loop_restoration_dealloc(&mt_info->lr_row_sync, num_lr_workers);
     av1_gm_dealloc(&mt_info->gm_sync);
     av1_tf_mt_dealloc(&mt_info->tf_sync);
 #endif
@@ -2075,10 +2076,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
     aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
 
-  if (!is_stat_generation_stage(cpi))
-    av1_alloc_cdef_buffers(cm, &cpi->mt_info.cdef_worker,
-                           &cpi->mt_info.cdef_sync,
-                           cpi->mt_info.num_mod_workers[MOD_CDEF], 1);
+  if (!is_stat_generation_stage(cpi)) av1_init_cdef_worker(cpi);
 
 #if !CONFIG_REALTIME_ONLY
   const int use_restoration = cm->seq_params->enable_restoration &&
@@ -2094,6 +2092,10 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
       cm->rst_info[i].frame_restoration_type = RESTORE_NONE;
 
     av1_alloc_restoration_buffers(cm);
+    // Store the allocated restoration buffers in MT object.
+    if (cpi->ppi->p_mt_info.num_workers > 1) {
+      av1_init_lr_mt_buffers(cpi);
+    }
   }
 #endif
 

@@ -10,6 +10,7 @@
  */
 
 #include "av1/common/warped_motion.h"
+#include "av1/common/thread_common.h"
 
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/encodeframe.h"
@@ -549,11 +550,44 @@ void av1_init_frame_mt(AV1_PRIMARY *ppi, AV1_COMP *cpi) {
   }
 }
 
+void av1_init_cdef_worker(AV1_COMP *cpi) {
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  // The allocation is done only for level 0 parallel frames. No change
+  // in config is supported in the middle of a parallel encode set, since the
+  // rest of the MT modules also do not support dynamic change of config.
+  if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) return;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+  PrimaryMultiThreadInfo *const p_mt_info = &cpi->ppi->p_mt_info;
+  int num_cdef_workers = av1_get_num_mod_workers_for_alloc(p_mt_info, MOD_CDEF);
+
+  av1_alloc_cdef_buffers(&cpi->common, &p_mt_info->cdef_worker,
+                         &cpi->mt_info.cdef_sync, num_cdef_workers, 1);
+  cpi->mt_info.cdef_worker = &p_mt_info->cdef_worker[0];
+}
+
+#if !CONFIG_REALTIME_ONLY
+void av1_init_lr_mt_buffers(AV1_COMP *cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  AV1LrSync *lr_sync = &cpi->mt_info.lr_row_sync;
+  if (lr_sync->sync_range) {
+    int num_lr_workers =
+        av1_get_num_mod_workers_for_alloc(&cpi->ppi->p_mt_info, MOD_LR);
+#if CONFIG_FRAME_PARALLEL_ENCODE
+    if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+      return;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+    lr_sync->lrworkerdata[num_lr_workers - 1].rst_tmpbuf = cm->rst_tmpbuf;
+    lr_sync->lrworkerdata[num_lr_workers - 1].rlbs = cm->rlbs;
+  }
+}
+#endif
+
 #if CONFIG_MULTITHREAD
 void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass) {
   AV1_COMMON *const cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
 
+  // Initialize enc row MT object.
   if (is_first_pass || cpi->oxcf.row_mt == 1) {
     AV1EncRowMultiThreadInfo *enc_row_mt = &mt_info->enc_row_mt;
     if (enc_row_mt->mutex_ == NULL) {
@@ -564,6 +598,7 @@ void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass) {
   }
 
   if (!is_first_pass) {
+    // Initialize global motion MT object.
     AV1GlobalMotionSync *gm_sync = &mt_info->gm_sync;
     if (gm_sync->mutex_ == NULL) {
       CHECK_MEM_ERROR(cm, gm_sync->mutex_,
@@ -571,6 +606,7 @@ void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass) {
       if (gm_sync->mutex_) pthread_mutex_init(gm_sync->mutex_, NULL);
     }
 #if !CONFIG_REALTIME_ONLY
+    // Initialize temporal filtering MT object.
     AV1TemporalFilterSync *tf_sync = &mt_info->tf_sync;
     if (tf_sync->mutex_ == NULL) {
       CHECK_MEM_ERROR(cm, tf_sync->mutex_,
@@ -578,11 +614,54 @@ void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass) {
       if (tf_sync->mutex_) pthread_mutex_init(tf_sync->mutex_, NULL);
     }
 #endif  // !CONFIG_REALTIME_ONLY
+        // Initialize CDEF MT object.
     AV1CdefSync *cdef_sync = &mt_info->cdef_sync;
     if (cdef_sync->mutex_ == NULL) {
       CHECK_MEM_ERROR(cm, cdef_sync->mutex_,
                       aom_malloc(sizeof(*(cdef_sync->mutex_))));
       if (cdef_sync->mutex_) pthread_mutex_init(cdef_sync->mutex_, NULL);
+    }
+
+    // Initialize loop filter MT object.
+    AV1LfSync *lf_sync = &mt_info->lf_row_sync;
+    // Number of superblock rows
+    const int sb_rows =
+        ALIGN_POWER_OF_TWO(cm->height >> MI_SIZE_LOG2, MAX_MIB_SIZE_LOG2) >>
+        MAX_MIB_SIZE_LOG2;
+    PrimaryMultiThreadInfo *const p_mt_info = &cpi->ppi->p_mt_info;
+    int num_lf_workers = av1_get_num_mod_workers_for_alloc(p_mt_info, MOD_LPF);
+
+    if (!lf_sync->sync_range || sb_rows != lf_sync->rows ||
+        num_lf_workers > lf_sync->num_workers) {
+      av1_loop_filter_dealloc(lf_sync);
+      av1_loop_filter_alloc(lf_sync, cm, sb_rows, cm->width, num_lf_workers);
+    }
+
+#if !CONFIG_REALTIME_ONLY
+    // Initialize loop restoration MT object.
+    AV1LrSync *lr_sync = &mt_info->lr_row_sync;
+    int rst_unit_size;
+    if (cm->width * cm->height > 352 * 288)
+      rst_unit_size = RESTORATION_UNITSIZE_MAX;
+    else
+      rst_unit_size = (RESTORATION_UNITSIZE_MAX >> 1);
+    int num_rows_lr = av1_lr_count_units_in_tile(rst_unit_size, cm->height);
+    int num_lr_workers = av1_get_num_mod_workers_for_alloc(p_mt_info, MOD_LR);
+    if (!lr_sync->sync_range || num_rows_lr != lr_sync->rows ||
+        num_lr_workers > lr_sync->num_workers ||
+        MAX_MB_PLANE != lr_sync->num_planes) {
+      av1_loop_restoration_dealloc(lr_sync, num_lr_workers);
+      av1_loop_restoration_alloc(lr_sync, cm, num_lr_workers, num_rows_lr,
+                                 MAX_MB_PLANE, cm->width);
+    }
+#endif
+
+    // Initialization of pack bitstream MT object.
+    AV1EncPackBSSync *pack_bs_sync = &mt_info->pack_bs_sync;
+    if (pack_bs_sync->mutex_ == NULL) {
+      CHECK_MEM_ERROR(cm, pack_bs_sync->mutex_,
+                      aom_malloc(sizeof(*pack_bs_sync->mutex_)));
+      if (pack_bs_sync->mutex_) pthread_mutex_init(pack_bs_sync->mutex_, NULL);
     }
   }
 }
@@ -841,6 +920,7 @@ static AOM_INLINE void prepare_fpmt_workers(AV1_PRIMARY *ppi,
         &p_mt_info->workers[i];
     AV1_COMP *cur_cpi = ppi->parallel_cpi[frame_idx];
     MultiThreadInfo *mt_info = &cur_cpi->mt_info;
+    const int num_planes = av1_num_planes(&cur_cpi->common);
 
     // Assign start of level 2 worker pool
     mt_info->workers = &p_mt_info->workers[i];
@@ -850,6 +930,34 @@ static AOM_INLINE void prepare_fpmt_workers(AV1_PRIMARY *ppi,
       mt_info->num_mod_workers[j] =
           AOMMIN(mt_info->num_workers, ppi->p_mt_info.num_mod_workers[j]);
     }
+    if (ppi->p_mt_info.cdef_worker != NULL) {
+      mt_info->cdef_worker = &ppi->p_mt_info.cdef_worker[i];
+
+      // Back up the original cdef_worker pointers.
+      mt_info->restore_state_buf.cdef_srcbuf = mt_info->cdef_worker->srcbuf;
+      for (int plane = 0; plane < num_planes; plane++)
+        mt_info->restore_state_buf.cdef_colbuf[plane] =
+            mt_info->cdef_worker->colbuf[plane];
+    }
+#if !CONFIG_REALTIME_ONLY
+    // Back up the original LR buffers before update.
+    int idx = AOMMIN(num_workers - 1, i + workers_per_frame - 1);
+    mt_info->restore_state_buf.rst_tmpbuf =
+        mt_info->lr_row_sync.lrworkerdata[idx].rst_tmpbuf;
+    mt_info->restore_state_buf.rlbs =
+        mt_info->lr_row_sync.lrworkerdata[idx].rlbs;
+
+    // Update LR buffers.
+    mt_info->lr_row_sync.lrworkerdata[idx].rst_tmpbuf =
+        cur_cpi->common.rst_tmpbuf;
+    mt_info->lr_row_sync.lrworkerdata[idx].rlbs = cur_cpi->common.rlbs;
+#endif
+
+    // At this stage, the thread specific CDEF buffers for the current frame's
+    // 'common' and 'cdef_sync' only need to be allocated. 'cdef_worker' has
+    // already been allocated across parallel frames.
+    av1_alloc_cdef_buffers(&cur_cpi->common, &p_mt_info->cdef_worker,
+                           &mt_info->cdef_sync, p_mt_info->num_workers, 0);
 
     frame_worker->hook = hook;
     frame_worker->data1 = cur_cpi;
@@ -896,6 +1004,44 @@ static AOM_INLINE void sync_fpmt_workers(AV1_PRIMARY *ppi) {
     aom_internal_error(&ppi->error, error->error_code, error->detail);
 }
 
+// Restore worker states after parallel encode.
+static AOM_INLINE void restore_workers_after_fpmt(AV1_PRIMARY *ppi,
+                                                  int parallel_frame_count) {
+  assert(parallel_frame_count <= ppi->num_fp_contexts &&
+         parallel_frame_count > 1);
+
+  PrimaryMultiThreadInfo *const p_mt_info = &ppi->p_mt_info;
+  int num_workers = p_mt_info->num_workers;
+
+  // Number of level 2 workers per frame context
+  int workers_per_frame =
+      compute_num_workers_per_frame(num_workers, parallel_frame_count);
+  int frame_idx = 0;
+  for (int i = 0; i < num_workers; i += workers_per_frame) {
+    AV1_COMP *cur_cpi = ppi->parallel_cpi[frame_idx];
+    MultiThreadInfo *mt_info = &cur_cpi->mt_info;
+    const int num_planes = av1_num_planes(&cur_cpi->common);
+
+    // Restore the original cdef_worker pointers.
+    if (ppi->p_mt_info.cdef_worker != NULL) {
+      mt_info->cdef_worker->srcbuf = mt_info->restore_state_buf.cdef_srcbuf;
+      for (int plane = 0; plane < num_planes; plane++)
+        mt_info->cdef_worker->colbuf[plane] =
+            mt_info->restore_state_buf.cdef_colbuf[plane];
+    }
+#if !CONFIG_REALTIME_ONLY
+    // Restore the original LR buffers.
+    int idx = AOMMIN(num_workers - 1, i + workers_per_frame - 1);
+    mt_info->lr_row_sync.lrworkerdata[idx].rst_tmpbuf =
+        mt_info->restore_state_buf.rst_tmpbuf;
+    mt_info->lr_row_sync.lrworkerdata[idx].rlbs =
+        mt_info->restore_state_buf.rlbs;
+#endif
+
+    frame_idx++;
+  }
+}
+
 static int get_compressed_data_hook(void *arg1, void *arg2) {
   AV1_COMP *cpi = (AV1_COMP *)arg1;
   AV1_COMP_DATA *cpi_data = (AV1_COMP_DATA *)arg2;
@@ -918,6 +1064,7 @@ int av1_compress_parallel_frames(AV1_PRIMARY *const ppi,
                        frames_in_parallel_set);
   launch_fpmt_workers(ppi);
   sync_fpmt_workers(ppi);
+  restore_workers_after_fpmt(ppi, frames_in_parallel_set);
 
   // Release cpi->scaled_ref_buf corresponding to frames in the current parallel
   // encode set.
@@ -2246,13 +2393,6 @@ static void prepare_pack_bs_workers(AV1_COMP *const cpi,
   AV1_COMMON *const cm = &cpi->common;
   AV1EncPackBSSync *const pack_bs_sync = &mt_info->pack_bs_sync;
   const uint16_t num_tiles = cm->tiles.rows * cm->tiles.cols;
-#if CONFIG_MULTITHREAD
-  if (pack_bs_sync->mutex_ == NULL) {
-    CHECK_MEM_ERROR(cm, pack_bs_sync->mutex_,
-                    aom_malloc(sizeof(*pack_bs_sync->mutex_)));
-    if (pack_bs_sync->mutex_) pthread_mutex_init(pack_bs_sync->mutex_, NULL);
-  }
-#endif
   pack_bs_sync->next_job_idx = 0;
 
   PackBSTileOrder *const pack_bs_tile_order = pack_bs_sync->pack_bs_tile_order;

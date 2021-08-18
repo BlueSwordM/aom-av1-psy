@@ -85,6 +85,12 @@ void av1_create_workers(AV1_PRIMARY *ppi, int num_workers);
 
 void av1_init_frame_mt(AV1_PRIMARY *ppi, AV1_COMP *cpi);
 
+void av1_init_cdef_worker(AV1_COMP *cpi);
+
+#if !CONFIG_REALTIME_ONLY
+void av1_init_lr_mt_buffers(AV1_COMP *cpi);
+#endif
+
 #if CONFIG_MULTITHREAD
 void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass);
 #endif  // CONFIG_MULTITHREAD

@@ -1441,6 +1441,32 @@ typedef struct {
  * \brief Max number of recodes used to track the frame probabilities.
  */
 #define NUM_RECODES_PER_FRAME 10
+
+/*!
+ * \brief Buffers to be backed up during parallel encode set to be restored
+ * later.
+ */
+typedef struct RestoreStateBuffers {
+  /*!
+   * Backup of original CDEF srcbuf.
+   */
+  uint16_t *cdef_srcbuf;
+
+  /*!
+   * Backup of original CDEF colbuf.
+   */
+  uint16_t *cdef_colbuf[MAX_MB_PLANE];
+
+  /*!
+   * Backup of original LR rst_tmpbuf.
+   */
+  int32_t *rst_tmpbuf;
+
+  /*!
+   * Backup of original LR rlbs.
+   */
+  RestorationLineBuffers *rlbs;
+} RestoreStateBuffers;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
 /*!
@@ -1467,6 +1493,11 @@ typedef struct PrimaryMultiThreadInfo {
    * tile_thr_data[i] stores the worker data of the ith thread.
    */
   struct EncWorkerData *tile_thr_data;
+
+  /*!
+   * CDEF row multi-threading data.
+   */
+  AV1CdefWorkerData *cdef_worker;
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
   /*!
@@ -1554,9 +1585,16 @@ typedef struct MultiThreadInfo {
   AV1CdefSync cdef_sync;
 
   /*!
-   * CDEF row multi-threading data.
+   * Pointer to CDEF row multi-threading data for the frame.
    */
   AV1CdefWorkerData *cdef_worker;
+
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  /*!
+   * Buffers to be stored/restored before/after parallel encode.
+   */
+  RestoreStateBuffers restore_state_buf;
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 } MultiThreadInfo;
 
 /*!\cond */
