@@ -799,6 +799,15 @@ int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
   return num_fp_contexts;
 }
 
+// Computes the number of workers to process each of the parallel frames.
+static AOM_INLINE int compute_num_workers_per_frame(
+    const int num_workers, const int parallel_frame_count) {
+  // Number of level 2 workers per frame context (ceil division)
+  int workers_per_frame = (num_workers / parallel_frame_count) +
+                          (num_workers % parallel_frame_count != 0);
+  return workers_per_frame;
+}
+
 // Prepare level 1 workers. This function is only called for
 // parallel_frame_count > 1. This function populates the mt_info structure of
 // frame level contexts appropriately by dividing the total number of available
@@ -814,28 +823,28 @@ static AOM_INLINE void prepare_fpmt_workers(AV1_PRIMARY *ppi,
   PrimaryMultiThreadInfo *const p_mt_info = &ppi->p_mt_info;
   int num_workers = p_mt_info->num_workers;
 
-  // Number of level 2 workers per frame context (ceil division)
-  int workers_per_frame = (num_workers / parallel_frame_count) +
-                          (num_workers % parallel_frame_count != 0);
+  // Number of level 2 workers per frame context
+  int workers_per_frame =
+      compute_num_workers_per_frame(num_workers, parallel_frame_count);
   int frame_idx = 0;
   for (int i = 0; i < num_workers; i += workers_per_frame) {
     // Assign level 1 worker
     AVxWorker *frame_worker = p_mt_info->p_workers[frame_idx] =
         &p_mt_info->workers[i];
+    AV1_COMP *cur_cpi = ppi->parallel_cpi[frame_idx];
+    MultiThreadInfo *mt_info = &cur_cpi->mt_info;
 
     // Assign start of level 2 worker pool
-    ppi->parallel_cpi[frame_idx]->mt_info.workers = &p_mt_info->workers[i];
-    ppi->parallel_cpi[frame_idx]->mt_info.tile_thr_data =
-        &p_mt_info->tile_thr_data[i];
-    ppi->parallel_cpi[frame_idx]->mt_info.num_workers =
-        AOMMIN(workers_per_frame, num_workers - i);
+    mt_info->workers = &p_mt_info->workers[i];
+    mt_info->tile_thr_data = &p_mt_info->tile_thr_data[i];
+    mt_info->num_workers = AOMMIN(workers_per_frame, num_workers - i);
     for (int j = MOD_FP; j < NUM_MT_MODULES; j++) {
-      ppi->parallel_cpi[frame_idx]->mt_info.num_mod_workers[j] =
+      mt_info->num_mod_workers[j] =
           AOMMIN(workers_per_frame, ppi->p_mt_info.num_mod_workers[j]);
     }
 
     frame_worker->hook = hook;
-    frame_worker->data1 = ppi->parallel_cpi[frame_idx];
+    frame_worker->data1 = cur_cpi;
     frame_worker->data2 = (frame_idx == 0)
                               ? first_cpi_data
                               : &ppi->parallel_frames_data[frame_idx - 1];
