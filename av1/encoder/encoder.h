@@ -2137,6 +2137,7 @@ typedef struct WeberStats {
   int64_t distortion;
   int64_t satd;
   double alpha;
+  double max_scale;
 } WeberStats;
 
 typedef struct {

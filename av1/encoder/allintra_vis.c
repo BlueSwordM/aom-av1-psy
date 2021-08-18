@@ -9,6 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <stdio.h>
 #include "av1/common/enums.h"
 #include "av1/common/idct.h"
 
@@ -93,6 +94,28 @@ static int64_t get_sse(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
   return (int)distortion;
 }
 
+static double get_max_scale(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
+                            int mi_col) {
+  AV1_COMMON *const cm = &cpi->common;
+  const int mi_wide = mi_size_wide[bsize];
+  const int mi_high = mi_size_high[bsize];
+  const int mi_step = mi_size_wide[BLOCK_16X16];
+  int mb_stride = cpi->frame_info.mb_cols;
+  double min_max_scale = 10.0;
+
+  for (int row = mi_row; row < mi_row + mi_high; row += mi_step) {
+    for (int col = mi_col; col < mi_col + mi_wide; col += mi_step) {
+      if (row >= cm->mi_params.mi_rows || col >= cm->mi_params.mi_cols)
+        continue;
+      WeberStats *weber_stats =
+          &cpi->mb_weber_stats[(row / mi_step) * mb_stride + (col / mi_step)];
+      if (weber_stats->max_scale < min_max_scale)
+        min_max_scale = weber_stats->max_scale;
+    }
+  }
+  return min_max_scale;
+}
+
 static int get_window_wiener_var(AV1_COMP *const cpi, BLOCK_SIZE bsize,
                                  int mi_row, int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
@@ -120,7 +143,7 @@ static int get_window_wiener_var(AV1_COMP *const cpi, BLOCK_SIZE bsize,
                                  .alpha *
                              10000);
 
-      base_num += sqrt((double)weber_stats->distortion) *
+      base_num += ((double)weber_stats->distortion) *
                   sqrt((double)weber_stats->src_variance) *
                   weber_stats->rec_pix_max;
 
@@ -347,16 +370,21 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
                               weber_stats->src_pix_max *
                                   sqrt((double)weber_stats->rec_variance)) +
                          reg;
-      double alpha_num = sqrt((double)weber_stats->distortion) *
+      double alpha_num = ((double)weber_stats->distortion) *
                              sqrt((double)weber_stats->src_variance) *
                              weber_stats->rec_pix_max +
                          reg;
 
       weber_stats->alpha = AOMMAX(alpha_num, 1.0) / AOMMAX(alpha_den, 1.0);
 
+      qcoeff[0] = 0;
+      for (idx = 1; idx < coeff_count; ++idx) qcoeff[idx] = abs(qcoeff[idx]);
+      qsort(qcoeff, coeff_count, sizeof(*coeff), qsort_comp);
+
+      weber_stats->max_scale = (double)qcoeff[coeff_count - 1];
+
       coeff[0] = 0;
       for (idx = 1; idx < coeff_count; ++idx) coeff[idx] = abs(coeff[idx]);
-
       qsort(coeff, coeff_count - 1, sizeof(*coeff), qsort_comp);
 
       // Noise level estimation
@@ -398,6 +426,34 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
     cpi->norm_wiener_variance = (int64_t)(exp(sb_wiener_log / sb_count));
   cpi->norm_wiener_variance = AOMMAX(1, cpi->norm_wiener_variance);
 
+  sb_wiener_log = 0;
+  sb_count = 0;
+  for (int mi_row = 0; mi_row < cm->mi_params.mi_rows; mi_row += sb_step) {
+    for (int mi_col = 0; mi_col < cm->mi_params.mi_cols; mi_col += sb_step) {
+      int sb_wiener_var =
+          get_var_perceptual_ai(cpi, cm->seq_params->sb_size, mi_row, mi_col);
+
+      double beta = (double)cpi->norm_wiener_variance / sb_wiener_var;
+      double min_max_scale =
+          AOMMAX(1.0, get_max_scale(cpi, bsize, mi_row, mi_col));
+      beta = 1.0 / AOMMIN(1.0 / beta, min_max_scale);
+      beta = AOMMIN(beta, 4);
+      beta = AOMMAX(beta, 0.25);
+
+      sb_wiener_var = (int)(cpi->norm_wiener_variance / beta);
+
+      int64_t satd = get_satd(cpi, cm->seq_params->sb_size, mi_row, mi_col);
+      int64_t sse = get_sse(cpi, cm->seq_params->sb_size, mi_row, mi_col);
+      double scaled_satd = (double)satd / sqrt((double)sse);
+      sb_wiener_log += scaled_satd * log(sb_wiener_var);
+      sb_count += scaled_satd;
+    }
+  }
+
+  if (sb_count > 0)
+    cpi->norm_wiener_variance = (int64_t)(exp(sb_wiener_log / sb_count));
+  cpi->norm_wiener_variance = AOMMAX(1, cpi->norm_wiener_variance);
+
   aom_free_frame_buffer(&cm->cur_frame->buf);
 }
 
@@ -408,6 +464,9 @@ int av1_get_sbq_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
   int sb_wiener_var = get_var_perceptual_ai(cpi, bsize, mi_row, mi_col);
   int offset = 0;
   double beta = (double)cpi->norm_wiener_variance / sb_wiener_var;
+  double min_max_scale = AOMMAX(1.0, get_max_scale(cpi, bsize, mi_row, mi_col));
+  beta = 1.0 / AOMMIN(1.0 / beta, min_max_scale);
+
   // Cap beta such that the delta q value is not much far away from the base q.
   beta = AOMMIN(beta, 4);
   beta = AOMMAX(beta, 0.25);
