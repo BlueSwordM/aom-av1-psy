@@ -1349,7 +1349,6 @@ typedef struct ThreadData {
   PC_TREE_SHARED_BUFFERS shared_coeff_buf;
   SIMPLE_MOTION_DATA_TREE *sms_tree;
   SIMPLE_MOTION_DATA_TREE *sms_root;
-  InterModesInfo *inter_modes_info;
   uint32_t *hash_value_buffer[2][2];
   OBMCBuffer obmc_buffer;
   PALETTE_BUFFER *palette_buffer;

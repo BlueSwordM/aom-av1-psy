@@ -220,9 +220,6 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
     cpi->td.mb.dv_costs = NULL;
   }
 
-  aom_free(cpi->td.mb.inter_modes_info);
-  cpi->td.mb.inter_modes_info = NULL;
-
   for (int i = 0; i < 2; i++)
     for (int j = 0; j < 2; j++) {
       aom_free(cpi->td.mb.intrabc_hash_info.hash_value_buffer[i][j]);

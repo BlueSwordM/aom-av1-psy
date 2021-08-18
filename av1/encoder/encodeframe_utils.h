@@ -406,6 +406,10 @@ static AOM_INLINE void av1_dealloc_mb_data(struct AV1Common *cm,
     aom_free(mb->txfm_search_info.txb_rd_records);
     mb->txfm_search_info.txb_rd_records = NULL;
   }
+  if (mb->inter_modes_info) {
+    aom_free(mb->inter_modes_info);
+    mb->inter_modes_info = NULL;
+  }
   const int num_planes = av1_num_planes(cm);
   for (int plane = 0; plane < num_planes; plane++) {
     if (mb->plane[plane].src_diff) {
@@ -429,6 +433,10 @@ static AOM_INLINE void av1_alloc_mb_data(struct AV1Common *cm,
   if (!use_nonrd_pick_mode) {
     mb->txfm_search_info.txb_rd_records =
         (TxbRdRecords *)aom_malloc(sizeof(TxbRdRecords));
+    if (!frame_is_intra_only(cm))
+      CHECK_MEM_ERROR(
+          cm, mb->inter_modes_info,
+          (InterModesInfo *)aom_malloc(sizeof(*mb->inter_modes_info)));
   }
   const int num_planes = av1_num_planes(cm);
   for (int plane = 0; plane < num_planes; plane++) {

@@ -722,10 +722,6 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
 
         alloc_obmc_buffers(&thread_data->td->obmc_buffer, &ppi->error);
 
-        AOM_CHECK_MEM_ERROR(&ppi->error, thread_data->td->inter_modes_info,
-                            (InterModesInfo *)aom_malloc(
-                                sizeof(*thread_data->td->inter_modes_info)));
-
         for (int x = 0; x < 2; x++)
           for (int y = 0; y < 2; y++)
             AOM_CHECK_MEM_ERROR(
@@ -1178,7 +1174,6 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
       thread_data->td->rd_counts = cpi->td.rd_counts;
       thread_data->td->mb.obmc_buffer = thread_data->td->obmc_buffer;
 
-      thread_data->td->mb.inter_modes_info = thread_data->td->inter_modes_info;
       for (int x = 0; x < 2; x++) {
         for (int y = 0; y < 2; y++) {
           memcpy(thread_data->td->hash_value_buffer[x][y],
