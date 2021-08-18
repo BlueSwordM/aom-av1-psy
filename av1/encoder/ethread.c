@@ -588,6 +588,21 @@ void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass) {
 }
 #endif  // CONFIG_MULTITHREAD
 
+// Computes the number of workers to be considered while allocating memory for a
+// multi-threaded module under FPMT.
+int av1_get_num_mod_workers_for_alloc(PrimaryMultiThreadInfo *const p_mt_info,
+                                      MULTI_THREADED_MODULES mod_name) {
+  int num_mod_workers = p_mt_info->num_mod_workers[mod_name];
+  if (p_mt_info->num_mod_workers[MOD_FRAME_ENC] > 1) {
+    // TODO(anyone): Change num_mod_workers to num_mod_workers[MOD_FRAME_ENC].
+    // As frame parallel jobs will only perform multi-threading for the encode
+    // stage, we can limit the allocations according to num_enc_workers per
+    // frame parallel encode(a.k.a num_mod_workers[MOD_FRAME_ENC]).
+    num_mod_workers = p_mt_info->num_workers;
+  }
+  return num_mod_workers;
+}
+
 void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
   PrimaryMultiThreadInfo *const p_mt_info = &ppi->p_mt_info;
 
@@ -595,14 +610,7 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
   assert(p_mt_info->tile_thr_data != NULL);
 
   int num_workers = p_mt_info->num_workers;
-  int num_enc_workers = p_mt_info->num_mod_workers[MOD_ENC];
-  if (p_mt_info->num_mod_workers[MOD_FRAME_ENC] > 1) {
-    // TODO(anyone): Change num_enc_workers to num_mod_workers[MOD_FRAME_ENC].
-    // As frame parallel jobs will only perform multi-threading for the encode
-    // stage, we can limit the allocations according to num_enc_workers per
-    // frame parallel encode(a.k.a num_mod_workers[MOD_FRAME_ENC]).
-    num_enc_workers = num_workers;
-  }
+  int num_enc_workers = av1_get_num_mod_workers_for_alloc(p_mt_info, MOD_ENC);
   for (int i = num_workers - 1; i >= 0; i--) {
     EncWorkerData *const thread_data = &p_mt_info->tile_thr_data[i];
 
