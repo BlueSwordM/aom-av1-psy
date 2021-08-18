@@ -840,7 +840,7 @@ static AOM_INLINE void prepare_fpmt_workers(AV1_PRIMARY *ppi,
     mt_info->num_workers = AOMMIN(workers_per_frame, num_workers - i);
     for (int j = MOD_FP; j < NUM_MT_MODULES; j++) {
       mt_info->num_mod_workers[j] =
-          AOMMIN(workers_per_frame, ppi->p_mt_info.num_mod_workers[j]);
+          AOMMIN(mt_info->num_workers, ppi->p_mt_info.num_mod_workers[j]);
     }
 
     frame_worker->hook = hook;
