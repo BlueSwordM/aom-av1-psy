@@ -838,7 +838,7 @@ void av1_create_workers(AV1_PRIMARY *ppi, int num_workers) {
 // the current configuration. Returns 0 otherwise.
 static AOM_INLINE int is_fpmt_config(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
   // FPMT is enabled for AOM_Q and AOM_VBR.
-  // TODO(Mufaddal, Aasaipriya): Test and enable multi-tile and resize config.
+  // TODO(Tarun): Test and enable resize config.
   if (oxcf->rc_cfg.mode == AOM_CBR || oxcf->rc_cfg.mode == AOM_CQ) {
     return 0;
   }
@@ -860,11 +860,45 @@ static AOM_INLINE int is_fpmt_config(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
   if (oxcf->resize_cfg.resize_mode) {
     return 0;
   }
-  if (oxcf->passes == 1) {
+  if (oxcf->pass != AOM_RC_SECOND_PASS) {
+    return 0;
+  }
+  if (oxcf->max_threads < 2) {
     return 0;
   }
 
   return 1;
+}
+
+int av1_check_fpmt_config(AV1_PRIMARY *const ppi,
+                          AV1EncoderConfig *const oxcf) {
+  if (is_fpmt_config(ppi, oxcf)) return 1;
+  // Reset frame parallel configuration for unsupported config
+  if (ppi->num_fp_contexts > 1) {
+    for (int i = 1; i < ppi->num_fp_contexts; i++) {
+      // Release the previously-used frame-buffer
+      if (ppi->parallel_cpi[i]->common.cur_frame != NULL) {
+        --ppi->parallel_cpi[i]->common.cur_frame->ref_count;
+        ppi->parallel_cpi[i]->common.cur_frame = NULL;
+      }
+    }
+
+    int cur_gf_index = ppi->cpi->gf_frame_index;
+    int reset_size = AOMMAX(0, ppi->gf_group.size - cur_gf_index);
+    av1_zero_array(&ppi->gf_group.frame_parallel_level[cur_gf_index],
+                   reset_size);
+    av1_zero_array(&ppi->gf_group.is_frame_non_ref[cur_gf_index], reset_size);
+    av1_zero_array(&ppi->gf_group.src_offset[cur_gf_index], reset_size);
+#if CONFIG_FRAME_PARALLEL_ENCODE_2
+    memset(&ppi->gf_group.skip_frame_refresh[cur_gf_index][0], INVALID_IDX,
+           sizeof(ppi->gf_group.skip_frame_refresh[cur_gf_index][0]) *
+               reset_size * REF_FRAMES);
+    memset(&ppi->gf_group.skip_frame_as_ref[cur_gf_index], INVALID_IDX,
+           sizeof(ppi->gf_group.skip_frame_as_ref[cur_gf_index]) * reset_size);
+#endif
+    ppi->num_fp_contexts = 1;
+  }
+  return 0;
 }
 
 // A large value for threads used to compute the max num_enc_workers
@@ -875,7 +909,7 @@ static AOM_INLINE int is_fpmt_config(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
 // based on the number of max_enc_workers.
 int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
   ppi->p_mt_info.num_mod_workers[MOD_FRAME_ENC] = 0;
-  if (!is_fpmt_config(ppi, oxcf)) {
+  if (!av1_check_fpmt_config(ppi, oxcf)) {
     return 1;
   }
   int max_num_enc_workers =
@@ -888,8 +922,11 @@ int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
   int num_fp_contexts = max_threads / workers_per_frame;
 
   num_fp_contexts = AOMMAX(1, AOMMIN(num_fp_contexts, MAX_PARALLEL_FRAMES));
+  // Limit recalculated num_fp_contexts to ppi->num_fp_contexts.
+  num_fp_contexts = (ppi->num_fp_contexts == 1)
+                        ? num_fp_contexts
+                        : AOMMIN(num_fp_contexts, ppi->num_fp_contexts);
   if (num_fp_contexts > 1) {
-    assert(max_threads >= 2);
     ppi->p_mt_info.num_mod_workers[MOD_FRAME_ENC] =
         AOMMIN(max_num_enc_workers * num_fp_contexts, oxcf->max_threads);
   }
