@@ -5480,8 +5480,18 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
   // with av1_default_mode_order to get the enum that defines the mode, which
   // can be used with av1_mode_defs to get the prediction mode and the ref
   // frames.
-  for (THR_MODES midx = THR_INTER_MODE_START; midx < THR_INTER_MODE_END;
-       ++midx) {
+  // TODO(yunqing, any): Setting mode_start and mode_end outside for-loop brings
+  // good speedup for real time case. If we decide to use compound mode in real
+  // time, maybe we can modify av1_default_mode_order table.
+  THR_MODES mode_start = THR_INTER_MODE_START;
+  THR_MODES mode_end = THR_INTER_MODE_END;
+  const CurrentFrame *const current_frame = &cm->current_frame;
+  if (current_frame->reference_mode == SINGLE_REFERENCE) {
+    mode_start = SINGLE_REF_MODE_START;
+    mode_end = SINGLE_REF_MODE_END;
+  }
+
+  for (THR_MODES midx = mode_start; midx < mode_end; ++midx) {
     // Get the actual prediction mode we are trying in this iteration
     const THR_MODES mode_enum = av1_default_mode_order[midx];
     const MODE_DEFINITION *mode_def = &av1_mode_defs[mode_enum];
