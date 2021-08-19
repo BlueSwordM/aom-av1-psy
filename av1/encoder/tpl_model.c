@@ -2079,6 +2079,7 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
 
     double mv_bits = av1_tpl_compute_mv_bits(tpl_data, gf_group->size,
                                              gf_frame_index, vbr_rc_info);
+    mv_bits = AOMMIN(mv_bits, 0.6 * gop_bit_budget);
     gop_bit_budget -= mv_bits;
     av1_q_mode_estimate_base_q(
         gf_group, tpl_data->txfm_stats_list, stats_valid_list, gop_bit_budget,
