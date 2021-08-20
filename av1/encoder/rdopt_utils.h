@@ -266,7 +266,8 @@ get_prediction_mode_idx(PREDICTION_MODE this_mode, MV_REFERENCE_FRAME ref_frame,
     return single_inter_to_mode_idx[this_mode - SINGLE_INTER_MODE_START]
                                    [ref_frame];
   }
-  if (this_mode >= COMP_INTER_MODE_START && this_mode < COMP_INTER_MODE_END) {
+  if (this_mode >= COMP_INTER_MODE_START && this_mode < COMP_INTER_MODE_END &&
+      second_ref_frame != NONE_FRAME) {
     assert((ref_frame > INTRA_FRAME) && (ref_frame <= ALTREF_FRAME));
     assert((second_ref_frame > INTRA_FRAME) &&
            (second_ref_frame <= ALTREF_FRAME));
