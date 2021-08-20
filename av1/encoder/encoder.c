@@ -884,7 +884,6 @@ AV1_PRIMARY *av1_create_primary_compressor(
   ppi->b_calculate_psnr = CONFIG_INTERNAL_STATS;
   ppi->frames_left = oxcf->input_cfg.limit;
 #if CONFIG_FRAME_PARALLEL_ENCODE
-  ppi->max_mv_magnitude = 0;
   ppi->num_fp_contexts = 1;
 #endif
 
@@ -4086,10 +4085,6 @@ static void update_end_of_frame_stats(AV1_COMP *cpi) {
       cpi->ppi->filter_level_u = lf->filter_level_u;
       cpi->ppi->filter_level_v = lf->filter_level_v;
     }
-
-    // Store current frame max_mv_magnitude in ppi, if update flag is set.
-    if (!is_stat_generation_stage(cpi))
-      cpi->ppi->max_mv_magnitude = cpi->mv_search_params.max_mv_magnitude;
   }
 
   // Store frame level mv_stats from cpi to ppi.
@@ -4557,6 +4552,8 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
       cur_cpi->rc.frames_to_key = frames_to_key;
       cur_cpi->rc.frames_to_fwd_kf = frames_to_fwd_kf;
       cur_cpi->rc.active_worst_quality = first_cpi->rc.active_worst_quality;
+      cur_cpi->mv_search_params.max_mv_magnitude =
+          first_cpi->mv_search_params.max_mv_magnitude;
       if (gf_group->update_type[cur_cpi->gf_frame_index] == INTNL_ARF_UPDATE) {
         cur_cpi->common.lf.mode_ref_delta_enabled = 1;
       }

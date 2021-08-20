@@ -2321,12 +2321,6 @@ typedef struct AV1_PRIMARY {
   int filter_level_v;
 
   /*!
-   * Largest MV component used in previous encoded frame during
-   * stats consumption stage.
-   */
-  int max_mv_magnitude;
-
-  /*!
    * Start time stamp of the last encoded show frame
    */
   int64_t ts_start_last_show_frame;
