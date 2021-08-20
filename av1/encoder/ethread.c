@@ -742,11 +742,17 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
         alloc_compound_type_rd_buffers(&ppi->error,
                                        &thread_data->td->comp_rd_buffer);
 
-        for (int j = 0; j < 2; ++j) {
-          AOM_CHECK_MEM_ERROR(
-              &ppi->error, thread_data->td->tmp_pred_bufs[j],
-              aom_memalign(32, 2 * MAX_MB_PLANE * MAX_SB_SQUARE *
-                                   sizeof(*thread_data->td->tmp_pred_bufs[j])));
+        // The buffers 'tmp_pred_bufs[]' are used in inter frames to store
+        // temporary prediction results. Hence, the memory allocation is avoided
+        // for allintra encode.
+        if (ppi->cpi->oxcf.kf_cfg.key_freq_max != 0) {
+          for (int j = 0; j < 2; ++j) {
+            AOM_CHECK_MEM_ERROR(
+                &ppi->error, thread_data->td->tmp_pred_bufs[j],
+                aom_memalign(32,
+                             2 * MAX_MB_PLANE * MAX_SB_SQUARE *
+                                 sizeof(*thread_data->td->tmp_pred_bufs[j])));
+          }
         }
 
         const SPEED_FEATURES *sf = &ppi->cpi->sf;
