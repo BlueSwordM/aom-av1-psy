@@ -739,8 +739,8 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 }
 
 static AOM_INLINE int is_rtc_mode(const CostUpdateFreq *cost_upd_freq,
-                                  int use_non_rd_mode) {
-  return (use_non_rd_mode && cost_upd_freq->coeff >= 2 &&
+                                  MODE mode) {
+  return ((mode == REALTIME) && cost_upd_freq->coeff >= 2 &&
           cost_upd_freq->mode >= 2 && cost_upd_freq->mv >= 2 &&
           cost_upd_freq->dv >= 2);
 }
@@ -771,7 +771,10 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
   const int sb_row = (mi_row - tile_info->mi_row_start) >> mib_size_log2;
   const int use_nonrd_mode = cpi->sf.rt_sf.use_nonrd_pick_mode;
   const CostUpdateFreq *const cost_upd_freq = &cpi->oxcf.cost_upd_freq;
-  const int rtc_mode = is_rtc_mode(cost_upd_freq, use_nonrd_mode);
+  // TODO(yunqing): "&& use_nonrd_mode" can be removed in rtc_mode calculation.
+  // To do that, need to handle multi-thread case correctly.
+  const int rtc_mode =
+      is_rtc_mode(cost_upd_freq, cpi->oxcf.mode) && use_nonrd_mode;
   const int update_cdf = tile_data->allow_update_cdf && row_mt_enabled;
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -913,9 +916,8 @@ void av1_init_tile_data(AV1_COMP *cpi) {
   TokenList *tplist = token_info->tplist[0][0];
   unsigned int tile_tok = 0;
   int tplist_count = 0;
-  const int use_nonrd_mode = cpi->sf.rt_sf.use_nonrd_pick_mode;
   const CostUpdateFreq *const cost_upd_freq = &cpi->oxcf.cost_upd_freq;
-  const int rtc_mode = is_rtc_mode(cost_upd_freq, use_nonrd_mode);
+  const int rtc_mode = is_rtc_mode(cost_upd_freq, cpi->oxcf.mode);
 
   for (tile_row = 0; tile_row < tile_rows; ++tile_row) {
     for (tile_col = 0; tile_col < tile_cols; ++tile_col) {
