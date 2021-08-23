@@ -1380,6 +1380,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     }
     sf->intra_sf.skip_intra_in_interframe = 5;
     sf->intra_sf.disable_smooth_intra = 1;
+    sf->intra_sf.skip_filter_intra_in_inter_frames = 1;
 
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_3;
     sf->tx_sf.use_inter_txb_hash = 0;
@@ -1710,6 +1711,7 @@ static AOM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
   intra_sf->cfl_search_range = 3;
   intra_sf->top_intra_model_count_allowed = TOP_INTRA_MODEL_COUNT;
   intra_sf->early_term_chroma_palette_size_search = 0;
+  intra_sf->skip_filter_intra_in_inter_frames = 0;
 }
 
 static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {

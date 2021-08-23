@@ -1018,6 +1018,10 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // 0.85%, 1.05%, 1.45%, 1.66% and 1.95% for speed 0 to 6 on a typical image
   // dataset with no quality drop.
   int early_term_chroma_palette_size_search;
+
+  // Skips the evaluation of filter intra modes in inter frames if rd evaluation
+  // of luma intra dc mode results in invalid rd stats.
+  int skip_filter_intra_in_inter_frames;
 } INTRA_MODE_SPEED_FEATURES;
 
 typedef struct TX_SPEED_FEATURES {
