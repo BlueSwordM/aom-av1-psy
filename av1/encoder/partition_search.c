@@ -704,6 +704,37 @@ static AOM_INLINE void hybrid_intra_mode_search(AV1_COMP *cpi,
     av1_nonrd_pick_intra_mode(cpi, x, rd_cost, bsize, ctx);
 }
 
+// For real time row-mt enabled multi-threaded encoding with cost update
+// frequency set to COST_UPD_TILE/COST_UPD_OFF, tile ctxt is not updated at
+// superblock level. Thus, it is not required for the encoding of top-right
+// superblock be complete for updating tile ctxt. However, when encoding a block
+// whose right edge is also the superblock edge, intra and inter mode evaluation
+// (ref mv list population) require the encoding of the top-right superblock to
+// be complete. So, here, we delay the waiting of threads until the need for the
+// data from the top-right superblock region.
+static AOM_INLINE void wait_for_top_right_sb(
+    AV1EncRowMultiThreadInfo *enc_row_mt, AV1EncRowMultiThreadSync *row_mt_sync,
+    TileInfo *tile_info, BLOCK_SIZE sb_size, int sb_mi_size_log2,
+    BLOCK_SIZE bsize, int mi_row, int mi_col) {
+  const int sb_size_in_mi = mi_size_wide[sb_size];
+  const int bw_in_mi = mi_size_wide[bsize];
+  const int blk_row_in_sb = mi_row & (sb_size_in_mi - 1);
+  const int blk_col_in_sb = mi_col & (sb_size_in_mi - 1);
+  const int top_right_block_in_sb =
+      (blk_row_in_sb == 0) && (blk_col_in_sb + bw_in_mi >= sb_size_in_mi);
+
+  // Don't wait if the block is the not the top-right block in the superblock.
+  if (!top_right_block_in_sb) return;
+
+  // Wait for the top-right superblock to finish encoding.
+  const int sb_row_in_tile =
+      (mi_row - tile_info->mi_row_start) >> sb_mi_size_log2;
+  const int sb_col_in_tile =
+      (mi_col - tile_info->mi_col_start) >> sb_mi_size_log2;
+
+  (*(enc_row_mt->sync_read_ptr))(row_mt_sync, sb_row_in_tile, sb_col_in_tile);
+}
+
 /*!\brief Interface for AV1 mode search for an individual coding block
  *
  * \ingroup partition_search
@@ -771,6 +802,12 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
 
   int i;
+
+  // This is only needed for real time row-mt enabled multi-threaded encoding
+  // with cost update frequency set to COST_UPD_TILE/COST_UPD_OFF.
+  wait_for_top_right_sb(&cpi->mt_info.enc_row_mt, &tile_data->row_mt_sync,
+                        &tile_data->tile_info, cm->seq_params->sb_size,
+                        cm->seq_params->mib_size_log2, bsize, mi_row, mi_col);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, rd_pick_sb_modes_time);
@@ -2047,29 +2084,6 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   x->rdmult = origin_mult;
 }
 
-static AOM_INLINE void wait_for_top_right_sb(
-    AV1EncRowMultiThreadInfo *enc_row_mt, AV1EncRowMultiThreadSync *row_mt_sync,
-    TileInfo *tile_info, BLOCK_SIZE sb_size, int sb_mi_size_log2,
-    BLOCK_SIZE bsize, int mi_row, int mi_col) {
-  const int sb_size_in_mi = mi_size_wide[sb_size];
-  const int bw_in_mi = mi_size_wide[bsize];
-  const int blk_row_in_sb = mi_row & (sb_size_in_mi - 1);
-  const int blk_col_in_sb = mi_col & (sb_size_in_mi - 1);
-  const int top_right_block_in_sb =
-      (blk_row_in_sb == 0) && (blk_col_in_sb + bw_in_mi >= sb_size_in_mi);
-
-  // Don't wait if the block is the not the top-right block in the superblock.
-  if (!top_right_block_in_sb) return;
-
-  // Wait for the top-right superblock to finish encoding.
-  const int sb_row_in_tile =
-      (mi_row - tile_info->mi_row_start) >> sb_mi_size_log2;
-  const int sb_col_in_tile =
-      (mi_col - tile_info->mi_col_start) >> sb_mi_size_log2;
-
-  (*(enc_row_mt->sync_read_ptr))(row_mt_sync, sb_row_in_tile, sb_col_in_tile);
-}
-
 /*!\brief Top level function to pick block mode for non-RD optimized case
  *
  * \ingroup partition_search
@@ -2117,6 +2131,8 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
   int i;
 
+  // This is only needed for real time row-mt enabled multi-threaded encoding
+  // with cost update frequency set to COST_UPD_TILE/COST_UPD_OFF.
   wait_for_top_right_sb(&cpi->mt_info.enc_row_mt, &tile_data->row_mt_sync,
                         &tile_data->tile_info, cm->seq_params->sb_size,
                         cm->seq_params->mib_size_log2, bsize, mi_row, mi_col);
