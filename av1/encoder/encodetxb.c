@@ -489,10 +489,13 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
           PLANE_TYPE_Y, xd, tx_size, cpi->use_screen_content_tools);
       (void)default_type;
       // TODO(kyslov): We don't always respect use_intra_default_tx_only flag in
-      // NonRD case. Specifically we ignore it in hybrid inta mode search and
-      // when picking up intra mode in nonRD inter mode search. We need to fix
-      // it in these two places. Meanwhile relieving the assert.
-      assert(tx_type == default_type || cpi->sf.rt_sf.use_nonrd_pick_mode);
+      // NonRD and REALTIME case. Specifically we ignore it in hybrid inta mode
+      // search, when picking up intra mode in nonRD inter mode search and in RD
+      // REALTIME mode when we limit TX type usage.
+      // We need to fix txfm cfg for these cases. Meanwhile relieving the
+      // assert.
+      assert(tx_type == default_type || cpi->sf.rt_sf.use_nonrd_pick_mode ||
+             cpi->oxcf.mode == REALTIME);
     }
   }
 
