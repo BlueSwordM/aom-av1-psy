@@ -227,6 +227,10 @@ void av1_alloc_cdef_buffers(AV1_COMMON *const cm,
   free_cdef_bufs_conditional(cm, cdef_info->colbuf, &cdef_info->srcbuf,
                              new_colbuf_size, new_srcbuf_size);
 
+  // The flag init_worker indicates if cdef_worker has to be allocated for the
+  // frame. This is passed as 1 always from decoder. At encoder side, it is 0
+  // when called for parallel frames during FPMT (where cdef_worker is shared
+  // across parallel frames) and 1 otherwise.
   if (*cdef_worker != NULL && init_worker) {
     if (is_num_workers_changed) {
       // Free src and column buffers for remaining workers in case of change in
