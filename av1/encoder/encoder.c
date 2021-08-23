@@ -2742,24 +2742,10 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       }
 
 #if 0
-      // Add +2 here because this is the last frame this method is called at.
-      if (cpi->gf_frame_index + 2 >= cpi->ppi->gf_group.size) {
-        printf(
-            "\ni, \test_bitrate, \test_mv_bitrate, \tact_bitrate, "
-            "\tact_mv_bitrate, \tact_coeff_bitrate, \tq, \tupdate_type\n");
-        VBR_RATECTRL_INFO info = cpi->vbr_rc_info;
-        for (int i = 0; i < cpi->ppi->gf_group.size; i++) {
-          printf("%d, \t%f, \t%f, \t%d, \t%d, \t%d, \t%d, \t%d\n", i,
-                 info.estimated_bitrate_byframe[i],
-                 info.estimated_mv_bitrate_byframe[i],
-                 info.actual_bitrate_byframe[i],
-                 info.actual_mv_bitrate_byframe[i],
-                 info.actual_coeff_bitrate_byframe[i],
-                 cpi->vbr_rc_info.q_index_list[i],
-                 cpi->ppi->gf_group.update_type[i]);
-        }
-      }
+      vbr_rc_info_log(&cpi->vbr_rc_info, cpi->gf_frame_index,
+                      cpi->ppi->gf_group.size, &cpi->ppi->gf_group.update_type);
 #endif
+
 #endif
     }
 

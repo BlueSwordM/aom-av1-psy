@@ -286,6 +286,26 @@ static INLINE void vbr_rc_set_keyframe_bitrate(VBR_RATECTRL_INFO *vbr_rc_info,
   vbr_rc_info->keyframe_bitrate = keyframe_bitrate;
 }
 
+static INLINE void vbr_rc_info_log(const VBR_RATECTRL_INFO *vbr_rc_info,
+                                   int gf_frame_index, int gf_group_size,
+                                   int *update_type) {
+  // Add +2 here because this is the last frame this method is called at.
+  if (gf_frame_index + 2 >= gf_group_size) {
+    printf(
+        "\ni, \test_bitrate, \test_mv_bitrate, \tact_bitrate, "
+        "\tact_mv_bitrate, \tact_coeff_bitrate, \tq, \tupdate_type\n");
+    for (int i = 0; i < gf_group_size; i++) {
+      printf("%d, \t%f, \t%f, \t%d, \t%d, \t%d, \t%d, \t%d\n", i,
+             vbr_rc_info->estimated_bitrate_byframe[i],
+             vbr_rc_info->estimated_mv_bitrate_byframe[i],
+             vbr_rc_info->actual_bitrate_byframe[i],
+             vbr_rc_info->actual_mv_bitrate_byframe[i],
+             vbr_rc_info->actual_coeff_bitrate_byframe[i],
+             vbr_rc_info->q_index_list[i], update_type[i]);
+    }
+  }
+}
+
 #endif  // CONFIG_BITRATE_ACCURACY
 
 #if CONFIG_RD_COMMAND
