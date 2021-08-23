@@ -1307,7 +1307,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->part_sf.reuse_prev_rd_results_for_part_ab = 1;
   sf->part_sf.use_best_rd_for_pruning = 1;
   sf->part_sf.prune_ext_partition_types_search_level = 2;
-  sf->part_sf.simple_motion_search_prune_rect = 1;
   sf->part_sf.partition_search_breakout_rate_thr = 80;
   sf->part_sf.less_rectangular_check_level = 2;
 
