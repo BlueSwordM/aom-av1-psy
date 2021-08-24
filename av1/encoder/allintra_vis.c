@@ -480,11 +480,11 @@ int av1_get_sbq_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
 void av1_init_mb_ur_var_buffer(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
 
-  if (cpi->mb_variance) return;
+  if (cpi->mb_delta_q) return;
 
-  CHECK_MEM_ERROR(cm, cpi->mb_variance,
+  CHECK_MEM_ERROR(cm, cpi->mb_delta_q,
                   aom_calloc(cpi->frame_info.mb_rows * cpi->frame_info.mb_cols,
-                             sizeof(*cpi->mb_variance)));
+                             sizeof(*cpi->mb_delta_q)));
 }
 
 void av1_set_mb_ur_variance(AV1_COMP *cpi) {
@@ -502,6 +502,8 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi) {
   const int num_rows = (mi_params->mi_rows + num_mi_h - 1) / num_mi_h;
   const int use_hbd = cpi->source->flags & YV12_FLAG_HIGHBITDEPTH;
 
+  double a = -23.06 * 4.0, b = 0.004065, c = 30.516 * 4.0;
+  int delta_q_avg = 0;
   // Loop through each SB block.
   for (int row = 0; row < num_rows; ++row) {
     for (int col = 0; col < num_cols; ++col) {
@@ -522,18 +524,32 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi) {
           buf.buf = y_buffer + row_offset_y * y_stride + col_offset_y;
           buf.stride = y_stride;
 
+          double block_variance;
           if (use_hbd) {
-            var += av1_high_get_sby_perpixel_variance(cpi, &buf, BLOCK_8X8,
-                                                      xd->bd);
+            block_variance = av1_high_get_sby_perpixel_variance(
+                cpi, &buf, BLOCK_8X8, xd->bd);
           } else {
-            var += av1_get_sby_perpixel_variance(cpi, &buf, BLOCK_8X8);
+            block_variance =
+                av1_get_sby_perpixel_variance(cpi, &buf, BLOCK_8X8);
           }
 
+          block_variance = block_variance < 1.0 ? 1.0 : block_variance;
+          var += log(block_variance);
           num_of_var += 1.0;
         }
       }
-      var = var / num_of_var;
-      cpi->mb_variance[index] = var;
+      var = exp(var / num_of_var);
+      cpi->mb_delta_q[index] = (int)(a * exp(-b * var) + c + 0.5);
+      delta_q_avg += cpi->mb_delta_q[index];
+    }
+  }
+
+  delta_q_avg = (int)((double)delta_q_avg / (num_rows * num_cols) + 0.5);
+
+  for (int row = 0; row < num_rows; ++row) {
+    for (int col = 0; col < num_cols; ++col) {
+      const int index = row * num_cols + col;
+      cpi->mb_delta_q[index] -= delta_q_avg;
     }
   }
 }
@@ -549,21 +565,9 @@ int av1_get_sbq_user_rating_based(AV1_COMP *const cpi, int mi_row, int mi_col) {
   const int num_mi_h = mi_size_high[bsize];
   const int num_cols = (mi_params->mi_cols + num_mi_w - 1) / num_mi_w;
   const int index = (mi_row / num_mi_h) * num_cols + (mi_col / num_mi_w);
-  const double var = cpi->mb_variance[index];
+  const int delta_q = cpi->mb_delta_q[index];
 
-  const int beta = 80;
-  double a = -23.5 * 4.0, b = 0.00198, c = 30.65 * 4.0;
-  if (base_qindex <= beta) {
-    const double alpha = (double)base_qindex / (double)beta;
-    a *= alpha;
-    c *= alpha;
-  } else {
-    const double alpha = (double)(base_qindex - beta) / (double)(MAXQ - beta);
-    a = a - a * alpha;
-    c = c + ((double)MAXQ - c) * alpha;
-  }
-
-  int qindex = (int)(a * exp(-b * var) + c + 0.5);
+  int qindex = base_qindex + delta_q;
   qindex = AOMMIN(qindex, MAXQ);
   qindex = AOMMAX(qindex, MINQ + 1);
 

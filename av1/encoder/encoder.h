@@ -3148,9 +3148,9 @@ typedef struct AV1_COMP {
   int64_t norm_wiener_variance;
 
   /*!
-   * Buffer to store MB variance.
+   * Buffer to store delta-q values for delta-q mode 4.
    */
-  double *mb_variance;
+  int *mb_delta_q;
 
   /*!
    * Flag to indicate that current frame is dropped.
