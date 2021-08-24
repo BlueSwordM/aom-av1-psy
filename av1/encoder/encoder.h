@@ -83,6 +83,9 @@ extern "C" {
 // Number of frames required to test for scene cut detection
 #define SCENE_CUT_KEY_TEST_INTERVAL 16
 
+// Lookahead index threshold to enable temporal filtering for second arf.
+#define TF_LOOKAHEAD_IDX_THR 7
+
 // Rational number with an int64 numerator
 // This structure holds a fractional value
 typedef struct aom_rational64 {

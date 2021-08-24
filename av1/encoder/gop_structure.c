@@ -147,11 +147,12 @@ static AOM_INLINE void set_params_for_internal_arfs(
             gf_group->display_idx[(*frame_ind) - 1];
       }
     }
-    // If max_parallel_frames is not exceeded, encode the next internal ARF
-    // frame in parallel.
+    // If max_parallel_frames is not exceeded and if the frame will not be
+    // temporally filtered, encode the next internal ARF frame in parallel.
     if (*parallel_frame_count > 1 &&
         *parallel_frame_count <= max_parallel_frames) {
-      gf_group->frame_parallel_level[*frame_ind] = 2;
+      if (gf_group->arf_src_offset[*frame_ind] < TF_LOOKAHEAD_IDX_THR)
+        gf_group->frame_parallel_level[*frame_ind] = 2;
       *parallel_frame_count = 1;
     }
   }
@@ -464,11 +465,12 @@ static void set_multi_layer_params(
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
     if (do_frame_parallel_encode) {
-      // If max_parallel_frames is not exceeded, encode the next internal ARF
-      // frame in parallel.
+      // If max_parallel_frames is not exceeded and if the frame will not be
+      // temporally filtered, encode the next internal ARF frame in parallel.
       if (*parallel_frame_count > 1 &&
           *parallel_frame_count <= max_parallel_frames) {
-        gf_group->frame_parallel_level[*frame_ind] = 2;
+        if (gf_group->arf_src_offset[*frame_ind] < TF_LOOKAHEAD_IDX_THR)
+          gf_group->frame_parallel_level[*frame_ind] = 2;
         *parallel_frame_count = 1;
       }
     }
@@ -656,11 +658,15 @@ static int construct_multi_layer_gf_structure(
 
     // In order to facilitate parallel encoding of frames in lower layer depths,
     // encode reordering is done. Currently encode reordering is enabled only
-    // for gf-intervals 14, 16 and 32. NOTE: Since the buffer holding the
+    // for gf-intervals 16 and 32. NOTE: Since the buffer holding the
     // reference frames is of size 8 (ref_frame_map[REF_FRAMES]), there is a
     // limitation on the number of hidden frames possible at any given point and
-    // hence the reordering is enabled only for gf-intervals 14, 16 and 32.
-    if (actual_gf_length == 14) {
+    // hence the reordering is enabled only for gf-intervals 16 and 32.
+    // Disabling encode reordering for gf-interval 14 since some cross-frame
+    // dependencies related to temporal filtering for FPMT is currently not
+    // handled.
+    int disable_gf14_reorder = 1;
+    if (actual_gf_length == 14 && !disable_gf14_reorder) {
       // This array holds the gf index of INTNL_ARF_UPDATE frames in the slot
       // corresponding to their display order hint. This is used while
       // configuring the LF_UPDATE frames and INTNL_OVERLAY_UPDATE frames.
@@ -766,6 +772,25 @@ static int construct_multi_layer_gf_structure(
   }
 #if CONFIG_FRAME_PARALLEL_ENCODE
   if (do_frame_parallel_encode) {
+    // Iterate through the gf_group and reset frame_parallel_level to 0 in case
+    // a frame is marked as frame_parallel_level 1 with no subsequent
+    // frame_parallel_level 2 frame(s).
+    int level1_frame_idx = INT_MAX;
+    int level2_frame_count = 0;
+    for (int frame_idx = 0; frame_idx < frame_index; frame_idx++) {
+      if (gf_group->frame_parallel_level[frame_idx] == 1) {
+        // Set frame_parallel_level to 0 if only one frame is present in a
+        // parallel encode set.
+        if (level1_frame_idx != INT_MAX && !level2_frame_count)
+          gf_group->frame_parallel_level[level1_frame_idx] = 0;
+        // Book-keep frame_idx of frame_parallel_level 1 frame and reset the
+        // count of frame_parallel_level 2 frames in the corresponding parallel
+        // encode set.
+        level1_frame_idx = frame_idx;
+        level2_frame_count = 0;
+      }
+      if (gf_group->frame_parallel_level[frame_idx] == 2) level2_frame_count++;
+    }
     // If frame_parallel_level is set to 1 for the last LF_UPDATE
     // frame in the gf_group, reset it to zero since there are no subsequent
     // frames in the gf_group.
