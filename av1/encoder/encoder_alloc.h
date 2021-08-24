@@ -12,6 +12,7 @@
 #ifndef AOM_AV1_ENCODER_ENCODER_ALLOC_H_
 #define AOM_AV1_ENCODER_ENCODER_ALLOC_H_
 
+#include "av1/encoder/block.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encodetxb.h"
 #include "av1/encoder/ethread.h"
@@ -229,6 +230,11 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   aom_free(cm->tpl_mvs);
   cm->tpl_mvs = NULL;
 
+  if (cpi->td.pixel_gradient_info) {
+    aom_free(cpi->td.pixel_gradient_info);
+    cpi->td.pixel_gradient_info = NULL;
+  }
+
   if (cpi->td.vt64x64) {
     aom_free(cpi->td.vt64x64);
     cpi->td.vt64x64 = NULL;
@@ -267,7 +273,6 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   for (int j = 0; j < 2; ++j) {
     aom_free(cpi->td.mb.tmp_pred_bufs[j]);
   }
-  aom_free(cpi->td.mb.pixel_gradient_info);
 
 #if CONFIG_DENOISE
   if (cpi->denoise_and_model) {
@@ -292,6 +297,20 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 
   aom_free(cpi->mb_variance);
   cpi->mb_variance = NULL;
+}
+
+static AOM_INLINE void allocate_gradient_info_for_hog(
+    PixelLevelGradientInfo **pixel_gradient_info, AV1_COMP *cpi) {
+  const AV1_COMMON *const cm = &cpi->common;
+
+  if (!*pixel_gradient_info) {
+    const int plane_types = PLANE_TYPES >> cm->seq_params->monochrome;
+    CHECK_MEM_ERROR(cm, *pixel_gradient_info,
+                    aom_malloc(sizeof(**pixel_gradient_info) * plane_types *
+                               MAX_SB_SQUARE));
+  }
+
+  cpi->td.mb.pixel_gradient_info = *pixel_gradient_info;
 }
 
 static AOM_INLINE void variance_partition_alloc(AV1_COMP *cpi) {

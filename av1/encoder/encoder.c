@@ -768,13 +768,6 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
     }
   }
 
-  if (x->pixel_gradient_info == NULL) {
-    const int plane_types = PLANE_TYPES >> cm->seq_params->monochrome;
-    CHECK_MEM_ERROR(cm, x->pixel_gradient_info,
-                    aom_malloc(sizeof(*x->pixel_gradient_info) * plane_types *
-                               MAX_SB_SQUARE));
-  }
-
   av1_reset_segment_features(cm);
 
   av1_set_high_precision_mv(cpi, 1, 0);
@@ -2300,7 +2293,13 @@ static int encode_without_recode(AV1_COMP *cpi) {
     }
   }
 
-  if (cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION)
+  const SPEED_FEATURES *sf = &cpi->sf;
+  if (sf->intra_sf.intra_pruning_with_hog ||
+      sf->intra_sf.chroma_intra_pruning_with_hog) {
+    allocate_gradient_info_for_hog(&cpi->td.pixel_gradient_info, cpi);
+  }
+
+  if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION)
     variance_partition_alloc(cpi);
 
   if (cm->current_frame.frame_type == KEY_FRAME) copy_frame_prob_info(cpi);
@@ -2493,7 +2492,13 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   q_low = bottom_index;
   q_high = top_index;
 
-  if (cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION)
+  const SPEED_FEATURES *sf = &cpi->sf;
+  if (sf->intra_sf.intra_pruning_with_hog ||
+      sf->intra_sf.chroma_intra_pruning_with_hog) {
+    allocate_gradient_info_for_hog(&cpi->td.pixel_gradient_info, cpi);
+  }
+
+  if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION)
     variance_partition_alloc(cpi);
 
   if (cm->current_frame.frame_type == KEY_FRAME) copy_frame_prob_info(cpi);

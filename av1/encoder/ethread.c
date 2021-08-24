@@ -749,11 +749,15 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
                                    sizeof(*thread_data->td->tmp_pred_bufs[j])));
         }
 
-        const int plane_types = PLANE_TYPES >> ppi->seq_params.monochrome;
-        AOM_CHECK_MEM_ERROR(
-            &ppi->error, thread_data->td->pixel_gradient_info,
-            aom_malloc(sizeof(*thread_data->td->pixel_gradient_info) *
-                       plane_types * MAX_SB_SQUARE));
+        const SPEED_FEATURES *sf = &ppi->cpi->sf;
+        if (sf->intra_sf.intra_pruning_with_hog ||
+            sf->intra_sf.chroma_intra_pruning_with_hog) {
+          const int plane_types = PLANE_TYPES >> ppi->seq_params.monochrome;
+          AOM_CHECK_MEM_ERROR(
+              &ppi->error, thread_data->td->pixel_gradient_info,
+              aom_malloc(sizeof(*thread_data->td->pixel_gradient_info) *
+                         plane_types * MAX_SB_SQUARE));
+        }
 
         if (ppi->cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION) {
           const int num_64x64_blocks =
