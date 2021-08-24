@@ -2083,7 +2083,8 @@ static void estimate_intra_mode(
 }
 
 static AOM_INLINE int is_filter_search_enabled(const AV1_COMP *cpi, int mi_row,
-                                               int mi_col, BLOCK_SIZE bsize) {
+                                               int mi_col, BLOCK_SIZE bsize,
+                                               int segment_id) {
   const AV1_COMMON *const cm = &cpi->common;
   int enable_filter_search = 0;
 
@@ -2095,6 +2096,8 @@ static AOM_INLINE int is_filter_search_enabled(const AV1_COMP *cpi, int mi_row,
           (((mi_row + mi_col) >> bsl) +
            get_chessboard_index(cm->current_frame.frame_number)) &
           0x1;
+      if (cyclic_refresh_segment_id_boosted(segment_id))
+        enable_filter_search = 1;
     }
   }
   return enable_filter_search;
@@ -2438,7 +2441,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       quant_params->base_qindex && cm->seq_params->bit_depth == 8;
 
   const int enable_filter_search =
-      is_filter_search_enabled(cpi, mi_row, mi_col, bsize);
+      is_filter_search_enabled(cpi, mi_row, mi_col, bsize, segment_id);
 
   // TODO(marpan): Look into reducing these conditions. For now constrain
   // it to avoid significant bdrate loss.
@@ -2683,6 +2686,20 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
               : av1_broadcast_interp_filter(filter_ref);
       if (force_mv_inter_layer)
         mi->interp_filters = av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
+
+      // If it is sub-pel motion and best filter was not selected in
+      // search_filter_ref() for all blocks, then check top and left values and
+      // force smooth if both were selected to be smooth.
+      if (cpi->sf.interp_sf.cb_pred_filter_search &&
+          (mi->mv[0].as_mv.row & 0x07 || mi->mv[0].as_mv.col & 0x07)) {
+        if (xd->left_mbmi && xd->above_mbmi) {
+          if ((xd->left_mbmi->interp_filters.as_filters.x_filter ==
+                   EIGHTTAP_SMOOTH &&
+               xd->above_mbmi->interp_filters.as_filters.x_filter ==
+                   EIGHTTAP_SMOOTH))
+            mi->interp_filters = av1_broadcast_interp_filter(EIGHTTAP_SMOOTH);
+        }
+      }
 
       av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0, 0);
 
