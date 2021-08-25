@@ -180,7 +180,7 @@ typedef struct aom_sb_tpl_features {
   int num_units;       /**< The number of units inside the current superblock */
   int64_t intra_cost[64];  /**< The intra cost of each unit */
   int64_t inter_cost[64];  /**< The inter cost of each unit */
-  int64_t mc_dep_cost[64]; /**< The motion compensated dependecy cost */
+  int64_t mc_dep_cost[64]; /**< The motion compensated dependency cost */
 } aom_sb_tpl_features_t;
 
 /*!\brief Features collected from the simple motion process.

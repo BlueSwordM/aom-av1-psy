@@ -130,10 +130,10 @@ static AOM_INLINE int is_frame_droppable(
 
 static AOM_INLINE int get_current_frame_ref_type(const AV1_COMP *const cpi) {
   // We choose the reference "type" of this frame from the flags which indicate
-  // which reference frames will be refreshed by it.  More than one  of these
+  // which reference frames will be refreshed by it. More than one of these
   // flags may be set, so the order here implies an order of precedence. This is
   // just used to choose the primary_ref_frame (as the most recent reference
-  // buffer of the same reference-type as the current frame)
+  // buffer of the same reference-type as the current frame).
 
   switch (cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index]) {
     case 0: return 0;

@@ -1507,7 +1507,7 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
 #if !CONFIG_REALTIME_ONLY
 #define MOTION_MODE_SEARCH_SIZE 2
 
-AOM_INLINE static int is_warped_mode_allowed(const AV1_COMMON *cm,
+static AOM_INLINE int is_warped_mode_allowed(const AV1_COMMON *cm,
                                              MACROBLOCK *const x,
                                              const MB_MODE_INFO *mbmi) {
   const FeatureFlags *const features = &cm->features;

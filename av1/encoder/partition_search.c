@@ -4628,18 +4628,18 @@ BEGIN_PARTITION_SEARCH:
   start_timing(cpi, none_partition_search_time);
 #endif
 
-  // Further pruinging or in some cases reverse prunning when allintra is set
+  // Further pruning or in some cases reverse pruning when allintra is set
   // This code helps visual and in some cases metrics quality where the current
   // block comprises at least one very low variance sub-block and at least one
   // where the variance is much higher.
   //
   // The idea is that in such cases there is danger of ringing and other visual
-  // artefacts from a high variance feature such as an edge into a very low
+  // artifacts from a high variance feature such as an edge into a very low
   // variance region.
   //
   // The approach taken is to force break down / split to a smaller block size
-  // to try and seperate out the low variance and well rpedicted blocks from the
-  // more complex ones and to prevent propogation of ringing over a large
+  // to try and separate out the low variance and well predicted blocks from the
+  // more complex ones and to prevent propagation of ringing over a large
   // region.
   if ((cpi->oxcf.mode == ALLINTRA) && (bsize >= BLOCK_16X16)) {
     double var_min, var_max;

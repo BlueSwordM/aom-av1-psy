@@ -1327,7 +1327,7 @@ enum aome_enc_control_id {
   /*!\brief Codec control function to turn on / off D45 to D203 intra mode
    * usage, int parameter
    *
-   * This will enable or disable usage of D45 to D203 intra modes, whic hare a
+   * This will enable or disable usage of D45 to D203 intra modes, which are a
    * subset of directional modes. This control has no effect if directional
    * modes are disabled (AV1E_SET_ENABLE_DIRECTIONAL_INTRA set to 0).
    *

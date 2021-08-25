@@ -2218,8 +2218,8 @@ static bool ext_ml_model_decision_after_part_ab(
 
 // This function resembles "av1_setup_sms_tree()" in context_tree.c
 // with function signature change.
-SIMPLE_MOTION_DATA_TREE *setup_sms_tree(AV1_COMP *const cpi,
-                                        SIMPLE_MOTION_DATA_TREE *sms_tree) {
+static SIMPLE_MOTION_DATA_TREE *setup_sms_tree(
+    AV1_COMP *const cpi, SIMPLE_MOTION_DATA_TREE *sms_tree) {
   AV1_COMMON *const cm = &cpi->common;
   const int stat_generation_stage = is_stat_generation_stage(cpi);
   const int is_sb_size_128 = cm->seq_params->sb_size == BLOCK_128X128;

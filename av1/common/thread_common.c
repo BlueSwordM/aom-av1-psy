@@ -467,7 +467,7 @@ void av1_loop_filter_frame_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                     plane_start <= 0 && 0 < plane_end;
   planes_to_lf[1] = cm->lf.filter_level_u && plane_start <= 1 && 1 < plane_end;
   planes_to_lf[2] = cm->lf.filter_level_v && plane_start <= 2 && 2 < plane_end;
-  // If the luma plane is purposely not filtered, the chroma planes neither.
+  // If the luma plane is purposely not filtered, neither are the chroma planes.
   if (!planes_to_lf[0] && plane_start <= 0 && 0 < plane_end) return;
   // Early exit.
   if (!planes_to_lf[0] && !planes_to_lf[1] && !planes_to_lf[2]) return;
