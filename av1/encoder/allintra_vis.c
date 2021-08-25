@@ -126,7 +126,6 @@ static int get_window_wiener_var(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   int sb_wiener_var = 0;
   int mb_stride = cpi->frame_info.mb_cols;
   int mb_count = 0;
-  int64_t mb_wiener_sum = 0;
   double base_num = 1;
   double base_den = 1;
   double base_reg = 1;
@@ -138,10 +137,6 @@ static int get_window_wiener_var(AV1_COMP *const cpi, BLOCK_SIZE bsize,
 
       WeberStats *weber_stats =
           &cpi->mb_weber_stats[(row / mi_step) * mb_stride + (col / mi_step)];
-      mb_wiener_sum += (int)(cpi->mb_weber_stats[(row / mi_step) * mb_stride +
-                                                 (col / mi_step)]
-                                 .alpha *
-                             10000);
 
       base_num += ((double)weber_stats->distortion) *
                   sqrt((double)weber_stats->src_variance) *
