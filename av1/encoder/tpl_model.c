@@ -2023,8 +2023,6 @@ double av1_tpl_get_qstep_ratio(const TplParams *tpl_data, int gf_frame_index) {
   const int tpl_stride = tpl_frame->stride;
   int64_t intra_cost_base = 0;
   int64_t mc_dep_cost_base = 0;
-  int64_t pred_error = 1;
-  int64_t recn_error = 1;
   const int step = 1 << tpl_data->tpl_stats_block_mis_log2;
 
   for (int row = 0; row < tpl_frame->mi_rows; row += step) {
@@ -2035,8 +2033,6 @@ double av1_tpl_get_qstep_ratio(const TplParams *tpl_data, int gf_frame_index) {
           RDCOST(tpl_frame->base_rdmult, this_stats->mc_dep_rate,
                  this_stats->mc_dep_dist);
       intra_cost_base += (this_stats->recrf_dist << RDDIV_BITS);
-      pred_error += (this_stats->srcrf_sse << RDDIV_BITS);
-      recn_error += (this_stats->srcrf_dist << RDDIV_BITS);
       mc_dep_cost_base += (this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta;
     }
   }
