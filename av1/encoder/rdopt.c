@@ -5733,9 +5733,9 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
          !is_inter_block(&search_state.best_mbmode));
 
   if (!cpi->rc.is_src_frame_alt_ref && cpi->sf.inter_sf.adaptive_rd_thresh) {
-    av1_update_rd_thresh_fact(cm, x->thresh_freq_fact,
-                              sf->inter_sf.adaptive_rd_thresh, bsize,
-                              search_state.best_mode_index);
+    av1_update_rd_thresh_fact(
+        cm, x->thresh_freq_fact, sf->inter_sf.adaptive_rd_thresh, bsize,
+        search_state.best_mode_index, mode_start, mode_end, THR_DC, MAX_MODES);
   }
 
   // macroblock modes
@@ -5904,7 +5904,8 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   if (cpi->sf.inter_sf.adaptive_rd_thresh) {
     av1_update_rd_thresh_fact(cm, x->thresh_freq_fact,
                               cpi->sf.inter_sf.adaptive_rd_thresh, bsize,
-                              THR_GLOBALMV);
+                              THR_GLOBALMV, THR_INTER_MODE_START,
+                              THR_INTER_MODE_END, THR_DC, MAX_MODES);
   }
 
   av1_zero(best_pred_diff);
