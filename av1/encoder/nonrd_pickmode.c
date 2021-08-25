@@ -60,6 +60,11 @@ typedef struct {
   MV_REFERENCE_FRAME ref_frame;
   PREDICTION_MODE pred_mode;
 } REF_MODE;
+
+typedef struct {
+  InterpFilter filter_x;
+  InterpFilter filter_y;
+} INTER_FILTER;
 /*!\endcond */
 
 static const int pos_shift_16x16[4][4] = {
@@ -96,6 +101,14 @@ static const THR_MODES mode_idx[REF_FRAMES][4] = {
 
 static const PREDICTION_MODE intra_mode_list[] = { DC_PRED, V_PRED, H_PRED,
                                                    SMOOTH_PRED };
+
+static const INTER_FILTER filters_ref_set[9] = {
+  { EIGHTTAP_REGULAR, EIGHTTAP_REGULAR }, { EIGHTTAP_SMOOTH, EIGHTTAP_SMOOTH },
+  { EIGHTTAP_REGULAR, EIGHTTAP_SMOOTH },  { EIGHTTAP_SMOOTH, EIGHTTAP_REGULAR },
+  { MULTITAP_SHARP, MULTITAP_SHARP },     { EIGHTTAP_REGULAR, MULTITAP_SHARP },
+  { MULTITAP_SHARP, EIGHTTAP_REGULAR },   { EIGHTTAP_SMOOTH, MULTITAP_SHARP },
+  { MULTITAP_SHARP, EIGHTTAP_SMOOTH }
+};
 
 static INLINE int mode_offset(const PREDICTION_MODE mode) {
   if (mode >= NEARESTMV) {
@@ -1405,14 +1418,17 @@ static INLINE int get_force_skip_low_temp_var(uint8_t *variance_low, int mi_row,
 }
 
 #define FILTER_SEARCH_SIZE 2
+
 /*!\brief Searches for the best intrpolation filter
  *
  * \ingroup nonrd_mode_search
  * \callgraph
  * \callergraph
- * Iterates through subset of possible interpolation filters (currently
- * only EIGHTTAP_REGULAR and EIGTHTAP_SMOOTH in both directions) and selects
- * the one that gives lowest RD cost. RD cost is calculated using curvfit model
+ * Iterates through subset of possible interpolation filters (EIGHTTAP_REGULAR,
+ * EIGTHTAP_SMOOTH, MULTITAP_SHARP, depending on FILTER_SEARCH_SIZE) and selects
+ * the one that gives lowest RD cost. RD cost is calculated using curvfit model.
+ * Support for dual filters (different filters in the x & y directions) is
+ * allowed if sf.interp_sf.disable_dual_filter = 0.
  *
  * \param[in]    cpi                  Top-level encoder structure
  * \param[in]    x                    Pointer to structure holding all the
@@ -1447,19 +1463,22 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
   struct macroblockd_plane *const pd = &xd->plane[0];
   MB_MODE_INFO *const mi = xd->mi[0];
   const int bw = block_size_wide[bsize];
-  RD_STATS pf_rd_stats[FILTER_SEARCH_SIZE] = { 0 };
-  TX_SIZE pf_tx_size[FILTER_SEARCH_SIZE] = { 0 };
+  int dim_factor =
+      (cpi->sf.interp_sf.disable_dual_filter == 0) ? FILTER_SEARCH_SIZE : 1;
+  RD_STATS pf_rd_stats[FILTER_SEARCH_SIZE * FILTER_SEARCH_SIZE] = { 0 };
+  TX_SIZE pf_tx_size[FILTER_SEARCH_SIZE * FILTER_SEARCH_SIZE] = { 0 };
   PRED_BUFFER *current_pred = *this_mode_pred;
   int best_skip = 0;
   int best_early_term = 0;
   int64_t best_cost = INT64_MAX;
   int best_filter_index = -1;
-  InterpFilter filters[FILTER_SEARCH_SIZE] = { EIGHTTAP_REGULAR,
-                                               EIGHTTAP_SMOOTH };
-  for (int i = 0; i < FILTER_SEARCH_SIZE; ++i) {
+  for (int i = 0; i < FILTER_SEARCH_SIZE * FILTER_SEARCH_SIZE; ++i) {
     int64_t cost;
-    InterpFilter filter = filters[i];
-    mi->interp_filters = av1_broadcast_interp_filter(filter);
+    if (cpi->sf.interp_sf.disable_dual_filter &&
+        filters_ref_set[i].filter_x != filters_ref_set[i].filter_y)
+      continue;
+    mi->interp_filters.as_filters.x_filter = filters_ref_set[i].filter_x;
+    mi->interp_filters.as_filters.y_filter = filters_ref_set[i].filter_y;
     av1_enc_build_inter_predictor_y(xd, mi_row, mi_col);
     if (use_model_yrd_large)
       model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd,
@@ -1486,11 +1505,15 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
       }
     }
   }
-  assert(best_filter_index >= 0 && best_filter_index < FILTER_SEARCH_SIZE);
+  assert(best_filter_index >= 0 &&
+         best_filter_index < dim_factor * FILTER_SEARCH_SIZE);
   if (reuse_inter_pred && *this_mode_pred != current_pred)
     free_pred_buffer(current_pred);
 
-  mi->interp_filters = av1_broadcast_interp_filter(filters[best_filter_index]);
+  mi->interp_filters.as_filters.x_filter =
+      filters_ref_set[best_filter_index].filter_x;
+  mi->interp_filters.as_filters.y_filter =
+      filters_ref_set[best_filter_index].filter_y;
   mi->tx_size = pf_tx_size[best_filter_index];
   this_rdc->rate = pf_rd_stats[best_filter_index].rate;
   this_rdc->dist = pf_rd_stats[best_filter_index].dist;
@@ -1500,7 +1523,7 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
   if (reuse_inter_pred) {
     pd->dst.buf = (*this_mode_pred)->data;
     pd->dst.stride = (*this_mode_pred)->stride;
-  } else if (best_filter_index < FILTER_SEARCH_SIZE - 1) {
+  } else if (best_filter_index < dim_factor * FILTER_SEARCH_SIZE - 1) {
     av1_enc_build_inter_predictor_y(xd, mi_row, mi_col);
   }
 }
