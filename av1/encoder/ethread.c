@@ -647,9 +647,9 @@ void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass) {
       rst_unit_size = (RESTORATION_UNITSIZE_MAX >> 1);
     int num_rows_lr = av1_lr_count_units_in_tile(rst_unit_size, cm->height);
     int num_lr_workers = av1_get_num_mod_workers_for_alloc(p_mt_info, MOD_LR);
-    if (!lr_sync->sync_range || num_rows_lr != lr_sync->rows ||
+    if (!lr_sync->sync_range || num_rows_lr > lr_sync->rows ||
         num_lr_workers > lr_sync->num_workers ||
-        MAX_MB_PLANE != lr_sync->num_planes) {
+        MAX_MB_PLANE > lr_sync->num_planes) {
       av1_loop_restoration_dealloc(lr_sync, num_lr_workers);
       av1_loop_restoration_alloc(lr_sync, cm, num_lr_workers, num_rows_lr,
                                  MAX_MB_PLANE, cm->width);
