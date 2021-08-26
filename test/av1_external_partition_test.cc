@@ -17,6 +17,7 @@
 #include "aom/aom_codec.h"
 #include "aom/aom_external_partition.h"
 #include "av1/common/blockd.h"
+#include "av1/encoder/encodeframe_utils.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
@@ -443,10 +444,12 @@ std::string test_feature_file_names[] = {
 
 static void write_features_to_file(const float *features,
                                    const int feature_size, const int id) {
+  if (!WRITE_FEATURE_TO_FILE) return;
   char filename[256];
   snprintf(filename, sizeof(filename), "%s",
            test_feature_file_names[id].c_str());
   FILE *pfile = fopen(filename, "a");
+  ASSERT_NE(pfile, nullptr);
   for (int i = 0; i < feature_size; ++i) {
     fprintf(pfile, "%.6f", features[i]);
     if (i < feature_size - 1) fprintf(pfile, ",");
@@ -659,15 +662,18 @@ TEST_P(ExternalPartitionTestDfsAPI, SendFeatures) {
   SetExternalPartition(true);
   SetTestSendFeatures(1);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  if (!WRITE_FEATURE_TO_FILE) return;
 
   // Compare feature files by reading them into strings.
   for (int i = 0; i < 8; ++i) {
     std::ifstream base_file(feature_file_names[i]);
+    ASSERT_TRUE(base_file.good());
     std::stringstream base_stream;
     base_stream << base_file.rdbuf();
     std::string base_string = base_stream.str();
 
     std::ifstream test_file(test_feature_file_names[i]);
+    ASSERT_TRUE(test_file.good());
     std::stringstream test_stream;
     test_stream << test_file.rdbuf();
     std::string test_string = test_stream.str();
