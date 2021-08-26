@@ -896,6 +896,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 0: no pruning
   // 1 to 3 indicate increasing order of aggressiveness
   int limit_inter_mode_cands;
+
+  // Cap the no. of txfm searches for a given prediction mode.
+  // 0: no cap, 1: cap beyond first 4 searches, 2: cap beyond first 3 searches.
+  int limit_txfm_eval_per_mode;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {

@@ -4805,13 +4805,33 @@ static void tx_search_best_inter_candidates(
     max_allowed_cands =
         num_allowed_cands[cpi->sf.inter_sf.limit_inter_mode_cands];
   }
+
+  int num_mode_thresh = INT_MAX;
+  if (cpi->sf.inter_sf.limit_txfm_eval_per_mode) {
+    // Bound the no. of transform searches per prediction mode beyond a
+    // threshold.
+    const int num_mode_thresh_ary[3] = { INT_MAX, 4, 3 };
+    assert(cpi->sf.inter_sf.limit_txfm_eval_per_mode <= 2);
+    num_mode_thresh =
+        num_mode_thresh_ary[cpi->sf.inter_sf.limit_txfm_eval_per_mode];
+  }
+
   int num_tx_cands = 0;
+  int num_tx_search_modes[INTER_MODE_END - INTER_MODE_START] = { 0 };
   // Iterate over best inter mode candidates and perform tx search
   for (int j = 0; j < num_inter_mode_cands; ++j) {
     const int data_idx = inter_modes_info->rd_idx_pair_arr[j].idx;
     *mbmi = inter_modes_info->mbmi_arr[data_idx];
     int64_t curr_est_rd = inter_modes_info->est_rd_arr[data_idx];
     if (curr_est_rd * 0.80 > top_est_rd) break;
+
+    if (num_tx_cands > num_mode_thresh) {
+      if ((mbmi->mode != NEARESTMV &&
+           num_tx_search_modes[mbmi->mode - INTER_MODE_START] >= 1) ||
+          (mbmi->mode == NEARESTMV &&
+           num_tx_search_modes[mbmi->mode - INTER_MODE_START] >= 2))
+        continue;
+    }
 
     txfm_info->skip_txfm = 0;
     set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
@@ -4848,6 +4868,7 @@ static void tx_search_best_inter_candidates(
 
     num_tx_cands++;
     if (have_newmv_in_inter_mode(mbmi->mode)) newmv_mode_evaled = 1;
+    num_tx_search_modes[mbmi->mode - INTER_MODE_START]++;
     int64_t this_yrd = INT64_MAX;
     // Do the transform search
     if (!av1_txfm_search(cpi, x, bsize, &rd_stats, &rd_stats_y, &rd_stats_uv,

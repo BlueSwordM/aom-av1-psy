@@ -684,8 +684,10 @@ static void set_good_speed_feature_framesize_dependent(
 
     if (is_720p_or_larger) {
       sf->inter_sf.disable_interinter_wedge_var_thresh = 100;
+      sf->inter_sf.limit_txfm_eval_per_mode = boosted ? 0 : 1;
     } else {
       sf->inter_sf.disable_interinter_wedge_var_thresh = UINT_MAX;
+      sf->inter_sf.limit_txfm_eval_per_mode = boosted ? 0 : 2;
     }
 
     sf->inter_sf.disable_interintra_wedge_var_thresh = UINT_MAX;
@@ -705,6 +707,7 @@ static void set_good_speed_feature_framesize_dependent(
 
     sf->inter_sf.disable_interinter_wedge_var_thresh = UINT_MAX;
     sf->inter_sf.prune_obmc_prob_thresh = INT_MAX;
+    sf->inter_sf.limit_txfm_eval_per_mode = boosted ? 0 : 2;
     if (is_480p_or_lesser) sf->inter_sf.skip_newmv_in_drl = 3;
 
     if (is_720p_or_larger)
@@ -1684,6 +1687,7 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->enable_fast_wedge_mask_search = 0;
   inter_sf->inter_mode_txfm_breakout = 0;
   inter_sf->limit_inter_mode_cands = 0;
+  inter_sf->limit_txfm_eval_per_mode = 0;
 }
 
 static AOM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
