@@ -176,6 +176,7 @@ typedef enum {
  * 128x128 / (16x16) = 64. Change it if the tpl process changes.
  */
 typedef struct aom_sb_tpl_features {
+  int available;       /**< If tpl stats are available */
   int tpl_unit_length; /**< The block length of tpl process */
   int num_units;       /**< The number of units inside the current superblock */
   int64_t intra_cost[64];  /**< The intra cost of each unit */

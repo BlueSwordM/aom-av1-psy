@@ -389,8 +389,6 @@ TEST_P(ExternalPartitionTestAPI, WholePartitionTree4x4Block) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   const double psnr2 = GetAveragePsnr();
 
-  printf("psnr %.5f\n", psnr);
-
   EXPECT_DOUBLE_EQ(psnr, psnr2);
 }
 
@@ -408,7 +406,7 @@ TEST_P(ExternalPartitionTestAPI, RecursivePartition) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   const double psnr2 = GetAveragePsnr();
 
-  const double psnr_thresh = 0.001;
+  const double psnr_thresh = 0.02;
   EXPECT_NEAR(psnr, psnr2, psnr_thresh);
 }
 

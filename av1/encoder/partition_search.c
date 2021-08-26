@@ -102,6 +102,12 @@ static void collect_tpl_stats_sb(const AV1_COMP *const cpi,
   TplParams *const tpl_data = &cpi->ppi->tpl_data;
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[cpi->gf_frame_index];
   TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
+  // If tpl stats is not established, early return
+  if (!tpl_data->ready || gf_group->max_layer_depth_allowed == 0) {
+    features->sb_features.tpl_features.available = 0;
+    return;
+  }
+
   const int tpl_stride = tpl_frame->stride;
   const int step = 1 << tpl_data->tpl_stats_block_mis_log2;
   const int mi_width =
@@ -159,6 +165,7 @@ static void collect_tpl_stats_sb(const AV1_COMP *const cpi,
     }
     fclose(pfile);
   } else {
+    features->sb_features.tpl_features.available = 1;
     features->sb_features.tpl_features.tpl_unit_length = tpl_data->tpl_bsize_1d;
     features->sb_features.tpl_features.num_units = num_blocks;
     int count = 0;
@@ -4096,11 +4103,6 @@ static RD_STATS rd_search_for_fixed_partition(
 static void prepare_sb_features_before_search(
     AV1_COMP *const cpi, ThreadData *td, int mi_row, int mi_col,
     const BLOCK_SIZE bsize, aom_partition_features_t *features) {
-  // TODO(chengchen): properly handle feature collection for unit tests.
-  // Also take care of cases where tpl stats are not available.
-  // Now in unit test, this function causes failures, due to tpl stats
-  // not ready.
-  return;
   av1_collect_motion_search_features_sb(cpi, td, mi_row, mi_col, bsize,
                                         features);
   collect_tpl_stats_sb(cpi, bsize, mi_row, mi_col, features);
