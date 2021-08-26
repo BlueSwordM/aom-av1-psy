@@ -19,8 +19,18 @@ extern "C" {
 #include "av1/encoder/firstpass.h"
 #include "av1/encoder/ratectrl.h"
 
+struct AV1_COMP;
+
 // TODO(bohanli): optimize this number
 #define MAX_THIRD_PASS_BUF (2 * MAX_GF_INTERVAL + 1)
+
+// Struct to store useful information related to a GOP, in addition to what is
+// available in the bitstream
+typedef struct {
+  int gf_length;
+  int num_frames;
+  int use_arf;
+} THIRD_PASS_GOP_INFO;
 
 // Struct to store useful information about a frame for the third pass.
 // The members are extracted from the decoder by function get_frame_info.
@@ -65,6 +75,7 @@ typedef struct {
   int frame_info_count;
   // the end of the previous GOP (order hint)
   int prev_gop_end;
+  THIRD_PASS_GOP_INFO gop_info;
 } THIRD_PASS_DEC_CTX;
 
 void av1_init_thirdpass_ctx(AV1_COMMON *cm, THIRD_PASS_DEC_CTX **ctx,
@@ -81,6 +92,13 @@ void av1_set_gop_third_pass(THIRD_PASS_DEC_CTX *ctx, GF_GROUP *gf_group,
 // Pop one frame out of the array ctx->frame_info. This function is used to make
 // sure that frame_info[0] always corresponds to the current frame.
 void av1_pop_third_pass_info(THIRD_PASS_DEC_CTX *ctx);
+
+// Write the current GOP information into the second pass log file.
+void av1_write_second_pass_gop_info(struct AV1_COMP *cpi);
+
+// Read the next GOP information from the second pass log file.
+void av1_read_second_pass_gop_info(struct AV1_COMP *cpi,
+                                   THIRD_PASS_GOP_INFO *gop_info);
 
 #ifdef __cplusplus
 }  // extern "C"

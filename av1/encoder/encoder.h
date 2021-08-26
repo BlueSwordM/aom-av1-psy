@@ -996,6 +996,9 @@ typedef struct AV1EncoderConfig {
   // the name of the second pass output file when passes > 2
   const char *two_pass_output;
 
+  // the name of the second pass log file when passes > 2
+  const char *second_pass_log;
+
   // Indicates if the encoding is GOOD or REALTIME.
   MODE mode;
 
@@ -3209,6 +3212,11 @@ typedef struct AV1_COMP {
    * Context needed for third pass encoding.
    */
   THIRD_PASS_DEC_CTX *third_pass_ctx;
+
+  /*!
+   * File pointer to second pass log
+   */
+  FILE *second_pass_log_stream;
 } AV1_COMP;
 
 /*!
