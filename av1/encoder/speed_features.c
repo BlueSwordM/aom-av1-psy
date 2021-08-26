@@ -946,6 +946,7 @@ static void set_good_speed_features_framesize_independent(
         !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key > 1);
     sf->intra_sf.intra_pruning_with_hog = 2;
     sf->intra_sf.skip_intra_in_interframe = is_lf_frame ? 2 : 1;
+    sf->intra_sf.skip_filter_intra_in_inter_frames = 1;
 
     sf->tpl_sf.prune_starting_mv = 1;
     sf->tpl_sf.search_method = DIAMOND;
