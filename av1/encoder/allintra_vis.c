@@ -10,6 +10,7 @@
  */
 
 #include <stdio.h>
+#include "av1/common/common_data.h"
 #include "av1/common/enums.h"
 #include "av1/common/idct.h"
 
@@ -30,10 +31,12 @@ static int qsort_comp(const void *elem1, const void *elem2) {
 void av1_init_mb_wiener_var_buffer(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
 
+  cpi->weber_bsize = BLOCK_16X16;
+
   if (cpi->mb_weber_stats) return;
 
   CHECK_MEM_ERROR(cm, cpi->mb_weber_stats,
-                  aom_calloc(cpi->frame_info.mb_rows * cpi->frame_info.mb_cols,
+                  aom_calloc(cpi->frame_info.mi_rows * cpi->frame_info.mi_cols,
                              sizeof(*cpi->mb_weber_stats)));
 }
 
@@ -43,8 +46,8 @@ static int64_t get_satd(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
   const int mi_wide = mi_size_wide[bsize];
   const int mi_high = mi_size_high[bsize];
 
-  const int mi_step = mi_size_wide[BLOCK_16X16];
-  int mb_stride = cpi->frame_info.mb_cols;
+  const int mi_step = mi_size_wide[cpi->weber_bsize];
+  int mb_stride = cpi->frame_info.mi_cols;
   int mb_count = 0;
   int64_t satd = 0;
 
@@ -71,8 +74,8 @@ static int64_t get_sse(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
   const int mi_wide = mi_size_wide[bsize];
   const int mi_high = mi_size_high[bsize];
 
-  const int mi_step = mi_size_wide[BLOCK_16X16];
-  int mb_stride = cpi->frame_info.mb_cols;
+  const int mi_step = mi_size_wide[cpi->weber_bsize];
+  int mb_stride = cpi->frame_info.mi_cols;
   int mb_count = 0;
   int64_t distortion = 0;
 
@@ -99,8 +102,8 @@ static double get_max_scale(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
   AV1_COMMON *const cm = &cpi->common;
   const int mi_wide = mi_size_wide[bsize];
   const int mi_high = mi_size_high[bsize];
-  const int mi_step = mi_size_wide[BLOCK_16X16];
-  int mb_stride = cpi->frame_info.mb_cols;
+  const int mi_step = mi_size_wide[cpi->weber_bsize];
+  int mb_stride = cpi->frame_info.mi_cols;
   double min_max_scale = 10.0;
 
   for (int row = mi_row; row < mi_row + mi_high; row += mi_step) {
@@ -122,9 +125,9 @@ static int get_window_wiener_var(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   const int mi_wide = mi_size_wide[bsize];
   const int mi_high = mi_size_high[bsize];
 
-  const int mi_step = mi_size_wide[BLOCK_16X16];
+  const int mi_step = mi_size_wide[cpi->weber_bsize];
   int sb_wiener_var = 0;
-  int mb_stride = cpi->frame_info.mb_cols;
+  int mb_stride = cpi->frame_info.mi_cols;
   int mb_count = 0;
   double base_num = 1;
   double base_den = 1;
@@ -220,24 +223,21 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
   DECLARE_ALIGNED(32, tran_low_t, qcoeff[32 * 32]);
   DECLARE_ALIGNED(32, tran_low_t, dqcoeff[32 * 32]);
 
-  int mb_row, mb_col, count = 0;
-  const TX_SIZE tx_size = TX_16X16;
+  int mi_row, mi_col;
+
+  BLOCK_SIZE bsize = cpi->weber_bsize;
+  const TX_SIZE tx_size = max_txsize_lookup[bsize];
   const int block_size = tx_size_wide[tx_size];
   const int coeff_count = block_size * block_size;
 
   const BitDepthInfo bd_info = get_bit_depth_info(xd);
   cpi->norm_wiener_variance = 0;
+  int mb_step = mi_size_wide[bsize];
 
-  int mb_step = mi_size_wide[BLOCK_16X16];
-  BLOCK_SIZE bsize = BLOCK_16X16;
-
-  for (mb_row = 0; mb_row < cpi->frame_info.mb_rows; ++mb_row) {
-    for (mb_col = 0; mb_col < cpi->frame_info.mb_cols; ++mb_col) {
+  for (mi_row = 0; mi_row < cpi->frame_info.mi_rows; mi_row += mb_step) {
+    for (mi_col = 0; mi_col < cpi->frame_info.mi_cols; mi_col += mb_step) {
       PREDICTION_MODE best_mode = DC_PRED;
       int best_intra_cost = INT_MAX;
-
-      int mi_row = mb_row * mb_step;
-      int mi_col = mb_col * mb_step;
 
       xd->up_available = mi_row > 0;
       xd->left_available = mi_col > 0;
@@ -281,8 +281,6 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
       }
 
       int idx;
-      int16_t median_val = 0;
-      int64_t wiener_variance = 0;
       av1_predict_intra_block(xd, cm->seq_params->sb_size,
                               cm->seq_params->enable_intra_edge_filter,
                               block_size, block_size, tx_size, best_mode, 0, 0,
@@ -313,7 +311,8 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
       av1_inverse_transform_block(xd, dqcoeff, 0, DCT_DCT, tx_size, dst_buffer,
                                   dst_buffer_stride, eob, 0);
       WeberStats *weber_stats =
-          &cpi->mb_weber_stats[mb_row * cpi->frame_info.mb_cols + mb_col];
+          &cpi->mb_weber_stats[(mi_row / mb_step) * cpi->frame_info.mi_cols +
+                               (mi_col / mb_step)];
 
       weber_stats->rec_pix_max = 1;
       weber_stats->rec_variance = 0;
@@ -377,27 +376,6 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
       qsort(qcoeff, coeff_count, sizeof(*coeff), qsort_comp);
 
       weber_stats->max_scale = (double)qcoeff[coeff_count - 1];
-
-      coeff[0] = 0;
-      for (idx = 1; idx < coeff_count; ++idx) coeff[idx] = abs(coeff[idx]);
-      qsort(coeff, coeff_count - 1, sizeof(*coeff), qsort_comp);
-
-      // Noise level estimation
-      median_val = coeff[coeff_count / 2];
-
-      // Wiener filter
-      for (idx = 1; idx < coeff_count; ++idx) {
-        int64_t sqr_coeff = (int64_t)coeff[idx] * coeff[idx];
-        int64_t tmp_coeff = (int64_t)coeff[idx];
-        if (median_val) {
-          tmp_coeff = (sqr_coeff * coeff[idx]) /
-                      (sqr_coeff + (int64_t)median_val * median_val);
-        }
-        wiener_variance += tmp_coeff * tmp_coeff;
-      }
-      cpi->mb_weber_stats[mb_row * cpi->frame_info.mb_cols + mb_col]
-          .mb_wiener_variance = wiener_variance / coeff_count;
-      ++count;
     }
   }
 
@@ -405,8 +383,8 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
   double sb_wiener_log = 0;
   double sb_count = 0;
 
-  for (int mi_row = 0; mi_row < cm->mi_params.mi_rows; mi_row += sb_step) {
-    for (int mi_col = 0; mi_col < cm->mi_params.mi_cols; mi_col += sb_step) {
+  for (mi_row = 0; mi_row < cm->mi_params.mi_rows; mi_row += sb_step) {
+    for (mi_col = 0; mi_col < cm->mi_params.mi_cols; mi_col += sb_step) {
       int sb_wiener_var =
           get_var_perceptual_ai(cpi, cm->seq_params->sb_size, mi_row, mi_col);
       int64_t satd = get_satd(cpi, cm->seq_params->sb_size, mi_row, mi_col);
@@ -423,8 +401,8 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
 
   sb_wiener_log = 0;
   sb_count = 0;
-  for (int mi_row = 0; mi_row < cm->mi_params.mi_rows; mi_row += sb_step) {
-    for (int mi_col = 0; mi_col < cm->mi_params.mi_cols; mi_col += sb_step) {
+  for (mi_row = 0; mi_row < cm->mi_params.mi_rows; mi_row += sb_step) {
+    for (mi_col = 0; mi_col < cm->mi_params.mi_cols; mi_col += sb_step) {
       int sb_wiener_var =
           get_var_perceptual_ai(cpi, cm->seq_params->sb_size, mi_row, mi_col);
 
