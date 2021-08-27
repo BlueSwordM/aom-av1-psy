@@ -1424,6 +1424,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   if (speed >= 6) {
     sf->mv_sf.use_fullpel_costlist = 1;
 
+    sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh = 0;
+
     sf->part_sf.adjust_var_based_rd_partitioning = 1;
   }
 
