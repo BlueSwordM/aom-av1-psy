@@ -31,7 +31,7 @@ static int qsort_comp(const void *elem1, const void *elem2) {
 void av1_init_mb_wiener_var_buffer(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
 
-  cpi->weber_bsize = BLOCK_16X16;
+  cpi->weber_bsize = BLOCK_8X8;
 
   if (cpi->mb_weber_stats) return;
 
@@ -112,6 +112,7 @@ static double get_max_scale(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
         continue;
       WeberStats *weber_stats =
           &cpi->mb_weber_stats[(row / mi_step) * mb_stride + (col / mi_step)];
+      if (weber_stats->max_scale < 1.0) continue;
       if (weber_stats->max_scale < min_max_scale)
         min_max_scale = weber_stats->max_scale;
     }
@@ -399,33 +400,35 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
     cpi->norm_wiener_variance = (int64_t)(exp(sb_wiener_log / sb_count));
   cpi->norm_wiener_variance = AOMMAX(1, cpi->norm_wiener_variance);
 
-  sb_wiener_log = 0;
-  sb_count = 0;
-  for (mi_row = 0; mi_row < cm->mi_params.mi_rows; mi_row += sb_step) {
-    for (mi_col = 0; mi_col < cm->mi_params.mi_cols; mi_col += sb_step) {
-      int sb_wiener_var =
-          get_var_perceptual_ai(cpi, cm->seq_params->sb_size, mi_row, mi_col);
+  for (int its_cnt = 0; its_cnt < 2; ++its_cnt) {
+    sb_wiener_log = 0;
+    sb_count = 0;
+    for (mi_row = 0; mi_row < cm->mi_params.mi_rows; mi_row += sb_step) {
+      for (mi_col = 0; mi_col < cm->mi_params.mi_cols; mi_col += sb_step) {
+        int sb_wiener_var =
+            get_var_perceptual_ai(cpi, cm->seq_params->sb_size, mi_row, mi_col);
 
-      double beta = (double)cpi->norm_wiener_variance / sb_wiener_var;
-      double min_max_scale =
-          AOMMAX(1.0, get_max_scale(cpi, bsize, mi_row, mi_col));
-      beta = 1.0 / AOMMIN(1.0 / beta, min_max_scale);
-      beta = AOMMIN(beta, 4);
-      beta = AOMMAX(beta, 0.25);
+        double beta = (double)cpi->norm_wiener_variance / sb_wiener_var;
+        double min_max_scale =
+            AOMMAX(1.0, get_max_scale(cpi, bsize, mi_row, mi_col));
+        beta = 1.0 / AOMMIN(1.0 / beta, min_max_scale);
+        beta = AOMMIN(beta, 4);
+        beta = AOMMAX(beta, 0.25);
 
-      sb_wiener_var = (int)(cpi->norm_wiener_variance / beta);
+        sb_wiener_var = (int)(cpi->norm_wiener_variance / beta);
 
-      int64_t satd = get_satd(cpi, cm->seq_params->sb_size, mi_row, mi_col);
-      int64_t sse = get_sse(cpi, cm->seq_params->sb_size, mi_row, mi_col);
-      double scaled_satd = (double)satd / sqrt((double)sse);
-      sb_wiener_log += scaled_satd * log(sb_wiener_var);
-      sb_count += scaled_satd;
+        int64_t satd = get_satd(cpi, cm->seq_params->sb_size, mi_row, mi_col);
+        int64_t sse = get_sse(cpi, cm->seq_params->sb_size, mi_row, mi_col);
+        double scaled_satd = (double)satd / sqrt((double)sse);
+        sb_wiener_log += scaled_satd * log(sb_wiener_var);
+        sb_count += scaled_satd;
+      }
     }
-  }
 
-  if (sb_count > 0)
-    cpi->norm_wiener_variance = (int64_t)(exp(sb_wiener_log / sb_count));
-  cpi->norm_wiener_variance = AOMMAX(1, cpi->norm_wiener_variance);
+    if (sb_count > 0)
+      cpi->norm_wiener_variance = (int64_t)(exp(sb_wiener_log / sb_count));
+    cpi->norm_wiener_variance = AOMMAX(1, cpi->norm_wiener_variance);
+  }
 
   aom_free_frame_buffer(&cm->cur_frame->buf);
 }
