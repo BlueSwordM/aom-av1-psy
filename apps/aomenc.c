@@ -680,8 +680,8 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
   if (global->pass) {
     /* DWIM: Assume the user meant passes=2 if pass=2 is specified */
     if (global->pass > global->passes) {
-      warn("Assuming --pass=%d implies --passes=%d\n", global->pass,
-           global->pass);
+      aom_tools_warn("Assuming --pass=%d implies --passes=%d\n", global->pass,
+                     global->pass);
       global->passes = global->pass;
     }
   }
@@ -702,14 +702,14 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
   }
 
   if (global->usage == AOM_USAGE_REALTIME && global->passes > 1) {
-    warn("Enforcing one-pass encoding in realtime mode\n");
+    aom_tools_warn("Enforcing one-pass encoding in realtime mode\n");
     if (global->pass > 1)
       die("Error: Invalid --pass=%d for one-pass encoding\n", global->pass);
     global->passes = 1;
   }
 
   if (global->usage == AOM_USAGE_ALL_INTRA && global->passes > 1) {
-    warn("Enforcing one-pass encoding in all intra mode\n");
+    aom_tools_warn("Enforcing one-pass encoding in all intra mode\n");
     global->passes = 1;
   }
 }
@@ -858,7 +858,8 @@ static void set_config_arg_ctrls(struct stream_config *config, int key,
   config->arg_ctrls[j][1] = arg_parse_enum_or_int(arg);
 
   if (key == AOME_SET_ENABLEAUTOALTREF && config->arg_ctrls[j][1] > 1) {
-    warn("auto-alt-ref > 1 is deprecated... setting auto-alt-ref=1\n");
+    aom_tools_warn(
+        "auto-alt-ref > 1 is deprecated... setting auto-alt-ref=1\n");
     config->arg_ctrls[j][1] = 1;
   }
 
@@ -894,7 +895,8 @@ static void set_config_arg_key_vals(struct stream_config *config,
   if (strcmp(name, g_av1_codec_arg_defs.auto_altref.long_name) == 0) {
     int auto_altref = arg_parse_int(arg);
     if (auto_altref > 1) {
-      warn("auto-alt-ref > 1 is deprecated... setting auto-alt-ref=1\n");
+      aom_tools_warn(
+          "auto-alt-ref > 1 is deprecated... setting auto-alt-ref=1\n");
       config->arg_key_vals[j][1] = "1";
     }
   }
@@ -1018,7 +1020,8 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
                          argi)) {
       config->use_16bit_internal = CONFIG_AV1_HIGHBITDEPTH;
       if (!config->use_16bit_internal) {
-        warn("%s option ignored with CONFIG_AV1_HIGHBITDEPTH=0.\n", arg.name);
+        aom_tools_warn("%s option ignored with CONFIG_AV1_HIGHBITDEPTH=0.\n",
+                       arg.name);
       }
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.dropframe_thresh, argi)) {
       config->cfg.rc_dropframe_thresh = arg_parse_uint(&arg);
@@ -1064,17 +1067,17 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.bias_pct, argi)) {
       config->cfg.rc_2pass_vbr_bias_pct = arg_parse_uint(&arg);
       if (global->passes < 2)
-        warn("option %s ignored in one-pass mode.\n", arg.name);
+        aom_tools_warn("option %s ignored in one-pass mode.\n", arg.name);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.minsection_pct, argi)) {
       config->cfg.rc_2pass_vbr_minsection_pct = arg_parse_uint(&arg);
 
       if (global->passes < 2)
-        warn("option %s ignored in one-pass mode.\n", arg.name);
+        aom_tools_warn("option %s ignored in one-pass mode.\n", arg.name);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.maxsection_pct, argi)) {
       config->cfg.rc_2pass_vbr_maxsection_pct = arg_parse_uint(&arg);
 
       if (global->passes < 2)
-        warn("option %s ignored in one-pass mode.\n", arg.name);
+        aom_tools_warn("option %s ignored in one-pass mode.\n", arg.name);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.fwd_kf_enabled, argi)) {
       config->cfg.fwd_kf_enabled = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.kf_min_dist, argi)) {
@@ -1123,7 +1126,8 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
                arg_match(&arg, &g_av1_codec_arg_defs.enable_restoration,
                          argi)) {
       if (arg_parse_uint(&arg) == 1) {
-        warn("non-zero %s option ignored in realtime mode.\n", arg.name);
+        aom_tools_warn("non-zero %s option ignored in realtime mode.\n",
+                       arg.name);
       }
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.two_pass_input, argi)) {
       config->two_pass_input = arg.val;
@@ -1161,17 +1165,18 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
   config->use_16bit_internal |= config->cfg.g_bit_depth > AOM_BITS_8;
 
   if (global->usage == AOM_USAGE_REALTIME && config->cfg.g_lag_in_frames != 0) {
-    warn("non-zero lag-in-frames option ignored in realtime mode.\n");
+    aom_tools_warn("non-zero lag-in-frames option ignored in realtime mode.\n");
     config->cfg.g_lag_in_frames = 0;
   }
 
   if (global->usage == AOM_USAGE_ALL_INTRA) {
     if (config->cfg.g_lag_in_frames != 0) {
-      warn("non-zero lag-in-frames option ignored in all intra mode.\n");
+      aom_tools_warn(
+          "non-zero lag-in-frames option ignored in all intra mode.\n");
       config->cfg.g_lag_in_frames = 0;
     }
     if (config->cfg.kf_max_dist != 0) {
-      warn(
+      aom_tools_warn(
           "non-zero max key frame distance option ignored in all intra "
           "mode.\n");
       config->cfg.kf_max_dist = 0;
@@ -2292,7 +2297,7 @@ int main(int argc, const char **argv_) {
       if (stream->config.write_webm) {
         stream->config.write_webm = 0;
         stream->config.write_ivf = 0;
-        warn("aomenc compiled w/o WebM support. Writing OBU stream.");
+        aom_tools_warn("aomenc compiled w/o WebM support. Writing OBU stream.");
       }
     }
 #endif

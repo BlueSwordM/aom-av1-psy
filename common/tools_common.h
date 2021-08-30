@@ -134,7 +134,7 @@ FILE *set_binary_mode(FILE *stream);
 
 void die(const char *fmt, ...) AOM_NO_RETURN;
 void fatal(const char *fmt, ...) AOM_NO_RETURN;
-void warn(const char *fmt, ...);
+void aom_tools_warn(const char *fmt, ...);
 
 void die_codec(aom_codec_ctx_t *ctx, const char *s) AOM_NO_RETURN;
 
