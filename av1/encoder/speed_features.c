@@ -1058,6 +1058,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_ext_comp_using_neighbors = 2;
     sf->inter_sf.prune_obmc_prob_thresh = INT_MAX;
     sf->inter_sf.disable_interinter_wedge_var_thresh = UINT_MAX;
+    sf->inter_sf.prune_nearest_near_mv_using_refmv_weight = boosted ? 0 : 1;
 
     sf->interp_sf.cb_pred_filter_search = 1;
     sf->interp_sf.skip_sharp_interp_filter_search = 1;
@@ -1677,6 +1678,7 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_ext_comp_using_neighbors = 0;
   inter_sf->skip_ext_comp_nearmv_mode = 0;
   inter_sf->prune_comp_using_best_single_mode_ref = 0;
+  inter_sf->prune_nearest_near_mv_using_refmv_weight = 0;
   inter_sf->disable_onesided_comp = 0;
   inter_sf->prune_mode_search_simple_translation = 0;
   inter_sf->prune_comp_type_by_comp_avg = 0;

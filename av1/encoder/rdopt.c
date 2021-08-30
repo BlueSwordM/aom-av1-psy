@@ -1735,6 +1735,40 @@ static INLINE int get_this_mv(int_mv *this_mv, PREDICTION_MODE this_mode,
   return 1;
 }
 
+// Skip NEARESTMV and NEARMV modes based on refmv weight computed in ref mv list
+// population
+static INLINE int skip_nearest_near_mv_using_refmv_weight(
+    const MACROBLOCK *const x, const PREDICTION_MODE this_mode,
+    const int8_t ref_frame_type) {
+  if (this_mode != NEARESTMV && this_mode != NEARMV) return 0;
+
+  const MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
+  const uint16_t *const ref_mv_weight = mbmi_ext->weight[ref_frame_type];
+  const int ref_mv_count =
+      AOMMIN(MAX_REF_MV_SEARCH, mbmi_ext->ref_mv_count[ref_frame_type]);
+
+  if (ref_mv_count == 0) return 0;
+  // If ref mv list has atleast one nearest candidate do not prune NEARESTMV
+  if (this_mode == NEARESTMV && ref_mv_weight[0] >= REF_CAT_LEVEL) return 0;
+
+  // Count number of ref mvs populated from nearest candidates
+  int nearest_refmv_count = 0;
+  for (int ref_mv_idx = 0; ref_mv_idx < ref_mv_count; ref_mv_idx++) {
+    if (ref_mv_weight[ref_mv_idx] >= REF_CAT_LEVEL) nearest_refmv_count++;
+  }
+
+  // nearest_refmv_count indicates the closeness of block motion characteristics
+  // with respect its spatial neighbor. Lower value of nearest_refmv_count
+  // means less correlation with its spatial neighbors. Hence less possibility
+  // for NEARESTMV and NEARMV modes becoming the best mode since these modes
+  // work well for blocks that shares similar motion characteristics with its
+  // neighbor. Thus, when nearest_refmv_count is less w.r.t ref_mv_count prune
+  // the mode.
+  const int prune_thresh = 1 + (ref_mv_count >= 2);
+  if (nearest_refmv_count < prune_thresh) return 1;
+  return 0;
+}
+
 // This function update the non-new mv for the current prediction mode
 static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
                                const AV1_COMMON *cm, const MACROBLOCK *x,
@@ -4723,6 +4757,12 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
     if (skip_compound_using_best_single_mode_ref(
             this_mode, ref_frames, args->search_state->best_single_mode,
             sf->inter_sf.prune_comp_using_best_single_mode_ref))
+      return 1;
+  }
+
+  if (sf->inter_sf.prune_nearest_near_mv_using_refmv_weight && !comp_pred) {
+    const int8_t ref_frame_type = av1_ref_frame_type(ref_frames);
+    if (skip_nearest_near_mv_using_refmv_weight(x, this_mode, ref_frame_type))
       return 1;
   }
 

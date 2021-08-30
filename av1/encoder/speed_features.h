@@ -820,6 +820,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 2 : prune extended compound mode (high aggressiveness)
   int prune_comp_using_best_single_mode_ref;
 
+  // Skip NEARESTMV and NEARMV using weight computed in ref mv list population
+  int prune_nearest_near_mv_using_refmv_weight;
+
   // Based on previous ref_mv_idx search result, prune the following search.
   int prune_ref_mv_idx_search;
 
