@@ -100,8 +100,7 @@ int av1_get_num_mod_workers_for_alloc(PrimaryMultiThreadInfo *const p_mt_info,
 
 void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass);
 
-int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
-                                int max_num_enc_workers);
+int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf);
 
 void av1_cdef_mse_calc_frame_mt(AV1_COMMON *cm, MultiThreadInfo *mt_info,
                                 CdefSearchCtx *cdef_search_ctx);

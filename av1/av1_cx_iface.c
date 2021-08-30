@@ -2465,10 +2465,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
           // Calculate the maximum number of frames that can be encoded in
           // parallel
           priv->ppi->num_fp_contexts = av1_compute_num_fp_contexts(
-              priv->ppi, &priv->ppi->parallel_cpi[i]->oxcf,
-              av1_compute_num_enc_workers(
-                  priv->ppi->parallel_cpi[i],
-                  priv->ppi->parallel_cpi[i]->oxcf.max_threads));
+              priv->ppi, &priv->ppi->parallel_cpi[i]->oxcf);
         }
 #if !CONFIG_REALTIME_ONLY
         priv->ppi->parallel_cpi[i]->twopass_frame.stats_in =

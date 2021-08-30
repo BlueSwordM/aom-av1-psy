@@ -859,25 +859,29 @@ static AOM_INLINE int is_fp_config(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
   return 1;
 }
 
+// A large value for threads used to compute the max num_enc_workers
+// possible for each resolution.
+#define MAX_THREADS 100
+
 // Computes the number of frame parallel(fp) contexts to be created
 // based on the number of max_enc_workers.
-int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
-                                int max_num_enc_workers) {
+int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
   ppi->p_mt_info.num_mod_workers[MOD_FRAME_ENC] = 0;
   if (!is_fp_config(ppi, oxcf)) {
     return 1;
   }
+  int max_num_enc_workers =
+      av1_compute_num_enc_workers(ppi->parallel_cpi[0], MAX_THREADS);
 
-  // A parallel frame encode must have at least half the theoretical limit of
-  // max enc workers. TODO(Mufaddal) : Tune this value based on empirical
-  // analysis.
-  int workers_per_frame = (max_num_enc_workers + 1) / 2;
+  // A parallel frame encode must have at least 1/4th the theoretical limit of
+  // max enc workers. TODO(Remya) : Tune this value for multi-tile case.
+  int workers_per_frame = AOMMAX(1, (max_num_enc_workers + 2) / 4);
   int max_threads = oxcf->max_threads;
   int num_fp_contexts = max_threads / workers_per_frame;
 
   num_fp_contexts = AOMMAX(1, AOMMIN(num_fp_contexts, MAX_PARALLEL_FRAMES));
-  // TODO(anyone): Test and enable for more than 2 frames in parallel.
-  num_fp_contexts = AOMMIN(num_fp_contexts, 2);
+  // TODO(anyone): Test and enable for more than 3 frames in parallel.
+  num_fp_contexts = AOMMIN(num_fp_contexts, 3);
   if (num_fp_contexts > 1) {
     assert(max_threads >= 2);
     ppi->p_mt_info.num_mod_workers[MOD_FRAME_ENC] =
