@@ -441,6 +441,10 @@ if(CONFIG_AV1_ENCODER)
     add_executable(noise_model "${AOM_ROOT}/examples/noise_model.c"
                                $<TARGET_OBJECTS:aom_common_app_util>
                                $<TARGET_OBJECTS:aom_encoder_app_util>)
+    add_executable(photon_noise_table
+                   "${AOM_ROOT}/examples/photon_noise_table.c"
+                   $<TARGET_OBJECTS:aom_common_app_util>
+                   $<TARGET_OBJECTS:aom_encoder_app_util>)
     add_executable(scalable_encoder "${AOM_ROOT}/examples/scalable_encoder.c"
                                     $<TARGET_OBJECTS:aom_common_app_util>
                                     $<TARGET_OBJECTS:aom_encoder_app_util>)
@@ -451,8 +455,8 @@ if(CONFIG_AV1_ENCODER)
 
     # Maintain a list of encoder example targets.
     list(APPEND AOM_ENCODER_EXAMPLE_TARGETS aomenc lossless_encoder noise_model
-                set_maps simple_encoder scalable_encoder twopass_encoder
-                svc_encoder_rtc)
+                photon_noise_table set_maps simple_encoder scalable_encoder
+                twopass_encoder svc_encoder_rtc)
   endif()
 
   if(ENABLE_TOOLS)
