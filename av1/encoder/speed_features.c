@@ -1265,6 +1265,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   AV1_COMMON *const cm = &cpi->common;
   const int boosted = frame_is_boosted(cpi);
 
+  // Currently, rt speed 0, 1, 2, 3, 4 are the same.
   // TODO(any, yunqing): tune these features for real-time use cases.
   sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3_ARF2;
 
