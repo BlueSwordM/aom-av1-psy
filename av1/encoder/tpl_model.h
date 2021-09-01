@@ -33,6 +33,7 @@ struct GF_GROUP;
 #include "av1/common/scale.h"
 #include "av1/encoder/block.h"
 #include "av1/encoder/lookahead.h"
+#include "av1/encoder/ratectrl.h"
 
 static INLINE BLOCK_SIZE convert_length_to_bsize(int length) {
   switch (length) {
@@ -238,8 +239,10 @@ typedef struct {
 
   int gop_showframe_count;  // The number of show frames in the current gop
   double gop_bit_budget;    // The bitbudget for the current gop
-  double scale_factor;      // Scale factor to improve the budget estimation
-  double mv_scale_factor;   // Scale factor to improve MV entropy estimation
+  double scale_factors[FRAME_UPDATE_TYPES];     // Scale factors to improve the
+                                                // budget estimation
+  double mv_scale_factors[FRAME_UPDATE_TYPES];  // Scale factors to improve
+                                                // MV entropy estimation
 
   // === Below this line are GOP related data that will be updated per GOP ===
   int q_index_list_ready;
@@ -268,8 +271,15 @@ static INLINE void vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info,
   vbr_rc_info->total_bit_budget = total_bit_budget;
   vbr_rc_info->show_frame_count = show_frame_count;
   vbr_rc_info->keyframe_bitrate = 0;
-  vbr_rc_info->scale_factor = 1.2;
-  vbr_rc_info->mv_scale_factor = 5.0;
+  const double scale_factors[FRAME_UPDATE_TYPES] = { 1.2, 1.2, 1.2, 1.2,
+                                                     1.2, 1.2, 1.2 };
+  const double mv_scale_factors[FRAME_UPDATE_TYPES] = { 5.0, 5.0, 5.0, 5.0,
+                                                        5.0, 5.0, 5.0 };
+  memcpy(vbr_rc_info->scale_factors, scale_factors,
+         sizeof(scale_factors[0]) * FRAME_UPDATE_TYPES);
+  memcpy(vbr_rc_info->mv_scale_factors, mv_scale_factors,
+         sizeof(mv_scale_factors[0]) * FRAME_UPDATE_TYPES);
+
   vbr_rc_reset_gop_data(vbr_rc_info);
 }
 
@@ -613,12 +623,13 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
  * \param[in]       tpl_data          TPL struct
  * \param[in]       gf_group          Pointer to the GOP
  * \param[in]       gf_frame_index    Current frame index
+ * \param[in]       gf_update_type    Frame update type
  * \param[in]       vbr_rc_info       Rate control info struct
  *
  * \return Bits used by the motion vectors for the GOP.
  */
 double av1_tpl_compute_mv_bits(const TplParams *tpl_data, int gf_group_size,
-                               int gf_frame_index,
+                               int gf_frame_index, int gf_update_type,
                                VBR_RATECTRL_INFO *vbr_rc_info);
 #endif  // CONFIG_BITRATE_ACCURACY
 

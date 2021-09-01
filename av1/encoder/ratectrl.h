@@ -19,7 +19,6 @@
 
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
-#include "av1/encoder/tpl_model.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -706,6 +705,7 @@ int av1_get_arf_q_index(int base_q_index, int gfu_boost, int bit_depth,
                         double arf_boost_factor);
 
 #if !CONFIG_REALTIME_ONLY
+struct TplDepFrame;
 /*!\brief Compute the q_indices for the ARF of a GOP in Q mode.
  *
  * \param[in]       cpi               Top level encoder structure

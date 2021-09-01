@@ -2077,20 +2077,26 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
     int stats_valid_list[MAX_LENGTH_TPL_FRAME_STATS] = { 0 };
     get_tpl_stats_valid_list(tpl_data, gf_group->size, stats_valid_list);
 
-    double mv_bits = av1_tpl_compute_mv_bits(tpl_data, gf_group->size,
-                                             gf_frame_index, vbr_rc_info);
+    double mv_bits = av1_tpl_compute_mv_bits(
+        tpl_data, gf_group->size, gf_frame_index,
+        gf_group->update_type[gf_frame_index], vbr_rc_info);
+
     mv_bits = AOMMIN(mv_bits, 0.6 * gop_bit_budget);
     gop_bit_budget -= mv_bits;
+
+    double scale_factor =
+        vbr_rc_info->scale_factors[gf_group->update_type[gf_frame_index]];
+
     av1_q_mode_estimate_base_q(
         gf_group, tpl_data->txfm_stats_list, stats_valid_list, gop_bit_budget,
-        gf_frame_index, arf_qstep_ratio, bit_depth, vbr_rc_info->scale_factor,
+        gf_frame_index, arf_qstep_ratio, bit_depth, scale_factor,
         vbr_rc_info->q_index_list, vbr_rc_info->estimated_bitrate_byframe);
   }
 }
 
 /* For a GOP, calculate the bits used by motion vectors. */
 double av1_tpl_compute_mv_bits(const TplParams *tpl_data, int gf_group_size,
-                               int gf_frame_index,
+                               int gf_frame_index, int gf_update_type,
                                VBR_RATECTRL_INFO *vbr_rc_info) {
   double total_mv_bits = 0;
 
@@ -2108,7 +2114,7 @@ double av1_tpl_compute_mv_bits(const TplParams *tpl_data, int gf_group_size,
   }
 
   // Scale the final result by the scale factor.
-  return total_mv_bits * vbr_rc_info->mv_scale_factor;
+  return total_mv_bits * vbr_rc_info->mv_scale_factors[gf_update_type];
 }
 #endif  // CONFIG_BITRATE_ACCURACY
 
