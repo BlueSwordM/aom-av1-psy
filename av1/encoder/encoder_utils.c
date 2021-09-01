@@ -553,15 +553,26 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
       cpi->ppi->p_rc.arf_q = *q;
   }
 
-  if (cpi->oxcf.q_cfg.use_fixed_qp_offsets && cpi->oxcf.rc_cfg.mode == AOM_Q &&
-      is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) {
-    const double qstep_ratio =
-        0.2 + (1.0 - (double)cpi->rc.active_worst_quality / MAXQ) * 0.3;
-    *q = av1_get_q_index_from_qstep_ratio(
-        cpi->rc.active_worst_quality, qstep_ratio, cm->seq_params->bit_depth);
-    *top_index = *bottom_index = *q;
-    if (gf_group->update_type[cpi->gf_frame_index] == ARF_UPDATE)
-      cpi->ppi->p_rc.arf_q = *q;
+  if (cpi->oxcf.q_cfg.use_fixed_qp_offsets && cpi->oxcf.rc_cfg.mode == AOM_Q) {
+    if (is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) {
+      const double qstep_ratio =
+          0.2 + (1.0 - (double)cpi->rc.active_worst_quality / MAXQ) * 0.3;
+      *q = av1_get_q_index_from_qstep_ratio(
+          cpi->rc.active_worst_quality, qstep_ratio, cm->seq_params->bit_depth);
+      *top_index = *bottom_index = *q;
+      if (gf_group->update_type[cpi->gf_frame_index] == ARF_UPDATE ||
+          gf_group->update_type[cpi->gf_frame_index] == KF_UPDATE ||
+          gf_group->update_type[cpi->gf_frame_index] == GF_UPDATE)
+        cpi->ppi->p_rc.arf_q = *q;
+    } else {
+      int this_height = gf_group->layer_depth[cpi->gf_frame_index];
+      int arf_q = cpi->ppi->p_rc.arf_q;
+      while (this_height > 1) {
+        arf_q = (arf_q + cpi->oxcf.rc_cfg.cq_level + 1) / 2;
+        --this_height;
+      }
+      *top_index = *bottom_index = *q = arf_q;
+    }
   }
 #endif
 
