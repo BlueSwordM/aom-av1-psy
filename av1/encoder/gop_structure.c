@@ -816,6 +816,22 @@ static int construct_multi_layer_gf_structure(
   return frame_index;
 }
 
+static void set_ld_layer_depth(GF_GROUP *gf_group, int gop_length) {
+  int log_gop_length = 0;
+  while ((1 << log_gop_length) < gop_length) {
+    ++log_gop_length;
+  }
+
+  for (int gf_index = 0; gf_index < gf_group->size; ++gf_index) {
+    int count = 0;
+    // Find the trailing zeros
+    for (; count < MAX_ARF_LAYERS; ++count) {
+      if ((gf_index >> count) & 0x01) break;
+    }
+    gf_group->layer_depth[gf_index] = AOMMAX(log_gop_length - count, 0);
+  }
+}
+
 void av1_gop_setup_structure(AV1_COMP *cpi) {
   RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
@@ -833,4 +849,7 @@ void av1_gop_setup_structure(AV1_COMP *cpi) {
   gf_group->size = construct_multi_layer_gf_structure(
       cpi, twopass, gf_group, rc, frame_info, p_rc->baseline_gf_interval - 1,
       first_frame_update_type);
+
+  if (gf_group->max_layer_depth_allowed == 0)
+    set_ld_layer_depth(gf_group, p_rc->baseline_gf_interval);
 }
