@@ -153,6 +153,8 @@ set_aom_config_var(CONFIG_PARTITION_SEARCH_ORDER 0
                    "AV1 experiment with alternative partition search order.")
 set_aom_config_var(CONFIG_BITRATE_ACCURACY 0
                    "AV1 experiment to improve bitrate accuracy.")
+set_aom_config_var(CONFIG_THREE_PASS 0
+                   "AV1 experiment: Enable three-pass encoding.")
 
 #
 # Variables in this section control optional features of the build system.

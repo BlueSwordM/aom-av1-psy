@@ -36,8 +36,10 @@ typedef struct {
   /* --- Input and decoding related members --- */
   // the input file
   const char *input_file_name;
+#if CONFIG_THREE_PASS
   // input context
   struct AvxInputContext *input_ctx;
+#endif
   // decoder codec context
   aom_codec_ctx_t decoder;
   // start of the frame in buf

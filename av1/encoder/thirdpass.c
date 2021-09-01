@@ -16,8 +16,12 @@
 #include "av1/encoder/firstpass.h"
 #include "av1/encoder/thirdpass.h"
 #include "av1/common/blockd.h"
-#include "common/ivfdec.h"
 
+#if CONFIG_THREE_PASS
+#include "common/ivfdec.h"
+#endif
+
+#if CONFIG_THREE_PASS
 static void setup_two_pass_stream_input(
     struct AvxInputContext **input_ctx_ptr, const char *input_file_name,
     struct aom_internal_error_info *err_info) {
@@ -72,11 +76,13 @@ static void init_third_pass(THIRD_PASS_DEC_CTX *ctx) {
                      "with CONFIG_AV1_DECODER=1.");
 #endif
 }
+#endif  // CONFIG_THREE_PASS
 
 // Return 0: success
 //        1: cannot read because this is end of file
 //       -1: failure to read the frame
 static int read_frame(THIRD_PASS_DEC_CTX *ctx) {
+#if CONFIG_THREE_PASS
   if (!ctx->input_ctx || !ctx->decoder.iface) {
     init_third_pass(ctx);
   }
@@ -93,6 +99,10 @@ static int read_frame(THIRD_PASS_DEC_CTX *ctx) {
     ctx->end_frame = ctx->frame + ctx->bytes_in_buffer;
     ctx->have_frame = 1;
   }
+#else
+  aom_internal_error(ctx->err_info, AOM_CODEC_ERROR,
+                     "Cannot parse bitstream without CONFIG_THREE_PASS.");
+#endif
   Av1DecodeReturn adr;
   if (aom_codec_decode(&ctx->decoder, ctx->frame,
                        (unsigned int)ctx->bytes_in_buffer,
@@ -283,8 +293,10 @@ void av1_free_thirdpass_ctx(THIRD_PASS_DEC_CTX *ctx) {
   if (ctx->decoder.iface) {
     aom_codec_destroy(&ctx->decoder);
   }
+#if CONFIG_THREE_PASS
   if (ctx->input_ctx && ctx->input_ctx->file) fclose(ctx->input_ctx->file);
   aom_free(ctx->input_ctx);
+#endif
   if (ctx->buf) free(ctx->buf);
   aom_free(ctx);
 }
