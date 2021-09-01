@@ -3612,6 +3612,9 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
                                           oxcf->algo_cfg.arnr_max_frames / 2)
             : MAX_GF_LENGTH_LAP;
 
+    // Use the provided gop size in low delay setting
+    if (oxcf->gf_cfg.lag_in_frames == 0) max_gop_length = rc->max_gf_interval;
+
     // Identify regions if needed.
     // TODO(bohanli): identify regions for all stats available.
     if (rc->frames_since_key == 0 || rc->frames_since_key == 1 ||
@@ -3680,6 +3683,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       }
 
       if (max_gop_length > 16 && oxcf->algo_cfg.enable_tpl_model &&
+          oxcf->gf_cfg.lag_in_frames >= 32 &&
           cpi->sf.tpl_sf.gop_length_decision_method != 3) {
         int this_idx = rc->frames_since_key +
                        p_rc->gf_intervals[p_rc->cur_gf_index] -
