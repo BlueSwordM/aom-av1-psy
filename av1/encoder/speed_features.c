@@ -1185,6 +1185,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
                                                      SPEED_FEATURES *const sf,
                                                      int speed) {
   const AV1_COMMON *const cm = &cpi->common;
+  const int boosted = frame_is_boosted(cpi);
   const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
   const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
   const int is_360p_or_larger = AOMMIN(cm->width, cm->height) >= 360;
@@ -1212,6 +1213,10 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
   } else {
     sf->intra_sf.skip_filter_intra_in_inter_frames = 1;
+    if (speed == 5) {
+      sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh =
+          boosted ? INT_MAX : 350;
+    }
     if (speed >= 7) {
       sf->rt_sf.use_comp_ref_nonrd = 1;
       sf->rt_sf.ref_frame_comp_nonrd[2] = 1;  // LAST_ALTREF
