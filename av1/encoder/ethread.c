@@ -893,9 +893,8 @@ int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
 // Computes the number of workers to process each of the parallel frames.
 static AOM_INLINE int compute_num_workers_per_frame(
     const int num_workers, const int parallel_frame_count) {
-  // Number of level 2 workers per frame context (ceil division)
-  int workers_per_frame = (num_workers / parallel_frame_count) +
-                          (num_workers % parallel_frame_count != 0);
+  // Number of level 2 workers per frame context (floor division).
+  int workers_per_frame = (num_workers / parallel_frame_count);
   return workers_per_frame;
 }
 
@@ -914,11 +913,9 @@ static AOM_INLINE void prepare_fpmt_workers(AV1_PRIMARY *ppi,
   PrimaryMultiThreadInfo *const p_mt_info = &ppi->p_mt_info;
   int num_workers = p_mt_info->num_workers;
 
-  // Number of level 2 workers per frame context
-  int workers_per_frame =
-      compute_num_workers_per_frame(num_workers, parallel_frame_count);
   int frame_idx = 0;
-  for (int i = 0; i < num_workers; i += workers_per_frame) {
+  int i = 0;
+  while (i < num_workers) {
     // Assign level 1 worker
     AVxWorker *frame_worker = p_mt_info->p_workers[frame_idx] =
         &p_mt_info->workers[i];
@@ -929,7 +926,9 @@ static AOM_INLINE void prepare_fpmt_workers(AV1_PRIMARY *ppi,
     // Assign start of level 2 worker pool
     mt_info->workers = &p_mt_info->workers[i];
     mt_info->tile_thr_data = &p_mt_info->tile_thr_data[i];
-    mt_info->num_workers = AOMMIN(workers_per_frame, num_workers - i);
+    // Assign number of workers for each frame in the parallel encode set.
+    mt_info->num_workers = compute_num_workers_per_frame(
+        num_workers - i, parallel_frame_count - frame_idx);
     for (int j = MOD_FP; j < NUM_MT_MODULES; j++) {
       mt_info->num_mod_workers[j] =
           AOMMIN(mt_info->num_workers, ppi->p_mt_info.num_mod_workers[j]);
@@ -945,7 +944,7 @@ static AOM_INLINE void prepare_fpmt_workers(AV1_PRIMARY *ppi,
     }
 #if !CONFIG_REALTIME_ONLY
     // Back up the original LR buffers before update.
-    int idx = AOMMIN(num_workers - 1, i + workers_per_frame - 1);
+    int idx = i + mt_info->num_workers - 1;
     mt_info->restore_state_buf.rst_tmpbuf =
         mt_info->lr_row_sync.lrworkerdata[idx].rst_tmpbuf;
     mt_info->restore_state_buf.rlbs =
@@ -969,6 +968,7 @@ static AOM_INLINE void prepare_fpmt_workers(AV1_PRIMARY *ppi,
                               ? first_cpi_data
                               : &ppi->parallel_frames_data[frame_idx - 1];
     frame_idx++;
+    i += mt_info->num_workers;
   }
   p_mt_info->p_num_workers = parallel_frame_count;
 }
@@ -1013,15 +1013,14 @@ static AOM_INLINE void restore_workers_after_fpmt(AV1_PRIMARY *ppi,
                                                   int parallel_frame_count) {
   assert(parallel_frame_count <= ppi->num_fp_contexts &&
          parallel_frame_count > 1);
+  (void)parallel_frame_count;
 
   PrimaryMultiThreadInfo *const p_mt_info = &ppi->p_mt_info;
   int num_workers = p_mt_info->num_workers;
 
-  // Number of level 2 workers per frame context
-  int workers_per_frame =
-      compute_num_workers_per_frame(num_workers, parallel_frame_count);
   int frame_idx = 0;
-  for (int i = 0; i < num_workers; i += workers_per_frame) {
+  int i = 0;
+  while (i < num_workers) {
     AV1_COMP *cur_cpi = ppi->parallel_cpi[frame_idx];
     MultiThreadInfo *mt_info = &cur_cpi->mt_info;
     const int num_planes = av1_num_planes(&cur_cpi->common);
@@ -1035,7 +1034,7 @@ static AOM_INLINE void restore_workers_after_fpmt(AV1_PRIMARY *ppi,
     }
 #if !CONFIG_REALTIME_ONLY
     // Restore the original LR buffers.
-    int idx = AOMMIN(num_workers - 1, i + workers_per_frame - 1);
+    int idx = i + mt_info->num_workers - 1;
     mt_info->lr_row_sync.lrworkerdata[idx].rst_tmpbuf =
         mt_info->restore_state_buf.rst_tmpbuf;
     mt_info->lr_row_sync.lrworkerdata[idx].rlbs =
@@ -1043,6 +1042,7 @@ static AOM_INLINE void restore_workers_after_fpmt(AV1_PRIMARY *ppi,
 #endif
 
     frame_idx++;
+    i += mt_info->num_workers;
   }
 }
 
