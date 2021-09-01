@@ -2142,9 +2142,9 @@ void av1_rc_set_gf_interval_range(const AV1_COMP *const cpi,
 
   // Special case code for 1 pass fixed Q mode tests
   if ((has_no_stats_stage(cpi)) && (oxcf->rc_cfg.mode == AOM_Q)) {
-    rc->max_gf_interval = FIXED_GF_INTERVAL;
-    rc->min_gf_interval = FIXED_GF_INTERVAL;
-    rc->static_scene_max_gf_interval = FIXED_GF_INTERVAL;
+    rc->max_gf_interval = oxcf->gf_cfg.max_gf_interval;
+    rc->min_gf_interval = oxcf->gf_cfg.min_gf_interval;
+    rc->static_scene_max_gf_interval = rc->min_gf_interval + 1;
   } else {
     // Set Maximum gf/arf interval
     rc->max_gf_interval = oxcf->gf_cfg.max_gf_interval;
