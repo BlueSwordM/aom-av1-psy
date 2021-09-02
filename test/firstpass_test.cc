@@ -9,7 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#include <stdlib.h>
+#include <stddef.h>
 
 #include "av1/common/common.h"
 #include "av1/encoder/firstpass.h"

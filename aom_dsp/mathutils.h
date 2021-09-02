@@ -13,6 +13,8 @@
 #define AOM_AOM_DSP_MATHUTILS_H_
 
 #include <assert.h>
+#include <math.h>
+#include <string.h>
 
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_mem/aom_mem.h"

@@ -9,8 +9,6 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#include <stdlib.h>
-
 #include "av1/encoder/firstpass.h"
 #include "av1/encoder/ratectrl.h"
 #include "av1/encoder/tpl_model.h"
