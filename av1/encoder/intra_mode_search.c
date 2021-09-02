@@ -1098,7 +1098,7 @@ static double intra_rd_variance_factor(const AV1_COMP *cpi, MACROBLOCK *x,
   double src_var = 0.0;
   double rec_var = 0.0;
   double var_diff = 0.0;
-  double threshold = 1.0 - (0.1 * cpi->oxcf.speed);
+  double threshold = 1.0 - (0.25 * cpi->oxcf.speed);
   unsigned int sse;
   int i, j;
   int right_overflow =
