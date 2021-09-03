@@ -4919,7 +4919,7 @@ static int ml_predict_var_partitioning(AV1_COMP *cpi, MACROBLOCK *x,
       int i;
       // Variance of whole block.
       const unsigned int var =
-          cpi->fn_ptr[bsize].vf(src, src_stride, pred, pred_stride, &sse);
+          cpi->ppi->fn_ptr[bsize].vf(src, src_stride, pred, pred_stride, &sse);
       const float factor = (var == 0) ? 1.0f : (1.0f / (float)var);
 
       features[feature_idx] = (logf((float)var + 1.0f) - means[feature_idx]) /
@@ -4932,8 +4932,8 @@ static int ml_predict_var_partitioning(AV1_COMP *cpi, MACROBLOCK *x,
         const int pred_offset = y_idx * pred_stride + x_idx;
         // Variance of quarter block.
         const unsigned int sub_var =
-            cpi->fn_ptr[subsize].vf(src + src_offset, src_stride,
-                                    pred + pred_offset, pred_stride, &sse);
+            cpi->ppi->fn_ptr[subsize].vf(src + src_offset, src_stride,
+                                         pred + pred_offset, pred_stride, &sse);
         const float var_ratio = (var == 0) ? 1.0f : factor * (float)sub_var;
         features[feature_idx] =
             (var_ratio - means[feature_idx]) / sqrtf(vars[feature_idx]);
