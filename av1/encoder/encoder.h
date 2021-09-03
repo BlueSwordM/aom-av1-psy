@@ -2979,6 +2979,10 @@ typedef struct AV1_COMP {
    * component_time[] are initialized to zero while encoder starts.
    */
   uint64_t component_time[kTimingComponents];
+  /*!
+   * Stores timing for individual components between calls of start_timing()
+   * and end_timing().
+   */
   struct aom_usec_timer component_timer[kTimingComponents];
   /*!
    * frame_component_time[] are initialized to zero at beginning of each frame.
