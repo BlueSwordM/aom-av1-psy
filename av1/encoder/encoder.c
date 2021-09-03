@@ -2728,7 +2728,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #if CONFIG_RD_COMMAND
       PSNR_STATS psnr;
       aom_calc_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr);
-      printf("q %d rdmult %d rate %d dist %lu\n", q, cpi->rd.RDMULT,
+      printf("q %d rdmult %d rate %d dist %" PRIu64 "\n", q, cpi->rd.RDMULT,
              rc->projected_frame_size, psnr.sse[0]);
       ++rd_command->frame_index;
       if (rd_command->frame_index == rd_command->frame_count) {
