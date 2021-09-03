@@ -4483,6 +4483,12 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
 
   assert(*ref_buffers_used_map == 0);
 
+  // Release the previously used frame-buffer by a frame_parallel_level 1 frame.
+  if (first_cpi->common.cur_frame != NULL) {
+    --first_cpi->common.cur_frame->ref_count;
+    first_cpi->common.cur_frame = NULL;
+  }
+
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
   RefFrameMapPair first_ref_frame_map_pairs[REF_FRAMES];
   init_ref_map_pair(first_cpi, first_ref_frame_map_pairs);
