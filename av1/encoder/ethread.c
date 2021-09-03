@@ -880,8 +880,6 @@ int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
   int num_fp_contexts = max_threads / workers_per_frame;
 
   num_fp_contexts = AOMMAX(1, AOMMIN(num_fp_contexts, MAX_PARALLEL_FRAMES));
-  // TODO(anyone): Test and enable for more than 3 frames in parallel.
-  num_fp_contexts = AOMMIN(num_fp_contexts, 3);
   if (num_fp_contexts > 1) {
     assert(max_threads >= 2);
     ppi->p_mt_info.num_mod_workers[MOD_FRAME_ENC] =
