@@ -1884,7 +1884,7 @@ void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
   else if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 2)
     cpi->mv_search_params.find_fractional_mv_step = av1_return_min_sub_pixel_mv;
 
-  if ((cpi->oxcf.row_mt == 1) && (cpi->oxcf.max_threads > 1)) {
+  if ((cpi->oxcf.row_mt == 1) && (cpi->mt_info.num_workers > 1)) {
     if (sf->inter_sf.mv_cost_upd_level < INTERNAL_COST_UPD_SBROW) {
       // Set mv_cost_upd_level to use row level update.
       sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW;
@@ -2029,7 +2029,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
          predict_dc_levels[cpi->sf.winner_mode_sf.dc_blk_pred_level],
          sizeof(winner_mode_params->predict_dc_level));
 
-  if (cpi->oxcf.row_mt == 1 && (cpi->oxcf.max_threads > 1)) {
+  if (cpi->oxcf.row_mt == 1 && (cpi->mt_info.num_workers > 1)) {
     if (sf->inter_sf.inter_mode_rd_model_estimation == 1) {
       // Revert to type 2
       sf->inter_sf.inter_mode_rd_model_estimation = 2;
@@ -2039,7 +2039,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
     // better parallelism when number of threads available are greater than or
     // equal to maximum number of reference frames allowed for global motion.
     if (sf->gm_sf.gm_search_type != GM_DISABLE_SEARCH &&
-        (cpi->oxcf.max_threads >=
+        (cpi->mt_info.num_workers >=
          gm_available_reference_frames[sf->gm_sf.gm_search_type]))
       sf->gm_sf.prune_ref_frame_for_gm_search = 0;
   }
