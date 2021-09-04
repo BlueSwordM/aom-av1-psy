@@ -2627,7 +2627,7 @@ static INLINE void print_partition_timing_stats_with_rdcost(
     BLOCK_SIZE bsize, FRAME_UPDATE_TYPE frame_update_type, int frame_number,
     const RD_STATS *best_rdc, const char *filename) {
   FILE *f = fopen(filename, "a");
-  fprintf(f, "%d,%d,%d,%d,%d,%d,%ld,%ld,", bsize, frame_number,
+  fprintf(f, "%d,%d,%d,%d,%d,%d,%" PRId64 ",%" PRId64 ",", bsize, frame_number,
           frame_update_type, mi_row, mi_col, best_rdc->rate, best_rdc->dist,
           best_rdc->rdcost);
   for (int idx = 0; idx < EXT_PARTITION_TYPES; idx++) {
@@ -2637,13 +2637,13 @@ static INLINE void print_partition_timing_stats_with_rdcost(
     fprintf(f, "%d,", part_timing_stats->partition_attempts[idx]);
   }
   for (int idx = 0; idx < EXT_PARTITION_TYPES; idx++) {
-    fprintf(f, "%ld,", part_timing_stats->partition_times[idx]);
+    fprintf(f, "%" PRId64 ",", part_timing_stats->partition_times[idx]);
   }
   for (int idx = 0; idx < EXT_PARTITION_TYPES; idx++) {
     if (part_timing_stats->partition_rdcost[idx] == INT64_MAX) {
       fprintf(f, "%d,", -1);
     } else {
-      fprintf(f, "%ld,", part_timing_stats->partition_rdcost[idx]);
+      fprintf(f, "%" PRId64 ",", part_timing_stats->partition_rdcost[idx]);
     }
   }
   fprintf(f, "\n");
@@ -2662,7 +2662,7 @@ static INLINE void print_partition_timing_stats(
     fprintf(f, "%d,", part_timing_stats->partition_attempts[idx]);
   }
   for (int idx = 0; idx < EXT_PARTITION_TYPES; idx++) {
-    fprintf(f, "%ld,", part_timing_stats->partition_times[idx]);
+    fprintf(f, "%" PRId64 ",", part_timing_stats->partition_times[idx]);
   }
   fprintf(f, "\n");
   fclose(f);
