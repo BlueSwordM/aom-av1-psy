@@ -76,6 +76,7 @@ void av1_reset_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->reuse_prev_rd_results_for_part_ab = 0;
   part_sf->reuse_best_prediction_for_part_ab = 0;
   part_sf->use_best_rd_for_pruning = 0;
+  part_sf->skip_non_sq_part_based_on_none = 0;
 }
 
 #if !CONFIG_REALTIME_ONLY
@@ -4682,6 +4683,17 @@ BEGIN_PARTITION_SEARCH:
     part_search_state.terminate_partition_search = 1;
   }
 
+  // Do not evaluate non-square partitions if NONE partition did not choose a
+  // newmv mode and is skippable.
+  if ((cpi->sf.part_sf.skip_non_sq_part_based_on_none >= 2) &&
+      (pc_tree->none != NULL)) {
+    if (is_inter_mode(pc_tree->none->mic.mode) &&
+        !have_newmv_in_inter_mode(pc_tree->none->mic.mode) &&
+        pc_tree->none->skippable && !x->must_find_valid_partition &&
+        bsize >= BLOCK_16X16)
+      part_search_state.do_rectangular_split = 0;
+  }
+
   // Prune partitions based on PARTITION_NONE and PARTITION_SPLIT.
   prune_partitions_after_split(cpi, x, sms_tree, &part_search_state, &best_rdc,
                                part_none_rd, part_split_rd);
@@ -4710,10 +4722,18 @@ BEGIN_PARTITION_SEARCH:
   assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
                  !part_search_state.do_rectangular_split));
 
-  const int ext_partition_allowed =
+  int ext_partition_allowed =
       part_search_state.do_rectangular_split &&
       bsize > cpi->sf.part_sf.ext_partition_eval_thresh &&
       av1_blk_has_rows_and_cols(&blk_params);
+
+  // Do not evaluate extended partitions if NONE partition is skippable.
+  if ((cpi->sf.part_sf.skip_non_sq_part_based_on_none >= 1) &&
+      (pc_tree->none != NULL)) {
+    if (pc_tree->none->skippable && !x->must_find_valid_partition &&
+        bsize >= BLOCK_16X16)
+      ext_partition_allowed = 0;
+  }
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, ab_partitions_search_time);
 #endif

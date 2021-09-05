@@ -663,10 +663,12 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_720p_or_larger) {
       sf->part_sf.partition_search_breakout_dist_thr = (1 << 25);
       sf->part_sf.partition_search_breakout_rate_thr = 200;
+      sf->part_sf.skip_non_sq_part_based_on_none = boosted ? 0 : 2;
     } else {
       sf->part_sf.max_intra_bsize = BLOCK_32X32;
       sf->part_sf.partition_search_breakout_dist_thr = (1 << 23);
       sf->part_sf.partition_search_breakout_rate_thr = 120;
+      sf->part_sf.skip_non_sq_part_based_on_none = is_lf_frame ? 1 : 0;
     }
     if (use_hbd) sf->tx_sf.prune_tx_size_level = 3;
 
@@ -1632,6 +1634,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->reuse_prev_rd_results_for_part_ab = 0;
   part_sf->reuse_best_prediction_for_part_ab = 0;
   part_sf->use_best_rd_for_pruning = 0;
+  part_sf->skip_non_sq_part_based_on_none = 0;
 }
 
 static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {

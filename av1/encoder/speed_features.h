@@ -632,6 +632,14 @@ typedef struct PARTITION_SPEED_FEATURES {
   // If disabling it, at speed 0, 30 frames, we could get
   // about -0.25% quality gain (psnr, ssim, vmaf), with about 13% slowdown.
   int use_best_rd_for_pruning;
+
+  // Skip evaluation of non-square partitions based on the corresponding NONE
+  // partition.
+  // 0: no pruning
+  // 1: prune extended partitions if NONE is skippable
+  // 2: on top of 1, prune rectangular partitions if NONE is inter, not a newmv
+  // mode and skippable
+  int skip_non_sq_part_based_on_none;
 } PARTITION_SPEED_FEATURES;
 
 typedef struct MV_SPEED_FEATURES {
