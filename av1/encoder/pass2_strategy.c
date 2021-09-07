@@ -2153,44 +2153,9 @@ static void define_gf_group_pass0(AV1_COMP *cpi) {
   }
 }
 
-static INLINE void set_baseline_gf_interval(AV1_COMP *cpi, int arf_position,
-                                            int active_max_gf_interval,
-                                            int use_alt_ref,
-                                            int is_final_pass) {
-  RATE_CONTROL *const rc = &cpi->rc;
-  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
-  TWO_PASS *const twopass = &cpi->ppi->twopass;
-  // Set the interval until the next gf.
-  // If forward keyframes are enabled, ensure the final gf group obeys the
-  // MIN_FWD_KF_INTERVAL.
-  const int is_last_kf =
-      (cpi->twopass_frame.stats_in - arf_position + rc->frames_to_key) >=
-      twopass->stats_buf_ctx->stats_in_end;
-
-  if (cpi->oxcf.kf_cfg.fwd_kf_enabled && use_alt_ref && !is_last_kf &&
-      cpi->ppi->p_rc.next_is_fwd_key) {
-    if (arf_position == rc->frames_to_key + 1) {
-      p_rc->baseline_gf_interval = arf_position;
-      // if the last gf group will be smaller than MIN_FWD_KF_INTERVAL
-    } else if (rc->frames_to_key + 1 - arf_position <
-               AOMMAX(MIN_FWD_KF_INTERVAL, rc->min_gf_interval)) {
-      // if possible, merge the last two gf groups
-      if (rc->frames_to_key + 1 <= active_max_gf_interval) {
-        p_rc->baseline_gf_interval = rc->frames_to_key + 1;
-        if (is_final_pass) rc->intervals_till_gf_calculate_due = 0;
-        // if merging the last two gf groups creates a group that is too long,
-        // split them and force the last gf group to be the MIN_FWD_KF_INTERVAL
-      } else {
-        p_rc->baseline_gf_interval =
-            rc->frames_to_key + 1 - MIN_FWD_KF_INTERVAL;
-        if (is_final_pass) rc->intervals_till_gf_calculate_due = 0;
-      }
-    } else {
-      p_rc->baseline_gf_interval = arf_position;
-    }
-  } else {
-    p_rc->baseline_gf_interval = arf_position;
-  }
+static INLINE void set_baseline_gf_interval(PRIMARY_RATE_CONTROL *p_rc,
+                                            int arf_position) {
+  p_rc->baseline_gf_interval = arf_position;
 }
 
 // initialize GF_GROUP_STATS
@@ -2227,14 +2192,13 @@ static void init_gf_stats(GF_GROUP_STATS *gf_stats) {
  *
  * \param[in]    cpi             Top-level encoder structure
  * \param[in]    frame_params    Structure with frame parameters
- * \param[in]    max_gop_length  Maximum length of the GF group
  * \param[in]    is_final_pass   Whether this is the final pass for the
  *                               GF group, or a trial (non-zero)
  *
  * \return Nothing is returned. Instead, cpi->ppi->gf_group is changed.
  */
 static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
-                            int max_gop_length, int is_final_pass) {
+                            int is_final_pass) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
@@ -2281,11 +2245,7 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
 
   // If this is a key frame or the overlay from a previous arf then
   // the error score / cost of this frame has already been accounted for.
-
-  // TODO(urvang): Try logic to vary min and max interval based on q.
   const int active_min_gf_interval = rc->min_gf_interval;
-  const int active_max_gf_interval =
-      AOMMIN(rc->max_gf_interval, max_gop_length);
 
   i = is_intra_only;
   // get the determined gf group length from p_rc->gf_intervals
@@ -2398,8 +2358,7 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
   int ext_len = i - is_intra_only;
   if (use_alt_ref) {
     gf_group->max_layer_depth_allowed = gf_cfg->gf_max_pyr_height;
-    set_baseline_gf_interval(cpi, i, active_max_gf_interval, use_alt_ref,
-                             is_final_pass);
+    set_baseline_gf_interval(&cpi->ppi->p_rc, i);
 
     const int forward_frames = (rc->frames_to_key - i >= ext_len)
                                    ? ext_len
@@ -2413,8 +2372,7 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
   } else {
     reset_fpf_position(&cpi->twopass_frame, start_pos);
     gf_group->max_layer_depth_allowed = 0;
-    set_baseline_gf_interval(cpi, i, active_max_gf_interval, use_alt_ref,
-                             is_final_pass);
+    set_baseline_gf_interval(&cpi->ppi->p_rc, i);
 
     p_rc->gfu_boost = AOMMIN(
         MAX_GF_BOOST,
@@ -3700,7 +3658,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
             rc->min_gf_interval <= 16) {
           // The calculate_gf_length function is previously used with
           // max_gop_length = 32 with look-ahead gf intervals.
-          define_gf_group(cpi, frame_params, max_gop_length, 0);
+          define_gf_group(cpi, frame_params, 0);
           this_frame = this_frame_copy;
 
           if (is_shorter_gf_interval_better(cpi, frame_params, frame_input)) {
@@ -3717,13 +3675,13 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       }
     }
 
-    define_gf_group(cpi, frame_params, max_gop_length, 0);
+    define_gf_group(cpi, frame_params, 0);
 
     if (gf_group->update_type[cpi->gf_frame_index] != ARF_UPDATE &&
         rc->frames_since_key > 0)
       process_first_pass_stats(cpi, &this_frame);
 
-    define_gf_group(cpi, frame_params, max_gop_length, 1);
+    define_gf_group(cpi, frame_params, 1);
 
     rc->frames_till_gf_update_due = p_rc->baseline_gf_interval;
     assert(cpi->gf_frame_index == 0);
