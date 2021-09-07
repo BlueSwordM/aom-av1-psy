@@ -648,7 +648,7 @@ typedef struct aom_codec_enc_cfg {
   /*!\brief Rate control adaptation undershoot control
    *
    * This value, controls the tolerance of the VBR algorithm to undershoot
-   * and is used as a trigger threshold for more agressive adaptation of Q.
+   * and is used as a trigger threshold for more aggressive adaptation of Q.
    *
    * Valid values in the range 0-100.
    */
@@ -657,9 +657,9 @@ typedef struct aom_codec_enc_cfg {
   /*!\brief Rate control adaptation overshoot control
    *
    * This value, controls the tolerance of the VBR algorithm to overshoot
-   * and is used as a trigger threshold for more agressive adaptation of Q.
+   * and is used as a trigger threshold for more aggressive adaptation of Q.
    *
-   * Valid values in the range 0-1000.
+   * Valid values in the range 0-100.
    */
   unsigned int rc_overshoot_pct;
 
