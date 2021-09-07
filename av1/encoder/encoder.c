@@ -4455,7 +4455,7 @@ AV1_COMP *av1_get_parallel_frame_enc_data(AV1_PRIMARY *const ppi,
     first_cpi_data->ts_frame_start = data->ts_frame_start;
     first_cpi_data->ts_frame_end = data->ts_frame_end;
     memcpy(first_cpi_data->cx_data, data->cx_data, data->frame_size);
-    first_cpi_data->frame_size += data->frame_size;
+    first_cpi_data->frame_size = data->frame_size;
     if (ppi->cpi->common.show_frame) {
       first_cpi_data->pop_lookahead = 1;
     }
