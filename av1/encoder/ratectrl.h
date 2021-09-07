@@ -312,8 +312,6 @@ typedef struct {
   // Total number of stats required by gfu_boost calculation.
   int num_stats_required_for_gfu_boost;
 
-  int next_is_fwd_key;
-
   int enable_scenecut_detection;
 
   int use_arf_in_this_kf_group;

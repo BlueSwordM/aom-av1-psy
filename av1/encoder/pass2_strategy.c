@@ -2675,10 +2675,8 @@ static int test_candidate_kf(const FIRSTPASS_INFO *firstpass_info,
 #define MIN_STATIC_KF_BOOST 5400  // Minimum boost for static KF interval
 
 static int detect_app_forced_key(AV1_COMP *cpi) {
-  if (cpi->oxcf.kf_cfg.fwd_kf_enabled) cpi->ppi->p_rc.next_is_fwd_key = 1;
   int num_frames_to_app_forced_key = is_forced_keyframe_pending(
       cpi->ppi->lookahead, cpi->ppi->lookahead->max_sz, cpi->compressor_stage);
-  if (num_frames_to_app_forced_key != -1) cpi->ppi->p_rc.next_is_fwd_key = 0;
   return num_frames_to_app_forced_key;
 }
 
@@ -2822,11 +2820,6 @@ static int define_kf_interval(AV1_COMP *cpi,
   }
   if (cpi->ppi->lap_enabled && !scenecut_detected)
     frames_to_key = num_frames_to_next_key;
-
-  if (!kf_cfg->fwd_kf_enabled || scenecut_detected ||
-      frames_to_key == future_stats_count) {
-    p_rc->next_is_fwd_key = 0;
-  }
 
   return frames_to_key;
 }
@@ -3088,16 +3081,6 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     p_rc->next_key_frame_forced = 1;
   } else {
     p_rc->next_key_frame_forced = 0;
-  }
-
-  if (kf_cfg->fwd_kf_enabled)
-    p_rc->next_is_fwd_key |= p_rc->next_key_frame_forced;
-
-  const int future_stats_count =
-      av1_firstpass_info_future_count(firstpass_info, 0);
-  // Special case for the last key frame of the file.
-  if (frames_to_key == future_stats_count) {
-    p_rc->next_is_fwd_key = 0;
   }
 
   double kf_group_err = 0;
@@ -3574,8 +3557,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
          p_rc->frames_till_regions_update - rc->frames_since_key <
              max_gop_length + 1)) {
       // how many frames we can analyze from this frame
-      int rest_frames = AOMMIN(rc->frames_to_key + p_rc->next_is_fwd_key,
-                               MAX_FIRSTPASS_ANALYSIS_FRAMES);
+      int rest_frames =
+          AOMMIN(rc->frames_to_key, MAX_FIRSTPASS_ANALYSIS_FRAMES);
       rest_frames =
           AOMMIN(rest_frames, (int)(twopass->stats_buf_ctx->stats_in_end -
                                     cpi->twopass_frame.stats_in +
