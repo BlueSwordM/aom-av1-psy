@@ -1872,7 +1872,7 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
   init_gf_stats(&gf_stats);
   while (count_cuts < max_intervals + 1) {
     // reaches next key frame, break here
-    if (i >= rc->frames_to_key + p_rc->next_is_fwd_key) {
+    if (i >= rc->frames_to_key) {
       cut_here = 2;
     } else if (i - cur_start >= rc->static_scene_max_gf_interval) {
       // reached maximum len, but nothing special yet (almost static)
@@ -1902,13 +1902,6 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
       int offset = rc->frames_since_key - p_rc->regions_offset;
       REGIONS *regions = p_rc->regions;
       int num_regions = p_rc->num_regions;
-      if (cpi->oxcf.kf_cfg.fwd_kf_enabled && p_rc->next_is_fwd_key) {
-        const int frames_left = rc->frames_to_key - i;
-        const int min_int = AOMMIN(MIN_FWD_KF_INTERVAL, active_min_gf_interval);
-        if (frames_left < min_int && frames_left > 0) {
-          cur_last = rc->frames_to_key - min_int - 1;
-        }
-      }
 
       int scenecut_idx = -1;
       // only try shrinking if interval smaller than active_max_gf_interval
