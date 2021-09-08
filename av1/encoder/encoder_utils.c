@@ -555,8 +555,11 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
 
   if (cpi->oxcf.q_cfg.use_fixed_qp_offsets && cpi->oxcf.rc_cfg.mode == AOM_Q) {
     if (is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) {
+      const double qratio_grad =
+          cpi->ppi->p_rc.baseline_gf_interval > 20 ? 0.2 : 0.3;
       const double qstep_ratio =
-          0.2 + (1.0 - (double)cpi->rc.active_worst_quality / MAXQ) * 0.3;
+          0.2 +
+          (1.0 - (double)cpi->rc.active_worst_quality / MAXQ) * qratio_grad;
       *q = av1_get_q_index_from_qstep_ratio(
           cpi->rc.active_worst_quality, qstep_ratio, cm->seq_params->bit_depth);
       *top_index = *bottom_index = *q;
