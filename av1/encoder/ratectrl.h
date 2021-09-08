@@ -663,8 +663,7 @@ int av1_encodedframe_overshoot_cbr(struct AV1_COMP *cpi, int *q);
  *
  * \param[in]       gf_frame_index    Index of the current frame
  * \param[in]       base_q_index      Base q index
- * \param[in]       arf_qstep_ratio   The quantize step ratio between arf q
- *                                    index and base q index
+ * \param[in]       qstep_ratio_list  Stores the qstep_ratio for each frame
  * \param[in]       bit_depth         Bit depth
  * \param[in]       gf_group          Pointer to the GOP
  * \param[out]      q_index_list      An array to store output gop q indices.
@@ -672,7 +671,7 @@ int av1_encodedframe_overshoot_cbr(struct AV1_COMP *cpi, int *q);
  *                                    greater than gf_group.size()
  */
 void av1_q_mode_compute_gop_q_indices(int gf_frame_index, int base_q_index,
-                                      double arf_qstep_ratio,
+                                      const double *qstep_ratio_list,
                                       aom_bit_depth_t bit_depth,
                                       const struct GF_GROUP *gf_group,
                                       int *q_index_list);

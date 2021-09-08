@@ -254,6 +254,9 @@ typedef struct {
   int actual_bitrate_byframe[MAX_LENGTH_TPL_FRAME_STATS];
   int actual_mv_bitrate_byframe[MAX_LENGTH_TPL_FRAME_STATS];
   int actual_coeff_bitrate_byframe[MAX_LENGTH_TPL_FRAME_STATS];
+
+  // Array to store qstep_ratio for each frame in a GOP
+  double qstep_ratio_list[MAX_LENGTH_TPL_FRAME_STATS];
 } VBR_RATECTRL_INFO;
 
 static INLINE void vbr_rc_reset_gop_data(VBR_RATECTRL_INFO *vbr_rc_info) {
@@ -550,10 +553,10 @@ int av1_get_overlap_area(int row_a, int col_a, int row_b, int col_b, int width,
  *                                    exists
  * \param[in]       bit_budget        The specified bit budget to achieve
  * \param[in]       gf_frame_index    current frame in the GOP
- * \param[in]       arf_qstep_ratio   ARF q step ratio
  * \param[in]       bit_depth         bit depth
  * \param[in]       scale_factor      Scale factor to improve budget estimation
- * \param[out]       q_index_list     array of q_index, one per frame
+ * \param[in]       qstep_ratio_list  Stores the qstep_ratio for each frame
+ * \param[out]      q_index_list      array of q_index, one per frame
  * \param[out]      estimated_bitrate_byframe  bits usage per frame in the GOP
  *
  * \return Returns the optimal base q index to use.
@@ -561,8 +564,9 @@ int av1_get_overlap_area(int row_a, int col_a, int row_b, int col_b, int width,
 int av1_q_mode_estimate_base_q(const struct GF_GROUP *gf_group,
                                const TplTxfmStats *txfm_stats_list,
                                const int *stats_valid_list, double bit_budget,
-                               int gf_frame_index, double arf_qstep_ratio,
-                               aom_bit_depth_t bit_depth, double scale_factor,
+                               int gf_frame_index, aom_bit_depth_t bit_depth,
+                               double scale_factor,
+                               const double *qstep_ratio_list,
                                int *q_index_list,
                                double *estimated_bitrate_byframe);
 
