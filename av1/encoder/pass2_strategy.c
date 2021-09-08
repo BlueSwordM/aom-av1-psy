@@ -1038,7 +1038,6 @@ static int is_shorter_gf_interval_better(AV1_COMP *cpi,
   return shorten_gf_interval;
 }
 
-#define MIN_FWD_KF_INTERVAL 8
 #define MIN_SHRINK_LEN 6  // the minimum length of gf if we are shrinking
 #define SMOOTH_FILT_LEN 7
 #define HALF_FILT_LEN (SMOOTH_FILT_LEN / 2)
