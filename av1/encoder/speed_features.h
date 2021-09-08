@@ -561,6 +561,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   int prune_ext_part_using_split_info;
 
   // Prunt rectangular, AB and 4-way partition based on q index and block size
+  // 0 : no pruning
+  // 1 : prune sub_8x8 at very low quantizers
+  // 2 : prune all block size based on qindex
   int prune_rectangular_split_based_on_qidx;
 
   // Terminate partition search for child partition,

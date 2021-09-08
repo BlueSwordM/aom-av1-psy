@@ -471,7 +471,7 @@ static void set_allintra_speed_features_framesize_independent(
     sf->intra_sf.cfl_search_range = 1;
 
     sf->part_sf.prune_rectangular_split_based_on_qidx =
-        allow_screen_content_tools ? 0 : 1;
+        allow_screen_content_tools ? 0 : 2;
     sf->part_sf.prune_sub_8x8_partition_level =
         allow_screen_content_tools ? 0 : 1;
     sf->part_sf.prune_part4_search = 3;
@@ -1047,6 +1047,9 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.simple_motion_search_reduce_search_steps = 4;
     sf->part_sf.prune_ext_part_using_split_info = 2;
     sf->part_sf.ml_predict_breakout_level = 3;
+    sf->part_sf.prune_rectangular_split_based_on_qidx =
+        (allow_screen_content_tools || frame_is_intra_only(&cpi->common)) ? 0
+                                                                          : 1;
 
     sf->inter_sf.alt_ref_search_fp = 1;
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 3;
@@ -1149,7 +1152,7 @@ static void set_good_speed_features_framesize_independent(
     sf->intra_sf.early_term_chroma_palette_size_search = 1;
 
     sf->part_sf.prune_rectangular_split_based_on_qidx =
-        boosted || allow_screen_content_tools ? 0 : 1;
+        boosted || allow_screen_content_tools ? 0 : 2;
     sf->part_sf.prune_sub_8x8_partition_level =
         allow_screen_content_tools ? 0
                                    : frame_is_intra_only(&cpi->common) ? 1 : 2;

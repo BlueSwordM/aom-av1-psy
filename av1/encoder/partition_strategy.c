@@ -1542,7 +1542,11 @@ void av1_prune_partitions_before_search(AV1_COMP *const cpi,
   }
 
   // Prune rectangular, AB and 4-way partition based on q index and block size
-  if (cpi->sf.part_sf.prune_rectangular_split_based_on_qidx) {
+  if (cpi->sf.part_sf.prune_rectangular_split_based_on_qidx == 1) {
+    if (bsize == BLOCK_8X8 && x->qindex < 35)
+      av1_disable_rect_partitions(part_state);
+
+  } else if (cpi->sf.part_sf.prune_rectangular_split_based_on_qidx == 2) {
     // Enumeration difference between two square partitions
     const int sqr_bsize_step = BLOCK_32X32 - BLOCK_16X16;
     int max_bsize =
