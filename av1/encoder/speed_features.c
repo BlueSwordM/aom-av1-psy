@@ -1311,6 +1311,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->interp_sf.disable_dual_filter = 1;
 
   sf->intra_sf.dv_cost_upd_level = INTERNAL_COST_UPD_OFF;
+  sf->intra_sf.skip_intra_in_interframe = 4;
 
   sf->lpf_sf.dual_sgr_penalty_level = 1;
   sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL1;
