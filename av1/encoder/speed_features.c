@@ -1296,6 +1296,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->inter_sf.selective_ref_frame = 4;
   // TODO(any): need tuning for RT mode.
   sf->inter_sf.alt_ref_search_fp = 1;
+  sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
 
   sf->interp_sf.use_fast_interpolation_filter_search = 1;
   sf->interp_sf.use_interp_filter = 1;
@@ -1355,7 +1356,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
   if (speed >= 5) {
     sf->inter_sf.adaptive_rd_thresh = 4;
-    sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
     sf->inter_sf.prune_nearmv_using_neighbors = PRUNE_NEARMV_LEVEL3;
     sf->inter_sf.reduce_inter_modes = boosted ? 1 : 3;
