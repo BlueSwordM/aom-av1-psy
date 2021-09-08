@@ -1106,65 +1106,6 @@ static int get_active_cq_level(const RATE_CONTROL *rc,
   return active_cq_level;
 }
 
-/*! \brief Pick q index for this frame using fixed q index offsets.
- *
- * The q index offsets are fixed in the sense that they are independent of the
- * video content. The offsets for each pyramid level are taken from
- * \c oxcf->q_cfg.fixed_qp_offsets array.
- *
- * \ingroup rate_control
- * \param[in]   oxcf        Top level encoder configuration
- * \param[in]   rc          Top level rate control structure
- * \param[in]   gf_group    Configuration of current golden frame group
- * \param[in]   gf_index    Index of this frame in the golden frame group
- * \param[in]   cq_level    Upper bound for q index (this may be same as
- *                          \c oxcf->cq_level, or slightly modified for some
- *                          special cases)
- * \param[in]   bit_depth   Bit depth of the codec (same as
- *                          \c cm->seq_params->bit_depth)
- * \return Returns selected q index to be used for encoding this frame.
- */
-static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
-                                     const RATE_CONTROL *const rc,
-                                     const GF_GROUP *const gf_group,
-                                     int gf_index, int cq_level,
-                                     int bit_depth) {
-  assert(oxcf->q_cfg.use_fixed_qp_offsets);
-  assert(oxcf->rc_cfg.mode == AOM_Q);
-  const FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_index];
-
-  int offset_idx = -1;
-  if (update_type == KF_UPDATE) {
-    if (rc->frames_to_key <= 1) {
-      // Image / intra-only coding: ignore offsets.
-      return cq_level;
-    }
-    offset_idx = 0;
-  } else if (update_type == ARF_UPDATE || update_type == GF_UPDATE ||
-             update_type == INTNL_ARF_UPDATE || update_type == LF_UPDATE) {
-    if (gf_group->layer_depth[gf_index] >=
-        gf_group->max_layer_depth_allowed + 1) {  // Leaf.
-      return cq_level;  // Directly Return worst quality allowed.
-    }
-    offset_idx = AOMMIN(gf_group->layer_depth[gf_index],
-                        gf_group->max_layer_depth_allowed);
-  } else {  // Overlay frame.
-    assert(update_type == OVERLAY_UPDATE ||
-           update_type == INTNL_OVERLAY_UPDATE);
-    return cq_level;  // Directly Return worst quality allowed.
-  }
-  assert(offset_idx >= 0 && offset_idx < FIXED_QP_OFFSET_COUNT);
-  assert(oxcf->q_cfg.fixed_qp_offsets[offset_idx] >= 0);
-
-  // Get qindex offset, by first converting to 'q' and then back.
-  const double q_val_orig = av1_convert_qindex_to_q(cq_level, bit_depth);
-  const double q_val_target =
-      AOMMAX(q_val_orig - oxcf->q_cfg.fixed_qp_offsets[offset_idx], 0.0);
-  const int delta_qindex =
-      av1_compute_qdelta(rc, q_val_orig, q_val_target, bit_depth);
-  return AOMMAX(cq_level + delta_qindex, 0);
-}
-
 /*!\brief Picks q and q bounds given non-CBR rate control params in \c cpi->rc.
  *
  * Handles the special case when using:
@@ -1177,39 +1118,30 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
  * \param[in]       cpi          Top level encoder structure
  * \param[in]       width        Coded frame width
  * \param[in]       height       Coded frame height
- * \param[in]       gf_index     Index of this frame in the golden frame group
  * \param[out]      bottom_index Bottom bound for q index (best quality)
  * \param[out]      top_index    Top bound for q index (worst quality)
  * \return Returns selected q index to be used for encoding this frame.
  */
 static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
-                                         int height, int gf_index,
-                                         int *bottom_index, int *top_index) {
+                                         int height, int *bottom_index,
+                                         int *top_index) {
   const AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *const rc = &cpi->rc;
   const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   const CurrentFrame *const current_frame = &cm->current_frame;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
-  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   const enum aom_rc_mode rc_mode = oxcf->rc_cfg.mode;
 
   assert(has_no_stats_stage(cpi));
   assert(rc_mode == AOM_VBR ||
          (!USE_UNRESTRICTED_Q_IN_CQ_MODE && rc_mode == AOM_CQ) ||
          rc_mode == AOM_Q);
-  assert(
-      IMPLIES(rc_mode == AOM_Q, gf_group->update_type[gf_index] == ARF_UPDATE));
 
   const int cq_level =
       get_active_cq_level(rc, p_rc, oxcf, frame_is_intra_only(cm),
                           cpi->superres_mode, cm->superres_scale_denominator);
   const int bit_depth = cm->seq_params->bit_depth;
-
-  if (oxcf->q_cfg.use_fixed_qp_offsets) {
-    return get_q_using_fixed_offsets(oxcf, rc, gf_group, gf_index, cq_level,
-                                     bit_depth);
-  }
 
   int active_best_quality;
   int active_worst_quality = calc_active_worst_quality_no_stats_vbr(cpi);
@@ -1791,12 +1723,6 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
   const int cq_level =
       get_active_cq_level(rc, p_rc, oxcf, frame_is_intra_only(cm),
                           cpi->superres_mode, cm->superres_scale_denominator);
-  const int bit_depth = cm->seq_params->bit_depth;
-
-  if (oxcf->q_cfg.use_fixed_qp_offsets) {
-    return get_q_using_fixed_offsets(oxcf, rc, gf_group, cpi->gf_frame_index,
-                                     cq_level, bit_depth);
-  }
 
   if (oxcf->rc_cfg.mode == AOM_Q) {
     return rc_pick_q_and_bounds_q_mode(cpi, width, height, gf_index,
@@ -1888,8 +1814,8 @@ int av1_rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
                                            top_index);
 #endif  // USE_UNRESTRICTED_Q_IN_CQ_MODE
     } else {
-      q = rc_pick_q_and_bounds_no_stats(cpi, width, height, gf_index,
-                                        bottom_index, top_index);
+      q = rc_pick_q_and_bounds_no_stats(cpi, width, height, bottom_index,
+                                        top_index);
     }
   } else {
     q = rc_pick_q_and_bounds(cpi, width, height, gf_index, bottom_index,
