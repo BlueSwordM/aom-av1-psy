@@ -1002,7 +1002,7 @@ static int is_shorter_gf_interval_better(AV1_COMP *cpi,
           gf_group->update_type[gf_group->arf_index];
       int is_forward_keyframe = 0;
       av1_temporal_filter(cpi, arf_src_index, arf_update_type,
-                          is_forward_keyframe, NULL);
+                          is_forward_keyframe, NULL, &cpi->ppi->alt_ref_buffer);
       aom_extend_frame_borders(&cpi->ppi->alt_ref_buffer,
                                av1_num_planes(&cpi->common));
     }

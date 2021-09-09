@@ -969,9 +969,9 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
         gf_group->refbuf_state[cpi->gf_frame_index] == REFBUF_UPDATE)
       is_forward_keyframe = 1;
 
-    const int code_arf =
-        av1_temporal_filter(cpi, arf_src_index, update_type,
-                            is_forward_keyframe, &show_existing_alt_ref);
+    const int code_arf = av1_temporal_filter(
+        cpi, arf_src_index, update_type, is_forward_keyframe,
+        &show_existing_alt_ref, &cpi->ppi->alt_ref_buffer);
     if (code_arf) {
       aom_extend_frame_borders(&cpi->ppi->alt_ref_buffer, av1_num_planes(cm));
       frame_input->source = &cpi->ppi->alt_ref_buffer;
