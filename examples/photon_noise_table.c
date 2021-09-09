@@ -74,6 +74,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "aom_dsp/grain_table.h"
 #include "common/args.h"
@@ -365,10 +366,14 @@ static void generate_photon_noise(const photon_noise_args_t *photon_noise_args,
 }
 
 int main(int argc, char **argv) {
-  photon_noise_args_t photon_noise_args = {};
-  aom_film_grain_table_t film_grain_table = {};
-  aom_film_grain_t film_grain = {};
-  struct aom_internal_error_info error_info = {};
+  photon_noise_args_t photon_noise_args;
+  aom_film_grain_table_t film_grain_table;
+  aom_film_grain_t film_grain;
+  struct aom_internal_error_info error_info;
+  memset(&photon_noise_args, 0, sizeof(photon_noise_args));
+  memset(&film_grain_table, 0, sizeof(film_grain_table));
+  memset(&film_grain, 0, sizeof(film_grain));
+  memset(&error_info, 0, sizeof(error_info));
 
   exec_name = argv[0];
   parse_args(argc, argv, &photon_noise_args);
