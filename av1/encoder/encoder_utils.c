@@ -567,7 +567,8 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
           gf_group->update_type[cpi->gf_frame_index] == KF_UPDATE ||
           gf_group->update_type[cpi->gf_frame_index] == GF_UPDATE)
         cpi->ppi->p_rc.arf_q = *q;
-    } else {
+    } else if (gf_group->layer_depth[cpi->gf_frame_index] <
+               gf_group->max_layer_depth) {
       int this_height = gf_group->layer_depth[cpi->gf_frame_index];
       int arf_q = cpi->ppi->p_rc.arf_q;
       while (this_height > 1) {
