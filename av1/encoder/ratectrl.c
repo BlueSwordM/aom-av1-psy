@@ -2297,6 +2297,91 @@ int av1_calc_iframe_target_size_one_pass_cbr(const AV1_COMP *cpi) {
   return av1_rc_clamp_iframe_target_size(cpi, target);
 }
 
+#define DEFAULT_KF_BOOST_RT 2300
+#define DEFAULT_GF_BOOST_RT 2000
+
+static void set_baseline_gf_interval(AV1_COMP *cpi, FRAME_TYPE frame_type) {
+  RATE_CONTROL *const rc = &cpi->rc;
+  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
+  GF_GROUP *const gf_group = &cpi->ppi->gf_group;
+  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ)
+    av1_cyclic_refresh_set_golden_update(cpi);
+  else
+    p_rc->baseline_gf_interval = FIXED_GF_INTERVAL;
+  if (p_rc->baseline_gf_interval > rc->frames_to_key)
+    p_rc->baseline_gf_interval = rc->frames_to_key;
+  p_rc->gfu_boost = DEFAULT_GF_BOOST_RT;
+  p_rc->constrained_gf_group =
+      (p_rc->baseline_gf_interval >= rc->frames_to_key) ? 1 : 0;
+  rc->frames_till_gf_update_due = p_rc->baseline_gf_interval;
+  cpi->gf_frame_index = 0;
+  // SVC does not use GF as periodic boost.
+  // TODO(marpan): Find better way to disable this for SVC.
+  if (cpi->ppi->use_svc) {
+    SVC *const svc = &cpi->svc;
+    p_rc->baseline_gf_interval = MAX_STATIC_GF_GROUP_LENGTH - 1;
+    p_rc->gfu_boost = 1;
+    p_rc->constrained_gf_group = 0;
+    rc->frames_till_gf_update_due = p_rc->baseline_gf_interval;
+    for (int layer = 0;
+         layer < svc->number_spatial_layers * svc->number_temporal_layers;
+         ++layer) {
+      LAYER_CONTEXT *const lc = &svc->layer_context[layer];
+      lc->p_rc.baseline_gf_interval = p_rc->baseline_gf_interval;
+      lc->p_rc.gfu_boost = p_rc->gfu_boost;
+      lc->p_rc.constrained_gf_group = p_rc->constrained_gf_group;
+      lc->rc.frames_till_gf_update_due = rc->frames_till_gf_update_due;
+      lc->group_index = 0;
+    }
+  }
+  gf_group->size = p_rc->baseline_gf_interval;
+  gf_group->update_type[0] = (frame_type == KEY_FRAME) ? KF_UPDATE : GF_UPDATE;
+  gf_group->refbuf_state[cpi->gf_frame_index] =
+      (frame_type == KEY_FRAME) ? REFBUF_RESET : REFBUF_UPDATE;
+}
+
+void av1_adjust_gf_refresh_qp_one_pass_rt(AV1_COMP *cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  RATE_CONTROL *const rc = &cpi->rc;
+  SVC *const svc = &cpi->svc;
+  ResizePendingParams *const resize_pending_params =
+      &cpi->resize_pending_params;
+  const int resize_pending =
+      (resize_pending_params->width && resize_pending_params->height &&
+       (cpi->common.width != resize_pending_params->width ||
+        cpi->common.height != resize_pending_params->height));
+  if (!resize_pending && !rc->high_source_sad) {
+    // Check if we should disable GF refresh (if period is up),
+    // or force a GF refresh update (if we are at least halfway through
+    // period) based on QP. Look into add info on segment deltaq.
+    PRIMARY_RATE_CONTROL *p_rc = &cpi->ppi->p_rc;
+    const int avg_qp = p_rc->avg_frame_qindex[INTER_FRAME];
+    int gf_update_changed = 0;
+    int thresh = 87;
+    if (rc->frames_till_gf_update_due == 1 &&
+        cm->quant_params.base_qindex > avg_qp) {
+      // Disable GF refresh since QP is above the runninhg average QP.
+      svc->refresh[svc->gld_idx_1layer] = 0;
+      gf_update_changed = 1;
+    } else if (rc->frames_till_gf_update_due <
+                   (p_rc->baseline_gf_interval >> 1) &&
+               cm->quant_params.base_qindex < thresh * avg_qp / 100) {
+      // Force refresh since QP is well below average QP.
+      svc->refresh[svc->gld_idx_1layer] = 1;
+      gf_update_changed = 1;
+    }
+    if (gf_update_changed) {
+      set_baseline_gf_interval(cpi, INTER_FRAME);
+      int refresh_mask = 0;
+      for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++) {
+        int ref_frame_map_idx = svc->ref_idx[i];
+        refresh_mask |= svc->refresh[ref_frame_map_idx] << ref_frame_map_idx;
+      }
+      cm->current_frame.refresh_frame_flags = refresh_mask;
+    }
+  }
+}
+
 /*!\brief Setup the reference prediction structure for 1 pass real-time
  *
  * Set the reference prediction structure for 1 layer.
@@ -2379,6 +2464,7 @@ void av1_set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
     ext_refresh_frame_flags->golden_frame = 1;
     svc->refresh[gld_idx] = 1;
   }
+  svc->gld_idx_1layer = gld_idx;
 }
 
 /*!\brief Check for scene detection, for 1 pass real-time mode.
@@ -2491,9 +2577,6 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
   }
 }
 
-#define DEFAULT_KF_BOOST_RT 2300
-#define DEFAULT_GF_BOOST_RT 2000
-
 /*!\brief Set the GF baseline interval for 1 pass real-time mode.
  *
  *
@@ -2507,8 +2590,6 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
 static int set_gf_interval_update_onepass_rt(AV1_COMP *cpi,
                                              FRAME_TYPE frame_type) {
   RATE_CONTROL *const rc = &cpi->rc;
-  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
-  GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   ResizePendingParams *const resize_pending_params =
       &cpi->resize_pending_params;
   int gf_update = 0;
@@ -2521,41 +2602,7 @@ static int set_gf_interval_update_onepass_rt(AV1_COMP *cpi,
   if ((resize_pending || rc->high_source_sad ||
        rc->frames_till_gf_update_due == 0) &&
       cpi->svc.temporal_layer_id == 0 && cpi->svc.spatial_layer_id == 0) {
-    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ)
-      av1_cyclic_refresh_set_golden_update(cpi);
-    else
-      p_rc->baseline_gf_interval = FIXED_GF_INTERVAL;
-    if (p_rc->baseline_gf_interval > rc->frames_to_key)
-      p_rc->baseline_gf_interval = rc->frames_to_key;
-    p_rc->gfu_boost = DEFAULT_GF_BOOST_RT;
-    p_rc->constrained_gf_group =
-        (p_rc->baseline_gf_interval >= rc->frames_to_key) ? 1 : 0;
-    rc->frames_till_gf_update_due = p_rc->baseline_gf_interval;
-    cpi->gf_frame_index = 0;
-    // SVC does not use GF as periodic boost.
-    // TODO(marpan): Find better way to disable this for SVC.
-    if (cpi->ppi->use_svc) {
-      SVC *const svc = &cpi->svc;
-      p_rc->baseline_gf_interval = MAX_STATIC_GF_GROUP_LENGTH - 1;
-      p_rc->gfu_boost = 1;
-      p_rc->constrained_gf_group = 0;
-      rc->frames_till_gf_update_due = p_rc->baseline_gf_interval;
-      for (int layer = 0;
-           layer < svc->number_spatial_layers * svc->number_temporal_layers;
-           ++layer) {
-        LAYER_CONTEXT *const lc = &svc->layer_context[layer];
-        lc->p_rc.baseline_gf_interval = p_rc->baseline_gf_interval;
-        lc->p_rc.gfu_boost = p_rc->gfu_boost;
-        lc->p_rc.constrained_gf_group = p_rc->constrained_gf_group;
-        lc->rc.frames_till_gf_update_due = rc->frames_till_gf_update_due;
-        lc->group_index = 0;
-      }
-    }
-    gf_group->size = p_rc->baseline_gf_interval;
-    gf_group->update_type[0] =
-        (frame_type == KEY_FRAME) ? KF_UPDATE : GF_UPDATE;
-    gf_group->refbuf_state[cpi->gf_frame_index] =
-        (frame_type == KEY_FRAME) ? REFBUF_RESET : REFBUF_UPDATE;
+    set_baseline_gf_interval(cpi, frame_type);
     gf_update = 1;
   }
   return gf_update;

@@ -564,6 +564,8 @@ int av1_resize_one_pass_cbr(struct AV1_COMP *cpi);
 void av1_rc_set_frame_target(struct AV1_COMP *cpi, int target, int width,
                              int height);
 
+void av1_adjust_gf_refresh_qp_one_pass_rt(struct AV1_COMP *cpi);
+
 void av1_set_reference_structure_one_pass_rt(struct AV1_COMP *cpi,
                                              int gf_update);
 

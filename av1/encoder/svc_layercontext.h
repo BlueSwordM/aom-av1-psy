@@ -110,6 +110,7 @@ typedef struct SVC {
   /*!\cond */
   int ref_idx[INTER_REFS_PER_FRAME];
   int refresh[REF_FRAMES];
+  int gld_idx_1layer;
   double base_framerate;
   unsigned int current_superframe;
   unsigned int buffer_time_index[REF_FRAMES];
