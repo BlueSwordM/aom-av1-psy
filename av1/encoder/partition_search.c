@@ -4687,7 +4687,7 @@ BEGIN_PARTITION_SEARCH:
   // newmv mode and is skippable.
   if ((cpi->sf.part_sf.skip_non_sq_part_based_on_none >= 2) &&
       (pc_tree->none != NULL)) {
-    if (is_inter_mode(pc_tree->none->mic.mode) &&
+    if (x->qindex <= 200 && is_inter_mode(pc_tree->none->mic.mode) &&
         !have_newmv_in_inter_mode(pc_tree->none->mic.mode) &&
         pc_tree->none->skippable && !x->must_find_valid_partition &&
         bsize >= BLOCK_16X16)

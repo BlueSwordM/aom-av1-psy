@@ -663,7 +663,7 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_720p_or_larger) {
       sf->part_sf.partition_search_breakout_dist_thr = (1 << 25);
       sf->part_sf.partition_search_breakout_rate_thr = 200;
-      sf->part_sf.skip_non_sq_part_based_on_none = boosted ? 0 : 2;
+      sf->part_sf.skip_non_sq_part_based_on_none = is_lf_frame ? 2 : 0;
     } else {
       sf->part_sf.max_intra_bsize = BLOCK_32X32;
       sf->part_sf.partition_search_breakout_dist_thr = (1 << 23);
