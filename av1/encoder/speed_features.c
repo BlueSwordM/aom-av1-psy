@@ -1330,6 +1330,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->part_sf.prune_ext_partition_types_search_level = 2;
   sf->part_sf.partition_search_breakout_rate_thr = 80;
   sf->part_sf.less_rectangular_check_level = 2;
+  sf->part_sf.early_term_after_none_split = 1;
 
   sf->rd_sf.tx_domain_dist_thres_level = 1;
   sf->rd_sf.tx_domain_dist_level = 1;
