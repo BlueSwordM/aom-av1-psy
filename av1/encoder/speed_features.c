@@ -1328,9 +1328,10 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->part_sf.reuse_prev_rd_results_for_part_ab = 1;
   sf->part_sf.use_best_rd_for_pruning = 1;
   sf->part_sf.prune_ext_partition_types_search_level = 2;
-  sf->part_sf.partition_search_breakout_rate_thr = 80;
   sf->part_sf.less_rectangular_check_level = 2;
   sf->part_sf.early_term_after_none_split = 1;
+  sf->part_sf.partition_search_breakout_dist_thr = (1 << 25);
+  sf->part_sf.partition_search_breakout_rate_thr = 200;
 
   sf->rd_sf.tx_domain_dist_thres_level = 1;
   sf->rd_sf.tx_domain_dist_level = 1;
