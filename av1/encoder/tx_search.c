@@ -1398,6 +1398,7 @@ uint16_t prune_txk_type_separ(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                               int reduced_tx_set_used, int64_t ref_best_rd,
                               int num_sel) {
   const AV1_COMMON *cm = &cpi->common;
+  MACROBLOCKD *xd = &x->e_mbd;
 
   int idx;
 
@@ -1439,6 +1440,9 @@ uint16_t prune_txk_type_separ(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     tx_type = idx_map[idx];
     txfm_param.tx_type = tx_type;
 
+    av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
+                      &quant_param);
+
     av1_xform_quant(x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param,
                     &quant_param);
 
@@ -1468,6 +1472,9 @@ uint16_t prune_txk_type_separ(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   for (idx = start_v; idx < end_v; ++idx) {
     tx_type = idx_map_v[idx_v[idx] * 4];
     txfm_param.tx_type = tx_type;
+
+    av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
+                      &quant_param);
 
     av1_xform_quant(x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param,
                     &quant_param);
@@ -1529,6 +1536,7 @@ uint16_t prune_txk_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                         uint16_t allowed_tx_mask, int prune_factor,
                         const TXB_CTX *const txb_ctx, int reduced_tx_set_used) {
   const AV1_COMMON *cm = &cpi->common;
+  MACROBLOCKD *xd = &x->e_mbd;
   int tx_type;
 
   int64_t rds[TX_TYPES];
@@ -1552,6 +1560,9 @@ uint16_t prune_txk_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       continue;
     }
     txfm_param.tx_type = tx_type;
+
+    av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
+                      &quant_param);
 
     // do txfm and quantization
     av1_xform_quant(x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param,
