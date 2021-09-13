@@ -1758,12 +1758,13 @@ static INLINE int skip_nearest_near_mv_using_refmv_weight(
   }
 
   // nearest_refmv_count indicates the closeness of block motion characteristics
-  // with respect its spatial neighbor. Lower value of nearest_refmv_count
-  // means less correlation with its spatial neighbors. Hence less possibility
-  // for NEARESTMV and NEARMV modes becoming the best mode since these modes
-  // work well for blocks that shares similar motion characteristics with its
-  // neighbor. Thus, when nearest_refmv_count is less w.r.t ref_mv_count prune
-  // the mode.
+  // with respect its spatial neighbor. Smaller value of nearest_refmv_count
+  // w.r.t to ref_mv_count means less correlation with its spatial neighbors.
+  // Hence less possibility for NEARESTMV and NEARMV modes becoming the best
+  // mode since these modes work well for blocks that shares similar motion
+  // characteristics with its neighbor. Thus, NEARMV mode is pruned when
+  // nearest_refmv_count is relatively smaller than ref_mv_count and NEARESTMV
+  // mode is pruned if none of the ref mvs are populated from nearest candidate.
   const int prune_thresh = 1 + (ref_mv_count >= 2);
   if (nearest_refmv_count < prune_thresh) return 1;
   return 0;
