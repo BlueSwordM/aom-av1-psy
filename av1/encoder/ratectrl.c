@@ -1332,7 +1332,7 @@ static int rc_pick_q_and_bounds_no_stats_cq(const AV1_COMP *cpi, int width,
 #define STATIC_MOTION_THRESH 95
 static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
                                    int *active_best, int *active_worst,
-                                   int cq_level, int is_fwd_kf) {
+                                   int cq_level) {
   const AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *const rc = &cpi->rc;
   const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
@@ -1347,15 +1347,6 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
     // as q.
     active_best_quality = cq_level;
     active_worst_quality = cq_level;
-  } else if (is_fwd_kf) {
-    // Handle the special case for forward reference key frames.
-    // Increase the boost because this keyframe is used as a forward and
-    // backward reference.
-    int qindex = p_rc->last_boosted_qindex;
-    const double last_boosted_q = av1_convert_qindex_to_q(qindex, bit_depth);
-    const int delta_qindex = av1_compute_qdelta(
-        rc, last_boosted_q, last_boosted_q * 0.25, bit_depth);
-    active_best_quality = AOMMAX(qindex + delta_qindex, rc->best_quality);
   } else if (p_rc->this_key_frame_forced) {
     // Handle the special case for key frames forced when we have reached
     // the maximum key frame interval. Here force the Q to a range
@@ -1658,13 +1649,10 @@ static int rc_pick_q_and_bounds_q_mode(const AV1_COMP *cpi, int width,
   int active_best_quality = 0;
   int active_worst_quality = rc->active_worst_quality;
   int q;
-  GF_GROUP *gf_group = &cpi->ppi->gf_group;
 
   if (frame_is_intra_only(cm)) {
-    const int is_fwd_kf = gf_group->update_type[gf_index] == ARF_UPDATE &&
-                          gf_group->refbuf_state[gf_index] == REFBUF_UPDATE;
     get_intra_q_and_bounds(cpi, width, height, &active_best_quality,
-                           &active_worst_quality, cq_level, is_fwd_kf);
+                           &active_worst_quality, cq_level);
   } else {
     //  Active best quality limited by previous layer.
     active_best_quality =
@@ -1737,10 +1725,8 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
       gf_group->update_type[gf_index] == INTNL_ARF_UPDATE;
 
   if (frame_is_intra_only(cm)) {
-    const int is_fwd_kf = gf_group->update_type[gf_index] == ARF_UPDATE &&
-                          gf_group->refbuf_state[gf_index] == REFBUF_UPDATE;
     get_intra_q_and_bounds(cpi, width, height, &active_best_quality,
-                           &active_worst_quality, cq_level, is_fwd_kf);
+                           &active_worst_quality, cq_level);
 #ifdef STRICT_RC
     active_best_quality = 0;
 #endif
