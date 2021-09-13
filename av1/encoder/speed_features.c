@@ -1435,7 +1435,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     if (cpi->oxcf.kf_cfg.key_freq_max != 0 &&
         cm->width * cm->height > 640 * 480)
       sf->rt_sf.use_temporal_noise_estimate = 1;
-    sf->rt_sf.use_golden_frame = 0;
     sf->rt_sf.skip_tx_no_split_var_based_partition = 1;
   }
 
@@ -1448,7 +1447,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   }
 
   if (speed >= 7) {
-    sf->rt_sf.use_golden_frame = 1;
     sf->part_sf.default_max_partition_size = BLOCK_128X128;
     sf->part_sf.default_min_partition_size = BLOCK_8X8;
     sf->part_sf.partition_search_type = VAR_BASED_PARTITION;
@@ -1828,7 +1826,6 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->nonrd_prune_ref_frame_search = 0;
   rt_sf->use_nonrd_pick_mode = 0;
   rt_sf->use_nonrd_altref_frame = 0;
-  rt_sf->use_golden_frame = 0;
   rt_sf->use_comp_ref_nonrd = 0;
   rt_sf->use_real_time_ref_set = 0;
   rt_sf->short_circuit_low_temp_var = 0;
