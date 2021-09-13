@@ -454,7 +454,8 @@ void av1_init_mb_ur_var_buffer(AV1_COMP *cpi) {
 }
 
 void av1_set_mb_ur_variance(AV1_COMP *cpi) {
-  const CommonModeInfoParams *const mi_params = &cpi->common.mi_params;
+  const AV1_COMMON *cm = &cpi->common;
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
   ThreadData *td = &cpi->td;
   MACROBLOCK *x = &td->mb;
   MACROBLOCKD *xd = &x->e_mbd;
@@ -468,8 +469,16 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi) {
   const int num_rows = (mi_params->mi_rows + num_mi_h - 1) / num_mi_h;
   const int use_hbd = cpi->source->flags & YV12_FLAG_HIGHBITDEPTH;
 
-  double a = -23.06 * 4.0, b = 0.004065, c = 30.516 * 4.0;
-  int delta_q_avg = 0;
+  int *mb_delta_q[2];
+  CHECK_MEM_ERROR(cm, mb_delta_q[0],
+                  aom_calloc(num_rows * num_cols, sizeof(*mb_delta_q[0])));
+  CHECK_MEM_ERROR(cm, mb_delta_q[1],
+                  aom_calloc(num_rows * num_cols, sizeof(*mb_delta_q[1])));
+
+  const double a[] = { -23.06 * 4.0, -17.20 * 4.0 };
+  const double b[] = { 0.004065, 0.003093 };
+  const double c[] = { 30.516 * 4.0, 42.100 * 4.0 };
+  int delta_q_avg[2] = { 0, 0 };
   // Loop through each SB block.
   for (int row = 0; row < num_rows; ++row) {
     for (int col = 0; col < num_cols; ++col) {
@@ -490,7 +499,7 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi) {
           buf.buf = y_buffer + row_offset_y * y_stride + col_offset_y;
           buf.stride = y_stride;
 
-          double block_variance;
+          unsigned int block_variance;
           if (use_hbd) {
             block_variance = av1_high_get_sby_perpixel_variance(
                 cpi, &buf, BLOCK_8X8, xd->bd);
@@ -499,25 +508,57 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi) {
                 av1_get_sby_perpixel_variance(cpi, &buf, BLOCK_8X8);
           }
 
-          block_variance = block_variance < 1.0 ? 1.0 : block_variance;
-          var += log(block_variance);
+          block_variance = AOMMAX(block_variance, 1);
+          var += log((double)block_variance);
           num_of_var += 1.0;
         }
       }
       var = exp(var / num_of_var);
-      cpi->mb_delta_q[index] = (int)(a * exp(-b * var) + c + 0.5);
-      delta_q_avg += cpi->mb_delta_q[index];
+      mb_delta_q[0][index] = (int)(a[0] * exp(-b[0] * var) + c[0] + 0.5);
+      mb_delta_q[1][index] = (int)(a[1] * exp(-b[1] * var) + c[1] + 0.5);
+      delta_q_avg[0] += mb_delta_q[0][index];
+      delta_q_avg[1] += mb_delta_q[1][index];
     }
   }
 
-  delta_q_avg = (int)((double)delta_q_avg / (num_rows * num_cols) + 0.5);
+  delta_q_avg[0] = RINT((double)delta_q_avg[0] / (num_rows * num_cols));
+  delta_q_avg[1] = RINT((double)delta_q_avg[1] / (num_rows * num_cols));
 
+  int model_idx;
+  double scaling_factor;
+  const int cq_level = cpi->oxcf.rc_cfg.cq_level;
+  if (cq_level < delta_q_avg[0]) {
+    model_idx = 0;
+    scaling_factor = 1.0;
+  } else if (cq_level < delta_q_avg[1]) {
+    model_idx = 2;
+    scaling_factor =
+        (double)(cq_level - delta_q_avg[0]) / (delta_q_avg[1] - delta_q_avg[0]);
+  } else {
+    model_idx = 1;
+    scaling_factor = (double)(MAXQ - cq_level) / (MAXQ - delta_q_avg[1]);
+  }
+
+  const double new_delta_q_avg =
+      delta_q_avg[0] + scaling_factor * (delta_q_avg[1] - delta_q_avg[0]);
   for (int row = 0; row < num_rows; ++row) {
     for (int col = 0; col < num_cols; ++col) {
       const int index = row * num_cols + col;
-      cpi->mb_delta_q[index] -= delta_q_avg;
+      if (model_idx == 2) {
+        const double delta_q =
+            mb_delta_q[0][index] +
+            scaling_factor * (mb_delta_q[1][index] - mb_delta_q[0][index]);
+        cpi->mb_delta_q[index] = RINT(delta_q - new_delta_q_avg);
+      } else {
+        cpi->mb_delta_q[index] =
+            RINT(scaling_factor *
+                 (mb_delta_q[model_idx][index] - delta_q_avg[model_idx]));
+      }
     }
   }
+
+  aom_free(mb_delta_q[0]);
+  aom_free(mb_delta_q[1]);
 }
 
 int av1_get_sbq_user_rating_based(AV1_COMP *const cpi, int mi_row, int mi_col) {
