@@ -882,3 +882,9 @@ void av1_gop_setup_structure(AV1_COMP *cpi) {
   if (gf_group->max_layer_depth_allowed == 0)
     set_ld_layer_depth(gf_group, p_rc->baseline_gf_interval);
 }
+
+int av1_gop_check_forward_keyframe(const GF_GROUP *gf_group,
+                                   int gf_frame_index) {
+  return gf_group->frame_type[gf_frame_index] == KEY_FRAME &&
+         gf_group->refbuf_state[gf_frame_index] == REFBUF_UPDATE;
+}

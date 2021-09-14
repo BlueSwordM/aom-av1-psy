@@ -1315,8 +1315,9 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       tpl_frame->gf_picture = &buf->img;
     }
     if (gop_eval && cpi->rc.frames_since_key > 0 &&
-        gf_group->arf_index == gf_index)
+        gf_group->arf_index == gf_index) {
       tpl_frame->gf_picture = &cpi->ppi->alt_ref_buffer;
+    }
 
     // 'cm->current_frame.frame_number' is the display number
     // of the current frame.

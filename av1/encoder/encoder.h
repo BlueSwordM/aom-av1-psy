@@ -2435,6 +2435,10 @@ typedef struct AV1_PRIMARY {
   YV12_BUFFER_CONFIG alt_ref_buffer;
 
   /*!
+   * Info and resources used by temporal filtering.
+   */
+  TEMPORAL_FILTER_INFO tf_info;
+  /*!
    * Elements part of the sequence header, that are applicable for all the
    * frames in the video.
    */

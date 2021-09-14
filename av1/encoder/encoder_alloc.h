@@ -350,9 +350,10 @@ static AOM_INLINE void alloc_altref_frame_buffer(AV1_COMP *cpi) {
           oxcf->frm_dim_cfg.height, seq_params->subsampling_x,
           seq_params->subsampling_y, seq_params->use_highbitdepth,
           cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
-          NULL, cpi->oxcf.tool_cfg.enable_global_motion))
+          NULL, cpi->oxcf.tool_cfg.enable_global_motion)) {
     aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate altref buffer");
+  }
 }
 
 static AOM_INLINE void alloc_util_frame_buffers(AV1_COMP *cpi) {

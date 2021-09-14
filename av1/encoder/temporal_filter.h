@@ -133,6 +133,63 @@ typedef struct {
   int q_factor;
 } TemporalFilterCtx;
 
+/*!
+ * buffer count in TEMPORAL_FILTER_INFO
+ * Currently we only apply filtering on KEY and ARF after
+ * define_gf_group(). Hence, the count is two.
+ */
+#define TF_INFO_BUF_COUNT 2
+/*!
+ * \brief Temporal filter info for a gop
+ */
+typedef struct TEMPORAL_FILTER_INFO {
+  /*!
+   * buffers used for temporal filtering in a GOP
+   */
+  YV12_BUFFER_CONFIG tf_buf[TF_INFO_BUF_COUNT];
+  /*!
+   * whether to show the buffer directly or not.
+   */
+  int show_tf_buf[TF_INFO_BUF_COUNT];
+  /*!
+   * the corresponding gf_index for the buffer.
+   */
+  int tf_buf_gf_index[TF_INFO_BUF_COUNT];
+  /*!
+   * whether the buf is valid or not.
+   */
+  int tf_buf_valid[TF_INFO_BUF_COUNT];
+} TEMPORAL_FILTER_INFO;
+
+/*!\brief Allocate buffers for TEMPORAL_FILTER_INFO
+ * \param[in,out]   tf_info           Temporal filter info for a gop
+ * \param[in,out]   cpi               Top level encoder instance structure
+ */
+void av1_tf_info_alloc(TEMPORAL_FILTER_INFO *tf_info, struct AV1_COMP *cpi);
+
+/*!\brief Free buffers for TEMPORAL_FILTER_INFO
+ * \param[in,out]   tf_info           Temporal filter info for a gop
+ */
+void av1_tf_info_free(TEMPORAL_FILTER_INFO *tf_info);
+
+/*!\brief Apply temporal filter for key frame and ARF in a gop
+ * \param[in,out]   tf_info           Temporal filter info for a gop
+ * \param[in,out]   cpi               Top level encoder instance structure
+ * \param[in]       gf_group          GF/ARF group data structure
+ */
+void av1_tf_info_filtering(TEMPORAL_FILTER_INFO *tf_info, struct AV1_COMP *cpi,
+                           const GF_GROUP *gf_group);
+
+/*!\brief Get a filtered buffer from TEMPORAL_FILTER_INFO
+ * \param[in,out]   tf_info           Temporal filter info for a gop
+ * \param[in]       gf_index          gf_index for the target buffer
+ * \param[out]      show_tf_buf       whether the target buffer can be shown
+ * directly
+ */
+YV12_BUFFER_CONFIG *av1_tf_info_get_filtered_buf(TEMPORAL_FILTER_INFO *tf_info,
+                                                 int gf_index,
+                                                 int *show_tf_buf);
+
 /*!\cond */
 
 // Sum and SSE source vs filtered frame difference returned by
@@ -214,10 +271,11 @@ void av1_tf_do_filtering_row(struct AV1_COMP *cpi, struct ThreadData *td,
  *
  * \ingroup src_frame_proc
  * \param[in]      cpi                        Top level encoder instance
- * structure \param[in]      filter_frame_lookahead_idx The index of the
- * to-filter frame in the lookahead buffer cpi->lookahead. \param[in]
- * update_type                This frame's update type. \param[in]
- * is_forward_keyframe        Indicate whether this is a forward keyframe.
+ *                                            structure
+ * \param[in]      filter_frame_lookahead_idx The index of the
+ *                                            to-filter frame in the lookahead
+ *                                            buffer cpi->lookahead.
+ * \param[in]      gf_frame_index             Index of GOP
  * \param[in,out]  show_existing_arf          Whether to show existing ARF. This
  *                                            field is updated in this function.
  * \param[out]     output_frame               Ouput filtered frame.
@@ -226,8 +284,7 @@ void av1_tf_do_filtering_row(struct AV1_COMP *cpi, struct ThreadData *td,
  */
 int av1_temporal_filter(struct AV1_COMP *cpi,
                         const int filter_frame_lookahead_idx,
-                        FRAME_UPDATE_TYPE update_type, int is_forward_keyframe,
-                        int *show_existing_arf,
+                        int gf_frame_index, int *show_existing_arf,
                         YV12_BUFFER_CONFIG *output_frame);
 
 /*!\cond */

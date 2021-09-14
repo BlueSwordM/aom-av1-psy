@@ -998,11 +998,8 @@ static int is_shorter_gf_interval_better(AV1_COMP *cpi,
 
     if (is_temporal_filter_enabled) {
       int arf_src_index = gf_group->arf_src_offset[gf_group->arf_index];
-      FRAME_UPDATE_TYPE arf_update_type =
-          gf_group->update_type[gf_group->arf_index];
-      int is_forward_keyframe = 0;
-      av1_temporal_filter(cpi, arf_src_index, arf_update_type,
-                          is_forward_keyframe, NULL, &cpi->ppi->alt_ref_buffer);
+      av1_temporal_filter(cpi, arf_src_index, gf_group->arf_index, NULL,
+                          &cpi->ppi->alt_ref_buffer);
       aom_extend_frame_borders(&cpi->ppi->alt_ref_buffer,
                                av1_num_planes(&cpi->common));
     }
@@ -3664,6 +3661,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       process_first_pass_stats(cpi, &this_frame);
 
     define_gf_group(cpi, frame_params, 1);
+
+    av1_tf_info_filtering(&cpi->ppi->tf_info, cpi, gf_group);
 
     rc->frames_till_gf_update_due = p_rc->baseline_gf_interval;
     assert(cpi->gf_frame_index == 0);

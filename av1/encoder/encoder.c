@@ -78,6 +78,7 @@
 #include "av1/encoder/speed_features.h"
 #include "av1/encoder/superres_scale.h"
 #include "av1/encoder/thirdpass.h"
+#include "av1/encoder/temporal_filter.h"
 #include "av1/encoder/tpl_model.h"
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/var_based_part.h"
@@ -1513,6 +1514,11 @@ static AOM_INLINE void free_thread_data(AV1_PRIMARY *ppi) {
 void av1_remove_primary_compressor(AV1_PRIMARY *ppi) {
   if (!ppi) return;
   aom_free_frame_buffer(&ppi->alt_ref_buffer);
+
+#if !CONFIG_REALTIME_ONLY
+  av1_tf_info_free(&ppi->tf_info);
+#endif  // !CONFIG_REALTIME_ONLY
+
   for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i) {
     aom_free(ppi->level_params.level_info[i]);
   }
@@ -1966,6 +1972,9 @@ void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
     if (!is_stat_generation_stage(cpi)) {
       alloc_altref_frame_buffer(cpi);
       alloc_util_frame_buffers(cpi);
+#if !CONFIG_REALTIME_ONLY
+      av1_tf_info_alloc(&cpi->ppi->tf_info, cpi);
+#endif  // !CONFIG_REALTIME_ONLY
     }
     init_ref_frame_bufs(cpi);
 
