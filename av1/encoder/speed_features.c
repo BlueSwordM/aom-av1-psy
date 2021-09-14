@@ -1415,7 +1415,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_Q;
     sf->lpf_sf.disable_lr_filter = 1;
 
-    sf->winner_mode_sf.dc_blk_pred_level = 1;
+    sf->winner_mode_sf.dc_blk_pred_level = frame_is_intra_only(cm) ? 0 : 2;
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
     sf->winner_mode_sf.tx_size_search_level = 1;
 
