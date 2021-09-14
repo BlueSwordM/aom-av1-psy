@@ -3668,6 +3668,13 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
     disable_reference(INTRA_FRAME, mask->ref_combo);
   }
 
+  if (!cpi->oxcf.tool_cfg.enable_global_motion) {
+    for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
+      mask->pred_modes[ref_frame] |= (1 << GLOBALMV);
+      mask->pred_modes[ref_frame] |= (1 << GLOBAL_GLOBALMV);
+    }
+  }
+
   mask->pred_modes[INTRA_FRAME] |=
       ~(sf->intra_sf.intra_y_mode_mask[max_txsize_lookup[bsize]]);
 }
