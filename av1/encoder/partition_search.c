@@ -1660,11 +1660,11 @@ static AOM_INLINE int is_adjust_var_based_part_enabled(
       part_sf->adjust_var_based_rd_partitioning > 3)
     return 0;
 
-  const int is_larger_qindex = cm->quant_params.base_qindex > 190;
   if (part_sf->adjust_var_based_rd_partitioning == 1) {
-    return !frame_is_intra_only(cm) && is_larger_qindex && bsize <= BLOCK_32X32;
+    return bsize <= BLOCK_32X32;
   } else {
     if (bsize <= BLOCK_32X32) return 1;
+    const int is_larger_qindex = cm->quant_params.base_qindex > 190;
     if (part_sf->adjust_var_based_rd_partitioning == 2) {
       const int is_360p_or_larger = AOMMIN(cm->width, cm->height) >= 360;
       return is_360p_or_larger && is_larger_qindex && bsize == BLOCK_64X64;

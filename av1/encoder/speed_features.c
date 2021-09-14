@@ -1423,8 +1423,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->mv_sf.use_fullpel_costlist = 1;
 
     sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh = 0;
-
-    sf->part_sf.adjust_var_based_rd_partitioning = 1;
   }
 
   if (speed >= 7) {
@@ -2034,7 +2032,16 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
   const int is_arf2_bwd_type =
       cpi->ppi->gf_group.update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE;
 
-  if (cpi->oxcf.mode == REALTIME) return;
+  if (cpi->oxcf.mode == REALTIME) {
+    if (speed >= 6) {
+      const int qindex_thresh = boosted ? 190 : (is_720p_or_larger ? 120 : 150);
+      sf->part_sf.adjust_var_based_rd_partitioning =
+          frame_is_intra_only(cm)
+              ? 0
+              : cm->quant_params.base_qindex > qindex_thresh;
+    }
+    return;
+  }
 
   if (speed == 0) {
     // qindex_thresh for resolution < 720p
