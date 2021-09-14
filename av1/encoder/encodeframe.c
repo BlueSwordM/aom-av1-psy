@@ -565,13 +565,8 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   }
 
 #if !CONFIG_REALTIME_ONLY
-  if (has_no_stats_stage(cpi) && cpi->oxcf.mode == REALTIME &&
-      cpi->oxcf.gf_cfg.lag_in_frames == 0) {
-    (void)tile_info;
-    (void)mi_row;
-    (void)mi_col;
-    (void)gather_tpl_data;
-  } else {
+  if (!(has_no_stats_stage(cpi) && cpi->oxcf.mode == REALTIME &&
+        cpi->oxcf.gf_cfg.lag_in_frames == 0)) {
     init_ref_frame_space(cpi, td, mi_row, mi_col);
     x->sb_energy_level = 0;
     x->part_search_info.cnn_output_valid = 0;
