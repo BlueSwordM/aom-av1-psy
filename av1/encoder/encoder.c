@@ -4559,6 +4559,7 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
       AV1_COMP_DATA *cur_cpi_data =
           &ppi->parallel_frames_data[parallel_frame_count - 1];
       cur_cpi->gf_frame_index = i;
+      cur_cpi->framerate = first_cpi->framerate;
       cur_cpi->common.current_frame.frame_number = cur_frame_num;
       cur_cpi->frame_index_set.show_frame_count = show_frame_count;
       cur_cpi->rc.frames_since_key = frames_since_key;

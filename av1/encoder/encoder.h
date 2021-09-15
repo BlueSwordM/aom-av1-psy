@@ -2904,6 +2904,13 @@ typedef struct AV1_COMP {
    * Retain condition for fast_extra_bits calculation.
    */
   int do_update_vbr_bits_off_target_fast;
+
+  /*!
+   * Updated framerate for the current parallel frame.
+   * cpi->framerate is updated with new_framerate during
+   * post encode updates for parallel frames.
+   */
+  double new_framerate;
 #endif
   /*!
    * Multi-threading parameters.

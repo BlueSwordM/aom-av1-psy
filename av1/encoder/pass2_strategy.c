@@ -4051,5 +4051,10 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
       }
     }
   }
+
+  // Update framerate obtained from parallel encode frames
+  if (cpi->common.show_frame &&
+      cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
+    cpi->framerate = cpi->new_framerate;
 #endif
 }
