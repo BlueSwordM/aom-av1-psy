@@ -245,6 +245,7 @@ typedef struct {
                                                 // MV entropy estimation
 
   // === Below this line are GOP related data that will be updated per GOP ===
+  int base_q_index;  // Stores the base q index.
   int q_index_list_ready;
   int q_index_list[MAX_LENGTH_TPL_FRAME_STATS];  // q indices for the current
                                                  // GOP
