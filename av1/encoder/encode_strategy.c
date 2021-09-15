@@ -40,17 +40,18 @@
 #define TEMPORAL_FILTER_KEY_FRAME (CONFIG_REALTIME_ONLY ? 0 : 1)
 
 static INLINE void set_refresh_frame_flags(
-    RefreshFrameFlagsInfo *const refresh_frame_flags, bool refresh_gf,
-    bool refresh_bwdref, bool refresh_arf) {
-  refresh_frame_flags->golden_frame = refresh_gf;
-  refresh_frame_flags->bwd_ref_frame = refresh_bwdref;
-  refresh_frame_flags->alt_ref_frame = refresh_arf;
+    RefreshFrameInfo *const refresh_frame, bool refresh_gf, bool refresh_bwdref,
+    bool refresh_arf) {
+  refresh_frame->golden_frame = refresh_gf;
+  refresh_frame->bwd_ref_frame = refresh_bwdref;
+  refresh_frame->alt_ref_frame = refresh_arf;
 }
 
-void av1_configure_buffer_updates(
-    AV1_COMP *const cpi, RefreshFrameFlagsInfo *const refresh_frame_flags,
-    const FRAME_UPDATE_TYPE type, const REFBUF_STATE refbuf_state,
-    int force_refresh_all) {
+void av1_configure_buffer_updates(AV1_COMP *const cpi,
+                                  RefreshFrameInfo *const refresh_frame,
+                                  const FRAME_UPDATE_TYPE type,
+                                  const REFBUF_STATE refbuf_state,
+                                  int force_refresh_all) {
   // NOTE(weitinglin): Should we define another function to take care of
   // cpi->rc.is_$Source_Type to make this function as it is in the comment?
   const ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
@@ -59,22 +60,22 @@ void av1_configure_buffer_updates(
 
   switch (type) {
     case KF_UPDATE:
-      set_refresh_frame_flags(refresh_frame_flags, true, true, true);
+      set_refresh_frame_flags(refresh_frame, true, true, true);
       break;
 
     case LF_UPDATE:
-      set_refresh_frame_flags(refresh_frame_flags, false, false, false);
+      set_refresh_frame_flags(refresh_frame, false, false, false);
       break;
 
     case GF_UPDATE:
-      set_refresh_frame_flags(refresh_frame_flags, true, false, false);
+      set_refresh_frame_flags(refresh_frame, true, false, false);
       break;
 
     case OVERLAY_UPDATE:
       if (refbuf_state == REFBUF_RESET)
-        set_refresh_frame_flags(refresh_frame_flags, true, true, true);
+        set_refresh_frame_flags(refresh_frame, true, true, true);
       else
-        set_refresh_frame_flags(refresh_frame_flags, true, false, false);
+        set_refresh_frame_flags(refresh_frame, true, false, false);
 
       cpi->rc.is_src_frame_alt_ref = 1;
       break;
@@ -82,19 +83,19 @@ void av1_configure_buffer_updates(
     case ARF_UPDATE:
       // NOTE: BWDREF does not get updated along with ALTREF_FRAME.
       if (refbuf_state == REFBUF_RESET)
-        set_refresh_frame_flags(refresh_frame_flags, true, true, true);
+        set_refresh_frame_flags(refresh_frame, true, true, true);
       else
-        set_refresh_frame_flags(refresh_frame_flags, false, false, true);
+        set_refresh_frame_flags(refresh_frame, false, false, true);
 
       break;
 
     case INTNL_OVERLAY_UPDATE:
-      set_refresh_frame_flags(refresh_frame_flags, false, false, false);
+      set_refresh_frame_flags(refresh_frame, false, false, false);
       cpi->rc.is_src_frame_alt_ref = 1;
       break;
 
     case INTNL_ARF_UPDATE:
-      set_refresh_frame_flags(refresh_frame_flags, false, true, false);
+      set_refresh_frame_flags(refresh_frame, false, true, false);
       break;
 
     default: assert(0); break;
@@ -102,7 +103,7 @@ void av1_configure_buffer_updates(
 
   if (ext_refresh_frame_flags->update_pending &&
       (!is_stat_generation_stage(cpi))) {
-    set_refresh_frame_flags(refresh_frame_flags,
+    set_refresh_frame_flags(refresh_frame,
                             ext_refresh_frame_flags->golden_frame,
                             ext_refresh_frame_flags->bwd_ref_frame,
                             ext_refresh_frame_flags->alt_ref_frame);
@@ -116,7 +117,7 @@ void av1_configure_buffer_updates(
   }
 
   if (force_refresh_all)
-    set_refresh_frame_flags(refresh_frame_flags, true, true, true);
+    set_refresh_frame_flags(refresh_frame, true, true, true);
 }
 
 static void set_additional_frame_flags(const AV1_COMMON *const cm,
@@ -362,10 +363,9 @@ static int allow_show_existing(const AV1_COMP *const cpi,
 
 // Update frame_flags to tell the encoder's caller what sort of frame was
 // encoded.
-static void update_frame_flags(
-    const AV1_COMMON *const cm,
-    const RefreshFrameFlagsInfo *const refresh_frame_flags,
-    unsigned int *frame_flags) {
+static void update_frame_flags(const AV1_COMMON *const cm,
+                               const RefreshFrameInfo *const refresh_frame,
+                               unsigned int *frame_flags) {
   if (encode_show_existing_frame(cm)) {
     *frame_flags &= ~FRAMEFLAGS_GOLDEN;
     *frame_flags &= ~FRAMEFLAGS_BWDREF;
@@ -374,19 +374,19 @@ static void update_frame_flags(
     return;
   }
 
-  if (refresh_frame_flags->golden_frame) {
+  if (refresh_frame->golden_frame) {
     *frame_flags |= FRAMEFLAGS_GOLDEN;
   } else {
     *frame_flags &= ~FRAMEFLAGS_GOLDEN;
   }
 
-  if (refresh_frame_flags->alt_ref_frame) {
+  if (refresh_frame->alt_ref_frame) {
     *frame_flags |= FRAMEFLAGS_ALTREF;
   } else {
     *frame_flags &= ~FRAMEFLAGS_ALTREF;
   }
 
-  if (refresh_frame_flags->bwd_ref_frame) {
+  if (refresh_frame->bwd_ref_frame) {
     *frame_flags |= FRAMEFLAGS_BWDREF;
   } else {
     *frame_flags &= ~FRAMEFLAGS_BWDREF;

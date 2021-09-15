@@ -1933,7 +1933,7 @@ typedef struct {
   bool golden_frame;  /*!< Refresh flag for golden frame */
   bool bwd_ref_frame; /*!< Refresh flag for bwd-ref frame */
   bool alt_ref_frame; /*!< Refresh flag for alt-ref frame */
-} RefreshFrameFlagsInfo;
+} RefreshFrameInfo;
 
 /*!
  * \brief Desired dimensions for an externally triggered resize.
@@ -2682,7 +2682,7 @@ typedef struct AV1_COMP {
   /*!
    * Refresh frame flags for golden, bwd-ref and alt-ref frames.
    */
-  RefreshFrameFlagsInfo refresh_frame;
+  RefreshFrameInfo refresh_frame;
 
   /*!
    * Flags signalled by the external interface at frame level.
@@ -3238,7 +3238,7 @@ typedef struct EncodeFrameParams {
    *  Flags which determine which reference buffers are refreshed by this
    *  frame.
    */
-  RefreshFrameFlagsInfo refresh_frame;
+  RefreshFrameInfo refresh_frame;
 
   /*!
    *  Speed level to use for this frame: Bigger number means faster.

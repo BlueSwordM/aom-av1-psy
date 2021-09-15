@@ -43,7 +43,7 @@ static const int segment_id[ENERGY_SPAN] = { 0, 1, 1, 2, 3, 4 };
 
 void av1_vaq_frame_setup(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
-  const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
+  const RefreshFrameInfo *const refresh_frame = &cpi->refresh_frame;
   const int base_qindex = cm->quant_params.base_qindex;
   struct segmentation *seg = &cm->seg;
   int i;
@@ -64,8 +64,8 @@ void av1_vaq_frame_setup(AV1_COMP *cpi) {
     return;
   }
   if (frame_is_intra_only(cm) || cm->features.error_resilient_mode ||
-      refresh_frame_flags->alt_ref_frame ||
-      (refresh_frame_flags->golden_frame && !cpi->rc.is_src_frame_alt_ref)) {
+      refresh_frame->alt_ref_frame ||
+      (refresh_frame->golden_frame && !cpi->rc.is_src_frame_alt_ref)) {
     cpi->vaq_refresh = 1;
 
     av1_enable_segmentation(seg);

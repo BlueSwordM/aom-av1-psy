@@ -682,7 +682,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
   MACROBLOCK *const x = &cpi->td.mb;
   AV1LevelParams *const level_params = &cpi->ppi->level_params;
   InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
-  RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
+  RefreshFrameInfo *const refresh_frame = &cpi->refresh_frame;
   const FrameDimensionCfg *const frm_dim_cfg = &cpi->oxcf.frm_dim_cfg;
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
 
@@ -735,8 +735,8 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
     p_rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
   }
 
-  refresh_frame_flags->golden_frame = false;
-  refresh_frame_flags->bwd_ref_frame = false;
+  refresh_frame->golden_frame = false;
+  refresh_frame->bwd_ref_frame = false;
 
   cm->features.refresh_frame_context =
       (oxcf->tool_cfg.frame_parallel_decoding_mode)
