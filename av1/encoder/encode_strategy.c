@@ -1842,6 +1842,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 #endif  // CONFIG_REALTIME_ONLY
 
+  // As the frame_update_type can get modified as part of
+  // av1_adjust_gf_refresh_qp_one_pass_rt
+  frame_update_type = get_frame_update_type(gf_group, cpi->gf_frame_index);
   if (!is_stat_generation_stage(cpi)) {
     // First pass doesn't modify reference buffer assignment or produce frame
     // flags
