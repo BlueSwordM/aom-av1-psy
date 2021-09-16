@@ -4102,10 +4102,10 @@ static RD_STATS rd_search_for_fixed_partition(
 }
 
 static void prepare_sb_features_before_search(
-    AV1_COMP *const cpi, ThreadData *td, int mi_row, int mi_col,
-    const BLOCK_SIZE bsize, aom_partition_features_t *features) {
-  av1_collect_motion_search_features_sb(cpi, td, mi_row, mi_col, bsize,
-                                        features);
+    AV1_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data, int mi_row,
+    int mi_col, const BLOCK_SIZE bsize, aom_partition_features_t *features) {
+  av1_collect_motion_search_features_sb(cpi, td, tile_data, mi_row, mi_col,
+                                        bsize, features);
   collect_tpl_stats_sb(cpi, bsize, mi_row, mi_col, features);
 }
 
@@ -4159,7 +4159,8 @@ static bool ml_partition_search_whole_tree(AV1_COMP *const cpi, ThreadData *td,
   MACROBLOCK *const x = &td->mb;
   ExtPartController *const ext_part_controller = &cpi->ext_part_controller;
   aom_partition_features_t features;
-  prepare_sb_features_before_search(cpi, td, mi_row, mi_col, bsize, &features);
+  prepare_sb_features_before_search(cpi, td, tile_data, mi_row, mi_col, bsize,
+                                    &features);
   features.mi_row = mi_row;
   features.mi_col = mi_col;
   features.frame_width = cpi->frame_info.frame_width;
@@ -4311,7 +4312,8 @@ static bool ml_partition_search_partial(AV1_COMP *const cpi, ThreadData *td,
   MACROBLOCK *const x = &td->mb;
   ExtPartController *const ext_part_controller = &cpi->ext_part_controller;
   aom_partition_features_t features;
-  prepare_sb_features_before_search(cpi, td, mi_row, mi_col, bsize, &features);
+  prepare_sb_features_before_search(cpi, td, tile_data, mi_row, mi_col, bsize,
+                                    &features);
   features.mi_row = mi_row;
   features.mi_col = mi_col;
   features.frame_width = cpi->frame_info.frame_width;
@@ -4579,8 +4581,8 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   // av1_get_max_min_partition_features().
   if (COLLECT_MOTION_SEARCH_FEATURE_SB && !frame_is_intra_only(cm) &&
       bsize == cm->seq_params->sb_size) {
-    av1_collect_motion_search_features_sb(cpi, td, mi_row, mi_col, bsize,
-                                          /*features=*/NULL);
+    av1_collect_motion_search_features_sb(cpi, td, tile_data, mi_row, mi_col,
+                                          bsize, /*features=*/NULL);
     collect_tpl_stats_sb(cpi, bsize, mi_row, mi_col, /*features=*/NULL);
   }
 

@@ -2296,6 +2296,7 @@ static void write_motion_feature_to_file(
 }
 
 void av1_collect_motion_search_features_sb(AV1_COMP *const cpi, ThreadData *td,
+                                           TileDataEnc *tile_data,
                                            const int mi_row, const int mi_col,
                                            const BLOCK_SIZE bsize,
                                            aom_partition_features_t *features) {
@@ -2308,6 +2309,8 @@ void av1_collect_motion_search_features_sb(AV1_COMP *const cpi, ThreadData *td,
   const int row_step = mi_size_high[fixed_block_size];
   SIMPLE_MOTION_DATA_TREE *sms_tree = NULL;
   SIMPLE_MOTION_DATA_TREE *sms_root = setup_sms_tree(cpi, sms_tree);
+  TileInfo *const tile_info = &tile_data->tile_info;
+  av1_set_offsets_without_segment_id(cpi, tile_info, x, mi_row, mi_col, bsize);
   av1_init_simple_motion_search_mvs_for_sb(cpi, NULL, x, sms_root, mi_row,
                                            mi_col);
   av1_reset_simple_motion_tree_partition(sms_root, bsize);
