@@ -2261,12 +2261,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   const QuantizationCfg *const q_cfg = &cpi->oxcf.q_cfg;
   SVC *const svc = &cpi->svc;
-  ResizePendingParams *const resize_pending_params =
-      &cpi->resize_pending_params;
-  const int resize_pending =
-      (resize_pending_params->width && resize_pending_params->height &&
-       (cpi->common.width != resize_pending_params->width ||
-        cpi->common.height != resize_pending_params->height));
+  const int resize_pending = is_frame_resize_pending(cpi);
 
   int top_index = 0, bottom_index = 0, q = 0;
   YV12_BUFFER_CONFIG *unscaled = cpi->unscaled_source;

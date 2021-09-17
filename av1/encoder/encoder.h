@@ -3849,6 +3849,14 @@ static AOM_INLINE int is_psnr_calc_enabled(const AV1_COMP *cpi) {
          cm->show_frame;
 }
 
+static INLINE int is_frame_resize_pending(AV1_COMP *const cpi) {
+  ResizePendingParams *const resize_pending_params =
+      &cpi->resize_pending_params;
+  return (resize_pending_params->width && resize_pending_params->height &&
+          (cpi->common.width != resize_pending_params->width ||
+           cpi->common.height != resize_pending_params->height));
+}
+
 #if CONFIG_AV1_TEMPORAL_DENOISING
 static INLINE int denoise_svc(const struct AV1_COMP *const cpi) {
   return (!cpi->ppi->use_svc ||

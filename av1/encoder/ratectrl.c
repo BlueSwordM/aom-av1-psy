@@ -2324,12 +2324,7 @@ void av1_adjust_gf_refresh_qp_one_pass_rt(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
   SVC *const svc = &cpi->svc;
-  ResizePendingParams *const resize_pending_params =
-      &cpi->resize_pending_params;
-  const int resize_pending =
-      (resize_pending_params->width && resize_pending_params->height &&
-       (cpi->common.width != resize_pending_params->width ||
-        cpi->common.height != resize_pending_params->height));
+  const int resize_pending = is_frame_resize_pending(cpi);
   if (!resize_pending && !rc->high_source_sad) {
     // Check if we should disable GF refresh (if period is up),
     // or force a GF refresh update (if we are at least halfway through
@@ -2569,13 +2564,8 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
 static int set_gf_interval_update_onepass_rt(AV1_COMP *cpi,
                                              FRAME_TYPE frame_type) {
   RATE_CONTROL *const rc = &cpi->rc;
-  ResizePendingParams *const resize_pending_params =
-      &cpi->resize_pending_params;
   int gf_update = 0;
-  const int resize_pending =
-      (resize_pending_params->width && resize_pending_params->height &&
-       (cpi->common.width != resize_pending_params->width ||
-        cpi->common.height != resize_pending_params->height));
+  const int resize_pending = is_frame_resize_pending(cpi);
   // GF update based on frames_till_gf_update_due, also
   // force upddate on resize pending frame or for scene change.
   if ((resize_pending || rc->high_source_sad ||
@@ -2811,9 +2801,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
       resize_pending_params->width = cpi->oxcf.frm_dim_cfg.width;
       resize_pending_params->height = cpi->oxcf.frm_dim_cfg.height;
     }
-  } else if (resize_pending_params->width && resize_pending_params->height &&
-             (cpi->common.width != resize_pending_params->width ||
-              cpi->common.height != resize_pending_params->height)) {
+  } else if (is_frame_resize_pending(cpi)) {
     resize_reset_rc(cpi, resize_pending_params->width,
                     resize_pending_params->height, cm->width, cm->height);
   }

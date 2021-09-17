@@ -2365,11 +2365,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   AV1_PICKMODE_CTX_DEN ctx_den;
   int64_t zero_last_cost_orig = INT64_MAX;
   int denoise_svc_pickmode = 1;
-  const int resize_pending =
-      (cpi->resize_pending_params.width && cpi->resize_pending_params.height &&
-       (cpi->common.width != cpi->resize_pending_params.width ||
-        cpi->common.height != cpi->resize_pending_params.height));
-
+  const int resize_pending = is_frame_resize_pending(cpi);
 #endif
   x->color_sensitivity[0] = x->color_sensitivity_sb[0];
   x->color_sensitivity[1] = x->color_sensitivity_sb[1];
