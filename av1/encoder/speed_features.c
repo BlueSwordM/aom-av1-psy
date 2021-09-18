@@ -1756,7 +1756,7 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->txb_split_cap = 1;
   tx_sf->adaptive_txb_search_level = 0;
   tx_sf->use_intra_txb_hash = 0;
-  tx_sf->use_inter_txb_hash = 1;
+  tx_sf->use_inter_txb_hash = 0;
   tx_sf->refine_fast_tx_search_results = 1;
   tx_sf->prune_tx_size_level = 0;
 }
