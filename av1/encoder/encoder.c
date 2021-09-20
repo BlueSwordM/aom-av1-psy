@@ -2752,7 +2752,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
 #if 0
       vbr_rc_info_log(&cpi->vbr_rc_info, cpi->gf_frame_index,
-                      cpi->ppi->gf_group.size, &cpi->ppi->gf_group.update_type);
+                      cpi->ppi->gf_group.size, cpi->ppi->gf_group.update_type);
 #endif
 
 #endif

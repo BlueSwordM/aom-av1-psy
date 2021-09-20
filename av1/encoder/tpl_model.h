@@ -302,7 +302,7 @@ static INLINE void vbr_rc_set_keyframe_bitrate(VBR_RATECTRL_INFO *vbr_rc_info,
 
 static INLINE void vbr_rc_info_log(const VBR_RATECTRL_INFO *vbr_rc_info,
                                    int gf_frame_index, int gf_group_size,
-                                   int *update_type) {
+                                   FRAME_UPDATE_TYPE *update_type) {
   // Add +2 here because this is the last frame this method is called at.
   if (gf_frame_index + 2 >= gf_group_size) {
     printf(
