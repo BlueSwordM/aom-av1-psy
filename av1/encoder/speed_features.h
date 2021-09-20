@@ -1078,10 +1078,6 @@ typedef struct TX_SPEED_FEATURES {
   // winner mode processing.
   int use_intra_txb_hash;
 
-  // Use hash table to store inter txb transform search results
-  // to avoid repeated search on the same residue signal.
-  int use_inter_txb_hash;
-
   // Refine TX type after fast TX search.
   int refine_fast_tx_search_results;
 
