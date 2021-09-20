@@ -1072,12 +1072,6 @@ typedef struct TX_SPEED_FEATURES {
   // 1-2: progressively increasing aggressiveness of pruning
   int model_based_prune_tx_search_level;
 
-  // Use hash table to store intra(keyframe only) txb transform search results
-  // to avoid repeated search on the same residue signal. This is currently not
-  // compatible with multi-winner mode as the hash states are reset during
-  // winner mode processing.
-  int use_intra_txb_hash;
-
   // Refine TX type after fast TX search.
   int refine_fast_tx_search_results;
 

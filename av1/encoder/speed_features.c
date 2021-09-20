@@ -519,12 +519,6 @@ static void set_allintra_speed_features_framesize_independent(
     sf->rt_sf.nonrd_check_partition_merge_mode = 0;
     sf->rt_sf.hybrid_intra_pickmode = 0;
   }
-
-  // Intra txb hash is currently not compatible with multi-winner mode as the
-  // hashes got reset during multi-winner mode processing.
-  assert(IMPLIES(
-      sf->winner_mode_sf.multi_winner_mode_type != MULTI_WINNER_MODE_OFF,
-      !sf->tx_sf.use_intra_txb_hash));
 }
 
 static void set_good_speed_feature_framesize_dependent(
@@ -1017,7 +1011,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tx_sf.adaptive_txb_search_level = boosted ? 2 : 3;
     sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
-    sf->tx_sf.use_intra_txb_hash = 1;
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_3;
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 1;
 
@@ -1083,9 +1076,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 2;
     sf->tx_sf.tx_type_search.fast_intra_tx_type_search = 1;
-    // TODO(any): Experiment with enabling of this speed feature as hash state
-    // is reset during winner mode processing
-    sf->tx_sf.use_intra_txb_hash = 0;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 5 : 7;
     sf->rd_sf.tx_domain_dist_thres_level = 2;
@@ -1168,8 +1158,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.disable_filtered_key_tpl = 1;
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 4;
-    sf->tx_sf.use_intra_txb_hash = 1;
-
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 6 : 8;
 
     sf->winner_mode_sf.dc_blk_pred_level = 2;
@@ -1179,12 +1167,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->fp_sf.skip_zeromv_motion_search = 1;
   }
-
-  // Intra txb hash is currently not compatible with multi-winner mode as the
-  // hashes got reset during multi-winner mode processing.
-  assert(IMPLIES(
-      sf->winner_mode_sf.multi_winner_mode_type != MULTI_WINNER_MODE_OFF,
-      !sf->tx_sf.use_intra_txb_hash));
 }
 
 static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
@@ -1352,14 +1334,10 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->tx_sf.tx_size_search_lgr_block = 1;
   sf->tx_sf.tx_type_search.ml_tx_split_thresh = 4000;
   sf->tx_sf.tx_type_search.skip_tx_search = 1;
-  sf->tx_sf.use_intra_txb_hash = 1;
   sf->tx_sf.inter_tx_size_search_init_depth_rect = 1;
   sf->tx_sf.inter_tx_size_search_init_depth_sqr = 1;
   sf->tx_sf.model_based_prune_tx_search_level = 0;
   sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
-  // TODO(any, yunqing): somehow this is needed by sf->rt_sf.use_nonrd_pick_mode
-  // at speed 7? Need more investigation.
-  sf->tx_sf.use_intra_txb_hash = 0;
 
   sf->winner_mode_sf.tx_size_search_level = frame_is_intra_only(cm) ? 0 : 2;
 
@@ -1755,7 +1733,6 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->tx_type_search.winner_mode_tx_type_pruning = 0;
   tx_sf->txb_split_cap = 1;
   tx_sf->adaptive_txb_search_level = 0;
-  tx_sf->use_intra_txb_hash = 0;
   tx_sf->refine_fast_tx_search_results = 1;
   tx_sf->prune_tx_size_level = 0;
 }
@@ -2087,7 +2064,6 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
         sf->interp_sf.cb_pred_filter_search = 0;
         sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
         sf->tx_sf.tx_type_search.skip_tx_search = 1;
-        sf->tx_sf.use_intra_txb_hash = 1;
       }
     }
   }
