@@ -1244,9 +1244,7 @@ static void get_ref_frames(RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
         gf_group->frame_parallel_level[gf_index - 1] == 1 &&
         gf_group->update_type[gf_index - 1] == INTNL_ARF_UPDATE) {
       assert(gf_group->update_type[gf_index] == INTNL_ARF_UPDATE);
-      // TODO(Remya): Use original value of is_parallel_encode when FPMT is
-      // enabled.
-      is_parallel_encode = 0;
+
       // If parallel cpis are active, use ref_idx_to_skip, else, use display
       // index.
       assert(IMPLIES(is_parallel_encode, cpi->ref_idx_to_skip != INVALID_IDX));
