@@ -4148,7 +4148,7 @@ static void build_pc_tree_from_part_decision(
   }
 }
 
-// The ML model needs to provide the whole decition tree for the superblock.
+// The ML model needs to provide the whole decision tree for the superblock.
 static bool ml_partition_search_whole_tree(AV1_COMP *const cpi, ThreadData *td,
                                            TileDataEnc *tile_data,
                                            TokenExtra **tp,

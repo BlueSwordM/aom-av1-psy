@@ -402,29 +402,23 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
 
 static AOM_INLINE void av1_dealloc_mb_data(struct AV1Common *cm,
                                            struct macroblock *mb) {
-  if (mb->txfm_search_info.txb_rd_records) {
-    aom_free(mb->txfm_search_info.txb_rd_records);
-    mb->txfm_search_info.txb_rd_records = NULL;
-  }
-  if (mb->inter_modes_info) {
-    aom_free(mb->inter_modes_info);
-    mb->inter_modes_info = NULL;
-  }
+  aom_free(mb->txfm_search_info.txb_rd_records);
+  mb->txfm_search_info.txb_rd_records = NULL;
+
+  aom_free(mb->inter_modes_info);
+  mb->inter_modes_info = NULL;
+
   const int num_planes = av1_num_planes(cm);
   for (int plane = 0; plane < num_planes; plane++) {
-    if (mb->plane[plane].src_diff) {
-      aom_free(mb->plane[plane].src_diff);
-      mb->plane[plane].src_diff = NULL;
-    }
+    aom_free(mb->plane[plane].src_diff);
+    mb->plane[plane].src_diff = NULL;
   }
-  if (mb->e_mbd.seg_mask) {
-    aom_free(mb->e_mbd.seg_mask);
-    mb->e_mbd.seg_mask = NULL;
-  }
-  if (mb->winner_mode_stats) {
-    aom_free(mb->winner_mode_stats);
-    mb->winner_mode_stats = NULL;
-  }
+
+  aom_free(mb->e_mbd.seg_mask);
+  mb->e_mbd.seg_mask = NULL;
+
+  aom_free(mb->winner_mode_stats);
+  mb->winner_mode_stats = NULL;
 }
 
 static AOM_INLINE void av1_alloc_mb_data(struct AV1Common *cm,

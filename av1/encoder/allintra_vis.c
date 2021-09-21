@@ -9,7 +9,6 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#include <stdio.h>
 #include "av1/common/common_data.h"
 #include "av1/common/enums.h"
 #include "av1/common/idct.h"

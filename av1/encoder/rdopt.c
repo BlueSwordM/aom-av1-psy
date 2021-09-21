@@ -1758,7 +1758,7 @@ static INLINE int skip_nearest_near_mv_using_refmv_weight(
   }
 
   // nearest_refmv_count indicates the closeness of block motion characteristics
-  // with respect its spatial neighbor. Smaller value of nearest_refmv_count
+  // with respect to its spatial neighbor. Smaller value of nearest_refmv_count
   // w.r.t to ref_mv_count means less correlation with its spatial neighbors.
   // Hence less possibility for NEARESTMV and NEARMV modes becoming the best
   // mode since these modes work well for blocks that shares similar motion

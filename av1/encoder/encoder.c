@@ -4007,7 +4007,7 @@ static AOM_INLINE void update_keyframe_counters(AV1_COMP *cpi) {
       av1_firstpass_info_move_cur_index_and_pop(firstpass_info);
     } else {
       // When there is not enough past stats, we move the current
-      // index without poping the past stats
+      // index without popping the past stats
       av1_firstpass_info_move_cur_index(firstpass_info);
     }
 #endif
