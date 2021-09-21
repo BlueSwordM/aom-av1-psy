@@ -44,16 +44,6 @@ typedef struct {
   TX_TYPE tx_type;
 } TxCandidateInfo;
 
-typedef struct {
-  int leaf;
-  int8_t children[4];
-} RD_RECORD_IDX_NODE;
-
-typedef struct tx_size_rd_info_node {
-  TXB_RD_INFO *rd_info_array;  // Points to array of size TX_TYPES.
-  struct tx_size_rd_info_node *children[4];
-} TXB_RD_INFO_NODE;
-
 // origin_threshold * 128 / 100
 static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
   {
@@ -86,48 +76,6 @@ static const TX_SIZE max_predict_sf_tx_size[BLOCK_SIZES_ALL] = {
 static const int sqrt_tx_pixels_2d[TX_SIZES_ALL] = { 4,  8,  16, 32, 32, 6,  6,
                                                      12, 12, 23, 23, 32, 32, 8,
                                                      8,  16, 16, 23, 23 };
-
-static INLINE uint32_t get_block_residue_hash(MACROBLOCK *x, BLOCK_SIZE bsize) {
-  const int rows = block_size_high[bsize];
-  const int cols = block_size_wide[bsize];
-  const int16_t *diff = x->plane[0].src_diff;
-  const uint32_t hash = av1_get_crc32c_value(
-      &x->txfm_search_info.txb_rd_records->mb_rd_record.crc_calculator,
-      (uint8_t *)diff, 2 * rows * cols);
-  return (hash << 5) + bsize;
-}
-
-static INLINE int32_t find_mb_rd_info(const MB_RD_RECORD *const mb_rd_record,
-                                      const int64_t ref_best_rd,
-                                      const uint32_t hash) {
-  int32_t match_index = -1;
-  if (ref_best_rd != INT64_MAX) {
-    for (int i = 0; i < mb_rd_record->num; ++i) {
-      const int index = (mb_rd_record->index_start + i) % RD_RECORD_BUFFER_LEN;
-      // If there is a match in the tx_rd_record, fetch the RD decision and
-      // terminate early.
-      if (mb_rd_record->tx_rd_info[index].hash_value == hash) {
-        match_index = index;
-        break;
-      }
-    }
-  }
-  return match_index;
-}
-
-static AOM_INLINE void fetch_tx_rd_info(int n4,
-                                        const MB_RD_INFO *const tx_rd_info,
-                                        RD_STATS *const rd_stats,
-                                        MACROBLOCK *const x) {
-  MACROBLOCKD *const xd = &x->e_mbd;
-  MB_MODE_INFO *const mbmi = xd->mi[0];
-  mbmi->tx_size = tx_rd_info->tx_size;
-  memcpy(x->txfm_search_info.blk_skip, tx_rd_info->blk_skip,
-         sizeof(tx_rd_info->blk_skip[0]) * n4);
-  av1_copy(mbmi->inter_tx_size, tx_rd_info->inter_tx_size);
-  av1_copy_array(xd->tx_type_map, tx_rd_info->tx_type_map, n4);
-  *rd_stats = tx_rd_info->rd_stats;
-}
 
 // Compute the pixel domain distortion from diff on all visible 4x4s in the
 // transform block.
@@ -290,32 +238,6 @@ static AOM_INLINE void set_skip_txfm(MACROBLOCK *x, RD_STATS *rd_stats,
   rd_stats->rate = zero_blk_rate *
                    (block_size_wide[bsize] >> tx_size_wide_log2[tx_size]) *
                    (block_size_high[bsize] >> tx_size_high_log2[tx_size]);
-}
-
-static AOM_INLINE void save_tx_rd_info(int n4, uint32_t hash,
-                                       const MACROBLOCK *const x,
-                                       const RD_STATS *const rd_stats,
-                                       MB_RD_RECORD *tx_rd_record) {
-  int index;
-  if (tx_rd_record->num < RD_RECORD_BUFFER_LEN) {
-    index =
-        (tx_rd_record->index_start + tx_rd_record->num) % RD_RECORD_BUFFER_LEN;
-    ++tx_rd_record->num;
-  } else {
-    index = tx_rd_record->index_start;
-    tx_rd_record->index_start =
-        (tx_rd_record->index_start + 1) % RD_RECORD_BUFFER_LEN;
-  }
-  MB_RD_INFO *const tx_rd_info = &tx_rd_record->tx_rd_info[index];
-  const MACROBLOCKD *const xd = &x->e_mbd;
-  const MB_MODE_INFO *const mbmi = xd->mi[0];
-  tx_rd_info->hash_value = hash;
-  tx_rd_info->tx_size = mbmi->tx_size;
-  memcpy(tx_rd_info->blk_skip, x->txfm_search_info.blk_skip,
-         sizeof(tx_rd_info->blk_skip[0]) * n4);
-  av1_copy(tx_rd_info->inter_tx_size, mbmi->inter_tx_size);
-  av1_copy_array(tx_rd_info->tx_type_map, xd->tx_type_map, n4);
-  tx_rd_info->rd_stats = *rd_stats;
 }
 
 static int get_search_init_depth(int mi_width, int mi_height, int is_inter,
@@ -3326,41 +3248,13 @@ static AOM_INLINE int model_based_tx_search_prune(const AV1_COMP *cpi,
 void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
                                          RD_STATS *rd_stats, BLOCK_SIZE bsize,
                                          int64_t ref_best_rd) {
-  MACROBLOCKD *const xd = &x->e_mbd;
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
-  assert(is_inter_block(xd->mi[0]));
-
   av1_invalid_rd_stats(rd_stats);
 
   // If modeled RD cost is a lot worse than the best so far, terminate early.
   if (cpi->sf.tx_sf.model_based_prune_tx_search_level &&
       ref_best_rd != INT64_MAX) {
     if (model_based_tx_search_prune(cpi, x, bsize, ref_best_rd)) return;
-  }
-
-  // Hashing based speed feature. If the hash of the prediction residue block is
-  // found in the hash table, use previous search results and terminate early.
-  uint32_t hash = 0;
-  MB_RD_RECORD *mb_rd_record = NULL;
-  const int mi_row = x->e_mbd.mi_row;
-  const int mi_col = x->e_mbd.mi_col;
-  const int within_border =
-      mi_row >= xd->tile.mi_row_start &&
-      (mi_row + mi_size_high[bsize] < xd->tile.mi_row_end) &&
-      mi_col >= xd->tile.mi_col_start &&
-      (mi_col + mi_size_wide[bsize] < xd->tile.mi_col_end);
-  const int is_mb_rd_hash_enabled =
-      (within_border && cpi->sf.rd_sf.use_mb_rd_hash);
-  const int n4 = bsize_to_num_blk(bsize);
-  if (is_mb_rd_hash_enabled) {
-    hash = get_block_residue_hash(x, bsize);
-    mb_rd_record = &x->txfm_search_info.txb_rd_records->mb_rd_record;
-    const int match_index = find_mb_rd_info(mb_rd_record, ref_best_rd, hash);
-    if (match_index != -1) {
-      MB_RD_INFO *tx_rd_info = &mb_rd_record->tx_rd_info[match_index];
-      fetch_tx_rd_info(n4, tx_rd_info, rd_stats, x);
-      return;
-    }
   }
 
   // If we predict that skip is the optimal RD decision - set the respective
@@ -3370,9 +3264,6 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
       predict_skip_txfm(x, bsize, &dist,
                         cpi->common.features.reduced_tx_set_used)) {
     set_skip_txfm(x, rd_stats, bsize, dist);
-    // Save the RD search results into tx_rd_record.
-    if (is_mb_rd_hash_enabled)
-      save_tx_rd_info(n4, hash, x, rd_stats, mb_rd_record);
     return;
   }
 #if CONFIG_SPEED_STATS
@@ -3390,12 +3281,6 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
     av1_invalid_rd_stats(rd_stats);
     return;
   }
-
-  // Save the RD search results into tx_rd_record.
-  if (is_mb_rd_hash_enabled) {
-    assert(mb_rd_record != NULL);
-    save_tx_rd_info(n4, hash, x, rd_stats, mb_rd_record);
-  }
 }
 
 void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
@@ -3406,34 +3291,8 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   const TxfmSearchParams *tx_params = &x->txfm_search_params;
   assert(bs == mbmi->bsize);
   const int is_inter = is_inter_block(mbmi);
-  const int mi_row = xd->mi_row;
-  const int mi_col = xd->mi_col;
 
   av1_init_rd_stats(rd_stats);
-
-  // Hashing based speed feature for inter blocks. If the hash of the residue
-  // block is found in the table, use previously saved search results and
-  // terminate early.
-  uint32_t hash = 0;
-  MB_RD_RECORD *mb_rd_record = NULL;
-  const int num_blks = bsize_to_num_blk(bs);
-  if (is_inter && cpi->sf.rd_sf.use_mb_rd_hash) {
-    const int within_border =
-        mi_row >= xd->tile.mi_row_start &&
-        (mi_row + mi_size_high[bs] < xd->tile.mi_row_end) &&
-        mi_col >= xd->tile.mi_col_start &&
-        (mi_col + mi_size_wide[bs] < xd->tile.mi_col_end);
-    if (within_border) {
-      hash = get_block_residue_hash(x, bs);
-      mb_rd_record = &x->txfm_search_info.txb_rd_records->mb_rd_record;
-      const int match_index = find_mb_rd_info(mb_rd_record, ref_best_rd, hash);
-      if (match_index != -1) {
-        MB_RD_INFO *tx_rd_info = &mb_rd_record->tx_rd_info[match_index];
-        fetch_tx_rd_info(num_blks, tx_rd_info, rd_stats, x);
-        return;
-      }
-    }
-  }
 
   // If we predict that skip is the optimal RD decision - set the respective
   // context and terminate early.
@@ -3444,10 +3303,6 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
                         cpi->common.features.reduced_tx_set_used)) {
     // Populate rdstats as per skip decision
     set_skip_txfm(x, rd_stats, bs, dist);
-    // Save the RD search results into tx_rd_record.
-    if (mb_rd_record) {
-      save_tx_rd_info(num_blks, hash, x, rd_stats, mb_rd_record);
-    }
     return;
   }
 
@@ -3458,11 +3313,6 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
     choose_largest_tx_size(cpi, x, rd_stats, ref_best_rd, bs);
   } else {
     choose_tx_size_type_from_rd(cpi, x, rd_stats, ref_best_rd, bs);
-  }
-
-  // Save the RD search results into tx_rd_record for possible reuse in future.
-  if (mb_rd_record) {
-    save_tx_rd_info(num_blks, hash, x, rd_stats, mb_rd_record);
   }
 }
 
