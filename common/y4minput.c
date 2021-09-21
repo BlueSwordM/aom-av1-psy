@@ -896,7 +896,7 @@ int y4m_input_open(y4m_input *y4m_ctx, FILE *file, char *skip_buffer,
     return -1;
   }
   if (csp == AOM_CSP_COLOCATED) {
-    // TODO(any): check the right way to handle this is y4m
+    // TODO(any): check the right way to handle this in y4m
     fprintf(stderr,
             "Ignoring colocated chroma sample position for reading in Y4M\n");
   }

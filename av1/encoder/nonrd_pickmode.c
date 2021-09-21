@@ -2849,7 +2849,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       best_pickmode.best_mode_initial_skip_flag =
           (nonskip_rdc.rate == INT_MAX && this_rdc.skip_txfm);
 
-      // This is needed for the compoune modes.
+      // This is needed for the compound modes.
       frame_mv_best[this_mode][ref_frame].as_int =
           frame_mv[this_mode][ref_frame].as_int;
       if (ref_frame2 > NONE_FRAME)
