@@ -301,9 +301,6 @@ static INLINE void get_rd_opt_coeff_thresh(
 // Used to reset the state of tx/mb rd hash information
 static INLINE void reset_hash_records(TxfmSearchInfo *const txfm_info) {
   if (!txfm_info->txb_rd_records) return;
-  // Reset the state for use_intra_txb_hash
-  txfm_info->txb_rd_records->txb_rd_record_intra.num =
-      txfm_info->txb_rd_records->txb_rd_record_intra.index_start = 0;
 
   // Reset the state for use_mb_rd_hash
   txfm_info->txb_rd_records->mb_rd_record.num =

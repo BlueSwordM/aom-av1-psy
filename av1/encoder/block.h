@@ -252,52 +252,14 @@ typedef struct {
  */
 typedef struct {
   //! Circular buffer that stores the txfm search results.
-  MB_RD_INFO tx_rd_info[RD_RECORD_BUFFER_LEN];  // Circular buffer.
-  //! Index to insert the newest \ref TXB_RD_INFO.
+  MB_RD_INFO tx_rd_info[RD_RECORD_BUFFER_LEN];
+  //! Index to insert the newest rd record.
   int index_start;
   //! Number of info stored in this record.
   int num;
   //! Hash function
   CRC32C crc_calculator;
 } MB_RD_RECORD;
-
-/*! \brief Txfm search results for a tx block.
- */
-typedef struct {
-  //! Distortion after the txfm process
-  int64_t dist;
-  //! SSE of the prediction before the txfm process
-  int64_t sse;
-  //! Rate used to encode the txfm.
-  int rate;
-  //! Location of the end of non-zero entries.
-  uint16_t eob;
-  //! Transform type used on the current block.
-  TX_TYPE tx_type;
-  //! Unknown usage
-  uint16_t entropy_context;
-  //! Context used to code the coefficients.
-  uint8_t txb_entropy_ctx;
-  //! Whether the current info block contains  valid info
-  uint8_t valid;
-  //! Unused
-  uint8_t fast;
-  //! Whether trellis optimization is done.
-  uint8_t perform_block_coeff_opt;
-} TXB_RD_INFO;
-
-/*! \brief Hash records of txfm search result for each tx block.
- */
-typedef struct {
-  //! The hash values.
-  uint32_t hash_vals[TX_SIZE_RD_RECORD_BUFFER_LEN];
-  //! The txfm search results
-  TXB_RD_INFO tx_rd_info[TX_SIZE_RD_RECORD_BUFFER_LEN];
-  //! Index to insert the newest \ref TXB_RD_INFO.
-  int index_start;
-  //! Number of info stored in this record.
-  int num;
-} TXB_RD_RECORD;
 
 //! Number of compound rd stats
 #define MAX_COMP_RD_STATS 64
@@ -499,16 +461,6 @@ typedef struct {
   //! Txfm hash record for the whole coding block.
   MB_RD_RECORD mb_rd_record;
 
-  //! Inter mode txfm hash record for TX_8X8 blocks.
-  TXB_RD_RECORD txb_rd_record_8X8[MAX_NUM_8X8_TXBS];
-  //! Inter mode txfm hash record for TX_16X16 blocks.
-  TXB_RD_RECORD txb_rd_record_16X16[MAX_NUM_16X16_TXBS];
-  //! Inter mode txfm hash record for TX_32X32 blocks.
-  TXB_RD_RECORD txb_rd_record_32X32[MAX_NUM_32X32_TXBS];
-  //! Inter mode txfm hash record for TX_64X64 blocks.
-  TXB_RD_RECORD txb_rd_record_64X64[MAX_NUM_64X64_TXBS];
-  //! Intra mode txfm hash record for square tx blocks.
-  TXB_RD_RECORD txb_rd_record_intra;
   /**@}*/
 } TxbRdRecords;
 

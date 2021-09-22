@@ -49,11 +49,6 @@ typedef struct {
   int8_t children[4];
 } RD_RECORD_IDX_NODE;
 
-typedef struct tx_size_rd_info_node {
-  TXB_RD_INFO *rd_info_array;  // Points to array of size TX_TYPES.
-  struct tx_size_rd_info_node *children[4];
-} TXB_RD_INFO_NODE;
-
 // origin_threshold * 128 / 100
 static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
   {
