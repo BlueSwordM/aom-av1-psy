@@ -3939,6 +3939,7 @@ static int read_partition_tree(AV1_COMP *const cpi, PC_TREE *const pc_tree,
   fscanf(pfile, "%d,%d,%d", &read_bsize, &num_nodes, &num_configs);
   assert(read_bsize == cpi->common.seq_params->sb_size);
   BLOCK_SIZE bsize = (BLOCK_SIZE)read_bsize;
+  assert(bsize == pc_tree->block_size);
 
   PC_TREE *tree_node_queue[NUM_NODES] = { NULL };
   int last_idx = 1;
@@ -3950,7 +3951,10 @@ static int read_partition_tree(AV1_COMP *const cpi, PC_TREE *const pc_tree,
     assert(partitioning >= PARTITION_NONE &&
            partitioning < EXT_PARTITION_TYPES);
     PC_TREE *node = tree_node_queue[q_idx];
-    if (node != NULL) node->partitioning = partitioning;
+    if (node != NULL) {
+      node->partitioning = partitioning;
+      bsize = node->block_size;
+    }
     if (partitioning == PARTITION_SPLIT) {
       const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
       for (int i = 0; i < 4; ++i) {
@@ -3961,7 +3965,6 @@ static int read_partition_tree(AV1_COMP *const cpi, PC_TREE *const pc_tree,
           ++last_idx;
         }
       }
-      bsize = subsize;
     }
     --num_nodes;
     ++q_idx;
