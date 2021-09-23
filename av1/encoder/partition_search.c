@@ -4348,10 +4348,10 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
     bool valid_search = true;
     const aom_ext_part_decision_mode_t decision_mode =
         av1_get_ext_part_decision_mode(&cpi->ext_part_controller);
-    if (decision_mode == WHOLE_TREE_DECISION) {
+    if (decision_mode == AOM_EXT_PART_WHOLE_TREE) {
       valid_search = ml_partition_search_whole_tree(
           cpi, td, tile_data, tp, sms_root, mi_row, mi_col, bsize);
-    } else if (decision_mode == RECURSIVE_DECISION) {
+    } else if (decision_mode == AOM_EXT_PART_RECURSIVE) {
       valid_search = ml_partition_search_partial(
           cpi, td, tile_data, tp, sms_root, mi_row, mi_col, bsize);
     } else {

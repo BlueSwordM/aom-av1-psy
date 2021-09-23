@@ -287,10 +287,10 @@ class ExternalPartitionTestAPI
   virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      if (decision_mode_ == WHOLE_TREE_DECISION) {
+      if (decision_mode_ == AOM_EXT_PART_WHOLE_TREE) {
         aom_ext_part_funcs_t ext_part_funcs;
         ext_part_funcs.priv = reinterpret_cast<void *>(&test_data_);
-        ext_part_funcs.decision_mode = WHOLE_TREE_DECISION;
+        ext_part_funcs.decision_mode = AOM_EXT_PART_WHOLE_TREE;
         ext_part_funcs.create_model = ext_part_create_model;
         ext_part_funcs.send_features = ext_part_send_features;
         ext_part_funcs.get_partition_decision =
@@ -319,10 +319,10 @@ class ExternalPartitionTestAPI
             default: assert(0 && "Invalid partition control mode."); break;
           }
         }
-      } else if (decision_mode_ == RECURSIVE_DECISION) {
+      } else if (decision_mode_ == AOM_EXT_PART_RECURSIVE) {
         aom_ext_part_funcs_t ext_part_funcs;
         ext_part_funcs.priv = reinterpret_cast<void *>(&test_data_);
-        ext_part_funcs.decision_mode = RECURSIVE_DECISION;
+        ext_part_funcs.decision_mode = AOM_EXT_PART_RECURSIVE;
         ext_part_funcs.create_model = ext_part_create_model;
         ext_part_funcs.send_features = ext_part_send_features;
         ext_part_funcs.get_partition_decision =
@@ -379,13 +379,13 @@ TEST_P(ExternalPartitionTestAPI, WholePartitionTree4x4Block) {
   ::libaom_test::Y4mVideoSource video("paris_352_288_30.y4m", 0, kFrameNum);
   SetExternalPartition(false);
   SetPartitionControlMode(2);
-  SetDecisionMode(WHOLE_TREE_DECISION);
+  SetDecisionMode(AOM_EXT_PART_WHOLE_TREE);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   const double psnr = GetAveragePsnr();
 
   SetExternalPartition(true);
   SetPartitionControlMode(2);
-  SetDecisionMode(WHOLE_TREE_DECISION);
+  SetDecisionMode(AOM_EXT_PART_WHOLE_TREE);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   const double psnr2 = GetAveragePsnr();
 
@@ -396,13 +396,13 @@ TEST_P(ExternalPartitionTestAPI, RecursivePartition) {
   ::libaom_test::Y4mVideoSource video("paris_352_288_30.y4m", 0, kFrameNum);
   SetExternalPartition(false);
   SetPartitionControlMode(1);
-  SetDecisionMode(RECURSIVE_DECISION);
+  SetDecisionMode(AOM_EXT_PART_RECURSIVE);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   const double psnr = GetAveragePsnr();
 
   SetExternalPartition(true);
   SetPartitionControlMode(1);
-  SetDecisionMode(RECURSIVE_DECISION);
+  SetDecisionMode(AOM_EXT_PART_RECURSIVE);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   const double psnr2 = GetAveragePsnr();
 
@@ -492,28 +492,30 @@ aom_ext_part_status_t ext_part_send_features_test(
     aom_ext_part_model_t ext_part_model,
     const aom_partition_features_t *part_features) {
   (void)ext_part_model;
-  if (part_features->id == FEATURE_BEFORE_PART_NONE) {
-    write_features_to_file(part_features->before_part_none.f, SIZE_DIRECT_SPLIT,
-                           0);
-  } else if (part_features->id == FEATURE_BEFORE_PART_NONE_PART2) {
+  if (part_features->id == AOM_EXT_PART_FEATURE_BEFORE_NONE) {
+    write_features_to_file(part_features->before_part_none.f,
+                           AOM_EXT_PART_SIZE_DIRECT_SPLIT, 0);
+  } else if (part_features->id == AOM_EXT_PART_FEATURE_BEFORE_NONE_PART2) {
     write_features_to_file(part_features->before_part_none.f_part2,
-                           SIZE_PRUNE_PART, 1);
-  } else if (part_features->id == FEATURE_AFTER_PART_NONE) {
-    write_features_to_file(part_features->after_part_none.f, SIZE_PRUNE_NONE,
-                           2);
-  } else if (part_features->id == FEATURE_AFTER_PART_NONE_PART2) {
+                           AOM_EXT_PART_SIZE_PRUNE_PART, 1);
+  } else if (part_features->id == AOM_EXT_PART_FEATURE_AFTER_NONE) {
+    write_features_to_file(part_features->after_part_none.f,
+                           AOM_EXT_PART_SIZE_PRUNE_NONE, 2);
+  } else if (part_features->id == AOM_EXT_PART_FEATURE_AFTER_NONE_PART2) {
     write_features_to_file(part_features->after_part_none.f_terminate,
-                           SIZE_TERM_NONE, 3);
-  } else if (part_features->id == FEATURE_AFTER_PART_SPLIT) {
+                           AOM_EXT_PART_SIZE_TERM_NONE, 3);
+  } else if (part_features->id == AOM_EXT_PART_FEATURE_AFTER_SPLIT) {
     write_features_to_file(part_features->after_part_split.f_terminate,
-                           SIZE_TERM_SPLIT, 4);
-  } else if (part_features->id == FEATURE_AFTER_PART_SPLIT_PART2) {
+                           AOM_EXT_PART_SIZE_TERM_SPLIT, 4);
+  } else if (part_features->id == AOM_EXT_PART_FEATURE_AFTER_SPLIT_PART2) {
     write_features_to_file(part_features->after_part_split.f_prune_rect,
-                           SIZE_PRUNE_RECT, 5);
-  } else if (part_features->id == FEATURE_AFTER_PART_RECT) {
-    write_features_to_file(part_features->after_part_rect.f, SIZE_PRUNE_AB, 6);
-  } else if (part_features->id == FEATURE_AFTER_PART_AB) {
-    write_features_to_file(part_features->after_part_ab.f, SIZE_PRUNE_4_WAY, 7);
+                           AOM_EXT_PART_SIZE_PRUNE_RECT, 5);
+  } else if (part_features->id == AOM_EXT_PART_FEATURE_AFTER_RECT) {
+    write_features_to_file(part_features->after_part_rect.f,
+                           AOM_EXT_PART_SIZE_PRUNE_AB, 6);
+  } else if (part_features->id == AOM_EXT_PART_FEATURE_AFTER_AB) {
+    write_features_to_file(part_features->after_part_ab.f,
+                           AOM_EXT_PART_SIZE_PRUNE_4_WAY, 7);
   }
   return AOM_EXT_PART_TEST;
 }
