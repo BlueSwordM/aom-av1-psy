@@ -160,6 +160,7 @@ typedef enum {
   CDEF_FAST_SEARCH_LVL3, /**< Search reduced subset of secondary filters than
                               Level 2. */
   CDEF_FAST_SEARCH_LVL4, /**< Search reduced subset of filters than Level 3. */
+  CDEF_FAST_SEARCH_LVL5, /**< Search reduced subset of filters than Level 4. */
   CDEF_PICK_FROM_Q,      /**< Estimate filter strength based on quantizer. */
   CDEF_PICK_METHODS
 } CDEF_PICK_METHOD;

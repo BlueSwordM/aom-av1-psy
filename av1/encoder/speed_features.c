@@ -1182,6 +1182,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
 
   if (!is_360p_or_larger) {
     if (speed >= 6) sf->rt_sf.force_tx_search_off = 1;
+    if (speed >= 7) sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     if (speed >= 8) {
       sf->rt_sf.use_modeled_non_rd_cost = 0;
       sf->rt_sf.use_nonrd_filter_search = 0;
@@ -1446,8 +1447,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
       sf->intra_sf.intra_y_mode_mask[i] = INTRA_ALL;
     }
 
-    sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_Q;
+    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL5;
 
     sf->rt_sf.mode_search_skip_flags |= FLAG_SKIP_INTRA_DIRMISMATCH;
     sf->rt_sf.nonrd_prune_ref_frame_search = 1;
@@ -1483,7 +1484,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     // not bitexact on rtc testset, its very close (< ~0.01 bdrate), but not
     // always bitexact.
     if (cpi->ppi->use_svc && cpi->svc.non_reference_frame &&
-        sf->lpf_sf.cdef_pick_method == CDEF_PICK_FROM_Q &&
+        (sf->lpf_sf.cdef_pick_method == CDEF_PICK_FROM_Q ||
+         sf->lpf_sf.cdef_pick_method == CDEF_FAST_SEARCH_LVL5) &&
         sf->lpf_sf.lpf_pick == LPF_PICK_FROM_Q)
       sf->rt_sf.skip_loopfilter_non_reference = 1;
     // Set mask for intra modes.
@@ -1520,6 +1522,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->interp_sf.cb_pred_filter_search = 1;
   }
   if (speed >= 9) {
+    sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     sf->rt_sf.estimate_motion_for_var_based_partition = 0;
     sf->rt_sf.force_large_partition_blocks = 1;
     for (int i = 0; i < BLOCK_SIZES; ++i)
