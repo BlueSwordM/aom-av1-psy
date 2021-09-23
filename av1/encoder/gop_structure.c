@@ -529,7 +529,9 @@ static int construct_multi_layer_gf_structure(
 #if CONFIG_FRAME_PARALLEL_ENCODE
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
   // Set the display order hint for the first frame in the GF_GROUP.
-  int cur_disp_index = cpi->common.current_frame.frame_number;
+  int cur_disp_index = (first_frame_update_type == KF_UPDATE)
+                           ? 0
+                           : cpi->common.current_frame.frame_number;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
