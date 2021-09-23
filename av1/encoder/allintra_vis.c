@@ -479,9 +479,9 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi) {
   // baseline (July 2021).
   const double model_change[] = { 3.0, 3.0 };
   // The following parameters are fitted from user labeled data.
-  const double a[] = { -23.06 * 4.0, -17.20 * 4.0 };
-  const double b[] = { 0.004065, 0.003093 };
-  const double c[] = { (30.516 + model_change[0]) * 4.0,
+  const double a[] = { -24.50 * 4.0, -17.20 * 4.0 };
+  const double b[] = { 0.004898, 0.003093 };
+  const double c[] = { (29.932 + model_change[0]) * 4.0,
                        (42.100 + model_change[1]) * 4.0 };
   int delta_q_avg[2] = { 0, 0 };
   // Loop through each SB block.
