@@ -403,6 +403,8 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   if (frame_is_intra_only(cm) || is_lossless_requested(&cpi->oxcf.rc_cfg) ||
       cpi->svc.temporal_layer_id > 0 ||
       p_rc->avg_frame_qindex[INTER_FRAME] < qp_thresh ||
+      (cpi->svc.number_spatial_layers > 1 &&
+       cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame) ||
       (rc->frames_since_key > 20 &&
        p_rc->avg_frame_qindex[INTER_FRAME] > qp_max_thresh) ||
       (rc->avg_frame_low_motion < 45 && rc->frames_since_key > 40)) {
@@ -410,6 +412,7 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
     return;
   }
   cr->percent_refresh = 10;
+  if (cpi->svc.number_temporal_layers > 2) cr->percent_refresh = 15;
   cr->max_qdelta_perc = 60;
   cr->time_for_refresh = 0;
   cr->motion_thresh = 32;
@@ -418,7 +421,8 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   // periods of the refresh cycle, after a key frame.
   // Account for larger interval on base layer for temporal layers.
   if (cr->percent_refresh > 0 &&
-      rc->frames_since_key < 400 / cr->percent_refresh) {
+      rc->frames_since_key <
+          (4 * cpi->svc.number_temporal_layers) * (100 / cr->percent_refresh)) {
     cr->rate_ratio_qdelta = 3.0;
   } else {
     cr->rate_ratio_qdelta = 2.0;

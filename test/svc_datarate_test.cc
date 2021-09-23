@@ -471,7 +471,7 @@ class DatarateTestSVC
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
       ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
           << " The datarate for the file is lower than target by too much!";
-      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.30)
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.35)
           << " The datarate for the file is greater than target by too much!";
     }
     // Top temporal layers are non_reference, so exlcude them from
@@ -993,7 +993,7 @@ class DatarateTestSVC
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
       ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
           << " The datarate for the file is lower than target by too much!";
-      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.30)
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.35)
           << " The datarate for the file is greater than target by too much!";
     }
     // Test that no mismatches have been found.
@@ -1038,7 +1038,7 @@ class DatarateTestSVC
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
       ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
           << " The datarate for the file is lower than target by too much!";
-      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.30)
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.35)
           << " The datarate for the file is greater than target by too much!";
     }
     // Test that no mismatches have been found.
@@ -1083,7 +1083,7 @@ class DatarateTestSVC
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
       ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
           << " The datarate for the file is lower than target by too much!";
-      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.30)
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.35)
           << " The datarate for the file is greater than target by too much!";
     }
     // Test that no mismatches have been found.
@@ -1129,7 +1129,7 @@ class DatarateTestSVC
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
       ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
           << " The datarate for the file is lower than target by too much!";
-      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.30)
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.35)
           << " The datarate for the file is greater than target by too much!";
     }
     // Test that no mismatches have been found.
