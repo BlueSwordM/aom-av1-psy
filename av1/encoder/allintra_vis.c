@@ -357,20 +357,6 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
       weber_stats->distortion -= (dist_mean * dist_mean) / pix_num;
       weber_stats->satd = best_intra_cost;
 
-      double reg = sqrt((double)weber_stats->distortion) *
-                   sqrt((double)weber_stats->src_pix_max) * 0.1;
-      double alpha_den = fabs(weber_stats->rec_pix_max *
-                                  sqrt((double)weber_stats->src_variance) -
-                              weber_stats->src_pix_max *
-                                  sqrt((double)weber_stats->rec_variance)) +
-                         reg;
-      double alpha_num = ((double)weber_stats->distortion) *
-                             sqrt((double)weber_stats->src_variance) *
-                             weber_stats->rec_pix_max +
-                         reg;
-
-      weber_stats->alpha = AOMMAX(alpha_num, 1.0) / AOMMAX(alpha_den, 1.0);
-
       qcoeff[0] = 0;
       for (idx = 1; idx < coeff_count; ++idx) qcoeff[idx] = abs(qcoeff[idx]);
       qsort(qcoeff, coeff_count, sizeof(*coeff), qsort_comp);
