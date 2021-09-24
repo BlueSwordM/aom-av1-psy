@@ -837,7 +837,7 @@ static AOM_INLINE int is_fp_config(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
   if (ppi->use_svc) {
     return 0;
   }
-  if (oxcf->tile_cfg.tile_columns > 0 || oxcf->tile_cfg.tile_rows > 0) {
+  if (oxcf->tile_cfg.enable_large_scale_tile) {
     return 0;
   }
   if (oxcf->dec_model_cfg.timing_info_present) {
