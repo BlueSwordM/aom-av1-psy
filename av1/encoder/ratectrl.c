@@ -879,6 +879,8 @@ static int calc_active_worst_quality_no_stats_cbr(const AV1_COMP *cpi) {
   const AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *rc = &cpi->rc;
   const PRIMARY_RATE_CONTROL *p_rc = &cpi->ppi->p_rc;
+  const SVC *const svc = &cpi->svc;
+  unsigned int num_frames_weight_key = 5 * cpi->svc.number_temporal_layers;
   // Buffer level below which we push active_worst to worst_quality.
   int64_t critical_level = p_rc->optimal_buffer_level >> 3;
   int64_t buff_lvl_step = 0;
@@ -890,10 +892,20 @@ static int calc_active_worst_quality_no_stats_cbr(const AV1_COMP *cpi) {
   // for the first few frames following key frame. These are both initialized
   // to worst_quality and updated with (3/4, 1/4) average in postencode_update.
   // So for first few frames following key, the qp of that key frame is weighted
-  // into the active_worst_quality setting.
-  ambient_qp = (cm->current_frame.frame_number < 5)
-                   ? AOMMIN(p_rc->avg_frame_qindex[INTER_FRAME],
-                            p_rc->avg_frame_qindex[KEY_FRAME])
+  // into the active_worst_quality setting. For SVC the key frame should
+  // correspond to layer (0, 0), so use that for layer context.
+  int avg_qindex_key = p_rc->avg_frame_qindex[KEY_FRAME];
+  if (svc->number_temporal_layers > 1) {
+    int layer = LAYER_IDS_TO_IDX(0, 0, svc->number_temporal_layers);
+    const LAYER_CONTEXT *lc = &svc->layer_context[layer];
+    const PRIMARY_RATE_CONTROL *const lp_rc = &lc->p_rc;
+    avg_qindex_key = lp_rc->avg_frame_qindex[KEY_FRAME];
+    if (svc->temporal_layer_id == 0)
+      avg_qindex_key =
+          AOMMIN(lp_rc->avg_frame_qindex[KEY_FRAME], lp_rc->last_q[KEY_FRAME]);
+  }
+  ambient_qp = (cm->current_frame.frame_number < num_frames_weight_key)
+                   ? AOMMIN(p_rc->avg_frame_qindex[INTER_FRAME], avg_qindex_key)
                    : p_rc->avg_frame_qindex[INTER_FRAME];
   active_worst_quality = AOMMIN(rc->worst_quality, ambient_qp * 5 / 4);
   if (p_rc->buffer_level > p_rc->optimal_buffer_level) {

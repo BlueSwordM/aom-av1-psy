@@ -1417,6 +1417,18 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
         cm->width * cm->height > 640 * 480)
       sf->rt_sf.use_temporal_noise_estimate = 1;
     sf->rt_sf.skip_tx_no_split_var_based_partition = 1;
+
+    // For SVC: use better mv search on base temporal layers, and only
+    // on base spatial layer if highest resolution is above 640x360.
+    if (cpi->svc.number_temporal_layers > 1 &&
+        cpi->svc.temporal_layer_id < cpi->svc.number_temporal_layers - 1 &&
+        (cpi->svc.spatial_layer_id == 0 ||
+         cpi->oxcf.frm_dim_cfg.width * cpi->oxcf.frm_dim_cfg.height <=
+             640 * 360)) {
+      sf->mv_sf.search_method = NSTEP;
+      sf->mv_sf.subpel_search_method = SUBPEL_TREE;
+      sf->rt_sf.fullpel_search_step_param = 6;
+    }
   }
 
   if (speed >= 6) {
@@ -1464,9 +1476,10 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.nonrd_check_partition_merge_mode = 1;
     sf->rt_sf.nonrd_check_partition_split = 0;
     sf->rt_sf.skip_intra_pred_if_tx_skip = 1;
-    // For SVC: use better mv search on lower temporal layers, and only
+    // For SVC: use better mv search on base temporal layers, and only
     // on base spatial layer if highest resolution is above 640x360.
-    if (cpi->svc.temporal_layer_id < cpi->svc.number_temporal_layers - 1 &&
+    if (cpi->svc.number_temporal_layers > 1 &&
+        cpi->svc.temporal_layer_id < cpi->svc.number_temporal_layers - 1 &&
         (cpi->svc.spatial_layer_id == 0 ||
          cpi->oxcf.frm_dim_cfg.width * cpi->oxcf.frm_dim_cfg.height <=
              640 * 360)) {
