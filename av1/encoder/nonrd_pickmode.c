@@ -757,13 +757,14 @@ static void block_yrd(AV1_COMP *cpi, MACROBLOCK *x, int mi_row, int mi_col,
   int eob_cost = 0;
   const int bw = 4 * num_4x4_w;
   const int bh = 4 * num_4x4_h;
+  const int use_hbd = is_cur_buf_hbd(xd);
 
   (void)mi_row;
   (void)mi_col;
   (void)cpi;
 
 #if CONFIG_AV1_HIGHBITDEPTH
-  if (xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) {
+  if (use_hbd) {
     aom_highbd_subtract_block(bh, bw, p->src_diff, bw, p->src.buf,
                               p->src.stride, pd->dst.buf, pd->dst.stride,
                               x->e_mbd.bd);
@@ -784,14 +785,15 @@ static void block_yrd(AV1_COMP *cpi, MACROBLOCK *x, int mi_row, int mi_col,
       if (c < max_blocks_wide) {
         const SCAN_ORDER *const scan_order = &av1_scan_orders[tx_size][DCT_DCT];
         const int block_offset = BLOCK_OFFSET(block);
+        int16_t *const low_coeff = (int16_t *)p->coeff + block_offset;
+        int16_t *const low_qcoeff = (int16_t *)p->qcoeff + block_offset;
+        int16_t *const low_dqcoeff = (int16_t *)p->dqcoeff + block_offset;
 #if CONFIG_AV1_HIGHBITDEPTH
         tran_low_t *const coeff = p->coeff + block_offset;
         tran_low_t *const qcoeff = p->qcoeff + block_offset;
         tran_low_t *const dqcoeff = p->dqcoeff + block_offset;
 #else
-        int16_t *const low_coeff = (int16_t *)p->coeff + block_offset;
-        int16_t *const low_qcoeff = (int16_t *)p->qcoeff + block_offset;
-        int16_t *const low_dqcoeff = (int16_t *)p->dqcoeff + block_offset;
+        (void)use_hbd;
 #endif
         uint16_t *const eob = &p->eobs[block];
         const int diff_stride = bw;
@@ -805,28 +807,53 @@ static void block_yrd(AV1_COMP *cpi, MACROBLOCK *x, int mi_row, int mi_col,
           case TX_32X32:
             assert(0);  // Not used
             break;
+
 #if CONFIG_AV1_HIGHBITDEPTH
           case TX_16X16:
-            aom_hadamard_16x16(src_diff, diff_stride, coeff);
-            av1_quantize_fp(coeff, 16 * 16, p->zbin_QTX, p->round_fp_QTX,
-                            p->quant_fp_QTX, p->quant_shift_QTX, qcoeff,
-                            dqcoeff, p->dequant_QTX, eob, scan_order->scan,
-                            scan_order->iscan);
+            if (use_hbd) {
+              aom_hadamard_16x16(src_diff, diff_stride, coeff);
+              av1_quantize_fp(coeff, 16 * 16, p->zbin_QTX, p->round_fp_QTX,
+                              p->quant_fp_QTX, p->quant_shift_QTX, qcoeff,
+                              dqcoeff, p->dequant_QTX, eob, scan_order->scan,
+                              scan_order->iscan);
+            } else {
+              aom_hadamard_lp_16x16(src_diff, diff_stride, low_coeff);
+              av1_quantize_lp(low_coeff, 16 * 16, p->round_fp_QTX,
+                              p->quant_fp_QTX, low_qcoeff, low_dqcoeff,
+                              p->dequant_QTX, eob, scan_order->scan,
+                              scan_order->iscan);
+            }
             break;
           case TX_8X8:
-            aom_hadamard_8x8(src_diff, diff_stride, coeff);
-            av1_quantize_fp(coeff, 8 * 8, p->zbin_QTX, p->round_fp_QTX,
-                            p->quant_fp_QTX, p->quant_shift_QTX, qcoeff,
-                            dqcoeff, p->dequant_QTX, eob, scan_order->scan,
-                            scan_order->iscan);
+            if (use_hbd) {
+              aom_hadamard_8x8(src_diff, diff_stride, coeff);
+              av1_quantize_fp(coeff, 8 * 8, p->zbin_QTX, p->round_fp_QTX,
+                              p->quant_fp_QTX, p->quant_shift_QTX, qcoeff,
+                              dqcoeff, p->dequant_QTX, eob, scan_order->scan,
+                              scan_order->iscan);
+            } else {
+              aom_hadamard_lp_8x8(src_diff, diff_stride, low_coeff);
+              av1_quantize_lp(low_coeff, 8 * 8, p->round_fp_QTX,
+                              p->quant_fp_QTX, low_qcoeff, low_dqcoeff,
+                              p->dequant_QTX, eob, scan_order->scan,
+                              scan_order->iscan);
+            }
             break;
           default:
             assert(tx_size == TX_4X4);
-            aom_fdct4x4(src_diff, coeff, diff_stride);
-            av1_quantize_fp(coeff, 4 * 4, p->zbin_QTX, p->round_fp_QTX,
-                            p->quant_fp_QTX, p->quant_shift_QTX, qcoeff,
-                            dqcoeff, p->dequant_QTX, eob, scan_order->scan,
-                            scan_order->iscan);
+            if (use_hbd) {
+              aom_fdct4x4(src_diff, coeff, diff_stride);
+              av1_quantize_fp(coeff, 4 * 4, p->zbin_QTX, p->round_fp_QTX,
+                              p->quant_fp_QTX, p->quant_shift_QTX, qcoeff,
+                              dqcoeff, p->dequant_QTX, eob, scan_order->scan,
+                              scan_order->iscan);
+            } else {
+              aom_fdct4x4_lp(src_diff, low_coeff, diff_stride);
+              av1_quantize_lp(low_coeff, 4 * 4, p->round_fp_QTX,
+                              p->quant_fp_QTX, low_qcoeff, low_dqcoeff,
+                              p->dequant_QTX, eob, scan_order->scan,
+                              scan_order->iscan);
+            }
             break;
 #else
           case TX_16X16:
@@ -876,18 +903,32 @@ static void block_yrd(AV1_COMP *cpi, MACROBLOCK *x, int mi_row, int mi_col,
         const int block_offset = BLOCK_OFFSET(block);
         uint16_t *const eob = &p->eobs[block];
 #if CONFIG_AV1_HIGHBITDEPTH
-        int64_t dummy;
-        tran_low_t *const coeff = p->coeff + block_offset;
-        tran_low_t *const qcoeff = p->qcoeff + block_offset;
-        tran_low_t *const dqcoeff = p->dqcoeff + block_offset;
+        if (use_hbd) {
+          int64_t dummy;
+          tran_low_t *const coeff = p->coeff + block_offset;
+          tran_low_t *const qcoeff = p->qcoeff + block_offset;
+          tran_low_t *const dqcoeff = p->dqcoeff + block_offset;
 
-        if (*eob == 1)
-          this_rdc->rate += (int)abs(qcoeff[0]);
-        else if (*eob > 1)
-          this_rdc->rate += aom_satd(qcoeff, step << 4);
+          if (*eob == 1)
+            this_rdc->rate += (int)abs(qcoeff[0]);
+          else if (*eob > 1)
+            this_rdc->rate += aom_satd(qcoeff, step << 4);
 
-        this_rdc->dist +=
-            av1_block_error(coeff, dqcoeff, step << 4, &dummy) >> 2;
+          this_rdc->dist +=
+              av1_block_error(coeff, dqcoeff, step << 4, &dummy) >> 2;
+        } else {
+          int16_t *const low_coeff = (int16_t *)p->coeff + block_offset;
+          int16_t *const low_qcoeff = (int16_t *)p->qcoeff + block_offset;
+          int16_t *const low_dqcoeff = (int16_t *)p->dqcoeff + block_offset;
+
+          if (*eob == 1)
+            this_rdc->rate += (int)abs(low_qcoeff[0]);
+          else if (*eob > 1)
+            this_rdc->rate += aom_satd_lp(low_qcoeff, step << 4);
+
+          this_rdc->dist +=
+              av1_block_error_lp(low_coeff, low_dqcoeff, step << 4) >> 2;
+        }
 #else
         int16_t *const low_coeff = (int16_t *)p->coeff + block_offset;
         int16_t *const low_qcoeff = (int16_t *)p->qcoeff + block_offset;
