@@ -3445,7 +3445,7 @@ static INLINE void init_ref_map_pair(
       // Once the keyframe is coded, the slots in ref_frame_map will all
       // point to the same frame. In that case, all subsequent pointers
       // matching the current are considered "free" slots. This will find
-      // the next occurance of the current pointer if ref_count indicates
+      // the next occurrence of the current pointer if ref_count indicates
       // there are multiple instances of it and mark it as free.
       for (int idx2 = map_idx + 1; idx2 < REF_FRAMES; ++idx2) {
         const RefCntBuffer *const buf2 = cpi->common.ref_frame_map[idx2];
@@ -3457,30 +3457,6 @@ static INLINE void init_ref_map_pair(
     }
     ref_frame_map_pairs[map_idx].disp_order = (int)buf->display_order_hint;
     ref_frame_map_pairs[map_idx].pyr_level = buf->pyramid_level;
-  }
-}
-
-static AOM_INLINE void calc_frame_data_update_flag(
-    GF_GROUP *const gf_group, int gf_frame_index,
-    bool *const do_frame_data_update) {
-  *do_frame_data_update = true;
-  // Set the flag to false for all frames in a given parallel encode set except
-  // the last frame in the set with frame_parallel_level = 2.
-  if (gf_group->frame_parallel_level[gf_frame_index] == 1) {
-    *do_frame_data_update = false;
-  } else if (gf_group->frame_parallel_level[gf_frame_index] == 2) {
-    // Check if this is the last frame in the set with frame_parallel_level = 2.
-    for (int i = gf_frame_index + 1; i < gf_group->size; i++) {
-      if ((gf_group->frame_parallel_level[i] == 0 &&
-           (gf_group->update_type[i] == ARF_UPDATE ||
-            gf_group->update_type[i] == INTNL_ARF_UPDATE)) ||
-          gf_group->frame_parallel_level[i] == 1) {
-        break;
-      } else if (gf_group->frame_parallel_level[i] == 2) {
-        *do_frame_data_update = false;
-        break;
-      }
-    }
   }
 }
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
