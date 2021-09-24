@@ -4561,6 +4561,9 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
       cur_cpi->rc.frames_to_key = frames_to_key;
       cur_cpi->rc.frames_to_fwd_kf = frames_to_fwd_kf;
       cur_cpi->rc.active_worst_quality = first_cpi->rc.active_worst_quality;
+      cur_cpi->rc.avg_frame_bandwidth = first_cpi->rc.avg_frame_bandwidth;
+      cur_cpi->rc.max_frame_bandwidth = first_cpi->rc.max_frame_bandwidth;
+      cur_cpi->rc.min_frame_bandwidth = first_cpi->rc.min_frame_bandwidth;
       cur_cpi->mv_search_params.max_mv_magnitude =
           first_cpi->mv_search_params.max_mv_magnitude;
       if (gf_group->update_type[cur_cpi->gf_frame_index] == INTNL_ARF_UPDATE) {
