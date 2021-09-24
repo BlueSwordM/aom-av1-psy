@@ -394,8 +394,8 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
             get_var_perceptual_ai(cpi, cm->seq_params->sb_size, mi_row, mi_col);
 
         double beta = (double)cpi->norm_wiener_variance / sb_wiener_var;
-        double min_max_scale =
-            AOMMAX(1.0, get_max_scale(cpi, bsize, mi_row, mi_col));
+        double min_max_scale = AOMMAX(
+            1.0, get_max_scale(cpi, cm->seq_params->sb_size, mi_row, mi_col));
         beta = 1.0 / AOMMIN(1.0 / beta, min_max_scale);
         beta = AOMMIN(beta, 4);
         beta = AOMMAX(beta, 0.25);
