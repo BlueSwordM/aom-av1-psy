@@ -213,7 +213,8 @@ void av1_quantize_lp_c(const int16_t *coeff_ptr, intptr_t n_coeffs,
                        const int16_t *round_ptr, const int16_t *quant_ptr,
                        int16_t *qcoeff_ptr, int16_t *dqcoeff_ptr,
                        const int16_t *dequant_ptr, uint16_t *eob_ptr,
-                       const int16_t *scan) {
+                       const int16_t *scan, const int16_t *iscan) {
+  (void)iscan;
   int eob = -1;
 
   memset(qcoeff_ptr, 0, n_coeffs * sizeof(*qcoeff_ptr));
