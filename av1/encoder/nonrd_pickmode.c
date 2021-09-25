@@ -833,20 +833,21 @@ static void block_yrd(AV1_COMP *cpi, MACROBLOCK *x, int mi_row, int mi_col,
             aom_hadamard_lp_16x16(src_diff, diff_stride, low_coeff);
             av1_quantize_lp(low_coeff, 16 * 16, p->round_fp_QTX,
                             p->quant_fp_QTX, low_qcoeff, low_dqcoeff,
-                            p->dequant_QTX, eob, scan_order->scan);
+                            p->dequant_QTX, eob, scan_order->scan,
+                            scan_order->iscan);
             break;
           case TX_8X8:
             aom_hadamard_lp_8x8(src_diff, diff_stride, low_coeff);
             av1_quantize_lp(low_coeff, 8 * 8, p->round_fp_QTX, p->quant_fp_QTX,
                             low_qcoeff, low_dqcoeff, p->dequant_QTX, eob,
-                            scan_order->scan);
+                            scan_order->scan, scan_order->iscan);
             break;
           default:
             assert(tx_size == TX_4X4);
             aom_fdct4x4_lp(src_diff, low_coeff, diff_stride);
             av1_quantize_lp(low_coeff, 4 * 4, p->round_fp_QTX, p->quant_fp_QTX,
                             low_qcoeff, low_dqcoeff, p->dequant_QTX, eob,
-                            scan_order->scan);
+                            scan_order->scan, scan_order->iscan);
             break;
 #endif
         }
