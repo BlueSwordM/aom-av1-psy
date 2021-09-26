@@ -87,6 +87,14 @@ extern "C" {
 // Lookahead index threshold to enable temporal filtering for second arf.
 #define TF_LOOKAHEAD_IDX_THR 7
 
+#define HDR_QP_LEVELS 10
+#define CHROMA_CB_QP_SCALE 1.04
+#define CHROMA_CR_QP_SCALE 1.04
+#define CHROMA_QP_SCALE -0.46
+#define CHROMA_QP_OFFSET 9.26
+#define QP_SCALE_FACTOR 2.0
+#define DISABLE_HDR_LUMA_DELTAQ 1
+
 // Rational number with an int64 numerator
 // This structure holds a fractional value
 typedef struct aom_rational64 {
@@ -159,6 +167,7 @@ enum {
   DELTA_Q_PERCEPTUAL = 2,     // Modulation to improve video perceptual quality
   DELTA_Q_PERCEPTUAL_AI = 3,  // Perceptual quality opt for all intra mode
   DELTA_Q_USER_RATING_BASED = 4,  // User rating based delta q mode
+  DELTA_Q_HDR = 5,    // QP adjustment based on HDR block pixel average
   DELTA_Q_MODE_COUNT  // This should always be the last member of the enum
 } UENUM1BYTE(DELTAQ_MODE);
 
@@ -752,6 +761,8 @@ typedef struct {
   DELTAQ_MODE deltaq_mode;
   // Indicates if delta quantization should be enabled in chroma planes.
   bool enable_chroma_deltaq;
+  // Indicates if delta quantization should be enabled for hdr video
+  bool enable_hdr_deltaq;
   // Indicates if encoding with quantization matrices should be enabled.
   bool using_qm;
 } QuantizationCfg;

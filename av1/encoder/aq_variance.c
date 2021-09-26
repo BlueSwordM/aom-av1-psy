@@ -141,6 +141,34 @@ int av1_log_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs) {
   return (int)(var);
 }
 
+int av1_log_block_avg(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs,
+                      int mi_row, int mi_col) {
+  // This functions returns the block average of luma block
+  unsigned int sum, avg, num_pix;
+  int r, c;
+  const int pic_w = cpi->common.width;
+  const int pic_h = cpi->common.height;
+  const int bw = MI_SIZE * mi_size_wide[bs];
+  const int bh = MI_SIZE * mi_size_high[bs];
+  const uint16_t *x16 = CONVERT_TO_SHORTPTR(x->plane[0].src.buf);
+
+  sum = 0;
+  num_pix = 0;
+  avg = 0;
+  int row = mi_row << MI_SIZE_LOG2;
+  int col = mi_col << MI_SIZE_LOG2;
+  for (r = row; (r < (row + bh)) && (r < pic_h); r++) {
+    for (c = col; (c < (col + bw)) && (c < pic_w); c++) {
+      sum += *(x16 + r * x->plane[0].src.stride + c);
+      num_pix++;
+    }
+  }
+  if (num_pix != 0) {
+    avg = sum / num_pix;
+  }
+  return avg;
+}
+
 #define DEFAULT_E_MIDPOINT 10.0
 
 static unsigned int haar_ac_energy(MACROBLOCK *x, BLOCK_SIZE bs) {

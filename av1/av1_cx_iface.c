@@ -1110,6 +1110,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   q_cfg->deltaq_mode = extra_cfg->deltaq_mode;
   q_cfg->use_fixed_qp_offsets =
       cfg->use_fixed_qp_offsets && (rc_cfg->mode == AOM_Q);
+  q_cfg->enable_hdr_deltaq =
+      (q_cfg->deltaq_mode == DELTA_Q_HDR) &&
+      (cfg->g_bit_depth == AOM_BITS_10) &&
+      (extra_cfg->color_primaries == AOM_CICP_CP_BT_2020);
   for (int i = 0; i < FIXED_QP_OFFSET_COUNT; ++i) {
     if (q_cfg->use_fixed_qp_offsets) {
       if (cfg->fixed_qp_offsets[i] >= 0) {  // user-provided qp offset
