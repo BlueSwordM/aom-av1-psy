@@ -333,4 +333,18 @@ INSTANTIATE_TEST_SUITE_P(AVX2, FullPrecisionQuantizeLpTest,
                          ::testing::ValuesIn(kQParamArrayAVX2));
 #endif
 
+#if HAVE_SSE2
+const QuantizeParam kQParamArraySSE2[] = {
+  make_tuple(&av1_quantize_lp_c, &av1_quantize_lp_sse2,
+             static_cast<TX_SIZE>(TX_16X16), AOM_BITS_8),
+  make_tuple(&av1_quantize_lp_c, &av1_quantize_lp_sse2,
+             static_cast<TX_SIZE>(TX_8X8), AOM_BITS_8),
+  make_tuple(&av1_quantize_lp_c, &av1_quantize_lp_sse2,
+             static_cast<TX_SIZE>(TX_4X4), AOM_BITS_8)
+};
+
+INSTANTIATE_TEST_SUITE_P(SSE2, FullPrecisionQuantizeLpTest,
+                         ::testing::ValuesIn(kQParamArraySSE2));
+#endif
+
 }  // namespace
