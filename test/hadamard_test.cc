@@ -302,7 +302,8 @@ INSTANTIATE_TEST_SUITE_P(
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
     SSE2, HadamardLowbdLPTest,
-    ::testing::Values(HadamardLPFuncWithSize(&aom_hadamard_lp_8x8_sse2, 8)));
+    ::testing::Values(HadamardLPFuncWithSize(&aom_hadamard_lp_8x8_sse2, 8),
+                      HadamardLPFuncWithSize(&aom_hadamard_lp_16x16_sse2, 16)));
 #endif  // HAVE_SSE2
 
 #if HAVE_AVX2

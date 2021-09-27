@@ -272,8 +272,8 @@ void aom_hadamard_8x8_sse2(const int16_t *src_diff, ptrdiff_t src_stride,
   hadamard_8x8_sse2(src_diff, src_stride, coeff, 1);
 }
 
-void aom_hadamard_lp_8x8_sse2(const int16_t *src_diff, ptrdiff_t src_stride,
-                              int16_t *coeff) {
+static INLINE void hadamard_lp_8x8_sse2(const int16_t *src_diff,
+                                        ptrdiff_t src_stride, int16_t *coeff) {
   __m128i src[8];
   src[0] = _mm_load_si128((const __m128i *)src_diff);
   src[1] = _mm_load_si128((const __m128i *)(src_diff += src_stride));
@@ -302,6 +302,50 @@ void aom_hadamard_lp_8x8_sse2(const int16_t *src_diff, ptrdiff_t src_stride,
   _mm_store_si128((__m128i *)coeff, src[6]);
   coeff += 8;
   _mm_store_si128((__m128i *)coeff, src[7]);
+}
+
+void aom_hadamard_lp_8x8_sse2(const int16_t *src_diff, ptrdiff_t src_stride,
+                              int16_t *coeff) {
+  hadamard_lp_8x8_sse2(src_diff, src_stride, coeff);
+}
+
+void aom_hadamard_lp_16x16_sse2(const int16_t *src_diff, ptrdiff_t src_stride,
+                                int16_t *coeff) {
+  for (int idx = 0; idx < 4; ++idx) {
+    const int16_t *src_ptr =
+        src_diff + (idx >> 1) * 8 * src_stride + (idx & 0x01) * 8;
+    hadamard_lp_8x8_sse2(src_ptr, src_stride, coeff + idx * 64);
+  }
+
+  int16_t *t_coeff = coeff;
+  for (int idx = 0; idx < 64; idx += 8) {
+    __m128i coeff0 = _mm_load_si128((const __m128i *)t_coeff);
+    __m128i coeff1 = _mm_load_si128((const __m128i *)(t_coeff + 64));
+    __m128i coeff2 = _mm_load_si128((const __m128i *)(t_coeff + 128));
+    __m128i coeff3 = _mm_load_si128((const __m128i *)(t_coeff + 192));
+
+    __m128i b0 = _mm_add_epi16(coeff0, coeff1);
+    __m128i b1 = _mm_sub_epi16(coeff0, coeff1);
+    __m128i b2 = _mm_add_epi16(coeff2, coeff3);
+    __m128i b3 = _mm_sub_epi16(coeff2, coeff3);
+
+    b0 = _mm_srai_epi16(b0, 1);
+    b1 = _mm_srai_epi16(b1, 1);
+    b2 = _mm_srai_epi16(b2, 1);
+    b3 = _mm_srai_epi16(b3, 1);
+
+    coeff0 = _mm_add_epi16(b0, b2);
+    coeff1 = _mm_add_epi16(b1, b3);
+    coeff2 = _mm_sub_epi16(b0, b2);
+    coeff3 = _mm_sub_epi16(b1, b3);
+
+    _mm_store_si128((__m128i *)t_coeff, coeff0);
+    _mm_store_si128((__m128i *)(t_coeff + 64), coeff1);
+    _mm_store_si128((__m128i *)(t_coeff + 128), coeff2);
+    _mm_store_si128((__m128i *)(t_coeff + 192), coeff3);
+
+    t_coeff += 8;
+  }
 }
 
 static INLINE void hadamard_16x16_sse2(const int16_t *src_diff,
