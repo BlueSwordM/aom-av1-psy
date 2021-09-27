@@ -4134,7 +4134,10 @@ static void build_pc_tree_from_part_decision(
     assert(partitioning >= PARTITION_NONE &&
            partitioning < EXT_PARTITION_TYPES);
     PC_TREE *node = tree_node_queue[q_idx];
-    if (node != NULL) node->partitioning = partitioning;
+    if (node != NULL) {
+      node->partitioning = partitioning;
+      bsize = node->block_size;
+    }
     if (partitioning == PARTITION_SPLIT) {
       const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
       for (int i = 0; i < 4; ++i) {
@@ -4145,7 +4148,6 @@ static void build_pc_tree_from_part_decision(
           ++last_idx;
         }
       }
-      bsize = subsize;
     }
     --num_nodes;
     ++q_idx;
