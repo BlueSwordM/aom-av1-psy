@@ -1127,7 +1127,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_highbd_hadamard_32x32 avx2/;
   }
   add_proto qw/int aom_satd/, "const tran_low_t *coeff, int length";
-  specialize qw/aom_satd neon avx2/;
+  specialize qw/aom_satd neon sse2 avx2/;
 
   add_proto qw/int aom_satd_lp/, "const int16_t *coeff, int length";
   specialize qw/aom_satd_lp avx2 neon/;

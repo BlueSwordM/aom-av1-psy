@@ -654,4 +654,22 @@ INSTANTIATE_TEST_SUITE_P(
                       make_tuple(5, &aom_vector_var_c, &aom_vector_var_neon)));
 #endif
 
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, SatdTest,
+    ::testing::Values(make_tuple(16, &aom_satd_c, &aom_satd_avx2),
+                      make_tuple(64, &aom_satd_c, &aom_satd_avx2),
+                      make_tuple(256, &aom_satd_c, &aom_satd_avx2),
+                      make_tuple(1024, &aom_satd_c, &aom_satd_avx2)));
+#endif
+
+#if HAVE_SSE2
+INSTANTIATE_TEST_SUITE_P(
+    SSE2, SatdTest,
+    ::testing::Values(make_tuple(16, &aom_satd_c, &aom_satd_sse2),
+                      make_tuple(64, &aom_satd_c, &aom_satd_sse2),
+                      make_tuple(256, &aom_satd_c, &aom_satd_sse2),
+                      make_tuple(1024, &aom_satd_c, &aom_satd_sse2)));
+#endif
+
 }  // namespace
