@@ -1130,7 +1130,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_satd neon sse2 avx2/;
 
   add_proto qw/int aom_satd_lp/, "const int16_t *coeff, int length";
-  specialize qw/aom_satd_lp avx2 neon/;
+  specialize qw/aom_satd_lp sse2 avx2 neon/;
 
 
   #

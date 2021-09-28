@@ -483,6 +483,35 @@ int aom_satd_sse2(const tran_low_t *coeff, int length) {
   return _mm_cvtsi128_si32(accum);
 }
 
+int aom_satd_lp_sse2(const int16_t *coeff, int length) {
+  const __m128i zero = _mm_setzero_si128();
+  const __m128i one = _mm_set1_epi16(1);
+  __m128i accum = zero;
+
+  for (int i = 0; i < length; i += 16) {
+    const __m128i src_line0 = _mm_loadu_si128((const __m128i *)coeff);
+    const __m128i src_line1 = _mm_loadu_si128((const __m128i *)(coeff + 8));
+    const __m128i inv0 = _mm_sub_epi16(zero, src_line0);
+    const __m128i inv1 = _mm_sub_epi16(zero, src_line1);
+    const __m128i abs0 = _mm_max_epi16(src_line0, inv0);  // abs(src_line)
+    const __m128i abs1 = _mm_max_epi16(src_line1, inv1);  // abs(src_line)
+    const __m128i sum0 = _mm_madd_epi16(abs0, one);
+    const __m128i sum1 = _mm_madd_epi16(abs1, one);
+    accum = _mm_add_epi32(accum, sum0);
+    accum = _mm_add_epi32(accum, sum1);
+    coeff += 16;
+  }
+
+  {  // cascading summation of accum
+    __m128i hi = _mm_srli_si128(accum, 8);
+    accum = _mm_add_epi32(accum, hi);
+    hi = _mm_srli_epi64(accum, 32);
+    accum = _mm_add_epi32(accum, hi);
+  }
+
+  return _mm_cvtsi128_si32(accum);
+}
+
 void aom_int_pro_row_sse2(int16_t *hbuf, const uint8_t *ref,
                           const int ref_stride, const int height) {
   int idx = 1;
