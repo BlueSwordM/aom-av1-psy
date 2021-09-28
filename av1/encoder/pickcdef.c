@@ -51,7 +51,7 @@ static INLINE void get_cdef_filter_strengths(CDEF_PICK_METHOD pick_method,
       *sec_strength = secconv_lvl3[sec_idx];
       break;
     case CDEF_FAST_SEARCH_LVL5:
-      *pri_strength = priconv_lvl4[pri_idx];
+      *pri_strength = priconv_lvl5[pri_idx];
       *sec_strength = secconv_lvl5[sec_idx];
       break;
     default: assert(0 && "Invalid CDEF search method");

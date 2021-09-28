@@ -43,6 +43,7 @@ static const int priconv_lvl1[REDUCED_PRI_STRENGTHS_LVL1] = { 0, 1, 2,  3,
                                                               5, 7, 10, 13 };
 static const int priconv_lvl2[REDUCED_PRI_STRENGTHS_LVL2] = { 0, 2, 4, 8, 14 };
 static const int priconv_lvl4[REDUCED_PRI_STRENGTHS_LVL4] = { 0, 11 };
+static const int priconv_lvl5[REDUCED_PRI_STRENGTHS_LVL4] = { 0, 5 };
 static const int secconv_lvl3[REDUCED_SEC_STRENGTHS_LVL3] = { 0, 2 };
 static const int secconv_lvl5[REDUCED_SEC_STRENGTHS_LVL5] = { 0 };
 static const int nb_cdef_strengths[CDEF_PICK_METHODS] = {
