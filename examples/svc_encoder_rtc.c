@@ -560,7 +560,7 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
                               aom_svc_layer_id_t *layer_id,
                               aom_svc_ref_frame_config_t *ref_frame_config,
                               int *use_svc_control, int spatial_layer_id,
-                              int is_key_frame, int ksvc_mode) {
+                              int is_key_frame, int ksvc_mode, int speed) {
   int i;
   int enable_longterm_temporal_ref = 1;
   int shift = (layering_mode == 8) ? 2 : 0;
@@ -646,8 +646,12 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
 
       // Keep golden fixed at slot 3.
       ref_frame_config->ref_idx[SVC_GOLDEN_FRAME] = 3;
-      // Cyclically refresh slots 4, 5, 6, 7, for lag altref.
-      lag_index = 4 + (base_count % 4);
+      // Cyclically refresh slots 5, 6, 7, for lag altref.
+      lag_index = 5;
+      if (base_count > 0) {
+        lag_index = 5 + (base_count % 3);
+        if (superframe_cnt % 4 != 0) lag_index = 5 + ((base_count + 1) % 3);
+      }
       // Set the altref slot to lag_index.
       ref_frame_config->ref_idx[SVC_ALTREF_FRAME] = lag_index;
       if (superframe_cnt % 4 == 0) {
@@ -681,6 +685,8 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
       // Every frame can reference GOLDEN AND ALTREF.
       ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
       ref_frame_config->reference[SVC_ALTREF_FRAME] = 1;
+      // Allow for compound prediction using LAST and ALTREF.
+      if (speed >= 7) ref_frame_config->ref_frame_comp[2] = 1;
       break;
     case 4:
       // 3-temporal layer: but middle layer updates GF, so 2nd TL2 will
@@ -1305,7 +1311,8 @@ int main(int argc, const char **argv) {
         // buffer index.
         set_layer_pattern(app_input.layering_mode, frame_cnt, &layer_id,
                           &ref_frame_config, &use_svc_control, slx,
-                          is_key_frame, (app_input.layering_mode == 10));
+                          is_key_frame, (app_input.layering_mode == 10),
+                          app_input.speed);
         aom_codec_control(&codec, AV1E_SET_SVC_LAYER_ID, &layer_id);
         if (use_svc_control)
           aom_codec_control(&codec, AV1E_SET_SVC_REF_FRAME_CONFIG,
