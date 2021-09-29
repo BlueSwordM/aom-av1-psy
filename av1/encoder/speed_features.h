@@ -915,6 +915,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Cap the no. of txfm searches for a given prediction mode.
   // 0: no cap, 1: cap beyond first 4 searches, 2: cap beyond first 3 searches.
   int limit_txfm_eval_per_mode;
+
+  // Prune warped motion search based on block size.
+  int extra_prune_warped;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {

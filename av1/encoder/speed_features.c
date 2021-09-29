@@ -1435,6 +1435,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->mv_sf.use_fullpel_costlist = 1;
 
     sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh = 0;
+    sf->inter_sf.prune_warped_prob_thresh = 8;
+    sf->inter_sf.extra_prune_warped = 1;
   }
 
   if (speed >= 7) {

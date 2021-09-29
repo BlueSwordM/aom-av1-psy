@@ -1167,12 +1167,10 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
   return 0;
 }
 
-static INLINE void update_mode_start_end_index(const AV1_COMP *const cpi,
-                                               int *mode_index_start,
-                                               int *mode_index_end,
-                                               int last_motion_mode_allowed,
-                                               int interintra_allowed,
-                                               int eval_motion_mode) {
+static INLINE void update_mode_start_end_index(
+    const AV1_COMP *const cpi, const MB_MODE_INFO *const mbmi,
+    int *mode_index_start, int *mode_index_end, int last_motion_mode_allowed,
+    int interintra_allowed, int eval_motion_mode) {
   *mode_index_start = (int)SIMPLE_TRANSLATION;
   *mode_index_end = (int)last_motion_mode_allowed + interintra_allowed;
   if (cpi->sf.winner_mode_sf.motion_mode_for_winner_cand) {
@@ -1184,6 +1182,8 @@ static INLINE void update_mode_start_end_index(const AV1_COMP *const cpi,
       *mode_index_start = 1;
     }
   }
+  if (cpi->sf.inter_sf.extra_prune_warped && mbmi->bsize > BLOCK_16X16)
+    *mode_index_end = SIMPLE_TRANSLATION;
 }
 
 /*!\brief AV1 motion mode search
@@ -1328,7 +1328,7 @@ static int64_t motion_mode_rd(
   // if SIMPLE_TRANSLATION has already been searched according to
   // the motion_mode_for_winner_cand speed feature, update the mode_index_start
   // to avoid searching it again.
-  update_mode_start_end_index(cpi, &mode_index_start, &mode_index_end,
+  update_mode_start_end_index(cpi, mbmi, &mode_index_start, &mode_index_end,
                               last_motion_mode_allowed, interintra_allowed,
                               eval_motion_mode);
   // Main function loop. This loops over all of the possible motion modes and
