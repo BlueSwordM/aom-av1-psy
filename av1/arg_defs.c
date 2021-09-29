@@ -605,9 +605,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "pyramid. Selected automatically from --cq-level if "
               "--fixed-qp-offsets is not provided. If this option is not "
               "specified (default), offsets are adaptively chosen by the "
-              "encoder. Further, if this option is specified, at least two "
-              "comma-separated values corresponding to kf and arf offsets "
-              "must be provided, while the rest are chosen by the encoder"),
+              "encoder."),
 
   .fixed_qp_offsets = ARG_DEF(
       NULL, "fixed-qp-offsets", 1,
