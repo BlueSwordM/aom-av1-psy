@@ -259,7 +259,9 @@ const ErrorBlockParam kErrorBlockTestParamsSse2[] = {
              AOM_BITS_8),
 #endif
   make_tuple(&BlockError8BitWrapper<av1_block_error_sse2>,
-             &BlockError8BitWrapper<av1_block_error_c>, AOM_BITS_8)
+             &BlockError8BitWrapper<av1_block_error_c>, AOM_BITS_8),
+  make_tuple(&BlockErrorLpWrapper<av1_block_error_lp_sse2>,
+             &BlockErrorLpWrapper<av1_block_error_lp_c>, AOM_BITS_8)
 };
 
 INSTANTIATE_TEST_SUITE_P(SSE2, ErrorBlockTest,
