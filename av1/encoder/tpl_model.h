@@ -275,10 +275,10 @@ static INLINE void vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info,
   vbr_rc_info->total_bit_budget = total_bit_budget;
   vbr_rc_info->show_frame_count = show_frame_count;
   vbr_rc_info->keyframe_bitrate = 0;
-  const double scale_factors[FRAME_UPDATE_TYPES] = { 1.2, 1.2, 1.2, 1.2,
-                                                     1.2, 1.2, 1.2 };
-  const double mv_scale_factors[FRAME_UPDATE_TYPES] = { 5.0, 5.0, 5.0, 5.0,
-                                                        5.0, 5.0, 5.0 };
+  const double scale_factors[FRAME_UPDATE_TYPES] = { 0.94559, 0.12040, 1,
+                                                     1.10199, 1,       1,
+                                                     0.16393 };
+  const double mv_scale_factors[FRAME_UPDATE_TYPES] = { 3, 3, 3, 3, 3, 3, 3 };
   memcpy(vbr_rc_info->scale_factors, scale_factors,
          sizeof(scale_factors[0]) * FRAME_UPDATE_TYPES);
   memcpy(vbr_rc_info->mv_scale_factors, mv_scale_factors,
