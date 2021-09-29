@@ -232,6 +232,7 @@ class FullPrecisionQuantizeLpTest : public QuantizeTestBase<int16_t> {
                                     eob_ptr, scan, iscan));
   }
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(FullPrecisionQuantizeLpTest);
 
 TEST_P(FullPrecisionQuantizeLpTest, ZeroInput) {
   FillCoeffZero();
