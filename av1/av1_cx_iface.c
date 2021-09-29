@@ -917,12 +917,12 @@ static double convert_qp_offset(int cq_level, int q_offset, int bit_depth) {
   return (base_q_val - new_q_val);
 }
 
-static double get_modeled_qp_offset(int qp, int level, int bit_depth) {
-  // 76% for keyframe was derived empirically.
-  // 60% similar to rc_pick_q_and_bounds_one_pass_vbr() for Q mode ARF.
+static double get_modeled_qp_offset(int cq_level, int level, int bit_depth) {
+  // 80% for keyframe was derived empirically.
+  // 40% similar to rc_pick_q_and_bounds_one_pass_vbr() for Q mode ARF.
   // Rest derived similar to rc_pick_q_and_bounds_two_pass()
-  static const int percents[FIXED_QP_OFFSET_COUNT] = { 76, 60, 30, 15, 8, 4 };
-  const double q_val = av1_convert_qindex_to_q(qp, bit_depth);
+  static const int percents[FIXED_QP_OFFSET_COUNT] = { 76, 60, 30, 15, 8 };
+  const double q_val = av1_convert_qindex_to_q(cq_level, bit_depth);
   return q_val * percents[level] / 100;
 }
 
@@ -3975,22 +3975,22 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       2000,  // rc_two_pass_vbrmax_section
 
       // keyframing settings (kf)
-      0,                           // fwd_kf_enabled
-      AOM_KF_AUTO,                 // kf_mode
-      0,                           // kf_min_dist
-      9999,                        // kf_max_dist
-      0,                           // sframe_dist
-      1,                           // sframe_mode
-      0,                           // large_scale_tile
-      0,                           // monochrome
-      0,                           // full_still_picture_hdr
-      0,                           // save_as_annexb
-      0,                           // tile_width_count
-      0,                           // tile_height_count
-      { 0 },                       // tile_widths
-      { 0 },                       // tile_heights
-      0,                           // use_fixed_qp_offsets
-      { -1, -1, -1, -1, -1, -1 },  // fixed_qp_offsets
+      0,                       // fwd_kf_enabled
+      AOM_KF_AUTO,             // kf_mode
+      0,                       // kf_min_dist
+      9999,                    // kf_max_dist
+      0,                       // sframe_dist
+      1,                       // sframe_mode
+      0,                       // large_scale_tile
+      0,                       // monochrome
+      0,                       // full_still_picture_hdr
+      0,                       // save_as_annexb
+      0,                       // tile_width_count
+      0,                       // tile_height_count
+      { 0 },                   // tile_widths
+      { 0 },                   // tile_heights
+      0,                       // use_fixed_qp_offsets
+      { -1, -1, -1, -1, -1 },  // fixed_qp_offsets
       { 0, 128, 128, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // cfg
   },
@@ -4046,22 +4046,22 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       2000,  // rc_two_pass_vbrmax_section
 
       // keyframing settings (kf)
-      0,                           // fwd_kf_enabled
-      AOM_KF_AUTO,                 // kf_mode
-      0,                           // kf_min_dist
-      9999,                        // kf_max_dist
-      0,                           // sframe_dist
-      1,                           // sframe_mode
-      0,                           // large_scale_tile
-      0,                           // monochrome
-      0,                           // full_still_picture_hdr
-      0,                           // save_as_annexb
-      0,                           // tile_width_count
-      0,                           // tile_height_count
-      { 0 },                       // tile_widths
-      { 0 },                       // tile_heights
-      0,                           // use_fixed_qp_offsets
-      { -1, -1, -1, -1, -1, -1 },  // fixed_qp_offsets
+      0,                       // fwd_kf_enabled
+      AOM_KF_AUTO,             // kf_mode
+      0,                       // kf_min_dist
+      9999,                    // kf_max_dist
+      0,                       // sframe_dist
+      1,                       // sframe_mode
+      0,                       // large_scale_tile
+      0,                       // monochrome
+      0,                       // full_still_picture_hdr
+      0,                       // save_as_annexb
+      0,                       // tile_width_count
+      0,                       // tile_height_count
+      { 0 },                   // tile_widths
+      { 0 },                   // tile_heights
+      0,                       // use_fixed_qp_offsets
+      { -1, -1, -1, -1, -1 },  // fixed_qp_offsets
       { 0, 128, 128, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // cfg
   },
