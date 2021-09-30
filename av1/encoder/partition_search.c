@@ -2083,7 +2083,8 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     }
     if (tile_data->allow_update_cdf) update_stats(&cpi->common, td);
   }
-  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && mbmi->skip_txfm)
+  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && mbmi->skip_txfm &&
+      !cpi->cyclic_refresh->skip_over4x4)
     av1_cyclic_reset_segment_skip(cpi, x, mi_row, mi_col, bsize);
   // TODO(Ravi/Remya): Move this copy function to a better logical place
   // This function will copy the best mode information from block

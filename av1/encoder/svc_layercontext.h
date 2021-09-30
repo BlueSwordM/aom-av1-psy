@@ -49,11 +49,6 @@ typedef struct {
    */
   int8_t *map;
   /*!
-   * Segmentation map for last coded quantization paramters.
-   */
-  uint8_t *last_coded_q_map;
-
-  /*!
    * Number of blocks on segment 1
    */
   int actual_num_seg1_blocks;
