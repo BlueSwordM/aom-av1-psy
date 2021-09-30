@@ -918,7 +918,6 @@ static void set_good_speed_features_framesize_independent(
     // clips (e.g. 5% loss on dinner_1080p). We need to examine the sequence a
     // bit more closely to figure out why.
     sf->inter_sf.adaptive_rd_thresh = 1;
-    sf->inter_sf.comp_inter_joint_search_thresh = BLOCK_SIZES_ALL;
     sf->inter_sf.disable_interinter_wedge_var_thresh = 100;
     sf->inter_sf.fast_interintra_wedge_search = 1;
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 4 : 1;
@@ -1274,7 +1273,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->inter_sf.prune_ref_frame_for_rect_partitions = !boosted;
   sf->inter_sf.reduce_inter_modes = 1;
   sf->inter_sf.reuse_inter_intra_mode = 1;
-  sf->inter_sf.comp_inter_joint_search_thresh = BLOCK_SIZES_ALL;
   sf->inter_sf.disable_interinter_wedge_var_thresh = 100;
   sf->inter_sf.fast_wedge_sign_estimate = 1;
   sf->inter_sf.prune_comp_type_by_comp_avg = 2;
@@ -1652,7 +1650,6 @@ static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
 }
 
 static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
-  inter_sf->comp_inter_joint_search_thresh = BLOCK_4X4;
   inter_sf->adaptive_rd_thresh = 0;
   inter_sf->model_based_post_interp_filter_breakout = 0;
   inter_sf->reduce_inter_modes = 0;

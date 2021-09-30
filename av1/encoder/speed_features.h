@@ -794,12 +794,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // same single inter mode as a group.
   int prune_comp_search_by_single_result;
 
-  // If 1 we iterate finding a best reference for 2 ref frames together - via
-  // a log search that iterates 4 times (check around mv for last for best
-  // error of combined predictor then check around mv for alt). If 0 we
-  // we just use the best motion vector found for each frame by itself.
-  BLOCK_SIZE comp_inter_joint_search_thresh;
-
   // Instead of performing a full MV search, do a simple translation first
   // and only perform a full MV search on the motion vectors that performed
   // well.
