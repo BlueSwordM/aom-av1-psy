@@ -1303,6 +1303,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     if (frame_update_type == LF_UPDATE)
       *pframe_qindex = gf_group->q_val[gf_index];
 
+    // TODO(angiebird): Simplify the logics of assigning gf_picture
     struct lookahead_entry *buf;
     if (gf_index == cur_frame_idx) {
       buf = av1_lookahead_peek(cpi->ppi->lookahead, lookahead_index,
@@ -1317,6 +1318,15 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     if (gop_eval && cpi->rc.frames_since_key > 0 &&
         gf_group->arf_index == gf_index) {
       tpl_frame->gf_picture = &cpi->ppi->alt_ref_buffer;
+    }
+    if (gop_eval == 0) {
+      //  Use the exsiting filtered frame buffer if possible
+      int show_tf_buf = 0;
+      const YV12_BUFFER_CONFIG *tf_buf = av1_tf_info_get_filtered_buf(
+          &cpi->ppi->tf_info, gf_index, &show_tf_buf);
+      if (tf_buf != NULL) {
+        tpl_frame->gf_picture = tf_buf;
+      }
     }
 
     // 'cm->current_frame.frame_number' is the display number
@@ -1389,8 +1399,6 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
     ++*tpl_group_frames;
   }
-
-  if (cpi->rc.frames_since_key == 0) return;
 
   const int tpl_extend = cpi->oxcf.gf_cfg.lag_in_frames - MAX_GF_INTERVAL;
   int extend_frame_count = 0;

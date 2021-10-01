@@ -1021,21 +1021,14 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   }
   if (frame_params->frame_type == KEY_FRAME) {
     // Don't do tpl for fwd key frames or fwd key frame overlays
-    allow_tpl = allow_tpl && !cpi->sf.tpl_sf.disable_filtered_key_tpl &&
-                gf_group->update_type[cpi->gf_frame_index] != OVERLAY_UPDATE;
-  } else {
-    // Do tpl after ARF is filtered, or if no ARF, at the second frame of GF
-    // group.
-    // TODO(bohanli): if no ARF, just do it at the first frame.
-    int gf_index = cpi->gf_frame_index;
-    allow_tpl = allow_tpl && (gf_group->update_type[gf_index] == ARF_UPDATE ||
-                              gf_group->update_type[gf_index] == GF_UPDATE);
-    if (allow_tpl) {
-      // Need to set the size for TPL for ARF
-      // TODO(bohanli): Why is this? what part of it is necessary?
-      av1_set_frame_size(cpi, cm->superres_upscaled_width,
-                         cm->superres_upscaled_height);
-    }
+    allow_tpl = allow_tpl && !cpi->sf.tpl_sf.disable_filtered_key_tpl;
+  }
+
+  if (allow_tpl) {
+    // Need to set the size for TPL for ARF
+    // TODO(bohanli): Why is this? what part of it is necessary?
+    av1_set_frame_size(cpi, cm->superres_upscaled_width,
+                       cm->superres_upscaled_height);
   }
 
 #if CONFIG_RD_COMMAND
@@ -1044,11 +1037,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     av1_read_rd_command(filepath, &cpi->rd_command);
   }
 #endif  // CONFIG_RD_COMMAND
-  if (allow_tpl == 0) {
-    // Avoid the use of unintended TPL stats from previous GOP's results.
-    if (cpi->gf_frame_index == 0 && !is_stat_generation_stage(cpi))
-      av1_init_tpl_stats(&cpi->ppi->tpl_data);
-  } else {
+  if (allow_tpl && cpi->gf_frame_index == 0) {
     if (!cpi->skip_tpl_setup_stats) {
       av1_tpl_preload_rc_estimate(cpi, frame_params);
       av1_tpl_setup_stats(cpi, 0, frame_params, frame_input);
@@ -1058,6 +1047,10 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
                                      cm->seq_params->bit_depth);
 #endif
     }
+  } else {
+    // Avoid the use of unintended TPL stats from previous GOP's results.
+    if (cpi->gf_frame_index == 0 && !is_stat_generation_stage(cpi))
+      av1_init_tpl_stats(&cpi->ppi->tpl_data);
   }
 
   if (av1_encode(cpi, dest, frame_input, frame_params, frame_results) !=
