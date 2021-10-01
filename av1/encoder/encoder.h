@@ -759,6 +759,8 @@ typedef struct {
   AQ_MODE aq_mode;
   // Indicates the delta q mode to be used.
   DELTAQ_MODE deltaq_mode;
+  // Indicates the delta q mode strength.
+  DELTAQ_MODE deltaq_strength;
   // Indicates if delta quantization should be enabled in chroma planes.
   bool enable_chroma_deltaq;
   // Indicates if delta quantization should be enabled for hdr video

@@ -1377,6 +1377,12 @@ enum aome_enc_control_id {
    */
   AV1E_SET_SVC_REF_FRAME_COMP_PRED = 147,
 
+  /*!\brief Set --deltaq-mode strength.
+   *
+   * Valid range: [0, 1000]
+   */
+  AV1E_SET_DELTAQ_STRENGTH = 148,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -1772,6 +1778,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_AQ_MODE, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_DELTAQ_MODE, unsigned int)
 #define AOM_CTRL_AV1E_SET_DELTAQ_MODE
+
+AOM_CTRL_USE_TYPE(AV1E_SET_DELTAQ_STRENGTH, unsigned int)
+#define AOM_CTRL_AV1E_SET_DELTAQ_STRENGTH
 
 AOM_CTRL_USE_TYPE(AV1E_SET_DELTALF_MODE, unsigned int)
 #define AOM_CTRL_AV1E_SET_DELTALF_MODE

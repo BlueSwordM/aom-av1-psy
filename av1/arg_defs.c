@@ -520,6 +520,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "2: deltaq placeholder, 3: key frame visual quality, 4: user "
               "rating based visual quality optimization). "
               "Currently this requires enable-tpl-model as a prerequisite."),
+  .deltaq_strength = ARG_DEF(NULL, "deltaq-strength", 1,
+                             "Deltaq strength for"
+                             " --deltaq-mode=4 (%)"),
   .deltalf_mode = ARG_DEF(NULL, "delta-lf-mode", 1,
                           "Enable delta-lf-mode (0: off (default), 1: on)"),
   .frame_periodic_boost =

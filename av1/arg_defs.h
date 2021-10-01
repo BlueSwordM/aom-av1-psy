@@ -194,6 +194,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t error_resilient_mode;
   arg_def_t aq_mode;
   arg_def_t deltaq_mode;
+  arg_def_t deltaq_strength;
   arg_def_t deltalf_mode;
   arg_def_t frame_periodic_boost;
   arg_def_t gf_cbr_boost_pct;

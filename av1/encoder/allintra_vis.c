@@ -519,8 +519,8 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi) {
         }
       }
       var = exp(var / num_of_var);
-      mb_delta_q[0][index] = (int)(a[0] * exp(-b[0] * var) + c[0] + 0.5);
-      mb_delta_q[1][index] = (int)(a[1] * exp(-b[1] * var) + c[1] + 0.5);
+      mb_delta_q[0][index] = RINT(a[0] * exp(-b[0] * var) + c[0]);
+      mb_delta_q[1][index] = RINT(a[1] * exp(-b[1] * var) + c[1]);
       delta_q_avg[0] += mb_delta_q[0][index];
       delta_q_avg[1] += mb_delta_q[1][index];
     }
@@ -553,11 +553,12 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi) {
         const double delta_q =
             mb_delta_q[0][index] +
             scaling_factor * (mb_delta_q[1][index] - mb_delta_q[0][index]);
-        cpi->mb_delta_q[index] = RINT(delta_q - new_delta_q_avg);
+        cpi->mb_delta_q[index] = RINT((double)cpi->oxcf.q_cfg.deltaq_strength /
+                                      100.0 * (delta_q - new_delta_q_avg));
       } else {
-        cpi->mb_delta_q[index] =
-            RINT(scaling_factor *
-                 (mb_delta_q[model_idx][index] - delta_q_avg[model_idx]));
+        cpi->mb_delta_q[index] = RINT(
+            (double)cpi->oxcf.q_cfg.deltaq_strength / 100.0 * scaling_factor *
+            (mb_delta_q[model_idx][index] - delta_q_avg[model_idx]));
       }
     }
   }

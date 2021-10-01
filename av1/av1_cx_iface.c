@@ -77,6 +77,7 @@ struct av1_extracfg {
   unsigned int enable_chroma_deltaq;
   AQ_MODE aq_mode;
   DELTAQ_MODE deltaq_mode;
+  int deltaq_strength;
   int deltalf_mode;
   unsigned int frame_periodic_boost;
   aom_bit_depth_t bit_depth;
@@ -227,6 +228,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,                            // enable delta quant in chroma planes
   NO_AQ,                        // aq_mode
   NO_DELTA_Q,                   // deltaq_mode
+  100,                          // deltaq_strength
   0,                            // delta lf mode
   0,                            // frame_periodic_boost
   AOM_BITS_8,                   // Bit depth
@@ -364,6 +366,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,                            // enable delta quant in chroma planes
   NO_AQ,                        // aq_mode
   DELTA_Q_OBJECTIVE,            // deltaq_mode
+  100,                          // deltaq_strength
   0,                            // delta lf mode
   0,                            // frame_periodic_boost
   AOM_BITS_8,                   // Bit depth
@@ -795,6 +798,8 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
     }
   }
 
+  RANGE_CHECK(extra_cfg, deltaq_strength, 0, 1000);
+
   return AOM_CODEC_OK;
 }
 
@@ -1111,6 +1116,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   q_cfg->enable_chroma_deltaq = extra_cfg->enable_chroma_deltaq;
   q_cfg->aq_mode = extra_cfg->aq_mode;
   q_cfg->deltaq_mode = extra_cfg->deltaq_mode;
+  q_cfg->deltaq_strength = extra_cfg->deltaq_strength;
   q_cfg->use_fixed_qp_offsets =
       cfg->use_fixed_qp_offsets && (rc_cfg->mode == AOM_Q);
   q_cfg->enable_hdr_deltaq =
@@ -2242,6 +2248,13 @@ static aom_codec_err_t ctrl_set_deltaq_mode(aom_codec_alg_priv_t *ctx,
   }
 #endif
   extra_cfg.deltaq_mode = deltaq_arg;
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_deltaq_strength(aom_codec_alg_priv_t *ctx,
+                                                va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.deltaq_strength = CAST(AV1E_SET_DELTAQ_STRENGTH, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -3519,6 +3532,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.deltaq_mode, argv,
                               err_string)) {
     extra_cfg.deltaq_mode = arg_parse_uint_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.deltaq_strength, argv,
+                              err_string)) {
+    extra_cfg.deltaq_strength = arg_parse_uint_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.deltalf_mode, argv,
                               err_string)) {
     extra_cfg.deltalf_mode = arg_parse_uint_helper(&arg, err_string);
@@ -3890,6 +3906,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_MODE_COST_UPD_FREQ, ctrl_set_mode_cost_upd_freq },
   { AV1E_SET_MV_COST_UPD_FREQ, ctrl_set_mv_cost_upd_freq },
   { AV1E_SET_DELTAQ_MODE, ctrl_set_deltaq_mode },
+  { AV1E_SET_DELTAQ_STRENGTH, ctrl_set_deltaq_strength },
   { AV1E_SET_DELTALF_MODE, ctrl_set_deltalf_mode },
   { AV1E_SET_FRAME_PERIODIC_BOOST, ctrl_set_frame_periodic_boost },
   { AV1E_SET_TUNE_CONTENT, ctrl_set_tune_content },
