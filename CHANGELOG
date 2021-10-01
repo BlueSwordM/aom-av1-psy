@@ -2,8 +2,6 @@
   This release includes several bug fixes.
 
   - Bug fixes:
-    Issue 3147: Build failure on Apple M1 arm64
-
     The following four cmake changes should help the people building
     libaom using MSVC.
       1. exports: use CMAKE_SHARED_LIBRARY_PREFIX to determine lib name
@@ -14,6 +12,21 @@
          https://aomedia-review.googlesource.com/c/aom/+/146550
       4. aom_install: don't exclude msvc from install
          https://aomedia-review.googlesource.com/c/aom/+/146547
+
+    aom/aom_encoder.h: remove configure option reference
+    https://aomedia-review.googlesource.com/c/aom/+/146743
+
+    Issue 3113: Tests for detecting chroma subsampling in
+    av1_copy_and_extend_frame() do not work when y_width or y_height is
+    1
+
+    Issue 3115: image2yuvconfig() should calculate uv_crop_width and
+    uv_crop_height from y_crop_width and y_crop_height
+
+    Issue 3140: rc_overshoot_pct is documented as having a range of
+    0-1000, but is range checked against 0-100
+
+    Issue 3147: Build failure on Apple M1 arm64
 
 2021-07-20 v3.1.2
   This release includes several bug fixes.
