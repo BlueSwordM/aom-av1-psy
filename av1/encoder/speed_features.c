@@ -1415,6 +1415,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
         cm->width * cm->height > 640 * 480)
       sf->rt_sf.use_temporal_noise_estimate = 1;
     sf->rt_sf.skip_tx_no_split_var_based_partition = 1;
+    sf->rt_sf.skip_newmv_mode_based_on_sse = 1;
 
     // For SVC: use better mv search on base temporal layers, and only
     // on base spatial layer if highest resolution is above 640x360.
@@ -1840,6 +1841,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->skip_cdef_sb = 0;
   rt_sf->force_large_partition_blocks_intra = 0;
   rt_sf->skip_tx_no_split_var_based_partition = 0;
+  rt_sf->skip_newmv_mode_based_on_sse = 0;
 }
 
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {

@@ -1305,6 +1305,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Skip evaluation of no split in tx size selection for merge partition
   int skip_tx_no_split_var_based_partition;
+
+  // Intermediate termination of newMV mode evaluation based on so far best mode
+  // sse
+  int skip_newmv_mode_based_on_sse;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */
