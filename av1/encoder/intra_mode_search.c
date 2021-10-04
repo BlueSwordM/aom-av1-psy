@@ -1118,24 +1118,24 @@ static double intra_rd_variance_factor(const AV1_COMP *cpi, MACROBLOCK *x,
                           x->plane[0].src.buf + i * x->plane[0].src.stride + j,
                           x->plane[0].src.stride,
                           CONVERT_TO_BYTEPTR(highbd_all_zeros), 0, &sse) /
-                          16);
+                          16.0);
         rec_var += log(
             1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
                       xd->plane[0].dst.buf + i * xd->plane[0].dst.stride + j,
                       xd->plane[0].dst.stride,
                       CONVERT_TO_BYTEPTR(highbd_all_zeros), 0, &sse) /
-                      16);
+                      16.0);
       } else {
         src_var +=
             log(1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
                           x->plane[0].src.buf + i * x->plane[0].src.stride + j,
                           x->plane[0].src.stride, all_zeros, 0, &sse) /
-                          16);
+                          16.0);
         rec_var += log(
             1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
                       xd->plane[0].dst.buf + i * xd->plane[0].dst.stride + j,
                       xd->plane[0].dst.stride, all_zeros, 0, &sse) /
-                      16);
+                      16.0);
       }
     }
   }
