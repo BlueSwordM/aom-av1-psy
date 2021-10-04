@@ -556,11 +556,11 @@ static void printout_rate_control_summary(struct RateControlMetrics *rc,
 }
 
 // Layer pattern configuration.
-static void set_layer_pattern(int layering_mode, int superframe_cnt,
-                              aom_svc_layer_id_t *layer_id,
-                              aom_svc_ref_frame_config_t *ref_frame_config,
-                              int *use_svc_control, int spatial_layer_id,
-                              int is_key_frame, int ksvc_mode) {
+static void set_layer_pattern(
+    int layering_mode, int superframe_cnt, aom_svc_layer_id_t *layer_id,
+    aom_svc_ref_frame_config_t *ref_frame_config,
+    aom_svc_ref_frame_comp_pred_t *ref_frame_comp_pred, int *use_svc_control,
+    int spatial_layer_id, int is_key_frame, int ksvc_mode) {
   int i;
   int enable_longterm_temporal_ref = 1;
   int shift = (layering_mode == 8) ? 2 : 0;
@@ -568,9 +568,9 @@ static void set_layer_pattern(int layering_mode, int superframe_cnt,
   layer_id->spatial_layer_id = spatial_layer_id;
   int lag_index = 0;
   int base_count = superframe_cnt >> 2;
-  ref_frame_config->ref_frame_comp[0] = 0;  // GOLDEN_LAST
-  ref_frame_config->ref_frame_comp[1] = 0;  // LAST2_LAST
-  ref_frame_config->ref_frame_comp[2] = 0;  // ALTREF_LAST
+  ref_frame_comp_pred->use_comp_pred[0] = 0;  // GOLDEN_LAST
+  ref_frame_comp_pred->use_comp_pred[1] = 0;  // LAST2_LAST
+  ref_frame_comp_pred->use_comp_pred[2] = 0;  // ALTREF_LAST
   // Set the reference map buffer idx for the 7 references:
   // LAST_FRAME (0), LAST2_FRAME(1), LAST3_FRAME(2), GOLDEN_FRAME(3),
   // BWDREF_FRAME(4), ALTREF2_FRAME(5), ALTREF_FRAME(6).
@@ -1074,6 +1074,7 @@ int main(int argc, const char **argv) {
   aom_svc_layer_id_t layer_id;
   aom_svc_params_t svc_params;
   aom_svc_ref_frame_config_t ref_frame_config;
+  aom_svc_ref_frame_comp_pred_t ref_frame_comp_pred;
 
 #if CONFIG_INTERNAL_STATS
   FILE *stats_file = fopen("opsnr.stt", "a");
@@ -1304,12 +1305,16 @@ int main(int argc, const char **argv) {
         // Set the reference/update flags, layer_id, and reference_map
         // buffer index.
         set_layer_pattern(app_input.layering_mode, frame_cnt, &layer_id,
-                          &ref_frame_config, &use_svc_control, slx,
-                          is_key_frame, (app_input.layering_mode == 10));
+                          &ref_frame_config, &ref_frame_comp_pred,
+                          &use_svc_control, slx, is_key_frame,
+                          (app_input.layering_mode == 10));
         aom_codec_control(&codec, AV1E_SET_SVC_LAYER_ID, &layer_id);
-        if (use_svc_control)
+        if (use_svc_control) {
           aom_codec_control(&codec, AV1E_SET_SVC_REF_FRAME_CONFIG,
                             &ref_frame_config);
+          aom_codec_control(&codec, AV1E_SET_SVC_REF_FRAME_COMP_PRED,
+                            &ref_frame_comp_pred);
+        }
       } else {
         // Only up to 3 temporal layers supported in fixed mode.
         // Only need to set spatial and temporal layer_id: reference
