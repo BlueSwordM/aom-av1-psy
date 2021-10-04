@@ -3255,11 +3255,19 @@ static aom_codec_err_t ctrl_set_svc_ref_frame_config(aom_codec_alg_priv_t *ctx,
   }
   for (unsigned int i = 0; i < REF_FRAMES; ++i)
     cpi->svc.refresh[i] = data->refresh[i];
-  cpi->svc.ref_frame_comp[0] = data->ref_frame_comp[0];
-  cpi->svc.ref_frame_comp[1] = data->ref_frame_comp[1];
-  cpi->svc.ref_frame_comp[2] = data->ref_frame_comp[2];
   cpi->svc.use_flexible_mode = 1;
   cpi->svc.ksvc_fixed_mode = 0;
+  return AOM_CODEC_OK;
+}
+
+static aom_codec_err_t ctrl_set_svc_ref_frame_comp_pred(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  AV1_COMP *const cpi = ctx->ppi->cpi;
+  aom_svc_ref_frame_comp_pred_t *const data =
+      va_arg(args, aom_svc_ref_frame_comp_pred_t *);
+  cpi->svc.ref_frame_comp[0] = data->use_comp_pred[0];
+  cpi->svc.ref_frame_comp[1] = data->use_comp_pred[1];
+  cpi->svc.ref_frame_comp[2] = data->use_comp_pred[2];
   return AOM_CODEC_OK;
 }
 
@@ -3901,6 +3909,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_SVC_LAYER_ID, ctrl_set_layer_id },
   { AV1E_SET_SVC_PARAMS, ctrl_set_svc_params },
   { AV1E_SET_SVC_REF_FRAME_CONFIG, ctrl_set_svc_ref_frame_config },
+  { AV1E_SET_SVC_REF_FRAME_COMP_PRED, ctrl_set_svc_ref_frame_comp_pred },
   { AV1E_SET_VBR_CORPUS_COMPLEXITY_LAP, ctrl_set_vbr_corpus_complexity_lap },
   { AV1E_ENABLE_SB_MULTIPASS_UNIT_TEST, ctrl_enable_sb_multipass_unit_test },
   { AV1E_SET_DV_COST_UPD_FREQ, ctrl_set_dv_cost_upd_freq },

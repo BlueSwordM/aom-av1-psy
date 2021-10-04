@@ -1372,6 +1372,11 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_TX_SIZE_SEARCH = 146,
 
+  /*!\brief Codec control function to set reference frame compound prediction.
+   * aom_svc_ref_frame_comp_pred_t* parameter
+   */
+  AV1E_SET_SVC_REF_FRAME_COMP_PRED = 147,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -1504,10 +1509,14 @@ typedef struct aom_svc_ref_frame_config {
   /*! Buffer slot index for each of 7 references. */
   int ref_idx[7];
   int refresh[8]; /**< Refresh flag for each of the 8 slots. */
+} aom_svc_ref_frame_config_t;
+
+/*!brief Parameters for setting ref frame compound prediction */
+typedef struct aom_svc_ref_frame_comp_pred {
   // Use compound prediction for the ref_frame pairs GOLDEN_LAST (0),
   // LAST2_LAST (1), and ALTREF_LAST (2).
-  int ref_frame_comp[3]; /**<Compound reference flag. */
-} aom_svc_ref_frame_config_t;
+  int use_comp_pred[3]; /**<Compound reference flag. */
+} aom_svc_ref_frame_comp_pred_t;
 
 /*!\cond */
 /*!\brief Encoder control function parameter type
@@ -1922,6 +1931,10 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_DIRECTIONAL_INTRA, int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_TX_SIZE_SEARCH, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_TX_SIZE_SEARCH
+
+AOM_CTRL_USE_TYPE(AV1E_SET_SVC_REF_FRAME_COMP_PRED,
+                  aom_svc_ref_frame_comp_pred_t *)
+#define AOME_CTRL_AV1E_SET_SVC_REF_FRAME_COMP_PRED
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

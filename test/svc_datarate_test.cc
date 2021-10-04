@@ -73,6 +73,7 @@ class DatarateTestSVC
     memset(&layer_id_, 0, sizeof(aom_svc_layer_id_t));
     memset(&svc_params_, 0, sizeof(aom_svc_params_t));
     memset(&ref_frame_config_, 0, sizeof(aom_svc_ref_frame_config_t));
+    memset(&ref_frame_comp_pred_, 0, sizeof(aom_svc_ref_frame_comp_pred_t));
     drop_frames_ = 0;
     for (int i = 0; i < 1000; i++) drop_frames_list_[i] = 1000;
     decoded_nframes_ = 0;
@@ -109,14 +110,15 @@ class DatarateTestSVC
     }
     // Set the reference/update flags, layer_id, and reference_map
     // buffer index.
-    frame_flags_ =
-        set_layer_pattern(video->frame(), &layer_id_, &ref_frame_config_,
-                          spatial_layer_id, multi_ref_, comp_pred_);
+    frame_flags_ = set_layer_pattern(video->frame(), &layer_id_,
+                                     &ref_frame_config_, &ref_frame_comp_pred_,
+                                     spatial_layer_id, multi_ref_, comp_pred_);
     encoder->Control(AV1E_SET_SVC_LAYER_ID, &layer_id_);
-    // The SET_SVC_REF_FRAME_CONFIG api is for the flexible SVC mode
-    // (i.e., use_fixed_mode_svc == 0).
+    // The SET_SVC_REF_FRAME_CONFIG and AV1E_SET_SVC_REF_FRAME_COMP_PRED api is
+    // for the flexible SVC mode (i.e., use_fixed_mode_svc == 0).
     if (!use_fixed_mode_svc_) {
       encoder->Control(AV1E_SET_SVC_REF_FRAME_CONFIG, &ref_frame_config_);
+      encoder->Control(AV1E_SET_SVC_REF_FRAME_COMP_PRED, &ref_frame_comp_pred_);
     }
     if (set_frame_level_er_) {
       int mode =
@@ -171,10 +173,11 @@ class DatarateTestSVC
   unsigned int GetDecodedFrames() { return decoded_nframes_; }
 
   // Layer pattern configuration.
-  virtual int set_layer_pattern(int frame_cnt, aom_svc_layer_id_t *layer_id,
-                                aom_svc_ref_frame_config_t *ref_frame_config,
-                                int spatial_layer, int multi_ref,
-                                int comp_pred) {
+  virtual int set_layer_pattern(
+      int frame_cnt, aom_svc_layer_id_t *layer_id,
+      aom_svc_ref_frame_config_t *ref_frame_config,
+      aom_svc_ref_frame_comp_pred_t *ref_frame_comp_pred, int spatial_layer,
+      int multi_ref, int comp_pred) {
     int lag_index = 0;
     int base_count = frame_cnt >> 2;
     layer_id->spatial_layer_id = spatial_layer;
@@ -187,9 +190,9 @@ class DatarateTestSVC
     }
     for (int i = 0; i < REF_FRAMES; i++) ref_frame_config->refresh[i] = 0;
     if (comp_pred) {
-      ref_frame_config->ref_frame_comp[0] = 1;  // GOLDEN_LAST
-      ref_frame_config->ref_frame_comp[1] = 1;  // LAST2_LAST
-      ref_frame_config->ref_frame_comp[2] = 1;  // ALTREF_LAST
+      ref_frame_comp_pred->use_comp_pred[0] = 1;  // GOLDEN_LAST
+      ref_frame_comp_pred->use_comp_pred[1] = 1;  // LAST2_LAST
+      ref_frame_comp_pred->use_comp_pred[2] = 1;  // ALTREF_LAST
     }
     // Set layer_flags to 0 when using ref_frame_config->reference.
     int layer_flags = 0;
@@ -1181,6 +1184,7 @@ class DatarateTestSVC
   int target_layer_bitrate_[AOM_MAX_LAYERS];
   aom_svc_params_t svc_params_;
   aom_svc_ref_frame_config_t ref_frame_config_;
+  aom_svc_ref_frame_comp_pred_t ref_frame_comp_pred_;
   aom_svc_layer_id_t layer_id_;
   double effective_datarate_tl[AOM_MAX_LAYERS];
   unsigned int drop_frames_;
