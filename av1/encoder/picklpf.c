@@ -84,15 +84,14 @@ static int64_t try_filter_frame(const YV12_BUFFER_CONFIG *sd,
 
 static int search_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
                                int partial_frame,
-                               const int *last_frame_filter_level,
-                               double *best_cost_ret, int plane, int dir) {
+                               const int *last_frame_filter_level, int plane,
+                               int dir) {
   const AV1_COMMON *const cm = &cpi->common;
   const int min_filter_level = 0;
   const int max_filter_level = av1_get_max_filter_level(cpi);
   int filt_direction = 0;
   int64_t best_err;
   int filt_best;
-  MACROBLOCK *x = &cpi->td.mb;
 
   // Start the search at the previous frame filter level unless it is now out of
   // range.
@@ -187,12 +186,6 @@ static int search_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
     }
   }
 
-  // Update best error
-  best_err = ss_err[filt_best];
-
-  if (best_cost_ret)
-    *best_cost_ret = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-        x->rdmult, 0, (best_err << 4), cm->seq_params->bit_depth);
   return filt_best;
 }
 
@@ -276,23 +269,23 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
 
     lf->filter_level[0] = lf->filter_level[1] =
         search_filter_level(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
-                            last_frame_filter_level, NULL, 0, 2);
+                            last_frame_filter_level, 0, 2);
     if (method != LPF_PICK_FROM_FULL_IMAGE_NON_DUAL) {
       lf->filter_level[0] =
           search_filter_level(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
-                              last_frame_filter_level, NULL, 0, 0);
+                              last_frame_filter_level, 0, 0);
       lf->filter_level[1] =
           search_filter_level(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
-                              last_frame_filter_level, NULL, 0, 1);
+                              last_frame_filter_level, 0, 1);
     }
 
     if (num_planes > 1) {
       lf->filter_level_u =
           search_filter_level(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
-                              last_frame_filter_level, NULL, 1, 0);
+                              last_frame_filter_level, 1, 0);
       lf->filter_level_v =
           search_filter_level(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
-                              last_frame_filter_level, NULL, 2, 0);
+                              last_frame_filter_level, 2, 0);
     }
   }
 }
