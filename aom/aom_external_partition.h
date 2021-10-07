@@ -30,7 +30,7 @@
  * types, removing or reassigning enums, adding/removing/rearranging
  * fields to structures.
  */
-#define AOM_EXT_PART_ABI_VERSION 4
+#define AOM_EXT_PART_ABI_VERSION 5
 
 #ifdef __cplusplus
 extern "C" {
@@ -248,6 +248,10 @@ typedef struct aom_partition_features {
    * 0x09 (00...001001) stands for PARTITION_NONE and PARTITION_SPLIT are valid.
    */
   int valid_partition_types;
+  int update_type;    ///< Frame update type, defined in ratectrl.h
+  int qindex;         ///< Quantization index, range: [0, 255]
+  int rdmult;         ///< Rate-distortion multiplier
+  int pyramid_level;  ///< The level of this frame in the hierarchical structure
 } aom_partition_features_t;
 
 /*!\brief Partition decisions received from the external model.

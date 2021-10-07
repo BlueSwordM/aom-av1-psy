@@ -4273,6 +4273,7 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
   const AV1_COMMON *const cm = &cpi->common;
   ExtPartController *const ext_part_controller = &cpi->ext_part_controller;
   MACROBLOCK *const x = &td->mb;
+  MACROBLOCKD *const xd = &x->e_mbd;
   if (mi_row >= cm->mi_params.mi_rows || mi_col >= cm->mi_params.mi_cols) {
     return false;
   }
@@ -4289,8 +4290,20 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
     PartitionBlkParams blk_params = part_search_state.part_blk_params;
     if (!av1_blk_has_rows_and_cols(&blk_params))
       set_partition_cost_for_edge_blk(cm, &part_search_state);
+    const int orig_rdmult = x->rdmult;
+    setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, NO_AQ, NULL);
     const int valid_partition_types =
         get_valid_partition_types(cpi, &part_search_state, bsize);
+    const FRAME_UPDATE_TYPE update_type =
+        get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
+    const int qindex = av1_get_qindex(&cm->seg, xd->mi[0]->segment_id,
+                                      cm->quant_params.base_qindex);
+    // RD multiplier
+    const int rdmult = x->rdmult;
+    // pyramid level
+    const int pyramid_level =
+        cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index];
+    x->rdmult = orig_rdmult;
 
     aom_partition_features_t features;
     features.mi_row = mi_row;
@@ -4299,6 +4312,10 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
     features.frame_height = cpi->frame_info.frame_height;
     features.block_size = bsize;
     features.valid_partition_types = valid_partition_types;
+    features.update_type = update_type;
+    features.qindex = qindex;
+    features.rdmult = rdmult;
+    features.pyramid_level = pyramid_level;
     av1_ext_part_send_features(ext_part_controller, &features);
     const bool valid_decision = av1_ext_part_get_partition_decision(
         ext_part_controller, &partition_decision);
@@ -4316,9 +4333,8 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
           pc_tree->split[i] = av1_alloc_pc_tree_node(subsize);
         pc_tree->split[i]->index = i;
       }
-      const int orig_rdmult = x->rdmult;
+      const int orig_rdmult_tmp = x->rdmult;
       setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, NO_AQ, NULL);
-      (void)orig_rdmult;
       // TODO(chengchen): check boundary conditions
       // top-left
       recursive_partition(cpi, td, tile_data, tp, sms_root, pc_tree->split[0],
@@ -4343,7 +4359,7 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
         this_rdcost->dist += split_rdc[i].dist;
         av1_rd_cost_update(x->rdmult, this_rdcost);
       }
-      x->rdmult = orig_rdmult;
+      x->rdmult = orig_rdmult_tmp;
     } else {
       *this_rdcost = rd_search_for_fixed_partition(
           cpi, td, tile_data, tp, sms_root, mi_row, mi_col, bsize, pc_tree);
