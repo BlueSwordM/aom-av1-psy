@@ -2346,6 +2346,8 @@ void av1_adjust_gf_refresh_qp_one_pass_rt(AV1_COMP *cpi) {
     // period) based on QP. Look into add info on segment deltaq.
     PRIMARY_RATE_CONTROL *p_rc = &cpi->ppi->p_rc;
     const int avg_qp = p_rc->avg_frame_qindex[INTER_FRAME];
+    const int allow_gf_update =
+        rc->frames_till_gf_update_due <= (p_rc->baseline_gf_interval - 10);
     int gf_update_changed = 0;
     int thresh = 87;
     if (rc->frames_till_gf_update_due == 1 &&
@@ -2353,10 +2355,11 @@ void av1_adjust_gf_refresh_qp_one_pass_rt(AV1_COMP *cpi) {
       // Disable GF refresh since QP is above the runninhg average QP.
       svc->refresh[svc->gld_idx_1layer] = 0;
       gf_update_changed = 1;
-    } else if (rc->frames_till_gf_update_due <
-                   (p_rc->baseline_gf_interval >> 1) &&
-               cm->quant_params.base_qindex < thresh * avg_qp / 100) {
-      // Force refresh since QP is well below average QP.
+    } else if (allow_gf_update &&
+               ((cm->quant_params.base_qindex < thresh * avg_qp / 100) ||
+                (rc->avg_frame_low_motion < 20))) {
+      // Force refresh since QP is well below average QP or this is a high
+      // motion frame.
       svc->refresh[svc->gld_idx_1layer] = 1;
       gf_update_changed = 1;
     }
