@@ -3843,6 +3843,12 @@ static INLINE int is_frame_resize_pending(AV1_COMP *const cpi) {
            cpi->common.height != resize_pending_params->height));
 }
 
+// Check if loop restoration filter is used.
+static INLINE int is_restoration_used(const AV1_COMMON *const cm) {
+  return cm->seq_params->enable_restoration && !cm->features.all_lossless &&
+         !cm->tiles.large_scale;
+}
+
 #if CONFIG_AV1_TEMPORAL_DENOISING
 static INLINE int denoise_svc(const struct AV1_COMP *const cpi) {
   return (!cpi->ppi->use_svc ||

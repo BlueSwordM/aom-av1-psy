@@ -360,10 +360,7 @@ static AOM_INLINE void alloc_util_frame_buffers(AV1_COMP *cpi) {
 
   // The frame buffer trial_frame_rst is used during loop restoration filter
   // search. Hence it is allocated only when loop restoration is used.
-  const int use_restoration = seq_params->enable_restoration &&
-                              !cm->features.all_lossless &&
-                              !cm->tiles.large_scale;
-  if (use_restoration) {
+  if (is_restoration_used(cm)) {
     if (aom_realloc_frame_buffer(
             &cpi->trial_frame_rst, cm->superres_upscaled_width,
             cm->superres_upscaled_height, seq_params->subsampling_x,
