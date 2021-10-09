@@ -16,6 +16,7 @@
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encodetxb.h"
 #include "av1/encoder/ethread.h"
+#include "av1/encoder/intra_mode_search_utils.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -304,6 +305,7 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 
 static AOM_INLINE void allocate_gradient_info_for_hog(
     PixelLevelGradientInfo **pixel_gradient_info, AV1_COMP *cpi) {
+  if (!is_gradient_caching_for_hog_enabled(cpi)) return;
   const AV1_COMMON *const cm = &cpi->common;
 
   if (!*pixel_gradient_info) {

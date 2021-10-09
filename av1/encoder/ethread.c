@@ -23,6 +23,7 @@
 #endif
 #include "av1/encoder/global_motion.h"
 #include "av1/encoder/global_motion_facade.h"
+#include "av1/encoder/intra_mode_search_utils.h"
 #include "av1/encoder/rdopt.h"
 #include "aom_dsp/aom_dsp_common.h"
 #include "av1/encoder/temporal_filter.h"
@@ -759,9 +760,7 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
           }
         }
 
-        const SPEED_FEATURES *sf = &ppi->cpi->sf;
-        if (sf->intra_sf.intra_pruning_with_hog ||
-            sf->intra_sf.chroma_intra_pruning_with_hog) {
+        if (is_gradient_caching_for_hog_enabled(ppi->cpi)) {
           const int plane_types = PLANE_TYPES >> ppi->seq_params.monochrome;
           AOM_CHECK_MEM_ERROR(
               &ppi->error, thread_data->td->pixel_gradient_info,
