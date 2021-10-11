@@ -2436,16 +2436,16 @@ static int encode_without_recode(AV1_COMP *cpi) {
   // transform / motion compensation build reconstruction frame
   av1_encode_frame(cpi);
 
+  // Update some stats from cyclic refresh.
+  if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ && !frame_is_intra_only(cm))
+    av1_cyclic_refresh_postencode(cpi);
+
   // Adjust the refresh of the golden (longer-term) reference based on QP
   // selected for this frame. This is for CBR with 1 layer/non-svc RTC mode.
   if (!frame_is_intra_only(cm) && cpi->oxcf.rc_cfg.mode == AOM_CBR &&
       cpi->oxcf.mode == REALTIME && svc->number_spatial_layers == 1 &&
       svc->number_temporal_layers == 1)
     av1_adjust_gf_refresh_qp_one_pass_rt(cpi);
-
-  // Update some stats from cyclic refresh.
-  if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ && !frame_is_intra_only(cm))
-    av1_cyclic_refresh_postencode(cpi);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_encode_frame_time);
