@@ -83,6 +83,84 @@ static const uint16_t av1_derived_chroma_intra_mode_used_flag[INTRA_MODES] = {
   0x2a01,  // SMOOTH_H_PRED:     0010 1010 0000 0001
   0x3201   // PAETH_PRED:        0011 0010 0000 0001
 };
+
+DECLARE_ALIGNED(16, static const uint8_t, all_zeros[MAX_SB_SIZE]) = { 0 };
+DECLARE_ALIGNED(16, static const uint16_t,
+                highbd_all_zeros[MAX_SB_SIZE]) = { 0 };
+// Returns a factor to be applied to the RD value based on how well the
+// reconstructed block variance matches the source variance.
+static double intra_rd_variance_factor(const AV1_COMP *cpi, MACROBLOCK *x,
+                                       BLOCK_SIZE bs) {
+  MACROBLOCKD *xd = &x->e_mbd;
+  double variance_rd_factor = 1.0;
+  double src_var = 0.0;
+  double rec_var = 0.0;
+  double var_diff = 0.0;
+  double threshold = 1.0 - (0.25 * cpi->oxcf.speed);
+  unsigned int sse;
+  int i, j;
+  int right_overflow =
+      (xd->mb_to_right_edge < 0) ? ((-xd->mb_to_right_edge) >> 3) : 0;
+  int bottom_overflow =
+      (xd->mb_to_bottom_edge < 0) ? ((-xd->mb_to_bottom_edge) >> 3) : 0;
+
+  const int bw = MI_SIZE * mi_size_wide[bs] - right_overflow;
+  const int bh = MI_SIZE * mi_size_high[bs] - bottom_overflow;
+  const int blocks = (bw * bh) / 16;
+
+  for (i = 0; i < bh; i += 4) {
+    for (j = 0; j < bw; j += 4) {
+      if (is_cur_buf_hbd(xd)) {
+        src_var +=
+            log(1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
+                          x->plane[0].src.buf + i * x->plane[0].src.stride + j,
+                          x->plane[0].src.stride,
+                          CONVERT_TO_BYTEPTR(highbd_all_zeros), 0, &sse) /
+                          16.0);
+        rec_var += log(
+            1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
+                      xd->plane[0].dst.buf + i * xd->plane[0].dst.stride + j,
+                      xd->plane[0].dst.stride,
+                      CONVERT_TO_BYTEPTR(highbd_all_zeros), 0, &sse) /
+                      16.0);
+      } else {
+        src_var +=
+            log(1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
+                          x->plane[0].src.buf + i * x->plane[0].src.stride + j,
+                          x->plane[0].src.stride, all_zeros, 0, &sse) /
+                          16.0);
+        rec_var += log(
+            1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
+                      xd->plane[0].dst.buf + i * xd->plane[0].dst.stride + j,
+                      xd->plane[0].dst.stride, all_zeros, 0, &sse) /
+                      16.0);
+      }
+    }
+  }
+  src_var /= (double)blocks;
+  rec_var /= (double)blocks;
+
+  // Dont allow 0 to prevent / 0 below.
+  src_var += 0.000001;
+  rec_var += 0.000001;
+
+  if (src_var >= rec_var) {
+    var_diff = (src_var - rec_var);
+    if ((var_diff > 0.5) && (rec_var < threshold)) {
+      variance_rd_factor = 1.0 + ((var_diff * 2) / src_var);
+    }
+  } else {
+    var_diff = (rec_var - src_var);
+    if ((var_diff > 0.5) && (src_var < threshold)) {
+      variance_rd_factor = 1.0 + (var_diff / (2 * src_var));
+    }
+  }
+
+  // Limit adjustment;
+  variance_rd_factor = AOMMIN(3.0, variance_rd_factor);
+
+  return variance_rd_factor;
+}
 /*!\endcond */
 
 /*!\brief Search for the best filter_intra mode when coding intra frame.
@@ -147,6 +225,11 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
         tokenonly_rd_stats.rate +
         intra_mode_info_cost_y(cpi, x, mbmi, bsize, mode_cost);
     this_rd = RDCOST(x->rdmult, this_rate, tokenonly_rd_stats.dist);
+
+    // Visual quality adjustment based on recon vs source variance.
+    if ((cpi->oxcf.mode == ALLINTRA) && (this_rd != INT64_MAX)) {
+      this_rd = (int64_t)(this_rd * intra_rd_variance_factor(cpi, x, bsize));
+    }
 
     // Collect mode stats for multiwinner mode processing
     const int txfm_search_done = 1;
@@ -1084,84 +1167,6 @@ int av1_search_intra_uv_modes_in_interframe(
   mbmi->angle_delta[PLANE_TYPE_UV] = intra_search_state->uv_angle_delta;
 
   return 1;
-}
-
-DECLARE_ALIGNED(16, static const uint8_t, all_zeros[MAX_SB_SIZE]) = { 0 };
-DECLARE_ALIGNED(16, static const uint16_t,
-                highbd_all_zeros[MAX_SB_SIZE]) = { 0 };
-// Returns a factor to be applied to the RD value based on how well the
-// reconstructed block variance matches the source variance.
-static double intra_rd_variance_factor(const AV1_COMP *cpi, MACROBLOCK *x,
-                                       BLOCK_SIZE bs) {
-  MACROBLOCKD *xd = &x->e_mbd;
-  double variance_rd_factor = 1.0;
-  double src_var = 0.0;
-  double rec_var = 0.0;
-  double var_diff = 0.0;
-  double threshold = 1.0 - (0.25 * cpi->oxcf.speed);
-  unsigned int sse;
-  int i, j;
-  int right_overflow =
-      (xd->mb_to_right_edge < 0) ? ((-xd->mb_to_right_edge) >> 3) : 0;
-  int bottom_overflow =
-      (xd->mb_to_bottom_edge < 0) ? ((-xd->mb_to_bottom_edge) >> 3) : 0;
-
-  const int bw = MI_SIZE * mi_size_wide[bs] - right_overflow;
-  const int bh = MI_SIZE * mi_size_high[bs] - bottom_overflow;
-  const int blocks = (bw * bh) / 16;
-
-  for (i = 0; i < bh; i += 4) {
-    for (j = 0; j < bw; j += 4) {
-      if (is_cur_buf_hbd(xd)) {
-        src_var +=
-            log(1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
-                          x->plane[0].src.buf + i * x->plane[0].src.stride + j,
-                          x->plane[0].src.stride,
-                          CONVERT_TO_BYTEPTR(highbd_all_zeros), 0, &sse) /
-                          16.0);
-        rec_var += log(
-            1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
-                      xd->plane[0].dst.buf + i * xd->plane[0].dst.stride + j,
-                      xd->plane[0].dst.stride,
-                      CONVERT_TO_BYTEPTR(highbd_all_zeros), 0, &sse) /
-                      16.0);
-      } else {
-        src_var +=
-            log(1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
-                          x->plane[0].src.buf + i * x->plane[0].src.stride + j,
-                          x->plane[0].src.stride, all_zeros, 0, &sse) /
-                          16.0);
-        rec_var += log(
-            1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
-                      xd->plane[0].dst.buf + i * xd->plane[0].dst.stride + j,
-                      xd->plane[0].dst.stride, all_zeros, 0, &sse) /
-                      16.0);
-      }
-    }
-  }
-  src_var /= (double)blocks;
-  rec_var /= (double)blocks;
-
-  // Dont allow 0 to prevent / 0 below.
-  src_var += 0.000001;
-  rec_var += 0.000001;
-
-  if (src_var >= rec_var) {
-    var_diff = (src_var - rec_var);
-    if ((var_diff > 0.5) && (rec_var < threshold)) {
-      variance_rd_factor = 1.0 + ((var_diff * 2) / src_var);
-    }
-  } else {
-    var_diff = (rec_var - src_var);
-    if ((var_diff > 0.5) && (src_var < threshold)) {
-      variance_rd_factor = 1.0 + (var_diff / (2 * src_var));
-    }
-  }
-
-  // Limit adjustment;
-  variance_rd_factor = AOMMIN(3.0, variance_rd_factor);
-
-  return variance_rd_factor;
 }
 
 // Finds the best non-intrabc mode on an intra frame.
