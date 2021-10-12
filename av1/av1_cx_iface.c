@@ -2712,7 +2712,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 #endif
 
   // Handle fixed keyframe intervals
-  if (is_stat_generation_stage(ppi->cpi)) {
+  if (is_stat_generation_stage(ppi->cpi) || is_one_pass_rt_params(ppi->cpi)) {
     if (ctx->cfg.kf_mode == AOM_KF_AUTO &&
         ctx->cfg.kf_min_dist == ctx->cfg.kf_max_dist) {
       if (ppi->cpi->common.spatial_layer_id == 0 &&
