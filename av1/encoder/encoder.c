@@ -750,20 +750,20 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
                     aom_memalign(16, sizeof(*x->palette_buffer)));
   }
 
-  if (x->comp_rd_buffer.pred0 == NULL) {
-    alloc_compound_type_rd_buffers(cm->error, &x->comp_rd_buffer);
-  }
-
   if (x->tmp_conv_dst == NULL) {
     CHECK_MEM_ERROR(
         cm, x->tmp_conv_dst,
         aom_memalign(32, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*x->tmp_conv_dst)));
     x->e_mbd.tmp_conv_dst = x->tmp_conv_dst;
   }
-  // The buffers 'tmp_pred_bufs[]' are used in inter frames to store temporary
-  // prediction results. Hence, the memory allocation is avoided for allintra
-  // encode.
+  // The buffers 'tmp_pred_bufs[]' and 'comp_rd_buffer' are used in inter frames
+  // to store intermediate inter mode prediction results and are not required
+  // for allintra encoding mode. Hence, the memory allocations for these buffers
+  // are avoided for allintra encoding mode.
   if (cpi->oxcf.kf_cfg.key_freq_max != 0) {
+    if (x->comp_rd_buffer.pred0 == NULL)
+      alloc_compound_type_rd_buffers(cm->error, &x->comp_rd_buffer);
+
     for (int i = 0; i < 2; ++i) {
       if (x->tmp_pred_bufs[i] == NULL) {
         CHECK_MEM_ERROR(cm, x->tmp_pred_bufs[i],
@@ -1352,7 +1352,11 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
   }
 #endif
 
-  alloc_obmc_buffers(&cpi->td.mb.obmc_buffer, cm->error);
+  // The buffer "obmc_buffer" is used in inter frames for fast obmc search.
+  // Hence, the memory allocation for the same is avoided for allintra encoding
+  // mode.
+  if (cpi->oxcf.kf_cfg.key_freq_max != 0)
+    alloc_obmc_buffers(&cpi->td.mb.obmc_buffer, cm->error);
 
   for (int x = 0; x < 2; x++)
     for (int y = 0; y < 2; y++)

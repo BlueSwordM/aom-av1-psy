@@ -722,8 +722,6 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
         // Set up sms_tree.
         av1_setup_sms_tree(ppi->cpi, thread_data->td);
 
-        alloc_obmc_buffers(&thread_data->td->obmc_buffer, &ppi->error);
-
         for (int x = 0; x < 2; x++)
           for (int y = 0; y < 2; y++)
             AOM_CHECK_MEM_ERROR(
@@ -741,13 +739,17 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
             &ppi->error, thread_data->td->palette_buffer,
             aom_memalign(16, sizeof(*thread_data->td->palette_buffer)));
 
-        alloc_compound_type_rd_buffers(&ppi->error,
-                                       &thread_data->td->comp_rd_buffer);
-
-        // The buffers 'tmp_pred_bufs[]' are used in inter frames to store
-        // temporary prediction results. Hence, the memory allocation is avoided
-        // for allintra encode.
+        // The buffers 'tmp_pred_bufs[]', 'comp_rd_buffer' and 'obmc_buffer' are
+        // used in inter frames to store intermediate inter mode prediction
+        // results and are not required for allintra encoding mode. Hence, the
+        // memory allocations for these buffers are avoided for allintra
+        // encoding mode.
         if (ppi->cpi->oxcf.kf_cfg.key_freq_max != 0) {
+          alloc_obmc_buffers(&thread_data->td->obmc_buffer, &ppi->error);
+
+          alloc_compound_type_rd_buffers(&ppi->error,
+                                         &thread_data->td->comp_rd_buffer);
+
           for (int j = 0; j < 2; ++j) {
             AOM_CHECK_MEM_ERROR(
                 &ppi->error, thread_data->td->tmp_pred_bufs[j],
