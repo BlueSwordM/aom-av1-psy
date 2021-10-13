@@ -129,7 +129,7 @@ static INLINE void calculate_dqcoeff_lp_and_store(const int16x8_t qcoeff,
   vst1q_s16(dqcoeff, vcombine_s16(vmovn_s32(dqcoeff_0), vmovn_s32(dqcoeff_1)));
 }
 
-void av1_quantize_lp_neon(const int16_t *coeff_ptr, intptr_t count,
+void av1_quantize_lp_neon(const int16_t *coeff_ptr, intptr_t n_coeffs,
                           const int16_t *round_ptr, const int16_t *quant_ptr,
                           int16_t *qcoeff_ptr, int16_t *dqcoeff_ptr,
                           const int16_t *dequant_ptr, uint16_t *eob_ptr,
@@ -174,7 +174,7 @@ void av1_quantize_lp_neon(const int16_t *coeff_ptr, intptr_t count,
     v_dequant = vmovq_n_s16(dequant_ptr[1]);
   }
   // now process the rest of the ac coeffs
-  for (int i = 8; i < count; i += 8) {
+  for (int i = 8; i < n_coeffs; i += 8) {
     const int16x8_t v_iscan = vld1q_s16(&iscan[i]);
     const int16x8_t v_coeff = vld1q_s16(coeff_ptr + i);
     const int16x8_t v_coeff_sign = vshrq_n_s16(v_coeff, 15);
