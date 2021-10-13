@@ -1309,6 +1309,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Intermediate termination of newMV mode evaluation based on so far best mode
   // sse
   int skip_newmv_mode_based_on_sse;
+
+  // Define gf length multiplier.
+  // Level 0: use large multiplier, level 1: use medium multiplier.
+  int gf_length_lvl;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */
