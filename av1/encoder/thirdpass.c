@@ -178,6 +178,9 @@ static int get_frame_info(THIRD_PASS_DEC_CTX *ctx) {
   return 0;
 }
 
+#define USE_SECOND_PASS_FILE 1
+
+#if !USE_SECOND_PASS_FILE
 // Parse the frames in the gop and determine the last frame of the current GOP.
 // Decode more frames if necessary. The variable max_num is the maximum static
 // GOP length if we detect an IPPP structure, and it is expected that max_mum >=
@@ -247,25 +250,39 @@ static void get_current_gop_end(THIRD_PASS_DEC_CTX *ctx, int max_num,
   *last_idx = max_num - 1;
   return;
 }
+#endif
 
-void av1_set_gop_third_pass(THIRD_PASS_DEC_CTX *ctx, GF_GROUP *gf_group,
-                            int order_hint_bits, int *gf_len) {
-  // Read in future frames and find the last frame in the current GOP.
-  int last_idx;
-  get_current_gop_end(ctx, MAX_GF_INTERVAL, &last_idx);
-
-  // Determine the GOP length.
-  // TODO(bohanli): Define and set the GOP structure here. Then we also
-  // dont't need to store prev_gop_end here.
-  (void)gf_group;
-  if (last_idx < 0) {
-    aom_internal_error(ctx->err_info, AOM_CODEC_ERROR,
-                       "Failed to derive GOP length.");
+static AOM_INLINE void read_gop_frames(THIRD_PASS_DEC_CTX *ctx) {
+  int cur_idx = 0;
+  while (cur_idx < ctx->gop_info.num_frames) {
+    assert(cur_idx < MAX_THIRD_PASS_BUF);
+    // Read in from bitstream if needed.
+    if (cur_idx >= ctx->frame_info_count) {
+      int ret = get_frame_info(ctx);
+      if (ret != 0) {
+        aom_internal_error(ctx->err_info, AOM_CODEC_ERROR,
+                           "Failed to read frame for third pass.");
+      }
+    }
+    cur_idx++;
   }
-  *gf_len = ctx->frame_info[last_idx].order_hint - ctx->prev_gop_end;
-  *gf_len = (*gf_len + (1 << order_hint_bits)) % (1 << order_hint_bits);
+  return;
+}
 
-  ctx->prev_gop_end = ctx->frame_info[last_idx].order_hint;
+void av1_set_gop_third_pass(THIRD_PASS_DEC_CTX *ctx) {
+  // Read in future frames in the current GOP.
+  read_gop_frames(ctx);
+
+  int gf_len = 0;
+  // Check the GOP length against the value read from second_pass_file
+  for (int i = 0; i < ctx->gop_info.num_frames; i++) {
+    if (ctx->frame_info[i].is_show_frame) gf_len++;
+  }
+
+  if (gf_len != ctx->gop_info.gf_length) {
+    aom_internal_error(ctx->err_info, AOM_CODEC_ERROR,
+                       "Mismatch in third pass GOP length!");
+  }
 }
 
 void av1_pop_third_pass_info(THIRD_PASS_DEC_CTX *ctx) {

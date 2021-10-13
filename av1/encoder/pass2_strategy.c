@@ -3614,22 +3614,22 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
     int need_gf_len = 1;
     if (cpi->third_pass_ctx && oxcf->pass == AOM_RC_THIRD_PASS) {
+      // set up bitstream to read
       if (!cpi->third_pass_ctx->input_file_name && oxcf->two_pass_output) {
         cpi->third_pass_ctx->input_file_name = oxcf->two_pass_output;
       }
-      if (cpi->third_pass_ctx->input_file_name) {
-        int gf_len;
-        const int order_hint_bits =
-            cpi->common.seq_params->order_hint_info.order_hint_bits_minus_1 + 1;
-        av1_set_gop_third_pass(cpi->third_pass_ctx, gf_group, order_hint_bits,
-                               &gf_len);
-        p_rc->cur_gf_index = 0;
-        p_rc->gf_intervals[0] = gf_len;
-        need_gf_len = 0;
-      }
+      // Read in GOP information from the second pass file.
+      av1_read_second_pass_gop_info(cpi, &cpi->third_pass_ctx->gop_info);
+      // Read in third_pass_info from the bitstream.
+      av1_set_gop_third_pass(cpi->third_pass_ctx);
+
+      p_rc->cur_gf_index = 0;
+      p_rc->gf_intervals[0] = cpi->third_pass_ctx->gop_info.gf_length;
+      need_gf_len = 0;
     }
 
     if (need_gf_len) {
+      // If we cannot obtain GF group length from second_pass_file
       // TODO(jingning): Resolve the redundant calls here.
       if (rc->intervals_till_gf_calculate_due == 0 || 1) {
         calculate_gf_length(cpi, max_gop_length, MAX_NUM_GF_INTERVALS);

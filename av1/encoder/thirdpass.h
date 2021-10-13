@@ -22,7 +22,8 @@ extern "C" {
 struct AV1_COMP;
 
 // TODO(bohanli): optimize this number
-#define MAX_THIRD_PASS_BUF (2 * MAX_GF_INTERVAL + 1)
+#define MAX_THIRD_PASS_BUF \
+  (AOMMAX((2 * MAX_GF_INTERVAL + 1), MAX_STATIC_GF_GROUP_LENGTH))
 
 // Struct to store useful information related to a GOP, in addition to what is
 // available in the bitstream
@@ -86,8 +87,7 @@ void av1_free_thirdpass_ctx(THIRD_PASS_DEC_CTX *ctx);
 // TODO(bohanli): this is currently a skeleton and we only return the gop
 // length. This function also saves all frame information in the array
 // ctx->frame_info for this GOP.
-void av1_set_gop_third_pass(THIRD_PASS_DEC_CTX *ctx, GF_GROUP *gf_group,
-                            int order_hint_bits, int *gf_len);
+void av1_set_gop_third_pass(THIRD_PASS_DEC_CTX *ctx);
 
 // Pop one frame out of the array ctx->frame_info. This function is used to make
 // sure that frame_info[0] always corresponds to the current frame.
