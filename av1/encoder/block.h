@@ -248,10 +248,11 @@ typedef struct {
   uint32_t hash_value;
 } MB_RD_INFO;
 
-/*! \brief Hash records of txfm search results for the partition block.
+/*! \brief Hash records of inter-mode txfm results for the
+ *  whole partition block.
  */
 typedef struct {
-  //! Circular buffer that stores the txfm search results.
+  //! Circular buffer that stores the inter-mode txfm results.
   MB_RD_INFO tx_rd_info[RD_RECORD_BUFFER_LEN];
   //! Index to insert the newest rd record.
   int index_start;
@@ -442,28 +443,6 @@ typedef struct {
 #define MAX_NUM_64X64_TXBS ((MAX_MIB_SIZE >> 4) * (MAX_MIB_SIZE >> 4))
 /*!\endcond */
 
-/*! \brief Txfm hash records
- *
- * Hash records of the transform search results based on the residue. There
- * are two main types here:
- * - MB_RD_RECORD: records a whole *partition block*'s inter-mode txfm result.
- *   Since this operates on the partition block level, this can give us a
- *   whole txfm partition tree.
- * - TXB_RD_RECORD: records a txfm search result within a transform block
- *   itself. This operates on txb level only and only applies to square
- *   txfms.
- */
-typedef struct {
-  /*****************************************************************************
-   * \name TXB RD Record
-   ****************************************************************************/
-  /**@{*/
-  //! Txfm hash record for the whole coding block.
-  MB_RD_RECORD mb_rd_record;
-
-  /**@}*/
-} TxbRdRecords;
-
 /*! \brief Stores various encoding/search decisions related to txfm search.
  *
  * This struct contains a cache of previous txfm results, and some buffers for
@@ -493,18 +472,13 @@ typedef struct {
    */
   uint8_t tx_type_map_[MAX_MIB_SIZE * MAX_MIB_SIZE];
 
-  /*! \brief Txfm hash records
+  /*! \brief Txfm hash records of inter-modes
    *
-   * Hash records of the transform search results based on the residue. There
-   * are two main types here:
-   * - MB_RD_RECORD: records a whole *partition block*'s inter-mode txfm result.
-   *   Since this operates on the partition block level, this can give us a
-   *   whole txfm partition tree.
-   * - TXB_RD_RECORD: records a txfm search result within a transform block
-   *   itself. This operates on txb level only and only applies to square
-   *   txfms.
+   * This records a whole *partition block*'s inter-mode txfm result.
+   * Since this operates on the partition block level, this can give us a
+   * whole txfm partition tree.
    */
-  TxbRdRecords *txb_rd_records;
+  MB_RD_RECORD *mb_rd_record;
 
   /*! \brief Number of txb splits.
    *

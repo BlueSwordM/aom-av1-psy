@@ -474,7 +474,6 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
   const SPEED_FEATURES *sf = &cpi->sf;
   const WinnerModeParams *winner_mode_params = &cpi->winner_mode_params;
   TxfmSearchParams *txfm_params = &x->txfm_search_params;
-  TxfmSearchInfo *txfm_info = &x->txfm_search_info;
 
   switch (mode_eval_type) {
     case DEFAULT_EVAL:
@@ -553,7 +552,7 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
       set_tx_type_prune(sf, txfm_params,
                         sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning,
                         1);
-      reset_hash_records(txfm_info);
+      reset_mb_rd_record(x->txfm_search_info.mb_rd_record);
       break;
     default: assert(0);
   }
