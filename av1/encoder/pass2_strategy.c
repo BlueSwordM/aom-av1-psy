@@ -2178,8 +2178,192 @@ static void init_gf_stats(GF_GROUP_STATS *gf_stats) {
   gf_stats->non_zero_stdev_count = 0;
 }
 
-// Analyse and define a gf/arf group.
+static void accumulate_gop_stats(AV1_COMP *cpi, int is_intra_only, int f_w,
+                                 int f_h, FIRSTPASS_STATS *next_frame,
+                                 const FIRSTPASS_STATS *start_pos,
+                                 GF_GROUP_STATS *gf_stats, int *idx) {
+  int i, flash_detected;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
+  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
+  RATE_CONTROL *const rc = &cpi->rc;
+  FRAME_INFO *frame_info = &cpi->frame_info;
+  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+
+  init_gf_stats(gf_stats);
+  av1_zero(*next_frame);
+
+  // If this is a key frame or the overlay from a previous arf then
+  // the error score / cost of this frame has already been accounted for.
+  i = is_intra_only;
+  // get the determined gf group length from p_rc->gf_intervals
+  while (i < p_rc->gf_intervals[p_rc->cur_gf_index]) {
+    // read in the next frame
+    if (EOF == input_stats(twopass, &cpi->twopass_frame, next_frame)) break;
+    // Accumulate error score of frames in this gf group.
+    double mod_frame_err =
+        calculate_modified_err(frame_info, twopass, oxcf, next_frame);
+    // accumulate stats for this frame
+    accumulate_this_frame_stats(next_frame, mod_frame_err, gf_stats);
+    ++i;
+  }
+
+  reset_fpf_position(&cpi->twopass_frame, start_pos);
+
+  i = is_intra_only;
+  input_stats(twopass, &cpi->twopass_frame, next_frame);
+  while (i < p_rc->gf_intervals[p_rc->cur_gf_index]) {
+    // read in the next frame
+    if (EOF == input_stats(twopass, &cpi->twopass_frame, next_frame)) break;
+
+    // Test for the case where there is a brief flash but the prediction
+    // quality back to an earlier frame is then restored.
+    flash_detected = detect_flash(twopass, &cpi->twopass_frame, 0);
+
+    // accumulate stats for next frame
+    accumulate_next_frame_stats(next_frame, flash_detected,
+                                rc->frames_since_key, i, gf_stats, f_w, f_h);
+
+    ++i;
+  }
+
+  i = p_rc->gf_intervals[p_rc->cur_gf_index];
+  average_gf_stats(i, gf_stats);
+
+  *idx = i;
+}
+
+static void update_gop_length(RATE_CONTROL *rc, PRIMARY_RATE_CONTROL *p_rc,
+                              int idx, int is_final_pass) {
+  if (is_final_pass) {
+    rc->intervals_till_gf_calculate_due--;
+    p_rc->cur_gf_index++;
+  }
+
+  // Was the group length constrained by the requirement for a new KF?
+  p_rc->constrained_gf_group = (idx >= rc->frames_to_key) ? 1 : 0;
+
+  set_baseline_gf_interval(p_rc, idx);
+  rc->frames_till_gf_update_due = p_rc->baseline_gf_interval;
+}
+
 #define MAX_GF_BOOST 5400
+#define REDUCE_GF_LENGTH_THRESH 4
+#define REDUCE_GF_LENGTH_TO_KEY_THRESH 9
+#define REDUCE_GF_LENGTH_BY 1
+static void set_gop_bits_boost(AV1_COMP *cpi, int i, int is_intra_only,
+                               int is_final_pass, int use_alt_ref,
+                               int alt_offset, const FIRSTPASS_STATS *start_pos,
+                               GF_GROUP_STATS *gf_stats) {
+  // Should we use the alternate reference frame.
+  AV1_COMMON *const cm = &cpi->common;
+  RATE_CONTROL *const rc = &cpi->rc;
+  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
+  GF_GROUP *gf_group = &cpi->ppi->gf_group;
+  FRAME_INFO *frame_info = &cpi->frame_info;
+  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+  const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
+
+  int ext_len = i - is_intra_only;
+  if (use_alt_ref) {
+    const int forward_frames = (rc->frames_to_key - i >= ext_len)
+                                   ? ext_len
+                                   : AOMMAX(0, rc->frames_to_key - i);
+
+    // Calculate the boost for alt ref.
+    p_rc->gfu_boost = av1_calc_arf_boost(
+        twopass, &cpi->twopass_frame, p_rc, frame_info, alt_offset,
+        forward_frames, ext_len, &p_rc->num_stats_used_for_gfu_boost,
+        &p_rc->num_stats_required_for_gfu_boost, cpi->ppi->lap_enabled);
+  } else {
+    reset_fpf_position(&cpi->twopass_frame, start_pos);
+    p_rc->gfu_boost = AOMMIN(
+        MAX_GF_BOOST,
+        av1_calc_arf_boost(
+            twopass, &cpi->twopass_frame, p_rc, frame_info, alt_offset, ext_len,
+            0, &p_rc->num_stats_used_for_gfu_boost,
+            &p_rc->num_stats_required_for_gfu_boost, cpi->ppi->lap_enabled));
+  }
+
+#define LAST_ALR_BOOST_FACTOR 0.2f
+  p_rc->arf_boost_factor = 1.0;
+  if (use_alt_ref && !is_lossless_requested(rc_cfg)) {
+    // Reduce the boost of altref in the last gf group
+    if (rc->frames_to_key - ext_len == REDUCE_GF_LENGTH_BY ||
+        rc->frames_to_key - ext_len == 0) {
+      p_rc->arf_boost_factor = LAST_ALR_BOOST_FACTOR;
+    }
+  }
+
+  // Reset the file position.
+  reset_fpf_position(&cpi->twopass_frame, start_pos);
+  if (cpi->ppi->lap_enabled) {
+    // Since we don't have enough stats to know the actual error of the
+    // gf group, we assume error of each frame to be equal to 1 and set
+    // the error of the group as baseline_gf_interval.
+    gf_stats->gf_group_err = p_rc->baseline_gf_interval;
+  }
+  // Calculate the bits to be allocated to the gf/arf group as a whole
+  p_rc->gf_group_bits =
+      calculate_total_gf_group_bits(cpi, gf_stats->gf_group_err);
+
+#if GROUP_ADAPTIVE_MAXQ
+  // Calculate an estimate of the maxq needed for the group.
+  // We are more agressive about correcting for sections
+  // where there could be significant overshoot than for easier
+  // sections where we do not wish to risk creating an overshoot
+  // of the allocated bit budget.
+  if ((rc_cfg->mode != AOM_Q) && (p_rc->baseline_gf_interval > 1) &&
+      is_final_pass) {
+    const int vbr_group_bits_per_frame =
+        (int)(p_rc->gf_group_bits / p_rc->baseline_gf_interval);
+    const double group_av_err =
+        gf_stats->gf_group_raw_error / p_rc->baseline_gf_interval;
+    const double group_av_skip_pct =
+        gf_stats->gf_group_skip_pct / p_rc->baseline_gf_interval;
+    const double group_av_inactive_zone =
+        ((gf_stats->gf_group_inactive_zone_rows * 2) /
+         (p_rc->baseline_gf_interval * (double)cm->mi_params.mb_rows));
+
+    int tmp_q;
+    tmp_q = get_twopass_worst_quality(
+        cpi, group_av_err, (group_av_skip_pct + group_av_inactive_zone),
+        vbr_group_bits_per_frame);
+    rc->active_worst_quality = AOMMAX(tmp_q, rc->active_worst_quality >> 1);
+  }
+#endif
+
+  // Adjust KF group bits and error remaining.
+  if (is_final_pass) twopass->kf_group_error_left -= gf_stats->gf_group_err;
+
+  // Reset the file position.
+  reset_fpf_position(&cpi->twopass_frame, start_pos);
+
+  // Calculate a section intra ratio used in setting max loop filter.
+  if (rc->frames_since_key != 0) {
+    twopass->section_intra_rating = calculate_section_intra_ratio(
+        start_pos, twopass->stats_buf_ctx->stats_in_end,
+        p_rc->baseline_gf_interval);
+  }
+
+  av1_gop_bit_allocation(cpi, rc, gf_group, rc->frames_since_key == 0,
+                         use_alt_ref, p_rc->gf_group_bits);
+
+  // TODO(jingning): Generalize this condition.
+  if (is_final_pass) {
+    cpi->ppi->gf_state.arf_gf_boost_lst = use_alt_ref;
+
+    // Reset rolling actual and target bits counters for ARF groups.
+    twopass->rolling_arf_group_target_bits = 1;
+    twopass->rolling_arf_group_actual_bits = 1;
+  }
+#if CONFIG_BITRATE_ACCURACY
+  if (is_final_pass) {
+    vbr_rc_set_gop_bit_budget(&cpi->vbr_rc_info, p_rc->baseline_gf_interval);
+  }
+#endif
+}
+
 /*!\brief Define a GF group.
  *
  * \ingroup gf_group_algo
@@ -2203,14 +2387,11 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
   FIRSTPASS_STATS next_frame;
   const FIRSTPASS_STATS *const start_pos = cpi->twopass_frame.stats_in;
   GF_GROUP *gf_group = &cpi->ppi->gf_group;
-  FRAME_INFO *frame_info = &cpi->frame_info;
   const GFConfig *const gf_cfg = &oxcf->gf_cfg;
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   const int f_w = cm->width;
   const int f_h = cm->height;
   int i;
-  int flash_detected;
-  int64_t gf_group_bits;
   const int is_intra_only = rc->frames_since_key == 0;
 
   cpi->ppi->internal_altref_allowed = (gf_cfg->gf_max_pyr_height > 1);
@@ -2221,8 +2402,6 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
     av1_zero(cpi->ppi->gf_group);
     cpi->gf_frame_index = 0;
   }
-
-  av1_zero(next_frame);
 
   if (has_no_stats_stage(cpi)) {
     define_gf_group_pass0(cpi);
@@ -2235,57 +2414,14 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
   }
 
   GF_GROUP_STATS gf_stats;
-  init_gf_stats(&gf_stats);
+  accumulate_gop_stats(cpi, is_intra_only, f_w, f_h, &next_frame, start_pos,
+                       &gf_stats, &i);
 
   const int can_disable_arf = !gf_cfg->gf_min_pyr_height;
 
   // If this is a key frame or the overlay from a previous arf then
   // the error score / cost of this frame has already been accounted for.
   const int active_min_gf_interval = rc->min_gf_interval;
-
-  i = is_intra_only;
-  // get the determined gf group length from p_rc->gf_intervals
-  while (i < p_rc->gf_intervals[p_rc->cur_gf_index]) {
-    // read in the next frame
-    if (EOF == input_stats(twopass, &cpi->twopass_frame, &next_frame)) break;
-    // Accumulate error score of frames in this gf group.
-    double mod_frame_err =
-        calculate_modified_err(frame_info, twopass, oxcf, &next_frame);
-    // accumulate stats for this frame
-    accumulate_this_frame_stats(&next_frame, mod_frame_err, &gf_stats);
-    ++i;
-  }
-
-  reset_fpf_position(&cpi->twopass_frame, start_pos);
-
-  i = is_intra_only;
-  input_stats(twopass, &cpi->twopass_frame, &next_frame);
-  while (i < p_rc->gf_intervals[p_rc->cur_gf_index]) {
-    // read in the next frame
-    if (EOF == input_stats(twopass, &cpi->twopass_frame, &next_frame)) break;
-
-    // Test for the case where there is a brief flash but the prediction
-    // quality back to an earlier frame is then restored.
-    flash_detected = detect_flash(twopass, &cpi->twopass_frame, 0);
-
-    // accumulate stats for next frame
-    accumulate_next_frame_stats(&next_frame, flash_detected,
-                                rc->frames_since_key, i, &gf_stats, f_w, f_h);
-
-    ++i;
-  }
-
-  i = p_rc->gf_intervals[p_rc->cur_gf_index];
-
-  if (is_final_pass) {
-    rc->intervals_till_gf_calculate_due--;
-    p_rc->cur_gf_index++;
-  }
-
-  // Was the group length constrained by the requirement for a new KF?
-  p_rc->constrained_gf_group = (i >= rc->frames_to_key) ? 1 : 0;
-
-  average_gf_stats(i, &gf_stats);
 
   // Disable internal ARFs for "still" gf groups.
   //   zero_motion_accumulator: minimum percentage of (0,0) motion;
@@ -2311,10 +2447,12 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
     use_alt_ref = p_rc->use_arf_in_this_kf_group &&
                   (i < gf_cfg->lag_in_frames) && (i > 2);
   }
+  if (use_alt_ref) {
+    gf_group->max_layer_depth_allowed = gf_cfg->gf_max_pyr_height;
+  } else {
+    gf_group->max_layer_depth_allowed = 0;
+  }
 
-#define REDUCE_GF_LENGTH_THRESH 4
-#define REDUCE_GF_LENGTH_TO_KEY_THRESH 9
-#define REDUCE_GF_LENGTH_BY 1
   int alt_offset = 0;
   // The length reduction strategy is tweaked for certain cases, and doesn't
   // work well for certain other cases.
@@ -2350,123 +2488,19 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
     }
   }
 
-  // Should we use the alternate reference frame.
-  int ext_len = i - is_intra_only;
-  if (use_alt_ref) {
-    gf_group->max_layer_depth_allowed = gf_cfg->gf_max_pyr_height;
-    set_baseline_gf_interval(&cpi->ppi->p_rc, i);
-
-    const int forward_frames = (rc->frames_to_key - i >= ext_len)
-                                   ? ext_len
-                                   : AOMMAX(0, rc->frames_to_key - i);
-
-    // Calculate the boost for alt ref.
-    p_rc->gfu_boost = av1_calc_arf_boost(
-        twopass, &cpi->twopass_frame, p_rc, frame_info, alt_offset,
-        forward_frames, ext_len, &p_rc->num_stats_used_for_gfu_boost,
-        &p_rc->num_stats_required_for_gfu_boost, cpi->ppi->lap_enabled);
-  } else {
-    reset_fpf_position(&cpi->twopass_frame, start_pos);
-    gf_group->max_layer_depth_allowed = 0;
-    set_baseline_gf_interval(&cpi->ppi->p_rc, i);
-
-    p_rc->gfu_boost = AOMMIN(
-        MAX_GF_BOOST,
-        av1_calc_arf_boost(
-            twopass, &cpi->twopass_frame, p_rc, frame_info, alt_offset, ext_len,
-            0, &p_rc->num_stats_used_for_gfu_boost,
-            &p_rc->num_stats_required_for_gfu_boost, cpi->ppi->lap_enabled));
-  }
-
-#define LAST_ALR_BOOST_FACTOR 0.2f
-  p_rc->arf_boost_factor = 1.0;
-  if (use_alt_ref && !is_lossless_requested(rc_cfg)) {
-    // Reduce the boost of altref in the last gf group
-    if (rc->frames_to_key - ext_len == REDUCE_GF_LENGTH_BY ||
-        rc->frames_to_key - ext_len == 0) {
-      p_rc->arf_boost_factor = LAST_ALR_BOOST_FACTOR;
-    }
-  }
-
-  rc->frames_till_gf_update_due = p_rc->baseline_gf_interval;
-
-  // Reset the file position.
-  reset_fpf_position(&cpi->twopass_frame, start_pos);
-
-  if (cpi->ppi->lap_enabled) {
-    // Since we don't have enough stats to know the actual error of the
-    // gf group, we assume error of each frame to be equal to 1 and set
-    // the error of the group as baseline_gf_interval.
-    gf_stats.gf_group_err = p_rc->baseline_gf_interval;
-  }
-  // Calculate the bits to be allocated to the gf/arf group as a whole
-  gf_group_bits = calculate_total_gf_group_bits(cpi, gf_stats.gf_group_err);
-  p_rc->gf_group_bits = gf_group_bits;
-
-#if GROUP_ADAPTIVE_MAXQ
-  // Calculate an estimate of the maxq needed for the group.
-  // We are more agressive about correcting for sections
-  // where there could be significant overshoot than for easier
-  // sections where we do not wish to risk creating an overshoot
-  // of the allocated bit budget.
-  if ((rc_cfg->mode != AOM_Q) && (p_rc->baseline_gf_interval > 1) &&
-      is_final_pass) {
-    const int vbr_group_bits_per_frame =
-        (int)(gf_group_bits / p_rc->baseline_gf_interval);
-    const double group_av_err =
-        gf_stats.gf_group_raw_error / p_rc->baseline_gf_interval;
-    const double group_av_skip_pct =
-        gf_stats.gf_group_skip_pct / p_rc->baseline_gf_interval;
-    const double group_av_inactive_zone =
-        ((gf_stats.gf_group_inactive_zone_rows * 2) /
-         (p_rc->baseline_gf_interval * (double)cm->mi_params.mb_rows));
-
-    int tmp_q;
-    tmp_q = get_twopass_worst_quality(
-        cpi, group_av_err, (group_av_skip_pct + group_av_inactive_zone),
-        vbr_group_bits_per_frame);
-    rc->active_worst_quality = AOMMAX(tmp_q, rc->active_worst_quality >> 1);
-  }
-#endif
-
-  // Adjust KF group bits and error remaining.
-  if (is_final_pass) twopass->kf_group_error_left -= gf_stats.gf_group_err;
+  update_gop_length(rc, p_rc, i, is_final_pass);
 
   // Set up the structure of this Group-Of-Pictures (same as GF_GROUP)
   av1_gop_setup_structure(cpi);
 
-  // Reset the file position.
-  reset_fpf_position(&cpi->twopass_frame, start_pos);
-
-  // Calculate a section intra ratio used in setting max loop filter.
-  if (rc->frames_since_key != 0) {
-    twopass->section_intra_rating = calculate_section_intra_ratio(
-        start_pos, twopass->stats_buf_ctx->stats_in_end,
-        p_rc->baseline_gf_interval);
-  }
-
-  av1_gop_bit_allocation(cpi, rc, gf_group, rc->frames_since_key == 0,
-                         use_alt_ref, gf_group_bits);
+  set_gop_bits_boost(cpi, i, is_intra_only, is_final_pass, use_alt_ref,
+                     alt_offset, start_pos, &gf_stats);
 
   frame_params->frame_type =
       rc->frames_since_key == 0 ? KEY_FRAME : INTER_FRAME;
   frame_params->show_frame =
       !(gf_group->update_type[cpi->gf_frame_index] == ARF_UPDATE ||
         gf_group->update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE);
-
-  // TODO(jingning): Generalize this condition.
-  if (is_final_pass) {
-    cpi->ppi->gf_state.arf_gf_boost_lst = use_alt_ref;
-
-    // Reset rolling actual and target bits counters for ARF groups.
-    twopass->rolling_arf_group_target_bits = 1;
-    twopass->rolling_arf_group_actual_bits = 1;
-  }
-#if CONFIG_BITRATE_ACCURACY
-  if (is_final_pass) {
-    vbr_rc_set_gop_bit_budget(&cpi->vbr_rc_info, p_rc->baseline_gf_interval);
-  }
-#endif
 }
 
 // #define FIXED_ARF_BITS
