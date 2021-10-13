@@ -100,6 +100,8 @@ void av1_write_second_pass_gop_info(struct AV1_COMP *cpi);
 void av1_read_second_pass_gop_info(struct AV1_COMP *cpi,
                                    THIRD_PASS_GOP_INFO *gop_info);
 
+int av1_check_use_arf(THIRD_PASS_DEC_CTX *ctx);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -43,6 +43,8 @@
 #define GROUP_ADAPTIVE_MAXQ 1
 
 static void init_gf_stats(GF_GROUP_STATS *gf_stats);
+static int define_gf_group_pass3(AV1_COMP *cpi, EncodeFrameParams *frame_params,
+                                 int is_final_pass);
 
 // Calculate an active area of the image that discounts formatting
 // bars and partially discounts other 0 energy areas.
@@ -2397,6 +2399,14 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
     return;
   }
 
+  if (cpi->third_pass_ctx && oxcf->pass == AOM_RC_THIRD_PASS) {
+    int ret = define_gf_group_pass3(cpi, frame_params, is_final_pass);
+    if (ret == 0) return;
+
+    av1_free_thirdpass_ctx(cpi->third_pass_ctx);
+    cpi->third_pass_ctx = NULL;
+  }
+
   // correct frames_to_key when lookahead queue is emptying
   if (cpi->ppi->lap_enabled) {
     correct_frames_to_key(cpi);
@@ -2490,6 +2500,79 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
   frame_params->show_frame =
       !(gf_group->update_type[cpi->gf_frame_index] == ARF_UPDATE ||
         gf_group->update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE);
+}
+
+/*!\brief Define a GF group for the third apss.
+ *
+ * \ingroup gf_group_algo
+ * This function defines the structure of a GF group for the third pass, along
+ * with various parameters regarding bit-allocation and quality setup based on
+ * the two-pass bitstream.
+ * Much of the function still uses the strategies used for the second pass and
+ * relies on first pass statistics. It is expected that over time these portions
+ * would be replaced with strategies specific to the third pass.
+ *
+ * \param[in]    cpi             Top-level encoder structure
+ * \param[in]    frame_params    Structure with frame parameters
+ * \param[in]    is_final_pass   Whether this is the final pass for the
+ *                               GF group, or a trial (non-zero)
+ *
+ * \return       0: Success;
+ *              -1: There are conflicts between the bitstream and current config
+ *               The values in cpi->ppi->gf_group are also changed.
+ */
+static int define_gf_group_pass3(AV1_COMP *cpi, EncodeFrameParams *frame_params,
+                                 int is_final_pass) {
+  if (!cpi->third_pass_ctx) return -1;
+  AV1_COMMON *const cm = &cpi->common;
+  RATE_CONTROL *const rc = &cpi->rc;
+  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
+  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+  FIRSTPASS_STATS next_frame;
+  const FIRSTPASS_STATS *const start_pos = cpi->twopass_frame.stats_in;
+  GF_GROUP *gf_group = &cpi->ppi->gf_group;
+  const GFConfig *const gf_cfg = &oxcf->gf_cfg;
+  const int f_w = cm->width;
+  const int f_h = cm->height;
+  int i;
+  const int is_intra_only = rc->frames_since_key == 0;
+
+  cpi->ppi->internal_altref_allowed = (gf_cfg->gf_max_pyr_height > 1);
+
+  // Reset the GF group data structures unless this is a key
+  // frame in which case it will already have been done.
+  if (!is_intra_only) {
+    av1_zero(cpi->ppi->gf_group);
+    cpi->gf_frame_index = 0;
+  }
+
+  GF_GROUP_STATS gf_stats;
+  accumulate_gop_stats(cpi, is_intra_only, f_w, f_h, &next_frame, start_pos,
+                       &gf_stats, &i);
+
+  const int can_disable_arf = !gf_cfg->gf_min_pyr_height;
+
+  // TODO(any): set cpi->ppi->internal_altref_allowed accordingly;
+
+  int use_alt_ref = av1_check_use_arf(cpi->third_pass_ctx);
+  if (use_alt_ref == 0 && !can_disable_arf) return -1;
+  if (use_alt_ref) {
+    gf_group->max_layer_depth_allowed = gf_cfg->gf_max_pyr_height;
+  } else {
+    gf_group->max_layer_depth_allowed = 0;
+  }
+
+  update_gop_length(rc, p_rc, i, is_final_pass);
+
+  // Set up the structure of this Group-Of-Pictures (same as GF_GROUP)
+  av1_gop_setup_structure(cpi);
+
+  set_gop_bits_boost(cpi, i, is_intra_only, is_final_pass, use_alt_ref, 0,
+                     start_pos, &gf_stats);
+
+  frame_params->frame_type = cpi->third_pass_ctx->frame_info[0].frame_type;
+  frame_params->show_frame = cpi->third_pass_ctx->frame_info[0].is_show_frame;
+  return 0;
 }
 
 // #define FIXED_ARF_BITS

@@ -376,3 +376,19 @@ void av1_read_second_pass_gop_info(AV1_COMP *cpi,
     }
   }
 }
+
+int av1_check_use_arf(THIRD_PASS_DEC_CTX *ctx) {
+  if (ctx == NULL) return -1;
+  int use_arf = 0;
+  for (int i = 0; i < ctx->gop_info.gf_length; i++) {
+    if (ctx->frame_info[i].order_hint != 0 &&
+        ctx->frame_info[i].is_show_frame == 0) {
+      use_arf = 1;
+    }
+  }
+  if (use_arf != ctx->gop_info.use_arf) {
+    aom_internal_error(ctx->err_info, AOM_CODEC_ERROR,
+                       "Mismatch in third pass GOP length!");
+  }
+  return use_arf;
+}
