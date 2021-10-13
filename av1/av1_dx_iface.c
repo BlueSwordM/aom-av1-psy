@@ -31,6 +31,7 @@
 
 #include "av1/decoder/decoder.h"
 #include "av1/decoder/decodeframe.h"
+#include "av1/decoder/grain_synthesis.h"
 #include "av1/decoder/obu.h"
 
 #include "av1/av1_iface_common.h"

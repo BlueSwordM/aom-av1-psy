@@ -47,7 +47,7 @@
 #include "aom_dsp/aom_dsp_common.h"
 
 #if CONFIG_AV1_DECODER
-#include "aom_dsp/grain_synthesis.h"
+#include "av1/decoder/grain_synthesis.h"
 #endif
 
 #include "aom_dsp/grain_table.h"
