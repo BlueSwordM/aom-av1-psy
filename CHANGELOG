@@ -1,4 +1,4 @@
-2021-10-11 v3.2.0
+2021-10-13 v3.2.0
   This release includes compression efficiency and perceptual quality
   improvements, speedup and memory optimizations, as well as some new
   features.
@@ -18,7 +18,7 @@
     * Improved real time mode for nonrd path (speed 7, 8, 9): BDrate
       gains of ~3-5%.
     * Rate control and RD adjustments based on ML research in VP9.
-      Modest impact for low resolution but ~0.5-1.0% for HD.
+      Gains of ~0.5-1.0% for HD.
 
   - Perceptual Quality Improvements
     * Added a new mode --deltaq-mode=3 to improve perceptual quality
