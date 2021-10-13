@@ -1403,11 +1403,13 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
     sf->rt_sf.mode_search_skip_flags |= FLAG_SKIP_INTRA_DIRMISMATCH;
     sf->rt_sf.num_inter_modes_for_tx_search = 5;
+    sf->rt_sf.prune_inter_modes_using_temp_var = 1;
     sf->rt_sf.skip_interp_filter_search = 1;
     sf->rt_sf.use_real_time_ref_set = 1;
     sf->rt_sf.use_simple_rd_model = 1;
     sf->rt_sf.prune_inter_modes_with_golden_ref = boosted ? 0 : 1;
-
+    // TODO(any): This sf could be removed.
+    sf->rt_sf.short_circuit_low_temp_var = 1;
     sf->rt_sf.check_scene_detection = 1;
     if (cm->current_frame.frame_type != KEY_FRAME &&
         cpi->oxcf.rc_cfg.mode == AOM_CBR)
@@ -1469,6 +1471,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
     sf->rt_sf.mode_search_skip_flags |= FLAG_SKIP_INTRA_DIRMISMATCH;
     sf->rt_sf.nonrd_prune_ref_frame_search = 1;
+    // This is for rd path only.
+    sf->rt_sf.prune_inter_modes_using_temp_var = 0;
     sf->rt_sf.reuse_inter_pred_nonrd = 0;
     sf->rt_sf.short_circuit_low_temp_var = 0;
     sf->rt_sf.skip_interp_filter_search = 0;
@@ -1850,6 +1854,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->skip_newmv_mode_based_on_sse = 0;
   rt_sf->gf_length_lvl = 0;
   rt_sf->prune_inter_modes_with_golden_ref = 0;
+  rt_sf->prune_inter_modes_using_temp_var = 0;
 }
 
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {

@@ -33,6 +33,7 @@
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/rdopt.h"
 #include "av1/encoder/reconinter_enc.h"
+#include "av1/encoder/var_based_part.h"
 
 extern int g_pick_inter_mode_cnt;
 /*!\cond */
@@ -66,10 +67,6 @@ typedef struct {
   InterpFilter filter_y;
 } INTER_FILTER;
 /*!\endcond */
-
-static const int pos_shift_16x16[4][4] = {
-  { 9, 10, 13, 14 }, { 11, 12, 15, 16 }, { 17, 18, 21, 22 }, { 19, 20, 23, 24 }
-};
 
 #define NUM_INTER_MODES_RT 9
 #define NUM_INTER_MODES_REDUCED 8
@@ -1336,128 +1333,6 @@ static void recheck_zeromv_after_denoising(
 }
 #endif  // CONFIG_AV1_TEMPORAL_DENOISING
 
-static INLINE int get_force_skip_low_temp_var_small_sb(uint8_t *variance_low,
-                                                       int mi_row, int mi_col,
-                                                       BLOCK_SIZE bsize) {
-  // Relative indices of MB inside the superblock.
-  const int mi_x = mi_row & 0xF;
-  const int mi_y = mi_col & 0xF;
-  // Relative indices of 16x16 block inside the superblock.
-  const int i = mi_x >> 2;
-  const int j = mi_y >> 2;
-  int force_skip_low_temp_var = 0;
-  // Set force_skip_low_temp_var based on the block size and block offset.
-  switch (bsize) {
-    case BLOCK_64X64: force_skip_low_temp_var = variance_low[0]; break;
-    case BLOCK_64X32:
-      if (!mi_y && !mi_x) {
-        force_skip_low_temp_var = variance_low[1];
-      } else if (!mi_y && mi_x) {
-        force_skip_low_temp_var = variance_low[2];
-      }
-      break;
-    case BLOCK_32X64:
-      if (!mi_y && !mi_x) {
-        force_skip_low_temp_var = variance_low[3];
-      } else if (mi_y && !mi_x) {
-        force_skip_low_temp_var = variance_low[4];
-      }
-      break;
-    case BLOCK_32X32:
-      if (!mi_y && !mi_x) {
-        force_skip_low_temp_var = variance_low[5];
-      } else if (mi_y && !mi_x) {
-        force_skip_low_temp_var = variance_low[6];
-      } else if (!mi_y && mi_x) {
-        force_skip_low_temp_var = variance_low[7];
-      } else if (mi_y && mi_x) {
-        force_skip_low_temp_var = variance_low[8];
-      }
-      break;
-    case BLOCK_32X16:
-    case BLOCK_16X32:
-    case BLOCK_16X16:
-      force_skip_low_temp_var = variance_low[pos_shift_16x16[i][j]];
-      break;
-    default: break;
-  }
-
-  return force_skip_low_temp_var;
-}
-
-static INLINE int get_force_skip_low_temp_var(uint8_t *variance_low, int mi_row,
-                                              int mi_col, BLOCK_SIZE bsize) {
-  int force_skip_low_temp_var = 0;
-  int x, y;
-  x = (mi_col & 0x1F) >> 4;
-  // y = (mi_row & 0x1F) >> 4;
-  // const int idx64 = (y << 1) + x;
-  y = (mi_row & 0x17) >> 3;
-  const int idx64 = y + x;
-
-  x = (mi_col & 0xF) >> 3;
-  // y = (mi_row & 0xF) >> 3;
-  // const int idx32 = (y << 1) + x;
-  y = (mi_row & 0xB) >> 2;
-  const int idx32 = y + x;
-
-  x = (mi_col & 0x7) >> 2;
-  // y = (mi_row & 0x7) >> 2;
-  // const int idx16 = (y << 1) + x;
-  y = (mi_row & 0x5) >> 1;
-  const int idx16 = y + x;
-  // Set force_skip_low_temp_var based on the block size and block offset.
-  switch (bsize) {
-    case BLOCK_128X128: force_skip_low_temp_var = variance_low[0]; break;
-    case BLOCK_128X64:
-      assert((mi_col & 0x1F) == 0);
-      force_skip_low_temp_var = variance_low[1 + ((mi_row & 0x1F) != 0)];
-      break;
-    case BLOCK_64X128:
-      assert((mi_row & 0x1F) == 0);
-      force_skip_low_temp_var = variance_low[3 + ((mi_col & 0x1F) != 0)];
-      break;
-    case BLOCK_64X64:
-      // Location of this 64x64 block inside the 128x128 superblock
-      force_skip_low_temp_var = variance_low[5 + idx64];
-      break;
-    case BLOCK_64X32:
-      x = (mi_col & 0x1F) >> 4;
-      y = (mi_row & 0x1F) >> 3;
-      /*
-      .---------------.---------------.
-      | x=0,y=0,idx=0 | x=0,y=0,idx=2 |
-      :---------------+---------------:
-      | x=0,y=1,idx=1 | x=1,y=1,idx=3 |
-      :---------------+---------------:
-      | x=0,y=2,idx=4 | x=1,y=2,idx=6 |
-      :---------------+---------------:
-      | x=0,y=3,idx=5 | x=1,y=3,idx=7 |
-      '---------------'---------------'
-      */
-      const int idx64x32 = (x << 1) + (y % 2) + ((y >> 1) << 2);
-      force_skip_low_temp_var = variance_low[9 + idx64x32];
-      break;
-    case BLOCK_32X64:
-      x = (mi_col & 0x1F) >> 3;
-      y = (mi_row & 0x1F) >> 4;
-      const int idx32x64 = (y << 2) + x;
-      force_skip_low_temp_var = variance_low[17 + idx32x64];
-      break;
-    case BLOCK_32X32:
-      force_skip_low_temp_var = variance_low[25 + (idx64 << 2) + idx32];
-      break;
-    case BLOCK_32X16:
-    case BLOCK_16X32:
-    case BLOCK_16X16:
-      force_skip_low_temp_var =
-          variance_low[41 + (idx64 << 4) + (idx32 << 2) + idx16];
-      break;
-    default: break;
-  }
-  return force_skip_low_temp_var;
-}
-
 #define FILTER_SEARCH_SIZE 2
 
 /*!\brief Searches for the best intrpolation filter
@@ -1915,10 +1790,10 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   if (cpi->sf.rt_sf.short_circuit_low_temp_var &&
       x->nonrd_prune_ref_frame_search) {
     if (is_small_sb)
-      *force_skip_low_temp_var = get_force_skip_low_temp_var_small_sb(
+      *force_skip_low_temp_var = av1_get_force_skip_low_temp_var_small_sb(
           &x->part_search_info.variance_low[0], mi_row, mi_col, bsize);
     else
-      *force_skip_low_temp_var = get_force_skip_low_temp_var(
+      *force_skip_low_temp_var = av1_get_force_skip_low_temp_var(
           &x->part_search_info.variance_low[0], mi_row, mi_col, bsize);
     // If force_skip_low_temp_var is set, skip golden reference.
     if (*force_skip_low_temp_var) {

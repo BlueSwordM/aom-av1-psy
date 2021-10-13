@@ -646,6 +646,132 @@ static AOM_INLINE void set_low_temp_var_flag(
   }
 }
 
+static const int pos_shift_16x16[4][4] = {
+  { 9, 10, 13, 14 }, { 11, 12, 15, 16 }, { 17, 18, 21, 22 }, { 19, 20, 23, 24 }
+};
+
+int av1_get_force_skip_low_temp_var_small_sb(const uint8_t *variance_low,
+                                             int mi_row, int mi_col,
+                                             BLOCK_SIZE bsize) {
+  // Relative indices of MB inside the superblock.
+  const int mi_x = mi_row & 0xF;
+  const int mi_y = mi_col & 0xF;
+  // Relative indices of 16x16 block inside the superblock.
+  const int i = mi_x >> 2;
+  const int j = mi_y >> 2;
+  int force_skip_low_temp_var = 0;
+  // Set force_skip_low_temp_var based on the block size and block offset.
+  switch (bsize) {
+    case BLOCK_64X64: force_skip_low_temp_var = variance_low[0]; break;
+    case BLOCK_64X32:
+      if (!mi_y && !mi_x) {
+        force_skip_low_temp_var = variance_low[1];
+      } else if (!mi_y && mi_x) {
+        force_skip_low_temp_var = variance_low[2];
+      }
+      break;
+    case BLOCK_32X64:
+      if (!mi_y && !mi_x) {
+        force_skip_low_temp_var = variance_low[3];
+      } else if (mi_y && !mi_x) {
+        force_skip_low_temp_var = variance_low[4];
+      }
+      break;
+    case BLOCK_32X32:
+      if (!mi_y && !mi_x) {
+        force_skip_low_temp_var = variance_low[5];
+      } else if (mi_y && !mi_x) {
+        force_skip_low_temp_var = variance_low[6];
+      } else if (!mi_y && mi_x) {
+        force_skip_low_temp_var = variance_low[7];
+      } else if (mi_y && mi_x) {
+        force_skip_low_temp_var = variance_low[8];
+      }
+      break;
+    case BLOCK_32X16:
+    case BLOCK_16X32:
+    case BLOCK_16X16:
+      force_skip_low_temp_var = variance_low[pos_shift_16x16[i][j]];
+      break;
+    default: break;
+  }
+
+  return force_skip_low_temp_var;
+}
+
+int av1_get_force_skip_low_temp_var(const uint8_t *variance_low, int mi_row,
+                                    int mi_col, BLOCK_SIZE bsize) {
+  int force_skip_low_temp_var = 0;
+  int x, y;
+  x = (mi_col & 0x1F) >> 4;
+  // y = (mi_row & 0x1F) >> 4;
+  // const int idx64 = (y << 1) + x;
+  y = (mi_row & 0x17) >> 3;
+  const int idx64 = y + x;
+
+  x = (mi_col & 0xF) >> 3;
+  // y = (mi_row & 0xF) >> 3;
+  // const int idx32 = (y << 1) + x;
+  y = (mi_row & 0xB) >> 2;
+  const int idx32 = y + x;
+
+  x = (mi_col & 0x7) >> 2;
+  // y = (mi_row & 0x7) >> 2;
+  // const int idx16 = (y << 1) + x;
+  y = (mi_row & 0x5) >> 1;
+  const int idx16 = y + x;
+  // Set force_skip_low_temp_var based on the block size and block offset.
+  switch (bsize) {
+    case BLOCK_128X128: force_skip_low_temp_var = variance_low[0]; break;
+    case BLOCK_128X64:
+      assert((mi_col & 0x1F) == 0);
+      force_skip_low_temp_var = variance_low[1 + ((mi_row & 0x1F) != 0)];
+      break;
+    case BLOCK_64X128:
+      assert((mi_row & 0x1F) == 0);
+      force_skip_low_temp_var = variance_low[3 + ((mi_col & 0x1F) != 0)];
+      break;
+    case BLOCK_64X64:
+      // Location of this 64x64 block inside the 128x128 superblock
+      force_skip_low_temp_var = variance_low[5 + idx64];
+      break;
+    case BLOCK_64X32:
+      x = (mi_col & 0x1F) >> 4;
+      y = (mi_row & 0x1F) >> 3;
+      /*
+      .---------------.---------------.
+      | x=0,y=0,idx=0 | x=0,y=0,idx=2 |
+      :---------------+---------------:
+      | x=0,y=1,idx=1 | x=1,y=1,idx=3 |
+      :---------------+---------------:
+      | x=0,y=2,idx=4 | x=1,y=2,idx=6 |
+      :---------------+---------------:
+      | x=0,y=3,idx=5 | x=1,y=3,idx=7 |
+      '---------------'---------------'
+      */
+      const int idx64x32 = (x << 1) + (y % 2) + ((y >> 1) << 2);
+      force_skip_low_temp_var = variance_low[9 + idx64x32];
+      break;
+    case BLOCK_32X64:
+      x = (mi_col & 0x1F) >> 3;
+      y = (mi_row & 0x1F) >> 4;
+      const int idx32x64 = (y << 2) + x;
+      force_skip_low_temp_var = variance_low[17 + idx32x64];
+      break;
+    case BLOCK_32X32:
+      force_skip_low_temp_var = variance_low[25 + (idx64 << 2) + idx32];
+      break;
+    case BLOCK_32X16:
+    case BLOCK_16X32:
+    case BLOCK_16X16:
+      force_skip_low_temp_var =
+          variance_low[41 + (idx64 << 4) + (idx32 << 2) + idx16];
+      break;
+    default: break;
+  }
+  return force_skip_low_temp_var;
+}
+
 void av1_set_variance_partition_thresholds(AV1_COMP *cpi, int q,
                                            int content_lowsumdiff) {
   SPEED_FEATURES *const sf = &cpi->sf;
