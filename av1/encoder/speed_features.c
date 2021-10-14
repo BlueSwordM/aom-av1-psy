@@ -2056,6 +2056,12 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
               ? 0
               : cm->quant_params.base_qindex > qindex_thresh;
     }
+    if (speed >= 10) {
+      sf->rt_sf.source_metrics_sb_nonrd =
+          (cm->quant_params.base_qindex > 150 && cpi->rc.avg_source_sad > 20000)
+              ? 1
+              : 0;
+    }
     return;
   }
 
