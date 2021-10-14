@@ -33,14 +33,28 @@ typedef struct {
   int use_arf;
 } THIRD_PASS_GOP_INFO;
 
+typedef struct {
+  BLOCK_SIZE bsize;
+  int mi_row_start;
+  int mi_col_start;
+  int_mv mv[2];
+  MV_REFERENCE_FRAME ref_frame[2];
+} THIRD_PASS_MI_INFO;
+
 // Struct to store useful information about a frame for the third pass.
 // The members are extracted from the decoder by function get_frame_info.
 typedef struct {
+  int width;
+  int height;
+  int mi_stride;
+  int mi_rows;
+  int mi_cols;
   int base_q_idx;
   int is_show_existing_frame;
   int is_show_frame;
   FRAME_TYPE frame_type;
   unsigned int order_hint;
+  THIRD_PASS_MI_INFO *mi_info;
 } THIRD_PASS_FRAME_INFO;
 
 typedef struct {
@@ -101,6 +115,33 @@ void av1_read_second_pass_gop_info(struct AV1_COMP *cpi,
                                    THIRD_PASS_GOP_INFO *gop_info);
 
 int av1_check_use_arf(THIRD_PASS_DEC_CTX *ctx);
+
+// Calculate the ratio of third pass frame dimensions over second pass frame
+// dimensions. Return them in ratio_h and ratio_w.
+void av1_get_third_pass_ratio(THIRD_PASS_DEC_CTX *ctx, int fidx, int fheight,
+                              int fwidth, double *ratio_h, double *ratio_w);
+
+// Get the pointer to a second pass mi info, where mi_row and mi_col are the mi
+// location in the thirdpass frame.
+THIRD_PASS_MI_INFO *av1_get_third_pass_mi(THIRD_PASS_DEC_CTX *ctx, int fidx,
+                                          int mi_row, int mi_col,
+                                          double ratio_h, double ratio_w);
+
+// Get the adjusted MVs of this_mi, associated with the reference frame. If no
+// MV is found with the reference frame, INVALID_MV is returned.
+int_mv av1_get_third_pass_adjusted_mv(THIRD_PASS_MI_INFO *this_mi,
+                                      double ratio_h, double ratio_w,
+                                      MV_REFERENCE_FRAME frame);
+
+// Get the adjusted block size of this_mi.
+BLOCK_SIZE av1_get_third_pass_adjusted_blk_size(THIRD_PASS_MI_INFO *this_mi,
+                                                double ratio_h, double ratio_w);
+
+// Get the adjusted mi position in the third pass frame, of a given
+// third_pass_mi. Location is returned in mi_row and mi_col.
+void av1_third_pass_get_adjusted_mi(THIRD_PASS_MI_INFO *third_pass_mi,
+                                    double ratio_h, double ratio_w, int *mi_row,
+                                    int *mi_col);
 
 #ifdef __cplusplus
 }  // extern "C"
