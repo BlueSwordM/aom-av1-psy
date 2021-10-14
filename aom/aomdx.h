@@ -439,6 +439,14 @@ enum aom_dec_control_id {
    * int parameter
    */
   AOMD_GET_ORDER_HINT,
+
+  /*!\brief Codec control function to get the info of a 4x4 block.
+   * Parameters: int mi_row, int mi_col, and MB_MODE_INFO*.
+   *
+   * \note This only returns a shallow copy, so all pointer members should not
+   * be used.
+   */
+  AV1D_GET_MI_INFO,
 };
 
 /*!\cond */

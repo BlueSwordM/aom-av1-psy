@@ -1463,6 +1463,32 @@ static aom_codec_err_t ctrl_get_order_hint(aom_codec_alg_priv_t *ctx,
   return AOM_CODEC_OK;
 }
 
+static aom_codec_err_t ctrl_get_mi_info(aom_codec_alg_priv_t *ctx,
+                                        va_list args) {
+  int mi_row = va_arg(args, int);
+  int mi_col = va_arg(args, int);
+  MB_MODE_INFO *mi = va_arg(args, MB_MODE_INFO *);
+  if (mi == NULL) return AOM_CODEC_INVALID_PARAM;
+  if (ctx->frame_worker == NULL) return AOM_CODEC_ERROR;
+  FrameWorkerData *const frame_worker_data =
+      (FrameWorkerData *)ctx->frame_worker->data1;
+  if (frame_worker_data == NULL) return AOM_CODEC_ERROR;
+
+  AV1_COMMON *cm = &frame_worker_data->pbi->common;
+  const int mi_rows = cm->mi_params.mi_rows;
+  const int mi_cols = cm->mi_params.mi_cols;
+  const int mi_stride = cm->mi_params.mi_stride;
+  const int offset = mi_row * mi_stride + mi_col;
+
+  if (mi_row < 0 || mi_row >= mi_rows || mi_col < 0 || mi_col >= mi_cols) {
+    return AOM_CODEC_INVALID_PARAM;
+  }
+
+  memcpy(mi, cm->mi_params.mi_grid_base[offset], sizeof(*mi));
+
+  return AOM_CODEC_OK;
+}
+
 static aom_codec_err_t ctrl_set_invert_tile_order(aom_codec_alg_priv_t *ctx,
                                                   va_list args) {
   ctx->invert_tile_order = va_arg(args, int);
@@ -1653,6 +1679,7 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AOMD_GET_SHOW_FRAME_FLAG, ctrl_get_show_frame_flag },
   { AOMD_GET_BASE_Q_IDX, ctrl_get_base_q_idx },
   { AOMD_GET_ORDER_HINT, ctrl_get_order_hint },
+  { AV1D_GET_MI_INFO, ctrl_get_mi_info },
   CTRL_MAP_END,
 };
 
