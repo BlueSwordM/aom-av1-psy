@@ -2559,6 +2559,14 @@ typedef struct AV1_PRIMARY {
    * Probabilities for pruning of various AV1 tools.
    */
   FrameProbInfo frame_probs;
+
+  /*!
+   * Indicates if a valid global motion model has been found in the different
+   * frame update types of a GF group.
+   * valid_gm_model_found[i] indicates if valid global motion model has been
+   * found in the frame update type with enum value equal to i
+   */
+  int valid_gm_model_found[FRAME_UPDATE_TYPES];
 } AV1_PRIMARY;
 
 /*!

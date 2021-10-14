@@ -455,6 +455,10 @@ typedef struct GLOBAL_MOTION_SPEED_FEATURES {
   // When the current GM type is set to ZEROMV, prune ZEROMV if its performance
   // is worse than NEWMV under SSE metric.
   int prune_zero_mv_with_sse;
+
+  // Disable global motion estimation based on stats of previous frames in the
+  // GF group
+  int disable_gm_search_based_on_stats;
 } GLOBAL_MOTION_SPEED_FEATURES;
 
 typedef struct PARTITION_SPEED_FEATURES {

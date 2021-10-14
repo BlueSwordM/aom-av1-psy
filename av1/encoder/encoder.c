@@ -4114,10 +4114,33 @@ static void update_end_of_frame_stats(AV1_COMP *cpi) {
 }
 #endif
 
+// Updates frame level stats related to global motion
+static AOM_INLINE void update_gm_stats(AV1_COMP *cpi) {
+  FRAME_UPDATE_TYPE update_type =
+      cpi->ppi->gf_group.update_type[cpi->gf_frame_index];
+  int i, is_gm_present = 0;
+
+  // Check if the current frame has any valid global motion model across its
+  // reference frames
+  for (i = 0; i < REF_FRAMES; i++) {
+    if (cpi->common.global_motion[i].wmtype != IDENTITY) {
+      is_gm_present = 1;
+      break;
+    }
+  }
+  if (cpi->ppi->valid_gm_model_found[update_type] == INT32_MAX) {
+    cpi->ppi->valid_gm_model_found[update_type] = is_gm_present;
+  } else {
+    cpi->ppi->valid_gm_model_found[update_type] |= is_gm_present;
+  }
+}
+
 void av1_post_encode_updates(AV1_COMP *const cpi,
                              const AV1_COMP_DATA *const cpi_data) {
   AV1_PRIMARY *const ppi = cpi->ppi;
   AV1_COMMON *const cm = &cpi->common;
+
+  update_gm_stats(cpi);
 
 #if !CONFIG_REALTIME_ONLY
   // Update the total stats remaining structure.

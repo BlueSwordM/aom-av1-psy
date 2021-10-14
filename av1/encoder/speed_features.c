@@ -906,6 +906,8 @@ static void set_good_speed_features_framesize_independent(
 
     sf->fp_sf.skip_motion_search_threshold = 25;
 
+    sf->gm_sf.disable_gm_search_based_on_stats = 1;
+
     sf->part_sf.reuse_best_prediction_for_part_ab =
         !frame_is_intra_only(&cpi->common);
 
@@ -1586,6 +1588,7 @@ static AOM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
   gm_sf->gm_search_type = GM_FULL_SEARCH;
   gm_sf->prune_ref_frame_for_gm_search = 0;
   gm_sf->prune_zero_mv_with_sse = 0;
+  gm_sf->disable_gm_search_based_on_stats = 0;
 }
 
 static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
