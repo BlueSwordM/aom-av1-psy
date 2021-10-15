@@ -2361,7 +2361,7 @@ void av1_adjust_gf_refresh_qp_one_pass_rt(AV1_COMP *cpi) {
       gf_update_changed = 1;
     } else if (allow_gf_update &&
                ((cm->quant_params.base_qindex < thresh * avg_qp / 100) ||
-                (rc->avg_frame_low_motion < 20))) {
+                (rc->avg_frame_low_motion && rc->avg_frame_low_motion < 20))) {
       // Force refresh since QP is well below average QP or this is a high
       // motion frame.
       svc->refresh[svc->gld_idx_1layer] = 1;

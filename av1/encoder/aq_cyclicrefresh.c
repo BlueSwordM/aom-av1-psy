@@ -408,7 +408,8 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
        cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame) ||
       (rc->frames_since_key > 20 &&
        p_rc->avg_frame_qindex[INTER_FRAME] > qp_max_thresh) ||
-      (rc->avg_frame_low_motion < 45 && rc->frames_since_key > 40)) {
+      (rc->avg_frame_low_motion && rc->avg_frame_low_motion < 45 &&
+       rc->frames_since_key > 40)) {
     cr->apply_cyclic_refresh = 0;
     return;
   }

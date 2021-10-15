@@ -83,14 +83,22 @@ class DatarateTestSVC
     multi_ref_ = 0;
     use_fixed_mode_svc_ = 0;
     comp_pred_ = 0;
+    dynamic_enable_disable_mode_ = 0;
   }
 
   virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
                                   ::libaom_test::Encoder *encoder) {
     int spatial_layer_id = 0;
-    if (video->frame() == 0) {
+    // video->frame() is called every superframe, so we should condition
+    // this on layer_frame_cnt_ = 0, so we only do this once on the very
+    // first frame.
+    if (video->frame() == 0 && layer_frame_cnt_ == 0) {
       initialize_svc(number_temporal_layers_, number_spatial_layers_,
                      &svc_params_);
+      if (dynamic_enable_disable_mode_ == 1) {
+        svc_params_.layer_target_bitrate[2] = 0;
+        cfg_.rc_target_bitrate -= target_layer_bitrate_[2];
+      }
       encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params_);
       // TODO(aomedia:3032): Configure KSVC in fixed mode.
       encoder->Control(AV1E_SET_ENABLE_ORDER_HINT, 0);
@@ -124,6 +132,29 @@ class DatarateTestSVC
       int mode =
           (layer_id_.spatial_layer_id > 0 || layer_id_.temporal_layer_id > 0);
       encoder->Control(AV1E_SET_ERROR_RESILIENT_MODE, mode);
+    }
+    if (dynamic_enable_disable_mode_ == 1) {
+      if (layer_frame_cnt_ == 300 && spatial_layer_id == 0) {
+        // Enable: set top spatial layer bitrate back to non-zero.
+        svc_params_.layer_target_bitrate[2] = target_layer_bitrate_[2];
+        cfg_.rc_target_bitrate += target_layer_bitrate_[2];
+        encoder->Config(&cfg_);
+        encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params_);
+      }
+    } else if (dynamic_enable_disable_mode_ == 2) {
+      if (layer_frame_cnt_ == 300 && spatial_layer_id == 0) {
+        // Disable top spatial layer mid-stream.
+        svc_params_.layer_target_bitrate[2] = 0;
+        cfg_.rc_target_bitrate -= target_layer_bitrate_[2];
+        encoder->Config(&cfg_);
+        encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params_);
+      } else if (layer_frame_cnt_ == 600 && spatial_layer_id == 0) {
+        // Enable top spatial layer mid-stream.
+        svc_params_.layer_target_bitrate[2] = target_layer_bitrate_[2];
+        cfg_.rc_target_bitrate += target_layer_bitrate_[2];
+        encoder->Config(&cfg_);
+        encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params_);
+      }
     }
     layer_frame_cnt_++;
     DatarateTest::PreEncodeFrameHook(video, encoder);
@@ -1176,6 +1207,70 @@ class DatarateTestSVC
     }
   }
 
+  virtual void BasicRateTargetingSVC1TL3SLDynEnablTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.g_error_resilient = 0;
+
+    ::libaom_test::I420VideoSource video("niklas_640_480_30.yuv", 640, 480, 30,
+                                         1, 0, 400);
+    const int bitrate_array[2] = { 500, 1000 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    ResetModel();
+    number_temporal_layers_ = 1;
+    number_spatial_layers_ = 3;
+    target_layer_bitrate_[0] = 1 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[1] = 3 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[2] = 4 * cfg_.rc_target_bitrate / 8;
+    dynamic_enable_disable_mode_ = 1;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    // No need to check RC on top layer which is disabled part of the time.
+    for (int i = 0; i < number_spatial_layers_ - 1; i++) {
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
+          << " The datarate for the file is lower than target by too much!";
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.38)
+          << " The datarate for the file is greater than target by too much!";
+    }
+  }
+
+  virtual void BasicRateTargetingSVC1TL3SLDynDisEnablTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.g_error_resilient = 0;
+
+    ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
+                                         288, 30, 1, 0, 300);
+    const int bitrate_array[2] = { 500, 1000 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    ResetModel();
+    number_temporal_layers_ = 1;
+    number_spatial_layers_ = 3;
+    target_layer_bitrate_[0] = 1 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[1] = 3 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[2] = 4 * cfg_.rc_target_bitrate / 8;
+    dynamic_enable_disable_mode_ = 2;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    // No need to check RC on top layer which is disabled part of the time.
+    for (int i = 0; i < number_spatial_layers_ - 1; i++) {
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
+          << " The datarate for the file is lower than target by too much!";
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.38)
+          << " The datarate for the file is greater than target by too much!";
+    }
+  }
+
   int layer_frame_cnt_;
   int superframe_cnt_;
   int number_temporal_layers_;
@@ -1196,6 +1291,7 @@ class DatarateTestSVC
   int multi_ref_;
   int use_fixed_mode_svc_;
   int comp_pred_;
+  int dynamic_enable_disable_mode_;
 };
 
 // Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial.
@@ -1313,10 +1409,23 @@ TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLMultiRefCompound) {
   BasicRateTargetingSVC3TL1SLMultiRefCompoundTest();
 }
 
+// Check basic rate targeting for CBR, for 3 spatial layers, 1 temporal,
+// with the top spatial layer starting disabled (0 bitrate) and then
+// dynamically enabled after x frames with nonzero bitrate.
+TEST_P(DatarateTestSVC, BasicRateTargetingSVC1TL3SLDynEnabl) {
+  BasicRateTargetingSVC1TL3SLDynEnablTest();
+}
+
+// Check basic rate targeting for CBR, for 3 spatial layers, 1 temporal,
+// with the top spatial layer dynamically disabled snd enabled during the
+// middle of the sequence.
+TEST_P(DatarateTestSVC, BasicRateTargetingSVC1TL3SLDynDisEnabl) {
+  BasicRateTargetingSVC1TL3SLDynDisEnablTest();
+}
+
 AV1_INSTANTIATE_TEST_SUITE(DatarateTestSVC,
                            ::testing::Values(::libaom_test::kRealTime),
-                           ::testing::Range(7, 10),
-                           ::testing::Range<unsigned int>(0, 4),
+                           ::testing::Range(7, 10), ::testing::Values(0, 3),
                            ::testing::Values(0, 1));
 
 }  // namespace
