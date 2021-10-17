@@ -1405,6 +1405,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.skip_interp_filter_search = 1;
     sf->rt_sf.use_real_time_ref_set = 1;
     sf->rt_sf.use_simple_rd_model = 1;
+    sf->rt_sf.prune_inter_modes_with_golden_ref = boosted ? 0 : 1;
 
     sf->rt_sf.check_scene_detection = 1;
     if (cm->current_frame.frame_type != KEY_FRAME &&
@@ -1847,6 +1848,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->skip_tx_no_split_var_based_partition = 0;
   rt_sf->skip_newmv_mode_based_on_sse = 0;
   rt_sf->gf_length_lvl = 0;
+  rt_sf->prune_inter_modes_with_golden_ref = 0;
 }
 
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {

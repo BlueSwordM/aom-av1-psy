@@ -4795,6 +4795,16 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
       return 1;
   }
 
+  if (sf->rt_sf.prune_inter_modes_with_golden_ref &&
+      ref_frame == GOLDEN_FRAME && !comp_pred) {
+    const int subgop_size = AOMMIN(cpi->ppi->gf_group.size, FIXED_GF_INTERVAL);
+    if (cpi->rc.frames_since_golden > (subgop_size >> 2) &&
+        args->search_state->best_mbmode.ref_frame[0] != GOLDEN_FRAME) {
+      if ((bsize > BLOCK_16X16 && this_mode == NEWMV) || this_mode == NEARMV)
+        return 1;
+    }
+  }
+
   return 0;
 }
 
