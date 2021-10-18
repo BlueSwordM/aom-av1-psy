@@ -1308,6 +1308,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->mv_sf.subpel_iters_per_step = 1;
   sf->mv_sf.use_accurate_subpel_search = USE_2_TAPS;
   sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
+  sf->mv_sf.search_method = boosted ? DIAMOND : FAST_DIAMOND;
 
   sf->part_sf.ml_prune_partition = 1;
   sf->part_sf.reuse_prev_rd_results_for_part_ab = 1;
