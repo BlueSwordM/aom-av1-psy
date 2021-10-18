@@ -1055,12 +1055,11 @@ static void newmv_diff_bias(MACROBLOCKD *xd, PREDICTION_MODE this_mode,
   if (this_mode == NEWMV) {
     int al_mv_average_row;
     int al_mv_average_col;
-    int left_row, left_col;
     int row_diff, col_diff;
     int above_mv_valid = 0;
     int left_mv_valid = 0;
-    int above_row = 0;
-    int above_col = 0;
+    int above_row = INVALID_MV_ROW_COL, above_col = INVALID_MV_ROW_COL;
+    int left_row = INVALID_MV_ROW_COL, left_col = INVALID_MV_ROW_COL;
     if (bsize >= BLOCK_64X64 && content_state_sb.source_sad != kHighSad &&
         spatial_variance < 300 &&
         (mv_row > 16 || mv_row < -16 || mv_col > 16 || mv_col < -16)) {
