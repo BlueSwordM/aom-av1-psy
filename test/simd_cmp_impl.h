@@ -15,9 +15,9 @@
 #include "config/aom_dsp_rtcd.h"
 
 #include "test/acm_random.h"
-#include "aom_dsp/aom_simd.h"
 #undef SIMD_INLINE
-#define SIMD_INLINE static  // Don't enforce inlining
+#define SIMD_INLINE static inline  // Inlining not enforced for compiler
+#include "aom_dsp/aom_simd.h"
 #include "aom_dsp/simd/v256_intrinsics_c.h"
 
 // Machine tuned code goes into this file. This file is included from
