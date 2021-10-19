@@ -1025,7 +1025,8 @@ static AOM_INLINE void encode_tiles(AV1_COMP *cpi) {
   if (cpi->allocated_tiles < tile_cols * tile_rows) av1_alloc_tile_data(cpi);
 
   av1_init_tile_data(cpi);
-  av1_alloc_mb_data(cm, mb, cpi->sf.rt_sf.use_nonrd_pick_mode);
+  av1_alloc_mb_data(cm, mb, cpi->sf.rt_sf.use_nonrd_pick_mode,
+                    cpi->sf.rd_sf.use_mb_rd_hash);
 
   for (tile_row = 0; tile_row < tile_rows; ++tile_row) {
     for (tile_col = 0; tile_col < tile_cols; ++tile_col) {
