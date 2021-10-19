@@ -1087,6 +1087,7 @@ static void set_good_speed_features_framesize_independent(
         frame_is_intra_only(&cpi->common) ? MULTI_WINNER_MODE_DEFAULT
                                           : MULTI_WINNER_MODE_OFF;
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
+    sf->winner_mode_sf.dc_blk_pred_level = boosted ? 0 : 1;
 
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
