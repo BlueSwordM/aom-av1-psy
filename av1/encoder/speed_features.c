@@ -1401,6 +1401,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->winner_mode_sf.dc_blk_pred_level = frame_is_intra_only(cm) ? 0 : 2;
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
     sf->winner_mode_sf.tx_size_search_level = 1;
+    sf->winner_mode_sf.winner_mode_ifs = 1;
 
     sf->rt_sf.mode_search_skip_flags |= FLAG_SKIP_INTRA_DIRMISMATCH;
     sf->rt_sf.num_inter_modes_for_tx_search = 5;
@@ -1799,6 +1800,7 @@ static AOM_INLINE void init_winner_mode_sf(
   winner_mode_sf->enable_winner_mode_for_use_tx_domain_dist = 0;
   winner_mode_sf->multi_winner_mode_type = 0;
   winner_mode_sf->dc_blk_pred_level = 0;
+  winner_mode_sf->winner_mode_ifs = 0;
 }
 
 static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {

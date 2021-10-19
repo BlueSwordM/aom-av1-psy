@@ -1142,6 +1142,11 @@ typedef struct WINNER_MODE_SPEED_FEATURES {
   // 0: speed feature OFF
   // 1 / 2 : Use the configured level for different modes
   int dc_blk_pred_level;
+
+  // If on, disables interpolation filter search in handle_inter_mode loop, and
+  // performs it during winner mode processing by \ref
+  // tx_search_best_inter_candidates.
+  int winner_mode_ifs;
 } WINNER_MODE_SPEED_FEATURES;
 
 typedef struct LOOP_FILTER_SPEED_FEATURES {

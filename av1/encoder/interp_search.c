@@ -106,14 +106,6 @@ int av1_find_interp_filter_match(
   return match_found_idx;
 }
 
-static INLINE void swap_dst_buf(MACROBLOCKD *xd, const BUFFER_SET *dst_bufs[2],
-                                int num_planes) {
-  const BUFFER_SET *buf0 = dst_bufs[0];
-  dst_bufs[0] = dst_bufs[1];
-  dst_bufs[1] = buf0;
-  restore_dst_buf(xd, *dst_bufs[0], num_planes);
-}
-
 static INLINE int get_switchable_rate(MACROBLOCK *const x,
                                       const int_interpfilters filters,
                                       const int ctx[2], int dual_filter) {

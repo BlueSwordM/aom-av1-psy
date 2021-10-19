@@ -238,6 +238,15 @@ static AOM_INLINE void restore_dst_buf(MACROBLOCKD *xd, const BUFFER_SET dst,
   }
 }
 
+static AOM_INLINE void swap_dst_buf(MACROBLOCKD *xd,
+                                    const BUFFER_SET *dst_bufs[2],
+                                    int num_planes) {
+  const BUFFER_SET *buf0 = dst_bufs[0];
+  dst_bufs[0] = dst_bufs[1];
+  dst_bufs[1] = buf0;
+  restore_dst_buf(xd, *dst_bufs[0], num_planes);
+}
+
 /* clang-format on */
 // Calculate rd threshold based on ref best rd and relevant scaling factors
 static AOM_INLINE int64_t get_rd_thresh_from_best_rd(int64_t ref_best_rd,
