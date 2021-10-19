@@ -30,7 +30,7 @@
  * types, removing or reassigning enums, adding/removing/rearranging
  * fields to structures.
  */
-#define AOM_EXT_PART_ABI_VERSION 5
+#define AOM_EXT_PART_ABI_VERSION 6
 
 #ifdef __cplusplus
 extern "C" {
@@ -252,6 +252,13 @@ typedef struct aom_partition_features {
   int qindex;         ///< Quantization index, range: [0, 255]
   int rdmult;         ///< Rate-distortion multiplier
   int pyramid_level;  ///< The level of this frame in the hierarchical structure
+  /*!
+   * The following parameters are calculated from tpl model.
+   * If tpl model is not available, their values are -1.
+   */
+  int64_t tpl_intra_cost;   ///< Intra cost, ref to "TplDepStats" in tpl_model.h
+  int64_t tpl_inter_cost;   ///< Inter cost in tpl model
+  int64_t tpl_mc_dep_cost;  ///< Motion compensated dependency cost in tpl model
 } aom_partition_features_t;
 
 /*!\brief Partition decisions received from the external model.

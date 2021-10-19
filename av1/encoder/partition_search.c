@@ -4265,6 +4265,54 @@ static int get_valid_partition_types(
   return valid_types;
 }
 
+static void prepare_tpl_stats_block(const AV1_COMP *const cpi,
+                                    const BLOCK_SIZE bsize, const int mi_row,
+                                    const int mi_col, int64_t *intra_cost,
+                                    int64_t *inter_cost, int64_t *mc_dep_cost) {
+  const AV1_COMMON *const cm = &cpi->common;
+  GF_GROUP *gf_group = &cpi->ppi->gf_group;
+  if (gf_group->update_type[cpi->gf_frame_index] == INTNL_OVERLAY_UPDATE ||
+      gf_group->update_type[cpi->gf_frame_index] == OVERLAY_UPDATE) {
+    return;
+  }
+
+  TplParams *const tpl_data = &cpi->ppi->tpl_data;
+  TplDepFrame *tpl_frame = &tpl_data->tpl_frame[cpi->gf_frame_index];
+  TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
+  // If tpl stats is not established, early return
+  if (!tpl_data->ready || gf_group->max_layer_depth_allowed == 0) {
+    return;
+  }
+
+  const int tpl_stride = tpl_frame->stride;
+  const int step = 1 << tpl_data->tpl_stats_block_mis_log2;
+  const int mi_width =
+      AOMMIN(mi_size_wide[bsize], cm->mi_params.mi_cols - mi_col);
+  const int mi_height =
+      AOMMIN(mi_size_high[bsize], cm->mi_params.mi_rows - mi_row);
+
+  int64_t sum_intra_cost = 0;
+  int64_t sum_inter_cost = 0;
+  int64_t sum_mc_dep_cost = 0;
+  for (int row = 0; row < mi_height; row += step) {
+    for (int col = 0; col < mi_width; col += step) {
+      TplDepStats *this_stats =
+          &tpl_stats[av1_tpl_ptr_pos(mi_row + row, mi_col + col, tpl_stride,
+                                     tpl_data->tpl_stats_block_mis_log2)];
+      sum_intra_cost += this_stats->intra_cost;
+      sum_inter_cost += this_stats->inter_cost;
+      const int64_t mc_dep_delta =
+          RDCOST(tpl_frame->base_rdmult, this_stats->mc_dep_rate,
+                 this_stats->mc_dep_dist);
+      sum_mc_dep_cost += mc_dep_delta;
+    }
+  }
+
+  *intra_cost = sum_intra_cost;
+  *inter_cost = sum_inter_cost;
+  *mc_dep_cost = sum_mc_dep_cost;
+}
+
 static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
                                 TileDataEnc *tile_data, TokenExtra **tp,
                                 SIMPLE_MOTION_DATA_TREE *sms_root,
@@ -4304,6 +4352,12 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
     const int pyramid_level =
         cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index];
     x->rdmult = orig_rdmult;
+    // Prepare tpl stats for the current block as features
+    int64_t tpl_intra_cost = -1;
+    int64_t tpl_inter_cost = -1;
+    int64_t tpl_mc_dep_cost = -1;
+    prepare_tpl_stats_block(cpi, bsize, mi_row, mi_col, &tpl_intra_cost,
+                            &tpl_inter_cost, &tpl_mc_dep_cost);
 
     aom_partition_features_t features;
     features.mi_row = mi_row;
@@ -4316,6 +4370,9 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
     features.qindex = qindex;
     features.rdmult = rdmult;
     features.pyramid_level = pyramid_level;
+    features.tpl_intra_cost = tpl_intra_cost;
+    features.tpl_inter_cost = tpl_inter_cost;
+    features.tpl_mc_dep_cost = tpl_mc_dep_cost;
     av1_ext_part_send_features(ext_part_controller, &features);
     const bool valid_decision = av1_ext_part_get_partition_decision(
         ext_part_controller, &partition_decision);
