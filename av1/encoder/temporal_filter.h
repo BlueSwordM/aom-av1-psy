@@ -272,7 +272,8 @@ typedef struct {
 //   The estimated noise, or -1.0 if there are too few smooth pixels.
 double av1_estimate_noise_from_single_plane(const YV12_BUFFER_CONFIG *frame,
                                             const int plane,
-                                            const int bit_depth);
+                                            const int bit_depth,
+                                            const int edge_thresh);
 /*!\endcond */
 
 /*!\brief Does temporal filter for a given macroblock row.

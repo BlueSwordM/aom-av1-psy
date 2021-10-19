@@ -983,7 +983,8 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
                                !is_lossless_requested(&oxcf->rc_cfg);
       if (allow_kf_filtering) {
         const double y_noise_level = av1_estimate_noise_from_single_plane(
-            frame_input->source, 0, cm->seq_params->bit_depth);
+            frame_input->source, 0, cm->seq_params->bit_depth,
+            NOISE_ESTIMATION_EDGE_THRESHOLD);
         apply_filtering = y_noise_level > 0;
       } else {
         apply_filtering = 0;

@@ -976,7 +976,8 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   double *noise_levels = tf_ctx->noise_levels;
   for (int plane = 0; plane < num_planes; ++plane) {
     noise_levels[plane] = av1_estimate_noise_from_single_plane(
-        to_filter_frame, plane, cpi->common.seq_params->bit_depth);
+        to_filter_frame, plane, cpi->common.seq_params->bit_depth,
+        NOISE_ESTIMATION_EDGE_THRESHOLD);
   }
   // Get quantization factor.
   const int q = av1_get_q(cpi);
@@ -1086,7 +1087,8 @@ static const double SQRT_PI_BY_2 = 1.25331413732;
 
 double av1_estimate_noise_from_single_plane(const YV12_BUFFER_CONFIG *frame,
                                             const int plane,
-                                            const int bit_depth) {
+                                            const int bit_depth,
+                                            const int edge_thresh) {
   const int is_y_plane = (plane == 0);
   const int height = frame->crop_heights[is_y_plane ? 0 : 1];
   const int width = frame->crop_widths[is_y_plane ? 0 : 1];
@@ -1115,7 +1117,7 @@ double av1_estimate_noise_from_single_plane(const YV12_BUFFER_CONFIG *frame,
                      2 * (mat[0][1] - mat[2][1]);
       const int Ga = ROUND_POWER_OF_TWO(abs(Gx) + abs(Gy), bit_depth - 8);
       // Accumulate Laplacian.
-      if (Ga < NOISE_ESTIMATION_EDGE_THRESHOLD) {  // Only count smooth pixels.
+      if (Ga < edge_thresh) {  // Only count smooth pixels.
         const int v = 4 * mat[1][1] -
                       2 * (mat[0][1] + mat[2][1] + mat[1][0] + mat[1][2]) +
                       (mat[0][0] + mat[0][2] + mat[2][0] + mat[2][2]);

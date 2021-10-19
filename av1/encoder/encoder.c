@@ -78,7 +78,6 @@
 #include "av1/encoder/speed_features.h"
 #include "av1/encoder/superres_scale.h"
 #include "av1/encoder/thirdpass.h"
-#include "av1/encoder/temporal_filter.h"
 #include "av1/encoder/tpl_model.h"
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/var_based_part.h"
@@ -3745,11 +3744,32 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
   // even if denoise_noise_level is > 0, we don't need need to denoise on pass
   // 1 of 2 if enable_dnl_denoising is disabled since the 2nd pass will be
   // encoding the original (non-denoised) frame
-  if (cpi->oxcf.noise_level > 0 &&
-      !(cpi->oxcf.pass == AOM_RC_FIRST_PASS && !cpi->oxcf.enable_dnl_denoising))
+  if (cpi->oxcf.noise_level > 0 && !(cpi->oxcf.pass == AOM_RC_FIRST_PASS &&
+                                     !cpi->oxcf.enable_dnl_denoising)) {
+#if !CONFIG_REALTIME_ONLY
+    // Choose a synthetic noise level for still images for enhanced perceptual
+    // quality based on an estimated noise level in the source, but only if
+    // the noise level is set on the command line to > 0.
+    if (cpi->oxcf.mode == ALLINTRA) {
+      // No noise synthesis if source is very clean.
+      // Uses a low edge threshold to focus on smooth areas.
+      // Increase output noise setting a little compared to measured value.
+      cpi->oxcf.noise_level =
+          (float)(av1_estimate_noise_from_single_plane(
+                      sd, 0, cm->seq_params->bit_depth, 16) -
+                  0.1);
+      cpi->oxcf.noise_level = (float)AOMMAX(0.0, cpi->oxcf.noise_level);
+      if (cpi->oxcf.noise_level > 0.0) {
+        cpi->oxcf.noise_level += (float)0.5;
+      }
+      cpi->oxcf.noise_level = (float)AOMMIN(5.0, cpi->oxcf.noise_level);
+    }
+#endif
+
     if (apply_denoise_2d(cpi, sd, cpi->oxcf.noise_block_size,
                          cpi->oxcf.noise_level, time_stamp, end_time) < 0)
       res = -1;
+  }
 #endif  //  CONFIG_DENOISE
 
   if (av1_lookahead_push(cpi->ppi->lookahead, sd, time_stamp, end_time,
@@ -3925,7 +3945,7 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
   }
 }
 
-void print_internal_stats(AV1_PRIMARY *const ppi) {
+void print_internal_stats(AV1_PRIMARY *ppi) {
   if (!ppi->cpi) return;
   AV1_COMP *const cpi = ppi->cpi;
 
