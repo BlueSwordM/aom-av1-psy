@@ -4352,6 +4352,19 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
     const int pyramid_level =
         cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index];
     x->rdmult = orig_rdmult;
+    // Prepare simple motion search stats as features
+    unsigned int block_sse = -1;
+    unsigned int block_var = -1;
+    unsigned int sub_block_sse[4] = { -1, -1, -1, -1 };
+    unsigned int sub_block_var[4] = { -1, -1, -1, -1 };
+    unsigned int horz_block_sse[2] = { -1, -1 };
+    unsigned int horz_block_var[2] = { -1, -1 };
+    unsigned int vert_block_sse[2] = { -1, -1 };
+    unsigned int vert_block_var[2] = { -1, -1 };
+    av1_prepare_motion_search_features_block(
+        cpi, td, tile_data, mi_row, mi_col, bsize, valid_partition_types,
+        &block_sse, &block_var, sub_block_sse, sub_block_var, horz_block_sse,
+        horz_block_var, vert_block_sse, vert_block_var);
     // Prepare tpl stats for the current block as features
     int64_t tpl_intra_cost = -1;
     int64_t tpl_inter_cost = -1;
@@ -4370,6 +4383,18 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
     features.qindex = qindex;
     features.rdmult = rdmult;
     features.pyramid_level = pyramid_level;
+    features.block_sse = block_sse;
+    features.block_var = block_var;
+    for (int i = 0; i < 4; ++i) {
+      features.sub_block_sse[i] = sub_block_sse[i];
+      features.sub_block_var[i] = sub_block_var[i];
+    }
+    for (int i = 0; i < 2; ++i) {
+      features.horz_block_sse[i] = horz_block_sse[i];
+      features.horz_block_var[i] = horz_block_var[i];
+      features.vert_block_sse[i] = vert_block_sse[i];
+      features.vert_block_var[i] = vert_block_var[i];
+    }
     features.tpl_intra_cost = tpl_intra_cost;
     features.tpl_inter_cost = tpl_inter_cost;
     features.tpl_mc_dep_cost = tpl_mc_dep_cost;

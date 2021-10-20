@@ -2364,6 +2364,72 @@ void av1_collect_motion_search_features_sb(AV1_COMP *const cpi, ThreadData *td,
   }
 }
 
+void av1_prepare_motion_search_features_block(
+    AV1_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data,
+    const int mi_row, const int mi_col, const BLOCK_SIZE bsize,
+    const int valid_partition_types, unsigned int *block_sse,
+    unsigned int *block_var, unsigned int sub_block_sse[4],
+    unsigned int sub_block_var[4], unsigned int horz_block_sse[2],
+    unsigned int horz_block_var[2], unsigned int vert_block_sse[2],
+    unsigned int vert_block_var[2]) {
+  const AV1_COMMON *const cm = &cpi->common;
+  if (frame_is_intra_only(cm)) return;
+  MACROBLOCK *const x = &td->mb;
+  SIMPLE_MOTION_DATA_TREE *sms_tree = NULL;
+  SIMPLE_MOTION_DATA_TREE *sms_root = setup_sms_tree(cpi, sms_tree);
+  TileInfo *const tile_info = &tile_data->tile_info;
+  av1_set_offsets_without_segment_id(cpi, tile_info, x, mi_row, mi_col, bsize);
+  av1_reset_simple_motion_tree_partition(sms_root, bsize);
+  const int ref_list[] = { cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME
+                                                        : LAST_FRAME };
+  const int sub_mi_width = mi_size_wide[bsize] / 2;
+  const int sub_mi_height = sub_mi_width;
+  simple_motion_search_get_best_ref(
+      cpi, x, sms_root, mi_row, mi_col, bsize, ref_list, /*num_refs=*/1,
+      /*use_subpixel=*/1, /*save_mv=*/1, block_sse, block_var);
+  // Split to 4 sub blocks.
+  if (valid_partition_types & (1 << PARTITION_SPLIT)) {
+    const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
+    for (int i = 0; i < 4; ++i) {
+      const int row = mi_row + (i >> 1) * sub_mi_height;
+      const int col = mi_col + (i & 1) * sub_mi_width;
+      simple_motion_search_get_best_ref(cpi, x, sms_root, row, col, subsize,
+                                        ref_list, /*num_refs=*/1,
+                                        /*use_subpixel=*/1, /*save_mv=*/1,
+                                        &sub_block_sse[i], &sub_block_var[i]);
+    }
+  }
+  // Horizontal split
+  if (valid_partition_types & (1 << PARTITION_HORZ)) {
+    const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
+    for (int i = 0; i < 2; ++i) {
+      const int row = mi_row + (i & 1) * sub_mi_height;
+      const int col = mi_col;
+      simple_motion_search_get_best_ref(cpi, x, sms_root, row, col, subsize,
+                                        ref_list, /*num_refs=*/1,
+                                        /*use_subpixel=*/1, /*save_mv=*/1,
+                                        &horz_block_sse[i], &horz_block_var[i]);
+    }
+  }
+  // Vertical split
+  if (valid_partition_types & (1 << PARTITION_VERT)) {
+    const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_VERT);
+    for (int i = 0; i < 2; ++i) {
+      const int row = mi_row;
+      const int col = mi_col + (i & 1) * sub_mi_width;
+      simple_motion_search_get_best_ref(cpi, x, sms_root, row, col, subsize,
+                                        ref_list, /*num_refs=*/1,
+                                        /*use_subpixel=*/1, /*save_mv=*/1,
+                                        &vert_block_sse[i], &vert_block_var[i]);
+    }
+  }
+
+  aom_free(sms_tree);
+  if (sms_tree != NULL) {
+    aom_free(sms_tree);
+    sms_tree = NULL;
+  }
+}
 #endif  // !CONFIG_REALTIME_ONLY
 
 static INLINE void init_simple_motion_search_mvs(
