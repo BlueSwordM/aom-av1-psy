@@ -4352,6 +4352,21 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
     const int pyramid_level =
         cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index];
     x->rdmult = orig_rdmult;
+    // Neighbor information
+    const int has_above = !!xd->above_mbmi;
+    const int has_left = !!xd->left_mbmi;
+    const BLOCK_SIZE above_bsize =
+        has_above ? xd->above_mbmi->bsize : BLOCK_INVALID;
+    const BLOCK_SIZE left_bsize =
+        has_left ? xd->left_mbmi->bsize : BLOCK_INVALID;
+    const int above_block_width =
+        above_bsize == BLOCK_INVALID ? -1 : block_size_wide[above_bsize];
+    const int above_block_height =
+        above_bsize == BLOCK_INVALID ? -1 : block_size_high[above_bsize];
+    const int left_block_width =
+        left_bsize == BLOCK_INVALID ? -1 : block_size_wide[left_bsize];
+    const int left_block_height =
+        left_bsize == BLOCK_INVALID ? -1 : block_size_high[left_bsize];
     // Prepare simple motion search stats as features
     unsigned int block_sse = -1;
     unsigned int block_var = -1;
@@ -4383,6 +4398,12 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
     features.qindex = qindex;
     features.rdmult = rdmult;
     features.pyramid_level = pyramid_level;
+    features.has_above_block = has_above;
+    features.above_block_width = above_block_width;
+    features.above_block_height = above_block_height;
+    features.has_left_block = has_left;
+    features.left_block_width = left_block_width;
+    features.left_block_height = left_block_height;
     features.block_sse = block_sse;
     features.block_var = block_var;
     for (int i = 0; i < 4; ++i) {

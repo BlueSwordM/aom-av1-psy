@@ -30,7 +30,7 @@
  * types, removing or reassigning enums, adding/removing/rearranging
  * fields to structures.
  */
-#define AOM_EXT_PART_ABI_VERSION 7
+#define AOM_EXT_PART_ABI_VERSION 8
 
 #ifdef __cplusplus
 extern "C" {
@@ -252,6 +252,12 @@ typedef struct aom_partition_features {
   int qindex;         ///< Quantization index, range: [0, 255]
   int rdmult;         ///< Rate-distortion multiplier
   int pyramid_level;  ///< The level of this frame in the hierarchical structure
+  int has_above_block;     ///< Has above neighbor block
+  int above_block_width;   ///< Width of the above block, -1 if not exist
+  int above_block_height;  ///< Height of the above block, -1 if not exist
+  int has_left_block;      ///< Has left neighbor block
+  int left_block_width;    ///< Width of the left block, -1 if not exist
+  int left_block_height;   ///< Height of the left block, -1 if not exist
   /*!
    * The following parameters are collected from applying simple motion search.
    * Sum of squared error (SSE) and variance of motion compensated residual
