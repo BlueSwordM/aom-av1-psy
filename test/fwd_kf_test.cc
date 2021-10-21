@@ -99,7 +99,7 @@ class ForwardKeyTest
 };
 
 // TODO(crbug.com/aomedia/2807): Fix and re-enable the test.
-TEST_P(ForwardKeyTest, DISABLED_ForwardKeyEncodeTest) {
+TEST_P(ForwardKeyTest, ForwardKeyEncodeTest) {
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, 20);
