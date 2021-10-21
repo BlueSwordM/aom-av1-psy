@@ -42,8 +42,6 @@ extern "C" {
 #define MAX_WINNER_MODE_COUNT_INTER 1
 //! Number of txfm hash records kept for the partition block.
 #define RD_RECORD_BUFFER_LEN 8
-//! Number of txfm hash records kept for the txfm block.
-#define TX_SIZE_RD_RECORD_BUFFER_LEN 256
 
 /*! Maximum value taken by transform type probabilities */
 #define MAX_TX_TYPE_PROB 1024
@@ -231,7 +229,7 @@ typedef struct {
   uint16_t cb_offset[PLANE_TYPES];
 } MB_MODE_INFO_EXT_FRAME;
 
-/*! \brief Txfm search results for a partition
+/*! \brief Inter-mode txfm results for a partition block.
  */
 typedef struct {
   //! Txfm size used if the current mode is intra mode.
@@ -248,12 +246,17 @@ typedef struct {
   uint32_t hash_value;
 } MB_RD_INFO;
 
-/*! \brief Hash records of inter-mode txfm results for the
- *  whole partition block.
+/*! \brief Hash records of the inter-mode transform results
+ *
+ * Hash records of the inter-mode transform results for a whole partition block
+ * based on the residue. Since this operates on the partition block level, this
+ * can give us a whole txfm partition tree.
  */
 typedef struct {
-  //! Circular buffer that stores the inter-mode txfm results.
-  MB_RD_INFO tx_rd_info[RD_RECORD_BUFFER_LEN];
+  /*! Circular buffer that stores the inter-mode txfm results of a partition
+   *  block.
+   */
+  MB_RD_INFO mb_rd_info[RD_RECORD_BUFFER_LEN];
   //! Index to insert the newest rd record.
   int index_start;
   //! Number of info stored in this record.
@@ -472,12 +475,7 @@ typedef struct {
    */
   uint8_t tx_type_map_[MAX_MIB_SIZE * MAX_MIB_SIZE];
 
-  /*! \brief Txfm hash records of inter-modes
-   *
-   * This records a whole *partition block*'s inter-mode txfm result.
-   * Since this operates on the partition block level, this can give us a
-   * whole txfm partition tree.
-   */
+  //! Txfm hash records of inter-modes.
   MB_RD_RECORD *mb_rd_record;
 
   /*! \brief Number of txb splits.
