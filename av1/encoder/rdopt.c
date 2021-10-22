@@ -5120,6 +5120,7 @@ static AOM_INLINE void search_intra_modes_in_interframe(
     int64_t yrd_threshold) {
   const AV1_COMMON *const cm = &cpi->common;
   const SPEED_FEATURES *const sf = &cpi->sf;
+  const IntraModeCfg *const intra_mode_cfg = &cpi->oxcf.intra_mode_cfg;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   IntraModeSearchState *intra_search_state = &search_state->intra_search_state;
@@ -5153,16 +5154,16 @@ static AOM_INLINE void search_intra_modes_in_interframe(
 
     const THR_MODES mode_enum =
         get_prediction_mode_idx(mbmi->mode, INTRA_FRAME, NONE_FRAME);
-    if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
+    if ((!intra_mode_cfg->enable_smooth_intra ||
          cpi->sf.intra_sf.disable_smooth_intra) &&
         (mbmi->mode == SMOOTH_PRED || mbmi->mode == SMOOTH_H_PRED ||
          mbmi->mode == SMOOTH_V_PRED))
       continue;
-    if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
-        mbmi->mode == PAETH_PRED)
+    if (!intra_mode_cfg->enable_paeth_intra && mbmi->mode == PAETH_PRED)
       continue;
     if (av1_is_directional_mode(mbmi->mode) &&
-        av1_use_angle_delta(bsize) == 0 && mbmi->angle_delta[PLANE_TYPE_Y] != 0)
+        !(av1_use_angle_delta(bsize) && intra_mode_cfg->enable_angle_delta) &&
+        mbmi->angle_delta[PLANE_TYPE_Y] != 0)
       continue;
     const PREDICTION_MODE this_mode = mbmi->mode;
 

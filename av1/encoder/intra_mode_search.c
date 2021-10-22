@@ -1185,6 +1185,7 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   // function
   int beat_best_rd = 0;
   const int *bmode_costs;
+  const IntraModeCfg *const intra_mode_cfg = &cpi->oxcf.intra_mode_cfg;
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   const int try_palette =
       cpi->oxcf.tool_cfg.enable_palette &&
@@ -1237,21 +1238,19 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     int64_t this_distortion, this_rd;
 
     is_diagonal_mode = av1_is_diagonal_mode(mbmi->mode);
-    if (is_diagonal_mode && !cpi->oxcf.intra_mode_cfg.enable_diagonal_intra)
-      continue;
+    if (is_diagonal_mode && !intra_mode_cfg->enable_diagonal_intra) continue;
     if (av1_is_directional_mode(mbmi->mode) &&
-        !cpi->oxcf.intra_mode_cfg.enable_directional_intra)
+        !intra_mode_cfg->enable_directional_intra)
       continue;
 
     // The smooth prediction mode appears to be more frequently picked
     // than horizontal / vertical smooth prediction modes. Hence treat
     // them differently in speed features.
-    if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
+    if ((!intra_mode_cfg->enable_smooth_intra ||
          cpi->sf.intra_sf.disable_smooth_intra) &&
         (mbmi->mode == SMOOTH_H_PRED || mbmi->mode == SMOOTH_V_PRED))
       continue;
-    if (!cpi->oxcf.intra_mode_cfg.enable_smooth_intra &&
-        mbmi->mode == SMOOTH_PRED)
+    if (!intra_mode_cfg->enable_smooth_intra && mbmi->mode == SMOOTH_PRED)
       continue;
 
     // The functionality of filter intra modes and smooth prediction
@@ -1261,8 +1260,7 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         cpi->sf.intra_sf.prune_filter_intra_level == 0 &&
         mbmi->mode == SMOOTH_PRED)
       continue;
-    if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
-        mbmi->mode == PAETH_PRED)
+    if (!intra_mode_cfg->enable_paeth_intra && mbmi->mode == PAETH_PRED)
       continue;
 
     // Skip the evaluation of modes that do not match with the winner mode in
@@ -1271,7 +1269,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
     is_directional_mode = av1_is_directional_mode(mbmi->mode);
     if (is_directional_mode && directional_mode_skip_mask[mbmi->mode]) continue;
-    if (is_directional_mode && av1_use_angle_delta(bsize) == 0 &&
+    if (is_directional_mode &&
+        !(av1_use_angle_delta(bsize) && intra_mode_cfg->enable_angle_delta) &&
         mbmi->angle_delta[PLANE_TYPE_Y] != 0)
       continue;
 
