@@ -15,8 +15,10 @@
 #include "config/aom_dsp_rtcd.h"
 
 #include "test/acm_random.h"
+// Inlining not forced for the compiler due to some tests calling
+// SIMD_INLINE functions via function pointers
 #undef SIMD_INLINE
-#define SIMD_INLINE static inline  // Inlining not enforced for compiler
+#define SIMD_INLINE static inline
 #include "aom_dsp/aom_simd.h"
 #include "aom_dsp/simd/v256_intrinsics_c.h"
 
