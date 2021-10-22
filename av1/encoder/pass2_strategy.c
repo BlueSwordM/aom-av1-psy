@@ -2483,6 +2483,10 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
         alt_offset = -roll_back;
         i -= roll_back;
         if (is_final_pass) rc->intervals_till_gf_calculate_due = 0;
+        p_rc->gf_intervals[p_rc->cur_gf_index] -= roll_back;
+        reset_fpf_position(&cpi->twopass_frame, start_pos);
+        accumulate_gop_stats(cpi, is_intra_only, f_w, f_h, &next_frame,
+                             start_pos, &gf_stats, &i);
       }
     }
   }
