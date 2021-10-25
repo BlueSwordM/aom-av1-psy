@@ -1802,6 +1802,12 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
     }
   }
 
+  if (x->nonrd_prune_ref_frame_search > 2 ||
+      (x->nonrd_prune_ref_frame_search > 1 && bsize > BLOCK_64X64)) {
+    use_golden_ref_frame = 0;
+    use_alt_ref_frame = 0;
+  }
+
   if (segfeature_active(seg, mi->segment_id, SEG_LVL_REF_FRAME) &&
       get_segdata(seg, mi->segment_id, SEG_LVL_REF_FRAME) == GOLDEN_FRAME) {
     use_golden_ref_frame = 1;
@@ -2099,16 +2105,12 @@ static AOM_INLINE int skip_mode_by_bsize_and_ref_frame(
   // Skip testing non-LAST if this flag is set.
   if (extra_prune) {
     if (extra_prune > 1 && ref_frame != LAST_FRAME &&
-        (bsize > BLOCK_64X64 || (bsize > BLOCK_16X16 && mode == NEWMV)))
+        (bsize > BLOCK_16X16 && mode == NEWMV))
       return 1;
 
     if (ref_frame != LAST_FRAME && mode == NEARMV) return 1;
 
     if (more_prune && bsize >= BLOCK_32X32 && mode == NEARMV) return 1;
-
-    if (extra_prune > 2 && ref_frame != LAST_FRAME) {
-      return 1;
-    }
   }
   return 0;
 }
