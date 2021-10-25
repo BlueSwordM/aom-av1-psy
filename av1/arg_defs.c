@@ -295,6 +295,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .rowmtarg =
       ARG_DEF(NULL, "row-mt", 1,
               "Enable row based multi-threading (0: off, 1: on (default))"),
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  .fpmtarg = ARG_DEF(
+      NULL, "fp-mt", 1,
+      "Enable frame parallel multi-threading (0: off (default), 1: on)"),
+#endif
   .tile_cols =
       ARG_DEF(NULL, "tile-columns", 1, "Number of tile columns to use, log2"),
   .tile_rows =

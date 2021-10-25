@@ -866,6 +866,9 @@ static AOM_INLINE int is_fpmt_config(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
   if (oxcf->max_threads < 2) {
     return 0;
   }
+  if (!oxcf->fp_mt) {
+    return 0;
+  }
 
   return 1;
 }

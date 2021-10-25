@@ -1411,6 +1411,15 @@ enum aome_enc_control_id {
    * - 0 = Default. Disable rate control for external encoders.
    */
   AV1E_SET_RTC_EXTERNAL_RC = 152,
+
+  /*!\brief Codec control function to enable frame parallel multi-threading
+   * of the encoder, unsigned int parameter
+   *
+   * - 0 = disable (default)
+   * - 1 = enable
+   */
+  AV1E_SET_FP_MT = 153,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -1984,6 +1993,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_AUTO_INTRA_TOOLS_OFF, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_RTC_EXTERNAL_RC, int)
 #define AOM_CTRL_AV1E_SET_RTC_EXTERNAL_RC
+
+AOM_CTRL_USE_TYPE(AV1E_SET_FP_MT, unsigned int)
+#define AOM_CTRL_AV1E_SET_FP_MT
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

@@ -130,6 +130,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AOME_SET_SHARPNESS,
                                         AOME_SET_STATIC_THRESHOLD,
                                         AV1E_SET_ROW_MT,
+#if CONFIG_FRAME_PARALLEL_ENCODE
+                                        AV1E_SET_FP_MT,
+#endif
                                         AV1E_SET_TILE_COLUMNS,
                                         AV1E_SET_TILE_ROWS,
                                         AV1E_SET_ENABLE_TPL_MODEL,
@@ -332,6 +335,9 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.sharpness,
   &g_av1_codec_arg_defs.static_thresh,
   &g_av1_codec_arg_defs.rowmtarg,
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  &g_av1_codec_arg_defs.fpmtarg,
+#endif
   &g_av1_codec_arg_defs.tile_cols,
   &g_av1_codec_arg_defs.tile_rows,
   &g_av1_codec_arg_defs.enable_tpl_model,

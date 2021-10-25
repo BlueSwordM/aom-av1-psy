@@ -39,6 +39,9 @@ struct av1_extracfg {
   unsigned int sharpness;
   unsigned int static_thresh;
   unsigned int row_mt;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  unsigned int fp_mt;
+#endif
   unsigned int tile_columns;  // log2 number of tile columns
   unsigned int tile_rows;     // log2 number of tile rows
   unsigned int enable_tpl_model;
@@ -198,13 +201,16 @@ struct av1_extracfg {
 // mode_cost_upd_freq: COST_UPD_OFF
 // mv_cost_upd_freq: COST_UPD_OFF
 static const struct av1_extracfg default_extra_cfg = {
-  7,              // cpu_used
-  1,              // enable_auto_alt_ref
-  0,              // enable_auto_bwd_ref
-  0,              // noise_sensitivity
-  0,              // sharpness
-  0,              // static_thresh
-  1,              // row_mt
+  7,  // cpu_used
+  1,  // enable_auto_alt_ref
+  0,  // enable_auto_bwd_ref
+  0,  // noise_sensitivity
+  0,  // sharpness
+  0,  // static_thresh
+  1,  // row_mt
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  0,  // fp_mt
+#endif
   0,              // tile_columns
   0,              // tile_rows
   0,              // enable_tpl_model
@@ -345,6 +351,9 @@ static const struct av1_extracfg default_extra_cfg = {
   0,              // sharpness
   0,              // static_thresh
   1,              // row_mt
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  0,              // fp_mt
+#endif
   0,              // tile_columns
   0,              // tile_rows
   1,              // enable_tpl_model
@@ -670,6 +679,9 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, single_tile_decoding, 1);
 
   RANGE_CHECK_HI(extra_cfg, row_mt, 1);
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  RANGE_CHECK_HI(extra_cfg, fp_mt, 1);
+#endif
 
   RANGE_CHECK_HI(extra_cfg, tile_columns, 6);
   RANGE_CHECK_HI(extra_cfg, tile_rows, 6);
@@ -1301,6 +1313,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->ref_frm_cfg.enable_onesided_comp = extra_cfg->enable_onesided_comp;
 
   oxcf->row_mt = extra_cfg->row_mt;
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  oxcf->fp_mt = extra_cfg->fp_mt;
+#endif
 
   // Set motion mode related configuration.
   oxcf->motion_mode_cfg.enable_obmc = extra_cfg->enable_obmc;
@@ -2457,6 +2472,40 @@ static aom_codec_err_t create_context_and_bufferpool(
   return res;
 }
 
+static aom_codec_err_t ctrl_set_fp_mt(aom_codec_alg_priv_t *ctx, va_list args) {
+#if !CONFIG_FRAME_PARALLEL_ENCODE
+  (void)args;
+  (void)ctx;
+  return AOM_CODEC_INCAPABLE;
+#else
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.fp_mt = CAST(AV1E_SET_FP_MT, args);
+  const aom_codec_err_t result = update_extra_cfg(ctx, &extra_cfg);
+  int num_fp_contexts = 1;
+  if (ctx->ppi->num_fp_contexts == 1) {
+    num_fp_contexts =
+        av1_compute_num_fp_contexts(ctx->ppi, &ctx->ppi->parallel_cpi[0]->oxcf);
+    if (num_fp_contexts > 1) {
+      int i;
+      for (i = 1; i < num_fp_contexts; i++) {
+        int res = create_context_and_bufferpool(
+            ctx->ppi, &ctx->ppi->parallel_cpi[i], &ctx->buffer_pool, &ctx->oxcf,
+            ENCODE_STAGE, -1);
+        if (res != AOM_CODEC_OK) {
+          return res;
+        }
+#if !CONFIG_REALTIME_ONLY
+        ctx->ppi->parallel_cpi[i]->twopass_frame.stats_in =
+            ctx->ppi->twopass.stats_buf_ctx->stats_in_start;
+#endif
+      }
+    }
+  }
+  ctx->ppi->num_fp_contexts = num_fp_contexts;
+  return result;
+#endif
+}
+
 static aom_codec_err_t ctrl_set_auto_intra_tools_off(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -2536,33 +2585,24 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
       assert(priv->ppi->num_fp_contexts >= 1);
-      int i;
-      for (i = 0; i < priv->ppi->num_fp_contexts; i++) {
-        res = create_context_and_bufferpool(
-            priv->ppi, &priv->ppi->parallel_cpi[i], &priv->buffer_pool,
-            &priv->oxcf, ENCODE_STAGE, -1);
-        if (res != AOM_CODEC_OK) {
-          return res;
-        }
-        if (i == 0) {
-          // Calculate the maximum number of frames that can be encoded in
-          // parallel
-          priv->ppi->num_fp_contexts = av1_compute_num_fp_contexts(
-              priv->ppi, &priv->ppi->parallel_cpi[i]->oxcf);
-#if CONFIG_FPMT_TEST
-          // When called from the unit test, if max_threads == 2, simulation of
-          // frame parallel encode using single cpi is enabled, else actual
-          // frame parallel encode using multiple cpis is enabled.
-          priv->ppi->fpmt_unit_test_cfg = (priv->oxcf.max_threads == 2)
-                                              ? PARALLEL_SIMULATION_ENCODE
-                                              : PARALLEL_ENCODE;
-#endif
-        }
-#if !CONFIG_REALTIME_ONLY
-        priv->ppi->parallel_cpi[i]->twopass_frame.stats_in =
-            priv->ppi->twopass.stats_buf_ctx->stats_in_start;
-#endif
+      res = create_context_and_bufferpool(
+          priv->ppi, &priv->ppi->parallel_cpi[0], &priv->buffer_pool,
+          &priv->oxcf, ENCODE_STAGE, -1);
+      if (res != AOM_CODEC_OK) {
+        return res;
       }
+#if CONFIG_FPMT_TEST
+      // When called from the unit test, if max_threads == 2, simulation of
+      // frame parallel encode using single cpi is enabled, else actual
+      // frame parallel encode using multiple cpis is enabled.
+      priv->ppi->fpmt_unit_test_cfg = (priv->oxcf.max_threads == 2)
+                                          ? PARALLEL_SIMULATION_ENCODE
+                                          : PARALLEL_ENCODE;
+#endif
+#if !CONFIG_REALTIME_ONLY
+      priv->ppi->parallel_cpi[0]->twopass_frame.stats_in =
+          priv->ppi->twopass.stats_buf_ctx->stats_in_start;
+#endif
       priv->ppi->cpi = priv->ppi->parallel_cpi[0];
 #else
       res = create_context_and_bufferpool(priv->ppi, &priv->ppi->cpi,
@@ -3531,8 +3571,15 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.rowmtarg, argv,
                               err_string)) {
     extra_cfg.row_mt = arg_parse_uint_helper(&arg, err_string);
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.tile_cols, argv,
-                              err_string)) {
+  }
+#if CONFIG_FRAME_PARALLEL_ENCODE
+  else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.fpmtarg, argv,
+                            err_string)) {
+    extra_cfg.fp_mt = arg_parse_uint_helper(&arg, err_string);
+  }
+#endif
+  else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.tile_cols, argv,
+                            err_string)) {
     extra_cfg.tile_columns = arg_parse_uint_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.tile_rows, argv,
                               err_string)) {
@@ -3927,6 +3974,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AOME_SET_SHARPNESS, ctrl_set_sharpness },
   { AOME_SET_STATIC_THRESHOLD, ctrl_set_static_thresh },
   { AV1E_SET_ROW_MT, ctrl_set_row_mt },
+  { AV1E_SET_FP_MT, ctrl_set_fp_mt },
   { AV1E_SET_TILE_COLUMNS, ctrl_set_tile_columns },
   { AV1E_SET_TILE_ROWS, ctrl_set_tile_rows },
   { AV1E_SET_ENABLE_TPL_MODEL, ctrl_set_enable_tpl_model },
