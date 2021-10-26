@@ -336,6 +336,7 @@ void av1_one_pass_cbr_svc_start_layer(AV1_COMP *const cpi) {
   cpi->common.width = width;
   cpi->common.height = height;
   av1_update_frame_size(cpi);
+  if (svc->spatial_layer_id == 0) svc->high_source_sad_superframe = 0;
 }
 
 enum {

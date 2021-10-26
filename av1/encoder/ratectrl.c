@@ -436,7 +436,7 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality) {
     }
     // Adjust Q base on source content change from scene detection.
     if (cpi->sf.rt_sf.check_scene_detection && rc->prev_avg_source_sad > 0 &&
-        rc->frames_since_key > 10) {
+        rc->frames_since_key > 10 && !cpi->ppi->use_svc) {
       const int bit_depth = cm->seq_params->bit_depth;
       double delta =
           (double)rc->avg_source_sad / (double)rc->prev_avg_source_sad - 1.0;
@@ -2497,6 +2497,7 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
   last_src_ystride = unscaled_last_src->y_stride;
   last_src_width = unscaled_last_src->y_width;
   last_src_height = unscaled_last_src->y_height;
+  if (src_width != last_src_width || src_height != last_src_height) return;
   rc->high_source_sad = 0;
   rc->prev_avg_source_sad = rc->avg_source_sad;
   if (src_width == last_src_width && src_height == last_src_height) {
@@ -2571,6 +2572,7 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
       rc->high_source_sad = 0;
     rc->avg_source_sad = (3 * rc->avg_source_sad + avg_sad) >> 2;
   }
+  cpi->svc.high_source_sad_superframe = rc->high_source_sad;
 }
 
 /*!\brief Set the GF baseline interval for 1 pass real-time mode.
@@ -2824,8 +2826,8 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
               : svc->layer_context[svc->temporal_layer_id].is_key_frame;
     }
   }
-  // Check for scene change, for non-SVC for now.
-  if (!cpi->ppi->use_svc && cpi->sf.rt_sf.check_scene_detection)
+  // Check for scene change: for SVC check on base spatial layer only.
+  if (cpi->sf.rt_sf.check_scene_detection && svc->spatial_layer_id == 0)
     rc_scene_detection_onepass_rt(cpi);
   // Check for dynamic resize, for single spatial layer for now.
   // For temporal layers only check on base temporal layer.
@@ -2928,6 +2930,24 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
         rate_correction_factor = MAX_BPB_FACTOR;
       cpi->ppi->p_rc.rate_correction_factors[INTER_NORMAL] =
           rate_correction_factor;
+    }
+    // For temporal layers: reset the rate control parameters across all
+    // temporal layers.
+    if (cpi->svc.number_temporal_layers > 1) {
+      SVC *svc = &cpi->svc;
+      for (int tl = 0; tl < svc->number_temporal_layers; ++tl) {
+        int sl = svc->spatial_layer_id;
+        const int layer = LAYER_IDS_TO_IDX(sl, tl, svc->number_temporal_layers);
+        LAYER_CONTEXT *lc = &svc->layer_context[layer];
+        RATE_CONTROL *lrc = &lc->rc;
+        PRIMARY_RATE_CONTROL *lp_rc = &lc->p_rc;
+        lp_rc->avg_frame_qindex[INTER_FRAME] = *q;
+        lp_rc->buffer_level = lp_rc->optimal_buffer_level;
+        lp_rc->bits_off_target = lp_rc->optimal_buffer_level;
+        lrc->rc_1_frame = 0;
+        lrc->rc_2_frame = 0;
+        lp_rc->rate_correction_factors[INTER_NORMAL] = rate_correction_factor;
+      }
     }
     return 1;
   } else {

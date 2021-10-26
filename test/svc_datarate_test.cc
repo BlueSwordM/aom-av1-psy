@@ -503,7 +503,7 @@ class DatarateTestSVC
     target_layer_bitrate_[2] = cfg_.rc_target_bitrate;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
-      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.60)
           << " The datarate for the file is lower than target by too much!";
       ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.35)
           << " The datarate for the file is greater than target by too much!";
@@ -688,7 +688,7 @@ class DatarateTestSVC
     target_layer_bitrate_[8] = bitrate_sl2;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
-      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.50)
           << " The datarate for the file is lower than target by too much!";
       ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.38)
           << " The datarate for the file is greater than target by too much!";
@@ -941,7 +941,7 @@ class DatarateTestSVC
     target_layer_bitrate_[8] = bitrate_sl2;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
-      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.75)
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.55)
           << " The datarate for the file is lower than target by too much!";
       ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.4)
           << " The datarate for the file is greater than target by too much!";
@@ -1025,7 +1025,7 @@ class DatarateTestSVC
     target_layer_bitrate_[2] = cfg_.rc_target_bitrate;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
-      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.60)
           << " The datarate for the file is lower than target by too much!";
       ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.35)
           << " The datarate for the file is greater than target by too much!";
@@ -1070,7 +1070,7 @@ class DatarateTestSVC
     target_layer_bitrate_[2] = cfg_.rc_target_bitrate;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
-      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.60)
           << " The datarate for the file is lower than target by too much!";
       ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.35)
           << " The datarate for the file is greater than target by too much!";
@@ -1115,7 +1115,7 @@ class DatarateTestSVC
     target_layer_bitrate_[2] = cfg_.rc_target_bitrate;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
-      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.60)
           << " The datarate for the file is lower than target by too much!";
       ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.35)
           << " The datarate for the file is greater than target by too much!";
@@ -1161,7 +1161,7 @@ class DatarateTestSVC
     target_layer_bitrate_[2] = cfg_.rc_target_bitrate;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
-      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.60)
           << " The datarate for the file is lower than target by too much!";
       ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.35)
           << " The datarate for the file is greater than target by too much!";
