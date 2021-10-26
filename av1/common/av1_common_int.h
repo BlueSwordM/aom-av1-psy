@@ -597,9 +597,10 @@ struct CommonModeInfoParams {
    * \param[in,out]   mi_params   object containing common mode info parameters
    * \param           width       frame width
    * \param           height      frame height
+   * \param           mode        encoding mode
    */
   void (*set_mb_mi)(struct CommonModeInfoParams *mi_params, int width,
-                    int height);
+                    int height, int mode);
   /**@}*/
 };
 

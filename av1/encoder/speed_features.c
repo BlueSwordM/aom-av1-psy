@@ -1311,6 +1311,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
   sf->mv_sf.search_method = boosted ? DIAMOND : FAST_DIAMOND;
 
+  sf->part_sf.default_max_partition_size = BLOCK_128X128;
+  sf->part_sf.default_min_partition_size = BLOCK_8X8;
   sf->part_sf.ml_prune_partition = 1;
   sf->part_sf.reuse_prev_rd_results_for_part_ab = 1;
   sf->part_sf.use_best_rd_for_pruning = 1;
@@ -1364,8 +1366,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
                   FLAG_EARLY_TERMINATE;
     sf->hl_sf.frame_parameter_update = 0;
 
-    sf->part_sf.default_max_partition_size = BLOCK_128X128;
-    sf->part_sf.default_min_partition_size = BLOCK_8X8;
     sf->part_sf.max_intra_bsize = BLOCK_32X32;
     sf->part_sf.partition_search_breakout_rate_thr = 500;
     sf->part_sf.partition_search_type = VAR_BASED_PARTITION;
@@ -1447,8 +1447,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   }
 
   if (speed >= 7) {
-    sf->part_sf.default_max_partition_size = BLOCK_128X128;
-    sf->part_sf.default_min_partition_size = BLOCK_8X8;
     sf->part_sf.partition_search_type = VAR_BASED_PARTITION;
 
     sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;

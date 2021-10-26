@@ -476,15 +476,15 @@ static int alloc_mi(CommonModeInfoParams *mi_params) {
   return 0;
 }
 
-int av1_alloc_context_buffers(AV1_COMMON *cm, int width, int height) {
+int av1_alloc_context_buffers(AV1_COMMON *cm, int width, int height, int mode) {
   CommonModeInfoParams *const mi_params = &cm->mi_params;
-  mi_params->set_mb_mi(mi_params, width, height);
+  mi_params->set_mb_mi(mi_params, width, height, mode);
   if (alloc_mi(mi_params)) goto fail;
   return 0;
 
 fail:
   // clear the mi_* values to force a realloc on resync
-  mi_params->set_mb_mi(mi_params, 0, 0);
+  mi_params->set_mb_mi(mi_params, 0, 0, 0);
   av1_free_context_buffers(cm);
   return 1;
 }

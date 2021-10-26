@@ -297,7 +297,7 @@ void av1_update_frame_size(AV1_COMP *cpi) {
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
 
   // We need to reallocate the context buffers here in case we need more mis.
-  if (av1_alloc_context_buffers(cm, cm->width, cm->height)) {
+  if (av1_alloc_context_buffers(cm, cm->width, cm->height, cpi->oxcf.mode)) {
     aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate context buffers");
   }
@@ -1162,8 +1162,8 @@ AV1_PRIMARY *av1_create_primary_compressor(
     // buffers. The values in this variable are populated according to initial
     // width and height of the frame.
     CommonModeInfoParams mi_params;
-    enc_set_mb_mi(&mi_params, oxcf->frm_dim_cfg.width,
-                  oxcf->frm_dim_cfg.height);
+    enc_set_mb_mi(&mi_params, oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height,
+                  oxcf->mode);
 
     const int bsize = BLOCK_16X16;
     const int w = mi_size_wide[bsize];
