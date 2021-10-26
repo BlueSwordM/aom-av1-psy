@@ -301,7 +301,6 @@ void av1_update_frame_size(AV1_COMP *cpi) {
     aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate context buffers");
   }
-  av1_init_mi_buffers(&cm->mi_params);
 
   av1_init_macroblockd(cm, xd);
 
