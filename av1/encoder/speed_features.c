@@ -1184,6 +1184,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
   (void)is_720p_or_larger;  // Not used so far
 
   if (!is_360p_or_larger) {
+    if (speed >= 5) sf->rt_sf.prune_inter_modes_wrt_gf_arf_based_on_sad = 1;
     if (speed >= 6) sf->rt_sf.force_tx_search_off = 1;
     if (speed >= 7) sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     if (speed >= 8) {
@@ -1286,7 +1287,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->inter_sf.disable_interintra_wedge_var_thresh = UINT_MAX;
   sf->inter_sf.prune_comp_search_by_single_result = 2;
   sf->inter_sf.selective_ref_frame = 4;
-  // TODO(any): need tuning for RT mode.
   sf->inter_sf.alt_ref_search_fp = 1;
   sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
 
@@ -1421,6 +1421,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh = 0;
     sf->inter_sf.prune_warped_prob_thresh = 8;
     sf->inter_sf.extra_prune_warped = 1;
+    sf->rt_sf.prune_inter_modes_wrt_gf_arf_based_on_sad = 1;
   }
 
   if (speed >= 7) {
@@ -1449,6 +1450,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.nonrd_prune_ref_frame_search = 1;
     // This is for rd path only.
     sf->rt_sf.prune_inter_modes_using_temp_var = 0;
+    sf->rt_sf.prune_inter_modes_wrt_gf_arf_based_on_sad = 0;
     sf->rt_sf.reuse_inter_pred_nonrd = 0;
     sf->rt_sf.short_circuit_low_temp_var = 0;
     sf->rt_sf.skip_interp_filter_search = 0;
@@ -1832,6 +1834,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->skip_newmv_mode_based_on_sse = 0;
   rt_sf->gf_length_lvl = 0;
   rt_sf->prune_inter_modes_with_golden_ref = 0;
+  rt_sf->prune_inter_modes_wrt_gf_arf_based_on_sad = 0;
   rt_sf->prune_inter_modes_using_temp_var = 0;
 }
 

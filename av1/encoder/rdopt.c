@@ -3834,6 +3834,20 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
     }
   }
 
+  if (sf->rt_sf.prune_inter_modes_wrt_gf_arf_based_on_sad) {
+    if (x->best_pred_mv_sad < INT_MAX) {
+      int sad_thresh = x->best_pred_mv_sad + (x->best_pred_mv_sad >> 1);
+      const int prune_ref_list[2] = { GOLDEN_FRAME, ALTREF_FRAME };
+
+      // Conservatively skip the modes w.r.t. GOLDEN and ALTREF references
+      for (int ref_idx = 0; ref_idx < 2; ref_idx++) {
+        ref_frame = prune_ref_list[ref_idx];
+        if (x->pred_mv_sad[ref_frame] > sad_thresh)
+          mask->pred_modes[ref_frame] |= INTER_NEAREST_NEAR_ZERO;
+      }
+    }
+  }
+
   if (bsize > sf->part_sf.max_intra_bsize) {
     disable_reference(INTRA_FRAME, mask->ref_combo);
   }
@@ -3958,7 +3972,8 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
       setup_buffer_ref_mvs_inter(cpi, x, ref_frame, bsize, yv12_mb);
     }
     // Store the best pred_mv_sad across all past frames
-    if (cpi->sf.inter_sf.alt_ref_search_fp &&
+    if ((cpi->sf.inter_sf.alt_ref_search_fp ||
+         cpi->sf.rt_sf.prune_inter_modes_wrt_gf_arf_based_on_sad) &&
         cpi->ref_frame_dist_info.ref_relative_dist[ref_frame - LAST_FRAME] < 0)
       x->best_pred_mv_sad =
           AOMMIN(x->best_pred_mv_sad, x->pred_mv_sad[ref_frame]);
