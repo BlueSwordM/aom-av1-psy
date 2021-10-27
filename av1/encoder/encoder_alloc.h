@@ -56,7 +56,6 @@ static AOM_INLINE void alloc_context_buffers_ext(
 
 static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
-  TokenInfo *token_info = &cpi->token_info;
 
   if (av1_alloc_context_buffers(cm, cm->width, cm->height, cpi->oxcf.mode)) {
     aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
@@ -69,11 +68,6 @@ static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
     alloc_context_buffers_ext(cm, &cpi->mbmi_ext_info);
   }
 
-  free_token_info(token_info);
-
-  if (!is_stat_generation_stage(cpi)) {
-    alloc_token_info(cm, token_info);
-  }
   if (cpi->td.mb.mv_costs) {
     aom_free(cpi->td.mb.mv_costs);
     cpi->td.mb.mv_costs = NULL;

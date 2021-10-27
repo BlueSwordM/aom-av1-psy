@@ -1031,6 +1031,10 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   // Set partition speed feature back.
   cpi->sf.part_sf.partition_search_type = partition_search_type_orig;
   cpi->sf.part_sf.fixed_partition_size = fixed_partition_block_size_orig;
+
+  // Free token related info if screen content coding tools are not enabled.
+  if (!cm->features.allow_screen_content_tools)
+    free_token_info(&cpi->token_info);
 }
 #endif  // CONFIG_REALTIME_ONLY
 

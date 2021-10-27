@@ -907,6 +907,25 @@ void av1_init_tile_data(AV1_COMP *cpi) {
   const CostUpdateFreq *const cost_upd_freq = &cpi->oxcf.cost_upd_freq;
   const int rtc_mode = is_rtc_mode(cost_upd_freq, cpi->oxcf.mode);
 
+  if (cm->features.allow_screen_content_tools) {
+    // Number of tokens for which token info needs to be allocated.
+    unsigned int tokens_required =
+        get_token_alloc(cm->mi_params.mb_rows, cm->mi_params.mb_cols,
+                        MAX_SB_SIZE_LOG2, num_planes);
+    // Allocate/reallocate memory for token related info if the number of tokens
+    // required is more than the number of tokens already allocated. This could
+    // occur in case of the following:
+    // 1) If the memory is not yet allocated
+    // 2) If the frame dimensions have changed
+    const bool realloc_tokens = tokens_required > token_info->tokens_allocated;
+    if (realloc_tokens) {
+      free_token_info(token_info);
+      alloc_token_info(cm, token_info, tokens_required);
+      pre_tok = token_info->tile_tok[0][0];
+      tplist = token_info->tplist[0][0];
+    }
+  }
+
   for (tile_row = 0; tile_row < tile_rows; ++tile_row) {
     for (tile_col = 0; tile_col < tile_cols; ++tile_col) {
       TileDataEnc *const tile_data =
@@ -916,7 +935,7 @@ void av1_init_tile_data(AV1_COMP *cpi) {
       tile_data->firstpass_top_mv = kZeroMv;
       tile_data->abs_sum_level = 0;
 
-      if (pre_tok != NULL && tplist != NULL) {
+      if (is_token_info_allocated(token_info)) {
         token_info->tile_tok[tile_row][tile_col] = pre_tok + tile_tok;
         pre_tok = token_info->tile_tok[tile_row][tile_col];
         tile_tok = allocated_tokens(
@@ -935,33 +954,42 @@ void av1_init_tile_data(AV1_COMP *cpi) {
   }
 }
 
-/*!\brief Encode a superblock row
- *
- * \ingroup partition_search
- */
-void av1_encode_sb_row(AV1_COMP *cpi, ThreadData *td, int tile_row,
-                       int tile_col, int mi_row) {
-  AV1_COMMON *const cm = &cpi->common;
+// Populate the start palette token info prior to encoding an SB row.
+static AOM_INLINE void get_token_start(AV1_COMP *cpi, const TileInfo *tile_info,
+                                       int tile_row, int tile_col, int mi_row,
+                                       TokenExtra **tp) {
+  const TokenInfo *token_info = &cpi->token_info;
+  if (!is_token_info_allocated(token_info)) return;
+
+  const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
-  const int tile_cols = cm->tiles.cols;
-  TileDataEnc *this_tile = &cpi->tile_data[tile_row * tile_cols + tile_col];
-  const TileInfo *const tile_info = &this_tile->tile_info;
-  TokenExtra *tok = NULL;
   TokenList *const tplist = cpi->token_info.tplist[tile_row][tile_col];
+  const int sb_row_in_tile =
+      (mi_row - tile_info->mi_row_start) >> cm->seq_params->mib_size_log2;
+
+  get_start_tok(cpi, tile_row, tile_col, mi_row, tp,
+                cm->seq_params->mib_size_log2 + MI_SIZE_LOG2, num_planes);
+  assert(tplist != NULL);
+  tplist[sb_row_in_tile].start = *tp;
+}
+
+// Populate the token count after encoding an SB row.
+static AOM_INLINE void populate_token_count(AV1_COMP *cpi,
+                                            const TileInfo *tile_info,
+                                            int tile_row, int tile_col,
+                                            int mi_row, TokenExtra *tok) {
+  const TokenInfo *token_info = &cpi->token_info;
+  if (!is_token_info_allocated(token_info)) return;
+
+  const AV1_COMMON *cm = &cpi->common;
+  const int num_planes = av1_num_planes(cm);
+  TokenList *const tplist = token_info->tplist[tile_row][tile_col];
   const int sb_row_in_tile =
       (mi_row - tile_info->mi_row_start) >> cm->seq_params->mib_size_log2;
   const int tile_mb_cols =
       (tile_info->mi_col_end - tile_info->mi_col_start + 2) >> 2;
   const int num_mb_rows_in_sb =
       ((1 << (cm->seq_params->mib_size_log2 + MI_SIZE_LOG2)) + 8) >> 4;
-
-  get_start_tok(cpi, tile_row, tile_col, mi_row, &tok,
-                cm->seq_params->mib_size_log2 + MI_SIZE_LOG2, num_planes);
-  assert(tplist != NULL);
-  tplist[sb_row_in_tile].start = tok;
-
-  encode_sb_row(cpi, td, this_tile, mi_row, &tok);
-
   tplist[sb_row_in_tile].count =
       (unsigned int)(tok - tplist[sb_row_in_tile].start);
 
@@ -970,8 +998,28 @@ void av1_encode_sb_row(AV1_COMP *cpi, ThreadData *td, int tile_row,
                          cm->seq_params->mib_size_log2 + MI_SIZE_LOG2,
                          num_planes));
 
+  (void)num_planes;
   (void)tile_mb_cols;
   (void)num_mb_rows_in_sb;
+}
+
+/*!\brief Encode a superblock row
+ *
+ * \ingroup partition_search
+ */
+void av1_encode_sb_row(AV1_COMP *cpi, ThreadData *td, int tile_row,
+                       int tile_col, int mi_row) {
+  AV1_COMMON *const cm = &cpi->common;
+  const int tile_cols = cm->tiles.cols;
+  TileDataEnc *this_tile = &cpi->tile_data[tile_row * tile_cols + tile_col];
+  const TileInfo *const tile_info = &this_tile->tile_info;
+  TokenExtra *tok = NULL;
+
+  get_token_start(cpi, tile_info, tile_row, tile_col, mi_row, &tok);
+
+  encode_sb_row(cpi, td, this_tile, mi_row, &tok);
+
+  populate_token_count(cpi, tile_info, tile_row, tile_col, mi_row, tok);
 }
 
 /*!\brief Encode a tile
