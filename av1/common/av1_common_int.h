@@ -548,8 +548,8 @@ struct CommonModeInfoParams {
   /*!
    * The minimum block size that each element in 'mi_alloc' can correspond to.
    * For decoder, this is always BLOCK_4X4.
-   * For encoder, this is currently set to BLOCK_4X4 for resolution < 4k,
-   * and BLOCK_8X8 for resolution >= 4k.
+   * For encoder, this is BLOCK_8X8 for resolution >= 4k case or REALTIME mode
+   * case. Otherwise, this is BLOCK_4X4.
    */
   BLOCK_SIZE mi_alloc_bsize;
 
