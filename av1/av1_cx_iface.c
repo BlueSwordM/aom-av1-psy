@@ -3216,6 +3216,7 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
   AV1_COMP *const cpi = ppi->cpi;
   AV1_COMMON *const cm = &cpi->common;
   aom_svc_params_t *const params = va_arg(args, aom_svc_params_t *);
+  int64_t target_bandwidth = 0;
   ppi->number_spatial_layers = params->number_spatial_layers;
   ppi->number_temporal_layers = params->number_temporal_layers;
   cpi->svc.number_spatial_layers = params->number_spatial_layers;
@@ -3233,6 +3234,8 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
         lc->scaling_factor_den = params->scaling_factor_den[sl];
         lc->layer_target_bitrate = 1000 * params->layer_target_bitrate[layer];
         lc->framerate_factor = params->framerate_factor[tl];
+        if (tl == ppi->number_temporal_layers - 1)
+          target_bandwidth += lc->layer_target_bitrate;
       }
     }
     if (cm->current_frame.frame_number == 0) {
@@ -3244,8 +3247,7 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
       }
       av1_init_layer_context(cpi);
     }
-    av1_update_layer_context_change_config(cpi,
-                                           cpi->oxcf.rc_cfg.target_bandwidth);
+    av1_update_layer_context_change_config(cpi, target_bandwidth);
   }
   return AOM_CODEC_OK;
 }
