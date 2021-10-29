@@ -350,24 +350,6 @@ static AOM_INLINE void alloc_altref_frame_buffer(AV1_COMP *cpi) {
   }
 }
 
-static AOM_INLINE void alloc_util_frame_buffers(AV1_COMP *cpi) {
-  AV1_COMMON *const cm = &cpi->common;
-  const SequenceHeader *const seq_params = cm->seq_params;
-  const int byte_alignment = cm->features.byte_alignment;
-
-  // The frame buffer trial_frame_rst is used during loop restoration filter
-  // search. Hence it is allocated only when loop restoration is used.
-  if (is_restoration_used(cm)) {
-    if (aom_realloc_frame_buffer(
-            &cpi->trial_frame_rst, cm->superres_upscaled_width,
-            cm->superres_upscaled_height, seq_params->subsampling_x,
-            seq_params->subsampling_y, seq_params->use_highbitdepth,
-            AOM_RESTORATION_FRAME_BORDER, byte_alignment, NULL, NULL, NULL, 0))
-      aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
-                         "Failed to allocate trial restored frame buffer");
-  }
-}
-
 static AOM_INLINE YV12_BUFFER_CONFIG *realloc_and_scale_source(
     AV1_COMP *cpi, int scaled_width, int scaled_height) {
   AV1_COMMON *cm = &cpi->common;

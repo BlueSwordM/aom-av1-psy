@@ -1975,7 +1975,6 @@ void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
 
     if (!is_stat_generation_stage(cpi)) {
       alloc_altref_frame_buffer(cpi);
-      alloc_util_frame_buffers(cpi);
 #if !CONFIG_REALTIME_ONLY
       av1_tf_info_alloc(&cpi->ppi->tf_info, cpi);
 #endif  // !CONFIG_REALTIME_ONLY
@@ -2113,7 +2112,6 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   }
 #endif
 
-  if (!is_stat_generation_stage(cpi)) alloc_util_frame_buffers(cpi);
   init_motion_estimation(cpi);
 
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
