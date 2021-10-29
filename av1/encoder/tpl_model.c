@@ -1687,42 +1687,11 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   assert(gf_group->arf_index >= 0);
 
   double beta[2] = { 0.0 };
-  for (int frame_idx = gf_group->arf_index;
-       frame_idx <= AOMMIN(tpl_gf_group_frames - 1, gf_group->arf_index + 1);
-       ++frame_idx) {
-    TplDepFrame *tpl_frame = &tpl_data->tpl_frame[frame_idx];
-    TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
-    int tpl_stride = tpl_frame->stride;
-    int64_t intra_cost_base = 0;
-    int64_t mc_dep_cost_base = 0;
-    const int step = 1 << tpl_data->tpl_stats_block_mis_log2;
-    const int row_step = step;
-    const int col_step_sr =
-        coded_to_superres_mi(step, cm->superres_scale_denominator);
-    const int mi_cols_sr = av1_pixels_to_mi(cm->superres_upscaled_width);
-
-    for (int row = 0; row < cm->mi_params.mi_rows; row += row_step) {
-      for (int col = 0; col < mi_cols_sr; col += col_step_sr) {
-        TplDepStats *this_stats = &tpl_stats[av1_tpl_ptr_pos(
-            row, col, tpl_stride, tpl_data->tpl_stats_block_mis_log2)];
-        int64_t mc_dep_delta =
-            RDCOST(tpl_frame->base_rdmult, this_stats->mc_dep_rate,
-                   this_stats->mc_dep_dist);
-        intra_cost_base += (this_stats->recrf_dist << RDDIV_BITS);
-        mc_dep_cost_base +=
-            (this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta;
-      }
-    }
-    if (intra_cost_base == 0) {
-      // This should happen very rarely and if it happens, assign a dummy value
-      // to it since it probably wouldn't influence things much
-      beta[frame_idx - gf_group->arf_index] = 0;
-    } else {
-      beta[frame_idx - gf_group->arf_index] =
-          (double)mc_dep_cost_base / intra_cost_base;
-    }
-  }
-
+  const int frame_idx_0 = gf_group->arf_index;
+  const int frame_idx_1 =
+      AOMMIN(tpl_gf_group_frames - 1, gf_group->arf_index + 1);
+  beta[0] = av1_tpl_get_frame_importance(tpl_data, frame_idx_0);
+  beta[1] = av1_tpl_get_frame_importance(tpl_data, frame_idx_1);
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_tpl_setup_stats_time);
 #endif
@@ -2030,11 +1999,8 @@ int av1_q_mode_estimate_base_q(const GF_GROUP *gf_group,
   return q;
 }
 
-double av1_tpl_get_qstep_ratio(const TplParams *tpl_data, int gf_frame_index) {
-  if (!av1_tpl_stats_ready(tpl_data, gf_frame_index)) {
-    return 1;
-  }
-
+double av1_tpl_get_frame_importance(const TplParams *tpl_data,
+                                    int gf_frame_index) {
   const TplDepFrame *tpl_frame = &tpl_data->tpl_frame[gf_frame_index];
   const TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
 
@@ -2054,8 +2020,16 @@ double av1_tpl_get_qstep_ratio(const TplParams *tpl_data, int gf_frame_index) {
       mc_dep_cost_base += (this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta;
     }
   }
-  const double r0 = (double)intra_cost_base / mc_dep_cost_base;
-  return sqrt(r0);
+  return mc_dep_cost_base * 1.0 / intra_cost_base;
+}
+
+double av1_tpl_get_qstep_ratio(const TplParams *tpl_data, int gf_frame_index) {
+  if (!av1_tpl_stats_ready(tpl_data, gf_frame_index)) {
+    return 1;
+  }
+  const double frame_importance =
+      av1_tpl_get_frame_importance(tpl_data, gf_frame_index);
+  return sqrt(1 / frame_importance);
 }
 
 int av1_get_q_index_from_qstep_ratio(int leaf_qindex, double qstep_ratio,
