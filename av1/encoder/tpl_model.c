@@ -1246,7 +1246,6 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     const EncodeFrameInput *const frame_input, int *pframe_qindex) {
   AV1_COMMON *cm = &cpi->common;
   assert(cpi->gf_frame_index == 0);
-  int cur_frame_idx = cpi->gf_frame_index;
   *pframe_qindex = 0;
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
@@ -1277,13 +1276,13 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     ref_picture_map[i] = -i - 1;
   }
 
-  *tpl_group_frames = cur_frame_idx;
+  *tpl_group_frames = 0;
 
   int gf_index;
   int process_frame_count = 0;
   const int gop_length = get_gop_length(gf_group);
 
-  for (gf_index = cur_frame_idx; gf_index < gop_length; ++gf_index) {
+  for (gf_index = 0; gf_index < gop_length; ++gf_index) {
     TplDepFrame *tpl_frame = &tpl_data->tpl_frame[gf_index];
     FRAME_UPDATE_TYPE frame_update_type = gf_group->update_type[gf_index];
     int frame_display_index = gf_index == gf_group->size
@@ -1305,7 +1304,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
     // TODO(angiebird): Simplify the logics of assigning gf_picture
     struct lookahead_entry *buf;
-    if (gf_index == cur_frame_idx) {
+    if (gf_index == 0) {
       buf = av1_lookahead_peek(cpi->ppi->lookahead, lookahead_index,
                                cpi->compressor_stage);
       tpl_frame->gf_picture = gop_eval ? &buf->img : frame_input->source;
