@@ -1245,6 +1245,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     GF_GROUP *gf_group, int gop_eval, int *tpl_group_frames,
     const EncodeFrameInput *const frame_input, int *pframe_qindex) {
   AV1_COMMON *cm = &cpi->common;
+  assert(cpi->gf_frame_index == 0);
   int cur_frame_idx = cpi->gf_frame_index;
   *pframe_qindex = 0;
 
@@ -1279,7 +1280,6 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   *tpl_group_frames = cur_frame_idx;
 
   int gf_index;
-  int anc_frame_offset = gop_eval ? 0 : gf_group->cur_frame_idx[cur_frame_idx];
   int process_frame_count = 0;
   const int gop_length = get_gop_length(gf_group);
 
@@ -1291,7 +1291,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
                                   : gf_group->cur_frame_idx[gf_index] +
                                         gf_group->arf_src_offset[gf_index];
 
-    int lookahead_index = frame_display_index - anc_frame_offset;
+    int lookahead_index = frame_display_index;
 
     frame_params.show_frame = frame_update_type != ARF_UPDATE &&
                               frame_update_type != INTNL_ARF_UPDATE;
@@ -1331,16 +1331,13 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
     // 'cm->current_frame.frame_number' is the display number
     // of the current frame.
-    // 'anc_frame_offset' is the number of frames displayed so
-    // far within the gf group. 'cm->current_frame.frame_number -
-    // anc_frame_offset' is the offset of the first frame in the gf group.
-    // 'frame display index' is frame offset within the gf group.
-    // 'frame_display_index + cm->current_frame.frame_number - anc_frame_offset'
+    // 'frame_display_index' is frame offset within the gf group.
+    // 'frame_display_index + cm->current_frame.frame_number'
     // is the display index of the frame.
     tpl_frame->frame_display_index =
-        frame_display_index + cm->current_frame.frame_number - anc_frame_offset;
-    assert(buf->display_idx == cpi->frame_index_set.show_frame_count -
-                                   anc_frame_offset + frame_display_index);
+        frame_display_index + cm->current_frame.frame_number;
+    assert(buf->display_idx ==
+           cpi->frame_index_set.show_frame_count + frame_display_index);
 
     if (frame_update_type != OVERLAY_UPDATE &&
         frame_update_type != INTNL_OVERLAY_UPDATE) {
@@ -1419,7 +1416,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
         frame_update_type == INTNL_OVERLAY_UPDATE;
     frame_params.frame_type = INTER_FRAME;
 
-    int lookahead_index = frame_display_index - anc_frame_offset;
+    int lookahead_index = frame_display_index;
     struct lookahead_entry *buf = av1_lookahead_peek(
         cpi->ppi->lookahead, lookahead_index, cpi->compressor_stage);
 
@@ -1430,14 +1427,11 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     tpl_frame->tpl_stats_ptr = tpl_data->tpl_stats_pool[process_frame_count];
     // 'cm->current_frame.frame_number' is the display number
     // of the current frame.
-    // 'anc_frame_offset' is the number of frames displayed so
-    // far within the gf group. 'cm->current_frame.frame_number -
-    // anc_frame_offset' is the offset of the first frame in the gf group.
-    // 'frame display index' is frame offset within the gf group.
-    // 'frame_display_index + cm->current_frame.frame_number - anc_frame_offset'
+    // 'frame_display_index' is frame offset within the gf group.
+    // 'frame_display_index + cm->current_frame.frame_number'
     // is the display index of the frame.
     tpl_frame->frame_display_index =
-        frame_display_index + cm->current_frame.frame_number - anc_frame_offset;
+        frame_display_index + cm->current_frame.frame_number;
 
     ++process_frame_count;
 
@@ -1569,6 +1563,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, av1_tpl_setup_stats_time);
 #endif
+  assert(cpi->gf_frame_index == 0);
   AV1_COMMON *cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   AV1TplRowMultiThreadInfo *const tpl_row_mt = &mt_info->tpl_row_mt;
