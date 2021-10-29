@@ -51,6 +51,8 @@ static AOM_INLINE void accumulate_rd_opt(ThreadData *td, ThreadData *td_t) {
   for (int i = 0; i < 2; i++) {
     td->rd_counts.warped_used[i] += td_t->rd_counts.warped_used[i];
   }
+
+  td->rd_counts.newmv_or_intra_blocks += td_t->rd_counts.newmv_or_intra_blocks;
 }
 
 static AOM_INLINE void update_delta_lf_for_row_mt(AV1_COMP *cpi) {

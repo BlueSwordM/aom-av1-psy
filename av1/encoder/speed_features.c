@@ -1530,6 +1530,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.nonrd_agressive_skip = 1;
     sf->rt_sf.nonrd_prune_ref_frame_search = 3;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
+    sf->rt_sf.use_selective_loopfiltering = 1;
   }
 }
 

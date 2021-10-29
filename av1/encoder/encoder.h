@@ -1360,6 +1360,7 @@ typedef struct RD_COUNTS {
   int tx_type_used[TX_SIZES_ALL][TX_TYPES];
   int obmc_used[BLOCK_SIZES_ALL][2];
   int warped_used[2];
+  int newmv_or_intra_blocks;
 } RD_COUNTS;
 
 typedef struct ThreadData {

@@ -1709,6 +1709,7 @@ void av1_encode_frame(AV1_COMP *cpi) {
   CurrentFrame *const current_frame = &cm->current_frame;
   FeatureFlags *const features = &cm->features;
   const int num_planes = av1_num_planes(cm);
+  RD_COUNTS *const rdc = &cpi->td.rd_counts;
   // Indicates whether or not to use a default reduced set for ext-tx
   // rather than the potential full set of 16 transforms
   features->reduced_tx_set_used = cpi->oxcf.txfm_cfg.reduced_tx_type_set;
@@ -1741,10 +1742,10 @@ void av1_encode_frame(AV1_COMP *cpi) {
   (void)num_planes;
 #endif
 
+  rdc->newmv_or_intra_blocks = 0;
+
   if (cpi->sf.hl_sf.frame_parameter_update ||
       cpi->sf.rt_sf.use_comp_ref_nonrd) {
-    RD_COUNTS *const rdc = &cpi->td.rd_counts;
-
     if (frame_is_intra_only(cm))
       current_frame->reference_mode = SINGLE_REFERENCE;
     else

@@ -2081,6 +2081,11 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         }
       }
     }
+    if (cpi->sf.rt_sf.use_selective_loopfiltering &&
+        (mbmi->mode == NEWMV || mbmi->mode < INTRA_MODE_END)) {
+      int32_t blocks = mi_size_high[bsize] * mi_size_wide[bsize];
+      rdc->newmv_or_intra_blocks += blocks;
+    }
     if (tile_data->allow_update_cdf) update_stats(&cpi->common, td);
   }
   if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && mbmi->skip_txfm &&
