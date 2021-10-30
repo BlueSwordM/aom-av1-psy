@@ -1285,13 +1285,8 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   for (gf_index = 0; gf_index < gop_length; ++gf_index) {
     TplDepFrame *tpl_frame = &tpl_data->tpl_frame[gf_index];
     FRAME_UPDATE_TYPE frame_update_type = gf_group->update_type[gf_index];
-    int frame_display_index = gf_index == gf_group->size
-                                  ? cpi->ppi->p_rc.baseline_gf_interval
-                                  : gf_group->cur_frame_idx[gf_index] +
-                                        gf_group->arf_src_offset[gf_index];
-
-    int lookahead_index = frame_display_index;
-
+    int lookahead_index =
+        gf_group->cur_frame_idx[gf_index] + gf_group->arf_src_offset[gf_index];
     frame_params.show_frame = frame_update_type != ARF_UPDATE &&
                               frame_update_type != INTNL_ARF_UPDATE;
     frame_params.show_existing_frame =
@@ -1330,13 +1325,13 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
     // 'cm->current_frame.frame_number' is the display number
     // of the current frame.
-    // 'frame_display_index' is frame offset within the gf group.
-    // 'frame_display_index + cm->current_frame.frame_number'
+    // 'lookahead_index' is frame offset within the gf group.
+    // 'lookahead_index + cm->current_frame.frame_number'
     // is the display index of the frame.
     tpl_frame->frame_display_index =
-        frame_display_index + cm->current_frame.frame_number;
+        lookahead_index + cm->current_frame.frame_number;
     assert(buf->display_idx ==
-           cpi->frame_index_set.show_frame_count + frame_display_index);
+           cpi->frame_index_set.show_frame_count + lookahead_index);
 
     if (frame_update_type != OVERLAY_UPDATE &&
         frame_update_type != INTNL_OVERLAY_UPDATE) {
