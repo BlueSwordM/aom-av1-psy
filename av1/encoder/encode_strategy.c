@@ -1041,7 +1041,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     if (allow_tpl) {
       if (!cpi->skip_tpl_setup_stats) {
         av1_tpl_preload_rc_estimate(cpi, frame_params);
-        av1_tpl_setup_stats(cpi, 0, frame_params, frame_input);
+        av1_tpl_setup_stats(cpi, 0, frame_params);
 #if CONFIG_BITRATE_ACCURACY
         av1_vbr_rc_update_q_index_list(&cpi->vbr_rc_info, &cpi->ppi->tpl_data,
                                        gf_group, cpi->gf_frame_index,
@@ -1527,7 +1527,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     // copy mv_stats from ppi to frame_level cpi.
     cpi->mv_stats = cpi->ppi->mv_stats;
 #endif
-    av1_get_second_pass_params(cpi, &frame_params, &frame_input, *frame_flags);
+    av1_get_second_pass_params(cpi, &frame_params, *frame_flags);
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, av1_get_second_pass_params_time);
 #endif

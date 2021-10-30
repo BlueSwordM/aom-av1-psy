@@ -1242,8 +1242,7 @@ static void mc_flow_synthesizer(TplParams *tpl_data, int frame_idx, int mi_rows,
 
 static AOM_INLINE void init_gop_frames_for_tpl(
     AV1_COMP *cpi, const EncodeFrameParams *const init_frame_params,
-    GF_GROUP *gf_group, int gop_eval, int *tpl_group_frames,
-    const EncodeFrameInput *const frame_input, int *pframe_qindex) {
+    GF_GROUP *gf_group, int *tpl_group_frames, int *pframe_qindex) {
   AV1_COMMON *cm = &cpi->common;
   assert(cpi->gf_frame_index == 0);
   *pframe_qindex = 0;
@@ -1297,30 +1296,18 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     if (frame_update_type == LF_UPDATE)
       *pframe_qindex = gf_group->q_val[gf_index];
 
-    // TODO(angiebird): Simplify the logics of assigning gf_picture
-    struct lookahead_entry *buf;
-    if (gf_index == 0) {
-      buf = av1_lookahead_peek(cpi->ppi->lookahead, lookahead_index,
-                               cpi->compressor_stage);
-      tpl_frame->gf_picture = gop_eval ? &buf->img : frame_input->source;
-    } else {
-      buf = av1_lookahead_peek(cpi->ppi->lookahead, lookahead_index,
-                               cpi->compressor_stage);
-      if (buf == NULL) break;
-      tpl_frame->gf_picture = &buf->img;
-    }
-    if (gop_eval && cpi->rc.frames_since_key > 0 &&
-        gf_group->arf_index == gf_index) {
-      tpl_frame->gf_picture = &cpi->ppi->alt_ref_buffer;
-    }
-    if (gop_eval == 0) {
-      //  Use the exsiting filtered frame buffer if possible
-      int show_tf_buf = 0;
-      const YV12_BUFFER_CONFIG *tf_buf = av1_tf_info_get_filtered_buf(
-          &cpi->ppi->tf_info, gf_index, &show_tf_buf);
-      if (tf_buf != NULL) {
-        tpl_frame->gf_picture = tf_buf;
-      }
+    const struct lookahead_entry *buf = av1_lookahead_peek(
+        cpi->ppi->lookahead, lookahead_index, cpi->compressor_stage);
+    if (buf == NULL) break;
+    tpl_frame->gf_picture = &buf->img;
+
+    // Use filtered frame buffer if available. This will make tpl stats more
+    // precise.
+    int show_tf_buf = 0;
+    const YV12_BUFFER_CONFIG *tf_buf = av1_tf_info_get_filtered_buf(
+        &cpi->ppi->tf_info, gf_index, &show_tf_buf);
+    if (tf_buf != NULL) {
+      tpl_frame->gf_picture = tf_buf;
     }
 
     // 'cm->current_frame.frame_number' is the display number
@@ -1552,8 +1539,7 @@ void av1_tpl_preload_rc_estimate(AV1_COMP *cpi,
 }
 
 int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
-                        const EncodeFrameParams *const frame_params,
-                        const EncodeFrameInput *const frame_input) {
+                        const EncodeFrameParams *const frame_params) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, av1_tpl_setup_stats_time);
 #endif
@@ -1593,8 +1579,8 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
   int pframe_qindex;
   int tpl_gf_group_frames;
-  init_gop_frames_for_tpl(cpi, frame_params, gf_group, gop_eval,
-                          &tpl_gf_group_frames, frame_input, &pframe_qindex);
+  init_gop_frames_for_tpl(cpi, frame_params, gf_group, &tpl_gf_group_frames,
+                          &pframe_qindex);
 
   cpi->ppi->p_rc.base_layer_qp = pframe_qindex;
 

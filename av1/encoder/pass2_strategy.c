@@ -974,8 +974,7 @@ static INLINE int detect_gf_cut(AV1_COMP *cpi, int frame_index, int cur_start,
 }
 
 static int is_shorter_gf_interval_better(AV1_COMP *cpi,
-                                         EncodeFrameParams *frame_params,
-                                         const EncodeFrameInput *frame_input) {
+                                         EncodeFrameParams *frame_params) {
   RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   int gop_length_decision_method = cpi->sf.tpl_sf.gop_length_decision_method;
@@ -989,26 +988,17 @@ static int is_shorter_gf_interval_better(AV1_COMP *cpi,
     shorten_gf_interval =
         (p_rc->gfu_boost <
          p_rc->num_stats_used_for_gfu_boost * GF_MIN_BOOST * 1.4) &&
-        !av1_tpl_setup_stats(cpi, 3, frame_params, frame_input);
+        !av1_tpl_setup_stats(cpi, 3, frame_params);
   } else {
     int do_complete_tpl = 1;
     GF_GROUP *const gf_group = &cpi->ppi->gf_group;
     int is_temporal_filter_enabled =
         (rc->frames_since_key > 0 && gf_group->arf_index > -1);
 
-    if (is_temporal_filter_enabled) {
-      int arf_src_index = gf_group->arf_src_offset[gf_group->arf_index];
-      av1_temporal_filter(cpi, arf_src_index, gf_group->arf_index, NULL,
-                          &cpi->ppi->alt_ref_buffer);
-      aom_extend_frame_borders(&cpi->ppi->alt_ref_buffer,
-                               av1_num_planes(&cpi->common));
-    }
-
     if (gop_length_decision_method == 1) {
       // Check if tpl stats of ARFs from base layer, (base+1) layer,
       // (base+2) layer can decide the GF group length.
-      int gop_length_eval =
-          av1_tpl_setup_stats(cpi, 2, frame_params, frame_input);
+      int gop_length_eval = av1_tpl_setup_stats(cpi, 2, frame_params);
 
       if (gop_length_eval != 2) {
         do_complete_tpl = 0;
@@ -1018,8 +1008,7 @@ static int is_shorter_gf_interval_better(AV1_COMP *cpi,
 
     if (do_complete_tpl) {
       // Decide GF group length based on complete tpl stats.
-      shorten_gf_interval =
-          !av1_tpl_setup_stats(cpi, 1, frame_params, frame_input);
+      shorten_gf_interval = !av1_tpl_setup_stats(cpi, 1, frame_params);
       // Tpl stats is reused when the ARF is temporally filtered and GF
       // interval is not shortened.
       if (is_temporal_filter_enabled && !shorten_gf_interval) {
@@ -3493,7 +3482,6 @@ static void estimate_coeff(FIRSTPASS_STATS *first_stats,
 
 void av1_get_second_pass_params(AV1_COMP *cpi,
                                 EncodeFrameParams *const frame_params,
-                                const EncodeFrameInput *const frame_input,
                                 unsigned int frame_flags) {
   RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
@@ -3567,6 +3555,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
   // Define a new GF/ARF group. (Should always enter here for key frames).
   if (cpi->gf_frame_index == gf_group->size) {
+    av1_tf_info_reset(&cpi->ppi->tf_info);
 #if CONFIG_BITRATE_ACCURACY
     vbr_rc_reset_gop_data(&cpi->vbr_rc_info);
 #endif  // CONFIG_BITRATE_ACCURACY
@@ -3672,9 +3661,10 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
           // The calculate_gf_length function is previously used with
           // max_gop_length = 32 with look-ahead gf intervals.
           define_gf_group(cpi, frame_params, 0);
+          av1_tf_info_filtering(&cpi->ppi->tf_info, cpi, gf_group);
           this_frame = this_frame_copy;
 
-          if (is_shorter_gf_interval_better(cpi, frame_params, frame_input)) {
+          if (is_shorter_gf_interval_better(cpi, frame_params)) {
             // A shorter gf interval is better.
             // TODO(jingning): Remove redundant computations here.
             max_gop_length = 16;

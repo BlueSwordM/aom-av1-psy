@@ -360,13 +360,11 @@ void av1_setup_tpl_buffers(struct AV1_PRIMARY *const ppi,
  * \param[in]    cpi           Top - level encoder instance structure
  * \param[in]    gop_eval      Flag if it is in the GOP length decision stage
  * \param[in]    frame_params  Per frame encoding parameters
- * \param[in]    frame_input   Input frame buffers
  *
  * \return Indicates whether or not we should use a longer GOP length.
  */
 int av1_tpl_setup_stats(struct AV1_COMP *cpi, int gop_eval,
-                        const struct EncodeFrameParams *const frame_params,
-                        const struct EncodeFrameInput *const frame_input);
+                        const struct EncodeFrameParams *const frame_params);
 
 /*!\cond */
 
