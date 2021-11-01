@@ -1292,10 +1292,6 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // logic in set_mv_search_params().
   int fullpel_search_step_param;
 
-  // Skip loopfilter (and cdef) in svc real-time mode for
-  // non_reference/droppable frames.
-  int skip_loopfilter_non_reference;
-
   // Bit mask to enable or disable intra modes for each prediction block size
   // separately, for nonrd pickmode.
   int intra_y_mode_bsize_mask_nrd[BLOCK_SIZES];
@@ -1332,10 +1328,6 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Prune inter mode search in rd path based on current block's temporal
   // variance wrt LAST reference.
   int prune_inter_modes_using_temp_var;
-
-  // If enabled this selectively trurns off loop filtering based on frame
-  // complexity
-  int use_selective_loopfiltering;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

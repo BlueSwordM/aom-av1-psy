@@ -1478,14 +1478,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
       sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
       sf->rt_sf.fullpel_search_step_param = 10;
     }
-    // TODO(marpan): Look into why enabling skip_loopfilter_non_reference is
-    // not bitexact on rtc testset, its very close (< ~0.01 bdrate), but not
-    // always bitexact.
-    if (cpi->ppi->use_svc && cpi->svc.non_reference_frame &&
-        (sf->lpf_sf.cdef_pick_method == CDEF_PICK_FROM_Q ||
-         sf->lpf_sf.cdef_pick_method == CDEF_FAST_SEARCH_LVL5) &&
-        sf->lpf_sf.lpf_pick == LPF_PICK_FROM_Q)
-      sf->rt_sf.skip_loopfilter_non_reference = 1;
     // Set mask for intra modes.
     for (int i = 0; i < BLOCK_SIZES; ++i)
       if (i >= BLOCK_32X32)
@@ -1532,7 +1524,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.nonrd_agressive_skip = 1;
     sf->rt_sf.nonrd_prune_ref_frame_search = 3;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
-    sf->rt_sf.use_selective_loopfiltering = 1;
   }
 }
 
@@ -1824,7 +1815,6 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->force_large_partition_blocks = 0;
   rt_sf->use_temporal_noise_estimate = 0;
   rt_sf->fullpel_search_step_param = 0;
-  rt_sf->skip_loopfilter_non_reference = 0;
   for (int i = 0; i < BLOCK_SIZES; ++i)
     rt_sf->intra_y_mode_bsize_mask_nrd[i] = INTRA_ALL;
   rt_sf->nonrd_agressive_skip = 0;

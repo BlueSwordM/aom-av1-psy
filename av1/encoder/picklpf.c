@@ -200,6 +200,14 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
   lf->sharpness_level = 0;
   cpi->td.mb.rdmult = cpi->rd.RDMULT;
 
+  if (cpi->oxcf.algo_cfg.loopfilter_control == LOOPFILTER_NONE ||
+      (cpi->oxcf.algo_cfg.loopfilter_control == LOOPFILTER_REFERENCE &&
+       cpi->svc.non_reference_frame)) {
+    lf->filter_level[0] = 0;
+    lf->filter_level[1] = 0;
+    return;
+  }
+
   if (method == LPF_PICK_MINIMAL_LPF) {
     lf->filter_level[0] = 0;
     lf->filter_level[1] = 0;
@@ -252,7 +260,8 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
     lf->filter_level[1] = clamp(filt_guess, min_filter_level, max_filter_level);
     lf->filter_level_u = clamp(filt_guess, min_filter_level, max_filter_level);
     lf->filter_level_v = clamp(filt_guess, min_filter_level, max_filter_level);
-    if (cpi->sf.rt_sf.use_selective_loopfiltering && !frame_is_intra_only(cm)) {
+    if (cpi->oxcf.algo_cfg.loopfilter_control == LOOPFILTER_SELECTIVELY &&
+        !frame_is_intra_only(cm)) {
       const int num4x4 = (cm->width >> 2) * (cm->height >> 2);
       const int newmv_thresh = 7;
       if ((cpi->td.rd_counts.newmv_or_intra_blocks * 100 / num4x4) <

@@ -165,6 +165,8 @@ struct av1_extracfg {
   // 2 (passes = 1 if pass == AOM_RC_ONE_PASS and passes = 2 otherwise).
   int passes;
   int fwd_kf_dist;
+
+  LOOPFILTER_CONTROL loopfilter_control;
   // the name of the second pass output file when passes > 2
   const char *two_pass_output;
   const char *second_pass_log;
@@ -306,19 +308,20 @@ static const struct av1_extracfg default_extra_cfg = {
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
-  },             // target_seq_level_idx
-  0,             // tier_mask
-  0,             // min_cr
-  COST_UPD_OFF,  // coeff_cost_upd_freq
-  COST_UPD_OFF,  // mode_cost_upd_freq
-  COST_UPD_OFF,  // mv_cost_upd_freq
-  COST_UPD_OFF,  // dv_cost_upd_freq
-  0,             // ext_tile_debug
-  0,             // sb_multipass_unit_test
-  -1,            // passes
-  -1,            // fwd_kf_dist
-  NULL,          // two_pass_output
-  NULL,          // second_pass_log
+  },               // target_seq_level_idx
+  0,               // tier_mask
+  0,               // min_cr
+  COST_UPD_OFF,    // coeff_cost_upd_freq
+  COST_UPD_OFF,    // mode_cost_upd_freq
+  COST_UPD_OFF,    // mv_cost_upd_freq
+  COST_UPD_OFF,    // dv_cost_upd_freq
+  0,               // ext_tile_debug
+  0,               // sb_multipass_unit_test
+  -1,              // passes
+  -1,              // fwd_kf_dist
+  LOOPFILTER_ALL,  // loopfilter_control
+  NULL,            // two_pass_output
+  NULL,            // second_pass_log
 };
 #else
 static const struct av1_extracfg default_extra_cfg = {
@@ -444,19 +447,20 @@ static const struct av1_extracfg default_extra_cfg = {
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
-  },            // target_seq_level_idx
-  0,            // tier_mask
-  0,            // min_cr
-  COST_UPD_SB,  // coeff_cost_upd_freq
-  COST_UPD_SB,  // mode_cost_upd_freq
-  COST_UPD_SB,  // mv_cost_upd_freq
-  COST_UPD_SB,  // dv_cost_upd_freq
-  0,            // ext_tile_debug
-  0,            // sb_multipass_unit_test
-  -1,           // passes
-  -1,           // fwd_kf_dist
-  NULL,         // two_pass_output
-  NULL,         // second_pass_log
+  },               // target_seq_level_idx
+  0,               // tier_mask
+  0,               // min_cr
+  COST_UPD_SB,     // coeff_cost_upd_freq
+  COST_UPD_SB,     // mode_cost_upd_freq
+  COST_UPD_SB,     // mv_cost_upd_freq
+  COST_UPD_SB,     // dv_cost_upd_freq
+  0,               // ext_tile_debug
+  0,               // sb_multipass_unit_test
+  -1,              // passes
+  -1,              // fwd_kf_dist
+  LOOPFILTER_ALL,  // loopfilter_control
+  NULL,            // two_pass_output
+  NULL,            // second_pass_log
 };
 #endif
 
@@ -799,6 +803,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   }
 
   RANGE_CHECK(extra_cfg, deltaq_strength, 0, 1000);
+  RANGE_CHECK_HI(extra_cfg, loopfilter_control, 3);
 
   return AOM_CODEC_OK;
 }
@@ -1169,6 +1174,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   // TODO(any): Fix and Enable TPL for resize-mode > 0
   algo_cfg->enable_tpl_model =
       resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
+  algo_cfg->loopfilter_control = extra_cfg->loopfilter_control;
 
   // Set two-pass stats configuration.
   oxcf->twopass_stats_in = cfg->rc_twopass_stats_in;
@@ -2360,6 +2366,13 @@ static aom_codec_err_t ctrl_set_external_partition(aom_codec_alg_priv_t *ctx,
   const aom_codec_err_t status =
       av1_ext_part_create(funcs, config, &cpi->ext_part_controller);
   return status;
+}
+
+static aom_codec_err_t ctrl_set_loopfilter_control(aom_codec_alg_priv_t *ctx,
+                                                   va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.loopfilter_control = CAST(AV1E_SET_LOOPFILTER_CONTROL, args);
+  return update_extra_cfg(ctx, &extra_cfg);
 }
 
 #if !CONFIG_REALTIME_ONLY
@@ -3779,6 +3792,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     err = allocate_and_set_string(value, default_extra_cfg.second_pass_log,
                                   &extra_cfg.second_pass_log, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.loopfilter_control,
+                              argv, err_string)) {
+    extra_cfg.loopfilter_control = arg_parse_int_helper(&arg, err_string);
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
@@ -3945,6 +3961,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_DV_COST_UPD_FREQ, ctrl_set_dv_cost_upd_freq },
   { AV1E_SET_EXTERNAL_PARTITION, ctrl_set_external_partition },
   { AV1E_SET_ENABLE_TX_SIZE_SEARCH, ctrl_set_enable_tx_size_search },
+  { AV1E_SET_LOOPFILTER_CONTROL, ctrl_set_loopfilter_control },
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },

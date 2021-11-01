@@ -1383,6 +1383,15 @@ enum aome_enc_control_id {
    */
   AV1E_SET_DELTAQ_STRENGTH = 148,
 
+  /*!\brief Codec control to control loop filter
+   *
+   * - 0 = Loop filter is enabled for all frames
+   * - 1 = Loop filter is disabled for non-reference frames
+   * - 2 = Loop filter is disabled for the frames with low motion
+   * - 3 = Loop filter is disabled for all frames
+   */
+  AV1E_SET_LOOPFILTER_CONTROL = 149,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -1944,6 +1953,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_TX_SIZE_SEARCH, int)
 AOM_CTRL_USE_TYPE(AV1E_SET_SVC_REF_FRAME_COMP_PRED,
                   aom_svc_ref_frame_comp_pred_t *)
 #define AOME_CTRL_AV1E_SET_SVC_REF_FRAME_COMP_PRED
+
+AOM_CTRL_USE_TYPE(AV1E_SET_LOOPFILTER_CONTROL, int)
+#define AOM_CTRL_AV1E_SET_LOOPFILTER_CONTROL
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

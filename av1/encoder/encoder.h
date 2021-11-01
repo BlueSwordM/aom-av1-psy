@@ -223,6 +223,17 @@ typedef enum {
   COST_UPD_OFF,   /*!< Turn off cost updates. */
 } COST_UPDATE_TYPE;
 
+/*!\enum LOOPFILTER_CONTROL
+ * \brief This enum controls to which frames loopfilter is applied.
+ */
+typedef enum {
+  LOOPFILTER_ALL = 0,       /*!< Enable loopfilter for all frames. */
+  LOOPFILTER_REFERENCE = 1, /*!< Disable loopfilter on non reference frames. */
+  LOOPFILTER_SELECTIVELY =
+      2,               /*!< Disable loopfilter on frames with low motion. */
+  LOOPFILTER_NONE = 3, /*!< Disable loopfilter on all frames. */
+} LOOPFILTER_CONTROL;
+
 /*!
  * \brief Encoder config related to resize.
  */
@@ -819,6 +830,15 @@ typedef struct {
    * enabled.
    */
   bool enable_overlay;
+
+  /*!
+   * Controls loop filtering
+   * 0: Loop filter is enabled for all frames
+   * 1: Loop filter is disabled for non-reference frames
+   * 2: Loop filter is disables for the frames with low motion
+   * 3: Loop filter is disabled for all frames
+   */
+  LOOPFILTER_CONTROL loopfilter_control;
 } AlgoCfg;
 /*!\cond */
 
