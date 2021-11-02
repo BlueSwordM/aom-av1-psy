@@ -296,11 +296,10 @@ void av1_update_frame_size(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
 
-  // We need to reallocate the context buffers here in case we need more mis.
-  if (av1_alloc_context_buffers(cm, cm->width, cm->height, cpi->oxcf.mode)) {
-    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
-                       "Failed to allocate context buffers");
-  }
+  // Setup mi_params here in case we need more mi's.
+  CommonModeInfoParams *const mi_params = &cm->mi_params;
+  mi_params->set_mb_mi(mi_params, cm->width, cm->height, cpi->oxcf.mode,
+                       cpi->sf.part_sf.default_min_partition_size);
 
   av1_init_macroblockd(cm, xd);
 
@@ -1162,7 +1161,7 @@ AV1_PRIMARY *av1_create_primary_compressor(
     // width and height of the frame.
     CommonModeInfoParams mi_params;
     enc_set_mb_mi(&mi_params, oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height,
-                  oxcf->mode);
+                  oxcf->mode, BLOCK_4X4);
 
     const int bsize = BLOCK_16X16;
     const int w = mi_size_wide[bsize];
@@ -2022,10 +2021,12 @@ int av1_set_size_literal(AV1_COMP *cpi, int width, int height) {
     av1_free_sms_tree(&cpi->td);
     av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
     cpi->td.firstpass_ctx = NULL;
+    alloc_mb_mode_info_buffers(cpi);
     alloc_compressor_data(cpi);
     realloc_segmentation_maps(cpi);
     initial_dimensions->width = initial_dimensions->height = 0;
   }
+  alloc_mb_mode_info_buffers(cpi);
   av1_update_frame_size(cpi);
 
   return 0;

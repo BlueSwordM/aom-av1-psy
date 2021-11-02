@@ -28,6 +28,7 @@
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encode_strategy.h"
 #include "av1/encoder/encodeframe.h"
+#include "av1/encoder/encoder_alloc.h"
 #include "av1/encoder/firstpass.h"
 #include "av1/encoder/gop_structure.h"
 #include "av1/encoder/pass2_strategy.h"
@@ -1551,6 +1552,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     gf_cfg->gf_min_pyr_height =
         AOMMIN(gf_cfg->gf_min_pyr_height, gf_cfg->gf_max_pyr_height);
   }
+
+  // Allocation of mi buffers.
+  alloc_mb_mode_info_buffers(cpi);
 
   cpi->skip_tpl_setup_stats = 0;
 #if !CONFIG_REALTIME_ONLY
