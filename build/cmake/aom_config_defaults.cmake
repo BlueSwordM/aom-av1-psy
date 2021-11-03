@@ -126,6 +126,8 @@ set_aom_config_var(CONFIG_TUNE_BUTTERAUGLI 0
 set_aom_config_var(STATIC_LINK_JXL 0 "Statically link the JPEG-XL library.")
 
 # AV1 experiment flags.
+set_aom_config_var(CONFIG_TFLITE 0
+                   "AV1 experiment: Enable tensorflow lite library.")
 set_aom_config_var(CONFIG_SPEED_STATS 0 "AV1 experiment.")
 set_aom_config_var(CONFIG_COLLECT_RD_STATS 0 "AV1 experiment.")
 set_aom_config_var(CONFIG_DIST_8X8 0 "AV1 experiment.")
