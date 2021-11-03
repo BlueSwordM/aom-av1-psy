@@ -907,7 +907,8 @@ void av1_init_tile_data(AV1_COMP *cpi) {
   const CostUpdateFreq *const cost_upd_freq = &cpi->oxcf.cost_upd_freq;
   const int rtc_mode = is_rtc_mode(cost_upd_freq, cpi->oxcf.mode);
 
-  if (cm->features.allow_screen_content_tools) {
+  if (!is_stat_generation_stage(cpi) &&
+      cm->features.allow_screen_content_tools) {
     // Number of tokens for which token info needs to be allocated.
     unsigned int tokens_required =
         get_token_alloc(cm->mi_params.mb_rows, cm->mi_params.mb_cols,
