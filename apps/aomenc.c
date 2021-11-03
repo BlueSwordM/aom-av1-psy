@@ -556,7 +556,7 @@ struct stream_state {
   unsigned int orig_height;
   int orig_write_webm;
   int orig_write_ivf;
-  char tmp_out_fn[40];
+  char tmp_out_fn[1000];
 };
 
 static void validate_positive_rational(const char *msg,
@@ -1199,8 +1199,9 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
 
   // set the two_pass_output field
   if (!config->two_pass_output && global->passes == 3) {
+    // If not specified, set the name of two_pass_output file here.
     snprintf(stream->tmp_out_fn, sizeof(stream->tmp_out_fn),
-             "tmp_2pass_output_%d.ivf", stream->index);
+             "%.980s_pass2_%d.ivf", stream->config.out_fn, stream->index);
     stream->config.two_pass_output = stream->tmp_out_fn;
   }
   if (config->two_pass_output) {
