@@ -1160,7 +1160,7 @@ int main(int argc, const char **argv) {
   // Y4M reader has its own allocation.
   if (app_input.input_ctx.file_type != FILE_TYPE_Y4M) {
     if (!aom_img_alloc(&raw, AOM_IMG_FMT_I420, width, height, 32)) {
-      die("Failed to allocate image", width, height);
+      die("Failed to allocate image (%dx%d)", width, height);
     }
   }
 
