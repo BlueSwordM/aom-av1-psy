@@ -1011,25 +1011,9 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   if (cpi->oxcf.pass == 2) end_timing(cpi, apply_filtering_time);
 #endif
 
-  // perform tpl after filtering
-  int allow_tpl = oxcf->gf_cfg.lag_in_frames > 1 &&
-                  !is_stat_generation_stage(cpi) &&
-                  oxcf->algo_cfg.enable_tpl_model;
-
-  if (gf_group->size > MAX_LENGTH_TPL_FRAME_STATS) {
-    allow_tpl = 0;
-  }
-  if (frame_params->frame_type == KEY_FRAME) {
-    // Don't do tpl for fwd key frames or fwd key frame overlays
-    allow_tpl = allow_tpl && !cpi->sf.tpl_sf.disable_filtered_key_tpl;
-  }
-
-  if (allow_tpl) {
-    // Need to set the size for TPL for ARF
-    // TODO(bohanli): Why is this? what part of it is necessary?
-    av1_set_frame_size(cpi, cm->superres_upscaled_width,
-                       cm->superres_upscaled_height);
-  }
+  // TODO(bohanli): Why is this? what part of it is necessary?
+  av1_set_frame_size(cpi, cm->superres_upscaled_width,
+                     cm->superres_upscaled_height);
 
 #if CONFIG_RD_COMMAND
   if (frame_params->frame_type == KEY_FRAME) {
@@ -1037,20 +1021,36 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     av1_read_rd_command(filepath, &cpi->rd_command);
   }
 #endif  // CONFIG_RD_COMMAND
-  if (allow_tpl && cpi->gf_frame_index == 0) {
-    if (!cpi->skip_tpl_setup_stats) {
-      av1_tpl_preload_rc_estimate(cpi, frame_params);
-      av1_tpl_setup_stats(cpi, 0, frame_params, frame_input);
-#if CONFIG_BITRATE_ACCURACY
-      av1_vbr_rc_update_q_index_list(&cpi->vbr_rc_info, &cpi->ppi->tpl_data,
-                                     gf_group, cpi->gf_frame_index,
-                                     cm->seq_params->bit_depth);
-#endif
+  if (cpi->gf_frame_index == 0 && !is_stat_generation_stage(cpi)) {
+    // perform tpl after filtering
+    int allow_tpl =
+        oxcf->gf_cfg.lag_in_frames > 1 && oxcf->algo_cfg.enable_tpl_model;
+    if (gf_group->size > MAX_LENGTH_TPL_FRAME_STATS) {
+      allow_tpl = 0;
     }
-  } else {
-    // Avoid the use of unintended TPL stats from previous GOP's results.
-    if (cpi->gf_frame_index == 0 && !is_stat_generation_stage(cpi))
+    if (frame_params->frame_type == KEY_FRAME) {
+      // TODO(angiebird): handle disable_filtered_key_tpl properly
+      allow_tpl = allow_tpl && !cpi->sf.tpl_sf.disable_filtered_key_tpl;
+    } else {
+      // In rare case, it's possible to have non ARF/GF update_type here.
+      // We should set allow_tpl to zero in the situation
+      allow_tpl =
+          allow_tpl && (update_type == ARF_UPDATE || update_type == GF_UPDATE);
+    }
+
+    if (allow_tpl) {
+      if (!cpi->skip_tpl_setup_stats) {
+        av1_tpl_preload_rc_estimate(cpi, frame_params);
+        av1_tpl_setup_stats(cpi, 0, frame_params, frame_input);
+#if CONFIG_BITRATE_ACCURACY
+        av1_vbr_rc_update_q_index_list(&cpi->vbr_rc_info, &cpi->ppi->tpl_data,
+                                       gf_group, cpi->gf_frame_index,
+                                       cm->seq_params->bit_depth);
+#endif
+      }
+    } else {
       av1_init_tpl_stats(&cpi->ppi->tpl_data);
+    }
   }
 
   if (av1_encode(cpi, dest, frame_input, frame_params, frame_results) !=
