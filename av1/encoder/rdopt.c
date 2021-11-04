@@ -5094,15 +5094,6 @@ static void tx_search_best_inter_candidates(
 
     bool is_predictor_built = false;
 
-    // Build the prediction for this mode
-    if (!is_predictor_built) {
-      av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
-                                    av1_num_planes(cm) - 1);
-    }
-    if (mbmi->motion_mode == OBMC_CAUSAL) {
-      av1_build_obmc_inter_predictors_sb(cm, xd);
-    }
-
     // Initialize RD stats
     RD_STATS rd_stats;
     RD_STATS rd_stats_y;
@@ -5117,6 +5108,15 @@ static void tx_search_best_inter_candidates(
           check_txfm_eval(x, bsize, search_state->best_skip_rd[0], skip_rd,
                           cpi->sf.inter_sf.txfm_rd_gate_level, 0);
       if (!eval_txfm) continue;
+    }
+
+    // Build the prediction for this mode
+    if (!is_predictor_built) {
+      av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
+                                    av1_num_planes(cm) - 1);
+    }
+    if (mbmi->motion_mode == OBMC_CAUSAL) {
+      av1_build_obmc_inter_predictors_sb(cm, xd);
     }
 
     num_tx_cands++;
