@@ -9,10 +9,16 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include "config/aom_config.h"
+
+#if CONFIG_TFLITE
+#include "tensorflow/lite/c/c_api.h"
+#include "av1/encoder/deltaq4_model.c"
+#endif
+
 #include "av1/common/common_data.h"
 #include "av1/common/enums.h"
 #include "av1/common/idct.h"
-
 #include "av1/common/reconinter.h"
 #include "av1/encoder/allintra_vis.h"
 #include "av1/encoder/encoder.h"
@@ -620,6 +626,145 @@ void av1_init_mb_ur_var_buffer(AV1_COMP *cpi) {
                              sizeof(*cpi->mb_delta_q)));
 }
 
+#if CONFIG_TFLITE
+static int model_predict(BLOCK_SIZE block_size, int num_cols, int num_rows,
+                         uint8_t *y_buffer, int y_stride, float *predicts) {
+  // Create the model and interpreter options.
+  TfLiteModel *model =
+      TfLiteModelCreate(av1_deltaq4_model_file, av1_deltaq4_model_fsize);
+  if (model == NULL) return 1;
+
+  TfLiteInterpreterOptions *options = TfLiteInterpreterOptionsCreate();
+  TfLiteInterpreterOptionsSetNumThreads(options, 2);
+  if (options == NULL) {
+    TfLiteModelDelete(model);
+    return 1;
+  }
+
+  // Create the interpreter.
+  TfLiteInterpreter *interpreter = TfLiteInterpreterCreate(model, options);
+  if (interpreter == NULL) {
+    TfLiteInterpreterOptionsDelete(options);
+    TfLiteModelDelete(model);
+    return 1;
+  }
+
+  // Allocate tensors and populate the input tensor data.
+  TfLiteInterpreterAllocateTensors(interpreter);
+  TfLiteTensor *input_tensor = TfLiteInterpreterGetInputTensor(interpreter, 0);
+  if (input_tensor == NULL) {
+    TfLiteInterpreterDelete(interpreter);
+    TfLiteInterpreterOptionsDelete(options);
+    TfLiteModelDelete(model);
+    return 1;
+  }
+
+  struct aom_internal_error_info error;
+  size_t input_size = TfLiteTensorByteSize(input_tensor);
+  float *input_data;
+  AOM_CHECK_MEM_ERROR(&error, input_data, aom_calloc(input_size, 1));
+
+  const int num_mi_w = mi_size_wide[block_size];
+  const int num_mi_h = mi_size_high[block_size];
+  for (int row = 0; row < num_rows; ++row) {
+    for (int col = 0; col < num_cols; ++col) {
+      const int row_offset = (row * num_mi_h) << 2;
+      const int col_offset = (col * num_mi_w) << 2;
+
+      uint8_t *buf = y_buffer + row_offset * y_stride + col_offset;
+      int r = row_offset, pos = 0;
+      while (r < row_offset + (num_mi_h << 2)) {
+        for (int c = 0; c < (num_mi_w << 2); ++c) {
+          input_data[pos++] = (float)*(buf + c) / 255.0f;
+        }
+        buf += y_stride;
+        ++r;
+      }
+      TfLiteTensorCopyFromBuffer(input_tensor, input_data, input_size);
+
+      // Execute inference.
+      if (TfLiteInterpreterInvoke(interpreter) != kTfLiteOk) {
+        TfLiteInterpreterDelete(interpreter);
+        TfLiteInterpreterOptionsDelete(options);
+        TfLiteModelDelete(model);
+        return 1;
+      }
+
+      // Extract the output tensor data.
+      const TfLiteTensor *output_tensor =
+          TfLiteInterpreterGetOutputTensor(interpreter, 0);
+      if (output_tensor == NULL) {
+        TfLiteInterpreterDelete(interpreter);
+        TfLiteInterpreterOptionsDelete(options);
+        TfLiteModelDelete(model);
+        return 1;
+      }
+
+      size_t output_size = TfLiteTensorByteSize(output_tensor);
+      float output_data;
+
+      TfLiteTensorCopyToBuffer(output_tensor, &output_data, output_size);
+      predicts[row * num_cols + col] = output_data;
+    }
+  }
+
+  // Dispose of the model and interpreter objects.
+  TfLiteInterpreterDelete(interpreter);
+  TfLiteInterpreterOptionsDelete(options);
+  TfLiteModelDelete(model);
+  aom_free(input_data);
+  return 0;
+}
+
+void av1_set_mb_ur_variance(AV1_COMP *cpi) {
+  const AV1_COMMON *cm = &cpi->common;
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  uint8_t *y_buffer = cpi->source->y_buffer;
+  const int y_stride = cpi->source->y_stride;
+  const int block_size = cpi->common.seq_params->sb_size;
+
+  const int num_mi_w = mi_size_wide[block_size];
+  const int num_mi_h = mi_size_high[block_size];
+  const int num_cols = (mi_params->mi_cols + num_mi_w - 1) / num_mi_w;
+  const int num_rows = (mi_params->mi_rows + num_mi_h - 1) / num_mi_h;
+  const int use_hbd = cpi->source->flags & YV12_FLAG_HIGHBITDEPTH;
+
+  // TODO(sdeng): add highbitdepth support.
+  (void)use_hbd;
+
+  float *mb_delta_q, delta_q_avg = 0.0f;
+  CHECK_MEM_ERROR(cm, mb_delta_q,
+                  aom_calloc(num_rows * num_cols, sizeof(float)));
+
+  // TODO(sdeng): train the model at a different quality level.
+  if (model_predict(block_size, num_cols, num_rows, y_buffer, y_stride,
+                    mb_delta_q)) {
+    aom_internal_error(cm->error, AOM_CODEC_ERROR,
+                       "Failed to call TFlite functions.");
+  }
+
+  // Loop through each SB block.
+  for (int row = 0; row < num_rows; ++row) {
+    for (int col = 0; col < num_cols; ++col) {
+      const int index = row * num_cols + col;
+      delta_q_avg += mb_delta_q[index];
+    }
+  }
+
+  delta_q_avg /= (float)(num_rows * num_cols);
+
+  for (int row = 0; row < num_rows; ++row) {
+    for (int col = 0; col < num_cols; ++col) {
+      const int index = row * num_cols + col;
+      cpi->mb_delta_q[index] =
+          RINT((float)cpi->oxcf.q_cfg.deltaq_strength / 100.0 * (float)MAXQ *
+               (mb_delta_q[index] - delta_q_avg));
+    }
+  }
+
+  aom_free(mb_delta_q);
+}
+#else   // !CONFIG_TFLITE
 void av1_set_mb_ur_variance(AV1_COMP *cpi) {
   const AV1_COMMON *cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -733,6 +878,7 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi) {
   aom_free(mb_delta_q[0]);
   aom_free(mb_delta_q[1]);
 }
+#endif  // CONFIG_TFLITE
 
 int av1_get_sbq_user_rating_based(AV1_COMP *const cpi, int mi_row, int mi_col) {
   const BLOCK_SIZE bsize = cpi->common.seq_params->sb_size;
