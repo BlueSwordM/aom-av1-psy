@@ -1524,6 +1524,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.nonrd_agressive_skip = 1;
     sf->rt_sf.nonrd_prune_ref_frame_search = 3;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
+    sf->rt_sf.force_half_pel_block = 1;
   }
 }
 
@@ -1826,6 +1827,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->prune_inter_modes_with_golden_ref = 0;
   rt_sf->prune_inter_modes_wrt_gf_arf_based_on_sad = 0;
   rt_sf->prune_inter_modes_using_temp_var = 0;
+  rt_sf->force_half_pel_block = 0;
 }
 
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {

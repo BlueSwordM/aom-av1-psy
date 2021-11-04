@@ -143,6 +143,21 @@ static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
   memset(&bp->wm_params, 0, sizeof(bp->wm_params));
 }
 
+static INLINE int subpel_select(AV1_COMP *cpi, BLOCK_SIZE bsize, int_mv *mv) {
+  int mv_thresh = 4;
+  const int is_low_resoln =
+      (cpi->common.width * cpi->common.height <= 320 * 240);
+  mv_thresh = (bsize > BLOCK_32X32) ? 2 : (bsize > BLOCK_16X16) ? 4 : 6;
+  if (cpi->rc.avg_frame_low_motion > 0 && cpi->rc.avg_frame_low_motion < 40)
+    mv_thresh = 12;
+  mv_thresh = (is_low_resoln) ? mv_thresh >> 1 : mv_thresh;
+  if (abs(mv->as_fullmv.row) >= mv_thresh ||
+      abs(mv->as_fullmv.col) >= mv_thresh)
+    return HALF_PEL;
+  else
+    return cpi->sf.mv_sf.subpel_force_stop;
+}
+
 /*!\brief Runs Motion Estimation for a specific block and specific ref frame.
  *
  * \ingroup nonrd_mode_search
@@ -230,6 +245,9 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
                                       cost_list);
+    if (cpi->sf.rt_sf.force_half_pel_block &&
+        cpi->sf.mv_sf.subpel_force_stop < HALF_PEL)
+      ms_params.forced_stop = subpel_select(cpi, bsize, tmp_mv);
     MV subpel_start_mv = get_mv_from_fullmv(&tmp_mv->as_fullmv);
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, subpel_start_mv, &tmp_mv->as_mv, &dis,
@@ -315,6 +333,9 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
                                       cost_list);
+    if (cpi->sf.rt_sf.force_half_pel_block &&
+        cpi->sf.mv_sf.subpel_force_stop < HALF_PEL)
+      ms_params.forced_stop = subpel_select(cpi, bsize, &best_mv);
     MV start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, start_mv, &best_mv.as_mv, &dis,
