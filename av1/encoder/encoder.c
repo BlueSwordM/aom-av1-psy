@@ -1771,12 +1771,7 @@ static void set_mv_search_params(AV1_COMP *cpi) {
         mv_search_params->mv_step_param = av1_init_search_range(
             AOMMIN(max_mv_def, 2 * mv_search_params->max_mv_magnitude));
       }
-#if CONFIG_FRAME_PARALLEL_ENCODE
-      // Reset max_mv_magnitude for parallel frames based on update flag.
-      if (cpi->do_frame_data_update) mv_search_params->max_mv_magnitude = -1;
-#else
       mv_search_params->max_mv_magnitude = -1;
-#endif
     }
   }
 }
@@ -2377,10 +2372,15 @@ static int encode_without_recode(AV1_COMP *cpi) {
   }
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
-  if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
-#else
+  int scale_references = 0;
+#if CONFIG_FPMT_TEST
+  scale_references =
+      cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE ? 1 : 0;
+#endif  // CONFIG_FPMT_TEST
+  if (scale_references ||
+      cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0)
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   {
-#endif
     // For SVC the inter-layer/spatial prediction is not done for newmv
     // (zero_mode is forced), and since the scaled references are only
     // use for newmv search, we can avoid scaling here.
@@ -2597,10 +2597,16 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     }
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
-    if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
+    int scale_references = 0;
+#if CONFIG_FPMT_TEST
+    scale_references =
+        cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE ? 1 : 0;
+#endif  // CONFIG_FPMT_TEST
+    if (scale_references ||
+        cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
 #else
     {
-#endif
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
       if (!frame_is_intra_only(cm)) {
         if (loop_count > 0) {
           release_scaled_references(cpi);
@@ -3542,10 +3548,16 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
-  if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
+  int release_scaled_refs = 0;
+#if CONFIG_FPMT_TEST
+  release_scaled_refs =
+      (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) ? 1 : 0;
+#endif  // CONFIG_FPMT_TEST
+  if (release_scaled_refs ||
+      cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
 #else
   {
-#endif
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
     if (frame_is_intra_only(cm) == 0) {
       release_scaled_references(cpi);
     }
@@ -4142,10 +4154,35 @@ static AOM_INLINE void update_gm_stats(AV1_COMP *cpi) {
       break;
     }
   }
-  if (cpi->ppi->valid_gm_model_found[update_type] == INT32_MAX) {
-    cpi->ppi->valid_gm_model_found[update_type] = is_gm_present;
-  } else {
-    cpi->ppi->valid_gm_model_found[update_type] |= is_gm_present;
+  int update_actual_stats = 1;
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  update_actual_stats =
+      (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) ? 0 : 1;
+  if (!update_actual_stats) {
+    if (cpi->ppi->temp_valid_gm_model_found[update_type] == INT32_MAX) {
+      cpi->ppi->temp_valid_gm_model_found[update_type] = is_gm_present;
+    } else {
+      cpi->ppi->temp_valid_gm_model_found[update_type] |= is_gm_present;
+    }
+    int show_existing_between_parallel_frames =
+        (cpi->ppi->gf_group.update_type[cpi->gf_frame_index] ==
+             INTNL_OVERLAY_UPDATE &&
+         cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index + 1] == 2);
+    if (cpi->do_frame_data_update == 1 &&
+        !show_existing_between_parallel_frames) {
+      for (i = 0; i < FRAME_UPDATE_TYPES; i++) {
+        cpi->ppi->valid_gm_model_found[i] =
+            cpi->ppi->temp_valid_gm_model_found[i];
+      }
+    }
+  }
+#endif
+  if (update_actual_stats) {
+    if (cpi->ppi->valid_gm_model_found[update_type] == INT32_MAX) {
+      cpi->ppi->valid_gm_model_found[update_type] = is_gm_present;
+    } else {
+      cpi->ppi->valid_gm_model_found[update_type] |= is_gm_present;
+    }
   }
 }
 
@@ -4613,6 +4650,7 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
       cur_cpi->gf_frame_index = i;
       cur_cpi->framerate = first_cpi->framerate;
       cur_cpi->common.current_frame.frame_number = cur_frame_num;
+      cur_cpi->common.current_frame.frame_type = gf_group->frame_type[i];
       cur_cpi->frame_index_set.show_frame_count = show_frame_count;
       cur_cpi->rc.frames_since_key = frames_since_key;
       cur_cpi->rc.frames_to_key = frames_to_key;
@@ -4623,8 +4661,7 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
       cur_cpi->rc.min_frame_bandwidth = first_cpi->rc.min_frame_bandwidth;
       cur_cpi->rc.intervals_till_gf_calculate_due =
           first_cpi->rc.intervals_till_gf_calculate_due;
-      cur_cpi->mv_search_params.max_mv_magnitude =
-          first_cpi->mv_search_params.max_mv_magnitude;
+      cur_cpi->mv_search_params.max_mv_magnitude = -1;
       if (gf_group->update_type[cur_cpi->gf_frame_index] == INTNL_ARF_UPDATE) {
         cur_cpi->common.lf.mode_ref_delta_enabled = 1;
       }

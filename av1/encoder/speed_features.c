@@ -120,6 +120,8 @@ static unsigned int predict_dc_levels[3][MODE_EVAL_TYPES] = { { 0, 0, 0 },
                                                               { 1, 1, 0 },
                                                               { 1, 1, 1 } };
 
+#if !CONFIG_FRAME_PARALLEL_ENCODE || \
+    (CONFIG_FRAME_PARALLEL_ENCODE && !CONFIG_FPMT_TEST)
 // This table holds the maximum number of reference frames for global motion.
 // The table is indexed as per the speed feature 'gm_search_type'.
 // 0 : All reference frames are allowed.
@@ -129,6 +131,7 @@ static unsigned int predict_dc_levels[3][MODE_EVAL_TYPES] = { { 0, 0, 0 },
 static int gm_available_reference_frames[GM_DISABLE_SEARCH + 1] = {
   INTER_REFS_PER_FRAME, INTER_REFS_PER_FRAME - 2, INTER_REFS_PER_FRAME - 3, 0
 };
+#endif
 
 // Qindex threshold levels used for selecting full-pel motion search.
 // ms_qthresh[i][j][k] indicates the qindex boundary value for 'k'th qindex band
@@ -2031,6 +2034,8 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
       sf->inter_sf.inter_mode_rd_model_estimation = 2;
     }
 
+#if !CONFIG_FRAME_PARALLEL_ENCODE || \
+    (CONFIG_FRAME_PARALLEL_ENCODE && !CONFIG_FPMT_TEST)
     // Disable the speed feature 'prune_ref_frame_for_gm_search' to achieve
     // better parallelism when number of threads available are greater than or
     // equal to maximum number of reference frames allowed for global motion.
@@ -2038,6 +2043,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
         (cpi->mt_info.num_workers >=
          gm_available_reference_frames[sf->gm_sf.gm_search_type]))
       sf->gm_sf.prune_ref_frame_for_gm_search = 0;
+#endif
   }
 }
 

@@ -182,6 +182,43 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
   const double adj_limit = AOMMAX(0.20, (double)(100 - rate_err_tol) / 200.0);
   const double min_fac = 1.0 - adj_limit;
   const double max_fac = 1.0 + adj_limit;
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  const int is_parallel_frame =
+      cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0 ? 1 : 0;
+  const int simulate_parallel_frame =
+      cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE
+          ? is_parallel_frame
+          : 0;
+  int64_t local_total_actual_bits = simulate_parallel_frame
+                                        ? p_rc->temp_total_actual_bits
+                                        : p_rc->total_actual_bits;
+  int64_t local_vbr_bits_off_target = simulate_parallel_frame
+                                          ? p_rc->temp_vbr_bits_off_target
+                                          : p_rc->vbr_bits_off_target;
+  int64_t local_bits_left = simulate_parallel_frame
+                                ? p_rc->temp_bits_left
+                                : cpi->ppi->twopass.bits_left;
+  double local_rolling_arf_group_target_bits =
+      (double)(simulate_parallel_frame
+                   ? p_rc->temp_rolling_arf_group_target_bits
+                   : twopass->rolling_arf_group_target_bits);
+  double local_rolling_arf_group_actual_bits =
+      (double)(simulate_parallel_frame
+                   ? p_rc->temp_rolling_arf_group_actual_bits
+                   : twopass->rolling_arf_group_actual_bits);
+  int err_estimate = simulate_parallel_frame ? p_rc->temp_rate_error_estimate
+                                             : p_rc->rate_error_estimate;
+  if (local_vbr_bits_off_target && local_total_actual_bits > 0) {
+    if (cpi->ppi->lap_enabled) {
+      rate_err_factor =
+          local_rolling_arf_group_actual_bits /
+          DOUBLE_DIVIDE_CHECK(local_rolling_arf_group_target_bits);
+    } else {
+      rate_err_factor =
+          1.0 - ((double)(local_vbr_bits_off_target) /
+                 AOMMAX(local_total_actual_bits, local_bits_left));
+    }
+#else
   int err_estimate = p_rc->rate_error_estimate;
 
   if (p_rc->vbr_bits_off_target && p_rc->total_actual_bits > 0) {
@@ -194,7 +231,7 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
           1.0 - ((double)(p_rc->vbr_bits_off_target) /
                  AOMMAX(p_rc->total_actual_bits, cpi->ppi->twopass.bits_left));
     }
-
+#endif
     rate_err_factor = AOMMAX(min_fac, AOMMIN(max_fac, rate_err_factor));
 
     // Adjustment is damped if this is 1 pass with look ahead processing
@@ -3976,6 +4013,33 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
     p_rc->rate_error_estimate = 0;
   }
 
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  /* The variables temp_vbr_bits_off_target, temp_bits_left,
+   * temp_rolling_arf_group_target_bits, temp_rolling_arf_group_actual_bits
+   * temp_rate_error_estimate are introduced for quality simulation purpose,
+   * it retains the value previous to the parallel encode frames. The
+   * variables are updated based on the update flag.
+   *
+   * If there exist show_existing_frames between parallel frames, then to
+   * retain the temp state do not update it. */
+  const int simulate_parallel_frame =
+      cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE;
+  int show_existing_between_parallel_frames =
+      (cpi->ppi->gf_group.update_type[cpi->gf_frame_index] ==
+           INTNL_OVERLAY_UPDATE &&
+       cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index + 1] == 2);
+
+  if (cpi->do_frame_data_update && !show_existing_between_parallel_frames &&
+      simulate_parallel_frame) {
+    cpi->ppi->p_rc.temp_vbr_bits_off_target = p_rc->vbr_bits_off_target;
+    cpi->ppi->p_rc.temp_bits_left = twopass->bits_left;
+    cpi->ppi->p_rc.temp_rolling_arf_group_target_bits =
+        twopass->rolling_arf_group_target_bits;
+    cpi->ppi->p_rc.temp_rolling_arf_group_actual_bits =
+        twopass->rolling_arf_group_actual_bits;
+    cpi->ppi->p_rc.temp_rate_error_estimate = p_rc->rate_error_estimate;
+  }
+#endif
   // Update the active best quality pyramid.
   if (!rc->is_src_frame_alt_ref) {
     const int pyramid_level =
@@ -4055,8 +4119,12 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
     twopass->extend_maxq = clamp(twopass->extend_maxq, 0, maxq_adj_limit);
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
+    int update_fast_extra_bits = 1;
+#if CONFIG_FPMT_TEST
+    update_fast_extra_bits = simulate_parallel_frame ? 0 : 1;
+#endif
     if (!frame_is_kf_gf_arf(cpi) && !rc->is_src_frame_alt_ref &&
-        p_rc->vbr_bits_off_target_fast) {
+        p_rc->vbr_bits_off_target_fast && update_fast_extra_bits) {
       // Subtract current frame's fast_extra_bits.
       p_rc->vbr_bits_off_target_fast -= rc->frame_level_fast_extra_bits;
     }
@@ -4088,11 +4156,48 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
         twopass->extend_minq_fast = 0;
       }
     }
+
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+    if (cpi->do_frame_data_update && !show_existing_between_parallel_frames &&
+        simulate_parallel_frame) {
+      cpi->ppi->p_rc.temp_vbr_bits_off_target_fast =
+          p_rc->vbr_bits_off_target_fast;
+      cpi->ppi->p_rc.temp_extend_minq = twopass->extend_minq;
+      cpi->ppi->p_rc.temp_extend_maxq = twopass->extend_maxq;
+      cpi->ppi->p_rc.temp_extend_minq_fast = twopass->extend_minq_fast;
+    }
+#endif
   }
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
   // Update the frame probabilities obtained from parallel encode frames
   FrameProbInfo *const frame_probs = &cpi->ppi->frame_probs;
+#if CONFIG_FPMT_TEST
+  /* The variable temp_active_best_quality is introduced only for quality
+   * simulation purpose, it retains the value previous to the parallel
+   * encode frames. The variable is updated based on the update flag.
+   *
+   * If there exist show_existing_frames between parallel frames, then to
+   * retain the temp state do not update it. */
+  if (cpi->do_frame_data_update && !show_existing_between_parallel_frames &&
+      simulate_parallel_frame) {
+    int i;
+    const int pyramid_level =
+        cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index];
+    if (!rc->is_src_frame_alt_ref) {
+      for (i = pyramid_level; i <= MAX_ARF_LAYERS; ++i)
+        cpi->ppi->p_rc.temp_active_best_quality[i] =
+            p_rc->active_best_quality[i];
+    }
+  }
+
+  // Update the frame probabilities obtained from parallel encode frames
+  FrameProbInfo *const temp_frame_probs_simulation =
+      simulate_parallel_frame ? &cpi->ppi->temp_frame_probs_simulation
+                              : frame_probs;
+  FrameProbInfo *const temp_frame_probs =
+      simulate_parallel_frame ? &cpi->ppi->temp_frame_probs : NULL;
+#endif
   int i, j, loop;
   // Sequentially do average on temp_frame_probs_simulation which holds
   // probabilities of last frame before parallel encode
@@ -4108,11 +4213,21 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
         for (j = TX_TYPES - 1; j >= 0; j--) {
           const int new_prob =
               cpi->frame_new_probs[loop].tx_type_probs[update_type][i][j];
+#if CONFIG_FPMT_TEST
+          int prob =
+              (temp_frame_probs_simulation->tx_type_probs[update_type][i][j] +
+               new_prob) >>
+              1;
+          left -= prob;
+          if (j == 0) prob += left;
+          temp_frame_probs_simulation->tx_type_probs[update_type][i][j] = prob;
+#else
           int prob =
               (frame_probs->tx_type_probs[update_type][i][j] + new_prob) >> 1;
           left -= prob;
           if (j == 0) prob += left;
           frame_probs->tx_type_probs[update_type][i][j] = prob;
+#endif
         }
       }
     }
@@ -4126,8 +4241,15 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
       for (i = 0; i < BLOCK_SIZES_ALL; i++) {
         const int new_prob =
             cpi->frame_new_probs[loop].obmc_probs[update_type][i];
+#if CONFIG_FPMT_TEST
+        temp_frame_probs_simulation->obmc_probs[update_type][i] =
+            (temp_frame_probs_simulation->obmc_probs[update_type][i] +
+             new_prob) >>
+            1;
+#else
         frame_probs->obmc_probs[update_type][i] =
             (frame_probs->obmc_probs[update_type][i] + new_prob) >> 1;
+#endif
       }
     }
 
@@ -4137,8 +4259,14 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
       const FRAME_UPDATE_TYPE update_type =
           get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
       const int new_prob = cpi->frame_new_probs[loop].warped_probs[update_type];
+#if CONFIG_FPMT_TEST
+      temp_frame_probs_simulation->warped_probs[update_type] =
+          (temp_frame_probs_simulation->warped_probs[update_type] + new_prob) >>
+          1;
+#else
       frame_probs->warped_probs[update_type] =
           (frame_probs->warped_probs[update_type] + new_prob) >> 1;
+#endif
     }
 
     // Sequentially update switchable_interp_probs
@@ -4153,20 +4281,72 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
         for (j = SWITCHABLE_FILTERS - 1; j >= 0; j--) {
           const int new_prob = cpi->frame_new_probs[loop]
                                    .switchable_interp_probs[update_type][i][j];
+#if CONFIG_FPMT_TEST
+          int prob = (temp_frame_probs_simulation
+                          ->switchable_interp_probs[update_type][i][j] +
+                      new_prob) >>
+                     1;
+          left -= prob;
+          if (j == 0) prob += left;
+
+          temp_frame_probs_simulation
+              ->switchable_interp_probs[update_type][i][j] = prob;
+#else
           int prob = (frame_probs->switchable_interp_probs[update_type][i][j] +
                       new_prob) >>
                      1;
           left -= prob;
           if (j == 0) prob += left;
           frame_probs->switchable_interp_probs[update_type][i][j] = prob;
+#endif
         }
       }
     }
   }
 
+#if CONFIG_FPMT_TEST
+  // Copying temp_frame_probs_simulation to temp_frame_probs based on
+  // the flag
+  if (cpi->do_frame_data_update &&
+      cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0 &&
+      simulate_parallel_frame) {
+    for (int update_type_idx = 0; update_type_idx < FRAME_UPDATE_TYPES;
+         update_type_idx++) {
+      for (i = 0; i < BLOCK_SIZES_ALL; i++) {
+        temp_frame_probs->obmc_probs[update_type_idx][i] =
+            temp_frame_probs_simulation->obmc_probs[update_type_idx][i];
+      }
+      temp_frame_probs->warped_probs[update_type_idx] =
+          temp_frame_probs_simulation->warped_probs[update_type_idx];
+      for (i = 0; i < TX_SIZES_ALL; i++) {
+        for (j = 0; j < TX_TYPES; j++) {
+          temp_frame_probs->tx_type_probs[update_type_idx][i][j] =
+              temp_frame_probs_simulation->tx_type_probs[update_type_idx][i][j];
+        }
+      }
+      for (i = 0; i < SWITCHABLE_FILTER_CONTEXTS; i++) {
+        for (j = 0; j < SWITCHABLE_FILTERS; j++) {
+          temp_frame_probs->switchable_interp_probs[update_type_idx][i][j] =
+              temp_frame_probs_simulation
+                  ->switchable_interp_probs[update_type_idx][i][j];
+        }
+      }
+    }
+  }
+#endif
   // Update framerate obtained from parallel encode frames
   if (cpi->common.show_frame &&
       cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
     cpi->framerate = cpi->new_framerate;
+#if CONFIG_FPMT_TEST
+  // SIMULATION PURPOSE
+  int show_existing_between_parallel_frames_cndn =
+      (cpi->ppi->gf_group.update_type[cpi->gf_frame_index] ==
+           INTNL_OVERLAY_UPDATE &&
+       cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index + 1] == 2);
+  if (cpi->common.show_frame && !show_existing_between_parallel_frames_cndn &&
+      cpi->do_frame_data_update && simulate_parallel_frame)
+    cpi->temp_framerate = cpi->framerate;
+#endif
 #endif
 }

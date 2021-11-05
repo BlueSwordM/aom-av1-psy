@@ -162,7 +162,7 @@ static void set_ext_overrides(AV1_COMMON *const cm,
 }
 
 static int choose_primary_ref_frame(
-    const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params) {
+    AV1_COMP *const cpi, const EncodeFrameParams *const frame_params) {
   const AV1_COMMON *const cm = &cpi->common;
 
   const int intra_only = frame_params->frame_type == KEY_FRAME ||
@@ -184,7 +184,27 @@ static int choose_primary_ref_frame(
   // current frame
   const int current_ref_type = get_current_frame_ref_type(cpi);
   int wanted_fb = cpi->ppi->fb_of_context_type[current_ref_type];
-
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2 && \
+    CONFIG_FPMT_TEST
+  if (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) {
+    GF_GROUP *const gf_group = &cpi->ppi->gf_group;
+    if (gf_group->update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE) {
+      int frame_level = gf_group->frame_parallel_level[cpi->gf_frame_index];
+      // Book keep wanted_fb of frame_parallel_level 1 frame in an FP2 set.
+      if (frame_level == 1) {
+        cpi->wanted_fb = wanted_fb;
+      }
+      // Use the wanted_fb of level 1 frame in an FP2 for a level 2 frame in the
+      // set.
+      if (frame_level == 2 &&
+          gf_group->update_type[cpi->gf_frame_index - 1] == INTNL_ARF_UPDATE) {
+        assert(gf_group->frame_parallel_level[cpi->gf_frame_index - 1] == 1);
+        wanted_fb = cpi->wanted_fb;
+      }
+    }
+  }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2 &&
+        // CONFIG_FPMT_TEST
   int primary_ref_frame = PRIMARY_REF_NONE;
   for (int ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ref_frame++) {
     if (get_ref_frame_map_idx(cm, ref_frame) == wanted_fb) {
@@ -329,12 +349,17 @@ static struct lookahead_entry *choose_frame_source(
   frame_params->show_frame = *pop_lookahead;
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
-  // Future frame in parallel encode set
-  if (gf_group->src_offset[cpi->gf_frame_index] != 0 &&
-      !is_stat_generation_stage(cpi)) {
-    src_index = gf_group->src_offset[cpi->gf_frame_index];
+#if CONFIG_FPMT_TEST
+  if (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_ENCODE) {
+#else
+  {
+#endif  // CONFIG_FPMT_TEST
+    // Future frame in parallel encode set
+    if (gf_group->src_offset[cpi->gf_frame_index] != 0 &&
+        !is_stat_generation_stage(cpi))
+      src_index = gf_group->src_offset[cpi->gf_frame_index];
   }
-#endif
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   if (frame_params->show_frame) {
     // show frame, pop from buffer
     // Get last frame source.
@@ -1262,7 +1287,11 @@ static void get_ref_frames(RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
         gf_group->frame_parallel_level[gf_index - 1] == 1 &&
         gf_group->update_type[gf_index - 1] == INTNL_ARF_UPDATE) {
       assert(gf_group->update_type[gf_index] == INTNL_ARF_UPDATE);
-
+#if CONFIG_FPMT_TEST
+      is_parallel_encode = (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_ENCODE)
+                               ? is_parallel_encode
+                               : 0;
+#endif  // CONFIG_FPMT_TEST
       // If parallel cpis are active, use ref_idx_to_skip, else, use display
       // index.
       assert(IMPLIES(is_parallel_encode, cpi->ref_idx_to_skip != INVALID_IDX));
@@ -1536,9 +1565,15 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     // Initialise frame_level_rate_correction_factors with value previous
     // to the parallel frames.
     if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
-      for (int i = 0; i < RATE_FACTOR_LEVELS; i++)
+      for (int i = 0; i < RATE_FACTOR_LEVELS; i++) {
         cpi->rc.frame_level_rate_correction_factors[i] =
-            cpi->ppi->p_rc.rate_correction_factors[i];
+#if CONFIG_FPMT_TEST
+            (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE)
+                ? cpi->ppi->p_rc.temp_rate_correction_factors[i]
+                :
+#endif  // CONFIG_FPMT_TEST
+                cpi->ppi->p_rc.rate_correction_factors[i];
+      }
     }
     // copy mv_stats from ppi to frame_level cpi.
     cpi->mv_stats = cpi->ppi->mv_stats;
@@ -1615,6 +1650,14 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   av1_apply_encoding_flags(cpi, source->flags);
   *frame_flags = (source->flags & AOM_EFLAG_FORCE_KF) ? FRAMEFLAGS_KEY : 0;
+
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  if (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) {
+    if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
+      cpi->framerate = cpi->temp_framerate;
+    }
+  }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
 
   // Shown frames and arf-overlay frames need frame-rate considering
   if (frame_params.show_frame)
@@ -1729,10 +1772,16 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
-    if (gf_group->frame_parallel_level[cpi->gf_frame_index] == 0) {
+    int get_ref_frames = 0;
+#if CONFIG_FPMT_TEST
+    get_ref_frames =
+        (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) ? 1 : 0;
+#endif  // CONFIG_FPMT_TEST
+    if (get_ref_frames ||
+        gf_group->frame_parallel_level[cpi->gf_frame_index] == 0) {
 #else
     {
-#endif
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
       if (!ext_flags->refresh_frame.update_pending) {
         av1_get_ref_frames(&cpi->ref_buffer_stack,
 #if CONFIG_FRAME_PARALLEL_ENCODE

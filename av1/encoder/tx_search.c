@@ -1682,8 +1682,19 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
 
   const FRAME_UPDATE_TYPE update_type =
       get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
-  const int *tx_type_probs =
-      cpi->ppi->frame_probs.tx_type_probs[update_type][tx_size];
+  int use_actual_frame_probs = 1;
+  const int *tx_type_probs;
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  use_actual_frame_probs =
+      (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) ? 0 : 1;
+  if (!use_actual_frame_probs) {
+    tx_type_probs =
+        (int *)cpi->ppi->temp_frame_probs.tx_type_probs[update_type][tx_size];
+  }
+#endif
+  if (use_actual_frame_probs) {
+    tx_type_probs = cpi->ppi->frame_probs.tx_type_probs[update_type][tx_size];
+  }
 
   if ((!is_inter && txfm_params->use_default_intra_tx_type) ||
       (is_inter && txfm_params->default_inter_tx_type_prob_thresh == 0)) {

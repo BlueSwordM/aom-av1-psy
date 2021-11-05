@@ -2517,6 +2517,14 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
           // parallel
           priv->ppi->num_fp_contexts = av1_compute_num_fp_contexts(
               priv->ppi, &priv->ppi->parallel_cpi[i]->oxcf);
+#if CONFIG_FPMT_TEST
+          assert(priv->ppi->num_fp_contexts > 1);
+          // Currently configured 'fmpt_unit_test_cfg' to
+          // PARALLEL_SIMULATION_ENCODE.
+          // TODO(Remya): The parameter will be later configured from fpmt unit
+          // test as required.
+          priv->ppi->fpmt_unit_test_cfg = PARALLEL_SIMULATION_ENCODE;
+#endif
         }
 #if !CONFIG_REALTIME_ONLY
         priv->ppi->parallel_cpi[i]->twopass_frame.stats_in =
@@ -2905,6 +2913,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     // visible frame.
     while (cpi_data.cx_data_sz >= ctx->cx_data_sz / 2 && !is_frame_visible) {
 #if CONFIG_FRAME_PARALLEL_ENCODE
+      int simulate_parallel_frame = 0;
       int status = -1;
       cpi->do_frame_data_update = true;
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
@@ -2912,13 +2921,31 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       cpi->ref_refresh_index = INVALID_IDX;
       cpi->refresh_idx_available = false;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
-      if (ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
+
+#if CONFIG_FPMT_TEST
+      simulate_parallel_frame =
+          cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE ? 1 : 0;
+      if (simulate_parallel_frame) {
+        if (ppi->num_fp_contexts > 1 && ppi->gf_group.size > 1) {
+          if (cpi->gf_frame_index < ppi->gf_group.size) {
+            calc_frame_data_update_flag(&ppi->gf_group, cpi->gf_frame_index,
+                                        &cpi->do_frame_data_update);
+          }
+        }
         status = av1_get_compressed_data(cpi, &cpi_data);
-      } else if (ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 1) {
-        status = av1_compress_parallel_frames(ppi, &cpi_data);
-      } else {
-        cpi = av1_get_parallel_frame_enc_data(ppi, &cpi_data);
-        status = AOM_CODEC_OK;
+      }
+
+#endif
+      if (!simulate_parallel_frame) {
+        if (ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
+          status = av1_get_compressed_data(cpi, &cpi_data);
+        } else if (ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] ==
+                   1) {
+          status = av1_compress_parallel_frames(ppi, &cpi_data);
+        } else {
+          cpi = av1_get_parallel_frame_enc_data(ppi, &cpi_data);
+          status = AOM_CODEC_OK;
+        }
       }
 #else
       const int status = av1_get_compressed_data(cpi, &cpi_data);

@@ -310,7 +310,16 @@ static void configure_static_seg_features(AV1_COMP *cpi) {
   const RATE_CONTROL *const rc = &cpi->rc;
   struct segmentation *const seg = &cm->seg;
 
-  double avg_q = cpi->ppi->p_rc.avg_q;
+  double avg_q;
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  avg_q = ((cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) &&
+           (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE))
+              ? cpi->ppi->p_rc.temp_avg_q
+              : cpi->ppi->p_rc.avg_q;
+#else
+  avg_q = cpi->ppi->p_rc.avg_q;
+#endif
+
   int high_q = (int)(avg_q > 48.0);
   int qi_delta;
 
@@ -897,7 +906,17 @@ static void screen_content_tools_determination(
     int *projected_size_pass, PSNR_STATS *psnr) {
   AV1_COMMON *const cm = &cpi->common;
   FeatureFlags *const features = &cm->features;
+
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  projected_size_pass[pass] =
+      ((cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) &&
+       (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE))
+          ? cpi->ppi->p_rc.temp_projected_frame_size
+          : cpi->rc.projected_frame_size;
+#else
   projected_size_pass[pass] = cpi->rc.projected_frame_size;
+#endif
+
 #if CONFIG_AV1_HIGHBITDEPTH
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;

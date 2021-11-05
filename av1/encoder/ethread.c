@@ -1013,7 +1013,7 @@ static AOM_INLINE void sync_fpmt_workers(AV1_PRIMARY *ppi) {
   }
 
   if (had_error)
-    aom_internal_error(&ppi->error, error->error_code, error->detail);
+    aom_internal_error(&ppi->error, error->error_code, "%s", error->detail);
 }
 
 // Restore worker states after parallel encode.

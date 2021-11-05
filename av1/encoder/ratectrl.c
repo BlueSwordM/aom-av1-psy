@@ -259,6 +259,24 @@ static void update_buffer_level(AV1_COMP *cpi, int encoded_frame_size) {
 
   if (cpi->ppi->use_svc)
     update_layer_buffer_level(&cpi->svc, encoded_frame_size);
+
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  /* The variable temp_buffer_level is introduced for quality
+   * simulation purpose, it retains the value previous to the parallel
+   * encode frames. The variable is updated based on the update flag.
+   *
+   * If there exist show_existing_frames between parallel frames, then to
+   * retain the temp state do not update it. */
+  int show_existing_between_parallel_frames =
+      (cpi->ppi->gf_group.update_type[cpi->gf_frame_index] ==
+           INTNL_OVERLAY_UPDATE &&
+       cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index + 1] == 2);
+
+  if (cpi->do_frame_data_update && !show_existing_between_parallel_frames &&
+      cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) {
+    p_rc->temp_buffer_level = p_rc->buffer_level;
+  }
+#endif
 }
 
 int av1_rc_get_default_min_gf_interval(int width, int height,
@@ -374,7 +392,15 @@ int av1_rc_drop_frame(AV1_COMP *cpi) {
   const AV1EncoderConfig *oxcf = &cpi->oxcf;
   RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  const int simulate_parallel_frame =
+      cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0 &&
+      cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE;
+  int64_t buffer_level =
+      simulate_parallel_frame ? p_rc->temp_buffer_level : p_rc->buffer_level;
+#else
   int64_t buffer_level = p_rc->buffer_level;
+#endif
 
   if (!oxcf->rc_cfg.drop_frames_water_mark) {
     return 0;
@@ -849,8 +875,18 @@ static int calc_active_worst_quality_no_stats_vbr(const AV1_COMP *cpi) {
   int active_worst_quality;
   int last_q_key_frame;
   int last_q_inter_frame;
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  const int simulate_parallel_frame =
+      cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0 &&
+      cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE;
+  last_q_key_frame = simulate_parallel_frame ? p_rc->temp_last_q[KEY_FRAME]
+                                             : p_rc->last_q[KEY_FRAME];
+  last_q_inter_frame = simulate_parallel_frame ? p_rc->temp_last_q[INTER_FRAME]
+                                               : p_rc->last_q[INTER_FRAME];
+#else
   last_q_key_frame = p_rc->last_q[KEY_FRAME];
   last_q_inter_frame = p_rc->last_q[INTER_FRAME];
+#endif
 
   if (cpi->common.current_frame.frame_type == KEY_FRAME) {
     active_worst_quality =
@@ -1165,7 +1201,15 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
           av1_compute_qdelta(rc, q_val, q_val * 0.25, bit_depth);
       active_best_quality = AOMMAX(qindex + delta_qindex, rc->best_quality);
     } else if (p_rc->this_key_frame_forced) {
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+      const int simulate_parallel_frame =
+          cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0 &&
+          cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE;
+      int qindex = simulate_parallel_frame ? p_rc->temp_last_boosted_qindex
+                                           : p_rc->last_boosted_qindex;
+#else
       int qindex = p_rc->last_boosted_qindex;
+#endif
       const double last_boosted_q = av1_convert_qindex_to_q(qindex, bit_depth);
       const int delta_qindex = av1_compute_qdelta(
           rc, last_boosted_q, last_boosted_q * 0.75, bit_depth);
@@ -1272,7 +1316,15 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
     // Special case code to try and match quality with forced key frames
   } else if ((current_frame->frame_type == KEY_FRAME) &&
              p_rc->this_key_frame_forced) {
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+    const int simulate_parallel_frame =
+        cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0 &&
+        cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE;
+    q = simulate_parallel_frame ? p_rc->temp_last_boosted_qindex
+                                : p_rc->last_boosted_qindex;
+#else
     q = p_rc->last_boosted_qindex;
+#endif
   } else {
     q = av1_rc_regulate_q(cpi, rc->this_frame_target, active_best_quality,
                           active_worst_quality, width, height);
@@ -1360,7 +1412,16 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
     double last_boosted_q;
     int delta_qindex;
     int qindex;
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+    const int simulate_parallel_frame =
+        cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0 &&
+        cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE;
+    int last_boosted_qindex = simulate_parallel_frame
+                                  ? p_rc->temp_last_boosted_qindex
+                                  : p_rc->last_boosted_qindex;
+#else
     int last_boosted_qindex = p_rc->last_boosted_qindex;
+#endif
     if (is_stat_consumption_stage_twopass(cpi) &&
         cpi->ppi->twopass.last_kfgroup_zeromotion_pct >= STATIC_MOTION_THRESH) {
       qindex = AOMMIN(p_rc->last_kf_qindex, last_boosted_qindex);
@@ -1438,6 +1499,18 @@ static void adjust_active_best_and_worst_quality(const AV1_COMP *cpi,
   const int bit_depth = cpi->common.seq_params->bit_depth;
   int active_best_quality = *active_best;
   int active_worst_quality = *active_worst;
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  const int simulate_parallel_frame =
+      cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0 &&
+      cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE;
+  int extend_minq_fast = simulate_parallel_frame
+                             ? p_rc->temp_extend_minq_fast
+                             : cpi->ppi->twopass.extend_minq_fast;
+  int extend_minq = simulate_parallel_frame ? p_rc->temp_extend_minq
+                                            : cpi->ppi->twopass.extend_minq;
+  int extend_maxq = simulate_parallel_frame ? p_rc->temp_extend_maxq
+                                            : cpi->ppi->twopass.extend_maxq;
+#endif
   // Extension to max or min Q if undershoot or overshoot is outside
   // the permitted range.
   if (cpi->oxcf.rc_cfg.mode != AOM_Q) {
@@ -1445,14 +1518,24 @@ static void adjust_active_best_and_worst_quality(const AV1_COMP *cpi,
         (!rc->is_src_frame_alt_ref &&
          (refresh_frame->golden_frame || is_intrl_arf_boost ||
           refresh_frame->alt_ref_frame))) {
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+      active_best_quality -= (extend_minq + extend_minq_fast);
+      active_worst_quality += (extend_maxq / 2);
+#else
       active_best_quality -=
           (cpi->ppi->twopass.extend_minq + cpi->ppi->twopass.extend_minq_fast);
       active_worst_quality += (cpi->ppi->twopass.extend_maxq / 2);
+#endif
     } else {
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+      active_best_quality -= (extend_minq + extend_minq_fast) / 2;
+      active_worst_quality += extend_maxq;
+#else
       active_best_quality -=
           (cpi->ppi->twopass.extend_minq + cpi->ppi->twopass.extend_minq_fast) /
           2;
       active_worst_quality += cpi->ppi->twopass.extend_maxq;
+#endif
     }
   }
 
@@ -1506,7 +1589,16 @@ static int get_q(const AV1_COMP *cpi, const int width, const int height,
   const RATE_CONTROL *const rc = &cpi->rc;
   const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   int q;
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  const int simulate_parallel_frame =
+      cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0 &&
+      cpi->ppi->fpmt_unit_test_cfg;
+  int last_boosted_qindex = simulate_parallel_frame
+                                ? p_rc->temp_last_boosted_qindex
+                                : p_rc->last_boosted_qindex;
+#else
   int last_boosted_qindex = p_rc->last_boosted_qindex;
+#endif
 
   if (cpi->oxcf.rc_cfg.mode == AOM_Q ||
       (frame_is_intra_only(cm) && !p_rc->this_key_frame_forced &&
@@ -1744,7 +1836,19 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
       active_best_quality = get_active_best_quality(cpi, active_worst_quality,
                                                     cq_level, gf_index);
     } else {
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+      const int simulate_parallel_frame =
+          cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0 &&
+          cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE;
+      int local_active_best_quality =
+          simulate_parallel_frame
+              ? p_rc->temp_active_best_quality[pyramid_level - 1]
+              : p_rc->active_best_quality[pyramid_level - 1];
+      active_best_quality = local_active_best_quality + 1;
+#else
       active_best_quality = p_rc->active_best_quality[pyramid_level - 1] + 1;
+#endif
+
       active_best_quality = AOMMIN(active_best_quality, active_worst_quality);
 #ifdef STRICT_RC
       active_best_quality += (active_worst_quality - active_best_quality) / 16;
@@ -1960,6 +2064,32 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
     // Update the Golden frame stats as appropriate.
     update_golden_frame_stats(cpi);
 
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  /*The variables temp_avg_frame_qindex, temp_last_q, temp_avg_q,
+   * temp_last_boosted_qindex are introduced only for quality simulation
+   * purpose, it retains the value previous to the parallel encode frames. The
+   * variables are updated based on the update flag.
+   *
+   * If there exist show_existing_frames between parallel frames, then to
+   * retain the temp state do not update it. */
+  int show_existing_between_parallel_frames =
+      (cpi->ppi->gf_group.update_type[cpi->gf_frame_index] ==
+           INTNL_OVERLAY_UPDATE &&
+       cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index + 1] == 2);
+
+  if (cpi->do_frame_data_update && !show_existing_between_parallel_frames &&
+      cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) {
+    for (int i = 0; i < FRAME_TYPES; i++) {
+      p_rc->temp_last_q[i] = p_rc->last_q[i];
+    }
+    p_rc->temp_avg_q = p_rc->avg_q;
+    p_rc->temp_last_boosted_qindex = p_rc->last_boosted_qindex;
+    p_rc->temp_total_actual_bits = p_rc->total_actual_bits;
+    p_rc->temp_projected_frame_size = rc->projected_frame_size;
+    for (int i = 0; i < RATE_FACTOR_LEVELS; i++)
+      p_rc->temp_rate_correction_factors[i] = p_rc->rate_correction_factors[i];
+  }
+#endif
   if (current_frame->frame_type == KEY_FRAME) rc->frames_since_key = 0;
   // if (current_frame->frame_number == 1 && cm->show_frame)
   /*
@@ -2126,7 +2256,16 @@ void av1_rc_update_framerate(AV1_COMP *cpi, int width, int height) {
 static void vbr_rate_correction(AV1_COMP *cpi, int *this_frame_target) {
   RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  const int simulate_parallel_frame =
+      cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0 &&
+      cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE;
+  int64_t vbr_bits_off_target = simulate_parallel_frame
+                                    ? cpi->ppi->p_rc.temp_vbr_bits_off_target
+                                    : p_rc->vbr_bits_off_target;
+#else
   int64_t vbr_bits_off_target = p_rc->vbr_bits_off_target;
+#endif
   const int stats_count =
       cpi->ppi->twopass.stats_buf_ctx->total_stats != NULL
           ? (int)cpi->ppi->twopass.stats_buf_ctx->total_stats->count
@@ -2144,17 +2283,34 @@ static void vbr_rate_correction(AV1_COMP *cpi, int *this_frame_target) {
     *this_frame_target += (vbr_bits_off_target >= 0) ? max_delta : -max_delta;
   }
 
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  int64_t vbr_bits_off_target_fast =
+      simulate_parallel_frame ? cpi->ppi->p_rc.temp_vbr_bits_off_target_fast
+                              : p_rc->vbr_bits_off_target_fast;
+#endif
   // Fast redistribution of bits arising from massive local undershoot.
   // Dont do it for kf,arf,gf or overlay frames.
-  if (!frame_is_kf_gf_arf(cpi) && !rc->is_src_frame_alt_ref &&
-      p_rc->vbr_bits_off_target_fast) {
+  if (!frame_is_kf_gf_arf(cpi) &&
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+      vbr_bits_off_target_fast &&
+#else
+      p_rc->vbr_bits_off_target_fast &&
+#endif
+      !rc->is_src_frame_alt_ref) {
     int one_frame_bits = AOMMAX(rc->avg_frame_bandwidth, *this_frame_target);
     int fast_extra_bits;
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+    fast_extra_bits = (int)AOMMIN(vbr_bits_off_target_fast, one_frame_bits);
+    fast_extra_bits =
+        (int)AOMMIN(fast_extra_bits,
+                    AOMMAX(one_frame_bits / 8, vbr_bits_off_target_fast / 8));
+#else
     fast_extra_bits =
         (int)AOMMIN(p_rc->vbr_bits_off_target_fast, one_frame_bits);
     fast_extra_bits = (int)AOMMIN(
         fast_extra_bits,
         AOMMAX(one_frame_bits / 8, p_rc->vbr_bits_off_target_fast / 8));
+#endif
     if (fast_extra_bits > 0) {
       // Update this_frame_target only if additional bits are available from
       // local undershoot.

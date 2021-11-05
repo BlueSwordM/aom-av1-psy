@@ -135,6 +135,13 @@ enum {
 } UENUM1BYTE(FRAMETYPE_FLAGS);
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
+#if CONFIG_FPMT_TEST
+enum {
+  PARALLEL_ENCODE = 0,
+  PARALLEL_SIMULATION_ENCODE,
+  NUM_FPMT_TEST_ENCODES
+} UENUM1BYTE(FPMT_TEST_ENC_CFG);
+#endif
 // 0 level frames are sometimes used for rate control purposes, but for
 // reference mapping purposes, the minimum level should be 1.
 #define MIN_PYR_LEVEL 1
@@ -2355,6 +2362,33 @@ typedef struct AV1_PRIMARY {
    */
   int filter_level_v;
 
+#if CONFIG_FPMT_TEST
+  /*!
+   * Flag which enables/disables simulation path for fpmt unit test.
+   * 0 - FPMT integration
+   * 1 - FPMT simulation
+   */
+  FPMT_TEST_ENC_CFG fpmt_unit_test_cfg;
+
+  /*!
+   * Temporary variable simulating the delayed frame_probability update.
+   */
+  FrameProbInfo temp_frame_probs;
+
+  /*!
+   * Temporary variable holding the updated frame probability across
+   * frames. Copy its value to temp_frame_probs for frame_parallel_level 0
+   * frames or last frame in parallel encode set.
+   */
+  FrameProbInfo temp_frame_probs_simulation;
+
+  /*!
+   * Temporary variable simulating the delayed update of valid global motion
+   * model across frames.
+   */
+  int temp_valid_gm_model_found[FRAME_UPDATE_TYPES];
+#endif
+
   /*!
    * Start time stamp of the last encoded show frame
    */
@@ -2945,7 +2979,13 @@ typedef struct AV1_COMP {
    * Retain condition for fast_extra_bits calculation.
    */
   int do_update_vbr_bits_off_target_fast;
-
+#if CONFIG_FPMT_TEST
+  /*!
+   * Temporary variable for simulation.
+   * Previous frame's framerate.
+   */
+  double temp_framerate;
+#endif
   /*!
    * Updated framerate for the current parallel frame.
    * cpi->framerate is updated with new_framerate during
@@ -3178,6 +3218,15 @@ typedef struct AV1_COMP {
    * encode set of lower layer frames.
    */
   int ref_idx_to_skip;
+#if CONFIG_FPMT_TEST
+  /*!
+   * Stores the wanted frame buffer index for choosing primary ref frame by a
+   * frame_parallel_level 2 frame in a parallel encode set of lower layer
+   * frames.
+   */
+
+  int wanted_fb;
+#endif
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 #if CONFIG_RD_COMMAND
@@ -3506,6 +3555,32 @@ static INLINE void init_ref_map_pair(
     ref_frame_map_pairs[map_idx].pyr_level = buf->pyramid_level;
   }
 }
+
+#if CONFIG_FPMT_TEST
+static AOM_INLINE void calc_frame_data_update_flag(
+    GF_GROUP *const gf_group, int gf_frame_index,
+    bool *const do_frame_data_update) {
+  *do_frame_data_update = true;
+  // Set the flag to false for all frames in a given parallel encode set except
+  // the last frame in the set with frame_parallel_level = 2.
+  if (gf_group->frame_parallel_level[gf_frame_index] == 1) {
+    *do_frame_data_update = false;
+  } else if (gf_group->frame_parallel_level[gf_frame_index] == 2) {
+    // Check if this is the last frame in the set with frame_parallel_level = 2.
+    for (int i = gf_frame_index + 1; i < gf_group->size; i++) {
+      if ((gf_group->frame_parallel_level[i] == 0 &&
+           (gf_group->update_type[i] == ARF_UPDATE ||
+            gf_group->update_type[i] == INTNL_ARF_UPDATE)) ||
+          gf_group->frame_parallel_level[i] == 1) {
+        break;
+      } else if (gf_group->frame_parallel_level[i] == 2) {
+        *do_frame_data_update = false;
+        break;
+      }
+    }
+  }
+}
+#endif
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
 // TODO(jingning): Move these functions as primitive members for the new cpi
