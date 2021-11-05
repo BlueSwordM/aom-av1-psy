@@ -4879,6 +4879,13 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
 
   if (ref_frame == INTRA_FRAME) return 1;
 
+  const FRAME_UPDATE_TYPE update_type =
+      get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
+  if (sf->inter_sf.skip_arf_compound && update_type == ARF_UPDATE &&
+      comp_pred) {
+    return 1;
+  }
+
   // This is for real time encoding.
   if (is_low_temp_var && !comp_pred && ref_frame != LAST_FRAME &&
       this_mode != NEARESTMV)
