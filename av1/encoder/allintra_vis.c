@@ -753,12 +753,20 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi) {
 
   delta_q_avg /= (float)(num_rows * num_cols);
 
+  float scaling_factor;
+  const float cq_level = (float)cpi->oxcf.rc_cfg.cq_level / (float)MAXQ;
+  if (cq_level < delta_q_avg) {
+    scaling_factor = cq_level / delta_q_avg;
+  } else {
+    scaling_factor = 1.0f - (cq_level - delta_q_avg) / (1.0f - delta_q_avg);
+  }
+
   for (int row = 0; row < num_rows; ++row) {
     for (int col = 0; col < num_cols; ++col) {
       const int index = row * num_cols + col;
       cpi->mb_delta_q[index] =
           RINT((float)cpi->oxcf.q_cfg.deltaq_strength / 100.0 * (float)MAXQ *
-               (mb_delta_q[index] - delta_q_avg));
+               scaling_factor * (mb_delta_q[index] - delta_q_avg));
     }
   }
 
