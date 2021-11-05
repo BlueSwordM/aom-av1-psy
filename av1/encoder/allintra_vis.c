@@ -753,6 +753,11 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi) {
 
   delta_q_avg /= (float)(num_rows * num_cols);
 
+  // Approximates the model change between current version (Spet 2021) and the
+  // baseline (July 2021).
+  const float model_change = 3.0f * 4.0f / (float)MAXQ;
+  delta_q_avg += model_change;
+
   float scaling_factor;
   const float cq_level = (float)cpi->oxcf.rc_cfg.cq_level / (float)MAXQ;
   if (cq_level < delta_q_avg) {
@@ -760,6 +765,7 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi) {
   } else {
     scaling_factor = 1.0f - (cq_level - delta_q_avg) / (1.0f - delta_q_avg);
   }
+  delta_q_avg -= model_change;
 
   for (int row = 0; row < num_rows; ++row) {
     for (int col = 0; col < num_cols; ++col) {
