@@ -29,6 +29,7 @@
 #include "av1/encoder/encode_strategy.h"
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/firstpass.h"
+#include "av1/encoder/gop_structure.h"
 #include "av1/encoder/pass2_strategy.h"
 #include "av1/encoder/temporal_filter.h"
 #include "av1/encoder/tpl_model.h"
@@ -938,6 +939,8 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   FRAME_UPDATE_TYPE update_type =
       get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
+  const int is_second_arf =
+      av1_gop_is_second_arf(gf_group, cpi->gf_frame_index);
 
   // Decide whether to apply temporal filtering to the source frame.
   int apply_filtering = 0;
@@ -960,8 +963,10 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     if (apply_filtering) {
       av1_setup_past_independence(cm);
     }
-  } else if (update_type == ARF_UPDATE || update_type == INTNL_ARF_UPDATE) {
+  } else if (update_type == ARF_UPDATE) {
     // ARF
+    apply_filtering = oxcf->algo_cfg.arnr_max_frames > 0;
+  } else if (is_second_arf && cpi->sf.hl_sf.second_alt_ref_filtering) {
     apply_filtering = oxcf->algo_cfg.arnr_max_frames > 0;
   }
   if (is_stat_generation_stage(cpi)) {
@@ -991,20 +996,23 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       // Right now, we are still using alt_ref_buffer due to
       // implementation complexity.
       // TODO(angiebird): Reuse the buffer in tf_info here.
-      const int code_arf = av1_temporal_filter(
-          cpi, arf_src_index, cpi->gf_frame_index, &show_existing_alt_ref,
-          &cpi->ppi->alt_ref_buffer);
-      if (code_arf) {
+      av1_temporal_filter(cpi, arf_src_index, cpi->gf_frame_index,
+                          &show_existing_alt_ref, &cpi->ppi->alt_ref_buffer);
+      if (show_existing_alt_ref) {
         aom_extend_frame_borders(&cpi->ppi->alt_ref_buffer, av1_num_planes(cm));
         frame_input->source = &cpi->ppi->alt_ref_buffer;
         aom_copy_metadata_to_frame_buffer(frame_input->source,
                                           source_buffer->metadata);
       }
+      cpi->common.showable_frame |= 1;
     }
     // Currently INTNL_ARF_UPDATE only do show_existing.
     if (update_type == ARF_UPDATE &&
         gf_group->frame_type[cpi->gf_frame_index] != KEY_FRAME) {
       cpi->ppi->show_existing_alt_ref = show_existing_alt_ref;
+      if (show_existing_alt_ref) {
+        cpi->common.showable_frame |= 1;
+      }
     }
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING

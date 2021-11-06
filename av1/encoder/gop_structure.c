@@ -888,3 +888,14 @@ int av1_gop_check_forward_keyframe(const GF_GROUP *gf_group,
   return gf_group->frame_type[gf_frame_index] == KEY_FRAME &&
          gf_group->refbuf_state[gf_frame_index] == REFBUF_UPDATE;
 }
+
+int av1_gop_is_second_arf(const GF_GROUP *gf_group, int gf_frame_index) {
+  const int arf_src_offset = gf_group->arf_src_offset[gf_frame_index];
+  // TODO(angiebird): when gf_group->size == 32, it's possble to
+  // have "two" second arf. Check if this is acceptable.
+  if (gf_group->update_type[gf_frame_index] == INTNL_ARF_UPDATE &&
+      arf_src_offset >= TF_LOOKAHEAD_IDX_THR) {
+    return 1;
+  }
+  return 0;
+}

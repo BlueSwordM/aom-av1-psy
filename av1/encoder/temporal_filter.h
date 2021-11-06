@@ -289,13 +289,11 @@ void av1_tf_do_filtering_row(struct AV1_COMP *cpi, struct ThreadData *td,
  * \param[in,out]  show_existing_arf          Whether to show existing ARF. This
  *                                            field is updated in this function.
  * \param[out]     output_frame               Ouput filtered frame.
- *
- * \return Whether temporal filtering is successfully done.
  */
-int av1_temporal_filter(struct AV1_COMP *cpi,
-                        const int filter_frame_lookahead_idx,
-                        int gf_frame_index, int *show_existing_arf,
-                        YV12_BUFFER_CONFIG *output_frame);
+void av1_temporal_filter(struct AV1_COMP *cpi,
+                         const int filter_frame_lookahead_idx,
+                         int gf_frame_index, int *show_existing_arf,
+                         YV12_BUFFER_CONFIG *output_frame);
 
 /*!\cond */
 // Helper function to get `q` used for encoding.

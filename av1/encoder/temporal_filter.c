@@ -931,16 +931,13 @@ int av1_calc_arf_boost(const TWO_PASS *twopass,
  * \param[in]   filter_frame_lookahead_idx  The index of the to-filter frame
  *                              in the lookahead buffer cpi->lookahead
  * \param[in]   gf_frame_index  GOP index
- * \param[in]   is_second_arf   Whether the to-filter frame is the second ARF.
- *                              This field will affect the number of frames
- *                              used for filtering.
  *
  * \return Nothing will be returned. But the fields `frames`, `num_frames`,
  *         `filter_frame_idx` and `noise_levels` will be updated in cpi->tf_ctx.
  */
 static void tf_setup_filtering_buffer(AV1_COMP *cpi,
                                       int filter_frame_lookahead_idx,
-                                      int gf_frame_index, int is_second_arf) {
+                                      int gf_frame_index) {
   const GF_GROUP *gf_group = &cpi->ppi->gf_group;
   const FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_frame_index];
   const FRAME_TYPE frame_type = gf_group->frame_type[gf_frame_index];
@@ -1036,7 +1033,7 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
     num_frames = AOMMIN(num_frames, gfu_boost / 150);
     num_frames += !(num_frames & 1);  // Make the number odd.
     // Only use 2 neighbours for the second ARF.
-    if (is_second_arf) num_frames = AOMMIN(num_frames, 3);
+    if (update_type == INTNL_ARF_UPDATE) num_frames = AOMMIN(num_frames, 3);
     if (AOMMIN(max_after, max_before) >= num_frames / 2) {
       // just use half half
       num_before = num_frames / 2;
@@ -1135,35 +1132,25 @@ double av1_estimate_noise_from_single_plane(const YV12_BUFFER_CONFIG *frame,
 // Initializes the members of TemporalFilterCtx
 // Inputs:
 //   cpi: Top level encoder instance structure
+//   check_show_existing: If 1, check whether the filtered frame is similar
+//                        to the original frame.
 //   filter_frame_lookahead_idx: The index of the frame to be filtered in the
 //                               lookahead buffer cpi->lookahead.
-//   is_second_arf: Flag indiacting whether second ARF filtering is required.
 // Returns:
 //   Nothing will be returned. But the contents of cpi->tf_ctx will be modified.
 static void init_tf_ctx(AV1_COMP *cpi, int filter_frame_lookahead_idx,
-                        int gf_frame_index, int is_second_arf,
+                        int gf_frame_index, int check_show_existing,
                         YV12_BUFFER_CONFIG *output_frame) {
-  const GF_GROUP *gf_group = &cpi->ppi->gf_group;
-  const FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_frame_index];
-  const int is_forward_keyframe =
-      av1_gop_check_forward_keyframe(gf_group, gf_frame_index);
-
   TemporalFilterCtx *tf_ctx = &cpi->tf_ctx;
   // Setup frame buffer for filtering.
   YV12_BUFFER_CONFIG **frames = tf_ctx->frames;
   tf_ctx->num_frames = 0;
   tf_ctx->filter_frame_idx = -1;
   tf_ctx->output_frame = output_frame;
-  tf_setup_filtering_buffer(cpi, filter_frame_lookahead_idx, gf_frame_index,
-                            is_second_arf);
+  tf_ctx->check_show_existing = check_show_existing;
+  tf_setup_filtering_buffer(cpi, filter_frame_lookahead_idx, gf_frame_index);
   assert(tf_ctx->num_frames > 0);
   assert(tf_ctx->filter_frame_idx < tf_ctx->num_frames);
-
-  // Check show existing condition for non-keyframes. For KFs, only check when
-  // KF overlay is enabled.
-  tf_ctx->check_show_existing =
-      !(is_forward_keyframe && update_type == KF_UPDATE) ||
-      cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1;
 
   // Setup scaling factors. Scaling on each of the arnr frames is not
   // supported.
@@ -1200,44 +1187,26 @@ static void init_tf_ctx(AV1_COMP *cpi, int filter_frame_lookahead_idx,
   tf_ctx->q_factor = av1_get_q(cpi);
 }
 
-int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
-                        int gf_frame_index, int *show_existing_arf,
-                        YV12_BUFFER_CONFIG *output_frame) {
+void av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
+                         int gf_frame_index, int *show_existing_arf,
+                         YV12_BUFFER_CONFIG *output_frame) {
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   // Basic informaton of the current frame.
   const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   TemporalFilterCtx *tf_ctx = &cpi->tf_ctx;
   TemporalFilterData *tf_data = &cpi->td.tf_data;
-  const FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_frame_index];
-  const int is_forward_keyframe =
-      av1_gop_check_forward_keyframe(gf_group, gf_frame_index);
-  // Filter one more ARF if the lookahead index is leq 7 (w.r.t. 9-th frame).
-  // This frame is ALWAYS a show existing frame.
-  const int is_second_arf =
-      (update_type == INTNL_ARF_UPDATE) &&
-      (filter_frame_lookahead_idx >= TF_LOOKAHEAD_IDX_THR) &&
-      cpi->sf.hl_sf.second_alt_ref_filtering;
+  const int check_show_existing = show_existing_arf != NULL;
   // TODO(anyone): Currently, we enforce the filtering strength on internal
   // ARFs except the second ARF to be zero. We should investigate in which case
   // it is more beneficial to use non-zero strength filtering.
-  if (update_type == INTNL_ARF_UPDATE && !is_second_arf) {
-    return 0;
-  }
-
 #if CONFIG_FRAME_PARALLEL_ENCODE
   // Only parallel level 0 frames go through temporal filtering.
   assert(gf_group->frame_parallel_level[gf_frame_index] == 0);
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
   // Initialize temporal filter context structure.
-  init_tf_ctx(cpi, filter_frame_lookahead_idx, gf_frame_index, is_second_arf,
-              output_frame);
-
-  // Set showable frame.
-  if (is_forward_keyframe == 0 && update_type != KF_UPDATE) {
-    cpi->common.showable_frame = tf_ctx->num_frames == 1 || is_second_arf ||
-                                 (cpi->oxcf.algo_cfg.enable_overlay == 0);
-  }
+  init_tf_ctx(cpi, filter_frame_lookahead_idx, gf_frame_index,
+              check_show_existing, output_frame);
 
   // Allocate and reset temporal filter buffers.
   const int is_highbitdepth = tf_ctx->is_highbitdepth;
@@ -1252,9 +1221,7 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
   // Deallocate temporal filter buffers.
   tf_dealloc_data(tf_data, is_highbitdepth);
 
-  if (!tf_ctx->check_show_existing) return 1;
-
-  if (show_existing_arf != NULL || is_second_arf) {
+  if (check_show_existing) {
     YV12_BUFFER_CONFIG **frames = tf_ctx->frames;
     const FRAME_DIFF *diff = &tf_data->diff;
     const int filter_frame_idx = tf_ctx->filter_frame_idx;
@@ -1269,6 +1236,7 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
     const float std = (float)sqrt((float)diff->sse / num_mbs - mean * mean);
 
     // TODO(yunqing): This can be combined with TPL q calculation later.
+    // TODO(angiebird): Move av1_set_target_rate() out of this function
     cpi->rc.base_frame_target = gf_group->bit_allocation[gf_frame_index];
     av1_set_target_rate(cpi, cpi->common.width, cpi->common.height);
     int top_index = 0;
@@ -1279,21 +1247,11 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
     const int ac_q = av1_ac_quant_QTX(q, 0, cpi->common.seq_params->bit_depth);
     const float threshold = 0.7f * ac_q * ac_q;
 
-    if (!is_second_arf) {
-      *show_existing_arf = 0;
-      if (mean < threshold && std < mean * 1.2) {
-        *show_existing_arf = 1;
-      }
-      cpi->common.showable_frame |= *show_existing_arf;
-    } else {
-      // Use source frame if the filtered frame becomes very different.
-      if (!(mean < threshold && std < mean * 1.2)) {
-        return 0;
-      }
+    *show_existing_arf = 0;
+    if (mean < threshold && std < mean * 1.2) {
+      *show_existing_arf = 1;
     }
   }
-
-  return 1;
 }
 
 void av1_tf_info_alloc(TEMPORAL_FILTER_INFO *tf_info, AV1_COMP *cpi) {
