@@ -1303,9 +1303,9 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
     // Use filtered frame buffer if available. This will make tpl stats more
     // precise.
-    int show_tf_buf = 0;
-    const YV12_BUFFER_CONFIG *tf_buf = av1_tf_info_get_filtered_buf(
-        &cpi->ppi->tf_info, gf_index, &show_tf_buf);
+    FRAME_DIFF frame_diff;
+    const YV12_BUFFER_CONFIG *tf_buf =
+        av1_tf_info_get_filtered_buf(&cpi->ppi->tf_info, gf_index, &frame_diff);
     if (tf_buf != NULL) {
       tpl_frame->gf_picture = tf_buf;
     }

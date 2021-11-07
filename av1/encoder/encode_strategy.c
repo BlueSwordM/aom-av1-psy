@@ -981,23 +981,34 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   // apply filtering to frame
   if (apply_filtering) {
     int show_existing_alt_ref = 0;
+    FRAME_DIFF frame_diff;
+    int top_index = 0;
+    int bottom_index = 0;
+    const int q_index = av1_rc_pick_q_and_bounds(
+        cpi, cpi->oxcf.frm_dim_cfg.width, cpi->oxcf.frm_dim_cfg.height,
+        cpi->gf_frame_index, &bottom_index, &top_index);
+
     // TODO(bohanli): figure out why we need frame_type in cm here.
     cm->current_frame.frame_type = frame_params->frame_type;
     if (update_type == KF_UPDATE || update_type == ARF_UPDATE) {
-      int show_tf_buf = 0;
       YV12_BUFFER_CONFIG *tf_buf = av1_tf_info_get_filtered_buf(
-          &cpi->ppi->tf_info, cpi->gf_frame_index, &show_tf_buf);
+          &cpi->ppi->tf_info, cpi->gf_frame_index, &frame_diff);
       if (tf_buf != NULL) {
         frame_input->source = tf_buf;
-        show_existing_alt_ref = show_tf_buf;
+        show_existing_alt_ref = av1_check_show_filtered_frame(
+            &cpi->ppi->alt_ref_buffer, &frame_diff, q_index,
+            cm->seq_params->bit_depth);
       }
     } else {
       const int arf_src_index = gf_group->arf_src_offset[cpi->gf_frame_index];
       // Right now, we are still using alt_ref_buffer due to
       // implementation complexity.
       // TODO(angiebird): Reuse the buffer in tf_info here.
-      av1_temporal_filter(cpi, arf_src_index, cpi->gf_frame_index,
-                          &show_existing_alt_ref, &cpi->ppi->alt_ref_buffer);
+      av1_temporal_filter(cpi, arf_src_index, cpi->gf_frame_index, &frame_diff,
+                          &cpi->ppi->alt_ref_buffer);
+      show_existing_alt_ref =
+          av1_check_show_filtered_frame(&cpi->ppi->alt_ref_buffer, &frame_diff,
+                                        q_index, cm->seq_params->bit_depth);
       if (show_existing_alt_ref) {
         aom_extend_frame_borders(&cpi->ppi->alt_ref_buffer, av1_num_planes(cm));
         frame_input->source = &cpi->ppi->alt_ref_buffer;

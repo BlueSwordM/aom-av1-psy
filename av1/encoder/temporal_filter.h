@@ -75,6 +75,13 @@ struct ThreadData;
 
 #define NOISE_ESTIMATION_EDGE_THRESHOLD 50
 
+// Sum and SSE source vs filtered frame difference returned by
+// temporal filter.
+typedef struct {
+  int64_t sum;
+  int64_t sse;
+} FRAME_DIFF;
+
 /*!\endcond */
 
 /*!
@@ -102,7 +109,7 @@ typedef struct {
   /*!
    * Whether to accumulate diff for show existing condition check.
    */
-  int check_show_existing;
+  int compute_frame_diff;
   /*!
    * Frame scaling factor.
    */
@@ -151,7 +158,7 @@ typedef struct TEMPORAL_FILTER_INFO {
   /*!
    * whether to show the buffer directly or not.
    */
-  int show_tf_buf[TF_INFO_BUF_COUNT];
+  FRAME_DIFF frame_diff[TF_INFO_BUF_COUNT];
   /*!
    * the corresponding gf_index for the buffer.
    */
@@ -198,16 +205,9 @@ void av1_tf_info_filtering(TEMPORAL_FILTER_INFO *tf_info, struct AV1_COMP *cpi,
  */
 YV12_BUFFER_CONFIG *av1_tf_info_get_filtered_buf(TEMPORAL_FILTER_INFO *tf_info,
                                                  int gf_index,
-                                                 int *show_tf_buf);
+                                                 FRAME_DIFF *frame_diff);
 
 /*!\cond */
-
-// Sum and SSE source vs filtered frame difference returned by
-// temporal filter.
-typedef struct {
-  int64_t sum;
-  int64_t sse;
-} FRAME_DIFF;
 
 // Data related to temporal filtering.
 typedef struct {
@@ -286,14 +286,32 @@ void av1_tf_do_filtering_row(struct AV1_COMP *cpi, struct ThreadData *td,
  *                                            to-filter frame in the lookahead
  *                                            buffer cpi->lookahead.
  * \param[in]      gf_frame_index             Index of GOP
- * \param[in,out]  show_existing_arf          Whether to show existing ARF. This
- *                                            field is updated in this function.
+ * \param[in,out]  frame_diff                 structure of sse and sum of the
+ *                                            filtered frame.
  * \param[out]     output_frame               Ouput filtered frame.
  */
 void av1_temporal_filter(struct AV1_COMP *cpi,
                          const int filter_frame_lookahead_idx,
-                         int gf_frame_index, int *show_existing_arf,
+                         int gf_frame_index, FRAME_DIFF *frame_diff,
                          YV12_BUFFER_CONFIG *output_frame);
+
+/*!\brief Check whether a filtered frame can be show directly
+ *
+ * This function will use the filtered frame's sse and current q index
+ * to make decision.
+ *
+ * \ingroup src_frame_proc
+ * \param[in]  frame        filtered frame's buffer
+ * \param[in]  frame_diff   structure of sse and sum of the
+ *                          filtered frame.
+ * \param[in]  q_index      q_index used for this frame
+ * \param[in]  bit_depth    bit depth
+ * \return     return 1 if this frame can be shown directly, otherwise
+ *             return 0
+ */
+int av1_check_show_filtered_frame(const YV12_BUFFER_CONFIG *frame,
+                                  const FRAME_DIFF *frame_diff, int q_index,
+                                  aom_bit_depth_t bit_depth);
 
 /*!\cond */
 // Helper function to get `q` used for encoding.
