@@ -992,9 +992,6 @@ static void store_coding_context(MACROBLOCK *x, PICK_MODE_CONTEXT *ctx) {
   ctx->skippable = txfm_info->skip_txfm;
   av1_copy_mbmi_ext_to_mbmi_ext_frame(&ctx->mbmi_ext_best, &x->mbmi_ext,
                                       av1_ref_frame_type(xd->mi[0]->ref_frame));
-  ctx->comp_pred_diff = 0;
-  ctx->hybrid_pred_diff = 0;
-  ctx->single_pred_diff = 0;
 }
 
 static int get_pred_buffer(PRED_BUFFER *p, int len) {

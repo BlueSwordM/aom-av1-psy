@@ -1374,7 +1374,6 @@ typedef struct TileDataEnc {
 } TileDataEnc;
 
 typedef struct RD_COUNTS {
-  int64_t comp_pred_diff[REFERENCE_MODES];
   int compound_ref_used_flag;
   int skip_mode_used_flag;
   int tx_type_used[TX_SIZES_ALL][TX_TYPES];

@@ -30,9 +30,6 @@
 #include "av1/encoder/tpl_model.h"
 
 static AOM_INLINE void accumulate_rd_opt(ThreadData *td, ThreadData *td_t) {
-  for (int i = 0; i < REFERENCE_MODES; i++)
-    td->rd_counts.comp_pred_diff[i] += td_t->rd_counts.comp_pred_diff[i];
-
   td->rd_counts.compound_ref_used_flag |=
       td_t->rd_counts.compound_ref_used_flag;
   td->rd_counts.skip_mode_used_flag |= td_t->rd_counts.skip_mode_used_flag;

@@ -324,7 +324,6 @@ typedef struct InterModeSearchState {
    * \brief Keep track of best intra rd for use in compound mode.
    */
   int64_t best_pred_rd[REFERENCE_MODES];
-  int64_t best_pred_diff[REFERENCE_MODES];
   // Save a set of single_newmv for each checked ref_mv.
   int_mv single_newmv[MAX_REF_MV_SEARCH][REF_FRAMES];
   int single_newmv_rate[MAX_REF_MV_SEARCH][REF_FRAMES];
@@ -905,7 +904,7 @@ static AOM_INLINE void store_coding_context(
 #else
     MACROBLOCK *x, PICK_MODE_CONTEXT *ctx,
 #endif  // CONFIG_INTERNAL_STATS
-    int64_t comp_pred_diff[REFERENCE_MODES], int skippable) {
+    int skippable) {
   MACROBLOCKD *const xd = &x->e_mbd;
 
   // Take a snapshot of the coding context so it can be
@@ -918,9 +917,6 @@ static AOM_INLINE void store_coding_context(
   ctx->mic = *xd->mi[0];
   av1_copy_mbmi_ext_to_mbmi_ext_frame(&ctx->mbmi_ext_best, &x->mbmi_ext,
                                       av1_ref_frame_type(xd->mi[0]->ref_frame));
-  ctx->single_pred_diff = (int)comp_pred_diff[SINGLE_REFERENCE];
-  ctx->comp_pred_diff = (int)comp_pred_diff[COMPOUND_REFERENCE];
-  ctx->hybrid_pred_diff = (int)comp_pred_diff[REFERENCE_MODE_SELECT];
 }
 
 static AOM_INLINE void setup_buffer_ref_mvs_inter(
@@ -6060,26 +6056,15 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
     }
   }
 
-  for (i = 0; i < REFERENCE_MODES; ++i) {
-    if (search_state.best_pred_rd[i] == INT64_MAX) {
-      search_state.best_pred_diff[i] = INT_MIN;
-    } else {
-      search_state.best_pred_diff[i] =
-          search_state.best_rd - search_state.best_pred_rd[i];
-    }
-  }
-
   txfm_info->skip_txfm |= search_state.best_mode_skippable;
 
   assert(search_state.best_mode_index != THR_INVALID);
 
 #if CONFIG_INTERNAL_STATS
   store_coding_context(x, ctx, search_state.best_mode_index,
-                       search_state.best_pred_diff,
                        search_state.best_mode_skippable);
 #else
-  store_coding_context(x, ctx, search_state.best_pred_diff,
-                       search_state.best_mode_skippable);
+  store_coding_context(x, ctx, search_state.best_mode_skippable);
 #endif  // CONFIG_INTERNAL_STATS
 
   if (mbmi->palette_mode_info.palette_size[1] > 0) {
@@ -6101,7 +6086,6 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   unsigned char segment_id = mbmi->segment_id;
   const int comp_pred = 0;
   int i;
-  int64_t best_pred_diff[REFERENCE_MODES];
   unsigned int ref_costs_single[REF_FRAMES];
   unsigned int ref_costs_comp[REF_FRAMES][REF_FRAMES];
   const ModeCosts *mode_costs = &x->mode_costs;
@@ -6214,12 +6198,10 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
                               THR_INTER_MODE_END, THR_DC, MAX_MODES);
   }
 
-  av1_zero(best_pred_diff);
-
 #if CONFIG_INTERNAL_STATS
-  store_coding_context(x, ctx, THR_GLOBALMV, best_pred_diff, 0);
+  store_coding_context(x, ctx, THR_GLOBALMV, 0);
 #else
-  store_coding_context(x, ctx, best_pred_diff, 0);
+  store_coding_context(x, ctx, 0);
 #endif  // CONFIG_INTERNAL_STATS
 }
 

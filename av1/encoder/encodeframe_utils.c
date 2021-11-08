@@ -206,7 +206,6 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   const AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int num_planes = av1_num_planes(cm);
-  RD_COUNTS *const rdc = &td->rd_counts;
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
   struct macroblock_plane *const p = x->plane;
@@ -339,10 +338,6 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
         !is_nontrans_global_motion(xd, xd->mi[0])) {
       update_filter_type_count(td->counts, xd, mi_addr);
     }
-
-    rdc->comp_pred_diff[SINGLE_REFERENCE] += ctx->single_pred_diff;
-    rdc->comp_pred_diff[COMPOUND_REFERENCE] += ctx->comp_pred_diff;
-    rdc->comp_pred_diff[REFERENCE_MODE_SELECT] += ctx->hybrid_pred_diff;
   }
 
   const int x_mis = AOMMIN(bw, mi_params->mi_cols - mi_col);
