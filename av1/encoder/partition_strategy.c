@@ -12,6 +12,7 @@
 #include <float.h>
 
 #include "av1/encoder/encodeframe_utils.h"
+#include "av1/encoder/thirdpass.h"
 #include "config/aom_dsp_rtcd.h"
 
 #include "av1/common/enums.h"
@@ -1558,6 +1559,76 @@ void av1_prune_partitions_before_search(AV1_COMP *const cpi,
 
   const PartitionBlkParams *blk_params = &part_state->part_blk_params;
   const BLOCK_SIZE bsize = blk_params->bsize;
+
+  if (cpi->third_pass_ctx) {
+    int mi_row = blk_params->mi_row;
+    int mi_col = blk_params->mi_col;
+    double ratio_h, ratio_w;
+    av1_get_third_pass_ratio(cpi->third_pass_ctx, 0, cm->height, cm->width,
+                             &ratio_h, &ratio_w);
+    THIRD_PASS_MI_INFO *this_mi = av1_get_third_pass_mi(
+        cpi->third_pass_ctx, 0, mi_row, mi_col, ratio_h, ratio_w);
+    BLOCK_SIZE third_pass_bsize =
+        av1_get_third_pass_adjusted_blk_size(this_mi, ratio_h, ratio_w);
+    // check the actual partition of this block in the second pass
+    PARTITION_TYPE third_pass_part =
+        av1_third_pass_get_sb_part_type(cpi->third_pass_ctx, this_mi);
+
+    int is_edge = (mi_row + mi_size_high[bsize] >= cm->mi_params.mi_rows) ||
+                  (mi_col + mi_size_wide[bsize] >= cm->mi_params.mi_cols);
+
+    if (!is_edge && block_size_wide[bsize] >= 16) {
+      // If in second pass we used rectangular partition, then do not search for
+      // rectangular partition in the different direction.
+      if (third_pass_part != PARTITION_NONE) {
+        if (third_pass_part == PARTITION_HORZ ||
+            third_pass_part == PARTITION_HORZ_4 ||
+            third_pass_part == PARTITION_HORZ_A ||
+            third_pass_part == PARTITION_HORZ_B) {
+          part_state->partition_rect_allowed[VERT] = 0;
+        } else if (third_pass_part == PARTITION_VERT ||
+                   third_pass_part == PARTITION_VERT_4 ||
+                   third_pass_part == PARTITION_VERT_A ||
+                   third_pass_part == PARTITION_VERT_B) {
+          part_state->partition_rect_allowed[HORZ] = 0;
+        }
+      }
+
+      int minSize = AOMMIN(block_size_wide[third_pass_bsize],
+                           block_size_high[third_pass_bsize]);
+      int maxSize = AOMMAX(block_size_wide[third_pass_bsize],
+                           block_size_high[third_pass_bsize]);
+      if (block_size_wide[bsize] < minSize / 4) {
+        // Current partition is too small, just terminate
+        part_state->terminate_partition_search = 1;
+        return;
+      } else if (block_size_wide[bsize] < minSize / 2) {
+        if (third_pass_part != PARTITION_NONE) {
+          // Current partition is very small, and in second pass we used
+          // rectangular partition. Terminate the search here then.
+          part_state->terminate_partition_search = 1;
+          return;
+        } else {
+          // Partition is small, but we still check this partition, only disable
+          // further splits.
+          // TODO(any): check why this is not covered by the termination for <
+          // minSize/4.
+          av1_disable_square_split_partition(part_state);
+          av1_disable_rect_partitions(part_state);
+          return;
+        }
+      } else if (block_size_wide[bsize] > maxSize) {
+        // Partition is larger than in the second pass. Only allow split.
+        av1_set_square_split_only(part_state);
+        return;
+      } else if (block_size_wide[bsize] >= minSize &&
+                 block_size_wide[bsize] <= maxSize) {
+        // Partition is within a range where it is very likely to find a good
+        // choice, so do not prune anything.
+        return;
+      }
+    }
+  }
 
   // Prune rectangular partitions for larger blocks.
   if (bsize > cpi->sf.part_sf.rect_partition_eval_thresh) {

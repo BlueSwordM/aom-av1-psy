@@ -177,7 +177,7 @@ static int get_frame_info(THIRD_PASS_DEC_CTX *ctx) {
 
     if (!ctx->frame_info[cur].mi_info) {
       aom_internal_error(ctx->err_info, AOM_CODEC_MEM_ERROR,
-                         "Failed to allocate mv buffer for the third pass.");
+                         "Failed to allocate mi buffer for the third pass.");
     }
   }
 
@@ -595,8 +595,8 @@ BLOCK_SIZE av1_get_third_pass_adjusted_blk_size(THIRD_PASS_MI_INFO *this_mi,
   return bsize;
 }
 
-PARTITION_TYPE av1_third_passget_sb_part_type(THIRD_PASS_DEC_CTX *ctx,
-                                              THIRD_PASS_MI_INFO *this_mi) {
+PARTITION_TYPE av1_third_pass_get_sb_part_type(THIRD_PASS_DEC_CTX *ctx,
+                                               THIRD_PASS_MI_INFO *this_mi) {
   int mi_stride = ctx->frame_info[0].mi_stride;
 
   int mi_row = this_mi->mi_row_start;

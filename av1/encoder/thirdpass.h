@@ -144,8 +144,8 @@ void av1_third_pass_get_adjusted_mi(THIRD_PASS_MI_INFO *third_pass_mi,
                                     double ratio_h, double ratio_w, int *mi_row,
                                     int *mi_col);
 
-PARTITION_TYPE av1_third_passget_sb_part_type(THIRD_PASS_DEC_CTX *ctx,
-                                              THIRD_PASS_MI_INFO *this_mi);
+PARTITION_TYPE av1_third_pass_get_sb_part_type(THIRD_PASS_DEC_CTX *ctx,
+                                               THIRD_PASS_MI_INFO *this_mi);
 
 #ifdef __cplusplus
 }  // extern "C"
