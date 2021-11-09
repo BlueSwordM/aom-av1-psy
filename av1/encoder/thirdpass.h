@@ -35,6 +35,7 @@ typedef struct {
 
 typedef struct {
   BLOCK_SIZE bsize;
+  PARTITION_TYPE partition;
   int mi_row_start;
   int mi_col_start;
   int_mv mv[2];
@@ -142,6 +143,9 @@ BLOCK_SIZE av1_get_third_pass_adjusted_blk_size(THIRD_PASS_MI_INFO *this_mi,
 void av1_third_pass_get_adjusted_mi(THIRD_PASS_MI_INFO *third_pass_mi,
                                     double ratio_h, double ratio_w, int *mi_row,
                                     int *mi_col);
+
+PARTITION_TYPE av1_third_passget_sb_part_type(THIRD_PASS_DEC_CTX *ctx,
+                                              THIRD_PASS_MI_INFO *this_mi);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -246,6 +246,7 @@ static int get_frame_info(THIRD_PASS_DEC_CTX *ctx) {
           }
           const int this_offset = offset + h * mi_cols + w;
           this_mi[this_offset].bsize = cur_mi_info.bsize;
+          this_mi[this_offset].partition = cur_mi_info.partition;
           this_mi[this_offset].mi_row_start = mi_row;
           this_mi[this_offset].mi_col_start = mi_col;
           this_mi[this_offset].mv[0] = cur_mi_info.mv[0];
@@ -592,4 +593,17 @@ BLOCK_SIZE av1_get_third_pass_adjusted_blk_size(THIRD_PASS_MI_INFO *this_mi,
   }
 
   return bsize;
+}
+
+PARTITION_TYPE av1_third_passget_sb_part_type(THIRD_PASS_DEC_CTX *ctx,
+                                              THIRD_PASS_MI_INFO *this_mi) {
+  int mi_stride = ctx->frame_info[0].mi_stride;
+
+  int mi_row = this_mi->mi_row_start;
+  int mi_col = this_mi->mi_col_start;
+
+  THIRD_PASS_MI_INFO *corner_mi =
+      &ctx->frame_info[0].mi_info[mi_row * mi_stride + mi_col];
+
+  return corner_mi->partition;
 }
