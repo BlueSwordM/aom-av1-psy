@@ -3592,7 +3592,9 @@ static void none_partition_search(
   const BLOCK_SIZE bsize = blk_params.bsize;
   assert(bsize < BLOCK_SIZES_ALL);
 
-  if (!part_search_state->partition_none_allowed) return;
+  if (part_search_state->terminate_partition_search ||
+      !part_search_state->partition_none_allowed)
+    return;
 
   int pt_cost = 0;
   RD_STATS best_remain_rdcost;
