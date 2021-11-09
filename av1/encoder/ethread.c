@@ -1204,10 +1204,10 @@ static AOM_INLINE void accumulate_counters_enc_workers(AV1_COMP *cpi,
       av1_accumulate_cyclic_refresh_counters(cpi->cyclic_refresh,
                                              &thread_data->td->mb);
     if (thread_data->td != &cpi->td) {
-      if (cpi->oxcf.cost_upd_freq.mv < COST_UPD_OFF) {
+      if (cpi->sf.inter_sf.mv_cost_upd_level != INTERNAL_COST_UPD_OFF) {
         aom_free(thread_data->td->mb.mv_costs);
       }
-      if (cpi->oxcf.cost_upd_freq.dv < COST_UPD_OFF) {
+      if (cpi->sf.intra_sf.dv_cost_upd_level != INTERNAL_COST_UPD_OFF) {
         aom_free(thread_data->td->mb.dv_costs);
       }
     }
@@ -1274,13 +1274,13 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
               thread_data->td->hash_value_buffer[x][y];
         }
       }
-      if (cpi->oxcf.cost_upd_freq.mv < COST_UPD_OFF) {
+      if (cpi->sf.inter_sf.mv_cost_upd_level != INTERNAL_COST_UPD_OFF) {
         CHECK_MEM_ERROR(cm, thread_data->td->mb.mv_costs,
                         (MvCosts *)aom_malloc(sizeof(MvCosts)));
         memcpy(thread_data->td->mb.mv_costs, cpi->td.mb.mv_costs,
                sizeof(MvCosts));
       }
-      if (cpi->oxcf.cost_upd_freq.dv < COST_UPD_OFF) {
+      if (cpi->sf.intra_sf.dv_cost_upd_level != INTERNAL_COST_UPD_OFF) {
         CHECK_MEM_ERROR(cm, thread_data->td->mb.dv_costs,
                         (IntraBCMVCosts *)aom_malloc(sizeof(IntraBCMVCosts)));
         memcpy(thread_data->td->mb.dv_costs, cpi->td.mb.dv_costs,
@@ -1349,13 +1349,13 @@ static AOM_INLINE void fp_prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     // Before encoding a frame, copy the thread data from cpi.
     if (thread_data->td != &cpi->td) {
       thread_data->td->mb = cpi->td.mb;
-      if (cpi->oxcf.cost_upd_freq.mv < COST_UPD_OFF) {
+      if (cpi->sf.inter_sf.mv_cost_upd_level != INTERNAL_COST_UPD_OFF) {
         CHECK_MEM_ERROR(cm, thread_data->td->mb.mv_costs,
                         (MvCosts *)aom_malloc(sizeof(MvCosts)));
         memcpy(thread_data->td->mb.mv_costs, cpi->td.mb.mv_costs,
                sizeof(MvCosts));
       }
-      if (cpi->oxcf.cost_upd_freq.dv < COST_UPD_OFF) {
+      if (cpi->sf.intra_sf.dv_cost_upd_level != INTERNAL_COST_UPD_OFF) {
         CHECK_MEM_ERROR(cm, thread_data->td->mb.dv_costs,
                         (IntraBCMVCosts *)aom_malloc(sizeof(IntraBCMVCosts)));
         memcpy(thread_data->td->mb.dv_costs, cpi->td.mb.dv_costs,
@@ -1639,10 +1639,10 @@ void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi) {
   for (int i = num_workers - 1; i >= 0; i--) {
     EncWorkerData *const thread_data = &cpi->mt_info.tile_thr_data[i];
     if (thread_data->td != &cpi->td) {
-      if (cpi->oxcf.cost_upd_freq.mv < COST_UPD_OFF) {
+      if (cpi->sf.inter_sf.mv_cost_upd_level != INTERNAL_COST_UPD_OFF) {
         aom_free(thread_data->td->mb.mv_costs);
       }
-      if (cpi->oxcf.cost_upd_freq.dv < COST_UPD_OFF) {
+      if (cpi->sf.intra_sf.dv_cost_upd_level != INTERNAL_COST_UPD_OFF) {
         aom_free(thread_data->td->mb.dv_costs);
       }
     }

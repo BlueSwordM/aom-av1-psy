@@ -311,9 +311,17 @@ enum {
  * more flexibility in update frequency. This enum is separate from \ref
  * COST_UPDATE_TYPE because although \ref COST_UPDATE_TYPE is not exposed, its
  * values are public so it cannot be modified without breaking public API.
+ * Due to the use of AOMMIN() in populate_unified_cost_update_freq() to
+ * compute the unified cost update frequencies (out of COST_UPDATE_TYPE and
+ * INTERNAL_COST_UPDATE_TYPE), the values of this enum type must be listed in
+ * the order of increasing frequencies.
+ *
+ * \warning  In case of any updates/modifications to the enum COST_UPDATE_TYPE,
+ * update the enum INTERNAL_COST_UPDATE_TYPE as well.
  */
 typedef enum {
   INTERNAL_COST_UPD_OFF,       /*!< Turn off cost updates. */
+  INTERNAL_COST_UPD_TILE,      /*!< Update every tile. */
   INTERNAL_COST_UPD_SBROW_SET, /*!< Update every row_set of height 256 pixs. */
   INTERNAL_COST_UPD_SBROW,     /*!< Update every sb rows inside a tile. */
   INTERNAL_COST_UPD_SB,        /*!< Update every sb. */

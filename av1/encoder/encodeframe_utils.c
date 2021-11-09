@@ -1412,14 +1412,13 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
 
-  switch (cpi->oxcf.cost_upd_freq.coeff) {
-    case COST_UPD_OFF:
-    case COST_UPD_TILE:  // Tile level
+  switch (cpi->sf.inter_sf.coeff_cost_upd_level) {
+    case INTERNAL_COST_UPD_OFF:
+    case INTERNAL_COST_UPD_TILE:  // Tile level
       break;
-    case COST_UPD_SBROW:  // SB row level in tile
-      if (mi_col != tile_info->mi_col_start) break;
-      AOM_FALLTHROUGH_INTENDED;
-    case COST_UPD_SB:  // SB level
+    case INTERNAL_COST_UPD_SBROW_SET:  // SB row set level in tile
+    case INTERNAL_COST_UPD_SBROW:      // SB row level in tile
+    case INTERNAL_COST_UPD_SB:         // SB level
       if (skip_cost_update(cm->seq_params, tile_info, mi_row, mi_col,
                            cpi->sf.inter_sf.coeff_cost_upd_level))
         break;
@@ -1428,14 +1427,13 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
     default: assert(0);
   }
 
-  switch (cpi->oxcf.cost_upd_freq.mode) {
-    case COST_UPD_OFF:
-    case COST_UPD_TILE:  // Tile level
+  switch (cpi->sf.inter_sf.mode_cost_upd_level) {
+    case INTERNAL_COST_UPD_OFF:
+    case INTERNAL_COST_UPD_TILE:  // Tile level
       break;
-    case COST_UPD_SBROW:  // SB row level in tile
-      if (mi_col != tile_info->mi_col_start) break;
-      AOM_FALLTHROUGH_INTENDED;
-    case COST_UPD_SB:  // SB level
+    case INTERNAL_COST_UPD_SBROW_SET:  // SB row set level in tile
+    case INTERNAL_COST_UPD_SBROW:      // SB row level in tile
+    case INTERNAL_COST_UPD_SB:         // SB level
       if (skip_cost_update(cm->seq_params, tile_info, mi_row, mi_col,
                            cpi->sf.inter_sf.mode_cost_upd_level))
         break;
@@ -1443,14 +1441,14 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
       break;
     default: assert(0);
   }
-  switch (cpi->oxcf.cost_upd_freq.mv) {
-    case COST_UPD_OFF:
-    case COST_UPD_TILE:  // Tile level
+
+  switch (cpi->sf.inter_sf.mv_cost_upd_level) {
+    case INTERNAL_COST_UPD_OFF:
+    case INTERNAL_COST_UPD_TILE:  // Tile level
       break;
-    case COST_UPD_SBROW:  // SB row level in tile
-      if (mi_col != tile_info->mi_col_start) break;
-      AOM_FALLTHROUGH_INTENDED;
-    case COST_UPD_SB:  // SB level
+    case INTERNAL_COST_UPD_SBROW_SET:  // SB row set level in tile
+    case INTERNAL_COST_UPD_SBROW:      // SB row level in tile
+    case INTERNAL_COST_UPD_SB:         // SB level
       // Checks for skip status of mv cost update.
       if (skip_mv_cost_update(cpi, tile_info, mi_row, mi_col)) break;
       av1_fill_mv_costs(&xd->tile_ctx->nmvc,
@@ -1460,14 +1458,13 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
     default: assert(0);
   }
 
-  switch (cpi->oxcf.cost_upd_freq.dv) {
-    case COST_UPD_OFF:
-    case COST_UPD_TILE:  // Tile level
+  switch (cpi->sf.intra_sf.dv_cost_upd_level) {
+    case INTERNAL_COST_UPD_OFF:
+    case INTERNAL_COST_UPD_TILE:  // Tile level
       break;
-    case COST_UPD_SBROW:  // SB row level in tile
-      if (mi_col != tile_info->mi_col_start) break;
-      AOM_FALLTHROUGH_INTENDED;
-    case COST_UPD_SB:  // SB level
+    case INTERNAL_COST_UPD_SBROW_SET:  // SB row set level in tile
+    case INTERNAL_COST_UPD_SBROW:      // SB row level in tile
+    case INTERNAL_COST_UPD_SB:         // SB level
       // Checks for skip status of dv cost update.
       if (skip_dv_cost_update(cpi, tile_info, mi_row, mi_col)) break;
       av1_fill_dv_costs(&xd->tile_ctx->ndvc, x->dv_costs);
