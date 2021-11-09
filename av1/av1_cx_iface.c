@@ -804,6 +804,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
 
   RANGE_CHECK(extra_cfg, deltaq_strength, 0, 1000);
   RANGE_CHECK_HI(extra_cfg, loopfilter_control, 3);
+  RANGE_CHECK_HI(extra_cfg, enable_cdef, 2);
 
   return AOM_CODEC_OK;
 }
@@ -881,7 +882,7 @@ static void disable_superres(SuperResCfg *const superres_cfg) {
 
 static void update_default_encoder_config(const cfg_options_t *cfg,
                                           struct av1_extracfg *extra_cfg) {
-  extra_cfg->enable_cdef = (cfg->disable_cdef == 0);
+  extra_cfg->enable_cdef = (cfg->disable_cdef == 0) ? 1 : 0;
   extra_cfg->enable_restoration = (cfg->disable_lr == 0);
   extra_cfg->superblock_size = (cfg->super_block_size == 64)
                                    ? AOM_SUPERBLOCK_SIZE_64X64
@@ -1088,7 +1089,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   // Set Toolset related configuration.
   tool_cfg->bit_depth = cfg->g_bit_depth;
-  tool_cfg->enable_cdef = extra_cfg->enable_cdef;
+  tool_cfg->cdef_control = (CDEF_CONTROL)extra_cfg->enable_cdef;
   tool_cfg->enable_restoration =
       (cfg->g_usage == AOM_USAGE_REALTIME) ? 0 : extra_cfg->enable_restoration;
   tool_cfg->force_video_mode = extra_cfg->force_video_mode;

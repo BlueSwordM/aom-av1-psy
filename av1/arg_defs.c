@@ -317,7 +317,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_cdef = ARG_DEF(
       NULL, "enable-cdef", 1,
       "Enable the constrained directional enhancement filter (0: false, "
-      "1: true (default))"),
+      "1: true (default), 2: disable for non-reference frames)"),
   .enable_restoration = ARG_DEF(NULL, "enable-restoration", 1,
                                 "Enable the loop restoration filter (0: false "
                                 "(default in Realtime mode), "

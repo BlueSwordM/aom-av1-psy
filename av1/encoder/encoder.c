@@ -442,7 +442,7 @@ void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi,
   seq->order_hint_info.enable_ref_frame_mvs &=
       seq->order_hint_info.enable_order_hint;
   seq->enable_superres = oxcf->superres_cfg.enable_superres;
-  seq->enable_cdef = tool_cfg->enable_cdef;
+  seq->enable_cdef = tool_cfg->cdef_control != CDEF_NONE ? 1 : 0;
   seq->enable_restoration = tool_cfg->enable_restoration;
   seq->enable_warped_motion = oxcf->motion_mode_cfg.enable_warped_motion;
   seq->enable_interintra_compound = tool_cfg->enable_interintra_comp;
@@ -2153,7 +2153,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     // Find CDEF parameters
     av1_cdef_search(&cpi->mt_info, &cm->cur_frame->buf, cpi->source, cm, xd,
                     cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult,
-                    cpi->sf.rt_sf.skip_cdef_sb, cpi->rc.frames_since_key);
+                    cpi->sf.rt_sf.skip_cdef_sb, cpi->rc.frames_since_key,
+                    cpi->oxcf.tool_cfg.cdef_control,
+                    cpi->svc.non_reference_frame);
 
     // Apply the filter
     if (!cpi->svc.non_reference_frame) {

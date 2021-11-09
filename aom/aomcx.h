@@ -654,7 +654,8 @@ enum aome_enc_control_id {
    * in-loop filter aiming to remove coding artifacts
    *
    * - 0 = disable
-   * - 1 = enable (default)
+   * - 1 = enable for all frames (default)
+   * - 2 = disable for non-reference frames
    */
   AV1E_SET_ENABLE_CDEF = 58,
 

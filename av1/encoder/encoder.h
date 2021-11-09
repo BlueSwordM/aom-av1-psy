@@ -849,8 +849,8 @@ typedef struct {
   aom_superblock_size_t superblock_size;
   // Indicates if loopfilter modulation should be enabled.
   bool enable_deltalf_mode;
-  // Indicates if CDEF should be enabled.
-  bool enable_cdef;
+  // Indicates how CDEF should be applied.
+  CDEF_CONTROL cdef_control;
   // Indicates if loop restoration filter should be enabled.
   bool enable_restoration;
   // When enabled, video mode should be used even for single frame input.
