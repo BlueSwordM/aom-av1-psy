@@ -1335,8 +1335,8 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
 
 /*! Checks whether to skip updating the entropy cost based on tile info.
  *
- * This function contains codes common to both \ref skip_mv_cost_update and
- * \ref skip_dv_cost_update.
+ * This function contains the common code used to skip the cost update of coeff,
+ * mode, mv and dv symbols.
  */
 static int skip_cost_update(const SequenceHeader *seq_params,
                             const TileInfo *const tile_info, const int mi_row,
@@ -1419,8 +1419,8 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
       if (mi_col != tile_info->mi_col_start) break;
       AOM_FALLTHROUGH_INTENDED;
     case COST_UPD_SB:  // SB level
-      if (cpi->sf.inter_sf.coeff_cost_upd_level == INTERNAL_COST_UPD_SBROW &&
-          mi_col != tile_info->mi_col_start)
+      if (skip_cost_update(cm->seq_params, tile_info, mi_row, mi_col,
+                           cpi->sf.inter_sf.coeff_cost_upd_level))
         break;
       av1_fill_coeff_costs(&x->coeff_costs, xd->tile_ctx, num_planes);
       break;
@@ -1435,8 +1435,8 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
       if (mi_col != tile_info->mi_col_start) break;
       AOM_FALLTHROUGH_INTENDED;
     case COST_UPD_SB:  // SB level
-      if (cpi->sf.inter_sf.mode_cost_upd_level == INTERNAL_COST_UPD_SBROW &&
-          mi_col != tile_info->mi_col_start)
+      if (skip_cost_update(cm->seq_params, tile_info, mi_row, mi_col,
+                           cpi->sf.inter_sf.mode_cost_upd_level))
         break;
       av1_fill_mode_rates(cm, &x->mode_costs, xd->tile_ctx);
       break;
