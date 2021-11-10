@@ -579,8 +579,8 @@ void av1_cdef_search(MultiThreadInfo *mt_info, const YV12_BUFFER_CONFIG *frame,
     CdefInfo *const cdef_info = &cm->cdef_info;
     cdef_info->nb_cdef_strengths = 1;
     cdef_info->cdef_bits = 0;
-    cdef_info->cdef_strengths[1] = 0;
-    cdef_info->cdef_uv_strengths[1] = 0;
+    cdef_info->cdef_strengths[0] = 0;
+    cdef_info->cdef_uv_strengths[0] = 0;
     return;
   }
 
