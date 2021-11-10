@@ -264,8 +264,10 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
         !frame_is_intra_only(cm)) {
       const int num4x4 = (cm->width >> 2) * (cm->height >> 2);
       const int newmv_thresh = 7;
+      const int distance_since_key_thresh = 5;
       if ((cpi->td.rd_counts.newmv_or_intra_blocks * 100 / num4x4) <
-          newmv_thresh) {
+              newmv_thresh &&
+          cpi->rc.frames_since_key > distance_since_key_thresh) {
         lf->filter_level[0] = 0;
         lf->filter_level[1] = 0;
       }
