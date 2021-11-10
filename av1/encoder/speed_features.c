@@ -532,7 +532,7 @@ static void set_good_speed_feature_framesize_dependent(
   const bool use_hbd = cpi->oxcf.use_highbitdepth;
   const int boosted = frame_is_boosted(cpi);
   const int is_lf_frame =
-      cpi->ppi->gf_group.frame_type[cpi->gf_frame_index] == LF_UPDATE;
+      cpi->ppi->gf_group.update_type[cpi->gf_frame_index] == LF_UPDATE;
 
   if (is_480p_or_larger) {
     sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
