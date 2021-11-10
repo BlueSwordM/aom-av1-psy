@@ -1070,6 +1070,10 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // higher speeds.
   int top_intra_model_count_allowed;
 
+  // Adapt top_intra_model_count_allowed locally to prune luma intra modes using
+  // neighbor block and quantizer information.
+  int adapt_top_model_rd_count_using_neighbors;
+
   // Terminate early in chroma palette_size search.
   // 0: No early termination
   // 1: Terminate early for higher palette_size, if header rd cost of lower
