@@ -713,9 +713,9 @@ static AOM_INLINE void hybrid_intra_mode_search(AV1_COMP *cpi,
     av1_nonrd_pick_intra_mode(cpi, x, rd_cost, bsize, ctx);
 }
 
-// For real time row-mt enabled multi-threaded encoding with cost update
-// frequency set to COST_UPD_TILE/COST_UPD_OFF, tile ctxt is not updated at
-// superblock level. Thus, it is not required for the encoding of top-right
+// For real time/allintra row-mt enabled multi-threaded encoding with cost
+// update frequency set to COST_UPD_TILE/COST_UPD_OFF, tile ctxt is not updated
+// at superblock level. Thus, it is not required for the encoding of top-right
 // superblock be complete for updating tile ctxt. However, when encoding a block
 // whose right edge is also the superblock edge, intra and inter mode evaluation
 // (ref mv list population) require the encoding of the top-right superblock to
@@ -812,8 +812,8 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 
   int i;
 
-  // This is only needed for real time row-mt enabled multi-threaded encoding
-  // with cost update frequency set to COST_UPD_TILE/COST_UPD_OFF.
+  // This is only needed for real time/allintra row-mt enabled multi-threaded
+  // encoding with cost update frequency set to COST_UPD_TILE/COST_UPD_OFF.
   wait_for_top_right_sb(&cpi->mt_info.enc_row_mt, &tile_data->row_mt_sync,
                         &tile_data->tile_info, cm->seq_params->sb_size,
                         cm->seq_params->mib_size_log2, bsize, mi_row, mi_col);
@@ -2148,8 +2148,8 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
   int i;
 
-  // This is only needed for real time row-mt enabled multi-threaded encoding
-  // with cost update frequency set to COST_UPD_TILE/COST_UPD_OFF.
+  // This is only needed for real time/allintra row-mt enabled multi-threaded
+  // encoding with cost update frequency set to COST_UPD_TILE/COST_UPD_OFF.
   wait_for_top_right_sb(&cpi->mt_info.enc_row_mt, &tile_data->row_mt_sync,
                         &tile_data->tile_info, cm->seq_params->sb_size,
                         cm->seq_params->mib_size_log2, bsize, mi_row, mi_col);

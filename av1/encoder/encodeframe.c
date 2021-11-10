@@ -734,11 +734,36 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   }
 }
 
-static AOM_INLINE int is_rtc_mode(const CostUpdateFreq *cost_upd_freq,
-                                  MODE mode) {
-  return ((mode == REALTIME) && cost_upd_freq->coeff >= 2 &&
-          cost_upd_freq->mode >= 2 && cost_upd_freq->mv >= 2 &&
-          cost_upd_freq->dv >= 2);
+// Check if the cost update of symbols mode, coeff and dv are tile or off.
+static AOM_INLINE int is_mode_coeff_dv_upd_freq_tile_or_off(
+    const AV1_COMP *const cpi, const CostUpdateFreq *const cost_upd_freq) {
+  const INTER_MODE_SPEED_FEATURES *const inter_sf = &cpi->sf.inter_sf;
+
+  return ((cost_upd_freq->coeff >= COST_UPD_TILE ||
+           inter_sf->coeff_cost_upd_level == INTERNAL_COST_UPD_OFF) &&
+          (cost_upd_freq->mode >= COST_UPD_TILE ||
+           inter_sf->mode_cost_upd_level == INTERNAL_COST_UPD_OFF) &&
+          (cost_upd_freq->dv >= COST_UPD_TILE ||
+           cpi->sf.intra_sf.dv_cost_upd_level == INTERNAL_COST_UPD_OFF));
+}
+
+// When row-mt is enabled and cost update frequencies are set to off/tile,
+// processing of current SB can start even before processing of top-right SB
+// is finished. This function checks if it is sufficient to wait for top SB
+// to finish processing before current SB starts processing.
+static AOM_INLINE int delay_wait_for_top_right_sb(const AV1_COMP *const cpi) {
+  const MODE mode = cpi->oxcf.mode;
+  if (mode == GOOD) return 0;
+
+  const CostUpdateFreq *const cost_upd_freq = &cpi->oxcf.cost_upd_freq;
+  if (mode == ALLINTRA)
+    return is_mode_coeff_dv_upd_freq_tile_or_off(cpi, cost_upd_freq);
+  else if (mode == REALTIME)
+    return (is_mode_coeff_dv_upd_freq_tile_or_off(cpi, cost_upd_freq) &&
+            (cost_upd_freq->mv >= COST_UPD_TILE ||
+             cpi->sf.inter_sf.mv_cost_upd_level == INTERNAL_COST_UPD_OFF));
+  else
+    return 0;
 }
 
 /*!\brief Encode a superblock row by breaking it into superblocks
@@ -766,8 +791,6 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
   const int mib_size_log2 = cm->seq_params->mib_size_log2;
   const int sb_row = (mi_row - tile_info->mi_row_start) >> mib_size_log2;
   const int use_nonrd_mode = cpi->sf.rt_sf.use_nonrd_pick_mode;
-  const CostUpdateFreq *const cost_upd_freq = &cpi->oxcf.cost_upd_freq;
-  const int rtc_mode = is_rtc_mode(cost_upd_freq, cpi->oxcf.mode);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, encode_sb_row_time);
@@ -790,11 +813,11 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
   // Code each SB in the row
   for (int mi_col = tile_info->mi_col_start, sb_col_in_tile = 0;
        mi_col < tile_info->mi_col_end; mi_col += mib_size, sb_col_in_tile++) {
-    // In realtime mode and when frequency of cost updates is off/tile, wait for
-    // the top superblock to finish encoding. Otherwise, wait for the top-right
-    // superblock to finish encoding.
-    (*(enc_row_mt->sync_read_ptr))(row_mt_sync, sb_row,
-                                   sb_col_in_tile - rtc_mode);
+    // In realtime/allintra mode and when frequency of cost updates is off/tile,
+    // wait for the top superblock to finish encoding. Otherwise, wait for the
+    // top-right superblock to finish encoding.
+    (*(enc_row_mt->sync_read_ptr))(
+        row_mt_sync, sb_row, sb_col_in_tile - delay_wait_for_top_right_sb(cpi));
     const int update_cdf = tile_data->allow_update_cdf && row_mt_enabled;
     if (update_cdf && (tile_info->mi_row_start != mi_row)) {
       if ((tile_info->mi_col_start == mi_col)) {
@@ -904,8 +927,6 @@ void av1_init_tile_data(AV1_COMP *cpi) {
   TokenList *tplist = token_info->tplist[0][0];
   unsigned int tile_tok = 0;
   int tplist_count = 0;
-  const CostUpdateFreq *const cost_upd_freq = &cpi->oxcf.cost_upd_freq;
-  const int rtc_mode = is_rtc_mode(cost_upd_freq, cpi->oxcf.mode);
 
   if (!is_stat_generation_stage(cpi) &&
       cm->features.allow_screen_content_tools) {
@@ -949,7 +970,7 @@ void av1_init_tile_data(AV1_COMP *cpi) {
       tile_data->allow_update_cdf = !cm->tiles.large_scale;
       tile_data->allow_update_cdf = tile_data->allow_update_cdf &&
                                     !cm->features.disable_cdf_update &&
-                                    !rtc_mode;
+                                    !delay_wait_for_top_right_sb(cpi);
       tile_data->tctx = *cm->fc;
     }
   }
