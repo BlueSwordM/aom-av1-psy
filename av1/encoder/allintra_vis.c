@@ -734,7 +734,8 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi) {
   // TODO(sdeng): add highbitdepth support.
   (void)use_hbd;
 
-  float *mb_delta_q0, *mb_delta_q1, delta_q_avg0 = 0.0f, delta_q_avg1 = 0.0f;
+  // TODO(sdeng): fit a better model_1; disable it at this time.
+  float *mb_delta_q0, *mb_delta_q1, delta_q_avg0 = 0.0f;
   CHECK_MEM_ERROR(cm, mb_delta_q0,
                   aom_calloc(num_rows * num_cols, sizeof(float)));
   CHECK_MEM_ERROR(cm, mb_delta_q1,
@@ -751,41 +752,25 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi) {
     for (int col = 0; col < num_cols; ++col) {
       const int index = row * num_cols + col;
       delta_q_avg0 += mb_delta_q0[index];
-      delta_q_avg1 += mb_delta_q1[index];
     }
   }
 
   delta_q_avg0 /= (float)(num_rows * num_cols);
-  delta_q_avg1 /= (float)(num_rows * num_cols);
 
   float scaling_factor;
-  int model_id = 0;
   const float cq_level = (float)cpi->oxcf.rc_cfg.cq_level / (float)MAXQ;
   if (cq_level < delta_q_avg0) {
     scaling_factor = cq_level / delta_q_avg0;
-  } else if (cq_level < delta_q_avg1) {
-    model_id = 2;
-    scaling_factor = (cq_level - delta_q_avg0) / (delta_q_avg1 - delta_q_avg0);
   } else {
-    model_id = 1;
-    scaling_factor = 1.0f - (cq_level - delta_q_avg1) / (1.0f - delta_q_avg1);
+    scaling_factor = 1.0f - (cq_level - delta_q_avg0) / (1.0f - delta_q_avg0);
   }
 
   for (int row = 0; row < num_rows; ++row) {
     for (int col = 0; col < num_cols; ++col) {
       const int index = row * num_cols + col;
-      if (model_id == 2) {
-        cpi->mb_delta_q[index] = RINT(
-            (float)cpi->oxcf.q_cfg.deltaq_strength / 100.0f * (float)MAXQ *
-            (scaling_factor * (mb_delta_q1[index] - delta_q_avg1) +
-             (1.0 - scaling_factor) * (mb_delta_q0[index] - delta_q_avg0)));
-      } else {
-        cpi->mb_delta_q[index] =
-            RINT((float)cpi->oxcf.q_cfg.deltaq_strength / 100.0f * (float)MAXQ *
-                 scaling_factor *
-                 (model_id == 0 ? mb_delta_q0[index] - delta_q_avg0
-                                : mb_delta_q1[index] - delta_q_avg1));
-      }
+      cpi->mb_delta_q[index] =
+          RINT((float)cpi->oxcf.q_cfg.deltaq_strength / 100.0f * (float)MAXQ *
+               scaling_factor * (mb_delta_q0[index] - delta_q_avg0));
     }
   }
 
