@@ -3821,11 +3821,23 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
       int sad_thresh = x->best_pred_mv_sad + (x->best_pred_mv_sad >> 3);
       // Conservatively skip the modes w.r.t. BWDREF, ALTREF2 and ALTREF, if
       // those are past frames
-      for (ref_frame = BWDREF_FRAME; ref_frame <= ALTREF_FRAME; ref_frame++) {
+      MV_REFERENCE_FRAME start_frame =
+          sf->inter_sf.alt_ref_search_fp == 1 ? ALTREF2_FRAME : BWDREF_FRAME;
+      for (ref_frame = start_frame; ref_frame <= ALTREF_FRAME; ref_frame++) {
         if (cpi->ref_frame_dist_info.ref_relative_dist[ref_frame - LAST_FRAME] <
-            0)
+            0) {
+          // Prune inter modes when relative dist of ALTREF2 and ALTREF is close
+          // to the relative dist of LAST_FRAME.
+          if (sf->inter_sf.alt_ref_search_fp == 1 &&
+              (abs(cpi->ref_frame_dist_info
+                       .ref_relative_dist[ref_frame - LAST_FRAME]) >
+               1.5 * abs(cpi->ref_frame_dist_info
+                             .ref_relative_dist[LAST_FRAME - LAST_FRAME]))) {
+            continue;
+          }
           if (x->pred_mv_sad[ref_frame] > sad_thresh)
             mask->pred_modes[ref_frame] |= INTER_ALL;
+        }
       }
     }
   }
