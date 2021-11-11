@@ -1386,10 +1386,10 @@ enum aome_enc_control_id {
 
   /*!\brief Codec control to control loop filter
    *
-   * - 0 = Loop filter is enabled for all frames
-   * - 1 = Loop filter is disabled for non-reference frames
-   * - 2 = Loop filter is disabled for the frames with low motion
-   * - 3 = Loop filter is disabled for all frames
+   * - 0 = Loop filter is disabled for all frames
+   * - 1 = Loop filter is enabled for all frames
+   * - 2 = Loop filter is disabled for non-reference frames
+   * - 3 = Loop filter is disabled for the frames with low motion
    */
   AV1E_SET_LOOPFILTER_CONTROL = 149,
 

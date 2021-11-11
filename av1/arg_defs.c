@@ -634,13 +634,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       "If false, transforms always have the largest possible size "
       "(0: false, 1: true (default))"),
 
-  .loopfilter_control =
-      ARG_DEF(NULL, "loopfilter-control", 1,
-              "Control loop filtering "
-              "(0: Loopfilter enabled for all frames (default), 1: Disable "
-              "loopfilter for non-reference frames, "
-              "2: Disable loopfilter for low-motion frames, 3: Disable "
-              "loopfilter for all frames)"),
+  .loopfilter_control = ARG_DEF(
+      NULL, "loopfilter-control", 1,
+      "Control loop filtering "
+      "(0: Loopfilter disabled for all frames, 1: Enable "
+      "loopfilter for all frames (default), 2: Disable loopfilter for "
+      "non-reference frames, 3: Disable loopfilter for frames with low motion"),
 
   .two_pass_input =
       ARG_DEF(NULL, "two-pass-input", 1,
