@@ -1862,8 +1862,11 @@ void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
   else if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 2)
     cpi->mv_search_params.find_fractional_mv_step = av1_return_min_sub_pixel_mv;
 
+  // For multi-thread use case with row_mt enabled, cost update for a set of
+  // SB rows is not desirable. Hence, the sf mv_cost_upd_level is set to
+  // INTERNAL_COST_UPD_SBROW in such cases.
   if ((cpi->oxcf.row_mt == 1) && (cpi->mt_info.num_workers > 1)) {
-    if (sf->inter_sf.mv_cost_upd_level < INTERNAL_COST_UPD_SBROW) {
+    if (sf->inter_sf.mv_cost_upd_level == INTERNAL_COST_UPD_SBROW_SET) {
       // Set mv_cost_upd_level to use row level update.
       sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW;
     }
