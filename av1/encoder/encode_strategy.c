@@ -943,36 +943,30 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       av1_gop_is_second_arf(gf_group, cpi->gf_frame_index);
 
   // Decide whether to apply temporal filtering to the source frame.
-  int apply_filtering = 0;
-  if (frame_params->frame_type == KEY_FRAME) {
-    // Decide whether it is allowed to perform key frame filtering
-    int allow_kf_filtering =
-        oxcf->kf_cfg.enable_keyframe_filtering &&
-        !is_stat_generation_stage(cpi) && !frame_params->show_existing_frame &&
-        cpi->rc.frames_to_key > cpi->oxcf.algo_cfg.arnr_max_frames &&
-        !is_lossless_requested(&oxcf->rc_cfg) &&
-        oxcf->algo_cfg.arnr_max_frames > 0 && oxcf->gf_cfg.lag_in_frames > 1;
-    if (allow_kf_filtering) {
-      const double y_noise_level = av1_estimate_noise_from_single_plane(
-          frame_input->source, 0, cm->seq_params->bit_depth);
-      apply_filtering = y_noise_level > 0;
-    } else {
-      apply_filtering = 0;
+  int apply_filtering =
+      av1_is_temporal_filter_on(oxcf) && !is_stat_generation_stage(cpi);
+  if (apply_filtering) {
+    if (frame_params->frame_type == KEY_FRAME) {
+      // TODO(angiebird): Move the noise level check to av1_tf_info_filtering.
+      // Decide whether it is allowed to perform key frame filtering
+      int allow_kf_filtering = oxcf->kf_cfg.enable_keyframe_filtering &&
+                               !frame_params->show_existing_frame &&
+                               !is_lossless_requested(&oxcf->rc_cfg);
+      if (allow_kf_filtering) {
+        const double y_noise_level = av1_estimate_noise_from_single_plane(
+            frame_input->source, 0, cm->seq_params->bit_depth);
+        apply_filtering = y_noise_level > 0;
+      } else {
+        apply_filtering = 0;
+      }
+      // If we are doing kf filtering, set up a few things.
+      if (apply_filtering) {
+        av1_setup_past_independence(cm);
+      }
+    } else if (is_second_arf) {
+      apply_filtering = cpi->sf.hl_sf.second_alt_ref_filtering;
     }
-    // If we are doing kf filtering, set up a few things.
-    if (apply_filtering) {
-      av1_setup_past_independence(cm);
-    }
-  } else if (update_type == ARF_UPDATE) {
-    // ARF
-    apply_filtering = oxcf->algo_cfg.arnr_max_frames > 0;
-  } else if (is_second_arf && cpi->sf.hl_sf.second_alt_ref_filtering) {
-    apply_filtering = oxcf->algo_cfg.arnr_max_frames > 0;
   }
-  if (is_stat_generation_stage(cpi)) {
-    apply_filtering = 0;
-  }
-
 #if CONFIG_COLLECT_COMPONENT_TIMING
   if (cpi->oxcf.pass == 2) start_timing(cpi, apply_filtering_time);
 #endif
@@ -996,10 +990,19 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       if (tf_buf != NULL) {
         frame_input->source = tf_buf;
         show_existing_alt_ref = av1_check_show_filtered_frame(
-            &cpi->ppi->alt_ref_buffer, &frame_diff, q_index,
-            cm->seq_params->bit_depth);
+            tf_buf, &frame_diff, q_index, cm->seq_params->bit_depth);
+        if (show_existing_alt_ref) {
+          cpi->common.showable_frame |= 1;
+        }
       }
-    } else {
+      if (gf_group->frame_type[cpi->gf_frame_index] != KEY_FRAME) {
+        cpi->ppi->show_existing_alt_ref = show_existing_alt_ref;
+      }
+    }
+
+    if (is_second_arf) {
+      // We didn't apply temporal filtering for second arf ahead in
+      // av1_tf_info_filtering().
       const int arf_src_index = gf_group->arf_src_offset[cpi->gf_frame_index];
       // Right now, we are still using alt_ref_buffer due to
       // implementation complexity.
@@ -1015,15 +1018,8 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
         aom_copy_metadata_to_frame_buffer(frame_input->source,
                                           source_buffer->metadata);
       }
+      // Currently INTNL_ARF_UPDATE only do show_existing.
       cpi->common.showable_frame |= 1;
-    }
-    // Currently INTNL_ARF_UPDATE only do show_existing.
-    if (update_type == ARF_UPDATE &&
-        gf_group->frame_type[cpi->gf_frame_index] != KEY_FRAME) {
-      cpi->ppi->show_existing_alt_ref = show_existing_alt_ref;
-      if (show_existing_alt_ref) {
-        cpi->common.showable_frame |= 1;
-      }
     }
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING

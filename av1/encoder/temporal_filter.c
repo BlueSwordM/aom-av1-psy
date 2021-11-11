@@ -1246,10 +1246,17 @@ void av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
   tf_dealloc_data(tf_data, is_highbitdepth);
 }
 
+int av1_is_temporal_filter_on(const AV1EncoderConfig *oxcf) {
+  return oxcf->algo_cfg.arnr_max_frames > 0 && oxcf->gf_cfg.lag_in_frames > 1;
+}
+
 void av1_tf_info_alloc(TEMPORAL_FILTER_INFO *tf_info, AV1_COMP *cpi) {
+  const AV1EncoderConfig *oxcf = &cpi->oxcf;
+  tf_info->is_temporal_filter_on = av1_is_temporal_filter_on(oxcf);
+  if (tf_info->is_temporal_filter_on == 0) return;
+
   AV1_COMMON *cm = &cpi->common;
   const SequenceHeader *const seq_params = cm->seq_params;
-  const AV1EncoderConfig *oxcf = &cpi->oxcf;
   for (int i = 0; i < TF_INFO_BUF_COUNT; ++i) {
     int ret = aom_realloc_frame_buffer(
         &tf_info->tf_buf[i], oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height,
@@ -1265,6 +1272,7 @@ void av1_tf_info_alloc(TEMPORAL_FILTER_INFO *tf_info, AV1_COMP *cpi) {
 }
 
 void av1_tf_info_free(TEMPORAL_FILTER_INFO *tf_info) {
+  if (tf_info->is_temporal_filter_on == 0) return;
   for (int i = 0; i < TF_INFO_BUF_COUNT; ++i) {
     aom_free_frame_buffer(&tf_info->tf_buf[i]);
   }
@@ -1278,6 +1286,7 @@ void av1_tf_info_reset(TEMPORAL_FILTER_INFO *tf_info) {
 
 void av1_tf_info_filtering(TEMPORAL_FILTER_INFO *tf_info, AV1_COMP *cpi,
                            const GF_GROUP *gf_group) {
+  if (tf_info->is_temporal_filter_on == 0) return;
   const AV1_COMMON *const cm = &cpi->common;
   for (int gf_index = 0; gf_index < gf_group->size; ++gf_index) {
     int update_type = gf_group->update_type[gf_index];
@@ -1305,6 +1314,7 @@ void av1_tf_info_filtering(TEMPORAL_FILTER_INFO *tf_info, AV1_COMP *cpi,
 YV12_BUFFER_CONFIG *av1_tf_info_get_filtered_buf(TEMPORAL_FILTER_INFO *tf_info,
                                                  int gf_index,
                                                  FRAME_DIFF *frame_diff) {
+  if (tf_info->is_temporal_filter_on == 0) return NULL;
   YV12_BUFFER_CONFIG *out_buf = NULL;
   for (int i = 0; i < TF_INFO_BUF_COUNT; ++i) {
     if (tf_info->tf_buf_valid[i] && tf_info->tf_buf_gf_index[i] == gf_index) {

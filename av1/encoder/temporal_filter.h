@@ -17,6 +17,7 @@ extern "C" {
 #endif
 /*!\cond */
 struct AV1_COMP;
+struct AV1EncoderConfig;
 struct ThreadData;
 // TODO(any): These two variables are only used in avx2, sse2, sse4
 // implementations, where the block size is still hard coded. This should be
@@ -146,10 +147,17 @@ typedef struct {
  * define_gf_group(). Hence, the count is two.
  */
 #define TF_INFO_BUF_COUNT 2
+
 /*!
  * \brief Temporal filter info for a gop
  */
 typedef struct TEMPORAL_FILTER_INFO {
+  /*!
+   * A flag indicate whether temporal filter shoud be applied.
+   * This flag will stored the result of
+   * av1_is_temporal_filter_on()
+   */
+  int is_temporal_filter_on;
   /*!
    * buffers used for temporal filtering in a GOP
    * index 0 for key frame and index 1 for ARF
@@ -172,6 +180,13 @@ typedef struct TEMPORAL_FILTER_INFO {
    */
   int tf_buf_valid[TF_INFO_BUF_COUNT];
 } TEMPORAL_FILTER_INFO;
+
+/*!\brief Check whether we should apply temporal filter at all.
+ * \param[in]   oxcf           AV1 encoder config
+ *
+ * \return 1: temporal filter is on 0: temporal is off
+ */
+int av1_is_temporal_filter_on(const struct AV1EncoderConfig *oxcf);
 
 /*!\brief Allocate buffers for TEMPORAL_FILTER_INFO
  * \param[in,out]   tf_info           Temporal filter info for a gop
