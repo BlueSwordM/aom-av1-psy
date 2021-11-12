@@ -1100,6 +1100,8 @@ static void set_good_speed_features_framesize_independent(
 
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
+    sf->lpf_sf.use_coarse_filter_level_search =
+        frame_is_intra_only(&cpi->common) ? 0 : 1;
   }
 
   if (speed >= 5) {
@@ -1125,8 +1127,6 @@ static void set_good_speed_features_framesize_independent(
         frame_is_intra_only(&cpi->common) ? MULTI_WINNER_MODE_FAST
                                           : MULTI_WINNER_MODE_OFF;
 
-    sf->lpf_sf.use_coarse_filter_level_search =
-        frame_is_intra_only(&cpi->common) ? 0 : 1;
     sf->lpf_sf.disable_lr_filter = 1;
 
     sf->tpl_sf.prune_starting_mv = 3;
