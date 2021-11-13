@@ -538,6 +538,9 @@ static void set_good_speed_feature_framesize_dependent(
   const int is_4k_or_larger = AOMMIN(cm->width, cm->height) >= 2160;
   const bool use_hbd = cpi->oxcf.use_highbitdepth;
   const int boosted = frame_is_boosted(cpi);
+  const int is_boosted_arf2_bwd_type =
+      boosted ||
+      cpi->ppi->gf_group.update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE;
   const int is_lf_frame =
       cpi->ppi->gf_group.update_type[cpi->gf_frame_index] == LF_UPDATE;
 
@@ -651,13 +654,18 @@ static void set_good_speed_feature_framesize_dependent(
       sf->mv_sf.disable_second_mv = boosted ? 0 : 2;
     }
 
-    if (!is_720p_or_larger) sf->hl_sf.recode_tolerance = 50;
+    if (!is_720p_or_larger) {
+      sf->hl_sf.recode_tolerance = 50;
+      sf->inter_sf.disable_interinter_wedge_newmv_search =
+          is_boosted_arf2_bwd_type ? 0 : 1;
+    }
   }
 
   if (speed >= 3) {
     sf->inter_sf.skip_newmv_in_drl = 2;
     sf->inter_sf.skip_ext_comp_nearmv_mode = 1;
     sf->inter_sf.limit_inter_mode_cands = is_lf_frame ? 3 : 0;
+    sf->inter_sf.disable_interinter_wedge_newmv_search = boosted ? 0 : 1;
 
     sf->part_sf.ml_early_term_after_part_split_level = 0;
 
@@ -940,8 +948,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.enable_fast_compound_mode_search = 1;
     sf->inter_sf.reuse_mask_search_results = 1;
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 1;
-    sf->inter_sf.disable_interinter_wedge_newmv_search =
-        is_boosted_arf2_bwd_type ? 0 : 1;
     sf->inter_sf.inter_mode_txfm_breakout = boosted ? 0 : 1;
     sf->inter_sf.alt_ref_search_fp = 1;
 
