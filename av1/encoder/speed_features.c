@@ -661,8 +661,10 @@ static void set_good_speed_feature_framesize_dependent(
 
     if (!is_720p_or_larger) {
       sf->mv_sf.disable_second_mv = 1;
+      sf->mv_sf.auto_mv_step_size = 2;
     } else {
       sf->mv_sf.disable_second_mv = boosted ? 0 : 2;
+      sf->mv_sf.auto_mv_step_size = 1;
     }
 
     if (!is_720p_or_larger) {
@@ -936,7 +938,6 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.reuse_best_prediction_for_part_ab =
         !frame_is_intra_only(&cpi->common);
 
-    sf->mv_sf.auto_mv_step_size = 1;
     sf->mv_sf.simple_motion_subpel_force_stop = QUARTER_PEL;
     sf->mv_sf.subpel_iters_per_step = 1;
 

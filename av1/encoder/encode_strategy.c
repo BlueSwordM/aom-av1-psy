@@ -1057,9 +1057,14 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   if (cpi->oxcf.pass == 2) end_timing(cpi, apply_filtering_time);
 #endif
 
+  int set_mv_params = frame_params->frame_type == KEY_FRAME ||
+                      update_type == ARF_UPDATE || update_type == GF_UPDATE;
+  cm->show_frame = frame_params->show_frame;
+  cm->current_frame.frame_type = frame_params->frame_type;
   // TODO(bohanli): Why is this? what part of it is necessary?
   av1_set_frame_size(cpi, cm->superres_upscaled_width,
                      cm->superres_upscaled_height);
+  if (set_mv_params) av1_set_mv_search_params(cpi);
 
 #if CONFIG_RD_COMMAND
   if (frame_params->frame_type == KEY_FRAME) {

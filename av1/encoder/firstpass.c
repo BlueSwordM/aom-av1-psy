@@ -1264,6 +1264,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   assert(frame_is_intra_only(cm) || (last_frame != NULL));
 
   av1_setup_frame_size(cpi);
+  av1_set_mv_search_params(cpi);
 
   set_mi_offsets(mi_params, xd, 0, 0);
   xd->mi[0]->bsize = fp_block_size;
