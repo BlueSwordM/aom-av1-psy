@@ -319,6 +319,29 @@ typedef enum {
   INTERNAL_COST_UPD_SB,        /*!< Update every sb. */
 } INTERNAL_COST_UPDATE_TYPE;
 
+/*!\enum SIMPLE_MOTION_SEARCH_PRUNE_LEVEL
+ * \brief This enumeration defines a variety of simple motion search based
+ * partition prune levels
+ */
+typedef enum {
+  NO_PRUNING = -1,
+  SIMPLE_AGG_LVL0,     /*!< Simple prune aggressiveness level 0. */
+  SIMPLE_AGG_LVL1,     /*!< Simple prune aggressiveness level 1. */
+  SIMPLE_AGG_LVL2,     /*!< Simple prune aggressiveness level 2. */
+  SIMPLE_AGG_LVL3,     /*!< Simple prune aggressiveness level 3. */
+  QIDX_BASED_AGG_LVL1, /*!< Qindex based prune aggressiveness level, aggressive
+                          level maps to simple agg level 1 or 2 based on qindex.
+                        */
+  TOTAL_SIMPLE_AGG_LVLS = QIDX_BASED_AGG_LVL1, /*!< Total number of simple prune
+                                                  aggressiveness levels. */
+  TOTAL_QINDEX_BASED_AGG_LVLS =
+      QIDX_BASED_AGG_LVL1 -
+      SIMPLE_AGG_LVL3, /*!< Total number of qindex based simple prune
+                          aggressiveness levels. */
+  TOTAL_AGG_LVLS = TOTAL_SIMPLE_AGG_LVLS +
+                   TOTAL_QINDEX_BASED_AGG_LVLS, /*!< Total number of levels. */
+} SIMPLE_MOTION_SEARCH_PRUNE_LEVEL;
+
 /*!
  * \brief Sequence/frame level speed vs quality features
  */
@@ -516,8 +539,10 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Thresholds for ML based partition search breakout.
   int ml_partition_search_breakout_thresh[PARTITION_BLOCK_SIZES];
 
-  // The aggressiveness of pruning with simple_motion_search.
-  // Currently 0 is the lowest, and 2 the highest.
+  // Aggressiveness levels for pruning split and rectangular partitions based on
+  // simple_motion_search. SIMPLE_AGG_LVL0 to SIMPLE_AGG_LVL3 correspond to
+  // simple motion search based pruning. QIDX_BASED_AGG_LVL1 corresponds to
+  // qindex based and simple motion search based pruning.
   int simple_motion_search_prune_agg;
 
   // Perform simple_motion_search on each possible subblock and use it to prune

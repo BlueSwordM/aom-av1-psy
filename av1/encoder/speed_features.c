@@ -390,7 +390,7 @@ static void set_allintra_speed_features_framesize_independent(
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
     sf->part_sf.less_rectangular_check_level = 2;
-    sf->part_sf.simple_motion_search_prune_agg = 1;
+    sf->part_sf.simple_motion_search_prune_agg = SIMPLE_AGG_LVL1;
     sf->part_sf.prune_ext_part_using_split_info = 1;
 
     sf->mv_sf.full_pixel_search_level = 1;
@@ -418,7 +418,7 @@ static void set_allintra_speed_features_framesize_independent(
   if (speed >= 4) {
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
 
-    sf->part_sf.simple_motion_search_prune_agg = 2;
+    sf->part_sf.simple_motion_search_prune_agg = SIMPLE_AGG_LVL2;
     sf->part_sf.simple_motion_search_reduce_search_steps = 4;
     sf->part_sf.prune_ext_part_using_split_info = 2;
     sf->part_sf.early_term_after_none_split = 1;
@@ -452,7 +452,7 @@ static void set_allintra_speed_features_framesize_independent(
   }
 
   if (speed >= 5) {
-    sf->part_sf.simple_motion_search_prune_agg = 3;
+    sf->part_sf.simple_motion_search_prune_agg = SIMPLE_AGG_LVL3;
     sf->part_sf.ext_partition_eval_thresh =
         allow_screen_content_tools ? BLOCK_8X8 : BLOCK_16X16;
     sf->part_sf.intra_cnn_based_part_prune_level =
@@ -823,7 +823,7 @@ static void set_good_speed_features_framesize_independent(
   sf->part_sf.reuse_prev_rd_results_for_part_ab = 1;
   sf->part_sf.use_best_rd_for_pruning = 1;
   sf->part_sf.simple_motion_search_prune_agg =
-      allow_screen_content_tools ? -1 : 0;
+      allow_screen_content_tools ? NO_PRUNING : SIMPLE_AGG_LVL0;
 
   // TODO(debargha): Test, tweak and turn on either 1 or 2
   sf->inter_sf.inter_mode_rd_model_estimation = 1;
@@ -983,7 +983,9 @@ static void set_good_speed_features_framesize_independent(
 
     sf->part_sf.less_rectangular_check_level = 2;
     sf->part_sf.simple_motion_search_prune_agg =
-        allow_screen_content_tools ? 0 : 1;
+        allow_screen_content_tools
+            ? SIMPLE_AGG_LVL0
+            : (boosted ? SIMPLE_AGG_LVL1 : QIDX_BASED_AGG_LVL1);
     sf->part_sf.prune_ext_part_using_split_info = 1;
     sf->part_sf.simple_motion_search_rect_split = 1;
 
@@ -1055,7 +1057,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
 
     sf->part_sf.simple_motion_search_prune_agg =
-        allow_screen_content_tools ? 0 : 2;
+        allow_screen_content_tools ? SIMPLE_AGG_LVL0 : SIMPLE_AGG_LVL2;
     sf->part_sf.simple_motion_search_reduce_search_steps = 4;
     sf->part_sf.prune_ext_part_using_split_info = 2;
     sf->part_sf.ml_predict_breakout_level = 3;
@@ -1114,7 +1116,7 @@ static void set_good_speed_features_framesize_independent(
     sf->fp_sf.reduce_mv_step_param = 4;
 
     sf->part_sf.simple_motion_search_prune_agg =
-        allow_screen_content_tools ? 0 : 3;
+        allow_screen_content_tools ? SIMPLE_AGG_LVL0 : SIMPLE_AGG_LVL3;
     sf->part_sf.ext_partition_eval_thresh =
         allow_screen_content_tools ? BLOCK_8X8 : BLOCK_16X16;
     sf->part_sf.prune_sub_8x8_partition_level =
@@ -1606,7 +1608,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
     part_sf->ml_partition_search_breakout_thresh[i] =
         -1;  // -1 means not enabled.
   }
-  part_sf->simple_motion_search_prune_agg = 0;
+  part_sf->simple_motion_search_prune_agg = SIMPLE_AGG_LVL0;
   part_sf->simple_motion_search_split = 0;
   part_sf->simple_motion_search_prune_rect = 0;
   part_sf->simple_motion_search_early_term_none = 0;

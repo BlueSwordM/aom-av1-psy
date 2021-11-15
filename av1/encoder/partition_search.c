@@ -59,7 +59,7 @@ void av1_reset_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
     part_sf->ml_partition_search_breakout_thresh[i] =
         -1;  // -1 means not enabled.
   }
-  part_sf->simple_motion_search_prune_agg = 0;
+  part_sf->simple_motion_search_prune_agg = SIMPLE_AGG_LVL0;
   part_sf->simple_motion_search_split = 0;
   part_sf->simple_motion_search_prune_rect = 0;
   part_sf->simple_motion_search_early_term_none = 0;

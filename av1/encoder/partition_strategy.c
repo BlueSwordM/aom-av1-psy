@@ -331,6 +331,29 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
   }
 }
 
+static INLINE int get_simple_motion_search_prune_agg(int qindex,
+                                                     int prune_level,
+                                                     int is_rect_part) {
+  assert(prune_level < TOTAL_AGG_LVLS);
+  if (prune_level == NO_PRUNING) {
+    return -1;
+  }
+
+  // Aggressiveness value for SIMPLE_MOTION_SEARCH_PRUNE_LEVEL except
+  // QIDX_BASED_AGG_LVL
+  const int sms_prune_agg_levels[TOTAL_SIMPLE_AGG_LVLS] = { 0, 1, 2, 3 };
+  if (prune_level < TOTAL_SIMPLE_AGG_LVLS) {
+    return sms_prune_agg_levels[prune_level];
+  }
+
+  // Map the QIDX_BASED_AGG_LVL to corresponding aggressiveness value.
+  // Aggressive pruning for lower quantizers in non-boosted frames to prune
+  // rectangular partitions.
+  const int qband = is_rect_part ? (qindex <= 90 ? 1 : 0) : 0;
+  const int sms_prune_agg_qindex_based[2] = { 1, 2 };
+  return sms_prune_agg_qindex_based[qband];
+}
+
 void av1_simple_motion_search_based_split(AV1_COMP *const cpi, MACROBLOCK *x,
                                           SIMPLE_MOTION_DATA_TREE *sms_tree,
                                           PartitionSearchState *part_state) {
@@ -352,8 +375,9 @@ void av1_simple_motion_search_based_split(AV1_COMP *const cpi, MACROBLOCK *x,
   const float *ml_std = av1_simple_motion_search_split_std[bsize_idx];
   const NN_CONFIG *nn_config =
       av1_simple_motion_search_split_nn_config[bsize_idx];
-  const int agg = cpi->sf.part_sf.simple_motion_search_prune_agg;
 
+  const int agg = get_simple_motion_search_prune_agg(
+      x->qindex, cpi->sf.part_sf.simple_motion_search_prune_agg, 0);
   if (agg < 0) {
     return;
   }
@@ -627,8 +651,8 @@ void av1_simple_motion_search_prune_rect(AV1_COMP *const cpi, MACROBLOCK *x,
   const float *ml_mean = av1_simple_motion_search_prune_rect_mean[bsize_idx],
               *ml_std = av1_simple_motion_search_prune_rect_std[bsize_idx];
 
-  const int agg = cpi->sf.part_sf.simple_motion_search_prune_agg;
-
+  const int agg = get_simple_motion_search_prune_agg(
+      x->qindex, cpi->sf.part_sf.simple_motion_search_prune_agg, 1);
   if (agg < 0) {
     return;
   }
