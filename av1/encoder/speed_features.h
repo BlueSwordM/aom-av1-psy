@@ -1377,6 +1377,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Force half_pel at block level.
   int force_half_pel_block;
+
+  // Prune intra mode evaluation in inter frames based on mv range.
+  BLOCK_SIZE prune_intra_mode_based_on_mv_range;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

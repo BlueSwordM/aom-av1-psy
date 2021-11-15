@@ -5546,9 +5546,27 @@ static AOM_INLINE void calculate_cost_from_tpl_data(
 // intra mode search.
 static AOM_INLINE void skip_intra_modes_in_interframe(
     AV1_COMMON *const cm, struct macroblock *x, BLOCK_SIZE bsize,
-    InterModeSearchState *search_state, int64_t inter_cost, int64_t intra_cost,
-    int skip_intra_in_interframe) {
+    InterModeSearchState *search_state, const SPEED_FEATURES *const sf,
+    int64_t inter_cost, int64_t intra_cost) {
   MACROBLOCKD *const xd = &x->e_mbd;
+  const int comp_pred = search_state->best_mbmode.ref_frame[1] > INTRA_FRAME;
+  if (sf->rt_sf.prune_intra_mode_based_on_mv_range &&
+      bsize > sf->part_sf.max_intra_bsize && !comp_pred) {
+    const MV best_mv = search_state->best_mbmode.mv[0].as_mv;
+    const int mv_thresh = 16 << sf->rt_sf.prune_intra_mode_based_on_mv_range;
+    if (abs(best_mv.row) < mv_thresh && abs(best_mv.col) < mv_thresh &&
+        x->source_variance > 128) {
+      search_state->intra_search_state.skip_intra_modes = 1;
+      return;
+    }
+  }
+
+  const unsigned int src_var_thresh_intra_skip = 1;
+  const int skip_intra_in_interframe = sf->intra_sf.skip_intra_in_interframe;
+  if (!(skip_intra_in_interframe &&
+        (x->source_variance > src_var_thresh_intra_skip)))
+    return;
+
   // Prune intra search based on best inter mode being transfrom skip.
   if ((skip_intra_in_interframe >= 2) && search_state->best_mbmode.skip_txfm) {
     const int qindex_thresh[2] = { 200, MAXQ };
@@ -5979,13 +5997,9 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
   start_timing(cpi, handle_intra_mode_time);
 #endif
   // Gate intra mode evaluation if best of inter is skip except when source
-  // variance is extremely low
-  const unsigned int src_var_thresh_intra_skip = 1;
-  const int skip_intra_in_interframe = sf->intra_sf.skip_intra_in_interframe;
-  if (skip_intra_in_interframe &&
-      (x->source_variance > src_var_thresh_intra_skip))
-    skip_intra_modes_in_interframe(cm, x, bsize, &search_state, inter_cost,
-                                   intra_cost, skip_intra_in_interframe);
+  // variance is extremely low and also based on max intra bsize.
+  skip_intra_modes_in_interframe(cm, x, bsize, &search_state, sf, inter_cost,
+                                 intra_cost);
 
   const unsigned int intra_ref_frame_cost = ref_costs_single[INTRA_FRAME];
   search_intra_modes_in_interframe(&search_state, cpi, x, rd_cost, bsize, ctx,
