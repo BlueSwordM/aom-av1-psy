@@ -217,6 +217,8 @@ class EncoderTest {
   virtual void PreEncodeFrameHook(VideoSource * /*video*/,
                                   Encoder * /*encoder*/) {}
 
+  virtual void PostEncodeFrameHook(Encoder * /*encoder*/) {}
+
   // Hook to be called on every compressed data packet.
   virtual void FramePktHook(const aom_codec_cx_pkt_t * /*pkt*/) {}
 

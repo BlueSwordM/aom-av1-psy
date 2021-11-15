@@ -54,6 +54,9 @@ extern "C" {
 #define MAX_ARF_LAYERS 6
 // #define STRICT_RC
 
+#define DEFAULT_KF_BOOST_RT 2300
+#define DEFAULT_GF_BOOST_RT 2000
+
 typedef struct {
   int resize_width;
   int resize_height;

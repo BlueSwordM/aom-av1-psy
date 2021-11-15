@@ -339,6 +339,21 @@ if(NOT BUILD_SHARED_LIBS)
 
 endif()
 
+if(CONFIG_AV1_ENCODER AND ENABLE_TESTS)
+  list(APPEND AOM_RC_INTERFACE_SOURCES
+              "${AOM_ROOT}/test/encode_test_driver.cc"
+              "${AOM_ROOT}/test/encode_test_driver.h"
+              "${AOM_ROOT}/test/decode_test_driver.cc"
+              "${AOM_ROOT}/test/decode_test_driver.h"
+              "${AOM_ROOT}/test/codec_factory.h"
+              "${AOM_ROOT}/test/test_aom_rc_interface.cc"
+              "${AOM_ROOT}/test/ratectrl_rtc_test.cc"
+              "${AOM_ROOT}/common/y4minput.c"
+              "${AOM_ROOT}/common/y4minput.h"
+              "${AOM_ROOT}/test/y4m_video_source.h"
+              "${AOM_ROOT}/test/yuv_video_source.h")
+endif()
+
 if(ENABLE_TESTS)
   find_package(PythonInterp)
   if(NOT PYTHONINTERP_FOUND)
@@ -559,5 +574,18 @@ function(setup_aom_test_targets)
     endforeach()
   endforeach()
 
+  # Set up test for rc interface
+  if(CONFIG_AV1_RC_RTC
+     AND CONFIG_AV1_ENCODER
+     AND ENABLE_TESTS
+     AND CONFIG_WEBM_IO
+     AND NOT BUILD_SHARED_LIBS)
+    add_executable(test_aom_rc_interface ${AOM_RC_INTERFACE_SOURCES})
+    target_link_libraries(test_aom_rc_interface ${AOM_LIB_LINK_TYPE} aom
+                          aom_av1_rc aom_gtest webm)
+    set_property(TARGET test_aom_rc_interface
+                 PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
+    list(APPEND AOM_APP_TARGETS test_aom_rc_interface)
+  endif()
   set(AOM_APP_TARGETS ${AOM_APP_TARGETS} PARENT_SCOPE)
 endfunction()
