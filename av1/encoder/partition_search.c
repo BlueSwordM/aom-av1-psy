@@ -418,7 +418,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                                    PALETTE_MAP, tile_data->allow_update_cdf,
                                    td->counts);
           } else if (dry_run == DRY_RUN_COSTCOEFFS) {
-            rate +=
+            *rate +=
                 av1_cost_color_map(x, plane, bsize, mbmi->tx_size, PALETTE_MAP);
           }
         }
