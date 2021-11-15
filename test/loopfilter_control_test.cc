@@ -172,6 +172,18 @@ TEST_P(LFControlEndToEndTest, EndtoEndPSNRTest) { DoTest(); }
 
 TEST_P(LFControlEndToEndTestThreaded, EndtoEndPSNRTest) { DoTest(); }
 
+TEST(LFControlGetterTest, NullptrInput) {
+  int *lf_level = nullptr;
+  aom_codec_ctx_t encoder;
+  aom_codec_enc_cfg_t cfg;
+  aom_codec_enc_config_default(aom_codec_av1_cx(), &cfg, 1);
+  EXPECT_EQ(aom_codec_enc_init(&encoder, aom_codec_av1_cx(), &cfg, 0),
+            AOM_CODEC_OK);
+  EXPECT_EQ(aom_codec_control(&encoder, AOME_GET_LOOPFILTER_LEVEL, lf_level),
+            AOM_CODEC_INVALID_PARAM);
+  EXPECT_EQ(aom_codec_destroy(&encoder), AOM_CODEC_OK);
+}
+
 AV1_INSTANTIATE_TEST_SUITE(LFControlEndToEndTest,
                            ::testing::ValuesIn(kTestVectors),
                            ::testing::Range(0, 4),

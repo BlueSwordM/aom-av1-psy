@@ -1393,6 +1393,10 @@ enum aome_enc_control_id {
    */
   AV1E_SET_LOOPFILTER_CONTROL = 149,
 
+  /*!\brief Codec control function to get the loopfilter chosen by the encoder,
+   * int* parameter
+   */
+  AOME_GET_LOOPFILTER_LEVEL = 150,
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -1957,6 +1961,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_SVC_REF_FRAME_COMP_PRED,
 
 AOM_CTRL_USE_TYPE(AV1E_SET_LOOPFILTER_CONTROL, int)
 #define AOM_CTRL_AV1E_SET_LOOPFILTER_CONTROL
+
+AOM_CTRL_USE_TYPE(AOME_GET_LOOPFILTER_LEVEL, int *)
+#define AOM_CTRL_AOME_GET_LOOPFILTER_LEVEL
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */
