@@ -635,7 +635,7 @@ void av1_decoder_model_process_frame(const AV1_COMP *const cpi,
     if (decoder_model->initial_presentation_delay < 0.0) {
       // Display can begin after required number of frames have been buffered.
       if (frames_in_buffer_pool(decoder_model) >=
-          decoder_model->initial_display_delay) {
+          decoder_model->initial_display_delay - 1) {
         decoder_model->initial_presentation_delay = decoder_model->current_time;
         // Update presentation time for each shown frame in the frame buffer.
         for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
