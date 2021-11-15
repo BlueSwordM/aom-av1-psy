@@ -983,6 +983,7 @@ static void set_good_speed_features_framesize_independent(
     sf->hl_sf.high_precision_mv_usage = CURRENT_Q;
 
     sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
+    sf->gm_sf.prune_zero_mv_with_sse = 1;
 
     sf->part_sf.less_rectangular_check_level = 2;
     sf->part_sf.simple_motion_search_prune_agg =
@@ -1055,7 +1056,7 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 4) {
-    sf->gm_sf.prune_zero_mv_with_sse = 1;
+    sf->gm_sf.prune_zero_mv_with_sse = 2;
 
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
 
