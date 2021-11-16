@@ -1514,8 +1514,6 @@ static AOM_INLINE void free_thread_data(AV1_PRIMARY *ppi) {
 
 void av1_remove_primary_compressor(AV1_PRIMARY *ppi) {
   if (!ppi) return;
-  aom_free_frame_buffer(&ppi->alt_ref_buffer);
-
 #if !CONFIG_REALTIME_ONLY
   av1_tf_info_free(&ppi->tf_info);
 #endif  // !CONFIG_REALTIME_ONLY
@@ -1974,7 +1972,6 @@ void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
     av1_set_speed_features_framesize_dependent(cpi, cpi->oxcf.speed);
 
     if (!is_stat_generation_stage(cpi)) {
-      alloc_altref_frame_buffer(cpi);
 #if !CONFIG_REALTIME_ONLY
       av1_tf_info_alloc(&cpi->ppi->tf_info, cpi);
 #endif  // !CONFIG_REALTIME_ONLY

@@ -2454,12 +2454,6 @@ typedef struct AV1_PRIMARY {
   PRIMARY_RATE_CONTROL p_rc;
 
   /*!
-   * Frame buffer holding the temporally filtered source frame. It can be KEY
-   * frame or ARF frame.
-   */
-  YV12_BUFFER_CONFIG alt_ref_buffer;
-
-  /*!
    * Info and resources used by temporal filtering.
    */
   TEMPORAL_FILTER_INFO tf_info;

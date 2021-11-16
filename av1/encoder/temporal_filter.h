@@ -163,6 +163,14 @@ typedef struct TEMPORAL_FILTER_INFO {
    * index 0 for key frame and index 1 for ARF
    */
   YV12_BUFFER_CONFIG tf_buf[TF_INFO_BUF_COUNT];
+
+  /*!
+   * buffers used for temporal filtering for
+   * INTNL_ARF_UPDATE
+   * Check av1_gop_is_second_arf() for the
+   * definition of second_arf in detail
+   */
+  YV12_BUFFER_CONFIG tf_buf_second_arf;
   /*!
    * whether to show the buffer directly or not.
    */

@@ -1001,20 +1001,21 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     }
 
     if (is_second_arf) {
+      YV12_BUFFER_CONFIG *tf_buf_second_arf =
+          &cpi->ppi->tf_info.tf_buf_second_arf;
       // We didn't apply temporal filtering for second arf ahead in
       // av1_tf_info_filtering().
       const int arf_src_index = gf_group->arf_src_offset[cpi->gf_frame_index];
-      // Right now, we are still using alt_ref_buffer due to
+      // Right now, we are still using tf_buf_second_arf due to
       // implementation complexity.
-      // TODO(angiebird): Reuse the buffer in tf_info here.
+      // TODO(angiebird): Reuse tf_info->tf_buf here.
       av1_temporal_filter(cpi, arf_src_index, cpi->gf_frame_index, &frame_diff,
-                          &cpi->ppi->alt_ref_buffer);
-      show_existing_alt_ref =
-          av1_check_show_filtered_frame(&cpi->ppi->alt_ref_buffer, &frame_diff,
-                                        q_index, cm->seq_params->bit_depth);
+                          tf_buf_second_arf);
+      show_existing_alt_ref = av1_check_show_filtered_frame(
+          tf_buf_second_arf, &frame_diff, q_index, cm->seq_params->bit_depth);
       if (show_existing_alt_ref) {
-        aom_extend_frame_borders(&cpi->ppi->alt_ref_buffer, av1_num_planes(cm));
-        frame_input->source = &cpi->ppi->alt_ref_buffer;
+        aom_extend_frame_borders(tf_buf_second_arf, av1_num_planes(cm));
+        frame_input->source = tf_buf_second_arf;
         aom_copy_metadata_to_frame_buffer(frame_input->source,
                                           source_buffer->metadata);
       }
