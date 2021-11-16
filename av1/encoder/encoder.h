@@ -328,6 +328,20 @@ typedef struct {
    * enabled.
    */
   bool enable_angle_delta;
+  /*!
+   * Flag to indicate whether to automatically turn off several intral coding
+   * tools.
+   * This flag is only used when "--deltaq-mode=3" is true.
+   * When set to 1, the encoder will analyze the reconstruction quality
+   * as compared to the source image in the preprocessing pass.
+   * If the recontruction quality is considered high enough, we disable
+   * the following intra coding tools, for better encoding speed:
+   * "--enable_smooth_intra",
+   * "--enable_paeth_intra",
+   * "--enable_cfl_intra",
+   * "--enable_diagonal_intra".
+   */
+  bool auto_intra_tools_off;
 } IntraModeCfg;
 
 /*!

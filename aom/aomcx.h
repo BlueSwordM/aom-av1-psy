@@ -1397,6 +1397,13 @@ enum aome_enc_control_id {
    * int* parameter
    */
   AOME_GET_LOOPFILTER_LEVEL = 150,
+
+  /*!\brief Codec control to automatically turn off several intra coding tools
+   * - 0 = do not use the feature
+   * - 1 = enable the automatic decision to turn off several intra tools
+   */
+  AV1E_SET_AUTO_INTRA_TOOLS_OFF = 151,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -1964,6 +1971,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_LOOPFILTER_CONTROL, int)
 
 AOM_CTRL_USE_TYPE(AOME_GET_LOOPFILTER_LEVEL, int *)
 #define AOM_CTRL_AOME_GET_LOOPFILTER_LEVEL
+
+AOM_CTRL_USE_TYPE(AV1E_SET_AUTO_INTRA_TOOLS_OFF, unsigned int)
+#define AOM_CTRL_AV1E_SET_AUTO_INTRA_TOOLS_OFF
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

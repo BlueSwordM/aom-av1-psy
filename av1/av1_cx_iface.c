@@ -170,6 +170,18 @@ struct av1_extracfg {
   // the name of the second pass output file when passes > 2
   const char *two_pass_output;
   const char *second_pass_log;
+  // Automatically determine whether to disable several intra tools
+  // when "--deltaq-mode=3" is true.
+  // Default as 0.
+  // When set to 1, the encoder will analyze the reconstruction quality
+  // as compared to the source image in the preprocessing pass.
+  // If the recontruction quality is considered high enough, we disable
+  // the following intra coding tools, for better encoding speed:
+  // "--enable_smooth_intra",
+  // "--enable_paeth_intra",
+  // "--enable_cfl_intra",
+  // "--enable_diagonal_intra".
+  int auto_intra_tools_off;
 };
 
 #if CONFIG_REALTIME_ONLY
@@ -322,6 +334,7 @@ static const struct av1_extracfg default_extra_cfg = {
   LOOPFILTER_ALL,  // loopfilter_control
   NULL,            // two_pass_output
   NULL,            // second_pass_log
+  0,               // auto_intra_tools_off
 };
 #else
 static const struct av1_extracfg default_extra_cfg = {
@@ -461,6 +474,7 @@ static const struct av1_extracfg default_extra_cfg = {
   LOOPFILTER_ALL,  // loopfilter_control
   NULL,            // two_pass_output
   NULL,            // second_pass_log
+  0,               // auto_intra_tools_off
 };
 #endif
 
@@ -1319,6 +1333,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   intra_mode_cfg->enable_directional_intra =
       extra_cfg->enable_directional_intra;
   intra_mode_cfg->enable_diagonal_intra = extra_cfg->enable_diagonal_intra;
+  intra_mode_cfg->auto_intra_tools_off = extra_cfg->auto_intra_tools_off;
 
   // Set transform size/type configuration.
   txfm_cfg->enable_tx64 = extra_cfg->enable_tx64;
@@ -2433,6 +2448,13 @@ static aom_codec_err_t create_context_and_bufferpool(
   if (*p_cpi == NULL) res = AOM_CODEC_MEM_ERROR;
 
   return res;
+}
+
+static aom_codec_err_t ctrl_set_auto_intra_tools_off(aom_codec_alg_priv_t *ctx,
+                                                     va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.auto_intra_tools_off = CAST(AV1E_SET_AUTO_INTRA_TOOLS_OFF, args);
+  return update_extra_cfg(ctx, &extra_cfg);
 }
 
 static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
@@ -4016,6 +4038,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_EXTERNAL_PARTITION, ctrl_set_external_partition },
   { AV1E_SET_ENABLE_TX_SIZE_SEARCH, ctrl_set_enable_tx_size_search },
   { AV1E_SET_LOOPFILTER_CONTROL, ctrl_set_loopfilter_control },
+  { AV1E_SET_AUTO_INTRA_TOOLS_OFF, ctrl_set_auto_intra_tools_off },
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },

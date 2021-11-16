@@ -15,7 +15,9 @@
 
 #include "av1/common/reconinter.h"
 #include "av1/encoder/allintra_vis.h"
+#include "av1/encoder/encoder.h"
 #include "av1/encoder/hybrid_fwd_txfm.h"
+#include "av1/encoder/model_rd.h"
 #include "av1/encoder/rdopt_utils.h"
 
 // Process the wiener variance in 16x16 block basis.
@@ -332,6 +334,32 @@ static int64_t pick_norm_factor_and_block_size(AV1_COMP *const cpi,
   return norm_factor;
 }
 
+static void automatic_intra_tools_off(AV1_COMP *cpi,
+                                      const double sum_rec_distortion,
+                                      const double sum_est_rate) {
+  if (!cpi->oxcf.intra_mode_cfg.auto_intra_tools_off) return;
+
+  // Thresholds
+  const int high_quality_qindex = 128;
+  const double high_quality_bpp = 2.0;
+  const double high_quality_dist_per_pix = 4.0;
+
+  AV1_COMMON *const cm = &cpi->common;
+  const int qindex = cm->quant_params.base_qindex;
+  const double dist_per_pix =
+      (double)sum_rec_distortion / (cm->width * cm->height);
+  // The estimate bpp is not accurate, an empirical constant 100 is divided.
+  const double estimate_bpp = sum_est_rate / (cm->width * cm->height * 100);
+
+  if (qindex < high_quality_qindex && estimate_bpp > high_quality_bpp &&
+      dist_per_pix < high_quality_dist_per_pix) {
+    cpi->oxcf.intra_mode_cfg.enable_smooth_intra = 0;
+    cpi->oxcf.intra_mode_cfg.enable_paeth_intra = 0;
+    cpi->oxcf.intra_mode_cfg.enable_cfl_intra = 0;
+    cpi->oxcf.intra_mode_cfg.enable_diagonal_intra = 0;
+  }
+}
+
 void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   uint8_t *buffer = cpi->source->y_buffer;
@@ -373,6 +401,9 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
   cpi->norm_wiener_variance = 0;
   int mb_step = mi_size_wide[bsize];
 
+  double sum_rec_distortion = 0.0;
+  double sum_est_rate = 0.0;
+  double sum_est_dist = 0.0;
   for (mi_row = 0; mi_row < cpi->frame_info.mi_rows; mi_row += mb_step) {
     for (mi_col = 0; mi_col < cpi->frame_info.mi_cols; mi_col += mb_step) {
       PREDICTION_MODE best_mode = DC_PRED;
@@ -491,6 +522,15 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
         }
       }
 
+      sum_rec_distortion += weber_stats->distortion;
+      int est_block_rate = 0;
+      int64_t est_block_dist = 0;
+      model_rd_sse_fn[MODELRD_LEGACY](cpi, x, bsize, 0, weber_stats->distortion,
+                                      pix_num, &est_block_rate,
+                                      &est_block_dist);
+      sum_est_rate += est_block_rate;
+      sum_est_dist += est_block_dist;
+
       weber_stats->src_variance -= (src_mean * src_mean) / pix_num;
       weber_stats->rec_variance -= (rec_mean * rec_mean) / pix_num;
       weber_stats->distortion -= (dist_mean * dist_mean) / pix_num;
@@ -503,6 +543,9 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
       weber_stats->max_scale = (double)qcoeff[coeff_count - 1];
     }
   }
+
+  // Determine whether to turn off several intra coding tools.
+  automatic_intra_tools_off(cpi, sum_rec_distortion, sum_est_rate);
 
   BLOCK_SIZE norm_block_size = BLOCK_16X16;
   cpi->norm_wiener_variance =

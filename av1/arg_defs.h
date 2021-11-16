@@ -226,6 +226,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t two_pass_width;
   arg_def_t two_pass_height;
   arg_def_t second_pass_log;
+  arg_def_t auto_intra_tools_off;
 #endif  // CONFIG_AV1_ENCODER
 } av1_codec_arg_definitions_t;
 

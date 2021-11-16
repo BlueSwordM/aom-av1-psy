@@ -641,6 +641,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       "loopfilter for all frames (default), 2: Disable loopfilter for "
       "non-reference frames, 3: Disable loopfilter for frames with low motion"),
 
+  .auto_intra_tools_off = ARG_DEF(
+      NULL, "auto-intra-tools-off", 1,
+      "Automatically turn off several intra coding tools for allintra mode. "
+      "Only in effect if --deltaq-mode=3."),
+
   .two_pass_input =
       ARG_DEF(NULL, "two-pass-input", 1,
               "The input file for the second pass for three-pass encoding."),
