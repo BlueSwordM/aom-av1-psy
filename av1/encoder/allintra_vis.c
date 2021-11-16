@@ -302,7 +302,7 @@ static int64_t pick_norm_factor_and_block_size(AV1_COMP *const cpi,
   // Pick from block size 64x64, 32x32 and 16x16.
   do {
     last_block_size = this_block_size;
-    assert(this_block_size >= BLOCK_16X16 && this_block_size <= BLOCK_64X64);
+    assert(this_block_size >= BLOCK_16X16 && this_block_size <= BLOCK_128X128);
     const int block_size = block_size_wide[this_block_size];
     if (block_size < 32) break;
     this_block_size = pick_block_size(cpi, last_block_size);
