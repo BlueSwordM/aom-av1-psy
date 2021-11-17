@@ -12,6 +12,7 @@
 #ifndef AOM_AV1_ENCODER_THIRDPASS_H_
 #define AOM_AV1_ENCODER_THIRDPASS_H_
 
+#include "av1/common/enums.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -40,6 +41,7 @@ typedef struct {
   int mi_col_start;
   int_mv mv[2];
   MV_REFERENCE_FRAME ref_frame[2];
+  PREDICTION_MODE pred_mode;
 } THIRD_PASS_MI_INFO;
 
 // Struct to store useful information about a frame for the third pass.

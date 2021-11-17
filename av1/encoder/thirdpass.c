@@ -258,6 +258,7 @@ static int get_frame_info(THIRD_PASS_DEC_CTX *ctx) {
           this_mi[this_offset].mv[1] = cur_mi_info.mv[1];
           this_mi[this_offset].ref_frame[0] = cur_mi_info.ref_frame[0];
           this_mi[this_offset].ref_frame[1] = cur_mi_info.ref_frame[1];
+          this_mi[this_offset].pred_mode = cur_mi_info.mode;
         }
       }
     }

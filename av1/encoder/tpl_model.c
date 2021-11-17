@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <float.h>
 
+#include "av1/encoder/thirdpass.h"
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 #include "config/aom_scale_rtcd.h"
@@ -449,6 +450,8 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
   const int_interpfilters kernel =
       av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
 
+  int frame_offset = tpl_data->frame_idx - cpi->gf_frame_index;
+
   int64_t best_intra_cost = INT64_MAX;
   int64_t intra_cost;
   PREDICTION_MODE best_mode = DC_PRED;
@@ -550,6 +553,36 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
     }
   }
 
+  if (cpi->third_pass_ctx &&
+      frame_offset < cpi->third_pass_ctx->frame_info_count &&
+      tpl_data->frame_idx < gf_group->size) {
+    double ratio_h, ratio_w;
+    av1_get_third_pass_ratio(cpi->third_pass_ctx, frame_offset, cm->height,
+                             cm->width, &ratio_h, &ratio_w);
+    THIRD_PASS_MI_INFO *this_mi = av1_get_third_pass_mi(
+        cpi->third_pass_ctx, frame_offset, mi_row, mi_col, ratio_h, ratio_w);
+
+    PREDICTION_MODE third_pass_mode = this_mi->pred_mode;
+
+    if (third_pass_mode >= last_intra_mode &&
+        third_pass_mode < INTRA_MODE_END) {
+      av1_predict_intra_block(
+          xd, seq_params->sb_size, seq_params->enable_intra_edge_filter,
+          block_size_wide[bsize], block_size_high[bsize], tx_size,
+          third_pass_mode, 0, 0, FILTER_INTRA_MODES, dst_buffer,
+          dst_buffer_stride, predictor, bw, 0, 0, 0);
+
+      intra_cost =
+          tpl_get_satd_cost(bd_info, src_diff, bw, src_mb_buffer, src_stride,
+                            predictor, bw, coeff, bw, bh, tx_size);
+
+      if (intra_cost < best_intra_cost) {
+        best_intra_cost = intra_cost;
+        best_mode = third_pass_mode;
+      }
+    }
+  }
+
   // Motion compensated prediction
   xd->mi[0]->ref_frame[0] = INTRA_FRAME;
   xd->mi[0]->ref_frame[1] = NONE_FRAME;
@@ -617,6 +650,24 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
                        cpi->sf.tpl_sf.skip_alike_starting_mv)) {
         center_mvs[refmv_count].mv.as_int = ref_tpl_stats->mv[rf_idx].as_int;
         ++refmv_count;
+      }
+    }
+
+    if (cpi->third_pass_ctx &&
+        frame_offset < cpi->third_pass_ctx->frame_info_count &&
+        tpl_data->frame_idx < gf_group->size) {
+      double ratio_h, ratio_w;
+      av1_get_third_pass_ratio(cpi->third_pass_ctx, frame_offset, cm->height,
+                               cm->width, &ratio_h, &ratio_w);
+      THIRD_PASS_MI_INFO *this_mi = av1_get_third_pass_mi(
+          cpi->third_pass_ctx, frame_offset, mi_row, mi_col, ratio_h, ratio_w);
+
+      int_mv tp_mv = av1_get_third_pass_adjusted_mv(this_mi, ratio_h, ratio_w,
+                                                    rf_idx + LAST_FRAME);
+      if (tp_mv.as_int != INVALID_MV &&
+          !is_alike_mv(tp_mv, center_mvs + 1, refmv_count - 1,
+                       cpi->sf.tpl_sf.skip_alike_starting_mv)) {
+        center_mvs[0].mv = tp_mv;
       }
     }
 
@@ -697,11 +748,43 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
     { 3, 6 },
   };
 
+  int start_rf = 0;
+  int end_rf = 3;
+  if (!cpi->sf.tpl_sf.allow_compound_pred) end_rf = 0;
+  if (cpi->third_pass_ctx &&
+      frame_offset < cpi->third_pass_ctx->frame_info_count &&
+      tpl_data->frame_idx < gf_group->size) {
+    double ratio_h, ratio_w;
+    av1_get_third_pass_ratio(cpi->third_pass_ctx, frame_offset, cm->height,
+                             cm->width, &ratio_h, &ratio_w);
+    THIRD_PASS_MI_INFO *this_mi = av1_get_third_pass_mi(
+        cpi->third_pass_ctx, frame_offset, mi_row, mi_col, ratio_h, ratio_w);
+
+    if (this_mi->ref_frame[0] >= LAST_FRAME &&
+        this_mi->ref_frame[1] >= LAST_FRAME) {
+      int found = 0;
+      for (int i = 0; i < 3; i++) {
+        if (comp_ref_frames[i][0] + LAST_FRAME == this_mi->ref_frame[0] &&
+            comp_ref_frames[i][1] + LAST_FRAME == this_mi->ref_frame[1]) {
+          found = 1;
+          break;
+        }
+      }
+      if (!found || !cpi->sf.tpl_sf.allow_compound_pred) {
+        comp_ref_frames[2][0] = this_mi->ref_frame[0] - LAST_FRAME;
+        comp_ref_frames[2][1] = this_mi->ref_frame[1] - LAST_FRAME;
+        if (!cpi->sf.tpl_sf.allow_compound_pred) {
+          start_rf = 2;
+          end_rf = 3;
+        }
+      }
+    }
+  }
+
   xd->mi_row = mi_row;
   xd->mi_col = mi_col;
   int best_cmp_rf_idx = -1;
-  for (int cmp_rf_idx = 0; cmp_rf_idx < 3 && cpi->sf.tpl_sf.allow_compound_pred;
-       ++cmp_rf_idx) {
+  for (int cmp_rf_idx = start_rf; cmp_rf_idx < end_rf; ++cmp_rf_idx) {
     int rf_idx0 = comp_ref_frames[cmp_rf_idx][0];
     int rf_idx1 = comp_ref_frames[cmp_rf_idx][1];
 
