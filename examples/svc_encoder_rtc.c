@@ -579,11 +579,9 @@ static void set_layer_pattern(
   for (i = 0; i < REF_FRAMES; i++) ref_frame_config->refresh[i] = 0;
 
   if (ksvc_mode) {
-    // Same pattern as case 9.
+    // Same pattern as case 9, but the reference strucutre will be constrained
+    // below.
     layering_mode = 9;
-    if (!is_key_frame)
-      // No inter-layer prediction on inter-frames.
-      ref_frame_config->reference[SVC_LAST_FRAME] = 1;
   }
   switch (layering_mode) {
     case 0:
@@ -852,10 +850,6 @@ static void set_layer_pattern(
           ref_frame_config->ref_idx[SVC_GOLDEN_FRAME] = 3;
         }
       }
-      if (layer_id->spatial_layer_id > 0 && !ksvc_mode) {
-        // Reference GOLDEN.
-        ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
-      }
       break;
     case 8:
       // 3 spatial and 3 temporal layer.
@@ -985,9 +979,20 @@ static void set_layer_pattern(
           ref_frame_config->ref_idx[SVC_GOLDEN_FRAME] = 4;
         }
       }
-      if (layer_id->spatial_layer_id > 0 && !ksvc_mode)
-        // Reference GOLDEN.
+      if (layer_id->spatial_layer_id > 0) {
+        // Always reference GOLDEN (inter-layer prediction).
         ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
+        if (ksvc_mode) {
+          // KSVC: only keep the inter-layer reference (GOLDEN) for
+          // superframes whose base is key.
+          if (!is_key_frame) ref_frame_config->reference[SVC_GOLDEN_FRAME] = 0;
+        }
+        if (is_key_frame && layer_id->spatial_layer_id > 1) {
+          // On superframes whose base is key: remove LAST to avoid prediction
+          // off layer two levels below.
+          ref_frame_config->reference[SVC_LAST_FRAME] = 0;
+        }
+      }
       // For 3 spatial layer case 8 (where there is free buffer slot):
       // allow for top spatial layer to use additional temporal reference.
       // Additional reference is only updated on base temporal layer, every
@@ -1305,7 +1310,8 @@ int main(int argc, const char **argv) {
       aom_codec_iter_t iter = NULL;
       const aom_codec_cx_pkt_t *pkt;
       int layer = 0;
-      int is_key_frame = (frame_cnt % cfg.kf_max_dist) == 0 && slx == 0;
+      // Flag for superframe whose base is key.
+      int is_key_frame = (frame_cnt % cfg.kf_max_dist) == 0;
       // For flexible mode:
       if (app_input.layering_mode >= 0) {
         // Set the reference/update flags, layer_id, and reference_map
