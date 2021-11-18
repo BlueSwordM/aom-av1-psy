@@ -1062,9 +1062,9 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   const int segment_id = xd->mi[0]->segment_id;
 
   if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && cm->seg.enabled &&
-      cyclic_refresh_segment_id_boosted(segment_id) &&
-      cpi->sf.rt_sf.use_nonrd_pick_mode) {
-    int q = av1_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex);
+      cyclic_refresh_segment_id_boosted(segment_id)) {
+    const int q =
+        av1_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex);
     set_vbp_thresholds(cpi, thresholds, q, x->content_state_sb.low_sumdiff,
                        x->content_state_sb.source_sad, 1);
   } else {
@@ -1199,8 +1199,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
           (max_var_32x32[m] - min_var_32x32[m]) > 3 * (thresholds[1] >> 3) &&
           max_var_32x32[m] > thresholds[1] >> 1 &&
           (noise_level >= kMedium || cpi->ppi->use_svc ||
-           cpi->sf.rt_sf.force_large_partition_blocks ||
-           !cpi->sf.rt_sf.use_nonrd_pick_mode)) {
+           cpi->sf.rt_sf.force_large_partition_blocks)) {
         force_split[1 + m] = 1;
         force_split[0] = 1;
       }
