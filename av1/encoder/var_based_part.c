@@ -624,18 +624,11 @@ static AOM_INLINE void set_low_temp_var_flag(
     VP128x128 *vt, int64_t thresholds[], MV_REFERENCE_FRAME ref_frame_partition,
     int mi_col, int mi_row) {
   AV1_COMMON *const cm = &cpi->common;
-  const int mv_thr = cm->width > 640 ? 8 : 4;
-  // Check temporal variance for bsize >= 16x16, if LAST_FRAME was selected and
-  // int_pro mv is small. If the temporal variance is small set the flag
+  // Check temporal variance for bsize >= 16x16, if LAST_FRAME was selected.
+  // If the temporal variance is small set the flag
   // variance_low for the block. The variance threshold can be adjusted, the
   // higher the more aggressive.
-  if (ref_frame_partition == LAST_FRAME &&
-      (cpi->sf.rt_sf.short_circuit_low_temp_var == 1 ||
-       (cpi->sf.rt_sf.estimate_motion_for_var_based_partition &&
-        xd->mi[0]->mv[0].as_mv.col < mv_thr &&
-        xd->mi[0]->mv[0].as_mv.col > -mv_thr &&
-        xd->mi[0]->mv[0].as_mv.row < mv_thr &&
-        xd->mi[0]->mv[0].as_mv.row > -mv_thr))) {
+  if (ref_frame_partition == LAST_FRAME) {
     const int is_small_sb = (cm->seq_params->sb_size == BLOCK_64X64);
     if (is_small_sb)
       set_low_temp_var_flag_64x64(&cm->mi_params, part_info, xd,
