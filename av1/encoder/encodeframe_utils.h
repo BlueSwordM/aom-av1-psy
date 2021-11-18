@@ -334,8 +334,8 @@ int av1_active_v_edge(const AV1_COMP *cpi, int mi_col, int mi_step);
 void av1_get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
                           int mi_col, SuperBlockEnc *sb_enc);
 
-int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
-                                   int mi_row, int mi_col);
+int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
+                                   BLOCK_SIZE bsize, int mi_row, int mi_col);
 
 int av1_get_q_for_hdr(AV1_COMP *const cpi, MACROBLOCK *const x,
                       BLOCK_SIZE bsize, int mi_row, int mi_col);

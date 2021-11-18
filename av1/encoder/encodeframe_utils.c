@@ -886,8 +886,8 @@ void av1_get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
 // analysis_type 1: Use count of best inter predictor chosen
 // analysis_type 2: Use cost reduction from intra to inter for best inter
 //                  predictor chosen
-int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
-                                   int mi_row, int mi_col) {
+int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
+                                   BLOCK_SIZE bsize, int mi_row, int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
   const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   assert(IMPLIES(cpi->ppi->gf_group.size > 0,
@@ -944,6 +944,7 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   if (mc_dep_cost > 0 && intra_cost > 0) {
     const double r0 = cpi->rd.r0;
     const double rk = exp((intra_cost - mc_dep_cost) / cbcmp_base);
+    td->mb.rb = rk;
     beta = (r0 / rk);
     assert(beta > 0.0);
   }

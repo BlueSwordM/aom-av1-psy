@@ -236,7 +236,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
              cpi->oxcf.algo_cfg.enable_tpl_model) {
     // Setup deltaq based on tpl stats
     current_qindex =
-        av1_get_q_for_deltaq_objective(cpi, sb_size, mi_row, mi_col);
+        av1_get_q_for_deltaq_objective(cpi, td, sb_size, mi_row, mi_col);
   } else if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL_AI) {
     current_qindex = av1_get_sbq_perceptual_ai(cpi, sb_size, mi_row, mi_col);
   } else if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_USER_RATING_BASED) {

@@ -882,6 +882,9 @@ typedef struct macroblock {
    */
   int rdmult;
 
+  //! Superblock level distortion propagation factor.
+  double rb;
+
   //! Energy in the current source coding block. Used to calculate \ref rdmult
   int mb_energy;
   //! Energy in the current source superblock. Used to calculate \ref rdmult
