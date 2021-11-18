@@ -545,9 +545,11 @@ static void set_multi_layer_params(
 
 static int construct_multi_layer_gf_structure(
     AV1_COMP *cpi, TWO_PASS *twopass, GF_GROUP *const gf_group,
-    RATE_CONTROL *rc, FRAME_INFO *const frame_info, int gf_interval,
+    RATE_CONTROL *rc, FRAME_INFO *const frame_info, int baseline_gf_interval,
     FRAME_UPDATE_TYPE first_frame_update_type) {
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
+  // TODO(angiebird): Why do we need "-1" here?
+  const int gf_interval = baseline_gf_interval - 1;
   int frame_index = 0;
   int cur_frame_index = 0;
 
@@ -581,7 +583,18 @@ static int construct_multi_layer_gf_structure(
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
-  const int kf_decomp = cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1;
+  int kf_decomp = cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1;
+  // This is a patch that fixes https://crbug.com/aomedia/3163
+  // enable_keyframe_filtering > 1 will introduce an extra overlay frame at
+  // key frame location. However when
+  // baseline_gf_interval == MAX_STATIC_GF_GROUP_LENGTH, we can't
+  // afford to have an extra overlay frame. Otherwise, the gf_group->size will
+  // become MAX_STATIC_GF_GROUP_LENGTH + 1, which causes memory error.
+  // A cheap solution is to turn of kf_decomp here.
+  // TODO(angiebird): Find a systematic way to solve this issue.
+  if (baseline_gf_interval == MAX_STATIC_GF_GROUP_LENGTH) {
+    kf_decomp = 0;
+  }
   if (first_frame_update_type == KF_UPDATE) {
     gf_group->update_type[frame_index] = kf_decomp ? ARF_UPDATE : KF_UPDATE;
     gf_group->arf_src_offset[frame_index] = 0;
@@ -876,7 +889,7 @@ void av1_gop_setup_structure(AV1_COMP *cpi) {
     first_frame_update_type = GF_UPDATE;
 
   gf_group->size = construct_multi_layer_gf_structure(
-      cpi, twopass, gf_group, rc, frame_info, p_rc->baseline_gf_interval - 1,
+      cpi, twopass, gf_group, rc, frame_info, p_rc->baseline_gf_interval,
       first_frame_update_type);
 
   if (gf_group->max_layer_depth_allowed == 0)
