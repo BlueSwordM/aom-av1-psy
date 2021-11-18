@@ -1380,6 +1380,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Prune intra mode evaluation in inter frames based on mv range.
   BLOCK_SIZE prune_intra_mode_based_on_mv_range;
+  // The number of times to left shift the splitting thresholds in variance
+  // based partitioning. The minimum values should be 7 to avoid left shifting
+  // by a negative number.
+  int var_part_split_threshold_shift;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */
