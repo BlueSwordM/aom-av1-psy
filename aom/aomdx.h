@@ -278,8 +278,8 @@ enum aom_dec_control_id {
    * The caller should ensure that AOM_CODEC_OK is returned before attempting
    * to dereference the Accounting pointer.
    *
-   * \attention When compiled without --enable-accounting, this returns
-   * AOM_CODEC_INCAPABLE.
+   * \attention When configured with -DCONFIG_ACCOUNTING=0, the default, this
+   * returns AOM_CODEC_INCAPABLE.
    */
   AV1_GET_ACCOUNTING,
 
@@ -369,7 +369,7 @@ enum aom_dec_control_id {
   /*!\brief Codec control function to set an aom_inspect_cb callback that is
    * invoked each time a frame is decoded, aom_inspect_init* parameter
    *
-   * \attention When compiled without --enable-inspection, this
+   * \attention When configured with -DCONFIG_INSPECTION=0, the default, this
    * returns AOM_CODEC_INCAPABLE.
    */
   AV1_SET_INSPECTION_CALLBACK,
