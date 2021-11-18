@@ -227,6 +227,9 @@ typedef struct {
   int resize_avg_qp;
   int resize_buffer_underflow;
   int resize_count;
+
+  // Flag to disable content related qp adjustment.
+  int rtc_external_ratectrl;
 #if CONFIG_FRAME_PARALLEL_ENCODE
   int frame_level_fast_extra_bits;
   double frame_level_rate_correction_factors[RATE_FACTOR_LEVELS];

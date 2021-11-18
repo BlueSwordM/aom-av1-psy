@@ -383,6 +383,7 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, RATE_CONTROL *rc) {
   rc->resize_avg_qp = 0;
   rc->resize_buffer_underflow = 0;
   rc->resize_count = 0;
+  rc->rtc_external_ratectrl = 0;
 #if CONFIG_FRAME_PARALLEL_ENCODE
   rc->frame_level_fast_extra_bits = 0;
 #endif

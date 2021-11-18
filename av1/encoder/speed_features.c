@@ -1408,6 +1408,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   // TODO(any): This sf could be removed.
   sf->rt_sf.short_circuit_low_temp_var = 1;
   sf->rt_sf.check_scene_detection = 1;
+  if (cpi->rc.rtc_external_ratectrl) sf->rt_sf.check_scene_detection = 0;
   if (cm->current_frame.frame_type != KEY_FRAME &&
       cpi->oxcf.rc_cfg.mode == AOM_CBR)
     sf->rt_sf.overshoot_detection_cbr = FAST_DETECTION_MAXQ;

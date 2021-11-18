@@ -92,8 +92,14 @@ int av1_cyclic_refresh_estimate_bits_at_q(const AV1_COMP *cpi,
   const int num4x4bl = mbs << 4;
   // Weight for non-base segments: use actual number of blocks refreshed in
   // previous/just encoded frame. Note number of blocks here is in 4x4 units.
-  const double weight_segment1 = (double)cr->actual_num_seg1_blocks / num4x4bl;
-  const double weight_segment2 = (double)cr->actual_num_seg2_blocks / num4x4bl;
+  double weight_segment1 = (double)cr->actual_num_seg1_blocks / num4x4bl;
+  double weight_segment2 = (double)cr->actual_num_seg2_blocks / num4x4bl;
+  if (cpi->rc.rtc_external_ratectrl) {
+    weight_segment1 = (double)(cr->percent_refresh * cm->mi_params.mi_rows *
+                               cm->mi_params.mi_cols / 100) /
+                      num4x4bl;
+    weight_segment2 = 0;
+  }
   // Take segment weighted average for estimated bits.
   const int estimated_bits =
       (int)((1.0 - weight_segment1 - weight_segment2) *
@@ -124,6 +130,13 @@ int av1_cyclic_refresh_rc_bits_per_mb(const AV1_COMP *cpi, int i,
                 cr->actual_num_seg2_blocks) >>
                1) /
       num4x4bl;
+  if (cpi->rc.rtc_external_ratectrl) {
+    weight_segment = (double)((cr->target_num_seg_blocks +
+                               cr->percent_refresh * cm->mi_params.mi_rows *
+                                   cm->mi_params.mi_cols / 100) >>
+                              1) /
+                     num4x4bl;
+  }
   // Compute delta-q corresponding to qindex i.
   int deltaq = compute_deltaq(cpi, i, cr->rate_ratio_qdelta);
   // Take segment weighted average for bits per mb.
@@ -465,6 +478,12 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   if (weight_segment_target < 7 * weight_segment / 8)
     weight_segment = weight_segment_target;
   cr->weight_segment = weight_segment;
+  if (rc->rtc_external_ratectrl) {
+    cr->actual_num_seg1_blocks = cr->percent_refresh * cm->mi_params.mi_rows *
+                                 cm->mi_params.mi_cols / 100;
+    cr->actual_num_seg2_blocks = 0;
+    cr->weight_segment = (double)(cr->actual_num_seg1_blocks) / num4x4bl;
+  }
 }
 
 // Setup cyclic background refresh: set delta q and segmentation map.
