@@ -2550,12 +2550,12 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
           priv->ppi->num_fp_contexts = av1_compute_num_fp_contexts(
               priv->ppi, &priv->ppi->parallel_cpi[i]->oxcf);
 #if CONFIG_FPMT_TEST
-          assert(priv->ppi->num_fp_contexts > 1);
-          // Currently configured 'fmpt_unit_test_cfg' to
-          // PARALLEL_SIMULATION_ENCODE.
-          // TODO(Remya): The parameter will be later configured from fpmt unit
-          // test as required.
-          priv->ppi->fpmt_unit_test_cfg = PARALLEL_SIMULATION_ENCODE;
+          // When called from the unit test, if max_threads == 2, simulation of
+          // frame parallel encode using single cpi is enabled, else actual
+          // frame parallel encode using multiple cpis is enabled.
+          priv->ppi->fpmt_unit_test_cfg = (priv->oxcf.max_threads == 2)
+                                              ? PARALLEL_SIMULATION_ENCODE
+                                              : PARALLEL_ENCODE;
 #endif
         }
 #if !CONFIG_REALTIME_ONLY

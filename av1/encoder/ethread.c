@@ -926,6 +926,11 @@ int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
   num_fp_contexts = (ppi->num_fp_contexts == 1)
                         ? num_fp_contexts
                         : AOMMIN(num_fp_contexts, ppi->num_fp_contexts);
+#if CONFIG_FPMT_TEST
+  // For the scope of these tests, ppi->num_fp_contexts are mandated to
+  // MAX_PARALLEL_FRAMES.
+  num_fp_contexts = MAX_PARALLEL_FRAMES;
+#endif
   if (num_fp_contexts > 1) {
     ppi->p_mt_info.num_mod_workers[MOD_FRAME_ENC] =
         AOMMIN(max_num_enc_workers * num_fp_contexts, oxcf->max_threads);

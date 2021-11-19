@@ -164,6 +164,7 @@ if(NOT BUILD_SHARED_LIBS)
                 "${AOM_ROOT}/test/error_resilience_test.cc"
                 "${AOM_ROOT}/test/ethread_test.cc"
                 "${AOM_ROOT}/test/film_grain_table_test.cc"
+                "${AOM_ROOT}/test/frame_parallel_enc_test.cc"
                 "${AOM_ROOT}/test/kf_test.cc"
                 "${AOM_ROOT}/test/lossless_test.cc"
                 "${AOM_ROOT}/test/quant_test.cc"
