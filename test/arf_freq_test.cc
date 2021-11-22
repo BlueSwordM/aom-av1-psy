@@ -198,6 +198,7 @@ TEST_P(ArfFreqTestLarge, MinArfFreqTest) {
         test_video_param_.framerate_num, test_video_param_.framerate_den, 0,
         kFrames));
   }
+  ASSERT_NE(video, nullptr);
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(video.get()));
   const int min_run = GetMinVisibleRun();

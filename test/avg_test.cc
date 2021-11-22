@@ -158,8 +158,10 @@ class IntProRowTest : public AverageTestBase<uint8_t>,
 
     hbuf_asm_ = static_cast<int16_t *>(
         aom_memalign(kDataAlignment, sizeof(*hbuf_asm_) * 16));
+    ASSERT_NE(hbuf_asm_, nullptr);
     hbuf_c_ = static_cast<int16_t *>(
         aom_memalign(kDataAlignment, sizeof(*hbuf_c_) * 16));
+    ASSERT_NE(hbuf_c_, nullptr);
   }
 
   virtual void TearDown() {

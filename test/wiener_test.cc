@@ -123,8 +123,10 @@ class WienerTest : public ::testing::TestWithParam<WienerTestParam> {
   virtual void SetUp() {
     src_buf = (uint8_t *)aom_memalign(
         32, MAX_DATA_BLOCK * MAX_DATA_BLOCK * sizeof(*src_buf));
+    ASSERT_NE(src_buf, nullptr);
     dgd_buf = (uint8_t *)aom_memalign(
         32, MAX_DATA_BLOCK * MAX_DATA_BLOCK * sizeof(*dgd_buf));
+    ASSERT_NE(dgd_buf, nullptr);
     target_func_ = GET_PARAM(0);
   }
   virtual void TearDown() {
@@ -398,8 +400,10 @@ class WienerTestHighbd : public ::testing::TestWithParam<WienerTestParam> {
   virtual void SetUp() {
     src_buf = (uint16_t *)aom_memalign(
         32, MAX_DATA_BLOCK * MAX_DATA_BLOCK * sizeof(*src_buf));
+    ASSERT_NE(src_buf, nullptr);
     dgd_buf = (uint16_t *)aom_memalign(
         32, MAX_DATA_BLOCK * MAX_DATA_BLOCK * sizeof(*dgd_buf));
+    ASSERT_NE(dgd_buf, nullptr);
     target_func_ = GET_PARAM(0);
   }
   virtual void TearDown() {

@@ -85,9 +85,13 @@ void AV1CompMaskVarianceTest::SetUp() {
   rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
   av1_init_wedge_masks();
   comp_pred1_ = (uint8_t *)aom_memalign(16, MAX_SB_SQUARE);
+  ASSERT_NE(comp_pred1_, nullptr);
   comp_pred2_ = (uint8_t *)aom_memalign(16, MAX_SB_SQUARE);
+  ASSERT_NE(comp_pred2_, nullptr);
   pred_ = (uint8_t *)aom_memalign(16, MAX_SB_SQUARE);
+  ASSERT_NE(pred_, nullptr);
   ref_buffer_ = (uint8_t *)aom_memalign(16, MAX_SB_SQUARE + (8 * MAX_SB_SIZE));
+  ASSERT_NE(ref_buffer_, nullptr);
   ref_ = ref_buffer_ + (8 * MAX_SB_SIZE);
   for (int i = 0; i < MAX_SB_SQUARE; ++i) {
     pred_[i] = rnd_.Rand8();
@@ -330,11 +334,15 @@ void AV1HighbdCompMaskVarianceTest::SetUp() {
 
   comp_pred1_ =
       (uint16_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*comp_pred1_));
+  ASSERT_NE(comp_pred1_, nullptr);
   comp_pred2_ =
       (uint16_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*comp_pred2_));
+  ASSERT_NE(comp_pred2_, nullptr);
   pred_ = (uint16_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*pred_));
+  ASSERT_NE(pred_, nullptr);
   ref_buffer_ = (uint16_t *)aom_memalign(
       16, (MAX_SB_SQUARE + (8 * MAX_SB_SIZE)) * sizeof(*ref_buffer_));
+  ASSERT_NE(ref_buffer_, nullptr);
   ref_ = ref_buffer_ + (8 * MAX_SB_SIZE);
 }
 

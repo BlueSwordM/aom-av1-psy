@@ -85,24 +85,34 @@ class SADTestBase : public ::testing::Test {
   static void SetUpTestSuite() {
     source_data8_ = reinterpret_cast<uint8_t *>(
         aom_memalign(kDataAlignment, kDataBlockSize));
+    ASSERT_NE(source_data8_, nullptr);
     reference_data8_ = reinterpret_cast<uint8_t *>(
         aom_memalign(kDataAlignment, kDataBufferSize));
+    ASSERT_NE(reference_data8_, nullptr);
     second_pred8_ =
         reinterpret_cast<uint8_t *>(aom_memalign(kDataAlignment, 128 * 128));
+    ASSERT_NE(second_pred8_, nullptr);
     comp_pred8_ =
         reinterpret_cast<uint8_t *>(aom_memalign(kDataAlignment, 128 * 128));
+    ASSERT_NE(comp_pred8_, nullptr);
     comp_pred8_test_ =
         reinterpret_cast<uint8_t *>(aom_memalign(kDataAlignment, 128 * 128));
+    ASSERT_NE(comp_pred8_test_, nullptr);
     source_data16_ = reinterpret_cast<uint16_t *>(
         aom_memalign(kDataAlignment, kDataBlockSize * sizeof(uint16_t)));
+    ASSERT_NE(source_data16_, nullptr);
     reference_data16_ = reinterpret_cast<uint16_t *>(
         aom_memalign(kDataAlignment, kDataBufferSize * sizeof(uint16_t)));
+    ASSERT_NE(reference_data16_, nullptr);
     second_pred16_ = reinterpret_cast<uint16_t *>(
         aom_memalign(kDataAlignment, 128 * 128 * sizeof(uint16_t)));
+    ASSERT_NE(second_pred16_, nullptr);
     comp_pred16_ = reinterpret_cast<uint16_t *>(
         aom_memalign(kDataAlignment, 128 * 128 * sizeof(uint16_t)));
+    ASSERT_NE(comp_pred16_, nullptr);
     comp_pred16_test_ = reinterpret_cast<uint16_t *>(
         aom_memalign(kDataAlignment, 128 * 128 * sizeof(uint16_t)));
+    ASSERT_NE(comp_pred16_test_, nullptr);
   }
 
   static void TearDownTestSuite() {
