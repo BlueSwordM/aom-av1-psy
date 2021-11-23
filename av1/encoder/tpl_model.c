@@ -1483,10 +1483,6 @@ void av1_init_tpl_stats(TplParams *const tpl_data) {
                sizeof(*tpl_frame->tpl_stats_ptr));
     tpl_frame->is_valid = 0;
   }
-#if CONFIG_BITRATE_ACCURACY
-  tpl_data->estimated_gop_bitrate = 0;
-  tpl_data->actual_gop_bitrate = 0;
-#endif
 }
 
 int av1_tpl_stats_ready(const TplParams *tpl_data, int gf_frame_index) {

@@ -218,13 +218,6 @@ typedef struct TplParams {
    */
   int border_in_pixels;
 
-#if CONFIG_BITRATE_ACCURACY
-  /*
-   * Estimated and actual GOP bitrate.
-   */
-  double estimated_gop_bitrate;
-  double actual_gop_bitrate;
-#endif
 } TplParams;
 
 #if CONFIG_BITRATE_ACCURACY
