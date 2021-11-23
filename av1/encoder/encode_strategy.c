@@ -1089,9 +1089,9 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
         av1_tpl_preload_rc_estimate(cpi, frame_params);
         av1_tpl_setup_stats(cpi, 0, frame_params);
 #if CONFIG_BITRATE_ACCURACY
+        assert(cpi->gf_frame_index == 0);
         av1_vbr_rc_update_q_index_list(&cpi->vbr_rc_info, &cpi->ppi->tpl_data,
-                                       gf_group, cpi->gf_frame_index,
-                                       cm->seq_params->bit_depth);
+                                       gf_group, cm->seq_params->bit_depth);
 #endif
       }
     } else {

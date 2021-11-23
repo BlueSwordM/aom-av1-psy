@@ -615,27 +615,23 @@ int av1_get_q_index_from_qstep_ratio(int leaf_qindex, double qstep_ratio,
  *                                 experiment
  * \param[in]       tpl_data       TPL struct
  * \param[in]       gf_group       GOP struct
- * \param[in]       gf_frame_index current frame index in the GOP
  * \param[in]       bit_depth      bit depth
  */
 void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
                                     const TplParams *tpl_data,
                                     const struct GF_GROUP *gf_group,
-                                    int gf_frame_index,
                                     aom_bit_depth_t bit_depth);
 
 /*!\brief For a GOP, calculate the bits used by motion vectors.
  *
  * \param[in]       tpl_data          TPL struct
- * \param[in]       gf_group          Pointer to the GOP
- * \param[in]       gf_frame_index    Current frame index
- * \param[in]       gf_update_type    Frame update type
+ * \param[in]       gf_group          GOP struct
  * \param[in]       vbr_rc_info       Rate control info struct
  *
  * \return Bits used by the motion vectors for the GOP.
  */
-double av1_tpl_compute_mv_bits(const TplParams *tpl_data, int gf_group_size,
-                               int gf_frame_index, int gf_update_type,
+double av1_tpl_compute_mv_bits(const TplParams *tpl_data,
+                               const GF_GROUP *gf_group,
                                VBR_RATECTRL_INFO *vbr_rc_info);
 #endif  // CONFIG_BITRATE_ACCURACY
 
