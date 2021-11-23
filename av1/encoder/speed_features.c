@@ -1300,7 +1300,14 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
   sf->inter_sf.model_based_post_interp_filter_breakout = 1;
   sf->inter_sf.prune_compound_using_single_ref = 0;
-  sf->inter_sf.prune_mode_search_simple_translation = 1;
+  // TODO(any): As per the experiments, this speed feature is doing redundant
+  // computation since the model rd based pruning logic is similar to model rd
+  // based gating when inter_mode_rd_model_estimation = 2. Enable this SF if
+  // either of the condition becomes true.
+  //    (1) inter_mode_rd_model_estimation != 2
+  //    (2) skip_interp_filter_search == 0
+  //    (3) Motion mode or compound mode is enabled */
+  sf->inter_sf.prune_mode_search_simple_translation = 0;
   sf->inter_sf.prune_ref_frame_for_rect_partitions = !boosted;
 
   sf->inter_sf.reuse_inter_intra_mode = 1;
