@@ -351,7 +351,7 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
 
   if (is_key_frame) {
     if (cpi->sf.rt_sf.force_large_partition_blocks_intra) {
-      threshold_base <<= cpi->oxcf.speed - 7;
+      threshold_base <<= cpi->oxcf.speed - (cpi->oxcf.mode == ALLINTRA ? 7 : 8);
     }
     thresholds[0] = threshold_base;
     thresholds[1] = threshold_base;

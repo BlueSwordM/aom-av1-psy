@@ -1204,8 +1204,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
   const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
   const int is_360p_or_larger = AOMMIN(cm->width, cm->height) >= 360;
 
-  (void)is_720p_or_larger;  // Not used so far
-
   if (!is_360p_or_larger) {
     if (speed >= 5) sf->rt_sf.prune_inter_modes_wrt_gf_arf_based_on_sad = 1;
     if (speed >= 6) sf->rt_sf.force_tx_search_off = 1;
@@ -1260,6 +1258,11 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
     if (speed >= 10) {
       sf->rt_sf.use_comp_ref_nonrd = 0;
+    }
+  }
+  if (!is_720p_or_larger) {
+    if (speed >= 9) {
+      sf->rt_sf.force_large_partition_blocks_intra = 1;
     }
   }
   if (cpi->ppi->use_svc) {
