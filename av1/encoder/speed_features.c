@@ -687,7 +687,6 @@ static void set_good_speed_feature_framesize_dependent(
     if (use_hbd) sf->tx_sf.prune_tx_size_level = 3;
 
     if (is_480p_or_larger) {
-      sf->intra_sf.top_intra_model_count_allowed = 2;
       sf->part_sf.early_term_after_none_split = 1;
     } else {
       sf->part_sf.early_term_after_none_split = 0;
@@ -731,7 +730,6 @@ static void set_good_speed_feature_framesize_dependent(
     else
       sf->hl_sf.recode_tolerance = 55;
 
-    sf->intra_sf.top_intra_model_count_allowed = 2;
     sf->intra_sf.skip_intra_in_interframe = 4;
   }
 
@@ -1026,6 +1024,7 @@ static void set_good_speed_features_framesize_independent(
     sf->intra_sf.chroma_intra_pruning_with_hog = 2;
     sf->intra_sf.intra_pruning_with_hog = 3;
     sf->intra_sf.prune_palette_search_level = 2;
+    sf->intra_sf.top_intra_model_count_allowed = 2;
 
     sf->tpl_sf.prune_starting_mv = 2;
     sf->tpl_sf.skip_alike_starting_mv = 2;
