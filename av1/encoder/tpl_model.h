@@ -544,7 +544,6 @@ int av1_get_overlap_area(int row_a, int col_a, int row_b, int col_b, int width,
  * \param[in]       stats_valid_list  List indicates whether transform stats
  *                                    exists
  * \param[in]       bit_budget        The specified bit budget to achieve
- * \param[in]       gf_frame_index    current frame in the GOP
  * \param[in]       bit_depth         bit depth
  * \param[in]       scale_factor      Scale factor to improve budget estimation
  * \param[in]       qstep_ratio_list  Stores the qstep_ratio for each frame
@@ -556,8 +555,7 @@ int av1_get_overlap_area(int row_a, int col_a, int row_b, int col_b, int width,
 int av1_q_mode_estimate_base_q(const struct GF_GROUP *gf_group,
                                const TplTxfmStats *txfm_stats_list,
                                const int *stats_valid_list, double bit_budget,
-                               int gf_frame_index, aom_bit_depth_t bit_depth,
-                               double scale_factor,
+                               aom_bit_depth_t bit_depth, double scale_factor,
                                const double *qstep_ratio_list,
                                int *q_index_list,
                                double *estimated_bitrate_byframe);

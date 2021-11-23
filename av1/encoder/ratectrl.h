@@ -770,7 +770,6 @@ int av1_encodedframe_overshoot_cbr(struct AV1_COMP *cpi, int *q);
 #if !CONFIG_REALTIME_ONLY
 /*!\brief Compute the q_indices for the entire GOP.
  *
- * \param[in]       gf_frame_index    Index of the current frame
  * \param[in]       base_q_index      Base q index
  * \param[in]       qstep_ratio_list  Stores the qstep_ratio for each frame
  * \param[in]       bit_depth         Bit depth
@@ -779,7 +778,7 @@ int av1_encodedframe_overshoot_cbr(struct AV1_COMP *cpi, int *q);
  *                                    the array size should be equal or
  *                                    greater than gf_group.size()
  */
-void av1_q_mode_compute_gop_q_indices(int gf_frame_index, int base_q_index,
+void av1_q_mode_compute_gop_q_indices(int base_q_index,
                                       const double *qstep_ratio_list,
                                       aom_bit_depth_t bit_depth,
                                       const struct GF_GROUP *gf_group,
