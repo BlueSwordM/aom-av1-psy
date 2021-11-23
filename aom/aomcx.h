@@ -1404,6 +1404,13 @@ enum aome_enc_control_id {
    */
   AV1E_SET_AUTO_INTRA_TOOLS_OFF = 151,
 
+  /*!\brief Codec control function to set flag for rate control used by external
+   * encoders.
+   * - 1 = Enable rate control for external encoders. This will disable content
+   * dependency in rate control and cyclic refresh.
+   * - 0 = Default. Disable rate control for external encoders.
+   */
+  AV1E_SET_RTC_EXTERNAL_RC = 152,
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -1974,6 +1981,9 @@ AOM_CTRL_USE_TYPE(AOME_GET_LOOPFILTER_LEVEL, int *)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_AUTO_INTRA_TOOLS_OFF, unsigned int)
 #define AOM_CTRL_AV1E_SET_AUTO_INTRA_TOOLS_OFF
+
+AOM_CTRL_USE_TYPE(AV1E_SET_RTC_EXTERNAL_RC, int)
+#define AOM_CTRL_AV1E_SET_RTC_EXTERNAL_RC
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

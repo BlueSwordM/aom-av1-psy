@@ -2402,6 +2402,13 @@ static aom_codec_err_t ctrl_set_loopfilter_control(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+static aom_codec_err_t ctrl_set_rtc_external_rc(aom_codec_alg_priv_t *ctx,
+                                                va_list args) {
+  ctx->ppi->cpi->rc.rtc_external_ratectrl =
+      CAST(AV1E_SET_RTC_EXTERNAL_RC, args);
+  return AOM_CODEC_OK;
+}
+
 #if !CONFIG_REALTIME_ONLY
 static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
@@ -4039,6 +4046,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_TX_SIZE_SEARCH, ctrl_set_enable_tx_size_search },
   { AV1E_SET_LOOPFILTER_CONTROL, ctrl_set_loopfilter_control },
   { AV1E_SET_AUTO_INTRA_TOOLS_OFF, ctrl_set_auto_intra_tools_off },
+  { AV1E_SET_RTC_EXTERNAL_RC, ctrl_set_rtc_external_rc },
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
