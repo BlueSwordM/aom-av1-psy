@@ -4632,30 +4632,28 @@ static void log_sub_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs,
   const int bw = MI_SIZE * mi_size_wide[bs] - right_overflow;
   const int bh = MI_SIZE * mi_size_high[bs] - bottom_overflow;
 
-  // Initialize min to a large value and max to 0 at
-  *var_min = 99.0;
-  *var_max = 0.0;
+  // Initialize minimum variance to a large value and maximum variance to 0.
+  double min_var_4x4 = (double)INT_MAX;
+  double max_var_4x4 = 0.0;
 
   for (i = 0; i < bh; i += 4) {
     for (j = 0; j < bw; j += 4) {
       if (is_cur_buf_hbd(xd)) {
-        var =
-            log(1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
-                          x->plane[0].src.buf + i * x->plane[0].src.stride + j,
-                          x->plane[0].src.stride,
-                          CONVERT_TO_BYTEPTR(highbd_all_zeros), 0, &sse) /
-                          16.0);
+        var = cpi->ppi->fn_ptr[BLOCK_4X4].vf(
+            x->plane[0].src.buf + i * x->plane[0].src.stride + j,
+            x->plane[0].src.stride, CONVERT_TO_BYTEPTR(highbd_all_zeros), 0,
+            &sse);
       } else {
-        var =
-            log(1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
-                          x->plane[0].src.buf + i * x->plane[0].src.stride + j,
-                          x->plane[0].src.stride, all_zeros, 0, &sse) /
-                          16.0);
+        var = cpi->ppi->fn_ptr[BLOCK_4X4].vf(
+            x->plane[0].src.buf + i * x->plane[0].src.stride + j,
+            x->plane[0].src.stride, all_zeros, 0, &sse);
       }
-      *var_min = AOMMIN(*var_min, var);
-      *var_max = AOMMAX(*var_max, var);
+      min_var_4x4 = AOMMIN(min_var_4x4, var);
+      max_var_4x4 = AOMMAX(max_var_4x4, var);
     }
   }
+  *var_min = log(1.0 + min_var_4x4 / 16.0);
+  *var_max = log(1.0 + max_var_4x4 / 16.0);
 }
 
 /*!\brief AV1 block partition search (full search).
