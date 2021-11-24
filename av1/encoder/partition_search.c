@@ -1657,18 +1657,14 @@ static AOM_INLINE int is_adjust_var_based_part_enabled(
     BLOCK_SIZE bsize) {
   if (part_sf->partition_search_type != VAR_BASED_PARTITION) return 0;
   if (part_sf->adjust_var_based_rd_partitioning == 0 ||
-      part_sf->adjust_var_based_rd_partitioning > 3)
+      part_sf->adjust_var_based_rd_partitioning > 2)
     return 0;
 
-  if (part_sf->adjust_var_based_rd_partitioning == 1) {
-    return bsize <= BLOCK_32X32;
-  } else {
-    if (bsize <= BLOCK_32X32) return 1;
+  if (bsize <= BLOCK_32X32) return 1;
+  if (part_sf->adjust_var_based_rd_partitioning == 2) {
     const int is_larger_qindex = cm->quant_params.base_qindex > 190;
-    if (part_sf->adjust_var_based_rd_partitioning == 2) {
-      const int is_360p_or_larger = AOMMIN(cm->width, cm->height) >= 360;
-      return is_360p_or_larger && is_larger_qindex && bsize == BLOCK_64X64;
-    }
+    const int is_360p_or_larger = AOMMIN(cm->width, cm->height) >= 360;
+    return is_360p_or_larger && is_larger_qindex && bsize == BLOCK_64X64;
   }
   return 0;
 }
@@ -1919,7 +1915,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   }
 
   if ((cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION &&
-       cpi->sf.part_sf.adjust_var_based_rd_partitioning > 3) &&
+       cpi->sf.part_sf.adjust_var_based_rd_partitioning > 2) &&
       partition != PARTITION_SPLIT && bsize > BLOCK_8X8 &&
       (mi_row + bs < mi_params->mi_rows ||
        mi_row + hbs == mi_params->mi_rows) &&
