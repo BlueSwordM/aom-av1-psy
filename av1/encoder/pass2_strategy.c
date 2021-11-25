@@ -2388,7 +2388,8 @@ static void set_gop_bits_boost(AV1_COMP *cpi, int i, int is_intra_only,
   }
 #if CONFIG_BITRATE_ACCURACY
   if (is_final_pass) {
-    vbr_rc_set_gop_bit_budget(&cpi->vbr_rc_info, p_rc->baseline_gf_interval);
+    av1_vbr_rc_set_gop_bit_budget(&cpi->vbr_rc_info,
+                                  p_rc->baseline_gf_interval);
   }
 #endif
 }
@@ -3882,8 +3883,8 @@ void av1_init_second_pass(AV1_COMP *cpi) {
       (int64_t)(stats->duration * oxcf->rc_cfg.target_bandwidth / 10000000.0);
 
 #if CONFIG_BITRATE_ACCURACY
-  vbr_rc_init(&cpi->vbr_rc_info, cpi->ppi->twopass.bits_left,
-              (int)round(stats->count));
+  av1_vbr_rc_init(&cpi->vbr_rc_info, cpi->ppi->twopass.bits_left,
+                  (int)round(stats->count));
 #endif
 
   // This variable monitors how far behind the second ref update is lagging.

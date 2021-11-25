@@ -2782,11 +2782,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       cpi->vbr_rc_info.actual_mv_bitrate_byframe[cpi->gf_frame_index] =
           rc->projected_frame_size -
           cpi->vbr_rc_info.actual_coeff_bitrate_byframe[cpi->gf_frame_index];
-      if (cpi->ppi->gf_group.update_type[cpi->gf_frame_index] == KF_UPDATE) {
-        vbr_rc_set_keyframe_bitrate(&cpi->vbr_rc_info,
-                                    rc->projected_frame_size);
-      }
-
 #if 0
       vbr_rc_info_log(&cpi->vbr_rc_info, cpi->gf_frame_index,
                       cpi->ppi->gf_group.size, cpi->ppi->gf_group.update_type);

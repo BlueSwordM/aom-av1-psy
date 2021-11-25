@@ -95,7 +95,9 @@ typedef struct AV1TplRowMultiThreadInfo {
 #define TPL_EPSILON 0.0000001
 
 typedef struct TplTxfmStats {
+  int ready;                  // Whether abs_coeff_mean is ready
   double abs_coeff_sum[256];  // Assume we are using 16x16 transform block
+  double abs_coeff_mean[256];
   int txfm_block_count;
   int coeff_num;
 } TplTxfmStats;
@@ -226,7 +228,6 @@ typedef struct TplParams {
  * experiment.
  */
 typedef struct {
-  double keyframe_bitrate;
   double total_bit_budget;  // The total bit budget of the entire video
   int show_frame_count;     // Number of show frames in the entire video
 
@@ -263,35 +264,10 @@ static INLINE void vbr_rc_reset_gop_data(VBR_RATECTRL_INFO *vbr_rc_info) {
   av1_zero(vbr_rc_info->actual_coeff_bitrate_byframe);
 }
 
-static INLINE void vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info,
-                               double total_bit_budget, int show_frame_count) {
-  vbr_rc_info->total_bit_budget = total_bit_budget;
-  vbr_rc_info->show_frame_count = show_frame_count;
-  vbr_rc_info->keyframe_bitrate = 0;
-  const double scale_factors[FRAME_UPDATE_TYPES] = { 0.94559, 0.12040, 1,
-                                                     1.10199, 1,       1,
-                                                     0.16393 };
-  const double mv_scale_factors[FRAME_UPDATE_TYPES] = { 3, 3, 3, 3, 3, 3, 3 };
-  memcpy(vbr_rc_info->scale_factors, scale_factors,
-         sizeof(scale_factors[0]) * FRAME_UPDATE_TYPES);
-  memcpy(vbr_rc_info->mv_scale_factors, mv_scale_factors,
-         sizeof(mv_scale_factors[0]) * FRAME_UPDATE_TYPES);
-
-  vbr_rc_reset_gop_data(vbr_rc_info);
-}
-
-static INLINE void vbr_rc_set_gop_bit_budget(VBR_RATECTRL_INFO *vbr_rc_info,
-                                             int gop_showframe_count) {
-  vbr_rc_info->gop_showframe_count = gop_showframe_count;
-  vbr_rc_info->gop_bit_budget = vbr_rc_info->total_bit_budget *
-                                gop_showframe_count /
-                                vbr_rc_info->show_frame_count;
-}
-
-static INLINE void vbr_rc_set_keyframe_bitrate(VBR_RATECTRL_INFO *vbr_rc_info,
-                                               double keyframe_bitrate) {
-  vbr_rc_info->keyframe_bitrate = keyframe_bitrate;
-}
+void av1_vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info, double total_bit_budget,
+                     int show_frame_count);
+void av1_vbr_rc_set_gop_bit_budget(VBR_RATECTRL_INFO *vbr_rc_info,
+                                   int gop_showframe_count);
 
 static INLINE void vbr_rc_info_log(const VBR_RATECTRL_INFO *vbr_rc_info,
                                    int gf_frame_index, int gf_group_size,
@@ -313,6 +289,74 @@ static INLINE void vbr_rc_info_log(const VBR_RATECTRL_INFO *vbr_rc_info,
   }
 }
 
+/*!\brief Update q_index_list in vbr_rc_info based on tpl stats
+ *
+ * \param[out]      vbr_rc_info    Rate control info for BITRATE_ACCURACY
+ *                                 experiment
+ * \param[in]       tpl_data       TPL struct
+ * \param[in]       gf_group       GOP struct
+ * \param[in]       bit_depth      bit depth
+ */
+void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
+                                    const TplParams *tpl_data,
+                                    const struct GF_GROUP *gf_group,
+                                    aom_bit_depth_t bit_depth);
+/*
+ *!\brief Compute the number of bits needed to encode a GOP
+ *
+ * \param[out]   vbr_rc_info       Rate control info for BITRATE_ACCURACY
+ *                                 experiment
+ * \param[in]    gf_group          GOP struct
+ * \param[in]    base_q_index      base layer q_index
+ * \param[in]    stats_list        array of transform stats, one per frame
+ * \param[in]    bit_depth         bit depth
+ * \param[out]   q_index_list      array of q_index, one per frame
+ * \param[out]   estimated_bitrate_byframe Array to keep track of frame bitrate
+ *
+ * \return The estimated GOP bitrate.
+ *
+ */
+double av1_vbr_rc_info_estimate_gop_bitrate(
+    const VBR_RATECTRL_INFO *vbr_rc_info, const GF_GROUP *gf_group,
+    int base_q_index, const TplTxfmStats *stats_list, aom_bit_depth_t bit_depth,
+    int *q_index_list, double *estimated_bitrate_byframe);
+
+/*!\brief Estimate the optimal base q index for a GOP.
+ *
+ * This function uses a binary search to find base layer q index to
+ * achieve the specified bit budget.
+ *
+ * \param[out]  vbr_rc_info       Rate control info for BITRATE_ACCURACY
+ *                                experiment
+ * \param[in]   gf_group          GOP structure
+ * \param[in]   txfm_stats_list   Transform stats struct
+ * \param[in]   bit_budget        The specified bit budget to achieve
+ * \param[in]   bit_depth         bit depth
+ * \param[out]  q_index_list      array of q indices for the GOP inferred from
+ * base q index using qstep_ratio_list. \param[out]  estimated_bitrate_byframe
+ * bits usage per frame in the GOP
+ *
+ * \return Returns the optimal base q index to use.
+ */
+int av1_vbr_rc_info_estimate_base_q(const VBR_RATECTRL_INFO *vbr_rc_info,
+                                    const GF_GROUP *gf_group,
+                                    const TplTxfmStats *txfm_stats_list,
+                                    double bit_budget,
+                                    aom_bit_depth_t bit_depth,
+                                    int *q_index_list,
+                                    double *estimated_bitrate_byframe);
+
+/*!\brief For a GOP, calculate the bits used by motion vectors.
+ *
+ * \param[in]       tpl_data          TPL struct
+ * \param[in]       gf_group          GOP struct
+ * \param[in]       vbr_rc_info       Rate control info struct
+ *
+ * \return Bits used by the motion vectors for the GOP.
+ */
+double av1_tpl_compute_mv_bits(const TplParams *tpl_data,
+                               const GF_GROUP *gf_group,
+                               VBR_RATECTRL_INFO *vbr_rc_info);
 #endif  // CONFIG_BITRATE_ACCURACY
 
 #if CONFIG_RD_COMMAND
@@ -430,24 +474,6 @@ double av1_laplace_estimate_frame_rate(int q_index, int block_count,
                                        int coeff_num);
 
 /*
- *!\brief Compute the number of bits needed to encode a GOP
- *
- * \param[in]    q_index_list      array of q_index, one per frame
- * \param[in]    frame_count       number of frames in the GOP
- * \param[in]    stats             array of transform stats, one per frame
- * \param[in]    stats_valid_list  List indicates whether transform stats
- *                                 exists
- * \param[out]   bitrate_byframe_list    Array to keep track of frame bitrate
- *
- * \return The estimated GOP bitrate.
- *
- */
-double av1_estimate_gop_bitrate(const int *q_index_list, const int frame_count,
-                                const TplTxfmStats *stats,
-                                const int *stats_valid_list,
-                                double *bitrate_byframe_list);
-
-/*
  *!\brief Init TplTxfmStats
  *
  * \param[in]    tpl_txfm_stats  a structure for storing transform stats
@@ -476,6 +502,16 @@ void av1_accumulate_tpl_txfm_stats(const TplTxfmStats *sub_stats,
  */
 void av1_record_tpl_txfm_block(TplTxfmStats *tpl_txfm_stats,
                                const tran_low_t *coeff);
+
+/*
+ *!\brief Update abs_coeff_mean and ready of txfm_stats
+ * If txfm_block_count > 0, this function will use abs_coeff_sum and
+ * txfm_block_count to compute abs_coeff_mean. Moreover, reday flag
+ * will be set to one.
+ *
+ * \param[in]  txfm_stats     A structure for storing transform stats
+ */
+void av1_tpl_txfm_stats_update_abs_coeff_mean(TplTxfmStats *txfm_stats);
 
 /*!\brief  Estimate coefficient entropy using Laplace dsitribution
  *
@@ -533,33 +569,6 @@ int64_t av1_delta_rate_cost(int64_t delta_rate, int64_t recrf_dist,
 int av1_get_overlap_area(int row_a, int col_a, int row_b, int col_b, int width,
                          int height);
 
-/*!\brief Estimate the optimal base q index for a GOP.
- *
- * This function picks q based on a chosen bit rate. It
- * estimates the bit rate using the starting base q, then uses
- * a binary search to find q to achieve the specified bit rate.
- *
- * \param[in]       gf_group          GOP structure
- * \param[in]       txfm_stats_list   Transform stats struct
- * \param[in]       stats_valid_list  List indicates whether transform stats
- *                                    exists
- * \param[in]       bit_budget        The specified bit budget to achieve
- * \param[in]       bit_depth         bit depth
- * \param[in]       scale_factor      Scale factor to improve budget estimation
- * \param[in]       qstep_ratio_list  Stores the qstep_ratio for each frame
- * \param[out]      q_index_list      array of q_index, one per frame
- * \param[out]      estimated_bitrate_byframe  bits usage per frame in the GOP
- *
- * \return Returns the optimal base q index to use.
- */
-int av1_q_mode_estimate_base_q(const struct GF_GROUP *gf_group,
-                               const TplTxfmStats *txfm_stats_list,
-                               const int *stats_valid_list, double bit_budget,
-                               aom_bit_depth_t bit_depth, double scale_factor,
-                               const double *qstep_ratio_list,
-                               int *q_index_list,
-                               double *estimated_bitrate_byframe);
-
 /*!\brief Get current frame's q_index from tpl stats and leaf_qindex
  *
  * \param[in]       tpl_data          TPL struct
@@ -605,33 +614,6 @@ double av1_tpl_get_qstep_ratio(const TplParams *tpl_data, int gf_frame_index);
  */
 int av1_get_q_index_from_qstep_ratio(int leaf_qindex, double qstep_ratio,
                                      aom_bit_depth_t bit_depth);
-
-#if CONFIG_BITRATE_ACCURACY
-/*!\brief Update q_index_list in vbr_rc_info based on tpl stats
- *
- * \param[out]      vbr_rc_info    Rate control info for BITRATE_ACCURACY
- *                                 experiment
- * \param[in]       tpl_data       TPL struct
- * \param[in]       gf_group       GOP struct
- * \param[in]       bit_depth      bit depth
- */
-void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
-                                    const TplParams *tpl_data,
-                                    const struct GF_GROUP *gf_group,
-                                    aom_bit_depth_t bit_depth);
-
-/*!\brief For a GOP, calculate the bits used by motion vectors.
- *
- * \param[in]       tpl_data          TPL struct
- * \param[in]       gf_group          GOP struct
- * \param[in]       vbr_rc_info       Rate control info struct
- *
- * \return Bits used by the motion vectors for the GOP.
- */
-double av1_tpl_compute_mv_bits(const TplParams *tpl_data,
-                               const GF_GROUP *gf_group,
-                               VBR_RATECTRL_INFO *vbr_rc_info);
-#endif  // CONFIG_BITRATE_ACCURACY
 
 /*!\brief Improve the motion vector estimation by taking neighbors into account.
  *
