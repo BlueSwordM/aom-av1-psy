@@ -1362,7 +1362,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->mv_sf.use_accurate_subpel_search = USE_2_TAPS;
   sf->mv_sf.search_method = FAST_DIAMOND;
   sf->mv_sf.subpel_force_stop = EIGHTH_PEL;
-  sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
+  sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
 
   for (int i = 0; i < TX_SIZES; ++i) {
     sf->intra_sf.intra_y_mode_mask[i] = INTRA_DC;
