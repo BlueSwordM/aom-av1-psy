@@ -50,8 +50,11 @@ static MESH_PATTERN intrabc_mesh_patterns[MAX_MESH_SPEED + 1][MAX_MESH_STEP] = {
 // Index 2: Winner mode evaluation. Index 1 and 2 are applicable when
 // enable_winner_mode_for_use_tx_domain_dist speed feature is ON
 // TODO(any): Experiment the threshold logic based on variance metric
-static unsigned int tx_domain_dist_thresholds[3][MODE_EVAL_TYPES] = {
-  { UINT_MAX, UINT_MAX, UINT_MAX }, { 22026, 22026, 22026 }, { 0, 0, 0 }
+static unsigned int tx_domain_dist_thresholds[4][MODE_EVAL_TYPES] = {
+  { UINT_MAX, UINT_MAX, UINT_MAX },
+  { 22026, 22026, 22026 },
+  { 1377, 1377, 1377 },
+  { 0, 0, 0 }
 };
 
 // Transform domain distortion type to be used for default, mode and winner mode
@@ -441,7 +444,7 @@ static void set_allintra_speed_features_framesize_independent(
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
 
     sf->rd_sf.perform_coeff_opt = 5;
-    sf->rd_sf.tx_domain_dist_thres_level = 2;
+    sf->rd_sf.tx_domain_dist_thres_level = 3;
 
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
@@ -1102,7 +1105,7 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.tx_type_search.fast_intra_tx_type_search = 1;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 5 : 7;
-    sf->rd_sf.tx_domain_dist_thres_level = 2;
+    sf->rd_sf.tx_domain_dist_thres_level = 3;
 
     // TODO(any): Extend multi-winner mode processing support for inter frames
     sf->winner_mode_sf.multi_winner_mode_type =
@@ -1452,6 +1455,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
   if (speed >= 6) {
     sf->mv_sf.use_fullpel_costlist = 1;
+
+    sf->rd_sf.tx_domain_dist_thres_level = 3;
 
     sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh = 0;
     sf->inter_sf.prune_warped_prob_thresh = 8;
@@ -2011,7 +2016,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
 
   // assert ensures that tx_domain_dist_level is accessed correctly
   assert(cpi->sf.rd_sf.tx_domain_dist_thres_level >= 0 &&
-         cpi->sf.rd_sf.tx_domain_dist_thres_level < 3);
+         cpi->sf.rd_sf.tx_domain_dist_thres_level < 4);
   memcpy(winner_mode_params->tx_domain_dist_threshold,
          tx_domain_dist_thresholds[cpi->sf.rd_sf.tx_domain_dist_thres_level],
          sizeof(winner_mode_params->tx_domain_dist_threshold));
