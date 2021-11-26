@@ -1193,6 +1193,10 @@ typedef struct WINNER_MODE_SPEED_FEATURES {
   // performs it during winner mode processing by \ref
   // tx_search_best_inter_candidates.
   int winner_mode_ifs;
+
+  // Flag used to enable the pruning of winner mode processing for blocks with
+  // low source variance.
+  int prune_winner_mode_processing_using_src_var;
 } WINNER_MODE_SPEED_FEATURES;
 
 typedef struct LOOP_FILTER_SPEED_FEATURES {

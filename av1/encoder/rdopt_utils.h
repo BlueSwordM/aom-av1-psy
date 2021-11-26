@@ -389,9 +389,17 @@ static TX_MODE select_tx_mode(
 }
 // Checks the conditions to enable winner mode processing
 static INLINE int is_winner_mode_processing_enabled(
-    const struct AV1_COMP *cpi, MB_MODE_INFO *const mbmi,
-    const PREDICTION_MODE best_mode) {
+    const struct AV1_COMP *cpi, const MACROBLOCK *const x,
+    MB_MODE_INFO *const mbmi, const PREDICTION_MODE best_mode) {
   const SPEED_FEATURES *sf = &cpi->sf;
+
+  // Disable winner mode processing for blocks with low source variance.
+  // The aggressiveness of this pruning logic reduces as qindex increases.
+  // The threshold decreases linearly from 64 as qindex varies from 0 to 255.
+  if (sf->winner_mode_sf.prune_winner_mode_processing_using_src_var) {
+    const unsigned int src_var_thresh = 64 - 48 * x->qindex / (MAXQ + 1);
+    if (x->source_variance < src_var_thresh) return 0;
+  }
 
   // TODO(any): Move block independent condition checks to frame level
   if (is_inter_block(mbmi)) {

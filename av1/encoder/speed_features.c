@@ -501,6 +501,7 @@ static void set_allintra_speed_features_framesize_independent(
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_Q;
 
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
+    sf->winner_mode_sf.prune_winner_mode_processing_using_src_var = 1;
   }
   // The following should make all-intra mode speed 7 approximately equal
   // to real-time speed 6,
@@ -1827,6 +1828,7 @@ static AOM_INLINE void init_winner_mode_sf(
   winner_mode_sf->multi_winner_mode_type = 0;
   winner_mode_sf->dc_blk_pred_level = 0;
   winner_mode_sf->winner_mode_ifs = 0;
+  winner_mode_sf->prune_winner_mode_processing_using_src_var = 0;
 }
 
 static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {

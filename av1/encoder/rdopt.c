@@ -3526,7 +3526,8 @@ static AOM_INLINE void refine_winner_mode_tx(
   int64_t best_rd;
   const int num_planes = av1_num_planes(cm);
 
-  if (!is_winner_mode_processing_enabled(cpi, best_mbmode, best_mbmode->mode))
+  if (!is_winner_mode_processing_enabled(cpi, x, best_mbmode,
+                                         best_mbmode->mode))
     return;
 
   // Set params for winner mode evaluation
@@ -3550,7 +3551,7 @@ static AOM_INLINE void refine_winner_mode_tx(
 
     if (xd->lossless[winner_mbmi->segment_id] == 0 &&
         winner_mode_index != THR_INVALID &&
-        is_winner_mode_processing_enabled(cpi, winner_mbmi,
+        is_winner_mode_processing_enabled(cpi, x, winner_mbmi,
                                           winner_mbmi->mode)) {
       RD_STATS rd_stats = *winner_rd_stats;
       int skip_blk = 0;
