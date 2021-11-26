@@ -91,12 +91,18 @@ DECLARE_ALIGNED(16, static const uint16_t,
 // reconstructed block variance matches the source variance.
 static double intra_rd_variance_factor(const AV1_COMP *cpi, MACROBLOCK *x,
                                        BLOCK_SIZE bs) {
+  double threshold = 1.0 - (0.25 * cpi->oxcf.speed);
+  // For non-positive threshold values, the comparison of source and
+  // reconstructed variances with threshold evaluates to false
+  // (src_var < threshold/rec_var < threshold) as these metrics are greater than
+  // than 0. Hence further calculations are skipped.
+  if (threshold <= 0) return 1.0;
+
   MACROBLOCKD *xd = &x->e_mbd;
   double variance_rd_factor = 1.0;
   double src_var = 0.0;
   double rec_var = 0.0;
   double var_diff = 0.0;
-  double threshold = 1.0 - (0.25 * cpi->oxcf.speed);
   unsigned int sse;
   int i, j;
   int right_overflow =
