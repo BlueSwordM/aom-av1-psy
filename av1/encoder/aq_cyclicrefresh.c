@@ -45,7 +45,7 @@ void av1_cyclic_refresh_free(CYCLIC_REFRESH *cr) {
 // mode, and rate/distortion.
 static int candidate_refresh_aq(const CYCLIC_REFRESH *cr,
                                 const MB_MODE_INFO *mbmi, int64_t rate,
-                                int64_t dist, int bsize) {
+                                int64_t dist, int bsize, int noise_level) {
   MV mv = mbmi->mv[0].as_mv;
   int is_compound = has_second_ref(mbmi);
   // Reject the block for lower-qp coding for non-compound mode if
@@ -59,9 +59,10 @@ static int candidate_refresh_aq(const CYCLIC_REFRESH *cr,
        mv.col > cr->motion_thresh || mv.col < -cr->motion_thresh ||
        !is_inter_block(mbmi)))
     return CR_SEGMENT_ID_BASE;
-  else if (is_compound || (bsize >= BLOCK_16X16 && rate < cr->thresh_rate_sb &&
-                           is_inter_block(mbmi) && mbmi->mv[0].as_int == 0 &&
-                           cr->rate_boost_fac > 10))
+  else if ((is_compound && noise_level < kMedium) ||
+           (bsize >= BLOCK_16X16 && rate < cr->thresh_rate_sb &&
+            is_inter_block(mbmi) && mbmi->mv[0].as_int == 0 &&
+            cr->rate_boost_fac > 10))
     // More aggressive delta-q for bigger blocks with zero motion.
     return CR_SEGMENT_ID_BOOST2;
   else
@@ -202,8 +203,10 @@ void av1_cyclic_refresh_update_segment(const AV1_COMP *cpi, MACROBLOCK *const x,
   const int xmis = AOMMIN(cm->mi_params.mi_cols - mi_col, bw);
   const int ymis = AOMMIN(cm->mi_params.mi_rows - mi_row, bh);
   const int block_index = mi_row * cm->mi_params.mi_cols + mi_col;
+  int noise_level = 0;
+  if (cpi->noise_estimate.enabled) noise_level = cpi->noise_estimate.level;
   const int refresh_this_block =
-      candidate_refresh_aq(cr, mbmi, rate, dist, bsize);
+      candidate_refresh_aq(cr, mbmi, rate, dist, bsize, noise_level);
   int sh = cpi->cyclic_refresh->skip_over4x4 ? 2 : 1;
   // Default is to not update the refresh map.
   int new_map_value = cr->map[block_index];
