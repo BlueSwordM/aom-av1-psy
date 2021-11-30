@@ -111,7 +111,7 @@ static void collect_tpl_stats_sb(const AV1_COMP *const cpi,
   TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
   // If tpl stats is not established, early return
   if (!tpl_data->ready || gf_group->max_layer_depth_allowed == 0) {
-    features->sb_features.tpl_features.available = 0;
+    if (features != NULL) features->sb_features.tpl_features.available = 0;
     return;
   }
 
