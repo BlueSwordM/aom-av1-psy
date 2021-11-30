@@ -403,7 +403,6 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
 
   double sum_rec_distortion = 0.0;
   double sum_est_rate = 0.0;
-  double sum_est_dist = 0.0;
   for (mi_row = 0; mi_row < cpi->frame_info.mi_rows; mi_row += mb_step) {
     for (mi_col = 0; mi_col < cpi->frame_info.mi_cols; mi_col += mb_step) {
       PREDICTION_MODE best_mode = DC_PRED;
@@ -529,7 +528,6 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
                                       pix_num, &est_block_rate,
                                       &est_block_dist);
       sum_est_rate += est_block_rate;
-      sum_est_dist += est_block_dist;
 
       weber_stats->src_variance -= (src_mean * src_mean) / pix_num;
       weber_stats->rec_variance -= (rec_mean * rec_mean) / pix_num;
