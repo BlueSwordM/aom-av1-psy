@@ -79,6 +79,12 @@ void av1_reset_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->skip_non_sq_part_based_on_none = 0;
 }
 
+// Reset speed features that works for the baseline encoding, but
+// blocks the external partition search.
+void av1_reset_sf_for_ext_part(AV1_COMP *const cpi) {
+  cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions = 0;
+}
+
 #if !CONFIG_REALTIME_ONLY
 // If input |features| is NULL, write tpl stats to file for each super block.
 // Otherwise, store tpl stats to |features|.

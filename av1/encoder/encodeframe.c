@@ -680,6 +680,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 #if CONFIG_PARTITION_SEARCH_ORDER
       if (cpi->ext_part_controller.ready && !frame_is_intra_only(cm)) {
         av1_reset_part_sf(&cpi->sf.part_sf);
+        av1_reset_sf_for_ext_part(cpi);
         RD_STATS this_rdc;
         av1_rd_partition_search(cpi, td, tile_data, tp, sms_root, mi_row,
                                 mi_col, sb_size, &this_rdc);
