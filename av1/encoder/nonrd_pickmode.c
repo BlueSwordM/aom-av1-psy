@@ -1844,7 +1844,8 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   use_ref_frame[ALTREF_FRAME] = use_alt_ref_frame;
   use_ref_frame[GOLDEN_FRAME] = use_golden_ref_frame;
   use_ref_frame[LAST_FRAME] = use_last_ref_frame;
-  assert(use_last_ref_frame || use_golden_ref_frame || use_alt_ref_frame);
+  if (!cpi->ppi->use_svc)
+    assert(use_last_ref_frame || use_golden_ref_frame || use_alt_ref_frame);
 }
 
 /*!\brief Estimates best intra mode for inter mode search

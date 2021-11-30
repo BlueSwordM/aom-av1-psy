@@ -93,7 +93,6 @@ void av1_update_layer_context_change_config(AV1_COMP *const cpi,
   int layer = 0;
   int64_t spatial_layer_target = 0;
   float bitrate_alloc = 1.0;
-  assert(target_bandwidth > 0);
   for (int sl = 0; sl < svc->number_spatial_layers; ++sl) {
     for (int tl = 0; tl < svc->number_temporal_layers; ++tl) {
       layer = LAYER_IDS_TO_IDX(sl, tl, svc->number_temporal_layers);
