@@ -2315,7 +2315,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
     copy_frame_prob_info(cpi);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
-  printf("\n Encoding a frame:");
+  printf("\n Encoding a frame: \n");
 #endif
 
 #if CONFIG_TUNE_BUTTERAUGLI
@@ -2528,7 +2528,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   if (cm->current_frame.frame_type == KEY_FRAME) copy_frame_prob_info(cpi);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
-  printf("\n Encoding a frame:");
+  printf("\n Encoding a frame: \n");
 #endif
 
 #if !CONFIG_RD_COMMAND
@@ -4394,12 +4394,16 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
       cpi->frame_component_time[0] > 100) {
     int i;
     uint64_t frame_total = 0, total = 0;
+    const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
+    FRAME_UPDATE_TYPE frame_update_type =
+        get_frame_update_type(gf_group, cpi->gf_frame_index);
 
     fprintf(stderr,
-            "\n Frame number: %d, Frame type: %s, Show Frame: %d, Q: %d\n",
+            "\n Frame number: %d, Frame type: %s, Show Frame: %d, Frame Update "
+            "Type: %d, Q: %d\n",
             cm->current_frame.frame_number,
             get_frame_type_enum(cm->current_frame.frame_type), cm->show_frame,
-            cm->quant_params.base_qindex);
+            frame_update_type, cm->quant_params.base_qindex);
     for (i = 0; i < kTimingComponents; i++) {
       cpi->component_time[i] += cpi->frame_component_time[i];
       // Use av1_encode_strategy_time (i = 0) as the total time.
