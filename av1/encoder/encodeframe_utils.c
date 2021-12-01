@@ -895,8 +895,9 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   const int tpl_idx = cpi->gf_frame_index;
   TplParams *const tpl_data = &cpi->ppi->tpl_data;
   const uint8_t block_mis_log2 = tpl_data->tpl_stats_block_mis_log2;
-  int64_t intra_cost = 0;
-  int64_t mc_dep_cost = 0;
+  double intra_cost = 0;
+  double mc_dep_cost = 0;
+  double cbcmp_base = 1;
   const int mi_wide = mi_size_wide[bsize];
   const int mi_high = mi_size_high[bsize];
   const int base_qindex = cm->quant_params.base_qindex;
@@ -925,12 +926,15 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
       if (row >= cm->mi_params.mi_rows || col >= mi_cols_sr) continue;
       TplDepStats *this_stats =
           &tpl_stats[av1_tpl_ptr_pos(row, col, tpl_stride, block_mis_log2)];
+      double cbcmp = this_stats->recrf_dist;
       int64_t mc_dep_delta =
           RDCOST(tpl_frame->base_rdmult, this_stats->mc_dep_rate,
                  this_stats->mc_dep_dist);
-      intra_cost += this_stats->recrf_dist << RDDIV_BITS;
-      mc_dep_cost += (this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta;
+      intra_cost += log(this_stats->recrf_dist << RDDIV_BITS) * cbcmp;
+      mc_dep_cost +=
+          log((this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta) * cbcmp;
       mi_count++;
+      cbcmp_base += cbcmp;
     }
   }
   assert(mi_count <= MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB);
@@ -939,7 +943,7 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   double beta = 1.0;
   if (mc_dep_cost > 0 && intra_cost > 0) {
     const double r0 = cpi->rd.r0;
-    const double rk = (double)intra_cost / mc_dep_cost;
+    const double rk = exp((intra_cost - mc_dep_cost) / cbcmp_base);
     beta = (r0 / rk);
     assert(beta > 0.0);
   }

@@ -480,8 +480,9 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
 
   if (tpl_frame->is_valid) {
     int tpl_stride = tpl_frame->stride;
-    int64_t intra_cost_base = 0;
-    int64_t mc_dep_cost_base = 0;
+    double intra_cost_base = 0;
+    double mc_dep_cost_base = 0;
+    double cbcmp_base = 1;
     const int step = 1 << tpl_data->tpl_stats_block_mis_log2;
     const int row_step = step;
     const int col_step_sr =
@@ -492,19 +493,22 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
       for (int col = 0; col < mi_cols_sr; col += col_step_sr) {
         TplDepStats *this_stats = &tpl_stats[av1_tpl_ptr_pos(
             row, col, tpl_stride, tpl_data->tpl_stats_block_mis_log2)];
+
+        double cbcmp = this_stats->recrf_dist;
         int64_t mc_dep_delta =
             RDCOST(tpl_frame->base_rdmult, this_stats->mc_dep_rate,
                    this_stats->mc_dep_dist);
-        intra_cost_base += (this_stats->recrf_dist << RDDIV_BITS);
+        intra_cost_base += log(this_stats->recrf_dist << RDDIV_BITS) * cbcmp;
         mc_dep_cost_base +=
-            (this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta;
+            log((this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta) * cbcmp;
+        cbcmp_base += cbcmp;
       }
     }
 
     if (mc_dep_cost_base == 0) {
       tpl_frame->is_valid = 0;
     } else {
-      cpi->rd.r0 = (double)intra_cost_base / mc_dep_cost_base;
+      cpi->rd.r0 = exp((intra_cost_base - mc_dep_cost_base) / cbcmp_base);
       if (is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) {
         if (cpi->ppi->lap_enabled) {
           double min_boost_factor = sqrt(cpi->ppi->p_rc.baseline_gf_interval);
