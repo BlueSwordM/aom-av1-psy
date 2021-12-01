@@ -3428,7 +3428,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 #endif
 
-  if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL_AI) {
+  if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL_AI &&
+      cpi->sf.rt_sf.use_nonrd_pick_mode == 0) {
     av1_init_mb_wiener_var_buffer(cpi);
     av1_set_mb_wiener_variance(cpi);
   }
