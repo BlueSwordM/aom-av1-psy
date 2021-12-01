@@ -2456,7 +2456,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
   // selected for this frame. This is for CBR with 1 layer/non-svc RTC mode.
   if (!frame_is_intra_only(cm) && cpi->oxcf.rc_cfg.mode == AOM_CBR &&
       cpi->oxcf.mode == REALTIME && svc->number_spatial_layers == 1 &&
-      svc->number_temporal_layers == 1 && !cpi->rc.rtc_external_ratectrl)
+      svc->number_temporal_layers == 1 && !cpi->rc.rtc_external_ratectrl &&
+      sf->rt_sf.gf_refresh_based_on_qp)
     av1_adjust_gf_refresh_qp_one_pass_rt(cpi);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING

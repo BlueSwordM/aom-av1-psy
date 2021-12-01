@@ -1384,6 +1384,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // based partitioning. The minimum values should be 7 to avoid left shifting
   // by a negative number.
   int var_part_split_threshold_shift;
+
+  // Enable GF refresh based on Q value.
+  int gf_refresh_based_on_qp;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */
