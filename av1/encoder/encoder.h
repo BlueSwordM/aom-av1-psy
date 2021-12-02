@@ -3907,7 +3907,11 @@ static INLINE int get_ref_frame_flags(const SPEED_FEATURES *const sf,
             ? (1 + sf->rt_sf.use_nonrd_altref_frame)
             : i;
     for (int j = 0; j < index; ++j) {
-      if (this_ref == ref_frames[j]) {
+      // If this_ref has appeared before (same as the reference corresponding
+      // to lower index j), remove it as a reference only if that reference
+      // (for index j) is actually used as a reference.
+      if (this_ref == ref_frames[j] &&
+          (flags & (1 << (ref_frame_priority_order[j] - 1)))) {
         flags &= ~(1 << (ref_frame_priority_order[i] - 1));
         break;
       }

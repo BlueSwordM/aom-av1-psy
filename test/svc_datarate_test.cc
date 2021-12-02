@@ -118,9 +118,10 @@ class DatarateTestSVC
     }
     // Set the reference/update flags, layer_id, and reference_map
     // buffer index.
-    frame_flags_ = set_layer_pattern(video->frame(), &layer_id_,
-                                     &ref_frame_config_, &ref_frame_comp_pred_,
-                                     spatial_layer_id, multi_ref_, comp_pred_);
+    frame_flags_ =
+        set_layer_pattern(video->frame(), &layer_id_, &ref_frame_config_,
+                          &ref_frame_comp_pred_, spatial_layer_id, multi_ref_,
+                          comp_pred_, (video->frame() % cfg_.kf_max_dist) == 0);
     encoder->Control(AV1E_SET_SVC_LAYER_ID, &layer_id_);
     // The SET_SVC_REF_FRAME_CONFIG and AV1E_SET_SVC_REF_FRAME_COMP_PRED api is
     // for the flexible SVC mode (i.e., use_fixed_mode_svc == 0).
@@ -208,7 +209,7 @@ class DatarateTestSVC
       int frame_cnt, aom_svc_layer_id_t *layer_id,
       aom_svc_ref_frame_config_t *ref_frame_config,
       aom_svc_ref_frame_comp_pred_t *ref_frame_comp_pred, int spatial_layer,
-      int multi_ref, int comp_pred) {
+      int multi_ref, int comp_pred, int is_key_frame) {
     int lag_index = 0;
     int base_count = frame_cnt >> 2;
     layer_id->spatial_layer_id = spatial_layer;
@@ -429,8 +430,15 @@ class DatarateTestSVC
           ref_frame_config->ref_idx[3] = 4;
         }
       }
-      // Reference GOLDEN.
-      if (layer_id->spatial_layer_id > 0) ref_frame_config->reference[3] = 1;
+      if (layer_id->spatial_layer_id > 0) {
+        // Always reference GOLDEN (inter-layer prediction).
+        ref_frame_config->reference[3] = 1;
+        if (is_key_frame && layer_id->spatial_layer_id > 0) {
+          // On superframes whose base is key: remove LAST since GOLDEN
+          // is used as reference.
+          ref_frame_config->reference[0] = 0;
+        }
+      }
       // Allow for top spatial layer to use additional temporal reference.
       // Additional reference is only updated on base temporal layer, every
       // 10 TL0 frames here.

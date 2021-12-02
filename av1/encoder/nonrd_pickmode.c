@@ -1800,12 +1800,17 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   int use_golden_ref_frame = 1;
   int use_last_ref_frame = 1;
 
-  use_ref_frame[LAST_FRAME] = 1;
+  if (cpi->ppi->use_svc)
+    use_last_ref_frame =
+        cpi->ref_frame_flags & AOM_LAST_FLAG ? use_last_ref_frame : 0;
 
-  if (cpi->rc.frames_since_golden == 0 && gf_temporal_ref) {
+  // Only remove golden and altref reference below if last is a reference,
+  // which may not be the case for svc.
+  if (use_last_ref_frame && cpi->rc.frames_since_golden == 0 &&
+      gf_temporal_ref) {
     use_golden_ref_frame = 0;
   }
-  if (cpi->sf.rt_sf.short_circuit_low_temp_var &&
+  if (use_last_ref_frame && cpi->sf.rt_sf.short_circuit_low_temp_var &&
       x->nonrd_prune_ref_frame_search) {
     if (is_small_sb)
       *force_skip_low_temp_var = av1_get_force_skip_low_temp_var_small_sb(
@@ -1820,8 +1825,9 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
     }
   }
 
-  if (x->nonrd_prune_ref_frame_search > 2 ||
-      (x->nonrd_prune_ref_frame_search > 1 && bsize > BLOCK_64X64)) {
+  if (use_last_ref_frame &&
+      (x->nonrd_prune_ref_frame_search > 2 ||
+       (x->nonrd_prune_ref_frame_search > 1 && bsize > BLOCK_64X64))) {
     use_golden_ref_frame = 0;
     use_alt_ref_frame = 0;
   }
@@ -1837,15 +1843,14 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   use_golden_ref_frame =
       cpi->ref_frame_flags & AOM_GOLD_FLAG ? use_golden_ref_frame : 0;
 
-  if (cpi->ppi->use_svc)
-    use_last_ref_frame =
-        cpi->ref_frame_flags & AOM_LAST_FLAG ? use_last_ref_frame : 0;
-
   use_ref_frame[ALTREF_FRAME] = use_alt_ref_frame;
   use_ref_frame[GOLDEN_FRAME] = use_golden_ref_frame;
   use_ref_frame[LAST_FRAME] = use_last_ref_frame;
-  if (!cpi->ppi->use_svc)
-    assert(use_last_ref_frame || use_golden_ref_frame || use_alt_ref_frame);
+  // For now keep this assert on, but we should remove it for svc mode,
+  // as the user may want to generate an intra-only frame (no inter-modes).
+  // Remove this assert in subsequent CL when nonrd_pickmode is tested for the
+  // case of intra-only frame (no references enabled).
+  assert(use_last_ref_frame || use_golden_ref_frame || use_alt_ref_frame);
 }
 
 /*!\brief Estimates best intra mode for inter mode search
