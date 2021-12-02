@@ -340,6 +340,10 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
 int av1_get_q_for_hdr(AV1_COMP *const cpi, MACROBLOCK *const x,
                       BLOCK_SIZE bsize, int mi_row, int mi_col);
 
+int av1_get_cb_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
+                      const BLOCK_SIZE bsize, const int mi_row,
+                      const int mi_col);
+
 int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
                             const BLOCK_SIZE bsize, const int mi_row,
                             const int mi_col, int orig_rdmult);

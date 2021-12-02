@@ -9,6 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include "av1/common/common_data.h"
 #include "av1/common/reconintra.h"
 
 #include "av1/encoder/encoder.h"
@@ -79,6 +80,62 @@ static int get_superblock_tpl_column_end(const AV1_COMMON *const cm, int mi_col,
   const int sb_mi_end = sb_mi_col_start_sr + sb_mi_width_sr;
   // Superblock end in TPL units.
   return (sb_mi_end + num_mi_w - 1) / num_mi_w;
+}
+
+int av1_get_cb_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
+                      const BLOCK_SIZE bsize, const int mi_row,
+                      const int mi_col) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
+  assert(IMPLIES(cpi->ppi->gf_group.size > 0,
+                 cpi->gf_frame_index < cpi->ppi->gf_group.size));
+  const int tpl_idx = cpi->gf_frame_index;
+  int deltaq_rdmult = set_deltaq_rdmult(cpi, x);
+  if (!av1_tpl_stats_ready(&cpi->ppi->tpl_data, tpl_idx)) return deltaq_rdmult;
+  if (!is_frame_tpl_eligible(gf_group, cpi->gf_frame_index))
+    return deltaq_rdmult;
+  if (cm->superres_scale_denominator != SCALE_NUMERATOR) return deltaq_rdmult;
+  if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return deltaq_rdmult;
+  if (x->rb == 0) return deltaq_rdmult;
+
+  TplParams *const tpl_data = &cpi->ppi->tpl_data;
+  TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_idx];
+  TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
+
+  const int mi_wide = mi_size_wide[bsize];
+  const int mi_high = mi_size_high[bsize];
+
+  int tpl_stride = tpl_frame->stride;
+  double intra_cost_base = 0;
+  double mc_dep_cost_base = 0;
+  double cbcmp_base = 0;
+  const int step = 1 << tpl_data->tpl_stats_block_mis_log2;
+
+  for (int row = mi_row; row < mi_row + mi_high; row += step) {
+    for (int col = mi_col; col < mi_col + mi_wide; col += step) {
+      if (row >= cm->mi_params.mi_rows || col >= cm->mi_params.mi_cols)
+        continue;
+
+      TplDepStats *this_stats = &tpl_stats[av1_tpl_ptr_pos(
+          row, col, tpl_stride, tpl_data->tpl_stats_block_mis_log2)];
+
+      double cbcmp = this_stats->recrf_dist;
+      int64_t mc_dep_delta =
+          RDCOST(tpl_frame->base_rdmult, this_stats->mc_dep_rate,
+                 this_stats->mc_dep_dist);
+      intra_cost_base += log(this_stats->recrf_dist << RDDIV_BITS) * cbcmp;
+      mc_dep_cost_base +=
+          log((this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta) * cbcmp;
+      cbcmp_base += cbcmp;
+    }
+  }
+
+  if (cbcmp_base == 0) return deltaq_rdmult;
+
+  double rk = exp((intra_cost_base - mc_dep_cost_base) / cbcmp_base);
+  deltaq_rdmult = (int)(deltaq_rdmult * (rk / x->rb));
+
+  return AOMMAX(deltaq_rdmult, 1);
 }
 
 int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
