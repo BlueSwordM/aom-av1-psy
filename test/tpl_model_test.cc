@@ -151,7 +151,7 @@ TEST(TplModelTest, GetOverlapAreaNoOverlap) {
   EXPECT_EQ(overlap_area, 0);
 }
 
-TEST(TPLModelTest, TxfmStatsInitTest) {
+TEST(TplModelTest, TxfmStatsInitTest) {
   TplTxfmStats tpl_txfm_stats;
   av1_init_tpl_txfm_stats(&tpl_txfm_stats);
   EXPECT_EQ(tpl_txfm_stats.coeff_num, 256);
@@ -161,7 +161,7 @@ TEST(TPLModelTest, TxfmStatsInitTest) {
   }
 }
 
-TEST(TPLModelTest, TxfmStatsAccumulateTest) {
+TEST(TplModelTest, TxfmStatsAccumulateTest) {
   TplTxfmStats sub_stats;
   av1_init_tpl_txfm_stats(&sub_stats);
   sub_stats.txfm_block_count = 17;
@@ -183,7 +183,7 @@ TEST(TPLModelTest, TxfmStatsAccumulateTest) {
   }
 }
 
-TEST(TPLModelTest, TxfmStatsRecordTest) {
+TEST(TplModelTest, TxfmStatsRecordTest) {
   TplTxfmStats stats1;
   TplTxfmStats stats2;
   av1_init_tpl_txfm_stats(&stats1);
@@ -386,7 +386,7 @@ int find_gop_q_iterative(const VBR_RATECTRL_INFO *vbr_rc_info,
   return best_q;
 }
 
-TEST(TPLModelTest, EstimateFrameRateTest) {
+TEST(TplModelTest, EstimateFrameRateTest) {
   GF_GROUP gf_group;
   init_toy_gf_group(&gf_group);
 
