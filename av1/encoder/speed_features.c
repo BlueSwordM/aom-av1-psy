@@ -2085,6 +2085,11 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
       sf->gm_sf.prune_ref_frame_for_gm_search = 0;
 #endif
   }
+
+  // This only applies to the real time mode. Adaptive gf refresh is disabled if
+  // gf_cbr_boost_pct that is set by the user is larger than 0.
+  if (cpi->oxcf.rc_cfg.gf_cbr_boost_pct > 0)
+    sf->rt_sf.gf_refresh_based_on_qp = 0;
 }
 
 // Override some speed features based on qindex
