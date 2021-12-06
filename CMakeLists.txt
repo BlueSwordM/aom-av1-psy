@@ -206,6 +206,10 @@ list(APPEND AOM_WEBM_ENCODER_SOURCES "${AOM_ROOT}/common/webmenc.cc"
 include_directories(${AOM_ROOT} ${AOM_CONFIG_DIR} ${AOM_ROOT}/apps
                     ${AOM_ROOT}/common ${AOM_ROOT}/examples ${AOM_ROOT}/stats)
 
+if(CONFIG_RUNTIME_CPU_DETECT AND ANDROID_NDK)
+  include_directories(${ANDROID_NDK}/sources/android/cpufeatures)
+endif()
+
 # Targets
 add_library(aom_version ${AOM_VERSION_SOURCES})
 add_dummy_source_file_to_target(aom_version c)
