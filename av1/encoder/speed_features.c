@@ -1057,6 +1057,7 @@ static void set_good_speed_features_framesize_independent(
                 : gf_group->update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE
                       ? 1
                       : 2;
+    sf->winner_mode_sf.disable_winner_mode_eval_for_txskip = boosted ? 0 : 1;
 
     // For screen content, "prune_sgr_based_on_wiener = 2" cause large quality
     // loss.
@@ -1110,7 +1111,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.tx_type_search.fast_intra_tx_type_search = 1;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 5 : 7;
-    sf->rd_sf.tx_domain_dist_thres_level = 3;
 
     // TODO(any): Extend multi-winner mode processing support for inter frames
     sf->winner_mode_sf.multi_winner_mode_type =
@@ -1830,6 +1830,7 @@ static AOM_INLINE void init_winner_mode_sf(
   winner_mode_sf->dc_blk_pred_level = 0;
   winner_mode_sf->winner_mode_ifs = 0;
   winner_mode_sf->prune_winner_mode_processing_using_src_var = 0;
+  winner_mode_sf->disable_winner_mode_eval_for_txskip = 0;
 }
 
 static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {

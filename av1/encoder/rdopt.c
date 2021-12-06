@@ -3536,6 +3536,16 @@ static AOM_INLINE void refine_winner_mode_tx(
   // No best mode identified so far
   if (*best_mode_index == THR_INVALID) return;
 
+  int skip_winner_mode_eval =
+      cpi->sf.winner_mode_sf.disable_winner_mode_eval_for_txskip;
+  // Do not skip winner mode evaluation at low quantizers if normal mode's
+  // transform search was too aggressive.
+  if (cpi->sf.rd_sf.perform_coeff_opt >= 5 && x->qindex <= 70)
+    skip_winner_mode_eval = 0;
+
+  if (skip_winner_mode_eval && (best_mbmode->skip_txfm || rd_cost->skip_txfm))
+    return;
+
   best_rd = RDCOST(x->rdmult, rd_cost->rate, rd_cost->dist);
   for (int mode_idx = 0; mode_idx < winner_mode_count; mode_idx++) {
     RD_STATS *winner_rd_stats = NULL;

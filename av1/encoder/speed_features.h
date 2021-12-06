@@ -1197,6 +1197,10 @@ typedef struct WINNER_MODE_SPEED_FEATURES {
   // Flag used to enable the pruning of winner mode processing for blocks with
   // low source variance.
   int prune_winner_mode_processing_using_src_var;
+
+  // If on, disables transform refinement for winner mode if the normal mode
+  // evaluation resulted in transform skip.
+  int disable_winner_mode_eval_for_txskip;
 } WINNER_MODE_SPEED_FEATURES;
 
 typedef struct LOOP_FILTER_SPEED_FEATURES {
