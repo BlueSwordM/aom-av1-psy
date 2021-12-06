@@ -1142,7 +1142,7 @@ static void dr_prediction_z2_Nx4_neon(int N, uint8_t *dst, ptrdiff_t stride,
     uint16x4_t ydx;
     uint8x8_t resx, resy;
     uint16x4x2_t v_shift;
-
+    v_shift.val[1] = vdup_n_u16(0);
     int y = r + 1;
     int base_x = (-y * dx) >> frac_bits_x;
     int base_shift = 0;
@@ -1297,6 +1297,7 @@ static void dr_prediction_z2_Nx8_neon(int N, uint8_t *dst, ptrdiff_t stride,
     uint8x8_t resx, resy, resxy;
     uint16x8_t r6, ydx;
     uint16x8x2_t res, shift;
+    shift.val[1] = vdupq_n_u16(0);
 
     int y = r + 1;
     int base_x = (-y * dx) >> frac_bits_x;
