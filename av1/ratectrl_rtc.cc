@@ -69,22 +69,19 @@ void AV1RateControlRTC::InitRateControl(const AV1RateControlRtcConfig &rc_cfg) {
 
   memcpy(cpi_->ppi->level_params.target_seq_level_idx,
          oxcf->target_seq_level_idx, sizeof(oxcf->target_seq_level_idx));
+  cpi_->rc.rtc_external_ratectrl = 1;
   UpdateRateControl(rc_cfg);
   set_sb_size(cm->seq_params,
               av1_select_sb_size(oxcf, cm->width, cm->height,
                                  cpi_->svc.number_spatial_layers));
+  cpi_->ppi->use_svc = cpi_->svc.number_spatial_layers > 1 ||
+                       cpi_->svc.number_temporal_layers > 1;
   av1_primary_rc_init(oxcf, &cpi_->ppi->p_rc);
-  cpi_->ppi->use_svc = (cpi_->svc.number_spatial_layers > 1 ||
-                        cpi_->svc.number_temporal_layers > 1)
-                           ? 1
-                           : 0;
-
   rc->rc_1_frame = 0;
   rc->rc_2_frame = 0;
   av1_rc_init_minq_luts();
   av1_rc_init(oxcf, rc);
   cpi_->sf.rt_sf.use_nonrd_pick_mode = 1;
-  cpi_->rc.rtc_external_ratectrl = 1;
 }
 
 void AV1RateControlRTC::UpdateRateControl(
@@ -93,6 +90,8 @@ void AV1RateControlRTC::UpdateRateControl(
   AV1EncoderConfig *oxcf = &cpi_->oxcf;
   RATE_CONTROL *const rc = &cpi_->rc;
 
+  initial_width_ = rc_cfg.width;
+  initial_height_ = rc_cfg.height;
   cm->width = rc_cfg.width;
   cm->height = rc_cfg.height;
   oxcf->frm_dim_cfg.width = rc_cfg.width;
@@ -118,6 +117,7 @@ void AV1RateControlRTC::UpdateRateControl(
   set_primary_rc_buffer_sizes(oxcf, cpi_->ppi);
   enc_set_mb_mi(&cm->mi_params, cm->width, cm->height, cpi_->oxcf.mode,
                 BLOCK_8X8);
+  int64_t target_bandwidth_svc = 0;
   for (int sl = 0; sl < cpi_->svc.number_spatial_layers; ++sl) {
     for (int tl = 0; tl < cpi_->svc.number_temporal_layers; ++tl) {
       const int layer =
@@ -125,19 +125,23 @@ void AV1RateControlRTC::UpdateRateControl(
       LAYER_CONTEXT *lc = &cpi_->svc.layer_context[layer];
       RATE_CONTROL *const lrc = &lc->rc;
       lc->layer_target_bitrate = 1000 * rc_cfg.layer_target_bitrate[layer];
+      lc->max_q = rc_cfg.max_quantizers[layer];
+      lc->min_q = rc_cfg.min_quantizers[layer];
       lrc->worst_quality =
           av1_quantizer_to_qindex(rc_cfg.max_quantizers[layer]);
       lrc->best_quality = av1_quantizer_to_qindex(rc_cfg.min_quantizers[layer]);
       lc->scaling_factor_num = rc_cfg.scaling_factor_num[sl];
       lc->scaling_factor_den = rc_cfg.scaling_factor_den[sl];
       lc->framerate_factor = rc_cfg.ts_rate_decimator[tl];
+      if (tl == cpi_->svc.number_temporal_layers - 1)
+        target_bandwidth_svc += lc->layer_target_bitrate;
     }
   }
   av1_new_framerate(cpi_, cpi_->framerate);
   if (cpi_->svc.number_temporal_layers > 1 ||
       cpi_->svc.number_spatial_layers > 1) {
     if (cm->current_frame.frame_number == 0) av1_init_layer_context(cpi_);
-    av1_update_layer_context_change_config(cpi_, rc_cfg.target_bandwidth);
+    av1_update_layer_context_change_config(cpi_, target_bandwidth_svc);
   }
   check_reset_rc_flag(cpi_);
 }
@@ -153,8 +157,9 @@ void AV1RateControlRTC::ComputeQP(const AV1FrameParamsRTC &frame_params) {
                                        cpi_->svc.temporal_layer_id,
                                        cpi_->svc.number_temporal_layers);
     LAYER_CONTEXT *lc = &cpi_->svc.layer_context[layer];
-    av1_get_layer_resolution(cm->width, cm->height, lc->scaling_factor_num,
-                             lc->scaling_factor_den, &width, &height);
+    av1_get_layer_resolution(initial_width_, initial_height_,
+                             lc->scaling_factor_num, lc->scaling_factor_den,
+                             &width, &height);
     cm->width = width;
     cm->height = height;
   }
@@ -170,29 +175,43 @@ void AV1RateControlRTC::ComputeQP(const AV1FrameParamsRTC &frame_params) {
     gf_group->frame_type[cpi_->gf_frame_index] = KEY_FRAME;
     gf_group->refbuf_state[cpi_->gf_frame_index] = REFBUF_RESET;
     cpi_->rc.frames_since_key = 0;
+    if (cpi_->ppi->use_svc) {
+      const int layer = LAYER_IDS_TO_IDX(cpi_->svc.spatial_layer_id,
+                                         cpi_->svc.temporal_layer_id,
+                                         cpi_->svc.number_temporal_layers);
+      if (cm->current_frame.frame_number > 0)
+        av1_svc_reset_temporal_layers(cpi_, 1);
+      cpi_->svc.layer_context[layer].is_key_frame = 1;
+    }
   } else {
     gf_group->update_type[cpi_->gf_frame_index] = LF_UPDATE;
     gf_group->frame_type[cpi_->gf_frame_index] = INTER_FRAME;
     gf_group->refbuf_state[cpi_->gf_frame_index] = REFBUF_UPDATE;
+    if (cpi_->ppi->use_svc) {
+      const int layer = LAYER_IDS_TO_IDX(cpi_->svc.spatial_layer_id,
+                                         cpi_->svc.temporal_layer_id,
+                                         cpi_->svc.number_temporal_layers);
+      cpi_->svc.layer_context[layer].is_key_frame = 0;
+    }
     cpi_->rc.frames_since_key++;
   }
-  if (cpi_->svc.number_spatial_layers == 1 &&
-      cpi_->svc.number_temporal_layers == 1) {
-    int target = 0;
-    if (cpi_->oxcf.rc_cfg.mode == AOM_CBR) {
-      if (cpi_->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ)
-        av1_cyclic_refresh_update_parameters(cpi_);
-      if (frame_is_intra_only(cm))
-        target = av1_calc_iframe_target_size_one_pass_cbr(cpi_);
-      else
-        target = av1_calc_pframe_target_size_one_pass_cbr(
-            cpi_, gf_group->update_type[cpi_->gf_frame_index]);
-    }
-    av1_rc_set_frame_target(cpi_, target, cm->width, cm->height);
-  } else {
+  if (cpi_->svc.number_spatial_layers > 1 ||
+      cpi_->svc.number_temporal_layers > 1) {
     av1_update_temporal_layer_framerate(cpi_);
     av1_restore_layer_context(cpi_);
   }
+  int target = 0;
+  if (cpi_->oxcf.rc_cfg.mode == AOM_CBR) {
+    if (cpi_->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ)
+      av1_cyclic_refresh_update_parameters(cpi_);
+    if (frame_is_intra_only(cm))
+      target = av1_calc_iframe_target_size_one_pass_cbr(cpi_);
+    else
+      target = av1_calc_pframe_target_size_one_pass_cbr(
+          cpi_, gf_group->update_type[cpi_->gf_frame_index]);
+  }
+  av1_rc_set_frame_target(cpi_, target, cm->width, cm->height);
+
   int bottom_index, top_index;
   cpi_->common.quant_params.base_qindex =
       av1_rc_pick_q_and_bounds(cpi_, cm->width, cm->height,

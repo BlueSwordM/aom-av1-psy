@@ -233,7 +233,7 @@ static void update_layer_buffer_level(SVC *svc, int encoded_frame_size) {
     LAYER_CONTEXT *lc = &svc->layer_context[layer];
     PRIMARY_RATE_CONTROL *lp_rc = &lc->p_rc;
     lp_rc->bits_off_target +=
-        (int)(lc->target_bandwidth / lc->framerate) - encoded_frame_size;
+        (int)round(lc->target_bandwidth / lc->framerate) - encoded_frame_size;
     // Clip buffer level to maximum buffer size for the layer.
     lp_rc->bits_off_target =
         AOMMIN(lp_rc->bits_off_target, lp_rc->maximum_buffer_size);
@@ -2240,7 +2240,7 @@ void av1_rc_update_framerate(AV1_COMP *cpi, int width, int height) {
   const int MBs = av1_get_MBs(width, height);
 
   rc->avg_frame_bandwidth =
-      (int)(oxcf->rc_cfg.target_bandwidth / cpi->framerate);
+      (int)round(oxcf->rc_cfg.target_bandwidth / cpi->framerate);
   rc->min_frame_bandwidth =
       (int)(rc->avg_frame_bandwidth * oxcf->rc_cfg.vbrmin_section / 100);
 

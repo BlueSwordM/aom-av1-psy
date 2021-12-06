@@ -125,6 +125,8 @@ class AV1RateControlRTC {
   AV1RateControlRTC() = default;
   void InitRateControl(const AV1RateControlRtcConfig &cfg);
   AV1_COMP *cpi_;
+  int initial_width_;
+  int initial_height_;
 };
 
 }  // namespace aom
