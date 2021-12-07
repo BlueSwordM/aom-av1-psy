@@ -1063,6 +1063,8 @@ static void set_good_speed_features_framesize_independent(
     // loss.
     sf->lpf_sf.prune_sgr_based_on_wiener = allow_screen_content_tools ? 1 : 2;
     sf->lpf_sf.prune_wiener_based_on_src_var = 2;
+    sf->lpf_sf.use_coarse_filter_level_search =
+        frame_is_intra_only(&cpi->common) ? 0 : 1;
   }
 
   if (speed >= 4) {
@@ -1121,8 +1123,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
-    sf->lpf_sf.use_coarse_filter_level_search =
-        frame_is_intra_only(&cpi->common) ? 0 : 1;
   }
 
   if (speed >= 5) {
