@@ -658,6 +658,8 @@ static void set_good_speed_feature_framesize_dependent(
       if (use_hbd) sf->tx_sf.prune_tx_size_level = 2;
     } else {
       if (use_hbd) sf->tx_sf.prune_tx_size_level = 3;
+      sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = boosted ? 0 : 1;
+      sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = boosted ? 0 : 1;
     }
 
     if (!is_720p_or_larger) {
@@ -680,6 +682,9 @@ static void set_good_speed_feature_framesize_dependent(
     sf->inter_sf.skip_ext_comp_nearmv_mode = 1;
     sf->inter_sf.limit_inter_mode_cands = is_lf_frame ? 3 : 0;
     sf->inter_sf.disable_interinter_wedge_newmv_search = boosted ? 0 : 1;
+    sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 1;
+    sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch =
+        frame_is_intra_only(&cpi->common) ? 0 : 1;
 
     sf->part_sf.ml_early_term_after_part_split_level = 0;
 
@@ -718,6 +723,8 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (speed >= 4) {
+    sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 2;
+    sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
     if (is_720p_or_larger) {
       sf->part_sf.partition_search_breakout_dist_thr = (1 << 26);
     } else {
@@ -769,6 +776,7 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (speed >= 6) {
+    sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 4;
     sf->inter_sf.prune_nearmv_using_neighbors = PRUNE_NEARMV_LEVEL3;
     if (is_720p_or_larger) {
       sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
@@ -1044,13 +1052,10 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.adaptive_txb_search_level = boosted ? 2 : 3;
     sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_3;
-    sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 1;
 
     // TODO(any): Refactor the code related to following winner mode speed
     // features
     sf->winner_mode_sf.enable_winner_mode_for_coeff_opt = 1;
-    sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch =
-        frame_is_intra_only(&cpi->common) ? 0 : 1;
     sf->winner_mode_sf.enable_winner_mode_for_use_tx_domain_dist = 1;
     sf->winner_mode_sf.motion_mode_for_winner_cand =
         boosted ? 0
@@ -1109,7 +1114,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.subpel_force_stop = HALF_PEL;
     sf->tpl_sf.search_method = FAST_BIGDIA;
 
-    sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 2;
     sf->tx_sf.tx_type_search.fast_intra_tx_type_search = 1;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 5 : 7;
@@ -1118,7 +1122,6 @@ static void set_good_speed_features_framesize_independent(
     sf->winner_mode_sf.multi_winner_mode_type =
         frame_is_intra_only(&cpi->common) ? MULTI_WINNER_MODE_DEFAULT
                                           : MULTI_WINNER_MODE_OFF;
-    sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
     sf->winner_mode_sf.dc_blk_pred_level = boosted ? 0 : 1;
 
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
@@ -1190,7 +1193,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.gop_length_decision_method = 3;
     sf->tpl_sf.disable_filtered_key_tpl = 1;
 
-    sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 4;
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 6 : 8;
 
     sf->winner_mode_sf.dc_blk_pred_level = 2;
