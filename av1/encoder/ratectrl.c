@@ -2978,6 +2978,18 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
           svc->spatial_layer_id == 0
               ? 0
               : svc->layer_context[svc->temporal_layer_id].is_key_frame;
+      // If the user is setting the SVC pattern with set_ref_frame_config and
+      // did not set any references, set the frame type to Intra-only.
+      if (svc->set_ref_frame_config) {
+        int no_references_set = 1;
+        for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
+          if (svc->reference[i]) {
+            no_references_set = 0;
+            break;
+          }
+        }
+        if (no_references_set) frame_params->frame_type = INTRA_ONLY_FRAME;
+      }
     }
   }
   // Check for scene change: for SVC check on base spatial layer only.
@@ -3008,14 +3020,16 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
     set_gf_interval_update_onepass_rt(cpi, frame_params->frame_type);
   // Set target size.
   if (cpi->oxcf.rc_cfg.mode == AOM_CBR) {
-    if (frame_params->frame_type == KEY_FRAME) {
+    if (frame_params->frame_type == KEY_FRAME ||
+        frame_params->frame_type == INTRA_ONLY_FRAME) {
       target = av1_calc_iframe_target_size_one_pass_cbr(cpi);
     } else {
       target = av1_calc_pframe_target_size_one_pass_cbr(
           cpi, gf_group->update_type[cpi->gf_frame_index]);
     }
   } else {
-    if (frame_params->frame_type == KEY_FRAME) {
+    if (frame_params->frame_type == KEY_FRAME ||
+        frame_params->frame_type == INTRA_ONLY_FRAME) {
       target = av1_calc_iframe_target_size_one_pass_vbr(cpi);
     } else {
       target = av1_calc_pframe_target_size_one_pass_vbr(
