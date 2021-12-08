@@ -4317,6 +4317,10 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
     compute_internal_stats(cpi, (int)cpi_data->frame_size);
   }
 #endif  // CONFIG_INTERNAL_STATS
+
+  // Write frame info. Subtract 1 from frame index since if was incremented in
+  // update_rc_counts.
+  av1_write_second_pass_per_frame_info(cpi, cpi->gf_frame_index - 1);
 }
 
 int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {

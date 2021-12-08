@@ -3748,6 +3748,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       av1_read_second_pass_gop_info(cpi, &cpi->third_pass_ctx->gop_info);
       // Read in third_pass_info from the bitstream.
       av1_set_gop_third_pass(cpi->third_pass_ctx);
+      // Read in per-frame info from second-pass encoding
+      av1_read_second_pass_per_frame_info(cpi);
 
       p_rc->cur_gf_index = 0;
       p_rc->gf_intervals[0] = cpi->third_pass_ctx->gop_info.gf_length;
@@ -3812,6 +3814,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
     define_gf_group(cpi, frame_params, 1);
 
+    // write gop info if needed for third pass. Per-frame info is written after
+    // each frame is encoded.
     av1_write_second_pass_gop_info(cpi);
 
     av1_tf_info_filtering(&cpi->ppi->tf_info, cpi, gf_group);

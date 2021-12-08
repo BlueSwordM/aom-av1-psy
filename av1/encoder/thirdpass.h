@@ -53,6 +53,9 @@ typedef struct {
   int base_q_idx;
   int is_show_existing_frame;
   int is_show_frame;
+  int bits_allocated;
+  int actual_bits;
+  uint64_t sse;
   FRAME_TYPE frame_type;
   unsigned int order_hint;
   THIRD_PASS_MI_INFO *mi_info;
@@ -83,6 +86,8 @@ typedef struct {
   // error info pointer
   struct aom_internal_error_info *err_info;
 
+  int this_frame_bits;
+
   /* --- Members for third pass encoding --- */
   // Array to store info about each frame.
   // frame_info[0] should point to the current frame.
@@ -110,10 +115,15 @@ void av1_pop_third_pass_info(THIRD_PASS_DEC_CTX *ctx);
 
 // Write the current GOP information into the second pass log file.
 void av1_write_second_pass_gop_info(struct AV1_COMP *cpi);
+// Write the information of the frames in this GOP into the second pass log
+// file.
+void av1_write_second_pass_per_frame_info(struct AV1_COMP *cpi, int gf_index);
 
 // Read the next GOP information from the second pass log file.
 void av1_read_second_pass_gop_info(struct AV1_COMP *cpi,
                                    THIRD_PASS_GOP_INFO *gop_info);
+// read the information of the frames in next GOP from the second pass log file.
+void av1_read_second_pass_per_frame_info(struct AV1_COMP *cpi);
 
 int av1_check_use_arf(THIRD_PASS_DEC_CTX *ctx);
 

@@ -11,6 +11,7 @@
 
 #include "aom/aom_codec.h"
 #include "aom/aomdx.h"
+#include "aom_dsp/psnr.h"
 #include "aom_mem/aom_mem.h"
 #include "av1/av1_iface_common.h"
 #include "av1/encoder/encoder.h"
@@ -111,6 +112,7 @@ static int read_frame(THIRD_PASS_DEC_CTX *ctx) {
     aom_internal_error(ctx->err_info, AOM_CODEC_ERROR,
                        "Failed to decode frame for third pass.");
   }
+  ctx->this_frame_bits = (int)(adr.buf - ctx->frame) << 3;
   ctx->frame = adr.buf;
   ctx->bytes_in_buffer = ctx->end_frame - ctx->frame;
   if (ctx->frame == ctx->end_frame) ctx->have_frame = 0;
@@ -132,6 +134,9 @@ static int get_frame_info(THIRD_PASS_DEC_CTX *ctx) {
   int ret = read_frame(ctx);
   if (ret != 0) return ret;
   int cur = ctx->frame_info_count;
+
+  ctx->frame_info[cur].actual_bits = ctx->this_frame_bits;
+
   if (cur >= MAX_THIRD_PASS_BUF) {
     aom_internal_error(ctx->err_info, AOM_CODEC_ERROR,
                        "Third pass frame info ran out of available slots.");
@@ -439,6 +444,51 @@ void av1_write_second_pass_gop_info(AV1_COMP *cpi) {
   }
 }
 
+void av1_write_second_pass_per_frame_info(AV1_COMP *cpi, int gf_index) {
+  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
+
+  if (oxcf->pass == AOM_RC_SECOND_PASS && oxcf->second_pass_log) {
+    // write target bitrate
+    int bits = gf_group->bit_allocation[gf_index];
+    size_t count = fwrite(&bits, sizeof(bits), 1, cpi->second_pass_log_stream);
+    if (count < 1) {
+      aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
+                         "Could not write to second pass log file!");
+    }
+
+    // write sse
+    uint64_t sse = 0;
+    int pkt_idx = cpi->ppi->output_pkt_list->cnt - 1;
+    if (pkt_idx >= 0 &&
+        cpi->ppi->output_pkt_list->pkts[pkt_idx].kind == AOM_CODEC_PSNR_PKT) {
+      sse = cpi->ppi->output_pkt_list->pkts[pkt_idx].data.psnr.sse[0];
+#if CONFIG_INTERNAL_STATS
+    } else if (cpi->ppi->b_calculate_psnr) {
+      sse = cpi->ppi->total_sq_error[0];
+#endif
+    } else {
+      const YV12_BUFFER_CONFIG *orig = cpi->source;
+      const YV12_BUFFER_CONFIG *recon = &cpi->common.cur_frame->buf;
+      PSNR_STATS psnr;
+#if CONFIG_AV1_HIGHBITDEPTH
+      const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
+      const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
+      aom_calc_highbd_psnr(orig, recon, &psnr, bit_depth, in_bit_depth);
+#else
+      aom_calc_psnr(orig, recon, &psnr);
+#endif
+      sse = psnr.sse[0];
+    }
+
+    count = fwrite(&sse, sizeof(sse), 1, cpi->second_pass_log_stream);
+    if (count < 1) {
+      aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
+                         "Could not write to second pass log file!");
+    }
+  }
+}
+
 void av1_read_second_pass_gop_info(AV1_COMP *cpi,
                                    THIRD_PASS_GOP_INFO *gop_info) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
@@ -463,6 +513,32 @@ void av1_read_second_pass_gop_info(AV1_COMP *cpi,
     if (count < 1) {
       aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
                          "Could not read from second pass log file!");
+    }
+  }
+}
+
+void av1_read_second_pass_per_frame_info(AV1_COMP *cpi) {
+  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+
+  if (oxcf->pass == AOM_RC_THIRD_PASS) {
+    for (int i = 0; i < cpi->third_pass_ctx->gop_info.num_frames; i++) {
+      // read target bits
+      int bits = 0;
+      size_t count = fread(&bits, sizeof(bits), 1, cpi->second_pass_log_stream);
+      if (count < 1) {
+        aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
+                           "Could not read from second pass log file!");
+      }
+      cpi->third_pass_ctx->frame_info[i].bits_allocated = bits;
+
+      // read distortion
+      uint64_t sse;
+      count = fread(&sse, sizeof(sse), 1, cpi->second_pass_log_stream);
+      if (count < 1) {
+        aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
+                           "Could not read from second pass log file!");
+      }
+      cpi->third_pass_ctx->frame_info[i].sse = sse;
     }
   }
 }
