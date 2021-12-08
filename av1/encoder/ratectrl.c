@@ -440,7 +440,8 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality) {
   const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   const AV1_COMMON *const cm = &cpi->common;
   const RefreshFrameInfo *const refresh_frame = &cpi->refresh_frame;
-  const int max_delta = 16;
+  const int max_delta_down = 16;
+  const int max_delta_up = 20;
   const int change_avg_frame_bandwidth =
       abs(rc->avg_frame_bandwidth - rc->prev_avg_frame_bandwidth) >
       0.1 * (rc->avg_frame_bandwidth);
@@ -458,8 +459,15 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality) {
     // Make sure q is between oscillating Qs to prevent resonance.
     if (rc->rc_1_frame * rc->rc_2_frame == -1 &&
         rc->q_1_frame != rc->q_2_frame) {
-      q = clamp(q, AOMMIN(rc->q_1_frame, rc->q_2_frame),
-                AOMMAX(rc->q_1_frame, rc->q_2_frame));
+      int qclamp = clamp(q, AOMMIN(rc->q_1_frame, rc->q_2_frame),
+                         AOMMAX(rc->q_1_frame, rc->q_2_frame));
+      // If the previous frame had overshoot and the current q needs to
+      // increase above the clamped value, reduce the clamp for faster reaction
+      // to overshoot.
+      if (cpi->rc.rc_1_frame == -1 && q > qclamp && rc->frames_since_key > 10)
+        q = (q + qclamp) >> 1;
+      else
+        q = qclamp;
     }
     // Adjust Q base on source content change from scene detection.
     if (cpi->sf.rt_sf.check_scene_detection && rc->prev_avg_source_sad > 0 &&
@@ -485,7 +493,10 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality) {
       }
     }
     // Limit the decrease in Q from previous frame.
-    if (rc->q_1_frame - q > max_delta) q = rc->q_1_frame - max_delta;
+    if (rc->q_1_frame - q > max_delta_down) q = rc->q_1_frame - max_delta_down;
+    // Limit the increase in Q from previous frame.
+    else if (q - rc->q_1_frame > max_delta_up)
+      q = rc->q_1_frame + max_delta_up;
   }
   // For single spatial layer: if resolution has increased push q closer
   // to the active_worst to avoid excess overshoot.
