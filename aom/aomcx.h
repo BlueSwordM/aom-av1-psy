@@ -1420,6 +1420,17 @@ enum aome_enc_control_id {
    */
   AV1E_SET_FP_MT = 153,
 
+  /*!\brief Codec control to enable actual frame parallel encode or
+   * simulation of frame parallel encode in FPMT unit test, unsigned int
+   * parameter
+   *
+   * - 0 = simulate frame parallel encode
+   * - 1 = actual frame parallel encode (default)
+   *
+   * \note This is only used in FPMT unit test.
+   */
+  AV1E_SET_FP_MT_UNIT_TEST = 154,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -1996,6 +2007,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_RTC_EXTERNAL_RC, int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_FP_MT, unsigned int)
 #define AOM_CTRL_AV1E_SET_FP_MT
+
+AOM_CTRL_USE_TYPE(AV1E_SET_FP_MT_UNIT_TEST, unsigned int)
+#define AOM_CTRL_AV1E_SET_FP_MT_UNIT_TEST
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

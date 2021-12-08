@@ -99,6 +99,9 @@ struct av1_extracfg {
   int film_grain_test_vector;
   const char *film_grain_table_filename;
   unsigned int motion_vector_unit_test;
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  unsigned int fpmt_unit_test;
+#endif
   unsigned int cdf_update_mode;
   int enable_rect_partitions;    // enable rectangular partitions for sequence
   int enable_ab_partitions;      // enable AB partitions for sequence
@@ -409,6 +412,9 @@ static const struct av1_extracfg default_extra_cfg = {
   0,                            // film_grain_test_vector
   NULL,                         // film_grain_table_filename
   0,                            // motion_vector_unit_test
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  0,                            // fpmt_unit_test
+#endif
   1,                            // CDF update mode
   1,                            // enable rectangular partitions
   1,                            // enable ab shape partitions
@@ -665,6 +671,9 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, cdf_update_mode, 2);
 
   RANGE_CHECK_HI(extra_cfg, motion_vector_unit_test, 2);
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+  RANGE_CHECK_HI(extra_cfg, fpmt_unit_test, 1);
+#endif
   RANGE_CHECK_HI(extra_cfg, sb_multipass_unit_test, 1);
   RANGE_CHECK_HI(extra_cfg, ext_tile_debug, 1);
   RANGE_CHECK_HI(extra_cfg, enable_auto_alt_ref, 1);
@@ -2355,6 +2364,22 @@ static aom_codec_err_t ctrl_enable_motion_vector_unit_test(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+static aom_codec_err_t ctrl_enable_fpmt_unit_test(aom_codec_alg_priv_t *ctx,
+                                                  va_list args) {
+#if !(CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST)
+  (void)args;
+  (void)ctx;
+  return AOM_CODEC_INCAPABLE;
+#else
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.fpmt_unit_test = CAST(AV1E_SET_FP_MT_UNIT_TEST, args);
+  ctx->ppi->fpmt_unit_test_cfg = (extra_cfg.fpmt_unit_test == 1)
+                                     ? PARALLEL_ENCODE
+                                     : PARALLEL_SIMULATION_ENCODE;
+  return update_extra_cfg(ctx, &extra_cfg);
+#endif
+}
+
 static aom_codec_err_t ctrl_enable_ext_tile_debug(aom_codec_alg_priv_t *ctx,
                                                   va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -2590,14 +2615,6 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
       if (res != AOM_CODEC_OK) {
         return res;
       }
-#if CONFIG_FPMT_TEST
-      // When called from the unit test, if max_threads == 2, simulation of
-      // frame parallel encode using single cpi is enabled, else actual
-      // frame parallel encode using multiple cpis is enabled.
-      priv->ppi->fpmt_unit_test_cfg = (priv->oxcf.max_threads == 2)
-                                          ? PARALLEL_SIMULATION_ENCODE
-                                          : PARALLEL_ENCODE;
-#endif
 #if !CONFIG_REALTIME_ONLY
       priv->ppi->parallel_cpi[0]->twopass_frame.stats_in =
           priv->ppi->twopass.stats_buf_ctx->stats_in_start;
@@ -4078,6 +4095,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_DENOISE_BLOCK_SIZE, ctrl_set_denoise_block_size },
   { AV1E_SET_ENABLE_DNL_DENOISING, ctrl_set_enable_dnl_denoising },
   { AV1E_ENABLE_MOTION_VECTOR_UNIT_TEST, ctrl_enable_motion_vector_unit_test },
+  { AV1E_SET_FP_MT_UNIT_TEST, ctrl_enable_fpmt_unit_test },
   { AV1E_ENABLE_EXT_TILE_DEBUG, ctrl_enable_ext_tile_debug },
   { AV1E_SET_TARGET_SEQ_LEVEL_IDX, ctrl_set_target_seq_level_idx },
   { AV1E_SET_TIER_MASK, ctrl_set_tier_mask },
