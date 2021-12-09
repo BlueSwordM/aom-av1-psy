@@ -448,7 +448,7 @@ add_proto qw/void av1_calc_indices_dim2/, "const int *data, const int *centroids
   specialize qw/av1_get_crc32c_value sse4_2/;
 
   if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
-    add_proto qw/void av1_compute_stats/,  "int wiener_win, const uint8_t *dgd8, const uint8_t *src8, int h_start, int h_end, int v_start, int v_end, int dgd_stride, int src_stride, int64_t *M, int64_t *H";
+    add_proto qw/void av1_compute_stats/,  "int wiener_win, const uint8_t *dgd8, const uint8_t *src8, int h_start, int h_end, int v_start, int v_end, int dgd_stride, int src_stride, int64_t *M, int64_t *H, int use_downsampled_wiener_stats";
     # TODO(any): Both sse4_1 and avx2 version cause slight c/SIMD mismatch. Need to check if it can be fixed. Original commit 9042a3cd777a69d8bff9d142df46ed8d2647d7a8
     if (aom_config("CONFIG_EXCLUDE_SIMD_MISMATCH") ne "yes") {
       specialize qw/av1_compute_stats sse4_1 avx2/;

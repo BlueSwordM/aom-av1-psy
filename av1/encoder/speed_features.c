@@ -1070,6 +1070,7 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.prune_wiener_based_on_src_var = 2;
     sf->lpf_sf.use_coarse_filter_level_search =
         frame_is_intra_only(&cpi->common) ? 0 : 1;
+    sf->lpf_sf.use_downsampled_wiener_stats = 1;
   }
 
   if (speed >= 4) {
@@ -1848,6 +1849,7 @@ static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   // Set decoder side speed feature to use less dual sgr modes
   lpf_sf->dual_sgr_penalty_level = 0;
   lpf_sf->disable_lr_filter = 0;
+  lpf_sf->use_downsampled_wiener_stats = 0;
 }
 
 static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {

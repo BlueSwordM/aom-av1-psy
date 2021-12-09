@@ -34,13 +34,15 @@ namespace wiener_lowbd {
 static void compute_stats_win_opt_c(int wiener_win, const uint8_t *dgd,
                                     const uint8_t *src, int h_start, int h_end,
                                     int v_start, int v_end, int dgd_stride,
-                                    int src_stride, int64_t *M, int64_t *H) {
+                                    int src_stride, int64_t *M, int64_t *H,
+                                    int use_downsampled_wiener_stats) {
   ASSERT_TRUE(wiener_win == WIENER_WIN || wiener_win == WIENER_WIN_CHROMA);
   int i, j, k, l, m, n;
   const int pixel_count = (h_end - h_start) * (v_end - v_start);
   const int wiener_win2 = wiener_win * wiener_win;
   const int wiener_halfwin = (wiener_win >> 1);
   uint8_t avg = find_average(dgd, h_start, h_end, v_start, v_end, dgd_stride);
+  (void)use_downsampled_wiener_stats;
 
   std::vector<std::vector<int64_t> > M_int(wiener_win,
                                            std::vector<int64_t>(wiener_win, 0));
@@ -95,14 +97,16 @@ static void compute_stats_win_opt_c(int wiener_win, const uint8_t *dgd,
 
 void compute_stats_opt_c(int wiener_win, const uint8_t *dgd, const uint8_t *src,
                          int h_start, int h_end, int v_start, int v_end,
-                         int dgd_stride, int src_stride, int64_t *M,
-                         int64_t *H) {
+                         int dgd_stride, int src_stride, int64_t *M, int64_t *H,
+                         int use_downsampled_wiener_stats) {
   if (wiener_win == WIENER_WIN || wiener_win == WIENER_WIN_CHROMA) {
     compute_stats_win_opt_c(wiener_win, dgd, src, h_start, h_end, v_start,
-                            v_end, dgd_stride, src_stride, M, H);
+                            v_end, dgd_stride, src_stride, M, H,
+                            use_downsampled_wiener_stats);
   } else {
     av1_compute_stats_c(wiener_win, dgd, src, h_start, h_end, v_start, v_end,
-                        dgd_stride, src_stride, M, H);
+                        dgd_stride, src_stride, M, H,
+                        use_downsampled_wiener_stats);
   }
 }
 
@@ -110,7 +114,8 @@ static const int kIterations = 100;
 typedef void (*compute_stats_Func)(int wiener_win, const uint8_t *dgd,
                                    const uint8_t *src, int h_start, int h_end,
                                    int v_start, int v_end, int dgd_stride,
-                                   int src_stride, int64_t *M, int64_t *H);
+                                   int src_stride, int64_t *M, int64_t *H,
+                                   int use_downsampled_wiener_stats);
 
 ////////////////////////////////////////////////////////////////////////////////
 // 8 bit
@@ -171,14 +176,14 @@ void WienerTest::RunWienerTest(const int32_t wiener_win, int32_t run_times) {
     aom_usec_timer_start(&timer);
     for (int i = 0; i < run_times; ++i) {
       av1_compute_stats_c(wiener_win, dgd, src, h_start, h_end, v_start, v_end,
-                          dgd_stride, src_stride, M_ref, H_ref);
+                          dgd_stride, src_stride, M_ref, H_ref, 0);
     }
     aom_usec_timer_mark(&timer);
     const double time1 = static_cast<double>(aom_usec_timer_elapsed(&timer));
     aom_usec_timer_start(&timer);
     for (int i = 0; i < run_times; ++i) {
       target_func_(wiener_win, dgd, src, h_start, h_end, v_start, v_end,
-                   dgd_stride, src_stride, M_test, H_test);
+                   dgd_stride, src_stride, M_test, H_test, 0);
     }
     aom_usec_timer_mark(&timer);
     const double time2 = static_cast<double>(aom_usec_timer_elapsed(&timer));
@@ -231,10 +236,10 @@ void WienerTest::RunWienerTest_ExtremeValues(const int32_t wiener_win) {
     uint8_t *src = src_buf;
 
     av1_compute_stats_c(wiener_win, dgd, src, h_start, h_end, v_start, v_end,
-                        dgd_stride, src_stride, M_ref, H_ref);
+                        dgd_stride, src_stride, M_ref, H_ref, 0);
 
     target_func_(wiener_win, dgd, src, h_start, h_end, v_start, v_end,
-                 dgd_stride, src_stride, M_test, H_test);
+                 dgd_stride, src_stride, M_test, H_test, 0);
 
     int failed = 0;
     for (int i = 0; i < wiener_win2; ++i) {

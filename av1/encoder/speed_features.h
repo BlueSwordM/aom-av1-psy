@@ -1246,6 +1246,9 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
 
   // Disable loop restoration filter
   int disable_lr_filter;
+
+  // Whether to downsample the rows in computation of wiener stats.
+  int use_downsampled_wiener_stats;
 } LOOP_FILTER_SPEED_FEATURES;
 
 typedef struct REAL_TIME_SPEED_FEATURES {

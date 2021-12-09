@@ -65,7 +65,8 @@ static INLINE void acc_stat_win7_one_line_avx2(
 
 static INLINE void compute_stats_win7_opt_avx2(
     const uint8_t *dgd, const uint8_t *src, int h_start, int h_end, int v_start,
-    int v_end, int dgd_stride, int src_stride, int64_t *M, int64_t *H) {
+    int v_end, int dgd_stride, int src_stride, int64_t *M, int64_t *H,
+    int use_downsampled_wiener_stats) {
   int i, j, k, l, m, n;
   const int wiener_win = WIENER_WIN;
   const int pixel_count = (h_end - h_start) * (v_end - v_start);
@@ -75,21 +76,51 @@ static INLINE void compute_stats_win7_opt_avx2(
 
   int32_t M_int32[WIENER_WIN][WIENER_WIN] = { { 0 } };
   int64_t M_int64[WIENER_WIN][WIENER_WIN] = { { 0 } };
+  int32_t M_int32_row[WIENER_WIN][WIENER_WIN] = { { 0 } };
 
   DECLARE_ALIGNED(32, int32_t,
                   H_int32[WIENER_WIN2][WIENER_WIN * 8]) = { { 0 } };
+  DECLARE_ALIGNED(32, int32_t,
+                  H_int32_row[WIENER_WIN2][WIENER_WIN * 8]) = { { 0 } };
   int64_t H_int64[WIENER_WIN2][WIENER_WIN * 8] = { { 0 } };
   int32_t sumY[WIENER_WIN][WIENER_WIN] = { { 0 } };
   int32_t sumX = 0;
   const uint8_t *dgd_win = dgd - wiener_halfwin * dgd_stride - wiener_halfwin;
+  int downsample_factor =
+      use_downsampled_wiener_stats ? WIENER_STATS_DOWNSAMPLE_FACTOR : 1;
+  int32_t sumX_row = 0;
+  int32_t sumY_row[WIENER_WIN][WIENER_WIN] = { { 0 } };
 
   const __m128i shuffle = xx_loadu_128(g_shuffle_stats_data);
   for (j = v_start; j < v_end; j += 64) {
     const int vert_end = AOMMIN(64, v_end - j) + j;
-    for (i = j; i < vert_end; i++) {
+    for (i = j; i < vert_end; i = i + downsample_factor) {
+      if (use_downsampled_wiener_stats &&
+          (vert_end - i < WIENER_STATS_DOWNSAMPLE_FACTOR)) {
+        downsample_factor = vert_end - i;
+      }
+      sumX_row = 0;
+      memset(sumY_row, 0, sizeof(int32_t) * WIENER_WIN * WIENER_WIN);
+      memset(M_int32_row, 0, sizeof(int32_t) * WIENER_WIN * WIENER_WIN);
+      memset(H_int32_row, 0, sizeof(int32_t) * WIENER_WIN2 * (WIENER_WIN * 8));
       acc_stat_win7_one_line_avx2(
           dgd_win + i * dgd_stride, src + i * src_stride, h_start, h_end,
-          dgd_stride, &shuffle, &sumX, sumY, M_int32, H_int32);
+          dgd_stride, &shuffle, &sumX_row, sumY_row, M_int32_row, H_int32_row);
+      sumX += sumX_row * downsample_factor;
+
+      // Scale M matrix based on the downsampling factor
+      for (k = 0; k < wiener_win; ++k) {
+        for (l = 0; l < wiener_win; ++l) {
+          sumY[k][l] += (sumY_row[k][l] * downsample_factor);
+          M_int32[k][l] += (M_int32_row[k][l] * downsample_factor);
+        }
+      }
+      // Scale H matrix based on the downsampling factor
+      for (k = 0; k < WIENER_WIN2; ++k) {
+        for (l = 0; l < WIENER_WIN * 8; ++l) {
+          H_int32[k][l] += (H_int32_row[k][l] * downsample_factor);
+        }
+      }
     }
     for (k = 0; k < wiener_win; ++k) {
       for (l = 0; l < wiener_win; ++l) {
@@ -418,7 +449,8 @@ static INLINE void acc_stat_win5_one_line_avx2(
 
 static INLINE void compute_stats_win5_opt_avx2(
     const uint8_t *dgd, const uint8_t *src, int h_start, int h_end, int v_start,
-    int v_end, int dgd_stride, int src_stride, int64_t *M, int64_t *H) {
+    int v_end, int dgd_stride, int src_stride, int64_t *M, int64_t *H,
+    int use_downsampled_wiener_stats) {
   int i, j, k, l, m, n;
   const int wiener_win = WIENER_WIN_CHROMA;
   const int pixel_count = (h_end - h_start) * (v_end - v_start);
@@ -427,22 +459,56 @@ static INLINE void compute_stats_win5_opt_avx2(
   uint8_t avg = find_average(dgd, h_start, h_end, v_start, v_end, dgd_stride);
 
   int32_t M_int32[WIENER_WIN_CHROMA][WIENER_WIN_CHROMA] = { { 0 } };
+  int32_t M_int32_row[WIENER_WIN_CHROMA][WIENER_WIN_CHROMA] = { { 0 } };
   int64_t M_int64[WIENER_WIN_CHROMA][WIENER_WIN_CHROMA] = { { 0 } };
   DECLARE_ALIGNED(
       32, int32_t,
       H_int32[WIENER_WIN2_CHROMA][WIENER_WIN_CHROMA * 8]) = { { 0 } };
+  DECLARE_ALIGNED(
+      32, int32_t,
+      H_int32_row[WIENER_WIN2_CHROMA][WIENER_WIN_CHROMA * 8]) = { { 0 } };
   int64_t H_int64[WIENER_WIN2_CHROMA][WIENER_WIN_CHROMA * 8] = { { 0 } };
   int32_t sumY[WIENER_WIN_CHROMA][WIENER_WIN_CHROMA] = { { 0 } };
   int32_t sumX = 0;
   const uint8_t *dgd_win = dgd - wiener_halfwin * dgd_stride - wiener_halfwin;
+  int downsample_factor =
+      use_downsampled_wiener_stats ? WIENER_STATS_DOWNSAMPLE_FACTOR : 1;
+  int32_t sumX_row = 0;
+  int32_t sumY_row[WIENER_WIN_CHROMA][WIENER_WIN_CHROMA] = { { 0 } };
 
   const __m128i shuffle = xx_loadu_128(g_shuffle_stats_data);
   for (j = v_start; j < v_end; j += 64) {
     const int vert_end = AOMMIN(64, v_end - j) + j;
-    for (i = j; i < vert_end; i++) {
+    for (i = j; i < vert_end; i = i + downsample_factor) {
+      if (use_downsampled_wiener_stats &&
+          (vert_end - i < WIENER_STATS_DOWNSAMPLE_FACTOR)) {
+        downsample_factor = vert_end - i;
+      }
+      sumX_row = 0;
+      memset(sumY_row, 0,
+             sizeof(int32_t) * WIENER_WIN_CHROMA * WIENER_WIN_CHROMA);
+      memset(M_int32_row, 0,
+             sizeof(int32_t) * WIENER_WIN_CHROMA * WIENER_WIN_CHROMA);
+      memset(H_int32_row, 0,
+             sizeof(int32_t) * WIENER_WIN2_CHROMA * (WIENER_WIN_CHROMA * 8));
       acc_stat_win5_one_line_avx2(
           dgd_win + i * dgd_stride, src + i * src_stride, h_start, h_end,
-          dgd_stride, &shuffle, &sumX, sumY, M_int32, H_int32);
+          dgd_stride, &shuffle, &sumX_row, sumY_row, M_int32_row, H_int32_row);
+      sumX += sumX_row * downsample_factor;
+
+      // Scale M matrix based on the downsampling factor
+      for (k = 0; k < wiener_win; ++k) {
+        for (l = 0; l < wiener_win; ++l) {
+          sumY[k][l] += (sumY_row[k][l] * downsample_factor);
+          M_int32[k][l] += (M_int32_row[k][l] * downsample_factor);
+        }
+      }
+      // Scale H matrix based on the downsampling factor
+      for (k = 0; k < WIENER_WIN2_CHROMA; ++k) {
+        for (l = 0; l < WIENER_WIN_CHROMA * 8; ++l) {
+          H_int32[k][l] += (H_int32_row[k][l] * downsample_factor);
+        }
+      }
     }
     for (k = 0; k < wiener_win; ++k) {
       for (l = 0; l < wiener_win; ++l) {
@@ -479,16 +545,20 @@ static INLINE void compute_stats_win5_opt_avx2(
 void av1_compute_stats_avx2(int wiener_win, const uint8_t *dgd,
                             const uint8_t *src, int h_start, int h_end,
                             int v_start, int v_end, int dgd_stride,
-                            int src_stride, int64_t *M, int64_t *H) {
+                            int src_stride, int64_t *M, int64_t *H,
+                            int use_downsampled_wiener_stats) {
   if (wiener_win == WIENER_WIN) {
     compute_stats_win7_opt_avx2(dgd, src, h_start, h_end, v_start, v_end,
-                                dgd_stride, src_stride, M, H);
+                                dgd_stride, src_stride, M, H,
+                                use_downsampled_wiener_stats);
   } else if (wiener_win == WIENER_WIN_CHROMA) {
     compute_stats_win5_opt_avx2(dgd, src, h_start, h_end, v_start, v_end,
-                                dgd_stride, src_stride, M, H);
+                                dgd_stride, src_stride, M, H,
+                                use_downsampled_wiener_stats);
   } else {
     av1_compute_stats_c(wiener_win, dgd, src, h_start, h_end, v_start, v_end,
-                        dgd_stride, src_stride, M, H);
+                        dgd_stride, src_stride, M, H,
+                        use_downsampled_wiener_stats);
   }
 }
 
