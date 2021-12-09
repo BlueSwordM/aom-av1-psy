@@ -182,6 +182,35 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
   const double adj_limit = AOMMAX(0.20, (double)(100 - rate_err_tol) / 200.0);
   const double min_fac = 1.0 - adj_limit;
   const double max_fac = 1.0 + adj_limit;
+
+  if (cpi->third_pass_ctx && cpi->third_pass_ctx->frame_info_count > 0) {
+    int64_t actual_bits = 0;
+    int64_t target_bits = 0;
+    double factor = 0.0;
+    int count = 0;
+    for (int i = 0; i < cpi->third_pass_ctx->frame_info_count; i++) {
+      actual_bits += cpi->third_pass_ctx->frame_info[i].actual_bits;
+      target_bits += cpi->third_pass_ctx->frame_info[i].bits_allocated;
+      factor += cpi->third_pass_ctx->frame_info[i].bpm_factor;
+      count++;
+    }
+
+    if (count == 0) {
+      factor = 1.0;
+    } else {
+      factor /= (double)count;
+    }
+
+    factor *= (double)actual_bits / DOUBLE_DIVIDE_CHECK((double)target_bits);
+
+    if ((twopass->bpm_factor <= 1 && factor < twopass->bpm_factor) ||
+        (twopass->bpm_factor >= 1 && factor > twopass->bpm_factor)) {
+      twopass->bpm_factor = factor;
+      twopass->bpm_factor =
+          AOMMAX(min_fac, AOMMIN(max_fac, twopass->bpm_factor));
+    }
+  }
+
 #if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
   const int is_parallel_frame =
       cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0 ? 1 : 0;
@@ -244,8 +273,8 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
 
   // Is the rate control trending in the right direction. Only make
   // an adjustment if things are getting worse.
-  if ((rate_err_factor < 1.0 && err_estimate > 0) ||
-      (rate_err_factor > 1.0 && err_estimate < 0)) {
+  if ((rate_err_factor < 1.0 && err_estimate >= 0) ||
+      (rate_err_factor > 1.0 && err_estimate <= 0)) {
     twopass->bpm_factor *= rate_err_factor;
     twopass->bpm_factor = AOMMAX(min_fac, AOMMIN(max_fac, twopass->bpm_factor));
   }

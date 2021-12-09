@@ -56,6 +56,7 @@ typedef struct {
   int bits_allocated;
   int actual_bits;
   uint64_t sse;
+  double bpm_factor;
   FRAME_TYPE frame_type;
   unsigned int order_hint;
   THIRD_PASS_MI_INFO *mi_info;

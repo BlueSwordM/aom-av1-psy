@@ -486,6 +486,14 @@ void av1_write_second_pass_per_frame_info(AV1_COMP *cpi, int gf_index) {
       aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
                          "Could not write to second pass log file!");
     }
+
+    // write bpm_factor
+    double factor = cpi->ppi->twopass.bpm_factor;
+    count = fwrite(&factor, sizeof(factor), 1, cpi->second_pass_log_stream);
+    if (count < 1) {
+      aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
+                         "Could not write to second pass log file!");
+    }
   }
 }
 
@@ -539,6 +547,15 @@ void av1_read_second_pass_per_frame_info(AV1_COMP *cpi) {
                            "Could not read from second pass log file!");
       }
       cpi->third_pass_ctx->frame_info[i].sse = sse;
+
+      // read bpm factor
+      double factor;
+      count = fread(&factor, sizeof(factor), 1, cpi->second_pass_log_stream);
+      if (count < 1) {
+        aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
+                           "Could not read from second pass log file!");
+      }
+      cpi->third_pass_ctx->frame_info[i].bpm_factor = factor;
     }
   }
 }
