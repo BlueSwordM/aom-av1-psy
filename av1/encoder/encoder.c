@@ -30,6 +30,7 @@
 #if CONFIG_INTERNAL_STATS
 #include "aom_dsp/ssim.h"
 #endif
+#include "aom_ports/aom_once.h"
 #include "aom_ports/aom_timer.h"
 #include "aom_ports/mem.h"
 #include "aom_scale/aom_scale.h"
@@ -191,7 +192,7 @@ int av1_get_active_map(AV1_COMP *cpi, unsigned char *new_map_16x16, int rows,
   }
 }
 
-void av1_initialize_enc(void) {
+static void initialize_enc(void) {
   av1_rtcd();
   aom_dsp_rtcd();
   aom_scale_rtcd();
@@ -200,6 +201,8 @@ void av1_initialize_enc(void) {
   av1_rc_init_minq_luts();
   av1_init_wedge_masks();
 }
+
+void av1_initialize_enc(void) { aom_once(initialize_enc); }
 
 static void update_reference_segmentation_map(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;

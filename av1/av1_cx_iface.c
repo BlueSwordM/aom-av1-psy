@@ -15,7 +15,6 @@
 #include "config/aom_config.h"
 #include "config/aom_version.h"
 
-#include "aom_ports/aom_once.h"
 #include "aom_ports/mem_ops.h"
 
 #include "aom/aom_encoder.h"
@@ -2537,7 +2536,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
     if (priv->cfg.g_usage == ALLINTRA) {
       priv->extra_cfg.enable_cdef = 0;
     }
-    aom_once(av1_initialize_enc);
+    av1_initialize_enc();
 
     res = validate_config(priv, &priv->cfg, &priv->extra_cfg);
 
