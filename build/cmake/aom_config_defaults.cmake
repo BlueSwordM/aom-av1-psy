@@ -155,6 +155,9 @@ set_aom_config_var(
   "AV1 experiment: Build with ML-based partitioning for Real Time.")
 set_aom_config_var(CONFIG_PARTITION_SEARCH_ORDER 0
                    "AV1 experiment: Use alternative partition search order.")
+set_aom_config_var(
+  CONFIG_BITRATE_ACCURACY_BL 0
+  "AV1 experiment: Baseline of improve bitrate accuracy experiment.")
 set_aom_config_var(CONFIG_BITRATE_ACCURACY 0
                    "AV1 experiment: Improve bitrate accuracy.")
 set_aom_config_var(CONFIG_THREE_PASS 0

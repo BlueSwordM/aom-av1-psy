@@ -2137,11 +2137,21 @@ int main(int argc, const char **argv_) {
           stream->config.cfg.g_w = input.width;
           stream->config.cfg.g_h = input.height;
         } else if (stream->orig_width && stream->orig_height) {
+#if CONFIG_BITRATE_ACCURACY || CONFIG_BITRATE_ACCURACY_BL
+          stream->config.cfg.g_w = stream->orig_width;
+          stream->config.cfg.g_h = stream->orig_height;
+#else   // CONFIG_BITRATE_ACCURACY || CONFIG_BITRATE_ACCURACY_BL
           stream->config.cfg.g_w = (stream->orig_width + 1) / 2;
           stream->config.cfg.g_h = (stream->orig_height + 1) / 2;
+#endif  // CONFIG_BITRATE_ACCURACY || CONFIG_BITRATE_ACCURACY_BL
         } else {
+#if CONFIG_BITRATE_ACCURACY || CONFIG_BITRATE_ACCURACY_BL
+          stream->config.cfg.g_w = input.width;
+          stream->config.cfg.g_h = input.height;
+#else   // CONFIG_BITRATE_ACCURACY || CONFIG_BITRATE_ACCURACY_BL
           stream->config.cfg.g_w = (input.width + 1) / 2;
           stream->config.cfg.g_h = (input.height + 1) / 2;
+#endif  // CONFIG_BITRATE_ACCURACY || CONFIG_BITRATE_ACCURACY_BL
         }
       }
     }
