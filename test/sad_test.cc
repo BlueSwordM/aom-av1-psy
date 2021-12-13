@@ -1753,6 +1753,7 @@ const SadMxNx4Param skip_x4d_c_tests[] = {
 INSTANTIATE_TEST_SUITE_P(C, SADSkipx4Test,
                          ::testing::ValuesIn(skip_x4d_c_tests));
 
+#if !CONFIG_REALTIME_ONLY
 const SadMxNx4AvgParam x4d_avg_c_tests[] = {
   make_tuple(128, 128, &aom_sad128x128x4d_avg_c, -1),
   make_tuple(128, 64, &aom_sad128x64x4d_avg_c, -1),
@@ -1770,16 +1771,15 @@ const SadMxNx4AvgParam x4d_avg_c_tests[] = {
   make_tuple(8, 4, &aom_sad8x4x4d_avg_c, -1),
   make_tuple(4, 8, &aom_sad4x8x4d_avg_c, -1),
   make_tuple(4, 4, &aom_sad4x4x4d_avg_c, -1),
-#if !CONFIG_REALTIME_ONLY
   make_tuple(64, 16, &aom_sad64x16x4d_avg_c, -1),
   make_tuple(16, 64, &aom_sad16x64x4d_avg_c, -1),
   make_tuple(32, 8, &aom_sad32x8x4d_avg_c, -1),
   make_tuple(8, 32, &aom_sad8x32x4d_avg_c, -1),
   make_tuple(16, 4, &aom_sad16x4x4d_avg_c, -1),
   make_tuple(4, 16, &aom_sad4x16x4d_avg_c, -1),
-#endif
 };
 INSTANTIATE_TEST_SUITE_P(C, SADx4AvgTest, ::testing::ValuesIn(x4d_avg_c_tests));
+#endif  // !CONFIG_REALTIME_ONLY
 
 //------------------------------------------------------------------------------
 // ARM functions
@@ -2303,6 +2303,7 @@ const SadSkipMxNx4Param skip_x4d_sse2_tests[] = {
 INSTANTIATE_TEST_SUITE_P(SSE2, SADSkipx4Test,
                          ::testing::ValuesIn(skip_x4d_sse2_tests));
 
+#if !CONFIG_REALTIME_ONLY
 const SadMxNx4AvgParam x4d_avg_sse2_tests[] = {
   make_tuple(128, 128, &aom_sad128x128x4d_avg_sse2, -1),
   make_tuple(128, 64, &aom_sad128x64x4d_avg_sse2, -1),
@@ -2320,17 +2321,16 @@ const SadMxNx4AvgParam x4d_avg_sse2_tests[] = {
   make_tuple(8, 4, &aom_sad8x4x4d_avg_sse2, -1),
   make_tuple(4, 8, &aom_sad4x8x4d_avg_sse2, -1),
   make_tuple(4, 4, &aom_sad4x4x4d_avg_sse2, -1),
-#if !CONFIG_REALTIME_ONLY
   make_tuple(64, 16, &aom_sad64x16x4d_avg_sse2, -1),
   make_tuple(16, 64, &aom_sad16x64x4d_avg_sse2, -1),
   make_tuple(32, 8, &aom_sad32x8x4d_avg_sse2, -1),
   make_tuple(8, 32, &aom_sad8x32x4d_avg_sse2, -1),
   make_tuple(16, 4, &aom_sad16x4x4d_avg_sse2, -1),
   make_tuple(4, 16, &aom_sad4x16x4d_avg_sse2, -1),
-#endif
 };
 INSTANTIATE_TEST_SUITE_P(SSE2, SADx4AvgTest,
                          ::testing::ValuesIn(x4d_avg_sse2_tests));
+#endif  // !CONFIG_REALTIME_ONLY
 #endif  // HAVE_SSE2
 
 #if HAVE_SSSE3
