@@ -1543,6 +1543,8 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
 #if CONFIG_AV1_HIGHBITDEPTH
   const AV1_COMMON *const cm = rsc->cm;
   if (cm->seq_params->use_highbitdepth) {
+    // TODO(any) : Add support for use_downsampled_wiener_stats SF in HBD
+    // functions
     av1_compute_stats_highbd(reduced_wiener_win, rsc->dgd_buffer,
                              rsc->src_buffer, limits->h_start, limits->h_end,
                              limits->v_start, limits->v_end, rsc->dgd_stride,
