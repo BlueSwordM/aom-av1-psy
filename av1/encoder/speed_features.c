@@ -674,10 +674,12 @@ static void set_good_speed_feature_framesize_dependent(
       sf->hl_sf.recode_tolerance = 50;
       sf->inter_sf.disable_interinter_wedge_newmv_search =
           is_boosted_arf2_bwd_type ? 0 : 1;
+      sf->inter_sf.enable_fast_wedge_mask_search = 1;
     }
   }
 
   if (speed >= 3) {
+    sf->inter_sf.enable_fast_wedge_mask_search = 1;
     sf->inter_sf.skip_newmv_in_drl = 2;
     sf->inter_sf.skip_ext_comp_nearmv_mode = 1;
     sf->inter_sf.limit_inter_mode_cands = is_lf_frame ? 3 : 0;
@@ -1029,7 +1031,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.reuse_compound_type_decision = 1;
     sf->inter_sf.txfm_rd_gate_level =
         boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);
-    sf->inter_sf.enable_fast_wedge_mask_search = 1;
     sf->inter_sf.inter_mode_txfm_breakout = boosted ? 0 : 2;
 
     sf->interp_sf.adaptive_interp_filter_search = 2;
