@@ -232,11 +232,10 @@ void SIMD_FUNC(cdef_filter_block_4x4_8)(uint8_t *dst, int dstride,
   v256 max, min, large = v256_dup_16(CDEF_VERY_LARGE);
   int po1 = cdef_directions[dir][0];
   int po2 = cdef_directions[dir][1];
-  int s1o1 = cdef_directions[(dir + 2) & 7][0];
-  int s1o2 = cdef_directions[(dir + 2) & 7][1];
-  int s2o1 = cdef_directions[(dir + 6) & 7][0];
-  int s2o2 = cdef_directions[(dir + 6) & 7][1];
-
+  int s1o1 = cdef_directions[dir + 2][0];
+  int s1o2 = cdef_directions[dir + 2][1];
+  int s2o1 = cdef_directions[dir - 2][0];
+  int s2o2 = cdef_directions[dir - 2][1];
   const int *pri_taps = cdef_pri_taps[(pri_strength >> coeff_shift) & 1];
   const int *sec_taps = cdef_sec_taps;
 
@@ -399,11 +398,10 @@ void SIMD_FUNC(cdef_filter_block_8x8_8)(uint8_t *dst, int dstride,
   v256 max, min, large = v256_dup_16(CDEF_VERY_LARGE);
   int po1 = cdef_directions[dir][0];
   int po2 = cdef_directions[dir][1];
-  int s1o1 = cdef_directions[(dir + 2) & 7][0];
-  int s1o2 = cdef_directions[(dir + 2) & 7][1];
-  int s2o1 = cdef_directions[(dir + 6) & 7][0];
-  int s2o2 = cdef_directions[(dir + 6) & 7][1];
-
+  int s1o1 = cdef_directions[dir + 2][0];
+  int s1o2 = cdef_directions[dir + 2][1];
+  int s2o1 = cdef_directions[dir - 2][0];
+  int s2o2 = cdef_directions[dir - 2][1];
   const int *pri_taps = cdef_pri_taps[(pri_strength >> coeff_shift) & 1];
   const int *sec_taps = cdef_sec_taps;
 
@@ -545,11 +543,10 @@ void SIMD_FUNC(cdef_filter_block_4x4_16)(uint16_t *dst, int dstride,
   v256 max, min, large = v256_dup_16(CDEF_VERY_LARGE);
   int po1 = cdef_directions[dir][0];
   int po2 = cdef_directions[dir][1];
-  int s1o1 = cdef_directions[(dir + 2) & 7][0];
-  int s1o2 = cdef_directions[(dir + 2) & 7][1];
-  int s2o1 = cdef_directions[(dir + 6) & 7][0];
-  int s2o2 = cdef_directions[(dir + 6) & 7][1];
-
+  int s1o1 = cdef_directions[dir + 2][0];
+  int s1o2 = cdef_directions[dir + 2][1];
+  int s2o1 = cdef_directions[dir - 2][0];
+  int s2o2 = cdef_directions[dir - 2][1];
   const int *pri_taps = cdef_pri_taps[(pri_strength >> coeff_shift) & 1];
   const int *sec_taps = cdef_sec_taps;
 
@@ -702,11 +699,10 @@ void SIMD_FUNC(cdef_filter_block_8x8_16)(uint16_t *dst, int dstride,
   v256 max, min, large = v256_dup_16(CDEF_VERY_LARGE);
   int po1 = cdef_directions[dir][0];
   int po2 = cdef_directions[dir][1];
-  int s1o1 = cdef_directions[(dir + 2) & 7][0];
-  int s1o2 = cdef_directions[(dir + 2) & 7][1];
-  int s2o1 = cdef_directions[(dir + 6) & 7][0];
-  int s2o2 = cdef_directions[(dir + 6) & 7][1];
-
+  int s1o1 = cdef_directions[dir + 2][0];
+  int s1o2 = cdef_directions[dir + 2][1];
+  int s2o1 = cdef_directions[dir - 2][0];
+  int s2o2 = cdef_directions[dir - 2][1];
   const int *pri_taps = cdef_pri_taps[(pri_strength >> coeff_shift) & 1];
   const int *sec_taps = cdef_sec_taps;
 

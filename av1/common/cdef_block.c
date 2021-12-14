@@ -16,9 +16,19 @@
 #include "config/av1_rtcd.h"
 
 #include "av1/common/cdef.h"
+/*
+This is Cdef_Directions (section 7.15.3) with 2 padding entries at the
+beginning and end of the table. The cdef direction range is [0, 7] and the
+first index is offset +/-2. This removes the need to constrain the first
+index to the same range using e.g., & 7.
+*/
+DECLARE_ALIGNED(16, const int, cdef_directions_padded[12][2]) = {
+  /* Padding: cdef_directions[6] */
+  { 1 * CDEF_BSTRIDE + 0, 2 * CDEF_BSTRIDE + 0 },
+  /* Padding: cdef_directions[7] */
+  { 1 * CDEF_BSTRIDE + 0, 2 * CDEF_BSTRIDE - 1 },
 
-/* Generated from gen_filter_tables.c. */
-DECLARE_ALIGNED(16, const int, cdef_directions[8][2]) = {
+  /* Begin cdef_directions */
   { -1 * CDEF_BSTRIDE + 1, -2 * CDEF_BSTRIDE + 2 },
   { 0 * CDEF_BSTRIDE + 1, -1 * CDEF_BSTRIDE + 2 },
   { 0 * CDEF_BSTRIDE + 1, 0 * CDEF_BSTRIDE + 2 },
@@ -26,8 +36,16 @@ DECLARE_ALIGNED(16, const int, cdef_directions[8][2]) = {
   { 1 * CDEF_BSTRIDE + 1, 2 * CDEF_BSTRIDE + 2 },
   { 1 * CDEF_BSTRIDE + 0, 2 * CDEF_BSTRIDE + 1 },
   { 1 * CDEF_BSTRIDE + 0, 2 * CDEF_BSTRIDE + 0 },
-  { 1 * CDEF_BSTRIDE + 0, 2 * CDEF_BSTRIDE - 1 }
+  { 1 * CDEF_BSTRIDE + 0, 2 * CDEF_BSTRIDE - 1 },
+  /* End cdef_directions */
+
+  /* Padding: cdef_directions[0] */
+  { -1 * CDEF_BSTRIDE + 1, -2 * CDEF_BSTRIDE + 2 },
+  /* Padding: cdef_directions[1] */
+  { 0 * CDEF_BSTRIDE + 1, -1 * CDEF_BSTRIDE + 2 },
 };
+
+const int (*const cdef_directions)[2] = cdef_directions_padded + 2;
 
 /* Detect direction. 0 means 45-degree up-right, 2 is horizontal, and so on.
    The search minimizes the weighted variance along all the lines in a
@@ -135,10 +153,10 @@ void cdef_filter_block_c(uint8_t *dst8, uint16_t *dst16, int dstride,
         if (p1 != CDEF_VERY_LARGE) max = AOMMAX(p1, max);
         min = AOMMIN(p0, min);
         min = AOMMIN(p1, min);
-        int16_t s0 = in[i * s + j + cdef_directions[(dir + 2) & 7][k]];
-        int16_t s1 = in[i * s + j - cdef_directions[(dir + 2) & 7][k]];
-        int16_t s2 = in[i * s + j + cdef_directions[(dir + 6) & 7][k]];
-        int16_t s3 = in[i * s + j - cdef_directions[(dir + 6) & 7][k]];
+        int16_t s0 = in[i * s + j + cdef_directions[dir + 2][k]];
+        int16_t s1 = in[i * s + j - cdef_directions[dir + 2][k]];
+        int16_t s2 = in[i * s + j + cdef_directions[dir - 2][k]];
+        int16_t s3 = in[i * s + j - cdef_directions[dir - 2][k]];
         if (s0 != CDEF_VERY_LARGE) max = AOMMAX(s0, max);
         if (s1 != CDEF_VERY_LARGE) max = AOMMAX(s1, max);
         if (s2 != CDEF_VERY_LARGE) max = AOMMAX(s2, max);
