@@ -719,6 +719,7 @@ static void set_good_speed_feature_framesize_dependent(
     } else {
       sf->inter_sf.disable_interinter_wedge_var_thresh = UINT_MAX;
       sf->inter_sf.limit_txfm_eval_per_mode = boosted ? 0 : 2;
+      sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL2;
     }
 
     sf->inter_sf.disable_interintra_wedge_var_thresh = UINT_MAX;
@@ -749,6 +750,8 @@ static void set_good_speed_feature_framesize_dependent(
       sf->hl_sf.recode_tolerance = 55;
 
     sf->intra_sf.skip_intra_in_interframe = 4;
+
+    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
   }
 
   if (speed >= 5) {
@@ -814,6 +817,8 @@ static void set_good_speed_feature_framesize_dependent(
     if (!is_720p_or_larger) {
       sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh = 150;
     }
+
+    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
   }
 }
 
