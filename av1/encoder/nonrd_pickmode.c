@@ -1005,8 +1005,6 @@ static void store_coding_context(MACROBLOCK *x, PICK_MODE_CONTEXT *ctx) {
   // restored if we decide to encode this way
   ctx->rd_stats.skip_txfm = txfm_info->skip_txfm;
 
-  memset(ctx->tx_type_map, DCT_DCT,
-         sizeof(ctx->tx_type_map[0]) * ctx->num_4x4_blk);
   ctx->skippable = txfm_info->skip_txfm;
 #if CONFIG_INTERNAL_STATS
   ctx->best_mode_index = mode_index;
