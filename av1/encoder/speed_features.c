@@ -1221,7 +1221,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
   if (!is_360p_or_larger) {
     sf->rt_sf.prune_intra_mode_based_on_mv_range = 1;
     if (speed >= 5) sf->rt_sf.prune_inter_modes_wrt_gf_arf_based_on_sad = 1;
-    if (speed >= 6) sf->rt_sf.force_tx_search_off = 1;
     if (speed >= 7) sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     if (speed >= 8) {
       sf->rt_sf.use_modeled_non_rd_cost = 0;
@@ -1872,7 +1871,6 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->use_modeled_non_rd_cost = 0;
   rt_sf->reuse_inter_pred_nonrd = 0;
   rt_sf->num_inter_modes_for_tx_search = INT_MAX;
-  rt_sf->force_tx_search_off = 0;
   rt_sf->use_nonrd_filter_search = 0;
   rt_sf->use_simple_rd_model = 0;
   rt_sf->skip_interp_filter_search = 0;

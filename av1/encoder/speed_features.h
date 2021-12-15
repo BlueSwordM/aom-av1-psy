@@ -1310,9 +1310,6 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Number of best inter modes to search transform. INT_MAX - search all.
   int num_inter_modes_for_tx_search;
 
-  // Forces TX search off for RDCost calulation.
-  int force_tx_search_off;
-
   // Use interpolation filter search in non-RD mode decision.
   int use_nonrd_filter_search;
 

@@ -5758,8 +5758,7 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
   const int do_tx_search =
       !((cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1 && md->ready) ||
         (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 2 &&
-         num_pels_log2_lookup[bsize] > 8) ||
-        cpi->sf.rt_sf.force_tx_search_off);
+         num_pels_log2_lookup[bsize] > 8));
   InterModesInfo *inter_modes_info = x->inter_modes_info;
   inter_modes_info->num = 0;
 
