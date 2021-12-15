@@ -1804,6 +1804,15 @@ void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
     return;
   }
 
+  // Screen content tools are not evaluated in non-RD encoding mode, i.e., when
+  // use_nonrd_pick_mode = 1 and hybrid_intra_pickmode = 0. Hence, screen
+  // content detection is disabled.
+  if (cpi->sf.rt_sf.use_nonrd_pick_mode &&
+      !cpi->sf.rt_sf.hybrid_intra_pickmode) {
+    features->allow_screen_content_tools = features->allow_intrabc = 0;
+    return;
+  }
+
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
     features->allow_screen_content_tools = features->allow_intrabc = 1;
     return;
