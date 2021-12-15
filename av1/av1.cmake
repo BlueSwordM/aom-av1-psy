@@ -307,11 +307,6 @@ if(CONFIG_REALTIME_ONLY)
                    "${AOM_ROOT}/av1/common/x86/warp_plane_sse2.c")
 endif()
 
-if(NOT CONFIG_AV1_HIGHBITDEPTH)
-  list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_SSE2
-                   "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_sse2.c")
-endif()
-
 list(APPEND AOM_AV1_COMMON_INTRIN_SSSE3
             "${AOM_ROOT}/av1/common/cdef_block_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/av1_inv_txfm_ssse3.c"
