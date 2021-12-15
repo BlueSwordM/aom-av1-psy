@@ -2956,6 +2956,13 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       num_workers = av1_get_max_num_workers(cpi);
     }
     if ((num_workers > 1) && (ppi->p_mt_info.num_workers == 0)) {
+#if CONFIG_FRAME_PARALLEL_ENCODE
+      // Obtain the maximum no. of frames that can be supported in a parallel
+      // encode set.
+      if (is_stat_consumption_stage(cpi)) {
+        ppi->num_fp_contexts = av1_compute_num_fp_contexts(ppi, &cpi->oxcf);
+      }
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE
       av1_create_workers(ppi, num_workers);
       av1_init_tile_thread_data(ppi, cpi->oxcf.pass == AOM_RC_FIRST_PASS);
 #if CONFIG_MULTITHREAD

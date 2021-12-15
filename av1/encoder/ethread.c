@@ -908,6 +908,17 @@ int av1_check_fpmt_config(AV1_PRIMARY *const ppi,
 // possible for each resolution.
 #define MAX_THREADS 100
 
+// Computes the max number of enc workers possible for each resolution.
+static AOM_INLINE int compute_max_num_enc_workers(
+    CommonModeInfoParams *const mi_params, int mib_size_log2) {
+  int num_sb_rows =
+      ALIGN_POWER_OF_TWO(mi_params->mi_rows, mib_size_log2) >> mib_size_log2;
+  int num_sb_cols =
+      ALIGN_POWER_OF_TWO(mi_params->mi_cols, mib_size_log2) >> mib_size_log2;
+
+  return AOMMIN((num_sb_cols + 1) >> 1, num_sb_rows);
+}
+
 // Computes the number of frame parallel(fp) contexts to be created
 // based on the number of max_enc_workers.
 int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
@@ -915,8 +926,8 @@ int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
   if (!av1_check_fpmt_config(ppi, oxcf)) {
     return 1;
   }
-  int max_num_enc_workers =
-      av1_compute_num_enc_workers(ppi->parallel_cpi[0], MAX_THREADS);
+  int max_num_enc_workers = compute_max_num_enc_workers(
+      &ppi->cpi->common.mi_params, ppi->cpi->common.seq_params->mib_size_log2);
   // Scaling factors and rounding factors used to tune worker_per_frame
   // computation.
   int rounding_factor[2] = { 2, 4 };
@@ -936,6 +947,13 @@ int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
                     scaling_factor[index]);
   int max_threads = oxcf->max_threads;
   int num_fp_contexts = max_threads / workers_per_frame;
+  // Based on empirical results, FPMT gains with multi-tile are significant when
+  // more parallel frames are available. Use FPMT with multi-tile encode only
+  // when sufficient threads are available for parallel encode of
+  // MAX_PARALLEL_FRAMES frames.
+  if (oxcf->tile_cfg.tile_columns > 0 || oxcf->tile_cfg.tile_rows > 0) {
+    if (num_fp_contexts < MAX_PARALLEL_FRAMES) num_fp_contexts = 1;
+  }
 
   num_fp_contexts = AOMMAX(1, AOMMIN(num_fp_contexts, MAX_PARALLEL_FRAMES));
   // Limit recalculated num_fp_contexts to ppi->num_fp_contexts.
