@@ -432,6 +432,7 @@ class SADSkipx4Test : public ::testing::WithParamInterface<SadMxNx4Param>,
   }
 };
 
+#if !CONFIG_REALTIME_ONLY
 class SADx4AvgTest : public ::testing::WithParamInterface<SadMxNx4AvgParam>,
                      public SADTestBase {
  public:
@@ -467,6 +468,7 @@ class SADx4AvgTest : public ::testing::WithParamInterface<SadMxNx4AvgParam>,
     }
   }
 };
+#endif  // !CONFIG_REALTIME_ONLY
 
 class SADTest : public ::testing::WithParamInterface<SadMxNParam>,
                 public SADTestBase {
@@ -1117,6 +1119,7 @@ TEST_P(SADSkipx4Test, DISABLED_Speed) {
 
 using std::make_tuple;
 
+#if !CONFIG_REALTIME_ONLY
 TEST_P(SADx4AvgTest, DISABLED_Speed) {
   int tmp_stride = reference_stride_;
   reference_stride_ >>= 1;
@@ -1177,6 +1180,7 @@ TEST_P(SADx4AvgTest, UnalignedRef) {
   CheckSADs();
   reference_stride_ = tmp_stride;
 }
+#endif  // !CONFIG_REALTIME_ONLY
 
 //------------------------------------------------------------------------------
 // C functions
