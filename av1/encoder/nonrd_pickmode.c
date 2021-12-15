@@ -142,6 +142,7 @@ static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
   bp->best_motion_mode = SIMPLE_TRANSLATION;
   bp->num_proj_ref = 0;
   memset(&bp->wm_params, 0, sizeof(bp->wm_params));
+  memset(&bp->blk_skip, 0, sizeof(bp->blk_skip));
 }
 
 static INLINE int subpel_select(AV1_COMP *cpi, BLOCK_SIZE bsize, int_mv *mv) {
@@ -764,6 +765,7 @@ static void block_yrd(AV1_COMP *cpi, MACROBLOCK *x, int mi_row, int mi_col,
   const struct macroblockd_plane *pd = &xd->plane[0];
   struct macroblock_plane *const p = &x->plane[0];
   const int num_4x4_w = mi_size_wide[bsize];
+  const int num_8x8_w = num_4x4_w / 2;
   const int num_4x4_h = mi_size_high[bsize];
   const int step = 1 << (tx_size << 1);
   const int block_step = (1 << tx_size);
@@ -898,7 +900,7 @@ static void block_yrd(AV1_COMP *cpi, MACROBLOCK *x, int mi_row, int mi_col,
         }
         assert(*eob <= 1024);
         *skippable &= (*eob == 0);
-        x->txfm_search_info.blk_skip[r * num_4x4_w / 4 + c / 2] =
+        x->txfm_search_info.blk_skip[(r * num_8x8_w + c) / 2] =
             (*eob == 0) ? 1 : 0;
         eob_cost += 1;
       }
@@ -1905,7 +1907,7 @@ static void estimate_intra_mode(
   const int *const rd_thresh_freq_fact = x->thresh_freq_fact[bsize];
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-  const int num_4x4_blocks = mi_size_wide[bsize] * mi_size_high[bsize];
+  const int num_8x8_blocks = mi_size_wide[bsize] * mi_size_high[bsize] / 4;
   struct macroblockd_plane *const pd = &xd->plane[0];
 
   const CommonQuantParams *quant_params = &cm->quant_params;
@@ -2056,7 +2058,7 @@ static void estimate_intra_mode(
       best_pickmode->best_second_ref_frame = NONE;
       if (!this_rdc.skip_txfm) {
         memcpy(best_pickmode->blk_skip, x->txfm_search_info.blk_skip,
-               sizeof(x->txfm_search_info.blk_skip[0]) * num_4x4_blocks / 4);
+               sizeof(x->txfm_search_info.blk_skip[0]) * num_8x8_blocks);
       }
       mi->uv_mode = this_mode;
       mi->mv[0].as_int = INVALID_MV;
@@ -2301,6 +2303,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   const int bh = block_size_high[bsize];
   const int bw = block_size_wide[bsize];
   const int pixels_in_block = bh * bw;
+  const int num_8x8_blocks = ctx->num_4x4_blk / 4;
   struct buf_2d orig_dst = pd->dst;
   const CommonQuantParams *quant_params = &cm->quant_params;
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
@@ -2450,7 +2453,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       AOMMIN(max_txsize_lookup[bsize],
              tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]),
       TX_16X16);
-
   for (int idx = 0; idx < num_inter_modes + tot_num_comp_modes; ++idx) {
     const struct segmentation *const seg = &cm->seg;
 
@@ -2464,7 +2466,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     RD_STATS nonskip_rdc;
     av1_invalid_rd_stats(&nonskip_rdc);
     memset(txfm_info->blk_skip, 0,
-           sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk / 4);
+           sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
 
     if (idx >= num_inter_modes) {
       int comp_index = idx - num_inter_modes;
@@ -2811,9 +2813,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       best_pickmode.best_mode_skip_txfm = this_rdc.skip_txfm;
       best_pickmode.best_mode_initial_skip_flag =
           (nonskip_rdc.rate == INT_MAX && this_rdc.skip_txfm);
-      if (!best_pickmode.best_mode_skip_txfm) {
+      if (!best_pickmode.best_mode_skip_txfm && !use_modeled_non_rd_cost) {
         memcpy(best_pickmode.blk_skip, txfm_info->blk_skip,
-               sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk / 4);
+               sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
       }
 
       // This is needed for the compound modes.
@@ -2873,7 +2875,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   if (!txfm_info->skip_txfm) {
     if (best_pickmode.best_mode >= INTRA_MODE_END)
       memcpy(ctx->blk_skip, best_pickmode.blk_skip,
-             sizeof(best_pickmode.blk_skip[0]) * ctx->num_4x4_blk / 4);
+             sizeof(best_pickmode.blk_skip[0]) * num_8x8_blocks);
     else
       memset(ctx->blk_skip, 0,
              sizeof(best_pickmode.blk_skip[0]) * ctx->num_4x4_blk);
