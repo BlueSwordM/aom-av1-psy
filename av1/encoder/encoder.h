@@ -3881,7 +3881,7 @@ static const MV_REFERENCE_FRAME disable_order[] = {
   LAST3_FRAME,
   LAST2_FRAME,
   ALTREF2_FRAME,
-  GOLDEN_FRAME,
+  BWDREF_FRAME,
 };
 
 static const MV_REFERENCE_FRAME
