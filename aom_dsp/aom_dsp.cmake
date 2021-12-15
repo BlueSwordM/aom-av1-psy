@@ -224,6 +224,12 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/x86/sum_squares_sse2.c"
               "${AOM_ROOT}/aom_dsp/x86/variance_sse2.c")
   if(NOT CONFIG_AV1_HIGHBITDEPTH)
+    list(
+      REMOVE_ITEM AOM_DSP_ENCODER_ASM_SSE2
+                  "${AOM_ROOT}/aom_dsp/x86/highbd_sad4d_sse2.asm"
+                  "${AOM_ROOT}/aom_dsp/x86/highbd_sad_sse2.asm"
+                  "${AOM_ROOT}/aom_dsp/x86/highbd_subpel_variance_impl_sse2.asm"
+                  "${AOM_ROOT}/aom_dsp/x86/highbd_variance_impl_sse2.asm")
     list(REMOVE_ITEM AOM_DSP_ENCODER_INTRIN_SSE2
                      "${AOM_ROOT}/aom_dsp/x86/highbd_adaptive_quantize_sse2.c"
                      "${AOM_ROOT}/aom_dsp/x86/highbd_quantize_intrin_sse2.c"

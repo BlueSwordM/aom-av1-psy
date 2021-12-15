@@ -320,7 +320,9 @@ list(APPEND AOM_AV1_COMMON_INTRIN_SSSE3
 
 if(NOT CONFIG_AV1_HIGHBITDEPTH)
   list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_SSSE3
-                   "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_ssse3.c")
+                   "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_ssse3.c"
+                   "${AOM_ROOT}/av1/common/x86/highbd_wiener_convolve_ssse3.c"
+                   "${AOM_ROOT}/av1/common/x86/reconinter_ssse3.c")
 endif()
 
 list(APPEND AOM_AV1_COMMON_INTRIN_SSE4_1
@@ -342,6 +344,7 @@ list(APPEND AOM_AV1_COMMON_INTRIN_SSE4_1
 if(NOT CONFIG_AV1_HIGHBITDEPTH)
   list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_SSE4_1
                    "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_sse4.c"
+                   "${AOM_ROOT}/av1/common/x86/highbd_jnt_convolve_sse4.c"
                    "${AOM_ROOT}/av1/common/x86/highbd_warp_plane_sse4.c")
 endif()
 
@@ -372,8 +375,10 @@ list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
 
 if(NOT CONFIG_AV1_HIGHBITDEPTH)
   list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_AVX2
-                   "${AOM_ROOT}/av1/common/x86/highbd_warp_affine_avx2.c"
-                   "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_avx2.c")
+                   "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_avx2.c"
+                   "${AOM_ROOT}/av1/common/x86/highbd_jnt_convolve_avx2.c"
+                   "${AOM_ROOT}/av1/common/x86/highbd_wiener_convolve_avx2.c"
+                   "${AOM_ROOT}/av1/common/x86/highbd_warp_affine_avx2.c")
 endif()
 
 if(CONFIG_REALTIME_ONLY)
@@ -429,6 +434,11 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_SSE4_1
             "${AOM_ROOT}/av1/encoder/x86/rdopt_sse4.c"
             "${AOM_ROOT}/av1/encoder/x86/pickrst_sse4.c")
 
+if(NOT CONFIG_AV1_HIGHBITDEPTH)
+  list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_SSE4_1
+                   "${AOM_ROOT}/av1/encoder/x86/av1_highbd_quantize_sse4.c")
+endif()
+
 if(CONFIG_REALTIME_ONLY)
   list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_SSE4_1
                    "${AOM_ROOT}/av1/encoder/x86/pickrst_sse4.c")
@@ -455,6 +465,7 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_AVX2
 if(NOT CONFIG_AV1_HIGHBITDEPTH)
   list(
     REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_AVX2
+                "${AOM_ROOT}/av1/encoder/x86/av1_highbd_quantize_avx2.c"
                 "${AOM_ROOT}/av1/encoder/x86/highbd_block_error_intrin_avx2.c"
                 "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_avx2.c")
 endif()
