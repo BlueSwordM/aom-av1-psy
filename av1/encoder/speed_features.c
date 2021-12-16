@@ -614,6 +614,8 @@ static void set_good_speed_feature_framesize_dependent(
       sf->part_sf.ml_partition_search_breakout_thresh[4] = -1;  // BLOCK_128X128
     }
     sf->part_sf.ml_early_term_after_part_split_level = 2;
+
+    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL1;
   }
 
   if (speed >= 2) {
@@ -936,7 +938,6 @@ static void set_good_speed_features_framesize_independent(
     sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
     sf->rd_sf.tx_domain_dist_thres_level = 1;
 
-    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL1;
     sf->lpf_sf.dual_sgr_penalty_level = 1;
     sf->lpf_sf.enable_sgr_ep_pruning = 1;
 
@@ -1132,7 +1133,6 @@ static void set_good_speed_features_framesize_independent(
     sf->winner_mode_sf.dc_blk_pred_level = boosted ? 0 : 1;
 
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
-    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
   }
 
   if (speed >= 5) {
@@ -1204,8 +1204,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->winner_mode_sf.dc_blk_pred_level = 2;
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
-
-    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
 
     sf->fp_sf.skip_zeromv_motion_search = 1;
   }
