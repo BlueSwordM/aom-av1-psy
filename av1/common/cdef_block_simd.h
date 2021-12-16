@@ -228,8 +228,9 @@ void SIMD_FUNC(cdef_filter_block_4x4_8)(uint8_t *dst, int dstride,
                                         int pri_damping, int sec_damping,
                                         int coeff_shift) {
   v128 p0, p1, p2, p3;
-  v256 sum, row, tap, res;
-  v256 max, min, large = v256_dup_16(CDEF_VERY_LARGE);
+  v256 sum, row, res, tap;
+  v256 max, min;
+  v256 cdef_large_value_mask = v256_dup_16((uint16_t)~CDEF_VERY_LARGE);
   int po1 = cdef_directions[dir][0];
   int po2 = cdef_directions[dir][1];
   int s1o1 = cdef_directions[dir + 2][0];
@@ -252,19 +253,20 @@ void SIMD_FUNC(cdef_filter_block_4x4_8)(uint8_t *dst, int dstride,
   max = min = row;
 
   if (pri_strength) {
+    v256 max_u8;
     // Primary near taps
     tap = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE + po1]),
                         v64_load_unaligned(&in[1 * CDEF_BSTRIDE + po1]),
                         v64_load_unaligned(&in[2 * CDEF_BSTRIDE + po1]),
                         v64_load_unaligned(&in[3 * CDEF_BSTRIDE + po1]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = tap;
     min = v256_min_s16(min, tap);
     p0 = constrain(tap, row, pri_strength, pri_damping);
     tap = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE - po1]),
                         v64_load_unaligned(&in[1 * CDEF_BSTRIDE - po1]),
                         v64_load_unaligned(&in[2 * CDEF_BSTRIDE - po1]),
                         v64_load_unaligned(&in[3 * CDEF_BSTRIDE - po1]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p1 = constrain(tap, row, pri_strength, pri_damping);
 
@@ -278,14 +280,14 @@ void SIMD_FUNC(cdef_filter_block_4x4_8)(uint8_t *dst, int dstride,
                         v64_load_unaligned(&in[1 * CDEF_BSTRIDE + po2]),
                         v64_load_unaligned(&in[2 * CDEF_BSTRIDE + po2]),
                         v64_load_unaligned(&in[3 * CDEF_BSTRIDE + po2]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p0 = constrain(tap, row, pri_strength, pri_damping);
     tap = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE - po2]),
                         v64_load_unaligned(&in[1 * CDEF_BSTRIDE - po2]),
                         v64_load_unaligned(&in[2 * CDEF_BSTRIDE - po2]),
                         v64_load_unaligned(&in[3 * CDEF_BSTRIDE - po2]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p1 = constrain(tap, row, pri_strength, pri_damping);
 
@@ -293,36 +295,42 @@ void SIMD_FUNC(cdef_filter_block_4x4_8)(uint8_t *dst, int dstride,
     sum = v256_add_16(sum, v256_madd_us8(v256_dup_8(pri_taps[1]),
                                          v256_from_v128(v128_ziphi_8(p0, p1),
                                                         v128_ziplo_8(p0, p1))));
+    /* The source is 16 bits, however, we only really care about the lower
+    8 bits.  The upper 8 bits contain the "large" flag.  After the final
+    primary max has been calculated, zero out the upper 8 bits.  Use this
+    to find the "16 bit" max. */
+    max = v256_max_s16(max, v256_and(max_u8, cdef_large_value_mask));
   }
 
   if (sec_strength) {
+    v256 max_u8;
     // Secondary near taps
     tap = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE + s1o1]),
                         v64_load_unaligned(&in[1 * CDEF_BSTRIDE + s1o1]),
                         v64_load_unaligned(&in[2 * CDEF_BSTRIDE + s1o1]),
                         v64_load_unaligned(&in[3 * CDEF_BSTRIDE + s1o1]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = tap;
     min = v256_min_s16(min, tap);
     p0 = constrain(tap, row, sec_strength, sec_damping);
     tap = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE - s1o1]),
                         v64_load_unaligned(&in[1 * CDEF_BSTRIDE - s1o1]),
                         v64_load_unaligned(&in[2 * CDEF_BSTRIDE - s1o1]),
                         v64_load_unaligned(&in[3 * CDEF_BSTRIDE - s1o1]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p1 = constrain(tap, row, sec_strength, sec_damping);
     tap = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE + s2o1]),
                         v64_load_unaligned(&in[1 * CDEF_BSTRIDE + s2o1]),
                         v64_load_unaligned(&in[2 * CDEF_BSTRIDE + s2o1]),
                         v64_load_unaligned(&in[3 * CDEF_BSTRIDE + s2o1]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p2 = constrain(tap, row, sec_strength, sec_damping);
     tap = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE - s2o1]),
                         v64_load_unaligned(&in[1 * CDEF_BSTRIDE - s2o1]),
                         v64_load_unaligned(&in[2 * CDEF_BSTRIDE - s2o1]),
                         v64_load_unaligned(&in[3 * CDEF_BSTRIDE - s2o1]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p3 = constrain(tap, row, sec_strength, sec_damping);
 
@@ -338,28 +346,28 @@ void SIMD_FUNC(cdef_filter_block_4x4_8)(uint8_t *dst, int dstride,
                         v64_load_unaligned(&in[1 * CDEF_BSTRIDE + s1o2]),
                         v64_load_unaligned(&in[2 * CDEF_BSTRIDE + s1o2]),
                         v64_load_unaligned(&in[3 * CDEF_BSTRIDE + s1o2]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p0 = constrain(tap, row, sec_strength, sec_damping);
     tap = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE - s1o2]),
                         v64_load_unaligned(&in[1 * CDEF_BSTRIDE - s1o2]),
                         v64_load_unaligned(&in[2 * CDEF_BSTRIDE - s1o2]),
                         v64_load_unaligned(&in[3 * CDEF_BSTRIDE - s1o2]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p1 = constrain(tap, row, sec_strength, sec_damping);
     tap = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE + s2o2]),
                         v64_load_unaligned(&in[1 * CDEF_BSTRIDE + s2o2]),
                         v64_load_unaligned(&in[2 * CDEF_BSTRIDE + s2o2]),
                         v64_load_unaligned(&in[3 * CDEF_BSTRIDE + s2o2]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p2 = constrain(tap, row, sec_strength, sec_damping);
     tap = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE - s2o2]),
                         v64_load_unaligned(&in[1 * CDEF_BSTRIDE - s2o2]),
                         v64_load_unaligned(&in[2 * CDEF_BSTRIDE - s2o2]),
                         v64_load_unaligned(&in[3 * CDEF_BSTRIDE - s2o2]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p3 = constrain(tap, row, sec_strength, sec_damping);
 
@@ -370,6 +378,12 @@ void SIMD_FUNC(cdef_filter_block_4x4_8)(uint8_t *dst, int dstride,
     sum = v256_add_16(sum, v256_madd_us8(v256_dup_8(sec_taps[1]),
                                          v256_from_v128(v128_ziphi_8(p0, p2),
                                                         v128_ziplo_8(p0, p2))));
+
+    /* The source is 16 bits, however, we only really care about the lower
+    8 bits.  The upper 8 bits contain the "large" flag.  After the final
+    primary max has been calculated, zero out the upper 8 bits.  Use this
+    to find the "16 bit" max. */
+    max = v256_max_s16(max, v256_and(max_u8, cdef_large_value_mask));
   }
 
   // res = row + ((sum - (sum < 0) + 8) >> 4)
@@ -395,7 +409,8 @@ void SIMD_FUNC(cdef_filter_block_8x8_8)(uint8_t *dst, int dstride,
   int i;
   v128 p0, p1, p2, p3;
   v256 sum, row, res, tap;
-  v256 max, min, large = v256_dup_16(CDEF_VERY_LARGE);
+  v256 max, min;
+  v256 cdef_large_value_mask = v256_dup_16((uint16_t)~CDEF_VERY_LARGE);
   int po1 = cdef_directions[dir][0];
   int po2 = cdef_directions[dir][1];
   int s1o1 = cdef_directions[dir + 2][0];
@@ -410,6 +425,7 @@ void SIMD_FUNC(cdef_filter_block_8x8_8)(uint8_t *dst, int dstride,
   if (sec_strength)
     sec_damping = AOMMAX(0, sec_damping - get_msb(sec_strength));
   for (i = 0; i < 8; i += 2) {
+    v256 max_u8;
     sum = v256_zero();
     row = v256_from_v128(v128_load_aligned(&in[i * CDEF_BSTRIDE]),
                          v128_load_aligned(&in[(i + 1) * CDEF_BSTRIDE]));
@@ -419,13 +435,13 @@ void SIMD_FUNC(cdef_filter_block_8x8_8)(uint8_t *dst, int dstride,
     tap =
         v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE + po1]),
                        v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + po1]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = tap;
     min = v256_min_s16(min, tap);
     p0 = constrain(tap, row, pri_strength, pri_damping);
     tap =
         v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE - po1]),
                        v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - po1]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p1 = constrain(tap, row, pri_strength, pri_damping);
 
@@ -438,13 +454,13 @@ void SIMD_FUNC(cdef_filter_block_8x8_8)(uint8_t *dst, int dstride,
     tap =
         v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE + po2]),
                        v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + po2]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p0 = constrain(tap, row, pri_strength, pri_damping);
     tap =
         v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE - po2]),
                        v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - po2]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p1 = constrain(tap, row, pri_strength, pri_damping);
 
@@ -453,29 +469,31 @@ void SIMD_FUNC(cdef_filter_block_8x8_8)(uint8_t *dst, int dstride,
                                          v256_from_v128(v128_ziphi_8(p0, p1),
                                                         v128_ziplo_8(p0, p1))));
 
+    max = v256_max_s16(max, v256_and(max_u8, cdef_large_value_mask));
+
     // Secondary near taps
     tap =
         v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE + s1o1]),
                        v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + s1o1]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = tap;
     min = v256_min_s16(min, tap);
     p0 = constrain(tap, row, sec_strength, sec_damping);
     tap =
         v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE - s1o1]),
                        v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - s1o1]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p1 = constrain(tap, row, sec_strength, sec_damping);
     tap =
         v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE + s2o1]),
                        v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + s2o1]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p2 = constrain(tap, row, sec_strength, sec_damping);
     tap =
         v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE - s2o1]),
                        v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - s2o1]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p3 = constrain(tap, row, sec_strength, sec_damping);
 
@@ -490,25 +508,25 @@ void SIMD_FUNC(cdef_filter_block_8x8_8)(uint8_t *dst, int dstride,
     tap =
         v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE + s1o2]),
                        v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + s1o2]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p0 = constrain(tap, row, sec_strength, sec_damping);
     tap =
         v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE - s1o2]),
                        v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - s1o2]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p1 = constrain(tap, row, sec_strength, sec_damping);
     tap =
         v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE + s2o2]),
                        v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + s2o2]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p2 = constrain(tap, row, sec_strength, sec_damping);
     tap =
         v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE - s2o2]),
                        v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - s2o2]));
-    max = v256_max_s16(max, v256_andn(tap, v256_cmpeq_16(tap, large)));
+    max_u8 = v256_max_u8(max_u8, tap);
     min = v256_min_s16(min, tap);
     p3 = constrain(tap, row, sec_strength, sec_damping);
 
@@ -518,6 +536,8 @@ void SIMD_FUNC(cdef_filter_block_8x8_8)(uint8_t *dst, int dstride,
     sum = v256_add_16(sum, v256_madd_us8(v256_dup_8(sec_taps[1]),
                                          v256_from_v128(v128_ziphi_8(p0, p2),
                                                         v128_ziplo_8(p0, p2))));
+
+    max = v256_max_s16(max, v256_and(max_u8, cdef_large_value_mask));
 
     // res = row + ((sum - (sum < 0) + 8) >> 4)
     sum = v256_add_16(sum, v256_cmplt_s16(sum, v256_zero()));
