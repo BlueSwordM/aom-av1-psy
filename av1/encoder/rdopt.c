@@ -5102,8 +5102,8 @@ static void tx_search_best_inter_candidates(
     // The bound on the no. of inter mode candidates, beyond which the
     // candidates are limited if a newmv mode got evaluated, is set as
     // max_allowed_cands + 1.
-    const int num_allowed_cands[4] = { INT_MAX, 10, 9, 6 };
-    assert(cpi->sf.inter_sf.limit_inter_mode_cands <= 3);
+    const int num_allowed_cands[5] = { INT_MAX, 10, 9, 6, 2 };
+    assert(cpi->sf.inter_sf.limit_inter_mode_cands <= 4);
     max_allowed_cands =
         num_allowed_cands[cpi->sf.inter_sf.limit_inter_mode_cands];
   }
@@ -5112,8 +5112,8 @@ static void tx_search_best_inter_candidates(
   if (cpi->sf.inter_sf.limit_txfm_eval_per_mode) {
     // Bound the no. of transform searches per prediction mode beyond a
     // threshold.
-    const int num_mode_thresh_ary[3] = { INT_MAX, 4, 3 };
-    assert(cpi->sf.inter_sf.limit_txfm_eval_per_mode <= 2);
+    const int num_mode_thresh_ary[4] = { INT_MAX, 4, 3, 0 };
+    assert(cpi->sf.inter_sf.limit_txfm_eval_per_mode <= 3);
     num_mode_thresh =
         num_mode_thresh_ary[cpi->sf.inter_sf.limit_txfm_eval_per_mode];
   }

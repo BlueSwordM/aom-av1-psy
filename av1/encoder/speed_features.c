@@ -1472,6 +1472,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rd_sf.tx_domain_dist_thres_level = 3;
 
     sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh = 0;
+    sf->inter_sf.limit_inter_mode_cands = 4;
+    sf->inter_sf.limit_txfm_eval_per_mode = 3;
     sf->inter_sf.prune_warped_prob_thresh = 8;
     sf->inter_sf.extra_prune_warped = 1;
 
