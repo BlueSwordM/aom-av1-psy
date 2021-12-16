@@ -3185,14 +3185,11 @@ static int selective_disable_cdf_rtc(AV1_COMP *cpi) {
   if (cpi->svc.number_spatial_layers == 1 &&
       cpi->svc.number_temporal_layers == 1) {
     // Don't disable on intra_only, scene change (high_source_sad = 1),
-    // or resized frame. Don't disable for some consecutive frames after
-    // key, or for some consecutive frames before the golden_refresh
-    // (cpi->rc.frames_till_gf_update_due < 6).
-    // To avoid quality loss for now, force enable at every x frames.
+    // or resized frame. To avoid quality loss for now, force enable at
+    // every 8 frames.
     if (frame_is_intra_only(cm) || is_frame_resize_pending(cpi) ||
         rc->high_source_sad || rc->frames_since_key < 10 ||
-        rc->frames_till_gf_update_due < 5 ||
-        cm->current_frame.frame_number % 10 == 0)
+        cm->current_frame.frame_number % 8 == 0)
       return 0;
     else
       return 1;
