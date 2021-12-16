@@ -1330,7 +1330,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
         if ($w != 128 && $h != 128 && $w != 4 && $h != 4) {
           specialize "aom_highbd_${bd}_variance${w}x${h}", "sse2";
         }
-        # TODO(david.barker): When ext-partition-types is enabled, we currently
+        # TODO(rachelbarker): When ext-partition-types is enabled, we currently
         # don't have vectorized 4x16 highbd variance functions
         if ($w == 4 && $h == 4) {
             specialize "aom_highbd_${bd}_variance${w}x${h}", "sse4_1";
