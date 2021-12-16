@@ -461,9 +461,14 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
         }
       }
       if (cm->width * cm->height <= 352 * 288) {
-        thresholds[1] <<= 2;
-        thresholds[2] <<= 5;
         thresholds[3] = INT32_MAX;
+        if (segment_id == 0) {
+          thresholds[1] <<= 2;
+          thresholds[2] <<= (source_sad == kLowSad) ? 5 : 4;
+        } else {
+          thresholds[1] <<= 1;
+          thresholds[2] <<= 3;
+        }
         // Condition the increase of partition thresholds on the segment
         // and the content. Avoid the increase for superblocks which have
         // high source sad, unless the whole frame has very high motion
