@@ -884,7 +884,7 @@ static void update_firstpass_stats(AV1_COMP *cpi,
   fps.pcnt_neutral = (double)stats->neutral_count / num_mbs;
   fps.intra_skip_pct = (double)stats->intra_skip_count / num_mbs;
   fps.inactive_zone_rows = (double)stats->image_data_start_row;
-  fps.inactive_zone_cols = (double)0;  // TODO(paulwilkins): fix
+  fps.inactive_zone_cols = (double)0;  // Placeholder: not currently supported.
   fps.raw_error_stdev = raw_err_stdev;
   fps.is_flash = 0;
   fps.noise_var = (double)0;
