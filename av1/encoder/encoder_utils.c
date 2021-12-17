@@ -556,7 +556,6 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
 #if !CONFIG_REALTIME_ONLY
   if (cpi->oxcf.rc_cfg.mode == AOM_Q &&
       cpi->ppi->tpl_data.tpl_frame[cpi->gf_frame_index].is_valid &&
-      is_frame_tpl_eligible(gf_group, cpi->gf_frame_index) &&
       !is_lossless_requested(&cpi->oxcf.rc_cfg)) {
     const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
     const int tpl_q = av1_tpl_get_q_index(
