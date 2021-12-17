@@ -40,12 +40,12 @@ typedef struct {
   uint8_t bx;
 } cdef_list;
 
-typedef void (*cdef_filter_block_func)(uint8_t *dst8, uint16_t *dst16,
-                                       int dstride, const uint16_t *in,
-                                       int pri_strength, int sec_strength,
-                                       int dir, int pri_damping,
-                                       int sec_damping, int bsize,
-                                       int coeff_shift);
+typedef void (*cdef_filter_block_func)(void *dest, int dstride,
+                                       const uint16_t *in, int pri_strength,
+                                       int sec_strength, int dir,
+                                       int pri_damping, int sec_damping,
+                                       int bsize, int coeff_shift);
+
 void copy_cdef_16bit_to_16bit(uint16_t *dst, int dstride, uint16_t *src,
                               cdef_list *dlist, int cdef_count, int bsize);
 
