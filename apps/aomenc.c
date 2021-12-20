@@ -453,6 +453,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.second_pass_log,
   &g_av1_codec_arg_defs.fwd_kf_dist,
   &g_av1_codec_arg_defs.strict_level_conformance,
+  &g_av1_codec_arg_defs.dist_metric,
   NULL,
 };
 

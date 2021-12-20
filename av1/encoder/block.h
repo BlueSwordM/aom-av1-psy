@@ -437,6 +437,12 @@ typedef struct {
    * Flag to enable/disable DC block prediction.
    */
   unsigned int predict_dc_level;
+
+  /*!
+   * Whether or not we should use the quantization matrix as weights for PSNR
+   * during RD search.
+   */
+  int use_qm_dist_metric;
 } TxfmSearchParams;
 
 /*!\cond */

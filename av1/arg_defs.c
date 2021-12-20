@@ -50,6 +50,12 @@ static const struct arg_enum_list tuning_enum[] = {
   { NULL, 0 }
 };
 
+static const struct arg_enum_list dist_metric_enum[] = {
+  { "psnr", AOM_DIST_METRIC_PSNR },
+  { "qm-psnr", AOM_DIST_METRIC_QM_PSNR },
+  { NULL, 0 }
+};
+
 #if CONFIG_AV1_ENCODER
 static const struct arg_enum_list timing_info_enum[] = {
   { "unspecified", AOM_TIMING_UNSPECIFIED },
@@ -284,6 +290,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "arnr-strength", 1, "AltRef filter strength (0..6)"),
   .tune_metric = ARG_DEF_ENUM(NULL, "tune", 1, "Distortion metric tuned with",
                               tuning_enum),
+  .dist_metric = ARG_DEF_ENUM(
+      NULL, "dist-metric", 1,
+      "Distortion metric to use for in-block optimization", dist_metric_enum),
   .cq_level =
       ARG_DEF(NULL, "cq-level", 1, "Constant/Constrained Quality level"),
   .max_intra_rate_pct =

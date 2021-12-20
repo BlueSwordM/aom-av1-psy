@@ -262,6 +262,7 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/comp_mask_variance_test.cc"
               "${AOM_ROOT}/test/encodemb_test.cc"
               "${AOM_ROOT}/test/encodetxb_test.cc"
+              "${AOM_ROOT}/test/end_to_end_qmpsnr_test.cc"
               "${AOM_ROOT}/test/end_to_end_ssim_test.cc"
               "${AOM_ROOT}/test/error_block_test.cc"
               "${AOM_ROOT}/test/fft_test.cc"
@@ -294,6 +295,7 @@ if(NOT BUILD_SHARED_LIBS)
 
   if(CONFIG_REALTIME_ONLY)
     list(REMOVE_ITEM AOM_UNIT_TEST_ENCODER_SOURCES
+                     "${AOM_ROOT}/test/end_to_end_qmpsnr_test.cc"
                      "${AOM_ROOT}/test/end_to_end_ssim_test.cc"
                      "${AOM_ROOT}/test/firstpass_test.cc"
                      "${AOM_ROOT}/test/frame_error_test.cc"

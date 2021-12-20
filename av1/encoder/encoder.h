@@ -761,6 +761,8 @@ typedef struct {
   aom_tune_content content;
   // Indicates the film grain parameters.
   int film_grain_test_vector;
+  // Indicates the in-block distortion metric to use.
+  aom_dist_metric dist_metric;
 } TuneCfg;
 
 typedef struct {

@@ -462,6 +462,14 @@ static INLINE void set_tx_type_prune(const SPEED_FEATURES *sf,
 static INLINE void set_tx_domain_dist_params(
     const WinnerModeParams *winner_mode_params, TxfmSearchParams *txfm_params,
     int enable_winner_mode_for_tx_domain_dist, int is_winner_mode) {
+  if (txfm_params->use_qm_dist_metric) {
+    // QM-weighted PSNR is computed in transform space, so we need to forcibly
+    // enable the use of tx domain distortion.
+    txfm_params->use_transform_domain_distortion = 1;
+    txfm_params->tx_domain_dist_threshold = 0;
+    return;
+  }
+
   if (!enable_winner_mode_for_tx_domain_dist) {
     txfm_params->use_transform_domain_distortion =
         winner_mode_params->use_transform_domain_distortion[DEFAULT_EVAL];
@@ -491,6 +499,9 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
   const SPEED_FEATURES *sf = &cpi->sf;
   const WinnerModeParams *winner_mode_params = &cpi->winner_mode_params;
   TxfmSearchParams *txfm_params = &x->txfm_search_params;
+
+  txfm_params->use_qm_dist_metric =
+      cpi->oxcf.tune_cfg.dist_metric == AOM_DIST_METRIC_QM_PSNR;
 
   switch (mode_eval_type) {
     case DEFAULT_EVAL:

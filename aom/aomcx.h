@@ -1545,6 +1545,23 @@ typedef enum {
   AOM_TUNE_BUTTERAUGLI = 8,
 } aom_tune_metric;
 
+/*!\brief Distortion metric to use for RD optimization.
+ *
+ * Changes the encoder to use a different distortion metric for RD search. Note
+ * that this value operates on a "lower level" compared to aom_tune_metric - it
+ * affects the distortion metric inside a block, while aom_tune_metric only
+ * affects RD across blocks.
+ *
+ */
+typedef enum {
+  // Use PSNR for in-block rate-distortion optimization.
+  AOM_DIST_METRIC_PSNR,
+  // Use quantization matrix-weighted PSNR for in-block rate-distortion
+  // optimization. If --enable-qm=1 is not specified, this falls back to
+  // behaving in the same way as AOM_DIST_METRIC_PSNR.
+  AOM_DIST_METRIC_QM_PSNR,
+} aom_dist_metric;
+
 #define AOM_MAX_LAYERS 32   /**< Max number of layers */
 #define AOM_MAX_SS_LAYERS 4 /**< Max number of spatial layers */
 #define AOM_MAX_TS_LAYERS 8 /**< Max number of temporal layers */
