@@ -74,6 +74,25 @@ TEST(TplModelTest, TransformCoeffEntropyTest2) {
   EXPECT_NEAR(expected_rate, est_expected_rate, 0.001);
 }
 
+TEST(TplModelTest, InitTplStats1) {
+  // We use "new" here to avoid -Wstack-usagea warning
+  TplParams *tpl_data = new TplParams;
+  av1_zero(*tpl_data);
+  tpl_data->ready = 1;
+  EXPECT_EQ(sizeof(tpl_data->tpl_stats_buffer),
+            MAX_LENGTH_TPL_FRAME_STATS * sizeof(tpl_data->tpl_stats_buffer[0]));
+  for (int i = 0; i < MAX_LENGTH_TPL_FRAME_STATS; ++i) {
+    // Set it to a random non-zero number
+    tpl_data->tpl_stats_buffer[i].is_valid = i + 1;
+  }
+  av1_init_tpl_stats(tpl_data);
+  EXPECT_EQ(tpl_data->ready, 0);
+  for (int i = 0; i < MAX_LENGTH_TPL_FRAME_STATS; ++i) {
+    EXPECT_EQ(tpl_data->tpl_stats_buffer[i].is_valid, 0);
+  }
+  delete tpl_data;
+}
+
 TEST(TplModelTest, DeltaRateCostZeroFlow) {
   // When srcrf_dist equal to recrf_dist, av1_delta_rate_cost should return 0
   int64_t srcrf_dist = 256;

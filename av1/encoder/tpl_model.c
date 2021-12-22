@@ -1486,17 +1486,19 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 }
 
 void av1_init_tpl_stats(TplParams *const tpl_data) {
-  int frame_idx;
   tpl_data->ready = 0;
   set_tpl_stats_block_size(&tpl_data->tpl_stats_block_mis_log2,
                            &tpl_data->tpl_bsize_1d);
-  for (frame_idx = 0; frame_idx < MAX_LAG_BUFFERS; ++frame_idx) {
+  for (int frame_idx = 0; frame_idx < MAX_LENGTH_TPL_FRAME_STATS; ++frame_idx) {
+    TplDepFrame *tpl_frame = &tpl_data->tpl_stats_buffer[frame_idx];
+    tpl_frame->is_valid = 0;
+  }
+  for (int frame_idx = 0; frame_idx < MAX_LAG_BUFFERS; ++frame_idx) {
     TplDepFrame *tpl_frame = &tpl_data->tpl_stats_buffer[frame_idx];
     if (tpl_data->tpl_stats_pool[frame_idx] == NULL) continue;
     memset(tpl_data->tpl_stats_pool[frame_idx], 0,
            tpl_frame->height * tpl_frame->width *
                sizeof(*tpl_frame->tpl_stats_ptr));
-    tpl_frame->is_valid = 0;
   }
 }
 
