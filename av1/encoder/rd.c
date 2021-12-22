@@ -683,9 +683,11 @@ static INLINE void populate_unified_cost_update_freq(
 // Checks if entropy costs should be initialized/updated at frame level or not.
 static INLINE int is_frame_level_cost_upd_freq_set(
     const AV1_COMMON *const cm, const INTERNAL_COST_UPDATE_TYPE cost_upd_level,
-    const int use_nonrd_pick_mode) {
-  const int fill_costs =
+    const int use_nonrd_pick_mode, const int frames_since_key) {
+  int fill_costs =
       frame_is_intra_only(cm) || (cm->current_frame.frame_number & 0x07) == 1;
+  if (use_nonrd_pick_mode)
+    fill_costs = frame_is_intra_only(cm) || frames_since_key < 2;
   return ((!use_nonrd_pick_mode && cost_upd_level != INTERNAL_COST_UPD_OFF) ||
           cost_upd_level == INTERNAL_COST_UPD_TILE || fill_costs);
 }
@@ -696,9 +698,7 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
   SPEED_FEATURES *const sf = &cpi->sf;
   RD_OPT *const rd = &cpi->rd;
   int use_nonrd_pick_mode = cpi->sf.rt_sf.use_nonrd_pick_mode;
-
-  if (use_nonrd_pick_mode)
-    fill_costs = frame_is_intra_only(cm) || cpi->rc.frames_since_key < 2;
+  int frames_since_key = cpi->rc.frames_since_key;
 
   rd->RDMULT = av1_compute_rd_mult(
       cpi, cm->quant_params.base_qindex + cm->quant_params.y_dc_delta_q);
@@ -720,18 +720,18 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
   const INTER_MODE_SPEED_FEATURES *const inter_sf = &cpi->sf.inter_sf;
   // Frame level mv cost update
   if (is_frame_level_cost_upd_freq_set(cm, inter_sf->mv_cost_upd_level,
-                                       use_nonrd_pick_mode))
+                                       use_nonrd_pick_mode, frames_since_key))
     av1_fill_mv_costs(&cm->fc->nmvc, cm->features.cur_frame_force_integer_mv,
                       cm->features.allow_high_precision_mv, x->mv_costs);
 
   // Frame level coefficient cost update
   if (is_frame_level_cost_upd_freq_set(cm, inter_sf->coeff_cost_upd_level,
-                                       use_nonrd_pick_mode))
+                                       use_nonrd_pick_mode, frames_since_key))
     av1_fill_coeff_costs(&x->coeff_costs, cm->fc, av1_num_planes(cm));
 
   // Frame level mode cost update
   if (is_frame_level_cost_upd_freq_set(cm, inter_sf->mode_cost_upd_level,
-                                       use_nonrd_pick_mode))
+                                       use_nonrd_pick_mode, frames_since_key))
     av1_fill_mode_rates(cm, &x->mode_costs, cm->fc);
 
   // Frame level dv cost update
