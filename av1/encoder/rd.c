@@ -684,10 +684,10 @@ static INLINE void populate_unified_cost_update_freq(
 static INLINE int is_frame_level_cost_upd_freq_set(
     const AV1_COMMON *const cm, const INTERNAL_COST_UPDATE_TYPE cost_upd_level,
     const int use_nonrd_pick_mode, const int frames_since_key) {
-  int fill_costs =
-      frame_is_intra_only(cm) || (cm->current_frame.frame_number & 0x07) == 1;
-  if (use_nonrd_pick_mode)
-    fill_costs = frame_is_intra_only(cm) || frames_since_key < 2;
+  const int fill_costs =
+      frame_is_intra_only(cm) ||
+      (use_nonrd_pick_mode ? frames_since_key < 2
+                           : (cm->current_frame.frame_number & 0x07) == 1);
   return ((!use_nonrd_pick_mode && cost_upd_level != INTERNAL_COST_UPD_OFF) ||
           cost_upd_level == INTERNAL_COST_UPD_TILE || fill_costs);
 }
