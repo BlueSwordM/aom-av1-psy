@@ -143,6 +143,23 @@ static int set_vt_partitioning(AV1_COMP *cpi, MACROBLOCK *const x,
   variance_node vt;
   const int block_width = mi_size_wide[bsize];
   const int block_height = mi_size_high[bsize];
+  int bs_width_check = block_width;
+  int bs_height_check = block_height;
+  int bs_width_vert_check = block_width >> 1;
+  int bs_height_horiz_check = block_height >> 1;
+  // On the right and bottom boundary we only need to check
+  // if half the bsize fits, because boundary is extended
+  // up to 64. So do this check only for sb_size = 64X64.
+  if (cm->seq_params->sb_size == BLOCK_64X64) {
+    if (tile->mi_col_end == cm->mi_params.mi_cols) {
+      bs_width_check = (block_width >> 1) + 1;
+      bs_width_vert_check = (block_width >> 2) + 1;
+    }
+    if (tile->mi_row_end == cm->mi_params.mi_rows) {
+      bs_height_check = (block_height >> 1) + 1;
+      bs_height_horiz_check = (block_height >> 2) + 1;
+    }
+  }
 
   assert(block_height == block_width);
   tree_to_node(data, bsize, &vt);
@@ -155,8 +172,8 @@ static int set_vt_partitioning(AV1_COMP *cpi, MACROBLOCK *const x,
   if (bsize == bsize_min) {
     // Variance already computed to set the force_split.
     if (frame_is_intra_only(cm)) get_variance(&vt.part_variances->none);
-    if (mi_col + block_width <= tile->mi_col_end &&
-        mi_row + block_height <= tile->mi_row_end &&
+    if (mi_col + bs_width_check <= tile->mi_col_end &&
+        mi_row + bs_height_check <= tile->mi_row_end &&
         vt.part_variances->none.variance < threshold) {
       set_block_size(cpi, x, xd, mi_row, mi_col, bsize);
       return 1;
@@ -172,15 +189,15 @@ static int set_vt_partitioning(AV1_COMP *cpi, MACROBLOCK *const x,
       return 0;
     }
     // If variance is low, take the bsize (no split).
-    if (mi_col + block_width <= tile->mi_col_end &&
-        mi_row + block_height <= tile->mi_row_end &&
+    if (mi_col + bs_width_check <= tile->mi_col_end &&
+        mi_row + bs_height_check <= tile->mi_row_end &&
         vt.part_variances->none.variance < threshold) {
       set_block_size(cpi, x, xd, mi_row, mi_col, bsize);
       return 1;
     }
     // Check vertical split.
-    if (mi_row + block_height <= tile->mi_row_end &&
-        mi_col + block_width / 2 <= tile->mi_col_end) {
+    if (mi_row + bs_height_check <= tile->mi_row_end &&
+        mi_col + bs_width_vert_check <= tile->mi_col_end) {
       BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_VERT);
       get_variance(&vt.part_variances->vert[0]);
       get_variance(&vt.part_variances->vert[1]);
@@ -194,8 +211,8 @@ static int set_vt_partitioning(AV1_COMP *cpi, MACROBLOCK *const x,
       }
     }
     // Check horizontal split.
-    if (mi_col + block_width <= tile->mi_col_end &&
-        mi_row + block_height / 2 <= tile->mi_row_end) {
+    if (mi_col + bs_width_check <= tile->mi_col_end &&
+        mi_row + bs_height_horiz_check <= tile->mi_row_end) {
       BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
       get_variance(&vt.part_variances->horz[0]);
       get_variance(&vt.part_variances->horz[1]);
