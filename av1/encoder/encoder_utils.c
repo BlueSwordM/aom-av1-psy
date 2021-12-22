@@ -768,6 +768,9 @@ BLOCK_SIZE av1_select_sb_size(const AV1EncoderConfig *const oxcf, int width,
     return BLOCK_64X64;
   if (oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_128X128)
     return BLOCK_128X128;
+  //Force 64x64 superblock size to improve psycho-visual quality in video content
+  if (oxcf->tune_cfg.content == AOM_CONTENT_PSY)
+    return BLOCK_64X64;
 
   // Force 64x64 superblock size to increase resolution in perceptual
   // AQ mode.
