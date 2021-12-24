@@ -350,6 +350,15 @@ typedef enum {
                    TOTAL_QINDEX_BASED_AGG_LVLS, /*!< Total number of levels. */
 } SIMPLE_MOTION_SEARCH_PRUNE_LEVEL;
 
+/*!\enum PRUNE_MESH_SEARCH_LEVEL
+ * \brief This enumeration defines a variety of mesh search prune levels.
+ */
+typedef enum {
+  PRUNE_MESH_SEARCH_DISABLED = 0, /*!< Prune mesh search level 0. */
+  PRUNE_MESH_SEARCH_LVL_1 = 1,    /*!< Prune mesh search level 1. */
+  PRUNE_MESH_SEARCH_LVL_2 = 2,    /*!< Prune mesh search level 2. */
+} PRUNE_MESH_SEARCH_LEVEL;
+
 /*!
  * \brief Sequence/frame level speed vs quality features
  */
@@ -728,7 +737,7 @@ typedef struct MV_SPEED_FEATURES {
   int reduce_search_range;
 
   // Prune mesh search.
-  int prune_mesh_search;
+  PRUNE_MESH_SEARCH_LEVEL prune_mesh_search;
 
   // Use the rd cost around the best FULLPEL_MV to speed up subpel search
   int use_fullpel_costlist;

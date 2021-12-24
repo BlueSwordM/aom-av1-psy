@@ -469,7 +469,7 @@ static void set_allintra_speed_features_framesize_independent(
     sf->lpf_sf.use_coarse_filter_level_search = 0;
     sf->lpf_sf.disable_lr_filter = 1;
 
-    sf->mv_sf.prune_mesh_search = 1;
+    sf->mv_sf.prune_mesh_search = PRUNE_MESH_SEARCH_LVL_2;
 
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_FAST;
   }
@@ -1022,6 +1022,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
     sf->mv_sf.search_method = DIAMOND;
     sf->mv_sf.disable_second_mv = 2;
+    sf->mv_sf.prune_mesh_search = PRUNE_MESH_SEARCH_LVL_1;
 
     sf->inter_sf.disable_interinter_wedge_newmv_search = boosted ? 0 : 1;
     sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW;
@@ -1117,7 +1118,7 @@ static void set_good_speed_features_framesize_independent(
     sf->intra_sf.skip_intra_in_interframe = 4;
 
     sf->mv_sf.simple_motion_subpel_force_stop = HALF_PEL;
-    sf->mv_sf.prune_mesh_search = 1;
+    sf->mv_sf.prune_mesh_search = PRUNE_MESH_SEARCH_LVL_2;
 
     sf->tpl_sf.subpel_force_stop = HALF_PEL;
     sf->tpl_sf.search_method = FAST_BIGDIA;
@@ -1679,7 +1680,7 @@ static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->auto_mv_step_size = 0;
   mv_sf->exhaustive_searches_thresh = 0;
   mv_sf->obmc_full_pixel_search_level = 0;
-  mv_sf->prune_mesh_search = 0;
+  mv_sf->prune_mesh_search = PRUNE_MESH_SEARCH_DISABLED;
   mv_sf->reduce_search_range = 0;
   mv_sf->search_method = NSTEP;
   mv_sf->simple_motion_subpel_force_stop = EIGHTH_PEL;

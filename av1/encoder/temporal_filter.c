@@ -138,6 +138,7 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
   int_mv best_mv;  // Searched motion vector.
   int block_mse = INT_MAX;
   MV block_mv = kZeroMv;
+  const int q = av1_get_q(cpi);
 
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, mb, block_size,
                                      &baseline_mv, search_site_cfg,
@@ -145,6 +146,12 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
   av1_set_mv_search_method(&full_ms_params, search_site_cfg, search_method);
   full_ms_params.run_mesh_search = 1;
   full_ms_params.mv_cost_params.mv_cost_type = mv_cost_type;
+
+  if (cpi->sf.mv_sf.prune_mesh_search == PRUNE_MESH_SEARCH_LVL_1) {
+    // Enable prune_mesh_search based on q for PRUNE_MESH_SEARCH_LVL_1.
+    full_ms_params.prune_mesh_search = (q <= 20) ? 0 : 1;
+    full_ms_params.mesh_search_mv_diff_threshold = 2;
+  }
 
   av1_full_pixel_search(start_mv, &full_ms_params, step_param,
                         cond_cost_list(cpi, cost_list), &best_mv.as_fullmv,
@@ -198,6 +205,12 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
                                  search_method);
         full_ms_params.run_mesh_search = 1;
         full_ms_params.mv_cost_params.mv_cost_type = mv_cost_type;
+
+        if (cpi->sf.mv_sf.prune_mesh_search == PRUNE_MESH_SEARCH_LVL_1) {
+          // Enable prune_mesh_search based on q for PRUNE_MESH_SEARCH_LVL_1.
+          full_ms_params.prune_mesh_search = (q <= 20) ? 0 : 1;
+          full_ms_params.mesh_search_mv_diff_threshold = 2;
+        }
 
         av1_full_pixel_search(start_mv, &full_ms_params, step_param,
                               cond_cost_list(cpi, cost_list),
