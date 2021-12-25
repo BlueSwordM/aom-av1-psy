@@ -86,14 +86,11 @@ int av1_get_cb_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
                       const BLOCK_SIZE bsize, const int mi_row,
                       const int mi_col) {
   const AV1_COMMON *const cm = &cpi->common;
-  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   assert(IMPLIES(cpi->ppi->gf_group.size > 0,
                  cpi->gf_frame_index < cpi->ppi->gf_group.size));
   const int tpl_idx = cpi->gf_frame_index;
   int deltaq_rdmult = set_deltaq_rdmult(cpi, x);
   if (!av1_tpl_stats_ready(&cpi->ppi->tpl_data, tpl_idx)) return deltaq_rdmult;
-  if (!is_frame_tpl_eligible(gf_group, cpi->gf_frame_index))
-    return deltaq_rdmult;
   if (cm->superres_scale_denominator != SCALE_NUMERATOR) return deltaq_rdmult;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return deltaq_rdmult;
   if (x->rb == 0) return deltaq_rdmult;
@@ -946,7 +943,6 @@ void av1_get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
 int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
                                    BLOCK_SIZE bsize, int mi_row, int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
-  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   assert(IMPLIES(cpi->ppi->gf_group.size > 0,
                  cpi->gf_frame_index < cpi->ppi->gf_group.size));
   const int tpl_idx = cpi->gf_frame_index;
@@ -966,8 +962,6 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
   TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
   int tpl_stride = tpl_frame->stride;
   if (!tpl_frame->is_valid) return base_qindex;
-
-  if (!is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) return base_qindex;
 
   int mi_count = 0;
   const int mi_col_sr =
@@ -1015,7 +1009,6 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
   int qindex = cm->quant_params.base_qindex + offset;
   qindex = AOMMIN(qindex, MAXQ);
   qindex = AOMMAX(qindex, MINQ);
-
   return qindex;
 }
 
