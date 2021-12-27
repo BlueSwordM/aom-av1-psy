@@ -92,6 +92,10 @@ DECLARE_ALIGNED(16, static const uint16_t,
 static double intra_rd_variance_factor(const AV1_COMP *cpi, MACROBLOCK *x,
                                        BLOCK_SIZE bs) {
   double threshold = 1.0 - (0.25 * cpi->oxcf.speed);
+  //PSY mode activates full analysis no matter the speed preset to work as a better reference
+  if ((cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY)
+  || (cpi->oxcf.tune_cfg.content == AOM_CONTENT_ANIMATION))
+    threshold = 1.0;
   // For non-positive threshold values, the comparison of source and
   // reconstructed variances with threshold evaluates to false
   // (src_var < threshold/rec_var < threshold) as these metrics are greater than
@@ -233,7 +237,8 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
     this_rd = RDCOST(x->rdmult, this_rate, tokenonly_rd_stats.dist);
 
     // Visual quality adjustment based on recon vs source variance.
-    if ((cpi->oxcf.mode == ALLINTRA) && (this_rd != INT64_MAX)) {
+    if (((cpi->oxcf.mode == ALLINTRA) || (cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY)
+    || (cpi->oxcf.tune_cfg.content == AOM_CONTENT_ANIMATION)) && (this_rd != INT64_MAX)) {
       this_rd = (int64_t)(this_rd * intra_rd_variance_factor(cpi, x, bsize));
     }
 
@@ -1360,7 +1365,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     this_rd = RDCOST(x->rdmult, this_rate, this_distortion);
 
     // Visual quality adjustment based on recon vs source variance.
-    if ((cpi->oxcf.mode == ALLINTRA) && (this_rd != INT64_MAX)) {
+    if (((cpi->oxcf.mode == ALLINTRA) || (cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY)
+    || (cpi->oxcf.tune_cfg.content == AOM_CONTENT_ANIMATION)) && (this_rd != INT64_MAX)) {
       this_rd = (int64_t)(this_rd * intra_rd_variance_factor(cpi, x, bsize));
     }
 
