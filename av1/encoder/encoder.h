@@ -1438,6 +1438,12 @@ typedef struct ThreadData {
   // pixel in a superblock. The buffer constitutes of MAX_SB_SQUARE pixel level
   // structures for each of the plane types (PLANE_TYPE_Y and PLANE_TYPE_UV).
   PixelLevelGradientInfo *pixel_gradient_info;
+  // Pointer to the array of structures to store source variance information of
+  // each 4x4 sub-block in a superblock. Block4x4VarInfo structure is used to
+  // store source variance and log of source variance of each 4x4 sub-block
+  // which is retrieved in subsequent calls to log_sub_block_var() and
+  // intra_rd_variance_factor() functions.
+  Block4x4VarInfo *src_var_info_of_4x4_sub_blocks;
 } ThreadData;
 
 struct EncWorkerData;

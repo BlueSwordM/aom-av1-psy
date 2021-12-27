@@ -87,78 +87,113 @@ static const uint16_t av1_derived_chroma_intra_mode_used_flag[INTRA_MODES] = {
 DECLARE_ALIGNED(16, static const uint8_t, all_zeros[MAX_SB_SIZE]) = { 0 };
 DECLARE_ALIGNED(16, static const uint16_t,
                 highbd_all_zeros[MAX_SB_SIZE]) = { 0 };
+
+int av1_calc_normalized_variance(aom_variance_fn_t vf, const uint8_t *const buf,
+                                 const int stride, const int is_hbd) {
+  unsigned int sse;
+
+  if (is_hbd)
+    return vf(buf, stride, CONVERT_TO_BYTEPTR(highbd_all_zeros), 0, &sse);
+  else
+    return vf(buf, stride, all_zeros, 0, &sse);
+}
+
+// Computes mapped variance (average of log(1 + variance) across 4x4 sub-blocks)
+// for source and reconstructed blocks.
+static void compute_mapped_var(const AV1_COMP *const cpi, MACROBLOCK *x,
+                               const BLOCK_SIZE bs, double *mapped_source_var,
+                               double *mapped_recon_var) {
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  const BLOCK_SIZE sb_size = cpi->common.seq_params->sb_size;
+  const int mi_row_in_sb = x->e_mbd.mi_row & (mi_size_high[sb_size] - 1);
+  const int mi_col_in_sb = x->e_mbd.mi_col & (mi_size_wide[sb_size] - 1);
+  const int right_overflow =
+      (xd->mb_to_right_edge < 0) ? ((-xd->mb_to_right_edge) >> 3) : 0;
+  const int bottom_overflow =
+      (xd->mb_to_bottom_edge < 0) ? ((-xd->mb_to_bottom_edge) >> 3) : 0;
+  const int bw = (MI_SIZE * mi_size_wide[bs] - right_overflow);
+  const int bh = (MI_SIZE * mi_size_high[bs] - bottom_overflow);
+  const int is_hbd = is_cur_buf_hbd(xd);
+
+  for (int i = 0; i < bh; i += MI_SIZE) {
+    const int r = mi_row_in_sb + (i >> MI_SIZE_LOG2);
+    for (int j = 0; j < bw; j += MI_SIZE) {
+      const int c = mi_col_in_sb + (j >> MI_SIZE_LOG2);
+      const int mi_offset = r * mi_size_wide[sb_size] + c;
+      Block4x4VarInfo *block_4x4_var_info =
+          &x->src_var_info_of_4x4_sub_blocks[mi_offset];
+      int src_var = block_4x4_var_info->var;
+      double log_src_var = block_4x4_var_info->log_var;
+      // Compute mapped variance for the source block from 4x4 sub-block
+      // variance values. Calculate and store 4x4 sub-block variance and
+      // log(1 + variance), if the values present in src_var_of_4x4_sub_blocks
+      // are invalid. Reuse the same if it is readily available with valid
+      // values.
+      if (src_var < 0) {
+        src_var = av1_calc_normalized_variance(
+            cpi->ppi->fn_ptr[BLOCK_4X4].vf,
+            x->plane[0].src.buf + i * x->plane[0].src.stride + j,
+            x->plane[0].src.stride, is_hbd);
+        block_4x4_var_info->var = src_var;
+        log_src_var = log(1.0 + src_var / 16.0);
+        block_4x4_var_info->log_var = log_src_var;
+      } else {
+        // When source variance is already calculated and available for
+        // retrieval, check if log(1 + variance) is also available. If it is
+        // available, then retrieve from buffer. Else, calculate the same and
+        // store to the buffer.
+        if (log_src_var < 0) {
+          log_src_var = log(1.0 + src_var / 16.0);
+          block_4x4_var_info->log_var = log_src_var;
+        }
+      }
+      *mapped_source_var += log_src_var;
+
+      const int recon_var = av1_calc_normalized_variance(
+          cpi->ppi->fn_ptr[BLOCK_4X4].vf,
+          xd->plane[0].dst.buf + i * xd->plane[0].dst.stride + j,
+          xd->plane[0].dst.stride, is_hbd);
+      *mapped_recon_var += log(1.0 + recon_var / 16.0);
+    }
+  }
+
+  const int blocks = (bw * bh) / 16;
+  *mapped_source_var /= (double)blocks;
+  *mapped_recon_var /= (double)blocks;
+}
+
 // Returns a factor to be applied to the RD value based on how well the
 // reconstructed block variance matches the source variance.
 static double intra_rd_variance_factor(const AV1_COMP *cpi, MACROBLOCK *x,
                                        BLOCK_SIZE bs) {
-  double threshold = 1.0 - (0.25 * cpi->oxcf.speed);
+  double threshold = INTRA_RD_VAR_THRESH(cpi->oxcf.speed);
   // For non-positive threshold values, the comparison of source and
   // reconstructed variances with threshold evaluates to false
   // (src_var < threshold/rec_var < threshold) as these metrics are greater than
   // than 0. Hence further calculations are skipped.
   if (threshold <= 0) return 1.0;
 
-  MACROBLOCKD *xd = &x->e_mbd;
   double variance_rd_factor = 1.0;
-  double src_var = 0.0;
-  double rec_var = 0.0;
+  double mapped_src_var = 0.0;
+  double mapped_rec_var = 0.0;
   double var_diff = 0.0;
-  unsigned int sse;
-  int i, j;
-  int right_overflow =
-      (xd->mb_to_right_edge < 0) ? ((-xd->mb_to_right_edge) >> 3) : 0;
-  int bottom_overflow =
-      (xd->mb_to_bottom_edge < 0) ? ((-xd->mb_to_bottom_edge) >> 3) : 0;
 
-  const int bw = MI_SIZE * mi_size_wide[bs] - right_overflow;
-  const int bh = MI_SIZE * mi_size_high[bs] - bottom_overflow;
-  const int blocks = (bw * bh) / 16;
-
-  for (i = 0; i < bh; i += 4) {
-    for (j = 0; j < bw; j += 4) {
-      if (is_cur_buf_hbd(xd)) {
-        src_var +=
-            log(1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
-                          x->plane[0].src.buf + i * x->plane[0].src.stride + j,
-                          x->plane[0].src.stride,
-                          CONVERT_TO_BYTEPTR(highbd_all_zeros), 0, &sse) /
-                          16.0);
-        rec_var += log(
-            1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
-                      xd->plane[0].dst.buf + i * xd->plane[0].dst.stride + j,
-                      xd->plane[0].dst.stride,
-                      CONVERT_TO_BYTEPTR(highbd_all_zeros), 0, &sse) /
-                      16.0);
-      } else {
-        src_var +=
-            log(1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
-                          x->plane[0].src.buf + i * x->plane[0].src.stride + j,
-                          x->plane[0].src.stride, all_zeros, 0, &sse) /
-                          16.0);
-        rec_var += log(
-            1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
-                      xd->plane[0].dst.buf + i * xd->plane[0].dst.stride + j,
-                      xd->plane[0].dst.stride, all_zeros, 0, &sse) /
-                      16.0);
-      }
-    }
-  }
-  src_var /= (double)blocks;
-  rec_var /= (double)blocks;
+  // Compute mapped source/reconstructed block variance for the block.
+  compute_mapped_var(cpi, x, bs, &mapped_src_var, &mapped_rec_var);
 
   // Dont allow 0 to prevent / 0 below.
-  src_var += 0.000001;
-  rec_var += 0.000001;
+  mapped_src_var += 0.000001;
+  mapped_rec_var += 0.000001;
 
-  if (src_var >= rec_var) {
-    var_diff = (src_var - rec_var);
-    if ((var_diff > 0.5) && (rec_var < threshold)) {
-      variance_rd_factor = 1.0 + ((var_diff * 2) / src_var);
+  if (mapped_src_var >= mapped_rec_var) {
+    var_diff = (mapped_src_var - mapped_rec_var);
+    if ((var_diff > 0.5) && (mapped_rec_var < threshold)) {
+      variance_rd_factor = 1.0 + ((var_diff * 2) / mapped_src_var);
     }
   } else {
-    var_diff = (rec_var - src_var);
-    if ((var_diff > 0.5) && (src_var < threshold)) {
-      variance_rd_factor = 1.0 + (var_diff / (2 * src_var));
+    var_diff = (mapped_rec_var - mapped_src_var);
+    if ((var_diff > 0.5) && (mapped_src_var < threshold)) {
+      variance_rd_factor = 1.0 + (var_diff / (2 * mapped_src_var));
     }
   }
 

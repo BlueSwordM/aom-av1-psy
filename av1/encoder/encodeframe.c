@@ -871,6 +871,9 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
 
     produce_gradients_for_sb(cpi, x, sb_size, mi_row, mi_col);
 
+    init_src_var_info_of_4x4_sub_blocks(cpi, x->src_var_info_of_4x4_sub_blocks,
+                                        sb_size);
+
     // encode the superblock
     if (use_nonrd_mode) {
       encode_nonrd_sb(cpi, td, tile_data, tp, mi_row, mi_col, seg_skip);

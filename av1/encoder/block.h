@@ -766,6 +766,12 @@ typedef struct {
   bool is_dx_zero;
 } PixelLevelGradientInfo;
 
+// Structure to hold the variance and log(1 + variance) for 4x4 sub-blocks.
+typedef struct {
+  double log_var;
+  int var;
+} Block4x4VarInfo;
+
 /*!\endcond */
 
 /*! \brief Encoder's parameters related to the current coding block.
@@ -1191,6 +1197,16 @@ typedef struct macroblock {
    * partition is evaluated in the scheme.
    */
   int try_merge_partition;
+
+  /*! \brief Pointer to buffer which caches sub-block variances in a superblock.
+   *
+   *  Pointer to the array of structures to store source variance information of
+   *  each 4x4 sub-block in a superblock. Block4x4VarInfo structure is used to
+   *  store source variance and log of source variance of each 4x4 sub-block
+   *  which is retrieved in subsequent calls to log_sub_block_var() and
+   *  intra_rd_variance_factor() functions.
+   */
+  Block4x4VarInfo *src_var_info_of_4x4_sub_blocks;
 } MACROBLOCK;
 #undef SINGLE_REF_MODES
 

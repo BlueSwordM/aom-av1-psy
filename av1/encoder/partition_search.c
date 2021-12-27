@@ -21,6 +21,7 @@
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/encodeframe_utils.h"
 #include "av1/encoder/encodemv.h"
+#include "av1/encoder/intra_mode_search_utils.h"
 #include "av1/encoder/motion_search_facade.h"
 #include "av1/encoder/partition_search.h"
 #include "av1/encoder/partition_strategy.h"
@@ -4622,42 +4623,41 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
   return true;
 }
 
-DECLARE_ALIGNED(16, static const uint8_t, all_zeros[MAX_SB_SIZE]) = { 0 };
-DECLARE_ALIGNED(16, static const uint16_t,
-                highbd_all_zeros[MAX_SB_SIZE]) = { 0 };
 static void log_sub_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs,
                               double *var_min, double *var_max) {
   // This functions returns a the minimum and maximum log variances for 4x4
   // sub blocks in the current block.
 
-  MACROBLOCKD *xd = &x->e_mbd;
-  double var;
-  unsigned int sse;
-  int i, j;
-
-  int right_overflow =
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  const int is_hbd = is_cur_buf_hbd(xd);
+  const int right_overflow =
       (xd->mb_to_right_edge < 0) ? ((-xd->mb_to_right_edge) >> 3) : 0;
-  int bottom_overflow =
+  const int bottom_overflow =
       (xd->mb_to_bottom_edge < 0) ? ((-xd->mb_to_bottom_edge) >> 3) : 0;
-
+  const BLOCK_SIZE sb_size = cpi->common.seq_params->sb_size;
   const int bw = MI_SIZE * mi_size_wide[bs] - right_overflow;
   const int bh = MI_SIZE * mi_size_high[bs] - bottom_overflow;
-
+  const int mi_row_in_sb = x->e_mbd.mi_row & (mi_size_high[sb_size] - 1);
+  const int mi_col_in_sb = x->e_mbd.mi_col & (mi_size_wide[sb_size] - 1);
   // Initialize minimum variance to a large value and maximum variance to 0.
   double min_var_4x4 = (double)INT_MAX;
   double max_var_4x4 = 0.0;
 
-  for (i = 0; i < bh; i += 4) {
-    for (j = 0; j < bw; j += 4) {
-      if (is_cur_buf_hbd(xd)) {
-        var = cpi->ppi->fn_ptr[BLOCK_4X4].vf(
+  for (int i = 0; i < bh; i += MI_SIZE) {
+    const int r = mi_row_in_sb + (i >> MI_SIZE_LOG2);
+    for (int j = 0; j < bw; j += MI_SIZE) {
+      const int c = mi_col_in_sb + (j >> MI_SIZE_LOG2);
+      const int mi_offset = r * mi_size_wide[sb_size] + c;
+      int var = x->src_var_info_of_4x4_sub_blocks[mi_offset].var;
+      // Calculate and store 4x4 sub-block variance, if the source variance
+      // value present in src_var_info_of_4x4_sub_blks is not valid. Reuse the
+      // the same if it is readily available with a valid value.
+      if (var < 0) {
+        var = av1_calc_normalized_variance(
+            cpi->ppi->fn_ptr[BLOCK_4X4].vf,
             x->plane[0].src.buf + i * x->plane[0].src.stride + j,
-            x->plane[0].src.stride, CONVERT_TO_BYTEPTR(highbd_all_zeros), 0,
-            &sse);
-      } else {
-        var = cpi->ppi->fn_ptr[BLOCK_4X4].vf(
-            x->plane[0].src.buf + i * x->plane[0].src.stride + j,
-            x->plane[0].src.stride, all_zeros, 0, &sse);
+            x->plane[0].src.stride, is_hbd);
+        x->src_var_info_of_4x4_sub_blocks[mi_offset].var = var;
       }
       min_var_4x4 = AOMMIN(min_var_4x4, var);
       max_var_4x4 = AOMMAX(max_var_4x4, var);
