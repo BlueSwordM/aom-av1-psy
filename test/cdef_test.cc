@@ -309,7 +309,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Values(8)));
-#if CONFIG_AV1_HIGHBITDEPTH
 INSTANTIATE_TEST_SUITE_P(
     SSE2, CDEFBlockHighbdTest,
     ::testing::Combine(::testing::Values(&cdef_filter_block_highbd_sse2),
@@ -317,7 +316,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(10, 13, 2)));
-#endif
 INSTANTIATE_TEST_SUITE_P(SSE2, CDEFFindDirTest,
                          ::testing::Values(make_tuple(&cdef_find_dir_sse2,
                                                       &cdef_find_dir_c)));
@@ -330,7 +328,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Values(8)));
-#if CONFIG_AV1_HIGHBITDEPTH
 INSTANTIATE_TEST_SUITE_P(
     SSSE3, CDEFBlockHighbdTest,
     ::testing::Combine(::testing::Values(&cdef_filter_block_highbd_ssse3),
@@ -338,7 +335,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(10, 13, 2)));
-#endif
 INSTANTIATE_TEST_SUITE_P(SSSE3, CDEFFindDirTest,
                          ::testing::Values(make_tuple(&cdef_find_dir_ssse3,
                                                       &cdef_find_dir_c)));
@@ -352,7 +348,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Values(8)));
-#if CONFIG_AV1_HIGHBITDEPTH
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, CDEFBlockHighbdTest,
     ::testing::Combine(::testing::Values(&cdef_filter_block_highbd_sse4_1),
@@ -360,7 +355,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(10, 13, 2)));
-#endif
 INSTANTIATE_TEST_SUITE_P(SSE4_1, CDEFFindDirTest,
                          ::testing::Values(make_tuple(&cdef_find_dir_sse4_1,
                                                       &cdef_find_dir_c)));
@@ -374,7 +368,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Values(8)));
-#if CONFIG_AV1_HIGHBITDEPTH
 INSTANTIATE_TEST_SUITE_P(
     AVX2, CDEFBlockHighbdTest,
     ::testing::Combine(::testing::Values(&cdef_filter_block_highbd_avx2),
@@ -382,7 +375,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(10, 13, 2)));
-#endif
 INSTANTIATE_TEST_SUITE_P(AVX2, CDEFFindDirTest,
                          ::testing::Values(make_tuple(&cdef_find_dir_avx2,
                                                       &cdef_find_dir_c)));
@@ -396,7 +388,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Values(8)));
-#if CONFIG_AV1_HIGHBITDEPTH
 INSTANTIATE_TEST_SUITE_P(
     NEON, CDEFBlockHighbdTest,
     ::testing::Combine(::testing::Values(&cdef_filter_block_highbd_neon),
@@ -404,7 +395,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(10, 13, 2)));
-#endif
 INSTANTIATE_TEST_SUITE_P(NEON, CDEFFindDirTest,
                          ::testing::Values(make_tuple(&cdef_find_dir_neon,
                                                       &cdef_find_dir_c)));

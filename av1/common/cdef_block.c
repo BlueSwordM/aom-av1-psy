@@ -190,7 +190,6 @@ void cdef_filter_block_c(void *dst8, int dstride, const uint16_t *in,
                              coeff_shift);
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 void cdef_filter_block_highbd_c(void *dst16, int dstride, const uint16_t *in,
                                 int pri_strength, int sec_strength, int dir,
                                 int pri_damping, int sec_damping, int bsize,
@@ -199,7 +198,6 @@ void cdef_filter_block_highbd_c(void *dst16, int dstride, const uint16_t *in,
                              sec_strength, dir, pri_damping, sec_damping, bsize,
                              coeff_shift);
 }
-#endif
 
 /* Compute the primary filter strength for an 8x8 block based on the
    directional variance difference. A high variance difference means
@@ -273,7 +271,6 @@ void av1_cdef_filter_fb(uint8_t *dst8, uint16_t *dst16, int dstride,
   for (bi = 0; bi < cdef_count; bi++) {
     by = dlist[bi].by;
     bx = dlist[bi].bx;
-#if CONFIG_AV1_HIGHBITDEPTH
     if (dst16) {
       cdef_filter_block_highbd(
           &dst16[dirinit ? bi << (bw_log2 + bh_log2)
@@ -282,13 +279,12 @@ void av1_cdef_filter_fb(uint8_t *dst8, uint16_t *dst16, int dstride,
           &in[(by * CDEF_BSTRIDE << bh_log2) + (bx << bw_log2)],
           (pli ? t : adjust_strength(t, var[by][bx])), s, t ? dir[by][bx] : 0,
           damping, damping, bsize, coeff_shift);
-      continue;
+    } else {
+      cdef_filter_block(
+          &dst8[(by << bh_log2) * dstride + (bx << bw_log2)], dstride,
+          &in[(by * CDEF_BSTRIDE << bh_log2) + (bx << bw_log2)],
+          (pli ? t : adjust_strength(t, var[by][bx])), s, t ? dir[by][bx] : 0,
+          damping, damping, bsize, coeff_shift);
     }
-#endif
-    cdef_filter_block(
-        &dst8[(by << bh_log2) * dstride + (bx << bw_log2)], dstride,
-        &in[(by * CDEF_BSTRIDE << bh_log2) + (bx << bw_log2)],
-        (pli ? t : adjust_strength(t, var[by][bx])), s, t ? dir[by][bx] : 0,
-        damping, damping, bsize, coeff_shift);
   }
 }

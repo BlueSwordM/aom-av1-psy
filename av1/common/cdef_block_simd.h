@@ -572,7 +572,6 @@ void SIMD_FUNC(cdef_filter_block)(void *dest, int dstride, const uint16_t *in,
   }
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 // sign(a-b) * min(abs(a-b), max(0, threshold - (abs(a-b) >> adjdamp)))
 SIMD_INLINE v256 constrain16(v256 a, v256 b, unsigned int threshold,
                              unsigned int adjdamp) {
@@ -893,7 +892,6 @@ void SIMD_FUNC(cdef_filter_block_highbd)(void *dest, int dstride,
      sec_damping, coeff_shift);
   }
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 void SIMD_FUNC(cdef_copy_rect8_8bit_to_16bit)(uint16_t *dst, int dstride,
                                               const uint8_t *src, int sstride,

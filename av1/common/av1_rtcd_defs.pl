@@ -510,9 +510,8 @@ add_proto qw/void av1_calc_indices_dim2/, "const int *data, const int *centroids
 
 add_proto qw/int cdef_find_dir/, "const uint16_t *img, int stride, int32_t *var, int coeff_shift";
 add_proto qw/void cdef_filter_block/, "void *dst8, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int bsize, int coeff_shift";
-if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
-  add_proto qw/void cdef_filter_block_highbd/, "void *dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int bsize, int coeff_shift";
-}
+add_proto qw/void cdef_filter_block_highbd/, "void *dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int bsize, int coeff_shift";
+
 add_proto qw/void cdef_copy_rect8_8bit_to_16bit/, "uint16_t *dst, int dstride, const uint8_t *src, int sstride, int v, int h";
 add_proto qw/void cdef_copy_rect8_16bit_to_16bit/, "uint16_t *dst, int dstride, const uint16_t *src, int sstride, int v, int h";
 
@@ -522,9 +521,7 @@ add_proto qw/void cdef_copy_rect8_16bit_to_16bit/, "uint16_t *dst, int dstride, 
 if ($opts{config} !~ /libs-x86-win32-vs.*/) {
   specialize qw/cdef_find_dir sse2 ssse3 sse4_1 avx2 neon/;
   specialize qw/cdef_filter_block sse2 ssse3 sse4_1 avx2 neon/;
-  if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
-    specialize qw/cdef_filter_block_highbd sse2 ssse3 sse4_1 avx2 neon/;
-  }
+  specialize qw/cdef_filter_block_highbd sse2 ssse3 sse4_1 avx2 neon/;
   specialize qw/cdef_copy_rect8_8bit_to_16bit sse2 ssse3 sse4_1 avx2 neon/;
   specialize qw/cdef_copy_rect8_16bit_to_16bit sse2 ssse3 sse4_1 avx2 neon/;
 }
