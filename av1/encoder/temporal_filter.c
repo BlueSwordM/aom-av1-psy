@@ -811,7 +811,7 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
   //We keep it at 1 for now until new deltaq-modes
   //or RC gets modified for higher fidelity/visual energy preservation
   if(cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY)
-    filter_strength = 1;
+    filter_strength = 0;
 
   // Do filtering.
   FRAME_DIFF *diff = &td->tf_data.diff;
