@@ -105,7 +105,9 @@ list(APPEND AOM_DSP_COMMON_INTRIN_SSE4_1
             "${AOM_ROOT}/aom_dsp/x86/blend_mask_sse4.h"
             "${AOM_ROOT}/aom_dsp/x86/blend_a64_hmask_sse4.c"
             "${AOM_ROOT}/aom_dsp/x86/blend_a64_mask_sse4.c"
-            "${AOM_ROOT}/aom_dsp/x86/blend_a64_vmask_sse4.c")
+            "${AOM_ROOT}/aom_dsp/x86/blend_a64_vmask_sse4.c"
+            "${AOM_ROOT}/aom_dsp/x86/intrapred_sse4.c"
+            "${AOM_ROOT}/aom_dsp/x86/intrapred_utils.h")
 
 list(APPEND AOM_DSP_COMMON_INTRIN_AVX2
             "${AOM_ROOT}/aom_dsp/x86/aom_convolve_copy_avx2.c"
