@@ -1526,6 +1526,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.nonrd_check_partition_merge_mode = 1;
     sf->rt_sf.nonrd_check_partition_split = 0;
     sf->rt_sf.skip_intra_pred_if_tx_skip = 1;
+    sf->rt_sf.source_metrics_sb_nonrd = 1;
     // For SVC: use better mv search on base temporal layers, and only
     // on base spatial layer if highest resolution is above 640x360.
     if (cpi->svc.number_temporal_layers > 1 &&
@@ -1568,7 +1569,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.nonrd_check_partition_merge_mode = 0;
     sf->rt_sf.nonrd_check_partition_split = 0;
     sf->rt_sf.use_modeled_non_rd_cost = 1;
-    sf->rt_sf.source_metrics_sb_nonrd = 1;
     sf->rt_sf.skip_intra_pred_if_tx_skip = 0;
     sf->rt_sf.var_part_split_threshold_shift = 8;
     sf->interp_sf.cb_pred_filter_search = 1;
@@ -1582,7 +1582,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
       sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC;
   }
   if (speed >= 10) {
-    sf->rt_sf.source_metrics_sb_nonrd = 0;
     sf->rt_sf.skip_intra_pred_if_tx_skip = 1;
     sf->rt_sf.nonrd_agressive_skip = 1;
     sf->rt_sf.nonrd_prune_ref_frame_search = 3;
@@ -2121,12 +2120,6 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
           frame_is_intra_only(cm)
               ? 0
               : cm->quant_params.base_qindex > qindex_thresh;
-    }
-    if (speed >= 10) {
-      sf->rt_sf.source_metrics_sb_nonrd =
-          (cm->quant_params.base_qindex > 150 && cpi->rc.avg_source_sad > 20000)
-              ? 1
-              : 0;
     }
     return;
   }
