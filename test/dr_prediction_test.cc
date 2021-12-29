@@ -387,11 +387,18 @@ TEST_P(LowbdDrPredTest, OperationCheck) { RundrPredTest(0); }
 TEST_P(LowbdDrPredTest, DISABLED_Speed) { RundrPredTest(1); }
 
 #if HAVE_SSE4_1
-INSTANTIATE_TEST_SUITE_P(SSE4_1, LowbdDrPredTest,
-                         ::testing::Values(DrPredFunc<DrPred>(
-                             &z3_wrapper<av1_dr_prediction_z3_c>,
-                             &z3_wrapper<av1_dr_prediction_z3_sse4_1>,
-                             AOM_BITS_8, kZ3Start)));
+INSTANTIATE_TEST_SUITE_P(
+    SSE4_1, LowbdDrPredTest,
+    ::testing::Values(
+        DrPredFunc<DrPred>(&z1_wrapper<av1_dr_prediction_z1_c>,
+                           &z1_wrapper<av1_dr_prediction_z1_sse4_1>, AOM_BITS_8,
+                           kZ1Start),
+        DrPredFunc<DrPred>(&z2_wrapper<av1_dr_prediction_z2_c>,
+                           &z2_wrapper<av1_dr_prediction_z2_sse4_1>, AOM_BITS_8,
+                           kZ2Start),
+        DrPredFunc<DrPred>(&z3_wrapper<av1_dr_prediction_z3_c>,
+                           &z3_wrapper<av1_dr_prediction_z3_sse4_1>, AOM_BITS_8,
+                           kZ3Start)));
 #endif  // HAVE_SSE4_1
 
 #if HAVE_AVX2
