@@ -19,6 +19,7 @@ extern "C" {
 
 #include "av1/encoder/firstpass.h"
 #include "av1/encoder/ratectrl.h"
+#include "av1/encoder/tpl_model.h"
 
 struct AV1_COMP;
 
@@ -33,6 +34,15 @@ typedef struct {
   int num_frames;
   int use_arf;
 } THIRD_PASS_GOP_INFO;
+
+#if CONFIG_BITRATE_ACCURACY
+typedef struct TPL_INFO {
+  int gf_length;
+  int tpl_ready;
+  TplTxfmStats txfm_stats_list[MAX_LENGTH_TPL_FRAME_STATS];
+  double qstep_ratio_ls[MAX_LENGTH_TPL_FRAME_STATS];
+} TPL_INFO;
+#endif  // CONFIG_BITRATE_ACCURACY
 
 typedef struct {
   BLOCK_SIZE bsize;
@@ -167,6 +177,18 @@ void av1_third_pass_get_adjusted_mi(THIRD_PASS_MI_INFO *third_pass_mi,
 PARTITION_TYPE av1_third_pass_get_sb_part_type(THIRD_PASS_DEC_CTX *ctx,
                                                THIRD_PASS_MI_INFO *this_mi);
 
+#if CONFIG_BITRATE_ACCURACY
+
+void av1_pack_tpl_info(TPL_INFO *tpl_info, const GF_GROUP *gf_group,
+                       const TplParams *tpl_data);
+
+void av1_write_tpl_info(const TPL_INFO *tpl_info, FILE *log_stream,
+                        struct aom_internal_error_info *error);
+
+void av1_read_tpl_info(TPL_INFO *tpl_info, FILE *log_stream,
+                       struct aom_internal_error_info *error);
+
+#endif  // CONFIG_BITRATE_ACCURACY
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -24,6 +24,7 @@ struct AV1_SEQ_CODING_TOOLS;
 struct EncodeFrameParams;
 struct EncodeFrameInput;
 struct GF_GROUP;
+struct TPL_INFO;
 
 #include "config/aom_config.h"
 
@@ -223,11 +224,19 @@ typedef struct TplParams {
 } TplParams;
 
 #if CONFIG_BITRATE_ACCURACY
+
+#if CONFIG_THREE_PASS
+#define VBR_RC_INFO_MAX_FRAMES 500
+#else  // CONFIG_THREE_PASS
+#define VBR_RC_INFO_MAX_FRAMES MAX_LENGTH_TPL_FRAME_STATS
+#endif  //  CONFIG_THREE_PASS
+
 /*!
  * \brief This structure stores information needed for bitrate accuracy
  * experiment.
  */
 typedef struct {
+  int ready;
   double total_bit_budget;  // The total bit budget of the entire video
   int show_frame_count;     // Number of show frames in the entire video
 
@@ -241,17 +250,27 @@ typedef struct {
   // === Below this line are GOP related data that will be updated per GOP ===
   int base_q_index;  // Stores the base q index.
   int q_index_list_ready;
-  int q_index_list[MAX_LENGTH_TPL_FRAME_STATS];  // q indices for the current
-                                                 // GOP
+  int q_index_list[VBR_RC_INFO_MAX_FRAMES];  // q indices for the current
+                                             // GOP
   // Arrays to store frame level bitrate accuracy data.
-  double estimated_bitrate_byframe[MAX_LENGTH_TPL_FRAME_STATS];
-  double estimated_mv_bitrate_byframe[MAX_LENGTH_TPL_FRAME_STATS];
-  int actual_bitrate_byframe[MAX_LENGTH_TPL_FRAME_STATS];
-  int actual_mv_bitrate_byframe[MAX_LENGTH_TPL_FRAME_STATS];
-  int actual_coeff_bitrate_byframe[MAX_LENGTH_TPL_FRAME_STATS];
+  double estimated_bitrate_byframe[VBR_RC_INFO_MAX_FRAMES];
+  double estimated_mv_bitrate_byframe[VBR_RC_INFO_MAX_FRAMES];
+  int actual_bitrate_byframe[VBR_RC_INFO_MAX_FRAMES];
+  int actual_mv_bitrate_byframe[VBR_RC_INFO_MAX_FRAMES];
+  int actual_coeff_bitrate_byframe[VBR_RC_INFO_MAX_FRAMES];
 
   // Array to store qstep_ratio for each frame in a GOP
-  double qstep_ratio_list[MAX_LENGTH_TPL_FRAME_STATS];
+  double qstep_ratio_list[VBR_RC_INFO_MAX_FRAMES];
+
+#if CONFIG_THREE_PASS
+  TplTxfmStats txfm_stats_list[VBR_RC_INFO_MAX_FRAMES];
+  FRAME_UPDATE_TYPE update_type_list[VBR_RC_INFO_MAX_FRAMES];
+  int gop_start_idx_list[VBR_RC_INFO_MAX_FRAMES];
+  int gop_length_list[VBR_RC_INFO_MAX_FRAMES];
+  int cur_gop_idx;
+  int total_frame_count;
+  int gop_count;
+#endif  // CONFIG_THREE_PASS
 } VBR_RATECTRL_INFO;
 
 static INLINE void vbr_rc_reset_gop_data(VBR_RATECTRL_INFO *vbr_rc_info) {
@@ -266,6 +285,9 @@ static INLINE void vbr_rc_reset_gop_data(VBR_RATECTRL_INFO *vbr_rc_info) {
 
 void av1_vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info, double total_bit_budget,
                      int show_frame_count);
+
+void av1_vbr_rc_append_tpl_info(VBR_RATECTRL_INFO *vbr_rc_info,
+                                const struct TPL_INFO *tpl_info);
 void av1_vbr_rc_set_gop_bit_budget(VBR_RATECTRL_INFO *vbr_rc_info,
                                    int gop_showframe_count);
 

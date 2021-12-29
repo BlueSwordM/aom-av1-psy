@@ -2031,6 +2031,8 @@ int av1_tpl_get_q_index(const TplParams *tpl_data, int gf_frame_index,
 #if CONFIG_BITRATE_ACCURACY
 void av1_vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info, double total_bit_budget,
                      int show_frame_count) {
+  av1_zero(*vbr_rc_info);
+  vbr_rc_info->ready = 0;
   vbr_rc_info->total_bit_budget = total_bit_budget;
   vbr_rc_info->show_frame_count = show_frame_count;
   const double scale_factors[FRAME_UPDATE_TYPES] = { 0.94559, 0.94559, 1,
@@ -2051,7 +2053,35 @@ void av1_vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info, double total_bit_budget,
          sizeof(mv_scale_factors[0]) * FRAME_UPDATE_TYPES);
 
   vbr_rc_reset_gop_data(vbr_rc_info);
+#if CONFIG_THREE_PASS
+  // TODO(angiebird): Explain why we use -1 here
+  vbr_rc_info->cur_gop_idx = -1;
+  vbr_rc_info->gop_count = 0;
+  vbr_rc_info->total_frame_count = 0;
+#endif  // CONFIG_THREE_PASS
 }
+
+#if CONFIG_THREE_PASS
+void av1_vbr_rc_append_tpl_info(VBR_RATECTRL_INFO *vbr_rc_info,
+                                const TPL_INFO *tpl_info) {
+  int gop_start_idx = vbr_rc_info->total_frame_count;
+  vbr_rc_info->gop_start_idx_list[vbr_rc_info->gop_count] = gop_start_idx;
+  vbr_rc_info->gop_length_list[vbr_rc_info->gop_count] = tpl_info->gf_length;
+  assert(gop_start_idx + tpl_info->gf_length <= VBR_RC_INFO_MAX_FRAMES);
+  for (int i = 0; i < tpl_info->gf_length; ++i) {
+    vbr_rc_info->txfm_stats_list[gop_start_idx + i] =
+        tpl_info->txfm_stats_list[i];
+    vbr_rc_info->qstep_ratio_list[gop_start_idx + i] =
+        tpl_info->qstep_ratio_ls[i];
+    // TODO(angiebird): This is a hack. We currently apply same scale factor
+    // for each update_type, therefore setting everying to ARF_UPDATE is
+    // temporarily okay. Properly set  the update_type later.
+    vbr_rc_info->update_type_list[gop_start_idx + i] = ARF_UPDATE;
+  }
+  vbr_rc_info->total_frame_count += tpl_info->gf_length;
+  vbr_rc_info->gop_count++;
+}
+#endif  // CONFIG_THREE_PASS
 
 void av1_vbr_rc_set_gop_bit_budget(VBR_RATECTRL_INFO *vbr_rc_info,
                                    int gop_showframe_count) {

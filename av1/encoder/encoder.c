@@ -2669,10 +2669,25 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #endif  // CONFIG_RD_COMMAND
 
 #if CONFIG_BITRATE_ACCURACY
+#if CONFIG_THREE_PASS
+    if (oxcf->pass == AOM_RC_THIRD_PASS && cpi->vbr_rc_info.ready == 1) {
+      int gop_idx = cpi->vbr_rc_info.cur_gop_idx;
+      int gop_start_idx = cpi->vbr_rc_info.gop_start_idx_list[gop_idx];
+      int cur_frame_idx = gop_start_idx + cpi->gf_frame_index;
+      if (cur_frame_idx < cpi->vbr_rc_info.total_frame_count) {
+        q = cpi->vbr_rc_info.q_index_list[cur_frame_idx];
+      } else {
+        // TODO(angiebird): Investiage why sometimes there is an extra frame
+        // after the last GOP.
+        q = 255;
+      }
+    }
+#else
     if (cpi->vbr_rc_info.q_index_list_ready) {
       q = cpi->vbr_rc_info.q_index_list[cpi->gf_frame_index];
     }
-#endif
+#endif  // CONFIG_THREE_PASS
+#endif  // CONFIG_BITRATE_ACCURACY
     av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                       q_cfg->enable_chroma_deltaq, q_cfg->enable_hdr_deltaq);
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);

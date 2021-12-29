@@ -1081,7 +1081,7 @@ static int is_shorter_gf_interval_better(AV1_COMP *cpi,
       // interval is not shortened.
       if (is_temporal_filter_enabled && !shorten_gf_interval) {
         cpi->skip_tpl_setup_stats = 1;
-#if CONFIG_BITRATE_ACCURACY
+#if CONFIG_BITRATE_ACCURACY && !CONFIG_THREE_PASS
         assert(cpi->gf_frame_index == 0);
         av1_vbr_rc_update_q_index_list(&cpi->vbr_rc_info, &cpi->ppi->tpl_data,
                                        gf_group,
@@ -3711,7 +3711,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   // Define a new GF/ARF group. (Should always enter here for key frames).
   if (cpi->gf_frame_index == gf_group->size) {
     av1_tf_info_reset(&cpi->ppi->tf_info);
-#if CONFIG_BITRATE_ACCURACY
+#if CONFIG_BITRATE_ACCURACY && !CONFIG_THREE_PASS
     vbr_rc_reset_gop_data(&cpi->vbr_rc_info);
 #endif  // CONFIG_BITRATE_ACCURACY
     int max_gop_length =
@@ -3778,6 +3778,18 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       // Read in GOP information from the second pass file.
       av1_read_second_pass_gop_info(cpi->second_pass_log_stream, gop_info,
                                     cpi->common.error);
+#if CONFIG_BITRATE_ACCURACY
+      TPL_INFO *tpl_info;
+      AOM_CHECK_MEM_ERROR(cpi->common.error, tpl_info,
+                          aom_malloc(sizeof(*tpl_info)));
+      av1_read_tpl_info(tpl_info, cpi->second_pass_log_stream,
+                        cpi->common.error);
+      aom_free(tpl_info);
+#if CONFIG_THREE_PASS
+      // TODO(angiebird): Put this part into a func
+      cpi->vbr_rc_info.cur_gop_idx++;
+#endif  // CONFIG_THREE_PASS
+#endif  // CONFIG_BITRATE_ACCURACY
       // Read in third_pass_info from the bitstream.
       av1_set_gop_third_pass(cpi->third_pass_ctx);
       // Read in per-frame info from second-pass encoding

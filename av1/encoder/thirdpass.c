@@ -705,3 +705,68 @@ PARTITION_TYPE av1_third_pass_get_sb_part_type(THIRD_PASS_DEC_CTX *ctx,
 
   return corner_mi->partition;
 }
+
+#if CONFIG_BITRATE_ACCURACY
+static void fwrite_and_check(const void *ptr, size_t size, size_t nmemb,
+                             FILE *stream,
+                             struct aom_internal_error_info *error) {
+  int count = fwrite(ptr, size, nmemb, stream);
+  if (count < 1) {
+    aom_internal_error(error, AOM_CODEC_ERROR, "fwrite_and_check failed\n");
+  }
+}
+
+static void fread_and_check(void *ptr, size_t size, size_t nmemb, FILE *stream,
+                            struct aom_internal_error_info *error) {
+  int count = fread(ptr, size, nmemb, stream);
+  if (count < 1) {
+    aom_internal_error(error, AOM_CODEC_ERROR, "fread_and_check failed\n");
+  }
+}
+
+void av1_pack_tpl_info(TPL_INFO *tpl_info, const GF_GROUP *gf_group,
+                       const TplParams *tpl_data) {
+  tpl_info->tpl_ready = tpl_data->ready;
+  if (tpl_info->tpl_ready) {
+    tpl_info->gf_length = gf_group->size;
+    for (int i = 0; i < tpl_info->gf_length; ++i) {
+      tpl_info->txfm_stats_list[i] = tpl_data->txfm_stats_list[i];
+      tpl_info->qstep_ratio_ls[i] = av1_tpl_get_qstep_ratio(tpl_data, i);
+    }
+  }
+}
+
+void av1_write_tpl_info(const TPL_INFO *tpl_info, FILE *log_stream,
+                        struct aom_internal_error_info *error) {
+  fwrite(&tpl_info->tpl_ready, sizeof(tpl_info->tpl_ready), 1, log_stream);
+  if (tpl_info->tpl_ready) {
+    fwrite_and_check(&tpl_info->gf_length, sizeof(tpl_info->gf_length), 1,
+                     log_stream, error);
+    assert(tpl_info->gf_length <= MAX_LENGTH_TPL_FRAME_STATS);
+    fwrite_and_check(&tpl_info->txfm_stats_list,
+                     sizeof(tpl_info->txfm_stats_list[0]), tpl_info->gf_length,
+                     log_stream, error);
+    fwrite_and_check(&tpl_info->qstep_ratio_ls,
+                     sizeof(tpl_info->qstep_ratio_ls[0]), tpl_info->gf_length,
+                     log_stream, error);
+  }
+}
+
+void av1_read_tpl_info(TPL_INFO *tpl_info, FILE *log_stream,
+                       struct aom_internal_error_info *error) {
+  av1_zero(*tpl_info);
+  fread_and_check(&tpl_info->tpl_ready, sizeof(tpl_info->tpl_ready), 1,
+                  log_stream, error);
+  if (tpl_info->tpl_ready) {
+    fread_and_check(&tpl_info->gf_length, sizeof(tpl_info->gf_length), 1,
+                    log_stream, error);
+    assert(tpl_info->gf_length <= MAX_LENGTH_TPL_FRAME_STATS);
+    fread_and_check(&tpl_info->txfm_stats_list,
+                    sizeof(tpl_info->txfm_stats_list[0]), tpl_info->gf_length,
+                    log_stream, error);
+    fread_and_check(&tpl_info->qstep_ratio_ls,
+                    sizeof(tpl_info->qstep_ratio_ls[0]), tpl_info->gf_length,
+                    log_stream, error);
+  }
+}
+#endif  // CONFIG_BITRATE_ACCURACY
