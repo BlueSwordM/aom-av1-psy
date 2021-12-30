@@ -494,13 +494,13 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
         TplDepStats *this_stats = &tpl_stats[av1_tpl_ptr_pos(
             row, col, tpl_stride, tpl_data->tpl_stats_block_mis_log2)];
 
-        double cbcmp = this_stats->recrf_dist;
+        double cbcmp = (double)(this_stats->recrf_dist);
         int64_t mc_dep_delta =
             RDCOST(tpl_frame->base_rdmult, this_stats->mc_dep_rate,
                    this_stats->mc_dep_dist);
-        intra_cost_base += log(this_stats->recrf_dist << RDDIV_BITS) * cbcmp;
-        mc_dep_cost_base +=
-            log((this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta) * cbcmp;
+        double dist_scaled = (double)(this_stats->recrf_dist << RDDIV_BITS);
+        intra_cost_base += log(dist_scaled) * cbcmp;
+        mc_dep_cost_base += log(dist_scaled + mc_dep_delta) * cbcmp;
         cbcmp_base += cbcmp;
       }
     }
