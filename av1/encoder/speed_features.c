@@ -1513,7 +1513,14 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.prune_inter_modes_using_temp_var = 0;
     sf->rt_sf.prune_inter_modes_wrt_gf_arf_based_on_sad = 0;
     sf->rt_sf.prune_intra_mode_based_on_mv_range = 0;
-    sf->rt_sf.reuse_inter_pred_nonrd = 0;
+#if !CONFIG_AV1_TEMPORAL_DENOISING
+#if !CONFIG_REALTIME_ONLY
+    sf->rt_sf.reuse_inter_pred_nonrd =
+        (cpi->oxcf.motion_mode_cfg.enable_warped_motion == 0);
+#else
+    sf->rt_sf.reuse_inter_pred_nonrd = 1;
+#endif
+#endif
     sf->rt_sf.short_circuit_low_temp_var = 0;
     sf->rt_sf.skip_interp_filter_search = 0;
     // For spatial layers, only LAST and GOLDEN are currently used in the SVC
@@ -1556,14 +1563,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->intra_sf.intra_pruning_with_hog = 1;
     sf->rt_sf.estimate_motion_for_var_based_partition = 1;
     sf->rt_sf.short_circuit_low_temp_var = 1;
-#if !CONFIG_AV1_TEMPORAL_DENOISING
-#if !CONFIG_REALTIME_ONLY
-    sf->rt_sf.reuse_inter_pred_nonrd =
-        (cpi->oxcf.motion_mode_cfg.enable_warped_motion == 0);
-#else
-    sf->rt_sf.reuse_inter_pred_nonrd = 1;
-#endif
-#endif
     sf->rt_sf.use_nonrd_altref_frame = 0;
     sf->rt_sf.nonrd_prune_ref_frame_search = 2;
     sf->rt_sf.nonrd_check_partition_merge_mode = 0;
