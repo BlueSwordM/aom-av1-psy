@@ -1554,8 +1554,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       }
 
       if (need_mask_search) {
-        if (save_mask_search_results(
-                this_mode, cpi->sf.inter_sf.reuse_mask_search_results))
+        if (save_mask_search_results(this_mode, 0))
           args->diffwtd_index = best_mask_index;
       } else {
         mbmi->interinter_comp.mask_type = args->diffwtd_index;

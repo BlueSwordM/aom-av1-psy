@@ -2228,4 +2228,13 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
       }
     }
   }
+
+  if (speed == 1) {
+    // Reuse interinter wedge mask search from first search for non-boosted
+    // non-internal-arf frames, except at very high quantizers.
+    if (cm->quant_params.base_qindex <= 200) {
+      if (!boosted && !is_arf2_bwd_type)
+        sf->inter_sf.reuse_mask_search_results = 1;
+    }
+  }
 }
