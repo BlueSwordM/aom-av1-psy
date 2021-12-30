@@ -1228,6 +1228,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.use_nonrd_filter_search = 0;
     }
     if (speed >= 9) {
+      sf->rt_sf.use_comp_ref_nonrd = 0;
       sf->rt_sf.use_modeled_non_rd_cost = 1;
       sf->rt_sf.nonrd_agressive_skip = 1;
 // TODO(kyslov) Re-enable when AV1 models are trained
@@ -1246,10 +1247,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed == 5) {
       sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh =
           boosted ? INT_MAX : 350;
-    }
-    if (speed >= 7) {
-      sf->rt_sf.use_comp_ref_nonrd = 1;
-      sf->rt_sf.ref_frame_comp_nonrd[2] = 1;  // LAST_ALTREF
     }
     if (speed == 8 && !cpi->ppi->use_svc) {
       sf->rt_sf.short_circuit_low_temp_var = 0;
@@ -1271,9 +1268,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed >= 9) {
       sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
       sf->rt_sf.estimate_motion_for_var_based_partition = 0;
-    }
-    if (speed >= 10) {
-      sf->rt_sf.use_comp_ref_nonrd = 0;
     }
   }
   if (!is_720p_or_larger) {
@@ -1484,6 +1478,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   }
 
   if (speed >= 7) {
+    sf->rt_sf.use_comp_ref_nonrd = 1;
+    sf->rt_sf.ref_frame_comp_nonrd[2] = 1;  // LAST_ALTREF
     sf->tx_sf.intra_tx_size_search_init_depth_sqr = 2;
     sf->part_sf.partition_search_type = VAR_BASED_PARTITION;
     sf->part_sf.max_intra_bsize = BLOCK_32X32;
