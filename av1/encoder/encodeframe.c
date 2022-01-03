@@ -15,6 +15,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "av1/common/common_data.h"
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 #include "config/av1_rtcd.h"
@@ -236,7 +237,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
              cpi->oxcf.algo_cfg.enable_tpl_model) {
     // Setup deltaq based on tpl stats
     current_qindex =
-        av1_get_q_for_deltaq_objective(cpi, td, sb_size, mi_row, mi_col);
+        av1_get_q_for_deltaq_objective(cpi, td, NULL, sb_size, mi_row, mi_col);
   } else if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL_AI) {
     current_qindex = av1_get_sbq_perceptual_ai(cpi, sb_size, mi_row, mi_col);
   } else if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_USER_RATING_BASED) {
@@ -579,7 +580,9 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
         setup_delta_q(cpi, td, x, tile_info, mi_row, mi_col, num_planes);
         av1_tpl_rdmult_setup_sb(cpi, x, sb_size, mi_row, mi_col);
       }
-      if (cpi->oxcf.algo_cfg.enable_tpl_model) {
+
+      // TODO(jingning): revisit this function.
+      if (cpi->oxcf.algo_cfg.enable_tpl_model && 0) {
         adjust_rdmult_tpl_model(cpi, x, mi_row, mi_col);
       }
     }
@@ -1285,6 +1288,29 @@ static AOM_INLINE void setup_prune_ref_frame_mask(AV1_COMP *cpi) {
   }
 }
 
+static int allow_deltaq_mode(AV1_COMP *cpi) {
+#if !CONFIG_REALTIME_ONLY
+  AV1_COMMON *const cm = &cpi->common;
+  BLOCK_SIZE sb_size = cm->seq_params->sb_size;
+  int sbs_wide = mi_size_wide[sb_size];
+  int sbs_high = mi_size_high[sb_size];
+
+  int64_t delta_rdcost = 0;
+  for (int mi_row = 0; mi_row < cm->mi_params.mi_rows; mi_row += sbs_high) {
+    for (int mi_col = 0; mi_col < cm->mi_params.mi_cols; mi_col += sbs_wide) {
+      int64_t this_delta_rdcost = 0;
+      av1_get_q_for_deltaq_objective(cpi, &cpi->td, &this_delta_rdcost, sb_size,
+                                     mi_row, mi_col);
+      delta_rdcost += this_delta_rdcost;
+    }
+  }
+  return delta_rdcost < 0;
+#else
+  (void)cpi;
+  return 1;
+#endif  // !CONFIG_REALTIME_ONLY
+}
+
 /*!\brief Encoder setup(only for the current frame), encoding, and recontruction
  * for a single frame
  *
@@ -1450,6 +1476,11 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       if (deltaq_mode == DELTA_Q_OBJECTIVE &&
           gf_group->update_type[cpi->gf_frame_index] == LF_UPDATE)
         cm->delta_q_info.delta_q_present_flag = 0;
+
+      if (deltaq_mode == DELTA_Q_OBJECTIVE &&
+          cm->delta_q_info.delta_q_present_flag) {
+        cm->delta_q_info.delta_q_present_flag &= allow_deltaq_mode(cpi);
+      }
     }
 
     // Reset delta_q_used flag

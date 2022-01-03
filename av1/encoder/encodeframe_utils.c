@@ -10,6 +10,7 @@
  */
 
 #include "av1/common/common_data.h"
+#include "av1/common/quant_common.h"
 #include "av1/common/reconintra.h"
 
 #include "av1/encoder/encoder.h"
@@ -941,7 +942,8 @@ void av1_get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
 // analysis_type 2: Use cost reduction from intra to inter for best inter
 //                  predictor chosen
 int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
-                                   BLOCK_SIZE bsize, int mi_row, int mi_col) {
+                                   int64_t *delta_dist, BLOCK_SIZE bsize,
+                                   int mi_row, int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
   assert(IMPLIES(cpi->ppi->gf_group.size > 0,
                  cpi->gf_frame_index < cpi->ppi->gf_group.size));
@@ -952,6 +954,9 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
   double mc_dep_reg = 0;
   double mc_dep_cost = 0;
   double cbcmp_base = 1;
+  double srcrf_dist = 0;
+  double srcrf_sse = 0;
+  double srcrf_rate = 0;
   const int mi_wide = mi_size_wide[bsize];
   const int mi_high = mi_size_high[bsize];
   const int base_qindex = cm->quant_params.base_qindex;
@@ -986,6 +991,9 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
       intra_cost += log(dist_scaled) * cbcmp;
       mc_dep_cost += log(dist_scaled + mc_dep_delta) * cbcmp;
       mc_dep_reg += log(3 * dist_scaled + mc_dep_delta) * cbcmp;
+      srcrf_dist += (double)(this_stats->srcrf_dist << RDDIV_BITS);
+      srcrf_sse += (double)(this_stats->srcrf_sse << RDDIV_BITS);
+      srcrf_rate += (double)this_stats->srcrf_rate;
       mi_count++;
       cbcmp_base += cbcmp;
     }
@@ -994,12 +1002,15 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
 
   int offset = 0;
   double beta = 1.0;
+  double rk;
   if (mc_dep_cost > 0 && intra_cost > 0) {
     const double r0 = cpi->rd.r0;
-    const double rk = exp((intra_cost - mc_dep_cost) / cbcmp_base);
+    rk = exp((intra_cost - mc_dep_cost) / cbcmp_base);
     td->mb.rb = exp((intra_cost - mc_dep_reg) / cbcmp_base);
     beta = (r0 / rk);
     assert(beta > 0.0);
+  } else {
+    return base_qindex;
   }
   offset = av1_get_deltaq_offset(cm->seq_params->bit_depth, base_qindex, beta);
 
@@ -1009,6 +1020,19 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
   int qindex = cm->quant_params.base_qindex + offset;
   qindex = AOMMIN(qindex, MAXQ);
   qindex = AOMMAX(qindex, MINQ);
+
+  int frm_qstep = av1_dc_quant_QTX(base_qindex, 0, cm->seq_params->bit_depth);
+  int sbs_qstep =
+      av1_dc_quant_QTX(base_qindex, offset, cm->seq_params->bit_depth);
+
+  if (delta_dist) {
+    double sbs_dist = srcrf_dist * pow((double)sbs_qstep / frm_qstep, 2.0);
+    double sbs_rate = srcrf_rate * ((double)frm_qstep / sbs_qstep);
+    sbs_dist = AOMMIN(sbs_dist, srcrf_sse);
+    *delta_dist = (int64_t)((sbs_dist - srcrf_dist) / rk);
+    *delta_dist += RDCOST(tpl_frame->base_rdmult, 4 * 256, 0);
+    *delta_dist += RDCOST(tpl_frame->base_rdmult, sbs_rate - srcrf_rate, 0);
+  }
   return qindex;
 }
 
