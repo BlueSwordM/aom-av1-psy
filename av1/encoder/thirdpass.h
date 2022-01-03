@@ -116,6 +116,9 @@ void av1_set_gop_third_pass(THIRD_PASS_DEC_CTX *ctx);
 // sure that frame_info[0] always corresponds to the current frame.
 void av1_pop_third_pass_info(THIRD_PASS_DEC_CTX *ctx);
 
+void av1_open_second_pass_log(struct AV1_COMP *cpi, int is_read);
+void av1_close_second_pass_log(struct AV1_COMP *cpi);
+
 // Write the current GOP information into the second pass log file.
 void av1_write_second_pass_gop_info(struct AV1_COMP *cpi);
 // Write the information of the frames in this GOP into the second pass log
@@ -123,10 +126,14 @@ void av1_write_second_pass_gop_info(struct AV1_COMP *cpi);
 void av1_write_second_pass_per_frame_info(struct AV1_COMP *cpi, int gf_index);
 
 // Read the next GOP information from the second pass log file.
-void av1_read_second_pass_gop_info(struct AV1_COMP *cpi,
-                                   THIRD_PASS_GOP_INFO *gop_info);
+void av1_read_second_pass_gop_info(FILE *second_pass_log_stream,
+                                   THIRD_PASS_GOP_INFO *gop_info,
+                                   struct aom_internal_error_info *error);
 // read the information of the frames in next GOP from the second pass log file.
-void av1_read_second_pass_per_frame_info(struct AV1_COMP *cpi);
+void av1_read_second_pass_per_frame_info(FILE *second_pass_log_stream,
+                                         THIRD_PASS_FRAME_INFO *frame_info_arr,
+                                         int frame_info_count,
+                                         struct aom_internal_error_info *error);
 
 int av1_check_use_arf(THIRD_PASS_DEC_CTX *ctx);
 

@@ -3773,12 +3773,17 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       if (!cpi->third_pass_ctx->input_file_name && oxcf->two_pass_output) {
         cpi->third_pass_ctx->input_file_name = oxcf->two_pass_output;
       }
+      av1_open_second_pass_log(cpi, 1);
+      THIRD_PASS_GOP_INFO *gop_info = &cpi->third_pass_ctx->gop_info;
       // Read in GOP information from the second pass file.
-      av1_read_second_pass_gop_info(cpi, &cpi->third_pass_ctx->gop_info);
+      av1_read_second_pass_gop_info(cpi->second_pass_log_stream, gop_info,
+                                    cpi->common.error);
       // Read in third_pass_info from the bitstream.
       av1_set_gop_third_pass(cpi->third_pass_ctx);
       // Read in per-frame info from second-pass encoding
-      av1_read_second_pass_per_frame_info(cpi);
+      av1_read_second_pass_per_frame_info(
+          cpi->second_pass_log_stream, cpi->third_pass_ctx->frame_info,
+          gop_info->num_frames, cpi->common.error);
 
       p_rc->cur_gf_index = 0;
       p_rc->gf_intervals[0] = cpi->third_pass_ctx->gop_info.gf_length;

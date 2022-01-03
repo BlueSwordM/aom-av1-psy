@@ -422,13 +422,7 @@ void av1_write_second_pass_gop_info(AV1_COMP *cpi) {
 
   if (oxcf->pass == AOM_RC_SECOND_PASS && oxcf->second_pass_log) {
     // Write the GOP length to a log file.
-    if (!cpi->second_pass_log_stream) {
-      cpi->second_pass_log_stream = fopen(cpi->oxcf.second_pass_log, "wb");
-      if (!cpi->second_pass_log_stream) {
-        aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
-                           "Could not open second pass log file!");
-      }
-    }
+    av1_open_second_pass_log(cpi, 0);
 
     THIRD_PASS_GOP_INFO gop_info;
 
@@ -497,67 +491,77 @@ void av1_write_second_pass_per_frame_info(AV1_COMP *cpi, int gf_index) {
     }
   }
 }
-
-void av1_read_second_pass_gop_info(AV1_COMP *cpi,
-                                   THIRD_PASS_GOP_INFO *gop_info) {
+void av1_open_second_pass_log(AV1_COMP *cpi, int is_read) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
-
-  if (oxcf->pass == AOM_RC_THIRD_PASS) {
-    if (oxcf->second_pass_log == NULL) {
-      aom_internal_error(
-          cpi->common.error, AOM_CODEC_INVALID_PARAM,
-          "No second pass log file specified for the third pass!");
-    }
-    // Read the GOP length from a file.
-    if (!cpi->second_pass_log_stream) {
+  if (oxcf->second_pass_log == NULL) {
+    aom_internal_error(cpi->common.error, AOM_CODEC_INVALID_PARAM,
+                       "No second pass log file specified for the third pass!");
+  }
+  // Read the GOP length from a file.
+  if (!cpi->second_pass_log_stream) {
+    if (is_read) {
       cpi->second_pass_log_stream = fopen(cpi->oxcf.second_pass_log, "rb");
-      if (!cpi->second_pass_log_stream) {
-        aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
-                           "Could not open second pass log file!");
-      }
+    } else {
+      cpi->second_pass_log_stream = fopen(cpi->oxcf.second_pass_log, "wb");
     }
-
-    size_t count =
-        fread(gop_info, sizeof(*gop_info), 1, cpi->second_pass_log_stream);
-    if (count < 1) {
+    if (!cpi->second_pass_log_stream) {
       aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
-                         "Could not read from second pass log file!");
+                         "Could not open second pass log file!");
     }
   }
 }
 
-void av1_read_second_pass_per_frame_info(AV1_COMP *cpi) {
-  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
-
-  if (oxcf->pass == AOM_RC_THIRD_PASS) {
-    for (int i = 0; i < cpi->third_pass_ctx->gop_info.num_frames; i++) {
-      // read target bits
-      int bits = 0;
-      size_t count = fread(&bits, sizeof(bits), 1, cpi->second_pass_log_stream);
-      if (count < 1) {
-        aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
-                           "Could not read from second pass log file!");
-      }
-      cpi->third_pass_ctx->frame_info[i].bits_allocated = bits;
-
-      // read distortion
-      uint64_t sse;
-      count = fread(&sse, sizeof(sse), 1, cpi->second_pass_log_stream);
-      if (count < 1) {
-        aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
-                           "Could not read from second pass log file!");
-      }
-      cpi->third_pass_ctx->frame_info[i].sse = sse;
-
-      // read bpm factor
-      double factor;
-      count = fread(&factor, sizeof(factor), 1, cpi->second_pass_log_stream);
-      if (count < 1) {
-        aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
-                           "Could not read from second pass log file!");
-      }
-      cpi->third_pass_ctx->frame_info[i].bpm_factor = factor;
+void av1_close_second_pass_log(AV1_COMP *cpi) {
+  if (cpi->second_pass_log_stream) {
+    int ret = fclose(cpi->second_pass_log_stream);
+    if (ret != 0) {
+      aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
+                         "Could not close second pass log file!");
     }
+    cpi->second_pass_log_stream = 0;
+  }
+}
+
+void av1_read_second_pass_gop_info(FILE *second_pass_log_stream,
+                                   THIRD_PASS_GOP_INFO *gop_info,
+                                   struct aom_internal_error_info *error) {
+  size_t count = fread(gop_info, sizeof(*gop_info), 1, second_pass_log_stream);
+  if (count < 1) {
+    aom_internal_error(error, AOM_CODEC_ERROR,
+                       "Could not read from second pass log file!");
+  }
+}
+
+void av1_read_second_pass_per_frame_info(
+    FILE *second_pass_log_stream, THIRD_PASS_FRAME_INFO *frame_info_arr,
+    int frame_info_count, struct aom_internal_error_info *error) {
+  for (int i = 0; i < frame_info_count; i++) {
+    // read target bits
+    int bits = 0;
+    size_t count = fread(&bits, sizeof(bits), 1, second_pass_log_stream);
+    if (count < 1) {
+      aom_internal_error(error, AOM_CODEC_ERROR,
+                         "Could not read from second pass log file!");
+    }
+    frame_info_arr[i].bits_allocated = bits;
+
+    // read distortion
+    uint64_t sse;
+    count = fread(&sse, sizeof(sse), 1, second_pass_log_stream);
+    if (count < 1) {
+      aom_internal_error(error, AOM_CODEC_ERROR,
+                         "Could not read from second pass log file!");
+    }
+    frame_info_arr[i].sse = sse;
+
+    // read bpm factor
+    double factor;
+    count = fread(&factor, sizeof(factor), 1, second_pass_log_stream);
+    if (count < 1) {
+      aom_internal_error(error, AOM_CODEC_ERROR,
+                         "Could not read from second pass log file!");
+    }
+    frame_info_arr[i].bpm_factor = factor;
   }
 }
 
