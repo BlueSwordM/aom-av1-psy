@@ -1228,6 +1228,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed >= 9) {
       sf->rt_sf.use_comp_ref_nonrd = 0;
       sf->rt_sf.nonrd_agressive_skip = 1;
+      sf->rt_sf.skip_intra_pred = 1;
 // TODO(kyslov) Re-enable when AV1 models are trained
 #if 0
 #if CONFIG_RT_ML_PARTITIONING
@@ -1237,6 +1238,9 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       }
 #endif
 #endif
+    }
+    if (speed >= 10) {
+      sf->rt_sf.skip_intra_pred = 2;
     }
   } else {
     sf->rt_sf.prune_intra_mode_based_on_mv_range = 2;
@@ -1528,7 +1532,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.use_nonrd_pick_mode = 1;
     sf->rt_sf.nonrd_check_partition_merge_mode = 1;
     sf->rt_sf.nonrd_check_partition_split = 0;
-    sf->rt_sf.skip_intra_pred_if_tx_skip = 1;
+    sf->rt_sf.skip_intra_pred = 1;
     sf->rt_sf.source_metrics_sb_nonrd = 1;
     // For SVC: use better mv search on base temporal layers, and only
     // on base spatial layer if highest resolution is above 640x360.
@@ -1563,7 +1567,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.nonrd_prune_ref_frame_search = 2;
     sf->rt_sf.nonrd_check_partition_merge_mode = 0;
     sf->rt_sf.nonrd_check_partition_split = 0;
-    sf->rt_sf.skip_intra_pred_if_tx_skip = 0;
     sf->rt_sf.var_part_split_threshold_shift = 8;
     sf->interp_sf.cb_pred_filter_search = 1;
   }
@@ -1571,12 +1574,12 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     sf->rt_sf.estimate_motion_for_var_based_partition = 0;
     sf->rt_sf.force_large_partition_blocks = 1;
+    sf->rt_sf.skip_intra_pred = 2;
     sf->rt_sf.var_part_split_threshold_shift = 9;
     for (int i = 0; i < BLOCK_SIZES; ++i)
       sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC;
   }
   if (speed >= 10) {
-    sf->rt_sf.skip_intra_pred_if_tx_skip = 1;
     sf->rt_sf.nonrd_agressive_skip = 1;
     sf->rt_sf.nonrd_prune_ref_frame_search = 3;
     sf->rt_sf.var_part_split_threshold_shift = 10;
@@ -1854,7 +1857,7 @@ static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
 
 static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->check_intra_pred_nonrd = 0;
-  rt_sf->skip_intra_pred_if_tx_skip = 0;
+  rt_sf->skip_intra_pred = 0;
   rt_sf->estimate_motion_for_var_based_partition = 0;
   rt_sf->nonrd_check_partition_merge_mode = 0;
   rt_sf->nonrd_check_partition_split = 0;

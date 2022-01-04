@@ -1961,9 +1961,11 @@ static void estimate_intra_mode(
     perform_intra_pred = 0;
   }
 
-  if (cpi->sf.rt_sf.skip_intra_pred_if_tx_skip && best_rdc->skip_txfm &&
-      best_pickmode->best_mode_initial_skip_flag) {
-    perform_intra_pred = 0;
+  if (best_rdc->skip_txfm && best_pickmode->best_mode_initial_skip_flag) {
+    if (cpi->sf.rt_sf.skip_intra_pred == 1 && best_pickmode->best_mode != NEWMV)
+      perform_intra_pred = 0;
+    else if (cpi->sf.rt_sf.skip_intra_pred == 2)
+      perform_intra_pred = 0;
   }
 
   if (!(best_rdc->rdcost == INT64_MAX ||

@@ -1275,8 +1275,12 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // check intra prediction for non-RD mode.
   int check_intra_pred_nonrd;
 
-  // skip checking intra prediction if TX is skipped
-  int skip_intra_pred_if_tx_skip;
+  // Skip checking intra prediction.
+  // 0 - don't skip
+  // 1 - skip if TX is skipped and best mode is not NEWMV
+  // 2 - skip if TX is skipped
+  // Skipping aggressiveness increases from level 1 to 2.
+  int skip_intra_pred;
 
   // Perform coarse ME before calculating variance in variance-based partition
   int estimate_motion_for_var_based_partition;
