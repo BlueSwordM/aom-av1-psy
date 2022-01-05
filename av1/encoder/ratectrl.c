@@ -3134,21 +3134,3 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
     return 0;
   }
 }
-
-#if !CONFIG_REALTIME_ONLY
-// TODO(angiebird): move this function to tpl_model.c
-/*
- * Compute the q_indices for the entire GOP.
- * Intended to be used only with AOM_Q mode.
- */
-void av1_q_mode_compute_gop_q_indices(int base_q_index,
-                                      const double *qstep_ratio_list,
-                                      aom_bit_depth_t bit_depth,
-                                      const struct GF_GROUP *gf_group,
-                                      int *q_index_list) {
-  for (int i = 0; i < gf_group->size; ++i) {
-    q_index_list[i] = av1_get_q_index_from_qstep_ratio(
-        base_q_index, qstep_ratio_list[i], bit_depth);
-  }
-}
-#endif  // !CONFIG_REALTIME_ONLY

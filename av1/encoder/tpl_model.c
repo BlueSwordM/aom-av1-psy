@@ -1978,12 +1978,22 @@ void av1_vbr_rc_set_gop_bit_budget(VBR_RATECTRL_INFO *vbr_rc_info,
                                 vbr_rc_info->show_frame_count;
 }
 
+static INLINE void compute_q_indices(int base_q_index, int frame_count,
+                                     const double *qstep_ratio_list,
+                                     aom_bit_depth_t bit_depth,
+                                     int *q_index_list) {
+  for (int i = 0; i < frame_count; ++i) {
+    q_index_list[i] = av1_get_q_index_from_qstep_ratio(
+        base_q_index, qstep_ratio_list[i], bit_depth);
+  }
+}
+
 double av1_vbr_rc_info_estimate_gop_bitrate(
     const VBR_RATECTRL_INFO *vbr_rc_info, const GF_GROUP *gf_group,
     int base_q_index, const TplTxfmStats *stats_list, aom_bit_depth_t bit_depth,
     int *q_index_list, double *estimated_bitrate_byframe) {
-  av1_q_mode_compute_gop_q_indices(base_q_index, vbr_rc_info->qstep_ratio_list,
-                                   bit_depth, gf_group, q_index_list);
+  compute_q_indices(base_q_index, gf_group->size, vbr_rc_info->qstep_ratio_list,
+                    bit_depth, q_index_list);
   double gop_bitrate = 0;
   for (int frame_index = 0; frame_index < gf_group->size; frame_index++) {
     const TplTxfmStats *frame_stats = &stats_list[frame_index];
