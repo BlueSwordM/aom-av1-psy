@@ -2070,7 +2070,7 @@ typedef struct {
 
   /*!
    * Threshold to approximate pixel domain distortion with transform domain
-   * distortion. This is only used if use_txform_domain_distortion is on.
+   * distortion. This is only used if use_transform_domain_distortion is on.
    * Corresponds to enable_winner_mode_for_use_tx_domain_dist speed feature.
    */
   unsigned int tx_domain_dist_threshold[MODE_EVAL_TYPES];
