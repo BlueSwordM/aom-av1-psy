@@ -1509,13 +1509,14 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.prune_inter_modes_using_temp_var = 0;
     sf->rt_sf.prune_inter_modes_wrt_gf_arf_based_on_sad = 0;
     sf->rt_sf.prune_intra_mode_based_on_mv_range = 0;
-#if !CONFIG_AV1_TEMPORAL_DENOISING
 #if !CONFIG_REALTIME_ONLY
     sf->rt_sf.reuse_inter_pred_nonrd =
         (cpi->oxcf.motion_mode_cfg.enable_warped_motion == 0);
 #else
     sf->rt_sf.reuse_inter_pred_nonrd = 1;
 #endif
+#if CONFIG_AV1_TEMPORAL_DENOISING
+    sf->rt_sf.reuse_inter_pred_nonrd = (cpi->oxcf.noise_sensitivity == 0);
 #endif
     sf->rt_sf.short_circuit_low_temp_var = 0;
     sf->rt_sf.skip_interp_filter_search = 0;
