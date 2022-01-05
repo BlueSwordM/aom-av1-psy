@@ -10,6 +10,7 @@
  */
 
 #include <cstdlib>
+#include <iostream>
 #include <string>
 #include <tuple>
 
@@ -60,8 +61,10 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CDEFBlockHighbdTest);
 typedef CDEFBlockTest CDEFSpeedTest;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CDEFSpeedTest);
 
-void test_cdef(int bsize, int iterations, cdef_filter_block_func cdef,
-               cdef_filter_block_func ref_cdef, int boundary, int depth) {
+int test_cdef(int bsize, int iterations, cdef_filter_block_func cdef,
+              cdef_filter_block_func ref_cdef, int boundary, int depth) {
+  aom_usec_timer ref_timer;
+  unsigned int ref_elapsed_time = 0;
   const int size = 8;
   const int ysize = size + 2 * CDEF_VBORDER;
   ACMRandom rnd(ACMRandom::DeterministicSeed());
@@ -118,10 +121,13 @@ void test_cdef(int bsize, int iterations, cdef_filter_block_func cdef,
                 for (secstrength = 0; secstrength <= 4 << (depth - 8) && !error;
                      secstrength += 1 << (depth - 8)) {
                   if (secstrength == 3 << (depth - 8)) continue;
+                  aom_usec_timer_start(&ref_timer);
                   ref_cdef(ref_d, size,
                            s + CDEF_HBORDER + CDEF_VBORDER * CDEF_BSTRIDE,
                            pristrength, secstrength, dir, pridamping,
                            secdamping, bsize, depth - 8);
+                  aom_usec_timer_mark(&ref_timer);
+                  ref_elapsed_time += aom_usec_timer_elapsed(&ref_timer);
                   // If cdef and ref_cdef are the same, we're just testing
                   // speed
                   if (cdef != ref_cdef)
@@ -163,22 +169,19 @@ void test_cdef(int bsize, int iterations, cdef_filter_block_func cdef,
                       << "size: " << bsize << std::endl
                       << "boundary: " << errboundary << std::endl
                       << std::endl;
+
+  return ref_elapsed_time;
 }
 
 void test_cdef_speed(int bsize, int iterations, cdef_filter_block_func cdef,
                      cdef_filter_block_func ref_cdef, int boundary, int depth) {
-  aom_usec_timer ref_timer;
-  aom_usec_timer timer;
+  int ref_elapsed_time =
+      test_cdef(bsize, iterations, ref_cdef, ref_cdef, boundary, depth);
 
-  aom_usec_timer_start(&ref_timer);
-  test_cdef(bsize, iterations, ref_cdef, ref_cdef, boundary, depth);
-  aom_usec_timer_mark(&ref_timer);
-  int ref_elapsed_time = (int)aom_usec_timer_elapsed(&ref_timer);
+  int elapsed_time = test_cdef(bsize, iterations, cdef, cdef, boundary, depth);
 
-  aom_usec_timer_start(&timer);
-  test_cdef(bsize, iterations, cdef, cdef, boundary, depth);
-  aom_usec_timer_mark(&timer);
-  int elapsed_time = (int)aom_usec_timer_elapsed(&timer);
+  std::cout << "C time: " << ref_elapsed_time << " us" << std::endl
+            << "SIMD time: " << elapsed_time << " us" << std::endl;
 
   EXPECT_GT(ref_elapsed_time, elapsed_time)
       << "Error: CDEFSpeedTest, SIMD slower than C." << std::endl
