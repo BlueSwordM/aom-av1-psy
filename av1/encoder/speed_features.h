@@ -762,6 +762,9 @@ typedef struct MV_SPEED_FEATURES {
   // 1: use var as the metric
   // 2: disable second MV
   int disable_second_mv;
+
+  // Skips full pixel search based on start mv of prior ref_mv_idx.
+  int skip_fullpel_search_using_startmv;
 } MV_SPEED_FEATURES;
 
 typedef struct INTER_MODE_SPEED_FEATURES {

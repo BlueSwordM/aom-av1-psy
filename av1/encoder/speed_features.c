@@ -1197,6 +1197,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
     sf->mv_sf.use_bsize_dependent_search_method = 1;
+    sf->mv_sf.skip_fullpel_search_using_startmv = boosted ? 0 : 1;
 
     sf->tpl_sf.gop_length_decision_method = 3;
     sf->tpl_sf.disable_filtered_key_tpl = 1;
@@ -1685,6 +1686,7 @@ static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->use_downsampled_sad = 0;
   mv_sf->disable_extensive_joint_motion_search = 0;
   mv_sf->disable_second_mv = 0;
+  mv_sf->skip_fullpel_search_using_startmv = 0;
 }
 
 static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
