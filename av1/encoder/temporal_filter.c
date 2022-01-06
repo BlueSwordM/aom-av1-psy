@@ -1319,7 +1319,7 @@ void av1_tf_info_filtering(TEMPORAL_FILTER_INFO *tf_info, AV1_COMP *cpi,
   for (int gf_index = 0; gf_index < gf_group->size; ++gf_index) {
     int update_type = gf_group->update_type[gf_index];
     if (update_type == KF_UPDATE || update_type == ARF_UPDATE) {
-      int buf_idx = update_type == ARF_UPDATE;
+      int buf_idx = gf_group->frame_type[gf_index] == INTER_FRAME;
       int lookahead_idx = gf_group->arf_src_offset[gf_index] +
                           gf_group->cur_frame_idx[gf_index];
       // This function is designed to be called multiple times after
