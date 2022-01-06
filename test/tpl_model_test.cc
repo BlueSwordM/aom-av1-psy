@@ -381,21 +381,24 @@ void init_toy_tpl_txfm_stats(std::vector<TplTxfmStats> *stats_list) {
  * Helper method to brute-force search for the closest q_index
  * that achieves the specified bit budget.
  */
-int find_gop_q_iterative(const VBR_RATECTRL_INFO *vbr_rc_info,
-                         const GF_GROUP *gf_group,
-                         const TplTxfmStats *txfm_stats_list, double bit_budget,
-                         aom_bit_depth_t bit_depth, int *q_index_list,
+int find_gop_q_iterative(double bit_budget, aom_bit_depth_t bit_depth,
+                         const double *update_type_scale_factors,
+                         int frame_count,
+                         const FRAME_UPDATE_TYPE *update_type_list,
+                         const double *qstep_ratio_list,
+                         const TplTxfmStats *stats_list, int *q_index_list,
                          double *estimated_bitrate_byframe) {
   int best_q = 255;
   double curr_estimate = av1_vbr_rc_info_estimate_gop_bitrate(
-      vbr_rc_info, gf_group, best_q, txfm_stats_list, bit_depth, q_index_list,
+      best_q, bit_depth, update_type_scale_factors, frame_count,
+      update_type_list, qstep_ratio_list, stats_list, q_index_list,
       estimated_bitrate_byframe);
   double min_bits_diff = fabs(curr_estimate - bit_budget);
   // Start at q = 254 because we already have an estimate for q = 255.
   for (int q = 254; q >= 0; q--) {
     double curr_estimate = av1_vbr_rc_info_estimate_gop_bitrate(
-        vbr_rc_info, gf_group, q, txfm_stats_list, bit_depth, q_index_list,
-        estimated_bitrate_byframe);
+        q, bit_depth, update_type_scale_factors, frame_count, update_type_list,
+        qstep_ratio_list, stats_list, q_index_list, estimated_bitrate_byframe);
     double bits_diff = fabs(curr_estimate - bit_budget);
     if (bits_diff <= min_bits_diff) {
       min_bits_diff = bits_diff;
@@ -422,7 +425,8 @@ TEST(TplModelTest, EstimateFrameRateTest) {
   double scale_factors[FRAME_UPDATE_TYPES] = { 0 };
   memcpy(vbr_rc_info.scale_factors, scale_factors, sizeof(scale_factors));
   double estimate = av1_vbr_rc_info_estimate_gop_bitrate(
-      &vbr_rc_info, &gf_group, q, stats_list.data(), bit_depth,
+      q, bit_depth, vbr_rc_info.scale_factors, gf_group.size,
+      gf_group.update_type, vbr_rc_info.qstep_ratio_list, stats_list.data(),
       vbr_rc_info.q_index_list, vbr_rc_info.estimated_bitrate_byframe);
   EXPECT_NEAR(estimate, 0, epsilon);
 
@@ -432,7 +436,8 @@ TEST(TplModelTest, EstimateFrameRateTest) {
   }
   memcpy(vbr_rc_info.scale_factors, scale_factors, sizeof(scale_factors));
   estimate = av1_vbr_rc_info_estimate_gop_bitrate(
-      &vbr_rc_info, &gf_group, q, stats_list.data(), bit_depth,
+      q, bit_depth, vbr_rc_info.scale_factors, gf_group.size,
+      gf_group.update_type, vbr_rc_info.qstep_ratio_list, stats_list.data(),
       vbr_rc_info.q_index_list, vbr_rc_info.estimated_bitrate_byframe);
   double ref_estimate = 0;
   for (int i = 0; i < gf_group.size; i++) {
@@ -450,7 +455,8 @@ TEST(TplModelTest, EstimateFrameRateTest) {
   }
   memcpy(vbr_rc_info.scale_factors, scale_factors, sizeof(scale_factors));
   estimate = av1_vbr_rc_info_estimate_gop_bitrate(
-      &vbr_rc_info, &gf_group, q, stats_list.data(), bit_depth,
+      q, bit_depth, vbr_rc_info.scale_factors, gf_group.size,
+      gf_group.update_type, vbr_rc_info.qstep_ratio_list, stats_list.data(),
       vbr_rc_info.q_index_list, vbr_rc_info.estimated_bitrate_byframe);
   ref_estimate = 0;
   for (int i = 0; i < gf_group.size; i++) {
@@ -482,11 +488,13 @@ TEST(TplModelTest, VbrRcInfoEstimateBaseQTest) {
   for (double bit_budget : bit_budgets) {
     // Binary search method to find the optimal q.
     const int base_q = av1_vbr_rc_info_estimate_base_q(
-        &vbr_rc_info, &gf_group, stats_list.data(), bit_budget, bit_depth,
+        bit_budget, bit_depth, vbr_rc_info.scale_factors, gf_group.size,
+        gf_group.update_type, vbr_rc_info.qstep_ratio_list, stats_list.data(),
         vbr_rc_info.q_index_list, vbr_rc_info.estimated_bitrate_byframe);
     const int ref_base_q = find_gop_q_iterative(
-        &ref_vbr_rc_info, &gf_group, stats_list.data(), bit_budget, bit_depth,
-        ref_vbr_rc_info.q_index_list, vbr_rc_info.estimated_bitrate_byframe);
+        bit_budget, bit_depth, vbr_rc_info.scale_factors, gf_group.size,
+        gf_group.update_type, vbr_rc_info.qstep_ratio_list, stats_list.data(),
+        vbr_rc_info.q_index_list, vbr_rc_info.estimated_bitrate_byframe);
     if (bit_budget == 0) {
       EXPECT_EQ(base_q, 255);
     } else if (bit_budget == DBL_MAX) {

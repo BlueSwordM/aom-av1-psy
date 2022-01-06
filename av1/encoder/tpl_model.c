@@ -1989,13 +1989,15 @@ static INLINE void compute_q_indices(int base_q_index, int frame_count,
 }
 
 double av1_vbr_rc_info_estimate_gop_bitrate(
-    const VBR_RATECTRL_INFO *vbr_rc_info, const GF_GROUP *gf_group,
-    int base_q_index, const TplTxfmStats *stats_list, aom_bit_depth_t bit_depth,
-    int *q_index_list, double *estimated_bitrate_byframe) {
-  compute_q_indices(base_q_index, gf_group->size, vbr_rc_info->qstep_ratio_list,
-                    bit_depth, q_index_list);
+    int base_q_index, aom_bit_depth_t bit_depth,
+    const double *update_type_scale_factors, int frame_count,
+    const FRAME_UPDATE_TYPE *update_type_list, const double *qstep_ratio_list,
+    const TplTxfmStats *stats_list, int *q_index_list,
+    double *estimated_bitrate_byframe) {
+  compute_q_indices(base_q_index, frame_count, qstep_ratio_list, bit_depth,
+                    q_index_list);
   double gop_bitrate = 0;
-  for (int frame_index = 0; frame_index < gf_group->size; frame_index++) {
+  for (int frame_index = 0; frame_index < frame_count; frame_index++) {
     const TplTxfmStats *frame_stats = &stats_list[frame_index];
     if (frame_stats->ready) {
       int q_index = q_index_list[frame_index];
@@ -2011,37 +2013,37 @@ double av1_vbr_rc_info_estimate_gop_bitrate(
     }
   }
   double estimated_gop_bitrate = 0;
-  for (int i = 0; i < gf_group->size; ++i) {
-    FRAME_UPDATE_TYPE update_type = gf_group->update_type[i];
+  for (int i = 0; i < frame_count; ++i) {
+    FRAME_UPDATE_TYPE update_type = update_type_list[i];
     estimated_gop_bitrate +=
-        estimated_bitrate_byframe[i] * vbr_rc_info->scale_factors[update_type];
+        estimated_bitrate_byframe[i] * update_type_scale_factors[update_type];
   }
   return estimated_gop_bitrate;
 }
 
-int av1_vbr_rc_info_estimate_base_q(const VBR_RATECTRL_INFO *vbr_rc_info,
-                                    const GF_GROUP *gf_group,
-                                    const TplTxfmStats *txfm_stats_list,
-                                    double bit_budget,
-                                    aom_bit_depth_t bit_depth,
-                                    int *q_index_list,
-                                    double *estimated_bitrate_byframe) {
+int av1_vbr_rc_info_estimate_base_q(
+    double bit_budget, aom_bit_depth_t bit_depth,
+    const double *update_type_scale_factors, int frame_count,
+    const FRAME_UPDATE_TYPE *update_type_list, const double *qstep_ratio_list,
+    const TplTxfmStats *stats_list, int *q_index_list,
+    double *estimated_bitrate_byframe) {
   int q_max = 255;  // Maximum q value.
   int q_min = 0;    // Minimum q value.
   int q = (q_max + q_min) / 2;
 
   double q_max_estimate = av1_vbr_rc_info_estimate_gop_bitrate(
-      vbr_rc_info, gf_group, q_max, txfm_stats_list, bit_depth, q_index_list,
+      q_max, bit_depth, update_type_scale_factors, frame_count,
+      update_type_list, qstep_ratio_list, stats_list, q_index_list,
       estimated_bitrate_byframe);
 
   double q_min_estimate = av1_vbr_rc_info_estimate_gop_bitrate(
-      vbr_rc_info, gf_group, q_min, txfm_stats_list, bit_depth, q_index_list,
+      q_min, bit_depth, update_type_scale_factors, frame_count,
+      update_type_list, qstep_ratio_list, stats_list, q_index_list,
       estimated_bitrate_byframe);
-
   while (q_min + 1 < q_max) {
     double estimate = av1_vbr_rc_info_estimate_gop_bitrate(
-        vbr_rc_info, gf_group, q, txfm_stats_list, bit_depth, q_index_list,
-        estimated_bitrate_byframe);
+        q, bit_depth, update_type_scale_factors, frame_count, update_type_list,
+        qstep_ratio_list, stats_list, q_index_list, estimated_bitrate_byframe);
     if (estimate > bit_budget) {
       q_min = q;
       q_min_estimate = estimate;
@@ -2058,9 +2060,9 @@ int av1_vbr_rc_info_estimate_base_q(const VBR_RATECTRL_INFO *vbr_rc_info,
     q = q_min;
   }
   // Update q_index_list and vbr_rc_info.
-  av1_vbr_rc_info_estimate_gop_bitrate(vbr_rc_info, gf_group, q,
-                                       txfm_stats_list, bit_depth, q_index_list,
-                                       estimated_bitrate_byframe);
+  av1_vbr_rc_info_estimate_gop_bitrate(
+      q, bit_depth, update_type_scale_factors, frame_count, update_type_list,
+      qstep_ratio_list, stats_list, q_index_list, estimated_bitrate_byframe);
   return q;
 }
 void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
@@ -2080,8 +2082,9 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
   gop_bit_budget -= mv_bits;
 
   vbr_rc_info->base_q_index = av1_vbr_rc_info_estimate_base_q(
-      vbr_rc_info, gf_group, tpl_data->txfm_stats_list, gop_bit_budget,
-      bit_depth, vbr_rc_info->q_index_list,
+      gop_bit_budget, bit_depth, vbr_rc_info->scale_factors, gf_group->size,
+      gf_group->update_type, vbr_rc_info->qstep_ratio_list,
+      tpl_data->txfm_stats_list, vbr_rc_info->q_index_list,
       vbr_rc_info->estimated_bitrate_byframe);
 }
 

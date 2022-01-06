@@ -304,12 +304,16 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
 /*
  *!\brief Compute the number of bits needed to encode a GOP
  *
- * \param[out]   vbr_rc_info       Rate control info for BITRATE_ACCURACY
- *                                 experiment
- * \param[in]    gf_group          GOP struct
  * \param[in]    base_q_index      base layer q_index
- * \param[in]    stats_list        array of transform stats, one per frame
  * \param[in]    bit_depth         bit depth
+ * \param[in]    update_type_scale_factors array of scale factors for each
+ *                                 update_type
+ * \param[in]    frame_count       size of update_type_list, qstep_ratio_list
+ *                                 stats_list, q_index_list and
+ *                                 estimated_bitrate_byframe
+ * \param[in]    update_type_list  array of update_type, one per frame
+ * \param[in]    qstep_ratio_list  array of qstep_ratio, one per frame
+ * \param[in]    stats_list        array of transform stats, one per frame
  * \param[out]   q_index_list      array of q_index, one per frame
  * \param[out]   estimated_bitrate_byframe Array to keep track of frame bitrate
  *
@@ -317,34 +321,38 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
  *
  */
 double av1_vbr_rc_info_estimate_gop_bitrate(
-    const VBR_RATECTRL_INFO *vbr_rc_info, const GF_GROUP *gf_group,
-    int base_q_index, const TplTxfmStats *stats_list, aom_bit_depth_t bit_depth,
-    int *q_index_list, double *estimated_bitrate_byframe);
+    int base_q_index, aom_bit_depth_t bit_depth,
+    const double *update_type_scale_factors, int frame_count,
+    const FRAME_UPDATE_TYPE *update_type_list, const double *qstep_ratio_list,
+    const TplTxfmStats *stats_list, int *q_index_list,
+    double *estimated_bitrate_byframe);
 
 /*!\brief Estimate the optimal base q index for a GOP.
  *
  * This function uses a binary search to find base layer q index to
  * achieve the specified bit budget.
  *
- * \param[out]  vbr_rc_info       Rate control info for BITRATE_ACCURACY
- *                                experiment
- * \param[in]   gf_group          GOP structure
- * \param[in]   txfm_stats_list   Transform stats struct
- * \param[in]   bit_budget        The specified bit budget to achieve
- * \param[in]   bit_depth         bit depth
- * \param[out]  q_index_list      array of q indices for the GOP inferred from
- * base q index using qstep_ratio_list. \param[out]  estimated_bitrate_byframe
- * bits usage per frame in the GOP
+ * \param[in]    bit_budget        target bit budget
+ * \param[in]    bit_depth         bit depth
+ * \param[in]    update_type_scale_factors array of scale factors for each
+ *                                 update_type
+ * \param[in]    frame_count       size of update_type_list, qstep_ratio_list
+ *                                 stats_list, q_index_list and
+ *                                 estimated_bitrate_byframe
+ * \param[in]    update_type_list  array of update_type, one per frame
+ * \param[in]    qstep_ratio_list  array of qstep_ratio, one per frame
+ * \param[in]    stats_list        array of transform stats, one per frame
+ * \param[out]   q_index_list      array of q_index, one per frame
+ * \param[out]   estimated_bitrate_byframe Array to keep track of frame bitrate
  *
  * \return Returns the optimal base q index to use.
  */
-int av1_vbr_rc_info_estimate_base_q(const VBR_RATECTRL_INFO *vbr_rc_info,
-                                    const GF_GROUP *gf_group,
-                                    const TplTxfmStats *txfm_stats_list,
-                                    double bit_budget,
-                                    aom_bit_depth_t bit_depth,
-                                    int *q_index_list,
-                                    double *estimated_bitrate_byframe);
+int av1_vbr_rc_info_estimate_base_q(
+    double bit_budget, aom_bit_depth_t bit_depth,
+    const double *update_type_scale_factors, int frame_count,
+    const FRAME_UPDATE_TYPE *update_type_list, const double *qstep_ratio_list,
+    const TplTxfmStats *stats_list, int *q_index_list,
+    double *estimated_bitrate_byframe);
 
 /*!\brief For a GOP, calculate the bits used by motion vectors.
  *
