@@ -286,7 +286,7 @@ void av1_xform_dc_only(MACROBLOCK *x, int plane, int block,
 
 void av1_xform_quant(MACROBLOCK *x, int plane, int block, int blk_row,
                      int blk_col, BLOCK_SIZE plane_bsize, TxfmParam *txfm_param,
-                     QUANT_PARAM *qparam) {
+                     const QUANT_PARAM *qparam) {
   av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, txfm_param);
   av1_quant(x, plane, block, txfm_param, qparam);
 }
@@ -305,7 +305,7 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
 }
 
 void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
-               QUANT_PARAM *qparam) {
+               const QUANT_PARAM *qparam) {
   const struct macroblock_plane *const p = &x->plane[plane];
   const SCAN_ORDER *const scan_order =
       get_scan(txfm_param->tx_size, txfm_param->tx_type);
