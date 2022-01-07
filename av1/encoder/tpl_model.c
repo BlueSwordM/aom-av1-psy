@@ -1603,7 +1603,7 @@ static AOM_INLINE int eval_gop_length(double *beta, int gop_eval) {
       // Allow larger GOP size if the base layer ARF has higher dependency
       // factor than the intermediate ARF and both ARFs have reasonably high
       // dependency factors.
-      return (beta[0] >= beta[1] + 0.7) && beta[0] > 8.0;
+      return (beta[0] >= beta[1] + 0.7) && beta[0] > 3.0;
     case 2:
       if ((beta[0] >= beta[1] + 0.4) && beta[0] > 1.6)
         return 1;  // Don't shorten the gf interval
