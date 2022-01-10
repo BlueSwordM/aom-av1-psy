@@ -936,6 +936,13 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
   } else if (strcmp(get_short_name_by_aom_encoder(global->codec), "av1") == 0) {
     // TODO(jingning): Reuse AV1 specific encoder configuration parameters.
     // Consider to expand this set for AV1 encoder control.
+#if __STDC_VERSION__ >= 201112L
+    _Static_assert(NELEMENTS(av1_ctrl_args) == NELEMENTS(av1_arg_ctrl_map),
+                   "The av1_ctrl_args and av1_arg_ctrl_map arrays must be of "
+                   "the same size.");
+#else
+    assert(NELEMENTS(av1_ctrl_args) == NELEMENTS(av1_arg_ctrl_map));
+#endif
     ctrl_args = av1_ctrl_args;
     ctrl_args_map = av1_arg_ctrl_map;
     key_val_args = av1_key_val_args;
