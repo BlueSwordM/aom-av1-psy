@@ -212,7 +212,7 @@ static int rate_estimator(const tran_low_t *qcoeff, int eob, TX_SIZE tx_size) {
 
   for (int idx = 0; idx < eob; ++idx) {
     int abs_level = abs(qcoeff[scan_order->scan[idx]]);
-    rate_cost += (int)(log(abs_level + 1.0) / log(2.0)) + 1;
+    rate_cost += (int)(log(abs_level + 1.0) / log(2.0)) + 1 + (abs_level > 0);
   }
 
   return (rate_cost << AV1_PROB_COST_SHIFT);
