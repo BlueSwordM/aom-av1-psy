@@ -2014,7 +2014,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   if (is_stat_generation_stage(cpi))
     sf->rd_sf.optimize_coefficients = NO_TRELLIS_OPT;
 
-  // No recode or trellis for 1 pass.
+  // No recode for 1 pass.
   if (oxcf->pass == AOM_RC_ONE_PASS && has_no_stats_stage(cpi))
     sf->hl_sf.recode_loop = DISALLOW_RECODE;
 
