@@ -265,7 +265,8 @@ SIMD_INLINE v256 get_max_secondary(const int is_lowbd, v256 *tap, v256 max,
 SIMD_INLINE void filter_block_4x4(const int is_lowbd, void *dest, int dstride,
                                   const uint16_t *in, int pri_strength,
                                   int sec_strength, int dir, int pri_damping,
-                                  int sec_damping, int coeff_shift) {
+                                  int sec_damping, int coeff_shift, int height,
+                                  int enable_primary, int enable_secondary) {
   uint8_t *dst8 = (uint8_t *)dest;
   uint16_t *dst16 = (uint16_t *)dest;
   v256 p0, p1, p2, p3;
@@ -280,163 +281,178 @@ SIMD_INLINE void filter_block_4x4(const int is_lowbd, void *dest, int dstride,
   const int s2o2 = cdef_directions[dir - 2][1];
   const int *pri_taps = cdef_pri_taps[(pri_strength >> coeff_shift) & 1];
   const int *sec_taps = cdef_sec_taps;
+  int i;
 
-  if (pri_strength)
+  if (enable_primary && pri_strength)
     pri_damping = AOMMAX(0, pri_damping - get_msb(pri_strength));
-  if (sec_strength)
+  if (enable_secondary && sec_strength)
     sec_damping = AOMMAX(0, sec_damping - get_msb(sec_strength));
 
-  sum = v256_zero();
-  row = v256_from_v64(v64_load_aligned(&in[0 * CDEF_BSTRIDE]),
-                      v64_load_aligned(&in[1 * CDEF_BSTRIDE]),
-                      v64_load_aligned(&in[2 * CDEF_BSTRIDE]),
-                      v64_load_aligned(&in[3 * CDEF_BSTRIDE]));
-  max = min = row;
+  for (i = 0; i < height; i += 4) {
+    sum = v256_zero();
+    row = v256_from_v64(v64_load_aligned(&in[(i + 0) * CDEF_BSTRIDE]),
+                        v64_load_aligned(&in[(i + 1) * CDEF_BSTRIDE]),
+                        v64_load_aligned(&in[(i + 2) * CDEF_BSTRIDE]),
+                        v64_load_aligned(&in[(i + 3) * CDEF_BSTRIDE]));
+    max = min = row;
 
-  if (pri_strength) {
-    v256 tap[4];
-    // Primary near taps
-    tap[0] = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE + po1]),
-                           v64_load_unaligned(&in[1 * CDEF_BSTRIDE + po1]),
-                           v64_load_unaligned(&in[2 * CDEF_BSTRIDE + po1]),
-                           v64_load_unaligned(&in[3 * CDEF_BSTRIDE + po1]));
-    p0 = constrain16(tap[0], row, pri_strength, pri_damping);
-    tap[1] = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE - po1]),
-                           v64_load_unaligned(&in[1 * CDEF_BSTRIDE - po1]),
-                           v64_load_unaligned(&in[2 * CDEF_BSTRIDE - po1]),
-                           v64_load_unaligned(&in[3 * CDEF_BSTRIDE - po1]));
-    p1 = constrain16(tap[1], row, pri_strength, pri_damping);
+    if (enable_primary) {
+      v256 tap[4];
+      // Primary near taps
+      tap[0] =
+          v256_from_v64(v64_load_unaligned(&in[(i + 0) * CDEF_BSTRIDE + po1]),
+                        v64_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + po1]),
+                        v64_load_unaligned(&in[(i + 2) * CDEF_BSTRIDE + po1]),
+                        v64_load_unaligned(&in[(i + 3) * CDEF_BSTRIDE + po1]));
+      p0 = constrain16(tap[0], row, pri_strength, pri_damping);
+      tap[1] =
+          v256_from_v64(v64_load_unaligned(&in[(i + 0) * CDEF_BSTRIDE - po1]),
+                        v64_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - po1]),
+                        v64_load_unaligned(&in[(i + 2) * CDEF_BSTRIDE - po1]),
+                        v64_load_unaligned(&in[(i + 3) * CDEF_BSTRIDE - po1]));
+      p1 = constrain16(tap[1], row, pri_strength, pri_damping);
 
-    // sum += pri_taps[0] * (p0 + p1)
-    sum = v256_add_16(
-        sum, v256_mullo_s16(v256_dup_16(pri_taps[0]), v256_add_16(p0, p1)));
+      // sum += pri_taps[0] * (p0 + p1)
+      sum = v256_add_16(
+          sum, v256_mullo_s16(v256_dup_16(pri_taps[0]), v256_add_16(p0, p1)));
 
-    // Primary far taps
-    tap[2] = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE + po2]),
-                           v64_load_unaligned(&in[1 * CDEF_BSTRIDE + po2]),
-                           v64_load_unaligned(&in[2 * CDEF_BSTRIDE + po2]),
-                           v64_load_unaligned(&in[3 * CDEF_BSTRIDE + po2]));
-    p0 = constrain16(tap[2], row, pri_strength, pri_damping);
-    tap[3] = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE - po2]),
-                           v64_load_unaligned(&in[1 * CDEF_BSTRIDE - po2]),
-                           v64_load_unaligned(&in[2 * CDEF_BSTRIDE - po2]),
-                           v64_load_unaligned(&in[3 * CDEF_BSTRIDE - po2]));
-    p1 = constrain16(tap[3], row, pri_strength, pri_damping);
+      // Primary far taps
+      tap[2] =
+          v256_from_v64(v64_load_unaligned(&in[(i + 0) * CDEF_BSTRIDE + po2]),
+                        v64_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + po2]),
+                        v64_load_unaligned(&in[(i + 2) * CDEF_BSTRIDE + po2]),
+                        v64_load_unaligned(&in[(i + 3) * CDEF_BSTRIDE + po2]));
+      p0 = constrain16(tap[2], row, pri_strength, pri_damping);
+      tap[3] =
+          v256_from_v64(v64_load_unaligned(&in[(i + 0) * CDEF_BSTRIDE - po2]),
+                        v64_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - po2]),
+                        v64_load_unaligned(&in[(i + 2) * CDEF_BSTRIDE - po2]),
+                        v64_load_unaligned(&in[(i + 3) * CDEF_BSTRIDE - po2]));
+      p1 = constrain16(tap[3], row, pri_strength, pri_damping);
 
-    // sum += pri_taps[1] * (p0 + p1)
-    sum = v256_add_16(
-        sum, v256_mullo_s16(v256_dup_16(pri_taps[1]), v256_add_16(p0, p1)));
+      // sum += pri_taps[1] * (p0 + p1)
+      sum = v256_add_16(
+          sum, v256_mullo_s16(v256_dup_16(pri_taps[1]), v256_add_16(p0, p1)));
 
-    max = get_max_primary(is_lowbd, tap, max, cdef_large_value_mask);
+      max = get_max_primary(is_lowbd, tap, max, cdef_large_value_mask);
 
-    min = v256_min_s16(min, tap[0]);
-    min = v256_min_s16(min, tap[1]);
-    min = v256_min_s16(min, tap[2]);
-    min = v256_min_s16(min, tap[3]);
+      min = v256_min_s16(min, tap[0]);
+      min = v256_min_s16(min, tap[1]);
+      min = v256_min_s16(min, tap[2]);
+      min = v256_min_s16(min, tap[3]);
+    }
+
+    if (enable_secondary) {
+      v256 tap[8];
+      // Secondary near taps
+      tap[0] =
+          v256_from_v64(v64_load_unaligned(&in[(i + 0) * CDEF_BSTRIDE + s1o1]),
+                        v64_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + s1o1]),
+                        v64_load_unaligned(&in[(i + 2) * CDEF_BSTRIDE + s1o1]),
+                        v64_load_unaligned(&in[(i + 3) * CDEF_BSTRIDE + s1o1]));
+      p0 = constrain16(tap[0], row, sec_strength, sec_damping);
+      tap[1] =
+          v256_from_v64(v64_load_unaligned(&in[(i + 0) * CDEF_BSTRIDE - s1o1]),
+                        v64_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - s1o1]),
+                        v64_load_unaligned(&in[(i + 2) * CDEF_BSTRIDE - s1o1]),
+                        v64_load_unaligned(&in[(i + 3) * CDEF_BSTRIDE - s1o1]));
+      p1 = constrain16(tap[1], row, sec_strength, sec_damping);
+      tap[2] =
+          v256_from_v64(v64_load_unaligned(&in[(i + 0) * CDEF_BSTRIDE + s2o1]),
+                        v64_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + s2o1]),
+                        v64_load_unaligned(&in[(i + 2) * CDEF_BSTRIDE + s2o1]),
+                        v64_load_unaligned(&in[(i + 3) * CDEF_BSTRIDE + s2o1]));
+      p2 = constrain16(tap[2], row, sec_strength, sec_damping);
+      tap[3] =
+          v256_from_v64(v64_load_unaligned(&in[(i + 0) * CDEF_BSTRIDE - s2o1]),
+                        v64_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - s2o1]),
+                        v64_load_unaligned(&in[(i + 2) * CDEF_BSTRIDE - s2o1]),
+                        v64_load_unaligned(&in[(i + 3) * CDEF_BSTRIDE - s2o1]));
+      p3 = constrain16(tap[3], row, sec_strength, sec_damping);
+
+      // sum += sec_taps[0] * (p0 + p1 + p2 + p3)
+      sum = v256_add_16(sum, v256_mullo_s16(v256_dup_16(sec_taps[0]),
+                                            v256_add_16(v256_add_16(p0, p1),
+                                                        v256_add_16(p2, p3))));
+
+      // Secondary far taps
+      tap[4] =
+          v256_from_v64(v64_load_unaligned(&in[(i + 0) * CDEF_BSTRIDE + s1o2]),
+                        v64_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + s1o2]),
+                        v64_load_unaligned(&in[(i + 2) * CDEF_BSTRIDE + s1o2]),
+                        v64_load_unaligned(&in[(i + 3) * CDEF_BSTRIDE + s1o2]));
+      p0 = constrain16(tap[4], row, sec_strength, sec_damping);
+      tap[5] =
+          v256_from_v64(v64_load_unaligned(&in[(i + 0) * CDEF_BSTRIDE - s1o2]),
+                        v64_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - s1o2]),
+                        v64_load_unaligned(&in[(i + 2) * CDEF_BSTRIDE - s1o2]),
+                        v64_load_unaligned(&in[(i + 3) * CDEF_BSTRIDE - s1o2]));
+      p1 = constrain16(tap[5], row, sec_strength, sec_damping);
+      tap[6] =
+          v256_from_v64(v64_load_unaligned(&in[(i + 0) * CDEF_BSTRIDE + s2o2]),
+                        v64_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + s2o2]),
+                        v64_load_unaligned(&in[(i + 2) * CDEF_BSTRIDE + s2o2]),
+                        v64_load_unaligned(&in[(i + 3) * CDEF_BSTRIDE + s2o2]));
+      p2 = constrain16(tap[6], row, sec_strength, sec_damping);
+      tap[7] =
+          v256_from_v64(v64_load_unaligned(&in[(i + 0) * CDEF_BSTRIDE - s2o2]),
+                        v64_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - s2o2]),
+                        v64_load_unaligned(&in[(i + 2) * CDEF_BSTRIDE - s2o2]),
+                        v64_load_unaligned(&in[(i + 3) * CDEF_BSTRIDE - s2o2]));
+      p3 = constrain16(tap[7], row, sec_strength, sec_damping);
+
+      // sum += sec_taps[1] * (p0 + p1 + p2 + p3)
+      sum = v256_add_16(sum, v256_mullo_s16(v256_dup_16(sec_taps[1]),
+                                            v256_add_16(v256_add_16(p0, p1),
+                                                        v256_add_16(p2, p3))));
+
+      max = get_max_secondary(is_lowbd, tap, max, cdef_large_value_mask);
+
+      min = v256_min_s16(min, tap[0]);
+      min = v256_min_s16(min, tap[1]);
+      min = v256_min_s16(min, tap[2]);
+      min = v256_min_s16(min, tap[3]);
+      min = v256_min_s16(min, tap[4]);
+      min = v256_min_s16(min, tap[5]);
+      min = v256_min_s16(min, tap[6]);
+      min = v256_min_s16(min, tap[7]);
+    }
+
+    // res = row + ((sum - (sum < 0) + 8) >> 4)
+    sum = v256_add_16(sum, v256_cmplt_s16(sum, v256_zero()));
+    res = v256_add_16(sum, v256_dup_16(8));
+    res = v256_shr_n_s16(res, 4);
+    res = v256_add_16(row, res);
+    res = v256_min_s16(v256_max_s16(res, min), max);
+
+    if (is_lowbd) {
+      const v128 res_128 = v256_low_v128(v256_pack_s16_u8(res, res));
+      u32_store_aligned(&dst8[(i + 0) * dstride],
+                        v64_high_u32(v128_high_v64(res_128)));
+      u32_store_aligned(&dst8[(i + 1) * dstride],
+                        v64_low_u32(v128_high_v64(res_128)));
+      u32_store_aligned(&dst8[(i + 2) * dstride],
+                        v64_high_u32(v128_low_v64(res_128)));
+      u32_store_aligned(&dst8[(i + 3) * dstride],
+                        v64_low_u32(v128_low_v64(res_128)));
+    } else {
+      v64_store_aligned(&dst16[(i + 0) * dstride],
+                        v128_high_v64(v256_high_v128(res)));
+      v64_store_aligned(&dst16[(i + 1) * dstride],
+                        v128_low_v64(v256_high_v128(res)));
+      v64_store_aligned(&dst16[(i + 2) * dstride],
+                        v128_high_v64(v256_low_v128(res)));
+      v64_store_aligned(&dst16[(i + 3) * dstride],
+                        v128_low_v64(v256_low_v128(res)));
+    }
   }
-
-  if (sec_strength) {
-    v256 tap[8];
-    // Secondary near taps
-    tap[0] = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE + s1o1]),
-                           v64_load_unaligned(&in[1 * CDEF_BSTRIDE + s1o1]),
-                           v64_load_unaligned(&in[2 * CDEF_BSTRIDE + s1o1]),
-                           v64_load_unaligned(&in[3 * CDEF_BSTRIDE + s1o1]));
-    p0 = constrain16(tap[0], row, sec_strength, sec_damping);
-    tap[1] = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE - s1o1]),
-                           v64_load_unaligned(&in[1 * CDEF_BSTRIDE - s1o1]),
-                           v64_load_unaligned(&in[2 * CDEF_BSTRIDE - s1o1]),
-                           v64_load_unaligned(&in[3 * CDEF_BSTRIDE - s1o1]));
-    p1 = constrain16(tap[1], row, sec_strength, sec_damping);
-    tap[2] = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE + s2o1]),
-                           v64_load_unaligned(&in[1 * CDEF_BSTRIDE + s2o1]),
-                           v64_load_unaligned(&in[2 * CDEF_BSTRIDE + s2o1]),
-                           v64_load_unaligned(&in[3 * CDEF_BSTRIDE + s2o1]));
-    p2 = constrain16(tap[2], row, sec_strength, sec_damping);
-    tap[3] = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE - s2o1]),
-                           v64_load_unaligned(&in[1 * CDEF_BSTRIDE - s2o1]),
-                           v64_load_unaligned(&in[2 * CDEF_BSTRIDE - s2o1]),
-                           v64_load_unaligned(&in[3 * CDEF_BSTRIDE - s2o1]));
-    p3 = constrain16(tap[3], row, sec_strength, sec_damping);
-
-    // sum += sec_taps[0] * (p0 + p1 + p2 + p3)
-    sum = v256_add_16(sum, v256_mullo_s16(v256_dup_16(sec_taps[0]),
-                                          v256_add_16(v256_add_16(p0, p1),
-                                                      v256_add_16(p2, p3))));
-
-    // Secondary far taps
-    tap[4] = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE + s1o2]),
-                           v64_load_unaligned(&in[1 * CDEF_BSTRIDE + s1o2]),
-                           v64_load_unaligned(&in[2 * CDEF_BSTRIDE + s1o2]),
-                           v64_load_unaligned(&in[3 * CDEF_BSTRIDE + s1o2]));
-    p0 = constrain16(tap[4], row, sec_strength, sec_damping);
-    tap[5] = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE - s1o2]),
-                           v64_load_unaligned(&in[1 * CDEF_BSTRIDE - s1o2]),
-                           v64_load_unaligned(&in[2 * CDEF_BSTRIDE - s1o2]),
-                           v64_load_unaligned(&in[3 * CDEF_BSTRIDE - s1o2]));
-    p1 = constrain16(tap[5], row, sec_strength, sec_damping);
-    tap[6] = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE + s2o2]),
-                           v64_load_unaligned(&in[1 * CDEF_BSTRIDE + s2o2]),
-                           v64_load_unaligned(&in[2 * CDEF_BSTRIDE + s2o2]),
-                           v64_load_unaligned(&in[3 * CDEF_BSTRIDE + s2o2]));
-    p2 = constrain16(tap[6], row, sec_strength, sec_damping);
-    tap[7] = v256_from_v64(v64_load_unaligned(&in[0 * CDEF_BSTRIDE - s2o2]),
-                           v64_load_unaligned(&in[1 * CDEF_BSTRIDE - s2o2]),
-                           v64_load_unaligned(&in[2 * CDEF_BSTRIDE - s2o2]),
-                           v64_load_unaligned(&in[3 * CDEF_BSTRIDE - s2o2]));
-    p3 = constrain16(tap[7], row, sec_strength, sec_damping);
-
-    // sum += sec_taps[1] * (p0 + p1 + p2 + p3)
-    sum = v256_add_16(sum, v256_mullo_s16(v256_dup_16(sec_taps[1]),
-                                          v256_add_16(v256_add_16(p0, p1),
-                                                      v256_add_16(p2, p3))));
-
-    max = get_max_secondary(is_lowbd, tap, max, cdef_large_value_mask);
-
-    min = v256_min_s16(min, tap[0]);
-    min = v256_min_s16(min, tap[1]);
-    min = v256_min_s16(min, tap[2]);
-    min = v256_min_s16(min, tap[3]);
-    min = v256_min_s16(min, tap[4]);
-    min = v256_min_s16(min, tap[5]);
-    min = v256_min_s16(min, tap[6]);
-    min = v256_min_s16(min, tap[7]);
-  }
-
-  // res = row + ((sum - (sum < 0) + 8) >> 4)
-  sum = v256_add_16(sum, v256_cmplt_s16(sum, v256_zero()));
-  res = v256_add_16(sum, v256_dup_16(8));
-  res = v256_shr_n_s16(res, 4);
-  res = v256_add_16(row, res);
-  res = v256_min_s16(v256_max_s16(res, min), max);
-
-  if (is_lowbd) {
-    const v128 res_128 = v256_low_v128(v256_pack_s16_u8(res, res));
-    u32_store_aligned(&dst8[0 * dstride], v64_high_u32(v128_high_v64(res_128)));
-    u32_store_aligned(&dst8[1 * dstride], v64_low_u32(v128_high_v64(res_128)));
-    u32_store_aligned(&dst8[2 * dstride], v64_high_u32(v128_low_v64(res_128)));
-    u32_store_aligned(&dst8[3 * dstride], v64_low_u32(v128_low_v64(res_128)));
-  } else {
-    v64_store_aligned(&dst16[0 * dstride], v128_high_v64(v256_high_v128(res)));
-    v64_store_aligned(&dst16[1 * dstride], v128_low_v64(v256_high_v128(res)));
-    v64_store_aligned(&dst16[2 * dstride], v128_high_v64(v256_low_v128(res)));
-    v64_store_aligned(&dst16[3 * dstride], v128_low_v64(v256_low_v128(res)));
-  }
-}
-
-void SIMD_FUNC(cdef_filter_block_4x4_8)(uint8_t *dst, int dstride,
-                                        const uint16_t *in, int pri_strength,
-                                        int sec_strength, int dir,
-                                        int pri_damping, int sec_damping,
-                                        int coeff_shift) {
-  filter_block_4x4(/*is_lowbd=*/1, dst, dstride, in, pri_strength, sec_strength,
-                   dir, pri_damping, sec_damping, coeff_shift);
 }
 
 SIMD_INLINE void filter_block_8x8(const int is_lowbd, void *dest, int dstride,
                                   const uint16_t *in, int pri_strength,
                                   int sec_strength, int dir, int pri_damping,
-                                  int sec_damping, int coeff_shift) {
+                                  int sec_damping, int coeff_shift, int height,
+                                  int enable_primary, int enable_secondary) {
   uint8_t *dst8 = (uint8_t *)dest;
   uint16_t *dst16 = (uint16_t *)dest;
   int i;
@@ -452,112 +468,115 @@ SIMD_INLINE void filter_block_8x8(const int is_lowbd, void *dest, int dstride,
   const int *pri_taps = cdef_pri_taps[(pri_strength >> coeff_shift) & 1];
   const int *sec_taps = cdef_sec_taps;
 
-  if (pri_strength)
+  if (enable_primary && pri_strength)
     pri_damping = AOMMAX(0, pri_damping - get_msb(pri_strength));
-  if (sec_strength)
+  if (enable_secondary && sec_strength)
     sec_damping = AOMMAX(0, sec_damping - get_msb(sec_strength));
 
-  for (i = 0; i < 8; i += 2) {
+  for (i = 0; i < height; i += 2) {
     v256 tap[8];
     sum = v256_zero();
     row = v256_from_v128(v128_load_aligned(&in[i * CDEF_BSTRIDE]),
                          v128_load_aligned(&in[(i + 1) * CDEF_BSTRIDE]));
 
     min = max = row;
-    // Primary near taps
-    tap[0] =
-        v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE + po1]),
-                       v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + po1]));
-    tap[1] =
-        v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE - po1]),
-                       v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - po1]));
-    p0 = constrain16(tap[0], row, pri_strength, pri_damping);
-    p1 = constrain16(tap[1], row, pri_strength, pri_damping);
+    if (enable_primary) {
+      // Primary near taps
+      tap[0] = v256_from_v128(
+          v128_load_unaligned(&in[i * CDEF_BSTRIDE + po1]),
+          v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + po1]));
+      tap[1] = v256_from_v128(
+          v128_load_unaligned(&in[i * CDEF_BSTRIDE - po1]),
+          v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - po1]));
+      p0 = constrain16(tap[0], row, pri_strength, pri_damping);
+      p1 = constrain16(tap[1], row, pri_strength, pri_damping);
 
-    // sum += pri_taps[0] * (p0 + p1)
-    sum = v256_add_16(
-        sum, v256_mullo_s16(v256_dup_16(pri_taps[0]), v256_add_16(p0, p1)));
+      // sum += pri_taps[0] * (p0 + p1)
+      sum = v256_add_16(
+          sum, v256_mullo_s16(v256_dup_16(pri_taps[0]), v256_add_16(p0, p1)));
 
-    // Primary far taps
-    tap[2] =
-        v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE + po2]),
-                       v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + po2]));
-    tap[3] =
-        v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE - po2]),
-                       v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - po2]));
-    p0 = constrain16(tap[2], row, pri_strength, pri_damping);
-    p1 = constrain16(tap[3], row, pri_strength, pri_damping);
+      // Primary far taps
+      tap[2] = v256_from_v128(
+          v128_load_unaligned(&in[i * CDEF_BSTRIDE + po2]),
+          v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + po2]));
+      tap[3] = v256_from_v128(
+          v128_load_unaligned(&in[i * CDEF_BSTRIDE - po2]),
+          v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - po2]));
+      p0 = constrain16(tap[2], row, pri_strength, pri_damping);
+      p1 = constrain16(tap[3], row, pri_strength, pri_damping);
 
-    // sum += pri_taps[1] * (p0 + p1)
-    sum = v256_add_16(
-        sum, v256_mullo_s16(v256_dup_16(pri_taps[1]), v256_add_16(p0, p1)));
+      // sum += pri_taps[1] * (p0 + p1)
+      sum = v256_add_16(
+          sum, v256_mullo_s16(v256_dup_16(pri_taps[1]), v256_add_16(p0, p1)));
 
-    max = get_max_primary(is_lowbd, tap, max, cdef_large_value_mask);
+      max = get_max_primary(is_lowbd, tap, max, cdef_large_value_mask);
 
-    min = v256_min_s16(min, tap[0]);
-    min = v256_min_s16(min, tap[1]);
-    min = v256_min_s16(min, tap[2]);
-    min = v256_min_s16(min, tap[3]);
-    // End primary
+      min = v256_min_s16(min, tap[0]);
+      min = v256_min_s16(min, tap[1]);
+      min = v256_min_s16(min, tap[2]);
+      min = v256_min_s16(min, tap[3]);
+      // End primary
+    }
 
-    // Secondary near taps
-    tap[0] =
-        v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE + s1o1]),
-                       v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + s1o1]));
-    tap[1] =
-        v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE - s1o1]),
-                       v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - s1o1]));
-    tap[2] =
-        v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE + s2o1]),
-                       v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + s2o1]));
-    tap[3] =
-        v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE - s2o1]),
-                       v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - s2o1]));
-    p0 = constrain16(tap[0], row, sec_strength, sec_damping);
-    p1 = constrain16(tap[1], row, sec_strength, sec_damping);
-    p2 = constrain16(tap[2], row, sec_strength, sec_damping);
-    p3 = constrain16(tap[3], row, sec_strength, sec_damping);
+    if (enable_secondary) {
+      // Secondary near taps
+      tap[0] = v256_from_v128(
+          v128_load_unaligned(&in[i * CDEF_BSTRIDE + s1o1]),
+          v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + s1o1]));
+      tap[1] = v256_from_v128(
+          v128_load_unaligned(&in[i * CDEF_BSTRIDE - s1o1]),
+          v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - s1o1]));
+      tap[2] = v256_from_v128(
+          v128_load_unaligned(&in[i * CDEF_BSTRIDE + s2o1]),
+          v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + s2o1]));
+      tap[3] = v256_from_v128(
+          v128_load_unaligned(&in[i * CDEF_BSTRIDE - s2o1]),
+          v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - s2o1]));
+      p0 = constrain16(tap[0], row, sec_strength, sec_damping);
+      p1 = constrain16(tap[1], row, sec_strength, sec_damping);
+      p2 = constrain16(tap[2], row, sec_strength, sec_damping);
+      p3 = constrain16(tap[3], row, sec_strength, sec_damping);
 
-    // sum += sec_taps[0] * (p0 + p1 + p2 + p3)
-    sum = v256_add_16(sum, v256_mullo_s16(v256_dup_16(sec_taps[0]),
-                                          v256_add_16(v256_add_16(p0, p1),
-                                                      v256_add_16(p2, p3))));
+      // sum += sec_taps[0] * (p0 + p1 + p2 + p3)
+      sum = v256_add_16(sum, v256_mullo_s16(v256_dup_16(sec_taps[0]),
+                                            v256_add_16(v256_add_16(p0, p1),
+                                                        v256_add_16(p2, p3))));
 
-    // Secondary far taps
-    tap[4] =
-        v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE + s1o2]),
-                       v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + s1o2]));
-    tap[5] =
-        v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE - s1o2]),
-                       v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - s1o2]));
-    tap[6] =
-        v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE + s2o2]),
-                       v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + s2o2]));
-    tap[7] =
-        v256_from_v128(v128_load_unaligned(&in[i * CDEF_BSTRIDE - s2o2]),
-                       v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - s2o2]));
-    p0 = constrain16(tap[4], row, sec_strength, sec_damping);
-    p1 = constrain16(tap[5], row, sec_strength, sec_damping);
-    p2 = constrain16(tap[6], row, sec_strength, sec_damping);
-    p3 = constrain16(tap[7], row, sec_strength, sec_damping);
+      // Secondary far taps
+      tap[4] = v256_from_v128(
+          v128_load_unaligned(&in[i * CDEF_BSTRIDE + s1o2]),
+          v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + s1o2]));
+      tap[5] = v256_from_v128(
+          v128_load_unaligned(&in[i * CDEF_BSTRIDE - s1o2]),
+          v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - s1o2]));
+      tap[6] = v256_from_v128(
+          v128_load_unaligned(&in[i * CDEF_BSTRIDE + s2o2]),
+          v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE + s2o2]));
+      tap[7] = v256_from_v128(
+          v128_load_unaligned(&in[i * CDEF_BSTRIDE - s2o2]),
+          v128_load_unaligned(&in[(i + 1) * CDEF_BSTRIDE - s2o2]));
+      p0 = constrain16(tap[4], row, sec_strength, sec_damping);
+      p1 = constrain16(tap[5], row, sec_strength, sec_damping);
+      p2 = constrain16(tap[6], row, sec_strength, sec_damping);
+      p3 = constrain16(tap[7], row, sec_strength, sec_damping);
 
-    // sum += sec_taps[1] * (p0 + p1 + p2 + p3)
-    sum = v256_add_16(sum, v256_mullo_s16(v256_dup_16(sec_taps[1]),
-                                          v256_add_16(v256_add_16(p0, p1),
-                                                      v256_add_16(p2, p3))));
+      // sum += sec_taps[1] * (p0 + p1 + p2 + p3)
+      sum = v256_add_16(sum, v256_mullo_s16(v256_dup_16(sec_taps[1]),
+                                            v256_add_16(v256_add_16(p0, p1),
+                                                        v256_add_16(p2, p3))));
 
-    max = get_max_secondary(is_lowbd, tap, max, cdef_large_value_mask);
+      max = get_max_secondary(is_lowbd, tap, max, cdef_large_value_mask);
 
-    min = v256_min_s16(min, tap[0]);
-    min = v256_min_s16(min, tap[1]);
-    min = v256_min_s16(min, tap[2]);
-    min = v256_min_s16(min, tap[3]);
-    min = v256_min_s16(min, tap[4]);
-    min = v256_min_s16(min, tap[5]);
-    min = v256_min_s16(min, tap[6]);
-    min = v256_min_s16(min, tap[7]);
-
-    // End secondary
+      min = v256_min_s16(min, tap[0]);
+      min = v256_min_s16(min, tap[1]);
+      min = v256_min_s16(min, tap[2]);
+      min = v256_min_s16(min, tap[3]);
+      min = v256_min_s16(min, tap[4]);
+      min = v256_min_s16(min, tap[5]);
+      min = v256_min_s16(min, tap[6]);
+      min = v256_min_s16(min, tap[7]);
+      // End secondary
+    }
 
     // res = row + ((sum - (sum < 0) + 8) >> 4)
     sum = v256_add_16(sum, v256_cmplt_s16(sum, v256_zero()));
@@ -577,43 +596,104 @@ SIMD_INLINE void filter_block_8x8(const int is_lowbd, void *dest, int dstride,
   }
 }
 
-void SIMD_FUNC(cdef_filter_block_8x8_8)(uint8_t *dst, int dstride,
-                                        const uint16_t *in, int pri_strength,
-                                        int sec_strength, int dir,
-                                        int pri_damping, int sec_damping,
-                                        int coeff_shift) {
-  filter_block_8x8(/*is_lowbd=*/1, dst, dstride, in, pri_strength, sec_strength,
-                   dir, pri_damping, sec_damping, coeff_shift);
+void SIMD_FUNC(do_cdef_0)(void *dest, int dstride, const uint16_t *in,
+                          int pri_strength, int sec_strength, int dir,
+                          int pri_damping, int sec_damping, int coeff_shift,
+                          int block_width, int block_height) {
+  uint8_t *dst8 = (uint8_t *)dest;
+  if (block_width == 8) {
+    filter_block_8x8(/*is_lowbd=*/1, dst8, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/1,
+                     /*enable_secondary=*/1);
+  } else {
+    filter_block_4x4(/*is_lowbd=*/1, dst8, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/1,
+                     /*enable_secondary=*/1);
+  }
 }
+
+void SIMD_FUNC(do_cdef_1)(void *dest, int dstride, const uint16_t *in,
+                          int pri_strength, int sec_strength, int dir,
+                          int pri_damping, int sec_damping, int coeff_shift,
+                          int block_width, int block_height) {
+  uint8_t *dst8 = (uint8_t *)dest;
+  if (block_width == 8) {
+    filter_block_8x8(/*is_lowbd=*/1, dst8, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/1,
+                     /*enable_secondary=*/0);
+  } else {
+    filter_block_4x4(/*is_lowbd=*/1, dst8, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/1,
+                     /*enable_secondary=*/0);
+  }
+}
+void SIMD_FUNC(do_cdef_2)(void *dest, int dstride, const uint16_t *in,
+                          int pri_strength, int sec_strength, int dir,
+                          int pri_damping, int sec_damping, int coeff_shift,
+                          int block_width, int block_height) {
+  uint8_t *dst8 = (uint8_t *)dest;
+  if (block_width == 8) {
+    filter_block_8x8(/*is_lowbd=*/1, dst8, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/0,
+                     /*enable_secondary=*/1);
+  } else {
+    filter_block_4x4(/*is_lowbd=*/1, dst8, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/0,
+                     /*enable_secondary=*/1);
+  }
+}
+
+void SIMD_FUNC(do_cdef_3)(void *dest, int dstride, const uint16_t *in,
+                          int pri_strength, int sec_strength, int dir,
+                          int pri_damping, int sec_damping, int coeff_shift,
+                          int block_width, int block_height) {
+  uint8_t *dst8 = (uint8_t *)dest;
+  if (block_width == 8) {
+    filter_block_8x8(/*is_lowbd=*/1, dst8, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/0,
+                     /*enable_secondary=*/0);
+  } else {
+    filter_block_4x4(/*is_lowbd=*/1, dst8, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/0,
+                     /*enable_secondary=*/0);
+  }
+}
+
+typedef void (*do_cdef_fn_t)(void *dest, int dstride, const uint16_t *in,
+                             int pri_strength, int sec_strength, int dir,
+                             int pri_damping, int sec_damping, int coeff_shift,
+                             int block_width, int block_height);
 
 void SIMD_FUNC(cdef_filter_block)(void *dest, int dstride, const uint16_t *in,
                                   int pri_strength, int sec_strength, int dir,
                                   int pri_damping, int sec_damping, int bsize,
                                   int coeff_shift) {
-  uint8_t *dst8 = (uint8_t *)dest;
-  if (bsize == BLOCK_8X8) {
-    SIMD_FUNC(cdef_filter_block_8x8_8)
-    (dst8, dstride, in, pri_strength, sec_strength, dir, pri_damping,
-     sec_damping, coeff_shift);
-  } else if (bsize == BLOCK_4X8) {
-    SIMD_FUNC(cdef_filter_block_4x4_8)
-    (dst8, dstride, in, pri_strength, sec_strength, dir, pri_damping,
-     sec_damping, coeff_shift);
-    SIMD_FUNC(cdef_filter_block_4x4_8)
-    (dst8 + 4 * dstride, dstride, in + 4 * CDEF_BSTRIDE, pri_strength,
-     sec_strength, dir, pri_damping, sec_damping, coeff_shift);
-  } else if (bsize == BLOCK_8X4) {
-    SIMD_FUNC(cdef_filter_block_4x4_8)
-    (dst8, dstride, in, pri_strength, sec_strength, dir, pri_damping,
-     sec_damping, coeff_shift);
-    SIMD_FUNC(cdef_filter_block_4x4_8)
-    (dst8 + 4, dstride, in + 4, pri_strength, sec_strength, dir, pri_damping,
-     sec_damping, coeff_shift);
-  } else {
-    SIMD_FUNC(cdef_filter_block_4x4_8)
-    (dst8, dstride, in, pri_strength, sec_strength, dir, pri_damping,
-     sec_damping, coeff_shift);
-  }
+  const int block_width = ((bsize == BLOCK_8X8) | (bsize == BLOCK_8X4)) ? 8 : 4;
+  const int block_height =
+      ((bsize == BLOCK_8X8) | (bsize == BLOCK_4X8)) ? 8 : 4;
+  const int strength_index = (sec_strength == 0) | ((pri_strength == 0) << 1);
+  /*
+   * strength_index == 0 : enable_primary = 1, enable_secondary = 1
+   * strength_index == 1 : enable_primary = 1, enable_secondary = 0
+   * strength_index == 2 : enable_primary = 0, enable_secondary = 1
+   * strength_index == 3 : enable_primary = 0, enable_secondary = 0
+   */
+  const do_cdef_fn_t do_cdef_fn[4] = { SIMD_FUNC(do_cdef_0),
+                                       SIMD_FUNC(do_cdef_1),
+                                       SIMD_FUNC(do_cdef_2),
+                                       SIMD_FUNC(do_cdef_3) };
+
+  do_cdef_fn[strength_index](dest, dstride, in, pri_strength, sec_strength, dir,
+                             pri_damping, sec_damping, coeff_shift, block_width,
+                             block_height);
 }
 
 void SIMD_FUNC(cdef_filter_block_4x4_16)(uint16_t *dst, int dstride,
@@ -622,7 +702,8 @@ void SIMD_FUNC(cdef_filter_block_4x4_16)(uint16_t *dst, int dstride,
                                          int pri_damping, int sec_damping,
                                          int coeff_shift) {
   filter_block_4x4(/*is_lowbd=*/0, dst, dstride, in, pri_strength, sec_strength,
-                   dir, pri_damping, sec_damping, coeff_shift);
+                   dir, pri_damping, sec_damping, coeff_shift, 4,
+                   /*enable_primary=*/1, /*enable_secondary=*/1);
 }
 
 void SIMD_FUNC(cdef_filter_block_8x8_16)(uint16_t *dst, int dstride,
@@ -631,7 +712,8 @@ void SIMD_FUNC(cdef_filter_block_8x8_16)(uint16_t *dst, int dstride,
                                          int pri_damping, int sec_damping,
                                          int coeff_shift) {
   filter_block_8x8(/*is_lowbd=*/0, dst, dstride, in, pri_strength, sec_strength,
-                   dir, pri_damping, sec_damping, coeff_shift);
+                   dir, pri_damping, sec_damping, coeff_shift, 8,
+                   /*enable_primary=*/1, /*enable_secondary=*/1);
 }
 
 void SIMD_FUNC(cdef_filter_block_highbd)(void *dest, int dstride,
