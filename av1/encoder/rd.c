@@ -357,21 +357,21 @@ static const int rd_layer_depth_factor[7] = {
 // The function here is a first pass estimate based on data from
 // a previous Vizer run
 static double def_inter_rd_multiplier(int qindex) {
-  return 3.2 + (0.0035 * (double)qindex);
+  return 3.2 + (0.0015 * (double)qindex);
 }
 
 // Returns the default rd multiplier for ARF/Golden Frames for a given qindex.
 // The function here is a first pass estimate based on data from
 // a previous Vizer run
 static double def_arf_rd_multiplier(int qindex) {
-  return 3.25 + (0.0035 * (double)qindex);
+  return 3.25 + (0.0015 * (double)qindex);
 }
 
 // Returns the default rd multiplier for key frames for a given qindex.
 // The function here is a first pass estimate based on data from
 // a previous Vizer run
 static double def_kf_rd_multiplier(int qindex) {
-  return 3.3 + (0.0035 * (double)qindex);
+  return 3.3 + (0.0015 * (double)qindex);
 }
 
 int av1_compute_rd_mult_based_on_qindex(aom_bit_depth_t bit_depth,
@@ -380,13 +380,13 @@ int av1_compute_rd_mult_based_on_qindex(aom_bit_depth_t bit_depth,
   const int q = av1_dc_quant_QTX(qindex, 0, bit_depth);
   int rdmult = q * q;
   if (update_type == KF_UPDATE) {
-    double def_rd_q_mult = def_kf_rd_multiplier(qindex);
+    double def_rd_q_mult = def_kf_rd_multiplier(q);
     rdmult = (int)((double)rdmult * def_rd_q_mult);
   } else if ((update_type == GF_UPDATE) || (update_type == ARF_UPDATE)) {
-    double def_rd_q_mult = def_arf_rd_multiplier(qindex);
+    double def_rd_q_mult = def_arf_rd_multiplier(q);
     rdmult = (int)((double)rdmult * def_rd_q_mult);
   } else {
-    double def_rd_q_mult = def_inter_rd_multiplier(qindex);
+    double def_rd_q_mult = def_inter_rd_multiplier(q);
     rdmult = (int)((double)rdmult * def_rd_q_mult);
   }
 
