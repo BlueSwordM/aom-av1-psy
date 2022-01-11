@@ -2287,6 +2287,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   // Use mode set that includes zeromv (via globalmv) for speed >= 9 for
   // content with low motion.
   int use_zeromv =
+      cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN ||
       ((cpi->oxcf.speed >= 9 && cpi->rc.avg_frame_low_motion > 70) ||
        cpi->sf.rt_sf.nonrd_agressive_skip);
   int skip_pred_mv = 0;
@@ -2549,6 +2550,17 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     if (segfeature_active(seg, segment_id, SEG_LVL_REF_FRAME) &&
         get_segdata(seg, segment_id, SEG_LVL_REF_FRAME) != (int)ref_frame)
       continue;
+
+    // For screen content. If source_sad is computed: skip non-zero motion
+    // check for stationary (super)blocks. Otherwise skip non-zero motion
+    // check for spatially flat blocks.
+    if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
+      if (cpi->sf.rt_sf.source_metrics_sb_nonrd) {
+        if (frame_mv[this_mode][ref_frame].as_int != 0 &&
+            x->content_state_sb.source_sad == kZeroSad)
+          continue;
+      }
+    }
 
     if (skip_mode_by_bsize_and_ref_frame(
             this_mode, ref_frame, bsize, x->nonrd_prune_ref_frame_search,

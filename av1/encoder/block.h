@@ -747,7 +747,7 @@ typedef struct {
 
 /*!\cond */
 typedef enum {
-  kInvalid = 0,
+  kZeroSad = 0,
   kLowSad = 1,
   kMedSad = 2,
   kHighSad = 3
