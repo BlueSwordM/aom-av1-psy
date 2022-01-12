@@ -15,7 +15,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include "av1/common/common_data.h"
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 #include "config/av1_rtcd.h"
@@ -31,6 +30,7 @@
 
 #include "av1/common/cfl.h"
 #include "av1/common/common.h"
+#include "av1/common/common_data.h"
 #include "av1/common/entropy.h"
 #include "av1/common/entropymode.h"
 #include "av1/common/idct.h"
