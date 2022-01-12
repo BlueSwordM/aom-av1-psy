@@ -290,7 +290,8 @@ INSTANTIATE_TEST_SUITE_P(
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
     SSE2, HadamardLowbdTest,
-    ::testing::Values(HadamardFuncWithSize(&aom_hadamard_8x8_sse2, 8),
+    ::testing::Values(HadamardFuncWithSize(&aom_hadamard_4x4_sse2, 4),
+                      HadamardFuncWithSize(&aom_hadamard_8x8_sse2, 8),
                       HadamardFuncWithSize(&aom_hadamard_16x16_sse2, 16),
                       HadamardFuncWithSize(&aom_hadamard_32x32_sse2, 32)));
 #endif  // HAVE_SSE2
