@@ -207,8 +207,8 @@ typedef struct {
   /*!\cond */
 
   // rate control history for last frame(1) and the frame before(2).
-  // -1: undershot
-  //  1: overshoot
+  // -1: overshoot
+  //  1: undershoot
   //  0: not initialized.
   int rc_1_frame;
   int rc_2_frame;
