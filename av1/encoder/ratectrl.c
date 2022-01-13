@@ -3084,6 +3084,7 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
     double q2;
     int enumerator;
     *q = (3 * cpi->rc.worst_quality + *q) >> 2;
+    cpi->cyclic_refresh->counter_encode_maxq_scene_change = 0;
     // Adjust avg_frame_qindex, buffer_level, and rate correction factors, as
     // these parameters will affect QP selection for subsequent frames. If they
     // have settled down to a very different (low QP) state, then not adjusting

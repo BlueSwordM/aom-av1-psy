@@ -1289,8 +1289,10 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
           cpi->svc.ref_frame_comp[2] && cpi->svc.reference[ALTREF_FRAME - 1];
     }
   }
-  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN)
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
     sf->rt_sf.use_comp_ref_nonrd = 0;
+    sf->rt_sf.source_metrics_sb_nonrd = 1;
+  }
 }
 
 // TODO(kyslov): now this is very similar to

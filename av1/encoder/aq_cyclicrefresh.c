@@ -25,6 +25,7 @@ CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols) {
   if (cr == NULL) return NULL;
 
   cr->map = aom_calloc(mi_rows * mi_cols, sizeof(*cr->map));
+  cr->counter_encode_maxq_scene_change = 0;
   if (cr->map == NULL) {
     av1_cyclic_refresh_free(cr);
     return NULL;
@@ -426,11 +427,18 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
     return;
   }
   cr->percent_refresh = 10;
-  if (cpi->svc.number_temporal_layers > 2) cr->percent_refresh = 15;
+  // Increase the amount of refresh for #temporal_layers > 2, and for some
+  // frames after scene change that is encoded at high Q.
+  if (cpi->svc.number_temporal_layers > 2)
+    cr->percent_refresh = 15;
+  else if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+           cr->counter_encode_maxq_scene_change < 20)
+    cr->percent_refresh = 20;
   cr->max_qdelta_perc = 60;
   cr->time_for_refresh = 0;
   cr->motion_thresh = 32;
-  cr->rate_boost_fac = 15;
+  cr->rate_boost_fac =
+      (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) ? 10 : 15;
   // Use larger delta-qp (increase rate_ratio_qdelta) for first few (~4)
   // periods of the refresh cycle, after a key frame.
   // Account for larger interval on base layer for temporal layers.
@@ -491,7 +499,10 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
   const RATE_CONTROL *const rc = &cpi->rc;
   CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
   struct segmentation *const seg = &cm->seg;
-  int resolution_change =
+  const int scene_change_detected =
+      cpi->rc.high_source_sad ||
+      (cpi->ppi->use_svc && cpi->svc.high_source_sad_superframe);
+  const int resolution_change =
       cm->prev_frame && (cm->width != cm->prev_frame->width ||
                          cm->height != cm->prev_frame->height);
   if (resolution_change) av1_cyclic_refresh_reset_resize(cpi);
@@ -500,11 +511,13 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
     unsigned char *const seg_map = cpi->enc_seg.map;
     memset(seg_map, 0, cm->mi_params.mi_rows * cm->mi_params.mi_cols);
     av1_disable_segmentation(&cm->seg);
-    if (cm->current_frame.frame_type == KEY_FRAME) {
+    if (cm->current_frame.frame_type == KEY_FRAME || scene_change_detected) {
       cr->sb_index = 0;
+      cr->counter_encode_maxq_scene_change = 0;
     }
     return;
   } else {
+    cr->counter_encode_maxq_scene_change++;
     const double q = av1_convert_qindex_to_q(cm->quant_params.base_qindex,
                                              cm->seq_params->bit_depth);
     // Set rate threshold to some multiple (set to 2 for now) of the target
@@ -578,4 +591,5 @@ void av1_cyclic_refresh_reset_resize(AV1_COMP *const cpi) {
   cr->sb_index = 0;
   cpi->refresh_frame.golden_frame = true;
   cr->apply_cyclic_refresh = 0;
+  cr->counter_encode_maxq_scene_change = 0;
 }
