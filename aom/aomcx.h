@@ -207,9 +207,13 @@ enum aome_enc_control_id {
    * encoding process, values greater than 0 will increase encoder speed at
    * the expense of quality.
    *
-   * Valid range: 0..9. 0 runs the slowest, and 9 runs the fastest;
+   * Valid range: 0..10. 0 runs the slowest, and 10 runs the fastest;
    * quality improves as speed decreases (since more compression
    * possibilities are explored).
+   *
+   * NOTE: 10 is only allowed in AOM_USAGE_REALTIME. In AOM_USAGE_GOOD_QUALITY
+   * and AOM_USAGE_ALL_INTRA, 9 is the highest allowed value. However,
+   * AOM_USAGE_GOOD_QUALITY treats 7..9 the same as 6.
    */
   AOME_SET_CPUUSED = 13,
 
