@@ -34,6 +34,8 @@
 #include "av1/encoder/rdopt.h"
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/var_based_part.h"
+#include "av1/encoder/palette.h"
+#include "av1/encoder/intra_mode_search.h"
 
 extern int g_pick_inter_mode_cnt;
 /*!\cond */
@@ -56,6 +58,7 @@ typedef struct {
   WarpedMotionParams wm_params;
   int num_proj_ref;
   uint8_t blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE / 4];
+  PALETTE_MODE_INFO pmi;
 } BEST_PICKMODE;
 
 typedef struct {
@@ -143,6 +146,7 @@ static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
   bp->num_proj_ref = 0;
   memset(&bp->wm_params, 0, sizeof(bp->wm_params));
   memset(&bp->blk_skip, 0, sizeof(bp->blk_skip));
+  memset(&bp->pmi, 0, sizeof(bp->pmi));
 }
 
 static INLINE int subpel_select(AV1_COMP *cpi, BLOCK_SIZE bsize, int_mv *mv) {
@@ -1772,7 +1776,7 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
 
   mi->mode = best_mode;
   // Keep DC for UV since mode test is based on Y channel only.
-  mi->uv_mode = DC_PRED;
+  mi->uv_mode = UV_DC_PRED;
   *rd_cost = best_rdc;
 
 #if CONFIG_INTERNAL_STATS
@@ -2881,7 +2885,34 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                       &orig_dst, tmp, &this_mode_pred, &best_rdc,
                       &best_pickmode);
 
+  int try_palette =
+      cpi->oxcf.tool_cfg.enable_palette &&
+      av1_allow_palette(cpi->common.features.allow_screen_content_tools,
+                        mi->bsize);
+  try_palette = try_palette && is_mode_intra(best_pickmode.best_mode) &&
+                best_pickmode.best_mode_skip_txfm != 1 &&
+                cpi->rc.high_source_sad;
+
+  if (try_palette) {
+    const unsigned int intra_ref_frame_cost = ref_costs_single[INTRA_FRAME];
+
+    av1_search_palette_mode_luma(cpi, x, bsize, intra_ref_frame_cost, ctx,
+                                 &this_rdc, best_rdc.rdcost);
+    if (this_rdc.rdcost < best_rdc.rdcost) {
+      best_pickmode.pmi = mi->palette_mode_info;
+      best_pickmode.best_mode = DC_PRED;
+      mi->mv[0].as_int = 0;
+      best_rdc.rate = this_rdc.rate;
+      best_rdc.dist = this_rdc.dist;
+      best_rdc.rdcost = this_rdc.rdcost;
+      memcpy(best_pickmode.blk_skip, txfm_info->blk_skip,
+             sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
+      av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
+    }
+  }
+
   pd->dst = orig_dst;
+  if (try_palette) mi->palette_mode_info = best_pickmode.pmi;
   mi->mode = best_pickmode.best_mode;
   mi->ref_frame[0] = best_pickmode.best_ref_frame;
   mi->ref_frame[1] = best_pickmode.best_second_ref_frame;

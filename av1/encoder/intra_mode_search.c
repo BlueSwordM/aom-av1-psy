@@ -937,6 +937,67 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
   return skippable;
 }
 
+void av1_search_palette_mode_luma(const AV1_COMP *cpi, MACROBLOCK *x,
+                                  BLOCK_SIZE bsize, unsigned int ref_frame_cost,
+                                  PICK_MODE_CONTEXT *ctx,
+                                  RD_STATS *this_rd_cost, int64_t best_rd) {
+  MB_MODE_INFO *const mbmi = x->e_mbd.mi[0];
+  PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  int64_t best_rd_palette = best_rd, this_rd;
+  uint8_t *const best_palette_color_map =
+      x->palette_buffer->best_palette_color_map;
+  uint8_t *const color_map = xd->plane[0].color_index_map;
+  MB_MODE_INFO best_mbmi_palette = *mbmi;
+  uint8_t best_blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
+  uint8_t best_tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
+  const ModeCosts *mode_costs = &x->mode_costs;
+  const int *const intra_mode_cost =
+      mode_costs->mbmode_cost[size_group_lookup[bsize]];
+  const int rows = block_size_high[bsize];
+  const int cols = block_size_wide[bsize];
+
+  mbmi->mode = DC_PRED;
+  mbmi->uv_mode = UV_DC_PRED;
+  mbmi->ref_frame[0] = INTRA_FRAME;
+  mbmi->ref_frame[1] = NONE_FRAME;
+  av1_zero(pmi->palette_size);
+
+  RD_STATS rd_stats_y;
+  av1_invalid_rd_stats(&rd_stats_y);
+  av1_rd_pick_palette_intra_sby(cpi, x, bsize, intra_mode_cost[DC_PRED],
+                                &best_mbmi_palette, best_palette_color_map,
+                                &best_rd_palette, &rd_stats_y.rate, NULL,
+                                &rd_stats_y.dist, &rd_stats_y.skip_txfm, NULL,
+                                ctx, best_blk_skip, best_tx_type_map);
+  if (rd_stats_y.rate == INT_MAX || pmi->palette_size[0] == 0) {
+    this_rd_cost->rdcost = INT64_MAX;
+    return;
+  }
+
+  memcpy(x->txfm_search_info.blk_skip, best_blk_skip,
+         sizeof(best_blk_skip[0]) * bsize_to_num_blk(bsize));
+  av1_copy_array(xd->tx_type_map, best_tx_type_map, ctx->num_4x4_blk);
+  memcpy(color_map, best_palette_color_map,
+         rows * cols * sizeof(best_palette_color_map[0]));
+
+  rd_stats_y.rate += ref_frame_cost;
+
+  if (rd_stats_y.skip_txfm) {
+    rd_stats_y.rate =
+        ref_frame_cost +
+        mode_costs->skip_txfm_cost[av1_get_skip_txfm_context(xd)][1];
+  } else {
+    rd_stats_y.rate +=
+        mode_costs->skip_txfm_cost[av1_get_skip_txfm_context(xd)][0];
+  }
+  this_rd = RDCOST(x->rdmult, rd_stats_y.rate, rd_stats_y.dist);
+  this_rd_cost->rate = rd_stats_y.rate;
+  this_rd_cost->dist = rd_stats_y.dist;
+  this_rd_cost->rdcost = this_rd;
+  this_rd_cost->skip_txfm = rd_stats_y.skip_txfm;
+}
+
 /*!\brief Get the intra prediction by searching through tx_type and tx_size.
  *
  * \ingroup intra_mode_search

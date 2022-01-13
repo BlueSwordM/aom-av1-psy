@@ -401,7 +401,7 @@ void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi,
       !tool_cfg->force_video_mode && (oxcf->input_cfg.limit == 1);
   seq->reduced_still_picture_hdr =
       seq->still_picture && !tool_cfg->full_still_picture_hdr;
-  seq->force_screen_content_tools = (oxcf->mode == REALTIME) ? 0 : 2;
+  seq->force_screen_content_tools = 2;
   seq->force_integer_mv = 2;
   seq->order_hint_info.enable_order_hint = tool_cfg->enable_order_hint;
   seq->frame_id_numbers_present_flag =
@@ -1799,23 +1799,24 @@ void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
     return;
   }
 
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
+    features->allow_screen_content_tools = features->allow_intrabc = 1;
+    return;
+  }
+
   if (cpi->oxcf.mode == REALTIME) {
-    assert(cm->seq_params->reduced_still_picture_hdr);
     features->allow_screen_content_tools = features->allow_intrabc = 0;
     return;
   }
 
-  // Screen content tools are not evaluated in non-RD encoding mode, i.e., when
-  // use_nonrd_pick_mode = 1 and hybrid_intra_pickmode = 0. Hence, screen
-  // content detection is disabled.
+  // Screen content tools are not evaluated in non-RD encoding mode unless
+  // content type is not set explicitly, i.e., when
+  // cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN, use_nonrd_pick_mode = 1
+  // and hybrid_intra_pickmode = 0. Hence, screen content detection is
+  // disabled.
   if (cpi->sf.rt_sf.use_nonrd_pick_mode &&
       !cpi->sf.rt_sf.hybrid_intra_pickmode) {
     features->allow_screen_content_tools = features->allow_intrabc = 0;
-    return;
-  }
-
-  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
-    features->allow_screen_content_tools = features->allow_intrabc = 1;
     return;
   }
 
@@ -3384,7 +3385,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   // Work out whether to force_integer_mv this frame
   if (!is_stat_generation_stage(cpi) &&
       cpi->common.features.allow_screen_content_tools &&
-      !frame_is_intra_only(cm)) {
+      !frame_is_intra_only(cm) && !cpi->sf.rt_sf.use_nonrd_pick_mode) {
     if (cpi->common.seq_params->force_integer_mv == 2) {
       // Adaptive mode: see what previous frame encoded did
       if (cpi->unscaled_last_source != NULL) {
