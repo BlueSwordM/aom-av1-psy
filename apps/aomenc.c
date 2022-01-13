@@ -1131,13 +1131,6 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
                          argi)) {
       config->cfg.use_fixed_qp_offsets = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.fixed_qp_offsets, argi)) {
-      const int fixed_qp_offset_count = arg_parse_list(
-          &arg, config->cfg.fixed_qp_offsets, FIXED_QP_OFFSET_COUNT);
-      if (fixed_qp_offset_count < FIXED_QP_OFFSET_COUNT) {
-        die("Option --fixed_qp_offsets requires %d comma-separated values, but "
-            "only %d values were provided.\n",
-            FIXED_QP_OFFSET_COUNT, fixed_qp_offset_count);
-      }
       config->cfg.use_fixed_qp_offsets = 1;
     } else if (global->usage == AOM_USAGE_REALTIME &&
                arg_match(&arg, &g_av1_codec_arg_defs.enable_restoration,
