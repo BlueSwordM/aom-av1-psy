@@ -112,11 +112,6 @@ if(CONFIG_REALTIME_ONLY)
                    "${AOM_ROOT}/test/sharpness_test.cc")
 endif()
 
-if(CONFIG_AV1_TEMPORAL_DENOISING AND (HAVE_SSE2 OR HAVE_NEON))
-  list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
-              "${AOM_ROOT}/test/av1_temporal_denoiser_test.cc")
-endif()
-
 if(NOT CONFIG_REALTIME_ONLY)
   list(APPEND AOM_DECODE_PERF_TEST_SOURCES
               "${AOM_ROOT}/test/decode_perf_test.cc")
@@ -310,6 +305,11 @@ if(NOT BUILD_SHARED_LIBS)
                      "${AOM_ROOT}/test/warp_filter_test_util.cc"
                      "${AOM_ROOT}/test/warp_filter_test_util.h"
                      "${AOM_ROOT}/test/wiener_test.cc")
+  endif()
+
+  if(CONFIG_AV1_TEMPORAL_DENOISING AND (HAVE_SSE2 OR HAVE_NEON))
+    list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
+                "${AOM_ROOT}/test/av1_temporal_denoiser_test.cc")
   endif()
 
   if((HAVE_SSE4_1 OR HAVE_NEON))
