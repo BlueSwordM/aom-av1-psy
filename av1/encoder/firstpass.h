@@ -574,6 +574,8 @@ void av1_accumulate_stats(FIRSTPASS_STATS *section,
  */
 void av1_first_pass(struct AV1_COMP *cpi, const int64_t ts_duration);
 
+void av1_dummy_first_pass_frame(struct AV1_COMP *cpi,
+                                const int64_t ts_duration);
 #ifdef __cplusplus
 }  // extern "C"
 #endif

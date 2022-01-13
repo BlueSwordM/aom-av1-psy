@@ -1207,6 +1207,21 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   }
 }
 
+void av1_dummy_first_pass_frame(AV1_COMP *cpi, const int64_t ts_duration) {
+  AV1_COMMON *const cm = &cpi->common;
+  CurrentFrame *const current_frame = &cm->current_frame;
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const int unit_rows = get_unit_rows(BLOCK_16X16, mi_params->mb_rows);
+  const int unit_cols = get_unit_cols(BLOCK_16X16, mi_params->mb_cols);
+  setup_firstpass_data(cm, &cpi->firstpass_data, unit_rows, unit_cols);
+  FRAME_STATS *mb_stats = cpi->firstpass_data.mb_stats;
+  FRAME_STATS stats = accumulate_frame_stats(mb_stats, unit_rows, unit_cols);
+  free_firstpass_data(&cpi->firstpass_data);
+  update_firstpass_stats(cpi, &stats, 1.0, current_frame->frame_number,
+                         ts_duration, BLOCK_16X16);
+  return;
+}
+
 void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   MACROBLOCK *const x = &cpi->td.mb;
   AV1_COMMON *const cm = &cpi->common;
@@ -1216,6 +1231,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
   const int qindex = find_fp_qindex(seq_params->bit_depth);
+
   // Detect if the key frame is screen content type.
   if (frame_is_intra_only(cm)) {
     FeatureFlags *const features = &cm->features;
