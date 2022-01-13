@@ -61,10 +61,10 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CDEFBlockHighbdTest);
 typedef CDEFBlockTest CDEFSpeedTest;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CDEFSpeedTest);
 
-int test_cdef(int bsize, int iterations, cdef_filter_block_func cdef,
-              cdef_filter_block_func ref_cdef, int boundary, int depth) {
+int64_t test_cdef(int bsize, int iterations, cdef_filter_block_func cdef,
+                  cdef_filter_block_func ref_cdef, int boundary, int depth) {
   aom_usec_timer ref_timer;
-  unsigned int ref_elapsed_time = 0;
+  int64_t ref_elapsed_time = 0;
   const int size = 8;
   const int ysize = size + 2 * CDEF_VBORDER;
   ACMRandom rnd(ACMRandom::DeterministicSeed());
@@ -175,10 +175,11 @@ int test_cdef(int bsize, int iterations, cdef_filter_block_func cdef,
 
 void test_cdef_speed(int bsize, int iterations, cdef_filter_block_func cdef,
                      cdef_filter_block_func ref_cdef, int boundary, int depth) {
-  int ref_elapsed_time =
+  int64_t ref_elapsed_time =
       test_cdef(bsize, iterations, ref_cdef, ref_cdef, boundary, depth);
 
-  int elapsed_time = test_cdef(bsize, iterations, cdef, cdef, boundary, depth);
+  int64_t elapsed_time =
+      test_cdef(bsize, iterations, cdef, cdef, boundary, depth);
 
   std::cout << "C time: " << ref_elapsed_time << " us" << std::endl
             << "SIMD time: " << elapsed_time << " us" << std::endl;
@@ -265,12 +266,12 @@ void test_finddir_speed(int (*finddir)(const uint16_t *img, int stride,
   aom_usec_timer_start(&ref_timer);
   test_finddir(ref_finddir, ref_finddir);
   aom_usec_timer_mark(&ref_timer);
-  int ref_elapsed_time = (int)aom_usec_timer_elapsed(&ref_timer);
+  int64_t ref_elapsed_time = aom_usec_timer_elapsed(&ref_timer);
 
   aom_usec_timer_start(&timer);
   test_finddir(finddir, finddir);
   aom_usec_timer_mark(&timer);
-  int elapsed_time = (int)aom_usec_timer_elapsed(&timer);
+  int64_t elapsed_time = aom_usec_timer_elapsed(&timer);
 
   EXPECT_GT(ref_elapsed_time, elapsed_time)
       << "Error: CDEFFindDirSpeedTest, SIMD slower than C." << std::endl
