@@ -660,10 +660,14 @@ static int model_predict(BLOCK_SIZE block_size, int num_cols, int num_rows,
     return 1;
   }
 
-  struct aom_internal_error_info error;
   size_t input_size = TfLiteTensorByteSize(input_tensor);
-  float *input_data;
-  AOM_CHECK_MEM_ERROR(&error, input_data, aom_calloc(input_size, 1));
+  float *input_data = aom_calloc(input_size, 1);
+  if (input_data == NULL) {
+    TfLiteInterpreterDelete(interpreter);
+    TfLiteInterpreterOptionsDelete(options);
+    TfLiteModelDelete(model);
+    return 1;
+  }
 
   const int num_mi_w = mi_size_wide[block_size];
   const int num_mi_h = mi_size_high[block_size];
