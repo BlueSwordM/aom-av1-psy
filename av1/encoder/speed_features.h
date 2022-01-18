@@ -408,6 +408,12 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    * Enable/disable second_alt_ref temporal filtering.
    */
   int second_alt_ref_filtering;
+
+  /*!
+   * Number of frames to be used in temporal filtering controlled based on noise
+   * levels and arf-q.
+   */
+  int num_frames_used_in_tf;
 } HIGH_LEVEL_SPEED_FEATURES;
 
 /*!

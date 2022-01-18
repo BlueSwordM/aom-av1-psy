@@ -1046,6 +1046,11 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
 
     num_frames = AOMMIN(num_frames, gfu_boost / 150);
     num_frames += !(num_frames & 1);  // Make the number odd.
+
+    // Limit the number of frames if noise levels are low and high quantizers.
+    if (noise_levels[AOM_PLANE_Y] < 1.9 && cpi->ppi->p_rc.arf_q > 40)
+      num_frames = AOMMIN(num_frames, cpi->sf.hl_sf.num_frames_used_in_tf);
+
     // Only use 2 neighbours for the second ARF.
     if (update_type == INTNL_ARF_UPDATE) num_frames = AOMMIN(num_frames, 3);
     if (AOMMIN(max_after, max_before) >= num_frames / 2) {

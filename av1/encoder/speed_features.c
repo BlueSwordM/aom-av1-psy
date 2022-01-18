@@ -821,6 +821,8 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
+
+    if (!is_480p_or_larger) sf->hl_sf.num_frames_used_in_tf = 3;
   }
 }
 
@@ -1603,6 +1605,7 @@ static AOM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   hl_sf->superres_auto_search_type = SUPERRES_AUTO_ALL;
   hl_sf->disable_extra_sc_testing = 0;
   hl_sf->second_alt_ref_filtering = 1;
+  hl_sf->num_frames_used_in_tf = INT_MAX;
 }
 
 static AOM_INLINE void init_fp_sf(FIRST_PASS_SPEED_FEATURES *fp_sf) {
