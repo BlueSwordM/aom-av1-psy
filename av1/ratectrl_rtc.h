@@ -24,7 +24,7 @@ static constexpr size_t kAV1MaxLayers = 32;
 static constexpr size_t kAV1MaxTemporalLayers = 8;
 static constexpr size_t kAV1MaxSpatialLayers = 4;
 
-typedef uint8_t FRAME_TYPE;
+enum FrameType { kKeyFrame, kInterFrame };
 
 struct AV1RateControlRtcConfig {
  public:
@@ -58,7 +58,7 @@ struct AV1RateControlRtcConfig {
 };
 
 struct AV1FrameParamsRTC {
-  FRAME_TYPE frame_type;
+  FrameType frame_type;
   int spatial_layer_id;
   int temporal_layer_id;
 };

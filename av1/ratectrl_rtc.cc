@@ -225,7 +225,7 @@ void AV1RateControlRTC::ComputeQP(const AV1FrameParamsRTC &frame_params) {
       (cm->current_frame.frame_type == KEY_FRAME) ? 1 : 0;
   cpi_->sf.rt_sf.use_nonrd_pick_mode = 1;
 
-  if (frame_params.frame_type == KEY_FRAME) {
+  if (frame_params.frame_type == kKeyFrame) {
     gf_group->update_type[cpi_->gf_frame_index] = KF_UPDATE;
     gf_group->frame_type[cpi_->gf_frame_index] = KEY_FRAME;
     gf_group->refbuf_state[cpi_->gf_frame_index] = REFBUF_RESET;

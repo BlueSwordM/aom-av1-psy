@@ -64,9 +64,10 @@ class RcInterfaceTest : public ::libaom_test::EncoderTest,
       layer_id_.temporal_layer_id = frame_params_.temporal_layer_id;
       encoder->Control(AV1E_SET_SVC_LAYER_ID, &layer_id_);
     }
-    frame_params_.frame_type =
-        layer_frame_cnt_ % key_interval_ == 0 ? KEY_FRAME : INTER_FRAME;
-    if (!use_svc && frame_params_.frame_type == INTER_FRAME) {
+    frame_params_.frame_type = layer_frame_cnt_ % key_interval_ == 0
+                                   ? aom::kKeyFrame
+                                   : aom::kInterFrame;
+    if (!use_svc && frame_params_.frame_type == aom::kInterFrame) {
       // Disable golden frame update.
       frame_flags_ |= AOM_EFLAG_NO_UPD_GF;
       frame_flags_ |= AOM_EFLAG_NO_UPD_ARF;
