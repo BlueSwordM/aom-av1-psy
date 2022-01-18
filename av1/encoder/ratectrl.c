@@ -255,6 +255,12 @@ static void update_buffer_level(AV1_COMP *cpi, int encoded_frame_size) {
   // Clip the buffer level to the maximum specified buffer size.
   p_rc->bits_off_target =
       AOMMIN(p_rc->bits_off_target, p_rc->maximum_buffer_size);
+  // For screen-content mode: don't let buffel level go below threshold,
+  // given here as -rc->maximum_ buffer_size, to allow buffer to come back
+  // up sooner after slide change with big oveshoot.
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN)
+    p_rc->bits_off_target =
+        AOMMAX(p_rc->bits_off_target, -p_rc->maximum_buffer_size);
   p_rc->buffer_level = p_rc->bits_off_target;
 
   if (cpi->ppi->use_svc)
@@ -3084,6 +3090,10 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
     double q2;
     int enumerator;
     *q = (3 * cpi->rc.worst_quality + *q) >> 2;
+    // For screen content use the max-q set by the user to allow for less
+    // overshoot on slide changes.
+    if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN)
+      *q = cpi->rc.worst_quality;
     cpi->cyclic_refresh->counter_encode_maxq_scene_change = 0;
     // Adjust avg_frame_qindex, buffer_level, and rate correction factors, as
     // these parameters will affect QP selection for subsequent frames. If they
