@@ -61,6 +61,9 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CDEFBlockHighbdTest);
 typedef CDEFBlockTest CDEFSpeedTest;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CDEFSpeedTest);
 
+typedef CDEFBlockTest CDEFSpeedHighbdTest;
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CDEFSpeedHighbdTest);
+
 int64_t test_cdef(int bsize, int iterations, cdef_filter_block_func cdef,
                   cdef_filter_block_func ref_cdef, int boundary, int depth) {
   aom_usec_timer ref_timer;
@@ -291,6 +294,10 @@ TEST_P(CDEFSpeedTest, DISABLED_TestSpeed) {
   test_cdef_speed(bsize, 4, cdef, ref_cdef, boundary, depth);
 }
 
+TEST_P(CDEFSpeedHighbdTest, DISABLED_TestSpeed) {
+  test_cdef_speed(bsize, 4, cdef, ref_cdef, boundary, depth);
+}
+
 TEST_P(CDEFFindDirTest, TestSIMDNoMismatch) {
   test_finddir(finddir, ref_finddir);
 }
@@ -413,6 +420,13 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Values(8)));
+INSTANTIATE_TEST_SUITE_P(
+    SSE2, CDEFSpeedHighbdTest,
+    ::testing::Combine(::testing::Values(&cdef_filter_block_highbd_sse2),
+                       ::testing::Values(&cdef_filter_block_highbd_c),
+                       ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
+                                         BLOCK_8X8),
+                       ::testing::Range(0, 16), ::testing::Values(10)));
 INSTANTIATE_TEST_SUITE_P(SSE2, CDEFFindDirSpeedTest,
                          ::testing::Values(make_tuple(&cdef_find_dir_sse2,
                                                       &cdef_find_dir_c)));
@@ -426,6 +440,13 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Values(8)));
+INSTANTIATE_TEST_SUITE_P(
+    SSSE3, CDEFSpeedHighbdTest,
+    ::testing::Combine(::testing::Values(&cdef_filter_block_highbd_ssse3),
+                       ::testing::Values(&cdef_filter_block_highbd_c),
+                       ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
+                                         BLOCK_8X8),
+                       ::testing::Range(0, 16), ::testing::Values(10)));
 INSTANTIATE_TEST_SUITE_P(SSSE3, CDEFFindDirSpeedTest,
                          ::testing::Values(make_tuple(&cdef_find_dir_ssse3,
                                                       &cdef_find_dir_c)));
@@ -439,6 +460,13 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Values(8)));
+INSTANTIATE_TEST_SUITE_P(
+    SSE4_1, CDEFSpeedHighbdTest,
+    ::testing::Combine(::testing::Values(&cdef_filter_block_highbd_sse4_1),
+                       ::testing::Values(&cdef_filter_block_highbd_c),
+                       ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
+                                         BLOCK_8X8),
+                       ::testing::Range(0, 16), ::testing::Values(10)));
 INSTANTIATE_TEST_SUITE_P(SSE4_1, CDEFFindDirSpeedTest,
                          ::testing::Values(make_tuple(&cdef_find_dir_sse4_1,
                                                       &cdef_find_dir_c)));
@@ -452,6 +480,13 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Values(8)));
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, CDEFSpeedHighbdTest,
+    ::testing::Combine(::testing::Values(&cdef_filter_block_highbd_avx2),
+                       ::testing::Values(&cdef_filter_block_highbd_c),
+                       ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
+                                         BLOCK_8X8),
+                       ::testing::Range(0, 16), ::testing::Values(10)));
 INSTANTIATE_TEST_SUITE_P(AVX2, CDEFFindDirSpeedTest,
                          ::testing::Values(make_tuple(&cdef_find_dir_avx2,
                                                       &cdef_find_dir_c)));
@@ -465,6 +500,13 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Values(8)));
+INSTANTIATE_TEST_SUITE_P(
+    NEON, CDEFSpeedHighbdTest,
+    ::testing::Combine(::testing::Values(&cdef_filter_block_highbd_neon),
+                       ::testing::Values(&cdef_filter_block_highbd_c),
+                       ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
+                                         BLOCK_8X8),
+                       ::testing::Range(0, 16), ::testing::Values(10)));
 INSTANTIATE_TEST_SUITE_P(NEON, CDEFFindDirSpeedTest,
                          ::testing::Values(make_tuple(&cdef_find_dir_neon,
                                                       &cdef_find_dir_c)));
