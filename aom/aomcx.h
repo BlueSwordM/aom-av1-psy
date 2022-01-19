@@ -1435,6 +1435,15 @@ enum aome_enc_control_id {
    */
   AV1E_SET_FP_MT_UNIT_TEST = 154,
 
+  /*!\brief Codec control function to get the target sequence level index for
+   * each operating point. int* parameter. There can be at most 32 operating
+   * points. The results will be written into a provided integer array of
+   * sufficient size. If a target level is not set, the result will be 31.
+   * Please refer to https://aomediacodec.github.io/av1-spec/#levels for more
+   * details on level definitions and indices.
+   */
+  AV1E_GET_TARGET_SEQ_LEVEL_IDX = 155,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -1878,6 +1887,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_SUPERBLOCK_SIZE, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_GET_SEQ_LEVEL_IDX, int *)
 #define AOM_CTRL_AV1E_GET_SEQ_LEVEL_IDX
+
+AOM_CTRL_USE_TYPE(AV1E_GET_TARGET_SEQ_LEVEL_IDX, int *)
+#define AOM_CTRL_AV1E_GET_TARGET_SEQ_LEVEL_IDX
 
 AOM_CTRL_USE_TYPE(AV1E_GET_BASELINE_GF_INTERVAL, int *)
 #define AOM_CTRL_AV1E_GET_BASELINE_GF_INTERVAL
