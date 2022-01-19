@@ -404,6 +404,9 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   double weight_segment = 0;
   int qp_thresh = AOMMIN(20, rc->best_quality << 1);
   int qp_max_thresh = 118 * MAXQ >> 7;
+  const int scene_change_detected =
+      cpi->rc.high_source_sad ||
+      (cpi->ppi->use_svc && cpi->svc.high_source_sad_superframe);
   // Although this segment feature for RTC is only used for
   // blocks >= 8X8, for more efficient coding of the seg map
   // cur_frame->seg_map needs to set at 4x4 along with the
@@ -415,7 +418,7 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   cr->skip_over4x4 = (cpi->oxcf.speed > 9) ? 1 : 0;
   cr->apply_cyclic_refresh = 1;
   if (frame_is_intra_only(cm) || is_lossless_requested(&cpi->oxcf.rc_cfg) ||
-      cpi->svc.temporal_layer_id > 0 ||
+      scene_change_detected || cpi->svc.temporal_layer_id > 0 ||
       p_rc->avg_frame_qindex[INTER_FRAME] < qp_thresh ||
       (cpi->svc.number_spatial_layers > 1 &&
        cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame) ||

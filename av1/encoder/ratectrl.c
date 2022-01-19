@@ -477,7 +477,8 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality) {
     }
     // Adjust Q base on source content change from scene detection.
     if (cpi->sf.rt_sf.check_scene_detection && rc->prev_avg_source_sad > 0 &&
-        rc->frames_since_key > 10 && !cpi->ppi->use_svc) {
+        rc->frames_since_key > 10 && rc->frame_source_sad > 0 &&
+        !cpi->ppi->use_svc) {
       const int bit_depth = cm->seq_params->bit_depth;
       double delta =
           (double)rc->avg_source_sad / (double)rc->prev_avg_source_sad - 1.0;
@@ -2742,6 +2743,7 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
     else
       rc->high_source_sad = 0;
     rc->avg_source_sad = (3 * rc->avg_source_sad + avg_sad) >> 2;
+    rc->frame_source_sad = avg_sad;
   }
   cpi->svc.high_source_sad_superframe = rc->high_source_sad;
 }
