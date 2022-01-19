@@ -2557,15 +2557,19 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         get_segdata(seg, segment_id, SEG_LVL_REF_FRAME) != (int)ref_frame)
       continue;
 
-    // For screen content. If source_sad is computed: skip non-zero motion
-    // check for stationary (super)blocks. Otherwise skip non-zero motion
-    // check for spatially flat blocks.
+    // For screen content
     if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
+      // If source_sad is computed: skip non-zero motion
+      // check for stationary (super)blocks. Otherwise skip non-zero motion
+      // check for spatially flat blocks.
       if (cpi->sf.rt_sf.source_metrics_sb_nonrd) {
         if (frame_mv[this_mode][ref_frame].as_int != 0 &&
             x->content_state_sb.source_sad == kZeroSad)
           continue;
       }
+
+      // Skip NEWMV search on scene cuts
+      if (cpi->rc.high_source_sad && this_mode == NEWMV) continue;
     }
 
     if (skip_mode_by_bsize_and_ref_frame(
