@@ -1207,7 +1207,7 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   }
 }
 
-void av1_dummy_first_pass_frame(AV1_COMP *cpi, const int64_t ts_duration) {
+void av1_noop_first_pass_frame(AV1_COMP *cpi, const int64_t ts_duration) {
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -1219,7 +1219,6 @@ void av1_dummy_first_pass_frame(AV1_COMP *cpi, const int64_t ts_duration) {
   free_firstpass_data(&cpi->firstpass_data);
   update_firstpass_stats(cpi, &stats, 1.0, current_frame->frame_number,
                          ts_duration, BLOCK_16X16);
-  return;
 }
 
 void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {

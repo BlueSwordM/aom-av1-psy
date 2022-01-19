@@ -3684,7 +3684,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   if (is_stat_generation_stage(cpi)) {
 #if !CONFIG_REALTIME_ONLY
     if (cpi->oxcf.q_cfg.use_fixed_qp_offsets)
-      av1_dummy_first_pass_frame(cpi, frame_input->ts_duration);
+      av1_noop_first_pass_frame(cpi, frame_input->ts_duration);
     else
       av1_first_pass(cpi, frame_input->ts_duration);
 #endif
