@@ -577,16 +577,15 @@ void av1_rc_postencode_update_drop_frame(struct AV1_COMP *cpi);
  *
  * \ingroup rate_control
  * \param[in]   cpi                   Top level encoder instance structure
+ * \param[in]   is_encode_stage       Indicates if recode loop or post-encode
  * \param[in]   width                 Frame width
  * \param[in]   height                Frame height
  *
  * \return None but updates the relevant rate correction factor in cpi->rc
  */
 void av1_rc_update_rate_correction_factors(struct AV1_COMP *cpi,
-#if CONFIG_FRAME_PARALLEL_ENCODE
-                                           int is_encode_stage,
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
-                                           int width, int height);
+                                           int is_encode_stage, int width,
+                                           int height);
 /*!\cond */
 
 // Decide if we should drop this frame: For 1-pass CBR.

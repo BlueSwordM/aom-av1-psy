@@ -609,6 +609,7 @@ static double get_rate_correction_factor(const AV1_COMP *cpi, int width,
  *
  * \ingroup rate_control
  * \param[in]   cpi                   Top level encoder instance structure
+ * \param[in]   is_encode_stage       Indicates if recode loop or post-encode
  * \param[in]   factor                New correction factor
  * \param[in]   width                 Frame width
  * \param[in]   height                Frame height
@@ -616,14 +617,14 @@ static double get_rate_correction_factor(const AV1_COMP *cpi, int width,
  * \return None but updates the rate correction factor for the
  *         current frame type in cpi->rc.
  */
-static void set_rate_correction_factor(AV1_COMP *cpi,
-#if CONFIG_FRAME_PARALLEL_ENCODE
-                                       int is_encode_stage,
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+static void set_rate_correction_factor(AV1_COMP *cpi, int is_encode_stage,
                                        double factor, int width, int height) {
   RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   const RefreshFrameInfo *const refresh_frame = &cpi->refresh_frame;
+#if !CONFIG_FRAME_PARALLEL_ENCODE
+  (void)is_encode_stage;
+#endif
   int update_default_rcf = 1;
   // Normalize RCF to account for the size-dependent scaling factor.
   factor /= resize_rate_factor(&cpi->oxcf.frm_dim_cfg, width, height);
@@ -663,10 +664,7 @@ static void set_rate_correction_factor(AV1_COMP *cpi,
   }
 }
 
-void av1_rc_update_rate_correction_factors(AV1_COMP *cpi,
-#if CONFIG_FRAME_PARALLEL_ENCODE
-                                           int is_encode_stage,
-#endif
+void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int is_encode_stage,
                                            int width, int height) {
   const AV1_COMMON *const cm = &cpi->common;
   int correction_factor = 100;
@@ -674,6 +672,10 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi,
       get_rate_correction_factor(cpi, width, height);
   double adjustment_limit;
   const int MBs = av1_get_MBs(width, height);
+
+#if !CONFIG_FRAME_PARALLEL_ENCODE
+  (void)is_encode_stage;
+#endif
 
   int projected_size_based_on_q = 0;
 
@@ -737,11 +739,8 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi,
       rate_correction_factor = MIN_BPB_FACTOR;
   }
 
-  set_rate_correction_factor(cpi,
-#if CONFIG_FRAME_PARALLEL_ENCODE
-                             is_encode_stage,
-#endif
-                             rate_correction_factor, width, height);
+  set_rate_correction_factor(cpi, is_encode_stage, rate_correction_factor,
+                             width, height);
 }
 
 // Calculate rate for the given 'q'.
@@ -2011,11 +2010,7 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
   rc->projected_frame_size = (int)(bytes_used << 3);
 
   // Post encode loop adjustment of Q prediction.
-  av1_rc_update_rate_correction_factors(cpi,
-#if CONFIG_FRAME_PARALLEL_ENCODE
-                                        0,
-#endif
-                                        cm->width, cm->height);
+  av1_rc_update_rate_correction_factors(cpi, 0, cm->width, cm->height);
 
   // Keep a record of last Q and ambient average Q.
   if (current_frame->frame_type == KEY_FRAME) {
