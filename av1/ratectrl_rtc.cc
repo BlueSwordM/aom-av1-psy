@@ -99,6 +99,7 @@ AV1RateControlRTC::~AV1RateControlRTC() {
       cpi_->enc_seg.map = nullptr;
       av1_cyclic_refresh_free(cpi_->cyclic_refresh);
     }
+    aom_free(cpi_->ppi);
     aom_free(cpi_);
   }
 }
@@ -124,7 +125,6 @@ void AV1RateControlRTC::InitRateControl(const AV1RateControlRtcConfig &rc_cfg) {
 
   memcpy(cpi_->ppi->level_params.target_seq_level_idx,
          oxcf->target_seq_level_idx, sizeof(oxcf->target_seq_level_idx));
-  cpi_->rc.rtc_external_ratectrl = 1;
   UpdateRateControl(rc_cfg);
   set_sb_size(cm->seq_params,
               av1_select_sb_size(oxcf, cm->width, cm->height,
@@ -136,6 +136,8 @@ void AV1RateControlRTC::InitRateControl(const AV1RateControlRtcConfig &rc_cfg) {
   rc->rc_2_frame = 0;
   av1_rc_init_minq_luts();
   av1_rc_init(oxcf, rc);
+  // Enable external rate control.
+  cpi_->rc.rtc_external_ratectrl = 1;
   cpi_->sf.rt_sf.use_nonrd_pick_mode = 1;
 }
 
@@ -196,6 +198,8 @@ void AV1RateControlRTC::UpdateRateControl(
   if (cpi_->svc.number_temporal_layers > 1 ||
       cpi_->svc.number_spatial_layers > 1) {
     if (cm->current_frame.frame_number == 0) av1_init_layer_context(cpi_);
+    // This is needed to initialize external RC flag in layer context structure.
+    cpi_->rc.rtc_external_ratectrl = 1;
     av1_update_layer_context_change_config(cpi_, target_bandwidth_svc);
   }
   check_reset_rc_flag(cpi_);
