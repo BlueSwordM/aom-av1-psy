@@ -793,23 +793,6 @@ void av1_set_quantizer(AV1_COMP *const cpi, int min_qmlevel, int max_qmlevel,
   quant_params->base_qindex = AOMMAX(cm->delta_q_info.delta_q_present_flag, q);
   quant_params->y_dc_delta_q = 0;
 
-  // TODO(aomedia:2717): need to design better delta
-  int adjustment = 0;
-  if (enable_chroma_deltaq) {
-    if ((cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY) ||
-        (cpi->oxcf.tune_cfg.content == AOM_CONTENT_ANIMATION)) {
-      // This will use -2 for 4:2:0, -1 for 4:2:2, and 0 for 4:4:4
-      int subsampling = cpi->source->subsampling_x + cpi->source->subsampling_y;
-      adjustment = -subsampling;
-    } else {
-      adjustment = 2;
-    }
-  }
-  quant_params->u_dc_delta_q = adjustment;
-  quant_params->u_ac_delta_q = adjustment;
-  quant_params->v_dc_delta_q = adjustment;
-  quant_params->v_ac_delta_q = adjustment;
-
   // following section 8.3.2 in T-REC-H.Sup15 document
   // to apply to AV1 qindex in the range of [0, 255]
   if (enable_hdr_deltaq) {
@@ -834,6 +817,23 @@ void av1_set_quantizer(AV1_COMP *const cpi, int min_qmlevel, int max_qmlevel,
     quant_params->qmatrix_level_v =
         aom_get_qmlevel(quant_params->base_qindex + quant_params->v_ac_delta_q,
                         min_qmlevel, max_qmlevel);
+
+    // TODO(aomedia:2717): need to design better delta
+  int adjustment = 0;
+  if (enable_chroma_deltaq) {
+    if ((cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY) ||
+        (cpi->oxcf.tune_cfg.content == AOM_CONTENT_ANIMATION)) {
+      // This will use -2 for 4:2:0, -1 for 4:2:2, and 0 for 4:4:4
+      int subsampling = cpi->source->subsampling_x + cpi->source->subsampling_y;
+      adjustment = -subsampling;
+    } else {
+      adjustment = 2;
+    }
+  }
+  quant_params->u_dc_delta_q = adjustment;
+  quant_params->u_ac_delta_q = adjustment;
+  quant_params->v_dc_delta_q = adjustment;
+  quant_params->v_ac_delta_q = adjustment;
 }
 
 // Table that converts 0-63 Q-range values passed in outside to the Qindex
