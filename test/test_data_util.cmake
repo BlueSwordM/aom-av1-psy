@@ -13,6 +13,7 @@ list(APPEND AOM_TEST_DATA_FILE_NAMES
             "desktop1.320_180.yuv"
             "hantro_collage_w176h144.yuv"
             "hantro_collage_w352h288.yuv"
+            "hantro_collage_w352h288_nv12.yuv"
             "hantro_odd.yuv"
             "paris_352_288_30.y4m"
             "park_joy_90p_10_420.y4m"

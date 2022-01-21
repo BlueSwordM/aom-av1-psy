@@ -32,6 +32,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t help;
   arg_def_t debugmode;
   arg_def_t outputfile;
+  arg_def_t use_nv12;
   arg_def_t use_yv12;
   arg_def_t use_i420;
   arg_def_t use_i422;

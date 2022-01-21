@@ -146,6 +146,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .debugmode =
       ARG_DEF("D", "debug", 0, "Debug mode (makes output deterministic)"),
   .outputfile = ARG_DEF("o", "output", 1, "Output filename"),
+  .use_nv12 = ARG_DEF(NULL, "nv12", 0, "Input file is NV12"),
   .use_yv12 = ARG_DEF(NULL, "yv12", 0, "Input file is YV12"),
   .use_i420 = ARG_DEF(NULL, "i420", 0, "Input file is I420 (default)"),
   .use_i422 = ARG_DEF(NULL, "i422", 0, "Input file is I422"),
