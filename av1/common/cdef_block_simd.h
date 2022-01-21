@@ -269,6 +269,7 @@ SIMD_INLINE void filter_block_4x4(const int is_lowbd, void *dest, int dstride,
                                   int enable_primary, int enable_secondary) {
   uint8_t *dst8 = (uint8_t *)dest;
   uint16_t *dst16 = (uint16_t *)dest;
+  const int clipping_required = enable_primary && enable_secondary;
   v256 p0, p1, p2, p3;
   v256 sum, row, res;
   v256 max, min;
@@ -333,13 +334,14 @@ SIMD_INLINE void filter_block_4x4(const int is_lowbd, void *dest, int dstride,
       // sum += pri_taps[1] * (p0 + p1)
       sum = v256_add_16(
           sum, v256_mullo_s16(v256_dup_16(pri_taps[1]), v256_add_16(p0, p1)));
+      if (clipping_required) {
+        max = get_max_primary(is_lowbd, tap, max, cdef_large_value_mask);
 
-      max = get_max_primary(is_lowbd, tap, max, cdef_large_value_mask);
-
-      min = v256_min_s16(min, tap[0]);
-      min = v256_min_s16(min, tap[1]);
-      min = v256_min_s16(min, tap[2]);
-      min = v256_min_s16(min, tap[3]);
+        min = v256_min_s16(min, tap[0]);
+        min = v256_min_s16(min, tap[1]);
+        min = v256_min_s16(min, tap[2]);
+        min = v256_min_s16(min, tap[3]);
+      }
     }
 
     if (enable_secondary) {
@@ -406,16 +408,18 @@ SIMD_INLINE void filter_block_4x4(const int is_lowbd, void *dest, int dstride,
                                             v256_add_16(v256_add_16(p0, p1),
                                                         v256_add_16(p2, p3))));
 
-      max = get_max_secondary(is_lowbd, tap, max, cdef_large_value_mask);
+      if (clipping_required) {
+        max = get_max_secondary(is_lowbd, tap, max, cdef_large_value_mask);
 
-      min = v256_min_s16(min, tap[0]);
-      min = v256_min_s16(min, tap[1]);
-      min = v256_min_s16(min, tap[2]);
-      min = v256_min_s16(min, tap[3]);
-      min = v256_min_s16(min, tap[4]);
-      min = v256_min_s16(min, tap[5]);
-      min = v256_min_s16(min, tap[6]);
-      min = v256_min_s16(min, tap[7]);
+        min = v256_min_s16(min, tap[0]);
+        min = v256_min_s16(min, tap[1]);
+        min = v256_min_s16(min, tap[2]);
+        min = v256_min_s16(min, tap[3]);
+        min = v256_min_s16(min, tap[4]);
+        min = v256_min_s16(min, tap[5]);
+        min = v256_min_s16(min, tap[6]);
+        min = v256_min_s16(min, tap[7]);
+      }
     }
 
     // res = row + ((sum - (sum < 0) + 8) >> 4)
@@ -423,7 +427,9 @@ SIMD_INLINE void filter_block_4x4(const int is_lowbd, void *dest, int dstride,
     res = v256_add_16(sum, v256_dup_16(8));
     res = v256_shr_n_s16(res, 4);
     res = v256_add_16(row, res);
-    res = v256_min_s16(v256_max_s16(res, min), max);
+    if (clipping_required) {
+      res = v256_min_s16(v256_max_s16(res, min), max);
+    }
 
     if (is_lowbd) {
       const v128 res_128 = v256_low_v128(v256_pack_s16_u8(res, res));
@@ -455,6 +461,7 @@ SIMD_INLINE void filter_block_8x8(const int is_lowbd, void *dest, int dstride,
                                   int enable_primary, int enable_secondary) {
   uint8_t *dst8 = (uint8_t *)dest;
   uint16_t *dst16 = (uint16_t *)dest;
+  const int clipping_required = enable_primary && enable_secondary;
   int i;
   v256 sum, p0, p1, p2, p3, row, res;
   const v256 cdef_large_value_mask = v256_dup_16((uint16_t)~CDEF_VERY_LARGE);
@@ -509,12 +516,14 @@ SIMD_INLINE void filter_block_8x8(const int is_lowbd, void *dest, int dstride,
       sum = v256_add_16(
           sum, v256_mullo_s16(v256_dup_16(pri_taps[1]), v256_add_16(p0, p1)));
 
-      max = get_max_primary(is_lowbd, tap, max, cdef_large_value_mask);
+      if (clipping_required) {
+        max = get_max_primary(is_lowbd, tap, max, cdef_large_value_mask);
 
-      min = v256_min_s16(min, tap[0]);
-      min = v256_min_s16(min, tap[1]);
-      min = v256_min_s16(min, tap[2]);
-      min = v256_min_s16(min, tap[3]);
+        min = v256_min_s16(min, tap[0]);
+        min = v256_min_s16(min, tap[1]);
+        min = v256_min_s16(min, tap[2]);
+        min = v256_min_s16(min, tap[3]);
+      }
       // End primary
     }
 
@@ -565,16 +574,18 @@ SIMD_INLINE void filter_block_8x8(const int is_lowbd, void *dest, int dstride,
                                             v256_add_16(v256_add_16(p0, p1),
                                                         v256_add_16(p2, p3))));
 
-      max = get_max_secondary(is_lowbd, tap, max, cdef_large_value_mask);
+      if (clipping_required) {
+        max = get_max_secondary(is_lowbd, tap, max, cdef_large_value_mask);
 
-      min = v256_min_s16(min, tap[0]);
-      min = v256_min_s16(min, tap[1]);
-      min = v256_min_s16(min, tap[2]);
-      min = v256_min_s16(min, tap[3]);
-      min = v256_min_s16(min, tap[4]);
-      min = v256_min_s16(min, tap[5]);
-      min = v256_min_s16(min, tap[6]);
-      min = v256_min_s16(min, tap[7]);
+        min = v256_min_s16(min, tap[0]);
+        min = v256_min_s16(min, tap[1]);
+        min = v256_min_s16(min, tap[2]);
+        min = v256_min_s16(min, tap[3]);
+        min = v256_min_s16(min, tap[4]);
+        min = v256_min_s16(min, tap[5]);
+        min = v256_min_s16(min, tap[6]);
+        min = v256_min_s16(min, tap[7]);
+      }
       // End secondary
     }
 
@@ -583,7 +594,9 @@ SIMD_INLINE void filter_block_8x8(const int is_lowbd, void *dest, int dstride,
     res = v256_add_16(sum, v256_dup_16(8));
     res = v256_shr_n_s16(res, 4);
     res = v256_add_16(row, res);
-    res = v256_min_s16(v256_max_s16(res, min), max);
+    if (clipping_required) {
+      res = v256_min_s16(v256_max_s16(res, min), max);
+    }
 
     if (is_lowbd) {
       const v128 res_128 = v256_low_v128(v256_pack_s16_u8(res, res));

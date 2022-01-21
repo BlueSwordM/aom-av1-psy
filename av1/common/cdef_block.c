@@ -135,6 +135,14 @@ static void cdef_filter_block_internal(uint8_t *dst8, uint16_t *dst16,
                                        int dir, int pri_damping,
                                        int sec_damping, int bsize,
                                        int coeff_shift) {
+  const int strength_index = (sec_strength == 0) | ((pri_strength == 0) << 1);
+  /*
+   * strength_index == 0 : enable_primary = 1, enable_secondary = 1
+   * strength_index == 1 : enable_primary = 1, enable_secondary = 0
+   * strength_index == 2 : enable_primary = 0, enable_secondary = 1
+   * strength_index == 3 : enable_primary = 0, enable_secondary = 0
+   */
+  const int clipping_required = (strength_index == 0);
   int i, j, k;
   const int s = CDEF_BSTRIDE;
   const int *pri_taps = cdef_pri_taps[(pri_strength >> coeff_shift) & 1];
@@ -151,28 +159,36 @@ static void cdef_filter_block_internal(uint8_t *dst8, uint16_t *dst16,
         int16_t p1 = in[i * s + j - cdef_directions[dir][k]];
         sum += pri_taps[k] * constrain(p0 - x, pri_strength, pri_damping);
         sum += pri_taps[k] * constrain(p1 - x, pri_strength, pri_damping);
-        if (p0 != CDEF_VERY_LARGE) max = AOMMAX(p0, max);
-        if (p1 != CDEF_VERY_LARGE) max = AOMMAX(p1, max);
-        min = AOMMIN(p0, min);
-        min = AOMMIN(p1, min);
+        if (clipping_required) {
+          if (p0 != CDEF_VERY_LARGE) max = AOMMAX(p0, max);
+          if (p1 != CDEF_VERY_LARGE) max = AOMMAX(p1, max);
+          min = AOMMIN(p0, min);
+          min = AOMMIN(p1, min);
+        }
         int16_t s0 = in[i * s + j + cdef_directions[dir + 2][k]];
         int16_t s1 = in[i * s + j - cdef_directions[dir + 2][k]];
         int16_t s2 = in[i * s + j + cdef_directions[dir - 2][k]];
         int16_t s3 = in[i * s + j - cdef_directions[dir - 2][k]];
-        if (s0 != CDEF_VERY_LARGE) max = AOMMAX(s0, max);
-        if (s1 != CDEF_VERY_LARGE) max = AOMMAX(s1, max);
-        if (s2 != CDEF_VERY_LARGE) max = AOMMAX(s2, max);
-        if (s3 != CDEF_VERY_LARGE) max = AOMMAX(s3, max);
-        min = AOMMIN(s0, min);
-        min = AOMMIN(s1, min);
-        min = AOMMIN(s2, min);
-        min = AOMMIN(s3, min);
+        if (clipping_required) {
+          if (s0 != CDEF_VERY_LARGE) max = AOMMAX(s0, max);
+          if (s1 != CDEF_VERY_LARGE) max = AOMMAX(s1, max);
+          if (s2 != CDEF_VERY_LARGE) max = AOMMAX(s2, max);
+          if (s3 != CDEF_VERY_LARGE) max = AOMMAX(s3, max);
+          min = AOMMIN(s0, min);
+          min = AOMMIN(s1, min);
+          min = AOMMIN(s2, min);
+          min = AOMMIN(s3, min);
+        }
         sum += sec_taps[k] * constrain(s0 - x, sec_strength, sec_damping);
         sum += sec_taps[k] * constrain(s1 - x, sec_strength, sec_damping);
         sum += sec_taps[k] * constrain(s2 - x, sec_strength, sec_damping);
         sum += sec_taps[k] * constrain(s3 - x, sec_strength, sec_damping);
       }
-      y = clamp((int16_t)x + ((8 + sum - (sum < 0)) >> 4), min, max);
+      y = ((int16_t)x + ((8 + sum - (sum < 0)) >> 4));
+      if (clipping_required) {
+        y = clamp(y, min, max);
+      }
+
       if (dst8)
         dst8[i * dstride + j] = (uint8_t)y;
       else
