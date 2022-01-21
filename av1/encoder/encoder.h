@@ -1063,6 +1063,9 @@ typedef struct AV1EncoderConfig {
   // The path for partition stats reading and writing, used in the experiment
   // CONFIG_PARTITION_SEARCH_ORDER.
   const char *partition_info_path;
+
+  // Exit the encoder when it fails to encode to a given level.
+  int strict_level_conformance;
   /*!\endcond */
 } AV1EncoderConfig;
 
