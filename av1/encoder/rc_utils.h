@@ -299,7 +299,8 @@ static AOM_INLINE void recode_loop_update_q(
     const DECODER_MODEL *const decoder_models = level_info->decoder_models;
     const AV1_LEVEL target_level = level_params->target_seq_level_idx[0];
 
-    if (target_level < SEQ_LEVELS) {
+    if (target_level < SEQ_LEVELS &&
+        decoder_models[target_level].status == DECODER_MODEL_OK) {
       DECODER_MODEL_STATUS status = av1_decoder_model_try_smooth_buf(
           cpi, rc->projected_frame_size, &decoder_models[target_level]);
 
