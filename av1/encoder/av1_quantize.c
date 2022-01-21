@@ -805,20 +805,7 @@ void av1_set_quantizer(AV1_COMP *const cpi, int min_qmlevel, int max_qmlevel,
     }
   }
 
-  quant_params->qmatrix_level_y =
-      aom_get_qmlevel(quant_params->base_qindex, min_qmlevel, max_qmlevel);
-  quant_params->qmatrix_level_u =
-      aom_get_qmlevel(quant_params->base_qindex + quant_params->u_ac_delta_q,
-                      min_qmlevel, max_qmlevel);
-
-  if (!cm->seq_params->separate_uv_delta_q)
-    quant_params->qmatrix_level_v = quant_params->qmatrix_level_u;
-  else
-    quant_params->qmatrix_level_v =
-        aom_get_qmlevel(quant_params->base_qindex + quant_params->v_ac_delta_q,
-                        min_qmlevel, max_qmlevel);
-
-    // TODO(aomedia:2717): need to design better delta
+  // TODO(aomedia:2717): need to design better delta
   int adjustment = 0;
   if (enable_chroma_deltaq) {
     if ((cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY) ||
@@ -834,6 +821,19 @@ void av1_set_quantizer(AV1_COMP *const cpi, int min_qmlevel, int max_qmlevel,
   quant_params->u_ac_delta_q = adjustment;
   quant_params->v_dc_delta_q = adjustment;
   quant_params->v_ac_delta_q = adjustment;
+
+  quant_params->qmatrix_level_y =
+      aom_get_qmlevel(quant_params->base_qindex, min_qmlevel, max_qmlevel);
+  quant_params->qmatrix_level_u =
+      aom_get_qmlevel(quant_params->base_qindex + quant_params->u_ac_delta_q,
+                      min_qmlevel, max_qmlevel);
+
+  if (!cm->seq_params->separate_uv_delta_q)
+    quant_params->qmatrix_level_v = quant_params->qmatrix_level_u;
+  else
+    quant_params->qmatrix_level_v =
+        aom_get_qmlevel(quant_params->base_qindex + quant_params->v_ac_delta_q,
+                        min_qmlevel, max_qmlevel);
 }
 
 // Table that converts 0-63 Q-range values passed in outside to the Qindex
