@@ -10,6 +10,7 @@
  */
 
 #include <assert.h>
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 
@@ -378,16 +379,16 @@ int av1_compute_rd_mult_based_on_qindex(aom_bit_depth_t bit_depth,
                                         FRAME_UPDATE_TYPE update_type,
                                         int qindex) {
   const int q = av1_dc_quant_QTX(qindex, 0, bit_depth);
-  int rdmult = q * q;
+  int64_t rdmult = q * q;
   if (update_type == KF_UPDATE) {
     double def_rd_q_mult = def_kf_rd_multiplier(q);
-    rdmult = (int)((double)rdmult * def_rd_q_mult);
+    rdmult = (int64_t)((double)rdmult * def_rd_q_mult);
   } else if ((update_type == GF_UPDATE) || (update_type == ARF_UPDATE)) {
     double def_rd_q_mult = def_arf_rd_multiplier(q);
-    rdmult = (int)((double)rdmult * def_rd_q_mult);
+    rdmult = (int64_t)((double)rdmult * def_rd_q_mult);
   } else {
     double def_rd_q_mult = def_inter_rd_multiplier(q);
-    rdmult = (int)((double)rdmult * def_rd_q_mult);
+    rdmult = (int64_t)((double)rdmult * def_rd_q_mult);
   }
 
   switch (bit_depth) {
@@ -398,7 +399,7 @@ int av1_compute_rd_mult_based_on_qindex(aom_bit_depth_t bit_depth,
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
       return -1;
   }
-  return rdmult > 0 ? rdmult : 1;
+  return rdmult > 0 ? (int)AOMMIN(rdmult, INT_MAX) : 1;
 }
 
 int av1_compute_rd_mult(const AV1_COMP *cpi, int qindex) {
