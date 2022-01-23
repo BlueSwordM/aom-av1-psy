@@ -770,7 +770,8 @@ static int adjust_hdr_cb_deltaq(int base_qindex) {
   const double dcbQP = CHROMA_CB_QP_SCALE * chromaQp * QP_SCALE_FACTOR;
   int dqpCb = (int)(dcbQP + (dcbQP < 0 ? -0.5 : 0.5));
   dqpCb = AOMMIN(0, dqpCb);
-  dqpCb = (int)CLIP(dqpCb, -12 * QP_SCALE_FACTOR, 12 * QP_SCALE_FACTOR);
+  // dqpCb = (int)CLIP(dqpCb, -12 * QP_SCALE_FACTOR, 12 * QP_SCALE_FACTOR);
+  dqpCb = (int)CLIP(dqpCb, -CHROMA_DQP_MAX, CHROMA_DQP_MAX);
   return dqpCb;
 }
 
@@ -780,7 +781,8 @@ static int adjust_hdr_cr_deltaq(int base_qindex) {
   const double dcrQP = CHROMA_CR_QP_SCALE * chromaQp * QP_SCALE_FACTOR;
   int dqpCr = (int)(dcrQP + (dcrQP < 0 ? -0.5 : 0.5));
   dqpCr = AOMMIN(0, dqpCr);
-  dqpCr = (int)CLIP(dqpCr, -12 * QP_SCALE_FACTOR, 12 * QP_SCALE_FACTOR);
+  //dqpCr = (int)CLIP(dqpCr, -12 * QP_SCALE_FACTOR, 12 * QP_SCALE_FACTOR);
+  dqpCr = (int)CLIP(dqpCr, -CHROMA_DQP_MAX, CHROMA_DQP_MAX);
   return dqpCr;
 }
 
