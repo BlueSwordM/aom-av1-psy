@@ -3270,6 +3270,12 @@ typedef struct AV1_COMP {
   int64_t norm_wiener_variance;
 
   /*!
+   * The upper bound that determines the minimum allowed q for a super block
+   * in all intra mode, deltaq-mode=3.
+   */
+  double dynamic_range_upper_bound;
+
+  /*!
    * Buffer to store delta-q values for delta-q mode 4.
    */
   int *mb_delta_q;

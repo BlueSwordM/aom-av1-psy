@@ -340,6 +340,138 @@ static int64_t pick_norm_factor_and_block_size(AV1_COMP *const cpi,
   return norm_factor;
 }
 
+// Compute the "mean subtracted contrast normalized coefficients (MSCN)",
+// defined in the following paper:
+// "No-Reference Image Quality Assessment in the Spatial Domain",
+// DOI: 10.1109/TIP.2012.2214050
+//
+// The MSCN coefficients reflect normalized signal information regardless
+// of pixel intensity. We could think as a contrast enhanced image map.
+// The absolute sum of MSCN coefficients of a block could represent
+// the amount of information, or complexity of a block.
+// Here, we seek the ratio of the most complex and the most plain block,
+// as a complexity indicator of the image.
+static void build_mscn_map(AV1_COMP *cpi, double *mscn_map) {
+  const uint8_t *buffer = cpi->source->y_buffer;
+  const int buf_stride = cpi->source->y_stride;
+  const int frame_width = cpi->frame_info.frame_width;
+  const int frame_height = cpi->frame_info.frame_height;
+  const int half_win = 3;
+  // h = round(fspecial('gaussian', 7, 3.0) * 1000)
+  const int gauss_kernel[] = { 11, 15, 18, 19, 18, 15, 11, 15, 20, 23,
+                               25, 23, 20, 15, 18, 23, 27, 29, 27, 23,
+                               18, 19, 25, 29, 31, 29, 25, 19, 18, 23,
+                               27, 29, 27, 23, 18, 15, 20, 23, 25, 23,
+                               20, 15, 11, 15, 18, 19, 18, 15, 11 };
+  // Generate mscn map with Gaussian kernel weights.
+  double *mean_map = aom_calloc(frame_width * frame_height, sizeof(*mean_map));
+  for (int row = 0; row < frame_height; ++row) {
+    for (int col = 0; col < frame_width; ++col) {
+      double weighted_sum = 0;
+      int count = 0;
+      for (int dy = -half_win; dy <= half_win; ++dy) {
+        for (int dx = -half_win; dx <= half_win; ++dx) {
+          if (row + dy < 0 || row + dy >= frame_height || col + dx < 0 ||
+              col + dx >= frame_width) {
+            continue;
+          }
+          const int pix = buffer[(row + dy) * buf_stride + col + dx];
+          weighted_sum +=
+              pix * gauss_kernel[(dy + half_win) * (2 * half_win + 1) +
+                                 (dx + half_win)];
+          count += gauss_kernel[(dy + half_win) * (2 * half_win + 1) +
+                                (dx + half_win)];
+        }
+      }
+      const double weighted_mean = weighted_sum / count;
+      mean_map[row * frame_width + col] = weighted_mean;
+    }
+  }
+  for (int row = 0; row < frame_height; ++row) {
+    for (int col = 0; col < frame_width; ++col) {
+      double weighted_sum = 0;
+      double count = 0;
+      const double mean = mean_map[row * frame_width + col];
+      for (int dy = -half_win; dy <= half_win; ++dy) {
+        for (int dx = -half_win; dx <= half_win; ++dx) {
+          if (row + dy < 0 || row + dy >= frame_height || col + dx < 0 ||
+              col + dx >= frame_width) {
+            continue;
+          }
+          const int pix = buffer[(row + dy) * buf_stride + col + dx];
+          const double weight =
+              gauss_kernel[(dy + half_win) * (2 * half_win + 1) +
+                           (dx + half_win)];
+          weighted_sum += weight * (pix - mean) * (pix - mean);
+          count += weight;
+        }
+      }
+      const double sigma = sqrt(weighted_sum / count);
+      mscn_map[row * frame_width + col] =
+          (buffer[row * buf_stride + col] - mean) / (sigma + 1.0);
+    }
+  }
+  aom_free(mean_map);
+}
+// beta (= cpi->norm_wiener_variance / sb_wiener_var) is the scaling factor
+// that determines the quantizer used for a super block,
+// used in "av1_get_sbq_perceptual_ai()".
+// Its lower bound is determined by the "min_max_scale" which prevents using
+// a large quantizer that quantizes all transform coeffiencts from non-zero
+// to zero.
+// Its upper bound is determined in this function, with the help of the
+// global_msn_contrast, which measures the complexity contrast between the most
+// difficult and the most plain super block.
+static double get_dynamic_range(AV1_COMP *const cpi, const int sb_step) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const int frame_width = cpi->frame_info.frame_width;
+  const int frame_height = cpi->frame_info.frame_height;
+  double *mscn_map = aom_calloc(frame_width * frame_height, sizeof(*mscn_map));
+  build_mscn_map(cpi, mscn_map);
+  double max_block_mscn = 0.0;
+  double min_block_mscn = 1000.0;
+  for (int mi_row = 0; mi_row < cm->mi_params.mi_rows; mi_row += sb_step) {
+    for (int mi_col = 0; mi_col < cm->mi_params.mi_cols; mi_col += sb_step) {
+      int pix_count = 0;
+      double block_sum_mscn = 0.0;
+      for (int row = 0; row < mi_size_high[sb_step] * MI_SIZE; ++row) {
+        for (int col = 0; col < mi_size_wide[sb_step] * MI_SIZE; ++col) {
+          const int r = mi_row * MI_SIZE + row;
+          const int c = mi_col * MI_SIZE + col;
+          if (r >= frame_height || c >= frame_width) continue;
+          block_sum_mscn += fabs(mscn_map[r * frame_width + c]);
+          ++pix_count;
+        }
+      }
+      const double block_avg_mscn = block_sum_mscn / pix_count;
+      max_block_mscn = AOMMAX(block_avg_mscn, max_block_mscn);
+      min_block_mscn = AOMMIN(block_avg_mscn, min_block_mscn);
+    }
+  }
+  double global_mscn_contrast = max_block_mscn / (min_block_mscn + 0.01);
+  global_mscn_contrast = AOMMIN(global_mscn_contrast, 20.0);
+  double max_beta = 0.0;
+  double min_beta = 1000.0;
+  for (int mi_row = 0; mi_row < cm->mi_params.mi_rows; mi_row += sb_step) {
+    for (int mi_col = 0; mi_col < cm->mi_params.mi_cols; mi_col += sb_step) {
+      const int sb_wiener_var =
+          get_var_perceptual_ai(cpi, cm->seq_params->sb_size, mi_row, mi_col);
+      double beta = (double)cpi->norm_wiener_variance / sb_wiener_var;
+      double min_max_scale = AOMMAX(
+          1.0, get_max_scale(cpi, cm->seq_params->sb_size, mi_row, mi_col));
+      beta = 1.0 / AOMMIN(1.0 / beta, min_max_scale);
+      min_beta = AOMMIN(beta, min_beta);
+      max_beta = AOMMAX(beta, max_beta);
+    }
+  }
+  const double scaling_factor = 1.0;
+  max_beta = min_beta * global_mscn_contrast * scaling_factor;
+  max_beta = AOMMIN(max_beta, 6.0);
+  max_beta = AOMMAX(max_beta, 2.0);
+  aom_free(mscn_map);
+  return max_beta;
+}
+
 static void automatic_intra_tools_off(AV1_COMP *cpi,
                                       const double sum_rec_distortion,
                                       const double sum_est_rate) {
@@ -570,8 +702,7 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
         double min_max_scale = AOMMAX(
             1.0, get_max_scale(cpi, cm->seq_params->sb_size, mi_row, mi_col));
         beta = 1.0 / AOMMIN(1.0 / beta, min_max_scale);
-        beta = AOMMIN(beta, 4);
-        beta = AOMMAX(beta, 0.25);
+        beta = AOMMIN(beta, cpi->dynamic_range_upper_bound);
 
         sb_wiener_var = (int)(cpi->norm_wiener_variance / beta);
 
@@ -599,11 +730,8 @@ int av1_get_sbq_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
   int offset = 0;
   double beta = (double)cpi->norm_wiener_variance / sb_wiener_var;
   double min_max_scale = AOMMAX(1.0, get_max_scale(cpi, bsize, mi_row, mi_col));
-  beta = 1.0 / AOMMIN(1.0 / beta, min_max_scale);
+  beta = AOMMIN(beta, cpi->dynamic_range_upper_bound);
 
-  // Cap beta such that the delta q value is not much far away from the base q.
-  beta = AOMMIN(beta, 4);
-  beta = AOMMAX(beta, 0.25);
   offset = av1_get_deltaq_offset(cm->seq_params->bit_depth, base_qindex, beta);
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
   offset = AOMMIN(offset, delta_q_info->delta_q_res * 20 - 1);
