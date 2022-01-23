@@ -526,8 +526,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "deltaq-mode", 1,
               "Delta qindex mode (0: off, 1: deltaq objective (default), "
               "2: deltaq placeholder, 3: key frame visual quality, 4: user "
-              "rating based visual quality optimization). "
-              "Currently this requires enable-tpl-model as a prerequisite."),
+              "rating based visual quality optimization, \n"
+              "                                        5: HDR deltaq optimization). "
+              "Currently, deltaq-mode=1 and 2 require enable-tpl-model as a prerequisite."),
   .deltaq_strength = ARG_DEF(NULL, "deltaq-strength", 1,
                              "Deltaq strength for"
                              " --deltaq-mode=4 (%)"),
