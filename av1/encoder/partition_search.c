@@ -597,10 +597,9 @@ static void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
           int avg_brightness;
           if (bd_info.use_highbitdepth_buf) {
             avg_brightness =
-                av1_log_block_avg_hbd(cpi, x, bsize, mi_row, mi_col) >>
-                (bd_info.bit_depth - 8);
+                av1_log_block_avg_hbd(x, bsize) >> (bd_info.bit_depth - 8);
           } else {
-            avg_brightness = av1_log_block_avg(cpi, x, bsize, mi_row, mi_col);
+            avg_brightness = av1_log_block_avg(x, bsize);
           }
           int adjustment = 0;
           // These breakpoints were chosen semi-arbitrarily after some testing,

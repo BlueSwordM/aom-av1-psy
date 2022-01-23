@@ -142,23 +142,18 @@ int av1_log_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs) {
   return (int)(var);
 }
 
-int av1_log_block_avg(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs,
-                      int mi_row, int mi_col) {
+int av1_log_block_avg(MACROBLOCK *x, BLOCK_SIZE bs) {
   // This functions returns the block average of luma block
   unsigned int sum, avg, num_pix;
   int r, c;
-  const int pic_w = cpi->common.width;
-  const int pic_h = cpi->common.height;
   const int bw = MI_SIZE * mi_size_wide[bs];
   const int bh = MI_SIZE * mi_size_high[bs];
 
   sum = 0;
   num_pix = 0;
   avg = 0;
-  int row = mi_row << MI_SIZE_LOG2;
-  int col = mi_col << MI_SIZE_LOG2;
-  for (r = row; (r < (row + bh)) && (r < pic_h); r++) {
-    for (c = col; (c < (col + bw)) && (c < pic_w); c++) {
+  for (r = 0; r < bh; r++) {
+    for (c = 0; c < bw; c++) {
       sum += *(x->plane[0].src.buf + r * x->plane[0].src.stride + c);
       num_pix++;
     }
@@ -169,13 +164,10 @@ int av1_log_block_avg(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs,
   return avg;
 }
 
-int av1_log_block_avg_hbd(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs,
-                          int mi_row, int mi_col) {
+int av1_log_block_avg_hbd(MACROBLOCK *x, BLOCK_SIZE bs) {
   // This functions returns the block average of luma block
   unsigned int sum, avg, num_pix;
   int r, c;
-  const int pic_w = cpi->common.width;
-  const int pic_h = cpi->common.height;
   const int bw = MI_SIZE * mi_size_wide[bs];
   const int bh = MI_SIZE * mi_size_high[bs];
   const uint16_t *x16 = CONVERT_TO_SHORTPTR(x->plane[0].src.buf);
@@ -183,10 +175,8 @@ int av1_log_block_avg_hbd(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs,
   sum = 0;
   num_pix = 0;
   avg = 0;
-  int row = mi_row << MI_SIZE_LOG2;
-  int col = mi_col << MI_SIZE_LOG2;
-  for (r = row; (r < (row + bh)) && (r < pic_h); r++) {
-    for (c = col; (c < (col + bw)) && (c < pic_w); c++) {
+  for (r = 0; r < bh; r++) {
+    for (c = 0; c < bw; c++) {
       sum += *(x16 + r * x->plane[0].src.stride + c);
       num_pix++;
     }
