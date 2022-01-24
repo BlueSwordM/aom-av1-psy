@@ -1800,7 +1800,8 @@ void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
   }
 
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
-    features->allow_screen_content_tools = features->allow_intrabc = 1;
+    features->allow_screen_content_tools = 1;
+    features->allow_intrabc = cpi->oxcf.mode == REALTIME ? 0 : 1;
     return;
   }
 
