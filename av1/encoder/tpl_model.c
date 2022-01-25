@@ -1817,7 +1817,7 @@ void av1_tpl_rdmult_setup(AV1_COMP *cpi) {
       }
       const double rk = intra_cost / mc_dep_cost;
       const int index = row * num_cols + col;
-      cpi->ppi->tpl_rdmult_scaling_factors[index] = rk / cpi->rd.r0 + c;
+      cpi->tpl_rdmult_scaling_factors[index] = rk / cpi->rd.r0 + c;
     }
   }
 }
@@ -1859,7 +1859,7 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
     for (col = mi_col_sr / num_mi_h;
          col < num_cols && col < mi_col_sr / num_mi_h + num_bcols; ++col) {
       const int index = row * num_cols + col;
-      log_sum += log(cpi->ppi->tpl_rdmult_scaling_factors[index]);
+      log_sum += log(cpi->tpl_rdmult_scaling_factors[index]);
       base_block_count += 1.0;
     }
   }
@@ -1881,7 +1881,7 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
          col < num_cols && col < mi_col_sr / num_mi_h + num_bcols; ++col) {
       const int index = row * num_cols + col;
       cpi->ppi->tpl_sb_rdmult_scaling_factors[index] =
-          scale_adj * cpi->ppi->tpl_rdmult_scaling_factors[index];
+          scale_adj * cpi->tpl_rdmult_scaling_factors[index];
     }
   }
 }

@@ -2547,16 +2547,6 @@ typedef struct AV1_PRIMARY {
   aom_variance_fn_ptr_t fn_ptr[BLOCK_SIZES_ALL];
 
   /*!
-   * Scaling factors used in the RD multiplier modulation.
-   * TODO(sdeng): consider merge the following arrays.
-   * tpl_rdmult_scaling_factors is a temporary buffer used to store the
-   * intermediate scaling factors which are used in the calculation of
-   * tpl_sb_rdmult_scaling_factors. tpl_rdmult_scaling_factors[i] stores the
-   * intermediate scaling factor of the ith 16 x 16 block in raster scan order.
-   */
-  double *tpl_rdmult_scaling_factors;
-
-  /*!
    * tpl_sb_rdmult_scaling_factors[i] stores the RD multiplier scaling factor of
    * the ith 16 x 16 block in raster scan order.
    */
@@ -2749,6 +2739,16 @@ typedef struct AV1_COMP {
    * Skip tpl setup when tpl data from gop length decision can be reused.
    */
   int skip_tpl_setup_stats;
+
+  /*!
+   * Scaling factors used in the RD multiplier modulation.
+   * TODO(sdeng): consider merge the following arrays.
+   * tpl_rdmult_scaling_factors is a temporary buffer used to store the
+   * intermediate scaling factors which are used in the calculation of
+   * tpl_sb_rdmult_scaling_factors. tpl_rdmult_scaling_factors[i] stores the
+   * intermediate scaling factor of the ith 16 x 16 block in raster scan order.
+   */
+  double *tpl_rdmult_scaling_factors;
 
   /*!
    * Temporal filter context.

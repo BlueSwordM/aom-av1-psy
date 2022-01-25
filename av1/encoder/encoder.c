@@ -1170,9 +1170,6 @@ AV1_PRIMARY *av1_create_primary_compressor(
     const int h = mi_size_high[bsize];
     const int num_cols = (mi_params.mi_cols + w - 1) / w;
     const int num_rows = (mi_params.mi_rows + h - 1) / h;
-    AOM_CHECK_MEM_ERROR(&ppi->error, ppi->tpl_rdmult_scaling_factors,
-                        aom_calloc(num_rows * num_cols,
-                                   sizeof(*ppi->tpl_rdmult_scaling_factors)));
     AOM_CHECK_MEM_ERROR(
         &ppi->error, ppi->tpl_sb_rdmult_scaling_factors,
         aom_calloc(num_rows * num_cols,
@@ -1388,6 +1385,9 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
     CHECK_MEM_ERROR(cm, cpi->ssim_rdmult_scaling_factors,
                     aom_calloc(num_rows * num_cols,
                                sizeof(*cpi->ssim_rdmult_scaling_factors)));
+    CHECK_MEM_ERROR(cm, cpi->tpl_rdmult_scaling_factors,
+                    aom_calloc(num_rows * num_cols,
+                               sizeof(*cpi->tpl_rdmult_scaling_factors)));
   }
 
 #if CONFIG_TUNE_VMAF
@@ -1524,8 +1524,6 @@ void av1_remove_primary_compressor(AV1_PRIMARY *ppi) {
   }
   av1_lookahead_destroy(ppi->lookahead);
 
-  aom_free(ppi->tpl_rdmult_scaling_factors);
-  ppi->tpl_rdmult_scaling_factors = NULL;
   aom_free(ppi->tpl_sb_rdmult_scaling_factors);
   ppi->tpl_sb_rdmult_scaling_factors = NULL;
 
