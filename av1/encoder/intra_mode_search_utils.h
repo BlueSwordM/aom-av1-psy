@@ -467,7 +467,8 @@ static AOM_INLINE int write_uniform_cost(int n, int v) {
 static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
                                              const MACROBLOCK *x,
                                              const MB_MODE_INFO *mbmi,
-                                             BLOCK_SIZE bsize, int mode_cost) {
+                                             BLOCK_SIZE bsize, int mode_cost,
+                                             int discount_color_cost) {
   int total_rate = mode_cost;
   const ModeCosts *mode_costs = &x->mode_costs;
   const int use_palette = mbmi->palette_mode_info.palette_size[0] > 0;
@@ -499,8 +500,10 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
       palette_mode_cost +=
           av1_palette_color_cost_y(&mbmi->palette_mode_info, color_cache,
                                    n_cache, cpi->common.seq_params->bit_depth);
-      palette_mode_cost +=
-          av1_cost_color_map(x, 0, bsize, mbmi->tx_size, PALETTE_MAP);
+      if (!discount_color_cost)
+        palette_mode_cost +=
+            av1_cost_color_map(x, 0, bsize, mbmi->tx_size, PALETTE_MAP);
+
       total_rate += palette_mode_cost;
     }
   }
