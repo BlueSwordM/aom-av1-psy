@@ -624,10 +624,6 @@ static void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
             adjustment = -2;
           } else if (avg_brightness < 127) {
             adjustment = -1;
-          } else if (avg_brightness > 215) {
-            adjustment = 1;
-          } else if (avg_brightness > 195) {
-            adjustment = 0;
           }
 
           }
