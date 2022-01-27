@@ -1984,6 +1984,10 @@ static void estimate_intra_mode(
       AOMMIN(max_txsize_lookup[bsize],
              tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]),
       TX_16X16);
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+      cpi->rc.high_source_sad && x->source_variance > spatial_var_thresh &&
+      bsize <= BLOCK_16X16)
+    intra_tx_size = TX_4X4;
 
   PRED_BUFFER *const best_pred = best_pickmode->best_pred;
   if (reuse_prediction && best_pred != NULL) {
