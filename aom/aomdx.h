@@ -426,17 +426,17 @@ enum aom_dec_control_id {
    */
   AOMD_GET_S_FRAME_INFO,
 
-  /*!\brief Codec control function to get the show frame flag, int parameter
+  /*!\brief Codec control function to get the show frame flag, int* parameter
    */
   AOMD_GET_SHOW_FRAME_FLAG,
 
-  /*!\brief Codec control function to get the base q index of a frame, int
+  /*!\brief Codec control function to get the base q index of a frame, int*
    * parameter
    */
   AOMD_GET_BASE_Q_IDX,
 
   /*!\brief Codec control function to get the order hint of a frame, unsigned
-   * int parameter
+   * int* parameter
    */
   AOMD_GET_ORDER_HINT,
 
@@ -570,16 +570,17 @@ AOM_CTRL_USE_TYPE(AV1_SET_INSPECTION_CALLBACK, aom_inspect_init *)
 AOM_CTRL_USE_TYPE(AV1_SET_SKIP_LOOP_FILTER, int)
 #define AOM_CTRL_AV1_SET_SKIP_LOOP_FILTER
 
-AOM_CTRL_USE_TYPE(AOMD_GET_SHOW_FRAME_FLAG, unsigned int *)
+AOM_CTRL_USE_TYPE(AOMD_GET_SHOW_FRAME_FLAG, int *)
 #define AOM_CTRL_AOMD_GET_SHOW_FRAME_FLAG
 
-AOM_CTRL_USE_TYPE(AOMD_GET_BASE_Q_IDX, unsigned int *)
+AOM_CTRL_USE_TYPE(AOMD_GET_BASE_Q_IDX, int *)
 #define AOM_CTRL_AOMD_GET_BASE_Q_IDX
 
 AOM_CTRL_USE_TYPE(AOMD_GET_ORDER_HINT, unsigned int *)
 #define AOM_CTRL_AOMD_GET_ORDER_HINT
 
-AOM_CTRL_USE_TYPE(AV1D_GET_MI_INFO, void *)
+// The AOM_CTRL_USE_TYPE macro can't be used with AV1D_GET_MI_INFO because
+// AV1D_GET_MI_INFO takes more than one parameter.
 #define AOM_CTRL_AV1D_GET_MI_INFO
 /*!\endcond */
 /*! @} - end defgroup aom_decoder */
