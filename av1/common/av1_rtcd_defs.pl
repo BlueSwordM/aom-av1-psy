@@ -505,8 +505,17 @@ add_proto qw/void av1_calc_indices_dim2/, "const int *data, const int *centroids
 # Deringing Functions
 
 add_proto qw/int cdef_find_dir/, "const uint16_t *img, int stride, int32_t *var, int coeff_shift";
-add_proto qw/void cdef_filter_block/, "void *dst8, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int bsize, int coeff_shift";
-add_proto qw/void cdef_filter_block_highbd/, "void *dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int bsize, int coeff_shift";
+
+# 8 bit dst
+add_proto qw/void cdef_filter_8_0/, "void *dst8, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
+add_proto qw/void cdef_filter_8_1/, "void *dst8, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
+add_proto qw/void cdef_filter_8_2/, "void *dst8, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
+add_proto qw/void cdef_filter_8_3/, "void *dst8, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
+# 16 bit dst
+add_proto qw/void cdef_filter_16_0/, "void *dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
+add_proto qw/void cdef_filter_16_1/, "void *dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
+add_proto qw/void cdef_filter_16_2/, "void *dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
+add_proto qw/void cdef_filter_16_3/, "void *dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
 
 add_proto qw/void cdef_copy_rect8_8bit_to_16bit/, "uint16_t *dst, int dstride, const uint8_t *src, int sstride, int v, int h";
 add_proto qw/void cdef_copy_rect8_16bit_to_16bit/, "uint16_t *dst, int dstride, const uint16_t *src, int sstride, int v, int h";
@@ -516,8 +525,17 @@ add_proto qw/void cdef_copy_rect8_16bit_to_16bit/, "uint16_t *dst, int dstride, 
 # hard to support, so optimizations for this target are disabled.
 if ($opts{config} !~ /libs-x86-win32-vs.*/) {
   specialize qw/cdef_find_dir sse2 ssse3 sse4_1 avx2 neon/;
-  specialize qw/cdef_filter_block sse2 ssse3 sse4_1 avx2 neon/;
-  specialize qw/cdef_filter_block_highbd sse2 ssse3 sse4_1 avx2 neon/;
+
+  specialize qw/cdef_filter_8_0 sse2 ssse3 sse4_1 avx2 neon/;
+  specialize qw/cdef_filter_8_1 sse2 ssse3 sse4_1 avx2 neon/;
+  specialize qw/cdef_filter_8_2 sse2 ssse3 sse4_1 avx2 neon/;
+  specialize qw/cdef_filter_8_3 sse2 ssse3 sse4_1 avx2 neon/;
+
+  specialize qw/cdef_filter_16_0 sse2 ssse3 sse4_1 avx2 neon/;
+  specialize qw/cdef_filter_16_1 sse2 ssse3 sse4_1 avx2 neon/;
+  specialize qw/cdef_filter_16_2 sse2 ssse3 sse4_1 avx2 neon/;
+  specialize qw/cdef_filter_16_3 sse2 ssse3 sse4_1 avx2 neon/;
+
   specialize qw/cdef_copy_rect8_8bit_to_16bit sse2 ssse3 sse4_1 avx2 neon/;
   specialize qw/cdef_copy_rect8_16bit_to_16bit sse2 ssse3 sse4_1 avx2 neon/;
 }
