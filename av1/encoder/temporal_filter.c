@@ -1043,12 +1043,14 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   // Adjust number of filtering frames based on quantization factor. When the
   // quantization factor is small enough (lossless compression), we will not
   // change the number of frames for key frame filtering, which is to avoid
-  // visual quality drop.
+  // visual quality drop. For psy tune, do this earlier.
   int adjust_num = 6;
   if (num_frames == 1) {  // `arnr_max_frames = 1` is used to disable filtering.
     adjust_num = 0;
-  } else if ((update_type == KF_UPDATE) && q <= 10) {
-    adjust_num = 0;
+  } else if (((update_type == KF_UPDATE) && q <= 10) ||
+    ((update_type == KF_UPDATE) && q <= 21 &&
+    cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY)) {
+      adjust_num = 0;
   }
   num_frames = AOMMIN(num_frames + adjust_num, lookahead_depth);
 
