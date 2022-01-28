@@ -2029,6 +2029,9 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                            int mi_col, RUN_TYPE dry_run, BLOCK_SIZE bsize,
                            PARTITION_TYPE partition,
                            PICK_MODE_CONTEXT *const ctx, int *rate) {
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing((AV1_COMP *)cpi, encode_b_nonrd_time);
+#endif
   const AV1_COMMON *const cm = &cpi->common;
   TileInfo *const tile = &tile_data->tile_info;
   MACROBLOCK *const x = &td->mb;
@@ -2106,6 +2109,9 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   av1_copy_mbmi_ext_to_mbmi_ext_frame(x->mbmi_ext_frame, &x->mbmi_ext,
                                       av1_ref_frame_type(xd->mi[0]->ref_frame));
   x->rdmult = origin_mult;
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing((AV1_COMP *)cpi, encode_b_nonrd_time);
+#endif
 }
 
 /*!\brief Top level function to pick block mode for non-RD optimized case
@@ -2162,7 +2168,7 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
                         cm->seq_params->mib_size_log2, bsize, mi_row, mi_col);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
-  start_timing(cpi, rd_pick_sb_modes_time);
+  start_timing(cpi, pick_sb_modes_nonrd_time);
 #endif
   // Sets up the tx_type_map buffer in MACROBLOCKD.
   xd->tx_type_map = txfm_info->tx_type_map_;
@@ -2191,15 +2197,15 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
   // as a predictor for MBs that follow in the SB
   if (frame_is_intra_only(cm)) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
-    start_timing(cpi, av1_rd_pick_intra_mode_sb_time);
+    start_timing(cpi, hybrid_intra_mode_search_time);
 #endif
     hybrid_intra_mode_search(cpi, x, rd_cost, bsize, ctx);
 #if CONFIG_COLLECT_COMPONENT_TIMING
-    end_timing(cpi, av1_rd_pick_intra_mode_sb_time);
+    end_timing(cpi, hybrid_intra_mode_search_time);
 #endif
   } else {
 #if CONFIG_COLLECT_COMPONENT_TIMING
-    start_timing(cpi, av1_rd_pick_inter_mode_sb_time);
+    start_timing(cpi, nonrd_pick_inter_mode_sb_time);
 #endif
     if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
       RD_STATS invalid_rd;
@@ -2212,7 +2218,7 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
       av1_nonrd_pick_inter_mode_sb(cpi, tile_data, x, rd_cost, bsize, ctx);
     }
 #if CONFIG_COLLECT_COMPONENT_TIMING
-    end_timing(cpi, av1_rd_pick_inter_mode_sb_time);
+    end_timing(cpi, nonrd_pick_inter_mode_sb_time);
 #endif
   }
   if (cpi->sf.rt_sf.skip_cdef_sb) {
@@ -2236,7 +2242,7 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
   ctx->rd_stats.dist = rd_cost->dist;
   ctx->rd_stats.rdcost = rd_cost->rdcost;
 #if CONFIG_COLLECT_COMPONENT_TIMING
-  end_timing(cpi, rd_pick_sb_modes_time);
+  end_timing(cpi, pick_sb_modes_nonrd_time);
 #endif
 }
 

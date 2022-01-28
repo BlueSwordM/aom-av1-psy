@@ -1026,6 +1026,9 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
 int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                                       ThreadData *td, MACROBLOCK *x, int mi_row,
                                       int mi_col) {
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(cpi, choose_var_based_partitioning_time);
+#endif
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   const int64_t *const vbp_thresholds = cpi->vbp_info.thresholds;
@@ -1303,5 +1306,8 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
 
   if (vt2) aom_free(vt2);
   if (vt) aom_free(vt);
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, choose_var_based_partitioning_time);
+#endif
   return 0;
 }
