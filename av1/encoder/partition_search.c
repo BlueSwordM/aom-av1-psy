@@ -609,15 +609,13 @@ static void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
           } else if (avg_brightness < 70) {
             adjustment = -1;
           } else if (avg_brightness > 215) {
-            adjustment = 2;
-          } else if (avg_brightness > 195) {
             adjustment = 1;
           }
 
-          //Optimizations for HDR content
+          //Optimizations for HDR content(to be changed for the better later)
           if(cpi->oxcf.q_cfg.enable_hdr_deltaq){
             if (avg_brightness < 25) {
-            adjustment = -4;
+            adjustment = -3;
           } else if (avg_brightness < 45) {
             adjustment = -3;
           } else if (avg_brightness < 70) {
