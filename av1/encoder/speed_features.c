@@ -1224,7 +1224,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
 
   if (!is_360p_or_larger) {
     sf->rt_sf.prune_intra_mode_based_on_mv_range = 1;
-    if (speed >= 5) sf->rt_sf.prune_inter_modes_wrt_gf_arf_based_on_sad = 1;
+    sf->rt_sf.prune_inter_modes_wrt_gf_arf_based_on_sad = 1;
     if (speed >= 7) sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     if (speed >= 8) sf->rt_sf.use_nonrd_filter_search = 0;
     if (speed >= 9) {
@@ -1247,7 +1247,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
   } else {
     sf->rt_sf.prune_intra_mode_based_on_mv_range = 2;
     sf->intra_sf.skip_filter_intra_in_inter_frames = 1;
-    if (speed == 5) {
+    if (speed <= 5) {
       sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh =
           boosted ? INT_MAX : 350;
     }
@@ -1304,8 +1304,8 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
 
 // TODO(kyslov): now this is very similar to
 // set_good_speed_features_framesize_independent
-//               except it sets non-rd flag on speed8. This function will likely
-//               be modified in the future with RT-specific speed features
+// except it sets non-rd flag on speed 8. This function will likely
+// be modified in the future with RT-specific speed features.
 static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
                                                         SPEED_FEATURES *sf,
                                                         int speed) {
