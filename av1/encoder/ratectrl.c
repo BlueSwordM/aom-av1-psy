@@ -446,7 +446,8 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality) {
   const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   const AV1_COMMON *const cm = &cpi->common;
   const RefreshFrameInfo *const refresh_frame = &cpi->refresh_frame;
-  const int max_delta_down = 16;
+  const int max_delta_down =
+      (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) ? 8 : 16;
   const int max_delta_up = 20;
   const int change_avg_frame_bandwidth =
       abs(rc->avg_frame_bandwidth - rc->prev_avg_frame_bandwidth) >
@@ -502,7 +503,8 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality) {
     // Limit the decrease in Q from previous frame.
     if (rc->q_1_frame - q > max_delta_down) q = rc->q_1_frame - max_delta_down;
     // Limit the increase in Q from previous frame.
-    else if (q - rc->q_1_frame > max_delta_up)
+    else if (q - rc->q_1_frame > max_delta_up &&
+             cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN)
       q = rc->q_1_frame + max_delta_up;
   }
   // For single spatial layer: if resolution has increased push q closer
