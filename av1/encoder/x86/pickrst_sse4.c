@@ -38,7 +38,16 @@ static INLINE void acc_stat_win7_one_line_sse4_1(
     int32_t H_int[WIENER_WIN2][WIENER_WIN * 8]) {
   const int wiener_win = 7;
   int j, k, l;
-  for (j = h_start; j < h_end; j += 2) {
+  // Main loop handles two pixels at a time
+  // We can assume that h_start is even, since it will always be aligned to
+  // a tile edge + some number of restoration units, and both of those will
+  // be 64-pixel aligned.
+  // However, at the edge of the image, h_end may be odd, so we need to handle
+  // that case correctly.
+  assert(h_start % 2 == 0);
+  const int h_end_even = h_end & ~1;
+  const int has_odd_pixel = h_end & 1;
+  for (j = h_start; j < h_end_even; j += 2) {
     const uint8_t *dgd_ij = dgd + j;
     const uint8_t X1 = src[j];
     const uint8_t X2 = src[j + 1];
@@ -54,6 +63,35 @@ static INLINE void acc_stat_win7_one_line_sse4_1(
 
         const __m128i kl =
             _mm_cvtepu8_epi16(_mm_set1_epi16(*((uint16_t *)(dgd_ijk + l))));
+        acc_stat_sse41(H_ + 0 * 8, dgd_ij + 0 * dgd_stride, shuffle, &kl);
+        acc_stat_sse41(H_ + 1 * 8, dgd_ij + 1 * dgd_stride, shuffle, &kl);
+        acc_stat_sse41(H_ + 2 * 8, dgd_ij + 2 * dgd_stride, shuffle, &kl);
+        acc_stat_sse41(H_ + 3 * 8, dgd_ij + 3 * dgd_stride, shuffle, &kl);
+        acc_stat_sse41(H_ + 4 * 8, dgd_ij + 4 * dgd_stride, shuffle, &kl);
+        acc_stat_sse41(H_ + 5 * 8, dgd_ij + 5 * dgd_stride, shuffle, &kl);
+        acc_stat_sse41(H_ + 6 * 8, dgd_ij + 6 * dgd_stride, shuffle, &kl);
+      }
+    }
+  }
+  // If the width is odd, add in the final pixel
+  if (has_odd_pixel) {
+    const uint8_t *dgd_ij = dgd + j;
+    const uint8_t X1 = src[j];
+    *sumX += X1;
+    for (k = 0; k < wiener_win; k++) {
+      const uint8_t *dgd_ijk = dgd_ij + k * dgd_stride;
+      for (l = 0; l < wiener_win; l++) {
+        int32_t *H_ = &H_int[(l * wiener_win + k)][0];
+        const uint8_t D1 = dgd_ijk[l];
+        sumY[k][l] += D1;
+        M_int[k][l] += D1 * X1;
+
+        // The `acc_stat_sse41` function wants its input to have interleaved
+        // copies of two pixels, but we only have one. However, the pixels
+        // are (effectively) used as inputs to a multiply-accumulate.
+        // So if we set the extra pixel slot to 0, then it is effectively
+        // ignored.
+        const __m128i kl = _mm_cvtepu8_epi16(_mm_set1_epi16((uint16_t)D1));
         acc_stat_sse41(H_ + 0 * 8, dgd_ij + 0 * dgd_stride, shuffle, &kl);
         acc_stat_sse41(H_ + 1 * 8, dgd_ij + 1 * dgd_stride, shuffle, &kl);
         acc_stat_sse41(H_ + 2 * 8, dgd_ij + 2 * dgd_stride, shuffle, &kl);
@@ -202,7 +240,16 @@ static INLINE void acc_stat_highbd_win7_one_line_sse4_1(
     int64_t H_int[WIENER_WIN2][WIENER_WIN * 8]) {
   int j, k, l;
   const int wiener_win = WIENER_WIN;
-  for (j = h_start; j < h_end; j += 2) {
+  // Main loop handles two pixels at a time
+  // We can assume that h_start is even, since it will always be aligned to
+  // a tile edge + some number of restoration units, and both of those will
+  // be 64-pixel aligned.
+  // However, at the edge of the image, h_end may be odd, so we need to handle
+  // that case correctly.
+  assert(h_start % 2 == 0);
+  const int h_end_even = h_end & ~1;
+  const int has_odd_pixel = h_end & 1;
+  for (j = h_start; j < h_end_even; j += 2) {
     const uint16_t X1 = src[j];
     const uint16_t X2 = src[j + 1];
     *sumX += X1 + X2;
@@ -220,6 +267,42 @@ static INLINE void acc_stat_highbd_win7_one_line_sse4_1(
         // Then broadcast to 4x u32 slots of a 128
         const __m128i dgd_ijkl = _mm_set1_epi32(*((uint32_t *)(dgd_ijk + l)));
         // dgd_ijkl = [y x y x y x y x] as u16
+
+        acc_stat_highbd_sse41(H_ + 0 * 8, dgd_ij + 0 * dgd_stride, shuffle,
+                              &dgd_ijkl);
+        acc_stat_highbd_sse41(H_ + 1 * 8, dgd_ij + 1 * dgd_stride, shuffle,
+                              &dgd_ijkl);
+        acc_stat_highbd_sse41(H_ + 2 * 8, dgd_ij + 2 * dgd_stride, shuffle,
+                              &dgd_ijkl);
+        acc_stat_highbd_sse41(H_ + 3 * 8, dgd_ij + 3 * dgd_stride, shuffle,
+                              &dgd_ijkl);
+        acc_stat_highbd_sse41(H_ + 4 * 8, dgd_ij + 4 * dgd_stride, shuffle,
+                              &dgd_ijkl);
+        acc_stat_highbd_sse41(H_ + 5 * 8, dgd_ij + 5 * dgd_stride, shuffle,
+                              &dgd_ijkl);
+        acc_stat_highbd_sse41(H_ + 6 * 8, dgd_ij + 6 * dgd_stride, shuffle,
+                              &dgd_ijkl);
+      }
+    }
+  }
+  // If the width is odd, add in the final pixel
+  if (has_odd_pixel) {
+    const uint16_t X1 = src[j];
+    *sumX += X1;
+    const uint16_t *dgd_ij = dgd + j;
+    for (k = 0; k < wiener_win; k++) {
+      const uint16_t *dgd_ijk = dgd_ij + k * dgd_stride;
+      for (l = 0; l < wiener_win; l++) {
+        int64_t *H_ = &H_int[(l * wiener_win + k)][0];
+        const uint16_t D1 = dgd_ijk[l];
+        sumY[k][l] += D1;
+        M_int[k][l] += D1 * X1;
+
+        // The `acc_stat_highbd_sse41` function wants its input to have
+        // interleaved copies of two pixels, but we only have one. However, the
+        // pixels are (effectively) used as inputs to a multiply-accumulate. So
+        // if we set the extra pixel slot to 0, then it is effectively ignored.
+        const __m128i dgd_ijkl = _mm_set1_epi32((uint32_t)D1);
 
         acc_stat_highbd_sse41(H_ + 0 * 8, dgd_ij + 0 * dgd_stride, shuffle,
                               &dgd_ijkl);
@@ -306,7 +389,16 @@ static INLINE void acc_stat_highbd_win5_one_line_sse4_1(
     int64_t H_int[WIENER_WIN2_CHROMA][WIENER_WIN_CHROMA * 8]) {
   int j, k, l;
   const int wiener_win = WIENER_WIN_CHROMA;
-  for (j = h_start; j < h_end; j += 2) {
+  // Main loop handles two pixels at a time
+  // We can assume that h_start is even, since it will always be aligned to
+  // a tile edge + some number of restoration units, and both of those will
+  // be 64-pixel aligned.
+  // However, at the edge of the image, h_end may be odd, so we need to handle
+  // that case correctly.
+  assert(h_start % 2 == 0);
+  const int h_end_even = h_end & ~1;
+  const int has_odd_pixel = h_end & 1;
+  for (j = h_start; j < h_end_even; j += 2) {
     const uint16_t X1 = src[j];
     const uint16_t X2 = src[j + 1];
     *sumX += X1 + X2;
@@ -324,6 +416,38 @@ static INLINE void acc_stat_highbd_win5_one_line_sse4_1(
         // then broadcast to 4x u32 slots of a 128
         const __m128i dgd_ijkl = _mm_set1_epi32(*((uint32_t *)(dgd_ijk + l)));
         // dgd_ijkl = [y x y x y x y x] as u16
+
+        acc_stat_highbd_sse41(H_ + 0 * 8, dgd_ij + 0 * dgd_stride, shuffle,
+                              &dgd_ijkl);
+        acc_stat_highbd_sse41(H_ + 1 * 8, dgd_ij + 1 * dgd_stride, shuffle,
+                              &dgd_ijkl);
+        acc_stat_highbd_sse41(H_ + 2 * 8, dgd_ij + 2 * dgd_stride, shuffle,
+                              &dgd_ijkl);
+        acc_stat_highbd_sse41(H_ + 3 * 8, dgd_ij + 3 * dgd_stride, shuffle,
+                              &dgd_ijkl);
+        acc_stat_highbd_sse41(H_ + 4 * 8, dgd_ij + 4 * dgd_stride, shuffle,
+                              &dgd_ijkl);
+      }
+    }
+  }
+  // If the width is odd, add in the final pixel
+  if (has_odd_pixel) {
+    const uint16_t X1 = src[j];
+    *sumX += X1;
+    const uint16_t *dgd_ij = dgd + j;
+    for (k = 0; k < wiener_win; k++) {
+      const uint16_t *dgd_ijk = dgd_ij + k * dgd_stride;
+      for (l = 0; l < wiener_win; l++) {
+        int64_t *H_ = &H_int[(l * wiener_win + k)][0];
+        const uint16_t D1 = dgd_ijk[l];
+        sumY[k][l] += D1;
+        M_int[k][l] += D1 * X1;
+
+        // The `acc_stat_highbd_sse41` function wants its input to have
+        // interleaved copies of two pixels, but we only have one. However, the
+        // pixels are (effectively) used as inputs to a multiply-accumulate. So
+        // if we set the extra pixel slot to 0, then it is effectively ignored.
+        const __m128i dgd_ijkl = _mm_set1_epi32((uint32_t)D1);
 
         acc_stat_highbd_sse41(H_ + 0 * 8, dgd_ij + 0 * dgd_stride, shuffle,
                               &dgd_ijkl);
@@ -426,7 +550,16 @@ static INLINE void acc_stat_win5_one_line_sse4_1(
     int32_t H_int[WIENER_WIN2_CHROMA][WIENER_WIN_CHROMA * 8]) {
   const int wiener_win = WIENER_WIN_CHROMA;
   int j, k, l;
-  for (j = h_start; j < h_end; j += 2) {
+  // Main loop handles two pixels at a time
+  // We can assume that h_start is even, since it will always be aligned to
+  // a tile edge + some number of restoration units, and both of those will
+  // be 64-pixel aligned.
+  // However, at the edge of the image, h_end may be odd, so we need to handle
+  // that case correctly.
+  assert(h_start % 2 == 0);
+  const int h_end_even = h_end & ~1;
+  const int has_odd_pixel = h_end & 1;
+  for (j = h_start; j < h_end_even; j += 2) {
     const uint8_t *dgd_ij = dgd + j;
     const uint8_t X1 = src[j];
     const uint8_t X2 = src[j + 1];
@@ -442,6 +575,33 @@ static INLINE void acc_stat_win5_one_line_sse4_1(
 
         const __m128i kl =
             _mm_cvtepu8_epi16(_mm_set1_epi16(*((uint16_t *)(dgd_ijk + l))));
+        acc_stat_sse41(H_ + 0 * 8, dgd_ij + 0 * dgd_stride, shuffle, &kl);
+        acc_stat_sse41(H_ + 1 * 8, dgd_ij + 1 * dgd_stride, shuffle, &kl);
+        acc_stat_sse41(H_ + 2 * 8, dgd_ij + 2 * dgd_stride, shuffle, &kl);
+        acc_stat_sse41(H_ + 3 * 8, dgd_ij + 3 * dgd_stride, shuffle, &kl);
+        acc_stat_sse41(H_ + 4 * 8, dgd_ij + 4 * dgd_stride, shuffle, &kl);
+      }
+    }
+  }
+  // If the width is odd, add in the final pixel
+  if (has_odd_pixel) {
+    const uint8_t *dgd_ij = dgd + j;
+    const uint8_t X1 = src[j];
+    *sumX += X1;
+    for (k = 0; k < wiener_win; k++) {
+      const uint8_t *dgd_ijk = dgd_ij + k * dgd_stride;
+      for (l = 0; l < wiener_win; l++) {
+        int32_t *H_ = &H_int[(l * wiener_win + k)][0];
+        const uint8_t D1 = dgd_ijk[l];
+        sumY[k][l] += D1;
+        M_int[k][l] += D1 * X1;
+
+        // The `acc_stat_sse41` function wants its input to have interleaved
+        // copies of two pixels, but we only have one. However, the pixels
+        // are (effectively) used as inputs to a multiply-accumulate.
+        // So if we set the extra pixel slot to 0, then it is effectively
+        // ignored.
+        const __m128i kl = _mm_cvtepu8_epi16(_mm_set1_epi16((uint16_t)D1));
         acc_stat_sse41(H_ + 0 * 8, dgd_ij + 0 * dgd_stride, shuffle, &kl);
         acc_stat_sse41(H_ + 1 * 8, dgd_ij + 1 * dgd_stride, shuffle, &kl);
         acc_stat_sse41(H_ + 2 * 8, dgd_ij + 2 * dgd_stride, shuffle, &kl);

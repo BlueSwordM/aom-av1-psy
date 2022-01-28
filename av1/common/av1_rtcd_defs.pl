@@ -453,10 +453,7 @@ add_proto qw/void av1_calc_indices_dim2/, "const int *data, const int *centroids
 
   if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
     add_proto qw/void av1_compute_stats/,  "int wiener_win, const uint8_t *dgd8, const uint8_t *src8, int h_start, int h_end, int v_start, int v_end, int dgd_stride, int src_stride, int64_t *M, int64_t *H, int use_downsampled_wiener_stats";
-    # TODO(any): Both sse4_1 and avx2 version cause slight c/SIMD mismatch. Need to check if it can be fixed. Original commit 9042a3cd777a69d8bff9d142df46ed8d2647d7a8
-    if (aom_config("CONFIG_EXCLUDE_SIMD_MISMATCH") ne "yes") {
-      specialize qw/av1_compute_stats sse4_1 avx2/;
-    }
+    specialize qw/av1_compute_stats sse4_1 avx2/;
     add_proto qw/void av1_calc_proj_params/, " const uint8_t *src8, int width, int height, int src_stride, const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride, int32_t *flt1, int flt1_stride, int64_t H[2][2], int64_t C[2], const sgr_params_type *params";
     specialize qw/av1_calc_proj_params sse4_1 avx2/;
     add_proto qw/int64_t av1_lowbd_pixel_proj_error/, " const uint8_t *src8, int width, int height, int src_stride, const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride, int32_t *flt1, int flt1_stride, int xq[2], const sgr_params_type *params";
@@ -467,7 +464,6 @@ add_proto qw/void av1_calc_indices_dim2/, "const int *data, const int *centroids
       specialize qw/av1_calc_proj_params_high_bd sse4_1 avx2/;
       add_proto qw/int64_t av1_highbd_pixel_proj_error/, " const uint8_t *src8, int width, int height, int src_stride, const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride, int32_t *flt1, int flt1_stride, int xq[2], const sgr_params_type *params";
       specialize qw/av1_highbd_pixel_proj_error sse4_1 avx2/;
-      # TODO(any): av1_compute_stats SIMD version causes mismatch. Need to check HBD version as well.
       add_proto qw/void av1_compute_stats_highbd/,  "int wiener_win, const uint8_t *dgd8, const uint8_t *src8, int h_start, int h_end, int v_start, int v_end, int dgd_stride, int src_stride, int64_t *M, int64_t *H, aom_bit_depth_t bit_depth";
       specialize qw/av1_compute_stats_highbd sse4_1 avx2/;
     }

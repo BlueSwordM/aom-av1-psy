@@ -30,6 +30,9 @@
 
 // 8-bit-depth tests
 namespace wiener_lowbd {
+
+// C implementation of the algorithm implmented by the SIMD code.
+// This is a little more efficient than the version in av1_compute_stats_c().
 static void compute_stats_win_opt_c(int wiener_win, const uint8_t *dgd,
                                     const uint8_t *src, int h_start, int h_end,
                                     int v_start, int v_end, int dgd_stride,
@@ -53,6 +56,13 @@ static void compute_stats_win_opt_c(int wiener_win, const uint8_t *dgd,
   int32_t sumX = 0;
   const uint8_t *dgd_win = dgd - wiener_halfwin * dgd_stride - wiener_halfwin;
 
+  // Main loop handles two pixels at a time
+  // We can assume that h_start is even, since it will always be aligned to
+  // a tile edge + some number of restoration units, and both of those will
+  // be 64-pixel aligned.
+  // However, at the edge of the image, h_end may be odd, so we need to handle
+  // that case correctly.
+  assert(h_start % 2 == 0);
   for (i = v_start; i < v_end; i = i + downsample_factor) {
     if (use_downsampled_wiener_stats &&
         (v_end - i < WIENER_STATS_DOWNSAMPLE_FACTOR)) {
@@ -65,7 +75,9 @@ static void compute_stats_win_opt_c(int wiener_win, const uint8_t *dgd,
         wiener_win, std::vector<int32_t>(wiener_win, 0));
     std::vector<std::vector<int32_t> > H_row_i32(
         wiener_win * wiener_win, std::vector<int32_t>(wiener_win * 8, 0));
-    for (j = h_start; j < h_end; j += 2) {
+    const int h_end_even = h_end & ~1;
+    const int has_odd_pixel = h_end & 1;
+    for (j = h_start; j < h_end_even; j += 2) {
       const uint8_t X1 = src[i * src_stride + j];
       const uint8_t X2 = src[i * src_stride + j + 1];
       sumX_row_i32 += X1 + X2;
@@ -88,6 +100,28 @@ static void compute_stats_win_opt_c(int wiener_win, const uint8_t *dgd,
         }
       }
     }
+    // If the width is odd, add in the final pixel
+    if (has_odd_pixel) {
+      const uint8_t X1 = src[i * src_stride + j];
+      sumX_row_i32 += X1;
+
+      const uint8_t *dgd_ij = dgd_win + i * dgd_stride + j;
+      for (k = 0; k < wiener_win; k++) {
+        for (l = 0; l < wiener_win; l++) {
+          const uint8_t *dgd_ijkl = dgd_ij + k * dgd_stride + l;
+          int32_t *H_int_temp = &H_row_i32[(l * wiener_win + k)][0];
+          const uint8_t D1 = dgd_ijkl[0];
+          sumY_row[k][l] += D1;
+          M_row_i32[l][k] += D1 * X1;
+          for (m = 0; m < wiener_win; m++) {
+            for (n = 0; n < wiener_win; n++) {
+              H_int_temp[m * 8 + n] += D1 * dgd_ij[n + dgd_stride * m];
+            }
+          }
+        }
+      }
+    }
+
     sumX += sumX_row_i32 * downsample_factor;
     // Scale M matrix based on the downsampling factor
     for (k = 0; k < wiener_win; ++k) {
@@ -180,12 +214,17 @@ void WienerTest::RunWienerTest(const int32_t wiener_win, int32_t run_times) {
   DECLARE_ALIGNED(32, int64_t, H_ref[WIENER_WIN2 * WIENER_WIN2]);
   DECLARE_ALIGNED(32, int64_t, M_test[WIENER_WIN2]);
   DECLARE_ALIGNED(32, int64_t, H_test[WIENER_WIN2 * WIENER_WIN2]);
-  const int h_start = ((rng_.Rand16() % (MAX_WIENER_BLOCK / 2)) & (~7));
-  int h_end =
-      run_times != 1 ? 256 : ((rng_.Rand16() % MAX_WIENER_BLOCK) & (~7)) + 8;
-  const int v_start = ((rng_.Rand16() % (MAX_WIENER_BLOCK / 2)) & (~7));
-  int v_end =
-      run_times != 1 ? 256 : ((rng_.Rand16() % MAX_WIENER_BLOCK) & (~7)) + 8;
+  // Note(rachelbarker):
+  // The SIMD code requires `h_start` to be even, but can otherwise
+  // deal with any values of `h_end`, `v_start`, `v_end`. We cover this
+  // entire range, even though (at the time of writing) `h_start` and `v_start`
+  // will always be multiples of 64 when called from non-test code.
+  // If in future any new requirements are added, these lines will
+  // need changing.
+  const int h_start = (rng_.Rand16() % (MAX_WIENER_BLOCK / 2)) & ~1;
+  int h_end = run_times != 1 ? 256 : (rng_.Rand16() % MAX_WIENER_BLOCK);
+  const int v_start = rng_.Rand16() % (MAX_WIENER_BLOCK / 2);
+  int v_end = run_times != 1 ? 256 : (rng_.Rand16() % MAX_WIENER_BLOCK);
   const int dgd_stride = h_end;
   const int src_stride = MAX_DATA_BLOCK;
   const int iters = run_times == 1 ? kIterations : 2;
@@ -318,12 +357,12 @@ TEST_P(WienerTest, DISABLED_Speed) {
 
 INSTANTIATE_TEST_SUITE_P(C, WienerTest, ::testing::Values(compute_stats_opt_c));
 
-#if HAVE_SSE4_1 && !CONFIG_EXCLUDE_SIMD_MISMATCH
+#if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(SSE4_1, WienerTest,
                          ::testing::Values(av1_compute_stats_sse4_1));
 #endif  // HAVE_SSE4_1
 
-#if HAVE_AVX2 && !CONFIG_EXCLUDE_SIMD_MISMATCH
+#if HAVE_AVX2
 
 INSTANTIATE_TEST_SUITE_P(AVX2, WienerTest,
                          ::testing::Values(av1_compute_stats_avx2));
@@ -364,8 +403,17 @@ static void compute_stats_highbd_win_opt_c(int wiener_win, const uint8_t *dgd8,
   int64_t sumX = 0;
   const uint16_t *dgd_win = dgd - wiener_halfwin * dgd_stride - wiener_halfwin;
 
+  // Main loop handles two pixels at a time
+  // We can assume that h_start is even, since it will always be aligned to
+  // a tile edge + some number of restoration units, and both of those will
+  // be 64-pixel aligned.
+  // However, at the edge of the image, h_end may be odd, so we need to handle
+  // that case correctly.
+  assert(h_start % 2 == 0);
   for (i = v_start; i < v_end; i++) {
-    for (j = h_start; j < h_end; j += 2) {
+    const int h_end_even = h_end & ~1;
+    const int has_odd_pixel = h_end & 1;
+    for (j = h_start; j < h_end_even; j += 2) {
       const uint16_t X1 = src[i * src_stride + j];
       const uint16_t X2 = src[i * src_stride + j + 1];
       sumX += X1 + X2;
@@ -383,6 +431,27 @@ static void compute_stats_highbd_win_opt_c(int wiener_win, const uint8_t *dgd8,
             for (n = 0; n < wiener_win; n++) {
               H_int_temp[m * 8 + n] += D1 * dgd_ij[n + dgd_stride * m] +
                                        D2 * dgd_ij[n + dgd_stride * m + 1];
+            }
+          }
+        }
+      }
+    }
+    // If the width is odd, add in the final pixel
+    if (has_odd_pixel) {
+      const uint16_t X1 = src[i * src_stride + j];
+      sumX += X1;
+
+      const uint16_t *dgd_ij = dgd_win + i * dgd_stride + j;
+      for (k = 0; k < wiener_win; k++) {
+        for (l = 0; l < wiener_win; l++) {
+          const uint16_t *dgd_ijkl = dgd_ij + k * dgd_stride + l;
+          int64_t *H_int_temp = &H_int[(l * wiener_win + k)][0];
+          const uint16_t D1 = dgd_ijkl[0];
+          sumY[k][l] += D1;
+          M_int[l][k] += D1 * X1;
+          for (m = 0; m < wiener_win; m++) {
+            for (n = 0; n < wiener_win; n++) {
+              H_int_temp[m * 8 + n] += D1 * dgd_ij[n + dgd_stride * m];
             }
           }
         }
@@ -475,12 +544,17 @@ void WienerTestHighbd::RunWienerTest(const int32_t wiener_win,
   DECLARE_ALIGNED(32, int64_t, H_ref[WIENER_WIN2 * WIENER_WIN2]);
   DECLARE_ALIGNED(32, int64_t, M_test[WIENER_WIN2]);
   DECLARE_ALIGNED(32, int64_t, H_test[WIENER_WIN2 * WIENER_WIN2]);
-  const int h_start = ((rng_.Rand16() % (MAX_WIENER_BLOCK / 2)) & (~7));
-  const int h_end =
-      run_times != 1 ? 256 : ((rng_.Rand16() % MAX_WIENER_BLOCK) & (~7)) + 8;
-  const int v_start = ((rng_.Rand16() % (MAX_WIENER_BLOCK / 2)) & (~7));
-  const int v_end =
-      run_times != 1 ? 256 : ((rng_.Rand16() % MAX_WIENER_BLOCK) & (~7)) + 8;
+  // Note(rachelbarker):
+  // The SIMD code requires `h_start` to be even, but can otherwise
+  // deal with any values of `h_end`, `v_start`, `v_end`. We cover this
+  // entire range, even though (at the time of writing) `h_start` and `v_start`
+  // will always be multiples of 64 when called from non-test code.
+  // If in future any new requirements are added, these lines will
+  // need changing.
+  const int h_start = (rng_.Rand16() % (MAX_WIENER_BLOCK / 2)) & ~1;
+  int h_end = run_times != 1 ? 256 : (rng_.Rand16() % MAX_WIENER_BLOCK);
+  const int v_start = rng_.Rand16() % (MAX_WIENER_BLOCK / 2);
+  int v_end = run_times != 1 ? 256 : (rng_.Rand16() % MAX_WIENER_BLOCK);
   const int dgd_stride = h_end;
   const int src_stride = MAX_DATA_BLOCK;
   const int iters = run_times == 1 ? kIterations : 2;
