@@ -1023,20 +1023,22 @@ static void free_firstpass_data(FirstPassData *firstpass_data) {
   aom_free(firstpass_data->mb_stats);
 }
 
-int av1_get_unit_rows_in_tile(TileInfo tile, const BLOCK_SIZE fp_block_size) {
+int av1_get_unit_rows_in_tile(const TileInfo *tile,
+                              const BLOCK_SIZE fp_block_size) {
   const int unit_height_log2 = mi_size_high_log2[fp_block_size];
   const int unit_height = 1 << unit_height_log2;
-  const int mi_rows = tile.mi_row_end - tile.mi_row_start;
+  const int mi_rows = tile->mi_row_end - tile->mi_row_start;
   // Calculate (int)ceil((double)mi_rows / unit_height).
   const int unit_rows = (mi_rows + unit_height - 1) >> unit_height_log2;
 
   return unit_rows;
 }
 
-int av1_get_unit_cols_in_tile(TileInfo tile, const BLOCK_SIZE fp_block_size) {
+int av1_get_unit_cols_in_tile(const TileInfo *tile,
+                              const BLOCK_SIZE fp_block_size) {
   const int unit_width_log2 = mi_size_wide_log2[fp_block_size];
   const int unit_width = 1 << unit_width_log2;
-  const int mi_cols = tile.mi_col_end - tile.mi_col_start;
+  const int mi_cols = tile->mi_col_end - tile->mi_col_start;
   // Calculate (int)ceil((double)mi_cols / unit_width).
   const int unit_cols = (mi_cols + unit_width - 1) >> unit_width_log2;
 
@@ -1106,7 +1108,7 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   int raw_motion_err_counts = 0;
   int unit_row_in_tile = unit_row - (tile->mi_row_start >> unit_height_log2);
   int unit_col_start = tile->mi_col_start >> unit_width_log2;
-  int unit_cols_in_tile = av1_get_unit_cols_in_tile(*tile, fp_block_size);
+  int unit_cols_in_tile = av1_get_unit_cols_in_tile(tile, fp_block_size);
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   AV1EncRowMultiThreadInfo *const enc_row_mt = &mt_info->enc_row_mt;
   AV1EncRowMultiThreadSync *const row_mt_sync = &tile_data->row_mt_sync;

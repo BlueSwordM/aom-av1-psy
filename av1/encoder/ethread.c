@@ -316,18 +316,18 @@ static AOM_INLINE void switch_tile_and_get_next_job(
 
 #if CONFIG_REALTIME_ONLY
       int num_b_rows_in_tile =
-          av1_get_sb_rows_in_tile(cm, this_tile->tile_info);
+          av1_get_sb_rows_in_tile(cm, &this_tile->tile_info);
       int num_b_cols_in_tile =
-          av1_get_sb_cols_in_tile(cm, this_tile->tile_info);
+          av1_get_sb_cols_in_tile(cm, &this_tile->tile_info);
 #else
       int num_b_rows_in_tile =
           is_firstpass
-              ? av1_get_unit_rows_in_tile(this_tile->tile_info, fp_block_size)
-              : av1_get_sb_rows_in_tile(cm, this_tile->tile_info);
+              ? av1_get_unit_rows_in_tile(&this_tile->tile_info, fp_block_size)
+              : av1_get_sb_rows_in_tile(cm, &this_tile->tile_info);
       int num_b_cols_in_tile =
           is_firstpass
-              ? av1_get_unit_cols_in_tile(this_tile->tile_info, fp_block_size)
-              : av1_get_sb_cols_in_tile(cm, this_tile->tile_info);
+              ? av1_get_unit_cols_in_tile(&this_tile->tile_info, fp_block_size)
+              : av1_get_sb_cols_in_tile(cm, &this_tile->tile_info);
 #endif
       int theoretical_limit_on_threads =
           AOMMIN((num_b_cols_in_tile + 1) >> 1, num_b_rows_in_tile);
@@ -1380,8 +1380,8 @@ static AOM_INLINE int compute_num_enc_row_mt_workers(AV1_COMMON *const cm,
   for (int row = 0; row < tile_rows; row++) {
     for (int col = 0; col < tile_cols; col++) {
       av1_tile_init(&tile_info, cm, row, col);
-      const int num_sb_rows_in_tile = av1_get_sb_rows_in_tile(cm, tile_info);
-      const int num_sb_cols_in_tile = av1_get_sb_cols_in_tile(cm, tile_info);
+      const int num_sb_rows_in_tile = av1_get_sb_rows_in_tile(cm, &tile_info);
+      const int num_sb_cols_in_tile = av1_get_sb_cols_in_tile(cm, &tile_info);
       total_num_threads_row_mt +=
           AOMMIN((num_sb_cols_in_tile + 1) >> 1, num_sb_rows_in_tile);
     }
@@ -1458,7 +1458,7 @@ static AOM_INLINE void compute_max_sb_rows_cols(AV1_COMP *cpi, int *max_sb_rows,
   for (int row = 0; row < tile_rows; row++) {
     for (int col = 0; col < tile_cols; col++) {
       const int tile_index = row * cm->tiles.cols + col;
-      TileInfo tile_info = cpi->tile_data[tile_index].tile_info;
+      const TileInfo *const tile_info = &cpi->tile_data[tile_index].tile_info;
       const int num_sb_rows_in_tile = av1_get_sb_rows_in_tile(cm, tile_info);
       const int num_sb_cols_in_tile = av1_get_sb_cols_in_tile(cm, tile_info);
       *max_sb_rows = AOMMAX(*max_sb_rows, num_sb_rows_in_tile);
@@ -1482,9 +1482,9 @@ int av1_fp_compute_num_enc_workers(AV1_COMP *cpi) {
     for (int col = 0; col < tile_cols; col++) {
       av1_tile_init(&tile_info, cm, row, col);
       const int num_mb_rows_in_tile =
-          av1_get_unit_rows_in_tile(tile_info, cpi->fp_block_size);
+          av1_get_unit_rows_in_tile(&tile_info, cpi->fp_block_size);
       const int num_mb_cols_in_tile =
-          av1_get_unit_cols_in_tile(tile_info, cpi->fp_block_size);
+          av1_get_unit_cols_in_tile(&tile_info, cpi->fp_block_size);
       total_num_threads_row_mt +=
           AOMMIN((num_mb_cols_in_tile + 1) >> 1, num_mb_rows_in_tile);
     }
@@ -1503,7 +1503,7 @@ static AOM_INLINE int fp_compute_max_mb_rows(const AV1_COMMON *const cm,
   for (int row = 0; row < tile_rows; row++) {
     for (int col = 0; col < tile_cols; col++) {
       const int tile_index = row * cm->tiles.cols + col;
-      TileInfo tile_info = tile_data[tile_index].tile_info;
+      const TileInfo *const tile_info = &tile_data[tile_index].tile_info;
       const int num_mb_rows_in_tile =
           av1_get_unit_rows_in_tile(tile_info, fp_block_size);
       max_mb_rows = AOMMAX(max_mb_rows, num_mb_rows_in_tile);

@@ -790,7 +790,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
   bool row_mt_enabled = mt_info->row_mt_enabled;
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
-  const int sb_cols_in_tile = av1_get_sb_cols_in_tile(cm, tile_data->tile_info);
+  const int sb_cols_in_tile = av1_get_sb_cols_in_tile(cm, tile_info);
   const BLOCK_SIZE sb_size = cm->seq_params->sb_size;
   const int mib_size = cm->seq_params->mib_size;
   const int mib_size_log2 = cm->seq_params->mib_size_log2;
@@ -966,11 +966,11 @@ void av1_init_tile_data(AV1_COMP *cpi) {
         token_info->tile_tok[tile_row][tile_col] = pre_tok + tile_tok;
         pre_tok = token_info->tile_tok[tile_row][tile_col];
         tile_tok = allocated_tokens(
-            *tile_info, cm->seq_params->mib_size_log2 + MI_SIZE_LOG2,
+            tile_info, cm->seq_params->mib_size_log2 + MI_SIZE_LOG2,
             num_planes);
         token_info->tplist[tile_row][tile_col] = tplist + tplist_count;
         tplist = token_info->tplist[tile_row][tile_col];
-        tplist_count = av1_get_sb_rows_in_tile(cm, tile_data->tile_info);
+        tplist_count = av1_get_sb_rows_in_tile(cm, tile_info);
       }
       tile_data->allow_update_cdf = !cm->tiles.large_scale;
       tile_data->allow_update_cdf = tile_data->allow_update_cdf &&

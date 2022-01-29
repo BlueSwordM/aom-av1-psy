@@ -3699,10 +3699,10 @@ static INLINE void alloc_frame_mvs(AV1_COMMON *const cm, RefCntBuffer *buf) {
 
 // Get the allocated token size for a tile. It does the same calculation as in
 // the frame token allocation.
-static INLINE unsigned int allocated_tokens(TileInfo tile, int sb_size_log2,
-                                            int num_planes) {
-  int tile_mb_rows = (tile.mi_row_end - tile.mi_row_start + 2) >> 2;
-  int tile_mb_cols = (tile.mi_col_end - tile.mi_col_start + 2) >> 2;
+static INLINE unsigned int allocated_tokens(const TileInfo *tile,
+                                            int sb_size_log2, int num_planes) {
+  int tile_mb_rows = (tile->mi_row_end - tile->mi_row_start + 2) >> 2;
+  int tile_mb_cols = (tile->mi_col_end - tile->mi_col_start + 2) >> 2;
 
   return get_token_alloc(tile_mb_rows, tile_mb_cols, sb_size_log2, num_planes);
 }
