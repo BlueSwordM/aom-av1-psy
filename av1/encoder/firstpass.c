@@ -1166,8 +1166,7 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
     const int unit_col = mi_col >> unit_width_log2;
     const int unit_col_in_tile = unit_col - unit_col_start;
 
-    (*(enc_row_mt->sync_read_ptr))(row_mt_sync, unit_row_in_tile,
-                                   unit_col_in_tile);
+    enc_row_mt->sync_read_ptr(row_mt_sync, unit_row_in_tile, unit_col_in_tile);
 
     if (unit_col_in_tile == 0) {
       last_mv = *first_top_mv;
@@ -1202,8 +1201,8 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
     recon_uvoffset += uv_mb_height;
     mb_stats++;
 
-    (*(enc_row_mt->sync_write_ptr))(row_mt_sync, unit_row_in_tile,
-                                    unit_col_in_tile, unit_cols_in_tile);
+    enc_row_mt->sync_write_ptr(row_mt_sync, unit_row_in_tile, unit_col_in_tile,
+                               unit_cols_in_tile);
   }
 }
 

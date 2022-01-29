@@ -821,7 +821,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     // In realtime/allintra mode and when frequency of cost updates is off/tile,
     // wait for the top superblock to finish encoding. Otherwise, wait for the
     // top-right superblock to finish encoding.
-    (*(enc_row_mt->sync_read_ptr))(
+    enc_row_mt->sync_read_ptr(
         row_mt_sync, sb_row, sb_col_in_tile - delay_wait_for_top_right_sb(cpi));
     const int update_cdf = tile_data->allow_update_cdf && row_mt_enabled;
     if (update_cdf && (tile_info->mi_row_start != mi_row)) {
@@ -886,8 +886,8 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
         memcpy(x->row_ctx + sb_col_in_tile - 1, xd->tile_ctx,
                sizeof(*xd->tile_ctx));
     }
-    (*(enc_row_mt->sync_write_ptr))(row_mt_sync, sb_row, sb_col_in_tile,
-                                    sb_cols_in_tile);
+    enc_row_mt->sync_write_ptr(row_mt_sync, sb_row, sb_col_in_tile,
+                               sb_cols_in_tile);
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, encode_sb_row_time);

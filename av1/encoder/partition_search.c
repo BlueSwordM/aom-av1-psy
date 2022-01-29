@@ -753,7 +753,7 @@ static AOM_INLINE void wait_for_top_right_sb(
   const int sb_col_in_tile =
       (mi_col - tile_info->mi_col_start) >> sb_mi_size_log2;
 
-  (*(enc_row_mt->sync_read_ptr))(row_mt_sync, sb_row_in_tile, sb_col_in_tile);
+  enc_row_mt->sync_read_ptr(row_mt_sync, sb_row_in_tile, sb_col_in_tile);
 }
 
 /*!\brief Interface for AV1 mode search for an individual coding block
