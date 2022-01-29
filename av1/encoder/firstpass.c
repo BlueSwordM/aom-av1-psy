@@ -1025,18 +1025,20 @@ static void free_firstpass_data(FirstPassData *firstpass_data) {
 
 int av1_get_unit_rows_in_tile(TileInfo tile, const BLOCK_SIZE fp_block_size) {
   const int unit_height_log2 = mi_size_high_log2[fp_block_size];
-  const int mi_rows_aligned_to_unit =
-      ALIGN_POWER_OF_TWO(tile.mi_row_end - tile.mi_row_start, unit_height_log2);
-  const int unit_rows = mi_rows_aligned_to_unit >> unit_height_log2;
+  const int unit_height = 1 << unit_height_log2;
+  const int mi_rows = tile.mi_row_end - tile.mi_row_start;
+  // Calculate (int)ceil((double)mi_rows / unit_height).
+  const int unit_rows = (mi_rows + unit_height - 1) >> unit_height_log2;
 
   return unit_rows;
 }
 
 int av1_get_unit_cols_in_tile(TileInfo tile, const BLOCK_SIZE fp_block_size) {
   const int unit_width_log2 = mi_size_wide_log2[fp_block_size];
-  const int mi_cols_aligned_to_unit =
-      ALIGN_POWER_OF_TWO(tile.mi_col_end - tile.mi_col_start, unit_width_log2);
-  const int unit_cols = mi_cols_aligned_to_unit >> unit_width_log2;
+  const int unit_width = 1 << unit_width_log2;
+  const int mi_cols = tile.mi_col_end - tile.mi_col_start;
+  // Calculate (int)ceil((double)mi_cols / unit_width).
+  const int unit_cols = (mi_cols + unit_width - 1) >> unit_width_log2;
 
   return unit_cols;
 }
