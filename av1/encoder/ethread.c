@@ -411,7 +411,7 @@ static int fp_enc_row_mt_worker_hook(void *arg1, void *unused) {
     ThreadData *td = thread_data->td;
 
     assert(current_mi_row != -1 &&
-           current_mi_row <= this_tile->tile_info.mi_row_end);
+           current_mi_row < this_tile->tile_info.mi_row_end);
 
     const int unit_height_log2 = mi_size_high_log2[fp_block_size];
     av1_first_pass_row(cpi, td, this_tile, current_mi_row >> unit_height_log2,
