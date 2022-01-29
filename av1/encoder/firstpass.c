@@ -1163,10 +1163,9 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   // block sizes smaller than 16x16.
   av1_zero_array(x->plane[0].src_diff, 256);
 
-  for (int mi_col = tile->mi_col_start; mi_col < tile->mi_col_end;
-       mi_col += unit_width) {
-    const int unit_col = mi_col >> unit_width_log2;
-    const int unit_col_in_tile = unit_col - unit_col_start;
+  for (int unit_col_in_tile = 0; unit_col_in_tile < unit_cols_in_tile;
+       unit_col_in_tile++) {
+    const int unit_col = unit_col_start + unit_col_in_tile;
 
     enc_row_mt->sync_read_ptr(row_mt_sync, unit_row_in_tile, unit_col_in_tile);
 
