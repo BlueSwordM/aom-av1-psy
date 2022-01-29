@@ -1259,6 +1259,9 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.gf_length_lvl = 1;
       sf->rt_sf.skip_cdef_sb = 1;
     }
+
+    // TODO(yunqing): extend this sf to other speeds and/or other resolutions.
+    if (speed >= 10) sf->rt_sf.use_rtc_tf = 1;
   }
   if (!is_480p_or_larger) {
     if (speed == 7) {
@@ -1916,6 +1919,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->prune_intra_mode_based_on_mv_range = 0;
   rt_sf->var_part_split_threshold_shift = 7;
   rt_sf->gf_refresh_based_on_qp = 0;
+  rt_sf->use_rtc_tf = 0;
 }
 
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {

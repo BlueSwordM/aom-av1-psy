@@ -1425,6 +1425,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Enable GF refresh based on Q value.
   int gf_refresh_based_on_qp;
+
+  // Temporal filtering
+  int use_rtc_tf;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

@@ -2764,6 +2764,12 @@ typedef struct AV1_COMP {
   YV12_BUFFER_CONFIG *unfiltered_source;
 
   /*!
+   * Frame buffer holding the orig source frame for PSNR calculation in rtc tf
+   * case.
+   */
+  YV12_BUFFER_CONFIG orig_source;
+
+  /*!
    * Skip tpl setup when tpl data from gop length decision can be reused.
    */
   int skip_tpl_setup_stats;

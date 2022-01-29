@@ -479,8 +479,7 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
   if (sf->rt_sf.source_metrics_sb_nonrd &&
       cpi->svc.number_spatial_layers <= 1 &&
       cm->current_frame.frame_type != KEY_FRAME) {
-    int offset = cpi->source->y_stride * (mi_row << 2) + (mi_col << 2);
-    av1_source_content_sb(cpi, x, offset);
+    av1_source_content_sb(cpi, x, mi_row, mi_col);
   }
 #if CONFIG_RT_ML_PARTITIONING
   if (sf->part_sf.partition_search_type == ML_BASED_PARTITION) {
