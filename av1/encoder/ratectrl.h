@@ -226,6 +226,9 @@ typedef struct {
   // Track amount of low motion in scene
   int avg_frame_low_motion;
 
+  // signals if number of blocks with motion is high
+  int high_num_blocks_with_motion;
+
   // For dynamic resize, 1 pass cbr.
   RESIZE_STATE resize_state;
   int resize_avg_qp;

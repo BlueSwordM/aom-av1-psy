@@ -2668,6 +2668,7 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
   last_src_height = unscaled_last_src->y_height;
   if (src_width != last_src_width || src_height != last_src_height) return;
   rc->high_source_sad = 0;
+  rc->high_num_blocks_with_motion = 0;
   rc->prev_avg_source_sad = rc->avg_source_sad;
   if (src_width == last_src_width && src_height == last_src_height) {
     const int num_mi_cols = cm->mi_params.mi_cols;
@@ -2741,6 +2742,9 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
       rc->high_source_sad = 0;
     rc->avg_source_sad = (3 * rc->avg_source_sad + avg_sad) >> 2;
     rc->frame_source_sad = avg_sad;
+
+    if (num_zero_temp_sad < (3 * num_samples >> 2))
+      rc->high_num_blocks_with_motion = 1;
   }
   cpi->svc.high_source_sad_superframe = rc->high_source_sad;
 }
