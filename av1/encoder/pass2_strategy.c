@@ -211,6 +211,15 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
     }
   }
 
+  int err_estimate = p_rc->rate_error_estimate;
+  int64_t bits_left = cpi->ppi->twopass.bits_left;
+  int64_t total_actual_bits = p_rc->total_actual_bits;
+  int64_t bits_off_target = p_rc->vbr_bits_off_target;
+  double rolling_arf_group_actual_bits =
+      (double)twopass->rolling_arf_group_actual_bits;
+  double rolling_arf_group_target_bits =
+      (double)twopass->rolling_arf_group_target_bits;
+
 #if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
   const int is_parallel_frame =
       cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0 ? 1 : 0;
@@ -218,49 +227,32 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
       cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE
           ? is_parallel_frame
           : 0;
-  int64_t local_total_actual_bits = simulate_parallel_frame
-                                        ? p_rc->temp_total_actual_bits
-                                        : p_rc->total_actual_bits;
-  int64_t local_vbr_bits_off_target = simulate_parallel_frame
-                                          ? p_rc->temp_vbr_bits_off_target
-                                          : p_rc->vbr_bits_off_target;
-  int64_t local_bits_left = simulate_parallel_frame
-                                ? p_rc->temp_bits_left
-                                : cpi->ppi->twopass.bits_left;
-  double local_rolling_arf_group_target_bits =
+  total_actual_bits = simulate_parallel_frame ? p_rc->temp_total_actual_bits
+                                              : p_rc->total_actual_bits;
+  bits_off_target = simulate_parallel_frame ? p_rc->temp_vbr_bits_off_target
+                                            : p_rc->vbr_bits_off_target;
+  bits_left = simulate_parallel_frame ? p_rc->temp_bits_left
+                                      : cpi->ppi->twopass.bits_left;
+  rolling_arf_group_target_bits =
       (double)(simulate_parallel_frame
                    ? p_rc->temp_rolling_arf_group_target_bits
                    : twopass->rolling_arf_group_target_bits);
-  double local_rolling_arf_group_actual_bits =
+  rolling_arf_group_actual_bits =
       (double)(simulate_parallel_frame
                    ? p_rc->temp_rolling_arf_group_actual_bits
                    : twopass->rolling_arf_group_actual_bits);
-  int err_estimate = simulate_parallel_frame ? p_rc->temp_rate_error_estimate
-                                             : p_rc->rate_error_estimate;
-  if (local_vbr_bits_off_target && local_total_actual_bits > 0) {
-    if (cpi->ppi->lap_enabled) {
-      rate_err_factor =
-          local_rolling_arf_group_actual_bits /
-          DOUBLE_DIVIDE_CHECK(local_rolling_arf_group_target_bits);
-    } else {
-      rate_err_factor =
-          1.0 - ((double)(local_vbr_bits_off_target) /
-                 AOMMAX(local_total_actual_bits, local_bits_left));
-    }
-#else
-  int err_estimate = p_rc->rate_error_estimate;
-
-  if (p_rc->vbr_bits_off_target && p_rc->total_actual_bits > 0) {
-    if (cpi->ppi->lap_enabled) {
-      rate_err_factor =
-          (double)twopass->rolling_arf_group_actual_bits /
-          DOUBLE_DIVIDE_CHECK((double)twopass->rolling_arf_group_target_bits);
-    } else {
-      rate_err_factor =
-          1.0 - ((double)(p_rc->vbr_bits_off_target) /
-                 AOMMAX(p_rc->total_actual_bits, cpi->ppi->twopass.bits_left));
-    }
+  err_estimate = simulate_parallel_frame ? p_rc->temp_rate_error_estimate
+                                         : p_rc->rate_error_estimate;
 #endif
+
+  if (p_rc->bits_off_target && total_actual_bits > 0) {
+    if (cpi->ppi->lap_enabled) {
+      rate_err_factor = rolling_arf_group_actual_bits /
+                        DOUBLE_DIVIDE_CHECK(rolling_arf_group_target_bits);
+    } else {
+      rate_err_factor = 1.0 - ((double)(bits_off_target) /
+                               AOMMAX(total_actual_bits, bits_left));
+    }
     rate_err_factor = AOMMAX(min_fac, AOMMIN(max_fac, rate_err_factor));
 
     // Adjustment is damped if this is 1 pass with look ahead processing
