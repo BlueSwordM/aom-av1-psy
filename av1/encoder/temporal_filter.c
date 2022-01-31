@@ -818,6 +818,17 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
     filter_strength = cpi->oxcf.algo_cfg.arnr_strength;
   }
 
+  // https://bugs.chromium.org/p/aomedia/issues/detail?id=3211 seems to be
+  // resolved by lowering the filtering strength to 1 on keyframes,
+  // while still providing considerable compression benefits.
+  FRAME_UPDATE_TYPE update_type =
+      get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
+  if (update_type == KF_UPDATE &&
+      cpi->oxcf.kf_cfg.enable_keyframe_filtering == 1 &&
+      cpi->oxcf.algo_cfg.arnr_strength >= 2) {
+    filter_strength = 1;
+  }
+
   // Do filtering.
   FRAME_DIFF *diff = &td->tf_data.diff;
   av1_set_mv_row_limits(&cpi->common.mi_params, &mb->mv_limits,
