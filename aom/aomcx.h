@@ -213,7 +213,8 @@ enum aome_enc_control_id {
    *
    * NOTE: 10 is only allowed in AOM_USAGE_REALTIME. In AOM_USAGE_GOOD_QUALITY
    * and AOM_USAGE_ALL_INTRA, 9 is the highest allowed value. However,
-   * AOM_USAGE_GOOD_QUALITY treats 7..9 the same as 6.
+   * AOM_USAGE_GOOD_QUALITY treats 7..9 the same as 6. Also, AOM_USAGE_REALTIME
+   * treats 0..4 the same as 5.
    */
   AOME_SET_CPUUSED = 13,
 
