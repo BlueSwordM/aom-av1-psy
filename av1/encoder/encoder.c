@@ -1529,6 +1529,8 @@ void av1_remove_primary_compressor(AV1_PRIMARY *ppi) {
   ppi->tpl_sb_rdmult_scaling_factors = NULL;
 
   TplParams *const tpl_data = &ppi->tpl_data;
+  aom_free(tpl_data->txfm_stats_list);
+
   for (int frame = 0; frame < MAX_LAG_BUFFERS; ++frame) {
     aom_free(tpl_data->tpl_stats_pool[frame]);
     aom_free_frame_buffer(&tpl_data->tpl_rec_pool[frame]);

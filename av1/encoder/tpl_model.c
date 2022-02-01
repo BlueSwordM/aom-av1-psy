@@ -169,9 +169,13 @@ void av1_setup_tpl_buffers(AV1_PRIMARY *const ppi,
   }
   tpl_data->tpl_frame = &tpl_data->tpl_stats_buffer[REF_FRAMES + 1];
 
-  // If lag_in_frames <= 1, TPL module is not invoked. Hence tpl recon and
-  // stats buffers are not allocated.
+  // If lag_in_frames <= 1, TPL module is not invoked. Hence dynamic memory
+  // allocations are avoided for buffers in tpl_data.
   if (lag_in_frames <= 1) return;
+
+  AOM_CHECK_MEM_ERROR(&ppi->error, tpl_data->txfm_stats_list,
+                      aom_calloc(MAX_LENGTH_TPL_FRAME_STATS,
+                                 sizeof(*tpl_data->txfm_stats_list)));
 
   for (int frame = 0; frame < lag_in_frames; ++frame) {
     AOM_CHECK_MEM_ERROR(
