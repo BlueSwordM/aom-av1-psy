@@ -341,10 +341,109 @@ static TX_SIZE set_lpf_parameters(
   return ts;
 }
 
+static AOM_INLINE TX_TYPE
+get_uv_tx_size(const MACROBLOCKD *const xd, const MB_MODE_INFO *const mbmi,
+               const int plane, const struct macroblockd_plane *plane_ptr) {
+  assert(plane > AOM_PLANE_Y);
+  if (xd && xd->lossless[mbmi->segment_id]) return TX_4X4;
+
+  TX_SIZE tx_size =
+      (plane == AOM_PLANE_Y)
+          ? mbmi->tx_size
+          : av1_get_max_uv_txsize(mbmi->bsize, plane_ptr->subsampling_x,
+                                  plane_ptr->subsampling_y);
+  return tx_size;
+}
+
+static AOM_INLINE int get_min_tx_height(
+    const AV1_COMMON *const cm, const MACROBLOCKD *const xd, const int plane,
+    const MACROBLOCKD_PLANE *const plane_ptr, const uint32_t mi_row,
+    const uint32_t mi_col, const int y) {
+  int min_dim = INT_MAX;
+
+  const uint32_t scale_horz = plane_ptr->subsampling_x;
+  const uint32_t scale_vert = plane_ptr->subsampling_y;
+  const int plane_mi_cols =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, scale_horz);
+  const int x_range = AOMMIN((int)(plane_mi_cols - (mi_col >> scale_horz)),
+                             (MAX_MIB_SIZE >> scale_horz));
+
+  for (int x = 0; x < x_range; x++) {
+    const uint32_t curr_x = ((mi_col * MI_SIZE) >> scale_horz) + x * MI_SIZE;
+    const uint32_t curr_y = ((mi_row * MI_SIZE) >> scale_vert) + y * MI_SIZE;
+    const int curr_mi_row =
+        scale_vert | ((curr_y << scale_vert) >> MI_SIZE_LOG2);
+    const int curr_mi_col =
+        scale_horz | ((curr_x << scale_horz) >> MI_SIZE_LOG2);
+    assert(curr_mi_col >= plane_ptr->dst.width);
+    assert(curr_mi_row >= plane_ptr->dst.height);
+    MB_MODE_INFO **mi = cm->mi_params.mi_grid_base +
+                        curr_mi_row * cm->mi_params.mi_stride + curr_mi_col;
+    const MB_MODE_INFO *mbmi = mi[0];
+    if (mbmi == NULL) {
+      continue;
+    }
+
+    // get_uv_tx_size is used instead of get_transform_size because
+    // get_transform_size upscales the tx_size to the nearest square size.
+    const TX_SIZE ts = get_uv_tx_size(xd, mi[0], plane, plane_ptr);
+    if (ts == TX_INVALID) {
+      continue;
+    }
+
+    min_dim = AOMMIN(min_dim, tx_size_high[ts]);
+  }
+  return min_dim;
+}
+
+static AOM_INLINE int get_min_tx_width(const AV1_COMMON *const cm,
+                                       const MACROBLOCKD *const xd,
+                                       const int plane,
+                                       const MACROBLOCKD_PLANE *const plane_ptr,
+                                       const uint32_t mi_row,
+                                       const uint32_t mi_col, const int x) {
+  int min_dim = INT_MAX;
+
+  const uint32_t scale_horz = plane_ptr->subsampling_x;
+  const uint32_t scale_vert = plane_ptr->subsampling_y;
+  const int plane_mi_rows =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, scale_vert);
+  const int y_range = AOMMIN((int)(plane_mi_rows - (mi_row >> scale_vert)),
+                             (MAX_MIB_SIZE >> scale_vert));
+
+  for (int y = 0; y < y_range; y++) {
+    const uint32_t curr_x = ((mi_col * MI_SIZE) >> scale_horz) + x * MI_SIZE;
+    const uint32_t curr_y = ((mi_row * MI_SIZE) >> scale_vert) + y * MI_SIZE;
+    const int curr_mi_row =
+        scale_vert | ((curr_y << scale_vert) >> MI_SIZE_LOG2);
+    const int curr_mi_col =
+        scale_horz | ((curr_x << scale_horz) >> MI_SIZE_LOG2);
+    assert(curr_mi_col >= plane_ptr->dst.width);
+    assert(curr_mi_row >= plane_ptr->dst.height);
+    MB_MODE_INFO **mi = cm->mi_params.mi_grid_base +
+                        curr_mi_row * cm->mi_params.mi_stride + curr_mi_col;
+    const MB_MODE_INFO *mbmi = mi[0];
+    if (mbmi == NULL) {
+      continue;
+    }
+
+    // get_uv_tx_size is used instead of get_transform_size because
+    // get_transform_size upscales the tx_size to the nearest square size.
+    const TX_SIZE ts = get_uv_tx_size(xd, mi[0], plane, plane_ptr);
+    if (ts == TX_INVALID) {
+      continue;
+    }
+
+    min_dim = AOMMIN(min_dim, tx_size_wide[ts]);
+  }
+  return min_dim;
+}
+
 void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
-                                 const uint32_t mi_row, const uint32_t mi_col) {
+                                 const uint32_t mi_row, const uint32_t mi_col,
+                                 const bool try_two_rows) {
   const uint32_t scale_horz = plane_ptr->subsampling_x;
   const uint32_t scale_vert = plane_ptr->subsampling_y;
   uint8_t *const dst_ptr = plane_ptr->dst.buf;
@@ -357,7 +456,17 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
                              (MAX_MIB_SIZE >> scale_vert));
   const int x_range = AOMMIN((int)(plane_mi_cols - (mi_col >> scale_horz)),
                              (MAX_MIB_SIZE >> scale_horz));
+
+  int min_height = 0;
   for (int y = 0; y < y_range; y++) {
+    if (try_two_rows && y % 2 == 0 && (y + 1) < y_range) {
+      // If we are on an even row, and the minimum height is 8 pixels, then the
+      // current and below rows must contain the same tx blocks. This is because
+      // dim 4 can only happen every unit of 2**0, and 8 every unit of 2**1,
+      // etc.
+      min_height =
+          get_min_tx_height(cm, xd, plane, plane_ptr, mi_row, mi_col, y);
+    }
     uint8_t *p = dst_ptr + y * MI_SIZE * dst_stride;
     for (int x = 0; x < x_range;) {
       // inner loop always filter vertical edges in a MI block. If MI size
@@ -427,35 +536,69 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
         default: break;
       }
 #else
-      switch (params.filter_length) {
-        // apply 4-tap filtering
-        case 4:
-          aom_lpf_vertical_4(p, dst_stride, params.mblim, params.lim,
-                             params.hev_thr);
-          break;
-        case 6:  // apply 6-tap filter for chroma plane only
-          assert(plane != 0);
-          aom_lpf_vertical_6(p, dst_stride, params.mblim, params.lim,
-                             params.hev_thr);
-          break;
-        // apply 8-tap filtering
-        case 8:
-          aom_lpf_vertical_8(p, dst_stride, params.mblim, params.lim,
-                             params.hev_thr);
-          break;
-        // apply 14-tap filtering
-        case 14:
-          aom_lpf_vertical_14(p, dst_stride, params.mblim, params.lim,
-                              params.hev_thr);
-          break;
-        // no filtering
-        default: break;
+      if (min_height >= 8) {
+        switch (params.filter_length) {
+          // apply 4-tap filtering
+          case 4:
+            aom_lpf_vertical_4_dual(p, dst_stride, params.mblim, params.lim,
+                                    params.hev_thr, params.mblim, params.lim,
+                                    params.hev_thr);
+            break;
+          case 6:  // apply 6-tap filter for chroma plane only
+            assert(plane != 0);
+            aom_lpf_vertical_6_dual(p, dst_stride, params.mblim, params.lim,
+                                    params.hev_thr, params.mblim, params.lim,
+                                    params.hev_thr);
+            break;
+          // apply 8-tap filtering
+          case 8:
+            aom_lpf_vertical_8_dual(p, dst_stride, params.mblim, params.lim,
+                                    params.hev_thr, params.mblim, params.lim,
+                                    params.hev_thr);
+            break;
+          // apply 14-tap filtering
+          case 14:
+            aom_lpf_vertical_14_dual(p, dst_stride, params.mblim, params.lim,
+                                     params.hev_thr, params.mblim, params.lim,
+                                     params.hev_thr);
+            break;
+          // no filtering
+          default: break;
+        }
+      } else {
+        switch (params.filter_length) {
+          // apply 4-tap filtering
+          case 4:
+            aom_lpf_vertical_4(p, dst_stride, params.mblim, params.lim,
+                               params.hev_thr);
+            break;
+          case 6:  // apply 6-tap filter for chroma plane only
+            assert(plane != 0);
+            aom_lpf_vertical_6(p, dst_stride, params.mblim, params.lim,
+                               params.hev_thr);
+            break;
+          // apply 8-tap filtering
+          case 8:
+            aom_lpf_vertical_8(p, dst_stride, params.mblim, params.lim,
+                               params.hev_thr);
+            break;
+          // apply 14-tap filtering
+          case 14:
+            aom_lpf_vertical_14(p, dst_stride, params.mblim, params.lim,
+                                params.hev_thr);
+            break;
+          // no filtering
+          default: break;
+        }
       }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
       // advance the destination pointer
       advance_units = tx_size_wide_unit[tx_size];
       x += advance_units;
       p += advance_units * MI_SIZE;
+    }
+    if (min_height >= 8) {
+      y++;
     }
   }
 }
@@ -541,7 +684,8 @@ void av1_filter_block_plane_vert_rt(const AV1_COMMON *const cm,
 void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
-                                 const uint32_t mi_row, const uint32_t mi_col) {
+                                 const uint32_t mi_row, const uint32_t mi_col,
+                                 const bool try_two_rows) {
   const uint32_t scale_horz = plane_ptr->subsampling_x;
   const uint32_t scale_vert = plane_ptr->subsampling_y;
   uint8_t *const dst_ptr = plane_ptr->dst.buf;
@@ -554,7 +698,11 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
                              (MAX_MIB_SIZE >> scale_vert));
   const int x_range = AOMMIN((int)(plane_mi_cols - (mi_col >> scale_horz)),
                              (MAX_MIB_SIZE >> scale_horz));
+  int min_width = 0;
   for (int x = 0; x < x_range; x++) {
+    if (try_two_rows && x % 2 == 0 && (x + 1) < x_range) {
+      min_width = get_min_tx_width(cm, xd, plane, plane_ptr, mi_row, mi_col, x);
+    }
     uint8_t *p = dst_ptr + x * MI_SIZE;
     for (int y = 0; y < y_range;) {
       // inner loop always filter vertical edges in a MI block. If MI size
@@ -625,30 +773,62 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
         default: break;
       }
 #else
-      switch (params.filter_length) {
-        // apply 4-tap filtering
-        case 4:
-          aom_lpf_horizontal_4(p, dst_stride, params.mblim, params.lim,
-                               params.hev_thr);
-          break;
-        // apply 6-tap filtering
-        case 6:
-          assert(plane != 0);
-          aom_lpf_horizontal_6(p, dst_stride, params.mblim, params.lim,
-                               params.hev_thr);
-          break;
-        // apply 8-tap filtering
-        case 8:
-          aom_lpf_horizontal_8(p, dst_stride, params.mblim, params.lim,
-                               params.hev_thr);
-          break;
-        // apply 14-tap filtering
-        case 14:
-          aom_lpf_horizontal_14(p, dst_stride, params.mblim, params.lim,
-                                params.hev_thr);
-          break;
-        // no filtering
-        default: break;
+      if (min_width >= 8) {
+        switch (params.filter_length) {
+          // apply 4-tap filtering
+          case 4:
+            aom_lpf_horizontal_4_dual(p, dst_stride, params.mblim, params.lim,
+                                      params.hev_thr, params.mblim, params.lim,
+                                      params.hev_thr);
+            break;
+          // apply 6-tap filtering
+          case 6:
+            assert(plane != 0);
+            aom_lpf_horizontal_6_dual(p, dst_stride, params.mblim, params.lim,
+                                      params.hev_thr, params.mblim, params.lim,
+                                      params.hev_thr);
+            break;
+          // apply 8-tap filtering
+          case 8:
+            aom_lpf_horizontal_8_dual(p, dst_stride, params.mblim, params.lim,
+                                      params.hev_thr, params.mblim, params.lim,
+                                      params.hev_thr);
+            break;
+          // apply 14-tap filtering
+          case 14:
+            aom_lpf_horizontal_14_dual(p, dst_stride, params.mblim, params.lim,
+                                       params.hev_thr, params.mblim, params.lim,
+                                       params.hev_thr);
+            break;
+          // no filtering
+          default: break;
+        }
+      } else {
+        switch (params.filter_length) {
+          // apply 4-tap filtering
+          case 4:
+            aom_lpf_horizontal_4(p, dst_stride, params.mblim, params.lim,
+                                 params.hev_thr);
+            break;
+          // apply 6-tap filtering
+          case 6:
+            assert(plane != 0);
+            aom_lpf_horizontal_6(p, dst_stride, params.mblim, params.lim,
+                                 params.hev_thr);
+            break;
+          // apply 8-tap filtering
+          case 8:
+            aom_lpf_horizontal_8(p, dst_stride, params.mblim, params.lim,
+                                 params.hev_thr);
+            break;
+          // apply 14-tap filtering
+          case 14:
+            aom_lpf_horizontal_14(p, dst_stride, params.mblim, params.lim,
+                                  params.hev_thr);
+            break;
+          // no filtering
+          default: break;
+        }
       }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
@@ -656,6 +836,9 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
       advance_units = tx_size_high_unit[tx_size];
       y += advance_units;
       p += advance_units * dst_stride * MI_SIZE;
+    }
+    if (min_width >= 8) {
+      x++;
     }
   }
 }

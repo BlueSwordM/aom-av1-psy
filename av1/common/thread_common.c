@@ -324,16 +324,16 @@ static INLINE void thread_loop_filter_rows(
                            mi_row, mi_col, plane, plane + 1);
 #if CONFIG_AV1_HIGHBITDEPTH
       (void)is_realtime;
-      av1_filter_block_plane_vert(cm, xd, plane, &planes[plane], mi_row,
-                                  mi_col);
+      av1_filter_block_plane_vert(cm, xd, plane, &planes[plane], mi_row, mi_col,
+                                  false);
 #else
-      if (is_realtime) {
+      if (is_realtime && plane == 0) {
         av1_filter_block_plane_vert_rt(cm, xd, plane, &planes[plane], mi_row,
                                        mi_col);
 
       } else {
         av1_filter_block_plane_vert(cm, xd, plane, &planes[plane], mi_row,
-                                    mi_col);
+                                    mi_col, is_realtime);
       }
 #endif
       if (lf_sync != NULL) sync_write(lf_sync, r, c, sb_cols, plane);
@@ -355,15 +355,15 @@ static INLINE void thread_loop_filter_rows(
                            mi_row, mi_col, plane, plane + 1);
 #if CONFIG_AV1_HIGHBITDEPTH
       (void)is_realtime;
-      av1_filter_block_plane_horz(cm, xd, plane, &planes[plane], mi_row,
-                                  mi_col);
+      av1_filter_block_plane_horz(cm, xd, plane, &planes[plane], mi_row, mi_col,
+                                  false);
 #else
-      if (is_realtime) {
+      if (is_realtime && plane == 0) {
         av1_filter_block_plane_horz_rt(cm, xd, plane, &planes[plane], mi_row,
                                        mi_col);
       } else {
         av1_filter_block_plane_horz(cm, xd, plane, &planes[plane], mi_row,
-                                    mi_col);
+                                    mi_col, is_realtime);
       }
 #endif
     }
@@ -376,7 +376,7 @@ static int loop_filter_row_worker(void *arg1, void *arg2) {
   LFWorkerData *const lf_data = (LFWorkerData *)arg2;
   AV1LfMTInfo *cur_job_info;
   while ((cur_job_info = get_lf_job_info(lf_sync)) != NULL) {
-    const int is_realtime = cur_job_info->is_realtime && !cur_job_info->plane;
+    const int is_realtime = cur_job_info->is_realtime;
     thread_loop_filter_rows(lf_data->frame_buffer, lf_data->cm, lf_data->planes,
                             lf_data->xd, cur_job_info->mi_row,
                             cur_job_info->plane, cur_job_info->dir, is_realtime,
@@ -448,7 +448,7 @@ static void loop_filter_rows(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       if (!planes_to_lf[plane]) continue;
       for (dir = 0; dir < 2; ++dir) {
         thread_loop_filter_rows(frame, cm, xd->plane, xd, mi_row, plane, dir,
-                                is_realtime && !plane, /*lf_sync=*/NULL);
+                                is_realtime, /*lf_sync=*/NULL);
       }
     }
   }

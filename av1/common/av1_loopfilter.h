@@ -93,12 +93,14 @@ void av1_loop_filter_frame_init(struct AV1Common *cm, int plane_start,
 void av1_filter_block_plane_vert(const struct AV1Common *const cm,
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
-                                 const uint32_t mi_row, const uint32_t mi_col);
+                                 const uint32_t mi_row, const uint32_t mi_col,
+                                 const bool try_two_rows);
 
 void av1_filter_block_plane_horz(const struct AV1Common *const cm,
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
-                                 const uint32_t mi_row, const uint32_t mi_col);
+                                 const uint32_t mi_row, const uint32_t mi_col,
+                                 const bool try_two_rows);
 
 void av1_filter_block_plane_vert_rt(const struct AV1Common *const cm,
                                     const MACROBLOCKD *const xd,
