@@ -76,14 +76,6 @@ const libaom_test::TestMode kEncodingModeVectors[] = {
 // Speed settings tested
 const int kCpuUsedVectors[] = { 1, 2, 3, 5, 6 };
 
-int is_extension_y4m(const char *filename) {
-  const char *dot = strrchr(filename, '.');
-  if (!dot || dot == filename)
-    return 0;
-  else
-    return !strcmp(dot, ".y4m");
-}
-
 class EndToEndTest
     : public ::libaom_test::CodecTestWith3Params<libaom_test::TestMode,
                                                  TestVideoParam, int>,
