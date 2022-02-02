@@ -543,7 +543,6 @@ static INLINE BLOCK_SIZE get_fp_block_size(int is_screen_content_type) {
 int av1_get_unit_rows_in_tile(TileInfo tile, const BLOCK_SIZE fp_block_size);
 int av1_get_unit_cols_in_tile(TileInfo tile, const BLOCK_SIZE fp_block_size);
 
-void av1_rc_get_first_pass_params(struct AV1_COMP *cpi);
 void av1_first_pass_row(struct AV1_COMP *cpi, struct ThreadData *td,
                         struct TileDataEnc *tile_data, const int mb_row,
                         const BLOCK_SIZE fp_block_size);
