@@ -14,8 +14,10 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
+#include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 
+#include "aom_ports/mem.h"
 #include "test/acm_random.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
@@ -27,9 +29,9 @@ using libaom_test::ACMRandom;
 template <typename Pixel>
 class AverageTestBase : public ::testing::Test {
  public:
-  AverageTestBase(int width, int height)
+  AverageTestBase(int width, int height, int bit_depth = 8)
       : width_(width), height_(height), source_data_(NULL), source_stride_(0),
-        bit_depth_(8) {}
+        bit_depth_(bit_depth) {}
 
   virtual void TearDown() {
     aom_free(source_data_);
@@ -88,52 +90,83 @@ class AverageTestBase : public ::testing::Test {
 };
 typedef unsigned int (*AverageFunction)(const uint8_t *s, int pitch);
 
-// Arguments: width, height, pitch, block size, avg function.
-typedef std::tuple<int, int, int, int, AverageFunction> AvgFunc;
+// Arguments: width, height, bit_depth, buffer start offset, block size, avg
+// function.
+typedef std::tuple<int, int, int, int, int, AverageFunction> AvgFunc;
 
-class AverageTest : public AverageTestBase<uint8_t>,
+template <typename Pixel>
+class AverageTest : public AverageTestBase<Pixel>,
                     public ::testing::WithParamInterface<AvgFunc> {
  public:
-  AverageTest() : AverageTestBase(GET_PARAM(0), GET_PARAM(1)) {}
+  AverageTest()
+      : AverageTestBase<Pixel>(GET_PARAM(0), GET_PARAM(1), GET_PARAM(2)) {}
 
  protected:
-  void CheckAverages() {
-    const int block_size = GET_PARAM(3);
+  using AverageTestBase<Pixel>::source_data_;
+  using AverageTestBase<Pixel>::source_stride_;
+  using AverageTestBase<Pixel>::ReferenceAverage8x8;
+  using AverageTestBase<Pixel>::ReferenceAverage4x4;
+  using AverageTestBase<Pixel>::FillConstant;
+  using AverageTestBase<Pixel>::FillRandom;
+
+  void CheckAverages() const {
+    const int block_size = GET_PARAM(4);
     unsigned int expected = 0;
+
+    // The reference frame, but not the source frame, may be unaligned for
+    // certain types of searches.
+    const Pixel *const src = source_data_ + GET_PARAM(3);
     if (block_size == 8) {
-      expected =
-          ReferenceAverage8x8(source_data_ + GET_PARAM(2), source_stride_);
+      expected = ReferenceAverage8x8(src, source_stride_);
     } else if (block_size == 4) {
-      expected =
-          ReferenceAverage4x4(source_data_ + GET_PARAM(2), source_stride_);
+      expected = ReferenceAverage4x4(src, source_stride_);
     }
 
     unsigned int actual;
-    API_REGISTER_STATE_CHECK(
-        actual = GET_PARAM(4)(source_data_ + GET_PARAM(2), source_stride_));
+    if (sizeof(Pixel) == 2) {
+      API_REGISTER_STATE_CHECK(
+          actual = GET_PARAM(5)(CONVERT_TO_BYTEPTR(src), source_stride_));
+    } else {
+      ASSERT_EQ(sizeof(Pixel), 1u);
+      API_REGISTER_STATE_CHECK(
+          actual = GET_PARAM(5)(reinterpret_cast<const uint8_t *>(src),
+                                source_stride_));
+    }
 
     EXPECT_EQ(expected, actual);
   }
-};
 
-TEST_P(AverageTest, MinValue) {
-  FillConstant(0);
-  CheckAverages();
-}
-
-TEST_P(AverageTest, MaxValue) {
-  FillConstant(255);
-  CheckAverages();
-}
-
-TEST_P(AverageTest, Random) {
-  // The reference frame, but not the source frame, may be unaligned for
-  // certain types of searches.
-  for (int i = 0; i < 1000; i++) {
-    FillRandom();
+  void TestConstantValue(Pixel value) {
+    FillConstant(value);
     CheckAverages();
   }
-}
+
+  void TestRandom() {
+    for (int i = 0; i < 1000; i++) {
+      FillRandom();
+      CheckAverages();
+    }
+  }
+};
+
+using AverageTest8bpp = AverageTest<uint8_t>;
+
+TEST_P(AverageTest8bpp, MinValue) { TestConstantValue(0); }
+
+TEST_P(AverageTest8bpp, MaxValue) { TestConstantValue(255); }
+
+TEST_P(AverageTest8bpp, Random) { TestRandom(); }
+
+#if CONFIG_AV1_HIGHBITDEPTH
+using AverageTestHbd = AverageTest<uint16_t>;
+
+TEST_P(AverageTestHbd, MinValue) { TestConstantValue(0); }
+
+TEST_P(AverageTestHbd, MaxValue10bit) { TestConstantValue(1023); }
+TEST_P(AverageTestHbd, MaxValue12bit) { TestConstantValue(4095); }
+
+TEST_P(AverageTestHbd, Random) { TestRandom(); }
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 typedef void (*IntProRowFunc)(int16_t hbuf[16], uint8_t const *ref,
                               const int ref_stride, const int height);
@@ -466,19 +499,19 @@ TEST_P(VectorVarTest, DISABLED_Speed) {
 using std::make_tuple;
 
 INSTANTIATE_TEST_SUITE_P(
-    C, AverageTest,
-    ::testing::Values(make_tuple(16, 16, 1, 8, &aom_avg_8x8_c),
-                      make_tuple(16, 16, 1, 4, &aom_avg_4x4_c)));
+    C, AverageTest8bpp,
+    ::testing::Values(make_tuple(16, 16, 8, 1, 8, &aom_avg_8x8_c),
+                      make_tuple(16, 16, 8, 1, 4, &aom_avg_4x4_c)));
 
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
-    SSE2, AverageTest,
-    ::testing::Values(make_tuple(16, 16, 0, 8, &aom_avg_8x8_sse2),
-                      make_tuple(16, 16, 5, 8, &aom_avg_8x8_sse2),
-                      make_tuple(32, 32, 15, 8, &aom_avg_8x8_sse2),
-                      make_tuple(16, 16, 0, 4, &aom_avg_4x4_sse2),
-                      make_tuple(16, 16, 5, 4, &aom_avg_4x4_sse2),
-                      make_tuple(32, 32, 15, 4, &aom_avg_4x4_sse2)));
+    SSE2, AverageTest8bpp,
+    ::testing::Values(make_tuple(16, 16, 8, 0, 8, &aom_avg_8x8_sse2),
+                      make_tuple(16, 16, 8, 5, 8, &aom_avg_8x8_sse2),
+                      make_tuple(32, 32, 8, 15, 8, &aom_avg_8x8_sse2),
+                      make_tuple(16, 16, 8, 0, 4, &aom_avg_4x4_sse2),
+                      make_tuple(16, 16, 8, 5, 4, &aom_avg_4x4_sse2),
+                      make_tuple(32, 32, 8, 15, 4, &aom_avg_4x4_sse2)));
 
 INSTANTIATE_TEST_SUITE_P(
     SSE2, IntProRowTest,
@@ -499,13 +532,13 @@ INSTANTIATE_TEST_SUITE_P(
 
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
-    NEON, AverageTest,
-    ::testing::Values(make_tuple(16, 16, 0, 8, &aom_avg_8x8_neon),
-                      make_tuple(16, 16, 5, 8, &aom_avg_8x8_neon),
-                      make_tuple(32, 32, 15, 8, &aom_avg_8x8_neon),
-                      make_tuple(16, 16, 0, 4, &aom_avg_4x4_neon),
-                      make_tuple(16, 16, 5, 4, &aom_avg_4x4_neon),
-                      make_tuple(32, 32, 15, 4, &aom_avg_4x4_neon)));
+    NEON, AverageTest8bpp,
+    ::testing::Values(make_tuple(16, 16, 8, 0, 8, &aom_avg_8x8_neon),
+                      make_tuple(16, 16, 8, 5, 8, &aom_avg_8x8_neon),
+                      make_tuple(32, 32, 8, 15, 8, &aom_avg_8x8_neon),
+                      make_tuple(16, 16, 8, 0, 4, &aom_avg_4x4_neon),
+                      make_tuple(16, 16, 8, 5, 4, &aom_avg_4x4_neon),
+                      make_tuple(32, 32, 8, 15, 4, &aom_avg_4x4_neon)));
 INSTANTIATE_TEST_SUITE_P(
     NEON, IntProRowTest,
     ::testing::Values(make_tuple(16, &aom_int_pro_row_neon, &aom_int_pro_row_c),
@@ -522,6 +555,15 @@ INSTANTIATE_TEST_SUITE_P(
                       make_tuple(128, &aom_int_pro_col_neon,
                                  &aom_int_pro_col_c)));
 #endif
+
+#if CONFIG_AV1_HIGHBITDEPTH
+INSTANTIATE_TEST_SUITE_P(
+    C, AverageTestHbd,
+    ::testing::Values(make_tuple(16, 16, 10, 1, 8, &aom_highbd_avg_8x8_c),
+                      make_tuple(16, 16, 10, 1, 4, &aom_highbd_avg_4x4_c),
+                      make_tuple(16, 16, 12, 1, 8, &aom_highbd_avg_8x8_c),
+                      make_tuple(16, 16, 12, 1, 4, &aom_highbd_avg_4x4_c)));
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 typedef int (*SatdFunc)(const tran_low_t *coeffs, int length);
 typedef int (*SatdLpFunc)(const int16_t *coeffs, int length);
