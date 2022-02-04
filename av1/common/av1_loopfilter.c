@@ -375,8 +375,9 @@ static AOM_INLINE int get_min_tx_height(
         scale_vert | ((curr_y << scale_vert) >> MI_SIZE_LOG2);
     const int curr_mi_col =
         scale_horz | ((curr_x << scale_horz) >> MI_SIZE_LOG2);
-    assert(curr_mi_col >= plane_ptr->dst.width);
-    assert(curr_mi_row >= plane_ptr->dst.height);
+
+    assert(curr_mi_col < cm->mi_params.mi_cols);
+    assert(curr_mi_row < cm->mi_params.mi_rows);
     MB_MODE_INFO **mi = cm->mi_params.mi_grid_base +
                         curr_mi_row * cm->mi_params.mi_stride + curr_mi_col;
     const MB_MODE_INFO *mbmi = mi[0];
@@ -418,8 +419,8 @@ static AOM_INLINE int get_min_tx_width(const AV1_COMMON *const cm,
         scale_vert | ((curr_y << scale_vert) >> MI_SIZE_LOG2);
     const int curr_mi_col =
         scale_horz | ((curr_x << scale_horz) >> MI_SIZE_LOG2);
-    assert(curr_mi_col >= plane_ptr->dst.width);
-    assert(curr_mi_row >= plane_ptr->dst.height);
+    assert(curr_mi_col < cm->mi_params.mi_cols);
+    assert(curr_mi_row < cm->mi_params.mi_rows);
     MB_MODE_INFO **mi = cm->mi_params.mi_grid_base +
                         curr_mi_row * cm->mi_params.mi_stride + curr_mi_col;
     const MB_MODE_INFO *mbmi = mi[0];
