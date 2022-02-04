@@ -2331,10 +2331,9 @@ static int encode_without_recode(AV1_COMP *cpi) {
     }
   }
 
-  allocate_gradient_info_for_hog(&cpi->td.pixel_gradient_info, cpi);
+  allocate_gradient_info_for_hog(cpi);
 
-  allocate_src_var_of_4x4_sub_block_buf(
-      cpi, &cpi->td.src_var_info_of_4x4_sub_blocks);
+  allocate_src_var_of_4x4_sub_block_buf(cpi);
 
   const SPEED_FEATURES *sf = &cpi->sf;
   if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION)
@@ -2553,10 +2552,9 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
   av1_set_mv_search_params(cpi);
 
-  allocate_gradient_info_for_hog(&cpi->td.pixel_gradient_info, cpi);
+  allocate_gradient_info_for_hog(cpi);
 
-  allocate_src_var_of_4x4_sub_block_buf(
-      cpi, &cpi->td.src_var_info_of_4x4_sub_blocks);
+  allocate_src_var_of_4x4_sub_block_buf(cpi);
 
   if (cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION)
     variance_partition_alloc(cpi);

@@ -98,11 +98,12 @@ int av1_calc_normalized_variance(aom_variance_fn_t vf, const uint8_t *const buf,
     return vf(buf, stride, all_zeros, 0, &sse);
 }
 
-// Computes mapped variance (average of log(1 + variance) across 4x4 sub-blocks)
-// for source and reconstructed blocks.
-static void compute_mapped_var(const AV1_COMP *const cpi, MACROBLOCK *x,
-                               const BLOCK_SIZE bs, double *mapped_source_var,
-                               double *mapped_recon_var) {
+// Computes average of log(1 + variance) across 4x4 sub-blocks for source and
+// reconstructed blocks.
+static void compute_avg_log_variance(const AV1_COMP *const cpi, MACROBLOCK *x,
+                                     const BLOCK_SIZE bs,
+                                     double *avg_log_src_variance,
+                                     double *avg_log_recon_variance) {
   const MACROBLOCKD *const xd = &x->e_mbd;
   const BLOCK_SIZE sb_size = cpi->common.seq_params->sb_size;
   const int mi_row_in_sb = x->e_mbd.mi_row & (mi_size_high[sb_size] - 1);
@@ -124,11 +125,11 @@ static void compute_mapped_var(const AV1_COMP *const cpi, MACROBLOCK *x,
           &x->src_var_info_of_4x4_sub_blocks[mi_offset];
       int src_var = block_4x4_var_info->var;
       double log_src_var = block_4x4_var_info->log_var;
-      // Compute mapped variance for the source block from 4x4 sub-block
-      // variance values. Calculate and store 4x4 sub-block variance and
-      // log(1 + variance), if the values present in src_var_of_4x4_sub_blocks
-      // are invalid. Reuse the same if it is readily available with valid
-      // values.
+      // Compute average of log(1 + variance) for the source block from 4x4
+      // sub-block variance values. Calculate and store 4x4 sub-block variance
+      // and log(1 + variance), if the values present in
+      // src_var_of_4x4_sub_blocks are invalid. Reuse the same if it is readily
+      // available with valid values.
       if (src_var < 0) {
         src_var = av1_calc_normalized_variance(
             cpi->ppi->fn_ptr[BLOCK_4X4].vf,
@@ -147,19 +148,19 @@ static void compute_mapped_var(const AV1_COMP *const cpi, MACROBLOCK *x,
           block_4x4_var_info->log_var = log_src_var;
         }
       }
-      *mapped_source_var += log_src_var;
+      *avg_log_src_variance += log_src_var;
 
       const int recon_var = av1_calc_normalized_variance(
           cpi->ppi->fn_ptr[BLOCK_4X4].vf,
           xd->plane[0].dst.buf + i * xd->plane[0].dst.stride + j,
           xd->plane[0].dst.stride, is_hbd);
-      *mapped_recon_var += log(1.0 + recon_var / 16.0);
+      *avg_log_recon_variance += log(1.0 + recon_var / 16.0);
     }
   }
 
   const int blocks = (bw * bh) / 16;
-  *mapped_source_var /= (double)blocks;
-  *mapped_recon_var /= (double)blocks;
+  *avg_log_src_variance /= (double)blocks;
+  *avg_log_recon_variance /= (double)blocks;
 }
 
 // Returns a factor to be applied to the RD value based on how well the
@@ -174,26 +175,26 @@ static double intra_rd_variance_factor(const AV1_COMP *cpi, MACROBLOCK *x,
   if (threshold <= 0) return 1.0;
 
   double variance_rd_factor = 1.0;
-  double mapped_src_var = 0.0;
-  double mapped_rec_var = 0.0;
+  double avg_log_src_variance = 0.0;
+  double avg_log_recon_variance = 0.0;
   double var_diff = 0.0;
 
-  // Compute mapped source/reconstructed block variance for the block.
-  compute_mapped_var(cpi, x, bs, &mapped_src_var, &mapped_rec_var);
+  compute_avg_log_variance(cpi, x, bs, &avg_log_src_variance,
+                           &avg_log_recon_variance);
 
   // Dont allow 0 to prevent / 0 below.
-  mapped_src_var += 0.000001;
-  mapped_rec_var += 0.000001;
+  avg_log_src_variance += 0.000001;
+  avg_log_recon_variance += 0.000001;
 
-  if (mapped_src_var >= mapped_rec_var) {
-    var_diff = (mapped_src_var - mapped_rec_var);
-    if ((var_diff > 0.5) && (mapped_rec_var < threshold)) {
-      variance_rd_factor = 1.0 + ((var_diff * 2) / mapped_src_var);
+  if (avg_log_src_variance >= avg_log_recon_variance) {
+    var_diff = (avg_log_src_variance - avg_log_recon_variance);
+    if ((var_diff > 0.5) && (avg_log_recon_variance < threshold)) {
+      variance_rd_factor = 1.0 + ((var_diff * 2) / avg_log_src_variance);
     }
   } else {
-    var_diff = (mapped_rec_var - mapped_src_var);
-    if ((var_diff > 0.5) && (mapped_src_var < threshold)) {
-      variance_rd_factor = 1.0 + (var_diff / (2 * mapped_src_var));
+    var_diff = (avg_log_recon_variance - avg_log_src_variance);
+    if ((var_diff > 0.5) && (avg_log_src_variance < threshold)) {
+      variance_rd_factor = 1.0 + (var_diff / (2 * avg_log_src_variance));
     }
   }
 
