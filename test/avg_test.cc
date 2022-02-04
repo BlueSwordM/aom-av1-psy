@@ -10,6 +10,7 @@
 
 #include <stdlib.h>
 #include <ostream>
+#include <string>
 #include <tuple>
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
@@ -17,6 +18,7 @@
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 
+#include "aom_ports/aom_timer.h"
 #include "aom_ports/mem.h"
 #include "test/acm_random.h"
 #include "test/register_state_check.h"
@@ -44,6 +46,15 @@ class AverageTestBase : public ::testing::Test {
   static const int kDataBlockSize = 64 * 128;
 
   virtual void SetUp() {
+    const testing::TestInfo *const test_info =
+        testing::UnitTest::GetInstance()->current_test_info();
+    // Skip the speed test for C code as the baseline uses the same function.
+    if (std::string(test_info->test_suite_name()).find("C/") == 0 &&
+        std::string(test_info->name()).find("DISABLED_Speed") !=
+            std::string::npos) {
+      GTEST_SKIP();
+    }
+
     source_data_ = static_cast<Pixel *>(
         aom_memalign(kDataAlignment, kDataBlockSize * sizeof(source_data_[0])));
     ASSERT_TRUE(source_data_ != NULL);
@@ -109,7 +120,7 @@ class AverageTest : public AverageTestBase<Pixel>,
   using AverageTestBase<Pixel>::FillConstant;
   using AverageTestBase<Pixel>::FillRandom;
 
-  void CheckAverages() const {
+  void CheckAverages() {
     const int block_size = GET_PARAM(4);
     unsigned int expected = 0;
 
@@ -122,16 +133,42 @@ class AverageTest : public AverageTestBase<Pixel>,
       expected = ReferenceAverage4x4(src, source_stride_);
     }
 
+    aom_usec_timer timer;
     unsigned int actual;
     if (sizeof(Pixel) == 2) {
+#if CONFIG_AV1_HIGHBITDEPTH
+      AverageFunction avg_c =
+          (block_size == 8) ? aom_highbd_avg_8x8_c : aom_highbd_avg_4x4_c;
+      // To avoid differences in optimization with the local Reference*()
+      // functions the C implementation is used as a baseline.
+      aom_usec_timer_start(&timer);
+      avg_c(CONVERT_TO_BYTEPTR(src), source_stride_);
+      aom_usec_timer_mark(&timer);
+      ref_elapsed_time_ += aom_usec_timer_elapsed(&timer);
+
+      AverageFunction avg_opt = GET_PARAM(5);
       API_REGISTER_STATE_CHECK(
-          actual = GET_PARAM(5)(CONVERT_TO_BYTEPTR(src), source_stride_));
+          aom_usec_timer_start(&timer);
+          actual = avg_opt(CONVERT_TO_BYTEPTR(src), source_stride_);
+          aom_usec_timer_mark(&timer));
+#endif  // CONFIG_AV1_HIGHBITDEPTH
     } else {
       ASSERT_EQ(sizeof(Pixel), 1u);
+
+      AverageFunction avg_c = (block_size == 8) ? aom_avg_8x8_c : aom_avg_4x4_c;
+      aom_usec_timer_start(&timer);
+      avg_c(reinterpret_cast<const uint8_t *>(src), source_stride_);
+      aom_usec_timer_mark(&timer);
+      ref_elapsed_time_ += aom_usec_timer_elapsed(&timer);
+
+      AverageFunction avg_opt = GET_PARAM(5);
       API_REGISTER_STATE_CHECK(
-          actual = GET_PARAM(5)(reinterpret_cast<const uint8_t *>(src),
-                                source_stride_));
+          aom_usec_timer_start(&timer);
+          actual =
+              avg_opt(reinterpret_cast<const uint8_t *>(src), source_stride_);
+          aom_usec_timer_mark(&timer));
     }
+    opt_elapsed_time_ += aom_usec_timer_elapsed(&timer);
 
     EXPECT_EQ(expected, actual);
   }
@@ -141,12 +178,24 @@ class AverageTest : public AverageTestBase<Pixel>,
     CheckAverages();
   }
 
-  void TestRandom() {
-    for (int i = 0; i < 1000; i++) {
+  void TestRandom(int iterations = 1000) {
+    for (int i = 0; i < iterations; i++) {
       FillRandom();
       CheckAverages();
     }
   }
+
+  void PrintTimingStats() const {
+    printf(
+        "block_size = %d \t ref_time = %d \t simd_time = %d \t Gain = %4.2f\n",
+        GET_PARAM(4), static_cast<int>(ref_elapsed_time_),
+        static_cast<int>(opt_elapsed_time_),
+        (static_cast<float>(ref_elapsed_time_) /
+         static_cast<float>(opt_elapsed_time_)));
+  }
+
+  int64_t ref_elapsed_time_ = 0;
+  int64_t opt_elapsed_time_ = 0;
 };
 
 using AverageTest8bpp = AverageTest<uint8_t>;
@@ -157,6 +206,11 @@ TEST_P(AverageTest8bpp, MaxValue) { TestConstantValue(255); }
 
 TEST_P(AverageTest8bpp, Random) { TestRandom(); }
 
+TEST_P(AverageTest8bpp, DISABLED_Speed) {
+  TestRandom(1000000);
+  PrintTimingStats();
+}
+
 #if CONFIG_AV1_HIGHBITDEPTH
 using AverageTestHbd = AverageTest<uint16_t>;
 
@@ -166,6 +220,11 @@ TEST_P(AverageTestHbd, MaxValue10bit) { TestConstantValue(1023); }
 TEST_P(AverageTestHbd, MaxValue12bit) { TestConstantValue(4095); }
 
 TEST_P(AverageTestHbd, Random) { TestRandom(); }
+
+TEST_P(AverageTestHbd, DISABLED_Speed) {
+  TestRandom(1000000);
+  PrintTimingStats();
+}
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 typedef void (*IntProRowFunc)(int16_t hbuf[16], uint8_t const *ref,
