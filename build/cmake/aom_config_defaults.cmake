@@ -130,7 +130,6 @@ set_aom_config_var(CONFIG_TFLITE 0
                    "AV1 experiment: Enable tensorflow lite library.")
 set_aom_config_var(CONFIG_SPEED_STATS 0 "AV1 experiment.")
 set_aom_config_var(CONFIG_COLLECT_RD_STATS 0 "AV1 experiment.")
-set_aom_config_var(CONFIG_DIST_8X8 0 "AV1 experiment.")
 set_aom_config_var(CONFIG_ENTROPY_STATS 0 "AV1 experiment.")
 set_aom_config_var(CONFIG_INTER_STATS_ONLY 0 "AV1 experiment.")
 set_aom_config_var(CONFIG_BITSTREAM_DEBUG 0
