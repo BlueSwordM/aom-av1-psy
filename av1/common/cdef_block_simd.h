@@ -609,6 +609,58 @@ SIMD_INLINE void filter_block_8x8(const int is_lowbd, void *dest, int dstride,
   }
 }
 
+SIMD_INLINE void copy_block_4xh(const int is_lowbd, void *dest, int dstride,
+                                const uint16_t *in, int height) {
+  uint8_t *dst8 = (uint8_t *)dest;
+  uint16_t *dst16 = (uint16_t *)dest;
+  int i;
+  for (i = 0; i < height; i += 4) {
+    const v128 row0 =
+        v128_from_v64(v64_load_aligned(&in[(i + 0) * CDEF_BSTRIDE]),
+                      v64_load_aligned(&in[(i + 1) * CDEF_BSTRIDE]));
+    const v128 row1 =
+        v128_from_v64(v64_load_aligned(&in[(i + 2) * CDEF_BSTRIDE]),
+                      v64_load_aligned(&in[(i + 3) * CDEF_BSTRIDE]));
+    if (is_lowbd) {
+      /* Note: v128_pack_s16_u8(). The parameter order is swapped internally */
+      const v128 res_128 = v128_pack_s16_u8(row1, row0);
+      u32_store_aligned(&dst8[(i + 0) * dstride],
+                        v64_high_u32(v128_low_v64(res_128)));
+      u32_store_aligned(&dst8[(i + 1) * dstride],
+                        v64_low_u32(v128_low_v64(res_128)));
+      u32_store_aligned(&dst8[(i + 2) * dstride],
+                        v64_high_u32(v128_high_v64(res_128)));
+      u32_store_aligned(&dst8[(i + 3) * dstride],
+                        v64_low_u32(v128_high_v64(res_128)));
+    } else {
+      v64_store_aligned(&dst16[(i + 0) * dstride], v128_high_v64(row0));
+      v64_store_aligned(&dst16[(i + 1) * dstride], v128_low_v64(row0));
+      v64_store_aligned(&dst16[(i + 2) * dstride], v128_high_v64(row1));
+      v64_store_aligned(&dst16[(i + 3) * dstride], v128_low_v64(row1));
+    }
+  }
+}
+
+SIMD_INLINE void copy_block_8xh(const int is_lowbd, void *dest, int dstride,
+                                const uint16_t *in, int height) {
+  uint8_t *dst8 = (uint8_t *)dest;
+  uint16_t *dst16 = (uint16_t *)dest;
+  int i;
+  for (i = 0; i < height; i += 2) {
+    const v128 row0 = v128_load_aligned(&in[i * CDEF_BSTRIDE]);
+    const v128 row1 = v128_load_aligned(&in[(i + 1) * CDEF_BSTRIDE]);
+    if (is_lowbd) {
+      /* Note: v128_pack_s16_u8(). The parameter order is swapped internally */
+      const v128 res_128 = v128_pack_s16_u8(row1, row0);
+      v64_store_aligned(&dst8[i * dstride], v128_low_v64(res_128));
+      v64_store_aligned(&dst8[(i + 1) * dstride], v128_high_v64(res_128));
+    } else {
+      v128_store_unaligned(&dst16[i * dstride], row0);
+      v128_store_unaligned(&dst16[(i + 1) * dstride], row1);
+    }
+  }
+}
+
 void SIMD_FUNC(cdef_filter_8_0)(void *dest, int dstride, const uint16_t *in,
                                 int pri_strength, int sec_strength, int dir,
                                 int pri_damping, int sec_damping,
@@ -671,16 +723,18 @@ void SIMD_FUNC(cdef_filter_8_3)(void *dest, int dstride, const uint16_t *in,
                                 int coeff_shift, int block_width,
                                 int block_height) {
   uint8_t *dst8 = (uint8_t *)dest;
+  (void)pri_strength;
+  (void)sec_strength;
+  (void)dir;
+  (void)pri_damping;
+  (void)sec_damping;
+  (void)coeff_shift;
+  (void)block_width;
+
   if (block_width == 8) {
-    filter_block_8x8(/*is_lowbd=*/1, dst8, dstride, in, pri_strength,
-                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
-                     block_height, /*enable_primary=*/0,
-                     /*enable_secondary=*/0);
+    copy_block_8xh(/*is_lowbd=*/1, dst8, dstride, in, block_height);
   } else {
-    filter_block_4x4(/*is_lowbd=*/1, dst8, dstride, in, pri_strength,
-                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
-                     block_height, /*enable_primary=*/0,
-                     /*enable_secondary=*/0);
+    copy_block_4xh(/*is_lowbd=*/1, dst8, dstride, in, block_height);
   }
 }
 
@@ -746,16 +800,17 @@ void SIMD_FUNC(cdef_filter_16_3)(void *dest, int dstride, const uint16_t *in,
                                  int coeff_shift, int block_width,
                                  int block_height) {
   uint16_t *dst16 = (uint16_t *)dest;
+  (void)pri_strength;
+  (void)sec_strength;
+  (void)dir;
+  (void)pri_damping;
+  (void)sec_damping;
+  (void)coeff_shift;
+  (void)block_width;
   if (block_width == 8) {
-    filter_block_8x8(/*is_lowbd=*/0, dst16, dstride, in, pri_strength,
-                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
-                     block_height, /*enable_primary=*/0,
-                     /*enable_secondary=*/0);
+    copy_block_8xh(/*is_lowbd=*/0, dst16, dstride, in, block_height);
   } else {
-    filter_block_4x4(/*is_lowbd=*/0, dst16, dstride, in, pri_strength,
-                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
-                     block_height, /*enable_primary=*/0,
-                     /*enable_secondary=*/0);
+    copy_block_4xh(/*is_lowbd=*/0, dst16, dstride, in, block_height);
   }
 }
 
