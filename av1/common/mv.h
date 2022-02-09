@@ -30,7 +30,7 @@ extern "C" {
 #define MARK_MV_INVALID(mv)                \
   do {                                     \
     ((int_mv *)(mv))->as_int = INVALID_MV; \
-  } while (0);
+  } while (0)
 #define CHECK_MV_EQUAL(x, y) (((x).row == (y).row) && ((x).col == (y).col))
 
 // The motion vector in units of full pixel

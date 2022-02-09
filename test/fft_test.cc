@@ -224,7 +224,7 @@ TEST_P(IFFT2DTest, Correctness) {
       expected[y * n + x] = 0;
     }
   }
-};
+}
 
 TEST_P(IFFT2DTest, Benchmark) {
   int n = GetParam().n;

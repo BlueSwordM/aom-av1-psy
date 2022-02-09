@@ -2397,7 +2397,7 @@ int main(int argc, const char **argv_) {
         }
         input_shift = (int)stream->config.cfg.g_bit_depth -
                       stream->config.cfg.g_input_bit_depth;
-      };
+      }
     }
 
     frame_avail = 1;
@@ -2464,7 +2464,7 @@ int main(int argc, const char **argv_) {
                            frame_avail ? frame_to_encode : NULL, frames_in);
             else
               assert(0);
-          };
+          }
         } else {
           assert((frame_to_encode->fmt & AOM_IMG_FMT_HIGHBITDEPTH) == 0);
           FOREACH_STREAM(stream, streams) {

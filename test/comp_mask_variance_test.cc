@@ -79,7 +79,7 @@ class AV1CompMaskVarianceTest
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1CompMaskVarianceTest);
 
-AV1CompMaskVarianceTest::~AV1CompMaskVarianceTest() { ; }
+AV1CompMaskVarianceTest::~AV1CompMaskVarianceTest() {}
 
 void AV1CompMaskVarianceTest::SetUp() {
   rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
@@ -188,7 +188,7 @@ class AV1CompMaskUpVarianceTest : public AV1CompMaskVarianceTest {
                     int havSub);
 };
 
-AV1CompMaskUpVarianceTest::~AV1CompMaskUpVarianceTest() { ; }
+AV1CompMaskUpVarianceTest::~AV1CompMaskUpVarianceTest() {}
 
 void AV1CompMaskUpVarianceTest::RunCheckOutput(comp_mask_pred_func test_impl,
                                                BLOCK_SIZE bsize, int inv) {
@@ -326,7 +326,7 @@ class AV1HighbdCompMaskVarianceTest
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HighbdCompMaskVarianceTest);
 
-AV1HighbdCompMaskVarianceTest::~AV1HighbdCompMaskVarianceTest() { ; }
+AV1HighbdCompMaskVarianceTest::~AV1HighbdCompMaskVarianceTest() {}
 
 void AV1HighbdCompMaskVarianceTest::SetUp() {
   rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
@@ -461,7 +461,7 @@ class AV1HighbdCompMaskUpVarianceTest : public AV1HighbdCompMaskVarianceTest {
                     int havSub);
 };
 
-AV1HighbdCompMaskUpVarianceTest::~AV1HighbdCompMaskUpVarianceTest() { ; }
+AV1HighbdCompMaskUpVarianceTest::~AV1HighbdCompMaskUpVarianceTest() {}
 
 void AV1HighbdCompMaskUpVarianceTest::RunCheckOutput(
     highbd_comp_mask_pred_func test_impl, BLOCK_SIZE bsize, int inv) {
