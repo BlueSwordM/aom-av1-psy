@@ -2677,7 +2677,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       } else {
         // TODO(angiebird): Investiage why sometimes there is an extra frame
         // after the last GOP.
-        q = 255;
+        q = cpi->vbr_rc_info.base_q_index;
       }
     }
 #else
