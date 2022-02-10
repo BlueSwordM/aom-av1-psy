@@ -2017,7 +2017,7 @@ int av1_get_q_index_from_qstep_ratio(int leaf_qindex, double qstep_ratio,
   int qindex = leaf_qindex;
   for (qindex = leaf_qindex; qindex > 0; --qindex) {
     const double qstep = av1_dc_quant_QTX(qindex, 0, bit_depth);
-    if (qstep + 0.1 <= target_qstep) break;
+    if (qstep <= target_qstep) break;
   }
   return qindex;
 }
