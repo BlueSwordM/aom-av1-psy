@@ -188,8 +188,8 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
 
 static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
                                   const MB_MODE_INFO *const mbmi,
-                                  const EDGE_DIR edge_dir, const int mi_row,
-                                  const int mi_col, const int plane,
+                                  const int mi_row, const int mi_col,
+                                  const int plane,
                                   const struct macroblockd_plane *plane_ptr) {
   assert(mbmi != NULL);
   if (xd && xd->lossless[mbmi->segment_id]) return TX_4X4;
@@ -210,12 +210,6 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
     tx_size = mb_tx_size;
   }
 
-  // since in case of chrominance or non-square transform need to convert
-  // transform size into transform size in particular direction.
-  // for vertical edge, filter direction is horizontal, for horizontal
-  // edge, filter direction is vertical.
-  tx_size = (VERT_EDGE == edge_dir) ? txsize_horz_map[tx_size]
-                                    : txsize_vert_map[tx_size];
   return tx_size;
 }
 
@@ -254,7 +248,7 @@ static TX_SIZE set_lpf_parameters(
   if (mbmi == NULL) return TX_INVALID;
 
   const TX_SIZE ts =
-      get_transform_size(xd, mi[0], edge_dir, mi_row, mi_col, plane, plane_ptr);
+      get_transform_size(xd, mi[0], mi_row, mi_col, plane, plane_ptr);
 
   {
     const uint32_t coord = (VERT_EDGE == edge_dir) ? (x) : (y);
@@ -278,8 +272,8 @@ static TX_SIZE set_lpf_parameters(
               (VERT_EDGE == edge_dir) ? (mi_row) : (mi_row - (1 << scale_vert));
           const int pv_col =
               (VERT_EDGE == edge_dir) ? (mi_col - (1 << scale_horz)) : (mi_col);
-          const TX_SIZE pv_ts = get_transform_size(
-              xd, mi_prev, edge_dir, pv_row, pv_col, plane, plane_ptr);
+          const TX_SIZE pv_ts =
+              get_transform_size(xd, mi_prev, pv_row, pv_col, plane, plane_ptr);
 
           const uint32_t pv_lvl =
               av1_get_filter_level(cm, &cm->lf_info, edge_dir, plane, mi_prev);
@@ -297,20 +291,19 @@ static TX_SIZE set_lpf_parameters(
           // deblock the edge if the edge belongs to a PU's edge only.
           if ((curr_level || pv_lvl) &&
               (!pv_skip_txfm || !curr_skipped || pu_edge)) {
-            const TX_SIZE min_ts = AOMMIN(ts, pv_ts);
-            if (TX_4X4 >= min_ts) {
-              params->filter_length = 4;
-            } else if (TX_8X8 == min_ts) {
-              if (plane != 0)
-                params->filter_length = 6;
-              else
-                params->filter_length = 8;
+            const int dim = (VERT_EDGE == edge_dir)
+                                ? AOMMIN(tx_size_wide_unit_log2[ts],
+                                         tx_size_wide_unit_log2[pv_ts])
+                                : AOMMIN(tx_size_high_unit_log2[ts],
+                                         tx_size_high_unit_log2[pv_ts]);
+            if (plane) {
+              params->filter_length = (dim == 0) ? 4 : 6;
             } else {
-              params->filter_length = 14;
-              // No wide filtering for chroma plane
-              if (plane != 0) {
-                params->filter_length = 6;
-              }
+              static const int tx_dim_to_filter_length[TX_SIZES] = { 4, 8, 14,
+                                                                     14, 14 };
+              assert(dim < TX_SIZES);
+              assert(dim >= 0);
+              params->filter_length = tx_dim_to_filter_length[dim];
             }
 
             // update the level if the current block is skipped,
@@ -332,7 +325,7 @@ static TX_SIZE set_lpf_parameters(
 
 // Similar to set_lpf_parameters, but does so one row/col at a time to reduce
 // calls to \ref get_transform_size and \ref av1_get_filter_level
-static AOM_INLINE void set_lpf_parameters_for_line(
+static AOM_FORCE_INLINE void set_lpf_parameters_for_line(
     AV1_DEBLOCKING_PARAMETERS *const params_buf, TX_SIZE *tx_buf,
     const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
     const EDGE_DIR edge_dir, uint32_t x, uint32_t y, const int plane,
@@ -341,7 +334,6 @@ static AOM_INLINE void set_lpf_parameters_for_line(
   TX_SIZE *tx_size = tx_buf;
 
   TX_SIZE prev_tx_size = TX_INVALID;
-  int prev_level = -1;
 
   const int is_vert = edge_dir == VERT_EDGE;
   const uint32_t scale_horz = plane_ptr->subsampling_x;
@@ -360,24 +352,17 @@ static AOM_INLINE void set_lpf_parameters_for_line(
       const MB_MODE_INFO *prev_mbmi = *(mi - mode_step);
       const int pv_row = is_vert ? (mi_row) : (mi_row - (1 << scale_vert));
       const int pv_col = is_vert ? (mi_col - (1 << scale_horz)) : (mi_col);
-      prev_tx_size = get_transform_size(xd, prev_mbmi, edge_dir, pv_row, pv_col,
-                                        plane, plane_ptr);
+      prev_tx_size =
+          get_transform_size(xd, prev_mbmi, pv_row, pv_col, plane, plane_ptr);
     }
   }
 
   uint32_t *counter_ptr = is_vert ? &x : &y;
   while (*counter_ptr < range) {
+    assert(x < (uint32_t)plane_ptr->dst.width &&
+           y < (uint32_t)plane_ptr->dst.height);
     // reset to initial values
     params->filter_length = 0;
-
-    // no deblocking is required
-    const uint32_t width = plane_ptr->dst.width;
-    const uint32_t height = plane_ptr->dst.height;
-    if ((width <= x) || (height <= y)) {
-      // just return the smallest transform unit size
-      *tx_size = TX_4X4;
-      return;
-    }
 
     // for sub8x8 block, chroma prediction mode is obtained from the
     // bottom/right mi structure of the co-located 8x8 luma block. so for chroma
@@ -388,96 +373,55 @@ static AOM_INLINE void set_lpf_parameters_for_line(
     MB_MODE_INFO **mi =
         cm->mi_params.mi_grid_base + mi_row * cm->mi_params.mi_stride + mi_col;
     const MB_MODE_INFO *mbmi = mi[0];
-    // If current mbmi is not correctly setup, return an invalid value to stop
-    // filtering. One example is that if this tile is not coded, then its mbmi
-    // it not set up.
-    if (mbmi == NULL) {
-      *tx_size = TX_INVALID;
+    assert(mbmi);
 
-      *counter_ptr += MIN_TX_SIZE;
-      params += 1;
-      tx_size += 1;
-
-      prev_tx_size = TX_INVALID;
-      continue;
-    }
-
-    const TX_SIZE ts = get_transform_size(xd, mi[0], edge_dir, mi_row, mi_col,
-                                          plane, plane_ptr);
+    const TX_SIZE ts =
+        get_transform_size(xd, mi[0], mi_row, mi_col, plane, plane_ptr);
     *tx_size = ts;
 
     const int advance_units =
         is_vert ? tx_size_wide_unit[ts] : tx_size_high_unit[ts];
     const uint32_t coord = is_vert ? (x) : (y);
+#ifndef NDEBUG
     const uint32_t transform_masks =
         is_vert ? tx_size_wide[ts] - 1 : tx_size_high[ts] - 1;
     const int32_t tu_edge = (coord & transform_masks) ? (0) : (1);
-
-    if (!tu_edge) {
-      *counter_ptr += MIN_TX_SIZE * advance_units;
-      params += advance_units;
-      tx_size += advance_units;
-
-      prev_tx_size = ts;
-      continue;
-    }
+    assert(tu_edge);
+#endif  // NDEBUG
 
     // prepare outer edge parameters. deblock the edge if it's an edge of a TU
-    const uint32_t curr_level =
-        av1_get_filter_level(cm, &cm->lf_info, edge_dir, plane, mbmi);
-    const int curr_skipped = mbmi->skip_txfm && is_inter_block(mbmi);
-    uint32_t level = curr_level;
     if (coord) {
       const MB_MODE_INFO *const mi_prev = *(mi - mode_step);
-      if (mi_prev == NULL) {
-        *counter_ptr += MIN_TX_SIZE * advance_units;
-        params += advance_units;
-        tx_size += advance_units;
-
-        prev_tx_size = ts;
-        prev_level = level;
-        continue;
+      const TX_SIZE pv_ts = prev_tx_size;
+      assert(mi_prev);
+      uint32_t level =
+          av1_get_filter_level(cm, &cm->lf_info, edge_dir, plane, mbmi);
+      if (!level) {
+        level =
+            av1_get_filter_level(cm, &cm->lf_info, edge_dir, plane, mi_prev);
       }
 
-      const TX_SIZE pv_ts = prev_tx_size;
-      const uint32_t pv_lvl = prev_level;
-
-      const int pv_skip_txfm = mi_prev->skip_txfm && is_inter_block(mi_prev);
-      const BLOCK_SIZE bsize = get_plane_block_size(
-          mbmi->bsize, plane_ptr->subsampling_x, plane_ptr->subsampling_y);
-      assert(bsize < BLOCK_SIZES_ALL);
-      const int prediction_masks =
-          is_vert ? block_size_wide[bsize] - 1 : block_size_high[bsize] - 1;
-      const int32_t pu_edge = !(coord & prediction_masks);
-      // if the current and the previous blocks are skipped,
-      // deblock the edge if the edge belongs to a PU's edge only.
-      if ((curr_level || pv_lvl) &&
-          (!pv_skip_txfm || !curr_skipped || pu_edge)) {
-        const TX_SIZE min_ts = AOMMIN(ts, pv_ts);
-        if (TX_4X4 >= min_ts) {
-          params->filter_length = 4;
-        } else if (TX_8X8 == min_ts) {
-          if (plane != 0)
-            params->filter_length = 6;
-          else
-            params->filter_length = 8;
+      const int curr_skipped = mbmi->skip_txfm && is_inter_block(mbmi);
+      const int32_t pu_edge = mi_prev != mbmi;
+      if (level && (!curr_skipped || pu_edge)) {
+        const int dim = is_vert ? AOMMIN(tx_size_wide_unit_log2[ts],
+                                         tx_size_wide_unit_log2[pv_ts])
+                                : AOMMIN(tx_size_high_unit_log2[ts],
+                                         tx_size_high_unit_log2[pv_ts]);
+        if (plane) {
+          params->filter_length = (dim == 0) ? 4 : 6;
         } else {
-          params->filter_length = 14;
-          // No wide filtering for chroma plane
-          if (plane != 0) {
-            params->filter_length = 6;
-          }
+          static const int tx_dim_to_filter_length[TX_SIZES] = { 4, 8, 14, 14,
+                                                                 14 };
+          assert(dim < TX_SIZES);
+          assert(dim >= 0);
+          params->filter_length = tx_dim_to_filter_length[dim];
         }
 
-        // update the level if the current block is skipped,
-        // but the previous one is not
-        level = (curr_level) ? (curr_level) : (pv_lvl);
+        // prepare common parameters
+        const loop_filter_thresh *const limits = cm->lf_info.lfthr + level;
+        params->lfthr = limits;
       }
-    }
-    // prepare common parameters
-    if (params->filter_length) {
-      const loop_filter_thresh *const limits = cm->lf_info.lfthr + level;
-      params->lfthr = limits;
     }
 
     // Advance
@@ -486,7 +430,6 @@ static AOM_INLINE void set_lpf_parameters_for_line(
     tx_size += advance_units;
 
     prev_tx_size = ts;
-    prev_level = level;
   }
 }
 
