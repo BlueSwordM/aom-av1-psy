@@ -3008,6 +3008,10 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
             break;
           }
         }
+        // Set to intra_only_frame if no references are set.
+        // The stream can start decoding on INTRA_ONLY_FRAME so long as the
+        // layer with the intra_only_frame doesn't signal a reference to a slot
+        // that hasn't been set yet.
         if (no_references_set) frame_params->frame_type = INTRA_ONLY_FRAME;
       }
     }
