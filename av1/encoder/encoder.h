@@ -88,11 +88,12 @@ extern "C" {
 #define TF_LOOKAHEAD_IDX_THR 7
 
 #define HDR_QP_LEVELS 10
-#define CHROMA_CB_QP_SCALE 1.04
-#define CHROMA_CR_QP_SCALE 1.04
+#define CHROMA_CB_QP_SCALE 1.39
+#define CHROMA_CR_QP_SCALE 1.39
 #define CHROMA_QP_SCALE -0.46
 #define CHROMA_QP_OFFSET 9.26
 #define QP_SCALE_FACTOR 2.0
+#define CHROMA_DQP_MAX 80
 #define DISABLE_HDR_LUMA_DELTAQ 1
 
 // Rational number with an int64 numerator
