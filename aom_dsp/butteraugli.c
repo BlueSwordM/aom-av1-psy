@@ -11,9 +11,11 @@
 
 #include <assert.h>
 #include <jxl/butteraugli.h>
+#include <jxl/thread_parallel_runner.h>
 
 #include "aom_dsp/butteraugli.h"
 #include "aom_mem/aom_mem.h"
+#include "aom_ports/mem.h"
 #include "third_party/libyuv/include/libyuv/convert_argb.h"
 
 int aom_calc_butteraugli(const YV12_BUFFER_CONFIG *source,
@@ -21,7 +23,7 @@ int aom_calc_butteraugli(const YV12_BUFFER_CONFIG *source,
                          aom_matrix_coefficients_t matrix_coefficients,
                          aom_color_range_t color_range, float *dist_map) {
   (void)bit_depth;
-  assert(bit_depth == 8);
+  assert(bit_depth <= 10);
   const int width = source->y_crop_width;
   const int height = source->y_crop_height;
   const int ss_x = source->subsampling_x;
@@ -37,7 +39,7 @@ int aom_calc_butteraugli(const YV12_BUFFER_CONFIG *source,
   }
 
   const size_t stride_argb = width * 4;
-  const size_t buffer_size = height * stride_argb;
+  const size_t buffer_size = height * stride_argb * (bit_depth > 8 ? 2 : 1);
   uint8_t *src_argb = (uint8_t *)aom_malloc(buffer_size);
   uint8_t *distorted_argb = (uint8_t *)aom_malloc(buffer_size);
   if (!src_argb || !distorted_argb) {
@@ -46,30 +48,57 @@ int aom_calc_butteraugli(const YV12_BUFFER_CONFIG *source,
     return 0;
   }
 
+
   if (ss_x == 1 && ss_y == 1) {
-    I420ToARGBMatrix(source->y_buffer, source->y_stride, source->u_buffer,
-                     source->uv_stride, source->v_buffer, source->uv_stride,
-                     src_argb, stride_argb, yuv_constants, width, height);
-    I420ToARGBMatrix(distorted->y_buffer, distorted->y_stride,
-                     distorted->u_buffer, distorted->uv_stride,
-                     distorted->v_buffer, distorted->uv_stride, distorted_argb,
-                     stride_argb, yuv_constants, width, height);
+    if (bit_depth == 8) {
+      I420ToARGBMatrix(source->y_buffer, source->y_stride, source->u_buffer,
+                      source->uv_stride, source->v_buffer, source->uv_stride,
+                      src_argb, stride_argb, yuv_constants, width, height);
+      I420ToARGBMatrix(distorted->y_buffer, distorted->y_stride,
+                      distorted->u_buffer, distorted->uv_stride,
+                      distorted->v_buffer, distorted->uv_stride, distorted_argb,
+                      stride_argb, yuv_constants, width, height);
+    } else {
+      I010ToARGBMatrix(CONVERT_TO_SHORTPTR(source->y_buffer), source->y_stride,
+                      CONVERT_TO_SHORTPTR(source->u_buffer), source->uv_stride,
+                      CONVERT_TO_SHORTPTR(source->v_buffer), source->uv_stride,
+                      src_argb, stride_argb, yuv_constants, width, height);
+      I010ToARGBMatrix(CONVERT_TO_SHORTPTR(distorted->y_buffer), distorted->y_stride,
+                      CONVERT_TO_SHORTPTR(distorted->u_buffer), distorted->uv_stride,
+                      CONVERT_TO_SHORTPTR(distorted->v_buffer), distorted->uv_stride,
+                      distorted_argb, stride_argb, yuv_constants, width, height);
+    }
   } else if (ss_x == 1 && ss_y == 0) {
-    I422ToARGBMatrix(source->y_buffer, source->y_stride, source->u_buffer,
-                     source->uv_stride, source->v_buffer, source->uv_stride,
-                     src_argb, stride_argb, yuv_constants, width, height);
-    I422ToARGBMatrix(distorted->y_buffer, distorted->y_stride,
-                     distorted->u_buffer, distorted->uv_stride,
-                     distorted->v_buffer, distorted->uv_stride, distorted_argb,
-                     stride_argb, yuv_constants, width, height);
+    if (bit_depth == 8) {
+      I422ToARGBMatrix(source->y_buffer, source->y_stride, source->u_buffer,
+                      source->uv_stride, source->v_buffer, source->uv_stride,
+                      src_argb, stride_argb, yuv_constants, width, height);
+      I422ToARGBMatrix(distorted->y_buffer, distorted->y_stride,
+                      distorted->u_buffer, distorted->uv_stride,
+                      distorted->v_buffer, distorted->uv_stride, distorted_argb,
+                      stride_argb, yuv_constants, width, height);
+    } else {
+      I210ToARGBMatrix(CONVERT_TO_SHORTPTR(source->y_buffer), source->y_stride,
+                      CONVERT_TO_SHORTPTR(source->u_buffer), source->uv_stride,
+                      CONVERT_TO_SHORTPTR(source->v_buffer), source->uv_stride,
+                      src_argb, stride_argb, yuv_constants, width, height);
+      I210ToARGBMatrix(CONVERT_TO_SHORTPTR(distorted->y_buffer), distorted->y_stride,
+                      CONVERT_TO_SHORTPTR(distorted->u_buffer), distorted->uv_stride,
+                      CONVERT_TO_SHORTPTR(distorted->v_buffer), distorted->uv_stride,
+                      distorted_argb, stride_argb, yuv_constants, width, height);
+    }
   } else if (ss_x == 0 && ss_y == 0) {
-    I444ToARGBMatrix(source->y_buffer, source->y_stride, source->u_buffer,
-                     source->uv_stride, source->v_buffer, source->uv_stride,
-                     src_argb, stride_argb, yuv_constants, width, height);
-    I444ToARGBMatrix(distorted->y_buffer, distorted->y_stride,
-                     distorted->u_buffer, distorted->uv_stride,
-                     distorted->v_buffer, distorted->uv_stride, distorted_argb,
-                     stride_argb, yuv_constants, width, height);
+    if (bit_depth == 8) {
+      I444ToARGBMatrix(source->y_buffer, source->y_stride, source->u_buffer,
+                      source->uv_stride, source->v_buffer, source->uv_stride,
+                      src_argb, stride_argb, yuv_constants, width, height);
+      I444ToARGBMatrix(distorted->y_buffer, distorted->y_stride,
+                      distorted->u_buffer, distorted->uv_stride,
+                      distorted->v_buffer, distorted->uv_stride, distorted_argb,
+                      stride_argb, yuv_constants, width, height);
+    } else {
+      return 0;
+    }
   } else {
     aom_free(src_argb);
     aom_free(distorted_argb);
@@ -77,8 +106,13 @@ int aom_calc_butteraugli(const YV12_BUFFER_CONFIG *source,
   }
 
   JxlPixelFormat pixel_format = { 4, JXL_TYPE_UINT8, JXL_NATIVE_ENDIAN, 0 };
+  if (bit_depth == 10) {
+    pixel_format.data_type = JXL_TYPE_UINT16;
+  }
   JxlButteraugliApi *api = JxlButteraugliApiCreate(NULL);
-  JxlButteraugliApiSetHFAsymmetry(api, 0.8f);
+  JxlParallelRunner runner = JxlThreadParallelRunnerCreate(NULL, 6);
+  JxlButteraugliApiSetParallelRunner(api, JxlThreadParallelRunner, runner);
+  JxlButteraugliApiSetHFAsymmetry(api, 0.5f);
 
   JxlButteraugliResult *result = JxlButteraugliCompute(
       api, width, height, &pixel_format, src_argb, buffer_size, &pixel_format,

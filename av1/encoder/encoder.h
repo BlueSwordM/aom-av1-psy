@@ -88,11 +88,12 @@ extern "C" {
 #define TF_LOOKAHEAD_IDX_THR 7
 
 #define HDR_QP_LEVELS 10
-#define CHROMA_CB_QP_SCALE 1.04
-#define CHROMA_CR_QP_SCALE 1.04
+#define CHROMA_CB_QP_SCALE 1.39
+#define CHROMA_CR_QP_SCALE 1.39
 #define CHROMA_QP_SCALE -0.46
 #define CHROMA_QP_OFFSET 9.26
 #define QP_SCALE_FACTOR 2.0
+#define CHROMA_DQP_MAX 80
 #define DISABLE_HDR_LUMA_DELTAQ 1
 
 // Rational number with an int64 numerator
@@ -3295,6 +3296,12 @@ typedef struct AV1_COMP {
    * Frame level Wiener filter normalization.
    */
   int64_t norm_wiener_variance;
+
+  /*!
+   * The upper bound that determines the minimum allowed q for a super block
+   * in all intra mode, deltaq-mode=3.
+   */
+  double dynamic_range_upper_bound;
 
   /*!
    * Buffer to store delta-q values for delta-q mode 4.
