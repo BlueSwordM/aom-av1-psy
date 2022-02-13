@@ -2528,6 +2528,7 @@ void av1_adjust_gf_refresh_qp_one_pass_rt(AV1_COMP *cpi) {
       // Disable GF refresh since QP is above the runninhg average QP.
       svc->refresh[svc->gld_idx_1layer] = 0;
       gf_update_changed = 1;
+      cpi->refresh_frame.golden_frame = 0;
     } else if (allow_gf_update &&
                ((cm->quant_params.base_qindex < thresh * avg_qp / 100) ||
                 (rc->avg_frame_low_motion && rc->avg_frame_low_motion < 20))) {
@@ -2535,6 +2536,7 @@ void av1_adjust_gf_refresh_qp_one_pass_rt(AV1_COMP *cpi) {
       // motion frame.
       svc->refresh[svc->gld_idx_1layer] = 1;
       gf_update_changed = 1;
+      cpi->refresh_frame.golden_frame = 1;
     }
     if (gf_update_changed) {
       set_baseline_gf_interval(cpi, INTER_FRAME);
