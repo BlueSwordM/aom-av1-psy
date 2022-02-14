@@ -24,8 +24,6 @@ if(NOT ANDROID_ABI)
   set(ANDROID_ABI arm64-v8a)
 endif()
 
-set(AS_EXECUTABLE as)
-
 # Toolchain files don't have access to cached variables:
 # https://gitlab.kitware.com/cmake/cmake/issues/16170. Set an intermediate
 # environment variable when loaded the first time.
@@ -47,8 +45,11 @@ if(ANDROID_ABI MATCHES "^armeabi")
 endif()
 
 if(ANDROID_ABI MATCHES "^arm")
+  set(AS_EXECUTABLE as)
   # No runtime cpu detect for arm targets.
   set(CONFIG_RUNTIME_CPU_DETECT 0 CACHE STRING "")
+elseif(ANDROID_ABI MATCHES "^x86")
+  set(AS_EXECUTABLE yasm)
 endif()
 
 set(CMAKE_SYSTEM_NAME "Android")
