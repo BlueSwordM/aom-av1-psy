@@ -2577,6 +2577,21 @@ static INLINE void sync_write(AV1DecRowMTSync *const dec_row_mt_sync, int r,
 #endif  // CONFIG_MULTITHREAD
 }
 
+static INLINE void signal_decoding_done_for_erroneous_row(
+    AV1Decoder *const pbi, const MACROBLOCKD *const xd) {
+  AV1_COMMON *const cm = &pbi->common;
+  const TileInfo *const tile = &xd->tile;
+  const int sb_row_in_tile =
+      ((xd->mi_row - tile->mi_row_start) >> cm->seq_params->mib_size_log2);
+  const int sb_cols_in_tile = av1_get_sb_cols_in_tile(cm, tile);
+  TileDataDec *const tile_data =
+      pbi->tile_data + tile->tile_row * cm->tiles.cols + tile->tile_col;
+  AV1DecRowMTSync *dec_row_mt_sync = &tile_data->dec_row_mt_sync;
+
+  sync_write(dec_row_mt_sync, sb_row_in_tile, sb_cols_in_tile - 1,
+             sb_cols_in_tile);
+}
+
 static AOM_INLINE void decode_tile_sb_row(AV1Decoder *pbi, ThreadData *const td,
                                           const TileInfo *tile_info,
                                           const int mi_row) {
@@ -3135,7 +3150,6 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
 static int row_mt_worker_hook(void *arg1, void *arg2) {
   DecWorkerData *const thread_data = (DecWorkerData *)arg1;
   AV1Decoder *const pbi = (AV1Decoder *)arg2;
-  AV1_COMMON *cm = &pbi->common;
   ThreadData *const td = thread_data->td;
   uint8_t allow_update_cdf;
   AV1DecRowMTInfo *frame_row_mt_info = &pbi->frame_row_mt_info;
@@ -3151,6 +3165,14 @@ static int row_mt_worker_hook(void *arg1, void *arg2) {
     pthread_mutex_lock(pbi->row_mt_mutex_);
 #endif
     frame_row_mt_info->row_mt_exit = 1;
+
+    // If any SB row (erroneous row) processed by a thread encounters an
+    // internal error, there is a need to indicate other threads that decoding
+    // of the erroneous row is complete. This ensures that other threads which
+    // wait upon the completion of SB's present in erroneous row are not waiting
+    // indefinitely.
+    signal_decoding_done_for_erroneous_row(pbi, &thread_data->td->dcb.xd);
+
 #if CONFIG_MULTITHREAD
     pthread_cond_broadcast(pbi->row_mt_cond_);
     pthread_mutex_unlock(pbi->row_mt_mutex_);
@@ -3159,6 +3181,7 @@ static int row_mt_worker_hook(void *arg1, void *arg2) {
   }
   thread_data->error_info.setjmp = 1;
 
+  AV1_COMMON *cm = &pbi->common;
   allow_update_cdf = cm->tiles.large_scale ? 0 : 1;
   allow_update_cdf = allow_update_cdf && !cm->features.disable_cdf_update;
 
