@@ -228,6 +228,39 @@ static INLINE void Transpose4x4(uint16x4_t a[4]) {
   a[3] = vreinterpret_u16_u32(e.val[1]);
 }
 
+// 4x8 Input:
+// a[0]: 00 01 02 03 04 05 06 07
+// a[1]: 10 11 12 13 14 15 16 17
+// a[2]: 20 21 22 23 24 25 26 27
+// a[3]: 30 31 32 33 34 35 36 37
+// 8x4 Output:
+// a[0]: 00 10 20 30 04 14 24 34
+// a[1]: 01 11 21 31 05 15 25 35
+// a[2]: 02 12 22 32 06 16 26 36
+// a[3]: 03 13 23 33 07 17 27 37
+static INLINE void Transpose4x8(uint16x8_t a[4]) {
+  // b0.val[0]: 00 10 02 12 04 14 06 16
+  // b0.val[1]: 01 11 03 13 05 15 07 17
+  // b1.val[0]: 20 30 22 32 24 34 26 36
+  // b1.val[1]: 21 31 23 33 25 35 27 37
+  const uint16x8x2_t b0 = vtrnq_u16(a[0], a[1]);
+  const uint16x8x2_t b1 = vtrnq_u16(a[2], a[3]);
+
+  // c0.val[0]: 00 10 20 30 04 14 24 34
+  // c0.val[1]: 02 12 22 32 06 16 26 36
+  // c1.val[0]: 01 11 21 31 05 15 25 35
+  // c1.val[1]: 03 13 23 33 07 17 27 37
+  const uint32x4x2_t c0 = vtrnq_u32(vreinterpretq_u32_u16(b0.val[0]),
+                                    vreinterpretq_u32_u16(b1.val[0]));
+  const uint32x4x2_t c1 = vtrnq_u32(vreinterpretq_u32_u16(b0.val[1]),
+                                    vreinterpretq_u32_u16(b1.val[1]));
+
+  a[0] = vreinterpretq_u16_u32(c0.val[0]);
+  a[1] = vreinterpretq_u16_u32(c1.val[0]);
+  a[2] = vreinterpretq_u16_u32(c0.val[1]);
+  a[3] = vreinterpretq_u16_u32(c1.val[1]);
+}
+
 static INLINE void transpose_u16_4x8(uint16x4_t *a0, uint16x4_t *a1,
                                      uint16x4_t *a2, uint16x4_t *a3,
                                      uint16x4_t *a4, uint16x4_t *a5,

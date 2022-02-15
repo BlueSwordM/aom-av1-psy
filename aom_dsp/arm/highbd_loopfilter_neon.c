@@ -453,3 +453,109 @@ void aom_highbd_lpf_horizontal_6_neon(uint16_t *s, int pitch,
   vst1_u16(dst_q0, vget_high_u16(p0q0_output));
   vst1_u16(dst_q1, vget_high_u16(p1q1_output));
 }
+
+void aom_highbd_lpf_vertical_6_neon(uint16_t *s, int pitch,
+                                    const uint8_t *blimit, const uint8_t *limit,
+                                    const uint8_t *thresh, int bd) {
+  // TODO(b/217462944): add support for 8/12-bit.
+  if (bd != 10) {
+    aom_highbd_lpf_vertical_6_c(s, pitch, blimit, limit, thresh, bd);
+    return;
+  }
+  // Left side of the filter window.
+  uint16_t *const dst = s - 3;
+  uint16_t *const dst_0 = dst;
+  uint16_t *const dst_1 = dst + pitch;
+  uint16_t *const dst_2 = dst + 2 * pitch;
+  uint16_t *const dst_3 = dst + 3 * pitch;
+
+  // Overread by 2 values. These overreads become the high halves of src_raw[2]
+  // and src_raw[3] after transpose.
+  uint16x8_t src_raw[4] = { vld1q_u16(dst_0), vld1q_u16(dst_1),
+                            vld1q_u16(dst_2), vld1q_u16(dst_3) };
+  Transpose4x8(src_raw);
+  // p2, p1, p0, q0, q1, q2
+  const uint16x4_t src[6] = {
+    vget_low_u16(src_raw[0]),  vget_low_u16(src_raw[1]),
+    vget_low_u16(src_raw[2]),  vget_low_u16(src_raw[3]),
+    vget_high_u16(src_raw[0]), vget_high_u16(src_raw[1]),
+  };
+
+  // Adjust thresholds to bitdepth.
+  const int outer_thresh = *blimit << 2;
+  const int inner_thresh = *limit << 2;
+  const int hev_thresh = *thresh << 2;
+  const uint16x4_t outer_mask =
+      OuterThreshold(src[1], src[2], src[3], src[4], outer_thresh);
+  uint16x4_t hev_mask;
+  uint16x4_t needs_filter_mask;
+  uint16x4_t is_flat3_mask;
+  const uint16x8_t p0q0 = vcombine_u16(src[2], src[3]);
+  const uint16x8_t p1q1 = vcombine_u16(src[1], src[4]);
+  const uint16x8_t p2q2 = vcombine_u16(src[0], src[5]);
+  Filter6Masks(p2q2, p1q1, p0q0, hev_thresh, outer_mask, inner_thresh,
+               &needs_filter_mask, &is_flat3_mask, &hev_mask);
+
+#if defined(__aarch64__)
+  if (vaddv_u16(needs_filter_mask) == 0) {
+    // None of the values will be filtered.
+    return;
+  }
+#else   // !defined(__aarch64__)
+  // This might be faster than vaddv (latency 3) because mov to general register
+  // has latency 2.
+  const uint64x1_t needs_filter_mask64 =
+      vreinterpret_u64_u16(needs_filter_mask);
+  if (vget_lane_u64(needs_filter_mask64, 0) == 0) {
+    // None of the values will be filtered.
+    return;
+  }
+#endif  // defined(__aarch64__)
+
+  // Copy the masks to the high bits for packed comparisons later.
+  const uint16x8_t hev_mask_8 = vcombine_u16(hev_mask, hev_mask);
+  const uint16x8_t is_flat3_mask_8 = vcombine_u16(is_flat3_mask, is_flat3_mask);
+  const uint16x8_t needs_filter_mask_8 =
+      vcombine_u16(needs_filter_mask, needs_filter_mask);
+
+  uint16x8_t f4_p1q1;
+  uint16x8_t f4_p0q0;
+  // ZIP1 p0q0, p1q1 may perform better here.
+  const uint16x8_t p0q1 = vcombine_u16(src[2], src[4]);
+  Filter4(p0q0, p0q1, p1q1, hev_mask, &f4_p1q1, &f4_p0q0);
+  f4_p1q1 = vbslq_u16(hev_mask_8, p1q1, f4_p1q1);
+
+  uint16x8_t p0q0_output, p1q1_output;
+  // Because we did not return after testing |needs_filter_mask| we know it is
+  // nonzero. |is_flat3_mask| controls whether the needed filter is Filter4 or
+  // Filter6. Therefore if it is false when |needs_filter_mask| is true, Filter6
+  // output is not used.
+  uint16x8_t f6_p1q1, f6_p0q0;
+  const uint64x1_t need_filter6 = vreinterpret_u64_u16(is_flat3_mask);
+  if (vget_lane_u64(need_filter6, 0) == 0) {
+    // Filter6() does not apply, but Filter4() applies to one or more values.
+    p0q0_output = p0q0;
+    p1q1_output = vbslq_u16(needs_filter_mask_8, f4_p1q1, p1q1);
+    p0q0_output = vbslq_u16(needs_filter_mask_8, f4_p0q0, p0q0);
+  } else {
+    Filter6(p2q2, p1q1, p0q0, &f6_p1q1, &f6_p0q0);
+    p1q1_output = vbslq_u16(is_flat3_mask_8, f6_p1q1, f4_p1q1);
+    p1q1_output = vbslq_u16(needs_filter_mask_8, p1q1_output, p1q1);
+    p0q0_output = vbslq_u16(is_flat3_mask_8, f6_p0q0, f4_p0q0);
+    p0q0_output = vbslq_u16(needs_filter_mask_8, p0q0_output, p0q0);
+  }
+
+  uint16x4_t output[4] = {
+    vget_low_u16(p1q1_output),
+    vget_low_u16(p0q0_output),
+    vget_high_u16(p0q0_output),
+    vget_high_u16(p1q1_output),
+  };
+  Transpose4x4(output);
+
+  // dst_n starts at p2, so adjust to p1.
+  vst1_u16(dst_0 + 1, output[0]);
+  vst1_u16(dst_1 + 1, output[1]);
+  vst1_u16(dst_2 + 1, output[2]);
+  vst1_u16(dst_3 + 1, output[3]);
+}
