@@ -261,6 +261,84 @@ static INLINE void Transpose4x8(uint16x8_t a[4]) {
   a[3] = vreinterpretq_u16_u32(c1.val[1]);
 }
 
+static INLINE uint16x8x2_t VtrnqU64(const uint32x4_t a0, const uint32x4_t a1) {
+  uint16x8x2_t b0;
+  b0.val[0] = vcombine_u16(vreinterpret_u16_u32(vget_low_u32(a0)),
+                           vreinterpret_u16_u32(vget_low_u32(a1)));
+  b0.val[1] = vcombine_u16(vreinterpret_u16_u32(vget_high_u32(a0)),
+                           vreinterpret_u16_u32(vget_high_u32(a1)));
+  return b0;
+}
+
+// Special transpose for loop filter.
+// 4x8 Input:
+// p_q:  p3 p2 p1 p0 q0 q1 q2 q3
+// a[0]: 00 01 02 03 04 05 06 07
+// a[1]: 10 11 12 13 14 15 16 17
+// a[2]: 20 21 22 23 24 25 26 27
+// a[3]: 30 31 32 33 34 35 36 37
+// 8x4 Output:
+// a[0]: 03 13 23 33 04 14 24 34  p0q0
+// a[1]: 02 12 22 32 05 15 25 35  p1q1
+// a[2]: 01 11 21 31 06 16 26 36  p2q2
+// a[3]: 00 10 20 30 07 17 27 37  p3q3
+// Direct reapplication of the function will reset the high halves, but
+// reverse the low halves:
+// p_q:  p0 p1 p2 p3 q0 q1 q2 q3
+// a[0]: 33 32 31 30 04 05 06 07
+// a[1]: 23 22 21 20 14 15 16 17
+// a[2]: 13 12 11 10 24 25 26 27
+// a[3]: 03 02 01 00 34 35 36 37
+// Simply reordering the inputs (3, 2, 1, 0) will reset the low halves, but
+// reverse the high halves.
+// The standard Transpose4x8 will produce the same reversals, but with the
+// order of the low halves also restored relative to the high halves. This is
+// preferable because it puts all values from the same source row back together,
+// but some post-processing is inevitable.
+static INLINE void LoopFilterTranspose4x8(uint16x8_t a[4]) {
+  // b0.val[0]: 00 10 02 12 04 14 06 16
+  // b0.val[1]: 01 11 03 13 05 15 07 17
+  // b1.val[0]: 20 30 22 32 24 34 26 36
+  // b1.val[1]: 21 31 23 33 25 35 27 37
+  const uint16x8x2_t b0 = vtrnq_u16(a[0], a[1]);
+  const uint16x8x2_t b1 = vtrnq_u16(a[2], a[3]);
+
+  // Reverse odd vectors to bring the appropriate items to the front of zips.
+  // b0.val[0]: 00 10 02 12 04 14 06 16
+  // r0       : 03 13 01 11 07 17 05 15
+  // b1.val[0]: 20 30 22 32 24 34 26 36
+  // r1       : 23 33 21 31 27 37 25 35
+  const uint32x4_t r0 = vrev64q_u32(vreinterpretq_u32_u16(b0.val[1]));
+  const uint32x4_t r1 = vrev64q_u32(vreinterpretq_u32_u16(b1.val[1]));
+
+  // Zip to complete the halves.
+  // c0.val[0]: 00 10 20 30 02 12 22 32  p3p1
+  // c0.val[1]: 04 14 24 34 06 16 26 36  q0q2
+  // c1.val[0]: 03 13 23 33 01 11 21 31  p0p2
+  // c1.val[1]: 07 17 27 37 05 15 25 35  q3q1
+  const uint32x4x2_t c0 = vzipq_u32(vreinterpretq_u32_u16(b0.val[0]),
+                                    vreinterpretq_u32_u16(b1.val[0]));
+  const uint32x4x2_t c1 = vzipq_u32(r0, r1);
+
+  // d0.val[0]: 00 10 20 30 07 17 27 37  p3q3
+  // d0.val[1]: 02 12 22 32 05 15 25 35  p1q1
+  // d1.val[0]: 03 13 23 33 04 14 24 34  p0q0
+  // d1.val[1]: 01 11 21 31 06 16 26 36  p2q2
+  const uint16x8x2_t d0 = VtrnqU64(c0.val[0], c1.val[1]);
+  // The third row of c comes first here to swap p2 with q0.
+  const uint16x8x2_t d1 = VtrnqU64(c1.val[0], c0.val[1]);
+
+  // 8x4 Output:
+  // a[0]: 03 13 23 33 04 14 24 34  p0q0
+  // a[1]: 02 12 22 32 05 15 25 35  p1q1
+  // a[2]: 01 11 21 31 06 16 26 36  p2q2
+  // a[3]: 00 10 20 30 07 17 27 37  p3q3
+  a[0] = d1.val[0];  // p0q0
+  a[1] = d0.val[1];  // p1q1
+  a[2] = d1.val[1];  // p2q2
+  a[3] = d0.val[0];  // p3q3
+}
+
 static INLINE void transpose_u16_4x8(uint16x4_t *a0, uint16x4_t *a1,
                                      uint16x4_t *a2, uint16x4_t *a3,
                                      uint16x4_t *a4, uint16x4_t *a5,

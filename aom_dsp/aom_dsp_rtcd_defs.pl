@@ -451,7 +451,7 @@ if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
   specialize qw/aom_highbd_lpf_vertical_14_dual sse2 avx2/;
 
   add_proto qw/void aom_highbd_lpf_vertical_8/, "uint16_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int bd";
-  specialize qw/aom_highbd_lpf_vertical_8 sse2/;
+  specialize qw/aom_highbd_lpf_vertical_8 neon sse2/;
 
   add_proto qw/void aom_highbd_lpf_vertical_6/, "uint16_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int bd";
   specialize qw/aom_highbd_lpf_vertical_6 neon sse2/;

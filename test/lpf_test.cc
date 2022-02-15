@@ -684,6 +684,9 @@ const hbdloop_param_t kHbdLoop8Test6[] = {
   make_tuple(&aom_highbd_lpf_vertical_6_neon, &aom_highbd_lpf_vertical_6_c, 8),
   make_tuple(&aom_highbd_lpf_vertical_6_neon, &aom_highbd_lpf_vertical_6_c, 10),
   make_tuple(&aom_highbd_lpf_vertical_6_neon, &aom_highbd_lpf_vertical_6_c, 12),
+  make_tuple(&aom_highbd_lpf_vertical_8_neon, &aom_highbd_lpf_vertical_8_c, 8),
+  make_tuple(&aom_highbd_lpf_vertical_8_neon, &aom_highbd_lpf_vertical_8_c, 10),
+  make_tuple(&aom_highbd_lpf_vertical_8_neon, &aom_highbd_lpf_vertical_8_c, 12),
 };
 
 INSTANTIATE_TEST_SUITE_P(NEON, Loop8Test6Param_hbd,
