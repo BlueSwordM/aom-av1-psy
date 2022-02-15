@@ -878,3 +878,243 @@ void aom_highbd_lpf_vertical_8_neon(uint16_t *s, int pitch,
   vst1q_u16(dst_2, ReverseLowHalf(output[2]));
   vst1q_u16(dst_3, ReverseLowHalf(output[3]));
 }
+
+static INLINE void Filter14(
+    const uint16x8_t p6q6, const uint16x8_t p5q5, const uint16x8_t p4q4,
+    const uint16x8_t p3q3, const uint16x8_t p2q2, const uint16x8_t p1q1,
+    const uint16x8_t p0q0, uint16x8_t *const p5q5_output,
+    uint16x8_t *const p4q4_output, uint16x8_t *const p3q3_output,
+    uint16x8_t *const p2q2_output, uint16x8_t *const p1q1_output,
+    uint16x8_t *const p0q0_output) {
+  // Sum p5 and q5 output from opposite directions.
+  // p5 = (7 * p6) + (2 * p5) + (2 * p4) + p3 + p2 + p1 + p0 + q0
+  //      ^^^^^^^^
+  // q5 = p0 + q0 + q1 + q2 + q3 + (2 * q4) + (2 * q5) + (7 * q6)
+  //                                                     ^^^^^^^^
+  const uint16x8_t p6q6_x7 = vsubq_u16(vshlq_n_u16(p6q6, 3), p6q6);
+
+  // p5 = (7 * p6) + (2 * p5) + (2 * p4) + p3 + p2 + p1 + p0 + q0
+  //                 ^^^^^^^^^^^^^^^^^^^
+  // q5 = p0 + q0 + q1 + q2 + q3 + (2 * q4) + (2 * q5) + (7 * q6)
+  //                               ^^^^^^^^^^^^^^^^^^^
+  uint16x8_t sum = vshlq_n_u16(vaddq_u16(p5q5, p4q4), 1);
+  sum = vaddq_u16(sum, p6q6_x7);
+
+  // p5 = (7 * p6) + (2 * p5) + (2 * p4) + p3 + p2 + p1 + p0 + q0
+  //                                       ^^^^^^^
+  // q5 = p0 + q0 + q1 + q2 + q3 + (2 * q4) + (2 * q5) + (7 * q6)
+  //                     ^^^^^^^
+  sum = vaddq_u16(vaddq_u16(p3q3, p2q2), sum);
+
+  // p5 = (7 * p6) + (2 * p5) + (2 * p4) + p3 + p2 + p1 + p0 + q0
+  //                                                 ^^^^^^^
+  // q5 = p0 + q0 + q1 + q2 + q3 + (2 * q4) + (2 * q5) + (7 * q6)
+  //           ^^^^^^^
+  sum = vaddq_u16(vaddq_u16(p1q1, p0q0), sum);
+
+  // p5 = (7 * p6) + (2 * p5) + (2 * p4) + p3 + p2 + p1 + p0 + q0
+  //                                                           ^^
+  // q5 = p0 + q0 + q1 + q2 + q3 + (2 * q4) + (2 * q5) + (7 * q6)
+  //      ^^
+  const uint16x8_t q0p0 = Transpose64(p0q0);
+  sum = vaddq_u16(sum, q0p0);
+
+  *p5q5_output = vrshrq_n_u16(sum, 4);
+
+  // Convert to p4 and q4 output:
+  // p4 = p5 - (2 * p6) + p3 + q1
+  // q4 = q5 - (2 * q6) + q3 + p1
+  sum = vsubq_u16(sum, vshlq_n_u16(p6q6, 1));
+  const uint16x8_t q1p1 = Transpose64(p1q1);
+  sum = vaddq_u16(vaddq_u16(p3q3, q1p1), sum);
+
+  *p4q4_output = vrshrq_n_u16(sum, 4);
+
+  // Convert to p3 and q3 output:
+  // p3 = p4 - p6 - p5 + p2 + q2
+  // q3 = q4 - q6 - q5 + q2 + p2
+  sum = vsubq_u16(sum, vaddq_u16(p6q6, p5q5));
+  const uint16x8_t q2p2 = Transpose64(p2q2);
+  sum = vaddq_u16(vaddq_u16(p2q2, q2p2), sum);
+
+  *p3q3_output = vrshrq_n_u16(sum, 4);
+
+  // Convert to p2 and q2 output:
+  // p2 = p3 - p6 - p4 + p1 + q3
+  // q2 = q3 - q6 - q4 + q1 + p3
+  sum = vsubq_u16(sum, vaddq_u16(p6q6, p4q4));
+  const uint16x8_t q3p3 = Transpose64(p3q3);
+  sum = vaddq_u16(vaddq_u16(p1q1, q3p3), sum);
+
+  *p2q2_output = vrshrq_n_u16(sum, 4);
+
+  // Convert to p1 and q1 output:
+  // p1 = p2 - p6 - p3 + p0 + q4
+  // q1 = q2 - q6 - q3 + q0 + p4
+  sum = vsubq_u16(sum, vaddq_u16(p6q6, p3q3));
+  const uint16x8_t q4p4 = Transpose64(p4q4);
+  sum = vaddq_u16(vaddq_u16(p0q0, q4p4), sum);
+
+  *p1q1_output = vrshrq_n_u16(sum, 4);
+
+  // Convert to p0 and q0 output:
+  // p0 = p1 - p6 - p2 + q0 + q5
+  // q0 = q1 - q6 - q2 + p0 + p5
+  sum = vsubq_u16(sum, vaddq_u16(p6q6, p2q2));
+  const uint16x8_t q5p5 = Transpose64(p5q5);
+  sum = vaddq_u16(vaddq_u16(q0p0, q5p5), sum);
+
+  *p0q0_output = vrshrq_n_u16(sum, 4);
+}
+
+void aom_highbd_lpf_horizontal_14_neon(uint16_t *s, int pitch,
+                                       const uint8_t *blimit,
+                                       const uint8_t *limit,
+                                       const uint8_t *thresh, int bd) {
+  // TODO(b/217462944): add support for 8/12-bit.
+  if (bd != 10) {
+    aom_highbd_lpf_horizontal_14_c(s, pitch, blimit, limit, thresh, bd);
+    return;
+  }
+  uint16_t *const dst_p6 = s - 7 * pitch;
+  uint16_t *const dst_p5 = s - 6 * pitch;
+  uint16_t *const dst_p4 = s - 5 * pitch;
+  uint16_t *const dst_p3 = s - 4 * pitch;
+  uint16_t *const dst_p2 = s - 3 * pitch;
+  uint16_t *const dst_p1 = s - 2 * pitch;
+  uint16_t *const dst_p0 = s - pitch;
+  uint16_t *const dst_q0 = s;
+  uint16_t *const dst_q1 = s + pitch;
+  uint16_t *const dst_q2 = s + 2 * pitch;
+  uint16_t *const dst_q3 = s + 3 * pitch;
+  uint16_t *const dst_q4 = s + 4 * pitch;
+  uint16_t *const dst_q5 = s + 5 * pitch;
+  uint16_t *const dst_q6 = s + 6 * pitch;
+
+  const uint16x4_t src[14] = {
+    vld1_u16(dst_p6), vld1_u16(dst_p5), vld1_u16(dst_p4), vld1_u16(dst_p3),
+    vld1_u16(dst_p2), vld1_u16(dst_p1), vld1_u16(dst_p0), vld1_u16(dst_q0),
+    vld1_u16(dst_q1), vld1_u16(dst_q2), vld1_u16(dst_q3), vld1_u16(dst_q4),
+    vld1_u16(dst_q5), vld1_u16(dst_q6)
+  };
+
+  // Adjust thresholds to bitdepth.
+  const int outer_thresh = *blimit << 2;
+  const int inner_thresh = *limit << 2;
+  const int hev_thresh = *thresh << 2;
+  const uint16x4_t outer_mask =
+      OuterThreshold(src[5], src[6], src[7], src[8], outer_thresh);
+  uint16x4_t hev_mask;
+  uint16x4_t needs_filter_mask;
+  uint16x4_t is_flat4_mask;
+  const uint16x8_t p0q0 = vcombine_u16(src[6], src[7]);
+  const uint16x8_t p1q1 = vcombine_u16(src[5], src[8]);
+  const uint16x8_t p2q2 = vcombine_u16(src[4], src[9]);
+  const uint16x8_t p3q3 = vcombine_u16(src[3], src[10]);
+  Filter8Masks(p3q3, p2q2, p1q1, p0q0, hev_thresh, outer_mask, inner_thresh,
+               &needs_filter_mask, &is_flat4_mask, &hev_mask);
+
+#if defined(__aarch64__)
+  if (vaddv_u16(needs_filter_mask) == 0) {
+    // None of the values will be filtered.
+    return;
+  }
+#else   // !defined(__aarch64__)
+  // This might be faster than vaddv (latency 3) because mov to general register
+  // has latency 2.
+  const uint64x1_t needs_filter_mask64 =
+      vreinterpret_u64_u16(needs_filter_mask);
+  if (vget_lane_u64(needs_filter_mask64, 0) == 0) {
+    // None of the values will be filtered.
+    return;
+  }
+#endif  // defined(__aarch64__)
+  const uint16x8_t p4q4 = vcombine_u16(src[2], src[11]);
+  const uint16x8_t p5q5 = vcombine_u16(src[1], src[12]);
+  const uint16x8_t p6q6 = vcombine_u16(src[0], src[13]);
+  // Mask to choose between the outputs of Filter8 and Filter14.
+  // As with the derivation of |is_flat4_mask|, the question of whether to use
+  // Filter14 is only raised where |is_flat4_mask| is true.
+  const uint16x4_t is_flat4_outer_mask = vand_u16(
+      is_flat4_mask, IsFlat4(vabdq_u16(p0q0, p4q4), vabdq_u16(p0q0, p5q5),
+                             vabdq_u16(p0q0, p6q6)));
+  // Copy the masks to the high bits for packed comparisons later.
+  const uint16x8_t hev_mask_8 = vcombine_u16(hev_mask, hev_mask);
+  const uint16x8_t needs_filter_mask_8 =
+      vcombine_u16(needs_filter_mask, needs_filter_mask);
+
+  uint16x8_t f4_p1q1;
+  uint16x8_t f4_p0q0;
+  // ZIP1 p0q0, p1q1 may perform better here.
+  const uint16x8_t p0q1 = vcombine_u16(src[6], src[8]);
+  Filter4(p0q0, p0q1, p1q1, hev_mask, &f4_p1q1, &f4_p0q0);
+  f4_p1q1 = vbslq_u16(hev_mask_8, p1q1, f4_p1q1);
+
+  uint16x8_t p0q0_output, p1q1_output, p2q2_output, p3q3_output, p4q4_output,
+      p5q5_output;
+  // Because we did not return after testing |needs_filter_mask| we know it is
+  // nonzero. |is_flat4_mask| controls whether the needed filter is Filter4 or
+  // Filter8. Therefore if it is false when |needs_filter_mask| is true, Filter8
+  // output is not used.
+  uint16x8_t f8_p2q2, f8_p1q1, f8_p0q0;
+  const uint64x1_t need_filter8 = vreinterpret_u64_u16(is_flat4_mask);
+  if (vget_lane_u64(need_filter8, 0) == 0) {
+    // Filter8() and Filter14() do not apply, but Filter4() applies to one or
+    // more values.
+    p5q5_output = p5q5;
+    p4q4_output = p4q4;
+    p3q3_output = p3q3;
+    p2q2_output = p2q2;
+    p1q1_output = vbslq_u16(needs_filter_mask_8, f4_p1q1, p1q1);
+    p0q0_output = vbslq_u16(needs_filter_mask_8, f4_p0q0, p0q0);
+  } else {
+    const uint16x8_t use_filter8_mask =
+        vcombine_u16(is_flat4_mask, is_flat4_mask);
+    Filter8(p3q3, p2q2, p1q1, p0q0, &f8_p2q2, &f8_p1q1, &f8_p0q0);
+    const uint64x1_t need_filter14 = vreinterpret_u64_u16(is_flat4_outer_mask);
+    if (vget_lane_u64(need_filter14, 0) == 0) {
+      // Filter14() does not apply, but Filter8() and Filter4() apply to one or
+      // more values.
+      p5q5_output = p5q5;
+      p4q4_output = p4q4;
+      p3q3_output = p3q3;
+      p2q2_output = vbslq_u16(use_filter8_mask, f8_p2q2, p2q2);
+      p1q1_output = vbslq_u16(use_filter8_mask, f8_p1q1, f4_p1q1);
+      p1q1_output = vbslq_u16(needs_filter_mask_8, p1q1_output, p1q1);
+      p0q0_output = vbslq_u16(use_filter8_mask, f8_p0q0, f4_p0q0);
+      p0q0_output = vbslq_u16(needs_filter_mask_8, p0q0_output, p0q0);
+    } else {
+      // All filters may contribute values to final outputs.
+      const uint16x8_t use_filter14_mask =
+          vcombine_u16(is_flat4_outer_mask, is_flat4_outer_mask);
+      uint16x8_t f14_p5q5, f14_p4q4, f14_p3q3, f14_p2q2, f14_p1q1, f14_p0q0;
+      Filter14(p6q6, p5q5, p4q4, p3q3, p2q2, p1q1, p0q0, &f14_p5q5, &f14_p4q4,
+               &f14_p3q3, &f14_p2q2, &f14_p1q1, &f14_p0q0);
+      p5q5_output = vbslq_u16(use_filter14_mask, f14_p5q5, p5q5);
+      p4q4_output = vbslq_u16(use_filter14_mask, f14_p4q4, p4q4);
+      p3q3_output = vbslq_u16(use_filter14_mask, f14_p3q3, p3q3);
+      p2q2_output = vbslq_u16(use_filter14_mask, f14_p2q2, f8_p2q2);
+      p2q2_output = vbslq_u16(use_filter8_mask, p2q2_output, p2q2);
+      p2q2_output = vbslq_u16(needs_filter_mask_8, p2q2_output, p2q2);
+      p1q1_output = vbslq_u16(use_filter14_mask, f14_p1q1, f8_p1q1);
+      p1q1_output = vbslq_u16(use_filter8_mask, p1q1_output, f4_p1q1);
+      p1q1_output = vbslq_u16(needs_filter_mask_8, p1q1_output, p1q1);
+      p0q0_output = vbslq_u16(use_filter14_mask, f14_p0q0, f8_p0q0);
+      p0q0_output = vbslq_u16(use_filter8_mask, p0q0_output, f4_p0q0);
+      p0q0_output = vbslq_u16(needs_filter_mask_8, p0q0_output, p0q0);
+    }
+  }
+
+  vst1_u16(dst_p5, vget_low_u16(p5q5_output));
+  vst1_u16(dst_p4, vget_low_u16(p4q4_output));
+  vst1_u16(dst_p3, vget_low_u16(p3q3_output));
+  vst1_u16(dst_p2, vget_low_u16(p2q2_output));
+  vst1_u16(dst_p1, vget_low_u16(p1q1_output));
+  vst1_u16(dst_p0, vget_low_u16(p0q0_output));
+  vst1_u16(dst_q0, vget_high_u16(p0q0_output));
+  vst1_u16(dst_q1, vget_high_u16(p1q1_output));
+  vst1_u16(dst_q2, vget_high_u16(p2q2_output));
+  vst1_u16(dst_q3, vget_high_u16(p3q3_output));
+  vst1_u16(dst_q4, vget_high_u16(p4q4_output));
+  vst1_u16(dst_q5, vget_high_u16(p5q5_output));
+}
