@@ -16,6 +16,11 @@
 // TODO(b/217462944): rename functions from libgav1 to libaom style after
 // highbd loop filter code is ported.
 
+// Swap high and low halves.
+static INLINE uint16x8_t Transpose64(const uint16x8_t a) {
+  return vextq_u16(a, a, 4);
+}
+
 static INLINE void transpose_u8_8x8(uint8x8_t *a0, uint8x8_t *a1, uint8x8_t *a2,
                                     uint8x8_t *a3, uint8x8_t *a4, uint8x8_t *a5,
                                     uint8x8_t *a6, uint8x8_t *a7) {
