@@ -39,6 +39,8 @@ enum {
   PART_EVAL_ALL = 0,
   // Force PARTITION_SPLIT
   PART_EVAL_ONLY_SPLIT = 1,
+  // Force PARTITION_NONE
+  PART_EVAL_ONLY_NONE = 2
 } UENUM1BYTE(PART_EVAL_STATUS);
 
 typedef struct {
@@ -174,6 +176,12 @@ static int set_vt_partitioning(AV1_COMP *cpi, MACROBLOCKD *const xd,
   assert(block_height == block_width);
   tree_to_node(data, bsize, &vt);
 
+  if (mi_col + bs_width_check <= tile->mi_col_end &&
+      mi_row + bs_height_check <= tile->mi_row_end &&
+      force_split == PART_EVAL_ONLY_NONE) {
+    set_block_size(cpi, mi_row, mi_col, bsize);
+    return 1;
+  }
   if (force_split == PART_EVAL_ONLY_SPLIT) return 0;
 
   // For bsize=bsize_min (16x16/8x8 for 8x8/4x4 downsampling), select if
@@ -1100,6 +1108,26 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
   }
 }
 
+// Decides whether to split or merge a 16x16 partition block in variance based
+// partitioning based on the 8x8 sub-block variances.
+static AOM_INLINE PART_EVAL_STATUS get_part_eval_based_on_sub_blk_var(
+    VP16x16 *var_16x16_info, int64_t threshold16) {
+  int max_8x8_var = 0, min_8x8_var = INT_MAX;
+  for (int k = 0; k < 4; k++) {
+    get_variance(&var_16x16_info->split[k].part_variances.none);
+    int this_8x8_var = var_16x16_info->split[k].part_variances.none.variance;
+    max_8x8_var = AOMMAX(this_8x8_var, max_8x8_var);
+    min_8x8_var = AOMMIN(this_8x8_var, min_8x8_var);
+  }
+  // If the difference between maximum and minimum sub-block variances is high,
+  // then only evaluate PARTITION_SPLIT for the 16x16 block. Otherwise, evaluate
+  // only PARTITION_NONE. The shift factor for threshold16 has been derived
+  // empirically.
+  return ((max_8x8_var - min_8x8_var) > (threshold16 << 2))
+             ? PART_EVAL_ONLY_SPLIT
+             : PART_EVAL_ONLY_NONE;
+}
+
 int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                                       ThreadData *td, MACROBLOCK *x, int mi_row,
                                       int mi_col) {
@@ -1278,7 +1306,10 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
           // to split. This also forces a split on the upper levels.
           get_variance(&vtemp->part_variances.none);
           if (vtemp->part_variances.none.variance > thresholds[3]) {
-            force_split[split_index] = PART_EVAL_ONLY_SPLIT;
+            force_split[split_index] =
+                cpi->sf.rt_sf.vbp_prune_16x16_split_using_min_max_sub_blk_var
+                    ? get_part_eval_based_on_sub_blk_var(vtemp, thresholds[3])
+                    : PART_EVAL_ONLY_SPLIT;
             force_split[5 + m2 + i] = PART_EVAL_ONLY_SPLIT;
             force_split[m + 1] = PART_EVAL_ONLY_SPLIT;
             force_split[0] = PART_EVAL_ONLY_SPLIT;

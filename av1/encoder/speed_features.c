@@ -536,6 +536,7 @@ static void set_allintra_speed_features_framesize_independent(
     sf->rt_sf.nonrd_check_partition_merge_mode = 0;
     sf->rt_sf.hybrid_intra_pickmode = 0;
     sf->rt_sf.var_part_split_threshold_shift = 9;
+    sf->rt_sf.vbp_prune_16x16_split_using_min_max_sub_blk_var = true;
   }
 }
 
@@ -1973,6 +1974,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->sad_based_comp_prune = 0;
   rt_sf->tx_size_level_based_on_qstep = 0;
   rt_sf->reduce_zeromv_mvres = false;
+  rt_sf->vbp_prune_16x16_split_using_min_max_sub_blk_var = false;
 }
 
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
