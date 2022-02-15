@@ -13,6 +13,9 @@
 
 #include <arm_neon.h>
 
+// TODO(b/217462944): rename functions from libgav1 to libaom style after
+// highbd loop filter code is ported.
+
 static INLINE void transpose_u8_8x8(uint8x8_t *a0, uint8x8_t *a1, uint8x8_t *a2,
                                     uint8x8_t *a3, uint8x8_t *a4, uint8x8_t *a5,
                                     uint8x8_t *a6, uint8x8_t *a7) {
@@ -183,6 +186,41 @@ static INLINE void transpose_u8_4x8(uint8x8_t *a0, uint8x8_t *a1, uint8x8_t *a2,
   *a1 = d0.val[1];
   *a2 = d1.val[0];
   *a3 = d1.val[1];
+}
+
+// Input:
+// 00 01 02 03
+// 10 11 12 13
+// 20 21 22 23
+// 30 31 32 33
+// Output:
+// 00 10 20 30
+// 01 11 21 31
+// 02 12 22 32
+// 03 13 23 33
+static INLINE void Transpose4x4(uint16x4_t a[4]) {
+  // b:
+  // 00 10 02 12
+  // 01 11 03 13
+  const uint16x4x2_t b = vtrn_u16(a[0], a[1]);
+  // c:
+  // 20 30 22 32
+  // 21 31 23 33
+  const uint16x4x2_t c = vtrn_u16(a[2], a[3]);
+  // d:
+  // 00 10 20 30
+  // 02 12 22 32
+  const uint32x2x2_t d =
+      vtrn_u32(vreinterpret_u32_u16(b.val[0]), vreinterpret_u32_u16(c.val[0]));
+  // e:
+  // 01 11 21 31
+  // 03 13 23 33
+  const uint32x2x2_t e =
+      vtrn_u32(vreinterpret_u32_u16(b.val[1]), vreinterpret_u32_u16(c.val[1]));
+  a[0] = vreinterpret_u16_u32(d.val[0]);
+  a[1] = vreinterpret_u16_u32(e.val[0]);
+  a[2] = vreinterpret_u16_u32(d.val[1]);
+  a[3] = vreinterpret_u16_u32(e.val[1]);
 }
 
 static INLINE void transpose_u16_4x8(uint16x4_t *a0, uint16x4_t *a1,

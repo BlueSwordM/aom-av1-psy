@@ -14,6 +14,7 @@
 #include "config/aom_config.h"
 
 #include "aom/aom_integer.h"
+#include "aom_dsp/arm/transpose_neon.h"
 
 // TODO(b/217462944): rename functions from libgav1 to libaom style after code
 // is ported.
@@ -201,4 +202,82 @@ void aom_highbd_lpf_horizontal_4_neon(uint16_t *s, int pitch,
   vst1_u16(dst_p0, vget_low_u16(p0q0_output));
   vst1_u16(dst_q0, vget_high_u16(p0q0_output));
   vst1_u16(dst_q1, vget_high_u16(p1q1_output));
+}
+
+void aom_highbd_lpf_vertical_4_neon(uint16_t *s, int pitch,
+                                    const uint8_t *blimit, const uint8_t *limit,
+                                    const uint8_t *thresh, int bd) {
+  // TODO(b/217462944): add support for 8/12-bit.
+  if (bd != 10) {
+    aom_highbd_lpf_vertical_4_c(s, pitch, blimit, limit, thresh, bd);
+    return;
+  }
+  // Offset by 2 uint16_t values to load from first p1 position.
+  uint16_t *dst = s - 2;
+  uint16_t *dst_p1 = dst;
+  uint16_t *dst_p0 = dst + pitch;
+  uint16_t *dst_q0 = dst + pitch * 2;
+  uint16_t *dst_q1 = dst + pitch * 3;
+
+  uint16x4_t src[4] = { vld1_u16(dst_p1), vld1_u16(dst_p0), vld1_u16(dst_q0),
+                        vld1_u16(dst_q1) };
+  Transpose4x4(src);
+
+  // Adjust thresholds to bitdepth.
+  const int outer_thresh = *blimit << 2;
+  const int inner_thresh = *limit << 2;
+  const int hev_thresh = *thresh << 2;
+  const uint16x4_t outer_mask =
+      OuterThreshold(src[0], src[1], src[2], src[3], outer_thresh);
+  uint16x4_t hev_mask;
+  uint16x4_t needs_filter4_mask;
+  const uint16x8_t p0q0 = vcombine_u16(src[1], src[2]);
+  const uint16x8_t p1q1 = vcombine_u16(src[0], src[3]);
+  Filter4Masks(p0q0, p1q1, hev_thresh, outer_mask, inner_thresh, &hev_mask,
+               &needs_filter4_mask);
+
+#if defined(__aarch64__)
+  if (vaddv_u16(needs_filter4_mask) == 0) {
+    // None of the values will be filtered.
+    return;
+  }
+#else   // !defined(__aarch64__)
+  const uint64x1_t needs_filter4_mask64 =
+      vreinterpret_u64_u16(needs_filter4_mask);
+  if (vget_lane_u64(needs_filter4_mask64, 0) == 0) {
+    // None of the values will be filtered.
+    return;
+  }
+#endif  // defined(__aarch64__)
+
+  // Copy the masks to the high bits for packed comparisons later.
+  const uint16x8_t hev_mask_8 = vcombine_u16(hev_mask, hev_mask);
+  const uint16x8_t needs_filter4_mask_8 =
+      vcombine_u16(needs_filter4_mask, needs_filter4_mask);
+
+  uint16x8_t f_p1q1;
+  uint16x8_t f_p0q0;
+  const uint16x8_t p0q1 = vcombine_u16(src[1], src[3]);
+  Filter4(p0q0, p0q1, p1q1, hev_mask, &f_p1q1, &f_p0q0);
+
+  // Already integrated the Hev mask when calculating the filtered values.
+  const uint16x8_t p0q0_output = vbslq_u16(needs_filter4_mask_8, f_p0q0, p0q0);
+
+  // p1/q1 are unmodified if only Hev() is true. This works because it was and'd
+  // with |needs_filter4_mask| previously.
+  const uint16x8_t p1q1_mask = veorq_u16(hev_mask_8, needs_filter4_mask_8);
+  const uint16x8_t p1q1_output = vbslq_u16(p1q1_mask, f_p1q1, p1q1);
+
+  uint16x4_t output[4] = {
+    vget_low_u16(p1q1_output),
+    vget_low_u16(p0q0_output),
+    vget_high_u16(p0q0_output),
+    vget_high_u16(p1q1_output),
+  };
+  Transpose4x4(output);
+
+  vst1_u16(dst_p1, output[0]);
+  vst1_u16(dst_p0, output[1]);
+  vst1_u16(dst_q0, output[2]);
+  vst1_u16(dst_q1, output[3]);
 }
