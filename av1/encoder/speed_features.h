@@ -359,6 +359,20 @@ typedef enum {
   PRUNE_MESH_SEARCH_LVL_2 = 2,    /*!< Prune mesh search level 2. */
 } PRUNE_MESH_SEARCH_LEVEL;
 
+/*!\enum INTER_SEARCH_EARLY_TERM_IDX
+ * \brief This enumeration defines inter search early termination index in
+ * non-rd path based on sse value.
+ */
+typedef enum {
+  EARLY_TERM_DISABLED =
+      0, /*!< Early terminate inter mode search based on sse disabled. */
+  EARLY_TERM_IDX_1 =
+      1, /*!< Early terminate inter mode search based on sse, index 1. */
+  EARLY_TERM_IDX_2 =
+      2, /*!< Early terminate inter mode search based on sse, index 2. */
+  EARLY_TERM_INDICES, /*!< Total number of early terminate indices */
+} INTER_SEARCH_EARLY_TERM_IDX;
+
 /*!
  * \brief Sequence/frame level speed vs quality features
  */
@@ -1428,6 +1442,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Temporal filtering
   int use_rtc_tf;
+
+  // Early terminate inter mode search based on sse in non-rd path.
+  INTER_SEARCH_EARLY_TERM_IDX sse_early_term_inter_search;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

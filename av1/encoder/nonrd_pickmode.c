@@ -59,6 +59,7 @@ typedef struct {
   int num_proj_ref;
   uint8_t blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE / 4];
   PALETTE_MODE_INFO pmi;
+  int64_t best_sse;
 } BEST_PICKMODE;
 
 typedef struct {
@@ -133,7 +134,28 @@ enum {
   INTER_NEAR_NEW = (1 << NEARMV) | (1 << NEWMV),
 };
 
+static INLINE int early_term_inter_search_with_sse(int early_term_idx,
+                                                   BLOCK_SIZE bsize,
+                                                   int64_t this_sse,
+                                                   int64_t best_sse) {
+  // Aggressiveness to terminate inter mode search early is adjusted based on
+  // speed and block size.
+  const double early_term_thresh[2][4] = { { 0.6, 0.65, 0.85, 0.9 },
+                                           { 0.5, 0.5, 0.55, 0.6 } };
+  const int size_group = size_group_lookup[bsize];
+  assert(size_group < 4);
+  assert((early_term_idx > 0) && (early_term_idx < EARLY_TERM_INDICES));
+  const double threshold = early_term_thresh[early_term_idx - 1][size_group];
+
+  // Terminate inter mode search early based on best sse so far.
+  if ((early_term_idx > 0) && (threshold * this_sse > best_sse)) {
+    return 1;
+  }
+  return 0;
+}
+
 static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
+  bp->best_sse = INT64_MAX;
   bp->best_mode = NEARESTMV;
   bp->best_ref_frame = LAST_FRAME;
   bp->best_second_ref_frame = NONE_FRAME;
@@ -2737,6 +2759,14 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                           b_height_log2_lookup[bsize]));
     }
 
+    if (cpi->sf.rt_sf.sse_early_term_inter_search &&
+        early_term_inter_search_with_sse(
+            cpi->sf.rt_sf.sse_early_term_inter_search, bsize, this_rdc.sse,
+            best_pickmode.best_sse)) {
+      if (reuse_inter_pred) free_pred_buffer(this_mode_pred);
+      continue;
+    }
+
     const int skip_ctx = av1_get_skip_txfm_context(xd);
     const int skip_txfm_cost = mode_costs->skip_txfm_cost[skip_ctx][1];
     const int no_skip_txfm_cost = mode_costs->skip_txfm_cost[skip_ctx][0];
@@ -2830,6 +2860,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     if (this_rdc.rdcost < best_rdc.rdcost) {
       best_rdc = this_rdc;
       best_early_term = this_early_term;
+      best_pickmode.best_sse = sse_y;
       best_pickmode.best_mode = this_mode;
       best_pickmode.best_motion_mode = mi->motion_mode;
       best_pickmode.wm_params = mi->wm_params;
