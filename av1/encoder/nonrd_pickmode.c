@@ -2005,6 +2005,17 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
   // mode tests.
   for (int i = 0; i < 4; ++i) {
     PREDICTION_MODE this_mode = intra_mode_list[i];
+
+    // As per the statistics generated for intra mode evaluation in the nonrd
+    // path, it is found that the probability of H_PRED mode being the winner is
+    // very less when the best mode so far is V_PRED (out of DC_PRED and
+    // V_PRED). If V_PRED is the winner mode out of DC_PRED and V_PRED, it could
+    // imply the presence of a vertically dominant pattern. Hence, H_PRED mode
+    // is not evaluated.
+    if (cpi->sf.rt_sf.prune_h_pred_using_best_mode_so_far &&
+        this_mode == H_PRED && best_mode == V_PRED)
+      continue;
+
     this_rdc.dist = this_rdc.rate = 0;
     args.mode = this_mode;
     args.skippable = 1;

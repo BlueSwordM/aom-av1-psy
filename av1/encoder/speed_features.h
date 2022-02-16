@@ -1588,6 +1588,16 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // except on key frame and first delta).
   bool frame_level_mode_cost_update;
 
+  // Prune H_PRED during intra mode evaluation in the nonrd path based on best
+  // mode so far.
+  //
+  // For allintra encode, this speed feature reduces instruction count by 1.10%
+  // for speed 9 with coding performance change less than 0.04%.
+  // For AVIF image encode, this speed feature reduces encode time by 1.03% for
+  // speed 9 on a typical image dataset with coding performance change less than
+  // 0.08%.
+  bool prune_h_pred_using_best_mode_so_far;
+
   // If compound is enabled, and the current block size is \geq BLOCK_16X16,
   // limit the compound modes to GLOBAL_GLOBALMV. This does not apply to the
   // base layer of svc.
