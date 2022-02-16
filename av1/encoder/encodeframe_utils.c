@@ -347,13 +347,13 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   for (i = 0; i < 2; ++i) pd[i].color_index_map = ctx->color_index_map[i];
   // Restore the coding context of the MB to that that was in place
   // when the mode was picked for it
-  for (y = 0; y < mi_height; y++) {
-    for (x_idx = 0; x_idx < mi_width; x_idx++) {
-      if ((xd->mb_to_right_edge >> (3 + MI_SIZE_LOG2)) + mi_width > x_idx &&
-          (xd->mb_to_bottom_edge >> (3 + MI_SIZE_LOG2)) + mi_height > y) {
-        xd->mi[x_idx + y * mis] = mi_addr;
-      }
-    }
+
+  const int cols =
+      AOMMIN((xd->mb_to_right_edge >> (3 + MI_SIZE_LOG2)) + mi_width, mi_width);
+  const int rows = AOMMIN(
+      (xd->mb_to_bottom_edge >> (3 + MI_SIZE_LOG2)) + mi_height, mi_height);
+  for (y = 0; y < rows; y++) {
+    for (x_idx = 0; x_idx < cols; x_idx++) xd->mi[x_idx + y * mis] = mi_addr;
   }
 
   if (cpi->oxcf.q_cfg.aq_mode)

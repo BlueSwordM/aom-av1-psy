@@ -530,11 +530,11 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         intra_tx_size = mbmi->tx_size;
       }
 
-      for (j = 0; j < mi_height; j++)
-        for (i = 0; i < mi_width; i++)
-          if (mi_col + i < cm->mi_params.mi_cols &&
-              mi_row + j < cm->mi_params.mi_rows)
-            mi_4x4[mis * j + i]->tx_size = intra_tx_size;
+      const int cols = AOMMIN(cm->mi_params.mi_cols - mi_col, mi_width);
+      const int rows = AOMMIN(cm->mi_params.mi_rows - mi_row, mi_height);
+      for (j = 0; j < rows; j++) {
+        for (i = 0; i < cols; i++) mi_4x4[mis * j + i]->tx_size = intra_tx_size;
+      }
 
       if (intra_tx_size != max_txsize_rect_lookup[bsize])
         ++x->txfm_search_info.txb_split_count;
