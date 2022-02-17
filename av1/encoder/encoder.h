@@ -1619,6 +1619,11 @@ typedef struct MultiThreadInfo {
   bool row_mt_enabled;
 
   /*!
+   * When set, indicates that multi-threading for bitstream packing is enabled.
+   */
+  bool pack_bs_mt_enabled;
+
+  /*!
    * Encoder row multi-threading data.
    */
   AV1EncRowMultiThreadInfo enc_row_mt;
