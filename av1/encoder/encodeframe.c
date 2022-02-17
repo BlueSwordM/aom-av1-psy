@@ -599,10 +599,6 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   (void)gather_tpl_data;
 #endif
 
-  if (cpi->oxcf.mode == ALLINTRA) {
-    x->intra_sb_rdmult_modifier = 128;
-  }
-
   reset_mb_rd_record(x->txfm_search_info.mb_rd_record);
   av1_zero(x->picked_ref_frames_mask);
   av1_invalid_rd_stats(rd_cost);
@@ -855,6 +851,10 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     x->content_state_sb.source_sad = kMedSad;
     x->content_state_sb.lighting_change = 0;
     x->content_state_sb.low_sumdiff = 0;
+
+    if (cpi->oxcf.mode == ALLINTRA) {
+      x->intra_sb_rdmult_modifier = 128;
+    }
 
     xd->cur_frame_force_integer_mv = cm->features.cur_frame_force_integer_mv;
     x->source_variance = UINT_MAX;
