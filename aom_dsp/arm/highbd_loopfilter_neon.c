@@ -285,6 +285,14 @@ void aom_highbd_lpf_horizontal_4_neon(uint16_t *s, int pitch,
   vst1_u16(dst_q1, vget_high_u16(p1q1_output));
 }
 
+void aom_highbd_lpf_horizontal_4_dual_neon(
+    uint16_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0,
+    const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1,
+    const uint8_t *thresh1, int bd) {
+  aom_highbd_lpf_horizontal_4_neon(s, pitch, blimit0, limit0, thresh0, bd);
+  aom_highbd_lpf_horizontal_4_neon(s + 4, pitch, blimit1, limit1, thresh1, bd);
+}
+
 void aom_highbd_lpf_vertical_4_neon(uint16_t *s, int pitch,
                                     const uint8_t *blimit, const uint8_t *limit,
                                     const uint8_t *thresh, int bd) {
@@ -356,6 +364,15 @@ void aom_highbd_lpf_vertical_4_neon(uint16_t *s, int pitch,
   vst1_u16(dst_p0, output[1]);
   vst1_u16(dst_q0, output[2]);
   vst1_u16(dst_q1, output[3]);
+}
+
+void aom_highbd_lpf_vertical_4_dual_neon(
+    uint16_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0,
+    const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1,
+    const uint8_t *thresh1, int bd) {
+  aom_highbd_lpf_vertical_4_neon(s, pitch, blimit0, limit0, thresh0, bd);
+  aom_highbd_lpf_vertical_4_neon(s + 4 * pitch, pitch, blimit1, limit1, thresh1,
+                                 bd);
 }
 
 static INLINE void filter6(const uint16x8_t p2q2, const uint16x8_t p1q1,
@@ -489,6 +506,14 @@ void aom_highbd_lpf_horizontal_6_neon(uint16_t *s, int pitch,
   vst1_u16(dst_q1, vget_high_u16(p1q1_output));
 }
 
+void aom_highbd_lpf_horizontal_6_dual_neon(
+    uint16_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0,
+    const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1,
+    const uint8_t *thresh1, int bd) {
+  aom_highbd_lpf_horizontal_6_neon(s, pitch, blimit0, limit0, thresh0, bd);
+  aom_highbd_lpf_horizontal_6_neon(s + 4, pitch, blimit1, limit1, thresh1, bd);
+}
+
 void aom_highbd_lpf_vertical_6_neon(uint16_t *s, int pitch,
                                     const uint8_t *blimit, const uint8_t *limit,
                                     const uint8_t *thresh, int bd) {
@@ -588,6 +613,15 @@ void aom_highbd_lpf_vertical_6_neon(uint16_t *s, int pitch,
   vst1_u16(dst_1 + 1, output[1]);
   vst1_u16(dst_2 + 1, output[2]);
   vst1_u16(dst_3 + 1, output[3]);
+}
+
+void aom_highbd_lpf_vertical_6_dual_neon(
+    uint16_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0,
+    const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1,
+    const uint8_t *thresh1, int bd) {
+  aom_highbd_lpf_vertical_6_neon(s, pitch, blimit0, limit0, thresh0, bd);
+  aom_highbd_lpf_vertical_6_neon(s + 4 * pitch, pitch, blimit1, limit1, thresh1,
+                                 bd);
 }
 
 static INLINE void filter8(const uint16x8_t p3q3, const uint16x8_t p2q2,
@@ -741,6 +775,14 @@ void aom_highbd_lpf_horizontal_8_neon(uint16_t *s, int pitch,
   vst1_u16(dst_q2, vget_high_u16(p2q2_output));
 }
 
+void aom_highbd_lpf_horizontal_8_dual_neon(
+    uint16_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0,
+    const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1,
+    const uint8_t *thresh1, int bd) {
+  aom_highbd_lpf_horizontal_8_neon(s, pitch, blimit0, limit0, thresh0, bd);
+  aom_highbd_lpf_horizontal_8_neon(s + 4, pitch, blimit1, limit1, thresh1, bd);
+}
+
 static INLINE uint16x8_t reverse_low_half(const uint16x8_t a) {
   return vcombine_u16(vrev64_u16(vget_low_u16(a)), vget_high_u16(a));
 }
@@ -843,6 +885,15 @@ void aom_highbd_lpf_vertical_8_neon(uint16_t *s, int pitch,
   vst1q_u16(dst_1, reverse_low_half(output[1]));
   vst1q_u16(dst_2, reverse_low_half(output[2]));
   vst1q_u16(dst_3, reverse_low_half(output[3]));
+}
+
+void aom_highbd_lpf_vertical_8_dual_neon(
+    uint16_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0,
+    const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1,
+    const uint8_t *thresh1, int bd) {
+  aom_highbd_lpf_vertical_8_neon(s, pitch, blimit0, limit0, thresh0, bd);
+  aom_highbd_lpf_vertical_8_neon(s + 4 * pitch, pitch, blimit1, limit1, thresh1,
+                                 bd);
 }
 
 static INLINE void filter14(
@@ -1080,6 +1131,14 @@ void aom_highbd_lpf_horizontal_14_neon(uint16_t *s, int pitch,
   vst1_u16(dst_q5, vget_high_u16(p5q5_output));
 }
 
+void aom_highbd_lpf_horizontal_14_dual_neon(
+    uint16_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0,
+    const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1,
+    const uint8_t *thresh1, int bd) {
+  aom_highbd_lpf_horizontal_14_neon(s, pitch, blimit0, limit0, thresh0, bd);
+  aom_highbd_lpf_horizontal_14_neon(s + 4, pitch, blimit1, limit1, thresh1, bd);
+}
+
 static INLINE uint16x8x2_t permute_acdb64(const uint16x8_t ab,
                                           const uint16x8_t cd) {
   uint16x8x2_t acdb;
@@ -1262,4 +1321,13 @@ void aom_highbd_lpf_vertical_14_neon(uint16_t *s, int pitch,
   vst1q_u16(dst_2 + 8, output_q[2]);
   vst1q_u16(dst_3, output_p[3]);
   vst1q_u16(dst_3 + 8, output_q[3]);
+}
+
+void aom_highbd_lpf_vertical_14_dual_neon(
+    uint16_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0,
+    const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1,
+    const uint8_t *thresh1, int bd) {
+  aom_highbd_lpf_vertical_14_neon(s, pitch, blimit0, limit0, thresh0, bd);
+  aom_highbd_lpf_vertical_14_neon(s + 4 * pitch, pitch, blimit1, limit1,
+                                  thresh1, bd);
 }

@@ -703,6 +703,61 @@ const hbdloop_param_t kHbdLoop8Test6[] = {
 
 INSTANTIATE_TEST_SUITE_P(NEON, Loop8Test6Param_hbd,
                          ::testing::ValuesIn(kHbdLoop8Test6));
+
+const hbddual_loop_param_t kHbdLoop8Test9[] = {
+  make_tuple(&aom_highbd_lpf_horizontal_4_dual_neon,
+             &aom_highbd_lpf_horizontal_4_dual_c, 8),
+  make_tuple(&aom_highbd_lpf_horizontal_6_dual_neon,
+             &aom_highbd_lpf_horizontal_6_dual_c, 8),
+  make_tuple(&aom_highbd_lpf_horizontal_8_dual_neon,
+             &aom_highbd_lpf_horizontal_8_dual_c, 8),
+  make_tuple(&aom_highbd_lpf_horizontal_14_dual_neon,
+             &aom_highbd_lpf_horizontal_14_dual_c, 8),
+  make_tuple(&aom_highbd_lpf_vertical_4_dual_neon,
+             &aom_highbd_lpf_vertical_4_dual_c, 8),
+  make_tuple(&aom_highbd_lpf_vertical_6_dual_neon,
+             &aom_highbd_lpf_vertical_6_dual_c, 8),
+  make_tuple(&aom_highbd_lpf_vertical_8_dual_neon,
+             &aom_highbd_lpf_vertical_8_dual_c, 8),
+  make_tuple(&aom_highbd_lpf_vertical_14_dual_neon,
+             &aom_highbd_lpf_vertical_14_dual_c, 8),
+  make_tuple(&aom_highbd_lpf_horizontal_4_dual_neon,
+             &aom_highbd_lpf_horizontal_4_dual_c, 10),
+  make_tuple(&aom_highbd_lpf_horizontal_6_dual_neon,
+             &aom_highbd_lpf_horizontal_6_dual_c, 10),
+  make_tuple(&aom_highbd_lpf_horizontal_8_dual_neon,
+             &aom_highbd_lpf_horizontal_8_dual_c, 10),
+  make_tuple(&aom_highbd_lpf_horizontal_14_dual_neon,
+             &aom_highbd_lpf_horizontal_14_dual_c, 10),
+  make_tuple(&aom_highbd_lpf_vertical_4_dual_neon,
+             &aom_highbd_lpf_vertical_4_dual_c, 10),
+  make_tuple(&aom_highbd_lpf_vertical_6_dual_neon,
+             &aom_highbd_lpf_vertical_6_dual_c, 10),
+  make_tuple(&aom_highbd_lpf_vertical_8_dual_neon,
+             &aom_highbd_lpf_vertical_8_dual_c, 10),
+  make_tuple(&aom_highbd_lpf_vertical_14_dual_neon,
+             &aom_highbd_lpf_vertical_14_dual_c, 10),
+  make_tuple(&aom_highbd_lpf_horizontal_4_dual_neon,
+             &aom_highbd_lpf_horizontal_4_dual_c, 12),
+  make_tuple(&aom_highbd_lpf_horizontal_6_dual_neon,
+             &aom_highbd_lpf_horizontal_6_dual_c, 12),
+  make_tuple(&aom_highbd_lpf_horizontal_8_dual_neon,
+             &aom_highbd_lpf_horizontal_8_dual_c, 12),
+  make_tuple(&aom_highbd_lpf_horizontal_14_dual_neon,
+             &aom_highbd_lpf_horizontal_14_dual_c, 12),
+  make_tuple(&aom_highbd_lpf_vertical_4_dual_neon,
+             &aom_highbd_lpf_vertical_4_dual_c, 12),
+  make_tuple(&aom_highbd_lpf_vertical_6_dual_neon,
+             &aom_highbd_lpf_vertical_6_dual_c, 12),
+  make_tuple(&aom_highbd_lpf_vertical_8_dual_neon,
+             &aom_highbd_lpf_vertical_8_dual_c, 12),
+  make_tuple(&aom_highbd_lpf_vertical_14_dual_neon,
+             &aom_highbd_lpf_vertical_14_dual_c, 12),
+};
+
+INSTANTIATE_TEST_SUITE_P(NEON, Loop8Test9Param_hbd,
+                         ::testing::ValuesIn(kHbdLoop8Test9));
+
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 #endif  // HAVE_NEON
 
