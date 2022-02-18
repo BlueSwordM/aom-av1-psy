@@ -19,8 +19,6 @@
 // TODO(b/217462944): rename functions from libgav1 to libaom style after code
 // is ported.
 
-#define kBitdepth10 10
-
 static INLINE int16x4_t Clip3S16(const int16x4_t val, const int16x4_t low,
                                  const int16x4_t high) {
   return vmin_s16(vmax_s16(val, low), high);
@@ -118,21 +116,25 @@ static INLINE void Filter4Masks(const uint16x8_t p0q0, const uint16x8_t p1q1,
 //   abs(p2 - p0) <= flat_thresh && abs(q2 - q0) <= flat_thresh
 // |flat_thresh| == 4 for 10 bit decode.
 static INLINE uint16x4_t IsFlat3(const uint16x8_t abd_p0p1_q0q1,
-                                 const uint16x8_t abd_p0p2_q0q2) {
-  const int flat_thresh = 1 << 2;
+                                 const uint16x8_t abd_p0p2_q0q2,
+                                 const int bitdepth) {
+  const int flat_thresh = 1 << (bitdepth - 8);
   const uint16x8_t a = vmaxq_u16(abd_p0p1_q0q1, abd_p0p2_q0q2);
   const uint16x8_t b = vcleq_u16(a, vdupq_n_u16(flat_thresh));
   return vand_u16(vget_low_u16(b), vget_high_u16(b));
 }
 
-static INLINE void Filter6Masks(
-    const uint16x8_t p2q2, const uint16x8_t p1q1, const uint16x8_t p0q0,
-    const uint16_t hev_thresh, const uint16x4_t outer_mask,
-    const uint16_t inner_thresh, uint16x4_t *const needs_filter6_mask,
-    uint16x4_t *const is_flat3_mask, uint16x4_t *const hev_mask) {
+static INLINE void Filter6Masks(const uint16x8_t p2q2, const uint16x8_t p1q1,
+                                const uint16x8_t p0q0,
+                                const uint16_t hev_thresh,
+                                const uint16x4_t outer_mask,
+                                const uint16_t inner_thresh, const int bitdepth,
+                                uint16x4_t *const needs_filter6_mask,
+                                uint16x4_t *const is_flat3_mask,
+                                uint16x4_t *const hev_mask) {
   const uint16x8_t abd_p0p1_q0q1 = vabdq_u16(p0q0, p1q1);
   *hev_mask = Hev(abd_p0p1_q0q1, hev_thresh);
-  *is_flat3_mask = IsFlat3(abd_p0p1_q0q1, vabdq_u16(p0q0, p2q2));
+  *is_flat3_mask = IsFlat3(abd_p0p1_q0q1, vabdq_u16(p0q0, p2q2), bitdepth);
   *needs_filter6_mask = NeedsFilter6(abd_p0p1_q0q1, vabdq_u16(p1q1, p2q2),
                                      inner_thresh, outer_mask);
 }
@@ -144,8 +146,9 @@ static INLINE void Filter6Masks(
 // |flat_thresh| == 4 for 10 bit decode.
 static INLINE uint16x4_t IsFlat4(const uint16x8_t abd_pnp0_qnq0,
                                  const uint16x8_t abd_pn1p0_qn1q0,
-                                 const uint16x8_t abd_pn2p0_qn2q0) {
-  const int flat_thresh = 1 << 2;
+                                 const uint16x8_t abd_pn2p0_qn2q0,
+                                 const int bitdepth) {
+  const int flat_thresh = 1 << (bitdepth - 8);
   const uint16x8_t a = vmaxq_u16(abd_pnp0_qnq0, abd_pn1p0_qn1q0);
   const uint16x8_t b = vmaxq_u16(a, abd_pn2p0_qn2q0);
   const uint16x8_t c = vcleq_u16(b, vdupq_n_u16(flat_thresh));
@@ -156,14 +159,14 @@ static INLINE void Filter8Masks(const uint16x8_t p3q3, const uint16x8_t p2q2,
                                 const uint16x8_t p1q1, const uint16x8_t p0q0,
                                 const uint16_t hev_thresh,
                                 const uint16x4_t outer_mask,
-                                const uint16_t inner_thresh,
+                                const uint16_t inner_thresh, const int bitdepth,
                                 uint16x4_t *const needs_filter8_mask,
                                 uint16x4_t *const is_flat4_mask,
                                 uint16x4_t *const hev_mask) {
   const uint16x8_t abd_p0p1_q0q1 = vabdq_u16(p0q0, p1q1);
   *hev_mask = Hev(abd_p0p1_q0q1, hev_thresh);
-  const uint16x4_t is_flat4 =
-      IsFlat4(abd_p0p1_q0q1, vabdq_u16(p0q0, p2q2), vabdq_u16(p0q0, p3q3));
+  const uint16x4_t is_flat4 = IsFlat4(abd_p0p1_q0q1, vabdq_u16(p0q0, p2q2),
+                                      vabdq_u16(p0q0, p3q3), bitdepth);
   *needs_filter8_mask =
       NeedsFilter8(abd_p0p1_q0q1, vabdq_u16(p1q1, p2q2), vabdq_u16(p2q2, p3q3),
                    inner_thresh, outer_mask);
@@ -181,7 +184,7 @@ static INLINE void Filter8Masks(const uint16x8_t p3q3, const uint16x8_t p2q2,
 // Calculate Filter4() or Filter2() based on |hev_mask|.
 static INLINE void Filter4(const uint16x8_t p0q0, const uint16x8_t p0q1,
                            const uint16x8_t p1q1, const uint16x4_t hev_mask,
-                           uint16x8_t *const p1q1_result,
+                           int bitdepth, uint16x8_t *const p1q1_result,
                            uint16x8_t *const p0q0_result) {
   const uint16x8_t q0p1 = vextq_u16(p0q0, p1q1, 4);
   // a = 3 * (q0 - p0) + Clip3(p1 - q1, min_signed_val, max_signed_val);
@@ -190,8 +193,8 @@ static INLINE void Filter4(const uint16x8_t p0q0, const uint16x8_t p0q1,
   const int16x4_t q0mp0_3 = vmul_n_s16(vget_low_s16(q0mp0_p1mq1), 3);
 
   // If this is for Filter2() then include |p1mq1|. Otherwise zero it.
-  const int16x4_t min_signed_pixel = vdup_n_s16(-(1 << (9 /*bitdepth-1*/)));
-  const int16x4_t max_signed_pixel = vdup_n_s16((1 << (9 /*bitdepth-1*/)) - 1);
+  const int16x4_t min_signed_pixel = vdup_n_s16(-(1 << (bitdepth - 1)));
+  const int16x4_t max_signed_pixel = vdup_n_s16((1 << (bitdepth - 1)) - 1);
   const int16x4_t p1mq1 = vget_high_s16(q0mp0_p1mq1);
   const int16x4_t p1mq1_saturated =
       Clip3S16(p1mq1, min_signed_pixel, max_signed_pixel);
@@ -222,19 +225,14 @@ static INLINE void Filter4(const uint16x8_t p0q0, const uint16x8_t p0q1,
   // Need to shift the second term or we end up with a2_ma2.
   const int16x8_t a2_ma1 = vcombine_s16(a2, vneg_s16(a1));
   const int16x8_t p0q0_a = vaddq_s16(vreinterpretq_s16_u16(p0q0), a2_ma1);
-  *p1q1_result = ConvertToUnsignedPixelU16(p1q1_a3, kBitdepth10);
-  *p0q0_result = ConvertToUnsignedPixelU16(p0q0_a, kBitdepth10);
+  *p1q1_result = ConvertToUnsignedPixelU16(p1q1_a3, bitdepth);
+  *p0q0_result = ConvertToUnsignedPixelU16(p0q0_a, bitdepth);
 }
 
 void aom_highbd_lpf_horizontal_4_neon(uint16_t *s, int pitch,
                                       const uint8_t *blimit,
                                       const uint8_t *limit,
                                       const uint8_t *thresh, int bd) {
-  // TODO(b/217462944): add support for 8/12-bit.
-  if (bd != 10) {
-    aom_highbd_lpf_horizontal_4_c(s, pitch, blimit, limit, thresh, bd);
-    return;
-  }
   uint16_t *const dst_p1 = (uint16_t *)(s - 2 * pitch);
   uint16_t *const dst_p0 = (uint16_t *)(s - pitch);
   uint16_t *const dst_q0 = (uint16_t *)(s);
@@ -244,9 +242,9 @@ void aom_highbd_lpf_horizontal_4_neon(uint16_t *s, int pitch,
                               vld1_u16(dst_q0), vld1_u16(dst_q1) };
 
   // Adjust thresholds to bitdepth.
-  const int outer_thresh = *blimit << 2;
-  const int inner_thresh = *limit << 2;
-  const int hev_thresh = *thresh << 2;
+  const int outer_thresh = *blimit << (bd - 8);
+  const int inner_thresh = *limit << (bd - 8);
+  const int hev_thresh = *thresh << (bd - 8);
   const uint16x4_t outer_mask =
       OuterThreshold(src[0], src[1], src[2], src[3], outer_thresh);
   uint16x4_t hev_mask;
@@ -278,7 +276,7 @@ void aom_highbd_lpf_horizontal_4_neon(uint16_t *s, int pitch,
   uint16x8_t f_p1q1;
   uint16x8_t f_p0q0;
   const uint16x8_t p0q1 = vcombine_u16(src[1], src[3]);
-  Filter4(p0q0, p0q1, p1q1, hev_mask, &f_p1q1, &f_p0q0);
+  Filter4(p0q0, p0q1, p1q1, hev_mask, bd, &f_p1q1, &f_p0q0);
 
   // Already integrated the Hev mask when calculating the filtered values.
   const uint16x8_t p0q0_output = vbslq_u16(needs_filter4_mask_8, f_p0q0, p0q0);
@@ -297,11 +295,6 @@ void aom_highbd_lpf_horizontal_4_neon(uint16_t *s, int pitch,
 void aom_highbd_lpf_vertical_4_neon(uint16_t *s, int pitch,
                                     const uint8_t *blimit, const uint8_t *limit,
                                     const uint8_t *thresh, int bd) {
-  // TODO(b/217462944): add support for 8/12-bit.
-  if (bd != 10) {
-    aom_highbd_lpf_vertical_4_c(s, pitch, blimit, limit, thresh, bd);
-    return;
-  }
   // Offset by 2 uint16_t values to load from first p1 position.
   uint16_t *dst = s - 2;
   uint16_t *dst_p1 = dst;
@@ -314,9 +307,9 @@ void aom_highbd_lpf_vertical_4_neon(uint16_t *s, int pitch,
   Transpose4x4(src);
 
   // Adjust thresholds to bitdepth.
-  const int outer_thresh = *blimit << 2;
-  const int inner_thresh = *limit << 2;
-  const int hev_thresh = *thresh << 2;
+  const int outer_thresh = *blimit << (bd - 8);
+  const int inner_thresh = *limit << (bd - 8);
+  const int hev_thresh = *thresh << (bd - 8);
   const uint16x4_t outer_mask =
       OuterThreshold(src[0], src[1], src[2], src[3], outer_thresh);
   uint16x4_t hev_mask;
@@ -348,7 +341,7 @@ void aom_highbd_lpf_vertical_4_neon(uint16_t *s, int pitch,
   uint16x8_t f_p1q1;
   uint16x8_t f_p0q0;
   const uint16x8_t p0q1 = vcombine_u16(src[1], src[3]);
-  Filter4(p0q0, p0q1, p1q1, hev_mask, &f_p1q1, &f_p0q0);
+  Filter4(p0q0, p0q1, p1q1, hev_mask, bd, &f_p1q1, &f_p0q0);
 
   // Already integrated the Hev mask when calculating the filtered values.
   const uint16x8_t p0q0_output = vbslq_u16(needs_filter4_mask_8, f_p0q0, p0q0);
@@ -422,11 +415,6 @@ void aom_highbd_lpf_horizontal_6_neon(uint16_t *s, int pitch,
                                       const uint8_t *blimit,
                                       const uint8_t *limit,
                                       const uint8_t *thresh, int bd) {
-  // TODO(b/217462944): add support for 8/12-bit.
-  if (bd != 10) {
-    aom_highbd_lpf_horizontal_6_c(s, pitch, blimit, limit, thresh, bd);
-    return;
-  }
   uint16_t *const dst_p2 = s - 3 * pitch;
   uint16_t *const dst_p1 = s - 2 * pitch;
   uint16_t *const dst_p0 = s - pitch;
@@ -439,9 +427,9 @@ void aom_highbd_lpf_horizontal_6_neon(uint16_t *s, int pitch,
                               vld1_u16(dst_q1), vld1_u16(dst_q2) };
 
   // Adjust thresholds to bitdepth.
-  const int outer_thresh = *blimit << 2;
-  const int inner_thresh = *limit << 2;
-  const int hev_thresh = *thresh << 2;
+  const int outer_thresh = *blimit << (bd - 8);
+  const int inner_thresh = *limit << (bd - 8);
+  const int hev_thresh = *thresh << (bd - 8);
   const uint16x4_t outer_mask =
       OuterThreshold(src[1], src[2], src[3], src[4], outer_thresh);
   uint16x4_t hev_mask;
@@ -450,7 +438,7 @@ void aom_highbd_lpf_horizontal_6_neon(uint16_t *s, int pitch,
   const uint16x8_t p0q0 = vcombine_u16(src[2], src[3]);
   const uint16x8_t p1q1 = vcombine_u16(src[1], src[4]);
   const uint16x8_t p2q2 = vcombine_u16(src[0], src[5]);
-  Filter6Masks(p2q2, p1q1, p0q0, hev_thresh, outer_mask, inner_thresh,
+  Filter6Masks(p2q2, p1q1, p0q0, hev_thresh, outer_mask, inner_thresh, bd,
                &needs_filter_mask, &is_flat3_mask, &hev_mask);
 
 #if defined(__aarch64__)
@@ -479,7 +467,7 @@ void aom_highbd_lpf_horizontal_6_neon(uint16_t *s, int pitch,
   uint16x8_t f4_p0q0;
   // ZIP1 p0q0, p1q1 may perform better here.
   const uint16x8_t p0q1 = vcombine_u16(src[2], src[4]);
-  Filter4(p0q0, p0q1, p1q1, hev_mask, &f4_p1q1, &f4_p0q0);
+  Filter4(p0q0, p0q1, p1q1, hev_mask, bd, &f4_p1q1, &f4_p0q0);
   f4_p1q1 = vbslq_u16(hev_mask_8, p1q1, f4_p1q1);
 
   uint16x8_t p0q0_output, p1q1_output;
@@ -511,11 +499,6 @@ void aom_highbd_lpf_horizontal_6_neon(uint16_t *s, int pitch,
 void aom_highbd_lpf_vertical_6_neon(uint16_t *s, int pitch,
                                     const uint8_t *blimit, const uint8_t *limit,
                                     const uint8_t *thresh, int bd) {
-  // TODO(b/217462944): add support for 8/12-bit.
-  if (bd != 10) {
-    aom_highbd_lpf_vertical_6_c(s, pitch, blimit, limit, thresh, bd);
-    return;
-  }
   // Left side of the filter window.
   uint16_t *const dst = s - 3;
   uint16_t *const dst_0 = dst;
@@ -536,9 +519,9 @@ void aom_highbd_lpf_vertical_6_neon(uint16_t *s, int pitch,
   };
 
   // Adjust thresholds to bitdepth.
-  const int outer_thresh = *blimit << 2;
-  const int inner_thresh = *limit << 2;
-  const int hev_thresh = *thresh << 2;
+  const int outer_thresh = *blimit << (bd - 8);
+  const int inner_thresh = *limit << (bd - 8);
+  const int hev_thresh = *thresh << (bd - 8);
   const uint16x4_t outer_mask =
       OuterThreshold(src[1], src[2], src[3], src[4], outer_thresh);
   uint16x4_t hev_mask;
@@ -547,7 +530,7 @@ void aom_highbd_lpf_vertical_6_neon(uint16_t *s, int pitch,
   const uint16x8_t p0q0 = vcombine_u16(src[2], src[3]);
   const uint16x8_t p1q1 = vcombine_u16(src[1], src[4]);
   const uint16x8_t p2q2 = vcombine_u16(src[0], src[5]);
-  Filter6Masks(p2q2, p1q1, p0q0, hev_thresh, outer_mask, inner_thresh,
+  Filter6Masks(p2q2, p1q1, p0q0, hev_thresh, outer_mask, inner_thresh, bd,
                &needs_filter_mask, &is_flat3_mask, &hev_mask);
 
 #if defined(__aarch64__)
@@ -576,7 +559,7 @@ void aom_highbd_lpf_vertical_6_neon(uint16_t *s, int pitch,
   uint16x8_t f4_p0q0;
   // ZIP1 p0q0, p1q1 may perform better here.
   const uint16x8_t p0q1 = vcombine_u16(src[2], src[4]);
-  Filter4(p0q0, p0q1, p1q1, hev_mask, &f4_p1q1, &f4_p0q0);
+  Filter4(p0q0, p0q1, p1q1, hev_mask, bd, &f4_p1q1, &f4_p0q0);
   f4_p1q1 = vbslq_u16(hev_mask_8, p1q1, f4_p1q1);
 
   uint16x8_t p0q0_output, p1q1_output;
@@ -676,11 +659,6 @@ void aom_highbd_lpf_horizontal_8_neon(uint16_t *s, int pitch,
                                       const uint8_t *blimit,
                                       const uint8_t *limit,
                                       const uint8_t *thresh, int bd) {
-  // TODO(b/217462944): add support for 8/12-bit.
-  if (bd != 10) {
-    aom_highbd_lpf_horizontal_8_c(s, pitch, blimit, limit, thresh, bd);
-    return;
-  }
   uint16_t *const dst_p3 = s - 4 * pitch;
   uint16_t *const dst_p2 = s - 3 * pitch;
   uint16_t *const dst_p1 = s - 2 * pitch;
@@ -696,9 +674,9 @@ void aom_highbd_lpf_horizontal_8_neon(uint16_t *s, int pitch,
                               vld1_u16(dst_q2), vld1_u16(dst_q3) };
 
   // Adjust thresholds to bitdepth.
-  const int outer_thresh = *blimit << 2;
-  const int inner_thresh = *limit << 2;
-  const int hev_thresh = *thresh << 2;
+  const int outer_thresh = *blimit << (bd - 8);
+  const int inner_thresh = *limit << (bd - 8);
+  const int hev_thresh = *thresh << (bd - 8);
   const uint16x4_t outer_mask =
       OuterThreshold(src[2], src[3], src[4], src[5], outer_thresh);
   uint16x4_t hev_mask;
@@ -708,7 +686,7 @@ void aom_highbd_lpf_horizontal_8_neon(uint16_t *s, int pitch,
   const uint16x8_t p1q1 = vcombine_u16(src[2], src[5]);
   const uint16x8_t p2q2 = vcombine_u16(src[1], src[6]);
   const uint16x8_t p3q3 = vcombine_u16(src[0], src[7]);
-  Filter8Masks(p3q3, p2q2, p1q1, p0q0, hev_thresh, outer_mask, inner_thresh,
+  Filter8Masks(p3q3, p2q2, p1q1, p0q0, hev_thresh, outer_mask, inner_thresh, bd,
                &needs_filter_mask, &is_flat4_mask, &hev_mask);
 
 #if defined(__aarch64__)
@@ -736,7 +714,7 @@ void aom_highbd_lpf_horizontal_8_neon(uint16_t *s, int pitch,
   uint16x8_t f4_p0q0;
   // ZIP1 p0q0, p1q1 may perform better here.
   const uint16x8_t p0q1 = vcombine_u16(src[3], src[5]);
-  Filter4(p0q0, p0q1, p1q1, hev_mask, &f4_p1q1, &f4_p0q0);
+  Filter4(p0q0, p0q1, p1q1, hev_mask, bd, &f4_p1q1, &f4_p0q0);
   f4_p1q1 = vbslq_u16(hev_mask_8, p1q1, f4_p1q1);
 
   uint16x8_t p0q0_output, p1q1_output, p2q2_output;
@@ -777,11 +755,6 @@ static INLINE uint16x8_t ReverseLowHalf(const uint16x8_t a) {
 void aom_highbd_lpf_vertical_8_neon(uint16_t *s, int pitch,
                                     const uint8_t *blimit, const uint8_t *limit,
                                     const uint8_t *thresh, int bd) {
-  // TODO(b/217462944): add support for 8/12-bit.
-  if (bd != 10) {
-    aom_highbd_lpf_vertical_8_c(s, pitch, blimit, limit, thresh, bd);
-    return;
-  }
   uint16_t *const dst = s - 4;
   uint16_t *const dst_0 = dst;
   uint16_t *const dst_1 = dst + pitch;
@@ -800,9 +773,9 @@ void aom_highbd_lpf_vertical_8_neon(uint16_t *s, int pitch,
   LoopFilterTranspose4x8(src);
 
   // Adjust thresholds to bitdepth.
-  const int outer_thresh = *blimit << 2;
-  const int inner_thresh = *limit << 2;
-  const int hev_thresh = *thresh << 2;
+  const int outer_thresh = *blimit << (bd - 8);
+  const int inner_thresh = *limit << (bd - 8);
+  const int hev_thresh = *thresh << (bd - 8);
   const uint16x4_t outer_mask = OuterThreshold(
       vget_low_u16(src[1]), vget_low_u16(src[0]), vget_high_u16(src[0]),
       vget_high_u16(src[1]), outer_thresh);
@@ -813,7 +786,7 @@ void aom_highbd_lpf_vertical_8_neon(uint16_t *s, int pitch,
   const uint16x8_t p1q1 = src[1];
   const uint16x8_t p2q2 = src[2];
   const uint16x8_t p3q3 = src[3];
-  Filter8Masks(p3q3, p2q2, p1q1, p0q0, hev_thresh, outer_mask, inner_thresh,
+  Filter8Masks(p3q3, p2q2, p1q1, p0q0, hev_thresh, outer_mask, inner_thresh, bd,
                &needs_filter_mask, &is_flat4_mask, &hev_mask);
 
 #if defined(__aarch64__)
@@ -840,7 +813,7 @@ void aom_highbd_lpf_vertical_8_neon(uint16_t *s, int pitch,
   uint16x8_t f4_p1q1;
   uint16x8_t f4_p0q0;
   const uint16x8_t p0q1 = vcombine_u16(vget_low_u16(p0q0), vget_high_u16(p1q1));
-  Filter4(p0q0, p0q1, p1q1, hev_mask, &f4_p1q1, &f4_p0q0);
+  Filter4(p0q0, p0q1, p1q1, hev_mask, bd, &f4_p1q1, &f4_p0q0);
   f4_p1q1 = vbslq_u16(hev_mask_8, p1q1, f4_p1q1);
 
   uint16x8_t p0q0_output, p1q1_output, p2q2_output;
@@ -971,11 +944,6 @@ void aom_highbd_lpf_horizontal_14_neon(uint16_t *s, int pitch,
                                        const uint8_t *blimit,
                                        const uint8_t *limit,
                                        const uint8_t *thresh, int bd) {
-  // TODO(b/217462944): add support for 8/12-bit.
-  if (bd != 10) {
-    aom_highbd_lpf_horizontal_14_c(s, pitch, blimit, limit, thresh, bd);
-    return;
-  }
   uint16_t *const dst_p6 = s - 7 * pitch;
   uint16_t *const dst_p5 = s - 6 * pitch;
   uint16_t *const dst_p4 = s - 5 * pitch;
@@ -999,9 +967,9 @@ void aom_highbd_lpf_horizontal_14_neon(uint16_t *s, int pitch,
   };
 
   // Adjust thresholds to bitdepth.
-  const int outer_thresh = *blimit << 2;
-  const int inner_thresh = *limit << 2;
-  const int hev_thresh = *thresh << 2;
+  const int outer_thresh = *blimit << (bd - 8);
+  const int inner_thresh = *limit << (bd - 8);
+  const int hev_thresh = *thresh << (bd - 8);
   const uint16x4_t outer_mask =
       OuterThreshold(src[5], src[6], src[7], src[8], outer_thresh);
   uint16x4_t hev_mask;
@@ -1011,7 +979,7 @@ void aom_highbd_lpf_horizontal_14_neon(uint16_t *s, int pitch,
   const uint16x8_t p1q1 = vcombine_u16(src[5], src[8]);
   const uint16x8_t p2q2 = vcombine_u16(src[4], src[9]);
   const uint16x8_t p3q3 = vcombine_u16(src[3], src[10]);
-  Filter8Masks(p3q3, p2q2, p1q1, p0q0, hev_thresh, outer_mask, inner_thresh,
+  Filter8Masks(p3q3, p2q2, p1q1, p0q0, hev_thresh, outer_mask, inner_thresh, bd,
                &needs_filter_mask, &is_flat4_mask, &hev_mask);
 
 #if defined(__aarch64__)
@@ -1037,7 +1005,7 @@ void aom_highbd_lpf_horizontal_14_neon(uint16_t *s, int pitch,
   // Filter14 is only raised where |is_flat4_mask| is true.
   const uint16x4_t is_flat4_outer_mask = vand_u16(
       is_flat4_mask, IsFlat4(vabdq_u16(p0q0, p4q4), vabdq_u16(p0q0, p5q5),
-                             vabdq_u16(p0q0, p6q6)));
+                             vabdq_u16(p0q0, p6q6), bd));
   // Copy the masks to the high bits for packed comparisons later.
   const uint16x8_t hev_mask_8 = vcombine_u16(hev_mask, hev_mask);
   const uint16x8_t needs_filter_mask_8 =
@@ -1047,7 +1015,7 @@ void aom_highbd_lpf_horizontal_14_neon(uint16_t *s, int pitch,
   uint16x8_t f4_p0q0;
   // ZIP1 p0q0, p1q1 may perform better here.
   const uint16x8_t p0q1 = vcombine_u16(src[6], src[8]);
-  Filter4(p0q0, p0q1, p1q1, hev_mask, &f4_p1q1, &f4_p0q0);
+  Filter4(p0q0, p0q1, p1q1, hev_mask, bd, &f4_p1q1, &f4_p0q0);
   f4_p1q1 = vbslq_u16(hev_mask_8, p1q1, f4_p1q1);
 
   uint16x8_t p0q0_output, p1q1_output, p2q2_output, p3q3_output, p4q4_output,
@@ -1146,11 +1114,6 @@ void aom_highbd_lpf_vertical_14_neon(uint16_t *s, int pitch,
                                      const uint8_t *blimit,
                                      const uint8_t *limit,
                                      const uint8_t *thresh, int bd) {
-  // TODO(b/217462944): add support for 8/12-bit.
-  if (bd != 10) {
-    aom_highbd_lpf_vertical_14_c(s, pitch, blimit, limit, thresh, bd);
-    return;
-  }
   uint16_t *const dst = s - 8;
   uint16_t *const dst_0 = dst;
   uint16_t *const dst_1 = dst + pitch;
@@ -1172,9 +1135,9 @@ void aom_highbd_lpf_vertical_14_neon(uint16_t *s, int pitch,
   Transpose4x8(src_q);
 
   // Adjust thresholds to bitdepth.
-  const int outer_thresh = *blimit << 2;
-  const int inner_thresh = *limit << 2;
-  const int hev_thresh = *thresh << 2;
+  const int outer_thresh = *blimit << (bd - 8);
+  const int inner_thresh = *limit << (bd - 8);
+  const int hev_thresh = *thresh << (bd - 8);
   const uint16x4_t outer_mask = OuterThreshold(
       vget_high_u16(src_p[2]), vget_high_u16(src_p[3]), vget_low_u16(src_q[0]),
       vget_low_u16(src_q[1]), outer_thresh);
@@ -1185,7 +1148,7 @@ void aom_highbd_lpf_vertical_14_neon(uint16_t *s, int pitch,
   uint16x4_t hev_mask;
   uint16x4_t needs_filter_mask;
   uint16x4_t is_flat4_mask;
-  Filter8Masks(p3q3, p2q2, p1q1, p0q0, hev_thresh, outer_mask, inner_thresh,
+  Filter8Masks(p3q3, p2q2, p1q1, p0q0, hev_thresh, outer_mask, inner_thresh, bd,
                &needs_filter_mask, &is_flat4_mask, &hev_mask);
 
 #if defined(__aarch64__)
@@ -1216,7 +1179,7 @@ void aom_highbd_lpf_vertical_14_neon(uint16_t *s, int pitch,
   // Filter14 is only raised where |is_flat4_mask| is true.
   const uint16x4_t is_flat4_outer_mask = vand_u16(
       is_flat4_mask, IsFlat4(vabdq_u16(p0q0, p4q4), vabdq_u16(p0q0, p5q5),
-                             vabdq_u16(p0q0, p6q6)));
+                             vabdq_u16(p0q0, p6q6), bd));
   // Copy the masks to the high bits for packed comparisons later.
   const uint16x8_t hev_mask_8 = vcombine_u16(hev_mask, hev_mask);
   const uint16x8_t needs_filter_mask_8 =
@@ -1225,7 +1188,7 @@ void aom_highbd_lpf_vertical_14_neon(uint16_t *s, int pitch,
   uint16x8_t f4_p1q1;
   uint16x8_t f4_p0q0;
   const uint16x8_t p0q1 = vcombine_u16(vget_low_u16(p0q0), vget_high_u16(p1q1));
-  Filter4(p0q0, p0q1, p1q1, hev_mask, &f4_p1q1, &f4_p0q0);
+  Filter4(p0q0, p0q1, p1q1, hev_mask, bd, &f4_p1q1, &f4_p0q0);
   f4_p1q1 = vbslq_u16(hev_mask_8, p1q1, f4_p1q1);
 
   uint16x8_t p0q0_output, p1q1_output, p2q2_output, p3q3_output, p4q4_output,
