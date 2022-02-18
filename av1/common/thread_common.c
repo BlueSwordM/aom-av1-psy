@@ -368,8 +368,8 @@ static INLINE void thread_loop_filter_rows(
 #else
       if (is_realtime) {
         if (plane == AOM_PLANE_Y) {
-          av1_filter_block_plane_vert_rt(cm, xd, plane, &planes[plane], mi_row,
-                                         mi_col, params_buf, tx_buf);
+          av1_filter_block_plane_vert_rt(cm, xd, &planes[plane], mi_row, mi_col,
+                                         params_buf, tx_buf);
         } else {
           av1_filter_block_plane_vert_rt_chroma(cm, xd, &planes[plane], mi_row,
                                                 mi_col, params_buf, tx_buf);
@@ -406,8 +406,8 @@ static INLINE void thread_loop_filter_rows(
 #else
       if (is_realtime) {
         if (plane == AOM_PLANE_Y) {
-          av1_filter_block_plane_horz_rt(cm, xd, plane, &planes[plane], mi_row,
-                                         mi_col, params_buf, tx_buf);
+          av1_filter_block_plane_horz_rt(cm, xd, &planes[plane], mi_row, mi_col,
+                                         params_buf, tx_buf);
         } else {
           av1_filter_block_plane_horz_rt_chroma(cm, xd, &planes[plane], mi_row,
                                                 mi_col, params_buf, tx_buf);

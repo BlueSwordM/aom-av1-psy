@@ -325,80 +325,58 @@ static TX_SIZE set_lpf_parameters(
 
 // Similar to set_lpf_parameters, but does so one row/col at a time to reduce
 // calls to \ref get_transform_size and \ref av1_get_filter_level
-static AOM_FORCE_INLINE void set_lpf_parameters_for_line(
+static AOM_FORCE_INLINE void set_lpf_parameters_for_line_luma(
     AV1_DEBLOCKING_PARAMETERS *const params_buf, TX_SIZE *tx_buf,
     const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
-    const EDGE_DIR edge_dir, uint32_t x, uint32_t y, const int plane,
-    const struct macroblockd_plane *const plane_ptr, const uint32_t range) {
+    const EDGE_DIR edge_dir, uint32_t mi_col, uint32_t mi_row,
+    const struct macroblockd_plane *const plane_ptr, const uint32_t mi_range) {
   AV1_DEBLOCKING_PARAMETERS *params = params_buf;
   TX_SIZE *tx_size = tx_buf;
 
   TX_SIZE prev_tx_size = TX_INVALID;
 
   const int is_vert = edge_dir == VERT_EDGE;
-  const uint32_t scale_horz = plane_ptr->subsampling_x;
-  const uint32_t scale_vert = plane_ptr->subsampling_y;
-  const ptrdiff_t mode_step =
-      is_vert ? (1 << scale_horz) : (cm->mi_params.mi_stride << scale_vert);
+  const ptrdiff_t mode_step = is_vert ? 1 : cm->mi_params.mi_stride;
 
+  uint32_t *counter_ptr = is_vert ? &mi_col : &mi_row;
+  // Unroll the first iteration
   {
-    // Initialize the previous tx_size
-    const int mi_row = scale_vert | ((y << scale_vert) >> MI_SIZE_LOG2);
-    const int mi_col = scale_horz | ((x << scale_horz) >> MI_SIZE_LOG2);
-    MB_MODE_INFO **mi =
-        cm->mi_params.mi_grid_base + mi_row * cm->mi_params.mi_stride + mi_col;
-    const uint32_t coord = is_vert ? (x) : (y);
-    if (coord) {
-      const MB_MODE_INFO *prev_mbmi = *(mi - mode_step);
-      const int pv_row = is_vert ? (mi_row) : (mi_row - (1 << scale_vert));
-      const int pv_col = is_vert ? (mi_col - (1 << scale_horz)) : (mi_col);
-      prev_tx_size =
-          get_transform_size(xd, prev_mbmi, pv_row, pv_col, plane, plane_ptr);
-    }
-  }
-
-  uint32_t *counter_ptr = is_vert ? &x : &y;
-  while (*counter_ptr < range) {
-    assert(x < (uint32_t)plane_ptr->dst.width &&
-           y < (uint32_t)plane_ptr->dst.height);
+    assert(mi_row << MI_SIZE_LOG2 < (uint32_t)plane_ptr->dst.width &&
+           mi_col << MI_SIZE_LOG2 < (uint32_t)plane_ptr->dst.height);
     // reset to initial values
     params->filter_length = 0;
 
-    // for sub8x8 block, chroma prediction mode is obtained from the
-    // bottom/right mi structure of the co-located 8x8 luma block. so for chroma
-    // plane, mi_row and mi_col should map to the bottom/right mi structure,
-    // i.e, both mi_row and mi_col should be odd number for chroma plane.
-    const int mi_row = scale_vert | ((y << scale_vert) >> MI_SIZE_LOG2);
-    const int mi_col = scale_horz | ((x << scale_horz) >> MI_SIZE_LOG2);
     MB_MODE_INFO **mi =
         cm->mi_params.mi_grid_base + mi_row * cm->mi_params.mi_stride + mi_col;
     const MB_MODE_INFO *mbmi = mi[0];
     assert(mbmi);
 
     const TX_SIZE ts =
-        get_transform_size(xd, mi[0], mi_row, mi_col, plane, plane_ptr);
+        get_transform_size(xd, mi[0], mi_row, mi_col, AOM_PLANE_Y, plane_ptr);
     *tx_size = ts;
 
     const int advance_units =
         is_vert ? tx_size_wide_unit[ts] : tx_size_high_unit[ts];
-    const uint32_t coord = is_vert ? (x) : (y);
 #ifndef NDEBUG
     const uint32_t transform_masks =
         is_vert ? tx_size_wide[ts] - 1 : tx_size_high[ts] - 1;
-    const int32_t tu_edge = (coord & transform_masks) ? (0) : (1);
+    const int32_t tu_edge = (*counter_ptr & transform_masks) ? (0) : (1);
     assert(tu_edge);
 #endif  // NDEBUG
 
     // prepare outer edge parameters. deblock the edge if it's an edge of a TU
-    if (coord) {
+    if (*counter_ptr) {
       const MB_MODE_INFO *const mi_prev = *(mi - mode_step);
-      const TX_SIZE pv_ts = prev_tx_size;
+      const int pv_row = is_vert ? mi_row : (mi_row - 1);
+      const int pv_col = is_vert ? (mi_col - 1) : mi_col;
+      const TX_SIZE pv_ts = get_transform_size(xd, mi_prev, pv_row, pv_col,
+                                               AOM_PLANE_Y, plane_ptr);
       assert(mi_prev);
       uint32_t level =
-          av1_get_filter_level(cm, &cm->lf_info, edge_dir, plane, mbmi);
+          av1_get_filter_level(cm, &cm->lf_info, edge_dir, AOM_PLANE_Y, mbmi);
       if (!level) {
-        level =
-            av1_get_filter_level(cm, &cm->lf_info, edge_dir, plane, mi_prev);
+        level = av1_get_filter_level(cm, &cm->lf_info, edge_dir, AOM_PLANE_Y,
+                                     mi_prev);
       }
 
       const int curr_skipped = mbmi->skip_txfm && is_inter_block(mbmi);
@@ -408,15 +386,11 @@ static AOM_FORCE_INLINE void set_lpf_parameters_for_line(
                                          tx_size_wide_unit_log2[pv_ts])
                                 : AOMMIN(tx_size_high_unit_log2[ts],
                                          tx_size_high_unit_log2[pv_ts]);
-        if (plane) {
-          params->filter_length = (dim == 0) ? 4 : 6;
-        } else {
-          static const int tx_dim_to_filter_length[TX_SIZES] = { 4, 8, 14, 14,
-                                                                 14 };
-          assert(dim < TX_SIZES);
-          assert(dim >= 0);
-          params->filter_length = tx_dim_to_filter_length[dim];
-        }
+        static const int tx_dim_to_filter_length[TX_SIZES] = { 4, 8, 14, 14,
+                                                               14 };
+        assert(dim < TX_SIZES);
+        assert(dim >= 0);
+        params->filter_length = tx_dim_to_filter_length[dim];
 
         // prepare common parameters
         const loop_filter_thresh *const limits = cm->lf_info.lfthr + level;
@@ -425,7 +399,67 @@ static AOM_FORCE_INLINE void set_lpf_parameters_for_line(
     }
 
     // Advance
-    *counter_ptr += MIN_TX_SIZE * advance_units;
+    *counter_ptr += advance_units;
+    params += advance_units;
+    tx_size += advance_units;
+
+    prev_tx_size = ts;
+  }
+
+  while (*counter_ptr < mi_range) {
+    assert(mi_row << MI_SIZE_LOG2 < (uint32_t)plane_ptr->dst.width &&
+           mi_col << MI_SIZE_LOG2 < (uint32_t)plane_ptr->dst.height);
+    // reset to initial values
+    params->filter_length = 0;
+
+    MB_MODE_INFO **mi =
+        cm->mi_params.mi_grid_base + mi_row * cm->mi_params.mi_stride + mi_col;
+    const MB_MODE_INFO *mbmi = mi[0];
+    assert(mbmi);
+
+    const TX_SIZE ts =
+        get_transform_size(xd, mi[0], mi_row, mi_col, AOM_PLANE_Y, plane_ptr);
+    *tx_size = ts;
+
+    const int advance_units =
+        is_vert ? tx_size_wide_unit[ts] : tx_size_high_unit[ts];
+#ifndef NDEBUG
+    const uint32_t transform_masks =
+        is_vert ? tx_size_wide[ts] - 1 : tx_size_high[ts] - 1;
+    const int32_t tu_edge = (*counter_ptr & transform_masks) ? (0) : (1);
+    assert(tu_edge);
+#endif  // NDEBUG
+
+    // prepare outer edge parameters. deblock the edge if it's an edge of a TU
+    const MB_MODE_INFO *const mi_prev = *(mi - mode_step);
+    const TX_SIZE pv_ts = prev_tx_size;
+    assert(mi_prev);
+    uint32_t level =
+        av1_get_filter_level(cm, &cm->lf_info, edge_dir, AOM_PLANE_Y, mbmi);
+    if (!level) {
+      level = av1_get_filter_level(cm, &cm->lf_info, edge_dir, AOM_PLANE_Y,
+                                   mi_prev);
+    }
+
+    const int curr_skipped = mbmi->skip_txfm && is_inter_block(mbmi);
+    const int32_t pu_edge = mi_prev != mbmi;
+    if (level && (!curr_skipped || pu_edge)) {
+      const int dim = is_vert ? AOMMIN(tx_size_wide_unit_log2[ts],
+                                       tx_size_wide_unit_log2[pv_ts])
+                              : AOMMIN(tx_size_high_unit_log2[ts],
+                                       tx_size_high_unit_log2[pv_ts]);
+      static const int tx_dim_to_filter_length[TX_SIZES] = { 4, 8, 14, 14, 14 };
+      assert(dim < TX_SIZES);
+      assert(dim >= 0);
+      params->filter_length = tx_dim_to_filter_length[dim];
+
+      // prepare common parameters
+      const loop_filter_thresh *const limits = cm->lf_info.lfthr + level;
+      params->lfthr = limits;
+    }
+
+    // Advance
+    *counter_ptr += advance_units;
     params += advance_units;
     tx_size += advance_units;
 
@@ -850,32 +884,26 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
   }
 }
 
-void av1_filter_block_plane_vert_rt(
-    const AV1_COMMON *const cm, const MACROBLOCKD *const xd, const int plane,
-    const MACROBLOCKD_PLANE *const plane_ptr, const uint32_t mi_row,
-    const uint32_t mi_col, AV1_DEBLOCKING_PARAMETERS *params_buf,
-    TX_SIZE *tx_buf) {
-  const uint32_t scale_horz = plane_ptr->subsampling_x;
-  const uint32_t scale_vert = plane_ptr->subsampling_y;
+void av1_filter_block_plane_vert_rt(const AV1_COMMON *const cm,
+                                    const MACROBLOCKD *const xd,
+                                    const MACROBLOCKD_PLANE *const plane_ptr,
+                                    const uint32_t mi_row,
+                                    const uint32_t mi_col,
+                                    AV1_DEBLOCKING_PARAMETERS *params_buf,
+                                    TX_SIZE *tx_buf) {
   uint8_t *const dst_ptr = plane_ptr->dst.buf;
   const int dst_stride = plane_ptr->dst.stride;
-  const int plane_mi_rows =
-      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, scale_vert);
-  const int plane_mi_cols =
-      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, scale_horz);
-  const int y_range = AOMMIN((int)(plane_mi_rows - (mi_row >> scale_vert)),
-                             (MAX_MIB_SIZE >> scale_vert));
-  const int x_range = AOMMIN((int)(plane_mi_cols - (mi_col >> scale_horz)),
-                             (MAX_MIB_SIZE >> scale_horz));
-  assert(!plane);
+  const int plane_mi_rows = ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, 0);
+  const int plane_mi_cols = ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, 0);
+  const int y_range = AOMMIN((int)(plane_mi_rows - mi_row), MAX_MIB_SIZE);
+  const int x_range = AOMMIN((int)(plane_mi_cols - mi_col), MAX_MIB_SIZE);
   assert(!(y_range % 2));
   for (int y = 0; y < y_range; y += 2) {
-    const uint32_t curr_y = ((mi_row * MI_SIZE) >> scale_vert) + y * MI_SIZE;
-    const uint32_t x_start = ((mi_col * MI_SIZE) >> scale_horz) + 0 * MI_SIZE;
-    const uint32_t x_end =
-        ((mi_col * MI_SIZE) >> scale_horz) + x_range * MI_SIZE;
-    set_lpf_parameters_for_line(params_buf, tx_buf, cm, xd, VERT_EDGE, x_start,
-                                curr_y, plane, plane_ptr, x_end);
+    const uint32_t curr_y = mi_row + y;
+    const uint32_t x_start = mi_col;
+    const uint32_t x_end = mi_col + x_range;
+    set_lpf_parameters_for_line_luma(params_buf, tx_buf, cm, xd, VERT_EDGE,
+                                     x_start, curr_y, plane_ptr, x_end);
 
     AV1_DEBLOCKING_PARAMETERS *params = params_buf;
     TX_SIZE *tx_size = tx_buf;
@@ -1179,31 +1207,25 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
   }
 }
 
-void av1_filter_block_plane_horz_rt(
-    const AV1_COMMON *const cm, const MACROBLOCKD *const xd, const int plane,
-    const MACROBLOCKD_PLANE *const plane_ptr, const uint32_t mi_row,
-    const uint32_t mi_col, AV1_DEBLOCKING_PARAMETERS *params_buf,
-    TX_SIZE *tx_buf) {
-  const uint32_t scale_horz = plane_ptr->subsampling_x;
-  const uint32_t scale_vert = plane_ptr->subsampling_y;
+void av1_filter_block_plane_horz_rt(const AV1_COMMON *const cm,
+                                    const MACROBLOCKD *const xd,
+                                    const MACROBLOCKD_PLANE *const plane_ptr,
+                                    const uint32_t mi_row,
+                                    const uint32_t mi_col,
+                                    AV1_DEBLOCKING_PARAMETERS *params_buf,
+                                    TX_SIZE *tx_buf) {
   uint8_t *const dst_ptr = plane_ptr->dst.buf;
   const int dst_stride = plane_ptr->dst.stride;
-  const int plane_mi_rows =
-      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, scale_vert);
-  const int plane_mi_cols =
-      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, scale_horz);
-  const int y_range = AOMMIN((int)(plane_mi_rows - (mi_row >> scale_vert)),
-                             (MAX_MIB_SIZE >> scale_vert));
-  const int x_range = AOMMIN((int)(plane_mi_cols - (mi_col >> scale_horz)),
-                             (MAX_MIB_SIZE >> scale_horz));
-  assert(!plane);
+  const int plane_mi_rows = ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, 0);
+  const int plane_mi_cols = ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, 0);
+  const int y_range = AOMMIN((int)(plane_mi_rows - mi_row), MAX_MIB_SIZE);
+  const int x_range = AOMMIN((int)(plane_mi_cols - mi_col), MAX_MIB_SIZE);
   for (int x = 0; x < x_range; x += 2) {
-    const uint32_t curr_x = ((mi_col * MI_SIZE) >> scale_horz) + x * MI_SIZE;
-    const uint32_t y_start = ((mi_row * MI_SIZE) >> scale_vert) + 0 * MI_SIZE;
-    const uint32_t y_end =
-        ((mi_row * MI_SIZE) >> scale_vert) + y_range * MI_SIZE;
-    set_lpf_parameters_for_line(params_buf, tx_buf, cm, xd, HORZ_EDGE, curr_x,
-                                y_start, plane, plane_ptr, y_end);
+    const uint32_t curr_x = mi_col + x;
+    const uint32_t y_start = mi_row;
+    const uint32_t y_end = mi_row + y_range;
+    set_lpf_parameters_for_line_luma(params_buf, tx_buf, cm, xd, HORZ_EDGE,
+                                     curr_x, y_start, plane_ptr, y_end);
 
     AV1_DEBLOCKING_PARAMETERS *params = params_buf;
     TX_SIZE *tx_size = tx_buf;
