@@ -13,11 +13,8 @@
 
 #include <arm_neon.h>
 
-// TODO(b/217462944): rename functions from libgav1 to libaom style after
-// highbd loop filter code is ported.
-
 // Swap high and low halves.
-static INLINE uint16x8_t Transpose64(const uint16x8_t a) {
+static INLINE uint16x8_t transpose64_u16q(const uint16x8_t a) {
   return vextq_u16(a, a, 4);
 }
 
@@ -203,7 +200,7 @@ static INLINE void transpose_u8_4x8(uint8x8_t *a0, uint8x8_t *a1, uint8x8_t *a2,
 // 01 11 21 31
 // 02 12 22 32
 // 03 13 23 33
-static INLINE void Transpose4x4(uint16x4_t a[4]) {
+static INLINE void transpose_u16_4x4(uint16x4_t a[4]) {
   // b:
   // 00 10 02 12
   // 01 11 03 13
@@ -238,7 +235,7 @@ static INLINE void Transpose4x4(uint16x4_t a[4]) {
 // a[1]: 01 11 21 31 05 15 25 35
 // a[2]: 02 12 22 32 06 16 26 36
 // a[3]: 03 13 23 33 07 17 27 37
-static INLINE void Transpose4x8(uint16x8_t a[4]) {
+static INLINE void transpose_u16_4x8q(uint16x8_t a[4]) {
   // b0.val[0]: 00 10 02 12 04 14 06 16
   // b0.val[1]: 01 11 03 13 05 15 07 17
   // b1.val[0]: 20 30 22 32 24 34 26 36
@@ -261,7 +258,8 @@ static INLINE void Transpose4x8(uint16x8_t a[4]) {
   a[3] = vreinterpretq_u16_u32(c1.val[1]);
 }
 
-static INLINE uint16x8x2_t VtrnqU64(const uint32x4_t a0, const uint32x4_t a1) {
+static INLINE uint16x8x2_t aom_vtrnq_u64_to_u16(const uint32x4_t a0,
+                                                const uint32x4_t a1) {
   uint16x8x2_t b0;
   b0.val[0] = vcombine_u16(vreinterpret_u16_u32(vget_low_u32(a0)),
                            vreinterpret_u16_u32(vget_low_u32(a1)));
@@ -291,11 +289,11 @@ static INLINE uint16x8x2_t VtrnqU64(const uint32x4_t a0, const uint32x4_t a1) {
 // a[3]: 03 02 01 00 34 35 36 37
 // Simply reordering the inputs (3, 2, 1, 0) will reset the low halves, but
 // reverse the high halves.
-// The standard Transpose4x8 will produce the same reversals, but with the
+// The standard transpose_u16_4x8q will produce the same reversals, but with the
 // order of the low halves also restored relative to the high halves. This is
 // preferable because it puts all values from the same source row back together,
 // but some post-processing is inevitable.
-static INLINE void LoopFilterTranspose4x8(uint16x8_t a[4]) {
+static INLINE void loop_filter_transpose_u16_4x8q(uint16x8_t a[4]) {
   // b0.val[0]: 00 10 02 12 04 14 06 16
   // b0.val[1]: 01 11 03 13 05 15 07 17
   // b1.val[0]: 20 30 22 32 24 34 26 36
@@ -324,9 +322,9 @@ static INLINE void LoopFilterTranspose4x8(uint16x8_t a[4]) {
   // d0.val[1]: 02 12 22 32 05 15 25 35  p1q1
   // d1.val[0]: 03 13 23 33 04 14 24 34  p0q0
   // d1.val[1]: 01 11 21 31 06 16 26 36  p2q2
-  const uint16x8x2_t d0 = VtrnqU64(c0.val[0], c1.val[1]);
+  const uint16x8x2_t d0 = aom_vtrnq_u64_to_u16(c0.val[0], c1.val[1]);
   // The third row of c comes first here to swap p2 with q0.
-  const uint16x8x2_t d1 = VtrnqU64(c1.val[0], c0.val[1]);
+  const uint16x8x2_t d1 = aom_vtrnq_u64_to_u16(c1.val[0], c0.val[1]);
 
   // 8x4 Output:
   // a[0]: 03 13 23 33 04 14 24 34  p0q0
