@@ -2604,6 +2604,7 @@ static AOM_INLINE void decode_tile_sb_row(AV1Decoder *pbi, ThreadData *const td,
   const int sb_row_in_tile =
       (mi_row - tile_info->mi_row_start) >> cm->seq_params->mib_size_log2;
   int sb_col_in_tile = 0;
+  int row_mt_exit = 0;
 
   for (int mi_col = tile_info->mi_col_start; mi_col < tile_info->mi_col_end;
        mi_col += cm->seq_params->mib_size, sb_col_in_tile++) {
@@ -2612,9 +2613,19 @@ static AOM_INLINE void decode_tile_sb_row(AV1Decoder *pbi, ThreadData *const td,
 
     sync_read(&tile_data->dec_row_mt_sync, sb_row_in_tile, sb_col_in_tile);
 
-    // Decoding of the super-block
-    decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                     cm->seq_params->sb_size, 0x2);
+#if CONFIG_MULTITHREAD
+    pthread_mutex_lock(pbi->row_mt_mutex_);
+#endif
+    row_mt_exit = pbi->frame_row_mt_info.row_mt_exit;
+#if CONFIG_MULTITHREAD
+    pthread_mutex_unlock(pbi->row_mt_mutex_);
+#endif
+
+    if (!row_mt_exit) {
+      // Decoding of the super-block
+      decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
+                       cm->seq_params->sb_size, 0x2);
+    }
 
     sync_write(&tile_data->dec_row_mt_sync, sb_row_in_tile, sb_col_in_tile,
                sb_cols_in_tile);
