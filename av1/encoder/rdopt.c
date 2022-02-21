@@ -1656,6 +1656,7 @@ static int64_t skip_mode_rd(RD_STATS *rd_stats, const AV1_COMP *const cpi,
 
     av1_subtract_plane(x, plane_bsize, plane);
     int64_t sse = aom_sum_squares_2d_i16(p->src_diff, bw, bw, bh) << 4;
+    sse >>= ((cpi->frame_info.bit_depth - 8) * 2);
     total_sse += sse;
   }
   const int skip_mode_ctx = av1_get_skip_mode_context(xd);
