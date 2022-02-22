@@ -928,7 +928,7 @@ static void block_yrd(AV1_COMP *cpi, MACROBLOCK *x, int mi_row, int mi_col,
         *skippable &= (*eob == 0);
         x->txfm_search_info.blk_skip[(r * num_8x8_w + c) / 2] =
             (*eob == 0) ? 1 : 0;
-        eob_cost += 1;
+        eob_cost += get_msb(*eob + 1);
       }
       block += step;
     }
