@@ -1364,6 +1364,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->inter_sf.selective_ref_frame = 4;
   sf->inter_sf.alt_ref_search_fp = 2;
   sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
+  sf->inter_sf.limit_txfm_eval_per_mode = 3;
 
   sf->inter_sf.adaptive_rd_thresh = 4;
   sf->inter_sf.inter_mode_rd_model_estimation = 2;
@@ -1488,7 +1489,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
     sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh = 0;
     sf->inter_sf.limit_inter_mode_cands = 4;
-    sf->inter_sf.limit_txfm_eval_per_mode = 3;
     sf->inter_sf.prune_warped_prob_thresh = 8;
     sf->inter_sf.extra_prune_warped = 1;
 
