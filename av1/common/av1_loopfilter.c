@@ -329,8 +329,8 @@ static AOM_FORCE_INLINE void set_one_param_for_line_luma(
     const EDGE_DIR edge_dir, uint32_t mi_col, uint32_t mi_row,
     const struct macroblockd_plane *const plane_ptr, int coord,
     bool is_first_block, TX_SIZE prev_tx_size) {
-  assert(mi_row << MI_SIZE_LOG2 < (uint32_t)plane_ptr->dst.width &&
-         mi_col << MI_SIZE_LOG2 < (uint32_t)plane_ptr->dst.height);
+  assert(mi_col << MI_SIZE_LOG2 < (uint32_t)plane_ptr->dst.width &&
+         mi_row << MI_SIZE_LOG2 < (uint32_t)plane_ptr->dst.height);
   const int is_vert = edge_dir == VERT_EDGE;
   const ptrdiff_t mode_step = is_vert ? 1 : cm->mi_params.mi_stride;
   // reset to initial values
@@ -347,10 +347,9 @@ static AOM_FORCE_INLINE void set_one_param_for_line_luma(
 #ifndef NDEBUG
   const uint32_t transform_masks =
       is_vert ? tx_size_wide[ts] - 1 : tx_size_high[ts] - 1;
-  const int32_t tu_edge = (coord & transform_masks) ? (0) : (1);
+  const int32_t tu_edge = ((coord * MI_SIZE) & transform_masks) ? (0) : (1);
   assert(tu_edge);
 #endif  // NDEBUG
-
   // If we are not the first block, then coord is always true, so
   // !is_first_block is technically redundant. But we are keeping it here so the
   // compiler can compile away this conditional if we pass in is_first_block :=
