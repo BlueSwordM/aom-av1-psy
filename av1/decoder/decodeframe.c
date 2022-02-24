@@ -1307,6 +1307,10 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
   }
   subsize = get_partition_subsize(bsize, partition);
   if (subsize == BLOCK_INVALID) {
+    // When an internal error occurs ensure that xd->mi_row is set appropriately
+    // w.r.t. current tile, which is used to signal processing of current row is
+    // done.
+    xd->mi_row = mi_row;
     aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
                        "Partition is invalid for block size %dx%d",
                        block_size_wide[bsize], block_size_high[bsize]);
@@ -1316,6 +1320,10 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
   const struct macroblockd_plane *const pd_u = &xd->plane[1];
   if (get_plane_block_size(subsize, pd_u->subsampling_x, pd_u->subsampling_y) ==
       BLOCK_INVALID) {
+    // When an internal error occurs ensure that xd->mi_row is set appropriately
+    // w.r.t. current tile, which is used to signal processing of current row is
+    // done.
+    xd->mi_row = mi_row;
     aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
                        "Block size %dx%d invalid with this subsampling mode",
                        block_size_wide[subsize], block_size_high[subsize]);
@@ -1393,19 +1401,30 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
 }
 
 static AOM_INLINE void setup_bool_decoder(
-    const uint8_t *data, const uint8_t *data_end, const size_t read_size,
-    struct aom_internal_error_info *error_info, aom_reader *r,
-    uint8_t allow_update_cdf) {
+    MACROBLOCKD *const xd, const uint8_t *data, const uint8_t *data_end,
+    const size_t read_size, struct aom_internal_error_info *error_info,
+    aom_reader *r, uint8_t allow_update_cdf) {
   // Validate the calculated partition length. If the buffer
   // described by the partition can't be fully read, then restrict
   // it to the portion that can be (for EC mode) or throw an error.
-  if (!read_is_valid(data, read_size, data_end))
+  if (!read_is_valid(data, read_size, data_end)) {
+    // When internal error occurs ensure that xd->mi_row is set appropriately
+    // w.r.t. current tile, which is used to signal processing of current row is
+    // done in row-mt decoding.
+    xd->mi_row = xd->tile.mi_row_start;
+
     aom_internal_error(error_info, AOM_CODEC_CORRUPT_FRAME,
                        "Truncated packet or corrupt tile length");
+  }
+  if (aom_reader_init(r, data, read_size)) {
+    // When internal error occurs ensure that xd->mi_row is set appropriately
+    // w.r.t. current tile, which is used to signal processing of current row is
+    // done in row-mt decoding.
+    xd->mi_row = xd->tile.mi_row_start;
 
-  if (aom_reader_init(r, data, read_size))
     aom_internal_error(error_info, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate bool decoder %d", 1);
+  }
 
   r->allow_update_cdf = allow_update_cdf;
 }
@@ -2824,8 +2843,9 @@ static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,
       av1_zero(td->cb_buffer_base.dqcoeff);
       av1_tile_init(&td->dcb.xd.tile, cm, row, col);
       td->dcb.xd.current_base_qindex = cm->quant_params.base_qindex;
-      setup_bool_decoder(tile_bs_buf->data, data_end, tile_bs_buf->size,
-                         &pbi->error, td->bit_reader, allow_update_cdf);
+      setup_bool_decoder(&td->dcb.xd, tile_bs_buf->data, data_end,
+                         tile_bs_buf->size, &pbi->error, td->bit_reader,
+                         allow_update_cdf);
 #if CONFIG_ACCOUNTING
       if (pbi->acct_enabled) {
         td->bit_reader->accounting = &pbi->accounting;
@@ -2897,7 +2917,8 @@ static AOM_INLINE void tile_worker_hook_init(
   MACROBLOCKD *const xd = &td->dcb.xd;
   av1_tile_init(&xd->tile, cm, tile_row, tile_col);
   xd->current_base_qindex = cm->quant_params.base_qindex;
-  setup_bool_decoder(tile_buffer->data, thread_data->data_end,
+
+  setup_bool_decoder(xd, tile_buffer->data, thread_data->data_end,
                      tile_buffer->size, &thread_data->error_info,
                      td->bit_reader, allow_update_cdf);
 #if CONFIG_ACCOUNTING
