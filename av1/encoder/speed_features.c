@@ -416,7 +416,7 @@ static void set_allintra_speed_features_framesize_independent(
     // For screen content, "prune_sgr_based_on_wiener = 2" cause large quality
     // loss.
     sf->lpf_sf.prune_sgr_based_on_wiener = allow_screen_content_tools ? 1 : 2;
-    sf->lpf_sf.disable_loop_restoration_chroma = 0;
+    sf->lpf_sf.disable_loop_restoration_chroma = 1; //To fix for the aomenc devs reminder
     sf->lpf_sf.reduce_wiener_window_size = 1;
     sf->lpf_sf.prune_wiener_based_on_src_var = 2;
   }
@@ -996,7 +996,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->lpf_sf.prune_wiener_based_on_src_var = 1;
     sf->lpf_sf.prune_sgr_based_on_wiener = 1;
-    sf->lpf_sf.disable_loop_restoration_chroma = boosted ? 0 : 1;
     sf->lpf_sf.reduce_wiener_window_size = boosted ? 0 : 1;
 
     // TODO(any): Re-evaluate this feature set to 1 in speed 2.
@@ -2244,6 +2243,15 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
           cm->quant_params.base_qindex > qindex_high[is_720p_or_larger]) {
         sf->lpf_sf.disable_loop_restoration_luma = 1;
       }
+    }
+  }
+
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY){
+    // Only enable chroma LR at higher quantizers
+    // To be tuned for HDR later
+    const int qindex_thresh_lr[2] = { 124, 96 };
+    if (cm->quant_params.base_qindex < qindex_thresh_lr[is_720p_or_larger]){
+      sf->lpf_sf.disable_loop_restoration_chroma = 1;
     }
   }
 
