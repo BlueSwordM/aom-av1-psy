@@ -88,6 +88,14 @@ void aom_highbd_minmax_8x8_c(const uint8_t *s8, int p, const uint8_t *d8,
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
+void aom_pixel_scale_c(const int16_t *src_diff, ptrdiff_t src_stride,
+                       int16_t *coeff, int log_scale, int h8, int w8) {
+  for (int idy = 0; idy < h8 * 8; ++idy)
+    for (int idx = 0; idx < w8 * 8; ++idx)
+      coeff[idy * (h8 * 8) + idx] = src_diff[idy * src_stride + idx]
+                                    << log_scale;
+}
+
 static void hadamard_col4(const int16_t *src_diff, ptrdiff_t src_stride,
                           int16_t *coeff) {
   int16_t b0 = (src_diff[0 * src_stride] + src_diff[1 * src_stride]) >> 1;

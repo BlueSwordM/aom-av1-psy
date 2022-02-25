@@ -9,6 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include "aom_dsp/txfm_common.h"
+
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
 #include "av1/common/enums.h"
@@ -2057,6 +2059,7 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
            ((1 << num_pels_log2_lookup[cpi->common.seq_params->sb_size]) >>
             (subsampling_x + subsampling_y)));
   }
+
   encode_superblock(cpi, tile_data, td, tp, dry_run, bsize, rate);
   if (!dry_run) {
     update_cb_offsets(x, bsize, subsampling_x, subsampling_y);
