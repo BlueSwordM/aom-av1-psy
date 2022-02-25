@@ -572,7 +572,8 @@ static int ac_thr_factor(const int speed, const int width, const int height,
 static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
                                       int mi_row, int mi_col, MACROBLOCK *x,
                                       MACROBLOCKD *xd, RD_STATS *rd_stats,
-                                      int *early_term, int calculate_rd) {
+                                      int *early_term, int calculate_rd,
+                                      int64_t best_sse) {
   // Note our transform coeffs are 8 times an orthogonal transform.
   // Hence quantizer step is also 8 times. To get effective quantizer
   // we need to divide by 8 before sending to modeling function.
@@ -583,6 +584,7 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
   const uint32_t ac_quant = p->dequant_QTX[1];
   const int64_t dc_thr = dc_quant * dc_quant >> 6;
   int64_t ac_thr = ac_quant * ac_quant >> 6;
+  int test_skip = 1;
   unsigned int var;
   int sum;
 
@@ -622,8 +624,15 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
   if (tx_size < TX_8X8) tx_size = TX_8X8;
   xd->mi[0]->tx_size = tx_size;
 
+  // Skipping test
+  *early_term = 0;
+  if (!calculate_rd && cpi->sf.rt_sf.sse_early_term_inter_search &&
+      early_term_inter_search_with_sse(
+          cpi->sf.rt_sf.sse_early_term_inter_search, bsize, sse, best_sse))
+    test_skip = 0;
+
   // Evaluate if the partition block is a skippable block in Y plane.
-  {
+  if (test_skip) {
     unsigned int sse16x16[64] = { 0 };
     int sum16x16[64] = { 0 };
     unsigned int var16x16[64] = { 0 };
@@ -654,8 +663,6 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
       calculate_variance(bw, bh, TX_16X16, sse16x16, sum16x16, var32x32,
                          sse32x32, sum32x32);
 
-    // Skipping test
-    *early_term = 0;
     for (k = 0; k < num; k++)
       // Check if all ac coefficients can be quantized to zero.
       if (!(var_tx[k] < ac_thr || var == 0)) {
@@ -1407,6 +1414,7 @@ static void recheck_zeromv_after_denoising(
  *                                    skipped
  * \param[in]    use_model_yrd_large  Flag, indicating special logic to handle
  *                                    large blocks
+ * \param[in]    best_sse             Best sse so far.
  *
  * \return Nothing is returned. Instead, calculated RD cost is placed to
  * \c this_rdc and best filter is placed to \c mi->interp_filters. In case
@@ -1418,7 +1426,8 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
                               int mi_row, int mi_col, PRED_BUFFER *tmp,
                               BLOCK_SIZE bsize, int reuse_inter_pred,
                               PRED_BUFFER **this_mode_pred,
-                              int *this_early_term, int use_model_yrd_large) {
+                              int *this_early_term, int use_model_yrd_large,
+                              int64_t best_sse) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   struct macroblockd_plane *const pd = &xd->plane[0];
@@ -1443,7 +1452,7 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
     av1_enc_build_inter_predictor_y(xd, mi_row, mi_col);
     if (use_model_yrd_large)
       model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd,
-                                &pf_rd_stats[i], this_early_term, 1);
+                                &pf_rd_stats[i], this_early_term, 1, best_sse);
     else
       model_rd_for_sb_y(cpi, bsize, x, xd, &pf_rd_stats[i], 1);
     pf_rd_stats[i].rate += av1_get_switchable_rate(
@@ -1544,7 +1553,7 @@ static void calc_num_proj_ref(AV1_COMP *cpi, MACROBLOCK *x, MB_MODE_INFO *mi) {
 static void search_motion_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
                                int mi_row, int mi_col, BLOCK_SIZE bsize,
                                int *this_early_term, int use_model_yrd_large,
-                               int *rate_mv) {
+                               int *rate_mv, int64_t best_sse) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   const FeatureFlags *const features = &cm->features;
@@ -1587,7 +1596,8 @@ static void search_motion_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
       av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0, 0);
       if (use_model_yrd_large)
         model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd,
-                                  &pf_rd_stats[i], this_early_term, 1);
+                                  &pf_rd_stats[i], this_early_term, 1,
+                                  best_sse);
       else
         model_rd_for_sb_y(cpi, bsize, x, xd, &pf_rd_stats[i], 1);
       pf_rd_stats[i].rate +=
@@ -1649,7 +1659,8 @@ static void search_motion_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
                                       av1_num_planes(cm) - 1);
         if (use_model_yrd_large)
           model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd,
-                                    &pf_rd_stats[i], this_early_term, 1);
+                                    &pf_rd_stats[i], this_early_term, 1,
+                                    best_sse);
         else
           model_rd_for_sb_y(cpi, bsize, x, xd, &pf_rd_stats[i], 1);
 
@@ -2707,12 +2718,13 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         (ref_frame == LAST_FRAME || !x->nonrd_prune_ref_frame_search)) {
       search_filter_ref(cpi, x, &this_rdc, mi_row, mi_col, tmp, bsize,
                         reuse_inter_pred, &this_mode_pred, &this_early_term,
-                        use_model_yrd_large);
+                        use_model_yrd_large, best_pickmode.best_sse);
 #if !CONFIG_REALTIME_ONLY
     } else if (cpi->oxcf.motion_mode_cfg.allow_warped_motion &&
                this_mode == NEWMV) {
       search_motion_mode(cpi, x, &this_rdc, mi_row, mi_col, bsize,
-                         &this_early_term, use_model_yrd_large, &rate_mv);
+                         &this_early_term, use_model_yrd_large, &rate_mv,
+                         best_pickmode.best_sse);
       if (this_mode == NEWMV) {
         frame_mv[this_mode][ref_frame] = mi->mv[0];
       }
@@ -2746,7 +2758,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
       if (use_model_yrd_large) {
         model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd, &this_rdc,
-                                  &this_early_term, use_modeled_non_rd_cost);
+                                  &this_early_term, use_modeled_non_rd_cost,
+                                  best_pickmode.best_sse);
       } else {
         model_rd_for_sb_y(cpi, bsize, x, xd, &this_rdc,
                           use_modeled_non_rd_cost);
