@@ -879,9 +879,6 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
 
 #if CONFIG_TUNE_BUTTERAUGLI
   if (ctx->extra_cfg.tuning == AOM_TUNE_BUTTERAUGLI) {
-    if (img->bit_depth > 8) {
-      ERROR("Only 8 bit depth images supported in tune=butteraugli mode.");
-    }
     if (img->mc != 0 && img->mc != AOM_CICP_MC_BT_709 &&
         img->mc != AOM_CICP_MC_BT_601 && img->mc != AOM_CICP_MC_BT_470_B_G) {
       ERROR(
