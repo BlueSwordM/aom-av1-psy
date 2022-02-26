@@ -642,7 +642,8 @@ static void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   }
 #endif  // !CONFIG_REALTIME_ONLY
 
-  if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIM) {
+  if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIM ||
+      cpi->oxcf.tune_cfg.tuning == AOM_TUNE_IMAGE_PERCEPTUAL_QUALITY) {
     av1_set_ssim_rdmult(cpi, &x->errorperbit, bsize, mi_row, mi_col,
                         &x->rdmult);
   }
@@ -658,7 +659,7 @@ static void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
     av1_set_butteraugli_rdmult(cpi, x, bsize, mi_row, mi_col, &x->rdmult);
   }
 #endif
-  if (cpi->oxcf.mode == ALLINTRA) {
+  if (cpi->oxcf.mode == ALLINTRA || cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY) {
     x->rdmult = (x->rdmult * x->intra_sb_rdmult_modifier) >> 7;
   }
 }
@@ -4810,7 +4811,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   // Set buffers and offsets.
   av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize);
 
-  if (cpi->oxcf.mode == ALLINTRA) {
+  if (cpi->oxcf.mode == ALLINTRA || cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY) {
     if (bsize == cm->seq_params->sb_size) {
       double var_min, var_max;
       log_sub_block_var(cpi, x, bsize, &var_min, &var_max);

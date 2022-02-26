@@ -2589,9 +2589,18 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #endif
 
 #if !CONFIG_RD_COMMAND
-  // Determine whether to use screen content tools using two fast encoding.
-  if (!cpi->sf.hl_sf.disable_extra_sc_testing)
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY) {
+    // Screen content optimizations are bad for Psy tuning,
+    // disable them and avoid the extra testing to speed us up.
+    FeatureFlags *const features = &cm->features;
+    features->allow_screen_content_tools = 0;
+    features->allow_intrabc = 0;
+    cpi->use_screen_content_tools = 0;
+    cpi->is_screen_content_type = 0;
+  } else if (!cpi->sf.hl_sf.disable_extra_sc_testing) {
+    // Determine whether to use screen content tools using two fast encoding.
     av1_determine_sc_tools_with_encoding(cpi, q);
+  }
 #endif  // !CONFIG_RD_COMMAND
 
 #if CONFIG_TUNE_VMAF
@@ -3481,7 +3490,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     }
   }
 
-  if (oxcf->tune_cfg.tuning == AOM_TUNE_SSIM) {
+  if (oxcf->tune_cfg.tuning == AOM_TUNE_SSIM ||
+      oxcf->tune_cfg.tuning == AOM_TUNE_IMAGE_PERCEPTUAL_QUALITY) {
     av1_set_mb_ssim_rdmult_scaling(cpi);
   }
 
