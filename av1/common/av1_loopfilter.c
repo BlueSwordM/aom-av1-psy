@@ -354,6 +354,7 @@ static AOM_FORCE_INLINE void set_one_param_for_line_luma(
   // !is_first_block is technically redundant. But we are keeping it here so the
   // compiler can compile away this conditional if we pass in is_first_block :=
   // false
+  bool curr_skipped = false;
   if (!is_first_block || coord) {
     const MB_MODE_INFO *const mi_prev = *(mi - mode_step);
     const int pv_row = is_vert ? mi_row : (mi_row - 1);
@@ -363,16 +364,18 @@ static AOM_FORCE_INLINE void set_one_param_for_line_luma(
                                                    AOM_PLANE_Y, plane_ptr)
                               : prev_tx_size;
     assert(mi_prev);
-    uint32_t level =
+    uint8_t level =
         av1_get_filter_level(cm, &cm->lf_info, edge_dir, AOM_PLANE_Y, mbmi);
     if (!level) {
       level = av1_get_filter_level(cm, &cm->lf_info, edge_dir, AOM_PLANE_Y,
                                    mi_prev);
     }
 
-    const int curr_skipped = mbmi->skip_txfm && is_inter_block(mbmi);
     const int32_t pu_edge = mi_prev != mbmi;
-    if (level && (!curr_skipped || pu_edge)) {
+    if (!pu_edge) {
+      curr_skipped = mbmi->skip_txfm && is_inter_block(mbmi);
+    }
+    if ((pu_edge || !curr_skipped) && level) {
       const int dim = is_vert ? AOMMIN(tx_size_wide_unit_log2[ts],
                                        tx_size_wide_unit_log2[pv_ts])
                               : AOMMIN(tx_size_high_unit_log2[ts],
@@ -472,6 +475,7 @@ static AOM_FORCE_INLINE void set_one_param_for_line_chroma(
   // !is_first_block is technically redundant. But we are keeping it here so the
   // compiler can compile away this conditional if we pass in is_first_block :=
   // false
+  bool curr_skipped = false;
   if (!is_first_block || coord) {
     const MB_MODE_INFO *const mi_prev = *(mi - mode_step);
     assert(mi_prev);
@@ -481,21 +485,15 @@ static AOM_FORCE_INLINE void set_one_param_for_line_chroma(
                               ? get_transform_size(xd, mi_prev, pv_row, pv_col,
                                                    AOM_PLANE_U, plane_ptr)
                               : prev_tx_size;
-    const int curr_skipped = mbmi->skip_txfm && is_inter_block(mbmi);
-    const int32_t pu_edge = mi_prev != mbmi;
-    const int dim =
-        is_vert
-            ? AOMMIN(tx_size_wide_unit_log2[ts], tx_size_wide_unit_log2[pv_ts])
-            : AOMMIN(tx_size_high_unit_log2[ts], tx_size_high_unit_log2[pv_ts]);
 
-    uint32_t u_level =
+    uint8_t u_level =
         av1_get_filter_level(cm, &cm->lf_info, edge_dir, AOM_PLANE_U, mbmi);
     if (!u_level) {
       u_level = av1_get_filter_level(cm, &cm->lf_info, edge_dir, AOM_PLANE_U,
                                      mi_prev);
     }
 #ifndef NDEBUG
-    uint32_t v_level =
+    uint8_t v_level =
         av1_get_filter_level(cm, &cm->lf_info, edge_dir, AOM_PLANE_V, mbmi);
     if (!v_level) {
       v_level = av1_get_filter_level(cm, &cm->lf_info, edge_dir, AOM_PLANE_V,
@@ -503,14 +501,23 @@ static AOM_FORCE_INLINE void set_one_param_for_line_chroma(
     }
     assert(u_level == v_level);
 #endif  // NDEBUG
-    // For realtime mode, u and v have the same level
-    if (u_level && (!curr_skipped || pu_edge)) {
-      params->filter_length = (dim == 0) ? 4 : 6;
-    }
+    const int32_t pu_edge = mi_prev != mbmi;
 
-    const loop_filter_thresh *const limits = cm->lf_info.lfthr;
-    params->uv_lfthr[0] = limits + u_level;
-    params->uv_lfthr[1] = limits + u_level;
+    if (!pu_edge) {
+      curr_skipped = mbmi->skip_txfm && is_inter_block(mbmi);
+    }
+    // For realtime mode, u and v have the same level
+    if ((!curr_skipped || pu_edge) && u_level) {
+      const int dim = is_vert ? AOMMIN(tx_size_wide_unit_log2[ts],
+                                       tx_size_wide_unit_log2[pv_ts])
+                              : AOMMIN(tx_size_high_unit_log2[ts],
+                                       tx_size_high_unit_log2[pv_ts]);
+      params->filter_length = (dim == 0) ? 4 : 6;
+
+      const loop_filter_thresh *const limits = cm->lf_info.lfthr;
+      params->uv_lfthr[0] = limits + u_level;
+      params->uv_lfthr[1] = limits + u_level;
+    }
   }
 }
 
