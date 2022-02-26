@@ -4825,7 +4825,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   // Set buffers and offsets.
   av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize);
 
-  if (cpi->oxcf.mode == ALLINTRA || cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY) {
+  if (cpi->oxcf.mode == ALLINTRA || cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY) {
     if (bsize == cm->seq_params->sb_size) {
       double var_min, var_max;
       log_sub_block_var(cpi, x, bsize, &var_min, &var_max);
