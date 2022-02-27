@@ -1516,6 +1516,16 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     ++process_frame_count;
 
     gf_group->update_type[gf_index] = LF_UPDATE;
+
+#if CONFIG_BITRATE_ACCURACY && CONFIG_THREE_PASS
+    // TODO(angiebird): Find a more adaptive method to decide pframe_qindex
+    // override the pframe_qindex in the second pass when bitrate accuracy is
+    // on. We found that setting this pframe_qindex make the tpl stats more
+    // stable.
+    if (cpi->oxcf.pass == AOM_RC_SECOND_PASS) {
+      *pframe_qindex = 128;
+    }
+#endif  // CONFIG_BITRATE_ACCURACY && CONFIG_THREE_PASS
     gf_group->q_val[gf_index] = *pframe_qindex;
 #if CONFIG_FRAME_PARALLEL_ENCODE
     const int true_disp = (int)(tpl_frame->frame_display_index);
