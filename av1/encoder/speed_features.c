@@ -1498,6 +1498,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   }
 
   if (speed >= 7) {
+    sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_1;
     sf->rt_sf.use_comp_ref_nonrd = 1;
     sf->rt_sf.ref_frame_comp_nonrd[2] = 1;  // LAST_ALTREF
     sf->tx_sf.intra_tx_size_search_init_depth_sqr = 2;
@@ -1577,7 +1578,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   }
 
   if (speed >= 8) {
-    sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_1;
+    sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_2;
     sf->intra_sf.intra_pruning_with_hog = 1;
     sf->rt_sf.estimate_motion_for_var_based_partition = 1;
     sf->rt_sf.short_circuit_low_temp_var = 1;
@@ -1589,7 +1590,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->interp_sf.cb_pred_filter_search = 1;
   }
   if (speed >= 9) {
-    sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_2;
+    sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_3;
     sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     sf->rt_sf.estimate_motion_for_var_based_partition = 0;
     sf->rt_sf.force_large_partition_blocks = 1;

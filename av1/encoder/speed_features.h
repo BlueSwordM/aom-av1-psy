@@ -370,6 +370,8 @@ typedef enum {
       1, /*!< Early terminate inter mode search based on sse, index 1. */
   EARLY_TERM_IDX_2 =
       2, /*!< Early terminate inter mode search based on sse, index 2. */
+  EARLY_TERM_IDX_3 =
+      3, /*!< Early terminate inter mode search based on sse, index 3. */
   EARLY_TERM_INDICES, /*!< Total number of early terminate indices */
 } INTER_SEARCH_EARLY_TERM_IDX;
 

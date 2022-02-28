@@ -140,7 +140,8 @@ static INLINE int early_term_inter_search_with_sse(int early_term_idx,
                                                    int64_t best_sse) {
   // Aggressiveness to terminate inter mode search early is adjusted based on
   // speed and block size.
-  const double early_term_thresh[2][4] = { { 0.6, 0.65, 0.85, 0.9 },
+  const double early_term_thresh[3][4] = { { 0.65, 0.65, 0.65, 0.7 },
+                                           { 0.6, 0.65, 0.85, 0.9 },
                                            { 0.5, 0.5, 0.55, 0.6 } };
   const int size_group = size_group_lookup[bsize];
   assert(size_group < 4);
