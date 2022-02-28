@@ -315,11 +315,17 @@ if(CONFIG_AV1_RC_RTC)
   endif()
 endif()
 
+list(APPEND AOM_AV1_RC_QMODE_SOURCES "${AOM_ROOT}/av1/ratectrl_qmode.h")
+add_library(av1_rc_qmode ${AOM_AV1_RC_QMODE_SOURCES})
+target_link_libraries(av1_rc_qmode ${AOM_LIB_LINK_TYPE} m)
+set_target_properties(av1_rc_qmode PROPERTIES LINKER_LANGUAGE CXX)
+
 # List of object and static library targets.
 set(AOM_LIB_TARGETS ${AOM_LIB_TARGETS} aom_rtcd aom_mem aom_scale aom)
 if(CONFIG_AV1_ENCODER AND CONFIG_AV1_RC_RTC)
   set(AOM_LIB_TARGETS ${AOM_LIB_TARGETS} aom_av1_rc)
 endif()
+set(AOM_LIB_TARGETS ${AOM_LIB_TARGETS} av1_rc_qmode)
 if(BUILD_SHARED_LIBS)
   set(AOM_LIB_TARGETS ${AOM_LIB_TARGETS} aom_static)
 endif()
