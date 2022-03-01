@@ -2072,6 +2072,13 @@ void av1_vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info, double total_bit_budget,
 }
 
 #if CONFIG_THREE_PASS
+int av1_vbr_rc_frame_coding_idx(const VBR_RATECTRL_INFO *vbr_rc_info,
+                                int gf_frame_index) {
+  int gop_idx = vbr_rc_info->cur_gop_idx;
+  int gop_start_idx = vbr_rc_info->gop_start_idx_list[gop_idx];
+  return gop_start_idx + gf_frame_index;
+}
+
 void av1_vbr_rc_append_tpl_info(VBR_RATECTRL_INFO *vbr_rc_info,
                                 const TPL_INFO *tpl_info) {
   int gop_start_idx = vbr_rc_info->total_frame_count;
@@ -2091,6 +2098,14 @@ void av1_vbr_rc_append_tpl_info(VBR_RATECTRL_INFO *vbr_rc_info,
   vbr_rc_info->total_frame_count += tpl_info->gf_length;
   vbr_rc_info->gop_count++;
 }
+
+#if CONFIG_RATECTRL_LOG
+void av1_rc_frame_log(int gf_frame_index, FRAME_UPDATE_TYPE update_type, int q,
+                      double qstep_ratio) {
+  printf("gf_frame_index %d update_type %d q %d qstep_ratio %f\n",
+         gf_frame_index, update_type, q, qstep_ratio);
+}
+#endif  //  CONFIG_RATECTRL_LOG
 #endif  // CONFIG_THREE_PASS
 
 void av1_vbr_rc_set_gop_bit_budget(VBR_RATECTRL_INFO *vbr_rc_info,

@@ -2692,11 +2692,10 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #if CONFIG_BITRATE_ACCURACY
 #if CONFIG_THREE_PASS
     if (oxcf->pass == AOM_RC_THIRD_PASS && cpi->vbr_rc_info.ready == 1) {
-      int gop_idx = cpi->vbr_rc_info.cur_gop_idx;
-      int gop_start_idx = cpi->vbr_rc_info.gop_start_idx_list[gop_idx];
-      int cur_frame_idx = gop_start_idx + cpi->gf_frame_index;
-      if (cur_frame_idx < cpi->vbr_rc_info.total_frame_count) {
-        q = cpi->vbr_rc_info.q_index_list[cur_frame_idx];
+      int frame_coding_idx =
+          av1_vbr_rc_frame_coding_idx(&cpi->vbr_rc_info, cpi->gf_frame_index);
+      if (frame_coding_idx < cpi->vbr_rc_info.total_frame_count) {
+        q = cpi->vbr_rc_info.q_index_list[frame_coding_idx];
       } else {
         // TODO(angiebird): Investiage why sometimes there is an extra frame
         // after the last GOP.
@@ -2709,6 +2708,25 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     }
 #endif  // CONFIG_THREE_PASS
 #endif  // CONFIG_BITRATE_ACCURACY
+
+#if CONFIG_RATECTRL_LOG && CONFIG_THREE_PASS
+    // TODO(angiebird): Move this into a function.
+    if (oxcf->pass == AOM_RC_THIRD_PASS) {
+#if CONFIG_BITRATE_ACCURACY
+      int frame_coding_idx =
+          av1_vbr_rc_frame_coding_idx(&cpi->vbr_rc_info, cpi->gf_frame_index);
+      double qstep_ratio = cpi->vbr_rc_info.qstep_ratio_list[frame_coding_idx];
+#else
+      double qstep_ratio =
+          av1_tpl_get_qstep_ratio(&cpi->ppi->tpl_data, cpi->gf_frame_index);
+#endif  // CONFIG_BITRATE_ACCURACY
+      printf("gf_frame_index %d update_type %d q %d qstep_ratio %f\n",
+             cpi->gf_frame_index,
+             cpi->ppi->gf_group.update_type[cpi->gf_frame_index], q,
+             qstep_ratio);
+    }
+#endif  // CONFIG_RATECTRL_LOG && CONFIG_THREE_PASS
+
     av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                       q_cfg->enable_chroma_deltaq, q_cfg->enable_hdr_deltaq);
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);

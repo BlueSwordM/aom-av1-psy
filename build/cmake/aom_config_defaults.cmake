@@ -161,6 +161,8 @@ set_aom_config_var(
   "AV1 experiment: Baseline of improve bitrate accuracy experiment.")
 set_aom_config_var(CONFIG_BITRATE_ACCURACY 0
                    "AV1 experiment: Improve bitrate accuracy.")
+set_aom_config_var(CONFIG_RATECTRL_LOG 0
+                   "AV1 experiment: Log rate control decision.")
 set_aom_config_var(CONFIG_THREE_PASS 0
                    "AV1 experiment: Enable three-pass encoding.")
 

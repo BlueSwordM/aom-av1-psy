@@ -286,6 +286,9 @@ static INLINE void vbr_rc_reset_gop_data(VBR_RATECTRL_INFO *vbr_rc_info) {
 void av1_vbr_rc_init(VBR_RATECTRL_INFO *vbr_rc_info, double total_bit_budget,
                      int show_frame_count);
 
+int av1_vbr_rc_frame_coding_idx(const VBR_RATECTRL_INFO *vbr_rc_info,
+                                int gf_frame_index);
+
 void av1_vbr_rc_append_tpl_info(VBR_RATECTRL_INFO *vbr_rc_info,
                                 const struct TPL_INFO *tpl_info);
 void av1_vbr_rc_set_gop_bit_budget(VBR_RATECTRL_INFO *vbr_rc_info,
