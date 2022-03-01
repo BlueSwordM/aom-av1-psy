@@ -719,6 +719,7 @@ static void convolve_layer_mt(const float **input, int in_width, int in_height,
                               float **output, int out_stride) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   const int num_workers = thread_data->num_workers;
+  assert(thread_data->workers);
 
   CONVOLVE_OPS convolve_ops[CNN_MAX_THREADS];
   for (int th = 0; th < AOMMIN(num_workers, CNN_MAX_THREADS); ++th) {
