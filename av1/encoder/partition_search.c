@@ -627,8 +627,12 @@ static void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   }
 #endif
   if (cpi->oxcf.mode == ALLINTRA) {
-    x->rdmult = (x->rdmult * x->intra_sb_rdmult_modifier) >> 7;
+    x->rdmult = (int)(((int64_t)x->rdmult * x->intra_sb_rdmult_modifier) >> 7);
   }
+
+  // Check to make sure that the adjustments above have not caused the
+  // rd multiplier to be truncated to 0.
+  x->rdmult = (x->rdmult > 0) ? x->rdmult : 1;
 }
 
 void av1_set_offsets_without_segment_id(const AV1_COMP *const cpi,
