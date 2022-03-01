@@ -3030,7 +3030,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                         mi->bsize);
   try_palette = try_palette && is_mode_intra(best_pickmode.best_mode) &&
                 best_pickmode.best_mode_skip_txfm != 1 &&
-                cpi->rc.high_source_sad;
+                x->source_variance > 0 &&
+                (cpi->rc.high_source_sad || x->source_variance > 500);
 
   if (try_palette) {
     const unsigned int intra_ref_frame_cost = ref_costs_single[INTRA_FRAME];
