@@ -2087,6 +2087,15 @@ static void estimate_intra_mode(
     if (!((1 << this_mode) & cpi->sf.rt_sf.intra_y_mode_bsize_mask_nrd[bsize]))
       continue;
 
+    if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
+      // For spatially flat blocks with zero motion only check
+      // DC mode.
+      if (cpi->sf.rt_sf.source_metrics_sb_nonrd &&
+          x->content_state_sb.source_sad == kZeroSad &&
+          x->source_variance == 0 && this_mode != DC_PRED)
+        continue;
+    }
+
     if (rd_less_than_thresh(best_rdc->rdcost, mode_rd_thresh,
                             rd_thresh_freq_fact[mode_index]) &&
         (do_early_exit_rdthresh || this_mode == SMOOTH_PRED)) {
@@ -2637,18 +2646,20 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         get_segdata(seg, segment_id, SEG_LVL_REF_FRAME) != (int)ref_frame)
       continue;
 
-    // For screen content
+    // For screen content:
     if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
       // If source_sad is computed: skip non-zero motion
-      // check for stationary (super)blocks. Otherwise skip non-zero motion
-      // check for spatially flat blocks.
+      // check for stationary (super)blocks. Otherwise if superblock
+      // has motion skip the modes with zero motion for flat blocks.
       if (cpi->sf.rt_sf.source_metrics_sb_nonrd) {
-        if (frame_mv[this_mode][ref_frame].as_int != 0 &&
-            x->content_state_sb.source_sad == kZeroSad)
+        if ((frame_mv[this_mode][ref_frame].as_int != 0 &&
+             x->content_state_sb.source_sad == kZeroSad) ||
+            (frame_mv[this_mode][ref_frame].as_int == 0 &&
+             x->content_state_sb.source_sad != kZeroSad &&
+             x->source_variance == 0))
           continue;
       }
-
-      // Skip NEWMV search on scene cuts
+      // Skip NEWMV search on scene cuts for flat blocks.
       if (cpi->rc.high_source_sad && this_mode == NEWMV &&
           (x->source_variance < 100))
         continue;
