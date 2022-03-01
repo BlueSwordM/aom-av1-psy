@@ -265,7 +265,6 @@ static INLINE void sync_write(AV1LfSync *const lf_sync, int r, int c,
 static AOM_FORCE_INLINE bool skip_loop_filter_plane(const int planes_to_lf[3],
                                                     int plane,
                                                     bool is_realtime) {
-#if !CONFIG_AV1_HIGHBITDEPTH
   // In realtime mode, we have the option to filter both chroma planes together
   if (is_realtime) {
     if (plane == AOM_PLANE_Y) {
@@ -281,9 +280,6 @@ static AOM_FORCE_INLINE bool skip_loop_filter_plane(const int planes_to_lf[3],
       return true;
     }
   }
-#else
-  (void)is_realtime;
-#endif  // !CONFIG_AV1_HIGHBITDEPTH
 
   // Normal operation mode
   return !planes_to_lf[plane];
@@ -350,9 +346,7 @@ static INLINE void thread_loop_filter_rows(
 
   const bool joint_filter_chroma = is_realtime && plane > AOM_PLANE_Y;
   const int num_planes = joint_filter_chroma ? 2 : 1;
-#if !CONFIG_AV1_HIGHBITDEPTH
   assert(IMPLIES(joint_filter_chroma, plane == AOM_PLANE_U));
-#endif  // !CONFIG_AV1_HIGHBITDEPTH
 
   if (dir == 0) {
     for (mi_col = 0; mi_col < cm->mi_params.mi_cols; mi_col += MAX_MIB_SIZE) {
@@ -360,12 +354,6 @@ static INLINE void thread_loop_filter_rows(
 
       av1_setup_dst_planes(planes, cm->seq_params->sb_size, frame_buffer,
                            mi_row, mi_col, plane, plane + num_planes);
-#if CONFIG_AV1_HIGHBITDEPTH
-      (void)params_buf;
-      (void)tx_buf;
-      av1_filter_block_plane_vert(cm, xd, plane, &planes[plane], mi_row,
-                                  mi_col);
-#else
       if (is_realtime) {
         if (plane == AOM_PLANE_Y) {
           av1_filter_block_plane_vert_rt(cm, xd, &planes[plane], mi_row, mi_col,
@@ -378,7 +366,6 @@ static INLINE void thread_loop_filter_rows(
         av1_filter_block_plane_vert(cm, xd, plane, &planes[plane], mi_row,
                                     mi_col);
       }
-#endif
       if (lf_sync != NULL) {
         sync_write(lf_sync, r, c, sb_cols, plane);
       }
@@ -398,12 +385,6 @@ static INLINE void thread_loop_filter_rows(
 
       av1_setup_dst_planes(planes, cm->seq_params->sb_size, frame_buffer,
                            mi_row, mi_col, plane, plane + num_planes);
-#if CONFIG_AV1_HIGHBITDEPTH
-      (void)params_buf;
-      (void)tx_buf;
-      av1_filter_block_plane_horz(cm, xd, plane, &planes[plane], mi_row,
-                                  mi_col);
-#else
       if (is_realtime) {
         if (plane == AOM_PLANE_Y) {
           av1_filter_block_plane_horz_rt(cm, xd, &planes[plane], mi_row, mi_col,
@@ -416,7 +397,6 @@ static INLINE void thread_loop_filter_rows(
         av1_filter_block_plane_horz(cm, xd, plane, &planes[plane], mi_row,
                                     mi_col);
       }
-#endif
     }
   }
 }
