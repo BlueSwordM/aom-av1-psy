@@ -694,6 +694,10 @@ int aom_noise_model_init(aom_noise_model_t *model,
             kMaxLag);
     return 0;
   }
+  if (!(params.bit_depth == 8 || params.bit_depth == 10 ||
+        params.bit_depth == 12)) {
+    return 0;
+  }
 
   memcpy(&model->params, &params, sizeof(params));
   for (c = 0; c < 3; ++c) {
@@ -710,6 +714,10 @@ int aom_noise_model_init(aom_noise_model_t *model,
   }
   model->n = n;
   model->coords = (int(*)[2])aom_malloc(sizeof(*model->coords) * n);
+  if (!model->coords) {
+    aom_noise_model_free(model);
+    return 0;
+  }
 
   for (y = -lag; y <= 0; ++y) {
     const int max_x = y == 0 ? -1 : lag;
