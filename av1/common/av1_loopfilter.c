@@ -329,6 +329,7 @@ static AOM_FORCE_INLINE void set_one_param_for_line_luma(
     const EDGE_DIR edge_dir, uint32_t mi_col, uint32_t mi_row,
     const struct macroblockd_plane *const plane_ptr, int coord,
     bool is_first_block, TX_SIZE prev_tx_size) {
+  (void)plane_ptr;
   assert(mi_col << MI_SIZE_LOG2 < (uint32_t)plane_ptr->dst.width &&
          mi_row << MI_SIZE_LOG2 < (uint32_t)plane_ptr->dst.height);
   const int is_vert = edge_dir == VERT_EDGE;
@@ -436,16 +437,19 @@ static AOM_FORCE_INLINE void set_lpf_parameters_for_line_luma(
 static AOM_FORCE_INLINE void set_one_param_for_line_chroma(
     AV1_DEBLOCKING_PARAMETERS *const params, TX_SIZE *tx_size,
     const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
-    const EDGE_DIR edge_dir, uint32_t x, uint32_t y,
-    const struct macroblockd_plane *const plane_ptr, int coord,
-    bool is_first_block, TX_SIZE prev_tx_size) {
-  const int is_vert = edge_dir == VERT_EDGE;
+    const EDGE_DIR edge_dir, uint32_t mi_col, uint32_t mi_row, int coord,
+    bool is_first_block, TX_SIZE prev_tx_size,
+    const struct macroblockd_plane *const plane_ptr) {
   const uint32_t scale_horz = plane_ptr->subsampling_x;
   const uint32_t scale_vert = plane_ptr->subsampling_y;
+  const int is_vert = edge_dir == VERT_EDGE;
+
   const ptrdiff_t mode_step =
       is_vert ? (1 << scale_horz) : (cm->mi_params.mi_stride << scale_vert);
-  assert(x < (uint32_t)plane_ptr->dst.width &&
-         y < (uint32_t)plane_ptr->dst.height);
+  assert((mi_col << MI_SIZE_LOG2) <
+             (uint32_t)(plane_ptr->dst.width << scale_horz) &&
+         (mi_row << MI_SIZE_LOG2) <
+             (uint32_t)(plane_ptr->dst.height << scale_vert));
   // reset to initial values
   params->filter_length = 0;
 
@@ -453,8 +457,8 @@ static AOM_FORCE_INLINE void set_one_param_for_line_chroma(
   // bottom/right mi structure of the co-located 8x8 luma block. so for chroma
   // plane, mi_row and mi_col should map to the bottom/right mi structure,
   // i.e, both mi_row and mi_col should be odd number for chroma plane.
-  const int mi_row = scale_vert | ((y << scale_vert) >> MI_SIZE_LOG2);
-  const int mi_col = scale_horz | ((x << scale_horz) >> MI_SIZE_LOG2);
+  mi_row |= scale_vert;
+  mi_col |= scale_horz;
   MB_MODE_INFO **mi =
       cm->mi_params.mi_grid_base + mi_row * cm->mi_params.mi_stride + mi_col;
   const MB_MODE_INFO *mbmi = mi[0];
@@ -467,7 +471,7 @@ static AOM_FORCE_INLINE void set_one_param_for_line_chroma(
 #ifndef NDEBUG
   const uint32_t transform_masks =
       is_vert ? tx_size_wide[ts] - 1 : tx_size_high[ts] - 1;
-  const int32_t tu_edge = (coord & transform_masks) ? (0) : (1);
+  const int32_t tu_edge = ((coord * MI_SIZE) & transform_masks) ? (0) : (1);
   assert(tu_edge);
 #endif  // NDEBUG
 
@@ -524,36 +528,42 @@ static AOM_FORCE_INLINE void set_one_param_for_line_chroma(
 static AOM_FORCE_INLINE void set_lpf_parameters_for_line_chroma(
     AV1_DEBLOCKING_PARAMETERS *const params_buf, TX_SIZE *tx_buf,
     const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
-    const EDGE_DIR edge_dir, uint32_t x, uint32_t y,
-    const struct macroblockd_plane *const plane_ptr, const uint32_t range) {
+    const EDGE_DIR edge_dir, uint32_t mi_col, uint32_t mi_row,
+    const struct macroblockd_plane *const plane_ptr, const uint32_t mi_range) {
+  const uint32_t scale_horz = plane_ptr->subsampling_x;
+  const uint32_t scale_vert = plane_ptr->subsampling_y;
+
   const int is_vert = edge_dir == VERT_EDGE;
 
   AV1_DEBLOCKING_PARAMETERS *params = params_buf;
   TX_SIZE *tx_size = tx_buf;
-  uint32_t *counter_ptr = is_vert ? &x : &y;
+  uint32_t *counter_ptr = is_vert ? &mi_col : &mi_row;
+  const uint32_t scale = is_vert ? scale_horz : scale_vert;
   TX_SIZE prev_tx_size = TX_INVALID;
 
   // Unroll the first iteration of the loop
-  set_one_param_for_line_chroma(params, tx_size, cm, xd, edge_dir, x, y,
-                                plane_ptr, *counter_ptr, true, prev_tx_size);
+  set_one_param_for_line_chroma(params, tx_size, cm, xd, edge_dir, mi_col,
+                                mi_row, *counter_ptr, true, prev_tx_size,
+                                plane_ptr);
 
   // Advance
   int advance_units =
       is_vert ? tx_size_wide_unit[*tx_size] : tx_size_high_unit[*tx_size];
   prev_tx_size = *tx_size;
-  *counter_ptr += MIN_TX_SIZE * advance_units;
+  *counter_ptr += advance_units << scale;
   params += advance_units;
   tx_size += advance_units;
 
-  while (*counter_ptr < range) {
-    set_one_param_for_line_chroma(params, tx_size, cm, xd, edge_dir, x, y,
-                                  plane_ptr, *counter_ptr, false, prev_tx_size);
+  while (*counter_ptr < mi_range) {
+    set_one_param_for_line_chroma(params, tx_size, cm, xd, edge_dir, mi_col,
+                                  mi_row, *counter_ptr, false, prev_tx_size,
+                                  plane_ptr);
 
     // Advance
     advance_units =
         is_vert ? tx_size_wide_unit[*tx_size] : tx_size_high_unit[*tx_size];
     prev_tx_size = *tx_size;
-    *counter_ptr += MIN_TX_SIZE * advance_units;
+    *counter_ptr += advance_units << scale;
     params += advance_units;
     tx_size += advance_units;
   }
@@ -960,10 +970,9 @@ void av1_filter_block_plane_vert_rt_chroma(
 
   int min_height = 0;
   for (int y = 0; y < y_range; y++) {
-    const uint32_t curr_y = ((mi_row * MI_SIZE) >> scale_vert) + y * MI_SIZE;
-    const uint32_t x_start = ((mi_col * MI_SIZE) >> scale_horz) + 0 * MI_SIZE;
-    const uint32_t x_end =
-        ((mi_col * MI_SIZE) >> scale_horz) + x_range * MI_SIZE;
+    const uint32_t curr_y = mi_row + (y << scale_vert);
+    const uint32_t x_start = mi_col + (0 << scale_horz);
+    const uint32_t x_end = mi_col + (x_range << scale_horz);
     set_lpf_parameters_for_line_chroma(params_buf, tx_buf, cm, xd, VERT_EDGE,
                                        x_start, curr_y, plane_ptr, x_end);
 
@@ -1368,10 +1377,9 @@ void av1_filter_block_plane_horz_rt_chroma(
                              (MAX_MIB_SIZE >> scale_horz));
   int min_width = 0;
   for (int x = 0; x < x_range; x++) {
-    const uint32_t curr_x = ((mi_col * MI_SIZE) >> scale_horz) + x * MI_SIZE;
-    const uint32_t y_start = ((mi_row * MI_SIZE) >> scale_vert) + 0 * MI_SIZE;
-    const uint32_t y_end =
-        ((mi_row * MI_SIZE) >> scale_vert) + y_range * MI_SIZE;
+    const uint32_t y_start = mi_row + (0 << scale_vert);
+    const uint32_t curr_x = mi_col + (x << scale_horz);
+    const uint32_t y_end = mi_row + (y_range << scale_vert);
     set_lpf_parameters_for_line_chroma(params_buf, tx_buf, cm, xd, HORZ_EDGE,
                                        curr_x, y_start, plane_ptr, y_end);
 
