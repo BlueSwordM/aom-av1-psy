@@ -1304,6 +1304,10 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       for (int i = 0; i < BLOCK_SIZES; ++i)
         sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC_H_V;
     }
+    if (cpi->rc.high_num_blocks_with_motion && speed >= 6) {
+      sf->mv_sf.search_method = NSTEP;
+      sf->rt_sf.fullpel_search_step_param = 2;
+    }
   }
 }
 
@@ -1315,7 +1319,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
                                                         SPEED_FEATURES *sf,
                                                         int speed) {
   AV1_COMMON *const cm = &cpi->common;
-  RATE_CONTROL *const rc = &cpi->rc;
   const int boosted = frame_is_boosted(cpi);
 
   // Currently, rt speed 0, 1, 2, 3, 4, 5 are the same.
@@ -1607,12 +1610,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.var_part_split_threshold_shift = 10;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
     sf->rt_sf.force_half_pel_block = 1;
-  }
-
-  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN && speed >= 6 &&
-      rc->high_num_blocks_with_motion) {
-    sf->mv_sf.search_method = NSTEP;
-    sf->rt_sf.fullpel_search_step_param = 2;
   }
 }
 
