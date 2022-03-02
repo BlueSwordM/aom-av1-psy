@@ -2982,8 +2982,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                       &orig_dst, tmp, &this_mode_pred, &best_rdc,
                       &best_pickmode);
 
-  if (is_inter_mode(best_pickmode.best_mode) &&
-      cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+      cpi->sf.rt_sf.use_idtx_nonrd && is_inter_mode(best_pickmode.best_mode)) {
     RD_STATS idtx_rdc;
     av1_init_rd_stats(&this_rdc);
     av1_init_rd_stats(&idtx_rdc);

@@ -1295,6 +1295,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
   }
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
+    if (speed <= 9) sf->rt_sf.use_idtx_nonrd = 1;
     sf->rt_sf.use_rtc_tf = 0;
     sf->rt_sf.use_comp_ref_nonrd = 0;
     sf->rt_sf.source_metrics_sb_nonrd = 1;
@@ -1925,6 +1926,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->var_part_split_threshold_shift = 7;
   rt_sf->gf_refresh_based_on_qp = 0;
   rt_sf->use_rtc_tf = 0;
+  rt_sf->use_idtx_nonrd = 0;
   rt_sf->sse_early_term_inter_search = EARLY_TERM_DISABLED;
 }
 
