@@ -1211,9 +1211,7 @@ typedef struct macroblock {
    *
    *  Pointer to the array of structures to store source variance information of
    *  each 4x4 sub-block in a superblock. Block4x4VarInfo structure is used to
-   *  store source variance and log of source variance of each 4x4 sub-block
-   *  which is retrieved in subsequent calls to log_sub_block_var() and
-   *  intra_rd_variance_factor() functions.
+   *  store source variance and log of source variance of each 4x4 sub-block.
    */
   Block4x4VarInfo *src_var_info_of_4x4_sub_blocks;
 } MACROBLOCK;

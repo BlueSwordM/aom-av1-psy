@@ -4645,31 +4645,23 @@ static void log_sub_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs,
       (xd->mb_to_right_edge < 0) ? ((-xd->mb_to_right_edge) >> 3) : 0;
   const int bottom_overflow =
       (xd->mb_to_bottom_edge < 0) ? ((-xd->mb_to_bottom_edge) >> 3) : 0;
-  const BLOCK_SIZE sb_size = cpi->common.seq_params->sb_size;
   const int bw = MI_SIZE * mi_size_wide[bs] - right_overflow;
   const int bh = MI_SIZE * mi_size_high[bs] - bottom_overflow;
-  const int mi_row_in_sb = x->e_mbd.mi_row & (mi_size_high[sb_size] - 1);
-  const int mi_col_in_sb = x->e_mbd.mi_col & (mi_size_wide[sb_size] - 1);
+
   // Initialize minimum variance to a large value and maximum variance to 0.
   double min_var_4x4 = (double)INT_MAX;
   double max_var_4x4 = 0.0;
 
   for (int i = 0; i < bh; i += MI_SIZE) {
-    const int r = mi_row_in_sb + (i >> MI_SIZE_LOG2);
     for (int j = 0; j < bw; j += MI_SIZE) {
-      const int c = mi_col_in_sb + (j >> MI_SIZE_LOG2);
-      const int mi_offset = r * mi_size_wide[sb_size] + c;
-      int var = x->src_var_info_of_4x4_sub_blocks[mi_offset].var;
-      // Calculate and store 4x4 sub-block variance, if the source variance
-      // value present in src_var_info_of_4x4_sub_blks is not valid. Reuse the
-      // the same if it is readily available with a valid value.
-      if (var < 0) {
-        var = av1_calc_normalized_variance(
-            cpi->ppi->fn_ptr[BLOCK_4X4].vf,
-            x->plane[0].src.buf + i * x->plane[0].src.stride + j,
-            x->plane[0].src.stride, is_hbd);
-        x->src_var_info_of_4x4_sub_blocks[mi_offset].var = var;
-      }
+      int var;
+      // Calculate the 4x4 sub-block variance.
+      var = av1_calc_normalized_variance(
+          cpi->ppi->fn_ptr[BLOCK_4X4].vf,
+          x->plane[0].src.buf + (i * x->plane[0].src.stride) + j,
+          x->plane[0].src.stride, is_hbd);
+
+      // Record min and max for over-arching block
       min_var_4x4 = AOMMIN(min_var_4x4, var);
       max_var_4x4 = AOMMAX(max_var_4x4, var);
     }
