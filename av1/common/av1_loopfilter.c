@@ -514,8 +514,7 @@ static AOM_FORCE_INLINE void set_one_param_for_line_chroma(
       params->filter_length = (dim == 0) ? 4 : 6;
 
       const loop_filter_thresh *const limits = cm->lf_info.lfthr;
-      params->uv_lfthr[0] = limits + u_level;
-      params->uv_lfthr[1] = limits + u_level;
+      params->lfthr = limits + u_level;
     }
   }
 }
@@ -731,8 +730,8 @@ static AOM_INLINE void filter_vert_chroma(
     uint8_t *u_dst, uint8_t *v_dst, int dst_stride,
     const AV1_DEBLOCKING_PARAMETERS *params, const SequenceHeader *seq_params,
     bool use_dual) {
-  const loop_filter_thresh *u_limits = params->uv_lfthr[0];
-  const loop_filter_thresh *v_limits = params->uv_lfthr[1];
+  const loop_filter_thresh *u_limits = params->lfthr;
+  const loop_filter_thresh *v_limits = params->lfthr;
 #if CONFIG_AV1_HIGHBITDEPTH
   const int use_highbitdepth = seq_params->use_highbitdepth;
   const aom_bit_depth_t bit_depth = seq_params->bit_depth;
@@ -1145,8 +1144,8 @@ static AOM_INLINE void filter_horz_chroma(
     uint8_t *u_dst, uint8_t *v_dst, int dst_stride,
     const AV1_DEBLOCKING_PARAMETERS *params, const SequenceHeader *seq_params,
     bool use_dual) {
-  const loop_filter_thresh *u_limits = params->uv_lfthr[0];
-  const loop_filter_thresh *v_limits = params->uv_lfthr[1];
+  const loop_filter_thresh *u_limits = params->lfthr;
+  const loop_filter_thresh *v_limits = params->lfthr;
 #if CONFIG_AV1_HIGHBITDEPTH
   const int use_highbitdepth = seq_params->use_highbitdepth;
   const aom_bit_depth_t bit_depth = seq_params->bit_depth;

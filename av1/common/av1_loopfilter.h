@@ -72,10 +72,9 @@ typedef struct {
 
 typedef struct AV1_DEBLOCKING_PARAMETERS {
   // length of the filter applied to the outer edge
-  uint32_t filter_length;
+  uint8_t filter_length;
   // deblocking limits
   const loop_filter_thresh *lfthr;
-  const loop_filter_thresh *uv_lfthr[2];
 } AV1_DEBLOCKING_PARAMETERS;
 
 typedef struct LoopFilterWorkerData {
