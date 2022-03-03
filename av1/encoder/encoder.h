@@ -134,14 +134,13 @@ enum {
   FRAMEFLAGS_ERROR_RESILIENT = 1 << 6,
 } UENUM1BYTE(FRAMETYPE_FLAGS);
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
-#if CONFIG_FPMT_TEST
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
 enum {
   PARALLEL_ENCODE = 0,
   PARALLEL_SIMULATION_ENCODE,
   NUM_FPMT_TEST_ENCODES
 } UENUM1BYTE(FPMT_TEST_ENC_CFG);
-#endif
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
 // 0 level frames are sometimes used for rate control purposes, but for
 // reference mapping purposes, the minimum level should be 1.
 #define MIN_PYR_LEVEL 1
@@ -159,7 +158,6 @@ static INLINE int get_true_pyr_level(int frame_level, int frame_order,
   }
   return AOMMAX(MIN_PYR_LEVEL, frame_level);
 }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
 enum {
   NO_AQ = 0,
@@ -2188,15 +2186,6 @@ typedef struct {
 /*!\cond */
 
 typedef struct {
-  int arf_stack[FRAME_BUFFERS];
-  int arf_stack_size;
-  int lst_stack[FRAME_BUFFERS];
-  int lst_stack_size;
-  int gld_stack[FRAME_BUFFERS];
-  int gld_stack_size;
-} RefBufferStack;
-
-typedef struct {
   // Some misc info
   int high_prec;
   int q;
@@ -2919,11 +2908,6 @@ typedef struct AV1_COMP {
    */
   unsigned char gf_frame_index;
 
-  /*!
-   * To control the reference frame buffer and selection.
-   */
-  RefBufferStack ref_buffer_stack;
-
 #if CONFIG_INTERNAL_STATS
   /*!\cond */
   uint64_t time_compress_data;
@@ -3576,7 +3560,6 @@ void av1_set_screen_content_options(struct AV1_COMP *cpi,
 
 void av1_update_frame_size(AV1_COMP *cpi);
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
 typedef struct {
   int pyr_level;
   int disp_order;
@@ -3616,7 +3599,7 @@ static INLINE void init_ref_map_pair(
   }
 }
 
-#if CONFIG_FPMT_TEST
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
 static AOM_INLINE void calc_frame_data_update_flag(
     GF_GROUP *const gf_group, int gf_frame_index,
     bool *const do_frame_data_update) {
@@ -3641,38 +3624,6 @@ static AOM_INLINE void calc_frame_data_update_flag(
   }
 }
 #endif
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
-
-// TODO(jingning): Move these functions as primitive members for the new cpi
-// class.
-static INLINE void stack_push(int *stack, int *stack_size, int item) {
-  for (int i = *stack_size - 1; i >= 0; --i) stack[i + 1] = stack[i];
-  stack[0] = item;
-  ++*stack_size;
-}
-
-static INLINE int stack_pop(int *stack, int *stack_size) {
-  if (*stack_size <= 0) return -1;
-
-  int item = stack[0];
-  for (int i = 0; i < *stack_size; ++i) stack[i] = stack[i + 1];
-  --*stack_size;
-
-  return item;
-}
-
-static INLINE int stack_pop_end(int *stack, int *stack_size) {
-  int item = stack[*stack_size - 1];
-  stack[*stack_size - 1] = -1;
-  --*stack_size;
-
-  return item;
-}
-
-static INLINE void stack_reset(int *stack, int *stack_size) {
-  for (int i = 0; i < *stack_size; ++i) stack[i] = INVALID_IDX;
-  *stack_size = 0;
-}
 
 // av1 uses 10,000,000 ticks/second as time stamp
 #define TICKS_PER_SEC 10000000LL

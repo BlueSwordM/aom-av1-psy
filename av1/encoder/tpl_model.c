@@ -1346,12 +1346,9 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   assert(cpi->gf_frame_index == 0);
   *pframe_qindex = 0;
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
   init_ref_map_pair(cpi, ref_frame_map_pairs);
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
-  RefBufferStack ref_buffer_stack = cpi->ref_buffer_stack;
   int remapped_ref_idx[REF_FRAMES];
 
   EncodeFrameParams frame_params = *init_frame_params;
@@ -1425,25 +1422,17 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       tpl_frame->tpl_stats_ptr = tpl_data->tpl_stats_pool[process_frame_count];
       ++process_frame_count;
     }
-#if CONFIG_FRAME_PARALLEL_ENCODE
     const int true_disp = (int)(tpl_frame->frame_display_index);
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
-    av1_get_ref_frames(&ref_buffer_stack,
-#if CONFIG_FRAME_PARALLEL_ENCODE
-                       ref_frame_map_pairs, true_disp,
+    av1_get_ref_frames(ref_frame_map_pairs, true_disp,
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
                        cpi, gf_index, 0,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
                        remapped_ref_idx);
 
-    int refresh_mask = av1_get_refresh_frame_flags(
-        cpi, &frame_params, frame_update_type, gf_index,
-#if CONFIG_FRAME_PARALLEL_ENCODE
-        true_disp, ref_frame_map_pairs,
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
-        &ref_buffer_stack);
+    int refresh_mask =
+        av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
+                                    gf_index, true_disp, ref_frame_map_pairs);
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
     // Make the frames marked as is_frame_non_ref to non-reference frames.
@@ -1451,13 +1440,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     int refresh_frame_map_index = av1_get_refresh_ref_frame_map(refresh_mask);
-#if !CONFIG_FRAME_PARALLEL_ENCODE
-    av1_update_ref_frame_map(cpi, frame_update_type,
-                             gf_group->refbuf_state[gf_index],
-                             refresh_frame_map_index, &ref_buffer_stack);
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
     if (refresh_frame_map_index < REF_FRAMES &&
         refresh_frame_map_index != INVALID_IDX) {
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
@@ -1466,7 +1449,6 @@ static AOM_INLINE void init_gop_frames_for_tpl(
           get_true_pyr_level(gf_group->layer_depth[gf_index], true_disp,
                              cpi->ppi->gf_group.max_layer_depth);
     }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i)
       tpl_frame->ref_map_index[i - LAST_FRAME] =
@@ -1527,31 +1509,17 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     }
 #endif  // CONFIG_BITRATE_ACCURACY && CONFIG_THREE_PASS
     gf_group->q_val[gf_index] = *pframe_qindex;
-#if CONFIG_FRAME_PARALLEL_ENCODE
     const int true_disp = (int)(tpl_frame->frame_display_index);
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
-    av1_get_ref_frames(&ref_buffer_stack,
-#if CONFIG_FRAME_PARALLEL_ENCODE
-                       ref_frame_map_pairs, true_disp,
+    av1_get_ref_frames(ref_frame_map_pairs, true_disp,
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
                        cpi, gf_index, 0,
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+#endif
                        remapped_ref_idx);
-    int refresh_mask = av1_get_refresh_frame_flags(
-        cpi, &frame_params, frame_update_type, gf_index,
-#if CONFIG_FRAME_PARALLEL_ENCODE
-        true_disp, ref_frame_map_pairs,
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
-        &ref_buffer_stack);
+    int refresh_mask =
+        av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
+                                    gf_index, true_disp, ref_frame_map_pairs);
     int refresh_frame_map_index = av1_get_refresh_ref_frame_map(refresh_mask);
-#if !CONFIG_FRAME_PARALLEL_ENCODE
-    av1_update_ref_frame_map(cpi, frame_update_type,
-                             gf_group->refbuf_state[gf_index],
-                             refresh_frame_map_index, &ref_buffer_stack);
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
     if (refresh_frame_map_index < REF_FRAMES &&
         refresh_frame_map_index != INVALID_IDX) {
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
@@ -1560,7 +1528,6 @@ static AOM_INLINE void init_gop_frames_for_tpl(
           get_true_pyr_level(gf_group->layer_depth[gf_index], true_disp,
                              cpi->ppi->gf_group.max_layer_depth);
     }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i)
       tpl_frame->ref_map_index[i - LAST_FRAME] =
