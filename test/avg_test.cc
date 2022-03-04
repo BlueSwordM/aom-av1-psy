@@ -716,6 +716,14 @@ INSTANTIATE_TEST_SUITE_P(
                                  &aom_int_pro_col_c)));
 #endif
 
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AvgTest8bpp_avg_8x8_quad,
+    ::testing::Values(make_tuple(16, 16, 8, 0, 16, &aom_avg_8x8_quad_avx2),
+                      make_tuple(32, 32, 8, 16, 16, &aom_avg_8x8_quad_avx2),
+                      make_tuple(32, 32, 8, 8, 16, &aom_avg_8x8_quad_avx2)));
+#endif
+
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
     NEON, AverageTest8bpp,
