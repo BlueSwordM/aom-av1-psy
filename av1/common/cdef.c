@@ -24,23 +24,12 @@
 static int is_8x8_block_skip(MB_MODE_INFO **grid, int mi_row, int mi_col,
                              int mi_stride) {
   MB_MODE_INFO **mbmi = grid + mi_row * mi_stride + mi_col;
-#if CONFIG_REALTIME_ONLY
-  for (int r = 0; r < mi_size_high[BLOCK_8X8]; ++r) {
-    for (int c = 0; c < mi_size_wide[BLOCK_8X8]; ++c) {
-      // Realtime only build doesn't support txfm sizes less than 8.
-      TX_SIZE tx_size = mbmi[r * mi_stride + c]->tx_size;
-      (void)tx_size;
-      assert(tx_size_wide[tx_size] >= 8 || tx_size_high[tx_size] >= 8);
-    }
-  }
-  if (!mbmi[0]->skip_txfm) return 0;
-#else
   for (int r = 0; r < mi_size_high[BLOCK_8X8]; ++r, mbmi += mi_stride) {
     for (int c = 0; c < mi_size_wide[BLOCK_8X8]; ++c) {
       if (!mbmi[c]->skip_txfm) return 0;
     }
   }
-#endif
+
   return 1;
 }
 
