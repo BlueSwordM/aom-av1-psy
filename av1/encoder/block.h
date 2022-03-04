@@ -894,7 +894,7 @@ typedef struct macroblock {
    */
   int rdmult;
 
-  // Intra only, per sb rd adjustment.
+  //! Intra only, per sb rd adjustment.
   int intra_sb_rdmult_modifier;
 
   //! Superblock level distortion propagation factor.
