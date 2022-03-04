@@ -140,16 +140,24 @@ enum {
 static INLINE int early_term_inter_search_with_sse(int early_term_idx,
                                                    BLOCK_SIZE bsize,
                                                    int64_t this_sse,
-                                                   int64_t best_sse) {
+                                                   int64_t best_sse,
+                                                   PREDICTION_MODE this_mode) {
   // Aggressiveness to terminate inter mode search early is adjusted based on
   // speed and block size.
-  const double early_term_thresh[3][4] = { { 0.65, 0.65, 0.65, 0.7 },
+  const double early_term_thresh[4][4] = { { 0.65, 0.65, 0.65, 0.7 },
                                            { 0.6, 0.65, 0.85, 0.9 },
-                                           { 0.5, 0.5, 0.55, 0.6 } };
+                                           { 0.5, 0.5, 0.55, 0.6 },
+                                           { 0.6, 0.75, 0.85, 0.85 } };
+  const double early_term_thresh_newmv_nearestmv[4] = { 0.3, 0.3, 0.3, 0.3 };
+
   const int size_group = size_group_lookup[bsize];
   assert(size_group < 4);
   assert((early_term_idx > 0) && (early_term_idx < EARLY_TERM_INDICES));
-  const double threshold = early_term_thresh[early_term_idx - 1][size_group];
+  const double threshold =
+      ((early_term_idx == EARLY_TERM_IDX_4) &&
+       (this_mode == NEWMV || this_mode == NEARESTMV))
+          ? early_term_thresh_newmv_nearestmv[size_group]
+          : early_term_thresh[early_term_idx - 1][size_group];
 
   // Terminate inter mode search early based on best sse so far.
   if ((early_term_idx > 0) && (threshold * this_sse > best_sse)) {
@@ -631,9 +639,11 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
 
   // Skipping test
   *early_term = 0;
+  MB_MODE_INFO *const mi = xd->mi[0];
   if (!calculate_rd && cpi->sf.rt_sf.sse_early_term_inter_search &&
       early_term_inter_search_with_sse(
-          cpi->sf.rt_sf.sse_early_term_inter_search, bsize, sse, best_sse))
+          cpi->sf.rt_sf.sse_early_term_inter_search, bsize, sse, best_sse,
+          mi->mode))
     test_skip = 0;
 
   // Evaluate if the partition block is a skippable block in Y plane.
@@ -2829,7 +2839,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     if (cpi->sf.rt_sf.sse_early_term_inter_search &&
         early_term_inter_search_with_sse(
             cpi->sf.rt_sf.sse_early_term_inter_search, bsize, this_rdc.sse,
-            best_pickmode.best_sse)) {
+            best_pickmode.best_sse, this_mode)) {
       if (reuse_inter_pred) free_pred_buffer(this_mode_pred);
       continue;
     }

@@ -1606,7 +1606,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
       sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC;
   }
   if (speed >= 10) {
-    sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_DISABLED;
+    sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_4;
     sf->rt_sf.nonrd_agressive_skip = 1;
     sf->rt_sf.nonrd_prune_ref_frame_search = 3;
     sf->rt_sf.var_part_split_threshold_shift = 10;
