@@ -3004,35 +3004,34 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                       &best_pickmode);
 
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-      cpi->sf.rt_sf.use_idtx_nonrd && is_inter_mode(best_pickmode.best_mode)) {
+      is_inter_mode(best_pickmode.best_mode) &&
+      (!cpi->sf.rt_sf.prune_idtx_nonrd ||
+       (cpi->sf.rt_sf.prune_idtx_nonrd && bsize <= BLOCK_32X32 &&
+        best_pickmode.best_mode_skip_txfm != 1 && x->source_variance > 200))) {
     RD_STATS idtx_rdc;
-    av1_init_rd_stats(&this_rdc);
     av1_init_rd_stats(&idtx_rdc);
     int is_skippable;
-
     this_mode_pred = &tmp[get_pred_buffer(tmp, 3)];
     pd->dst.buf = this_mode_pred->data;
     pd->dst.stride = bw;
-
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0, 0);
-    av1_block_yrd(cpi, x, mi_row, mi_col, &this_rdc, &is_skippable, bsize,
-                  mi->tx_size, DCT_DCT);
     av1_block_yrd(cpi, x, mi_row, mi_col, &idtx_rdc, &is_skippable, bsize,
                   mi->tx_size, IDTX);
-    int64_t dct_rdcost = RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist);
     int64_t idx_rdcost = RDCOST(x->rdmult, idtx_rdc.rate, idtx_rdc.dist);
-    if (idx_rdcost < dct_rdcost) {
+    if (idx_rdcost < best_rdc.rdcost) {
       best_pickmode.tx_type = IDTX;
-      best_rdc.rate -= this_rdc.rate - idtx_rdc.rate;
-      best_rdc.dist -= this_rdc.dist - idtx_rdc.dist;
-      best_rdc.rdcost -= dct_rdcost - idx_rdcost;
+      best_rdc.rdcost = idx_rdcost;
+      best_pickmode.best_mode_skip_txfm = idtx_rdc.skip_txfm;
+      if (!idtx_rdc.skip_txfm) {
+        memcpy(best_pickmode.blk_skip, txfm_info->blk_skip,
+               sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
+      }
+      xd->tx_type_map[0] = best_pickmode.tx_type;
+      memset(ctx->tx_type_map, best_pickmode.tx_type, ctx->num_4x4_blk);
+      memset(xd->tx_type_map, best_pickmode.tx_type, ctx->num_4x4_blk);
     }
     pd->dst = orig_dst;
   }
-
-  xd->tx_type_map[0] = best_pickmode.tx_type;
-  memset(ctx->tx_type_map, best_pickmode.tx_type, ctx->num_4x4_blk);
-  memset(xd->tx_type_map, best_pickmode.tx_type, ctx->num_4x4_blk);
 
   int try_palette =
       cpi->oxcf.tool_cfg.enable_palette &&
