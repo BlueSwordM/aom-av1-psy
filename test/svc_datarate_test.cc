@@ -89,6 +89,7 @@ class DatarateTestSVC
     layer_to_decode_ = 0;
     frame_sync_ = 0;
     current_video_frame_ = 0;
+    screen_mode_ = 0;
   }
 
   virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
@@ -113,6 +114,9 @@ class DatarateTestSVC
       if (cfg_.g_threads > 1) {
         encoder->Control(AV1E_SET_TILE_COLUMNS, cfg_.g_threads >> 1);
         encoder->Control(AV1E_SET_ROW_MT, 1);
+      }
+      if (screen_mode_) {
+        encoder->Control(AV1E_SET_TUNE_CONTENT, AOM_CONTENT_SCREEN);
       }
     }
     if (number_spatial_layers_ == 2) {
@@ -555,6 +559,42 @@ class DatarateTestSVC
     // encoder side, but is always applied on decoder.
     // This means 150 = #frames(300) - #TL2_frames(150).
     EXPECT_EQ((int)GetMismatchFrames(), 150);
+  }
+
+  virtual void BasicRateTargetingSVC3TL1SLScreenTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.g_error_resilient = 0;
+
+    ::libaom_test::Y4mVideoSource video("screendata.y4m", 0, 60);
+
+    const int bitrate_array[2] = { 800, 1200 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    ResetModel();
+    screen_mode_ = 1;
+    number_temporal_layers_ = 3;
+    number_spatial_layers_ = 1;
+    target_layer_bitrate_[0] = 50 * cfg_.rc_target_bitrate / 100;
+    target_layer_bitrate_[1] = 70 * cfg_.rc_target_bitrate / 100;
+    target_layer_bitrate_[2] = cfg_.rc_target_bitrate;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.50)
+          << " The datarate for the file is lower than target by too much!";
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.5)
+          << " The datarate for the file is greater than target by too much!";
+    }
+    // Top temporal layers are non_reference, so exlcude them from
+    // mismatch count, since loopfilter/cdef is not applied for these on
+    // encoder side, but is always applied on decoder.
+    // This means 30 = #frames(60) - #TL2_frames(30).
+    EXPECT_EQ((int)GetMismatchFrames(), 30);
   }
 
   virtual void BasicRateTargetingSVC3TL1SLResizeTest() {
@@ -1518,11 +1558,18 @@ class DatarateTestSVC
   unsigned int layer_to_decode_;
   unsigned int frame_sync_;
   unsigned int current_video_frame_;
+  int screen_mode_;
 };
 
 // Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial.
 TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SL) {
   BasicRateTargetingSVC3TL1SLTest();
+}
+
+// Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial
+// for screen mode.
+TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLScreen) {
+  BasicRateTargetingSVC3TL1SLScreenTest();
 }
 
 // Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial,
