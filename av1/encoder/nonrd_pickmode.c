@@ -2161,6 +2161,7 @@ static void estimate_intra_mode(
       best_pickmode->best_tx_size = mi->tx_size;
       best_pickmode->best_ref_frame = INTRA_FRAME;
       best_pickmode->best_second_ref_frame = NONE;
+      best_pickmode->best_mode_skip_txfm = this_rdc.skip_txfm;
       if (!this_rdc.skip_txfm) {
         memcpy(best_pickmode->blk_skip, x->txfm_search_info.blk_skip,
                sizeof(x->txfm_search_info.blk_skip[0]) * num_8x8_blocks);
@@ -3038,7 +3039,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                         mi->bsize);
   try_palette = try_palette && is_mode_intra(best_pickmode.best_mode) &&
-                best_pickmode.best_mode_skip_txfm != 1 &&
                 x->source_variance > 0 &&
                 (cpi->rc.high_source_sad || x->source_variance > 500);
 
@@ -3054,9 +3054,13 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       best_rdc.rate = this_rdc.rate;
       best_rdc.dist = this_rdc.dist;
       best_rdc.rdcost = this_rdc.rdcost;
-      memcpy(best_pickmode.blk_skip, txfm_info->blk_skip,
-             sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
-      av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
+      best_pickmode.best_mode_skip_txfm = this_rdc.skip_txfm;
+      if (!this_rdc.skip_txfm) {
+        memcpy(best_pickmode.blk_skip, txfm_info->blk_skip,
+               sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
+      }
+      if (xd->tx_type_map[0] != DCT_DCT)
+        av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
     }
   }
 
@@ -3065,7 +3069,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   mi->mode = best_pickmode.best_mode;
   mi->ref_frame[0] = best_pickmode.best_ref_frame;
   mi->ref_frame[1] = best_pickmode.best_second_ref_frame;
-  txfm_info->skip_txfm = best_rdc.skip_txfm;
+  txfm_info->skip_txfm = best_pickmode.best_mode_skip_txfm;
   if (!txfm_info->skip_txfm) {
     if (best_pickmode.best_mode >= INTRA_MODE_END)
       memcpy(ctx->blk_skip, best_pickmode.blk_skip,
