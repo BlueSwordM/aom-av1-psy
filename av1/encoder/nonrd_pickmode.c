@@ -530,20 +530,32 @@ static void block_variance(const uint8_t *src, int src_stride,
                            const uint8_t *ref, int ref_stride, int w, int h,
                            unsigned int *sse, int *sum, int block_size,
                            uint32_t *sse8x8, int *sum8x8, uint32_t *var8x8) {
-  int i, j, k = 0;
-
+  int k = 0;
   *sse = 0;
   *sum = 0;
 
-  for (i = 0; i < h; i += block_size) {
-    for (j = 0; j < w; j += block_size) {
-      aom_get8x8var(src + src_stride * i + j, src_stride,
-                    ref + ref_stride * i + j, ref_stride, &sse8x8[k],
-                    &sum8x8[k]);
-      *sse += sse8x8[k];
-      *sum += sum8x8[k];
+  // This function is called for block sizes >= BLOCK_32x32. As per the design
+  // the aom_get_sse_sum_8x8_quad() processes four 8x8 blocks (in a 8x32) per
+  // call. Hence the width and height of the block need to be atleast 8 and 32
+  // samples respectively.
+  assert(w >= 32);
+  assert(h >= 8);
+  for (int i = 0; i < h; i += block_size) {
+    for (int j = 0; j < w; j += 32) {
+      aom_get_sse_sum_8x8_quad(src + src_stride * i + j, src_stride,
+                               ref + ref_stride * i + j, ref_stride, &sse8x8[k],
+                               &sum8x8[k]);
+
+      *sse += sse8x8[k] + sse8x8[k + 1] + sse8x8[k + 2] + sse8x8[k + 3];
+      *sum += sum8x8[k] + sum8x8[k + 1] + sum8x8[k + 2] + sum8x8[k + 3];
       var8x8[k] = sse8x8[k] - (uint32_t)(((int64_t)sum8x8[k] * sum8x8[k]) >> 6);
-      k++;
+      var8x8[k + 1] = sse8x8[k + 1] -
+                      (uint32_t)(((int64_t)sum8x8[k + 1] * sum8x8[k + 1]) >> 6);
+      var8x8[k + 2] = sse8x8[k + 2] -
+                      (uint32_t)(((int64_t)sum8x8[k + 2] * sum8x8[k + 2]) >> 6);
+      var8x8[k + 3] = sse8x8[k + 3] -
+                      (uint32_t)(((int64_t)sum8x8[k + 3] * sum8x8[k + 3]) >> 6);
+      k += 4;
     }
   }
 }
