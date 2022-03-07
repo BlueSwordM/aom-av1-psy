@@ -57,6 +57,7 @@ class AverageTestBase : public ::testing::Test {
 
     source_data_ = static_cast<Pixel *>(
         aom_memalign(kDataAlignment, kDataBlockSize * sizeof(source_data_[0])));
+    memset(source_data_, 0, kDataBlockSize * sizeof(source_data_[0]));
     ASSERT_TRUE(source_data_ != NULL);
     source_stride_ = (width_ + 31) & ~31;
     bit_depth_ = 8;
@@ -250,7 +251,7 @@ class AverageTest_8x8_quad
 
     aom_usec_timer timer;
     int expected_c[4] = { 0 };
-    int actual[4];
+    int actual[4] = { 0 };
     AverageFunction_8x8_quad avg_c = aom_avg_8x8_quad_c;
     aom_usec_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
