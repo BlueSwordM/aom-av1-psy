@@ -1243,6 +1243,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
     if (speed >= 10) {
       sf->rt_sf.skip_intra_pred = 2;
+      sf->rt_sf.hybrid_intra_pickmode = 3;
     }
   } else {
     sf->rt_sf.prune_intra_mode_based_on_mv_range = 2;
@@ -1260,8 +1261,11 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.skip_cdef_sb = 1;
     }
 
-    // TODO(yunqing): extend this sf to other speeds and/or other resolutions.
-    if (speed >= 10) sf->rt_sf.use_rtc_tf = 1;
+    if (speed >= 10) {
+      // TODO(yunqing): extend this sf to other speeds and/or other resolutions.
+      sf->rt_sf.use_rtc_tf = 1;
+      sf->rt_sf.hybrid_intra_pickmode = 2;
+    }
   }
   if (!is_480p_or_larger) {
     if (speed == 7) {

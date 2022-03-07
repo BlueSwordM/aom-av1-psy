@@ -729,7 +729,17 @@ static AOM_INLINE void hybrid_intra_mode_search(AV1_COMP *cpi,
                                                 RD_STATS *rd_cost,
                                                 BLOCK_SIZE bsize,
                                                 PICK_MODE_CONTEXT *ctx) {
-  if (cpi->sf.rt_sf.hybrid_intra_pickmode && bsize < BLOCK_16X16)
+  int use_rdopt = 0;
+  const int hybrid_intra_pickmode = cpi->sf.rt_sf.hybrid_intra_pickmode;
+  // Use rd pick for intra mode search based on block size and variance.
+  if (hybrid_intra_pickmode && bsize < BLOCK_16X16) {
+    unsigned int var_thresh[3] = { 0, 101, 201 };
+    assert(hybrid_intra_pickmode <= 3);
+    if (x->source_variance >= var_thresh[hybrid_intra_pickmode - 1])
+      use_rdopt = 1;
+  }
+
+  if (use_rdopt)
     av1_rd_pick_intra_mode_sb(cpi, x, rd_cost, bsize, ctx, INT64_MAX);
   else
     av1_nonrd_pick_intra_mode(cpi, x, rd_cost, bsize, ctx);
