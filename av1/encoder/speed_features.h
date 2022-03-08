@@ -1457,6 +1457,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // or key frame, once quality has ramped up.
   int skip_lf_screen;
 
+  // For nonrd: early exit out of variance partition that sets the
+  // block size to superblock size, and sets mode to zeromv-last skip.
+  int part_early_exit_zeromv;
+
   // Early terminate inter mode search based on sse in non-rd path.
   INTER_SEARCH_EARLY_TERM_IDX sse_early_term_inter_search;
 } REAL_TIME_SPEED_FEATURES;

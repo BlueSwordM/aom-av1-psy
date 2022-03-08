@@ -957,6 +957,10 @@ typedef struct macroblock {
   /*!\brief Number of zero motion vectors
    */
   int cnt_zeromv;
+
+  /*!\brief Flag to force zeromv-skip block, for nonrd path.
+   */
+  int force_zeromv_skip;
   /**@}*/
 
   /*****************************************************************************

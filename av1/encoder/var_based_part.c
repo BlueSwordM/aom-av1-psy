@@ -1192,6 +1192,36 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
     d = AV1_VAR_OFFS;
     dp = 0;
   }
+
+  x->force_zeromv_skip = 0;
+  const unsigned int thresh_exit_part =
+      (cm->seq_params->sb_size == BLOCK_64X64) ? 5000 : 10000;
+  // If the superblock is completely static (zero source sad) and
+  // the y_sad (relative to LAST ref) is very small, take the sb_size partition
+  // and exit, and force zeromv_last skip mode for nonrd_pickmode.
+  // Only do this when the cyclic refresh is applied, and only on the base
+  // segment (so the QP-boosted segment can still contnue cleaning/ramping
+  // up the quality).
+  // TODO(marpan): Check color component for setting this skip.
+  if (!is_key_frame && cpi->sf.rt_sf.part_early_exit_zeromv &&
+      cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+      cpi->cyclic_refresh->apply_cyclic_refresh &&
+      segment_id == CR_SEGMENT_ID_BASE &&
+      x->content_state_sb.source_sad == kZeroSad &&
+      ref_frame_partition == LAST_FRAME && xd->mi[0]->mv[0].as_int == 0 &&
+      y_sad < thresh_exit_part) {
+    const int block_width = mi_size_wide[cm->seq_params->sb_size];
+    const int block_height = mi_size_high[cm->seq_params->sb_size];
+    if (mi_col + block_width <= tile->mi_col_end &&
+        mi_row + block_height <= tile->mi_row_end) {
+      set_block_size(cpi, x, xd, mi_row, mi_col, bsize);
+      x->force_zeromv_skip = 1;
+      if (vt2) aom_free(vt2);
+      if (vt) aom_free(vt);
+      return 0;
+    }
+  }
+
   if (cpi->noise_estimate.enabled)
     noise_level = av1_noise_estimate_extract_level(&cpi->noise_estimate);
 
