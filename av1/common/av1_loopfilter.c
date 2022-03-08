@@ -1269,7 +1269,7 @@ void av1_filter_block_plane_vert_rt_chroma(
                              (MAX_MIB_SIZE >> scale_vert));
   const int x_range = AOMMIN((int)(plane_mi_cols - (mi_col >> scale_horz)),
                              (MAX_MIB_SIZE >> scale_horz));
-  const ptrdiff_t mode_step = 1 << scale_horz;
+  const ptrdiff_t mode_step = (ptrdiff_t)1 << scale_horz;
 
   int min_height = 0;
   for (int y = 0; y < y_range; y++) {
