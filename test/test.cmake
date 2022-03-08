@@ -363,6 +363,10 @@ if(CONFIG_AV1_ENCODER AND ENABLE_TESTS)
               "${AOM_ROOT}/test/yuv_video_source.h")
 endif()
 
+if(CONFIG_AV1_ENCODER AND ENABLE_TESTS)
+  list(APPEND AV1_RC_QMODE_SOURCES "${AOM_ROOT}/test/ratectrl_qmode_test.cc")
+endif()
+
 if(ENABLE_TESTS)
   find_package(PythonInterp)
   if(NOT PYTHONINTERP_FOUND)
@@ -595,6 +599,15 @@ function(setup_aom_test_targets)
     set_property(TARGET test_aom_rc_interface
                  PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
     list(APPEND AOM_APP_TARGETS test_aom_rc_interface)
+  endif()
+
+  if(CONFIG_AV1_ENCODER AND ENABLE_TESTS AND NOT BUILD_SHARED_LIBS)
+    add_executable(test_av1_rc_qmode ${AV1_RC_QMODE_SOURCES})
+    target_link_libraries(test_av1_rc_qmode ${AOM_LIB_LINK_TYPE} aom
+                          av1_rc_qmode aom_gtest)
+    set_property(TARGET test_av1_rc_qmode
+                 PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
+    list(APPEND AOM_APP_TARGETS test_av1_rc_qmode)
   endif()
   set(AOM_APP_TARGETS ${AOM_APP_TARGETS} PARENT_SCOPE)
 endfunction()
