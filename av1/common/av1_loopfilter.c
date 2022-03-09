@@ -1215,11 +1215,11 @@ void av1_filter_block_plane_vert_rt(const AV1_COMMON *const cm,
                                     TX_SIZE *tx_buf) {
   uint8_t *const dst_ptr = plane_ptr->dst.buf;
   const int dst_stride = plane_ptr->dst.stride;
+  const uint32_t dst_height = plane_ptr->dst.height;
   const int plane_mi_rows = ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, 0);
   const int plane_mi_cols = ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, 0);
   const int y_range = AOMMIN((int)(plane_mi_rows - mi_row), MAX_MIB_SIZE);
   const int x_range = AOMMIN((int)(plane_mi_cols - mi_col), MAX_MIB_SIZE);
-  assert(!(y_range % 2));
   const ptrdiff_t mode_step = 1;
   for (int y = 0; y < y_range; y += 2) {
     const uint32_t curr_y = mi_row + y;
@@ -1231,6 +1231,7 @@ void av1_filter_block_plane_vert_rt(const AV1_COMMON *const cm,
 
     AV1_DEBLOCKING_PARAMETERS *params = params_buf;
     TX_SIZE *tx_size = tx_buf;
+    const bool use_dual = (curr_y + 1) * MI_SIZE < dst_height;
 
     uint8_t *p = dst_ptr + y * MI_SIZE * dst_stride;
     for (int x = 0; x < x_range;) {
@@ -1239,7 +1240,7 @@ void av1_filter_block_plane_vert_rt(const AV1_COMMON *const cm,
         *tx_size = TX_4X4;
       }
 
-      filter_vert(p, dst_stride, params, cm->seq_params, true);
+      filter_vert(p, dst_stride, params, cm->seq_params, use_dual);
 
       // advance the destination pointer
       const uint32_t advance_units = tx_size_wide_unit[*tx_size];
@@ -1628,6 +1629,7 @@ void av1_filter_block_plane_horz_rt(const AV1_COMMON *const cm,
                                     TX_SIZE *tx_buf) {
   uint8_t *const dst_ptr = plane_ptr->dst.buf;
   const int dst_stride = plane_ptr->dst.stride;
+  const uint32_t dst_width = plane_ptr->dst.width;
   const int plane_mi_rows = ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, 0);
   const int plane_mi_cols = ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, 0);
   const int y_range = AOMMIN((int)(plane_mi_rows - mi_row), MAX_MIB_SIZE);
@@ -1644,6 +1646,7 @@ void av1_filter_block_plane_horz_rt(const AV1_COMMON *const cm,
 
     AV1_DEBLOCKING_PARAMETERS *params = params_buf;
     TX_SIZE *tx_size = tx_buf;
+    const bool use_dual = (curr_x + 1) * MI_SIZE < dst_width;
 
     uint8_t *p = dst_ptr + x * MI_SIZE;
     for (int y = 0; y < y_range;) {
@@ -1652,7 +1655,7 @@ void av1_filter_block_plane_horz_rt(const AV1_COMMON *const cm,
         *tx_size = TX_4X4;
       }
 
-      filter_horz(p, dst_stride, params, cm->seq_params, true);
+      filter_horz(p, dst_stride, params, cm->seq_params, use_dual);
 
       // advance the destination pointer
       const uint32_t advance_units = tx_size_high_unit[*tx_size];

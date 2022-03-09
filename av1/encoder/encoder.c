@@ -2247,14 +2247,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   const int use_cdef = cm->seq_params->enable_cdef &&
                        !cm->features.coded_lossless && !cm->tiles.large_scale;
   const int use_restoration = is_restoration_used(cm);
-  const int cur_width = cm->cur_frame->width;
-  const int cur_height = cm->cur_frame->height;
-  const int cur_width_mib = cm->mi_params.mi_cols * MI_SIZE;
-  const int cur_height_mib = cm->mi_params.mi_rows * MI_SIZE;
-  const int is_realtime =
-      cpi->sf.rt_sf.use_nonrd_pick_mode && !(cm->mi_params.mi_cols % 2) &&
-      !(cm->mi_params.mi_rows % 2) && (cur_width_mib - cur_width < MI_SIZE) &&
-      (cur_height_mib - cur_height < MI_SIZE);
+  const int is_realtime = cpi->sf.rt_sf.use_nonrd_pick_mode;
 
   struct loopfilter *lf = &cm->lf;
 
