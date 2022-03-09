@@ -1409,6 +1409,7 @@ typedef struct RD_COUNTS {
   int obmc_used[BLOCK_SIZES_ALL][2];
   int warped_used[2];
   int newmv_or_intra_blocks;
+  uint64_t seg_tmp_pred_cost[2];
 } RD_COUNTS;
 
 typedef struct ThreadData {

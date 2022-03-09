@@ -211,6 +211,16 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
   }
   av1_cost_tokens_from_cdf(mode_costs->intrabc_cost, fc->intrabc_cdf, NULL);
 
+  for (i = 0; i < SPATIAL_PREDICTION_PROBS; ++i) {
+    av1_cost_tokens_from_cdf(mode_costs->spatial_pred_cost[i],
+                             fc->seg.spatial_pred_seg_cdf[i], NULL);
+  }
+
+  for (i = 0; i < SEG_TEMPORAL_PRED_CTXS; ++i) {
+    av1_cost_tokens_from_cdf(mode_costs->tmp_pred_cost[i], fc->seg.pred_cdf[i],
+                             NULL);
+  }
+
   if (!frame_is_intra_only(cm)) {
     for (i = 0; i < COMP_INTER_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->comp_inter_cost[i],

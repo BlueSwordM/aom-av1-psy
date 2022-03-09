@@ -323,6 +323,28 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
     }
     if (mi_addr->uv_mode == UV_CFL_PRED && !is_cfl_allowed(xd))
       mi_addr->uv_mode = UV_DC_PRED;
+
+    if (!dry_run && !mi_addr->skip_txfm) {
+      int cdf_num;
+      const int spatial_pred = av1_get_spatial_seg_pred(cm, xd, &cdf_num);
+      const int coded_id = av1_neg_interleave(mi_addr->segment_id, spatial_pred,
+                                              seg->last_active_segid + 1);
+      int64_t spatial_cost = x->mode_costs.spatial_pred_cost[cdf_num][coded_id];
+      td->rd_counts.seg_tmp_pred_cost[0] += spatial_cost;
+
+      const int pred_segment_id =
+          cm->last_frame_seg_map
+              ? get_segment_id(mi_params, cm->last_frame_seg_map, bsize, mi_row,
+                               mi_col)
+              : 0;
+      const int use_tmp_pred = pred_segment_id == mi_addr->segment_id;
+      const int tmp_pred_ctx = av1_get_pred_context_seg_id(xd);
+      td->rd_counts.seg_tmp_pred_cost[1] +=
+          x->mode_costs.tmp_pred_cost[tmp_pred_ctx][use_tmp_pred];
+      if (!use_tmp_pred) {
+        td->rd_counts.seg_tmp_pred_cost[1] += spatial_cost;
+      }
+    }
   }
 
   // Count zero motion vector.

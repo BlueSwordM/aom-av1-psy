@@ -675,6 +675,16 @@ typedef struct {
   //! sgrproj_restore_cost
   int sgrproj_restore_cost[2];
   /**@}*/
+
+  /*****************************************************************************
+   * \name Segmentation Mode Costs
+   ****************************************************************************/
+  /**@{*/
+  //! tmp_pred_cost
+  int tmp_pred_cost[SEG_TEMPORAL_PRED_CTXS][2];
+  //! spatial_pred_cost
+  int spatial_pred_cost[SPATIAL_PREDICTION_PROBS][MAX_SEGMENTS];
+  /**@}*/
 } ModeCosts;
 
 /*! \brief Holds mv costs for encoding and motion search.

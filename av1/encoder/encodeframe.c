@@ -1117,6 +1117,8 @@ static AOM_INLINE void encode_tiles(AV1_COMP *cpi) {
       cpi->td.intrabc_used = 0;
       cpi->td.deltaq_used = 0;
       cpi->td.abs_sum_level = 0;
+      cpi->td.rd_counts.seg_tmp_pred_cost[0] = 0;
+      cpi->td.rd_counts.seg_tmp_pred_cost[1] = 0;
       cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
       cpi->td.mb.tile_pb_ctx = &this_tile->tctx;
       // Reset cyclic refresh counters.
@@ -1361,6 +1363,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   av1_zero(rdc->tx_type_used);
   av1_zero(rdc->obmc_used);
   av1_zero(rdc->warped_used);
+  av1_zero(rdc->seg_tmp_pred_cost);
 
   // Reset the flag.
   cpi->intrabc_used = 0;
@@ -1695,6 +1698,12 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         }
       }
     }
+  }
+
+  if (cm->seg.enabled) {
+    cm->seg.temporal_update = 1;
+    if (rdc->seg_tmp_pred_cost[0] < rdc->seg_tmp_pred_cost[1])
+      cm->seg.temporal_update = 0;
   }
 
   if (cpi->sf.inter_sf.prune_obmc_prob_thresh > 0 &&

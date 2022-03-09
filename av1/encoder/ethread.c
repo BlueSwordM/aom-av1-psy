@@ -49,6 +49,9 @@ static AOM_INLINE void accumulate_rd_opt(ThreadData *td, ThreadData *td_t) {
     td->rd_counts.warped_used[i] += td_t->rd_counts.warped_used[i];
   }
 
+  td->rd_counts.seg_tmp_pred_cost[0] += td_t->rd_counts.seg_tmp_pred_cost[0];
+  td->rd_counts.seg_tmp_pred_cost[1] += td_t->rd_counts.seg_tmp_pred_cost[1];
+
   td->rd_counts.newmv_or_intra_blocks += td_t->rd_counts.newmv_or_intra_blocks;
 }
 
@@ -1269,6 +1272,8 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     thread_data->td->intrabc_used = 0;
     thread_data->td->deltaq_used = 0;
     thread_data->td->abs_sum_level = 0;
+    thread_data->td->rd_counts.seg_tmp_pred_cost[0] = 0;
+    thread_data->td->rd_counts.seg_tmp_pred_cost[1] = 0;
 
     // Before encoding a frame, copy the thread data from cpi.
     if (thread_data->td != &cpi->td) {
