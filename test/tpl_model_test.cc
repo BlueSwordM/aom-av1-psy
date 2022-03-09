@@ -187,7 +187,7 @@ TEST(TplModelTest, GetQIndexFromQstepRatio) {
         av1_get_q_index_from_qstep_ratio(leaf_qindex, qstep_ratio, bit_depth);
     EXPECT_EQ(q_index, 0);
   }
-}  // namespace
+}
 
 TEST(TplModelTest, TxfmStatsInitTest) {
   TplTxfmStats tpl_txfm_stats;

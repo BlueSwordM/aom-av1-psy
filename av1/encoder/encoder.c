@@ -2697,7 +2697,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       if (frame_coding_idx < cpi->vbr_rc_info.total_frame_count) {
         q = cpi->vbr_rc_info.q_index_list[frame_coding_idx];
       } else {
-        // TODO(angiebird): Investiage why sometimes there is an extra frame
+        // TODO(angiebird): Investigate why sometimes there is an extra frame
         // after the last GOP.
         q = cpi->vbr_rc_info.base_q_index;
       }

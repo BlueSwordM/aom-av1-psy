@@ -2090,9 +2090,9 @@ void av1_vbr_rc_append_tpl_info(VBR_RATECTRL_INFO *vbr_rc_info,
         tpl_info->txfm_stats_list[i];
     vbr_rc_info->qstep_ratio_list[gop_start_idx + i] =
         tpl_info->qstep_ratio_ls[i];
-    // TODO(angiebird): This is a hack. We currently apply same scale factor
-    // for each update_type, therefore setting everying to ARF_UPDATE is
-    // temporarily okay. Properly set  the update_type later.
+    // TODO(angiebird): This is a temporary solution. We currently apply same
+    // scale factor for each update_type, therefore setting everything to
+    // ARF_UPDATE is temporarily okay. Properly set the update_type later.
     vbr_rc_info->update_type_list[gop_start_idx + i] = ARF_UPDATE;
   }
   vbr_rc_info->total_frame_count += tpl_info->gf_length;
