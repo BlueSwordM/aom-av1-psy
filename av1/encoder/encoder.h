@@ -3031,10 +3031,6 @@ typedef struct AV1_COMP {
    */
   int do_update_frame_probs_interpfilter[NUM_RECODES_PER_FRAME];
 
-  /*!
-   * Retain condition for fast_extra_bits calculation.
-   */
-  int do_update_vbr_bits_off_target_fast;
 #if CONFIG_FPMT_TEST
   /*!
    * Temporary variable for simulation.
@@ -3049,6 +3045,12 @@ typedef struct AV1_COMP {
    */
   double new_framerate;
 #endif
+
+  /*!
+   * Retain condition for fast_extra_bits calculation.
+   */
+  int do_update_vbr_bits_off_target_fast;
+
   /*!
    * Multi-threading parameters.
    */

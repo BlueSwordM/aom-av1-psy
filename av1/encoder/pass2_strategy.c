@@ -4036,13 +4036,11 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
   p_rc->vbr_bits_off_target += rc->base_frame_target - rc->projected_frame_size;
   twopass->bits_left = AOMMAX(twopass->bits_left - rc->base_frame_target, 0);
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
   if (cpi->do_update_vbr_bits_off_target_fast) {
     // Subtract current frame's fast_extra_bits.
     p_rc->vbr_bits_off_target_fast -= rc->frame_level_fast_extra_bits;
     rc->frame_level_fast_extra_bits = 0;
   }
-#endif
 
   // Target vs actual bits for this arf group.
   twopass->rolling_arf_group_target_bits += rc->base_frame_target;
@@ -4161,18 +4159,6 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
     }
     twopass->extend_minq = clamp(twopass->extend_minq, 0, minq_adj_limit);
     twopass->extend_maxq = clamp(twopass->extend_maxq, 0, maxq_adj_limit);
-
-#if CONFIG_FRAME_PARALLEL_ENCODE
-    int update_fast_extra_bits = 1;
-#if CONFIG_FPMT_TEST
-    update_fast_extra_bits = simulate_parallel_frame ? 0 : 1;
-#endif
-    if (!frame_is_kf_gf_arf(cpi) && !rc->is_src_frame_alt_ref &&
-        p_rc->vbr_bits_off_target_fast && update_fast_extra_bits) {
-      // Subtract current frame's fast_extra_bits.
-      p_rc->vbr_bits_off_target_fast -= rc->frame_level_fast_extra_bits;
-    }
-#endif
 
     // If there is a big and undexpected undershoot then feed the extra
     // bits back in quickly. One situation where this may happen is if a

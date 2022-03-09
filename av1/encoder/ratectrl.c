@@ -390,9 +390,7 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, RATE_CONTROL *rc) {
   rc->resize_buffer_underflow = 0;
   rc->resize_count = 0;
   rc->rtc_external_ratectrl = 0;
-#if CONFIG_FRAME_PARALLEL_ENCODE
   rc->frame_level_fast_extra_bits = 0;
-#endif
 }
 
 int av1_rc_drop_frame(AV1_COMP *cpi) {
@@ -2332,16 +2330,12 @@ static void vbr_rate_correction(AV1_COMP *cpi, int *this_frame_target) {
       // local undershoot.
       *this_frame_target += (int)fast_extra_bits;
     }
-#if CONFIG_FRAME_PARALLEL_ENCODE
     // Store the fast_extra_bits of the frame and reduce it from
     // vbr_bits_off_target_fast during postencode stage.
     rc->frame_level_fast_extra_bits = fast_extra_bits;
     // Retaining the condition to udpate during postencode stage since
     // fast_extra_bits are calculated based on vbr_bits_off_target_fast.
     cpi->do_update_vbr_bits_off_target_fast = 1;
-#else
-    p_rc->vbr_bits_off_target_fast -= fast_extra_bits;
-#endif
   }
 }
 
