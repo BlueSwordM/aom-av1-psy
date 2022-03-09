@@ -76,6 +76,7 @@ struct FrameEncodeParameters {
 using FirstpassInfo = std::vector<FIRSTPASS_STATS>;
 using TplFrameStats = std::vector<TplBlockStats>;
 using TplGopStats = std::vector<TplFrameStats>;
+
 class AV1RateControlQModeInterface {
  public:
   AV1RateControlQModeInterface();

@@ -9,6 +9,9 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <vector>
+
+#include "av1/encoder/pass2_strategy.h"
 #include "av1/ratectrl_qmode.h"
 
 #include <algorithm>
@@ -113,6 +116,15 @@ void AV1RateControlQMode::SetRcParam(const RateControlParam &rc_param) {
 
 GopStructList AV1RateControlQMode::DetermineGopInfo(
     const FirstpassInfo &firstpass_info) {
+  std::vector<REGIONS> regions_list(MAX_FIRSTPASS_ANALYSIS_FRAMES);
+  int total_regions = 0;
+  // TODO(jianj): firstpass_info.size() should eventually be replaced
+  // by the number of frames to the next KF.
+  av1_identify_regions(
+      firstpass_info.data(),
+      AOMMIN(firstpass_info.size(), MAX_FIRSTPASS_ANALYSIS_FRAMES), 0,
+      regions_list.data(), &total_regions);
+
   // A temporary simple implementation
   const int max_gop_show_frame_count = 16;
   int remaining_show_frame_count = static_cast<int>(firstpass_info.size());
@@ -140,4 +152,5 @@ std::vector<FrameEncodeParameters> AV1RateControlQMode::GetGopEncodeInfo(
   (void)tpl_stats_list;
   return frame_encoder_param;
 }
+
 }  // namespace aom

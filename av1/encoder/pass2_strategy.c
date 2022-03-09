@@ -1746,13 +1746,9 @@ static void cleanup_blendings(REGIONS *regions, int *num_regions) {
   cleanup_regions(regions, num_regions);
 }
 
-// Identify stable and unstable regions from first pass stats.
-// Stats_start points to the first frame to analyze.
-// Offset is the offset from the current frame to the frame stats_start is
-// pointing to.
-static void identify_regions(const FIRSTPASS_STATS *const stats_start,
-                             int total_frames, int offset, REGIONS *regions,
-                             int *total_regions) {
+void av1_identify_regions(const FIRSTPASS_STATS *const stats_start,
+                          int total_frames, int offset, REGIONS *regions,
+                          int *total_regions) {
   int k;
   if (total_frames <= 1) return;
 
@@ -3738,11 +3734,11 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
                        twopass->stats_buf_ctx->stats_in_end);
         estimate_coeff(twopass->stats_buf_ctx->stats_in_start,
                        twopass->stats_buf_ctx->stats_in_end);
-        identify_regions(cpi->twopass_frame.stats_in, rest_frames,
-                         (rc->frames_since_key == 0), p_rc->regions,
-                         &p_rc->num_regions);
+        av1_identify_regions(cpi->twopass_frame.stats_in, rest_frames,
+                             (rc->frames_since_key == 0), p_rc->regions,
+                             &p_rc->num_regions);
       } else {
-        identify_regions(
+        av1_identify_regions(
             cpi->twopass_frame.stats_in - (rc->frames_since_key == 0),
             rest_frames, 0, p_rc->regions, &p_rc->num_regions);
       }

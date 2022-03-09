@@ -86,7 +86,7 @@ void RefFrameManager::UpdateFrame(GopFrame *gop_frame,
       case RefUpdateType::kForward: forward_stack_.push_back(ref_idx); break;
       case RefUpdateType::kBackward: backward_queue_.push_back(ref_idx); break;
       case RefUpdateType::kLast: last_queue_.push_back(ref_idx); break;
-      default: break;
+      case RefUpdateType::kNone: break;
     }
     ref_frame_table_[ref_idx] = *gop_frame;
   }
