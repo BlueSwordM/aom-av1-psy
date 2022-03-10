@@ -2468,6 +2468,7 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
         if (cpi->sf.rt_sf.nonrd_check_partition_merge_mode != 2 ||
             none_rdc.skip_txfm != 1 || pc_tree->none->mic.mode == NEWMV) {
           av1_init_rd_stats(&split_rdc);
+          split_rdc.rate += mode_costs->partition_cost[pl][PARTITION_SPLIT];
           for (int i = 0; i < SUB_PARTITIONS_SPLIT; i++) {
             RD_STATS block_rdc;
             av1_invalid_rd_stats(&block_rdc);
@@ -2487,15 +2488,22 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
             pick_sb_modes_nonrd(cpi, tile_data, x, mi_row + y_idx,
                                 mi_col + x_idx, &block_rdc, subsize,
                                 pc_tree->split[i]->none);
+            // TODO(any): The rate here did not include th cost of signaling
+            // PARTITION_NONE token in the sub-blocks.
             split_rdc.rate += block_rdc.rate;
             split_rdc.dist += block_rdc.dist;
+
+            av1_rd_cost_update(x->rdmult, &split_rdc);
+
+            if (none_rdc.rdcost < split_rdc.rdcost) {
+              break;
+            }
 
             encode_b_nonrd(cpi, tile_data, td, tp, mi_row + y_idx,
                            mi_col + x_idx, 1, subsize, PARTITION_NONE,
                            pc_tree->split[i]->none, NULL);
           }
           av1_restore_context(x, &x_ctx, mi_row, mi_col, bsize, 3);
-          split_rdc.rate += mode_costs->partition_cost[pl][PARTITION_SPLIT];
           split_rdc.rdcost = RDCOST(x->rdmult, split_rdc.rate, split_rdc.dist);
         }
         if (none_rdc.rdcost < split_rdc.rdcost) {
