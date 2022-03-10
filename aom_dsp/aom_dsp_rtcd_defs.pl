@@ -1122,6 +1122,9 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/void aom_hadamard_lp_16x16/, "const int16_t *src_diff, ptrdiff_t src_stride, int16_t *coeff";
   specialize qw/aom_hadamard_lp_16x16 sse2 avx2 neon/;
 
+  add_proto qw/void aom_hadamard_8x8_dual/, "const int16_t *src_diff, ptrdiff_t src_stride, int16_t *coeff";
+  specialize qw/aom_hadamard_8x8_dual sse2 avx2/;
+
   add_proto qw/void aom_pixel_scale/, "const int16_t *src_diff, ptrdiff_t src_stride, int16_t *coeff, int log_scale, int h8, int w8";
   specialize qw/aom_pixel_scale sse2/;
 

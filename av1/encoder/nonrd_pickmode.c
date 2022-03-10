@@ -807,6 +807,24 @@ static void model_rd_for_sb_y(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   rd_stats->dist = dist;
 }
 
+static INLINE void aom_process_hadamard_8x16(MACROBLOCK *x, int max_blocks_high,
+                                             int max_blocks_wide, int num_4x4_w,
+                                             int step, int block_step) {
+  struct macroblock_plane *const p = &x->plane[0];
+  const int bw = 4 * num_4x4_w;
+  const int num_4x4 = AOMMIN(num_4x4_w, max_blocks_wide);
+  int block = 0;
+
+  for (int r = 0; r < max_blocks_high; r += block_step) {
+    for (int c = 0; c < num_4x4; c += 2 * block_step) {
+      const int16_t *src_diff = &p->src_diff[(r * bw + c) << 2];
+      int16_t *low_coeff = (int16_t *)p->coeff + BLOCK_OFFSET(block);
+      aom_hadamard_8x8_dual(src_diff, (ptrdiff_t)bw, low_coeff);
+      block += 2 * step;
+    }
+  }
+}
+
 /*!\brief Calculates RD Cost using Hadamard transform.
  *
  * \ingroup nonrd_mode_search
@@ -869,6 +887,18 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 #endif
 
   *skippable = 1;
+
+  // For block sizes 8x16 or above, Hadamard txfm of two adjacent 8x8 blocks can
+  // be done per function call. Hence the call of Hadamard txfm is abstracted
+  // here for the specified cases.
+  const int is_tx_8x8_dual_applicable =
+      (tx_size == TX_8X8 && block_size_wide[bsize] >= 16 &&
+       block_size_high[bsize] >= 8 && tx_type != IDTX);
+  if (is_tx_8x8_dual_applicable) {
+    aom_process_hadamard_8x16(x, max_blocks_high, max_blocks_wide, num_4x4_w,
+                              step, block_step);
+  }
+
   // Keep track of the row and column of the blocks we use so that we know
   // if we are in the unrestricted motion border.
   for (int r = 0; r < max_blocks_high; r += block_step) {
@@ -982,8 +1012,10 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
                 for (int idx = 0; idx < 8; ++idx)
                   low_coeff[idy * 8 + idx] =
                       src_diff[idy * diff_stride + idx] * 8;
-            } else {
+            } else if (!is_tx_8x8_dual_applicable) {
               aom_hadamard_lp_8x8(src_diff, diff_stride, low_coeff);
+            } else {
+              assert(is_tx_8x8_dual_applicable);
             }
             av1_quantize_lp(low_coeff, 8 * 8, p->round_fp_QTX, p->quant_fp_QTX,
                             low_qcoeff, low_dqcoeff, p->dequant_QTX, eob,
