@@ -519,7 +519,6 @@ static void set_allintra_speed_features_framesize_independent(
     sf->rt_sf.hybrid_intra_pickmode = 1;
     sf->rt_sf.use_nonrd_pick_mode = 1;
     sf->rt_sf.nonrd_check_partition_merge_mode = 1;
-    sf->rt_sf.nonrd_check_partition_split = 0;
     sf->rt_sf.var_part_split_threshold_shift = 8;
     // Set mask for intra modes.
     for (int i = 0; i < BLOCK_SIZES; ++i)
@@ -1563,7 +1562,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
         (cpi->svc.number_spatial_layers > 1) ? 0 : 1;
     sf->rt_sf.use_nonrd_pick_mode = 1;
     sf->rt_sf.nonrd_check_partition_merge_mode = 1;
-    sf->rt_sf.nonrd_check_partition_split = 0;
     sf->rt_sf.skip_intra_pred = 1;
     sf->rt_sf.source_metrics_sb_nonrd = 1;
     // For SVC: use better mv search on base temporal layers, and only
@@ -1599,7 +1597,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.use_nonrd_altref_frame = 0;
     sf->rt_sf.nonrd_prune_ref_frame_search = 2;
     sf->rt_sf.nonrd_check_partition_merge_mode = 0;
-    sf->rt_sf.nonrd_check_partition_split = 0;
     sf->rt_sf.var_part_split_threshold_shift = 8;
     sf->interp_sf.cb_pred_filter_search = 1;
   }
