@@ -2767,6 +2767,15 @@ const VarianceParams kArrayVariance_avx2[] = {
 INSTANTIATE_TEST_SUITE_P(AVX2, AvxVarianceTest,
                          ::testing::ValuesIn(kArrayVariance_avx2));
 
+const GetSseSumParams kArrayGetSseSum8x8Quad_avx2[] = {
+  GetSseSumParams(7, 7, &aom_get_sse_sum_8x8_quad_avx2, 0),
+  GetSseSumParams(6, 6, &aom_get_sse_sum_8x8_quad_avx2, 0),
+  GetSseSumParams(5, 5, &aom_get_sse_sum_8x8_quad_avx2, 0),
+  GetSseSumParams(5, 4, &aom_get_sse_sum_8x8_quad_avx2, 0)
+};
+INSTANTIATE_TEST_SUITE_P(AVX2, GetSseSum8x8QuadTest,
+                         ::testing::ValuesIn(kArrayGetSseSum8x8Quad_avx2));
+
 const SubpelVarianceParams kArraySubpelVariance_avx2[] = {
   SubpelVarianceParams(7, 7, &aom_sub_pixel_variance128x128_avx2, 0),
   SubpelVarianceParams(7, 6, &aom_sub_pixel_variance128x64_avx2, 0),
