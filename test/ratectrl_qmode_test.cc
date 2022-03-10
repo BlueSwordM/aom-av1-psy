@@ -15,11 +15,10 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 namespace aom {
 TEST(RateControlQModeTest, ConstructGop) {
-  RefFrameManager ref_frame_manager;
   int show_frame_count = 16;
   int max_ref_frames = 7;
   int has_key_frame = 0;
-  ref_frame_manager_init(&ref_frame_manager, max_ref_frames);
+  RefFrameManager ref_frame_manager(max_ref_frames);
   GopStruct gop_struct =
       construct_gop(&ref_frame_manager, show_frame_count, has_key_frame);
   int ref_order_idx = 0;

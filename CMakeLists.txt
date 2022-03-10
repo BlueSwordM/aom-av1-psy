@@ -318,6 +318,8 @@ endif()
 list(APPEND AOM_AV1_RC_QMODE_SOURCES
             "${AOM_ROOT}/av1/ratectrl_qmode_interface.h"
             "${AOM_ROOT}/av1/ratectrl_qmode_interface.cc"
+            "${AOM_ROOT}/av1/reference_manager.h"
+            "${AOM_ROOT}/av1/reference_manager.cc"
             "${AOM_ROOT}/av1/ratectrl_qmode.h"
             "${AOM_ROOT}/av1/ratectrl_qmode.cc")
 add_library(av1_rc_qmode ${AOM_AV1_RC_QMODE_SOURCES})
