@@ -32,7 +32,7 @@ TEST(RateControlQModeTest, ConstructGop) {
   }
 
   // Test whether each non show frame has a colocated show frame
-  int gop_size = gop_struct.gop_frame_list.size();
+  int gop_size = static_cast<int>(gop_struct.gop_frame_list.size());
   for (int gop_idx = 0; gop_idx < gop_size; ++gop_idx) {
     auto &gop_frame = gop_struct.gop_frame_list[gop_idx];
     if (gop_frame.is_show_frame == 0) {

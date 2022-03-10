@@ -51,8 +51,8 @@ void ref_frame_manager_show(const RefFrameManager *ref_frame_manager) {
 
 void ref_frame_manager_free_ref_idx(RefFrameManager *ref_frame_manager) {
   if (ref_frame_manager->free_ref_idx_list.size() == 0) {
-    int backward_size = ref_frame_manager->backward_queue.size();
-    int last_size = ref_frame_manager->last_queue.size();
+    size_t backward_size = ref_frame_manager->backward_queue.size();
+    size_t last_size = ref_frame_manager->last_queue.size();
     if (last_size >= backward_size) {
       int ref_idx = ref_frame_manager->last_queue.front();
       ref_frame_manager->last_queue.pop_front();
@@ -146,7 +146,7 @@ void construct_gop_multi_layer(GopStruct *gop_struct,
                                RefFrameManager *ref_frame_manager,
                                int max_depth, int depth, int order_start,
                                int order_end) {
-  int coding_idx = gop_struct->gop_frame_list.size();
+  int coding_idx = static_cast<int>(gop_struct->gop_frame_list.size());
   GopFrame gop_frame;
   int num_frames = order_end - order_start;
   // If there are less than 3 frames, stop introducing ARF
@@ -171,7 +171,7 @@ void construct_gop_multi_layer(GopStruct *gop_struct,
   } else {
     // regular frame
     for (int i = order_start; i < order_end; ++i) {
-      coding_idx = gop_struct->gop_frame_list.size();
+      coding_idx = static_cast<int>(gop_struct->gop_frame_list.size());
       gop_frame = gop_frame_basic(coding_idx, i, 0, 0, 0, 1);
       ref_frame_manager_update_frame(ref_frame_manager, &gop_frame,
                                      RefUpdateType::kLast,
@@ -191,7 +191,7 @@ GopStruct construct_gop(RefFrameManager *ref_frame_manager,
   GopFrame gop_frame;
   if (has_key_frame) {
     ref_frame_manager_reset(ref_frame_manager);
-    coding_idx = gop_struct.gop_frame_list.size();
+    coding_idx = static_cast<int>(gop_struct.gop_frame_list.size());
     gop_frame = gop_frame_basic(coding_idx, order_start, 1, 0, 1, 1);
     ref_frame_manager_update_frame(ref_frame_manager, &gop_frame,
                                    RefUpdateType::kBackward,
@@ -200,7 +200,7 @@ GopStruct construct_gop(RefFrameManager *ref_frame_manager,
     order_start++;
   }
   // ARF
-  coding_idx = gop_struct.gop_frame_list.size();
+  coding_idx = static_cast<int>(gop_struct.gop_frame_list.size());
   gop_frame = gop_frame_basic(coding_idx, order_arf, 0, 1, 1, 0);
   ref_frame_manager_update_frame(ref_frame_manager, &gop_frame,
                                  RefUpdateType::kForward,
@@ -210,7 +210,7 @@ GopStruct construct_gop(RefFrameManager *ref_frame_manager,
                             ref_frame_manager->forward_max_size, 1, order_start,
                             order_arf);
   // Overlay
-  coding_idx = gop_struct.gop_frame_list.size();
+  coding_idx = static_cast<int>(gop_struct.gop_frame_list.size());
   gop_frame = gop_frame_basic(coding_idx, order_arf, 0, 0, 0, 1);
   ref_frame_manager_update_frame(ref_frame_manager, &gop_frame,
                                  RefUpdateType::kNone, EncodeRefMode::kOverlay);
@@ -226,7 +226,7 @@ GopStructList AV1RateControlQMode::DetermineGopInfo(
     const FirstpassInfo &firstpass_info) {
   // A temporary simple implementation
   const int max_gop_show_frame_count = 16;
-  int remaining_show_frame_count = firstpass_info.size();
+  int remaining_show_frame_count = static_cast<int>(firstpass_info.size());
   GopStructList gop_list;
 
   RefFrameManager ref_frame_manager;
