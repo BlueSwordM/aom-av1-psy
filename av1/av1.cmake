@@ -312,17 +312,14 @@ list(APPEND AOM_AV1_COMMON_INTRIN_SSSE3
             "${AOM_ROOT}/av1/common/x86/av1_inv_txfm_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/av1_inv_txfm_ssse3.h"
             "${AOM_ROOT}/av1/common/x86/cfl_ssse3.c"
-            "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_ssse3.c"
-            "${AOM_ROOT}/av1/common/x86/highbd_wiener_convolve_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/jnt_convolve_ssse3.c"
-            "${AOM_ROOT}/av1/common/x86/reconinter_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/resize_ssse3.c")
 
-if(NOT CONFIG_AV1_HIGHBITDEPTH)
-  list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_SSSE3
-                   "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_ssse3.c"
-                   "${AOM_ROOT}/av1/common/x86/highbd_wiener_convolve_ssse3.c"
-                   "${AOM_ROOT}/av1/common/x86/reconinter_ssse3.c")
+if(CONFIG_AV1_HIGHBITDEPTH)
+  list(APPEND AOM_AV1_COMMON_INTRIN_SSSE3
+              "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_ssse3.c"
+              "${AOM_ROOT}/av1/common/x86/highbd_wiener_convolve_ssse3.c"
+              "${AOM_ROOT}/av1/common/x86/reconinter_ssse3.c")
 endif()
 
 list(APPEND AOM_AV1_COMMON_INTRIN_SSE4_1
@@ -332,20 +329,17 @@ list(APPEND AOM_AV1_COMMON_INTRIN_SSE4_1
             "${AOM_ROOT}/av1/common/x86/av1_txfm_sse4.c"
             "${AOM_ROOT}/av1/common/x86/av1_txfm_sse4.h"
             "${AOM_ROOT}/av1/common/x86/filterintra_sse4.c"
-            "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_sse4.c"
             "${AOM_ROOT}/av1/common/x86/highbd_inv_txfm_sse4.c"
-            "${AOM_ROOT}/av1/common/x86/highbd_jnt_convolve_sse4.c"
-            "${AOM_ROOT}/av1/common/x86/highbd_warp_plane_sse4.c"
             "${AOM_ROOT}/av1/common/x86/intra_edge_sse4.c"
             "${AOM_ROOT}/av1/common/x86/reconinter_sse4.c"
             "${AOM_ROOT}/av1/common/x86/selfguided_sse4.c"
             "${AOM_ROOT}/av1/common/x86/warp_plane_sse4.c")
 
-if(NOT CONFIG_AV1_HIGHBITDEPTH)
-  list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_SSE4_1
-                   "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_sse4.c"
-                   "${AOM_ROOT}/av1/common/x86/highbd_jnt_convolve_sse4.c"
-                   "${AOM_ROOT}/av1/common/x86/highbd_warp_plane_sse4.c")
+if(CONFIG_AV1_HIGHBITDEPTH)
+  list(APPEND AOM_AV1_COMMON_INTRIN_SSE4_1
+              "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_sse4.c"
+              "${AOM_ROOT}/av1/common/x86/highbd_jnt_convolve_sse4.c"
+              "${AOM_ROOT}/av1/common/x86/highbd_warp_plane_sse4.c")
 endif()
 
 if(CONFIG_REALTIME_ONLY)
@@ -362,23 +356,19 @@ list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
             "${AOM_ROOT}/av1/common/x86/cfl_avx2.c"
             "${AOM_ROOT}/av1/common/x86/convolve_2d_avx2.c"
             "${AOM_ROOT}/av1/common/x86/convolve_avx2.c"
-            "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_avx2.c"
             "${AOM_ROOT}/av1/common/x86/highbd_inv_txfm_avx2.c"
-            "${AOM_ROOT}/av1/common/x86/highbd_jnt_convolve_avx2.c"
-            "${AOM_ROOT}/av1/common/x86/highbd_wiener_convolve_avx2.c"
-            "${AOM_ROOT}/av1/common/x86/highbd_warp_affine_avx2.c"
             "${AOM_ROOT}/av1/common/x86/jnt_convolve_avx2.c"
             "${AOM_ROOT}/av1/common/x86/reconinter_avx2.c"
             "${AOM_ROOT}/av1/common/x86/selfguided_avx2.c"
             "${AOM_ROOT}/av1/common/x86/warp_plane_avx2.c"
             "${AOM_ROOT}/av1/common/x86/wiener_convolve_avx2.c")
 
-if(NOT CONFIG_AV1_HIGHBITDEPTH)
-  list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_AVX2
-                   "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_avx2.c"
-                   "${AOM_ROOT}/av1/common/x86/highbd_jnt_convolve_avx2.c"
-                   "${AOM_ROOT}/av1/common/x86/highbd_wiener_convolve_avx2.c"
-                   "${AOM_ROOT}/av1/common/x86/highbd_warp_affine_avx2.c")
+if(CONFIG_AV1_HIGHBITDEPTH)
+  list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
+              "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_avx2.c"
+              "${AOM_ROOT}/av1/common/x86/highbd_jnt_convolve_avx2.c"
+              "${AOM_ROOT}/av1/common/x86/highbd_wiener_convolve_avx2.c"
+              "${AOM_ROOT}/av1/common/x86/highbd_warp_affine_avx2.c")
 endif()
 
 if(CONFIG_REALTIME_ONLY)
@@ -398,8 +388,6 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_SSE2
             "${AOM_ROOT}/av1/encoder/x86/av1_quantize_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/encodetxb_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/error_intrin_sse2.c"
-            "${AOM_ROOT}/av1/encoder/x86/highbd_block_error_intrin_sse2.c"
-            "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/reconinter_enc_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/temporal_filter_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/wedge_utils_sse2.c")
@@ -409,11 +397,10 @@ if(CONFIG_AV1_TEMPORAL_DENOISING)
               "${AOM_ROOT}/av1/encoder/x86/av1_temporal_denoiser_sse2.c")
 endif()
 
-if(NOT CONFIG_AV1_HIGHBITDEPTH)
-  list(
-    REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_SSE2
-                "${AOM_ROOT}/av1/encoder/x86/highbd_block_error_intrin_sse2.c"
-                "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_sse2.c")
+if(CONFIG_AV1_HIGHBITDEPTH)
+  list(APPEND AOM_AV1_ENCODER_INTRIN_SSE2
+              "${AOM_ROOT}/av1/encoder/x86/highbd_block_error_intrin_sse2.c"
+              "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_sse2.c")
 endif()
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_SSE3 "${AOM_ROOT}/av1/encoder/x86/ml_sse3.c")
@@ -427,16 +414,15 @@ list(APPEND AOM_AV1_ENCODER_ASM_SSSE3_X86_64
 list(APPEND AOM_AV1_ENCODER_INTRIN_SSE4_1
             "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm1d_sse4.c"
             "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_sse4.c"
-            "${AOM_ROOT}/av1/encoder/x86/av1_highbd_quantize_sse4.c"
             "${AOM_ROOT}/av1/encoder/x86/corner_match_sse4.c"
             "${AOM_ROOT}/av1/encoder/x86/encodetxb_sse4.c"
             "${AOM_ROOT}/av1/encoder/x86/highbd_fwd_txfm_sse4.c"
             "${AOM_ROOT}/av1/encoder/x86/rdopt_sse4.c"
             "${AOM_ROOT}/av1/encoder/x86/pickrst_sse4.c")
 
-if(NOT CONFIG_AV1_HIGHBITDEPTH)
-  list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_SSE4_1
-                   "${AOM_ROOT}/av1/encoder/x86/av1_highbd_quantize_sse4.c")
+if(CONFIG_AV1_HIGHBITDEPTH)
+  list(APPEND AOM_AV1_ENCODER_INTRIN_SSE4_1
+              "${AOM_ROOT}/av1/encoder/x86/av1_highbd_quantize_sse4.c")
 endif()
 
 if(CONFIG_REALTIME_ONLY)
@@ -446,10 +432,8 @@ endif()
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_AVX2
             "${AOM_ROOT}/av1/encoder/x86/av1_quantize_avx2.c"
-            "${AOM_ROOT}/av1/encoder/x86/av1_highbd_quantize_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/corner_match_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/error_intrin_avx2.c"
-            "${AOM_ROOT}/av1/encoder/x86/highbd_block_error_intrin_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm_avx2.h"
             "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/highbd_fwd_txfm_avx2.c"
@@ -458,16 +442,14 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_AVX2
             "${AOM_ROOT}/av1/encoder/x86/rdopt_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/av1_k_means_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/temporal_filter_avx2.c"
-            "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/pickrst_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/cnn_avx2.c")
 
-if(NOT CONFIG_AV1_HIGHBITDEPTH)
-  list(
-    REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_AVX2
-                "${AOM_ROOT}/av1/encoder/x86/av1_highbd_quantize_avx2.c"
-                "${AOM_ROOT}/av1/encoder/x86/highbd_block_error_intrin_avx2.c"
-                "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_avx2.c")
+if(CONFIG_AV1_HIGHBITDEPTH)
+  list(APPEND AOM_AV1_ENCODER_INTRIN_AVX2
+              "${AOM_ROOT}/av1/encoder/x86/av1_highbd_quantize_avx2.c"
+              "${AOM_ROOT}/av1/encoder/x86/highbd_block_error_intrin_avx2.c"
+              "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_avx2.c")
 endif()
 
 if(CONFIG_REALTIME_ONLY)
