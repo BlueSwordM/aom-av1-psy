@@ -749,6 +749,12 @@ INSTANTIATE_TEST_SUITE_P(
                       make_tuple(64, &aom_int_pro_col_neon, &aom_int_pro_col_c),
                       make_tuple(128, &aom_int_pro_col_neon,
                                  &aom_int_pro_col_c)));
+
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AvgTest8bpp_avg_8x8_quad,
+    ::testing::Values(make_tuple(16, 16, 8, 0, 16, &aom_avg_8x8_quad_neon),
+                      make_tuple(32, 32, 8, 16, 16, &aom_avg_8x8_quad_neon),
+                      make_tuple(32, 32, 8, 8, 16, &aom_avg_8x8_quad_neon)));
 #endif
 
 #if CONFIG_AV1_HIGHBITDEPTH
