@@ -1104,6 +1104,7 @@ int av1_get_q_for_hdr(AV1_COMP *const cpi, MACROBLOCK *const x,
 
 void av1_reset_simple_motion_tree_partition(SIMPLE_MOTION_DATA_TREE *sms_tree,
                                             BLOCK_SIZE bsize) {
+  if (sms_tree == NULL) return;
   sms_tree->partitioning = PARTITION_NONE;
 
   if (bsize >= BLOCK_8X8) {

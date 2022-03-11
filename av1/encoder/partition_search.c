@@ -3788,11 +3788,13 @@ static void split_partition_search(
     // Split partition evaluation of corresponding idx.
     // If the RD cost exceeds the best cost then do not
     // evaluate other split sub-partitions.
+    SIMPLE_MOTION_DATA_TREE *const sms_tree_split =
+        (sms_tree == NULL) ? NULL : sms_tree->split[idx];
     if (!av1_rd_pick_partition(
             cpi, td, tile_data, tp, mi_row + y_idx, mi_col + x_idx, subsize,
             &part_search_state->this_rdc, best_remain_rdcost,
-            pc_tree->split[idx], sms_tree->split[idx], p_split_rd,
-            multi_pass_mode, &part_search_state->split_part_rect_win[idx])) {
+            pc_tree->split[idx], sms_tree_split, p_split_rd, multi_pass_mode,
+            &part_search_state->split_part_rect_win[idx])) {
       av1_invalid_rd_stats(&sum_rdc);
       break;
     }
@@ -4697,6 +4699,12 @@ static void log_sub_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs,
   *var_max = log(1.0 + max_var_4x4 / 16.0);
 }
 
+static AOM_INLINE void set_sms_tree_partitioning(
+    SIMPLE_MOTION_DATA_TREE *sms_tree, PARTITION_TYPE partition) {
+  if (sms_tree == NULL) return;
+  sms_tree->partitioning = partition;
+}
+
 /*!\brief AV1 block partition search (full search).
 *
 * \ingroup partition_search
@@ -4757,7 +4765,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
                                      bsize);
   PartitionBlkParams blk_params = part_search_state.part_blk_params;
 
-  sms_tree->partitioning = PARTITION_NONE;
+  set_sms_tree_partitioning(sms_tree, PARTITION_NONE);
   if (best_rdc.rdcost < 0) {
     av1_invalid_rd_stats(rd_cost);
     return part_search_state.found_best_partition;
@@ -5052,7 +5060,7 @@ BEGIN_PARTITION_SEARCH:
 
   // Also record the best partition in simple motion data tree because it is
   // necessary for the related speed features.
-  sms_tree->partitioning = pc_tree->partitioning;
+  set_sms_tree_partitioning(sms_tree, pc_tree->partitioning);
 
 #if CONFIG_COLLECT_PARTITION_STATS
   if (best_rdc.rate < INT_MAX && best_rdc.dist < INT64_MAX) {
