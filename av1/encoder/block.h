@@ -971,6 +971,11 @@ typedef struct macroblock {
   /*!\brief Flag to force zeromv-skip block, for nonrd path.
    */
   int force_zeromv_skip;
+
+  /*! \brief Previous segment id for which qmatrices were updated.
+   * This is used to bypass setting of qmatrices if no change in qindex.
+   */
+  int prev_segment_id;
   /**@}*/
 
   /*****************************************************************************

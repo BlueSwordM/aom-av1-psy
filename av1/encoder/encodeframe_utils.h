@@ -301,7 +301,7 @@ static AOM_INLINE int set_segment_rdmult(const AV1_COMP *const cpi,
                                          MACROBLOCK *const x,
                                          int8_t segment_id) {
   const AV1_COMMON *const cm = &cpi->common;
-  av1_init_plane_quantizers(cpi, x, segment_id);
+  av1_init_plane_quantizers(cpi, x, segment_id, 0);
   const int segment_qindex =
       av1_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex);
   return av1_compute_rd_mult(cpi,

@@ -697,7 +697,7 @@ void av1_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
       mbmi->segment_id =
           map ? get_segment_id(&cm->mi_params, map, bsize, mi_row, mi_col) : 0;
     }
-    av1_init_plane_quantizers(cpi, x, mbmi->segment_id);
+    av1_init_plane_quantizers(cpi, x, mbmi->segment_id, 0);
   }
 }
 

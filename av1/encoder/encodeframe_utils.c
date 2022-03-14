@@ -379,7 +379,7 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   }
 
   if (cpi->oxcf.q_cfg.aq_mode)
-    av1_init_plane_quantizers(cpi, x, mi_addr->segment_id);
+    av1_init_plane_quantizers(cpi, x, mi_addr->segment_id, 0);
 
   if (dry_run) return;
 
