@@ -852,7 +852,13 @@ if(ENABLE_DOCS)
     set(MINIMUM_DOXYGEN_VERSION 1008010)
 
     if(DOXYGEN_VERSION)
+      # Strip SHA1 from version string if present.
+      string(REGEX
+             REPLACE "^([0-9]+\\.[0-9]+\\.[0-9]+).*" "\\1" DOXYGEN_VERSION
+                     ${DOXYGEN_VERSION})
+      # Replace dots with semicolons to create a list.
       string(REGEX REPLACE "\\." ";" DOXYGEN_VERSION_LIST ${DOXYGEN_VERSION})
+      # Parse version components from the list.
       list(GET DOXYGEN_VERSION_LIST 0 DOXYGEN_MAJOR)
       list(GET DOXYGEN_VERSION_LIST 1 DOXYGEN_MINOR)
       list(GET DOXYGEN_VERSION_LIST 2 DOXYGEN_PATCH)
