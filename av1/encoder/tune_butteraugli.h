@@ -33,9 +33,6 @@ void av1_set_butteraugli_rdmult(const struct AV1_COMP *cpi, MACROBLOCK *x,
                                 BLOCK_SIZE bsize, int mi_row, int mi_col,
                                 int *rdmult);
 
-void av1_setup_butteraugli_recon(struct AV1_COMP *cpi,
-                                 const YV12_BUFFER_CONFIG *recon);
-
 void av1_setup_butteraugli_source(struct AV1_COMP *cpi);
 
 // 'K' is used to balance the rate-distortion distribution between PSNR
