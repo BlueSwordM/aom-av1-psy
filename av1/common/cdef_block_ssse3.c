@@ -12,3 +12,14 @@
 #include "aom_dsp/aom_simd.h"
 #define SIMD_FUNC(name) name##_ssse3
 #include "av1/common/cdef_block_simd.h"
+
+void cdef_find_dir_dual_ssse3(const uint16_t *img1, const uint16_t *img2,
+                              int stride, int32_t *var_out_1st,
+                              int32_t *var_out_2nd, int coeff_shift,
+                              int *out_dir_1st_8x8, int *out_dir_2nd_8x8) {
+  // Process first 8x8.
+  *out_dir_1st_8x8 = cdef_find_dir(img1, stride, var_out_1st, coeff_shift);
+
+  // Process second 8x8.
+  *out_dir_2nd_8x8 = cdef_find_dir(img2, stride, var_out_2nd, coeff_shift);
+}
