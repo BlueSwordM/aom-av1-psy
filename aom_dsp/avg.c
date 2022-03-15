@@ -9,6 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <assert.h>
 #include <stdlib.h>
 
 #include "config/aom_dsp_rtcd.h"
@@ -510,6 +511,7 @@ void aom_int_pro_row_c(int16_t hbuf[16], const uint8_t *ref,
                        const int ref_stride, const int height) {
   int idx;
   const int norm_factor = height >> 1;
+  assert(height >= 2);
   for (idx = 0; idx < 16; ++idx) {
     int i;
     hbuf[idx] = 0;
