@@ -2787,15 +2787,14 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     if (!cpi->do_frame_data_update) do_mv_stats_collection = 0;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
-    // Reset the mv_stats in case we are interrupted by an intraframe or an
-    // overlay frame.
-    if (cpi->ppi->mv_stats.valid && do_mv_stats_collection) {
+      // Reset the mv_stats in case we are interrupted by an intraframe or an
+      // overlay frame.
 #if CONFIG_FRAME_PARALLEL_ENCODE
-      av1_zero(cpi->mv_stats);
+    if (cpi->mv_stats.valid && do_mv_stats_collection) av1_zero(cpi->mv_stats);
 #else
+    if (cpi->ppi->mv_stats.valid && do_mv_stats_collection)
       av1_zero(cpi->ppi->mv_stats);
 #endif
-    }
     // Gather the mv_stats for the next frame
     if (cpi->sf.hl_sf.high_precision_mv_usage == LAST_MV_DATA &&
         av1_frame_allows_smart_mv(cpi) && do_mv_stats_collection) {
