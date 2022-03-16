@@ -15,9 +15,9 @@
 #include <vector>
 
 namespace aom {
-static GopFrame gop_frame_basic(int coding_idx, int order_idx, int is_key_frame,
-                                int is_arf_frame, int is_golden_frame,
-                                int is_show_frame) {
+static GopFrame gop_frame_basic(int coding_idx, int order_idx,
+                                bool is_key_frame, bool is_arf_frame,
+                                bool is_golden_frame, bool is_show_frame) {
   GopFrame gop_frame;
   gop_frame.coding_idx = coding_idx;
   gop_frame.order_idx = order_idx;
