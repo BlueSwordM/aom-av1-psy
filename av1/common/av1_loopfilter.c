@@ -1215,9 +1215,12 @@ void av1_filter_block_plane_vert_rt(const AV1_COMMON *const cm,
                                     TX_SIZE *tx_buf) {
   uint8_t *const dst_ptr = plane_ptr->dst.buf;
   const int dst_stride = plane_ptr->dst.stride;
-  const uint32_t dst_height = plane_ptr->dst.height;
-  const int plane_mi_rows = ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, 0);
-  const int plane_mi_cols = ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, 0);
+  // Ensure that mi_cols/mi_rows are calculated based on frame dimension aligned
+  // to MI_SIZE.
+  const int plane_mi_cols =
+      (plane_ptr->dst.width + MI_SIZE - 1) >> MI_SIZE_LOG2;
+  const int plane_mi_rows =
+      (plane_ptr->dst.height + MI_SIZE - 1) >> MI_SIZE_LOG2;
   const int y_range = AOMMIN((int)(plane_mi_rows - mi_row), MAX_MIB_SIZE);
   const int x_range = AOMMIN((int)(plane_mi_cols - mi_col), MAX_MIB_SIZE);
   const ptrdiff_t mode_step = 1;
@@ -1231,7 +1234,7 @@ void av1_filter_block_plane_vert_rt(const AV1_COMMON *const cm,
 
     AV1_DEBLOCKING_PARAMETERS *params = params_buf;
     TX_SIZE *tx_size = tx_buf;
-    const bool use_dual = (curr_y + 1) * MI_SIZE < dst_height;
+    const bool use_dual = (y + 1) < y_range;
 
     uint8_t *p = dst_ptr + y * MI_SIZE * dst_stride;
     for (int x = 0; x < x_range;) {
@@ -1629,9 +1632,12 @@ void av1_filter_block_plane_horz_rt(const AV1_COMMON *const cm,
                                     TX_SIZE *tx_buf) {
   uint8_t *const dst_ptr = plane_ptr->dst.buf;
   const int dst_stride = plane_ptr->dst.stride;
-  const uint32_t dst_width = plane_ptr->dst.width;
-  const int plane_mi_rows = ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, 0);
-  const int plane_mi_cols = ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, 0);
+  // Ensure that mi_cols/mi_rows are calculated based on frame dimension aligned
+  // to MI_SIZE.
+  const int plane_mi_cols =
+      (plane_ptr->dst.width + MI_SIZE - 1) >> MI_SIZE_LOG2;
+  const int plane_mi_rows =
+      (plane_ptr->dst.height + MI_SIZE - 1) >> MI_SIZE_LOG2;
   const int y_range = AOMMIN((int)(plane_mi_rows - mi_row), MAX_MIB_SIZE);
   const int x_range = AOMMIN((int)(plane_mi_cols - mi_col), MAX_MIB_SIZE);
 
@@ -1646,7 +1652,7 @@ void av1_filter_block_plane_horz_rt(const AV1_COMMON *const cm,
 
     AV1_DEBLOCKING_PARAMETERS *params = params_buf;
     TX_SIZE *tx_size = tx_buf;
-    const bool use_dual = (curr_x + 1) * MI_SIZE < dst_width;
+    const bool use_dual = (x + 1) < x_range;
 
     uint8_t *p = dst_ptr + x * MI_SIZE;
     for (int y = 0; y < y_range;) {
