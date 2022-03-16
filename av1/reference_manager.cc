@@ -15,6 +15,7 @@ namespace aom {
 
 void RefFrameManager::Reset() {
   ref_frame_table_.resize(max_ref_frames_);
+  free_ref_idx_list_.clear();
   for (int i = 0; i < max_ref_frames_; ++i) {
     free_ref_idx_list_.push_back(i);
   }
@@ -39,7 +40,9 @@ int RefFrameManager::AllocateRefIdx() {
     }
   }
 
-  return free_ref_idx_list_.front();
+  int ref_idx = free_ref_idx_list_.front();
+  free_ref_idx_list_.pop_front();
+  return ref_idx;
 }
 
 void RefFrameManager::UpdateOrder(int order_idx) {
@@ -80,7 +83,6 @@ void RefFrameManager::UpdateFrame(GopFrame *gop_frame,
     gop_frame->update_ref_idx = -1;
   } else {
     const int ref_idx = AllocateRefIdx();
-    free_ref_idx_list_.pop_front();
     gop_frame->update_ref_idx = ref_idx;
     switch (ref_update_type) {
       case RefUpdateType::kForward: forward_stack_.push_back(ref_idx); break;

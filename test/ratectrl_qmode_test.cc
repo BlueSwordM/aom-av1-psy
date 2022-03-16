@@ -60,6 +60,17 @@ TEST(RateControlQModeTest, ConstructGopARF) {
   test_colocated_show_frame(gop_struct);
 }
 
+TEST(RateControlQModeTest, ConstructGopKey) {
+  int show_frame_count = 16;
+  int max_ref_frames = 7;
+  int has_key_frame = 1;
+  RefFrameManager ref_frame_manager(max_ref_frames);
+  GopStruct gop_struct =
+      construct_gop(&ref_frame_manager, show_frame_count, has_key_frame);
+  test_gop_display_order(gop_struct);
+  test_colocated_show_frame(gop_struct);
+}
+
 }  // namespace aom
 
 int main(int argc, char **argv) {
