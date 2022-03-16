@@ -2465,46 +2465,55 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
         none_rdc.rate += mode_costs->partition_cost[pl][PARTITION_NONE];
         none_rdc.rdcost = RDCOST(x->rdmult, none_rdc.rate, none_rdc.dist);
         av1_restore_context(x, &x_ctx, mi_row, mi_col, bsize, 3);
-        if (cpi->sf.rt_sf.nonrd_check_partition_merge_mode != 2 ||
+        if (cpi->sf.rt_sf.nonrd_check_partition_merge_mode < 2 ||
             none_rdc.skip_txfm != 1 || pc_tree->none->mic.mode == NEWMV) {
-          av1_init_rd_stats(&split_rdc);
-          split_rdc.rate += mode_costs->partition_cost[pl][PARTITION_SPLIT];
-          for (int i = 0; i < SUB_PARTITIONS_SPLIT; i++) {
-            RD_STATS block_rdc;
-            av1_invalid_rd_stats(&block_rdc);
-            int x_idx = (i & 1) * hbs;
-            int y_idx = (i >> 1) * hbs;
-            if ((mi_row + y_idx >= mi_params->mi_rows) ||
-                (mi_col + x_idx >= mi_params->mi_cols))
-              continue;
-            xd->above_txfm_context =
-                cm->above_contexts.txfm[tile_info->tile_row] + mi_col + x_idx;
-            xd->left_txfm_context = xd->left_txfm_context_buffer +
-                                    ((mi_row + y_idx) & MAX_MIB_MASK);
-            if (pc_tree->split[i]->none == NULL)
-              pc_tree->split[i]->none =
-                  av1_alloc_pmc(cpi, subsize, &td->shared_coeff_buf);
-            pc_tree->split[i]->partitioning = PARTITION_NONE;
-            pick_sb_modes_nonrd(cpi, tile_data, x, mi_row + y_idx,
-                                mi_col + x_idx, &block_rdc, subsize,
-                                pc_tree->split[i]->none);
-            // TODO(any): The rate here did not include th cost of signaling
-            // PARTITION_NONE token in the sub-blocks.
-            split_rdc.rate += block_rdc.rate;
-            split_rdc.dist += block_rdc.dist;
+          const int is_larger_qindex = cm->quant_params.base_qindex > 100;
+          const int do_split =
+              (cpi->sf.rt_sf.nonrd_check_partition_merge_mode == 3)
+                  ? (bsize <= BLOCK_32X32 ||
+                     (is_larger_qindex && bsize <= BLOCK_64X64))
+                  : 1;
+          if (do_split) {
+            av1_init_rd_stats(&split_rdc);
+            split_rdc.rate += mode_costs->partition_cost[pl][PARTITION_SPLIT];
+            for (int i = 0; i < SUB_PARTITIONS_SPLIT; i++) {
+              RD_STATS block_rdc;
+              av1_invalid_rd_stats(&block_rdc);
+              int x_idx = (i & 1) * hbs;
+              int y_idx = (i >> 1) * hbs;
+              if ((mi_row + y_idx >= mi_params->mi_rows) ||
+                  (mi_col + x_idx >= mi_params->mi_cols))
+                continue;
+              xd->above_txfm_context =
+                  cm->above_contexts.txfm[tile_info->tile_row] + mi_col + x_idx;
+              xd->left_txfm_context = xd->left_txfm_context_buffer +
+                                      ((mi_row + y_idx) & MAX_MIB_MASK);
+              if (pc_tree->split[i]->none == NULL)
+                pc_tree->split[i]->none =
+                    av1_alloc_pmc(cpi, subsize, &td->shared_coeff_buf);
+              pc_tree->split[i]->partitioning = PARTITION_NONE;
+              pick_sb_modes_nonrd(cpi, tile_data, x, mi_row + y_idx,
+                                  mi_col + x_idx, &block_rdc, subsize,
+                                  pc_tree->split[i]->none);
+              // TODO(any): The rate here did not include th cost of signaling
+              // PARTITION_NONE token in the sub-blocks.
+              split_rdc.rate += block_rdc.rate;
+              split_rdc.dist += block_rdc.dist;
 
-            av1_rd_cost_update(x->rdmult, &split_rdc);
+              av1_rd_cost_update(x->rdmult, &split_rdc);
 
-            if (none_rdc.rdcost < split_rdc.rdcost) {
-              break;
+              if (none_rdc.rdcost < split_rdc.rdcost) {
+                break;
+              }
+
+              encode_b_nonrd(cpi, tile_data, td, tp, mi_row + y_idx,
+                             mi_col + x_idx, 1, subsize, PARTITION_NONE,
+                             pc_tree->split[i]->none, NULL);
             }
-
-            encode_b_nonrd(cpi, tile_data, td, tp, mi_row + y_idx,
-                           mi_col + x_idx, 1, subsize, PARTITION_NONE,
-                           pc_tree->split[i]->none, NULL);
+            av1_restore_context(x, &x_ctx, mi_row, mi_col, bsize, 3);
+            split_rdc.rdcost =
+                RDCOST(x->rdmult, split_rdc.rate, split_rdc.dist);
           }
-          av1_restore_context(x, &x_ctx, mi_row, mi_col, bsize, 3);
-          split_rdc.rdcost = RDCOST(x->rdmult, split_rdc.rate, split_rdc.dist);
         }
         if (none_rdc.rdcost < split_rdc.rdcost) {
           mib[0]->bsize = bsize;

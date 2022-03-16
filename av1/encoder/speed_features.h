@@ -1313,6 +1313,7 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // 0 - don't check merge
   // 1 - always check merge
   // 2 - check merge and prune checking final split
+  // 3 - check merge and prune checking final split based on bsize and qindex
   int nonrd_check_partition_merge_mode;
 
   // For nonrd_use_partition: check of leaf partition extra split

@@ -1561,7 +1561,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.use_nonrd_altref_frame =
         (cpi->svc.number_spatial_layers > 1) ? 0 : 1;
     sf->rt_sf.use_nonrd_pick_mode = 1;
-    sf->rt_sf.nonrd_check_partition_merge_mode = 1;
+    sf->rt_sf.nonrd_check_partition_merge_mode = 3;
     sf->rt_sf.skip_intra_pred = 1;
     sf->rt_sf.source_metrics_sb_nonrd = 1;
     // For SVC: use better mv search on base temporal layers, and only
