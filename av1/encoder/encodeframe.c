@@ -479,7 +479,10 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
   if (sf->rt_sf.source_metrics_sb_nonrd &&
       cpi->svc.number_spatial_layers <= 1 &&
       cm->current_frame.frame_type != KEY_FRAME) {
-    av1_source_content_sb(cpi, x, mi_row, mi_col);
+    if (!cpi->sf.rt_sf.check_scene_detection || cpi->rc.frame_source_sad > 0)
+      av1_source_content_sb(cpi, x, mi_row, mi_col);
+    else
+      x->content_state_sb.source_sad = kZeroSad;
   }
 #if CONFIG_RT_ML_PARTITIONING
   if (sf->part_sf.partition_search_type == ML_BASED_PARTITION) {
