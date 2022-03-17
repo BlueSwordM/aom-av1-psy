@@ -8,17 +8,17 @@
  * Media Patent License 1.0 was not distributed with this source code in the
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
-
-#include <vector>
-
-#include "av1/encoder/pass2_strategy.h"
 #include "av1/ratectrl_qmode.h"
 
 #include <algorithm>
+#include <cassert>
 #include <limits>
 #include <vector>
 
+#include "av1/encoder/pass2_strategy.h"
+
 namespace aom {
+
 static GopFrame gop_frame_basic(int coding_idx, int order_idx,
                                 bool is_key_frame, bool is_arf_frame,
                                 bool is_golden_frame, bool is_show_frame) {
