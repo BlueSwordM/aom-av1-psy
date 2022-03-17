@@ -76,7 +76,7 @@ void construct_gop_multi_layer(GopStruct *gop_struct,
 }
 
 GopStruct construct_gop(RefFrameManager *ref_frame_manager,
-                        int show_frame_count, int has_key_frame) {
+                        int show_frame_count, bool has_key_frame) {
   GopStruct gop_struct;
   gop_struct.show_frame_count = show_frame_count;
   int order_start = 0;
@@ -137,7 +137,7 @@ GopStructList AV1RateControlQMode::DetermineGopInfo(
         std::min(remaining_show_frame_count, max_gop_show_frame_count);
     // TODO(angiebird): determine gop show frame count based on first pass stats
     // here.
-    int has_key_frame = gop_list.size() == 0;
+    bool has_key_frame = gop_list.size() == 0;
     GopStruct gop =
         construct_gop(&ref_frame_manager, show_frame_count, has_key_frame);
     gop_list.push_back(gop);

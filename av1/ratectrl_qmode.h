@@ -22,7 +22,7 @@
 namespace aom {
 
 GopStruct construct_gop(RefFrameManager *ref_frame_manager,
-                        int show_frame_count, int has_key_frame);
+                        int show_frame_count, bool has_key_frame);
 
 class AV1RateControlQMode : public AV1RateControlQModeInterface {
  public:

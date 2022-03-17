@@ -17,7 +17,7 @@ namespace aom {
 TEST(RateControlQModeTest, ConstructGop) {
   int show_frame_count = 16;
   int max_ref_frames = 7;
-  int has_key_frame = 0;
+  bool has_key_frame = false;
   RefFrameManager ref_frame_manager(max_ref_frames);
   GopStruct gop_struct =
       construct_gop(&ref_frame_manager, show_frame_count, has_key_frame);
@@ -35,11 +35,11 @@ TEST(RateControlQModeTest, ConstructGop) {
   for (int gop_idx = 0; gop_idx < gop_size; ++gop_idx) {
     auto &gop_frame = gop_struct.gop_frame_list[gop_idx];
     if (gop_frame.is_show_frame == 0) {
-      int found_colocated_ref_frame = 0;
+      bool found_colocated_ref_frame = false;
       for (int i = gop_idx + 1; i < gop_size; ++i) {
         auto &next_gop_frame = gop_struct.gop_frame_list[i];
         if (gop_frame.order_idx == next_gop_frame.order_idx) {
-          found_colocated_ref_frame = 1;
+          found_colocated_ref_frame = true;
           EXPECT_EQ(gop_frame.update_ref_idx, next_gop_frame.colocated_ref_idx);
           EXPECT_EQ(next_gop_frame.is_show_frame, 1);
         }
@@ -47,7 +47,7 @@ TEST(RateControlQModeTest, ConstructGop) {
           break;
         }
       }
-      EXPECT_EQ(found_colocated_ref_frame, 1);
+      EXPECT_TRUE(found_colocated_ref_frame);
     }
   }
 }
