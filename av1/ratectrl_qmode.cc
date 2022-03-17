@@ -15,6 +15,7 @@
 #include "av1/ratectrl_qmode.h"
 
 #include <algorithm>
+#include <limits>
 #include <vector>
 
 namespace aom {
@@ -120,10 +121,11 @@ GopStructList AV1RateControlQMode::DetermineGopInfo(
   int total_regions = 0;
   // TODO(jianj): firstpass_info.size() should eventually be replaced
   // by the number of frames to the next KF.
-  av1_identify_regions(
-      firstpass_info.data(),
-      AOMMIN(firstpass_info.size(), MAX_FIRSTPASS_ANALYSIS_FRAMES), 0,
-      regions_list.data(), &total_regions);
+  assert(firstpass_info.size() <= std::numeric_limits<int>::max());
+  av1_identify_regions(firstpass_info.data(),
+                       std::min(static_cast<int>(firstpass_info.size()),
+                                MAX_FIRSTPASS_ANALYSIS_FRAMES),
+                       0, regions_list.data(), &total_regions);
 
   // A temporary simple implementation
   const int max_gop_show_frame_count = 16;
