@@ -640,6 +640,7 @@ if(CONFIG_AV1_ENCODER)
         target_link_libraries(aom
                               PRIVATE ${VMAF_LDFLAGS} ${VMAF_LIBRARIES} -static)
       endif()
+      target_include_directories(aom PRIVATE ${VMAF_INCLUDE_DIRS})
       target_include_directories(aom_dsp_encoder PRIVATE ${VMAF_INCLUDE_DIRS})
       if(VMAF_CFLAGS)
         append_compiler_flag("${VMAF_CFLAGS}")
