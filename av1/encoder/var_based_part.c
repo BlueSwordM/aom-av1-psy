@@ -1287,7 +1287,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                      x->content_state_sb.source_sad > kLowSad &&
                      cpi->rc.frame_source_sad < 20000 &&
                      maxvar_16x16[m][i] > (thresholds[2] >> 4) &&
-                     maxvar_16x16[m][i] > (minvar_16x16[m][i] << 3)))) {
+                     maxvar_16x16[m][i] > (minvar_16x16[m][i] << 2)))) {
           force_split[5 + m2 + i] = 1;
           force_split[m + 1] = 1;
           force_split[0] = 1;
