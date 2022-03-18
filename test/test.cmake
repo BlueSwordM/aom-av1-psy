@@ -36,7 +36,6 @@ list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
             "${AOM_ROOT}/test/function_equivalence_test.h"
             "${AOM_ROOT}/test/log2_test.cc"
             "${AOM_ROOT}/test/md5_helper.h"
-            "${AOM_ROOT}/test/metadata_test.cc"
             "${AOM_ROOT}/test/register_state_check.h"
             "${AOM_ROOT}/test/test_vectors.cc"
             "${AOM_ROOT}/test/test_vectors.h"
@@ -73,6 +72,7 @@ list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
             "${AOM_ROOT}/test/horz_superres_test.cc"
             "${AOM_ROOT}/test/i420_video_source.h"
             "${AOM_ROOT}/test/level_test.cc"
+            "${AOM_ROOT}/test/metadata_test.cc"
             "${AOM_ROOT}/test/monochrome_test.cc"
             "${AOM_ROOT}/test/resize_test.cc"
             "${AOM_ROOT}/test/scalability_test.cc"
@@ -117,6 +117,7 @@ if(CONFIG_REALTIME_ONLY)
                    "${AOM_ROOT}/test/gf_pyr_height_test.cc"
                    "${AOM_ROOT}/test/horz_superres_test.cc"
                    "${AOM_ROOT}/test/level_test.cc"
+                   "${AOM_ROOT}/test/metadata_test.cc"
                    "${AOM_ROOT}/test/monochrome_test.cc"
                    "${AOM_ROOT}/test/sharpness_test.cc")
 endif()
