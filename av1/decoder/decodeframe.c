@@ -4695,7 +4695,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
     current_frame->order_hint = aom_rb_read_literal(
         rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
-    current_frame->frame_number = current_frame->order_hint;
+
+    if (seq_params->order_hint_info.enable_order_hint)
+      current_frame->frame_number = current_frame->order_hint;
 
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
       features->primary_ref_frame = aom_rb_read_literal(rb, PRIMARY_REF_BITS);
@@ -5162,8 +5164,12 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
   MACROBLOCKD *const xd = &pbi->dcb.xd;
 
 #if CONFIG_BITSTREAM_DEBUG
-  aom_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
-                                     cm->show_frame);
+  if (cm->seq_params->order_hint_info.enable_order_hint)
+    aom_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
+                                       cm->show_frame);
+  else
+    // This is currently used in RTC encoding. cm->show_frame is always 1.
+    aom_bitstream_queue_set_frame_read(cm->current_frame.frame_number);
 #endif
 #if CONFIG_MISMATCH_DEBUG
   mismatch_move_frame_idx_r();
@@ -5385,5 +5391,9 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   // Non frame parallel update frame context here.
   if (!tiles->large_scale) {
     cm->cur_frame->frame_context = *cm->fc;
+  }
+
+  if (cm->show_frame && !cm->seq_params->order_hint_info.enable_order_hint) {
+    ++cm->current_frame.frame_number;
   }
 }
