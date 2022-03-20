@@ -13,7 +13,6 @@ if(AOM_TEST_TEST_CMAKE_)
 endif() # AOM_TEST_TEST_CMAKE_
 set(AOM_TEST_TEST_CMAKE_ 1)
 
-include(FindPythonInterp)
 include(ProcessorCount)
 
 include("${AOM_ROOT}/test/test_data_util.cmake")
@@ -365,14 +364,6 @@ if(CONFIG_AV1_ENCODER AND ENABLE_TESTS)
 endif()
 
 if(ENABLE_TESTS)
-  find_package(PythonInterp)
-  if(NOT PYTHONINTERP_FOUND)
-    message(
-      FATAL_ERROR "--- Unit tests require Python, rerun cmake with "
-                  "-DENABLE_TESTS=0 to avoid this error, or install Python and "
-                  "make sure it's in your PATH.")
-  endif()
-
   if(BUILD_SHARED_LIBS AND APPLE) # Silence an RPATH warning.
     set(CMAKE_MACOSX_RPATH 1)
   endif()
