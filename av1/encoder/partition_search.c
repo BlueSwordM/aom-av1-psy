@@ -5065,11 +5065,12 @@ BEGIN_PARTITION_SEARCH:
       part_timing_stats, mi_row, mi_col, bsize,
       cpi->ppi->gf_group.update_type[cpi->gf_frame_index],
       cm->current_frame.frame_number, &best_rdc, "part_timing.csv");
-  /*
-  print_partition_timing_stats(part_timing_stats, cm->show_frame,
-                               frame_is_intra_only(cm), bsize,
-                               "part_timing_data.csv");
-  */
+  const bool print_timing_stats = false;
+  if (print_timing_stats) {
+    print_partition_timing_stats(part_timing_stats, cm->show_frame,
+                                 frame_is_intra_only(cm), bsize,
+                                 "part_timing_data.csv");
+  }
   // If CONFIG_COLLECTION_PARTITION_STATS is 2, then we print out the stats for
   // the whole clip. So we need to pass the information upstream to the encoder.
   accumulate_partition_timing_stats(fr_part_timing_stats, part_timing_stats,
