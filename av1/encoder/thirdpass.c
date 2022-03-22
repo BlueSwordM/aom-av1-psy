@@ -710,16 +710,16 @@ PARTITION_TYPE av1_third_pass_get_sb_part_type(THIRD_PASS_DEC_CTX *ctx,
 static void fwrite_and_check(const void *ptr, size_t size, size_t nmemb,
                              FILE *stream,
                              struct aom_internal_error_info *error) {
-  int count = fwrite(ptr, size, nmemb, stream);
-  if (count < 1) {
+  size_t count = fwrite(ptr, size, nmemb, stream);
+  if (count < nmemb) {
     aom_internal_error(error, AOM_CODEC_ERROR, "fwrite_and_check failed\n");
   }
 }
 
 static void fread_and_check(void *ptr, size_t size, size_t nmemb, FILE *stream,
                             struct aom_internal_error_info *error) {
-  int count = fread(ptr, size, nmemb, stream);
-  if (count < 1) {
+  size_t count = fread(ptr, size, nmemb, stream);
+  if (count < nmemb) {
     aom_internal_error(error, AOM_CODEC_ERROR, "fread_and_check failed\n");
   }
 }
@@ -738,7 +738,8 @@ void av1_pack_tpl_info(TPL_INFO *tpl_info, const GF_GROUP *gf_group,
 
 void av1_write_tpl_info(const TPL_INFO *tpl_info, FILE *log_stream,
                         struct aom_internal_error_info *error) {
-  fwrite(&tpl_info->tpl_ready, sizeof(tpl_info->tpl_ready), 1, log_stream);
+  fwrite_and_check(&tpl_info->tpl_ready, sizeof(tpl_info->tpl_ready), 1,
+                   log_stream, error);
   if (tpl_info->tpl_ready) {
     fwrite_and_check(&tpl_info->gf_length, sizeof(tpl_info->gf_length), 1,
                      log_stream, error);
