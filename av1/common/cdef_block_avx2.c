@@ -138,8 +138,10 @@ static INLINE __m256i compute_directions_avx2(__m256i *lines,
   partial6 = _mm256_mullo_epi32(partial6, _mm256_set1_epi32(105));
 
   partial4a = hsum4_avx2(&partial4a, &partial5a, &partial6, &partial7a);
-  v128_store_unaligned(cost_frist_8x8, _mm256_castsi256_si128(partial4a));
-  v128_store_unaligned(cost_second_8x8, _mm256_extractf128_si256(partial4a, 1));
+  _mm_storeu_si128((__m128i *)cost_frist_8x8,
+                   _mm256_castsi256_si128(partial4a));
+  _mm_storeu_si128((__m128i *)cost_second_8x8,
+                   _mm256_extractf128_si256(partial4a, 1));
 
   return partial4a;
 }
@@ -220,22 +222,22 @@ void cdef_find_dir_dual_avx2(const uint16_t *img1, const uint16_t *img2,
   const __m128i first_8x8_output = _mm256_castsi256_si128(max);
   const __m128i second_8x8_output = _mm256_extractf128_si256(max, 1);
   const __m128i cmpeg_res_00 =
-      v128_cmpeq_32(first_8x8_output, _mm256_castsi256_si128(dir47));
+      _mm_cmpeq_epi32(first_8x8_output, _mm256_castsi256_si128(dir47));
   const __m128i cmpeg_res_01 =
-      v128_cmpeq_32(first_8x8_output, _mm256_castsi256_si128(dir03));
+      _mm_cmpeq_epi32(first_8x8_output, _mm256_castsi256_si128(dir03));
   const __m128i cmpeg_res_10 =
-      v128_cmpeq_32(second_8x8_output, _mm256_extractf128_si256(dir47, 1));
+      _mm_cmpeq_epi32(second_8x8_output, _mm256_extractf128_si256(dir47, 1));
   const __m128i cmpeg_res_11 =
-      v128_cmpeq_32(second_8x8_output, _mm256_extractf128_si256(dir03, 1));
-  const v128 t_first_8x8 = v128_pack_s32_s16(cmpeg_res_00, cmpeg_res_01);
-  const v128 t_second_8x8 = v128_pack_s32_s16(cmpeg_res_10, cmpeg_res_11);
+      _mm_cmpeq_epi32(second_8x8_output, _mm256_extractf128_si256(dir03, 1));
+  const __m128i t_first_8x8 = _mm_packs_epi32(cmpeg_res_01, cmpeg_res_00);
+  const __m128i t_second_8x8 = _mm_packs_epi32(cmpeg_res_11, cmpeg_res_10);
 
-  best_cost[0] = v128_low_u32(_mm256_castsi256_si128(max));
-  best_cost[1] = v128_low_u32(second_8x8_output);
-  best_dir[0] = v128_movemask_8(v128_pack_s16_s8(t_first_8x8, t_first_8x8));
+  best_cost[0] = _mm_cvtsi128_si32(_mm256_castsi256_si128(max));
+  best_cost[1] = _mm_cvtsi128_si32(second_8x8_output);
+  best_dir[0] = _mm_movemask_epi8(_mm_packs_epi16(t_first_8x8, t_first_8x8));
   best_dir[0] =
       get_msb(best_dir[0] ^ (best_dir[0] - 1));  // Count trailing zeros
-  best_dir[1] = v128_movemask_8(v128_pack_s16_s8(t_second_8x8, t_second_8x8));
+  best_dir[1] = _mm_movemask_epi8(_mm_packs_epi16(t_second_8x8, t_second_8x8));
   best_dir[1] =
       get_msb(best_dir[1] ^ (best_dir[1] - 1));  // Count trailing zeros
 
