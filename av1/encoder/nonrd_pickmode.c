@@ -351,7 +351,6 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
       gf_temporal_ref) {
     int tmp_sad;
     int dis;
-    int cost_list[5] = { INT_MAX, INT_MAX, INT_MAX, INT_MAX, INT_MAX };
 
     if (bsize < BLOCK_16X16) return -1;
 
@@ -366,16 +365,11 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
     best_mv.as_mv.row >>= 3;
     best_mv.as_mv.col >>= 3;
     MV ref_mv = av1_get_ref_mv(x, 0).as_mv;
-
-    *rate_mv = av1_mv_bit_cost(&frame_mv[NEWMV][ref_frame].as_mv, &ref_mv,
-                               x->mv_costs->nmv_joint_cost,
-                               x->mv_costs->mv_cost_stack, MV_COST_WEIGHT);
     frame_mv[NEWMV][ref_frame].as_mv.row >>= 3;
     frame_mv[NEWMV][ref_frame].as_mv.col >>= 3;
 
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
-    av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
-                                      cost_list);
+    av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv, NULL);
     if (cpi->sf.rt_sf.force_half_pel_block &&
         cpi->sf.mv_sf.subpel_force_stop < HALF_PEL)
       ms_params.forced_stop = subpel_select(cpi, bsize, &best_mv);
@@ -384,6 +378,10 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
         xd, cm, &ms_params, start_mv, &best_mv.as_mv, &dis,
         &x->pred_sse[ref_frame], NULL);
     frame_mv[NEWMV][ref_frame].as_int = best_mv.as_int;
+
+    *rate_mv = av1_mv_bit_cost(&frame_mv[NEWMV][ref_frame].as_mv, &ref_mv,
+                               x->mv_costs->nmv_joint_cost,
+                               x->mv_costs->mv_cost_stack, MV_COST_WEIGHT);
   } else if (!combined_motion_search(cpi, x, bsize, mi_row, mi_col,
                                      &frame_mv[NEWMV][ref_frame], rate_mv,
                                      best_rdc->rdcost, 0)) {
