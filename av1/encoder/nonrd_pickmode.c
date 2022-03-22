@@ -842,6 +842,7 @@ static INLINE void aom_process_hadamard_8x16(MACROBLOCK *x, int max_blocks_high,
  * \param[in]    bsize          Current block size
  * \param[in]    tx_size        Transform size
  * \param[in]    tx_type        Transform kernel type
+ * \param[in]    is_inter_mode  Flag to indicate inter mode
  *
  * \return Nothing is returned. Instead, calculated RD cost is placed to
  * \c this_rdc. \c skippable flag is set if there is no non-zero quantized
@@ -849,12 +850,12 @@ static INLINE void aom_process_hadamard_8x16(MACROBLOCK *x, int max_blocks_high,
  */
 void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
                    int mi_col, RD_STATS *this_rdc, int *skippable,
-                   BLOCK_SIZE bsize, TX_SIZE tx_size, TX_TYPE tx_type) {
+                   BLOCK_SIZE bsize, TX_SIZE tx_size, TX_TYPE tx_type,
+                   int is_inter_mode) {
   MACROBLOCKD *xd = &x->e_mbd;
   const struct macroblockd_plane *pd = &xd->plane[0];
   struct macroblock_plane *const p = &x->plane[0];
   const int num_4x4_w = mi_size_wide[bsize];
-  const int num_8x8_w = num_4x4_w / 2;
   const int num_4x4_h = mi_size_high[bsize];
   const int step = 1 << (tx_size << 1);
   const int block_step = (1 << tx_size);
@@ -867,6 +868,12 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   const int bw = 4 * num_4x4_w;
   const int bh = 4 * num_4x4_h;
   const int use_hbd = is_cur_buf_hbd(xd);
+  int num_blk_skip_w = num_4x4_w;
+  int sh_blk_skip = 0;
+  if (is_inter_mode) {
+    num_blk_skip_w = num_4x4_w >> 1;
+    sh_blk_skip = 1;
+  }
 
   (void)mi_row;
   (void)mi_col;
@@ -1040,7 +1047,7 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
         }
         assert(*eob <= 1024);
         *skippable &= (*eob == 0);
-        x->txfm_search_info.blk_skip[(r * num_8x8_w + c) / 2] =
+        x->txfm_search_info.blk_skip[(r * num_blk_skip_w + c) >> sh_blk_skip] =
             (*eob == 0) ? 1 : 0;
         eob_cost += get_msb(*eob + 1);
       }
@@ -1374,7 +1381,7 @@ static void estimate_block_intra(int plane, int block, int row, int col,
 
   if (plane == 0) {
     av1_block_yrd(cpi, x, 0, 0, &this_rdc, &args->skippable, bsize_tx,
-                  AOMMIN(tx_size, TX_16X16), DCT_DCT);
+                  AOMMIN(tx_size, TX_16X16), DCT_DCT, 0);
   } else {
     int64_t sse = 0;
     model_rd_for_sb_uv(cpi, plane_bsize, x, xd, &this_rdc, &sse, plane, plane);
@@ -2032,6 +2039,8 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
  *                                        selected intra mode
  * \param[in]    best_pickmode            Pointer to a structure containing
  *                                        best mode picked so far
+ * \param[in]    ctx                      Pointer to structure holding coding
+ *                                        contexts and modes for the block
  *
  * \return Nothing is returned. Instead, calculated RD cost is placed to
  * \c best_rdc and best selected mode is placed to \c best_pickmode
@@ -2041,7 +2050,7 @@ static void estimate_intra_mode(
     int best_early_term, unsigned int ref_cost_intra, int reuse_prediction,
     struct buf_2d *orig_dst, PRED_BUFFER *tmp_buffers,
     PRED_BUFFER **this_mode_pred, RD_STATS *best_rdc,
-    BEST_PICKMODE *best_pickmode) {
+    BEST_PICKMODE *best_pickmode, PICK_MODE_CONTEXT *ctx) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mi = xd->mi[0];
@@ -2051,7 +2060,6 @@ static void estimate_intra_mode(
   const int *const rd_thresh_freq_fact = x->thresh_freq_fact[bsize];
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-  const int num_8x8_blocks = mi_size_wide[bsize] * mi_size_high[bsize] / 4;
   struct macroblockd_plane *const pd = &xd->plane[0];
 
   const CommonQuantParams *quant_params = &cm->quant_params;
@@ -2183,7 +2191,7 @@ static void estimate_intra_mode(
       model_rd_for_sb_y(cpi, bsize, x, xd, &this_rdc, 1);
     else
       av1_block_yrd(cpi, x, mi_row, mi_col, &this_rdc, &args.skippable, bsize,
-                    mi->tx_size, DCT_DCT);
+                    mi->tx_size, DCT_DCT, 0);
     // TODO(kyslov@) Need to account for skippable
     if (x->color_sensitivity[0]) {
       av1_foreach_transformed_block_in_plane(xd, uv_bsize, 1,
@@ -2217,8 +2225,8 @@ static void estimate_intra_mode(
       best_pickmode->best_second_ref_frame = NONE;
       best_pickmode->best_mode_skip_txfm = this_rdc.skip_txfm;
       if (!this_rdc.skip_txfm) {
-        memcpy(best_pickmode->blk_skip, x->txfm_search_info.blk_skip,
-               sizeof(x->txfm_search_info.blk_skip[0]) * num_8x8_blocks);
+        memcpy(ctx->blk_skip, x->txfm_search_info.blk_skip,
+               sizeof(x->txfm_search_info.blk_skip[0]) * ctx->num_4x4_blk);
       }
       mi->uv_mode = this_mode;
       mi->mv[0].as_int = INVALID_MV;
@@ -2920,7 +2928,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         }
       } else {
         av1_block_yrd(cpi, x, mi_row, mi_col, &this_rdc, &is_skippable, bsize,
-                      mi->tx_size, DCT_DCT);
+                      mi->tx_size, DCT_DCT, 1);
         if (this_rdc.skip_txfm ||
             RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist) >=
                 RDCOST(x->rdmult, 0, this_rdc.sse)) {
@@ -3061,7 +3069,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     estimate_intra_mode(cpi, x, bsize, use_modeled_non_rd_cost, best_early_term,
                         ref_costs_single[INTRA_FRAME], reuse_inter_pred,
                         &orig_dst, tmp, &this_mode_pred, &best_rdc,
-                        &best_pickmode);
+                        &best_pickmode, ctx);
 
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
       !x->force_zeromv_skip && is_inter_mode(best_pickmode.best_mode) &&
@@ -3076,7 +3084,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     pd->dst.stride = bw;
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0, 0);
     av1_block_yrd(cpi, x, mi_row, mi_col, &idtx_rdc, &is_skippable, bsize,
-                  mi->tx_size, IDTX);
+                  mi->tx_size, IDTX, 1);
     int64_t idx_rdcost = RDCOST(x->rdmult, idtx_rdc.rate, idtx_rdc.dist);
     if (idx_rdcost < best_rdc.rdcost) {
       best_pickmode.tx_type = IDTX;
@@ -3115,7 +3123,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       best_rdc.rdcost = this_rdc.rdcost;
       best_pickmode.best_mode_skip_txfm = this_rdc.skip_txfm;
       if (!this_rdc.skip_txfm) {
-        memcpy(best_pickmode.blk_skip, txfm_info->blk_skip,
+        memcpy(ctx->blk_skip, txfm_info->blk_skip,
                sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
       }
       if (xd->tx_type_map[0] != DCT_DCT)
@@ -3130,12 +3138,12 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   mi->ref_frame[1] = best_pickmode.best_second_ref_frame;
   txfm_info->skip_txfm = best_pickmode.best_mode_skip_txfm;
   if (!txfm_info->skip_txfm) {
+    // For inter modes: copy blk_skip from best_pickmode, which is
+    // defined for 8x8 blocks. If palette or intra mode was selected
+    // as best then blk_sip is already copied into the ctx.
     if (best_pickmode.best_mode >= INTRA_MODE_END)
       memcpy(ctx->blk_skip, best_pickmode.blk_skip,
              sizeof(best_pickmode.blk_skip[0]) * num_8x8_blocks);
-    else
-      memset(ctx->blk_skip, 0,
-             sizeof(best_pickmode.blk_skip[0]) * ctx->num_4x4_blk);
   }
   if (has_second_ref(mi)) {
     mi->comp_group_idx = 0;
