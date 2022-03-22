@@ -2105,7 +2105,6 @@ double av1_vbr_rc_info_estimate_gop_bitrate(
     double *estimated_bitrate_byframe) {
   compute_q_indices(base_q_index, frame_count, qstep_ratio_list, bit_depth,
                     q_index_list);
-  double gop_bitrate = 0;
   for (int frame_index = 0; frame_index < frame_count; frame_index++) {
     const TplTxfmStats *frame_stats = &stats_list[frame_index];
     if (frame_stats->ready) {
@@ -2114,8 +2113,6 @@ double av1_vbr_rc_info_estimate_gop_bitrate(
       double frame_bitrate = av1_laplace_estimate_frame_rate(
           q_index, frame_stats->txfm_block_count, frame_stats->abs_coeff_mean,
           frame_stats->coeff_num);
-      gop_bitrate += frame_bitrate;
-
       estimated_bitrate_byframe[frame_index] = frame_bitrate;
     } else {
       estimated_bitrate_byframe[frame_index] = 0;
