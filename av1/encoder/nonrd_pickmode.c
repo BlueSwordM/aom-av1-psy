@@ -826,6 +826,58 @@ static INLINE void aom_process_hadamard_8x16(MACROBLOCK *x, int max_blocks_high,
   }
 }
 
+#define DECLARE_LOOP_VARS_BLOCK_YRD()                                      \
+  const SCAN_ORDER *const scan_order = &av1_scan_orders[tx_size][DCT_DCT]; \
+  const int block_offset = BLOCK_OFFSET(block + s);                        \
+  int16_t *const low_coeff = (int16_t *)p->coeff + block_offset;           \
+  int16_t *const low_qcoeff = (int16_t *)p->qcoeff + block_offset;         \
+  int16_t *const low_dqcoeff = (int16_t *)p->dqcoeff + block_offset;       \
+  uint16_t *const eob = &p->eobs[block + s];                               \
+  const int diff_stride = bw;                                              \
+  const int16_t *src_diff = &p->src_diff[(r * diff_stride + c) << 2];
+
+#if CONFIG_AV1_HIGHBITDEPTH
+#define DECLARE_HBD_LOOP_VARS_BLOCK_YRD()              \
+  tran_low_t *const coeff = p->coeff + block_offset;   \
+  tran_low_t *const qcoeff = p->qcoeff + block_offset; \
+  tran_low_t *const dqcoeff = p->dqcoeff + block_offset;
+
+static AOM_FORCE_INLINE void update_yrd_loop_vars_hbd(
+    MACROBLOCK *x, int *skippable, const int step, const int ncoeffs,
+    tran_low_t *const coeff, tran_low_t *const qcoeff,
+    tran_low_t *const dqcoeff, RD_STATS *this_rdc, int *eob_cost,
+    const int tx_blk_id) {
+  const int is_txfm_skip = (ncoeffs == 0);
+  *skippable &= is_txfm_skip;
+  x->txfm_search_info.blk_skip[tx_blk_id] = is_txfm_skip;
+  *eob_cost += get_msb(ncoeffs + 1);
+
+  int64_t dummy;
+  if (ncoeffs == 1)
+    this_rdc->rate += (int)abs(qcoeff[0]);
+  else if (ncoeffs > 1)
+    this_rdc->rate += aom_satd(qcoeff, step << 4);
+
+  this_rdc->dist += av1_block_error(coeff, dqcoeff, step << 4, &dummy) >> 2;
+}
+#endif
+static AOM_FORCE_INLINE void update_yrd_loop_vars(
+    MACROBLOCK *x, int *skippable, const int step, const int ncoeffs,
+    int16_t *const low_coeff, int16_t *const low_qcoeff,
+    int16_t *const low_dqcoeff, RD_STATS *this_rdc, int *eob_cost,
+    const int tx_blk_id) {
+  const int is_txfm_skip = (ncoeffs == 0);
+  *skippable &= is_txfm_skip;
+  x->txfm_search_info.blk_skip[tx_blk_id] = is_txfm_skip;
+  *eob_cost += get_msb(ncoeffs + 1);
+  if (ncoeffs == 1)
+    this_rdc->rate += (int)abs(low_qcoeff[0]);
+  else if (ncoeffs > 1)
+    this_rdc->rate += aom_satd_lp(low_qcoeff, step << 4);
+
+  this_rdc->dist += av1_block_error_lp(low_coeff, low_dqcoeff, step << 4) >> 2;
+}
+
 /*!\brief Calculates RD Cost using Hadamard transform.
  *
  * \ingroup nonrd_mode_search
@@ -860,6 +912,7 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   const int num_4x4_h = mi_size_high[bsize];
   const int step = 1 << (tx_size << 1);
   const int block_step = (1 << tx_size);
+  const int row_step = step * num_4x4_w / block_step;
   int block = 0;
   const int max_blocks_wide =
       num_4x4_w + (xd->mb_to_right_edge >= 0 ? 0 : xd->mb_to_right_edge >> 5);
@@ -895,48 +948,76 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 #endif
 
   *skippable = 1;
-
-  // For block sizes 8x16 or above, Hadamard txfm of two adjacent 8x8 blocks can
-  // be done per function call. Hence the call of Hadamard txfm is abstracted
-  // here for the specified cases.
-  const int is_tx_8x8_dual_applicable =
-      (tx_size == TX_8X8 && block_size_wide[bsize] >= 16 &&
-       block_size_high[bsize] >= 8 && tx_type != IDTX);
-  if (is_tx_8x8_dual_applicable) {
-    aom_process_hadamard_8x16(x, max_blocks_high, max_blocks_wide, num_4x4_w,
-                              step, block_step);
+  int tx_wd = 0;
+  switch (tx_size) {
+    case TX_64X64:
+      assert(0);  // Not implemented
+      break;
+    case TX_32X32:
+      assert(0);  // Not used
+      break;
+    case TX_16X16: tx_wd = 16; break;
+    case TX_8X8: tx_wd = 8; break;
+    default:
+      assert(tx_size == TX_4X4);
+      tx_wd = 4;
+      break;
   }
 
-  // Keep track of the row and column of the blocks we use so that we know
-  // if we are in the unrestricted motion border.
-  for (int r = 0; r < max_blocks_high; r += block_step) {
-    for (int c = 0; c < num_4x4_w; c += block_step) {
-      if (c < max_blocks_wide) {
-        const SCAN_ORDER *const scan_order = &av1_scan_orders[tx_size][DCT_DCT];
-        const int block_offset = BLOCK_OFFSET(block);
-        int16_t *const low_coeff = (int16_t *)p->coeff + block_offset;
-        int16_t *const low_qcoeff = (int16_t *)p->qcoeff + block_offset;
-        int16_t *const low_dqcoeff = (int16_t *)p->dqcoeff + block_offset;
+  this_rdc->dist = 0;
+  this_rdc->rate = 0;
+#if !CONFIG_AV1_HIGHBITDEPTH
+  if (tx_type == IDTX) {
+    // Keep track of the row and column of the blocks we use so that we know
+    // if we are in the unrestricted motion border.
+    for (int r = 0; r < max_blocks_high; r += block_step) {
+      for (int c = 0, s = 0; c < max_blocks_wide; c += block_step, s += step) {
+        DECLARE_LOOP_VARS_BLOCK_YRD()
+
+        for (int idy = 0; idy < tx_wd; ++idy)
+          for (int idx = 0; idx < tx_wd; ++idx)
+            low_coeff[idy * tx_wd + idx] =
+                src_diff[idy * diff_stride + idx] * 8;
+
+        av1_quantize_lp(low_coeff, tx_wd * tx_wd, p->round_fp_QTX,
+                        p->quant_fp_QTX, low_qcoeff, low_dqcoeff,
+                        p->dequant_QTX, eob, scan_order->scan,
+                        scan_order->iscan);
+        assert(*eob <= 1024);
+        update_yrd_loop_vars(x, skippable, step, *eob, low_coeff, low_qcoeff,
+                             low_dqcoeff, this_rdc, &eob_cost,
+                             (r * num_blk_skip_w + c) >> sh_blk_skip);
+      }
+      block += row_step;
+    }
+  } else {
+#else
+  {
+    (void)tx_wd;
+#endif
+    // For block sizes 8x16 or above, Hadamard txfm of two adjacent 8x8 blocks
+    // can be done per function call. Hence the call of Hadamard txfm is
+    // abstracted here for the specified cases.
+    const int is_tx_8x8_dual_applicable =
+        (tx_size == TX_8X8 && block_size_wide[bsize] >= 16 &&
+         block_size_high[bsize] >= 8);
+    if (is_tx_8x8_dual_applicable) {
+      aom_process_hadamard_8x16(x, max_blocks_high, max_blocks_wide, num_4x4_w,
+                                step, block_step);
+    }
+
+    // Keep track of the row and column of the blocks we use so that we know
+    // if we are in the unrestricted motion border.
+    for (int r = 0; r < max_blocks_high; r += block_step) {
+      for (int c = 0, s = 0; c < max_blocks_wide; c += block_step, s += step) {
+        DECLARE_LOOP_VARS_BLOCK_YRD()
 #if CONFIG_AV1_HIGHBITDEPTH
-        tran_low_t *const coeff = p->coeff + block_offset;
-        tran_low_t *const qcoeff = p->qcoeff + block_offset;
-        tran_low_t *const dqcoeff = p->dqcoeff + block_offset;
+        DECLARE_HBD_LOOP_VARS_BLOCK_YRD()
 #else
         (void)use_hbd;
 #endif
-        uint16_t *const eob = &p->eobs[block];
-        const int diff_stride = bw;
-        const int16_t *src_diff;
-        src_diff = &p->src_diff[(r * diff_stride + c) << 2];
 
         switch (tx_size) {
-          case TX_64X64:
-            assert(0);  // Not implemented
-            break;
-          case TX_32X32:
-            assert(0);  // Not used
-            break;
-
 #if CONFIG_AV1_HIGHBITDEPTH
           case TX_16X16:
             if (use_hbd) {
@@ -1001,26 +1082,14 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
             break;
 #else
           case TX_16X16:
-            if (tx_type == IDTX) {
-              for (int idy = 0; idy < 16; ++idy)
-                for (int idx = 0; idx < 16; ++idx)
-                  low_coeff[idy * 16 + idx] =
-                      src_diff[idy * diff_stride + idx] * 8;
-            } else {
-              aom_hadamard_lp_16x16(src_diff, diff_stride, low_coeff);
-            }
+            aom_hadamard_lp_16x16(src_diff, diff_stride, low_coeff);
             av1_quantize_lp(low_coeff, 16 * 16, p->round_fp_QTX,
                             p->quant_fp_QTX, low_qcoeff, low_dqcoeff,
                             p->dequant_QTX, eob, scan_order->scan,
                             scan_order->iscan);
             break;
           case TX_8X8:
-            if (tx_type == IDTX) {
-              for (int idy = 0; idy < 8; ++idy)
-                for (int idx = 0; idx < 8; ++idx)
-                  low_coeff[idy * 8 + idx] =
-                      src_diff[idy * diff_stride + idx] * 8;
-            } else if (!is_tx_8x8_dual_applicable) {
+            if (!is_tx_8x8_dual_applicable) {
               aom_hadamard_lp_8x8(src_diff, diff_stride, low_coeff);
             } else {
               assert(is_tx_8x8_dual_applicable);
@@ -1030,16 +1099,7 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
                             scan_order->scan, scan_order->iscan);
             break;
           default:
-            assert(tx_size == TX_4X4);
-            if (tx_type == IDTX) {
-              for (int idy = 0; idy < 4; ++idy)
-                for (int idx = 0; idx < 4; ++idx)
-                  low_coeff[idy * 4 + idx] =
-                      src_diff[idy * diff_stride + idx] * 8;
-            } else {
-              aom_fdct4x4_lp(src_diff, low_coeff, diff_stride);
-            }
-
+            aom_fdct4x4_lp(src_diff, low_coeff, diff_stride);
             av1_quantize_lp(low_coeff, 4 * 4, p->round_fp_QTX, p->quant_fp_QTX,
                             low_qcoeff, low_dqcoeff, p->dequant_QTX, eob,
                             scan_order->scan, scan_order->iscan);
@@ -1047,73 +1107,27 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 #endif
         }
         assert(*eob <= 1024);
-        *skippable &= (*eob == 0);
-        x->txfm_search_info.blk_skip[(r * num_blk_skip_w + c) >> sh_blk_skip] =
-            (*eob == 0) ? 1 : 0;
-        eob_cost += get_msb(*eob + 1);
+#if CONFIG_AV1_HIGHBITDEPTH
+        if (use_hbd)
+          update_yrd_loop_vars_hbd(x, skippable, step, *eob, coeff, qcoeff,
+                                   dqcoeff, this_rdc, &eob_cost,
+                                   (r * num_blk_skip_w + c) >> sh_blk_skip);
+        else
+#endif
+          update_yrd_loop_vars(x, skippable, step, *eob, low_coeff, low_qcoeff,
+                               low_dqcoeff, this_rdc, &eob_cost,
+                               (r * num_blk_skip_w + c) >> sh_blk_skip);
       }
-      block += step;
+      block += row_step;
     }
   }
   this_rdc->skip_txfm = *skippable;
-  this_rdc->rate = 0;
   if (this_rdc->sse < INT64_MAX) {
     this_rdc->sse = (this_rdc->sse << 6) >> 2;
     if (*skippable) {
+      this_rdc->dist = 0;
       this_rdc->dist = this_rdc->sse;
       return;
-    }
-  }
-
-  block = 0;
-  this_rdc->dist = 0;
-  for (int r = 0; r < max_blocks_high; r += block_step) {
-    for (int c = 0; c < num_4x4_w; c += block_step) {
-      if (c < max_blocks_wide) {
-        const int block_offset = BLOCK_OFFSET(block);
-        uint16_t *const eob = &p->eobs[block];
-#if CONFIG_AV1_HIGHBITDEPTH
-        if (use_hbd) {
-          int64_t dummy;
-          tran_low_t *const coeff = p->coeff + block_offset;
-          tran_low_t *const qcoeff = p->qcoeff + block_offset;
-          tran_low_t *const dqcoeff = p->dqcoeff + block_offset;
-
-          if (*eob == 1)
-            this_rdc->rate += (int)abs(qcoeff[0]);
-          else if (*eob > 1)
-            this_rdc->rate += aom_satd(qcoeff, step << 4);
-
-          this_rdc->dist +=
-              av1_block_error(coeff, dqcoeff, step << 4, &dummy) >> 2;
-        } else {
-          int16_t *const low_coeff = (int16_t *)p->coeff + block_offset;
-          int16_t *const low_qcoeff = (int16_t *)p->qcoeff + block_offset;
-          int16_t *const low_dqcoeff = (int16_t *)p->dqcoeff + block_offset;
-
-          if (*eob == 1)
-            this_rdc->rate += (int)abs(low_qcoeff[0]);
-          else if (*eob > 1)
-            this_rdc->rate += aom_satd_lp(low_qcoeff, step << 4);
-
-          this_rdc->dist +=
-              av1_block_error_lp(low_coeff, low_dqcoeff, step << 4) >> 2;
-        }
-#else
-        int16_t *const low_coeff = (int16_t *)p->coeff + block_offset;
-        int16_t *const low_qcoeff = (int16_t *)p->qcoeff + block_offset;
-        int16_t *const low_dqcoeff = (int16_t *)p->dqcoeff + block_offset;
-
-        if (*eob == 1)
-          this_rdc->rate += (int)abs(low_qcoeff[0]);
-        else if (*eob > 1)
-          this_rdc->rate += aom_satd_lp(low_qcoeff, step << 4);
-
-        this_rdc->dist +=
-            av1_block_error_lp(low_coeff, low_dqcoeff, step << 4) >> 2;
-#endif
-      }
-      block += step;
     }
   }
 
