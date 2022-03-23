@@ -65,7 +65,8 @@ void av1_vaq_frame_setup(AV1_COMP *cpi) {
   }
   if (frame_is_intra_only(cm) || cm->features.error_resilient_mode ||
       refresh_frame->alt_ref_frame ||
-      (refresh_frame->golden_frame && !cpi->rc.is_src_frame_alt_ref)) {
+      (refresh_frame->golden_frame && !cpi->rc.is_src_frame_alt_ref) ||
+      cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY) {
     cpi->vaq_refresh = 1;
 
     av1_enable_segmentation(seg);
