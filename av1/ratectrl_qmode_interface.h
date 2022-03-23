@@ -12,10 +12,21 @@
 #ifndef AOM_AV1_RATECTRL_QMODE_INTERFACE_H_
 #define AOM_AV1_RATECTRL_QMODE_INTERFACE_H_
 
+#include <array>
 #include <vector>
+
 #include "av1/encoder/firstpass.h"
 
 namespace aom {
+
+constexpr int kBlockRefCount = 2;
+constexpr int kRefFrameTableSize = 8;
+
+struct MotionVector {
+  int row;          // subpel row
+  int col;          // subpel col
+  int subpel_bits;  // number of fractional bits used by row/col
+};
 
 struct RateControlParam {
   int max_gop_length;
@@ -25,14 +36,14 @@ struct RateControlParam {
 };
 
 struct TplBlockStats {
-  BLOCK_SIZE block_size;
-  // row and col of mode info unit which is in unit of 4 pixels.
-  int mi_row;
-  int mi_col;
+  int height;  // pixel height
+  int width;   // pixel width
+  int row;     // pixel row of the top left corner
+  int col;     // pixel col of the top lef corner
   int64_t intra_cost;
   int64_t inter_cost;
-  int_mv mv[2];
-  int ref_frame_index[2];
+  std::array<MotionVector, kBlockRefCount> mv;
+  std::array<int, kBlockRefCount> ref_frame_index;
 };
 
 enum class EncodeRefMode {
@@ -43,6 +54,7 @@ enum class EncodeRefMode {
 
 struct GopFrame {
   // basic info
+  bool is_valid;
   int order_idx;         // Index in display order
   int coding_idx;        // Index in coding order
   bool is_key_frame;     // If this is key frame, reset reference buffers are
@@ -74,8 +86,23 @@ struct FrameEncodeParameters {
 };
 
 using FirstpassInfo = std::vector<FIRSTPASS_STATS>;
-using TplFrameStats = std::vector<TplBlockStats>;
-using TplGopStats = std::vector<TplFrameStats>;
+using RefFrameTable = std::array<GopFrame, kRefFrameTableSize>;
+
+struct GopEncodeInfo {
+  std::vector<FrameEncodeParameters> param_list;
+  RefFrameTable final_snapshot;  // RefFrameTable snapshot after coding this GOP
+};
+
+struct TplFrameStats {
+  int min_block_size;
+  int frame_width;
+  int frame_height;
+  std::vector<TplBlockStats> block_stats_list;
+};
+
+struct TplGopStats {
+  std::vector<TplFrameStats> frame_stats_list;
+};
 
 class AV1RateControlQModeInterface {
  public:
@@ -88,8 +115,9 @@ class AV1RateControlQModeInterface {
   // Accept firstpass and tpl info from the encoder and return q index and
   // rdmult. This needs to be called with consecutive GOPs as returned by
   // DetermineGopInfo.
-  virtual std::vector<FrameEncodeParameters> GetGopEncodeInfo(
-      const TplGopStats &tpl_stats_list) = 0;
+  virtual GopEncodeInfo GetGopEncodeInfo(
+      const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
+      const RefFrameTable &ref_frame_table_snapshot_init) = 0;
 };  // class AV1RateCtrlQMode
 }  // namespace aom
 

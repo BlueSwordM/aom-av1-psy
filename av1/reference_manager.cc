@@ -14,15 +14,13 @@
 namespace aom {
 
 void RefFrameManager::Reset() {
-  ref_frame_table_.resize(max_ref_frames_);
   free_ref_idx_list_.clear();
-  for (int i = 0; i < max_ref_frames_; ++i) {
+  for (int i = 0; i < kRefFrameTableSize; ++i) {
     free_ref_idx_list_.push_back(i);
   }
   forward_stack_.clear();
   backward_queue_.clear();
   last_queue_.clear();
-  ref_frame_table_.clear();
 }
 
 int RefFrameManager::AllocateRefIdx() {

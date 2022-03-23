@@ -21,15 +21,51 @@
 
 namespace aom {
 
+struct TplFrameDepStats {
+  int unit_size;  // equivalent to min_block_size
+  std::vector<std::vector<double>> unit_stats;
+};
+
+struct TplGopDepStats {
+  std::vector<TplFrameDepStats> frame_dep_stats_list;
+};
+
+GopFrame gop_frame_invalid();
+
+GopFrame gop_frame_basic(int coding_idx, int order_idx, bool is_key_frame,
+                         bool is_arf_frame, bool is_golden_frame,
+                         bool is_show_frame);
+
 GopStruct construct_gop(RefFrameManager *ref_frame_manager,
                         int show_frame_count, bool has_key_frame);
+
+TplFrameDepStats create_tpl_frame_dep_stats_empty(int frame_height,
+                                                  int frame_width,
+                                                  int min_block_size);
+TplFrameDepStats create_tpl_frame_dep_stats_wo_propagation(
+    const TplFrameStats &frame_stats);
+
+double tpl_frame_stats_accumulate(const TplFrameStats &frame_stats);
+
+double tpl_frame_dep_stats_accumulate(const TplFrameDepStats &frame_dep_stats);
+
+void tpl_frame_dep_stats_propagate(const TplFrameStats &frame_stats,
+                                   const RefFrameTable &ref_frame_table,
+                                   TplGopDepStats *tpl_gop_dep_stats);
+
+int get_block_overlap_area(int r0, int c0, int r1, int c1, int size);
+
+TplGopDepStats compute_tpl_gop_dep_stats(
+    const TplGopStats &tpl_gop_stats,
+    const std::vector<RefFrameTable> &ref_frame_table_list);
 
 class AV1RateControlQMode : public AV1RateControlQModeInterface {
  public:
   void SetRcParam(const RateControlParam &rc_param) override;
   GopStructList DetermineGopInfo(const FirstpassInfo &firstpass_info) override;
-  virtual std::vector<FrameEncodeParameters> GetGopEncodeInfo(
-      const TplGopStats &tpl_stats_list) override;
+  GopEncodeInfo GetGopEncodeInfo(
+      const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
+      const RefFrameTable &ref_frame_table_snapshot) override;
 
  private:
   RateControlParam rc_param_;

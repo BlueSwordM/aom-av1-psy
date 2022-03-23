@@ -57,13 +57,15 @@ class RefFrameManager {
   void UpdateOrder(int order_idx);
   int ColocatedRefIdx(int order_idx);
   int ForwardMaxSize() const { return forward_max_size_; }
+  int MaxRefFrames() const { return max_ref_frames_; }
   void UpdateFrame(GopFrame *gop_frame, RefUpdateType ref_update_type,
                    EncodeRefMode encode_ref_mode);
 
  private:
+  // TODO(angiebird): // Make RefFrameTable comply with max_ref_frames_
   int max_ref_frames_;
   int forward_max_size_;
-  std::vector<GopFrame> ref_frame_table_;
+  RefFrameTable ref_frame_table_;
   std::deque<int> free_ref_idx_list_;
   std::vector<int> forward_stack_;
   std::deque<int> backward_queue_;
