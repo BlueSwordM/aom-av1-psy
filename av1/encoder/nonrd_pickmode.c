@@ -17,6 +17,7 @@
 
 #include "aom_dsp/txfm_common.h"
 #include "av1/common/blockd.h"
+#include "av1/encoder/encoder.h"
 #include "config/aom_dsp_rtcd.h"
 #include "config/av1_rtcd.h"
 
@@ -1614,12 +1615,13 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
 #if !CONFIG_REALTIME_ONLY
 #define MOTION_MODE_SEARCH_SIZE 2
 
-static AOM_INLINE int is_warped_mode_allowed(const AV1_COMMON *cm,
+static AOM_INLINE int is_warped_mode_allowed(const AV1_COMP *cpi,
                                              MACROBLOCK *const x,
                                              const MB_MODE_INFO *mbmi) {
-  const FeatureFlags *const features = &cm->features;
+  const FeatureFlags *const features = &cpi->common.features;
   const MACROBLOCKD *xd = &x->e_mbd;
 
+  if (cpi->sf.inter_sf.extra_prune_warped) return 0;
   if (has_second_ref(mbmi)) return 0;
   MOTION_MODE last_motion_mode_allowed = SIMPLE_TRANSLATION;
 
@@ -1682,7 +1684,7 @@ static void search_motion_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
   const MOTION_MODE motion_modes[MOTION_MODE_SEARCH_SIZE] = {
     SIMPLE_TRANSLATION, WARPED_CAUSAL
   };
-  int mode_search_size = is_warped_mode_allowed(cm, x, mi) ? 2 : 1;
+  int mode_search_size = is_warped_mode_allowed(cpi, x, mi) ? 2 : 1;
 
   WARP_SAMPLE_INFO *const warp_sample_info =
       &x->warp_sample_info[mi->ref_frame[0]];
