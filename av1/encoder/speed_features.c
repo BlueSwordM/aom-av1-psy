@@ -949,8 +949,6 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 2) {
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
-    sf->fp_sf.skip_motion_search_threshold = 25;
-
     sf->gm_sf.disable_gm_search_based_on_stats = 1;
 
     sf->part_sf.reuse_best_prediction_for_part_ab =
@@ -1138,8 +1136,6 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 5) {
-    sf->fp_sf.reduce_mv_step_param = 4;
-
     sf->part_sf.simple_motion_search_prune_agg =
         allow_screen_content_tools ? SIMPLE_AGG_LVL0 : SIMPLE_AGG_LVL3;
     sf->part_sf.ext_partition_eval_thresh =
@@ -1169,7 +1165,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->winner_mode_sf.dc_blk_pred_level = 1;
 
-    sf->fp_sf.disable_recon = 1;
   }
 
   if (speed >= 6) {
@@ -1208,7 +1203,6 @@ static void set_good_speed_features_framesize_independent(
     sf->winner_mode_sf.dc_blk_pred_level = 2;
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
 
-    sf->fp_sf.skip_zeromv_motion_search = 1;
   }
 }
 
