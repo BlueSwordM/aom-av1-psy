@@ -23,3 +23,18 @@ void cdef_find_dir_dual_sse4_1(const uint16_t *img1, const uint16_t *img2,
   // Process second 8x8.
   *out_dir_2nd_8x8 = cdef_find_dir(img2, stride, var_out_2nd, coeff_shift);
 }
+
+void cdef_copy_rect8_8bit_to_16bit_sse4_1(uint16_t *dst, int dstride,
+                                          const uint8_t *src, int sstride,
+                                          int v, int h) {
+  int j = 0;
+  for (int i = 0; i < v; i++) {
+    for (j = 0; j < (h & ~0x7); j += 8) {
+      v64 row = v64_load_unaligned(&src[i * sstride + j]);
+      v128_store_unaligned(&dst[i * dstride + j], v128_unpack_u8_s16(row));
+    }
+    for (; j < h; j++) {
+      dst[i * dstride + j] = src[i * sstride + j];
+    }
+  }
+}

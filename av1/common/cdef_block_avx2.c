@@ -253,3 +253,42 @@ void cdef_find_dir_dual_avx2(const uint16_t *img1, const uint16_t *img2,
   *out_dir_1st_8x8 = best_dir[0];
   *out_dir_2nd_8x8 = best_dir[1];
 }
+
+void cdef_copy_rect8_8bit_to_16bit_avx2(uint16_t *dst, int dstride,
+                                        const uint8_t *src, int sstride, int v,
+                                        int h) {
+  int i = 0, j = 0;
+  int remaining_width = h;
+
+  // Process multiple 16 pixels at a time.
+  if (h > 15) {
+    for (i = 0; i < v; i++) {
+      for (j = 0; j < h - 15; j += 16) {
+        __m128i row = _mm_loadu_si128((__m128i *)&src[i * sstride + j]);
+        _mm256_storeu_si256((__m256i *)&dst[i * dstride + j],
+                            _mm256_cvtepu8_epi16(row));
+      }
+    }
+    remaining_width = h & 0xe;
+  }
+
+  // Process multiple 8 pixels at a time.
+  if (remaining_width > 7) {
+    for (i = 0; i < v; i++) {
+      __m128i row = _mm_loadl_epi64((__m128i *)&src[i * sstride + j]);
+      _mm_storeu_si128((__m128i *)&dst[i * dstride + j],
+                       _mm_unpacklo_epi8(row, _mm_setzero_si128()));
+    }
+    remaining_width = h & 0x7;
+    j += 8;
+  }
+
+  // Process the remaining pixels.
+  if (remaining_width) {
+    for (i = 0; i < v; i++) {
+      for (int k = j; k < h; k++) {
+        dst[i * dstride + k] = src[i * sstride + k];
+      }
+    }
+  }
+}
