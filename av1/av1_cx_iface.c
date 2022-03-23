@@ -798,7 +798,8 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   }
 #endif
 
-  RANGE_CHECK(extra_cfg, tuning, AOM_TUNE_PSNR, AOM_TUNE_BUTTERAUGLI);
+  RANGE_CHECK(extra_cfg, tuning, AOM_TUNE_PSNR,
+              AOM_TUNE_IMAGE_PERCEPTUAL_QUALITY);
 
   RANGE_CHECK(extra_cfg, dist_metric, AOM_DIST_METRIC_PSNR,
               AOM_DIST_METRIC_QM_PSNR);
