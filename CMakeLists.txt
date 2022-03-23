@@ -304,20 +304,17 @@ if(NOT MSVC AND NOT APPLE)
   endif()
 endif()
 
-if(CONFIG_AV1_RC_RTC)
+if(CONFIG_AV1_RC_RTC AND CONFIG_AV1_ENCODER AND NOT BUILD_SHARED_LIBS)
   list(APPEND AOM_AV1_RC_SOURCES "${AOM_ROOT}/av1/ratectrl_rtc.h"
               "${AOM_ROOT}/av1/ratectrl_rtc.cc")
-
-  if(CONFIG_AV1_ENCODER)
-    add_library(aom_av1_rc ${AOM_AV1_RC_SOURCES})
-    add_dependencies(aom_av1_rc aom_av1_encoder)
-    if(NOT MSVC AND NOT APPLE)
-      target_link_libraries(aom_av1_rc ${AOM_LIB_LINK_TYPE} m)
-    endif()
+  add_library(aom_av1_rc ${AOM_AV1_RC_SOURCES})
+  target_link_libraries(aom_av1_rc ${AOM_LIB_LINK_TYPE} aom)
+  if(NOT MSVC AND NOT APPLE)
+    target_link_libraries(aom_av1_rc ${AOM_LIB_LINK_TYPE} m)
   endif()
 endif()
 
-if(CONFIG_AV1_ENCODER AND NOT CONFIG_REALTIME_ONLY)
+if(CONFIG_AV1_ENCODER AND NOT CONFIG_REALTIME_ONLY AND NOT BUILD_SHARED_LIBS)
   list(APPEND AOM_AV1_RC_QMODE_SOURCES
               "${AOM_ROOT}/av1/ratectrl_qmode_interface.h"
               "${AOM_ROOT}/av1/ratectrl_qmode_interface.cc"
@@ -326,7 +323,7 @@ if(CONFIG_AV1_ENCODER AND NOT CONFIG_REALTIME_ONLY)
               "${AOM_ROOT}/av1/ratectrl_qmode.h"
               "${AOM_ROOT}/av1/ratectrl_qmode.cc")
   add_library(av1_rc_qmode ${AOM_AV1_RC_QMODE_SOURCES})
-  add_dependencies(av1_rc_qmode aom_av1_encoder)
+  target_link_libraries(av1_rc_qmode ${AOM_LIB_LINK_TYPE} aom)
   if(NOT MSVC AND NOT APPLE)
     target_link_libraries(av1_rc_qmode ${AOM_LIB_LINK_TYPE} m)
   endif()
@@ -335,10 +332,10 @@ endif()
 
 # List of object and static library targets.
 set(AOM_LIB_TARGETS ${AOM_LIB_TARGETS} aom_rtcd aom_mem aom_scale aom)
-if(CONFIG_AV1_ENCODER AND CONFIG_AV1_RC_RTC)
+if(CONFIG_AV1_RC_RTC AND CONFIG_AV1_ENCODER AND NOT BUILD_SHARED_LIBS)
   set(AOM_LIB_TARGETS ${AOM_LIB_TARGETS} aom_av1_rc)
 endif()
-if(CONFIG_AV1_ENCODER AND NOT CONFIG_REALTIME_ONLY)
+if(CONFIG_AV1_ENCODER AND NOT CONFIG_REALTIME_ONLY AND NOT BUILD_SHARED_LIBS)
   set(AOM_LIB_TARGETS ${AOM_LIB_TARGETS} av1_rc_qmode)
 endif()
 if(BUILD_SHARED_LIBS)

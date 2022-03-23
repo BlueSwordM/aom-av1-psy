@@ -594,8 +594,8 @@ function(setup_aom_test_targets)
      AND NOT BUILD_SHARED_LIBS
      AND NOT CONFIG_REALTIME_ONLY)
     add_executable(test_av1_rc_qmode ${AV1_RC_QMODE_SOURCES})
-    target_link_libraries(test_av1_rc_qmode ${AOM_LIB_LINK_TYPE} aom
-                          av1_rc_qmode aom_gtest aom_av1_encoder)
+    target_link_libraries(test_av1_rc_qmode ${AOM_LIB_LINK_TYPE} av1_rc_qmode
+                          aom_gtest)
     set_property(TARGET test_av1_rc_qmode
                  PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
     list(APPEND AOM_APP_TARGETS test_av1_rc_qmode)
