@@ -1041,7 +1041,8 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     ++td->counts->intrabc[is_intrabc];
 #endif  // CONFIG_ENTROPY_STATS
     if (is_intrabc) {
-      const int_mv dv_ref = x->mbmi_ext_frame->ref_mv_stack[0].this_mv;
+      const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+      const int_mv dv_ref = mbmi_ext->ref_mv_stack[ref_frame_type][0].this_mv;
       av1_update_mv_stats(&mbmi->mv[0].as_mv, &dv_ref.as_mv, &fc->ndvc,
                           MV_SUBPEL_NONE);
     }
