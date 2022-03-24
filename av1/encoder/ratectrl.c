@@ -19,6 +19,7 @@
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/mem.h"
+#include "aom_ports/aom_once.h"
 
 #include "av1/common/alloccommon.h"
 #include "av1/encoder/aq_cyclicrefresh.h"
@@ -129,7 +130,7 @@ static void init_minq_luts(int *kf_low_m, int *kf_high_m, int *arfgf_low,
   }
 }
 
-void av1_rc_init_minq_luts(void) {
+static void rc_init_minq_luts(void) {
   init_minq_luts(kf_low_motion_minq_8, kf_high_motion_minq_8,
                  arfgf_low_motion_minq_8, arfgf_high_motion_minq_8,
                  inter_minq_8, rtc_minq_8, AOM_BITS_8);
@@ -140,6 +141,8 @@ void av1_rc_init_minq_luts(void) {
                  arfgf_low_motion_minq_12, arfgf_high_motion_minq_12,
                  inter_minq_12, rtc_minq_12, AOM_BITS_12);
 }
+
+void av1_rc_init_minq_luts(void) { aom_once(rc_init_minq_luts); }
 
 // These functions use formulaic calculations to make playing with the
 // quantizer tables easier. If necessary they can be replaced by lookup

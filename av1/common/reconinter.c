@@ -19,6 +19,7 @@
 
 #include "aom/aom_integer.h"
 #include "aom_dsp/blend.h"
+#include "aom_ports/aom_once.h"
 
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
@@ -627,11 +628,13 @@ static AOM_INLINE void init_smooth_interintra_masks() {
 }
 
 // Equation of line: f(x, y) = a[0]*(x - a[2]*w/8) + a[1]*(y - a[3]*h/8) = 0
-void av1_init_wedge_masks() {
+static void init_all_wedge_masks() {
   init_wedge_master_masks();
   init_wedge_masks();
   init_smooth_interintra_masks();
 }
+
+void av1_init_wedge_masks() { aom_once(init_all_wedge_masks); }
 
 static AOM_INLINE void build_masked_compound_no_round(
     uint8_t *dst, int dst_stride, const CONV_BUF_TYPE *src0, int src0_stride,

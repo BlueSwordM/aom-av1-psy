@@ -20,6 +20,7 @@
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/bitops.h"
 #include "aom_ports/mem.h"
+#include "aom_ports/aom_once.h"
 
 #include "av1/common/common.h"
 #include "av1/common/entropy.h"
@@ -351,11 +352,13 @@ static void init_me_luts_bd(int *bit16lut, int range,
   }
 }
 
-void av1_init_me_luts(void) {
+static void init_me_luts(void) {
   init_me_luts_bd(sad_per_bit_lut_8, QINDEX_RANGE, AOM_BITS_8);
   init_me_luts_bd(sad_per_bit_lut_10, QINDEX_RANGE, AOM_BITS_10);
   init_me_luts_bd(sad_per_bit_lut_12, QINDEX_RANGE, AOM_BITS_12);
 }
+
+void av1_init_me_luts(void) { aom_once(init_me_luts); }
 
 static const int rd_boost_factor[16] = { 64, 32, 32, 32, 24, 16, 12, 12,
                                          8,  8,  4,  4,  2,  2,  1,  0 };
