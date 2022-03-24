@@ -484,19 +484,23 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
   if (cm->width >= 1280 && cm->height >= 720)
     thresholds[3] = thresholds[3] << 1;
   if (cm->width * cm->height <= 352 * 288) {
-    if (current_qindex >= QINDEX_HIGH_THR) {
+    const int qindex_thr[3][2] = { { 200, 220 }, { 200, 210 }, { 170, 220 } };
+    assert(cpi->sf.rt_sf.var_part_based_on_qidx < 3);
+    int qindex_low_thr = qindex_thr[cpi->sf.rt_sf.var_part_based_on_qidx][0];
+    int qindex_high_thr = qindex_thr[cpi->sf.rt_sf.var_part_based_on_qidx][1];
+    if (current_qindex >= qindex_high_thr) {
       threshold_base = (5 * threshold_base) >> 1;
       thresholds[1] = threshold_base >> 3;
       thresholds[2] = threshold_base << 2;
       thresholds[3] = threshold_base << 5;
-    } else if (current_qindex < QINDEX_LOW_THR) {
+    } else if (current_qindex < qindex_low_thr) {
       thresholds[1] = threshold_base >> 3;
       thresholds[2] = threshold_base >> 1;
       thresholds[3] = threshold_base << 3;
     } else {
-      int64_t qi_diff_low = current_qindex - QINDEX_LOW_THR;
-      int64_t qi_diff_high = QINDEX_HIGH_THR - current_qindex;
-      int64_t threshold_diff = QINDEX_HIGH_THR - QINDEX_LOW_THR;
+      int64_t qi_diff_low = current_qindex - qindex_low_thr;
+      int64_t qi_diff_high = qindex_high_thr - current_qindex;
+      int64_t threshold_diff = qindex_high_thr - qindex_low_thr;
       int64_t threshold_base_high = (5 * threshold_base) >> 1;
 
       threshold_diff = threshold_diff > 0 ? threshold_diff : 1;

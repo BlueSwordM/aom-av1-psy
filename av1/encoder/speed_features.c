@@ -1600,6 +1600,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
         sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC_H_V;
 
     sf->winner_mode_sf.dc_blk_pred_level = 0;
+    sf->rt_sf.var_part_based_on_qidx = 1;
   }
 
   if (speed >= 8) {
@@ -1612,6 +1613,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.nonrd_check_partition_merge_mode = 0;
     sf->rt_sf.var_part_split_threshold_shift = 8;
     sf->interp_sf.cb_pred_filter_search = 1;
+    sf->rt_sf.var_part_based_on_qidx = 2;
   }
   if (speed >= 9) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_3;
@@ -1622,6 +1624,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.var_part_split_threshold_shift = 9;
     for (int i = 0; i < BLOCK_SIZES; ++i)
       sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC;
+    sf->rt_sf.var_part_based_on_qidx = 0;
   }
   if (speed >= 10) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_4;
@@ -1949,6 +1952,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->skip_lf_screen = 0;
   rt_sf->sad_based_adp_altref_lag = 0;
   rt_sf->partition_direct_merging = 0;
+  rt_sf->var_part_based_on_qidx = 0;
 }
 
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
