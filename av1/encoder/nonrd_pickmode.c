@@ -1932,6 +1932,12 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
        (x->nonrd_prune_ref_frame_search > 1 && bsize > BLOCK_64X64))) {
     use_golden_ref_frame = 0;
     use_alt_ref_frame = 0;
+    // Keep golden (longer-term) reference if sb has high source sad, for
+    // frames whose average souce_sad is below threshold. This is to try to
+    // capture case where only part of frame has high motion.
+    if (x->content_state_sb.source_sad >= kHighSad && bsize <= BLOCK_32X32 &&
+        cpi->rc.frame_source_sad < 50000)
+      use_golden_ref_frame = 1;
   }
 
   if (segfeature_active(seg, mi->segment_id, SEG_LVL_REF_FRAME) &&
