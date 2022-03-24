@@ -4420,8 +4420,14 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
   assert(cpi->oxcf.max_threads <= 1 &&
          "bitstream debug tool does not support multithreading");
   bitstream_queue_record_write();
-  aom_bitstream_queue_set_frame_write(cm->current_frame.order_hint * 2 +
-                                      cm->show_frame);
+
+  if (cm->seq_params->order_hint_info.enable_order_hint) {
+    aom_bitstream_queue_set_frame_write(cm->current_frame.order_hint * 2 +
+                                        cm->show_frame);
+  } else {
+    // This is currently used in RTC encoding. cm->show_frame is always 1.
+    aom_bitstream_queue_set_frame_write(cm->current_frame.frame_number);
+  }
 #endif
   if (cpi->ppi->use_svc && cpi->ppi->number_spatial_layers > 1) {
     av1_one_pass_cbr_svc_start_layer(cpi);
