@@ -2572,11 +2572,12 @@ void av1_adjust_gf_refresh_qp_one_pass_rt(AV1_COMP *cpi) {
 void av1_set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
   AV1_COMMON *const cm = &cpi->common;
   ExternalFlags *const ext_flags = &cpi->ext_flags;
+  RATE_CONTROL *const rc = &cpi->rc;
   ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
       &ext_flags->refresh_frame;
   SVC *const svc = &cpi->svc;
   const int gld_fixed_slot = 1;
-  const unsigned int lag_alt = 4;
+  unsigned int lag_alt = 4;
   int last_idx = 0;
   int last_idx_refresh = 0;
   int gld_idx = 0;
@@ -2588,6 +2589,24 @@ void av1_set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
   ext_refresh_frame_flags->last_frame = 1;
   ext_refresh_frame_flags->golden_frame = 0;
   ext_refresh_frame_flags->alt_ref_frame = 0;
+  // Decide altref lag adaptively for rt
+  if (cpi->sf.rt_sf.sad_based_adp_altref_lag) {
+    lag_alt = 6;
+    const uint64_t th_frame_sad[4][3] = {
+      { 18000, 18000, 18000 },  // HDRES CPU 9
+      { 25000, 25000, 25000 },  // MIDRES CPU 9
+      { 40000, 30000, 20000 },  // HDRES CPU10
+      { 30000, 25000, 20000 }   // MIDRES CPU 10
+    };
+    int th_idx = cpi->sf.rt_sf.sad_based_adp_altref_lag - 1;
+    assert(th_idx < 4);
+    if (rc->avg_source_sad > th_frame_sad[th_idx][0])
+      lag_alt = 3;
+    else if (rc->avg_source_sad > th_frame_sad[th_idx][1])
+      lag_alt = 4;
+    else if (rc->avg_source_sad > th_frame_sad[th_idx][2])
+      lag_alt = 5;
+  }
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) svc->ref_idx[i] = 7;
   for (int i = 0; i < REF_FRAMES; ++i) svc->refresh[i] = 0;
   // Set the reference frame flags.

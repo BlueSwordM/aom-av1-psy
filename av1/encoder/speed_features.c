@@ -1258,12 +1258,14 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed >= 9) {
       sf->rt_sf.gf_length_lvl = 1;
       sf->rt_sf.skip_cdef_sb = 1;
+      sf->rt_sf.sad_based_adp_altref_lag = 2;
     }
 
     if (speed >= 10) {
       // TODO(yunqing): extend this sf to other speeds and/or other resolutions.
       sf->rt_sf.use_rtc_tf = 1;
       sf->rt_sf.hybrid_intra_pickmode = 2;
+      sf->rt_sf.sad_based_adp_altref_lag = 4;
     }
   }
   if (!is_480p_or_larger) {
@@ -1282,6 +1284,13 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
   if (!is_720p_or_larger) {
     if (speed >= 9) {
       sf->rt_sf.force_large_partition_blocks_intra = 1;
+    }
+  } else {
+    if (speed >= 9) {
+      sf->rt_sf.sad_based_adp_altref_lag = 1;
+    }
+    if (speed >= 10) {
+      sf->rt_sf.sad_based_adp_altref_lag = 3;
     }
   }
   if (cpi->ppi->use_svc) {
@@ -1934,6 +1943,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->part_early_exit_zeromv = 0;
   rt_sf->sse_early_term_inter_search = EARLY_TERM_DISABLED;
   rt_sf->skip_lf_screen = 0;
+  rt_sf->sad_based_adp_altref_lag = 0;
 }
 
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
