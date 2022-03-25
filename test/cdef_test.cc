@@ -439,11 +439,6 @@ TEST_P(CDEFFindDirDualSpeedTest, DISABLED_TestSpeed) {
 
 using std::make_tuple;
 
-// VS compiling for 32 bit targets does not support vector types in
-// structs as arguments, which makes the v256 type of the intrinsics
-// hard to support, so optimizations for this target are disabled.
-#if defined(_WIN64) || !defined(_MSC_VER) || defined(__clang__)
-
 #if (HAVE_SSE2 || HAVE_SSSE3 || HAVE_SSE4_1 || HAVE_AVX2 || HAVE_NEON)
 static const CdefFilterBlockFunctions kCdefFilterFuncC[] = {
   { &cdef_filter_8_0_c, &cdef_filter_8_1_c, &cdef_filter_8_2_c,
@@ -733,5 +728,4 @@ INSTANTIATE_TEST_SUITE_P(NEON, CDEFFindDirSpeedTest,
                                                       &cdef_find_dir_c)));
 #endif
 
-#endif  // defined(_WIN64) || !defined(_MSC_VER)
 }  // namespace
