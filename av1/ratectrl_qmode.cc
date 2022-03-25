@@ -12,7 +12,7 @@
 
 #include <algorithm>
 #include <cassert>
-#include <limits>
+#include <climits>
 #include <vector>
 
 #include "av1/encoder/pass2_strategy.h"
@@ -121,7 +121,7 @@ GopStructList AV1RateControlQMode::DetermineGopInfo(
   int total_regions = 0;
   // TODO(jianj): firstpass_info.size() should eventually be replaced
   // by the number of frames to the next KF.
-  assert(firstpass_info.size() <= std::numeric_limits<int>::max());
+  assert(firstpass_info.size() <= INT_MAX);
   av1_identify_regions(firstpass_info.data(),
                        std::min(static_cast<int>(firstpass_info.size()),
                                 MAX_FIRSTPASS_ANALYSIS_FRAMES),
