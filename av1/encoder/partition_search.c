@@ -2640,7 +2640,7 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
           av1_set_offsets_without_segment_id(cpi, &tile_data->tile_info, x,
                                              mi_row, mi_col, this_mi[0]->bsize);
 
-          int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES];
+          int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES] = { { { 0 } } };
           struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE];
           int force_skip_low_temp_var = 0;
           int skip_pred_mv = 0;
