@@ -2479,6 +2479,15 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
     }
   }
 
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_ANIMATION && speed <= 5){
+    //Enable full CDEF search for slower presets for the animation content tune
+    //Temporary placement for easier testing
+    sf->lpf_sf.cdef_pick_method = CDEF_FULL_SEARCH;
+  } else if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_ANIMATION && speed == 6){
+      // Speed 6 gets L1
+      sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL1;
+  }
+
   if (speed == 1) {
     // Reuse interinter wedge mask search from first search for non-boosted
     // non-internal-arf frames, except at very high quantizers.
