@@ -1061,22 +1061,27 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   // change the number of frames for key frame filtering, which is to avoid
   // visual quality drop.
   int adjust_num = 6;
-  if (num_frames == 1) {  // `arnr_max_frames = 1` is used to disable filtering.
+  if (num_frames == 1 || num_frames == 0) {  // `arnr_max_frames = 0/1` is used to disable filtering.
     adjust_num = 0;
 
   } //If it's not a KF, still adjust the number of filtering frames by 1
     else if ((update_type != KF_UPDATE) &&
-    (cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY)){
+    (cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY)) {
     adjust_num = 1;
   }
     //If it is a KF, do not adjust it for maximum consistency
     else if ((update_type == KF_UPDATE) &&
-    (cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY)){
+    (cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY)) {
     adjust_num = 0;
 
   } else if ((update_type == KF_UPDATE) && q <= 10) {
     adjust_num = 0;
   }
+
+  if ((update_type == KF_UPDATE) && num_frames == 0) {
+    num_frames = 1;
+      }
+
   num_frames = AOMMIN(num_frames + adjust_num, lookahead_depth);
 
   if (frame_type == KEY_FRAME) {
