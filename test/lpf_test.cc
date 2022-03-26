@@ -550,6 +550,15 @@ const loop_param_t kLoop8Test6[] = {
   make_tuple(&aom_lpf_vertical_4_sse2, &aom_lpf_vertical_4_c, 8),
   make_tuple(&aom_lpf_vertical_8_sse2, &aom_lpf_vertical_8_c, 8),
   make_tuple(&aom_lpf_vertical_14_sse2, &aom_lpf_vertical_14_c, 8),
+  make_tuple(&aom_lpf_horizontal_4_quad_sse2, &aom_lpf_horizontal_4_quad_c, 8),
+  make_tuple(&aom_lpf_vertical_4_quad_sse2, &aom_lpf_vertical_4_quad_c, 8),
+  make_tuple(&aom_lpf_horizontal_6_quad_sse2, &aom_lpf_horizontal_6_quad_c, 8),
+  make_tuple(&aom_lpf_vertical_6_quad_sse2, &aom_lpf_vertical_6_quad_c, 8),
+  make_tuple(&aom_lpf_horizontal_8_quad_sse2, &aom_lpf_horizontal_8_quad_c, 8),
+  make_tuple(&aom_lpf_vertical_8_quad_sse2, &aom_lpf_vertical_8_quad_c, 8),
+  make_tuple(&aom_lpf_horizontal_14_quad_sse2, &aom_lpf_horizontal_14_quad_c,
+             8),
+  make_tuple(&aom_lpf_vertical_14_quad_sse2, &aom_lpf_vertical_14_quad_c, 8)
 };
 
 INSTANTIATE_TEST_SUITE_P(SSE2, Loop8Test6Param_lbd,
