@@ -2645,9 +2645,18 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #endif
 
 #if !CONFIG_RD_COMMAND
-  // Determine whether to use screen content tools using two fast encoding.
-  if (!cpi->sf.hl_sf.disable_extra_sc_testing)
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY || cpi->oxcf.tune_cfg.content == AOM_CONTENT_DEFAULT_NO_SCREEN) {
+    // Screen content optimizations are bad for Psy tuning,
+    // disable them and avoid the extra testing to speed us up.
+    FeatureFlags *const features = &cm->features;
+    features->allow_screen_content_tools = 0;
+    features->allow_intrabc = 0;
+    cpi->use_screen_content_tools = 0;
+    cpi->is_screen_content_type = 0;
+  } else if (!cpi->sf.hl_sf.disable_extra_sc_testing) {
+    // Determine whether to use screen content tools using two fast encoding.
     av1_determine_sc_tools_with_encoding(cpi, q);
+  }
 #endif  // !CONFIG_RD_COMMAND
 
 #if CONFIG_TUNE_VMAF
