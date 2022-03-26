@@ -265,7 +265,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
   } else if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_USER_RATING_BASED) {
     current_qindex = av1_get_sbq_user_rating_based(cpi, mi_row, mi_col);
   } else if (cpi->oxcf.q_cfg.enable_hdr_deltaq) {
-    current_qindex = av1_get_q_for_hdr(cpi, x, sb_size, mi_row, mi_col);
+    current_qindex = av1_get_q_for_hdr(cpi, x, sb_size);
   }
 
   MACROBLOCKD *const xd = &x->e_mbd;
