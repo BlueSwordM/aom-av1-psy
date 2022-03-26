@@ -1067,7 +1067,7 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   } //If it's not a KF, still adjust the number of filtering frames by 1
     else if ((update_type != KF_UPDATE) &&
     (cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY)){
-    adjust_num = 2;
+    adjust_num = 1;
   }
     //If it is a KF, do not adjust it for maximum consistency
     else if ((update_type == KF_UPDATE) &&
