@@ -1225,7 +1225,10 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     sf->rt_sf.prune_intra_mode_based_on_mv_range = 1;
     sf->rt_sf.prune_inter_modes_wrt_gf_arf_based_on_sad = 1;
     if (speed >= 7) sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
-    if (speed >= 8) sf->rt_sf.use_nonrd_filter_search = 0;
+    if (speed >= 8) {
+      sf->rt_sf.use_nonrd_filter_search = 0;
+      sf->rt_sf.partition_direct_merging = 1;
+    }
     if (speed >= 9) {
       sf->rt_sf.use_comp_ref_nonrd = 0;
       sf->rt_sf.nonrd_agressive_skip = 1;
@@ -1305,6 +1308,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.ref_frame_comp_nonrd[2] =
           cpi->svc.ref_frame_comp[2] && cpi->svc.reference[ALTREF_FRAME - 1];
     }
+    sf->rt_sf.partition_direct_merging = 0;
   }
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
     if (speed >= 10) {
@@ -1326,6 +1330,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->mv_sf.search_method = NSTEP;
       sf->rt_sf.fullpel_search_step_param = 2;
     }
+    sf->rt_sf.partition_direct_merging = 0;
   }
 }
 
@@ -1944,6 +1949,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->sse_early_term_inter_search = EARLY_TERM_DISABLED;
   rt_sf->skip_lf_screen = 0;
   rt_sf->sad_based_adp_altref_lag = 0;
+  rt_sf->partition_direct_merging = 0;
 }
 
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {

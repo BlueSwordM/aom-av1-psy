@@ -1469,6 +1469,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // SAD based adaptive altref selection
   int sad_based_adp_altref_lag;
+
+  // Enable/disable partition direct merging.
+  int partition_direct_merging;
+
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

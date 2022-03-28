@@ -2556,10 +2556,8 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
         // TODO(yunqing): Add this to PARTITION_HORZ and PARTITION_VERT. Make
         // this work with nonrd_check_partition_merge_mode feature.
         // Will add this for compound mode as well.
-        if (cpi->svc.number_temporal_layers > 1 ||
-            cpi->svc.number_spatial_layers > 1)
-          break;
         if (!frame_is_intra_only(cm) &&
+            cpi->sf.rt_sf.partition_direct_merging &&
             cm->current_frame.reference_mode == SINGLE_REFERENCE &&
             (mi_row + bs <= mi_params->mi_rows) &&
             (mi_col + bs <= mi_params->mi_cols)) {
