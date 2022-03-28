@@ -2640,10 +2640,16 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
           av1_set_offsets_without_segment_id(cpi, &tile_data->tile_info, x,
                                              mi_row, mi_col, this_mi[0]->bsize);
 
-          int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES] = { { { 0 } } };
+          int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES];
           struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE];
           int force_skip_low_temp_var = 0;
           int skip_pred_mv = 0;
+
+          for (int i = 0; i < MB_MODE_COUNT; ++i) {
+            for (int j = 0; j < REF_FRAMES; ++j) {
+              frame_mv[i][j].as_int = INVALID_MV;
+            }
+          }
           x->color_sensitivity[0] = x->color_sensitivity_sb[0];
           x->color_sensitivity[1] = x->color_sensitivity_sb[1];
           skip_pred_mv =
@@ -2655,8 +2661,10 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
                           skip_pred_mv);
 
           int continue_merging = 1;
-          if (frame_mv[NEARESTMV][1].as_mv.row != b0[0]->mv[0].as_mv.row ||
-              frame_mv[NEARESTMV][1].as_mv.col != b0[0]->mv[0].as_mv.col)
+          if (frame_mv[NEARESTMV][this_mi[0]->ref_frame[0]].as_mv.row !=
+                  b0[0]->mv[0].as_mv.row ||
+              frame_mv[NEARESTMV][this_mi[0]->ref_frame[0]].as_mv.col !=
+                  b0[0]->mv[0].as_mv.col)
             continue_merging = 0;
 
           if (!continue_merging) {
