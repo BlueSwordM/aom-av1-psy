@@ -273,7 +273,7 @@ static BLOCK_SIZE pick_block_size(AV1_COMP *cpi,
       for (int i = 0; i < 4; ++i) {
         max_split_mean = AOMMAX(max_split_mean, split_mean[i]);
         max_split_var = AOMMAX(max_split_var, split_var[i]);
-        geo_split_var += log(split_var[i]);
+        geo_split_var += log(0.1 + split_var[i]);
       }
       geo_split_var = exp(geo_split_var / 4);
       const double param_1 = 1.5;
