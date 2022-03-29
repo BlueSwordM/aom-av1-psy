@@ -109,7 +109,7 @@ static AOM_INLINE void set_planes_to_neutral_grey(
     for (int plane = only_chroma; plane < MAX_MB_PLANE; plane++) {
       const int is_uv = plane > 0;
       for (int row_idx = 0; row_idx < buf->crop_heights[is_uv]; row_idx++) {
-        memset(&buf->buffers[plane][row_idx * buf->uv_stride], 1 << 7,
+        memset(&buf->buffers[plane][row_idx * buf->strides[is_uv]], 1 << 7,
                buf->crop_widths[is_uv]);
       }
     }
