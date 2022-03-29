@@ -1308,7 +1308,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.ref_frame_comp_nonrd[2] =
           cpi->svc.ref_frame_comp[2] && cpi->svc.reference[ALTREF_FRAME - 1];
     }
-    sf->rt_sf.partition_direct_merging = 0;
   }
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
     if (speed >= 10) {

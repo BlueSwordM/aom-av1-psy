@@ -2678,6 +2678,34 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
                             tile_data, yv12_mb, this_mi[0]->bsize,
                             force_skip_low_temp_var, skip_pred_mv);
           } else {
+            struct scale_factors *sf =
+                get_ref_scale_factors(cm, this_mi[0]->ref_frame[0]);
+            const int is_scaled = av1_is_scaled(sf);
+            if (cpi->ppi->use_svc || is_scaled) {
+              const int num_planes = av1_num_planes(cm);
+              const int is_compound = has_second_ref(this_mi[0]);
+              set_ref_ptrs(cm, xd, this_mi[0]->ref_frame[0],
+                           this_mi[0]->ref_frame[1]);
+              for (int ref = 0; ref < 1 + is_compound; ++ref) {
+                const YV12_BUFFER_CONFIG *cfg =
+                    get_ref_frame_yv12_buf(cm, this_mi[0]->ref_frame[ref]);
+                av1_setup_pre_planes(xd, ref, cfg, mi_row, mi_col,
+                                     xd->block_ref_scale_factors[ref],
+                                     num_planes);
+              }
+
+              const int start_plane =
+                  (cpi->sf.rt_sf.reuse_inter_pred_nonrd &&
+                   (!cpi->sf.rt_sf.nonrd_check_partition_merge_mode) &&
+                   (!cpi->sf.rt_sf.nonrd_check_partition_split) &&
+                   cm->seq_params->bit_depth == AOM_BITS_8)
+                      ? 1
+                      : 0;
+              av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL,
+                                            this_mi[0]->bsize, start_plane,
+                                            num_planes - 1);
+            }
+
             // Copy out mbmi_ext information.
             MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
             MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame = x->mbmi_ext_frame;
