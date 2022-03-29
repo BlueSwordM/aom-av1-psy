@@ -262,29 +262,29 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/dwt.h")
 
 list(APPEND AOM_AV1_COMMON_INTRIN_SSE2
-            "${AOM_ROOT}/av1/common/cdef_block_sse2.c"
+            "${AOM_ROOT}/av1/common/x86/av1_txfm_sse2.h"
+            "${AOM_ROOT}/av1/common/x86/cdef_block_sse2.c"
             "${AOM_ROOT}/av1/common/x86/cfl_sse2.c"
             "${AOM_ROOT}/av1/common/x86/convolve_2d_sse2.c"
             "${AOM_ROOT}/av1/common/x86/convolve_sse2.c"
             "${AOM_ROOT}/av1/common/x86/jnt_convolve_sse2.c"
-            "${AOM_ROOT}/av1/common/x86/wiener_convolve_sse2.c"
-            "${AOM_ROOT}/av1/common/x86/av1_txfm_sse2.h"
-            "${AOM_ROOT}/av1/common/x86/warp_plane_sse2.c")
+            "${AOM_ROOT}/av1/common/x86/warp_plane_sse2.c"
+            "${AOM_ROOT}/av1/common/x86/wiener_convolve_sse2.c")
 
 list(APPEND AOM_AV1_COMMON_INTRIN_SSSE3
-            "${AOM_ROOT}/av1/common/cdef_block_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/av1_inv_txfm_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/av1_inv_txfm_ssse3.h"
+            "${AOM_ROOT}/av1/common/x86/cdef_block_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/cfl_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/jnt_convolve_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/resize_ssse3.c")
 
 list(APPEND AOM_AV1_COMMON_INTRIN_SSE4_1
-            "${AOM_ROOT}/av1/common/cdef_block_sse4.c"
             "${AOM_ROOT}/av1/common/x86/av1_convolve_horiz_rs_sse4.c"
             "${AOM_ROOT}/av1/common/x86/av1_convolve_scale_sse4.c"
             "${AOM_ROOT}/av1/common/x86/av1_txfm_sse4.c"
             "${AOM_ROOT}/av1/common/x86/av1_txfm_sse4.h"
+            "${AOM_ROOT}/av1/common/x86/cdef_block_sse4.c"
             "${AOM_ROOT}/av1/common/x86/filterintra_sse4.c"
             "${AOM_ROOT}/av1/common/x86/highbd_inv_txfm_sse4.c"
             "${AOM_ROOT}/av1/common/x86/intra_edge_sse4.c"
@@ -293,9 +293,9 @@ list(APPEND AOM_AV1_COMMON_INTRIN_SSE4_1
             "${AOM_ROOT}/av1/common/x86/warp_plane_sse4.c")
 
 list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
-            "${AOM_ROOT}/av1/common/cdef_block_avx2.c"
             "${AOM_ROOT}/av1/common/x86/av1_inv_txfm_avx2.c"
             "${AOM_ROOT}/av1/common/x86/av1_inv_txfm_avx2.h"
+            "${AOM_ROOT}/av1/common/x86/cdef_block_avx2.c"
             "${AOM_ROOT}/av1/common/x86/cfl_avx2.c"
             "${AOM_ROOT}/av1/common/x86/convolve_2d_avx2.c"
             "${AOM_ROOT}/av1/common/x86/convolve_avx2.c"
@@ -369,23 +369,23 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_MSA
             "${AOM_ROOT}/av1/encoder/mips/msa/temporal_filter_msa.c")
 
 list(APPEND AOM_AV1_COMMON_INTRIN_NEON
+            "${AOM_ROOT}/av1/common/arm/av1_inv_txfm_neon.c"
+            "${AOM_ROOT}/av1/common/arm/av1_inv_txfm_neon.h"
             "${AOM_ROOT}/av1/common/arm/av1_txfm_neon.c"
+            "${AOM_ROOT}/av1/common/arm/blend_a64_hmask_neon.c"
+            "${AOM_ROOT}/av1/common/arm/blend_a64_vmask_neon.c"
+            "${AOM_ROOT}/av1/common/arm/cdef_block_neon.c"
             "${AOM_ROOT}/av1/common/arm/cfl_neon.c"
             "${AOM_ROOT}/av1/common/arm/convolve_neon.c"
             "${AOM_ROOT}/av1/common/arm/convolve_neon.h"
+            "${AOM_ROOT}/av1/common/arm/highbd_inv_txfm_neon.c"
             "${AOM_ROOT}/av1/common/arm/jnt_convolve_neon.c"
-            "${AOM_ROOT}/av1/common/arm/blend_a64_hmask_neon.c"
-            "${AOM_ROOT}/av1/common/arm/blend_a64_vmask_neon.c"
             "${AOM_ROOT}/av1/common/arm/reconinter_neon.c"
             "${AOM_ROOT}/av1/common/arm/reconintra_neon.c"
             "${AOM_ROOT}/av1/common/arm/resize_neon.c"
-            "${AOM_ROOT}/av1/common/arm/wiener_convolve_neon.c"
             "${AOM_ROOT}/av1/common/arm/selfguided_neon.c"
-            "${AOM_ROOT}/av1/common/arm/av1_inv_txfm_neon.c"
-            "${AOM_ROOT}/av1/common/arm/av1_inv_txfm_neon.h"
-            "${AOM_ROOT}/av1/common/arm/highbd_inv_txfm_neon.c"
             "${AOM_ROOT}/av1/common/arm/warp_plane_neon.c"
-            "${AOM_ROOT}/av1/common/cdef_block_neon.c")
+            "${AOM_ROOT}/av1/common/arm/wiener_convolve_neon.c")
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_SSE4_2
             "${AOM_ROOT}/av1/encoder/x86/hash_sse42.c")
