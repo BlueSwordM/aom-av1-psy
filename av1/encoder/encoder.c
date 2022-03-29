@@ -889,9 +889,7 @@ AV1_PRIMARY *av1_create_primary_compressor(
   ppi->output_pkt_list = pkt_list_head;
   ppi->b_calculate_psnr = CONFIG_INTERNAL_STATS;
   ppi->frames_left = oxcf->input_cfg.limit;
-#if CONFIG_FRAME_PARALLEL_ENCODE
   ppi->num_fp_contexts = 1;
-#endif
 
   init_config_sequence(ppi, oxcf);
 

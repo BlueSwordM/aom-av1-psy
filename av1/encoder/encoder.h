@@ -2376,11 +2376,6 @@ typedef struct AV1_PRIMARY {
   struct AV1_COMP *parallel_cpi[MAX_PARALLEL_FRAMES];
 
   /*!
-   * Number of frame level contexts(cpis)
-   */
-  int num_fp_contexts;
-
-  /*!
    * Array of structures to hold data of frames encoded in a given parallel
    * encode set.
    */
@@ -2446,6 +2441,11 @@ typedef struct AV1_PRIMARY {
   RefCntBuffer *ref_frame_map_copy[REF_FRAMES];
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
+  /*!
+   * Number of frame level contexts(cpis)
+   */
+  int num_fp_contexts;
+
   /*!
    * Encode stage top level structure
    * When CONFIG_FRAME_PARALLEL_ENCODE is enabled this is the same as
