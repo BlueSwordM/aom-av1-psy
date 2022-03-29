@@ -45,8 +45,7 @@ static void initialize_dec(void) {
 }
 
 static void dec_set_mb_mi(CommonModeInfoParams *mi_params, int width,
-                          int height, int mode, BLOCK_SIZE min_partition_size) {
-  (void)mode;
+                          int height, BLOCK_SIZE min_partition_size) {
   (void)min_partition_size;
   // Ensure that the decoded width and height are both multiples of
   // 8 luma pixels (note: this may only be a multiple of 4 chroma pixels if

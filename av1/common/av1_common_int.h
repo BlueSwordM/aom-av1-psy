@@ -594,12 +594,11 @@ struct CommonModeInfoParams {
    *                                      parameters
    * \param           width               frame width
    * \param           height              frame height
-   * \param           mode                encoding mode
    * \param           min_partition_size  minimum partition size allowed while
    *                                      encoding
    */
   void (*set_mb_mi)(struct CommonModeInfoParams *mi_params, int width,
-                    int height, int mode, BLOCK_SIZE min_partition_size);
+                    int height, BLOCK_SIZE min_partition_size);
   /**@}*/
 };
 

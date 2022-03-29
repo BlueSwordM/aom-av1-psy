@@ -300,13 +300,10 @@ void av1_update_frame_size(AV1_COMP *cpi) {
 
   // Setup mi_params here in case we need more mi's.
   CommonModeInfoParams *const mi_params = &cm->mi_params;
-  mi_params->set_mb_mi(mi_params, cm->width, cm->height, cpi->oxcf.mode,
+  mi_params->set_mb_mi(mi_params, cm->width, cm->height,
                        cpi->sf.part_sf.default_min_partition_size);
 
   av1_init_macroblockd(cm, xd);
-
-  if (!is_stat_generation_stage(cpi))
-    alloc_context_buffers_ext(cm, &cpi->mbmi_ext_info);
 
   if (!cpi->ppi->seq_params_locked)
     set_sb_size(cm->seq_params,
@@ -1161,7 +1158,7 @@ AV1_PRIMARY *av1_create_primary_compressor(
     // width and height of the frame.
     CommonModeInfoParams mi_params;
     enc_set_mb_mi(&mi_params, oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height,
-                  oxcf->mode, BLOCK_4X4);
+                  BLOCK_4X4);
 
     const int bsize = BLOCK_16X16;
     const int w = mi_size_wide[bsize];

@@ -59,14 +59,10 @@ static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
   CommonModeInfoParams *const mi_params = &cm->mi_params;
 
   // Setup mi_params
-  mi_params->set_mb_mi(mi_params, cm->width, cm->height, cpi->oxcf.mode,
+  mi_params->set_mb_mi(mi_params, cm->width, cm->height,
                        cpi->sf.part_sf.default_min_partition_size);
 
-  if (!is_stat_generation_stage(cpi)) {
-    av1_alloc_txb_buf(cpi);
-
-    alloc_context_buffers_ext(cm, &cpi->mbmi_ext_info);
-  }
+  if (!is_stat_generation_stage(cpi)) av1_alloc_txb_buf(cpi);
 
   if (cpi->td.mb.mv_costs) {
     aom_free(cpi->td.mb.mv_costs);
@@ -96,11 +92,14 @@ static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
 // level.
 static AOM_INLINE void alloc_mb_mode_info_buffers(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
-  if (av1_alloc_context_buffers(cm, cm->width, cm->height, cpi->oxcf.mode,
+  if (av1_alloc_context_buffers(cm, cm->width, cm->height,
                                 cpi->sf.part_sf.default_min_partition_size)) {
     aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate context buffers");
   }
+
+  if (!is_stat_generation_stage(cpi))
+    alloc_context_buffers_ext(cm, &cpi->mbmi_ext_info);
 }
 
 static AOM_INLINE void realloc_segmentation_maps(AV1_COMP *cpi) {
