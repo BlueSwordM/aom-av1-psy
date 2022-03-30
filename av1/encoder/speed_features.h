@@ -1481,6 +1481,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // SAD based compound mode pruning
   int sad_based_comp_prune;
+
+  // Level of aggressiveness for obtaining tx size based on qstep
+  int tx_size_level_based_on_qstep;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

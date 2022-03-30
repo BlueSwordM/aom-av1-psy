@@ -420,12 +420,40 @@ static void estimate_single_ref_frame_costs(const AV1_COMMON *cm,
 
 static TX_SIZE calculate_tx_size(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
                                  MACROBLOCK *const x, unsigned int var,
-                                 unsigned int sse) {
+                                 unsigned int sse, int *force_skip) {
   MACROBLOCKD *const xd = &x->e_mbd;
   TX_SIZE tx_size;
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   if (txfm_params->tx_mode_search_type == TX_MODE_SELECT) {
-    if (sse > (var << 1))
+    int multiplier = 8;
+    unsigned int var_thresh = 0;
+    unsigned int is_high_var = 1;
+    // Use quantizer based thresholds to determine transform size.
+    if (cpi->sf.rt_sf.tx_size_level_based_on_qstep) {
+      const int qband = x->qindex >> (QINDEX_BITS - 2);
+      const int mult[4] = { 8, 7, 6, 5 };
+      assert(qband < 4);
+      multiplier = mult[qband];
+      const int qstep = x->plane[0].dequant_QTX[1] >> (xd->bd - 5);
+      const unsigned int qstep_sq = qstep * qstep;
+      var_thresh = qstep_sq * 2;
+      if (cpi->sf.rt_sf.tx_size_level_based_on_qstep >= 2) {
+        // If the sse is low for low source variance blocks, mark those as
+        // transform skip.
+        // Note: Though qstep_sq is based on ac qstep, the threshold is kept
+        // low so that reliable early estimate of tx skip can be obtained
+        // through its comparison with sse.
+        if (sse < qstep_sq && x->source_variance < qstep_sq &&
+            x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0)
+          *force_skip = 1;
+        // Further lower transform size based on aq mode only if residual
+        // variance is high.
+        is_high_var = (var >= var_thresh);
+      }
+    }
+    // Choose larger transform size for blocks where dc component is dominant or
+    // the ac component is low.
+    if (sse > ((var * multiplier) >> 2) || (var < var_thresh))
       tx_size =
           AOMMIN(max_txsize_lookup[bsize],
                  tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]);
@@ -433,7 +461,7 @@ static TX_SIZE calculate_tx_size(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
       tx_size = TX_8X8;
 
     if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
-        cyclic_refresh_segment_id_boosted(xd->mi[0]->segment_id))
+        cyclic_refresh_segment_id_boosted(xd->mi[0]->segment_id) && is_high_var)
       tx_size = TX_8X8;
     else if (tx_size > TX_16X16)
       tx_size = TX_16X16;
@@ -583,20 +611,22 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
                           cpi->common.height, abs(sum) >> (bw + bh));
 
 #endif
-  tx_size = calculate_tx_size(cpi, bsize, x, var, sse);
+  // Skipping test
+  *early_term = 0;
+  tx_size = calculate_tx_size(cpi, bsize, x, var, sse, early_term);
   // The code below for setting skip flag assumes tranform size of at least 8x8,
   // so force this lower limit on transform.
   if (tx_size < TX_8X8) tx_size = TX_8X8;
   xd->mi[0]->tx_size = tx_size;
 
-  // Skipping test
-  *early_term = 0;
   MB_MODE_INFO *const mi = xd->mi[0];
   if (!calculate_rd && cpi->sf.rt_sf.sse_early_term_inter_search &&
       early_term_inter_search_with_sse(
           cpi->sf.rt_sf.sse_early_term_inter_search, bsize, sse, best_sse,
           mi->mode))
     test_skip = 0;
+
+  if (*early_term) test_skip = 0;
 
   // Evaluate if the partition block is a skippable block in Y plane.
   if (test_skip) {
@@ -715,9 +745,10 @@ static void model_rd_for_sb_y(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
 
   unsigned int var = cpi->ppi->fn_ptr[bsize].vf(
       p->src.buf, p->src.stride, pd->dst.buf, pd->dst.stride, &sse);
-  xd->mi[0]->tx_size = calculate_tx_size(cpi, bsize, x, var, sse);
+  int force_skip = 0;
+  xd->mi[0]->tx_size = calculate_tx_size(cpi, bsize, x, var, sse, &force_skip);
 
-  if (calculate_rd) {
+  if (calculate_rd && (!force_skip || ref == INTRA_FRAME)) {
     const int bwide = block_size_wide[bsize];
     const int bhigh = block_size_high[bsize];
     model_rd_with_curvfit(cpi, x, bsize, AOM_PLANE_Y, sse, bwide * bhigh, &rate,
@@ -728,6 +759,11 @@ static void model_rd_for_sb_y(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   }
   rd_stats->sse = sse;
   x->pred_sse[ref] = (unsigned int)AOMMIN(sse, UINT_MAX);
+
+  if (force_skip && ref > INTRA_FRAME) {
+    rate = 0;
+    dist = (int64_t)sse << 4;
+  }
 
   assert(rate >= 0);
 
