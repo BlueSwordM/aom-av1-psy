@@ -1480,17 +1480,13 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     const int cur_frame_disp =
         cpi->common.current_frame.frame_number + order_offset;
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
     int get_ref_frames = 0;
-#if CONFIG_FPMT_TEST
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
     get_ref_frames =
         (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) ? 1 : 0;
-#endif  // CONFIG_FPMT_TEST
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
     if (get_ref_frames ||
         gf_group->frame_parallel_level[cpi->gf_frame_index] == 0) {
-#else
-    {
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
       if (!ext_flags->refresh_frame.update_pending) {
         av1_get_ref_frames(ref_frame_map_pairs, cur_frame_disp,
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
@@ -1514,7 +1510,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         get_ref_frame_flags(&cpi->sf, is_one_pass_rt_params(cpi), ref_frame_buf,
                             ext_flags->ref_frame_flags);
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
     // Set primary_ref_frame of non-reference frames as PRIMARY_REF_NONE.
     if (cpi->ppi->gf_group.is_frame_non_ref[cpi->gf_frame_index]) {
       frame_params.primary_ref_frame = PRIMARY_REF_NONE;
@@ -1522,10 +1517,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       frame_params.primary_ref_frame =
           choose_primary_ref_frame(cpi, &frame_params);
     }
-#else
-    frame_params.primary_ref_frame =
-        choose_primary_ref_frame(cpi, &frame_params);
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     frame_params.order_offset = gf_group->arf_src_offset[cpi->gf_frame_index];
 
@@ -1547,11 +1538,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
     // Make the frames marked as is_frame_non_ref to non-reference frames.
     if (gf_group->is_frame_non_ref[cpi->gf_frame_index])
       frame_params.refresh_frame_flags = 0;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     frame_params.existing_fb_idx_to_show = INVALID_IDX;
     // Find the frame buffer to show based on display order.

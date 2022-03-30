@@ -1438,10 +1438,8 @@ static AOM_INLINE void init_gop_frames_for_tpl(
         av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
                                     gf_index, true_disp, ref_frame_map_pairs);
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
     // Make the frames marked as is_frame_non_ref to non-reference frames.
     if (cpi->ppi->gf_group.is_frame_non_ref[gf_index]) refresh_mask = 0;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     int refresh_frame_map_index = av1_get_refresh_ref_frame_map(refresh_mask);
 
