@@ -230,6 +230,14 @@ static const MODE_DEFINITION av1_mode_defs[MAX_MODES] = {
   { D45_PRED, { INTRA_FRAME, NONE_FRAME } },
 };
 
+// Number of winner modes allowed for different values of the speed feature
+// multi_winner_mode_type.
+static const int winner_mode_count_allowed[MULTI_WINNER_MODE_LEVELS] = {
+  1,  // MULTI_WINNER_MODE_OFF
+  2,  // MULTI_WINNER_MODE_FAST
+  3   // MULTI_WINNER_MODE_DEFAULT
+};
+
 static AOM_INLINE void restore_dst_buf(MACROBLOCKD *xd, const BUFFER_SET dst,
                                        const int num_planes) {
   for (int i = 0; i < num_planes; i++) {
@@ -630,12 +638,7 @@ static INLINE void store_winner_mode_stats(
   // mode in Inter frames. Clean-up the following code, once support is added
   if (!frame_is_intra_only(cm) && is_palette_mode) return;
 
-  int max_winner_mode_count = frame_is_intra_only(cm)
-                                  ? MAX_WINNER_MODE_COUNT_INTRA
-                                  : MAX_WINNER_MODE_COUNT_INTER;
-  max_winner_mode_count = (multi_winner_mode_type == MULTI_WINNER_MODE_FAST)
-                              ? AOMMIN(max_winner_mode_count, 2)
-                              : max_winner_mode_count;
+  int max_winner_mode_count = winner_mode_count_allowed[multi_winner_mode_type];
   assert(x->winner_mode_count >= 0 &&
          x->winner_mode_count <= max_winner_mode_count);
 

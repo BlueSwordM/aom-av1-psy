@@ -1305,9 +1305,7 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
                sizeof(IntraBCMVCosts));
       }
     }
-    av1_alloc_mb_data(cm, &thread_data->td->mb,
-                      cpi->sf.rt_sf.use_nonrd_pick_mode,
-                      cpi->sf.rd_sf.use_mb_rd_hash);
+    av1_alloc_mb_data(cpi, &thread_data->td->mb);
 
     // Reset cyclic refresh counters.
     av1_init_cyclic_refresh_counters(&thread_data->td->mb);
@@ -1378,9 +1376,7 @@ static AOM_INLINE void fp_prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
       }
     }
 
-    av1_alloc_mb_data(cm, &thread_data->td->mb,
-                      cpi->sf.rt_sf.use_nonrd_pick_mode,
-                      cpi->sf.rd_sf.use_mb_rd_hash);
+    av1_alloc_mb_data(cpi, &thread_data->td->mb);
   }
 }
 #endif

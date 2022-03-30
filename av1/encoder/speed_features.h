@@ -220,6 +220,9 @@ enum {
   // Uses the default number of winner modes, which is 3 for intra mode, and 1
   // for inter mode.
   MULTI_WINNER_MODE_DEFAULT = 2,
+
+  // Maximum number of winner modes allowed.
+  MULTI_WINNER_MODE_LEVELS,
 } UENUM1BYTE(MULTI_WINNER_MODE_TYPE);
 
 enum {
