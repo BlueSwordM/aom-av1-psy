@@ -2375,6 +2375,66 @@ static void set_compound_mode(MACROBLOCK *x, int comp_index, int ref_frame,
   }
 }
 
+static int skip_comp_based_on_sad(AV1_COMP *cpi, MACROBLOCK *x,
+                                  const int mi_row, const int mi_col,
+                                  BLOCK_SIZE bsize) {
+  AV1_COMMON *const cm = &cpi->common;
+  assert(!(mi_row % 16) && !(mi_col % 16));
+  const int sb_size_by_mb = (cm->seq_params->sb_size == BLOCK_128X128)
+                                ? (cm->seq_params->mib_size >> 1)
+                                : cm->seq_params->mib_size;
+  const int sb_cols =
+      (cm->mi_params.mi_cols + sb_size_by_mb - 1) / sb_size_by_mb;
+  const uint64_t sad_skp_comp_th[2][3] = { { 2700, 3100 },    // CPU 9
+                                           { 2700, 3200 } };  // CPU 10
+  const uint64_t sad_blkwise_var_th = 5000;
+  const float qindex_th_scale[5] = { 0.75f, 0.9f, 1.0f, 1.1f, 1.25f };
+  const int qindex_band = (5 * x->qindex) >> QINDEX_BITS;
+  assert(qindex_band < 5);
+  const int sp_idx = (cpi->sf.rt_sf.sad_based_comp_prune >= 2);
+  const int bsize_idx = (bsize == BLOCK_128X128);
+  const uint64_t sad_skp_comp_th_val = (uint64_t)(
+      sad_skp_comp_th[sp_idx][bsize_idx] * qindex_th_scale[qindex_band]);
+  uint64_t blk_sad = 0, sad00, sad01, sad10, sad11, min_sad, max_sad;
+  const int sbi_col = mi_col / 16;
+  const int sbi_row = mi_row / 16;
+  const uint64_t *cur_blk_sad =
+      &cpi->src_sad_blk_64x64[sbi_col + sbi_row * sb_cols];
+
+  if (bsize == BLOCK_128X128) {
+    sad00 = cur_blk_sad[0];
+    sad01 = cur_blk_sad[1];
+    sad10 = cur_blk_sad[sb_cols];
+    sad11 = cur_blk_sad[1 + sb_cols];
+    min_sad = AOMMIN(AOMMIN(AOMMIN(sad00, sad01), sad10), sad11);
+    max_sad = AOMMAX(AOMMAX(AOMMAX(sad00, sad01), sad10), sad11);
+    if (max_sad - min_sad > sad_blkwise_var_th) return 0;
+    blk_sad = (sad00 + sad01 + sad10 + sad11 + 2) >> 2;
+  } else if (bsize == BLOCK_128X64) {
+    sad00 = cur_blk_sad[0];
+    sad01 = cur_blk_sad[1];
+    min_sad = AOMMIN(sad00, sad01);
+    max_sad = AOMMAX(sad00, sad01);
+    if (max_sad - min_sad > sad_blkwise_var_th) return 0;
+    blk_sad = (sad00 + sad01 + 1) >> 1;
+  } else if (bsize == BLOCK_64X128) {
+    sad00 = cur_blk_sad[0];
+    sad10 = cur_blk_sad[sb_cols];
+    min_sad = AOMMIN(sad00, sad10);
+    max_sad = AOMMAX(sad00, sad10);
+    if (max_sad - min_sad > sad_blkwise_var_th) return 0;
+    blk_sad = (sad00 + sad10 + 1) >> 1;
+  } else if (bsize <= BLOCK_64X64) {
+    blk_sad = cur_blk_sad[0];
+  } else {
+    assert(0);
+  }
+
+  if (blk_sad < sad_skp_comp_th_val) return 1;
+
+  return 0;
+}
+
 void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                   MACROBLOCK *x, RD_STATS *rd_cost,
                                   BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx) {
@@ -2442,6 +2502,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int num_comp_modes_ref = 0;
   int tot_num_comp_modes = 9;
   int ref_mv_idx = 0;
+  int skip_comp_mode = 0;
 #if CONFIG_AV1_TEMPORAL_DENOISING
   const int denoise_recheck_zeromv = 1;
   AV1_PICKMODE_CTX_DEN ctx_den;
@@ -2573,6 +2634,12 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       AOMMIN(max_txsize_lookup[bsize],
              tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]),
       TX_16X16);
+
+  // Skip compound mode based on sad
+  if ((cpi->sf.rt_sf.sad_based_comp_prune) && (bsize >= BLOCK_64X64) &&
+      (cpi->src_sad_blk_64x64 != NULL))
+    skip_comp_mode = skip_comp_based_on_sad(cpi, x, mi_row, mi_col, bsize);
+
   for (int idx = 0; idx < num_inter_modes + tot_num_comp_modes; ++idx) {
     const struct segmentation *const seg = &cm->seg;
 
@@ -2589,6 +2656,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
            sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
 
     if (idx >= num_inter_modes) {
+      if (skip_comp_mode) continue;
       int comp_index = idx - num_inter_modes;
       if (comp_index % 3 == 0) {
         int i = 0;

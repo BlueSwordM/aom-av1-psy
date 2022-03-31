@@ -1479,6 +1479,8 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Enable/disable partition direct merging.
   int partition_direct_merging;
 
+  // SAD based compound mode pruning
+  int sad_based_comp_prune;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

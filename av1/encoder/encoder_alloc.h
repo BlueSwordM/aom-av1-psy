@@ -302,6 +302,11 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
     cpi->consec_zero_mv = NULL;
   }
 
+  if (cpi->src_sad_blk_64x64) {
+    aom_free(cpi->src_sad_blk_64x64);
+    cpi->src_sad_blk_64x64 = NULL;
+  }
+
   aom_free(cpi->mb_weber_stats);
   cpi->mb_weber_stats = NULL;
 

@@ -3325,6 +3325,11 @@ typedef struct AV1_COMP {
    * File pointer to second pass log
    */
   FILE *second_pass_log_stream;
+
+  /*!
+   * Buffer to store 64x64 SAD
+   */
+  uint64_t *src_sad_blk_64x64;
 } AV1_COMP;
 
 /*!

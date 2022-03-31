@@ -2684,6 +2684,14 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
   int last_src_ystride;
   int last_src_width;
   int last_src_height;
+  if (cm->spatial_layer_id != 0 || cm->width != cm->render_width ||
+      cm->height != cm->render_height || cpi->unscaled_source == NULL ||
+      cpi->unscaled_last_source == NULL) {
+    if (cpi->src_sad_blk_64x64) {
+      aom_free(cpi->src_sad_blk_64x64);
+      cpi->src_sad_blk_64x64 = NULL;
+    }
+  }
   if (cpi->unscaled_source == NULL || cpi->unscaled_last_source == NULL) return;
   src_y = unscaled_src->y_buffer;
   src_ystride = unscaled_src->y_stride;
@@ -2693,7 +2701,13 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
   last_src_ystride = unscaled_last_src->y_stride;
   last_src_width = unscaled_last_src->y_width;
   last_src_height = unscaled_last_src->y_height;
-  if (src_width != last_src_width || src_height != last_src_height) return;
+  if (src_width != last_src_width || src_height != last_src_height) {
+    if (cpi->src_sad_blk_64x64) {
+      aom_free(cpi->src_sad_blk_64x64);
+      cpi->src_sad_blk_64x64 = NULL;
+    }
+    return;
+  }
   rc->high_source_sad = 0;
   rc->high_num_blocks_with_motion = 0;
   rc->prev_avg_source_sad = rc->avg_source_sad;
@@ -2721,6 +2735,17 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
     int light_change = 0;
     // Flag to check light change or not.
     const int check_light_change = 0;
+    // Store blkwise SAD for later use
+    if (cpi->sf.rt_sf.sad_based_comp_prune && (cm->spatial_layer_id == 0) &&
+        (cm->width == cm->render_width) && (cm->height == cm->render_height)) {
+      full_sampling = 1;
+      if (cpi->src_sad_blk_64x64 == NULL) {
+        cpi->src_sad_blk_64x64 = (uint64_t *)aom_malloc(
+            (sb_cols * sb_rows) * sizeof(*cpi->src_sad_blk_64x64));
+        memset(cpi->src_sad_blk_64x64, 0,
+               (sb_cols * sb_rows) * sizeof(*cpi->src_sad_blk_64x64));
+      }
+    }
     for (int sbi_row = 0; sbi_row < sb_rows; ++sbi_row) {
       for (int sbi_col = 0; sbi_col < sb_cols; ++sbi_col) {
         // Checker-board pattern, ignore boundary.
@@ -2731,6 +2756,8 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
               (sbi_row % 2 != 0 && sbi_col % 2 != 0)))) {
           tmp_sad = cpi->ppi->fn_ptr[bsize].sdf(src_y, src_ystride, last_src_y,
                                                 last_src_ystride);
+          if (cpi->src_sad_blk_64x64 != NULL)
+            cpi->src_sad_blk_64x64[sbi_col + sbi_row * sb_cols] = tmp_sad;
           if (check_light_change) {
             unsigned int sse, variance;
             variance = cpi->ppi->fn_ptr[bsize].vf(
