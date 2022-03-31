@@ -2382,21 +2382,6 @@ typedef struct AV1_PRIMARY {
    */
   struct AV1_COMP_DATA parallel_frames_data[MAX_PARALLEL_FRAMES - 1];
 
-  /*!
-   * Loopfilter levels of the previous encoded frame.
-   */
-  int filter_level[2];
-
-  /*!
-   * Chrominance component loopfilter level of the previous encoded frame.
-   */
-  int filter_level_u;
-
-  /*!
-   * Chrominance component loopfilter level of the previous encoded frame.
-   */
-  int filter_level_v;
-
 #if CONFIG_FPMT_TEST
   /*!
    * Flag which enables/disables simulation path for fpmt unit test.
@@ -2446,6 +2431,21 @@ typedef struct AV1_PRIMARY {
    * Number of frame level contexts(cpis)
    */
   int num_fp_contexts;
+
+  /*!
+   * Loopfilter levels of the previous encoded frame.
+   */
+  int filter_level[2];
+
+  /*!
+   * Chrominance component loopfilter level of the previous encoded frame.
+   */
+  int filter_level_u;
+
+  /*!
+   * Chrominance component loopfilter level of the previous encoded frame.
+   */
+  int filter_level_v;
 
   /*!
    * Encode stage top level structure
@@ -3232,13 +3232,6 @@ typedef struct AV1_COMP {
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
   /*!
-   * A flag to indicate frames that will update their data to the primary
-   * context at the end of the encode. It is set for non-parallel frames and the
-   * last frame in encode order in a given parallel encode set.
-   */
-  bool do_frame_data_update;
-
-  /*!
    * Motion vector stats of the current encoded frame, used to update the
    * ppi->mv_stats during postencode.
    */
@@ -3272,6 +3265,14 @@ typedef struct AV1_COMP {
 #endif
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
+
+  /*!
+   * A flag to indicate frames that will update their data to the primary
+   * context at the end of the encode. It is set for non-parallel frames and the
+   * last frame in encode order in a given parallel encode set.
+   */
+  bool do_frame_data_update;
+
 #if CONFIG_RD_COMMAND
   /*!
    *  A structure for assigning external q_index / rdmult for experiments

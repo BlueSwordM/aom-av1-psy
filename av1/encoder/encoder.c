@@ -1264,9 +1264,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
   cm->error->setjmp = 1;
   cpi->compressor_stage = stage;
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
   cpi->do_frame_data_update = true;
-#endif
 
   CommonModeInfoParams *const mi_params = &cm->mi_params;
   mi_params->free_mi = enc_free_mi;
@@ -4216,7 +4214,6 @@ static void update_rc_counts(AV1_COMP *cpi) {
   update_gf_group_index(cpi);
 }
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
 static void update_end_of_frame_stats(AV1_COMP *cpi) {
   if (cpi->do_frame_data_update) {
     // Store current frame loopfilter levels in ppi, if update flag is set.
@@ -4229,11 +4226,11 @@ static void update_end_of_frame_stats(AV1_COMP *cpi) {
       cpi->ppi->filter_level_v = lf->filter_level_v;
     }
   }
-
+#if CONFIG_FRAME_PARALLEL_ENCODE
   // Store frame level mv_stats from cpi to ppi.
   cpi->ppi->mv_stats = cpi->mv_stats;
-}
 #endif
+}
 
 // Updates frame level stats related to global motion
 static AOM_INLINE void update_gm_stats(AV1_COMP *cpi) {
@@ -4355,9 +4352,7 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
 #endif
     update_fb_of_context_type(cpi, ppi->fb_of_context_type);
     update_rc_counts(cpi);
-#if CONFIG_FRAME_PARALLEL_ENCODE
     update_end_of_frame_stats(cpi);
-#endif
   }
 
   if (cpi->oxcf.pass == AOM_RC_THIRD_PASS && cpi->third_pass_ctx) {
