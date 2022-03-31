@@ -5164,12 +5164,14 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
   MACROBLOCKD *const xd = &pbi->dcb.xd;
 
 #if CONFIG_BITSTREAM_DEBUG
-  if (cm->seq_params->order_hint_info.enable_order_hint)
+  if (cm->seq_params->order_hint_info.enable_order_hint) {
     aom_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
                                        cm->show_frame);
-  else
+  } else {
     // This is currently used in RTC encoding. cm->show_frame is always 1.
+    assert(cm->show_frame);
     aom_bitstream_queue_set_frame_read(cm->current_frame.frame_number);
+  }
 #endif
 #if CONFIG_MISMATCH_DEBUG
   mismatch_move_frame_idx_r();
