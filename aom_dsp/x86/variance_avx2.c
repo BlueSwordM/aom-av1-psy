@@ -717,7 +717,7 @@ static INLINE void get_sse_sum_8x8_quad_avx2(const uint8_t *src,
       (__m128i *)sse,
       _mm_shuffle_epi32(_mm256_castsi256_si128(sse_result_3), 0xd8));
 
-  // Add sum registers appropriately to get each 8x8 block sum separetely.
+  // Add sum registers appropriately to get each 8x8 block sum separately.
   sum_final_256bit_avx2(sum_8x16, sum);
 }
 

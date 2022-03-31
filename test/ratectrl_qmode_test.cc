@@ -15,6 +15,7 @@
 
 #include "av1/ratectrl_qmode.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
+
 namespace aom {
 
 void test_gop_display_order(const GopStruct &gop_struct) {

@@ -1757,7 +1757,7 @@ static INLINE int skip_nearest_near_mv_using_refmv_weight(
       AOMMIN(MAX_REF_MV_SEARCH, mbmi_ext->ref_mv_count[ref_frame_type]);
 
   if (ref_mv_count == 0) return 0;
-  // If ref mv list has atleast one nearest candidate do not prune NEARESTMV
+  // If ref mv list has at least one nearest candidate do not prune NEARESTMV
   if (this_mode == NEARESTMV && ref_mv_weight[0] >= REF_CAT_LEVEL) return 0;
 
   // Count number of ref mvs populated from nearest candidates

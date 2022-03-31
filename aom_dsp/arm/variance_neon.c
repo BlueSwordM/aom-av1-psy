@@ -56,7 +56,8 @@ void aom_get16x16var_neon(const uint8_t *a, int a_stride, const uint8_t *b,
   variance_neon_w8(a, a_stride, b, b_stride, 16, 16, sse, sum);
 }
 
-// TODO(any) : Perform variance of two/four 8x8 blocks simlar to that of AVX2.
+// TODO(yunqingwang): Perform variance of two/four 8x8 blocks similar to that of
+// AVX2.
 void aom_get_sse_sum_8x8_quad_neon(const uint8_t *a, int a_stride,
                                    const uint8_t *b, int b_stride,
                                    unsigned int *sse, int *sum) {

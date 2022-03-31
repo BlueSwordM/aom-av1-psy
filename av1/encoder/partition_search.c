@@ -2496,8 +2496,8 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
               pick_sb_modes_nonrd(cpi, tile_data, x, mi_row + y_idx,
                                   mi_col + x_idx, &block_rdc, subsize,
                                   pc_tree->split[i]->none);
-              // TODO(any): The rate here did not include th cost of signaling
-              // PARTITION_NONE token in the sub-blocks.
+              // TODO(yunqingwang): The rate here did not include the cost of
+              // signaling PARTITION_NONE token in the sub-blocks.
               split_rdc.rate += block_rdc.rate;
               split_rdc.dist += block_rdc.dist;
 

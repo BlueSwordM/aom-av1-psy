@@ -466,7 +466,7 @@ static void block_variance(const uint8_t *src, int src_stride,
 
   // This function is called for block sizes >= BLOCK_32x32. As per the design
   // the aom_get_sse_sum_8x8_quad() processes four 8x8 blocks (in a 8x32) per
-  // call. Hence the width and height of the block need to be atleast 8 and 32
+  // call. Hence the width and height of the block need to be at least 8 and 32
   // samples respectively.
   assert(w >= 32);
   assert(h >= 8);
@@ -3091,7 +3091,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   if (!txfm_info->skip_txfm) {
     // For inter modes: copy blk_skip from best_pickmode, which is
     // defined for 8x8 blocks. If palette or intra mode was selected
-    // as best then blk_sip is already copied into the ctx.
+    // as best then blk_skip is already copied into the ctx.
     if (best_pickmode.best_mode >= INTRA_MODE_END)
       memcpy(ctx->blk_skip, best_pickmode.blk_skip,
              sizeof(best_pickmode.blk_skip[0]) * num_8x8_blocks);

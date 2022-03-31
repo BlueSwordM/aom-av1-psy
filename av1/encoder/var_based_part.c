@@ -241,7 +241,7 @@ static AOM_INLINE int all_blks_inside(int x16_idx, int y16_idx, int pixels_wide,
 }
 
 #if CONFIG_AV1_HIGHBITDEPTH
-// TODO(any) : Perform average of four 8x8 blocks simlar to lowbd
+// TODO(yunqingwang): Perform average of four 8x8 blocks similar to lowbd
 static AOM_INLINE void fill_variance_8x8avg_highbd(
     const uint8_t *s, int sp, const uint8_t *d, int dp, int x16_idx,
     int y16_idx, VP16x16 *vst, int pixels_wide, int pixels_high,
