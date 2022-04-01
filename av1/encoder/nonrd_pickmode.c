@@ -325,7 +325,7 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
  *                                        data for the current macroblock
  * \param[in]    frame_mv                 Array that holds MVs for all modes
  *                                        and ref frames
- * \param[in]    ref_frame                Reference freme for which to find
+ * \param[in]    ref_frame                Reference frame for which to find
  *                                        the best New MVs
  * \param[in]    gf_temporal_ref          Flag, indicating temporal reference
  *                                        for GOLDEN frame

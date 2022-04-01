@@ -2633,8 +2633,8 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
           this_mi[0]->partition = PARTITION_NONE;
           this_mi[0]->skip_txfm = 1;
 
-          // TODO(any): functions called below can be optimized with removing
-          // unrelated operations.
+          // TODO(yunqing): functions called below can be optimized with
+          // removing unrelated operations.
           av1_set_offsets_without_segment_id(cpi, &tile_data->tile_info, x,
                                              mi_row, mi_col, this_mi[0]->bsize);
 
@@ -2669,8 +2669,8 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
             this_mi[0]->bsize = orig_bsize;
             this_mi[0]->partition = orig_partition;
 
-            // TODO(any): Store the results and restore here instead of calling
-            // find_predictors() again.
+            // TODO(yunqing): Store the results and restore here instead of
+            // calling find_predictors() again.
             av1_set_offsets_without_segment_id(cpi, &tile_data->tile_info, x,
                                                mi_row, mi_col,
                                                this_mi[0]->bsize);

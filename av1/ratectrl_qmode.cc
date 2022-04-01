@@ -368,7 +368,7 @@ GopEncodeInfo AV1RateControlQMode::GetGopEncodeInfo(
     const double cost_with_propagation =
         tpl_frame_dep_stats_accumulate(frame_dep_stats);
     // TODO(angiebird): This part is still a draft. Check whether this makes
-    // sense mathmatically.
+    // sense mathematically.
     const double frame_importance =
         cost_with_propagation / cost_without_propagation;
     // Imitate the behavior of av1_tpl_get_qstep_ratio()

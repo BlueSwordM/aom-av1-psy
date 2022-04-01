@@ -1122,7 +1122,7 @@ static int rc_pick_q_and_bounds_no_stats_cbr(const AV1_COMP *cpi, int width,
     }
   }
   // Special case: we force the first few frames to use low q such that
-  // the these frames are encoded at a high quality, which provides good
+  // these frames are encoded at a high quality, which provides good
   // references for following frames.
   if (current_frame->frame_type != KEY_FRAME && !cpi->ppi->use_svc &&
       current_frame->frame_number >= 10 && current_frame->frame_number <= 15) {

@@ -25,7 +25,7 @@
  * \param[in]    cpi                      Top-level encoder structure
  * \param[in]    x                        Pointer to structure holding all the
  *                                        data for the current macroblock
- * \param[in]    ref_frame                Reference freme for which to find
+ * \param[in]    ref_frame                Reference frame for which to find
  *                                        ref MVs
  * \param[in]    frame_mv                 Predicted MVs for a block
  * \param[in]    tile_data                Pointer to struct holding adaptive
