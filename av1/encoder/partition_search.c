@@ -2555,10 +2555,11 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
 
         // TODO(yunqing): Add this to PARTITION_HORZ and PARTITION_VERT. Make
         // this work with nonrd_check_partition_merge_mode feature.
-        // Will add this for compound mode as well.
-        if (!frame_is_intra_only(cm) &&
+        // Note: Palette, cfl are not supported.
+        if (!frame_is_intra_only(cm) && !tile_data->allow_update_cdf &&
             cpi->sf.rt_sf.partition_direct_merging &&
-            cm->current_frame.reference_mode == SINGLE_REFERENCE &&
+            mode_costs->partition_cost[pl][PARTITION_NONE] <
+                mode_costs->partition_cost[pl][PARTITION_SPLIT] &&
             (mi_row + bs <= mi_params->mi_rows) &&
             (mi_col + bs <= mi_params->mi_cols)) {
           MB_MODE_INFO **b0 = mib;
@@ -2588,7 +2589,7 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
               (b0[0]->ref_frame[0] != b1[0]->ref_frame[0] ||
                b0[0]->ref_frame[0] != b2[0]->ref_frame[0] ||
                b0[0]->ref_frame[0] != b3[0]->ref_frame[0] ||
-               b0[0]->ref_frame[0] == INTRA_FRAME);
+               b0[0]->ref_frame[0] <= INTRA_FRAME);
           if (different_ref) break;
 
           const int different_mode =
@@ -2597,7 +2598,7 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
           if (different_mode) break;
 
           const int unsupported_mode =
-              (b0[0]->mode == NEWMV || b0[0]->mode == NEARMV);
+              (b0[0]->mode != NEARESTMV && b0[0]->mode != GLOBALMV);
           if (unsupported_mode) break;
 
           const int different_mv =
@@ -2636,8 +2637,9 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
           // TODO(yunqing): functions called below can be optimized with
           // removing unrelated operations.
           av1_set_offsets_without_segment_id(cpi, &tile_data->tile_info, x,
-                                             mi_row, mi_col, this_mi[0]->bsize);
+                                             mi_row, mi_col, bsize);
 
+          const MV_REFERENCE_FRAME ref_frame = this_mi[0]->ref_frame[0];
           int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES];
           struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE];
           int force_skip_low_temp_var = 0;
@@ -2654,14 +2656,13 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
               (x->nonrd_prune_ref_frame_search > 2 &&
                x->color_sensitivity[0] != 2 && x->color_sensitivity[1] != 2);
 
-          find_predictors(cpi, x, this_mi[0]->ref_frame[0], frame_mv, tile_data,
-                          yv12_mb, this_mi[0]->bsize, force_skip_low_temp_var,
-                          skip_pred_mv);
+          find_predictors(cpi, x, ref_frame, frame_mv, tile_data, yv12_mb,
+                          bsize, force_skip_low_temp_var, skip_pred_mv);
 
           int continue_merging = 1;
-          if (frame_mv[NEARESTMV][this_mi[0]->ref_frame[0]].as_mv.row !=
+          if (frame_mv[NEARESTMV][ref_frame].as_mv.row !=
                   b0[0]->mv[0].as_mv.row ||
-              frame_mv[NEARESTMV][this_mi[0]->ref_frame[0]].as_mv.col !=
+              frame_mv[NEARESTMV][ref_frame].as_mv.col !=
                   b0[0]->mv[0].as_mv.col)
             continue_merging = 0;
 
@@ -2674,36 +2675,35 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
             av1_set_offsets_without_segment_id(cpi, &tile_data->tile_info, x,
                                                mi_row, mi_col,
                                                this_mi[0]->bsize);
-            find_predictors(cpi, x, this_mi[0]->ref_frame[0], frame_mv,
-                            tile_data, yv12_mb, this_mi[0]->bsize,
-                            force_skip_low_temp_var, skip_pred_mv);
+            find_predictors(cpi, x, ref_frame, frame_mv, tile_data, yv12_mb,
+                            this_mi[0]->bsize, force_skip_low_temp_var,
+                            skip_pred_mv);
           } else {
-            struct scale_factors *sf =
-                get_ref_scale_factors(cm, this_mi[0]->ref_frame[0]);
+            struct scale_factors *sf = get_ref_scale_factors(cm, ref_frame);
             const int is_scaled = av1_is_scaled(sf);
-            if (cpi->ppi->use_svc || is_scaled) {
-              const int num_planes = av1_num_planes(cm);
-              const int is_compound = has_second_ref(this_mi[0]);
-              set_ref_ptrs(cm, xd, this_mi[0]->ref_frame[0],
-                           this_mi[0]->ref_frame[1]);
-              for (int ref = 0; ref < 1 + is_compound; ++ref) {
-                const YV12_BUFFER_CONFIG *cfg =
-                    get_ref_frame_yv12_buf(cm, this_mi[0]->ref_frame[ref]);
-                av1_setup_pre_planes(xd, ref, cfg, mi_row, mi_col,
-                                     xd->block_ref_scale_factors[ref],
-                                     num_planes);
-              }
+            const int is_y_subpel_mv = (abs(this_mi[0]->mv[0].as_mv.row) % 8) ||
+                                       (abs(this_mi[0]->mv[0].as_mv.col) % 8);
+            const int is_uv_subpel_mv =
+                (abs(this_mi[0]->mv[0].as_mv.row) % 16) ||
+                (abs(this_mi[0]->mv[0].as_mv.col) % 16);
 
-              const int start_plane =
-                  (cpi->sf.rt_sf.reuse_inter_pred_nonrd &&
-                   (!cpi->sf.rt_sf.nonrd_check_partition_merge_mode) &&
-                   (!cpi->sf.rt_sf.nonrd_check_partition_split) &&
-                   cm->seq_params->bit_depth == AOM_BITS_8)
-                      ? 1
-                      : 0;
-              av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL,
-                                            this_mi[0]->bsize, start_plane,
-                                            num_planes - 1);
+            if (cpi->ppi->use_svc || is_scaled || is_y_subpel_mv ||
+                is_uv_subpel_mv) {
+              const int num_planes = av1_num_planes(cm);
+              set_ref_ptrs(cm, xd, ref_frame, this_mi[0]->ref_frame[1]);
+              const YV12_BUFFER_CONFIG *cfg =
+                  get_ref_frame_yv12_buf(cm, ref_frame);
+              av1_setup_pre_planes(xd, 0, cfg, mi_row, mi_col,
+                                   xd->block_ref_scale_factors[0], num_planes);
+
+              if (!cpi->ppi->use_svc && !is_scaled && !is_y_subpel_mv) {
+                assert(is_uv_subpel_mv == 1);
+                av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL,
+                                              bsize, 1, num_planes - 1);
+              } else {
+                av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL,
+                                              bsize, 0, num_planes - 1);
+              }
             }
 
             // Copy out mbmi_ext information.
@@ -2714,17 +2714,19 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
                 av1_ref_frame_type(this_mi[0]->ref_frame));
 
             const BLOCK_SIZE this_subsize =
-                get_partition_subsize(this_mi[0]->bsize, this_mi[0]->partition);
+                get_partition_subsize(bsize, this_mi[0]->partition);
             // Update partition contexts.
             update_ext_partition_context(xd, mi_row, mi_col, this_subsize,
-                                         this_mi[0]->bsize,
-                                         this_mi[0]->partition);
+                                         bsize, this_mi[0]->partition);
 
             const int num_planes = av1_num_planes(cm);
-            av1_reset_entropy_context(xd, this_mi[0]->bsize, num_planes);
+            av1_reset_entropy_context(xd, bsize, num_planes);
 
-            TX_SIZE tx_size =
-                tx_size_from_tx_mode(this_mi[0]->bsize, cm->features.tx_mode);
+            // Note: use x->txfm_search_params.tx_mode_search_type instead of
+            // cm->features.tx_mode here.
+            TX_SIZE tx_size = tx_size_from_tx_mode(
+                bsize, x->txfm_search_params.tx_mode_search_type);
+            if (xd->lossless[this_mi[0]->segment_id]) tx_size = TX_4X4;
             this_mi[0]->tx_size = tx_size;
             memset(this_mi[0]->inter_tx_size, this_mi[0]->tx_size,
                    sizeof(this_mi[0]->inter_tx_size));

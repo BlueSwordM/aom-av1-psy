@@ -1227,7 +1227,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed >= 7) sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     if (speed >= 8) {
       sf->rt_sf.use_nonrd_filter_search = 0;
-      sf->rt_sf.partition_direct_merging = 1;
       sf->rt_sf.tx_size_level_based_on_qstep = 1;
     }
     if (speed >= 9) {
@@ -1622,6 +1621,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.var_part_split_threshold_shift = 8;
     sf->interp_sf.cb_pred_filter_search = 1;
     sf->rt_sf.var_part_based_on_qidx = 2;
+    sf->rt_sf.partition_direct_merging = 1;
   }
   if (speed >= 9) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_3;
