@@ -74,13 +74,6 @@ static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
                     (MvCosts *)aom_calloc(1, sizeof(MvCosts)));
   }
 
-  if (cpi->td.mb.dv_costs) {
-    aom_free(cpi->td.mb.dv_costs);
-    cpi->td.mb.dv_costs = NULL;
-  }
-  CHECK_MEM_ERROR(cm, cpi->td.mb.dv_costs,
-                  (IntraBCMVCosts *)aom_malloc(sizeof(*cpi->td.mb.dv_costs)));
-
   av1_setup_shared_coeff_buffer(cm->seq_params, &cpi->td.shared_coeff_buf,
                                 cm->error);
   av1_setup_sms_tree(cpi, &cpi->td);

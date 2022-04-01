@@ -27,6 +27,7 @@
 #include "av1/common/blockd.h"
 #include "av1/common/entropymode.h"
 #include "av1/common/enums.h"
+#include "av1/common/reconintra.h"
 #include "av1/common/resize.h"
 #include "av1/common/thread_common.h"
 #include "av1/common/timing.h"
@@ -3729,6 +3730,12 @@ static INLINE int is_stat_consumption_stage(const AV1_COMP *const cpi) {
   return (is_stat_consumption_stage_twopass(cpi) ||
           (cpi->oxcf.pass == AOM_RC_ONE_PASS &&
            (cpi->compressor_stage == ENCODE_STAGE) && cpi->ppi->lap_enabled));
+}
+
+// Decide whether 'dv_costs' need to be allocated/stored during the encoding.
+static AOM_INLINE bool av1_need_dv_costs(const AV1_COMP *const cpi) {
+  return !cpi->sf.rt_sf.use_nonrd_pick_mode &&
+         av1_allow_intrabc(&cpi->common) && !is_stat_generation_stage(cpi);
 }
 
 /*!\endcond */

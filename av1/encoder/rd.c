@@ -749,8 +749,12 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
     av1_fill_mode_rates(cm, &x->mode_costs, cm->fc);
 
   // Frame level dv cost update
-  if (!use_nonrd_pick_mode && av1_allow_intrabc(cm) &&
-      !is_stat_generation_stage(cpi)) {
+  if (av1_need_dv_costs(cpi)) {
+    if (cpi->td.mb.dv_costs == NULL) {
+      CHECK_MEM_ERROR(
+          cm, cpi->td.mb.dv_costs,
+          (IntraBCMVCosts *)aom_malloc(sizeof(*cpi->td.mb.dv_costs)));
+    }
     av1_fill_dv_costs(&cm->fc->ndvc, x->dv_costs);
   }
 }
