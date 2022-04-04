@@ -2916,8 +2916,7 @@ void aom_lpf_vertical_14_quad_sse2(unsigned char *s, int pitch,
   transpose_16x8(s, s + 8 * pitch, pitch, t_dst + 8 * 16, 16);
 
   // Loop filtering
-  aom_lpf_horizontal_14_quad_sse2(t_dst + 8 * 16, 16, _blimit0, _limit0,
-                                  _thresh0);
+  aom_lpf_horizontal_14_quad(t_dst + 8 * 16, 16, _blimit0, _limit0, _thresh0);
 
   // Transpose back
   transpose_16x8(t_dst, t_dst + 8 * 16, 16, s - 8, pitch);
@@ -2936,8 +2935,7 @@ void aom_lpf_vertical_8_quad_sse2(uint8_t *s, int pitch,
   transpose_16x8(s - 4, s - 4 + pitch * 8, pitch, t_dst, 16);
 
   // Loop filtering
-  aom_lpf_horizontal_8_quad_sse2(t_dst + 4 * 16, 16, _blimit0, _limit0,
-                                 _thresh0);
+  aom_lpf_horizontal_8_quad(t_dst + 4 * 16, 16, _blimit0, _limit0, _thresh0);
   src[0] = t_dst;
   src[1] = t_dst + 8;
 
@@ -2960,8 +2958,7 @@ void aom_lpf_vertical_6_quad_sse2(uint8_t *s, int pitch,
   transpose_16x8(s - 4, s - 4 + pitch * 8, pitch, t_dst, 16);
 
   // Loop filtering
-  aom_lpf_horizontal_6_quad_sse2(t_dst + 4 * 16, 16, _blimit0, _limit0,
-                                 _thresh0);
+  aom_lpf_horizontal_6_quad(t_dst + 4 * 16, 16, _blimit0, _limit0, _thresh0);
   src[0] = t_dst;
   src[1] = t_dst + 8;
 

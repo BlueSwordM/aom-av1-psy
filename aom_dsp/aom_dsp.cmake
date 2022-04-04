@@ -101,6 +101,7 @@ list(APPEND AOM_DSP_COMMON_INTRIN_AVX2
             "${AOM_ROOT}/aom_dsp/x86/convolve_avx2.h"
             "${AOM_ROOT}/aom_dsp/x86/fft_avx2.c"
             "${AOM_ROOT}/aom_dsp/x86/intrapred_avx2.c"
+            "${AOM_ROOT}/aom_dsp/x86/loopfilter_avx2.c"
             "${AOM_ROOT}/aom_dsp/x86/blend_a64_mask_avx2.c"
             "${AOM_ROOT}/aom_dsp/x86/bitdepth_conversion_avx2.h")
 

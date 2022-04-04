@@ -581,6 +581,18 @@ INSTANTIATE_TEST_SUITE_P(SSE2, Loop8Test9Param_lbd,
 
 #endif  // HAVE_SSE2
 
+#if HAVE_AVX2
+const loop_param_t kLoop8Test6Avx2[] = {
+  make_tuple(&aom_lpf_horizontal_6_quad_avx2, &aom_lpf_horizontal_6_quad_c, 8),
+  make_tuple(&aom_lpf_horizontal_8_quad_avx2, &aom_lpf_horizontal_8_quad_c, 8),
+  make_tuple(&aom_lpf_horizontal_14_quad_avx2, &aom_lpf_horizontal_14_quad_c,
+             8),
+};
+
+INSTANTIATE_TEST_SUITE_P(AVX2, Loop8Test6Param_lbd,
+                         ::testing::ValuesIn(kLoop8Test6Avx2));
+#endif
+
 #if HAVE_SSE2 && CONFIG_AV1_HIGHBITDEPTH
 const hbddual_loop_param_t kHbdLoop8Test9[] = {
   make_tuple(&aom_highbd_lpf_horizontal_4_dual_sse2,
