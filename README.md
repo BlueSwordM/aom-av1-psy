@@ -264,7 +264,7 @@ It is assumed here that you have already downloaded and installed the EMSDK,
 installed and activated at least one toolchain, and setup your environment
 appropriately using the emsdk\_env script.
 
-1. Download [AOMAnalyzer](https://people.xiph.org/~mbebenita/analyzer/).
+1. Build [AOM Analyzer](https://github.com/xiph/aomanalyzer).
 
 2. Configure the build:
 
