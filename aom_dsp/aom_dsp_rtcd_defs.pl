@@ -1364,13 +1364,30 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
         add_proto qw/uint32_t/, "aom_highbd_${bd}_sub_pixel_variance${w}x${h}", "const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, uint32_t *sse";
         add_proto qw/uint32_t/, "aom_highbd_${bd}_sub_pixel_avg_variance${w}x${h}", "const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, uint32_t *sse, const uint8_t *second_pred";
         if ($w != 128 && $h != 128 && $w != 4 && $h != 4) {
-          specialize "aom_highbd_${bd}_variance${w}x${h}", "sse2";
-        }
-        # TODO(rachelbarker): When ext-partition-types is enabled, we currently
-        # don't have vectorized 4x16 highbd variance functions
-        if ($w == 4 && $h == 4) {
-            specialize "aom_highbd_${bd}_variance${w}x${h}", "sse4_1";
+          if ($bd == 10) {
+            specialize "aom_highbd_${bd}_variance${w}x${h}", qw/sse2 neon/;
+          } else {
+            specialize "aom_highbd_${bd}_variance${w}x${h}", "sse2";
           }
+        }
+
+        if ($w == 4 || $h == 4) {
+          # TODO(rachelbarker): When ext-partition-types is enabled, we currently
+          # don't have vectorized 4x16 highbd variance functions
+          if ($w == 4 && $h == 4) {
+            if ($bd == 10) {
+              specialize "aom_highbd_${bd}_variance${w}x${h}", qw/sse4_1 neon/;
+            } else {
+              specialize "aom_highbd_${bd}_variance${w}x${h}", "sse4_1";
+            }
+          } else {
+            if ($bd == 10) {
+              specialize "aom_highbd_${bd}_variance${w}x${h}", qw/neon/;
+            }
+          }
+        }
+
+
         if ($w != 128 && $h != 128 && $w != 4) {
           specialize "aom_highbd_${bd}_sub_pixel_variance${w}x${h}", qw/sse2/;
           specialize "aom_highbd_${bd}_sub_pixel_avg_variance${w}x${h}", qw/sse2/;
@@ -1520,43 +1537,43 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     add_proto qw/unsigned int aom_highbd_12_variance4x4/, "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
 
     add_proto qw/unsigned int aom_highbd_10_variance128x128/, "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-    specialize qw/aom_highbd_10_variance128x128 sse2 avx2/;
+    specialize qw/aom_highbd_10_variance128x128 sse2 avx2 neon/;
 
     add_proto qw/unsigned int aom_highbd_10_variance128x64/, "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-    specialize qw/aom_highbd_10_variance128x64 sse2 avx2/;
+    specialize qw/aom_highbd_10_variance128x64 sse2 avx2 neon/;
 
     add_proto qw/unsigned int aom_highbd_10_variance64x128/, "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-    specialize qw/aom_highbd_10_variance64x128 sse2 avx2/;
+    specialize qw/aom_highbd_10_variance64x128 sse2 avx2 neon/;
 
     add_proto qw/unsigned int aom_highbd_10_variance64x64/, "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-    specialize qw/aom_highbd_10_variance64x64 sse2 avx2/;
+    specialize qw/aom_highbd_10_variance64x64 sse2 avx2 neon/;
 
     add_proto qw/unsigned int aom_highbd_10_variance64x32/, "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-    specialize qw/aom_highbd_10_variance64x32 sse2 avx2/;
+    specialize qw/aom_highbd_10_variance64x32 sse2 avx2 neon/;
 
     add_proto qw/unsigned int aom_highbd_10_variance32x64/, "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-    specialize qw/aom_highbd_10_variance32x64 sse2 avx2/;
+    specialize qw/aom_highbd_10_variance32x64 sse2 avx2 neon/;
 
     add_proto qw/unsigned int aom_highbd_10_variance32x32/, "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-    specialize qw/aom_highbd_10_variance32x32 sse2 avx2/;
+    specialize qw/aom_highbd_10_variance32x32 sse2 avx2 neon/;
 
     add_proto qw/unsigned int aom_highbd_10_variance32x16/, "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-    specialize qw/aom_highbd_10_variance32x16 sse2 avx2/;
+    specialize qw/aom_highbd_10_variance32x16 sse2 avx2 neon/;
 
     add_proto qw/unsigned int aom_highbd_10_variance16x32/, "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-    specialize qw/aom_highbd_10_variance16x32 sse2 avx2/;
+    specialize qw/aom_highbd_10_variance16x32 sse2 avx2 neon/;
 
     add_proto qw/unsigned int aom_highbd_10_variance16x16/, "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-    specialize qw/aom_highbd_10_variance16x16 sse2 avx2/;
+    specialize qw/aom_highbd_10_variance16x16 sse2 avx2 neon/;
 
     add_proto qw/unsigned int aom_highbd_10_variance16x8/, "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-    specialize qw/aom_highbd_10_variance16x8 sse2 avx2/;
+    specialize qw/aom_highbd_10_variance16x8 sse2 avx2 neon/;
 
     add_proto qw/unsigned int aom_highbd_10_variance8x16/, "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-    specialize qw/aom_highbd_10_variance8x16 sse2 avx2/;
+    specialize qw/aom_highbd_10_variance8x16 sse2 avx2 neon/;
 
     add_proto qw/unsigned int aom_highbd_10_variance8x8/, "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-    specialize qw/aom_highbd_10_variance8x8 sse2 avx2/;
+    specialize qw/aom_highbd_10_variance8x8 sse2 avx2 neon/;
 
     add_proto qw/unsigned int aom_highbd_10_variance8x4/, "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
     add_proto qw/unsigned int aom_highbd_10_variance4x8/, "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";

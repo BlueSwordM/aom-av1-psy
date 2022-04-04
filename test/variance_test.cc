@@ -710,9 +710,8 @@ void MainTestClass<VarianceFunctionType>::SpeedTest() {
   }
 
   aom_usec_timer_mark(&timer);
-  const double elapsed_time =
-      static_cast<double>(aom_usec_timer_elapsed(&timer));
-  printf("Variance %dx%d : %7.2fns\n", width(), height(), elapsed_time);
+  const int elapsed_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
+  printf("Variance %dx%d : %d us\n", width(), height(), elapsed_time);
 }
 
 template <typename GetSseSum8x8QuadFuncType>
@@ -2871,6 +2870,39 @@ const SubpelVarianceParams kArraySubpelVariance_neon[] = {
 };
 INSTANTIATE_TEST_SUITE_P(NEON, AvxSubpelVarianceTest,
                          ::testing::ValuesIn(kArraySubpelVariance_neon));
+
+#if CONFIG_AV1_HIGHBITDEPTH
+const VarianceParams kArrayHBDVariance_neon[] = {
+  VarianceParams(7, 7, &aom_highbd_10_variance128x128_neon, 10),
+  VarianceParams(7, 6, &aom_highbd_10_variance128x64_neon, 10),
+  VarianceParams(6, 7, &aom_highbd_10_variance64x128_neon, 10),
+  VarianceParams(6, 6, &aom_highbd_10_variance64x64_neon, 10),
+  VarianceParams(6, 5, &aom_highbd_10_variance64x32_neon, 10),
+  VarianceParams(5, 6, &aom_highbd_10_variance32x64_neon, 10),
+  VarianceParams(5, 5, &aom_highbd_10_variance32x32_neon, 10),
+  VarianceParams(5, 4, &aom_highbd_10_variance32x16_neon, 10),
+  VarianceParams(4, 5, &aom_highbd_10_variance16x32_neon, 10),
+  VarianceParams(4, 4, &aom_highbd_10_variance16x16_neon, 10),
+  VarianceParams(4, 3, &aom_highbd_10_variance16x8_neon, 10),
+  VarianceParams(3, 4, &aom_highbd_10_variance8x16_neon, 10),
+  VarianceParams(3, 3, &aom_highbd_10_variance8x8_neon, 10),
+  VarianceParams(3, 2, &aom_highbd_10_variance8x4_neon, 10),
+  VarianceParams(2, 3, &aom_highbd_10_variance4x8_neon, 10),
+  VarianceParams(2, 2, &aom_highbd_10_variance4x4_neon, 10),
+#if !CONFIG_REALTIME_ONLY
+  VarianceParams(6, 4, &aom_highbd_10_variance64x16_neon, 10),
+  VarianceParams(4, 6, &aom_highbd_10_variance16x64_neon, 10),
+  VarianceParams(5, 3, &aom_highbd_10_variance32x8_neon, 10),
+  VarianceParams(3, 5, &aom_highbd_10_variance8x32_neon, 10),
+  VarianceParams(4, 2, &aom_highbd_10_variance16x4_neon, 10),
+  VarianceParams(2, 4, &aom_highbd_10_variance4x16_neon, 10),
+#endif
+};
+
+INSTANTIATE_TEST_SUITE_P(NEON, AvxHBDVarianceTest,
+                         ::testing::ValuesIn(kArrayHBDVariance_neon));
+#endif  // CONFIG_AV1_HIGHBITDEPTH
+
 #endif  // HAVE_NEON
 
 #if HAVE_MSA
