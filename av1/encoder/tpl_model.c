@@ -143,9 +143,9 @@ static AOM_INLINE void set_tpl_stats_block_size(uint8_t *block_mis_log2,
   assert(*tpl_bsize_1d >= 16);
 }
 
-void av1_setup_tpl_buffers(AV1_PRIMARY *const ppi,
-                           CommonModeInfoParams *const mi_params, int width,
-                           int height, int byte_alignment, int lag_in_frames) {
+void av1_setup_tpl_buffers(AV1_PRIMARY *const ppi, AV1_COMMON *const cm,
+                           int lag_in_frames) {
+  CommonModeInfoParams *const mi_params = &cm->mi_params;
   SequenceHeader *const seq_params = &ppi->seq_params;
   TplParams *const tpl_data = &ppi->tpl_data;
   set_tpl_stats_block_size(&tpl_data->tpl_stats_block_mis_log2,
@@ -184,11 +184,12 @@ void av1_setup_tpl_buffers(AV1_PRIMARY *const ppi,
                        tpl_data->tpl_stats_buffer[frame].height,
                    sizeof(*tpl_data->tpl_stats_buffer[frame].tpl_stats_ptr)));
 
-    if (aom_alloc_frame_buffer(&tpl_data->tpl_rec_pool[frame], width, height,
-                               seq_params->subsampling_x,
-                               seq_params->subsampling_y,
-                               seq_params->use_highbitdepth,
-                               tpl_data->border_in_pixels, byte_alignment))
+    if (aom_alloc_frame_buffer(
+            &tpl_data->tpl_rec_pool[frame], cm->width, cm->height,
+            seq_params->subsampling_x, seq_params->subsampling_y,
+            seq_params->use_highbitdepth, tpl_data->border_in_pixels,
+            cm->features.byte_alignment,
+            ppi->cpi->sf.tpl_sf.use_y_only_rate_distortion))
       aom_internal_error(&ppi->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate frame buffer");
   }
@@ -1675,6 +1676,8 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
                     cm->features.allow_high_precision_mv, cpi->td.mb.mv_costs);
 
   const int gop_length = get_gop_length(gf_group);
+  const int num_planes =
+      cpi->sf.tpl_sf.use_y_only_rate_distortion ? 1 : av1_num_planes(cm);
   // Backward propagation from tpl_group_frames to 1.
   for (int frame_idx = cpi->gf_frame_index; frame_idx < tpl_gf_group_frames;
        ++frame_idx) {
@@ -1700,7 +1703,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
     av1_tpl_store_txfm_stats(tpl_data, &cpi->td.tpl_txfm_stats, frame_idx);
 
     aom_extend_frame_borders(tpl_data->tpl_frame[frame_idx].rec_picture,
-                             av1_num_planes(cm));
+                             num_planes);
   }
 
   for (int frame_idx = tpl_gf_group_frames - 1;
@@ -1810,8 +1813,7 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
   const int tpl_idx = cpi->gf_frame_index;
 
   if (tpl_idx >= MAX_TPL_FRAME_IDX) return;
-  TplDepFrame *tpl_frame = &cpi->ppi->tpl_data.tpl_frame[tpl_idx];
-  if (!tpl_frame->is_valid) return;
+  if (!is_frame_tpl_valid(cpi, tpl_idx)) return;
   if (!is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) return;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return;
 

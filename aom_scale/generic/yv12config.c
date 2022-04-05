@@ -122,11 +122,14 @@ static int realloc_frame_buffer_aligned(
     ybf->y_height = aligned_height;
     ybf->y_stride = y_stride;
 
-    ybf->uv_crop_width = (width + ss_x) >> ss_x;
-    ybf->uv_crop_height = (height + ss_y) >> ss_y;
-    ybf->uv_width = uv_width;
-    ybf->uv_height = uv_height;
-    ybf->uv_stride = uv_stride;
+    ybf->monochrome = (uv_width == 0 || uv_height == 0) ? 1 : 0;
+    if (!ybf->monochrome) {
+      ybf->uv_crop_width = (width + ss_x) >> ss_x;
+      ybf->uv_crop_height = (height + ss_y) >> ss_y;
+      ybf->uv_width = uv_width;
+      ybf->uv_height = uv_height;
+      ybf->uv_stride = uv_stride;
+    }
 
     ybf->border = border;
     ybf->frame_size = (size_t)frame_size;
@@ -144,13 +147,16 @@ static int realloc_frame_buffer_aligned(
 
     ybf->y_buffer = (uint8_t *)aom_align_addr(
         buf + (border * y_stride) + border, aom_byte_align);
-    ybf->u_buffer = (uint8_t *)aom_align_addr(
-        buf + yplane_size + (uv_border_h * uv_stride) + uv_border_w,
-        aom_byte_align);
-    ybf->v_buffer =
-        (uint8_t *)aom_align_addr(buf + yplane_size + uvplane_size +
-                                      (uv_border_h * uv_stride) + uv_border_w,
-                                  aom_byte_align);
+    ybf->u_buffer = ybf->v_buffer = NULL;
+    if (!ybf->monochrome) {
+      ybf->u_buffer = (uint8_t *)aom_align_addr(
+          buf + yplane_size + (uv_border_h * uv_stride) + uv_border_w,
+          aom_byte_align);
+      ybf->v_buffer =
+          (uint8_t *)aom_align_addr(buf + yplane_size + uvplane_size +
+                                        (uv_border_h * uv_stride) + uv_border_w,
+                                    aom_byte_align);
+    }
 
     ybf->use_external_reference_buffers = 0;
 
@@ -172,13 +178,11 @@ static int realloc_frame_buffer_aligned(
   return AOM_CODEC_MEM_ERROR;
 }
 
-static int calc_stride_and_planesize(const int ss_x, const int ss_y,
-                                     const int aligned_width,
-                                     const int aligned_height, const int border,
-                                     const int byte_alignment, int *y_stride,
-                                     int *uv_stride, uint64_t *yplane_size,
-                                     uint64_t *uvplane_size,
-                                     const int uv_height) {
+static int calc_stride_and_planesize(
+    const int ss_x, const int ss_y, const int aligned_width,
+    const int aligned_height, const int border, const int byte_alignment,
+    int is_monochrome, int *y_stride, int *uv_stride, uint64_t *yplane_size,
+    uint64_t *uvplane_size, const int uv_height) {
   /* Only support allocating buffers that have a border that's a multiple
    * of 32. The border restriction is required to get 16-byte alignment of
    * the start of the chroma rows without introducing an arbitrary gap
@@ -189,9 +193,14 @@ static int calc_stride_and_planesize(const int ss_x, const int ss_y,
   *yplane_size =
       (aligned_height + 2 * border) * (uint64_t)(*y_stride) + byte_alignment;
 
-  *uv_stride = *y_stride >> ss_x;
-  *uvplane_size = (uv_height + 2 * (border >> ss_y)) * (uint64_t)(*uv_stride) +
-                  byte_alignment;
+  *uv_stride = *uvplane_size = 0;
+  if (is_monochrome == 0) {
+    *uv_stride = *y_stride >> ss_x;
+    *uvplane_size =
+        (uv_height + 2 * (border >> ss_y)) * (uint64_t)(*uv_stride) +
+        byte_alignment;
+  }
+
   return 0;
 }
 
@@ -200,7 +209,7 @@ int aom_realloc_frame_buffer(YV12_BUFFER_CONFIG *ybf, int width, int height,
                              int border, int byte_alignment,
                              aom_codec_frame_buffer_t *fb,
                              aom_get_frame_buffer_cb_fn_t cb, void *cb_priv,
-                             int alloc_y_buffer_8bit) {
+                             int alloc_y_buffer_8bit, int is_monochrome) {
 #if CONFIG_SIZE_LIMIT
   if (width > DECODE_WIDTH_LIMIT || height > DECODE_HEIGHT_LIMIT)
     return AOM_CODEC_MEM_ERROR;
@@ -213,14 +222,15 @@ int aom_realloc_frame_buffer(YV12_BUFFER_CONFIG *ybf, int width, int height,
     uint64_t uvplane_size = 0;
     const int aligned_width = (width + 7) & ~7;
     const int aligned_height = (height + 7) & ~7;
-    const int uv_width = aligned_width >> ss_x;
-    const int uv_height = aligned_height >> ss_y;
-    const int uv_border_w = border >> ss_x;
-    const int uv_border_h = border >> ss_y;
+    const int uv_width = is_monochrome == 0 ? aligned_width >> ss_x : 0;
+    const int uv_height = is_monochrome == 0 ? aligned_height >> ss_y : 0;
+    const int uv_border_w = is_monochrome == 0 ? border >> ss_x : 0;
+    const int uv_border_h = is_monochrome == 0 ? border >> ss_y : 0;
 
     int error = calc_stride_and_planesize(
         ss_x, ss_y, aligned_width, aligned_height, border, byte_alignment,
-        &y_stride, &uv_stride, &yplane_size, &uvplane_size, uv_height);
+        is_monochrome, &y_stride, &uv_stride, &yplane_size, &uvplane_size,
+        uv_height);
     if (error) return error;
     return realloc_frame_buffer_aligned(
         ybf, width, height, ss_x, ss_y, use_highbitdepth, border,
@@ -233,12 +243,12 @@ int aom_realloc_frame_buffer(YV12_BUFFER_CONFIG *ybf, int width, int height,
 
 int aom_alloc_frame_buffer(YV12_BUFFER_CONFIG *ybf, int width, int height,
                            int ss_x, int ss_y, int use_highbitdepth, int border,
-                           int byte_alignment) {
+                           int byte_alignment, int is_monochrome) {
   if (ybf) {
     aom_free_frame_buffer(ybf);
     return aom_realloc_frame_buffer(ybf, width, height, ss_x, ss_y,
                                     use_highbitdepth, border, byte_alignment,
-                                    NULL, NULL, NULL, 0);
+                                    NULL, NULL, NULL, 0, is_monochrome);
   }
   return AOM_CODEC_MEM_ERROR;
 }

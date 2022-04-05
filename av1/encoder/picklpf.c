@@ -298,7 +298,7 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
             &cpi->last_frame_uf, cm->width, cm->height,
             seq_params->subsampling_x, seq_params->subsampling_y,
             seq_params->use_highbitdepth, cpi->oxcf.border_in_pixels,
-            cm->features.byte_alignment, NULL, NULL, NULL, 0))
+            cm->features.byte_alignment, NULL, NULL, NULL, 0, 0))
       aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate last frame buffer");
 

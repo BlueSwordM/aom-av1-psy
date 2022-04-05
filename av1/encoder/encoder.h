@@ -3941,6 +3941,12 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_PRIMARY *ppi);
 #define MAX_GFUBOOST_FACTOR 10.0
 #define MIN_GFUBOOST_FACTOR 4.0
 
+static INLINE int is_frame_tpl_valid(const AV1_COMP *cpi, uint8_t gf_index) {
+  return cpi->oxcf.gf_cfg.lag_in_frames > 1 &&
+         cpi->oxcf.algo_cfg.enable_tpl_model &&
+         cpi->ppi->tpl_data.tpl_frame[gf_index].is_valid;
+}
+
 static INLINE int is_frame_tpl_eligible(const GF_GROUP *const gf_group,
                                         uint8_t index) {
   const FRAME_UPDATE_TYPE update_type = gf_group->update_type[index];

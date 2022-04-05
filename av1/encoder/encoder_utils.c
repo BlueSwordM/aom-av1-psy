@@ -541,7 +541,7 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
 
 #if !CONFIG_REALTIME_ONLY
   GF_GROUP *gf_group = &cpi->ppi->gf_group;
-  if (cpi->oxcf.algo_cfg.enable_tpl_model &&
+  if (is_frame_tpl_valid(cpi, cpi->gf_frame_index) &&
       av1_tpl_stats_ready(&cpi->ppi->tpl_data, cpi->gf_frame_index)) {
     process_tpl_stats_frame(cpi);
     av1_tpl_rdmult_setup(cpi);
@@ -554,7 +554,7 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
 
 #if !CONFIG_REALTIME_ONLY
   if (cpi->oxcf.rc_cfg.mode == AOM_Q &&
-      cpi->ppi->tpl_data.tpl_frame[cpi->gf_frame_index].is_valid &&
+      is_frame_tpl_valid(cpi, cpi->gf_frame_index) &&
       !is_lossless_requested(&cpi->oxcf.rc_cfg)) {
     const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
     const int tpl_q = av1_tpl_get_q_index(
@@ -725,7 +725,7 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
                   &new_fb->buf, cm->width, cm->height,
                   cm->seq_params->subsampling_x, cm->seq_params->subsampling_y,
                   cm->seq_params->use_highbitdepth, AOM_BORDER_IN_PIXELS,
-                  cm->features.byte_alignment, NULL, NULL, NULL, 0)) {
+                  cm->features.byte_alignment, NULL, NULL, NULL, 0, 0)) {
             if (force_scaling) {
               // Release the reference acquired in the get_free_fb() call above.
               --new_fb->ref_count;

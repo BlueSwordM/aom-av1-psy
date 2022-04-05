@@ -590,7 +590,7 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
       }
 
       // TODO(jingning): revisit this function.
-      if (cpi->oxcf.algo_cfg.enable_tpl_model && 0) {
+      if (is_frame_tpl_valid(cpi, cpi->gf_frame_index) && 0) {
         adjust_rdmult_tpl_model(cpi, x, mi_row, mi_col);
       }
     }
