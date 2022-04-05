@@ -3509,7 +3509,6 @@ static void estimate_noise(FIRSTPASS_STATS *first_stats,
                            FIRSTPASS_STATS *last_stats) {
   FIRSTPASS_STATS *this_stats, *next_stats;
   double C1, C2, C3, noise;
-  int count = 0;
   for (this_stats = first_stats + 2; this_stats < last_stats; this_stats++) {
     this_stats->noise_var = 0.0;
     // flashes tend to have high correlation of innovations, so ignore them.
@@ -3531,7 +3530,6 @@ static void estimate_noise(FIRSTPASS_STATS *first_stats,
     noise = (this_stats - 1)->intra_error - C1 * C2 / C3;
     noise = AOMMAX(noise, 0.01);
     this_stats->noise_var = noise;
-    count++;
   }
 
   // Copy noise from the neighbor if the noise value is not trustworthy
