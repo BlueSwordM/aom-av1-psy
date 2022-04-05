@@ -1015,7 +1015,6 @@ void av1_get_ref_frames(RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
   qsort(buffer_map, n_bufs, sizeof(buffer_map[0]), compare_map_idx_pair_asc);
 
   int n_min_level_refs = 0;
-  int n_past_high_level = 0;
   int closest_past_ref = -1;
   int golden_idx = -1;
   int altref_idx = -1;
@@ -1041,11 +1040,6 @@ void av1_get_ref_frames(RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
       // Map the BWDREF_FRAME if this is the show_existing_frame.
       add_ref_to_slot(&buffer_map[i], remapped_ref_idx, BWDREF_FRAME);
     }
-
-    // Keep track of the number of past frames that are not at the lowest level.
-    if (buffer_map[i].disp_order < cur_frame_disp &&
-        buffer_map[i].pyr_level != min_level)
-      n_past_high_level++;
 
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
     // During parallel encodes of lower layer frames, exclude the first frame

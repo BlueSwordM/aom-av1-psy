@@ -2891,7 +2891,6 @@ static int define_kf_interval(AV1_COMP *cpi,
   int i = 0, j;
   int frames_to_key = search_start_idx;
   int frames_since_key = rc->frames_since_key + 1;
-  int num_stats_used_for_kf_boost = 1;
   int scenecut_detected = 0;
 
   int num_frames_to_next_key = detect_app_forced_key(cpi);
@@ -2918,9 +2917,6 @@ static int define_kf_interval(AV1_COMP *cpi,
       av1_firstpass_info_future_count(firstpass_info, 0);
   while (frames_to_key < future_stats_count &&
          frames_to_key < num_frames_to_detect_scenecut) {
-    // Accumulate total number of stats available till next key frame
-    num_stats_used_for_kf_boost++;
-
     // Provided that we are not at the end of the file...
     if ((cpi->ppi->p_rc.enable_scenecut_detection > 0) && kf_cfg->auto_key &&
         frames_to_key + 1 < future_stats_count) {
