@@ -360,7 +360,8 @@ if(CONFIG_AV1_ENCODER AND ENABLE_TESTS)
               "${AOM_ROOT}/test/y4m_video_source.h"
               "${AOM_ROOT}/test/yuv_video_source.h")
 
-  list(APPEND AV1_RC_QMODE_SOURCES "${AOM_ROOT}/test/ratectrl_qmode_test.cc")
+  list(APPEND AV1_RC_QMODE_SOURCES "${AOM_ROOT}/test/mock_ratectrl_qmode.h"
+              "${AOM_ROOT}/test/ratectrl_qmode_test.cc")
 endif()
 
 if(ENABLE_TESTS)
