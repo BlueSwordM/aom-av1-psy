@@ -783,7 +783,9 @@ int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
     return orig_rdmult;
   }
 
+#ifndef NDEBUG
   int mi_count = 0;
+#endif
   const int mi_col_sr =
       coded_to_superres_mi(mi_col, cm->superres_scale_denominator);
   const int mi_col_end_sr =
@@ -803,7 +805,9 @@ int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
                  this_stats->mc_dep_dist);
       intra_cost += this_stats->recrf_dist << RDDIV_BITS;
       mc_dep_cost += (this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta;
+#ifndef NDEBUG
       mi_count++;
+#endif
     }
   }
   assert(mi_count <= MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB);
@@ -990,7 +994,9 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
   int tpl_stride = tpl_frame->stride;
   if (!tpl_frame->is_valid) return base_qindex;
 
+#ifndef NDEBUG
   int mi_count = 0;
+#endif
   const int mi_col_sr =
       coded_to_superres_mi(mi_col, cm->superres_scale_denominator);
   const int mi_col_end_sr =
@@ -1016,7 +1022,9 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
       srcrf_dist += (double)(this_stats->srcrf_dist << RDDIV_BITS);
       srcrf_sse += (double)(this_stats->srcrf_sse << RDDIV_BITS);
       srcrf_rate += (double)this_stats->srcrf_rate;
+#ifndef NDEBUG
       mi_count++;
+#endif
       cbcmp_base += cbcmp;
     }
   }
