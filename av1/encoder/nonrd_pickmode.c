@@ -2057,6 +2057,7 @@ static void estimate_intra_mode(
       cm->seq_params->bit_depth);
   int64_t inter_mode_thresh = RDCOST(x->rdmult, intra_cost_penalty, 0);
   int perform_intra_pred = cpi->sf.rt_sf.check_intra_pred_nonrd;
+  int force_intra_check = 0;
   // For spatial enhancemanent layer: turn off intra prediction if the
   // previous spatial layer as golden ref is not chosen as best reference.
   // only do this for temporal enhancement layer and on non-key frames.
@@ -2091,6 +2092,9 @@ static void estimate_intra_mode(
       inter_mode_thresh = RDCOST(x->rdmult, intra_cost_penalty, 0);
       do_early_exit_rdthresh = 0;
     }
+    if (x->source_variance < (spatial_var_thresh >> 1) &&
+        x->content_state_sb.source_sad == kHighSad)
+      force_intra_check = 1;
     // For big blocks worth checking intra (since only DC will be checked),
     // even if best_early_term is set.
     if (bsize >= BLOCK_32X32) best_early_term = 0;
@@ -2106,7 +2110,7 @@ static void estimate_intra_mode(
       perform_intra_pred = 0;
   }
 
-  if (!(best_rdc->rdcost == INT64_MAX ||
+  if (!(best_rdc->rdcost == INT64_MAX || force_intra_check ||
         (perform_intra_pred && !best_early_term &&
          best_rdc->rdcost > inter_mode_thresh &&
          bsize <= cpi->sf.part_sf.max_intra_bsize))) {
