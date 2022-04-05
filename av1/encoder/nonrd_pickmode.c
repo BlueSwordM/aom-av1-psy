@@ -901,8 +901,7 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 #if CONFIG_AV1_HIGHBITDEPTH
   if (use_hbd) {
     aom_highbd_subtract_block(bh, bw, p->src_diff, bw, p->src.buf,
-                              p->src.stride, pd->dst.buf, pd->dst.stride,
-                              x->e_mbd.bd);
+                              p->src.stride, pd->dst.buf, pd->dst.stride);
   } else {
     aom_subtract_block(bh, bw, p->src_diff, bw, p->src.buf, p->src.stride,
                        pd->dst.buf, pd->dst.stride);

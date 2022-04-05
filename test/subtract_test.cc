@@ -113,7 +113,7 @@ INSTANTIATE_TEST_SUITE_P(MSA, AV1SubtractBlockTest,
 typedef void (*HBDSubtractFunc)(int rows, int cols, int16_t *diff_ptr,
                                 ptrdiff_t diff_stride, const uint8_t *src_ptr,
                                 ptrdiff_t src_stride, const uint8_t *pred_ptr,
-                                ptrdiff_t pred_stride, int bd);
+                                ptrdiff_t pred_stride);
 
 using std::get;
 using std::make_tuple;
@@ -183,7 +183,7 @@ void AV1HBDSubtractBlockTest::CheckResult() {
     }
 
     func_(block_height_, block_width_, diff_, block_width_, src_, block_width_,
-          pred_, block_width_, bit_depth_);
+          pred_, block_width_);
 
     for (int r = 0; r < block_height_; ++r) {
       for (int c = 0; c < block_width_; ++c) {
@@ -216,7 +216,7 @@ void AV1HBDSubtractBlockTest::RunForSpeed() {
   aom_usec_timer_start(&ref_timer);
   for (i = 0; i < test_num; ++i) {
     ref_func_(block_height_, block_width_, diff_, block_width_, src_,
-              block_width_, pred_, block_width_, bit_depth_);
+              block_width_, pred_, block_width_);
   }
   aom_usec_timer_mark(&ref_timer);
   const int64_t ref_elapsed_time = aom_usec_timer_elapsed(&ref_timer);
@@ -230,7 +230,7 @@ void AV1HBDSubtractBlockTest::RunForSpeed() {
   aom_usec_timer_start(&timer);
   for (i = 0; i < test_num; ++i) {
     func_(block_height_, block_width_, diff_, block_width_, src_, block_width_,
-          pred_, block_width_, bit_depth_);
+          pred_, block_width_);
   }
   aom_usec_timer_mark(&timer);
   const int64_t elapsed_time = aom_usec_timer_elapsed(&timer);

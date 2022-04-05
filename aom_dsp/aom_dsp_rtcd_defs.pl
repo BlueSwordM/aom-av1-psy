@@ -648,7 +648,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_get_blk_sse_sum sse2 avx2/;
 
   if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
-    add_proto qw/void aom_highbd_subtract_block/, "int rows, int cols, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint8_t *src_ptr, ptrdiff_t src_stride, const uint8_t *pred_ptr, ptrdiff_t pred_stride, int bd";
+    add_proto qw/void aom_highbd_subtract_block/, "int rows, int cols, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint8_t *src_ptr, ptrdiff_t src_stride, const uint8_t *pred_ptr, ptrdiff_t pred_stride";
     specialize qw/aom_highbd_subtract_block sse2 neon/;
 
     add_proto qw/int64_t/, "aom_highbd_sse", "const uint8_t *a8, int a_stride, const uint8_t *b8,int b_stride, int width, int height";

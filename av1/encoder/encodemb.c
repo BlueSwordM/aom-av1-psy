@@ -40,14 +40,14 @@ void av1_subtract_block(BitDepthInfo bd_info, int rows, int cols, int16_t *diff,
                         ptrdiff_t src_stride, const uint8_t *pred8,
                         ptrdiff_t pred_stride) {
   assert(rows >= 4 && cols >= 4);
+  (void)bd_info;
 #if CONFIG_AV1_HIGHBITDEPTH
   if (bd_info.use_highbitdepth_buf) {
     aom_highbd_subtract_block(rows, cols, diff, diff_stride, src8, src_stride,
-                              pred8, pred_stride, bd_info.bit_depth);
+                              pred8, pred_stride);
     return;
   }
 #endif
-  (void)bd_info;
   aom_subtract_block(rows, cols, diff, diff_stride, src8, src_stride, pred8,
                      pred_stride);
 }
