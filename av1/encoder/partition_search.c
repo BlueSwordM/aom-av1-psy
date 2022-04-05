@@ -4065,11 +4065,10 @@ static void write_partition_tree(AV1_COMP *const cpi,
   // Write partition type with BFS order.
   const PC_TREE *tree_node_queue[NUM_NODES] = { NULL };
   int q_idx = 0;
-  int depth = 0;
   int last_idx = 1;
   int num_nodes = 1;
 
-  // First traversal to get number of leaf nodes and depth.
+  // First traversal to get number of leaf nodes.
   tree_node_queue[q_idx] = pc_tree;
   while (num_nodes > 0) {
     const PC_TREE *node = tree_node_queue[q_idx];
@@ -4078,7 +4077,6 @@ static void write_partition_tree(AV1_COMP *const cpi,
         tree_node_queue[last_idx] = node->split[i];
         ++last_idx;
       }
-      ++depth;
       num_nodes += 4;
     }
     --num_nodes;
@@ -4089,7 +4087,6 @@ static void write_partition_tree(AV1_COMP *const cpi,
 
   // Write partitions for each node.
   q_idx = 0;
-  depth = 0;
   last_idx = 1;
   num_nodes = 1;
   tree_node_queue[q_idx] = pc_tree;
@@ -4101,7 +4098,6 @@ static void write_partition_tree(AV1_COMP *const cpi,
         tree_node_queue[last_idx] = node->split[i];
         ++last_idx;
       }
-      ++depth;
       num_nodes += 4;
     }
     --num_nodes;
@@ -4129,11 +4125,10 @@ static void verify_write_partition_tree(const AV1_COMP *const cpi,
   // Write partition type with BFS order.
   const PC_TREE *tree_node_queue[NUM_NODES] = { NULL };
   int q_idx = 0;
-  int depth = 0;
   int last_idx = 1;
   int num_nodes = 1;
 
-  // First traversal to get number of leaf nodes and depth.
+  // First traversal to get number of leaf nodes.
   tree_node_queue[q_idx] = pc_tree;
   while (num_nodes > 0) {
     const PC_TREE *node = tree_node_queue[q_idx];
@@ -4142,7 +4137,6 @@ static void verify_write_partition_tree(const AV1_COMP *const cpi,
         tree_node_queue[last_idx] = node->split[i];
         ++last_idx;
       }
-      ++depth;
       num_nodes += 4;
     }
     --num_nodes;
@@ -4153,7 +4147,6 @@ static void verify_write_partition_tree(const AV1_COMP *const cpi,
 
   // Write partitions for each node.
   q_idx = 0;
-  depth = 0;
   last_idx = 1;
   num_nodes = 1;
   tree_node_queue[q_idx] = pc_tree;
@@ -4166,7 +4159,6 @@ static void verify_write_partition_tree(const AV1_COMP *const cpi,
           tree_node_queue[last_idx] = node->split[i];
           ++last_idx;
         }
-        ++depth;
         num_nodes += 4;
       }
     }

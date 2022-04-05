@@ -242,7 +242,6 @@ static BLOCK_SIZE pick_block_size(AV1_COMP *cpi,
   const int use_hbd = cpi->source->flags & YV12_FLAG_HIGHBITDEPTH;
 
   double vote = 0.0;
-  int sb_count = 0;
   for (int mi_row = 0; mi_row < cpi->frame_info.mi_rows; mi_row += mb_step) {
     for (int mi_col = 0; mi_col < cpi->frame_info.mi_cols; mi_col += mb_step) {
       const uint8_t *mb_buffer =
@@ -293,7 +292,6 @@ static BLOCK_SIZE pick_block_size(AV1_COMP *cpi,
       } else {
         vote += 1.0;
       }
-      ++sb_count;
     }
   }
 
