@@ -565,7 +565,7 @@ void av1_init_cdef_worker(AV1_COMP *cpi) {
 
   av1_alloc_cdef_buffers(&cpi->common, &p_mt_info->cdef_worker,
                          &cpi->mt_info.cdef_sync, num_cdef_workers, 1);
-  cpi->mt_info.cdef_worker = &p_mt_info->cdef_worker[0];
+  cpi->mt_info.cdef_worker = p_mt_info->cdef_worker;
 }
 
 #if !CONFIG_REALTIME_ONLY
