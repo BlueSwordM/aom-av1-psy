@@ -55,8 +55,12 @@ enum class EncodeRefMode {
 struct GopFrame {
   // basic info
   bool is_valid;
-  int order_idx;         // Index in display order
-  int coding_idx;        // Index in coding order
+  int order_idx;   // Index in display order in a GOP
+  int coding_idx;  // Index in coding order in a GOP
+
+  int global_order_idx;   // Index in display order in the whole video chunk
+  int global_coding_idx;  // Index in coding order in the whole video chunk
+
   bool is_key_frame;     // If this is key frame, reset reference buffers are
                          // required
   bool is_arf_frame;     // Is this a forward frame, a frame with order_idx
@@ -71,6 +75,12 @@ struct GopFrame {
   int update_ref_idx;  // The reference index that this frame should be updated
                        // to. update_ref_idx == -1 when this frame will not
                        // serve as a reference frame
+  std::vector<int>
+      ref_idx_list;     // The indices of reference frames.
+                        // The size should be less or equal to max_ref_frames.
+  int layer_depth;      // Layer depth in the GOP structure
+  int primary_ref_idx;  // We will use the primary reference to update current
+                        // frame's initial probability model
 };
 
 struct GopStruct {
