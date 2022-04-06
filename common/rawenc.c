@@ -36,27 +36,29 @@ static void write_greyscale(const aom_image_t *img, int n, WRITER writer_func,
                             void *file_or_md5) {
   // Batch 8 writes for low bit-depth, 4 writes for high bit-depth.
   int bytes_per_sample;
-  uint8_t batched[BATCH_SIZE];
+  union {
+    uint8_t u8[BATCH_SIZE];
+    uint16_t u16[BATCH_SIZE / 2];
+  } batched;
   if (img->fmt & AOM_IMG_FMT_HIGHBITDEPTH) {
     bytes_per_sample = 2;
-    for (int i = 0; i < BATCH_SIZE; i += 2) {
-      batched[i] = 0;
-      batched[i + 1] = 1 << (img->bit_depth - 9);
+    for (int i = 0; i < BATCH_SIZE / 2; ++i) {
+      batched.u16[i] = 1 << (img->bit_depth - 1);
     }
   } else {
     bytes_per_sample = 1;
     for (int i = 0; i < BATCH_SIZE; ++i) {
-      batched[i] = 0x80;
+      batched.u8[i] = 0x80;
     }
   }
   const int samples_per_batch = BATCH_SIZE / bytes_per_sample;
   const int num_batched_writes = n / samples_per_batch;
   for (int i = 0; i < num_batched_writes; ++i) {
-    writer_func(file_or_md5, batched, sizeof(uint8_t), BATCH_SIZE);
+    writer_func(file_or_md5, batched.u8, sizeof(uint8_t), BATCH_SIZE);
   }
   const int remaining = n % samples_per_batch;
   for (int i = 0; i < remaining; ++i) {
-    writer_func(file_or_md5, batched, sizeof(uint8_t), bytes_per_sample);
+    writer_func(file_or_md5, batched.u8, sizeof(uint8_t), bytes_per_sample);
   }
 }
 
