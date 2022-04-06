@@ -3312,6 +3312,13 @@ typedef struct AV1_COMP {
   VBR_RATECTRL_INFO vbr_rc_info;
 #endif
 
+#if CONFIG_RATECTRL_LOG
+  /*!
+   * Structure stores information of rate control decisions.
+   */
+  RATECTRL_LOG rc_log;
+#endif  // CONFIG_RATECTRL_LOG
+
   /*!
    * Frame level twopass status and control data
    */

@@ -1502,12 +1502,16 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     gf_group->update_type[gf_index] = LF_UPDATE;
 
 #if CONFIG_BITRATE_ACCURACY && CONFIG_THREE_PASS
-    // TODO(angiebird): Find a more adaptive method to decide pframe_qindex
-    // override the pframe_qindex in the second pass when bitrate accuracy is
-    // on. We found that setting this pframe_qindex make the tpl stats more
-    // stable.
     if (cpi->oxcf.pass == AOM_RC_SECOND_PASS) {
-      *pframe_qindex = 128;
+      if (cpi->oxcf.rc_cfg.mode == AOM_Q) {
+        *pframe_qindex = cpi->oxcf.rc_cfg.cq_level;
+      } else if (cpi->oxcf.rc_cfg.mode == AOM_VBR) {
+        // TODO(angiebird): Find a more adaptive method to decide pframe_qindex
+        // override the pframe_qindex in the second pass when bitrate accuracy
+        // is on. We found that setting this pframe_qindex make the tpl stats
+        // more stable.
+        *pframe_qindex = 128;
+      }
     }
 #endif  // CONFIG_BITRATE_ACCURACY && CONFIG_THREE_PASS
     gf_group->q_val[gf_index] = *pframe_qindex;
@@ -1698,6 +1702,14 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
     }
     av1_tpl_txfm_stats_update_abs_coeff_mean(&cpi->td.tpl_txfm_stats);
     av1_tpl_store_txfm_stats(tpl_data, &cpi->td.tpl_txfm_stats, frame_idx);
+#if CONFIG_RATECTRL_LOG && CONFIG_THREE_PASS && CONFIG_BITRATE_ACCURACY
+    if (cpi->oxcf.pass == AOM_RC_THIRD_PASS) {
+      int frame_coding_idx =
+          av1_vbr_rc_frame_coding_idx(&cpi->vbr_rc_info, frame_idx);
+      rc_log_frame_stats(&cpi->rc_log, frame_coding_idx,
+                         &cpi->td.tpl_txfm_stats);
+    }
+#endif  // CONFIG_RATECTRL_LOG
 
     aom_extend_frame_borders(tpl_data->tpl_frame[frame_idx].rec_picture,
                              av1_num_planes(cm));
@@ -2059,22 +2071,12 @@ void av1_vbr_rc_append_tpl_info(VBR_RATECTRL_INFO *vbr_rc_info,
         tpl_info->txfm_stats_list[i];
     vbr_rc_info->qstep_ratio_list[gop_start_idx + i] =
         tpl_info->qstep_ratio_ls[i];
-    // TODO(angiebird): This is a temporary solution. We currently apply same
-    // scale factor for each update_type, therefore setting everything to
-    // ARF_UPDATE is temporarily okay. Properly set the update_type later.
-    vbr_rc_info->update_type_list[gop_start_idx + i] = ARF_UPDATE;
+    vbr_rc_info->update_type_list[gop_start_idx + i] =
+        tpl_info->update_type_list[i];
   }
   vbr_rc_info->total_frame_count += tpl_info->gf_length;
   vbr_rc_info->gop_count++;
 }
-
-#if CONFIG_RATECTRL_LOG
-void av1_rc_frame_log(int gf_frame_index, FRAME_UPDATE_TYPE update_type, int q,
-                      double qstep_ratio) {
-  printf("gf_frame_index %d update_type %d q %d qstep_ratio %f\n",
-         gf_frame_index, update_type, q, qstep_ratio);
-}
-#endif  //  CONFIG_RATECTRL_LOG
 #endif  // CONFIG_THREE_PASS
 
 void av1_vbr_rc_set_gop_bit_budget(VBR_RATECTRL_INFO *vbr_rc_info,
@@ -2085,10 +2087,10 @@ void av1_vbr_rc_set_gop_bit_budget(VBR_RATECTRL_INFO *vbr_rc_info,
                                 vbr_rc_info->show_frame_count;
 }
 
-static INLINE void compute_q_indices(int base_q_index, int frame_count,
-                                     const double *qstep_ratio_list,
-                                     aom_bit_depth_t bit_depth,
-                                     int *q_index_list) {
+void av1_vbr_rc_compute_q_indices(int base_q_index, int frame_count,
+                                  const double *qstep_ratio_list,
+                                  aom_bit_depth_t bit_depth,
+                                  int *q_index_list) {
   for (int i = 0; i < frame_count; ++i) {
     q_index_list[i] = av1_get_q_index_from_qstep_ratio(
         base_q_index, qstep_ratio_list[i], bit_depth);
@@ -2101,26 +2103,25 @@ double av1_vbr_rc_info_estimate_gop_bitrate(
     const FRAME_UPDATE_TYPE *update_type_list, const double *qstep_ratio_list,
     const TplTxfmStats *stats_list, int *q_index_list,
     double *estimated_bitrate_byframe) {
-  compute_q_indices(base_q_index, frame_count, qstep_ratio_list, bit_depth,
-                    q_index_list);
+  av1_vbr_rc_compute_q_indices(base_q_index, frame_count, qstep_ratio_list,
+                               bit_depth, q_index_list);
+  double estimated_gop_bitrate = 0;
   for (int frame_index = 0; frame_index < frame_count; frame_index++) {
     const TplTxfmStats *frame_stats = &stats_list[frame_index];
+    double frame_bitrate = 0;
     if (frame_stats->ready) {
       int q_index = q_index_list[frame_index];
 
-      double frame_bitrate = av1_laplace_estimate_frame_rate(
+      frame_bitrate = av1_laplace_estimate_frame_rate(
           q_index, frame_stats->txfm_block_count, frame_stats->abs_coeff_mean,
           frame_stats->coeff_num);
-      estimated_bitrate_byframe[frame_index] = frame_bitrate;
-    } else {
-      estimated_bitrate_byframe[frame_index] = 0;
     }
-  }
-  double estimated_gop_bitrate = 0;
-  for (int i = 0; i < frame_count; ++i) {
-    FRAME_UPDATE_TYPE update_type = update_type_list[i];
+    FRAME_UPDATE_TYPE update_type = update_type_list[frame_index];
     estimated_gop_bitrate +=
-        estimated_bitrate_byframe[i] * update_type_scale_factors[update_type];
+        frame_bitrate * update_type_scale_factors[update_type];
+    if (estimated_bitrate_byframe != NULL) {
+      estimated_bitrate_byframe[frame_index] = frame_bitrate;
+    }
   }
   return estimated_gop_bitrate;
 }
@@ -2180,7 +2181,17 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
     vbr_rc_info->qstep_ratio_list[i] = av1_tpl_get_qstep_ratio(tpl_data, i);
   }
 
-  double mv_bits = av1_tpl_compute_mv_bits(tpl_data, gf_group, vbr_rc_info);
+  double mv_bits = 0;
+  for (int i = 0; i < gf_group->size; i++) {
+    double frame_mv_bits = 0;
+    if (av1_tpl_stats_ready(tpl_data, i)) {
+      TplDepFrame *tpl_frame = &tpl_data->tpl_frame[i];
+      frame_mv_bits = av1_tpl_compute_frame_mv_entropy(
+          tpl_frame, tpl_data->tpl_stats_block_mis_log2);
+      FRAME_UPDATE_TYPE updae_type = gf_group->update_type[i];
+      mv_bits += frame_mv_bits * vbr_rc_info->mv_scale_factors[updae_type];
+    }
+  }
 
   mv_bits = AOMMIN(mv_bits, 0.6 * gop_bit_budget);
   gop_bit_budget -= mv_bits;
@@ -2188,34 +2199,9 @@ void av1_vbr_rc_update_q_index_list(VBR_RATECTRL_INFO *vbr_rc_info,
   vbr_rc_info->base_q_index = av1_vbr_rc_info_estimate_base_q(
       gop_bit_budget, bit_depth, vbr_rc_info->scale_factors, gf_group->size,
       gf_group->update_type, vbr_rc_info->qstep_ratio_list,
-      tpl_data->txfm_stats_list, vbr_rc_info->q_index_list,
-      vbr_rc_info->estimated_bitrate_byframe);
+      tpl_data->txfm_stats_list, vbr_rc_info->q_index_list, NULL);
 }
 
-/* For a GOP, calculate the bits used by motion vectors. */
-double av1_tpl_compute_mv_bits(const TplParams *tpl_data,
-                               const GF_GROUP *gf_group,
-                               VBR_RATECTRL_INFO *vbr_rc_info) {
-  double total_mv_bits = 0;
-
-  // Loop through each frame.
-  for (int i = 0; i < gf_group->size; i++) {
-    if (av1_tpl_stats_ready(tpl_data, i)) {
-      TplDepFrame *tpl_frame = &tpl_data->tpl_frame[i];
-      double frame_mv_bits = av1_tpl_compute_frame_mv_entropy(
-          tpl_frame, tpl_data->tpl_stats_block_mis_log2);
-      vbr_rc_info->estimated_mv_bitrate_byframe[i] = frame_mv_bits;
-      FRAME_UPDATE_TYPE updae_type = gf_group->update_type[i];
-      total_mv_bits +=
-          frame_mv_bits * vbr_rc_info->mv_scale_factors[updae_type];
-    } else {
-      vbr_rc_info->estimated_mv_bitrate_byframe[i] = 0;
-    }
-  }
-
-  // Scale the final result by the scale factor.
-  return total_mv_bits;
-}
 #endif  // CONFIG_BITRATE_ACCURACY
 
 // Use upper and left neighbor block as the reference MVs.

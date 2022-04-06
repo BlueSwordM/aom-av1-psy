@@ -732,6 +732,7 @@ void av1_pack_tpl_info(TPL_INFO *tpl_info, const GF_GROUP *gf_group,
     for (int i = 0; i < tpl_info->gf_length; ++i) {
       tpl_info->txfm_stats_list[i] = tpl_data->txfm_stats_list[i];
       tpl_info->qstep_ratio_ls[i] = av1_tpl_get_qstep_ratio(tpl_data, i);
+      tpl_info->update_type_list[i] = gf_group->update_type[i];
     }
   }
 }
@@ -750,6 +751,9 @@ void av1_write_tpl_info(const TPL_INFO *tpl_info, FILE *log_stream,
     fwrite_and_check(&tpl_info->qstep_ratio_ls,
                      sizeof(tpl_info->qstep_ratio_ls[0]), tpl_info->gf_length,
                      log_stream, error);
+    fwrite_and_check(&tpl_info->update_type_list,
+                     sizeof(tpl_info->update_type_list[0]), tpl_info->gf_length,
+                     log_stream, error);
   }
 }
 
@@ -767,6 +771,9 @@ void av1_read_tpl_info(TPL_INFO *tpl_info, FILE *log_stream,
                     log_stream, error);
     fread_and_check(&tpl_info->qstep_ratio_ls,
                     sizeof(tpl_info->qstep_ratio_ls[0]), tpl_info->gf_length,
+                    log_stream, error);
+    fread_and_check(&tpl_info->update_type_list,
+                    sizeof(tpl_info->update_type_list[0]), tpl_info->gf_length,
                     log_stream, error);
   }
 }

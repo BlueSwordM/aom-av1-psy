@@ -1214,13 +1214,24 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       aom_free(tpl_info);
     }
     av1_close_second_pass_log(cpi);
-    vbr_rc_info->base_q_index = av1_vbr_rc_info_estimate_base_q(
-        vbr_rc_info->total_bit_budget, cm->seq_params->bit_depth,
-        vbr_rc_info->scale_factors, vbr_rc_info->total_frame_count,
-        vbr_rc_info->update_type_list, vbr_rc_info->qstep_ratio_list,
-        vbr_rc_info->txfm_stats_list, vbr_rc_info->q_index_list,
-        vbr_rc_info->estimated_bitrate_byframe);
+    if (cpi->oxcf.rc_cfg.mode == AOM_Q) {
+      vbr_rc_info->base_q_index = cpi->oxcf.rc_cfg.cq_level;
+      av1_vbr_rc_compute_q_indices(
+          vbr_rc_info->base_q_index, vbr_rc_info->total_frame_count,
+          vbr_rc_info->qstep_ratio_list, cm->seq_params->bit_depth,
+          vbr_rc_info->q_index_list);
+    } else {
+      vbr_rc_info->base_q_index = av1_vbr_rc_info_estimate_base_q(
+          vbr_rc_info->total_bit_budget, cm->seq_params->bit_depth,
+          vbr_rc_info->scale_factors, vbr_rc_info->total_frame_count,
+          vbr_rc_info->update_type_list, vbr_rc_info->qstep_ratio_list,
+          vbr_rc_info->txfm_stats_list, vbr_rc_info->q_index_list, NULL);
+    }
     vbr_rc_info->ready = 1;
+#if CONFIG_RATECTRL_LOG
+    rc_log_record_chunk_info(&cpi->rc_log, vbr_rc_info->base_q_index,
+                             vbr_rc_info->total_frame_count);
+#endif  // CONFIG_RATECTRL_LOG
   }
 #endif  // CONFIG_BITRATE_ACCURACY && CONFIG_THREE_PASS
 

@@ -3919,6 +3919,10 @@ void av1_init_second_pass(AV1_COMP *cpi) {
                   (int)round(stats->count));
 #endif
 
+#if CONFIG_RATECTRL_LOG
+  rc_log_init(&cpi->rc_log);
+#endif
+
   // This variable monitors how far behind the second ref update is lagging.
   twopass->sr_update_lag = 1;
 

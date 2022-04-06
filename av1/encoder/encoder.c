@@ -1541,6 +1541,11 @@ void av1_remove_primary_compressor(AV1_PRIMARY *ppi) {
 
 void av1_remove_compressor(AV1_COMP *cpi) {
   if (!cpi) return;
+#if CONFIG_RATECTRL_LOG
+  if (cpi->oxcf.pass == 3) {
+    rc_log_show(&cpi->rc_log);
+  }
+#endif  // CONFIG_RATECTRL_LOG
 
   AV1_COMMON *cm = &cpi->common;
   if (cm->current_frame.frame_number > 0) {
@@ -2694,23 +2699,18 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #endif  // CONFIG_THREE_PASS
 #endif  // CONFIG_BITRATE_ACCURACY
 
-#if CONFIG_RATECTRL_LOG && CONFIG_THREE_PASS
+#if CONFIG_RATECTRL_LOG && CONFIG_THREE_PASS && CONFIG_BITRATE_ACCURACY
     // TODO(angiebird): Move this into a function.
     if (oxcf->pass == AOM_RC_THIRD_PASS) {
-#if CONFIG_BITRATE_ACCURACY
       int frame_coding_idx =
           av1_vbr_rc_frame_coding_idx(&cpi->vbr_rc_info, cpi->gf_frame_index);
       double qstep_ratio = cpi->vbr_rc_info.qstep_ratio_list[frame_coding_idx];
-#else
-      double qstep_ratio =
-          av1_tpl_get_qstep_ratio(&cpi->ppi->tpl_data, cpi->gf_frame_index);
-#endif  // CONFIG_BITRATE_ACCURACY
-      printf("gf_frame_index %d update_type %d q %d qstep_ratio %f\n",
-             cpi->gf_frame_index,
-             cpi->ppi->gf_group.update_type[cpi->gf_frame_index], q,
-             qstep_ratio);
+      FRAME_UPDATE_TYPE update_type =
+          cpi->vbr_rc_info.update_type_list[frame_coding_idx];
+      rc_log_frame_encode_param(&cpi->rc_log, frame_coding_idx, qstep_ratio, q,
+                                update_type);
     }
-#endif  // CONFIG_RATECTRL_LOG && CONFIG_THREE_PASS
+#endif  // CONFIG_RATECTRL_LOG && CONFIG_THREE_PASS && CONFIG_BITRATE_ACCURACY
 
     av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                       q_cfg->enable_chroma_deltaq, q_cfg->enable_hdr_deltaq);
@@ -2817,11 +2817,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
         return AOM_CODEC_ERROR;
       }
 
-#if CONFIG_BITRATE_ACCURACY
-      cpi->vbr_rc_info.actual_coeff_bitrate_byframe[cpi->gf_frame_index] =
-          rc->coefficient_size;
-#endif
-
       // bits used for this frame
       rc->projected_frame_size = (int)(*size) << 3;
 #if CONFIG_RD_COMMAND
@@ -2835,18 +2830,14 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       }
 #endif  // CONFIG_RD_COMMAND
 
-#if CONFIG_BITRATE_ACCURACY
-      cpi->vbr_rc_info.actual_bitrate_byframe[cpi->gf_frame_index] =
-          rc->projected_frame_size;
-      cpi->vbr_rc_info.actual_mv_bitrate_byframe[cpi->gf_frame_index] =
-          rc->projected_frame_size -
-          cpi->vbr_rc_info.actual_coeff_bitrate_byframe[cpi->gf_frame_index];
-#if 0
-      vbr_rc_info_log(&cpi->vbr_rc_info, cpi->gf_frame_index,
-                      cpi->ppi->gf_group.size, cpi->ppi->gf_group.update_type);
-#endif
-
-#endif
+#if CONFIG_RATECTRL_LOG && CONFIG_THREE_PASS && CONFIG_BITRATE_ACCURACY
+      if (oxcf->pass == AOM_RC_THIRD_PASS) {
+        int frame_coding_idx =
+            av1_vbr_rc_frame_coding_idx(&cpi->vbr_rc_info, cpi->gf_frame_index);
+        rc_log_frame_entropy(&cpi->rc_log, frame_coding_idx,
+                             rc->projected_frame_size, rc->coefficient_size);
+      }
+#endif  // CONFIG_RATECTRL_LOG && CONFIG_THREE_PASS && CONFIG_BITRATE_ACCURACY
     }
 
 #if CONFIG_TUNE_VMAF
@@ -3384,6 +3375,16 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 
   if (encode_show_existing_frame(cm)) {
+#if CONFIG_RATECTRL_LOG && CONFIG_THREE_PASS && CONFIG_BITRATE_ACCURACY
+    // TODO(angiebird): Move this into a function.
+    if (oxcf->pass == AOM_RC_THIRD_PASS) {
+      int frame_coding_idx =
+          av1_vbr_rc_frame_coding_idx(&cpi->vbr_rc_info, cpi->gf_frame_index);
+      rc_log_frame_encode_param(
+          &cpi->rc_log, frame_coding_idx, 1, 255,
+          cpi->ppi->gf_group.update_type[cpi->gf_frame_index]);
+    }
+#endif
     av1_finalize_encoded_frame(cpi);
     // Build the bitstream
     int largest_tile_id = 0;  // Output from bitstream: unused here
