@@ -19,7 +19,6 @@
 
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_mem/aom_mem.h"
-#include "aom_ports/aom_once.h"
 #include "aom_ports/aom_timer.h"
 #include "aom_scale/aom_scale.h"
 #include "aom_util/aom_thread.h"
@@ -116,7 +115,7 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   memset(cm->default_frame_context, 0, sizeof(*cm->default_frame_context));
 
   pbi->need_resync = 1;
-  aom_once(initialize_dec);
+  initialize_dec();
 
   // Initialize the references to not point to any frame buffers.
   for (int i = 0; i < REF_FRAMES; i++) {

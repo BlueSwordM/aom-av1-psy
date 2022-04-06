@@ -3405,7 +3405,6 @@ typedef struct {
   size_t size;  // Size of resulting bitstream
 } EncodeFrameResults;
 
-// Must not be called more than once.
 void av1_initialize_enc(void);
 
 struct AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
