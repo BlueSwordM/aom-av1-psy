@@ -873,6 +873,7 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   MACROBLOCKD *xd = &x->e_mbd;
   const struct macroblockd_plane *pd = &xd->plane[0];
   struct macroblock_plane *const p = &x->plane[0];
+  assert(bsize < BLOCK_SIZES_ALL);
   const int num_4x4_w = mi_size_wide[bsize];
   const int num_4x4_h = mi_size_high[bsize];
   const int step = 1 << (tx_size << 1);
@@ -2092,8 +2093,8 @@ static void estimate_intra_mode(
       inter_mode_thresh = RDCOST(x->rdmult, intra_cost_penalty, 0);
       do_early_exit_rdthresh = 0;
     }
-    if (x->source_variance < (spatial_var_thresh >> 1) &&
-        x->content_state_sb.source_sad == kHighSad)
+    if (x->source_variance < AOMMAX(50, (spatial_var_thresh >> 1)) &&
+        x->content_state_sb.source_sad >= kHighSad)
       force_intra_check = 1;
     // For big blocks worth checking intra (since only DC will be checked),
     // even if best_early_term is set.
@@ -2146,8 +2147,12 @@ static void estimate_intra_mode(
     const THR_MODES mode_index = mode_idx[INTRA_FRAME][mode_offset(this_mode)];
     const int64_t mode_rd_thresh = rd_threshes[mode_index];
 
-    if (!((1 << this_mode) & cpi->sf.rt_sf.intra_y_mode_bsize_mask_nrd[bsize]))
-      continue;
+    if (i > 2 || !(force_intra_check == 1 &&
+                   best_pickmode->best_ref_frame != INTRA_FRAME)) {
+      if (!((1 << this_mode) &
+            cpi->sf.rt_sf.intra_y_mode_bsize_mask_nrd[bsize]))
+        continue;
+    }
 
     if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
       // For spatially flat blocks with zero motion only check
@@ -2333,7 +2338,7 @@ void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
     return;
   }
   for (int i = 1; i <= 2; ++i) {
-    if (x->color_sensitivity[i - 1] == 2) {
+    if (x->color_sensitivity[i - 1] == 2 || source_variance < 50) {
       struct macroblock_plane *const p = &x->plane[i];
       struct macroblockd_plane *const pd = &xd->plane[i];
       const BLOCK_SIZE bs =
@@ -2344,6 +2349,8 @@ void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
           uv_sad >> (b_width_log2_lookup[bs] + b_height_log2_lookup[bs]);
       x->color_sensitivity[i - 1] =
           uv_sad > (factor * (y_sad >> 3)) && norm_uv_sad > 40;
+      if (source_variance < 50 && norm_uv_sad > 100)
+        x->color_sensitivity[i - 1] = 1;
     }
   }
 }
