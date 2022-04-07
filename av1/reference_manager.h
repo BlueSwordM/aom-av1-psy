@@ -9,8 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AOM_AV1_REFRENCE_MANAGER_H_
-#define AOM_AV1_REFRENCE_MANAGER_H_
+#ifndef AOM_AV1_REFERENCE_MANAGER_H_
+#define AOM_AV1_REFERENCE_MANAGER_H_
 
 #include <deque>
 #include <iostream>
@@ -77,4 +77,4 @@ class RefFrameManager {
 
 }  // namespace aom
 
-#endif  // AOM_AV1_REFRENCE_MANAGER_H_
+#endif  // AOM_AV1_REFERENCE_MANAGER_H_
