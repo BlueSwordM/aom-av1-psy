@@ -27,5 +27,7 @@ class MockRateControlQMode : public AV1RateControlQModeInterface {
                const RefFrameTable &ref_frame_table_snapshot_init),
               (override));
 };
+
 }  // namespace aom
+
 #endif  // AOM_TEST_MOCK_RATECTRL_QMODE_H_

@@ -72,4 +72,4 @@ class AV1RateControlQMode : public AV1RateControlQModeInterface {
 };
 }  // namespace aom
 
-#endif
+#endif  // AOM_AV1_RATECTRL_QMODE_H_
