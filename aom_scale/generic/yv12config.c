@@ -193,7 +193,8 @@ static int calc_stride_and_planesize(
   *yplane_size =
       (aligned_height + 2 * border) * (uint64_t)(*y_stride) + byte_alignment;
 
-  *uv_stride = *uvplane_size = 0;
+  *uv_stride = 0;
+  *uvplane_size = 0;
   if (is_monochrome == 0) {
     *uv_stride = *y_stride >> ss_x;
     *uvplane_size =
