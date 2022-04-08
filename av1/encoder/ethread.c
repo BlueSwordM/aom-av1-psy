@@ -1222,7 +1222,8 @@ static AOM_INLINE void accumulate_counters_enc_workers(AV1_COMP *cpi,
       if (cpi->sf.inter_sf.mv_cost_upd_level != INTERNAL_COST_UPD_OFF) {
         aom_free(thread_data->td->mb.mv_costs);
       }
-      if (cpi->sf.intra_sf.dv_cost_upd_level != INTERNAL_COST_UPD_OFF) {
+      if (cpi->sf.intra_sf.dv_cost_upd_level != INTERNAL_COST_UPD_OFF &&
+          av1_need_dv_costs(cpi)) {
         aom_free(thread_data->td->mb.dv_costs);
       }
     }
