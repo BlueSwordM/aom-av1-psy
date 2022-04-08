@@ -4133,7 +4133,6 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   const int write_frame_header =
       (cpi->num_tg > 1 || encode_show_existing_frame(cm));
   struct aom_write_bit_buffer saved_wb = { NULL, 0 };
-  size_t length_field = 0;
   if (write_frame_header) {
     // Write Frame Header OBU.
     fh_info.frame_header = data;
@@ -4143,7 +4142,11 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     obu_payload_size = write_frame_header_obu(cpi, &cpi->td.mb.e_mbd, &saved_wb,
                                               data + obu_header_size, 1);
 
-    length_field = av1_obu_memmove(obu_header_size, obu_payload_size, data);
+    size_t length_field =
+        av1_obu_memmove(obu_header_size, obu_payload_size, data);
+    // Since length_field is determined adaptively after frame header
+    // encoding, saved_wb must be adjusted accordingly.
+    saved_wb.bit_buffer += length_field;
     if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
         AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;
@@ -4157,12 +4160,6 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   if (encode_show_existing_frame(cm)) {
     data_size = 0;
   } else {
-    // Since length_field is determined adaptively after frame header
-    // encoding, saved_wb must be adjusted accordingly.
-    if (saved_wb.bit_buffer != NULL) {
-      saved_wb.bit_buffer += length_field;
-    }
-
     //  Each tile group obu will be preceded by 4-byte size of the tile group
     //  obu
     data_size = write_tiles_in_tg_obus(
