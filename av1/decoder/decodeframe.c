@@ -1951,7 +1951,7 @@ static AOM_INLINE void setup_buffer_pool(AV1_COMMON *cm) {
           &cm->cur_frame->buf, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, seq_params->use_highbitdepth,
           AOM_DEC_BORDER_IN_PIXELS, cm->features.byte_alignment,
-          &cm->cur_frame->raw_frame_buffer, pool->get_fb_cb, pool->cb_priv, 0,
+          &cm->cur_frame->raw_frame_buffer, pool->get_fb_cb, pool->cb_priv,
           0)) {
     unlock_buffer_pool(pool);
     aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
@@ -4790,8 +4790,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                   seq_params->max_frame_height, seq_params->subsampling_x,
                   seq_params->subsampling_y, seq_params->use_highbitdepth,
                   AOM_BORDER_IN_PIXELS, features->byte_alignment,
-                  &buf->raw_frame_buffer, pool->get_fb_cb, pool->cb_priv, 0,
-                  0)) {
+                  &buf->raw_frame_buffer, pool->get_fb_cb, pool->cb_priv, 0)) {
             decrease_ref_count(buf, pool);
             unlock_buffer_pool(pool);
             aom_internal_error(&pbi->error, AOM_CODEC_MEM_ERROR,

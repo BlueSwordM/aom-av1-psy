@@ -989,10 +989,10 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
 
   if (tpl_idx >= MAX_TPL_FRAME_IDX) return base_qindex;
 
-  if (!is_frame_tpl_valid(cpi, tpl_idx)) return base_qindex;
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_idx];
   TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
   int tpl_stride = tpl_frame->stride;
+  if (!tpl_frame->is_valid) return base_qindex;
 
 #ifndef NDEBUG
   int mi_count = 0;

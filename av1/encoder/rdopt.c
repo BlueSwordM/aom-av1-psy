@@ -2220,9 +2220,7 @@ static AOM_INLINE void get_block_level_tpl_stats(
                  cpi->gf_frame_index < cpi->ppi->gf_group.size));
   const int tpl_idx = cpi->gf_frame_index;
   TplParams *const tpl_data = &cpi->ppi->tpl_data;
-  if (!is_frame_tpl_valid(cpi, tpl_idx) ||
-      !av1_tpl_stats_ready(tpl_data, tpl_idx))
-    return;
+  if (!av1_tpl_stats_ready(tpl_data, tpl_idx)) return;
   const TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_idx];
   const TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
   const int mi_wide = mi_size_wide[bsize];
@@ -5829,7 +5827,7 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
   const int do_pruning =
       (AOMMIN(cm->width, cm->height) > 480 && cpi->speed <= 1) ? 0 : 1;
   if (do_pruning && sf->intra_sf.skip_intra_in_interframe &&
-      cpi->oxcf.gf_cfg.lag_in_frames > 1 && cpi->oxcf.algo_cfg.enable_tpl_model)
+      cpi->oxcf.algo_cfg.enable_tpl_model)
     calculate_cost_from_tpl_data(cpi, x, bsize, mi_row, mi_col, &inter_cost,
                                  &intra_cost);
 #endif  // !CONFIG_REALTIME_ONLY

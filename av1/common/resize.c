@@ -1362,7 +1362,7 @@ YV12_BUFFER_CONFIG *av1_realloc_and_scale_if_required(
             scaled, scaled_width, scaled_height, seq_params->subsampling_x,
             seq_params->subsampling_y, seq_params->use_highbitdepth,
             border_in_pixels, cm->features.byte_alignment, NULL, NULL, NULL,
-            alloc_y_buffer_8bit, 0))
+            alloc_y_buffer_8bit))
       aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate scaled buffer");
 
@@ -1457,7 +1457,7 @@ void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool) {
   if (aom_alloc_frame_buffer(
           &copy_buffer, aligned_width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, seq_params->use_highbitdepth,
-          AOM_BORDER_IN_PIXELS, byte_alignment, 0))
+          AOM_BORDER_IN_PIXELS, byte_alignment))
     aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate copy buffer for superres upscaling");
 
@@ -1489,7 +1489,7 @@ void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool) {
             frame_to_show, cm->superres_upscaled_width,
             cm->superres_upscaled_height, seq_params->subsampling_x,
             seq_params->subsampling_y, seq_params->use_highbitdepth,
-            AOM_BORDER_IN_PIXELS, byte_alignment, fb, cb, cb_priv, 0, 0)) {
+            AOM_BORDER_IN_PIXELS, byte_alignment, fb, cb, cb_priv, 0)) {
       unlock_buffer_pool(pool);
       aom_internal_error(
           cm->error, AOM_CODEC_MEM_ERROR,
@@ -1506,7 +1506,7 @@ void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool) {
             frame_to_show, cm->superres_upscaled_width,
             cm->superres_upscaled_height, seq_params->subsampling_x,
             seq_params->subsampling_y, seq_params->use_highbitdepth,
-            AOM_BORDER_IN_PIXELS, byte_alignment, 0))
+            AOM_BORDER_IN_PIXELS, byte_alignment))
       aom_internal_error(
           cm->error, AOM_CODEC_MEM_ERROR,
           "Failed to reallocate current frame buffer for superres upscaling");
