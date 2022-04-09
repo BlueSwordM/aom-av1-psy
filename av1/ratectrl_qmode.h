@@ -23,6 +23,7 @@ namespace aom {
 
 constexpr int kLayerDepthOffset = 1;
 constexpr int kMinIntervalToAddArf = 3;
+constexpr int kMinArfInterval = (kMinIntervalToAddArf + 1) / 2;
 
 struct TplFrameDepStats {
   int unit_size;  // equivalent to min_block_size

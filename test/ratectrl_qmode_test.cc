@@ -10,6 +10,7 @@
  */
 
 #include <array>
+#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -70,9 +71,24 @@ void test_layer_depth(const GopStruct &gop_struct, int max_layer_depth) {
   }
 }
 
+void test_arf_interval(const GopStruct &gop_struct) {
+  std::vector<int> arf_order_idx_list;
+  for (const auto &gop_frame : gop_struct.gop_frame_list) {
+    if (gop_frame.is_arf_frame) {
+      arf_order_idx_list.push_back(gop_frame.order_idx);
+    }
+  }
+  std::sort(arf_order_idx_list.begin(), arf_order_idx_list.end());
+  int arf_count = static_cast<int>(arf_order_idx_list.size());
+  for (int i = 1; i < arf_count; ++i) {
+    int arf_interval = arf_order_idx_list[i] - arf_order_idx_list[i - 1];
+    EXPECT_GE(arf_interval, kMinArfInterval);
+  }
+}
+
 TEST(RateControlQModeTest, ConstructGopARF) {
   int show_frame_count = 16;
-  const int max_ref_frames = 7;
+  const int max_ref_frames = 8;
   const bool has_key_frame = false;
   RefFrameManager ref_frame_manager(max_ref_frames);
   GopStruct gop_struct =
@@ -82,11 +98,12 @@ TEST(RateControlQModeTest, ConstructGopARF) {
   const int max_layer_depth =
       ref_frame_manager.ForwardMaxSize() + kLayerDepthOffset;
   test_layer_depth(gop_struct, max_layer_depth);
+  test_arf_interval(gop_struct);
 }
 
 TEST(RateControlQModeTest, ConstructGopKey) {
   int show_frame_count = 16;
-  int max_ref_frames = 7;
+  int max_ref_frames = 8;
   int has_key_frame = 1;
   RefFrameManager ref_frame_manager(max_ref_frames);
   GopStruct gop_struct =
@@ -96,6 +113,7 @@ TEST(RateControlQModeTest, ConstructGopKey) {
   const int max_layer_depth =
       ref_frame_manager.ForwardMaxSize() + kLayerDepthOffset;
   test_layer_depth(gop_struct, max_layer_depth);
+  test_arf_interval(gop_struct);
 }
 
 static TplBlockStats create_toy_tpl_block_stats(int h, int w, int r, int c,
