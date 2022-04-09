@@ -21,6 +21,9 @@
 
 namespace aom {
 
+constexpr int kLayerDepthOffset = 1;
+constexpr int kMinIntervalToAddArf = 3;
+
 struct TplFrameDepStats {
   int unit_size;  // equivalent to min_block_size
   std::vector<std::vector<double>> unit_stats;
@@ -34,7 +37,7 @@ GopFrame gop_frame_invalid();
 
 GopFrame gop_frame_basic(int coding_idx, int order_idx, bool is_key_frame,
                          bool is_arf_frame, bool is_golden_frame,
-                         bool is_show_frame);
+                         bool is_show_frame, int depth);
 
 GopStruct construct_gop(RefFrameManager *ref_frame_manager,
                         int show_frame_count, bool has_key_frame);

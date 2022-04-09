@@ -52,6 +52,24 @@ void test_colocated_show_frame(const GopStruct &gop_struct) {
   }
 }
 
+void test_layer_depth(const GopStruct &gop_struct, int max_layer_depth) {
+  int gop_size = static_cast<int>(gop_struct.gop_frame_list.size());
+  for (int gop_idx = 0; gop_idx < gop_size; ++gop_idx) {
+    const auto &gop_frame = gop_struct.gop_frame_list[gop_idx];
+    if (gop_frame.is_key_frame) {
+      EXPECT_EQ(gop_frame.layer_depth, 0);
+    }
+
+    if (gop_frame.is_arf_frame) {
+      EXPECT_LT(gop_frame.layer_depth, max_layer_depth);
+    }
+
+    if (!gop_frame.is_key_frame && !gop_frame.is_arf_frame) {
+      EXPECT_EQ(gop_frame.layer_depth, max_layer_depth);
+    }
+  }
+}
+
 TEST(RateControlQModeTest, ConstructGopARF) {
   int show_frame_count = 16;
   const int max_ref_frames = 7;
@@ -61,6 +79,9 @@ TEST(RateControlQModeTest, ConstructGopARF) {
       construct_gop(&ref_frame_manager, show_frame_count, has_key_frame);
   test_gop_display_order(gop_struct);
   test_colocated_show_frame(gop_struct);
+  const int max_layer_depth =
+      ref_frame_manager.ForwardMaxSize() + kLayerDepthOffset;
+  test_layer_depth(gop_struct, max_layer_depth);
 }
 
 TEST(RateControlQModeTest, ConstructGopKey) {
@@ -72,6 +93,9 @@ TEST(RateControlQModeTest, ConstructGopKey) {
       construct_gop(&ref_frame_manager, show_frame_count, has_key_frame);
   test_gop_display_order(gop_struct);
   test_colocated_show_frame(gop_struct);
+  const int max_layer_depth =
+      ref_frame_manager.ForwardMaxSize() + kLayerDepthOffset;
+  test_layer_depth(gop_struct, max_layer_depth);
 }
 
 static TplBlockStats create_toy_tpl_block_stats(int h, int w, int r, int c,
@@ -136,7 +160,7 @@ static RefFrameTable create_toy_ref_frame_table(int frame_count) {
   const int ref_frame_table_size = static_cast<int>(ref_frame_table.size());
   EXPECT_LE(frame_count, ref_frame_table_size);
   for (int i = 0; i < frame_count; ++i) {
-    ref_frame_table[i] = gop_frame_basic(i, i, 0, 0, 0, 1);
+    ref_frame_table[i] = gop_frame_basic(i, i, 0, 0, 0, 1, 0);
   }
   for (int i = frame_count; i < ref_frame_table_size; ++i) {
     ref_frame_table[i] = gop_frame_invalid();
