@@ -367,7 +367,7 @@ static std::vector<int> partition_gop_intervals(
     }
     cut_pos.push_back(cur_last);
 
-    // reset pointers to the shrinked location
+    // reset pointers to the shrunken location
     stats_in_loop_index = order_index + cur_last;
     cur_start = cur_last;
     int cur_region_idx =

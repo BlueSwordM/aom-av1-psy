@@ -2081,7 +2081,7 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
       cut_pos[count_cuts] = cur_last;
       count_cuts++;
 
-      // reset pointers to the shrinked location
+      // reset pointers to the shrunken location
       cpi->twopass_frame.stats_in = start_pos + cur_last;
       cur_start = cur_last;
       int cur_region_idx =
