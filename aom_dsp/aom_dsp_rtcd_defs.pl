@@ -157,19 +157,19 @@ specialize qw/aom_h_predictor_32x64 sse2/;
 specialize qw/aom_h_predictor_64x64 sse2/;
 specialize qw/aom_h_predictor_64x32 sse2/;
 
-specialize qw/aom_paeth_predictor_4x4 ssse3/;
-specialize qw/aom_paeth_predictor_4x8 ssse3/;
-specialize qw/aom_paeth_predictor_8x4 ssse3/;
-specialize qw/aom_paeth_predictor_8x8 ssse3/;
-specialize qw/aom_paeth_predictor_8x16 ssse3/;
-specialize qw/aom_paeth_predictor_16x8 ssse3 avx2/;
-specialize qw/aom_paeth_predictor_16x16 ssse3 avx2/;
-specialize qw/aom_paeth_predictor_16x32 ssse3 avx2/;
-specialize qw/aom_paeth_predictor_32x16 ssse3 avx2/;
-specialize qw/aom_paeth_predictor_32x32 ssse3 avx2/;
-specialize qw/aom_paeth_predictor_32x64 ssse3 avx2/;
-specialize qw/aom_paeth_predictor_64x32 ssse3 avx2/;
-specialize qw/aom_paeth_predictor_64x64 ssse3 avx2/;
+specialize qw/aom_paeth_predictor_4x4 ssse3 neon/;
+specialize qw/aom_paeth_predictor_4x8 ssse3 neon/;
+specialize qw/aom_paeth_predictor_8x4 ssse3 neon/;
+specialize qw/aom_paeth_predictor_8x8 ssse3 neon/;
+specialize qw/aom_paeth_predictor_8x16 ssse3 neon/;
+specialize qw/aom_paeth_predictor_16x8 ssse3 avx2 neon/;
+specialize qw/aom_paeth_predictor_16x16 ssse3 avx2 neon/;
+specialize qw/aom_paeth_predictor_16x32 ssse3 avx2 neon/;
+specialize qw/aom_paeth_predictor_32x16 ssse3 avx2 neon/;
+specialize qw/aom_paeth_predictor_32x32 ssse3 avx2 neon/;
+specialize qw/aom_paeth_predictor_32x64 ssse3 avx2 neon/;
+specialize qw/aom_paeth_predictor_64x32 ssse3 avx2 neon/;
+specialize qw/aom_paeth_predictor_64x64 ssse3 avx2 neon/;
 
 specialize qw/aom_smooth_predictor_4x4 neon ssse3/;
 specialize qw/aom_smooth_predictor_4x8 neon ssse3/;
@@ -249,12 +249,12 @@ if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
   specialize qw/aom_h_predictor_32x8 sse2/;
   specialize qw/aom_h_predictor_64x16 sse2/;
 
-  specialize qw/aom_paeth_predictor_4x16 ssse3/;
-  specialize qw/aom_paeth_predictor_8x32 ssse3/;
-  specialize qw/aom_paeth_predictor_16x4 ssse3/;
-  specialize qw/aom_paeth_predictor_16x64 ssse3 avx2/;
-  specialize qw/aom_paeth_predictor_32x8 ssse3/;
-  specialize qw/aom_paeth_predictor_64x16 ssse3 avx2/;
+  specialize qw/aom_paeth_predictor_4x16 ssse3 neon/;
+  specialize qw/aom_paeth_predictor_8x32 ssse3 neon/;
+  specialize qw/aom_paeth_predictor_16x4 ssse3 neon/;
+  specialize qw/aom_paeth_predictor_16x64 ssse3 avx2 neon/;
+  specialize qw/aom_paeth_predictor_32x8 ssse3 neon/;
+  specialize qw/aom_paeth_predictor_64x16 ssse3 avx2 neon/;
 
   specialize qw/aom_smooth_predictor_4x16 neon ssse3/;
   specialize qw/aom_smooth_predictor_8x32 neon ssse3/;

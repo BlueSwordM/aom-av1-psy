@@ -334,7 +334,20 @@ const IntraPredFunc<IntraPred> LowbdIntraPredTestVectorNeon[] = {
   lowbd_entry(smooth, 16, 4, neon),  lowbd_entry(smooth, 16, 64, neon),
   lowbd_entry(smooth, 32, 8, neon),  lowbd_entry(smooth, 64, 16, neon),
 #endif
+  lowbd_entry(paeth, 4, 4, neon),    lowbd_entry(paeth, 4, 8, neon),
+  lowbd_entry(paeth, 8, 4, neon),    lowbd_entry(paeth, 8, 8, neon),
+  lowbd_entry(paeth, 8, 16, neon),   lowbd_entry(paeth, 16, 8, neon),
+  lowbd_entry(paeth, 16, 16, neon),  lowbd_entry(paeth, 16, 32, neon),
+  lowbd_entry(paeth, 32, 16, neon),  lowbd_entry(paeth, 32, 32, neon),
+  lowbd_entry(paeth, 32, 64, neon),  lowbd_entry(paeth, 64, 32, neon),
+  lowbd_entry(paeth, 64, 64, neon),
+#if !CONFIG_REALTIME_ONLY
+  lowbd_entry(paeth, 4, 16, neon),   lowbd_entry(paeth, 8, 32, neon),
+  lowbd_entry(paeth, 16, 4, neon),   lowbd_entry(paeth, 16, 64, neon),
+  lowbd_entry(paeth, 32, 8, neon),   lowbd_entry(paeth, 64, 16, neon),
+#endif
 };
+
 INSTANTIATE_TEST_SUITE_P(NEON, LowbdIntraPredTest,
                          ::testing::ValuesIn(LowbdIntraPredTestVectorNeon));
 #endif  // HAVE_NEON

@@ -16,6 +16,7 @@
 #include "config/aom_dsp_rtcd.h"
 
 #include "aom/aom_integer.h"
+#include "aom_dsp/arm/mem_neon.h"
 
 //------------------------------------------------------------------------------
 // DC 4x4
@@ -3226,3 +3227,220 @@ void aom_smooth_predictor_16x64_neon(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *left) {
   smooth_predictor_wxh(dst, stride, above, left, 16, 64);
 }
+
+// -----------------------------------------------------------------------------
+// PAETH
+
+static INLINE void paeth_4or8_x_h_neon(uint8_t *dest, ptrdiff_t stride,
+                                       const uint8_t *const top_row,
+                                       const uint8_t *const left_column,
+                                       int width, int height) {
+  const uint8x8_t top_left = vdup_n_u8(top_row[-1]);
+  const uint16x8_t top_left_x2 = vdupq_n_u16(top_row[-1] + top_row[-1]);
+  uint8x8_t top;
+  if (width == 4) {
+    load_u8_4x1(top_row, &top, 0);
+  } else {  // width == 8
+    top = vld1_u8(top_row);
+  }
+
+  for (int y = 0; y < height; ++y) {
+    const uint8x8_t left = vdup_n_u8(left_column[y]);
+
+    const uint8x8_t left_dist = vabd_u8(top, top_left);
+    const uint8x8_t top_dist = vabd_u8(left, top_left);
+    const uint16x8_t top_left_dist =
+        vabdq_u16(vaddl_u8(top, left), top_left_x2);
+
+    const uint8x8_t left_le_top = vcle_u8(left_dist, top_dist);
+    const uint8x8_t left_le_top_left =
+        vmovn_u16(vcleq_u16(vmovl_u8(left_dist), top_left_dist));
+    const uint8x8_t top_le_top_left =
+        vmovn_u16(vcleq_u16(vmovl_u8(top_dist), top_left_dist));
+
+    // if (left_dist <= top_dist && left_dist <= top_left_dist)
+    const uint8x8_t left_mask = vand_u8(left_le_top, left_le_top_left);
+    //   dest[x] = left_column[y];
+    // Fill all the unused spaces with 'top'. They will be overwritten when
+    // the positions for top_left are known.
+    uint8x8_t result = vbsl_u8(left_mask, left, top);
+    // else if (top_dist <= top_left_dist)
+    //   dest[x] = top_row[x];
+    // Add these values to the mask. They were already set.
+    const uint8x8_t left_or_top_mask = vorr_u8(left_mask, top_le_top_left);
+    // else
+    //   dest[x] = top_left;
+    result = vbsl_u8(left_or_top_mask, result, top_left);
+
+    if (width == 4) {
+      store_unaligned_u8_4x1(dest, result, 0);
+    } else {  // width == 8
+      vst1_u8(dest, result);
+    }
+    dest += stride;
+  }
+}
+
+#define PAETH_NXM(W, H)                                                     \
+  void aom_paeth_predictor_##W##x##H##_neon(uint8_t *dst, ptrdiff_t stride, \
+                                            const uint8_t *above,           \
+                                            const uint8_t *left) {          \
+    paeth_4or8_x_h_neon(dst, stride, above, left, W, H);                    \
+  }
+
+PAETH_NXM(4, 4)
+PAETH_NXM(4, 8)
+PAETH_NXM(8, 4)
+PAETH_NXM(8, 8)
+PAETH_NXM(8, 16)
+
+#if !CONFIG_REALTIME_ONLY
+PAETH_NXM(4, 16)
+PAETH_NXM(8, 32)
+#endif
+
+// Calculate X distance <= TopLeft distance and pack the resulting mask into
+// uint8x8_t.
+static INLINE uint8x16_t x_le_top_left(const uint8x16_t x_dist,
+                                       const uint16x8_t top_left_dist_low,
+                                       const uint16x8_t top_left_dist_high) {
+  const uint8x16_t top_left_dist = vcombine_u8(vqmovn_u16(top_left_dist_low),
+                                               vqmovn_u16(top_left_dist_high));
+  return vcleq_u8(x_dist, top_left_dist);
+}
+
+// Select the closest values and collect them.
+static INLINE uint8x16_t select_paeth(const uint8x16_t top,
+                                      const uint8x16_t left,
+                                      const uint8x16_t top_left,
+                                      const uint8x16_t left_le_top,
+                                      const uint8x16_t left_le_top_left,
+                                      const uint8x16_t top_le_top_left) {
+  // if (left_dist <= top_dist && left_dist <= top_left_dist)
+  const uint8x16_t left_mask = vandq_u8(left_le_top, left_le_top_left);
+  //   dest[x] = left_column[y];
+  // Fill all the unused spaces with 'top'. They will be overwritten when
+  // the positions for top_left are known.
+  uint8x16_t result = vbslq_u8(left_mask, left, top);
+  // else if (top_dist <= top_left_dist)
+  //   dest[x] = top_row[x];
+  // Add these values to the mask. They were already set.
+  const uint8x16_t left_or_top_mask = vorrq_u8(left_mask, top_le_top_left);
+  // else
+  //   dest[x] = top_left;
+  return vbslq_u8(left_or_top_mask, result, top_left);
+}
+
+// Generate numbered and high/low versions of top_left_dist.
+#define TOP_LEFT_DIST(num)                                              \
+  const uint16x8_t top_left_##num##_dist_low = vabdq_u16(               \
+      vaddl_u8(vget_low_u8(top[num]), vget_low_u8(left)), top_left_x2); \
+  const uint16x8_t top_left_##num##_dist_high = vabdq_u16(              \
+      vaddl_u8(vget_high_u8(top[num]), vget_low_u8(left)), top_left_x2)
+
+// Generate numbered versions of XLeTopLeft with x = left.
+#define LEFT_LE_TOP_LEFT(num)                                     \
+  const uint8x16_t left_le_top_left_##num =                       \
+      x_le_top_left(left_##num##_dist, top_left_##num##_dist_low, \
+                    top_left_##num##_dist_high)
+
+// Generate numbered versions of XLeTopLeft with x = top.
+#define TOP_LE_TOP_LEFT(num)                              \
+  const uint8x16_t top_le_top_left_##num = x_le_top_left( \
+      top_dist, top_left_##num##_dist_low, top_left_##num##_dist_high)
+
+static INLINE void paeth16_plus_x_h_neon(uint8_t *dest, ptrdiff_t stride,
+                                         const uint8_t *const top_row,
+                                         const uint8_t *const left_column,
+                                         int width, int height) {
+  const uint8x16_t top_left = vdupq_n_u8(top_row[-1]);
+  const uint16x8_t top_left_x2 = vdupq_n_u16(top_row[-1] + top_row[-1]);
+  uint8x16_t top[4];
+  top[0] = vld1q_u8(top_row);
+  if (width > 16) {
+    top[1] = vld1q_u8(top_row + 16);
+    if (width == 64) {
+      top[2] = vld1q_u8(top_row + 32);
+      top[3] = vld1q_u8(top_row + 48);
+    }
+  }
+
+  for (int y = 0; y < height; ++y) {
+    const uint8x16_t left = vdupq_n_u8(left_column[y]);
+
+    const uint8x16_t top_dist = vabdq_u8(left, top_left);
+
+    const uint8x16_t left_0_dist = vabdq_u8(top[0], top_left);
+    TOP_LEFT_DIST(0);
+    const uint8x16_t left_0_le_top = vcleq_u8(left_0_dist, top_dist);
+    LEFT_LE_TOP_LEFT(0);
+    TOP_LE_TOP_LEFT(0);
+
+    const uint8x16_t result_0 =
+        select_paeth(top[0], left, top_left, left_0_le_top, left_le_top_left_0,
+                     top_le_top_left_0);
+    vst1q_u8(dest, result_0);
+
+    if (width > 16) {
+      const uint8x16_t left_1_dist = vabdq_u8(top[1], top_left);
+      TOP_LEFT_DIST(1);
+      const uint8x16_t left_1_le_top = vcleq_u8(left_1_dist, top_dist);
+      LEFT_LE_TOP_LEFT(1);
+      TOP_LE_TOP_LEFT(1);
+
+      const uint8x16_t result_1 =
+          select_paeth(top[1], left, top_left, left_1_le_top,
+                       left_le_top_left_1, top_le_top_left_1);
+      vst1q_u8(dest + 16, result_1);
+
+      if (width == 64) {
+        const uint8x16_t left_2_dist = vabdq_u8(top[2], top_left);
+        TOP_LEFT_DIST(2);
+        const uint8x16_t left_2_le_top = vcleq_u8(left_2_dist, top_dist);
+        LEFT_LE_TOP_LEFT(2);
+        TOP_LE_TOP_LEFT(2);
+
+        const uint8x16_t result_2 =
+            select_paeth(top[2], left, top_left, left_2_le_top,
+                         left_le_top_left_2, top_le_top_left_2);
+        vst1q_u8(dest + 32, result_2);
+
+        const uint8x16_t left_3_dist = vabdq_u8(top[3], top_left);
+        TOP_LEFT_DIST(3);
+        const uint8x16_t left_3_le_top = vcleq_u8(left_3_dist, top_dist);
+        LEFT_LE_TOP_LEFT(3);
+        TOP_LE_TOP_LEFT(3);
+
+        const uint8x16_t result_3 =
+            select_paeth(top[3], left, top_left, left_3_le_top,
+                         left_le_top_left_3, top_le_top_left_3);
+        vst1q_u8(dest + 48, result_3);
+      }
+    }
+
+    dest += stride;
+  }
+}
+
+#define PAETH_NXM_WIDE(W, H)                                                \
+  void aom_paeth_predictor_##W##x##H##_neon(uint8_t *dst, ptrdiff_t stride, \
+                                            const uint8_t *above,           \
+                                            const uint8_t *left) {          \
+    paeth16_plus_x_h_neon(dst, stride, above, left, W, H);                  \
+  }
+
+PAETH_NXM_WIDE(16, 8)
+PAETH_NXM_WIDE(16, 16)
+PAETH_NXM_WIDE(16, 32)
+PAETH_NXM_WIDE(32, 16)
+PAETH_NXM_WIDE(32, 32)
+PAETH_NXM_WIDE(32, 64)
+PAETH_NXM_WIDE(64, 32)
+PAETH_NXM_WIDE(64, 64)
+
+#if !CONFIG_REALTIME_ONLY
+PAETH_NXM_WIDE(16, 4)
+PAETH_NXM_WIDE(16, 64)
+PAETH_NXM_WIDE(32, 8)
+PAETH_NXM_WIDE(64, 16)
+#endif
