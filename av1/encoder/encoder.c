@@ -2103,7 +2103,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
           &cm->cur_frame->buf, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, seq_params->use_highbitdepth,
           cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
-          NULL, cpi->oxcf.tool_cfg.enable_global_motion))
+          NULL, cpi->oxcf.tool_cfg.enable_global_motion, 0))
     aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
 
@@ -2468,7 +2468,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
               &cpi->orig_source, cpi->oxcf.frm_dim_cfg.width,
               cpi->oxcf.frm_dim_cfg.height, seq_params->subsampling_x,
               seq_params->subsampling_y, seq_params->use_highbitdepth,
-              cpi->oxcf.border_in_pixels, cm->features.byte_alignment))
+              cpi->oxcf.border_in_pixels, cm->features.byte_alignment, 0))
         aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                            "Failed to allocate scaled buffer");
     }
