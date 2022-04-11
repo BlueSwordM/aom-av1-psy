@@ -383,9 +383,23 @@ INSTANTIATE_TEST_SUITE_P(AVX2, LowbdIntraPredTest,
 #if CONFIG_AV1_HIGHBITDEPTH
 #if HAVE_NEON
 const IntraPredFunc<HighbdIntraPred> HighbdIntraPredTestVectorNeon[] = {
-  highbd_entry(dc, 4, 4, neon, 8),   highbd_entry(dc, 8, 8, neon, 8),
-  highbd_entry(dc, 16, 16, neon, 8), highbd_entry(dc, 32, 32, neon, 8),
+  highbd_entry(dc, 4, 4, neon, 8),       highbd_entry(dc, 8, 8, neon, 8),
+  highbd_entry(dc, 16, 16, neon, 8),     highbd_entry(dc, 32, 32, neon, 8),
   highbd_entry(dc, 64, 64, neon, 8),
+
+  highbd_entry(paeth, 4, 4, neon, 12),   highbd_entry(paeth, 4, 8, neon, 12),
+  highbd_entry(paeth, 8, 4, neon, 12),   highbd_entry(paeth, 8, 8, neon, 12),
+  highbd_entry(paeth, 8, 16, neon, 12),  highbd_entry(paeth, 16, 8, neon, 12),
+  highbd_entry(paeth, 16, 16, neon, 12), highbd_entry(paeth, 16, 32, neon, 12),
+  highbd_entry(paeth, 32, 16, neon, 12), highbd_entry(paeth, 32, 32, neon, 12),
+  highbd_entry(paeth, 32, 64, neon, 12), highbd_entry(paeth, 64, 32, neon, 12),
+  highbd_entry(paeth, 64, 64, neon, 12),
+
+#if !CONFIG_REALTIME_ONLY
+  highbd_entry(paeth, 4, 16, neon, 12),  highbd_entry(paeth, 8, 32, neon, 12),
+  highbd_entry(paeth, 16, 4, neon, 12),  highbd_entry(paeth, 16, 64, neon, 12),
+  highbd_entry(paeth, 32, 8, neon, 12),  highbd_entry(paeth, 64, 16, neon, 12),
+#endif
 };
 
 INSTANTIATE_TEST_SUITE_P(NEON, HighbdIntraPredTest,
