@@ -2237,7 +2237,17 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   const int use_cdef = cm->seq_params->enable_cdef &&
                        !cm->features.coded_lossless && !cm->tiles.large_scale;
   const int use_restoration = is_restoration_used(cm);
-  const int is_realtime = cpi->sf.rt_sf.use_nonrd_pick_mode;
+  // lpf_opt_level = 1 : Enables dual/quad loop-filtering.
+  // lpf_opt_level is set to 1 if transform size search depth in inter blocks
+  // is limited to one as quad loop filtering assumes that all the transform
+  // blocks within a 16x8/8x16/16x16 prediction block are of the same size.
+  // lpf_opt_level = 2 : Filters both chroma planes together, in addition to
+  // enabling dual/quad loop-filtering. This is enabled when lpf pick method
+  // is LPF_PICK_FROM_Q as u and v plane filter levels are equal.
+  int lpf_opt_level = 0;
+  if (is_inter_tx_size_search_level_one(&cpi->sf.tx_sf)) {
+    lpf_opt_level = (cpi->sf.lpf_sf.lpf_pick == LPF_PICK_FROM_Q) ? 2 : 1;
+  }
 
   struct loopfilter *lf = &cm->lf;
 
@@ -2255,7 +2265,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
       !cpi->svc.non_reference_frame) {
     av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0,
                              mt_info->workers, num_workers,
-                             &mt_info->lf_row_sync, is_realtime);
+                             &mt_info->lf_row_sync, lpf_opt_level);
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, loop_filter_time);

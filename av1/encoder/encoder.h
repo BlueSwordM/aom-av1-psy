@@ -3994,6 +3994,12 @@ static INLINE int is_restoration_used(const AV1_COMMON *const cm) {
          !cm->tiles.large_scale;
 }
 
+static INLINE int is_inter_tx_size_search_level_one(
+    const TX_SPEED_FEATURES *tx_sf) {
+  return (tx_sf->inter_tx_size_search_init_depth_rect >= 1 &&
+          tx_sf->inter_tx_size_search_init_depth_sqr >= 1);
+}
+
 #if CONFIG_AV1_TEMPORAL_DENOISING
 static INLINE int denoise_svc(const struct AV1_COMP *const cpi) {
   return (!cpi->ppi->use_svc ||
