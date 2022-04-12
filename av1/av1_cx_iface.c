@@ -204,6 +204,7 @@ struct av1_extracfg {
 // coeff_cost_upd_freq: COST_UPD_OFF
 // mode_cost_upd_freq: COST_UPD_OFF
 // mv_cost_upd_freq: COST_UPD_OFF
+// dv_cost_upd_freq: COST_UPD_OFF
 static const struct av1_extracfg default_extra_cfg = {
   7,  // cpu_used
   1,  // enable_auto_alt_ref
