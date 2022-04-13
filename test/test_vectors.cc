@@ -256,7 +256,9 @@ const char *const kAV1TestVectors[] = { "av1-1-b8-00-quantizer-00.ivf",
                                         "av1-1-b8-22-svc-L1T2.ivf",
                                         "av1-1-b8-22-svc-L2T1.ivf",
                                         "av1-1-b8-22-svc-L2T2.ivf",
-                                        "av1-1-b8-23-film_grain-50.ivf" };
+                                        "av1-1-b8-23-film_grain-50.ivf",
+                                        "av1-1-b10-24-monochrome.ivf",
+                                        "av1-1-b8-24-monochrome.ivf" };
 const int kNumAV1TestVectors = NELEMENTS(kAV1TestVectors);
 #endif  // CONFIG_AV1_DECODER
 
