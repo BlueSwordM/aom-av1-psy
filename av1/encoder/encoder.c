@@ -1167,14 +1167,6 @@ AV1_PRIMARY *av1_create_primary_compressor(
         aom_calloc(num_rows * num_cols,
                    sizeof(*ppi->tpl_sb_rdmult_scaling_factors)));
 
-#if !CONFIG_REALTIME_ONLY
-    if (oxcf->pass != AOM_RC_FIRST_PASS) {
-      av1_setup_tpl_buffers(ppi, &mi_params, oxcf->frm_dim_cfg.width,
-                            oxcf->frm_dim_cfg.height, 0,
-                            oxcf->gf_cfg.lag_in_frames);
-    }
-#endif
-
 #if CONFIG_INTERNAL_STATS
     ppi->b_calculate_blockiness = 1;
     ppi->b_calculate_consistency = 1;
@@ -1524,6 +1516,7 @@ void av1_remove_primary_compressor(AV1_PRIMARY *ppi) {
   for (int frame = 0; frame < MAX_LAG_BUFFERS; ++frame) {
     aom_free(tpl_data->tpl_stats_pool[frame]);
     aom_free_frame_buffer(&tpl_data->tpl_rec_pool[frame]);
+    tpl_data->tpl_stats_pool[frame] = NULL;
   }
 
 #if !CONFIG_REALTIME_ONLY
