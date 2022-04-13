@@ -1353,7 +1353,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   // Currently, rt speed 0, 1, 2, 3, 4, 5 are the same.
   // Following set of speed features are not impacting encoder's decisions as
   // the relevant tools are disabled by default.
-  sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3_ARF2;
+  sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
   sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
   sf->inter_sf.reuse_inter_intra_mode = 1;
   sf->inter_sf.prune_compound_using_single_ref = 0;
@@ -1540,8 +1540,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->tx_sf.intra_tx_size_search_init_depth_sqr = 2;
     sf->part_sf.partition_search_type = VAR_BASED_PARTITION;
     sf->part_sf.max_intra_bsize = BLOCK_32X32;
-
-    sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
 
     sf->mv_sf.search_method = FAST_DIAMOND;
     sf->mv_sf.subpel_force_stop = QUARTER_PEL;
