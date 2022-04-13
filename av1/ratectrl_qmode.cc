@@ -21,6 +21,13 @@
 
 namespace aom {
 
+// This is used before division to ensure that the divisor isn't zero or
+// too close to zero.
+static double modify_divisor(double divisor) {
+  const double kEpsilon = 0.000001;
+  return (divisor < 0 ? divisor - kEpsilon : divisor + kEpsilon);
+}
+
 GopFrame gop_frame_invalid() {
   GopFrame gop_frame = {};
   gop_frame.is_valid = false;
@@ -129,6 +136,205 @@ GopStruct construct_gop(RefFrameManager *ref_frame_manager,
 
 void AV1RateControlQMode::SetRcParam(const RateControlParam &rc_param) {
   rc_param_ = rc_param;
+}
+
+// Threshold for use of the lagging second reference frame. High second ref
+// usage may point to a transient event like a flash or occlusion rather than
+// a real scene cut.
+// We adapt the threshold based on number of frames in this key-frame group so
+// far.
+static double get_second_ref_usage_threshold(int frame_count_so_far) {
+  const int adapt_upto = 32;
+  const double min_second_ref_usage_thresh = 0.085;
+  const double second_ref_usage_thresh_max_delta = 0.035;
+  if (frame_count_so_far >= adapt_upto) {
+    return min_second_ref_usage_thresh + second_ref_usage_thresh_max_delta;
+  }
+  return min_second_ref_usage_thresh +
+         ((double)frame_count_so_far / (adapt_upto - 1)) *
+             second_ref_usage_thresh_max_delta;
+}
+
+// Slide show transition detection.
+// Tests for case where there is very low error either side of the current frame
+// but much higher just for this frame. This can help detect key frames in
+// slide shows even where the slides are pictures of different sizes.
+// Also requires that intra and inter errors are very similar to help eliminate
+// harmful false positives.
+// It will not help if the transition is a fade or other multi-frame effect.
+static bool detect_slide_transition(const FIRSTPASS_STATS &this_frame,
+                                    const FIRSTPASS_STATS &last_frame,
+                                    const FIRSTPASS_STATS &next_frame) {
+  // Intra / Inter threshold very low
+  constexpr double kVeryLowII = 1.5;
+  // Clean slide transitions we expect a sharp single frame spike in error.
+  constexpr double kErrorSpike = 5.0;
+
+  // TODO(angiebird): Understand the meaning of these conditions.
+  return (this_frame.intra_error < (this_frame.coded_error * kVeryLowII)) &&
+         (this_frame.coded_error > (last_frame.coded_error * kErrorSpike)) &&
+         (this_frame.coded_error > (next_frame.coded_error * kErrorSpike));
+}
+
+// Check if there is a significant intra/inter error change between the current
+// frame and its neighbor. If so, we should further test whether the current
+// frame should be a key frame.
+static bool detect_intra_inter_error_change(const FIRSTPASS_STATS &this_stats,
+                                            const FIRSTPASS_STATS &last_stats,
+                                            const FIRSTPASS_STATS &next_stats) {
+  // Minimum % intra coding observed in first pass (1.0 = 100%)
+  constexpr double kMinIntraLevel = 0.25;
+  // Minimum ratio between the % of intra coding and inter coding in the first
+  // pass after discounting neutral blocks (discounting neutral blocks in this
+  // way helps catch scene cuts in clips with very flat areas or letter box
+  // format clips with image padding.
+  constexpr double kIntraVsInterRatio = 2.0;
+
+  const double modified_pcnt_inter =
+      this_stats.pcnt_inter - this_stats.pcnt_neutral;
+  const double pcnt_intra_min =
+      std::max(kMinIntraLevel, kIntraVsInterRatio * modified_pcnt_inter);
+
+  // In real scene cuts there is almost always a sharp change in the intra
+  // or inter error score.
+  constexpr double kErrorChangeThreshold = 0.4;
+  const double last_this_error_ratio =
+      fabs(last_stats.coded_error - this_stats.coded_error) /
+      modify_divisor(this_stats.coded_error);
+
+  const double this_next_error_ratio =
+      fabs(last_stats.intra_error - this_stats.intra_error) /
+      modify_divisor(this_stats.intra_error);
+
+  // Maximum threshold for the relative ratio of intra error score vs best
+  // inter error score.
+  constexpr double kThisIntraCodedErrorRatioMax = 1.9;
+  const double this_intra_coded_error_ratio =
+      this_stats.intra_error / modify_divisor(this_stats.coded_error);
+
+  // For real scene cuts we expect an improvment in the intra inter error
+  // ratio in the next frame.
+  constexpr double kNextIntraCodedErrorRatioMin = 3.5;
+  const double next_intra_coded_error_ratio =
+      next_stats.intra_error / modify_divisor(next_stats.coded_error);
+
+  double pcnt_intra = 1.0 - this_stats.pcnt_inter;
+  return pcnt_intra > pcnt_intra_min &&
+         this_intra_coded_error_ratio < kThisIntraCodedErrorRatioMax &&
+         (last_this_error_ratio > kErrorChangeThreshold ||
+          this_next_error_ratio > kErrorChangeThreshold ||
+          next_intra_coded_error_ratio > kNextIntraCodedErrorRatioMin);
+}
+
+// Check whether the candidate can be a key frame.
+// This is a rewrite of test_candidate_kf().
+static bool test_candidate_key(const FirstpassInfo &first_pass_info,
+                               int candidate_key_idx,
+                               int frames_since_prev_key) {
+  const auto &stats_list = first_pass_info.stats_list;
+  const int stats_count = static_cast<int>(stats_list.size());
+  if (candidate_key_idx + 1 >= stats_count || candidate_key_idx - 1 < 0) {
+    return false;
+  }
+  const auto &last_stats = stats_list[candidate_key_idx - 1];
+  const auto &this_stats = stats_list[candidate_key_idx];
+  const auto &next_stats = stats_list[candidate_key_idx + 1];
+
+  if (frames_since_prev_key < 3) return false;
+  const double second_ref_usage_threshold =
+      get_second_ref_usage_threshold(frames_since_prev_key);
+  if (this_stats.pcnt_second_ref >= second_ref_usage_threshold) return false;
+  if (next_stats.pcnt_second_ref >= second_ref_usage_threshold) return false;
+
+  // Hard threshold where the first pass chooses intra for almost all blocks.
+  // In such a case even if the frame is not a scene cut coding a key frame
+  // may be a good option.
+  constexpr double kVeryLowInterThreshold = 0.05;
+  if (this_stats.pcnt_inter < kVeryLowInterThreshold ||
+      detect_slide_transition(this_stats, last_stats, next_stats) ||
+      detect_intra_inter_error_change(this_stats, last_stats, next_stats)) {
+    double boost_score = 0.0;
+    double decay_accumulator = 1.0;
+
+    // We do "-1" because the candidate key is not counted.
+    int stats_after_this_stats = stats_count - candidate_key_idx - 1;
+
+    // Number of frames required to test for scene cut detection
+    constexpr int kSceneCutKeyTestIntervalMax = 16;
+
+    // Make sure we have enough stats after the candidate key.
+    const int frames_to_test_after_candidate_key =
+        std::min(kSceneCutKeyTestIntervalMax, stats_after_this_stats);
+
+    // Examine how well the key frame predicts subsequent frames.
+    int i;
+    for (i = 1; i <= frames_to_test_after_candidate_key; ++i) {
+      // Get the next frame details
+      const auto &stats = stats_list[candidate_key_idx + i];
+
+      // Cumulative effect of decay in prediction quality.
+      if (stats.pcnt_inter > 0.85) {
+        decay_accumulator *= stats.pcnt_inter;
+      } else {
+        decay_accumulator *= (0.85 + stats.pcnt_inter) / 2.0;
+      }
+
+      constexpr double kBoostFactor = 12.5;
+      double next_iiratio = (kBoostFactor * stats.intra_error /
+                             modify_divisor(stats.coded_error));
+      next_iiratio = std::min(next_iiratio, 128.0);
+      double boost_score_increment = decay_accumulator * next_iiratio;
+
+      // Keep a running total.
+      boost_score += boost_score_increment;
+
+      // Test various breakout clauses.
+      // TODO(any): Test of intra error should be normalized to an MB.
+      // TODO(angiebird): Investigate the following questions.
+      // Question 1: next_iiratio (intra_error / coded_error) * kBoostFactor
+      // We know intra_error / coded_error >= 1 and kBoostFactor = 12.5,
+      // therefore, (intra_error / coded_error) * kBoostFactor will always
+      // greater than 1.5. Is "next_iiratio < 1.5" always false?
+      // Question 2: Similar to question 1, is "next_iiratio < 3.0" always true?
+      // Question 3: Why do we need to divide 200 with num_mbs_16x16?
+      if ((stats.pcnt_inter < 0.05) || (next_iiratio < 1.5) ||
+          (((stats.pcnt_inter - stats.pcnt_neutral) < 0.20) &&
+           (next_iiratio < 3.0)) ||
+          (boost_score_increment < 3.0) ||
+          (stats.intra_error <
+           (200.0 / static_cast<double>(first_pass_info.num_mbs_16x16)))) {
+        break;
+      }
+    }
+
+    // If there is tolerable prediction for at least the next 3 frames then
+    // break out else discard this potential key frame and move on
+    const int count_for_tolerable_prediction = 3;
+    if (boost_score > 30.0 && (i > count_for_tolerable_prediction)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Compute key frame location from first_pass_info.
+// TODO(angiebird): Add unit test for this function.
+std::vector<int> get_key_frame_list(const FirstpassInfo &first_pass_info) {
+  std::vector<int> key_frame_list;
+  key_frame_list.push_back(0);  // The first frame is always a key frame
+  int candidate_key_idx = 1;
+  while (candidate_key_idx <
+         static_cast<int>(first_pass_info.stats_list.size())) {
+    const int frames_since_prev_key = candidate_key_idx - key_frame_list.back();
+    // Check for a scene cut.
+    const bool scenecut_detected = test_candidate_key(
+        first_pass_info, candidate_key_idx, frames_since_prev_key);
+    if (scenecut_detected) {
+      key_frame_list.push_back(candidate_key_idx);
+    }
+    ++candidate_key_idx;
+  }
+  return key_frame_list;
 }
 
 // initialize GF_GROUP_STATS
@@ -395,18 +601,20 @@ GopStructList AV1RateControlQMode::DetermineGopInfo(
   int total_regions = 0;
   // TODO(jianj): firstpass_info.size() should eventually be replaced
   // by the number of frames to the next KF.
-  av1_identify_regions(firstpass_info.data(),
-                       std::min(static_cast<int>(firstpass_info.size()),
-                                MAX_FIRSTPASS_ANALYSIS_FRAMES),
-                       0, regions_list.data(), &total_regions);
+  av1_identify_regions(
+      firstpass_info.stats_list.data(),
+      std::min(static_cast<int>(firstpass_info.stats_list.size()),
+               MAX_FIRSTPASS_ANALYSIS_FRAMES),
+      0, regions_list.data(), &total_regions);
   regions_list.resize(total_regions);
   int order_index = 0, frames_since_key = 0, frames_to_key = 0;
-  std::vector<int> gf_intervals =
-      partition_gop_intervals(rc_param_, firstpass_info, regions_list,
-                              order_index, frames_since_key, frames_to_key);
+  std::vector<int> gf_intervals = partition_gop_intervals(
+      rc_param_, firstpass_info.stats_list, regions_list, order_index,
+      frames_since_key, frames_to_key);
   // A temporary simple implementation
   const int max_gop_show_frame_count = 16;
-  int remaining_show_frame_count = static_cast<int>(firstpass_info.size());
+  int remaining_show_frame_count =
+      static_cast<int>(firstpass_info.stats_list.size());
   GopStructList gop_list;
 
   RefFrameManager ref_frame_manager(rc_param_.max_ref_frames);
@@ -414,8 +622,8 @@ GopStructList AV1RateControlQMode::DetermineGopInfo(
   while (remaining_show_frame_count > 0) {
     int show_frame_count =
         std::min(remaining_show_frame_count, max_gop_show_frame_count);
-    // TODO(angiebird): determine gop show frame count based on first pass stats
-    // here.
+    // TODO(angiebird): determine gop show frame count based on first pass
+    // stats here.
     bool has_key_frame = gop_list.size() == 0;
     GopStruct gop =
         construct_gop(&ref_frame_manager, show_frame_count, has_key_frame);
@@ -504,8 +712,8 @@ double tpl_frame_dep_stats_accumulate(const TplFrameDepStats &frame_dep_stats) {
   return sum;
 }
 
-// This is a generalization of GET_MV_RAWPEL that allows for an arbitrary number
-// of fractional bits.
+// This is a generalization of GET_MV_RAWPEL that allows for an arbitrary
+// number of fractional bits.
 // TODO(angiebird): Add unit test to this function
 int get_fullpel_value(int subpel_value, int subpel_bits) {
   const int subpel_scale = (1 << subpel_bits);

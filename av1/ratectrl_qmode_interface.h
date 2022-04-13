@@ -95,7 +95,16 @@ struct FrameEncodeParameters {
   int rdmult;
 };
 
-using FirstpassInfo = std::vector<FIRSTPASS_STATS>;
+struct FirstpassInfo {
+  // TODO(b/221916304): Remove when no longer needed downstream.
+  FirstpassInfo() = default;
+  FirstpassInfo(const std::vector<FIRSTPASS_STATS> stats) : stats_list(stats) {}
+  operator std::vector<FIRSTPASS_STATS>() { return stats_list; }
+  int num_mbs_16x16;  // Count of 16x16 unit blocks in each frame.
+                      // FIRSTPASS_STATS's unit block size is 16x16
+  std::vector<FIRSTPASS_STATS> stats_list;
+};
+
 using RefFrameTable = std::array<GopFrame, kRefFrameTableSize>;
 
 struct GopEncodeInfo {
@@ -121,7 +130,7 @@ class AV1RateControlQModeInterface {
 
   virtual void SetRcParam(const RateControlParam &rc_param) = 0;
   virtual GopStructList DetermineGopInfo(
-      const FirstpassInfo &firstpass_stats_list) = 0;
+      const FirstpassInfo &firstpass_info) = 0;
   // Accept firstpass and tpl info from the encoder and return q index and
   // rdmult. This needs to be called with consecutive GOPs as returned by
   // DetermineGopInfo.
