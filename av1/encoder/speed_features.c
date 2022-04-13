@@ -1502,6 +1502,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
                 FLAG_SKIP_COMP_BESTINTRA | FLAG_SKIP_INTRA_LOWVAR |
                 FLAG_EARLY_TERMINATE;
   sf->rt_sf.var_part_split_threshold_shift = 5;
+  if (!frame_is_intra_only(&cpi->common)) sf->rt_sf.var_part_based_on_qidx = 3;
 
   // For SVC: use better mv search on base temporal layers, and only
   // on base spatial layer if highest resolution is above 640x360.
@@ -1528,6 +1529,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.gf_refresh_based_on_qp = 1;
     sf->rt_sf.prune_inter_modes_wrt_gf_arf_based_on_sad = 1;
     sf->rt_sf.var_part_split_threshold_shift = 7;
+    if (!frame_is_intra_only(&cpi->common))
+      sf->rt_sf.var_part_based_on_qidx = 4;
   }
 
   if (speed >= 7) {

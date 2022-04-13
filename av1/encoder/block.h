@@ -766,7 +766,10 @@ typedef enum {
 } SOURCE_SAD;
 
 typedef struct {
-  SOURCE_SAD source_sad;
+  //! SAD levels in non-rd path for var-based part and inter-mode search
+  SOURCE_SAD source_sad_nonrd;
+  //! SAD levels in rd-path for var-based part qindex thresholds
+  SOURCE_SAD source_sad_rd;
   int lighting_change;
   int low_sumdiff;
 } CONTENT_STATE_SB;

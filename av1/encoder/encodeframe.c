@@ -482,7 +482,7 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
     if (!cpi->sf.rt_sf.check_scene_detection || cpi->rc.frame_source_sad > 0)
       av1_source_content_sb(cpi, x, mi_row, mi_col);
     else
-      x->content_state_sb.source_sad = kZeroSad;
+      x->content_state_sb.source_sad_nonrd = kZeroSad;
   }
 #if CONFIG_RT_ML_PARTITIONING
   if (sf->part_sf.partition_search_type == ML_BASED_PARTITION) {
@@ -636,6 +636,16 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 
   init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
                     1);
+
+  // Grade the temporal variation of the sb, the grade will be used to decide
+  // partition thresholds for coding blocks
+  if ((sf->rt_sf.var_part_based_on_qidx >= 3) &&
+      (cm->width * cm->height <= 352 * 288)) {
+    if (cpi->rc.frame_source_sad > 0)
+      av1_source_content_sb(cpi, x, mi_row, mi_col);
+    else
+      x->content_state_sb.source_sad_rd = kZeroSad;
+  }
 
   // Encode the superblock
   if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION) {
@@ -851,7 +861,8 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     x->color_sensitivity_sb[1] = 0;
     x->color_sensitivity[0] = 0;
     x->color_sensitivity[1] = 0;
-    x->content_state_sb.source_sad = kMedSad;
+    x->content_state_sb.source_sad_nonrd = kMedSad;
+    x->content_state_sb.source_sad_rd = kMedSad;
     x->content_state_sb.lighting_change = 0;
     x->content_state_sb.low_sumdiff = 0;
     x->force_zeromv_skip = 0;
