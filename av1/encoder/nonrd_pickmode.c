@@ -272,9 +272,9 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
                                      src_search_sites,
                                      /*fine_search_interval=*/0);
 
-  av1_full_pixel_search(start_mv, &full_ms_params, step_param,
-                        cond_cost_list(cpi, cost_list), &tmp_mv->as_fullmv,
-                        NULL);
+  const unsigned int full_var_rd = av1_full_pixel_search(
+      start_mv, &full_ms_params, step_param, cond_cost_list(cpi, cost_list),
+      &tmp_mv->as_fullmv, NULL);
 
   // calculate the bit cost on motion vector
   MV mvp_full = get_mv_from_fullmv(&tmp_mv->as_fullmv);
@@ -292,6 +292,20 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
     if (cpi->sf.rt_sf.force_half_pel_block &&
         cpi->sf.mv_sf.subpel_force_stop < HALF_PEL)
       ms_params.forced_stop = subpel_select(cpi, bsize, tmp_mv);
+    if (cpi->sf.rt_sf.reduce_zeromv_mvres && ref_mv.row == 0 &&
+        ref_mv.col == 0 && start_mv.row == 0 && start_mv.col == 0) {
+      // If both the refmv and the fullpel results show zero mv, then there is
+      // high likelihood that the current block is static. So we can try to
+      // reduce the mv resolution here.
+      // These thresholds are the mean var rd collected from multiple encoding
+      // runs.
+      if ((bsize == BLOCK_64X64 && full_var_rd * 40 < 62267 * 7) ||
+          (bsize == BLOCK_32X32 && full_var_rd * 8 < 42380) ||
+          (bsize == BLOCK_16X16 && full_var_rd * 8 < 10127)) {
+        ms_params.forced_stop = HALF_PEL;
+      }
+    }
+
     MV subpel_start_mv = get_mv_from_fullmv(&tmp_mv->as_fullmv);
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, subpel_start_mv, &tmp_mv->as_mv, &dis,

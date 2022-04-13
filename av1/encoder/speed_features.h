@@ -1488,6 +1488,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Level of aggressiveness for obtaining tx size based on qstep
   int tx_size_level_based_on_qstep;
+
+  // Reduce the mv resolution for zero mv if the variance is low.
+  bool reduce_zeromv_mvres;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */
