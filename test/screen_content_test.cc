@@ -106,6 +106,20 @@ TEST_P(ScreenContentToolsTestLarge, ScreenContentToolsTest) {
   //      << "Failed detection of screen content(lowres)";
 }
 
+TEST_P(ScreenContentToolsTestLarge, ScreenContentMultiThreadedEncoding) {
+  // Don't force screen content, however as the input is screen content
+  // allow_screen_content_tools should still be turned on even with
+  // multi-threaded encoding.
+  ::libaom_test::Y4mVideoSource video_sc("desktop_credits.y4m", 0, 10);
+  cfg_.g_profile = 1;
+  cfg_.g_threads = 4;
+  is_screen_content_violated_ = true;
+  tune_content_ = AOM_CONTENT_DEFAULT;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_sc));
+  ASSERT_EQ(is_screen_content_violated_, false)
+      << "Failed detection of screen content";
+}
+
 AV1_INSTANTIATE_TEST_SUITE(ScreenContentToolsTestLarge,
                            ::testing::Values(::libaom_test::kOnePassGood,
                                              ::libaom_test::kTwoPassGood),
