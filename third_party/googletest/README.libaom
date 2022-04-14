@@ -33,3 +33,5 @@ Local Modifications:
   kErrorOnUninstantiatedTypeParameterizedTest in gtest.cc
 - Cherry-pick https://github.com/google/googletest/pull/2815 to fix
   Clang's -Wdeprecated-copy warnings.
+- Cherry-pick googletest commit 8a32680cee020e62b87d4ed517d0201580101713
+  (cl/311327491) to fix Clang's -Wextra-semi-stmt warnings.
