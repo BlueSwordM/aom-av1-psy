@@ -31,3 +31,5 @@ Local Modifications:
    src
 - Enable kErrorOnUninstantiatedParameterizedTest and
   kErrorOnUninstantiatedTypeParameterizedTest in gtest.cc
+- Cherry-pick https://github.com/google/googletest/pull/2815 to fix
+  Clang's -Wdeprecated-copy warnings.
