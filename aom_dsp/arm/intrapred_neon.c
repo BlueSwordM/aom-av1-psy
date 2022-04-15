@@ -3294,10 +3294,8 @@ PAETH_NXM(8, 4)
 PAETH_NXM(8, 8)
 PAETH_NXM(8, 16)
 
-#if !CONFIG_REALTIME_ONLY
 PAETH_NXM(4, 16)
 PAETH_NXM(8, 32)
-#endif
 
 // Calculate X distance <= TopLeft distance and pack the resulting mask into
 // uint8x8_t.
@@ -3438,9 +3436,7 @@ PAETH_NXM_WIDE(32, 64)
 PAETH_NXM_WIDE(64, 32)
 PAETH_NXM_WIDE(64, 64)
 
-#if !CONFIG_REALTIME_ONLY
 PAETH_NXM_WIDE(16, 4)
 PAETH_NXM_WIDE(16, 64)
 PAETH_NXM_WIDE(32, 8)
 PAETH_NXM_WIDE(64, 16)
-#endif

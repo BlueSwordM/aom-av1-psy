@@ -178,14 +178,12 @@ aomdec_av1_monochrome_yuv_10bit() {
 aomdec_tests="aomdec_av1_ivf
               aomdec_av1_ivf_multithread
               aomdec_av1_ivf_multithread_row_mt
-              aomdec_aom_ivf_pipe_input"
+              aomdec_aom_ivf_pipe_input
+              aomdec_av1_monochrome_yuv_8bit"
 
 if [ ! "$(realtime_only_build)" = "yes" ]; then
-  # aomdec_av1_monochrome_yuv_8bit: Warped motion is disabled in realtime only
-  # build. See https://crbug.com/aomedia/3248.
   aomdec_tests="${aomdec_tests}
                 aomdec_av1_ivf_error_resilient
-                aomdec_av1_monochrome_yuv_8bit
                 aomdec_av1_obu_annexb
                 aomdec_av1_obu_section5
                 aomdec_av1_webm"

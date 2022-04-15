@@ -97,16 +97,9 @@ if(CONFIG_INTERNAL_STATS AND CONFIG_AV1_HIGHBITDEPTH)
               "${AOM_ROOT}/test/hbd_metrics_test.cc")
 endif()
 
-if(NOT CONFIG_REALTIME_ONLY)
-  list(APPEND AOM_DECODE_PERF_TEST_SOURCES
-              "${AOM_ROOT}/test/decode_perf_test.cc")
-endif()
+list(APPEND AOM_DECODE_PERF_TEST_SOURCES "${AOM_ROOT}/test/decode_perf_test.cc")
 
 if(CONFIG_REALTIME_ONLY)
-  list(REMOVE_ITEM AOM_UNIT_TEST_DECODER_SOURCES
-                   "${AOM_ROOT}/test/invalid_file_test.cc"
-                   "${AOM_ROOT}/test/test_vector_test.cc")
-
   list(REMOVE_ITEM AOM_UNIT_TEST_ENCODER_SOURCES
                    "${AOM_ROOT}/test/av1_external_partition_test.cc"
                    "${AOM_ROOT}/test/borders_test.cc"

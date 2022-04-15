@@ -63,9 +63,7 @@ foreach $w (@tx_dims) {
   push @tx_sizes, [$w, $w];
   foreach $h (@tx_dims) {
     push @tx_sizes, [$w, $h] if ($w >=4 && $h >=4 && ($w == 2*$h || $h == 2*$w));
-    if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
-      push @tx_sizes, [$w, $h] if ($w >=4 && $h >=4 && ($w == 4*$h || $h == 4*$w));
-    }
+    push @tx_sizes, [$w, $h] if ($w >=4 && $h >=4 && ($w == 4*$h || $h == 4*$w));
   }
 }
 
@@ -213,70 +211,68 @@ specialize qw/aom_smooth_h_predictor_32x64 ssse3/;
 specialize qw/aom_smooth_h_predictor_64x64 ssse3/;
 specialize qw/aom_smooth_h_predictor_64x32 ssse3/;
 
-if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
-  specialize qw/aom_dc_top_predictor_4x16 sse2/;
-  specialize qw/aom_dc_top_predictor_8x32 sse2/;
-  specialize qw/aom_dc_top_predictor_16x4 sse2/;
-  specialize qw/aom_dc_top_predictor_16x64 sse2/;
-  specialize qw/aom_dc_top_predictor_32x8 sse2/;
-  specialize qw/aom_dc_top_predictor_64x16 sse2 avx2/;
+specialize qw/aom_dc_top_predictor_4x16 sse2/;
+specialize qw/aom_dc_top_predictor_8x32 sse2/;
+specialize qw/aom_dc_top_predictor_16x4 sse2/;
+specialize qw/aom_dc_top_predictor_16x64 sse2/;
+specialize qw/aom_dc_top_predictor_32x8 sse2/;
+specialize qw/aom_dc_top_predictor_64x16 sse2 avx2/;
 
-  specialize qw/aom_dc_left_predictor_4x16 sse2/;
-  specialize qw/aom_dc_left_predictor_8x32 sse2/;
-  specialize qw/aom_dc_left_predictor_16x4 sse2/;
-  specialize qw/aom_dc_left_predictor_16x64 sse2/;
-  specialize qw/aom_dc_left_predictor_32x8 sse2/;
-  specialize qw/aom_dc_left_predictor_64x16 sse2 avx2/;
+specialize qw/aom_dc_left_predictor_4x16 sse2/;
+specialize qw/aom_dc_left_predictor_8x32 sse2/;
+specialize qw/aom_dc_left_predictor_16x4 sse2/;
+specialize qw/aom_dc_left_predictor_16x64 sse2/;
+specialize qw/aom_dc_left_predictor_32x8 sse2/;
+specialize qw/aom_dc_left_predictor_64x16 sse2 avx2/;
 
-  specialize qw/aom_dc_128_predictor_4x16 sse2/;
-  specialize qw/aom_dc_128_predictor_8x32 sse2/;
-  specialize qw/aom_dc_128_predictor_16x4 sse2/;
-  specialize qw/aom_dc_128_predictor_16x64 sse2/;
-  specialize qw/aom_dc_128_predictor_32x8 sse2/;
-  specialize qw/aom_dc_128_predictor_64x16 sse2 avx2/;
+specialize qw/aom_dc_128_predictor_4x16 sse2/;
+specialize qw/aom_dc_128_predictor_8x32 sse2/;
+specialize qw/aom_dc_128_predictor_16x4 sse2/;
+specialize qw/aom_dc_128_predictor_16x64 sse2/;
+specialize qw/aom_dc_128_predictor_32x8 sse2/;
+specialize qw/aom_dc_128_predictor_64x16 sse2 avx2/;
 
-  specialize qw/aom_v_predictor_4x16 sse2/;
-  specialize qw/aom_v_predictor_8x32 sse2/;
-  specialize qw/aom_v_predictor_16x4 sse2/;
-  specialize qw/aom_v_predictor_16x64 sse2/;
-  specialize qw/aom_v_predictor_32x8 sse2/;
-  specialize qw/aom_v_predictor_64x16 sse2 avx2/;
+specialize qw/aom_v_predictor_4x16 sse2/;
+specialize qw/aom_v_predictor_8x32 sse2/;
+specialize qw/aom_v_predictor_16x4 sse2/;
+specialize qw/aom_v_predictor_16x64 sse2/;
+specialize qw/aom_v_predictor_32x8 sse2/;
+specialize qw/aom_v_predictor_64x16 sse2 avx2/;
 
-  specialize qw/aom_h_predictor_4x16 sse2/;
-  specialize qw/aom_h_predictor_8x32 sse2/;
-  specialize qw/aom_h_predictor_16x4 sse2/;
-  specialize qw/aom_h_predictor_16x64 sse2/;
-  specialize qw/aom_h_predictor_32x8 sse2/;
-  specialize qw/aom_h_predictor_64x16 sse2/;
+specialize qw/aom_h_predictor_4x16 sse2/;
+specialize qw/aom_h_predictor_8x32 sse2/;
+specialize qw/aom_h_predictor_16x4 sse2/;
+specialize qw/aom_h_predictor_16x64 sse2/;
+specialize qw/aom_h_predictor_32x8 sse2/;
+specialize qw/aom_h_predictor_64x16 sse2/;
 
-  specialize qw/aom_paeth_predictor_4x16 ssse3 neon/;
-  specialize qw/aom_paeth_predictor_8x32 ssse3 neon/;
-  specialize qw/aom_paeth_predictor_16x4 ssse3 neon/;
-  specialize qw/aom_paeth_predictor_16x64 ssse3 avx2 neon/;
-  specialize qw/aom_paeth_predictor_32x8 ssse3 neon/;
-  specialize qw/aom_paeth_predictor_64x16 ssse3 avx2 neon/;
+specialize qw/aom_paeth_predictor_4x16 ssse3 neon/;
+specialize qw/aom_paeth_predictor_8x32 ssse3 neon/;
+specialize qw/aom_paeth_predictor_16x4 ssse3 neon/;
+specialize qw/aom_paeth_predictor_16x64 ssse3 avx2 neon/;
+specialize qw/aom_paeth_predictor_32x8 ssse3 neon/;
+specialize qw/aom_paeth_predictor_64x16 ssse3 avx2 neon/;
 
-  specialize qw/aom_smooth_predictor_4x16 neon ssse3/;
-  specialize qw/aom_smooth_predictor_8x32 neon ssse3/;
-  specialize qw/aom_smooth_predictor_16x4 neon ssse3/;
-  specialize qw/aom_smooth_predictor_16x64 neon ssse3/;
-  specialize qw/aom_smooth_predictor_32x8 neon ssse3/;
-  specialize qw/aom_smooth_predictor_64x16 neon ssse3/;
+specialize qw/aom_smooth_predictor_4x16 neon ssse3/;
+specialize qw/aom_smooth_predictor_8x32 neon ssse3/;
+specialize qw/aom_smooth_predictor_16x4 neon ssse3/;
+specialize qw/aom_smooth_predictor_16x64 neon ssse3/;
+specialize qw/aom_smooth_predictor_32x8 neon ssse3/;
+specialize qw/aom_smooth_predictor_64x16 neon ssse3/;
 
-  specialize qw/aom_smooth_v_predictor_4x16 ssse3/;
-  specialize qw/aom_smooth_v_predictor_8x32 ssse3/;
-  specialize qw/aom_smooth_v_predictor_16x4 ssse3/;
-  specialize qw/aom_smooth_v_predictor_16x64 ssse3/;
-  specialize qw/aom_smooth_v_predictor_32x8 ssse3/;
-  specialize qw/aom_smooth_v_predictor_64x16 ssse3/;
+specialize qw/aom_smooth_v_predictor_4x16 ssse3/;
+specialize qw/aom_smooth_v_predictor_8x32 ssse3/;
+specialize qw/aom_smooth_v_predictor_16x4 ssse3/;
+specialize qw/aom_smooth_v_predictor_16x64 ssse3/;
+specialize qw/aom_smooth_v_predictor_32x8 ssse3/;
+specialize qw/aom_smooth_v_predictor_64x16 ssse3/;
 
-  specialize qw/aom_smooth_h_predictor_4x16 ssse3/;
-  specialize qw/aom_smooth_h_predictor_8x32 ssse3/;
-  specialize qw/aom_smooth_h_predictor_16x4 ssse3/;
-  specialize qw/aom_smooth_h_predictor_16x64 ssse3/;
-  specialize qw/aom_smooth_h_predictor_32x8 ssse3/;
-  specialize qw/aom_smooth_h_predictor_64x16 ssse3/;
-}
+specialize qw/aom_smooth_h_predictor_4x16 ssse3/;
+specialize qw/aom_smooth_h_predictor_8x32 ssse3/;
+specialize qw/aom_smooth_h_predictor_16x4 ssse3/;
+specialize qw/aom_smooth_h_predictor_16x64 ssse3/;
+specialize qw/aom_smooth_h_predictor_32x8 ssse3/;
+specialize qw/aom_smooth_h_predictor_64x16 ssse3/;
 
 # TODO(yunqingwang): optimize rectangular DC_PRED to replace division
 # by multiply and shift.
