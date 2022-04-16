@@ -23,7 +23,6 @@ namespace aom {
 using ::testing::ElementsAre;
 using ::testing::Field;
 using ::testing::Return;
-using ::testing::SizeIs;
 
 void test_gop_display_order(const GopStruct &gop_struct) {
   // Test whether show frames' order indices are sequential
@@ -391,9 +390,12 @@ TEST(RateControlQModeTest, ComputeTplGopDepStats) {
 // the aom build.
 TEST(RateControlQModeTest, TestMock) {
   MockRateControlQMode mock_rc;
-  EXPECT_CALL(mock_rc, DetermineGopInfo(SizeIs(10)))
+  EXPECT_CALL(mock_rc,
+              DetermineGopInfo(Field(&FirstpassInfo::num_mbs_16x16, 1000)))
       .WillOnce(Return(GopStructList{ { 6, {} }, { 4, {} } }));
-  EXPECT_THAT(mock_rc.DetermineGopInfo(FirstpassInfo(10)),
+  FirstpassInfo firstpass_info = {};
+  firstpass_info.num_mbs_16x16 = 1000;
+  EXPECT_THAT(mock_rc.DetermineGopInfo(firstpass_info),
               ElementsAre(Field(&GopStruct::show_frame_count, 6),
                           Field(&GopStruct::show_frame_count, 4)));
 }
