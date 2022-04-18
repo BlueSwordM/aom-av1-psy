@@ -526,7 +526,7 @@ add_proto qw/void cdef_copy_rect8_16bit_to_16bit/, "uint16_t *dst, int dstride, 
 # hard to support, so optimizations for this target are disabled.
 if ($opts{config} !~ /libs-x86-win32-vs.*/) {
   specialize qw/cdef_find_dir sse2 ssse3 sse4_1 avx2 neon/;
-  specialize qw/cdef_find_dir_dual sse2 ssse3 sse4_1 avx2/;
+  specialize qw/cdef_find_dir_dual sse2 ssse3 sse4_1 avx2 neon/;
 
   specialize qw/cdef_filter_8_0 sse2 ssse3 sse4_1 avx2 neon/;
   specialize qw/cdef_filter_8_1 sse2 ssse3 sse4_1 avx2 neon/;
