@@ -39,7 +39,7 @@ GopFrame gop_frame_invalid() {
 GopFrame gop_frame_basic(int coding_idx, int order_idx, bool is_key_frame,
                          bool is_arf_frame, bool is_golden_frame,
                          bool is_show_frame, int depth) {
-  GopFrame gop_frame;
+  GopFrame gop_frame = {};
   gop_frame.is_valid = true;
   gop_frame.coding_idx = coding_idx;
   gop_frame.order_idx = order_idx;
@@ -96,9 +96,13 @@ void construct_gop_multi_layer(GopStruct *gop_struct,
 }
 
 GopStruct construct_gop(RefFrameManager *ref_frame_manager,
-                        int show_frame_count, bool has_key_frame) {
+                        int show_frame_count, bool has_key_frame,
+                        int global_coding_idx_offset,
+                        int global_order_idx_offset) {
   GopStruct gop_struct;
   gop_struct.show_frame_count = show_frame_count;
+  gop_struct.global_coding_idx_offset = global_coding_idx_offset;
+  gop_struct.global_order_idx_offset = global_order_idx_offset;
   int order_start = 0;
   int order_arf = show_frame_count - 1;
   int coding_idx;
@@ -131,6 +135,12 @@ GopStruct construct_gop(RefFrameManager *ref_frame_manager,
   ref_frame_manager->UpdateFrame(&gop_frame, RefUpdateType::kNone,
                                  EncodeRefMode::kOverlay);
   gop_struct.gop_frame_list.push_back(gop_frame);
+
+  for (auto &gop_frame : gop_struct.gop_frame_list) {
+    gop_frame.global_coding_idx =
+        global_coding_idx_offset + gop_frame.coding_idx;
+    gop_frame.global_order_idx = global_order_idx_offset + gop_frame.order_idx;
+  }
   return gop_struct;
 }
 
@@ -619,6 +629,8 @@ GopStructList AV1RateControlQMode::DetermineGopInfo(
 
   RefFrameManager ref_frame_manager(rc_param_.max_ref_frames);
 
+  int global_coding_idx_offset = 0;
+  int global_order_idx_offset = 0;
   while (remaining_show_frame_count > 0) {
     int show_frame_count =
         std::min(remaining_show_frame_count, max_gop_show_frame_count);
@@ -626,7 +638,11 @@ GopStructList AV1RateControlQMode::DetermineGopInfo(
     // stats here.
     bool has_key_frame = gop_list.size() == 0;
     GopStruct gop =
-        construct_gop(&ref_frame_manager, show_frame_count, has_key_frame);
+        construct_gop(&ref_frame_manager, show_frame_count, has_key_frame,
+                      global_coding_idx_offset, global_order_idx_offset);
+    global_coding_idx_offset += static_cast<int>(gop.gop_frame_list.size());
+    global_order_idx_offset += gop.show_frame_count;
+
     gop_list.push_back(gop);
     remaining_show_frame_count -= show_frame_count;
   }

@@ -41,7 +41,9 @@ GopFrame gop_frame_basic(int coding_idx, int order_idx, bool is_key_frame,
                          bool is_show_frame, int depth);
 
 GopStruct construct_gop(RefFrameManager *ref_frame_manager,
-                        int show_frame_count, bool has_key_frame);
+                        int show_frame_count, bool has_key_frame,
+                        int global_coding_idx_offset,
+                        int global_order_idx_offset);
 
 TplFrameDepStats create_tpl_frame_dep_stats_empty(int frame_height,
                                                   int frame_width,

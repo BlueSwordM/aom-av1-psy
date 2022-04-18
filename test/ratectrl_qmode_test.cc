@@ -26,12 +26,37 @@ using ::testing::Return;
 
 void test_gop_display_order(const GopStruct &gop_struct) {
   // Test whether show frames' order indices are sequential
-  int ref_order_idx = 0;
+  int expected_order_idx = 0;
+  int expected_show_frame_count = 0;
   for (const auto &gop_frame : gop_struct.gop_frame_list) {
     if (gop_frame.is_show_frame) {
-      EXPECT_EQ(gop_frame.order_idx, ref_order_idx);
-      ref_order_idx++;
+      EXPECT_EQ(gop_frame.order_idx, expected_order_idx);
+      expected_order_idx++;
+      expected_show_frame_count++;
     }
+  }
+  EXPECT_EQ(gop_struct.show_frame_count, expected_show_frame_count);
+}
+
+void test_gop_global_order_idx(const GopStruct &gop_struct,
+                               int global_order_idx_offset) {
+  // Test whether show frames' global order indices are sequential
+  EXPECT_EQ(gop_struct.global_order_idx_offset, global_order_idx_offset);
+  int expected_global_order_idx = global_order_idx_offset;
+  for (const auto &gop_frame : gop_struct.gop_frame_list) {
+    if (gop_frame.is_show_frame) {
+      EXPECT_EQ(gop_frame.global_order_idx, expected_global_order_idx);
+      expected_global_order_idx++;
+    }
+  }
+}
+
+void test_gop_global_coding_idx(const GopStruct &gop_struct,
+                                int global_coding_idx_offset) {
+  EXPECT_EQ(gop_struct.global_coding_idx_offset, global_coding_idx_offset);
+  for (const auto &gop_frame : gop_struct.gop_frame_list) {
+    EXPECT_EQ(gop_frame.global_coding_idx,
+              global_coding_idx_offset + gop_frame.coding_idx);
   }
 }
 
@@ -95,10 +120,16 @@ TEST(RateControlQModeTest, ConstructGopARF) {
   int show_frame_count = 16;
   const int max_ref_frames = 8;
   const bool has_key_frame = false;
+  const int global_coding_idx_offset = 5;
+  const int global_order_idx_offset = 20;
   RefFrameManager ref_frame_manager(max_ref_frames);
   GopStruct gop_struct =
-      construct_gop(&ref_frame_manager, show_frame_count, has_key_frame);
+      construct_gop(&ref_frame_manager, show_frame_count, has_key_frame,
+                    global_coding_idx_offset, global_order_idx_offset);
+  EXPECT_EQ(gop_struct.show_frame_count, show_frame_count);
   test_gop_display_order(gop_struct);
+  test_gop_global_order_idx(gop_struct, global_order_idx_offset);
+  test_gop_global_coding_idx(gop_struct, global_coding_idx_offset);
   test_colocated_show_frame(gop_struct);
   const int max_layer_depth =
       ref_frame_manager.ForwardMaxSize() + kLayerDepthOffset;
@@ -107,13 +138,19 @@ TEST(RateControlQModeTest, ConstructGopARF) {
 }
 
 TEST(RateControlQModeTest, ConstructGopKey) {
-  int show_frame_count = 16;
-  int max_ref_frames = 8;
-  int has_key_frame = 1;
+  const int show_frame_count = 16;
+  const int max_ref_frames = 8;
+  const int has_key_frame = 1;
+  const int global_coding_idx_offset = 10;
+  const int global_order_idx_offset = 8;
   RefFrameManager ref_frame_manager(max_ref_frames);
   GopStruct gop_struct =
-      construct_gop(&ref_frame_manager, show_frame_count, has_key_frame);
+      construct_gop(&ref_frame_manager, show_frame_count, has_key_frame,
+                    global_coding_idx_offset, global_order_idx_offset);
+  EXPECT_EQ(gop_struct.show_frame_count, show_frame_count);
   test_gop_display_order(gop_struct);
+  test_gop_global_order_idx(gop_struct, global_order_idx_offset);
+  test_gop_global_coding_idx(gop_struct, global_coding_idx_offset);
   test_colocated_show_frame(gop_struct);
   const int max_layer_depth =
       ref_frame_manager.ForwardMaxSize() + kLayerDepthOffset;
@@ -392,7 +429,7 @@ TEST(RateControlQModeTest, TestMock) {
   MockRateControlQMode mock_rc;
   EXPECT_CALL(mock_rc,
               DetermineGopInfo(Field(&FirstpassInfo::num_mbs_16x16, 1000)))
-      .WillOnce(Return(GopStructList{ { 6, {} }, { 4, {} } }));
+      .WillOnce(Return(GopStructList{ { 6, 0, 0, {} }, { 4, 0, 0, {} } }));
   FirstpassInfo firstpass_info = {};
   firstpass_info.num_mbs_16x16 = 1000;
   EXPECT_THAT(mock_rc.DetermineGopInfo(firstpass_info),

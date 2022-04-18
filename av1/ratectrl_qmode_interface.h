@@ -85,6 +85,8 @@ struct GopFrame {
 
 struct GopStruct {
   int show_frame_count;
+  int global_coding_idx_offset;
+  int global_order_idx_offset;
   std::vector<GopFrame> gop_frame_list;
 };
 
