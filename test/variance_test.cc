@@ -2871,6 +2871,15 @@ const SubpelVarianceParams kArraySubpelVariance_neon[] = {
 INSTANTIATE_TEST_SUITE_P(NEON, AvxSubpelVarianceTest,
                          ::testing::ValuesIn(kArraySubpelVariance_neon));
 
+const GetSseSumParams kArrayGetSseSum8x8Quad_neon[] = {
+  GetSseSumParams(7, 7, &aom_get_sse_sum_8x8_quad_neon, 0),
+  GetSseSumParams(6, 6, &aom_get_sse_sum_8x8_quad_neon, 0),
+  GetSseSumParams(5, 5, &aom_get_sse_sum_8x8_quad_neon, 0),
+  GetSseSumParams(5, 4, &aom_get_sse_sum_8x8_quad_neon, 0)
+};
+INSTANTIATE_TEST_SUITE_P(NEON, GetSseSum8x8QuadTest,
+                         ::testing::ValuesIn(kArrayGetSseSum8x8Quad_neon));
+
 #if CONFIG_AV1_HIGHBITDEPTH
 const VarianceParams kArrayHBDVariance_neon[] = {
   VarianceParams(7, 7, &aom_highbd_10_variance128x128_neon, 10),
