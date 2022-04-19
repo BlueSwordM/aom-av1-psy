@@ -1362,9 +1362,9 @@ void av1_filter_block_plane_vert_opt(const AV1_COMMON *const cm,
   // Ensure that mi_cols/mi_rows are calculated based on frame dimension aligned
   // to MI_SIZE.
   const int plane_mi_cols =
-      (plane_ptr->dst.width + MI_SIZE - 1) >> MI_SIZE_LOG2;
+      CEIL_POWER_OF_TWO(plane_ptr->dst.width, MI_SIZE_LOG2);
   const int plane_mi_rows =
-      (plane_ptr->dst.height + MI_SIZE - 1) >> MI_SIZE_LOG2;
+      CEIL_POWER_OF_TWO(plane_ptr->dst.height, MI_SIZE_LOG2);
   const int y_range = AOMMIN((int)(plane_mi_rows - mi_row), MAX_MIB_SIZE);
   const int x_range = AOMMIN((int)(plane_mi_cols - mi_col), MAX_MIB_SIZE);
   const ptrdiff_t mode_step = 1;
@@ -1955,9 +1955,9 @@ void av1_filter_block_plane_horz_opt(const AV1_COMMON *const cm,
   // Ensure that mi_cols/mi_rows are calculated based on frame dimension aligned
   // to MI_SIZE.
   const int plane_mi_cols =
-      (plane_ptr->dst.width + MI_SIZE - 1) >> MI_SIZE_LOG2;
+      CEIL_POWER_OF_TWO(plane_ptr->dst.width, MI_SIZE_LOG2);
   const int plane_mi_rows =
-      (plane_ptr->dst.height + MI_SIZE - 1) >> MI_SIZE_LOG2;
+      CEIL_POWER_OF_TWO(plane_ptr->dst.height, MI_SIZE_LOG2);
   const int y_range = AOMMIN((int)(plane_mi_rows - mi_row), MAX_MIB_SIZE);
   const int x_range = AOMMIN((int)(plane_mi_cols - mi_col), MAX_MIB_SIZE);
 

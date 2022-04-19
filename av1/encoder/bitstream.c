@@ -2163,12 +2163,10 @@ static AOM_INLINE void wb_write_uniform(struct aom_write_bit_buffer *wb, int n,
 
 static AOM_INLINE void write_tile_info_max_tile(
     const AV1_COMMON *const cm, struct aom_write_bit_buffer *wb) {
-  int width_mi =
-      ALIGN_POWER_OF_TWO(cm->mi_params.mi_cols, cm->seq_params->mib_size_log2);
-  int height_mi =
-      ALIGN_POWER_OF_TWO(cm->mi_params.mi_rows, cm->seq_params->mib_size_log2);
-  int width_sb = width_mi >> cm->seq_params->mib_size_log2;
-  int height_sb = height_mi >> cm->seq_params->mib_size_log2;
+  int width_sb =
+      CEIL_POWER_OF_TWO(cm->mi_params.mi_cols, cm->seq_params->mib_size_log2);
+  int height_sb =
+      CEIL_POWER_OF_TWO(cm->mi_params.mi_rows, cm->seq_params->mib_size_log2);
   int size_sb, i;
   const CommonTileParams *const tiles = &cm->tiles;
 

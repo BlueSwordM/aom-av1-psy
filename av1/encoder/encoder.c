@@ -257,9 +257,8 @@ static void set_tile_info(AV1_COMMON *const cm,
     tiles->log2_cols = AOMMAX(tile_cfg->tile_columns, tiles->min_log2_cols);
     tiles->log2_cols = AOMMIN(tiles->log2_cols, tiles->max_log2_cols);
   } else {
-    int mi_cols =
-        ALIGN_POWER_OF_TWO(mi_params->mi_cols, seq_params->mib_size_log2);
-    int sb_cols = mi_cols >> seq_params->mib_size_log2;
+    int sb_cols =
+        CEIL_POWER_OF_TWO(mi_params->mi_cols, seq_params->mib_size_log2);
     int size_sb, j = 0;
     tiles->uniform_spacing = 0;
     for (i = 0, start_sb = 0; start_sb < sb_cols && i < MAX_TILE_COLS; i++) {
@@ -279,9 +278,8 @@ static void set_tile_info(AV1_COMMON *const cm,
     tiles->log2_rows = AOMMAX(tile_cfg->tile_rows, tiles->min_log2_rows);
     tiles->log2_rows = AOMMIN(tiles->log2_rows, tiles->max_log2_rows);
   } else {
-    int mi_rows =
-        ALIGN_POWER_OF_TWO(mi_params->mi_rows, seq_params->mib_size_log2);
-    int sb_rows = mi_rows >> seq_params->mib_size_log2;
+    int sb_rows =
+        CEIL_POWER_OF_TWO(mi_params->mi_rows, seq_params->mib_size_log2);
     int size_sb, j = 0;
     for (i = 0, start_sb = 0; start_sb < sb_rows && i < MAX_TILE_ROWS; i++) {
       tiles->row_start_sb[i] = start_sb;

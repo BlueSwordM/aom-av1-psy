@@ -629,8 +629,7 @@ void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass) {
     AV1LfSync *lf_sync = &mt_info->lf_row_sync;
     // Number of superblock rows
     const int sb_rows =
-        ALIGN_POWER_OF_TWO(cm->height >> MI_SIZE_LOG2, MAX_MIB_SIZE_LOG2) >>
-        MAX_MIB_SIZE_LOG2;
+        CEIL_POWER_OF_TWO(cm->height >> MI_SIZE_LOG2, MAX_MIB_SIZE_LOG2);
     PrimaryMultiThreadInfo *const p_mt_info = &cpi->ppi->p_mt_info;
     int num_lf_workers = av1_get_num_mod_workers_for_alloc(p_mt_info, MOD_LPF);
 
@@ -926,10 +925,8 @@ int av1_check_fpmt_config(AV1_PRIMARY *const ppi,
 // Computes the max number of enc workers possible for each resolution.
 static AOM_INLINE int compute_max_num_enc_workers(
     CommonModeInfoParams *const mi_params, int mib_size_log2) {
-  int num_sb_rows =
-      ALIGN_POWER_OF_TWO(mi_params->mi_rows, mib_size_log2) >> mib_size_log2;
-  int num_sb_cols =
-      ALIGN_POWER_OF_TWO(mi_params->mi_cols, mib_size_log2) >> mib_size_log2;
+  int num_sb_rows = CEIL_POWER_OF_TWO(mi_params->mi_rows, mib_size_log2);
+  int num_sb_cols = CEIL_POWER_OF_TWO(mi_params->mi_cols, mib_size_log2);
 
   return AOMMIN((num_sb_cols + 1) >> 1, num_sb_rows);
 }

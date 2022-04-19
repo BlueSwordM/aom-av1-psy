@@ -1891,10 +1891,8 @@ static AOM_INLINE void resize_context_buffers(AV1_COMMON *cm, int width,
                        width, height, DECODE_WIDTH_LIMIT, DECODE_HEIGHT_LIMIT);
 #endif
   if (cm->width != width || cm->height != height) {
-    const int new_mi_rows =
-        ALIGN_POWER_OF_TWO(height, MI_SIZE_LOG2) >> MI_SIZE_LOG2;
-    const int new_mi_cols =
-        ALIGN_POWER_OF_TWO(width, MI_SIZE_LOG2) >> MI_SIZE_LOG2;
+    const int new_mi_rows = CEIL_POWER_OF_TWO(height, MI_SIZE_LOG2);
+    const int new_mi_cols = CEIL_POWER_OF_TWO(width, MI_SIZE_LOG2);
 
     // Allocations in av1_alloc_context_buffers() depend on individual
     // dimensions as well as the overall size.
@@ -2075,12 +2073,10 @@ static AOM_INLINE void read_tile_info_max_tile(
     AV1_COMMON *const cm, struct aom_read_bit_buffer *const rb) {
   const SequenceHeader *const seq_params = cm->seq_params;
   CommonTileParams *const tiles = &cm->tiles;
-  int width_mi =
-      ALIGN_POWER_OF_TWO(cm->mi_params.mi_cols, seq_params->mib_size_log2);
-  int height_mi =
-      ALIGN_POWER_OF_TWO(cm->mi_params.mi_rows, seq_params->mib_size_log2);
-  int width_sb = width_mi >> seq_params->mib_size_log2;
-  int height_sb = height_mi >> seq_params->mib_size_log2;
+  int width_sb =
+      CEIL_POWER_OF_TWO(cm->mi_params.mi_cols, seq_params->mib_size_log2);
+  int height_sb =
+      CEIL_POWER_OF_TWO(cm->mi_params.mi_rows, seq_params->mib_size_log2);
 
   av1_get_tile_limits(cm);
   tiles->uniform_spacing = aom_rb_read_bit(rb);

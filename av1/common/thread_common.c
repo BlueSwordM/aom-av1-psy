@@ -338,8 +338,7 @@ static INLINE void thread_loop_filter_rows(
     int dir, int lpf_opt_level, AV1LfSync *const lf_sync,
     AV1_DEBLOCKING_PARAMETERS *params_buf, TX_SIZE *tx_buf) {
   const int sb_cols =
-      ALIGN_POWER_OF_TWO(cm->mi_params.mi_cols, MAX_MIB_SIZE_LOG2) >>
-      MAX_MIB_SIZE_LOG2;
+      CEIL_POWER_OF_TWO(cm->mi_params.mi_cols, MAX_MIB_SIZE_LOG2);
   const int r = mi_row >> MAX_MIB_SIZE_LOG2;
   int mi_col, c;
 
@@ -425,8 +424,7 @@ static void loop_filter_rows_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   // Number of superblock rows and cols
   const int sb_rows =
-      ALIGN_POWER_OF_TWO(cm->mi_params.mi_rows, MAX_MIB_SIZE_LOG2) >>
-      MAX_MIB_SIZE_LOG2;
+      CEIL_POWER_OF_TWO(cm->mi_params.mi_rows, MAX_MIB_SIZE_LOG2);
   int i;
 
   if (!lf_sync->sync_range || sb_rows != lf_sync->rows ||
