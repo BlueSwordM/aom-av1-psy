@@ -118,11 +118,10 @@ void test_arf_interval(const GopStruct &gop_struct) {
 
 TEST(RateControlQModeTest, ConstructGopARF) {
   int show_frame_count = 16;
-  const int max_ref_frames = 8;
   const bool has_key_frame = false;
   const int global_coding_idx_offset = 5;
   const int global_order_idx_offset = 20;
-  RefFrameManager ref_frame_manager(max_ref_frames);
+  RefFrameManager ref_frame_manager(kRefFrameTableSize);
   GopStruct gop_struct =
       construct_gop(&ref_frame_manager, show_frame_count, has_key_frame,
                     global_coding_idx_offset, global_order_idx_offset);
@@ -139,11 +138,10 @@ TEST(RateControlQModeTest, ConstructGopARF) {
 
 TEST(RateControlQModeTest, ConstructGopKey) {
   const int show_frame_count = 16;
-  const int max_ref_frames = 8;
   const int has_key_frame = 1;
   const int global_coding_idx_offset = 10;
   const int global_order_idx_offset = 8;
-  RefFrameManager ref_frame_manager(max_ref_frames);
+  RefFrameManager ref_frame_manager(kRefFrameTableSize);
   GopStruct gop_struct =
       construct_gop(&ref_frame_manager, show_frame_count, has_key_frame,
                     global_coding_idx_offset, global_order_idx_offset);
@@ -220,7 +218,7 @@ static RefFrameTable create_toy_ref_frame_table(int frame_count) {
   const int ref_frame_table_size = static_cast<int>(ref_frame_table.size());
   EXPECT_LE(frame_count, ref_frame_table_size);
   for (int i = 0; i < frame_count; ++i) {
-    ref_frame_table[i] = gop_frame_basic(i, i, 0, 0, 0, 1, 0);
+    ref_frame_table[i] = gop_frame_basic(0, 0, i, i, 0, 0, 0, 1, 0);
   }
   for (int i = frame_count; i < ref_frame_table_size; ++i) {
     ref_frame_table[i] = gop_frame_invalid();

@@ -20,7 +20,7 @@
 namespace aom {
 
 constexpr int kBlockRefCount = 2;
-constexpr int kRefFrameTableSize = 8;
+constexpr int kRefFrameTableSize = 7;
 
 struct MotionVector {
   int row;          // subpel row
@@ -52,6 +52,23 @@ enum class EncodeRefMode {
   kShowExisting,
 };
 
+enum class ReferenceName {
+  kNoneFrame = -1,
+  kIntraFrame = 0,
+  kLastFrame = 1,
+  kLast2Frame = 2,
+  kLast3Frame = 3,
+  kGoldenFrame = 4,
+  kBwdrefFrame = 5,
+  kAltref2Frame = 6,
+  kAltrefFrame = 7,
+};
+
+struct ReferenceFrame {
+  int index;  // Index of reference slot containing the reference frame
+  ReferenceName name;
+};
+
 struct GopFrame {
   // basic info
   bool is_valid;
@@ -72,12 +89,11 @@ struct GopFrame {
   EncodeRefMode encode_ref_mode;
   int colocated_ref_idx;  // colocated_ref_idx == -1 when encode_ref_mode ==
                           // EncodeRefMode::kRegular
-  int update_ref_idx;  // The reference index that this frame should be updated
-                       // to. update_ref_idx == -1 when this frame will not
-                       // serve as a reference frame
-  std::vector<int>
-      ref_idx_list;     // The indices of reference frames.
-                        // The size should be less or equal to max_ref_frames.
+  int update_ref_idx;     // The reference index that this frame should be
+                          // updated to. update_ref_idx == -1 when this frame
+                          // will not serve as a reference frame
+  std::vector<ReferenceFrame>
+      ref_frame_list;   // The size should be less or equal to max_ref_frames.
   int layer_depth;      // Layer depth in the GOP structure
   int primary_ref_idx;  // We will use the primary reference to update current
                         // frame's initial probability model
