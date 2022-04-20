@@ -613,46 +613,45 @@ static std::vector<int> partition_gop_intervals(
   return gf_intervals;
 }
 
+// TODO(angiebird): Add unit test to this function.
 GopStructList AV1RateControlQMode::DetermineGopInfo(
     const FirstpassInfo &firstpass_info) {
-  std::vector<REGIONS> regions_list(MAX_FIRSTPASS_ANALYSIS_FRAMES);
-  int total_regions = 0;
-  // TODO(jianj): firstpass_info.size() should eventually be replaced
-  // by the number of frames to the next KF.
-  av1_identify_regions(
-      firstpass_info.stats_list.data(),
-      std::min(static_cast<int>(firstpass_info.stats_list.size()),
-               MAX_FIRSTPASS_ANALYSIS_FRAMES),
-      0, regions_list.data(), &total_regions);
-  regions_list.resize(total_regions);
-  int order_index = 0, frames_since_key = 0, frames_to_key = 0;
-  std::vector<int> gf_intervals = partition_gop_intervals(
-      rc_param_, firstpass_info.stats_list, regions_list, order_index,
-      frames_since_key, frames_to_key);
-  // A temporary simple implementation
-  const int max_gop_show_frame_count = 16;
-  int remaining_show_frame_count =
-      static_cast<int>(firstpass_info.stats_list.size());
+  const int stats_size = static_cast<int>(firstpass_info.stats_list.size());
   GopStructList gop_list;
-
   RefFrameManager ref_frame_manager(rc_param_.max_ref_frames);
-
   int global_coding_idx_offset = 0;
   int global_order_idx_offset = 0;
-  while (remaining_show_frame_count > 0) {
-    int show_frame_count =
-        std::min(remaining_show_frame_count, max_gop_show_frame_count);
-    // TODO(angiebird): determine gop show frame count based on first pass
-    // stats here.
-    bool has_key_frame = gop_list.size() == 0;
-    GopStruct gop =
-        construct_gop(&ref_frame_manager, show_frame_count, has_key_frame,
-                      global_coding_idx_offset, global_order_idx_offset);
-    global_coding_idx_offset += static_cast<int>(gop.gop_frame_list.size());
-    global_order_idx_offset += gop.show_frame_count;
+  std::vector<int> key_frame_list = get_key_frame_list(firstpass_info);
+  key_frame_list.push_back(stats_size);  // a sentinel value
+  for (size_t ki = 0; ki + 1 < key_frame_list.size(); ++ki) {
+    int frames_to_key = key_frame_list[ki + 1] - key_frame_list[ki];
+    int key_order_index = key_frame_list[ki];  // The key frame's display order
 
-    gop_list.push_back(gop);
-    remaining_show_frame_count -= show_frame_count;
+    std::vector<REGIONS> regions_list(MAX_FIRSTPASS_ANALYSIS_FRAMES);
+    // TODO(angiebird): Assume frames_to_key <= MAX_FIRSTPASS_ANALYSIS_FRAMES
+    // for now.
+    // Handle the situation that frames_to_key > MAX_FIRSTPASS_ANALYSIS_FRAMES
+    // here or refactor av1_identify_regions() to make it support
+    // frames_to_key > MAX_FIRSTPASS_ANALYSIS_FRAMES
+    assert(frames_to_key <= MAX_FIRSTPASS_ANALYSIS_FRAMES);
+    int total_regions = 0;
+    av1_identify_regions(firstpass_info.stats_list.data() + key_order_index,
+                         frames_to_key, 0, regions_list.data(), &total_regions);
+    regions_list.resize(total_regions);
+    std::vector<int> gf_intervals = partition_gop_intervals(
+        rc_param_, firstpass_info.stats_list, regions_list, key_order_index,
+        /*frames_since_key=*/0, frames_to_key);
+    for (size_t gi = 0; gi < gf_intervals.size(); ++gi) {
+      const bool has_key_frame = gi == 0;
+      const int show_frame_count = gf_intervals[gi];
+      GopStruct gop =
+          construct_gop(&ref_frame_manager, show_frame_count, has_key_frame,
+                        global_coding_idx_offset, global_order_idx_offset);
+      assert(gop.show_frame_count == show_frame_count);
+      global_coding_idx_offset += static_cast<int>(gop.gop_frame_list.size());
+      global_order_idx_offset += gop.show_frame_count;
+      gop_list.push_back(gop);
+    }
   }
   return gop_list;
 }
