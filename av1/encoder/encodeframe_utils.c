@@ -1335,11 +1335,8 @@ void av1_source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   tmp_variance = cpi->ppi->fn_ptr[bsize].vf(src_y, src_ystride, last_src_y,
                                             last_src_ystride, &tmp_sse);
   // rd thresholds
-  if (cpi->sf.rt_sf.var_part_based_on_qidx >= 3) {
-    if (tmp_sse < avg_source_sse_threshold[1])
-      x->content_state_sb.source_sad_rd = kLowSad;
-    return;
-  }
+  if (tmp_sse < avg_source_sse_threshold[1])
+    x->content_state_sb.source_sad_rd = kLowSad;
 
   // nonrd thresholds
   if (tmp_sse == 0)

@@ -486,12 +486,14 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
     thresholds[3] = thresholds[3] << 1;
   if (cm->width * cm->height <= 352 * 288) {
     const int qindex_thr[5][2] = {
-      { 200, 220 }, { 200, 210 }, { 170, 220 }, { 140, 170 }, { 120, 150 }
+      { 200, 220 }, { 140, 170 }, { 120, 150 }, { 200, 210 }, { 170, 220 },
     };
-    int th_idx = cpi->sf.rt_sf.var_part_based_on_qidx;
-    if (cpi->sf.rt_sf.var_part_based_on_qidx >= 3)
+    int th_idx = 0;
+    if (cpi->sf.rt_sf.var_part_based_on_qidx >= 1)
       th_idx =
           (source_sad_rd <= kLowSad) ? cpi->sf.rt_sf.var_part_based_on_qidx : 0;
+    if (cpi->sf.rt_sf.var_part_based_on_qidx >= 3)
+      th_idx = cpi->sf.rt_sf.var_part_based_on_qidx;
     const int qindex_low_thr = qindex_thr[th_idx][0];
     const int qindex_high_thr = qindex_thr[th_idx][1];
     if (current_qindex >= qindex_high_thr) {

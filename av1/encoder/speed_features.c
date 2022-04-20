@@ -1502,7 +1502,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
                 FLAG_SKIP_COMP_BESTINTRA | FLAG_SKIP_INTRA_LOWVAR |
                 FLAG_EARLY_TERMINATE;
   sf->rt_sf.var_part_split_threshold_shift = 5;
-  if (!frame_is_intra_only(&cpi->common)) sf->rt_sf.var_part_based_on_qidx = 3;
+  if (!frame_is_intra_only(&cpi->common)) sf->rt_sf.var_part_based_on_qidx = 1;
 
   // For SVC: use better mv search on base temporal layers, and only
   // on base spatial layer if highest resolution is above 640x360.
@@ -1530,7 +1530,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.prune_inter_modes_wrt_gf_arf_based_on_sad = 1;
     sf->rt_sf.var_part_split_threshold_shift = 7;
     if (!frame_is_intra_only(&cpi->common))
-      sf->rt_sf.var_part_based_on_qidx = 4;
+      sf->rt_sf.var_part_based_on_qidx = 2;
   }
 
   if (speed >= 7) {
@@ -1608,7 +1608,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
         sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC_H_V;
 
     sf->winner_mode_sf.dc_blk_pred_level = 0;
-    sf->rt_sf.var_part_based_on_qidx = 1;
+    sf->rt_sf.var_part_based_on_qidx = 3;
   }
 
   if (speed >= 8) {
@@ -1621,7 +1621,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.nonrd_check_partition_merge_mode = 0;
     sf->rt_sf.var_part_split_threshold_shift = 8;
     sf->interp_sf.cb_pred_filter_search = 1;
-    sf->rt_sf.var_part_based_on_qidx = 2;
+    sf->rt_sf.var_part_based_on_qidx = 4;
     sf->rt_sf.partition_direct_merging = 1;
   }
   if (speed >= 9) {

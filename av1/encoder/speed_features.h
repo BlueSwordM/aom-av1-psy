@@ -1447,7 +1447,11 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // by a negative number.
   int var_part_split_threshold_shift;
 
-  // Qindex based variance partition threshold index.
+  // Qindex based variance partition threshold index, which determines
+  // the aggressiveness of partition pruning
+  // 0: disabled for speeds 9,10
+  // 1,2: (rd-path) lowers qindex thresholds conditionally (for low SAD sb)
+  // 3,4: (non-rd path) uses pre-tuned qindex thresholds
   int var_part_based_on_qidx;
 
   // Enable GF refresh based on Q value.

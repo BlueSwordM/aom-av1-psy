@@ -474,16 +474,6 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
                       get_mi_grid_idx(&cm->mi_params, mi_row, mi_col);
   const BLOCK_SIZE sb_size = cm->seq_params->sb_size;
 
-  // Grade the temporal variation of the sb, the grade will be used to decide
-  // fast mode search strategy for coding blocks
-  if (sf->rt_sf.source_metrics_sb_nonrd &&
-      cpi->svc.number_spatial_layers <= 1 &&
-      cm->current_frame.frame_type != KEY_FRAME) {
-    if (!cpi->sf.rt_sf.check_scene_detection || cpi->rc.frame_source_sad > 0)
-      av1_source_content_sb(cpi, x, mi_row, mi_col);
-    else
-      x->content_state_sb.source_sad_nonrd = kZeroSad;
-  }
 #if CONFIG_RT_ML_PARTITIONING
   if (sf->part_sf.partition_search_type == ML_BASED_PARTITION) {
     PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
@@ -637,16 +627,6 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
                     1);
 
-  // Grade the temporal variation of the sb, the grade will be used to decide
-  // partition thresholds for coding blocks
-  if ((sf->rt_sf.var_part_based_on_qidx >= 3) &&
-      (cm->width * cm->height <= 352 * 288)) {
-    if (cpi->rc.frame_source_sad > 0)
-      av1_source_content_sb(cpi, x, mi_row, mi_col);
-    else
-      x->content_state_sb.source_sad_rd = kZeroSad;
-  }
-
   // Encode the superblock
   if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION) {
     // partition search starting from a variance-based partition
@@ -783,6 +763,36 @@ static AOM_INLINE int delay_wait_for_top_right_sb(const AV1_COMP *const cpi) {
     return 0;
 }
 
+/*!\brief Determine whether grading content is needed based on sf and frame stat
+ *
+ * \ingroup partition_search
+ * \callgraph
+ * \callergraph
+ */
+// TODO(any): consolidate sfs to make interface cleaner
+static AOM_INLINE void grade_source_content_sb(AV1_COMP *cpi,
+                                               MACROBLOCK *const x, int mi_row,
+                                               int mi_col) {
+  AV1_COMMON *const cm = &cpi->common;
+  bool calc_src_content = false;
+
+  if (cpi->sf.rt_sf.source_metrics_sb_nonrd &&
+      cpi->svc.number_spatial_layers <= 1 &&
+      cm->current_frame.frame_type != KEY_FRAME) {
+    if (!cpi->sf.rt_sf.check_scene_detection || cpi->rc.frame_source_sad > 0)
+      calc_src_content = true;
+    else
+      x->content_state_sb.source_sad_nonrd = kZeroSad;
+  } else if ((cpi->sf.rt_sf.var_part_based_on_qidx >= 1) &&
+             (cm->width * cm->height <= 352 * 288)) {
+    if (cpi->rc.frame_source_sad > 0)
+      calc_src_content = true;
+    else
+      x->content_state_sb.source_sad_rd = kZeroSad;
+  }
+  if (calc_src_content) av1_source_content_sb(cpi, x, mi_row, mi_col);
+}
+
 /*!\brief Encode a superblock row by breaking it into superblocks
  *
  * \ingroup partition_search
@@ -891,6 +901,10 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
 
     init_src_var_info_of_4x4_sub_blocks(cpi, x->src_var_info_of_4x4_sub_blocks,
                                         sb_size);
+
+    // Grade the temporal variation of the sb, the grade will be used to decide
+    // fast mode search strategy for coding blocks
+    grade_source_content_sb(cpi, x, mi_row, mi_col);
 
     // encode the superblock
     if (use_nonrd_mode) {
