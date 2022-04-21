@@ -1788,6 +1788,7 @@ void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
     features->allow_screen_content_tools = 1;
     features->allow_intrabc = cpi->oxcf.mode == REALTIME ? 0 : 1;
     cpi->is_screen_content_type = 1;
+    cpi->use_screen_content_tools = 1;
     return;
   }
 
