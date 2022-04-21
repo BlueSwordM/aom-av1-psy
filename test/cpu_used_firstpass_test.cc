@@ -103,10 +103,22 @@ class CpuUsedFirstpassTestLarge : public CpuUsedFirstpassTest {};
 
 TEST_P(CpuUsedFirstpassTestLarge, FirstPassTest) { DoTest(); }
 
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+AV1_INSTANTIATE_TEST_SUITE(CpuUsedFirstpassTestLarge,
+                           ::testing::Values(2, 4, 6),
+                           ::testing::Values(2, 4));  // cpu_used
+
+AV1_INSTANTIATE_TEST_SUITE(CpuUsedFirstpassTest, ::testing::Values(2, 4, 6),
+                           ::testing::Values(6));  // cpu_used
+#else
 AV1_INSTANTIATE_TEST_SUITE(CpuUsedFirstpassTestLarge,
                            ::testing::Values(2, 4, 6),
                            ::testing::Values(2));  // cpu_used
 
 AV1_INSTANTIATE_TEST_SUITE(CpuUsedFirstpassTest, ::testing::Values(2, 4, 6),
                            ::testing::Values(4, 6));  // cpu_used
+#endif
+#endif
+
 }  // namespace
