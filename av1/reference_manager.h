@@ -27,6 +27,7 @@ class RefFrameManager {
   explicit RefFrameManager(int max_ref_frames)
       : max_ref_frames_(max_ref_frames) {
     forward_max_size_ = max_ref_frames - 2;
+    cur_global_order_idx_ = 0;
     Reset();
   }
   ~RefFrameManager() = default;
@@ -64,13 +65,13 @@ class RefFrameManager {
   int ColocatedRefIdx(int global_order_idx);
   int ForwardMaxSize() const { return forward_max_size_; }
   int MaxRefFrames() const { return max_ref_frames_; }
-  void UpdateRefFrameTable(GopFrame *gop_frame, RefUpdateType ref_update_type,
-                           EncodeRefMode encode_ref_mode);
+  void UpdateRefFrameTable(GopFrame *gop_frame);
 
  private:
   // TODO(angiebird): // Make RefFrameTable comply with max_ref_frames_
   int max_ref_frames_;
   int forward_max_size_;
+  int cur_global_order_idx_;
   RefFrameTable ref_frame_table_;
   std::deque<int> free_ref_idx_list_;
   std::vector<int> forward_stack_;

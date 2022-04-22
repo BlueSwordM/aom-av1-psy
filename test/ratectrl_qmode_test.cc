@@ -218,7 +218,8 @@ static RefFrameTable create_toy_ref_frame_table(int frame_count) {
   const int ref_frame_table_size = static_cast<int>(ref_frame_table.size());
   EXPECT_LE(frame_count, ref_frame_table_size);
   for (int i = 0; i < frame_count; ++i) {
-    ref_frame_table[i] = gop_frame_basic(0, 0, i, i, 0, 0, 0, 1, 0);
+    ref_frame_table[i] =
+        gop_frame_basic(0, 0, i, i, 0, GopFrameType::kRegularLeaf);
   }
   for (int i = frame_count; i < ref_frame_table_size; ++i) {
     ref_frame_table[i] = gop_frame_invalid();

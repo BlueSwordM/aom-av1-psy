@@ -36,21 +36,64 @@ GopFrame gop_frame_invalid() {
   return gop_frame;
 }
 
+void set_gop_frame_by_type(GopFrameType gop_frame_type, GopFrame *gop_frame) {
+  switch (gop_frame_type) {
+    case GopFrameType::kRegularKey:
+      gop_frame->is_key_frame = 1;
+      gop_frame->is_arf_frame = 0;
+      gop_frame->is_show_frame = 1;
+      gop_frame->is_golden_frame = 1;
+      gop_frame->encode_ref_mode = EncodeRefMode::kRegular;
+      break;
+    case GopFrameType::kRegularArf:
+      gop_frame->is_key_frame = 0;
+      gop_frame->is_arf_frame = 1;
+      gop_frame->is_show_frame = 0;
+      gop_frame->is_golden_frame = 1;
+      gop_frame->encode_ref_mode = EncodeRefMode::kRegular;
+      break;
+    case GopFrameType::kIntermediateArf:
+      gop_frame->is_key_frame = 0;
+      gop_frame->is_arf_frame = 1;
+      gop_frame->is_show_frame = 0;
+      gop_frame->is_golden_frame = 0;
+      gop_frame->encode_ref_mode = EncodeRefMode::kRegular;
+      break;
+    case GopFrameType::kRegularLeaf:
+      gop_frame->is_key_frame = 0;
+      gop_frame->is_arf_frame = 0;
+      gop_frame->is_show_frame = 1;
+      gop_frame->is_golden_frame = 0;
+      gop_frame->encode_ref_mode = EncodeRefMode::kRegular;
+      break;
+    case GopFrameType::kShowExisting:
+      gop_frame->is_key_frame = 0;
+      gop_frame->is_arf_frame = 0;
+      gop_frame->is_show_frame = 1;
+      gop_frame->is_golden_frame = 0;
+      gop_frame->encode_ref_mode = EncodeRefMode::kShowExisting;
+      break;
+    case GopFrameType::kOverlay:
+      gop_frame->is_key_frame = 0;
+      gop_frame->is_arf_frame = 0;
+      gop_frame->is_show_frame = 1;
+      gop_frame->is_golden_frame = 0;
+      gop_frame->encode_ref_mode = EncodeRefMode::kOverlay;
+      break;
+  }
+}
+
 GopFrame gop_frame_basic(int global_coding_idx_offset,
                          int global_order_idx_offset, int coding_idx,
-                         int order_idx, bool is_key_frame, bool is_arf_frame,
-                         bool is_golden_frame, bool is_show_frame, int depth) {
+                         int order_idx, int depth,
+                         GopFrameType gop_frame_type) {
   GopFrame gop_frame = {};
   gop_frame.is_valid = true;
   gop_frame.coding_idx = coding_idx;
   gop_frame.order_idx = order_idx;
   gop_frame.global_coding_idx = global_coding_idx_offset + coding_idx;
   gop_frame.global_order_idx = global_order_idx_offset + order_idx;
-  gop_frame.is_key_frame = is_key_frame;
-  gop_frame.is_arf_frame = is_arf_frame;
-  gop_frame.is_golden_frame = is_golden_frame;
-  gop_frame.is_show_frame = is_show_frame;
-  gop_frame.encode_ref_mode = EncodeRefMode::kRegular;
+  set_gop_frame_by_type(gop_frame_type, &gop_frame);
   gop_frame.colocated_ref_idx = -1;
   gop_frame.update_ref_idx = -1;
   gop_frame.layer_depth = depth + kLayerDepthOffset;
@@ -75,20 +118,18 @@ void construct_gop_multi_layer(GopStruct *gop_struct,
   if (depth < max_depth && num_frames >= kMinIntervalToAddArf) {
     int order_mid = (order_start + order_end) / 2;
     // intermediate ARF
-    gop_frame =
-        gop_frame_basic(global_coding_idx_offset, global_order_idx_offset,
-                        coding_idx, order_mid, 0, 1, 0, 0, depth);
-    ref_frame_manager->UpdateRefFrameTable(&gop_frame, RefUpdateType::kForward,
-                                           EncodeRefMode::kRegular);
+    gop_frame = gop_frame_basic(global_coding_idx_offset,
+                                global_order_idx_offset, coding_idx, order_mid,
+                                depth, GopFrameType::kIntermediateArf);
+    ref_frame_manager->UpdateRefFrameTable(&gop_frame);
     gop_struct->gop_frame_list.push_back(gop_frame);
     construct_gop_multi_layer(gop_struct, ref_frame_manager, max_depth,
                               depth + 1, order_start, order_mid);
     // show existing intermediate ARF
-    gop_frame =
-        gop_frame_basic(global_coding_idx_offset, global_order_idx_offset,
-                        coding_idx, order_mid, 0, 0, 0, 1, max_depth);
-    ref_frame_manager->UpdateRefFrameTable(&gop_frame, RefUpdateType::kNone,
-                                           EncodeRefMode::kShowExisting);
+    gop_frame = gop_frame_basic(global_coding_idx_offset,
+                                global_order_idx_offset, coding_idx, order_mid,
+                                max_depth, GopFrameType::kShowExisting);
+    ref_frame_manager->UpdateRefFrameTable(&gop_frame);
     gop_struct->gop_frame_list.push_back(gop_frame);
     construct_gop_multi_layer(gop_struct, ref_frame_manager, max_depth,
                               depth + 1, order_mid + 1, order_end);
@@ -98,9 +139,8 @@ void construct_gop_multi_layer(GopStruct *gop_struct,
       coding_idx = static_cast<int>(gop_struct->gop_frame_list.size());
       gop_frame =
           gop_frame_basic(global_coding_idx_offset, global_order_idx_offset,
-                          coding_idx, i, 0, 0, 0, 1, max_depth);
-      ref_frame_manager->UpdateRefFrameTable(&gop_frame, RefUpdateType::kLast,
-                                             EncodeRefMode::kRegular);
+                          coding_idx, i, max_depth, GopFrameType::kRegularLeaf);
+      ref_frame_manager->UpdateRefFrameTable(&gop_frame);
       gop_struct->gop_frame_list.push_back(gop_frame);
     }
   }
@@ -122,11 +162,10 @@ GopStruct construct_gop(RefFrameManager *ref_frame_manager,
     const int key_frame_depth = -1;
     ref_frame_manager->Reset();
     coding_idx = static_cast<int>(gop_struct.gop_frame_list.size());
-    gop_frame =
-        gop_frame_basic(global_coding_idx_offset, global_order_idx_offset,
-                        coding_idx, order_start, 1, 0, 1, 1, key_frame_depth);
-    ref_frame_manager->UpdateRefFrameTable(&gop_frame, RefUpdateType::kBackward,
-                                           EncodeRefMode::kRegular);
+    gop_frame = gop_frame_basic(
+        global_coding_idx_offset, global_order_idx_offset, coding_idx,
+        order_start, key_frame_depth, GopFrameType::kRegularKey);
+    ref_frame_manager->UpdateRefFrameTable(&gop_frame);
     gop_struct.gop_frame_list.push_back(gop_frame);
     order_start++;
   }
@@ -134,20 +173,19 @@ GopStruct construct_gop(RefFrameManager *ref_frame_manager,
   const int arf_depth = 0;
   coding_idx = static_cast<int>(gop_struct.gop_frame_list.size());
   gop_frame = gop_frame_basic(global_coding_idx_offset, global_order_idx_offset,
-                              coding_idx, order_arf, 0, 1, 1, 0, arf_depth);
-  ref_frame_manager->UpdateRefFrameTable(&gop_frame, RefUpdateType::kForward,
-                                         EncodeRefMode::kRegular);
+                              coding_idx, order_arf, arf_depth,
+                              GopFrameType::kRegularArf);
+  ref_frame_manager->UpdateRefFrameTable(&gop_frame);
   gop_struct.gop_frame_list.push_back(gop_frame);
   construct_gop_multi_layer(&gop_struct, ref_frame_manager,
                             ref_frame_manager->ForwardMaxSize(), arf_depth + 1,
                             order_start, order_arf);
   // Overlay
   coding_idx = static_cast<int>(gop_struct.gop_frame_list.size());
-  gop_frame = gop_frame_basic(global_coding_idx_offset, global_order_idx_offset,
-                              coding_idx, order_arf, 0, 0, 0, 1,
-                              ref_frame_manager->ForwardMaxSize());
-  ref_frame_manager->UpdateRefFrameTable(&gop_frame, RefUpdateType::kNone,
-                                         EncodeRefMode::kOverlay);
+  gop_frame = gop_frame_basic(
+      global_coding_idx_offset, global_order_idx_offset, coding_idx, order_arf,
+      ref_frame_manager->ForwardMaxSize(), GopFrameType::kOverlay);
+  ref_frame_manager->UpdateRefFrameTable(&gop_frame);
   gop_struct.gop_frame_list.push_back(gop_frame);
   return gop_struct;
 }

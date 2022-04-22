@@ -156,6 +156,7 @@ std::vector<ReferenceFrame> RefFrameManager::GetRefFrameList() const {
 }
 
 void RefFrameManager::UpdateOrder(int global_order_idx) {
+  cur_global_order_idx_ = global_order_idx;
   if (forward_stack_.empty()) {
     return;
   }
@@ -182,15 +183,32 @@ int RefFrameManager::ColocatedRefIdx(int global_order_idx) {
   return -1;
 }
 
-void RefFrameManager::UpdateRefFrameTable(GopFrame *gop_frame,
-                                          RefUpdateType ref_update_type,
-                                          EncodeRefMode encode_ref_mode) {
-  gop_frame->encode_ref_mode = encode_ref_mode;
+static RefUpdateType infer_ref_update_type(const GopFrame &gop_frame,
+                                           int cur_global_order_idx) {
+  if (gop_frame.global_order_idx > cur_global_order_idx) {
+    return RefUpdateType::kForward;
+  }
+  if (gop_frame.is_golden_frame) {
+    return RefUpdateType::kBackward;
+  }
+  if (gop_frame.encode_ref_mode == EncodeRefMode::kShowExisting ||
+      gop_frame.encode_ref_mode == EncodeRefMode::kOverlay) {
+    return RefUpdateType::kNone;
+  }
+  return RefUpdateType::kLast;
+}
+
+void RefFrameManager::UpdateRefFrameTable(GopFrame *gop_frame) {
   gop_frame->ref_frame_list = GetRefFrameList();
   gop_frame->colocated_ref_idx = ColocatedRefIdx(gop_frame->global_order_idx);
+
   if (gop_frame->is_show_frame) {
     UpdateOrder(gop_frame->global_order_idx);
   }
+  // Call infer_ref_update_type() after UpdateOrder() so that
+  // cur_global_order_idx_ is up-to-date
+  RefUpdateType ref_update_type =
+      infer_ref_update_type(*gop_frame, cur_global_order_idx_);
   if (ref_update_type == RefUpdateType::kNone) {
     gop_frame->update_ref_idx = -1;
   } else {
