@@ -16,13 +16,16 @@
 #include "av1/common/quant_common.h"
 #include "av1/encoder/av1_quantize.h"
 
-static INLINE uint16x4_t quantize_4(
-    const tran_low_t *coeff_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, int32x4_t v_quant_s32, int32x4_t v_dequant_s32,
-    int32x4_t v_round_s32, int log_scale, int shift) {
+static INLINE uint16x4_t quantize_4(const tran_low_t *coeff_ptr,
+                                    tran_low_t *qcoeff_ptr,
+                                    tran_low_t *dqcoeff_ptr,
+                                    int32x4_t v_quant_s32,
+                                    int32x4_t v_dequant_s32,
+                                    int32x4_t v_round_s32, int log_scale) {
   const int32x4_t v_coeff = vld1q_s32(coeff_ptr);
   const int32x4_t v_coeff_sign =
       vreinterpretq_s32_u32(vcltq_s32(v_coeff, vdupq_n_s32(0)));
+  const int32x4_t v_log_scale = vdupq_n_s32(log_scale);
   const int32x4_t v_abs_coeff = vabsq_s32(v_coeff);
   // ((abs_coeff << (1 + log_scale)) >= dequant_ptr[rc01])
   const int32x4_t v_abs_coeff_scaled =
@@ -30,42 +33,15 @@ static INLINE uint16x4_t quantize_4(
   const uint32x4_t v_mask = vcgeq_s32(v_abs_coeff_scaled, v_dequant_s32);
   // const int64_t tmp = (int64_t)abs_coeff + log_scaled_round;
   const int32x4_t v_tmp = vaddq_s32(v_abs_coeff, v_round_s32);
-  //  const int abs_qcoeff = (int)((tmp * quant) >> shift);
-  const int64x2_t v_abs_qcoeff_lo =
-      vmull_s32(vget_low_s32(v_tmp), vget_low_s32(v_quant_s32));
-#ifdef __aarch64__
-  const int64x2_t v_abs_qcoeff_hi = vmull_high_s32(v_tmp, v_quant_s32);
-#else
-  const int64x2_t v_abs_qcoeff_hi =
-      vmull_s32(vget_high_s32(v_tmp), vget_high_s32(v_quant_s32));
-#endif
-  // vshlq_s64 will shift right if shift value is negative.
-  const int64x2_t v_shift = vdupq_n_s64(-shift);
-  const int64x2_t v_abs_qcoeff_lo_sh = vshlq_s64(v_abs_qcoeff_lo, v_shift);
-  const int64x2_t v_abs_qcoeff_hi_sh = vshlq_s64(v_abs_qcoeff_hi, v_shift);
-  const int32x4_t v_abs_qcoeff = vcombine_s32(vmovn_s64(v_abs_qcoeff_lo_sh),
-                                              vmovn_s64(v_abs_qcoeff_hi_sh));
+  //  const int abs_qcoeff = (int)((tmp * quant) >> (16 - log_scale));
+  const int32x4_t v_abs_qcoeff =
+      vqdmulhq_s32(vshlq_s32(v_tmp, v_log_scale), v_quant_s32);
   //  qcoeff_ptr[rc] = (tran_low_t)((abs_qcoeff ^ coeff_sign) - coeff_sign);
   const int32x4_t v_qcoeff =
       vsubq_s32(veorq_s32(v_abs_qcoeff, v_coeff_sign), v_coeff_sign);
-  //  const tran_low_t abs_dqcoeff = (abs_qcoeff * dequant) >> log_scale;
-  const int64x2_t v_abs_dqcoeff_lo =
-      vmull_s32(vget_low_s32(v_abs_qcoeff), vget_low_s32(v_dequant_s32));
-#ifdef __aarch64__
-  const int64x2_t v_abs_dqcoeff_hi =
-      vmull_high_s32(v_abs_qcoeff, v_dequant_s32);
-#else
-  const int64x2_t v_abs_dqcoeff_hi =
-      vmull_s32(vget_high_s32(v_abs_qcoeff), vget_high_s32(v_dequant_s32));
-#endif
-  // vshlq_s64 will shift right if shift value is negative.
-  const int64x2_t v_log_scale = vdupq_n_s64(-log_scale);
-  const int64x2_t v_abs_dqcoeff_lo_sh =
-      vshlq_s64(v_abs_dqcoeff_lo, v_log_scale);
-  const int64x2_t v_abs_dqcoeff_hi_sh =
-      vshlq_s64(v_abs_dqcoeff_hi, v_log_scale);
-  const int32x4_t v_abs_dqcoeff = vcombine_s32(vmovn_s64(v_abs_dqcoeff_lo_sh),
-                                               vmovn_s64(v_abs_dqcoeff_hi_sh));
+  // vshlq_s32 will shift right if shift value is negative.
+  const int32x4_t v_abs_dqcoeff =
+      vshlq_s32(vmulq_s32(v_abs_qcoeff, v_dequant_s32), vnegq_s32(v_log_scale));
   //  dqcoeff_ptr[rc] = (tran_low_t)((abs_dqcoeff ^ coeff_sign) - coeff_sign);
   const int32x4_t v_dqcoeff =
       vsubq_s32(veorq_s32(v_abs_dqcoeff, v_coeff_sign), v_coeff_sign);
@@ -115,7 +91,6 @@ void av1_highbd_quantize_fp_neon(
   (void)zbin_ptr;
   (void)quant_shift_ptr;
 
-  const int shift = 16 - log_scale;
   const int16x4_t v_quant = vld1_s16(quant_ptr);
   const int16x4_t v_dequant = vld1_s16(dequant_ptr);
   const int16x4_t v_zero = vdup_n_s16(0);
@@ -126,14 +101,14 @@ void av1_highbd_quantize_fp_neon(
   const int16x4_t v_round =
       vbsl_s16(v_round_select, v_round_log_scale, v_round_no_scale);
   int32x4_t v_round_s32 = vaddl_s16(v_round, v_zero);
-  int32x4_t v_quant_s32 = vaddl_s16(v_quant, v_zero);
+  int32x4_t v_quant_s32 = vshlq_n_s32(vaddl_s16(v_quant, v_zero), 15);
   int32x4_t v_dequant_s32 = vaddl_s16(v_dequant, v_zero);
   uint16x4_t v_mask_lo, v_mask_hi;
   int16x8_t v_eobmax = vdupq_n_s16(-1);
 
   // DC and first 3 AC
   v_mask_lo = quantize_4(coeff_ptr, qcoeff_ptr, dqcoeff_ptr, v_quant_s32,
-                         v_dequant_s32, v_round_s32, log_scale, shift);
+                         v_dequant_s32, v_round_s32, log_scale);
 
   // overwrite the DC round with AC round
   v_round_s32 = vdupq_lane_s32(vget_low_s32(v_round_s32), 1);
@@ -141,9 +116,8 @@ void av1_highbd_quantize_fp_neon(
   v_dequant_s32 = vdupq_lane_s32(vget_low_s32(v_dequant_s32), 1);
 
   // 4 more DC
-  v_mask_hi =
-      quantize_4(coeff_ptr + 4, qcoeff_ptr + 4, dqcoeff_ptr + 4, v_quant_s32,
-                 v_dequant_s32, v_round_s32, log_scale, shift);
+  v_mask_hi = quantize_4(coeff_ptr + 4, qcoeff_ptr + 4, dqcoeff_ptr + 4,
+                         v_quant_s32, v_dequant_s32, v_round_s32, log_scale);
 
   // Find the max lane eob for the first 8 coeffs.
   v_eobmax =
@@ -156,10 +130,9 @@ void av1_highbd_quantize_fp_neon(
     dqcoeff_ptr += 8;
     iscan += 8;
     v_mask_lo = quantize_4(coeff_ptr, qcoeff_ptr, dqcoeff_ptr, v_quant_s32,
-                           v_dequant_s32, v_round_s32, log_scale, shift);
-    v_mask_hi =
-        quantize_4(coeff_ptr + 4, qcoeff_ptr + 4, dqcoeff_ptr + 4, v_quant_s32,
-                   v_dequant_s32, v_round_s32, log_scale, shift);
+                           v_dequant_s32, v_round_s32, log_scale);
+    v_mask_hi = quantize_4(coeff_ptr + 4, qcoeff_ptr + 4, dqcoeff_ptr + 4,
+                           v_quant_s32, v_dequant_s32, v_round_s32, log_scale);
     // Find the max lane eob for 8 coeffs.
     v_eobmax =
         get_max_lane_eob(iscan, v_eobmax, vcombine_u16(v_mask_lo, v_mask_hi));
