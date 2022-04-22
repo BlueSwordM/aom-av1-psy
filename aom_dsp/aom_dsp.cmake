@@ -287,6 +287,7 @@ if(CONFIG_AV1_ENCODER)
                 "${AOM_ROOT}/aom_dsp/x86/highbd_variance_sse4.c")
 
     list(APPEND AOM_DSP_ENCODER_INTRIN_NEON
+                "${AOM_ROOT}/aom_dsp/arm/highbd_quantize_neon.c"
                 "${AOM_ROOT}/aom_dsp/arm/highbd_variance_neon.c")
   endif()
 

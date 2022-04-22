@@ -709,6 +709,7 @@ const QuantizeParam<QuantizeFunc> kQParamArrayNEON[] = {
              static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_8),
   make_tuple(&aom_quantize_b_64x64_c, &aom_quantize_b_64x64_neon,
              static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_8),
+
 #if CONFIG_AV1_HIGHBITDEPTH
   make_tuple(&highbd_quan16x16_wrapper<av1_highbd_quantize_fp_c>,
              &highbd_quan16x16_wrapper<av1_highbd_quantize_fp_neon>,
@@ -719,6 +720,12 @@ const QuantizeParam<QuantizeFunc> kQParamArrayNEON[] = {
   make_tuple(&highbd_quan64x64_wrapper<av1_highbd_quantize_fp_c>,
              &highbd_quan64x64_wrapper<av1_highbd_quantize_fp_neon>,
              static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AOM_BITS_12),
+  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_neon,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AOM_BITS_12),
+  make_tuple(&aom_highbd_quantize_b_32x32_c, &aom_highbd_quantize_b_32x32_neon,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_12),
+  make_tuple(&aom_highbd_quantize_b_64x64_c, &aom_highbd_quantize_b_64x64_neon,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_12),
 #endif
 };
 
