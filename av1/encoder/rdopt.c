@@ -3529,7 +3529,7 @@ static AOM_INLINE void refine_winner_mode_tx(
   const int num_planes = av1_num_planes(cm);
 
   if (!is_winner_mode_processing_enabled(cpi, x, best_mbmode,
-                                         best_mbmode->mode))
+                                         rd_cost->skip_txfm))
     return;
 
   // Set params for winner mode evaluation
@@ -3537,16 +3537,6 @@ static AOM_INLINE void refine_winner_mode_tx(
 
   // No best mode identified so far
   if (*best_mode_index == THR_INVALID) return;
-
-  int skip_winner_mode_eval =
-      cpi->sf.winner_mode_sf.disable_winner_mode_eval_for_txskip;
-  // Do not skip winner mode evaluation at low quantizers if normal mode's
-  // transform search was too aggressive.
-  if (cpi->sf.rd_sf.perform_coeff_opt >= 5 && x->qindex <= 70)
-    skip_winner_mode_eval = 0;
-
-  if (skip_winner_mode_eval && (best_mbmode->skip_txfm || rd_cost->skip_txfm))
-    return;
 
   best_rd = RDCOST(x->rdmult, rd_cost->rate, rd_cost->dist);
   for (int mode_idx = 0; mode_idx < winner_mode_count; mode_idx++) {
@@ -3564,7 +3554,7 @@ static AOM_INLINE void refine_winner_mode_tx(
     if (xd->lossless[winner_mbmi->segment_id] == 0 &&
         winner_mode_index != THR_INVALID &&
         is_winner_mode_processing_enabled(cpi, x, winner_mbmi,
-                                          winner_mbmi->mode)) {
+                                          rd_cost->skip_txfm)) {
       RD_STATS rd_stats = *winner_rd_stats;
       int skip_blk = 0;
       RD_STATS rd_stats_y, rd_stats_uv;
