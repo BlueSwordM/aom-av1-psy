@@ -465,6 +465,28 @@ const IntraPredFunc<HighbdIntraPred> HighbdIntraPredTestVectorNeon[] = {
   highbd_entry(smooth, 32, 8, neon, 12),
   highbd_entry(smooth, 64, 16, neon, 12),
 #endif
+
+  highbd_entry(smooth_v, 4, 4, neon, 12),
+  highbd_entry(smooth_v, 4, 8, neon, 12),
+  highbd_entry(smooth_v, 8, 4, neon, 12),
+  highbd_entry(smooth_v, 8, 8, neon, 12),
+  highbd_entry(smooth_v, 8, 16, neon, 12),
+  highbd_entry(smooth_v, 16, 8, neon, 12),
+  highbd_entry(smooth_v, 16, 16, neon, 12),
+  highbd_entry(smooth_v, 16, 32, neon, 12),
+  highbd_entry(smooth_v, 32, 16, neon, 12),
+  highbd_entry(smooth_v, 32, 32, neon, 12),
+  highbd_entry(smooth_v, 32, 64, neon, 12),
+  highbd_entry(smooth_v, 64, 32, neon, 12),
+  highbd_entry(smooth_v, 64, 64, neon, 12),
+#if !CONFIG_REALTIME_ONLY
+  highbd_entry(smooth_v, 4, 16, neon, 12),
+  highbd_entry(smooth_v, 8, 32, neon, 12),
+  highbd_entry(smooth_v, 16, 4, neon, 12),
+  highbd_entry(smooth_v, 16, 64, neon, 12),
+  highbd_entry(smooth_v, 32, 8, neon, 12),
+  highbd_entry(smooth_v, 64, 16, neon, 12),
+#endif
 };
 
 INSTANTIATE_TEST_SUITE_P(NEON, HighbdIntraPredTest,

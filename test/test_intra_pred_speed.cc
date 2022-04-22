@@ -1256,16 +1256,19 @@ HIGHBD_INTRA_PRED_TEST(SSE2, TX_4X8, aom_highbd_dc_predictor_4x8_sse2,
 HIGHBD_INTRA_PRED_TEST(NEON, TX_4X4, aom_highbd_dc_predictor_4x4_neon, NULL,
                        NULL, NULL, aom_highbd_v_predictor_4x4_neon, NULL,
                        aom_highbd_paeth_predictor_4x4_neon,
-                       aom_highbd_smooth_predictor_4x4_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_4x4_neon,
+                       aom_highbd_smooth_v_predictor_4x4_neon, NULL)
 HIGHBD_INTRA_PRED_TEST(NEON, TX_4X8, NULL, NULL, NULL, NULL,
                        aom_highbd_v_predictor_4x8_neon, NULL,
                        aom_highbd_paeth_predictor_4x8_neon,
-                       aom_highbd_smooth_predictor_4x8_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_4x8_neon,
+                       aom_highbd_smooth_v_predictor_4x8_neon, NULL)
 #if !CONFIG_REALTIME_ONLY
 HIGHBD_INTRA_PRED_TEST(NEON, TX_4X16, NULL, NULL, NULL, NULL,
                        aom_highbd_v_predictor_4x16_neon, NULL,
                        aom_highbd_paeth_predictor_4x16_neon,
-                       aom_highbd_smooth_predictor_4x16_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_4x16_neon,
+                       aom_highbd_smooth_v_predictor_4x16_neon, NULL)
 #endif
 #endif  // HAVE_NEON
 
@@ -1334,22 +1337,26 @@ HIGHBD_INTRA_PRED_TEST(SSSE3, TX_8X8, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 HIGHBD_INTRA_PRED_TEST(NEON, TX_8X8, aom_highbd_dc_predictor_8x8_neon, NULL,
                        NULL, NULL, aom_highbd_v_predictor_8x8_neon, NULL,
                        aom_highbd_paeth_predictor_8x8_neon,
-                       aom_highbd_smooth_predictor_8x8_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_8x8_neon,
+                       aom_highbd_smooth_v_predictor_8x8_neon, NULL)
 
 HIGHBD_INTRA_PRED_TEST(NEON, TX_8X4, NULL, NULL, NULL, NULL,
                        aom_highbd_v_predictor_8x4_neon, NULL,
                        aom_highbd_paeth_predictor_8x4_neon,
-                       aom_highbd_smooth_predictor_8x4_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_8x4_neon,
+                       aom_highbd_smooth_v_predictor_8x4_neon, NULL)
 
 HIGHBD_INTRA_PRED_TEST(NEON, TX_8X16, NULL, NULL, NULL, NULL,
                        aom_highbd_v_predictor_8x16_neon, NULL,
                        aom_highbd_paeth_predictor_8x16_neon,
-                       aom_highbd_smooth_predictor_8x16_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_8x16_neon,
+                       aom_highbd_smooth_v_predictor_8x16_neon, NULL)
 #if !CONFIG_REALTIME_ONLY
 HIGHBD_INTRA_PRED_TEST(NEON, TX_8X32, NULL, NULL, NULL, NULL,
                        aom_highbd_v_predictor_8x32_neon, NULL,
                        aom_highbd_paeth_predictor_8x32_neon,
-                       aom_highbd_smooth_predictor_8x32_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_8x32_neon,
+                       aom_highbd_smooth_v_predictor_8x32_neon, NULL)
 #endif
 #endif  // HAVE_NEON
 
@@ -1441,28 +1448,33 @@ HIGHBD_INTRA_PRED_TEST(AVX2, TX_16X32, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 HIGHBD_INTRA_PRED_TEST(NEON, TX_16X16, aom_highbd_dc_predictor_16x16_neon, NULL,
                        NULL, NULL, aom_highbd_v_predictor_16x16_neon, NULL,
                        aom_highbd_paeth_predictor_16x16_neon,
-                       aom_highbd_smooth_predictor_16x16_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_16x16_neon,
+                       aom_highbd_smooth_v_predictor_16x16_neon, NULL)
 
 HIGHBD_INTRA_PRED_TEST(NEON, TX_16X8, NULL, NULL, NULL, NULL,
                        aom_highbd_v_predictor_16x8_neon, NULL,
                        aom_highbd_paeth_predictor_16x8_neon,
-                       aom_highbd_smooth_predictor_16x8_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_16x8_neon,
+                       aom_highbd_smooth_v_predictor_16x8_neon, NULL)
 
 HIGHBD_INTRA_PRED_TEST(NEON, TX_16X32, NULL, NULL, NULL, NULL,
                        aom_highbd_v_predictor_16x32_neon, NULL,
                        aom_highbd_paeth_predictor_16x32_neon,
-                       aom_highbd_smooth_predictor_16x32_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_16x32_neon,
+                       aom_highbd_smooth_v_predictor_16x32_neon, NULL)
 
 #if !CONFIG_REALTIME_ONLY
 HIGHBD_INTRA_PRED_TEST(NEON, TX_16X4, NULL, NULL, NULL, NULL,
                        aom_highbd_v_predictor_16x4_neon, NULL,
                        aom_highbd_paeth_predictor_16x4_neon,
-                       aom_highbd_smooth_predictor_16x4_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_16x4_neon,
+                       aom_highbd_smooth_v_predictor_16x4_neon, NULL)
 
 HIGHBD_INTRA_PRED_TEST(NEON, TX_16X64, NULL, NULL, NULL, NULL,
                        aom_highbd_v_predictor_16x64_neon, NULL,
                        aom_highbd_paeth_predictor_16x64_neon,
-                       aom_highbd_smooth_predictor_16x64_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_16x64_neon,
+                       aom_highbd_smooth_v_predictor_16x64_neon, NULL)
 #endif
 #endif  // HAVE_NEON
 
@@ -1537,23 +1549,27 @@ HIGHBD_INTRA_PRED_TEST(AVX2, TX_32X16, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 HIGHBD_INTRA_PRED_TEST(NEON, TX_32X32, aom_highbd_dc_predictor_32x32_neon, NULL,
                        NULL, NULL, aom_highbd_v_predictor_32x32_neon, NULL,
                        aom_highbd_paeth_predictor_32x32_neon,
-                       aom_highbd_smooth_predictor_32x32_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_32x32_neon,
+                       aom_highbd_smooth_v_predictor_32x32_neon, NULL)
 
 HIGHBD_INTRA_PRED_TEST(NEON, TX_32X16, NULL, NULL, NULL, NULL,
                        aom_highbd_v_predictor_32x16_neon, NULL,
                        aom_highbd_paeth_predictor_32x16_neon,
-                       aom_highbd_smooth_predictor_32x16_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_32x16_neon,
+                       aom_highbd_smooth_v_predictor_32x16_neon, NULL)
 
 HIGHBD_INTRA_PRED_TEST(NEON, TX_32X64, NULL, NULL, NULL, NULL,
                        aom_highbd_v_predictor_32x64_neon, NULL,
                        aom_highbd_paeth_predictor_32x64_neon,
-                       aom_highbd_smooth_predictor_32x64_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_32x64_neon,
+                       aom_highbd_smooth_v_predictor_32x64_neon, NULL)
 
 #if !CONFIG_REALTIME_ONLY
 HIGHBD_INTRA_PRED_TEST(NEON, TX_32X8, NULL, NULL, NULL, NULL,
                        aom_highbd_v_predictor_32x8_neon, NULL,
                        aom_highbd_paeth_predictor_32x8_neon,
-                       aom_highbd_smooth_predictor_32x8_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_32x8_neon,
+                       aom_highbd_smooth_v_predictor_32x8_neon, NULL)
 #endif
 #endif  // HAVE_NEON
 
@@ -1590,18 +1606,21 @@ HIGHBD_INTRA_PRED_TEST(
 HIGHBD_INTRA_PRED_TEST(NEON, TX_64X64, aom_highbd_dc_predictor_64x64_neon, NULL,
                        NULL, NULL, aom_highbd_v_predictor_64x64_neon, NULL,
                        aom_highbd_paeth_predictor_64x64_neon,
-                       aom_highbd_smooth_predictor_64x64_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_64x64_neon,
+                       aom_highbd_smooth_v_predictor_64x64_neon, NULL)
 
 HIGHBD_INTRA_PRED_TEST(NEON, TX_64X32, NULL, NULL, NULL, NULL,
                        aom_highbd_v_predictor_64x32_neon, NULL,
                        aom_highbd_paeth_predictor_64x32_neon,
-                       aom_highbd_smooth_predictor_64x32_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_64x32_neon,
+                       aom_highbd_smooth_v_predictor_64x32_neon, NULL)
 
 #if !CONFIG_REALTIME_ONLY
 HIGHBD_INTRA_PRED_TEST(NEON, TX_64X16, NULL, NULL, NULL, NULL,
                        aom_highbd_v_predictor_64x16_neon, NULL,
                        aom_highbd_paeth_predictor_64x16_neon,
-                       aom_highbd_smooth_predictor_64x16_neon, NULL, NULL)
+                       aom_highbd_smooth_predictor_64x16_neon,
+                       aom_highbd_smooth_v_predictor_64x16_neon, NULL)
 #endif
 #endif  // HAVE_NEON
 
