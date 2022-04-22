@@ -105,20 +105,23 @@ TEST_P(CpuUsedFirstpassTestLarge, FirstPassTest) { DoTest(); }
 
 #if defined(__has_feature)
 #if __has_feature(memory_sanitizer)
-AV1_INSTANTIATE_TEST_SUITE(CpuUsedFirstpassTestLarge,
-                           ::testing::Values(2, 4, 6),
-                           ::testing::Values(2, 4));  // cpu_used
-
-AV1_INSTANTIATE_TEST_SUITE(CpuUsedFirstpassTest, ::testing::Values(2, 4, 6),
-                           ::testing::Values(6));  // cpu_used
+static const int kSecondPassCpuUsedLarge[] = { 2, 4 };
+static const int kSecondPassCpuUsed[] = { 6 };
 #else
-AV1_INSTANTIATE_TEST_SUITE(CpuUsedFirstpassTestLarge,
-                           ::testing::Values(2, 4, 6),
-                           ::testing::Values(2));  // cpu_used
+static const int kSecondPassCpuUsedLarge[] = { 2 };
+static const int kSecondPassCpuUsed[] = { 4, 6 };
+#endif
+#else
+static const int kSecondPassCpuUsedLarge[] = { 2 };
+static const int kSecondPassCpuUsed[] = { 4, 6 };
+#endif
 
-AV1_INSTANTIATE_TEST_SUITE(CpuUsedFirstpassTest, ::testing::Values(2, 4, 6),
-                           ::testing::Values(4, 6));  // cpu_used
-#endif
-#endif
+AV1_INSTANTIATE_TEST_SUITE(
+    CpuUsedFirstpassTestLarge, ::testing::Values(2, 4, 6),
+    ::testing::ValuesIn(kSecondPassCpuUsedLarge));  // cpu_used
+
+AV1_INSTANTIATE_TEST_SUITE(
+    CpuUsedFirstpassTest, ::testing::Values(2, 4, 6),
+    ::testing::ValuesIn(kSecondPassCpuUsed));  // cpu_used
 
 }  // namespace
