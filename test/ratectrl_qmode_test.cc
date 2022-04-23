@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "av1/ratectrl_qmode.h"
+#include "av1/reference_manager.h"
 #include "test/mock_ratectrl_qmode.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
@@ -418,6 +419,133 @@ TEST(RateControlQModeTest, ComputeTplGopDepStats) {
     EXPECT_NEAR(sum, ref_sum, 0.0000001);
     break;
   }
+}
+
+TEST(RefFrameManagerTest, GetRefFrameCount) {
+  const std::vector<int> order_idx_list = { 0, 4, 2, 1, 2, 3, 4 };
+  const std::vector<GopFrameType> type_list = {
+    GopFrameType::kRegularKey,      GopFrameType::kRegularArf,
+    GopFrameType::kIntermediateArf, GopFrameType::kRegularLeaf,
+    GopFrameType::kShowExisting,    GopFrameType::kRegularLeaf,
+    GopFrameType::kOverlay
+  };
+  RefFrameManager ref_manager(kRefFrameTableSize);
+  int coding_idx = 0;
+  const int first_leaf_idx = 3;
+  EXPECT_EQ(type_list[first_leaf_idx], GopFrameType::kRegularLeaf);
+  // update reference frame until we see the first kRegularLeaf frame
+  for (; coding_idx <= first_leaf_idx; ++coding_idx) {
+    GopFrame gop_frame = gop_frame_basic(
+        0, 0, coding_idx, order_idx_list[coding_idx], 0, type_list[coding_idx]);
+    ref_manager.UpdateRefFrameTable(&gop_frame);
+  }
+  EXPECT_EQ(ref_manager.GetRefFrameCount(), 4);
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kForward), 2);
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kBackward), 1);
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kLast), 1);
+  EXPECT_EQ(ref_manager.CurGlobalOrderIdx(), 1);
+
+  // update reference frame until we see the first kShowExisting frame
+  const int first_show_existing_idx = 4;
+  EXPECT_EQ(type_list[first_show_existing_idx], GopFrameType::kShowExisting);
+  for (; coding_idx <= first_show_existing_idx; ++coding_idx) {
+    GopFrame gop_frame = gop_frame_basic(
+        0, 0, coding_idx, order_idx_list[coding_idx], 0, type_list[coding_idx]);
+    ref_manager.UpdateRefFrameTable(&gop_frame);
+  }
+  EXPECT_EQ(ref_manager.GetRefFrameCount(), 4);
+  EXPECT_EQ(ref_manager.CurGlobalOrderIdx(), 2);
+  // After the first kShowExisting, the kIntermediateArf should be moved from
+  // kForward to kLast due to the cur_global_order_idx_ update
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kForward), 1);
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kBackward), 1);
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kLast), 2);
+
+  const int second_leaf_idx = 5;
+  EXPECT_EQ(type_list[second_leaf_idx], GopFrameType::kRegularLeaf);
+  for (; coding_idx <= second_leaf_idx; ++coding_idx) {
+    GopFrame gop_frame = gop_frame_basic(
+        0, 0, coding_idx, order_idx_list[coding_idx], 0, type_list[coding_idx]);
+    ref_manager.UpdateRefFrameTable(&gop_frame);
+  }
+  EXPECT_EQ(ref_manager.GetRefFrameCount(), 5);
+  EXPECT_EQ(ref_manager.CurGlobalOrderIdx(), 3);
+  // An additional kRegularLeaf frame is added into kLast
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kForward), 1);
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kBackward), 1);
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kLast), 3);
+
+  const int first_overlay_idx = 6;
+  EXPECT_EQ(type_list[first_overlay_idx], GopFrameType::kOverlay);
+  for (; coding_idx <= first_overlay_idx; ++coding_idx) {
+    GopFrame gop_frame = gop_frame_basic(
+        0, 0, coding_idx, order_idx_list[coding_idx], 0, type_list[coding_idx]);
+    ref_manager.UpdateRefFrameTable(&gop_frame);
+  }
+
+  EXPECT_EQ(ref_manager.GetRefFrameCount(), 5);
+  EXPECT_EQ(ref_manager.CurGlobalOrderIdx(), 4);
+  // After the kOverlay, the kRegularArf should be moved from
+  // kForward to kBackward due to the cur_global_order_idx_ update
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kForward), 0);
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kBackward), 2);
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kLast), 3);
+}
+
+void test_ref_frame_manager_priority(const RefFrameManager &ref_manager,
+                                     RefUpdateType type) {
+  int ref_count = ref_manager.GetRefFrameCountByType(type);
+  int prev_global_order_idx = ref_manager.CurGlobalOrderIdx();
+  // The lower the priority is, the closer the gop_frame.global_order_idx should
+  // be with cur_global_order_idx_
+  for (int priority = 0; priority < ref_count; ++priority) {
+    GopFrame gop_frame = ref_manager.GetRefFrameByPriority(type, priority);
+    EXPECT_EQ(gop_frame.is_valid, true);
+    if (type == RefUpdateType::kForward) {
+      EXPECT_GE(gop_frame.global_order_idx, prev_global_order_idx);
+    } else {
+      EXPECT_LE(gop_frame.global_order_idx, prev_global_order_idx);
+    }
+    prev_global_order_idx = gop_frame.global_order_idx;
+  }
+  GopFrame gop_frame =
+      ref_manager.GetRefFrameByPriority(RefUpdateType::kForward, ref_count);
+  EXPECT_EQ(gop_frame.is_valid, false);
+}
+
+TEST(RefFrameManagerTest, GetRefFrameByPriority) {
+  const std::vector<int> order_idx_list = { 0, 4, 2, 1, 2, 3, 4 };
+  const std::vector<GopFrameType> type_list = {
+    GopFrameType::kRegularKey,      GopFrameType::kRegularArf,
+    GopFrameType::kIntermediateArf, GopFrameType::kRegularLeaf,
+    GopFrameType::kShowExisting,    GopFrameType::kRegularLeaf,
+    GopFrameType::kOverlay
+  };
+  RefFrameManager ref_manager(kRefFrameTableSize);
+  int coding_idx = 0;
+  const int first_leaf_idx = 3;
+  EXPECT_EQ(type_list[first_leaf_idx], GopFrameType::kRegularLeaf);
+  // update reference frame until we see the first kRegularLeaf frame
+  for (; coding_idx <= first_leaf_idx; ++coding_idx) {
+    GopFrame gop_frame = gop_frame_basic(
+        0, 0, coding_idx, order_idx_list[coding_idx], 0, type_list[coding_idx]);
+    ref_manager.UpdateRefFrameTable(&gop_frame);
+  }
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kForward), 2);
+  test_ref_frame_manager_priority(ref_manager, RefUpdateType::kForward);
+
+  const int first_overlay_idx = 6;
+  EXPECT_EQ(type_list[first_overlay_idx], GopFrameType::kOverlay);
+  for (; coding_idx <= first_overlay_idx; ++coding_idx) {
+    GopFrame gop_frame = gop_frame_basic(
+        0, 0, coding_idx, order_idx_list[coding_idx], 0, type_list[coding_idx]);
+    ref_manager.UpdateRefFrameTable(&gop_frame);
+  }
+
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kBackward), 2);
+  test_ref_frame_manager_priority(ref_manager, RefUpdateType::kBackward);
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kLast), 3);
+  test_ref_frame_manager_priority(ref_manager, RefUpdateType::kLast);
 }
 
 // MockRateControlQMode is provided for the use of clients of libaom, but it's

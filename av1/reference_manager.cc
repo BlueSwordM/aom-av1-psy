@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "av1/reference_manager.h"
+#include "av1/ratectrl_qmode.h"
 
 namespace aom {
 
@@ -47,10 +48,22 @@ int RefFrameManager::AllocateRefIdx() {
   return ref_idx;
 }
 
-int RefFrameManager::GetRefFrameCount() const {
-  size_t cnt =
-      forward_stack_.size() + backward_queue_.size() + last_queue_.size();
+int RefFrameManager::GetRefFrameCountByType(
+    RefUpdateType ref_update_type) const {
+  size_t cnt = 0;
+  switch (ref_update_type) {
+    case RefUpdateType::kForward: cnt = forward_stack_.size(); break;
+    case RefUpdateType::kBackward: cnt = backward_queue_.size(); break;
+    case RefUpdateType::kLast: cnt = last_queue_.size(); break;
+    case RefUpdateType::kNone: cnt = 0; break;
+  }
   return static_cast<int>(cnt);
+}
+
+int RefFrameManager::GetRefFrameCount() const {
+  return GetRefFrameCountByType(RefUpdateType::kForward) +
+         GetRefFrameCountByType(RefUpdateType::kBackward) +
+         GetRefFrameCountByType(RefUpdateType::kLast);
 }
 
 // TODO(angiebird): Add unit test.
@@ -79,6 +92,20 @@ int RefFrameManager::GetRefFrameIdx(RefUpdateType ref_update_type,
     }
   }
   return -1;
+}
+
+// The priority_idx indicate closeness between the current frame and
+// the ref frame in display order.
+// For example, ref_update_type == kForward and priority_idx == 0 means
+// find the closest ref frame in forward_stack_.
+GopFrame RefFrameManager::GetRefFrameByPriority(RefUpdateType ref_update_type,
+                                                int priority_idx) const {
+  int ref_idx = GetRefFrameIdx(ref_update_type, priority_idx);
+  if (ref_idx == -1) {
+    return gop_frame_invalid();
+  }
+  assert(ref_frame_table_[ref_idx].update_ref_idx == ref_idx);
+  return ref_frame_table_[ref_idx];
 }
 
 ReferenceName get_ref_name(RefUpdateType ref_update_type, int priority_idx,
