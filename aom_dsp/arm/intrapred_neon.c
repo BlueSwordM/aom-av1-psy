@@ -2682,10 +2682,10 @@ static INLINE void load_pixel_w4(const uint8_t *above, const uint8_t *left,
 // weight_h[2]: same as [0], second half for height = 16 only
 // weight_h[3]: same as [1], second half for height = 16 only
 // weight_w[0]: weights_w and scale - weights_w interleave vector
-static INLINE void load_weight_w4(const uint8_t *weight_array, int height,
-                                  uint16x8_t *weight_h, uint16x8_t *weight_w) {
+static INLINE void load_weight_w4(int height, uint16x8_t *weight_h,
+                                  uint16x8_t *weight_w) {
   const uint16x8_t d = vdupq_n_u16((uint16_t)(1 << sm_weight_log2_scale));
-  const uint8x8_t t = vcreate_u8(((const uint32_t *)(weight_array))[1]);
+  const uint8x8_t t = vcreate_u8(((const uint32_t *)(sm_weight_arrays))[1]);
   weight_h[0] = vmovl_u8(t);
   weight_h[1] = vsubw_u8(d, t);
 #if defined(__aarch64__)
@@ -2695,12 +2695,12 @@ static INLINE void load_weight_w4(const uint8_t *weight_array, int height,
 #endif  // (__aarch64__)
 
   if (height == 8) {
-    const uint8x8_t weight = vld1_u8(&weight_array[8]);
+    const uint8x8_t weight = vld1_u8(&sm_weight_arrays[8]);
     weight_h[0] = vmovl_u8(weight);
     weight_h[1] = vsubw_u8(d, weight);
   } else if (height == 16) {
     const uint8x16_t zero = vdupq_n_u8(0);
-    const uint8x16_t weight = vld1q_u8(&weight_array[16]);
+    const uint8x16_t weight = vld1q_u8(&sm_weight_arrays[16]);
     const uint8x16x2_t weight_h_02 = vzipq_u8(weight, zero);
     weight_h[0] = vreinterpretq_u16_u8(weight_h_02.val[0]);
     weight_h[1] = vsubq_u16(d, vreinterpretq_u16_u8(weight_h_02.val[0]));
@@ -2777,7 +2777,7 @@ void aom_smooth_predictor_4x4_neon(uint8_t *dst, ptrdiff_t stride,
   load_pixel_w4(above, left, 4, pixels);
 
   uint16x8_t wh[4], ww[2];
-  load_weight_w4(sm_weight_arrays, 4, wh, ww);
+  load_weight_w4(4, wh, ww);
 
   smooth_pred_4xh(pixels, wh, ww, 4, dst, stride, 0);
 }
@@ -2788,7 +2788,7 @@ void aom_smooth_predictor_4x8_neon(uint8_t *dst, ptrdiff_t stride,
   load_pixel_w4(above, left, 8, pixels);
 
   uint16x8_t wh[4], ww[2];
-  load_weight_w4(sm_weight_arrays, 8, wh, ww);
+  load_weight_w4(8, wh, ww);
 
   smooth_pred_4xh(pixels, wh, ww, 8, dst, stride, 0);
 }
@@ -2799,7 +2799,7 @@ void aom_smooth_predictor_4x16_neon(uint8_t *dst, ptrdiff_t stride,
   load_pixel_w4(above, left, 16, pixels);
 
   uint16x8_t wh[4], ww[2];
-  load_weight_w4(sm_weight_arrays, 16, wh, ww);
+  load_weight_w4(16, wh, ww);
 
   smooth_pred_4xh(pixels, wh, ww, 8, dst, stride, 0);
   dst += stride << 3;
@@ -2849,11 +2849,11 @@ static INLINE void load_pixel_w8(const uint8_t *above, const uint8_t *left,
 // weight_h[7]: same as [1], offset 24
 // weight_w[0]: weights_w and scale - weights_w interleave vector, first half
 // weight_w[1]: weights_w and scale - weights_w interleave vector, second half
-static INLINE void load_weight_w8(const uint8_t *weight_array, int height,
-                                  uint16x8_t *weight_h, uint16x8_t *weight_w) {
+static INLINE void load_weight_w8(int height, uint16x8_t *weight_h,
+                                  uint16x8_t *weight_w) {
   const uint8x16_t zero = vdupq_n_u8(0);
   const int we_offset = height < 8 ? 4 : 8;
-  uint8x16_t we = vld1q_u8(&weight_array[we_offset]);
+  uint8x16_t we = vld1q_u8(&sm_weight_arrays[we_offset]);
 #if defined(__aarch64__)
   weight_h[0] = vreinterpretq_u16_u8(vzip1q_u8(we, zero));
 #else
@@ -2876,20 +2876,20 @@ static INLINE void load_weight_w8(const uint8_t *weight_array, int height,
   }
 
   if (height == 16) {
-    we = vld1q_u8(&weight_array[16]);
+    we = vld1q_u8(&sm_weight_arrays[16]);
     const uint8x16x2_t weight_h_02 = vzipq_u8(we, zero);
     weight_h[0] = vreinterpretq_u16_u8(weight_h_02.val[0]);
     weight_h[1] = vsubq_u16(d, weight_h[0]);
     weight_h[2] = vreinterpretq_u16_u8(weight_h_02.val[1]);
     weight_h[3] = vsubq_u16(d, weight_h[2]);
   } else if (height == 32) {
-    const uint8x16_t weight_lo = vld1q_u8(&weight_array[32]);
+    const uint8x16_t weight_lo = vld1q_u8(&sm_weight_arrays[32]);
     const uint8x16x2_t weight_h_02 = vzipq_u8(weight_lo, zero);
     weight_h[0] = vreinterpretq_u16_u8(weight_h_02.val[0]);
     weight_h[1] = vsubq_u16(d, weight_h[0]);
     weight_h[2] = vreinterpretq_u16_u8(weight_h_02.val[1]);
     weight_h[3] = vsubq_u16(d, weight_h[2]);
-    const uint8x16_t weight_hi = vld1q_u8(&weight_array[32 + 16]);
+    const uint8x16_t weight_hi = vld1q_u8(&sm_weight_arrays[32 + 16]);
     const uint8x16x2_t weight_h_46 = vzipq_u8(weight_hi, zero);
     weight_h[4] = vreinterpretq_u16_u8(weight_h_46.val[0]);
     weight_h[5] = vsubq_u16(d, weight_h[4]);
@@ -2970,7 +2970,7 @@ void aom_smooth_predictor_8x4_neon(uint8_t *dst, ptrdiff_t stride,
   load_pixel_w8(above, left, 4, pixels);
 
   uint16x8_t wh[4], ww[2];
-  load_weight_w8(sm_weight_arrays, 4, wh, ww);
+  load_weight_w8(4, wh, ww);
 
   smooth_pred_8xh(pixels, wh, ww, 4, dst, stride, 0);
 }
@@ -2981,7 +2981,7 @@ void aom_smooth_predictor_8x8_neon(uint8_t *dst, ptrdiff_t stride,
   load_pixel_w8(above, left, 8, pixels);
 
   uint16x8_t wh[4], ww[2];
-  load_weight_w8(sm_weight_arrays, 8, wh, ww);
+  load_weight_w8(8, wh, ww);
 
   smooth_pred_8xh(pixels, wh, ww, 8, dst, stride, 0);
 }
@@ -2992,7 +2992,7 @@ void aom_smooth_predictor_8x16_neon(uint8_t *dst, ptrdiff_t stride,
   load_pixel_w8(above, left, 16, pixels);
 
   uint16x8_t wh[4], ww[2];
-  load_weight_w8(sm_weight_arrays, 16, wh, ww);
+  load_weight_w8(16, wh, ww);
 
   smooth_pred_8xh(pixels, wh, ww, 8, dst, stride, 0);
   dst += stride << 3;
@@ -3005,7 +3005,7 @@ void aom_smooth_predictor_8x32_neon(uint8_t *dst, ptrdiff_t stride,
   load_pixel_w8(above, left, 32, pixels);
 
   uint16x8_t wh[8], ww[2];
-  load_weight_w8(sm_weight_arrays, 32, wh, ww);
+  load_weight_w8(32, wh, ww);
 
   smooth_pred_8xh(&pixels[0], wh, ww, 8, dst, stride, 0);
   dst += stride << 3;
