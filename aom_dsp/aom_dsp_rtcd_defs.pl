@@ -439,6 +439,28 @@ if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
     specialize qw/aom_highbd_smooth_v_predictor_32x8 neon/;
     specialize qw/aom_highbd_smooth_v_predictor_64x16 neon/;
   }
+
+  specialize qw/aom_highbd_smooth_h_predictor_4x4 neon/;
+  specialize qw/aom_highbd_smooth_h_predictor_4x8 neon/;
+  specialize qw/aom_highbd_smooth_h_predictor_8x4 neon/;
+  specialize qw/aom_highbd_smooth_h_predictor_8x8 neon/;
+  specialize qw/aom_highbd_smooth_h_predictor_8x16 neon/;
+  specialize qw/aom_highbd_smooth_h_predictor_16x8 neon/;
+  specialize qw/aom_highbd_smooth_h_predictor_16x16 neon/;
+  specialize qw/aom_highbd_smooth_h_predictor_16x32 neon/;
+  specialize qw/aom_highbd_smooth_h_predictor_32x16 neon/;
+  specialize qw/aom_highbd_smooth_h_predictor_32x32 neon/;
+  specialize qw/aom_highbd_smooth_h_predictor_32x64 neon/;
+  specialize qw/aom_highbd_smooth_h_predictor_64x32 neon/;
+  specialize qw/aom_highbd_smooth_h_predictor_64x64 neon/;
+  if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
+    specialize qw/aom_highbd_smooth_h_predictor_4x16 neon/;
+    specialize qw/aom_highbd_smooth_h_predictor_8x32 neon/;
+    specialize qw/aom_highbd_smooth_h_predictor_16x4 neon/;
+    specialize qw/aom_highbd_smooth_h_predictor_16x64 neon/;
+    specialize qw/aom_highbd_smooth_h_predictor_32x8 neon/;
+    specialize qw/aom_highbd_smooth_h_predictor_64x16 neon/;
+  }
 }
 #
 # Sub Pixel Filters
