@@ -548,6 +548,38 @@ TEST(RefFrameManagerTest, GetRefFrameByPriority) {
   test_ref_frame_manager_priority(ref_manager, RefUpdateType::kLast);
 }
 
+TEST(RefFrameManagerTest, GetRefFrameList) {
+  const std::vector<int> order_idx_list = { 0, 4, 2, 1 };
+  const int frame_count = static_cast<int>(order_idx_list.size());
+  const std::vector<GopFrameType> type_list = { GopFrameType::kRegularKey,
+                                                GopFrameType::kRegularArf,
+                                                GopFrameType::kIntermediateArf,
+                                                GopFrameType::kRegularLeaf };
+  RefFrameManager ref_manager(kRefFrameTableSize);
+  for (int coding_idx = 0; coding_idx < frame_count; ++coding_idx) {
+    GopFrame gop_frame = gop_frame_basic(
+        0, 0, coding_idx, order_idx_list[coding_idx], 0, type_list[coding_idx]);
+    ref_manager.UpdateRefFrameTable(&gop_frame);
+  }
+  EXPECT_EQ(ref_manager.GetRefFrameCount(), frame_count);
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kForward), 2);
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kBackward), 1);
+  EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kLast), 1);
+  std::vector<ReferenceFrame> ref_frame_list = ref_manager.GetRefFrameList();
+  EXPECT_EQ(ref_frame_list.size(), order_idx_list.size());
+  std::vector<int> expected_global_order_idx = { 2, 0, 1, 4 };
+  std::vector<ReferenceName> expected_names = { ReferenceName::kBwdrefFrame,
+                                                ReferenceName::kGoldenFrame,
+                                                ReferenceName::kLastFrame,
+                                                ReferenceName::kAltref2Frame };
+  for (size_t i = 0; i < ref_frame_list.size(); ++i) {
+    ReferenceFrame &ref_frame = ref_frame_list[i];
+    GopFrame gop_frame = ref_manager.GetRefFrameByIndex(ref_frame.index);
+    EXPECT_EQ(gop_frame.global_order_idx, expected_global_order_idx[i]);
+    EXPECT_EQ(ref_frame.name, expected_names[i]);
+  }
+}
+
 // MockRateControlQMode is provided for the use of clients of libaom, but it's
 // not expected that it will be used in any real libaom tests.
 // This simple "toy" test exists solely to verify the integration of gmock into

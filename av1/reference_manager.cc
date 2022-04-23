@@ -73,8 +73,8 @@ int RefFrameManager::GetRefFrameCount() const {
 // the ref frame in display order.
 // For example, ref_update_type == kForward and priority_idx == 0 means
 // find the closest ref frame in forward_stack_.
-int RefFrameManager::GetRefFrameIdx(RefUpdateType ref_update_type,
-                                    int priority_idx) const {
+int RefFrameManager::GetRefFrameIdxByPriority(RefUpdateType ref_update_type,
+                                              int priority_idx) const {
   if (ref_update_type == RefUpdateType::kForward) {
     int size = static_cast<int>(forward_stack_.size());
     if (priority_idx < size) {
@@ -100,11 +100,15 @@ int RefFrameManager::GetRefFrameIdx(RefUpdateType ref_update_type,
 // find the closest ref frame in forward_stack_.
 GopFrame RefFrameManager::GetRefFrameByPriority(RefUpdateType ref_update_type,
                                                 int priority_idx) const {
-  int ref_idx = GetRefFrameIdx(ref_update_type, priority_idx);
+  int ref_idx = GetRefFrameIdxByPriority(ref_update_type, priority_idx);
   if (ref_idx == -1) {
     return gop_frame_invalid();
   }
   assert(ref_frame_table_[ref_idx].update_ref_idx == ref_idx);
+  return ref_frame_table_[ref_idx];
+}
+
+GopFrame RefFrameManager::GetRefFrameByIndex(int ref_idx) const {
   return ref_frame_table_[ref_idx];
 }
 
@@ -165,7 +169,7 @@ std::vector<ReferenceFrame> RefFrameManager::GetRefFrameList() const {
   while (ref_frame_count < max_ref_frames_ && available_ref_frames > 0) {
     const RefUpdateType ref_update_type = round_robin_list[round_robin_idx];
     int priority_idx = priority_idx_list[round_robin_idx];
-    int ref_idx = GetRefFrameIdx(ref_update_type, priority_idx);
+    int ref_idx = GetRefFrameIdxByPriority(ref_update_type, priority_idx);
     if (ref_idx != -1) {
       const ReferenceName name =
           get_ref_name(ref_update_type, priority_idx, used_name_set);
