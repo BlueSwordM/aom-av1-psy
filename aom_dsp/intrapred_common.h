@@ -18,15 +18,7 @@
 // 2^sm_weight_log2_scale.
 static const int sm_weight_log2_scale = 8;
 
-// max(block_size_wide[BLOCK_LARGEST], block_size_high[BLOCK_LARGEST])
-#define MAX_BLOCK_DIM 64
-
-/* clang-format off */
-static const uint8_t sm_weight_arrays[2 * MAX_BLOCK_DIM] = {
-  // Unused, because we always offset by bs, which is at least 2.
-  0, 0,
-  // bs = 2
-  255, 128,
+static const uint8_t sm_weight_arrays[] = {
   // bs = 4
   255, 149, 85, 64,
   // bs = 8
@@ -40,11 +32,9 @@ static const uint8_t sm_weight_arrays[2 * MAX_BLOCK_DIM] = {
   255, 248, 240, 233, 225, 218, 210, 203, 196, 189, 182, 176, 169, 163, 156,
   150, 144, 138, 133, 127, 121, 116, 111, 106, 101, 96, 91, 86, 82, 77, 73, 69,
   65, 61, 57, 54, 50, 47, 44, 41, 38, 35, 32, 29, 27, 25, 22, 20, 18, 16, 15,
-  13, 12, 10, 9, 8, 7, 6, 6, 5, 5, 4, 4, 4,
+  13, 12, 10, 9, 8, 7, 6, 6, 5, 5, 4, 4, 4
 };
-/* clang-format on */
 
-// TODO(b/217461825): normalize sm_weight_arrays[] offsets.
 static const uint16_t sm_weight_arrays_u16[] = {
   // block dimension = 4
   255, 149, 85, 64,

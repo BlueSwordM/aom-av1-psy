@@ -611,19 +611,19 @@ static INLINE void load_weight_w4(int height, __m128i *weight_h,
                                   __m128i *weight_w) {
   const __m128i zero = _mm_setzero_si128();
   const __m128i d = _mm_set1_epi16((uint16_t)(1 << sm_weight_log2_scale));
-  const __m128i t = _mm_cvtsi32_si128(((const uint32_t *)sm_weight_arrays)[1]);
+  const __m128i t = _mm_cvtsi32_si128(((const uint32_t *)sm_weight_arrays)[0]);
   weight_h[0] = _mm_unpacklo_epi8(t, zero);
   weight_h[1] = _mm_sub_epi16(d, weight_h[0]);
   weight_w[0] = _mm_unpacklo_epi16(weight_h[0], weight_h[1]);
 
   if (height == 8) {
     const __m128i weight =
-        _mm_loadl_epi64((const __m128i *)&sm_weight_arrays[8]);
+        _mm_loadl_epi64((const __m128i *)&sm_weight_arrays[4]);
     weight_h[0] = _mm_unpacklo_epi8(weight, zero);
     weight_h[1] = _mm_sub_epi16(d, weight_h[0]);
   } else if (height == 16) {
     const __m128i weight =
-        _mm_loadu_si128((const __m128i *)&sm_weight_arrays[16]);
+        _mm_loadu_si128((const __m128i *)&sm_weight_arrays[12]);
     weight_h[0] = _mm_unpacklo_epi8(weight, zero);
     weight_h[1] = _mm_sub_epi16(d, weight_h[0]);
     weight_h[2] = _mm_unpackhi_epi8(weight, zero);
@@ -748,7 +748,7 @@ static INLINE void load_pixel_w8(const uint8_t *above, const uint8_t *left,
 static INLINE void load_weight_w8(int height, __m128i *weight_h,
                                   __m128i *weight_w) {
   const __m128i zero = _mm_setzero_si128();
-  const int we_offset = height < 8 ? 4 : 8;
+  const int we_offset = height < 8 ? 0 : 4;
   __m128i we = _mm_loadu_si128((const __m128i *)&sm_weight_arrays[we_offset]);
   weight_h[0] = _mm_unpacklo_epi8(we, zero);
   const __m128i d = _mm_set1_epi16((uint16_t)(1 << sm_weight_log2_scale));
@@ -766,20 +766,20 @@ static INLINE void load_weight_w8(int height, __m128i *weight_h,
   }
 
   if (height == 16) {
-    we = _mm_loadu_si128((const __m128i *)&sm_weight_arrays[16]);
+    we = _mm_loadu_si128((const __m128i *)&sm_weight_arrays[12]);
     weight_h[0] = _mm_unpacklo_epi8(we, zero);
     weight_h[1] = _mm_sub_epi16(d, weight_h[0]);
     weight_h[2] = _mm_unpackhi_epi8(we, zero);
     weight_h[3] = _mm_sub_epi16(d, weight_h[2]);
   } else if (height == 32) {
     const __m128i weight_lo =
-        _mm_loadu_si128((const __m128i *)&sm_weight_arrays[32]);
+        _mm_loadu_si128((const __m128i *)&sm_weight_arrays[28]);
     weight_h[0] = _mm_unpacklo_epi8(weight_lo, zero);
     weight_h[1] = _mm_sub_epi16(d, weight_h[0]);
     weight_h[2] = _mm_unpackhi_epi8(weight_lo, zero);
     weight_h[3] = _mm_sub_epi16(d, weight_h[2]);
     const __m128i weight_hi =
-        _mm_loadu_si128((const __m128i *)&sm_weight_arrays[32 + 16]);
+        _mm_loadu_si128((const __m128i *)&sm_weight_arrays[28 + 16]);
     weight_h[4] = _mm_unpacklo_epi8(weight_hi, zero);
     weight_h[5] = _mm_sub_epi16(d, weight_h[4]);
     weight_h[6] = _mm_unpackhi_epi8(weight_hi, zero);
@@ -888,8 +888,8 @@ static INLINE void smooth_predictor_wxh(uint8_t *dst, ptrdiff_t stride,
                                         const uint8_t *above,
                                         const uint8_t *left, uint32_t bw,
                                         uint32_t bh) {
-  const uint8_t *const sm_weights_w = sm_weight_arrays + bw;
-  const uint8_t *const sm_weights_h = sm_weight_arrays + bh;
+  const uint8_t *const sm_weights_w = sm_weight_arrays + bw - 4;
+  const uint8_t *const sm_weights_h = sm_weight_arrays + bh - 4;
   const __m128i zero = _mm_setzero_si128();
   const __m128i scale_value =
       _mm_set1_epi16((uint16_t)(1 << sm_weight_log2_scale));
@@ -1037,17 +1037,17 @@ static INLINE void load_weight_v_w4(int height, __m128i *weights) {
 
   if (height == 4) {
     const __m128i weight =
-        _mm_cvtsi32_si128(((const uint32_t *)sm_weight_arrays)[1]);
+        _mm_cvtsi32_si128(((const uint32_t *)sm_weight_arrays)[0]);
     weights[0] = _mm_unpacklo_epi8(weight, zero);
     weights[1] = _mm_sub_epi16(d, weights[0]);
   } else if (height == 8) {
     const __m128i weight =
-        _mm_loadl_epi64((const __m128i *)&sm_weight_arrays[8]);
+        _mm_loadl_epi64((const __m128i *)&sm_weight_arrays[4]);
     weights[0] = _mm_unpacklo_epi8(weight, zero);
     weights[1] = _mm_sub_epi16(d, weights[0]);
   } else {
     const __m128i weight =
-        _mm_loadu_si128((const __m128i *)&sm_weight_arrays[16]);
+        _mm_loadu_si128((const __m128i *)&sm_weight_arrays[12]);
     weights[0] = _mm_unpacklo_epi8(weight, zero);
     weights[1] = _mm_sub_epi16(d, weights[0]);
     weights[2] = _mm_unpackhi_epi8(weight, zero);
@@ -1140,27 +1140,27 @@ static INLINE void load_weight_v_w8(int height, __m128i *weight_h) {
   const __m128i d = _mm_set1_epi16((uint16_t)(1 << sm_weight_log2_scale));
 
   if (height < 16) {
-    const int offset = height < 8 ? 4 : 8;
+    const int offset = height < 8 ? 0 : 4;
     const __m128i weight =
         _mm_loadu_si128((const __m128i *)&sm_weight_arrays[offset]);
     weight_h[0] = _mm_unpacklo_epi8(weight, zero);
     weight_h[1] = _mm_sub_epi16(d, weight_h[0]);
   } else if (height == 16) {
     const __m128i weight =
-        _mm_loadu_si128((const __m128i *)&sm_weight_arrays[16]);
+        _mm_loadu_si128((const __m128i *)&sm_weight_arrays[12]);
     weight_h[0] = _mm_unpacklo_epi8(weight, zero);
     weight_h[1] = _mm_sub_epi16(d, weight_h[0]);
     weight_h[2] = _mm_unpackhi_epi8(weight, zero);
     weight_h[3] = _mm_sub_epi16(d, weight_h[2]);
   } else {
     const __m128i weight_lo =
-        _mm_loadu_si128((const __m128i *)&sm_weight_arrays[32]);
+        _mm_loadu_si128((const __m128i *)&sm_weight_arrays[28]);
     weight_h[0] = _mm_unpacklo_epi8(weight_lo, zero);
     weight_h[1] = _mm_sub_epi16(d, weight_h[0]);
     weight_h[2] = _mm_unpackhi_epi8(weight_lo, zero);
     weight_h[3] = _mm_sub_epi16(d, weight_h[2]);
     const __m128i weight_hi =
-        _mm_loadu_si128((const __m128i *)&sm_weight_arrays[32 + 16]);
+        _mm_loadu_si128((const __m128i *)&sm_weight_arrays[28 + 16]);
     weight_h[4] = _mm_unpacklo_epi8(weight_hi, zero);
     weight_h[5] = _mm_sub_epi16(d, weight_h[4]);
     weight_h[6] = _mm_unpackhi_epi8(weight_hi, zero);
@@ -1257,7 +1257,7 @@ static INLINE void smooth_v_predictor_wxh(uint8_t *dst, ptrdiff_t stride,
                                           const uint8_t *above,
                                           const uint8_t *left, uint32_t bw,
                                           uint32_t bh) {
-  const uint8_t *const sm_weights_h = sm_weight_arrays + bh;
+  const uint8_t *const sm_weights_h = sm_weight_arrays + bh - 4;
   const __m128i zero = _mm_setzero_si128();
   const __m128i scale_value =
       _mm_set1_epi16((uint16_t)(1 << sm_weight_log2_scale));
@@ -1389,7 +1389,7 @@ static INLINE void load_pixel_h_w4(const uint8_t *above, const uint8_t *left,
 // weights[0]: weights_w and scale - weights_w interleave vector
 static INLINE void load_weight_h_w4(int height, __m128i *weights) {
   (void)height;
-  const __m128i t = _mm_loadu_si128((const __m128i *)&sm_weight_arrays[4]);
+  const __m128i t = _mm_loadu_si128((const __m128i *)&sm_weight_arrays[0]);
   const __m128i zero = _mm_setzero_si128();
 
   const __m128i weights_0 = _mm_unpacklo_epi8(t, zero);
@@ -1489,7 +1489,7 @@ static INLINE void load_weight_h_w8(int height, __m128i *weight_w) {
   (void)height;
   const __m128i zero = _mm_setzero_si128();
   const __m128i d = _mm_set1_epi16((uint16_t)(1 << sm_weight_log2_scale));
-  const __m128i we = _mm_loadu_si128((const __m128i *)&sm_weight_arrays[8]);
+  const __m128i we = _mm_loadu_si128((const __m128i *)&sm_weight_arrays[4]);
   const __m128i tmp1 = _mm_unpacklo_epi8(we, zero);
   const __m128i tmp2 = _mm_sub_epi16(d, tmp1);
   weight_w[0] = _mm_unpacklo_epi16(tmp1, tmp2);
@@ -1586,7 +1586,7 @@ static INLINE void smooth_h_predictor_wxh(uint8_t *dst, ptrdiff_t stride,
                                           const uint8_t *above,
                                           const uint8_t *left, uint32_t bw,
                                           uint32_t bh) {
-  const uint8_t *const sm_weights_w = sm_weight_arrays + bw;
+  const uint8_t *const sm_weights_w = sm_weight_arrays + bw - 4;
   const __m128i zero = _mm_setzero_si128();
   const __m128i scale_value =
       _mm_set1_epi16((uint16_t)(1 << sm_weight_log2_scale));

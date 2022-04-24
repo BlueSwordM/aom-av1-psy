@@ -2685,7 +2685,7 @@ static INLINE void load_pixel_w4(const uint8_t *above, const uint8_t *left,
 static INLINE void load_weight_w4(int height, uint16x8_t *weight_h,
                                   uint16x8_t *weight_w) {
   const uint16x8_t d = vdupq_n_u16((uint16_t)(1 << sm_weight_log2_scale));
-  const uint8x8_t t = vcreate_u8(((const uint32_t *)(sm_weight_arrays))[1]);
+  const uint8x8_t t = vcreate_u8(((const uint32_t *)(sm_weight_arrays))[0]);
   weight_h[0] = vmovl_u8(t);
   weight_h[1] = vsubw_u8(d, t);
 #if defined(__aarch64__)
@@ -2695,12 +2695,12 @@ static INLINE void load_weight_w4(int height, uint16x8_t *weight_h,
 #endif  // (__aarch64__)
 
   if (height == 8) {
-    const uint8x8_t weight = vld1_u8(&sm_weight_arrays[8]);
+    const uint8x8_t weight = vld1_u8(&sm_weight_arrays[4]);
     weight_h[0] = vmovl_u8(weight);
     weight_h[1] = vsubw_u8(d, weight);
   } else if (height == 16) {
     const uint8x16_t zero = vdupq_n_u8(0);
-    const uint8x16_t weight = vld1q_u8(&sm_weight_arrays[16]);
+    const uint8x16_t weight = vld1q_u8(&sm_weight_arrays[12]);
     const uint8x16x2_t weight_h_02 = vzipq_u8(weight, zero);
     weight_h[0] = vreinterpretq_u16_u8(weight_h_02.val[0]);
     weight_h[1] = vsubq_u16(d, vreinterpretq_u16_u8(weight_h_02.val[0]));
@@ -2852,7 +2852,7 @@ static INLINE void load_pixel_w8(const uint8_t *above, const uint8_t *left,
 static INLINE void load_weight_w8(int height, uint16x8_t *weight_h,
                                   uint16x8_t *weight_w) {
   const uint8x16_t zero = vdupq_n_u8(0);
-  const int we_offset = height < 8 ? 4 : 8;
+  const int we_offset = height < 8 ? 0 : 4;
   uint8x16_t we = vld1q_u8(&sm_weight_arrays[we_offset]);
 #if defined(__aarch64__)
   weight_h[0] = vreinterpretq_u16_u8(vzip1q_u8(we, zero));
@@ -2876,20 +2876,20 @@ static INLINE void load_weight_w8(int height, uint16x8_t *weight_h,
   }
 
   if (height == 16) {
-    we = vld1q_u8(&sm_weight_arrays[16]);
+    we = vld1q_u8(&sm_weight_arrays[12]);
     const uint8x16x2_t weight_h_02 = vzipq_u8(we, zero);
     weight_h[0] = vreinterpretq_u16_u8(weight_h_02.val[0]);
     weight_h[1] = vsubq_u16(d, weight_h[0]);
     weight_h[2] = vreinterpretq_u16_u8(weight_h_02.val[1]);
     weight_h[3] = vsubq_u16(d, weight_h[2]);
   } else if (height == 32) {
-    const uint8x16_t weight_lo = vld1q_u8(&sm_weight_arrays[32]);
+    const uint8x16_t weight_lo = vld1q_u8(&sm_weight_arrays[28]);
     const uint8x16x2_t weight_h_02 = vzipq_u8(weight_lo, zero);
     weight_h[0] = vreinterpretq_u16_u8(weight_h_02.val[0]);
     weight_h[1] = vsubq_u16(d, weight_h[0]);
     weight_h[2] = vreinterpretq_u16_u8(weight_h_02.val[1]);
     weight_h[3] = vsubq_u16(d, weight_h[2]);
-    const uint8x16_t weight_hi = vld1q_u8(&sm_weight_arrays[32 + 16]);
+    const uint8x16_t weight_hi = vld1q_u8(&sm_weight_arrays[28 + 16]);
     const uint8x16x2_t weight_h_46 = vzipq_u8(weight_hi, zero);
     weight_h[4] = vreinterpretq_u16_u8(weight_h_46.val[0]);
     weight_h[5] = vsubq_u16(d, weight_h[4]);
@@ -3020,8 +3020,8 @@ static INLINE void smooth_predictor_wxh(uint8_t *dst, ptrdiff_t stride,
                                         const uint8_t *above,
                                         const uint8_t *left, uint32_t bw,
                                         uint32_t bh) {
-  const uint8_t *const sm_weights_w = sm_weight_arrays + bw;
-  const uint8_t *const sm_weights_h = sm_weight_arrays + bh;
+  const uint8_t *const sm_weights_w = sm_weight_arrays + bw - 4;
+  const uint8_t *const sm_weights_h = sm_weight_arrays + bh - 4;
   const uint16x8_t scale_value = vdupq_n_u16(256);
 
   for (uint32_t y = 0; y < bh; ++y) {
