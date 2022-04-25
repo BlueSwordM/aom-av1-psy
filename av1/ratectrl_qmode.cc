@@ -883,6 +883,22 @@ TplGopDepStats compute_tpl_gop_dep_stats(
   return tpl_gop_dep_stats;
 }
 
+static int get_rdmult(const GopFrame &gop_frame, int qindex) {
+  // TODO(angiebird):
+  // 1) Check if these rdmult rules are good in our use case.
+  // 2) Support high-bit-depth mode
+  if (gop_frame.is_golden_frame) {
+    // Assume ARF_UPDATE/GF_UPDATE share the same remult rule.
+    return av1_compute_rd_mult_based_on_qindex(AOM_BITS_8, GF_UPDATE, qindex);
+  } else if (gop_frame.is_key_frame) {
+    return av1_compute_rd_mult_based_on_qindex(AOM_BITS_8, KF_UPDATE, qindex);
+  } else {
+    // Assume LF_UPDATE/OVERLAY_UPDATE/INTNL_OVERLAY_UPDATE/INTNL_ARF_UPDATE
+    // share the same remult rule.
+    return av1_compute_rd_mult_based_on_qindex(AOM_BITS_8, LF_UPDATE, qindex);
+  }
+}
+
 GopEncodeInfo AV1RateControlQMode::GetGopEncodeInfo(
     const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
     const RefFrameTable &ref_frame_table_snapshot_init) {
@@ -912,8 +928,8 @@ GopEncodeInfo AV1RateControlQMode::GetGopEncodeInfo(
     FrameEncodeParameters param;
     param.q_index = av1_get_q_index_from_qstep_ratio(rc_param_.base_q_index,
                                                      qstep_ratio, AOM_BITS_8);
-    // TODO(angiebird): Determine rdmult based on q_index
-    param.rdmult = 1;
+    const GopFrame &gop_frame = gop_struct.gop_frame_list[i];
+    param.rdmult = get_rdmult(gop_frame, param.q_index);
     gop_encode_info.param_list.push_back(param);
   }
   return gop_encode_info;
