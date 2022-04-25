@@ -382,8 +382,8 @@ TEST_P(FullPrecisionQuantizeTest, DISABLED_Speed) {
     const int elapsed_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
     const int simd_elapsed_time =
         static_cast<int>(aom_usec_timer_elapsed(&simd_timer));
-    printf("c_time = %d \t simd_time = %d \t Gain = %f \n", elapsed_time,
-           simd_elapsed_time, ((float)elapsed_time / simd_elapsed_time));
+    printf("c_time = %d \t simd_time = %d \t Gain = %d \n", elapsed_time,
+           simd_elapsed_time, (elapsed_time / simd_elapsed_time));
   }
 }
 
@@ -708,18 +708,7 @@ const QuantizeParam<QuantizeFunc> kQParamArrayNEON[] = {
   make_tuple(&aom_quantize_b_32x32_c, &aom_quantize_b_32x32_neon,
              static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_8),
   make_tuple(&aom_quantize_b_64x64_c, &aom_quantize_b_64x64_neon,
-             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_8),
-#if CONFIG_AV1_HIGHBITDEPTH
-  make_tuple(&highbd_quan16x16_wrapper<av1_highbd_quantize_fp_c>,
-             &highbd_quan16x16_wrapper<av1_highbd_quantize_fp_neon>,
-             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_12),
-  make_tuple(&highbd_quan32x32_wrapper<av1_highbd_quantize_fp_c>,
-             &highbd_quan32x32_wrapper<av1_highbd_quantize_fp_neon>,
-             static_cast<TX_SIZE>(TX_32X32), TYPE_FP, AOM_BITS_12),
-  make_tuple(&highbd_quan64x64_wrapper<av1_highbd_quantize_fp_c>,
-             &highbd_quan64x64_wrapper<av1_highbd_quantize_fp_neon>,
-             static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AOM_BITS_12),
-#endif
+             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_8)
 };
 
 INSTANTIATE_TEST_SUITE_P(NEON, FullPrecisionQuantizeTest,
