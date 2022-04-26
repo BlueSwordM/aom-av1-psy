@@ -374,7 +374,6 @@ static bool test_candidate_key(const FirstpassInfo &first_pass_info,
 }
 
 // Compute key frame location from first_pass_info.
-// TODO(angiebird): Add unit test for this function.
 std::vector<int> get_key_frame_list(const FirstpassInfo &first_pass_info) {
   std::vector<int> key_frame_list;
   key_frame_list.push_back(0);  // The first frame is always a key frame

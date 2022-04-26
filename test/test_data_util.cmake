@@ -36,7 +36,8 @@ list(APPEND AOM_TEST_DATA_FILE_NAMES
             "screendata.y4m"
             "niklas_640_480_30.yuv"
             "vase10x10.yuv"
-            "vase10x10_tiles.txt")
+            "vase10x10_tiles.txt"
+            "firstpass_stats")
 
 if(ENABLE_DECODE_PERF_TESTS AND CONFIG_AV1_ENCODER)
   list(APPEND AOM_TEST_DATA_FILE_NAMES "niklas_1280_720_30.yuv")

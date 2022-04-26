@@ -70,6 +70,8 @@ TplFrameDepStats create_tpl_frame_dep_stats_empty(int frame_height,
 TplFrameDepStats create_tpl_frame_dep_stats_wo_propagation(
     const TplFrameStats &frame_stats);
 
+std::vector<int> get_key_frame_list(const FirstpassInfo &first_pass_info);
+
 double tpl_frame_stats_accumulate(const TplFrameStats &frame_stats);
 
 double tpl_frame_dep_stats_accumulate(const TplFrameDepStats &frame_dep_stats);
