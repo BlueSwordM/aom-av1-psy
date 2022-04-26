@@ -588,10 +588,17 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
       set_tx_type_prune(sf, txfm_params,
                         sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning,
                         1);
-      reset_mb_rd_record(x->txfm_search_info.mb_rd_record);
       break;
     default: assert(0);
   }
+
+  // Rd record collected at a specific mode evaluation stage can not be used
+  // across other evaluation stages as the transform parameters are different.
+  // Hence, reset mb rd record whenever mode evaluation stage type changes.
+  if (txfm_params->mode_eval_type != mode_eval_type)
+    reset_mb_rd_record(x->txfm_search_info.mb_rd_record);
+
+  txfm_params->mode_eval_type = mode_eval_type;
 }
 
 // Similar to store_cfl_required(), but for use during the RDO process,

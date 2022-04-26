@@ -439,6 +439,12 @@ typedef struct {
    * during RD search.
    */
   int use_qm_dist_metric;
+
+  /*!
+   * Keep track of previous mode evaluation stage type. This will be used to
+   * reset mb rd hash record when mode evaluation type changes.
+   */
+  int mode_eval_type;
 } TxfmSearchParams;
 
 /*!\cond */
