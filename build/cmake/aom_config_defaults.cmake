@@ -115,7 +115,9 @@ set_aom_config_var(FORCE_HIGHBITDEPTH_DECODING 0
 mark_as_advanced(FORCE_HIGHBITDEPTH_DECODING)
 set_aom_config_var(CONFIG_MAX_DECODE_PROFILE 2
                    "Max profile to support decoding.")
-set_aom_config_var(CONFIG_NORMAL_TILE_MODE 0 "Only enables normal tile mode.")
+set_aom_config_var(
+  CONFIG_NORMAL_TILE_MODE 0
+  "Only enables general decoding (disables large scale tile decoding).")
 set_aom_config_var(CONFIG_SIZE_LIMIT 0 "Limit max decode width/height.")
 set_aom_config_var(CONFIG_SPATIAL_RESAMPLING 1 "Spatial resampling.")
 set_aom_config_var(CONFIG_TUNE_BUTTERAUGLI 0
