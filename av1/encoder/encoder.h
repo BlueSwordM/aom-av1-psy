@@ -3230,13 +3230,12 @@ typedef struct AV1_COMP {
    */
   ExtPartController ext_part_controller;
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
   /*!
    * Motion vector stats of the current encoded frame, used to update the
    * ppi->mv_stats during postencode.
    */
   MV_STATS mv_stats;
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
   /*!
    * Stores the reference refresh index for the current frame.
    */
@@ -3263,8 +3262,7 @@ typedef struct AV1_COMP {
 
   int wanted_fb;
 #endif
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
 
   /*!
    * A flag to indicate frames that will update their data to the primary

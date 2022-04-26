@@ -1769,12 +1769,8 @@ void av1_set_mv_search_params(AV1_COMP *cpi) {
         mv_search_params->mv_step_param = av1_init_search_range(
             AOMMIN(max_mv_def, 2 * mv_search_params->max_mv_magnitude));
       }
-#if CONFIG_FRAME_PARALLEL_ENCODE
       // Reset max_mv_magnitude based on update flag.
       if (cpi->do_frame_data_update) mv_search_params->max_mv_magnitude = -1;
-#else
-      mv_search_params->max_mv_magnitude = -1;
-#endif
     }
   }
 }
@@ -2777,19 +2773,13 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     // transform / motion compensation build reconstruction frame
     av1_encode_frame(cpi);
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
     // Disable mv_stats collection for parallel frames based on update flag.
     if (!cpi->do_frame_data_update) do_mv_stats_collection = 0;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
-      // Reset the mv_stats in case we are interrupted by an intraframe or an
-      // overlay frame.
-#if CONFIG_FRAME_PARALLEL_ENCODE
+    // Reset the mv_stats in case we are interrupted by an intraframe or an
+    // overlay frame.
     if (cpi->mv_stats.valid && do_mv_stats_collection) av1_zero(cpi->mv_stats);
-#else
-    if (cpi->ppi->mv_stats.valid && do_mv_stats_collection)
-      av1_zero(cpi->ppi->mv_stats);
-#endif
+
     // Gather the mv_stats for the next frame
     if (cpi->sf.hl_sf.high_precision_mv_usage == LAST_MV_DATA &&
         av1_frame_allows_smart_mv(cpi) && do_mv_stats_collection) {
@@ -4227,10 +4217,8 @@ static void update_end_of_frame_stats(AV1_COMP *cpi) {
       cpi->ppi->filter_level_v = lf->filter_level_v;
     }
   }
-#if CONFIG_FRAME_PARALLEL_ENCODE
   // Store frame level mv_stats from cpi to ppi.
   cpi->ppi->mv_stats = cpi->mv_stats;
-#endif
 }
 
 // Updates frame level stats related to global motion

@@ -1299,9 +1299,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                 cpi->ppi->p_rc.rate_correction_factors[i];
       }
     }
+#endif
     // copy mv_stats from ppi to frame_level cpi.
     cpi->mv_stats = cpi->ppi->mv_stats;
-#endif
     av1_get_second_pass_params(cpi, &frame_params, *frame_flags);
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, av1_get_second_pass_params_time);
