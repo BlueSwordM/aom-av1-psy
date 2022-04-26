@@ -191,18 +191,16 @@ int av1_get_active_map(AV1_COMP *cpi, unsigned char *new_map_16x16, int rows,
   }
 }
 
-void av1_initialize_enc(unsigned int usage, enum aom_rc_mode rc_end_usage) {
-  bool is_allintra_and_q_mode = usage == ALLINTRA && rc_end_usage == AOM_Q;
+void av1_initialize_enc(unsigned int usage, enum aom_rc_mode end_usage) {
+  bool is_allintra = usage == ALLINTRA;
 
   av1_rtcd();
   aom_dsp_rtcd();
   aom_scale_rtcd();
   av1_init_intra_predictors();
   av1_init_me_luts();
-  if (!is_allintra_and_q_mode) {
-    av1_rc_init_minq_luts();
-    av1_init_wedge_masks();
-  }
+  if (!is_allintra) av1_init_wedge_masks();
+  if (!is_allintra || end_usage != AOM_Q) av1_rc_init_minq_luts();
 }
 
 static void update_reference_segmentation_map(AV1_COMP *cpi) {

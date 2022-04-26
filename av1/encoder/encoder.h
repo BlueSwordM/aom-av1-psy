@@ -3412,7 +3412,7 @@ typedef struct {
   size_t size;  // Size of resulting bitstream
 } EncodeFrameResults;
 
-void av1_initialize_enc(unsigned int usage, enum aom_rc_mode rc_end_usage);
+void av1_initialize_enc(unsigned int usage, enum aom_rc_mode end_usage);
 
 struct AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
                                        BufferPool *const pool,
