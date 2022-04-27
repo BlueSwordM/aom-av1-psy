@@ -93,10 +93,19 @@ struct GopFrame {
                           // updated to. update_ref_idx == -1 when this frame
                           // will not serve as a reference frame
   std::vector<ReferenceFrame>
-      ref_frame_list;   // The size should be less or equal to max_ref_frames.
-  int layer_depth;      // Layer depth in the GOP structure
-  int primary_ref_idx;  // We will use the primary reference to update current
-                        // frame's initial probability model
+      ref_frame_list;  // A list of available reference frames in priority order
+                       // for the current to-be-coded frame. The list size
+                       // should be less or equal to kRefFrameTableSize. The
+                       // reference frames with smaller indices are more likely
+                       // to be a good reference frame. Therefore, they should
+                       // be prioritized when the reference frame count is
+                       // limited. For example, if we plan to use 3 reference
+                       // frames, we should choose ref_frame_list[0],
+                       // ref_frame_list[1] and ref_frame_list[2].
+  int layer_depth;     // Layer depth in the GOP structure
+  ReferenceFrame primary_ref_frame;  // We will use the primary reference frame
+                                     // to update current frame's initial
+                                     // probability model
 };
 
 struct GopStruct {

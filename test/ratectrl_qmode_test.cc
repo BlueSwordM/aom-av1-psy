@@ -548,7 +548,7 @@ TEST(RefFrameManagerTest, GetRefFrameByPriority) {
   test_ref_frame_manager_priority(ref_manager, RefUpdateType::kLast);
 }
 
-TEST(RefFrameManagerTest, GetRefFrameList) {
+TEST(RefFrameManagerTest, GetRefFrameListByPriority) {
   const std::vector<int> order_idx_list = { 0, 4, 2, 1 };
   const int frame_count = static_cast<int>(order_idx_list.size());
   const std::vector<GopFrameType> type_list = { GopFrameType::kRegularKey,
@@ -565,7 +565,8 @@ TEST(RefFrameManagerTest, GetRefFrameList) {
   EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kForward), 2);
   EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kBackward), 1);
   EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kLast), 1);
-  std::vector<ReferenceFrame> ref_frame_list = ref_manager.GetRefFrameList();
+  std::vector<ReferenceFrame> ref_frame_list =
+      ref_manager.GetRefFrameListByPriority();
   EXPECT_EQ(ref_frame_list.size(), order_idx_list.size());
   std::vector<int> expected_global_order_idx = { 2, 0, 1, 4 };
   std::vector<ReferenceName> expected_names = { ReferenceName::kBwdrefFrame,

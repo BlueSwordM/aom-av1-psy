@@ -11,6 +11,8 @@
 
 #include <algorithm>
 #include <set>
+#include <utility>
+#include <tuple>
 #include <vector>
 
 #include "av1/reference_manager.h"
@@ -22,6 +24,7 @@ void RefFrameManager::Reset() {
   free_ref_idx_list_.clear();
   for (int i = 0; i < kRefFrameTableSize; ++i) {
     free_ref_idx_list_.push_back(i);
+    ref_frame_table_[i] = gop_frame_invalid();
   }
   forward_stack_.clear();
   backward_queue_.clear();
@@ -155,7 +158,14 @@ ReferenceName get_ref_name(RefUpdateType ref_update_type, int priority_idx,
   return ReferenceName::kNoneFrame;
 }
 
-std::vector<ReferenceFrame> RefFrameManager::GetRefFrameList() const {
+// Generate a list of available reference frames in priority order for the
+// current to-be-coded frame. The list size should be less or equal to
+// kRefFrameTableSize. The reference frames with smaller indices are more likely
+// to be a good reference frame. Therefore, they should be prioritized when the
+// reference frame count is limited. For example, if we plan to use 3 reference
+// frames, we should choose ref_frame_list[0], ref_frame_list[1] and
+// ref_frame_list[2].
+std::vector<ReferenceFrame> RefFrameManager::GetRefFrameListByPriority() const {
   constexpr int round_robin_size = 3;
   const std::vector<RefUpdateType> round_robin_list{ RefUpdateType::kForward,
                                                      RefUpdateType::kBackward,
@@ -166,7 +176,7 @@ std::vector<ReferenceFrame> RefFrameManager::GetRefFrameList() const {
   int ref_frame_count = 0;
   int round_robin_idx = 0;
   std::set<ReferenceName> used_name_set;
-  while (ref_frame_count < max_ref_frames_ && available_ref_frames > 0) {
+  while (ref_frame_count < available_ref_frames) {
     const RefUpdateType ref_update_type = round_robin_list[round_robin_idx];
     int priority_idx = priority_idx_list[round_robin_idx];
     int ref_idx = GetRefFrameIdxByPriority(ref_update_type, priority_idx);
@@ -177,10 +187,9 @@ std::vector<ReferenceFrame> RefFrameManager::GetRefFrameList() const {
       used_name_set.insert(name);
       ReferenceFrame ref_frame = { ref_idx, name };
       ref_frame_list.push_back(ref_frame);
-      --available_ref_frames;
+      ++ref_frame_count;
       ++priority_idx_list[round_robin_idx];
     }
-    ref_frame_count = static_cast<int>(ref_frame_list.size());
     round_robin_idx = (round_robin_idx + 1) % round_robin_size;
   }
   return ref_frame_list;
@@ -229,8 +238,63 @@ static RefUpdateType infer_ref_update_type(const GopFrame &gop_frame,
   return RefUpdateType::kLast;
 }
 
+using PrimaryRefKey = std::tuple<int,   // abs layer_depth delta
+                                 bool,  // is_key_frame differs
+                                 bool,  // is_golden_frame differs
+                                 bool,  // is_arf_frame differs
+                                 bool,  // is_show_frame differs
+                                 bool,  // encode_ref_mode differs
+                                 int>;  // abs order_idx delta
+
+// Generate PrimaryRefKey based on abs layer_depth delta,
+// frame flags and abs order_idx delta. These are the fields that will
+// be used to pick the primary reference frame for probability model
+static PrimaryRefKey get_primary_ref_key(const GopFrame &cur_frame,
+                                         const GopFrame &ref_frame) {
+  return { abs(cur_frame.layer_depth - ref_frame.layer_depth),
+           cur_frame.is_key_frame != ref_frame.is_key_frame,
+           cur_frame.is_golden_frame != ref_frame.is_golden_frame,
+           cur_frame.is_arf_frame != ref_frame.is_arf_frame,
+           cur_frame.is_show_frame != ref_frame.is_show_frame,
+           cur_frame.encode_ref_mode != ref_frame.encode_ref_mode,
+           abs(cur_frame.order_idx - ref_frame.order_idx) };
+}
+
+// Pick primary_ref_idx for probability model.
+ReferenceFrame RefFrameManager::GetPrimaryRefFrame(
+    const GopFrame &gop_frame) const {
+  assert(gop_frame.is_valid);
+  std::vector<std::pair<PrimaryRefKey, int>> candidate_list;
+  for (int ref_idx = 0; ref_idx < static_cast<int>(ref_frame_table_.size());
+       ++ref_idx) {
+    const GopFrame &ref_frame = ref_frame_table_[ref_idx];
+    if (ref_frame.is_valid) {
+      assert(ref_idx == ref_frame.update_ref_idx);
+      PrimaryRefKey key = get_primary_ref_key(gop_frame, ref_frame);
+      std::pair<PrimaryRefKey, int> candidate = { key, ref_idx };
+      candidate_list.push_back(candidate);
+    }
+  }
+
+  std::sort(candidate_list.begin(), candidate_list.end());
+
+  ReferenceFrame ref_frame = { -1, ReferenceName::kNoneFrame };
+  std::vector<ReferenceFrame> ref_frame_list = GetRefFrameListByPriority();
+  assert(candidate_list.size() == ref_frame_list.size());
+  if (!candidate_list.empty()) {
+    int ref_idx = candidate_list[0].second;
+    for (const auto &frame : ref_frame_list) {
+      if (frame.index == ref_idx) {
+        ref_frame = frame;
+      }
+    }
+  }
+  return ref_frame;
+}
+
 void RefFrameManager::UpdateRefFrameTable(GopFrame *gop_frame) {
-  gop_frame->ref_frame_list = GetRefFrameList();
+  gop_frame->ref_frame_list = GetRefFrameListByPriority();
+  gop_frame->primary_ref_frame = GetPrimaryRefFrame(*gop_frame);
   gop_frame->colocated_ref_idx = ColocatedRefIdx(gop_frame->global_order_idx);
 
   if (gop_frame->is_show_frame) {
