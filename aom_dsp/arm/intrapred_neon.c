@@ -2684,7 +2684,7 @@ static INLINE void load_pixel_w4(const uint8_t *above, const uint8_t *left,
 // weight_w[0]: weights_w and scale - weights_w interleave vector
 static INLINE void load_weight_w4(int height, uint16x8_t *weight_h,
                                   uint16x8_t *weight_w) {
-  const uint16x8_t d = vdupq_n_u16((uint16_t)(1 << sm_weight_log2_scale));
+  const uint16x8_t d = vdupq_n_u16((uint16_t)(1 << SM_WEIGHT_LOG2_SCALE));
   const uint8x8_t t = vcreate_u8(((const uint32_t *)(sm_weight_arrays))[0]);
   weight_h[0] = vmovl_u8(t);
   weight_h[1] = vsubw_u8(d, t);

@@ -15,8 +15,8 @@
 #include "config/aom_config.h"
 
 // Weights are quadratic from '1' to '1 / block_size', scaled by
-// 2^sm_weight_log2_scale.
-static const int sm_weight_log2_scale = 8;
+// 2^SM_WEIGHT_LOG2_SCALE.
+#define SM_WEIGHT_LOG2_SCALE 8
 
 static const uint8_t sm_weight_arrays[] = {
   // bs = 4

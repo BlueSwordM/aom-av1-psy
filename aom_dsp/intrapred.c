@@ -88,9 +88,9 @@ static INLINE void smooth_predictor(uint8_t *dst, ptrdiff_t stride, int bw,
   const uint8_t right_pred = above[bw - 1];  // estimated by top-right pixel
   const uint8_t *const sm_weights_w = sm_weight_arrays + bw - 4;
   const uint8_t *const sm_weights_h = sm_weight_arrays + bh - 4;
-  // scale = 2 * 2^sm_weight_log2_scale
-  const int log2_scale = 1 + sm_weight_log2_scale;
-  const uint16_t scale = (1 << sm_weight_log2_scale);
+  // scale = 2 * 2^SM_WEIGHT_LOG2_SCALE
+  const int log2_scale = 1 + SM_WEIGHT_LOG2_SCALE;
+  const uint16_t scale = (1 << SM_WEIGHT_LOG2_SCALE);
   sm_weights_sanity_checks(sm_weights_w, sm_weights_h, scale,
                            log2_scale + sizeof(*dst));
   int r;
@@ -117,9 +117,9 @@ static INLINE void smooth_v_predictor(uint8_t *dst, ptrdiff_t stride, int bw,
                                       const uint8_t *left) {
   const uint8_t below_pred = left[bh - 1];  // estimated by bottom-left pixel
   const uint8_t *const sm_weights = sm_weight_arrays + bh - 4;
-  // scale = 2^sm_weight_log2_scale
-  const int log2_scale = sm_weight_log2_scale;
-  const uint16_t scale = (1 << sm_weight_log2_scale);
+  // scale = 2^SM_WEIGHT_LOG2_SCALE
+  const int log2_scale = SM_WEIGHT_LOG2_SCALE;
+  const uint16_t scale = (1 << SM_WEIGHT_LOG2_SCALE);
   sm_weights_sanity_checks(sm_weights, sm_weights, scale,
                            log2_scale + sizeof(*dst));
 
@@ -146,9 +146,9 @@ static INLINE void smooth_h_predictor(uint8_t *dst, ptrdiff_t stride, int bw,
                                       const uint8_t *left) {
   const uint8_t right_pred = above[bw - 1];  // estimated by top-right pixel
   const uint8_t *const sm_weights = sm_weight_arrays + bw - 4;
-  // scale = 2^sm_weight_log2_scale
-  const int log2_scale = sm_weight_log2_scale;
-  const uint16_t scale = (1 << sm_weight_log2_scale);
+  // scale = 2^SM_WEIGHT_LOG2_SCALE
+  const int log2_scale = SM_WEIGHT_LOG2_SCALE;
+  const uint16_t scale = (1 << SM_WEIGHT_LOG2_SCALE);
   sm_weights_sanity_checks(sm_weights, sm_weights, scale,
                            log2_scale + sizeof(*dst));
 
@@ -407,9 +407,9 @@ static INLINE void highbd_smooth_predictor(uint16_t *dst, ptrdiff_t stride,
   const uint16_t right_pred = above[bw - 1];  // estimated by top-right pixel
   const uint8_t *const sm_weights_w = sm_weight_arrays + bw - 4;
   const uint8_t *const sm_weights_h = sm_weight_arrays + bh - 4;
-  // scale = 2 * 2^sm_weight_log2_scale
-  const int log2_scale = 1 + sm_weight_log2_scale;
-  const uint16_t scale = (1 << sm_weight_log2_scale);
+  // scale = 2 * 2^SM_WEIGHT_LOG2_SCALE
+  const int log2_scale = 1 + SM_WEIGHT_LOG2_SCALE;
+  const uint16_t scale = (1 << SM_WEIGHT_LOG2_SCALE);
   sm_weights_sanity_checks(sm_weights_w, sm_weights_h, scale,
                            log2_scale + sizeof(*dst));
   int r;
@@ -438,9 +438,9 @@ static INLINE void highbd_smooth_v_predictor(uint16_t *dst, ptrdiff_t stride,
   (void)bd;
   const uint16_t below_pred = left[bh - 1];  // estimated by bottom-left pixel
   const uint8_t *const sm_weights = sm_weight_arrays + bh - 4;
-  // scale = 2^sm_weight_log2_scale
-  const int log2_scale = sm_weight_log2_scale;
-  const uint16_t scale = (1 << sm_weight_log2_scale);
+  // scale = 2^SM_WEIGHT_LOG2_SCALE
+  const int log2_scale = SM_WEIGHT_LOG2_SCALE;
+  const uint16_t scale = (1 << SM_WEIGHT_LOG2_SCALE);
   sm_weights_sanity_checks(sm_weights, sm_weights, scale,
                            log2_scale + sizeof(*dst));
 
@@ -469,9 +469,9 @@ static INLINE void highbd_smooth_h_predictor(uint16_t *dst, ptrdiff_t stride,
   (void)bd;
   const uint16_t right_pred = above[bw - 1];  // estimated by top-right pixel
   const uint8_t *const sm_weights = sm_weight_arrays + bw - 4;
-  // scale = 2^sm_weight_log2_scale
-  const int log2_scale = sm_weight_log2_scale;
-  const uint16_t scale = (1 << sm_weight_log2_scale);
+  // scale = 2^SM_WEIGHT_LOG2_SCALE
+  const int log2_scale = SM_WEIGHT_LOG2_SCALE;
+  const uint16_t scale = (1 << SM_WEIGHT_LOG2_SCALE);
   sm_weights_sanity_checks(sm_weights, sm_weights, scale,
                            log2_scale + sizeof(*dst));
 

@@ -414,7 +414,7 @@ static INLINE void highbd_smooth_4xh_neon(uint16_t *dst, ptrdiff_t stride,
     const uint32x4_t weighted_bl =
         vmlal_n_u16(weighted_left, bottom_left_v, 256 - weights_y[y]);
 
-    const uint16x4_t pred = vrshrn_n_u32(weighted_bl, sm_weight_log2_scale + 1);
+    const uint16x4_t pred = vrshrn_n_u32(weighted_bl, SM_WEIGHT_LOG2_SCALE + 1);
     vst1_u16(dst, pred);
     dst += stride;
   }
@@ -434,7 +434,7 @@ static INLINE void highbd_calculate_pred8(
       vmlal_n_u16(weighted_top_low, weights_x.val[0], left_y);
 
   const uint16x4_t pred_low =
-      vrshrn_n_u32(weighted_edges_low, sm_weight_log2_scale + 1);
+      vrshrn_n_u32(weighted_edges_low, SM_WEIGHT_LOG2_SCALE + 1);
   vst1_u16(dst, pred_low);
 
   const uint32x4_t weighted_top_high =
@@ -443,7 +443,7 @@ static INLINE void highbd_calculate_pred8(
       vmlal_n_u16(weighted_top_high, weights_x.val[1], left_y);
 
   const uint16x4_t pred_high =
-      vrshrn_n_u32(weighted_edges_high, sm_weight_log2_scale + 1);
+      vrshrn_n_u32(weighted_edges_high, SM_WEIGHT_LOG2_SCALE + 1);
   vst1_u16(dst + 4, pred_high);
 }
 
@@ -595,7 +595,7 @@ static void highbd_smooth_v_4xh_neon(uint16_t *dst, ptrdiff_t stride,
         vmull_n_u16(bottom_left_v, 256 - weights_y[y]);
     const uint32x4_t weighted_top =
         vmlal_n_u16(weighted_bl, top_v, weights_y[y]);
-    vst1_u16(dst, vrshrn_n_u32(weighted_top, sm_weight_log2_scale));
+    vst1_u16(dst, vrshrn_n_u32(weighted_top, SM_WEIGHT_LOG2_SCALE));
 
     dst += stride;
   }
@@ -618,11 +618,11 @@ static void highbd_smooth_v_8xh_neon(uint16_t *dst, const ptrdiff_t stride,
 
     const uint32x4_t weighted_top_low =
         vmlal_n_u16(weighted_bl, top_low, weights_y[y]);
-    vst1_u16(dst, vrshrn_n_u32(weighted_top_low, sm_weight_log2_scale));
+    vst1_u16(dst, vrshrn_n_u32(weighted_top_low, SM_WEIGHT_LOG2_SCALE));
 
     const uint32x4_t weighted_top_high =
         vmlal_n_u16(weighted_bl, top_high, weights_y[y]);
-    vst1_u16(dst + 4, vrshrn_n_u32(weighted_top_high, sm_weight_log2_scale));
+    vst1_u16(dst + 4, vrshrn_n_u32(weighted_top_high, SM_WEIGHT_LOG2_SCALE));
     dst += stride;
   }
 }
@@ -672,12 +672,12 @@ HIGHBD_SMOOTH_V_NXM(8, 32)
       for (int i = 0; i<(W)>> 3; ++i) {                                        \
         const uint32x4_t weighted_top_low =                                    \
             vmlal_n_u16(weighted_bl, top_vals[i].val[0], weights_y[y]);        \
-        vst1_u16(dst_x, vrshrn_n_u32(weighted_top_low, sm_weight_log2_scale)); \
+        vst1_u16(dst_x, vrshrn_n_u32(weighted_top_low, SM_WEIGHT_LOG2_SCALE)); \
                                                                                \
         const uint32x4_t weighted_top_high =                                   \
             vmlal_n_u16(weighted_bl, top_vals[i].val[1], weights_y[y]);        \
         vst1_u16(dst_x + 4,                                                    \
-                 vrshrn_n_u32(weighted_top_high, sm_weight_log2_scale));       \
+                 vrshrn_n_u32(weighted_top_high, SM_WEIGHT_LOG2_SCALE));       \
         dst_x += 8;                                                            \
       }                                                                        \
       dst += stride;                                                           \
@@ -729,7 +729,7 @@ static INLINE void highbd_smooth_h_4xh_neon(uint16_t *dst, ptrdiff_t stride,
   for (int y = 0; y < height; ++y) {
     const uint32x4_t weighted_left =
         vmlal_n_u16(weighted_tr, weights_x, left_column[y]);
-    vst1_u16(dst, vrshrn_n_u32(weighted_left, sm_weight_log2_scale));
+    vst1_u16(dst, vrshrn_n_u32(weighted_left, SM_WEIGHT_LOG2_SCALE));
     dst += stride;
   }
 }
@@ -752,11 +752,11 @@ static INLINE void highbd_smooth_h_8xh_neon(uint16_t *dst, ptrdiff_t stride,
     const uint16_t left_y = left_column[y];
     const uint32x4_t weighted_left_low =
         vmlal_n_u16(weighted_tr_low, weights_x.val[0], left_y);
-    vst1_u16(dst, vrshrn_n_u32(weighted_left_low, sm_weight_log2_scale));
+    vst1_u16(dst, vrshrn_n_u32(weighted_left_low, SM_WEIGHT_LOG2_SCALE));
 
     const uint32x4_t weighted_left_high =
         vmlal_n_u16(weighted_tr_high, weights_x.val[1], left_y);
-    vst1_u16(dst + 4, vrshrn_n_u32(weighted_left_high, sm_weight_log2_scale));
+    vst1_u16(dst + 4, vrshrn_n_u32(weighted_left_high, SM_WEIGHT_LOG2_SCALE));
     dst += stride;
   }
 }
@@ -810,12 +810,12 @@ HIGHBD_SMOOTH_H_NXM(8, 32)
         const uint32x4_t weighted_left_low =                              \
             vmlal_n_u16(weighted_tr_low[i], weights_x_low[i], left_y);    \
         vst1_u16(dst_x,                                                   \
-                 vrshrn_n_u32(weighted_left_low, sm_weight_log2_scale));  \
+                 vrshrn_n_u32(weighted_left_low, SM_WEIGHT_LOG2_SCALE));  \
                                                                           \
         const uint32x4_t weighted_left_high =                             \
             vmlal_n_u16(weighted_tr_high[i], weights_x_high[i], left_y);  \
         vst1_u16(dst_x + 4,                                               \
-                 vrshrn_n_u32(weighted_left_high, sm_weight_log2_scale)); \
+                 vrshrn_n_u32(weighted_left_high, SM_WEIGHT_LOG2_SCALE)); \
         dst_x += 8;                                                       \
       }                                                                   \
       dst += stride;                                                      \
