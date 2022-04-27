@@ -15,10 +15,10 @@
 #include "config/aom_config.h"
 
 // Weights are quadratic from '1' to '1 / block_size', scaled by
-// 2^SM_WEIGHT_LOG2_SCALE.
-#define SM_WEIGHT_LOG2_SCALE 8
+// 2^SMOOTH_WEIGHT_LOG2_SCALE.
+#define SMOOTH_WEIGHT_LOG2_SCALE 8
 
-static const uint8_t sm_weight_arrays[] = {
+static const uint8_t smooth_weights[] = {
   // bs = 4
   255, 149, 85, 64,
   // bs = 8
@@ -35,7 +35,7 @@ static const uint8_t sm_weight_arrays[] = {
   13, 12, 10, 9, 8, 7, 6, 6, 5, 5, 4, 4, 4
 };
 
-static const uint16_t sm_weight_arrays_u16[] = {
+static const uint16_t smooth_weights_u16[] = {
   // block dimension = 4
   255, 149, 85, 64,
   // block dimension = 8
