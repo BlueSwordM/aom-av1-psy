@@ -465,7 +465,7 @@ static void get_estimated_pred(AV1_COMP *cpi, const TileInfo *const tile,
 static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
                                        TileDataEnc *tile_data, TokenExtra **tp,
                                        const int mi_row, const int mi_col,
-                                       const int seg_skip) {
+                                       const int seg_skip, PC_TREE *pc_root) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
   const SPEED_FEATURES *const sf = &cpi->sf;
@@ -476,12 +476,10 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
 
 #if CONFIG_RT_ML_PARTITIONING
   if (sf->part_sf.partition_search_type == ML_BASED_PARTITION) {
-    PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
     RD_STATS dummy_rdc;
     get_estimated_pred(cpi, tile_info, x, mi_row, mi_col);
     av1_nonrd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col,
                              BLOCK_64X64, &dummy_rdc, 1, INT64_MAX, pc_root);
-    av1_free_pc_tree_recursive(pc_root, av1_num_planes(cm), 0, 0);
     return;
   }
 #endif
@@ -500,9 +498,6 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
   assert(sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip ||
          sf->part_sf.partition_search_type == VAR_BASED_PARTITION);
   set_cb_offsets(td->mb.cb_offset, 0, 0);
-
-  // Adjust and encode the superblock
-  PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
 
   // Initialize the flag to skip cdef to 1.
   if (sf->rt_sf.skip_cdef_sb) {
@@ -540,7 +535,6 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
       }
     }
   }
-  av1_free_pc_tree_recursive(pc_root, av1_num_planes(cm), 0, 0);
 }
 
 // This function initializes the stats for encode_rd_sb.
@@ -837,6 +831,11 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
 
   reset_thresh_freq_fact(x);
 
+  // Preallocate the pc_tree for realtime coding to reduce the cost of memory
+  // allocation
+  PC_TREE *const rt_pc_root =
+      use_nonrd_mode ? av1_alloc_pc_tree_node(sb_size) : NULL;
+
   // Code each SB in the row
   for (int mi_col = tile_info->mi_col_start, sb_col_in_tile = 0;
        mi_col < tile_info->mi_col_end; mi_col += mib_size, sb_col_in_tile++) {
@@ -908,7 +907,8 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
 
     // encode the superblock
     if (use_nonrd_mode) {
-      encode_nonrd_sb(cpi, td, tile_data, tp, mi_row, mi_col, seg_skip);
+      encode_nonrd_sb(cpi, td, tile_data, tp, mi_row, mi_col, seg_skip,
+                      rt_pc_root);
     } else {
       encode_rd_sb(cpi, td, tile_data, tp, mi_row, mi_col, seg_skip);
     }
@@ -924,6 +924,8 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     enc_row_mt->sync_write_ptr(row_mt_sync, sb_row, sb_col_in_tile,
                                sb_cols_in_tile);
   }
+
+  av1_free_pc_tree_recursive(rt_pc_root, av1_num_planes(cm), 0, 0);
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, encode_sb_row_time);
 #endif
