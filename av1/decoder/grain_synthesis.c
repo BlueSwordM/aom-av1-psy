@@ -454,15 +454,14 @@ static void init_random_generator(int luma_line, uint16_t seed) {
   random_register ^= ((luma_num * 173 + 105) & 255);
 }
 
-// Return 0 for success, -1 for failure
-static int generate_luma_grain_block(
+static void generate_luma_grain_block(
     const aom_film_grain_t *params, int **pred_pos_luma, int *luma_grain_block,
     int luma_block_size_y, int luma_block_size_x, int luma_grain_stride,
     int left_pad, int top_pad, int right_pad, int bottom_pad) {
   if (params->num_y_points == 0) {
     memset(luma_grain_block, 0,
            sizeof(*luma_grain_block) * luma_block_size_y * luma_grain_stride);
-    return 0;
+    return;
   }
 
   int bit_depth = params->bit_depth;
@@ -492,17 +491,14 @@ static int generate_luma_grain_block(
                     ((wsum + rounding_offset) >> params->ar_coeff_shift),
                 grain_min, grain_max);
     }
-  return 0;
 }
 
-// Return 0 for success, -1 for failure
-static int generate_chroma_grain_blocks(
-    const aom_film_grain_t *params,
-    //                                  int** pred_pos_luma,
-    int **pred_pos_chroma, int *luma_grain_block, int *cb_grain_block,
-    int *cr_grain_block, int luma_grain_stride, int chroma_block_size_y,
-    int chroma_block_size_x, int chroma_grain_stride, int left_pad, int top_pad,
-    int right_pad, int bottom_pad, int chroma_subsamp_y, int chroma_subsamp_x) {
+static bool generate_chroma_grain_blocks(
+    const aom_film_grain_t *params, int **pred_pos_chroma,
+    int *luma_grain_block, int *cb_grain_block, int *cr_grain_block,
+    int luma_grain_stride, int chroma_block_size_y, int chroma_block_size_x,
+    int chroma_grain_stride, int left_pad, int top_pad, int right_pad,
+    int bottom_pad, int chroma_subsamp_y, int chroma_subsamp_x) {
   int bit_depth = params->bit_depth;
   int gauss_sec_shift = 12 - bit_depth + params->grain_scale_shift;
 
@@ -575,7 +571,7 @@ static int generate_chroma_grain_blocks(
               stderr,
               "Grain synthesis: prediction between two chroma components is "
               "not supported!");
-          return -1;
+          return false;
         }
       }
       if (params->num_cb_points || params->chroma_scaling_from_luma)
@@ -589,7 +585,7 @@ static int generate_chroma_grain_blocks(
                       ((wsum_cr + rounding_offset) >> params->ar_coeff_shift),
                   grain_min, grain_max);
     }
-  return 0;
+  return true;
 }
 
 static void init_scaling_function(const int scaling_points[][2], int num_points,
@@ -1148,19 +1144,16 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
                    chroma_subsamp_x))
     return -1;
 
-  if (generate_luma_grain_block(params, pred_pos_luma, luma_grain_block,
-                                luma_block_size_y, luma_block_size_x,
-                                luma_grain_stride, left_pad, top_pad, right_pad,
-                                bottom_pad))
-    return -1;
+  generate_luma_grain_block(params, pred_pos_luma, luma_grain_block,
+                            luma_block_size_y, luma_block_size_x,
+                            luma_grain_stride, left_pad, top_pad, right_pad,
+                            bottom_pad);
 
-  if (generate_chroma_grain_blocks(
-          params,
-          //                               pred_pos_luma,
-          pred_pos_chroma, luma_grain_block, cb_grain_block, cr_grain_block,
-          luma_grain_stride, chroma_block_size_y, chroma_block_size_x,
-          chroma_grain_stride, left_pad, top_pad, right_pad, bottom_pad,
-          chroma_subsamp_y, chroma_subsamp_x))
+  if (!generate_chroma_grain_blocks(
+          params, pred_pos_chroma, luma_grain_block, cb_grain_block,
+          cr_grain_block, luma_grain_stride, chroma_block_size_y,
+          chroma_block_size_x, chroma_grain_stride, left_pad, top_pad,
+          right_pad, bottom_pad, chroma_subsamp_y, chroma_subsamp_x))
     return -1;
 
   init_scaling_function(params->scaling_points_y, params->num_y_points,
