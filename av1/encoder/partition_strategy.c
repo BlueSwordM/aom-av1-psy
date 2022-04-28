@@ -200,14 +200,22 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
         CONVERT_TO_SHORTPTR(x->plane[AOM_PLANE_Y].src.buf) - stride - 1
       };
 
-      av1_cnn_predict_img_multi_out_highbd(image, width, height, stride,
-                                           cnn_config, &thread_data, bit_depth,
-                                           &output);
+      if (!av1_cnn_predict_img_multi_out_highbd(image, width, height, stride,
+                                                cnn_config, &thread_data,
+                                                bit_depth, &output)) {
+        aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                           "Error allocating CNN data");
+        return;
+      }
     } else {
       uint8_t *image[1] = { x->plane[AOM_PLANE_Y].src.buf - stride - 1 };
 
-      av1_cnn_predict_img_multi_out(image, width, height, stride, cnn_config,
-                                    &thread_data, &output);
+      if (!av1_cnn_predict_img_multi_out(image, width, height, stride,
+                                         cnn_config, &thread_data, &output)) {
+        aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                           "Error allocating CNN data");
+        return;
+      }
     }
 
     part_info->cnn_output_valid = 1;
