@@ -1237,6 +1237,10 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
 #if CONFIG_FRAME_PARALLEL_ENCODE
   cm->error =
       (struct aom_internal_error_info *)aom_calloc(1, sizeof(*cm->error));
+  if (!cm->error) {
+    aom_free(cpi);
+    return NULL;
+  }
 #else
   cm->error = &ppi->error;
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
@@ -1247,7 +1251,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf,
   if (setjmp(cm->error->jmp)) {
     cm->error->setjmp = 0;
     av1_remove_compressor(cpi);
-    return 0;
+    return NULL;
   }
 
   cm->error->setjmp = 1;
