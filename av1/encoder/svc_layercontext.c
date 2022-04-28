@@ -70,8 +70,7 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
         lc->counter_encode_maxq_scene_change = 0;
         if (lc->map) aom_free(lc->map);
         CHECK_MEM_ERROR(cm, lc->map,
-                        aom_malloc(mi_rows * mi_cols * sizeof(*lc->map)));
-        memset(lc->map, 0, mi_rows * mi_cols);
+                        aom_calloc(mi_rows * mi_cols, sizeof(*lc->map)));
       }
     }
     svc->downsample_filter_type[sl] = BILINEAR;
