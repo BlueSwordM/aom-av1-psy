@@ -658,8 +658,8 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
       }
     }
   } else if (tune_cfg->film_grain_table_filename) {
-    cpi->film_grain_table = aom_malloc(sizeof(*cpi->film_grain_table));
-    memset(cpi->film_grain_table, 0, sizeof(aom_film_grain_table_t));
+    CHECK_MEM_ERROR(cm, cpi->film_grain_table,
+                    aom_calloc(1, sizeof(*cpi->film_grain_table)));
 
     aom_film_grain_table_read(cpi->film_grain_table,
                               tune_cfg->film_grain_table_filename, cm->error);
