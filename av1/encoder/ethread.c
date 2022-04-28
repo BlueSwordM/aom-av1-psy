@@ -1995,8 +1995,11 @@ static void prepare_tf_workers(AV1_COMP *cpi, AVxWorkerHook hook,
       // OBMC buffers are used only to init MS params and remain unused when
       // called from tf, hence set the buffers to defaults.
       av1_init_obmc_buffer(&thread_data->td->mb.obmc_buffer);
-      tf_alloc_and_reset_data(&thread_data->td->tf_data, cpi->tf_ctx.num_pels,
-                              is_highbitdepth);
+      if (!tf_alloc_and_reset_data(&thread_data->td->tf_data,
+                                   cpi->tf_ctx.num_pels, is_highbitdepth)) {
+        aom_internal_error(cpi->common.error, AOM_CODEC_MEM_ERROR,
+                           "Error allocating temporal filter data");
+      }
     }
   }
 }
