@@ -2752,10 +2752,10 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
         (cm->width == cm->render_width) && (cm->height == cm->render_height)) {
       full_sampling = 1;
       if (cpi->src_sad_blk_64x64 == NULL) {
-        cpi->src_sad_blk_64x64 = (uint64_t *)aom_malloc(
-            (sb_cols * sb_rows) * sizeof(*cpi->src_sad_blk_64x64));
-        memset(cpi->src_sad_blk_64x64, 0,
-               (sb_cols * sb_rows) * sizeof(*cpi->src_sad_blk_64x64));
+        CHECK_MEM_ERROR(
+            cm, cpi->src_sad_blk_64x64,
+            (uint64_t *)aom_calloc(sb_cols * sb_rows,
+                                   sizeof(*cpi->src_sad_blk_64x64)));
       }
     }
     for (int sbi_row = 0; sbi_row < sb_rows; ++sbi_row) {
