@@ -3536,6 +3536,7 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
 #endif
 
   argv[0] = aom_malloc(len * sizeof(argv[1][0]));
+  if (!argv[0]) return AOM_CODEC_MEM_ERROR;
   snprintf(argv[0], len, "--%s=%s", name, value);
   struct arg arg;
   aom_codec_err_t err = AOM_CODEC_OK;
