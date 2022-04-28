@@ -793,6 +793,14 @@ typedef struct {
   int var;
 } Block4x4VarInfo;
 
+#ifndef NDEBUG
+typedef struct SetOffsetsLoc {
+  int mi_row;
+  int mi_col;
+  BLOCK_SIZE bsize;
+} SetOffsetsLoc;
+#endif  // NDEBUG
+
 /*!\endcond */
 
 /*! \brief Encoder's parameters related to the current coding block.
@@ -1238,6 +1246,10 @@ typedef struct macroblock {
    *  store source variance and log of source variance of each 4x4 sub-block.
    */
   Block4x4VarInfo *src_var_info_of_4x4_sub_blocks;
+#ifndef NDEBUG
+  /*! \brief A hash to make sure av1_set_offsets is called */
+  SetOffsetsLoc last_set_offsets_loc;
+#endif  // NDEBUG
 } MACROBLOCK;
 #undef SINGLE_REF_MODES
 
