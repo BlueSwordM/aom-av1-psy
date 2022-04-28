@@ -1016,8 +1016,12 @@ typedef struct macroblock {
    * This is used to measure how viable a reference frame is.
    */
   int pred_mv_sad[REF_FRAMES];
-  //! The minimum of \ref pred_mv_sad.
-  int best_pred_mv_sad;
+  /*! \brief The minimum of \ref pred_mv_sad.
+   *
+   * Index 0 stores the minimum \ref pred_mv_sad across past reference frames.
+   * Index 1 stores the minimum \ref pred_mv_sad across future reference frames.
+   */
+  int best_pred_mv_sad[2];
   //! The sad of the 1st mv ref (nearest).
   int pred_mv0_sad[REF_FRAMES];
   //! The sad of the 2nd mv ref (near).
