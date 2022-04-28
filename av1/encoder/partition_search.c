@@ -4852,7 +4852,7 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
     PC_TREE *const pc_tree = av1_alloc_pc_tree_node(bsize);
     num_configs = read_partition_tree(cpi, pc_tree, i);
     if (i == 0) {
-      rdcost = aom_calloc(num_configs, sizeof(*rdcost));
+      CHECK_MEM_ERROR(cm, rdcost, aom_calloc(num_configs, sizeof(*rdcost)));
     }
     if (num_configs <= 0) {
       av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0);
