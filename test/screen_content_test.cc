@@ -106,7 +106,15 @@ TEST_P(ScreenContentToolsTestLarge, ScreenContentToolsTest) {
   //      << "Failed detection of screen content(lowres)";
 }
 
-TEST_P(ScreenContentToolsTestLarge, ScreenContentMultiThreadedEncoding) {
+AV1_INSTANTIATE_TEST_SUITE(ScreenContentToolsTestLarge,
+                           ::testing::Values(::libaom_test::kOnePassGood,
+                                             ::libaom_test::kTwoPassGood),
+                           ::testing::Values(AOM_Q));
+
+class ScreenContentToolsMultiThreadTestLarge
+    : public ScreenContentToolsTestLarge {};
+
+TEST_P(ScreenContentToolsMultiThreadTestLarge, ScreenContentToolsTest) {
   // Don't force screen content, however as the input is screen content
   // allow_screen_content_tools should still be turned on even with
   // multi-threaded encoding.
@@ -120,7 +128,7 @@ TEST_P(ScreenContentToolsTestLarge, ScreenContentMultiThreadedEncoding) {
       << "Failed detection of screen content";
 }
 
-AV1_INSTANTIATE_TEST_SUITE(ScreenContentToolsTestLarge,
+AV1_INSTANTIATE_TEST_SUITE(ScreenContentToolsMultiThreadTestLarge,
                            ::testing::Values(::libaom_test::kOnePassGood,
                                              ::libaom_test::kTwoPassGood),
                            ::testing::Values(AOM_Q));
