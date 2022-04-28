@@ -2423,6 +2423,13 @@ void av1_collect_motion_search_features_sb(AV1_COMP *const cpi, ThreadData *td,
   const int num_blocks = col_steps * row_steps;
   unsigned int *block_sse = aom_calloc(num_blocks, sizeof(*block_sse));
   unsigned int *block_var = aom_calloc(num_blocks, sizeof(*block_var));
+  if (!(block_sse && block_var)) {
+    aom_free(sms_tree);
+    aom_free(block_sse);
+    aom_free(block_var);
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                       "Error allocating block_sse & block_var");
+  }
   int idx = 0;
 
   for (int row = mi_row;
