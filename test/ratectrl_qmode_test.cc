@@ -581,6 +581,52 @@ TEST(RefFrameManagerTest, GetRefFrameListByPriority) {
   }
 }
 
+TEST(RefFrameManagerTest, GetPrimaryRefFrame) {
+  const std::vector<int> order_idx_list = { 0, 4, 2, 1 };
+  const int frame_count = static_cast<int>(order_idx_list.size());
+  const std::vector<GopFrameType> type_list = { GopFrameType::kRegularKey,
+                                                GopFrameType::kRegularArf,
+                                                GopFrameType::kIntermediateArf,
+                                                GopFrameType::kRegularLeaf };
+  const std::vector<int> layer_depth_list = { 0, 2, 4, 6 };
+  RefFrameManager ref_manager(kRefFrameTableSize);
+  for (int coding_idx = 0; coding_idx < frame_count; ++coding_idx) {
+    GopFrame gop_frame =
+        gop_frame_basic(0, 0, coding_idx, order_idx_list[coding_idx],
+                        layer_depth_list[coding_idx], type_list[coding_idx]);
+    ref_manager.UpdateRefFrameTable(&gop_frame);
+  }
+
+  for (int i = 0; i < frame_count; ++i) {
+    // Test frame that share the same layer depth with a reference frame
+    int layer_depth = layer_depth_list[i];
+    // Set different frame type
+    GopFrameType type = type_list[(i + 1) % frame_count];
+    GopFrame gop_frame = gop_frame_basic(0, 0, 0, 0, layer_depth, type);
+    ReferenceFrame ref_frame = ref_manager.GetPrimaryRefFrame(gop_frame);
+    GopFrame primary_ref_frame =
+        ref_manager.GetRefFrameByIndex(ref_frame.index);
+    // The GetPrimaryRefFrame should find the ref_frame with matched layer depth
+    // because it's our first priority
+    EXPECT_EQ(primary_ref_frame.layer_depth, gop_frame.layer_depth);
+  }
+
+  const std::vector<int> mid_layer_depth_list = { 1, 3, 5 };
+  for (int i = 0; i < 3; ++i) {
+    // Test frame that share the same frame type with a reference frame
+    GopFrameType type = type_list[i];
+    // Let the frame layer_depth sit in the middle of two reference frames
+    int layer_depth = mid_layer_depth_list[i];
+    GopFrame gop_frame = gop_frame_basic(0, 0, 0, 0, layer_depth, type);
+    ReferenceFrame ref_frame = ref_manager.GetPrimaryRefFrame(gop_frame);
+    GopFrame primary_ref_frame =
+        ref_manager.GetRefFrameByIndex(ref_frame.index);
+    // The GetPrimaryRefFrame should find the ref_frame with matched frame type
+    // Here we use coding_idx to confirm that.
+    EXPECT_EQ(primary_ref_frame.coding_idx, i);
+  }
+}  // namespace aom
+
 // MockRateControlQMode is provided for the use of clients of libaom, but it's
 // not expected that it will be used in any real libaom tests.
 // This simple "toy" test exists solely to verify the integration of gmock into
