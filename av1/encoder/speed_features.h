@@ -1252,11 +1252,17 @@ typedef struct WINNER_MODE_SPEED_FEATURES {
   // tx_search_best_inter_candidates.
   int winner_mode_ifs;
 
-  // Controls the disabling of winner mode processing. The method considered for
-  // disabling, depends on the sf level value and it is described as below.
+  // Controls the disabling of winner mode processing. Speed feature levels
+  // are ordered in increasing aggressiveness of pruning. The method considered
+  // for disabling, depends on the sf level value and it is described as below.
   // 0: Do not disable
   // 1: Disable for blocks with low source variance.
-  // 2: Disable for blocks which turn out to be transform skip during MODE_EVAL
+  // 2: Disable for blocks which turn out to be transform skip (skipped based on
+  // eob) during MODE_EVAL stage except NEWMV mode.
+  // 3: Disable for blocks which turn out to be transform skip during MODE_EVAL
+  // stage except NEWMV mode. For high quantizers, prune conservatively based on
+  // transform skip (skipped based on eob) except for NEWMV mode.
+  // 4: Disable for blocks which turn out to be transform skip during MODE_EVAL
   // stage.
   int prune_winner_mode_eval_level;
 } WINNER_MODE_SPEED_FEATURES;
