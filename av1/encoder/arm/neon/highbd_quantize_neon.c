@@ -31,8 +31,9 @@ static INLINE uint16x4_t quantize_4(const tran_low_t *coeff_ptr,
   const int32x4_t v_abs_coeff_scaled =
       vshlq_s32(v_abs_coeff, vdupq_n_s32(1 + log_scale));
   const uint32x4_t v_mask = vcgeq_s32(v_abs_coeff_scaled, v_dequant_s32);
-  // const int64_t tmp = (int64_t)abs_coeff + log_scaled_round;
-  const int32x4_t v_tmp = vaddq_s32(v_abs_coeff, v_round_s32);
+  // const int64_t tmp = vmask ? (int64_t)abs_coeff + log_scaled_round : 0
+  const int32x4_t v_tmp = vandq_s32(vaddq_s32(v_abs_coeff, v_round_s32),
+                                    vreinterpretq_s32_u32(v_mask));
   //  const int abs_qcoeff = (int)((tmp * quant) >> (16 - log_scale));
   const int32x4_t v_abs_qcoeff =
       vqdmulhq_s32(vshlq_s32(v_tmp, v_log_scale), v_quant_s32);
@@ -46,12 +47,12 @@ static INLINE uint16x4_t quantize_4(const tran_low_t *coeff_ptr,
   const int32x4_t v_dqcoeff =
       vsubq_s32(veorq_s32(v_abs_dqcoeff, v_coeff_sign), v_coeff_sign);
 
-  vst1q_s32(qcoeff_ptr, vandq_s32(v_qcoeff, vreinterpretq_s32_u32(v_mask)));
-  vst1q_s32(dqcoeff_ptr, vandq_s32(v_dqcoeff, vreinterpretq_s32_u32(v_mask)));
+  vst1q_s32(qcoeff_ptr, v_qcoeff);
+  vst1q_s32(dqcoeff_ptr, v_dqcoeff);
 
   // Used to find eob.
   const uint32x4_t nz_qcoeff_mask = vcgtq_s32(v_abs_qcoeff, vdupq_n_s32(0));
-  return vmovn_u32(vandq_u32(v_mask, nz_qcoeff_mask));
+  return vmovn_u32(nz_qcoeff_mask);
 }
 
 static INLINE int16x8_t get_max_lane_eob(const int16_t *iscan,
@@ -110,12 +111,12 @@ void av1_highbd_quantize_fp_neon(
   v_mask_lo = quantize_4(coeff_ptr, qcoeff_ptr, dqcoeff_ptr, v_quant_s32,
                          v_dequant_s32, v_round_s32, log_scale);
 
-  // overwrite the DC round with AC round
+  // overwrite the DC constants with AC constants
   v_round_s32 = vdupq_lane_s32(vget_low_s32(v_round_s32), 1);
   v_quant_s32 = vdupq_lane_s32(vget_low_s32(v_quant_s32), 1);
   v_dequant_s32 = vdupq_lane_s32(vget_low_s32(v_dequant_s32), 1);
 
-  // 4 more DC
+  // 4 more AC
   v_mask_hi = quantize_4(coeff_ptr + 4, qcoeff_ptr + 4, dqcoeff_ptr + 4,
                          v_quant_s32, v_dequant_s32, v_round_s32, log_scale);
 
