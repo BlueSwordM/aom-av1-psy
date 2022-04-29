@@ -630,7 +630,22 @@ TEST(RefFrameManagerTest, GetPrimaryRefFrame) {
   }
 }
 
-using ::testing::ElementsAre;
+// Reads a whitespace-delimited string from stream, and parses it as a double.
+// Returns an empty string if the entire string was successfully parsed as a
+// double, or an error messaage if not.
+std::string ReadDouble(std::istream &stream, double *value) {
+  std::string word;
+  stream >> word;
+  if (word.empty()) {
+    return "Unexpectedly reached end of input";
+  }
+  char *end;
+  *value = std::strtod(word.c_str(), &end);
+  if (*end != '\0') {
+    return "Unexpected characters found: " + word;
+  }
+  return "";
+}
 
 TEST(RateControlQModeTest, TestKeyframeDetection) {
   FirstpassInfo firstpass_info;
@@ -651,25 +666,38 @@ TEST(RateControlQModeTest, TestKeyframeDetection) {
   std::string newline;
   while (std::getline(firstpass_stats_file, newline)) {
     std::istringstream iss(newline);
-    FIRSTPASS_STATS firstpass_stats_input;
-    iss >> firstpass_stats_input.frame >> firstpass_stats_input.weight >>
-        firstpass_stats_input.intra_error >>
-        firstpass_stats_input.frame_avg_wavelet_energy >>
-        firstpass_stats_input.coded_error >>
-        firstpass_stats_input.sr_coded_error >>
-        firstpass_stats_input.pcnt_inter >> firstpass_stats_input.pcnt_motion >>
-        firstpass_stats_input.pcnt_second_ref >>
-        firstpass_stats_input.pcnt_neutral >>
-        firstpass_stats_input.intra_skip_pct >>
-        firstpass_stats_input.inactive_zone_rows >>
-        firstpass_stats_input.inactive_zone_cols >> firstpass_stats_input.MVr >>
-        firstpass_stats_input.mvr_abs >> firstpass_stats_input.MVc >>
-        firstpass_stats_input.mvc_abs >> firstpass_stats_input.MVrv >>
-        firstpass_stats_input.MVcv >> firstpass_stats_input.mv_in_out_count >>
-        firstpass_stats_input.new_mv_count >> firstpass_stats_input.duration >>
-        firstpass_stats_input.count >> firstpass_stats_input.raw_error_stdev >>
-        firstpass_stats_input.is_flash >> firstpass_stats_input.noise_var >>
-        firstpass_stats_input.cor_coeff;
+    FIRSTPASS_STATS firstpass_stats_input = {};
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.frame), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.weight), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.intra_error), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.frame_avg_wavelet_energy),
+              "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.coded_error), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.sr_coded_error), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.pcnt_inter), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.pcnt_motion), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.pcnt_second_ref), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.pcnt_neutral), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.intra_skip_pct), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.inactive_zone_rows), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.inactive_zone_cols), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.MVr), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.mvr_abs), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.MVc), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.mvc_abs), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.MVrv), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.MVcv), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.mv_in_out_count), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.new_mv_count), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.duration), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.count), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.raw_error_stdev), "");
+    iss >> firstpass_stats_input.is_flash;
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.noise_var), "");
+    ASSERT_EQ(ReadDouble(iss, &firstpass_stats_input.cor_coeff), "");
+    ASSERT_TRUE(iss.eof()) << "Too many fields on line "
+                           << firstpass_info.stats_list.size() + 1 << "\n"
+                           << newline;
     firstpass_info.stats_list.push_back(firstpass_stats_input);
   }
   EXPECT_THAT(get_key_frame_list(firstpass_info),
