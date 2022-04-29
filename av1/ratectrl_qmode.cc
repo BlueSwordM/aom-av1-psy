@@ -23,12 +23,12 @@ namespace aom {
 
 // This is used before division to ensure that the divisor isn't zero or
 // too close to zero.
-static double modify_divisor(double divisor) {
+static double ModifyDivisor(double divisor) {
   const double kEpsilon = 0.000001;
   return (divisor < 0 ? divisor - kEpsilon : divisor + kEpsilon);
 }
 
-GopFrame gop_frame_invalid() {
+GopFrame GopFrameInvalid() {
   GopFrame gop_frame = {};
   gop_frame.is_valid = false;
   gop_frame.coding_idx = -1;
@@ -36,7 +36,7 @@ GopFrame gop_frame_invalid() {
   return gop_frame;
 }
 
-void set_gop_frame_by_type(GopFrameType gop_frame_type, GopFrame *gop_frame) {
+void SetGopFrameByType(GopFrameType gop_frame_type, GopFrame *gop_frame) {
   switch (gop_frame_type) {
     case GopFrameType::kRegularKey:
       gop_frame->is_key_frame = 1;
@@ -83,17 +83,16 @@ void set_gop_frame_by_type(GopFrameType gop_frame_type, GopFrame *gop_frame) {
   }
 }
 
-GopFrame gop_frame_basic(int global_coding_idx_offset,
-                         int global_order_idx_offset, int coding_idx,
-                         int order_idx, int depth,
-                         GopFrameType gop_frame_type) {
+GopFrame GopFrameBasic(int global_coding_idx_offset,
+                       int global_order_idx_offset, int coding_idx,
+                       int order_idx, int depth, GopFrameType gop_frame_type) {
   GopFrame gop_frame = {};
   gop_frame.is_valid = true;
   gop_frame.coding_idx = coding_idx;
   gop_frame.order_idx = order_idx;
   gop_frame.global_coding_idx = global_coding_idx_offset + coding_idx;
   gop_frame.global_order_idx = global_order_idx_offset + order_idx;
-  set_gop_frame_by_type(gop_frame_type, &gop_frame);
+  SetGopFrameByType(gop_frame_type, &gop_frame);
   gop_frame.colocated_ref_idx = -1;
   gop_frame.update_ref_idx = -1;
   gop_frame.layer_depth = depth + kLayerDepthOffset;
@@ -105,10 +104,9 @@ GopFrame gop_frame_basic(int global_coding_idx_offset,
 // intermediate ARF untill maximum depth is met or the number of regular frames
 // in between two ARFs are less than 3. Than the regular frames will be added
 // into the gop_struct.
-void construct_gop_multi_layer(GopStruct *gop_struct,
-                               RefFrameManager *ref_frame_manager,
-                               int max_depth, int depth, int order_start,
-                               int order_end) {
+void ConstructGopMultiLayer(GopStruct *gop_struct,
+                            RefFrameManager *ref_frame_manager, int max_depth,
+                            int depth, int order_start, int order_end) {
   int coding_idx = static_cast<int>(gop_struct->gop_frame_list.size());
   GopFrame gop_frame;
   int num_frames = order_end - order_start;
@@ -118,38 +116,37 @@ void construct_gop_multi_layer(GopStruct *gop_struct,
   if (depth < max_depth && num_frames >= kMinIntervalToAddArf) {
     int order_mid = (order_start + order_end) / 2;
     // intermediate ARF
-    gop_frame = gop_frame_basic(global_coding_idx_offset,
-                                global_order_idx_offset, coding_idx, order_mid,
-                                depth, GopFrameType::kIntermediateArf);
+    gop_frame = GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
+                              coding_idx, order_mid, depth,
+                              GopFrameType::kIntermediateArf);
     ref_frame_manager->UpdateRefFrameTable(&gop_frame);
     gop_struct->gop_frame_list.push_back(gop_frame);
-    construct_gop_multi_layer(gop_struct, ref_frame_manager, max_depth,
-                              depth + 1, order_start, order_mid);
+    ConstructGopMultiLayer(gop_struct, ref_frame_manager, max_depth, depth + 1,
+                           order_start, order_mid);
     // show existing intermediate ARF
-    gop_frame = gop_frame_basic(global_coding_idx_offset,
-                                global_order_idx_offset, coding_idx, order_mid,
-                                max_depth, GopFrameType::kShowExisting);
+    gop_frame = GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
+                              coding_idx, order_mid, max_depth,
+                              GopFrameType::kShowExisting);
     ref_frame_manager->UpdateRefFrameTable(&gop_frame);
     gop_struct->gop_frame_list.push_back(gop_frame);
-    construct_gop_multi_layer(gop_struct, ref_frame_manager, max_depth,
-                              depth + 1, order_mid + 1, order_end);
+    ConstructGopMultiLayer(gop_struct, ref_frame_manager, max_depth, depth + 1,
+                           order_mid + 1, order_end);
   } else {
     // regular frame
     for (int i = order_start; i < order_end; ++i) {
       coding_idx = static_cast<int>(gop_struct->gop_frame_list.size());
       gop_frame =
-          gop_frame_basic(global_coding_idx_offset, global_order_idx_offset,
-                          coding_idx, i, max_depth, GopFrameType::kRegularLeaf);
+          GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
+                        coding_idx, i, max_depth, GopFrameType::kRegularLeaf);
       ref_frame_manager->UpdateRefFrameTable(&gop_frame);
       gop_struct->gop_frame_list.push_back(gop_frame);
     }
   }
 }
 
-GopStruct construct_gop(RefFrameManager *ref_frame_manager,
-                        int show_frame_count, bool has_key_frame,
-                        int global_coding_idx_offset,
-                        int global_order_idx_offset) {
+GopStruct ConstructGop(RefFrameManager *ref_frame_manager, int show_frame_count,
+                       bool has_key_frame, int global_coding_idx_offset,
+                       int global_order_idx_offset) {
   GopStruct gop_struct;
   gop_struct.show_frame_count = show_frame_count;
   gop_struct.global_coding_idx_offset = global_coding_idx_offset;
@@ -162,9 +159,9 @@ GopStruct construct_gop(RefFrameManager *ref_frame_manager,
     const int key_frame_depth = -1;
     ref_frame_manager->Reset();
     coding_idx = static_cast<int>(gop_struct.gop_frame_list.size());
-    gop_frame = gop_frame_basic(
-        global_coding_idx_offset, global_order_idx_offset, coding_idx,
-        order_start, key_frame_depth, GopFrameType::kRegularKey);
+    gop_frame = GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
+                              coding_idx, order_start, key_frame_depth,
+                              GopFrameType::kRegularKey);
     ref_frame_manager->UpdateRefFrameTable(&gop_frame);
     gop_struct.gop_frame_list.push_back(gop_frame);
     order_start++;
@@ -172,17 +169,17 @@ GopStruct construct_gop(RefFrameManager *ref_frame_manager,
   // ARF
   const int arf_depth = 0;
   coding_idx = static_cast<int>(gop_struct.gop_frame_list.size());
-  gop_frame = gop_frame_basic(global_coding_idx_offset, global_order_idx_offset,
-                              coding_idx, order_arf, arf_depth,
-                              GopFrameType::kRegularArf);
+  gop_frame = GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
+                            coding_idx, order_arf, arf_depth,
+                            GopFrameType::kRegularArf);
   ref_frame_manager->UpdateRefFrameTable(&gop_frame);
   gop_struct.gop_frame_list.push_back(gop_frame);
-  construct_gop_multi_layer(&gop_struct, ref_frame_manager,
-                            ref_frame_manager->ForwardMaxSize(), arf_depth + 1,
-                            order_start, order_arf);
+  ConstructGopMultiLayer(&gop_struct, ref_frame_manager,
+                         ref_frame_manager->ForwardMaxSize(), arf_depth + 1,
+                         order_start, order_arf);
   // Overlay
   coding_idx = static_cast<int>(gop_struct.gop_frame_list.size());
-  gop_frame = gop_frame_basic(
+  gop_frame = GopFrameBasic(
       global_coding_idx_offset, global_order_idx_offset, coding_idx, order_arf,
       ref_frame_manager->ForwardMaxSize(), GopFrameType::kOverlay);
   ref_frame_manager->UpdateRefFrameTable(&gop_frame);
@@ -199,7 +196,7 @@ void AV1RateControlQMode::SetRcParam(const RateControlParam &rc_param) {
 // a real scene cut.
 // We adapt the threshold based on number of frames in this key-frame group so
 // far.
-static double get_second_ref_usage_threshold(int frame_count_so_far) {
+static double GetSecondRefUsageThreshold(int frame_count_so_far) {
   const int adapt_upto = 32;
   const double min_second_ref_usage_thresh = 0.085;
   const double second_ref_usage_thresh_max_delta = 0.035;
@@ -218,9 +215,9 @@ static double get_second_ref_usage_threshold(int frame_count_so_far) {
 // Also requires that intra and inter errors are very similar to help eliminate
 // harmful false positives.
 // It will not help if the transition is a fade or other multi-frame effect.
-static bool detect_slide_transition(const FIRSTPASS_STATS &this_frame,
-                                    const FIRSTPASS_STATS &last_frame,
-                                    const FIRSTPASS_STATS &next_frame) {
+static bool DetectSlideTransition(const FIRSTPASS_STATS &this_frame,
+                                  const FIRSTPASS_STATS &last_frame,
+                                  const FIRSTPASS_STATS &next_frame) {
   // Intra / Inter threshold very low
   constexpr double kVeryLowII = 1.5;
   // Clean slide transitions we expect a sharp single frame spike in error.
@@ -235,9 +232,9 @@ static bool detect_slide_transition(const FIRSTPASS_STATS &this_frame,
 // Check if there is a significant intra/inter error change between the current
 // frame and its neighbor. If so, we should further test whether the current
 // frame should be a key frame.
-static bool detect_intra_inter_error_change(const FIRSTPASS_STATS &this_stats,
-                                            const FIRSTPASS_STATS &last_stats,
-                                            const FIRSTPASS_STATS &next_stats) {
+static bool DetectIntraInterErrorChange(const FIRSTPASS_STATS &this_stats,
+                                        const FIRSTPASS_STATS &last_stats,
+                                        const FIRSTPASS_STATS &next_stats) {
   // Minimum % intra coding observed in first pass (1.0 = 100%)
   constexpr double kMinIntraLevel = 0.25;
   // Minimum ratio between the % of intra coding and inter coding in the first
@@ -256,23 +253,23 @@ static bool detect_intra_inter_error_change(const FIRSTPASS_STATS &this_stats,
   constexpr double kErrorChangeThreshold = 0.4;
   const double last_this_error_ratio =
       fabs(last_stats.coded_error - this_stats.coded_error) /
-      modify_divisor(this_stats.coded_error);
+      ModifyDivisor(this_stats.coded_error);
 
   const double this_next_error_ratio =
       fabs(last_stats.intra_error - this_stats.intra_error) /
-      modify_divisor(this_stats.intra_error);
+      ModifyDivisor(this_stats.intra_error);
 
   // Maximum threshold for the relative ratio of intra error score vs best
   // inter error score.
   constexpr double kThisIntraCodedErrorRatioMax = 1.9;
   const double this_intra_coded_error_ratio =
-      this_stats.intra_error / modify_divisor(this_stats.coded_error);
+      this_stats.intra_error / ModifyDivisor(this_stats.coded_error);
 
   // For real scene cuts we expect an improvment in the intra inter error
   // ratio in the next frame.
   constexpr double kNextIntraCodedErrorRatioMin = 3.5;
   const double next_intra_coded_error_ratio =
-      next_stats.intra_error / modify_divisor(next_stats.coded_error);
+      next_stats.intra_error / ModifyDivisor(next_stats.coded_error);
 
   double pcnt_intra = 1.0 - this_stats.pcnt_inter;
   return pcnt_intra > pcnt_intra_min &&
@@ -284,9 +281,8 @@ static bool detect_intra_inter_error_change(const FIRSTPASS_STATS &this_stats,
 
 // Check whether the candidate can be a key frame.
 // This is a rewrite of test_candidate_kf().
-static bool test_candidate_key(const FirstpassInfo &first_pass_info,
-                               int candidate_key_idx,
-                               int frames_since_prev_key) {
+static bool TestCandidateKey(const FirstpassInfo &first_pass_info,
+                             int candidate_key_idx, int frames_since_prev_key) {
   const auto &stats_list = first_pass_info.stats_list;
   const int stats_count = static_cast<int>(stats_list.size());
   if (candidate_key_idx + 1 >= stats_count || candidate_key_idx - 1 < 0) {
@@ -298,7 +294,7 @@ static bool test_candidate_key(const FirstpassInfo &first_pass_info,
 
   if (frames_since_prev_key < 3) return false;
   const double second_ref_usage_threshold =
-      get_second_ref_usage_threshold(frames_since_prev_key);
+      GetSecondRefUsageThreshold(frames_since_prev_key);
   if (this_stats.pcnt_second_ref >= second_ref_usage_threshold) return false;
   if (next_stats.pcnt_second_ref >= second_ref_usage_threshold) return false;
 
@@ -307,8 +303,8 @@ static bool test_candidate_key(const FirstpassInfo &first_pass_info,
   // may be a good option.
   constexpr double kVeryLowInterThreshold = 0.05;
   if (this_stats.pcnt_inter < kVeryLowInterThreshold ||
-      detect_slide_transition(this_stats, last_stats, next_stats) ||
-      detect_intra_inter_error_change(this_stats, last_stats, next_stats)) {
+      DetectSlideTransition(this_stats, last_stats, next_stats) ||
+      DetectIntraInterErrorChange(this_stats, last_stats, next_stats)) {
     double boost_score = 0.0;
     double decay_accumulator = 1.0;
 
@@ -336,8 +332,8 @@ static bool test_candidate_key(const FirstpassInfo &first_pass_info,
       }
 
       constexpr double kBoostFactor = 12.5;
-      double next_iiratio = (kBoostFactor * stats.intra_error /
-                             modify_divisor(stats.coded_error));
+      double next_iiratio =
+          (kBoostFactor * stats.intra_error / ModifyDivisor(stats.coded_error));
       next_iiratio = std::min(next_iiratio, 128.0);
       double boost_score_increment = decay_accumulator * next_iiratio;
 
@@ -374,7 +370,7 @@ static bool test_candidate_key(const FirstpassInfo &first_pass_info,
 }
 
 // Compute key frame location from first_pass_info.
-std::vector<int> get_key_frame_list(const FirstpassInfo &first_pass_info) {
+std::vector<int> GetKeyFrameList(const FirstpassInfo &first_pass_info) {
   std::vector<int> key_frame_list;
   key_frame_list.push_back(0);  // The first frame is always a key frame
   int candidate_key_idx = 1;
@@ -382,7 +378,7 @@ std::vector<int> get_key_frame_list(const FirstpassInfo &first_pass_info) {
          static_cast<int>(first_pass_info.stats_list.size())) {
     const int frames_since_prev_key = candidate_key_idx - key_frame_list.back();
     // Check for a scene cut.
-    const bool scenecut_detected = test_candidate_key(
+    const bool scenecut_detected = TestCandidateKey(
         first_pass_info, candidate_key_idx, frames_since_prev_key);
     if (scenecut_detected) {
       key_frame_list.push_back(candidate_key_idx);
@@ -393,7 +389,7 @@ std::vector<int> get_key_frame_list(const FirstpassInfo &first_pass_info) {
 }
 
 // initialize GF_GROUP_STATS
-static void init_gf_stats(GF_GROUP_STATS *gf_stats) {
+static void InitGFStats(GF_GROUP_STATS *gf_stats) {
   gf_stats->gf_group_err = 0.0;
   gf_stats->gf_group_raw_error = 0.0;
   gf_stats->gf_group_skip_pct = 0.0;
@@ -416,8 +412,7 @@ static void init_gf_stats(GF_GROUP_STATS *gf_stats) {
   gf_stats->non_zero_stdev_count = 0;
 }
 
-static int find_regions_index(const std::vector<REGIONS> &regions,
-                              int frame_idx) {
+static int FindRegionIndex(const std::vector<REGIONS> &regions, int frame_idx) {
   for (int k = 0; k < static_cast<int>(regions.size()); k++) {
     if (regions[k].start <= frame_idx && regions[k].last >= frame_idx) {
       return k;
@@ -442,7 +437,7 @@ static int find_regions_index(const std::vector<REGIONS> &regions,
  *
  * \return Returns a vector of decided GF group lengths.
  */
-static std::vector<int> partition_gop_intervals(
+static std::vector<int> PartitionGopIntervals(
     const RateControlParam &rc_param,
     const std::vector<FIRSTPASS_STATS> &stats_list,
     const std::vector<REGIONS> &regions_list, int order_index,
@@ -458,7 +453,7 @@ static std::vector<int> partition_gop_intervals(
   std::vector<int> cut_pos(1, -1);
   int cut_here = 0;
   GF_GROUP_STATS gf_stats;
-  init_gf_stats(&gf_stats);
+  InitGFStats(&gf_stats);
   int num_regions = static_cast<int>(regions_list.size());
   int num_stats = static_cast<int>(stats_list.size());
   int stats_in_loop_index = order_index;
@@ -486,10 +481,8 @@ static std::vector<int> partition_gop_intervals(
     if (cur_last - cur_start <= rc_param.max_gop_show_frame_count &&
         cur_last > cur_start) {
       // find the region indices of where the first and last frame belong.
-      int k_start =
-          find_regions_index(regions_list, cur_start + frames_since_key);
-      int k_last =
-          find_regions_index(regions_list, cur_last + frames_since_key);
+      int k_start = FindRegionIndex(regions_list, cur_start + frames_since_key);
+      int k_last = FindRegionIndex(regions_list, cur_last + frames_since_key);
       if (cur_start + frames_since_key == 0) k_start = 0;
 
       // See if we have a scenecut in between
@@ -552,8 +545,7 @@ static std::vector<int> partition_gop_intervals(
             if (order_index + j >= num_stats) break;
             base_score =
                 (base_score + 1.0) * stats_list[order_index + j].cor_coeff;
-            int this_reg =
-                find_regions_index(regions_list, j + frames_since_key);
+            int this_reg = FindRegionIndex(regions_list, j + frames_since_key);
             if (this_reg < 0) continue;
             // A GOP should include at most 1 blending region.
             if (regions_list[this_reg].type == BLENDING_REGION) {
@@ -604,7 +596,7 @@ static std::vector<int> partition_gop_intervals(
           // For blending areas, move one more frame in case we missed the
           // first blending frame.
           int best_reg =
-              find_regions_index(regions_list, best_j + frames_since_key);
+              FindRegionIndex(regions_list, best_j + frames_since_key);
           if (best_reg < num_regions - 1 && best_reg > 0) {
             if (regions_list[best_reg - 1].type == BLENDING_REGION &&
                 regions_list[best_reg + 1].type == BLENDING_REGION) {
@@ -632,13 +624,13 @@ static std::vector<int> partition_gop_intervals(
     stats_in_loop_index = order_index + cur_last;
     cur_start = cur_last;
     int cur_region_idx =
-        find_regions_index(regions_list, cur_start + 1 + frames_since_key);
+        FindRegionIndex(regions_list, cur_start + 1 + frames_since_key);
     if (cur_region_idx >= 0)
       if (regions_list[cur_region_idx].type == SCENECUT_REGION) cur_start++;
 
     if (cut_here > 1 && cur_last == ori_last) break;
     // reset accumulators
-    init_gf_stats(&gf_stats);
+    InitGFStats(&gf_stats);
     i = cur_last + 1;
   }
   std::vector<int> gf_intervals;
@@ -658,7 +650,7 @@ GopStructList AV1RateControlQMode::DetermineGopInfo(
   RefFrameManager ref_frame_manager(rc_param_.max_ref_frames);
   int global_coding_idx_offset = 0;
   int global_order_idx_offset = 0;
-  std::vector<int> key_frame_list = get_key_frame_list(firstpass_info);
+  std::vector<int> key_frame_list = GetKeyFrameList(firstpass_info);
   key_frame_list.push_back(stats_size);  // a sentinel value
   for (size_t ki = 0; ki + 1 < key_frame_list.size(); ++ki) {
     int frames_to_key = key_frame_list[ki + 1] - key_frame_list[ki];
@@ -675,15 +667,15 @@ GopStructList AV1RateControlQMode::DetermineGopInfo(
     av1_identify_regions(firstpass_info.stats_list.data() + key_order_index,
                          frames_to_key, 0, regions_list.data(), &total_regions);
     regions_list.resize(total_regions);
-    std::vector<int> gf_intervals = partition_gop_intervals(
+    std::vector<int> gf_intervals = PartitionGopIntervals(
         rc_param_, firstpass_info.stats_list, regions_list, key_order_index,
         /*frames_since_key=*/0, frames_to_key);
     for (size_t gi = 0; gi < gf_intervals.size(); ++gi) {
       const bool has_key_frame = gi == 0;
       const int show_frame_count = gf_intervals[gi];
       GopStruct gop =
-          construct_gop(&ref_frame_manager, show_frame_count, has_key_frame,
-                        global_coding_idx_offset, global_order_idx_offset);
+          ConstructGop(&ref_frame_manager, show_frame_count, has_key_frame,
+                       global_coding_idx_offset, global_order_idx_offset);
       assert(gop.show_frame_count == show_frame_count);
       global_coding_idx_offset += static_cast<int>(gop.gop_frame_list.size());
       global_order_idx_offset += gop.show_frame_count;
@@ -693,9 +685,8 @@ GopStructList AV1RateControlQMode::DetermineGopInfo(
   return gop_list;
 }
 
-TplFrameDepStats create_tpl_frame_dep_stats_empty(int frame_height,
-                                                  int frame_width,
-                                                  int min_block_size) {
+TplFrameDepStats CreateTplFrameDepStats(int frame_height, int frame_width,
+                                        int min_block_size) {
   const int unit_rows =
       frame_height / min_block_size + !!(frame_height % min_block_size);
   const int unit_cols =
@@ -707,10 +698,10 @@ TplFrameDepStats create_tpl_frame_dep_stats_empty(int frame_height,
   return frame_dep_stats;
 }
 
-TplFrameDepStats create_tpl_frame_dep_stats_wo_propagation(
+TplFrameDepStats CreateTplFrameDepStatsWithoutPropagation(
     const TplFrameStats &frame_stats) {
   const int min_block_size = frame_stats.min_block_size;
-  TplFrameDepStats frame_dep_stats = create_tpl_frame_dep_stats_empty(
+  TplFrameDepStats frame_dep_stats = CreateTplFrameDepStats(
       frame_stats.frame_height, frame_stats.frame_width, min_block_size);
   for (const TplBlockStats &block_stats : frame_stats.block_stats_list) {
     const int block_unit_rows = block_stats.height / min_block_size;
@@ -730,9 +721,9 @@ TplFrameDepStats create_tpl_frame_dep_stats_wo_propagation(
   return frame_dep_stats;
 }
 
-int get_ref_coding_idx_list(const TplBlockStats &block_stats,
-                            const RefFrameTable &ref_frame_table,
-                            int *ref_coding_idx_list) {
+int GetRefCodingIdxList(const TplBlockStats &block_stats,
+                        const RefFrameTable &ref_frame_table,
+                        int *ref_coding_idx_list) {
   int ref_frame_count = 0;
   for (int i = 0; i < kBlockRefCount; ++i) {
     ref_coding_idx_list[i] = -1;
@@ -745,7 +736,7 @@ int get_ref_coding_idx_list(const TplBlockStats &block_stats,
   return ref_frame_count;
 }
 
-int get_block_overlap_area(int r0, int c0, int r1, int c1, int size) {
+int GetBlockOverlapArea(int r0, int c0, int r1, int c1, int size) {
   const int r_low = std::max(r0, r1);
   const int r_high = std::min(r0 + size, r1 + size);
   const int c_low = std::max(c0, c1);
@@ -756,7 +747,7 @@ int get_block_overlap_area(int r0, int c0, int r1, int c1, int size) {
   return 0;
 }
 
-double tpl_frame_stats_accumulate(const TplFrameStats &frame_stats) {
+double TplFrameStatsAccumulate(const TplFrameStats &frame_stats) {
   double ref_sum_cost_diff = 0;
   for (auto &block_stats : frame_stats.block_stats_list) {
     ref_sum_cost_diff += block_stats.inter_cost - block_stats.intra_cost;
@@ -764,7 +755,7 @@ double tpl_frame_stats_accumulate(const TplFrameStats &frame_stats) {
   return ref_sum_cost_diff;
 }
 
-double tpl_frame_dep_stats_accumulate(const TplFrameDepStats &frame_dep_stats) {
+double TplFrameDepStatsAccumulate(const TplFrameDepStats &frame_dep_stats) {
   double sum = 0;
   for (const auto &row : frame_dep_stats.unit_stats) {
     sum = std::accumulate(row.begin(), row.end(), sum);
@@ -775,7 +766,7 @@ double tpl_frame_dep_stats_accumulate(const TplFrameDepStats &frame_dep_stats) {
 // This is a generalization of GET_MV_RAWPEL that allows for an arbitrary
 // number of fractional bits.
 // TODO(angiebird): Add unit test to this function
-int get_fullpel_value(int subpel_value, int subpel_bits) {
+int GetFullpelValue(int subpel_value, int subpel_bits) {
   const int subpel_scale = (1 << subpel_bits);
   const int sign = subpel_value >= 0 ? 1 : -1;
   int fullpel_value = (abs(subpel_value) + subpel_scale / 2) >> subpel_bits;
@@ -783,9 +774,9 @@ int get_fullpel_value(int subpel_value, int subpel_bits) {
   return fullpel_value;
 }
 
-void tpl_frame_dep_stats_propagate(const TplFrameStats &frame_stats,
-                                   const RefFrameTable &ref_frame_table,
-                                   TplGopDepStats *tpl_gop_dep_stats) {
+void TplFrameDepStatsPropagate(const TplFrameStats &frame_stats,
+                               const RefFrameTable &ref_frame_table,
+                               TplGopDepStats *tpl_gop_dep_stats) {
   const int min_block_size = frame_stats.min_block_size;
   const int frame_unit_rows =
       frame_stats.frame_height / frame_stats.min_block_size;
@@ -793,8 +784,8 @@ void tpl_frame_dep_stats_propagate(const TplFrameStats &frame_stats,
       frame_stats.frame_width / frame_stats.min_block_size;
   for (const TplBlockStats &block_stats : frame_stats.block_stats_list) {
     int ref_coding_idx_list[kBlockRefCount] = { -1, -1 };
-    int ref_frame_count = get_ref_coding_idx_list(block_stats, ref_frame_table,
-                                                  ref_coding_idx_list);
+    int ref_frame_count =
+        GetRefCodingIdxList(block_stats, ref_frame_table, ref_coding_idx_list);
     if (ref_frame_count > 0) {
       double propagation_ratio = 1.0 / ref_frame_count;
       for (int i = 0; i < kBlockRefCount; ++i) {
@@ -802,8 +793,8 @@ void tpl_frame_dep_stats_propagate(const TplFrameStats &frame_stats,
           auto &ref_frame_dep_stats =
               tpl_gop_dep_stats->frame_dep_stats_list[ref_coding_idx_list[i]];
           const auto &mv = block_stats.mv[i];
-          const int mv_row = get_fullpel_value(mv.row, mv.subpel_bits);
-          const int mv_col = get_fullpel_value(mv.col, mv.subpel_bits);
+          const int mv_row = GetFullpelValue(mv.row, mv.subpel_bits);
+          const int mv_col = GetFullpelValue(mv.col, mv.subpel_bits);
           const int block_unit_rows = block_stats.height / min_block_size;
           const int block_unit_cols = block_stats.width / min_block_size;
           const int unit_count = block_unit_rows * block_unit_cols;
@@ -824,7 +815,7 @@ void tpl_frame_dep_stats_propagate(const TplFrameStats &frame_stats,
                   const int unit_col = ref_unit_col_low + k;
                   if (unit_row >= 0 && unit_row < frame_unit_rows &&
                       unit_col >= 0 && unit_col < frame_unit_cols) {
-                    const int overlap_area = get_block_overlap_area(
+                    const int overlap_area = GetBlockOverlapArea(
                         unit_row * min_block_size, unit_col * min_block_size,
                         ref_block_row, ref_block_col, min_block_size);
                     const double overlap_ratio =
@@ -843,8 +834,8 @@ void tpl_frame_dep_stats_propagate(const TplFrameStats &frame_stats,
 }
 
 // TODO(angiebird): Add unit test for this function
-std::vector<RefFrameTable> get_ref_frame_table_list(
-    const GopStruct &gop_struct, RefFrameTable ref_frame_table) {
+std::vector<RefFrameTable> GetRefFrameTableList(const GopStruct &gop_struct,
+                                                RefFrameTable ref_frame_table) {
   const int frame_count = static_cast<int>(gop_struct.gop_frame_list.size());
   std::vector<RefFrameTable> ref_frame_table_list;
   ref_frame_table_list.push_back(ref_frame_table);
@@ -858,7 +849,7 @@ std::vector<RefFrameTable> get_ref_frame_table_list(
   return ref_frame_table_list;
 }
 
-TplGopDepStats compute_tpl_gop_dep_stats(
+TplGopDepStats ComputeTplGopDepStats(
     const TplGopStats &tpl_gop_stats,
     const std::vector<RefFrameTable> &ref_frame_table_list) {
   const int frame_count = static_cast<int>(ref_frame_table_list.size());
@@ -867,7 +858,7 @@ TplGopDepStats compute_tpl_gop_dep_stats(
   TplGopDepStats tpl_gop_dep_stats;
   for (int coding_idx = 0; coding_idx < frame_count; coding_idx++) {
     tpl_gop_dep_stats.frame_dep_stats_list.push_back(
-        create_tpl_frame_dep_stats_wo_propagation(
+        CreateTplFrameDepStatsWithoutPropagation(
             tpl_gop_stats.frame_stats_list[coding_idx]));
   }
 
@@ -876,13 +867,13 @@ TplGopDepStats compute_tpl_gop_dep_stats(
     auto &ref_frame_table = ref_frame_table_list[coding_idx];
     // TODO(angiebird): Handle/test the case where reference frame
     // is in the previous GOP
-    tpl_frame_dep_stats_propagate(tpl_gop_stats.frame_stats_list[coding_idx],
-                                  ref_frame_table, &tpl_gop_dep_stats);
+    TplFrameDepStatsPropagate(tpl_gop_stats.frame_stats_list[coding_idx],
+                              ref_frame_table, &tpl_gop_dep_stats);
   }
   return tpl_gop_dep_stats;
 }
 
-static int get_rdmult(const GopFrame &gop_frame, int qindex) {
+static int GetRDMult(const GopFrame &gop_frame, int qindex) {
   // TODO(angiebird):
   // 1) Check if these rdmult rules are good in our use case.
   // 2) Support high-bit-depth mode
@@ -902,12 +893,12 @@ GopEncodeInfo AV1RateControlQMode::GetGopEncodeInfo(
     const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
     const RefFrameTable &ref_frame_table_snapshot_init) {
   const std::vector<RefFrameTable> ref_frame_table_list =
-      get_ref_frame_table_list(gop_struct, ref_frame_table_snapshot_init);
+      GetRefFrameTableList(gop_struct, ref_frame_table_snapshot_init);
 
   GopEncodeInfo gop_encode_info;
   gop_encode_info.final_snapshot = ref_frame_table_list.back();
   TplGopDepStats gop_dep_stats =
-      compute_tpl_gop_dep_stats(tpl_gop_stats, ref_frame_table_list);
+      ComputeTplGopDepStats(tpl_gop_stats, ref_frame_table_list);
   const int frame_count =
       static_cast<int>(tpl_gop_stats.frame_stats_list.size());
   for (int i = 0; i < frame_count; i++) {
@@ -915,9 +906,9 @@ GopEncodeInfo AV1RateControlQMode::GetGopEncodeInfo(
     const TplFrameDepStats &frame_dep_stats =
         gop_dep_stats.frame_dep_stats_list[i];
     const double cost_without_propagation =
-        tpl_frame_stats_accumulate(frame_stats);
+        TplFrameStatsAccumulate(frame_stats);
     const double cost_with_propagation =
-        tpl_frame_dep_stats_accumulate(frame_dep_stats);
+        TplFrameDepStatsAccumulate(frame_dep_stats);
     // TODO(angiebird): This part is still a draft. Check whether this makes
     // sense mathematically.
     const double frame_importance =
@@ -928,7 +919,7 @@ GopEncodeInfo AV1RateControlQMode::GetGopEncodeInfo(
     param.q_index = av1_get_q_index_from_qstep_ratio(rc_param_.base_q_index,
                                                      qstep_ratio, AOM_BITS_8);
     const GopFrame &gop_frame = gop_struct.gop_frame_list[i];
-    param.rdmult = get_rdmult(gop_frame, param.q_index);
+    param.rdmult = GetRDMult(gop_frame, param.q_index);
     gop_encode_info.param_list.push_back(param);
   }
   return gop_encode_info;

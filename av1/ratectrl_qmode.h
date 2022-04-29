@@ -34,7 +34,7 @@ struct TplGopDepStats {
   std::vector<TplFrameDepStats> frame_dep_stats_list;
 };
 
-GopFrame gop_frame_invalid();
+GopFrame GopFrameInvalid();
 
 // gop frame type used for facilitate setting up GopFrame
 // TODO(angiebird): Define names for forward key frame and
@@ -52,37 +52,35 @@ enum class GopFrameType {
 
 // Set up is_key_frame, is_arf_frame, is_show_frame, is_golden_frame and
 // encode_ref_mode in GopFrame based on gop_frame_type
-void set_gop_frame_by_type(GopFrameType gop_frame_type, GopFrame *gop_frame);
+void SetGopFrameByType(GopFrameType gop_frame_type, GopFrame *gop_frame);
 
-GopFrame gop_frame_basic(int global_coding_idx_offset,
-                         int global_order_idx_offset, int coding_idx,
-                         int order_idx, int depth, GopFrameType gop_frame_type);
+GopFrame GopFrameBasic(int global_coding_idx_offset,
+                       int global_order_idx_offset, int coding_idx,
+                       int order_idx, int depth, GopFrameType gop_frame_type);
 
-GopStruct construct_gop(RefFrameManager *ref_frame_manager,
-                        int show_frame_count, bool has_key_frame,
-                        int global_coding_idx_offset,
-                        int global_order_idx_offset);
+GopStruct ConstructGop(RefFrameManager *ref_frame_manager, int show_frame_count,
+                       bool has_key_frame, int global_coding_idx_offset,
+                       int global_order_idx_offset);
 
-TplFrameDepStats create_tpl_frame_dep_stats_empty(int frame_height,
-                                                  int frame_width,
-                                                  int min_block_size);
+TplFrameDepStats CreateTplFrameDepStats(int frame_height, int frame_width,
+                                        int min_block_size);
 
-TplFrameDepStats create_tpl_frame_dep_stats_wo_propagation(
+TplFrameDepStats CreateTplFrameDepStatsWithoutPropagation(
     const TplFrameStats &frame_stats);
 
-std::vector<int> get_key_frame_list(const FirstpassInfo &first_pass_info);
+std::vector<int> GetKeyFrameList(const FirstpassInfo &first_pass_info);
 
-double tpl_frame_stats_accumulate(const TplFrameStats &frame_stats);
+double TplFrameStatsAccumulate(const TplFrameStats &frame_stats);
 
-double tpl_frame_dep_stats_accumulate(const TplFrameDepStats &frame_dep_stats);
+double TplFrameDepStatsAccumulate(const TplFrameDepStats &frame_dep_stats);
 
-void tpl_frame_dep_stats_propagate(const TplFrameStats &frame_stats,
-                                   const RefFrameTable &ref_frame_table,
-                                   TplGopDepStats *tpl_gop_dep_stats);
+void TplFrameDepStatsPropagate(const TplFrameStats &frame_stats,
+                               const RefFrameTable &ref_frame_table,
+                               TplGopDepStats *tpl_gop_dep_stats);
 
-int get_block_overlap_area(int r0, int c0, int r1, int c1, int size);
+int GetBlockOverlapArea(int r0, int c0, int r1, int c1, int size);
 
-TplGopDepStats compute_tpl_gop_dep_stats(
+TplGopDepStats ComputeTplGopDepStats(
     const TplGopStats &tpl_gop_stats,
     const std::vector<RefFrameTable> &ref_frame_table_list);
 

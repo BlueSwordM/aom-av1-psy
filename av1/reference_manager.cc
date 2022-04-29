@@ -24,7 +24,7 @@ void RefFrameManager::Reset() {
   free_ref_idx_list_.clear();
   for (int i = 0; i < kRefFrameTableSize; ++i) {
     free_ref_idx_list_.push_back(i);
-    ref_frame_table_[i] = gop_frame_invalid();
+    ref_frame_table_[i] = GopFrameInvalid();
   }
   forward_stack_.clear();
   backward_queue_.clear();
@@ -105,7 +105,7 @@ GopFrame RefFrameManager::GetRefFrameByPriority(RefUpdateType ref_update_type,
                                                 int priority_idx) const {
   int ref_idx = GetRefFrameIdxByPriority(ref_update_type, priority_idx);
   if (ref_idx == -1) {
-    return gop_frame_invalid();
+    return GopFrameInvalid();
   }
   assert(ref_frame_table_[ref_idx].update_ref_idx == ref_idx);
   return ref_frame_table_[ref_idx];

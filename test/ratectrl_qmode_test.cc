@@ -28,7 +28,7 @@ using ::testing::ElementsAre;
 using ::testing::Field;
 using ::testing::Return;
 
-void test_gop_display_order(const GopStruct &gop_struct) {
+void TestGopDisplayOrder(const GopStruct &gop_struct) {
   // Test whether show frames' order indices are sequential
   int expected_order_idx = 0;
   int expected_show_frame_count = 0;
@@ -42,8 +42,8 @@ void test_gop_display_order(const GopStruct &gop_struct) {
   EXPECT_EQ(gop_struct.show_frame_count, expected_show_frame_count);
 }
 
-void test_gop_global_order_idx(const GopStruct &gop_struct,
-                               int global_order_idx_offset) {
+void TestGopGlobalOrderIdx(const GopStruct &gop_struct,
+                           int global_order_idx_offset) {
   // Test whether show frames' global order indices are sequential
   EXPECT_EQ(gop_struct.global_order_idx_offset, global_order_idx_offset);
   int expected_global_order_idx = global_order_idx_offset;
@@ -55,8 +55,8 @@ void test_gop_global_order_idx(const GopStruct &gop_struct,
   }
 }
 
-void test_gop_global_coding_idx(const GopStruct &gop_struct,
-                                int global_coding_idx_offset) {
+void TestGopGlobalCodingIdx(const GopStruct &gop_struct,
+                            int global_coding_idx_offset) {
   EXPECT_EQ(gop_struct.global_coding_idx_offset, global_coding_idx_offset);
   for (const auto &gop_frame : gop_struct.gop_frame_list) {
     EXPECT_EQ(gop_frame.global_coding_idx,
@@ -64,7 +64,7 @@ void test_gop_global_coding_idx(const GopStruct &gop_struct,
   }
 }
 
-void test_colocated_show_frame(const GopStruct &gop_struct) {
+void TestColocatedShowFrame(const GopStruct &gop_struct) {
   // Test whether each non show frame has a colocated show frame
   int gop_size = static_cast<int>(gop_struct.gop_frame_list.size());
   for (int gop_idx = 0; gop_idx < gop_size; ++gop_idx) {
@@ -87,7 +87,7 @@ void test_colocated_show_frame(const GopStruct &gop_struct) {
   }
 }
 
-void test_layer_depth(const GopStruct &gop_struct, int max_layer_depth) {
+void TestLayerDepth(const GopStruct &gop_struct, int max_layer_depth) {
   int gop_size = static_cast<int>(gop_struct.gop_frame_list.size());
   for (int gop_idx = 0; gop_idx < gop_size; ++gop_idx) {
     const auto &gop_frame = gop_struct.gop_frame_list[gop_idx];
@@ -105,7 +105,7 @@ void test_layer_depth(const GopStruct &gop_struct, int max_layer_depth) {
   }
 }
 
-void test_arf_interval(const GopStruct &gop_struct) {
+void TestArfInterval(const GopStruct &gop_struct) {
   std::vector<int> arf_order_idx_list;
   for (const auto &gop_frame : gop_struct.gop_frame_list) {
     if (gop_frame.is_arf_frame) {
@@ -127,17 +127,17 @@ TEST(RateControlQModeTest, ConstructGopARF) {
   const int global_order_idx_offset = 20;
   RefFrameManager ref_frame_manager(kRefFrameTableSize);
   GopStruct gop_struct =
-      construct_gop(&ref_frame_manager, show_frame_count, has_key_frame,
-                    global_coding_idx_offset, global_order_idx_offset);
+      ConstructGop(&ref_frame_manager, show_frame_count, has_key_frame,
+                   global_coding_idx_offset, global_order_idx_offset);
   EXPECT_EQ(gop_struct.show_frame_count, show_frame_count);
-  test_gop_display_order(gop_struct);
-  test_gop_global_order_idx(gop_struct, global_order_idx_offset);
-  test_gop_global_coding_idx(gop_struct, global_coding_idx_offset);
-  test_colocated_show_frame(gop_struct);
+  TestGopDisplayOrder(gop_struct);
+  TestGopGlobalOrderIdx(gop_struct, global_order_idx_offset);
+  TestGopGlobalCodingIdx(gop_struct, global_coding_idx_offset);
+  TestColocatedShowFrame(gop_struct);
   const int max_layer_depth =
       ref_frame_manager.ForwardMaxSize() + kLayerDepthOffset;
-  test_layer_depth(gop_struct, max_layer_depth);
-  test_arf_interval(gop_struct);
+  TestLayerDepth(gop_struct, max_layer_depth);
+  TestArfInterval(gop_struct);
 }
 
 TEST(RateControlQModeTest, ConstructGopKey) {
@@ -147,21 +147,21 @@ TEST(RateControlQModeTest, ConstructGopKey) {
   const int global_order_idx_offset = 8;
   RefFrameManager ref_frame_manager(kRefFrameTableSize);
   GopStruct gop_struct =
-      construct_gop(&ref_frame_manager, show_frame_count, has_key_frame,
-                    global_coding_idx_offset, global_order_idx_offset);
+      ConstructGop(&ref_frame_manager, show_frame_count, has_key_frame,
+                   global_coding_idx_offset, global_order_idx_offset);
   EXPECT_EQ(gop_struct.show_frame_count, show_frame_count);
-  test_gop_display_order(gop_struct);
-  test_gop_global_order_idx(gop_struct, global_order_idx_offset);
-  test_gop_global_coding_idx(gop_struct, global_coding_idx_offset);
-  test_colocated_show_frame(gop_struct);
+  TestGopDisplayOrder(gop_struct);
+  TestGopGlobalOrderIdx(gop_struct, global_order_idx_offset);
+  TestGopGlobalCodingIdx(gop_struct, global_coding_idx_offset);
+  TestColocatedShowFrame(gop_struct);
   const int max_layer_depth =
       ref_frame_manager.ForwardMaxSize() + kLayerDepthOffset;
-  test_layer_depth(gop_struct, max_layer_depth);
-  test_arf_interval(gop_struct);
+  TestLayerDepth(gop_struct, max_layer_depth);
+  TestArfInterval(gop_struct);
 }
 
-static TplBlockStats create_toy_tpl_block_stats(int h, int w, int r, int c,
-                                                int cost_diff) {
+static TplBlockStats CreateToyTplBlockStats(int h, int w, int r, int c,
+                                            int cost_diff) {
   TplBlockStats tpl_block_stats = {};
   tpl_block_stats.height = h;
   tpl_block_stats.width = w;
@@ -174,8 +174,8 @@ static TplBlockStats create_toy_tpl_block_stats(int h, int w, int r, int c,
   return tpl_block_stats;
 }
 
-static TplFrameStats create_toy_tpl_frame_stats_with_diff_sizes(
-    int min_block_size, int max_block_size) {
+static TplFrameStats CreateToyTplFrameStatsWithDiffSizes(int min_block_size,
+                                                         int max_block_size) {
   TplFrameStats frame_stats;
   const int max_h = max_block_size;
   const int max_w = max_h;
@@ -193,7 +193,7 @@ static TplFrameStats create_toy_tpl_frame_stats_with_diff_sizes(
           int c = max_w * j + w * v;
           int cost_diff = std::rand() % 16;
           TplBlockStats block_stats =
-              create_toy_tpl_block_stats(h, w, r, c, cost_diff);
+              CreateToyTplBlockStats(h, w, r, c, cost_diff);
           frame_stats.block_stats_list.push_back(block_stats);
         }
       }
@@ -202,14 +202,14 @@ static TplFrameStats create_toy_tpl_frame_stats_with_diff_sizes(
   return frame_stats;
 }
 
-static void augment_tpl_frame_stats_with_ref_frames(
+static void AugmentTplFrameStatsWithRefFrames(
     TplFrameStats *tpl_frame_stats,
     const std::array<int, kBlockRefCount> &ref_frame_index) {
   for (auto &block_stats : tpl_frame_stats->block_stats_list) {
     block_stats.ref_frame_index = ref_frame_index;
   }
 }
-static void augment_tpl_frame_stats_with_motion_vector(
+static void AugmentTplFrameStatsWithMotionVector(
     TplFrameStats *tpl_frame_stats,
     const std::array<MotionVector, kBlockRefCount> &mv) {
   for (auto &block_stats : tpl_frame_stats->block_stats_list) {
@@ -217,36 +217,36 @@ static void augment_tpl_frame_stats_with_motion_vector(
   }
 }
 
-static RefFrameTable create_toy_ref_frame_table(int frame_count) {
+static RefFrameTable CreateToyRefFrameTable(int frame_count) {
   RefFrameTable ref_frame_table;
   const int ref_frame_table_size = static_cast<int>(ref_frame_table.size());
   EXPECT_LE(frame_count, ref_frame_table_size);
   for (int i = 0; i < frame_count; ++i) {
     ref_frame_table[i] =
-        gop_frame_basic(0, 0, i, i, 0, GopFrameType::kRegularLeaf);
+        GopFrameBasic(0, 0, i, i, 0, GopFrameType::kRegularLeaf);
   }
   for (int i = frame_count; i < ref_frame_table_size; ++i) {
-    ref_frame_table[i] = gop_frame_invalid();
+    ref_frame_table[i] = GopFrameInvalid();
   }
   return ref_frame_table;
 }
 
-static MotionVector create_fullpel_mv(int row, int col) {
+static MotionVector CreateFullpelMv(int row, int col) {
   return { row, col, 0 };
 }
 
 TEST(RateControlQModeTest, CreateTplFrameDepStats) {
-  TplFrameStats frame_stats = create_toy_tpl_frame_stats_with_diff_sizes(8, 16);
+  TplFrameStats frame_stats = CreateToyTplFrameStatsWithDiffSizes(8, 16);
   TplFrameDepStats frame_dep_stats =
-      create_tpl_frame_dep_stats_wo_propagation(frame_stats);
+      CreateTplFrameDepStatsWithoutPropagation(frame_stats);
   EXPECT_EQ(frame_stats.min_block_size, frame_dep_stats.unit_size);
   const int unit_rows = static_cast<int>(frame_dep_stats.unit_stats.size());
   const int unit_cols = static_cast<int>(frame_dep_stats.unit_stats[0].size());
   EXPECT_EQ(frame_stats.frame_height, unit_rows * frame_dep_stats.unit_size);
   EXPECT_EQ(frame_stats.frame_width, unit_cols * frame_dep_stats.unit_size);
-  const double sum_cost_diff = tpl_frame_dep_stats_accumulate(frame_dep_stats);
+  const double sum_cost_diff = TplFrameDepStatsAccumulate(frame_dep_stats);
 
-  const double ref_sum_cost_diff = tpl_frame_stats_accumulate(frame_stats);
+  const double ref_sum_cost_diff = TplFrameStatsAccumulate(frame_stats);
   EXPECT_NEAR(sum_cost_diff, ref_sum_cost_diff, 0.0000001);
 }
 
@@ -258,8 +258,8 @@ TEST(RateControlQModeTest, GetBlockOverlapArea) {
   std::vector<int> c1 = { 9, 12, 17, 5, 100, 9 };
   std::vector<int> ref_overlap = { 64, 30, 0, 24, 0, 0 };
   for (int i = 0; i < static_cast<int>(r1.size()); ++i) {
-    const int overlap0 = get_block_overlap_area(r0, c0, r1[i], c1[i], size);
-    const int overlap1 = get_block_overlap_area(r1[i], c1[i], r0, c0, size);
+    const int overlap0 = GetBlockOverlapArea(r0, c0, r1[i], c1[i], size);
+    const int overlap1 = GetBlockOverlapArea(r1[i], c1[i], r0, c0, size);
     EXPECT_EQ(overlap0, ref_overlap[i]);
     EXPECT_EQ(overlap1, ref_overlap[i]);
   }
@@ -268,31 +268,31 @@ TEST(RateControlQModeTest, GetBlockOverlapArea) {
 TEST(RateControlQModeTest, TplFrameDepStatsPropagateSingleZeroMotion) {
   // cur frame with coding_idx 1 use ref frame with coding_idx 0
   const std::array<int, kBlockRefCount> ref_frame_index = { 0, -1 };
-  TplFrameStats frame_stats = create_toy_tpl_frame_stats_with_diff_sizes(8, 16);
-  augment_tpl_frame_stats_with_ref_frames(&frame_stats, ref_frame_index);
+  TplFrameStats frame_stats = CreateToyTplFrameStatsWithDiffSizes(8, 16);
+  AugmentTplFrameStatsWithRefFrames(&frame_stats, ref_frame_index);
 
   TplGopDepStats gop_dep_stats;
   const int frame_count = 2;
   // ref frame with coding_idx 0
-  TplFrameDepStats frame_dep_stats0 = create_tpl_frame_dep_stats_empty(
-      frame_stats.frame_height, frame_stats.frame_width,
-      frame_stats.min_block_size);
+  TplFrameDepStats frame_dep_stats0 =
+      CreateTplFrameDepStats(frame_stats.frame_height, frame_stats.frame_width,
+                             frame_stats.min_block_size);
   gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats0);
 
   // cur frame with coding_idx 1
   const TplFrameDepStats frame_dep_stats1 =
-      create_tpl_frame_dep_stats_wo_propagation(frame_stats);
+      CreateTplFrameDepStatsWithoutPropagation(frame_stats);
   gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats1);
 
-  const RefFrameTable ref_frame_table = create_toy_ref_frame_table(frame_count);
-  tpl_frame_dep_stats_propagate(frame_stats, ref_frame_table, &gop_dep_stats);
+  const RefFrameTable ref_frame_table = CreateToyRefFrameTable(frame_count);
+  TplFrameDepStatsPropagate(frame_stats, ref_frame_table, &gop_dep_stats);
 
   // cur frame with coding_idx 1
-  const double ref_sum_cost_diff = tpl_frame_stats_accumulate(frame_stats);
+  const double ref_sum_cost_diff = TplFrameStatsAccumulate(frame_stats);
 
   // ref frame with coding_idx 0
   const double sum_cost_diff =
-      tpl_frame_dep_stats_accumulate(gop_dep_stats.frame_dep_stats_list[0]);
+      TplFrameDepStatsAccumulate(gop_dep_stats.frame_dep_stats_list[0]);
 
   // The sum_cost_diff between coding_idx 0 and coding_idx 1 should be equal
   // because every block in cur frame has zero motion, use ref frame with
@@ -303,42 +303,42 @@ TEST(RateControlQModeTest, TplFrameDepStatsPropagateSingleZeroMotion) {
 TEST(RateControlQModeTest, TplFrameDepStatsPropagateCompoundZeroMotion) {
   // cur frame with coding_idx 2 use two ref frames with coding_idx 0 and 1
   const std::array<int, kBlockRefCount> ref_frame_index = { 0, 1 };
-  TplFrameStats frame_stats = create_toy_tpl_frame_stats_with_diff_sizes(8, 16);
-  augment_tpl_frame_stats_with_ref_frames(&frame_stats, ref_frame_index);
+  TplFrameStats frame_stats = CreateToyTplFrameStatsWithDiffSizes(8, 16);
+  AugmentTplFrameStatsWithRefFrames(&frame_stats, ref_frame_index);
 
   TplGopDepStats gop_dep_stats;
   const int frame_count = 3;
   // ref frame with coding_idx 0
-  const TplFrameDepStats frame_dep_stats0 = create_tpl_frame_dep_stats_empty(
-      frame_stats.frame_height, frame_stats.frame_width,
-      frame_stats.min_block_size);
+  const TplFrameDepStats frame_dep_stats0 =
+      CreateTplFrameDepStats(frame_stats.frame_height, frame_stats.frame_width,
+                             frame_stats.min_block_size);
   gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats0);
 
   // ref frame with coding_idx 1
-  const TplFrameDepStats frame_dep_stats1 = create_tpl_frame_dep_stats_empty(
-      frame_stats.frame_height, frame_stats.frame_width,
-      frame_stats.min_block_size);
+  const TplFrameDepStats frame_dep_stats1 =
+      CreateTplFrameDepStats(frame_stats.frame_height, frame_stats.frame_width,
+                             frame_stats.min_block_size);
   gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats1);
 
   // cur frame with coding_idx 2
   const TplFrameDepStats frame_dep_stats2 =
-      create_tpl_frame_dep_stats_wo_propagation(frame_stats);
+      CreateTplFrameDepStatsWithoutPropagation(frame_stats);
   gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats2);
 
-  const RefFrameTable ref_frame_table = create_toy_ref_frame_table(frame_count);
-  tpl_frame_dep_stats_propagate(frame_stats, ref_frame_table, &gop_dep_stats);
+  const RefFrameTable ref_frame_table = CreateToyRefFrameTable(frame_count);
+  TplFrameDepStatsPropagate(frame_stats, ref_frame_table, &gop_dep_stats);
 
   // cur frame with coding_idx 1
-  const double ref_sum_cost_diff = tpl_frame_stats_accumulate(frame_stats);
+  const double ref_sum_cost_diff = TplFrameStatsAccumulate(frame_stats);
 
   // ref frame with coding_idx 0
   const double sum_cost_diff0 =
-      tpl_frame_dep_stats_accumulate(gop_dep_stats.frame_dep_stats_list[0]);
+      TplFrameDepStatsAccumulate(gop_dep_stats.frame_dep_stats_list[0]);
   EXPECT_NEAR(sum_cost_diff0, ref_sum_cost_diff * 0.5, 0.0000001);
 
   // ref frame with coding_idx 1
   const double sum_cost_diff1 =
-      tpl_frame_dep_stats_accumulate(gop_dep_stats.frame_dep_stats_list[1]);
+      TplFrameDepStatsAccumulate(gop_dep_stats.frame_dep_stats_list[1]);
   EXPECT_NEAR(sum_cost_diff1, ref_sum_cost_diff * 0.5, 0.0000001);
 }
 
@@ -346,32 +346,32 @@ TEST(RateControlQModeTest, TplFrameDepStatsPropagateSingleWithMotion) {
   // cur frame with coding_idx 1 use ref frame with coding_idx 0
   const std::array<int, kBlockRefCount> ref_frame_index = { 0, -1 };
   const int min_block_size = 8;
-  TplFrameStats frame_stats = create_toy_tpl_frame_stats_with_diff_sizes(
-      min_block_size, min_block_size * 2);
-  augment_tpl_frame_stats_with_ref_frames(&frame_stats, ref_frame_index);
+  TplFrameStats frame_stats =
+      CreateToyTplFrameStatsWithDiffSizes(min_block_size, min_block_size * 2);
+  AugmentTplFrameStatsWithRefFrames(&frame_stats, ref_frame_index);
 
   const int mv_row = min_block_size / 2;
   const int mv_col = min_block_size / 4;
   const double r_ratio = 1.0 / 2;
   const double c_ratio = 1.0 / 4;
   std::array<MotionVector, kBlockRefCount> mv;
-  mv[0] = create_fullpel_mv(mv_row, mv_col);
-  mv[1] = create_fullpel_mv(0, 0);
-  augment_tpl_frame_stats_with_motion_vector(&frame_stats, mv);
+  mv[0] = CreateFullpelMv(mv_row, mv_col);
+  mv[1] = CreateFullpelMv(0, 0);
+  AugmentTplFrameStatsWithMotionVector(&frame_stats, mv);
 
   TplGopDepStats gop_dep_stats;
   const int frame_count = 2;
   // ref frame with coding_idx 0
-  gop_dep_stats.frame_dep_stats_list.push_back(create_tpl_frame_dep_stats_empty(
-      frame_stats.frame_height, frame_stats.frame_width,
-      frame_stats.min_block_size));
+  gop_dep_stats.frame_dep_stats_list.push_back(
+      CreateTplFrameDepStats(frame_stats.frame_height, frame_stats.frame_width,
+                             frame_stats.min_block_size));
 
   // cur frame with coding_idx 1
   gop_dep_stats.frame_dep_stats_list.push_back(
-      create_tpl_frame_dep_stats_wo_propagation(frame_stats));
+      CreateTplFrameDepStatsWithoutPropagation(frame_stats));
 
-  const RefFrameTable ref_frame_table = create_toy_ref_frame_table(frame_count);
-  tpl_frame_dep_stats_propagate(frame_stats, ref_frame_table, &gop_dep_stats);
+  const RefFrameTable ref_frame_table = CreateToyRefFrameTable(frame_count);
+  TplFrameDepStatsPropagate(frame_stats, ref_frame_table, &gop_dep_stats);
 
   const auto &dep_stats0 = gop_dep_stats.frame_dep_stats_list[0];
   const auto &dep_stats1 = gop_dep_stats.frame_dep_stats_list[1];
@@ -402,23 +402,23 @@ TEST(RateControlQModeTest, ComputeTplGopDepStats) {
     // Use the previous frame as reference
     const std::array<int, kBlockRefCount> ref_frame_index = { i - 1, -1 };
     int min_block_size = 8;
-    TplFrameStats frame_stats = create_toy_tpl_frame_stats_with_diff_sizes(
-        min_block_size, min_block_size * 2);
-    augment_tpl_frame_stats_with_ref_frames(&frame_stats, ref_frame_index);
+    TplFrameStats frame_stats =
+        CreateToyTplFrameStatsWithDiffSizes(min_block_size, min_block_size * 2);
+    AugmentTplFrameStatsWithRefFrames(&frame_stats, ref_frame_index);
     tpl_gop_stats.frame_stats_list.push_back(frame_stats);
 
-    ref_frame_table_list.push_back(create_toy_ref_frame_table(i));
+    ref_frame_table_list.push_back(CreateToyRefFrameTable(i));
   }
   const TplGopDepStats &gop_dep_stats =
-      compute_tpl_gop_dep_stats(tpl_gop_stats, ref_frame_table_list);
+      ComputeTplGopDepStats(tpl_gop_stats, ref_frame_table_list);
 
   double ref_sum = 0;
   for (int i = 2; i >= 0; i--) {
     // Due to the linear propagation with zero motion, we can add the
     // frame_stats value and use it as reference sum for dependency stats
-    ref_sum += tpl_frame_stats_accumulate(tpl_gop_stats.frame_stats_list[i]);
+    ref_sum += TplFrameStatsAccumulate(tpl_gop_stats.frame_stats_list[i]);
     const double sum =
-        tpl_frame_dep_stats_accumulate(gop_dep_stats.frame_dep_stats_list[i]);
+        TplFrameDepStatsAccumulate(gop_dep_stats.frame_dep_stats_list[i]);
     EXPECT_NEAR(sum, ref_sum, 0.0000001);
     break;
   }
@@ -438,7 +438,7 @@ TEST(RefFrameManagerTest, GetRefFrameCount) {
   EXPECT_EQ(type_list[first_leaf_idx], GopFrameType::kRegularLeaf);
   // update reference frame until we see the first kRegularLeaf frame
   for (; coding_idx <= first_leaf_idx; ++coding_idx) {
-    GopFrame gop_frame = gop_frame_basic(
+    GopFrame gop_frame = GopFrameBasic(
         0, 0, coding_idx, order_idx_list[coding_idx], 0, type_list[coding_idx]);
     ref_manager.UpdateRefFrameTable(&gop_frame);
   }
@@ -452,7 +452,7 @@ TEST(RefFrameManagerTest, GetRefFrameCount) {
   const int first_show_existing_idx = 4;
   EXPECT_EQ(type_list[first_show_existing_idx], GopFrameType::kShowExisting);
   for (; coding_idx <= first_show_existing_idx; ++coding_idx) {
-    GopFrame gop_frame = gop_frame_basic(
+    GopFrame gop_frame = GopFrameBasic(
         0, 0, coding_idx, order_idx_list[coding_idx], 0, type_list[coding_idx]);
     ref_manager.UpdateRefFrameTable(&gop_frame);
   }
@@ -467,7 +467,7 @@ TEST(RefFrameManagerTest, GetRefFrameCount) {
   const int second_leaf_idx = 5;
   EXPECT_EQ(type_list[second_leaf_idx], GopFrameType::kRegularLeaf);
   for (; coding_idx <= second_leaf_idx; ++coding_idx) {
-    GopFrame gop_frame = gop_frame_basic(
+    GopFrame gop_frame = GopFrameBasic(
         0, 0, coding_idx, order_idx_list[coding_idx], 0, type_list[coding_idx]);
     ref_manager.UpdateRefFrameTable(&gop_frame);
   }
@@ -481,7 +481,7 @@ TEST(RefFrameManagerTest, GetRefFrameCount) {
   const int first_overlay_idx = 6;
   EXPECT_EQ(type_list[first_overlay_idx], GopFrameType::kOverlay);
   for (; coding_idx <= first_overlay_idx; ++coding_idx) {
-    GopFrame gop_frame = gop_frame_basic(
+    GopFrame gop_frame = GopFrameBasic(
         0, 0, coding_idx, order_idx_list[coding_idx], 0, type_list[coding_idx]);
     ref_manager.UpdateRefFrameTable(&gop_frame);
   }
@@ -495,8 +495,8 @@ TEST(RefFrameManagerTest, GetRefFrameCount) {
   EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kLast), 3);
 }
 
-void test_ref_frame_manager_priority(const RefFrameManager &ref_manager,
-                                     RefUpdateType type) {
+void TestRefFrameManagerPriority(const RefFrameManager &ref_manager,
+                                 RefUpdateType type) {
   int ref_count = ref_manager.GetRefFrameCountByType(type);
   int prev_global_order_idx = ref_manager.CurGlobalOrderIdx();
   // The lower the priority is, the closer the gop_frame.global_order_idx should
@@ -530,25 +530,25 @@ TEST(RefFrameManagerTest, GetRefFrameByPriority) {
   EXPECT_EQ(type_list[first_leaf_idx], GopFrameType::kRegularLeaf);
   // update reference frame until we see the first kRegularLeaf frame
   for (; coding_idx <= first_leaf_idx; ++coding_idx) {
-    GopFrame gop_frame = gop_frame_basic(
+    GopFrame gop_frame = GopFrameBasic(
         0, 0, coding_idx, order_idx_list[coding_idx], 0, type_list[coding_idx]);
     ref_manager.UpdateRefFrameTable(&gop_frame);
   }
   EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kForward), 2);
-  test_ref_frame_manager_priority(ref_manager, RefUpdateType::kForward);
+  TestRefFrameManagerPriority(ref_manager, RefUpdateType::kForward);
 
   const int first_overlay_idx = 6;
   EXPECT_EQ(type_list[first_overlay_idx], GopFrameType::kOverlay);
   for (; coding_idx <= first_overlay_idx; ++coding_idx) {
-    GopFrame gop_frame = gop_frame_basic(
+    GopFrame gop_frame = GopFrameBasic(
         0, 0, coding_idx, order_idx_list[coding_idx], 0, type_list[coding_idx]);
     ref_manager.UpdateRefFrameTable(&gop_frame);
   }
 
   EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kBackward), 2);
-  test_ref_frame_manager_priority(ref_manager, RefUpdateType::kBackward);
+  TestRefFrameManagerPriority(ref_manager, RefUpdateType::kBackward);
   EXPECT_EQ(ref_manager.GetRefFrameCountByType(RefUpdateType::kLast), 3);
-  test_ref_frame_manager_priority(ref_manager, RefUpdateType::kLast);
+  TestRefFrameManagerPriority(ref_manager, RefUpdateType::kLast);
 }
 
 TEST(RefFrameManagerTest, GetRefFrameListByPriority) {
@@ -560,7 +560,7 @@ TEST(RefFrameManagerTest, GetRefFrameListByPriority) {
                                                 GopFrameType::kRegularLeaf };
   RefFrameManager ref_manager(kRefFrameTableSize);
   for (int coding_idx = 0; coding_idx < frame_count; ++coding_idx) {
-    GopFrame gop_frame = gop_frame_basic(
+    GopFrame gop_frame = GopFrameBasic(
         0, 0, coding_idx, order_idx_list[coding_idx], 0, type_list[coding_idx]);
     ref_manager.UpdateRefFrameTable(&gop_frame);
   }
@@ -595,8 +595,8 @@ TEST(RefFrameManagerTest, GetPrimaryRefFrame) {
   RefFrameManager ref_manager(kRefFrameTableSize);
   for (int coding_idx = 0; coding_idx < frame_count; ++coding_idx) {
     GopFrame gop_frame =
-        gop_frame_basic(0, 0, coding_idx, order_idx_list[coding_idx],
-                        layer_depth_list[coding_idx], type_list[coding_idx]);
+        GopFrameBasic(0, 0, coding_idx, order_idx_list[coding_idx],
+                      layer_depth_list[coding_idx], type_list[coding_idx]);
     ref_manager.UpdateRefFrameTable(&gop_frame);
   }
 
@@ -605,7 +605,7 @@ TEST(RefFrameManagerTest, GetPrimaryRefFrame) {
     int layer_depth = layer_depth_list[i];
     // Set different frame type
     GopFrameType type = type_list[(i + 1) % frame_count];
-    GopFrame gop_frame = gop_frame_basic(0, 0, 0, 0, layer_depth, type);
+    GopFrame gop_frame = GopFrameBasic(0, 0, 0, 0, layer_depth, type);
     ReferenceFrame ref_frame = ref_manager.GetPrimaryRefFrame(gop_frame);
     GopFrame primary_ref_frame =
         ref_manager.GetRefFrameByIndex(ref_frame.index);
@@ -620,7 +620,7 @@ TEST(RefFrameManagerTest, GetPrimaryRefFrame) {
     GopFrameType type = type_list[i];
     // Let the frame layer_depth sit in the middle of two reference frames
     int layer_depth = mid_layer_depth_list[i];
-    GopFrame gop_frame = gop_frame_basic(0, 0, 0, 0, layer_depth, type);
+    GopFrame gop_frame = GopFrameBasic(0, 0, 0, 0, layer_depth, type);
     ReferenceFrame ref_frame = ref_manager.GetPrimaryRefFrame(gop_frame);
     GopFrame primary_ref_frame =
         ref_manager.GetRefFrameByIndex(ref_frame.index);
@@ -700,7 +700,7 @@ TEST(RateControlQModeTest, TestKeyframeDetection) {
                            << newline;
     firstpass_info.stats_list.push_back(firstpass_stats_input);
   }
-  EXPECT_THAT(get_key_frame_list(firstpass_info),
+  EXPECT_THAT(GetKeyFrameList(firstpass_info),
               ElementsAre(0, 30, 60, 90, 120, 150, 180, 210, 240));
 }
 
