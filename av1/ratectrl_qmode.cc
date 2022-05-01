@@ -24,8 +24,9 @@ namespace aom {
 // This is used before division to ensure that the divisor isn't zero or
 // too close to zero.
 static double ModifyDivisor(double divisor) {
-  const double kEpsilon = 0.000001;
-  return (divisor < 0 ? divisor - kEpsilon : divisor + kEpsilon);
+  const double kEpsilon = 0.0000001;
+  return (divisor < 0 ? std::min(divisor, -kEpsilon)
+                      : std::max(divisor, kEpsilon));
 }
 
 GopFrame GopFrameInvalid() {
@@ -693,9 +694,23 @@ TplFrameDepStats CreateTplFrameDepStats(int frame_height, int frame_width,
       frame_width / min_block_size + !!(frame_width % min_block_size);
   TplFrameDepStats frame_dep_stats;
   frame_dep_stats.unit_size = min_block_size;
-  frame_dep_stats.unit_stats = std::vector<std::vector<double>>(
-      unit_rows, std::vector<double>(unit_cols, 0));
+  frame_dep_stats.unit_stats = std::vector<std::vector<TplUnitDepStats>>(
+      unit_rows, std::vector<TplUnitDepStats>(unit_cols));
   return frame_dep_stats;
+}
+
+TplUnitDepStats TplBlockStatsToDepStats(const TplBlockStats &block_stats,
+                                        int unit_count) {
+  TplUnitDepStats dep_stats = {};
+  dep_stats.intra_cost = block_stats.intra_cost * 1.0 / unit_count;
+  dep_stats.inter_cost = block_stats.inter_cost * 1.0 / unit_count;
+  // In rare case, inter_cost may be greater than intra_cost.
+  // If so, we need to modify inter_cost such that inter_cost <= intra_cost
+  // because it is required by GetPropagationFraction()
+  dep_stats.inter_cost = std::min(dep_stats.intra_cost, dep_stats.inter_cost);
+  dep_stats.mv = block_stats.mv;
+  dep_stats.ref_frame_index = block_stats.ref_frame_index;
+  return dep_stats;
 }
 
 TplFrameDepStats CreateTplFrameDepStatsWithoutPropagation(
@@ -709,25 +724,25 @@ TplFrameDepStats CreateTplFrameDepStatsWithoutPropagation(
     const int unit_count = block_unit_rows * block_unit_cols;
     const int block_unit_row = block_stats.row / min_block_size;
     const int block_unit_col = block_stats.col / min_block_size;
-    const double cost_diff =
-        (block_stats.inter_cost - block_stats.intra_cost) * 1.0 / unit_count;
+    TplUnitDepStats unit_stats =
+        TplBlockStatsToDepStats(block_stats, unit_count);
     for (int r = 0; r < block_unit_rows; r++) {
       for (int c = 0; c < block_unit_cols; c++) {
         frame_dep_stats.unit_stats[block_unit_row + r][block_unit_col + c] =
-            cost_diff;
+            unit_stats;
       }
     }
   }
   return frame_dep_stats;
 }
 
-int GetRefCodingIdxList(const TplBlockStats &block_stats,
+int GetRefCodingIdxList(const TplUnitDepStats &unit_dep_stats,
                         const RefFrameTable &ref_frame_table,
                         int *ref_coding_idx_list) {
   int ref_frame_count = 0;
   for (int i = 0; i < kBlockRefCount; ++i) {
     ref_coding_idx_list[i] = -1;
-    int ref_frame_index = block_stats.ref_frame_index[i];
+    int ref_frame_index = unit_dep_stats.ref_frame_index[i];
     if (ref_frame_index != -1) {
       ref_coding_idx_list[i] = ref_frame_table[ref_frame_index].coding_idx;
       ref_frame_count++;
@@ -747,18 +762,27 @@ int GetBlockOverlapArea(int r0, int c0, int r1, int c1, int size) {
   return 0;
 }
 
-double TplFrameStatsAccumulate(const TplFrameStats &frame_stats) {
-  double ref_sum_cost_diff = 0;
-  for (auto &block_stats : frame_stats.block_stats_list) {
-    ref_sum_cost_diff += block_stats.inter_cost - block_stats.intra_cost;
+// TODO(angiebird): Merge TplFrameDepStatsAccumulateIntraCost and
+// TplFrameDepStatsAccumulate.
+double TplFrameDepStatsAccumulateIntraCost(
+    const TplFrameDepStats &frame_dep_stats) {
+  auto getIntraCost = [](double sum, const TplUnitDepStats &unit) {
+    return sum + unit.intra_cost;
+  };
+  double sum = 0;
+  for (const auto &row : frame_dep_stats.unit_stats) {
+    sum = std::accumulate(row.begin(), row.end(), sum, getIntraCost);
   }
-  return ref_sum_cost_diff;
+  return sum;
 }
 
 double TplFrameDepStatsAccumulate(const TplFrameDepStats &frame_dep_stats) {
+  auto getOverallCost = [](double sum, const TplUnitDepStats &unit) {
+    return sum + unit.propagation_cost + unit.intra_cost;
+  };
   double sum = 0;
   for (const auto &row : frame_dep_stats.unit_stats) {
-    sum = std::accumulate(row.begin(), row.end(), sum);
+    sum = std::accumulate(row.begin(), row.end(), sum, getOverallCost);
   }
   return sum;
 }
@@ -774,57 +798,66 @@ int GetFullpelValue(int subpel_value, int subpel_bits) {
   return fullpel_value;
 }
 
-void TplFrameDepStatsPropagate(const TplFrameStats &frame_stats,
+double GetPropagationFraction(const TplUnitDepStats &unit_dep_stats) {
+  assert(unit_dep_stats.intra_cost >= unit_dep_stats.inter_cost);
+  return (unit_dep_stats.intra_cost - unit_dep_stats.inter_cost) /
+         ModifyDivisor(unit_dep_stats.intra_cost);
+}
+
+void TplFrameDepStatsPropagate(int coding_idx,
                                const RefFrameTable &ref_frame_table,
                                TplGopDepStats *tpl_gop_dep_stats) {
-  const int min_block_size = frame_stats.min_block_size;
+  assert(!tpl_gop_dep_stats->frame_dep_stats_list.empty());
+  TplFrameDepStats *frame_dep_stats =
+      &tpl_gop_dep_stats->frame_dep_stats_list[coding_idx];
+
+  const int unit_size = frame_dep_stats->unit_size;
   const int frame_unit_rows =
-      frame_stats.frame_height / frame_stats.min_block_size;
+      static_cast<int>(frame_dep_stats->unit_stats.size());
   const int frame_unit_cols =
-      frame_stats.frame_width / frame_stats.min_block_size;
-  for (const TplBlockStats &block_stats : frame_stats.block_stats_list) {
-    int ref_coding_idx_list[kBlockRefCount] = { -1, -1 };
-    int ref_frame_count =
-        GetRefCodingIdxList(block_stats, ref_frame_table, ref_coding_idx_list);
-    if (ref_frame_count > 0) {
-      double propagation_ratio = 1.0 / ref_frame_count;
+      static_cast<int>(frame_dep_stats->unit_stats[0].size());
+  for (int unit_row = 0; unit_row < frame_unit_rows; ++unit_row) {
+    for (int unit_col = 0; unit_col < frame_unit_cols; ++unit_col) {
+      TplUnitDepStats &unit_dep_stats =
+          frame_dep_stats->unit_stats[unit_row][unit_col];
+      int ref_coding_idx_list[kBlockRefCount] = { -1, -1 };
+      int ref_frame_count = GetRefCodingIdxList(unit_dep_stats, ref_frame_table,
+                                                ref_coding_idx_list);
+      if (ref_frame_count == 0) continue;
       for (int i = 0; i < kBlockRefCount; ++i) {
-        if (ref_coding_idx_list[i] != -1) {
-          auto &ref_frame_dep_stats =
-              tpl_gop_dep_stats->frame_dep_stats_list[ref_coding_idx_list[i]];
-          const auto &mv = block_stats.mv[i];
-          const int mv_row = GetFullpelValue(mv.row, mv.subpel_bits);
-          const int mv_col = GetFullpelValue(mv.col, mv.subpel_bits);
-          const int block_unit_rows = block_stats.height / min_block_size;
-          const int block_unit_cols = block_stats.width / min_block_size;
-          const int unit_count = block_unit_rows * block_unit_cols;
-          const double cost_diff =
-              (block_stats.inter_cost - block_stats.intra_cost) * 1.0 /
-              unit_count;
-          for (int r = 0; r < block_unit_rows; r++) {
-            for (int c = 0; c < block_unit_cols; c++) {
-              const int ref_block_row =
-                  block_stats.row + r * min_block_size + mv_row;
-              const int ref_block_col =
-                  block_stats.col + c * min_block_size + mv_col;
-              const int ref_unit_row_low = ref_block_row / min_block_size;
-              const int ref_unit_col_low = ref_block_col / min_block_size;
-              for (int j = 0; j < 2; ++j) {
-                for (int k = 0; k < 2; ++k) {
-                  const int unit_row = ref_unit_row_low + j;
-                  const int unit_col = ref_unit_col_low + k;
-                  if (unit_row >= 0 && unit_row < frame_unit_rows &&
-                      unit_col >= 0 && unit_col < frame_unit_cols) {
-                    const int overlap_area = GetBlockOverlapArea(
-                        unit_row * min_block_size, unit_col * min_block_size,
-                        ref_block_row, ref_block_col, min_block_size);
-                    const double overlap_ratio =
-                        overlap_area * 1.0 / (min_block_size * min_block_size);
-                    ref_frame_dep_stats.unit_stats[unit_row][unit_col] +=
-                        cost_diff * overlap_ratio * propagation_ratio;
-                  }
-                }
-              }
+        if (ref_coding_idx_list[i] == -1) continue;
+        TplFrameDepStats &ref_frame_dep_stats =
+            tpl_gop_dep_stats->frame_dep_stats_list[ref_coding_idx_list[i]];
+        const auto &mv = unit_dep_stats.mv[i];
+        const int mv_row = GetFullpelValue(mv.row, mv.subpel_bits);
+        const int mv_col = GetFullpelValue(mv.col, mv.subpel_bits);
+        const int ref_pixel_r = unit_row * unit_size + mv_row;
+        const int ref_pixel_c = unit_col * unit_size + mv_col;
+        const int ref_unit_row_low =
+            (unit_row * unit_size + mv_row) / unit_size;
+        const int ref_unit_col_low =
+            (unit_col * unit_size + mv_col) / unit_size;
+        for (int j = 0; j < 2; ++j) {
+          for (int k = 0; k < 2; ++k) {
+            const int ref_unit_row = ref_unit_row_low + j;
+            const int ref_unit_col = ref_unit_col_low + k;
+            if (ref_unit_row >= 0 && ref_unit_row < frame_unit_rows &&
+                ref_unit_col >= 0 && ref_unit_col < frame_unit_cols) {
+              const int overlap_area = GetBlockOverlapArea(
+                  ref_pixel_r, ref_pixel_c, ref_unit_row * unit_size,
+                  ref_unit_col * unit_size, unit_size);
+              const double overlap_ratio =
+                  overlap_area * 1.0 / (unit_size * unit_size);
+              const double propagation_fraction =
+                  GetPropagationFraction(unit_dep_stats);
+              const double propagation_ratio =
+                  1.0 / ref_frame_count * overlap_ratio * propagation_fraction;
+              TplUnitDepStats &ref_unit_stats =
+                  ref_frame_dep_stats.unit_stats[ref_unit_row][ref_unit_col];
+              ref_unit_stats.propagation_cost +=
+                  (unit_dep_stats.intra_cost +
+                   unit_dep_stats.propagation_cost) *
+                  propagation_ratio;
             }
           }
         }
@@ -867,8 +900,7 @@ TplGopDepStats ComputeTplGopDepStats(
     auto &ref_frame_table = ref_frame_table_list[coding_idx];
     // TODO(angiebird): Handle/test the case where reference frame
     // is in the previous GOP
-    TplFrameDepStatsPropagate(tpl_gop_stats.frame_stats_list[coding_idx],
-                              ref_frame_table, &tpl_gop_dep_stats);
+    TplFrameDepStatsPropagate(coding_idx, ref_frame_table, &tpl_gop_dep_stats);
   }
   return tpl_gop_dep_stats;
 }
@@ -902,15 +934,12 @@ GopEncodeInfo AV1RateControlQMode::GetGopEncodeInfo(
   const int frame_count =
       static_cast<int>(tpl_gop_stats.frame_stats_list.size());
   for (int i = 0; i < frame_count; i++) {
-    const TplFrameStats &frame_stats = tpl_gop_stats.frame_stats_list[i];
     const TplFrameDepStats &frame_dep_stats =
         gop_dep_stats.frame_dep_stats_list[i];
     const double cost_without_propagation =
-        TplFrameStatsAccumulate(frame_stats);
+        TplFrameDepStatsAccumulateIntraCost(frame_dep_stats);
     const double cost_with_propagation =
         TplFrameDepStatsAccumulate(frame_dep_stats);
-    // TODO(angiebird): This part is still a draft. Check whether this makes
-    // sense mathematically.
     const double frame_importance =
         cost_with_propagation / cost_without_propagation;
     // Imitate the behavior of av1_tpl_get_qstep_ratio()

@@ -28,6 +28,8 @@ using ::testing::ElementsAre;
 using ::testing::Field;
 using ::testing::Return;
 
+constexpr double kErrorEpsilon = 0.000001;
+
 void TestGopDisplayOrder(const GopStruct &gop_struct) {
   // Test whether show frames' order indices are sequential
   int expected_order_idx = 0;
@@ -161,15 +163,14 @@ TEST(RateControlQModeTest, ConstructGopKey) {
 }
 
 static TplBlockStats CreateToyTplBlockStats(int h, int w, int r, int c,
-                                            int cost_diff) {
+                                            int intra_cost, int inter_cost) {
   TplBlockStats tpl_block_stats = {};
   tpl_block_stats.height = h;
   tpl_block_stats.width = w;
   tpl_block_stats.row = r;
   tpl_block_stats.col = c;
-  // A random trick that makes inter_cost - intra_cost = cost_diff;
-  tpl_block_stats.intra_cost = cost_diff / 2;
-  tpl_block_stats.inter_cost = cost_diff + cost_diff / 2;
+  tpl_block_stats.intra_cost = intra_cost;
+  tpl_block_stats.inter_cost = inter_cost;
   tpl_block_stats.ref_frame_index = { -1, -1 };
   return tpl_block_stats;
 }
@@ -191,9 +192,9 @@ static TplFrameStats CreateToyTplFrameStatsWithDiffSizes(int min_block_size,
         for (int v = 0; v * w < max_w; ++v) {
           int r = max_h * i + h * u;
           int c = max_w * j + w * v;
-          int cost_diff = std::rand() % 16;
+          int intra_cost = std::rand() % 16;
           TplBlockStats block_stats =
-              CreateToyTplBlockStats(h, w, r, c, cost_diff);
+              CreateToyTplBlockStats(h, w, r, c, intra_cost, 0);
           frame_stats.block_stats_list.push_back(block_stats);
         }
       }
@@ -235,6 +236,14 @@ static MotionVector CreateFullpelMv(int row, int col) {
   return { row, col, 0 };
 }
 
+double TplFrameStatsAccumulateIntraCost(const TplFrameStats &frame_stats) {
+  double sum = 0;
+  for (auto &block_stats : frame_stats.block_stats_list) {
+    sum += block_stats.intra_cost;
+  }
+  return sum;
+}
+
 TEST(RateControlQModeTest, CreateTplFrameDepStats) {
   TplFrameStats frame_stats = CreateToyTplFrameStatsWithDiffSizes(8, 16);
   TplFrameDepStats frame_dep_stats =
@@ -244,10 +253,12 @@ TEST(RateControlQModeTest, CreateTplFrameDepStats) {
   const int unit_cols = static_cast<int>(frame_dep_stats.unit_stats[0].size());
   EXPECT_EQ(frame_stats.frame_height, unit_rows * frame_dep_stats.unit_size);
   EXPECT_EQ(frame_stats.frame_width, unit_cols * frame_dep_stats.unit_size);
-  const double sum_cost_diff = TplFrameDepStatsAccumulate(frame_dep_stats);
+  const double intra_cost_sum =
+      TplFrameDepStatsAccumulateIntraCost(frame_dep_stats);
 
-  const double ref_sum_cost_diff = TplFrameStatsAccumulate(frame_stats);
-  EXPECT_NEAR(sum_cost_diff, ref_sum_cost_diff, 0.0000001);
+  const double expected_intra_cost_sum =
+      TplFrameStatsAccumulateIntraCost(frame_stats);
+  EXPECT_NEAR(intra_cost_sum, expected_intra_cost_sum, kErrorEpsilon);
 }
 
 TEST(RateControlQModeTest, GetBlockOverlapArea) {
@@ -263,6 +274,20 @@ TEST(RateControlQModeTest, GetBlockOverlapArea) {
     EXPECT_EQ(overlap0, ref_overlap[i]);
     EXPECT_EQ(overlap1, ref_overlap[i]);
   }
+}
+
+TEST(RateControlQModeTest, TplBlockStatsToDepStats) {
+  const int intra_cost = 100;
+  const int inter_cost = 120;
+  const int unit_count = 2;
+  TplBlockStats block_stats =
+      CreateToyTplBlockStats(8, 4, 0, 0, intra_cost, inter_cost);
+  TplUnitDepStats unit_stats = TplBlockStatsToDepStats(block_stats, unit_count);
+  double expected_intra_cost = intra_cost * 1.0 / unit_count;
+  EXPECT_NEAR(unit_stats.intra_cost, expected_intra_cost, kErrorEpsilon);
+  // When inter_cost >= intra_cost in block_stats, in unit_stats,
+  // the inter_cost will be modified so that it's upper-bounded by intra_cost.
+  EXPECT_LE(unit_stats.inter_cost, unit_stats.intra_cost);
 }
 
 TEST(RateControlQModeTest, TplFrameDepStatsPropagateSingleZeroMotion) {
@@ -285,19 +310,20 @@ TEST(RateControlQModeTest, TplFrameDepStatsPropagateSingleZeroMotion) {
   gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats1);
 
   const RefFrameTable ref_frame_table = CreateToyRefFrameTable(frame_count);
-  TplFrameDepStatsPropagate(frame_stats, ref_frame_table, &gop_dep_stats);
+  TplFrameDepStatsPropagate(/*coding_idx=*/1, ref_frame_table, &gop_dep_stats);
 
   // cur frame with coding_idx 1
-  const double ref_sum_cost_diff = TplFrameStatsAccumulate(frame_stats);
+  const double expected_propagation_sum =
+      TplFrameStatsAccumulateIntraCost(frame_stats);
 
   // ref frame with coding_idx 0
-  const double sum_cost_diff =
+  const double propagation_sum =
       TplFrameDepStatsAccumulate(gop_dep_stats.frame_dep_stats_list[0]);
 
-  // The sum_cost_diff between coding_idx 0 and coding_idx 1 should be equal
+  // The propagation_sum between coding_idx 0 and coding_idx 1 should be equal
   // because every block in cur frame has zero motion, use ref frame with
   // coding_idx 0 for prediction, and ref frame itself is empty.
-  EXPECT_NEAR(sum_cost_diff, ref_sum_cost_diff, 0.0000001);
+  EXPECT_NEAR(propagation_sum, expected_propagation_sum, kErrorEpsilon);
 }
 
 TEST(RateControlQModeTest, TplFrameDepStatsPropagateCompoundZeroMotion) {
@@ -326,20 +352,20 @@ TEST(RateControlQModeTest, TplFrameDepStatsPropagateCompoundZeroMotion) {
   gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats2);
 
   const RefFrameTable ref_frame_table = CreateToyRefFrameTable(frame_count);
-  TplFrameDepStatsPropagate(frame_stats, ref_frame_table, &gop_dep_stats);
+  TplFrameDepStatsPropagate(/*coding_idx=*/2, ref_frame_table, &gop_dep_stats);
 
   // cur frame with coding_idx 1
-  const double ref_sum_cost_diff = TplFrameStatsAccumulate(frame_stats);
+  const double expected_ref_sum = TplFrameStatsAccumulateIntraCost(frame_stats);
 
   // ref frame with coding_idx 0
-  const double sum_cost_diff0 =
+  const double cost_sum0 =
       TplFrameDepStatsAccumulate(gop_dep_stats.frame_dep_stats_list[0]);
-  EXPECT_NEAR(sum_cost_diff0, ref_sum_cost_diff * 0.5, 0.0000001);
+  EXPECT_NEAR(cost_sum0, expected_ref_sum * 0.5, kErrorEpsilon);
 
   // ref frame with coding_idx 1
-  const double sum_cost_diff1 =
+  const double cost_sum1 =
       TplFrameDepStatsAccumulate(gop_dep_stats.frame_dep_stats_list[1]);
-  EXPECT_NEAR(sum_cost_diff1, ref_sum_cost_diff * 0.5, 0.0000001);
+  EXPECT_NEAR(cost_sum1, expected_ref_sum * 0.5, kErrorEpsilon);
 }
 
 TEST(RateControlQModeTest, TplFrameDepStatsPropagateSingleWithMotion) {
@@ -371,7 +397,7 @@ TEST(RateControlQModeTest, TplFrameDepStatsPropagateSingleWithMotion) {
       CreateTplFrameDepStatsWithoutPropagation(frame_stats));
 
   const RefFrameTable ref_frame_table = CreateToyRefFrameTable(frame_count);
-  TplFrameDepStatsPropagate(frame_stats, ref_frame_table, &gop_dep_stats);
+  TplFrameDepStatsPropagate(/*coding_idx=*/1, ref_frame_table, &gop_dep_stats);
 
   const auto &dep_stats0 = gop_dep_stats.frame_dep_stats_list[0];
   const auto &dep_stats1 = gop_dep_stats.frame_dep_stats_list[1];
@@ -380,17 +406,22 @@ TEST(RateControlQModeTest, TplFrameDepStatsPropagateSingleWithMotion) {
   for (int r = 0; r < unit_rows; ++r) {
     for (int c = 0; c < unit_cols; ++c) {
       double ref_value = 0;
-      ref_value += (1 - r_ratio) * (1 - c_ratio) * dep_stats1.unit_stats[r][c];
+      ref_value += (1 - r_ratio) * (1 - c_ratio) *
+                   dep_stats1.unit_stats[r][c].intra_cost;
       if (r - 1 >= 0) {
-        ref_value += r_ratio * (1 - c_ratio) * dep_stats1.unit_stats[r - 1][c];
+        ref_value += r_ratio * (1 - c_ratio) *
+                     dep_stats1.unit_stats[r - 1][c].intra_cost;
       }
       if (c - 1 >= 0) {
-        ref_value += (1 - r_ratio) * c_ratio * dep_stats1.unit_stats[r][c - 1];
+        ref_value += (1 - r_ratio) * c_ratio *
+                     dep_stats1.unit_stats[r][c - 1].intra_cost;
       }
       if (r - 1 >= 0 && c - 1 >= 0) {
-        ref_value += r_ratio * c_ratio * dep_stats1.unit_stats[r - 1][c - 1];
+        ref_value +=
+            r_ratio * c_ratio * dep_stats1.unit_stats[r - 1][c - 1].intra_cost;
       }
-      EXPECT_NEAR(dep_stats0.unit_stats[r][c], ref_value, 0.0000001);
+      EXPECT_NEAR(dep_stats0.unit_stats[r][c].propagation_cost, ref_value,
+                  kErrorEpsilon);
     }
   }
 }
@@ -412,14 +443,15 @@ TEST(RateControlQModeTest, ComputeTplGopDepStats) {
   const TplGopDepStats &gop_dep_stats =
       ComputeTplGopDepStats(tpl_gop_stats, ref_frame_table_list);
 
-  double ref_sum = 0;
+  double expected_sum = 0;
   for (int i = 2; i >= 0; i--) {
-    // Due to the linear propagation with zero motion, we can add the
-    // frame_stats value and use it as reference sum for dependency stats
-    ref_sum += TplFrameStatsAccumulate(tpl_gop_stats.frame_stats_list[i]);
+    // Due to the linear propagation with zero motion, we can accumulate the
+    // frame_stats intra_cost and use it as expected sum for dependency stats
+    expected_sum +=
+        TplFrameStatsAccumulateIntraCost(tpl_gop_stats.frame_stats_list[i]);
     const double sum =
         TplFrameDepStatsAccumulate(gop_dep_stats.frame_dep_stats_list[i]);
-    EXPECT_NEAR(sum, ref_sum, 0.0000001);
+    EXPECT_NEAR(sum, expected_sum, kErrorEpsilon);
     break;
   }
 }

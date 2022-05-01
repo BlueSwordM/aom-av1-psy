@@ -25,9 +25,17 @@ constexpr int kLayerDepthOffset = 1;
 constexpr int kMinIntervalToAddArf = 3;
 constexpr int kMinArfInterval = (kMinIntervalToAddArf + 1) / 2;
 
+struct TplUnitDepStats {
+  double propagation_cost;
+  double intra_cost;
+  double inter_cost;
+  std::array<MotionVector, kBlockRefCount> mv;
+  std::array<int, kBlockRefCount> ref_frame_index;
+};
+
 struct TplFrameDepStats {
   int unit_size;  // equivalent to min_block_size
-  std::vector<std::vector<double>> unit_stats;
+  std::vector<std::vector<TplUnitDepStats>> unit_stats;
 };
 
 struct TplGopDepStats {
@@ -65,16 +73,20 @@ GopStruct ConstructGop(RefFrameManager *ref_frame_manager, int show_frame_count,
 TplFrameDepStats CreateTplFrameDepStats(int frame_height, int frame_width,
                                         int min_block_size);
 
+TplUnitDepStats TplBlockStatsToDepStats(const TplBlockStats &block_stats,
+                                        int unit_count);
+
 TplFrameDepStats CreateTplFrameDepStatsWithoutPropagation(
     const TplFrameStats &frame_stats);
 
 std::vector<int> GetKeyFrameList(const FirstpassInfo &first_pass_info);
 
-double TplFrameStatsAccumulate(const TplFrameStats &frame_stats);
+double TplFrameDepStatsAccumulateIntraCost(
+    const TplFrameDepStats &frame_dep_stats);
 
 double TplFrameDepStatsAccumulate(const TplFrameDepStats &frame_dep_stats);
 
-void TplFrameDepStatsPropagate(const TplFrameStats &frame_stats,
+void TplFrameDepStatsPropagate(int coding_idx,
                                const RefFrameTable &ref_frame_table,
                                TplGopDepStats *tpl_gop_dep_stats);
 
