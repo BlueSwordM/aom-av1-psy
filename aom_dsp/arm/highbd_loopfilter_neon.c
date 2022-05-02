@@ -252,13 +252,6 @@ void aom_highbd_lpf_horizontal_4_neon(uint16_t *s, int pitch,
     // None of the values will be filtered.
     return;
   }
-#else   // !defined(__aarch64__)
-  const uint64x1_t needs_filter4_mask64 =
-      vreinterpret_u64_u16(needs_filter4_mask);
-  if (vget_lane_u64(needs_filter4_mask64, 0) == 0) {
-    // None of the values will be filtered.
-    return;
-  }
 #endif  // defined(__aarch64__)
 
   // Copy the masks to the high bits for packed comparisons later.
@@ -322,13 +315,6 @@ void aom_highbd_lpf_vertical_4_neon(uint16_t *s, int pitch,
 
 #if defined(__aarch64__)
   if (vaddv_u16(needs_filter4_mask) == 0) {
-    // None of the values will be filtered.
-    return;
-  }
-#else   // !defined(__aarch64__)
-  const uint64x1_t needs_filter4_mask64 =
-      vreinterpret_u64_u16(needs_filter4_mask);
-  if (vget_lane_u64(needs_filter4_mask64, 0) == 0) {
     // None of the values will be filtered.
     return;
   }
@@ -456,15 +442,6 @@ void aom_highbd_lpf_horizontal_6_neon(uint16_t *s, int pitch,
     // None of the values will be filtered.
     return;
   }
-#else   // !defined(__aarch64__)
-  // This might be faster than vaddv (latency 3) because mov to general register
-  // has latency 2.
-  const uint64x1_t needs_filter_mask64 =
-      vreinterpret_u64_u16(needs_filter_mask);
-  if (vget_lane_u64(needs_filter_mask64, 0) == 0) {
-    // None of the values will be filtered.
-    return;
-  }
 #endif  // defined(__aarch64__)
 
   // Copy the masks to the high bits for packed comparisons later.
@@ -553,15 +530,6 @@ void aom_highbd_lpf_vertical_6_neon(uint16_t *s, int pitch,
 
 #if defined(__aarch64__)
   if (vaddv_u16(needs_filter_mask) == 0) {
-    // None of the values will be filtered.
-    return;
-  }
-#else   // !defined(__aarch64__)
-  // This might be faster than vaddv (latency 3) because mov to general register
-  // has latency 2.
-  const uint64x1_t needs_filter_mask64 =
-      vreinterpret_u64_u16(needs_filter_mask);
-  if (vget_lane_u64(needs_filter_mask64, 0) == 0) {
     // None of the values will be filtered.
     return;
   }
@@ -721,15 +689,6 @@ void aom_highbd_lpf_horizontal_8_neon(uint16_t *s, int pitch,
     // None of the values will be filtered.
     return;
   }
-#else   // !defined(__aarch64__)
-  // This might be faster than vaddv (latency 3) because mov to general register
-  // has latency 2.
-  const uint64x1_t needs_filter_mask64 =
-      vreinterpret_u64_u16(needs_filter_mask);
-  if (vget_lane_u64(needs_filter_mask64, 0) == 0) {
-    // None of the values will be filtered.
-    return;
-  }
 #endif  // defined(__aarch64__)
 
   // Copy the masks to the high bits for packed comparisons later.
@@ -826,15 +785,6 @@ void aom_highbd_lpf_vertical_8_neon(uint16_t *s, int pitch,
 
 #if defined(__aarch64__)
   if (vaddv_u16(needs_filter_mask) == 0) {
-    // None of the values will be filtered.
-    return;
-  }
-#else   // !defined(__aarch64__)
-  // This might be faster than vaddv (latency 3) because mov to general register
-  // has latency 2.
-  const uint64x1_t needs_filter_mask64 =
-      vreinterpret_u64_u16(needs_filter_mask);
-  if (vget_lane_u64(needs_filter_mask64, 0) == 0) {
     // None of the values will be filtered.
     return;
   }
@@ -1031,15 +981,6 @@ void aom_highbd_lpf_horizontal_14_neon(uint16_t *s, int pitch,
     // None of the values will be filtered.
     return;
   }
-#else   // !defined(__aarch64__)
-  // This might be faster than vaddv (latency 3) because mov to general register
-  // has latency 2.
-  const uint64x1_t needs_filter_mask64 =
-      vreinterpret_u64_u16(needs_filter_mask);
-  if (vget_lane_u64(needs_filter_mask64, 0) == 0) {
-    // None of the values will be filtered.
-    return;
-  }
 #endif  // defined(__aarch64__)
   const uint16x8_t p4q4 = vcombine_u16(src[2], src[11]);
   const uint16x8_t p5q5 = vcombine_u16(src[1], src[12]);
@@ -1205,15 +1146,6 @@ void aom_highbd_lpf_vertical_14_neon(uint16_t *s, int pitch,
 
 #if defined(__aarch64__)
   if (vaddv_u16(needs_filter_mask) == 0) {
-    // None of the values will be filtered.
-    return;
-  }
-#else   // !defined(__aarch64__)
-  // This might be faster than vaddv (latency 3) because mov to general register
-  // has latency 2.
-  const uint64x1_t needs_filter_mask64 =
-      vreinterpret_u64_u16(needs_filter_mask);
-  if (vget_lane_u64(needs_filter_mask64, 0) == 0) {
     // None of the values will be filtered.
     return;
   }
