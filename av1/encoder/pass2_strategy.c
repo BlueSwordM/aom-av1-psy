@@ -512,12 +512,12 @@ static void accumulate_this_frame_stats(const FIRSTPASS_STATS *stats,
   gf_stats->gf_group_inactive_zone_rows += stats->inactive_zone_rows;
 }
 
-static void accumulate_next_frame_stats(const FIRSTPASS_STATS *stats,
-                                        const int flash_detected,
-                                        const int frames_since_key,
-                                        const int cur_idx,
-                                        GF_GROUP_STATS *gf_stats, int f_w,
-                                        int f_h) {
+void av1_accumulate_next_frame_stats(const FIRSTPASS_STATS *stats,
+                                     const int flash_detected,
+                                     const int frames_since_key,
+                                     const int cur_idx,
+                                     GF_GROUP_STATS *gf_stats, int f_w,
+                                     int f_h) {
   accumulate_frame_motion_stats(stats, gf_stats, f_w, f_h);
   // sum up the metric values of current gf group
   gf_stats->avg_sr_coded_error += stats->sr_coded_error;
@@ -1929,8 +1929,9 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
       flash_detected = detect_flash(twopass, &cpi->twopass_frame, 0);
       // TODO(bohanli): remove redundant accumulations here, or unify
       // this and the ones in define_gf_group
-      accumulate_next_frame_stats(&next_frame, flash_detected,
-                                  rc->frames_since_key, i, &gf_stats, f_w, f_h);
+      av1_accumulate_next_frame_stats(&next_frame, flash_detected,
+                                      rc->frames_since_key, i, &gf_stats, f_w,
+                                      f_h);
 
       cut_here = detect_gf_cut(cpi, i, cur_start, flash_detected,
                                active_max_gf_interval, active_min_gf_interval,
@@ -2266,8 +2267,9 @@ static void accumulate_gop_stats(AV1_COMP *cpi, int is_intra_only, int f_w,
     flash_detected = detect_flash(twopass, &cpi->twopass_frame, 0);
 
     // accumulate stats for next frame
-    accumulate_next_frame_stats(next_frame, flash_detected,
-                                rc->frames_since_key, i, gf_stats, f_w, f_h);
+    av1_accumulate_next_frame_stats(next_frame, flash_detected,
+                                    rc->frames_since_key, i, gf_stats, f_w,
+                                    f_h);
 
     ++i;
   }

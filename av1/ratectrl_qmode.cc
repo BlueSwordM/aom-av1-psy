@@ -422,6 +422,24 @@ static int FindRegionIndex(const std::vector<REGIONS> &regions, int frame_idx) {
   return -1;
 }
 
+// This function detects a flash through the high relative pcnt_second_ref
+// score in the frame following a flash frame. The offset passed in should
+// reflect this.
+static bool DetectFlash(const std::vector<FIRSTPASS_STATS> &stats_list,
+                        int index) {
+  int next_index = index + 1;
+  if (next_index >= static_cast<int>(stats_list.size())) return false;
+  const FIRSTPASS_STATS &next_frame = stats_list[next_index];
+
+  // What we are looking for here is a situation where there is a
+  // brief break in prediction (such as a flash) but subsequent frames
+  // are reasonably well predicted by an earlier (pre flash) frame.
+  // The recovery after a flash is indicated by a high pcnt_second_ref
+  // compared to pcnt_inter.
+  return next_frame.pcnt_second_ref > next_frame.pcnt_inter &&
+         next_frame.pcnt_second_ref >= 0.5;
+}
+
 #define MIN_SHRINK_LEN 6
 
 // This function takes in a suggesting gop interval from cur_start to cur_last,
@@ -582,6 +600,76 @@ int FindBetterGopCut(const std::vector<FIRSTPASS_STATS> &stats_list,
   return cur_last;
 }
 
+// Function to test for a condition where a complex transition is followed
+// by a static section. For example in slide shows where there is a fade
+// between slides. This is to help with more optimal kf and gf positioning.
+static bool DetectTransitionToStill(
+    const std::vector<FIRSTPASS_STATS> &stats_list, int next_stats_index,
+    int min_gop_show_frame_count, int frame_interval, int still_interval,
+    double loop_decay_rate, double last_decay_rate) {
+  // Break clause to detect very still sections after motion
+  // For example a static image after a fade or other transition
+  // instead of a clean scene cut.
+  if (frame_interval > min_gop_show_frame_count && loop_decay_rate >= 0.999 &&
+      last_decay_rate < 0.9) {
+    int stats_count = static_cast<int>(stats_list.size());
+    int stats_left = stats_count - next_stats_index;
+    if (stats_left >= still_interval) {
+      // Look ahead a few frames to see if static condition persists...
+      int j;
+      for (j = 0; j < still_interval; ++j) {
+        const FIRSTPASS_STATS &stats = stats_list[next_stats_index + j];
+        if (stats.pcnt_inter - stats.pcnt_motion < 0.999) break;
+      }
+      // Only if it does do we signal a transition to still.
+      return j == still_interval;
+    }
+  }
+  return false;
+}
+
+static int DetectGopCut(const std::vector<FIRSTPASS_STATS> &stats_list,
+                        int start_idx, int candidate_cut_idx, int next_key_idx,
+                        int flash_detected, int min_gop_show_frame_count,
+                        int max_gop_show_frame_count, int frame_width,
+                        int frame_height, const GF_GROUP_STATS &gf_stats) {
+  (void)max_gop_show_frame_count;
+  const int candidate_gop_size = candidate_cut_idx - start_idx;
+
+  if (!flash_detected) {
+    // Break clause to detect very still sections after motion. For example,
+    // a static image after a fade or other transition.
+    if (DetectTransitionToStill(stats_list, start_idx, min_gop_show_frame_count,
+                                candidate_gop_size, 5, gf_stats.loop_decay_rate,
+                                gf_stats.last_loop_decay_rate)) {
+      return 1;
+    }
+    const double arf_abs_zoom_thresh = 4.4;
+    // Motion breakout threshold for loop below depends on image size.
+    const double mv_ratio_accumulator_thresh =
+        (frame_height + frame_width) / 4.0;
+    // Some conditions to breakout after min interval.
+    if (candidate_gop_size >= min_gop_show_frame_count &&
+        // If possible don't break very close to a kf
+        (next_key_idx - candidate_cut_idx >= min_gop_show_frame_count) &&
+        (candidate_gop_size & 0x01) &&
+        (gf_stats.mv_ratio_accumulator > mv_ratio_accumulator_thresh ||
+         gf_stats.abs_mv_in_out_accumulator > arf_abs_zoom_thresh)) {
+      return 1;
+    }
+  }
+
+  // TODO(b/231489624): Check if we need this part.
+  // If almost totally static, we will not use the the max GF length later,
+  // so we can continue for more frames.
+  // if ((candidate_gop_size >= active_max_gf_interval + 1) &&
+  //     !is_almost_static(gf_stats->zero_motion_accumulator,
+  //                       twopass->kf_zeromotion_pct, cpi->ppi->lap_enabled)) {
+  //   return 0;
+  // }
+  return 0;
+}
+
 /*!\brief Determine the length of future GF groups.
  *
  * \ingroup gf_group_algo
@@ -612,7 +700,6 @@ static std::vector<int> PartitionGopIntervals(
   GF_GROUP_STATS gf_stats;
   InitGFStats(&gf_stats);
   int num_stats = static_cast<int>(stats_list.size());
-  int stats_in_loop_index = order_index;
   while (i + order_index < num_stats) {
     // reaches next key frame, break here
     if (i >= frames_to_key) {
@@ -621,9 +708,29 @@ static std::vector<int> PartitionGopIntervals(
       // reached maximum len, but nothing special yet (almost static)
       // let's look at the next interval
       cut_here = 1;
-    } else if (stats_in_loop_index >= num_stats) {
-      // reaches last frame, break
-      cut_here = 2;
+    } else {
+      // Test for the case where there is a brief flash but the prediction
+      // quality back to an earlier frame is then restored.
+      const int gop_start_idx = cur_start + order_index;
+      const int candidate_gop_cut_idx = i + order_index;
+      const int next_key_idx = frames_to_key + order_index;
+      const bool flash_detected =
+          DetectFlash(stats_list, candidate_gop_cut_idx);
+
+      // TODO(bohanli): remove redundant accumulations here, or unify
+      // this and the ones in define_gf_group
+      const FIRSTPASS_STATS *stats = &stats_list[candidate_gop_cut_idx];
+      av1_accumulate_next_frame_stats(stats, flash_detected, frames_since_key,
+                                      i, &gf_stats, rc_param.frame_width,
+                                      rc_param.frame_height);
+
+      // TODO(angiebird): Can we simplify this part? Looks like we are going to
+      // change the gop cut index with FindBetterGopCut() anyway.
+      cut_here = DetectGopCut(
+          stats_list, gop_start_idx, candidate_gop_cut_idx, next_key_idx,
+          flash_detected, rc_param.min_gop_show_frame_count,
+          rc_param.max_gop_show_frame_count, rc_param.frame_width,
+          rc_param.frame_height, gf_stats);
     }
 
     if (!cut_here) {
@@ -639,13 +746,13 @@ static std::vector<int> PartitionGopIntervals(
     cut_pos.push_back(cur_last);
 
     // reset pointers to the shrunken location
-    stats_in_loop_index = order_index + cur_last;
     cur_start = cur_last;
     int cur_region_idx =
         FindRegionIndex(regions_list, cur_start + 1 + frames_since_key);
     if (cur_region_idx >= 0)
       if (regions_list[cur_region_idx].type == SCENECUT_REGION) cur_start++;
 
+    // TODO(angiebird): Why do we need to break here?
     if (cut_here > 1 && cur_last == original_last) break;
     // reset accumulators
     InitGFStats(&gf_stats);

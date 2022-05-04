@@ -33,6 +33,8 @@ struct RateControlParam {
   int min_gop_show_frame_count;
   int max_ref_frames;
   int base_q_index;
+  int frame_width;
+  int frame_height;
 };
 
 struct TplBlockStats {
