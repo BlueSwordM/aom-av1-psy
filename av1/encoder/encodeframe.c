@@ -1648,7 +1648,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   assert(oxcf->txfm_cfg.enable_tx64 || tx_search_type != USE_LARGESTALL);
   features->tx_mode = select_tx_mode(cm, tx_search_type);
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
   // Retain the frame level probability update conditions for parallel frames.
   // These conditions will be consumed during postencode stage to update the
   // probability.
@@ -1666,7 +1665,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
          cpi->sf.interp_sf.adaptive_interp_filter_search == 2 &&
          features->interp_filter == SWITCHABLE);
   }
-#endif
 
   if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats ||
       ((cpi->sf.tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh !=
@@ -1687,8 +1685,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         const int new_prob =
             sum ? MAX_TX_TYPE_PROB * cpi->td.rd_counts.tx_type_used[i][j] / sum
                 : (j ? 0 : MAX_TX_TYPE_PROB);
-#if CONFIG_FRAME_PARALLEL_ENCODE
-#if CONFIG_FPMT_TEST
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
         if (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) {
           if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] ==
               0) {
@@ -1710,7 +1707,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
           }
           update_txtype_frameprobs = 0;
         }
-#endif  // CONFIG_FPMT_TEST
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
         // Track the frame probabilities of parallel encode frames to update
         // during postencode stage.
         if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
@@ -1718,7 +1715,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
           cpi->frame_new_probs[cpi->num_frame_recode]
               .tx_type_probs[update_type][i][j] = new_prob;
         }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
         if (update_txtype_frameprobs) {
           int prob =
               (frame_probs->tx_type_probs[update_type][i][j] + new_prob) >> 1;
@@ -1748,8 +1744,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
       const int new_prob =
           sum ? 128 * cpi->td.rd_counts.obmc_used[i][1] / sum : 0;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-#if CONFIG_FPMT_TEST
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
       if (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) {
         if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
           temp_frame_probs_simulation->obmc_probs[update_type][i] =
@@ -1765,7 +1760,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         }
         update_obmc_frameprobs = 0;
       }
-#endif  // CONFIG_FPMT_TEST
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
       // Track the frame probabilities of parallel encode frames to update
       // during postencode stage.
       if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
@@ -1773,7 +1768,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         cpi->frame_new_probs[cpi->num_frame_recode].obmc_probs[update_type][i] =
             new_prob;
       }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
       if (update_obmc_frameprobs) {
         frame_probs->obmc_probs[update_type][i] =
             (frame_probs->obmc_probs[update_type][i] + new_prob) >> 1;
@@ -1789,8 +1783,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     int sum = 0;
     for (i = 0; i < 2; i++) sum += cpi->td.rd_counts.warped_used[i];
     const int new_prob = sum ? 128 * cpi->td.rd_counts.warped_used[1] / sum : 0;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-#if CONFIG_FPMT_TEST
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
     if (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) {
       if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
         temp_frame_probs_simulation->warped_probs[update_type] =
@@ -1806,7 +1799,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       }
       update_warp_frameprobs = 0;
     }
-#endif  // CONFIG_FPMT_TEST
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
     // Track the frame probabilities of parallel encode frames to update
     // during postencode stage.
     if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
@@ -1814,7 +1807,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       cpi->frame_new_probs[cpi->num_frame_recode].warped_probs[update_type] =
           new_prob;
     }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
     if (update_warp_frameprobs) {
       frame_probs->warped_probs[update_type] =
           (frame_probs->warped_probs[update_type] + new_prob) >> 1;
@@ -1841,8 +1833,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         const int new_prob =
             sum ? 1536 * cpi->td.counts->switchable_interp[i][j] / sum
                 : (j ? 0 : 1536);
-#if CONFIG_FRAME_PARALLEL_ENCODE
-#if CONFIG_FPMT_TEST
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
         if (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) {
           if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] ==
               0) {
@@ -1864,7 +1855,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
           }
           update_interpfilter_frameprobs = 0;
         }
-#endif  // CONFIG_FPMT_TEST
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
         // Track the frame probabilities of parallel encode frames to update
         // during postencode stage.
         if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
@@ -1872,7 +1863,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
           cpi->frame_new_probs[cpi->num_frame_recode]
               .switchable_interp_probs[update_type][i][j] = new_prob;
         }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
         if (update_interpfilter_frameprobs) {
           int prob = (frame_probs->switchable_interp_probs[update_type][i][j] +
                       new_prob) >>

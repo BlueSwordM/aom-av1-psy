@@ -1505,15 +1505,16 @@ typedef struct {
   /**@}*/
 } AV1EncRowMultiThreadInfo;
 
+/*!
+ * \brief Max number of recodes used to track the frame probabilities.
+ */
+#define NUM_RECODES_PER_FRAME 10
+
 #if CONFIG_FRAME_PARALLEL_ENCODE
 /*!
  * \brief Max number of frames that can be encoded in a parallel encode set.
  */
 #define MAX_PARALLEL_FRAMES 4
-/*!
- * \brief Max number of recodes used to track the frame probabilities.
- */
-#define NUM_RECODES_PER_FRAME 10
 
 /*!
  * \brief Buffers to be backed up during parallel encode set to be restored
@@ -2985,7 +2986,6 @@ typedef struct AV1_COMP {
    */
   VarBasedPartitionInfo vbp_info;
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
   /*!
    * Number of recodes in the frame.
    */
@@ -3016,6 +3016,7 @@ typedef struct AV1_COMP {
    */
   int do_update_frame_probs_interpfilter[NUM_RECODES_PER_FRAME];
 
+#if CONFIG_FRAME_PARALLEL_ENCODE
 #if CONFIG_FPMT_TEST
   /*!
    * Temporary variable for simulation.
