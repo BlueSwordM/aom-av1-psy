@@ -11,6 +11,8 @@
 
 #include <array>
 #include <algorithm>
+#include <cerrno>
+#include <cstring>
 #include <fstream>
 #include <memory>
 #include <numeric>
@@ -56,8 +58,10 @@ void ReadFirstpassInfo(const std::string &filename,
   // --tile-columns=0 -o output.webm hantro_collage_w352h288.yuv
   // First pass stats are written out in av1_get_second_pass_params right after
   // calculate_gf_length.
-  std::ifstream firstpass_stats_file(libaom_test::GetDataPath() + "/" +
-                                     filename);
+  std::string path = libaom_test::GetDataPath() + "/" + filename;
+  std::ifstream firstpass_stats_file(path);
+  ASSERT_TRUE(firstpass_stats_file.good())
+      << "Error opening " << path << ": " << std::strerror(errno);
   firstpass_info->num_mbs_16x16 = (352 / 16 + 1) * (288 / 16 + 1);
   std::string newline;
   while (std::getline(firstpass_stats_file, newline)) {
@@ -743,7 +747,8 @@ TEST(RefFrameManagerTest, GetPrimaryRefFrame) {
 TEST(RateControlQModeTest, TestKeyframeDetection) {
   FirstpassInfo firstpass_info;
   const std::string kFirstpassStatsFile = "firstpass_stats";
-  ReadFirstpassInfo(kFirstpassStatsFile, &firstpass_info);
+  ASSERT_NO_FATAL_FAILURE(
+      ReadFirstpassInfo(kFirstpassStatsFile, &firstpass_info));
   EXPECT_THAT(GetKeyFrameList(firstpass_info),
               ElementsAre(0, 30, 60, 90, 120, 150, 180, 210, 240));
 }
