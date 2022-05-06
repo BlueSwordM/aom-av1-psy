@@ -9,6 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <algorithm>
 #include <tuple>
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
@@ -208,8 +209,11 @@ class QuantizeTestBase
   void FillCoeffRandom() {
     const int n_coeffs = coeff_num();
     FillCoeffZero();
-    int num = rnd_.Rand16() % n_coeffs;
-    for (int i = 0; i < num; ++i) {
+    const int num = rnd_.Rand16() % n_coeffs;
+    // Randomize the first non zero coeff position.
+    const int start = rnd_.Rand16() % n_coeffs;
+    const int end = std::min(start + num, n_coeffs);
+    for (int i = start; i < end; ++i) {
       coeff_[i] = GetRandomCoeff();
     }
   }

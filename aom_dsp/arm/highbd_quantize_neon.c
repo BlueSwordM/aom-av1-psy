@@ -135,8 +135,8 @@ static void highbd_quantize_b_neon(
   const int32x4_t v_zbin_s32x = vdupq_lane_s32(vget_low_s32(v_zbin_s32), 1);
   int i = n_coeffs;
   do {
-    const int32x4_t v_coeff_a = vld1q_s32(coeff_ptr + i - 4 - 1);
-    const int32x4_t v_coeff_b = vld1q_s32(coeff_ptr + i - 8 - 1);
+    const int32x4_t v_coeff_a = vld1q_s32(coeff_ptr + i - 4);
+    const int32x4_t v_coeff_b = vld1q_s32(coeff_ptr + i - 8);
     const int32x4_t v_abs_coeff_a = vabsq_s32(v_coeff_a);
     const int32x4_t v_abs_coeff_b = vabsq_s32(v_coeff_b);
     const uint32x4_t v_mask_a = vcgeq_s32(v_abs_coeff_a, v_zbin_s32x);
