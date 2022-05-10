@@ -57,7 +57,7 @@ if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
   push @block_sizes, [64, 16];
 }
 
-@tx_dims = (2, 4, 8, 16, 32, 64);
+@tx_dims = (4, 8, 16, 32, 64);
 @tx_sizes = ();
 foreach $w (@tx_dims) {
   push @tx_sizes, [$w, $w];
