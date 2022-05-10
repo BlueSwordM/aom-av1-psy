@@ -1257,6 +1257,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed <= 5) {
       sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh =
           boosted ? INT_MAX : 350;
+      sf->winner_mode_sf.prune_winner_mode_eval_level = boosted ? 0 : 2;
     }
     if (speed == 8 && !cpi->ppi->use_svc) {
       sf->rt_sf.short_circuit_low_temp_var = 0;
