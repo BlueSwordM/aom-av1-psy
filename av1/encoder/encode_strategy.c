@@ -1285,21 +1285,20 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     start_timing(cpi, av1_get_second_pass_params_time);
 #endif
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
     // Initialise frame_level_rate_correction_factors with value previous
     // to the parallel frames.
     if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
       for (int i = 0; i < RATE_FACTOR_LEVELS; i++) {
         cpi->rc.frame_level_rate_correction_factors[i] =
-#if CONFIG_FPMT_TEST
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
             (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE)
                 ? cpi->ppi->p_rc.temp_rate_correction_factors[i]
                 :
-#endif  // CONFIG_FPMT_TEST
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
                 cpi->ppi->p_rc.rate_correction_factors[i];
       }
     }
-#endif
+
     // copy mv_stats from ppi to frame_level cpi.
     cpi->mv_stats = cpi->ppi->mv_stats;
     av1_get_second_pass_params(cpi, &frame_params, *frame_flags);
