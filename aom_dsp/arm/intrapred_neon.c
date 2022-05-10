@@ -3037,6 +3037,161 @@ SMOOTH_V_NXM_WIDE(64, 64)
 #undef SMOOTH_V_NXM_WIDE
 
 // -----------------------------------------------------------------------------
+// SMOOTH_H_PRED
+
+// For widths 4 and 8.
+#define SMOOTH_H_PREDICTOR(W)                                               \
+  static void smooth_h_##W##xh_neon(                                        \
+      uint8_t *dst, ptrdiff_t stride, const uint8_t *const top_row,         \
+      const uint8_t *const left_column, const int height) {                 \
+    const uint8_t top_right = top_row[(W)-1];                               \
+                                                                            \
+    const uint8x8_t top_right_v = vdup_n_u8(top_right);                     \
+    /* Over-reads for 4xN but still within the array. */                    \
+    const uint8x8_t weights_x = vld1_u8(smooth_weights + (W)-4);            \
+    const uint8x8_t scaled_weights_x = negate_s8(weights_x);                \
+    const uint16x8_t weighted_tr = vmull_u8(scaled_weights_x, top_right_v); \
+                                                                            \
+    for (int y = 0; y < height; ++y) {                                      \
+      const uint8x8_t left_v = vdup_n_u8(left_column[y]);                   \
+      const uint16x8_t weighted_left_tr =                                   \
+          vmlal_u8(weighted_tr, weights_x, left_v);                         \
+      const uint8x8_t pred =                                                \
+          vrshrn_n_u16(weighted_left_tr, SMOOTH_WEIGHT_LOG2_SCALE);         \
+                                                                            \
+      if ((W) == 4) {                                                       \
+        vst1_lane_u32((uint32_t *)dst, vreinterpret_u32_u8(pred), 0);       \
+      } else { /* width == 8 */                                             \
+        vst1_u8(dst, pred);                                                 \
+      }                                                                     \
+      dst += stride;                                                        \
+    }                                                                       \
+  }
+
+SMOOTH_H_PREDICTOR(4)
+SMOOTH_H_PREDICTOR(8)
+
+#undef SMOOTH_H_PREDICTOR
+
+#define SMOOTH_H_NXM(W, H)                                    \
+  void aom_smooth_h_predictor_##W##x##H##_neon(               \
+      uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, \
+      const uint8_t *left) {                                  \
+    smooth_h_##W##xh_neon(dst, y_stride, above, left, H);     \
+  }
+
+SMOOTH_H_NXM(4, 4)
+SMOOTH_H_NXM(4, 8)
+SMOOTH_H_NXM(4, 16)
+SMOOTH_H_NXM(8, 4)
+SMOOTH_H_NXM(8, 8)
+SMOOTH_H_NXM(8, 16)
+SMOOTH_H_NXM(8, 32)
+
+#undef SMOOTH_H_NXM
+
+static INLINE uint8x16_t calculate_horizontal_weights_and_pred(
+    const uint8x8_t left, const uint8x8_t top_right, const uint8x16_t weights_x,
+    const uint8x16_t scaled_weights_x) {
+  const uint16x8_t weighted_left_low = vmull_u8(vget_low_u8(weights_x), left);
+  const uint16x8_t weighted_left_tr_low =
+      vmlal_u8(weighted_left_low, vget_low_u8(scaled_weights_x), top_right);
+  const uint8x8_t pred_scaled_low =
+      vrshrn_n_u16(weighted_left_tr_low, SMOOTH_WEIGHT_LOG2_SCALE);
+
+  const uint16x8_t weighted_left_high = vmull_u8(vget_high_u8(weights_x), left);
+  const uint16x8_t weighted_left_tr_high =
+      vmlal_u8(weighted_left_high, vget_high_u8(scaled_weights_x), top_right);
+  const uint8x8_t pred_scaled_high =
+      vrshrn_n_u16(weighted_left_tr_high, SMOOTH_WEIGHT_LOG2_SCALE);
+
+  return vcombine_u8(pred_scaled_low, pred_scaled_high);
+}
+
+// For width 16 and above.
+#define SMOOTH_H_PREDICTOR(W)                                              \
+  static void smooth_h_##W##xh_neon(                                       \
+      uint8_t *dst, ptrdiff_t stride, const uint8_t *const top_row,        \
+      const uint8_t *const left_column, const int height) {                \
+    const uint8_t top_right = top_row[(W)-1];                              \
+                                                                           \
+    const uint8x8_t top_right_v = vdup_n_u8(top_right);                    \
+                                                                           \
+    uint8x16_t weights_x[4];                                               \
+    weights_x[0] = vld1q_u8(smooth_weights + (W)-4);                       \
+    if ((W) > 16) {                                                        \
+      weights_x[1] = vld1q_u8(smooth_weights + (W) + 16 - 4);              \
+      if ((W) == 64) {                                                     \
+        weights_x[2] = vld1q_u8(smooth_weights + (W) + 32 - 4);            \
+        weights_x[3] = vld1q_u8(smooth_weights + (W) + 48 - 4);            \
+      }                                                                    \
+    }                                                                      \
+                                                                           \
+    uint8x16_t scaled_weights_x[4];                                        \
+    scaled_weights_x[0] = negate_s8q(weights_x[0]);                        \
+    if ((W) > 16) {                                                        \
+      scaled_weights_x[1] = negate_s8q(weights_x[1]);                      \
+      if ((W) == 64) {                                                     \
+        scaled_weights_x[2] = negate_s8q(weights_x[2]);                    \
+        scaled_weights_x[3] = negate_s8q(weights_x[3]);                    \
+      }                                                                    \
+    }                                                                      \
+                                                                           \
+    for (int y = 0; y < height; ++y) {                                     \
+      const uint8x8_t left_v = vdup_n_u8(left_column[y]);                  \
+                                                                           \
+      const uint8x16_t pred_0 = calculate_horizontal_weights_and_pred(     \
+          left_v, top_right_v, weights_x[0], scaled_weights_x[0]);         \
+      vst1q_u8(dst, pred_0);                                               \
+                                                                           \
+      if ((W) > 16) {                                                      \
+        const uint8x16_t pred_1 = calculate_horizontal_weights_and_pred(   \
+            left_v, top_right_v, weights_x[1], scaled_weights_x[1]);       \
+        vst1q_u8(dst + 16, pred_1);                                        \
+                                                                           \
+        if ((W) == 64) {                                                   \
+          const uint8x16_t pred_2 = calculate_horizontal_weights_and_pred( \
+              left_v, top_right_v, weights_x[2], scaled_weights_x[2]);     \
+          vst1q_u8(dst + 32, pred_2);                                      \
+                                                                           \
+          const uint8x16_t pred_3 = calculate_horizontal_weights_and_pred( \
+              left_v, top_right_v, weights_x[3], scaled_weights_x[3]);     \
+          vst1q_u8(dst + 48, pred_3);                                      \
+        }                                                                  \
+      }                                                                    \
+      dst += stride;                                                       \
+    }                                                                      \
+  }
+
+SMOOTH_H_PREDICTOR(16)
+SMOOTH_H_PREDICTOR(32)
+SMOOTH_H_PREDICTOR(64)
+
+#undef SMOOTH_H_PREDICTOR
+
+#define SMOOTH_H_NXM_WIDE(W, H)                               \
+  void aom_smooth_h_predictor_##W##x##H##_neon(               \
+      uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, \
+      const uint8_t *left) {                                  \
+    smooth_h_##W##xh_neon(dst, y_stride, above, left, H);     \
+  }
+
+SMOOTH_H_NXM_WIDE(16, 4)
+SMOOTH_H_NXM_WIDE(16, 8)
+SMOOTH_H_NXM_WIDE(16, 16)
+SMOOTH_H_NXM_WIDE(16, 32)
+SMOOTH_H_NXM_WIDE(16, 64)
+SMOOTH_H_NXM_WIDE(32, 8)
+SMOOTH_H_NXM_WIDE(32, 16)
+SMOOTH_H_NXM_WIDE(32, 32)
+SMOOTH_H_NXM_WIDE(32, 64)
+SMOOTH_H_NXM_WIDE(64, 16)
+SMOOTH_H_NXM_WIDE(64, 32)
+SMOOTH_H_NXM_WIDE(64, 64)
+
+#undef SMOOTH_H_NXM_WIDE
+
+// -----------------------------------------------------------------------------
 // PAETH
 
 static INLINE void paeth_4or8_x_h_neon(uint8_t *dest, ptrdiff_t stride,

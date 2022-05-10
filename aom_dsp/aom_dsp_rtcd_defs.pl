@@ -197,19 +197,19 @@ specialize qw/aom_smooth_v_predictor_32x64 neon ssse3/;
 specialize qw/aom_smooth_v_predictor_64x64 neon ssse3/;
 specialize qw/aom_smooth_v_predictor_64x32 neon ssse3/;
 
-specialize qw/aom_smooth_h_predictor_4x4 ssse3/;
-specialize qw/aom_smooth_h_predictor_4x8 ssse3/;
-specialize qw/aom_smooth_h_predictor_8x4 ssse3/;
-specialize qw/aom_smooth_h_predictor_8x8 ssse3/;
-specialize qw/aom_smooth_h_predictor_8x16 ssse3/;
-specialize qw/aom_smooth_h_predictor_16x8 ssse3/;
-specialize qw/aom_smooth_h_predictor_16x16 ssse3/;
-specialize qw/aom_smooth_h_predictor_16x32 ssse3/;
-specialize qw/aom_smooth_h_predictor_32x16 ssse3/;
-specialize qw/aom_smooth_h_predictor_32x32 ssse3/;
-specialize qw/aom_smooth_h_predictor_32x64 ssse3/;
-specialize qw/aom_smooth_h_predictor_64x64 ssse3/;
-specialize qw/aom_smooth_h_predictor_64x32 ssse3/;
+specialize qw/aom_smooth_h_predictor_4x4 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_4x8 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_8x4 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_8x8 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_8x16 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_16x8 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_16x16 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_16x32 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_32x16 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_32x32 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_32x64 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_64x64 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_64x32 neon ssse3/;
 
 specialize qw/aom_dc_top_predictor_4x16 sse2/;
 specialize qw/aom_dc_top_predictor_8x32 sse2/;
@@ -267,12 +267,12 @@ specialize qw/aom_smooth_v_predictor_16x64 neon ssse3/;
 specialize qw/aom_smooth_v_predictor_32x8 neon ssse3/;
 specialize qw/aom_smooth_v_predictor_64x16 neon ssse3/;
 
-specialize qw/aom_smooth_h_predictor_4x16 ssse3/;
-specialize qw/aom_smooth_h_predictor_8x32 ssse3/;
-specialize qw/aom_smooth_h_predictor_16x4 ssse3/;
-specialize qw/aom_smooth_h_predictor_16x64 ssse3/;
-specialize qw/aom_smooth_h_predictor_32x8 ssse3/;
-specialize qw/aom_smooth_h_predictor_64x16 ssse3/;
+specialize qw/aom_smooth_h_predictor_4x16 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_8x32 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_16x4 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_16x64 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_32x8 neon ssse3/;
+specialize qw/aom_smooth_h_predictor_64x16 neon ssse3/;
 
 # TODO(yunqingwang): optimize rectangular DC_PRED to replace division
 # by multiply and shift.
