@@ -2672,7 +2672,9 @@ static void smooth_4xh_neon(uint8_t *dst, ptrdiff_t stride,
   const uint8x8_t scaled_weights_x = negate_s8(weights_x_v);
   const uint16x8_t weighted_tr = vmull_u8(scaled_weights_x, top_right_v);
 
-  for (int y = 0; y < height; ++y) {
+  assert(height > 0);
+  int y = 0;
+  do {
     const uint8x8_t left_v = vdup_n_u8(left_column[y]);
     const uint8x8_t weights_y_v = vdup_n_u8(weights_y[y]);
     const uint8x8_t scaled_weights_y = negate_s8(weights_y_v);
@@ -2687,7 +2689,7 @@ static void smooth_4xh_neon(uint8_t *dst, ptrdiff_t stride,
 
     vst1_lane_u32((uint32_t *)dst, vreinterpret_u32_u8(result), 0);
     dst += stride;
-  }
+  } while (++y != height);
 }
 
 static INLINE uint8x8_t calculate_pred(const uint16x8_t weighted_top_bl,
@@ -2723,7 +2725,9 @@ static void smooth_8xh_neon(uint8_t *dst, ptrdiff_t stride,
   const uint8x8_t scaled_weights_x = negate_s8(weights_x_v);
   const uint16x8_t weighted_tr = vmull_u8(scaled_weights_x, top_right_v);
 
-  for (int y = 0; y < height; ++y) {
+  assert(height > 0);
+  int y = 0;
+  do {
     const uint8x8_t left_v = vdup_n_u8(left_column[y]);
     const uint8x8_t weights_y_v = vdup_n_u8(weights_y[y]);
     const uint8x8_t scaled_weights_y = negate_s8(weights_y_v);
@@ -2733,7 +2737,7 @@ static void smooth_8xh_neon(uint8_t *dst, ptrdiff_t stride,
 
     vst1_u8(dst, result);
     dst += stride;
-  }
+  } while (++y != height);
 }
 
 #define SMOOTH_NXM(W, H)                                                       \
@@ -2903,7 +2907,9 @@ SMOOTH_NXM_WIDE(64, 64)
                                                                       \
     const uint8x8_t bottom_left_v = vdup_n_u8(bottom_left);           \
                                                                       \
-    for (int y = 0; y < height; ++y) {                                \
+    assert(height > 0);                                               \
+    int y = 0;                                                        \
+    do {                                                              \
       const uint8x8_t weights_y_v = vdup_n_u8(weights_y[y]);          \
       const uint8x8_t scaled_weights_y = negate_s8(weights_y_v);      \
                                                                       \
@@ -2919,7 +2925,7 @@ SMOOTH_NXM_WIDE(64, 64)
         vst1_u8(dst, pred);                                           \
       }                                                               \
       dst += stride;                                                  \
-    }                                                                 \
+    } while (++y != height);                                          \
   }
 
 SMOOTH_V_PREDICTOR(4)
@@ -2978,7 +2984,9 @@ static INLINE uint8x16_t calculate_vertical_weights_and_pred(
                                                                          \
     const uint8x8_t bottom_left_v = vdup_n_u8(bottom_left);              \
                                                                          \
-    for (int y = 0; y < height; ++y) {                                   \
+    assert(height > 0);                                                  \
+    int y = 0;                                                           \
+    do {                                                                 \
       const uint8x8_t weights_y_v = vdup_n_u8(weights_y[y]);             \
       const uint8x8_t scaled_weights_y = negate_s8(weights_y_v);         \
       const uint16x8_t weighted_bl =                                     \
@@ -3005,7 +3013,7 @@ static INLINE uint8x16_t calculate_vertical_weights_and_pred(
       }                                                                  \
                                                                          \
       dst += stride;                                                     \
-    }                                                                    \
+    } while (++y != height);                                             \
   }
 
 SMOOTH_V_PREDICTOR(16)
@@ -3052,7 +3060,9 @@ SMOOTH_V_NXM_WIDE(64, 64)
     const uint8x8_t scaled_weights_x = negate_s8(weights_x);                \
     const uint16x8_t weighted_tr = vmull_u8(scaled_weights_x, top_right_v); \
                                                                             \
-    for (int y = 0; y < height; ++y) {                                      \
+    assert(height > 0);                                                     \
+    int y = 0;                                                              \
+    do {                                                                    \
       const uint8x8_t left_v = vdup_n_u8(left_column[y]);                   \
       const uint16x8_t weighted_left_tr =                                   \
           vmlal_u8(weighted_tr, weights_x, left_v);                         \
@@ -3065,7 +3075,7 @@ SMOOTH_V_NXM_WIDE(64, 64)
         vst1_u8(dst, pred);                                                 \
       }                                                                     \
       dst += stride;                                                        \
-    }                                                                       \
+    } while (++y != height);                                                \
   }
 
 SMOOTH_H_PREDICTOR(4)
@@ -3137,7 +3147,9 @@ static INLINE uint8x16_t calculate_horizontal_weights_and_pred(
       }                                                                    \
     }                                                                      \
                                                                            \
-    for (int y = 0; y < height; ++y) {                                     \
+    assert(height > 0);                                                    \
+    int y = 0;                                                             \
+    do {                                                                   \
       const uint8x8_t left_v = vdup_n_u8(left_column[y]);                  \
                                                                            \
       const uint8x16_t pred_0 = calculate_horizontal_weights_and_pred(     \
@@ -3160,7 +3172,7 @@ static INLINE uint8x16_t calculate_horizontal_weights_and_pred(
         }                                                                  \
       }                                                                    \
       dst += stride;                                                       \
-    }                                                                      \
+    } while (++y != height);                                               \
   }
 
 SMOOTH_H_PREDICTOR(16)
@@ -3207,7 +3219,9 @@ static INLINE void paeth_4or8_x_h_neon(uint8_t *dest, ptrdiff_t stride,
     top = vld1_u8(top_row);
   }
 
-  for (int y = 0; y < height; ++y) {
+  assert(height > 0);
+  int y = 0;
+  do {
     const uint8x8_t left = vdup_n_u8(left_column[y]);
 
     const uint8x8_t left_dist = vabd_u8(top, top_left);
@@ -3241,7 +3255,7 @@ static INLINE void paeth_4or8_x_h_neon(uint8_t *dest, ptrdiff_t stride,
       vst1_u8(dest, result);
     }
     dest += stride;
-  }
+  } while (++y != height);
 }
 
 #define PAETH_NXM(W, H)                                                     \
@@ -3326,7 +3340,9 @@ static INLINE void paeth16_plus_x_h_neon(uint8_t *dest, ptrdiff_t stride,
     }
   }
 
-  for (int y = 0; y < height; ++y) {
+  assert(height > 0);
+  int y = 0;
+  do {
     const uint8x16_t left = vdupq_n_u8(left_column[y]);
 
     const uint8x16_t top_dist = vabdq_u8(left, top_left);
@@ -3380,7 +3396,7 @@ static INLINE void paeth16_plus_x_h_neon(uint8_t *dest, ptrdiff_t stride,
     }
 
     dest += stride;
-  }
+  } while (++y != height);
 }
 
 #define PAETH_NXM_WIDE(W, H)                                                \
