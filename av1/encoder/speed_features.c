@@ -756,6 +756,12 @@ static void set_good_speed_feature_framesize_dependent(
     sf->inter_sf.limit_txfm_eval_per_mode = boosted ? 0 : 2;
     if (is_480p_or_lesser) sf->inter_sf.skip_newmv_in_drl = 3;
 
+    if (is_720p_or_larger) {
+      sf->inter_sf.prune_comp_ref_frames = 1;
+    } else if (is_480p_or_larger) {
+      sf->inter_sf.prune_comp_ref_frames = is_boosted_arf2_bwd_type ? 0 : 1;
+    }
+
     if (is_720p_or_larger)
       sf->hl_sf.recode_tolerance = 32;
     else
@@ -775,6 +781,7 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_720p_or_larger) sf->hl_sf.recode_tolerance = 40;
 
     sf->inter_sf.skip_newmv_in_drl = 4;
+    sf->inter_sf.prune_comp_ref_frames = 1;
 
     if (!is_720p_or_larger) {
       sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW_SET;
@@ -795,6 +802,7 @@ static void set_good_speed_feature_framesize_dependent(
   if (speed >= 6) {
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 4;
     sf->inter_sf.prune_nearmv_using_neighbors = PRUNE_NEARMV_LEVEL3;
+    sf->inter_sf.prune_comp_ref_frames = 2;
     if (is_720p_or_larger) {
       sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
     } else if (is_480p_or_larger) {
@@ -1163,7 +1171,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
     // Enable fast search for all valid compound modes.
     sf->inter_sf.enable_fast_compound_mode_search = 2;
-    sf->inter_sf.prune_comp_ref_frames = 1;
 
     sf->intra_sf.chroma_intra_pruning_with_hog = 3;
 
@@ -1191,7 +1198,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
     sf->inter_sf.selective_ref_frame = 6;
-    sf->inter_sf.prune_comp_ref_frames = 2;
     sf->inter_sf.prune_ext_comp_using_neighbors = 3;
 
     sf->intra_sf.chroma_intra_pruning_with_hog = 4;
