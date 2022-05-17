@@ -4319,12 +4319,10 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
     av1_lookahead_pop(cpi->ppi->lookahead, cpi_data->flush,
                       cpi->compressor_stage);
   }
-#if CONFIG_FRAME_PARALLEL_ENCODE
   if (cpi->common.show_frame) {
     cpi->ppi->ts_start_last_show_frame = cpi_data->ts_frame_start;
     cpi->ppi->ts_end_last_show_frame = cpi_data->ts_frame_end;
   }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   if (ppi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
     // Initialize level info. at the beginning of each sequence.
     if (cm->current_frame.frame_type == KEY_FRAME &&
