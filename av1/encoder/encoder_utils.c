@@ -804,8 +804,7 @@ BLOCK_SIZE av1_select_sb_size(const AV1EncoderConfig *const oxcf, int width,
   if (oxcf->superres_cfg.superres_mode == AOM_SUPERRES_NONE &&
       oxcf->resize_cfg.resize_mode == RESIZE_NONE) {
     int is_480p_or_lesser = AOMMIN(width, height) <= 480;
-    if ((oxcf->speed >= 1 || oxcf->mode == REALTIME) && is_480p_or_lesser)
-      return BLOCK_64X64;
+    if (oxcf->speed >= 1 && is_480p_or_lesser) return BLOCK_64X64;
 
     // For 1080p and lower resolutions, choose SB size adaptively based on
     // resolution and speed level for multi-thread encode.

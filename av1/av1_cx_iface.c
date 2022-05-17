@@ -23,6 +23,7 @@
 #include "av1/av1_iface_common.h"
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/encoder.h"
+#include "av1/encoder/encoder_utils.h"
 #include "av1/encoder/ethread.h"
 #include "av1/encoder/external_partition.h"
 #include "av1/encoder/firstpass.h"
@@ -1406,14 +1407,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->unit_test_cfg.sb_multipass_unit_test =
       extra_cfg->sb_multipass_unit_test;
 
-  // For allintra encoding mode, inter-frame motion search is not applicable and
-  // the intraBC motion vectors are restricted within the tile boundaries. Hence
-  // a smaller frame border size (AOM_ENC_ALLINTRA_BORDER) is used in this case.
   oxcf->border_in_pixels =
-      (resize_cfg->resize_mode || superres_cfg->superres_mode)
-          ? AOM_BORDER_IN_PIXELS
-          : (oxcf->kf_cfg.key_freq_max == 0) ? AOM_ENC_ALLINTRA_BORDER
-                                             : AOM_ENC_NO_SCALE_BORDER;
+      av1_get_enc_border_size(av1_is_resize_needed(oxcf),
+                              (oxcf->kf_cfg.key_freq_max == 0), BLOCK_128X128);
   memcpy(oxcf->target_seq_level_idx, extra_cfg->target_seq_level_idx,
          sizeof(oxcf->target_seq_level_idx));
   oxcf->tier_mask = extra_cfg->tier_mask;
@@ -2871,6 +2867,13 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       if (!ppi->lookahead) {
         int lag_in_frames = cpi_lap != NULL ? cpi_lap->oxcf.gf_cfg.lag_in_frames
                                             : cpi->oxcf.gf_cfg.lag_in_frames;
+        AV1EncoderConfig *oxcf = &cpi->oxcf;
+        const BLOCK_SIZE sb_size = av1_select_sb_size(
+            oxcf, oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height,
+            cpi->svc.number_spatial_layers);
+        oxcf->border_in_pixels =
+            av1_get_enc_border_size(av1_is_resize_needed(oxcf),
+                                    oxcf->kf_cfg.key_freq_max == 0, sb_size);
 
         ppi->lookahead = av1_lookahead_init(
             cpi->oxcf.frm_dim_cfg.width, cpi->oxcf.frm_dim_cfg.height,

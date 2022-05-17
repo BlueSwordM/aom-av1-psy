@@ -2092,6 +2092,11 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
                          "Failed to allocate context buffers");
   }
 
+  AV1EncoderConfig *oxcf = &cpi->oxcf;
+  oxcf->border_in_pixels = av1_get_enc_border_size(
+      av1_is_resize_needed(oxcf), oxcf->kf_cfg.key_freq_max == 0,
+      cm->seq_params->sb_size);
+
   // Reset the frame pointers to the current frame size.
   if (aom_realloc_frame_buffer(
           &cm->cur_frame->buf, cm->width, cm->height, seq_params->subsampling_x,
