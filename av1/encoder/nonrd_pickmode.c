@@ -1817,8 +1817,13 @@ typedef struct _mode_search_stat {
   int32_t num_nonskipped_searches[BLOCK_SIZES][MB_MODE_COUNT];
   int64_t search_times[BLOCK_SIZES][MB_MODE_COUNT];
   int64_t nonskipped_search_times[BLOCK_SIZES][MB_MODE_COUNT];
+  int64_t ms_time[BLOCK_SIZES][MB_MODE_COUNT];
+  int64_t ifs_time[BLOCK_SIZES][MB_MODE_COUNT];
+  int64_t model_rd_time[BLOCK_SIZES][MB_MODE_COUNT];
+  int64_t txfm_time[BLOCK_SIZES][MB_MODE_COUNT];
   struct aom_usec_timer timer1;
   struct aom_usec_timer timer2;
+  struct aom_usec_timer timer3;
 } mode_search_stat;
 #endif  // COLLECT_PICK_MODE_STAT
 
@@ -2871,9 +2876,20 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     set_ref_ptrs(cm, xd, ref_frame, ref_frame2);
 
     if (this_mode == NEWMV && !force_mv_inter_layer) {
-      if (search_new_mv(cpi, x, frame_mv, ref_frame, gf_temporal_ref, bsize,
-                        mi_row, mi_col, &rate_mv, &best_rdc))
+#if COLLECT_PICK_MODE_STAT
+      aom_usec_timer_start(&ms_stat.timer2);
+#endif
+      const bool skip_newmv =
+          search_new_mv(cpi, x, frame_mv, ref_frame, gf_temporal_ref, bsize,
+                        mi_row, mi_col, &rate_mv, &best_rdc);
+#if COLLECT_PICK_MODE_STAT
+      aom_usec_timer_mark(&ms_stat.timer2);
+      ms_stat.ms_time[bsize][this_mode] +=
+          aom_usec_timer_elapsed(&ms_stat.timer2);
+#endif
+      if (skip_newmv) {
         continue;
+      }
     }
 
     for (PREDICTION_MODE inter_mv_mode = NEARESTMV; inter_mv_mode <= NEWMV;
@@ -2931,9 +2947,17 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     if (enable_filter_search && !force_mv_inter_layer && !comp_pred &&
         ((mi->mv[0].as_mv.row & 0x07) || (mi->mv[0].as_mv.col & 0x07)) &&
         (ref_frame == LAST_FRAME || !x->nonrd_prune_ref_frame_search)) {
+#if COLLECT_PICK_MODE_STAT
+      aom_usec_timer_start(&ms_stat.timer2);
+#endif
       search_filter_ref(cpi, x, &this_rdc, mi_row, mi_col, tmp, bsize,
                         reuse_inter_pred, &this_mode_pred, &this_early_term,
                         use_model_yrd_large, best_pickmode.best_sse);
+#if COLLECT_PICK_MODE_STAT
+      aom_usec_timer_mark(&ms_stat.timer2);
+      ms_stat.ifs_time[bsize][this_mode] +=
+          aom_usec_timer_elapsed(&ms_stat.timer2);
+#endif
 #if !CONFIG_REALTIME_ONLY
     } else if (cpi->oxcf.motion_mode_cfg.allow_warped_motion &&
                this_mode == NEWMV) {
@@ -2965,6 +2989,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
             mi->interp_filters = av1_broadcast_interp_filter(EIGHTTAP_SMOOTH);
         }
       }
+#if COLLECT_PICK_MODE_STAT
+      aom_usec_timer_start(&ms_stat.timer2);
+#endif
       if (!comp_pred)
         av1_enc_build_inter_predictor_y(xd, mi_row, mi_col);
       else
@@ -2979,6 +3006,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         model_rd_for_sb_y(cpi, bsize, x, xd, &this_rdc,
                           use_modeled_non_rd_cost);
       }
+#if COLLECT_PICK_MODE_STAT
+      aom_usec_timer_mark(&ms_stat.timer2);
+      ms_stat.model_rd_time[bsize][this_mode] +=
+          aom_usec_timer_elapsed(&ms_stat.timer2);
+#endif
     }
 
     if (ref_frame == LAST_FRAME && frame_mv[this_mode][ref_frame].as_int == 0) {
@@ -3011,6 +3043,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
           this_rdc.rate += no_skip_txfm_cost;
         }
       } else {
+#if COLLECT_PICK_MODE_STAT
+        aom_usec_timer_start(&ms_stat.timer2);
+#endif
         av1_block_yrd(cpi, x, mi_row, mi_col, &this_rdc, &is_skippable, bsize,
                       mi->tx_size, DCT_DCT, 1);
         if (this_rdc.skip_txfm ||
@@ -3050,6 +3085,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         this_rdc.dist += rdc_uv.dist;
         this_rdc.skip_txfm = this_rdc.skip_txfm && rdc_uv.skip_txfm;
       }
+#if COLLECT_PICK_MODE_STAT
+      aom_usec_timer_mark(&ms_stat.timer2);
+      ms_stat.txfm_time[bsize][this_mode] +=
+          aom_usec_timer_elapsed(&ms_stat.timer2);
+#endif
     }
 
     // TODO(kyslov) account for UV prediction cost
@@ -3149,6 +3189,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   mi->angle_delta[PLANE_TYPE_UV] = 0;
   mi->filter_intra_mode_info.use_filter_intra = 0;
 
+#if COLLECT_PICK_MODE_STAT
+  aom_usec_timer_start(&ms_stat.timer1);
+  ms_stat.num_searches[bsize][DC_PRED]++;
+#endif
+
   if (!x->force_zeromv_skip)
     estimate_intra_mode(cpi, x, bsize, use_modeled_non_rd_cost, best_early_term,
                         ref_costs_single[INTRA_FRAME], reuse_inter_pred,
@@ -3214,6 +3259,12 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
     }
   }
+
+#if COLLECT_PICK_MODE_STAT
+  aom_usec_timer_mark(&ms_stat.timer1);
+  ms_stat.nonskipped_search_times[bsize][DC_PRED] +=
+      aom_usec_timer_elapsed(&ms_stat.timer1);
+#endif
 
   pd->dst = orig_dst;
   if (try_palette) mi->palette_mode_info = best_pickmode.pmi;
@@ -3296,7 +3347,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   if ((mi_row + mi_size_high[bsize] >= (cpi->common.mi_params.mi_rows)) &&
       (mi_col + mi_size_wide[bsize] >= (cpi->common.mi_params.mi_cols))) {
     int i, j;
-    PREDICTION_MODE used_modes[3] = { NEARESTMV, NEARMV, NEWMV };
     BLOCK_SIZE bss[5] = { BLOCK_8X8, BLOCK_16X16, BLOCK_32X32, BLOCK_64X64,
                           BLOCK_128X128 };
     int64_t total_time = 0l;
@@ -3304,22 +3354,33 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
     printf("\n");
     for (i = 0; i < 5; i++) {
-      printf("BS(%d) Num %d, Avg_time %f: ", bss[i], ms_stat.num_blocks[bss[i]],
+      printf("BS(%d) Num %d, Avg_time %f:\n", bss[i],
+             ms_stat.num_blocks[bss[i]],
              ms_stat.num_blocks[bss[i]] > 0
                  ? (float)ms_stat.avg_block_times[bss[i]] /
                        ms_stat.num_blocks[bss[i]]
                  : 0);
       total_time += ms_stat.avg_block_times[bss[i]];
       total_blocks += ms_stat.num_blocks[bss[i]];
-      for (j = 0; j < 3; j++) {
-        printf("Mode %d, %d/%d tps %f ", used_modes[j],
-               ms_stat.num_nonskipped_searches[bss[i]][used_modes[j]],
-               ms_stat.num_searches[bss[i]][used_modes[j]],
-               ms_stat.num_nonskipped_searches[bss[i]][used_modes[j]] > 0
-                   ? (float)ms_stat
-                             .nonskipped_search_times[bss[i]][used_modes[j]] /
-                         ms_stat.num_nonskipped_searches[bss[i]][used_modes[j]]
+      for (j = 0; j < MB_MODE_COUNT; j++) {
+        if (ms_stat.nonskipped_search_times[bss[i]][j] == 0) {
+          continue;
+        }
+
+        printf("  Mode %d, %d/%d tps %f\n", j,
+               ms_stat.num_nonskipped_searches[bss[i]][j],
+               ms_stat.num_searches[bss[i]][j],
+               ms_stat.num_nonskipped_searches[bss[i]][j] > 0
+                   ? (float)ms_stat.nonskipped_search_times[bss[i]][j] /
+                         ms_stat.num_nonskipped_searches[bss[i]][j]
                    : 0l);
+        if (j >= INTER_MODE_START) {
+          printf("    Motion Search Time: %ld\n", ms_stat.ms_time[bss[i]][j]);
+          printf("    Filter Search Time: %ld\n", ms_stat.ifs_time[bss[i]][j]);
+          printf("    Model    RD   Time: %ld\n",
+                 ms_stat.model_rd_time[bss[i]][j]);
+          printf("    Tranfm Search Time: %ld\n", ms_stat.txfm_time[bss[i]][j]);
+        }
       }
       printf("\n");
     }
