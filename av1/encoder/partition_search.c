@@ -2783,8 +2783,6 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
               mi_row + y_idx, mi_col + x_idx, subsize, pc_tree->split[i]);
         }
 
-        // TODO(yunqing): Add this to PARTITION_HORZ and PARTITION_VERT. Make
-        // this work with nonrd_check_partition_merge_mode feature.
         // Note: Palette, cfl are not supported.
         if (!frame_is_intra_only(cm) && !tile_data->allow_update_cdf &&
             cpi->sf.rt_sf.partition_direct_merging &&
