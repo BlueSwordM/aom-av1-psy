@@ -1417,7 +1417,7 @@ static AOM_INLINE int compute_num_enc_tile_mt_workers(AV1_COMMON *const cm,
 }
 
 // Find max worker of all MT stages
-int av1_get_max_num_workers(AV1_COMP *cpi) {
+int av1_get_max_num_workers(const AV1_COMP *cpi) {
   int max_num_workers = 0;
   for (int i = MOD_FP; i < NUM_MT_MODULES; i++)
     max_num_workers =
