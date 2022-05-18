@@ -1234,16 +1234,12 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
 
   cpi->ppi = ppi;
   cm->seq_params = &ppi->seq_params;
-#if CONFIG_FRAME_PARALLEL_ENCODE
   cm->error =
       (struct aom_internal_error_info *)aom_calloc(1, sizeof(*cm->error));
   if (!cm->error) {
     aom_free(cpi);
     return NULL;
   }
-#else
-  cm->error = &ppi->error;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
   // The jmp_buf is valid only for the duration of the function that calls
   // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
@@ -1565,9 +1561,7 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   av1_denoiser_free(&(cpi->denoiser));
 #endif
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
   aom_free(cm->error);
-#endif
   aom_free(cpi->td.tctx);
   MultiThreadInfo *const mt_info = &cpi->mt_info;
 #if CONFIG_MULTITHREAD
@@ -4397,7 +4391,6 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
   // The jmp_buf is valid only for the duration of the function that calls
   // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
   // before it returns.
@@ -4406,7 +4399,6 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
     return cm->error->error_code;
   }
   cm->error->setjmp = 1;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
 #if CONFIG_INTERNAL_STATS
   cpi->frame_recode_hits = 0;
@@ -4455,12 +4447,8 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
     cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 
   if (assign_cur_frame_new_fb(cm) == NULL) {
-#if CONFIG_FRAME_PARALLEL_ENCODE
     aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
                        "Failed to allocate new cur_frame");
-#else
-    return AOM_CODEC_ERROR;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -4516,19 +4504,13 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
 #endif
 
   if (result == -1) {
-#if CONFIG_FRAME_PARALLEL_ENCODE
     cm->error->setjmp = 0;
-#endif
     // Returning -1 indicates no frame encoded; more input is required
     return -1;
   }
   if (result != AOM_CODEC_OK) {
-#if CONFIG_FRAME_PARALLEL_ENCODE
     aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
                        "Failed to encode frame");
-#else
-    return AOM_CODEC_ERROR;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   }
 #if CONFIG_INTERNAL_STATS
   aom_usec_timer_mark(&cmptimer);
@@ -4542,9 +4524,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
   }
 #endif  // CONFIG_SPEED_STATS
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
   cm->error->setjmp = 0;
-#endif
   return AOM_CODEC_OK;
 }
 
