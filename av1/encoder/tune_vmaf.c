@@ -157,7 +157,7 @@ static double residual_frame_average_variance(AV1_COMP *cpi,
   bool do_motion_search = false;
   if (mvs == NULL) {
     do_motion_search = true;
-    CHECK_MEM_ERROR(cm, mvs,
+    CHECK_MEM_ERROR(&cpi->common, mvs,
                     (FULLPEL_MV *)aom_calloc(mb_rows * mb_cols, sizeof(*mvs)));
   }
 
@@ -487,7 +487,7 @@ void av1_vmaf_blk_preprocessing(AV1_COMP *const cpi,
   double *best_unsharp_amounts =
       aom_calloc(num_cols * num_rows, sizeof(*best_unsharp_amounts));
   if (!best_unsharp_amounts) {
-    aom_internal_error(cm->error_info, AOM_CODEC_MEM_ERROR,
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Error allocating vmaf data");
   }
 
@@ -659,7 +659,7 @@ void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
   aom_init_vmaf_context(&vmaf_context, cpi->vmaf_info.vmaf_model, cal_vmaf_neg);
   unsigned int *sses = aom_calloc(num_rows * num_cols, sizeof(*sses));
   if (!sses) {
-    aom_internal_error(cm->error_info, AOM_CODEC_MEM_ERROR,
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Error allocating vmaf data");
   }
 
