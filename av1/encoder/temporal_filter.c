@@ -1244,10 +1244,8 @@ void av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
   // TODO(anyone): Currently, we enforce the filtering strength on internal
   // ARFs except the second ARF to be zero. We should investigate in which case
   // it is more beneficial to use non-zero strength filtering.
-#if CONFIG_FRAME_PARALLEL_ENCODE
   // Only parallel level 0 frames go through temporal filtering.
   assert(cpi->ppi->gf_group.frame_parallel_level[gf_frame_index] == 0);
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
   // Initialize temporal filter context structure.
   init_tf_ctx(cpi, filter_frame_lookahead_idx, gf_frame_index,

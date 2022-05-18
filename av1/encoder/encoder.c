@@ -1466,9 +1466,7 @@ static AOM_INLINE void free_thread_data(AV1_PRIMARY *ppi) {
   PrimaryMultiThreadInfo *const p_mt_info = &ppi->p_mt_info;
   for (int t = 1; t < p_mt_info->num_workers; ++t) {
     EncWorkerData *const thread_data = &p_mt_info->tile_thr_data[t];
-#if CONFIG_FRAME_PARALLEL_ENCODE
     thread_data->td = thread_data->original_td;
-#endif
     aom_free(thread_data->td->tctx);
     aom_free(thread_data->td->palette_buffer);
     aom_free(thread_data->td->tmp_conv_dst);
@@ -4512,7 +4510,6 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
   return AOM_CODEC_OK;
 }
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
 // Populates cpi->scaled_ref_buf corresponding to frames in a parallel encode
 // set. Also sets the bitmask 'ref_buffers_used_map'.
 void av1_scale_references_fpmt(AV1_COMP *cpi, int *ref_buffers_used_map) {
@@ -4672,7 +4669,7 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
   memcpy(ref_frame_map_pairs, first_ref_frame_map_pairs,
          sizeof(RefFrameMapPair) * REF_FRAMES);
 
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
   // Store the reference refresh index of frame_parallel_level 1 frame in a
   // parallel encode set of lower layer frames.
   if (gf_group->update_type[gf_index_start] == INTNL_ARF_UPDATE) {
@@ -4687,7 +4684,7 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
     ref_frame_map_pairs[first_cpi->ref_refresh_index].pyr_level =
         gf_group->layer_depth[gf_index_start];
   }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
 
   // Set do_frame_data_update flag as false for frame_parallel_level 1 frame.
   first_cpi->do_frame_data_update = false;
@@ -4697,9 +4694,9 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
   }
 
   av1_get_ref_frames(first_ref_frame_map_pairs, cur_frame_disp,
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
                      first_cpi, gf_index_start, 1,
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
                      first_cpi->common.remapped_ref_idx);
 
   av1_scale_references_fpmt(first_cpi, ref_buffers_used_map);
@@ -4768,7 +4765,7 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
       cur_cpi_data->timestamp_ratio = first_cpi_data->timestamp_ratio;
       cur_cpi_data->flush = first_cpi_data->flush;
       cur_cpi_data->frame_size = 0;
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
       if (gf_group->update_type[gf_index_start] == INTNL_ARF_UPDATE) {
         // If the first frame in a parallel encode set is INTNL_ARF_UPDATE
         // frame, initialize lib_flags of frame_parallel_level 2 frame in the
@@ -4788,13 +4785,13 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
         cur_cpi->ref_refresh_index = INVALID_IDX;
         cur_cpi->refresh_idx_available = false;
       }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
       cur_cpi->twopass_frame.stats_in = stats_in;
 
       av1_get_ref_frames(first_ref_frame_map_pairs, cur_frame_disp,
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
                          cur_cpi, i, 1,
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
                          cur_cpi->common.remapped_ref_idx);
       av1_scale_references_fpmt(cur_cpi, ref_buffers_used_map);
       parallel_frame_count++;
@@ -4818,7 +4815,6 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
   // Return the number of frames in the parallel encode set.
   return parallel_frame_count;
 }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
 int av1_get_preview_raw_frame(AV1_COMP *cpi, YV12_BUFFER_CONFIG *dest) {
   AV1_COMMON *cm = &cpi->common;

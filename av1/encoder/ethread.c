@@ -554,12 +554,10 @@ void av1_init_frame_mt(AV1_PRIMARY *ppi, AV1_COMP *cpi) {
 }
 
 void av1_init_cdef_worker(AV1_COMP *cpi) {
-#if CONFIG_FRAME_PARALLEL_ENCODE
   // The allocation is done only for level 0 parallel frames. No change
   // in config is supported in the middle of a parallel encode set, since the
   // rest of the MT modules also do not support dynamic change of config.
   if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) return;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   PrimaryMultiThreadInfo *const p_mt_info = &cpi->ppi->p_mt_info;
   int num_cdef_workers = av1_get_num_mod_workers_for_alloc(p_mt_info, MOD_CDEF);
 
@@ -575,10 +573,8 @@ void av1_init_lr_mt_buffers(AV1_COMP *cpi) {
   if (lr_sync->sync_range) {
     int num_lr_workers =
         av1_get_num_mod_workers_for_alloc(&cpi->ppi->p_mt_info, MOD_LR);
-#if CONFIG_FRAME_PARALLEL_ENCODE
     if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
       return;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
     lr_sync->lrworkerdata[num_lr_workers - 1].rst_tmpbuf = cm->rst_tmpbuf;
     lr_sync->lrworkerdata[num_lr_workers - 1].rlbs = cm->rlbs;
   }
@@ -702,9 +698,7 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
       AOM_CHECK_MEM_ERROR(&ppi->error, thread_data->td,
                           aom_memalign(32, sizeof(*thread_data->td)));
       av1_zero(*thread_data->td);
-#if CONFIG_FRAME_PARALLEL_ENCODE
       thread_data->original_td = thread_data->td;
-#endif
 
       // Set up shared coeff buffers.
       av1_setup_shared_coeff_buffer(
@@ -793,17 +787,11 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
 
     if (!is_first_pass && ppi->cpi->oxcf.row_mt == 1 && i < num_enc_workers) {
       if (i == 0) {
-#if CONFIG_FRAME_PARALLEL_ENCODE
         for (int j = 0; j < ppi->num_fp_contexts; j++) {
           AOM_CHECK_MEM_ERROR(&ppi->error, ppi->parallel_cpi[j]->td.tctx,
                               (FRAME_CONTEXT *)aom_memalign(
                                   16, sizeof(*ppi->parallel_cpi[j]->td.tctx)));
         }
-#else
-        AOM_CHECK_MEM_ERROR(
-            &ppi->error, ppi->cpi->td.tctx,
-            (FRAME_CONTEXT *)aom_memalign(16, sizeof(*ppi->cpi->td.tctx)));
-#endif
       } else {
         AOM_CHECK_MEM_ERROR(
             &ppi->error, thread_data->td->tctx,
@@ -847,7 +835,6 @@ void av1_create_workers(AV1_PRIMARY *ppi, int num_workers) {
   }
 }
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
 // This function returns 1 if frame parallel encode is supported for
 // the current configuration. Returns 0 otherwise.
 static AOM_INLINE int is_fpmt_config(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
@@ -906,13 +893,13 @@ int av1_check_fpmt_config(AV1_PRIMARY *const ppi,
                    reset_size);
     av1_zero_array(&ppi->gf_group.is_frame_non_ref[cur_gf_index], reset_size);
     av1_zero_array(&ppi->gf_group.src_offset[cur_gf_index], reset_size);
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
     memset(&ppi->gf_group.skip_frame_refresh[cur_gf_index][0], INVALID_IDX,
            sizeof(ppi->gf_group.skip_frame_refresh[cur_gf_index][0]) *
                reset_size * REF_FRAMES);
     memset(&ppi->gf_group.skip_frame_as_ref[cur_gf_index], INVALID_IDX,
            sizeof(ppi->gf_group.skip_frame_as_ref[cur_gf_index]) * reset_size);
-#endif
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
     ppi->num_fp_contexts = 1;
   }
   return 0;
@@ -1173,7 +1160,6 @@ int av1_compress_parallel_frames(AV1_PRIMARY *const ppi,
                                 ref_buffers_used_map);
   return AOM_CODEC_OK;
 }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
 static AOM_INLINE void launch_workers(MultiThreadInfo *const mt_info,
                                       int num_workers) {
@@ -1260,13 +1246,9 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     thread_data->cpi = cpi;
     if (i == 0) {
       thread_data->td = &cpi->td;
-#if !CONFIG_FRAME_PARALLEL_ENCODE
-    }
-#else
     } else {
       thread_data->td = thread_data->original_td;
     }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     thread_data->td->intrabc_used = 0;
     thread_data->td->deltaq_used = 0;
@@ -1363,13 +1345,9 @@ static AOM_INLINE void fp_prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     thread_data->cpi = cpi;
     if (i == 0) {
       thread_data->td = &cpi->td;
-#if !CONFIG_FRAME_PARALLEL_ENCODE
-    }
-#else
     } else {
       thread_data->td = thread_data->original_td;
     }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     // Before encoding a frame, copy the thread data from cpi.
     if (thread_data->td != &cpi->td) {
@@ -1838,13 +1816,9 @@ static AOM_INLINE void prepare_tpl_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     thread_data->cpi = cpi;
     if (i == 0) {
       thread_data->td = &cpi->td;
-#if !CONFIG_FRAME_PARALLEL_ENCODE
-    }
-#else
     } else {
       thread_data->td = thread_data->original_td;
     }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     // Before encoding a frame, copy the thread data from cpi.
     if (thread_data->td != &cpi->td) {
@@ -1981,13 +1955,9 @@ static void prepare_tf_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     thread_data->cpi = cpi;
     if (i == 0) {
       thread_data->td = &cpi->td;
-#if !CONFIG_FRAME_PARALLEL_ENCODE
-    }
-#else
     } else {
       thread_data->td = thread_data->original_td;
     }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     // Before encoding a frame, copy the thread data from cpi.
     if (thread_data->td != &cpi->td) {
@@ -2180,13 +2150,9 @@ static AOM_INLINE void prepare_gm_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     thread_data->cpi = cpi;
     if (i == 0) {
       thread_data->td = &cpi->td;
-#if !CONFIG_FRAME_PARALLEL_ENCODE
-    }
-#else
     } else {
       thread_data->td = thread_data->original_td;
     }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   }
 }
 
@@ -2479,13 +2445,9 @@ static void prepare_pack_bs_workers(AV1_COMP *const cpi,
     EncWorkerData *const thread_data = &mt_info->tile_thr_data[i];
     if (i == 0) {
       thread_data->td = &cpi->td;
-#if !CONFIG_FRAME_PARALLEL_ENCODE
-    }
-#else
     } else {
       thread_data->td = thread_data->original_td;
     }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
     if (thread_data->td != &cpi->td) thread_data->td->mb = cpi->td.mb;
 

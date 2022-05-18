@@ -87,10 +87,10 @@ int av1_get_refresh_ref_frame_map(int refresh_frame_flags);
  */
 void av1_get_ref_frames(RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
                         int cur_frame_disp,
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
                         const AV1_COMP *cpi, int gf_index,
                         int is_parallel_encode,
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
                         int remapped_ref_idx[REF_FRAMES]);
 
 int is_forced_keyframe_pending(struct lookahead_ctx *lookahead,

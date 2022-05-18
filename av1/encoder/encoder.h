@@ -1510,7 +1510,6 @@ typedef struct {
  */
 #define NUM_RECODES_PER_FRAME 10
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
 /*!
  * \brief Max number of frames that can be encoded in a parallel encode set.
  */
@@ -1541,7 +1540,6 @@ typedef struct RestoreStateBuffers {
    */
   RestorationLineBuffers *rlbs;
 } RestoreStateBuffers;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
 /*!
  * \brief Primary Encoder parameters related to multi-threading.
@@ -1573,7 +1571,6 @@ typedef struct PrimaryMultiThreadInfo {
    */
   AV1CdefWorkerData *cdef_worker;
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
   /*!
    * Primary(Level 1) Synchronization object used to launch job in the worker
    * thread.
@@ -1584,7 +1581,6 @@ typedef struct PrimaryMultiThreadInfo {
    * Number of primary workers created for multi-threading.
    */
   int p_num_workers;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 } PrimaryMultiThreadInfo;
 
 /*!
@@ -1668,12 +1664,10 @@ typedef struct MultiThreadInfo {
    */
   AV1CdefWorkerData *cdef_worker;
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
   /*!
    * Buffers to be stored/restored before/after parallel encode.
    */
   RestoreStateBuffers restore_state_buf;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 } MultiThreadInfo;
 
 /*!\cond */
@@ -2391,19 +2385,17 @@ typedef struct AV1_COMP_DATA {
    * Decide to pop the source for this frame from input buffer queue.
    */
   int pop_lookahead;
-#if CONFIG_FRAME_PARALLEL_ENCODE
+
   /*!
    * Display order hint of frame whose packed data is in cx_data buffer.
    */
   int frame_display_order_hint;
-#endif
 } AV1_COMP_DATA;
 
 /*!
  * \brief Top level primary encoder structure
  */
 typedef struct AV1_PRIMARY {
-#if CONFIG_FRAME_PARALLEL_ENCODE
   /*!
    * Array of frame level encoder stage top level structures
    */
@@ -2414,7 +2406,7 @@ typedef struct AV1_PRIMARY {
    * encode set.
    */
   struct AV1_COMP_DATA parallel_frames_data[MAX_PARALLEL_FRAMES - 1];
-
+#if CONFIG_FRAME_PARALLEL_ENCODE
 #if CONFIG_FPMT_TEST
   /*!
    * Flag which enables/disables simulation path for fpmt unit test.
@@ -3493,7 +3485,6 @@ void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi,
 void av1_post_encode_updates(AV1_COMP *const cpi,
                              const AV1_COMP_DATA *const cpi_data);
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
 void av1_scale_references_fpmt(AV1_COMP *cpi, int *ref_buffers_used_map);
 
 void av1_increment_scaled_ref_counts_fpmt(BufferPool *buffer_pool,
@@ -3512,8 +3503,6 @@ AV1_COMP *av1_get_parallel_frame_enc_data(AV1_PRIMARY *const ppi,
 int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
                                     AV1_PRIMARY *const ppi,
                                     int *ref_buffers_used_map);
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
-
 /*!\endcond */
 
 /*!\brief Obtain the raw frame data
