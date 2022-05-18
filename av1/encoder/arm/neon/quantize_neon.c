@@ -15,6 +15,7 @@
 #include <math.h>
 
 #include "aom_dsp/arm/mem_neon.h"
+#include "aom_dsp/arm/sum_neon.h"
 #include "aom_mem/aom_mem.h"
 
 #include "av1/common/quant_common.h"
@@ -206,17 +207,6 @@ static INLINE uint16x8_t quantize_fp_logscale_8(
   return v_nz_mask;
 }
 
-static INLINE uint32_t sum_abs_coeff(const uint16x8_t a) {
-#if defined(__aarch64__)
-  return vaddvq_u16(a);
-#else
-  const uint32x4_t b = vpaddlq_u16(a);
-  const uint64x2_t c = vpaddlq_u32(b);
-  const uint64x1_t d = vadd_u64(vget_low_u64(c), vget_high_u64(c));
-  return (uint32_t)vget_lane_u64(d, 0);
-#endif
-}
-
 static void quantize_fp_no_qmatrix_neon(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *round_ptr,
     const int16_t *quant_ptr, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
@@ -246,7 +236,7 @@ static void quantize_fp_no_qmatrix_neon(
     const uint16x8_t v_mask_a = vcgeq_s16(v_abs_coeff_a, v_zbin_s16);
     const uint16x8_t v_mask_b = vcgeq_s16(v_abs_coeff_b, v_zbin_s16);
     // If the coefficient is in the base ZBIN range, then discard.
-    if (sum_abs_coeff(v_mask_a) + sum_abs_coeff(v_mask_b) == 0) {
+    if (horizontal_long_add_u16x8(v_mask_a, v_mask_b) == 0) {
       non_zero_count -= 16;
     } else {
       break;
