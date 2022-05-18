@@ -541,7 +541,7 @@ static INLINE int gcd(int64_t a, int b) {
   return (int)a;
 }
 
-static INLINE void reduce_ratio(aom_rational64_t *ratio) {
+void av1_reduce_ratio(aom_rational64_t *ratio) {
   const int denom = gcd(ratio->num, ratio->den);
   ratio->num /= denom;
   ratio->den /= denom;
@@ -898,7 +898,7 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
   return AOM_CODEC_OK;
 }
 
-static int get_image_bps(const aom_image_t *img) {
+int av1_get_image_bps(const aom_image_t *img) {
   switch (img->fmt) {
     case AOM_IMG_FMT_YV12:
     case AOM_IMG_FMT_NV12:
@@ -1419,6 +1419,13 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->strict_level_conformance = extra_cfg->strict_level_conformance;
 
   return AOM_CODEC_OK;
+}
+
+AV1EncoderConfig av1_get_encoder_config(const aom_codec_enc_cfg_t *cfg) {
+  AV1EncoderConfig oxcf;
+  struct av1_extracfg extra_cfg = default_extra_cfg;
+  set_encoder_config(&oxcf, cfg, &extra_cfg);
+  return oxcf;
 }
 
 static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
@@ -2426,9 +2433,9 @@ static aom_codec_err_t ctrl_set_rtc_external_rc(aom_codec_alg_priv_t *ctx,
 }
 
 #if !CONFIG_REALTIME_ONLY
-static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
-                                           STATS_BUFFER_CTX *stats_buf_context,
-                                           int num_lap_buffers) {
+aom_codec_err_t av1_create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
+                                        STATS_BUFFER_CTX *stats_buf_context,
+                                        int num_lap_buffers) {
   aom_codec_err_t res = AOM_CODEC_OK;
 
   int size = get_stats_buf_size(num_lap_buffers, MAX_LAG_BUFFERS);
@@ -2451,9 +2458,12 @@ static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
 }
 #endif
 
-static aom_codec_err_t create_context_and_bufferpool(
-    AV1_PRIMARY *ppi, AV1_COMP **p_cpi, BufferPool **p_buffer_pool,
-    AV1EncoderConfig *oxcf, COMPRESSOR_STAGE stage, int lap_lag_in_frames) {
+aom_codec_err_t av1_create_context_and_bufferpool(AV1_PRIMARY *ppi,
+                                                  AV1_COMP **p_cpi,
+                                                  BufferPool **p_buffer_pool,
+                                                  const AV1EncoderConfig *oxcf,
+                                                  COMPRESSOR_STAGE stage,
+                                                  int lap_lag_in_frames) {
   aom_codec_err_t res = AOM_CODEC_OK;
 
   if (*p_buffer_pool == NULL) {
@@ -2489,7 +2499,7 @@ static aom_codec_err_t ctrl_set_fp_mt(aom_codec_alg_priv_t *ctx, va_list args) {
     if (num_fp_contexts > 1) {
       int i;
       for (i = 1; i < num_fp_contexts; i++) {
-        int res = create_context_and_bufferpool(
+        int res = av1_create_context_and_bufferpool(
             ctx->ppi, &ctx->ppi->parallel_cpi[i], &ctx->buffer_pool, &ctx->oxcf,
             ENCODE_STAGE, -1);
         if (res != AOM_CODEC_OK) {
@@ -2549,7 +2559,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
       priv->timestamp_ratio.den = priv->cfg.g_timebase.den;
       priv->timestamp_ratio.num =
           (int64_t)priv->cfg.g_timebase.num * TICKS_PER_SEC;
-      reduce_ratio(&priv->timestamp_ratio);
+      av1_reduce_ratio(&priv->timestamp_ratio);
 
       set_encoder_config(&priv->oxcf, &priv->cfg, &priv->extra_cfg);
       if (priv->oxcf.rc_cfg.mode != AOM_CBR &&
@@ -2572,8 +2582,8 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
       if (!priv->ppi) return AOM_CODEC_MEM_ERROR;
 
 #if !CONFIG_REALTIME_ONLY
-      res = create_stats_buffer(&priv->frame_stats_buffer,
-                                &priv->stats_buf_context, *num_lap_buffers);
+      res = av1_create_stats_buffer(&priv->frame_stats_buffer,
+                                    &priv->stats_buf_context, *num_lap_buffers);
       if (res != AOM_CODEC_OK) return AOM_CODEC_MEM_ERROR;
 
       assert(MAX_LAP_BUFFERS >= MAX_LAG_BUFFERS);
@@ -2586,7 +2596,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
 
 #if CONFIG_FRAME_PARALLEL_ENCODE
       assert(priv->ppi->num_fp_contexts >= 1);
-      res = create_context_and_bufferpool(
+      res = av1_create_context_and_bufferpool(
           priv->ppi, &priv->ppi->parallel_cpi[0], &priv->buffer_pool,
           &priv->oxcf, ENCODE_STAGE, -1);
       if (res != AOM_CODEC_OK) {
@@ -2598,9 +2608,9 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
 #endif
       priv->ppi->cpi = priv->ppi->parallel_cpi[0];
 #else
-      res = create_context_and_bufferpool(priv->ppi, &priv->ppi->cpi,
-                                          &priv->buffer_pool, &priv->oxcf,
-                                          ENCODE_STAGE, -1);
+      res = av1_create_context_and_bufferpool(priv->ppi, &priv->ppi->cpi,
+                                              &priv->buffer_pool, &priv->oxcf,
+                                              ENCODE_STAGE, -1);
 #if !CONFIG_REALTIME_ONLY
       priv->ppi->cpi->twopass_frame.stats_in =
           priv->ppi->twopass.stats_buf_ctx->stats_in_start;
@@ -2609,7 +2619,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
 
       // Create another compressor if look ahead is enabled
       if (res == AOM_CODEC_OK && *num_lap_buffers) {
-        res = create_context_and_bufferpool(
+        res = av1_create_context_and_bufferpool(
             priv->ppi, &priv->ppi->cpi_lap, &priv->buffer_pool_lap, &priv->oxcf,
             LAP_STAGE, clamp(lap_lag_in_frames, 0, MAX_LAG_BUFFERS));
       }
@@ -2619,8 +2629,8 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
   return res;
 }
 
-static void destroy_context_and_bufferpool(AV1_COMP *cpi,
-                                           BufferPool **p_buffer_pool) {
+void av1_destroy_context_and_bufferpool(AV1_COMP *cpi,
+                                        BufferPool **p_buffer_pool) {
   av1_remove_compressor(cpi);
   if (*p_buffer_pool) {
     av1_free_ref_frame_buffers(*p_buffer_pool);
@@ -2632,8 +2642,8 @@ static void destroy_context_and_bufferpool(AV1_COMP *cpi,
   }
 }
 
-static void destroy_stats_buffer(STATS_BUFFER_CTX *stats_buf_context,
-                                 FIRSTPASS_STATS *frame_stats_buffer) {
+void av1_destroy_stats_buffer(STATS_BUFFER_CTX *stats_buf_context,
+                              FIRSTPASS_STATS *frame_stats_buffer) {
   aom_free(stats_buf_context->total_left_stats);
   aom_free(stats_buf_context->total_stats);
   aom_free(frame_stats_buffer);
@@ -2685,18 +2695,19 @@ static aom_codec_err_t encoder_destroy(aom_codec_alg_priv_t *ctx) {
 #if CONFIG_FRAME_PARALLEL_ENCODE
     int i;
     for (i = 0; i < MAX_PARALLEL_FRAMES; i++) {
-      destroy_context_and_bufferpool(ppi->parallel_cpi[i], &ctx->buffer_pool);
+      av1_destroy_context_and_bufferpool(ppi->parallel_cpi[i],
+                                         &ctx->buffer_pool);
     }
     ppi->cpi = NULL;
 #else
-    destroy_context_and_bufferpool(ppi->cpi, &ctx->buffer_pool);
+    av1_destroy_context_and_bufferpool(ppi->cpi, &ctx->buffer_pool);
 #endif  // CONFIG_FRAME_PARALLEL_ENCODE
     if (ppi->cpi_lap) {
-      destroy_context_and_bufferpool(ppi->cpi_lap, &ctx->buffer_pool_lap);
+      av1_destroy_context_and_bufferpool(ppi->cpi_lap, &ctx->buffer_pool_lap);
     }
     av1_remove_primary_compressor(ppi);
   }
-  destroy_stats_buffer(&ctx->stats_buf_context, ctx->frame_stats_buffer);
+  av1_destroy_stats_buffer(&ctx->stats_buf_context, ctx->frame_stats_buffer);
   aom_free(ctx);
   return AOM_CODEC_OK;
 }
@@ -2742,7 +2753,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     if (res == AOM_CODEC_OK) {
       const size_t uncompressed_frame_sz = ALIGN_POWER_OF_TWO(ctx->cfg.g_w, 5) *
                                            ALIGN_POWER_OF_TWO(ctx->cfg.g_h, 5) *
-                                           get_image_bps(img) / 8;
+                                           av1_get_image_bps(img) / 8;
 
       // Due to the presence of no-show frames, the ctx->cx_data buffer holds
       // compressed data corresponding to multiple frames. As no-show frames are

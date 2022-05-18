@@ -354,7 +354,12 @@ if(CONFIG_AV1_ENCODER AND ENABLE_TESTS)
               "${AOM_ROOT}/test/yuv_video_source.h")
 
   list(APPEND AV1_RC_QMODE_SOURCES "${AOM_ROOT}/test/mock_ratectrl_qmode.h"
-              "${AOM_ROOT}/test/ratectrl_qmode_test.cc")
+              "${AOM_ROOT}/test/ratectrl_qmode_test.cc"
+              "${AOM_ROOT}/test/ducky_encode_test.cc"
+              "${AOM_ROOT}/common/y4minput.c" "${AOM_ROOT}/common/y4minput.h"
+              "${AOM_ROOT}/common/tools_common.c"
+              "${AOM_ROOT}/common/tools_common.h"
+              "${AOM_GEN_SRC_DIR}/usage_exit.c")
 endif()
 
 if(ENABLE_TESTS)
@@ -604,8 +609,8 @@ function(setup_aom_test_targets)
      AND NOT BUILD_SHARED_LIBS
      AND NOT CONFIG_REALTIME_ONLY)
     add_executable(test_av1_rc_qmode ${AV1_RC_QMODE_SOURCES})
-    target_link_libraries(test_av1_rc_qmode ${AOM_LIB_LINK_TYPE} av1_rc_qmode
-                          aom_gtest aom_gmock)
+    target_link_libraries(test_av1_rc_qmode ${AOM_LIB_LINK_TYPE} aom
+                          av1_rc_qmode aom_gtest aom_gmock)
     set_property(TARGET test_av1_rc_qmode
                  PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
     list(APPEND AOM_APP_TARGETS test_av1_rc_qmode)
