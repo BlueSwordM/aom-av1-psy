@@ -2389,16 +2389,13 @@ static int encode_without_recode(AV1_COMP *cpi) {
     }
   }
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
   int scale_references = 0;
-#if CONFIG_FPMT_TEST
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
   scale_references =
       cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE ? 1 : 0;
-#endif  // CONFIG_FPMT_TEST
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
   if (scale_references ||
-      cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0)
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
-  {
+      cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
     // For SVC the inter-layer/spatial prediction is not done for newmv
     // (zero_mode is forced), and since the scaled references are only
     // use for newmv search, we can avoid scaling here when
@@ -2646,17 +2643,13 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
           cpi->oxcf.tool_cfg.enable_global_motion);
     }
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
     int scale_references = 0;
-#if CONFIG_FPMT_TEST
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
     scale_references =
         cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE ? 1 : 0;
-#endif  // CONFIG_FPMT_TEST
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
     if (scale_references ||
         cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
-#else
-    {
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
       if (!frame_is_intra_only(cm)) {
         if (loop_count > 0) {
           release_scaled_references(cpi);
@@ -3633,17 +3626,13 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     }
   }
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
   int release_scaled_refs = 0;
-#if CONFIG_FPMT_TEST
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
   release_scaled_refs =
       (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) ? 1 : 0;
-#endif  // CONFIG_FPMT_TEST
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
   if (release_scaled_refs ||
       cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
-#else
-  {
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
     if (frame_is_intra_only(cm) == 0) {
       release_scaled_references(cpi);
     }

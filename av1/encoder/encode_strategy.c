@@ -345,18 +345,16 @@ static struct lookahead_entry *choose_frame_source(
 
   frame_params->show_frame = *pop_lookahead;
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
-#if CONFIG_FPMT_TEST
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
   if (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_ENCODE) {
 #else
   {
-#endif  // CONFIG_FPMT_TEST
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
     // Future frame in parallel encode set
     if (gf_group->src_offset[cpi->gf_frame_index] != 0 &&
         !is_stat_generation_stage(cpi))
       src_index = gf_group->src_offset[cpi->gf_frame_index];
   }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
   if (frame_params->show_frame) {
     // show frame, pop from buffer
     // Get last frame source.
@@ -1344,11 +1342,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     return -1;
   }
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
   // reset src_offset to allow actual encode call for this frame to get its
   // source.
   gf_group->src_offset[cpi->gf_frame_index] = 0;
-#endif
 
   // Source may be changed if temporal filtered later.
   frame_input.source = &source->img;
