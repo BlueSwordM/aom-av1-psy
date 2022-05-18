@@ -2782,7 +2782,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     force_mv_inter_layer = 0;
     if (cpi->ppi->use_svc && svc->spatial_layer_id > 0 &&
         ((ref_frame == LAST_FRAME && svc->skip_mvsearch_last) ||
-         (ref_frame == GOLDEN_FRAME && svc->skip_mvsearch_gf))) {
+         (ref_frame == GOLDEN_FRAME && svc->skip_mvsearch_gf) ||
+         (ref_frame == ALTREF_FRAME && svc->skip_mvsearch_altref))) {
       // Only test mode if NEARESTMV/NEARMV is (svc_mv_col, svc_mv_row),
       // otherwise set NEWMV to (svc_mv_col, svc_mv_row).
       // Skip newmv and filter search.
