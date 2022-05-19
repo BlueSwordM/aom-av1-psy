@@ -193,6 +193,7 @@ TEST_F(FilmGrainTableIOTest, ReadTruncatedFile) {
 
   std::string grain_file;
   FILE *file = libaom_test::GetTempOutFile(&grain_file);
+  ASSERT_NE(file, nullptr);
   fwrite("deadbeef", 8, 1, file);
   fclose(file);
   ASSERT_EQ(AOM_CODEC_ERROR,
@@ -217,7 +218,9 @@ TEST_F(FilmGrainTableIOTest, RoundTripReadWrite) {
                                 expected_grain + i);
   }
   std::string grain_file;
-  fclose(libaom_test::GetTempOutFile(&grain_file));
+  FILE *tmpfile = libaom_test::GetTempOutFile(&grain_file);
+  ASSERT_NE(tmpfile, nullptr);
+  fclose(tmpfile);
   ASSERT_EQ(AOM_CODEC_OK,
             aom_film_grain_table_write(&table, grain_file.c_str(), &error_));
   aom_film_grain_table_free(&table);
@@ -237,7 +240,9 @@ TEST_F(FilmGrainTableIOTest, RoundTripReadWrite) {
 
 TEST_F(FilmGrainTableIOTest, RoundTripSplit) {
   std::string grain_file;
-  fclose(libaom_test::GetTempOutFile(&grain_file));
+  FILE *tmpfile = libaom_test::GetTempOutFile(&grain_file);
+  ASSERT_NE(tmpfile, nullptr);
+  fclose(tmpfile);
 
   aom_film_grain_table_t table;
   memset(&table, 0, sizeof(table));
