@@ -1005,7 +1005,7 @@ static void set_layer_pattern(
       if (enable_longterm_temporal_ref && layer_id->spatial_layer_id == 2 &&
           layering_mode == 8) {
         ref_frame_config->ref_idx[SVC_ALTREF_FRAME] = REF_FRAMES - 1;
-        ref_frame_config->reference[SVC_ALTREF_FRAME] = 1;
+        if (!is_key_frame) ref_frame_config->reference[SVC_ALTREF_FRAME] = 1;
         if (base_count % 10 == 0 && layer_id->temporal_layer_id == 0)
           ref_frame_config->refresh[REF_FRAMES - 1] = 1;
       }

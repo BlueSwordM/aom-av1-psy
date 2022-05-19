@@ -202,6 +202,7 @@ void av1_restore_layer_context(AV1_COMP *const cpi) {
   }
   svc->skip_mvsearch_last = 0;
   svc->skip_mvsearch_gf = 0;
+  svc->skip_mvsearch_altref = 0;
   // For each reference (LAST/GOLDEN) set the skip_mvsearch_last/gf frame flags.
   // This is to skip searching mv for that reference if it was last
   // refreshed (i.e., buffer slot holding that reference was refreshed) on the

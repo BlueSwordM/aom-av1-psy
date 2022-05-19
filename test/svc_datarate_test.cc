@@ -482,7 +482,7 @@ class DatarateTestSVC
       // 10 TL0 frames here.
       if (multi_ref && layer_id->spatial_layer_id == 2) {
         ref_frame_config->ref_idx[6] = 7;
-        ref_frame_config->reference[6] = 1;
+        if (!is_key_frame) ref_frame_config->reference[6] = 1;
         if (base_count % 10 == 0 && layer_id->temporal_layer_id == 0)
           ref_frame_config->refresh[7] = 1;
       }
