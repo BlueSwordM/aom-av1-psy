@@ -1131,6 +1131,16 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // neighbor block and quantizer information.
   int adapt_top_model_rd_count_using_neighbors;
 
+  // Prune the evaluation of odd delta angles of directional luma intra modes by
+  // using the rdcosts of neighbouring delta angles.
+  // For allintra encode, this speed feature reduces instruction count
+  // by 4.461%, 3.699% and 3.536% for speed 6, 7 and 8 on a typical video
+  // dataset with coding performance change less than 0.26%. For AVIF image
+  // encode, this speed feature reduces encode time by 2.849%, 2.471%,
+  // and 2.051% for speed 6, 7 and 8 on a typical image dataset with coding
+  // performance change less than 0.27%.
+  int prune_luma_odd_delta_angles_in_intra;
+
   // Terminate early in chroma palette_size search.
   // 0: No early termination
   // 1: Terminate early for higher palette_size, if header rd cost of lower

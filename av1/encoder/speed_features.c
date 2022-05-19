@@ -481,6 +481,7 @@ static void set_allintra_speed_features_framesize_independent(
     sf->intra_sf.cfl_search_range = 1;
     sf->intra_sf.top_intra_model_count_allowed = 2;
     sf->intra_sf.adapt_top_model_rd_count_using_neighbors = 1;
+    sf->intra_sf.prune_luma_odd_delta_angles_in_intra = 1;
 
     sf->part_sf.prune_rectangular_split_based_on_qidx =
         allow_screen_content_tools ? 0 : 2;
@@ -1847,6 +1848,7 @@ static AOM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
   intra_sf->adapt_top_model_rd_count_using_neighbors = 0;
   intra_sf->early_term_chroma_palette_size_search = 0;
   intra_sf->skip_filter_intra_in_inter_frames = 0;
+  intra_sf->prune_luma_odd_delta_angles_in_intra = 0;
 }
 
 static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
