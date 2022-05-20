@@ -1405,7 +1405,7 @@ class DatarateTestSVC
     // Drop TL1 and TL2: for part of sequence. Start at first TL2 at
     // frame 101, and end at second T2 at frame 199. Frame 200 is TL0,
     // so we can continue decoding without mismatch (since LAST is the
-    // only reference and error_resil = 1 on TL1/TL2 frames).
+    // only reference and error_resilient = 1 on TL1/TL2 frames).
     int n = 0;
     int num_nonref = 300 / 2;
     for (int i = 101; i < 200; i++) {
