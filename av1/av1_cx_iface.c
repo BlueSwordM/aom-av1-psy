@@ -2874,6 +2874,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         oxcf->border_in_pixels =
             av1_get_enc_border_size(av1_is_resize_needed(oxcf),
                                     oxcf->kf_cfg.key_freq_max == 0, sb_size);
+#if CONFIG_FRAME_PARALLEL_ENCODE
+        for (int i = 0; i < ppi->num_fp_contexts; i++) {
+          ppi->parallel_cpi[i]->oxcf.border_in_pixels = oxcf->border_in_pixels;
+        }
+#endif
 
         ppi->lookahead = av1_lookahead_init(
             cpi->oxcf.frm_dim_cfg.width, cpi->oxcf.frm_dim_cfg.height,
