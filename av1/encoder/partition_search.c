@@ -2368,7 +2368,7 @@ static void direct_partition_merging(AV1_COMP *cpi, ThreadData *td,
   this_mi[0]->partition = PARTITION_NONE;
   this_mi[0]->skip_txfm = 1;
 
-  // TODO(yunqing): functions called below can be optimized with
+  // TODO(yunqing): functions called below can be optimized by
   // removing unrelated operations.
   av1_set_offsets_without_segment_id(cpi, &tile_data->tile_info, x, mi_row,
                                      mi_col, bsize);
