@@ -3336,6 +3336,12 @@ typedef struct AV1_COMP {
    * Buffer to store 64x64 SAD
    */
   uint64_t *src_sad_blk_64x64;
+
+  /*!
+   * A flag to indicate whether the encoder is controlled by DuckyEncode or not.
+   * 1:yes 0:no
+   */
+  int use_ducky_encode;
 } AV1_COMP;
 
 /*!

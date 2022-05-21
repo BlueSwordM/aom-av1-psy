@@ -1441,6 +1441,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
   }
 
   cpi->second_pass_log_stream = NULL;
+  cpi->use_ducky_encode = 0;
 
   cm->error->setjmp = 0;
   return cpi;

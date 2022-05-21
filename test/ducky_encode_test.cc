@@ -39,4 +39,24 @@ TEST(DuckyEncodeTest, ComputeFirstPassStats) {
   }
 }
 
+TEST(DuckyEncodeTest, EncodeFrame) {
+  aom_rational_t frame_rate = { 30, 1 };
+  VideoInfo video_info = { 352,        288,
+                           frame_rate, AOM_IMG_FMT_I420,
+                           17,         "bus_352x288_420_f20_b8.yuv" };
+  DuckyEncode ducky_encode(video_info);
+  std::vector<FIRSTPASS_STATS> frame_stats =
+      ducky_encode.ComputeFirstPassStats();
+  ducky_encode.StartEncode(frame_stats);
+  // We set coding_frame_count to a arbitrary number that smaller than
+  // 17 here.
+  // TODO(angiebird): Set coding_frame_count properly, once the DuckyEncode can
+  // provide proper information.
+  int coding_frame_count = 5;
+  for (int i = 0; i < coding_frame_count; ++i) {
+    EncodeFrameResult encode_frame_result = ducky_encode.EncodeFrame();
+  }
+  ducky_encode.EndEncode();
+}
+
 }  // namespace aom
