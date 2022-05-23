@@ -263,7 +263,26 @@ void DuckyEncode::StartEncode(const std::vector<FIRSTPASS_STATS> &stats_list) {
                   impl_ptr_->rc_end_usage, pass, &stats_list);
 }
 
-EncodeFrameResult DuckyEncode::EncodeFrame() {
+static void DuckyEncodeInfoSetEncodeFrameDecision(
+    DuckyEncodeInfo *ducky_encode_info, const EncodeFrameDecision &decision) {
+  DuckyEncodeFrameInfo *frame_info = &ducky_encode_info->frame_info;
+  frame_info->mode = static_cast<DUCKY_ENCODE_FRAME_MODE>(decision.mode);
+  frame_info->q_index = decision.parameters.q_index;
+  frame_info->rdmult = decision.parameters.rdmult;
+}
+
+static void DuckyEncodeInfoGetEncodeFrameResult(
+    const DuckyEncodeInfo *ducky_encode_info, EncodeFrameResult *result) {
+  const DuckyEncodeFrameResult &frame_result = ducky_encode_info->frame_result;
+  result->q_index = frame_result.q_index;
+  result->rdmult = frame_result.rdmult;
+  result->rate = frame_result.rate;
+  result->dist = frame_result.dist;
+  result->psnr = frame_result.psnr;
+}
+
+EncodeFrameResult DuckyEncode::EncodeFrame(
+    const EncodeFrameDecision &decision) {
   EncodeFrameResult encode_frame_result = {};
   const VideoInfo &video_info = impl_ptr_->video_info;
   // Set bitstream_buf size to a conservatve upperbound.
@@ -303,10 +322,14 @@ EncodeFrameResult DuckyEncode::EncodeFrame() {
 
   av1_compute_num_workers_for_mt(cpi);
   av1_init_frame_mt(ppi, cpi);
+
+  DuckyEncodeInfoSetEncodeFrameDecision(&cpi->ducky_encode_info, decision);
   const int status = av1_get_compressed_data(cpi, &cpi_data);
   (void)status;
   assert(status == static_cast<int>(AOM_CODEC_OK));
   encode_frame_result.bitstream_buf.resize(cpi_data.frame_size);
+  DuckyEncodeInfoGetEncodeFrameResult(&cpi->ducky_encode_info,
+                                      &encode_frame_result);
   av1_post_encode_updates(cpi, &cpi_data);
   if (cpi->common.show_frame) {
     // decrement frames_left counter

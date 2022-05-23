@@ -2311,6 +2311,38 @@ typedef struct {
   uint8_t *entropy_ctx;
 } CoeffBufferPool;
 
+#if !CONFIG_REALTIME_ONLY
+/*!\cond */
+// DUCKY_ENCODE_FRAME_MODE is c version of EncodeFrameMode
+typedef enum {
+  DUCKY_ENCODE_FRAME_MODE_NONE,  // Let native AV1 determine q index and rdmult
+  DUCKY_ENCODE_FRAME_MODE_QINDEX,  // DuckyEncode determines q index and AV1
+                                   // determines rdmult
+  DUCKY_ENCODE_FRAME_MODE_QINDEX_RDMULT  // DuckyEncode determines q index and
+                                         // rdmult
+} DUCKY_ENCODE_FRAME_MODE;
+
+typedef struct DuckyEncodeFrameInfo {
+  DUCKY_ENCODE_FRAME_MODE mode;
+  int q_index;
+  int rdmult;
+} DuckyEncodeFrameInfo;
+
+typedef struct DuckyEncodeFrameResult {
+  int q_index;
+  int rdmult;
+  int rate;
+  int64_t dist;
+  double psnr;
+} DuckyEncodeFrameResult;
+
+typedef struct DuckyEncodeInfo {
+  DuckyEncodeFrameInfo frame_info;
+  DuckyEncodeFrameResult frame_result;
+} DuckyEncodeInfo;
+/*!\endcond */
+#endif
+
 /*!
  * \brief Structure to hold data corresponding to an encoded frame.
  */
@@ -3342,6 +3374,13 @@ typedef struct AV1_COMP {
    * 1:yes 0:no
    */
   int use_ducky_encode;
+
+#if !CONFIG_REALTIME_ONLY
+  /*! A structure that facilitates the communication between DuckyEncode and AV1
+   * encoder.
+   */
+  DuckyEncodeInfo ducky_encode_info;
+#endif  // CONFIG_REALTIME_ONLY
 } AV1_COMP;
 
 /*!

@@ -16,8 +16,9 @@
 #include <vector>
 #include <memory>
 
-#include "av1/encoder/firstpass.h"
 #include "aom/aom_encoder.h"
+#include "av1/encoder/firstpass.h"
+#include "av1/ratectrl_qmode_interface.h"
 
 namespace aom {
 struct VideoInfo {
@@ -31,8 +32,25 @@ struct VideoInfo {
 
 struct EncodeFrameResult {
   std::vector<uint8_t> bitstream_buf;
+  // TODO(angiebird): update global_coding_idx and global_order_idx properly.
   int global_coding_idx;
   int global_order_idx;
+  int q_index;
+  int rdmult;
+  int rate;
+  int64_t dist;
+  double psnr;
+};
+
+enum class EncodeFrameMode {
+  kNone,         // Let native AV1 determine q index and rdmult
+  kQindex,       // DuckyEncode determines q index and AV1 determines rdmult
+  kQindexRdmult  // DuckyEncode determines q index and rdmult
+};
+
+struct EncodeFrameDecision {
+  EncodeFrameMode mode;
+  FrameEncodeParameters parameters;
 };
 
 // DuckyEncode is an experimental encoder c++ interface for two-pass mode.
@@ -49,7 +67,7 @@ class DuckyEncode {
   ~DuckyEncode();
   std::vector<FIRSTPASS_STATS> ComputeFirstPassStats();
   void StartEncode(const std::vector<FIRSTPASS_STATS> &stats_list);
-  EncodeFrameResult EncodeFrame();
+  EncodeFrameResult EncodeFrame(const EncodeFrameDecision &decision);
   void EndEncode();
 
  private:

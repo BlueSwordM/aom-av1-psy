@@ -2721,6 +2721,15 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     }
 #endif  // CONFIG_RATECTRL_LOG && CONFIG_THREE_PASS && CONFIG_BITRATE_ACCURACY
 
+    if (cpi->use_ducky_encode) {
+      const DuckyEncodeFrameInfo *frame_info =
+          &cpi->ducky_encode_info.frame_info;
+      if (frame_info->mode == DUCKY_ENCODE_FRAME_MODE_QINDEX) {
+        q = frame_info->q_index;
+      }
+      // TODO(angiebird): Implement DUCKY_ENCODE_FRAME_MODE_QINDEX_RDMULT mode
+    }
+
     av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                       q_cfg->enable_chroma_deltaq, q_cfg->enable_hdr_deltaq);
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
@@ -2822,6 +2831,18 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
       // bits used for this frame
       rc->projected_frame_size = (int)(*size) << 3;
+
+      if (cpi->use_ducky_encode) {
+        PSNR_STATS psnr;
+        aom_calc_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr);
+        DuckyEncodeFrameResult *frame_result =
+            &cpi->ducky_encode_info.frame_result;
+        frame_result->q_index = q;
+        frame_result->rdmult = cpi->rd.RDMULT;
+        frame_result->rate = rc->projected_frame_size;
+        frame_result->dist = psnr.sse[0];
+        frame_result->psnr = psnr.psnr[0];
+      }
 #if CONFIG_RD_COMMAND
       PSNR_STATS psnr;
       aom_calc_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr);
@@ -2863,6 +2884,10 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     }
 #endif
 
+    if (cpi->use_ducky_encode) {
+      // Ducky encode currently does not support recode loop.
+      loop = 0;
+    }
 #if CONFIG_BITRATE_ACCURACY || CONFIG_RD_COMMAND
     loop = 0;  // turn off recode loop when CONFIG_BITRATE_ACCURACY is on
 #endif         // CONFIG_BITRATE_ACCURACY || CONFIG_RD_COMMAND
