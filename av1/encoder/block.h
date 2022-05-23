@@ -22,6 +22,7 @@
 #include "av1/common/mvref_common.h"
 
 #include "av1/encoder/enc_enums.h"
+#include "av1/encoder/mcomp_structs.h"
 #if !CONFIG_REALTIME_ONLY
 #include "av1/encoder/partition_cnn_weights.h"
 #endif
@@ -1191,6 +1192,15 @@ typedef struct macroblock {
    * extending outside the UMV borders
    */
   FullMvLimits mv_limits;
+
+  /*! \brief Buffer for storing the search site config.
+   *
+   * When resize mode or super resolution mode is on, the stride of the
+   * reference frame does not always match what's specified in \ref
+   * MotionVectorSearchParams::search_site_cfg. When his happens, we update the
+   * search_sine_config buffer here and use it for motion search.
+   */
+  search_site_config search_site_cfg_buf[NUM_DISTINCT_SEARCH_METHODS];
   /**@}*/
 
   /*****************************************************************************

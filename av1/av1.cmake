@@ -187,6 +187,7 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/lookahead.h"
             "${AOM_ROOT}/av1/encoder/mcomp.c"
             "${AOM_ROOT}/av1/encoder/mcomp.h"
+            "${AOM_ROOT}/av1/encoder/mcomp_structs.h"
             "${AOM_ROOT}/av1/encoder/ml.c"
             "${AOM_ROOT}/av1/encoder/ml.h"
             "${AOM_ROOT}/av1/encoder/model_rd.h"

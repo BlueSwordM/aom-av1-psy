@@ -1865,19 +1865,6 @@ void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
        counts_2 * blk_h * blk_w * 30 > width * height);
 }
 
-// Function pointer to search site config initialization
-// of different search method functions.
-typedef void (*av1_init_search_site_config)(search_site_config *cfg, int stride,
-                                            int level);
-
-av1_init_search_site_config
-    av1_init_motion_compensation[NUM_DISTINCT_SEARCH_METHODS] = {
-      av1_init_dsmotion_compensation,     av1_init_motion_compensation_nstep,
-      av1_init_motion_compensation_nstep, av1_init_dsmotion_compensation,
-      av1_init_motion_compensation_hex,   av1_init_motion_compensation_bigdia,
-      av1_init_motion_compensation_square
-    };
-
 static void init_motion_estimation(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MotionVectorSearchParams *const mv_search_params = &cpi->mv_search_params;

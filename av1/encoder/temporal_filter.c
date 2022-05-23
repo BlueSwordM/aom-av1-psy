@@ -33,6 +33,7 @@
 #include "av1/encoder/firstpass.h"
 #include "av1/encoder/gop_structure.h"
 #include "av1/encoder/mcomp.h"
+#include "av1/encoder/motion_search_facade.h"
 #include "av1/encoder/pass2_strategy.h"
 #include "av1/encoder/ratectrl.h"
 #include "av1/encoder/reconinter_enc.h"
@@ -109,8 +110,8 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   SUBPEL_MOTION_SEARCH_PARAMS ms_params;
   const SEARCH_METHODS search_method = NSTEP;
-  const search_site_config *search_site_cfg =
-      cpi->mv_search_params.search_site_cfg[SS_CFG_LOOKAHEAD];
+  const search_site_config *search_site_cfg = av1_get_search_site_config(
+      mb->search_site_cfg_buf, &cpi->mv_search_params, search_method, y_stride);
   const int step_param = av1_init_search_range(
       AOMMAX(frame_to_filter->y_crop_width, frame_to_filter->y_crop_height));
   const SUBPEL_SEARCH_TYPE subpel_search_type = USE_8_TAPS;

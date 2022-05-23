@@ -18,6 +18,7 @@
 #include "aom_dsp/txfm_common.h"
 #include "av1/common/blockd.h"
 #include "av1/encoder/encoder.h"
+#include "av1/encoder/motion_search_facade.h"
 #include "config/aom_dsp_rtcd.h"
 #include "config/av1_rtcd.h"
 
@@ -265,8 +266,12 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
     center_mv = ref_mv;
   else
     center_mv = tmp_mv->as_mv;
-  const search_site_config *src_search_sites =
-      cpi->mv_search_params.search_site_cfg[SS_CFG_SRC];
+
+  const SEARCH_METHODS search_method = cpi->sf.mv_sf.search_method;
+  const MotionVectorSearchParams *mv_search_params = &cpi->mv_search_params;
+  const int ref_stride = xd->plane[0].pre[0].stride;
+  const search_site_config *src_search_sites = av1_get_search_site_config(
+      x->search_site_cfg_buf, mv_search_params, search_method, ref_stride);
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &center_mv,
                                      src_search_sites,
