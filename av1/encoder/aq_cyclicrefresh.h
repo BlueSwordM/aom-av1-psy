@@ -109,6 +109,7 @@ struct CYCLIC_REFRESH {
   int apply_cyclic_refresh;
   int skip_over4x4;
   int counter_encode_maxq_scene_change;
+  int use_block_sad_scene_det;
   /*!\endcond */
 };
 
