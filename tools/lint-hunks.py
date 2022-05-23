@@ -114,14 +114,16 @@ def main(argv=None):
             if args:
                 # File contents come from git
                 show_cmd = SHOW_CMD + [args[0] + ":" + filename]
-                show = Subprocess(show_cmd, stdout=subprocess.PIPE)
+                show = Subprocess(show_cmd, stdout=subprocess.PIPE, text=True)
                 lint = Subprocess(cpplint_cmd, expected_returncode=(0, 1),
-                                  stdin=show.stdout, stderr=subprocess.PIPE)
+                                  stdin=show.stdout, stderr=subprocess.PIPE,
+                                  text=True)
                 lint_out = lint.communicate()[1]
             else:
                 # File contents come from the working tree
                 lint = Subprocess(cpplint_cmd, expected_returncode=(0, 1),
-                                  stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+                                  stdin=subprocess.PIPE, stderr=subprocess.PIPE,
+                                  text=True)
                 stdin = open(os.path.join(tl, filename)).read()
                 lint_out = lint.communicate(stdin)[1]
 
