@@ -574,7 +574,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       "AB: Operating point(OP) index, "
       "xy: Target level index for the OP. "
       "E.g. \"0\" means target level index 0 for the 0th OP, "
-      "\"1021\" means target level index 21 for the 10th OP."),
+      "\"1019\" means target level index 19 (6.3) for the 10th OP."),
   .set_min_cr = ARG_DEF(
       NULL, "min-cr", 1,
       "Set minimum compression ratio. Take integer values. Default is 0. "
