@@ -2401,9 +2401,13 @@ static int encode_without_recode(AV1_COMP *cpi) {
   {
     // For SVC the inter-layer/spatial prediction is not done for newmv
     // (zero_mode is forced), and since the scaled references are only
-    // use for newmv search, we can avoid scaling here.
+    // use for newmv search, we can avoid scaling here when
+    // force_zero_mode_spatial_ref is set for SVC mode.
+    // Also add condition for dynamic_resize: for dynamic_resize we always
+    // check for scaling references for now.
     if (!frame_is_intra_only(cm) &&
-        !(cpi->ppi->use_svc && cpi->svc.force_zero_mode_spatial_ref))
+        (!cpi->ppi->use_svc || !cpi->svc.force_zero_mode_spatial_ref ||
+         cpi->oxcf.resize_cfg.resize_mode == RESIZE_DYNAMIC))
       av1_scale_references(cpi, filter_scaler, phase_scaler, 1);
   }
 

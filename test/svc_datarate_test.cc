@@ -128,10 +128,10 @@ class DatarateTestSVC
     }
     // Set the reference/update flags, layer_id, and reference_map
     // buffer index.
-    frame_flags_ =
-        set_layer_pattern(video->frame(), &layer_id_, &ref_frame_config_,
-                          &ref_frame_comp_pred_, spatial_layer_id, multi_ref_,
-                          comp_pred_, (video->frame() % cfg_.kf_max_dist) == 0);
+    frame_flags_ = set_layer_pattern(
+        video->frame(), &layer_id_, &ref_frame_config_, &ref_frame_comp_pred_,
+        spatial_layer_id, multi_ref_, comp_pred_,
+        (video->frame() % cfg_.kf_max_dist) == 0, dynamic_enable_disable_mode_);
     if (intra_only_ == 1 && frame_sync_ > 0) {
       // Set an Intra-only frame on SL0 at frame_sync_.
       // In order to allow decoding to start on SL0 in mid-sequence we need to
@@ -247,7 +247,8 @@ class DatarateTestSVC
       int frame_cnt, aom_svc_layer_id_t *layer_id,
       aom_svc_ref_frame_config_t *ref_frame_config,
       aom_svc_ref_frame_comp_pred_t *ref_frame_comp_pred, int spatial_layer,
-      int multi_ref, int comp_pred, int is_key_frame) {
+      int multi_ref, int comp_pred, int is_key_frame,
+      int dynamic_enable_disable_mode) {
     int lag_index = 0;
     int base_count = frame_cnt >> 2;
     layer_id->spatial_layer_id = spatial_layer;
@@ -487,6 +488,13 @@ class DatarateTestSVC
           ref_frame_config->refresh[7] = 1;
       }
     }
+    // If the top spatial layer is first-time encoded in mid-sequence
+    // (i.e., dynamic_enable_disable_mode = 1), then don't predict from LAST,
+    // since it will have been last updated on first key frame (SL0) and so
+    // be different resolution from SL2.
+    if (dynamic_enable_disable_mode == 1 &&
+        layer_id->spatial_layer_id == number_spatial_layers_ - 1)
+      ref_frame_config->reference[0] = 0;
     return layer_flags;
   }
 
