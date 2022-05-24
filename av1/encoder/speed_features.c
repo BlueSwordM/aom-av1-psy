@@ -1338,12 +1338,18 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
   }
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
-    if (speed >= 10) {
+    // TODO(marpan): Check settings for speed 7 and 8.
+    if (speed >= 9) {
       sf->rt_sf.prune_idtx_nonrd = 1;
       sf->rt_sf.part_early_exit_zeromv = 1;
+      sf->rt_sf.skip_lf_screen = 1;
       sf->rt_sf.use_nonrd_filter_search = 0;
+      sf->rt_sf.nonrd_prune_ref_frame_search = 3;
+      sf->rt_sf.var_part_split_threshold_shift = 10;
+      sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
+      sf->rt_sf.force_half_pel_block = 1;
+      sf->rt_sf.reduce_zeromv_mvres = true;
     }
-    if (speed >= 9) sf->rt_sf.skip_lf_screen = 1;
     sf->rt_sf.skip_cdef_sb = 1;
     sf->rt_sf.use_rtc_tf = 0;
     sf->rt_sf.use_comp_ref_nonrd = 0;
