@@ -599,45 +599,58 @@ static int64_t cfl_compute_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   return cfl_cost;
 }
 
-static void cfl_pick_plane_parameter(const AV1_COMP *const cpi, MACROBLOCK *x,
-                                     int plane, TX_SIZE tx_size,
-                                     int cfl_search_range,
-                                     RD_STATS cfl_rd_arr[CFL_MAGS_SIZE]) {
+static const int cfl_dir_ls[2] = { 1, -1 };
+
+// If cfl_search_range is CFL_MAGS_SIZE, return zero. Otherwise return the index
+// of the best alpha found using intra_model_rd().
+static int cfl_pick_plane_parameter(const AV1_COMP *const cpi, MACROBLOCK *x,
+                                    int plane, TX_SIZE tx_size,
+                                    int cfl_search_range) {
   assert(cfl_search_range >= 1 && cfl_search_range <= CFL_MAGS_SIZE);
-  MACROBLOCKD *const xd = &x->e_mbd;
 
-  xd->cfl.use_dc_pred_cache = 1;
+  if (cfl_search_range == CFL_MAGS_SIZE) return CFL_INDEX_ZERO;
 
-  MB_MODE_INFO *const mbmi = xd->mi[0];
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
   assert(mbmi->uv_mode == UV_CFL_PRED);
   const MACROBLOCKD_PLANE *pd = &xd->plane[plane];
   const BLOCK_SIZE plane_bsize =
       get_plane_block_size(mbmi->bsize, pd->subsampling_x, pd->subsampling_y);
 
-  const int dir_ls[2] = { 1, -1 };
-
   int est_best_cfl_idx = CFL_INDEX_ZERO;
-  if (cfl_search_range < CFL_MAGS_SIZE) {
-    int fast_mode = 1;
-    int start_cfl_idx = CFL_INDEX_ZERO;
-    int64_t best_cfl_cost = cfl_compute_rd(cpi, x, plane, tx_size, plane_bsize,
-                                           start_cfl_idx, fast_mode, NULL);
-    for (int si = 0; si < 2; ++si) {
-      const int dir = dir_ls[si];
-      for (int i = 1; i < CFL_MAGS_SIZE; ++i) {
-        int cfl_idx = start_cfl_idx + dir * i;
-        if (cfl_idx < 0 || cfl_idx >= CFL_MAGS_SIZE) break;
-        int64_t cfl_cost = cfl_compute_rd(cpi, x, plane, tx_size, plane_bsize,
-                                          cfl_idx, fast_mode, NULL);
-        if (cfl_cost < best_cfl_cost) {
-          best_cfl_cost = cfl_cost;
-          est_best_cfl_idx = cfl_idx;
-        } else {
-          break;
-        }
+  int fast_mode = 1;
+  int start_cfl_idx = CFL_INDEX_ZERO;
+  int64_t best_cfl_cost = cfl_compute_rd(cpi, x, plane, tx_size, plane_bsize,
+                                         start_cfl_idx, fast_mode, NULL);
+  for (int si = 0; si < 2; ++si) {
+    const int dir = cfl_dir_ls[si];
+    for (int i = 1; i < CFL_MAGS_SIZE; ++i) {
+      int cfl_idx = start_cfl_idx + dir * i;
+      if (cfl_idx < 0 || cfl_idx >= CFL_MAGS_SIZE) break;
+      int64_t cfl_cost = cfl_compute_rd(cpi, x, plane, tx_size, plane_bsize,
+                                        cfl_idx, fast_mode, NULL);
+      if (cfl_cost < best_cfl_cost) {
+        best_cfl_cost = cfl_cost;
+        est_best_cfl_idx = cfl_idx;
+      } else {
+        break;
       }
     }
   }
+  return est_best_cfl_idx;
+}
+
+static void cfl_pick_plane_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
+                              int plane, TX_SIZE tx_size, int cfl_search_range,
+                              RD_STATS cfl_rd_arr[CFL_MAGS_SIZE],
+                              int est_best_cfl_idx) {
+  assert(cfl_search_range >= 1 && cfl_search_range <= CFL_MAGS_SIZE);
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  assert(mbmi->uv_mode == UV_CFL_PRED);
+  const MACROBLOCKD_PLANE *pd = &xd->plane[plane];
+  const BLOCK_SIZE plane_bsize =
+      get_plane_block_size(mbmi->bsize, pd->subsampling_x, pd->subsampling_y);
 
   for (int cfl_idx = 0; cfl_idx < CFL_MAGS_SIZE; ++cfl_idx) {
     av1_invalid_rd_stats(&cfl_rd_arr[cfl_idx]);
@@ -647,8 +660,11 @@ static void cfl_pick_plane_parameter(const AV1_COMP *const cpi, MACROBLOCK *x,
   int start_cfl_idx = est_best_cfl_idx;
   cfl_compute_rd(cpi, x, plane, tx_size, plane_bsize, start_cfl_idx, fast_mode,
                  &cfl_rd_arr[start_cfl_idx]);
+
+  if (cfl_search_range == 1) return;
+
   for (int si = 0; si < 2; ++si) {
-    const int dir = dir_ls[si];
+    const int dir = cfl_dir_ls[si];
     for (int i = 1; i < cfl_search_range; ++i) {
       int cfl_idx = start_cfl_idx + dir * i;
       if (cfl_idx < 0 || cfl_idx >= CFL_MAGS_SIZE) break;
@@ -656,9 +672,6 @@ static void cfl_pick_plane_parameter(const AV1_COMP *const cpi, MACROBLOCK *x,
                      &cfl_rd_arr[cfl_idx]);
     }
   }
-  xd->cfl.use_dc_pred_cache = 0;
-  xd->cfl.dc_pred_is_cached[0] = 0;
-  xd->cfl.dc_pred_is_cached[1] = 0;
 }
 
 /*!\brief Pick the optimal parameters for Chroma to Luma (CFL) component
@@ -698,11 +711,48 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
   const ModeCosts *mode_costs = &x->mode_costs;
   RD_STATS cfl_rd_arr_u[CFL_MAGS_SIZE];
   RD_STATS cfl_rd_arr_v[CFL_MAGS_SIZE];
+  MACROBLOCKD *const xd = &x->e_mbd;
+  int est_best_cfl_idx_u, est_best_cfl_idx_v;
 
   av1_invalid_rd_stats(best_rd_stats);
 
-  cfl_pick_plane_parameter(cpi, x, 1, tx_size, cfl_search_range, cfl_rd_arr_u);
-  cfl_pick_plane_parameter(cpi, x, 2, tx_size, cfl_search_range, cfl_rd_arr_v);
+  // As the dc pred data is same for different values of alpha, enable the
+  // caching of dc pred data.
+  xd->cfl.use_dc_pred_cache = 1;
+  // Evaluate alpha parameter of each chroma plane.
+  est_best_cfl_idx_u =
+      cfl_pick_plane_parameter(cpi, x, 1, tx_size, cfl_search_range);
+  est_best_cfl_idx_v =
+      cfl_pick_plane_parameter(cpi, x, 2, tx_size, cfl_search_range);
+
+  // For cfl_search_range=1, further refinement of alpha is not enabled. Hence
+  // CfL index=0 for both the chroma planes implies invalid CfL mode.
+  if (cfl_search_range == 1 && est_best_cfl_idx_u == CFL_INDEX_ZERO &&
+      est_best_cfl_idx_v == CFL_INDEX_ZERO) {
+    // Set invalid CfL parameters here as CfL mode is invalid.
+    *best_cfl_alpha_idx = 0;
+    *best_cfl_alpha_signs = 0;
+
+    // Clear the following flags to avoid the unintentional usage of cached dc
+    // pred data.
+    xd->cfl.use_dc_pred_cache = 0;
+    xd->cfl.dc_pred_is_cached[0] = 0;
+    xd->cfl.dc_pred_is_cached[1] = 0;
+    return 0;
+  }
+
+  // Compute the rd cost of each chroma plane using the alpha parameters which
+  // were already evaluated.
+  cfl_pick_plane_rd(cpi, x, 1, tx_size, cfl_search_range, cfl_rd_arr_u,
+                    est_best_cfl_idx_u);
+  cfl_pick_plane_rd(cpi, x, 2, tx_size, cfl_search_range, cfl_rd_arr_v,
+                    est_best_cfl_idx_v);
+
+  // Clear the following flags to avoid the unintentional usage of cached dc
+  // pred data.
+  xd->cfl.use_dc_pred_cache = 0;
+  xd->cfl.dc_pred_is_cached[0] = 0;
+  xd->cfl.dc_pred_is_cached[1] = 0;
 
   for (int ui = 0; ui < CFL_MAGS_SIZE; ++ui) {
     if (cfl_rd_arr_u[ui].rate == INT_MAX) continue;
