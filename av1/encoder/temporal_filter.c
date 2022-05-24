@@ -589,7 +589,7 @@ void av1_apply_temporal_filter_c(
   }
   // Smaller strength -> smaller filtering weight.
   double s_decay = pow((double)filter_strength / TF_STRENGTH_THRESHOLD, 2);
-  s_decay = CLIP(s_decay, 1e-5, 1);
+  s_decay = CLIP(s_decay, 1e-5, 1.2);
   for (int plane = 0; plane < num_planes; plane++) {
     // Larger noise -> larger filtering weight.
     const double n_decay = 0.5 + log(2 * noise_levels[plane] + 5.0);
