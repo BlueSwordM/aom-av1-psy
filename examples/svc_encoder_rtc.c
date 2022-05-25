@@ -1257,8 +1257,8 @@ int main(int argc, const char **argv) {
   aom_codec_control(&codec, AOME_SET_CPUUSED, app_input.speed);
   aom_codec_control(&codec, AV1E_SET_AQ_MODE, app_input.aq_mode ? 3 : 0);
   aom_codec_control(&codec, AV1E_SET_GF_CBR_BOOST_PCT, 0);
-  aom_codec_control(&codec, AV1E_SET_ENABLE_CDEF, 2);
-  aom_codec_control(&codec, AV1E_SET_LOOPFILTER_CONTROL, 2);
+  aom_codec_control(&codec, AV1E_SET_ENABLE_CDEF, 1);
+  aom_codec_control(&codec, AV1E_SET_LOOPFILTER_CONTROL, 1);
   aom_codec_control(&codec, AV1E_SET_ENABLE_WARPED_MOTION, 0);
   aom_codec_control(&codec, AV1E_SET_ENABLE_OBMC, 0);
   aom_codec_control(&codec, AV1E_SET_ENABLE_GLOBAL_MOTION, 0);
