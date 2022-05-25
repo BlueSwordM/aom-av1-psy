@@ -84,7 +84,7 @@ static INLINE int16x8_t get_max_lane_eob(const int16_t *iscan,
 static INLINE void get_min_max_lane_eob(const int16_t *iscan,
                                         int16x8_t *v_eobmin,
                                         int16x8_t *v_eobmax, uint16x8_t v_mask,
-                                        int n_coeffs) {
+                                        intptr_t n_coeffs) {
   const int16x8_t v_iscan = vld1q_s16(&iscan[0]);
   const int16x8_t v_nz_iscan_max = vbslq_s16(v_mask, v_iscan, vdupq_n_s16(-1));
 #if SKIP_EOB_FACTOR_ADJUST
@@ -304,8 +304,8 @@ static void highbd_quantize_b_adaptive_neon(
       ROUND_POWER_OF_TWO(dequant_ptr[1] * EOB_FACTOR, 7 + AOM_QM_BITS);
   const int32x4_t v_zbin_prescan =
       vaddq_s32(v_zbin_s32x, vdupq_n_s32(prescan_add_1));
-  int non_zero_count = (int)n_coeffs;
-  int i = (int)n_coeffs;
+  intptr_t non_zero_count = n_coeffs;
+  intptr_t i = n_coeffs;
   do {
     const int32x4_t v_coeff_a = vld1q_s32(coeff_ptr + i - 4);
     const int32x4_t v_coeff_b = vld1q_s32(coeff_ptr + i - 8);
@@ -322,7 +322,7 @@ static void highbd_quantize_b_adaptive_neon(
     i -= 8;
   } while (i > 0);
 
-  const int remaining_zcoeffs = n_coeffs - non_zero_count;
+  const intptr_t remaining_zcoeffs = n_coeffs - non_zero_count;
   memset(qcoeff_ptr + non_zero_count, 0,
          remaining_zcoeffs * sizeof(*qcoeff_ptr));
   memset(dqcoeff_ptr + non_zero_count, 0,
@@ -348,7 +348,7 @@ static void highbd_quantize_b_adaptive_neon(
   get_min_max_lane_eob(iscan, &v_eobmin, &v_eobmax,
                        vcombine_u16(v_mask_lo, v_mask_hi), n_coeffs);
 
-  int count = non_zero_count - 8;
+  intptr_t count = non_zero_count - 8;
   for (; count > 0; count -= 8) {
     coeff_ptr += 8;
     qcoeff_ptr += 8;
