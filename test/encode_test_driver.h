@@ -45,7 +45,7 @@ enum TestMode { kRealTime, kOnePassGood, kTwoPassGood, kAllIntra };
 class CxDataIterator {
  public:
   explicit CxDataIterator(aom_codec_ctx_t *encoder)
-      : encoder_(encoder), iter_(NULL) {}
+      : encoder_(encoder), iter_(nullptr) {}
 
   const aom_codec_cx_pkt_t *Next() {
     return aom_codec_get_cx_data(encoder_, &iter_);

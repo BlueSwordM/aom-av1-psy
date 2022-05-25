@@ -124,12 +124,12 @@ TEST(FilmGrainTableTest, SplitSingleSegment) {
 
   // Test lookup and remove that adjusts start time
   EXPECT_TRUE(aom_film_grain_table_lookup(&table, 0, 100, true, &grain));
-  EXPECT_EQ(NULL, table.head->next);
+  EXPECT_EQ(nullptr, table.head->next);
   EXPECT_EQ(100, table.head->start_time);
 
   // Test lookup and remove that adjusts end time
   EXPECT_TRUE(aom_film_grain_table_lookup(&table, 900, 1000, true, &grain));
-  EXPECT_EQ(NULL, table.head->next);
+  EXPECT_EQ(nullptr, table.head->next);
   EXPECT_EQ(100, table.head->start_time);
   EXPECT_EQ(900, table.head->end_time);
 
@@ -138,7 +138,7 @@ TEST(FilmGrainTableTest, SplitSingleSegment) {
   EXPECT_EQ(100, table.head->start_time);
   EXPECT_EQ(400, table.head->end_time);
 
-  ASSERT_NE((void *)NULL, table.head->next);
+  ASSERT_NE(nullptr, table.head->next);
   EXPECT_EQ(table.tail, table.head->next);
   EXPECT_EQ(600, table.head->next->start_time);
   EXPECT_EQ(900, table.head->next->end_time);

@@ -114,9 +114,9 @@ class QuantizeTestBase
 
   virtual void TearDown() {
     aom_free(qtab_);
-    qtab_ = NULL;
+    qtab_ = nullptr;
     aom_free(coeff_);
-    coeff_ = NULL;
+    coeff_ = nullptr;
   }
 
   void InitQuantizer() {

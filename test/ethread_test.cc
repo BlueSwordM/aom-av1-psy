@@ -37,7 +37,7 @@ class AVxFirstPassEncoderThreadTest
     init_flags_ = AOM_CODEC_USE_PSNR;
 
     row_mt_ = 1;
-    firstpass_stats_.buf = NULL;
+    firstpass_stats_.buf = nullptr;
     firstpass_stats_.sz = 0;
   }
   virtual ~AVxFirstPassEncoderThreadTest() { free(firstpass_stats_.buf); }

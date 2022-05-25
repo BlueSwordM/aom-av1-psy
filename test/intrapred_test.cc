@@ -47,7 +47,7 @@ typedef void (*IntraPred)(uint8_t *dst, ptrdiff_t stride, const uint8_t *above,
 // See bug aomedia:2003.
 template <typename FuncType>
 struct IntraPredFunc {
-  IntraPredFunc(FuncType pred = NULL, FuncType ref = NULL,
+  IntraPredFunc(FuncType pred = nullptr, FuncType ref = nullptr,
                 int block_width_value = 0, int block_height_value = 0,
                 int bit_depth_value = 0)
       : pred_fn(pred), ref_fn(ref), block_width(block_width_value),

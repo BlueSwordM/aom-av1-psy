@@ -94,7 +94,7 @@ class AV1Decoder : public Decoder {
 #if CONFIG_AV1_DECODER
     return aom_codec_av1_dx();
 #else
-    return NULL;
+    return nullptr;
 #endif
   }
 };
@@ -110,7 +110,7 @@ class AV1Encoder : public Encoder {
 #if CONFIG_AV1_ENCODER
     return aom_codec_av1_cx();
 #else
-    return NULL;
+    return nullptr;
 #endif
   }
 };
@@ -130,7 +130,7 @@ class AV1CodecFactory : public CodecFactory {
 #else
     (void)cfg;
     (void)flags;
-    return NULL;
+    return nullptr;
 #endif
   }
 
@@ -143,7 +143,7 @@ class AV1CodecFactory : public CodecFactory {
     (void)cfg;
     (void)init_flags;
     (void)stats;
-    return NULL;
+    return nullptr;
 #endif
   }
 

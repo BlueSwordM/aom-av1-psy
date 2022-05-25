@@ -126,11 +126,11 @@ INSTANTIATE_TEST_SUITE_P(C, Y4mVideoSourceTest,
 
 class Y4mVideoWriteTest : public Y4mVideoSourceTest {
  protected:
-  Y4mVideoWriteTest() : tmpfile_(NULL) {}
+  Y4mVideoWriteTest() : tmpfile_(nullptr) {}
 
   virtual ~Y4mVideoWriteTest() {
     delete tmpfile_;
-    input_file_ = NULL;
+    input_file_ = nullptr;
   }
 
   void ReplaceInputFile(FILE *input_file) {
@@ -192,7 +192,7 @@ TEST(Y4MHeaderTest, RegularHeader) {
   EXPECT_EQ(0, fseek(f.file(), 0, 0));
 
   y4m_input y4m;
-  EXPECT_EQ(y4m_input_open(&y4m, f.file(), NULL, 0, AOM_CSP_UNKNOWN,
+  EXPECT_EQ(y4m_input_open(&y4m, f.file(), nullptr, 0, AOM_CSP_UNKNOWN,
                            /*only_420=*/0),
             0);
   EXPECT_EQ(y4m.pic_w, 4);
@@ -221,7 +221,7 @@ TEST(Y4MHeaderTest, LongHeader) {
   EXPECT_EQ(fseek(f, 0, 0), 0);
 
   y4m_input y4m;
-  EXPECT_EQ(y4m_input_open(&y4m, f, NULL, 0, AOM_CSP_UNKNOWN,
+  EXPECT_EQ(y4m_input_open(&y4m, f, nullptr, 0, AOM_CSP_UNKNOWN,
                            /*only_420=*/0),
             0);
   EXPECT_EQ(y4m.pic_w, 4);
@@ -248,7 +248,7 @@ TEST(Y4MHeaderTest, FullRangeHeader) {
   EXPECT_EQ(fseek(f, 0, 0), 0);
 
   y4m_input y4m;
-  EXPECT_EQ(y4m_input_open(&y4m, f, NULL, 0, AOM_CSP_UNKNOWN,
+  EXPECT_EQ(y4m_input_open(&y4m, f, nullptr, 0, AOM_CSP_UNKNOWN,
                            /*only_420=*/0),
             0);
   EXPECT_EQ(y4m.pic_w, 4);

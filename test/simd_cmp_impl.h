@@ -1301,7 +1301,7 @@ const mapping m[] = { MAP(v64_sad_u8),
                       MAP(v256_unpacklo_s8_s16),
                       MAP(v256_unpackhi_s8_s16),
                       MAP(v256_blend_8),
-                      { NULL, NULL, NULL } };
+                      { nullptr, nullptr, nullptr } };
 #undef MAP
 
 // Map reference functions to machine tuned functions. Since the
@@ -1507,7 +1507,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
   memset(d, 0, sizeof(d));
 
   Map(name, &ref_simd, &simd);
-  if (simd == NULL || ref_simd == NULL) {
+  if (simd == nullptr || ref_simd == nullptr) {
     FAIL() << "Internal error: Unknown intrinsic function " << name;
   }
   for (unsigned int count = 0;
@@ -1754,7 +1754,7 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
   memset(d, 0, sizeof(d));
 
   Map(name, &ref_simd, &simd);
-  if (simd == NULL || ref_simd == NULL) {
+  if (simd == nullptr || ref_simd == nullptr) {
     FAIL() << "Internal error: Unknown intrinsic function " << name;
   }
 
@@ -2014,7 +2014,7 @@ void TestSimd3Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
   memset(d, 0, sizeof(d));
 
   Map(name, &ref_simd, &simd);
-  if (simd == NULL || ref_simd == NULL) {
+  if (simd == nullptr || ref_simd == nullptr) {
     FAIL() << "Internal error: Unknown intrinsic function " << name;
   }
 
