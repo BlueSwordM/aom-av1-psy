@@ -1666,6 +1666,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   if (speed >= 9) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_3;
     sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
+    sf->rt_sf.screen_content_cdef_filter_qindex_thresh = 20;
     sf->rt_sf.estimate_motion_for_var_based_partition = 0;
     sf->rt_sf.force_large_partition_blocks = 1;
     sf->rt_sf.skip_intra_pred = 2;
@@ -1682,6 +1683,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
     sf->rt_sf.force_half_pel_block = 1;
     sf->rt_sf.reduce_zeromv_mvres = true;
+    sf->rt_sf.screen_content_cdef_filter_qindex_thresh = 80;
   }
 }
 

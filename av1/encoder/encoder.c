@@ -2144,11 +2144,16 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     start_timing(cpi, cdef_time);
 #endif
     const int num_workers = cpi->mt_info.num_mod_workers[MOD_CDEF];
+    const int use_screen_content_model =
+        cm->quant_params.base_qindex >
+            AOMMAX(cpi->sf.rt_sf.screen_content_cdef_filter_qindex_thresh,
+                   cpi->rc.best_quality + 5) &&
+        cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN;
     // Find CDEF parameters
     av1_cdef_search(&cpi->mt_info, &cm->cur_frame->buf, cpi->source, cm, xd,
                     cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult,
                     cpi->sf.rt_sf.skip_cdef_sb, cpi->rc.frames_since_key,
-                    cpi->oxcf.tool_cfg.cdef_control,
+                    cpi->oxcf.tool_cfg.cdef_control, use_screen_content_model,
                     cpi->svc.non_reference_frame);
 
     // Apply the filter

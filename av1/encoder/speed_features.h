@@ -1531,6 +1531,13 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // by 8.44% for speed 9 on a typical image dataset with coding performance
   // gain of 0.78%.
   bool vbp_prune_16x16_split_using_min_max_sub_blk_var;
+
+  // A qindex threshold that determines whether to use qindex based
+  // CDEF filter strength estimation for screen content types.
+  // This speed feature has a substantial gain on coding metrics,
+  // with moderate increased encoding time.
+  // Set to zero to turn off this speed feature.
+  int screen_content_cdef_filter_qindex_thresh;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */
