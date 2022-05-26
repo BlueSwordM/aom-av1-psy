@@ -561,7 +561,7 @@ int FindBetterGopCut(const std::vector<FIRSTPASS_STATS> &stats_list,
         // preceding frames
         temp_accu_coeff = 1.0;
         for (int n = j; n > j - 3 * 2 + count_f && n > first_frame; n--) {
-          if (order_index + n < num_stats) break;
+          if (order_index + n < 0) break;
           temp_accu_coeff *= stats_list[order_index + n].cor_coeff;
           this_score +=
               temp_accu_coeff *

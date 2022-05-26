@@ -753,7 +753,7 @@ TEST(RateControlQModeTest, TestKeyframeDetection) {
               ElementsAre(0, 30, 60, 90, 120, 150, 180, 210, 240));
 }
 
-TEST(RateControlQModeTest, DISABLED_TestGopIntervals) {
+TEST(RateControlQModeTest, TestGopIntervals) {
   FirstpassInfo firstpass_info;
   ASSERT_NO_FATAL_FAILURE(
       ReadFirstpassInfo("firstpass_stats", &firstpass_info));
@@ -770,7 +770,7 @@ TEST(RateControlQModeTest, DISABLED_TestGopIntervals) {
                  std::back_inserter(gop_interval_list),
                  [](GopStruct const &x) { return x.show_frame_count; });
   EXPECT_THAT(gop_interval_list,
-              ElementsAre(21, 9, 30, 30, 30, 21, 9, 30, 12, 16, 2, 30, 10));
+              ElementsAre(21, 9, 30, 30, 30, 21, 9, 30, 12, 16, 2, 30));
 }
 
 // MockRateControlQMode is provided for the use of clients of libaom, but it's
