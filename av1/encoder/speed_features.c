@@ -1276,6 +1276,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
           boosted ? INT_MAX : 350;
       sf->winner_mode_sf.prune_winner_mode_eval_level = boosted ? 0 : 2;
     }
+    if (speed >= 6) sf->rt_sf.skip_newmv_mode_based_on_sse = 2;
     if (speed == 8 && !cpi->ppi->use_svc) {
       sf->rt_sf.short_circuit_low_temp_var = 0;
       sf->rt_sf.use_nonrd_altref_frame = 1;
@@ -1313,6 +1314,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.force_large_partition_blocks_intra = 1;
     }
   } else {
+    if (speed >= 6) sf->rt_sf.skip_newmv_mode_based_on_sse = 3;
     if (speed >= 9) {
       sf->rt_sf.sad_based_adp_altref_lag = 1;
       sf->rt_sf.sad_based_comp_prune = 1;

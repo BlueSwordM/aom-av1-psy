@@ -2906,11 +2906,16 @@ static int64_t handle_inter_mode(
         }
 
         if (cpi->sf.rt_sf.skip_newmv_mode_based_on_sse) {
-          const double scale_factor[11] = { 0.7, 0.7, 0.7, 0.7, 0.7, 0.8,
-                                            0.8, 0.9, 0.9, 0.9, 0.9 };
-          assert(num_pels_log2_lookup[bsize] >= 4);
-          if (args->best_pred_sse <
-              scale_factor[num_pels_log2_lookup[bsize] - 4] * this_sse)
+          const int th_idx = cpi->sf.rt_sf.skip_newmv_mode_based_on_sse - 1;
+          const int pix_idx = num_pels_log2_lookup[bsize] - 4;
+          const double scale_factor[3][11] = {
+            { 0.7, 0.7, 0.7, 0.7, 0.7, 0.8, 0.8, 0.9, 0.9, 0.9, 0.9 },
+            { 0.7, 0.7, 0.7, 0.7, 0.8, 0.8, 1, 1, 1, 1, 1 },
+            { 0.7, 0.7, 0.7, 0.7, 1, 1, 1, 1, 1, 1, 1 }
+          };
+          assert(pix_idx >= 0);
+          assert(th_idx <= 2);
+          if (args->best_pred_sse < scale_factor[th_idx][pix_idx] * this_sse)
             continue;
         }
       }
