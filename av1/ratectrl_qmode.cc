@@ -782,12 +782,6 @@ GopStructList AV1RateControlQMode::DetermineGopInfo(
     int key_order_index = key_frame_list[ki];  // The key frame's display order
 
     std::vector<REGIONS> regions_list(MAX_FIRSTPASS_ANALYSIS_FRAMES);
-    // TODO(angiebird): Assume frames_to_key <= MAX_FIRSTPASS_ANALYSIS_FRAMES
-    // for now.
-    // Handle the situation that frames_to_key > MAX_FIRSTPASS_ANALYSIS_FRAMES
-    // here or refactor av1_identify_regions() to make it support
-    // frames_to_key > MAX_FIRSTPASS_ANALYSIS_FRAMES
-    assert(frames_to_key <= MAX_FIRSTPASS_ANALYSIS_FRAMES);
     int total_regions = 0;
     av1_identify_regions(firstpass_info.stats_list.data() + key_order_index,
                          frames_to_key, 0, regions_list.data(), &total_regions);

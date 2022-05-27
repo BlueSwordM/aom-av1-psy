@@ -1753,12 +1753,15 @@ void av1_identify_regions(const FIRSTPASS_STATS *const stats_start,
   if (total_frames <= 1) return;
 
   // store the initial decisions
-  REGIONS temp_regions[MAX_FIRSTPASS_ANALYSIS_FRAMES];
-  av1_zero_array(temp_regions, MAX_FIRSTPASS_ANALYSIS_FRAMES);
+  REGIONS *temp_regions =
+      (REGIONS *)aom_malloc(total_frames * sizeof(temp_regions[0]));
+  av1_zero_array(temp_regions, total_frames);
   // buffers for filtered stats
-  double filt_intra_err[MAX_FIRSTPASS_ANALYSIS_FRAMES] = { 0 };
-  double filt_coded_err[MAX_FIRSTPASS_ANALYSIS_FRAMES] = { 0 };
-  double grad_coded[MAX_FIRSTPASS_ANALYSIS_FRAMES] = { 0 };
+  double *filt_intra_err =
+      (double *)aom_calloc(total_frames, sizeof(*filt_intra_err));
+  double *filt_coded_err =
+      (double *)aom_calloc(total_frames, sizeof(*filt_coded_err));
+  double *grad_coded = (double *)aom_calloc(total_frames, sizeof(*grad_coded));
 
   int cur_region = 0, this_start = 0, this_last;
 
@@ -1847,6 +1850,11 @@ void av1_identify_regions(const FIRSTPASS_STATS *const stats_start,
     regions[k].start += offset;
     regions[k].last += offset;
   }
+
+  aom_free(temp_regions);
+  aom_free(filt_coded_err);
+  aom_free(filt_intra_err);
+  aom_free(grad_coded);
 }
 
 static int find_regions_index(const REGIONS *regions, int num_regions,
