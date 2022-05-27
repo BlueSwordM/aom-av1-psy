@@ -27,6 +27,8 @@
 
 namespace {
 
+constexpr int kRefFrameTableSize = 7;
+
 // Reads a whitespace-delimited string from stream, and parses it as a double.
 // Returns an empty string if the entire string was successfully parsed as a
 // double, or an error messaage if not.
@@ -301,14 +303,13 @@ static void AugmentTplFrameStatsWithMotionVector(
 }
 
 static RefFrameTable CreateToyRefFrameTable(int frame_count) {
-  RefFrameTable ref_frame_table;
-  const int ref_frame_table_size = static_cast<int>(ref_frame_table.size());
-  EXPECT_LE(frame_count, ref_frame_table_size);
+  RefFrameTable ref_frame_table(kRefFrameTableSize);
+  EXPECT_LE(frame_count, kRefFrameTableSize);
   for (int i = 0; i < frame_count; ++i) {
     ref_frame_table[i] =
         GopFrameBasic(0, 0, i, i, 0, GopFrameType::kRegularLeaf);
   }
-  for (int i = frame_count; i < ref_frame_table_size; ++i) {
+  for (int i = frame_count; i < kRefFrameTableSize; ++i) {
     ref_frame_table[i] = GopFrameInvalid();
   }
   return ref_frame_table;

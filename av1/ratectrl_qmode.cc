@@ -772,7 +772,7 @@ GopStructList AV1RateControlQMode::DetermineGopInfo(
     const FirstpassInfo &firstpass_info) {
   const int stats_size = static_cast<int>(firstpass_info.stats_list.size());
   GopStructList gop_list;
-  RefFrameManager ref_frame_manager(rc_param_.max_ref_frames);
+  RefFrameManager ref_frame_manager(rc_param_.ref_frame_table_size);
   int global_coding_idx_offset = 0;
   int global_order_idx_offset = 0;
   std::vector<int> key_frame_list = GetKeyFrameList(firstpass_info);
@@ -990,7 +990,8 @@ void TplFrameDepStatsPropagate(int coding_idx,
   }
 }
 
-// TODO(angiebird): Add unit test for this function
+// TODO(b/234422323): Add unit test for this function.
+// TODO(b/234422323): Update all slots on key frames.
 std::vector<RefFrameTable> GetRefFrameTableList(const GopStruct &gop_struct,
                                                 RefFrameTable ref_frame_table) {
   const int frame_count = static_cast<int>(gop_struct.gop_frame_list.size());

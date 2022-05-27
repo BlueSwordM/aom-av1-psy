@@ -20,7 +20,6 @@
 namespace aom {
 
 constexpr int kBlockRefCount = 2;
-constexpr int kRefFrameTableSize = 7;
 
 struct MotionVector {
   int row;          // subpel row
@@ -31,7 +30,7 @@ struct MotionVector {
 struct RateControlParam {
   int max_gop_show_frame_count;
   int min_gop_show_frame_count;
-  int max_ref_frames;
+  int ref_frame_table_size;  // number of reference frame buffers
   int base_q_index;
   int frame_width;
   int frame_height;
@@ -97,7 +96,7 @@ struct GopFrame {
   std::vector<ReferenceFrame>
       ref_frame_list;  // A list of available reference frames in priority order
                        // for the current to-be-coded frame. The list size
-                       // should be less or equal to kRefFrameTableSize. The
+                       // should be less or equal to ref_frame_table_size. The
                        // reference frames with smaller indices are more likely
                        // to be a good reference frame. Therefore, they should
                        // be prioritized when the reference frame count is
@@ -130,7 +129,11 @@ struct FirstpassInfo {
   std::vector<FIRSTPASS_STATS> stats_list;
 };
 
-using RefFrameTable = std::array<GopFrame, kRefFrameTableSize>;
+// The number of elements in RefFrameTable must always equal
+// ref_frame_table_size (as specified in RateControlParam).
+// TODO(b/234423076): Allow a default constructed RefFrameTable to be passed
+// to GetGopEncodeInfo for the first GOP only.
+using RefFrameTable = std::vector<GopFrame>;
 
 struct GopEncodeInfo {
   std::vector<FrameEncodeParameters> param_list;
