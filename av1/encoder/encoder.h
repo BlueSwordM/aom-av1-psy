@@ -4072,6 +4072,12 @@ static INLINE int is_frame_resize_pending(const AV1_COMP *const cpi) {
            cpi->common.height != resize_pending_params->height));
 }
 
+// Check if CDEF is used.
+static INLINE int is_cdef_used(const AV1_COMMON *const cm) {
+  return cm->seq_params->enable_cdef && !cm->features.coded_lossless &&
+         !cm->tiles.large_scale;
+}
+
 // Check if loop restoration filter is used.
 static INLINE int is_restoration_used(const AV1_COMMON *const cm) {
   return cm->seq_params->enable_restoration && !cm->features.all_lossless &&

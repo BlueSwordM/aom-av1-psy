@@ -845,6 +845,12 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
       copy_funs[plane](lr_ctxt->dst, lr_ctxt->frame, ctxt[plane].tile_rect.left,
                        ctxt[plane].tile_rect.right, cur_job_info->v_copy_start,
                        cur_job_info->v_copy_end);
+
+      if (lrworkerdata->do_extend_border) {
+        aom_extend_frame_borders_plane_row(lr_ctxt->frame, plane,
+                                           cur_job_info->v_copy_start,
+                                           cur_job_info->v_copy_end);
+      }
     } else {
       break;
     }
@@ -854,7 +860,8 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
 
 static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
                                            AVxWorker *workers, int nworkers,
-                                           AV1LrSync *lr_sync, AV1_COMMON *cm) {
+                                           AV1LrSync *lr_sync, AV1_COMMON *cm,
+                                           int do_extend_border) {
   FilterFrameCtxt *ctxt = lr_ctxt->ctxt;
 
   const int num_planes = av1_num_planes(cm);
@@ -897,6 +904,7 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
   for (i = num_workers - 1; i >= 0; --i) {
     AVxWorker *const worker = &workers[i];
     lr_sync->lrworkerdata[i].lr_ctxt = (void *)lr_ctxt;
+    lr_sync->lrworkerdata[i].do_extend_border = do_extend_border;
     worker->hook = loop_restoration_row_worker;
     worker->data1 = lr_sync;
     worker->data2 = &lr_sync->lrworkerdata[i];
@@ -918,7 +926,8 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
 void av1_loop_restoration_filter_frame_mt(YV12_BUFFER_CONFIG *frame,
                                           AV1_COMMON *cm, int optimized_lr,
                                           AVxWorker *workers, int num_workers,
-                                          AV1LrSync *lr_sync, void *lr_ctxt) {
+                                          AV1LrSync *lr_sync, void *lr_ctxt,
+                                          int do_extend_border) {
   assert(!cm->features.all_lossless);
 
   const int num_planes = av1_num_planes(cm);
@@ -929,7 +938,7 @@ void av1_loop_restoration_filter_frame_mt(YV12_BUFFER_CONFIG *frame,
                                          optimized_lr, num_planes);
 
   foreach_rest_unit_in_planes_mt(loop_rest_ctxt, workers, num_workers, lr_sync,
-                                 cm);
+                                 cm, do_extend_border);
 }
 
 // Initializes cdef_sync parameters.
@@ -1002,13 +1011,27 @@ static AOM_INLINE int get_cdef_row_next_job(AV1CdefSync *const cdef_sync,
 static int cdef_sb_row_worker_hook(void *arg1, void *arg2) {
   AV1CdefSync *const cdef_sync = (AV1CdefSync *)arg1;
   AV1CdefWorkerData *const cdef_worker = (AV1CdefWorkerData *)arg2;
-  const int nvfb =
-      (cdef_worker->cm->mi_params.mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
+  AV1_COMMON *cm = cdef_worker->cm;
+  const int nvfb = (cm->mi_params.mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   int cur_fbr;
+  const int num_planes = av1_num_planes(cm);
   while (get_cdef_row_next_job(cdef_sync, &cur_fbr, nvfb)) {
-    av1_cdef_fb_row(cdef_worker->cm, cdef_worker->xd, cdef_worker->linebuf,
-                    cdef_worker->colbuf, cdef_worker->srcbuf, cur_fbr,
+    MACROBLOCKD *xd = cdef_worker->xd;
+    av1_cdef_fb_row(cm, xd, cdef_worker->linebuf, cdef_worker->colbuf,
+                    cdef_worker->srcbuf, cur_fbr,
                     cdef_worker->cdef_init_fb_row_fn, cdef_sync);
+    if (cdef_worker->do_extend_border) {
+      for (int plane = 0; plane < num_planes; ++plane) {
+        const YV12_BUFFER_CONFIG *ybf = &cm->cur_frame->buf;
+        const int is_uv = plane > 0;
+        const int mi_high = MI_SIZE_LOG2 - xd->plane[plane].subsampling_y;
+        const int unit_height = MI_SIZE_64X64 << mi_high;
+        const int v_start = cur_fbr * unit_height;
+        const int v_end =
+            AOMMIN(v_start + unit_height, ybf->crop_heights[is_uv]);
+        aom_extend_frame_borders_plane_row(ybf, plane, v_start, v_end);
+      }
+    }
   }
   return 1;
 }
@@ -1017,7 +1040,8 @@ static int cdef_sb_row_worker_hook(void *arg1, void *arg2) {
 static void prepare_cdef_frame_workers(
     AV1_COMMON *const cm, MACROBLOCKD *xd, AV1CdefWorkerData *const cdef_worker,
     AVxWorkerHook hook, AVxWorker *const workers, AV1CdefSync *const cdef_sync,
-    int num_workers, cdef_init_fb_row_t cdef_init_fb_row_fn) {
+    int num_workers, cdef_init_fb_row_t cdef_init_fb_row_fn,
+    int do_extend_border) {
   const int num_planes = av1_num_planes(cm);
 
   cdef_worker[0].srcbuf = cm->cdef_info.srcbuf;
@@ -1028,6 +1052,7 @@ static void prepare_cdef_frame_workers(
     cdef_worker[i].cm = cm;
     cdef_worker[i].xd = xd;
     cdef_worker[i].cdef_init_fb_row_fn = cdef_init_fb_row_fn;
+    cdef_worker[i].do_extend_border = do_extend_border;
     for (int plane = 0; plane < num_planes; plane++)
       cdef_worker[i].linebuf[plane] = cm->cdef_info.linebuf[plane];
 
@@ -1111,8 +1136,8 @@ void av1_cdef_init_fb_row_mt(const AV1_COMMON *const cm,
 void av1_cdef_frame_mt(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                        AV1CdefWorkerData *const cdef_worker,
                        AVxWorker *const workers, AV1CdefSync *const cdef_sync,
-                       int num_workers,
-                       cdef_init_fb_row_t cdef_init_fb_row_fn) {
+                       int num_workers, cdef_init_fb_row_t cdef_init_fb_row_fn,
+                       int do_extend_border) {
   YV12_BUFFER_CONFIG *frame = &cm->cur_frame->buf;
   const int num_planes = av1_num_planes(cm);
 
@@ -1122,7 +1147,7 @@ void av1_cdef_frame_mt(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   reset_cdef_job_info(cdef_sync);
   prepare_cdef_frame_workers(cm, xd, cdef_worker, cdef_sb_row_worker_hook,
                              workers, cdef_sync, num_workers,
-                             cdef_init_fb_row_fn);
+                             cdef_init_fb_row_fn, do_extend_border);
   launch_cdef_workers(workers, num_workers);
   sync_cdef_workers(workers, cm, num_workers);
 }

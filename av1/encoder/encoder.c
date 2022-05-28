@@ -2159,6 +2159,28 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   set_ref_ptrs(cm, xd, LAST_FRAME, LAST_FRAME);
 }
 
+static INLINE int extend_borders_mt(const AV1_COMP *cpi,
+                                    MULTI_THREADED_MODULES stage, int plane) {
+  const AV1_COMMON *const cm = &cpi->common;
+  if (cpi->mt_info.num_mod_workers[stage] < 2) return 0;
+  switch (stage) {
+    // TODO(deepa.kg@ittiam.com): When cdef and loop-restoration are disabled,
+    // multi-thread frame border extension along with loop filter frame.
+    // As loop-filtering of a superblock row modifies the pixels of the
+    // above superblock row, border extension requires that loop filtering
+    // of the current and above superblock row is complete.
+    case MOD_LPF: return 0;
+    case MOD_CDEF:
+      return is_cdef_used(cm) && !cpi->rtc_ref.non_reference_frame &&
+             !is_restoration_used(cm) && !av1_superres_scaled(cm);
+    case MOD_LR:
+      return is_restoration_used(cm) &&
+             (cm->rst_info[plane].frame_restoration_type != RESTORE_NONE);
+    default: assert(0);
+  }
+  return 0;
+}
+
 /*!\brief Select and apply cdef filters and switchable restoration filters
  *
  * \ingroup high_level_algo
@@ -2192,9 +2214,13 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     // Apply the filter
     if (!cpi->rtc_ref.non_reference_frame) {
       if (num_workers > 1) {
+        // Extension of frame borders is multi-threaded along with cdef.
+        const int do_extend_border =
+            extend_borders_mt(cpi, MOD_CDEF, /* plane */ 0);
         av1_cdef_frame_mt(cm, xd, cpi->mt_info.cdef_worker,
                           cpi->mt_info.workers, &cpi->mt_info.cdef_sync,
-                          num_workers, av1_cdef_init_fb_row_mt);
+                          num_workers, av1_cdef_init_fb_row_mt,
+                          do_extend_border);
       } else {
         av1_cdef_frame(&cm->cur_frame->buf, cm, xd, av1_cdef_init_fb_row);
       }
@@ -2223,13 +2249,17 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
-      if (num_workers > 1)
+      if (num_workers > 1) {
+        // Extension of frame borders is multi-threaded along with loop
+        // restoration filter.
+        const int do_extend_border = 1;
         av1_loop_restoration_filter_frame_mt(
             &cm->cur_frame->buf, cm, 0, mt_info->workers, num_workers,
-            &mt_info->lr_row_sync, &cpi->lr_ctxt);
-      else
+            &mt_info->lr_row_sync, &cpi->lr_ctxt, do_extend_border);
+      } else {
         av1_loop_restoration_filter_frame(&cm->cur_frame->buf, cm, 0,
                                           &cpi->lr_ctxt);
+      }
     }
   } else {
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
@@ -2258,8 +2288,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
 
   const int use_loopfilter =
       !cm->features.coded_lossless && !cm->tiles.large_scale;
-  const int use_cdef = cm->seq_params->enable_cdef &&
-                       !cm->features.coded_lossless && !cm->tiles.large_scale;
+  const int use_cdef = is_cdef_used(cm);
   const int use_restoration = is_restoration_used(cm);
   // lpf_opt_level = 1 : Enables dual/quad loop-filtering.
   // lpf_opt_level is set to 1 if transform size search depth in inter blocks
@@ -3085,8 +3114,15 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   }
 
   // TODO(debargha): Fix mv search range on encoder side
-  // aom_extend_frame_inner_borders(&cm->cur_frame->buf, av1_num_planes(cm));
-  aom_extend_frame_borders(&cm->cur_frame->buf, av1_num_planes(cm));
+  for (int plane = 0; plane < av1_num_planes(cm); ++plane) {
+    const int extend_border_done = extend_borders_mt(cpi, MOD_CDEF, plane) ||
+                                   extend_borders_mt(cpi, MOD_LR, plane);
+    if (extend_border_done == 0) {
+      const YV12_BUFFER_CONFIG *ybf = &cm->cur_frame->buf;
+      aom_extend_frame_borders_plane_row(ybf, plane, 0,
+                                         ybf->crop_heights[plane > 0]);
+    }
+  }
 
 #ifdef OUTPUT_YUV_REC
   aom_write_one_yuv_frame(cm, &cm->cur_frame->buf);
