@@ -716,6 +716,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   // 2: on top of 1, prune rectangular partitions if NONE is inter, not a newmv
   // mode and skippable
   int skip_non_sq_part_based_on_none;
+
+  // Disables 8x8 and below partitions for low quantizers.
+  int disable_8x8_part_based_on_qidx;
 } PARTITION_SPEED_FEATURES;
 
 typedef struct MV_SPEED_FEATURES {

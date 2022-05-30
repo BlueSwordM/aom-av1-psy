@@ -598,6 +598,8 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
       thresholds[3] = INT32_MAX;
     }
   }
+  if (cpi->sf.part_sf.disable_8x8_part_based_on_qidx && (current_qindex < 128))
+    thresholds[3] = INT64_MAX;
 }
 
 // Set temporal variance low flag for superblock 64x64.

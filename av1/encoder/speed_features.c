@@ -1276,6 +1276,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
           boosted ? INT_MAX : 350;
       sf->winner_mode_sf.prune_winner_mode_eval_level = boosted ? 0 : 2;
     }
+    if (speed == 6) sf->part_sf.disable_8x8_part_based_on_qidx = 1;
     if (speed >= 6) sf->rt_sf.skip_newmv_mode_based_on_sse = 2;
     if (speed == 8 && !cpi->ppi->use_svc) {
       sf->rt_sf.short_circuit_low_temp_var = 0;
@@ -1767,6 +1768,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->reuse_best_prediction_for_part_ab = 0;
   part_sf->use_best_rd_for_pruning = 0;
   part_sf->skip_non_sq_part_based_on_none = 0;
+  part_sf->disable_8x8_part_based_on_qidx = 0;
 }
 
 static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
