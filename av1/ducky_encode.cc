@@ -137,6 +137,8 @@ static EncoderResource InitEncoder(
   aom_img_alloc(&enc_resource.img, video_info.img_fmt, video_info.frame_width,
                 video_info.frame_height, /*align=*/1);
   AV1EncoderConfig oxcf = GetEncoderConfig(video_info, g_usage, pass);
+  oxcf.dec_model_cfg.decoder_model_info_present_flag = 0;
+  oxcf.dec_model_cfg.display_model_info_present_flag = 0;
   av1_initialize_enc(g_usage, rc_end_usage);
   AV1_PRIMARY *ppi =
       av1_create_primary_compressor(nullptr,

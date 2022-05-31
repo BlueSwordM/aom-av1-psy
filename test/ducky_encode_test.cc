@@ -21,15 +21,17 @@
 
 #include "av1/ducky_encode.h"
 #include "av1/encoder/encoder.h"
+#include "test/video_source.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 namespace aom {
-// TODO(b/231517281): Re-enable after fix.
-TEST(DuckyEncodeTest, DISABLED_ComputeFirstPassStats) {
+TEST(DuckyEncodeTest, ComputeFirstPassStats) {
   aom_rational_t frame_rate = { 30, 1 };
   VideoInfo video_info = { 352,        288,
                            frame_rate, AOM_IMG_FMT_I420,
                            1,          "bus_352x288_420_f20_b8.yuv" };
+  video_info.file_path =
+      libaom_test::GetDataPath() + "/" + video_info.file_path;
   DuckyEncode ducky_encode(video_info);
   std::vector<FIRSTPASS_STATS> frame_stats =
       ducky_encode.ComputeFirstPassStats();
@@ -40,12 +42,13 @@ TEST(DuckyEncodeTest, DISABLED_ComputeFirstPassStats) {
   }
 }
 
-// TODO(b/231517281): Re-enable after fix.
-TEST(DuckyEncodeTest, DISABLED_EncodeFrame) {
+TEST(DuckyEncodeTest, EncodeFrame) {
   aom_rational_t frame_rate = { 30, 1 };
   VideoInfo video_info = { 352,        288,
                            frame_rate, AOM_IMG_FMT_I420,
                            17,         "bus_352x288_420_f20_b8.yuv" };
+  video_info.file_path =
+      libaom_test::GetDataPath() + "/" + video_info.file_path;
   DuckyEncode ducky_encode(video_info);
   std::vector<FIRSTPASS_STATS> frame_stats =
       ducky_encode.ComputeFirstPassStats();
@@ -68,6 +71,8 @@ TEST(DuckyEncodeTest, DISABLED_EncodeFrameWithQindex) {
   VideoInfo video_info = { 352,        288,
                            frame_rate, AOM_IMG_FMT_I420,
                            17,         "bus_352x288_420_f20_b8.yuv" };
+  video_info.file_path =
+      libaom_test::GetDataPath() + "/" + video_info.file_path;
   DuckyEncode ducky_encode(video_info);
   std::vector<FIRSTPASS_STATS> frame_stats =
       ducky_encode.ComputeFirstPassStats();
