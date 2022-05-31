@@ -80,6 +80,13 @@ static AV1EncoderConfig GetEncoderConfig(const VideoInfo &video_info,
   oxcf.use_highbitdepth = 0;
   // TODO(angiebird): Let user set the desired speed.
   oxcf.speed = 3;
+
+  // TODO(jingning): Change this to 35 when the baseline rate control
+  // logic is in place.
+  // Force maximum look ahead buffer to be 19. This will disable the use
+  // of maximum 32 GOP length.
+  oxcf.gf_cfg.lag_in_frames = 19;
+
   return oxcf;
 }
 
