@@ -24,7 +24,8 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 namespace aom {
-TEST(DuckyEncodeTest, ComputeFirstPassStats) {
+// TODO(b/231517281): Re-enable after fix.
+TEST(DuckyEncodeTest, DISABLED_ComputeFirstPassStats) {
   aom_rational_t frame_rate = { 30, 1 };
   VideoInfo video_info = { 352,        288,
                            frame_rate, AOM_IMG_FMT_I420,
@@ -39,7 +40,8 @@ TEST(DuckyEncodeTest, ComputeFirstPassStats) {
   }
 }
 
-TEST(DuckyEncodeTest, EncodeFrame) {
+// TODO(b/231517281): Re-enable after fix.
+TEST(DuckyEncodeTest, DISABLED_EncodeFrame) {
   aom_rational_t frame_rate = { 30, 1 };
   VideoInfo video_info = { 352,        288,
                            frame_rate, AOM_IMG_FMT_I420,
@@ -60,6 +62,7 @@ TEST(DuckyEncodeTest, EncodeFrame) {
   ducky_encode.EndEncode();
 }
 
+// TODO(b/231517281): Re-enable after fix.
 TEST(DuckyEncodeTest, DISABLED_EncodeFrameWithQindex) {
   aom_rational_t frame_rate = { 30, 1 };
   VideoInfo video_info = { 352,        288,

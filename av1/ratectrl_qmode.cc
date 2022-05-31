@@ -482,8 +482,9 @@ int FindBetterGopCut(const std::vector<FIRSTPASS_STATS> &stats_list,
   }
 
   // if the found scenecut is very close to the end, ignore it.
-  if (regions_list[num_regions - 1].last - regions_list[scenecut_idx].last <
-      4) {
+  if (scenecut_idx >= 0 &&
+      regions_list[num_regions - 1].last - regions_list[scenecut_idx].last <
+          4) {
     scenecut_idx = -1;
   }
 

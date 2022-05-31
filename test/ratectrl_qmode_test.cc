@@ -764,6 +764,7 @@ TEST(RateControlQModeTest, TestGopIntervals) {
   rc_param.frame_width = 352;
   rc_param.max_gop_show_frame_count = 32;
   rc_param.min_gop_show_frame_count = 4;
+  rc_param.ref_frame_table_size = 7;
   rc.SetRcParam(rc_param);
   GopStructList gop_list = rc.DetermineGopInfo(firstpass_info);
   std::vector<int> gop_interval_list;
