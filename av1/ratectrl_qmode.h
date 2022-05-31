@@ -104,6 +104,14 @@ class AV1RateControlQMode : public AV1RateControlQModeInterface {
       const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
       const RefFrameTable &ref_frame_table_snapshot) override;
 
+  // Public for testing only.
+  // Returns snapshots of the ref frame before and after each frame in
+  // gop_struct. The returned list will have n+1 entries for n frames.
+  // If this is first GOP, ref_frame_table is ignored and all refs are assumed
+  // invalid; otherwise ref_frame_table is used as the initial state.
+  std::vector<RefFrameTable> GetRefFrameTableList(
+      const GopStruct &gop_struct, RefFrameTable ref_frame_table);
+
  private:
   RateControlParam rc_param_;
 };

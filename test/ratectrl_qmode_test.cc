@@ -23,6 +23,7 @@
 #include "av1/reference_manager.h"
 #include "test/mock_ratectrl_qmode.h"
 #include "test/video_source.h"
+#include "third_party/googletest/src/googlemock/include/gmock/gmock.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 namespace {
@@ -752,6 +753,101 @@ TEST(RateControlQModeTest, TestKeyframeDetection) {
       ReadFirstpassInfo(kFirstpassStatsFile, &firstpass_info));
   EXPECT_THAT(GetKeyFrameList(firstpass_info),
               ElementsAre(0, 30, 60, 90, 120, 150, 180, 210, 240));
+}
+
+MATCHER_P(GopFrameMatches, expected, "") {
+#define COMPARE_FIELD(FIELD)                                   \
+  do {                                                         \
+    if (arg.FIELD != expected.FIELD) {                         \
+      *result_listener << "where " #FIELD " is " << arg.FIELD  \
+                       << " but should be " << expected.FIELD; \
+      return false;                                            \
+    }                                                          \
+  } while (0)
+  COMPARE_FIELD(is_valid);
+  COMPARE_FIELD(order_idx);
+  COMPARE_FIELD(coding_idx);
+  COMPARE_FIELD(global_order_idx);
+  COMPARE_FIELD(global_coding_idx);
+  COMPARE_FIELD(is_key_frame);
+  COMPARE_FIELD(is_arf_frame);
+  COMPARE_FIELD(is_show_frame);
+  COMPARE_FIELD(is_golden_frame);
+  COMPARE_FIELD(colocated_ref_idx);
+  COMPARE_FIELD(update_ref_idx);
+  COMPARE_FIELD(layer_depth);
+#undef COMPARE_FIELD
+
+  return true;
+}
+
+// Helper for tests which need to set update_ref_idx, but for which the indices
+// and depth don't matter (other than to allow creating multiple GopFrames which
+// are distinguishable).
+GopFrame GopFrameUpdateRefIdx(int index, GopFrameType gop_frame_type,
+                              int update_ref_idx) {
+  GopFrame frame =
+      GopFrameBasic(index, index, index, index, /*depth=*/0, gop_frame_type);
+  frame.update_ref_idx = update_ref_idx;
+  return frame;
+}
+
+TEST(RateControlQModeTest, TestGetRefFrameTableListFirstGop) {
+  AV1RateControlQMode rc;
+  RateControlParam rc_param;
+  rc_param.ref_frame_table_size = 3;
+  rc.SetRcParam(rc_param);
+
+  const auto invalid = GopFrameInvalid();
+  const auto frame0 = GopFrameUpdateRefIdx(0, GopFrameType::kRegularKey, -1);
+  const auto frame1 = GopFrameUpdateRefIdx(1, GopFrameType::kRegularLeaf, 2);
+  const auto frame2 = GopFrameUpdateRefIdx(2, GopFrameType::kRegularLeaf, 0);
+
+  const auto matches_invalid = GopFrameMatches(invalid);
+  const auto matches_frame0 = GopFrameMatches(frame0);
+  const auto matches_frame1 = GopFrameMatches(frame1);
+  const auto matches_frame2 = GopFrameMatches(frame2);
+
+  GopStruct gop_struct;
+  gop_struct.global_coding_idx_offset = 0;  // This is the first GOP.
+  gop_struct.gop_frame_list = { frame0, frame1, frame2 };
+  ASSERT_THAT(
+      // For the first GOP only, GetRefFrameTableList can be passed a
+      // default-constructed RefFrameTable (because it's all going to be
+      // replaced by the key frame anyway).
+      rc.GetRefFrameTableList(gop_struct, RefFrameTable()),
+      ElementsAre(
+          ElementsAre(matches_invalid, matches_invalid, matches_invalid),
+          ElementsAre(matches_frame0, matches_frame0, matches_frame0),
+          ElementsAre(matches_frame0, matches_frame0, matches_frame1),
+          ElementsAre(matches_frame2, matches_frame0, matches_frame1)));
+}
+
+TEST(RateControlQModeTest, TestGetRefFrameTableListNotFirstGop) {
+  AV1RateControlQMode rc;
+  RateControlParam rc_param;
+  rc_param.ref_frame_table_size = 3;
+  rc.SetRcParam(rc_param);
+
+  const auto previous = GopFrameUpdateRefIdx(0, GopFrameType::kRegularKey, -1);
+  const auto frame0 = GopFrameUpdateRefIdx(5, GopFrameType::kRegularLeaf, 2);
+  const auto frame1 = GopFrameUpdateRefIdx(6, GopFrameType::kRegularLeaf, -1);
+  const auto frame2 = GopFrameUpdateRefIdx(7, GopFrameType::kRegularLeaf, 0);
+
+  const auto matches_previous = GopFrameMatches(previous);
+  const auto matches_frame0 = GopFrameMatches(frame0);
+  const auto matches_frame2 = GopFrameMatches(frame2);
+
+  GopStruct gop_struct;
+  gop_struct.global_coding_idx_offset = 5;  // This is not the first GOP.
+  gop_struct.gop_frame_list = { frame0, frame1, frame2 };
+  ASSERT_THAT(
+      rc.GetRefFrameTableList(gop_struct, RefFrameTable(3, previous)),
+      ElementsAre(
+          ElementsAre(matches_previous, matches_previous, matches_previous),
+          ElementsAre(matches_previous, matches_previous, matches_frame0),
+          ElementsAre(matches_previous, matches_previous, matches_frame0),
+          ElementsAre(matches_frame2, matches_previous, matches_frame0)));
 }
 
 TEST(RateControlQModeTest, TestGopIntervals) {

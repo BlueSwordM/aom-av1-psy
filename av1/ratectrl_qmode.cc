@@ -985,16 +985,27 @@ void TplFrameDepStatsPropagate(int coding_idx,
   }
 }
 
-// TODO(b/234422323): Add unit test for this function.
-// TODO(b/234422323): Update all slots on key frames.
-std::vector<RefFrameTable> GetRefFrameTableList(const GopStruct &gop_struct,
-                                                RefFrameTable ref_frame_table) {
-  const int frame_count = static_cast<int>(gop_struct.gop_frame_list.size());
+std::vector<RefFrameTable> AV1RateControlQMode::GetRefFrameTableList(
+    const GopStruct &gop_struct, RefFrameTable ref_frame_table) {
+  if (gop_struct.global_coding_idx_offset == 0) {
+    // For the first GOP, ref_frame_table need not be initialized. This is fine,
+    // because the first frame (a key frame) will fully initialize it.
+    ref_frame_table.assign(rc_param_.ref_frame_table_size, GopFrameInvalid());
+  } else {
+    // It's not the first GOP, so ref_frame_table must be valid.
+    assert(static_cast<int>(ref_frame_table.size()) ==
+           rc_param_.ref_frame_table_size);
+    assert(std::all_of(
+        ref_frame_table.begin(), ref_frame_table.end(),
+        [](const GopFrame &gop_frame) { return gop_frame.is_valid; }));
+  }
+
   std::vector<RefFrameTable> ref_frame_table_list;
   ref_frame_table_list.push_back(ref_frame_table);
-  for (int coding_idx = 0; coding_idx < frame_count; coding_idx++) {
-    const auto &gop_frame = gop_struct.gop_frame_list[coding_idx];
-    if (gop_frame.update_ref_idx != -1) {
+  for (const GopFrame &gop_frame : gop_struct.gop_frame_list) {
+    if (gop_frame.is_key_frame) {
+      ref_frame_table.assign(rc_param_.ref_frame_table_size, gop_frame);
+    } else if (gop_frame.update_ref_idx != -1) {
       ref_frame_table[gop_frame.update_ref_idx] = gop_frame;
     }
     ref_frame_table_list.push_back(ref_frame_table);

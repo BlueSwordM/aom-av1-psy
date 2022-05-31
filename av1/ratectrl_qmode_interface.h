@@ -129,10 +129,9 @@ struct FirstpassInfo {
   std::vector<FIRSTPASS_STATS> stats_list;
 };
 
-// The number of elements in RefFrameTable must always equal
-// ref_frame_table_size (as specified in RateControlParam).
-// TODO(b/234423076): Allow a default constructed RefFrameTable to be passed
-// to GetGopEncodeInfo for the first GOP only.
+// In general, the number of elements in RefFrameTable must always equal
+// ref_frame_table_size (as specified in RateControlParam), but see
+// GetGopEncodeInfo for the one exception.
 using RefFrameTable = std::vector<GopFrame>;
 
 struct GopEncodeInfo {
@@ -159,13 +158,16 @@ class AV1RateControlQModeInterface {
   virtual void SetRcParam(const RateControlParam &rc_param) = 0;
   virtual GopStructList DetermineGopInfo(
       const FirstpassInfo &firstpass_info) = 0;
-  // Accept firstpass and tpl info from the encoder and return q index and
+  // Accept firstpass and TPL info from the encoder and return q index and
   // rdmult. This needs to be called with consecutive GOPs as returned by
   // DetermineGopInfo.
+  // For the first GOP, a default-constructred RefFrameTable may be passed in as
+  // ref_frame_table_snapshot_init; for subsequent GOPs, it should be the
+  // final_snapshot returned on the previous call.
   virtual GopEncodeInfo GetGopEncodeInfo(
       const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
       const RefFrameTable &ref_frame_table_snapshot_init) = 0;
-};  // class AV1RateCtrlQMode
+};
 }  // namespace aom
 
 #endif  // AOM_AV1_RATECTRL_QMODE_INTERFACE_H_
