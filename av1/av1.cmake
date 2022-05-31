@@ -367,6 +367,9 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
             "${AOM_ROOT}/av1/encoder/arm/neon/highbd_fwd_txfm_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/wedge_utils_neon.c")
 
+list(APPEND AOM_AV1_ENCODER_INTRIN_CRC32
+            "${AOM_ROOT}/av1/encoder/arm/crc32/hash_crc32.c")
+
 list(APPEND AOM_AV1_ENCODER_INTRIN_MSA
             "${AOM_ROOT}/av1/encoder/mips/msa/error_msa.c"
             "${AOM_ROOT}/av1/encoder/mips/msa/fdct4x4_msa.c"
@@ -630,6 +633,16 @@ function(setup_av1_targets)
         add_intrinsics_object_library("${AOM_NEON_INTRIN_FLAG}" "neon"
                                       "aom_av1_encoder"
                                       "AOM_AV1_ENCODER_INTRIN_NEON")
+      endif()
+    endif()
+
+    if(HAVE_ARM_CRC32)
+      if(CONFIG_AV1_ENCODER)
+        if(AOM_AV1_ENCODER_INTRIN_CRC32)
+          add_intrinsics_object_library("${AOM_ARM_CRC32_FLAG}" "crc32"
+                                        "aom_av1_encoder"
+                                        "AOM_AV1_ENCODER_INTRIN_CRC32")
+        endif()
       endif()
     endif()
   endif()
