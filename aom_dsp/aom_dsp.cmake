@@ -223,6 +223,7 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/x86/highbd_quantize_intrin_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/adaptive_quantize_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/highbd_adaptive_quantize_avx2.c"
+              "${AOM_ROOT}/aom_dsp/x86/quantize_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/sad4d_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/sad_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/highbd_sad_avx2.c"
