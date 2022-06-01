@@ -1403,7 +1403,8 @@ enum aome_enc_control_id {
    */
   AOME_GET_LOOPFILTER_LEVEL = 150,
 
-  /*!\brief Codec control to automatically turn off several intra coding tools
+  /*!\brief Codec control to automatically turn off several intra coding tools,
+   * unsigned int parameter
    * - 0 = do not use the feature
    * - 1 = enable the automatic decision to turn off several intra tools
    */

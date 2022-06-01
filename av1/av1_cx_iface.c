@@ -844,6 +844,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(extra_cfg, deltaq_strength, 0, 1000);
   RANGE_CHECK_HI(extra_cfg, loopfilter_control, 3);
   RANGE_CHECK_HI(extra_cfg, enable_cdef, 2);
+  RANGE_CHECK_BOOL(extra_cfg, auto_intra_tools_off);
   RANGE_CHECK_BOOL(extra_cfg, strict_level_conformance);
 
   return AOM_CODEC_OK;
@@ -3944,6 +3945,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.loopfilter_control,
                               argv, err_string)) {
     extra_cfg.loopfilter_control = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.auto_intra_tools_off,
+                              argv, err_string)) {
+    extra_cfg.auto_intra_tools_off = arg_parse_uint_helper(&arg, err_string);
   } else if (arg_match_helper(&arg,
                               &g_av1_codec_arg_defs.strict_level_conformance,
                               argv, err_string)) {
