@@ -66,9 +66,15 @@ void av1_free_shared_coeff_buffer(PC_TREE_SHARED_BUFFERS *shared_bufs) {
 PICK_MODE_CONTEXT *av1_alloc_pmc(const struct AV1_COMP *const cpi,
                                  BLOCK_SIZE bsize,
                                  PC_TREE_SHARED_BUFFERS *shared_bufs) {
-  PICK_MODE_CONTEXT *ctx = NULL;
+  PICK_MODE_CONTEXT *volatile ctx = NULL;
   const AV1_COMMON *const cm = &cpi->common;
   struct aom_internal_error_info error;
+
+  if (setjmp(error.jmp)) {
+    av1_free_pmc(ctx, av1_num_planes(cm));
+    return NULL;
+  }
+  error.setjmp = 1;
 
   AOM_CHECK_MEM_ERROR(&error, ctx, aom_calloc(1, sizeof(*ctx)));
   ctx->rd_mode_is_ready = 0;
