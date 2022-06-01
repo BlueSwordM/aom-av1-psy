@@ -4381,7 +4381,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
 #define VERSION_STRING
 #endif
 aom_codec_iface_t aom_codec_av1_cx_algo = {
-  "AOMedia Project AV1 Encoder" VERSION_STRING,
+  "AOMedia Project AV1 Encoder Psy" VERSION_STRING,
   AOM_CODEC_INTERNAL_ABI_VERSION,
   AOM_CODEC_CAP_HIGHBITDEPTH | AOM_CODEC_CAP_ENCODER |
       AOM_CODEC_CAP_PSNR,  // aom_codec_caps_t
