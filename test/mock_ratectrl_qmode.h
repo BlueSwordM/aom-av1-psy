@@ -19,7 +19,8 @@ namespace aom {
 
 class MockRateControlQMode : public AV1RateControlQModeInterface {
  public:
-  MOCK_METHOD(void, SetRcParam, (const RateControlParam &rc_param), (override));
+  MOCK_METHOD(Status, SetRcParam, (const RateControlParam &rc_param),
+              (override));
   MOCK_METHOD(GopStructList, DetermineGopInfo,
               (const FirstpassInfo &firstpass_info), (override));
   MOCK_METHOD(GopEncodeInfo, GetGopEncodeInfo,

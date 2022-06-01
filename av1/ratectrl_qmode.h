@@ -98,7 +98,7 @@ TplGopDepStats ComputeTplGopDepStats(
 
 class AV1RateControlQMode : public AV1RateControlQModeInterface {
  public:
-  void SetRcParam(const RateControlParam &rc_param) override;
+  Status SetRcParam(const RateControlParam &rc_param) override;
   GopStructList DetermineGopInfo(const FirstpassInfo &firstpass_info) override;
   GopEncodeInfo GetGopEncodeInfo(
       const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,

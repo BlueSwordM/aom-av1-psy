@@ -188,8 +188,12 @@ GopStruct ConstructGop(RefFrameManager *ref_frame_manager, int show_frame_count,
   return gop_struct;
 }
 
-void AV1RateControlQMode::SetRcParam(const RateControlParam &rc_param) {
+Status AV1RateControlQMode::SetRcParam(const RateControlParam &rc_param) {
   rc_param_ = rc_param;
+  // TODO(b/234480857): Validate parameters.
+  Status status;
+  status.code = AOM_CODEC_OK;
+  return status;
 }
 
 // Threshold for use of the lagging second reference frame. High second ref

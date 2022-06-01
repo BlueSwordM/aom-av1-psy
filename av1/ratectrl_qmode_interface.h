@@ -13,8 +13,10 @@
 #define AOM_AV1_RATECTRL_QMODE_INTERFACE_H_
 
 #include <array>
+#include <string>
 #include <vector>
 
+#include "aom/aom_codec.h"
 #include "av1/encoder/firstpass.h"
 
 namespace aom {
@@ -150,12 +152,17 @@ struct TplGopStats {
   std::vector<TplFrameStats> frame_stats_list;
 };
 
+struct Status {
+  aom_codec_err_t code;
+  std::string message;  // Should be empty if code == AOM_CODEC_OK.
+};
+
 class AV1RateControlQModeInterface {
  public:
   AV1RateControlQModeInterface();
   virtual ~AV1RateControlQModeInterface();
 
-  virtual void SetRcParam(const RateControlParam &rc_param) = 0;
+  virtual Status SetRcParam(const RateControlParam &rc_param) = 0;
   virtual GopStructList DetermineGopInfo(
       const FirstpassInfo &firstpass_info) = 0;
   // Accept firstpass and TPL info from the encoder and return q index and
