@@ -1,6 +1,7 @@
 tags
 cmbuild
 .cproject
+.idea
 .project
 .vscode
 .gitignore
