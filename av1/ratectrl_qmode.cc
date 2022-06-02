@@ -998,6 +998,8 @@ std::vector<RefFrameTable> AV1RateControlQMode::GetRefFrameTableList(
     assert(std::all_of(
         ref_frame_table.begin(), ref_frame_table.end(),
         [](const GopFrame &gop_frame) { return gop_frame.is_valid; }));
+    // Reset the frame processing order of the initial ref_frame_table.
+    for (GopFrame &gop_frame : ref_frame_table) gop_frame.coding_idx = -1;
   }
 
   std::vector<RefFrameTable> ref_frame_table_list;

@@ -834,7 +834,11 @@ TEST(RateControlQModeTest, TestGetRefFrameTableListNotFirstGop) {
   const auto frame1 = GopFrameUpdateRefIdx(6, GopFrameType::kRegularLeaf, -1);
   const auto frame2 = GopFrameUpdateRefIdx(7, GopFrameType::kRegularLeaf, 0);
 
-  const auto matches_previous = GopFrameMatches(previous);
+  // Frames in the initial table should have coding_idx of -1
+  // to prevent propagating TPL stats to already coded frames.
+  auto previous_modified = previous;
+  previous_modified.coding_idx = -1;
+  const auto matches_previous = GopFrameMatches(previous_modified);
   const auto matches_frame0 = GopFrameMatches(frame0);
   const auto matches_frame2 = GopFrameMatches(frame2);
 
