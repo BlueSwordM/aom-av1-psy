@@ -290,6 +290,29 @@ static void DuckyEncodeInfoGetEncodeFrameResult(
   result->psnr = frame_result.psnr;
 }
 
+static void WriteObu(AV1_PRIMARY *ppi, AV1_COMP_DATA *cpi_data) {
+  AV1_COMP *const cpi = ppi->cpi;
+  uint32_t obu_header_size = 1;
+  const uint32_t obu_payload_size = 0;
+  const size_t length_field_size = aom_uleb_size_in_bytes(obu_payload_size);
+
+  const size_t move_offset = obu_header_size + length_field_size;
+  memmove(cpi_data->cx_data + move_offset, cpi_data->cx_data,
+          cpi_data->frame_size);
+  obu_header_size =
+      av1_write_obu_header(&ppi->level_params, &cpi->frame_header_count,
+                           OBU_TEMPORAL_DELIMITER, 0, cpi_data->cx_data);
+
+  // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
+  if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
+                              cpi_data->cx_data) != AOM_CODEC_OK) {
+    aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
+  }
+
+  cpi_data->frame_size +=
+      obu_header_size + obu_payload_size + length_field_size;
+}
+
 EncodeFrameResult DuckyEncode::EncodeFrame(
     const EncodeFrameDecision &decision) {
   EncodeFrameResult encode_frame_result = {};
@@ -334,6 +357,7 @@ EncodeFrameResult DuckyEncode::EncodeFrame(
 
   DuckyEncodeInfoSetEncodeFrameDecision(&cpi->ducky_encode_info, decision);
   const int status = av1_get_compressed_data(cpi, &cpi_data);
+  WriteObu(ppi, &cpi_data);
   (void)status;
   assert(status == static_cast<int>(AOM_CODEC_OK));
   encode_frame_result.bitstream_buf.resize(cpi_data.frame_size);
