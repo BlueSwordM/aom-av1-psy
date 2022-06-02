@@ -14,8 +14,10 @@
 #include <cassert>
 #include <climits>
 #include <numeric>
+#include <sstream>
 #include <vector>
 
+#include "aom/aom_codec.h"
 #include "av1/encoder/pass2_strategy.h"
 #include "av1/encoder/tpl_model.h"
 
@@ -189,11 +191,35 @@ GopStruct ConstructGop(RefFrameManager *ref_frame_manager, int show_frame_count,
 }
 
 Status AV1RateControlQMode::SetRcParam(const RateControlParam &rc_param) {
+  std::ostringstream error_message;
+  if (rc_param.max_gop_show_frame_count <
+      std::max(4, rc_param.min_gop_show_frame_count)) {
+    error_message << "max_gop_show_frame_count ("
+                  << rc_param.max_gop_show_frame_count
+                  << ") must be at least 4 and may not be less than "
+                     "min_gop_show_frame_count ("
+                  << rc_param.min_gop_show_frame_count << ")";
+    return { AOM_CODEC_INVALID_PARAM, error_message.str() };
+  }
+  if (rc_param.ref_frame_table_size < 1 || rc_param.ref_frame_table_size > 8) {
+    error_message << "ref_frame_table_size (" << rc_param.ref_frame_table_size
+                  << ") must be in the range [1, 8].";
+    return { AOM_CODEC_INVALID_PARAM, error_message.str() };
+  }
+  if (rc_param.base_q_index < 0 || rc_param.base_q_index > 255) {
+    error_message << "base_q_index (" << rc_param.base_q_index
+                  << ") must be in the range [0, 255].";
+    return { AOM_CODEC_INVALID_PARAM, error_message.str() };
+  }
+  if (rc_param.frame_width < 16 || rc_param.frame_width > 16384 ||
+      rc_param.frame_height < 16 || rc_param.frame_height > 16384) {
+    error_message << "frame_width (" << rc_param.frame_width
+                  << ") and frame_height (" << rc_param.frame_height
+                  << ") must be in the range [16, 16384].";
+    return { AOM_CODEC_INVALID_PARAM, error_message.str() };
+  }
   rc_param_ = rc_param;
-  // TODO(b/234480857): Validate parameters.
-  Status status;
-  status.code = AOM_CODEC_OK;
-  return status;
+  return { AOM_CODEC_OK, "" };
 }
 
 // Threshold for use of the lagging second reference frame. High second ref

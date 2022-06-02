@@ -792,11 +792,22 @@ GopFrame GopFrameUpdateRefIdx(int index, GopFrameType gop_frame_type,
   return frame;
 }
 
+TEST(RateControlQModeTest, TestSetRcParamErrorChecking) {
+  // Default constructed RateControlParam should not be valid.
+  RateControlParam rc_param = {};
+  EXPECT_NE(AV1RateControlQMode().SetRcParam(rc_param).code, AOM_CODEC_OK);
+}
+
 TEST(RateControlQModeTest, TestGetRefFrameTableListFirstGop) {
   AV1RateControlQMode rc;
-  RateControlParam rc_param;
+  RateControlParam rc_param = {};
+  rc_param.max_gop_show_frame_count = 8;
   rc_param.ref_frame_table_size = 3;
-  rc.SetRcParam(rc_param);
+  rc_param.frame_width = 128;
+  rc_param.frame_height = 128;
+  const Status status = rc.SetRcParam(rc_param);
+  ASSERT_EQ(status.code, AOM_CODEC_OK)
+      << "status.message = \"" << status.message << "\"";
 
   const auto invalid = GopFrameInvalid();
   const auto frame0 = GopFrameUpdateRefIdx(0, GopFrameType::kRegularKey, -1);
@@ -825,9 +836,14 @@ TEST(RateControlQModeTest, TestGetRefFrameTableListFirstGop) {
 
 TEST(RateControlQModeTest, TestGetRefFrameTableListNotFirstGop) {
   AV1RateControlQMode rc;
-  RateControlParam rc_param;
+  RateControlParam rc_param = {};
+  rc_param.max_gop_show_frame_count = 8;
   rc_param.ref_frame_table_size = 3;
-  rc.SetRcParam(rc_param);
+  rc_param.frame_height = 128;
+  rc_param.frame_width = 128;
+  const Status status = rc.SetRcParam(rc_param);
+  ASSERT_EQ(status.code, AOM_CODEC_OK)
+      << "status.message = \"" << status.message << "\"";
 
   const auto previous = GopFrameUpdateRefIdx(0, GopFrameType::kRegularKey, -1);
   const auto frame0 = GopFrameUpdateRefIdx(5, GopFrameType::kRegularLeaf, 2);
@@ -859,13 +875,16 @@ TEST(RateControlQModeTest, TestGopIntervals) {
   ASSERT_NO_FATAL_FAILURE(
       ReadFirstpassInfo("firstpass_stats", &firstpass_info));
   AV1RateControlQMode rc;
-  RateControlParam rc_param;
+  RateControlParam rc_param = {};
   rc_param.frame_height = 288;
   rc_param.frame_width = 352;
   rc_param.max_gop_show_frame_count = 32;
   rc_param.min_gop_show_frame_count = 4;
   rc_param.ref_frame_table_size = 7;
-  rc.SetRcParam(rc_param);
+  const Status status = rc.SetRcParam(rc_param);
+  ASSERT_EQ(status.code, AOM_CODEC_OK)
+      << "status.message = \"" << status.message << "\"";
+
   GopStructList gop_list = rc.DetermineGopInfo(firstpass_info);
   std::vector<int> gop_interval_list;
   std::transform(gop_list.begin(), gop_list.end(),
