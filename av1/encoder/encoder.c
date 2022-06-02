@@ -2699,6 +2699,10 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
           &cpi->ducky_encode_info.frame_info;
       if (frame_info->mode == DUCKY_ENCODE_FRAME_MODE_QINDEX) {
         q = frame_info->q_index;
+
+        // TODO(jingning): Coding block level QP offset is currently disabled
+        // in RC lib.
+        cm->delta_q_info.delta_q_present_flag = 0;
       }
       // TODO(angiebird): Implement DUCKY_ENCODE_FRAME_MODE_QINDEX_RDMULT mode
     }

@@ -65,8 +65,7 @@ TEST(DuckyEncodeTest, EncodeFrame) {
   ducky_encode.EndEncode();
 }
 
-// TODO(b/231517281): Re-enable after fix.
-TEST(DuckyEncodeTest, DISABLED_EncodeFrameWithQindex) {
+TEST(DuckyEncodeTest, EncodeFrameWithQindex) {
   aom_rational_t frame_rate = { 30, 1 };
   VideoInfo video_info = { 352,        288,
                            frame_rate, AOM_IMG_FMT_I420,
