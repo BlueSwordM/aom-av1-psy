@@ -380,6 +380,24 @@ static void set_bitstream_level_tier(AV1_PRIMARY *const ppi, int width,
   } else if (does_level_match(width, height, init_framerate, 8192, 4352, 120.0,
                               2)) {
     level = SEQ_LEVEL_6_2;
+  } else if (does_level_match(width, height, init_framerate, 16384, 8704, 30.0,
+                              2)) {
+    level = SEQ_LEVEL_7_0;
+  } else if (does_level_match(width, height, init_framerate, 16384, 8704, 60.0,
+                              2)) {
+    level = SEQ_LEVEL_7_1;
+  } else if (does_level_match(width, height, init_framerate, 16384, 8704, 120.0,
+                              2)) {
+    level = SEQ_LEVEL_7_2;
+  } else if (does_level_match(width, height, init_framerate, 32768, 17408, 30.0,
+                              2)) {
+    level = SEQ_LEVEL_8_0;
+  } else if (does_level_match(width, height, init_framerate, 32768, 17408, 60.0,
+                              2)) {
+    level = SEQ_LEVEL_8_1;
+  } else if (does_level_match(width, height, init_framerate, 32768, 17408,
+                              120.0, 2)) {
+    level = SEQ_LEVEL_8_2;
   }
 
   for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i) {
@@ -721,7 +739,8 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
          sizeof(level_params->target_seq_level_idx));
   level_params->keep_level_stats = 0;
   for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i) {
-    if (level_params->target_seq_level_idx[i] <= SEQ_LEVELS) {
+    if (level_params->target_seq_level_idx[i] < SEQ_LEVELS ||
+        level_params->target_seq_level_idx[i] == SEQ_LEVEL_KEEP_STATS) {
       level_params->keep_level_stats |= 1u << i;
       if (!level_params->level_info[i]) {
         CHECK_MEM_ERROR(cm, level_params->level_info[i],
