@@ -168,7 +168,7 @@ class AV1RateControlQModeInterface {
   // Accept firstpass and TPL info from the encoder and return q index and
   // rdmult. This needs to be called with consecutive GOPs as returned by
   // DetermineGopInfo.
-  // For the first GOP, a default-constructred RefFrameTable may be passed in as
+  // For the first GOP, a default-constructed RefFrameTable may be passed in as
   // ref_frame_table_snapshot_init; for subsequent GOPs, it should be the
   // final_snapshot returned on the previous call.
   virtual GopEncodeInfo GetGopEncodeInfo(
