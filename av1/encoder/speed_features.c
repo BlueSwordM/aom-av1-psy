@@ -1357,8 +1357,13 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     sf->rt_sf.source_metrics_sb_nonrd = 1;
     if (cpi->rc.high_source_sad == 1) {
       sf->rt_sf.force_large_partition_blocks = 0;
-      for (int i = 0; i < BLOCK_SIZES; ++i)
-        sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC_H_V;
+      sf->part_sf.max_intra_bsize = BLOCK_128X128;
+      for (int i = 0; i < BLOCK_SIZES; ++i) {
+        if (i > BLOCK_32X32)
+          sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC;
+        else
+          sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC_H_V;
+      }
     }
     if (cpi->rc.high_num_blocks_with_motion && speed >= 6) {
       sf->mv_sf.search_method = NSTEP;

@@ -2173,12 +2173,15 @@ static void estimate_intra_mode(
         continue;
     }
 
-    if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
+    if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+        cpi->sf.rt_sf.source_metrics_sb_nonrd) {
       // For spatially flat blocks with zero motion only check
       // DC mode.
-      if (cpi->sf.rt_sf.source_metrics_sb_nonrd &&
-          x->content_state_sb.source_sad_nonrd == kZeroSad &&
+      if (x->content_state_sb.source_sad_nonrd == kZeroSad &&
           x->source_variance == 0 && this_mode != DC_PRED)
+        continue;
+      // Only test Intra for big blocks if spatial_variance is 0.
+      else if (bsize > BLOCK_32X32 && x->source_variance > 0)
         continue;
     }
 
