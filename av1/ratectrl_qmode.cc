@@ -798,7 +798,6 @@ static std::vector<int> PartitionGopIntervals(
   return gf_intervals;
 }
 
-// TODO(angiebird): Add unit test to this function.
 GopStructList AV1RateControlQMode::DetermineGopInfo(
     const FirstpassInfo &firstpass_info) {
   const int stats_size = static_cast<int>(firstpass_info.stats_list.size());
