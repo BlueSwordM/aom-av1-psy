@@ -612,18 +612,18 @@ enum aome_enc_control_id {
   AV1E_SET_RENDER_SIZE = 53,
 
   /*!\brief Control to set target sequence level index for a certain operating
-   * point(OP), int parameter
-   * Possible values are in the form of "ABxy"(pad leading zeros if less than
-   * 4 digits).
+   * point (OP), int parameter
+   * Possible values are in the form of "ABxy".
    *  - AB: OP index.
-   *  - xy: Target level index for the OP. Can be values 0~23(corresponding to
-   *    level 2.0 ~ 7.3) or 24(keep level stats only for level monitoring) or
-   *    31(maximum level parameter, no level-based constraints).
+   *  - xy: Target level index for the OP. Can be values 0~23 (corresponding to
+   *    level 2.0 ~ 7.3, note levels 2.2, 2.3, 3.2, 3.3, 4.2, 4.3, 7.0, 7.1, 7.2
+   *    & 7.3 are undefined) or 24 (keep level stats only for level monitoring)
+   *    or 31 (maximum level parameter, no level-based constraints).
    *
    * E.g.:
-   * - "0" means target level index 0 for the 0th OP;
-   * - "111" means target level index 11 for the 1st OP;
-   * - "1021" means target level index 21 for the 10th OP.
+   * - "0" means target level index 0 (2.0) for the 0th OP;
+   * - "109" means target level index 9 (4.1) for the 1st OP;
+   * - "1019" means target level index 19 (6.3) for the 10th OP.
    *
    * If the target level is not specified for an OP, the maximum level parameter
    * of 31 is used as default.
