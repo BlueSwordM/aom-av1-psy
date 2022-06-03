@@ -1306,7 +1306,8 @@ void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi) {
         }
       }
 
-      if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_IMAGE_PERCEPTUAL_QUALITY) {
+      if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_IMAGE_PERCEPTUAL_QUALITY ||
+      cpi->oxcf.tune_cfg.tuning == AOM_TUNE_IMAGE_PERCEPTUAL_QUALITY_VMAF_PSY_QP) {
         var = exp(var_log / num_of_var);
         const int cq_level = cpi->oxcf.rc_cfg.cq_level;
         const double hq_level = 30 * 4;
