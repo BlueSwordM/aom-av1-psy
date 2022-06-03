@@ -269,6 +269,9 @@ class DatarateTestSVC
     int layer_flags = 0;
     // Always reference LAST.
     ref_frame_config->reference[0] = 1;
+    if (number_temporal_layers_ == 1 && number_spatial_layers_ == 1) {
+      ref_frame_config->refresh[0] = 1;
+    }
     if (number_temporal_layers_ == 3 && number_spatial_layers_ == 1) {
       // 3-layer:
       //   1    3   5    7
@@ -603,6 +606,36 @@ class DatarateTestSVC
     // encoder side, but is always applied on decoder.
     // This means 30 = #frames(60) - #TL2_frames(30).
     EXPECT_EQ((int)GetMismatchFrames(), 30);
+  }
+  virtual void BasicRateTargetingSVC1TL1SLScreenScCutsMotionTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.g_error_resilient = 0;
+
+    ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
+                                         288, 30, 1, 0, 300);
+
+    const int bitrate_array[2] = { 200, 500 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    ResetModel();
+    screen_mode_ = 1;
+    number_temporal_layers_ = 1;
+    number_spatial_layers_ = 1;
+    target_layer_bitrate_[0] = cfg_.rc_target_bitrate;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.40)
+          << " The datarate for the file is lower than target by too much!";
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.7)
+          << " The datarate for the file is greater than target by too much!";
+    }
+    EXPECT_EQ((int)GetMismatchFrames(), 0);
   }
 
   virtual void BasicRateTargetingSVC3TL1SLResizeTest() {
@@ -1692,6 +1725,12 @@ TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SL) {
 // for screen mode.
 TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLScreen) {
   BasicRateTargetingSVC3TL1SLScreenTest();
+}
+
+// Check basic rate targeting for CBR, for 1 temporal layer, 1 spatial
+// for screen mode, with source with many scene cuts and motion.
+TEST_P(DatarateTestSVC, BasicRateTargetingSVC1TL1SLScreenScCutsMotion) {
+  BasicRateTargetingSVC1TL1SLScreenScCutsMotionTest();
 }
 
 // Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial,
