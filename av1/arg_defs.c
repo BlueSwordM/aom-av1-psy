@@ -564,15 +564,14 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "reduced-reference-set", 1,
               "Use reduced set of single and compound references (0: off "
               "(default), 1: on)"),
-  .target_seq_level_idx = ARG_DEF(
-      NULL, "target-seq-level-idx", 1,
-      "Target sequence level index. "
-      "Possible values are in the form of \"ABxy\"(pad leading zeros if "
-      "less than 4 digits). "
-      "AB: Operating point(OP) index, "
-      "xy: Target level index for the OP. "
-      "E.g. \"0\" means target level index 0 for the 0th OP, "
-      "\"1019\" means target level index 19 (6.3) for the 10th OP."),
+  .target_seq_level_idx =
+      ARG_DEF(NULL, "target-seq-level-idx", 1,
+              "Target sequence level index. "
+              "Possible values are in the form of \"ABxy\""
+              "AB: Operating point (OP) index, "
+              "xy: Target level index for the OP. "
+              "E.g. \"0\" means target level index 0 (2.0) for the 0th OP, "
+              "\"1019\" means target level index 19 (6.3) for the 10th OP."),
   .set_min_cr = ARG_DEF(
       NULL, "min-cr", 1,
       "Set minimum compression ratio. Take integer values. Default is 0. "
