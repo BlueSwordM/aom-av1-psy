@@ -834,7 +834,7 @@ void av1_set_quantizer(AV1_COMP *const cpi, int min_qmlevel, int max_qmlevel,
       adjustment = -subsampling;
       }
     } else {
-      adjustment = 2;
+      adjustment = 3;
     }
   }
   quant_params->u_dc_delta_q = adjustment;
