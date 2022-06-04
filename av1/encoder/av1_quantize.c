@@ -830,11 +830,14 @@ void av1_set_quantizer(AV1_COMP *const cpi, int min_qmlevel, int max_qmlevel,
       // This will use -2 for 4:2:0, -1 for 4:2:2, and 0 for 4:4:4
       int subsampling = cpi->source->subsampling_x + cpi->source->subsampling_y;
       //Only do it for 4:2:0 and 4:2:2, as 4:4:4 does benefit from a positive offset
-      if (subsampling == 2 || subsampling == 1){
-      adjustment = -subsampling;
+      if (subsampling == 2){
+      adjustment = -subsampling + 1;
       }
+        else if(subsampling == 1){
+        adjustment = -subsampling;
+        }
     } else {
-      adjustment = 2;
+      adjustment = 3;
     }
   }
   quant_params->u_dc_delta_q = adjustment;
