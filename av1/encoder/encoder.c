@@ -2574,7 +2574,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #endif
 
 #if !CONFIG_RD_COMMAND
-  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY) {
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY || cpi->oxcf.tune_cfg.content == AOM_CONTENT_DEFAULT_NO_SCREEN) {
     // Screen content optimizations are bad for Psy tuning,
     // disable them and avoid the extra testing to speed us up.
     FeatureFlags *const features = &cm->features;
