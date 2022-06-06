@@ -229,7 +229,7 @@ TEST(RateControlQModeTest, ConstructGopARF) {
 
 TEST(RateControlQModeTest, ConstructGopKey) {
   const int show_frame_count = 16;
-  const int has_key_frame = 1;
+  const bool has_key_frame = true;
   const int global_coding_idx_offset = 10;
   const int global_order_idx_offset = 8;
   RefFrameManager ref_frame_manager(kRefFrameTableSize);
