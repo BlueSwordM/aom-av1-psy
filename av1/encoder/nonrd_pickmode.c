@@ -2819,10 +2819,17 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     // For screen content:
     if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
       // If source_sad is computed: skip non-zero motion
-      // check for stationary (super)blocks.
+      // check for stationary (super)blocks. Otherwise if superblock
+      // has motion skip the modes with zero motion for flat blocks.
+      // For the latter condition: the same condition should apply
+      // to newmv if (0, 0), so this latter condition is repeated
+      // below after search_new_mv.
       if (cpi->sf.rt_sf.source_metrics_sb_nonrd) {
-        if (frame_mv[this_mode][ref_frame].as_int != 0 &&
-            x->content_state_sb.source_sad_nonrd == kZeroSad)
+        if ((frame_mv[this_mode][ref_frame].as_int != 0 &&
+             x->content_state_sb.source_sad_nonrd == kZeroSad) ||
+            (frame_mv[this_mode][ref_frame].as_int == 0 &&
+             x->content_state_sb.source_sad_nonrd != kZeroSad &&
+             x->source_variance == 0))
           continue;
       }
       // Skip NEWMV search on scene cuts for flat blocks.
@@ -2904,6 +2911,17 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     }
 
     if (skip_this_mv && !comp_pred) continue;
+
+    // For screen: for spatially flat blocks with non-zero motion,
+    // skip newmv if the motion vector is (0, 0).
+    if (this_mode == NEWMV &&
+        cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+        cpi->sf.rt_sf.source_metrics_sb_nonrd) {
+      if (frame_mv[this_mode][ref_frame].as_int == 0 &&
+          x->content_state_sb.source_sad_nonrd != kZeroSad &&
+          x->source_variance == 0)
+        continue;
+    }
 
     mi->mode = this_mode;
     mi->mv[0].as_int = frame_mv[this_mode][ref_frame].as_int;
