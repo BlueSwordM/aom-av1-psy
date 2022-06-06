@@ -202,7 +202,9 @@ void RefFrameManager::UpdateOrder(int global_order_idx) {
   }
   int ref_idx = forward_stack_.back();
   const GopFrame &gf_frame = ref_frame_table_[ref_idx];
-  if (gf_frame.global_order_idx <= global_order_idx) {
+
+  // If the current processing frame is an overlay / show existing frame.
+  if (gf_frame.global_order_idx == global_order_idx) {
     forward_stack_.pop_back();
     if (gf_frame.is_golden_frame) {
       // high quality frame
