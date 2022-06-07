@@ -232,128 +232,73 @@ static INLINE unsigned int sad4xh_neon(const uint8_t *src_ptr, int src_stride,
   return horizontal_add_u16x8(sum);
 }
 
-unsigned int aom_sad128x128_neon(const uint8_t *src, int src_stride,
-                                 const uint8_t *ref, int ref_stride) {
-  return sad128xh_neon(src, src_stride, ref, ref_stride, 128);
-}
-
-unsigned int aom_sad64x64_neon(const uint8_t *src, int src_stride,
-                               const uint8_t *ref, int ref_stride) {
-  return sad64xh_neon(src, src_stride, ref, ref_stride, 64);
-}
-
-unsigned int aom_sad32x32_neon(const uint8_t *src, int src_stride,
-                               const uint8_t *ref, int ref_stride) {
-  return sad32xh_neon(src, src_stride, ref, ref_stride, 32);
-}
-
-unsigned int aom_sad16x16_neon(const uint8_t *src, int src_stride,
-                               const uint8_t *ref, int ref_stride) {
-  return sad16xh_neon(src, src_stride, ref, ref_stride, 16);
-}
-
-unsigned int aom_sad16x8_neon(const uint8_t *src, int src_stride,
-                              const uint8_t *ref, int ref_stride) {
-  return sad16xh_neon(src, src_stride, ref, ref_stride, 8);
-}
-
-unsigned int aom_sad8x16_neon(const uint8_t *src, int src_stride,
-                              const uint8_t *ref, int ref_stride) {
-  return sad8xh_neon(src, src_stride, ref, ref_stride, 16);
-}
-
-unsigned int aom_sad8x8_neon(const uint8_t *src, int src_stride,
-                             const uint8_t *ref, int ref_stride) {
-  return sad8xh_neon(src, src_stride, ref, ref_stride, 8);
-}
-
-unsigned int aom_sad4x4_neon(const uint8_t *src, int src_stride,
-                             const uint8_t *ref, int ref_stride) {
-  return sad4xh_neon(src, src_stride, ref, ref_stride, 4);
-}
-
-#define FSADS128_H(h)                                                    \
-  unsigned int aom_sad_skip_128x##h##_neon(                              \
-      const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr,    \
-      int ref_stride) {                                                  \
-    const uint32_t sum = sad128xh_neon(src_ptr, 2 * src_stride, ref_ptr, \
-                                       2 * ref_stride, h / 2);           \
-    return 2 * sum;                                                      \
+#define SAD_WXH_NEON(w, h)                                                   \
+  unsigned int aom_sad##w##x##h##_neon(const uint8_t *src, int src_stride,   \
+                                       const uint8_t *ref, int ref_stride) { \
+    return sad##w##xh_neon(src, src_stride, ref, ref_stride, (h));           \
   }
 
-FSADS128_H(128)
-FSADS128_H(64)
+SAD_WXH_NEON(4, 4)
+SAD_WXH_NEON(4, 8)
+SAD_WXH_NEON(4, 16)
 
-#undef FSADS128_H
+SAD_WXH_NEON(8, 4)
+SAD_WXH_NEON(8, 8)
+SAD_WXH_NEON(8, 16)
+SAD_WXH_NEON(8, 32)
 
-#define FSADS64_H(h)                                                          \
-  unsigned int aom_sad_skip_64x##h##_neon(                                    \
-      const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr,         \
-      int ref_stride) {                                                       \
-    return 2 * sad64xh_neon(src_ptr, src_stride * 2, ref_ptr, ref_stride * 2, \
-                            h / 2);                                           \
+SAD_WXH_NEON(16, 4)
+SAD_WXH_NEON(16, 8)
+SAD_WXH_NEON(16, 16)
+SAD_WXH_NEON(16, 32)
+SAD_WXH_NEON(16, 64)
+
+SAD_WXH_NEON(32, 8)
+SAD_WXH_NEON(32, 16)
+SAD_WXH_NEON(32, 32)
+SAD_WXH_NEON(32, 64)
+
+SAD_WXH_NEON(64, 16)
+SAD_WXH_NEON(64, 32)
+SAD_WXH_NEON(64, 64)
+SAD_WXH_NEON(64, 128)
+
+SAD_WXH_NEON(128, 64)
+SAD_WXH_NEON(128, 128)
+
+#undef SAD_WXH_NEON
+
+#define SAD_SKIP_WXH_NEON(w, h)                                                \
+  unsigned int aom_sad_skip_##w##x##h##_neon(                                  \
+      const uint8_t *src, int src_stride, const uint8_t *ref,                  \
+      int ref_stride) {                                                        \
+    return 2 *                                                                 \
+           sad##w##xh_neon(src, 2 * src_stride, ref, 2 * ref_stride, (h) / 2); \
   }
 
-FSADS64_H(128)
-FSADS64_H(64)
-FSADS64_H(32)
-FSADS64_H(16)
+SAD_SKIP_WXH_NEON(4, 8)
+SAD_SKIP_WXH_NEON(4, 16)
 
-#undef FSADS64_H
+SAD_SKIP_WXH_NEON(8, 8)
+SAD_SKIP_WXH_NEON(8, 16)
+SAD_SKIP_WXH_NEON(8, 32)
 
-#define FSADS32_H(h)                                                          \
-  unsigned int aom_sad_skip_32x##h##_neon(                                    \
-      const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr,         \
-      int ref_stride) {                                                       \
-    return 2 * sad32xh_neon(src_ptr, src_stride * 2, ref_ptr, ref_stride * 2, \
-                            h / 2);                                           \
-  }
+SAD_SKIP_WXH_NEON(16, 8)
+SAD_SKIP_WXH_NEON(16, 16)
+SAD_SKIP_WXH_NEON(16, 32)
+SAD_SKIP_WXH_NEON(16, 64)
 
-FSADS32_H(64)
-FSADS32_H(32)
-FSADS32_H(16)
-FSADS32_H(8)
+SAD_SKIP_WXH_NEON(32, 8)
+SAD_SKIP_WXH_NEON(32, 16)
+SAD_SKIP_WXH_NEON(32, 32)
+SAD_SKIP_WXH_NEON(32, 64)
 
-#undef FSADS32_H
+SAD_SKIP_WXH_NEON(64, 16)
+SAD_SKIP_WXH_NEON(64, 32)
+SAD_SKIP_WXH_NEON(64, 64)
+SAD_SKIP_WXH_NEON(64, 128)
 
-#define FSADS16_H(h)                                                          \
-  unsigned int aom_sad_skip_16x##h##_neon(                                    \
-      const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr,         \
-      int ref_stride) {                                                       \
-    return 2 * sad16xh_neon(src_ptr, src_stride * 2, ref_ptr, ref_stride * 2, \
-                            h / 2);                                           \
-  }
+SAD_SKIP_WXH_NEON(128, 64)
+SAD_SKIP_WXH_NEON(128, 128)
 
-FSADS16_H(64)
-FSADS16_H(32)
-FSADS16_H(16)
-FSADS16_H(8)
-
-#undef FSADS16_H
-
-#define FSADS8_H(h)                                                          \
-  unsigned int aom_sad_skip_8x##h##_neon(                                    \
-      const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr,        \
-      int ref_stride) {                                                      \
-    return 2 * sad8xh_neon(src_ptr, src_stride * 2, ref_ptr, ref_stride * 2, \
-                           h / 2);                                           \
-  }
-
-FSADS8_H(32)
-FSADS8_H(16)
-FSADS8_H(8)
-
-#undef FSADS8_H
-
-#define FSADS4_H(h)                                                          \
-  unsigned int aom_sad_skip_4x##h##_neon(                                    \
-      const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr,        \
-      int ref_stride) {                                                      \
-    return 2 * sad4xh_neon(src_ptr, src_stride * 2, ref_ptr, ref_stride * 2, \
-                           h / 2);                                           \
-  }
-
-FSADS4_H(16)
-FSADS4_H(8)
-
-#undef FSADS4_H
+#undef SAD_SKIP_WXH_NEON
