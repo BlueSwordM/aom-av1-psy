@@ -100,6 +100,8 @@ static const struct arg_enum_list tune_content_enum[] = {
   { "default", AOM_CONTENT_DEFAULT },
   { "screen", AOM_CONTENT_SCREEN },
   { "film", AOM_CONTENT_FILM },
+  { "psy", AOM_CONTENT_PSY },
+  { "animation", AOM_CONTENT_ANIMATION },
   { NULL, 0 }
 };
 

@@ -588,9 +588,44 @@ static void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
     assert(mbmi != NULL);
     if (aq_mode == VARIANCE_AQ) {
       if (cpi->vaq_refresh) {
-        const int energy = bsize <= BLOCK_16X16
-                               ? x->mb_energy
-                               : av1_log_block_var(cpi, x, bsize);
+        int energy = bsize <= BLOCK_16X16 ? x->mb_energy
+                                          : av1_log_block_var(cpi, x, bsize);
+
+        // Only active low luma biaised variance AQ if any of the psy tunes
+        // are on for now
+        if ((cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY) ||
+            (cpi->oxcf.tune_cfg.content == AOM_CONTENT_ANIMATION)) {
+          // We want to allocate more bits to this block if it is dark.
+          // We will shift the segment by a maximum of +2
+          BitDepthInfo bd_info = get_bit_depth_info(&x->e_mbd);
+          int avg_brightness;
+          if (bd_info.use_highbitdepth_buf) {
+            avg_brightness =
+                av1_log_block_avg_hbd(x, bsize) >> (bd_info.bit_depth - 8);
+          } else {
+            avg_brightness = av1_log_block_avg(x, bsize);
+          }
+          int adjustment = 0;
+          // These breakpoints were chosen semi-arbitrarily after some testing,
+          // and assuming a Limited color range.
+          if (avg_brightness < 45) {
+            adjustment = -2;
+          } else if (avg_brightness < 70) {
+            adjustment = -1;
+          } else if (avg_brightness > 195) {
+            adjustment = 1;
+          }
+
+          if (energy + adjustment < 0) {
+            energy = 0;
+          } else if (energy + adjustment > 7) {
+            energy = 7;
+          } else {
+            energy = energy + adjustment;
+          }
+        }
+
+
         mbmi->segment_id = energy;
       }
       x->rdmult = set_segment_rdmult(cpi, x, mbmi->segment_id);
