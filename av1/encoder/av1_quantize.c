@@ -799,26 +799,14 @@ static int adjust_hdr_cr_deltaq(int base_qindex) {
   return dqpCr;
 }
 
-void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
+void av1_set_quantizer(AV1_COMP *const cpi, int min_qmlevel, int max_qmlevel,
                        int q, int enable_chroma_deltaq, int enable_hdr_deltaq) {
   // quantizer has to be reinitialized with av1_init_quantizer() if any
   // delta_q changes.
+  AV1_COMMON *const cm = &cpi->common;
   CommonQuantParams *quant_params = &cm->quant_params;
   quant_params->base_qindex = AOMMAX(cm->delta_q_info.delta_q_present_flag, q);
   quant_params->y_dc_delta_q = 0;
-
-  if (enable_chroma_deltaq) {
-    // TODO(aomedia:2717): need to design better delta
-    quant_params->u_dc_delta_q = 2;
-    quant_params->u_ac_delta_q = 2;
-    quant_params->v_dc_delta_q = 2;
-    quant_params->v_ac_delta_q = 2;
-  } else {
-    quant_params->u_dc_delta_q = 0;
-    quant_params->u_ac_delta_q = 0;
-    quant_params->v_dc_delta_q = 0;
-    quant_params->v_ac_delta_q = 0;
-  }
 
   // following section 8.3.2 in T-REC-H.Sup15 document
   // to apply to AV1 qindex in the range of [0, 255]
@@ -831,6 +819,26 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
       cm->seq_params->separate_uv_delta_q = 1;
     }
   }
+
+  // TODO(aomedia:2717): need to design better delta
+  int adjustment = 0;
+  if (enable_chroma_deltaq) {
+    if ((cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY) ||
+        (cpi->oxcf.tune_cfg.content == AOM_CONTENT_ANIMATION)) {
+      // This will use -2 for 4:2:0, -1 for 4:2:2, and 0 for 4:4:4
+      int subsampling = cpi->source->subsampling_x + cpi->source->subsampling_y;
+      //Only do it for 4:2:0 and 4:2:2, as 4:4:4 does benefit from a positive offset
+      if (subsampling == 2 || subsampling == 1){
+      adjustment = -subsampling;
+      }
+    } else {
+      adjustment = 2;
+    }
+  }
+  quant_params->u_dc_delta_q = adjustment;
+  quant_params->u_ac_delta_q = adjustment;
+  quant_params->v_dc_delta_q = adjustment;
+  quant_params->v_ac_delta_q = adjustment;
 
   quant_params->qmatrix_level_y =
       aom_get_qmlevel(quant_params->base_qindex, min_qmlevel, max_qmlevel);
