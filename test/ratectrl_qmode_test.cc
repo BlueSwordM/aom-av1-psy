@@ -247,6 +247,25 @@ TEST(RateControlQModeTest, ConstructGopKey) {
   TestArfInterval(gop_struct);
 }
 
+TEST(RateControlQModeTest, ConstructShortGop) {
+  int show_frame_count = 2;
+  const bool has_key_frame = false;
+  const int global_coding_idx_offset = 5;
+  const int global_order_idx_offset = 20;
+  RefFrameManager ref_frame_manager(kRefFrameTableSize);
+  GopStruct gop_struct =
+      ConstructGop(&ref_frame_manager, show_frame_count, has_key_frame,
+                   global_coding_idx_offset, global_order_idx_offset);
+  EXPECT_EQ(gop_struct.show_frame_count, show_frame_count);
+  TestGopDisplayOrder(gop_struct);
+  TestGopGlobalOrderIdx(gop_struct, global_order_idx_offset);
+  TestGopGlobalCodingIdx(gop_struct, global_coding_idx_offset);
+  TestColocatedShowFrame(gop_struct);
+  const int max_layer_depth = 1 + kLayerDepthOffset;
+  TestLayerDepth(gop_struct, max_layer_depth);
+  TestArfInterval(gop_struct);
+}
+
 static TplBlockStats CreateToyTplBlockStats(int h, int w, int r, int c,
                                             int intra_cost, int inter_cost) {
   TplBlockStats tpl_block_stats = {};
