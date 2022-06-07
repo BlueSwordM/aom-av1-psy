@@ -1995,7 +1995,9 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
     // Keep golden (longer-term) reference if sb has high source sad, for
     // frames whose average souce_sad is below threshold. This is to try to
     // capture case where only part of frame has high motion.
-    if (x->content_state_sb.source_sad_nonrd >= kHighSad &&
+    // Exclude screen content mode.
+    if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN &&
+        x->content_state_sb.source_sad_nonrd >= kHighSad &&
         bsize <= BLOCK_32X32 && cpi->rc.frame_source_sad < 50000)
       use_golden_ref_frame = 1;
   }
