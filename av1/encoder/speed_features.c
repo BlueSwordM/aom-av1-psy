@@ -495,6 +495,7 @@ static void set_allintra_speed_features_framesize_independent(
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 3;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 0;
+    sf->tx_sf.prune_intra_tx_depths_using_nn = true;
 
     sf->rd_sf.perform_coeff_opt = 6;
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
@@ -1896,6 +1897,7 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->adaptive_txb_search_level = 0;
   tx_sf->refine_fast_tx_search_results = 1;
   tx_sf->prune_tx_size_level = 0;
+  tx_sf->prune_intra_tx_depths_using_nn = false;
 }
 
 static AOM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,

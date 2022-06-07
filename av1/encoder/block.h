@@ -383,6 +383,23 @@ typedef struct {
   uint8_t variance_low[105];
 } PartitionSearchInfo;
 
+/*!\cond */
+enum {
+  /**
+   * Do not prune transform depths.
+   */
+  TX_PRUNE_NONE = 0,
+  /**
+   * Prune largest transform (depth 0) based on NN model.
+   */
+  TX_PRUNE_LARGEST = 1,
+  /**
+   * Prune split transforms (depth>=1) based on NN model.
+   */
+  TX_PRUNE_SPLIT = 2,
+} UENUM1BYTE(TX_PRUNE_TYPE);
+/*!\endcond */
+
 /*! \brief Defines the parameters used to perform txfm search.
  *
  * For the most part, this determines how various speed features are used.
@@ -446,6 +463,18 @@ typedef struct {
    * reset mb rd hash record when mode evaluation type changes.
    */
   int mode_eval_type;
+
+#if !CONFIG_REALTIME_ONLY
+  //! Indicates the transform depths for which RD evaluation is skipped.
+  TX_PRUNE_TYPE nn_prune_depths_for_intra_tx;
+
+  /*! \brief Indicates if NN model should be invoked to prune transform depths.
+   *
+   * Used to signal whether NN model should be evaluated to prune the R-D
+   * evaluation of specific transform depths.
+   */
+  bool enable_nn_prune_intra_tx_depths;
+#endif
 } TxfmSearchParams;
 
 /*!\cond */
