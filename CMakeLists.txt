@@ -323,7 +323,7 @@ if(CONFIG_AV1_ENCODER AND NOT CONFIG_REALTIME_ONLY AND NOT BUILD_SHARED_LIBS)
            "${AOM_ROOT}/av1/ratectrl_qmode.h"
            "${AOM_ROOT}/av1/ratectrl_qmode.cc" "${AOM_ROOT}/av1/ducky_encode.h"
            "${AOM_ROOT}/av1/ducky_encode.cc")
-  add_library(av1_rc_qmode ${AOM_AV1_RC_QMODE_SOURCES})
+  add_library(av1_rc_qmode OBJECT ${AOM_AV1_RC_QMODE_SOURCES})
   target_link_libraries(av1_rc_qmode ${AOM_LIB_LINK_TYPE} aom)
   if(NOT MSVC AND NOT APPLE)
     target_link_libraries(av1_rc_qmode ${AOM_LIB_LINK_TYPE} m)
@@ -497,11 +497,20 @@ if(CONFIG_AV1_ENCODER)
     add_executable(svc_encoder_rtc "${AOM_ROOT}/examples/svc_encoder_rtc.c"
                                    $<TARGET_OBJECTS:aom_common_app_util>
                                    $<TARGET_OBJECTS:aom_encoder_app_util>)
+    if(NOT CONFIG_REALTIME_ONLY AND NOT BUILD_SHARED_LIBS)
+      add_executable(qmode_rc_encoder "${AOM_ROOT}/apps/qmode_rc_encoder.cc"
+                                      $<TARGET_OBJECTS:aom_common_app_util>
+                                      $<TARGET_OBJECTS:aom_encoder_app_util>
+                                      $<TARGET_OBJECTS:av1_rc_qmode>)
+    endif()
 
     # Maintain a list of encoder example targets.
     list(APPEND AOM_ENCODER_EXAMPLE_TARGETS aomenc lossless_encoder noise_model
                 photon_noise_table set_maps simple_encoder scalable_encoder
                 twopass_encoder svc_encoder_rtc)
+    if(NOT CONFIG_REALTIME_ONLY AND NOT BUILD_SHARED_LIBS)
+      list(APPEND AOM_ENCODER_EXAMPLE_TARGETS qmode_rc_encoder)
+    endif()
   endif()
 
   if(ENABLE_TOOLS)
