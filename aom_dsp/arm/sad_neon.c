@@ -15,6 +15,92 @@
 #include "aom/aom_integer.h"
 #include "aom_dsp/arm/sum_neon.h"
 
+#if defined(__ARM_FEATURE_DOTPROD) && (__ARM_FEATURE_DOTPROD == 1)
+
+static INLINE unsigned int sadwxh_neon(const uint8_t *src_ptr, int src_stride,
+                                       const uint8_t *ref_ptr, int ref_stride,
+                                       int w, int h) {
+  // Only two accumulators are required for optimal instruction throughput of
+  // the ABD, UDOT sequence on CPUs with either 2 or 4 Neon pipes.
+  uint32x4_t sum[2] = { vdupq_n_u32(0), vdupq_n_u32(0) };
+
+  int i = 0;
+  do {
+    int j = 0;
+    do {
+      uint8x16_t s0, s1, r0, r1, diff0, diff1;
+
+      s0 = vld1q_u8(src_ptr + j);
+      r0 = vld1q_u8(ref_ptr + j);
+      diff0 = vabdq_u8(s0, r0);
+      sum[0] = vdotq_u32(sum[0], diff0, vdupq_n_u8(1));
+
+      s1 = vld1q_u8(src_ptr + j + 16);
+      r1 = vld1q_u8(ref_ptr + j + 16);
+      diff1 = vabdq_u8(s1, r1);
+      sum[1] = vdotq_u32(sum[1], diff1, vdupq_n_u8(1));
+
+      j += 32;
+    } while (j < w);
+
+    src_ptr += src_stride;
+    ref_ptr += ref_stride;
+    i++;
+  } while (i < h);
+
+  return horizontal_add_u32x4(vaddq_u32(sum[0], sum[1]));
+}
+
+static INLINE unsigned int sad128xh_neon(const uint8_t *src_ptr, int src_stride,
+                                         const uint8_t *ref_ptr, int ref_stride,
+                                         int h) {
+  return sadwxh_neon(src_ptr, src_stride, ref_ptr, ref_stride, 128, h);
+}
+
+static INLINE unsigned int sad64xh_neon(const uint8_t *src_ptr, int src_stride,
+                                        const uint8_t *ref_ptr, int ref_stride,
+                                        int h) {
+  return sadwxh_neon(src_ptr, src_stride, ref_ptr, ref_stride, 64, h);
+}
+
+static INLINE unsigned int sad32xh_neon(const uint8_t *src_ptr, int src_stride,
+                                        const uint8_t *ref_ptr, int ref_stride,
+                                        int h) {
+  return sadwxh_neon(src_ptr, src_stride, ref_ptr, ref_stride, 32, h);
+}
+
+static INLINE unsigned int sad16xh_neon(const uint8_t *src_ptr, int src_stride,
+                                        const uint8_t *ref_ptr, int ref_stride,
+                                        int h) {
+  uint32x4_t sum[2] = { vdupq_n_u32(0), vdupq_n_u32(0) };
+
+  int i = 0;
+  do {
+    uint8x16_t s0, s1, r0, r1, diff0, diff1;
+
+    s0 = vld1q_u8(src_ptr);
+    r0 = vld1q_u8(ref_ptr);
+    diff0 = vabdq_u8(s0, r0);
+    sum[0] = vdotq_u32(sum[0], diff0, vdupq_n_u8(1));
+
+    src_ptr += src_stride;
+    ref_ptr += ref_stride;
+
+    s1 = vld1q_u8(src_ptr);
+    r1 = vld1q_u8(ref_ptr);
+    diff1 = vabdq_u8(s1, r1);
+    sum[1] = vdotq_u32(sum[1], diff1, vdupq_n_u8(1));
+
+    src_ptr += src_stride;
+    ref_ptr += ref_stride;
+    i++;
+  } while (i < h / 2);
+
+  return horizontal_add_u32x4(vaddq_u32(sum[0], sum[1]));
+}
+
+#else
+
 static INLINE unsigned int sad128xh_neon(const uint8_t *src_ptr, int src_stride,
                                          const uint8_t *ref_ptr, int ref_stride,
                                          int h) {
@@ -180,6 +266,8 @@ static INLINE unsigned int sad16xh_neon(const uint8_t *src_ptr, int src_stride,
 
   return horizontal_add_u16x8(sum);
 }
+
+#endif
 
 static INLINE unsigned int sad8xh_neon(const uint8_t *src_ptr, int src_stride,
                                        const uint8_t *ref_ptr, int ref_stride,
