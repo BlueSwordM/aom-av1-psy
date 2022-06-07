@@ -1087,7 +1087,7 @@ int av1_get_q_for_hdr(AV1_COMP *const cpi, MACROBLOCK *const x,
   return cm->quant_params.base_qindex;
 #else
   // calculate pixel average
-  const int block_luma_avg = av1_log_block_avg(cpi, x, bsize, mi_row, mi_col);
+  const int block_luma_avg = av1_log_block_avg_hbd(x, bsize);
   // adjust offset based on average of the pixel block
   int offset = 0;
   for (int i = 0; i < HDR_QP_LEVELS; i++) {
