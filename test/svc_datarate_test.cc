@@ -192,6 +192,13 @@ class DatarateTestSVC
     DatarateTest::PreEncodeFrameHook(video, encoder);
   }
 
+  virtual void PostEncodeFrameHook(::libaom_test::Encoder *encoder) {
+    int num_operating_points;
+    encoder->Control(AV1E_GET_NUM_OPERATING_POINTS, &num_operating_points);
+    ASSERT_EQ(num_operating_points,
+              number_temporal_layers_ * number_spatial_layers_);
+  }
+
   virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
     const size_t frame_size_in_bits = pkt->data.frame.sz * 8;
     // Update the layer cumulative  bitrate.

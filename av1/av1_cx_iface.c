@@ -3934,6 +3934,14 @@ static aom_codec_err_t ctrl_get_target_seq_level_idx(aom_codec_alg_priv_t *ctx,
                                       &ctx->ppi->level_params, arg);
 }
 
+static aom_codec_err_t ctrl_get_num_operating_points(aom_codec_alg_priv_t *ctx,
+                                                     va_list args) {
+  int *const arg = va_arg(args, int *);
+  if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
+  *arg = ctx->ppi->seq_params.operating_points_cnt_minus_1 + 1;
+  return AOM_CODEC_OK;
+}
+
 static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1_COPY_REFERENCE, ctrl_copy_reference },
   { AOME_USE_REFERENCE, ctrl_use_reference },
@@ -4086,6 +4094,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_GET_SEQ_LEVEL_IDX, ctrl_get_seq_level_idx },
   { AV1E_GET_BASELINE_GF_INTERVAL, ctrl_get_baseline_gf_interval },
   { AV1E_GET_TARGET_SEQ_LEVEL_IDX, ctrl_get_target_seq_level_idx },
+  { AV1E_GET_NUM_OPERATING_POINTS, ctrl_get_num_operating_points },
 
   CTRL_MAP_END,
 };

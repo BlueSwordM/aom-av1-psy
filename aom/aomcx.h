@@ -1447,6 +1447,11 @@ enum aome_enc_control_id {
    */
   AV1E_GET_TARGET_SEQ_LEVEL_IDX = 155,
 
+  /*!\brief Codec control function to get the number of operating points. int*
+   * parameter.
+   */
+  AV1E_GET_NUM_OPERATING_POINTS = 156,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -2059,6 +2064,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_FP_MT_UNIT_TEST, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_GET_TARGET_SEQ_LEVEL_IDX, int *)
 #define AOM_CTRL_AV1E_GET_TARGET_SEQ_LEVEL_IDX
+
+AOM_CTRL_USE_TYPE(AV1E_GET_NUM_OPERATING_POINTS, int *)
+#define AOM_CTRL_AV1E_GET_NUM_OPERATING_POINTS
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

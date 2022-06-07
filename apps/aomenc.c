@@ -2572,13 +2572,16 @@ int main(int argc, const char **argv_) {
 
     if (pass == global.passes - 1) {
       FOREACH_STREAM(stream, streams) {
-        int levels[32] = { 0 };
-        int target_levels[32] = { 0 };
+        int num_operating_points;
+        int levels[32];
+        int target_levels[32];
+        aom_codec_control(&stream->encoder, AV1E_GET_NUM_OPERATING_POINTS,
+                          &num_operating_points);
         aom_codec_control(&stream->encoder, AV1E_GET_SEQ_LEVEL_IDX, levels);
         aom_codec_control(&stream->encoder, AV1E_GET_TARGET_SEQ_LEVEL_IDX,
                           target_levels);
 
-        for (int i = 0; i < 32; i++) {
+        for (int i = 0; i < num_operating_points; i++) {
           if (levels[i] > target_levels[i]) {
             aom_tools_warn(
                 "Failed to encode to target level %d.%d for operating point "
