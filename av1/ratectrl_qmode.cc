@@ -1091,9 +1091,8 @@ std::vector<RefFrameTable> AV1RateControlQMode::GetRefFrameTableList(
 
 TplGopDepStats ComputeTplGopDepStats(
     const TplGopStats &tpl_gop_stats,
-    const std::vector<RefFrameTable> &ref_frame_table_list) {
-  const int frame_count = static_cast<int>(ref_frame_table_list.size());
-
+    const std::vector<RefFrameTable> &ref_frame_table_list,
+    const int frame_count) {
   // Create the struct to store TPL dependency stats
   TplGopDepStats tpl_gop_dep_stats;
   for (int coding_idx = 0; coding_idx < frame_count; coding_idx++) {
@@ -1136,8 +1135,8 @@ GopEncodeInfo AV1RateControlQMode::GetGopEncodeInfo(
 
   GopEncodeInfo gop_encode_info;
   gop_encode_info.final_snapshot = ref_frame_table_list.back();
-  TplGopDepStats gop_dep_stats =
-      ComputeTplGopDepStats(tpl_gop_stats, ref_frame_table_list);
+  TplGopDepStats gop_dep_stats = ComputeTplGopDepStats(
+      tpl_gop_stats, ref_frame_table_list, gop_struct.show_frame_count);
   const int frame_count =
       static_cast<int>(tpl_gop_stats.frame_stats_list.size());
   for (int i = 0; i < frame_count; i++) {
@@ -1155,6 +1154,11 @@ GopEncodeInfo AV1RateControlQMode::GetGopEncodeInfo(
     param.q_index = av1_get_q_index_from_qstep_ratio(rc_param_.base_q_index,
                                                      qstep_ratio, AOM_BITS_8);
     const GopFrame &gop_frame = gop_struct.gop_frame_list[i];
+    if (gop_frame.is_key_frame) {
+      // TODO(jianj): QP for key frame could be 0 when base q index is set very
+      // low. Tune the calculation for frame_importance. Cap it at 1 for now.
+      param.q_index = AOMMAX(param.q_index, 1);
+    }
     param.rdmult = GetRDMult(gop_frame, param.q_index);
     gop_encode_info.param_list.push_back(param);
   }
