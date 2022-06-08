@@ -2843,11 +2843,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         oxcf->border_in_pixels =
             av1_get_enc_border_size(av1_is_resize_needed(oxcf),
                                     oxcf->kf_cfg.key_freq_max == 0, sb_size);
-#if CONFIG_FRAME_PARALLEL_ENCODE
         for (int i = 0; i < ppi->num_fp_contexts; i++) {
           ppi->parallel_cpi[i]->oxcf.border_in_pixels = oxcf->border_in_pixels;
         }
-#endif
 
         ppi->lookahead = av1_lookahead_init(
             cpi->oxcf.frm_dim_cfg.width, cpi->oxcf.frm_dim_cfg.height,
@@ -2965,14 +2963,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       int simulate_parallel_frame = 0;
       int status = -1;
       cpi->do_frame_data_update = true;
-#if CONFIG_FRAME_PARALLEL_ENCODE
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
       cpi->ref_idx_to_skip = INVALID_IDX;
       cpi->ref_refresh_index = INVALID_IDX;
       cpi->refresh_idx_available = false;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
 
-#if CONFIG_FPMT_TEST
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
       simulate_parallel_frame =
           cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE ? 1 : 0;
       if (simulate_parallel_frame) {
@@ -2985,8 +2980,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         status = av1_get_compressed_data(cpi, &cpi_data);
       }
 
-#endif
-#endif
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
       if (!simulate_parallel_frame) {
         if (ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
           status = av1_get_compressed_data(cpi, &cpi_data);

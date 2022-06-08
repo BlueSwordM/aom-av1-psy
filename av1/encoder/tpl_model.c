@@ -1440,10 +1440,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     }
     const int true_disp = (int)(tpl_frame->frame_display_index);
 
-    av1_get_ref_frames(ref_frame_map_pairs, true_disp,
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
-                       cpi, gf_index, 0,
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
+    av1_get_ref_frames(ref_frame_map_pairs, true_disp, cpi, gf_index, 0,
                        remapped_ref_idx);
 
     int refresh_mask =
@@ -1528,10 +1525,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 #endif  // CONFIG_BITRATE_ACCURACY && CONFIG_THREE_PASS
     gf_group->q_val[gf_index] = *pframe_qindex;
     const int true_disp = (int)(tpl_frame->frame_display_index);
-    av1_get_ref_frames(ref_frame_map_pairs, true_disp,
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
-                       cpi, gf_index, 0,
-#endif
+    av1_get_ref_frames(ref_frame_map_pairs, true_disp, cpi, gf_index, 0,
                        remapped_ref_idx);
     int refresh_mask =
         av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,

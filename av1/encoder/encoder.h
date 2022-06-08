@@ -2406,8 +2406,7 @@ typedef struct AV1_PRIMARY {
    * encode set.
    */
   struct AV1_COMP_DATA parallel_frames_data[MAX_PARALLEL_FRAMES - 1];
-#if CONFIG_FRAME_PARALLEL_ENCODE
-#if CONFIG_FPMT_TEST
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
   /*!
    * Flag which enables/disables simulation path for fpmt unit test.
    * 0 - FPMT integration
@@ -2432,16 +2431,13 @@ typedef struct AV1_PRIMARY {
    * model across frames.
    */
   int temp_valid_gm_model_found[FRAME_UPDATE_TYPES];
-#endif
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
   /*!
    * Copy of cm->ref_frame_map maintained to facilitate sequential update of
    * ref_frame_map by lower layer depth frames encoded ahead of time in a
    * parallel encode set.
    */
   RefCntBuffer *ref_frame_map_copy[REF_FRAMES];
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
   /*!
    * Start time stamp of the last encoded show frame
@@ -3259,7 +3255,6 @@ typedef struct AV1_COMP {
    * ppi->mv_stats during postencode.
    */
   MV_STATS mv_stats;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
   /*!
    * Stores the reference refresh index for the current frame.
    */
@@ -3277,7 +3272,7 @@ typedef struct AV1_COMP {
    * encode set of lower layer frames.
    */
   int ref_idx_to_skip;
-#if CONFIG_FPMT_TEST
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
   /*!
    * Stores the wanted frame buffer index for choosing primary ref frame by a
    * frame_parallel_level 2 frame in a parallel encode set of lower layer
@@ -3285,8 +3280,7 @@ typedef struct AV1_COMP {
    */
 
   int wanted_fb;
-#endif
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
+#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
 
   /*!
    * A flag to indicate frames that will update their data to the primary

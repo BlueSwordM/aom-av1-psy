@@ -893,13 +893,11 @@ int av1_check_fpmt_config(AV1_PRIMARY *const ppi,
                    reset_size);
     av1_zero_array(&ppi->gf_group.is_frame_non_ref[cur_gf_index], reset_size);
     av1_zero_array(&ppi->gf_group.src_offset[cur_gf_index], reset_size);
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
     memset(&ppi->gf_group.skip_frame_refresh[cur_gf_index][0], INVALID_IDX,
            sizeof(ppi->gf_group.skip_frame_refresh[cur_gf_index][0]) *
                reset_size * REF_FRAMES);
     memset(&ppi->gf_group.skip_frame_as_ref[cur_gf_index], INVALID_IDX,
            sizeof(ppi->gf_group.skip_frame_as_ref[cur_gf_index]) * reset_size);
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
     ppi->num_fp_contexts = 1;
   }
   return 0;

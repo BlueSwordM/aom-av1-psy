@@ -3570,8 +3570,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       break;
   }
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
   // Disable cdf update for the INTNL_ARF_UPDATE frame with
   // frame_parallel_level 1.
   if (!cpi->do_frame_data_update &&
@@ -3579,8 +3577,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     assert(cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 1);
     features->disable_cdf_update = 1;
   }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
 
   int largest_tile_id = 0;
   if (av1_superres_in_recode_allowed(cpi)) {
@@ -4296,8 +4292,6 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
 #endif
 
   if (!is_stat_generation_stage(cpi) && !cpi->is_dropped_frame) {
-#if CONFIG_FRAME_PARALLEL_ENCODE
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
     // Before calling refresh_reference_frames(), copy ppi->ref_frame_map_copy
     // to cm->ref_frame_map for frame_parallel_level 2 frame in a parallel
     // encode set of lower layer frames.
@@ -4310,11 +4304,7 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
       memcpy(cm->ref_frame_map, ppi->ref_frame_map_copy,
              sizeof(cm->ref_frame_map));
     }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
     refresh_reference_frames(cpi);
-#if CONFIG_FRAME_PARALLEL_ENCODE
-#if CONFIG_FRAME_PARALLEL_ENCODE_2
     // For frame_parallel_level 1 frame in a parallel encode set of lower layer
     // frames, store the updated cm->ref_frame_map in ppi->ref_frame_map_copy.
     if (ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 1 &&
@@ -4322,8 +4312,6 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
       memcpy(ppi->ref_frame_map_copy, cm->ref_frame_map,
              sizeof(cm->ref_frame_map));
     }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE_2
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE
     av1_rc_postencode_update(cpi, cpi_data->frame_size);
   }
 
@@ -4679,7 +4667,6 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
   memcpy(ref_frame_map_pairs, first_ref_frame_map_pairs,
          sizeof(RefFrameMapPair) * REF_FRAMES);
 
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
   // Store the reference refresh index of frame_parallel_level 1 frame in a
   // parallel encode set of lower layer frames.
   if (gf_group->update_type[gf_index_start] == INTNL_ARF_UPDATE) {
@@ -4694,7 +4681,6 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
     ref_frame_map_pairs[first_cpi->ref_refresh_index].pyr_level =
         gf_group->layer_depth[gf_index_start];
   }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
 
   // Set do_frame_data_update flag as false for frame_parallel_level 1 frame.
   first_cpi->do_frame_data_update = false;
@@ -4703,11 +4689,8 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
     first_cpi->time_stamps.prev_ts_end = ppi->ts_end_last_show_frame;
   }
 
-  av1_get_ref_frames(first_ref_frame_map_pairs, cur_frame_disp,
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
-                     first_cpi, gf_index_start, 1,
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
-                     first_cpi->common.remapped_ref_idx);
+  av1_get_ref_frames(first_ref_frame_map_pairs, cur_frame_disp, first_cpi,
+                     gf_index_start, 1, first_cpi->common.remapped_ref_idx);
 
   av1_scale_references_fpmt(first_cpi, ref_buffers_used_map);
   parallel_frame_count++;
@@ -4775,7 +4758,6 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
       cur_cpi_data->timestamp_ratio = first_cpi_data->timestamp_ratio;
       cur_cpi_data->flush = first_cpi_data->flush;
       cur_cpi_data->frame_size = 0;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
       if (gf_group->update_type[gf_index_start] == INTNL_ARF_UPDATE) {
         // If the first frame in a parallel encode set is INTNL_ARF_UPDATE
         // frame, initialize lib_flags of frame_parallel_level 2 frame in the
@@ -4795,14 +4777,10 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
         cur_cpi->ref_refresh_index = INVALID_IDX;
         cur_cpi->refresh_idx_available = false;
       }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
       cur_cpi->twopass_frame.stats_in = stats_in;
 
-      av1_get_ref_frames(first_ref_frame_map_pairs, cur_frame_disp,
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
-                         cur_cpi, i, 1,
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FRAME_PARALLEL_ENCODE_2
-                         cur_cpi->common.remapped_ref_idx);
+      av1_get_ref_frames(first_ref_frame_map_pairs, cur_frame_disp, cur_cpi, i,
+                         1, cur_cpi->common.remapped_ref_idx);
       av1_scale_references_fpmt(cur_cpi, ref_buffers_used_map);
       parallel_frame_count++;
     }
