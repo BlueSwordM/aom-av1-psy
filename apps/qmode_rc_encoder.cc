@@ -21,16 +21,16 @@ extern "C" void usage_exit(void) { exit(EXIT_FAILURE); }
 int main(int argc, const char **argv_) {
   (void)argc;
   (void)argv_;
-  std::string input_file = "";
+  std::string input_file = "/export/hda3/Videos/derf/bus_cif.y4m";
   aom_rational_t frame_rate = { 30, 1 };
   aom::VideoInfo input_video = { 352, 288,       frame_rate, AOM_IMG_FMT_I420,
-                                 17,  input_file };
+                                 55,  input_file };
   aom::DuckyEncode ducky_encode(input_video);
   aom::AV1RateControlQMode qmode_rc;
   aom::RateControlParam rc_param = {};
   rc_param.frame_height = 288;
   rc_param.frame_width = 352;
-  rc_param.max_gop_show_frame_count = 32;
+  rc_param.max_gop_show_frame_count = 16;
   rc_param.min_gop_show_frame_count = 4;
   rc_param.ref_frame_table_size = 7;
 
