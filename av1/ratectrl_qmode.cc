@@ -750,12 +750,12 @@ static std::vector<int> PartitionGopIntervals(
   int num_stats = static_cast<int>(stats_list.size());
   while (i + order_index < num_stats) {
     // reaches next key frame, break here
-    if (i >= frames_to_key) {
+    if (i >= frames_to_key - 1) {
       cut_here = 2;
     } else if (i - cur_start >= rc_param.max_gop_show_frame_count) {
       // reached maximum len, but nothing special yet (almost static)
       // let's look at the next interval
-      cut_here = 1;
+      cut_here = 2;
     } else {
       // Test for the case where there is a brief flash but the prediction
       // quality back to an earlier frame is then restored.
@@ -785,7 +785,8 @@ static std::vector<int> PartitionGopIntervals(
       ++i;
       continue;
     }
-    int original_last = i - 1;  // the current last frame in the gf group
+    // the current last frame in the gf group
+    int original_last = cut_here > 1 ? i : i - 1;
     int cur_last = FindBetterGopCut(
         stats_list, regions_list, rc_param.min_gop_show_frame_count,
         rc_param.max_gop_show_frame_count, order_index, cur_start,
@@ -800,11 +801,11 @@ static std::vector<int> PartitionGopIntervals(
     if (cur_region_idx >= 0)
       if (regions_list[cur_region_idx].type == SCENECUT_REGION) cur_start++;
 
-    // TODO(angiebird): Why do we need to break here?
-    if (cut_here > 1 && cur_last == original_last) break;
     // reset accumulators
     InitGFStats(&gf_stats);
     i = cur_last + 1;
+
+    if (cut_here == 2 && i >= frames_to_key) break;
   }
   std::vector<int> gf_intervals;
   // save intervals
