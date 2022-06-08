@@ -3231,7 +3231,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                         &best_pickmode, ctx);
 
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-      !x->force_zeromv_skip && is_inter_mode(best_pickmode.best_mode) &&
+      !cpi->oxcf.txfm_cfg.use_inter_dct_only && !x->force_zeromv_skip &&
+      is_inter_mode(best_pickmode.best_mode) &&
       (!cpi->sf.rt_sf.prune_idtx_nonrd ||
        (cpi->sf.rt_sf.prune_idtx_nonrd && bsize <= BLOCK_32X32 &&
         best_pickmode.best_mode_skip_txfm != 1 && x->source_variance > 200))) {
