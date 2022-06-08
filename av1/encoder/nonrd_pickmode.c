@@ -2351,7 +2351,13 @@ static AOM_INLINE int skip_mode_by_bsize_and_ref_frame(
 void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
                            BLOCK_SIZE bsize, int y_sad,
                            unsigned int source_variance) {
-  const int factor = (bsize >= BLOCK_32X32) ? 2 : 3;
+  int factor = (bsize >= BLOCK_32X32) ? 2 : 3;
+  int shift = 3;
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+      cpi->rc.high_source_sad) {
+    factor = 1;
+    shift = 6;
+  }
   NOISE_LEVEL noise_level = kLow;
   int norm_sad =
       y_sad >> (b_width_log2_lookup[bsize] + b_height_log2_lookup[bsize]);
@@ -2377,7 +2383,7 @@ void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
       const int norm_uv_sad =
           uv_sad >> (b_width_log2_lookup[bs] + b_height_log2_lookup[bs]);
       x->color_sensitivity[i - 1] =
-          uv_sad > (factor * (y_sad >> 3)) && norm_uv_sad > 40;
+          uv_sad > (factor * (y_sad >> shift)) && norm_uv_sad > 40;
       if (source_variance < 50 && norm_uv_sad > 100)
         x->color_sensitivity[i - 1] = 1;
     }
@@ -3234,6 +3240,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                   mi->tx_size, IDTX, 1);
     int64_t idx_rdcost = RDCOST(x->rdmult, idtx_rdc.rate, idtx_rdc.dist);
     if (idx_rdcost < best_rdc.rdcost) {
+      // Keep the skip_txfm off if the color_sensitivity is set,
+      // for scene/slide change.
+      if (cpi->rc.high_source_sad &&
+          (x->color_sensitivity[0] || x->color_sensitivity[1]))
+        idtx_rdc.skip_txfm = 0;
       best_pickmode.tx_type = IDTX;
       best_rdc.rdcost = idx_rdcost;
       best_pickmode.best_mode_skip_txfm = idtx_rdc.skip_txfm;

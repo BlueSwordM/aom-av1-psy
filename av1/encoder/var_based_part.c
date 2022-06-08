@@ -898,8 +898,12 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
                                     int is_key_frame) {
   int i;
   MACROBLOCKD *xd = &x->e_mbd;
-
+  int shift = 3;
   if (is_key_frame || cpi->oxcf.tool_cfg.enable_monochrome) return;
+
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+      cpi->rc.high_source_sad)
+    shift = 5;
 
   for (i = 1; i <= 2; ++i) {
     unsigned int uv_sad = UINT_MAX;
@@ -914,7 +918,7 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
 
     if (uv_sad > (y_sad >> 1))
       x->color_sensitivity_sb[i - 1] = 1;
-    else if (uv_sad < (y_sad >> 3))
+    else if (uv_sad < (y_sad >> shift))
       x->color_sensitivity_sb[i - 1] = 0;
     // Borderline case: to be refined at coding block level in nonrd_pickmode,
     // for coding block size < sb_size.
