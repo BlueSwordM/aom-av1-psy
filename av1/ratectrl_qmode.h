@@ -44,27 +44,14 @@ struct TplGopDepStats {
 
 GopFrame GopFrameInvalid();
 
-// gop frame type used for facilitate setting up GopFrame
-// TODO(angiebird): Define names for forward key frame and
-// key frame with overlay
-enum class GopFrameType {
-  kRegularKey,  // High quality key frame without overlay
-  kRegularArf,  // High quality arf with strong filtering followed by an overlay
-                // later
-  kIntermediateArf,  // Good quality arf with weak or no filtering followed by a
-                     // show_existing later
-  kRegularLeaf,      // Regular leaf frame
-  kShowExisting,     // Show_existing frame
-  kOverlay           // Overlay frame
-};
-
 // Set up is_key_frame, is_arf_frame, is_show_frame, is_golden_frame and
 // encode_ref_mode in GopFrame based on gop_frame_type
 void SetGopFrameByType(GopFrameType gop_frame_type, GopFrame *gop_frame);
 
 GopFrame GopFrameBasic(int global_coding_idx_offset,
                        int global_order_idx_offset, int coding_idx,
-                       int order_idx, int depth, GopFrameType gop_frame_type);
+                       int order_idx, int depth, int display_idx,
+                       GopFrameType gop_frame_type);
 
 GopStruct ConstructGop(RefFrameManager *ref_frame_manager, int show_frame_count,
                        bool has_key_frame, int global_coding_idx_offset,

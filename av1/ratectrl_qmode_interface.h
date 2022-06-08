@@ -49,6 +49,21 @@ struct TplBlockStats {
   std::array<int, kBlockRefCount> ref_frame_index;
 };
 
+// gop frame type used for facilitate setting up GopFrame
+// TODO(angiebird): Define names for forward key frame and
+// key frame with overlay
+enum class GopFrameType {
+  kRegularKey,     // High quality key frame without overlay
+  kRegularLeaf,    // Regular leaf frame
+  kRegularGolden,  // Regular golden frame
+  kRegularArf,  // High quality arf with strong filtering followed by an overlay
+                // later
+  kOverlay,     // Overlay frame
+  kIntermediateArf,  // Good quality arf with weak or no filtering followed by a
+                     // show_existing later
+  kShowExisting,     // Show_existing frame
+};
+
 enum class EncodeRefMode {
   kRegular,
   kOverlay,
@@ -75,8 +90,10 @@ struct ReferenceFrame {
 struct GopFrame {
   // basic info
   bool is_valid;
-  int order_idx;   // Index in display order in a GOP
-  int coding_idx;  // Index in coding order in a GOP
+  int order_idx;    // Index in display order in a GOP
+  int coding_idx;   // Index in coding order in a GOP
+  int display_idx;  // The number of displayed frames preceding this frame in
+                    // a GOP
 
   int global_order_idx;   // Index in display order in the whole video chunk
   int global_coding_idx;  // Index in coding order in the whole video chunk
@@ -87,6 +104,9 @@ struct GopFrame {
                          // higher than the current display order
   bool is_show_frame;    // Is this frame a show frame after coding
   bool is_golden_frame;  // Is this a high quality frame
+
+  GopFrameType update_type;  // This is a redundant field. It is only used for
+                             // easy conversion in SW integration.
 
   // reference frame info
   EncodeRefMode encode_ref_mode;
@@ -115,6 +135,8 @@ struct GopStruct {
   int show_frame_count;
   int global_coding_idx_offset;
   int global_order_idx_offset;
+  int display_tracker;  // Track the number of frames displayed proceeding a
+                        // current coding frame.
   std::vector<GopFrame> gop_frame_list;
 };
 

@@ -24,6 +24,7 @@
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/ethread.h"
 #include "av1/encoder/firstpass.h"
+#include "av1/encoder/temporal_filter.h"
 #include "av1/ducky_encode.h"
 
 #include "common/tools_common.h"
@@ -200,6 +201,8 @@ static EncoderResource InitEncoder(
       cpi->common.features.byte_alignment,
       /*num_lap_buffers=*/0, /*is_all_intra=*/0,
       cpi->oxcf.tool_cfg.enable_global_motion);
+
+  av1_tf_info_alloc(&cpi->ppi->tf_info, cpi);
   assert(ppi->lookahead != nullptr);
   return enc_resource;
 }
@@ -231,7 +234,6 @@ std::vector<FIRSTPASS_STATS> DuckyEncode::ComputeFirstPassStats() {
   std::vector<uint8_t> buf(1000);
   std::vector<FIRSTPASS_STATS> stats_list;
   for (int i = 0; i < frame_count; ++i) {
-    assert(!av1_lookahead_full(lookahead));
     if (aom_img_read(&enc_resource.img, in_file)) {
       // TODO(angiebird): Set ts_start/ts_end properly
       int64_t ts_start = enc_resource.lookahead_push_count;
@@ -256,6 +258,7 @@ std::vector<FIRSTPASS_STATS> DuckyEncode::ComputeFirstPassStats() {
       (void)res;
       assert(res == static_cast<int>(AOM_CODEC_OK));
       stats_list.push_back(*(ppi->twopass.stats_buf_ctx->stats_in_end - 1));
+      av1_post_encode_updates(ppi->cpi, &cpi_data);
     }
   }
   av1_end_first_pass(ppi->cpi);
@@ -270,6 +273,39 @@ void DuckyEncode::StartEncode(const std::vector<FIRSTPASS_STATS> &stats_list) {
   impl_ptr_->enc_resource =
       InitEncoder(impl_ptr_->video_info, impl_ptr_->g_usage,
                   impl_ptr_->rc_end_usage, pass, &stats_list);
+}
+
+static void DuckyEncodeInfoSetGopStruct(AV1_PRIMARY *ppi,
+                                        GopStruct gop_struct) {
+  GF_GROUP *gf_group = &ppi->gf_group;
+  ppi->p_rc.baseline_gf_interval = gop_struct.show_frame_count;
+  ppi->internal_altref_allowed = 1;
+
+  gf_group->size = static_cast<int>(gop_struct.gop_frame_list.size());
+  gf_group->max_layer_depth = 0;
+
+  int i = 0;
+  for (auto &frame : gop_struct.gop_frame_list) {
+    gf_group->update_type[i] = (int)frame.update_type;
+    if (frame.update_type == GopFrameType::kRegularArf) gf_group->arf_index = i;
+
+    gf_group->frame_type[i] = !frame.is_key_frame;
+
+    gf_group->cur_frame_idx[i] = 0;
+    gf_group->arf_src_offset[i] = frame.order_idx - frame.display_idx;
+    gf_group->cur_frame_idx[i] = frame.display_idx;
+    gf_group->src_offset[i] = 0;
+
+    // TODO(jingning): Placeholder - update the arf boost.
+    gf_group->arf_boost[i] = 500;
+    gf_group->layer_depth[i] = frame.layer_depth;
+    gf_group->max_layer_depth =
+        AOMMAX(frame.layer_depth, gf_group->max_layer_depth);
+    gf_group->refbuf_state[i] =
+        frame.is_key_frame ? REFBUF_RESET : REFBUF_UPDATE;
+    ++i;
+  }
+  ppi->cpi->gf_frame_index = 0;
 }
 
 static void DuckyEncodeInfoSetEncodeFrameDecision(
@@ -313,12 +349,27 @@ static void WriteObu(AV1_PRIMARY *ppi, AV1_COMP_DATA *cpi_data) {
       obu_header_size + obu_payload_size + length_field_size;
 }
 
-// TODO(jianj): Implement this function to return TPL stats from av1.
+// Obtain TPL stats through ducky_encode.
 std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
     const GopStructList &gop_list) {
-  std::vector<TplGopStats> tpl_gop_stats;
-  (void)gop_list;
-  return tpl_gop_stats;
+  std::vector<TplGopStats> tpl_gop_stats_list;
+  AV1_PRIMARY *ppi = impl_ptr_->enc_resource.ppi;
+
+  // Go through each gop and encode each frame in the gop
+  for (size_t i = 0; i < gop_list.size(); ++i) {
+    const aom::GopStruct &gop_struct = gop_list[i];
+    DuckyEncodeInfoSetGopStruct(ppi, gop_struct);
+    aom::TplGopStats tpl_gop_stats;
+    for (auto &frame : gop_struct.gop_frame_list) {
+      // encoding frame frame_number
+      aom::EncodeFrameDecision frame_decision = { aom::EncodeFrameMode::kQindex,
+                                                  { 128, -1 } };
+      (void)frame;
+      EncodeFrame(frame_decision);
+    }
+  }
+
+  return tpl_gop_stats_list;
 }
 
 EncodeFrameResult DuckyEncode::EncodeFrame(
@@ -334,6 +385,7 @@ EncodeFrameResult DuckyEncode::EncodeFrame(
   AV1_COMP *const cpi = ppi->cpi;
   FILE *in_file = impl_ptr_->enc_resource.in_file;
   struct lookahead_ctx *lookahead = ppi->lookahead;
+
   while (!av1_lookahead_full(lookahead)) {
     if (aom_img_read(img, in_file)) {
       YV12_BUFFER_CONFIG sd;
@@ -347,6 +399,7 @@ EncodeFrameResult DuckyEncode::EncodeFrame(
       break;
     }
   }
+
   AV1_COMP_DATA cpi_data = {};
   cpi_data.cx_data = encode_frame_result.bitstream_buf.data();
   cpi_data.cx_data_sz = encode_frame_result.bitstream_buf.size();

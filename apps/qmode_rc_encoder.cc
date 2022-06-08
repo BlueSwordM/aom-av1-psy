@@ -40,12 +40,25 @@ int main(int argc, const char **argv_) {
 
   std::vector<FIRSTPASS_STATS> frame_stats =
       ducky_encode.ComputeFirstPassStats();
+
+  fprintf(stderr, "obtained first pass\n\n");
+
   aom::FirstpassInfo firstpass_info = { (352 / 16 + 1) * (288 / 16 + 1),
                                         frame_stats };
   aom::GopStructList gop_list = qmode_rc.DetermineGopInfo(firstpass_info);
   ducky_encode.StartEncode(frame_stats);
+
+  fprintf(stderr, "gop struct determined \n");
+
   std::vector<aom::TplGopStats> tpl_gop_stats_list =
       ducky_encode.ComputeTplStats(gop_list);
+
+  fprintf(stderr, "tpl stats completed \n");
+
+  // TODO(jingning): Re-enable the next final encoding stage once the TPL stats
+  // collection is done.
+  ducky_encode.EndEncode();
+  return 0;
 
   aom::RefFrameTable ref_frame_table;
 

@@ -40,9 +40,17 @@ GopFrame GopFrameInvalid() {
 }
 
 void SetGopFrameByType(GopFrameType gop_frame_type, GopFrame *gop_frame) {
+  gop_frame->update_type = gop_frame_type;
   switch (gop_frame_type) {
     case GopFrameType::kRegularKey:
       gop_frame->is_key_frame = 1;
+      gop_frame->is_arf_frame = 0;
+      gop_frame->is_show_frame = 1;
+      gop_frame->is_golden_frame = 1;
+      gop_frame->encode_ref_mode = EncodeRefMode::kRegular;
+      break;
+    case GopFrameType::kRegularGolden:
+      gop_frame->is_key_frame = 0;
       gop_frame->is_arf_frame = 0;
       gop_frame->is_show_frame = 1;
       gop_frame->is_golden_frame = 1;
@@ -88,11 +96,13 @@ void SetGopFrameByType(GopFrameType gop_frame_type, GopFrame *gop_frame) {
 
 GopFrame GopFrameBasic(int global_coding_idx_offset,
                        int global_order_idx_offset, int coding_idx,
-                       int order_idx, int depth, GopFrameType gop_frame_type) {
+                       int order_idx, int depth, int display_idx,
+                       GopFrameType gop_frame_type) {
   GopFrame gop_frame = {};
   gop_frame.is_valid = true;
   gop_frame.coding_idx = coding_idx;
   gop_frame.order_idx = order_idx;
+  gop_frame.display_idx = display_idx;
   gop_frame.global_coding_idx = global_coding_idx_offset + coding_idx;
   gop_frame.global_order_idx = global_order_idx_offset + order_idx;
   SetGopFrameByType(gop_frame_type, &gop_frame);
@@ -119,30 +129,34 @@ void ConstructGopMultiLayer(GopStruct *gop_struct,
   if (depth < max_depth && num_frames >= kMinIntervalToAddArf) {
     int order_mid = (order_start + order_end) / 2;
     // intermediate ARF
-    gop_frame = GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
-                              coding_idx, order_mid, depth,
-                              GopFrameType::kIntermediateArf);
+    gop_frame =
+        GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
+                      coding_idx, order_mid, depth, gop_struct->display_tracker,
+                      GopFrameType::kIntermediateArf);
     ref_frame_manager->UpdateRefFrameTable(&gop_frame);
     gop_struct->gop_frame_list.push_back(gop_frame);
     ConstructGopMultiLayer(gop_struct, ref_frame_manager, max_depth, depth + 1,
                            order_start, order_mid);
     // show existing intermediate ARF
-    gop_frame = GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
-                              coding_idx, order_mid, max_depth,
-                              GopFrameType::kShowExisting);
+    gop_frame =
+        GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
+                      coding_idx, order_mid, max_depth,
+                      gop_struct->display_tracker, GopFrameType::kShowExisting);
     ref_frame_manager->UpdateRefFrameTable(&gop_frame);
     gop_struct->gop_frame_list.push_back(gop_frame);
+    ++gop_struct->display_tracker;
     ConstructGopMultiLayer(gop_struct, ref_frame_manager, max_depth, depth + 1,
                            order_mid + 1, order_end);
   } else {
     // regular frame
     for (int i = order_start; i < order_end; ++i) {
       coding_idx = static_cast<int>(gop_struct->gop_frame_list.size());
-      gop_frame =
-          GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
-                        coding_idx, i, max_depth, GopFrameType::kRegularLeaf);
+      gop_frame = GopFrameBasic(
+          global_coding_idx_offset, global_order_idx_offset, coding_idx, i,
+          max_depth, gop_struct->display_tracker, GopFrameType::kRegularLeaf);
       ref_frame_manager->UpdateRefFrameTable(&gop_frame);
       gop_struct->gop_frame_list.push_back(gop_frame);
+      ++gop_struct->display_tracker;
     }
   }
 }
@@ -158,28 +172,34 @@ GopStruct ConstructGop(RefFrameManager *ref_frame_manager, int show_frame_count,
   int order_end = show_frame_count - 1;
   int coding_idx;
 
-  bool has_arf_frame = show_frame_count > kMinIntervalToAddArf;
+  // TODO(jingning): Re-enable the use of pyramid coding structure.
+  bool has_arf_frame = 0;  // show_frame_count > kMinIntervalToAddArf;
+
+  gop_struct.display_tracker = 0;
 
   GopFrame gop_frame;
   if (has_key_frame) {
     const int key_frame_depth = -1;
     ref_frame_manager->Reset();
     coding_idx = static_cast<int>(gop_struct.gop_frame_list.size());
-    gop_frame = GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
-                              coding_idx, order_start, key_frame_depth,
-                              GopFrameType::kRegularKey);
+    gop_frame =
+        GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
+                      coding_idx, order_start, key_frame_depth,
+                      gop_struct.display_tracker, GopFrameType::kRegularKey);
     ref_frame_manager->UpdateRefFrameTable(&gop_frame);
     gop_struct.gop_frame_list.push_back(gop_frame);
     order_start++;
+    ++gop_struct.display_tracker;
   }
 
   const int arf_depth = 0;
   if (has_arf_frame) {
     // Use multi-layer pyrmaid coding structure.
     coding_idx = static_cast<int>(gop_struct.gop_frame_list.size());
-    gop_frame = GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
-                              coding_idx, order_end, arf_depth,
-                              GopFrameType::kRegularArf);
+    gop_frame =
+        GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
+                      coding_idx, order_end, arf_depth,
+                      gop_struct.display_tracker, GopFrameType::kRegularArf);
     ref_frame_manager->UpdateRefFrameTable(&gop_frame);
     gop_struct.gop_frame_list.push_back(gop_frame);
     ConstructGopMultiLayer(&gop_struct, ref_frame_manager,
@@ -189,18 +209,22 @@ GopStruct ConstructGop(RefFrameManager *ref_frame_manager, int show_frame_count,
     coding_idx = static_cast<int>(gop_struct.gop_frame_list.size());
     gop_frame = GopFrameBasic(
         global_coding_idx_offset, global_order_idx_offset, coding_idx,
-        order_end, ref_frame_manager->ForwardMaxSize(), GopFrameType::kOverlay);
+        order_end, ref_frame_manager->ForwardMaxSize(),
+        gop_struct.display_tracker, GopFrameType::kOverlay);
     ref_frame_manager->UpdateRefFrameTable(&gop_frame);
     gop_struct.gop_frame_list.push_back(gop_frame);
+    ++gop_struct.display_tracker;
   } else {
     // Use IPPP format.
     for (int i = order_start; i <= order_end; ++i) {
       coding_idx = static_cast<int>(gop_struct.gop_frame_list.size());
-      gop_frame = GopFrameBasic(global_coding_idx_offset,
-                                global_order_idx_offset, coding_idx, i,
-                                arf_depth + 1, GopFrameType::kRegularLeaf);
+      gop_frame =
+          GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
+                        coding_idx, i, arf_depth + 1,
+                        gop_struct.display_tracker, GopFrameType::kRegularLeaf);
       ref_frame_manager->UpdateRefFrameTable(&gop_frame);
       gop_struct.gop_frame_list.push_back(gop_frame);
+      ++gop_struct.display_tracker;
     }
   }
 
@@ -748,6 +772,7 @@ static std::vector<int> PartitionGopIntervals(
   GF_GROUP_STATS gf_stats;
   InitGFStats(&gf_stats);
   int num_stats = static_cast<int>(stats_list.size());
+
   while (i + order_index < num_stats) {
     // reaches next key frame, break here
     if (i >= frames_to_key - 1) {
@@ -785,6 +810,7 @@ static std::vector<int> PartitionGopIntervals(
       ++i;
       continue;
     }
+
     // the current last frame in the gf group
     int original_last = cut_here > 1 ? i : i - 1;
     int cur_last = FindBetterGopCut(
@@ -807,6 +833,7 @@ static std::vector<int> PartitionGopIntervals(
 
     if (cut_here == 2 && i >= frames_to_key) break;
   }
+
   std::vector<int> gf_intervals;
   // save intervals
   for (size_t n = 1; n < cut_pos.size(); n++) {

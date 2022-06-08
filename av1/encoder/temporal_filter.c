@@ -1275,12 +1275,12 @@ int av1_is_temporal_filter_on(const AV1EncoderConfig *oxcf) {
   return oxcf->algo_cfg.arnr_max_frames > 0 && oxcf->gf_cfg.lag_in_frames > 1;
 }
 
-void av1_tf_info_alloc(TEMPORAL_FILTER_INFO *tf_info, AV1_COMP *cpi) {
+void av1_tf_info_alloc(TEMPORAL_FILTER_INFO *tf_info, const AV1_COMP *cpi) {
   const AV1EncoderConfig *oxcf = &cpi->oxcf;
   tf_info->is_temporal_filter_on = av1_is_temporal_filter_on(oxcf);
   if (tf_info->is_temporal_filter_on == 0) return;
 
-  AV1_COMMON *cm = &cpi->common;
+  const AV1_COMMON *cm = &cpi->common;
   const SequenceHeader *const seq_params = cm->seq_params;
   int ret;
   for (int i = 0; i < TF_INFO_BUF_COUNT; ++i) {
