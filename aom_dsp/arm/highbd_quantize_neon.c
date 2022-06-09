@@ -266,6 +266,7 @@ void aom_highbd_quantize_b_64x64_neon(
                          eob_ptr, scan, iscan, 2);
 }
 
+#if !CONFIG_REALTIME_ONLY
 static void highbd_quantize_b_adaptive_neon(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
     const int16_t *round_ptr, const int16_t *quant_ptr,
@@ -424,3 +425,4 @@ void aom_highbd_quantize_b_64x64_adaptive_neon(
       coeff_ptr, n_coeffs, zbin_ptr, round_ptr, quant_ptr, quant_shift_ptr,
       qcoeff_ptr, dqcoeff_ptr, dequant_ptr, eob_ptr, scan, iscan, 2);
 }
+#endif  // !CONFIG_REALTIME_ONLY

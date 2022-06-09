@@ -32,6 +32,7 @@
  * Loop restoration
  *
  * The following features are also disabled with CONFIG_REALTIME_ONLY:
+ * AV1E_SET_QUANT_B_ADAPT
  * CNN
  * 4X rectangular blocks
  * 4X rectangular transform in intra prediction
