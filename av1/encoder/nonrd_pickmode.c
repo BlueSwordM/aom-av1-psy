@@ -2241,11 +2241,20 @@ static void estimate_intra_mode(
     this_rdc.rate += mode_cost;
     this_rdc.rdcost = RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist);
 
-    // For blocks with low spatial variance and color sad,
-    // favor the intra-modes, only on scene/slide change.
-    if (cpi->rc.high_source_sad && x->source_variance < 800 &&
-        (x->color_sensitivity[0] || x->color_sensitivity[1]))
-      this_rdc.rdcost = (7 * this_rdc.rdcost) >> 3;
+    if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+        cpi->sf.rt_sf.source_metrics_sb_nonrd) {
+      // For blocks with low spatial variance and color sad,
+      // favor the intra-modes, only on scene/slide change.
+      if (cpi->rc.high_source_sad && x->source_variance < 800 &&
+          (x->color_sensitivity[0] || x->color_sensitivity[1]))
+        this_rdc.rdcost = (7 * this_rdc.rdcost) >> 3;
+      // Otherwise bias against intra for blocks with zero
+      // motion and no color, on non-scene/slide changes.
+      else if (!cpi->rc.high_source_sad && x->source_variance > 0 &&
+               x->content_state_sb.source_sad_nonrd == kZeroSad &&
+               x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0)
+        this_rdc.rdcost = (9 * this_rdc.rdcost) << 3;
+    }
 
     if (this_rdc.rdcost < best_rdc->rdcost) {
       *best_rdc = this_rdc;
@@ -2658,7 +2667,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   get_ref_frame_use_mask(cpi, x, mi, mi_row, mi_col, bsize, gf_temporal_ref,
                          use_ref_frame_mask, &force_skip_low_temp_var);
 
-  skip_pred_mv = (x->nonrd_prune_ref_frame_search > 2 &&
+  skip_pred_mv = x->force_zeromv_skip ||
+                 (x->nonrd_prune_ref_frame_search > 2 &&
                   x->color_sensitivity[0] != 2 && x->color_sensitivity[1] != 2);
 
   // Compound modes per reference pair (GOLDEN_LAST/LAST2_LAST/ALTREF_LAST):
