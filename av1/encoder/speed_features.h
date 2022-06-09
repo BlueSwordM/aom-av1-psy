@@ -1215,12 +1215,28 @@ typedef struct RD_CALC_SPEED_FEATURES {
   // Fast approximation of av1_model_rd_from_var_lapndz
   int simple_model_rd_from_var;
 
-  // Whether to compute distortion in the image domain (slower but
-  // more accurate), or in the transform domain (faster but less acurate).
-  // 0: use image domain
-  // 1: use transform domain in tx_type search, and use image domain for
-  // RD_STATS
-  // 2: use transform domain
+  // Perform faster distortion computation during the R-D evaluation by trying
+  // to approximate the prediction error with transform coefficients (faster but
+  // less accurate) rather than computing distortion in the pixel domain (slower
+  // but more accurate). The following methods are used for distortion
+  // computation:
+  // Method 0: Always compute distortion in the pixel domain
+  // Method 1: Based on block error, try using transform domain distortion for
+  // tx_type search and compute distortion in pixel domain for final RD_STATS
+  // Method 2: Based on block error, try to compute distortion in transform
+  // domain
+  // Methods 1 and 2 may fallback to computing distortion in the pixel domain in
+  // case the block error is less than the threshold, which is controlled by the
+  // speed feature tx_domain_dist_thres_level.
+  //
+  // The speed feature tx_domain_dist_level decides which of the above methods
+  // needs to be used across different mode evaluation stages as described
+  // below:
+  // Eval type:    Default      Mode        Winner
+  // Level 0  :    Method 0    Method 2    Method 0
+  // Level 1  :    Method 1    Method 2    Method 0
+  // Level 2  :    Method 2    Method 2    Method 0
+  // Level 3  :    Method 2    Method 2    Method 2
   int tx_domain_dist_level;
 
   // Transform domain distortion threshold level

@@ -57,14 +57,20 @@ static unsigned int tx_domain_dist_thresholds[4][MODE_EVAL_TYPES] = {
   { 0, 0, 0 }
 };
 
+// Number of different levels of aggressiveness in using transform domain
+// distortion during the R-D evaluation based on the speed feature
+// tx_domain_dist_level.
+#define TX_DOMAIN_DIST_LEVELS 4
+
 // Transform domain distortion type to be used for default, mode and winner mode
 // evaluation Index 0: Default mode evaluation, Winner mode processing is not
 // applicable (Eg : IntraBc). Index 1: Mode evaluation. Index 2: Winner mode
 // evaluation. Index 1 and 2 are applicable when
 // enable_winner_mode_for_use_tx_domain_dist speed feature is ON
-static unsigned int tx_domain_dist_types[3][MODE_EVAL_TYPES] = { { 0, 2, 0 },
-                                                                 { 1, 2, 0 },
-                                                                 { 2, 2, 0 } };
+static unsigned int
+    tx_domain_dist_types[TX_DOMAIN_DIST_LEVELS][MODE_EVAL_TYPES] = {
+      { 0, 2, 0 }, { 1, 2, 0 }, { 2, 2, 0 }, { 2, 2, 2 }
+    };
 
 // Threshold values to be used for disabling coeff RD-optimization
 // based on block MSE / qstep^2.
@@ -498,6 +504,8 @@ static void set_allintra_speed_features_framesize_independent(
     sf->tx_sf.prune_intra_tx_depths_using_nn = true;
 
     sf->rd_sf.perform_coeff_opt = 6;
+    sf->rd_sf.tx_domain_dist_level = 3;
+
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_Q;
 
@@ -2161,7 +2169,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
          sizeof(winner_mode_params->tx_domain_dist_threshold));
 
   assert(cpi->sf.rd_sf.tx_domain_dist_level >= 0 &&
-         cpi->sf.rd_sf.tx_domain_dist_level < 3);
+         cpi->sf.rd_sf.tx_domain_dist_level < TX_DOMAIN_DIST_LEVELS);
   memcpy(winner_mode_params->use_transform_domain_distortion,
          tx_domain_dist_types[cpi->sf.rd_sf.tx_domain_dist_level],
          sizeof(winner_mode_params->use_transform_domain_distortion));
