@@ -570,6 +570,8 @@ const QuantizeParam<QuantizeFunc> kQParamArrayAvx2[] = {
              static_cast<TX_SIZE>(TX_4X4), TYPE_B, AOM_BITS_8),
   make_tuple(&aom_quantize_b_c, &aom_quantize_b_avx2,
              static_cast<TX_SIZE>(TX_16X16), TYPE_B, AOM_BITS_8),
+  make_tuple(&aom_quantize_b_32x32_c, &aom_quantize_b_32x32_avx2,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_8),
 };
 
 INSTANTIATE_TEST_SUITE_P(AVX2, FullPrecisionQuantizeTest,
