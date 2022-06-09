@@ -214,13 +214,13 @@ void EncoderTest::RunLoop(VideoSource *video) {
     }
 #endif
 
-    number_spatial_layers_ = GetNumSpatialLayers();
+    int number_spatial_layers = GetNumSpatialLayers();
 
     bool again;
     for (again = true; again; video->Next()) {
       again = (video->img() != nullptr);
 
-      for (int sl = 0; sl < number_spatial_layers_; sl++) {
+      for (int sl = 0; sl < number_spatial_layers; sl++) {
         PreEncodeFrameHook(video, encoder.get());
         encoder->EncodeFrame(video, frame_flags_);
         PostEncodeFrameHook(encoder.get());
@@ -255,7 +255,8 @@ void EncoderTest::RunLoop(VideoSource *video) {
               }
 #endif
               ASSERT_GE(pkt->data.frame.pts, last_pts);
-              if (sl == number_spatial_layers_) last_pts = pkt->data.frame.pts;
+              if (sl == number_spatial_layers - 1)
+                last_pts = pkt->data.frame.pts;
               FramePktHook(pkt);
               break;
 
