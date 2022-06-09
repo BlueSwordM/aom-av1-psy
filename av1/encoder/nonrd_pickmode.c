@@ -2241,6 +2241,12 @@ static void estimate_intra_mode(
     this_rdc.rate += mode_cost;
     this_rdc.rdcost = RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist);
 
+    // For blocks with low spatial variance and color sad,
+    // favor the intra-modes, only on scene/slide change.
+    if (cpi->rc.high_source_sad && x->source_variance < 800 &&
+        (x->color_sensitivity[0] || x->color_sensitivity[1]))
+      this_rdc.rdcost = (7 * this_rdc.rdcost) >> 3;
+
     if (this_rdc.rdcost < best_rdc->rdcost) {
       *best_rdc = this_rdc;
       best_pickmode->best_mode = this_mode;
