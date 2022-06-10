@@ -60,7 +60,8 @@ class MetadataEncodeTest
 
   virtual void SetUp() { InitializeConfig(GET_PARAM(1)); }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video) {
+  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                                  ::libaom_test::Encoder * /*encoder*/) {
     aom_image_t *current_frame = video->img();
     if (current_frame) {
       if (current_frame->metadata) aom_img_remove_metadata(current_frame);

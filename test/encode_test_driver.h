@@ -218,7 +218,6 @@ class EncoderTest {
   virtual void EndPassHook() {}
 
   // Hook to be called before encoding a frame.
-  virtual void PreEncodeFrameHook(VideoSource * /*video*/) {}
   virtual void PreEncodeFrameHook(VideoSource * /*video*/,
                                   Encoder * /*encoder*/) {}
 

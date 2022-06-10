@@ -221,7 +221,6 @@ void EncoderTest::RunLoop(VideoSource *video) {
       again = (video->img() != nullptr);
 
       for (int sl = 0; sl < number_spatial_layers_; sl++) {
-        PreEncodeFrameHook(video);
         PreEncodeFrameHook(video, encoder.get());
         encoder->EncodeFrame(video, frame_flags_);
         PostEncodeFrameHook(encoder.get());
