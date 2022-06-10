@@ -4088,7 +4088,13 @@ static void split_partition_search(
           !(partition_none_valid && partition_none_better);
     }
   }
-  av1_restore_context(x, x_ctx, mi_row, mi_col, bsize, av1_num_planes(cm));
+  // Restore the context for the following cases:
+  // 1) Current block size not more than maximum partition size as dry run
+  // encode happens for these cases
+  // 2) Current block size same as superblock size as the final encode
+  // happens for this case
+  if (bsize <= x->sb_enc.max_partition_size || bsize == cm->seq_params->sb_size)
+    av1_restore_context(x, x_ctx, mi_row, mi_col, bsize, av1_num_planes(cm));
 }
 
 // The max number of nodes in the partition tree.
@@ -4897,6 +4903,22 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
   return true;
 }
 
+static AOM_INLINE bool should_do_dry_run_encode_for_current_block(
+    BLOCK_SIZE sb_size, BLOCK_SIZE max_partition_size, int curr_block_index,
+    BLOCK_SIZE bsize) {
+  if (bsize > max_partition_size) return false;
+
+  // Enable the reconstruction with dry-run for the 4th sub-block only if its
+  // parent block's reconstruction with dry-run is skipped. If
+  // max_partition_size is the same as immediate split of superblock, then avoid
+  // reconstruction of the 4th sub-block, as this data is not consumed.
+  if (curr_block_index != 3) return true;
+
+  const BLOCK_SIZE sub_sb_size =
+      get_partition_subsize(sb_size, PARTITION_SPLIT);
+  return bsize == max_partition_size && sub_sb_size != max_partition_size;
+}
+
 static void log_sub_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs,
                               double *var_min, double *var_max) {
   // This functions returns a the minimum and maximum log variances for 4x4
@@ -5325,9 +5347,7 @@ BEGIN_PARTITION_SEARCH:
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, encode_sb_time);
 #endif
-  // If a valid partition is found and reconstruction is required for future
-  // sub-blocks in the same group.
-  if (part_search_state.found_best_partition && pc_tree->index != 3) {
+  if (part_search_state.found_best_partition) {
     if (bsize == cm->seq_params->sb_size) {
       // Encode the superblock.
       const int emit_output = multi_pass_mode != SB_DRY_PASS;
@@ -5345,7 +5365,9 @@ BEGIN_PARTITION_SEARCH:
       // Dealloc the whole PC_TREE after a superblock is done.
       av1_free_pc_tree_recursive(pc_tree, num_planes, 0, 0);
       pc_tree_dealloc = 1;
-    } else {
+    } else if (should_do_dry_run_encode_for_current_block(
+                   cm->seq_params->sb_size, x->sb_enc.max_partition_size,
+                   pc_tree->index, bsize)) {
       // Encode the smaller blocks in DRY_RUN mode.
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_NORMAL, bsize,
                 pc_tree, NULL);
