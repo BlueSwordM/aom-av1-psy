@@ -288,8 +288,7 @@ class ResizeInternalTestLarge : public ResizeTest {
       if (video->frame() == 0) {
         struct aom_scaling_mode mode = { AOME_ONETWO, AOME_ONETWO };
         encoder->Control(AOME_SET_SCALEMODE, &mode);
-      }
-      if (video->frame() == 1) {
+      } else if (video->frame() == 1) {
         struct aom_scaling_mode mode = { AOME_NORMAL, AOME_NORMAL };
         encoder->Control(AOME_SET_SCALEMODE, &mode);
         cfg_.rc_min_quantizer = cfg_.rc_max_quantizer = new_q;
