@@ -111,20 +111,28 @@ if(BUILD_SHARED_LIBS)
   set(CONFIG_PIC 1)
   set(CONFIG_SHARED 1)
 elseif(NOT CONFIG_PIC)
-  aom_check_c_compiles("pie_check" "
-                        #if !(__pie__ || __PIE__)
-                        #error Neither __pie__ or __PIE__ are set
-                        #endif
-                        extern void unused(void);
-                        void unused(void) {}" HAVE_PIE)
+  # Update the variable only when it does not carry the CMake assigned help
+  # string for variables specified via the command line. This allows the user to
+  # force CONFIG_PIC=0.
+  unset(cache_helpstring)
+  get_property(cache_helpstring CACHE CONFIG_PIC PROPERTY HELPSTRING)
+  if(NOT "${cache_helpstring}" STREQUAL "${cmake_cmdline_helpstring}")
+    aom_check_c_compiles("pie_check" "
+                          #if !(__pie__ || __PIE__)
+                          #error Neither __pie__ or __PIE__ are set
+                          #endif
+                          extern void unused(void);
+                          void unused(void) {}" HAVE_PIE)
 
-  if(HAVE_PIE)
-    # If -fpie or -fPIE are used ensure the assembly code has PIC enabled to
-    # avoid DT_TEXTRELs: /usr/bin/ld: warning: creating DT_TEXTREL in a PIE
-    set(CONFIG_PIC 1)
-    message(
-      "CONFIG_PIC enabled for position independent executable (PIE) build")
+    if(HAVE_PIE)
+      # If -fpie or -fPIE are used ensure the assembly code has PIC enabled to
+      # avoid DT_TEXTRELs: /usr/bin/ld: warning: creating DT_TEXTREL in a PIE
+      set(CONFIG_PIC 1)
+      message(
+        "CONFIG_PIC enabled for position independent executable (PIE) build")
+    endif()
   endif()
+  unset(cache_helpstring)
 endif()
 
 if(NOT MSVC)
