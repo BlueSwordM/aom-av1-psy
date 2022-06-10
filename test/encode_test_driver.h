@@ -194,7 +194,7 @@ class EncoderTest {
  protected:
   explicit EncoderTest(const CodecFactory *codec)
       : codec_(codec), abort_(false), init_flags_(0), frame_flags_(0),
-        last_pts_(0), mode_(kRealTime), number_spatial_layers_(1) {
+        mode_(kRealTime), number_spatial_layers_(1) {
     // Default to 1 thread.
     cfg_.g_threads = 1;
   }
@@ -279,7 +279,6 @@ class EncoderTest {
   TwopassStatsStore stats_;
   aom_codec_flags_t init_flags_;
   unsigned long frame_flags_;
-  aom_codec_pts_t last_pts_;
   TestMode mode_;
   int number_spatial_layers_;
 };

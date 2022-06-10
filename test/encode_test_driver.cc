@@ -177,7 +177,7 @@ void EncoderTest::RunLoop(VideoSource *video) {
 
   ASSERT_TRUE(passes_ == 1 || passes_ == 2);
   for (unsigned int pass = 0; pass < passes_; pass++) {
-    last_pts_ = 0;
+    aom_codec_pts_t last_pts = 0;
 
     if (passes_ == 1)
       cfg_.g_pass = AOM_RC_ONE_PASS;
@@ -255,8 +255,8 @@ void EncoderTest::RunLoop(VideoSource *video) {
                 has_dxdata = true;
               }
 #endif
-              ASSERT_GE(pkt->data.frame.pts, last_pts_);
-              if (sl == number_spatial_layers_) last_pts_ = pkt->data.frame.pts;
+              ASSERT_GE(pkt->data.frame.pts, last_pts);
+              if (sl == number_spatial_layers_) last_pts = pkt->data.frame.pts;
               FramePktHook(pkt);
               break;
 
