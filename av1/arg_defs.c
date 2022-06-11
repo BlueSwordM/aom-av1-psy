@@ -47,7 +47,7 @@ static const struct arg_enum_list tuning_enum[] = {
   { "vmaf", AOM_TUNE_VMAF_MAX_GAIN },
   { "vmaf_neg", AOM_TUNE_VMAF_NEG_MAX_GAIN },
   { "butteraugli", AOM_TUNE_BUTTERAUGLI },
-  { "image_perceptual_quality", AOM_TUNE_IMAGE_PERCEPTUAL_QUALITY },
+  { "ipq", AOM_TUNE_IMAGE_PERCEPTUAL_QUALITY },
   { "ipq_vmaf_psy", AOM_TUNE_IMAGE_PERCEPTUAL_QUALITY_VMAF_PSY_QP },
   { "vmaf_psy_qp", AOM_TUNE_FAST_VMAF_PSY_QP },
   { NULL, 0 }
@@ -193,7 +193,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF("y", "disable-warning-prompt", 0,
               "Display warnings, but do not prompt user to continue"),
   .bitdeptharg =
-      ARG_DEF_ENUM("b", "bit-depth", 1, "Bit depth for codec", bitdepth_enum),
+      ARG_DEF_ENUM("b", "bit-depth", 1, "Bit depth for codec (default is 10-bit)", bitdepth_enum),
   .inbitdeptharg = ARG_DEF(NULL, "input-bit-depth", 1, "Bit depth of input"),
 
   .input_chroma_subsampling_x = ARG_DEF(NULL, "input-chroma-subsampling-x", 1,
@@ -269,11 +269,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .maxsection_pct =
       ARG_DEF(NULL, "maxsection-pct", 1, "GOP max bitrate (% of target)"),
   .fwd_kf_enabled =
-      ARG_DEF(NULL, "enable-fwd-kf", 1, "Enable forward reference keyframes"),
+      ARG_DEF(NULL, "enable-fwd-kf", 1, "Enable forward reference keyframes (0: off (default), 1: on)"),
   .kf_min_dist =
-      ARG_DEF(NULL, "kf-min-dist", 1, "Minimum keyframe interval (frames)"),
+      ARG_DEF(NULL, "kf-min-dist", 1, "Minimum keyframe interval (frames), default is 12"),
   .kf_max_dist =
-      ARG_DEF(NULL, "kf-max-dist", 1, "Maximum keyframe interval (frames)"),
+      ARG_DEF(NULL, "kf-max-dist", 1, "Maximum keyframe interval (frames), default is 240"),
   .kf_disabled = ARG_DEF(NULL, "disable-kf", 0, "Disable keyframe placement"),
   .sframe_dist = ARG_DEF(NULL, "sframe-dist", 1, "S-Frame interval (frames)"),
   .sframe_mode =
@@ -305,7 +305,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
 #if CONFIG_AV1_ENCODER
   .cpu_used_av1 = ARG_DEF(NULL, "cpu-used", 1,
                           "Speed setting (0..6 in good mode, 5..10 in realtime "
-                          "mode, 0..9 in all intra mode)"),
+                          "mode, 0..9 in all intra mode), default is speed 3"),
   .rowmtarg =
       ARG_DEF(NULL, "row-mt", 1,
               "Enable row based multi-threading (0: off, 1: on (default))"),
@@ -363,7 +363,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                                 "(0: false, 1: true (default))"),
   .enable_chroma_deltaq = ARG_DEF(NULL, "enable-chroma-deltaq", 1,
                                   "Enable chroma delta quant "
-                                  "(0: false (default), 1: true)"),
+                                  "(0: false, 1: true (default))"),
   .enable_intra_edge_filter = ARG_DEF(NULL, "enable-intra-edge-filter", 1,
                                       "Enable intra edge filtering "
                                       "(0: false, 1: true (default))"),
@@ -470,7 +470,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .use_intra_default_tx_only =
       ARG_DEF(NULL, "use-intra-default-tx-only", 1,
               "Use Default-transform only for INTRA modes"),
-  .quant_b_adapt = ARG_DEF(NULL, "quant-b-adapt", 1, "Use adaptive quantize_b"),
+  .quant_b_adapt = ARG_DEF(NULL, "quant-b-adapt", 1, "Use adaptive quantize_b (0: false, 1: true (default))"),
   .coeff_cost_upd_freq = ARG_DEF(NULL, "coeff-cost-upd-freq", 1,
                                  "Update freq for coeff costs. "
                                  "0: SB, 1: SB Row per Tile, 2: Tile, 3: Off"),
@@ -515,7 +515,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_dnl_denoising = ARG_DEF(NULL, "enable-dnl-denoising", 1,
                                   "Apply denoising to the frame "
                                   "being encoded when denoise-noise-level is "
-                                  "enabled (0: false, 1: true (default))"),
+                                  "enabled (0: false(default), 1: true )"),
 #endif
   .enable_ref_frame_mvs =
       ARG_DEF(NULL, "enable-ref-frame-mvs", 1,
@@ -535,8 +535,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "deltaq-mode", 1,
               "Delta qindex mode (0: off, 1: deltaq objective (default), "
               "2: deltaq placeholder, 3: key frame visual quality, 4: user "
-              "rating based visual quality optimization); "
-              "requires --enable-tpl-model=1"),
+              "rating based visual quality optimization, \n "
+              "                                        5: HDR deltaq optimization); "
+              "deltaq-mode=1/2 require --enable-tpl-model=1 as a prerequisite"),
   .deltaq_strength = ARG_DEF(NULL, "deltaq-strength", 1,
                              "Deltaq strength for"
                              " --deltaq-mode=4 (%)"),

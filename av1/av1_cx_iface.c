@@ -353,7 +353,7 @@ static const struct av1_extracfg default_extra_cfg = {
 };
 #else
 static const struct av1_extracfg default_extra_cfg = {
-  0,              // cpu_used
+  3,              // cpu_used
   1,              // enable_auto_alt_ref
   0,              // enable_auto_bwd_ref
   0,              // noise_sensitivity
@@ -370,7 +370,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,              // min_gf_interval; 0 -> default decision
   0,              // max_gf_interval; 0 -> default decision
   0,              // gf_min_pyr_height
-  5,              // gf_max_pyr_height
+  4,              // gf_max_pyr_height
   AOM_TUNE_PSNR,  // tuning
   "/usr/local/share/model/vmaf_v0.6.1.json",  // VMAF model path
   ".",                                        // partition info path
@@ -396,13 +396,13 @@ static const struct av1_extracfg default_extra_cfg = {
   AOM_TIMING_UNSPECIFIED,       // No picture timing signaling in bitstream
   0,                            // frame_parallel_decoding_mode
   1,                            // enable dual filter
-  0,                            // enable delta quant in chroma planes
+  1,                            // enable delta quant in chroma planes
   NO_AQ,                        // aq_mode
   DELTA_Q_OBJECTIVE,            // deltaq_mode
   100,                          // deltaq_strength
   0,                            // delta lf mode
   0,                            // frame_periodic_boost
-  AOM_BITS_8,                   // Bit depth
+  AOM_BITS_10,                  // Bit depth
   AOM_CONTENT_DEFAULT,          // content
   AOM_CICP_CP_UNSPECIFIED,      // CICP color primaries
   AOM_CICP_TC_UNSPECIFIED,      // CICP transfer characteristics
@@ -461,7 +461,7 @@ static const struct av1_extracfg default_extra_cfg = {
 #if CONFIG_DENOISE
   0,   // noise_level
   32,  // noise_block_size
-  1,   // enable_dnl_denoising
+  0,   // enable_dnl_denoising
 #endif
   0,   // chroma_subsampling_x
   0,   // chroma_subsampling_y
@@ -4212,8 +4212,8 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       // keyframing settings (kf)
       0,                       // fwd_kf_enabled
       AOM_KF_AUTO,             // kf_mode
-      0,                       // kf_min_dist
-      9999,                    // kf_max_dist
+      12,                      // kf_min_dist
+      240,                     // kf_max_dist
       0,                       // sframe_dist
       1,                       // sframe_mode
       0,                       // large_scale_tile
