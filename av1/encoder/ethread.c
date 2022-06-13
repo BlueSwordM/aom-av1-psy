@@ -187,6 +187,9 @@ static void row_mt_sync_mem_alloc(AV1EncRowMultiThreadSync *row_mt_sync,
 
   CHECK_MEM_ERROR(cm, row_mt_sync->num_finished_cols,
                   aom_malloc(sizeof(*row_mt_sync->num_finished_cols) * rows));
+  CHECK_MEM_ERROR(
+      cm, row_mt_sync->finished_block_in_mi,
+      aom_malloc(sizeof(*row_mt_sync->finished_block_in_mi) * rows));
 
   row_mt_sync->rows = rows;
   // Set up nsync.
@@ -213,6 +216,7 @@ static void row_mt_sync_mem_dealloc(AV1EncRowMultiThreadSync *row_mt_sync) {
     }
 #endif  // CONFIG_MULTITHREAD
     aom_free(row_mt_sync->num_finished_cols);
+    aom_free(row_mt_sync->finished_block_in_mi);
 
     // clear the structure as the source of this call may be dynamic change
     // in tiles in which case this call will be followed by an _alloc()
@@ -1559,6 +1563,8 @@ void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
       // Initialize num_finished_cols to -1 for all rows.
       memset(row_mt_sync->num_finished_cols, -1,
              sizeof(*row_mt_sync->num_finished_cols) * max_sb_rows);
+      memset(row_mt_sync->finished_block_in_mi, -1,
+             sizeof(*row_mt_sync->finished_block_in_mi) * max_sb_rows);
       row_mt_sync->next_mi_row = this_tile->tile_info.mi_row_start;
       row_mt_sync->num_threads_working = 0;
       row_mt_sync->intrabc_extra_top_right_sb_delay =

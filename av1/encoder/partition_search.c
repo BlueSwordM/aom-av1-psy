@@ -751,18 +751,9 @@ static AOM_INLINE void hybrid_intra_mode_search(AV1_COMP *cpi,
     av1_nonrd_pick_intra_mode(cpi, x, rd_cost, bsize, ctx);
 }
 
-// For real time/allintra row-mt enabled multi-threaded encoding with cost
-// update frequency set to COST_UPD_TILE/COST_UPD_OFF, tile ctxt is not updated
-// at superblock level. Thus, it is not required for the encoding of top-right
-// superblock be complete for updating tile ctxt. However, when encoding a block
-// whose right edge is also the superblock edge, intra and inter mode evaluation
-// (ref mv list population) require the encoding of the top-right superblock to
-// be complete. So, here, we delay the waiting of threads until the need for the
-// data from the top-right superblock region.
-static AOM_INLINE void wait_for_top_right_sb(
-    AV1EncRowMultiThreadInfo *enc_row_mt, AV1EncRowMultiThreadSync *row_mt_sync,
-    TileInfo *tile_info, BLOCK_SIZE sb_size, int sb_mi_size_log2,
-    BLOCK_SIZE bsize, int mi_row, int mi_col) {
+static AOM_INLINE int is_top_right_block_in_sb(BLOCK_SIZE sb_size,
+                                               BLOCK_SIZE bsize, int mi_row,
+                                               int mi_col) {
   const int sb_size_in_mi = mi_size_wide[sb_size];
   const int bw_in_mi = mi_size_wide[bsize];
   const int blk_row_in_sb = mi_row & (sb_size_in_mi - 1);
@@ -770,16 +761,103 @@ static AOM_INLINE void wait_for_top_right_sb(
   const int top_right_block_in_sb =
       (blk_row_in_sb == 0) && (blk_col_in_sb + bw_in_mi >= sb_size_in_mi);
 
-  // Don't wait if the block is the not the top-right block in the superblock.
-  if (!top_right_block_in_sb) return;
+  return top_right_block_in_sb;
+}
 
-  // Wait for the top-right superblock to finish encoding.
+// For real time/allintra row-mt enabled multi-threaded encoding with cost
+// update frequency set to COST_UPD_TILE/COST_UPD_OFF, tile ctxt is not updated
+// at superblock level. Thus, it is not required for the encoding of top-right
+// superblock be complete for updating tile ctxt. However, when encoding a block
+// whose right edge is also the superblock edge, intra and inter mode evaluation
+// (ref mv list population) require the encoding of the top-right region to
+// be complete. So, here, we delay the waiting of threads until the need for the
+// data from the top-right superblock region.
+static AOM_INLINE void wait_for_top_right(AV1_COMP *cpi,
+                                          AV1EncRowMultiThreadSync *row_mt_sync,
+                                          TileInfo *tile_info,
+                                          BLOCK_SIZE sb_size, BLOCK_SIZE bsize,
+                                          int mi_row, int mi_col,
+                                          int seg_skip_active) {
+  // Don't wait if the block is the not the top-right block in the superblock.
+  if (!is_top_right_block_in_sb(sb_size, bsize, mi_row, mi_col)) return;
+
+  AV1EncRowMultiThreadInfo *enc_row_mt = &cpi->mt_info.enc_row_mt;
+  const int sb_mi_size_log2 = mi_size_wide_log2[sb_size];
   const int sb_row_in_tile =
       (mi_row - tile_info->mi_row_start) >> sb_mi_size_log2;
-  const int sb_col_in_tile =
-      (mi_col - tile_info->mi_col_start) >> sb_mi_size_log2;
 
-  enc_row_mt->sync_read_ptr(row_mt_sync, sb_row_in_tile, sb_col_in_tile);
+  // In case of non-rd RT with row-mt enabled, encoding of SB can start after
+  // encoding of bottom left block in above right superblock is complete. This
+  // is because only DC, H and V intra modes are enabled via the speed feature
+  // intra_y_mode_bsize_mask_nrd (above right region not required) and reference
+  // mv list population requires only the above right block info.
+  if (enable_top_right_sync_wait_in_mis(cpi, seg_skip_active)) {
+    const int *intra_y_mode_bsize_mask_nrd =
+        cpi->sf.rt_sf.intra_y_mode_bsize_mask_nrd;
+    for (int i = 0; i < BLOCK_SIZES; ++i)
+      assert(intra_y_mode_bsize_mask_nrd[i] == INTRA_DC ||
+             intra_y_mode_bsize_mask_nrd[i] == INTRA_DC_H_V);
+    (void)intra_y_mode_bsize_mask_nrd;
+#if CONFIG_MULTITHREAD
+    const int mi_col_in_tile = mi_col - tile_info->mi_col_start;
+    const int mi_cols_in_tile = tile_info->mi_col_end - tile_info->mi_col_start;
+    const int bw_in_mi = mi_size_wide[bsize];
+    if (sb_row_in_tile) {
+      pthread_mutex_t *const mutex = &row_mt_sync->mutex_[sb_row_in_tile - 1];
+      pthread_mutex_lock(mutex);
+
+      while (AOMMIN(mi_col_in_tile + bw_in_mi, mi_cols_in_tile) >=
+             row_mt_sync->finished_block_in_mi[sb_row_in_tile - 1]) {
+        pthread_cond_wait(&row_mt_sync->cond_[sb_row_in_tile - 1], mutex);
+      }
+      pthread_mutex_unlock(mutex);
+    }
+#endif
+  } else {
+    const int sb_col_in_tile =
+        (mi_col - tile_info->mi_col_start) >> sb_mi_size_log2;
+    enc_row_mt->sync_read_ptr(row_mt_sync, sb_row_in_tile, sb_col_in_tile);
+  }
+}
+
+static AOM_INLINE void write_completed_mi_pos(
+    AV1EncRowMultiThreadSync *row_mt_sync, TileInfo *tile_info,
+    BLOCK_SIZE sb_size, BLOCK_SIZE bsize, int mi_row, int mi_col) {
+  const int sb_size_in_mi = mi_size_high[sb_size];
+  const int bh_in_mi = mi_size_high[bsize];
+  const int blk_row_in_sb = mi_row & (sb_size_in_mi - 1);
+  const int bottom_block_in_sb = blk_row_in_sb + bh_in_mi >= sb_size_in_mi;
+
+  // Don't write if the block is the not the bottom block in the
+  // superblock.
+  if (!bottom_block_in_sb) return;
+
+#if CONFIG_MULTITHREAD
+  const int sb_mi_size_log2 = mi_size_wide_log2[sb_size];
+  const int sb_row_in_tile =
+      (mi_row - tile_info->mi_row_start) >> sb_mi_size_log2;
+  const int bw_in_mi = mi_size_wide[bsize];
+  const int mi_col_in_tile = mi_col + bw_in_mi - tile_info->mi_col_start;
+  const int mi_cols_in_tile = tile_info->mi_col_end - tile_info->mi_col_start;
+
+  const int finished_mi_col = mi_col_in_tile < mi_cols_in_tile - 1
+                                  ? mi_col_in_tile
+                                  : mi_cols_in_tile + 1;
+
+  pthread_mutex_lock(&row_mt_sync->mutex_[sb_row_in_tile]);
+
+  row_mt_sync->finished_block_in_mi[sb_row_in_tile] = finished_mi_col;
+
+  pthread_cond_signal(&row_mt_sync->cond_[sb_row_in_tile]);
+  pthread_mutex_unlock(&row_mt_sync->mutex_[sb_row_in_tile]);
+#else
+  (void)row_mt_sync;
+  (void)tile_info;
+  (void)sb_size;
+  (void)bsize;
+  (void)mi_row;
+  (void)mi_col;
+#endif  // CONFIG_MULTITHREAD
 }
 
 /*!\brief Interface for AV1 mode search for an individual coding block
@@ -852,9 +930,8 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 
   // This is only needed for real time/allintra row-mt enabled multi-threaded
   // encoding with cost update frequency set to COST_UPD_TILE/COST_UPD_OFF.
-  wait_for_top_right_sb(&cpi->mt_info.enc_row_mt, &tile_data->row_mt_sync,
-                        &tile_data->tile_info, cm->seq_params->sb_size,
-                        cm->seq_params->mib_size_log2, bsize, mi_row, mi_col);
+  wait_for_top_right(cpi, &tile_data->row_mt_sync, &tile_data->tile_info,
+                     cm->seq_params->sb_size, bsize, mi_row, mi_col, 0);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, rd_pick_sb_modes_time);
@@ -2139,6 +2216,11 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing((AV1_COMP *)cpi, encode_b_nonrd_time);
 #endif
+  const int seg_skip_active =
+      segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP);
+  if (!dry_run && enable_top_right_sync_wait_in_mis(cpi, seg_skip_active))
+    write_completed_mi_pos(&tile_data->row_mt_sync, &tile_data->tile_info,
+                           cm->seq_params->sb_size, bsize, mi_row, mi_col);
 }
 
 /*!\brief Top level function to pick block mode for non-RD optimized case
@@ -2195,12 +2277,6 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
   int i;
 
-  // This is only needed for real time/allintra row-mt enabled multi-threaded
-  // encoding with cost update frequency set to COST_UPD_TILE/COST_UPD_OFF.
-  wait_for_top_right_sb(&cpi->mt_info.enc_row_mt, &tile_data->row_mt_sync,
-                        &tile_data->tile_info, cm->seq_params->sb_size,
-                        cm->seq_params->mib_size_log2, bsize, mi_row, mi_col);
-
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, pick_sb_modes_nonrd_time);
 #endif
@@ -2224,6 +2300,15 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, aq_mode, mbmi);
   // Set error per bit for current rdmult
   av1_set_error_per_bit(&x->errorperbit, x->rdmult);
+
+  const int seg_skip_active =
+      segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP);
+  // This is only needed for real time/allintra row-mt enabled multi-threaded
+  // encoding with cost update frequency set to COST_UPD_TILE/COST_UPD_OFF.
+  wait_for_top_right(cpi, &tile_data->row_mt_sync, &tile_data->tile_info,
+                     cm->seq_params->sb_size, bsize, mi_row, mi_col,
+                     seg_skip_active);
+
   // Find best coding mode & reconstruct the MB so it is available
   // as a predictor for MBs that follow in the SB
   if (frame_is_intra_only(cm)) {
@@ -2238,7 +2323,7 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, nonrd_pick_inter_mode_sb_time);
 #endif
-    if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
+    if (seg_skip_active) {
       RD_STATS invalid_rd;
       av1_invalid_rd_stats(&invalid_rd);
       // TODO(kyslov): add av1_nonrd_pick_inter_mode_sb_seg_skip
@@ -2463,7 +2548,15 @@ static void direct_partition_merging(AV1_COMP *cpi, ThreadData *td,
     // Update mi for this partition block.
     for (int y = 0; y < bs; y++) {
       for (int x_idx = 0; x_idx < bs; x_idx++) {
-        this_mi[x_idx + y * mi_params->mi_stride] = this_mi[0];
+        this_mi[x_idx + y * mi_params->mi_stride]->bsize = this_mi[0]->bsize;
+        this_mi[x_idx + y * mi_params->mi_stride]->partition =
+            this_mi[0]->partition;
+        this_mi[x_idx + y * mi_params->mi_stride]->skip_txfm =
+            this_mi[0]->skip_txfm;
+        this_mi[x_idx + y * mi_params->mi_stride]->tx_size =
+            this_mi[0]->tx_size;
+        memcpy(this_mi[x_idx + y * mi_params->mi_stride]->inter_tx_size,
+               this_mi[0]->inter_tx_size, sizeof(this_mi[0]->inter_tx_size));
       }
     }
   }

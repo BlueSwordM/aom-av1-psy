@@ -1364,10 +1364,16 @@ typedef struct {
 #endif  // CONFIG_MULTITHREAD
   /*!
    * Buffer to store the superblock whose encoding is complete.
-   * cur_col[i] stores the number of superblocks which finished encoding in the
-   * ith superblock row.
+   * num_finished_cols[i] stores the number of superblocks which finished
+   * encoding in the ith superblock row.
    */
   int *num_finished_cols;
+  /*!
+   * Buffer to store the mi position of the block whose encoding is complete.
+   * finished_block_in_mi[i] stores the mi position of the block which finished
+   * encoding in the ith superblock row.
+   */
+  int *finished_block_in_mi;
   /*!
    * Denotes the superblock interval at which conditional signalling should
    * happen. Also denotes the minimum number of extra superblocks of the top row

@@ -754,33 +754,6 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   }
 }
 
-// Check if the cost update of symbols mode, coeff and dv are tile or off.
-static AOM_INLINE int is_mode_coeff_dv_upd_freq_tile_or_off(
-    const AV1_COMP *const cpi) {
-  const INTER_MODE_SPEED_FEATURES *const inter_sf = &cpi->sf.inter_sf;
-
-  return (inter_sf->coeff_cost_upd_level <= INTERNAL_COST_UPD_TILE &&
-          inter_sf->mode_cost_upd_level <= INTERNAL_COST_UPD_TILE &&
-          cpi->sf.intra_sf.dv_cost_upd_level <= INTERNAL_COST_UPD_TILE);
-}
-
-// When row-mt is enabled and cost update frequencies are set to off/tile,
-// processing of current SB can start even before processing of top-right SB
-// is finished. This function checks if it is sufficient to wait for top SB
-// to finish processing before current SB starts processing.
-static AOM_INLINE int delay_wait_for_top_right_sb(const AV1_COMP *const cpi) {
-  const MODE mode = cpi->oxcf.mode;
-  if (mode == GOOD) return 0;
-
-  if (mode == ALLINTRA)
-    return is_mode_coeff_dv_upd_freq_tile_or_off(cpi);
-  else if (mode == REALTIME)
-    return (is_mode_coeff_dv_upd_freq_tile_or_off(cpi) &&
-            cpi->sf.inter_sf.mv_cost_upd_level <= INTERNAL_COST_UPD_TILE);
-  else
-    return 0;
-}
-
 /*!\brief Determine whether grading content is needed based on sf and frame stat
  *
  * \ingroup partition_search

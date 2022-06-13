@@ -1702,6 +1702,14 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.frame_level_mode_cost_update = true;
     sf->rt_sf.check_only_zero_zeromv_on_large_blocks = true;
     sf->rt_sf.reduce_mv_pel_precision = 0;
+    // For multi-thread use case with row_mt enabled, enable top right
+    // dependency wait of threads at mi level.
+    if ((cpi->oxcf.row_mt == 1) && (cpi->mt_info.num_workers > 1)) {
+      sf->rt_sf.top_right_sync_wait_in_mis =
+          frame_is_intra_only(cm) ? 0
+                                  : (!cpi->oxcf.tool_cfg.enable_global_motion &&
+                                     cpi->sf.rt_sf.use_nonrd_pick_mode);
+    }
   }
   if (speed >= 10) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_4;
@@ -2045,6 +2053,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->check_only_zero_zeromv_on_large_blocks = false;
   rt_sf->disable_cdf_update_non_reference_frame = false;
   rt_sf->prune_compoundmode_with_singlemode_var = false;
+  rt_sf->top_right_sync_wait_in_mis = false;
 }
 
 // Populate appropriate sub-pel search method based on speed feature and user
