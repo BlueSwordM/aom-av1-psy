@@ -764,7 +764,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   }
 
   add_proto qw/uint64_t aom_sum_sse_2d_i16/, "const int16_t *src, int src_stride, int width, int height, int *sum";
-  specialize qw/aom_sum_sse_2d_i16 sse2 avx2/;
+  specialize qw/aom_sum_sse_2d_i16 avx2 neon    sse2/;
   specialize qw/aom_sad128x128    avx2 neon     sse2/;
   specialize qw/aom_sad128x64     avx2 neon     sse2/;
   specialize qw/aom_sad64x128     avx2 neon     sse2/;
