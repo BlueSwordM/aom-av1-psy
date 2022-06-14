@@ -3245,6 +3245,7 @@ static int selective_disable_cdf_rtc(AV1_COMP *cpi) {
     // every 8 frames.
     if (frame_is_intra_only(cm) || is_frame_resize_pending(cpi) ||
         rc->high_source_sad || rc->frames_since_key < 10 ||
+        cpi->cyclic_refresh->counter_encode_maxq_scene_change < 10 ||
         cm->current_frame.frame_number % 8 == 0)
       return 0;
     else
