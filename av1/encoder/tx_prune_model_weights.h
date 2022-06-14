@@ -2317,7 +2317,7 @@ static const NN_CONFIG av1_tx_type_nnconfig_16x4_ver = {
 /******************************************************************************/
 
 // Map tx_size to its corresponding neural net model for tx type prediction.
-static const NN_CONFIG *av1_tx_type_nnconfig_map_hor[] = {
+static const NN_CONFIG *const av1_tx_type_nnconfig_map_hor[] = {
   &av1_tx_type_nnconfig_4x4_hor,   // 4x4 transform
   &av1_tx_type_nnconfig_8x8_hor,   // 8x8 transform
   &av1_tx_type_nnconfig_16x16,     // 16x16 transform
@@ -2339,7 +2339,7 @@ static const NN_CONFIG *av1_tx_type_nnconfig_map_hor[] = {
   NULL,                            // 64x16 transform
 };
 
-static const NN_CONFIG *av1_tx_type_nnconfig_map_ver[] = {
+static const NN_CONFIG *const av1_tx_type_nnconfig_map_ver[] = {
   &av1_tx_type_nnconfig_4x4_ver,   // 4x4 transform
   &av1_tx_type_nnconfig_8x8_ver,   // 8x8 transform
   &av1_tx_type_nnconfig_16x16,     // 16x16 transform
@@ -3291,7 +3291,7 @@ static const NN_CONFIG av1_tx_split_nnconfig_16x64 = {
 /******************************************************************************/
 
 // Map block size to its corresponding neural net model for tx split prediction.
-static const NN_CONFIG *av1_tx_split_nnconfig_map[TX_SIZES_ALL] = {
+static const NN_CONFIG *const av1_tx_split_nnconfig_map[TX_SIZES_ALL] = {
   NULL,                          // TX_4X4,
   &av1_tx_split_nnconfig_8x8,    // TX_8X8,
   &av1_tx_split_nnconfig_16x16,  // TX_16X16,
