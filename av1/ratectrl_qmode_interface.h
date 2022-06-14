@@ -59,9 +59,9 @@ enum class GopFrameType {
   kRegularArf,  // High quality arf with strong filtering followed by an overlay
                 // later
   kOverlay,     // Overlay frame
+  kIntermediateOverlay,  // Intermediate overlay frame
   kIntermediateArf,  // Good quality arf with weak or no filtering followed by a
                      // show_existing later
-  kShowExisting,     // Show_existing frame
 };
 
 enum class EncodeRefMode {
@@ -135,6 +135,7 @@ struct GopStruct {
   int show_frame_count;
   int global_coding_idx_offset;
   int global_order_idx_offset;
+  // TODO(jingning): This can be removed once the framework is up running.
   int display_tracker;  // Track the number of frames displayed proceeding a
                         // current coding frame.
   std::vector<GopFrame> gop_frame_list;

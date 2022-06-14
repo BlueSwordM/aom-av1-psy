@@ -359,6 +359,7 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
   for (size_t i = 0; i < gop_list.size(); ++i) {
     const aom::GopStruct &gop_struct = gop_list[i];
     DuckyEncodeInfoSetGopStruct(ppi, gop_struct);
+
     aom::TplGopStats tpl_gop_stats;
     for (auto &frame : gop_struct.gop_frame_list) {
       // encoding frame frame_number

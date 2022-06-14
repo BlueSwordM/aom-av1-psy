@@ -77,7 +77,7 @@ void SetGopFrameByType(GopFrameType gop_frame_type, GopFrame *gop_frame) {
       gop_frame->is_golden_frame = 0;
       gop_frame->encode_ref_mode = EncodeRefMode::kRegular;
       break;
-    case GopFrameType::kShowExisting:
+    case GopFrameType::kIntermediateOverlay:
       gop_frame->is_key_frame = 0;
       gop_frame->is_arf_frame = 0;
       gop_frame->is_show_frame = 1;
@@ -138,10 +138,10 @@ void ConstructGopMultiLayer(GopStruct *gop_struct,
     ConstructGopMultiLayer(gop_struct, ref_frame_manager, max_depth, depth + 1,
                            order_start, order_mid);
     // show existing intermediate ARF
-    gop_frame =
-        GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
-                      coding_idx, order_mid, max_depth,
-                      gop_struct->display_tracker, GopFrameType::kShowExisting);
+    gop_frame = GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
+                              coding_idx, order_mid, max_depth,
+                              gop_struct->display_tracker,
+                              GopFrameType::kIntermediateOverlay);
     ref_frame_manager->UpdateRefFrameTable(&gop_frame);
     gop_struct->gop_frame_list.push_back(gop_frame);
     ++gop_struct->display_tracker;
@@ -173,7 +173,7 @@ GopStruct ConstructGop(RefFrameManager *ref_frame_manager, int show_frame_count,
   int coding_idx;
 
   // TODO(jingning): Re-enable the use of pyramid coding structure.
-  bool has_arf_frame = 0;  // show_frame_count > kMinIntervalToAddArf;
+  bool has_arf_frame = show_frame_count > kMinIntervalToAddArf;
 
   gop_struct.display_tracker = 0;
 

@@ -207,10 +207,7 @@ void TestArfInterval(const GopStruct &gop_struct) {
   }
 }
 
-// TODO(jingning): temporarily disable Gop struct unit tests,
-// to allow the sw integration work for IPPP format first.
-// Re-enable these unit tests next.
-TEST(RateControlQModeTest, DISABLED_ConstructGopARF) {
+TEST(RateControlQModeTest, ConstructGopARF) {
   int show_frame_count = 16;
   const bool has_key_frame = false;
   const int global_coding_idx_offset = 5;
@@ -230,7 +227,7 @@ TEST(RateControlQModeTest, DISABLED_ConstructGopARF) {
   TestArfInterval(gop_struct);
 }
 
-TEST(RateControlQModeTest, DISABLED_ConstructGopKey) {
+TEST(RateControlQModeTest, ConstructGopKey) {
   const int show_frame_count = 16;
   const bool has_key_frame = true;
   const int global_coding_idx_offset = 10;
@@ -250,7 +247,7 @@ TEST(RateControlQModeTest, DISABLED_ConstructGopKey) {
   TestArfInterval(gop_struct);
 }
 
-TEST(RateControlQModeTest, DISABLED_ConstructShortGop) {
+TEST(RateControlQModeTest, ConstructShortGop) {
   int show_frame_count = 2;
   const bool has_key_frame = false;
   const int global_coding_idx_offset = 5;
@@ -565,9 +562,12 @@ TEST(RateControlQModeTest, ComputeTplGopDepStats) {
 TEST(RefFrameManagerTest, GetRefFrameCount) {
   const std::vector<int> order_idx_list = { 0, 4, 2, 1, 2, 3, 4 };
   const std::vector<GopFrameType> type_list = {
-    GopFrameType::kRegularKey,      GopFrameType::kRegularArf,
-    GopFrameType::kIntermediateArf, GopFrameType::kRegularLeaf,
-    GopFrameType::kShowExisting,    GopFrameType::kRegularLeaf,
+    GopFrameType::kRegularKey,
+    GopFrameType::kRegularArf,
+    GopFrameType::kIntermediateArf,
+    GopFrameType::kRegularLeaf,
+    GopFrameType::kIntermediateOverlay,
+    GopFrameType::kRegularLeaf,
     GopFrameType::kOverlay
   };
   RefFrameManager ref_manager(kRefFrameTableSize);
@@ -589,7 +589,8 @@ TEST(RefFrameManagerTest, GetRefFrameCount) {
 
   // update reference frame until we see the first kShowExisting frame
   const int first_show_existing_idx = 4;
-  EXPECT_EQ(type_list[first_show_existing_idx], GopFrameType::kShowExisting);
+  EXPECT_EQ(type_list[first_show_existing_idx],
+            GopFrameType::kIntermediateOverlay);
   for (; coding_idx <= first_show_existing_idx; ++coding_idx) {
     GopFrame gop_frame =
         GopFrameBasic(0, 0, coding_idx, order_idx_list[coding_idx], 0, 0,
@@ -661,9 +662,12 @@ void TestRefFrameManagerPriority(const RefFrameManager &ref_manager,
 TEST(RefFrameManagerTest, GetRefFrameByPriority) {
   const std::vector<int> order_idx_list = { 0, 4, 2, 1, 2, 3, 4 };
   const std::vector<GopFrameType> type_list = {
-    GopFrameType::kRegularKey,      GopFrameType::kRegularArf,
-    GopFrameType::kIntermediateArf, GopFrameType::kRegularLeaf,
-    GopFrameType::kShowExisting,    GopFrameType::kRegularLeaf,
+    GopFrameType::kRegularKey,
+    GopFrameType::kRegularArf,
+    GopFrameType::kIntermediateArf,
+    GopFrameType::kRegularLeaf,
+    GopFrameType::kIntermediateOverlay,
+    GopFrameType::kRegularLeaf,
     GopFrameType::kOverlay
   };
   RefFrameManager ref_manager(kRefFrameTableSize);

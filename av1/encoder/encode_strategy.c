@@ -739,6 +739,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       apply_filtering = cpi->sf.hl_sf.second_alt_ref_filtering;
     }
   }
+
 #if CONFIG_COLLECT_COMPONENT_TIMING
   if (cpi->oxcf.pass == 2) start_timing(cpi, apply_filtering_time);
 #endif
@@ -1366,6 +1367,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     // only one operating point supported now
     const int64_t pts64 = ticks_to_timebase_units(timestamp_ratio, *time_stamp);
     if (pts64 < 0 || pts64 > UINT32_MAX) return AOM_CODEC_ERROR;
+
     cm->frame_presentation_time = (uint32_t)pts64;
   }
 

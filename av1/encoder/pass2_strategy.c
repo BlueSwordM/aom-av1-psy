@@ -3642,9 +3642,6 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     frame_params->show_frame =
         !(gf_group->update_type[cpi->gf_frame_index] == ARF_UPDATE ||
           gf_group->update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE);
-
-    av1_tf_info_filtering(&cpi->ppi->tf_info, cpi, gf_group);
-
     return;
   }
 
