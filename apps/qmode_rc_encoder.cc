@@ -53,33 +53,38 @@ int main(int argc, const char **argv_) {
   std::vector<aom::TplGopStats> tpl_gop_stats_list =
       ducky_encode.ComputeTplStats(gop_list);
 
-  fprintf(stderr, "tpl stats completed \n");
+  std::vector<aom::GopEncodeInfo> gop_encode_info_list;
+
+  // TODO(jingning): modularize AV1RateControlQMode to make the frame
+  // QP decisions on a sequence basis.
+  aom::RefFrameTable ref_frame_table;
+  for (size_t i = 0; i < gop_list.size(); ++i) {
+    aom::GopStruct &gop_struct = gop_list[i];
+    aom::TplGopStats &tpl_gop_stats = tpl_gop_stats_list[i];
+    (void)tpl_gop_stats;
+    (void)gop_struct;
+
+    // TODO(jingning): Extract the tpl stats through ducky_encode and make
+    // frame encoding decisions.
+    aom::GopEncodeInfo gop_encode_info;
+    // = qmode_rc.GetGopEncodeInfo(gop_struct, tpl_gop_stats, ref_frame_table);
+    ref_frame_table = gop_encode_info.final_snapshot;
+    gop_encode_info_list.push_back(gop_encode_info);
+  }
+
+  ducky_encode.EndEncode();
+
+  fprintf(stderr, "tpl stats completed.\n");
 
   // TODO(jingning): Re-enable the next final encoding stage once the TPL stats
   // collection is done.
-  ducky_encode.EndEncode();
   return 0;
 
-  aom::RefFrameTable ref_frame_table;
-
-  // Go through each gop and encode each frame in the gop
-  for (size_t i = 0; i < gop_list.size(); ++i) {
-    // do binary search with rc_param.base_q_index around this block:
-    {
-      aom::GopStruct &gop_struct = gop_list[i];
-      aom::TplGopStats &tpl_gop_stats = tpl_gop_stats_list[i];
-      aom::GopEncodeInfo gop_encode_info =
-          qmode_rc.GetGopEncodeInfo(gop_struct, tpl_gop_stats, ref_frame_table);
-      ref_frame_table = gop_encode_info.final_snapshot;
-      for (auto &frame_param : gop_encode_info.param_list) {
-        // encoding frame frame_number
-        aom::EncodeFrameDecision frame_decision = {
-          aom::EncodeFrameMode::kQindexRdmult, frame_param
-        };
-        ducky_encode.EncodeFrame(frame_decision);
-      }
-    }
-  }
+  // Full encoding of the video sequence.
+  // Do binary search with rc_param.base_q_index around this block.
+  ducky_encode.StartEncode(frame_stats);
+  ducky_encode.EncodeVideo(gop_list, gop_encode_info_list);
+  ducky_encode.EndEncode();
 
   return 0;
 }

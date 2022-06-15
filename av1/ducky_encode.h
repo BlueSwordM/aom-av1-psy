@@ -54,6 +54,8 @@ struct EncodeFrameDecision {
   FrameEncodeParameters parameters;
 };
 
+using GopEncodeInfoList = std::vector<GopEncodeInfo>;
+
 // DuckyEncode is an experimental encoder c++ interface for two-pass mode.
 // This object can be used to do zero or more encode passes, where each encode
 // pass consists of:
@@ -69,6 +71,8 @@ class DuckyEncode {
   std::vector<FIRSTPASS_STATS> ComputeFirstPassStats();
   void StartEncode(const std::vector<FIRSTPASS_STATS> &stats_list);
   std::vector<TplGopStats> ComputeTplStats(const GopStructList &gop_list);
+  void EncodeVideo(const GopStructList &gop_list,
+                   const GopEncodeInfoList &gop_encode_info_list);
   EncodeFrameResult EncodeFrame(const EncodeFrameDecision &decision);
   void EndEncode();
 

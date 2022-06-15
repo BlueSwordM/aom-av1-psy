@@ -368,9 +368,32 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
       (void)frame;
       EncodeFrame(frame_decision);
     }
+
+    // TODO(jingning): Set the tpl stats file format and populate the stats.
+    tpl_gop_stats_list.push_back(tpl_gop_stats);
   }
 
   return tpl_gop_stats_list;
+}
+
+// Obtain TPL stats through ducky_encode.
+void DuckyEncode::EncodeVideo(const GopStructList &gop_list,
+                              const GopEncodeInfoList &gop_encode_info_list) {
+  AV1_PRIMARY *ppi = impl_ptr_->enc_resource.ppi;
+
+  // Go through each gop and encode each frame in the gop
+  for (size_t i = 0; i < gop_list.size(); ++i) {
+    const aom::GopStruct &gop_struct = gop_list[i];
+    DuckyEncodeInfoSetGopStruct(ppi, gop_struct);
+    aom::GopEncodeInfo gop_encode_info = gop_encode_info_list[i];
+
+    for (auto &frame_param : gop_encode_info.param_list) {
+      aom::EncodeFrameDecision frame_decision = {
+        aom::EncodeFrameMode::kQindexRdmult, frame_param
+      };
+      EncodeFrame(frame_decision);
+    }
+  }
 }
 
 EncodeFrameResult DuckyEncode::EncodeFrame(
