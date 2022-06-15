@@ -282,3 +282,43 @@ void aom_highbd_quantize_b_32x32_avx2(
 
   *eob_ptr = get_max_eob(eob);
 }
+
+void aom_highbd_quantize_b_64x64_avx2(
+    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
+    const int16_t *round_ptr, const int16_t *quant_ptr,
+    const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
+    tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
+    const int16_t *scan, const int16_t *iscan) {
+  (void)scan;
+  const int step = 8;
+
+  __m256i eob = _mm256_setzero_si256();
+  __m256i qp[5];
+  init_qp(zbin_ptr, round_ptr, quant_ptr, dequant_ptr, quant_shift_ptr, qp, 2);
+
+  // Subtracting 1 here eliminates a _mm256_cmpeq_epi32() instruction when
+  // calculating the zbin mask.
+  qp[0] = _mm256_sub_epi32(qp[0], _mm256_set1_epi32(1));
+
+  quantize_logscale(qp, coeff_ptr, iscan, qcoeff_ptr, dqcoeff_ptr, &eob, 2);
+
+  coeff_ptr += step;
+  qcoeff_ptr += step;
+  dqcoeff_ptr += step;
+  iscan += step;
+  n_coeffs -= step;
+
+  update_qp(qp);
+
+  while (n_coeffs > 0) {
+    quantize_logscale(qp, coeff_ptr, iscan, qcoeff_ptr, dqcoeff_ptr, &eob, 2);
+
+    coeff_ptr += step;
+    qcoeff_ptr += step;
+    dqcoeff_ptr += step;
+    iscan += step;
+    n_coeffs -= step;
+  }
+
+  *eob_ptr = get_max_eob(eob);
+}

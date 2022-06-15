@@ -545,6 +545,8 @@ const QuantizeParam<QuantizeFunc> kQParamArrayAvx2[] = {
              static_cast<TX_SIZE>(TX_16X16), TYPE_B, AOM_BITS_12),
   make_tuple(&aom_highbd_quantize_b_32x32_c, &aom_highbd_quantize_b_32x32_avx2,
              static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_12),
+  make_tuple(&aom_highbd_quantize_b_64x64_c, &aom_highbd_quantize_b_64x64_avx2,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_12),
 #if !CONFIG_REALTIME_ONLY
   make_tuple(&aom_highbd_quantize_b_adaptive_c,
              &aom_highbd_quantize_b_adaptive_avx2,
