@@ -24,7 +24,7 @@ int main(int argc, const char **argv_) {
   std::string input_file = "/export/hda3/Videos/derf/bus_cif.y4m";
   aom_rational_t frame_rate = { 30, 1 };
   aom::VideoInfo input_video = { 352, 288,       frame_rate, AOM_IMG_FMT_I420,
-                                 55,  input_file };
+                                 25,  input_file };
   aom::DuckyEncode ducky_encode(input_video);
   aom::AV1RateControlQMode qmode_rc;
   aom::RateControlParam rc_param = {};
@@ -33,6 +33,7 @@ int main(int argc, const char **argv_) {
   rc_param.max_gop_show_frame_count = 16;
   rc_param.min_gop_show_frame_count = 4;
   rc_param.ref_frame_table_size = 7;
+  rc_param.base_q_index = 128;
 
   const aom::Status status = qmode_rc.SetRcParam(rc_param);
 
@@ -66,19 +67,14 @@ int main(int argc, const char **argv_) {
 
     // TODO(jingning): Extract the tpl stats through ducky_encode and make
     // frame encoding decisions.
-    aom::GopEncodeInfo gop_encode_info;
-    // = qmode_rc.GetGopEncodeInfo(gop_struct, tpl_gop_stats, ref_frame_table);
+    aom::GopEncodeInfo gop_encode_info =
+        qmode_rc.GetGopEncodeInfo(gop_struct, tpl_gop_stats, ref_frame_table);
     ref_frame_table = gop_encode_info.final_snapshot;
     gop_encode_info_list.push_back(gop_encode_info);
   }
-
   ducky_encode.EndEncode();
 
   fprintf(stderr, "tpl stats completed.\n");
-
-  // TODO(jingning): Re-enable the next final encoding stage once the TPL stats
-  // collection is done.
-  return 0;
 
   // Full encoding of the video sequence.
   // Do binary search with rc_param.base_q_index around this block.
@@ -86,5 +82,6 @@ int main(int argc, const char **argv_) {
   ducky_encode.EncodeVideo(gop_list, gop_encode_info_list);
   ducky_encode.EndEncode();
 
+  fprintf(stderr, "final encoding completed.\n");
   return 0;
 }
