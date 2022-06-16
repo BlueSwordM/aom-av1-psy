@@ -70,6 +70,7 @@ class DuckyEncode {
   ~DuckyEncode();
   std::vector<FIRSTPASS_STATS> ComputeFirstPassStats();
   void StartEncode(const std::vector<FIRSTPASS_STATS> &stats_list);
+  TplGopStats ObtainTplStats(const GopStruct gop_struct);
   std::vector<TplGopStats> ComputeTplStats(const GopStructList &gop_list);
   void EncodeVideo(const GopStructList &gop_list,
                    const GopEncodeInfoList &gop_encode_info_list);

@@ -349,6 +349,65 @@ static void WriteObu(AV1_PRIMARY *ppi, AV1_COMP_DATA *cpi_data) {
       obu_header_size + obu_payload_size + length_field_size;
 }
 
+TplGopStats DuckyEncode::ObtainTplStats(const GopStruct gop_struct) {
+  TplGopStats tpl_gop_stats;
+
+  AV1_PRIMARY *ppi = impl_ptr_->enc_resource.ppi;
+  const uint8_t block_mis_log2 = ppi->tpl_data.tpl_stats_block_mis_log2;
+
+  for (size_t idx = 0; idx < gop_struct.gop_frame_list.size(); ++idx) {
+    TplFrameStats tpl_frame_stats;
+    TplDepFrame *tpl_frame = &ppi->tpl_data.tpl_frame[idx];
+
+    if (gop_struct.gop_frame_list[idx].update_type == GopFrameType::kOverlay ||
+        gop_struct.gop_frame_list[idx].update_type ==
+            GopFrameType::kIntermediateOverlay)
+      continue;
+
+    const int mi_rows = tpl_frame->mi_rows;
+    const int mi_cols = tpl_frame->mi_cols;
+    const int tpl_frame_stride = tpl_frame->stride;
+    tpl_frame_stats.frame_height = mi_rows * MI_SIZE;
+    tpl_frame_stats.frame_width = mi_cols * MI_SIZE;
+    tpl_frame_stats.min_block_size = (1 << block_mis_log2) * MI_SIZE;
+
+    for (int mi_row = 0; mi_row < mi_rows; ++mi_row) {
+      for (int mi_col = 0; mi_col < mi_cols; ++mi_col) {
+        int tpl_blk_pos = (mi_row >> block_mis_log2) * tpl_frame_stride +
+                          (mi_col >> block_mis_log2);
+        TplDepStats *tpl_stats_ptr = &tpl_frame->tpl_stats_ptr[tpl_blk_pos];
+
+        TplBlockStats block_stats;
+        block_stats.row = mi_row * MI_SIZE;
+        block_stats.col = mi_col * MI_SIZE;
+        block_stats.height = (1 << block_mis_log2) * MI_SIZE;
+        block_stats.width = (1 << block_mis_log2) * MI_SIZE;
+        block_stats.inter_cost = tpl_stats_ptr->inter_cost;
+        block_stats.intra_cost = tpl_stats_ptr->intra_cost;
+        block_stats.ref_frame_index = { tpl_stats_ptr->ref_frame_index[0],
+                                        tpl_stats_ptr->ref_frame_index[1] };
+        if (block_stats.ref_frame_index[0] > 0) {
+          block_stats.mv[0] = {
+            tpl_stats_ptr->mv[block_stats.ref_frame_index[0]].as_mv.row,
+            tpl_stats_ptr->mv[block_stats.ref_frame_index[0]].as_mv.col, 3
+          };
+        }
+        if (block_stats.ref_frame_index[1] > 0) {
+          block_stats.mv[1] = {
+            tpl_stats_ptr->mv[block_stats.ref_frame_index[1]].as_mv.row,
+            tpl_stats_ptr->mv[block_stats.ref_frame_index[1]].as_mv.col, 3
+          };
+        }
+        tpl_frame_stats.block_stats_list.push_back(block_stats);
+      }
+    }
+
+    tpl_gop_stats.frame_stats_list.push_back(tpl_frame_stats);
+  }
+
+  return tpl_gop_stats;
+}
+
 // Obtain TPL stats through ducky_encode.
 std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
     const GopStructList &gop_list) {
@@ -368,7 +427,7 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
       (void)frame;
       EncodeFrame(frame_decision);
     }
-
+    tpl_gop_stats = ObtainTplStats(gop_struct);
     // TODO(jingning): Set the tpl stats file format and populate the stats.
     tpl_gop_stats_list.push_back(tpl_gop_stats);
   }
