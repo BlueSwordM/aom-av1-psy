@@ -895,7 +895,7 @@ void av1_set_variance_partition_thresholds(AV1_COMP *cpi, int q,
 
 static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
                                     BLOCK_SIZE bsize, unsigned int y_sad,
-                                    int is_key_frame) {
+                                    int is_key_frame, int zero_motion) {
   int i;
   MACROBLOCKD *xd = &x->e_mbd;
   int shift = 3;
@@ -912,9 +912,14 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
     const BLOCK_SIZE bs =
         get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
 
-    if (bs != BLOCK_INVALID)
-      uv_sad = cpi->ppi->fn_ptr[bs].sdf(p->src.buf, p->src.stride, pd->dst.buf,
-                                        pd->dst.stride);
+    if (bs != BLOCK_INVALID) {
+      if (zero_motion)
+        uv_sad = cpi->ppi->fn_ptr[bs].sdf(p->src.buf, p->src.stride,
+                                          pd->pre[0].buf, pd->pre[0].stride);
+      else
+        uv_sad = cpi->ppi->fn_ptr[bs].sdf(p->src.buf, p->src.stride,
+                                          pd->dst.buf, pd->dst.stride);
+    }
 
     if (uv_sad > (y_sad >> 1))
       x->color_sensitivity_sb[i - 1] = 1;
@@ -1164,6 +1169,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   int sp;
   int dp;
   NOISE_LEVEL noise_level = kLow;
+  int zero_motion = 1;
 
   int is_key_frame =
       (frame_is_intra_only(cm) ||
@@ -1244,6 +1250,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
     if (mi->mv[0].as_int != 0) {
       d = xd->plane[0].dst.buf;
       dp = xd->plane[0].dst.stride;
+      zero_motion = 0;
     } else {
       d = xd->plane[0].pre[0].buf;
       dp = xd->plane[0].pre[0].stride;
@@ -1252,6 +1259,8 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
     d = AV1_VAR_OFFS;
     dp = 0;
   }
+
+  chroma_check(cpi, x, bsize, y_sad, is_key_frame, zero_motion);
 
   x->force_zeromv_skip = 0;
   const unsigned int thresh_exit_part =
@@ -1452,7 +1461,6 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
     set_low_temp_var_flag(cpi, &x->part_search_info, xd, vt, thresholds,
                           ref_frame_partition, mi_col, mi_row);
   }
-  chroma_check(cpi, x, bsize, y_sad, is_key_frame);
 
   if (vt2) aom_free(vt2);
   if (vt) aom_free(vt);
