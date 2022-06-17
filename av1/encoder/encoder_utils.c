@@ -774,7 +774,7 @@ BLOCK_SIZE av1_select_sb_size(const AV1EncoderConfig *const oxcf, int width,
   }
     //Force 64x64 superblock size to improve psycho-visual quality in video content
   //but keep it only on for higher quality levels
-  if (oxcf->tune_cfg.content == AOM_CONTENT_PSY && oxcf->rc_cfg.cq_level <= 30) {
+  if (oxcf->tune_cfg.content == AOM_CONTENT_PSY && oxcf->tool_cfg.superblock_size == 0 && oxcf->rc_cfg.cq_level <= 30) {
     return BLOCK_64X64;
     }
 #if CONFIG_TFLITE
