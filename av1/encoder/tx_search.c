@@ -1659,7 +1659,7 @@ static AOM_INLINE int get_mean_dev_features(const int16_t *data, int stride,
   int feature_idx = 2;
   int total_x_sum = 0;
   int64_t total_x2_sum = 0;
-  int blk_idx = 0;
+  int num_sub_blks = 0;
   double mean2_sum = 0.0f;
   float dev_sum = 0.0f;
 
@@ -1679,7 +1679,7 @@ static AOM_INLINE int get_mean_dev_features(const int16_t *data, int stride,
       features[feature_idx++] = dev;
       mean2_sum += (double)(mean * mean);
       dev_sum += dev;
-      blk_idx++;
+      num_sub_blks++;
     }
   }
 
@@ -1687,12 +1687,10 @@ static AOM_INLINE int get_mean_dev_features(const int16_t *data, int stride,
   features[0] = lvl0_mean;
   features[1] = get_dev(lvl0_mean, (double)total_x2_sum, num);
 
-  if (blk_idx > 1) {
-    // Deviation of means.
-    features[feature_idx++] = get_dev(lvl0_mean, mean2_sum, blk_idx);
-    // Mean of deviations.
-    features[feature_idx++] = dev_sum / blk_idx;
-  }
+  // Deviation of means.
+  features[feature_idx++] = get_dev(lvl0_mean, mean2_sum, num_sub_blks);
+  // Mean of deviations.
+  features[feature_idx++] = dev_sum / num_sub_blks;
 
   return feature_idx;
 }
