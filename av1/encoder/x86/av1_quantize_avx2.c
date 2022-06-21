@@ -305,36 +305,31 @@ void av1_quantize_fp_avx2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
   *eob_ptr = quant_gather_eob(eob);
 }
 
-static INLINE void quantize_32x32(const __m256i *thr, const __m256i *qp,
-                                  __m256i *c, const int16_t *iscan_ptr,
-                                  tran_low_t *qcoeff, tran_low_t *dqcoeff,
-                                  __m256i *eob) {
-  const __m256i abs_coeff = _mm256_abs_epi16(*c);
-  __m256i mask = _mm256_cmpgt_epi16(abs_coeff, *thr);
-  mask = _mm256_or_si256(mask, _mm256_cmpeq_epi16(abs_coeff, *thr));
+static AOM_FORCE_INLINE void quantize_fp_32x32(
+    const __m256i *thr, const __m256i *qp, const tran_low_t *coeff_ptr,
+    const int16_t *iscan_ptr, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
+    __m256i *eob) {
+  const __m256i coeff = load_coefficients_avx2(coeff_ptr);
+  const __m256i abs_coeff = _mm256_abs_epi16(coeff);
+  const __m256i mask = _mm256_cmpgt_epi16(abs_coeff, *thr);
   const int nzflag = _mm256_movemask_epi8(mask);
 
   if (nzflag) {
-    __m256i q = _mm256_adds_epi16(abs_coeff, qp[0]);
-    q = _mm256_mulhi_epu16(q, qp[1]);
+    const __m256i tmp_rnd = _mm256_adds_epi16(abs_coeff, qp[0]);
+    const __m256i abs_q = _mm256_mulhi_epu16(tmp_rnd, qp[1]);
+    const __m256i q = _mm256_sign_epi16(abs_q, coeff);
+    const __m256i abs_dq =
+        _mm256_srli_epi16(_mm256_mullo_epi16(abs_q, qp[2]), 1);
+    const __m256i nz_mask = _mm256_cmpgt_epi16(abs_q, _mm256_setzero_si256());
+    const __m256i dq = _mm256_sign_epi16(abs_dq, coeff);
 
-    __m256i dq = _mm256_mullo_epi16(q, qp[2]);
-    dq = _mm256_srli_epi16(dq, 1);
+    store_coefficients_avx2(q, qcoeff_ptr);
+    store_coefficients_avx2(dq, dqcoeff_ptr);
 
-    q = _mm256_sign_epi16(q, *c);
-    dq = _mm256_sign_epi16(dq, *c);
-
-    store_two_quan(q, qcoeff, dq, dqcoeff);
-    const __m256i zero = _mm256_setzero_si256();
-    const __m256i iscan = _mm256_loadu_si256((const __m256i *)iscan_ptr);
-    const __m256i zero_coeff = _mm256_cmpeq_epi16(dq, zero);
-    const __m256i nzero_coeff = _mm256_cmpeq_epi16(zero_coeff, zero);
-    __m256i cur_eob = _mm256_sub_epi16(iscan, nzero_coeff);
-    cur_eob = _mm256_and_si256(cur_eob, nzero_coeff);
-    *eob = _mm256_max_epi16(*eob, cur_eob);
+    *eob = get_max_lane_eob(iscan_ptr, *eob, nz_mask);
   } else {
-    write_zero(qcoeff);
-    write_zero(dqcoeff);
+    write_zero(qcoeff_ptr);
+    write_zero(dqcoeff_ptr);
   }
 }
 
@@ -347,17 +342,19 @@ void av1_quantize_fp_32x32_avx2(
   (void)scan_ptr;
   (void)zbin_ptr;
   (void)quant_shift_ptr;
-  const unsigned int step = 16;
 
-  __m256i qp[3];
-  __m256i coeff, thr;
   const int log_scale = 1;
+  const unsigned int step = 16;
+  __m256i qp[3], thr;
+  __m256i eob = _mm256_setzero_si256();
 
   init_qp(round_ptr, quant_ptr, dequant_ptr, log_scale, &thr, qp);
-  read_coeff(coeff_ptr, &coeff);
+  // Subtracting 1 here eliminates a _mm256_cmpeq_epi16() instruction when
+  // calculating the zbin mask.
+  thr = _mm256_sub_epi16(thr, _mm256_set1_epi16(1));
 
-  __m256i eob = _mm256_setzero_si256();
-  quantize_32x32(&thr, qp, &coeff, iscan_ptr, qcoeff_ptr, dqcoeff_ptr, &eob);
+  quantize_fp_32x32(&thr, qp, coeff_ptr, iscan_ptr, qcoeff_ptr, dqcoeff_ptr,
+                    &eob);
 
   coeff_ptr += step;
   qcoeff_ptr += step;
@@ -365,11 +362,14 @@ void av1_quantize_fp_32x32_avx2(
   iscan_ptr += step;
   n_coeffs -= step;
 
-  update_qp(log_scale, &thr, qp);
+  qp[0] = _mm256_permute2x128_si256(qp[0], qp[0], 0x11);
+  qp[1] = _mm256_permute2x128_si256(qp[1], qp[1], 0x11);
+  qp[2] = _mm256_permute2x128_si256(qp[2], qp[2], 0x11);
+  thr = _mm256_permute2x128_si256(thr, thr, 0x11);
 
   while (n_coeffs > 0) {
-    read_coeff(coeff_ptr, &coeff);
-    quantize_32x32(&thr, qp, &coeff, iscan_ptr, qcoeff_ptr, dqcoeff_ptr, &eob);
+    quantize_fp_32x32(&thr, qp, coeff_ptr, iscan_ptr, qcoeff_ptr, dqcoeff_ptr,
+                      &eob);
 
     coeff_ptr += step;
     qcoeff_ptr += step;
