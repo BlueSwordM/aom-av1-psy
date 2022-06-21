@@ -311,7 +311,7 @@ static void configure_static_seg_features(AV1_COMP *cpi) {
   struct segmentation *const seg = &cm->seg;
 
   double avg_q;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   avg_q = ((cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) &&
            (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE))
               ? cpi->ppi->p_rc.temp_avg_q
@@ -914,7 +914,7 @@ static void screen_content_tools_determination(
   AV1_COMMON *const cm = &cpi->common;
   FeatureFlags *const features = &cm->features;
 
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   projected_size_pass[pass] =
       ((cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) &&
        (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE))

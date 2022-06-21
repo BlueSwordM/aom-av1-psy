@@ -355,7 +355,7 @@ typedef struct {
    */
   int avg_frame_qindex[FRAME_TYPES];
 
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   /*!
    * Temporary variable used in simulating the delayed update of
    * active_best_quality.

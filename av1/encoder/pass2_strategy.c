@@ -220,7 +220,7 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
   double rolling_arf_group_target_bits =
       (double)twopass->rolling_arf_group_target_bits;
 
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   const int is_parallel_frame =
       cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0 ? 1 : 0;
   const int simulate_parallel_frame =
@@ -4070,7 +4070,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
     p_rc->rate_error_estimate = 0;
   }
 
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   /* The variables temp_vbr_bits_off_target, temp_bits_left,
    * temp_rolling_arf_group_target_bits, temp_rolling_arf_group_actual_bits
    * temp_rate_error_estimate are introduced for quality simulation purpose,
@@ -4202,7 +4202,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
       }
     }
 
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
     if (cpi->do_frame_data_update && !show_existing_between_parallel_frames &&
         simulate_parallel_frame) {
       cpi->ppi->p_rc.temp_vbr_bits_off_target_fast =
@@ -4216,7 +4216,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
 
   // Update the frame probabilities obtained from parallel encode frames
   FrameProbInfo *const frame_probs = &cpi->ppi->frame_probs;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   /* The variable temp_active_best_quality is introduced only for quality
    * simulation purpose, it retains the value previous to the parallel
    * encode frames. The variable is updated based on the update flag.
@@ -4257,7 +4257,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
         for (j = TX_TYPES - 1; j >= 0; j--) {
           const int new_prob =
               cpi->frame_new_probs[loop].tx_type_probs[update_type][i][j];
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
           int prob =
               (temp_frame_probs_simulation->tx_type_probs[update_type][i][j] +
                new_prob) >>
@@ -4285,7 +4285,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
       for (i = 0; i < BLOCK_SIZES_ALL; i++) {
         const int new_prob =
             cpi->frame_new_probs[loop].obmc_probs[update_type][i];
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
         temp_frame_probs_simulation->obmc_probs[update_type][i] =
             (temp_frame_probs_simulation->obmc_probs[update_type][i] +
              new_prob) >>
@@ -4303,7 +4303,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
       const FRAME_UPDATE_TYPE update_type =
           get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
       const int new_prob = cpi->frame_new_probs[loop].warped_probs[update_type];
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
       temp_frame_probs_simulation->warped_probs[update_type] =
           (temp_frame_probs_simulation->warped_probs[update_type] + new_prob) >>
           1;
@@ -4325,7 +4325,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
         for (j = SWITCHABLE_FILTERS - 1; j >= 0; j--) {
           const int new_prob = cpi->frame_new_probs[loop]
                                    .switchable_interp_probs[update_type][i][j];
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
           int prob = (temp_frame_probs_simulation
                           ->switchable_interp_probs[update_type][i][j] +
                       new_prob) >>
@@ -4348,7 +4348,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
     }
   }
 
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   // Copying temp_frame_probs_simulation to temp_frame_probs based on
   // the flag
   if (cpi->do_frame_data_update &&
@@ -4382,7 +4382,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
   if (cpi->common.show_frame &&
       cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
     cpi->framerate = cpi->new_framerate;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   // SIMULATION PURPOSE
   int show_existing_between_parallel_frames_cndn =
       (cpi->ppi->gf_group.update_type[cpi->gf_frame_index] ==

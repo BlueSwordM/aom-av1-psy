@@ -2385,10 +2385,10 @@ static int encode_without_recode(AV1_COMP *cpi) {
   }
 
   int scale_references = 0;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   scale_references =
       cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE ? 1 : 0;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#endif  // CONFIG_FPMT_TEST
   if (scale_references ||
       cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
     // For SVC the inter-layer/spatial prediction is not done for newmv
@@ -2639,10 +2639,10 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     }
 
     int scale_references = 0;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
     scale_references =
         cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE ? 1 : 0;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#endif  // CONFIG_FPMT_TEST
     if (scale_references ||
         cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
       if (!frame_is_intra_only(cm)) {
@@ -3623,10 +3623,10 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 
   int release_scaled_refs = 0;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   release_scaled_refs =
       (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) ? 1 : 0;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#endif  // CONFIG_FPMT_TEST
   if (release_scaled_refs ||
       cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
     if (frame_is_intra_only(cm) == 0) {
@@ -4245,7 +4245,7 @@ static AOM_INLINE void update_gm_stats(AV1_COMP *cpi) {
     }
   }
   int update_actual_stats = 1;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   update_actual_stats =
       (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) ? 0 : 1;
   if (!update_actual_stats) {

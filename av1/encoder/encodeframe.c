@@ -1370,7 +1370,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   FeatureFlags *const features = &cm->features;
   MACROBLOCKD *const xd = &x->e_mbd;
   RD_COUNTS *const rdc = &cpi->td.rd_counts;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   FrameProbInfo *const temp_frame_probs = &cpi->ppi->temp_frame_probs;
   FrameProbInfo *const temp_frame_probs_simulation =
       &cpi->ppi->temp_frame_probs_simulation;
@@ -1409,11 +1409,11 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     const FRAME_UPDATE_TYPE update_type =
         get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
     int warped_probability =
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
         cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE
             ? temp_frame_probs->warped_probs[update_type]
             :
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#endif  // CONFIG_FPMT_TEST
             frame_probs->warped_probs[update_type];
     if (warped_probability < cpi->sf.inter_sf.prune_warped_prob_thresh)
       features->allow_warped_motion = 0;
@@ -1698,7 +1698,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         const int new_prob =
             sum ? MAX_TX_TYPE_PROB * cpi->td.rd_counts.tx_type_used[i][j] / sum
                 : (j ? 0 : MAX_TX_TYPE_PROB);
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
         if (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) {
           if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] ==
               0) {
@@ -1720,7 +1720,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
           }
           update_txtype_frameprobs = 0;
         }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#endif  // CONFIG_FPMT_TEST
         // Track the frame probabilities of parallel encode frames to update
         // during postencode stage.
         if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
@@ -1757,7 +1757,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
       const int new_prob =
           sum ? 128 * cpi->td.rd_counts.obmc_used[i][1] / sum : 0;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
       if (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) {
         if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
           temp_frame_probs_simulation->obmc_probs[update_type][i] =
@@ -1773,7 +1773,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         }
         update_obmc_frameprobs = 0;
       }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#endif  // CONFIG_FPMT_TEST
       // Track the frame probabilities of parallel encode frames to update
       // during postencode stage.
       if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
@@ -1796,7 +1796,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     int sum = 0;
     for (i = 0; i < 2; i++) sum += cpi->td.rd_counts.warped_used[i];
     const int new_prob = sum ? 128 * cpi->td.rd_counts.warped_used[1] / sum : 0;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
     if (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) {
       if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
         temp_frame_probs_simulation->warped_probs[update_type] =
@@ -1812,7 +1812,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       }
       update_warp_frameprobs = 0;
     }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#endif  // CONFIG_FPMT_TEST
     // Track the frame probabilities of parallel encode frames to update
     // during postencode stage.
     if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {
@@ -1846,7 +1846,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         const int new_prob =
             sum ? 1536 * cpi->td.counts->switchable_interp[i][j] / sum
                 : (j ? 0 : 1536);
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
         if (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) {
           if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] ==
               0) {
@@ -1868,7 +1868,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
           }
           update_interpfilter_frameprobs = 0;
         }
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#endif  // CONFIG_FPMT_TEST
         // Track the frame probabilities of parallel encode frames to update
         // during postencode stage.
         if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0) {

@@ -99,7 +99,7 @@ struct av1_extracfg {
   int film_grain_test_vector;
   const char *film_grain_table_filename;
   unsigned int motion_vector_unit_test;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   unsigned int fpmt_unit_test;
 #endif
   unsigned int cdf_update_mode;
@@ -270,7 +270,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,                            // film_grain_test_vector
   NULL,                         // film_grain_table_filename
   0,                            // motion_vector_unit_test
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   0,  // fpmt_unit_test
 #endif
   1,    // CDF update mode
@@ -416,7 +416,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,                            // film_grain_test_vector
   NULL,                         // film_grain_table_filename
   0,                            // motion_vector_unit_test
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   0,                            // fpmt_unit_test
 #endif
   1,                            // CDF update mode
@@ -676,7 +676,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, cdf_update_mode, 2);
 
   RANGE_CHECK_HI(extra_cfg, motion_vector_unit_test, 2);
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   RANGE_CHECK_HI(extra_cfg, fpmt_unit_test, 1);
 #endif
   RANGE_CHECK_HI(extra_cfg, sb_multipass_unit_test, 1);
@@ -2335,7 +2335,7 @@ static aom_codec_err_t ctrl_enable_motion_vector_unit_test(
 
 static aom_codec_err_t ctrl_enable_fpmt_unit_test(aom_codec_alg_priv_t *ctx,
                                                   va_list args) {
-#if !(CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST)
+#if !CONFIG_FPMT_TEST
   (void)args;
   (void)ctx;
   return AOM_CODEC_INCAPABLE;
@@ -2967,7 +2967,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       cpi->ref_refresh_index = INVALID_IDX;
       cpi->refresh_idx_available = false;
 
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
       simulate_parallel_frame =
           cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE ? 1 : 0;
       if (simulate_parallel_frame) {
@@ -2980,7 +2980,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         status = av1_get_compressed_data(cpi, &cpi_data);
       }
 
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#endif  // CONFIG_FPMT_TEST
       if (!simulate_parallel_frame) {
         if (ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
           status = av1_get_compressed_data(cpi, &cpi_data);

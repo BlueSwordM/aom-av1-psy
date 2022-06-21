@@ -1354,7 +1354,7 @@ static int64_t motion_mode_rd(
         get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
     int use_actual_frame_probs = 1;
     int prune_obmc;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
     use_actual_frame_probs =
         (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) ? 0 : 1;
     if (!use_actual_frame_probs) {
@@ -4052,7 +4052,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
       get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
   int use_actual_frame_probs = 1;
   int prune_obmc;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   use_actual_frame_probs =
       (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) ? 0 : 1;
   if (!use_actual_frame_probs) {

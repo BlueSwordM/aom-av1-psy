@@ -135,13 +135,13 @@ enum {
   FRAMEFLAGS_ERROR_RESILIENT = 1 << 6,
 } UENUM1BYTE(FRAMETYPE_FLAGS);
 
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
 enum {
   PARALLEL_ENCODE = 0,
   PARALLEL_SIMULATION_ENCODE,
   NUM_FPMT_TEST_ENCODES
 } UENUM1BYTE(FPMT_TEST_ENC_CFG);
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#endif  // CONFIG_FPMT_TEST
 // 0 level frames are sometimes used for rate control purposes, but for
 // reference mapping purposes, the minimum level should be 1.
 #define MIN_PYR_LEVEL 1
@@ -2406,7 +2406,7 @@ typedef struct AV1_PRIMARY {
    * encode set.
    */
   struct AV1_COMP_DATA parallel_frames_data[MAX_PARALLEL_FRAMES - 1];
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   /*!
    * Flag which enables/disables simulation path for fpmt unit test.
    * 0 - FPMT integration
@@ -2431,7 +2431,7 @@ typedef struct AV1_PRIMARY {
    * model across frames.
    */
   int temp_valid_gm_model_found[FRAME_UPDATE_TYPES];
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#endif  // CONFIG_FPMT_TEST
   /*!
    * Copy of cm->ref_frame_map maintained to facilitate sequential update of
    * ref_frame_map by lower layer depth frames encoded ahead of time in a
@@ -2471,8 +2471,7 @@ typedef struct AV1_PRIMARY {
 
   /*!
    * Encode stage top level structure
-   * When CONFIG_FRAME_PARALLEL_ENCODE is enabled this is the same as
-   * parallel_cpi[0]
+   * During frame parallel encode, this is the same as parallel_cpi[0]
    */
   struct AV1_COMP *cpi;
 
@@ -3037,7 +3036,7 @@ typedef struct AV1_COMP {
    */
   int do_update_frame_probs_interpfilter[NUM_RECODES_PER_FRAME];
 
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   /*!
    * Temporary variable for simulation.
    * Previous frame's framerate.
@@ -3272,7 +3271,7 @@ typedef struct AV1_COMP {
    * encode set of lower layer frames.
    */
   int ref_idx_to_skip;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   /*!
    * Stores the wanted frame buffer index for choosing primary ref frame by a
    * frame_parallel_level 2 frame in a parallel encode set of lower layer
@@ -3280,7 +3279,7 @@ typedef struct AV1_COMP {
    */
 
   int wanted_fb;
-#endif  // CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#endif  // CONFIG_FPMT_TEST
 
   /*!
    * A flag to indicate frames that will update their data to the primary
@@ -3639,7 +3638,7 @@ static INLINE void init_ref_map_pair(
   }
 }
 
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
 static AOM_INLINE void calc_frame_data_update_flag(
     GF_GROUP *const gf_group, int gf_frame_index,
     bool *const do_frame_data_update) {

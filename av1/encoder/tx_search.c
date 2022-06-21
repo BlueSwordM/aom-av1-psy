@@ -1737,7 +1737,7 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
       get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
   int use_actual_frame_probs = 1;
   const int *tx_type_probs;
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   use_actual_frame_probs =
       (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) ? 0 : 1;
   if (!use_actual_frame_probs) {

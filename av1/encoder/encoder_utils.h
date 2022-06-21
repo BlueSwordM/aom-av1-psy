@@ -872,7 +872,7 @@ static AOM_INLINE void copy_frame_prob_info(AV1_COMP *cpi) {
              default_switchable_interp_probs);
   }
 
-#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
+#if CONFIG_FPMT_TEST
   if (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) {
     FrameProbInfo *const temp_frame_probs = &cpi->ppi->temp_frame_probs;
     if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats) {
