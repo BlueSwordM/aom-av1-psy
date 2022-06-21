@@ -2119,8 +2119,11 @@ static void estimate_intra_mode(
       inter_mode_thresh = RDCOST(x->rdmult, intra_cost_penalty, 0);
       do_early_exit_rdthresh = 0;
     }
-    if (x->source_variance < AOMMAX(50, (spatial_var_thresh >> 1)) &&
-        x->content_state_sb.source_sad_nonrd >= kHighSad)
+    if ((x->source_variance < AOMMAX(50, (spatial_var_thresh >> 1)) &&
+         x->content_state_sb.source_sad_nonrd >= kHighSad) ||
+        (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+         x->source_variance == 0 &&
+         (x->color_sensitivity[0] == 1 || x->color_sensitivity[1] == 1)))
       force_intra_check = 1;
     // For big blocks worth checking intra (since only DC will be checked),
     // even if best_early_term is set.
@@ -2376,13 +2379,15 @@ void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
   NOISE_LEVEL noise_level = kLow;
   int norm_sad =
       y_sad >> (b_width_log2_lookup[bsize] + b_height_log2_lookup[bsize]);
+  unsigned int thresh_spatial = (cpi->common.width > 1920) ? 5000 : 1000;
   // If the spatial source variance is high and the normalized y_sad
   // is low, then y-channel is likely good for mode estimation, so keep
   // color_sensitivity off. For low noise content for now, since there is
   // some bdrate regression for noisy color clip.
   if (cpi->noise_estimate.enabled)
     noise_level = av1_noise_estimate_extract_level(&cpi->noise_estimate);
-  if (noise_level == kLow && source_variance > 1000 && norm_sad < 50) {
+  if (noise_level == kLow && source_variance > thresh_spatial &&
+      norm_sad < 50) {
     x->color_sensitivity[0] = 0;
     x->color_sensitivity[1] = 0;
     return;
@@ -2844,7 +2849,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
       // If source_sad is computed: skip non-zero motion
       // check for stationary (super)blocks. Otherwise if superblock
-      // has motion skip the modes with zero motion for flat blocks.
+      // has motion skip the modes with zero motion for flat blocks,
+      // and color is not set.
       // For the latter condition: the same condition should apply
       // to newmv if (0, 0), so this latter condition is repeated
       // below after search_new_mv.
@@ -2853,6 +2859,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
              x->content_state_sb.source_sad_nonrd == kZeroSad) ||
             (frame_mv[this_mode][ref_frame].as_int == 0 &&
              x->content_state_sb.source_sad_nonrd != kZeroSad &&
+             ((x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0) ||
+              cpi->rc.high_source_sad) &&
              x->source_variance == 0))
           continue;
       }
@@ -2935,12 +2943,14 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     if (skip_this_mv && !comp_pred) continue;
 
     // For screen: for spatially flat blocks with non-zero motion,
-    // skip newmv if the motion vector is (0, 0).
+    // skip newmv if the motion vector is (0, 0), and color is not set.
     if (this_mode == NEWMV &&
         cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
         cpi->sf.rt_sf.source_metrics_sb_nonrd) {
       if (frame_mv[this_mode][ref_frame].as_int == 0 &&
           x->content_state_sb.source_sad_nonrd != kZeroSad &&
+          ((x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0) ||
+           cpi->rc.high_source_sad) &&
           x->source_variance == 0)
         continue;
     }
