@@ -364,7 +364,8 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
             "${AOM_ROOT}/av1/encoder/arm/neon/encodetxb_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/hybrid_fwd_txfm_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/av1_fwd_txfm2d_neon.c"
-            "${AOM_ROOT}/av1/encoder/arm/neon/highbd_fwd_txfm_neon.c")
+            "${AOM_ROOT}/av1/encoder/arm/neon/highbd_fwd_txfm_neon.c"
+            "${AOM_ROOT}/av1/encoder/arm/neon/wedge_utils_neon.c")
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_MSA
             "${AOM_ROOT}/av1/encoder/mips/msa/error_msa.c"
