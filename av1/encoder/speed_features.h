@@ -1565,6 +1565,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // with moderate increased encoding time.
   // Set to zero to turn off this speed feature.
   int screen_content_cdef_filter_qindex_thresh;
+
+  // Prunes global_globalmv search if its variance is \gt the globalmv's
+  // variance.
+  bool prune_global_globalmv_with_globalmv;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

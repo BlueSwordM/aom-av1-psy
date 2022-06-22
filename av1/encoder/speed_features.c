@@ -1683,6 +1683,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     for (int i = 0; i < BLOCK_SIZES; ++i)
       sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC;
     sf->rt_sf.var_part_based_on_qidx = 0;
+    sf->rt_sf.prune_global_globalmv_with_globalmv = true;
   }
   if (speed >= 10) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_4;
@@ -2020,6 +2021,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->tx_size_level_based_on_qstep = 0;
   rt_sf->reduce_zeromv_mvres = false;
   rt_sf->vbp_prune_16x16_split_using_min_max_sub_blk_var = false;
+  rt_sf->prune_global_globalmv_with_globalmv = false;
 }
 
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {

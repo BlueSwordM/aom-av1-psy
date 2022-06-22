@@ -576,7 +576,9 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
                                       int mi_row, int mi_col, MACROBLOCK *x,
                                       MACROBLOCKD *xd, RD_STATS *rd_stats,
                                       int *early_term, int calculate_rd,
-                                      int64_t best_sse) {
+                                      int64_t best_sse,
+                                      unsigned int *var_output,
+                                      unsigned int var_prune_threshold) {
   // Note our transform coeffs are 8 times an orthogonal transform.
   // Hence quantizer step is also 8 times. To get effective quantizer
   // we need to divide by 8 before sending to modeling function.
@@ -613,6 +615,12 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
   block_variance(p->src.buf, p->src.stride, pd->dst.buf, pd->dst.stride,
                  4 << bw, 4 << bh, &sse, &sum, 8, sse8x8, sum8x8, var8x8);
   var = sse - (unsigned int)(((int64_t)sum * sum) >> (bw + bh + 4));
+  if (var_output) {
+    *var_output = var;
+    if (*var_output > var_prune_threshold) {
+      return;
+    }
+  }
 
   rd_stats->sse = sse;
 
@@ -1565,7 +1573,8 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
     av1_enc_build_inter_predictor_y(xd, mi_row, mi_col);
     if (use_model_yrd_large)
       model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd,
-                                &pf_rd_stats[i], this_early_term, 1, best_sse);
+                                &pf_rd_stats[i], this_early_term, 1, best_sse,
+                                NULL, UINT_MAX);
     else
       model_rd_for_sb_y(cpi, bsize, x, xd, &pf_rd_stats[i], 1);
     pf_rd_stats[i].rate += av1_get_switchable_rate(
@@ -1710,8 +1719,8 @@ static void search_motion_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
       av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0, 0);
       if (use_model_yrd_large)
         model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd,
-                                  &pf_rd_stats[i], this_early_term, 1,
-                                  best_sse);
+                                  &pf_rd_stats[i], this_early_term, 1, best_sse,
+                                  NULL, UINT_MAX);
       else
         model_rd_for_sb_y(cpi, bsize, x, xd, &pf_rd_stats[i], 1);
       pf_rd_stats[i].rate +=
@@ -1774,7 +1783,7 @@ static void search_motion_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
         if (use_model_yrd_large)
           model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd,
                                     &pf_rd_stats[i], this_early_term, 1,
-                                    best_sse);
+                                    best_sse, NULL, UINT_MAX);
         else
           model_rd_for_sb_y(cpi, bsize, x, xd, &pf_rd_stats[i], 1);
 
@@ -2604,6 +2613,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int tot_num_comp_modes = 9;
   int ref_mv_idx = 0;
   int skip_comp_mode = 0;
+  unsigned int global_mv_var[REF_FRAMES] = { UINT_MAX };
 #if CONFIG_AV1_TEMPORAL_DENOISING
   const int denoise_recheck_zeromv = 1;
   AV1_PICKMODE_CTX_DEN ctx_den;
@@ -3053,9 +3063,29 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                       0);
 
       if (use_model_yrd_large) {
+        unsigned int var = UINT_MAX;
+        unsigned int var_threshold = UINT_MAX;
+        if (cpi->sf.rt_sf.prune_global_globalmv_with_globalmv &&
+            this_mode == GLOBAL_GLOBALMV) {
+          if (mode_checked[GLOBALMV][ref_frame]) {
+            var_threshold = AOMMIN(var_threshold, global_mv_var[ref_frame]);
+          }
+          if (mode_checked[GLOBALMV][ref_frame2]) {
+            var_threshold = AOMMIN(var_threshold, global_mv_var[ref_frame2]);
+          }
+        }
+
         model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd, &this_rdc,
                                   &this_early_term, use_modeled_non_rd_cost,
-                                  best_pickmode.best_sse);
+                                  best_pickmode.best_sse, &var, var_threshold);
+        if (this_mode == GLOBALMV) {
+          global_mv_var[ref_frame] = var;
+        } else if (this_mode == GLOBAL_GLOBALMV) {
+          if (var > var_threshold) {
+            if (reuse_inter_pred) free_pred_buffer(this_mode_pred);
+            continue;
+          }
+        }
       } else {
         model_rd_for_sb_y(cpi, bsize, x, xd, &this_rdc,
                           use_modeled_non_rd_cost);
