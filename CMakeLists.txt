@@ -497,20 +497,11 @@ if(CONFIG_AV1_ENCODER)
     add_executable(svc_encoder_rtc "${AOM_ROOT}/examples/svc_encoder_rtc.c"
                                    $<TARGET_OBJECTS:aom_common_app_util>
                                    $<TARGET_OBJECTS:aom_encoder_app_util>)
-    if(NOT CONFIG_REALTIME_ONLY AND NOT BUILD_SHARED_LIBS)
-      add_executable(qmode_rc_encoder "${AOM_ROOT}/apps/qmode_rc_encoder.cc"
-                                      $<TARGET_OBJECTS:aom_common_app_util>
-                                      $<TARGET_OBJECTS:aom_encoder_app_util>
-                                      $<TARGET_OBJECTS:av1_rc_qmode>)
-    endif()
 
     # Maintain a list of encoder example targets.
     list(APPEND AOM_ENCODER_EXAMPLE_TARGETS aomenc lossless_encoder noise_model
                 photon_noise_table set_maps simple_encoder scalable_encoder
                 twopass_encoder svc_encoder_rtc)
-    if(NOT CONFIG_REALTIME_ONLY AND NOT BUILD_SHARED_LIBS)
-      list(APPEND AOM_ENCODER_EXAMPLE_TARGETS qmode_rc_encoder)
-    endif()
   endif()
 
   if(ENABLE_TOOLS)
