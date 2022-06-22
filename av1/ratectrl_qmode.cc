@@ -908,6 +908,9 @@ TplUnitDepStats TplBlockStatsToDepStats(const TplBlockStats &block_stats,
 
 TplFrameDepStats CreateTplFrameDepStatsWithoutPropagation(
     const TplFrameStats &frame_stats) {
+  if (frame_stats.block_stats_list.empty()) {
+    return {};
+  }
   const int min_block_size = frame_stats.min_block_size;
   TplFrameDepStats frame_dep_stats = CreateTplFrameDepStats(
       frame_stats.frame_height, frame_stats.frame_width, min_block_size);
@@ -1003,6 +1006,8 @@ void TplFrameDepStatsPropagate(int coding_idx,
   assert(!tpl_gop_dep_stats->frame_dep_stats_list.empty());
   TplFrameDepStats *frame_dep_stats =
       &tpl_gop_dep_stats->frame_dep_stats_list[coding_idx];
+
+  if (frame_dep_stats->unit_stats.empty()) return;
 
   const int unit_size = frame_dep_stats->unit_size;
   const int frame_unit_rows =
