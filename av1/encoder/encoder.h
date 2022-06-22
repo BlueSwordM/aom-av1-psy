@@ -1368,11 +1368,19 @@ typedef struct {
    */
   int *num_finished_cols;
   /*!
-   * Number of extra superblocks of the top row to be complete for encoding
-   * of the current superblock to start. A value of 1 indicates top-right
-   * dependency.
+   * Denotes the superblock interval at which conditional signalling should
+   * happen. Also denotes the minimum number of extra superblocks of the top row
+   * to be complete to start encoding the current superblock. A value of 1
+   * indicates top-right dependency.
    */
   int sync_range;
+  /*!
+   * Denotes the additional number of superblocks in the previous row to be
+   * complete to start encoding the current superblock when intraBC tool is
+   * enabled. This additional top-right delay is required to satisfy the
+   * hardware constraints for intraBC tool when row multithreading is enabled.
+   */
+  int intrabc_extra_top_right_sb_delay;
   /*!
    * Number of superblock rows.
    */

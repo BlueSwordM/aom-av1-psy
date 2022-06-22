@@ -22,6 +22,9 @@
 extern "C" {
 #endif
 
+#define INTRABC_ROW_MT_TOP_RIGHT_SB128_DELAY 3
+#define INTRABC_ROW_MT_TOP_RIGHT_SB64_DELAY 5
+
 struct AV1Common;
 
 typedef struct AV1LfMTInfo {

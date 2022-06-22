@@ -118,7 +118,8 @@ void av1_row_mt_sync_read(AV1EncRowMultiThreadSync *row_mt_sync, int r, int c) {
     pthread_mutex_t *const mutex = &row_mt_sync->mutex_[r - 1];
     pthread_mutex_lock(mutex);
 
-    while (c > row_mt_sync->num_finished_cols[r - 1] - nsync) {
+    while (c > row_mt_sync->num_finished_cols[r - 1] - nsync -
+                   row_mt_sync->intrabc_extra_top_right_sb_delay) {
       pthread_cond_wait(&row_mt_sync->cond_[r - 1], mutex);
     }
     pthread_mutex_unlock(mutex);
@@ -142,7 +143,7 @@ void av1_row_mt_sync_write(AV1EncRowMultiThreadSync *row_mt_sync, int r, int c,
     cur = c;
     if (c % nsync) sig = 0;
   } else {
-    cur = cols + nsync;
+    cur = cols + nsync + row_mt_sync->intrabc_extra_top_right_sb_delay;
   }
 
   if (sig) {
@@ -1508,6 +1509,18 @@ static AOM_INLINE int fp_compute_max_mb_rows(const AV1_COMMON *const cm,
 }
 #endif
 
+static AOM_INLINE int get_intrabc_extra_top_right_sb_delay(
+    const AV1_COMMON *cm) {
+  // No additional top-right delay when intraBC tool is not enabled.
+  if (!av1_allow_intrabc(cm)) return 0;
+  // A minimum top-right delay of 1 superblock is assured with 'sync_range'.
+  // Hence, return only the additional superblock delay with intraBC tool.
+  return (cm->seq_params->sb_size == BLOCK_128X128
+              ? INTRABC_ROW_MT_TOP_RIGHT_SB128_DELAY
+              : INTRABC_ROW_MT_TOP_RIGHT_SB64_DELAY) -
+         1;
+}
+
 void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
@@ -1552,6 +1565,8 @@ void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
              sizeof(*row_mt_sync->num_finished_cols) * max_sb_rows);
       row_mt_sync->next_mi_row = this_tile->tile_info.mi_row_start;
       row_mt_sync->num_threads_working = 0;
+      row_mt_sync->intrabc_extra_top_right_sb_delay =
+          get_intrabc_extra_top_right_sb_delay(cm);
 
       av1_inter_mode_data_init(this_tile);
       av1_zero_above_context(cm, &cpi->td.mb.e_mbd,
@@ -1622,6 +1637,10 @@ void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi) {
              sizeof(*row_mt_sync->num_finished_cols) * max_mb_rows);
       row_mt_sync->next_mi_row = this_tile->tile_info.mi_row_start;
       row_mt_sync->num_threads_working = 0;
+
+      // intraBC mode is not evaluated during first-pass encoding. Hence, no
+      // additional top-right delay is required.
+      row_mt_sync->intrabc_extra_top_right_sb_delay = 0;
     }
   }
 
