@@ -16,25 +16,10 @@
 #include "aom/aom_integer.h"
 #include "aom_dsp/aom_dsp_common.h"
 
-static INLINE void read_coeff(const tran_low_t *coeff, __m256i *c) {
-  if (sizeof(tran_low_t) == 4) {
-    const __m256i x0 = _mm256_loadu_si256((const __m256i *)coeff);
-    const __m256i x1 = _mm256_loadu_si256((const __m256i *)coeff + 1);
-    *c = _mm256_packs_epi32(x0, x1);
-    *c = _mm256_permute4x64_epi64(*c, 0xD8);
-  } else {
-    *c = _mm256_loadu_si256((const __m256i *)coeff);
-  }
-}
-
 static INLINE void write_zero(tran_low_t *qcoeff) {
   const __m256i zero = _mm256_setzero_si256();
-  if (sizeof(tran_low_t) == 4) {
-    _mm256_storeu_si256((__m256i *)qcoeff, zero);
-    _mm256_storeu_si256((__m256i *)qcoeff + 1, zero);
-  } else {
-    _mm256_storeu_si256((__m256i *)qcoeff, zero);
-  }
+  _mm256_storeu_si256((__m256i *)qcoeff, zero);
+  _mm256_storeu_si256((__m256i *)qcoeff + 1, zero);
 }
 
 static INLINE void init_one_qp(const __m128i *p, __m256i *qp) {
@@ -64,36 +49,17 @@ static INLINE void init_qp(const int16_t *round_ptr, const int16_t *quant_ptr,
 
   init_one_qp(&dequant, &qp[2]);
   *thr = _mm256_srai_epi16(qp[2], 1 + log_scale);
+  // Subtracting 1 here eliminates a _mm256_cmpeq_epi16() instruction when
+  // calculating the zbin mask.
+  *thr = _mm256_sub_epi16(*thr, _mm256_set1_epi16(1));
 }
 
-static INLINE void update_qp(int log_scale, __m256i *thr, __m256i *qp) {
+static INLINE void update_qp(__m256i *thr, __m256i *qp) {
   qp[0] = _mm256_permute2x128_si256(qp[0], qp[0], 0x11);
   qp[1] = _mm256_permute2x128_si256(qp[1], qp[1], 0x11);
   qp[2] = _mm256_permute2x128_si256(qp[2], qp[2], 0x11);
-  *thr = _mm256_srai_epi16(qp[2], 1 + log_scale);
+  *thr = _mm256_permute2x128_si256(*thr, *thr, 0x11);
 }
-
-#define store_quan(q, addr)                               \
-  do {                                                    \
-    __m256i sign_bits = _mm256_srai_epi16(q, 15);         \
-    __m256i y0 = _mm256_unpacklo_epi16(q, sign_bits);     \
-    __m256i y1 = _mm256_unpackhi_epi16(q, sign_bits);     \
-    __m256i x0 = _mm256_permute2x128_si256(y0, y1, 0x20); \
-    __m256i x1 = _mm256_permute2x128_si256(y0, y1, 0x31); \
-    _mm256_storeu_si256((__m256i *)addr, x0);             \
-    _mm256_storeu_si256((__m256i *)addr + 1, x1);         \
-  } while (0)
-
-#define store_two_quan(q, addr1, dq, addr2)      \
-  do {                                           \
-    if (sizeof(tran_low_t) == 4) {               \
-      store_quan(q, addr1);                      \
-      store_quan(dq, addr2);                     \
-    } else {                                     \
-      _mm256_storeu_si256((__m256i *)addr1, q);  \
-      _mm256_storeu_si256((__m256i *)addr2, dq); \
-    }                                            \
-  } while (0)
 
 static INLINE __m256i load_coefficients_avx2(const tran_low_t *coeff_ptr) {
   const __m256i coeff1 = _mm256_load_si256((__m256i *)coeff_ptr);
@@ -275,9 +241,6 @@ void av1_quantize_fp_avx2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
   __m256i eob = _mm256_setzero_si256();
 
   init_qp(round_ptr, quant_ptr, dequant_ptr, log_scale, &thr, qp);
-  // Subtracting 1 here eliminates a _mm256_cmpeq_epi16() instruction when
-  // calculating the zbin mask.
-  thr = _mm256_sub_epi16(thr, _mm256_set1_epi16(1));
 
   quantize_fp_16(&thr, qp, coeff_ptr, iscan_ptr, qcoeff_ptr, dqcoeff_ptr, &eob);
 
@@ -287,10 +250,7 @@ void av1_quantize_fp_avx2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
   iscan_ptr += step;
   n_coeffs -= step;
 
-  qp[0] = _mm256_permute2x128_si256(qp[0], qp[0], 0x11);
-  qp[1] = _mm256_permute2x128_si256(qp[1], qp[1], 0x11);
-  qp[2] = _mm256_permute2x128_si256(qp[2], qp[2], 0x11);
-  thr = _mm256_permute2x128_si256(thr, thr, 0x11);
+  update_qp(&thr, qp);
 
   while (n_coeffs > 0) {
     quantize_fp_16(&thr, qp, coeff_ptr, iscan_ptr, qcoeff_ptr, dqcoeff_ptr,
@@ -349,9 +309,6 @@ void av1_quantize_fp_32x32_avx2(
   __m256i eob = _mm256_setzero_si256();
 
   init_qp(round_ptr, quant_ptr, dequant_ptr, log_scale, &thr, qp);
-  // Subtracting 1 here eliminates a _mm256_cmpeq_epi16() instruction when
-  // calculating the zbin mask.
-  thr = _mm256_sub_epi16(thr, _mm256_set1_epi16(1));
 
   quantize_fp_32x32(&thr, qp, coeff_ptr, iscan_ptr, qcoeff_ptr, dqcoeff_ptr,
                     &eob);
@@ -362,10 +319,7 @@ void av1_quantize_fp_32x32_avx2(
   iscan_ptr += step;
   n_coeffs -= step;
 
-  qp[0] = _mm256_permute2x128_si256(qp[0], qp[0], 0x11);
-  qp[1] = _mm256_permute2x128_si256(qp[1], qp[1], 0x11);
-  qp[2] = _mm256_permute2x128_si256(qp[2], qp[2], 0x11);
-  thr = _mm256_permute2x128_si256(thr, thr, 0x11);
+  update_qp(&thr, qp);
 
   while (n_coeffs > 0) {
     quantize_fp_32x32(&thr, qp, coeff_ptr, iscan_ptr, qcoeff_ptr, dqcoeff_ptr,
@@ -380,40 +334,44 @@ void av1_quantize_fp_32x32_avx2(
   *eob_ptr = quant_gather_eob(eob);
 }
 
-static INLINE void quantize_64x64(const __m256i *thr, const __m256i *qp,
-                                  __m256i *c, const int16_t *iscan_ptr,
-                                  tran_low_t *qcoeff, tran_low_t *dqcoeff,
-                                  __m256i *eob) {
-  const __m256i abs_coeff = _mm256_abs_epi16(*c);
-  __m256i mask = _mm256_cmpgt_epi16(abs_coeff, *thr);
-  mask = _mm256_or_si256(mask, _mm256_cmpeq_epi16(abs_coeff, *thr));
+static INLINE void quantize_fp_64x64(const __m256i *thr, const __m256i *qp,
+                                     const tran_low_t *coeff_ptr,
+                                     const int16_t *iscan_ptr,
+                                     tran_low_t *qcoeff_ptr,
+                                     tran_low_t *dqcoeff_ptr, __m256i *eob) {
+  const __m256i coeff = load_coefficients_avx2(coeff_ptr);
+  const __m256i abs_coeff = _mm256_abs_epi16(coeff);
+  const __m256i mask = _mm256_cmpgt_epi16(abs_coeff, *thr);
   const int nzflag = _mm256_movemask_epi8(mask);
 
   if (nzflag) {
-    __m256i q = _mm256_adds_epi16(abs_coeff, qp[0]);
-    __m256i qh = _mm256_mulhi_epi16(q, qp[1]);
-    __m256i ql = _mm256_mullo_epi16(q, qp[1]);
-    qh = _mm256_slli_epi16(qh, 2);
-    ql = _mm256_srli_epi16(ql, 14);
-    q = _mm256_or_si256(qh, ql);
-    const __m256i dqh = _mm256_slli_epi16(_mm256_mulhi_epi16(q, qp[2]), 14);
-    const __m256i dql = _mm256_srli_epi16(_mm256_mullo_epi16(q, qp[2]), 2);
-    __m256i dq = _mm256_or_si256(dqh, dql);
+    const __m256i tmp_rnd =
+        _mm256_and_si256(_mm256_adds_epi16(abs_coeff, qp[0]), mask);
+    const __m256i qh = _mm256_slli_epi16(_mm256_mulhi_epi16(tmp_rnd, qp[1]), 2);
+    const __m256i ql =
+        _mm256_srli_epi16(_mm256_mullo_epi16(tmp_rnd, qp[1]), 14);
+    const __m256i abs_q = _mm256_or_si256(qh, ql);
+    const __m256i dqh = _mm256_slli_epi16(_mm256_mulhi_epi16(abs_q, qp[2]), 14);
+    const __m256i dql = _mm256_srli_epi16(_mm256_mullo_epi16(abs_q, qp[2]), 2);
+    const __m256i abs_dq = _mm256_or_si256(dqh, dql);
+    const __m256i q = _mm256_sign_epi16(abs_q, coeff);
+    const __m256i dq = _mm256_sign_epi16(abs_dq, coeff);
+    // Check the signed q/dq value here instead of the absolute value. When
+    // dequant equals 4, the dequant threshold (*thr) becomes 0 after being
+    // scaled down by (1 + log_scale). See init_qp(). When *thr is 0 and the
+    // abs_coeff is 0, the nzflag will be set. As a result, the eob will be
+    // incorrectly calculated. The psign instruction corrects the error by
+    // zeroing out q/dq if coeff is zero.
+    const __m256i z_mask = _mm256_cmpeq_epi16(dq, _mm256_setzero_si256());
+    const __m256i nz_mask = _mm256_cmpeq_epi16(z_mask, _mm256_setzero_si256());
 
-    q = _mm256_sign_epi16(q, *c);
-    dq = _mm256_sign_epi16(dq, *c);
+    store_coefficients_avx2(q, qcoeff_ptr);
+    store_coefficients_avx2(dq, dqcoeff_ptr);
 
-    store_two_quan(q, qcoeff, dq, dqcoeff);
-    const __m256i zero = _mm256_setzero_si256();
-    const __m256i iscan = _mm256_loadu_si256((const __m256i *)iscan_ptr);
-    const __m256i zero_coeff = _mm256_cmpeq_epi16(dq, zero);
-    const __m256i nzero_coeff = _mm256_cmpeq_epi16(zero_coeff, zero);
-    __m256i cur_eob = _mm256_sub_epi16(iscan, nzero_coeff);
-    cur_eob = _mm256_and_si256(cur_eob, nzero_coeff);
-    *eob = _mm256_max_epi16(*eob, cur_eob);
+    *eob = get_max_lane_eob(iscan_ptr, *eob, nz_mask);
   } else {
-    write_zero(qcoeff);
-    write_zero(dqcoeff);
+    write_zero(qcoeff_ptr);
+    write_zero(dqcoeff_ptr);
   }
 }
 
@@ -426,17 +384,16 @@ void av1_quantize_fp_64x64_avx2(
   (void)scan_ptr;
   (void)zbin_ptr;
   (void)quant_shift_ptr;
-  const unsigned int step = 16;
 
-  __m256i qp[3];
-  __m256i coeff, thr;
   const int log_scale = 2;
+  const unsigned int step = 16;
+  __m256i qp[3], thr;
+  __m256i eob = _mm256_setzero_si256();
 
   init_qp(round_ptr, quant_ptr, dequant_ptr, log_scale, &thr, qp);
-  read_coeff(coeff_ptr, &coeff);
 
-  __m256i eob = _mm256_setzero_si256();
-  quantize_64x64(&thr, qp, &coeff, iscan_ptr, qcoeff_ptr, dqcoeff_ptr, &eob);
+  quantize_fp_64x64(&thr, qp, coeff_ptr, iscan_ptr, qcoeff_ptr, dqcoeff_ptr,
+                    &eob);
 
   coeff_ptr += step;
   qcoeff_ptr += step;
@@ -444,11 +401,11 @@ void av1_quantize_fp_64x64_avx2(
   iscan_ptr += step;
   n_coeffs -= step;
 
-  update_qp(log_scale, &thr, qp);
+  update_qp(&thr, qp);
 
   while (n_coeffs > 0) {
-    read_coeff(coeff_ptr, &coeff);
-    quantize_64x64(&thr, qp, &coeff, iscan_ptr, qcoeff_ptr, dqcoeff_ptr, &eob);
+    quantize_fp_64x64(&thr, qp, coeff_ptr, iscan_ptr, qcoeff_ptr, dqcoeff_ptr,
+                      &eob);
 
     coeff_ptr += step;
     qcoeff_ptr += step;
