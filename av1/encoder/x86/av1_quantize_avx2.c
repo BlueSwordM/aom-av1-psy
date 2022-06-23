@@ -85,20 +85,11 @@ static INLINE uint16_t quant_gather_eob(__m256i eob) {
   return INT16_MAX - _mm_extract_epi16(eob_s, 0);
 }
 
-static INLINE __m256i scan_eob_256(const __m256i *iscan_ptr,
-                                   __m256i *coeff256) {
-  const __m256i iscan = _mm256_loadu_si256(iscan_ptr);
-  const __m256i zero256 = _mm256_setzero_si256();
-  const __m256i zero_coeff0 = _mm256_cmpeq_epi16(*coeff256, zero256);
-  const __m256i nzero_coeff0 = _mm256_cmpeq_epi16(zero_coeff0, zero256);
-  // Add one to convert from indices to counts
-  const __m256i iscan_plus_one = _mm256_sub_epi16(iscan, nzero_coeff0);
-  return _mm256_and_si256(iscan_plus_one, nzero_coeff0);
-}
-
-static INLINE int16_t accumulate_eob(__m128i eob) {
-  __m128i eob_shuffled;
-  eob_shuffled = _mm_shuffle_epi32(eob, 0xe);
+static INLINE int16_t accumulate_eob256(__m256i eob256) {
+  const __m128i eob_lo = _mm256_castsi256_si128(eob256);
+  const __m128i eob_hi = _mm256_extractf128_si256(eob256, 1);
+  __m128i eob = _mm_max_epi16(eob_lo, eob_hi);
+  __m128i eob_shuffled = _mm_shuffle_epi32(eob, 0xe);
   eob = _mm_max_epi16(eob, eob_shuffled);
   eob_shuffled = _mm_shufflelo_epi16(eob, 0xe);
   eob = _mm_max_epi16(eob, eob_shuffled);
@@ -107,15 +98,50 @@ static INLINE int16_t accumulate_eob(__m128i eob) {
   return _mm_extract_epi16(eob, 1);
 }
 
+static AOM_FORCE_INLINE void quantize_lp_16(
+    const int16_t *coeff_ptr, intptr_t n_coeffs, const int16_t *iscan_ptr,
+    int16_t *qcoeff_ptr, int16_t *dqcoeff_ptr, __m256i *round256,
+    __m256i *quant256, __m256i *dequant256, __m256i *eob) {
+  const __m256i coeff =
+      _mm256_loadu_si256((const __m256i *)(coeff_ptr + n_coeffs));
+  const __m256i abs_coeff = _mm256_abs_epi16(coeff);
+  const __m256i tmp_rnd = _mm256_adds_epi16(abs_coeff, *round256);
+  const __m256i abs_qcoeff = _mm256_mulhi_epi16(tmp_rnd, *quant256);
+  const __m256i qcoeff = _mm256_sign_epi16(abs_qcoeff, coeff);
+  const __m256i dqcoeff = _mm256_mullo_epi16(qcoeff, *dequant256);
+  const __m256i nz_mask =
+      _mm256_cmpgt_epi16(abs_qcoeff, _mm256_setzero_si256());
+
+  _mm256_storeu_si256((__m256i *)(qcoeff_ptr + n_coeffs), qcoeff);
+  _mm256_storeu_si256((__m256i *)(dqcoeff_ptr + n_coeffs), dqcoeff);
+
+  const __m256i iscan =
+      _mm256_loadu_si256((const __m256i *)(iscan_ptr + n_coeffs));
+  const __m256i iscan_plus1 = _mm256_sub_epi16(iscan, nz_mask);
+  const __m256i nz_iscan = _mm256_and_si256(iscan_plus1, nz_mask);
+  *eob = _mm256_max_epi16(*eob, nz_iscan);
+}
+
 void av1_quantize_lp_avx2(const int16_t *coeff_ptr, intptr_t n_coeffs,
                           const int16_t *round_ptr, const int16_t *quant_ptr,
                           int16_t *qcoeff_ptr, int16_t *dqcoeff_ptr,
                           const int16_t *dequant_ptr, uint16_t *eob_ptr,
                           const int16_t *scan, const int16_t *iscan) {
   (void)scan;
-  __m128i eob;
-  __m256i round256, quant256, dequant256;
   __m256i eob256;
+
+  // Setup global values.
+  __m256i round256 =
+      _mm256_castsi128_si256(_mm_load_si128((const __m128i *)round_ptr));
+  __m256i quant256 =
+      _mm256_castsi128_si256(_mm_load_si128((const __m128i *)quant_ptr));
+  __m256i dequant256 =
+      _mm256_castsi128_si256(_mm_load_si128((const __m128i *)dequant_ptr));
+
+  // Populate upper AC values.
+  round256 = _mm256_permute4x64_epi64(round256, 0x54);
+  quant256 = _mm256_permute4x64_epi64(quant256, 0x54);
+  dequant256 = _mm256_permute4x64_epi64(dequant256, 0x54);
 
   coeff_ptr += n_coeffs;
   iscan += n_coeffs;
@@ -123,69 +149,26 @@ void av1_quantize_lp_avx2(const int16_t *coeff_ptr, intptr_t n_coeffs,
   dqcoeff_ptr += n_coeffs;
   n_coeffs = -n_coeffs;
 
-  {
-    __m256i coeff256;
+  // Process DC and the first 15 AC coeffs.
+  quantize_lp_16(coeff_ptr, n_coeffs, iscan, qcoeff_ptr, dqcoeff_ptr, &round256,
+                 &quant256, &dequant256, &eob256);
 
-    // Setup global values
-    {
-      const __m128i round = _mm_load_si128((const __m128i *)round_ptr);
-      const __m128i quant = _mm_load_si128((const __m128i *)quant_ptr);
-      const __m128i dequant = _mm_load_si128((const __m128i *)dequant_ptr);
-      round256 = _mm256_castsi128_si256(round);
-      round256 = _mm256_permute4x64_epi64(round256, 0x54);
-
-      quant256 = _mm256_castsi128_si256(quant);
-      quant256 = _mm256_permute4x64_epi64(quant256, 0x54);
-
-      dequant256 = _mm256_castsi128_si256(dequant);
-      dequant256 = _mm256_permute4x64_epi64(dequant256, 0x54);
-    }
-
-    {
-      __m256i qcoeff256;
-      __m256i qtmp256;
-      coeff256 = _mm256_loadu_si256((const __m256i *)(coeff_ptr + n_coeffs));
-      qcoeff256 = _mm256_abs_epi16(coeff256);
-      qcoeff256 = _mm256_adds_epi16(qcoeff256, round256);
-      qtmp256 = _mm256_mulhi_epi16(qcoeff256, quant256);
-      qcoeff256 = _mm256_sign_epi16(qtmp256, coeff256);
-      _mm256_storeu_si256((__m256i *)(qcoeff_ptr + n_coeffs), qcoeff256);
-      coeff256 = _mm256_mullo_epi16(qcoeff256, dequant256);
-      _mm256_storeu_si256((__m256i *)(dqcoeff_ptr + n_coeffs), coeff256);
-    }
-
-    eob256 = scan_eob_256((const __m256i *)(iscan + n_coeffs), &coeff256);
-    n_coeffs += 8 * 2;
-  }
-
-  // remove dc constants
+  // Overwrite the DC constants with AC constants
   dequant256 = _mm256_permute2x128_si256(dequant256, dequant256, 0x31);
   quant256 = _mm256_permute2x128_si256(quant256, quant256, 0x31);
   round256 = _mm256_permute2x128_si256(round256, round256, 0x31);
 
-  // AC only loop
-  while (n_coeffs < 0) {
-    __m256i coeff256 =
-        _mm256_loadu_si256((const __m256i *)(coeff_ptr + n_coeffs));
-    __m256i qcoeff256 = _mm256_abs_epi16(coeff256);
+  n_coeffs += 8 * 2;
 
-    __m256i qtmp256;
-    qcoeff256 = _mm256_adds_epi16(qcoeff256, round256);
-    qtmp256 = _mm256_mulhi_epi16(qcoeff256, quant256);
-    qcoeff256 = _mm256_sign_epi16(qtmp256, coeff256);
-    _mm256_storeu_si256((__m256i *)(qcoeff_ptr + n_coeffs), qcoeff256);
-    coeff256 = _mm256_mullo_epi16(qcoeff256, dequant256);
-    _mm256_storeu_si256((__m256i *)(dqcoeff_ptr + n_coeffs), coeff256);
-    eob256 = _mm256_max_epi16(
-        eob256, scan_eob_256((const __m256i *)(iscan + n_coeffs), &coeff256));
+  // AC only loop.
+  while (n_coeffs < 0) {
+    quantize_lp_16(coeff_ptr, n_coeffs, iscan, qcoeff_ptr, dqcoeff_ptr,
+                   &round256, &quant256, &dequant256, &eob256);
 
     n_coeffs += 8 * 2;
   }
 
-  eob = _mm_max_epi16(_mm256_castsi256_si128(eob256),
-                      _mm256_extracti128_si256(eob256, 1));
-
-  *eob_ptr = accumulate_eob(eob);
+  *eob_ptr = accumulate_eob256(eob256);
 }
 
 static AOM_FORCE_INLINE __m256i get_max_lane_eob(const int16_t *iscan,
