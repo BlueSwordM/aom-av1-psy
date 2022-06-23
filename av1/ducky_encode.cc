@@ -438,10 +438,11 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
 }
 
 // Obtain TPL stats through ducky_encode.
-void DuckyEncode::EncodeVideo(const GopStructList &gop_list,
-                              const GopEncodeInfoList &gop_encode_info_list) {
+std::vector<EncodeFrameResult> DuckyEncode::EncodeVideo(
+    const GopStructList &gop_list,
+    const GopEncodeInfoList &gop_encode_info_list) {
   AV1_PRIMARY *ppi = impl_ptr_->enc_resource.ppi;
-
+  std::vector<EncodeFrameResult> encoded_frame_list;
   // Go through each gop and encode each frame in the gop
   for (size_t i = 0; i < gop_list.size(); ++i) {
     const aom::GopStruct &gop_struct = gop_list[i];
@@ -452,9 +453,11 @@ void DuckyEncode::EncodeVideo(const GopStructList &gop_list,
       aom::EncodeFrameDecision frame_decision = {
         aom::EncodeFrameMode::kQindexRdmult, frame_param
       };
-      EncodeFrame(frame_decision);
+      encoded_frame_list.push_back(EncodeFrame(frame_decision));
     }
   }
+
+  return encoded_frame_list;
 }
 
 EncodeFrameResult DuckyEncode::EncodeFrame(
