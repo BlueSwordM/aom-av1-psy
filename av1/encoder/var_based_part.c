@@ -895,7 +895,8 @@ void av1_set_variance_partition_thresholds(AV1_COMP *cpi, int q,
 
 static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
                                     BLOCK_SIZE bsize, unsigned int y_sad,
-                                    int is_key_frame, int zero_motion) {
+                                    int is_key_frame, int zero_motion,
+                                    unsigned int *uv_sad) {
   int i;
   MACROBLOCKD *xd = &x->e_mbd;
   int shift = 3;
@@ -906,7 +907,6 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
     shift = 5;
 
   for (i = 1; i <= 2; ++i) {
-    unsigned int uv_sad = UINT_MAX;
     struct macroblock_plane *p = &x->plane[i];
     struct macroblockd_plane *pd = &xd->plane[i];
     const BLOCK_SIZE bs =
@@ -914,16 +914,16 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
 
     if (bs != BLOCK_INVALID) {
       if (zero_motion)
-        uv_sad = cpi->ppi->fn_ptr[bs].sdf(p->src.buf, p->src.stride,
-                                          pd->pre[0].buf, pd->pre[0].stride);
+        uv_sad[i - 1] = cpi->ppi->fn_ptr[bs].sdf(
+            p->src.buf, p->src.stride, pd->pre[0].buf, pd->pre[0].stride);
       else
-        uv_sad = cpi->ppi->fn_ptr[bs].sdf(p->src.buf, p->src.stride,
-                                          pd->dst.buf, pd->dst.stride);
+        uv_sad[i - 1] = cpi->ppi->fn_ptr[bs].sdf(p->src.buf, p->src.stride,
+                                                 pd->dst.buf, pd->dst.stride);
     }
 
-    if (uv_sad > (y_sad >> 1))
+    if (uv_sad[i - 1] > (y_sad >> 1))
       x->color_sensitivity_sb[i - 1] = 1;
-    else if (uv_sad < (y_sad >> shift))
+    else if (uv_sad[i - 1] < (y_sad >> shift))
       x->color_sensitivity_sb[i - 1] = 0;
     // Borderline case: to be refined at coding block level in nonrd_pickmode,
     // for coding block size < sb_size.
@@ -1169,6 +1169,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   const uint8_t *d;
   int sp;
   int dp;
+  unsigned int uv_sad[2];
   NOISE_LEVEL noise_level = kLow;
   int zero_motion = 1;
 
@@ -1261,7 +1262,9 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
     dp = 0;
   }
 
-  chroma_check(cpi, x, bsize, y_sad, is_key_frame, zero_motion);
+  uv_sad[0] = 0;
+  uv_sad[1] = 0;
+  chroma_check(cpi, x, bsize, y_sad, is_key_frame, zero_motion, uv_sad);
 
   x->force_zeromv_skip = 0;
   const unsigned int thresh_exit_part =
@@ -1271,15 +1274,15 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   // and exit, and force zeromv_last skip mode for nonrd_pickmode.
   // Only do this when the cyclic refresh is applied, and only on the base
   // segment (so the QP-boosted segment can still contnue cleaning/ramping
-  // up the quality).
-  // TODO(marpan): Check color component for setting this skip.
+  // up the quality). Condition on color uv_sad is also added.
   if (!is_key_frame && cpi->sf.rt_sf.part_early_exit_zeromv &&
       cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
       cpi->cyclic_refresh->apply_cyclic_refresh &&
       segment_id == CR_SEGMENT_ID_BASE &&
       x->content_state_sb.source_sad_nonrd == kZeroSad &&
       ref_frame_partition == LAST_FRAME && xd->mi[0]->mv[0].as_int == 0 &&
-      y_sad < thresh_exit_part) {
+      y_sad < thresh_exit_part && uv_sad[0]<(3 * thresh_exit_part)>> 2 &&
+      uv_sad[1]<(3 * thresh_exit_part)>> 2) {
     const int block_width = mi_size_wide[cm->seq_params->sb_size];
     const int block_height = mi_size_high[cm->seq_params->sb_size];
     if (mi_col + block_width <= tile->mi_col_end &&
