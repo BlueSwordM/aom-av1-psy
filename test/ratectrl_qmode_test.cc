@@ -1042,7 +1042,8 @@ TEST(RateControlQModeTest, TestGetGopEncodeInfo) {
     GopEncodeInfo gop_encode_info = rc.GetGopEncodeInfo(
         gop_list[gop_idx], tpl_gop_list[tpl_gop_idx], ref_frame_table);
     for (auto &frame_param : gop_encode_info.param_list) {
-      std::cout << frame_param.q_index << std::endl;
+      ASSERT_GE(frame_param.q_index, 0);
+      ASSERT_LE(frame_param.q_index, rc_param.base_q_index);
     }
     ref_frame_table = gop_encode_info.final_snapshot;
   }
