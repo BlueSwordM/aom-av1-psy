@@ -1054,11 +1054,11 @@ static AOM_INLINE int av1_get_enc_border_size(bool resize, bool all_intra,
   // a smaller frame border size (AOM_ENC_ALLINTRA_BORDER) is used in this case.
   if (resize) {
     return AOM_BORDER_IN_PIXELS;
-  } else if (all_intra) {
-    return AOM_ENC_ALLINTRA_BORDER;
-  } else {
-    return block_size_wide[sb_size] + 32;
   }
+  if (all_intra) {
+    return AOM_ENC_ALLINTRA_BORDER;
+  }
+  return block_size_wide[sb_size] + 32;
 }
 
 static AOM_INLINE bool av1_is_resize_needed(const AV1EncoderConfig *oxcf) {
