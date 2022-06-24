@@ -1569,6 +1569,11 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Prunes global_globalmv search if its variance is \gt the globalmv's
   // variance.
   bool prune_global_globalmv_with_globalmv;
+
+  // Allow mode cost update at frame level every couple frames. This
+  // overrides the command line setting --mode-cost-upd-freq=3 (never update
+  // except on key frame and first delta).
+  bool frame_level_mode_cost_update;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

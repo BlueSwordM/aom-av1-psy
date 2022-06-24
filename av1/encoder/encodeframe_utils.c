@@ -15,9 +15,7 @@
 
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encodeframe_utils.h"
-#include "av1/encoder/partition_strategy.h"
 #include "av1/encoder/rdopt.h"
-#include "av1/encoder/aq_variance.h"
 
 void av1_set_ssim_rdmult(const AV1_COMP *const cpi, int *errorperbit,
                          const BLOCK_SIZE bsize, const int mi_row,
@@ -1577,6 +1575,10 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
   const int num_planes = av1_num_planes(cm);
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
+
+  if (cm->features.disable_cdf_update) {
+    return;
+  }
 
   switch (cpi->sf.inter_sf.coeff_cost_upd_level) {
     case INTERNAL_COST_UPD_OFF:

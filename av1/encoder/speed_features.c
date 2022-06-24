@@ -1673,8 +1673,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.partition_direct_merging = 1;
   }
   if (speed >= 9) {
-    sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_3;
     sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
+    sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_3;
     sf->rt_sf.screen_content_cdef_filter_qindex_thresh = 20;
     sf->rt_sf.estimate_motion_for_var_based_partition = 0;
     sf->rt_sf.force_large_partition_blocks = 1;
@@ -1684,6 +1684,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
       sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC;
     sf->rt_sf.var_part_based_on_qidx = 0;
     sf->rt_sf.prune_global_globalmv_with_globalmv = true;
+    sf->rt_sf.frame_level_mode_cost_update = true;
   }
   if (speed >= 10) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_4;
@@ -2022,6 +2023,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->reduce_zeromv_mvres = false;
   rt_sf->vbp_prune_16x16_split_using_min_max_sub_blk_var = false;
   rt_sf->prune_global_globalmv_with_globalmv = false;
+  rt_sf->frame_level_mode_cost_update = false;
 }
 
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {

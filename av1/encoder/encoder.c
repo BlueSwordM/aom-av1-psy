@@ -3237,9 +3237,9 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
 
 // Conditions to disable cdf_update mode in selective mode for real-time.
 // Handle case for layers, scene change, and resizing.
-static int selective_disable_cdf_rtc(AV1_COMP *cpi) {
-  AV1_COMMON *const cm = &cpi->common;
-  RATE_CONTROL *const rc = &cpi->rc;
+static AOM_INLINE int selective_disable_cdf_rtc(const AV1_COMP *cpi) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const RATE_CONTROL *const rc = &cpi->rc;
   // For single layer.
   if (cpi->svc.number_spatial_layers == 1 &&
       cpi->svc.number_temporal_layers == 1) {
@@ -3379,6 +3379,10 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
                                   frame_might_allow_warped_motion(cm);
 
   cpi->last_frame_type = current_frame->frame_type;
+
+  if (frame_is_intra_only(cm)) {
+    cpi->frames_since_last_update = 0;
+  }
 
   if (frame_is_sframe(cm)) {
     GF_GROUP *gf_group = &cpi->ppi->gf_group;
@@ -3680,6 +3684,12 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 
   cpi->last_frame_type = current_frame->frame_type;
+
+  if (cm->features.disable_cdf_update) {
+    cpi->frames_since_last_update++;
+  } else {
+    cpi->frames_since_last_update = 1;
+  }
 
   // Clear the one shot update flags for segmentation map and mode/ref loop
   // filter deltas.

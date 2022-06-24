@@ -3381,6 +3381,11 @@ typedef struct AV1_COMP {
    */
   DuckyEncodeInfo ducky_encode_info;
 #endif  // CONFIG_REALTIME_ONLY
+        //
+  /*!
+   * Frames since last frame with cdf update.
+   */
+  int frames_since_last_update;
 } AV1_COMP;
 
 /*!
@@ -4021,8 +4026,8 @@ static AOM_INLINE int is_psnr_calc_enabled(const AV1_COMP *cpi) {
          cm->show_frame;
 }
 
-static INLINE int is_frame_resize_pending(AV1_COMP *const cpi) {
-  ResizePendingParams *const resize_pending_params =
+static INLINE int is_frame_resize_pending(const AV1_COMP *const cpi) {
+  const ResizePendingParams *const resize_pending_params =
       &cpi->resize_pending_params;
   return (resize_pending_params->width && resize_pending_params->height &&
           (cpi->common.width != resize_pending_params->width ||
