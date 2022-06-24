@@ -311,7 +311,8 @@ static void DuckyEncodeInfoSetGopStruct(AV1_PRIMARY *ppi,
 static void DuckyEncodeInfoSetEncodeFrameDecision(
     DuckyEncodeInfo *ducky_encode_info, const EncodeFrameDecision &decision) {
   DuckyEncodeFrameInfo *frame_info = &ducky_encode_info->frame_info;
-  frame_info->mode = static_cast<DUCKY_ENCODE_FRAME_MODE>(decision.mode);
+  frame_info->qp_mode = static_cast<DUCKY_ENCODE_FRAME_MODE>(decision.qp_mode);
+  frame_info->gop_mode = static_cast<DUCKY_ENCODE_GOP_MODE>(decision.gop_mode);
   frame_info->q_index = decision.parameters.q_index;
   frame_info->rdmult = decision.parameters.rdmult;
 }
@@ -358,7 +359,6 @@ TplGopStats DuckyEncode::ObtainTplStats(const GopStruct gop_struct) {
   for (size_t idx = 0; idx < gop_struct.gop_frame_list.size(); ++idx) {
     TplFrameStats tpl_frame_stats = {};
     TplDepFrame *tpl_frame = &ppi->tpl_data.tpl_frame[idx];
-
     if (gop_struct.gop_frame_list[idx].update_type == GopFrameType::kOverlay ||
         gop_struct.gop_frame_list[idx].update_type ==
             GopFrameType::kIntermediateOverlay) {
@@ -424,7 +424,8 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
     aom::TplGopStats tpl_gop_stats;
     for (auto &frame : gop_struct.gop_frame_list) {
       // encoding frame frame_number
-      aom::EncodeFrameDecision frame_decision = { aom::EncodeFrameMode::kQindex,
+      aom::EncodeFrameDecision frame_decision = { aom::EncodeFrameMode::kNone,
+                                                  aom::EncodeGopMode::kGopRcl,
                                                   { 128, -1 } };
       (void)frame;
       EncodeFrame(frame_decision);
@@ -451,7 +452,8 @@ std::vector<EncodeFrameResult> DuckyEncode::EncodeVideo(
 
     for (auto &frame_param : gop_encode_info.param_list) {
       aom::EncodeFrameDecision frame_decision = {
-        aom::EncodeFrameMode::kQindexRdmult, frame_param
+        aom::EncodeFrameMode::kQindexRdmult, aom::EncodeGopMode::kGopRcl,
+        frame_param
       };
       encoded_frame_list.push_back(EncodeFrame(frame_decision));
     }

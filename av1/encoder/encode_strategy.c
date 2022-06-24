@@ -829,8 +829,8 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       allow_tpl =
           allow_tpl && (update_type == ARF_UPDATE || update_type == GF_UPDATE ||
                         (cpi->use_ducky_encode &&
-                         cpi->ducky_encode_info.frame_info.mode ==
-                             DUCKY_ENCODE_FRAME_MODE_QINDEX_RDMULT));
+                         cpi->ducky_encode_info.frame_info.gop_mode ==
+                             DUCKY_ENCODE_GOP_MODE_RCL));
     }
 
     if (allow_tpl) {

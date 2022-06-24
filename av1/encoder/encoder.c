@@ -2705,7 +2705,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     if (cpi->use_ducky_encode) {
       const DuckyEncodeFrameInfo *frame_info =
           &cpi->ducky_encode_info.frame_info;
-      if (frame_info->mode == DUCKY_ENCODE_FRAME_MODE_QINDEX) {
+      if (frame_info->qp_mode == DUCKY_ENCODE_FRAME_MODE_QINDEX) {
         q = frame_info->q_index;
 
         // TODO(jingning): Coding block level QP offset is currently disabled

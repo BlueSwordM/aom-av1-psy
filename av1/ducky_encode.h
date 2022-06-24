@@ -46,11 +46,16 @@ enum class EncodeFrameMode {
   kNone,          // Let native AV1 determine q index and rdmult
   kQindex,        // DuckyEncode determines q index and AV1 determines rdmult
   kQindexRdmult,  // DuckyEncode determines q index and rdmult
-  kGopInfo        // DuckyEncode determines the gop structure
+};
+
+enum class EncodeGopMode {
+  kNone,    // native AV1 decides GOP
+  kGopRcl,  // rate control lib decides GOP
 };
 
 struct EncodeFrameDecision {
-  EncodeFrameMode mode;
+  EncodeFrameMode qp_mode;
+  EncodeGopMode gop_mode;
   FrameEncodeParameters parameters;
 };
 

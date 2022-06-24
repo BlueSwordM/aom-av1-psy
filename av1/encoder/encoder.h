@@ -2308,16 +2308,22 @@ typedef struct {
 #if !CONFIG_REALTIME_ONLY
 /*!\cond */
 // DUCKY_ENCODE_FRAME_MODE is c version of EncodeFrameMode
-typedef enum {
+enum {
   DUCKY_ENCODE_FRAME_MODE_NONE,  // Let native AV1 determine q index and rdmult
   DUCKY_ENCODE_FRAME_MODE_QINDEX,  // DuckyEncode determines q index and AV1
                                    // determines rdmult
-  DUCKY_ENCODE_FRAME_MODE_QINDEX_RDMULT  // DuckyEncode determines q index and
-                                         // rdmult
-} DUCKY_ENCODE_FRAME_MODE;
+  DUCKY_ENCODE_FRAME_MODE_QINDEX_RDMULT,  // DuckyEncode determines q index and
+                                          // rdmult
+} UENUM1BYTE(DUCKY_ENCODE_FRAME_MODE);
+
+enum {
+  DUCKY_ENCODE_GOP_MODE_NONE,  // native AV1 decides GOP
+  DUCKY_ENCODE_GOP_MODE_RCL,   // rate control lib decides GOP
+} UENUM1BYTE(DUCKY_ENCODE_GOP_MODE);
 
 typedef struct DuckyEncodeFrameInfo {
-  DUCKY_ENCODE_FRAME_MODE mode;
+  DUCKY_ENCODE_FRAME_MODE qp_mode;
+  DUCKY_ENCODE_GOP_MODE gop_mode;
   int q_index;
   int rdmult;
 } DuckyEncodeFrameInfo;
