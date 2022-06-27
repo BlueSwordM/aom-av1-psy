@@ -2216,12 +2216,14 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
     p[i].txb_entropy_ctx = ctx->txb_entropy_ctx[i];
   }
   for (i = 0; i < 2; ++i) pd[i].color_index_map = ctx->color_index_map[i];
-  if (is_cur_buf_hbd(xd)) {
-    x->source_variance = av1_high_get_sby_perpixel_variance(
-        cpi, &x->plane[0].src, bsize, xd->bd);
-  } else {
-    x->source_variance =
-        av1_get_sby_perpixel_variance(cpi, &x->plane[0].src, bsize);
+  if (!x->force_zeromv_skip) {
+    if (is_cur_buf_hbd(xd)) {
+      x->source_variance = av1_high_get_sby_perpixel_variance(
+          cpi, &x->plane[0].src, bsize, xd->bd);
+    } else {
+      x->source_variance =
+          av1_get_sby_perpixel_variance(cpi, &x->plane[0].src, bsize);
+    }
   }
   // Save rdmult before it might be changed, so it can be restored later.
   const int orig_rdmult = x->rdmult;
