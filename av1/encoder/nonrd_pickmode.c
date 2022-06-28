@@ -2265,7 +2265,7 @@ static void estimate_intra_mode(
       else if (!cpi->rc.high_source_sad && x->source_variance > 0 &&
                x->content_state_sb.source_sad_nonrd == kZeroSad &&
                x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0)
-        this_rdc.rdcost = (9 * this_rdc.rdcost) >> 3;
+        this_rdc.rdcost = (3 * this_rdc.rdcost) >> 1;
     }
 
     if (this_rdc.rdcost < best_rdc->rdcost) {
