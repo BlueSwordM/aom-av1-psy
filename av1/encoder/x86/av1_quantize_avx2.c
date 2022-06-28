@@ -128,7 +128,7 @@ void av1_quantize_lp_avx2(const int16_t *coeff_ptr, intptr_t n_coeffs,
                           const int16_t *dequant_ptr, uint16_t *eob_ptr,
                           const int16_t *scan, const int16_t *iscan) {
   (void)scan;
-  __m256i eob256;
+  __m256i eob256 = _mm256_setzero_si256();
 
   // Setup global values.
   __m256i round256 =
