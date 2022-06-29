@@ -38,7 +38,7 @@ struct ThreadData;
  * normalized to each MB. MV related stats (MVc, MVr, etc.) are normalized to
  * the frame width and height. See function normalize_firstpass_stats.
  */
-typedef struct {
+typedef struct FIRSTPASS_STATS {
   /*!
    * Frame number in display order, if stats are for a single frame.
    * No real meaning for a collection of frames.
