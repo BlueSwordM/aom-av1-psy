@@ -23,7 +23,7 @@ extern "C" {
 #endif
 
 #define DELTA_Q_PERCEPTUAL_MODULATION \
-  1  // 0: variance based
+  0  // 0: variance based
      // 1: wavelet AC energy based
 
 struct macroblock;
