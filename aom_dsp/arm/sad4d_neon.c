@@ -277,23 +277,43 @@ static INLINE void sad4xhx4d_neon(const uint8_t *src, int src_stride,
   res[3] = horizontal_add_u16x8(sum[3]);
 }
 
-void aom_sad64x64x4d_neon(const uint8_t *src, int src_stride,
-                          const uint8_t *const ref[4], int ref_stride,
-                          uint32_t res[4]) {
-  sad64xhx4d_neon(src, src_stride, ref, ref_stride, res, 64);
-}
+#define SAD_WXH_4D_NEON(w, h)                                                  \
+  void aom_sad##w##x##h##x4d_neon(const uint8_t *src, int src_stride,          \
+                                  const uint8_t *const ref[4], int ref_stride, \
+                                  uint32_t res[4]) {                           \
+    sad##w##xhx4d_neon(src, src_stride, ref, ref_stride, res, (h));            \
+  }
 
-void aom_sad32x32x4d_neon(const uint8_t *src, int src_stride,
-                          const uint8_t *const ref[4], int ref_stride,
-                          uint32_t res[4]) {
-  sad32xhx4d_neon(src, src_stride, ref, ref_stride, res, 32);
-}
+SAD_WXH_4D_NEON(4, 4)
+SAD_WXH_4D_NEON(4, 8)
+SAD_WXH_4D_NEON(4, 16)
+SAD_WXH_4D_NEON(4, 32)
 
-void aom_sad16x16x4d_neon(const uint8_t *src, int src_stride,
-                          const uint8_t *const ref[4], int ref_stride,
-                          uint32_t res[4]) {
-  sad16xhx4d_neon(src, src_stride, ref, ref_stride, res, 16);
-}
+SAD_WXH_4D_NEON(8, 4)
+SAD_WXH_4D_NEON(8, 8)
+SAD_WXH_4D_NEON(8, 16)
+SAD_WXH_4D_NEON(8, 32)
+
+SAD_WXH_4D_NEON(16, 4)
+SAD_WXH_4D_NEON(16, 8)
+SAD_WXH_4D_NEON(16, 16)
+SAD_WXH_4D_NEON(16, 32)
+SAD_WXH_4D_NEON(16, 64)
+
+SAD_WXH_4D_NEON(32, 8)
+SAD_WXH_4D_NEON(32, 16)
+SAD_WXH_4D_NEON(32, 32)
+SAD_WXH_4D_NEON(32, 64)
+
+SAD_WXH_4D_NEON(64, 16)
+SAD_WXH_4D_NEON(64, 32)
+SAD_WXH_4D_NEON(64, 64)
+SAD_WXH_4D_NEON(64, 128)
+
+SAD_WXH_4D_NEON(128, 64)
+SAD_WXH_4D_NEON(128, 128)
+
+#undef SAD_WXH_4D_NEON
 
 #define SAD_SKIP_WXH_4D_NEON(w, h)                                          \
   void aom_sad_skip_##w##x##h##x4d_neon(const uint8_t *src, int src_stride, \

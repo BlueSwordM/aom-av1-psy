@@ -1002,34 +1002,31 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     add_proto qw/void/, "aom_masked_sad${w}x${h}x4d", "const uint8_t *src, int src_stride, const uint8_t *ref[4], int ref_stride, const uint8_t *second_pred, const uint8_t *msk, int msk_stride, int invert_mask, unsigned sads[4]";
   }
 
-  specialize qw/aom_sad128x128x4d avx2          sse2/;
-  specialize qw/aom_sad128x64x4d  avx2          sse2/;
-  specialize qw/aom_sad64x128x4d  avx2          sse2/;
+  specialize qw/aom_sad128x128x4d avx2 neon     sse2/;
+  specialize qw/aom_sad128x64x4d  avx2 neon     sse2/;
+  specialize qw/aom_sad64x128x4d  avx2 neon     sse2/;
   specialize qw/aom_sad64x64x4d   avx2 neon msa sse2/;
-  specialize qw/aom_sad64x32x4d   avx2      msa sse2/;
-  specialize qw/aom_sad64x16x4d   avx2          sse2/;
-  specialize qw/aom_sad32x64x4d   avx2      msa sse2/;
+  specialize qw/aom_sad64x32x4d   avx2 neon msa sse2/;
+  specialize qw/aom_sad32x64x4d   avx2 neon msa sse2/;
   specialize qw/aom_sad32x32x4d   avx2 neon msa sse2/;
-  specialize qw/aom_sad32x16x4d   avx2      msa sse2/;
-  specialize qw/aom_sad32x8x4d    avx2          sse2/;
-  specialize qw/aom_sad16x64x4d                 sse2/;
-  specialize qw/aom_sad16x32x4d             msa sse2/;
-  specialize qw/aom_sad16x16x4d         neon msa sse2/;
-  specialize qw/aom_sad16x8x4d               msa sse2/;
+  specialize qw/aom_sad32x16x4d   avx2 neon msa sse2/;
+  specialize qw/aom_sad16x32x4d        neon msa sse2/;
+  specialize qw/aom_sad16x16x4d        neon msa sse2/;
+  specialize qw/aom_sad16x8x4d         neon msa sse2/;
 
-  specialize qw/aom_sad8x16x4d              msa sse2/;
-  specialize qw/aom_sad8x8x4d               msa sse2/;
-  specialize qw/aom_sad8x4x4d               msa sse2/;
-  specialize qw/aom_sad4x16x4d              msa sse2/;
-  specialize qw/aom_sad4x8x4d               msa sse2/;
-  specialize qw/aom_sad4x4x4d               msa sse2/;
+  specialize qw/aom_sad8x16x4d         neon msa sse2/;
+  specialize qw/aom_sad8x8x4d          neon msa sse2/;
+  specialize qw/aom_sad8x4x4d          neon msa sse2/;
+  specialize qw/aom_sad4x32x4d         neon     sse2/;
+  specialize qw/aom_sad4x8x4d          neon msa sse2/;
+  specialize qw/aom_sad4x4x4d          neon msa sse2/;
 
-  specialize qw/aom_sad4x32x4d  sse2/;
-  specialize qw/aom_sad4x16x4d  sse2/;
-  specialize qw/aom_sad16x4x4d  sse2/;
-  specialize qw/aom_sad8x32x4d  sse2/;
-  specialize qw/aom_sad32x8x4d  sse2/;
-  specialize qw/aom_sad64x16x4d sse2/;
+  specialize qw/aom_sad64x16x4d   avx2 neon     sse2/;
+  specialize qw/aom_sad32x8x4d    avx2 neon     sse2/;
+  specialize qw/aom_sad16x64x4d        neon     sse2/;
+  specialize qw/aom_sad16x4x4d         neon     sse2/;
+  specialize qw/aom_sad8x32x4d         neon     sse2/;
+  specialize qw/aom_sad4x16x4d         neon msa sse2/;
 
   specialize qw/aom_sad_skip_128x128x4d avx2 sse2 neon/;
   specialize qw/aom_sad_skip_128x64x4d  avx2 sse2 neon/;
@@ -1046,15 +1043,12 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_sad_skip_16x32x4d        sse2 neon/;
   specialize qw/aom_sad_skip_16x16x4d        sse2 neon/;
   specialize qw/aom_sad_skip_16x8x4d         sse2 neon/;
+  specialize qw/aom_sad_skip_8x32x4d         sse2 neon/;
   specialize qw/aom_sad_skip_8x16x4d         sse2 neon/;
   specialize qw/aom_sad_skip_8x8x4d          sse2 neon/;
-  specialize qw/aom_sad_skip_4x16x4d         sse2 neon/;
-  specialize qw/aom_sad_skip_4x8x4d          sse2 neon/;
   specialize qw/aom_sad_skip_4x32x4d         sse2 neon/;
   specialize qw/aom_sad_skip_4x16x4d         sse2 neon/;
-  specialize qw/aom_sad_skip_8x32x4d         sse2 neon/;
-  specialize qw/aom_sad_skip_32x8x4d         sse2 neon/;
-  specialize qw/aom_sad_skip_64x16x4d        sse2 neon/;
+  specialize qw/aom_sad_skip_4x8x4d          sse2 neon/;
 
   if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
     specialize qw/aom_sad128x128x4d_avg sse2/;
