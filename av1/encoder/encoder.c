@@ -2816,18 +2816,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
       // bits used for this frame
       rc->projected_frame_size = (int)(*size) << 3;
-
-      if (cpi->use_ducky_encode) {
-        PSNR_STATS psnr;
-        aom_calc_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr);
-        DuckyEncodeFrameResult *frame_result =
-            &cpi->ducky_encode_info.frame_result;
-        frame_result->q_index = q;
-        frame_result->rdmult = cpi->rd.RDMULT;
-        frame_result->rate = rc->projected_frame_size;
-        frame_result->dist = psnr.sse[0];
-        frame_result->psnr = psnr.psnr[0];
-      }
 #if CONFIG_RD_COMMAND
       PSNR_STATS psnr;
       aom_calc_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr);
@@ -3073,6 +3061,20 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     const int64_t bits = (*size << 3);
     *rate = (bits << 5);  // To match scale.
   }
+
+#if !CONFIG_REALTIME_ONLY
+  if (cpi->use_ducky_encode) {
+    PSNR_STATS psnr;
+    aom_calc_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr);
+    DuckyEncodeFrameResult *frame_result = &cpi->ducky_encode_info.frame_result;
+    frame_result->q_index = cm->quant_params.base_qindex;
+    frame_result->rdmult = cpi->rd.RDMULT;
+    frame_result->rate = (int)(*size) * 8;
+    frame_result->dist = psnr.sse[0];
+    frame_result->psnr = psnr.psnr[0];
+  }
+#endif  // !CONFIG_REALTIME_ONLY
+
   return AOM_CODEC_OK;
 }
 
@@ -3432,6 +3434,20 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
           realloc_and_scale_source(cpi, cm->cur_frame->buf.y_crop_width,
                                    cm->cur_frame->buf.y_crop_height);
     }
+
+#if !CONFIG_REALTIME_ONLY
+    if (cpi->use_ducky_encode) {
+      PSNR_STATS psnr;
+      aom_calc_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr);
+      DuckyEncodeFrameResult *frame_result =
+          &cpi->ducky_encode_info.frame_result;
+      frame_result->q_index = cm->quant_params.base_qindex;
+      frame_result->rdmult = cpi->rd.RDMULT;
+      frame_result->rate = (int)(*size) * 8;
+      frame_result->dist = psnr.sse[0];
+      frame_result->psnr = psnr.psnr[0];
+    }
+#endif  // !CONFIG_REALTIME_ONLY
 
     ++current_frame->frame_number;
     update_frame_index_set(&cpi->frame_index_set, cm->show_frame);
