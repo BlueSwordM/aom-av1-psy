@@ -320,6 +320,7 @@ static void DuckyEncodeInfoSetEncodeFrameDecision(
 static void DuckyEncodeInfoGetEncodeFrameResult(
     const DuckyEncodeInfo *ducky_encode_info, EncodeFrameResult *result) {
   const DuckyEncodeFrameResult &frame_result = ducky_encode_info->frame_result;
+  result->global_order_idx = frame_result.global_order_idx;
   result->q_index = frame_result.q_index;
   result->rdmult = frame_result.rdmult;
   result->rate = frame_result.rate;
@@ -519,6 +520,10 @@ EncodeFrameResult DuckyEncode::EncodeFrame(
     // decrement frames_left counter
     ppi->frames_left = AOMMAX(0, ppi->frames_left - 1);
   }
+
+  fprintf(stderr, "frame %d, size %d, PSNR %f\n",
+          encode_frame_result.global_order_idx, encode_frame_result.rate,
+          encode_frame_result.psnr);
   return encode_frame_result;
 }
 

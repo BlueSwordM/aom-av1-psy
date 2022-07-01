@@ -2337,6 +2337,7 @@ typedef struct DuckyEncodeFrameInfo {
 } DuckyEncodeFrameInfo;
 
 typedef struct DuckyEncodeFrameResult {
+  int global_order_idx;
   int q_index;
   int rdmult;
   int rate;
