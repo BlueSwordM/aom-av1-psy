@@ -1509,18 +1509,6 @@ static AOM_INLINE int fp_compute_max_mb_rows(const AV1_COMMON *const cm,
 }
 #endif
 
-static AOM_INLINE int get_intrabc_extra_top_right_sb_delay(
-    const AV1_COMMON *cm) {
-  // No additional top-right delay when intraBC tool is not enabled.
-  if (!av1_allow_intrabc(cm)) return 0;
-  // A minimum top-right delay of 1 superblock is assured with 'sync_range'.
-  // Hence, return only the additional superblock delay with intraBC tool.
-  return (cm->seq_params->sb_size == BLOCK_128X128
-              ? INTRABC_ROW_MT_TOP_RIGHT_SB128_DELAY
-              : INTRABC_ROW_MT_TOP_RIGHT_SB64_DELAY) -
-         1;
-}
-
 void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
@@ -1566,7 +1554,7 @@ void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
       row_mt_sync->next_mi_row = this_tile->tile_info.mi_row_start;
       row_mt_sync->num_threads_working = 0;
       row_mt_sync->intrabc_extra_top_right_sb_delay =
-          get_intrabc_extra_top_right_sb_delay(cm);
+          av1_get_intrabc_extra_top_right_sb_delay(cm);
 
       av1_inter_mode_data_init(this_tile);
       av1_zero_above_context(cm, &cpi->td.mb.e_mbd,
