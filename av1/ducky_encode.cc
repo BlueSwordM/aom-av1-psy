@@ -425,7 +425,7 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
     aom::TplGopStats tpl_gop_stats;
     for (auto &frame : gop_struct.gop_frame_list) {
       // encoding frame frame_number
-      aom::EncodeFrameDecision frame_decision = { aom::EncodeFrameMode::kNone,
+      aom::EncodeFrameDecision frame_decision = { aom::EncodeFrameMode::kQindex,
                                                   aom::EncodeGopMode::kGopRcl,
                                                   { 128, -1 } };
       (void)frame;
@@ -452,10 +452,9 @@ std::vector<EncodeFrameResult> DuckyEncode::EncodeVideo(
     aom::GopEncodeInfo gop_encode_info = gop_encode_info_list[i];
 
     for (auto &frame_param : gop_encode_info.param_list) {
-      aom::EncodeFrameDecision frame_decision = {
-        aom::EncodeFrameMode::kQindexRdmult, aom::EncodeGopMode::kGopRcl,
-        frame_param
-      };
+      aom::EncodeFrameDecision frame_decision = { aom::EncodeFrameMode::kQindex,
+                                                  aom::EncodeGopMode::kGopRcl,
+                                                  frame_param };
       encoded_frame_list.push_back(EncodeFrame(frame_decision));
     }
   }
@@ -521,9 +520,9 @@ EncodeFrameResult DuckyEncode::EncodeFrame(
     ppi->frames_left = AOMMAX(0, ppi->frames_left - 1);
   }
 
-  fprintf(stderr, "frame %d, size %d, PSNR %f\n",
-          encode_frame_result.global_order_idx, encode_frame_result.rate,
-          encode_frame_result.psnr);
+  fprintf(stderr, "frame %d, qp = %d, size %d, PSNR %f\n",
+          encode_frame_result.global_order_idx, encode_frame_result.q_index,
+          encode_frame_result.rate, encode_frame_result.psnr);
   return encode_frame_result;
 }
 
