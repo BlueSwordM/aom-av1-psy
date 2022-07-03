@@ -171,6 +171,32 @@ unsigned int av1_high_get_sby_perpixel_variance(const AV1_COMP *cpi,
   return ROUND_POWER_OF_TWO(var, num_pels_log2_lookup[bs]);
 }
 
+unsigned int av1_get_perpixel_variance(const AV1_COMP *cpi,
+                                       const MACROBLOCKD *xd,
+                                       const struct buf_2d *ref,
+                                       BLOCK_SIZE bsize, int plane) {
+  const int subsampling_x = xd->plane[plane].subsampling_x;
+  const int subsampling_y = xd->plane[plane].subsampling_y;
+  const BLOCK_SIZE plane_bsize =
+      get_plane_block_size(bsize, subsampling_x, subsampling_y);
+  unsigned int var, sse;
+  if (is_cur_buf_hbd(xd)) {
+    const int bd = xd->bd;
+    assert(bd == 8 || bd == 10 || bd == 12);
+    const int off_index = (bd - 8) >> 1;
+    static const uint16_t *high_var_offs[3] = { AV1_HIGH_VAR_OFFS_8,
+                                                AV1_HIGH_VAR_OFFS_10,
+                                                AV1_HIGH_VAR_OFFS_12 };
+    var = cpi->ppi->fn_ptr[plane_bsize].vf(
+        ref->buf, ref->stride, CONVERT_TO_BYTEPTR(high_var_offs[off_index]), 0,
+        &sse);
+  } else {
+    var = cpi->ppi->fn_ptr[plane_bsize].vf(ref->buf, ref->stride, AV1_VAR_OFFS,
+                                           0, &sse);
+  }
+  return ROUND_POWER_OF_TWO(var, num_pels_log2_lookup[plane_bsize]);
+}
+
 void av1_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
                           int mi_row, int mi_col, const int num_planes,
                           BLOCK_SIZE bsize) {

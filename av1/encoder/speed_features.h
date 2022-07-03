@@ -1068,6 +1068,17 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // Enable/disable smooth intra modes.
   int disable_smooth_intra;
 
+  // Prune UV_SMOOTH_PRED mode for chroma based on chroma source variance.
+  // false : No pruning
+  // true  : Prune UV_SMOOTH_PRED mode based on chroma source variance
+  //
+  // For allintra encode, this speed feature reduces instruction count
+  // by 1.90%, 2.21% and 1.97% for speed 6, 7 and 8 with coding performance
+  // change less than 0.04%. For AVIF image encode, this speed feature reduces
+  // encode time by 1.56%, 2.14% and 0.90% for speed 6, 7 and 8 on a typical
+  // image dataset with coding performance change less than 0.05%.
+  bool prune_smooth_intra_mode_for_chroma;
+
   // Prune filter intra modes in intra frames.
   // 0 : No pruning
   // 1 : Evaluate applicable filter intra modes based on best intra mode so far

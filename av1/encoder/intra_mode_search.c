@@ -796,6 +796,18 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
   return 1;
 }
 
+static bool prune_chroma_smooth_pred_based_on_source_variance(
+    const AV1_COMP *cpi, const MACROBLOCK *x, BLOCK_SIZE bsize) {
+  // If the source variance of both chroma planes is less than 20, prune
+  // UV_SMOOTH_PRED. The source variance threshold is obtained empirically.
+  for (int i = AOM_PLANE_U; i < av1_num_planes(&cpi->common); i++) {
+    const unsigned int variance =
+        av1_get_perpixel_variance(cpi, &x->e_mbd, &x->plane[i].src, bsize, i);
+    if (variance >= 20) return false;
+  }
+  return true;
+}
+
 int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
                                     int *rate, int *rate_tokenonly,
                                     int64_t *distortion, int *skippable,
@@ -907,6 +919,11 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
                                     &this_rate, &tokenonly_rd_stats))
         continue;
     } else {
+      if (mode == UV_SMOOTH_PRED &&
+          cpi->sf.intra_sf.prune_smooth_intra_mode_for_chroma &&
+          prune_chroma_smooth_pred_based_on_source_variance(cpi, x, bsize))
+        continue;
+
       // Predict directly if we don't need to search for angle delta.
       if (!av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, bsize, best_rd)) {
         continue;

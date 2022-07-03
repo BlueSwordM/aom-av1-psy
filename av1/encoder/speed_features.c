@@ -480,6 +480,7 @@ static void set_allintra_speed_features_framesize_independent(
   }
 
   if (speed >= 6) {
+    sf->intra_sf.prune_smooth_intra_mode_for_chroma = 1;
     sf->intra_sf.prune_filter_intra_level = 2;
     sf->intra_sf.chroma_intra_pruning_with_hog = 4;
     sf->intra_sf.intra_pruning_with_hog = 4;
@@ -1876,6 +1877,7 @@ static AOM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
     intra_sf->intra_uv_mode_mask[i] = UV_INTRA_ALL;
   }
   intra_sf->disable_smooth_intra = 0;
+  intra_sf->prune_smooth_intra_mode_for_chroma = 0;
   intra_sf->prune_filter_intra_level = 0;
   intra_sf->prune_chroma_modes_using_luma_winner = 0;
   intra_sf->cfl_search_range = 3;
