@@ -1163,12 +1163,7 @@ GopEncodeInfo AV1RateControlQMode::GetGopEncodeInfo(
       const double qstep_ratio = sqrt(1 / frame_importance);
       param.q_index = av1_get_q_index_from_qstep_ratio(rc_param_.base_q_index,
                                                        qstep_ratio, AOM_BITS_8);
-      if (gop_frame.is_key_frame) {
-        // TODO(jianj): QP for key frame could be 0 when base q index is set
-        // very low. Tune the calculation for frame_importance. Cap it at 1 for
-        // now.
-        param.q_index = AOMMAX(param.q_index, 1);
-      }
+      if (rc_param_.base_q_index) param.q_index = AOMMAX(param.q_index, 1);
     }
     param.rdmult = GetRDMult(gop_frame, param.q_index);
     gop_encode_info.param_list.push_back(param);
