@@ -121,9 +121,9 @@ ReferenceName get_ref_name(RefUpdateType ref_update_type, int priority_idx,
   // Maybe sort the names based on how frequent each name is being used in the
   // past?
   const std::vector<ReferenceName> forward_name_list{
-    ReferenceName::kBwdrefFrame, ReferenceName::kAltref2Frame,
-    ReferenceName::kAltrefFrame, ReferenceName::kGoldenFrame,
-    ReferenceName::kLastFrame,   ReferenceName::kLast2Frame,
+    ReferenceName::kAltrefFrame,  ReferenceName::kBwdrefFrame,
+    ReferenceName::kAltref2Frame, ReferenceName::kGoldenFrame,
+    ReferenceName::kLastFrame,    ReferenceName::kLast2Frame,
     ReferenceName::kLast3Frame
   };
   const std::vector<ReferenceName> backward_name_list{

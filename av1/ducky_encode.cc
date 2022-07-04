@@ -367,6 +367,13 @@ TplGopStats DuckyEncode::ObtainTplStats(const GopStruct gop_struct) {
       continue;
     }
 
+    int ref_frame_index_mapping[REF_FRAMES] = { 0 };
+    const GopFrame &gop_frame = gop_struct.gop_frame_list[idx];
+
+    for (auto &rf : gop_frame.ref_frame_list) {
+      ref_frame_index_mapping[static_cast<int>(rf.name)] = rf.index;
+    }
+
     const int mi_rows = tpl_frame->mi_rows;
     const int mi_cols = tpl_frame->mi_cols;
     const int tpl_frame_stride = tpl_frame->stride;
@@ -387,19 +394,17 @@ TplGopStats DuckyEncode::ObtainTplStats(const GopStruct gop_struct) {
         block_stats.width = (1 << block_mis_log2) * MI_SIZE;
         block_stats.inter_cost = tpl_stats_ptr->inter_cost;
         block_stats.intra_cost = tpl_stats_ptr->intra_cost;
-        block_stats.ref_frame_index = { tpl_stats_ptr->ref_frame_index[0],
-                                        tpl_stats_ptr->ref_frame_index[1] };
-        if (block_stats.ref_frame_index[0] > 0) {
-          block_stats.mv[0] = {
-            tpl_stats_ptr->mv[block_stats.ref_frame_index[0]].as_mv.row,
-            tpl_stats_ptr->mv[block_stats.ref_frame_index[0]].as_mv.col, 3
-          };
-        }
-        if (block_stats.ref_frame_index[1] > 0) {
-          block_stats.mv[1] = {
-            tpl_stats_ptr->mv[block_stats.ref_frame_index[1]].as_mv.row,
-            tpl_stats_ptr->mv[block_stats.ref_frame_index[1]].as_mv.col, 3
-          };
+        block_stats.ref_frame_index = { -1, -1 };
+
+        for (int i = 0; i < kBlockRefCount; ++i) {
+          if (tpl_stats_ptr->ref_frame_index[i] >= 0) {
+            block_stats.ref_frame_index[i] =
+                ref_frame_index_mapping[tpl_stats_ptr->ref_frame_index[i] + 1];
+            block_stats.mv[i] = {
+              tpl_stats_ptr->mv[tpl_stats_ptr->ref_frame_index[i]].as_mv.row,
+              tpl_stats_ptr->mv[tpl_stats_ptr->ref_frame_index[i]].as_mv.col, 3
+            };
+          }
         }
         tpl_frame_stats.block_stats_list.push_back(block_stats);
       }

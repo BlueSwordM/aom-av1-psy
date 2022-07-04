@@ -1035,6 +1035,7 @@ void TplFrameDepStatsPropagate(int coding_idx,
             (unit_row * unit_size + mv_row) / unit_size;
         const int ref_unit_col_low =
             (unit_col * unit_size + mv_col) / unit_size;
+
         for (int j = 0; j < 2; ++j) {
           for (int k = 0; k < 2; ++k) {
             const int ref_unit_row = ref_unit_row_low + j;
@@ -1166,7 +1167,6 @@ GopEncodeInfo AV1RateControlQMode::GetGopEncodeInfo(
       const double qstep_ratio = sqrt(1 / frame_importance);
       param.q_index = av1_get_q_index_from_qstep_ratio(rc_param_.base_q_index,
                                                        qstep_ratio, AOM_BITS_8);
-
       if (gop_frame.is_key_frame) {
         // TODO(jianj): QP for key frame could be 0 when base q index is set
         // very low. Tune the calculation for frame_importance. Cap it at 1 for

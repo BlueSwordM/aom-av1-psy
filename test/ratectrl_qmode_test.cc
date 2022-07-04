@@ -804,10 +804,10 @@ TEST(RefFrameManagerTest, GetRefFrameListByPriority) {
       ref_manager.GetRefFrameListByPriority();
   EXPECT_EQ(ref_frame_list.size(), order_idx_list.size());
   std::vector<int> expected_global_order_idx = { 2, 0, 1, 4 };
-  std::vector<ReferenceName> expected_names = { ReferenceName::kBwdrefFrame,
+  std::vector<ReferenceName> expected_names = { ReferenceName::kAltrefFrame,
                                                 ReferenceName::kGoldenFrame,
                                                 ReferenceName::kLastFrame,
-                                                ReferenceName::kAltref2Frame };
+                                                ReferenceName::kBwdrefFrame };
   for (size_t i = 0; i < ref_frame_list.size(); ++i) {
     ReferenceFrame &ref_frame = ref_frame_list[i];
     GopFrame gop_frame = ref_manager.GetRefFrameByIndex(ref_frame.index);
