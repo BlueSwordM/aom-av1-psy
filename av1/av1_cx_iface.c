@@ -2698,6 +2698,25 @@ static aom_codec_frame_flags_t get_frame_pkt_flags(const AV1_COMP *cpi,
   return flags;
 }
 
+static INLINE int get_src_border_in_pixels(AV1_COMP *cpi, BLOCK_SIZE sb_size) {
+  if (cpi->oxcf.mode != REALTIME || av1_is_resize_needed(&cpi->oxcf))
+    return cpi->oxcf.border_in_pixels;
+
+  const int sb_size_in_pixels_log2 = mi_size_wide_log2[sb_size] + MI_SIZE_LOG2;
+  const int sb_aligned_width =
+      ALIGN_POWER_OF_TWO(cpi->oxcf.frm_dim_cfg.width, sb_size_in_pixels_log2);
+  const int sb_aligned_height =
+      ALIGN_POWER_OF_TWO(cpi->oxcf.frm_dim_cfg.height, sb_size_in_pixels_log2);
+  // Align the border pixels to a multiple of 32.
+  const int border_pixels_width =
+      ALIGN_POWER_OF_TWO(sb_aligned_width - cpi->oxcf.frm_dim_cfg.width, 5);
+  const int border_pixels_height =
+      ALIGN_POWER_OF_TWO(sb_aligned_height - cpi->oxcf.frm_dim_cfg.height, 5);
+  const int border_in_pixels =
+      AOMMAX(AOMMAX(border_pixels_width, border_pixels_height), 32);
+  return border_in_pixels;
+}
+
 // TODO(Mufaddal): Check feasibility of abstracting functions related to LAP
 // into a separate function.
 static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
@@ -2856,10 +2875,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           ppi->parallel_cpi[i]->oxcf.border_in_pixels = oxcf->border_in_pixels;
         }
 
+        const int src_border_in_pixels = get_src_border_in_pixels(cpi, sb_size);
         ppi->lookahead = av1_lookahead_init(
             cpi->oxcf.frm_dim_cfg.width, cpi->oxcf.frm_dim_cfg.height,
             subsampling_x, subsampling_y, use_highbitdepth, lag_in_frames,
-            cpi->oxcf.border_in_pixels, cpi->common.features.byte_alignment,
+            src_border_in_pixels, cpi->common.features.byte_alignment,
             ctx->num_lap_buffers, (cpi->oxcf.kf_cfg.key_freq_max == 0),
             cpi->oxcf.tool_cfg.enable_global_motion);
       }
