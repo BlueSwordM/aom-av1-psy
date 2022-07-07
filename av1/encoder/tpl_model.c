@@ -816,8 +816,14 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
       tpl_data->src_ref_frame[rf_idx1],
     };
 
-    xd->mi[0]->ref_frame[0] = LAST_FRAME;
-    xd->mi[0]->ref_frame[1] = ALTREF_FRAME;
+    xd->mi[0]->ref_frame[0] = rf_idx0 + LAST_FRAME;
+    xd->mi[0]->ref_frame[1] = rf_idx1 + LAST_FRAME;
+    xd->mi[0]->mode = NEW_NEWMV;
+    const int8_t ref_frame_type = av1_ref_frame_type(xd->mi[0]->ref_frame);
+    // Set up ref_mv for av1_joint_motion_search().
+    CANDIDATE_MV *this_ref_mv_stack = x->mbmi_ext.ref_mv_stack[ref_frame_type];
+    this_ref_mv_stack[xd->mi[0]->ref_mv_idx].this_mv = single_mv[rf_idx0];
+    this_ref_mv_stack[xd->mi[0]->ref_mv_idx].comp_mv = single_mv[rf_idx1];
 
     struct buf_2d yv12_mb[2][MAX_MB_PLANE];
     for (int i = 0; i < 2; ++i) {
@@ -859,13 +865,15 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
       best_inter_cost = inter_cost;
       best_mv[0] = tmp_mv[0];
       best_mv[1] = tmp_mv[1];
-
-      if (best_inter_cost < best_intra_cost) {
-        best_mode = NEW_NEWMV;
-        xd->mi[0]->ref_frame[0] = rf_idx0 + LAST_FRAME;
-        xd->mi[0]->ref_frame[1] = rf_idx1 + LAST_FRAME;
-      }
     }
+  }
+
+  if (best_cmp_rf_idx != -1 && best_inter_cost < best_intra_cost) {
+    best_mode = NEW_NEWMV;
+    const int best_rf_idx0 = comp_ref_frames[best_cmp_rf_idx][0];
+    const int best_rf_idx1 = comp_ref_frames[best_cmp_rf_idx][1];
+    xd->mi[0]->ref_frame[0] = best_rf_idx0 + LAST_FRAME;
+    xd->mi[0]->ref_frame[1] = best_rf_idx1 + LAST_FRAME;
   }
 
   if (best_inter_cost < INT64_MAX) {
