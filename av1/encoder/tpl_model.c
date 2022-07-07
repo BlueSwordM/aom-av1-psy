@@ -750,14 +750,16 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
 
       best_inter_cost = inter_cost;
       best_mv[0].as_int = best_rfidx_mv.as_int;
-      if (best_inter_cost < best_intra_cost) {
-        best_mode = NEWMV;
-        xd->mi[0]->ref_frame[0] = best_rf_idx + LAST_FRAME;
-        xd->mi[0]->mv[0].as_int = best_mv[0].as_int;
-      }
     }
   }
 
+  if (best_rf_idx != -1 && best_inter_cost < best_intra_cost) {
+    best_mode = NEWMV;
+    xd->mi[0]->ref_frame[0] = best_rf_idx + LAST_FRAME;
+    xd->mi[0]->mv[0].as_int = best_mv[0].as_int;
+  }
+
+  // Start compound predition search.
   int comp_ref_frames[3][2] = {
     { 0, 4 },
     { 0, 6 },
