@@ -652,7 +652,7 @@ static void set_rate_correction_factor(AV1_COMP *cpi, int is_encode_stage,
 void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int is_encode_stage,
                                            int width, int height) {
   const AV1_COMMON *const cm = &cpi->common;
-  int correction_factor = 100;
+  double correction_factor = 1.0;
   double rate_correction_factor =
       get_rate_correction_factor(cpi, width, height);
   double adjustment_limit;
@@ -678,14 +678,21 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int is_encode_stage,
   }
   // Work out a size correction factor.
   if (projected_size_based_on_q > FRAME_OVERHEAD_BITS)
-    correction_factor = (int)((100 * (int64_t)cpi->rc.projected_frame_size) /
-                              projected_size_based_on_q);
+    correction_factor = (double)cpi->rc.projected_frame_size /
+                        (double)projected_size_based_on_q;
 
-  // More heavily damped adjustment used if we have been oscillating either side
-  // of target.
-  if (correction_factor > 0) {
-    adjustment_limit =
-        0.25 + 0.5 * AOMMIN(1, fabs(log10(0.01 * correction_factor)));
+  // Clamp correction factor to prevent anything too extreme
+  correction_factor = AOMMIN(AOMMAX(correction_factor, 0.25), 4.0);
+
+  // Decide how heavily to dampen the adjustment
+  if (correction_factor > 0.0) {
+    if (cpi->is_screen_content_type) {
+      adjustment_limit =
+          0.25 + 0.5 * AOMMIN(0.5, fabs(log10(correction_factor)));
+    } else {
+      adjustment_limit =
+          0.25 + 0.75 * AOMMIN(0.5, fabs(log10(correction_factor)));
+    }
   } else {
     adjustment_limit = 0.75;
   }
@@ -693,26 +700,27 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int is_encode_stage,
   cpi->rc.q_2_frame = cpi->rc.q_1_frame;
   cpi->rc.q_1_frame = cm->quant_params.base_qindex;
   cpi->rc.rc_2_frame = cpi->rc.rc_1_frame;
-  if (correction_factor > 110)
+  if (correction_factor > 1.1)
     cpi->rc.rc_1_frame = -1;
-  else if (correction_factor < 90)
+  else if (correction_factor < 0.9)
     cpi->rc.rc_1_frame = 1;
   else
     cpi->rc.rc_1_frame = 0;
 
-  if (correction_factor > 102) {
+  if (correction_factor > 1.01) {
     // We are not already at the worst allowable quality
-    correction_factor =
-        (int)(100 + ((correction_factor - 100) * adjustment_limit));
-    rate_correction_factor = (rate_correction_factor * correction_factor) / 100;
+    correction_factor = (1.0 + ((correction_factor - 1.0) * adjustment_limit));
+    rate_correction_factor = rate_correction_factor * correction_factor;
     // Keep rate_correction_factor within limits
     if (rate_correction_factor > MAX_BPB_FACTOR)
       rate_correction_factor = MAX_BPB_FACTOR;
-  } else if (correction_factor < 99) {
+  } else if (correction_factor < 0.99) {
     // We are not already at the best allowable quality
-    correction_factor =
-        (int)(100 - ((100 - correction_factor) * adjustment_limit));
-    rate_correction_factor = (rate_correction_factor * correction_factor) / 100;
+    correction_factor = 1.0 / correction_factor;
+    correction_factor = (1.0 + ((correction_factor - 1.0) * adjustment_limit));
+    correction_factor = 1.0 / correction_factor;
+
+    rate_correction_factor = rate_correction_factor * correction_factor;
 
     // Keep rate_correction_factor within limits
     if (rate_correction_factor < MIN_BPB_FACTOR)
