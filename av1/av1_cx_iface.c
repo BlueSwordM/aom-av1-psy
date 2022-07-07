@@ -1300,8 +1300,17 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->motion_mode_cfg.enable_obmc = extra_cfg->enable_obmc;
   oxcf->motion_mode_cfg.enable_warped_motion = extra_cfg->enable_warped_motion;
 #if !CONFIG_REALTIME_ONLY
-  oxcf->motion_mode_cfg.allow_warped_motion =
-      (extra_cfg->allow_warped_motion & extra_cfg->enable_warped_motion);
+  if (cfg->g_usage == AOM_USAGE_REALTIME && oxcf->speed >= 7 &&
+      oxcf->tune_cfg.content == AOM_CONTENT_SCREEN) {
+    // TODO(marpan): warped motion is causing a crash for RT mode with screen
+    // in nonrd (speed >= 7), for non-realtime build.
+    // Re-enable/allow when the issue is fixed.
+    oxcf->motion_mode_cfg.enable_warped_motion = 0;
+    oxcf->motion_mode_cfg.allow_warped_motion = 0;
+  } else {
+    oxcf->motion_mode_cfg.allow_warped_motion =
+        (extra_cfg->allow_warped_motion & extra_cfg->enable_warped_motion);
+  }
 #else
   oxcf->motion_mode_cfg.allow_warped_motion =
       (cfg->g_usage == AOM_USAGE_REALTIME && oxcf->speed >= 7)
