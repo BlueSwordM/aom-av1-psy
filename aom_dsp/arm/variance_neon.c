@@ -401,9 +401,50 @@ void aom_get_sse_sum_8x8_quad_neon(const uint8_t *src, int src_stride,
   }
 }
 
-unsigned int aom_mse16x16_neon(const uint8_t *src, int src_stride,
-                               const uint8_t *ref, int ref_stride,
-                               unsigned int *sse) {
+static INLINE unsigned int mse8xh_neon(const uint8_t *src, int src_stride,
+                                       const uint8_t *ref, int ref_stride,
+                                       unsigned int *sse, int h) {
+  uint8x8_t s[2], r[2];
+  int16x4_t diff_lo[2], diff_hi[2];
+  uint16x8_t diff[2];
+  int32x4_t sse_s32[2] = { vdupq_n_s32(0), vdupq_n_s32(0) };
+
+  int i = 0;
+  do {
+    s[0] = vld1_u8(src);
+    src += src_stride;
+    s[1] = vld1_u8(src);
+    src += src_stride;
+    r[0] = vld1_u8(ref);
+    ref += ref_stride;
+    r[1] = vld1_u8(ref);
+    ref += ref_stride;
+
+    diff[0] = vsubl_u8(s[0], r[0]);
+    diff[1] = vsubl_u8(s[1], r[1]);
+
+    diff_lo[0] = vreinterpret_s16_u16(vget_low_u16(diff[0]));
+    diff_lo[1] = vreinterpret_s16_u16(vget_low_u16(diff[1]));
+    sse_s32[0] = vmlal_s16(sse_s32[0], diff_lo[0], diff_lo[0]);
+    sse_s32[1] = vmlal_s16(sse_s32[1], diff_lo[1], diff_lo[1]);
+
+    diff_hi[0] = vreinterpret_s16_u16(vget_high_u16(diff[0]));
+    diff_hi[1] = vreinterpret_s16_u16(vget_high_u16(diff[1]));
+    sse_s32[0] = vmlal_s16(sse_s32[0], diff_hi[0], diff_hi[0]);
+    sse_s32[1] = vmlal_s16(sse_s32[1], diff_hi[1], diff_hi[1]);
+
+    i += 2;
+  } while (i < h);
+
+  sse_s32[0] = vaddq_s32(sse_s32[0], sse_s32[1]);
+
+  *sse = horizontal_add_u32x4(vreinterpretq_u32_s32(sse_s32[0]));
+  return horizontal_add_u32x4(vreinterpretq_u32_s32(sse_s32[0]));
+}
+
+static INLINE unsigned int mse16xh_neon(const uint8_t *src, int src_stride,
+                                        const uint8_t *ref, int ref_stride,
+                                        unsigned int *sse, int h) {
   uint8x16_t s[2], r[2];
   int16x4_t diff_lo[4], diff_hi[4];
   uint16x8_t diff[4];
@@ -447,7 +488,7 @@ unsigned int aom_mse16x16_neon(const uint8_t *src, int src_stride,
     sse_s32[3] = vmlal_s16(sse_s32[3], diff_hi[3], diff_hi[3]);
 
     i += 2;
-  } while (i < 16);
+  } while (i < h);
 
   sse_s32[0] = vaddq_s32(sse_s32[0], sse_s32[1]);
   sse_s32[2] = vaddq_s32(sse_s32[2], sse_s32[3]);
@@ -456,6 +497,21 @@ unsigned int aom_mse16x16_neon(const uint8_t *src, int src_stride,
   *sse = horizontal_add_u32x4(vreinterpretq_u32_s32(sse_s32[0]));
   return horizontal_add_u32x4(vreinterpretq_u32_s32(sse_s32[0]));
 }
+
+#define MSE_WXH_NEON(w, h)                                                 \
+  unsigned int aom_mse##w##x##h##_neon(const uint8_t *src, int src_stride, \
+                                       const uint8_t *ref, int ref_stride, \
+                                       unsigned int *sse) {                \
+    return mse##w##xh_neon(src, src_stride, ref, ref_stride, sse, h);      \
+  }
+
+MSE_WXH_NEON(8, 8)
+MSE_WXH_NEON(8, 16)
+
+MSE_WXH_NEON(16, 8)
+MSE_WXH_NEON(16, 16)
+
+#undef MSE_WXH_NEON
 
 unsigned int aom_get4x4sse_cs_neon(const uint8_t *src, int src_stride,
                                    const uint8_t *ref, int ref_stride) {
