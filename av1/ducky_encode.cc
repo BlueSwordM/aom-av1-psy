@@ -44,16 +44,18 @@ class DuckyEncode::EncodeImpl {
  public:
   VideoInfo video_info;
   int g_usage;
+  int max_ref_frames;
   enum aom_rc_mode rc_end_usage;
   aom_rational64_t timestamp_ratio;
   std::vector<FIRSTPASS_STATS> stats_list;
   EncoderResource enc_resource;
 };
 
-DuckyEncode::DuckyEncode(const VideoInfo &video_info) {
+DuckyEncode::DuckyEncode(const VideoInfo &video_info, int max_ref_frames) {
   impl_ptr_ = std::unique_ptr<EncodeImpl>(new EncodeImpl());
   impl_ptr_->video_info = video_info;
   impl_ptr_->g_usage = GOOD;
+  impl_ptr_->max_ref_frames = max_ref_frames;
   impl_ptr_->rc_end_usage = AOM_Q;
   // TODO(angiebird): Set timestamp_ratio properly
   // timestamp_ratio.den = cfg->g_timebase.den;
@@ -131,7 +133,8 @@ static FIRSTPASS_STATS ComputeTotalStats(
 
 static EncoderResource InitEncoder(
     const VideoInfo &video_info, int g_usage, enum aom_rc_mode rc_end_usage,
-    aom_enc_pass pass, const std::vector<FIRSTPASS_STATS> *stats_list) {
+    aom_enc_pass pass, const std::vector<FIRSTPASS_STATS> *stats_list,
+    int max_ref_frames) {
   EncoderResource enc_resource = {};
   enc_resource.in_file = fopen(video_info.file_path.c_str(), "r");
   enc_resource.lookahead_push_count = 0;
@@ -140,6 +143,7 @@ static EncoderResource InitEncoder(
   AV1EncoderConfig oxcf = GetEncoderConfig(video_info, g_usage, pass);
   oxcf.dec_model_cfg.decoder_model_info_present_flag = 0;
   oxcf.dec_model_cfg.display_model_info_present_flag = 0;
+  oxcf.ref_frm_cfg.max_reference_frames = max_ref_frames;
   av1_initialize_enc(g_usage, rc_end_usage);
   AV1_PRIMARY *ppi =
       av1_create_primary_compressor(nullptr,
@@ -221,9 +225,9 @@ static void FreeEncoder(EncoderResource *enc_resource) {
 
 std::vector<FIRSTPASS_STATS> DuckyEncode::ComputeFirstPassStats() {
   aom_enc_pass pass = AOM_RC_FIRST_PASS;
-  EncoderResource enc_resource =
-      InitEncoder(impl_ptr_->video_info, impl_ptr_->g_usage,
-                  impl_ptr_->rc_end_usage, pass, nullptr);
+  EncoderResource enc_resource = InitEncoder(
+      impl_ptr_->video_info, impl_ptr_->g_usage, impl_ptr_->rc_end_usage, pass,
+      nullptr, impl_ptr_->max_ref_frames);
   AV1_PRIMARY *ppi = enc_resource.ppi;
   struct lookahead_ctx *lookahead = ppi->lookahead;
   int frame_count = impl_ptr_->video_info.frame_count;
@@ -270,9 +274,9 @@ std::vector<FIRSTPASS_STATS> DuckyEncode::ComputeFirstPassStats() {
 void DuckyEncode::StartEncode(const std::vector<FIRSTPASS_STATS> &stats_list) {
   aom_enc_pass pass = AOM_RC_SECOND_PASS;
   impl_ptr_->stats_list = stats_list;
-  impl_ptr_->enc_resource =
-      InitEncoder(impl_ptr_->video_info, impl_ptr_->g_usage,
-                  impl_ptr_->rc_end_usage, pass, &stats_list);
+  impl_ptr_->enc_resource = InitEncoder(
+      impl_ptr_->video_info, impl_ptr_->g_usage, impl_ptr_->rc_end_usage, pass,
+      &stats_list, impl_ptr_->max_ref_frames);
 }
 
 static void DuckyEncodeInfoSetGopStruct(AV1_PRIMARY *ppi,

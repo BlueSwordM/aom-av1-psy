@@ -25,6 +25,9 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 namespace aom {
+
+constexpr int kMaxRefFrames = 7;
+
 TEST(DuckyEncodeTest, ComputeFirstPassStats) {
   aom_rational_t frame_rate = { 30, 1 };
   VideoInfo video_info = { 352,        288,
@@ -32,7 +35,7 @@ TEST(DuckyEncodeTest, ComputeFirstPassStats) {
                            1,          "bus_352x288_420_f20_b8.yuv" };
   video_info.file_path =
       libaom_test::GetDataPath() + "/" + video_info.file_path;
-  DuckyEncode ducky_encode(video_info);
+  DuckyEncode ducky_encode(video_info, kMaxRefFrames);
   std::vector<FIRSTPASS_STATS> frame_stats =
       ducky_encode.ComputeFirstPassStats();
   EXPECT_EQ(frame_stats.size(), static_cast<size_t>(video_info.frame_count));
@@ -49,7 +52,7 @@ TEST(DuckyEncodeTest, EncodeFrame) {
                            17,         "bus_352x288_420_f20_b8.yuv" };
   video_info.file_path =
       libaom_test::GetDataPath() + "/" + video_info.file_path;
-  DuckyEncode ducky_encode(video_info);
+  DuckyEncode ducky_encode(video_info, kMaxRefFrames);
   std::vector<FIRSTPASS_STATS> frame_stats =
       ducky_encode.ComputeFirstPassStats();
   ducky_encode.StartEncode(frame_stats);
@@ -74,7 +77,7 @@ TEST(DuckyEncodeTest, EncodeFrameWithQindex) {
                            17,         "bus_352x288_420_f20_b8.yuv" };
   video_info.file_path =
       libaom_test::GetDataPath() + "/" + video_info.file_path;
-  DuckyEncode ducky_encode(video_info);
+  DuckyEncode ducky_encode(video_info, kMaxRefFrames);
   std::vector<FIRSTPASS_STATS> frame_stats =
       ducky_encode.ComputeFirstPassStats();
   ducky_encode.StartEncode(frame_stats);
