@@ -86,14 +86,7 @@ int aom_satd_lp_neon(const int16_t *coeff, int length) {
     coeff += 16;
   } while (length != 0);
 
-  {
-    // satd: 26 bits, dynamic range [-32640 * 1024, 32640 * 1024]
-    const int64x2_t s0 = vpaddlq_s32(accum);  // cascading summation of 'accum'.
-    const int32x2_t s1 = vadd_s32(vreinterpret_s32_s64(vget_low_s64(s0)),
-                                  vreinterpret_s32_s64(vget_high_s64(s0)));
-    const int satd = vget_lane_s32(s1, 0);
-    return satd;
-  }
+  return horizontal_add_s32x4(accum);
 }
 
 void aom_int_pro_row_neon(int16_t hbuf[16], const uint8_t *ref,
