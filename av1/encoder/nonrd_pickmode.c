@@ -2428,9 +2428,11 @@ static AOM_INLINE int skip_mode_by_bsize_and_ref_frame(
   return 0;
 }
 
-void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
-                           BLOCK_SIZE bsize, int y_sad,
-                           unsigned int source_variance) {
+void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
+                           int y_sad, unsigned int source_variance,
+                           struct buf_2d yv12_mb[MAX_MB_PLANE]) {
+  const int subsampling_x = cpi->common.seq_params->subsampling_x;
+  const int subsampling_y = cpi->common.seq_params->subsampling_y;
   int factor = (bsize >= BLOCK_32X32) ? 2 : 3;
   int shift = 3;
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
@@ -2457,11 +2459,12 @@ void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
   for (int i = 1; i <= 2; ++i) {
     if (x->color_sensitivity[i - 1] == 2 || source_variance < 50) {
       struct macroblock_plane *const p = &x->plane[i];
-      struct macroblockd_plane *const pd = &xd->plane[i];
       const BLOCK_SIZE bs =
-          get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
-      const int uv_sad = cpi->ppi->fn_ptr[bs].sdf(p->src.buf, p->src.stride,
-                                                  pd->dst.buf, pd->dst.stride);
+          get_plane_block_size(bsize, subsampling_x, subsampling_y);
+
+      const int uv_sad = cpi->ppi->fn_ptr[bs].sdf(
+          p->src.buf, p->src.stride, yv12_mb[i].buf, yv12_mb[i].stride);
+
       const int norm_uv_sad =
           uv_sad >> (b_width_log2_lookup[bs] + b_height_log2_lookup[bs]);
       x->color_sensitivity[i - 1] =
@@ -3110,7 +3113,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
               (abs(frame_mv[NEARESTMV][LAST_FRAME].as_mv.col) +
                abs(frame_mv[NEARESTMV][LAST_FRAME].as_mv.row)))
         y_sad = x->pred_mv1_sad[LAST_FRAME];
-      set_color_sensitivity(cpi, x, xd, bsize, y_sad, x->source_variance);
+      set_color_sensitivity(cpi, x, bsize, y_sad, x->source_variance,
+                            yv12_mb[LAST_FRAME]);
     }
     mi->motion_mode = SIMPLE_TRANSLATION;
 #if !CONFIG_REALTIME_ONLY

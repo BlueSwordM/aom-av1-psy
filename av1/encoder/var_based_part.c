@@ -906,6 +906,13 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
       cpi->rc.high_source_sad)
     shift = 5;
 
+  MB_MODE_INFO *mi = xd->mi[0];
+  const AV1_COMMON *const cm = &cpi->common;
+  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, LAST_FRAME);
+  const struct scale_factors *const sf =
+      get_ref_scale_factors_const(cm, LAST_FRAME);
+  struct buf_2d dst;
+
   for (i = 1; i <= 2; ++i) {
     struct macroblock_plane *p = &x->plane[i];
     struct macroblockd_plane *pd = &xd->plane[i];
@@ -913,10 +920,21 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
         get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
 
     if (bs != BLOCK_INVALID) {
-      if (zero_motion)
-        uv_sad[i - 1] = cpi->ppi->fn_ptr[bs].sdf(
-            p->src.buf, p->src.stride, pd->pre[0].buf, pd->pre[0].stride);
-      else
+      if (zero_motion) {
+        if (mi->ref_frame[0] == LAST_FRAME) {
+          uv_sad[i - 1] = cpi->ppi->fn_ptr[bs].sdf(
+              p->src.buf, p->src.stride, pd->pre[0].buf, pd->pre[0].stride);
+        } else {
+          uint8_t *src = (i == 1) ? yv12->u_buffer : yv12->v_buffer;
+          setup_pred_plane(&dst, xd->mi[0]->bsize, src, yv12->uv_crop_width,
+                           yv12->uv_crop_height, yv12->uv_stride, xd->mi_row,
+                           xd->mi_col, sf, xd->plane[i].subsampling_x,
+                           xd->plane[i].subsampling_y);
+
+          uv_sad[i - 1] = cpi->ppi->fn_ptr[bs].sdf(p->src.buf, p->src.stride,
+                                                   dst.buf, dst.stride);
+        }
+      } else
         uv_sad[i - 1] = cpi->ppi->fn_ptr[bs].sdf(p->src.buf, p->src.stride,
                                                  pd->dst.buf, pd->dst.stride);
     }
