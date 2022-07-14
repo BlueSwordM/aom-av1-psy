@@ -844,6 +844,13 @@ GopStructList AV1RateControlQMode::DetermineGopInfo(
   const int stats_size = static_cast<int>(firstpass_info.stats_list.size());
   GopStructList gop_list;
   RefFrameManager ref_frame_manager(rc_param_.ref_frame_table_size);
+  // Encoding only 1 frame, should be key frame.
+  if (stats_size == 1) {
+    GopStruct gop = ConstructGop(&ref_frame_manager, 1, 1, 0, 0);
+    gop_list.push_back(gop);
+    return gop_list;
+  }
+
   int global_coding_idx_offset = 0;
   int global_order_idx_offset = 0;
   std::vector<int> key_frame_list = GetKeyFrameList(firstpass_info);
