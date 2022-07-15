@@ -147,30 +147,6 @@ static const uint16_t AV1_HIGH_VAR_OFFS_12[MAX_SB_SIZE] = {
 };
 /*!\endcond */
 
-unsigned int av1_get_sby_perpixel_variance(const AV1_COMP *cpi,
-                                           const struct buf_2d *ref,
-                                           BLOCK_SIZE bs) {
-  unsigned int sse;
-  const unsigned int var =
-      cpi->ppi->fn_ptr[bs].vf(ref->buf, ref->stride, AV1_VAR_OFFS, 0, &sse);
-  return ROUND_POWER_OF_TWO(var, num_pels_log2_lookup[bs]);
-}
-
-unsigned int av1_high_get_sby_perpixel_variance(const AV1_COMP *cpi,
-                                                const struct buf_2d *ref,
-                                                BLOCK_SIZE bs, int bd) {
-  unsigned int var, sse;
-  assert(bd == 8 || bd == 10 || bd == 12);
-  const int off_index = (bd - 8) >> 1;
-  const uint16_t *high_var_offs[3] = { AV1_HIGH_VAR_OFFS_8,
-                                       AV1_HIGH_VAR_OFFS_10,
-                                       AV1_HIGH_VAR_OFFS_12 };
-  var = cpi->ppi->fn_ptr[bs].vf(ref->buf, ref->stride,
-                                CONVERT_TO_BYTEPTR(high_var_offs[off_index]), 0,
-                                &sse);
-  return ROUND_POWER_OF_TWO(var, num_pels_log2_lookup[bs]);
-}
-
 unsigned int av1_get_perpixel_variance(const AV1_COMP *cpi,
                                        const MACROBLOCKD *xd,
                                        const struct buf_2d *ref,

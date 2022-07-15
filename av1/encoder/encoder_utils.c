@@ -1253,9 +1253,7 @@ int av1_is_integer_mv(const YV12_BUFFER_CONFIG *cur_picture,
 
 void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi) {
   const CommonModeInfoParams *const mi_params = &cpi->common.mi_params;
-  ThreadData *td = &cpi->td;
-  MACROBLOCK *x = &td->mb;
-  MACROBLOCKD *xd = &x->e_mbd;
+  const MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   uint8_t *y_buffer = cpi->source->y_buffer;
   const int y_stride = cpi->source->y_stride;
   const int block_size = BLOCK_16X16;
@@ -1265,7 +1263,6 @@ void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi) {
   const int num_cols = (mi_params->mi_cols + num_mi_w - 1) / num_mi_w;
   const int num_rows = (mi_params->mi_rows + num_mi_h - 1) / num_mi_h;
   double log_sum = 0.0;
-  const int use_hbd = cpi->source->flags & YV12_FLAG_HIGHBITDEPTH;
 
   // Loop through each 16x16 block.
   for (int row = 0; row < num_rows; ++row) {
@@ -1287,13 +1284,8 @@ void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi) {
           buf.buf = y_buffer + row_offset_y * y_stride + col_offset_y;
           buf.stride = y_stride;
 
-          if (use_hbd) {
-            var += av1_high_get_sby_perpixel_variance(cpi, &buf, BLOCK_8X8,
-                                                      xd->bd);
-          } else {
-            var += av1_get_sby_perpixel_variance(cpi, &buf, BLOCK_8X8);
-          }
-
+          var +=
+              av1_get_perpixel_variance(cpi, xd, &buf, BLOCK_8X8, AOM_PLANE_Y);
           num_of_var += 1.0;
         }
       }

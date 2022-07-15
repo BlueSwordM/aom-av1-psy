@@ -1774,6 +1774,7 @@ void av1_set_mv_search_params(AV1_COMP *cpi) {
 
 void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
   const AV1_COMMON *const cm = &cpi->common;
+  const MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
 
   if (cm->seq_params->force_screen_content_tools != 2) {
     features->allow_screen_content_tools = features->allow_intrabc =
@@ -1841,9 +1842,7 @@ void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
         buf.stride = stride;
         buf.buf = (uint8_t *)this_src;
         const unsigned int var =
-            use_hbd
-                ? av1_high_get_sby_perpixel_variance(cpi, &buf, BLOCK_16X16, bd)
-                : av1_get_sby_perpixel_variance(cpi, &buf, BLOCK_16X16);
+            av1_get_perpixel_variance(cpi, xd, &buf, BLOCK_16X16, AOM_PLANE_Y);
         if (var > var_thresh) ++counts_2;
       }
     }
@@ -3350,6 +3349,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   struct segmentation *const seg = &cm->seg;
   FeatureFlags *const features = &cm->features;
   const TileConfig *const tile_cfg = &oxcf->tile_cfg;
+  assert(cpi->source != NULL);
+  cpi->td.mb.e_mbd.cur_buf = cpi->source;
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, encode_frame_to_data_rate_time);

@@ -1236,6 +1236,8 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   // Detect if the key frame is screen content type.
   if (frame_is_intra_only(cm)) {
     FeatureFlags *const features = &cm->features;
+    assert(cpi->source != NULL);
+    xd->cur_buf = cpi->source;
     av1_set_screen_content_options(cpi, features);
   }
 
