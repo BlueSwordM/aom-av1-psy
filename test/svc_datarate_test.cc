@@ -762,7 +762,7 @@ class DatarateTestSVC
     // Only check datarate on SL0 - this is layer that is decoded starting at
     // frame_to_start_decoding_.
     for (int i = 0; i < number_temporal_layers_; i++) {
-      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.70)
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.50)
           << " The datarate for the file is lower than target by too much!";
       ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.35)
           << " The datarate for the file is greater than target by too much!";
