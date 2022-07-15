@@ -2682,6 +2682,15 @@ void av1_set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
     svc->refresh[gld_idx] = 1;
   }
   svc->gld_idx_1layer = gld_idx;
+  // Set the flag to reduce the number of reference frame buffers used.
+  // This assumes that slot 7 is not refreshed by any reference frame.
+  cpi->rt_reduce_num_ref_buffers = 1;
+  cpi->rt_reduce_num_ref_buffers &= (svc->ref_idx[0] < 7);
+  cpi->rt_reduce_num_ref_buffers &= (svc->ref_idx[1] < 7);
+  cpi->rt_reduce_num_ref_buffers &= (svc->ref_idx[3] < 7);
+  cpi->rt_reduce_num_ref_buffers &= (svc->ref_idx[6] < 7);
+  if (cpi->sf.rt_sf.ref_frame_comp_nonrd[1])
+    cpi->rt_reduce_num_ref_buffers &= (svc->ref_idx[2] < 7);
 }
 
 /*!\brief Check for scene detection, for 1 pass real-time mode.

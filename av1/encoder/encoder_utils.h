@@ -997,12 +997,34 @@ static AOM_INLINE void restore_all_coding_context(AV1_COMP *cpi) {
   if (!frame_is_intra_only(&cpi->common)) release_scaled_references(cpi);
 }
 
+static AOM_INLINE int reduce_num_ref_buffers(const AV1_COMP *cpi) {
+  const SequenceHeader *const seq_params = cpi->common.seq_params;
+  return is_one_pass_rt_params(cpi) &&
+         use_one_pass_rt_reference_structure(cpi) &&
+         (seq_params->order_hint_info.enable_order_hint == 0) &&
+         cpi->rt_reduce_num_ref_buffers;
+}
+
 // Refresh reference frame buffers according to refresh_frame_flags.
 static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   // All buffers are refreshed for shown keyframes and S-frames.
+  // In case of RT, golden frame refreshes the 6th slot and other reference
+  // frames refresh slots 0 to 5. Slot 7 is not refreshed by any reference
+  // frame. Thus, only 7 buffers are refreshed for keyframes and S-frames
+  // instead of 8.
+  int num_ref_buffers = REF_FRAMES;
+  if (reduce_num_ref_buffers(cpi)) {
+    const int refresh_all_bufs =
+        (cpi->ppi->gf_group.refbuf_state[cpi->gf_frame_index] == REFBUF_RESET ||
+         frame_is_sframe(cm));
+    assert(IMPLIES(((cm->current_frame.refresh_frame_flags >> 7) & 1) == 1,
+                   refresh_all_bufs));
+    (void)refresh_all_bufs;
+    num_ref_buffers--;
+  }
 
-  for (int ref_frame = 0; ref_frame < REF_FRAMES; ref_frame++) {
+  for (int ref_frame = 0; ref_frame < num_ref_buffers; ref_frame++) {
     if (((cm->current_frame.refresh_frame_flags >> ref_frame) & 1) == 1) {
       assign_frame_buffer_p(&cm->ref_frame_map[ref_frame], cm->cur_frame);
     }

@@ -2844,6 +2844,11 @@ typedef struct AV1_COMP {
   RefreshFrameInfo refresh_frame;
 
   /*!
+   * Flag to reduce the number of reference frame buffers used in rt.
+   */
+  int rt_reduce_num_ref_buffers;
+
+  /*!
    * Flags signalled by the external interface at frame level.
    */
   ExternalFlags ext_flags;
@@ -3818,6 +3823,11 @@ static INLINE int has_no_stats_stage(const AV1_COMP *const cpi) {
 static INLINE int is_one_pass_rt_params(const AV1_COMP *cpi) {
   return has_no_stats_stage(cpi) && cpi->oxcf.mode == REALTIME &&
          cpi->oxcf.gf_cfg.lag_in_frames == 0;
+}
+
+static INLINE int use_one_pass_rt_reference_structure(const AV1_COMP *cpi) {
+  return cpi->oxcf.speed >= 5 && cpi->ppi->number_spatial_layers == 1 &&
+         cpi->ppi->number_temporal_layers == 1;
 }
 
 // Function return size of frame stats buffer
