@@ -1046,7 +1046,7 @@ static void fill_variance_tree_leaves(
 }
 
 static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
-                         unsigned int *y_sad_g,
+                         unsigned int *y_sad_g, unsigned int *y_sad_last,
                          MV_REFERENCE_FRAME *ref_frame_partition, int mi_row,
                          int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
@@ -1094,6 +1094,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
         x->plane[0].src.buf, x->plane[0].src.stride, xd->plane[0].pre[0].buf,
         xd->plane[0].pre[0].stride);
   }
+  *y_sad_last = *y_sad;
 
   // Pick the ref frame for partitioning, use golden frame only if its
   // lower sad.
@@ -1116,7 +1117,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
     set_ref_ptrs(cm, xd, mi->ref_frame[0], mi->ref_frame[1]);
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL,
                                   cm->seq_params->sb_size, AOM_PLANE_Y,
-                                  AOM_PLANE_Y);
+                                  AOM_PLANE_V);
   }
 }
 
@@ -1185,6 +1186,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
 
   unsigned int y_sad = UINT_MAX;
   unsigned int y_sad_g = UINT_MAX;
+  unsigned int y_sad_last = UINT_MAX;
   BLOCK_SIZE bsize = is_small_sb ? BLOCK_64X64 : BLOCK_128X128;
 
   // Ref frame used in partitioning.
@@ -1244,8 +1246,8 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   }
 
   if (!is_key_frame) {
-    setup_planes(cpi, x, &y_sad, &y_sad_g, &ref_frame_partition, mi_row,
-                 mi_col);
+    setup_planes(cpi, x, &y_sad, &y_sad_g, &y_sad_last, &ref_frame_partition,
+                 mi_row, mi_col);
 
     MB_MODE_INFO *mi = xd->mi[0];
     // Use reference SB directly for zero mv.
@@ -1264,7 +1266,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
 
   uv_sad[0] = 0;
   uv_sad[1] = 0;
-  chroma_check(cpi, x, bsize, y_sad, is_key_frame, zero_motion, uv_sad);
+  chroma_check(cpi, x, bsize, y_sad_last, is_key_frame, zero_motion, uv_sad);
 
   x->force_zeromv_skip = 0;
   const unsigned int thresh_exit_part =
