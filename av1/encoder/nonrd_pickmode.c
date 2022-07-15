@@ -3154,7 +3154,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
       if (use_model_yrd_large) {
         unsigned int var_threshold = UINT_MAX;
-        if (cpi->sf.rt_sf.prune_global_globalmv_with_globalmv &&
+        if (cpi->sf.rt_sf.prune_global_globalmv_with_zeromv &&
             this_mode == GLOBAL_GLOBALMV) {
           var_threshold = AOMMIN(var_threshold, zeromv_var[ref_frame]);
           var_threshold = AOMMIN(var_threshold, zeromv_var[ref_frame2]);
@@ -3277,13 +3277,15 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                single_inter_mode_costs, mbmi_ext)) {
           this_best_mode = GLOBALMV;
         }
-        if (var < UINT_MAX) {
-          zeromv_var[ref_frame] = var;
-        }
       }
 
       this_rdc.rate +=
           single_inter_mode_costs[INTER_OFFSET(this_best_mode)][ref_frame];
+    }
+
+    if (!comp_pred && frame_mv[this_mode][ref_frame].as_int == 0 &&
+        var < UINT_MAX) {
+      zeromv_var[ref_frame] = var;
     }
 
     this_rdc.rate += ref_costs_single[ref_frame];
