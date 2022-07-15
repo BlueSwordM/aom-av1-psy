@@ -324,7 +324,8 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
 
     if (!dry_run && !mi_addr->skip_txfm) {
       int cdf_num;
-      const int spatial_pred = av1_get_spatial_seg_pred(cm, xd, &cdf_num);
+      const int spatial_pred = av1_get_spatial_seg_pred(
+          cm, xd, &cdf_num, cpi->cyclic_refresh->skip_over4x4);
       const int coded_id = av1_neg_interleave(mi_addr->segment_id, spatial_pred,
                                               seg->last_active_segid + 1);
       int64_t spatial_cost = x->mode_costs.spatial_pred_cost[cdf_num][coded_id];

@@ -166,8 +166,12 @@ void av1_cyclic_reset_segment_skip(const AV1_COMP *cpi, MACROBLOCK *const x,
   const int bh = mi_size_high[bsize];
   const int xmis = AOMMIN(cm->mi_params.mi_cols - mi_col, bw);
   const int ymis = AOMMIN(cm->mi_params.mi_rows - mi_row, bh);
+
+  assert(cm->seg.enabled);
+
   if (!cr->skip_over4x4) {
-    mbmi->segment_id = av1_get_spatial_seg_pred(cm, xd, &cdf_num);
+    mbmi->segment_id =
+        av1_get_spatial_seg_pred(cm, xd, &cdf_num, cr->skip_over4x4);
     if (prev_segment_id != mbmi->segment_id) {
       const int block_index = mi_row * cm->mi_params.mi_cols + mi_col;
       for (int mi_y = 0; mi_y < ymis; mi_y++) {
