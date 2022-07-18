@@ -9,8 +9,10 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#include <array>
+#include "av1/ratectrl_qmode.h"
+
 #include <algorithm>
+#include <array>
 #include <cerrno>
 #include <cstring>
 #include <fstream>
@@ -19,7 +21,6 @@
 #include <string>
 #include <vector>
 
-#include "av1/ratectrl_qmode.h"
 #include "av1/reference_manager.h"
 #include "test/mock_ratectrl_qmode.h"
 #include "test/video_source.h"
@@ -908,6 +909,12 @@ GopFrame GopFrameUpdateRefIdx(int index, GopFrameType gop_frame_type,
   return frame;
 }
 
+MATCHER(IsOkStatus, "") {
+  *result_listener << "with code " << arg.code
+                   << " and message: " << arg.message;
+  return arg.code == AOM_CODEC_OK;
+}
+
 TEST(RateControlQModeTest, TestSetRcParamErrorChecking) {
   // Default constructed RateControlParam should not be valid.
   RateControlParam rc_param = {};
@@ -921,9 +928,7 @@ TEST(RateControlQModeTest, TestGetRefFrameTableListFirstGop) {
   rc_param.ref_frame_table_size = 3;
   rc_param.frame_width = 128;
   rc_param.frame_height = 128;
-  const Status status = rc.SetRcParam(rc_param);
-  ASSERT_EQ(status.code, AOM_CODEC_OK)
-      << "status.message = \"" << status.message << "\"";
+  ASSERT_THAT(rc.SetRcParam(rc_param), IsOkStatus());
 
   const auto invalid = GopFrameInvalid();
   const auto frame0 = GopFrameUpdateRefIdx(0, GopFrameType::kRegularKey, -1);
@@ -957,9 +962,7 @@ TEST(RateControlQModeTest, TestGetRefFrameTableListNotFirstGop) {
   rc_param.ref_frame_table_size = 3;
   rc_param.frame_height = 128;
   rc_param.frame_width = 128;
-  const Status status = rc.SetRcParam(rc_param);
-  ASSERT_EQ(status.code, AOM_CODEC_OK)
-      << "status.message = \"" << status.message << "\"";
+  ASSERT_THAT(rc.SetRcParam(rc_param), IsOkStatus());
 
   const auto previous = GopFrameUpdateRefIdx(0, GopFrameType::kRegularKey, -1);
   const auto frame0 = GopFrameUpdateRefIdx(5, GopFrameType::kRegularLeaf, 2);
@@ -997,13 +1000,12 @@ TEST(RateControlQModeTest, TestGopIntervals) {
   rc_param.max_gop_show_frame_count = 32;
   rc_param.min_gop_show_frame_count = 4;
   rc_param.ref_frame_table_size = 7;
-  const Status status = rc.SetRcParam(rc_param);
-  ASSERT_EQ(status.code, AOM_CODEC_OK)
-      << "status.message = \"" << status.message << "\"";
+  ASSERT_THAT(rc.SetRcParam(rc_param), IsOkStatus());
 
-  GopStructList gop_list = rc.DetermineGopInfo(firstpass_info);
+  const auto gop_info = rc.DetermineGopInfo(firstpass_info);
+  ASSERT_THAT(gop_info.status(), IsOkStatus());
   std::vector<int> gop_interval_list;
-  std::transform(gop_list.begin(), gop_list.end(),
+  std::transform(gop_info.value().begin(), gop_info.value().end(),
                  std::back_inserter(gop_interval_list),
                  [](GopStruct const &x) { return x.show_frame_count; });
   EXPECT_THAT(gop_interval_list,
@@ -1023,10 +1025,10 @@ TEST(RateControlQModeTest, TestGetGopEncodeInfo) {
   rc_param.ref_frame_table_size = 7;
   // Just an arbitrary base qp for the test.
   rc_param.base_q_index = 128;
-  const Status status = rc.SetRcParam(rc_param);
-  ASSERT_EQ(status.code, AOM_CODEC_OK)
-      << "status.message = \"" << status.message << "\"";
-  GopStructList gop_list = rc.DetermineGopInfo(firstpass_info);
+  ASSERT_THAT(rc.SetRcParam(rc_param), IsOkStatus());
+  const auto gop_info = rc.DetermineGopInfo(firstpass_info);
+  ASSERT_THAT(gop_info.status(), IsOkStatus());
+  const GopStructList &gop_list = gop_info.value();
   // Read TPL stats
   std::vector<TplGopStats> tpl_gop_list;
   ASSERT_NO_FATAL_FAILURE(ReadTplInfo("tpl_stats", gop_list, &tpl_gop_list));
@@ -1039,13 +1041,13 @@ TEST(RateControlQModeTest, TestGetGopEncodeInfo) {
       continue;
     }
     size_t tpl_gop_idx = gop_idx - num_gop_skipped;
-    GopEncodeInfo gop_encode_info = rc.GetGopEncodeInfo(
+    const auto gop_encode_info = rc.GetGopEncodeInfo(
         gop_list[gop_idx], tpl_gop_list[tpl_gop_idx], ref_frame_table);
-    for (auto &frame_param : gop_encode_info.param_list) {
-      ASSERT_GE(frame_param.q_index, 0);
-      ASSERT_LE(frame_param.q_index, rc_param.base_q_index);
+    ASSERT_THAT(gop_encode_info.status(), IsOkStatus());
+    for (auto &frame_param : gop_encode_info.value().param_list) {
+      std::cout << frame_param.q_index << std::endl;
     }
-    ref_frame_table = gop_encode_info.final_snapshot;
+    ref_frame_table = gop_encode_info.value().final_snapshot;
   }
 }
 
@@ -1057,13 +1059,12 @@ TEST(RateControlQModeTest, TestMock) {
   MockRateControlQMode mock_rc;
   EXPECT_CALL(mock_rc,
               DetermineGopInfo(Field(&FirstpassInfo::num_mbs_16x16, 1000)))
-      .WillOnce(
-          Return(GopStructList{ { 6, 0, 0, 0, {} }, { 4, 0, 0, 0, {} } }));
+      .WillOnce(Return(aom::Status{ AOM_CODEC_ERROR, "message" }));
   FirstpassInfo firstpass_info = {};
   firstpass_info.num_mbs_16x16 = 1000;
-  EXPECT_THAT(mock_rc.DetermineGopInfo(firstpass_info),
-              ElementsAre(Field(&GopStruct::show_frame_count, 6),
-                          Field(&GopStruct::show_frame_count, 4)));
+  const auto result = mock_rc.DetermineGopInfo(firstpass_info);
+  EXPECT_EQ(result.status().code, AOM_CODEC_ERROR);
+  EXPECT_EQ(result.status().message, "message");
 }
 
 }  // namespace aom

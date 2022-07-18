@@ -839,7 +839,7 @@ static std::vector<int> PartitionGopIntervals(
   return gf_intervals;
 }
 
-GopStructList AV1RateControlQMode::DetermineGopInfo(
+StatusOr<GopStructList> AV1RateControlQMode::DetermineGopInfo(
     const FirstpassInfo &firstpass_info) {
   const int stats_size = static_cast<int>(firstpass_info.stats_list.size());
   GopStructList gop_list;
@@ -1132,7 +1132,7 @@ static int GetRDMult(const GopFrame &gop_frame, int qindex) {
   }
 }
 
-GopEncodeInfo AV1RateControlQMode::GetGopEncodeInfo(
+StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
     const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
     const RefFrameTable &ref_frame_table_snapshot_init) {
   const std::vector<RefFrameTable> ref_frame_table_list =

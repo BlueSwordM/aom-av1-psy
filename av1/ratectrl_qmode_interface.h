@@ -82,6 +82,34 @@ enum class ReferenceName {
   kAltrefFrame = 7,
 };
 
+struct Status {
+  aom_codec_err_t code;
+  std::string message;  // Empty if code == AOM_CODEC_OK.
+};
+
+// A very simple imitation of absl::StatusOr, this is conceptually a union of a
+// Status struct and an object of type T. It models an object that is either a
+// usable object, or an error explaining why such an object is not present. A
+// StatusOr<T> may never hold a status with a code of AOM_CODEC_OK.
+template <typename T>
+class StatusOr {
+ public:
+  StatusOr(const T &value) : value_(value) {}
+  StatusOr(T &&value) : value_(std::move(value)) {}
+  StatusOr(Status status) : status_(std::move(status)) {
+    assert(status_.code != AOM_CODEC_OK);
+  }
+  const T &value() const & { return value_; }
+  T &value() & { return value_; }
+  const T &&value() const && { return value_; }
+  T &&value() && { return std::move(value_); }
+  const Status &status() const { return status_; }
+
+ private:
+  T value_;  // This could be std::optional<T> if it were available.
+  Status status_ = { AOM_CODEC_OK, "" };
+};
+
 struct ReferenceFrame {
   int index;  // Index of reference slot containing the reference frame
   ReferenceName name;
@@ -175,18 +203,13 @@ struct TplGopStats {
   std::vector<TplFrameStats> frame_stats_list;
 };
 
-struct Status {
-  aom_codec_err_t code;
-  std::string message;  // Should be empty if code == AOM_CODEC_OK.
-};
-
 class AV1RateControlQModeInterface {
  public:
   AV1RateControlQModeInterface();
   virtual ~AV1RateControlQModeInterface();
 
   virtual Status SetRcParam(const RateControlParam &rc_param) = 0;
-  virtual GopStructList DetermineGopInfo(
+  virtual StatusOr<GopStructList> DetermineGopInfo(
       const FirstpassInfo &firstpass_info) = 0;
   // Accept firstpass and TPL info from the encoder and return q index and
   // rdmult. This needs to be called with consecutive GOPs as returned by
@@ -194,7 +217,7 @@ class AV1RateControlQModeInterface {
   // For the first GOP, a default-constructed RefFrameTable may be passed in as
   // ref_frame_table_snapshot_init; for subsequent GOPs, it should be the
   // final_snapshot returned on the previous call.
-  virtual GopEncodeInfo GetGopEncodeInfo(
+  virtual StatusOr<GopEncodeInfo> GetGopEncodeInfo(
       const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
       const RefFrameTable &ref_frame_table_snapshot_init) = 0;
 };
