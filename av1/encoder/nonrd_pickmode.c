@@ -1411,6 +1411,7 @@ static void estimate_block_intra(int plane, int block, int row, int col,
   RD_STATS this_rdc;
 
   (void)block;
+  (void)plane_bsize;
 
   av1_predict_intra_block_facade(cm, xd, plane, col, row, tx_size);
   av1_invalid_rd_stats(&this_rdc);
@@ -1423,7 +1424,7 @@ static void estimate_block_intra(int plane, int block, int row, int col,
                   AOMMIN(tx_size, TX_16X16), DCT_DCT, 0);
   } else {
     int64_t sse = 0;
-    model_rd_for_sb_uv(cpi, plane_bsize, x, xd, &this_rdc, &sse, plane, plane);
+    model_rd_for_sb_uv(cpi, bsize_tx, x, xd, &this_rdc, &sse, plane, plane);
   }
 
   p->src.buf = src_buf_base;
