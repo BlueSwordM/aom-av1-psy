@@ -70,12 +70,18 @@ typedef struct {
 } REF_MODE;
 
 typedef struct {
+  MV_REFERENCE_FRAME ref_frame[2];
+  PREDICTION_MODE pred_mode;
+} COMP_REF_MODE;
+
+typedef struct {
   InterpFilter filter_x;
   InterpFilter filter_y;
 } INTER_FILTER;
 /*!\endcond */
 
 #define NUM_INTER_MODES_RT 9
+#define NUM_COMP_INTER_MODES_RT (6)
 #define NUM_INTER_MODES_REDUCED 8
 #define RTC_INTER_MODES (4)
 #define RTC_INTRA_MODES (4)
@@ -107,6 +113,15 @@ static const THR_MODES mode_idx[REF_FRAMES][RTC_MODES] = {
   { THR_NEARESTB, THR_NEARB, THR_GLOBALB, THR_NEWB },
   { THR_NEARESTA2, THR_NEARA2, THR_GLOBALA2, THR_NEWA2 },
   { THR_NEARESTA, THR_NEARA, THR_GLOBALA, THR_NEWA },
+};
+
+static const COMP_REF_MODE comp_ref_mode_set[NUM_COMP_INTER_MODES_RT] = {
+  { { LAST_FRAME, GOLDEN_FRAME }, GLOBAL_GLOBALMV },
+  { { LAST_FRAME, GOLDEN_FRAME }, NEAREST_NEARESTMV },
+  { { LAST_FRAME, LAST2_FRAME }, GLOBAL_GLOBALMV },
+  { { LAST_FRAME, LAST2_FRAME }, NEAREST_NEARESTMV },
+  { { LAST_FRAME, ALTREF_FRAME }, GLOBAL_GLOBALMV },
+  { { LAST_FRAME, ALTREF_FRAME }, NEAREST_NEARESTMV },
 };
 
 static const PREDICTION_MODE intra_mode_list[] = { DC_PRED, V_PRED, H_PRED,
@@ -2452,21 +2467,14 @@ void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
   }
 }
 
-void setup_compound_prediction(AV1_COMP *cpi, MACROBLOCK *x,
+void setup_compound_prediction(const AV1_COMMON *cm, MACROBLOCK *x,
                                struct buf_2d yv12_mb[8][MAX_MB_PLANE],
-                               int *use_ref_frame_mask, int flag_comp,
-                               int *ref_mv_idx) {
-  AV1_COMMON *const cm = &cpi->common;
+                               const int *use_ref_frame_mask,
+                               const MV_REFERENCE_FRAME *rf, int *ref_mv_idx) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
-  MV_REFERENCE_FRAME rf[2] = { LAST_FRAME, GOLDEN_FRAME };
   MV_REFERENCE_FRAME ref_frame_comp;
-  if (flag_comp == 1) {
-    rf[1] = LAST2_FRAME;
-  } else if (flag_comp == 2) {
-    rf[1] = ALTREF_FRAME;
-  }
   if (!use_ref_frame_mask[rf[1]]) {
     // Need to setup pred_block, if it hasn't been done in find_predictors.
     const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, rf[1]);
@@ -2487,33 +2495,30 @@ void setup_compound_prediction(AV1_COMP *cpi, MACROBLOCK *x,
   *ref_mv_idx = mbmi->ref_mv_idx + 1;
 }
 
-static void set_compound_mode(MACROBLOCK *x, int comp_index, int ref_frame,
-                              int ref_frame2, int ref_mv_idx,
+static void set_compound_mode(MACROBLOCK *x, int ref_frame, int ref_frame2,
+                              int ref_mv_idx,
                               int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES],
-                              PREDICTION_MODE *this_mode) {
+                              PREDICTION_MODE this_mode) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mi = xd->mi[0];
-  *this_mode = GLOBAL_GLOBALMV;
   mi->ref_frame[0] = ref_frame;
   mi->ref_frame[1] = ref_frame2;
   mi->compound_idx = 1;
   mi->comp_group_idx = 0;
   mi->interinter_comp.type = COMPOUND_AVERAGE;
   MV_REFERENCE_FRAME ref_frame_comp = av1_ref_frame_type(mi->ref_frame);
-  if (comp_index % 3 == 0) {
-    frame_mv[*this_mode][ref_frame].as_int = 0;
-    frame_mv[*this_mode][ref_frame2].as_int = 0;
-  } else if (comp_index % 3 == 1) {
-    *this_mode = NEAREST_NEARESTMV;
-    frame_mv[*this_mode][ref_frame].as_int =
+  if (this_mode == GLOBAL_GLOBALMV) {
+    frame_mv[this_mode][ref_frame].as_int = 0;
+    frame_mv[this_mode][ref_frame2].as_int = 0;
+  } else if (this_mode == NEAREST_NEARESTMV) {
+    frame_mv[this_mode][ref_frame].as_int =
         xd->ref_mv_stack[ref_frame_comp][0].this_mv.as_int;
-    frame_mv[*this_mode][ref_frame2].as_int =
+    frame_mv[this_mode][ref_frame2].as_int =
         xd->ref_mv_stack[ref_frame_comp][0].comp_mv.as_int;
-  } else if (comp_index % 3 == 2) {
-    *this_mode = NEAR_NEARMV;
-    frame_mv[*this_mode][ref_frame].as_int =
+  } else if (this_mode == NEAR_NEARMV) {
+    frame_mv[this_mode][ref_frame].as_int =
         xd->ref_mv_stack[ref_frame_comp][ref_mv_idx].this_mv.as_int;
-    frame_mv[*this_mode][ref_frame2].as_int =
+    frame_mv[this_mode][ref_frame2].as_int =
         xd->ref_mv_stack[ref_frame_comp][ref_mv_idx].comp_mv.as_int;
   }
 }
@@ -2620,6 +2625,58 @@ static AOM_INLINE bool is_globalmv_better(
   return this_mode_cost > globalmv_mode_cost;
 }
 
+// Set up the mv/ref_frames etc based on the comp_index. Returns 1 if it
+// succeeds, 0 if it fails.
+static AOM_INLINE int setup_compound_params_from_comp_idx(
+    const AV1_COMP *cpi, MACROBLOCK *x, struct buf_2d yv12_mb[8][MAX_MB_PLANE],
+    PREDICTION_MODE *this_mode, MV_REFERENCE_FRAME *ref_frame,
+    MV_REFERENCE_FRAME *ref_frame2, int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES],
+    const int *use_ref_frame_mask, int comp_index,
+    bool comp_use_zero_zeromv_only, MV_REFERENCE_FRAME *last_comp_ref_frame) {
+  const MV_REFERENCE_FRAME *rf = comp_ref_mode_set[comp_index].ref_frame;
+  *this_mode = comp_ref_mode_set[comp_index].pred_mode;
+  *ref_frame = rf[0];
+  *ref_frame2 = rf[1];
+  assert(*ref_frame == LAST_FRAME);
+  assert(*this_mode == GLOBAL_GLOBALMV || *this_mode == NEAREST_NEARESTMV);
+  if (comp_use_zero_zeromv_only && *this_mode != GLOBAL_GLOBALMV) {
+    return 0;
+  }
+  if (*ref_frame2 == GOLDEN_FRAME &&
+      (cpi->sf.rt_sf.ref_frame_comp_nonrd[0] == 0 ||
+       !(cpi->ref_frame_flags & AOM_GOLD_FLAG))) {
+    return 0;
+  } else if (*ref_frame2 == LAST2_FRAME &&
+             (cpi->sf.rt_sf.ref_frame_comp_nonrd[1] == 0 ||
+              !(cpi->ref_frame_flags & AOM_LAST2_FLAG))) {
+    return 0;
+  } else if (*ref_frame2 == ALTREF_FRAME &&
+             (cpi->sf.rt_sf.ref_frame_comp_nonrd[2] == 0 ||
+              !(cpi->ref_frame_flags & AOM_ALT_FLAG))) {
+    return 0;
+  }
+  int ref_mv_idx = 0;
+  if (*last_comp_ref_frame != rf[1]) {
+    // Only needs to be done once per reference pair.
+    setup_compound_prediction(&cpi->common, x, yv12_mb, use_ref_frame_mask, rf,
+                              &ref_mv_idx);
+    *last_comp_ref_frame = rf[1];
+  }
+  set_compound_mode(x, *ref_frame, *ref_frame2, ref_mv_idx, frame_mv,
+                    *this_mode);
+  if (*this_mode != GLOBAL_GLOBALMV &&
+      frame_mv[*this_mode][*ref_frame].as_int == 0 &&
+      frame_mv[*this_mode][*ref_frame2].as_int == 0) {
+    return 0;
+  }
+
+  return 1;
+}
+
+static AOM_INLINE bool is_svc_base_layer(const AV1_COMP *cpi) {
+  return cpi->ppi->use_svc && cpi->svc.temporal_layer_id == 0;
+}
+
 void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                   MACROBLOCK *x, RD_STATS *rd_cost,
                                   BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx) {
@@ -2684,11 +2741,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int svc_mv_row = 0;
   int force_mv_inter_layer = 0;
   int use_modeled_non_rd_cost = 0;
-  int comp_pred = 0;
-  int num_comp_modes_ref = 0;
-  int tot_num_comp_modes = 9;
-  int ref_mv_idx = 0;
-  int skip_comp_mode = 0;
+  bool comp_use_zero_zeromv_only = 0;
+  int tot_num_comp_modes = NUM_COMP_INTER_MODES_RT;
   unsigned int zeromv_var[REF_FRAMES];
   for (int idx = 0; idx < REF_FRAMES; idx++) {
     zeromv_var[idx] = UINT_MAX;
@@ -2765,18 +2819,24 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                  (x->nonrd_prune_ref_frame_search > 2 &&
                   x->color_sensitivity[0] != 2 && x->color_sensitivity[1] != 2);
 
-  // Compound modes per reference pair (GOLDEN_LAST/LAST2_LAST/ALTREF_LAST):
-  // (0_0)/(NEAREST_NEAREST)/(NEAR_NEAR).
-  // For now to reduce slowdowm, use only (0,0) for blocks above 16x16
-  // for non-svc case or on enhancement layers for svc.
   if (cpi->sf.rt_sf.use_comp_ref_nonrd && is_comp_ref_allowed(bsize)) {
-    if (cpi->ppi->use_svc && cpi->svc.temporal_layer_id == 0)
-      num_comp_modes_ref = 2;
-    else if (bsize > BLOCK_16X16)
-      num_comp_modes_ref = 1;
-    else
-      tot_num_comp_modes = 0;
+    if (!is_svc_base_layer(cpi)) {
+      // For non-svc or enhancement layer, only search compound if bsize \gt
+      // BLOCK_16X16.
+      if (bsize > BLOCK_16X16) {
+        comp_use_zero_zeromv_only = true;
+      } else {
+        tot_num_comp_modes = 0;
+      }
+    }
   } else {
+    tot_num_comp_modes = 0;
+  }
+
+  // Skip compound mode based on sad
+  if (tot_num_comp_modes && cpi->sf.rt_sf.sad_based_comp_prune &&
+      bsize >= BLOCK_64X64 && cpi->src_sad_blk_64x64 &&
+      skip_comp_based_on_sad(cpi, x, mi_row, mi_col, bsize)) {
     tot_num_comp_modes = 0;
   }
 
@@ -2826,17 +2886,14 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
              tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]),
       TX_16X16);
 
-  // Skip compound mode based on sad
-  if ((cpi->sf.rt_sf.sad_based_comp_prune) && (bsize >= BLOCK_64X64) &&
-      (cpi->src_sad_blk_64x64 != NULL))
-    skip_comp_mode = skip_comp_based_on_sad(cpi, x, mi_row, mi_col, bsize);
-
   int single_inter_mode_costs[RTC_INTER_MODES][REF_FRAMES];
   if (ref_mode_set == ref_mode_set_reduced) {
     fill_single_inter_mode_costs(single_inter_mode_costs, num_inter_modes,
                                  ref_mode_set, mode_costs,
                                  mbmi_ext->mode_context);
   }
+
+  MV_REFERENCE_FRAME last_comp_ref_frame = NONE_FRAME;
 
   for (int idx = 0; idx < num_inter_modes + tot_num_comp_modes; ++idx) {
     const struct segmentation *const seg = &cm->seg;
@@ -2845,7 +2902,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     int is_skippable;
     int this_early_term = 0;
     int skip_this_mv = 0;
-    comp_pred = 0;
+    int comp_pred = 0;
     unsigned int var = UINT_MAX;
     PREDICTION_MODE this_mode;
     RD_STATS nonskip_rdc;
@@ -2854,48 +2911,13 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
            sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
 
     if (idx >= num_inter_modes) {
-      if (skip_comp_mode) continue;
-      int comp_index = idx - num_inter_modes;
-      if (comp_index % 3 == 0) {
-        int i = 0;
-        ref_mv_idx = 0;
-        // Only needs to be done once per reference pair.
-        if (comp_index == 3) i = 1;
-        if (comp_index == 6) i = 2;
-        if (cpi->sf.rt_sf.ref_frame_comp_nonrd[i])
-          setup_compound_prediction(cpi, x, yv12_mb, use_ref_frame_mask, i,
-                                    &ref_mv_idx);
-      }
-      // num_comp_modes_ref == 1 only do (0,0)
-      if (num_comp_modes_ref == 1 && comp_index % 3 != 0) continue;
-      // num_comp_modes_ref == 2 only do (0,0) and (NEAREST_NEAREST)
-      if (num_comp_modes_ref == 2 && comp_index % 3 == 2) continue;
-      ref_frame = LAST_FRAME;
-      ref_frame2 = GOLDEN_FRAME;
-      if (comp_index >= 0 && comp_index < 3) {
-        // comp_index = 0,1,2 for (0/NEAREST/NEAR) for GOLDEN_LAST.
-        if (cpi->sf.rt_sf.ref_frame_comp_nonrd[0] == 0 ||
-            !(cpi->ref_frame_flags & AOM_GOLD_FLAG))
-          continue;
-      } else if (comp_index >= 3 && comp_index < 6) {
-        // comp_index = 3,4,5 for (0/NEAREST/NEAR) for LAST2_LAST.
-        ref_frame2 = LAST2_FRAME;
-        if (cpi->sf.rt_sf.ref_frame_comp_nonrd[1] == 0 ||
-            !(cpi->ref_frame_flags & AOM_LAST2_FLAG))
-          continue;
-      } else if (comp_index >= 6 && comp_index < 9) {
-        // comp_index = 6,7,8 for (0/NEAREST/NEAR) for ALTREF_LAST.
-        ref_frame2 = ALTREF_FRAME;
-        if (cpi->sf.rt_sf.ref_frame_comp_nonrd[2] == 0 ||
-            !(cpi->ref_frame_flags & AOM_ALT_FLAG))
-          continue;
-      }
-      set_compound_mode(x, comp_index, ref_frame, ref_frame2, ref_mv_idx,
-                        frame_mv, &this_mode);
-      if (this_mode != GLOBAL_GLOBALMV &&
-          frame_mv[this_mode][ref_frame].as_int == 0 &&
-          frame_mv[this_mode][ref_frame2].as_int == 0)
+      const int comp_index = idx - num_inter_modes;
+      if (!setup_compound_params_from_comp_idx(
+              cpi, x, yv12_mb, &this_mode, &ref_frame, &ref_frame2, frame_mv,
+              use_ref_frame_mask, comp_index, comp_use_zero_zeromv_only,
+              &last_comp_ref_frame)) {
         continue;
+      }
       comp_pred = 1;
     } else {
       this_mode = ref_mode_set[idx].pred_mode;
