@@ -1007,7 +1007,7 @@ TEST(RateControlQModeTest, TestGopIntervals) {
                  std::back_inserter(gop_interval_list),
                  [](GopStruct const &x) { return x.show_frame_count; });
   EXPECT_THAT(gop_interval_list,
-              ElementsAre(21, 9, 30, 30, 30, 21, 9, 30, 12, 16, 2, 30, 10));
+              ElementsAre(21, 9, 30, 30, 16, 14, 21, 9, 30, 12, 16, 2, 30, 10));
 }
 
 TEST(RateControlQModeTest, TestGetGopEncodeInfo) {
