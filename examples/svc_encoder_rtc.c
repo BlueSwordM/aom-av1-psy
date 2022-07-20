@@ -1105,7 +1105,8 @@ int main(int argc, const char **argv) {
 
   struct RateControlMetrics rc;
   int64_t cx_time = 0;
-  int64_t cx_time_sl[3];  // max number of spatial layers.
+  int64_t cx_time_layer[AOM_MAX_LAYERS];  // max number of layers.
+  int frame_cnt_layer[AOM_MAX_LAYERS];
   double sum_bitrate = 0.0;
   double sum_bitrate2 = 0.0;
   double framerate = 30.0;
@@ -1305,7 +1306,11 @@ int main(int argc, const char **argv) {
                       max_intra_size_pct);
   }
 
-  for (unsigned int slx = 0; slx < ss_number_layers; slx++) cx_time_sl[slx] = 0;
+  for (unsigned int lx = 0; lx < ts_number_layers * ss_number_layers; lx++) {
+    cx_time_layer[lx] = 0;
+    frame_cnt_layer[lx] = 0;
+  }
+
   frame_avail = 1;
   while (frame_avail || got_data) {
     struct aom_usec_timer timer;
@@ -1379,7 +1384,8 @@ int main(int argc, const char **argv) {
         die_codec(&codec, "Failed to encode frame");
       aom_usec_timer_mark(&timer);
       cx_time += aom_usec_timer_elapsed(&timer);
-      cx_time_sl[slx] += aom_usec_timer_elapsed(&timer);
+      cx_time_layer[layer] += aom_usec_timer_elapsed(&timer);
+      frame_cnt_layer[layer] += 1;
 
       got_data = 0;
       while ((pkt = aom_codec_get_cx_data(&codec, &iter))) {
@@ -1480,18 +1486,21 @@ int main(int argc, const char **argv) {
   close_input_file(&(app_input.input_ctx));
   printout_rate_control_summary(&rc, frame_cnt, ss_number_layers,
                                 ts_number_layers);
+
+  printf("\n");
+  for (unsigned int slx = 0; slx < ss_number_layers; slx++)
+    for (unsigned int tlx = 0; tlx < ts_number_layers; tlx++) {
+      int lx = slx * ts_number_layers + tlx;
+      printf("Per layer encoding time/FPS stats for encoder: %d %d %d %f %f \n",
+             slx, tlx, frame_cnt_layer[lx],
+             (float)cx_time_layer[lx] / (double)(frame_cnt_layer[lx] * 1000),
+             1000000 * (double)frame_cnt_layer[lx] / (double)cx_time_layer[lx]);
+    }
+
   printf("\n");
   printf("Frame cnt and encoding time/FPS stats for encoding: %d %f %f\n",
          frame_cnt, 1000 * (float)cx_time / (double)(frame_cnt * 1000000),
          1000000 * (double)frame_cnt / (double)cx_time);
-
-  if (ss_number_layers > 1) {
-    printf("Per spatial layer: \n");
-    for (unsigned int slx = 0; slx < ss_number_layers; slx++)
-      printf("Frame cnt and encoding time/FPS stats for encoding: %d %f %f\n",
-             frame_cnt, (float)cx_time_sl[slx] / (double)(frame_cnt * 1000),
-             1000000 * (double)frame_cnt / (double)cx_time_sl[slx]);
-  }
 
   if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec");
 

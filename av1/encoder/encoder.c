@@ -3579,7 +3579,11 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       features->disable_cdf_update = 1;
       break;
     case 1:  // Enable CDF update for all frames.
-      features->disable_cdf_update = 0;
+      if (cpi->sf.rt_sf.disable_cdf_update_non_reference_frame &&
+          cpi->svc.non_reference_frame && cpi->rc.frames_since_key > 2)
+        features->disable_cdf_update = 1;
+      else
+        features->disable_cdf_update = 0;
       break;
     case 2:
       // Strategically determine at which frames to do CDF update.

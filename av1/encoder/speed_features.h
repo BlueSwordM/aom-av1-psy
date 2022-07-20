@@ -1590,6 +1590,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // limit the compound modes to GLOBAL_GLOBALMV. This does not apply to the
   // base layer of svc.
   bool check_only_zero_zeromv_on_large_blocks;
+
+  // Allow for disabling cdf update for non reference frames in svc mode.
+  bool disable_cdf_update_non_reference_frame;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

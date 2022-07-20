@@ -1338,6 +1338,22 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
   }
   if (cpi->ppi->use_svc) {
+    // For SVC: for greater than 2 temporal layers, use better mv search on
+    // base temporal layers, and only on base spatial layer if highest
+    // resolution is above 640x360.
+    if (cpi->svc.number_temporal_layers > 2 &&
+        cpi->svc.temporal_layer_id == 0 &&
+        (cpi->svc.spatial_layer_id == 0 ||
+         cpi->oxcf.frm_dim_cfg.width * cpi->oxcf.frm_dim_cfg.height <=
+             640 * 360)) {
+      sf->mv_sf.search_method = NSTEP;
+      sf->mv_sf.subpel_search_method = SUBPEL_TREE;
+      sf->rt_sf.fullpel_search_step_param = 6;
+    }
+    if (speed >= 9) {
+      sf->rt_sf.disable_cdf_update_non_reference_frame = true;
+      if (cpi->svc.non_reference_frame) sf->rt_sf.nonrd_agressive_skip = 1;
+    }
     if (cpi->svc.ref_frame_comp[0] || cpi->svc.ref_frame_comp[1] ||
         cpi->svc.ref_frame_comp[2]) {
       sf->rt_sf.use_comp_ref_nonrd = 1;
@@ -1555,18 +1571,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->rt_sf.var_part_split_threshold_shift = 5;
   if (!frame_is_intra_only(&cpi->common)) sf->rt_sf.var_part_based_on_qidx = 1;
 
-  // For SVC: use better mv search on base temporal layers, and only
-  // on base spatial layer if highest resolution is above 640x360.
-  if (cpi->svc.number_temporal_layers > 1 &&
-      cpi->svc.temporal_layer_id < cpi->svc.number_temporal_layers - 1 &&
-      (cpi->svc.spatial_layer_id == 0 ||
-       cpi->oxcf.frm_dim_cfg.width * cpi->oxcf.frm_dim_cfg.height <=
-           640 * 360)) {
-    sf->mv_sf.search_method = NSTEP;
-    sf->mv_sf.subpel_search_method = SUBPEL_TREE;
-    sf->rt_sf.fullpel_search_step_param = 6;
-  }
-
   if (speed >= 6) {
     sf->mv_sf.use_fullpel_costlist = 1;
 
@@ -1638,20 +1642,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.nonrd_check_partition_merge_mode = 3;
     sf->rt_sf.skip_intra_pred = 1;
     sf->rt_sf.source_metrics_sb_nonrd = 1;
-    // For SVC: use better mv search on base temporal layers, and only
-    // on base spatial layer if highest resolution is above 640x360.
-    if (cpi->svc.number_temporal_layers > 1 &&
-        cpi->svc.temporal_layer_id < cpi->svc.number_temporal_layers - 1 &&
-        (cpi->svc.spatial_layer_id == 0 ||
-         cpi->oxcf.frm_dim_cfg.width * cpi->oxcf.frm_dim_cfg.height <=
-             640 * 360)) {
-      sf->mv_sf.search_method = NSTEP;
-      sf->mv_sf.subpel_search_method = SUBPEL_TREE;
-      sf->rt_sf.fullpel_search_step_param = 6;
-    } else if (cpi->svc.non_reference_frame) {
-      sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
-      sf->rt_sf.fullpel_search_step_param = 10;
-    }
     // Set mask for intra modes.
     for (int i = 0; i < BLOCK_SIZES; ++i)
       if (i >= BLOCK_32X32)
@@ -2032,6 +2022,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->prune_global_globalmv_with_zeromv = false;
   rt_sf->frame_level_mode_cost_update = false;
   rt_sf->check_only_zero_zeromv_on_large_blocks = false;
+  rt_sf->disable_cdf_update_non_reference_frame = false;
 }
 
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
