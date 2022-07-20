@@ -1423,6 +1423,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->rt_sf.skip_interp_filter_search = 1;
   sf->intra_sf.prune_palette_search_level = 2;
   sf->intra_sf.prune_luma_palette_size_search_level = 2;
+  sf->intra_sf.early_term_chroma_palette_size_search = 1;
 
   // End of set
 
