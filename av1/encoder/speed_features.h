@@ -1585,6 +1585,11 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // overrides the command line setting --mode-cost-upd-freq=3 (never update
   // except on key frame and first delta).
   bool frame_level_mode_cost_update;
+
+  // If compound is enabled, and the current block size is \geq BLOCK_16X16,
+  // limit the compound modes to GLOBAL_GLOBALMV. This does not apply to the
+  // base layer of svc.
+  bool check_only_zero_zeromv_on_large_blocks;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

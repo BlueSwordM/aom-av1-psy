@@ -2824,7 +2824,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       // For non-svc or enhancement layer, only search compound if bsize \gt
       // BLOCK_16X16.
       if (bsize > BLOCK_16X16) {
-        comp_use_zero_zeromv_only = true;
+        comp_use_zero_zeromv_only =
+            cpi->sf.rt_sf.check_only_zero_zeromv_on_large_blocks;
       } else {
         tot_num_comp_modes = 0;
       }
@@ -2925,7 +2926,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       ref_frame2 = NONE_FRAME;
     }
 
-    if (mode_checked[this_mode][ref_frame]) {
+    if (!comp_pred && mode_checked[this_mode][ref_frame]) {
       continue;
     }
 
