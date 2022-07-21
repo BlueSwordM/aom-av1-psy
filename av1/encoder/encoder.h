@@ -1453,6 +1453,8 @@ typedef struct ThreadData {
   // store source variance and log of source variance of each 4x4 sub-block
   // for subsequent retrieval.
   Block4x4VarInfo *src_var_info_of_4x4_sub_blocks;
+  // The pc tree root for RTC non-rd case.
+  PC_TREE *rt_pc_root;
 } ThreadData;
 
 struct EncWorkerData;

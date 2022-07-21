@@ -1574,9 +1574,11 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
                       : -1;
   const PARTITION_TYPE partition = pc_tree->partitioning;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
+#if !CONFIG_REALTIME_ONLY
   int quarter_step = mi_size_wide[bsize] / 4;
   int i;
   BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
+#endif
 
   if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) return;
   if (subsize == BLOCK_INVALID) return;
@@ -1630,6 +1632,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
                 subsize, pc_tree->split[3], rate);
       break;
 
+#if !CONFIG_REALTIME_ONLY
     case PARTITION_HORZ_A:
       encode_b(cpi, tile_data, td, tp, mi_row, mi_col, dry_run, bsize2,
                partition, pc_tree->horizontala[0], rate);
@@ -1680,6 +1683,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
                  partition, pc_tree->vertical4[i], rate);
       }
       break;
+#endif
     default: assert(0 && "Invalid partition type."); break;
   }
 

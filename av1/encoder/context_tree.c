@@ -164,6 +164,8 @@ PC_TREE *av1_alloc_pc_tree_node(BLOCK_SIZE bsize) {
     pc_tree->horizontal[i] = NULL;
     pc_tree->vertical[i] = NULL;
   }
+
+#if !CONFIG_REALTIME_ONLY
   for (int i = 0; i < 3; ++i) {
     pc_tree->horizontala[i] = NULL;
     pc_tree->horizontalb[i] = NULL;
@@ -173,6 +175,9 @@ PC_TREE *av1_alloc_pc_tree_node(BLOCK_SIZE bsize) {
   for (int i = 0; i < 4; ++i) {
     pc_tree->horizontal4[i] = NULL;
     pc_tree->vertical4[i] = NULL;
+  }
+#endif
+  for (int i = 0; i < 4; ++i) {
     pc_tree->split[i] = NULL;
   }
 
@@ -200,6 +205,7 @@ void av1_free_pc_tree_recursive(PC_TREE *pc_tree, int num_planes, int keep_best,
     if (!keep_best || (partition != PARTITION_VERT))
       FREE_PMC_NODE(pc_tree->vertical[i]);
   }
+#if !CONFIG_REALTIME_ONLY
   for (int i = 0; i < 3; ++i) {
     if (!keep_best || (partition != PARTITION_HORZ_A))
       FREE_PMC_NODE(pc_tree->horizontala[i]);
@@ -216,7 +222,7 @@ void av1_free_pc_tree_recursive(PC_TREE *pc_tree, int num_planes, int keep_best,
     if (!keep_best || (partition != PARTITION_VERT_4))
       FREE_PMC_NODE(pc_tree->vertical4[i]);
   }
-
+#endif
   if (!keep_best || (partition != PARTITION_SPLIT)) {
     for (int i = 0; i < 4; ++i) {
       if (pc_tree->split[i] != NULL) {

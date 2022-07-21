@@ -487,7 +487,7 @@ static void get_estimated_pred(AV1_COMP *cpi, const TileInfo *const tile,
 static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
                                        TileDataEnc *tile_data, TokenExtra **tp,
                                        const int mi_row, const int mi_col,
-                                       const int seg_skip, PC_TREE *pc_root) {
+                                       const int seg_skip) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
   const SPEED_FEATURES *const sf = &cpi->sf;
@@ -495,6 +495,7 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
   MB_MODE_INFO **mi = cm->mi_params.mi_grid_base +
                       get_mi_grid_idx(&cm->mi_params, mi_row, mi_col);
   const BLOCK_SIZE sb_size = cm->seq_params->sb_size;
+  PC_TREE *const pc_root = td->rt_pc_root;
 
 #if CONFIG_RT_ML_PARTITIONING
   if (sf->part_sf.partition_search_type == ML_BASED_PARTITION) {
@@ -854,11 +855,6 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
 
   reset_thresh_freq_fact(x);
 
-  // Preallocate the pc_tree for realtime coding to reduce the cost of memory
-  // allocation
-  PC_TREE *const rt_pc_root =
-      use_nonrd_mode ? av1_alloc_pc_tree_node(sb_size) : NULL;
-
   // Code each SB in the row
   for (int mi_col = tile_info->mi_col_start, sb_col_in_tile = 0;
        mi_col < tile_info->mi_col_end; mi_col += mib_size, sb_col_in_tile++) {
@@ -930,8 +926,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
 
     // encode the superblock
     if (use_nonrd_mode) {
-      encode_nonrd_sb(cpi, td, tile_data, tp, mi_row, mi_col, seg_skip,
-                      rt_pc_root);
+      encode_nonrd_sb(cpi, td, tile_data, tp, mi_row, mi_col, seg_skip);
     } else {
       encode_rd_sb(cpi, td, tile_data, tp, mi_row, mi_col, seg_skip);
     }
@@ -948,7 +943,6 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
                                sb_cols_in_tile);
   }
 
-  av1_free_pc_tree_recursive(rt_pc_root, av1_num_planes(cm), 0, 0);
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, encode_sb_row_time);
 #endif
@@ -1650,10 +1644,18 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     enc_row_mt->sync_write_ptr = av1_row_mt_sync_write;
     av1_encode_tiles_row_mt(cpi);
   } else {
-    if (AOMMIN(mt_info->num_workers, cm->tiles.cols * cm->tiles.rows) > 1)
+    if (AOMMIN(mt_info->num_workers, cm->tiles.cols * cm->tiles.rows) > 1) {
       av1_encode_tiles_mt(cpi);
-    else
+    } else {
+      // Preallocate the pc_tree for realtime coding to reduce the cost of
+      // memory allocation.
+      const int use_nonrd_mode = cpi->sf.rt_sf.use_nonrd_pick_mode;
+      td->rt_pc_root = use_nonrd_mode
+                           ? av1_alloc_pc_tree_node(cm->seq_params->sb_size)
+                           : NULL;
       encode_tiles(cpi);
+      av1_free_pc_tree_recursive(td->rt_pc_root, av1_num_planes(cm), 0, 0);
+    }
   }
 
   // If intrabc is allowed but never selected, reset the allow_intrabc flag.
