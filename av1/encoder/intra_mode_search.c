@@ -803,8 +803,8 @@ static bool should_prune_chroma_smooth_pred_based_on_source_variance(
   // If the source variance of both chroma planes is less than 20 (empirically
   // derived), prune UV_SMOOTH_PRED.
   for (int i = AOM_PLANE_U; i < av1_num_planes(&cpi->common); i++) {
-    const unsigned int variance =
-        av1_get_perpixel_variance(cpi, &x->e_mbd, &x->plane[i].src, bsize, i);
+    const unsigned int variance = av1_get_perpixel_variance_facade(
+        cpi, &x->e_mbd, &x->plane[i].src, bsize, i);
     if (variance >= 20) return false;
   }
   return true;

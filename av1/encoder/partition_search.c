@@ -889,8 +889,8 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
   // Reset skip mode flag.
   mbmi->skip_mode = 0;
 
-  x->source_variance =
-      av1_get_perpixel_variance(cpi, xd, &x->plane[0].src, bsize, AOM_PLANE_Y);
+  x->source_variance = av1_get_perpixel_variance_facade(
+      cpi, xd, &x->plane[0].src, bsize, AOM_PLANE_Y);
 
   // Initialize default mode evaluation params
   set_mode_eval_params(cpi, x, DEFAULT_EVAL);
@@ -2212,8 +2212,8 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
   }
   for (i = 0; i < 2; ++i) pd[i].color_index_map = ctx->color_index_map[i];
   if (!x->force_zeromv_skip) {
-    x->source_variance = av1_get_perpixel_variance(cpi, xd, &x->plane[0].src,
-                                                   bsize, AOM_PLANE_Y);
+    x->source_variance = av1_get_perpixel_variance_facade(
+        cpi, xd, &x->plane[0].src, bsize, AOM_PLANE_Y);
   }
   // Save rdmult before it might be changed, so it can be restored later.
   const int orig_rdmult = x->rdmult;
@@ -5217,8 +5217,8 @@ BEGIN_PARTITION_SEARCH:
 
   if (pb_source_variance == UINT_MAX) {
     av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, bsize);
-    pb_source_variance = av1_get_perpixel_variance(cpi, xd, &x->plane[0].src,
-                                                   bsize, AOM_PLANE_Y);
+    pb_source_variance = av1_get_perpixel_variance_facade(
+        cpi, xd, &x->plane[0].src, bsize, AOM_PLANE_Y);
   }
 
   assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,

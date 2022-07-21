@@ -1284,8 +1284,8 @@ void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi) {
           buf.buf = y_buffer + row_offset_y * y_stride + col_offset_y;
           buf.stride = y_stride;
 
-          var +=
-              av1_get_perpixel_variance(cpi, xd, &buf, BLOCK_8X8, AOM_PLANE_Y);
+          var += av1_get_perpixel_variance_facade(cpi, xd, &buf, BLOCK_8X8,
+                                                  AOM_PLANE_Y);
           num_of_var += 1.0;
         }
       }

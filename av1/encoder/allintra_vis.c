@@ -828,8 +828,8 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi) {
           buf.stride = y_stride;
 
           unsigned int block_variance;
-          block_variance =
-              av1_get_perpixel_variance(cpi, xd, &buf, BLOCK_8X8, AOM_PLANE_Y);
+          block_variance = av1_get_perpixel_variance_facade(
+              cpi, xd, &buf, BLOCK_8X8, AOM_PLANE_Y);
 
           block_variance = AOMMAX(block_variance, 1);
           var += log((double)block_variance);

@@ -1841,8 +1841,8 @@ void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
         struct buf_2d buf;
         buf.stride = stride;
         buf.buf = (uint8_t *)this_src;
-        const unsigned int var =
-            av1_get_perpixel_variance(cpi, xd, &buf, BLOCK_16X16, AOM_PLANE_Y);
+        const unsigned int var = av1_get_perpixel_variance(
+            cpi, xd, &buf, BLOCK_16X16, AOM_PLANE_Y, use_hbd);
         if (var > var_thresh) ++counts_2;
       }
     }
