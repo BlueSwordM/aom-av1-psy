@@ -2103,7 +2103,11 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
       break;
   }
 
-  if (!oxcf->txfm_cfg.enable_tx_size_search) {
+  // Note: when use_nonrd_pick_mode is true, the transform size is the
+  // minimum of 16x16 and the largest possible size of the current block,
+  // which conflicts with the speed feature "enable_tx_size_search".
+  if (!oxcf->txfm_cfg.enable_tx_size_search &&
+      sf->rt_sf.use_nonrd_pick_mode == 0) {
     sf->winner_mode_sf.tx_size_search_level = 3;
   }
 
@@ -2199,7 +2203,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
 
   // assert ensures that tx_size_search_level is accessed correctly
   assert(cpi->sf.winner_mode_sf.tx_size_search_level >= 0 &&
-         cpi->sf.winner_mode_sf.tx_size_search_level < 3);
+         cpi->sf.winner_mode_sf.tx_size_search_level <= 3);
   memcpy(winner_mode_params->tx_size_search_methods,
          tx_size_search_methods[cpi->sf.winner_mode_sf.tx_size_search_level],
          sizeof(winner_mode_params->tx_size_search_methods));

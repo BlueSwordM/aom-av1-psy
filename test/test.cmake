@@ -66,6 +66,7 @@ list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
             "${AOM_ROOT}/test/end_to_end_psnr_test.cc"
             "${AOM_ROOT}/test/gf_pyr_height_test.cc"
             "${AOM_ROOT}/test/rt_end_to_end_test.cc"
+            "${AOM_ROOT}/test/allintra_end_to_end_test.cc"
             "${AOM_ROOT}/test/loopfilter_control_test.cc"
             "${AOM_ROOT}/test/frame_size_tests.cc"
             "${AOM_ROOT}/test/horz_superres_test.cc"
