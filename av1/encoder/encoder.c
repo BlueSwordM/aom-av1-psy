@@ -2264,6 +2264,36 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef);
 }
 
+static void update_motion_stat(AV1_COMP *const cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  RATE_CONTROL *const rc = &cpi->rc;
+  SVC *const svc = &cpi->svc;
+  const int avg_cnt_zeromv =
+      100 * cpi->rc.cnt_zeromv / (mi_params->mi_rows * mi_params->mi_cols);
+  if (!cpi->ppi->use_svc ||
+      (cpi->ppi->use_svc &&
+       !cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame &&
+       cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1)) {
+    rc->avg_frame_low_motion =
+        (rc->avg_frame_low_motion == 0)
+            ? avg_cnt_zeromv
+            : (3 * rc->avg_frame_low_motion + avg_cnt_zeromv) / 4;
+    // For SVC: set avg_frame_low_motion (only computed on top spatial layer)
+    // to all lower spatial layers.
+    if (cpi->ppi->use_svc &&
+        svc->spatial_layer_id == svc->number_spatial_layers - 1) {
+      for (int i = 0; i < svc->number_spatial_layers - 1; ++i) {
+        const int layer = LAYER_IDS_TO_IDX(i, svc->temporal_layer_id,
+                                           svc->number_temporal_layers);
+        LAYER_CONTEXT *const lc = &svc->layer_context[layer];
+        RATE_CONTROL *const lrc = &lc->rc;
+        lrc->avg_frame_low_motion = rc->avg_frame_low_motion;
+      }
+    }
+  }
+}
+
 /*!\brief Encode a frame without the recode loop, usually used in one-pass
  * encoding and realtime coding.
  *
@@ -2483,10 +2513,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
   // transform / motion compensation build reconstruction frame
   av1_encode_frame(cpi);
 
-  // Update some stats from cyclic refresh.
-  if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ && !cpi->rc.rtc_external_ratectrl &&
-      !frame_is_intra_only(cm))
-    av1_cyclic_refresh_postencode(cpi);
+  if (!cpi->rc.rtc_external_ratectrl && !frame_is_intra_only(cm))
+    update_motion_stat(cpi);
 
   // Adjust the refresh of the golden (longer-term) reference based on QP
   // selected for this frame. This is for CBR with 1 layer/non-svc RTC mode.

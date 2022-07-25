@@ -1195,11 +1195,9 @@ static AOM_INLINE void accumulate_counters_enc_workers(AV1_COMP *cpi,
     EncWorkerData *const thread_data = (EncWorkerData *)worker->data1;
     cpi->intrabc_used |= thread_data->td->intrabc_used;
     cpi->deltaq_used |= thread_data->td->deltaq_used;
-    // Accumulate cyclic refresh params.
-    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
-        !frame_is_intra_only(&cpi->common))
-      av1_accumulate_cyclic_refresh_counters(cpi->cyclic_refresh,
-                                             &thread_data->td->mb);
+    // Accumulate rtc counters.
+    if (!frame_is_intra_only(&cpi->common))
+      av1_accumulate_rtc_counters(cpi, &thread_data->td->mb);
     if (thread_data->td != &cpi->td) {
       // Keep these conditional expressions in sync with the corresponding ones
       // in prepare_enc_workers().
@@ -1294,8 +1292,8 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     }
     av1_alloc_mb_data(cpi, &thread_data->td->mb);
 
-    // Reset cyclic refresh counters.
-    av1_init_cyclic_refresh_counters(&thread_data->td->mb);
+    // Reset rtc counters.
+    av1_init_rtc_counters(&thread_data->td->mb);
 
     if (thread_data->td->counts != &cpi->counts) {
       memcpy(thread_data->td->counts, &cpi->counts, sizeof(cpi->counts));

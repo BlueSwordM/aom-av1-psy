@@ -147,6 +147,17 @@ static const uint16_t AV1_HIGH_VAR_OFFS_12[MAX_SB_SIZE] = {
 };
 /*!\endcond */
 
+void av1_init_rtc_counters(MACROBLOCK *const x) {
+  av1_init_cyclic_refresh_counters(x);
+  x->cnt_zeromv = 0;
+}
+
+void av1_accumulate_rtc_counters(AV1_COMP *cpi, const MACROBLOCK *const x) {
+  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ)
+    av1_accumulate_cyclic_refresh_counters(cpi->cyclic_refresh, x);
+  cpi->rc.cnt_zeromv += x->cnt_zeromv;
+}
+
 unsigned int av1_get_perpixel_variance(const AV1_COMP *cpi,
                                        const MACROBLOCKD *xd,
                                        const struct buf_2d *ref,
@@ -1162,15 +1173,10 @@ static AOM_INLINE void encode_tiles(AV1_COMP *cpi) {
       cpi->td.rd_counts.seg_tmp_pred_cost[1] = 0;
       cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
       cpi->td.mb.tile_pb_ctx = &this_tile->tctx;
-      // Reset cyclic refresh counters.
-      av1_init_cyclic_refresh_counters(&cpi->td.mb);
-
+      av1_init_rtc_counters(&cpi->td.mb);
       av1_encode_tile(cpi, &cpi->td, tile_row, tile_col);
-      // Accumulate cyclic refresh params.
-      if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
-          !frame_is_intra_only(&cpi->common))
-        av1_accumulate_cyclic_refresh_counters(cpi->cyclic_refresh,
-                                               &cpi->td.mb);
+      if (!frame_is_intra_only(&cpi->common))
+        av1_accumulate_rtc_counters(cpi, &cpi->td.mb);
       cpi->intrabc_used |= cpi->td.intrabc_used;
       cpi->deltaq_used |= cpi->td.deltaq_used;
     }
@@ -1569,7 +1575,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   } else {
     cpi->cyclic_refresh->actual_num_seg1_blocks = 0;
     cpi->cyclic_refresh->actual_num_seg2_blocks = 0;
-    cpi->cyclic_refresh->cnt_zeromv = 0;
+    cpi->rc.cnt_zeromv = 0;
   }
 
   av1_frame_init_quantizer(cpi);

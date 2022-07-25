@@ -235,6 +235,7 @@ typedef struct {
   /*!\cond */
   // Track amount of low motion in scene
   int avg_frame_low_motion;
+  int cnt_zeromv;
 
   // signals if number of blocks with motion is high
   int high_num_blocks_with_motion;

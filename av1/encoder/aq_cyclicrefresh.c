@@ -266,7 +266,6 @@ void av1_cyclic_refresh_update_segment(const AV1_COMP *cpi, MACROBLOCK *const x,
 void av1_init_cyclic_refresh_counters(MACROBLOCK *const x) {
   x->actual_num_seg1_blocks = 0;
   x->actual_num_seg2_blocks = 0;
-  x->cnt_zeromv = 0;
 }
 
 // Accumulate cyclic refresh counters.
@@ -274,39 +273,6 @@ void av1_accumulate_cyclic_refresh_counters(
     CYCLIC_REFRESH *const cyclic_refresh, const MACROBLOCK *const x) {
   cyclic_refresh->actual_num_seg1_blocks += x->actual_num_seg1_blocks;
   cyclic_refresh->actual_num_seg2_blocks += x->actual_num_seg2_blocks;
-  cyclic_refresh->cnt_zeromv += x->cnt_zeromv;
-}
-
-void av1_cyclic_refresh_postencode(AV1_COMP *const cpi) {
-  AV1_COMMON *const cm = &cpi->common;
-  const CommonModeInfoParams *const mi_params = &cm->mi_params;
-  CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
-  RATE_CONTROL *const rc = &cpi->rc;
-  SVC *const svc = &cpi->svc;
-  const int avg_cnt_zeromv =
-      100 * cr->cnt_zeromv / (mi_params->mi_rows * mi_params->mi_cols);
-
-  if (!cpi->ppi->use_svc ||
-      (cpi->ppi->use_svc &&
-       !cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame &&
-       cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1)) {
-    rc->avg_frame_low_motion =
-        (rc->avg_frame_low_motion == 0)
-            ? avg_cnt_zeromv
-            : (3 * rc->avg_frame_low_motion + avg_cnt_zeromv) / 4;
-    // For SVC: set avg_frame_low_motion (only computed on top spatial layer)
-    // to all lower spatial layers.
-    if (cpi->ppi->use_svc &&
-        svc->spatial_layer_id == svc->number_spatial_layers - 1) {
-      for (int i = 0; i < svc->number_spatial_layers - 1; ++i) {
-        const int layer = LAYER_IDS_TO_IDX(i, svc->temporal_layer_id,
-                                           svc->number_temporal_layers);
-        LAYER_CONTEXT *const lc = &svc->layer_context[layer];
-        RATE_CONTROL *const lrc = &lc->rc;
-        lrc->avg_frame_low_motion = rc->avg_frame_low_motion;
-      }
-    }
-  }
 }
 
 void av1_cyclic_refresh_set_golden_update(AV1_COMP *const cpi) {
