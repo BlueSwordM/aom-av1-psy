@@ -1969,10 +1969,14 @@ static INLINE void predict_dc_only_block(
   uint64_t var_threshold = (uint64_t)(1.8 * qstep * qstep);
   if (is_cur_buf_hbd(xd))
     block_var = ROUND_POWER_OF_TWO(block_var, (xd->bd - 8) * 2);
-  // Early prediction of skip block if residual mean and variance are less
+
+  if (block_var >= var_threshold) return;
+  const unsigned int predict_dc_level = x->txfm_search_params.predict_dc_level;
+  assert(predict_dc_level != 0);
+
+  // Prediction of skip block if residual mean and variance are less
   // than qstep based threshold
-  if (((llabs(*per_px_mean) * dc_coeff_scale[tx_size]) < (dc_qstep << 12)) &&
-      (block_var < var_threshold)) {
+  if ((llabs(*per_px_mean) * dc_coeff_scale[tx_size]) < (dc_qstep << 12)) {
     // If the normalized mean of residual block is less than the dc qstep and
     // the  normalized block variance is less than ac qstep, then the block is
     // assumed to be a skip block and its rdcost is updated accordingly.
@@ -2003,9 +2007,9 @@ static INLINE void predict_dc_only_block(
         RDCOST(x->rdmult, best_rd_stats->rate, best_rd_stats->sse);
 
     x->plane[plane].txb_entropy_ctx[block] = 0;
-  } else if (block_var < var_threshold) {
+  } else if (predict_dc_level > 1) {
     // Predict DC only blocks based on residual variance.
-    // For chroma plane, this early prediction is disabled for intra blocks.
+    // For chroma plane, this prediction is disabled for intra blocks.
     if ((plane == 0) || (plane > 0 && is_inter_block(mbmi))) *dc_only_blk = 1;
   }
 }
@@ -2055,7 +2059,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   unsigned int block_mse_q8;
   int dc_only_blk = 0;
   const bool predict_dc_block =
-      txfm_params->predict_dc_level && txw != 64 && txh != 64;
+      txfm_params->predict_dc_level >= 1 && txw != 64 && txh != 64;
   int64_t per_px_mean = INT64_MAX;
   if (predict_dc_block) {
     predict_dc_only_block(x, plane, plane_bsize, tx_size, block, blk_row,
