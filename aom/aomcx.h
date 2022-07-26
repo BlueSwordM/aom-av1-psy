@@ -1582,6 +1582,9 @@ typedef enum {
   AOM_TUNE_VMAF_MAX_GAIN = 6,
   AOM_TUNE_VMAF_NEG_MAX_GAIN = 7,
   AOM_TUNE_BUTTERAUGLI = 8,
+  AOM_TUNE_IMAGE_PERCEPTUAL_QUALITY = 9,
+  AOM_TUNE_IMAGE_PERCEPTUAL_QUALITY_VMAF_PSY_QP = 10,
+  AOM_TUNE_FAST_VMAF_PSY_QP = 11,
 } aom_tune_metric;
 
 /*!\brief Distortion metric to use for RD optimization.

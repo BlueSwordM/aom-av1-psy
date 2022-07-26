@@ -33,7 +33,9 @@ void av1_set_ssim_rdmult(const AV1_COMP *const cpi, int *errorperbit,
   double num_of_mi = 0.0;
   double geom_mean_of_scale = 0.0;
 
-  assert(cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIM);
+  assert(cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIM ||
+         cpi->oxcf.tune_cfg.tuning == AOM_TUNE_IMAGE_PERCEPTUAL_QUALITY ||
+         cpi->oxcf.tune_cfg.tuning == AOM_TUNE_IMAGE_PERCEPTUAL_QUALITY_VMAF_PSY_QP);
 
   for (row = mi_row / num_mi_w;
        row < num_rows && row < mi_row / num_mi_w + num_brows; ++row) {
