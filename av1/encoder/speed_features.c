@@ -1367,6 +1367,11 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.use_comp_ref_nonrd = 0;
       sf->rt_sf.sad_based_comp_prune = 0;
     }
+    if (speed <= 9 && cpi->svc.number_temporal_layers > 2 &&
+        cpi->svc.temporal_layer_id == 0)
+      sf->rt_sf.check_only_zero_zeromv_on_large_blocks = false;
+    else
+      sf->rt_sf.check_only_zero_zeromv_on_large_blocks = true;
   }
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
     // TODO(marpan): Check settings for speed 7 and 8.

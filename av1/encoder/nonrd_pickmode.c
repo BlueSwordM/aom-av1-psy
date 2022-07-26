@@ -2673,10 +2673,6 @@ static AOM_INLINE int setup_compound_params_from_comp_idx(
   return 1;
 }
 
-static AOM_INLINE bool is_svc_base_layer(const AV1_COMP *cpi) {
-  return cpi->ppi->use_svc && cpi->svc.temporal_layer_id == 0;
-}
-
 void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                   MACROBLOCK *x, RD_STATS *rd_cost,
                                   BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx) {
@@ -2820,15 +2816,12 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                   x->color_sensitivity[0] != 2 && x->color_sensitivity[1] != 2);
 
   if (cpi->sf.rt_sf.use_comp_ref_nonrd && is_comp_ref_allowed(bsize)) {
-    if (!is_svc_base_layer(cpi)) {
-      // For non-svc or enhancement layer, only search compound if bsize \gt
-      // BLOCK_16X16.
-      if (bsize > BLOCK_16X16) {
-        comp_use_zero_zeromv_only =
-            cpi->sf.rt_sf.check_only_zero_zeromv_on_large_blocks;
-      } else {
-        tot_num_comp_modes = 0;
-      }
+    // Only search compound if bsize \gt BLOCK_16X16.
+    if (bsize > BLOCK_16X16) {
+      comp_use_zero_zeromv_only =
+          cpi->sf.rt_sf.check_only_zero_zeromv_on_large_blocks;
+    } else {
+      tot_num_comp_modes = 0;
     }
   } else {
     tot_num_comp_modes = 0;
