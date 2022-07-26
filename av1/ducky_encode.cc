@@ -519,7 +519,8 @@ EncodeFrameResult DuckyEncode::EncodeFrame(
 
   DuckyEncodeInfoSetEncodeFrameDecision(&cpi->ducky_encode_info, decision);
   const int status = av1_get_compressed_data(cpi, &cpi_data);
-  WriteObu(ppi, &cpi_data);
+
+  if (cpi->common.show_frame) WriteObu(ppi, &cpi_data);
   (void)status;
   assert(status == static_cast<int>(AOM_CODEC_OK));
   encode_frame_result.bitstream_buf.resize(cpi_data.frame_size);
