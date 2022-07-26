@@ -431,7 +431,7 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
 static void estimate_single_ref_frame_costs(const AV1_COMMON *cm,
                                             const MACROBLOCKD *xd,
                                             const ModeCosts *mode_costs,
-                                            int segment_id,
+                                            int segment_id, BLOCK_SIZE bsize,
                                             unsigned int *ref_costs_single) {
   int seg_ref_active =
       segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME);
@@ -442,6 +442,11 @@ static void estimate_single_ref_frame_costs(const AV1_COMMON *cm,
     ref_costs_single[INTRA_FRAME] =
         mode_costs->intra_inter_cost[intra_inter_ctx][0];
     unsigned int base_cost = mode_costs->intra_inter_cost[intra_inter_ctx][1];
+    if (cm->current_frame.reference_mode == REFERENCE_MODE_SELECT &&
+        is_comp_ref_allowed(bsize)) {
+      const int comp_ref_type_ctx = av1_get_comp_reference_type_context(xd);
+      base_cost += mode_costs->comp_ref_type_cost[comp_ref_type_ctx][1];
+    }
     ref_costs_single[LAST_FRAME] = base_cost;
     ref_costs_single[GOLDEN_FRAME] = base_cost;
     ref_costs_single[ALTREF_FRAME] = base_cost;
@@ -2756,7 +2761,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   const ModeCosts *mode_costs = &x->mode_costs;
 
-  estimate_single_ref_frame_costs(cm, xd, mode_costs, segment_id,
+  estimate_single_ref_frame_costs(cm, xd, mode_costs, segment_id, bsize,
                                   ref_costs_single);
 
   memset(&mode_checked[0][0], 0, MB_MODE_COUNT * REF_FRAMES);
