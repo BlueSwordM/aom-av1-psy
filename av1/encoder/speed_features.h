@@ -1580,9 +1580,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Set to zero to turn off this speed feature.
   int screen_content_cdef_filter_qindex_thresh;
 
-  // Prunes global_globalmv search if its variance is \gt the globalmv's
-  // variance.
-  bool prune_global_globalmv_with_zeromv;
+  // Prune compound mode if its variance is higher than the variance of single
+  // modes.
+  bool prune_compoundmode_with_singlecompound_var;
 
   // Allow mode cost update at frame level every couple frames. This
   // overrides the command line setting --mode-cost-upd-freq=3 (never update
@@ -1596,6 +1596,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Allow for disabling cdf update for non reference frames in svc mode.
   bool disable_cdf_update_non_reference_frame;
+
+  // Prune compound modes if the single modes variances do not perform well.
+  bool prune_compoundmode_with_singlemode_var;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */
