@@ -39,7 +39,8 @@ void Encoder::InitEncoder(VideoSource *video) {
   }
 }
 
-void Encoder::EncodeFrame(VideoSource *video, const unsigned long frame_flags) {
+void Encoder::EncodeFrame(VideoSource *video,
+                          const aom_enc_frame_flags_t frame_flags) {
   if (video->img())
     EncodeFrameInternal(*video, frame_flags);
   else
@@ -56,7 +57,7 @@ void Encoder::EncodeFrame(VideoSource *video, const unsigned long frame_flags) {
 }
 
 void Encoder::EncodeFrameInternal(const VideoSource &video,
-                                  const unsigned long frame_flags) {
+                                  const aom_enc_frame_flags_t frame_flags) {
   aom_codec_err_t res;
   const aom_image_t *img = video.img();
 

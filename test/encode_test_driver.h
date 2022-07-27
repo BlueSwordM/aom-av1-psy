@@ -99,7 +99,7 @@ class Encoder {
   }
   // This is a thin wrapper around aom_codec_encode(), so refer to
   // aom_encoder.h for its semantics.
-  void EncodeFrame(VideoSource *video, const unsigned long frame_flags);
+  void EncodeFrame(VideoSource *video, aom_enc_frame_flags_t frame_flags);
 
   // Convenience wrapper for EncodeFrame()
   void EncodeFrame(VideoSource *video) { EncodeFrame(video, 0); }
@@ -172,7 +172,7 @@ class Encoder {
 
   // Encode an image
   void EncodeFrameInternal(const VideoSource &video,
-                           const unsigned long frame_flags);
+                           aom_enc_frame_flags_t frame_flags);
 
   // Flush the encoder on EOS
   void Flush();
@@ -277,7 +277,7 @@ class EncoderTest {
   unsigned int passes_;
   TwopassStatsStore stats_;
   aom_codec_flags_t init_flags_;
-  unsigned long frame_flags_;
+  aom_enc_frame_flags_t frame_flags_;
   TestMode mode_;
 };
 
