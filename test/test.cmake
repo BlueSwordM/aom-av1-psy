@@ -102,6 +102,7 @@ list(APPEND AOM_DECODE_PERF_TEST_SOURCES "${AOM_ROOT}/test/decode_perf_test.cc")
 
 if(CONFIG_REALTIME_ONLY)
   list(REMOVE_ITEM AOM_UNIT_TEST_ENCODER_SOURCES
+                   "${AOM_ROOT}/test/allintra_end_to_end_test.cc"
                    "${AOM_ROOT}/test/av1_external_partition_test.cc"
                    "${AOM_ROOT}/test/borders_test.cc"
                    "${AOM_ROOT}/test/cpu_speed_test.cc"
