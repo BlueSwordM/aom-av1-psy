@@ -428,6 +428,25 @@ static int64_t scale_part_thresh_content(int64_t threshold_base, int speed,
   return threshold;
 }
 
+static AOM_INLINE void tune_thresh_based_on_qindex_window(
+    int qindex, int th, int64_t thresholds[]) {
+  const int win = 45;
+  double weight;
+
+  if (qindex < th - win)
+    weight = 1.0;
+  else if (qindex > th + win)
+    weight = 0.0;
+  else
+    weight = 1.0 - (qindex - th + win) / (2 * win);
+  thresholds[1] =
+      (int)((1 - weight) * (thresholds[1] << 1) + weight * thresholds[1]);
+  thresholds[2] =
+      (int)((1 - weight) * (thresholds[2] << 1) + weight * thresholds[2]);
+  thresholds[3] =
+      (int)((1 - weight) * (thresholds[3] << 2) + weight * thresholds[3]);
+}
+
 static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
                                           int q, int content_lowsumdiff,
                                           int source_sad_nonrd,
@@ -477,7 +496,7 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
     if (noise_level == kHigh)
       threshold_base = (5 * threshold_base) >> 1;
     else if (noise_level == kMedium &&
-             !cpi->sf.rt_sf.force_large_partition_blocks)
+             !cpi->sf.rt_sf.prefer_large_partition_blocks)
       threshold_base = (5 * threshold_base) >> 2;
   }
   // TODO(kyslov) Enable var based partition adjusment on temporal denoising
@@ -548,7 +567,8 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
   } else {
     thresholds[2] = (5 * threshold_base) >> 1;
   }
-  if (cpi->sf.rt_sf.force_large_partition_blocks) {
+  // Tune thresholds less or more aggressively to prefer larger partitions
+  if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 3) {
     double weight;
     const int win = 20;
     if (current_qindex < QINDEX_LARGE_BLOCK_THR - win)
@@ -597,6 +617,13 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
           (int)((1 - weight) * (thresholds[2] << 4) + weight * thresholds[2]);
       thresholds[3] = INT32_MAX;
     }
+  } else if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 2) {
+    tune_thresh_based_on_qindex_window(current_qindex, QINDEX_LARGE_BLOCK_THR,
+                                       thresholds);
+  } else if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 1) {
+    thresholds[3] <<= 2;
+    thresholds[1] <<= (source_sad_nonrd == kLowSad) ? 1 : 0;
+    thresholds[2] <<= (source_sad_nonrd == kLowSad) ? 1 : 0;
   }
   if (cpi->sf.part_sf.disable_8x8_part_based_on_qidx && (current_qindex < 128))
     thresholds[3] = INT64_MAX;
@@ -1379,7 +1406,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                    (((maxvar_16x16[m][i] - minvar_16x16[m][i]) >
                          (thresholds[2] >> 1) &&
                      maxvar_16x16[m][i] > thresholds[2]) ||
-                    (cpi->sf.rt_sf.force_large_partition_blocks &&
+                    (cpi->sf.rt_sf.prefer_large_partition_blocks &&
                      x->content_state_sb.source_sad_nonrd > kLowSad &&
                      cpi->rc.frame_source_sad < 20000 &&
                      maxvar_16x16[m][i] > (thresholds[2] >> 4) &&
@@ -1405,7 +1432,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
           (max_var_32x32[m] - min_var_32x32[m]) > 3 * (thresholds[1] >> 3) &&
           max_var_32x32[m] > thresholds[1] >> 1 &&
           (noise_level >= kMedium || cpi->ppi->use_svc ||
-           cpi->sf.rt_sf.force_large_partition_blocks)) {
+           cpi->sf.rt_sf.prefer_large_partition_blocks)) {
         force_split[1 + m] = PART_EVAL_ONLY_SPLIT;
         force_split[0] = PART_EVAL_ONLY_SPLIT;
       }

@@ -1456,8 +1456,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Check for scene/content change detection on every frame before encoding.
   int check_scene_detection;
 
-  // Forces larger partition blocks in variance based partitioning
-  int force_large_partition_blocks;
+  // For nonrd mode: Prefer larger partition blks in variance based partitioning
+  // 0: disabled, 1-2: increasing aggressiveness
+  int prefer_large_partition_blocks;
 
   // uses results of temporal noise estimate
   int use_temporal_noise_estimate;
