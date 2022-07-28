@@ -69,7 +69,7 @@ TplFrameDepStats CreateTplFrameDepStats(int frame_height, int frame_width,
 TplUnitDepStats TplBlockStatsToDepStats(const TplBlockStats &block_stats,
                                         int unit_count);
 
-TplFrameDepStats CreateTplFrameDepStatsWithoutPropagation(
+StatusOr<TplFrameDepStats> CreateTplFrameDepStatsWithoutPropagation(
     const TplFrameStats &frame_stats);
 
 std::vector<int> GetKeyFrameList(const FirstpassInfo &first_pass_info);
@@ -85,7 +85,7 @@ void TplFrameDepStatsPropagate(int coding_idx,
 
 int GetBlockOverlapArea(int r0, int c0, int r1, int c1, int size);
 
-TplGopDepStats ComputeTplGopDepStats(
+StatusOr<TplGopDepStats> ComputeTplGopDepStats(
     const TplGopStats &tpl_gop_stats,
     const std::vector<RefFrameTable> &ref_frame_table_list);
 

@@ -85,6 +85,7 @@ enum class ReferenceName {
 struct Status {
   aom_codec_err_t code;
   std::string message;  // Empty if code == AOM_CODEC_OK.
+  bool ok() const { return code == AOM_CODEC_OK; }
 };
 
 // A very simple imitation of absl::StatusOr, this is conceptually a union of a
@@ -99,11 +100,38 @@ class StatusOr {
   StatusOr(Status status) : status_(std::move(status)) {
     assert(status_.code != AOM_CODEC_OK);
   }
-  const T &value() const & { return value_; }
-  T &value() & { return value_; }
-  const T &&value() const && { return value_; }
-  T &&value() && { return std::move(value_); }
+
   const Status &status() const { return status_; }
+  bool ok() const { return status().ok(); }
+
+  // operator* returns the value; it should only be called after checking that
+  // ok() returns true.
+  const T &operator*() const & { return value_; }
+  T &operator*() & { return value_; }
+  const T &&operator*() const && { return value_; }
+  T &&operator*() && { return std::move(value_); }
+
+  // sor->field is equivalent to (*sor).field.
+  const T *operator->() const & { return &value_; }
+  T *operator->() & { return &value_; }
+
+  // value() is equivalent to operator*, but asserts that ok() is true.
+  const T &value() const & {
+    assert(ok());
+    return value_;
+  }
+  T &value() & {
+    assert(ok());
+    return value_;
+  }
+  const T &&value() const && {
+    assert(ok());
+    return value_;
+  }
+  T &&value() && {
+    assert(ok());
+    return std::move(value_);
+  }
 
  private:
   T value_;  // This could be std::optional<T> if it were available.

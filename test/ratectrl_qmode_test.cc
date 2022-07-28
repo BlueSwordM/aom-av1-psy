@@ -29,7 +29,15 @@
 
 namespace {
 
+using ::testing::HasSubstr;
+
 constexpr int kRefFrameTableSize = 7;
+
+MATCHER(IsOkStatus, "") {
+  *result_listener << "with code " << arg.code
+                   << " and message: " << arg.message;
+  return arg.ok();
+}
 
 // Reads a whitespace-delimited string from stream, and parses it as a double.
 // Returns an empty string if the entire string was successfully parsed as a
@@ -431,19 +439,36 @@ double TplFrameStatsAccumulateIntraCost(const TplFrameStats &frame_stats) {
 
 TEST(RateControlQModeTest, CreateTplFrameDepStats) {
   TplFrameStats frame_stats = CreateToyTplFrameStatsWithDiffSizes(8, 16);
-  TplFrameDepStats frame_dep_stats =
+  StatusOr<TplFrameDepStats> frame_dep_stats =
       CreateTplFrameDepStatsWithoutPropagation(frame_stats);
-  EXPECT_EQ(frame_stats.min_block_size, frame_dep_stats.unit_size);
-  const int unit_rows = static_cast<int>(frame_dep_stats.unit_stats.size());
-  const int unit_cols = static_cast<int>(frame_dep_stats.unit_stats[0].size());
-  EXPECT_EQ(frame_stats.frame_height, unit_rows * frame_dep_stats.unit_size);
-  EXPECT_EQ(frame_stats.frame_width, unit_cols * frame_dep_stats.unit_size);
+  ASSERT_THAT(frame_dep_stats.status(), IsOkStatus());
+  EXPECT_EQ(frame_stats.min_block_size, frame_dep_stats->unit_size);
+  const int unit_rows = static_cast<int>(frame_dep_stats->unit_stats.size());
+  const int unit_cols = static_cast<int>(frame_dep_stats->unit_stats[0].size());
+  EXPECT_EQ(frame_stats.frame_height, unit_rows * frame_dep_stats->unit_size);
+  EXPECT_EQ(frame_stats.frame_width, unit_cols * frame_dep_stats->unit_size);
   const double intra_cost_sum =
-      TplFrameDepStatsAccumulateIntraCost(frame_dep_stats);
+      TplFrameDepStatsAccumulateIntraCost(*frame_dep_stats);
 
   const double expected_intra_cost_sum =
       TplFrameStatsAccumulateIntraCost(frame_stats);
   EXPECT_NEAR(intra_cost_sum, expected_intra_cost_sum, kErrorEpsilon);
+}
+
+TEST(RateControlQModeTest, BlockRowNotAMultipleOfMinBlockSizeError) {
+  TplFrameStats frame_stats = CreateToyTplFrameStatsWithDiffSizes(8, 16);
+  frame_stats.block_stats_list.back().row = 1;
+  auto result = CreateTplFrameDepStatsWithoutPropagation(frame_stats);
+  EXPECT_FALSE(result.ok());
+  EXPECT_THAT(result.status().message, HasSubstr("must be a multiple of 8"));
+}
+
+TEST(RateControlQModeTest, BlockPositionOutOfRangeError) {
+  TplFrameStats frame_stats = CreateToyTplFrameStatsWithDiffSizes(8, 16);
+  frame_stats.block_stats_list.back().row += 8;
+  auto result = CreateTplFrameDepStatsWithoutPropagation(frame_stats);
+  EXPECT_FALSE(result.ok());
+  EXPECT_THAT(result.status().message, HasSubstr("out of range"));
 }
 
 TEST(RateControlQModeTest, GetBlockOverlapArea) {
@@ -490,9 +515,10 @@ TEST(RateControlQModeTest, TplFrameDepStatsPropagateSingleZeroMotion) {
   gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats0);
 
   // cur frame with coding_idx 1
-  const TplFrameDepStats frame_dep_stats1 =
+  const StatusOr<TplFrameDepStats> frame_dep_stats1 =
       CreateTplFrameDepStatsWithoutPropagation(frame_stats);
-  gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats1);
+  ASSERT_THAT(frame_dep_stats1.status(), IsOkStatus());
+  gop_dep_stats.frame_dep_stats_list.push_back(std::move(*frame_dep_stats1));
 
   const RefFrameTable ref_frame_table = CreateToyRefFrameTable(frame_count);
   TplFrameDepStatsPropagate(/*coding_idx=*/1, ref_frame_table, &gop_dep_stats);
@@ -532,9 +558,10 @@ TEST(RateControlQModeTest, TplFrameDepStatsPropagateCompoundZeroMotion) {
   gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats1);
 
   // cur frame with coding_idx 2
-  const TplFrameDepStats frame_dep_stats2 =
+  const StatusOr<TplFrameDepStats> frame_dep_stats2 =
       CreateTplFrameDepStatsWithoutPropagation(frame_stats);
-  gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats2);
+  ASSERT_THAT(frame_dep_stats2.status(), IsOkStatus());
+  gop_dep_stats.frame_dep_stats_list.push_back(std::move(*frame_dep_stats2));
 
   const RefFrameTable ref_frame_table = CreateToyRefFrameTable(frame_count);
   TplFrameDepStatsPropagate(/*coding_idx=*/2, ref_frame_table, &gop_dep_stats);
@@ -578,8 +605,10 @@ TEST(RateControlQModeTest, TplFrameDepStatsPropagateSingleWithMotion) {
                              frame_stats.min_block_size));
 
   // cur frame with coding_idx 1
-  gop_dep_stats.frame_dep_stats_list.push_back(
-      CreateTplFrameDepStatsWithoutPropagation(frame_stats));
+  const StatusOr<TplFrameDepStats> frame_dep_stats =
+      CreateTplFrameDepStatsWithoutPropagation(frame_stats);
+  ASSERT_THAT(frame_dep_stats.status(), IsOkStatus());
+  gop_dep_stats.frame_dep_stats_list.push_back(std::move(*frame_dep_stats));
 
   const RefFrameTable ref_frame_table = CreateToyRefFrameTable(frame_count);
   TplFrameDepStatsPropagate(/*coding_idx=*/1, ref_frame_table, &gop_dep_stats);
@@ -627,8 +656,9 @@ TEST(RateControlQModeTest, ComputeTplGopDepStats) {
 
     ref_frame_table_list.push_back(CreateToyRefFrameTable(i));
   }
-  const TplGopDepStats &gop_dep_stats =
+  const StatusOr<TplGopDepStats> gop_dep_stats =
       ComputeTplGopDepStats(tpl_gop_stats, ref_frame_table_list);
+  ASSERT_THAT(gop_dep_stats.status(), IsOkStatus());
 
   double expected_sum = 0;
   for (int i = 2; i >= 0; i--) {
@@ -637,7 +667,7 @@ TEST(RateControlQModeTest, ComputeTplGopDepStats) {
     expected_sum +=
         TplFrameStatsAccumulateIntraCost(tpl_gop_stats.frame_stats_list[i]);
     const double sum =
-        TplFrameDepStatsAccumulate(gop_dep_stats.frame_dep_stats_list[i]);
+        TplFrameDepStatsAccumulate(gop_dep_stats->frame_dep_stats_list[i]);
     EXPECT_NEAR(sum, expected_sum, kErrorEpsilon);
     break;
   }
@@ -909,12 +939,6 @@ GopFrame GopFrameUpdateRefIdx(int index, GopFrameType gop_frame_type,
   return frame;
 }
 
-MATCHER(IsOkStatus, "") {
-  *result_listener << "with code " << arg.code
-                   << " and message: " << arg.message;
-  return arg.code == AOM_CODEC_OK;
-}
-
 TEST(RateControlQModeTest, TestSetRcParamErrorChecking) {
   // Default constructed RateControlParam should not be valid.
   RateControlParam rc_param = {};
@@ -1005,7 +1029,7 @@ TEST(RateControlQModeTest, TestGopIntervals) {
   const auto gop_info = rc.DetermineGopInfo(firstpass_info);
   ASSERT_THAT(gop_info.status(), IsOkStatus());
   std::vector<int> gop_interval_list;
-  std::transform(gop_info.value().begin(), gop_info.value().end(),
+  std::transform(gop_info->begin(), gop_info->end(),
                  std::back_inserter(gop_interval_list),
                  [](GopStruct const &x) { return x.show_frame_count; });
   EXPECT_THAT(gop_interval_list,
@@ -1028,7 +1052,7 @@ TEST(RateControlQModeTest, TestGetGopEncodeInfo) {
   ASSERT_THAT(rc.SetRcParam(rc_param), IsOkStatus());
   const auto gop_info = rc.DetermineGopInfo(firstpass_info);
   ASSERT_THAT(gop_info.status(), IsOkStatus());
-  const GopStructList &gop_list = gop_info.value();
+  const GopStructList &gop_list = *gop_info;
   // Read TPL stats
   std::vector<TplGopStats> tpl_gop_list;
   ASSERT_NO_FATAL_FAILURE(ReadTplInfo("tpl_stats", gop_list, &tpl_gop_list));
@@ -1044,10 +1068,10 @@ TEST(RateControlQModeTest, TestGetGopEncodeInfo) {
     const auto gop_encode_info = rc.GetGopEncodeInfo(
         gop_list[gop_idx], tpl_gop_list[tpl_gop_idx], ref_frame_table);
     ASSERT_THAT(gop_encode_info.status(), IsOkStatus());
-    for (auto &frame_param : gop_encode_info.value().param_list) {
+    for (auto &frame_param : gop_encode_info->param_list) {
       std::cout << frame_param.q_index << std::endl;
     }
-    ref_frame_table = gop_encode_info.value().final_snapshot;
+    ref_frame_table = gop_encode_info->final_snapshot;
   }
 }
 

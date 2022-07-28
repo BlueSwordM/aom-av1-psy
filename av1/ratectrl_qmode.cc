@@ -903,10 +903,40 @@ TplUnitDepStats TplBlockStatsToDepStats(const TplBlockStats &block_stats,
   return dep_stats;
 }
 
-TplFrameDepStats CreateTplFrameDepStatsWithoutPropagation(
+namespace {
+Status ValidateBlockStats(const TplFrameStats &frame_stats,
+                          const TplBlockStats &block_stats,
+                          int min_block_size) {
+  if (block_stats.col >= frame_stats.frame_width ||
+      block_stats.row >= frame_stats.frame_height) {
+    std::ostringstream error_message;
+    error_message << "Block position (" << block_stats.col << ", "
+                  << block_stats.row
+                  << ") is out of range; frame dimensions are "
+                  << frame_stats.frame_width << " x "
+                  << frame_stats.frame_height;
+    return { AOM_CODEC_INVALID_PARAM, error_message.str() };
+  }
+  if (block_stats.col % min_block_size != 0 ||
+      block_stats.row % min_block_size != 0 ||
+      block_stats.width % min_block_size != 0 ||
+      block_stats.height % min_block_size != 0) {
+    std::ostringstream error_message;
+    error_message
+        << "Invalid block position or dimension, must be a multiple of "
+        << min_block_size << "; col = " << block_stats.col
+        << ", row = " << block_stats.row << ", width = " << block_stats.width
+        << ", height = " << block_stats.height;
+    return { AOM_CODEC_INVALID_PARAM, error_message.str() };
+  }
+  return { AOM_CODEC_OK, "" };
+}
+}  // namespace
+
+StatusOr<TplFrameDepStats> CreateTplFrameDepStatsWithoutPropagation(
     const TplFrameStats &frame_stats) {
   if (frame_stats.block_stats_list.empty()) {
-    return {};
+    return TplFrameDepStats();
   }
   const int min_block_size = frame_stats.min_block_size;
   const int unit_rows =
@@ -916,6 +946,11 @@ TplFrameDepStats CreateTplFrameDepStatsWithoutPropagation(
   TplFrameDepStats frame_dep_stats = CreateTplFrameDepStats(
       frame_stats.frame_height, frame_stats.frame_width, min_block_size);
   for (const TplBlockStats &block_stats : frame_stats.block_stats_list) {
+    Status status =
+        ValidateBlockStats(frame_stats, block_stats, min_block_size);
+    if (!status.ok()) {
+      return status;
+    }
     const int block_unit_row = block_stats.row / min_block_size;
     const int block_unit_col = block_stats.col / min_block_size;
     // The block must start within the frame boundaries, but it may extend past
@@ -1101,7 +1136,7 @@ std::vector<RefFrameTable> AV1RateControlQMode::GetRefFrameTableList(
   return ref_frame_table_list;
 }
 
-TplGopDepStats ComputeTplGopDepStats(
+StatusOr<TplGopDepStats> ComputeTplGopDepStats(
     const TplGopStats &tpl_gop_stats,
     const std::vector<RefFrameTable> &ref_frame_table_list) {
   const int frame_count =
@@ -1109,10 +1144,16 @@ TplGopDepStats ComputeTplGopDepStats(
   // Create the struct to store TPL dependency stats
   TplGopDepStats tpl_gop_dep_stats;
 
+  tpl_gop_dep_stats.frame_dep_stats_list.reserve(frame_count);
   for (int coding_idx = 0; coding_idx < frame_count; coding_idx++) {
-    tpl_gop_dep_stats.frame_dep_stats_list.push_back(
+    const StatusOr<TplFrameDepStats> tpl_frame_dep_stats =
         CreateTplFrameDepStatsWithoutPropagation(
-            tpl_gop_stats.frame_stats_list[coding_idx]));
+            tpl_gop_stats.frame_stats_list[coding_idx]);
+    if (!tpl_frame_dep_stats.ok()) {
+      return tpl_frame_dep_stats.status();
+    }
+    tpl_gop_dep_stats.frame_dep_stats_list.push_back(
+        std::move(*tpl_frame_dep_stats));
   }
 
   // Back propagation
@@ -1149,8 +1190,11 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
 
   GopEncodeInfo gop_encode_info;
   gop_encode_info.final_snapshot = ref_frame_table_list.back();
-  TplGopDepStats gop_dep_stats =
+  StatusOr<TplGopDepStats> gop_dep_stats =
       ComputeTplGopDepStats(tpl_gop_stats, ref_frame_table_list);
+  if (!gop_dep_stats.ok()) {
+    return gop_dep_stats.status();
+  }
   const int frame_count =
       static_cast<int>(tpl_gop_stats.frame_stats_list.size());
   for (int i = 0; i < frame_count; i++) {
@@ -1162,7 +1206,7 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
       param.q_index = rc_param_.base_q_index;
     } else {
       const TplFrameDepStats &frame_dep_stats =
-          gop_dep_stats.frame_dep_stats_list[i];
+          gop_dep_stats->frame_dep_stats_list[i];
       const double cost_without_propagation =
           TplFrameDepStatsAccumulateIntraCost(frame_dep_stats);
       const double cost_with_propagation =
