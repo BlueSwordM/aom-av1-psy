@@ -57,6 +57,12 @@ GopStruct ConstructGop(RefFrameManager *ref_frame_manager, int show_frame_count,
                        bool has_key_frame, int global_coding_idx_offset,
                        int global_order_idx_offset);
 
+// Creates a TplFrameDepStats containing an 2D array of default-initialized
+// TplUnitDepStats, with dimensions of
+//   ceil(frame_height / min_block_size) x ceil(frame_width / min_block_size).
+// i.e., there will be one entry for each square block of size min_block_size,
+// and blocks along the bottom or right edge of the frame may extend beyond the
+// edges of the frame.
 TplFrameDepStats CreateTplFrameDepStats(int frame_height, int frame_width,
                                         int min_block_size);
 

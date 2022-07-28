@@ -878,14 +878,14 @@ StatusOr<GopStructList> AV1RateControlQMode::DetermineGopInfo(
 
 TplFrameDepStats CreateTplFrameDepStats(int frame_height, int frame_width,
                                         int min_block_size) {
-  const int unit_rows =
-      frame_height / min_block_size + !!(frame_height % min_block_size);
-  const int unit_cols =
-      frame_width / min_block_size + !!(frame_width % min_block_size);
+  const int unit_rows = (frame_height + min_block_size - 1) / min_block_size;
+  const int unit_cols = (frame_width + min_block_size - 1) / min_block_size;
   TplFrameDepStats frame_dep_stats;
   frame_dep_stats.unit_size = min_block_size;
-  frame_dep_stats.unit_stats = std::vector<std::vector<TplUnitDepStats>>(
-      unit_rows, std::vector<TplUnitDepStats>(unit_cols));
+  frame_dep_stats.unit_stats.resize(unit_rows);
+  for (auto &row : frame_dep_stats.unit_stats) {
+    row.resize(unit_cols);
+  }
   return frame_dep_stats;
 }
 
@@ -909,14 +909,23 @@ TplFrameDepStats CreateTplFrameDepStatsWithoutPropagation(
     return {};
   }
   const int min_block_size = frame_stats.min_block_size;
+  const int unit_rows =
+      (frame_stats.frame_height + min_block_size - 1) / min_block_size;
+  const int unit_cols =
+      (frame_stats.frame_width + min_block_size - 1) / min_block_size;
   TplFrameDepStats frame_dep_stats = CreateTplFrameDepStats(
       frame_stats.frame_height, frame_stats.frame_width, min_block_size);
   for (const TplBlockStats &block_stats : frame_stats.block_stats_list) {
-    const int block_unit_rows = block_stats.height / min_block_size;
-    const int block_unit_cols = block_stats.width / min_block_size;
-    const int unit_count = block_unit_rows * block_unit_cols;
     const int block_unit_row = block_stats.row / min_block_size;
     const int block_unit_col = block_stats.col / min_block_size;
+    // The block must start within the frame boundaries, but it may extend past
+    // the right edge or bottom of the frame. Find the number of unit rows and
+    // columns in the block which are fully within the frame.
+    const int block_unit_rows = std::min(block_stats.height / min_block_size,
+                                         unit_rows - block_unit_row);
+    const int block_unit_cols = std::min(block_stats.width / min_block_size,
+                                         unit_cols - block_unit_col);
+    const int unit_count = block_unit_rows * block_unit_cols;
     TplUnitDepStats unit_stats =
         TplBlockStatsToDepStats(block_stats, unit_count);
     for (int r = 0; r < block_unit_rows; r++) {
