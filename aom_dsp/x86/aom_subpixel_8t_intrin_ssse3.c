@@ -108,7 +108,7 @@ static void aom_filter_block1d4_h4_ssse3(
 
     src_ptr += src_pixels_per_line;
 
-    *((int *)(output_ptr)) = _mm_cvtsi128_si32(srcRegFilt32b1_1);
+    *((uint32_t *)(output_ptr)) = _mm_cvtsi128_si32(srcRegFilt32b1_1);
     output_ptr += output_pitch;
   }
 }
@@ -185,8 +185,8 @@ static void aom_filter_block1d4_v4_ssse3(
 
     src_ptr += src_stride;
 
-    *((int *)(output_ptr)) = _mm_cvtsi128_si32(resReglo);
-    *((int *)(output_ptr + out_pitch)) = _mm_cvtsi128_si32(resReghi);
+    *((uint32_t *)(output_ptr)) = _mm_cvtsi128_si32(resReglo);
+    *((uint32_t *)(output_ptr + out_pitch)) = _mm_cvtsi128_si32(resReghi);
 
     output_ptr += dst_stride;
 
