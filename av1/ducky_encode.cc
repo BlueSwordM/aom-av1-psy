@@ -387,8 +387,9 @@ TplGopStats DuckyEncode::ObtainTplStats(const GopStruct gop_struct) {
     tpl_frame_stats.frame_width = mi_cols * MI_SIZE;
     tpl_frame_stats.min_block_size = (1 << block_mis_log2) * MI_SIZE;
 
-    for (int mi_row = 0; mi_row < mi_rows; ++mi_row) {
-      for (int mi_col = 0; mi_col < mi_cols; ++mi_col) {
+    const int mi_step = 1 << block_mis_log2;
+    for (int mi_row = 0; mi_row < mi_rows; mi_row += mi_step) {
+      for (int mi_col = 0; mi_col < mi_cols; mi_col += mi_step) {
         int tpl_blk_pos = (mi_row >> block_mis_log2) * tpl_frame_stride +
                           (mi_col >> block_mis_log2);
         TplDepStats *tpl_stats_ptr = &tpl_frame->tpl_stats_ptr[tpl_blk_pos];
