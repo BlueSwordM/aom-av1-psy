@@ -203,22 +203,6 @@ void av1_initialize_enc(unsigned int usage, enum aom_rc_mode end_usage) {
   if (!is_allintra || end_usage != AOM_Q) av1_rc_init_minq_luts();
 }
 
-static void update_reference_segmentation_map(AV1_COMP *cpi) {
-  AV1_COMMON *const cm = &cpi->common;
-  const CommonModeInfoParams *const mi_params = &cm->mi_params;
-  MB_MODE_INFO **mi_4x4_ptr = mi_params->mi_grid_base;
-  uint8_t *cache_ptr = cm->cur_frame->seg_map;
-
-  for (int row = 0; row < mi_params->mi_rows; row++) {
-    MB_MODE_INFO **mi_4x4 = mi_4x4_ptr;
-    uint8_t *cache = cache_ptr;
-    for (int col = 0; col < mi_params->mi_cols; col++, mi_4x4++, cache++)
-      cache[0] = mi_4x4[0]->segment_id;
-    mi_4x4_ptr += mi_params->mi_stride;
-    cache_ptr += mi_params->mi_cols;
-  }
-}
-
 void av1_new_framerate(AV1_COMP *cpi, double framerate) {
   cpi->framerate = framerate < 0.1 ? 30 : framerate;
   av1_rc_update_framerate(cpi, cpi->common.width, cpi->common.height);
@@ -3668,9 +3652,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #endif  // DUMP_RECON_FRAMES
 
   if (cm->seg.enabled) {
-    if (cm->seg.update_map) {
-      update_reference_segmentation_map(cpi);
-    } else if (cm->last_frame_seg_map) {
+    if (cm->seg.update_map == 0 && cm->last_frame_seg_map) {
       memcpy(cm->cur_frame->seg_map, cm->last_frame_seg_map,
              cm->cur_frame->mi_cols * cm->cur_frame->mi_rows *
                  sizeof(*cm->cur_frame->seg_map));
