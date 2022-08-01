@@ -822,9 +822,11 @@ static void model_rd_for_sb_y(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   rd_stats->dist = dist;
 }
 
-static INLINE void aom_process_hadamard_8x16(MACROBLOCK *x, int max_blocks_high,
-                                             int max_blocks_wide, int num_4x4_w,
-                                             int step, int block_step) {
+static INLINE void aom_process_hadamard_lp_8x16(MACROBLOCK *x,
+                                                int max_blocks_high,
+                                                int max_blocks_wide,
+                                                int num_4x4_w, int step,
+                                                int block_step) {
   struct macroblock_plane *const p = &x->plane[0];
   const int bw = 4 * num_4x4_w;
   const int num_4x4 = AOMMIN(num_4x4_w, max_blocks_wide);
@@ -834,7 +836,7 @@ static INLINE void aom_process_hadamard_8x16(MACROBLOCK *x, int max_blocks_high,
     for (int c = 0; c < num_4x4; c += 2 * block_step) {
       const int16_t *src_diff = &p->src_diff[(r * bw + c) << 2];
       int16_t *low_coeff = (int16_t *)p->coeff + BLOCK_OFFSET(block);
-      aom_hadamard_8x8_dual(src_diff, (ptrdiff_t)bw, low_coeff);
+      aom_hadamard_lp_8x8_dual(src_diff, (ptrdiff_t)bw, low_coeff);
       block += 2 * step;
     }
   }
@@ -1016,8 +1018,8 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
         (tx_size == TX_8X8 && block_size_wide[bsize] >= 16 &&
          block_size_high[bsize] >= 8);
     if (is_tx_8x8_dual_applicable) {
-      aom_process_hadamard_8x16(x, max_blocks_high, max_blocks_wide, num_4x4_w,
-                                step, block_step);
+      aom_process_hadamard_lp_8x16(x, max_blocks_high, max_blocks_wide,
+                                   num_4x4_w, step, block_step);
     }
 
     // Keep track of the row and column of the blocks we use so that we know

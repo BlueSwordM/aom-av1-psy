@@ -92,8 +92,8 @@ static void hadamard_col8x2_avx2(__m256i *in, int iter) {
   }
 }
 
-void aom_hadamard_8x8_dual_avx2(const int16_t *src_diff, ptrdiff_t src_stride,
-                                int16_t *coeff) {
+void aom_hadamard_lp_8x8_dual_avx2(const int16_t *src_diff,
+                                   ptrdiff_t src_stride, int16_t *coeff) {
   __m256i src[8];
   src[0] = _mm256_loadu_si256((const __m256i *)src_diff);
   src[1] = _mm256_loadu_si256((const __m256i *)(src_diff += src_stride));
@@ -141,7 +141,8 @@ static INLINE void hadamard_16x16_avx2(const int16_t *src_diff,
   int idx;
   for (idx = 0; idx < 2; ++idx) {
     const int16_t *src_ptr = src_diff + idx * 8 * src_stride;
-    aom_hadamard_8x8_dual_avx2(src_ptr, src_stride, t_coeff + (idx * 64 * 2));
+    aom_hadamard_lp_8x8_dual_avx2(src_ptr, src_stride,
+                                  t_coeff + (idx * 64 * 2));
   }
 
   for (idx = 0; idx < 64; idx += 16) {
@@ -186,7 +187,8 @@ void aom_hadamard_lp_16x16_avx2(const int16_t *src_diff, ptrdiff_t src_stride,
   int16_t *t_coeff = coeff;
   for (int idx = 0; idx < 2; ++idx) {
     const int16_t *src_ptr = src_diff + idx * 8 * src_stride;
-    aom_hadamard_8x8_dual_avx2(src_ptr, src_stride, t_coeff + (idx * 64 * 2));
+    aom_hadamard_lp_8x8_dual_avx2(src_ptr, src_stride,
+                                  t_coeff + (idx * 64 * 2));
   }
 
   for (int idx = 0; idx < 64; idx += 16) {

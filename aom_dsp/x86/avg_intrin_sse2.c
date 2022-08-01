@@ -411,8 +411,8 @@ void aom_hadamard_lp_8x8_sse2(const int16_t *src_diff, ptrdiff_t src_stride,
   hadamard_lp_8x8_sse2(src_diff, src_stride, coeff);
 }
 
-void aom_hadamard_8x8_dual_sse2(const int16_t *src_diff, ptrdiff_t src_stride,
-                                int16_t *coeff) {
+void aom_hadamard_lp_8x8_dual_sse2(const int16_t *src_diff,
+                                   ptrdiff_t src_stride, int16_t *coeff) {
   for (int i = 0; i < 2; i++) {
     hadamard_lp_8x8_sse2(src_diff + (i * 8), src_stride, coeff + (i * 64));
   }
