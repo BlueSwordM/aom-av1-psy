@@ -1219,25 +1219,20 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
   const int buf_cols = buf->mi_cols;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
 
-  if (buf->seg_map == NULL || buf_rows != mi_params->mi_rows ||
+  if (buf->mvs == NULL || buf_rows != mi_params->mi_rows ||
       buf_cols != mi_params->mi_cols) {
+    aom_free(buf->mvs);
     buf->mi_rows = mi_params->mi_rows;
     buf->mi_cols = mi_params->mi_cols;
+    CHECK_MEM_ERROR(cm, buf->mvs,
+                    (MV_REF *)aom_calloc(((mi_params->mi_rows + 1) >> 1) *
+                                             ((mi_params->mi_cols + 1) >> 1),
+                                         sizeof(*buf->mvs)));
     aom_free(buf->seg_map);
     CHECK_MEM_ERROR(
         cm, buf->seg_map,
         (uint8_t *)aom_calloc(mi_params->mi_rows * mi_params->mi_cols,
                               sizeof(*buf->seg_map)));
-  }
-  if (buf->mvs == NULL || buf_rows != mi_params->mi_rows ||
-      buf_cols != mi_params->mi_cols) {
-    if (cm->seq_params->order_hint_info.enable_ref_frame_mvs) {
-      aom_free(buf->mvs);
-      CHECK_MEM_ERROR(cm, buf->mvs,
-                      (MV_REF *)aom_calloc(((mi_params->mi_rows + 1) >> 1) *
-                                               ((mi_params->mi_cols + 1) >> 1),
-                                           sizeof(*buf->mvs)));
-    }
   }
 
   const int mem_size =
