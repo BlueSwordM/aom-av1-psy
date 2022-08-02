@@ -125,7 +125,7 @@ static void DestroyStatsBufferCtx(STATS_BUFFER_CTX **stats_buf_context,
 
 static FIRSTPASS_STATS ComputeTotalStats(
     const std::vector<FIRSTPASS_STATS> &stats_list) {
-  FIRSTPASS_STATS total_stats;
+  FIRSTPASS_STATS total_stats = {};
   for (size_t i = 0; i < stats_list.size(); ++i) {
     av1_accumulate_stats(&total_stats, &stats_list[i]);
   }
