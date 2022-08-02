@@ -179,6 +179,7 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/masked_sad_test.cc"
               "${AOM_ROOT}/test/masked_variance_test.cc"
               "${AOM_ROOT}/test/motion_vector_test.cc"
+              "${AOM_ROOT}/test/mv_cost_test.cc"
               "${AOM_ROOT}/test/noise_model_test.cc"
               "${AOM_ROOT}/test/obmc_sad_test.cc"
               "${AOM_ROOT}/test/obmc_variance_test.cc"
