@@ -2543,6 +2543,20 @@ static void compute_intra_yprediction(const AV1_COMMON *cm,
   pd->dst.buf = dst_buf_base;
 }
 
+static bool should_prune_intra_modes_using_neighbors(
+    const MACROBLOCKD *xd, bool enable_intra_mode_pruning_using_neighbors,
+    PREDICTION_MODE this_mode, PREDICTION_MODE above_mode,
+    PREDICTION_MODE left_mode) {
+  if (!enable_intra_mode_pruning_using_neighbors) return false;
+
+  if (this_mode == DC_PRED) return false;
+
+  // Enable the pruning for current mode only if it is not the winner mode of
+  // both the neighboring blocks (left/top).
+  return xd->up_available && this_mode != above_mode && xd->left_available &&
+         this_mode != left_mode;
+}
+
 void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
                                BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx) {
   AV1_COMMON *const cm = &cpi->common;
@@ -2562,6 +2576,7 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
   const PREDICTION_MODE L = av1_left_block_mode(left_mi);
   const int above_ctx = intra_mode_context[A];
   const int left_ctx = intra_mode_context[L];
+  const unsigned int source_variance = x->source_variance;
   bmode_costs = x->mode_costs.y_mode_costs[above_ctx][left_ctx];
 
   av1_invalid_rd_stats(&best_rdc);
@@ -2584,6 +2599,20 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
     if (cpi->sf.rt_sf.prune_h_pred_using_best_mode_so_far &&
         this_mode == H_PRED && best_mode == V_PRED)
       continue;
+
+    if (should_prune_intra_modes_using_neighbors(
+            xd, cpi->sf.rt_sf.enable_intra_mode_pruning_using_neighbors,
+            this_mode, A, L)) {
+      // Prune V_PRED and H_PRED if source variance of the block is less than
+      // or equal to 50. The source variance threshold is obtained empirically.
+      if ((this_mode == V_PRED || this_mode == H_PRED) && source_variance <= 50)
+        continue;
+
+      // As per the statistics, probability of SMOOTH_PRED being the winner
+      // is less when best mode so far is DC_PRED (out of DC_PRED, V_PRED and
+      // H_PRED). Hence, SMOOTH_PRED mode is not evaluated.
+      if (best_mode == DC_PRED && this_mode == SMOOTH_PRED) continue;
+    }
 
     this_rdc.dist = this_rdc.rate = 0;
     args.mode = this_mode;
