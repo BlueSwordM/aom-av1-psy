@@ -22,6 +22,11 @@
       (defined(__clang__) && defined(__arm__) &&                        \
        (__clang_major__ <= 6 ||                                         \
         (defined(__ANDROID__) && __clang_major__ <= 7)))))
+static INLINE uint8x16x2_t vld1q_u8_x2(uint8_t const *ptr) {
+  uint8x16x2_t res = { { vld1q_u8(ptr + 0 * 16), vld1q_u8(ptr + 1 * 16) } };
+  return res;
+}
+
 static INLINE uint16x8x4_t vld1q_u16_x4(uint16_t const *ptr) {
   uint16x8x4_t res = { { vld1q_u16(ptr + 0 * 8), vld1q_u16(ptr + 1 * 8),
                          vld1q_u16(ptr + 2 * 8), vld1q_u16(ptr + 3 * 8) } };
