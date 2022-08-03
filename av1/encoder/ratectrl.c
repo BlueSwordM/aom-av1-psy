@@ -2651,6 +2651,11 @@ void av1_set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
     // Moving index for gld_ref, lag behind current by gld_interval frames.
     if (cm->current_frame.frame_number > lag_gld)
       gld_idx = ((cm->current_frame.frame_number - lag_gld) % sh);
+    // When golden is not long-term reference with fixed slot update but
+    // a reference with a moving slot with fixed lag behind last
+    // (i.e., gld_fixed_slot = 0), we should disable the
+    // gf_refresh_based_on_qp feature.
+    cpi->sf.rt_sf.gf_refresh_based_on_qp = 0;
   }
   // Moving index for alt_ref, lag behind LAST by lag_alt frames.
   if (cm->current_frame.frame_number > lag_alt)
