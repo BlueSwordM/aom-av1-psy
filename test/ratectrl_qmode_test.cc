@@ -1036,7 +1036,11 @@ TEST(RateControlQModeTest, TestGopIntervals) {
               ElementsAre(21, 9, 30, 30, 16, 14, 21, 9, 30, 12, 16, 2, 30, 10));
 }
 
-TEST(RateControlQModeTest, TestGetGopEncodeInfo) {
+// TODO(b/240623286): Reenable after regenerating data files which are
+// consistent with each other. With the existing files, the GOP structure
+// resulting from the first pass stats doesn't match the TPL stats, resulting
+// in an error from ValidateTplStats.
+TEST(RateControlQModeTest, DISABLED_TestGetGopEncodeInfo) {
   FirstpassInfo firstpass_info;
   ASSERT_NO_FATAL_FAILURE(
       ReadFirstpassInfo("firstpass_stats", &firstpass_info));
@@ -1073,6 +1077,43 @@ TEST(RateControlQModeTest, TestGetGopEncodeInfo) {
     }
     ref_frame_table = gop_encode_info->final_snapshot;
   }
+}
+
+TEST(RateControlQModeTest, GetGopEncodeInfoWrongGopSize) {
+  GopStruct gop_struct;
+  gop_struct.gop_frame_list.assign(7, GopFrameInvalid());
+  TplGopStats tpl_gop_stats;
+  tpl_gop_stats.frame_stats_list.assign(
+      5, CreateToyTplFrameStatsWithDiffSizes(8, 8));
+  AV1RateControlQMode rc;
+  const Status status =
+      rc.GetGopEncodeInfo(gop_struct, tpl_gop_stats, RefFrameTable()).status();
+  EXPECT_EQ(status.code, AOM_CODEC_INVALID_PARAM);
+  EXPECT_THAT(status.message,
+              HasSubstr("Frame count of GopStruct (7) doesn't match frame "
+                        "count of TPL stats (5)"));
+}
+
+TEST(RateControlQModeTest, GetGopEncodeInfoRefFrameMissingBlockStats) {
+  GopStruct gop_struct;
+  for (int i = 0; i < 4; ++i) {
+    gop_struct.gop_frame_list.push_back(
+        GopFrameBasic(0, 0, i, i, 0, i, GopFrameType::kRegularLeaf));
+  }
+  // Only frame 2 is a reference frame.
+  gop_struct.gop_frame_list[2].update_ref_idx = 1;
+
+  // None of the frames have TPL block stats.
+  TplGopStats tpl_gop_stats;
+  tpl_gop_stats.frame_stats_list.assign(4, { 8, 176, 144, {} });
+
+  AV1RateControlQMode rc;
+  const Status status =
+      rc.GetGopEncodeInfo(gop_struct, tpl_gop_stats, RefFrameTable()).status();
+  EXPECT_EQ(status.code, AOM_CODEC_INVALID_PARAM);
+  EXPECT_THAT(status.message,
+              HasSubstr("The frame with global_coding_idx 2 is a reference "
+                        "frame, but has no TPL stats"));
 }
 
 // MockRateControlQMode is provided for the use of clients of libaom, but it's

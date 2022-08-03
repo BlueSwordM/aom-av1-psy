@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cassert>
 #include <climits>
+#include <functional>
 #include <numeric>
 #include <sstream>
 #include <vector>
@@ -931,6 +932,36 @@ Status ValidateBlockStats(const TplFrameStats &frame_stats,
   }
   return { AOM_CODEC_OK, "" };
 }
+
+Status ValidateTplStats(const GopStruct &gop_struct,
+                        const TplGopStats &tpl_gop_stats) {
+  constexpr char kAdvice[] =
+      "Do the current RateControlParam settings match those used to generate "
+      "the TPL stats?";
+  if (gop_struct.gop_frame_list.size() !=
+      tpl_gop_stats.frame_stats_list.size()) {
+    std::ostringstream error_message;
+    error_message << "Frame count of GopStruct ("
+                  << gop_struct.gop_frame_list.size()
+                  << ") doesn't match frame count of TPL stats ("
+                  << tpl_gop_stats.frame_stats_list.size() << "). " << kAdvice;
+    return { AOM_CODEC_INVALID_PARAM, error_message.str() };
+  }
+  for (int i = 0; i < static_cast<int>(gop_struct.gop_frame_list.size()); ++i) {
+    const bool is_ref_frame = gop_struct.gop_frame_list[i].update_ref_idx >= 0;
+    const bool has_tpl_stats =
+        !tpl_gop_stats.frame_stats_list[i].block_stats_list.empty();
+    if (is_ref_frame && !has_tpl_stats) {
+      std::ostringstream error_message;
+      error_message << "The frame with global_coding_idx "
+                    << gop_struct.gop_frame_list[i].global_coding_idx
+                    << " is a reference frame, but has no TPL stats. "
+                    << kAdvice;
+      return { AOM_CODEC_INVALID_PARAM, error_message.str() };
+    }
+  }
+  return { AOM_CODEC_OK, "" };
+}
 }  // namespace
 
 StatusOr<TplFrameDepStats> CreateTplFrameDepStatsWithoutPropagation(
@@ -981,6 +1012,7 @@ int GetRefCodingIdxList(const TplUnitDepStats &unit_dep_stats,
     ref_coding_idx_list[i] = -1;
     int ref_frame_index = unit_dep_stats.ref_frame_index[i];
     if (ref_frame_index != -1) {
+      assert(ref_frame_index < static_cast<int>(ref_frame_table.size()));
       ref_coding_idx_list[i] = ref_frame_table[ref_frame_index].coding_idx;
       ref_frame_count++;
     }
@@ -1065,8 +1097,12 @@ void TplFrameDepStatsPropagate(int coding_idx,
       if (ref_frame_count == 0) continue;
       for (int i = 0; i < kBlockRefCount; ++i) {
         if (ref_coding_idx_list[i] == -1) continue;
+        assert(
+            ref_coding_idx_list[i] <
+            static_cast<int>(tpl_gop_dep_stats->frame_dep_stats_list.size()));
         TplFrameDepStats &ref_frame_dep_stats =
             tpl_gop_dep_stats->frame_dep_stats_list[ref_coding_idx_list[i]];
+        assert(!ref_frame_dep_stats.unit_stats.empty());
         const auto &mv = unit_dep_stats.mv[i];
         const int mv_row = GetFullpelValue(mv.row, mv.subpel_bits);
         const int mv_col = GetFullpelValue(mv.col, mv.subpel_bits);
@@ -1116,9 +1152,8 @@ std::vector<RefFrameTable> AV1RateControlQMode::GetRefFrameTableList(
     // It's not the first GOP, so ref_frame_table must be valid.
     assert(static_cast<int>(ref_frame_table.size()) ==
            rc_param_.ref_frame_table_size);
-    assert(std::all_of(
-        ref_frame_table.begin(), ref_frame_table.end(),
-        [](const GopFrame &gop_frame) { return gop_frame.is_valid; }));
+    assert(std::all_of(ref_frame_table.begin(), ref_frame_table.end(),
+                       std::mem_fn(&GopFrame::is_valid)));
     // Reset the frame processing order of the initial ref_frame_table.
     for (GopFrame &gop_frame : ref_frame_table) gop_frame.coding_idx = -1;
   }
@@ -1129,6 +1164,8 @@ std::vector<RefFrameTable> AV1RateControlQMode::GetRefFrameTableList(
     if (gop_frame.is_key_frame) {
       ref_frame_table.assign(rc_param_.ref_frame_table_size, gop_frame);
     } else if (gop_frame.update_ref_idx != -1) {
+      assert(gop_frame.update_ref_idx <
+             static_cast<int>(ref_frame_table.size()));
       ref_frame_table[gop_frame.update_ref_idx] = gop_frame;
     }
     ref_frame_table_list.push_back(ref_frame_table);
@@ -1185,6 +1222,11 @@ static int GetRDMult(const GopFrame &gop_frame, int qindex) {
 StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
     const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
     const RefFrameTable &ref_frame_table_snapshot_init) {
+  Status status = ValidateTplStats(gop_struct, tpl_gop_stats);
+  if (!status.ok()) {
+    return status;
+  }
+
   const std::vector<RefFrameTable> ref_frame_table_list =
       GetRefFrameTableList(gop_struct, ref_frame_table_snapshot_init);
 
