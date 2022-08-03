@@ -1014,9 +1014,16 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
     // For block sizes 8x16 or above, Hadamard txfm of two adjacent 8x8 blocks
     // can be done per function call. Hence the call of Hadamard txfm is
     // abstracted here for the specified cases.
-    const int is_tx_8x8_dual_applicable =
+    int is_tx_8x8_dual_applicable =
         (tx_size == TX_8X8 && block_size_wide[bsize] >= 16 &&
          block_size_high[bsize] >= 8);
+
+#if CONFIG_AV1_HIGHBITDEPTH
+    // As of now, dual implementation of hadamard txfm is available for low
+    // bitdepth and when tx_type != IDTX.
+    if (use_hbd || tx_type == IDTX) is_tx_8x8_dual_applicable = 0;
+#endif
+
     if (is_tx_8x8_dual_applicable) {
       aom_process_hadamard_lp_8x16(x, max_blocks_high, max_blocks_wide,
                                    num_4x4_w, step, block_step);
@@ -1064,8 +1071,10 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
             } else {
               if (tx_type == IDTX) {
                 aom_pixel_scale(src_diff, diff_stride, low_coeff, 3, 1, 1);
-              } else {
+              } else if (!is_tx_8x8_dual_applicable) {
                 aom_hadamard_lp_8x8(src_diff, diff_stride, low_coeff);
+              } else {
+                assert(is_tx_8x8_dual_applicable);
               }
               av1_quantize_lp(low_coeff, 8 * 8, p->round_fp_QTX,
                               p->quant_fp_QTX, low_qcoeff, low_dqcoeff,
