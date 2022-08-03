@@ -87,6 +87,7 @@ class DuckyEncode {
  private:
   class EncodeImpl;
   std::unique_ptr<EncodeImpl> impl_ptr_;
+  bool write_temp_delimiter_;
 };
 }  // namespace aom
 

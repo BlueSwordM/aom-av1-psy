@@ -279,6 +279,7 @@ void DuckyEncode::StartEncode(const std::vector<FIRSTPASS_STATS> &stats_list) {
   impl_ptr_->enc_resource = InitEncoder(
       impl_ptr_->video_info, impl_ptr_->g_usage, impl_ptr_->rc_end_usage, pass,
       &stats_list, impl_ptr_->max_ref_frames, impl_ptr_->speed);
+  write_temp_delimiter_ = true;
 }
 
 static void DuckyEncodeInfoSetGopStruct(AV1_PRIMARY *ppi,
@@ -428,6 +429,7 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
     const GopStructList &gop_list) {
   std::vector<TplGopStats> tpl_gop_stats_list;
   AV1_PRIMARY *ppi = impl_ptr_->enc_resource.ppi;
+  write_temp_delimiter_ = true;
 
   // Go through each gop and encode each frame in the gop
   for (size_t i = 0; i < gop_list.size(); ++i) {
@@ -442,6 +444,7 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
                                                   { 128, -1 } };
       (void)frame;
       EncodeFrame(frame_decision);
+      write_temp_delimiter_ = ppi->cpi->common.show_frame;
     }
     tpl_gop_stats = ObtainTplStats(gop_struct);
     // TODO(jingning): Set the tpl stats file format and populate the stats.
@@ -457,6 +460,7 @@ std::vector<EncodeFrameResult> DuckyEncode::EncodeVideo(
     const GopEncodeInfoList &gop_encode_info_list) {
   AV1_PRIMARY *ppi = impl_ptr_->enc_resource.ppi;
   std::vector<EncodeFrameResult> encoded_frame_list;
+  write_temp_delimiter_ = true;
   // Go through each gop and encode each frame in the gop
   for (size_t i = 0; i < gop_list.size(); ++i) {
     const aom::GopStruct &gop_struct = gop_list[i];
@@ -468,6 +472,7 @@ std::vector<EncodeFrameResult> DuckyEncode::EncodeVideo(
                                                   aom::EncodeGopMode::kGopRcl,
                                                   frame_param };
       encoded_frame_list.push_back(EncodeFrame(frame_decision));
+      write_temp_delimiter_ = ppi->cpi->common.show_frame;
     }
   }
 
@@ -521,7 +526,7 @@ EncodeFrameResult DuckyEncode::EncodeFrame(
   DuckyEncodeInfoSetEncodeFrameDecision(&cpi->ducky_encode_info, decision);
   const int status = av1_get_compressed_data(cpi, &cpi_data);
 
-  if (cpi->common.show_frame) WriteObu(ppi, &cpi_data);
+  if (write_temp_delimiter_) WriteObu(ppi, &cpi_data);
   (void)status;
   assert(status == static_cast<int>(AOM_CODEC_OK));
   encode_frame_result.bitstream_buf.resize(cpi_data.frame_size);
