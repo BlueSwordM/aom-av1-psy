@@ -30,10 +30,19 @@ struct MotionVector {
 };
 
 struct RateControlParam {
+  // Range of allowed GOP sizes (number of displayed frames).
   int max_gop_show_frame_count;
   int min_gop_show_frame_count;
-  int ref_frame_table_size;  // number of reference frame buffers
+  // Number of reference frame buffers, i.e., size of the DPB.
+  int ref_frame_table_size;
+  // Maximum number of references a single frame may use.
+  int max_ref_frames;
+  // Maximum pyramid depth. e.g., 1 means only one ARF per GOP,
+  // 2 would allow an additional level of intermediate ARFs.
+  int max_depth;
+
   int base_q_index;
+
   int frame_width;
   int frame_height;
 };

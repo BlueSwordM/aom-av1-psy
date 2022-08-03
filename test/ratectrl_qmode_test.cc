@@ -950,6 +950,8 @@ TEST(RateControlQModeTest, TestGetRefFrameTableListFirstGop) {
   RateControlParam rc_param = {};
   rc_param.max_gop_show_frame_count = 8;
   rc_param.ref_frame_table_size = 3;
+  rc_param.max_ref_frames = 3;
+  rc_param.max_depth = 3;
   rc_param.frame_width = 128;
   rc_param.frame_height = 128;
   ASSERT_THAT(rc.SetRcParam(rc_param), IsOkStatus());
@@ -984,6 +986,8 @@ TEST(RateControlQModeTest, TestGetRefFrameTableListNotFirstGop) {
   RateControlParam rc_param = {};
   rc_param.max_gop_show_frame_count = 8;
   rc_param.ref_frame_table_size = 3;
+  rc_param.max_ref_frames = 3;
+  rc_param.max_depth = 3;
   rc_param.frame_height = 128;
   rc_param.frame_width = 128;
   ASSERT_THAT(rc.SetRcParam(rc_param), IsOkStatus());
@@ -1024,6 +1028,8 @@ TEST(RateControlQModeTest, TestGopIntervals) {
   rc_param.max_gop_show_frame_count = 32;
   rc_param.min_gop_show_frame_count = 4;
   rc_param.ref_frame_table_size = 7;
+  rc_param.max_ref_frames = 7;
+  rc_param.max_depth = 5;
   ASSERT_THAT(rc.SetRcParam(rc_param), IsOkStatus());
 
   const auto gop_info = rc.DetermineGopInfo(firstpass_info);
@@ -1051,6 +1057,8 @@ TEST(RateControlQModeTest, DISABLED_TestGetGopEncodeInfo) {
   rc_param.max_gop_show_frame_count = 16;
   rc_param.min_gop_show_frame_count = 4;
   rc_param.ref_frame_table_size = 7;
+  rc_param.max_ref_frames = 7;
+  rc_param.max_depth = 5;
   // Just an arbitrary base qp for the test.
   rc_param.base_q_index = 128;
   ASSERT_THAT(rc.SetRcParam(rc_param), IsOkStatus());
