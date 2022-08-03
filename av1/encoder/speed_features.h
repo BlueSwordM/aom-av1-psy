@@ -155,6 +155,14 @@ enum {
  */
 typedef enum {
   CDEF_FULL_SEARCH,      /**< Full search */
+  CDEF_FULL_SEARCH_Q1,   //Psy versions of reduced CDEF strength search space based on quantizer
+                         //Applies to full and L1 currently, used for quality and speed pruning
+  CDEF_FULL_SEARCH_Q2,
+  CDEF_FULL_SEARCH_Q3,
+  CDEF_FULL_SEARCH_Q4,
+  CDEF_FULL_SEARCH_Q5,
+
+
   CDEF_FAST_SEARCH_LVL1, /**< Search among a subset of all possible filters. */
   CDEF_FAST_SEARCH_LVL2, /**< Search reduced subset of filters than Level 1. */
   CDEF_FAST_SEARCH_LVL3, /**< Search reduced subset of secondary filters than
