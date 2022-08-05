@@ -83,11 +83,14 @@ class DuckyEncode {
       const GopEncodeInfoList &gop_encode_info_list);
   EncodeFrameResult EncodeFrame(const EncodeFrameDecision &decision);
   void EndEncode();
+  void AllocateBitstreamBuffer(const VideoInfo &video_info);
 
  private:
   class EncodeImpl;
   std::unique_ptr<EncodeImpl> impl_ptr_;
   bool write_temp_delimiter_;
+  std::vector<uint8_t> bitstream_buf_;
+  int pending_ctx_size_;
 };
 }  // namespace aom
 
