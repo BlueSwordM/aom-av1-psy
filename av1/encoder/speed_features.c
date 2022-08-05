@@ -1258,6 +1258,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
       sf->rt_sf.check_only_zero_zeromv_on_large_blocks = true;
     }
+    if (speed == 8) sf->rt_sf.prefer_large_partition_blocks = 2;
     if (speed >= 8) {
       sf->rt_sf.use_nonrd_filter_search = 0;
       sf->rt_sf.tx_size_level_based_on_qstep = 1;
@@ -1294,6 +1295,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.short_circuit_low_temp_var = 0;
       sf->rt_sf.use_nonrd_altref_frame = 1;
     }
+    if (speed == 8) sf->rt_sf.prefer_large_partition_blocks = 3;
     if (speed >= 8) sf->rt_sf.tx_size_level_based_on_qstep = 2;
     if (speed >= 9) {
       sf->rt_sf.gf_length_lvl = 1;
@@ -1323,7 +1325,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
   }
   if (!is_720p_or_larger) {
-    if (speed == 8) sf->rt_sf.prefer_large_partition_blocks = 2;
     if (speed >= 9) {
       sf->rt_sf.force_large_partition_blocks_intra = 1;
     }
@@ -1680,7 +1681,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_3;
     sf->rt_sf.screen_content_cdef_filter_qindex_thresh = 20;
     sf->rt_sf.estimate_motion_for_var_based_partition = 0;
-    sf->rt_sf.prefer_large_partition_blocks = 3;
+    sf->rt_sf.prefer_large_partition_blocks = 4;
     sf->rt_sf.skip_intra_pred = 2;
     sf->rt_sf.var_part_split_threshold_shift = 9;
     for (int i = 0; i < BLOCK_SIZES; ++i)

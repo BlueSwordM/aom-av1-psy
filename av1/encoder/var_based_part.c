@@ -429,7 +429,7 @@ static int64_t scale_part_thresh_content(int64_t threshold_base, int speed,
 }
 
 static AOM_INLINE void tune_thresh_based_on_qindex_window(
-    int qindex, int th, int64_t thresholds[]) {
+    int qindex, int th, int source_sad, int ag_idx, int64_t thresholds[]) {
   const int win = 45;
   double weight;
 
@@ -443,8 +443,9 @@ static AOM_INLINE void tune_thresh_based_on_qindex_window(
       (int)((1 - weight) * (thresholds[1] << 1) + weight * thresholds[1]);
   thresholds[2] =
       (int)((1 - weight) * (thresholds[2] << 1) + weight * thresholds[2]);
+  const int fac = (!ag_idx && source_sad != kLowSad) ? 1 : 2;
   thresholds[3] =
-      (int)((1 - weight) * (thresholds[3] << 2) + weight * thresholds[3]);
+      (int)((1 - weight) * (thresholds[3] << fac) + weight * thresholds[3]);
 }
 
 static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
@@ -568,7 +569,7 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
     thresholds[2] = (5 * threshold_base) >> 1;
   }
   // Tune thresholds less or more aggressively to prefer larger partitions
-  if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 3) {
+  if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 4) {
     double weight;
     const int win = 20;
     if (current_qindex < QINDEX_LARGE_BLOCK_THR - win)
@@ -618,8 +619,9 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
       thresholds[3] = INT32_MAX;
     }
   } else if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 2) {
-    tune_thresh_based_on_qindex_window(current_qindex, QINDEX_LARGE_BLOCK_THR,
-                                       thresholds);
+    tune_thresh_based_on_qindex_window(
+        current_qindex, QINDEX_LARGE_BLOCK_THR, source_sad_nonrd,
+        cpi->sf.rt_sf.prefer_large_partition_blocks - 2, thresholds);
   } else if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 1) {
     thresholds[3] <<= 2;
     thresholds[1] <<= (source_sad_nonrd == kLowSad) ? 1 : 0;
