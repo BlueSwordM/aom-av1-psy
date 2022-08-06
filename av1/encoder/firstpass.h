@@ -362,6 +362,16 @@ typedef struct GF_GROUP {
   REFBUF_STATE refbuf_state[MAX_STATIC_GF_GROUP_LENGTH];
   int arf_index;  // the index in the gf group of ARF, if no arf, then -1
   int size;       // The total length of a GOP
+
+  // The offset into lookahead_ctx for choosing
+  // source of frame parallel encodes.
+  int src_offset[MAX_STATIC_GF_GROUP_LENGTH];
+  // Stores the display order hint of each frame in the current GF_GROUP.
+  int display_idx[MAX_STATIC_GF_GROUP_LENGTH];
+
+  // Reference frame list
+  int8_t ref_frame_list[MAX_STATIC_GF_GROUP_LENGTH][REF_FRAMES];
+
   // Indicates the level of parallelism in frame parallel encodes.
   // 0 : frame is independently encoded (not part of parallel encodes).
   // 1 : frame is the first in encode order in a given parallel encode set.
@@ -372,11 +382,6 @@ typedef struct GF_GROUP {
   // 1 : frame is a non-reference frame.
   int is_frame_non_ref[MAX_STATIC_GF_GROUP_LENGTH];
 
-  // The offset into lookahead_ctx for choosing
-  // source of frame parallel encodes.
-  int src_offset[MAX_STATIC_GF_GROUP_LENGTH];
-  // Stores the display order hint of each frame in the current GF_GROUP.
-  int display_idx[MAX_STATIC_GF_GROUP_LENGTH];
   // Stores the display order hint of the frames not to be
   // refreshed by the current frame.
   int skip_frame_refresh[MAX_STATIC_GF_GROUP_LENGTH][REF_FRAMES];
