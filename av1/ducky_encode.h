@@ -12,9 +12,11 @@
 #ifndef AOM_AV1_DUCKY_ENCODE_H_
 #define AOM_AV1_DUCKY_ENCODE_H_
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
 
 #include "aom/aom_encoder.h"
 #include "av1/encoder/firstpass.h"
@@ -90,7 +92,7 @@ class DuckyEncode {
   std::unique_ptr<EncodeImpl> impl_ptr_;
   bool write_temp_delimiter_;
   std::vector<uint8_t> bitstream_buf_;
-  int pending_ctx_size_;
+  size_t pending_ctx_size_;
 };
 }  // namespace aom
 
