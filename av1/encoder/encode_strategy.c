@@ -1373,12 +1373,12 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   start_timing(cpi, av1_get_one_pass_rt_params_time);
 #endif
 #if CONFIG_REALTIME_ONLY
-  av1_get_one_pass_rt_params(cpi, &frame_params, *frame_flags);
+  av1_get_one_pass_rt_params(cpi, &frame_params, &frame_input, *frame_flags);
   if (use_one_pass_rt_reference_structure(cpi))
     av1_set_reference_structure_one_pass_rt(cpi, cpi->gf_frame_index == 0);
 #else
   if (use_one_pass_rt_params) {
-    av1_get_one_pass_rt_params(cpi, &frame_params, *frame_flags);
+    av1_get_one_pass_rt_params(cpi, &frame_params, &frame_input, *frame_flags);
     if (use_one_pass_rt_reference_structure(cpi))
       av1_set_reference_structure_one_pass_rt(cpi, cpi->gf_frame_index == 0);
   }

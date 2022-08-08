@@ -2701,15 +2701,17 @@ void av1_set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
  *
  * \ingroup rate_control
  * \param[in]       cpi          Top level encoder structure
+ * \param[in]       frame_input  Current and last input source frames
  *
  * \return Nothing is returned. Instead the flag \c cpi->rc.high_source_sad
  * is set if scene change is detected, and \c cpi->rc.avg_source_sad is updated.
  */
-static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
+static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
+                                          const EncodeFrameInput *frame_input) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
-  YV12_BUFFER_CONFIG const *unscaled_src = cpi->unscaled_source;
-  YV12_BUFFER_CONFIG const *unscaled_last_src = cpi->unscaled_last_source;
+  YV12_BUFFER_CONFIG const *const unscaled_src = frame_input->source;
+  YV12_BUFFER_CONFIG const *const unscaled_last_src = frame_input->last_source;
   uint8_t *src_y;
   int src_ystride;
   int src_width;
@@ -2719,14 +2721,14 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
   int last_src_width;
   int last_src_height;
   if (cm->spatial_layer_id != 0 || cm->width != cm->render_width ||
-      cm->height != cm->render_height || cpi->unscaled_source == NULL ||
-      cpi->unscaled_last_source == NULL) {
+      cm->height != cm->render_height || unscaled_src == NULL ||
+      unscaled_last_src == NULL) {
     if (cpi->src_sad_blk_64x64) {
       aom_free(cpi->src_sad_blk_64x64);
       cpi->src_sad_blk_64x64 = NULL;
     }
   }
-  if (cpi->unscaled_source == NULL || cpi->unscaled_last_source == NULL) return;
+  if (unscaled_src == NULL || unscaled_last_src == NULL) return;
   src_y = unscaled_src->y_buffer;
   src_ystride = unscaled_src->y_stride;
   src_width = unscaled_src->y_width;
@@ -3042,6 +3044,7 @@ static INLINE int set_key_frame(AV1_COMP *cpi, unsigned int frame_flags) {
 
 void av1_get_one_pass_rt_params(AV1_COMP *cpi,
                                 EncodeFrameParams *const frame_params,
+                                const EncodeFrameInput *frame_input,
                                 unsigned int frame_flags) {
   RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
@@ -3106,7 +3109,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
   }
   // Check for scene change: for SVC check on base spatial layer only.
   if (cpi->sf.rt_sf.check_scene_detection && svc->spatial_layer_id == 0)
-    rc_scene_detection_onepass_rt(cpi);
+    rc_scene_detection_onepass_rt(cpi, frame_input);
   // Check for dynamic resize, for single spatial layer for now.
   // For temporal layers only check on base temporal layer.
   if (cpi->oxcf.resize_cfg.resize_mode == RESIZE_DYNAMIC) {
