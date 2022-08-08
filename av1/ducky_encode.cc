@@ -312,13 +312,15 @@ static void DuckyEncodeInfoSetGopStruct(AV1_PRIMARY *ppi,
     gf_group->refbuf_state[i] =
         frame.is_key_frame ? REFBUF_RESET : REFBUF_UPDATE;
 
-    memset(gf_group->ref_frame_list[i], -1, REF_FRAMES);
+    std::fill_n(gf_group->ref_frame_list[i], REF_FRAMES, -1);
+    gf_group->update_ref_idx[i] = -1;
     for (int ref_idx = 0;
          ref_idx < static_cast<int>(frame.ref_frame_list.size()); ++ref_idx) {
       int ref_frame = static_cast<int>(frame.ref_frame_list[ref_idx].name);
       gf_group->ref_frame_list[i][ref_frame] =
           static_cast<int8_t>(frame.ref_frame_list[ref_idx].index);
     }
+    gf_group->update_ref_idx[i] = frame.update_ref_idx;
     ++i;
   }
   ppi->cpi->gf_frame_index = 0;

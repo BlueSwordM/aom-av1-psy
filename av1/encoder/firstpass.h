@@ -369,8 +369,13 @@ typedef struct GF_GROUP {
   // Stores the display order hint of each frame in the current GF_GROUP.
   int display_idx[MAX_STATIC_GF_GROUP_LENGTH];
 
-  // Reference frame list
+  // The reference frame list maps the reference frame indexes to its
+  // buffer index in the decoded buffer. A value of -1 means the
+  // corresponding reference frame index doesn't point towards any
+  // previously decoded frame.
   int8_t ref_frame_list[MAX_STATIC_GF_GROUP_LENGTH][REF_FRAMES];
+  // Update frame index
+  int update_ref_idx[MAX_STATIC_GF_GROUP_LENGTH];
 
   // Indicates the level of parallelism in frame parallel encodes.
   // 0 : frame is independently encoded (not part of parallel encodes).
