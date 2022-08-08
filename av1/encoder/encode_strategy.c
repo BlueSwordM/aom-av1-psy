@@ -1396,12 +1396,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.frame_type = INTER_FRAME;
   }
 
-  // TODO(david.turner@argondesign.com): Move all the encode strategy
-  // (largely near av1_get_compressed_data) in here
-
-  // TODO(david.turner@argondesign.com): Change all the encode strategy to
-  // modify frame_params instead of cm or cpi.
-
   // Per-frame encode speed.  In theory this can vary, but things may have
   // been written assuming speed-level will not change within a sequence, so
   // this parameter should be used with caution.
