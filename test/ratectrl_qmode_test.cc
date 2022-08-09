@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "av1/reference_manager.h"
+#include "av1/ducky_encode.h"
 #include "test/mock_ratectrl_qmode.h"
 #include "test/video_source.h"
 #include "third_party/googletest/src/googlemock/include/gmock/gmock.h"
@@ -56,33 +57,6 @@ std::string ReadDouble(std::istream &stream, double *value) {
     return "Unexpected characters found: " + word;
   }
   return "";
-}
-
-// Reads a whitespace-delimited string from stream, and parses it as an int64_t.
-// Returns an empty string if the entire string was successfully parsed as a
-// double, or an error messaage if not.
-std::string ReadLongInt(std::istream &stream, int64_t *value) {
-  std::string word;
-  stream >> word;
-  if (word.empty()) {
-    return "Unexpectedly reached end of input";
-  }
-  char *end;
-  *value = std::strtol(word.c_str(), &end, 10);
-  if (*end != '\0') {
-    return "Unexpected characters found: " + word;
-  }
-  return "";
-}
-
-// Reads a whitespace-delimited string from stream, and parses it as an int.
-// Returns an empty string if the entire string was successfully parsed as an
-// int, or an error messaage if not.
-std::string ReadInt(std::istream &stream, int *value) {
-  int64_t long_value = 0;
-  std::string result = ReadLongInt(stream, &long_value);
-  *value = static_cast<int>(long_value);
-  return result;
 }
 
 void ReadFirstpassInfo(const std::string &filename,
@@ -143,61 +117,6 @@ void ReadFirstpassInfo(const std::string &filename,
     firstpass_info->stats_list.push_back(firstpass_stats_input);
   }
 }
-
-void ReadTplInfo(const std::string &filename,
-                 const aom::GopStructList &gop_list,
-                 std::vector<aom::TplGopStats> *tpl_stats_list) {
-  std::string path = libaom_test::GetDataPath() + "/" + filename;
-  std::ifstream tpl_stats_file(path);
-  ASSERT_TRUE(tpl_stats_file.good())
-      << "Error opening " << path << ": " << std::strerror(errno);
-  const int mi_rows = kFrameHeight / 16;
-  const int mi_cols = kFrameWidth / 16;
-  for (auto &gop_struct : gop_list) {
-    int gop_interval = gop_struct.show_frame_count;
-    // One GOP in this test only has 2 frames, and TPL stats are not generated
-    // for this GOP.
-    if (gop_interval <= 2) continue;
-    aom::TplGopStats tpl_stats = {};
-    for (int frame_idx = 0; frame_idx < gop_interval; frame_idx++) {
-      aom::TplFrameStats tpl_frame_stats = {};
-      tpl_frame_stats.frame_height = kFrameHeight;
-      tpl_frame_stats.frame_width = kFrameWidth;
-      tpl_frame_stats.min_block_size = 4;
-      int display_index;
-      for (int mi_row = 0; mi_row < mi_rows; mi_row++) {
-        for (int mi_col = 0; mi_col < mi_cols; mi_col++) {
-          std::string newline;
-          std::getline(tpl_stats_file, newline);
-          std::istringstream iss(newline);
-          aom::TplBlockStats tpl_block_stats = {};
-          tpl_block_stats.width = 16;
-          tpl_block_stats.height = 16;
-          ASSERT_EQ(ReadInt(iss, &display_index), "");
-          ASSERT_EQ(ReadInt(iss, &tpl_block_stats.row), "");
-          ASSERT_EQ(ReadInt(iss, &tpl_block_stats.col), "");
-          ASSERT_EQ(ReadLongInt(iss, &tpl_block_stats.intra_cost), "");
-          ASSERT_EQ(ReadLongInt(iss, &tpl_block_stats.inter_cost), "");
-          for (int ref = 0; ref < aom::kBlockRefCount; ref++) {
-            ASSERT_EQ(ReadInt(iss, &tpl_block_stats.ref_frame_index[ref]), "");
-          }
-          for (int ref = 0; ref < aom::kBlockRefCount; ref++) {
-            if (tpl_block_stats.ref_frame_index[ref] >= 0) {
-              ASSERT_EQ(ReadInt(iss, &tpl_block_stats.mv[ref].row), "");
-              ASSERT_EQ(ReadInt(iss, &tpl_block_stats.mv[ref].col), "");
-              tpl_block_stats.mv[ref].subpel_bits = 0;
-            }
-          }
-
-          tpl_frame_stats.block_stats_list.push_back(tpl_block_stats);
-        }
-      }
-      tpl_stats.frame_stats_list.push_back(tpl_frame_stats);
-    }
-    tpl_stats_list->push_back(tpl_stats);
-  }
-}
-
 }  // namespace
 
 namespace aom {
@@ -1102,7 +1021,7 @@ TEST_F(RateControlQModeTest, TestGopIntervals) {
 // consistent with each other. With the existing files, the GOP structure
 // resulting from the first pass stats doesn't match the TPL stats, resulting
 // in an error from ValidateTplStats.
-TEST_F(RateControlQModeTest, DISABLED_TestGetGopEncodeInfo) {
+TEST_F(RateControlQModeTest, TestGetGopEncodeInfo) {
   FirstpassInfo firstpass_info;
   ASSERT_NO_FATAL_FAILURE(
       ReadFirstpassInfo("firstpass_stats", &firstpass_info));
@@ -1112,17 +1031,24 @@ TEST_F(RateControlQModeTest, DISABLED_TestGetGopEncodeInfo) {
   const auto gop_info = rc.DetermineGopInfo(firstpass_info);
   ASSERT_THAT(gop_info.status(), IsOkStatus());
   const GopStructList &gop_list = *gop_info;
+  const aom_rational_t frame_rate = { .num = 30, .den = 1 };
+  const aom::VideoInfo input_video = {
+    .frame_width = kFrameWidth,
+    .frame_height = kFrameHeight,
+    .frame_rate = frame_rate,
+    .img_fmt = AOM_IMG_FMT_I420,
+    .frame_count = 250,
+    .file_path = libaom_test::GetDataPath() + "/hantro_collage_w352h288.yuv",
+  };
+  DuckyEncode ducky_encode(input_video, 3, 3);
+  ducky_encode.StartEncode(firstpass_info.stats_list);
   // Read TPL stats
-  std::vector<TplGopStats> tpl_gop_list;
-  ASSERT_NO_FATAL_FAILURE(ReadTplInfo("tpl_stats", gop_list, &tpl_gop_list));
+  std::vector<TplGopStats> tpl_gop_list =
+      ducky_encode.ComputeTplStats(gop_list);
+  ducky_encode.EndEncode();
   RefFrameTable ref_frame_table;
   int num_gop_skipped = 0;
   for (size_t gop_idx = 0; gop_idx < gop_list.size(); gop_idx++) {
-    // Skip the GOP which only has 2 frames.
-    if (gop_list[gop_idx].show_frame_count <= 2) {
-      num_gop_skipped++;
-      continue;
-    }
     size_t tpl_gop_idx = gop_idx - num_gop_skipped;
     const auto gop_encode_info = rc.GetGopEncodeInfo(
         gop_list[gop_idx], tpl_gop_list[tpl_gop_idx], ref_frame_table);
@@ -1157,6 +1083,7 @@ TEST_F(RateControlQModeTest, GetGopEncodeInfoRefFrameMissingBlockStats) {
     GopFrameUpdateRefIdx(1, GopFrameType::kRegularLeaf, -1),
     GopFrameUpdateRefIdx(2, GopFrameType::kRegularLeaf, 2),
   };
+  gop_struct.show_frame_count = 3;
 
   // Only frame 0 has TPL block stats.
   TplGopStats tpl_gop_stats;

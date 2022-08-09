@@ -38,7 +38,6 @@ list(APPEND AOM_TEST_DATA_FILE_NAMES
             "vase10x10.yuv"
             "vase10x10_tiles.txt"
             "firstpass_stats"
-            "tpl_stats"
             "bus_352x288_420_f20_b8.yuv")
 
 if(ENABLE_DECODE_PERF_TESTS AND CONFIG_AV1_ENCODER)
