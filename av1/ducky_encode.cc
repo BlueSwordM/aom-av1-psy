@@ -321,6 +321,7 @@ static void DuckyEncodeInfoSetGopStruct(AV1_PRIMARY *ppi,
           static_cast<int8_t>(frame.ref_frame_list[ref_idx].index);
     }
     gf_group->update_ref_idx[i] = frame.update_ref_idx;
+    gf_group->primary_ref_idx[i] = frame.primary_ref_frame.index;
     ++i;
   }
   ppi->cpi->gf_frame_index = 0;
