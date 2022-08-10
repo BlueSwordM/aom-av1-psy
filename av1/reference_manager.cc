@@ -81,7 +81,10 @@ int RefFrameManager::GetRefFrameIdxByPriority(RefUpdateType ref_update_type,
   if (ref_update_type == RefUpdateType::kForward) {
     int size = static_cast<int>(forward_stack_.size());
     if (priority_idx < size) {
-      return forward_stack_[size - priority_idx - 1];
+      if (priority_idx == 0)
+        return forward_stack_[priority_idx];
+      else
+        return forward_stack_[size - priority_idx];
     }
   } else if (ref_update_type == RefUpdateType::kBackward) {
     int size = static_cast<int>(backward_queue_.size());
