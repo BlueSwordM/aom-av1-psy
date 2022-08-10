@@ -114,7 +114,7 @@ static INLINE uint8x8_t convolve8_vert_8x4(
   return vqrshrun_n_s16(sum, FILTER_BITS - 1);
 }
 
-static INLINE uint16x4_t convolve8_vert_4x4_s32(
+static INLINE int16x4_t convolve8_vert_4x4_s32(
     const int16x4_t s0, const int16x4_t s1, const int16x4_t s2,
     const int16x4_t s3, const int16x4_t s4, const int16x4_t s5,
     const int16x4_t s6, const int16x4_t s7, const int16x8_t y_filter,
@@ -122,27 +122,22 @@ static INLINE uint16x4_t convolve8_vert_4x4_s32(
     const int32x4_t sub_const_vec) {
   const int16x4_t y_filter_lo = vget_low_s16(y_filter);
   const int16x4_t y_filter_hi = vget_high_s16(y_filter);
-  int32x4_t sum0;
-  uint16x4_t res;
-  const int32x4_t zero = vdupq_n_s32(0);
+  int32x4_t sum;
 
-  sum0 = vmull_lane_s16(s0, y_filter_lo, 0);
-  sum0 = vmlal_lane_s16(sum0, s1, y_filter_lo, 1);
-  sum0 = vmlal_lane_s16(sum0, s2, y_filter_lo, 2);
-  sum0 = vmlal_lane_s16(sum0, s3, y_filter_lo, 3);
-  sum0 = vmlal_lane_s16(sum0, s4, y_filter_hi, 0);
-  sum0 = vmlal_lane_s16(sum0, s5, y_filter_hi, 1);
-  sum0 = vmlal_lane_s16(sum0, s6, y_filter_hi, 2);
-  sum0 = vmlal_lane_s16(sum0, s7, y_filter_hi, 3);
+  sum = vmull_lane_s16(s0, y_filter_lo, 0);
+  sum = vmlal_lane_s16(sum, s1, y_filter_lo, 1);
+  sum = vmlal_lane_s16(sum, s2, y_filter_lo, 2);
+  sum = vmlal_lane_s16(sum, s3, y_filter_lo, 3);
+  sum = vmlal_lane_s16(sum, s4, y_filter_hi, 0);
+  sum = vmlal_lane_s16(sum, s5, y_filter_hi, 1);
+  sum = vmlal_lane_s16(sum, s6, y_filter_hi, 2);
+  sum = vmlal_lane_s16(sum, s7, y_filter_hi, 3);
 
-  sum0 = vaddq_s32(sum0, offset_const);
-  sum0 = vqrshlq_s32(sum0, round_shift_vec);
-  sum0 = vsubq_s32(sum0, sub_const_vec);
-  sum0 = vmaxq_s32(sum0, zero);
+  sum = vaddq_s32(sum, offset_const);
+  sum = vqrshlq_s32(sum, round_shift_vec);
+  sum = vsubq_s32(sum, sub_const_vec);
 
-  res = vmovn_u32(vreinterpretq_u32_s32(sum0));
-
-  return res;
+  return vmovn_s32(sum);
 }
 
 static INLINE uint8x8_t convolve8_vert_8x4_s32(
@@ -154,8 +149,7 @@ static INLINE uint8x8_t convolve8_vert_8x4_s32(
   const int16x4_t y_filter_lo = vget_low_s16(y_filter);
   const int16x4_t y_filter_hi = vget_high_s16(y_filter);
   int32x4_t sum0, sum1;
-  uint16x8_t res;
-  const int32x4_t zero = vdupq_n_s32(0);
+  int16x8_t res;
 
   sum0 = vmull_lane_s16(vget_low_s16(s0), y_filter_lo, 0);
   sum0 = vmlal_lane_s16(sum0, vget_low_s16(s1), y_filter_lo, 1);
@@ -181,14 +175,11 @@ static INLINE uint8x8_t convolve8_vert_8x4_s32(
   sum1 = vqrshlq_s32(sum1, round_shift_vec);
   sum0 = vsubq_s32(sum0, sub_const_vec);
   sum1 = vsubq_s32(sum1, sub_const_vec);
-  sum0 = vmaxq_s32(sum0, zero);
-  sum1 = vmaxq_s32(sum1, zero);
-  res = vcombine_u16(vqmovn_u32(vreinterpretq_u32_s32(sum0)),
-                     vqmovn_u32(vreinterpretq_u32_s32(sum1)));
 
-  res = vqrshlq_u16(res, vec_round_bits);
+  res = vcombine_s16(vmovn_s32(sum0), vmovn_s32(sum1));
+  res = vqrshlq_s16(res, vec_round_bits);
 
-  return vqmovn_u16(res);
+  return vqmovun_s16(res);
 }
 
 void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
@@ -1309,15 +1300,13 @@ void av1_convolve_2d_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
     width = w;
 
     if (width <= 4) {
-      int16x4_t s0, s1, s2, s3, s4, s5, s6, s7;
-      uint16x4_t d0;
-      uint16x8_t dd0;
+      int16x4_t s0, s1, s2, s3, s4, s5, s6, s7, d0;
+      int16x8_t dd0;
       uint8x8_t d01;
 
 #if defined(__aarch64__)
-      int16x4_t s8, s9, s10;
-      uint16x4_t d1, d2, d3;
-      uint16x8_t dd1;
+      int16x4_t s8, s9, s10, d1, d2, d3;
+      int16x8_t dd1;
       uint8x8_t d23;
 #endif
 
@@ -1359,11 +1348,11 @@ void av1_convolve_2d_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
                                     round_shift_vec, offset_const,
                                     sub_const_vec);
 
-        dd0 = vqrshlq_u16(vcombine_u16(d0, d1), vec_round_bits);
-        dd1 = vqrshlq_u16(vcombine_u16(d2, d3), vec_round_bits);
+        dd0 = vqrshlq_s16(vcombine_s16(d0, d1), vec_round_bits);
+        dd1 = vqrshlq_s16(vcombine_s16(d2, d3), vec_round_bits);
 
-        d01 = vqmovn_u16(dd0);
-        d23 = vqmovn_u16(dd1);
+        d01 = vqmovun_s16(dd0);
+        d23 = vqmovun_s16(dd1);
 
         if ((w == 4) && (h != 2)) {
           vst1_lane_u32((uint32_t *)d_u8, vreinterpret_u32_u8(d01),
@@ -1425,8 +1414,8 @@ void av1_convolve_2d_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
                                     round_shift_vec, offset_const,
                                     sub_const_vec);
 
-        dd0 = vqrshlq_u16(vcombine_u16(d0, d0), vec_round_bits);
-        d01 = vqmovn_u16(dd0);
+        dd0 = vqrshlq_s16(vcombine_s16(d0, d0), vec_round_bits);
+        d01 = vqmovun_s16(dd0);
 
         if (w == 4) {
           vst1_lane_u32((uint32_t *)d_u8, vreinterpret_u32_u8(d01),

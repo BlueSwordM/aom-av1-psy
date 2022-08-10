@@ -79,13 +79,11 @@ static INLINE uint8x8_t wiener_convolve8_vert_4x8(
     const int round1_bits) {
   int16x8_t ss0, ss1, ss2;
   int32x4_t sum0, sum1;
-  uint16x4_t tmp0, tmp1;
-  uint16x8_t tmp;
+  int16x8_t tmp;
   uint8x8_t res;
 
   const int32_t round_const = (1 << (bd + round1_bits - 1));
   const int32x4_t round_bits = vdupq_n_s32(-round1_bits);
-  const int32x4_t zero = vdupq_n_s32(0);
   const int32x4_t round_vec = vdupq_n_s32(round_const);
   const int16x4_t filter = vld1_s16(filter_y);
 
@@ -110,14 +108,9 @@ static INLINE uint8x8_t wiener_convolve8_vert_4x8(
   sum0 = vrshlq_s32(sum0, round_bits);
   sum1 = vrshlq_s32(sum1, round_bits);
 
-  sum0 = vmaxq_s32(sum0, zero);
-  sum1 = vmaxq_s32(sum1, zero);
-
   /* from int32x4_t to uint8x8_t */
-  tmp0 = vqmovn_u32(vreinterpretq_u32_s32(sum0));
-  tmp1 = vqmovn_u32(vreinterpretq_u32_s32(sum1));
-  tmp = vcombine_u16(tmp0, tmp1);
-  res = vqmovn_u16(tmp);
+  tmp = vcombine_s16(vmovn_s32(sum0), vmovn_s32(sum1));
+  res = vqmovun_s16(tmp);
 
   return res;
 }
@@ -185,7 +178,6 @@ static INLINE uint16x4_t wiener_convolve8_horiz_4x8(
   const int32_t round_const_0 = (1 << (bd + FILTER_BITS - 1));
   const int32_t round_const_1 = (1 << (bd + 1 + FILTER_BITS - round0_bits)) - 1;
   const int32x4_t round_bits = vdupq_n_s32(-round0_bits);
-  const int32x4_t zero = vdupq_n_s32(0);
   const int32x4_t round_vec_0 = vdupq_n_s32(round_const_0);
   const int32x4_t round_vec_1 = vdupq_n_s32(round_const_1);
   const int16x4_t filter = vld1_s16(filter_x);
@@ -209,7 +201,6 @@ static INLINE uint16x4_t wiener_convolve8_horiz_4x8(
   sum_0 = vaddq_s32(sum_0, round_vec_0);
   sum_0 = vrshlq_s32(sum_0, round_bits);
 
-  sum_0 = vmaxq_s32(sum_0, zero);
   sum_0 = vminq_s32(sum_0, round_vec_1);
   res = vqmovun_s32(sum_0);
   return res;
@@ -270,25 +261,21 @@ static INLINE uint16x4_t convolve8_4x4_s32(
     const int32x4_t round_shift_vec, const int32x4_t offset_const) {
   const int16x4_t y_filter_lo = vget_low_s16(y_filter);
   const int16x4_t y_filter_hi = vget_high_s16(y_filter);
-  int32x4_t sum0;
-  uint16x4_t res;
-  const int32x4_t zero = vdupq_n_s32(0);
+  int32x4_t sum;
 
-  sum0 = vmull_lane_s16(s0, y_filter_lo, 0);
-  sum0 = vmlal_lane_s16(sum0, s1, y_filter_lo, 1);
-  sum0 = vmlal_lane_s16(sum0, s2, y_filter_lo, 2);
-  sum0 = vmlal_lane_s16(sum0, s3, y_filter_lo, 3);
-  sum0 = vmlal_lane_s16(sum0, s4, y_filter_hi, 0);
-  sum0 = vmlal_lane_s16(sum0, s5, y_filter_hi, 1);
-  sum0 = vmlal_lane_s16(sum0, s6, y_filter_hi, 2);
-  sum0 = vmlal_lane_s16(sum0, s7, y_filter_hi, 3);
+  sum = vmull_lane_s16(s0, y_filter_lo, 0);
+  sum = vmlal_lane_s16(sum, s1, y_filter_lo, 1);
+  sum = vmlal_lane_s16(sum, s2, y_filter_lo, 2);
+  sum = vmlal_lane_s16(sum, s3, y_filter_lo, 3);
+  sum = vmlal_lane_s16(sum, s4, y_filter_hi, 0);
+  sum = vmlal_lane_s16(sum, s5, y_filter_hi, 1);
+  sum = vmlal_lane_s16(sum, s6, y_filter_hi, 2);
+  sum = vmlal_lane_s16(sum, s7, y_filter_hi, 3);
 
-  sum0 = vaddq_s32(sum0, offset_const);
-  sum0 = vqrshlq_s32(sum0, round_shift_vec);
-  sum0 = vmaxq_s32(sum0, zero);
-  res = vmovn_u32(vreinterpretq_u32_s32(sum0));
+  sum = vaddq_s32(sum, offset_const);
+  sum = vqrshlq_s32(sum, round_shift_vec);
 
-  return res;
+  return vqmovun_s32(sum);
 }
 
 #endif  // AOM_AV1_COMMON_ARM_CONVOLVE_NEON_H_
