@@ -1475,7 +1475,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       gf_group->refbuf_state[cpi->gf_frame_index], force_refresh_all);
 
   if (!is_stat_generation_stage(cpi)) {
-    const RefCntBuffer *ref_frames[INTER_REFS_PER_FRAME];
     const YV12_BUFFER_CONFIG *ref_frame_buf[INTER_REFS_PER_FRAME];
 
     RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
@@ -1501,9 +1500,16 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     }
 
     // Get the reference frames
+    bool has_ref_frames = false;
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
-      ref_frames[i] = get_ref_frame_buf(cm, ref_frame_priority_order[i]);
-      ref_frame_buf[i] = ref_frames[i] != NULL ? &ref_frames[i]->buf : NULL;
+      const RefCntBuffer *ref_frame =
+          get_ref_frame_buf(cm, ref_frame_priority_order[i]);
+      ref_frame_buf[i] = ref_frame != NULL ? &ref_frame->buf : NULL;
+      if (ref_frame != NULL) has_ref_frames = true;
+    }
+    if (!has_ref_frames && (frame_params.frame_type == INTER_FRAME ||
+                            frame_params.frame_type == S_FRAME)) {
+      return AOM_CODEC_ERROR;
     }
 
     // Work out which reference frame slots may be used.
