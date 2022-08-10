@@ -35,14 +35,11 @@ static INLINE int16x4_t convolve8_4x4(const int16x4_t s0, const int16x4_t s1,
   sum = vmul_lane_s16(s0, filter_lo, 0);
   sum = vmla_lane_s16(sum, s1, filter_lo, 1);
   sum = vmla_lane_s16(sum, s2, filter_lo, 2);
+  sum = vmla_lane_s16(sum, s3, filter_lo, 3);
+  sum = vmla_lane_s16(sum, s4, filter_hi, 0);
   sum = vmla_lane_s16(sum, s5, filter_hi, 1);
   sum = vmla_lane_s16(sum, s6, filter_hi, 2);
   sum = vmla_lane_s16(sum, s7, filter_hi, 3);
-  /* filter[3] can take a max value of 128. So the max value of the result :
-   * 128*255 + sum > 16 bits
-   */
-  sum = vqadd_s16(sum, vmul_lane_s16(s3, filter_lo, 3));
-  sum = vqadd_s16(sum, vmul_lane_s16(s4, filter_hi, 0));
 
   return sum;
 }
@@ -59,14 +56,11 @@ static INLINE uint8x8_t convolve8_horiz_8x8(
   sum = vmulq_lane_s16(s0, filter_lo, 0);
   sum = vmlaq_lane_s16(sum, s1, filter_lo, 1);
   sum = vmlaq_lane_s16(sum, s2, filter_lo, 2);
+  sum = vmlaq_lane_s16(sum, s3, filter_lo, 3);
+  sum = vmlaq_lane_s16(sum, s4, filter_hi, 0);
   sum = vmlaq_lane_s16(sum, s5, filter_hi, 1);
   sum = vmlaq_lane_s16(sum, s6, filter_hi, 2);
   sum = vmlaq_lane_s16(sum, s7, filter_hi, 3);
-  /* filter[3] can take a max value of 128. So the max value of the result :
-   * 128*255 + sum > 16 bits
-   */
-  sum = vqaddq_s16(sum, vmulq_lane_s16(s3, filter_lo, 3));
-  sum = vqaddq_s16(sum, vmulq_lane_s16(s4, filter_hi, 0));
 
   sum = vqrshlq_s16(sum, shift_round_0);
   sum = vqrshlq_s16(sum, shift_by_bits);
@@ -87,14 +81,11 @@ static INLINE uint8x8_t convolve8_horiz_4x1(
   sum = vmul_lane_s16(s0, filter_lo, 0);
   sum = vmla_lane_s16(sum, s1, filter_lo, 1);
   sum = vmla_lane_s16(sum, s2, filter_lo, 2);
+  sum = vmla_lane_s16(sum, s3, filter_lo, 3);
+  sum = vmla_lane_s16(sum, s4, filter_hi, 0);
   sum = vmla_lane_s16(sum, s5, filter_hi, 1);
   sum = vmla_lane_s16(sum, s6, filter_hi, 2);
   sum = vmla_lane_s16(sum, s7, filter_hi, 3);
-  /* filter[3] can take a max value of 128. So the max value of the result :
-   * 128*255 + sum > 16 bits
-   */
-  sum = vqadd_s16(sum, vmul_lane_s16(s3, filter_lo, 3));
-  sum = vqadd_s16(sum, vmul_lane_s16(s4, filter_hi, 0));
 
   sum = vqrshl_s16(sum, shift_round_0);
   sum = vqrshl_s16(sum, shift_by_bits);
@@ -114,16 +105,13 @@ static INLINE uint8x8_t convolve8_vert_8x4(
   sum = vmulq_lane_s16(s0, filter_lo, 0);
   sum = vmlaq_lane_s16(sum, s1, filter_lo, 1);
   sum = vmlaq_lane_s16(sum, s2, filter_lo, 2);
+  sum = vmlaq_lane_s16(sum, s3, filter_lo, 3);
+  sum = vmlaq_lane_s16(sum, s4, filter_hi, 0);
   sum = vmlaq_lane_s16(sum, s5, filter_hi, 1);
   sum = vmlaq_lane_s16(sum, s6, filter_hi, 2);
   sum = vmlaq_lane_s16(sum, s7, filter_hi, 3);
-  /* filter[3] can take a max value of 128. So the max value of the result :
-   * 128*255 + sum > 16 bits
-   */
-  sum = vqaddq_s16(sum, vmulq_lane_s16(s3, filter_lo, 3));
-  sum = vqaddq_s16(sum, vmulq_lane_s16(s4, filter_hi, 0));
 
-  return vqrshrun_n_s16(sum, FILTER_BITS);
+  return vqrshrun_n_s16(sum, FILTER_BITS - 1);
 }
 
 static INLINE uint16x4_t convolve8_vert_4x4_s32(
@@ -227,9 +215,10 @@ void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
 
   const int16_t *x_filter_ptr = av1_get_interp_filter_subpel_kernel(
       filter_params_x, subpel_x_qn & SUBPEL_MASK);
-  const int16x8_t x_filter = vld1q_s16(x_filter_ptr);
+  // Filter values are even so downshift by 1 to reduce precision requirements.
+  const int16x8_t x_filter = vshrq_n_s16(vld1q_s16(x_filter_ptr), 1);
 
-  const int16x8_t shift_round_0 = vdupq_n_s16(-conv_params->round_0);
+  const int16x8_t shift_round_0 = vdupq_n_s16(-conv_params->round_0 + 1);
   const int16x8_t shift_by_bits = vdupq_n_s16(-bits);
 
   src -= horiz_offset;
@@ -637,7 +626,8 @@ void av1_convolve_y_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
 
   const int16_t *y_filter_ptr = av1_get_interp_filter_subpel_kernel(
       filter_params_y, subpel_y_qn & SUBPEL_MASK);
-  const int16x8_t y_filter = vld1q_s16(y_filter_ptr);
+  // Filter values are even so downshift by 1 to reduce precision requirements.
+  const int16x8_t y_filter = vshrq_n_s16(vld1q_s16(y_filter_ptr), 1);
 
   if (w <= 4) {
     uint8x8_t d01;
@@ -685,8 +675,8 @@ void av1_convolve_y_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
       d2 = convolve8_4x4(s2, s3, s4, s5, s6, s7, s8, s9, y_filter);
       d3 = convolve8_4x4(s3, s4, s5, s6, s7, s8, s9, s10, y_filter);
 
-      d01 = vqrshrun_n_s16(vcombine_s16(d0, d1), FILTER_BITS);
-      d23 = vqrshrun_n_s16(vcombine_s16(d2, d3), FILTER_BITS);
+      d01 = vqrshrun_n_s16(vcombine_s16(d0, d1), FILTER_BITS - 1);
+      d23 = vqrshrun_n_s16(vcombine_s16(d2, d3), FILTER_BITS - 1);
       if ((w == 4) && (h != 2)) {
         vst1_lane_u32((uint32_t *)dst, vreinterpret_u32_u8(d01),
                       0);  // 00 01 02 03
@@ -736,7 +726,7 @@ void av1_convolve_y_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
 
       d0 = convolve8_4x4(s0, s1, s2, s3, s4, s5, s6, s7, y_filter);
 
-      d01 = vqrshrun_n_s16(vcombine_s16(d0, d0), FILTER_BITS);
+      d01 = vqrshrun_n_s16(vcombine_s16(d0, d0), FILTER_BITS - 1);
 
       if (w == 4) {
         vst1_lane_u32((uint32_t *)dst, vreinterpret_u32_u8(d01), 0);
