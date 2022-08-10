@@ -1905,12 +1905,13 @@ static void search_motion_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
 #endif  // !CONFIG_REALTIME_ONLY
 
 #define COLLECT_PICK_MODE_STAT 0
+#define COLLECT_NON_SQR_STAT 0
 
 #if COLLECT_PICK_MODE_STAT
 #include "aom_ports/aom_timer.h"
 typedef struct _mode_search_stat {
   int32_t num_blocks[BLOCK_SIZES];
-  int64_t avg_block_times[BLOCK_SIZES];
+  int64_t total_block_times[BLOCK_SIZES];
   int32_t num_searches[BLOCK_SIZES][MB_MODE_COUNT];
   int32_t num_nonskipped_searches[BLOCK_SIZES][MB_MODE_COUNT];
   int64_t search_times[BLOCK_SIZES][MB_MODE_COUNT];
@@ -1921,8 +1922,15 @@ typedef struct _mode_search_stat {
   int64_t txfm_time[BLOCK_SIZES][MB_MODE_COUNT];
   struct aom_usec_timer timer1;
   struct aom_usec_timer timer2;
-  struct aom_usec_timer timer3;
+  struct aom_usec_timer bsize_timer;
 } mode_search_stat;
+
+static void AOM_INLINE print_stage_time(const char *stage_name,
+                                        int64_t stage_time,
+                                        int64_t total_time) {
+  printf("    %s: %ld (%f%%)\n", stage_name, stage_time,
+         100 * stage_time / (float)total_time);
+}
 #endif  // COLLECT_PICK_MODE_STAT
 
 static void compute_intra_yprediction(const AV1_COMMON *cm,
@@ -2797,7 +2805,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
 #if COLLECT_PICK_MODE_STAT
-  aom_usec_timer_start(&ms_stat.timer2);
+  aom_usec_timer_start(&ms_stat.bsize_timer);
 #endif
   int64_t thresh_sad_pred = INT64_MAX;
   const int mi_row = xd->mi_row;
@@ -3172,9 +3180,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         pd->dst.stride = bw;
       }
     }
-#if COLLECT_PICK_MODE_STAT
-    ms_stat.num_nonskipped_searches[bsize][this_mode]++;
-#endif
 
     if (idx == 0 && !skip_pred_mv) {
       // Set color sensitivity on first tested mode only.
@@ -3301,6 +3306,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       if (reuse_inter_pred) free_pred_buffer(this_mode_pred);
       continue;
     }
+
+#if COLLECT_PICK_MODE_STAT
+    ms_stat.num_nonskipped_searches[bsize][this_mode]++;
+#endif
 
     const int skip_ctx = av1_get_skip_txfm_context(xd);
     const int skip_txfm_cost = mode_costs->skip_txfm_cost[skip_ctx][1];
@@ -3493,6 +3502,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #if COLLECT_PICK_MODE_STAT
   aom_usec_timer_start(&ms_stat.timer1);
   ms_stat.num_searches[bsize][DC_PRED]++;
+  ms_stat.num_nonskipped_searches[bsize][DC_PRED]++;
 #endif
 
   if (!x->force_zeromv_skip)
@@ -3648,52 +3658,64 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   store_coding_context(x, ctx);
 #endif  // CONFIG_INTERNAL_STATS
 #if COLLECT_PICK_MODE_STAT
-  aom_usec_timer_mark(&ms_stat.timer2);
-  ms_stat.avg_block_times[bsize] += aom_usec_timer_elapsed(&ms_stat.timer2);
-  //
+  aom_usec_timer_mark(&ms_stat.bsize_timer);
+  ms_stat.total_block_times[bsize] +=
+      aom_usec_timer_elapsed(&ms_stat.bsize_timer);
   if ((mi_row + mi_size_high[bsize] >= (cpi->common.mi_params.mi_rows)) &&
       (mi_col + mi_size_wide[bsize] >= (cpi->common.mi_params.mi_cols))) {
-    int i, j;
-    BLOCK_SIZE bss[5] = { BLOCK_8X8, BLOCK_16X16, BLOCK_32X32, BLOCK_64X64,
-                          BLOCK_128X128 };
     int64_t total_time = 0l;
     int32_t total_blocks = 0;
+    for (BLOCK_SIZE bs = 0; bs < BLOCK_SIZES; bs++) {
+      total_time += ms_stat.total_block_times[bs];
+      total_blocks += ms_stat.num_blocks[bs];
+    }
 
     printf("\n");
-    for (i = 0; i < 5; i++) {
-      printf("BS(%d) Num %d, Avg_time %f:\n", bss[i],
-             ms_stat.num_blocks[bss[i]],
-             ms_stat.num_blocks[bss[i]] > 0
-                 ? (float)ms_stat.avg_block_times[bss[i]] /
-                       ms_stat.num_blocks[bss[i]]
-                 : 0);
-      total_time += ms_stat.avg_block_times[bss[i]];
-      total_blocks += ms_stat.num_blocks[bss[i]];
-      for (j = 0; j < MB_MODE_COUNT; j++) {
-        if (ms_stat.nonskipped_search_times[bss[i]][j] == 0) {
+    for (BLOCK_SIZE bs = 0; bs < BLOCK_SIZES; bs++) {
+      if (ms_stat.num_blocks[bs] == 0) {
+        continue;
+      }
+      if (!COLLECT_NON_SQR_STAT && block_size_wide[bs] != block_size_high[bs]) {
+        continue;
+      }
+
+      printf("BLOCK_%dX%d Num %d, Time: %ld (%f%%), Avg_time %f:\n",
+             block_size_wide[bs], block_size_high[bs], ms_stat.num_blocks[bs],
+             ms_stat.total_block_times[bs],
+             100 * ms_stat.total_block_times[bs] / (float)total_time,
+             (float)ms_stat.total_block_times[bs] / ms_stat.num_blocks[bs]);
+      for (int j = 0; j < MB_MODE_COUNT; j++) {
+        if (ms_stat.nonskipped_search_times[bs][j] == 0) {
           continue;
         }
 
+        int64_t total_mode_time = ms_stat.nonskipped_search_times[bs][j];
         printf("  Mode %d, %d/%d tps %f\n", j,
-               ms_stat.num_nonskipped_searches[bss[i]][j],
-               ms_stat.num_searches[bss[i]][j],
-               ms_stat.num_nonskipped_searches[bss[i]][j] > 0
-                   ? (float)ms_stat.nonskipped_search_times[bss[i]][j] /
-                         ms_stat.num_nonskipped_searches[bss[i]][j]
+               ms_stat.num_nonskipped_searches[bs][j],
+               ms_stat.num_searches[bs][j],
+               ms_stat.num_nonskipped_searches[bs][j] > 0
+                   ? (float)ms_stat.nonskipped_search_times[bs][j] /
+                         ms_stat.num_nonskipped_searches[bs][j]
                    : 0l);
         if (j >= INTER_MODE_START) {
-          printf("    Motion Search Time: %ld\n", ms_stat.ms_time[bss[i]][j]);
-          printf("    Filter Search Time: %ld\n", ms_stat.ifs_time[bss[i]][j]);
-          printf("    Model    RD   Time: %ld\n",
-                 ms_stat.model_rd_time[bss[i]][j]);
-          printf("    Tranfm Search Time: %ld\n", ms_stat.txfm_time[bss[i]][j]);
+          total_mode_time = ms_stat.ms_time[bs][j] + ms_stat.ifs_time[bs][j] +
+                            ms_stat.model_rd_time[bs][j] +
+                            ms_stat.txfm_time[bs][j];
+          print_stage_time("Motion Search Time", ms_stat.ms_time[bs][j],
+                           total_time);
+          print_stage_time("Filter Search Time", ms_stat.ifs_time[bs][j],
+                           total_time);
+          print_stage_time("Model    RD   Time", ms_stat.model_rd_time[bs][j],
+                           total_time);
+          print_stage_time("Tranfm Search Time", ms_stat.txfm_time[bs][j],
+                           total_time);
         }
+        print_stage_time("Total  Mode   Time", total_mode_time, total_time);
       }
       printf("\n");
     }
     printf("Total time = %ld. Total blocks = %d\n", total_time, total_blocks);
   }
-  //
 #endif  // COLLECT_PICK_MODE_STAT
   *rd_cost = best_rdc;
 }
