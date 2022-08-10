@@ -1017,10 +1017,6 @@ TEST_F(RateControlQModeTest, TestGopIntervals) {
               ElementsAre(21, 9, 30, 30, 16, 14, 21, 9, 30, 12, 16, 2, 30, 10));
 }
 
-// TODO(b/240623286): Reenable after regenerating data files which are
-// consistent with each other. With the existing files, the GOP structure
-// resulting from the first pass stats doesn't match the TPL stats, resulting
-// in an error from ValidateTplStats.
 TEST_F(RateControlQModeTest, TestGetGopEncodeInfo) {
   FirstpassInfo firstpass_info;
   ASSERT_NO_FATAL_FAILURE(
