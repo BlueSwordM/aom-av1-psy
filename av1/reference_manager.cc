@@ -126,8 +126,8 @@ ReferenceName get_ref_name(RefUpdateType ref_update_type, int priority_idx,
   const std::vector<ReferenceName> forward_name_list{
     ReferenceName::kAltrefFrame,  ReferenceName::kBwdrefFrame,
     ReferenceName::kAltref2Frame, ReferenceName::kGoldenFrame,
-    ReferenceName::kLastFrame,    ReferenceName::kLast2Frame,
-    ReferenceName::kLast3Frame
+    ReferenceName::kLast3Frame,   ReferenceName::kLast2Frame,
+    ReferenceName::kLastFrame
   };
   const std::vector<ReferenceName> backward_name_list{
     ReferenceName::kGoldenFrame, ReferenceName::kLastFrame,
