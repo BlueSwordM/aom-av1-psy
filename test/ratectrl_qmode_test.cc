@@ -1028,7 +1028,7 @@ TEST_F(RateControlQModeTest, TestGetGopEncodeInfo) {
   const auto gop_info = rc.DetermineGopInfo(firstpass_info);
   ASSERT_THAT(gop_info.status(), IsOkStatus());
   const GopStructList &gop_list = *gop_info;
-  const aom_rational_t frame_rate = { .num = 30, .den = 1 };
+  const aom_rational_t frame_rate = { 30, 1 };
   const aom::VideoInfo input_video = {
     kFrameWidth, kFrameHeight,
     frame_rate,  AOM_IMG_FMT_I420,
