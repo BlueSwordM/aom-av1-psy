@@ -1030,12 +1030,9 @@ TEST_F(RateControlQModeTest, TestGetGopEncodeInfo) {
   const GopStructList &gop_list = *gop_info;
   const aom_rational_t frame_rate = { .num = 30, .den = 1 };
   const aom::VideoInfo input_video = {
-    .frame_width = kFrameWidth,
-    .frame_height = kFrameHeight,
-    .frame_rate = frame_rate,
-    .img_fmt = AOM_IMG_FMT_I420,
-    .frame_count = 250,
-    .file_path = libaom_test::GetDataPath() + "/hantro_collage_w352h288.yuv",
+    kFrameWidth, kFrameHeight,
+    frame_rate,  AOM_IMG_FMT_I420,
+    250,         libaom_test::GetDataPath() + "/hantro_collage_w352h288.yuv"
   };
   DuckyEncode ducky_encode(input_video, 3, 3);
   ducky_encode.StartEncode(firstpass_info.stats_list);
