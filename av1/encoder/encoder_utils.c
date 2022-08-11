@@ -792,7 +792,10 @@ BLOCK_SIZE av1_select_sb_size(const AV1EncoderConfig *const oxcf, int width,
                ? BLOCK_128X128
                : BLOCK_64X64;
   } else if (oxcf->mode == REALTIME) {
-    return AOMMIN(width, height) > 720 ? BLOCK_128X128 : BLOCK_64X64;
+    if (oxcf->tune_cfg.content == AOM_CONTENT_SCREEN)
+      return AOMMIN(width, height) >= 720 ? BLOCK_128X128 : BLOCK_64X64;
+    else
+      return AOMMIN(width, height) > 720 ? BLOCK_128X128 : BLOCK_64X64;
   }
 
   // TODO(any): Possibly could improve this with a heuristic.
