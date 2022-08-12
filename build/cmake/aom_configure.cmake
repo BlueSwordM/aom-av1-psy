@@ -314,6 +314,7 @@ else()
   add_compiler_flag_if_supported("-Wuninitialized")
   add_compiler_flag_if_supported("-Wunused")
   add_compiler_flag_if_supported("-Wvla")
+  add_cxx_flag_if_supported("-Wc++14-extensions")
   add_cxx_flag_if_supported("-Wc++17-extensions")
   add_cxx_flag_if_supported("-Wc++20-extensions")
 
