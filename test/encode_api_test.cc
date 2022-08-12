@@ -22,9 +22,9 @@
 namespace {
 
 #if CONFIG_REALTIME_ONLY
-const int kUsage = 1;
+const int kUsage = AOM_USAGE_REALTIME;
 #else
-const int kUsage = 0;
+const int kUsage = AOM_USAGE_GOOD_QUALITY;
 #endif
 
 TEST(EncodeAPI, InvalidParams) {
@@ -92,7 +92,7 @@ TEST(EncodeAPI, SetSFrameOnFirstFrame) {
 
   aom_codec_iface_t *iface = aom_codec_av1_cx();
   aom_codec_enc_cfg_t cfg;
-  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, kUsage), AOM_CODEC_OK);
   cfg.g_w = kWidth;
   cfg.g_h = kHeight;
 
