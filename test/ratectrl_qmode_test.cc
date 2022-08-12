@@ -316,6 +316,7 @@ static TplFrameStats CreateToyTplFrameStatsWithDiffSizes(int min_block_size,
   frame_stats.min_block_size = min_block_size;
   frame_stats.frame_height = max_h * count;
   frame_stats.frame_width = max_w * count;
+  frame_stats.rate_dist_present = false;
   for (int i = 0; i < count; ++i) {
     for (int j = 0; j < count; ++j) {
       int h = max_h >> i;
@@ -1081,7 +1082,7 @@ TEST_F(RateControlQModeTest, GetGopEncodeInfoRefFrameMissingBlockStats) {
 
   // Only frame 0 has TPL block stats.
   TplGopStats tpl_gop_stats;
-  tpl_gop_stats.frame_stats_list.assign(3, { 8, 176, 144, {} });
+  tpl_gop_stats.frame_stats_list.assign(3, { 8, 176, 144, false, {} });
   tpl_gop_stats.frame_stats_list[0] = CreateToyTplFrameStatsWithDiffSizes(8, 8);
 
   AV1RateControlQMode rc;

@@ -24,8 +24,10 @@ namespace aom {
 constexpr int kBlockRefCount = 2;
 
 struct MotionVector {
-  int row;          // subpel row
-  int col;          // subpel col
+  int row;  // subpel row
+  int col;  // subpel col
+  // TODO(b/241589513): Move this to TPLFrameStats; it's wasteful to code it
+  // separately for each block.
   int subpel_bits;  // number of fractional bits used by row/col
 };
 
@@ -48,12 +50,17 @@ struct RateControlParam {
 };
 
 struct TplBlockStats {
-  int height;  // pixel height
-  int width;   // pixel width
-  int row;     // pixel row of the top left corner
-  int col;     // pixel col of the top lef corner
+  int16_t height;  // Pixel height.
+  int16_t width;   // Pixel width.
+  int16_t row;     // Pixel row of the top left corner.
+  int16_t col;     // Pixel col of the top lef corner.
   int64_t intra_cost;
   int64_t inter_cost;
+
+  // Valid only if TplFrameStats::rate_dist_present is true:
+  int64_t recrf_rate;  // Bits when using recon as reference.
+  int64_t recrf_dist;  // Distortion when using recon as reference.
+
   std::array<MotionVector, kBlockRefCount> mv;
   std::array<int, kBlockRefCount> ref_frame_index;
 };
@@ -233,6 +240,7 @@ struct TplFrameStats {
   int min_block_size;
   int frame_width;
   int frame_height;
+  bool rate_dist_present;  // True if recrf_rate and recrf_dist are populated.
   std::vector<TplBlockStats> block_stats_list;
 };
 
