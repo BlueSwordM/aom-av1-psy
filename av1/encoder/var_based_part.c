@@ -563,8 +563,10 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
     thresholds[2] = (5 * threshold_base) >> 2;
   } else if (cm->width < 1920 && cm->height < 1080) {
     thresholds[2] = threshold_base << 1;
-  } else {
+  } else if (cm->width < 2560 && cm->height < 1440) {
     thresholds[2] = (5 * threshold_base) >> 1;
+  } else {
+    thresholds[2] = (7 * threshold_base) >> 1;
   }
   // Tune thresholds less or more aggressively to prefer larger partitions
   if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 3) {

@@ -1397,6 +1397,8 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.force_half_pel_block = 1;
       sf->rt_sf.reduce_zeromv_mvres = true;
     }
+    if (speed >= 10 && cm->width * cm->height > 1920 * 1080)
+      sf->part_sf.disable_8x8_part_based_on_qidx = 1;
     sf->rt_sf.skip_cdef_sb = 1;
     sf->rt_sf.use_rtc_tf = 0;
     sf->rt_sf.use_comp_ref_nonrd = 0;
