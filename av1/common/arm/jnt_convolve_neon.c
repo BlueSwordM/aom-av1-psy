@@ -45,7 +45,7 @@ static INLINE void compute_avg_4x1(
 
     dst0 = vqrshlq_s32(dst0, round_bits_vec);
 
-    tmp0 = vqmovn_s32(dst0);
+    tmp0 = vmovn_s32(dst0);
     tmp4 = vcombine_s16(tmp0, tmp0);
 
     *t0 = vqmovun_s16(tmp4);
@@ -57,7 +57,7 @@ static INLINE void compute_avg_4x1(
 
     tmp0 = vqrshl_s16(tmp0, round_bits_vec);
 
-    tmp4 = vcombine_s16(tmp0, tmp0);
+    tmp4 = vcombine_s16(tmp0, vdup_n_s16(0));
 
     *t0 = vqmovun_s16(tmp4);
   }
@@ -67,7 +67,6 @@ static INLINE void compute_avg_8x1(
     uint16x8_t res0, uint16x8_t d0, const uint16_t fwd_offset,
     const uint16_t bck_offset, const int16x4_t sub_const,
     const int16_t round_bits, const int use_dist_wtd_comp_avg, uint8x8_t *t0) {
-  int16x4_t tmp0, tmp2;
   int16x8_t f0;
   uint32x4_t sum0, sum2;
   int32x4_t dst0, dst2;
@@ -92,10 +91,7 @@ static INLINE void compute_avg_8x1(
     dst0 = vqrshlq_s32(dst0, round_bits_vec);
     dst2 = vqrshlq_s32(dst2, round_bits_vec);
 
-    tmp0 = vqmovn_s32(dst0);
-    tmp2 = vqmovn_s32(dst2);
-
-    f0 = vcombine_s16(tmp0, tmp2);
+    f0 = vcombine_s16(vmovn_s32(dst0), vmovn_s32(dst2));
 
     *t0 = vqmovun_s16(f0);
 
@@ -126,7 +122,6 @@ static INLINE void compute_avg_4x4(
 
   int32x4_t dst0, dst1, dst2, dst3;
   int16x8_t tmp4, tmp5;
-  const int16x8_t zero = vdupq_n_s16(0);
 
   if (use_dist_wtd_comp_avg) {
     const int32x4_t round_bits_vec = vdupq_n_s32((int32_t)(-round_bits));
@@ -156,17 +151,11 @@ static INLINE void compute_avg_4x4(
     dst2 = vqrshlq_s32(dst2, round_bits_vec);
     dst3 = vqrshlq_s32(dst3, round_bits_vec);
 
-    tmp0 = vqmovn_s32(dst0);
-    tmp1 = vqmovn_s32(dst1);
-    tmp2 = vqmovn_s32(dst2);
-    tmp3 = vqmovn_s32(dst3);
-    tmp4 = vcombine_s16(tmp0, tmp1);
-    tmp5 = vcombine_s16(tmp2, tmp3);
-    tmp4 = vmaxq_s16(tmp4, zero);
-    tmp5 = vmaxq_s16(tmp5, zero);
+    tmp4 = vcombine_s16(vmovn_s32(dst0), vmovn_s32(dst1));
+    tmp5 = vcombine_s16(vmovn_s32(dst2), vmovn_s32(dst3));
 
-    *t0 = vqmovn_u16(vreinterpretq_u16_s16(tmp4));
-    *t1 = vqmovn_u16(vreinterpretq_u16_s16(tmp5));
+    *t0 = vqmovun_s16(tmp4);
+    *t1 = vqmovun_s16(tmp5);
   } else {
     const int16x4_t round_bits_vec = vdup_n_s16(-round_bits);
     tmp_u0 = vhadd_u16(res0, d0);
@@ -186,11 +175,9 @@ static INLINE void compute_avg_4x4(
 
     tmp4 = vcombine_s16(tmp0, tmp1);
     tmp5 = vcombine_s16(tmp2, tmp3);
-    tmp4 = vmaxq_s16(tmp4, zero);
-    tmp5 = vmaxq_s16(tmp5, zero);
 
-    *t0 = vqmovn_u16(vreinterpretq_u16_s16(tmp4));
-    *t1 = vqmovn_u16(vreinterpretq_u16_s16(tmp5));
+    *t0 = vqmovun_s16(tmp4);
+    *t1 = vqmovun_s16(tmp5);
   }
 }
 
@@ -201,14 +188,12 @@ static INLINE void compute_avg_8x4(
     const int16x4_t sub_const, const int16_t round_bits,
     const int use_dist_wtd_comp_avg, uint8x8_t *t0, uint8x8_t *t1,
     uint8x8_t *t2, uint8x8_t *t3) {
-  int16x4_t tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
   int16x8_t f0, f1, f2, f3;
   uint32x4_t sum0, sum1, sum2, sum3;
   uint32x4_t sum4, sum5, sum6, sum7;
   int32x4_t dst0, dst1, dst2, dst3;
   int32x4_t dst4, dst5, dst6, dst7;
   uint16x8_t tmp_u0, tmp_u1, tmp_u2, tmp_u3;
-  const int16x8_t zero = vdupq_n_s16(0);
 
   if (use_dist_wtd_comp_avg) {
     const int32x4_t sub_const_vec = vmovl_s16(sub_const);
@@ -260,29 +245,15 @@ static INLINE void compute_avg_8x4(
     dst6 = vqrshlq_s32(dst6, round_bits_vec);
     dst7 = vqrshlq_s32(dst7, round_bits_vec);
 
-    tmp0 = vqmovn_s32(dst0);
-    tmp1 = vqmovn_s32(dst1);
-    tmp2 = vqmovn_s32(dst2);
-    tmp3 = vqmovn_s32(dst3);
-    tmp4 = vqmovn_s32(dst4);
-    tmp5 = vqmovn_s32(dst5);
-    tmp6 = vqmovn_s32(dst6);
-    tmp7 = vqmovn_s32(dst7);
+    f0 = vcombine_s16(vmovn_s32(dst0), vmovn_s32(dst2));
+    f1 = vcombine_s16(vmovn_s32(dst1), vmovn_s32(dst3));
+    f2 = vcombine_s16(vmovn_s32(dst4), vmovn_s32(dst6));
+    f3 = vcombine_s16(vmovn_s32(dst5), vmovn_s32(dst7));
 
-    f0 = vcombine_s16(tmp0, tmp2);
-    f1 = vcombine_s16(tmp1, tmp3);
-    f2 = vcombine_s16(tmp4, tmp6);
-    f3 = vcombine_s16(tmp5, tmp7);
-
-    f0 = vmaxq_s16(f0, zero);
-    f1 = vmaxq_s16(f1, zero);
-    f2 = vmaxq_s16(f2, zero);
-    f3 = vmaxq_s16(f3, zero);
-
-    *t0 = vqmovn_u16(vreinterpretq_u16_s16(f0));
-    *t1 = vqmovn_u16(vreinterpretq_u16_s16(f1));
-    *t2 = vqmovn_u16(vreinterpretq_u16_s16(f2));
-    *t3 = vqmovn_u16(vreinterpretq_u16_s16(f3));
+    *t0 = vqmovun_s16(f0);
+    *t1 = vqmovun_s16(f1);
+    *t2 = vqmovun_s16(f2);
+    *t3 = vqmovun_s16(f3);
 
   } else {
     const int16x8_t sub_const_vec = vcombine_s16(sub_const, sub_const);
@@ -303,15 +274,10 @@ static INLINE void compute_avg_8x4(
     f2 = vqrshlq_s16(f2, round_bits_vec);
     f3 = vqrshlq_s16(f3, round_bits_vec);
 
-    f0 = vmaxq_s16(f0, zero);
-    f1 = vmaxq_s16(f1, zero);
-    f2 = vmaxq_s16(f2, zero);
-    f3 = vmaxq_s16(f3, zero);
-
-    *t0 = vqmovn_u16(vreinterpretq_u16_s16(f0));
-    *t1 = vqmovn_u16(vreinterpretq_u16_s16(f1));
-    *t2 = vqmovn_u16(vreinterpretq_u16_s16(f2));
-    *t3 = vqmovn_u16(vreinterpretq_u16_s16(f3));
+    *t0 = vqmovun_s16(f0);
+    *t1 = vqmovun_s16(f1);
+    *t2 = vqmovun_s16(f2);
+    *t3 = vqmovun_s16(f3);
   }
 }
 
