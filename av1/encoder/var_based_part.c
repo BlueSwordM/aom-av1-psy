@@ -924,8 +924,8 @@ void av1_set_variance_partition_thresholds(AV1_COMP *cpi, int q,
 
 static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
                                     BLOCK_SIZE bsize, unsigned int y_sad,
-                                    int is_key_frame, int zero_motion,
-                                    unsigned int *uv_sad) {
+                                    unsigned int y_sad_g, int is_key_frame,
+                                    int zero_motion, unsigned int *uv_sad) {
   int i;
   MACROBLOCKD *xd = &x->e_mbd;
   int shift = 3;
@@ -938,9 +938,11 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
   MB_MODE_INFO *mi = xd->mi[0];
   const AV1_COMMON *const cm = &cpi->common;
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, LAST_FRAME);
+  const YV12_BUFFER_CONFIG *yv12_g = get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
   const struct scale_factors *const sf =
       get_ref_scale_factors_const(cm, LAST_FRAME);
   struct buf_2d dst;
+  unsigned int uv_sad_g = 0;
 
   for (i = 1; i <= 2; ++i) {
     struct macroblock_plane *p = &x->plane[i];
@@ -949,6 +951,7 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
         get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
 
     if (bs != BLOCK_INVALID) {
+      // For last:
       if (zero_motion) {
         if (mi->ref_frame[0] == LAST_FRAME) {
           uv_sad[i - 1] = cpi->ppi->fn_ptr[bs].sdf(
@@ -963,9 +966,21 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
           uv_sad[i - 1] = cpi->ppi->fn_ptr[bs].sdf(p->src.buf, p->src.stride,
                                                    dst.buf, dst.stride);
         }
-      } else
+      } else {
         uv_sad[i - 1] = cpi->ppi->fn_ptr[bs].sdf(p->src.buf, p->src.stride,
                                                  pd->dst.buf, pd->dst.stride);
+      }
+
+      // For golden:
+      if (y_sad_g != UINT_MAX) {
+        uint8_t *src = (i == 1) ? yv12_g->u_buffer : yv12_g->v_buffer;
+        setup_pred_plane(&dst, xd->mi[0]->bsize, src, yv12_g->uv_crop_width,
+                         yv12_g->uv_crop_height, yv12_g->uv_stride, xd->mi_row,
+                         xd->mi_col, sf, xd->plane[i].subsampling_x,
+                         xd->plane[i].subsampling_y);
+        uv_sad_g = cpi->ppi->fn_ptr[bs].sdf(p->src.buf, p->src.stride, dst.buf,
+                                            dst.stride);
+      }
     }
 
     if (uv_sad[i - 1] > (y_sad >> 1))
@@ -976,6 +991,8 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
     // for coding block size < sb_size.
     else
       x->color_sensitivity_sb[i - 1] = 2;
+
+    x->color_sensitivity_sb_g[i - 1] = uv_sad_g > y_sad_g / 6;
   }
 }
 
@@ -1313,7 +1330,8 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
 
   uv_sad[0] = 0;
   uv_sad[1] = 0;
-  chroma_check(cpi, x, bsize, y_sad_last, is_key_frame, zero_motion, uv_sad);
+  chroma_check(cpi, x, bsize, y_sad_last, y_sad_g, is_key_frame, zero_motion,
+               uv_sad);
 
   x->force_zeromv_skip = 0;
   const unsigned int thresh_exit_part =

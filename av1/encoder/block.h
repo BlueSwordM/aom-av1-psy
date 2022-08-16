@@ -1261,6 +1261,8 @@ typedef struct macroblock {
    * of moving color objects.
    */
   uint8_t color_sensitivity_sb[2];
+  //! Color sensitivity flag for the superblock for golden reference.
+  uint8_t color_sensitivity_sb_g[2];
   //! Color sensitivity flag for the coding block.
   uint8_t color_sensitivity[2];
   /**@}*/
