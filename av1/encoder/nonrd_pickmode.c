@@ -2081,6 +2081,12 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
     use_alt_ref_frame = 0;
   }
 
+  // Skip golden reference if color is set, on flat blocks with motion.
+  if (x->source_variance < 500 &&
+      x->content_state_sb.source_sad_nonrd > kLowSad &&
+      (x->color_sensitivity_sb_g[0] == 1 || x->color_sensitivity_sb_g[1] == 1))
+    use_golden_ref_frame = 0;
+
   use_alt_ref_frame =
       cpi->ref_frame_flags & AOM_ALT_FLAG ? use_alt_ref_frame : 0;
   use_golden_ref_frame =
