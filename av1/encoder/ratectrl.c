@@ -2599,7 +2599,6 @@ void av1_set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
   ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
       &ext_flags->refresh_frame;
   SVC *const svc = &cpi->svc;
-  const int gld_fixed_slot = 1;
   unsigned int lag_alt = 4;
   int last_idx = 0;
   int last_idx_refresh = 0;
@@ -2638,25 +2637,14 @@ void av1_set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
   ext_flags->ref_frame_flags ^= AOM_GOLD_FLAG;
   if (cpi->sf.rt_sf.ref_frame_comp_nonrd[1])
     ext_flags->ref_frame_flags ^= AOM_LAST2_FLAG;
-  const int sh = 7 - gld_fixed_slot;
+  const int sh = 6;
   // Moving index slot for last: 0 - (sh - 1).
   if (cm->current_frame.frame_number > 1)
     last_idx = ((cm->current_frame.frame_number - 1) % sh);
   // Moving index for refresh of last: one ahead for next frame.
   last_idx_refresh = (cm->current_frame.frame_number % sh);
   gld_idx = 6;
-  if (!gld_fixed_slot) {
-    gld_idx = 7;
-    const unsigned int lag_gld = 7;  // Must be <= 7.
-    // Moving index for gld_ref, lag behind current by gld_interval frames.
-    if (cm->current_frame.frame_number > lag_gld)
-      gld_idx = ((cm->current_frame.frame_number - lag_gld) % sh);
-    // When golden is not long-term reference with fixed slot update but
-    // a reference with a moving slot with fixed lag behind last
-    // (i.e., gld_fixed_slot = 0), we should disable the
-    // gf_refresh_based_on_qp feature.
-    cpi->sf.rt_sf.gf_refresh_based_on_qp = 0;
-  }
+
   // Moving index for alt_ref, lag behind LAST by lag_alt frames.
   if (cm->current_frame.frame_number > lag_alt)
     alt_ref_idx = ((cm->current_frame.frame_number - lag_alt) % sh);
@@ -2676,8 +2664,7 @@ void av1_set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
   // Refresh this slot, which will become LAST on next frame.
   svc->refresh[last_idx_refresh] = 1;
   // Update GOLDEN on period for fixed slot case.
-  if (gld_fixed_slot && gf_update &&
-      cm->current_frame.frame_type != KEY_FRAME) {
+  if (gf_update && cm->current_frame.frame_type != KEY_FRAME) {
     ext_refresh_frame_flags->golden_frame = 1;
     svc->refresh[gld_idx] = 1;
   }
