@@ -1672,6 +1672,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.var_part_based_on_qidx = 3;
     sf->rt_sf.prune_compoundmode_with_singlecompound_var = true;
     sf->rt_sf.prune_compoundmode_with_singlemode_var = true;
+    sf->rt_sf.skip_compound_based_on_var = true;
   }
 
   if (speed >= 8) {
@@ -2053,6 +2054,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->check_only_zero_zeromv_on_large_blocks = false;
   rt_sf->disable_cdf_update_non_reference_frame = false;
   rt_sf->prune_compoundmode_with_singlemode_var = false;
+  rt_sf->skip_compound_based_on_var = false;
   rt_sf->top_right_sync_wait_in_mis = false;
 }
 

@@ -1602,6 +1602,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Prune compound modes if the single modes variances do not perform well.
   bool prune_compoundmode_with_singlemode_var;
 
+  // Skip searching all compound mode if the variance of single_mode residue is
+  // sufficiently low.
+  bool skip_compound_based_on_var;
+
   // In multi-threaded encoding, enable top right dependency wait of threads at
   // mi level.
   bool top_right_sync_wait_in_mis;
