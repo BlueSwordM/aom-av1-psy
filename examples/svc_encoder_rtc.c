@@ -37,6 +37,7 @@ typedef struct {
   int aq_mode;
   int layering_mode;
   int output_obu;
+  int decode;
 } AppInput;
 
 typedef enum {
@@ -87,6 +88,9 @@ static const arg_def_t error_resilient_arg =
 static const arg_def_t output_obu_arg =
     ARG_DEF(NULL, "output-obu", 1,
             "Write OBUs when set to 1. Otherwise write IVF files.");
+static const arg_def_t test_decode_arg =
+    ARG_DEF(NULL, "test-decode", 1,
+            "Attempt to test decoding the output when set to 1. Default is 1.");
 
 #if CONFIG_AV1_HIGHBITDEPTH
 static const struct arg_enum_list bitdepth_enum[] = {
@@ -97,18 +101,31 @@ static const arg_def_t bitdepth_arg = ARG_DEF_ENUM(
     "d", "bit-depth", 1, "Bit depth for codec 8, 10 or 12. ", bitdepth_enum);
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
-static const arg_def_t *svc_args[] = {
-  &frames_arg,          &outputfile,     &width_arg,
-  &height_arg,          &timebase_arg,   &bitrate_arg,
-  &spatial_layers_arg,  &kf_dist_arg,    &scale_factors_arg,
-  &min_q_arg,           &max_q_arg,      &temporal_layers_arg,
-  &layering_mode_arg,   &threads_arg,    &aqmode_arg,
+static const arg_def_t *svc_args[] = { &frames_arg,
+                                       &outputfile,
+                                       &width_arg,
+                                       &height_arg,
+                                       &timebase_arg,
+                                       &bitrate_arg,
+                                       &spatial_layers_arg,
+                                       &kf_dist_arg,
+                                       &scale_factors_arg,
+                                       &min_q_arg,
+                                       &max_q_arg,
+                                       &temporal_layers_arg,
+                                       &layering_mode_arg,
+                                       &threads_arg,
+                                       &aqmode_arg,
 #if CONFIG_AV1_HIGHBITDEPTH
-  &bitdepth_arg,
+                                       &bitdepth_arg,
 #endif
-  &speed_arg,           &bitrates_arg,   &dropframe_thresh_arg,
-  &error_resilient_arg, &output_obu_arg, NULL
-};
+                                       &speed_arg,
+                                       &bitrates_arg,
+                                       &dropframe_thresh_arg,
+                                       &error_resilient_arg,
+                                       &output_obu_arg,
+                                       &test_decode_arg,
+                                       NULL };
 
 #define zero(Dest) memset(&(Dest), 0, sizeof(Dest))
 
@@ -261,6 +278,7 @@ static void parse_command_line(int argc, const char **argv_,
   svc_params->number_temporal_layers = 1;
   app_input->layering_mode = 0;
   app_input->output_obu = 0;
+  app_input->decode = 1;
   enc_cfg->g_threads = 1;
   enc_cfg->rc_end_usage = AOM_CBR;
 
@@ -342,6 +360,11 @@ static void parse_command_line(int argc, const char **argv_,
       if (app_input->output_obu != 0 && app_input->output_obu != 1)
         die("Invalid value for obu output flag (0, 1): %d.",
             app_input->output_obu);
+    } else if (arg_match(&arg, &test_decode_arg, argi)) {
+      app_input->decode = arg_parse_uint(&arg);
+      if (app_input->decode != 0 && app_input->decode != 1)
+        die("Invalid value for test decode flag (0, 1): %d.",
+            app_input->decode);
     } else {
       ++argj;
     }
@@ -1250,8 +1273,10 @@ int main(int argc, const char **argv) {
     die("Failed to initialize encoder");
 
 #if CONFIG_AV1_DECODER
-  if (aom_codec_dec_init(&decoder, get_aom_decoder_by_index(0), NULL, 0)) {
-    die("Failed to initialize decoder");
+  if (app_input.decode) {
+    if (aom_codec_dec_init(&decoder, get_aom_decoder_by_index(0), NULL, 0)) {
+      die("Failed to initialize decoder");
+    }
   }
 #endif
 
@@ -1460,9 +1485,11 @@ int main(int argc, const char **argv) {
             }
 
 #if CONFIG_AV1_DECODER
-            if (aom_codec_decode(&decoder, pkt->data.frame.buf,
-                                 (unsigned int)pkt->data.frame.sz, NULL))
-              die_codec(&decoder, "Failed to decode frame.");
+            if (app_input.decode) {
+              if (aom_codec_decode(&decoder, pkt->data.frame.buf,
+                                   (unsigned int)pkt->data.frame.sz, NULL))
+                die_codec(&decoder, "Failed to decode frame.");
+            }
 #endif
 
             break;
@@ -1470,12 +1497,14 @@ int main(int argc, const char **argv) {
         }
       }
 #if CONFIG_AV1_DECODER
-      // Don't look for mismatch on top spatial and top temporal layers as they
-      // are non reference frames.
-      if ((ss_number_layers > 1 || ts_number_layers > 1) &&
-          !(layer_id.temporal_layer_id > 0 &&
-            layer_id.temporal_layer_id == (int)ts_number_layers - 1)) {
-        test_decode(&codec, &decoder, frame_cnt, &mismatch_seen);
+      if (app_input.decode) {
+        // Don't look for mismatch on top spatial and top temporal layers as
+        // they are non reference frames.
+        if ((ss_number_layers > 1 || ts_number_layers > 1) &&
+            !(layer_id.temporal_layer_id > 0 &&
+              layer_id.temporal_layer_id == (int)ts_number_layers - 1)) {
+          test_decode(&codec, &decoder, frame_cnt, &mismatch_seen);
+        }
       }
 #endif
     }  // loop over spatial layers
