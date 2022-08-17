@@ -518,6 +518,8 @@ if(CONFIG_AV1_DECODER)
               "av1-1-b8-05-mv.ivf.md5"
               "av1-1-b8-06-mfmv.ivf"
               "av1-1-b8-06-mfmv.ivf.md5"
+              "av1-1-b8-16-intra_only-intrabc-extreme-dv.ivf"
+              "av1-1-b8-16-intra_only-intrabc-extreme-dv.ivf.md5"
               "av1-1-b8-22-svc-L2T1.ivf"
               "av1-1-b8-22-svc-L2T1.ivf.md5"
               "av1-1-b8-22-svc-L1T2.ivf"
