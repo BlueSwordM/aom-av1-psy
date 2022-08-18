@@ -1027,7 +1027,6 @@ static void set_good_speed_features_framesize_independent(
     sf->intra_sf.skip_filter_intra_in_inter_frames = 1;
 
     sf->tpl_sf.prune_starting_mv = 1;
-    sf->tpl_sf.search_method = DIAMOND;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 4;
     sf->rd_sf.use_mb_rd_hash = 1;
@@ -1157,7 +1156,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.prune_mesh_search = PRUNE_MESH_SEARCH_LVL_2;
 
     sf->tpl_sf.subpel_force_stop = HALF_PEL;
-    sf->tpl_sf.search_method = FAST_BIGDIA;
+    sf->tpl_sf.search_method = DIAMOND;
 
     sf->tx_sf.tx_type_search.fast_intra_tx_type_search = 1;
 
@@ -1199,6 +1198,7 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.use_y_only_rate_distortion = 1;
     sf->tpl_sf.subpel_force_stop = FULL_PEL;
     sf->tpl_sf.gop_length_decision_method = 2;
+    sf->tpl_sf.search_method = FAST_BIGDIA;
 
     sf->winner_mode_sf.dc_blk_pred_level = 2;
 

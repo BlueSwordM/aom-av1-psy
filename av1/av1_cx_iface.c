@@ -189,6 +189,7 @@ struct av1_extracfg {
   int auto_intra_tools_off;
   int strict_level_conformance;
   int kf_max_pyr_height;
+  int dq_modulate;
 };
 
 #if CONFIG_REALTIME_ONLY
@@ -350,6 +351,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,               // auto_intra_tools_off
   0,               // strict_level_conformance
   -1,              // kf_max_pyr_height
+  1,               // dq_modulate
 };
 #else
 static const struct av1_extracfg default_extra_cfg = {
@@ -497,6 +499,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,               // auto_intra_tools_off
   0,               // strict_level_conformance
   -1,              // kf_max_pyr_height
+  1,               // dq_modulate
 };
 #endif
 
@@ -1258,7 +1261,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->noise_block_size = extra_cfg->noise_block_size;
   oxcf->enable_dnl_denoising = extra_cfg->enable_dnl_denoising;
 #endif
-
 #if CONFIG_AV1_TEMPORAL_DENOISING
   // Temporal denoiser is for nonrd pickmode so disable it for speed < 7.
   // Also disable it for speed 7 for now since it needs to be modified for
@@ -1431,6 +1433,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->strict_level_conformance = extra_cfg->strict_level_conformance;
 
   oxcf->kf_max_pyr_height = extra_cfg->kf_max_pyr_height;
+
+  oxcf->dq_modulate = extra_cfg->dq_modulate;
 
   return AOM_CODEC_OK;
 }
@@ -3943,7 +3947,10 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.kf_max_pyr_height,
                               argv, err_string)) {
     extra_cfg.kf_max_pyr_height = arg_parse_int_helper(&arg, err_string);
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.tile_width, argv,
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.dq_modulate,
+                              argv, err_string)) {
+    extra_cfg.dq_modulate = arg_parse_int_helper(&arg, err_string);
+  }else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.tile_width, argv,
                               err_string)) {
     ctx->cfg.tile_width_count = arg_parse_list_helper(
         &arg, ctx->cfg.tile_widths, MAX_TILE_WIDTHS, err_string);
@@ -3990,6 +3997,13 @@ static aom_codec_err_t ctrl_get_target_seq_level_idx(aom_codec_alg_priv_t *ctx,
   if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
   return av1_get_target_seq_level_idx(&ctx->ppi->seq_params,
                                       &ctx->ppi->level_params, arg);
+}
+
+static aom_codec_err_t ctrl_set_dq_modulate(aom_codec_alg_priv_t *ctx,
+                                          va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.dq_modulate = CAST(AOME_SET_DQ_MODULATE, args);
+  return update_extra_cfg(ctx, &extra_cfg);
 }
 
 static aom_codec_err_t ctrl_get_num_operating_points(aom_codec_alg_priv_t *ctx,
@@ -4138,6 +4152,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_LOOPFILTER_CONTROL, ctrl_set_loopfilter_control },
   { AV1E_SET_AUTO_INTRA_TOOLS_OFF, ctrl_set_auto_intra_tools_off },
   { AV1E_SET_RTC_EXTERNAL_RC, ctrl_set_rtc_external_rc },
+  { AOME_SET_DQ_MODULATE, ctrl_set_dq_modulate },
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
