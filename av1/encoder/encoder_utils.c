@@ -430,8 +430,6 @@ void av1_apply_active_map(AV1_COMP *cpi) {
     cpi->active_map.update = 1;
   }
 
-  if (!cpi->active_map.enabled) return;
-
   if (cpi->active_map.update) {
     if (cpi->active_map.enabled) {
       for (i = 0;
