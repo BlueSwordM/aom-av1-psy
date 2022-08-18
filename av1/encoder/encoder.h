@@ -1067,6 +1067,9 @@ typedef struct AV1EncoderConfig {
 
   // Exit the encoder when it fails to encode to a given level.
   int strict_level_conformance;
+
+  // Max depth for the GOP after a key frame
+  int kf_max_pyr_height;
   /*!\endcond */
 } AV1EncoderConfig;
 

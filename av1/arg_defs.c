@@ -672,5 +672,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "strict-level-conformance", 1,
               "When set to 1, exit the encoder when it fails to encode "
               "to a given target level"),
+  .kf_max_pyr_height = ARG_DEF(
+      NULL, "kf-max-pyr-height", 1,
+      "Maximum height of pyrimid structure used for the GOP starting with a "
+      "key frame (-1 to 5). When set to -1 (default), it does not have any "
+      "effects. The height also obeys the value set to gf_max_pyr_height."),
 #endif  // CONFIG_AV1_ENCODER
 };
