@@ -685,5 +685,8 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       "key frame (-1 to 5). When set to -1 (default), it does not have any "
       "effect. The actual maximum pyramid height will be the minimum of this "
       "value and the value of gf_max_pyr_height."),
+  .dq_modulate = ARG_DEF(NULL, "dq-modulate", 1,
+                       "Changes deltaq-mode=2's perceptual modulation. Still WIP. "
+                       "(0..1), default is 1 (wavelet)"),
 #endif  // CONFIG_AV1_ENCODER
 };

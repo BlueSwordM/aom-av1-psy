@@ -83,7 +83,7 @@ extern "C" {
 // adjust it while we work on documentation.
 /*!\cond */
 // Number of frames required to test for scene cut detection
-#define SCENE_CUT_KEY_TEST_INTERVAL 16
+#define SCENE_CUT_KEY_TEST_INTERVAL 24
 
 // Lookahead index threshold to enable temporal filtering for second arf.
 #define TF_LOOKAHEAD_IDX_THR 7
@@ -1058,6 +1058,9 @@ typedef struct AV1EncoderConfig {
 
   // Max depth for the GOP after a key frame
   int kf_max_pyr_height;
+  
+  // ClybPatch -- Add a modifiable parameter for modifying deltaq-mode=1's perceptual modulation via the interface
+  int dq_modulate;
   /*!\endcond */
 } AV1EncoderConfig;
 

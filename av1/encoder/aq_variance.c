@@ -223,7 +223,7 @@ int av1_compute_q_from_energy_level_deltaq_mode(const AV1_COMP *const cpi,
   int rate_level;
   const AV1_COMMON *const cm = &cpi->common;
 
-  if (DELTA_Q_PERCEPTUAL_MODULATION == 1) {
+  if (DELTA_Q_PERCEPTUAL_MODULATION == 1 && cpi->oxcf.dq_modulate == 1) {
     ENERGY_IN_BOUNDS(block_var_level);
     rate_level = SEGMENT_ID(block_var_level);
   } else {
