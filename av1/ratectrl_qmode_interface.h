@@ -248,6 +248,12 @@ struct TplGopStats {
   std::vector<TplFrameStats> frame_stats_list;
 };
 
+// Structure and TPL stats for a single GOP, to be used for lookahead.
+struct LookaheadStats {
+  const GopStruct *gop_struct;       // Not owned, may not be nullptr.
+  const TplGopStats *tpl_gop_stats;  // Not owned, may not be nullptr.
+};
+
 class AV1RateControlQModeInterface {
  public:
   AV1RateControlQModeInterface();
@@ -256,15 +262,34 @@ class AV1RateControlQModeInterface {
   virtual Status SetRcParam(const RateControlParam &rc_param) = 0;
   virtual StatusOr<GopStructList> DetermineGopInfo(
       const FirstpassInfo &firstpass_info) = 0;
-  // Accept firstpass and TPL info from the encoder and return q index and
-  // rdmult. This needs to be called with consecutive GOPs as returned by
-  // DetermineGopInfo.
-  // For the first GOP, a default-constructed RefFrameTable may be passed in as
-  // ref_frame_table_snapshot_init; for subsequent GOPs, it should be the
-  // final_snapshot returned on the previous call.
+
+  // DEPRECATED. Call GetGopEncodeInfoWithLookahead instead.
+  // TODO(b/242892473): Remove when all references are gone.
   virtual StatusOr<GopEncodeInfo> GetGopEncodeInfo(
       const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
       const RefFrameTable &ref_frame_table_snapshot_init) = 0;
+
+  // Accepts GOP structure and TPL info from the encoder and returns q index and
+  // rdmult for each frame. This should be called with consecutive GOPs as
+  // returned by DetermineGopInfo.
+  //
+  // GOP structure and TPL info from zero or more subsequent GOPs may optionally
+  // be passed in lookahead_stats.
+  //
+  // For the first GOP, a default-constructed RefFrameTable may be passed in as
+  // ref_frame_table_snapshot_init; for subsequent GOPs, it should be the
+  // final_snapshot returned on the previous call.
+  //
+  // TODO(b/242892473): Remove implementation and make pure virtual when
+  // implemented by all derived classes.
+  virtual StatusOr<GopEncodeInfo> GetGopEncodeInfoWithLookahead(
+      const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
+      const std::vector<LookaheadStats> &lookahead_stats,
+      const RefFrameTable &ref_frame_table_snapshot_init) {
+    (void)lookahead_stats;
+    return GetGopEncodeInfo(gop_struct, tpl_gop_stats,
+                            ref_frame_table_snapshot_init);
+  }
 };
 }  // namespace aom
 
