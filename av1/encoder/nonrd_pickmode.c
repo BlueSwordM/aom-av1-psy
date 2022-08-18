@@ -205,19 +205,34 @@ static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
   memset(&bp->pmi, 0, sizeof(bp->pmi));
 }
 
-static INLINE int subpel_select(AV1_COMP *cpi, BLOCK_SIZE bsize, int_mv *mv) {
-  int mv_thresh = 4;
-  const int is_low_resoln =
-      (cpi->common.width * cpi->common.height <= 320 * 240);
-  mv_thresh = (bsize > BLOCK_32X32) ? 2 : (bsize > BLOCK_16X16) ? 4 : 6;
-  if (cpi->rc.avg_frame_low_motion > 0 && cpi->rc.avg_frame_low_motion < 40)
-    mv_thresh = 12;
-  mv_thresh = (is_low_resoln) ? mv_thresh >> 1 : mv_thresh;
-  if (abs(mv->as_fullmv.row) >= mv_thresh ||
-      abs(mv->as_fullmv.col) >= mv_thresh)
-    return HALF_PEL;
-  else
-    return cpi->sf.mv_sf.subpel_force_stop;
+static INLINE int subpel_select(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
+                                int_mv *mv) {
+  assert(cpi->sf.rt_sf.reduce_mv_pel_precision);
+  if (cpi->sf.rt_sf.reduce_mv_pel_precision == 2) {
+    int mv_thresh = 4;
+    const int is_low_resoln =
+        (cpi->common.width * cpi->common.height <= 320 * 240);
+    mv_thresh = (bsize > BLOCK_32X32) ? 2 : (bsize > BLOCK_16X16) ? 4 : 6;
+    if (cpi->rc.avg_frame_low_motion > 0 && cpi->rc.avg_frame_low_motion < 40)
+      mv_thresh = 12;
+    mv_thresh = (is_low_resoln) ? mv_thresh >> 1 : mv_thresh;
+    if (abs(mv->as_fullmv.row) >= mv_thresh ||
+        abs(mv->as_fullmv.col) >= mv_thresh)
+      return HALF_PEL;
+  } else if (cpi->sf.rt_sf.reduce_mv_pel_precision == 1) {
+    // Reduce MV precision for relatively static (e.g. background), low-complex
+    // large areas
+    const int qband = x->qindex >> (QINDEX_BITS - 2);
+    assert(qband < 4);
+    if (x->content_state_sb.source_sad_nonrd[1] <= kLowSad &&
+        bsize > BLOCK_16X16 && qband != 0) {
+      if (x->source_variance < 500)
+        return FULL_PEL;
+      else if (x->source_variance < 5000)
+        return HALF_PEL;
+    }
+  }
+  return cpi->sf.mv_sf.subpel_force_stop;
 }
 
 /*!\brief Runs Motion Estimation for a specific block and specific ref frame.
@@ -311,9 +326,9 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
                                       cost_list);
-    if (cpi->sf.rt_sf.force_half_pel_block &&
+    if (cpi->sf.rt_sf.reduce_mv_pel_precision &&
         cpi->sf.mv_sf.subpel_force_stop < HALF_PEL)
-      ms_params.forced_stop = subpel_select(cpi, bsize, tmp_mv);
+      ms_params.forced_stop = subpel_select(cpi, x, bsize, tmp_mv);
     if (cpi->sf.rt_sf.reduce_zeromv_mvres && ref_mv.row == 0 &&
         ref_mv.col == 0 && start_mv.row == 0 && start_mv.col == 0) {
       // If both the refmv and the fullpel results show zero mv, then there is
@@ -407,9 +422,9 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
 
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv, NULL);
-    if (cpi->sf.rt_sf.force_half_pel_block &&
+    if (cpi->sf.rt_sf.reduce_mv_pel_precision &&
         cpi->sf.mv_sf.subpel_force_stop < HALF_PEL)
-      ms_params.forced_stop = subpel_select(cpi, bsize, &best_mv);
+      ms_params.forced_stop = subpel_select(cpi, x, bsize, &best_mv);
     MV start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, start_mv, &best_mv.as_mv, &dis,
@@ -1297,7 +1312,8 @@ static void newmv_diff_bias(MACROBLOCKD *xd, PREDICTION_MODE this_mode,
     int left_mv_valid = 0;
     int above_row = INVALID_MV_ROW_COL, above_col = INVALID_MV_ROW_COL;
     int left_row = INVALID_MV_ROW_COL, left_col = INVALID_MV_ROW_COL;
-    if (bsize >= BLOCK_64X64 && content_state_sb.source_sad_nonrd != kHighSad &&
+    if (bsize >= BLOCK_64X64 &&
+        content_state_sb.source_sad_nonrd[0] != kHighSad &&
         spatial_variance < 300 &&
         (mv_row > 16 || mv_row < -16 || mv_col > 16 || mv_col < -16)) {
       this_rdc->rdcost = this_rdc->rdcost << 2;
@@ -2080,7 +2096,7 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
     // capture case where only part of frame has high motion.
     // Exclude screen content mode.
     if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN &&
-        x->content_state_sb.source_sad_nonrd >= kHighSad &&
+        x->content_state_sb.source_sad_nonrd[0] >= kHighSad &&
         bsize <= BLOCK_32X32 && cpi->rc.frame_source_sad < 50000)
       use_golden_ref_frame = 1;
   }
@@ -2093,7 +2109,7 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
 
   // Skip golden reference if color is set, on flat blocks with motion.
   if (x->source_variance < 500 &&
-      x->content_state_sb.source_sad_nonrd > kLowSad &&
+      x->content_state_sb.source_sad_nonrd[0] > kLowSad &&
       (x->color_sensitivity_sb_g[0] == 1 || x->color_sensitivity_sb_g[1] == 1))
     use_golden_ref_frame = 0;
 
@@ -2209,18 +2225,18 @@ static void estimate_intra_mode(
       do_early_exit_rdthresh = 0;
     }
     if ((x->source_variance < AOMMAX(50, (spatial_var_thresh >> 1)) &&
-         x->content_state_sb.source_sad_nonrd >= kHighSad) ||
+         x->content_state_sb.source_sad_nonrd[0] >= kHighSad) ||
         (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
          x->source_variance == 0 &&
          ((bsize >= BLOCK_32X32 &&
-           x->content_state_sb.source_sad_nonrd != kZeroSad) ||
+           x->content_state_sb.source_sad_nonrd[0] != kZeroSad) ||
           x->color_sensitivity[0] == 1 || x->color_sensitivity[1] == 1)))
       force_intra_check = 1;
     // For big blocks worth checking intra (since only DC will be checked),
     // even if best_early_term is set.
     if (bsize >= BLOCK_32X32) best_early_term = 0;
   } else if (cpi->sf.rt_sf.source_metrics_sb_nonrd &&
-             x->content_state_sb.source_sad_nonrd == kLowSad) {
+             x->content_state_sb.source_sad_nonrd[0] == kLowSad) {
     perform_intra_pred = 0;
   }
 
@@ -2278,7 +2294,7 @@ static void estimate_intra_mode(
         cpi->sf.rt_sf.source_metrics_sb_nonrd) {
       // For spatially flat blocks with zero motion only check
       // DC mode.
-      if (x->content_state_sb.source_sad_nonrd == kZeroSad &&
+      if (x->content_state_sb.source_sad_nonrd[0] == kZeroSad &&
           x->source_variance == 0 && this_mode != DC_PRED)
         continue;
       // Only test Intra for big blocks if spatial_variance is 0.
@@ -2345,7 +2361,7 @@ static void estimate_intra_mode(
       // Otherwise bias against intra for blocks with zero
       // motion and no color, on non-scene/slide changes.
       else if (!cpi->rc.high_source_sad && x->source_variance > 0 &&
-               x->content_state_sb.source_sad_nonrd == kZeroSad &&
+               x->content_state_sb.source_sad_nonrd[0] == kZeroSad &&
                x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0)
         this_rdc.rdcost = (3 * this_rdc.rdcost) >> 1;
     }
@@ -2426,8 +2442,8 @@ static AOM_INLINE int skip_mode_by_low_temp(
     return 1;
   }
 
-  if (content_state_sb.source_sad_nonrd != kHighSad && bsize >= BLOCK_64X64 &&
-      force_skip_low_temp_var && mode == NEWMV) {
+  if (content_state_sb.source_sad_nonrd[0] != kHighSad &&
+      bsize >= BLOCK_64X64 && force_skip_low_temp_var && mode == NEWMV) {
     return 1;
   }
   return 0;
@@ -2965,7 +2981,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       use_modeled_non_rd_cost =
           (quant_params->base_qindex > 120 && x->source_variance > 100 &&
            bsize <= BLOCK_16X16 && !x->content_state_sb.lighting_change &&
-           x->content_state_sb.source_sad_nonrd != kHighSad);
+           x->content_state_sb.source_sad_nonrd[0] != kHighSad);
   }
 
 #if COLLECT_PICK_MODE_STAT
@@ -3079,9 +3095,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       // below after search_new_mv.
       if (cpi->sf.rt_sf.source_metrics_sb_nonrd) {
         if ((frame_mv[this_mode][ref_frame].as_int != 0 &&
-             x->content_state_sb.source_sad_nonrd == kZeroSad) ||
+             x->content_state_sb.source_sad_nonrd[0] == kZeroSad) ||
             (frame_mv[this_mode][ref_frame].as_int == 0 &&
-             x->content_state_sb.source_sad_nonrd != kZeroSad &&
+             x->content_state_sb.source_sad_nonrd[0] != kZeroSad &&
              ((x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0) ||
               cpi->rc.high_source_sad) &&
              x->source_variance == 0))
@@ -3175,7 +3191,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
         cpi->sf.rt_sf.source_metrics_sb_nonrd) {
       if (frame_mv[this_mode][ref_frame].as_int == 0 &&
-          x->content_state_sb.source_sad_nonrd != kZeroSad &&
+          x->content_state_sb.source_sad_nonrd[0] != kZeroSad &&
           ((x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0) ||
            cpi->rc.high_source_sad) &&
           x->source_variance == 0)

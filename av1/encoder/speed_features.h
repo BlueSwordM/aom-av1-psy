@@ -1508,8 +1508,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // variance wrt LAST reference.
   int prune_inter_modes_using_temp_var;
 
-  // Force half_pel at block level.
-  int force_half_pel_block;
+  // Reduce MV precision at block level, represents various algos (0: disabled)
+  // 1: switch to halfpel, fullpel based on blk SAD, source var, bsize and qp
+  // 2: switch to halfpel based on integer mv size, bsize, frame-level motion
+  int reduce_mv_pel_precision;
 
   // Prune intra mode evaluation in inter frames based on mv range.
   BLOCK_SIZE prune_intra_mode_based_on_mv_range;

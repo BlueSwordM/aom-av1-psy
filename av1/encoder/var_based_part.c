@@ -1128,7 +1128,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
   // For non-SVC GOLDEN is another temporal reference. Check if it should be
   // used as reference for partitioning.
   if (!cpi->ppi->use_svc && (cpi->ref_frame_flags & AOM_GOLD_FLAG) &&
-      x->content_state_sb.source_sad_nonrd != kZeroSad) {
+      x->content_state_sb.source_sad_nonrd[0] != kZeroSad) {
     yv12_g = get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
     if (yv12_g && yv12_g != yv12) {
       av1_setup_pre_planes(xd, 0, yv12_g, mi_row, mi_col,
@@ -1273,12 +1273,12 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
     const int q =
         av1_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex);
     set_vbp_thresholds(cpi, thresholds, q, x->content_state_sb.low_sumdiff,
-                       x->content_state_sb.source_sad_nonrd,
+                       x->content_state_sb.source_sad_nonrd[0],
                        x->content_state_sb.source_sad_rd, 1);
   } else {
     set_vbp_thresholds(cpi, thresholds, cm->quant_params.base_qindex,
                        x->content_state_sb.low_sumdiff,
-                       x->content_state_sb.source_sad_nonrd,
+                       x->content_state_sb.source_sad_nonrd[0],
                        x->content_state_sb.source_sad_rd, 0);
   }
 
@@ -1346,7 +1346,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
       cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
       cpi->cyclic_refresh->apply_cyclic_refresh &&
       segment_id == CR_SEGMENT_ID_BASE &&
-      x->content_state_sb.source_sad_nonrd == kZeroSad &&
+      x->content_state_sb.source_sad_nonrd[0] == kZeroSad &&
       ref_frame_partition == LAST_FRAME && xd->mi[0]->mv[0].as_int == 0 &&
       y_sad < thresh_exit_part && uv_sad[0]<(3 * thresh_exit_part)>> 2 &&
       uv_sad[1]<(3 * thresh_exit_part)>> 2) {
@@ -1427,7 +1427,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                          (thresholds[2] >> 1) &&
                      maxvar_16x16[m][i] > thresholds[2]) ||
                     (cpi->sf.rt_sf.prefer_large_partition_blocks &&
-                     x->content_state_sb.source_sad_nonrd > kLowSad &&
+                     x->content_state_sb.source_sad_nonrd[0] > kLowSad &&
                      cpi->rc.frame_source_sad < 20000 &&
                      maxvar_16x16[m][i] > (thresholds[2] >> 4) &&
                      maxvar_16x16[m][i] > (minvar_16x16[m][i] << 2)))) {

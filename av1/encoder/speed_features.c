@@ -1339,13 +1339,16 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
   } else {
     if (speed >= 6) sf->rt_sf.skip_newmv_mode_based_on_sse = 3;
     if (speed == 7) sf->rt_sf.prefer_large_partition_blocks = 0;
+    if (speed >= 7) sf->rt_sf.reduce_mv_pel_precision = 1;
     if (speed >= 9) {
       sf->rt_sf.sad_based_adp_altref_lag = 1;
       sf->rt_sf.sad_based_comp_prune = 1;
+      sf->rt_sf.reduce_mv_pel_precision = 0;
     }
     if (speed >= 10) {
       sf->rt_sf.sad_based_adp_altref_lag = 3;
       sf->rt_sf.sad_based_comp_prune = 2;
+      sf->rt_sf.reduce_mv_pel_precision = 2;
     }
   }
   if (cpi->ppi->use_svc) {
@@ -1394,7 +1397,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.nonrd_prune_ref_frame_search = 3;
       sf->rt_sf.var_part_split_threshold_shift = 10;
       sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
-      sf->rt_sf.force_half_pel_block = 1;
+      sf->rt_sf.reduce_mv_pel_precision = 2;
       sf->rt_sf.reduce_zeromv_mvres = true;
     }
     if (speed >= 10 && cm->width * cm->height > 1920 * 1080)
@@ -1701,6 +1704,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.var_part_based_on_qidx = 0;
     sf->rt_sf.frame_level_mode_cost_update = true;
     sf->rt_sf.check_only_zero_zeromv_on_large_blocks = true;
+    sf->rt_sf.reduce_mv_pel_precision = 0;
   }
   if (speed >= 10) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_4;
@@ -1708,7 +1712,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.nonrd_prune_ref_frame_search = 3;
     sf->rt_sf.var_part_split_threshold_shift = 10;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
-    sf->rt_sf.force_half_pel_block = 1;
+    sf->rt_sf.reduce_mv_pel_precision = 2;
     sf->rt_sf.reduce_zeromv_mvres = true;
     sf->rt_sf.screen_content_cdef_filter_qindex_thresh = 80;
   }
@@ -2023,7 +2027,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->prune_inter_modes_with_golden_ref = 0;
   rt_sf->prune_inter_modes_wrt_gf_arf_based_on_sad = 0;
   rt_sf->prune_inter_modes_using_temp_var = 0;
-  rt_sf->force_half_pel_block = 0;
+  rt_sf->reduce_mv_pel_precision = 0;
   rt_sf->prune_intra_mode_based_on_mv_range = 0;
   rt_sf->var_part_split_threshold_shift = 7;
   rt_sf->gf_refresh_based_on_qp = 0;

@@ -797,10 +797,12 @@ static AOM_INLINE void grade_source_content_sb(AV1_COMP *cpi,
   if (cpi->sf.rt_sf.source_metrics_sb_nonrd &&
       cpi->svc.number_spatial_layers <= 1 &&
       cm->current_frame.frame_type != KEY_FRAME) {
-    if (!cpi->sf.rt_sf.check_scene_detection || cpi->rc.frame_source_sad > 0)
+    if (!cpi->sf.rt_sf.check_scene_detection || cpi->rc.frame_source_sad > 0) {
       calc_src_content = true;
-    else
-      x->content_state_sb.source_sad_nonrd = kZeroSad;
+    } else {
+      x->content_state_sb.source_sad_nonrd[0] = kZeroSad;
+      x->content_state_sb.source_sad_nonrd[1] = kZeroSad;
+    }
   } else if ((cpi->sf.rt_sf.var_part_based_on_qidx >= 1) &&
              (cm->width * cm->height <= 352 * 288)) {
     if (cpi->rc.frame_source_sad > 0)
@@ -891,7 +893,8 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     x->color_sensitivity_sb_g[1] = 0;
     x->color_sensitivity[0] = 0;
     x->color_sensitivity[1] = 0;
-    x->content_state_sb.source_sad_nonrd = kMedSad;
+    x->content_state_sb.source_sad_nonrd[0] = kMedSad;
+    x->content_state_sb.source_sad_nonrd[1] = kMedSad;
     x->content_state_sb.source_sad_rd = kMedSad;
     x->content_state_sb.lighting_change = 0;
     x->content_state_sb.low_sumdiff = 0;
