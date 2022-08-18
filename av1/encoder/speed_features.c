@@ -1309,11 +1309,11 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.gf_length_lvl = 1;
       sf->rt_sf.skip_cdef_sb = 1;
       sf->rt_sf.sad_based_adp_altref_lag = 2;
+      // TODO(yunqing): extend this sf to other speeds and/or other resolutions.
+      sf->rt_sf.use_rtc_tf = 1;
     }
 
     if (speed >= 10) {
-      // TODO(yunqing): extend this sf to other speeds and/or other resolutions.
-      sf->rt_sf.use_rtc_tf = 1;
       sf->rt_sf.hybrid_intra_pickmode = 2;
       sf->rt_sf.sad_based_adp_altref_lag = 4;
       sf->rt_sf.tx_size_level_based_on_qstep = 0;

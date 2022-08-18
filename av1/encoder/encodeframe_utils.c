@@ -1358,7 +1358,7 @@ void av1_source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   if (cpi->last_source->y_width != cpi->source->y_width ||
       cpi->last_source->y_height != cpi->source->y_height)
     return;
-  if (!cpi->sf.rt_sf.use_rtc_tf) return;
+  if (!cpi->sf.rt_sf.use_rtc_tf || tmp_sse == 0) return;
 
   // In-place temporal filter. If psnr calculation is enabled, we store the
   // source for that.
