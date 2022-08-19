@@ -1229,9 +1229,12 @@ static int GetRDMult(const GopFrame &gop_frame, int qindex) {
   }
 }
 
-StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
+StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithLookahead(
     const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
+    const std::vector<LookaheadStats> &lookahead_stats,
     const RefFrameTable &ref_frame_table_snapshot_init) {
+  // TODO(b/242892473): Use lookahead_stats.
+  (void)lookahead_stats;
   Status status = ValidateTplStats(gop_struct, tpl_gop_stats);
   if (!status.ok()) {
     return status;

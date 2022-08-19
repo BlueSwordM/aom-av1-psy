@@ -94,8 +94,9 @@ class AV1RateControlQMode : public AV1RateControlQModeInterface {
   Status SetRcParam(const RateControlParam &rc_param) override;
   StatusOr<GopStructList> DetermineGopInfo(
       const FirstpassInfo &firstpass_info) override;
-  StatusOr<GopEncodeInfo> GetGopEncodeInfo(
+  StatusOr<GopEncodeInfo> GetGopEncodeInfoWithLookahead(
       const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
+      const std::vector<LookaheadStats> &lookahead_stats,
       const RefFrameTable &ref_frame_table_snapshot) override;
 
   // Public for testing only.
