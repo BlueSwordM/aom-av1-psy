@@ -220,6 +220,36 @@ double av1_get_compression_ratio(const AV1_COMMON *const cm,
   return uncompressed_frame_size / (double)encoded_frame_size;
 }
 
+static void auto_tile_size_balancing(AV1_COMMON *const cm, int num_sbs,
+                                     int num_tiles_lg, int tile_col_row) {
+  CommonTileParams *const tiles = &cm->tiles;
+  int i, start_sb;
+  int size_sb = num_sbs >> num_tiles_lg;
+  int res_sbs = num_sbs - (size_sb << num_tiles_lg);
+  int num_tiles = 1 << num_tiles_lg;
+  int inc_index = num_tiles - res_sbs;
+
+  tiles->uniform_spacing = 0;
+
+  for (i = 0, start_sb = 0; start_sb < num_sbs && i < MAX_TILE_COLS; ++i) {
+    if (i == inc_index) ++size_sb;
+    if (tile_col_row)
+      tiles->col_start_sb[i] = start_sb;
+    else
+      tiles->row_start_sb[i] = start_sb;
+
+    start_sb += AOMMIN(size_sb, tiles->max_width_sb);
+  }
+
+  if (tile_col_row) {
+    tiles->cols = i;
+    tiles->col_start_sb[i] = num_sbs;
+  } else {
+    tiles->rows = i;
+    tiles->row_start_sb[i] = num_sbs;
+  }
+}
+
 static void set_tile_info(AV1_COMMON *const cm,
                           const TileConfig *const tile_cfg) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -229,14 +259,16 @@ static void set_tile_info(AV1_COMMON *const cm,
 
   av1_get_tile_limits(cm);
 
+  int sb_cols =
+      CEIL_POWER_OF_TWO(mi_params->mi_cols, seq_params->mib_size_log2);
   // configure tile columns
   if (tile_cfg->tile_width_count == 0 || tile_cfg->tile_height_count == 0) {
     tiles->uniform_spacing = 1;
     tiles->log2_cols = AOMMAX(tile_cfg->tile_columns, tiles->min_log2_cols);
     tiles->log2_cols = AOMMIN(tiles->log2_cols, tiles->max_log2_cols);
+  } else if (tile_cfg->tile_widths[0] < 0) {
+    auto_tile_size_balancing(cm, sb_cols, tile_cfg->tile_columns, 1);
   } else {
-    int sb_cols =
-        CEIL_POWER_OF_TWO(mi_params->mi_cols, seq_params->mib_size_log2);
     int size_sb, j = 0;
     tiles->uniform_spacing = 0;
     for (i = 0, start_sb = 0; start_sb < sb_cols && i < MAX_TILE_COLS; i++) {
@@ -252,12 +284,14 @@ static void set_tile_info(AV1_COMMON *const cm,
                           tiles);
 
   // configure tile rows
+  int sb_rows =
+      CEIL_POWER_OF_TWO(mi_params->mi_rows, seq_params->mib_size_log2);
   if (tiles->uniform_spacing) {
     tiles->log2_rows = AOMMAX(tile_cfg->tile_rows, tiles->min_log2_rows);
     tiles->log2_rows = AOMMIN(tiles->log2_rows, tiles->max_log2_rows);
+  } else if (tile_cfg->tile_heights[0] < 0) {
+    auto_tile_size_balancing(cm, sb_rows, tile_cfg->tile_rows, 0);
   } else {
-    int sb_rows =
-        CEIL_POWER_OF_TWO(mi_params->mi_rows, seq_params->mib_size_log2);
     int size_sb, j = 0;
     for (i = 0, start_sb = 0; start_sb < sb_rows && i < MAX_TILE_ROWS; i++) {
       tiles->row_start_sb[i] = start_sb;

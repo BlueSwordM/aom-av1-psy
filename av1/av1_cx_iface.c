@@ -1281,10 +1281,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tile_cfg->tile_width_count = AOMMIN(cfg->tile_width_count, MAX_TILE_COLS);
   tile_cfg->tile_height_count = AOMMIN(cfg->tile_height_count, MAX_TILE_ROWS);
   for (int i = 0; i < tile_cfg->tile_width_count; i++) {
-    tile_cfg->tile_widths[i] = AOMMAX(cfg->tile_widths[i], 1);
+    tile_cfg->tile_widths[i] = cfg->tile_widths[i];
   }
   for (int i = 0; i < tile_cfg->tile_height_count; i++) {
-    tile_cfg->tile_heights[i] = AOMMAX(cfg->tile_heights[i], 1);
+    tile_cfg->tile_heights[i] = cfg->tile_heights[i];
   }
   tile_cfg->enable_ext_tile_debug = extra_cfg->ext_tile_debug;
 
