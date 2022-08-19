@@ -1025,6 +1025,7 @@ TEST_F(RateControlQModeTest, TestGopIntervals) {
               ElementsAre(21, 9, 30, 30, 16, 14, 21, 9, 30, 12, 16, 2, 30, 10));
 }
 
+// TODO(b/242892473): Add a test which passes lookahead GOPs.
 TEST_F(RateControlQModeTest, TestGetGopEncodeInfo) {
   FirstpassInfo firstpass_info;
   ASSERT_NO_FATAL_FAILURE(
@@ -1051,8 +1052,8 @@ TEST_F(RateControlQModeTest, TestGetGopEncodeInfo) {
   int num_gop_skipped = 0;
   for (size_t gop_idx = 0; gop_idx < gop_list.size(); gop_idx++) {
     size_t tpl_gop_idx = gop_idx - num_gop_skipped;
-    const auto gop_encode_info = rc.GetGopEncodeInfo(
-        gop_list[gop_idx], tpl_gop_list[tpl_gop_idx], ref_frame_table);
+    const auto gop_encode_info = rc.GetGopEncodeInfoWithLookahead(
+        gop_list[gop_idx], tpl_gop_list[tpl_gop_idx], {}, ref_frame_table);
     ASSERT_THAT(gop_encode_info.status(), IsOkStatus());
     for (auto &frame_param : gop_encode_info->param_list) {
       std::cout << frame_param.q_index << std::endl;
@@ -1068,8 +1069,9 @@ TEST_F(RateControlQModeTest, GetGopEncodeInfoWrongGopSize) {
   tpl_gop_stats.frame_stats_list.assign(
       5, CreateToyTplFrameStatsWithDiffSizes(8, 8));
   AV1RateControlQMode rc;
-  const Status status =
-      rc.GetGopEncodeInfo(gop_struct, tpl_gop_stats, RefFrameTable()).status();
+  const Status status = rc.GetGopEncodeInfoWithLookahead(
+                              gop_struct, tpl_gop_stats, {}, RefFrameTable())
+                            .status();
   EXPECT_EQ(status.code, AOM_CODEC_INVALID_PARAM);
   EXPECT_THAT(status.message,
               HasSubstr("Frame count of GopStruct (7) doesn't match frame "
@@ -1092,8 +1094,9 @@ TEST_F(RateControlQModeTest, GetGopEncodeInfoRefFrameMissingBlockStats) {
   tpl_gop_stats.frame_stats_list[0] = CreateToyTplFrameStatsWithDiffSizes(8, 8);
 
   AV1RateControlQMode rc;
-  const Status status =
-      rc.GetGopEncodeInfo(gop_struct, tpl_gop_stats, RefFrameTable()).status();
+  const Status status = rc.GetGopEncodeInfoWithLookahead(
+                              gop_struct, tpl_gop_stats, {}, RefFrameTable())
+                            .status();
   EXPECT_EQ(status.code, AOM_CODEC_INVALID_PARAM);
   EXPECT_THAT(status.message,
               HasSubstr("The frame with global_coding_idx 2 is a reference "
