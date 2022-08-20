@@ -1324,11 +1324,9 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.nonrd_check_partition_merge_mode = 2;
     }
     if (speed >= 8) {
-      sf->mv_sf.subpel_search_method = SUBPEL_TREE;
       sf->rt_sf.estimate_motion_for_var_based_partition = 1;
     }
     if (speed >= 9) {
-      sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
       sf->rt_sf.estimate_motion_for_var_based_partition = 0;
     }
   }
@@ -1621,7 +1619,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
     sf->mv_sf.search_method = FAST_DIAMOND;
     sf->mv_sf.subpel_force_stop = QUARTER_PEL;
-    sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
 
     sf->inter_sf.inter_mode_rd_model_estimation = 2;
     // This sf is not applicable in non-rd path.
@@ -2050,6 +2047,31 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->prune_compoundmode_with_singlemode_var = false;
 }
 
+// Populate appropriate sub-pel search method based on speed feature and user
+// specified settings
+static void set_subpel_search_method(
+    MotionVectorSearchParams *mv_search_params,
+    unsigned int motion_vector_unit_test,
+    SUBPEL_SEARCH_METHODS subpel_search_method) {
+  if (subpel_search_method == SUBPEL_TREE) {
+    mv_search_params->find_fractional_mv_step = av1_find_best_sub_pixel_tree;
+  } else if (subpel_search_method == SUBPEL_TREE_PRUNED) {
+    mv_search_params->find_fractional_mv_step =
+        av1_find_best_sub_pixel_tree_pruned;
+  } else if (subpel_search_method == SUBPEL_TREE_PRUNED_MORE) {
+    mv_search_params->find_fractional_mv_step =
+        av1_find_best_sub_pixel_tree_pruned_more;
+  } else {
+    assert(0);
+  }
+
+  // This is only used in motion vector unit test.
+  if (motion_vector_unit_test == 1)
+    mv_search_params->find_fractional_mv_step = av1_return_max_sub_pixel_mv;
+  else if (motion_vector_unit_test == 2)
+    mv_search_params->find_fractional_mv_step = av1_return_min_sub_pixel_mv;
+}
+
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
   SPEED_FEATURES *const sf = &cpi->sf;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
@@ -2073,11 +2095,9 @@ void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
         (sf->inter_sf.disable_interintra_wedge_var_thresh != UINT_MAX);
   }
 
-  // This is only used in motion vector unit test.
-  if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 1)
-    cpi->mv_search_params.find_fractional_mv_step = av1_return_max_sub_pixel_mv;
-  else if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 2)
-    cpi->mv_search_params.find_fractional_mv_step = av1_return_min_sub_pixel_mv;
+  set_subpel_search_method(&cpi->mv_search_params,
+                           cpi->oxcf.unit_test_cfg.motion_vector_unit_test,
+                           sf->mv_sf.subpel_search_method);
 
   // For multi-thread use case with row_mt enabled, cost update for a set of
   // SB rows is not desirable. Hence, the sf mv_cost_upd_level is set to
@@ -2176,22 +2196,9 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   if (oxcf->pass == AOM_RC_ONE_PASS && has_no_stats_stage(cpi))
     sf->hl_sf.recode_loop = DISALLOW_RECODE;
 
-  MotionVectorSearchParams *const mv_search_params = &cpi->mv_search_params;
-  if (sf->mv_sf.subpel_search_method == SUBPEL_TREE) {
-    mv_search_params->find_fractional_mv_step = av1_find_best_sub_pixel_tree;
-  } else if (sf->mv_sf.subpel_search_method == SUBPEL_TREE_PRUNED) {
-    mv_search_params->find_fractional_mv_step =
-        av1_find_best_sub_pixel_tree_pruned;
-  } else if (sf->mv_sf.subpel_search_method == SUBPEL_TREE_PRUNED_MORE) {
-    mv_search_params->find_fractional_mv_step =
-        av1_find_best_sub_pixel_tree_pruned_more;
-  }
-
-  // This is only used in motion vector unit test.
-  if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 1)
-    mv_search_params->find_fractional_mv_step = av1_return_max_sub_pixel_mv;
-  else if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 2)
-    mv_search_params->find_fractional_mv_step = av1_return_min_sub_pixel_mv;
+  set_subpel_search_method(&cpi->mv_search_params,
+                           cpi->oxcf.unit_test_cfg.motion_vector_unit_test,
+                           sf->mv_sf.subpel_search_method);
 
   // assert ensures that tx_domain_dist_level is accessed correctly
   assert(cpi->sf.rd_sf.tx_domain_dist_thres_level >= 0 &&
@@ -2387,4 +2394,8 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
         sf->inter_sf.reuse_mask_search_results = 1;
     }
   }
+
+  set_subpel_search_method(&cpi->mv_search_params,
+                           cpi->oxcf.unit_test_cfg.motion_vector_unit_test,
+                           sf->mv_sf.subpel_search_method);
 }
