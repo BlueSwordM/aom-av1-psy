@@ -14,6 +14,27 @@
 
 #include "av1/encoder/rdopt_utils.h"
 
+#define RTC_INTER_MODES (4)
+#define RTC_INTRA_MODES (4)
+#define RTC_MODES (AOMMAX(RTC_INTER_MODES, RTC_INTRA_MODES))
+
+static const PREDICTION_MODE intra_mode_list[] = { DC_PRED, V_PRED, H_PRED,
+                                                   SMOOTH_PRED };
+
+static const PREDICTION_MODE inter_mode_list[] = { NEARESTMV, NEARMV, GLOBALMV,
+                                                   NEWMV };
+
+static const THR_MODES mode_idx[REF_FRAMES][RTC_MODES] = {
+  { THR_DC, THR_V_PRED, THR_H_PRED, THR_SMOOTH },
+  { THR_NEARESTMV, THR_NEARMV, THR_GLOBALMV, THR_NEWMV },
+  { THR_NEARESTL2, THR_NEARL2, THR_GLOBALL2, THR_NEWL2 },
+  { THR_NEARESTL3, THR_NEARL3, THR_GLOBALL3, THR_NEWL3 },
+  { THR_NEARESTG, THR_NEARG, THR_GLOBALG, THR_NEWG },
+  { THR_NEARESTB, THR_NEARB, THR_GLOBALB, THR_NEWB },
+  { THR_NEARESTA2, THR_NEARA2, THR_GLOBALA2, THR_NEWA2 },
+  { THR_NEARESTA, THR_NEARA, THR_GLOBALA, THR_NEWA },
+};
+
 /*!\brief Finds predicted motion vectors for a block.
  *
  * \ingroup nonrd_mode_search

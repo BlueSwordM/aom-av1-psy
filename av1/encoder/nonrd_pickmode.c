@@ -83,9 +83,6 @@ typedef struct {
 #define NUM_INTER_MODES_RT 9
 #define NUM_COMP_INTER_MODES_RT (6)
 #define NUM_INTER_MODES_REDUCED 8
-#define RTC_INTER_MODES (4)
-#define RTC_INTRA_MODES (4)
-#define RTC_MODES (AOMMAX(RTC_INTER_MODES, RTC_INTRA_MODES))
 
 static const REF_MODE ref_mode_set_rt[NUM_INTER_MODES_RT] = {
   { LAST_FRAME, NEARESTMV },   { LAST_FRAME, NEARMV },
@@ -104,17 +101,6 @@ static const REF_MODE ref_mode_set_reduced[NUM_INTER_MODES_REDUCED] = {
   { GOLDEN_FRAME, GLOBALMV },  { GOLDEN_FRAME, NEWMV },
 };
 
-static const THR_MODES mode_idx[REF_FRAMES][RTC_MODES] = {
-  { THR_DC, THR_V_PRED, THR_H_PRED, THR_SMOOTH },
-  { THR_NEARESTMV, THR_NEARMV, THR_GLOBALMV, THR_NEWMV },
-  { THR_NEARESTL2, THR_NEARL2, THR_GLOBALL2, THR_NEWL2 },
-  { THR_NEARESTL3, THR_NEARL3, THR_GLOBALL3, THR_NEWL3 },
-  { THR_NEARESTG, THR_NEARG, THR_GLOBALG, THR_NEWG },
-  { THR_NEARESTB, THR_NEARB, THR_GLOBALB, THR_NEWB },
-  { THR_NEARESTA2, THR_NEARA2, THR_GLOBALA2, THR_NEWA2 },
-  { THR_NEARESTA, THR_NEARA, THR_GLOBALA, THR_NEWA },
-};
-
 static const COMP_REF_MODE comp_ref_mode_set[NUM_COMP_INTER_MODES_RT] = {
   { { LAST_FRAME, GOLDEN_FRAME }, GLOBAL_GLOBALMV },
   { { LAST_FRAME, GOLDEN_FRAME }, NEAREST_NEARESTMV },
@@ -124,9 +110,6 @@ static const COMP_REF_MODE comp_ref_mode_set[NUM_COMP_INTER_MODES_RT] = {
   { { LAST_FRAME, ALTREF_FRAME }, NEAREST_NEARESTMV },
 };
 
-static const PREDICTION_MODE intra_mode_list[] = { DC_PRED, V_PRED, H_PRED,
-                                                   SMOOTH_PRED };
-
 static const INTER_FILTER filters_ref_set[9] = {
   { EIGHTTAP_REGULAR, EIGHTTAP_REGULAR }, { EIGHTTAP_SMOOTH, EIGHTTAP_SMOOTH },
   { EIGHTTAP_REGULAR, EIGHTTAP_SMOOTH },  { EIGHTTAP_SMOOTH, EIGHTTAP_REGULAR },
@@ -134,20 +117,6 @@ static const INTER_FILTER filters_ref_set[9] = {
   { MULTITAP_SHARP, EIGHTTAP_REGULAR },   { EIGHTTAP_SMOOTH, MULTITAP_SHARP },
   { MULTITAP_SHARP, EIGHTTAP_SMOOTH }
 };
-
-static INLINE int mode_offset(const PREDICTION_MODE mode) {
-  if (mode >= NEARESTMV) {
-    return INTER_OFFSET(mode);
-  } else {
-    switch (mode) {
-      case DC_PRED: return 0;
-      case V_PRED: return 1;
-      case H_PRED: return 2;
-      case SMOOTH_PRED: return 3;
-      default: assert(0); return -1;
-    }
-  }
-}
 
 enum {
   //  INTER_ALL = (1 << NEARESTMV) | (1 << NEARMV) | (1 << NEWMV),

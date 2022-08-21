@@ -3703,13 +3703,6 @@ static const MV_REFERENCE_FRAME reduced_ref_combos[][2] = {
   { ALTREF_FRAME, INTRA_FRAME },  { BWDREF_FRAME, INTRA_FRAME },
 };
 
-static const MV_REFERENCE_FRAME real_time_ref_combos[][2] = {
-  { LAST_FRAME, NONE_FRAME },
-  { ALTREF_FRAME, NONE_FRAME },
-  { GOLDEN_FRAME, NONE_FRAME },
-  { INTRA_FRAME, NONE_FRAME }
-};
-
 typedef enum { REF_SET_FULL, REF_SET_REDUCED, REF_SET_REALTIME } REF_SET;
 
 static AOM_INLINE void default_skip_mask(mode_skip_mask_t *mask,

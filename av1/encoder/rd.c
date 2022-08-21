@@ -32,6 +32,7 @@
 #include "av1/encoder/cost.h"
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/encoder.h"
+#include "av1/encoder/nonrd_opt.h"
 #include "av1/encoder/ratectrl.h"
 #include "av1/encoder/rd.h"
 
@@ -507,8 +508,26 @@ void av1_set_sad_per_bit(const AV1_COMP *cpi, int *sadperbit, int qindex) {
   }
 }
 
-static void set_block_thresholds(const AV1_COMMON *cm, RD_OPT *rd) {
+static void set_block_thresholds(const AV1_COMMON *cm, RD_OPT *rd,
+                                 int use_nonrd_pick_mode) {
   int i, bsize, segment_id;
+  THR_MODES mode_indices[RTC_REFS * RTC_MODES] = { 0 };
+  int num_modes_count = use_nonrd_pick_mode ? 0 : MAX_MODES;
+
+  if (use_nonrd_pick_mode) {
+    for (int r_idx = 0; r_idx < RTC_REFS; r_idx++) {
+      const MV_REFERENCE_FRAME ref = real_time_ref_combos[r_idx][0];
+      if (ref != INTRA_FRAME) {
+        for (i = 0; i < RTC_INTER_MODES; i++)
+          mode_indices[num_modes_count++] =
+              mode_idx[ref][mode_offset(inter_mode_list[i])];
+      } else {
+        for (i = 0; i < RTC_INTRA_MODES; i++)
+          mode_indices[num_modes_count++] =
+              mode_idx[ref][mode_offset(intra_mode_list[i])];
+      }
+    }
+  }
 
   for (segment_id = 0; segment_id < MAX_SEGMENTS; ++segment_id) {
     const int qindex = clamp(
@@ -523,10 +542,13 @@ static void set_block_thresholds(const AV1_COMMON *cm, RD_OPT *rd) {
       const int t = q * rd_thresh_block_size_factor[bsize];
       const int thresh_max = INT_MAX / t;
 
-      for (i = 0; i < MAX_MODES; ++i)
-        rd->threshes[segment_id][bsize][i] = rd->thresh_mult[i] < thresh_max
-                                                 ? rd->thresh_mult[i] * t / 4
-                                                 : INT_MAX;
+      for (i = 0; i < num_modes_count; ++i) {
+        const int mode_index = use_nonrd_pick_mode ? mode_indices[i] : i;
+        rd->threshes[segment_id][bsize][mode_index] =
+            rd->thresh_mult[mode_index] < thresh_max
+                ? rd->thresh_mult[mode_index] * t / 4
+                : INT_MAX;
+      }
     }
   }
 }
@@ -748,7 +770,7 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
 
   av1_set_error_per_bit(&x->errorperbit, rd->RDMULT);
 
-  set_block_thresholds(cm, rd);
+  set_block_thresholds(cm, rd, cpi->sf.rt_sf.use_nonrd_pick_mode);
 
   populate_unified_cost_update_freq(cpi->oxcf.cost_upd_freq, sf);
   const INTER_MODE_SPEED_FEATURES *const inter_sf = &cpi->sf.inter_sf;

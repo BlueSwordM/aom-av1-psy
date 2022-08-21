@@ -56,6 +56,28 @@ extern "C" {
 // Factor to weigh the rate for switchable interp filters.
 #define SWITCHABLE_INTERP_RATE_FACTOR 1
 
+#define RTC_REFS 4
+static const MV_REFERENCE_FRAME real_time_ref_combos[RTC_REFS][2] = {
+  { LAST_FRAME, NONE_FRAME },
+  { ALTREF_FRAME, NONE_FRAME },
+  { GOLDEN_FRAME, NONE_FRAME },
+  { INTRA_FRAME, NONE_FRAME }
+};
+
+static INLINE int mode_offset(const PREDICTION_MODE mode) {
+  if (mode >= NEARESTMV) {
+    return INTER_OFFSET(mode);
+  } else {
+    switch (mode) {
+      case DC_PRED: return 0;
+      case V_PRED: return 1;
+      case H_PRED: return 2;
+      case SMOOTH_PRED: return 3;
+      default: assert(0); return -1;
+    }
+  }
+}
+
 enum {
   // Default initialization when we are not using winner mode framework. e.g.
   // intrabc
