@@ -2850,6 +2850,10 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   if (res == AOM_CODEC_OK) {
     AV1_COMP *cpi = ppi->cpi;
 
+    const int num_layers =
+        cpi->svc.number_spatial_layers * cpi->svc.number_temporal_layers;
+    av1_alloc_layer_context(cpi, num_layers);
+
     // Set up internal flags
     if (ctx->base.init_flags & AOM_CODEC_USE_PSNR) ppi->b_calculate_psnr = 1;
 
@@ -3371,6 +3375,10 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
   if (ppi->number_spatial_layers > 1 || ppi->number_temporal_layers > 1) {
     unsigned int sl, tl;
     ctx->ppi->use_svc = 1;
+    const int num_layers =
+        ppi->number_spatial_layers * ppi->number_temporal_layers;
+    av1_alloc_layer_context(cpi, num_layers);
+
     for (sl = 0; sl < ppi->number_spatial_layers; ++sl) {
       for (tl = 0; tl < ppi->number_temporal_layers; ++tl) {
         const int layer = LAYER_IDS_TO_IDX(sl, tl, ppi->number_temporal_layers);

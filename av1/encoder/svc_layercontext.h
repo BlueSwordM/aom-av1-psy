@@ -112,7 +112,12 @@ typedef struct SVC {
   /*!
    * Layer context used for rate control in CBR mode.
    */
-  LAYER_CONTEXT layer_context[AOM_MAX_LAYERS];
+  LAYER_CONTEXT *layer_context;
+
+  /*!
+   * Number of layers allocated for layer_context.
+   */
+  int num_allocated_layers;
 
   /*!
    * EIGHTTAP_SMOOTH or BILINEAR
@@ -144,6 +149,19 @@ struct AV1_COMP;
  * \remark  Nothing returned. Set cpi->svc.
  */
 void av1_init_layer_context(struct AV1_COMP *const cpi);
+
+/*!\brief Allocate layer context data.
+ *
+ * \ingroup SVC
+ * \callgraph
+ * \callergraph
+ *
+ * \param[in]       cpi  Top level encoder structure
+ * \param[in]       num_layers  Number of layers to be allocated
+ *
+ * \remark  Nothing returned. Allocates memory for cpi->svc.layer_context.
+ */
+void av1_alloc_layer_context(struct AV1_COMP *cpi, int num_layers);
 
 /*!\brief Update the layer context from a change_config() call.
  *

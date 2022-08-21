@@ -294,6 +294,8 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   }
 
   if (cpi->ppi->use_svc) av1_free_svc_cyclic_refresh(cpi);
+  aom_free(cpi->svc.layer_context);
+  cpi->svc.layer_context = NULL;
 
   if (cpi->consec_zero_mv) {
     aom_free(cpi->consec_zero_mv);
