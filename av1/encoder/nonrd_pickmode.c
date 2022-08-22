@@ -224,7 +224,7 @@ static INLINE int subpel_select(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     // large areas
     const int qband = x->qindex >> (QINDEX_BITS - 2);
     assert(qband < 4);
-    if (x->content_state_sb.source_sad_nonrd[1] <= kLowSad &&
+    if (x->content_state_sb.source_sad_nonrd <= kVeryLowSad &&
         bsize > BLOCK_16X16 && qband != 0) {
       if (x->source_variance < 500)
         return FULL_PEL;
@@ -1312,8 +1312,7 @@ static void newmv_diff_bias(MACROBLOCKD *xd, PREDICTION_MODE this_mode,
     int left_mv_valid = 0;
     int above_row = INVALID_MV_ROW_COL, above_col = INVALID_MV_ROW_COL;
     int left_row = INVALID_MV_ROW_COL, left_col = INVALID_MV_ROW_COL;
-    if (bsize >= BLOCK_64X64 &&
-        content_state_sb.source_sad_nonrd[0] != kHighSad &&
+    if (bsize >= BLOCK_64X64 && content_state_sb.source_sad_nonrd != kHighSad &&
         spatial_variance < 300 &&
         (mv_row > 16 || mv_row < -16 || mv_col > 16 || mv_col < -16)) {
       this_rdc->rdcost = this_rdc->rdcost << 2;
@@ -2096,7 +2095,7 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
     // capture case where only part of frame has high motion.
     // Exclude screen content mode.
     if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN &&
-        x->content_state_sb.source_sad_nonrd[0] >= kHighSad &&
+        x->content_state_sb.source_sad_nonrd >= kHighSad &&
         bsize <= BLOCK_32X32 && cpi->rc.frame_source_sad < 50000)
       use_golden_ref_frame = 1;
   }
@@ -2109,7 +2108,7 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
 
   // Skip golden reference if color is set, on flat blocks with motion.
   if (x->source_variance < 500 &&
-      x->content_state_sb.source_sad_nonrd[0] > kLowSad &&
+      x->content_state_sb.source_sad_nonrd > kLowSad &&
       (x->color_sensitivity_sb_g[0] == 1 || x->color_sensitivity_sb_g[1] == 1))
     use_golden_ref_frame = 0;
 
@@ -2225,18 +2224,19 @@ static void estimate_intra_mode(
       do_early_exit_rdthresh = 0;
     }
     if ((x->source_variance < AOMMAX(50, (spatial_var_thresh >> 1)) &&
-         x->content_state_sb.source_sad_nonrd[0] >= kHighSad) ||
+         x->content_state_sb.source_sad_nonrd >= kHighSad) ||
         (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
          x->source_variance == 0 &&
          ((bsize >= BLOCK_32X32 &&
-           x->content_state_sb.source_sad_nonrd[0] != kZeroSad) ||
+           x->content_state_sb.source_sad_nonrd != kZeroSad) ||
           x->color_sensitivity[0] == 1 || x->color_sensitivity[1] == 1)))
       force_intra_check = 1;
     // For big blocks worth checking intra (since only DC will be checked),
     // even if best_early_term is set.
     if (bsize >= BLOCK_32X32) best_early_term = 0;
   } else if (cpi->sf.rt_sf.source_metrics_sb_nonrd &&
-             x->content_state_sb.source_sad_nonrd[0] == kLowSad) {
+             (x->content_state_sb.source_sad_nonrd == kVeryLowSad ||
+              x->content_state_sb.source_sad_nonrd == kLowSad)) {
     perform_intra_pred = 0;
   }
 
@@ -2294,7 +2294,7 @@ static void estimate_intra_mode(
         cpi->sf.rt_sf.source_metrics_sb_nonrd) {
       // For spatially flat blocks with zero motion only check
       // DC mode.
-      if (x->content_state_sb.source_sad_nonrd[0] == kZeroSad &&
+      if (x->content_state_sb.source_sad_nonrd == kZeroSad &&
           x->source_variance == 0 && this_mode != DC_PRED)
         continue;
       // Only test Intra for big blocks if spatial_variance is 0.
@@ -2361,7 +2361,7 @@ static void estimate_intra_mode(
       // Otherwise bias against intra for blocks with zero
       // motion and no color, on non-scene/slide changes.
       else if (!cpi->rc.high_source_sad && x->source_variance > 0 &&
-               x->content_state_sb.source_sad_nonrd[0] == kZeroSad &&
+               x->content_state_sb.source_sad_nonrd == kZeroSad &&
                x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0)
         this_rdc.rdcost = (3 * this_rdc.rdcost) >> 1;
     }
@@ -2442,8 +2442,8 @@ static AOM_INLINE int skip_mode_by_low_temp(
     return 1;
   }
 
-  if (content_state_sb.source_sad_nonrd[0] != kHighSad &&
-      bsize >= BLOCK_64X64 && force_skip_low_temp_var && mode == NEWMV) {
+  if (content_state_sb.source_sad_nonrd != kHighSad && bsize >= BLOCK_64X64 &&
+      force_skip_low_temp_var && mode == NEWMV) {
     return 1;
   }
   return 0;
@@ -2981,7 +2981,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       use_modeled_non_rd_cost =
           (quant_params->base_qindex > 120 && x->source_variance > 100 &&
            bsize <= BLOCK_16X16 && !x->content_state_sb.lighting_change &&
-           x->content_state_sb.source_sad_nonrd[0] != kHighSad);
+           x->content_state_sb.source_sad_nonrd != kHighSad);
   }
 
 #if COLLECT_PICK_MODE_STAT
@@ -3095,9 +3095,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       // below after search_new_mv.
       if (cpi->sf.rt_sf.source_metrics_sb_nonrd) {
         if ((frame_mv[this_mode][ref_frame].as_int != 0 &&
-             x->content_state_sb.source_sad_nonrd[0] == kZeroSad) ||
+             x->content_state_sb.source_sad_nonrd == kZeroSad) ||
             (frame_mv[this_mode][ref_frame].as_int == 0 &&
-             x->content_state_sb.source_sad_nonrd[0] != kZeroSad &&
+             x->content_state_sb.source_sad_nonrd != kZeroSad &&
              ((x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0) ||
               cpi->rc.high_source_sad) &&
              x->source_variance == 0))
@@ -3191,7 +3191,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
         cpi->sf.rt_sf.source_metrics_sb_nonrd) {
       if (frame_mv[this_mode][ref_frame].as_int == 0 &&
-          x->content_state_sb.source_sad_nonrd[0] != kZeroSad &&
+          x->content_state_sb.source_sad_nonrd != kZeroSad &&
           ((x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0) ||
            cpi->rc.high_source_sad) &&
           x->source_variance == 0)

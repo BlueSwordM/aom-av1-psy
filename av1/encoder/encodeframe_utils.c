@@ -1321,9 +1321,9 @@ void av1_source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   uint8_t *last_src_y = cpi->last_source->y_buffer;
   int last_src_ystride = cpi->last_source->y_stride;
   const int offset = cpi->source->y_stride * (mi_row << 2) + (mi_col << 2);
-  uint64_t avg_source_sse_threshold_low[3] = { 100000,   // ~5*5*(64*64)
-                                               36000,    // ~3*3*(64*64)
-                                               10000 };  // ~1.5*1.5*(64*64)
+  uint64_t avg_source_sse_threshold_verylow = 10000;     // ~1.5*1.5*(64*64)
+  uint64_t avg_source_sse_threshold_low[2] = { 100000,   // ~5*5*(64*64)
+                                               36000 };  // ~3*3*(64*64)
 
   uint64_t avg_source_sse_threshold_high = 1000000;  // ~15*15*(64*64)
   uint64_t sum_sq_thresh = 10000;  // sum = sqrt(thresh / 64*64)) ~1.5
@@ -1341,16 +1341,13 @@ void av1_source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
 
   // nonrd thresholds
   if (tmp_sse == 0)
-    x->content_state_sb.source_sad_nonrd[0] = kZeroSad;
+    x->content_state_sb.source_sad_nonrd = kZeroSad;
+  else if (tmp_sse < avg_source_sse_threshold_verylow)
+    x->content_state_sb.source_sad_nonrd = kVeryLowSad;
   else if (tmp_sse < avg_source_sse_threshold_low[0])
-    x->content_state_sb.source_sad_nonrd[0] = kLowSad;
+    x->content_state_sb.source_sad_nonrd = kLowSad;
   else if (tmp_sse > avg_source_sse_threshold_high)
-    x->content_state_sb.source_sad_nonrd[0] = kHighSad;
-
-  if (tmp_sse == 0)
-    x->content_state_sb.source_sad_nonrd[1] = kZeroSad;
-  else if (tmp_sse < avg_source_sse_threshold_low[2])
-    x->content_state_sb.source_sad_nonrd[1] = kLowSad;
+    x->content_state_sb.source_sad_nonrd = kHighSad;
 
   // Detect large lighting change.
   // Note: tmp_sse - tmp_variance = ((sum * sum) >> 12)

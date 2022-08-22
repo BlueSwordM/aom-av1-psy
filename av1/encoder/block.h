@@ -801,15 +801,15 @@ typedef struct {
 /*!\cond */
 typedef enum {
   kZeroSad = 0,
-  kLowSad = 1,
-  kMedSad = 2,
-  kHighSad = 3
+  kVeryLowSad = 1,
+  kLowSad = 2,
+  kMedSad = 3,
+  kHighSad = 4
 } SOURCE_SAD;
 
 typedef struct {
   //! SAD levels in non-rd path
-  //! 0: var-based part and inter-mode search, 1: blk-level mv pel precision
-  SOURCE_SAD source_sad_nonrd[2];
+  SOURCE_SAD source_sad_nonrd;
   //! SAD levels in rd-path for var-based part qindex thresholds
   SOURCE_SAD source_sad_rd;
   int lighting_change;
