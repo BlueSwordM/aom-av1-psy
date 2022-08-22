@@ -39,6 +39,12 @@ struct CYCLIC_REFRESH {
    * for cyclic refresh.
    */
   int percent_refresh;
+
+  /*!
+   * Active adjustment delta for cyclic refresh for rate control.
+   */
+  int percent_refresh_adjustment;
+
   /*!
    * Maximum q-delta as percentage of base q.
    */
@@ -94,6 +100,12 @@ struct CYCLIC_REFRESH {
    * Rate target ratio to set q delta.
    */
   double rate_ratio_qdelta;
+
+  /*!
+   * Active adjustment of qdelta rate ratio for enhanced rate control
+   */
+  double rate_ratio_qdelta_adjustment;
+
   /*!
    * Boost factor for rate target ratio, for segment CR_SEGMENT_ID_BOOST2.
    */

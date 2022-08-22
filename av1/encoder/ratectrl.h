@@ -228,7 +228,7 @@ typedef struct {
 
   /*!\endcond */
   /*!
-   * Proposed maximum alloed Q for current frame
+   * Proposed maximum allowed Q for current frame
    */
   int active_worst_quality;
 
@@ -636,7 +636,7 @@ void av1_rc_compute_frame_size_bounds(const struct AV1_COMP *cpi,
  * \return Returns selected q index to be used for encoding this frame.
  * Also, updates \c rc->arf_q.
  */
-int av1_rc_pick_q_and_bounds(const struct AV1_COMP *cpi, int width, int height,
+int av1_rc_pick_q_and_bounds(struct AV1_COMP *cpi, int width, int height,
                              int gf_index, int *bottom_index, int *top_index);
 
 /*!\brief Estimates q to achieve a target bits per frame

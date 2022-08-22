@@ -26,6 +26,8 @@ CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols) {
 
   cr->map = aom_calloc(mi_rows * mi_cols, sizeof(*cr->map));
   cr->counter_encode_maxq_scene_change = 0;
+  cr->percent_refresh_adjustment = 5;
+  cr->rate_ratio_qdelta_adjustment = 0.25;
   if (cr->map == NULL) {
     av1_cyclic_refresh_free(cr);
     return NULL;
@@ -407,6 +409,14 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   const int scene_change_detected =
       cpi->rc.high_source_sad ||
       (cpi->ppi->use_svc && cpi->svc.high_source_sad_superframe);
+
+  // Cases to reset the cyclic refresh adjustment parameters.
+  if (frame_is_intra_only(cm) || scene_change_detected) {
+    // Reset adaptive elements for intra only frames and scene changes.
+    cr->percent_refresh_adjustment = 5;
+    cr->rate_ratio_qdelta_adjustment = 0.25;
+  }
+
   // Although this segment feature for RTC is only used for
   // blocks >= 8X8, for more efficient coding of the seg map
   // cur_frame->seg_map needs to set at 4x4 along with the
@@ -416,6 +426,8 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   // Also if loop-filter deltas is applied via segment, then
   // we need to set cr->skip_over4x4 = 1.
   cr->skip_over4x4 = (cpi->oxcf.speed > 9) ? 1 : 0;
+
+  // should we enable cyclic refresh on this frame.
   cr->apply_cyclic_refresh = 1;
   if (frame_is_intra_only(cm) || is_lossless_requested(&cpi->oxcf.rc_cfg) ||
       scene_change_detected || cpi->svc.temporal_layer_id > 0 ||
@@ -429,14 +441,13 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
     cr->apply_cyclic_refresh = 0;
     return;
   }
-  cr->percent_refresh = 10;
-  // Increase the amount of refresh for #temporal_layers > 2, and for some
-  // frames after scene change that is encoded at high Q.
+
+  // Increase the amount of refresh for #temporal_layers > 2
   if (cpi->svc.number_temporal_layers > 2)
     cr->percent_refresh = 15;
-  else if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-           cr->counter_encode_maxq_scene_change < 20)
-    cr->percent_refresh = 15;
+  else
+    cr->percent_refresh = 10 + cr->percent_refresh_adjustment;
+
   cr->max_qdelta_perc = 60;
   cr->time_for_refresh = 0;
   cr->use_block_sad_scene_det =
@@ -453,9 +464,9 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   if (cr->percent_refresh > 0 &&
       rc->frames_since_key <
           (4 * cpi->svc.number_temporal_layers) * (100 / cr->percent_refresh)) {
-    cr->rate_ratio_qdelta = 3.0;
+    cr->rate_ratio_qdelta = 3.0 + cr->rate_ratio_qdelta_adjustment;
   } else {
-    cr->rate_ratio_qdelta = 2.0;
+    cr->rate_ratio_qdelta = 2.25 + cr->rate_ratio_qdelta_adjustment;
   }
   // Adjust some parameters for low resolutions.
   if (cm->width * cm->height <= 352 * 288) {
@@ -513,6 +524,7 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
   const int resolution_change =
       cm->prev_frame && (cm->width != cm->prev_frame->width ||
                          cm->height != cm->prev_frame->height);
+
   if (resolution_change) av1_cyclic_refresh_reset_resize(cpi);
   if (!cr->apply_cyclic_refresh) {
     // Set segmentation map to 0 and disable.
@@ -600,6 +612,8 @@ void av1_cyclic_refresh_reset_resize(AV1_COMP *const cpi) {
   cpi->refresh_frame.golden_frame = true;
   cr->apply_cyclic_refresh = 0;
   cr->counter_encode_maxq_scene_change = 0;
+  cr->percent_refresh_adjustment = 5;
+  cr->rate_ratio_qdelta_adjustment = 0.25;
 }
 
 int av1_cyclic_refresh_disable_lf_cdef(AV1_COMP *const cpi) {

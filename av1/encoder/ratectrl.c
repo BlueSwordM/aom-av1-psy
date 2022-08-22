@@ -658,6 +658,8 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int is_encode_stage,
   double adjustment_limit;
   const int MBs = av1_get_MBs(width, height);
   int projected_size_based_on_q = 0;
+  int cyclic_refresh_active =
+      cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && cpi->common.seg.enabled;
 
   // Do not update the rate factors for arf overlay frames.
   if (cpi->rc.is_src_frame_alt_ref) return;
@@ -667,7 +669,7 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int is_encode_stage,
   // Work out how big we would have expected the frame to be at this Q given
   // the current correction factor.
   // Stay in double to avoid int overflow when values are large
-  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && cpi->common.seg.enabled) {
+  if (cyclic_refresh_active) {
     projected_size_based_on_q =
         av1_cyclic_refresh_estimate_bits_at_q(cpi, rate_correction_factor);
   } else {
@@ -682,7 +684,17 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int is_encode_stage,
                         (double)projected_size_based_on_q;
 
   // Clamp correction factor to prevent anything too extreme
-  correction_factor = AOMMIN(AOMMAX(correction_factor, 0.25), 4.0);
+  correction_factor = AOMMAX(correction_factor, 0.25);
+
+  cpi->rc.q_2_frame = cpi->rc.q_1_frame;
+  cpi->rc.q_1_frame = cm->quant_params.base_qindex;
+  cpi->rc.rc_2_frame = cpi->rc.rc_1_frame;
+  if (correction_factor > 1.1)
+    cpi->rc.rc_1_frame = -1;
+  else if (correction_factor < 0.9)
+    cpi->rc.rc_1_frame = 1;
+  else
+    cpi->rc.rc_1_frame = 0;
 
   // Decide how heavily to dampen the adjustment
   if (correction_factor > 0.0) {
@@ -697,15 +709,23 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int is_encode_stage,
     adjustment_limit = 0.75;
   }
 
-  cpi->rc.q_2_frame = cpi->rc.q_1_frame;
-  cpi->rc.q_1_frame = cm->quant_params.base_qindex;
-  cpi->rc.rc_2_frame = cpi->rc.rc_1_frame;
-  if (correction_factor > 1.1)
-    cpi->rc.rc_1_frame = -1;
-  else if (correction_factor < 0.9)
-    cpi->rc.rc_1_frame = 1;
-  else
-    cpi->rc.rc_1_frame = 0;
+  // Adjustment to delta Q and number of blocks updated in cyclic refressh
+  // based on over or under shoot of target in current frame.
+  if (cyclic_refresh_active && (cpi->rc.this_frame_target > 0) &&
+      !cpi->ppi->use_svc) {
+    CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
+    if (correction_factor > 1.25) {
+      cr->percent_refresh_adjustment =
+          AOMMAX(cr->percent_refresh_adjustment - 1, -5);
+      cr->rate_ratio_qdelta_adjustment =
+          AOMMAX(cr->rate_ratio_qdelta_adjustment - 0.05, -0.0);
+    } else if (correction_factor < 0.5) {
+      cr->percent_refresh_adjustment =
+          AOMMIN(cr->percent_refresh_adjustment + 1, 5);
+      cr->rate_ratio_qdelta_adjustment =
+          AOMMIN(cr->rate_ratio_qdelta_adjustment + 0.05, 0.25);
+    }
+  }
 
   if (correction_factor > 1.01) {
     // We are not already at the worst allowable quality
@@ -1487,7 +1507,7 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
     double q_adj_factor = 1.0;
     double q_val;
 
-    // Baseline value derived from cpi->active_worst_quality and kf boost.
+    // Baseline value derived from active_worst_quality and kf boost.
     active_best_quality =
         get_kf_active_quality(p_rc, active_worst_quality, bit_depth);
     if (cpi->is_screen_content_type) {
@@ -1935,8 +1955,8 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
   return q;
 }
 
-int av1_rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
-                             int gf_index, int *bottom_index, int *top_index) {
+int av1_rc_pick_q_and_bounds(AV1_COMP *cpi, int width, int height, int gf_index,
+                             int *bottom_index, int *top_index) {
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   int q;
   // TODO(sarahparker) merge no-stats vbr and altref q computation
@@ -1948,6 +1968,9 @@ int av1_rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
     if (cpi->oxcf.rc_cfg.mode == AOM_CBR) {
       q = rc_pick_q_and_bounds_no_stats_cbr(cpi, width, height, bottom_index,
                                             top_index);
+      // preserve copy of active worst quality selected.
+      cpi->rc.active_worst_quality = *top_index;
+
 #if USE_UNRESTRICTED_Q_IN_CQ_MODE
     } else if (cpi->oxcf.rc_cfg.mode == AOM_CQ) {
       q = rc_pick_q_and_bounds_no_stats_cq(cpi, width, height, bottom_index,
