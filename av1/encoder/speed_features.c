@@ -1303,6 +1303,10 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed == 6) sf->part_sf.disable_8x8_part_based_on_qidx = 1;
     if (speed >= 6) sf->rt_sf.skip_newmv_mode_based_on_sse = 2;
     if (speed == 7) sf->rt_sf.prefer_large_partition_blocks = 1;
+    if (speed >= 7) {
+      // TODO(yunqing): extend this sf to other speeds and/or other resolutions.
+      sf->rt_sf.use_rtc_tf = 1;
+    }
     if (speed == 8 && !cpi->ppi->use_svc) {
       sf->rt_sf.short_circuit_low_temp_var = 0;
       sf->rt_sf.use_nonrd_altref_frame = 1;
@@ -1312,8 +1316,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.gf_length_lvl = 1;
       sf->rt_sf.skip_cdef_sb = 1;
       sf->rt_sf.sad_based_adp_altref_lag = 2;
-      // TODO(yunqing): extend this sf to other speeds and/or other resolutions.
-      sf->rt_sf.use_rtc_tf = 1;
     }
 
     if (speed >= 10) {
