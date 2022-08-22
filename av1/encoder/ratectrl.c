@@ -2759,8 +2759,8 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
     // Flag to check light change or not.
     const int check_light_change = 0;
     // Store blkwise SAD for later use
-    if (cpi->sf.rt_sf.sad_based_comp_prune && (cm->spatial_layer_id == 0) &&
-        (cm->width == cm->render_width) && (cm->height == cm->render_height)) {
+    if ((cm->spatial_layer_id == 0) && (cm->width == cm->render_width) &&
+        (cm->height == cm->render_height)) {
       full_sampling = 1;
       if (cpi->src_sad_blk_64x64 == NULL) {
         CHECK_MEM_ERROR(

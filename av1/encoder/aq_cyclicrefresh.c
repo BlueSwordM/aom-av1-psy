@@ -343,8 +343,7 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
     // Loop through all MI blocks in superblock and update map.
     xmis = AOMMIN(mi_params->mi_cols - mi_col, cm->seq_params->mib_size);
     ymis = AOMMIN(mi_params->mi_rows - mi_row, cm->seq_params->mib_size);
-    if (cpi->sf.rt_sf.sad_based_comp_prune && cr->use_block_sad_scene_det &&
-        cpi->rc.frames_since_key > 30 &&
+    if (cr->use_block_sad_scene_det && cpi->rc.frames_since_key > 30 &&
         cr->counter_encode_maxq_scene_change > 30 &&
         cpi->src_sad_blk_64x64 != NULL) {
       sb_sad = cpi->src_sad_blk_64x64[sb_col_index + sb_cols * sb_row_index];
