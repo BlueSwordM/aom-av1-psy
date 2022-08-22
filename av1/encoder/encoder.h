@@ -200,8 +200,6 @@ enum {
 
 #define MAX_VBR_CORPUS_COMPLEXITY 10000
 
-/*!\cond */
-
 typedef enum {
   MOD_FP,           // First pass
   MOD_TF,           // Temporal filtering

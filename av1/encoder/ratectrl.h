@@ -539,6 +539,8 @@ typedef struct {
   int q_history[MAX_Q_HISTORY];
 } PRIMARY_RATE_CONTROL;
 
+/*!\cond */
+
 struct AV1_COMP;
 struct AV1EncoderConfig;
 struct GF_GROUP;

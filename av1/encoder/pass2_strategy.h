@@ -21,7 +21,6 @@ struct EncodeFrameParams;
 
 #include "av1/encoder/encoder.h"
 
-/*!\endcond */
 /*!
  * \brief accumulated stats and features in a gf group
  */
@@ -60,7 +59,7 @@ typedef struct {
   double frame_sr_coded_error;
   /*!\endcond */
 } GF_FRAME_STATS;
-/*!cond */
+/*!\cond */
 
 void av1_init_second_pass(struct AV1_COMP *cpi);
 
