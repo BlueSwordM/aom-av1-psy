@@ -674,8 +674,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "to a given target level"),
   .kf_max_pyr_height = ARG_DEF(
       NULL, "kf-max-pyr-height", 1,
-      "Maximum height of pyrimid structure used for the GOP starting with a "
+      "Maximum height of pyramid structure used for the GOP starting with a "
       "key frame (-1 to 5). When set to -1 (default), it does not have any "
-      "effects. The height also obeys the value set to gf_max_pyr_height."),
+      "effect. The actual maximum pyramid height will be the minimum of this "
+      "value and the value of gf_max_pyr_height."),
 #endif  // CONFIG_AV1_ENCODER
 };
