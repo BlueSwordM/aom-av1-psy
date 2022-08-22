@@ -523,15 +523,15 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
   set_cb_offsets(td->mb.cb_offset, 0, 0);
 
   // Initialize the flag to skip cdef to 1.
+  const int block64_in_sb = (sb_size == BLOCK_128X128) ? 2 : 1;
   if (sf->rt_sf.skip_cdef_sb) {
     // If 128x128 block is used, we need to set the flag for all 4 64x64 sub
     // "blocks".
-    const int block64_in_sb = (sb_size == BLOCK_128X128) ? 2 : 1;
     for (int r = 0; r < block64_in_sb; ++r) {
       for (int c = 0; c < block64_in_sb; ++c) {
         const int idx_in_sb =
             r * MI_SIZE_64X64 * cm->mi_params.mi_stride + c * MI_SIZE_64X64;
-        if (mi[idx_in_sb]) mi[idx_in_sb]->skip_cdef_curr_sb = 1;
+        if (mi[idx_in_sb]) mi[idx_in_sb]->cdef_strength = 1;
       }
     }
   }
@@ -545,16 +545,15 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
   end_timing(cpi, nonrd_use_partition_time);
 #endif
 
-  if (sf->rt_sf.skip_cdef_sb) {
+  if (sf->rt_sf.skip_cdef_sb && block64_in_sb == 2) {
     // If 128x128 block is used, we need to set the flag for all 4 64x64 sub
     // "blocks".
-    const int block64_in_sb = (sb_size == BLOCK_128X128) ? 2 : 1;
-    const int skip = mi[0]->skip_cdef_curr_sb;
+    const int skip = mi[0]->cdef_strength;
     for (int r = 0; r < block64_in_sb; ++r) {
       for (int c = 0; c < block64_in_sb; ++c) {
         const int idx_in_sb =
             r * MI_SIZE_64X64 * cm->mi_params.mi_stride + c * MI_SIZE_64X64;
-        if (mi[idx_in_sb]) mi[idx_in_sb]->skip_cdef_curr_sb = skip;
+        if (mi[idx_in_sb]) mi[idx_in_sb]->cdef_strength = skip;
       }
     }
   }

@@ -2338,6 +2338,12 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif
   }
   if (cpi->sf.rt_sf.skip_cdef_sb) {
+    // cdef_strength is initialized to 1 which means skip_cdef, and is updated
+    // here. Check to see is skipping cdef is allowed.
+    const int allow_cdef_skipping =
+        cpi->rc.frames_since_key > 10 && !cpi->rc.high_source_sad &&
+        !(x->color_sensitivity[0] || x->color_sensitivity[1]);
+
     // Find the corresponding 64x64 block. It'll be the 128x128 block if that's
     // the block size.
     const int mi_row_sb = mi_row - mi_row % MI_SIZE_64X64;
@@ -2347,12 +2353,11 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
         get_mi_grid_idx(&cm->mi_params, mi_row_sb, mi_col_sb);
     // Do not skip if intra or new mv is picked, or color sensitivity is set.
     // Never skip on slide/scene change.
-    mi_sb[0]->skip_cdef_curr_sb =
-        mi_sb[0]->skip_cdef_curr_sb && !cpi->rc.high_source_sad &&
-        !(x->color_sensitivity[0] || x->color_sensitivity[1]) &&
+    mi_sb[0]->cdef_strength =
+        mi_sb[0]->cdef_strength && allow_cdef_skipping &&
         !(mbmi->mode < INTRA_MODES || mbmi->mode == NEWMV);
     // Store in the pickmode context.
-    ctx->mic.skip_cdef_curr_sb = mi_sb[0]->skip_cdef_curr_sb;
+    ctx->mic.cdef_strength = mi_sb[0]->cdef_strength;
   }
   x->rdmult = orig_rdmult;
   ctx->rd_stats.rate = rd_cost->rate;

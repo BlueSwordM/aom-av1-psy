@@ -508,7 +508,7 @@ static AOM_INLINE void cdef_params_init(const YV12_BUFFER_CONFIG *frame,
 }
 
 static void pick_cdef_from_qp(AV1_COMMON *const cm, int skip_cdef,
-                              int frames_since_key, int is_screen_content) {
+                              int is_screen_content) {
   const int bd = cm->seq_params->bit_depth;
   const int q =
       av1_ac_quant_QTX(cm->quant_params.base_qindex, 0, bd) >> (bd - 8);
@@ -574,10 +574,14 @@ static void pick_cdef_from_qp(AV1_COMMON *const cm, int skip_cdef,
   cdef_info->cdef_uv_strengths[0] =
       predicted_uv_f1 * CDEF_SEC_STRENGTHS + predicted_uv_f2;
 
+  // mbmi->cdef_strength is already set in the encoding stage. We don't need to
+  // set it again here.
   if (skip_cdef) {
     cdef_info->cdef_strengths[1] = 0;
     cdef_info->cdef_uv_strengths[1] = 0;
+    return;
   }
+
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int nvfb = (mi_params->mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   const int nhfb = (mi_params->mi_cols + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
@@ -586,10 +590,6 @@ static void pick_cdef_from_qp(AV1_COMMON *const cm, int skip_cdef,
     for (int c = 0; c < nhfb; ++c) {
       MB_MODE_INFO *current_mbmi = mbmi[MI_SIZE_64X64 * c];
       current_mbmi->cdef_strength = 0;
-      if (skip_cdef && current_mbmi->skip_cdef_curr_sb &&
-          frames_since_key > 10) {
-        current_mbmi->cdef_strength = 1;
-      }
     }
     mbmi += MI_SIZE_64X64 * mi_params->mi_stride;
   }
@@ -598,9 +598,8 @@ static void pick_cdef_from_qp(AV1_COMMON *const cm, int skip_cdef,
 void av1_cdef_search(MultiThreadInfo *mt_info, const YV12_BUFFER_CONFIG *frame,
                      const YV12_BUFFER_CONFIG *ref, AV1_COMMON *cm,
                      MACROBLOCKD *xd, CDEF_PICK_METHOD pick_method, int rdmult,
-                     int skip_cdef_feature, int frames_since_key,
-                     CDEF_CONTROL cdef_control, const int is_screen_content,
-                     int non_reference_frame) {
+                     int skip_cdef_feature, CDEF_CONTROL cdef_control,
+                     const int is_screen_content, int non_reference_frame) {
   assert(cdef_control != CDEF_NONE);
   if (cdef_control == CDEF_REFERENCE && non_reference_frame) {
     CdefInfo *const cdef_info = &cm->cdef_info;
@@ -612,8 +611,7 @@ void av1_cdef_search(MultiThreadInfo *mt_info, const YV12_BUFFER_CONFIG *frame,
   }
 
   if (pick_method == CDEF_PICK_FROM_Q) {
-    pick_cdef_from_qp(cm, skip_cdef_feature, frames_since_key,
-                      is_screen_content);
+    pick_cdef_from_qp(cm, skip_cdef_feature, is_screen_content);
     return;
   }
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
