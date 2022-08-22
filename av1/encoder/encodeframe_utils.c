@@ -950,8 +950,10 @@ void av1_get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
 
       TplDepStats *this_stats = &tpl_stats[av1_tpl_ptr_pos(
           row, col, tpl_stride, tpl_data->tpl_stats_block_mis_log2)];
-      sb_enc->tpl_inter_cost[count] = this_stats->inter_cost;
-      sb_enc->tpl_intra_cost[count] = this_stats->intra_cost;
+      sb_enc->tpl_inter_cost[count] = this_stats->inter_cost
+                                      << TPL_DEP_COST_SCALE_LOG2;
+      sb_enc->tpl_intra_cost[count] = this_stats->intra_cost
+                                      << TPL_DEP_COST_SCALE_LOG2;
       memcpy(sb_enc->tpl_mv[count], this_stats->mv, sizeof(this_stats->mv));
       mi_count++;
       count++;
@@ -1020,7 +1022,7 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
       mc_dep_reg += log(3 * dist_scaled + mc_dep_delta) * cbcmp;
       srcrf_dist += (double)(this_stats->srcrf_dist << RDDIV_BITS);
       srcrf_sse += (double)(this_stats->srcrf_sse << RDDIV_BITS);
-      srcrf_rate += (double)this_stats->srcrf_rate;
+      srcrf_rate += (double)(this_stats->srcrf_rate << TPL_DEP_COST_SCALE_LOG2);
 #ifndef NDEBUG
       mi_count++;
 #endif
