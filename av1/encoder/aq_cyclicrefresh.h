@@ -172,7 +172,7 @@ int av1_cyclic_refresh_rc_bits_per_mb(const struct AV1_COMP *cpi, int i,
  * \param[in]   mi_col    Col coordinate of the block in a step size of MI_SIZE
  * \param[in]   bsize     Block size
  *
- * \return Update the \c mbmi->segment_id, the \c cpi->cyclic_refresh and
+ * \remark Update the \c mbmi->segment_id, the \c cpi->cyclic_refresh and
  * the \c cm->cpi->enc_seg.map.
  */
 
@@ -201,7 +201,7 @@ void av1_cyclic_reset_segment_skip(const struct AV1_COMP *cpi,
  * \param[in]   dry_run   A code indicating whether it is part of the final
  *                         pass for reconstructing the superblock
  *
- * \return Update the \c mbmi->segment_id, the \c cpi->cyclic_refresh and
+ * \remark Update the \c mbmi->segment_id, the \c cpi->cyclic_refresh and
  * the \c cm->cpi->enc_seg.map.
  */
 void av1_cyclic_refresh_update_segment(const struct AV1_COMP *cpi,
@@ -221,7 +221,7 @@ void av1_cyclic_refresh_update_segment(const struct AV1_COMP *cpi,
  *
  * \param[in]   x         Pointer to MACROBLOCK structure
  *
- * \return Update the \c x->cnt_zeromv, the \c x->actual_num_seg1_blocks and
+ * \remark Update the \c x->cnt_zeromv, the \c x->actual_num_seg1_blocks and
  * the \c x->actual_num_seg1_blocks.
  */
 void av1_init_cyclic_refresh_counters(MACROBLOCK *const x);
@@ -238,7 +238,7 @@ void av1_init_cyclic_refresh_counters(MACROBLOCK *const x);
  * \param[in]   cyclic_refresh Pointer to CYCLIC_REFRESH structure
  * \param[in]   x              Pointer to MACROBLOCK structure
  *
- * \return Update the \c cyclic_refresh->cnt_zeromv, the \c
+ * \remark Update the \c cyclic_refresh->cnt_zeromv, the \c
  * cyclic_refresh->actual_num_seg1_blocks and the \c
  * cyclic_refresh->actual_num_seg1_blocks.
  */
@@ -253,7 +253,7 @@ void av1_accumulate_cyclic_refresh_counters(
  *
  * \param[in]   cpi       Top level encoder structure
  *
- * \return Returns the interval in \c cpi->rc.baseline_gf_interval.
+ * \remark Returns the interval in \c cpi->rc.baseline_gf_interval.
  */
 void av1_cyclic_refresh_set_golden_update(struct AV1_COMP *const cpi);
 
@@ -270,7 +270,7 @@ void av1_cyclic_refresh_set_golden_update(struct AV1_COMP *const cpi);
  *
  * \param[in]       cpi          Top level encoder structure
  *
- * \return Updates the \c cpi->cyclic_refresh with the settings.
+ * \remark Updates the \c cpi->cyclic_refresh with the settings.
  */
 void av1_cyclic_refresh_update_parameters(struct AV1_COMP *const cpi);
 
@@ -284,7 +284,7 @@ void av1_cyclic_refresh_update_parameters(struct AV1_COMP *const cpi);
  *
  * \param[in]       cpi          Top level encoder structure
  *
- * \return Updates the \c cpi->cyclic_refresh with the cyclic refresh
+ * \remark Updates the \c cpi->cyclic_refresh with the cyclic refresh
  * parameters and the \c cm->seg with the segmentation data.
  */
 void av1_cyclic_refresh_setup(struct AV1_COMP *const cpi);

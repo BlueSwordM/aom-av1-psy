@@ -397,7 +397,7 @@ void av1_decode_xq(const int *xqd, int *xq, const sgr_params_type *params);
  *                           should be at least SGRPROJ_TMPBUF_SIZE big.
  * \param[in]  optimized_lr  Whether to use fast optimized Loop Restoration
  *
- * \return Nothing is returned. Instead, the filtered unit is output in
+ * \remark Nothing is returned. Instead, the filtered unit is output in
  * \c dst8 at the proper restoration unit offset.
  */
 void av1_loop_restoration_filter_unit(
@@ -417,7 +417,7 @@ void av1_loop_restoration_filter_unit(
  * \param[in]       optimized_lr  Whether to use fast optimized Loop Restoration
  * \param[in]       lr_ctxt       Loop restoration context
  *
- * \return Nothing is returned. Instead, the filtered frame is output in
+ * \remark Nothing is returned. Instead, the filtered frame is output in
  * \c frame.
  */
 void av1_loop_restoration_filter_frame(YV12_BUFFER_CONFIG *frame,

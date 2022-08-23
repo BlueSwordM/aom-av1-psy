@@ -196,8 +196,6 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
  * \param[in]    this_rd_cost       Struct to keep track of palette mode's
  *                                  rd_stats.
  * \param[in]    best_rd            Best RD seen for this block so far.
- *
- * \return Returns nothing.
  */
 void av1_search_palette_mode_luma(const AV1_COMP *cpi, MACROBLOCK *x,
                                   BLOCK_SIZE bsize, unsigned int ref_frame_cost,

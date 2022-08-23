@@ -152,7 +152,7 @@ struct AV1_COMP;
  *
  * \param[in]       cpi  Top level encoder structure
  *
- * \return  Nothing returned. Set cpi->svc.
+ * \remark  Nothing returned. Set cpi->svc.
  */
 void av1_init_layer_context(struct AV1_COMP *const cpi);
 
@@ -165,7 +165,7 @@ void av1_init_layer_context(struct AV1_COMP *const cpi);
  * \param[in]       cpi  Top level encoder structure
  * \param[in]       target_bandwidth  Total target bandwidth
  *
- * \return  Nothing returned. Buffer level for each layer is set.
+ * \remark  Nothing returned. Buffer level for each layer is set.
  */
 void av1_update_layer_context_change_config(struct AV1_COMP *const cpi,
                                             const int64_t target_bandwidth);
@@ -179,7 +179,7 @@ void av1_update_layer_context_change_config(struct AV1_COMP *const cpi,
  *
  * \param[in]       cpi  Top level encoder structure
  *
- * \return  Nothing returned. Frame related quantities for current temporal
+ * \remark  Nothing returned. Frame related quantities for current temporal
  layer are updated.
  */
 void av1_update_temporal_layer_framerate(struct AV1_COMP *const cpi);
@@ -193,7 +193,7 @@ void av1_update_temporal_layer_framerate(struct AV1_COMP *const cpi);
  *
  * \param[in]       cpi  Top level encoder structure
  *
- * \return  Nothing returned. Layer context for current layer is set.
+ * \remark  Nothing returned. Layer context for current layer is set.
  */
 void av1_restore_layer_context(struct AV1_COMP *const cpi);
 
@@ -204,8 +204,6 @@ void av1_restore_layer_context(struct AV1_COMP *const cpi);
  * \callergraph
  *
  * \param[in]       cpi  Top level encoder structure
- *
- * \return  Nothing returned.
  */
 void av1_save_layer_context(struct AV1_COMP *const cpi);
 
@@ -216,8 +214,6 @@ void av1_save_layer_context(struct AV1_COMP *const cpi);
  * \callergraph
  *
  * \param[in]       cpi  Top level encoder structure
- *
- * \return  Nothing returned.
  */
 void av1_free_svc_cyclic_refresh(struct AV1_COMP *const cpi);
 
@@ -229,8 +225,6 @@ void av1_free_svc_cyclic_refresh(struct AV1_COMP *const cpi);
  *
  * \param[in]       cpi  Top level encoder structure
  * \param[in]       is_key  Whether current layer is key frame
- *
- * \return  Nothing returned.
  */
 void av1_svc_reset_temporal_layers(struct AV1_COMP *const cpi, int is_key);
 
@@ -241,8 +235,6 @@ void av1_svc_reset_temporal_layers(struct AV1_COMP *const cpi, int is_key);
  * \callergraph
  *
  * \param[in]       cpi  Top level encoder structure
- *
- * \return  Nothing returned.
  */
 void av1_one_pass_cbr_svc_start_layer(struct AV1_COMP *const cpi);
 
@@ -268,7 +260,7 @@ int av1_svc_primary_ref_frame(const struct AV1_COMP *const cpi);
  * \param[in]       width_out    Output width, scaled for current layer
  * \param[in]       height_out   Output height, scaled for current layer
  *
- * \return Nothing is returned. Instead the scaled width and height are set.
+ * \remark Nothing is returned. Instead the scaled width and height are set.
  */
 void av1_get_layer_resolution(const int width_org, const int height_org,
                               const int num, const int den, int *width_out,

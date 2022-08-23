@@ -724,7 +724,7 @@ void av1_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
  * \param[in]    ctx            Structure to hold snapshot of coding context
                                 during the mode picking process
  *
- * \return Nothing is returned. Instead, the MB_MODE_INFO struct inside x
+ * \remark Nothing is returned. Instead, the MB_MODE_INFO struct inside x
  * is modified to store information about the best mode computed
  * in this function. The rd_cost struct is also updated with the RD stats
  * corresponding to the best mode found.
@@ -888,7 +888,7 @@ static AOM_INLINE void write_completed_mi_pos(
  *                              chosen modes for the current block
  * \param[in]    best_rd        Upper bound of rd cost of a valid partition
  *
- * \return Nothing is returned. Instead, the chosen modes and contexts necessary
+ * \remark Nothing is returned. Instead, the chosen modes and contexts necessary
  * for reconstruction are stored in ctx, the rate-distortion stats are stored in
  * rd_cost. If no valid mode leading to rd_cost <= best_rd, the status will be
  * signalled by an INT64_MAX rd_cost->rdcost.
@@ -1468,7 +1468,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
  *                         chosen modes for the current block
  * \param[in]    rate      Pointer to the total rate for the current block
  *
- * \return Nothing is returned. Instead, reconstructions (w/o in-loop filters)
+ * \remark Nothing is returned. Instead, reconstructions (w/o in-loop filters)
  * will be updated in the pixel buffers in td->mb.e_mbd. Also, the chosen modes
  * will be stored in the MB_MODE_INFO buffer td->mb.e_mbd.mi[0].
  */
@@ -1631,7 +1631,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
  *                         partitions and mode info for the current block
  * \param[in]    rate      Pointer to the total rate for the current block
  *
- * \return Nothing is returned. Instead, reconstructions (w/o in-loop filters)
+ * \remark Nothing is returned. Instead, reconstructions (w/o in-loop filters)
  * will be updated in the pixel buffers in td->mb.e_mbd.
  */
 static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
@@ -1813,7 +1813,7 @@ reference for future sub-partitions
 * \param[in]    pc_tree   Pointer to the PC_TREE node holding the picked
 partitions and mode info for the current block
 *
-* \return Nothing is returned. The pc_tree struct is modified to store the
+* \remark Nothing is returned. The pc_tree struct is modified to store the
 * picked partition and modes. The rate and dist are also updated with those
 * corresponding to the best partition found.
 */
@@ -2250,7 +2250,7 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
  * \param[in]    ctx            Pointer to structure holding coding contexts and
  *                              chosen modes for the current block
  *
- * \return Nothing is returned. Instead, the chosen modes and contexts necessary
+ * \remark Nothing is returned. Instead, the chosen modes and contexts necessary
  * for reconstruction are stored in ctx, the rate-distortion stats are stored in
  * rd_cost. If no valid mode leading to rd_cost <= best_rd, the status will be
  * signalled by an INT64_MAX rd_cost->rdcost.
@@ -2593,7 +2593,7 @@ MI_SIZE
 * \param[in]    pc_tree   Pointer to the PC_TREE node holding the picked
 partitions and mode info for the current block
 *
-* \return Nothing is returned. The pc_tree struct is modified to store the
+* \remark Nothing is returned. The pc_tree struct is modified to store the
 * picked partition and modes.
 */
 void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,

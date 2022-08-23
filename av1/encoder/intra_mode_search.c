@@ -1179,7 +1179,7 @@ static AOM_INLINE int intra_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
  * \callergraph
  * This function loops through all filter_intra modes to find the best one.
  *
- * \return Returns nothing, but updates the mbmi and rd_stats.
+ * \remark Returns nothing, but updates the mbmi and rd_stats.
  */
 static INLINE void handle_filter_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
                                             BLOCK_SIZE bsize,

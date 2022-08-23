@@ -37,7 +37,7 @@
  *                                        prune for low temporal variance block
  * \param[in]    skip_pred_mv             Flag indicating to skip av1_mv_pred
  *
- * \return Nothing is returned. Instead, predicted MVs are placed into
+ * \remark Nothing is returned. Instead, predicted MVs are placed into
  * \c frame_mv array
  */
 static INLINE void find_predictors(

@@ -605,7 +605,7 @@ void av1_rc_postencode_update_drop_frame(struct AV1_COMP *cpi);
  * \param[in]   width                 Frame width
  * \param[in]   height                Frame height
  *
- * \return None but updates the relevant rate correction factor in cpi->rc
+ * \remark Updates the relevant rate correction factor in cpi->rc
  */
 void av1_rc_update_rate_correction_factors(struct AV1_COMP *cpi,
                                            int is_encode_stage, int width,
@@ -772,7 +772,7 @@ int av1_calc_iframe_target_size_one_pass_cbr(const struct AV1_COMP *cpi);
  * \param[in]       frame_input  Current and last input source frames
  * \param[in]       frame_flags  Emcoder frame flags
  *
- * \return Nothing is returned. Instead the settings computed in this
+ * \remark Nothing is returned. Instead the settings computed in this
  * funtion are set in: \c frame_params, \c cpi->common, \c cpi->rc, \c cpi->svc.
  */
 void av1_get_one_pass_rt_params(struct AV1_COMP *cpi,

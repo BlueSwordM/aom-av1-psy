@@ -81,7 +81,7 @@ static void tf_determine_block_partition(const MV block_mv, const int block_mse,
  * \param[out]  subblock_mses   Pointer to the search errors (MSE) for 4
  *                              sub-blocks
  *
- * \return Nothing will be returned. Results are saved in subblock_mvs and
+ * \remark Nothing will be returned. Results are saved in subblock_mvs and
  *         subblock_mses
  */
 static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
@@ -323,7 +323,7 @@ static INLINE int is_frame_high_bitdepth(const YV12_BUFFER_CONFIG *frame) {
  *                             order)
  * \param[out]  pred           Pointer to the predictor to be built
  *
- * \return Nothing returned, But the contents of `pred` will be modified
+ * \remark Nothing returned, But the contents of `pred` will be modified
  */
 static void tf_build_predictor(const YV12_BUFFER_CONFIG *ref_frame,
                                const MACROBLOCKD *mbd,
@@ -551,7 +551,7 @@ void compute_luma_sq_error_sum(uint32_t *square_diff, uint32_t *luma_sse_sum,
  * \param[out]  count           Pointer to the pixel-wise counter for
  *                              filtering
  *
- * \return Nothing returned, But the contents of `accum`, `pred` and 'count'
+ * \remark Nothing returned, But the contents of `accum`, `pred` and 'count'
  *         will be modified
  */
 void av1_apply_temporal_filter_c(
@@ -734,7 +734,7 @@ void av1_highbd_apply_temporal_filter_c(
  * \param[in]   count          Pointer to the pre-computed count
  * \param[out]  result_buffer  Pointer to result buffer
  *
- * \return Nothing returned, but the content to which `result_buffer` pointer
+ * \remark Nothing returned, but the content to which `result_buffer` pointer
  *         will be modified
  */
 static void tf_normalize_filtered_frame(
@@ -914,7 +914,7 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
  * \ingroup src_frame_proc
  * \param[in]   cpi                   Top level encoder instance structure
  *
- * \return Nothing will be returned, but the contents of td->diff will be
+ * \remark Nothing will be returned, but the contents of td->diff will be
  modified.
  */
 static void tf_do_filtering(AV1_COMP *cpi) {
@@ -949,7 +949,7 @@ static void tf_do_filtering(AV1_COMP *cpi) {
  *                              in the lookahead buffer cpi->lookahead
  * \param[in]   gf_frame_index  GOP index
  *
- * \return Nothing will be returned. But the fields `frames`, `num_frames`,
+ * \remark Nothing will be returned. But the fields `frames`, `num_frames`,
  *         `filter_frame_idx` and `noise_levels` will be updated in cpi->tf_ctx.
  */
 static void tf_setup_filtering_buffer(AV1_COMP *cpi,

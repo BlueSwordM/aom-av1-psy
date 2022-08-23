@@ -932,7 +932,7 @@ static AOM_FORCE_INLINE void update_yrd_loop_vars(
  * \param[in]    tx_type        Transform kernel type
  * \param[in]    is_inter_mode  Flag to indicate inter mode
  *
- * \return Nothing is returned. Instead, calculated RD cost is placed to
+ * \remark Nothing is returned. Instead, calculated RD cost is placed to
  * \c this_rdc. \c skippable flag is set if there is no non-zero quantized
  * coefficients for Hadamard transform
  */
@@ -1440,7 +1440,7 @@ struct estimate_block_intra_args {
  * \param[in]    arg            Pointer to a structure that holds paramaters
  *                              for intra mode search
  *
- * \return Nothing is returned. Instead, best mode and RD Cost of the best mode
+ * \remark Nothing is returned. Instead, best mode and RD Cost of the best mode
  * are set in \c args->rdc and \c args->mode
  */
 static void estimate_block_intra(int plane, int block, int row, int col,
@@ -1623,7 +1623,7 @@ static void recheck_zeromv_after_denoising(
  *                                    large blocks
  * \param[in]    best_sse             Best sse so far.
  *
- * \return Nothing is returned. Instead, calculated RD cost is placed to
+ * \remark Nothing is returned. Instead, calculated RD cost is placed to
  * \c this_rdc and best filter is placed to \c mi->interp_filters. In case
  * \c reuse_inter_pred flag is set, this function also ouputs
  * \c this_mode_pred. Also \c this_early_temp is set if transform can be
@@ -2159,7 +2159,7 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
  * \param[in]    ctx                      Pointer to structure holding coding
  *                                        contexts and modes for the block
  *
- * \return Nothing is returned. Instead, calculated RD cost is placed to
+ * \remark Nothing is returned. Instead, calculated RD cost is placed to
  * \c best_rdc and best selected mode is placed to \c best_pickmode
  */
 static void estimate_intra_mode(

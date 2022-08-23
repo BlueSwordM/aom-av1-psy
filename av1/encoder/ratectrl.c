@@ -606,7 +606,7 @@ static double get_rate_correction_factor(const AV1_COMP *cpi, int width,
  * \param[in]   width                 Frame width
  * \param[in]   height                Frame height
  *
- * \return None but updates the rate correction factor for the
+ * \remark Updates the rate correction factor for the
  *         current frame type in cpi->rc.
  */
 static void set_rate_correction_factor(AV1_COMP *cpi, int is_encode_stage,
@@ -2587,7 +2587,7 @@ void av1_adjust_gf_refresh_qp_one_pass_rt(AV1_COMP *cpi) {
  * \param[in]       cpi          Top level encoder structure
  * \param[in]       gf_update    Flag to indicate if GF is updated
  *
- * \return Nothing is returned. Instead the settings for the prediction
+ * \remark Nothing is returned. Instead the settings for the prediction
  * structure are set in \c cpi-ext_flags; and the buffer slot index
  * (for each of 7 references) and refresh flags (for each of the 8 slots)
  * are set in \c cpi->svc.ref_idx[] and \c cpi->svc.refresh[].
@@ -2690,7 +2690,7 @@ void av1_set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
  * \param[in]       cpi          Top level encoder structure
  * \param[in]       frame_input  Current and last input source frames
  *
- * \return Nothing is returned. Instead the flag \c cpi->rc.high_source_sad
+ * \remark Nothing is returned. Instead the flag \c cpi->rc.high_source_sad
  * is set if scene change is detected, and \c cpi->rc.avg_source_sad is updated.
  */
 static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
@@ -2917,7 +2917,7 @@ static void resize_reset_rc(AV1_COMP *cpi, int resize_width, int resize_height,
  * \ingroup rate_control
  * \param[in]       cpi          Top level encoder structure
  *
- * \return Return resized width/height in \c cpi->resize_pending_params,
+ * \remark Return resized width/height in \c cpi->resize_pending_params,
  * and update some resize counters in \c rc.
  */
 static void dynamic_resize_one_pass_cbr(AV1_COMP *cpi) {

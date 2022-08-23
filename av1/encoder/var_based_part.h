@@ -44,7 +44,7 @@ extern "C" {
  * \param[in]      q                  q index
  * \param[in]      content_lowsumdiff Low sumdiff flag for superblock
  *
- * \return Returns the set of thresholds in \c cpi->vbp_info.thresholds.
+ * \remark Returns the set of thresholds in \c cpi->vbp_info.thresholds.
  */
 void av1_set_variance_partition_thresholds(AV1_COMP *cpi, int q,
                                            int content_lowsumdiff);
