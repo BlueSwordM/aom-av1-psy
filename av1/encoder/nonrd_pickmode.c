@@ -2126,8 +2126,10 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   }
 
   // Skip golden reference if color is set, on flat blocks with motion.
-  if (x->source_variance < 500 &&
-      x->content_state_sb.source_sad_nonrd > kLowSad &&
+  if (((cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+        (x->color_sensitivity_sb[0] || x->color_sensitivity_sb[1])) ||
+       (x->source_variance < 500 &&
+        x->content_state_sb.source_sad_nonrd > kLowSad)) &&
       (x->color_sensitivity_sb_g[0] == 1 || x->color_sensitivity_sb_g[1] == 1))
     use_golden_ref_frame = 0;
 
@@ -3522,7 +3524,13 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                         &orig_dst, tmp, &this_mode_pred, &best_rdc,
                         &best_pickmode, ctx);
 
-  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+  int skip_idtx_palette =
+      (x->color_sensitivity[0] || x->color_sensitivity[1]) &&
+      x->content_state_sb.source_sad_nonrd != kZeroSad &&
+      !cpi->rc.high_source_sad;
+
+  // Check for IDTX: based only on Y channel, so avoid when color_sen is set.
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN && !skip_idtx_palette &&
       !cpi->oxcf.txfm_cfg.use_inter_dct_only && !x->force_zeromv_skip &&
       is_inter_mode(best_pickmode.best_mode) &&
       (!cpi->sf.rt_sf.prune_idtx_nonrd ||
@@ -3539,10 +3547,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                   mi->tx_size, IDTX, 1);
     int64_t idx_rdcost = RDCOST(x->rdmult, idtx_rdc.rate, idtx_rdc.dist);
     if (idx_rdcost < best_rdc.rdcost) {
-      // Keep the skip_txfm off if the color_sensitivity is set,
-      // for scene/slide change.
-      if (cpi->rc.high_source_sad &&
-          (x->color_sensitivity[0] || x->color_sensitivity[1]))
+      // Keep the skip_txfm off if the color_sensitivity is set.
+      if (x->color_sensitivity[0] || x->color_sensitivity[1])
         idtx_rdc.skip_txfm = 0;
       best_pickmode.tx_type = IDTX;
       best_rdc.rdcost = idx_rdcost;
@@ -3559,7 +3565,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   }
 
   int try_palette =
-      cpi->oxcf.tool_cfg.enable_palette &&
+      !skip_idtx_palette && cpi->oxcf.tool_cfg.enable_palette &&
       av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                         mi->bsize);
   try_palette = try_palette && is_mode_intra(best_pickmode.best_mode) &&
@@ -3579,6 +3585,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       best_rdc.dist = this_rdc.dist;
       best_rdc.rdcost = this_rdc.rdcost;
       best_pickmode.best_mode_skip_txfm = this_rdc.skip_txfm;
+      // Keep the skip_txfm off if the color_sensitivity is set.
+      if (x->color_sensitivity[0] || x->color_sensitivity[1])
+        this_rdc.skip_txfm = 0;
       if (!this_rdc.skip_txfm) {
         memcpy(ctx->blk_skip, txfm_info->blk_skip,
                sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
