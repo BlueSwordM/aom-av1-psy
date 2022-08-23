@@ -1205,6 +1205,18 @@ static AOM_INLINE PART_EVAL_STATUS get_part_eval_based_on_sub_blk_var(
              : PART_EVAL_ONLY_NONE;
 }
 
+static AOM_INLINE bool is_set_force_zeromv_skip_based_on_src_sad(
+    int set_zeromv_skip_based_on_source_sad, SOURCE_SAD source_sad_nonrd) {
+  if (set_zeromv_skip_based_on_source_sad == 0) return false;
+
+  if (set_zeromv_skip_based_on_source_sad >= 2)
+    return source_sad_nonrd <= kVeryLowSad;
+  else if (set_zeromv_skip_based_on_source_sad >= 1)
+    return source_sad_nonrd == kZeroSad;
+
+  return false;
+}
+
 int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                                       ThreadData *td, MACROBLOCK *x, int mi_row,
                                       int mi_col) {
@@ -1334,6 +1346,11 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                uv_sad);
 
   x->force_zeromv_skip = 0;
+  const bool is_set_force_zeromv_skip =
+      is_set_force_zeromv_skip_based_on_src_sad(
+          cpi->sf.rt_sf.set_zeromv_skip_based_on_source_sad,
+          x->content_state_sb.source_sad_nonrd);
+
   const unsigned int thresh_exit_part =
       (cm->seq_params->sb_size == BLOCK_64X64) ? 5000 : 10000;
   // If the superblock is completely static (zero source sad) and
@@ -1345,8 +1362,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   if (!is_key_frame && cpi->sf.rt_sf.part_early_exit_zeromv &&
       cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
       cpi->cyclic_refresh->apply_cyclic_refresh &&
-      segment_id == CR_SEGMENT_ID_BASE &&
-      x->content_state_sb.source_sad_nonrd == kZeroSad &&
+      segment_id == CR_SEGMENT_ID_BASE && is_set_force_zeromv_skip &&
       ref_frame_partition == LAST_FRAME && xd->mi[0]->mv[0].as_int == 0 &&
       y_sad < thresh_exit_part && uv_sad[0]<(3 * thresh_exit_part)>> 2 &&
       uv_sad[1]<(3 * thresh_exit_part)>> 2) {

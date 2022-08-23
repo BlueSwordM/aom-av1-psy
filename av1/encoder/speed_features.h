@@ -1616,6 +1616,13 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // In multi-threaded encoding, enable top right dependency wait of threads at
   // mi level.
   bool top_right_sync_wait_in_mis;
+
+  // Sets force_zeromv_skip based on the source sad available. Aggressiveness
+  // increases with increase in the level set for speed feature.
+  // 0: No setting
+  // 1: If source sad is kZeroSad
+  // 2: If source sad <= kVeryLowSad
+  int set_zeromv_skip_based_on_source_sad;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

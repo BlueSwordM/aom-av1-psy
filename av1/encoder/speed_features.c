@@ -1402,8 +1402,11 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.reduce_mv_pel_precision = 2;
       sf->rt_sf.reduce_zeromv_mvres = true;
     }
-    if (speed >= 10 && cm->width * cm->height > 1920 * 1080)
-      sf->part_sf.disable_8x8_part_based_on_qidx = 1;
+    if (speed >= 10) {
+      if (cm->width * cm->height > 1920 * 1080)
+        sf->part_sf.disable_8x8_part_based_on_qidx = 1;
+      sf->rt_sf.set_zeromv_skip_based_on_source_sad = 2;
+    }
     sf->rt_sf.skip_cdef_sb = 1;
     sf->rt_sf.use_rtc_tf = 0;
     sf->rt_sf.use_comp_ref_nonrd = 0;
@@ -2058,6 +2061,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->prune_compoundmode_with_singlemode_var = false;
   rt_sf->skip_compound_based_on_var = false;
   rt_sf->top_right_sync_wait_in_mis = false;
+  rt_sf->set_zeromv_skip_based_on_source_sad = 1;
 }
 
 // Populate appropriate sub-pel search method based on speed feature and user
