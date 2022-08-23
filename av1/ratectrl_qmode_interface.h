@@ -254,6 +254,13 @@ struct LookaheadStats {
   const TplGopStats *tpl_gop_stats;  // Not owned, may not be nullptr.
 };
 
+// Now that there are no more references to the old three-argument
+// GetGopEncodeInfo, it can be brought back to life as an alias for
+// GetGopEncodeInfoWithLookahead.
+// TODO(b/242892473): Remove this #define after replacing all references to
+// GetGopEncodeInfoWithLookahead with GetGopEncodeInfo.
+#define GetGopEncodeInfo GetGopEncodeInfoWithLookahead
+
 class AV1RateControlQModeInterface {
  public:
   AV1RateControlQModeInterface();
@@ -262,18 +269,6 @@ class AV1RateControlQModeInterface {
   virtual Status SetRcParam(const RateControlParam &rc_param) = 0;
   virtual StatusOr<GopStructList> DetermineGopInfo(
       const FirstpassInfo &firstpass_info) = 0;
-
-  // DEPRECATED. Call GetGopEncodeInfoWithLookahead instead.
-  // TODO(b/242892473): Remove when all references are gone.
-  virtual StatusOr<GopEncodeInfo> GetGopEncodeInfo(
-      const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
-      const RefFrameTable &ref_frame_table_snapshot_init) {
-    (void)gop_struct;
-    (void)tpl_gop_stats;
-    (void)ref_frame_table_snapshot_init;
-    return { { AOM_CODEC_UNSUP_FEATURE,
-               "GetGopEncodeInfo is deprecated and unimplemented" } };
-  }
 
   // Accepts GOP structure and TPL info from the encoder and returns q index and
   // rdmult for each frame. This should be called with consecutive GOPs as
@@ -286,16 +281,10 @@ class AV1RateControlQModeInterface {
   // ref_frame_table_snapshot_init; for subsequent GOPs, it should be the
   // final_snapshot returned on the previous call.
   //
-  // TODO(b/242892473): Remove implementation and make pure virtual when
-  // implemented by all derived classes.
   virtual StatusOr<GopEncodeInfo> GetGopEncodeInfoWithLookahead(
       const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
       const std::vector<LookaheadStats> &lookahead_stats,
-      const RefFrameTable &ref_frame_table_snapshot_init) {
-    (void)lookahead_stats;
-    return GetGopEncodeInfo(gop_struct, tpl_gop_stats,
-                            ref_frame_table_snapshot_init);
-  }
+      const RefFrameTable &ref_frame_table_snapshot_init) = 0;
 };
 }  // namespace aom
 
