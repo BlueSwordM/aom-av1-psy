@@ -3932,6 +3932,14 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.kf_max_pyr_height,
                               argv, err_string)) {
     extra_cfg.kf_max_pyr_height = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.tile_width, argv,
+                              err_string)) {
+    ctx->cfg.tile_width_count = arg_parse_list_helper(
+        &arg, ctx->cfg.tile_widths, MAX_TILE_WIDTHS, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.tile_height, argv,
+                              err_string)) {
+    ctx->cfg.tile_height_count = arg_parse_list_helper(
+        &arg, ctx->cfg.tile_heights, MAX_TILE_HEIGHTS, err_string);
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
