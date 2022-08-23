@@ -1556,9 +1556,6 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Enable/disable partition direct merging.
   int partition_direct_merging;
 
-  // SAD based compound mode pruning
-  int sad_based_comp_prune;
-
   // Level of aggressiveness for obtaining tx size based on qstep
   int tx_size_level_based_on_qstep;
 

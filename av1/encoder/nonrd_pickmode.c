@@ -2576,66 +2576,6 @@ static void set_compound_mode(MACROBLOCK *x, int ref_frame, int ref_frame2,
   }
 }
 
-static int skip_comp_based_on_sad(AV1_COMP *cpi, MACROBLOCK *x,
-                                  const int mi_row, const int mi_col,
-                                  BLOCK_SIZE bsize) {
-  AV1_COMMON *const cm = &cpi->common;
-  assert(!(mi_row % 16) && !(mi_col % 16));
-  const int sb_size_by_mb = (cm->seq_params->sb_size == BLOCK_128X128)
-                                ? (cm->seq_params->mib_size >> 1)
-                                : cm->seq_params->mib_size;
-  const int sb_cols =
-      (cm->mi_params.mi_cols + sb_size_by_mb - 1) / sb_size_by_mb;
-  const uint64_t sad_skp_comp_th[2][3] = { { 2700, 3100 },    // CPU 9
-                                           { 2700, 3200 } };  // CPU 10
-  const uint64_t sad_blkwise_var_th = 5000;
-  const float qindex_th_scale[5] = { 0.75f, 0.9f, 1.0f, 1.1f, 1.25f };
-  const int qindex_band = (5 * x->qindex) >> QINDEX_BITS;
-  assert(qindex_band < 5);
-  const int sp_idx = (cpi->sf.rt_sf.sad_based_comp_prune >= 2);
-  const int bsize_idx = (bsize == BLOCK_128X128);
-  const uint64_t sad_skp_comp_th_val = (uint64_t)(
-      sad_skp_comp_th[sp_idx][bsize_idx] * qindex_th_scale[qindex_band]);
-  uint64_t blk_sad = 0, sad00, sad01, sad10, sad11, min_sad, max_sad;
-  const int sbi_col = mi_col / 16;
-  const int sbi_row = mi_row / 16;
-  const uint64_t *cur_blk_sad =
-      &cpi->src_sad_blk_64x64[sbi_col + sbi_row * sb_cols];
-
-  if (bsize == BLOCK_128X128) {
-    sad00 = cur_blk_sad[0];
-    sad01 = cur_blk_sad[1];
-    sad10 = cur_blk_sad[sb_cols];
-    sad11 = cur_blk_sad[1 + sb_cols];
-    min_sad = AOMMIN(AOMMIN(AOMMIN(sad00, sad01), sad10), sad11);
-    max_sad = AOMMAX(AOMMAX(AOMMAX(sad00, sad01), sad10), sad11);
-    if (max_sad - min_sad > sad_blkwise_var_th) return 0;
-    blk_sad = (sad00 + sad01 + sad10 + sad11 + 2) >> 2;
-  } else if (bsize == BLOCK_128X64) {
-    sad00 = cur_blk_sad[0];
-    sad01 = cur_blk_sad[1];
-    min_sad = AOMMIN(sad00, sad01);
-    max_sad = AOMMAX(sad00, sad01);
-    if (max_sad - min_sad > sad_blkwise_var_th) return 0;
-    blk_sad = (sad00 + sad01 + 1) >> 1;
-  } else if (bsize == BLOCK_64X128) {
-    sad00 = cur_blk_sad[0];
-    sad10 = cur_blk_sad[sb_cols];
-    min_sad = AOMMIN(sad00, sad10);
-    max_sad = AOMMAX(sad00, sad10);
-    if (max_sad - min_sad > sad_blkwise_var_th) return 0;
-    blk_sad = (sad00 + sad10 + 1) >> 1;
-  } else if (bsize <= BLOCK_64X64) {
-    blk_sad = cur_blk_sad[0];
-  } else {
-    assert(0);
-  }
-
-  if (blk_sad < sad_skp_comp_th_val) return 1;
-
-  return 0;
-}
-
 // Prune compound mode if the single mode variance is lower than a fixed
 // percentage of the median value.
 static bool skip_comp_based_on_var(
@@ -2958,16 +2898,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       tot_num_comp_modes = 0;
     }
   } else {
-    tot_num_comp_modes = 0;
-  }
-
-  // Skip compound mode based on sad
-  // Temporarily disable this with a 0 flag. Currently we cannot simply turn off
-  // cpi->sf.rt_sf.sad_based_comp_prune as it causes unexpected stats changed.
-  // TODO(chiyotsai@google.com): Figure remove the 0 from the conditional.
-  if (0 && tot_num_comp_modes && cpi->sf.rt_sf.sad_based_comp_prune &&
-      bsize >= BLOCK_64X64 && cpi->src_sad_blk_64x64 &&
-      skip_comp_based_on_sad(cpi, x, mi_row, mi_col, bsize)) {
     tot_num_comp_modes = 0;
   }
 
