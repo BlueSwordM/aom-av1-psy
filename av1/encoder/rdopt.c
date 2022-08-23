@@ -5326,19 +5326,11 @@ static void handle_winner_cand(
  * InterModeSearchState::intra_search_state so it can be reused later by \ref
  * av1_search_palette_mode.
  *
- * \return Returns the rdcost of the current intra-mode if it's available,
- * otherwise returns INT64_MAX. The corresponding values in x->e_mbd.mi[0],
- * rd_stats, rd_stats_y/uv, and best_intra_rd are also updated. Moreover, in the
- * first evocation of the function, the chroma intra mode result is cached in
- * intra_search_state to be used in subsequent calls. In the first evaluation
- * with directional mode, a prune_mask computed with histogram of gradient is
- * also stored in intra_search_state.
- *
  * \param[in,out] search_state      Struct keep track of the prediction mode
  *                                  search state in interframe.
  *
  * \param[in]     cpi               Top-level encoder structure.
- * \param[in]     x                 Pointer to struct holding all the data for
+ * \param[in,out] x                 Pointer to struct holding all the data for
  *                                  the current prediction block.
  * \param[out]    rd_cost           Stores the best rd_cost among all the
  *                                  prediction modes searched.
@@ -5346,21 +5338,21 @@ static void handle_winner_cand(
  * \param[in,out] ctx               Structure to hold the number of 4x4 blks to
  *                                  copy the tx_type and txfm_skip arrays.
  *                                  for only the Y plane.
- * \param[in,out] sf_args           Stores the list of intra mode candidates
+ * \param[in]     sf_args           Stores the list of intra mode candidates
  *                                  to be searched.
  * \param[in]     intra_ref_frame_cost  The entropy cost for signaling that the
  *                                      current ref frame is an intra frame.
  * \param[in]     yrd_threshold     The rdcost threshold for luma intra mode to
  *                                  terminate chroma intra mode search.
  *
- * \return Returns INT64_MAX if the determined motion mode is invalid and the
- * current motion mode being tested should be skipped. It returns 0 if the
- * motion mode search is a success.
+ * \remark If a new best mode is found, search_state and rd_costs are updated
+ * correspondingly. While x is also modified, it is only used as a temporary
+ * buffer, and the final decisions are stored in search_state.
  */
 static AOM_INLINE void search_intra_modes_in_interframe(
     InterModeSearchState *search_state, const AV1_COMP *cpi, MACROBLOCK *x,
     RD_STATS *rd_cost, BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
-    InterModeSFArgs *sf_args, unsigned int intra_ref_frame_cost,
+    const InterModeSFArgs *sf_args, unsigned int intra_ref_frame_cost,
     int64_t yrd_threshold) {
   const AV1_COMMON *const cm = &cpi->common;
   const SPEED_FEATURES *const sf = &cpi->sf;
