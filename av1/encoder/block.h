@@ -496,7 +496,7 @@ typedef struct {
  */
 typedef struct {
   //! Whether to skip transform and quantization on a partition block level.
-  int skip_txfm;
+  uint8_t skip_txfm;
 
   /*! \brief Whether to skip transform and quantization on a txfm block level.
    *

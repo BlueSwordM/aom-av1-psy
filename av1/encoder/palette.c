@@ -219,7 +219,7 @@ static AOM_INLINE void palette_rd_y(
     BLOCK_SIZE bsize, int dc_mode_cost, const int *data, int *centroids, int n,
     uint16_t *color_cache, int n_cache, bool do_header_rd_based_gating,
     MB_MODE_INFO *best_mbmi, uint8_t *best_palette_color_map, int64_t *best_rd,
-    int *rate, int *rate_tokenonly, int64_t *distortion, int *skippable,
+    int *rate, int *rate_tokenonly, int64_t *distortion, uint8_t *skippable,
     int *beat_best_rd, PICK_MODE_CONTEXT *ctx, uint8_t *blk_skip,
     uint8_t *tx_type_map, int *beat_best_palette_rd,
     bool *do_header_rd_based_breakout, int discount_color_cost) {
@@ -328,7 +328,7 @@ static AOM_INLINE int perform_top_color_palette_search(
     int start_n, int end_n, int step_size, bool do_header_rd_based_gating,
     int *last_n_searched, uint16_t *color_cache, int n_cache,
     MB_MODE_INFO *best_mbmi, uint8_t *best_palette_color_map, int64_t *best_rd,
-    int *rate, int *rate_tokenonly, int64_t *distortion, int *skippable,
+    int *rate, int *rate_tokenonly, int64_t *distortion, uint8_t *skippable,
     int *beat_best_rd, PICK_MODE_CONTEXT *ctx, uint8_t *best_blk_skip,
     uint8_t *tx_type_map, int discount_color_cost) {
   int centroids[PALETTE_MAX_SIZE];
@@ -376,7 +376,7 @@ static AOM_INLINE int perform_k_means_palette_search(
     bool do_header_rd_based_gating, int *last_n_searched, uint16_t *color_cache,
     int n_cache, MB_MODE_INFO *best_mbmi, uint8_t *best_palette_color_map,
     int64_t *best_rd, int *rate, int *rate_tokenonly, int64_t *distortion,
-    int *skippable, int *beat_best_rd, PICK_MODE_CONTEXT *ctx,
+    uint8_t *skippable, int *beat_best_rd, PICK_MODE_CONTEXT *ctx,
     uint8_t *best_blk_skip, uint8_t *tx_type_map, uint8_t *color_map,
     int data_points, int discount_color_cost) {
   int centroids[PALETTE_MAX_SIZE];
@@ -527,7 +527,7 @@ static void find_top_colors(const int *const count_buf, int bit_depth,
 void av1_rd_pick_palette_intra_sby(
     const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int dc_mode_cost,
     MB_MODE_INFO *best_mbmi, uint8_t *best_palette_color_map, int64_t *best_rd,
-    int *rate, int *rate_tokenonly, int64_t *distortion, int *skippable,
+    int *rate, int *rate_tokenonly, int64_t *distortion, uint8_t *skippable,
     int *beat_best_rd, PICK_MODE_CONTEXT *ctx, uint8_t *best_blk_skip,
     uint8_t *tx_type_map) {
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -740,7 +740,7 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
                                     MB_MODE_INFO *const best_mbmi,
                                     int64_t *best_rd, int *rate,
                                     int *rate_tokenonly, int64_t *distortion,
-                                    int *skippable) {
+                                    uint8_t *skippable) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   assert(!is_inter_block(mbmi));
