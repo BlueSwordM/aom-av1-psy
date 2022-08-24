@@ -773,7 +773,8 @@ int av1_calc_iframe_target_size_one_pass_cbr(const struct AV1_COMP *cpi);
  * \param[in]       frame_flags  Emcoder frame flags
  *
  * \remark Nothing is returned. Instead the settings computed in this
- * funtion are set in: \c frame_params, \c cpi->common, \c cpi->rc, \c cpi->svc.
+ * function are set in: \c frame_params, \c cpi->common, \c cpi->rc,
+ * \c cpi->svc.
  */
 void av1_get_one_pass_rt_params(struct AV1_COMP *cpi,
                                 struct EncodeFrameParams *const frame_params,
