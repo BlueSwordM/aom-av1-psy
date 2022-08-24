@@ -281,7 +281,7 @@ class AV1RateControlQModeInterface {
   // ref_frame_table_snapshot_init; for subsequent GOPs, it should be the
   // final_snapshot returned on the previous call.
   //
-  virtual StatusOr<GopEncodeInfo> GetGopEncodeInfoWithLookahead(
+  virtual StatusOr<GopEncodeInfo> GetGopEncodeInfo(
       const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
       const std::vector<LookaheadStats> &lookahead_stats,
       const RefFrameTable &ref_frame_table_snapshot_init) = 0;
