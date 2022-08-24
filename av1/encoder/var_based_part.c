@@ -457,8 +457,6 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
   int64_t threshold_base = (int64_t)(threshold_multiplier * ac_q);
   const int current_qindex = cm->quant_params.base_qindex;
   const int threshold_left_shift = cpi->sf.rt_sf.var_part_split_threshold_shift;
-  const int low_blksad =
-      (source_sad_nonrd == kVeryLowSad || source_sad_nonrd == kLowSad);
 
   if (is_key_frame) {
     if (cpi->sf.rt_sf.force_large_partition_blocks_intra) {
@@ -590,7 +588,7 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
       thresholds[3] = INT32_MAX;
       if (segment_id == 0) {
         thresholds[1] <<= 2;
-        thresholds[2] <<= low_blksad ? 5 : 4;
+        thresholds[2] <<= (source_sad_nonrd <= kLowSad) ? 5 : 4;
       } else {
         thresholds[1] <<= 1;
         thresholds[2] <<= 3;
@@ -621,10 +619,11 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
       thresholds[3] = INT32_MAX;
     }
   } else if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 2) {
-    thresholds[1] <<= low_blksad ? 2 : 0;
-    thresholds[2] = low_blksad ? (3 * thresholds[2]) : thresholds[2];
+    thresholds[1] <<= (source_sad_nonrd <= kLowSad) ? 2 : 0;
+    thresholds[2] =
+        (source_sad_nonrd <= kLowSad) ? (3 * thresholds[2]) : thresholds[2];
   } else if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 1) {
-    const int fac = low_blksad ? 2 : 1;
+    const int fac = (source_sad_nonrd <= kLowSad) ? 2 : 1;
     tune_thresh_based_on_qindex_window(current_qindex, QINDEX_LARGE_BLOCK_THR,
                                        45, fac, thresholds);
   }

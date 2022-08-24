@@ -2235,8 +2235,7 @@ static void estimate_intra_mode(
     // even if best_early_term is set.
     if (bsize >= BLOCK_32X32) best_early_term = 0;
   } else if (cpi->sf.rt_sf.source_metrics_sb_nonrd &&
-             (x->content_state_sb.source_sad_nonrd == kVeryLowSad ||
-              x->content_state_sb.source_sad_nonrd == kLowSad)) {
+             x->content_state_sb.source_sad_nonrd <= kLowSad) {
     perform_intra_pred = 0;
   }
 

@@ -671,8 +671,7 @@ void av1_denoiser_set_noise_level(AV1_COMP *const cpi, int noise_level) {
 int64_t av1_scale_part_thresh(int64_t threshold, AV1_DENOISER_LEVEL noise_level,
                               CONTENT_STATE_SB content_state,
                               int temporal_layer_id) {
-  if (((content_state.source_sad_nonrd == kVeryLowSad ||
-        content_state.source_sad_nonrd == kLowSad) &&
+  if ((content_state.source_sad_nonrd <= kLowSad &&
        content_state.low_sumdiff) ||
       (content_state.source_sad_nonrd == kHighSad &&
        content_state.low_sumdiff) ||
