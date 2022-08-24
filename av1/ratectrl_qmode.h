@@ -87,6 +87,7 @@ int GetBlockOverlapArea(int r0, int c0, int r1, int c1, int size);
 
 StatusOr<TplGopDepStats> ComputeTplGopDepStats(
     const TplGopStats &tpl_gop_stats,
+    const std::vector<LookaheadStats> &lookahead_stats,
     const std::vector<RefFrameTable> &ref_frame_table_list);
 
 class AV1RateControlQMode : public AV1RateControlQModeInterface {
@@ -105,7 +106,9 @@ class AV1RateControlQMode : public AV1RateControlQModeInterface {
   // If this is first GOP, ref_frame_table is ignored and all refs are assumed
   // invalid; otherwise ref_frame_table is used as the initial state.
   std::vector<RefFrameTable> GetRefFrameTableList(
-      const GopStruct &gop_struct, RefFrameTable ref_frame_table);
+      const GopStruct &gop_struct,
+      const std::vector<LookaheadStats> &lookahead_stats,
+      RefFrameTable ref_frame_table);
 
  private:
   RateControlParam rc_param_;

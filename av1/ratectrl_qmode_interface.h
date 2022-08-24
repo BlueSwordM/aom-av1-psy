@@ -254,13 +254,6 @@ struct LookaheadStats {
   const TplGopStats *tpl_gop_stats;  // Not owned, may not be nullptr.
 };
 
-// Now that there are no more references to the old three-argument
-// GetGopEncodeInfo, it can be brought back to life as an alias for
-// GetGopEncodeInfoWithLookahead.
-// TODO(b/242892473): Remove this #define after replacing all references to
-// GetGopEncodeInfoWithLookahead with GetGopEncodeInfo.
-#define GetGopEncodeInfo GetGopEncodeInfoWithLookahead
-
 class AV1RateControlQModeInterface {
  public:
   AV1RateControlQModeInterface();

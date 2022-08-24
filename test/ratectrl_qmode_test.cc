@@ -585,6 +585,7 @@ TEST_F(RateControlQModeTest, TplFrameDepStatsPropagateSingleWithMotion) {
   }
 }
 
+// TODO(jianj): Add tests for non empty lookahead stats.
 TEST_F(RateControlQModeTest, ComputeTplGopDepStats) {
   TplGopStats tpl_gop_stats;
   std::vector<RefFrameTable> ref_frame_table_list;
@@ -602,7 +603,7 @@ TEST_F(RateControlQModeTest, ComputeTplGopDepStats) {
     ref_frame_table_list.push_back(CreateToyRefFrameTable(i));
   }
   const StatusOr<TplGopDepStats> gop_dep_stats =
-      ComputeTplGopDepStats(tpl_gop_stats, ref_frame_table_list);
+      ComputeTplGopDepStats(tpl_gop_stats, {}, ref_frame_table_list);
   ASSERT_THAT(gop_dep_stats.status(), IsOkStatus());
 
   double expected_sum = 0;
@@ -970,7 +971,7 @@ TEST_F(RateControlQModeTest, TestGetRefFrameTableListFirstGop) {
       // For the first GOP only, GetRefFrameTableList can be passed a
       // default-constructed RefFrameTable (because it's all going to be
       // replaced by the key frame anyway).
-      rc.GetRefFrameTableList(gop_struct, RefFrameTable()),
+      rc.GetRefFrameTableList(gop_struct, {}, RefFrameTable()),
       ElementsAre(
           ElementsAre(matches_invalid, matches_invalid, matches_invalid),
           ElementsAre(matches_frame0, matches_frame0, matches_frame0),
@@ -1000,7 +1001,7 @@ TEST_F(RateControlQModeTest, TestGetRefFrameTableListNotFirstGop) {
   gop_struct.global_coding_idx_offset = 5;  // This is not the first GOP.
   gop_struct.gop_frame_list = { frame0, frame1, frame2 };
   ASSERT_THAT(
-      rc.GetRefFrameTableList(gop_struct, RefFrameTable(3, previous)),
+      rc.GetRefFrameTableList(gop_struct, {}, RefFrameTable(3, previous)),
       ElementsAre(
           ElementsAre(matches_previous, matches_previous, matches_previous),
           ElementsAre(matches_previous, matches_previous, matches_frame0),
