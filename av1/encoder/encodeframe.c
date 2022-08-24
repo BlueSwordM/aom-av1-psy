@@ -753,6 +753,44 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   }
 }
 
+/*!\brief Determine whether grading content can be skipped based on sad stat
+ *
+ * \ingroup partition_search
+ * \callgraph
+ * \callergraph
+ */
+static AOM_INLINE bool is_calc_src_content_needed(AV1_COMP *cpi, int mi_row,
+                                                  int mi_col) {
+  AV1_COMMON *const cm = &cpi->common;
+  bool do_calc_src_content = true;
+
+  if (cpi->oxcf.speed < 9) return do_calc_src_content;
+
+  // TODO(yunqing): Need to consider 4 64x64 results if later this is used for
+  // 128x128 sb size.
+  if (cpi->src_sad_blk_64x64 != NULL && AOMMIN(cm->width, cm->height) < 360) {
+    const int sb_size_by_mb = (cm->seq_params->sb_size == BLOCK_128X128)
+                                  ? (cm->seq_params->mib_size >> 1)
+                                  : cm->seq_params->mib_size;
+    const int sb_cols =
+        (cm->mi_params.mi_cols + sb_size_by_mb - 1) / sb_size_by_mb;
+    const int sbi_col = mi_col / sb_size_by_mb;
+    const int sbi_row = mi_row / sb_size_by_mb;
+    // The threshold is determined based on kLowSad and kHighSad threshold and
+    // test results.
+    const uint64_t thresh_low = 15000;
+    const uint64_t thresh_high = 40000;
+    const uint64_t blk_sad =
+        cpi->src_sad_blk_64x64[sbi_col + sbi_row * sb_cols];
+
+    if (blk_sad > thresh_low && blk_sad < thresh_high) {
+      do_calc_src_content = false;
+    }
+  }
+
+  return do_calc_src_content;
+}
+
 /*!\brief Determine whether grading content is needed based on sf and frame stat
  *
  * \ingroup partition_search
@@ -770,7 +808,7 @@ static AOM_INLINE void grade_source_content_sb(AV1_COMP *cpi,
       cpi->svc.number_spatial_layers <= 1 &&
       cm->current_frame.frame_type != KEY_FRAME) {
     if (!cpi->sf.rt_sf.check_scene_detection || cpi->rc.frame_source_sad > 0) {
-      calc_src_content = true;
+      calc_src_content = is_calc_src_content_needed(cpi, mi_row, mi_col);
     } else {
       x->content_state_sb.source_sad_nonrd = kZeroSad;
     }
