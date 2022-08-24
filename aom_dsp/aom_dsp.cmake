@@ -250,7 +250,9 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/x86/jnt_variance_ssse3.c"
               "${AOM_ROOT}/aom_dsp/x86/jnt_sad_ssse3.c")
 
-  list(APPEND AOM_DSP_ENCODER_INTRIN_SSE4_1 "${AOM_ROOT}/aom_dsp/x86/sse_sse4.c"
+  list(APPEND AOM_DSP_ENCODER_INTRIN_SSE4_1
+              "${AOM_ROOT}/aom_dsp/x86/avg_intrin_sse4.c"
+              "${AOM_ROOT}/aom_dsp/x86/sse_sse4.c"
               "${AOM_ROOT}/aom_dsp/x86/obmc_sad_sse4.c"
               "${AOM_ROOT}/aom_dsp/x86/obmc_variance_sse4.c")
 

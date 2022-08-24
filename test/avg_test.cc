@@ -636,7 +636,7 @@ TEST_P(VectorVarTest, Random) {
 }
 TEST_P(VectorVarTest, DISABLED_Speed) {
   FillRandom();
-  const int numIter = 50000;
+  const int numIter = 5000000;
   printf("Width = %d number of iteration is %d \n", width, numIter);
 
   int sum_c_var = 0;
@@ -941,6 +941,16 @@ INSTANTIATE_TEST_SUITE_P(
                       make_tuple(4, &aom_vector_var_c, &aom_vector_var_neon),
                       make_tuple(5, &aom_vector_var_c, &aom_vector_var_neon)));
 #endif
+
+#if HAVE_SSE4_1
+INSTANTIATE_TEST_SUITE_P(
+    SSE4_1, VectorVarTest,
+    ::testing::Values(make_tuple(2, &aom_vector_var_c, &aom_vector_var_sse4_1),
+                      make_tuple(3, &aom_vector_var_c, &aom_vector_var_sse4_1),
+                      make_tuple(4, &aom_vector_var_c, &aom_vector_var_sse4_1),
+                      make_tuple(5, &aom_vector_var_c,
+                                 &aom_vector_var_sse4_1)));
+#endif  // HAVE_SSE4_1
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
