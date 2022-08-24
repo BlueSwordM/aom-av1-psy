@@ -793,6 +793,18 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     }
 
     if (is_second_arf) {
+      // Allocate the memory for tf_buf_second_arf buffer, only when it is
+      // required.
+      int ret = aom_realloc_frame_buffer(
+          &cpi->ppi->tf_info.tf_buf_second_arf, oxcf->frm_dim_cfg.width,
+          oxcf->frm_dim_cfg.height, cm->seq_params->subsampling_x,
+          cm->seq_params->subsampling_y, cm->seq_params->use_highbitdepth,
+          cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
+          NULL, cpi->oxcf.tool_cfg.enable_global_motion, 0);
+      if (ret)
+        aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                           "Failed to allocate tf_buf_second_arf");
+
       YV12_BUFFER_CONFIG *tf_buf_second_arf =
           &cpi->ppi->tf_info.tf_buf_second_arf;
       // We didn't apply temporal filtering for second arf ahead in

@@ -1295,17 +1295,6 @@ void av1_tf_info_alloc(TEMPORAL_FILTER_INFO *tf_info, const AV1_COMP *cpi) {
                          "Failed to allocate tf_info");
     }
   }
-
-  ret = aom_realloc_frame_buffer(
-      &tf_info->tf_buf_second_arf, oxcf->frm_dim_cfg.width,
-      oxcf->frm_dim_cfg.height, seq_params->subsampling_x,
-      seq_params->subsampling_y, seq_params->use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL, NULL,
-      cpi->oxcf.tool_cfg.enable_global_motion, 0);
-  if (ret) {
-    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
-                       "Failed to allocate tf_info");
-  }
 }
 
 void av1_tf_info_free(TEMPORAL_FILTER_INFO *tf_info) {
