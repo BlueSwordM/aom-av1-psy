@@ -806,6 +806,7 @@ static void set_good_speed_feature_framesize_dependent(
     if (!is_480p_or_larger) {
       sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh =
           boosted ? INT_MAX : 250;
+      sf->part_sf.partition_search_breakout_dist_thr = (1 << 26);
     }
 
     if (is_480p_or_lesser) {
@@ -840,8 +841,10 @@ static void set_good_speed_feature_framesize_dependent(
 
     if (is_720p_or_larger) {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
+      sf->part_sf.partition_search_breakout_dist_thr = (1 << 28);
     } else {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_16X16;
+      sf->part_sf.partition_search_breakout_dist_thr = (1 << 26);
     }
 
     if (is_720p_or_larger) {
@@ -2165,13 +2168,6 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
 
     cpi->common.seq_params->enable_interintra_compound &=
         (sf->inter_sf.disable_interintra_wedge_var_thresh != UINT_MAX);
-  }
-
-  // sf->part_sf.partition_search_breakout_dist_thr is set assuming max 64x64
-  // blocks. Normalise this if the blocks are bigger.
-  if (MAX_SB_SIZE_LOG2 > 6) {
-    sf->part_sf.partition_search_breakout_dist_thr <<=
-        2 * (MAX_SB_SIZE_LOG2 - 6);
   }
 
   const int mesh_speed = AOMMIN(speed, MAX_MESH_SPEED);
