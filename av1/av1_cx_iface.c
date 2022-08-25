@@ -3320,7 +3320,7 @@ static aom_codec_err_t ctrl_set_scale_mode(aom_codec_alg_priv_t *ctx,
   if (mode) {
     const int res = av1_set_internal_size(
         &ctx->ppi->cpi->oxcf, &ctx->ppi->cpi->resize_pending_params,
-        (AOM_SCALING)mode->h_scaling_mode, (AOM_SCALING)mode->v_scaling_mode);
+        mode->h_scaling_mode, mode->v_scaling_mode);
     av1_check_fpmt_config(ctx->ppi, &ctx->ppi->cpi->oxcf);
     return (res == 0) ? AOM_CODEC_OK : AOM_CODEC_INVALID_PARAM;
   } else {

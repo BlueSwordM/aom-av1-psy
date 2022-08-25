@@ -94,33 +94,33 @@ FILE *yuv_rec_file;
 FILE *yuv_denoised_file = NULL;
 #endif
 
-static INLINE void Scale2Ratio(AOM_SCALING mode, int *hr, int *hs) {
+static INLINE void Scale2Ratio(AOM_SCALING_MODE mode, int *hr, int *hs) {
   switch (mode) {
-    case NORMAL:
+    case AOME_NORMAL:
       *hr = 1;
       *hs = 1;
       break;
-    case FOURFIVE:
+    case AOME_FOURFIVE:
       *hr = 4;
       *hs = 5;
       break;
-    case THREEFIVE:
+    case AOME_THREEFIVE:
       *hr = 3;
       *hs = 5;
       break;
-    case THREEFOUR:
+    case AOME_THREEFOUR:
       *hr = 3;
       *hs = 4;
       break;
-    case ONEFOUR:
+    case AOME_ONEFOUR:
       *hr = 1;
       *hs = 4;
       break;
-    case ONEEIGHT:
+    case AOME_ONEEIGHT:
       *hr = 1;
       *hs = 8;
       break;
-    case ONETWO:
+    case AOME_ONETWO:
       *hr = 1;
       *hs = 2;
       break;
@@ -4938,10 +4938,11 @@ aom_codec_err_t av1_copy_new_frame_enc(AV1_COMMON *cm,
 
 int av1_set_internal_size(AV1EncoderConfig *const oxcf,
                           ResizePendingParams *resize_pending_params,
-                          AOM_SCALING horiz_mode, AOM_SCALING vert_mode) {
+                          AOM_SCALING_MODE horiz_mode,
+                          AOM_SCALING_MODE vert_mode) {
   int hr = 0, hs = 0, vr = 0, vs = 0;
 
-  if (horiz_mode > ONETWO || vert_mode > ONETWO) return -1;
+  if (horiz_mode > AOME_ONETWO || vert_mode > AOME_ONETWO) return -1;
 
   Scale2Ratio(horiz_mode, &hr, &hs);
   Scale2Ratio(vert_mode, &vr, &vs);
@@ -4950,7 +4951,7 @@ int av1_set_internal_size(AV1EncoderConfig *const oxcf,
   resize_pending_params->width = (hs - 1 + oxcf->frm_dim_cfg.width * hr) / hs;
   resize_pending_params->height = (vs - 1 + oxcf->frm_dim_cfg.height * vr) / vs;
 
-  if (horiz_mode != NORMAL || vert_mode != NORMAL) {
+  if (horiz_mode != AOME_NORMAL || vert_mode != AOME_NORMAL) {
     oxcf->resize_cfg.resize_mode = RESIZE_FIXED;
     oxcf->algo_cfg.enable_tpl_model = 0;
   }

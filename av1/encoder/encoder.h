@@ -104,16 +104,6 @@ typedef struct aom_rational64 {
 } aom_rational64_t;  // alias for struct aom_rational
 
 enum {
-  NORMAL = 0,
-  FOURFIVE = 1,
-  THREEFIVE = 2,
-  THREEFOUR = 3,
-  ONEFOUR = 4,
-  ONEEIGHT = 5,
-  ONETWO = 6
-} UENUM1BYTE(AOM_SCALING);
-
-enum {
   // Good Quality Fast Encoding. The encoder balances quality with the amount of
   // time it takes to encode the output. Speed setting controls how fast.
   GOOD,
@@ -3611,7 +3601,8 @@ int av1_get_active_map(AV1_COMP *cpi, unsigned char *map, int rows, int cols);
 
 int av1_set_internal_size(AV1EncoderConfig *const oxcf,
                           ResizePendingParams *resize_pending_params,
-                          AOM_SCALING horiz_mode, AOM_SCALING vert_mode);
+                          AOM_SCALING_MODE horiz_mode,
+                          AOM_SCALING_MODE vert_mode);
 
 int av1_get_quantizer(struct AV1_COMP *cpi);
 
