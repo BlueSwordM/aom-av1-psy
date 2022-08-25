@@ -1292,6 +1292,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed >= 10) {
       sf->rt_sf.skip_intra_pred = 2;
       sf->rt_sf.hybrid_intra_pickmode = 3;
+      sf->rt_sf.reduce_zeromv_mvres = true;
     }
   } else {
     sf->rt_sf.prune_intra_mode_based_on_mv_range = 2;
@@ -1720,7 +1721,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.var_part_split_threshold_shift = 10;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
     sf->rt_sf.reduce_mv_pel_precision = 2;
-    sf->rt_sf.reduce_zeromv_mvres = true;
     sf->rt_sf.screen_content_cdef_filter_qindex_thresh = 80;
   }
 }
