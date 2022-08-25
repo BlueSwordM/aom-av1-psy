@@ -191,8 +191,8 @@ enum aome_enc_control_id {
 
   /* NOTE: enum 10 unused */
 
-  /*!\brief Codec control function to set encoder scaling mode,
-   * aom_scaling_mode_t* parameter.
+  /*!\brief Codec control function to set encoder scaling mode for the next
+   * frame to be coded, aom_scaling_mode_t* parameter.
    */
   AOME_SET_SCALEMODE = 11,
 
