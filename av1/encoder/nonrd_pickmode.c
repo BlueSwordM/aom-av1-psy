@@ -266,10 +266,11 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   MACROBLOCKD *xd = &x->e_mbd;
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
+  const SPEED_FEATURES *sf = &cpi->sf;
   MB_MODE_INFO *mi = xd->mi[0];
   struct buf_2d backup_yv12[MAX_MB_PLANE] = { { 0, 0, 0, 0, 0 } };
-  int step_param = (cpi->sf.rt_sf.fullpel_search_step_param)
-                       ? cpi->sf.rt_sf.fullpel_search_step_param
+  int step_param = (sf->rt_sf.fullpel_search_step_param)
+                       ? sf->rt_sf.fullpel_search_step_param
                        : cpi->mv_search_params.mv_step_param;
   FULLPEL_MV start_mv;
   const int ref = mi->ref_frame[0];
@@ -299,7 +300,7 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   else
     center_mv = tmp_mv->as_mv;
 
-  const SEARCH_METHODS search_method = cpi->sf.mv_sf.search_method;
+  const SEARCH_METHODS search_method = sf->mv_sf.search_method;
   const MotionVectorSearchParams *mv_search_params = &cpi->mv_search_params;
   const int ref_stride = xd->plane[0].pre[0].stride;
   const search_site_config *src_search_sites = av1_get_search_site_config(
@@ -326,27 +327,37 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
                                       cost_list);
-    if (cpi->sf.rt_sf.reduce_mv_pel_precision &&
-        cpi->sf.mv_sf.subpel_force_stop < HALF_PEL)
+    if (sf->rt_sf.reduce_mv_pel_precision &&
+        sf->mv_sf.subpel_force_stop < HALF_PEL)
       ms_params.forced_stop = subpel_select(cpi, x, bsize, tmp_mv);
-    if (cpi->sf.rt_sf.reduce_zeromv_mvres && ref_mv.row == 0 &&
-        ref_mv.col == 0 && start_mv.row == 0 && start_mv.col == 0) {
+    const bool fullpel_performed_well =
+        (bsize == BLOCK_64X64 && full_var_rd * 40 < 62267 * 7) ||
+        (bsize == BLOCK_32X32 && full_var_rd * 8 < 42380) ||
+        (bsize == BLOCK_16X16 && full_var_rd * 8 < 10127);
+    if (sf->rt_sf.reduce_zeromv_mvres && ref_mv.row == 0 && ref_mv.col == 0 &&
+        start_mv.row == 0 && start_mv.col == 0) {
       // If both the refmv and the fullpel results show zero mv, then there is
       // high likelihood that the current block is static. So we can try to
       // reduce the mv resolution here.
       // These thresholds are the mean var rd collected from multiple encoding
       // runs.
-      if ((bsize == BLOCK_64X64 && full_var_rd * 40 < 62267 * 7) ||
-          (bsize == BLOCK_32X32 && full_var_rd * 8 < 42380) ||
-          (bsize == BLOCK_16X16 && full_var_rd * 8 < 10127)) {
+      if (fullpel_performed_well) {
         ms_params.forced_stop = HALF_PEL;
       }
     }
 
     MV subpel_start_mv = get_mv_from_fullmv(&tmp_mv->as_fullmv);
-    cpi->mv_search_params.find_fractional_mv_step(
-        xd, cm, &ms_params, subpel_start_mv, &tmp_mv->as_mv, &dis,
-        &x->pred_sse[ref], NULL);
+    if (sf->rt_sf.use_adaptive_subpel_search &&
+        (fullpel_performed_well ||
+         x->content_state_sb.source_sad_nonrd <= kLowSad)) {
+      av1_find_best_sub_pixel_tree_pruned_more(xd, cm, &ms_params,
+                                               subpel_start_mv, &tmp_mv->as_mv,
+                                               &dis, &x->pred_sse[ref], NULL);
+    } else {
+      cpi->mv_search_params.find_fractional_mv_step(
+          xd, cm, &ms_params, subpel_start_mv, &tmp_mv->as_mv, &dis,
+          &x->pred_sse[ref], NULL);
+    }
 
     *rate_mv =
         av1_mv_bit_cost(&tmp_mv->as_mv, &ref_mv, x->mv_costs->nmv_joint_cost,

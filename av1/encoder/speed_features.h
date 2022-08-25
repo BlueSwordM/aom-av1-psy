@@ -1623,6 +1623,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // 1: If source sad is kZeroSad
   // 2: If source sad <= kVeryLowSad
   int set_zeromv_skip_based_on_source_sad;
+
+  // Downgrades the subpel search to av1_find_best_sub_pixel_tree_pruned_more
+  // when either the fullpel search performed well, or when zeromv has low sad.
+  bool use_adaptive_subpel_search;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */
