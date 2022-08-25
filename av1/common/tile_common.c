@@ -42,11 +42,17 @@ void av1_get_tile_limits(AV1_COMMON *const cm) {
 
   bool use_level_7_above = false;
   for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; i++) {
-    if (seq_params->seq_level_idx[i] >= SEQ_LEVEL_7_0 &&
-        seq_params->seq_level_idx[i] <= SEQ_LEVEL_8_3) {
-      // Currently it is assumed that levels 7.x/8.x are either used for all
+    if ((seq_params->seq_level_idx[i] >= SEQ_LEVEL_7_0 &&
+         seq_params->seq_level_idx[i] <= SEQ_LEVEL_8_3) ||
+        seq_params->seq_level_idx[i] == SEQ_LEVEL_MAX) {
+      // Currently it is assumed that levels >= 7.0 are either used for all
       // operating points, or none of them.
-      assert(i == 0 || use_level_7_above);
+      if (i != 0 && !use_level_7_above) {
+        aom_internal_error(
+            cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+            "The levels of the operating points should be either all smaller "
+            "than 7.0 or all larger than or equal to 7.0");
+      }
       use_level_7_above = true;
     }
   }
