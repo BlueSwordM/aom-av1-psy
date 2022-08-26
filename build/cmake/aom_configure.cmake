@@ -300,7 +300,17 @@ else()
   add_compiler_flag_if_supported("-Wall")
   add_compiler_flag_if_supported("-Wdisabled-optimization")
   add_compiler_flag_if_supported("-Wextra")
-  add_compiler_flag_if_supported("-Wextra-semi")
+  # Prior to version 3.19.0 cmake would fail to parse the warning emitted by gcc
+  # with this flag. Note the order of this check and -Wextra-semi-stmt is
+  # important due to is_flag_present() matching substrings with string(FIND
+  # ...).
+  if(CMAKE_VERSION VERSION_LESS "3.19"
+     AND CMAKE_C_COMPILER_ID STREQUAL "GNU"
+     AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 10)
+    add_cxx_flag_if_supported("-Wextra-semi")
+  else()
+    add_compiler_flag_if_supported("-Wextra-semi")
+  endif()
   add_compiler_flag_if_supported("-Wextra-semi-stmt")
   add_compiler_flag_if_supported("-Wfloat-conversion")
   add_compiler_flag_if_supported("-Wformat=2")
