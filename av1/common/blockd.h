@@ -322,9 +322,11 @@ typedef struct MB_MODE_INFO {
   uint8_t compound_idx : 1;
   /*! \brief Whether to use interintra wedge */
   uint8_t use_wedge_interintra : 1;
+  /**@}*/
+
+  /****************************************************************************/
   /*! \brief CDEF strength per BLOCK_64X64 */
   int8_t cdef_strength;
-  /**@}*/
 
 #if CONFIG_RD_DEBUG
   /*! \brief RD info used for debugging */
