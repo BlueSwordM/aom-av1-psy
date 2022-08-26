@@ -1366,10 +1366,15 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->mv_sf.search_method = NSTEP;
       sf->mv_sf.subpel_search_method = SUBPEL_TREE;
       sf->rt_sf.fullpel_search_step_param = 6;
+      sf->rt_sf.reduce_mv_pel_precision = 0;
     }
-    if (speed >= 9) {
+    if (speed >= 8) {
       sf->rt_sf.disable_cdf_update_non_reference_frame = true;
-      if (cpi->svc.non_reference_frame) sf->rt_sf.nonrd_agressive_skip = 1;
+      sf->rt_sf.reduce_mv_pel_precision = 2;
+      if (cpi->svc.non_reference_frame) {
+        sf->rt_sf.nonrd_agressive_skip = 1;
+        sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
+      }
     }
     if (cpi->svc.ref_frame_comp[0] || cpi->svc.ref_frame_comp[1] ||
         cpi->svc.ref_frame_comp[2]) {
