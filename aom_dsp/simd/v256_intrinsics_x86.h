@@ -597,55 +597,55 @@ SIMD_INLINE v256 v256_cmpeq_32(v256 a, v256 b) {
 
 SIMD_INLINE v256 v256_shl_8(v256 a, unsigned int c) {
   return _mm256_and_si256(_mm256_set1_epi8((uint8_t)(0xff << c)),
-                          _mm256_sll_epi16(a, _mm_cvtsi32_si128(c)));
+                          _mm256_sll_epi16(a, _mm_cvtsi32_si128((int)c)));
 }
 
 SIMD_INLINE v256 v256_shr_u8(v256 a, unsigned int c) {
   return _mm256_and_si256(_mm256_set1_epi8((char)(0xff >> c)),
-                          _mm256_srl_epi16(a, _mm_cvtsi32_si128(c)));
+                          _mm256_srl_epi16(a, _mm_cvtsi32_si128((int)c)));
 }
 
 SIMD_INLINE v256 v256_shr_s8(v256 a, unsigned int c) {
-  __m128i x = _mm_cvtsi32_si128(c + 8);
+  __m128i x = _mm_cvtsi32_si128((int)(c + 8));
   return _mm256_packs_epi16(_mm256_sra_epi16(_mm256_unpacklo_epi8(a, a), x),
                             _mm256_sra_epi16(_mm256_unpackhi_epi8(a, a), x));
 }
 
 SIMD_INLINE v256 v256_shl_16(v256 a, unsigned int c) {
-  return _mm256_sll_epi16(a, _mm_cvtsi32_si128(c));
+  return _mm256_sll_epi16(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v256 v256_shr_u16(v256 a, unsigned int c) {
-  return _mm256_srl_epi16(a, _mm_cvtsi32_si128(c));
+  return _mm256_srl_epi16(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v256 v256_shr_s16(v256 a, unsigned int c) {
-  return _mm256_sra_epi16(a, _mm_cvtsi32_si128(c));
+  return _mm256_sra_epi16(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v256 v256_shl_32(v256 a, unsigned int c) {
-  return _mm256_sll_epi32(a, _mm_cvtsi32_si128(c));
+  return _mm256_sll_epi32(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v256 v256_shr_u32(v256 a, unsigned int c) {
-  return _mm256_srl_epi32(a, _mm_cvtsi32_si128(c));
+  return _mm256_srl_epi32(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v256 v256_shr_s32(v256 a, unsigned int c) {
-  return _mm256_sra_epi32(a, _mm_cvtsi32_si128(c));
+  return _mm256_sra_epi32(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v256 v256_shl_64(v256 a, unsigned int c) {
-  return _mm256_sll_epi64(a, _mm_cvtsi32_si128(c));
+  return _mm256_sll_epi64(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v256 v256_shr_u64(v256 a, unsigned int c) {
-  return _mm256_srl_epi64(a, _mm_cvtsi32_si128(c));
+  return _mm256_srl_epi64(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v256 v256_shr_s64(v256 a, unsigned int c) {
 #if defined(__AVX512VL__)
-  return _mm256_sra_epi64(a, _mm_cvtsi32_si128(c));
+  return _mm256_sra_epi64(a, _mm_cvtsi32_si128((int)c));
 #else
   return v256_from_v128(v128_shr_s64(v256_high_v128(a), c),
                         v128_shr_s64(v256_low_v128(a), c));

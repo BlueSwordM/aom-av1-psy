@@ -22,7 +22,7 @@
 // av1_convolve_2d_scale_sse4_1. This version only supports 8 tap filters.
 static void hfilter8(const uint8_t *src, int src_stride, int16_t *dst, int w,
                      int h, int subpel_x_qn, int x_step_qn,
-                     const InterpFilterParams *filter_params, unsigned round) {
+                     const InterpFilterParams *filter_params, int round) {
   const int bd = 8;
   const int ntaps = 8;
 
@@ -260,8 +260,8 @@ void av1_convolve_2d_scale_sse4_1(const uint8_t *src, int src_stride,
 // filters.
 static void highbd_hfilter8(const uint16_t *src, int src_stride, int16_t *dst,
                             int w, int h, int subpel_x_qn, int x_step_qn,
-                            const InterpFilterParams *filter_params,
-                            unsigned round, int bd) {
+                            const InterpFilterParams *filter_params, int round,
+                            int bd) {
   const int ntaps = 8;
 
   src -= ntaps / 2 - 1;

@@ -535,57 +535,57 @@ SIMD_INLINE v128 v128_cmpeq_16(v128 a, v128 b) { return _mm_cmpeq_epi16(a, b); }
 
 SIMD_INLINE v128 v128_shl_8(v128 a, unsigned int c) {
   return _mm_and_si128(_mm_set1_epi8((uint8_t)(0xff << c)),
-                       _mm_sll_epi16(a, _mm_cvtsi32_si128(c)));
+                       _mm_sll_epi16(a, _mm_cvtsi32_si128((int)c)));
 }
 
 SIMD_INLINE v128 v128_shr_u8(v128 a, unsigned int c) {
   return _mm_and_si128(_mm_set1_epi8((char)(0xff >> c)),
-                       _mm_srl_epi16(a, _mm_cvtsi32_si128(c)));
+                       _mm_srl_epi16(a, _mm_cvtsi32_si128((int)c)));
 }
 
 SIMD_INLINE v128 v128_shr_s8(v128 a, unsigned int c) {
-  __m128i x = _mm_cvtsi32_si128(c + 8);
+  __m128i x = _mm_cvtsi32_si128((int)(c + 8));
   return _mm_packs_epi16(_mm_sra_epi16(_mm_unpacklo_epi8(a, a), x),
                          _mm_sra_epi16(_mm_unpackhi_epi8(a, a), x));
 }
 
 SIMD_INLINE v128 v128_shl_16(v128 a, unsigned int c) {
-  return _mm_sll_epi16(a, _mm_cvtsi32_si128(c));
+  return _mm_sll_epi16(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v128 v128_shr_u16(v128 a, unsigned int c) {
-  return _mm_srl_epi16(a, _mm_cvtsi32_si128(c));
+  return _mm_srl_epi16(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v128 v128_shr_s16(v128 a, unsigned int c) {
-  return _mm_sra_epi16(a, _mm_cvtsi32_si128(c));
+  return _mm_sra_epi16(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v128 v128_shl_32(v128 a, unsigned int c) {
-  return _mm_sll_epi32(a, _mm_cvtsi32_si128(c));
+  return _mm_sll_epi32(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v128 v128_shr_u32(v128 a, unsigned int c) {
-  return _mm_srl_epi32(a, _mm_cvtsi32_si128(c));
+  return _mm_srl_epi32(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v128 v128_shr_s32(v128 a, unsigned int c) {
-  return _mm_sra_epi32(a, _mm_cvtsi32_si128(c));
+  return _mm_sra_epi32(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v128 v128_shl_64(v128 a, unsigned int c) {
-  return _mm_sll_epi64(a, _mm_cvtsi32_si128(c));
+  return _mm_sll_epi64(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v128 v128_shr_u64(v128 a, unsigned int c) {
-  return _mm_srl_epi64(a, _mm_cvtsi32_si128(c));
+  return _mm_srl_epi64(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v128 v128_shr_s64(v128 a, unsigned int c) {
   // _mm_sra_epi64 is missing in gcc?
   return v128_from_64((int64_t)v64_u64(v128_high_v64(a)) >> c,
                       (int64_t)v64_u64(v128_low_v64(a)) >> c);
-  // return _mm_sra_epi64(a, _mm_cvtsi32_si128(c));
+  // return _mm_sra_epi64(a, _mm_cvtsi32_si128((int)c));
 }
 
 /* These intrinsics require immediate values, so we must use #defines

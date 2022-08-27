@@ -1334,7 +1334,7 @@ static INLINE void h_predictor_32xh(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *left, int height) {
   int i = height >> 2;
   do {
-    __m128i left4 = _mm_cvtsi32_si128(((uint32_t *)left)[0]);
+    __m128i left4 = _mm_cvtsi32_si128(((int *)left)[0]);
     left4 = _mm_unpacklo_epi8(left4, left4);
     left4 = _mm_unpacklo_epi8(left4, left4);
     const __m128i r0 = _mm_shuffle_epi32(left4, 0x0);
@@ -1364,7 +1364,7 @@ static INLINE void h_predictor_64xh(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *left, int height) {
   int i = height >> 2;
   do {
-    __m128i left4 = _mm_cvtsi32_si128(((uint32_t *)left)[0]);
+    __m128i left4 = _mm_cvtsi32_si128(((int *)left)[0]);
     left4 = _mm_unpacklo_epi8(left4, left4);
     left4 = _mm_unpacklo_epi8(left4, left4);
     const __m128i r0 = _mm_shuffle_epi32(left4, 0x0);

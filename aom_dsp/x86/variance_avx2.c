@@ -539,10 +539,10 @@ uint64_t aom_mse_4xh_16bit_avx2(uint8_t *dst, int dstride, uint16_t *src,
   const __m256i zeros = _mm256_broadcastsi128_si256(_mm_setzero_si128());
   __m256i square_result = _mm256_broadcastsi128_si256(_mm_setzero_si128());
   for (int i = 0; i < h; i += 4) {
-    dst0_4x8 = _mm_cvtsi32_si128(*(uint32_t const *)(&dst[(i + 0) * dstride]));
-    dst1_4x8 = _mm_cvtsi32_si128(*(uint32_t const *)(&dst[(i + 1) * dstride]));
-    dst2_4x8 = _mm_cvtsi32_si128(*(uint32_t const *)(&dst[(i + 2) * dstride]));
-    dst3_4x8 = _mm_cvtsi32_si128(*(uint32_t const *)(&dst[(i + 3) * dstride]));
+    dst0_4x8 = _mm_cvtsi32_si128(*(int const *)(&dst[(i + 0) * dstride]));
+    dst1_4x8 = _mm_cvtsi32_si128(*(int const *)(&dst[(i + 1) * dstride]));
+    dst2_4x8 = _mm_cvtsi32_si128(*(int const *)(&dst[(i + 2) * dstride]));
+    dst3_4x8 = _mm_cvtsi32_si128(*(int const *)(&dst[(i + 3) * dstride]));
     dst_16x8 = _mm_unpacklo_epi64(_mm_unpacklo_epi32(dst0_4x8, dst1_4x8),
                                   _mm_unpacklo_epi32(dst2_4x8, dst3_4x8));
     dst_16x16 = _mm256_cvtepu8_epi16(dst_16x8);

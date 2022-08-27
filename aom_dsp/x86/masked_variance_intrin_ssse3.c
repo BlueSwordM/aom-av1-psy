@@ -986,9 +986,8 @@ static void highbd_masked_variance4xh(const uint16_t *src_ptr, int src_stride,
     const __m128i a = _mm_loadu_si128((const __m128i *)a_ptr);
     const __m128i b = _mm_loadu_si128((const __m128i *)b_ptr);
     const __m128i m = _mm_unpacklo_epi8(
-        _mm_unpacklo_epi32(
-            _mm_cvtsi32_si128(*(const uint32_t *)m_ptr),
-            _mm_cvtsi32_si128(*(const uint32_t *)&m_ptr[m_stride])),
+        _mm_unpacklo_epi32(_mm_cvtsi32_si128(*(const int *)m_ptr),
+                           _mm_cvtsi32_si128(*(const int *)&m_ptr[m_stride])),
         zero);
     const __m128i m_inv = _mm_sub_epi16(mask_max, m);
 

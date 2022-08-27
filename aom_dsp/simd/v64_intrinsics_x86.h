@@ -434,41 +434,42 @@ SIMD_INLINE v64 v64_cmpeq_16(v64 a, v64 b) { return _mm_cmpeq_epi16(a, b); }
 
 SIMD_INLINE v64 v64_shl_8(v64 a, unsigned int c) {
   return _mm_and_si128(_mm_set1_epi8((uint8_t)(0xff << c)),
-                       _mm_sll_epi16(a, _mm_cvtsi32_si128(c)));
+                       _mm_sll_epi16(a, _mm_cvtsi32_si128((int)c)));
 }
 
 SIMD_INLINE v64 v64_shr_u8(v64 a, unsigned int c) {
   return _mm_and_si128(_mm_set1_epi8((char)(0xff >> c)),
-                       _mm_srl_epi16(a, _mm_cvtsi32_si128(c)));
+                       _mm_srl_epi16(a, _mm_cvtsi32_si128((int)c)));
 }
 
 SIMD_INLINE v64 v64_shr_s8(v64 a, unsigned int c) {
   return _mm_packs_epi16(
-      _mm_sra_epi16(_mm_unpacklo_epi8(a, a), _mm_cvtsi32_si128(c + 8)), a);
+      _mm_sra_epi16(_mm_unpacklo_epi8(a, a), _mm_cvtsi32_si128((int)(c + 8))),
+      a);
 }
 
 SIMD_INLINE v64 v64_shl_16(v64 a, unsigned int c) {
-  return _mm_sll_epi16(a, _mm_cvtsi32_si128(c));
+  return _mm_sll_epi16(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v64 v64_shr_u16(v64 a, unsigned int c) {
-  return _mm_srl_epi16(a, _mm_cvtsi32_si128(c));
+  return _mm_srl_epi16(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v64 v64_shr_s16(v64 a, unsigned int c) {
-  return _mm_sra_epi16(a, _mm_cvtsi32_si128(c));
+  return _mm_sra_epi16(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v64 v64_shl_32(v64 a, unsigned int c) {
-  return _mm_sll_epi32(a, _mm_cvtsi32_si128(c));
+  return _mm_sll_epi32(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v64 v64_shr_u32(v64 a, unsigned int c) {
-  return _mm_srl_epi32(a, _mm_cvtsi32_si128(c));
+  return _mm_srl_epi32(a, _mm_cvtsi32_si128((int)c));
 }
 
 SIMD_INLINE v64 v64_shr_s32(v64 a, unsigned int c) {
-  return _mm_sra_epi32(a, _mm_cvtsi32_si128(c));
+  return _mm_sra_epi32(a, _mm_cvtsi32_si128((int)c));
 }
 
 /* These intrinsics require immediate values, so we must use #defines

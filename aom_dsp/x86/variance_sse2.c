@@ -678,8 +678,8 @@ uint64_t aom_mse_4xh_16bit_sse2(uint8_t *dst, int dstride, uint16_t *src,
   const __m128i zeros = _mm_setzero_si128();
   __m128i square_result = _mm_setzero_si128();
   for (int i = 0; i < h; i += 2) {
-    dst0_8x8 = _mm_cvtsi32_si128(*(uint32_t const *)(&dst[(i + 0) * dstride]));
-    dst1_8x8 = _mm_cvtsi32_si128(*(uint32_t const *)(&dst[(i + 1) * dstride]));
+    dst0_8x8 = _mm_cvtsi32_si128(*(int const *)(&dst[(i + 0) * dstride]));
+    dst1_8x8 = _mm_cvtsi32_si128(*(int const *)(&dst[(i + 1) * dstride]));
     dst_16x8 = _mm_unpacklo_epi8(_mm_unpacklo_epi32(dst0_8x8, dst1_8x8), zeros);
 
     src0_16x4 = _mm_loadl_epi64((__m128i const *)(&src[(i + 0) * sstride]));
