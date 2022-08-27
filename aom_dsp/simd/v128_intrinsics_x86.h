@@ -81,7 +81,7 @@ SIMD_INLINE v128 v128_align(v128 a, v128 b, const unsigned int c) {
 
 SIMD_INLINE v128 v128_zero() { return _mm_setzero_si128(); }
 
-SIMD_INLINE v128 v128_dup_8(uint8_t x) { return _mm_set1_epi8(x); }
+SIMD_INLINE v128 v128_dup_8(uint8_t x) { return _mm_set1_epi8((char)x); }
 
 SIMD_INLINE v128 v128_dup_16(uint16_t x) { return _mm_set1_epi16(x); }
 
@@ -534,7 +534,7 @@ SIMD_INLINE v128 v128_cmplt_s32(v128 a, v128 b) {
 SIMD_INLINE v128 v128_cmpeq_16(v128 a, v128 b) { return _mm_cmpeq_epi16(a, b); }
 
 SIMD_INLINE v128 v128_shl_8(v128 a, unsigned int c) {
-  return _mm_and_si128(_mm_set1_epi8((uint8_t)(0xff << c)),
+  return _mm_and_si128(_mm_set1_epi8((char)(0xff << c)),
                        _mm_sll_epi16(a, _mm_cvtsi32_si128((int)c)));
 }
 
@@ -593,9 +593,9 @@ SIMD_INLINE v128 v128_shr_s64(v128 a, unsigned int c) {
 #define v128_shl_n_byte(a, c) _mm_slli_si128(a, (c)&127)
 #define v128_shr_n_byte(a, c) _mm_srli_si128(a, (c)&127)
 #define v128_shl_n_8(a, c) \
-  _mm_and_si128(_mm_set1_epi8((uint8_t)(0xff << (c))), _mm_slli_epi16(a, c))
+  _mm_and_si128(_mm_set1_epi8((char)(0xff << (c))), _mm_slli_epi16(a, c))
 #define v128_shr_n_u8(a, c) \
-  _mm_and_si128(_mm_set1_epi8(0xff >> (c)), _mm_srli_epi16(a, c))
+  _mm_and_si128(_mm_set1_epi8((char)(0xff >> (c))), _mm_srli_epi16(a, c))
 #define v128_shr_n_s8(a, c)                                         \
   _mm_packs_epi16(_mm_srai_epi16(_mm_unpacklo_epi8(a, a), (c) + 8), \
                   _mm_srai_epi16(_mm_unpackhi_epi8(a, a), (c) + 8))

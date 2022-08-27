@@ -141,7 +141,7 @@ static AOM_FORCE_INLINE void dr_prediction_z1_HxW_internal_sse4_1(
   __m128i a_mbase_x;
 
   a16 = _mm_set1_epi16(16);
-  a_mbase_x = _mm_set1_epi8(above[max_base_x]);
+  a_mbase_x = _mm_set1_epi8((char)above[max_base_x]);
   c3f = _mm_set1_epi16(0x3f);
 
   int x = dx;
@@ -255,7 +255,7 @@ static AOM_FORCE_INLINE void dr_prediction_z1_32xN_internal_sse4_1(
   __m128i a_mbase_x, diff, c3f;
 
   a16 = _mm_set1_epi16(16);
-  a_mbase_x = _mm_set1_epi8(above[max_base_x]);
+  a_mbase_x = _mm_set1_epi8((char)above[max_base_x]);
   c3f = _mm_set1_epi16(0x3f);
 
   int x = dx;
@@ -353,7 +353,7 @@ static void dr_prediction_z1_64xN_sse4_1(int N, uint8_t *dst, ptrdiff_t stride,
   __m128i max_base, base_inc, mask;
 
   a16 = _mm_set1_epi16(16);
-  a_mbase_x = _mm_set1_epi8(above[max_base_x]);
+  a_mbase_x = _mm_set1_epi8((char)above[max_base_x]);
   max_base = _mm_set1_epi8(max_base_x);
   c3f = _mm_set1_epi16(0x3f);
 
@@ -412,14 +412,14 @@ static void dr_prediction_z1_64xN_sse4_1(int N, uint8_t *dst, ptrdiff_t stride,
         res = _mm_packus_epi16(res, res1);  // 16 8bit values
 
         base_inc =
-            _mm_setr_epi8((uint8_t)(base + j), (uint8_t)(base + j + 1),
-                          (uint8_t)(base + j + 2), (uint8_t)(base + j + 3),
-                          (uint8_t)(base + j + 4), (uint8_t)(base + j + 5),
-                          (uint8_t)(base + j + 6), (uint8_t)(base + j + 7),
-                          (uint8_t)(base + j + 8), (uint8_t)(base + j + 9),
-                          (uint8_t)(base + j + 10), (uint8_t)(base + j + 11),
-                          (uint8_t)(base + j + 12), (uint8_t)(base + j + 13),
-                          (uint8_t)(base + j + 14), (uint8_t)(base + j + 15));
+            _mm_setr_epi8((int8_t)(base + j), (int8_t)(base + j + 1),
+                          (int8_t)(base + j + 2), (int8_t)(base + j + 3),
+                          (int8_t)(base + j + 4), (int8_t)(base + j + 5),
+                          (int8_t)(base + j + 6), (int8_t)(base + j + 7),
+                          (int8_t)(base + j + 8), (int8_t)(base + j + 9),
+                          (int8_t)(base + j + 10), (int8_t)(base + j + 11),
+                          (int8_t)(base + j + 12), (int8_t)(base + j + 13),
+                          (int8_t)(base + j + 14), (int8_t)(base + j + 15));
 
         mask = _mm_cmpgt_epi8(_mm_subs_epu8(max_base, base_inc),
                               _mm_setzero_si128());

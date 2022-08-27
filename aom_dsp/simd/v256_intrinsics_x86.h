@@ -78,7 +78,7 @@ SIMD_INLINE void v256_store_unaligned(void *p, v256 a) {
 
 SIMD_INLINE v256 v256_zero(void) { return _mm256_setzero_si256(); }
 
-SIMD_INLINE v256 v256_dup_8(uint8_t x) { return _mm256_set1_epi8(x); }
+SIMD_INLINE v256 v256_dup_8(uint8_t x) { return _mm256_set1_epi8((char)x); }
 
 SIMD_INLINE v256 v256_dup_16(uint16_t x) { return _mm256_set1_epi16(x); }
 
@@ -596,7 +596,7 @@ SIMD_INLINE v256 v256_cmpeq_32(v256 a, v256 b) {
 }
 
 SIMD_INLINE v256 v256_shl_8(v256 a, unsigned int c) {
-  return _mm256_and_si256(_mm256_set1_epi8((uint8_t)(0xff << c)),
+  return _mm256_and_si256(_mm256_set1_epi8((char)(0xff << c)),
                           _mm256_sll_epi16(a, _mm_cvtsi32_si128((int)c)));
 }
 
@@ -677,11 +677,12 @@ SIMD_INLINE v256 v256_shr_s64(v256 a, unsigned int c) {
 #define v256_align(a, b, c) \
   ((c) ? v256_or(v256_shr_n_byte(b, c), v256_shl_n_byte(a, 32 - (c))) : b)
 
-#define v256_shl_n_8(a, c)                                   \
-  _mm256_and_si256(_mm256_set1_epi8((uint8_t)(0xff << (c))), \
+#define v256_shl_n_8(a, c)                                \
+  _mm256_and_si256(_mm256_set1_epi8((char)(0xff << (c))), \
                    _mm256_slli_epi16(a, c))
-#define v256_shr_n_u8(a, c) \
-  _mm256_and_si256(_mm256_set1_epi8(0xff >> (c)), _mm256_srli_epi16(a, c))
+#define v256_shr_n_u8(a, c)                               \
+  _mm256_and_si256(_mm256_set1_epi8((char)(0xff >> (c))), \
+                   _mm256_srli_epi16(a, c))
 #define v256_shr_n_s8(a, c)                                                  \
   _mm256_packs_epi16(_mm256_srai_epi16(_mm256_unpacklo_epi8(a, a), (c) + 8), \
                      _mm256_srai_epi16(_mm256_unpackhi_epi8(a, a), (c) + 8))
