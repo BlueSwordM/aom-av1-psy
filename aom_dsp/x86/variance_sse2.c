@@ -36,8 +36,8 @@ unsigned int aom_get_mb_ss_sse2(const int16_t *src) {
 }
 
 static INLINE __m128i load4x2_sse2(const uint8_t *const p, const int stride) {
-  const __m128i p0 = _mm_cvtsi32_si128(loadu_uint32(p + 0 * stride));
-  const __m128i p1 = _mm_cvtsi32_si128(loadu_uint32(p + 1 * stride));
+  const __m128i p0 = _mm_cvtsi32_si128(loadu_int32(p + 0 * stride));
+  const __m128i p1 = _mm_cvtsi32_si128(loadu_int32(p + 1 * stride));
   return _mm_unpacklo_epi8(_mm_unpacklo_epi32(p0, p1), _mm_setzero_si128());
 }
 
