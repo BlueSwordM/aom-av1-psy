@@ -1187,11 +1187,11 @@ static INLINE void highbd_blend_a64_d16_mask_subw0_subh0_w4_sse4_1(
     const __m128i *round_offset, int shift, const __m128i *clip_low,
     const __m128i *clip_high, const __m128i *mask_max) {
   do {
-    const __m128i mask0a8 = _mm_set_epi32(0, 0, *(uint32_t *)mask,
-                                          *(uint32_t *)(mask + mask_stride));
+    const __m128i mask0a8 =
+        _mm_set_epi32(0, 0, *(int32_t *)mask, *(int32_t *)(mask + mask_stride));
     const __m128i mask0b8 =
-        _mm_set_epi32(0, 0, *(uint32_t *)(mask + 2 * mask_stride),
-                      *(uint32_t *)(mask + 3 * mask_stride));
+        _mm_set_epi32(0, 0, *(int32_t *)(mask + 2 * mask_stride),
+                      *(int32_t *)(mask + 3 * mask_stride));
     const __m128i mask0a = _mm_cvtepu8_epi16(mask0a8);
     const __m128i mask0b = _mm_cvtepu8_epi16(mask0b8);
 

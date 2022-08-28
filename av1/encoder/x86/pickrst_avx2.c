@@ -297,7 +297,7 @@ static INLINE void acc_stat_highbd_win7_one_line_avx2(
         // interleaved copies of two pixels, but we only have one. However, the
         // pixels are (effectively) used as inputs to a multiply-accumulate. So
         // if we set the extra pixel slot to 0, then it is effectively ignored.
-        const __m256i dgd_ijkl = _mm256_set1_epi32((uint32_t)D1);
+        const __m256i dgd_ijkl = _mm256_set1_epi32((int)D1);
 
         acc_stat_highbd_avx2(H_ + 0 * 8, dgd_ij + 0 * dgd_stride, shuffle,
                              &dgd_ijkl);
@@ -441,7 +441,7 @@ static INLINE void acc_stat_highbd_win5_one_line_avx2(
         // interleaved copies of two pixels, but we only have one. However, the
         // pixels are (effectively) used as inputs to a multiply-accumulate. So
         // if we set the extra pixel slot to 0, then it is effectively ignored.
-        const __m256i dgd_ijkl = _mm256_set1_epi32((uint32_t)D1);
+        const __m256i dgd_ijkl = _mm256_set1_epi32((int)D1);
 
         acc_stat_highbd_avx2(H_ + 0 * 8, dgd_ij + 0 * dgd_stride, shuffle,
                              &dgd_ijkl);

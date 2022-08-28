@@ -964,10 +964,10 @@ static INLINE void highbd_blend_a64_d16_mask_subw0_subh0_w4_avx2(
     const __m256i *clip_high, const __m256i *mask_max) {
   do {
     // Load 8x u8 pixels from each of 4 rows of the mask, pad each to u16
-    const __m128i mask08 = _mm_set_epi32(*(uint32_t *)(mask + 3 * mask_stride),
-                                         *(uint32_t *)(mask + 2 * mask_stride),
-                                         *(uint32_t *)(mask + 1 * mask_stride),
-                                         *(uint32_t *)(mask + 0 * mask_stride));
+    const __m128i mask08 = _mm_set_epi32(*(int32_t *)(mask + 3 * mask_stride),
+                                         *(int32_t *)(mask + 2 * mask_stride),
+                                         *(int32_t *)(mask + 1 * mask_stride),
+                                         *(int32_t *)(mask + 0 * mask_stride));
     const __m256i mask0 = _mm256_cvtepu8_epi16(mask08);
 
     highbd_blend_a64_d16_mask_w4_avx2(dst, dst_stride, src0, src0_stride, src1,

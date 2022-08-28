@@ -25,7 +25,7 @@ void av1_calc_indices_dim1_sse2(const int *data, const int *centroids,
     l = (l == 0) ? 1 : 0;
     ind[l] = _mm_loadu_si128((__m128i *)data);
     for (int j = 0; j < k; j++) {
-      __m128i cent = _mm_set1_epi32((uint32_t)centroids[j]);
+      __m128i cent = _mm_set1_epi32(centroids[j]);
       __m128i d1 = _mm_sub_epi32(ind[l], cent);
       __m128i d2 = _mm_packs_epi32(d1, d1);
       __m128i d3 = _mm_mullo_epi16(d2, d2);

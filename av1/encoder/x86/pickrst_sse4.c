@@ -265,7 +265,7 @@ static INLINE void acc_stat_highbd_win7_one_line_sse4_1(
 
         // Load two u16 values from dgd as a single u32
         // Then broadcast to 4x u32 slots of a 128
-        const __m128i dgd_ijkl = _mm_set1_epi32(*((uint32_t *)(dgd_ijk + l)));
+        const __m128i dgd_ijkl = _mm_set1_epi32(*((int *)(dgd_ijk + l)));
         // dgd_ijkl = [y x y x y x y x] as u16
 
         acc_stat_highbd_sse41(H_ + 0 * 8, dgd_ij + 0 * dgd_stride, shuffle,
@@ -302,7 +302,7 @@ static INLINE void acc_stat_highbd_win7_one_line_sse4_1(
         // interleaved copies of two pixels, but we only have one. However, the
         // pixels are (effectively) used as inputs to a multiply-accumulate. So
         // if we set the extra pixel slot to 0, then it is effectively ignored.
-        const __m128i dgd_ijkl = _mm_set1_epi32((uint32_t)D1);
+        const __m128i dgd_ijkl = _mm_set1_epi32((int)D1);
 
         acc_stat_highbd_sse41(H_ + 0 * 8, dgd_ij + 0 * dgd_stride, shuffle,
                               &dgd_ijkl);
@@ -414,7 +414,7 @@ static INLINE void acc_stat_highbd_win5_one_line_sse4_1(
 
         // Load two u16 values from dgd as a single u32
         // then broadcast to 4x u32 slots of a 128
-        const __m128i dgd_ijkl = _mm_set1_epi32(*((uint32_t *)(dgd_ijk + l)));
+        const __m128i dgd_ijkl = _mm_set1_epi32(*((int *)(dgd_ijk + l)));
         // dgd_ijkl = [y x y x y x y x] as u16
 
         acc_stat_highbd_sse41(H_ + 0 * 8, dgd_ij + 0 * dgd_stride, shuffle,
@@ -447,7 +447,7 @@ static INLINE void acc_stat_highbd_win5_one_line_sse4_1(
         // interleaved copies of two pixels, but we only have one. However, the
         // pixels are (effectively) used as inputs to a multiply-accumulate. So
         // if we set the extra pixel slot to 0, then it is effectively ignored.
-        const __m128i dgd_ijkl = _mm_set1_epi32((uint32_t)D1);
+        const __m128i dgd_ijkl = _mm_set1_epi32((int)D1);
 
         acc_stat_highbd_sse41(H_ + 0 * 8, dgd_ij + 0 * dgd_stride, shuffle,
                               &dgd_ijkl);

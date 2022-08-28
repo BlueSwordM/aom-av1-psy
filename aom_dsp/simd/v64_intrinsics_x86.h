@@ -43,14 +43,14 @@ SIMD_INLINE v64 v64_from_16(uint16_t a, uint16_t b, uint16_t c, uint16_t d) {
 }
 
 SIMD_INLINE v64 v64_from_32(uint32_t x, uint32_t y) {
-  return _mm_set_epi32(0, 0, x, y);
+  return _mm_set_epi32(0, 0, (int32_t)x, (int32_t)y);
 }
 
 SIMD_INLINE v64 v64_from_64(uint64_t x) {
 #ifdef __x86_64__
-  return _mm_cvtsi64_si128(x);
+  return _mm_cvtsi64_si128((int64_t)x);
 #else
-  return _mm_set_epi32(0, 0, x >> 32, (uint32_t)x);
+  return _mm_set_epi32(0, 0, (int32_t)(x >> 32), (int32_t)x);
 #endif
 }
 
@@ -105,7 +105,7 @@ SIMD_INLINE v64 v64_dup_8(uint8_t x) { return _mm_set1_epi8((char)x); }
 
 SIMD_INLINE v64 v64_dup_16(uint16_t x) { return _mm_set1_epi16((short)x); }
 
-SIMD_INLINE v64 v64_dup_32(uint32_t x) { return _mm_set1_epi32(x); }
+SIMD_INLINE v64 v64_dup_32(uint32_t x) { return _mm_set1_epi32((int)x); }
 
 SIMD_INLINE v64 v64_add_8(v64 a, v64 b) { return _mm_add_epi8(a, b); }
 

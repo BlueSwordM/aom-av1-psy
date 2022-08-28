@@ -21,7 +21,7 @@ void av1_calc_indices_dim1_avx2(const int *data, const int *centroids,
   for (int i = 0; i < n; i += 8) {
     __m256i ind = _mm256_loadu_si256((__m256i *)data);
     for (int j = 0; j < k; j++) {
-      __m256i cent = _mm256_set1_epi32((uint32_t)centroids[j]);
+      __m256i cent = _mm256_set1_epi32(centroids[j]);
       __m256i d1 = _mm256_sub_epi32(ind, cent);
       dist[j] = _mm256_mullo_epi32(d1, d1);
     }

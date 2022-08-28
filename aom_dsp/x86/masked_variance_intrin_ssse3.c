@@ -494,15 +494,14 @@ static void masked_variance4xh(const uint8_t *src_ptr, int src_stride,
 
   for (y = 0; y < height; y += 4) {
     // Load four rows at a time
-    __m128i src =
-        _mm_setr_epi32(*(uint32_t *)src_ptr, *(uint32_t *)&src_ptr[src_stride],
-                       *(uint32_t *)&src_ptr[src_stride * 2],
-                       *(uint32_t *)&src_ptr[src_stride * 3]);
+    __m128i src = _mm_setr_epi32(*(int *)src_ptr, *(int *)&src_ptr[src_stride],
+                                 *(int *)&src_ptr[src_stride * 2],
+                                 *(int *)&src_ptr[src_stride * 3]);
     const __m128i a = _mm_loadu_si128((const __m128i *)a_ptr);
     const __m128i b = _mm_loadu_si128((const __m128i *)b_ptr);
-    const __m128i m = _mm_setr_epi32(
-        *(uint32_t *)m_ptr, *(uint32_t *)&m_ptr[m_stride],
-        *(uint32_t *)&m_ptr[m_stride * 2], *(uint32_t *)&m_ptr[m_stride * 3]);
+    const __m128i m = _mm_setr_epi32(*(int *)m_ptr, *(int *)&m_ptr[m_stride],
+                                     *(int *)&m_ptr[m_stride * 2],
+                                     *(int *)&m_ptr[m_stride * 3]);
     accumulate_block(&src, &a, &b, &m, &sum, &sum_sq);
 
     src_ptr += src_stride * 4;
