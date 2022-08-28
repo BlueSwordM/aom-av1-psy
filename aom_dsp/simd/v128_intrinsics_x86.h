@@ -83,7 +83,7 @@ SIMD_INLINE v128 v128_zero() { return _mm_setzero_si128(); }
 
 SIMD_INLINE v128 v128_dup_8(uint8_t x) { return _mm_set1_epi8((char)x); }
 
-SIMD_INLINE v128 v128_dup_16(uint16_t x) { return _mm_set1_epi16(x); }
+SIMD_INLINE v128 v128_dup_16(uint16_t x) { return _mm_set1_epi16((short)x); }
 
 SIMD_INLINE v128 v128_dup_32(uint32_t x) { return _mm_set1_epi32(x); }
 

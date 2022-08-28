@@ -88,7 +88,7 @@ static INLINE void acc_stat_win7_one_line_avx2(
         // are (effectively) used as inputs to a multiply-accumulate.
         // So if we set the extra pixel slot to 0, then it is effectively
         // ignored.
-        const __m256i kl = _mm256_cvtepu8_epi16(_mm_set1_epi16((uint16_t)D1));
+        const __m256i kl = _mm256_cvtepu8_epi16(_mm_set1_epi16((int16_t)D1));
         acc_stat_avx2(H_ + 0 * 8, dgd_ij + 0 * dgd_stride, shuffle, &kl);
         acc_stat_avx2(H_ + 1 * 8, dgd_ij + 1 * dgd_stride, shuffle, &kl);
         acc_stat_avx2(H_ + 2 * 8, dgd_ij + 2 * dgd_stride, shuffle, &kl);
@@ -596,7 +596,7 @@ static INLINE void acc_stat_win5_one_line_avx2(
         // are (effectively) used as inputs to a multiply-accumulate.
         // So if we set the extra pixel slot to 0, then it is effectively
         // ignored.
-        const __m256i kl = _mm256_cvtepu8_epi16(_mm_set1_epi16((uint16_t)D1));
+        const __m256i kl = _mm256_cvtepu8_epi16(_mm_set1_epi16((int16_t)D1));
         acc_stat_avx2(H_ + 0 * 8, dgd_ij + 0 * dgd_stride, shuffle, &kl);
         acc_stat_avx2(H_ + 1 * 8, dgd_ij + 1 * dgd_stride, shuffle, &kl);
         acc_stat_avx2(H_ + 2 * 8, dgd_ij + 2 * dgd_stride, shuffle, &kl);

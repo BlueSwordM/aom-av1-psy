@@ -47,7 +47,7 @@ void aom_paeth_predictor_4x4_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i t = _mm_loadl_epi64((const __m128i *)above);
   const __m128i zero = _mm_setzero_si128();
   const __m128i t16 = _mm_unpacklo_epi8(t, zero);
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   __m128i rep = _mm_set1_epi16((short)0x8000);
   const __m128i one = _mm_set1_epi16(1);
 
@@ -68,7 +68,7 @@ void aom_paeth_predictor_4x8_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i t = _mm_loadl_epi64((const __m128i *)above);
   const __m128i zero = _mm_setzero_si128();
   const __m128i t16 = _mm_unpacklo_epi8(t, zero);
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   __m128i rep = _mm_set1_epi16((short)0x8000);
   const __m128i one = _mm_set1_epi16(1);
 
@@ -89,7 +89,7 @@ void aom_paeth_predictor_4x16_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i t = _mm_cvtsi32_si128(((const int *)above)[0]);
   const __m128i zero = _mm_setzero_si128();
   const __m128i t16 = _mm_unpacklo_epi8(t, zero);
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   __m128i rep = _mm_set1_epi16((short)0x8000);
   const __m128i one = _mm_set1_epi16(1);
 
@@ -109,7 +109,7 @@ void aom_paeth_predictor_8x4_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i t = _mm_loadl_epi64((const __m128i *)above);
   const __m128i zero = _mm_setzero_si128();
   const __m128i t16 = _mm_unpacklo_epi8(t, zero);
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   __m128i rep = _mm_set1_epi16((short)0x8000);
   const __m128i one = _mm_set1_epi16(1);
 
@@ -130,7 +130,7 @@ void aom_paeth_predictor_8x8_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i t = _mm_loadl_epi64((const __m128i *)above);
   const __m128i zero = _mm_setzero_si128();
   const __m128i t16 = _mm_unpacklo_epi8(t, zero);
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   __m128i rep = _mm_set1_epi16((short)0x8000);
   const __m128i one = _mm_set1_epi16(1);
 
@@ -151,7 +151,7 @@ void aom_paeth_predictor_8x16_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i t = _mm_loadl_epi64((const __m128i *)above);
   const __m128i zero = _mm_setzero_si128();
   const __m128i t16 = _mm_unpacklo_epi8(t, zero);
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   __m128i rep = _mm_set1_epi16((short)0x8000);
   const __m128i one = _mm_set1_epi16(1);
 
@@ -171,7 +171,7 @@ void aom_paeth_predictor_8x32_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i t = _mm_loadl_epi64((const __m128i *)above);
   const __m128i zero = _mm_setzero_si128();
   const __m128i t16 = _mm_unpacklo_epi8(t, zero);
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   const __m128i one = _mm_set1_epi16(1);
 
   for (int j = 0; j < 2; ++j) {
@@ -204,7 +204,7 @@ void aom_paeth_predictor_16x4_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i zero = _mm_setzero_si128();
   const __m128i top0 = _mm_unpacklo_epi8(t, zero);
   const __m128i top1 = _mm_unpackhi_epi8(t, zero);
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   __m128i rep = _mm_set1_epi16((short)0x8000);
   const __m128i one = _mm_set1_epi16(1);
 
@@ -225,7 +225,7 @@ void aom_paeth_predictor_16x8_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i zero = _mm_setzero_si128();
   const __m128i top0 = _mm_unpacklo_epi8(t, zero);
   const __m128i top1 = _mm_unpackhi_epi8(t, zero);
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   __m128i rep = _mm_set1_epi16((short)0x8000);
   const __m128i one = _mm_set1_epi16(1);
 
@@ -248,7 +248,7 @@ void aom_paeth_predictor_16x16_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i zero = _mm_setzero_si128();
   const __m128i top0 = _mm_unpacklo_epi8(t, zero);
   const __m128i top1 = _mm_unpackhi_epi8(t, zero);
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   __m128i rep = _mm_set1_epi16((short)0x8000);
   const __m128i one = _mm_set1_epi16(1);
 
@@ -271,7 +271,7 @@ void aom_paeth_predictor_16x32_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i zero = _mm_setzero_si128();
   const __m128i top0 = _mm_unpacklo_epi8(t, zero);
   const __m128i top1 = _mm_unpackhi_epi8(t, zero);
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   __m128i rep = _mm_set1_epi16((short)0x8000);
   const __m128i one = _mm_set1_epi16(1);
   __m128i l16;
@@ -305,7 +305,7 @@ void aom_paeth_predictor_16x64_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i zero = _mm_setzero_si128();
   const __m128i top0 = _mm_unpacklo_epi8(t, zero);
   const __m128i top1 = _mm_unpackhi_epi8(t, zero);
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   const __m128i one = _mm_set1_epi16(1);
 
   for (int j = 0; j < 4; ++j) {
@@ -331,7 +331,7 @@ void aom_paeth_predictor_32x8_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i bl = _mm_unpacklo_epi8(b, zero);
   const __m128i bh = _mm_unpackhi_epi8(b, zero);
 
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   __m128i rep = _mm_set1_epi16((short)0x8000);
   const __m128i one = _mm_set1_epi16(1);
   const __m128i l = _mm_loadl_epi64((const __m128i *)left);
@@ -360,7 +360,7 @@ void aom_paeth_predictor_32x16_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i bl = _mm_unpacklo_epi8(b, zero);
   const __m128i bh = _mm_unpackhi_epi8(b, zero);
 
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   __m128i rep = _mm_set1_epi16((short)0x8000);
   const __m128i one = _mm_set1_epi16(1);
   __m128i l = _mm_load_si128((const __m128i *)left);
@@ -390,7 +390,7 @@ void aom_paeth_predictor_32x32_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i bl = _mm_unpacklo_epi8(b, zero);
   const __m128i bh = _mm_unpackhi_epi8(b, zero);
 
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   __m128i rep = _mm_set1_epi16((short)0x8000);
   const __m128i one = _mm_set1_epi16(1);
   __m128i l = _mm_load_si128((const __m128i *)left);
@@ -433,7 +433,7 @@ void aom_paeth_predictor_32x64_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i bl = _mm_unpacklo_epi8(b, zero);
   const __m128i bh = _mm_unpackhi_epi8(b, zero);
 
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   const __m128i one = _mm_set1_epi16(1);
   __m128i l16;
 
@@ -471,7 +471,7 @@ void aom_paeth_predictor_64x32_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i dl = _mm_unpacklo_epi8(d, zero);
   const __m128i dh = _mm_unpackhi_epi8(d, zero);
 
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   const __m128i one = _mm_set1_epi16(1);
   __m128i l16;
 
@@ -513,7 +513,7 @@ void aom_paeth_predictor_64x64_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i dl = _mm_unpacklo_epi8(d, zero);
   const __m128i dh = _mm_unpackhi_epi8(d, zero);
 
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   const __m128i one = _mm_set1_epi16(1);
   __m128i l16;
 
@@ -555,7 +555,7 @@ void aom_paeth_predictor_64x16_ssse3(uint8_t *dst, ptrdiff_t stride,
   const __m128i dl = _mm_unpacklo_epi8(d, zero);
   const __m128i dh = _mm_unpackhi_epi8(d, zero);
 
-  const __m128i tl16 = _mm_set1_epi16((uint16_t)above[-1]);
+  const __m128i tl16 = _mm_set1_epi16((int16_t)above[-1]);
   const __m128i one = _mm_set1_epi16(1);
   __m128i l16;
 
@@ -594,9 +594,9 @@ static INLINE void load_pixel_w4(const uint8_t *above, const uint8_t *left,
   else
     pixels[1] = _mm_loadu_si128(((const __m128i *)left));
 
-  pixels[2] = _mm_set1_epi16((uint16_t)above[3]);
+  pixels[2] = _mm_set1_epi16((int16_t)above[3]);
 
-  const __m128i bp = _mm_set1_epi16((uint16_t)left[height - 1]);
+  const __m128i bp = _mm_set1_epi16((int16_t)left[height - 1]);
   const __m128i zero = _mm_setzero_si128();
   d = _mm_unpacklo_epi8(d, zero);
   pixels[0] = _mm_unpacklo_epi16(d, bp);
@@ -610,7 +610,7 @@ static INLINE void load_pixel_w4(const uint8_t *above, const uint8_t *left,
 static INLINE void load_weight_w4(int height, __m128i *weight_h,
                                   __m128i *weight_w) {
   const __m128i zero = _mm_setzero_si128();
-  const __m128i d = _mm_set1_epi16((uint16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
+  const __m128i d = _mm_set1_epi16((int16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
   const __m128i t = _mm_cvtsi32_si128(((const int *)smooth_weights)[0]);
   weight_h[0] = _mm_unpacklo_epi8(t, zero);
   weight_h[1] = _mm_sub_epi16(d, weight_h[0]);
@@ -711,13 +711,13 @@ void aom_smooth_predictor_4x16_ssse3(uint8_t *dst, ptrdiff_t stride,
 static INLINE void load_pixel_w8(const uint8_t *above, const uint8_t *left,
                                  int height, __m128i *pixels) {
   const __m128i zero = _mm_setzero_si128();
-  const __m128i bp = _mm_set1_epi16((uint16_t)left[height - 1]);
+  const __m128i bp = _mm_set1_epi16((int16_t)left[height - 1]);
   __m128i d = _mm_loadl_epi64((const __m128i *)above);
   d = _mm_unpacklo_epi8(d, zero);
   pixels[0] = _mm_unpacklo_epi16(d, bp);
   pixels[1] = _mm_unpackhi_epi16(d, bp);
 
-  pixels[3] = _mm_set1_epi16((uint16_t)above[7]);
+  pixels[3] = _mm_set1_epi16((int16_t)above[7]);
 
   if (height == 4) {
     pixels[2] = _mm_cvtsi32_si128(((const int *)left)[0]);
@@ -750,7 +750,7 @@ static INLINE void load_weight_w8(int height, __m128i *weight_h,
   const int we_offset = height < 8 ? 0 : 4;
   __m128i we = _mm_loadu_si128((const __m128i *)&smooth_weights[we_offset]);
   weight_h[0] = _mm_unpacklo_epi8(we, zero);
-  const __m128i d = _mm_set1_epi16((uint16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
+  const __m128i d = _mm_set1_epi16((int16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
   weight_h[1] = _mm_sub_epi16(d, weight_h[0]);
 
   if (height == 4) {
@@ -891,7 +891,7 @@ static INLINE void smooth_predictor_wxh(uint8_t *dst, ptrdiff_t stride,
   const uint8_t *const sm_weights_h = smooth_weights + bh - 4;
   const __m128i zero = _mm_setzero_si128();
   const __m128i scale_value =
-      _mm_set1_epi16((uint16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
+      _mm_set1_epi16((int16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
   const __m128i bottom_left = _mm_cvtsi32_si128(left[bh - 1]);
   const __m128i dup16 = _mm_set1_epi32(0x01000100);
   const __m128i top_right =
@@ -1024,7 +1024,7 @@ static INLINE void load_pixel_v_w4(const uint8_t *above, const uint8_t *left,
                                    int height, __m128i *pixels) {
   const __m128i zero = _mm_setzero_si128();
   __m128i d = _mm_cvtsi32_si128(((const int *)above)[0]);
-  const __m128i bp = _mm_set1_epi16((uint16_t)left[height - 1]);
+  const __m128i bp = _mm_set1_epi16((int16_t)left[height - 1]);
   d = _mm_unpacklo_epi8(d, zero);
   pixels[0] = _mm_unpacklo_epi16(d, bp);
 }
@@ -1033,7 +1033,7 @@ static INLINE void load_pixel_v_w4(const uint8_t *above, const uint8_t *left,
 // weights[1]: scale - weights_h vector
 static INLINE void load_weight_v_w4(int height, __m128i *weights) {
   const __m128i zero = _mm_setzero_si128();
-  const __m128i d = _mm_set1_epi16((uint16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
+  const __m128i d = _mm_set1_epi16((int16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
 
   if (height == 4) {
     const __m128i weight = _mm_cvtsi32_si128(((const int *)smooth_weights)[0]);
@@ -1120,7 +1120,7 @@ static INLINE void load_pixel_v_w8(const uint8_t *above, const uint8_t *left,
                                    int height, __m128i *pixels) {
   const __m128i zero = _mm_setzero_si128();
   __m128i d = _mm_loadl_epi64((const __m128i *)above);
-  const __m128i bp = _mm_set1_epi16((uint16_t)left[height - 1]);
+  const __m128i bp = _mm_set1_epi16((int16_t)left[height - 1]);
   d = _mm_unpacklo_epi8(d, zero);
   pixels[0] = _mm_unpacklo_epi16(d, bp);
   pixels[1] = _mm_unpackhi_epi16(d, bp);
@@ -1136,7 +1136,7 @@ static INLINE void load_pixel_v_w8(const uint8_t *above, const uint8_t *left,
 // weight_h[7]: same as [1], offset 24
 static INLINE void load_weight_v_w8(int height, __m128i *weight_h) {
   const __m128i zero = _mm_setzero_si128();
-  const __m128i d = _mm_set1_epi16((uint16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
+  const __m128i d = _mm_set1_epi16((int16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
 
   if (height < 16) {
     const int offset = height < 8 ? 0 : 4;
@@ -1260,7 +1260,7 @@ static INLINE void smooth_v_predictor_wxh(uint8_t *dst, ptrdiff_t stride,
   const uint8_t *const sm_weights_h = smooth_weights + bh - 4;
   const __m128i zero = _mm_setzero_si128();
   const __m128i scale_value =
-      _mm_set1_epi16((uint16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
+      _mm_set1_epi16((int16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
   const __m128i dup16 = _mm_set1_epi32(0x01000100);
   const __m128i bottom_left =
       _mm_shuffle_epi8(_mm_cvtsi32_si128(left[bh - 1]), dup16);
@@ -1383,7 +1383,7 @@ static INLINE void load_pixel_h_w4(const uint8_t *above, const uint8_t *left,
     pixels[0] = _mm_loadl_epi64(((const __m128i *)left));
   else
     pixels[0] = _mm_loadu_si128(((const __m128i *)left));
-  pixels[1] = _mm_set1_epi16((uint16_t)above[3]);
+  pixels[1] = _mm_set1_epi16((int16_t)above[3]);
 }
 
 // weights[0]: weights_w and scale - weights_w interleave vector
@@ -1393,7 +1393,7 @@ static INLINE void load_weight_h_w4(int height, __m128i *weights) {
   const __m128i zero = _mm_setzero_si128();
 
   const __m128i weights_0 = _mm_unpacklo_epi8(t, zero);
-  const __m128i d = _mm_set1_epi16((uint16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
+  const __m128i d = _mm_set1_epi16((int16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
   const __m128i weights_1 = _mm_sub_epi16(d, weights_0);
   weights[0] = _mm_unpacklo_epi16(weights_0, weights_1);
 }
@@ -1469,7 +1469,7 @@ void aom_smooth_h_predictor_4x16_ssse3(uint8_t *dst, ptrdiff_t stride,
 // pixels[3]: right_pred vector
 static INLINE void load_pixel_h_w8(const uint8_t *above, const uint8_t *left,
                                    int height, __m128i *pixels) {
-  pixels[1] = _mm_set1_epi16((uint16_t)above[7]);
+  pixels[1] = _mm_set1_epi16((int16_t)above[7]);
 
   if (height == 4) {
     pixels[0] = _mm_cvtsi32_si128(((const int *)left)[0]);
@@ -1489,7 +1489,7 @@ static INLINE void load_pixel_h_w8(const uint8_t *above, const uint8_t *left,
 static INLINE void load_weight_h_w8(int height, __m128i *weight_w) {
   (void)height;
   const __m128i zero = _mm_setzero_si128();
-  const __m128i d = _mm_set1_epi16((uint16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
+  const __m128i d = _mm_set1_epi16((int16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
   const __m128i we = _mm_loadu_si128((const __m128i *)&smooth_weights[4]);
   const __m128i tmp1 = _mm_unpacklo_epi8(we, zero);
   const __m128i tmp2 = _mm_sub_epi16(d, tmp1);
@@ -1591,7 +1591,7 @@ static INLINE void smooth_h_predictor_wxh(uint8_t *dst, ptrdiff_t stride,
   const uint8_t *const sm_weights_w = smooth_weights + bw - 4;
   const __m128i zero = _mm_setzero_si128();
   const __m128i scale_value =
-      _mm_set1_epi16((uint16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
+      _mm_set1_epi16((int16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
   const __m128i top_right = _mm_cvtsi32_si128(above[bw - 1]);
   const __m128i gat = _mm_set_epi32(0, 0, 0xe0c0a08, 0x6040200);
   const __m128i pred_round =

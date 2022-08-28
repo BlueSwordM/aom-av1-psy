@@ -743,7 +743,7 @@ static void dr_prediction_z2_HxW_sse4_1(int H, int W, uint8_t *dst,
     __m128i resx, resy;
     __m128i resxy;
     int y = r + 1;
-    ydx = _mm_set1_epi16((uint16_t)(y * dx));
+    ydx = _mm_set1_epi16((int16_t)(y * dx));
 
     int base_x = (-y * dx) >> frac_bits_x;
     for (int j = 0; j < W; j += 16) {

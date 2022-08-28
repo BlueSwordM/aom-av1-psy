@@ -754,7 +754,7 @@ void aom_paeth_predictor_16x8_avx2(uint8_t *dst, ptrdiff_t stride,
                                    const uint8_t *above, const uint8_t *left) {
   __m128i x = _mm_loadl_epi64((const __m128i *)left);
   const __m256i l = _mm256_inserti128_si256(_mm256_castsi128_si256(x), x, 1);
-  const __m256i tl16 = _mm256_set1_epi16((uint16_t)above[-1]);
+  const __m256i tl16 = _mm256_set1_epi16((int16_t)above[-1]);
   __m256i rep = _mm256_set1_epi16((short)0x8000);
   const __m256i one = _mm256_set1_epi16(1);
   const __m256i top = get_top_vector(above);
@@ -778,7 +778,7 @@ static INLINE __m256i get_left_vector(const uint8_t *left) {
 void aom_paeth_predictor_16x16_avx2(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *above, const uint8_t *left) {
   const __m256i l = get_left_vector(left);
-  const __m256i tl16 = _mm256_set1_epi16((uint16_t)above[-1]);
+  const __m256i tl16 = _mm256_set1_epi16((int16_t)above[-1]);
   __m256i rep = _mm256_set1_epi16((short)0x8000);
   const __m256i one = _mm256_set1_epi16(1);
   const __m256i top = get_top_vector(above);
@@ -797,7 +797,7 @@ void aom_paeth_predictor_16x16_avx2(uint8_t *dst, ptrdiff_t stride,
 void aom_paeth_predictor_16x32_avx2(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *above, const uint8_t *left) {
   __m256i l = get_left_vector(left);
-  const __m256i tl16 = _mm256_set1_epi16((uint16_t)above[-1]);
+  const __m256i tl16 = _mm256_set1_epi16((int16_t)above[-1]);
   __m256i rep = _mm256_set1_epi16((short)0x8000);
   const __m256i one = _mm256_set1_epi16(1);
   const __m256i top = get_top_vector(above);
@@ -826,7 +826,7 @@ void aom_paeth_predictor_16x32_avx2(uint8_t *dst, ptrdiff_t stride,
 
 void aom_paeth_predictor_16x64_avx2(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *above, const uint8_t *left) {
-  const __m256i tl16 = _mm256_set1_epi16((uint16_t)above[-1]);
+  const __m256i tl16 = _mm256_set1_epi16((int16_t)above[-1]);
   const __m256i one = _mm256_set1_epi16(1);
   const __m256i top = get_top_vector(above);
 
@@ -864,7 +864,7 @@ void aom_paeth_predictor_32x16_avx2(uint8_t *dst, ptrdiff_t stride,
   const __m256i l = get_left_vector(left);
   const __m256i t0 = get_top_vector(above);
   const __m256i t1 = get_top_vector(above + 16);
-  const __m256i tl = _mm256_set1_epi16((uint16_t)above[-1]);
+  const __m256i tl = _mm256_set1_epi16((int16_t)above[-1]);
   __m256i rep = _mm256_set1_epi16((short)0x8000);
   const __m256i one = _mm256_set1_epi16(1);
 
@@ -886,7 +886,7 @@ void aom_paeth_predictor_32x32_avx2(uint8_t *dst, ptrdiff_t stride,
   __m256i l = get_left_vector(left);
   const __m256i t0 = get_top_vector(above);
   const __m256i t1 = get_top_vector(above + 16);
-  const __m256i tl = _mm256_set1_epi16((uint16_t)above[-1]);
+  const __m256i tl = _mm256_set1_epi16((int16_t)above[-1]);
   __m256i rep = _mm256_set1_epi16((short)0x8000);
   const __m256i one = _mm256_set1_epi16(1);
 
@@ -924,7 +924,7 @@ void aom_paeth_predictor_32x64_avx2(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *above, const uint8_t *left) {
   const __m256i t0 = get_top_vector(above);
   const __m256i t1 = get_top_vector(above + 16);
-  const __m256i tl = _mm256_set1_epi16((uint16_t)above[-1]);
+  const __m256i tl = _mm256_set1_epi16((int16_t)above[-1]);
   const __m256i one = _mm256_set1_epi16(1);
 
   int i, j;
@@ -952,7 +952,7 @@ void aom_paeth_predictor_64x32_avx2(uint8_t *dst, ptrdiff_t stride,
   const __m256i t1 = get_top_vector(above + 16);
   const __m256i t2 = get_top_vector(above + 32);
   const __m256i t3 = get_top_vector(above + 48);
-  const __m256i tl = _mm256_set1_epi16((uint16_t)above[-1]);
+  const __m256i tl = _mm256_set1_epi16((int16_t)above[-1]);
   const __m256i one = _mm256_set1_epi16(1);
 
   int i, j;
@@ -984,7 +984,7 @@ void aom_paeth_predictor_64x64_avx2(uint8_t *dst, ptrdiff_t stride,
   const __m256i t1 = get_top_vector(above + 16);
   const __m256i t2 = get_top_vector(above + 32);
   const __m256i t3 = get_top_vector(above + 48);
-  const __m256i tl = _mm256_set1_epi16((uint16_t)above[-1]);
+  const __m256i tl = _mm256_set1_epi16((int16_t)above[-1]);
   const __m256i one = _mm256_set1_epi16(1);
 
   int i, j;
@@ -1016,7 +1016,7 @@ void aom_paeth_predictor_64x16_avx2(uint8_t *dst, ptrdiff_t stride,
   const __m256i t1 = get_top_vector(above + 16);
   const __m256i t2 = get_top_vector(above + 32);
   const __m256i t3 = get_top_vector(above + 48);
-  const __m256i tl = _mm256_set1_epi16((uint16_t)above[-1]);
+  const __m256i tl = _mm256_set1_epi16((int16_t)above[-1]);
   const __m256i one = _mm256_set1_epi16(1);
 
   int i;
@@ -4092,7 +4092,7 @@ static void dr_prediction_z2_HxW_avx2(int H, int W, uint8_t *dst,
     __m128i resx, resy;
     __m128i resxy;
     int y = r + 1;
-    ydx = _mm256_set1_epi16((uint16_t)(y * dx));
+    ydx = _mm256_set1_epi16((int16_t)(y * dx));
 
     int base_x = (-y * dx) >> frac_bits_x;
     for (int j = 0; j < W; j += 16) {

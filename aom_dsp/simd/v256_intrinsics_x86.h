@@ -80,7 +80,7 @@ SIMD_INLINE v256 v256_zero(void) { return _mm256_setzero_si256(); }
 
 SIMD_INLINE v256 v256_dup_8(uint8_t x) { return _mm256_set1_epi8((char)x); }
 
-SIMD_INLINE v256 v256_dup_16(uint16_t x) { return _mm256_set1_epi16(x); }
+SIMD_INLINE v256 v256_dup_16(uint16_t x) { return _mm256_set1_epi16((short)x); }
 
 SIMD_INLINE v256 v256_dup_32(uint32_t x) { return _mm256_set1_epi32(x); }
 
