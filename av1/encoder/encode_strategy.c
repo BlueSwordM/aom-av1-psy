@@ -807,11 +807,15 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       if (show_existing_alt_ref) {
         aom_extend_frame_borders(tf_buf_second_arf, av1_num_planes(cm));
         frame_input->source = tf_buf_second_arf;
-        aom_copy_metadata_to_frame_buffer(frame_input->source,
-                                          source_buffer->metadata);
       }
       // Currently INTNL_ARF_UPDATE only do show_existing.
       cpi->common.showable_frame |= 1;
+    }
+
+    // Copy source metadata to the temporal filtered frame
+    if (frame_input->source != source_buffer) {
+      aom_copy_metadata_to_frame_buffer(frame_input->source,
+                                        source_buffer->metadata);
     }
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING
