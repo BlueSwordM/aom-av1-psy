@@ -3832,9 +3832,10 @@ static INLINE int is_one_pass_rt_params(const AV1_COMP *cpi) {
          cpi->oxcf.gf_cfg.lag_in_frames == 0;
 }
 
-static INLINE int use_one_pass_rt_reference_structure(const AV1_COMP *cpi) {
-  return cpi->oxcf.speed >= 5 && cpi->ppi->number_spatial_layers == 1 &&
-         cpi->ppi->number_temporal_layers == 1;
+static INLINE int use_rtc_reference_structure_one_layer(const AV1_COMP *cpi) {
+  return is_one_pass_rt_params(cpi) && cpi->ppi->number_spatial_layers == 1 &&
+         cpi->ppi->number_temporal_layers == 1 &&
+         !cpi->svc.set_ref_frame_config;
 }
 
 // Function return size of frame stats buffer

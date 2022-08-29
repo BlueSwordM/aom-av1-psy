@@ -630,7 +630,8 @@ int av1_get_refresh_frame_flags(
 
   int refresh_mask = 0;
   if (ext_refresh_frame_flags->update_pending) {
-    if (svc->set_ref_frame_config) {
+    if (svc->set_ref_frame_config ||
+        use_rtc_reference_structure_one_layer(cpi)) {
       for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++) {
         int ref_frame_map_idx = svc->ref_idx[i];
         refresh_mask |= svc->refresh[ref_frame_map_idx] << ref_frame_map_idx;
@@ -1412,13 +1413,13 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #endif
 #if CONFIG_REALTIME_ONLY
   av1_get_one_pass_rt_params(cpi, &frame_params, &frame_input, *frame_flags);
-  if (use_one_pass_rt_reference_structure(cpi))
-    av1_set_reference_structure_one_pass_rt(cpi, cpi->gf_frame_index == 0);
+  if (use_rtc_reference_structure_one_layer(cpi))
+    av1_set_rtc_reference_structure_one_layer(cpi, cpi->gf_frame_index == 0);
 #else
   if (use_one_pass_rt_params) {
     av1_get_one_pass_rt_params(cpi, &frame_params, &frame_input, *frame_flags);
-    if (use_one_pass_rt_reference_structure(cpi))
-      av1_set_reference_structure_one_pass_rt(cpi, cpi->gf_frame_index == 0);
+    if (use_rtc_reference_structure_one_layer(cpi))
+      av1_set_rtc_reference_structure_one_layer(cpi, cpi->gf_frame_index == 0);
   }
 #endif
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -1499,7 +1500,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       if (!ext_flags->refresh_frame.update_pending) {
         av1_get_ref_frames(ref_frame_map_pairs, cur_frame_disp, cpi,
                            cpi->gf_frame_index, 1, cm->remapped_ref_idx);
-      } else if (cpi->svc.set_ref_frame_config) {
+      } else if (cpi->svc.set_ref_frame_config ||
+                 use_rtc_reference_structure_one_layer(cpi)) {
         for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++)
           cm->remapped_ref_idx[i] = cpi->svc.ref_idx[i];
       }

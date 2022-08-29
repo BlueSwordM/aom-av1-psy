@@ -1000,7 +1000,7 @@ static AOM_INLINE void restore_all_coding_context(AV1_COMP *cpi) {
 static AOM_INLINE int reduce_num_ref_buffers(const AV1_COMP *cpi) {
   const SequenceHeader *const seq_params = cpi->common.seq_params;
   return is_one_pass_rt_params(cpi) &&
-         use_one_pass_rt_reference_structure(cpi) &&
+         use_rtc_reference_structure_one_layer(cpi) &&
          (seq_params->order_hint_info.enable_order_hint == 0) &&
          cpi->rt_reduce_num_ref_buffers;
 }
