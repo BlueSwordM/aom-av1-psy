@@ -57,7 +57,7 @@ SIMD_INLINE v256 v256_from_v64(v64 a, v64 b, v64 c, v64 d) {
 }
 
 SIMD_INLINE v256 v256_from_64(uint64_t a, uint64_t b, uint64_t c, uint64_t d) {
-  return _mm256_set_epi64x(a, b, c, d);
+  return _mm256_set_epi64x((int64_t)a, (int64_t)b, (int64_t)c, (int64_t)d);
 }
 
 SIMD_INLINE v256 v256_load_aligned(const void *p) {
@@ -84,7 +84,9 @@ SIMD_INLINE v256 v256_dup_16(uint16_t x) { return _mm256_set1_epi16((short)x); }
 
 SIMD_INLINE v256 v256_dup_32(uint32_t x) { return _mm256_set1_epi32((int)x); }
 
-SIMD_INLINE v256 v256_dup_64(uint64_t x) { return _mm256_set1_epi64x(x); }
+SIMD_INLINE v256 v256_dup_64(uint64_t x) {
+  return _mm256_set1_epi64x((int64_t)x);
+}
 
 SIMD_INLINE v256 v256_add_8(v256 a, v256 b) { return _mm256_add_epi8(a, b); }
 

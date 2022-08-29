@@ -910,14 +910,14 @@ static INLINE void highbd_blend_a64_d16_mask_w4_avx2(
     const __m256i *round_offset, int shift, const __m256i *clip_low,
     const __m256i *clip_high, const __m256i *mask_max) {
   // Load 4x u16 pixels from each of 4 rows from each source
-  const __m256i s0 = _mm256_set_epi64x(*(uint64_t *)(src0 + 3 * src0_stride),
-                                       *(uint64_t *)(src0 + 2 * src0_stride),
-                                       *(uint64_t *)(src0 + 1 * src0_stride),
-                                       *(uint64_t *)(src0 + 0 * src0_stride));
-  const __m256i s1 = _mm256_set_epi64x(*(uint64_t *)(src1 + 3 * src1_stride),
-                                       *(uint64_t *)(src1 + 2 * src1_stride),
-                                       *(uint64_t *)(src1 + 1 * src1_stride),
-                                       *(uint64_t *)(src1 + 0 * src1_stride));
+  const __m256i s0 = _mm256_set_epi64x(*(int64_t *)(src0 + 3 * src0_stride),
+                                       *(int64_t *)(src0 + 2 * src0_stride),
+                                       *(int64_t *)(src0 + 1 * src0_stride),
+                                       *(int64_t *)(src0 + 0 * src0_stride));
+  const __m256i s1 = _mm256_set_epi64x(*(int64_t *)(src1 + 3 * src1_stride),
+                                       *(int64_t *)(src1 + 2 * src1_stride),
+                                       *(int64_t *)(src1 + 1 * src1_stride),
+                                       *(int64_t *)(src1 + 0 * src1_stride));
   // Generate the inverse mask
   const __m256i mask1 = _mm256_sub_epi16(*mask_max, *mask0);
 
@@ -994,15 +994,15 @@ static INLINE void highbd_blend_a64_d16_mask_subw1_subh1_w4_avx2(
     // (saturating) add together rows then use madd to add adjacent pixels
     // Finally, divide each value by 4 (with rounding)
     const __m256i m0246 =
-        _mm256_set_epi64x(*(uint64_t *)(mask + 6 * mask_stride),
-                          *(uint64_t *)(mask + 4 * mask_stride),
-                          *(uint64_t *)(mask + 2 * mask_stride),
-                          *(uint64_t *)(mask + 0 * mask_stride));
+        _mm256_set_epi64x(*(int64_t *)(mask + 6 * mask_stride),
+                          *(int64_t *)(mask + 4 * mask_stride),
+                          *(int64_t *)(mask + 2 * mask_stride),
+                          *(int64_t *)(mask + 0 * mask_stride));
     const __m256i m1357 =
-        _mm256_set_epi64x(*(uint64_t *)(mask + 7 * mask_stride),
-                          *(uint64_t *)(mask + 5 * mask_stride),
-                          *(uint64_t *)(mask + 3 * mask_stride),
-                          *(uint64_t *)(mask + 1 * mask_stride));
+        _mm256_set_epi64x(*(int64_t *)(mask + 7 * mask_stride),
+                          *(int64_t *)(mask + 5 * mask_stride),
+                          *(int64_t *)(mask + 3 * mask_stride),
+                          *(int64_t *)(mask + 1 * mask_stride));
     const __m256i addrows = _mm256_adds_epu8(m0246, m1357);
     const __m256i adjacent = _mm256_maddubs_epi16(addrows, one_b);
     const __m256i mask0 =
@@ -1101,10 +1101,10 @@ static INLINE void highbd_blend_a64_d16_mask_subw0_subh0_w8_avx2(
   do {
     // Load 8x u8 pixels from each of 4 rows in the mask
     const __m128i mask0a8 =
-        _mm_set_epi64x(*(uint64_t *)mask, *(uint64_t *)(mask + mask_stride));
+        _mm_set_epi64x(*(int64_t *)mask, *(uint64_t *)(mask + mask_stride));
     const __m128i mask0b8 =
-        _mm_set_epi64x(*(uint64_t *)(mask + 2 * mask_stride),
-                       *(uint64_t *)(mask + 3 * mask_stride));
+        _mm_set_epi64x(*(int64_t *)(mask + 2 * mask_stride),
+                       *(int64_t *)(mask + 3 * mask_stride));
     const __m256i mask0a = _mm256_cvtepu8_epi16(mask0a8);
     const __m256i mask0b = _mm256_cvtepu8_epi16(mask0b8);
 

@@ -583,8 +583,8 @@ SIMD_INLINE v128 v128_shr_u64(v128 a, unsigned int c) {
 
 SIMD_INLINE v128 v128_shr_s64(v128 a, unsigned int c) {
   // _mm_sra_epi64 is missing in gcc?
-  return v128_from_64((int64_t)v64_u64(v128_high_v64(a)) >> c,
-                      (int64_t)v64_u64(v128_low_v64(a)) >> c);
+  return v128_from_64((uint64_t)((int64_t)v64_u64(v128_high_v64(a)) >> c),
+                      (uint64_t)((int64_t)v64_u64(v128_low_v64(a)) >> c));
   // return _mm_sra_epi64(a, _mm_cvtsi32_si128((int)c));
 }
 
