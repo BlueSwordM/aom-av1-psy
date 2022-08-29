@@ -596,13 +596,17 @@ static void init_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   // Single thread case: use counts in common.
   cpi->td.counts = &cpi->counts;
 
-  // Set init SVC parameters.
-  cpi->svc.set_ref_frame_config = 0;
-  cpi->svc.non_reference_frame = 0;
+  // Init SVC parameters.
   cpi->svc.number_spatial_layers = 1;
   cpi->svc.number_temporal_layers = 1;
   cm->spatial_layer_id = 0;
   cm->temporal_layer_id = 0;
+  // Init rtc_ref parameters.
+  cpi->rtc_ref.set_ref_frame_config = 0;
+  cpi->rtc_ref.non_reference_frame = 0;
+  cpi->rtc_ref.ref_frame_comp[0] = 0;
+  cpi->rtc_ref.ref_frame_comp[1] = 0;
+  cpi->rtc_ref.ref_frame_comp[2] = 0;
 
   // change includes all joint functionality
   av1_change_config(cpi, oxcf, false);
@@ -852,7 +856,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
 
   set_tile_info(cm, &cpi->oxcf.tile_cfg);
 
-  if (!cpi->svc.set_ref_frame_config)
+  if (!cpi->rtc_ref.set_ref_frame_config)
     cpi->ext_flags.refresh_frame.update_pending = 0;
   cpi->ext_flags.refresh_frame_context_pending = 0;
 
@@ -2185,10 +2189,10 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     av1_cdef_search(&cpi->mt_info, &cm->cur_frame->buf, cpi->source, cm, xd,
                     cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult,
                     cpi->sf.rt_sf.skip_cdef_sb, cpi->oxcf.tool_cfg.cdef_control,
-                    use_screen_content_model, cpi->svc.non_reference_frame);
+                    use_screen_content_model, cpi->rtc_ref.non_reference_frame);
 
     // Apply the filter
-    if (!cpi->svc.non_reference_frame) {
+    if (!cpi->rtc_ref.non_reference_frame) {
       if (num_workers > 1) {
         av1_cdef_frame_mt(cm, xd, cpi->mt_info.cdef_worker,
                           cpi->mt_info.workers, &cpi->mt_info.cdef_sync,
@@ -2284,7 +2288,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   }
 
   if ((lf->filter_level[0] || lf->filter_level[1]) &&
-      !cpi->svc.non_reference_frame) {
+      !cpi->rtc_ref.non_reference_frame) {
     av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0,
                              mt_info->workers, num_workers,
                              &mt_info->lf_row_sync, lpf_opt_level);
@@ -3640,7 +3644,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       break;
     case 1:  // Enable CDF update for all frames.
       if (cpi->sf.rt_sf.disable_cdf_update_non_reference_frame &&
-          cpi->svc.non_reference_frame && cpi->rc.frames_since_key > 2)
+          cpi->rtc_ref.non_reference_frame && cpi->rc.frames_since_key > 2)
         features->disable_cdf_update = 1;
       else
         features->disable_cdf_update = 0;
@@ -4253,7 +4257,7 @@ static AOM_INLINE void update_frames_till_gf_update(AV1_COMP *cpi) {
   // We should fix the cpi->common.show_frame flag
   // instead of checking the other condition to update the counter properly.
   if (cpi->common.show_frame ||
-      is_frame_droppable(&cpi->svc, &cpi->ext_flags.refresh_frame)) {
+      is_frame_droppable(&cpi->rtc_ref, &cpi->ext_flags.refresh_frame)) {
     // Decrement count down till next gf
     if (cpi->rc.frames_till_gf_update_due > 0)
       cpi->rc.frames_till_gf_update_due--;
@@ -5019,29 +5023,33 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *frame_size) {
   return AOM_CODEC_OK;
 }
 
-static void svc_set_updates_ref_frame_config(
-    ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags, SVC *const svc) {
+static void rtc_set_updates_ref_frame_config(
+    ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags,
+    RTC_REF *const rtc_ref) {
   ext_refresh_frame_flags->update_pending = 1;
-  ext_refresh_frame_flags->last_frame = svc->refresh[svc->ref_idx[0]];
-  ext_refresh_frame_flags->golden_frame = svc->refresh[svc->ref_idx[3]];
-  ext_refresh_frame_flags->bwd_ref_frame = svc->refresh[svc->ref_idx[4]];
-  ext_refresh_frame_flags->alt2_ref_frame = svc->refresh[svc->ref_idx[5]];
-  ext_refresh_frame_flags->alt_ref_frame = svc->refresh[svc->ref_idx[6]];
-  svc->non_reference_frame = 1;
+  ext_refresh_frame_flags->last_frame = rtc_ref->refresh[rtc_ref->ref_idx[0]];
+  ext_refresh_frame_flags->golden_frame = rtc_ref->refresh[rtc_ref->ref_idx[3]];
+  ext_refresh_frame_flags->bwd_ref_frame =
+      rtc_ref->refresh[rtc_ref->ref_idx[4]];
+  ext_refresh_frame_flags->alt2_ref_frame =
+      rtc_ref->refresh[rtc_ref->ref_idx[5]];
+  ext_refresh_frame_flags->alt_ref_frame =
+      rtc_ref->refresh[rtc_ref->ref_idx[6]];
+  rtc_ref->non_reference_frame = 1;
   for (int i = 0; i < REF_FRAMES; i++) {
-    if (svc->refresh[i] == 1) {
-      svc->non_reference_frame = 0;
+    if (rtc_ref->refresh[i] == 1) {
+      rtc_ref->non_reference_frame = 0;
       break;
     }
   }
 }
 
-static int svc_set_references_external_ref_frame_config(AV1_COMP *cpi) {
+static int rtc_set_references_external_ref_frame_config(AV1_COMP *cpi) {
   // LAST_FRAME (0), LAST2_FRAME(1), LAST3_FRAME(2), GOLDEN_FRAME(3),
   // BWDREF_FRAME(4), ALTREF2_FRAME(5), ALTREF_FRAME(6).
   int ref = AOM_REFFRAME_ALL;
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-    if (!cpi->svc.reference[i]) ref ^= (1 << i);
+    if (!cpi->rtc_ref.reference[i]) ref ^= (1 << i);
   }
   return ref;
 }
@@ -5080,8 +5088,8 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
 
     av1_use_as_reference(&ext_flags->ref_frame_flags, ref);
   } else {
-    if (cpi->svc.set_ref_frame_config) {
-      int ref = svc_set_references_external_ref_frame_config(cpi);
+    if (cpi->rtc_ref.set_ref_frame_config) {
+      int ref = rtc_set_references_external_ref_frame_config(cpi);
       av1_use_as_reference(&ext_flags->ref_frame_flags, ref);
     }
   }
@@ -5108,8 +5116,8 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
     ext_refresh_frame_flags->alt2_ref_frame = (upd & AOM_ALT2_FLAG) != 0;
     ext_refresh_frame_flags->update_pending = 1;
   } else {
-    if (cpi->svc.set_ref_frame_config)
-      svc_set_updates_ref_frame_config(ext_refresh_frame_flags, &cpi->svc);
+    if (cpi->rtc_ref.set_ref_frame_config)
+      rtc_set_updates_ref_frame_config(ext_refresh_frame_flags, &cpi->rtc_ref);
     else
       ext_refresh_frame_flags->update_pending = 0;
   }

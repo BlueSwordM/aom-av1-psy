@@ -508,12 +508,12 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
   else
     threshold_base =
         scale_part_thresh_content(threshold_base, cpi->oxcf.speed, cm->width,
-                                  cm->height, cpi->svc.non_reference_frame);
+                                  cm->height, cpi->rtc_ref.non_reference_frame);
 #else
   // Increase base variance threshold based on content_state/sum_diff level.
   threshold_base =
       scale_part_thresh_content(threshold_base, cpi->oxcf.speed, cm->width,
-                                cm->height, cpi->svc.non_reference_frame);
+                                cm->height, cpi->rtc_ref.non_reference_frame);
 #endif
   thresholds[0] = threshold_base >> 1;
   thresholds[1] = threshold_base;

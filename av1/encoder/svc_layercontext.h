@@ -90,22 +90,11 @@ typedef struct SVC {
   int temporal_layer_id;
   int number_spatial_layers;
   int number_temporal_layers;
-  int set_ref_frame_config;
-  int non_reference_frame;
   int use_flexible_mode;
   int ksvc_fixed_mode;
-  int ref_frame_comp[3];
   /*!\endcond */
 
-  /*!
-   * LAST_FRAME (0), LAST2_FRAME(1), LAST3_FRAME(2), GOLDEN_FRAME(3),
-   * BWDREF_FRAME(4), ALTREF2_FRAME(5), ALTREF_FRAME(6).
-   */
-  int reference[INTER_REFS_PER_FRAME];
   /*!\cond */
-  int ref_idx[INTER_REFS_PER_FRAME];
-  int refresh[REF_FRAMES];
-  int gld_idx_1layer;
   double base_framerate;
   unsigned int current_superframe;
   unsigned int buffer_time_index[REF_FRAMES];

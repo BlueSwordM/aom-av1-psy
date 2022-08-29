@@ -2536,7 +2536,7 @@ static void set_baseline_gf_interval(AV1_COMP *cpi, FRAME_TYPE frame_type) {
 void av1_adjust_gf_refresh_qp_one_pass_rt(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
-  SVC *const svc = &cpi->svc;
+  RTC_REF *const rtc_ref = &cpi->rtc_ref;
   const int resize_pending = is_frame_resize_pending(cpi);
   if (!resize_pending && !rc->high_source_sad) {
     // Check if we should disable GF refresh (if period is up),
@@ -2551,7 +2551,7 @@ void av1_adjust_gf_refresh_qp_one_pass_rt(AV1_COMP *cpi) {
     if (rc->frames_till_gf_update_due == 1 &&
         cm->quant_params.base_qindex > avg_qp) {
       // Disable GF refresh since QP is above the runninhg average QP.
-      svc->refresh[svc->gld_idx_1layer] = 0;
+      rtc_ref->refresh[rtc_ref->gld_idx_1layer] = 0;
       gf_update_changed = 1;
       cpi->refresh_frame.golden_frame = 0;
     } else if (allow_gf_update &&
@@ -2559,7 +2559,7 @@ void av1_adjust_gf_refresh_qp_one_pass_rt(AV1_COMP *cpi) {
                 (rc->avg_frame_low_motion && rc->avg_frame_low_motion < 20))) {
       // Force refresh since QP is well below average QP or this is a high
       // motion frame.
-      svc->refresh[svc->gld_idx_1layer] = 1;
+      rtc_ref->refresh[rtc_ref->gld_idx_1layer] = 1;
       gf_update_changed = 1;
       cpi->refresh_frame.golden_frame = 1;
     }
@@ -2567,8 +2567,9 @@ void av1_adjust_gf_refresh_qp_one_pass_rt(AV1_COMP *cpi) {
       set_baseline_gf_interval(cpi, INTER_FRAME);
       int refresh_mask = 0;
       for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-        int ref_frame_map_idx = svc->ref_idx[i];
-        refresh_mask |= svc->refresh[ref_frame_map_idx] << ref_frame_map_idx;
+        int ref_frame_map_idx = rtc_ref->ref_idx[i];
+        refresh_mask |= rtc_ref->refresh[ref_frame_map_idx]
+                        << ref_frame_map_idx;
       }
       cm->current_frame.refresh_frame_flags = refresh_mask;
     }
@@ -2598,7 +2599,7 @@ void av1_set_rtc_reference_structure_one_layer(AV1_COMP *cpi, int gf_update) {
   RATE_CONTROL *const rc = &cpi->rc;
   ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
       &ext_flags->refresh_frame;
-  SVC *const svc = &cpi->svc;
+  RTC_REF *const rtc_ref = &cpi->rtc_ref;
   unsigned int lag_alt = 4;
   int last_idx = 0;
   int last_idx_refresh = 0;
@@ -2634,8 +2635,8 @@ void av1_set_rtc_reference_structure_one_layer(AV1_COMP *cpi, int gf_update) {
   // external control SET_SVC_REF_FRAME_CONFIG.
   // TODO(marpan): rename that control and the related internal parameters
   // to rtc_ref.
-  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) svc->ref_idx[i] = 7;
-  for (int i = 0; i < REF_FRAMES; ++i) svc->refresh[i] = 0;
+  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) rtc_ref->ref_idx[i] = 7;
+  for (int i = 0; i < REF_FRAMES; ++i) rtc_ref->refresh[i] = 0;
   // Set the reference frame flags.
   ext_flags->ref_frame_flags ^= AOM_LAST_FLAG;
   ext_flags->ref_frame_flags ^= AOM_ALT_FLAG;
@@ -2658,31 +2659,31 @@ void av1_set_rtc_reference_structure_one_layer(AV1_COMP *cpi, int gf_update) {
     if (cm->current_frame.frame_number > 2)
       last2_idx = ((cm->current_frame.frame_number - 2) % sh);
   }
-  svc->ref_idx[0] = last_idx;          // LAST
-  svc->ref_idx[1] = last_idx_refresh;  // LAST2 (for refresh of last).
+  rtc_ref->ref_idx[0] = last_idx;          // LAST
+  rtc_ref->ref_idx[1] = last_idx_refresh;  // LAST2 (for refresh of last).
   if (cpi->sf.rt_sf.ref_frame_comp_nonrd[1]) {
-    svc->ref_idx[1] = last2_idx;         // LAST2
-    svc->ref_idx[2] = last_idx_refresh;  // LAST3 (for refresh of last).
+    rtc_ref->ref_idx[1] = last2_idx;         // LAST2
+    rtc_ref->ref_idx[2] = last_idx_refresh;  // LAST3 (for refresh of last).
   }
-  svc->ref_idx[3] = gld_idx;      // GOLDEN
-  svc->ref_idx[6] = alt_ref_idx;  // ALT_REF
+  rtc_ref->ref_idx[3] = gld_idx;      // GOLDEN
+  rtc_ref->ref_idx[6] = alt_ref_idx;  // ALT_REF
   // Refresh this slot, which will become LAST on next frame.
-  svc->refresh[last_idx_refresh] = 1;
+  rtc_ref->refresh[last_idx_refresh] = 1;
   // Update GOLDEN on period for fixed slot case.
   if (gf_update && cm->current_frame.frame_type != KEY_FRAME) {
     ext_refresh_frame_flags->golden_frame = 1;
-    svc->refresh[gld_idx] = 1;
+    rtc_ref->refresh[gld_idx] = 1;
   }
-  svc->gld_idx_1layer = gld_idx;
+  rtc_ref->gld_idx_1layer = gld_idx;
   // Set the flag to reduce the number of reference frame buffers used.
   // This assumes that slot 7 is never used.
   cpi->rt_reduce_num_ref_buffers = 1;
-  cpi->rt_reduce_num_ref_buffers &= (svc->ref_idx[0] < 7);
-  cpi->rt_reduce_num_ref_buffers &= (svc->ref_idx[1] < 7);
-  cpi->rt_reduce_num_ref_buffers &= (svc->ref_idx[3] < 7);
-  cpi->rt_reduce_num_ref_buffers &= (svc->ref_idx[6] < 7);
+  cpi->rt_reduce_num_ref_buffers &= (rtc_ref->ref_idx[0] < 7);
+  cpi->rt_reduce_num_ref_buffers &= (rtc_ref->ref_idx[1] < 7);
+  cpi->rt_reduce_num_ref_buffers &= (rtc_ref->ref_idx[3] < 7);
+  cpi->rt_reduce_num_ref_buffers &= (rtc_ref->ref_idx[6] < 7);
   if (cpi->sf.rt_sf.ref_frame_comp_nonrd[1])
-    cpi->rt_reduce_num_ref_buffers &= (svc->ref_idx[2] < 7);
+    cpi->rt_reduce_num_ref_buffers &= (rtc_ref->ref_idx[2] < 7);
 }
 
 /*!\brief Check for scene detection, for 1 pass real-time mode.
@@ -3081,12 +3082,13 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
           svc->spatial_layer_id == 0
               ? 0
               : svc->layer_context[svc->temporal_layer_id].is_key_frame;
-      // If the user is setting the SVC pattern with set_ref_frame_config and
-      // did not set any references, set the frame type to Intra-only.
-      if (svc->set_ref_frame_config) {
+      // If the user is setting the reference structure with
+      // set_ref_frame_config and did not set any references, set the
+      // frame type to Intra-only.
+      if (cpi->rtc_ref.set_ref_frame_config) {
         int no_references_set = 1;
         for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-          if (svc->reference[i]) {
+          if (cpi->rtc_ref.reference[i]) {
             no_references_set = 0;
             break;
           }

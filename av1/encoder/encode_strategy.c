@@ -616,8 +616,8 @@ int av1_get_refresh_frame_flags(
   // flags to 0 to keep things consistent.
   if (frame_params->show_existing_frame) return 0;
 
-  const SVC *const svc = &cpi->svc;
-  if (is_frame_droppable(svc, ext_refresh_frame_flags)) return 0;
+  const RTC_REF *const rtc_ref = &cpi->rtc_ref;
+  if (is_frame_droppable(rtc_ref, ext_refresh_frame_flags)) return 0;
 
 #if !CONFIG_REALTIME_ONLY
   if (cpi->use_ducky_encode &&
@@ -630,11 +630,12 @@ int av1_get_refresh_frame_flags(
 
   int refresh_mask = 0;
   if (ext_refresh_frame_flags->update_pending) {
-    if (svc->set_ref_frame_config ||
+    if (rtc_ref->set_ref_frame_config ||
         use_rtc_reference_structure_one_layer(cpi)) {
       for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-        int ref_frame_map_idx = svc->ref_idx[i];
-        refresh_mask |= svc->refresh[ref_frame_map_idx] << ref_frame_map_idx;
+        int ref_frame_map_idx = rtc_ref->ref_idx[i];
+        refresh_mask |= rtc_ref->refresh[ref_frame_map_idx]
+                        << ref_frame_map_idx;
       }
       return refresh_mask;
     }
@@ -1516,10 +1517,10 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       if (!ext_flags->refresh_frame.update_pending) {
         av1_get_ref_frames(ref_frame_map_pairs, cur_frame_disp, cpi,
                            cpi->gf_frame_index, 1, cm->remapped_ref_idx);
-      } else if (cpi->svc.set_ref_frame_config ||
+      } else if (cpi->rtc_ref.set_ref_frame_config ||
                  use_rtc_reference_structure_one_layer(cpi)) {
         for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++)
-          cm->remapped_ref_idx[i] = cpi->svc.ref_idx[i];
+          cm->remapped_ref_idx[i] = cpi->rtc_ref.ref_idx[i];
       }
     }
 
@@ -1654,7 +1655,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   // Leave a signal for a higher level caller about if this frame is droppable
   if (*size > 0) {
-    cpi->droppable = is_frame_droppable(&cpi->svc, &ext_flags->refresh_frame);
+    cpi->droppable =
+        is_frame_droppable(&cpi->rtc_ref, &ext_flags->refresh_frame);
   }
 
   return AOM_CODEC_OK;

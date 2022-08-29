@@ -2351,6 +2351,22 @@ typedef struct DuckyEncodeInfo {
 /*!\endcond */
 #endif
 
+/*!\cond */
+typedef struct RTC_REF {
+  /*!
+   * LAST_FRAME (0), LAST2_FRAME(1), LAST3_FRAME(2), GOLDEN_FRAME(3),
+   * BWDREF_FRAME(4), ALTREF2_FRAME(5), ALTREF_FRAME(6).
+   */
+  int reference[INTER_REFS_PER_FRAME];
+  int ref_idx[INTER_REFS_PER_FRAME];
+  int refresh[REF_FRAMES];
+  int set_ref_frame_config;
+  int non_reference_frame;
+  int ref_frame_comp[3];
+  int gld_idx_1layer;
+} RTC_REF;
+/*!\endcond */
+
 /*!
  * \brief Structure to hold data corresponding to an encoded frame.
  */
@@ -3390,6 +3406,11 @@ typedef struct AV1_COMP {
    * Frames since last frame with cdf update.
    */
   int frames_since_last_update;
+
+  /*!
+   * Struct for the reference structure for RTC.
+   */
+  RTC_REF rtc_ref;
 } AV1_COMP;
 
 /*!
@@ -3823,10 +3844,11 @@ static INLINE int is_one_pass_rt_params(const AV1_COMP *cpi) {
          cpi->oxcf.gf_cfg.lag_in_frames == 0;
 }
 
+// Use default/internal reference structure for single-layer RTC.
 static INLINE int use_rtc_reference_structure_one_layer(const AV1_COMP *cpi) {
   return is_one_pass_rt_params(cpi) && cpi->ppi->number_spatial_layers == 1 &&
          cpi->ppi->number_temporal_layers == 1 &&
-         !cpi->svc.set_ref_frame_config;
+         !cpi->rtc_ref.set_ref_frame_config;
 }
 
 // Function return size of frame stats buffer

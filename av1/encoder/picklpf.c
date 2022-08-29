@@ -212,7 +212,7 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
   if (disable_filter_rt_screen ||
       cpi->oxcf.algo_cfg.loopfilter_control == LOOPFILTER_NONE ||
       (cpi->oxcf.algo_cfg.loopfilter_control == LOOPFILTER_REFERENCE &&
-       cpi->svc.non_reference_frame)) {
+       cpi->rtc_ref.non_reference_frame)) {
     lf->filter_level[0] = 0;
     lf->filter_level[1] = 0;
     return;
