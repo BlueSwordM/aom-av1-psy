@@ -1505,10 +1505,15 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // variance wrt LAST reference.
   int prune_inter_modes_using_temp_var;
 
-  // Reduce MV precision at block level, represents various algos (0: disabled)
-  // 1: switch to halfpel, fullpel based on blk SAD, source var, bsize and qp
-  // 2: switch to halfpel based on integer mv size, bsize, frame-level motion
-  int reduce_mv_pel_precision;
+  // Reduce MV precision to halfpel for higher int MV value & frame-level motion
+  int reduce_mv_pel_precision_highmotion;
+
+  // Reduce MV precision for low complexity blocks
+  // 0: disabled
+  // 1: Reduce the mv resolution for zero mv if the variance is low
+  // 2: Switch to halfpel, fullpel based on low block spatial-temporal
+  // complexity.
+  int reduce_mv_pel_precision_lowcomplex;
 
   // Prune intra mode evaluation in inter frames based on mv range.
   BLOCK_SIZE prune_intra_mode_based_on_mv_range;
@@ -1555,9 +1560,6 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Level of aggressiveness for obtaining tx size based on qstep
   int tx_size_level_based_on_qstep;
-
-  // Reduce the mv resolution for zero mv if the variance is low.
-  bool reduce_zeromv_mvres;
 
   // Avoid the partitioning of a 16x16 block in variance based partitioning
   // (VBP) by making use of minimum and maximum sub-block variances.

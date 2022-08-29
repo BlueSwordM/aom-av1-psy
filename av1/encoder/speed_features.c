@@ -1292,7 +1292,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed >= 10) {
       sf->rt_sf.skip_intra_pred = 2;
       sf->rt_sf.hybrid_intra_pickmode = 3;
-      sf->rt_sf.reduce_zeromv_mvres = true;
+      sf->rt_sf.reduce_mv_pel_precision_lowcomplex = 1;
     }
   } else {
     sf->rt_sf.prune_intra_mode_based_on_mv_range = 2;
@@ -1344,14 +1344,14 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
   } else {
     if (speed >= 6) sf->rt_sf.skip_newmv_mode_based_on_sse = 3;
     if (speed == 7) sf->rt_sf.prefer_large_partition_blocks = 0;
-    if (speed >= 7) sf->rt_sf.reduce_mv_pel_precision = 1;
+    if (speed >= 7) sf->rt_sf.reduce_mv_pel_precision_lowcomplex = 2;
     if (speed >= 9) {
       sf->rt_sf.sad_based_adp_altref_lag = 1;
-      sf->rt_sf.reduce_mv_pel_precision = 0;
+      sf->rt_sf.reduce_mv_pel_precision_lowcomplex = 0;
     }
     if (speed >= 10) {
       sf->rt_sf.sad_based_adp_altref_lag = 3;
-      sf->rt_sf.reduce_mv_pel_precision = 2;
+      sf->rt_sf.reduce_mv_pel_precision_highmotion = 1;
     }
   }
   // Setting for SVC, or when the ref_frame_config control is
@@ -1369,11 +1369,11 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->mv_sf.search_method = NSTEP;
       sf->mv_sf.subpel_search_method = SUBPEL_TREE;
       sf->rt_sf.fullpel_search_step_param = 6;
-      sf->rt_sf.reduce_mv_pel_precision = 0;
+      sf->rt_sf.reduce_mv_pel_precision_highmotion = 0;
     }
     if (speed >= 8) {
       sf->rt_sf.disable_cdf_update_non_reference_frame = true;
-      sf->rt_sf.reduce_mv_pel_precision = 2;
+      sf->rt_sf.reduce_mv_pel_precision_highmotion = 1;
       if (rtc_ref->non_reference_frame) {
         sf->rt_sf.nonrd_agressive_skip = 1;
         sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
@@ -1411,8 +1411,8 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.nonrd_prune_ref_frame_search = 3;
       sf->rt_sf.var_part_split_threshold_shift = 10;
       sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
-      sf->rt_sf.reduce_mv_pel_precision = 2;
-      sf->rt_sf.reduce_zeromv_mvres = true;
+      sf->rt_sf.reduce_mv_pel_precision_highmotion = 1;
+      sf->rt_sf.reduce_mv_pel_precision_lowcomplex = 1;
       sf->rt_sf.screen_content_cdef_filter_qindex_thresh = 20;
     }
     if (speed >= 10) {
@@ -1720,7 +1720,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.var_part_based_on_qidx = 0;
     sf->rt_sf.frame_level_mode_cost_update = true;
     sf->rt_sf.check_only_zero_zeromv_on_large_blocks = true;
-    sf->rt_sf.reduce_mv_pel_precision = 0;
+    sf->rt_sf.reduce_mv_pel_precision_highmotion = 0;
     sf->rt_sf.use_adaptive_subpel_search = false;
     // For multi-thread use case with row_mt enabled, enable top right
     // dependency wait of threads at mi level.
@@ -1737,7 +1737,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.nonrd_prune_ref_frame_search = 3;
     sf->rt_sf.var_part_split_threshold_shift = 10;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
-    sf->rt_sf.reduce_mv_pel_precision = 2;
+    sf->rt_sf.reduce_mv_pel_precision_highmotion = 1;
   }
 }
 
@@ -2049,7 +2049,8 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->prune_inter_modes_with_golden_ref = 0;
   rt_sf->prune_inter_modes_wrt_gf_arf_based_on_sad = 0;
   rt_sf->prune_inter_modes_using_temp_var = 0;
-  rt_sf->reduce_mv_pel_precision = 0;
+  rt_sf->reduce_mv_pel_precision_highmotion = 0;
+  rt_sf->reduce_mv_pel_precision_lowcomplex = 0;
   rt_sf->prune_intra_mode_based_on_mv_range = 0;
   rt_sf->var_part_split_threshold_shift = 7;
   rt_sf->gf_refresh_based_on_qp = 0;
@@ -2062,7 +2063,6 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->partition_direct_merging = 0;
   rt_sf->var_part_based_on_qidx = 0;
   rt_sf->tx_size_level_based_on_qstep = 0;
-  rt_sf->reduce_zeromv_mvres = false;
   rt_sf->vbp_prune_16x16_split_using_min_max_sub_blk_var = false;
   rt_sf->prune_compoundmode_with_singlecompound_var = false;
   rt_sf->frame_level_mode_cost_update = false;

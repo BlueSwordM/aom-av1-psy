@@ -175,9 +175,10 @@ static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
 }
 
 static INLINE int subpel_select(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
-                                int_mv *mv) {
-  assert(cpi->sf.rt_sf.reduce_mv_pel_precision);
-  if (cpi->sf.rt_sf.reduce_mv_pel_precision == 2) {
+                                int_mv *mv, MV ref_mv, FULLPEL_MV start_mv,
+                                bool fullpel_performed_well) {
+  // Reduce MV precision to halfpel for higher int MV value& frame-level motion
+  if (cpi->sf.rt_sf.reduce_mv_pel_precision_highmotion == 1) {
     int mv_thresh = 4;
     const int is_low_resoln =
         (cpi->common.width * cpi->common.height <= 320 * 240);
@@ -188,9 +189,10 @@ static INLINE int subpel_select(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     if (abs(mv->as_fullmv.row) >= mv_thresh ||
         abs(mv->as_fullmv.col) >= mv_thresh)
       return HALF_PEL;
-  } else if (cpi->sf.rt_sf.reduce_mv_pel_precision == 1) {
-    // Reduce MV precision for relatively static (e.g. background), low-complex
-    // large areas
+  }
+  // Reduce MV precision for relatively static (e.g. background), low-complex
+  // large areas
+  if (cpi->sf.rt_sf.reduce_mv_pel_precision_lowcomplex >= 2) {
     const int qband = x->qindex >> (QINDEX_BITS - 2);
     assert(qband < 4);
     if (x->content_state_sb.source_sad_nonrd <= kVeryLowSad &&
@@ -200,6 +202,10 @@ static INLINE int subpel_select(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
       else if (x->source_variance < 5000)
         return HALF_PEL;
     }
+  } else if (cpi->sf.rt_sf.reduce_mv_pel_precision_lowcomplex >= 1) {
+    if (fullpel_performed_well && ref_mv.row == 0 && ref_mv.col == 0 &&
+        start_mv.row == 0 && start_mv.col == 0)
+      return HALF_PEL;
   }
   return cpi->sf.mv_sf.subpel_force_stop;
 }
@@ -296,24 +302,14 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
                                       cost_list);
-    if (sf->rt_sf.reduce_mv_pel_precision &&
-        sf->mv_sf.subpel_force_stop < HALF_PEL)
-      ms_params.forced_stop = subpel_select(cpi, x, bsize, tmp_mv);
     const bool fullpel_performed_well =
         (bsize == BLOCK_64X64 && full_var_rd * 40 < 62267 * 7) ||
         (bsize == BLOCK_32X32 && full_var_rd * 8 < 42380) ||
         (bsize == BLOCK_16X16 && full_var_rd * 8 < 10127);
-    if (sf->rt_sf.reduce_zeromv_mvres && ref_mv.row == 0 && ref_mv.col == 0 &&
-        start_mv.row == 0 && start_mv.col == 0) {
-      // If both the refmv and the fullpel results show zero mv, then there is
-      // high likelihood that the current block is static. So we can try to
-      // reduce the mv resolution here.
-      // These thresholds are the mean var rd collected from multiple encoding
-      // runs.
-      if (fullpel_performed_well) {
-        ms_params.forced_stop = HALF_PEL;
-      }
-    }
+    if (sf->rt_sf.reduce_mv_pel_precision_highmotion ||
+        sf->rt_sf.reduce_mv_pel_precision_lowcomplex)
+      ms_params.forced_stop = subpel_select(cpi, x, bsize, tmp_mv, ref_mv,
+                                            start_mv, fullpel_performed_well);
 
     MV subpel_start_mv = get_mv_from_fullmv(&tmp_mv->as_fullmv);
     if (sf->rt_sf.use_adaptive_subpel_search &&
@@ -402,9 +398,12 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
 
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv, NULL);
-    if (cpi->sf.rt_sf.reduce_mv_pel_precision &&
-        cpi->sf.mv_sf.subpel_force_stop < HALF_PEL)
-      ms_params.forced_stop = subpel_select(cpi, x, bsize, &best_mv);
+    if (cpi->sf.rt_sf.reduce_mv_pel_precision_highmotion ||
+        cpi->sf.rt_sf.reduce_mv_pel_precision_lowcomplex) {
+      FULLPEL_MV start_mv = { .row = 0, .col = 0 };
+      ms_params.forced_stop =
+          subpel_select(cpi, x, bsize, &best_mv, ref_mv, start_mv, false);
+    }
     MV start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, start_mv, &best_mv.as_mv, &dis,
