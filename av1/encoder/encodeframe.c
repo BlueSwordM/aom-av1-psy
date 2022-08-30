@@ -803,8 +803,9 @@ static AOM_INLINE bool is_calc_src_content_needed(AV1_COMP *cpi,
  */
 // TODO(any): consolidate sfs to make interface cleaner
 static AOM_INLINE void grade_source_content_sb(AV1_COMP *cpi,
-                                               MACROBLOCK *const x, int mi_row,
-                                               int mi_col) {
+                                               MACROBLOCK *const x,
+                                               TileDataEnc *tile_data,
+                                               int mi_row, int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
   bool calc_src_content = false;
 
@@ -823,7 +824,8 @@ static AOM_INLINE void grade_source_content_sb(AV1_COMP *cpi,
     else
       x->content_state_sb.source_sad_rd = kZeroSad;
   }
-  if (calc_src_content) av1_source_content_sb(cpi, x, mi_row, mi_col);
+  if (calc_src_content)
+    av1_source_content_sb(cpi, x, tile_data, mi_row, mi_col);
 }
 
 /*!\brief Encode a superblock row by breaking it into superblocks
@@ -939,7 +941,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
 
     // Grade the temporal variation of the sb, the grade will be used to decide
     // fast mode search strategy for coding blocks
-    grade_source_content_sb(cpi, x, mi_row, mi_col);
+    grade_source_content_sb(cpi, x, tile_data, mi_row, mi_col);
 
     // encode the superblock
     if (use_nonrd_mode) {
