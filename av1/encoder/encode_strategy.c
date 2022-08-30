@@ -826,9 +826,12 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     }
 
     // Copy source metadata to the temporal filtered frame
-    if (frame_input->source != source_buffer) {
-      aom_copy_metadata_to_frame_buffer(frame_input->source,
-                                        source_buffer->metadata);
+    if (source_buffer->metadata &&
+        aom_copy_metadata_to_frame_buffer(frame_input->source,
+                                          source_buffer->metadata)) {
+      aom_internal_error(
+          cm->error, AOM_CODEC_MEM_ERROR,
+          "Failed to copy source metadata to the temporal filtered frame");
     }
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING
