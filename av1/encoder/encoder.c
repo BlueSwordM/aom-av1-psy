@@ -3940,8 +3940,11 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
 #endif  //  CONFIG_DENOISE
 
   if (av1_lookahead_push(cpi->ppi->lookahead, sd, time_stamp, end_time,
-                         use_highbitdepth, frame_flags))
+                         use_highbitdepth, frame_flags)) {
+    aom_internal_error(cm->error, AOM_CODEC_ERROR,
+                       "av1_lookahead_push() failed");
     res = -1;
+  }
 #if CONFIG_INTERNAL_STATS
   aom_usec_timer_mark(&timer);
   cpi->ppi->total_time_receive_data += aom_usec_timer_elapsed(&timer);

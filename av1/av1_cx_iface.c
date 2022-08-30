@@ -2914,7 +2914,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       // key frame flag when we actually encode this frame.
       if (av1_receive_raw_frame(cpi, flags | ctx->next_frame_flags, &sd,
                                 src_time_stamp, src_end_time_stamp)) {
-        res = update_error_state(ctx, &ppi->error);
+        res = update_error_state(ctx, cpi->common.error);
       }
       ctx->next_frame_flags = 0;
     }
