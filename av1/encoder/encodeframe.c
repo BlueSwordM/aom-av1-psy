@@ -759,8 +759,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
  * \callgraph
  * \callergraph
  */
-static AOM_INLINE bool is_calc_src_content_needed(AV1_COMP *cpi, int mi_row,
-                                                  int mi_col) {
+static AOM_INLINE bool is_calc_src_content_needed(AV1_COMP *cpi,
+                                                  MACROBLOCK *const x,
+                                                  int mi_row, int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
   bool do_calc_src_content = true;
 
@@ -785,6 +786,9 @@ static AOM_INLINE bool is_calc_src_content_needed(AV1_COMP *cpi, int mi_row,
 
     if (blk_sad > thresh_low && blk_sad < thresh_high) {
       do_calc_src_content = false;
+      // Note: set x->content_state_sb.source_sad_rd as well if this is extended
+      // to RTC rd path.
+      x->content_state_sb.source_sad_nonrd = kMedSad;
     }
   }
 
@@ -808,7 +812,7 @@ static AOM_INLINE void grade_source_content_sb(AV1_COMP *cpi,
       cpi->svc.number_spatial_layers <= 1 &&
       cm->current_frame.frame_type != KEY_FRAME) {
     if (!cpi->sf.rt_sf.check_scene_detection || cpi->rc.frame_source_sad > 0) {
-      calc_src_content = is_calc_src_content_needed(cpi, mi_row, mi_col);
+      calc_src_content = is_calc_src_content_needed(cpi, x, mi_row, mi_col);
     } else {
       x->content_state_sb.source_sad_nonrd = kZeroSad;
     }
