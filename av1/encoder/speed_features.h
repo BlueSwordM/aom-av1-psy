@@ -1423,9 +1423,6 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // temporal variance.
   int short_circuit_low_temp_var;
 
-  // Use modeled (currently CurvFit model) RDCost for fast non-RD mode
-  int use_modeled_non_rd_cost;
-
   // Reuse inter prediction in fast non-rd mode.
   int reuse_inter_pred_nonrd;
 

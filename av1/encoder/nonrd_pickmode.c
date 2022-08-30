@@ -2142,8 +2142,6 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
  * \param[in]    x                        Pointer to structure holding all the
  *                                        data for the current macroblock
  * \param[in]    bsize                    Current block size
- * \param[in]    use_modeled_non_rd_cost  Flag, indicating usage of curvfit
- *                                        model for RD cost
  * \param[in]    best_early_term          Flag, indicating that TX for the
  *                                        best inter mode was skipped
  * \param[in]    ref_cost_intra           Cost of signalling intra mode
@@ -2164,10 +2162,9 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
  * \c best_rdc and best selected mode is placed to \c best_pickmode
  */
 static void estimate_intra_mode(
-    AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int use_modeled_non_rd_cost,
-    int best_early_term, unsigned int ref_cost_intra, int reuse_prediction,
-    struct buf_2d *orig_dst, PRED_BUFFER *tmp_buffers,
-    PRED_BUFFER **this_mode_pred, RD_STATS *best_rdc,
+    AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int best_early_term,
+    unsigned int ref_cost_intra, int reuse_prediction, struct buf_2d *orig_dst,
+    PRED_BUFFER *tmp_buffers, PRED_BUFFER **this_mode_pred, RD_STATS *best_rdc,
     BEST_PICKMODE *best_pickmode, PICK_MODE_CONTEXT *ctx) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -2321,11 +2318,8 @@ static void estimate_intra_mode(
     mi->tx_size = intra_tx_size;
     compute_intra_yprediction(cm, this_mode, bsize, x, xd);
     // Look into selecting tx_size here, based on prediction residual.
-    if (use_modeled_non_rd_cost)
-      model_rd_for_sb_y(cpi, bsize, x, xd, &this_rdc, NULL, 1);
-    else
-      av1_block_yrd(cpi, x, mi_row, mi_col, &this_rdc, &args.skippable, bsize,
-                    mi->tx_size, DCT_DCT, 0);
+    av1_block_yrd(cpi, x, mi_row, mi_col, &this_rdc, &args.skippable, bsize,
+                  mi->tx_size, DCT_DCT, 0);
     // TODO(kyslov@) Need to account for skippable
     if (x->color_sensitivity[0]) {
       av1_foreach_transformed_block_in_plane(xd, uv_bsize, 1,
@@ -2806,7 +2800,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int svc_mv_col = 0;
   int svc_mv_row = 0;
   int force_mv_inter_layer = 0;
-  int use_modeled_non_rd_cost = 0;
   bool comp_use_zero_zeromv_only = 0;
   int tot_num_comp_modes = NUM_COMP_INTER_MODES_RT;
   unsigned int vars[RTC_INTER_MODES][REF_FRAMES];
@@ -2922,21 +2915,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   const int enable_filter_search =
       is_filter_search_enabled(cpi, mi_row, mi_col, bsize, segment_id);
-
-  // TODO(marpan): Look into reducing these conditions. For now constrain
-  // it to avoid significant bdrate loss.
-  if (cpi->sf.rt_sf.use_modeled_non_rd_cost) {
-    if (cpi->svc.non_reference_frame)
-      use_modeled_non_rd_cost = 1;
-    else if (cpi->svc.number_temporal_layers > 1 &&
-             cpi->svc.temporal_layer_id == 0)
-      use_modeled_non_rd_cost = 0;
-    else
-      use_modeled_non_rd_cost =
-          (quant_params->base_qindex > 120 && x->source_variance > 100 &&
-           bsize <= BLOCK_16X16 && !x->content_state_sb.lighting_change &&
-           x->content_state_sb.source_sad_nonrd != kHighSad);
-  }
 
 #if COLLECT_PICK_MODE_STAT
   ms_stat.num_blocks[bsize]++;
@@ -3263,11 +3241,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       }
       if (use_model_yrd_large) {
         model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd, &this_rdc,
-                                  &this_early_term, use_modeled_non_rd_cost,
-                                  best_pickmode.best_sse, &var, var_threshold);
+                                  &this_early_term, 0, best_pickmode.best_sse,
+                                  &var, var_threshold);
       } else {
-        model_rd_for_sb_y(cpi, bsize, x, xd, &this_rdc, &var,
-                          use_modeled_non_rd_cost);
+        model_rd_for_sb_y(cpi, bsize, x, xd, &this_rdc, &var, 0);
       }
       if (!comp_pred) {
         vars[INTER_OFFSET(this_mode)][ref_frame] = var;
@@ -3313,33 +3290,25 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       this_rdc.rate = skip_txfm_cost;
       this_rdc.dist = this_rdc.sse << 4;
     } else {
-      if (use_modeled_non_rd_cost) {
-        if (this_rdc.skip_txfm) {
-          this_rdc.rate = skip_txfm_cost;
-        } else {
-          this_rdc.rate += no_skip_txfm_cost;
-        }
-      } else {
 #if COLLECT_PICK_MODE_STAT
-        aom_usec_timer_start(&ms_stat.timer2);
+      aom_usec_timer_start(&ms_stat.timer2);
 #endif
-        av1_block_yrd(cpi, x, mi_row, mi_col, &this_rdc, &is_skippable, bsize,
-                      mi->tx_size, DCT_DCT, 1);
-        if (this_rdc.skip_txfm ||
-            RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist) >=
-                RDCOST(x->rdmult, 0, this_rdc.sse)) {
-          if (!this_rdc.skip_txfm) {
-            // Need to store "real" rdc for possible furure use if UV rdc
-            // disallows tx skip
-            nonskip_rdc = this_rdc;
-            nonskip_rdc.rate += no_skip_txfm_cost;
-          }
-          this_rdc.rate = skip_txfm_cost;
-          this_rdc.skip_txfm = 1;
-          this_rdc.dist = this_rdc.sse;
-        } else {
-          this_rdc.rate += no_skip_txfm_cost;
+      av1_block_yrd(cpi, x, mi_row, mi_col, &this_rdc, &is_skippable, bsize,
+                    mi->tx_size, DCT_DCT, 1);
+      if (this_rdc.skip_txfm ||
+          RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist) >=
+              RDCOST(x->rdmult, 0, this_rdc.sse)) {
+        if (!this_rdc.skip_txfm) {
+          // Need to store "real" rdc for possible furure use if UV rdc
+          // disallows tx skip
+          nonskip_rdc = this_rdc;
+          nonskip_rdc.rate += no_skip_txfm_cost;
         }
+        this_rdc.rate = skip_txfm_cost;
+        this_rdc.skip_txfm = 1;
+        this_rdc.dist = this_rdc.sse;
+      } else {
+        this_rdc.rate += no_skip_txfm_cost;
       }
       if ((x->color_sensitivity[0] || x->color_sensitivity[1])) {
         RD_STATS rdc_uv;
@@ -3442,7 +3411,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       best_pickmode.best_mode_skip_txfm = this_rdc.skip_txfm;
       best_pickmode.best_mode_initial_skip_flag =
           (nonskip_rdc.rate == INT_MAX && this_rdc.skip_txfm);
-      if (!best_pickmode.best_mode_skip_txfm && !use_modeled_non_rd_cost) {
+      if (!best_pickmode.best_mode_skip_txfm) {
         memcpy(best_pickmode.blk_skip, txfm_info->blk_skip,
                sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
       }
@@ -3499,7 +3468,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #endif
 
   if (!x->force_zeromv_skip)
-    estimate_intra_mode(cpi, x, bsize, use_modeled_non_rd_cost, best_early_term,
+    estimate_intra_mode(cpi, x, bsize, best_early_term,
                         ref_costs_single[INTRA_FRAME], reuse_inter_pred,
                         &orig_dst, tmp, &this_mode_pred, &best_rdc,
                         &best_pickmode, ctx);

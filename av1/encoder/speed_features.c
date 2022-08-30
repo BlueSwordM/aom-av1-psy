@@ -1354,6 +1354,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.reduce_mv_pel_precision = 2;
     }
   }
+  // SVC settings.
   if (cpi->ppi->use_svc) {
     // For SVC: for greater than 2 temporal layers, use better mv search on
     // base temporal layers, and only on base spatial layer if highest
@@ -1376,6 +1377,14 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
         sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
       }
     }
+    if (speed <= 9 && cpi->svc.number_temporal_layers > 2 &&
+        cpi->svc.temporal_layer_id == 0)
+      sf->rt_sf.check_only_zero_zeromv_on_large_blocks = false;
+    else
+      sf->rt_sf.check_only_zero_zeromv_on_large_blocks = true;
+    if (cpi->svc.number_temporal_layers > 1 && cpi->svc.temporal_layer_id == 0)
+      sf->rt_sf.source_metrics_sb_nonrd = 0;
+    // Compound mode enabling.
     if (cpi->svc.ref_frame_comp[0] || cpi->svc.ref_frame_comp[1] ||
         cpi->svc.ref_frame_comp[2]) {
       sf->rt_sf.use_comp_ref_nonrd = 1;
@@ -1388,12 +1397,8 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     } else {
       sf->rt_sf.use_comp_ref_nonrd = 0;
     }
-    if (speed <= 9 && cpi->svc.number_temporal_layers > 2 &&
-        cpi->svc.temporal_layer_id == 0)
-      sf->rt_sf.check_only_zero_zeromv_on_large_blocks = false;
-    else
-      sf->rt_sf.check_only_zero_zeromv_on_large_blocks = true;
   }
+  // Screen settings.
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
     // TODO(marpan): Check settings for speed 7 and 8.
     if (speed >= 9) {
@@ -1406,11 +1411,13 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
       sf->rt_sf.reduce_mv_pel_precision = 2;
       sf->rt_sf.reduce_zeromv_mvres = true;
+      sf->rt_sf.screen_content_cdef_filter_qindex_thresh = 20;
     }
     if (speed >= 10) {
       if (cm->width * cm->height > 1920 * 1080)
         sf->part_sf.disable_8x8_part_based_on_qidx = 1;
       sf->rt_sf.set_zeromv_skip_based_on_source_sad = 2;
+      sf->rt_sf.screen_content_cdef_filter_qindex_thresh = 80;
     }
     sf->rt_sf.skip_cdef_sb = 1;
     sf->rt_sf.use_rtc_tf = 0;
@@ -1432,8 +1439,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
     sf->rt_sf.partition_direct_merging = 0;
   }
-  if (cpi->svc.number_temporal_layers > 1 && cpi->svc.temporal_layer_id == 0)
-    sf->rt_sf.source_metrics_sb_nonrd = 0;
 }
 
 // TODO(kyslov): now this is very similar to
@@ -1704,7 +1709,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   if (speed >= 9) {
     sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_3;
-    sf->rt_sf.screen_content_cdef_filter_qindex_thresh = 20;
     sf->rt_sf.estimate_motion_for_var_based_partition = 0;
     sf->rt_sf.prefer_large_partition_blocks = 3;
     sf->rt_sf.skip_intra_pred = 2;
@@ -1732,7 +1736,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.var_part_split_threshold_shift = 10;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
     sf->rt_sf.reduce_mv_pel_precision = 2;
-    sf->rt_sf.screen_content_cdef_filter_qindex_thresh = 80;
   }
 }
 
@@ -2021,7 +2024,6 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->use_comp_ref_nonrd = 0;
   rt_sf->use_real_time_ref_set = 0;
   rt_sf->short_circuit_low_temp_var = 0;
-  rt_sf->use_modeled_non_rd_cost = 0;
   rt_sf->reuse_inter_pred_nonrd = 0;
   rt_sf->num_inter_modes_for_tx_search = INT_MAX;
   rt_sf->use_nonrd_filter_search = 0;
