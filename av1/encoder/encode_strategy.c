@@ -413,35 +413,35 @@ static void update_frame_flags(const AV1_COMMON *const cm,
                                const RefreshFrameInfo *const refresh_frame,
                                unsigned int *frame_flags) {
   if (encode_show_existing_frame(cm)) {
-    *frame_flags &= ~FRAMEFLAGS_GOLDEN;
-    *frame_flags &= ~FRAMEFLAGS_BWDREF;
-    *frame_flags &= ~FRAMEFLAGS_ALTREF;
-    *frame_flags &= ~FRAMEFLAGS_KEY;
+    *frame_flags &= ~(uint32_t)FRAMEFLAGS_GOLDEN;
+    *frame_flags &= ~(uint32_t)FRAMEFLAGS_BWDREF;
+    *frame_flags &= ~(uint32_t)FRAMEFLAGS_ALTREF;
+    *frame_flags &= ~(uint32_t)FRAMEFLAGS_KEY;
     return;
   }
 
   if (refresh_frame->golden_frame) {
     *frame_flags |= FRAMEFLAGS_GOLDEN;
   } else {
-    *frame_flags &= ~FRAMEFLAGS_GOLDEN;
+    *frame_flags &= ~(uint32_t)FRAMEFLAGS_GOLDEN;
   }
 
   if (refresh_frame->alt_ref_frame) {
     *frame_flags |= FRAMEFLAGS_ALTREF;
   } else {
-    *frame_flags &= ~FRAMEFLAGS_ALTREF;
+    *frame_flags &= ~(uint32_t)FRAMEFLAGS_ALTREF;
   }
 
   if (refresh_frame->bwd_ref_frame) {
     *frame_flags |= FRAMEFLAGS_BWDREF;
   } else {
-    *frame_flags &= ~FRAMEFLAGS_BWDREF;
+    *frame_flags &= ~(uint32_t)FRAMEFLAGS_BWDREF;
   }
 
   if (cm->current_frame.frame_type == KEY_FRAME) {
     *frame_flags |= FRAMEFLAGS_KEY;
   } else {
-    *frame_flags &= ~FRAMEFLAGS_KEY;
+    *frame_flags &= ~(uint32_t)FRAMEFLAGS_KEY;
   }
 }
 

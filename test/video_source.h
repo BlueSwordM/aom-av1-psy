@@ -215,7 +215,7 @@ class DummyVideoSource : public VideoSource {
     aom_img_free(img_);
     img_ = aom_img_alloc(nullptr, format_, width_, height_, 32);
     ASSERT_NE(img_, nullptr);
-    raw_sz_ = ((img_->w + 31) & ~31) * img_->h * img_->bps / 8;
+    raw_sz_ = ((img_->w + 31) & ~31u) * img_->h * img_->bps / 8;
   }
 
   aom_image_t *img_;

@@ -306,7 +306,7 @@ uint64_t aom_sum_squares_i16_sse2(const int16_t *src, uint32_t n) {
   if (n % 64 == 0) {
     return aom_sum_squares_i16_64n_sse2(src, n);
   } else if (n > 64) {
-    int k = n & ~(64 - 1);
+    const uint32_t k = n & ~63u;
     return aom_sum_squares_i16_64n_sse2(src, k) +
            aom_sum_squares_i16_c(src + k, n - k);
   } else {

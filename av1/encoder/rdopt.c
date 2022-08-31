@@ -3885,7 +3885,7 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
   }
 
   mask->pred_modes[INTRA_FRAME] |=
-      ~(sf->intra_sf.intra_y_mode_mask[max_txsize_lookup[bsize]]);
+      ~(uint32_t)sf->intra_sf.intra_y_mode_mask[max_txsize_lookup[bsize]];
 }
 
 static AOM_INLINE void init_neighbor_pred_buf(
