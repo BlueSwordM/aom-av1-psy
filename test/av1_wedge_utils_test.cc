@@ -341,7 +341,7 @@ TEST_P(WedgeUtilsDeltaSquaresOptTest, RandomValues) {
 
   for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
     for (int i = 0; i < MAX_SB_SQUARE; ++i) {
-      a[i] = rng_.Rand16();
+      a[i] = rng_.Rand16Signed();
       b[i] = rng_(2 * INT16_MAX + 1) - INT16_MAX;
     }
 
