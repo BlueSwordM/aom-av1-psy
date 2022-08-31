@@ -304,7 +304,7 @@ SIMD_INLINE v128 v128_shuffle_8(v128 x, v128 pattern) {
   v128 output;
   unsigned char *input = (unsigned char *)&x;
   unsigned char *index = (unsigned char *)&pattern;
-  char *selected = (char *)&output;
+  unsigned char *selected = (unsigned char *)&output;
   int counter;
 
   for (counter = 0; counter < 16; counter++) {

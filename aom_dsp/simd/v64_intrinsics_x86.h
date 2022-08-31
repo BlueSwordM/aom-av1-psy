@@ -178,10 +178,10 @@ SIMD_INLINE v64 v64_pack_s32_u16(v64 a, v64 b) {
   __m128i t = _mm_unpacklo_epi64(b, a);
   return _mm_packus_epi32(t, t);
 #else
-  int32_t ah = v64_high_u32(a);
-  int32_t al = v64_low_u32(a);
-  int32_t bh = v64_high_u32(b);
-  int32_t bl = v64_low_u32(b);
+  int32_t ah = v64_high_s32(a);
+  int32_t al = v64_low_s32(a);
+  int32_t bh = v64_high_s32(b);
+  int32_t bl = v64_low_s32(b);
   return v64_from_16(ah > 65535 ? 65535 : ah < 0 ? 0 : ah,
                      al > 65535 ? 65535 : al < 0 ? 0 : al,
                      bh > 65535 ? 65535 : bh < 0 ? 0 : bh,
@@ -279,7 +279,7 @@ SIMD_INLINE v64 v64_shuffle_8(v64 x, v64 pattern) {
   v64 output;
   unsigned char *input = (unsigned char *)&x;
   unsigned char *index = (unsigned char *)&pattern;
-  char *selected = (char *)&output;
+  unsigned char *selected = (unsigned char *)&output;
   int counter;
 
   for (counter = 0; counter < 8; counter++) {

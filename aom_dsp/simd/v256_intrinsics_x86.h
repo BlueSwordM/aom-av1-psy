@@ -545,7 +545,9 @@ SIMD_INLINE v256 v256_max_u8(v256 a, v256 b) { return _mm256_max_epu8(a, b); }
 
 SIMD_INLINE v256 v256_min_s8(v256 a, v256 b) { return _mm256_min_epi8(a, b); }
 
-SIMD_INLINE uint32_t v256_movemask_8(v256 a) { return _mm256_movemask_epi8(a); }
+SIMD_INLINE uint32_t v256_movemask_8(v256 a) {
+  return (uint32_t)_mm256_movemask_epi8(a);
+}
 
 SIMD_INLINE v256 v256_blend_8(v256 a, v256 b, v256 c) {
   return _mm256_blendv_epi8(a, b, c);
