@@ -213,7 +213,7 @@ class DatarateTestSVC
     }
   }
 
-  virtual void EndPassHook(void) {
+  virtual void EndPassHook() {
     duration_ = ((last_pts_ + 1) * timebase_);
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
       effective_datarate_tl[i] = (effective_datarate_tl[i] / 1000) / duration_;

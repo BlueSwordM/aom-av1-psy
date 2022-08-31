@@ -134,7 +134,7 @@ class DatarateTest : public ::libaom_test::EncoderTest {
     ++tot_frame_number_;
   }
 
-  virtual void EndPassHook(void) {
+  virtual void EndPassHook() {
     duration_ = (last_pts_ + 1) * timebase_;
     // Effective file datarate:
     effective_datarate_ = (bits_total_ / 1000.0) / duration_;

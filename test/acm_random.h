@@ -27,45 +27,45 @@ class ACMRandom {
   void Reset(int seed) { random_.Reseed(seed); }
 
   // Generates a random 31-bit unsigned integer from [0, 2^31).
-  uint32_t Rand31(void) {
+  uint32_t Rand31() {
     return random_.Generate(testing::internal::Random::kMaxRange);
   }
 
-  uint16_t Rand16(void) {
+  uint16_t Rand16() {
     const uint32_t value =
         random_.Generate(testing::internal::Random::kMaxRange);
     return (value >> 15) & 0xffff;
   }
 
-  int16_t Rand16Signed(void) { return static_cast<int16_t>(Rand16()); }
+  int16_t Rand16Signed() { return static_cast<int16_t>(Rand16()); }
 
-  int16_t Rand15Signed(void) {
+  int16_t Rand15Signed() {
     const uint32_t value =
         random_.Generate(testing::internal::Random::kMaxRange);
     return (value >> 17) & 0xffff;
   }
 
-  uint16_t Rand12(void) {
+  uint16_t Rand12() {
     const uint32_t value =
         random_.Generate(testing::internal::Random::kMaxRange);
     // There's a bit more entropy in the upper bits of this implementation.
     return (value >> 19) & 0xfff;
   }
 
-  int16_t Rand9Signed(void) {
+  int16_t Rand9Signed() {
     // Use 9 bits: values between 255 (0x0FF) and -256 (0x100).
     const uint32_t value = random_.Generate(512);
     return static_cast<int16_t>(value) - 256;
   }
 
-  uint8_t Rand8(void) {
+  uint8_t Rand8() {
     const uint32_t value =
         random_.Generate(testing::internal::Random::kMaxRange);
     // There's a bit more entropy in the upper bits of this implementation.
     return (value >> 23) & 0xff;
   }
 
-  uint8_t Rand8Extremes(void) {
+  uint8_t Rand8Extremes() {
     // Returns a random value near 0 or near 255, to better exercise
     // saturation behavior.
     const uint8_t r = Rand8();
@@ -76,7 +76,7 @@ class ACMRandom {
 
   int operator()(int n) { return PseudoUniform(n); }
 
-  static int DeterministicSeed(void) { return 0xbaba; }
+  static int DeterministicSeed() { return 0xbaba; }
 
  private:
   testing::internal::Random random_;
