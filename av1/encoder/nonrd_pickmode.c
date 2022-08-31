@@ -2583,12 +2583,15 @@ static bool skip_comp_based_on_var(
   const unsigned int thresh_64 = (unsigned int)(0.57356805f * 8659);
   const unsigned int thresh_32 = (unsigned int)(0.23964763f * 4281);
 
-  if (bsize == BLOCK_64X64) {
-    return best_var < thresh_64;
-  } else if (bsize == BLOCK_32X32) {
-    return best_var < thresh_32;
+  // Currently, the thresh for 128 and 16 are not well-tuned. We are using the
+  // results from 64 and 32 as an heuristic.
+  switch (bsize) {
+    case BLOCK_128X128: return best_var < 4 * thresh_64;
+    case BLOCK_64X64: return best_var < thresh_64;
+    case BLOCK_32X32: return best_var < thresh_32;
+    case BLOCK_16X16: return best_var < thresh_32 / 4;
+    default: return false;
   }
-  return false;
 }
 
 static AOM_FORCE_INLINE void fill_single_inter_mode_costs(
