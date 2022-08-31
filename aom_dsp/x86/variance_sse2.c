@@ -103,7 +103,7 @@ static INLINE void variance_final_512_pel_sse2(__m128i vsse, __m128i vsum,
   vsum = _mm_add_epi16(vsum, _mm_srli_si128(vsum, 8));
   vsum = _mm_unpacklo_epi16(vsum, vsum);
   vsum = _mm_srai_epi32(vsum, 16);
-  *sum = add32x4_sse2(vsum);
+  *sum = (int)add32x4_sse2(vsum);
 }
 
 // Can handle 1024 pixels' diff sum (such as 32x32)
@@ -113,7 +113,7 @@ static INLINE void variance_final_1024_pel_sse2(__m128i vsse, __m128i vsum,
   *sse = add32x4_sse2(vsse);
 
   vsum = sum_to_32bit_sse2(vsum);
-  *sum = add32x4_sse2(vsum);
+  *sum = (int)add32x4_sse2(vsum);
 }
 
 static INLINE void variance4_sse2(const uint8_t *src, const int src_stride,
@@ -314,7 +314,7 @@ AOM_VAR_NO_LOOP_SSE2(16, 64, 10, 1024)
       ref += (ref_stride * uh);                                               \
     }                                                                         \
     *sse = add32x4_sse2(vsse);                                                \
-    int sum = add32x4_sse2(vsum);                                             \
+    int sum = (int)add32x4_sse2(vsum);                                        \
     assert(sum <= 255 * bw * bh);                                             \
     assert(sum >= -255 * bw * bh);                                            \
     return *sse - (uint32_t)(((int64_t)sum * sum) >> bits);                   \
