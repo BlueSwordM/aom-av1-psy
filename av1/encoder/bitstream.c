@@ -3602,7 +3602,7 @@ static void write_large_scale_tile_obu(
           }
         }
 
-        mem_put_le32(buf->data, tile_header);
+        mem_put_le32(buf->data, (MEM_VALUE_T)tile_header);
       }
 
       *total_size += tile_size;
