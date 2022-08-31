@@ -3493,6 +3493,11 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     cpi->common.features.cur_frame_force_integer_mv = 0;
   }
 
+  // This is used by av1_pack_bitstream. So this needs to be set in case of
+  // row-mt where the encoding code will use a temporary structure.
+  cpi->td.mb.e_mbd.cur_frame_force_integer_mv =
+      cpi->common.features.cur_frame_force_integer_mv;
+
   // Set default state for segment based loop filter update flags.
   cm->lf.mode_ref_delta_update = 0;
 
