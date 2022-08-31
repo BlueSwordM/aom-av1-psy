@@ -234,19 +234,20 @@ unsigned int aom_mse16x16_avx2(const uint8_t *src, int src_stride,
   return *sse;
 }
 
-unsigned int aom_sub_pixel_variance32xh_avx2(const uint8_t *src, int src_stride,
-                                             int x_offset, int y_offset,
-                                             const uint8_t *dst, int dst_stride,
-                                             int height, unsigned int *sse);
-unsigned int aom_sub_pixel_variance16xh_avx2(const uint8_t *src, int src_stride,
-                                             int x_offset, int y_offset,
-                                             const uint8_t *dst, int dst_stride,
-                                             int height, unsigned int *sse);
+int aom_sub_pixel_variance32xh_avx2(const uint8_t *src, int src_stride,
+                                    int x_offset, int y_offset,
+                                    const uint8_t *dst, int dst_stride,
+                                    int height, unsigned int *sse);
+int aom_sub_pixel_variance16xh_avx2(const uint8_t *src, int src_stride,
+                                    int x_offset, int y_offset,
+                                    const uint8_t *dst, int dst_stride,
+                                    int height, unsigned int *sse);
 
-unsigned int aom_sub_pixel_avg_variance32xh_avx2(
-    const uint8_t *src, int src_stride, int x_offset, int y_offset,
-    const uint8_t *dst, int dst_stride, const uint8_t *sec, int sec_stride,
-    int height, unsigned int *sseptr);
+int aom_sub_pixel_avg_variance32xh_avx2(const uint8_t *src, int src_stride,
+                                        int x_offset, int y_offset,
+                                        const uint8_t *dst, int dst_stride,
+                                        const uint8_t *sec, int sec_stride,
+                                        int height, unsigned int *sseptr);
 
 #define AOM_SUB_PIXEL_VAR_AVX2(w, h, wf, wlog2, hlog2)                        \
   unsigned int aom_sub_pixel_variance##w##x##h##_avx2(                        \
