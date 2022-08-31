@@ -65,6 +65,7 @@ std::unique_ptr<AV1RateControlRTC> AV1RateControlRTC::Create(
   rc_api->cpi_->ppi =
       static_cast<AV1_PRIMARY *>(aom_memalign(32, sizeof(AV1_PRIMARY)));
   if (!rc_api->cpi_->ppi) return nullptr;
+  av1_zero(*rc_api->cpi_->ppi);
   rc_api->cpi_->common.seq_params = &rc_api->cpi_->ppi->seq_params;
   av1_zero(*rc_api->cpi_->common.seq_params);
   rc_api->InitRateControl(cfg);
