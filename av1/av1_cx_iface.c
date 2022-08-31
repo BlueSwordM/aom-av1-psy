@@ -2757,9 +2757,10 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   if (img != NULL) {
     res = validate_img(ctx, img);
     if (res == AOM_CODEC_OK) {
-      const size_t uncompressed_frame_sz = ALIGN_POWER_OF_TWO(ctx->cfg.g_w, 5) *
-                                           ALIGN_POWER_OF_TWO(ctx->cfg.g_h, 5) *
-                                           av1_get_image_bps(img) / 8;
+      const size_t uncompressed_frame_sz =
+          ALIGN_POWER_OF_TWO_UNSIGNED(ctx->cfg.g_w, 5) *
+          ALIGN_POWER_OF_TWO_UNSIGNED(ctx->cfg.g_h, 5) *
+          av1_get_image_bps(img) / 8;
 
       // Due to the presence of no-show frames, the ctx->cx_data buffer holds
       // compressed data corresponding to multiple frames. As no-show frames are
