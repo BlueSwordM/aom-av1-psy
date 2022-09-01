@@ -447,8 +447,9 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality) {
   const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   const AV1_COMMON *const cm = &cpi->common;
   const RefreshFrameInfo *const refresh_frame = &cpi->refresh_frame;
-  const int max_delta_down =
-      (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) ? 8 : 16;
+  const int max_delta_down = (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN)
+                                 ? AOMMIN(8, AOMMAX(1, rc->q_1_frame / 16))
+                                 : AOMMIN(16, AOMMAX(1, rc->q_1_frame / 8));
   const int max_delta_up = 20;
   const int change_avg_frame_bandwidth =
       abs(rc->avg_frame_bandwidth - rc->prev_avg_frame_bandwidth) >
