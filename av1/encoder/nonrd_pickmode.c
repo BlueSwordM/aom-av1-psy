@@ -38,6 +38,7 @@
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/var_based_part.h"
 
+#define CALC_BIASED_RDCOST(rdcost) (7 * (rdcost) >> 3)
 extern int g_pick_inter_mode_cnt;
 /*!\cond */
 typedef struct {
@@ -2198,6 +2199,8 @@ static void estimate_intra_mode(
   const unsigned char segment_id = mi->segment_id;
   const int *const rd_threshes = cpi->rd.threshes[segment_id][bsize];
   const int *const rd_thresh_freq_fact = x->thresh_freq_fact[bsize];
+  const bool is_screen_content =
+      cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   struct macroblockd_plane *const pd = &xd->plane[0];
@@ -2209,7 +2212,8 @@ static void estimate_intra_mode(
   int intra_cost_penalty = av1_get_intra_cost_penalty(
       quant_params->base_qindex, quant_params->y_dc_delta_q,
       cm->seq_params->bit_depth);
-  int64_t inter_mode_thresh = RDCOST(x->rdmult, intra_cost_penalty, 0);
+  int64_t inter_mode_thresh =
+      RDCOST(x->rdmult, ref_cost_intra + intra_cost_penalty, 0);
   int perform_intra_pred = cpi->sf.rt_sf.check_intra_pred_nonrd;
   int force_intra_check = 0;
   // For spatial enhancemanent layer: turn off intra prediction if the
@@ -2243,13 +2247,13 @@ static void estimate_intra_mode(
          abs(mi->mv[0].as_mv.row) >= motion_thresh ||
          abs(mi->mv[0].as_mv.col) >= motion_thresh)) {
       intra_cost_penalty = intra_cost_penalty >> 2;
-      inter_mode_thresh = RDCOST(x->rdmult, intra_cost_penalty, 0);
+      inter_mode_thresh =
+          RDCOST(x->rdmult, ref_cost_intra + intra_cost_penalty, 0);
       do_early_exit_rdthresh = 0;
     }
     if ((x->source_variance < AOMMAX(50, (spatial_var_thresh >> 1)) &&
          x->content_state_sb.source_sad_nonrd >= kHighSad) ||
-        (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-         x->source_variance == 0 &&
+        (is_screen_content && x->source_variance == 0 &&
          ((bsize >= BLOCK_32X32 &&
            x->content_state_sb.source_sad_nonrd != kZeroSad) ||
           x->color_sensitivity[0] == 1 || x->color_sensitivity[1] == 1)))
@@ -2271,19 +2275,25 @@ static void estimate_intra_mode(
 
   if (!(best_rdc->rdcost == INT64_MAX || force_intra_check ||
         (perform_intra_pred && !best_early_term &&
-         best_rdc->rdcost > inter_mode_thresh &&
          bsize <= cpi->sf.part_sf.max_intra_bsize))) {
     return;
   }
+
+  // Early exit based on RD cost calculated using known rate. When
+  // is_screen_content is true, more bias is given to intra modes. Hence,
+  // considered conservative threshold in early exit for the same.
+  const int64_t known_rd = is_screen_content
+                               ? CALC_BIASED_RDCOST(inter_mode_thresh)
+                               : inter_mode_thresh;
+  if (known_rd > best_rdc->rdcost) return;
 
   struct estimate_block_intra_args args = { cpi, x, DC_PRED, 1, 0 };
   TX_SIZE intra_tx_size = AOMMIN(
       AOMMIN(max_txsize_lookup[bsize],
              tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]),
       TX_16X16);
-  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-      cpi->rc.high_source_sad && x->source_variance > spatial_var_thresh &&
-      bsize <= BLOCK_16X16)
+  if (is_screen_content && cpi->rc.high_source_sad &&
+      x->source_variance > spatial_var_thresh && bsize <= BLOCK_16X16)
     intra_tx_size = TX_4X4;
 
   PRED_BUFFER *const best_pred = best_pickmode->best_pred;
@@ -2312,8 +2322,7 @@ static void estimate_intra_mode(
         continue;
     }
 
-    if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-        cpi->sf.rt_sf.source_metrics_sb_nonrd) {
+    if (is_screen_content && cpi->sf.rt_sf.source_metrics_sb_nonrd) {
       // For spatially flat blocks with zero motion only check
       // DC mode.
       if (x->content_state_sb.source_sad_nonrd == kZeroSad &&
@@ -2370,13 +2379,12 @@ static void estimate_intra_mode(
     this_rdc.rate += mode_cost;
     this_rdc.rdcost = RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist);
 
-    if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-        cpi->sf.rt_sf.source_metrics_sb_nonrd) {
+    if (is_screen_content && cpi->sf.rt_sf.source_metrics_sb_nonrd) {
       // For blocks with low spatial variance and color sad,
       // favor the intra-modes, only on scene/slide change.
       if (cpi->rc.high_source_sad && x->source_variance < 800 &&
           (x->color_sensitivity[0] || x->color_sensitivity[1]))
-        this_rdc.rdcost = (7 * this_rdc.rdcost) >> 3;
+        this_rdc.rdcost = CALC_BIASED_RDCOST(this_rdc.rdcost);
       // Otherwise bias against intra for blocks with zero
       // motion and no color, on non-scene/slide changes.
       else if (!cpi->rc.high_source_sad && x->source_variance > 0 &&
