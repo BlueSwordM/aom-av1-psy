@@ -246,7 +246,7 @@ TEST_F(RateControlQModeTest, ConstructGopARF) {
   const bool has_key_frame = false;
   const int global_coding_idx_offset = 5;
   const int global_order_idx_offset = 20;
-  RefFrameManager ref_frame_manager(kRefFrameTableSize);
+  RefFrameManager ref_frame_manager(kRefFrameTableSize, 7);
   GopStruct gop_struct =
       ConstructGop(&ref_frame_manager, show_frame_count, has_key_frame,
                    global_coding_idx_offset, global_order_idx_offset);
@@ -266,7 +266,7 @@ TEST_F(RateControlQModeTest, ConstructGopKey) {
   const bool has_key_frame = true;
   const int global_coding_idx_offset = 10;
   const int global_order_idx_offset = 8;
-  RefFrameManager ref_frame_manager(kRefFrameTableSize);
+  RefFrameManager ref_frame_manager(kRefFrameTableSize, 7);
   GopStruct gop_struct =
       ConstructGop(&ref_frame_manager, show_frame_count, has_key_frame,
                    global_coding_idx_offset, global_order_idx_offset);
@@ -286,7 +286,7 @@ TEST_F(RateControlQModeTest, ConstructShortGop) {
   const bool has_key_frame = false;
   const int global_coding_idx_offset = 5;
   const int global_order_idx_offset = 20;
-  RefFrameManager ref_frame_manager(kRefFrameTableSize);
+  RefFrameManager ref_frame_manager(kRefFrameTableSize, 7);
   GopStruct gop_struct =
       ConstructGop(&ref_frame_manager, show_frame_count, has_key_frame,
                    global_coding_idx_offset, global_order_idx_offset);
@@ -630,7 +630,7 @@ TEST(RefFrameManagerTest, GetRefFrameCount) {
     GopFrameType::kRegularLeaf,
     GopFrameType::kOverlay
   };
-  RefFrameManager ref_manager(kRefFrameTableSize);
+  RefFrameManager ref_manager(kRefFrameTableSize, 7);
   int coding_idx = 0;
   const int first_leaf_idx = 3;
   EXPECT_EQ(type_list[first_leaf_idx], GopFrameType::kRegularLeaf);
@@ -731,7 +731,7 @@ TEST(RefFrameManagerTest, GetRefFrameByPriority) {
     GopFrameType::kRegularLeaf,
     GopFrameType::kOverlay
   };
-  RefFrameManager ref_manager(kRefFrameTableSize);
+  RefFrameManager ref_manager(kRefFrameTableSize, 7);
   int coding_idx = 0;
   const int first_leaf_idx = 3;
   EXPECT_EQ(type_list[first_leaf_idx], GopFrameType::kRegularLeaf);
@@ -767,7 +767,7 @@ TEST(RefFrameManagerTest, GetRefFrameListByPriority) {
                                                 GopFrameType::kRegularArf,
                                                 GopFrameType::kIntermediateArf,
                                                 GopFrameType::kRegularLeaf };
-  RefFrameManager ref_manager(kRefFrameTableSize);
+  RefFrameManager ref_manager(kRefFrameTableSize, 7);
   for (int coding_idx = 0; coding_idx < frame_count; ++coding_idx) {
     GopFrame gop_frame =
         GopFrameBasic(0, 0, coding_idx, order_idx_list[coding_idx], 0, 0,
@@ -802,7 +802,7 @@ TEST(RefFrameManagerTest, GetPrimaryRefFrame) {
                                                 GopFrameType::kIntermediateArf,
                                                 GopFrameType::kRegularLeaf };
   const std::vector<int> layer_depth_list = { 0, 2, 4, 6 };
-  RefFrameManager ref_manager(kRefFrameTableSize);
+  RefFrameManager ref_manager(kRefFrameTableSize, 7);
   for (int coding_idx = 0; coding_idx < frame_count; ++coding_idx) {
     GopFrame gop_frame =
         GopFrameBasic(0, 0, coding_idx, order_idx_list[coding_idx],
@@ -816,6 +816,7 @@ TEST(RefFrameManagerTest, GetPrimaryRefFrame) {
     // Set different frame type
     GopFrameType type = type_list[(i + 1) % frame_count];
     GopFrame gop_frame = GopFrameBasic(0, 0, 0, 0, layer_depth, 0, type);
+    gop_frame.ref_frame_list = ref_manager.GetRefFrameListByPriority();
     ReferenceFrame ref_frame = ref_manager.GetPrimaryRefFrame(gop_frame);
     GopFrame primary_ref_frame =
         ref_manager.GetRefFrameByIndex(ref_frame.index);
@@ -831,6 +832,7 @@ TEST(RefFrameManagerTest, GetPrimaryRefFrame) {
     // Let the frame layer_depth sit in the middle of two reference frames
     int layer_depth = mid_layer_depth_list[i];
     GopFrame gop_frame = GopFrameBasic(0, 0, 0, 0, layer_depth, 0, type);
+    gop_frame.ref_frame_list = ref_manager.GetRefFrameListByPriority();
     ReferenceFrame ref_frame = ref_manager.GetPrimaryRefFrame(gop_frame);
     GopFrame primary_ref_frame =
         ref_manager.GetRefFrameByIndex(ref_frame.index);

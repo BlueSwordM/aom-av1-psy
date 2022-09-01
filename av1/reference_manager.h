@@ -24,8 +24,9 @@ enum class RefUpdateType { kForward, kBackward, kLast, kNone };
 
 class RefFrameManager {
  public:
-  explicit RefFrameManager(int ref_frame_table_size)
-      : ref_frame_table_(ref_frame_table_size) {
+  explicit RefFrameManager(int ref_frame_table_size, int max_ref_frames)
+      : ref_frame_table_(ref_frame_table_size),
+        max_ref_frames_(max_ref_frames) {
     // forward_max_size_ define max number of arf frames that can exists at
     // the same time. In the other words, it's the max size of forward_stack_.
     // TODO(angiebird): Figure out if this number is optimal.
@@ -80,6 +81,7 @@ class RefFrameManager {
   int forward_max_size_;
   int cur_global_order_idx_;
   RefFrameTable ref_frame_table_;
+  int max_ref_frames_;
   std::deque<int> free_ref_idx_list_;
   std::vector<int> forward_stack_;
   std::deque<int> backward_queue_;
