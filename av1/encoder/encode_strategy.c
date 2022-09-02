@@ -310,8 +310,7 @@ int is_forced_keyframe_pending(struct lookahead_ctx *lookahead,
 // Return the frame source, or NULL if we couldn't find one
 static struct lookahead_entry *choose_frame_source(
     AV1_COMP *const cpi, int *const flush, int *pop_lookahead,
-    struct lookahead_entry **last_source,
-    EncodeFrameParams *const frame_params) {
+    struct lookahead_entry **last_source, int *const show_frame) {
   AV1_COMMON *const cm = &cpi->common;
   const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   struct lookahead_entry *source = NULL;
@@ -353,7 +352,7 @@ static struct lookahead_entry *choose_frame_source(
     src_index = 0;
   }
 
-  frame_params->show_frame = *pop_lookahead;
+  *show_frame = *pop_lookahead;
 
 #if CONFIG_FPMT_TEST
   if (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_ENCODE) {
@@ -365,7 +364,7 @@ static struct lookahead_entry *choose_frame_source(
         !is_stat_generation_stage(cpi))
       src_index = gf_group->src_offset[cpi->gf_frame_index];
   }
-  if (frame_params->show_frame) {
+  if (*show_frame) {
     // show frame, pop from buffer
     // Get last frame source.
     if (cm->current_frame.frame_number > 0) {
@@ -1362,7 +1361,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.show_frame = 1;
   } else {
     source = choose_frame_source(cpi, &flush, pop_lookahead, &last_source,
-                                 &frame_params);
+                                 &frame_params.show_frame);
   }
 
   if (source == NULL) {  // If no source was found, we can't encode a frame.
@@ -1429,12 +1428,14 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   start_timing(cpi, av1_get_one_pass_rt_params_time);
 #endif
 #if CONFIG_REALTIME_ONLY
-  av1_get_one_pass_rt_params(cpi, &frame_params, &frame_input, *frame_flags);
+  av1_get_one_pass_rt_params(cpi, &frame_params.frame_type, &frame_input,
+                             *frame_flags);
   if (use_rtc_reference_structure_one_layer(cpi))
     av1_set_rtc_reference_structure_one_layer(cpi, cpi->gf_frame_index == 0);
 #else
   if (use_one_pass_rt_params) {
-    av1_get_one_pass_rt_params(cpi, &frame_params, &frame_input, *frame_flags);
+    av1_get_one_pass_rt_params(cpi, &frame_params.frame_type, &frame_input,
+                               *frame_flags);
     if (use_rtc_reference_structure_one_layer(cpi))
       av1_set_rtc_reference_structure_one_layer(cpi, cpi->gf_frame_index == 0);
   }

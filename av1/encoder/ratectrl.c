@@ -3058,8 +3058,7 @@ static INLINE int set_key_frame(AV1_COMP *cpi, unsigned int frame_flags) {
   return 0;
 }
 
-void av1_get_one_pass_rt_params(AV1_COMP *cpi,
-                                EncodeFrameParams *const frame_params,
+void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
                                 const EncodeFrameInput *frame_input,
                                 unsigned int frame_flags) {
   RATE_CONTROL *const rc = &cpi->rc;
@@ -3081,7 +3080,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
   }
   // Set frame type.
   if (set_key_frame(cpi, frame_flags)) {
-    frame_params->frame_type = KEY_FRAME;
+    *frame_type = KEY_FRAME;
     p_rc->this_key_frame_forced =
         cm->current_frame.frame_number != 0 && rc->frames_to_key == 0;
     rc->frames_to_key = cpi->oxcf.kf_cfg.key_freq_max;
@@ -3095,7 +3094,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
       svc->layer_context[layer].is_key_frame = 1;
     }
   } else {
-    frame_params->frame_type = INTER_FRAME;
+    *frame_type = INTER_FRAME;
     gf_group->update_type[cpi->gf_frame_index] = LF_UPDATE;
     gf_group->frame_type[cpi->gf_frame_index] = INTER_FRAME;
     gf_group->refbuf_state[cpi->gf_frame_index] = REFBUF_UPDATE;
@@ -3120,7 +3119,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
         // The stream can start decoding on INTRA_ONLY_FRAME so long as the
         // layer with the intra_only_frame doesn't signal a reference to a slot
         // that hasn't been set yet.
-        if (no_references_set) frame_params->frame_type = INTRA_ONLY_FRAME;
+        if (no_references_set) *frame_type = INTRA_ONLY_FRAME;
       }
     }
   }
@@ -3149,19 +3148,17 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
   }
   // Set the GF interval and update flag.
   if (!rc->rtc_external_ratectrl)
-    set_gf_interval_update_onepass_rt(cpi, frame_params->frame_type);
+    set_gf_interval_update_onepass_rt(cpi, *frame_type);
   // Set target size.
   if (cpi->oxcf.rc_cfg.mode == AOM_CBR) {
-    if (frame_params->frame_type == KEY_FRAME ||
-        frame_params->frame_type == INTRA_ONLY_FRAME) {
+    if (*frame_type == KEY_FRAME || *frame_type == INTRA_ONLY_FRAME) {
       target = av1_calc_iframe_target_size_one_pass_cbr(cpi);
     } else {
       target = av1_calc_pframe_target_size_one_pass_cbr(
           cpi, gf_group->update_type[cpi->gf_frame_index]);
     }
   } else {
-    if (frame_params->frame_type == KEY_FRAME ||
-        frame_params->frame_type == INTRA_ONLY_FRAME) {
+    if (*frame_type == KEY_FRAME || *frame_type == INTRA_ONLY_FRAME) {
       target = av1_calc_iframe_target_size_one_pass_vbr(cpi);
     } else {
       target = av1_calc_pframe_target_size_one_pass_vbr(
@@ -3173,7 +3170,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
 
   av1_rc_set_frame_target(cpi, target, cm->width, cm->height);
   rc->base_frame_target = target;
-  cm->current_frame.frame_type = frame_params->frame_type;
+  cm->current_frame.frame_type = *frame_type;
   // For fixed mode SVC: if KSVC is enabled remove inter layer
   // prediction on spatial enhancement layer frames for frames
   // whose base is not KEY frame.

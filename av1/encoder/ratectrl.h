@@ -584,7 +584,6 @@ int av1_rc_get_default_max_gf_interval(double framerate, int min_gf_interval);
 
 // Functions to set parameters for encoding before the actual
 // encode_frame_to_data_rate() function.
-struct EncodeFrameParams;
 struct EncodeFrameInput;
 
 // Post encode update of the rate control parameters based
@@ -768,16 +767,16 @@ int av1_calc_iframe_target_size_one_pass_cbr(const struct AV1_COMP *cpi);
  *
  * \ingroup rate_control
  * \param[in]       cpi          Top level encoder structure
- * \param[in]       frame_params Encoder frame parameters
+ * \param[in]       frame_type   Encoder frame type
  * \param[in]       frame_input  Current and last input source frames
- * \param[in]       frame_flags  Emcoder frame flags
+ * \param[in]       frame_flags  Encoder frame flags
  *
  * \remark Nothing is returned. Instead the settings computed in this
  * function are set in: \c frame_params, \c cpi->common, \c cpi->rc,
  * \c cpi->svc.
  */
 void av1_get_one_pass_rt_params(struct AV1_COMP *cpi,
-                                struct EncodeFrameParams *const frame_params,
+                                FRAME_TYPE *const frame_type,
                                 const struct EncodeFrameInput *frame_input,
                                 unsigned int frame_flags);
 
