@@ -74,7 +74,7 @@ using GopEncodeInfoList = std::vector<GopEncodeInfo>;
 class DuckyEncode {
  public:
   explicit DuckyEncode(const VideoInfo &video_info, int max_ref_frames,
-                       int speed = 3);
+                       int speed, int base_qindex);
   ~DuckyEncode();
   std::vector<FIRSTPASS_STATS> ComputeFirstPassStats();
   void StartEncode(const std::vector<FIRSTPASS_STATS> &stats_list);

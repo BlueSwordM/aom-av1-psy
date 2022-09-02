@@ -47,6 +47,7 @@ class DuckyEncode::EncodeImpl {
   int g_usage;
   int max_ref_frames;
   int speed;
+  int base_qindex;
   enum aom_rc_mode rc_end_usage;
   aom_rational64_t timestamp_ratio;
   std::vector<FIRSTPASS_STATS> stats_list;
@@ -54,12 +55,13 @@ class DuckyEncode::EncodeImpl {
 };
 
 DuckyEncode::DuckyEncode(const VideoInfo &video_info, int max_ref_frames,
-                         int speed) {
+                         int speed, int base_qindex) {
   impl_ptr_ = std::unique_ptr<EncodeImpl>(new EncodeImpl());
   impl_ptr_->video_info = video_info;
   impl_ptr_->g_usage = GOOD;
   impl_ptr_->max_ref_frames = max_ref_frames;
   impl_ptr_->speed = speed;
+  impl_ptr_->base_qindex = base_qindex;
   impl_ptr_->rc_end_usage = AOM_Q;
   // TODO(angiebird): Set timestamp_ratio properly
   // timestamp_ratio.den = cfg->g_timebase.den;
@@ -455,7 +457,8 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
       // encoding frame frame_number
       aom::EncodeFrameDecision frame_decision = { aom::EncodeFrameMode::kQindex,
                                                   aom::EncodeGopMode::kGopRcl,
-                                                  { 128, -1 } };
+                                                  { impl_ptr_->base_qindex,
+                                                    -1 } };
       (void)frame;
       EncodeFrame(frame_decision);
       if (ppi->cpi->common.show_frame) pending_ctx_size_ = 0;

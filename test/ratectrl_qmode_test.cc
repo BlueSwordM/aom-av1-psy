@@ -1036,6 +1036,7 @@ TEST_F(RateControlQModeTest, TestGetGopEncodeInfo) {
   AV1RateControlQMode rc;
   rc_param_.max_gop_show_frame_count = 16;
   rc_param_.max_ref_frames = 3;
+  rc_param_.base_q_index = 117;
   ASSERT_THAT(rc.SetRcParam(rc_param_), IsOkStatus());
   const auto gop_info = rc.DetermineGopInfo(firstpass_info);
   ASSERT_THAT(gop_info.status(), IsOkStatus());
@@ -1046,7 +1047,8 @@ TEST_F(RateControlQModeTest, TestGetGopEncodeInfo) {
     frame_rate,  AOM_IMG_FMT_I420,
     50,          libaom_test::GetDataPath() + "/hantro_collage_w352h288.yuv"
   };
-  DuckyEncode ducky_encode(input_video, 3, 3);
+  DuckyEncode ducky_encode(input_video, rc_param_.max_ref_frames, 3,
+                           rc_param_.base_q_index);
   ducky_encode.StartEncode(firstpass_info.stats_list);
   // Read TPL stats
   std::vector<TplGopStats> tpl_gop_list =
