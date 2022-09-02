@@ -996,12 +996,18 @@ void av1_get_ref_frames(RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
 #if !CONFIG_REALTIME_ONLY
   if (cpi->use_ducky_encode &&
       cpi->ducky_encode_info.frame_info.gop_mode == DUCKY_ENCODE_GOP_MODE_RCL) {
-    for (int i = 0; i < REF_FRAMES; ++i) remapped_ref_idx[i] = 0;
+    int valid_rf_idx = 0;
     for (int rf = LAST_FRAME; rf < REF_FRAMES; ++rf) {
       if (cpi->ppi->gf_group.ref_frame_list[gf_index][rf] != INVALID_IDX) {
         remapped_ref_idx[rf - LAST_FRAME] =
             cpi->ppi->gf_group.ref_frame_list[gf_index][rf];
+        valid_rf_idx = remapped_ref_idx[rf - LAST_FRAME];
       }
+    }
+
+    for (int i = 0; i < REF_FRAMES; ++i) {
+      if (remapped_ref_idx[i] == INVALID_IDX)
+        remapped_ref_idx[i] = valid_rf_idx;
     }
 
     return;
