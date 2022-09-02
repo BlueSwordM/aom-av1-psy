@@ -1414,7 +1414,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
       sf->rt_sf.reduce_mv_pel_precision_highmotion = 2;
       sf->rt_sf.reduce_mv_pel_precision_lowcomplex = 1;
-      sf->rt_sf.screen_content_cdef_filter_qindex_thresh = 20;
     }
     if (speed >= 10) {
       if (cm->width * cm->height > 1920 * 1080)
@@ -2074,6 +2073,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->top_right_sync_wait_in_mis = false;
   rt_sf->set_zeromv_skip_based_on_source_sad = 1;
   rt_sf->use_adaptive_subpel_search = false;
+  rt_sf->screen_content_cdef_filter_qindex_thresh = 0;
 }
 
 // Populate appropriate sub-pel search method based on speed feature and user
