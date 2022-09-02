@@ -1369,8 +1369,17 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
   av1_set_speed_features_framesize_independent(cpi, oxcf->speed);
   av1_set_speed_features_framesize_dependent(cpi, oxcf->speed);
 
+  int max_mi_cols = mi_params->mi_cols;
+  int max_mi_rows = mi_params->mi_rows;
+  if (oxcf->frm_dim_cfg.forced_max_frame_width) {
+    max_mi_cols = size_in_mi(oxcf->frm_dim_cfg.forced_max_frame_width);
+  }
+  if (oxcf->frm_dim_cfg.forced_max_frame_height) {
+    max_mi_rows = size_in_mi(oxcf->frm_dim_cfg.forced_max_frame_height);
+  }
+
   CHECK_MEM_ERROR(cm, cpi->consec_zero_mv,
-                  aom_calloc((mi_params->mi_rows * mi_params->mi_cols) >> 2,
+                  aom_calloc((max_mi_rows * max_mi_cols) >> 2,
                              sizeof(*cpi->consec_zero_mv)));
 
   cpi->mb_weber_stats = NULL;
@@ -1380,8 +1389,8 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
     const int bsize = BLOCK_16X16;
     const int w = mi_size_wide[bsize];
     const int h = mi_size_high[bsize];
-    const int num_cols = (mi_params->mi_cols + w - 1) / w;
-    const int num_rows = (mi_params->mi_rows + h - 1) / h;
+    const int num_cols = (max_mi_cols + w - 1) / w;
+    const int num_rows = (max_mi_rows + h - 1) / h;
     CHECK_MEM_ERROR(cm, cpi->ssim_rdmult_scaling_factors,
                     aom_calloc(num_rows * num_cols,
                                sizeof(*cpi->ssim_rdmult_scaling_factors)));
