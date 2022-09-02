@@ -1971,14 +1971,22 @@ static void set_restoration_unit_size(int width, int height, int sx, int sy,
 static void init_ref_frame_bufs(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   int i;
-  BufferPool *const pool = cm->buffer_pool;
-  cm->cur_frame = NULL;
+  if (cm->cur_frame) {
+    cm->cur_frame->ref_count--;
+    cm->cur_frame = NULL;
+  }
   for (i = 0; i < REF_FRAMES; ++i) {
-    cm->ref_frame_map[i] = NULL;
+    if (cm->ref_frame_map[i]) {
+      cm->ref_frame_map[i]->ref_count--;
+      cm->ref_frame_map[i] = NULL;
+    }
   }
+#ifndef NDEBUG
+  BufferPool *const pool = cm->buffer_pool;
   for (i = 0; i < FRAME_BUFFERS; ++i) {
-    pool->frame_bufs[i].ref_count = 0;
+    assert(pool->frame_bufs[i].ref_count == 0);
   }
+#endif
 }
 
 void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
