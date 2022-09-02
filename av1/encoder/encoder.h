@@ -3411,6 +3411,11 @@ typedef struct AV1_COMP {
    * Struct for the reference structure for RTC.
    */
   RTC_REF rtc_ref;
+
+  /*!
+   * Block level thresholds to force zeromv-skip at partition level.
+   */
+  unsigned int zeromv_skip_thresh_exit_part[BLOCK_SIZES_ALL];
 } AV1_COMP;
 
 /*!

@@ -1550,6 +1550,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // For nonrd: early exit out of variance partition that sets the
   // block size to superblock size, and sets mode to zeromv-last skip.
+  // 0: disabled
+  // 1: zeromv-skip is enabled at SB level only
+  // 2: zeromv-skip is enabled at SB level and coding block level
   int part_early_exit_zeromv;
 
   // Early terminate inter mode search based on sse in non-rd path.
