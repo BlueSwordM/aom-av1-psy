@@ -1035,6 +1035,7 @@ TEST_F(RateControlQModeTest, TestGetGopEncodeInfo) {
       ReadFirstpassInfo("firstpass_stats", &firstpass_info, 50));
   AV1RateControlQMode rc;
   rc_param_.max_gop_show_frame_count = 16;
+  rc_param_.max_ref_frames = 3;
   ASSERT_THAT(rc.SetRcParam(rc_param_), IsOkStatus());
   const auto gop_info = rc.DetermineGopInfo(firstpass_info);
   ASSERT_THAT(gop_info.status(), IsOkStatus());
@@ -1059,9 +1060,13 @@ TEST_F(RateControlQModeTest, TestGetGopEncodeInfo) {
         gop_list[gop_idx], tpl_gop_list[tpl_gop_idx], {}, ref_frame_table);
     ASSERT_THAT(gop_encode_info.status(), IsOkStatus());
     for (auto &frame_param : gop_encode_info->param_list) {
-      std::cout << frame_param.q_index << std::endl;
+      EXPECT_LE(frame_param.q_index, rc_param_.base_q_index);
     }
     ref_frame_table = gop_encode_info->final_snapshot;
+    for (auto &gop_frame : ref_frame_table) {
+      EXPECT_LE(static_cast<int>(gop_frame.ref_frame_list.size()),
+                rc_param_.max_ref_frames);
+    }
   }
 }
 
