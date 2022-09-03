@@ -168,11 +168,11 @@ static void vfilter8(const int16_t *src, int src_stride, uint8_t *dst,
           _mm_sra_epi32(_mm_add_epi32(conv, round_shift_add), round_shift);
 
       uint8_t *dst_x = dst + y * dst_stride + x;
-      CONV_BUF_TYPE *dst_16_x = dst16 + y * dst16_stride + x;
       __m128i result;
       __m128i shifted_16 = _mm_packus_epi32(shifted, shifted);
 
       if (conv_params->is_compound) {
+        CONV_BUF_TYPE *dst_16_x = dst16 + y * dst16_stride + x;
         if (conv_params->do_average) {
           const __m128i p_16 = _mm_loadl_epi64((__m128i *)dst_16_x);
           if (conv_params->use_dist_wtd_comp_avg) {
@@ -399,10 +399,10 @@ static void highbd_vfilter8(const int16_t *src, int src_stride, uint16_t *dst,
           _mm_sra_epi32(_mm_add_epi32(conv, round_shift_add), round_shift);
 
       uint16_t *dst_x = dst + y * dst_stride + x;
-      CONV_BUF_TYPE *dst_16_x = dst16 + y * dst16_stride + x;
 
       __m128i result;
       if (conv_params->is_compound) {
+        CONV_BUF_TYPE *dst_16_x = dst16 + y * dst16_stride + x;
         if (conv_params->do_average) {
           __m128i p_32 =
               _mm_cvtepu16_epi32(_mm_loadl_epi64((__m128i *)dst_16_x));
