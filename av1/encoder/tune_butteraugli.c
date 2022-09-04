@@ -301,7 +301,7 @@ void av1_setup_butteraugli_rdmult(AV1_COMP *cpi) {
   av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
   if (q_cfg->deltaq_mode != NO_DELTA_Q || q_cfg->enable_chroma_deltaq)
     av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
-                       cm->seq_params->bit_depth);
+                       cm->seq_params->bit_depth, oxcf->algo_cfg.quant_sharpness);
 
   av1_set_variance_partition_thresholds(cpi, q_index, 0);
   av1_encode_frame(cpi);
