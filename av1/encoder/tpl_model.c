@@ -196,7 +196,7 @@ void av1_setup_tpl_buffers(AV1_PRIMARY *const ppi,
   }
 }
 
-static AOM_INLINE int64_t tpl_get_satd_cost(BitDepthInfo bd_info,
+static AOM_INLINE int32_t tpl_get_satd_cost(BitDepthInfo bd_info,
                                             int16_t *src_diff, int diff_stride,
                                             const uint8_t *src, int src_stride,
                                             const uint8_t *dst, int dst_stride,
@@ -458,8 +458,8 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
 
   int frame_offset = tpl_data->frame_idx - cpi->gf_frame_index;
 
-  int64_t best_intra_cost = INT64_MAX;
-  int64_t intra_cost;
+  int32_t best_intra_cost = INT32_MAX;
+  int32_t intra_cost;
   PREDICTION_MODE best_mode = DC_PRED;
 
   int mb_y_offset = mi_row * MI_SIZE * xd->cur_buf->y_stride + mi_col * MI_SIZE;
@@ -606,8 +606,8 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
 
   int best_rf_idx = -1;
   int_mv best_mv[2];
-  int64_t inter_cost;
-  int64_t best_inter_cost = INT64_MAX;
+  int32_t inter_cost;
+  int32_t best_inter_cost = INT32_MAX;
   int rf_idx;
   int_mv single_mv[INTER_REFS_PER_FRAME];
 
@@ -878,7 +878,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
     xd->mi[0]->ref_frame[1] = best_rf_idx1 + LAST_FRAME;
   }
 
-  if (best_inter_cost < INT64_MAX) {
+  if (best_inter_cost < INT32_MAX) {
     xd->mi[0]->mv[0].as_int = best_mv[0].as_int;
     xd->mi[0]->mv[1].as_int = best_mv[1].as_int;
     const YV12_BUFFER_CONFIG *ref_frame_ptr[2] = {
@@ -894,13 +894,13 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
                         qcoeff, dqcoeff, cm, x, ref_frame_ptr, rec_buffer_pool,
                         rec_stride_pool, tx_size, best_mode, mi_row, mi_col,
                         use_y_only_rate_distortion, NULL);
-    tpl_stats->srcrf_rate = rate_cost << TPL_DEP_COST_SCALE_LOG2;
+    tpl_stats->srcrf_rate = rate_cost;
   }
 
   best_intra_cost = AOMMAX(best_intra_cost, 1);
   best_inter_cost = AOMMIN(best_intra_cost, best_inter_cost);
-  tpl_stats->inter_cost = best_inter_cost << TPL_DEP_COST_SCALE_LOG2;
-  tpl_stats->intra_cost = best_intra_cost << TPL_DEP_COST_SCALE_LOG2;
+  tpl_stats->inter_cost = best_inter_cost;
+  tpl_stats->intra_cost = best_intra_cost;
 
   tpl_stats->srcrf_dist = recon_error << TPL_DEP_COST_SCALE_LOG2;
   tpl_stats->srcrf_sse = pred_error << TPL_DEP_COST_SCALE_LOG2;
@@ -923,11 +923,11 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
                       use_y_only_rate_distortion, tpl_txfm_stats);
 
   tpl_stats->recrf_dist = recon_error << (TPL_DEP_COST_SCALE_LOG2);
-  tpl_stats->recrf_rate = rate_cost << TPL_DEP_COST_SCALE_LOG2;
+  tpl_stats->recrf_rate = rate_cost;
 
   if (!is_inter_mode(best_mode)) {
     tpl_stats->srcrf_dist = recon_error << (TPL_DEP_COST_SCALE_LOG2);
-    tpl_stats->srcrf_rate = rate_cost << TPL_DEP_COST_SCALE_LOG2;
+    tpl_stats->srcrf_rate = rate_cost;
     tpl_stats->srcrf_sse = pred_error << TPL_DEP_COST_SCALE_LOG2;
   }
 
@@ -943,7 +943,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
                         rec_stride_pool, tx_size, best_mode, mi_row, mi_col,
                         use_y_only_rate_distortion, NULL);
     tpl_stats->cmp_recrf_dist[0] = recon_error << TPL_DEP_COST_SCALE_LOG2;
-    tpl_stats->cmp_recrf_rate[0] = rate_cost << TPL_DEP_COST_SCALE_LOG2;
+    tpl_stats->cmp_recrf_rate[0] = rate_cost;
 
     tpl_stats->cmp_recrf_dist[0] =
         AOMMAX(tpl_stats->srcrf_dist, tpl_stats->cmp_recrf_dist[0]);
@@ -964,7 +964,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
                         rec_stride_pool, tx_size, best_mode, mi_row, mi_col,
                         use_y_only_rate_distortion, NULL);
     tpl_stats->cmp_recrf_dist[1] = recon_error << TPL_DEP_COST_SCALE_LOG2;
-    tpl_stats->cmp_recrf_rate[1] = rate_cost << TPL_DEP_COST_SCALE_LOG2;
+    tpl_stats->cmp_recrf_rate[1] = rate_cost;
 
     tpl_stats->cmp_recrf_dist[1] =
         AOMMAX(tpl_stats->srcrf_dist, tpl_stats->cmp_recrf_dist[1]);
@@ -1098,15 +1098,18 @@ static AOM_INLINE void tpl_model_update_b(TplParams *const tpl_data, int mi_row,
 
   int64_t srcrf_dist = is_compound ? tpl_stats_ptr->cmp_recrf_dist[!ref]
                                    : tpl_stats_ptr->srcrf_dist;
-  int64_t srcrf_rate = is_compound ? tpl_stats_ptr->cmp_recrf_rate[!ref]
-                                   : tpl_stats_ptr->srcrf_rate;
+  int64_t srcrf_rate =
+      is_compound
+          ? (tpl_stats_ptr->cmp_recrf_rate[!ref] << TPL_DEP_COST_SCALE_LOG2)
+          : (tpl_stats_ptr->srcrf_rate << TPL_DEP_COST_SCALE_LOG2);
 
   int64_t cur_dep_dist = tpl_stats_ptr->recrf_dist - srcrf_dist;
   int64_t mc_dep_dist =
       (int64_t)(tpl_stats_ptr->mc_dep_dist *
                 ((double)(tpl_stats_ptr->recrf_dist - srcrf_dist) /
                  tpl_stats_ptr->recrf_dist));
-  int64_t delta_rate = tpl_stats_ptr->recrf_rate - srcrf_rate;
+  int64_t delta_rate =
+      (tpl_stats_ptr->recrf_rate << TPL_DEP_COST_SCALE_LOG2) - srcrf_rate;
   int64_t mc_dep_rate =
       av1_delta_rate_cost(tpl_stats_ptr->mc_dep_rate, tpl_stats_ptr->recrf_dist,
                           srcrf_dist, pix_num);

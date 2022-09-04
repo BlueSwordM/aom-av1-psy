@@ -414,8 +414,10 @@ TplGopStats DuckyEncode::ObtainTplStats(const GopStruct gop_struct) {
         block_stats.col = mi_col * MI_SIZE;
         block_stats.height = (1 << block_mis_log2) * MI_SIZE;
         block_stats.width = (1 << block_mis_log2) * MI_SIZE;
-        block_stats.inter_cost = tpl_stats_ptr->inter_cost;
-        block_stats.intra_cost = tpl_stats_ptr->intra_cost;
+        block_stats.inter_cost = tpl_stats_ptr->inter_cost
+                                 << TPL_DEP_COST_SCALE_LOG2;
+        block_stats.intra_cost = tpl_stats_ptr->intra_cost
+                                 << TPL_DEP_COST_SCALE_LOG2;
         block_stats.ref_frame_index = { -1, -1 };
 
         for (int i = 0; i < kBlockRefCount; ++i) {
