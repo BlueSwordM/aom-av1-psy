@@ -285,6 +285,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                        "Bias towards block sharpness in rate-distortion "
                        "optimization of transform coefficients "
                        "(0..7), default is 0"),
+  .quant_sharpness = ARG_DEF(NULL, "quant-sharpness", 1,
+                       "Changes quantization based on sharpness. Still WIP. "
+                       "(0..7), default is 0"),
   .static_thresh =
       ARG_DEF(NULL, "static-thresh", 1, "Motion detection threshold"),
   .auto_altref =

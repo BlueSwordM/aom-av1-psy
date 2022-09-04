@@ -804,6 +804,12 @@ typedef struct {
   int sharpness;
 
   /*!
+   * ClybPatch -- Controls the level at which quantization favours sharpness in the block. Has no impact on RD when set
+   * to zero (default). For values 1-7, quantization is adjusted in favour of block sharpness.
+   */
+  int quant_sharpness;
+
+  /*!
    * Indicates the trellis optimization mode of quantized coefficients.
    * 0: disabled
    * 1: enabled

@@ -602,15 +602,21 @@ static int get_qzbin_factor(int q, aom_bit_depth_t bit_depth) {
 void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
                          int u_dc_delta_q, int u_ac_delta_q, int v_dc_delta_q,
                          int v_ac_delta_q, QUANTS *const quants,
-                         Dequants *const deq) {
+                         Dequants *const deq, int quant_sharpness) {
   int i, q, quant_QTX;
 
   for (q = 0; q < QINDEX_RANGE; q++) {
-    const int qzbin_factor = get_qzbin_factor(q, bit_depth);
-    const int qrounding_factor = q == 0 ? 64 : 48;
-
+    int qzbin_factor = get_qzbin_factor(q, bit_depth);
+    int qrounding_factor = q == 0 ? 64 : 48;
+    const int sharpness_adjustment = 16 * (7 - quant_sharpness) / 7;
+    if (quant_sharpness > 0 && q > 0) {
+      qzbin_factor = 64 + sharpness_adjustment;
+      qrounding_factor = 64 - sharpness_adjustment;
+    }
     for (i = 0; i < 2; ++i) {
-      const int qrounding_factor_fp = 64;
+      int qrounding_factor_fp = 64;
+      if (quant_sharpness > 0)
+        qrounding_factor_fp = 64 - sharpness_adjustment;
       // y quantizer with TX scale
       quant_QTX = i == 0 ? av1_dc_quant_QTX(q, y_dc_delta_q, bit_depth)
                          : av1_ac_quant_QTX(q, 0, bit_depth);
@@ -675,13 +681,13 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
 
 void av1_init_quantizer(EncQuantDequantParams *const enc_quant_dequant_params,
                         const CommonQuantParams *quant_params,
-                        aom_bit_depth_t bit_depth) {
+                        aom_bit_depth_t bit_depth, int quant_sharpness) {
   QUANTS *const quants = &enc_quant_dequant_params->quants;
   Dequants *const dequants = &enc_quant_dequant_params->dequants;
   av1_build_quantizer(bit_depth, quant_params->y_dc_delta_q,
                       quant_params->u_dc_delta_q, quant_params->u_ac_delta_q,
                       quant_params->v_dc_delta_q, quant_params->v_ac_delta_q,
-                      quants, dequants);
+                      quants, dequants, quant_sharpness);
 }
 
 void av1_set_q_index(const EncQuantDequantParams *enc_quant_dequant_params,

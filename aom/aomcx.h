@@ -1453,8 +1453,14 @@ enum aome_enc_control_id {
    */
   AV1E_GET_TARGET_SEQ_LEVEL_IDX = 155,
 
+  // ClybPatch -- TODO: Ideally, this should be reworked to be able to be successfully patched without needing to be touched every time there's a new param by other developers.
   AOME_SET_DQ_MODULATE = AV1E_GET_TARGET_SEQ_LEVEL_IDX + 2,
-
+  /*!\ClybPatch -- brief Codec control function to set the quantization sharpness parameter,
+   * unsigned int parameter.
+   *
+   * Valid range: 0..7. The default is 0. Values 1-7 will change quantization in favour of block sharpness.
+   */
+  AOME_SET_QUANT_SHARPNESS = AV1E_GET_TARGET_SEQ_LEVEL_IDX + 3,
   /*!\brief Codec control function to get the number of operating points. int*
    * parameter.
    */
@@ -1659,6 +1665,9 @@ AOM_CTRL_USE_TYPE(AOME_SET_ENABLEAUTOALTREF, unsigned int)
 
 AOM_CTRL_USE_TYPE(AOME_SET_SHARPNESS, unsigned int)
 #define AOM_CTRL_AOME_SET_SHARPNESS
+
+AOM_CTRL_USE_TYPE(AOME_SET_QUANT_SHARPNESS, unsigned int)
+#define AOM_CTRL_AOME_SET_QUANT_SHARPNESS
 
 AOM_CTRL_USE_TYPE(AOME_SET_STATIC_THRESHOLD, unsigned int)
 #define AOM_CTRL_AOME_SET_STATIC_THRESHOLD
