@@ -177,17 +177,29 @@ static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
 static INLINE int subpel_select(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                                 int_mv *mv, MV ref_mv, FULLPEL_MV start_mv,
                                 bool fullpel_performed_well) {
-  // Reduce MV precision to halfpel for higher int MV value& frame-level motion
-  if (cpi->sf.rt_sf.reduce_mv_pel_precision_highmotion == 1) {
+  const int frame_lowmotion = cpi->rc.avg_frame_low_motion;
+  // Reduce MV precision for higher int MV value & frame-level motion
+  if (cpi->sf.rt_sf.reduce_mv_pel_precision_highmotion >= 2) {
     int mv_thresh = 4;
     const int is_low_resoln =
         (cpi->common.width * cpi->common.height <= 320 * 240);
     mv_thresh = (bsize > BLOCK_32X32) ? 2 : (bsize > BLOCK_16X16) ? 4 : 6;
-    if (cpi->rc.avg_frame_low_motion > 0 && cpi->rc.avg_frame_low_motion < 40)
-      mv_thresh = 12;
+    if (frame_lowmotion > 0 && frame_lowmotion < 40) mv_thresh = 12;
     mv_thresh = (is_low_resoln) ? mv_thresh >> 1 : mv_thresh;
     if (abs(mv->as_fullmv.row) >= mv_thresh ||
         abs(mv->as_fullmv.col) >= mv_thresh)
+      return HALF_PEL;
+  } else if (cpi->sf.rt_sf.reduce_mv_pel_precision_highmotion >= 1) {
+    int mv_thresh;
+    if (frame_lowmotion > 0 && frame_lowmotion < 40)
+      mv_thresh = 12;
+    else
+      mv_thresh = (bsize >= BLOCK_32X32) ? 4 : (bsize >= BLOCK_16X16) ? 6 : 8;
+    if (abs(mv->as_fullmv.row) >= (mv_thresh << 1) ||
+        abs(mv->as_fullmv.col) >= (mv_thresh << 1))
+      return FULL_PEL;
+    else if (abs(mv->as_fullmv.row) >= mv_thresh ||
+             abs(mv->as_fullmv.col) >= mv_thresh)
       return HALF_PEL;
   }
   // Reduce MV precision for relatively static (e.g. background), low-complex

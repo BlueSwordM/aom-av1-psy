@@ -1506,6 +1506,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   int prune_inter_modes_using_temp_var;
 
   // Reduce MV precision to halfpel for higher int MV value & frame-level motion
+  // 0: disabled
+  // 1: Reduce precision to halfpel, fullpel based on conservative thresholds
+  // 2: Reduce precision to halfpel using more aggressive thresholds
   int reduce_mv_pel_precision_highmotion;
 
   // Reduce MV precision for low complexity blocks
