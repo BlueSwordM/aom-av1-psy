@@ -239,6 +239,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_LOOPFILTER_CONTROL,
                                         AV1E_SET_AUTO_INTRA_TOOLS_OFF,
                                         AOME_SET_DQ_MODULATE,
+                                        AOME_SET_TPL_STRENGTH,
                                         0 };
 
 const arg_def_t *main_args[] = { &g_av1_codec_arg_defs.help,
@@ -445,6 +446,7 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.loopfilter_control,
   &g_av1_codec_arg_defs.auto_intra_tools_off,
   &g_av1_codec_arg_defs.dq_modulate,
+  &g_av1_codec_arg_defs.tpl_strength,
   NULL,
 };
 

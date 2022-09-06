@@ -691,5 +691,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .dq_modulate = ARG_DEF(NULL, "dq-modulate", 1,
                        "Changes deltaq-mode=2's perceptual modulation. Still WIP. "
                        "(0..1), default is 1 (wavelet)"),
+  .tpl_strength = ARG_DEF(NULL, "tpl-strength", 1,
+                       "Sets the effectiveness of the TPL model. Still WIP. "
+                       "(0..1000), default is 100 (stock aomenc behavior.) "
+                       "Recommended values are between 50-150."),
 #endif  // CONFIG_AV1_ENCODER
 };
