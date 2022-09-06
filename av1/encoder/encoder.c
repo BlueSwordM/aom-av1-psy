@@ -2169,6 +2169,10 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   set_ref_ptrs(cm, xd, LAST_FRAME, LAST_FRAME);
 }
 
+static INLINE int do_extend_borders_with_cdef_mt(AV1_COMMON *cm) {
+  return (!is_restoration_used(cm) && !av1_superres_scaled(cm));
+}
+
 /*!\brief Select and apply cdef filters and switchable restoration filters
  *
  * \ingroup high_level_algo
@@ -2202,9 +2206,11 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     // Apply the filter
     if (!cpi->rtc_ref.non_reference_frame) {
       if (num_workers > 1) {
+        const int do_extend_border = do_extend_borders_with_cdef_mt(cm);
         av1_cdef_frame_mt(cm, xd, cpi->mt_info.cdef_worker,
                           cpi->mt_info.workers, &cpi->mt_info.cdef_sync,
-                          num_workers, av1_cdef_init_fb_row_mt);
+                          num_workers, av1_cdef_init_fb_row_mt,
+                          do_extend_border);
       } else {
         av1_cdef_frame(&cm->cur_frame->buf, cm, xd, av1_cdef_init_fb_row);
       }
@@ -2233,13 +2239,15 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
-      if (num_workers > 1)
+      if (num_workers > 1) {
+        const int do_extend_border = 1;
         av1_loop_restoration_filter_frame_mt(
             &cm->cur_frame->buf, cm, 0, mt_info->workers, num_workers,
-            &mt_info->lr_row_sync, &cpi->lr_ctxt);
-      else
+            &mt_info->lr_row_sync, &cpi->lr_ctxt, do_extend_border);
+      } else {
         av1_loop_restoration_filter_frame(&cm->cur_frame->buf, cm, 0,
                                           &cpi->lr_ctxt);
+      }
     }
   } else {
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
@@ -2271,6 +2279,15 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   const int use_cdef = cm->seq_params->enable_cdef &&
                        !cm->features.coded_lossless && !cm->tiles.large_scale;
   const int use_restoration = is_restoration_used(cm);
+
+  // TODO(deepa.kg@ittiam.com): When cdef and loop-restoration are disabled,
+  // multi-thread frame border extension along with loop filter frame.
+  // As loop-filtering of a superblock row modifies the pixels of the
+  // above superblock row, border extension requires that loop filtering
+  // of the current and above superblock row is complete.
+  for (int plane = 0; plane < num_planes; plane++)
+    cm->extend_border_mt[plane] = 0;
+
   // lpf_opt_level = 1 : Enables dual/quad loop-filtering.
   // lpf_opt_level is set to 1 if transform size search depth in inter blocks
   // is limited to one as quad loop filtering assumes that all the transform
@@ -3105,8 +3122,13 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   }
 
   // TODO(debargha): Fix mv search range on encoder side
-  // aom_extend_frame_inner_borders(&cm->cur_frame->buf, av1_num_planes(cm));
-  aom_extend_frame_borders(&cm->cur_frame->buf, av1_num_planes(cm));
+  for (int plane = 0; plane < av1_num_planes(cm); ++plane) {
+    if (cm->extend_border_mt[plane] == 0) {
+      const YV12_BUFFER_CONFIG *ybf = &cm->cur_frame->buf;
+      aom_extend_frame_borders_plane_row(ybf, plane, 0,
+                                         ybf->crop_heights[plane > 0]);
+    }
+  }
 
 #ifdef OUTPUT_YUV_REC
   aom_write_one_yuv_frame(cm, &cm->cur_frame->buf);

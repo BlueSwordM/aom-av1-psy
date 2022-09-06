@@ -5280,6 +5280,9 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[2].frame_restoration_type != RESTORE_NONE;
+    // Frame border extension is not required in the decoder
+    // as it happens in extend_mc_border().
+    int do_extend_border_mt = 0;
     if (!optimized_loop_restoration) {
       if (do_loop_restoration)
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
@@ -5289,7 +5292,8 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         if (pbi->num_workers > 1) {
           av1_cdef_frame_mt(cm, &pbi->dcb.xd, pbi->cdef_worker,
                             pbi->tile_workers, &pbi->cdef_sync,
-                            pbi->num_workers, av1_cdef_init_fb_row_mt);
+                            pbi->num_workers, av1_cdef_init_fb_row_mt,
+                            do_extend_border_mt);
         } else {
           av1_cdef_frame(&pbi->common.cur_frame->buf, cm, &pbi->dcb.xd,
                          av1_cdef_init_fb_row);
@@ -5305,7 +5309,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
           av1_loop_restoration_filter_frame_mt(
               (YV12_BUFFER_CONFIG *)xd->cur_buf, cm, optimized_loop_restoration,
               pbi->tile_workers, pbi->num_workers, &pbi->lr_row_sync,
-              &pbi->lr_ctxt);
+              &pbi->lr_ctxt, do_extend_border_mt);
         } else {
           av1_loop_restoration_filter_frame((YV12_BUFFER_CONFIG *)xd->cur_buf,
                                             cm, optimized_loop_restoration,
@@ -5320,7 +5324,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
           av1_loop_restoration_filter_frame_mt(
               (YV12_BUFFER_CONFIG *)xd->cur_buf, cm, optimized_loop_restoration,
               pbi->tile_workers, pbi->num_workers, &pbi->lr_row_sync,
-              &pbi->lr_ctxt);
+              &pbi->lr_ctxt, do_extend_border_mt);
         } else {
           av1_loop_restoration_filter_frame((YV12_BUFFER_CONFIG *)xd->cur_buf,
                                             cm, optimized_loop_restoration,

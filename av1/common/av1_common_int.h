@@ -1048,6 +1048,12 @@ typedef struct AV1Common {
    */
   int spatial_layer_id;
 
+  /*!
+   * Extension of frame borders is multi-threaded along with cdef/loop
+   * restoration.
+   */
+  int extend_border_mt[MAX_MB_PLANE];
+
 #if TXCOEFF_TIMER
   int64_t cum_txcoeff_timer;
   int64_t txcoeff_timer;

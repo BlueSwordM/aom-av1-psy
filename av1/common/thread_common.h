@@ -135,7 +135,8 @@ typedef struct AV1CdefSyncData {
 void av1_cdef_frame_mt(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                        AV1CdefWorkerData *const cdef_worker,
                        AVxWorker *const workers, AV1CdefSync *const cdef_sync,
-                       int num_workers, cdef_init_fb_row_t cdef_init_fb_row_fn);
+                       int num_workers, cdef_init_fb_row_t cdef_init_fb_row_fn,
+                       int do_extend_border);
 void av1_cdef_init_fb_row_mt(const AV1_COMMON *const cm,
                              const MACROBLOCKD *const xd,
                              CdefBlockInfo *const fb_info,
@@ -163,7 +164,7 @@ void av1_loop_restoration_filter_frame_mt(YV12_BUFFER_CONFIG *frame,
                                           struct AV1Common *cm,
                                           int optimized_lr, AVxWorker *workers,
                                           int num_workers, AV1LrSync *lr_sync,
-                                          void *lr_ctxt);
+                                          void *lr_ctxt, int do_extend_border);
 void av1_loop_restoration_dealloc(AV1LrSync *lr_sync, int num_workers);
 void av1_loop_restoration_alloc(AV1LrSync *lr_sync, AV1_COMMON *cm,
                                 int num_workers, int num_rows_lr,
