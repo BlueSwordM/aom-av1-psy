@@ -2105,8 +2105,7 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   }
 
   // Skip golden reference if color is set, on flat blocks with motion.
-  if (((cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-        (x->color_sensitivity_sb[0] || x->color_sensitivity_sb[1])) ||
+  if (((cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) ||
        (x->source_variance < 500 &&
         x->content_state_sb.source_sad_nonrd > kLowSad)) &&
       (x->color_sensitivity_sb_g[0] == 1 || x->color_sensitivity_sb_g[1] == 1))
