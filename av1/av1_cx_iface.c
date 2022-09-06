@@ -191,6 +191,7 @@ struct av1_extracfg {
   int strict_level_conformance;
   int kf_max_pyr_height;
   int dq_modulate;
+  int tpl_strength;
 };
 
 #if CONFIG_REALTIME_ONLY
@@ -354,6 +355,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,               // strict_level_conformance
   -1,              // kf_max_pyr_height
   1,               // dq_modulate
+  100,             // tpl_strength
 };
 #else
 static const struct av1_extracfg default_extra_cfg = {
@@ -503,6 +505,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,               // strict_level_conformance
   -1,              // kf_max_pyr_height
   1,               // dq_modulate
+  100,             // tpl_strength
 };
 #endif
 
@@ -860,6 +863,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
         "The value of kf-max-pyr-height should not be smaller than "
         "gf-min-pyr-height");
   }
+  RANGE_CHECK(extra_cfg, tpl_strength, 1, 1000);
 
   return AOM_CODEC_OK;
 }
@@ -1442,6 +1446,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->kf_max_pyr_height = extra_cfg->kf_max_pyr_height;
 
   oxcf->dq_modulate = extra_cfg->dq_modulate;
+  oxcf->tpl_strength = extra_cfg->tpl_strength;
 
   return AOM_CODEC_OK;
 }
@@ -3967,6 +3972,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.dq_modulate,
                               argv, err_string)) {
     extra_cfg.dq_modulate = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.tpl_strength,
+                              argv, err_string)) {
+    extra_cfg.tpl_strength = arg_parse_int_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.tile_width, argv,
                               err_string)) {
     ctx->cfg.tile_width_count = arg_parse_list_helper(
@@ -4023,6 +4031,12 @@ static aom_codec_err_t ctrl_set_dq_modulate(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+static aom_codec_err_t ctrl_set_tpl_strength(aom_codec_alg_priv_t *ctx,
+                                          va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.tpl_strength = CAST(AOME_SET_TPL_STRENGTH, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
 static aom_codec_err_t ctrl_get_num_operating_points(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   int *const arg = va_arg(args, int *);
@@ -4171,6 +4185,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_AUTO_INTRA_TOOLS_OFF, ctrl_set_auto_intra_tools_off },
   { AV1E_SET_RTC_EXTERNAL_RC, ctrl_set_rtc_external_rc },
   { AOME_SET_DQ_MODULATE, ctrl_set_dq_modulate },
+  { AOME_SET_TPL_STRENGTH, ctrl_set_tpl_strength },
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },

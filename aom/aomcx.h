@@ -1462,6 +1462,8 @@ enum aome_enc_control_id {
    * Valid range: 0..7. The default is 0. Values 1-7 will change quantization in favour of block sharpness.
    */
   AOME_SET_QUANT_SHARPNESS = AV1E_GET_TARGET_SEQ_LEVEL_IDX + 3,
+  // ClybPatch -- Idea thanks to Opmox, sets the TPL model's strength / effectiveness.
+  AOME_SET_TPL_STRENGTH = AV1E_GET_TARGET_SEQ_LEVEL_IDX + 4,
   /*!\brief Codec control function to get the number of operating points. int*
    * parameter.
    */
@@ -2091,6 +2093,9 @@ AOM_CTRL_USE_TYPE(AV1E_GET_TARGET_SEQ_LEVEL_IDX, int *)
 
 AOM_CTRL_USE_TYPE(AOME_SET_DQ_MODULATE, int)
 #define AOM_CTRL_AOME_SET_DQ_MODULATE
+
+AOM_CTRL_USE_TYPE(AOME_SET_TPL_STRENGTH, int)
+#define AOM_CTRL_AOME_SET_TPL_STRENGTH
 
 AOM_CTRL_USE_TYPE(AV1E_GET_NUM_OPERATING_POINTS, int *)
 #define AOM_CTRL_AV1E_GET_NUM_OPERATING_POINTS

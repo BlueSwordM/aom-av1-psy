@@ -59,7 +59,7 @@ static AOM_INLINE int set_deltaq_rdmult(const AV1_COMP *const cpi,
                                         const MACROBLOCK *const x) {
   const AV1_COMMON *const cm = &cpi->common;
   const CommonQuantParams *quant_params = &cm->quant_params;
-  return av1_compute_rd_mult(cpi, quant_params->base_qindex + x->delta_qindex +
+  return av1_compute_rd_mult(cpi, quant_params->base_qindex + (int)round(x->delta_qindex * cpi->oxcf.tpl_strength / 100.0) +
                                       quant_params->y_dc_delta_q);
 }
 
