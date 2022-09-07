@@ -573,8 +573,6 @@ static void init_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   alloc_compressor_data(cpi);
 
-  av1_update_film_grain_parameters(cpi, oxcf);
-
   // Single thread case: use counts in common.
   cpi->td.counts = &cpi->counts;
 
@@ -707,9 +705,10 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
     lap_lag_in_frames = cpi->oxcf.gf_cfg.lag_in_frames;
   }
 
+  cpi->oxcf = *oxcf;
+
   av1_update_film_grain_parameters(cpi, oxcf);
 
-  cpi->oxcf = *oxcf;
   // When user provides superres_mode = AOM_SUPERRES_AUTO, we still initialize
   // superres mode for current encoding = AOM_SUPERRES_NONE. This is to ensure
   // that any analysis (e.g. TPL) happening outside the main encoding loop still

@@ -636,7 +636,6 @@ void av1_update_film_grain_parameters_seq(struct AV1_PRIMARY *ppi,
 void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
                                       const AV1EncoderConfig *oxcf) {
   AV1_COMMON *const cm = &cpi->common;
-  cpi->oxcf = *oxcf;
   const TuneCfg *const tune_cfg = &oxcf->tune_cfg;
 
   if (cpi->film_grain_table) {
