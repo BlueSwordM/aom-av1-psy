@@ -1244,13 +1244,14 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
                                 BufferPool *const pool, COMPRESSOR_STAGE stage,
                                 int lap_lag_in_frames) {
   AV1_COMP *volatile const cpi = aom_memalign(32, sizeof(AV1_COMP));
-  AV1_COMMON *volatile const cm = cpi != NULL ? &cpi->common : NULL;
 
-  if (!cm) return NULL;
+  if (!cpi) return NULL;
 
   av1_zero(*cpi);
 
   cpi->ppi = ppi;
+
+  AV1_COMMON *volatile const cm = &cpi->common;
   cm->seq_params = &ppi->seq_params;
   cm->error =
       (struct aom_internal_error_info *)aom_calloc(1, sizeof(*cm->error));
