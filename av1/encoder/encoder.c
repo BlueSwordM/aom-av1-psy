@@ -696,6 +696,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
   RefreshFrameInfo *const refresh_frame = &cpi->refresh_frame;
   const FrameDimensionCfg *const frm_dim_cfg = &cpi->oxcf.frm_dim_cfg;
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
+  FeatureFlags *const features = &cm->features;
 
   // in case of LAP, lag in frames is set according to number of lap buffers
   // calculated at init time. This stores and restores LAP's lag in frames to
@@ -750,12 +751,12 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
   refresh_frame->golden_frame = false;
   refresh_frame->bwd_ref_frame = false;
 
-  cm->features.refresh_frame_context =
+  features->refresh_frame_context =
       (oxcf->tool_cfg.frame_parallel_decoding_mode)
           ? REFRESH_FRAME_CONTEXT_DISABLED
           : REFRESH_FRAME_CONTEXT_BACKWARD;
   if (oxcf->tile_cfg.enable_large_scale_tile)
-    cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
+    features->refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 
   if (x->palette_buffer == NULL) {
     CHECK_MEM_ERROR(cm, x->palette_buffer,
@@ -803,9 +804,10 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
   rc->worst_quality = rc_cfg->worst_allowed_q;
   rc->best_quality = rc_cfg->best_allowed_q;
 
-  cm->features.interp_filter =
+  features->interp_filter =
       oxcf->tile_cfg.enable_large_scale_tile ? EIGHTTAP_REGULAR : SWITCHABLE;
-  cm->features.switchable_motion_mode = 1;
+  features->switchable_motion_mode = is_switchable_motion_mode_allowed(
+      features->allow_warped_motion, oxcf->motion_mode_cfg.enable_obmc);
 
   if (frm_dim_cfg->render_width > 0 && frm_dim_cfg->render_height > 0) {
     cm->render_width = frm_dim_cfg->render_width;

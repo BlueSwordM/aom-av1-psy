@@ -1982,9 +1982,10 @@ void av1_encode_frame(AV1_COMP *cpi) {
   FeatureFlags *const features = &cm->features;
   const int num_planes = av1_num_planes(cm);
   RD_COUNTS *const rdc = &cpi->td.rd_counts;
+  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   // Indicates whether or not to use a default reduced set for ext-tx
   // rather than the potential full set of 16 transforms
-  features->reduced_tx_set_used = cpi->oxcf.txfm_cfg.reduced_tx_type_set;
+  features->reduced_tx_set_used = oxcf->txfm_cfg.reduced_tx_type_set;
 
   // Make sure segment_id is no larger than last_active_segid.
   if (cm->seg.enabled && cm->seg.update_map) {
@@ -2026,7 +2027,8 @@ void av1_encode_frame(AV1_COMP *cpi) {
     features->interp_filter = SWITCHABLE;
     if (cm->tiles.large_scale) features->interp_filter = EIGHTTAP_REGULAR;
 
-    features->switchable_motion_mode = 1;
+    features->switchable_motion_mode = is_switchable_motion_mode_allowed(
+        features->allow_warped_motion, oxcf->motion_mode_cfg.enable_obmc);
 
     rdc->compound_ref_used_flag = 0;
     rdc->skip_mode_used_flag = 0;

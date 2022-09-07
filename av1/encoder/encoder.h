@@ -4090,6 +4090,12 @@ static INLINE int is_inter_tx_size_search_level_one(
           tx_sf->inter_tx_size_search_init_depth_sqr >= 1);
 }
 
+// Enable switchable motion mode only if warp and OBMC tools are allowed
+static INLINE bool is_switchable_motion_mode_allowed(bool allow_warped_motion,
+                                                     bool enable_obmc) {
+  return (allow_warped_motion || enable_obmc);
+}
+
 #if CONFIG_AV1_TEMPORAL_DENOISING
 static INLINE int denoise_svc(const struct AV1_COMP *const cpi) {
   return (!cpi->ppi->use_svc ||
