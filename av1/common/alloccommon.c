@@ -28,8 +28,8 @@ int av1_get_MBs(int width, int height) {
   const int mi_cols = aligned_width >> MI_SIZE_LOG2;
   const int mi_rows = aligned_height >> MI_SIZE_LOG2;
 
-  const int mb_cols = (mi_cols + 2) >> 2;
-  const int mb_rows = (mi_rows + 2) >> 2;
+  const int mb_cols = ROUND_POWER_OF_TWO(mi_cols, 2);
+  const int mb_rows = ROUND_POWER_OF_TWO(mi_rows, 2);
   return mb_rows * mb_cols;
 }
 

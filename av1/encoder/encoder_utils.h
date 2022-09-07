@@ -67,8 +67,8 @@ static AOM_INLINE void set_mb_mi(CommonModeInfoParams *mi_params, int width,
   mi_params->mi_rows = size_in_mi(height);
   mi_params->mi_stride = calc_mi_size(mi_params->mi_cols);
 
-  mi_params->mb_cols = (mi_params->mi_cols + 2) >> 2;
-  mi_params->mb_rows = (mi_params->mi_rows + 2) >> 2;
+  mi_params->mb_cols = ROUND_POWER_OF_TWO(mi_params->mi_cols, 2);
+  mi_params->mb_rows = ROUND_POWER_OF_TWO(mi_params->mi_rows, 2);
   mi_params->MBs = mi_params->mb_rows * mi_params->mb_cols;
 
   const int mi_alloc_size_1d = mi_size_wide[mi_params->mi_alloc_bsize];

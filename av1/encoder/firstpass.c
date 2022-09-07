@@ -36,6 +36,7 @@
 #include "av1/encoder/encodemb.h"
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/encoder.h"
+#include "av1/encoder/encoder_utils.h"
 #include "av1/encoder/encode_strategy.h"
 #include "av1/encoder/ethread.h"
 #include "av1/encoder/extend.h"
@@ -1219,8 +1220,18 @@ void av1_noop_first_pass_frame(AV1_COMP *cpi, const int64_t ts_duration) {
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
-  const int unit_rows = get_unit_rows(BLOCK_16X16, mi_params->mb_rows);
-  const int unit_cols = get_unit_cols(BLOCK_16X16, mi_params->mb_cols);
+  int max_mb_rows = mi_params->mb_rows;
+  int max_mb_cols = mi_params->mb_cols;
+  if (cpi->oxcf.frm_dim_cfg.forced_max_frame_width) {
+    int max_mi_cols = size_in_mi(cpi->oxcf.frm_dim_cfg.forced_max_frame_width);
+    max_mb_cols = ROUND_POWER_OF_TWO(max_mi_cols, 2);
+  }
+  if (cpi->oxcf.frm_dim_cfg.forced_max_frame_height) {
+    int max_mi_rows = size_in_mi(cpi->oxcf.frm_dim_cfg.forced_max_frame_height);
+    max_mb_rows = ROUND_POWER_OF_TWO(max_mi_rows, 2);
+  }
+  const int unit_rows = get_unit_rows(BLOCK_16X16, max_mb_rows);
+  const int unit_cols = get_unit_cols(BLOCK_16X16, max_mb_cols);
   setup_firstpass_data(cm, &cpi->firstpass_data, unit_rows, unit_cols);
   FRAME_STATS *mb_stats = cpi->firstpass_data.mb_stats;
   FRAME_STATS stats = accumulate_frame_stats(mb_stats, unit_rows, unit_cols);
@@ -1254,10 +1265,21 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   const BLOCK_SIZE fp_block_size =
       get_fp_block_size(cpi->is_screen_content_type);
 
+  int max_mb_rows = mi_params->mb_rows;
+  int max_mb_cols = mi_params->mb_cols;
+  if (cpi->oxcf.frm_dim_cfg.forced_max_frame_width) {
+    int max_mi_cols = size_in_mi(cpi->oxcf.frm_dim_cfg.forced_max_frame_width);
+    max_mb_cols = ROUND_POWER_OF_TWO(max_mi_cols, 2);
+  }
+  if (cpi->oxcf.frm_dim_cfg.forced_max_frame_height) {
+    int max_mi_rows = size_in_mi(cpi->oxcf.frm_dim_cfg.forced_max_frame_height);
+    max_mb_rows = ROUND_POWER_OF_TWO(max_mi_rows, 2);
+  }
+
   // Number of rows in the unit size.
-  // Note mi_params->mb_rows and mi_params->mb_cols are in the unit of 16x16.
-  const int unit_rows = get_unit_rows(fp_block_size, mi_params->mb_rows);
-  const int unit_cols = get_unit_cols(fp_block_size, mi_params->mb_cols);
+  // Note max_mb_rows and max_mb_cols are in the unit of 16x16.
+  const int unit_rows = get_unit_rows(fp_block_size, max_mb_rows);
+  const int unit_cols = get_unit_cols(fp_block_size, max_mb_cols);
 
   // Set fp_block_size, for the convenience of multi-thread usage.
   cpi->fp_block_size = fp_block_size;
