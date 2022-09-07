@@ -29,3 +29,6 @@ Local Modifications:
    src
   LICENSE
   README.md
+- Cherry-pick cl/441474979: Replace infinite recursion call
+  (intentionally invoking undefined behavior to indicate unreachability)
+  with explicit unreachability marker.
