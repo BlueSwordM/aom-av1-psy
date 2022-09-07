@@ -2117,7 +2117,13 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   }
 
   // Skip golden reference if color is set, on flat blocks with motion.
-  if (((cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) ||
+  // For screen: always skip golden (if color_sensitivity_sb_g is set)
+  // except when x->nonrd_prune_ref_frame_search = 0. This latter flag
+  // may be set in the variance partition when golden is a much beter
+  // reference than last, in which case it may not be worth skipping
+  // golden completely.
+  if (((cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+        x->nonrd_prune_ref_frame_search != 0) ||
        (x->source_variance < 500 &&
         x->content_state_sb.source_sad_nonrd > kLowSad)) &&
       (x->color_sensitivity_sb_g[0] == 1 || x->color_sensitivity_sb_g[1] == 1))
@@ -3170,15 +3176,23 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       // Use y-sad already computed in find_predictors: take the sad with motion
       // vector closest to 0; the uv-sad computed below in set_color_sensitivity
       // is for zeromv.
-      int y_sad = x->pred_mv0_sad[LAST_FRAME];
-      if (x->pred_mv1_sad[LAST_FRAME] != INT_MAX &&
-          (abs(frame_mv[NEARMV][LAST_FRAME].as_mv.col) +
-           abs(frame_mv[NEARMV][LAST_FRAME].as_mv.row)) <
-              (abs(frame_mv[NEARESTMV][LAST_FRAME].as_mv.col) +
-               abs(frame_mv[NEARESTMV][LAST_FRAME].as_mv.row)))
-        y_sad = x->pred_mv1_sad[LAST_FRAME];
-      set_color_sensitivity(cpi, x, bsize, y_sad, x->source_variance,
-                            yv12_mb[LAST_FRAME]);
+      // For screen: first check if golden reference is being used, if so,
+      // force color_sensitivity on if the color sensitivity for sb_g is on.
+      if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+          use_ref_frame_mask[GOLDEN_FRAME]) {
+        if (x->color_sensitivity_sb_g[0] == 1) x->color_sensitivity[0] = 1;
+        if (x->color_sensitivity_sb_g[1] == 1) x->color_sensitivity[1] = 1;
+      } else {
+        int y_sad = x->pred_mv0_sad[LAST_FRAME];
+        if (x->pred_mv1_sad[LAST_FRAME] != INT_MAX &&
+            (abs(frame_mv[NEARMV][LAST_FRAME].as_mv.col) +
+             abs(frame_mv[NEARMV][LAST_FRAME].as_mv.row)) <
+                (abs(frame_mv[NEARESTMV][LAST_FRAME].as_mv.col) +
+                 abs(frame_mv[NEARESTMV][LAST_FRAME].as_mv.row)))
+          y_sad = x->pred_mv1_sad[LAST_FRAME];
+        set_color_sensitivity(cpi, x, bsize, y_sad, x->source_variance,
+                              yv12_mb[LAST_FRAME]);
+      }
     }
     mi->motion_mode = SIMPLE_TRANSLATION;
 #if !CONFIG_REALTIME_ONLY
