@@ -414,20 +414,20 @@ static void highbd_vfilter8(const int16_t *src, int src_stride, uint16_t *dst,
           } else {
             shifted = _mm_srai_epi32(_mm_add_epi32(p_32, shifted), 1);
           }
-          __m128i res32 = _mm_sub_epi32(shifted, sub);
-          res32 = _mm_sra_epi32(_mm_add_epi32(res32, round_bits_const),
-                                round_bits_shift);
+          result = _mm_sub_epi32(shifted, sub);
+          result = _mm_sra_epi32(_mm_add_epi32(result, round_bits_const),
+                                 round_bits_shift);
 
-          __m128i res16 = _mm_packus_epi32(res32, res32);
-          res16 = _mm_min_epi16(res16, clip_pixel_);
-          _mm_storel_epi64((__m128i *)dst_x, res16);
+          result = _mm_packus_epi32(result, result);
+          result = _mm_min_epi16(result, clip_pixel_);
+          _mm_storel_epi64((__m128i *)dst_x, result);
         } else {
           __m128i shifted_16 = _mm_packus_epi32(shifted, shifted);
           _mm_storel_epi64((__m128i *)dst_16_x, shifted_16);
         }
       } else {
-        const __m128i subbed = _mm_sub_epi32(shifted, sub);
-        result = _mm_sra_epi16(_mm_add_epi32(subbed, bits_const), bits_shift);
+        result = _mm_sub_epi32(shifted, sub);
+        result = _mm_sra_epi16(_mm_add_epi32(result, bits_const), bits_shift);
         result = _mm_packus_epi32(result, result);
         result = _mm_min_epi16(result, clip_pixel_);
         _mm_storel_epi64((__m128i *)dst_x, result);
