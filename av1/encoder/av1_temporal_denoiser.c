@@ -693,10 +693,9 @@ int64_t av1_scale_acskip_thresh(int64_t threshold,
                                 AV1_DENOISER_LEVEL noise_level, int abs_sumdiff,
                                 int temporal_layer_id) {
   if (noise_level >= kDenLow && abs_sumdiff < 5)
-    return threshold *=
-           (noise_level == kDenLow) ? 2 : (temporal_layer_id == 2) ? 10 : 6;
-  else
-    return threshold;
+    threshold *=
+        (noise_level == kDenLow) ? 2 : (temporal_layer_id == 2) ? 10 : 6;
+  return threshold;
 }
 
 void av1_denoiser_reset_on_first_frame(AV1_COMP *const cpi) {
