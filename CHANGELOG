@@ -60,6 +60,7 @@
     * aomedia:3304 Fix off-by-one error of max w/h in validate_config
     * aomedia:3306 Do not use pthread_setname_np on GNU/Hurd
     * aomedia:3325 row-multithreading produces invalid bitstream in some cases
+    * chromium:1346938, chromium:1338114
     * compiler_flags.cmake: fix flag detection w/cmake 3.17-3.18.2
     * tools/*.py: update to python3
     * aom_configure.cmake: detect PIE and set CONFIG_PIC
