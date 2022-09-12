@@ -449,7 +449,9 @@ static AOM_INLINE void tune_thresh_based_on_qindex_window(
 static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
                                           int q, int content_lowsumdiff,
                                           int source_sad_nonrd,
-                                          int source_sad_rd, int segment_id) {
+                                          int source_sad_rd, int segment_id,
+                                          uint64_t blk_sad,
+                                          int lighting_change) {
   AV1_COMMON *const cm = &cpi->common;
   const int is_key_frame = frame_is_intra_only(cm);
   const int threshold_multiplier = is_key_frame ? 120 : 1;
@@ -592,6 +594,15 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
       } else {
         thresholds[1] <<= 1;
         thresholds[2] <<= 3;
+      }
+      // Allow for split to 8x8 for superblocks where part of it has
+      // moving boudary. So allow for sb with source_sad above threshold,
+      // and avoid very large source_sad or high source content, to avoid
+      // too many 8x8 within superblock.
+      if (segment_id == 0 && cpi->rc.avg_source_sad < 25000 &&
+          blk_sad > 25000 && blk_sad < 50000 && !lighting_change) {
+        thresholds[2] = (3 * thresholds[2]) >> 2;
+        thresholds[3] = thresholds[2] << 3;
       }
       // Condition the increase of partition thresholds on the segment
       // and the content. Avoid the increase for superblocks which have
@@ -916,7 +927,7 @@ void av1_set_variance_partition_thresholds(AV1_COMP *cpi, int q,
     return;
   } else {
     set_vbp_thresholds(cpi, cpi->vbp_info.thresholds, q, content_lowsumdiff, 0,
-                       0, 0);
+                       0, 0, 0, 0);
     // The threshold below is not changed locally.
     cpi->vbp_info.threshold_minmax = 15 + (q >> 3);
   }
@@ -1279,6 +1290,17 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   const int low_res = (cm->width <= 352 && cm->height <= 288);
   int variance4x4downsample[64];
   const int segment_id = xd->mi[0]->segment_id;
+  uint64_t blk_sad = 0;
+  if (cpi->src_sad_blk_64x64 != NULL) {
+    const int sb_size_by_mb = (cm->seq_params->sb_size == BLOCK_128X128)
+                                  ? (cm->seq_params->mib_size >> 1)
+                                  : cm->seq_params->mib_size;
+    const int sb_cols =
+        (cm->mi_params.mi_cols + sb_size_by_mb - 1) / sb_size_by_mb;
+    const int sbi_col = mi_col / sb_size_by_mb;
+    const int sbi_row = mi_row / sb_size_by_mb;
+    blk_sad = cpi->src_sad_blk_64x64[sbi_col + sbi_row * sb_cols];
+  }
 
   if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && cm->seg.enabled &&
       cyclic_refresh_segment_id_boosted(segment_id)) {
@@ -1286,12 +1308,14 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
         av1_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex);
     set_vbp_thresholds(cpi, thresholds, q, x->content_state_sb.low_sumdiff,
                        x->content_state_sb.source_sad_nonrd,
-                       x->content_state_sb.source_sad_rd, 1);
+                       x->content_state_sb.source_sad_rd, 1, blk_sad,
+                       x->content_state_sb.lighting_change);
   } else {
     set_vbp_thresholds(cpi, thresholds, cm->quant_params.base_qindex,
                        x->content_state_sb.low_sumdiff,
                        x->content_state_sb.source_sad_nonrd,
-                       x->content_state_sb.source_sad_rd, 0);
+                       x->content_state_sb.source_sad_rd, 0, blk_sad,
+                       x->content_state_sb.lighting_change);
   }
 
   // For non keyframes, disable 4x4 average for low resolution when speed = 8
