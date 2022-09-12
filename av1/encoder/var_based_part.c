@@ -1354,14 +1354,13 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   // If the superblock is completely static (zero source sad) and
   // the y_sad (relative to LAST ref) is very small, take the sb_size partition
   // and exit, and force zeromv_last skip mode for nonrd_pickmode.
-  // Only do this when the cyclic refresh is applied, and only on the base
-  // segment (so the QP-boosted segment can still contnue cleaning/ramping
-  // up the quality). Condition on color uv_sad is also added.
+  // Only do this on the base segment (so the QP-boosted segment, if applied,
+  // can still continue cleaning/ramping up the quality).
+  // Condition on color uv_sad is also added.
   if (!is_key_frame && cpi->sf.rt_sf.part_early_exit_zeromv &&
-      cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
-      cpi->cyclic_refresh->apply_cyclic_refresh &&
-      segment_id == CR_SEGMENT_ID_BASE && is_set_force_zeromv_skip &&
-      ref_frame_partition == LAST_FRAME && xd->mi[0]->mv[0].as_int == 0) {
+      cpi->rc.frames_since_key > 30 && segment_id == CR_SEGMENT_ID_BASE &&
+      is_set_force_zeromv_skip && ref_frame_partition == LAST_FRAME &&
+      xd->mi[0]->mv[0].as_int == 0) {
     const int block_width = mi_size_wide[cm->seq_params->sb_size];
     const int block_height = mi_size_high[cm->seq_params->sb_size];
     const unsigned int thresh_exit_part_y =
