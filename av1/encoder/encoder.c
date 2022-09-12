@@ -2354,8 +2354,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   assert(IMPLIES(is_lossless_requested(&cpi->oxcf.rc_cfg),
                  cm->features.coded_lossless && cm->features.all_lossless));
 
-  const int use_loopfilter =
-      !cm->features.coded_lossless && !cm->tiles.large_scale;
+  const int use_loopfilter = is_loopfilter_used(cm);
   const int use_cdef = is_cdef_used(cm);
   const int use_restoration = is_restoration_used(cm);
 
@@ -2376,10 +2375,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
       // addition to enabling dual/quad loop-filtering. This is enabled when lpf
       // pick method is LPF_PICK_FROM_Q as u and v plane filter levels are
       // equal.
-      int lpf_opt_level = 0;
-      if (is_inter_tx_size_search_level_one(&cpi->sf.tx_sf)) {
-        lpf_opt_level = (cpi->sf.lpf_sf.lpf_pick == LPF_PICK_FROM_Q) ? 2 : 1;
-      }
+      int lpf_opt_level = get_lpf_opt_level(&cpi->sf);
       av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0,
                                mt_info->workers, num_workers,
                                &mt_info->lf_row_sync, lpf_opt_level);

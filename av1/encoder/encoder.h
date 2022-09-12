@@ -4074,6 +4074,11 @@ static INLINE int is_frame_resize_pending(const AV1_COMP *const cpi) {
            cpi->common.height != resize_pending_params->height));
 }
 
+// Check if loop filter is used.
+static INLINE int is_loopfilter_used(const AV1_COMMON *const cm) {
+  return !cm->features.coded_lossless && !cm->tiles.large_scale;
+}
+
 // Check if CDEF is used.
 static INLINE int is_cdef_used(const AV1_COMMON *const cm) {
   return cm->seq_params->enable_cdef && !cm->features.coded_lossless &&
@@ -4090,6 +4095,13 @@ static INLINE int is_inter_tx_size_search_level_one(
     const TX_SPEED_FEATURES *tx_sf) {
   return (tx_sf->inter_tx_size_search_init_depth_rect >= 1 &&
           tx_sf->inter_tx_size_search_init_depth_sqr >= 1);
+}
+
+static INLINE int get_lpf_opt_level(const SPEED_FEATURES *sf) {
+  int lpf_opt_level = 0;
+  if (is_inter_tx_size_search_level_one(&sf->tx_sf))
+    lpf_opt_level = (sf->lpf_sf.lpf_pick == LPF_PICK_FROM_Q) ? 2 : 1;
+  return lpf_opt_level;
 }
 
 // Enable switchable motion mode only if warp and OBMC tools are allowed
