@@ -26,11 +26,14 @@
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/aom_timer.h"
 #include "aom_ports/mem.h"
+#include "av1/common/cdef_block.h"
 
 namespace {
 
 typedef uint64_t (*MseWxH16bitFunc)(uint8_t *dst, int dstride, uint16_t *src,
                                     int sstride, int w, int h);
+typedef uint64_t (*Mse16xH16bitFunc)(uint8_t *dst, int dstride, uint16_t *src,
+                                     int w, int h);
 typedef unsigned int (*VarianceMxNFunc)(const uint8_t *a, int a_stride,
                                         const uint8_t *b, int b_stride,
                                         unsigned int *sse);
@@ -508,6 +511,139 @@ void MseWxHTestClass<MseWxHFunctionType>::RefMatchTestMse() {
         mse_ref = aom_mse_wxh_16bit_c(dst_, dstride, src_, sstride, w, h));
     API_REGISTER_STATE_CHECK(
         mse_mod = params_.func(dst_, dstride, src_, sstride, w, h));
+    EXPECT_EQ(mse_ref, mse_mod)
+        << "ref mse: " << mse_ref << " mod mse: " << mse_mod;
+  }
+}
+
+template <typename FunctionType>
+class Mse16xHTestClass
+    : public ::testing::TestWithParam<TestParams<FunctionType> > {
+ public:
+  // Memory required to compute mse of two 8x8 and four 4x4 blocks assigned for
+  // maximum width 16 and maximum height 8.
+  int mem_size = 16 * 8;
+  virtual void SetUp() {
+    params_ = this->GetParam();
+    rnd_.Reset(ACMRandom::DeterministicSeed());
+    src_ = reinterpret_cast<uint16_t *>(
+        aom_memalign(16, mem_size * sizeof(*src_)));
+    dst_ =
+        reinterpret_cast<uint8_t *>(aom_memalign(16, mem_size * sizeof(*dst_)));
+    ASSERT_NE(src_, nullptr);
+    ASSERT_NE(dst_, nullptr);
+  }
+
+  virtual void TearDown() {
+    aom_free(src_);
+    aom_free(dst_);
+    src_ = nullptr;
+    dst_ = nullptr;
+  }
+
+  uint8_t RandBool() {
+    const uint32_t value = rnd_.Rand8();
+    return (value & 0x1);
+  }
+
+ protected:
+  void RefMatchExtremeTestMse();
+  void RefMatchTestMse();
+  void SpeedTest();
+
+ protected:
+  ACMRandom rnd_;
+  uint8_t *dst_;
+  uint16_t *src_;
+  TestParams<FunctionType> params_;
+
+  // some relay helpers
+  int width() const { return params_.width; }
+  int height() const { return params_.height; }
+  int d_stride() const { return params_.width; }
+};
+
+template <typename Mse16xHFunctionType>
+void Mse16xHTestClass<Mse16xHFunctionType>::SpeedTest() {
+  aom_usec_timer ref_timer, test_timer;
+  double elapsed_time_c = 0.0;
+  double elapsed_time_simd = 0.0;
+  const int loop_count = 10000000;
+  const int w = width();
+  const int h = height();
+  const int dstride = d_stride();
+
+  for (int k = 0; k < mem_size; ++k) {
+    dst_[k] = rnd_.Rand8();
+    // Right shift by 6 is done to generate more input in range of [0,255] than
+    // CDEF_VERY_LARGE
+    int rnd_i10 = rnd_.Rand16() >> 6;
+    src_[k] = (rnd_i10 < 256) ? rnd_i10 : CDEF_VERY_LARGE;
+  }
+
+  aom_usec_timer_start(&ref_timer);
+  for (int i = 0; i < loop_count; i++) {
+    aom_mse_16xh_16bit_c(dst_, dstride, src_, w, h);
+  }
+  aom_usec_timer_mark(&ref_timer);
+  elapsed_time_c = static_cast<double>(aom_usec_timer_elapsed(&ref_timer));
+
+  aom_usec_timer_start(&test_timer);
+  for (int i = 0; i < loop_count; i++) {
+    params_.func(dst_, dstride, src_, w, h);
+  }
+  aom_usec_timer_mark(&test_timer);
+  elapsed_time_simd = static_cast<double>(aom_usec_timer_elapsed(&test_timer));
+
+  printf("%dx%d\tc_time=%lf \t simd_time=%lf \t gain=%.31f\n", width(),
+         height(), elapsed_time_c, elapsed_time_simd,
+         (elapsed_time_c / elapsed_time_simd));
+}
+
+template <typename Mse16xHFunctionType>
+void Mse16xHTestClass<Mse16xHFunctionType>::RefMatchTestMse() {
+  uint64_t mse_ref = 0;
+  uint64_t mse_mod = 0;
+  const int w = width();
+  const int h = height();
+  const int dstride = d_stride();
+
+  for (int i = 0; i < 10; i++) {
+    for (int k = 0; k < mem_size; ++k) {
+      dst_[k] = rnd_.Rand8();
+      // Right shift by 6 is done to generate more input in range of [0,255]
+      // than CDEF_VERY_LARGE
+      int rnd_i10 = rnd_.Rand16() >> 6;
+      src_[k] = (rnd_i10 < 256) ? rnd_i10 : CDEF_VERY_LARGE;
+    }
+
+    API_REGISTER_STATE_CHECK(
+        mse_ref = aom_mse_16xh_16bit_c(dst_, dstride, src_, w, h));
+    API_REGISTER_STATE_CHECK(mse_mod = params_.func(dst_, dstride, src_, w, h));
+    EXPECT_EQ(mse_ref, mse_mod)
+        << "ref mse: " << mse_ref << " mod mse: " << mse_mod;
+  }
+}
+
+template <typename Mse16xHFunctionType>
+void Mse16xHTestClass<Mse16xHFunctionType>::RefMatchExtremeTestMse() {
+  uint64_t mse_ref = 0;
+  uint64_t mse_mod = 0;
+  const int w = width();
+  const int h = height();
+  const int dstride = d_stride();
+  const int iter = 10;
+
+  // Fill the buffers with extreme values
+  for (int i = 0; i < iter; i++) {
+    for (int k = 0; k < mem_size; ++k) {
+      dst_[k] = static_cast<uint8_t>(RandBool() ? 0 : 255);
+      src_[k] = static_cast<uint16_t>(RandBool() ? 0 : CDEF_VERY_LARGE);
+    }
+
+    API_REGISTER_STATE_CHECK(
+        mse_ref = aom_mse_16xh_16bit_c(dst_, dstride, src_, w, h));
+    API_REGISTER_STATE_CHECK(mse_mod = params_.func(dst_, dstride, src_, w, h));
     EXPECT_EQ(mse_ref, mse_mod)
         << "ref mse: " << mse_ref << " mod mse: " << mse_mod;
   }
@@ -1327,6 +1463,7 @@ void ObmcVarianceTest<ObmcSubpelVarFunc>::SpeedTest() {
 #endif  // !CONFIG_REALTIME_ONLY
 
 typedef MseWxHTestClass<MseWxH16bitFunc> MseWxHTest;
+typedef Mse16xHTestClass<Mse16xH16bitFunc> Mse16xHTest;
 typedef MainTestClass<Get4x4SseFunc> AvxSseTest;
 typedef MainTestClass<VarianceMxNFunc> AvxMseTest;
 typedef MainTestClass<VarianceMxNFunc> AvxVarianceTest;
@@ -1339,11 +1476,15 @@ typedef SubpelVarianceTest<DistWtdSubpixAvgVarMxNFunc>
 typedef ObmcVarianceTest<ObmcSubpelVarFunc> AvxObmcSubpelVarianceTest;
 #endif
 typedef TestParams<MseWxH16bitFunc> MseWxHParams;
+typedef TestParams<Mse16xH16bitFunc> Mse16xHParams;
 
 TEST_P(AvxSseTest, RefSse) { RefTestSse(); }
 TEST_P(AvxSseTest, MaxSse) { MaxTestSse(); }
 TEST_P(MseWxHTest, RefMse) { RefMatchTestMse(); }
 TEST_P(MseWxHTest, DISABLED_SpeedMse) { SpeedTest(); }
+TEST_P(Mse16xHTest, RefMse) { RefMatchTestMse(); }
+TEST_P(Mse16xHTest, RefMseExtreme) { RefMatchExtremeTestMse(); }
+TEST_P(Mse16xHTest, DISABLED_SpeedMse) { SpeedTest(); }
 TEST_P(AvxMseTest, RefMse) { RefTestMse(); }
 TEST_P(AvxMseTest, MaxMse) { MaxTestMse(); }
 TEST_P(AvxVarianceTest, Zero) { ZeroTest(); }
@@ -1374,6 +1515,13 @@ INSTANTIATE_TEST_SUITE_P(
                       MseWxHParams(3, 2, &aom_mse_wxh_16bit_c, 8),
                       MseWxHParams(2, 3, &aom_mse_wxh_16bit_c, 8),
                       MseWxHParams(2, 2, &aom_mse_wxh_16bit_c, 8)));
+
+INSTANTIATE_TEST_SUITE_P(
+    C, Mse16xHTest,
+    ::testing::Values(Mse16xHParams(3, 3, &aom_mse_16xh_16bit_c, 8),
+                      Mse16xHParams(3, 2, &aom_mse_16xh_16bit_c, 8),
+                      Mse16xHParams(2, 3, &aom_mse_16xh_16bit_c, 8),
+                      Mse16xHParams(2, 2, &aom_mse_16xh_16bit_c, 8)));
 
 INSTANTIATE_TEST_SUITE_P(C, SumOfSquaresTest,
                          ::testing::Values(aom_get_mb_ss_c));
@@ -2739,6 +2887,13 @@ INSTANTIATE_TEST_SUITE_P(
                       MseWxHParams(3, 2, &aom_mse_wxh_16bit_avx2, 8),
                       MseWxHParams(2, 3, &aom_mse_wxh_16bit_avx2, 8),
                       MseWxHParams(2, 2, &aom_mse_wxh_16bit_avx2, 8)));
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, Mse16xHTest,
+    ::testing::Values(Mse16xHParams(3, 3, &aom_mse_16xh_16bit_avx2, 8),
+                      Mse16xHParams(3, 2, &aom_mse_16xh_16bit_avx2, 8),
+                      Mse16xHParams(2, 3, &aom_mse_16xh_16bit_avx2, 8),
+                      Mse16xHParams(2, 2, &aom_mse_16xh_16bit_avx2, 8)));
 
 INSTANTIATE_TEST_SUITE_P(AVX2, AvxMseTest,
                          ::testing::Values(MseParams(4, 4,

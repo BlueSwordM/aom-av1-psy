@@ -1240,6 +1240,20 @@ uint64_t aom_mse_wxh_16bit_c(uint8_t *dst, int dstride, uint16_t *src,
   return sum;
 }
 
+uint64_t aom_mse_16xh_16bit_c(uint8_t *dst, int dstride, uint16_t *src, int w,
+                              int h) {
+  uint16_t *src_temp = src;
+  uint8_t *dst_temp = dst;
+  const int num_blks = 16 / w;
+  int64_t sum = 0;
+  for (int i = 0; i < num_blks; i++) {
+    sum += aom_mse_wxh_16bit_c(dst_temp, dstride, src_temp, w, w, h);
+    dst_temp += w;
+    src_temp += (w * h);
+  }
+  return sum;
+}
+
 uint64_t aom_mse_wxh_16bit_highbd_c(uint16_t *dst, int dstride, uint16_t *src,
                                     int sstride, int w, int h) {
   uint64_t sum = 0;

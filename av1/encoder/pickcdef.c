@@ -267,6 +267,22 @@ static uint64_t compute_cdef_dist_highbd(void *dst, int dstride, uint16_t *src,
   return sum >> 2 * coeff_shift;
 }
 #endif
+
+// Checks dual and quad block processing is applicable for block widths 8 and 4
+// respectively.
+static INLINE int is_dual_or_quad_applicable(cdef_list *dlist, int width,
+                                             int cdef_count, int bi, int iter) {
+  assert(width == 8 || width == 4);
+  const int blk_offset = (width == 8) ? 1 : 3;
+  if ((iter + blk_offset) >= cdef_count) return 0;
+
+  if (dlist[bi].by == dlist[bi + blk_offset].by &&
+      dlist[bi].bx + blk_offset == dlist[bi + blk_offset].bx)
+    return 1;
+
+  return 0;
+}
+
 static uint64_t compute_cdef_dist(void *dst, int dstride, uint16_t *src,
                                   cdef_list *dlist, int cdef_count,
                                   BLOCK_SIZE bsize, int coeff_shift, int row,
@@ -275,18 +291,34 @@ static uint64_t compute_cdef_dist(void *dst, int dstride, uint16_t *src,
          bsize == BLOCK_8X8);
   uint64_t sum = 0;
   int bi, bx, by;
+  int iter = 0;
+  int inc = 1;
   uint8_t *dst8 = (uint8_t *)dst;
   uint8_t *dst_buff = &dst8[row * dstride + col];
   int src_stride, width, height, width_log2, height_log2;
   init_src_params(&src_stride, &width, &height, &width_log2, &height_log2,
                   bsize);
-  for (bi = 0; bi < cdef_count; bi++) {
+
+  const int num_blks = 16 / width;
+  for (bi = 0; bi < cdef_count; bi += inc) {
     by = dlist[bi].by;
     bx = dlist[bi].bx;
-    sum += aom_mse_wxh_16bit(
-        &dst_buff[(by << height_log2) * dstride + (bx << width_log2)], dstride,
-        &src[bi << (height_log2 + width_log2)], src_stride, width, height);
+    uint16_t *src_tmp = &src[bi << (height_log2 + width_log2)];
+    uint8_t *dst_tmp =
+        &dst_buff[(by << height_log2) * dstride + (bx << width_log2)];
+
+    if (is_dual_or_quad_applicable(dlist, width, cdef_count, bi, iter)) {
+      sum += aom_mse_16xh_16bit(dst_tmp, dstride, src_tmp, width, height);
+      iter += num_blks;
+      inc = num_blks;
+    } else {
+      sum += aom_mse_wxh_16bit(dst_tmp, dstride, src_tmp, src_stride, width,
+                               height);
+      iter += 1;
+      inc = 1;
+    }
   }
+
   return sum >> 2 * coeff_shift;
 }
 
