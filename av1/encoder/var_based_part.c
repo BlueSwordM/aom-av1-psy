@@ -587,7 +587,7 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
       }
     }
     if (cm->width * cm->height <= 352 * 288) {
-      thresholds[3] = INT32_MAX;
+      thresholds[3] = INT64_MAX;
       if (segment_id == 0) {
         thresholds[1] <<= 2;
         thresholds[2] <<= (source_sad_nonrd <= kLowSad) ? 5 : 4;
@@ -613,7 +613,7 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
                (source_sad_nonrd != kHighSad ||
                 cpi->rc.avg_source_sad > 50000)) {
       thresholds[0] = (3 * thresholds[0]) >> 1;
-      thresholds[3] = INT32_MAX;
+      thresholds[3] = INT64_MAX;
       if (current_qindex > QINDEX_LARGE_BLOCK_THR) {
         thresholds[1] =
             (int)((1 - weight) * (thresholds[1] << 1) + weight * thresholds[1]);
@@ -627,7 +627,7 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
           (int)((1 - weight) * (thresholds[1] << 2) + weight * thresholds[1]);
       thresholds[2] =
           (int)((1 - weight) * (thresholds[2] << 4) + weight * thresholds[2]);
-      thresholds[3] = INT32_MAX;
+      thresholds[3] = INT64_MAX;
     }
   } else if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 2) {
     thresholds[1] <<= (source_sad_nonrd <= kLowSad) ? 2 : 0;
