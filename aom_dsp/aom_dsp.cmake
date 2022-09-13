@@ -114,29 +114,6 @@ list(APPEND AOM_DSP_COMMON_INTRIN_NEON
             "${AOM_ROOT}/aom_dsp/arm/subtract_neon.c"
             "${AOM_ROOT}/aom_dsp/arm/blend_a64_mask_neon.c")
 
-list(APPEND AOM_DSP_COMMON_INTRIN_DSPR2
-            "${AOM_ROOT}/aom_dsp/mips/aom_convolve_copy_dspr2.c"
-            "${AOM_ROOT}/aom_dsp/mips/common_dspr2.c"
-            "${AOM_ROOT}/aom_dsp/mips/common_dspr2.h"
-            "${AOM_ROOT}/aom_dsp/mips/convolve2_dspr2.c"
-            "${AOM_ROOT}/aom_dsp/mips/convolve2_horiz_dspr2.c"
-            "${AOM_ROOT}/aom_dsp/mips/convolve2_vert_dspr2.c"
-            "${AOM_ROOT}/aom_dsp/mips/convolve8_horiz_dspr2.c"
-            "${AOM_ROOT}/aom_dsp/mips/convolve8_vert_dspr2.c"
-            "${AOM_ROOT}/aom_dsp/mips/convolve_common_dspr2.h"
-            "${AOM_ROOT}/aom_dsp/mips/intrapred16_dspr2.c"
-            "${AOM_ROOT}/aom_dsp/mips/intrapred4_dspr2.c"
-            "${AOM_ROOT}/aom_dsp/mips/intrapred8_dspr2.c"
-            "${AOM_ROOT}/aom_dsp/mips/inv_txfm_dspr2.h")
-
-list(APPEND AOM_DSP_COMMON_INTRIN_MSA
-            "${AOM_ROOT}/aom_dsp/mips/aom_convolve8_horiz_msa.c"
-            "${AOM_ROOT}/aom_dsp/mips/aom_convolve8_vert_msa.c"
-            "${AOM_ROOT}/aom_dsp/mips/aom_convolve_copy_msa.c"
-            "${AOM_ROOT}/aom_dsp/mips/aom_convolve_msa.h"
-            "${AOM_ROOT}/aom_dsp/mips/intrapred_msa.c"
-            "${AOM_ROOT}/aom_dsp/mips/macros_msa.h")
-
 if(CONFIG_AV1_HIGHBITDEPTH)
   list(APPEND AOM_DSP_COMMON_INTRIN_SSE2
               "${AOM_ROOT}/aom_dsp/x86/highbd_convolve_sse2.c"
@@ -264,11 +241,6 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/arm/avg_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/sse_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/sum_squares_neon.c")
-
-  list(APPEND AOM_DSP_ENCODER_INTRIN_MSA "${AOM_ROOT}/aom_dsp/mips/sad_msa.c"
-              "${AOM_ROOT}/aom_dsp/mips/subtract_msa.c"
-              "${AOM_ROOT}/aom_dsp/mips/variance_msa.c"
-              "${AOM_ROOT}/aom_dsp/mips/sub_pixel_variance_msa.c")
 
   if(CONFIG_AV1_HIGHBITDEPTH)
     list(APPEND AOM_DSP_ENCODER_ASM_SSE2
@@ -425,20 +397,6 @@ function(setup_aom_dsp_targets)
       add_intrinsics_object_library("${AOM_NEON_INTRIN_FLAG}" "neon"
                                     "aom_dsp_encoder"
                                     "AOM_DSP_ENCODER_INTRIN_NEON")
-    endif()
-  endif()
-
-  if(HAVE_DSPR2)
-    add_intrinsics_object_library("" "dspr2" "aom_dsp_common"
-                                  "AOM_DSP_COMMON_INTRIN_DSPR2")
-  endif()
-
-  if(HAVE_MSA)
-    add_intrinsics_object_library("" "msa" "aom_dsp_common"
-                                  "AOM_DSP_COMMON_INTRIN_MSA")
-    if(CONFIG_AV1_ENCODER)
-      add_intrinsics_object_library("" "msa" "aom_dsp_encoder"
-                                    "AOM_DSP_ENCODER_INTRIN_MSA")
     endif()
   endif()
 

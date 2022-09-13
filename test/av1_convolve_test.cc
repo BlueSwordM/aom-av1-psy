@@ -780,16 +780,6 @@ INSTANTIATE_TEST_SUITE_P(NEON, AV1ConvolveCopyTest,
                          BuildLowbdParams(aom_convolve_copy_neon));
 #endif
 
-#if HAVE_MSA
-INSTANTIATE_TEST_SUITE_P(MSA, AV1ConvolveCopyTest,
-                         BuildLowbdParams(aom_convolve_copy_msa));
-#endif
-
-#if HAVE_DSPR2
-INSTANTIATE_TEST_SUITE_P(DSPR2, AV1ConvolveCopyTest,
-                         BuildLowbdParams(aom_convolve_copy_dspr2));
-#endif
-
 #if CONFIG_AV1_HIGHBITDEPTH
 ///////////////////////////////////////////////////////////////
 // Single reference convolve-copy functions (high bit-depth)

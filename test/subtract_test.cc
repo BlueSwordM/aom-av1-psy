@@ -104,10 +104,6 @@ INSTANTIATE_TEST_SUITE_P(SSE2, AV1SubtractBlockTest,
 INSTANTIATE_TEST_SUITE_P(NEON, AV1SubtractBlockTest,
                          ::testing::Values(aom_subtract_block_neon));
 #endif
-#if HAVE_MSA
-INSTANTIATE_TEST_SUITE_P(MSA, AV1SubtractBlockTest,
-                         ::testing::Values(aom_subtract_block_msa));
-#endif
 
 #if CONFIG_AV1_HIGHBITDEPTH
 typedef void (*HBDSubtractFunc)(int rows, int cols, int16_t *diff_ptr,

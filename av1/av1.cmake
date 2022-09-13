@@ -371,11 +371,6 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
 list(APPEND AOM_AV1_ENCODER_INTRIN_ARM_CRC32
             "${AOM_ROOT}/av1/encoder/arm/crc32/hash_crc32.c")
 
-list(APPEND AOM_AV1_ENCODER_INTRIN_MSA
-            "${AOM_ROOT}/av1/encoder/mips/msa/error_msa.c"
-            "${AOM_ROOT}/av1/encoder/mips/msa/fdct4x4_msa.c"
-            "${AOM_ROOT}/av1/encoder/mips/msa/temporal_filter_msa.c")
-
 list(APPEND AOM_AV1_COMMON_INTRIN_NEON
             "${AOM_ROOT}/av1/common/arm/av1_inv_txfm_neon.c"
             "${AOM_ROOT}/av1/common/arm/av1_inv_txfm_neon.h"
@@ -653,11 +648,6 @@ function(setup_av1_targets)
       add_intrinsics_object_library("-mvsx -maltivec" "vsx" "aom_av1_common"
                                     "AOM_AV1_COMMON_INTRIN_VSX")
     endif()
-  endif()
-
-  if(HAVE_MSA)
-    add_intrinsics_object_library("" "msa" "aom_av1_encoder"
-                                  "AOM_AV1_ENCODER_INTRIN_MSA")
   endif()
 
   # Pass the new lib targets up to the parent scope instance of
