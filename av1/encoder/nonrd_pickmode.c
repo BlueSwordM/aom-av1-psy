@@ -3334,7 +3334,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
           RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist) >=
               RDCOST(x->rdmult, 0, this_rdc.sse)) {
         if (!this_rdc.skip_txfm) {
-          // Need to store "real" rdc for possible furure use if UV rdc
+          // Need to store "real" rdc for possible future use if UV rdc
           // disallows tx skip
           nonskip_rdc = this_rdc;
           nonskip_rdc.rate += no_skip_txfm_cost;
@@ -3513,7 +3513,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       x->content_state_sb.source_sad_nonrd != kZeroSad &&
       !cpi->rc.high_source_sad;
 
-  // Check for IDTX: based only on Y channel, so avoid when color_sen is set.
+  // Check for IDTX: based only on Y channel, so avoid when color_sensitivity
+  // is set.
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN && !skip_idtx_palette &&
       !cpi->oxcf.txfm_cfg.use_inter_dct_only && !x->force_zeromv_skip_for_blk &&
       is_inter_mode(best_pickmode.best_mode) &&
