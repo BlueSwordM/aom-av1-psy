@@ -2597,15 +2597,7 @@ static void direct_partition_merging(AV1_COMP *cpi, ThreadData *td,
     // Update mi for this partition block.
     for (int y = 0; y < bs; y++) {
       for (int x_idx = 0; x_idx < bs; x_idx++) {
-        this_mi[x_idx + y * mi_params->mi_stride]->bsize = this_mi[0]->bsize;
-        this_mi[x_idx + y * mi_params->mi_stride]->partition =
-            this_mi[0]->partition;
-        this_mi[x_idx + y * mi_params->mi_stride]->skip_txfm =
-            this_mi[0]->skip_txfm;
-        this_mi[x_idx + y * mi_params->mi_stride]->tx_size =
-            this_mi[0]->tx_size;
-        memcpy(this_mi[x_idx + y * mi_params->mi_stride]->inter_tx_size,
-               this_mi[0]->inter_tx_size, sizeof(this_mi[0]->inter_tx_size));
+        this_mi[x_idx + y * mi_params->mi_stride] = this_mi[0];
       }
     }
   }
