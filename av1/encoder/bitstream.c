@@ -2764,7 +2764,31 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
   }
 }
 
-static int check_frame_refs_short_signaling(AV1_COMMON *const cm) {
+static int check_frame_refs_short_signaling(AV1_COMMON *const cm,
+                                            int enable_ref_short_signaling) {
+  // In rtc case when res < 360p and speed >= 9, we turn on
+  // frame_refs_short_signaling if it won't break the decoder.
+  if (enable_ref_short_signaling) {
+    const int gld_map_idx = get_ref_frame_map_idx(cm, GOLDEN_FRAME);
+    const int base =
+        1 << (cm->seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+
+    const int order_hint_group_cur =
+        cm->current_frame.display_order_hint / base;
+    const int order_hint_group_gld =
+        cm->ref_frame_map[gld_map_idx]->display_order_hint / base;
+    const int relative_dist = cm->current_frame.order_hint -
+                              cm->ref_frame_map[gld_map_idx]->order_hint;
+
+    // If current frame and GOLDEN frame are in the same order_hint group, and
+    // they are not far apart (i.e., > 64 frames), then return 1.
+    if (order_hint_group_cur == order_hint_group_gld && relative_dist >= 0 &&
+        relative_dist <= 64) {
+      return 1;
+    }
+    return 0;
+  }
+
   // Check whether all references are distinct frames.
   const RefCntBuffer *seen_bufs[FRAME_BUFFERS] = { NULL };
   int num_refs = 0;
@@ -2842,7 +2866,13 @@ static AOM_INLINE void write_uncompressed_header_obu(
   CurrentFrame *const current_frame = &cm->current_frame;
   FeatureFlags *const features = &cm->features;
 
-  current_frame->frame_refs_short_signaling = 0;
+  if (!cpi->sf.rt_sf.enable_ref_short_signaling ||
+      !seq_params->order_hint_info.enable_order_hint ||
+      seq_params->order_hint_info.enable_ref_frame_mvs) {
+    current_frame->frame_refs_short_signaling = 0;
+  } else {
+    current_frame->frame_refs_short_signaling = 1;
+  }
 
   if (seq_params->still_picture) {
     assert(cm->show_existing_frame == 0);
@@ -3008,12 +3038,20 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #endif  // FRAME_REFS_SHORT_SIGNALING
 
       if (current_frame->frame_refs_short_signaling) {
-        // NOTE(zoeliu@google.com):
-        //   An example solution for encoder-side implementation on frame refs
-        //   short signaling, which is only turned on when the encoder side
-        //   decision on ref frames is identical to that at the decoder side.
+        //    In rtc case when cpi->sf.rt_sf.enable_ref_short_signaling is 1, we
+        //    turn on frame_refs_short_signaling when the current frame
+        //    and golden frame are in the same order_hint group,
+        //    and their relative distance is <= 64 (in order to be decodable).
+
+        //    For other cases, an example solution for encoder-side
+        //    implementation on frame_refs_short_signaling is also provided in
+        //    this function, where frame_refs_short_signaling is only turned on
+        //    when the encoder side decision on ref frames is identical to that
+        //    at the decoder side.
+
         current_frame->frame_refs_short_signaling =
-            check_frame_refs_short_signaling(cm);
+            check_frame_refs_short_signaling(
+                cm, cpi->sf.rt_sf.enable_ref_short_signaling);
       }
 
       if (seq_params->order_hint_info.enable_order_hint)
