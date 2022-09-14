@@ -39,9 +39,6 @@ struct RateControlParam {
   int ref_frame_table_size;
   // Maximum number of references a single frame may use.
   int max_ref_frames;
-  // Maximum pyramid depth. e.g., 1 means only one ARF per GOP,
-  // 2 would allow an additional level of intermediate ARFs.
-  int max_depth;
 
   int base_q_index;
 
