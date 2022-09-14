@@ -615,8 +615,16 @@ static aom_codec_err_t allocate_and_set_string(const char *src,
 static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
                                        const aom_codec_enc_cfg_t *cfg,
                                        const struct av1_extracfg *extra_cfg) {
-  RANGE_CHECK(cfg, g_w, 1, 65536);  // 16 bits available
-  RANGE_CHECK(cfg, g_h, 1, 65536);  // 16 bits available
+  RANGE_CHECK(cfg, g_w, 1, 65536);                        // 16 bits available
+  RANGE_CHECK(cfg, g_h, 1, 65536);                        // 16 bits available
+  RANGE_CHECK_HI(cfg, g_forced_max_frame_width, 65536);   // 16 bits available
+  RANGE_CHECK_HI(cfg, g_forced_max_frame_height, 65536);  // 16 bits available
+  if (cfg->g_forced_max_frame_width) {
+    RANGE_CHECK_HI(cfg, g_w, cfg->g_forced_max_frame_width);
+  }
+  if (cfg->g_forced_max_frame_height) {
+    RANGE_CHECK_HI(cfg, g_h, cfg->g_forced_max_frame_height);
+  }
   RANGE_CHECK(cfg, g_timebase.den, 1, 1000000000);
   RANGE_CHECK(cfg, g_timebase.num, 1, cfg->g_timebase.den);
   RANGE_CHECK_HI(cfg, g_profile, MAX_PROFILES - 1);
