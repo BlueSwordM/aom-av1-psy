@@ -350,6 +350,7 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
     if (payload_length > (obu_ctx->buffer_capacity - bytes_read)) {
       fprintf(stderr, "obudec: First OBU's payload is too large\n");
       rewind(f);
+      obudec_free(obu_ctx);
       return 0;
     }
 
@@ -358,6 +359,7 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
         f, payload_length, &obu_ctx->buffer[bytes_read], &payload_bytes);
     if (status < 0) {
       rewind(f);
+      obudec_free(obu_ctx);
       return 0;
     }
     obu_ctx->bytes_buffered += payload_bytes;
@@ -483,4 +485,9 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
   return 0;
 }
 
-void obudec_free(struct ObuDecInputContext *obu_ctx) { free(obu_ctx->buffer); }
+void obudec_free(struct ObuDecInputContext *obu_ctx) {
+  free(obu_ctx->buffer);
+  obu_ctx->buffer = NULL;
+  obu_ctx->buffer_capacity = 0;
+  obu_ctx->bytes_buffered = 0;
+}
