@@ -1422,6 +1422,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.screen_content_cdef_filter_qindex_thresh = 80;
       sf->rt_sf.part_early_exit_zeromv = 1;
     }
+    sf->rt_sf.use_nonrd_altref_frame = 0;
     sf->rt_sf.skip_cdef_sb = 1;
     sf->rt_sf.use_rtc_tf = 0;
     sf->rt_sf.use_comp_ref_nonrd = 0;
