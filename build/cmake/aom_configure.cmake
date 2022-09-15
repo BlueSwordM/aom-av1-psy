@@ -40,6 +40,10 @@ if(FORCE_HIGHBITDEPTH_DECODING AND NOT CONFIG_AV1_HIGHBITDEPTH)
                          "FORCE_HIGHBITDEPTH_DECODING")
 endif()
 
+if(CONFIG_THREE_PASS AND NOT CONFIG_AV1_DECODER)
+  change_config_and_warn(CONFIG_THREE_PASS 0 "CONFIG_AV1_DECODER=0")
+endif()
+
 # Generate the user config settings.
 list(APPEND aom_build_vars ${AOM_CONFIG_VARS} ${AOM_OPTION_VARS})
 foreach(cache_var ${aom_build_vars})
