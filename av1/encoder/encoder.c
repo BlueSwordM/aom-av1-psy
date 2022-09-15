@@ -3343,12 +3343,13 @@ static AOM_INLINE int selective_disable_cdf_rtc(const AV1_COMP *cpi) {
   if (cpi->svc.number_spatial_layers == 1 &&
       cpi->svc.number_temporal_layers == 1) {
     // Don't disable on intra_only, scene change (high_source_sad = 1),
-    // or resized frame. To avoid quality loss for now, force enable at
-    // every 8 frames.
+    // or resized frame. To avoid quality loss force enable at
+    // for ~30 frames after key or scene/slide change, and
+    // after 8 frames since last update if frame_source_sad > 0.
     if (frame_is_intra_only(cm) || is_frame_resize_pending(cpi) ||
-        rc->high_source_sad || rc->frames_since_key < 10 ||
-        cpi->cyclic_refresh->counter_encode_maxq_scene_change < 10 ||
-        cm->current_frame.frame_number % 8 == 0)
+        rc->high_source_sad || rc->frames_since_key < 30 ||
+        cpi->cyclic_refresh->counter_encode_maxq_scene_change < 30 ||
+        (cpi->frames_since_last_update > 8 && cpi->rc.frame_source_sad > 0))
       return 0;
     else
       return 1;
