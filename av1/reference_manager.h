@@ -73,6 +73,7 @@ class RefFrameManager {
   void UpdateOrder(int global_order_idx);
   int ColocatedRefIdx(int global_order_idx);
   int ForwardMaxSize() const { return forward_max_size_; }
+  int MaxRefFrame() const { return max_ref_frames_; }
   int CurGlobalOrderIdx() const { return cur_global_order_idx_; }
   void UpdateRefFrameTable(GopFrame *gop_frame);
   ReferenceFrame GetPrimaryRefFrame(const GopFrame &gop_frame) const;

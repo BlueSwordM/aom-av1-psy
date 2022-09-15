@@ -201,7 +201,7 @@ GopStruct ConstructGop(RefFrameManager *ref_frame_manager, int show_frame_count,
     ref_frame_manager->UpdateRefFrameTable(&gop_frame);
     gop_struct.gop_frame_list.push_back(gop_frame);
     ConstructGopMultiLayer(&gop_struct, ref_frame_manager,
-                           ref_frame_manager->ForwardMaxSize(), arf_depth + 1,
+                           ref_frame_manager->MaxRefFrame() - 1, arf_depth + 1,
                            order_start, order_end);
     // Overlay
     gop_frame =
