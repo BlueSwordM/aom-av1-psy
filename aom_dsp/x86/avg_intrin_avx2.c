@@ -552,3 +552,120 @@ void aom_avg_8x8_quad_avx2(const uint8_t *s, int p, int x16_idx, int y16_idx,
   avg[2] = _mm_extract_epi16(_mm256_castsi256_si128(result_0), 4);
   avg[3] = _mm_extract_epi16(_mm256_extracti128_si256(result_0, 1), 4);
 }
+
+void aom_int_pro_row_avx2(int16_t *hbuf, const uint8_t *ref,
+                          const int ref_stride, const int width,
+                          const int height, int norm_factor) {
+  // SIMD implementation assumes width and height to be multiple of 16 and 2
+  // respectively. For any odd width or height, SIMD support needs to be added.
+  assert(width % 16 == 0 && height % 2 == 0);
+
+  if (width % 32 == 0) {
+    const __m256i zero = _mm256_setzero_si256();
+    for (int wd = 0; wd < width; wd += 32) {
+      const uint8_t *ref_tmp = ref + wd;
+      int16_t *hbuf_tmp = hbuf + wd;
+      __m256i s0 = zero;
+      __m256i s1 = zero;
+      int idx = 0;
+      do {
+        __m256i src_line = _mm256_loadu_si256((const __m256i *)ref_tmp);
+        __m256i t0 = _mm256_unpacklo_epi8(src_line, zero);
+        __m256i t1 = _mm256_unpackhi_epi8(src_line, zero);
+        s0 = _mm256_adds_epu16(s0, t0);
+        s1 = _mm256_adds_epu16(s1, t1);
+        ref_tmp += ref_stride;
+
+        src_line = _mm256_loadu_si256((const __m256i *)ref_tmp);
+        t0 = _mm256_unpacklo_epi8(src_line, zero);
+        t1 = _mm256_unpackhi_epi8(src_line, zero);
+        s0 = _mm256_adds_epu16(s0, t0);
+        s1 = _mm256_adds_epu16(s1, t1);
+        ref_tmp += ref_stride;
+        idx += 2;
+      } while (idx < height);
+      s0 = _mm256_srai_epi16(s0, norm_factor);
+      s1 = _mm256_srai_epi16(s1, norm_factor);
+      _mm_storeu_si128((__m128i *)(hbuf_tmp), _mm256_castsi256_si128(s0));
+      _mm_storeu_si128((__m128i *)(hbuf_tmp + 8), _mm256_castsi256_si128(s1));
+      _mm_storeu_si128((__m128i *)(hbuf_tmp + 16),
+                       _mm256_extractf128_si256(s0, 1));
+      _mm_storeu_si128((__m128i *)(hbuf_tmp + 24),
+                       _mm256_extractf128_si256(s1, 1));
+    }
+  } else if (width % 16 == 0) {
+    aom_int_pro_row_sse2(hbuf, ref, ref_stride, width, height, norm_factor);
+  }
+}
+
+void aom_int_pro_col_avx2(int16_t *vbuf, const uint8_t *ref,
+                          const int ref_stride, const int width,
+                          const int height, int norm_factor) {
+  // SIMD implementation assumes width to be multiple of 16. For any odd width,
+  // SIMD support needs to be added.
+  assert(width % 16 == 0);
+
+  if (width == 128) {
+    const __m256i zero = _mm256_setzero_si256();
+    for (int ht = 0; ht < height; ++ht) {
+      const __m256i src_line0 = _mm256_loadu_si256((const __m256i *)ref);
+      const __m256i src_line1 = _mm256_loadu_si256((const __m256i *)(ref + 32));
+      const __m256i src_line2 = _mm256_loadu_si256((const __m256i *)(ref + 64));
+      const __m256i src_line3 = _mm256_loadu_si256((const __m256i *)(ref + 96));
+      const __m256i s0 = _mm256_sad_epu8(src_line0, zero);
+      const __m256i s1 = _mm256_sad_epu8(src_line1, zero);
+      const __m256i s2 = _mm256_sad_epu8(src_line2, zero);
+      const __m256i s3 = _mm256_sad_epu8(src_line3, zero);
+      const __m256i result0_256bit = _mm256_adds_epu16(s0, s1);
+      const __m256i result1_256bit = _mm256_adds_epu16(s2, s3);
+      const __m256i result_256bit =
+          _mm256_adds_epu16(result0_256bit, result1_256bit);
+
+      const __m128i result =
+          _mm_adds_epu16(_mm256_castsi256_si128(result_256bit),
+                         _mm256_extractf128_si256(result_256bit, 1));
+      __m128i result1 = _mm_adds_epu16(result, _mm_srli_si128(result, 8));
+      vbuf[ht] = _mm_extract_epi16(result1, 0) >> norm_factor;
+      ref += ref_stride;
+    }
+  } else if (width == 64) {
+    const __m256i zero = _mm256_setzero_si256();
+    for (int ht = 0; ht < height; ++ht) {
+      const __m256i src_line0 = _mm256_loadu_si256((const __m256i *)ref);
+      const __m256i src_line1 = _mm256_loadu_si256((const __m256i *)(ref + 32));
+      const __m256i s1 = _mm256_sad_epu8(src_line0, zero);
+      const __m256i s2 = _mm256_sad_epu8(src_line1, zero);
+      const __m256i result_256bit = _mm256_adds_epu16(s1, s2);
+
+      const __m128i result =
+          _mm_adds_epu16(_mm256_castsi256_si128(result_256bit),
+                         _mm256_extractf128_si256(result_256bit, 1));
+      __m128i result1 = _mm_adds_epu16(result, _mm_srli_si128(result, 8));
+      vbuf[ht] = _mm_extract_epi16(result1, 0) >> norm_factor;
+      ref += ref_stride;
+    }
+  } else if (width == 32) {
+    assert(height % 2 == 0);
+    const __m256i zero = _mm256_setzero_si256();
+    for (int ht = 0; ht < height; ht += 2) {
+      const __m256i src_line0 = _mm256_loadu_si256((const __m256i *)ref);
+      const __m256i src_line1 =
+          _mm256_loadu_si256((const __m256i *)(ref + ref_stride));
+      const __m256i s0 = _mm256_sad_epu8(src_line0, zero);
+      const __m256i s1 = _mm256_sad_epu8(src_line1, zero);
+
+      __m128i result0 = _mm_adds_epu16(_mm256_castsi256_si128(s0),
+                                       _mm256_extractf128_si256(s0, 1));
+      __m128i result1 = _mm_adds_epu16(_mm256_castsi256_si128(s1),
+                                       _mm256_extractf128_si256(s1, 1));
+      __m128i result2 = _mm_adds_epu16(result0, _mm_srli_si128(result0, 8));
+      __m128i result3 = _mm_adds_epu16(result1, _mm_srli_si128(result1, 8));
+
+      vbuf[ht] = _mm_extract_epi16(result2, 0) >> norm_factor;
+      vbuf[ht + 1] = _mm_extract_epi16(result3, 0) >> norm_factor;
+      ref += (2 * ref_stride);
+    }
+  } else if (width == 16) {
+    aom_int_pro_col_sse2(vbuf, ref, ref_stride, width, height, norm_factor);
+  }
+}

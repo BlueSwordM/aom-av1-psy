@@ -507,29 +507,29 @@ int aom_satd_lp_c(const int16_t *coeff, int length) {
 
 // Integer projection onto row vectors.
 // height: value range {16, 32, 64, 128}.
-void aom_int_pro_row_c(int16_t hbuf[16], const uint8_t *ref,
-                       const int ref_stride, const int height) {
-  int idx;
-  const int norm_factor = height >> 1;
+void aom_int_pro_row_c(int16_t *hbuf, const uint8_t *ref, const int ref_stride,
+                       const int width, const int height, int norm_factor) {
   assert(height >= 2);
-  for (idx = 0; idx < 16; ++idx) {
-    int i;
+  for (int idx = 0; idx < width; ++idx) {
     hbuf[idx] = 0;
     // hbuf[idx]: 14 bit, dynamic range [0, 32640].
-    for (i = 0; i < height; ++i) hbuf[idx] += ref[i * ref_stride];
+    for (int i = 0; i < height; ++i) hbuf[idx] += ref[i * ref_stride];
     // hbuf[idx]: 9 bit, dynamic range [0, 1020].
-    hbuf[idx] /= norm_factor;
+    hbuf[idx] >>= norm_factor;
     ++ref;
   }
 }
 
 // width: value range {16, 32, 64, 128}.
-int16_t aom_int_pro_col_c(const uint8_t *ref, const int width) {
-  int idx;
-  int16_t sum = 0;
-  // sum: 14 bit, dynamic range [0, 32640]
-  for (idx = 0; idx < width; ++idx) sum += ref[idx];
-  return sum;
+void aom_int_pro_col_c(int16_t *vbuf, const uint8_t *ref, const int ref_stride,
+                       const int width, const int height, int norm_factor) {
+  for (int ht = 0; ht < height; ++ht) {
+    int16_t sum = 0;
+    // sum: 14 bit, dynamic range [0, 32640]
+    for (int idx = 0; idx < width; ++idx) sum += ref[idx];
+    vbuf[ht] = sum >> norm_factor;
+    ref += ref_stride;
+  }
 }
 
 // ref: [0 - 510]
