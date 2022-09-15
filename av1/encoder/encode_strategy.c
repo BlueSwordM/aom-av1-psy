@@ -843,8 +843,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cm->show_frame = frame_params->show_frame;
   cm->current_frame.frame_type = frame_params->frame_type;
   // TODO(bohanli): Why is this? what part of it is necessary?
-  av1_set_frame_size(cpi, cm->superres_upscaled_width,
-                     cm->superres_upscaled_height);
+  av1_set_frame_size(cpi, cm->width, cm->height);
   if (set_mv_params) av1_set_mv_search_params(cpi);
 
 #if CONFIG_RD_COMMAND
