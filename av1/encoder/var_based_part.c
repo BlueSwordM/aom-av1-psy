@@ -596,7 +596,7 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
         thresholds[2] <<= 3;
       }
       // Allow for split to 8x8 for superblocks where part of it has
-      // moving boudary. So allow for sb with source_sad above threshold,
+      // moving boundary. So allow for sb with source_sad above threshold,
       // and avoid very large source_sad or high source content, to avoid
       // too many 8x8 within superblock.
       if (segment_id == 0 && cpi->rc.avg_source_sad < 25000 &&
