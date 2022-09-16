@@ -383,14 +383,16 @@ static AOM_INLINE void fill_variance_4x4avg(const uint8_t *s, int sp,
                                             int highbd_flag,
 #endif
                                             int pixels_wide, int pixels_high,
-                                            int is_key_frame) {
+                                            int is_key_frame,
+                                            int border_offset_4x4) {
   int k;
   for (k = 0; k < 4; k++) {
     int x4_idx = x8_idx + ((k & 1) << 2);
     int y4_idx = y8_idx + ((k >> 1) << 2);
     unsigned int sse = 0;
     int sum = 0;
-    if (x4_idx < pixels_wide && y4_idx < pixels_high) {
+    if (x4_idx < pixels_wide - border_offset_4x4 &&
+        y4_idx < pixels_high - border_offset_4x4) {
       int s_avg;
       int d_avg = 128;
 #if CONFIG_AV1_HIGHBITDEPTH
@@ -1021,13 +1023,23 @@ static void fill_variance_tree_leaves(
   const int compute_minmax_variance = 0;
   const int segment_id = xd->mi[0]->segment_id;
   int pixels_wide = 128, pixels_high = 128;
-
+  int border_offset_4x4 = 0;
+  int temporal_denoising = cpi->sf.rt_sf.use_rtc_tf;
   if (is_small_sb) {
     pixels_wide = 64;
     pixels_high = 64;
   }
   if (xd->mb_to_right_edge < 0) pixels_wide += (xd->mb_to_right_edge >> 3);
   if (xd->mb_to_bottom_edge < 0) pixels_high += (xd->mb_to_bottom_edge >> 3);
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  temporal_denoising |= cpi->oxcf.noise_sensitivity;
+#endif
+  // For temporal filtering or temporal denoiser enabled: since the source
+  // is modified we need to avoid 4x4 avg along superblock boundary, since
+  // simd code will load 8 pixels for 4x4 avg and so can access source
+  // data outside superblock (while its being modified by temporal filter).
+  // Temporal filtering is never done on key frames.
+  if (!is_key_frame && temporal_denoising) border_offset_4x4 = 4;
   for (int m = 0; m < num_64x64_blocks; m++) {
     const int x64_idx = ((m & 1) << 6);
     const int y64_idx = ((m >> 1) << 6);
@@ -1107,12 +1119,12 @@ static void fill_variance_tree_leaves(
             int x8_idx = x16_idx + ((k & 1) << 3);
             int y8_idx = y16_idx + ((k >> 1) << 3);
             VP8x8 *vst2 = is_key_frame ? &vst->split[k] : &vt2[i2 + j].split[k];
-            fill_variance_4x4avg(src, src_stride, dst, dst_stride, x8_idx,
-                                 y8_idx, vst2,
+            fill_variance_4x4avg(
+                src, src_stride, dst, dst_stride, x8_idx, y8_idx, vst2,
 #if CONFIG_AV1_HIGHBITDEPTH
-                                 xd->cur_buf->flags,
+                xd->cur_buf->flags,
 #endif
-                                 pixels_wide, pixels_high, is_key_frame);
+                pixels_wide, pixels_high, is_key_frame, border_offset_4x4);
           }
         }
       }
