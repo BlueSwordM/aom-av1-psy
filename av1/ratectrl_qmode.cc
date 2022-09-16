@@ -207,7 +207,7 @@ GopStruct ConstructGop(RefFrameManager *ref_frame_manager, int show_frame_count,
     gop_frame =
         GopFrameBasic(global_coding_idx_offset, global_order_idx_offset,
                       static_cast<int>(gop_struct.gop_frame_list.size()),
-                      order_end, ref_frame_manager->ForwardMaxSize(),
+                      order_end, ref_frame_manager->MaxRefFrame() - 1,
                       gop_struct.display_tracker, GopFrameType::kOverlay);
     ref_frame_manager->UpdateRefFrameTable(&gop_frame);
     gop_struct.gop_frame_list.push_back(gop_frame);

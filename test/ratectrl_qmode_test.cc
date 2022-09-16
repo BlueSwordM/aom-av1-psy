@@ -254,8 +254,7 @@ TEST_F(RateControlQModeTest, ConstructGopARF) {
   TestGopGlobalOrderIdx(gop_struct, global_order_idx_offset);
   TestGopGlobalCodingIdx(gop_struct, global_coding_idx_offset);
   TestColocatedShowFrame(gop_struct);
-  const int max_layer_depth =
-      ref_frame_manager.ForwardMaxSize() + kLayerDepthOffset;
+  const int max_layer_depth = ref_frame_manager.MaxRefFrame();
   TestLayerDepth(gop_struct, max_layer_depth);
   TestArfInterval(gop_struct);
 }
@@ -274,8 +273,7 @@ TEST_F(RateControlQModeTest, ConstructGopKey) {
   TestGopGlobalOrderIdx(gop_struct, global_order_idx_offset);
   TestGopGlobalCodingIdx(gop_struct, global_coding_idx_offset);
   TestColocatedShowFrame(gop_struct);
-  const int max_layer_depth =
-      ref_frame_manager.ForwardMaxSize() + kLayerDepthOffset;
+  const int max_layer_depth = ref_frame_manager.MaxRefFrame();
   TestLayerDepth(gop_struct, max_layer_depth);
   TestArfInterval(gop_struct);
 }
