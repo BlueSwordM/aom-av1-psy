@@ -40,6 +40,7 @@ void av1_set_ssim_rdmult(const AV1_COMP *const cpi, int *errorperbit,
     for (col = mi_col / num_mi_h;
          col < num_cols && col < mi_col / num_mi_h + num_bcols; ++col) {
       const int index = row * num_cols + col;
+      assert(cpi->ssim_rdmult_scaling_factors[index] != 0.0);
       geom_mean_of_scale += log(cpi->ssim_rdmult_scaling_factors[index]);
       num_of_mi += 1.0;
     }
