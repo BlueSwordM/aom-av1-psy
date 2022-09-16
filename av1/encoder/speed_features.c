@@ -1317,7 +1317,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed >= 6) sf->rt_sf.skip_newmv_mode_based_on_sse = 2;
     if (speed == 7) sf->rt_sf.prefer_large_partition_blocks = 1;
     if (speed >= 7) {
-      // TODO(yunqing): extend this sf to other speeds and/or other resolutions.
       sf->rt_sf.use_rtc_tf = 1;
     }
     if (speed == 8 && !cpi->ppi->use_svc) {

@@ -1433,9 +1433,8 @@ void av1_source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, TileDataEnc *tile_data,
   if (cpi->last_source->y_width != cpi->source->y_width ||
       cpi->last_source->y_height != cpi->source->y_height)
     return;
-  if (!cpi->sf.rt_sf.use_rtc_tf || tmp_sse == 0) return;
-  if (cpi->sf.rt_sf.use_rtc_tf == 2 &&
-      (cpi->rc.high_source_sad || cpi->rc.frame_source_sad > 20000))
+  if (!cpi->sf.rt_sf.use_rtc_tf || tmp_sse == 0 || cpi->rc.high_source_sad ||
+      cpi->rc.frame_source_sad > 20000)
     return;
 
   // In-place temporal filter. If psnr calculation is enabled, we store the
@@ -1445,34 +1444,34 @@ void av1_source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, TileDataEnc *tile_data,
   const unsigned int nmean2 = tmp_sse - tmp_variance;
   const int ac_q_step = av1_ac_quant_QTX(cm->quant_params.base_qindex, 0,
                                          cm->seq_params->bit_depth);
-  // Keep the threshold for >= 360p unchanged. It will be tested and modified
-  // later when needed.
-  const unsigned int threshold = (cpi->sf.rt_sf.use_rtc_tf == 1)
-                                     ? ((3 * ac_q_step * ac_q_step) >> 1)
-                                     : 250 * ac_q_step;
+  const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
+  const int avg_q_step = av1_ac_quant_QTX(p_rc->avg_frame_qindex[INTER_FRAME],
+                                          0, cm->seq_params->bit_depth);
+
+  const unsigned int threshold =
+      (cpi->sf.rt_sf.use_rtc_tf == 1)
+          ? (clamp(avg_q_step, 250, 1000)) * ac_q_step
+          : 250 * ac_q_step;
 
   // TODO(yunqing): use a weighted sum instead of averaging in filtering.
   if (tmp_variance <= threshold && nmean2 <= 15) {
-    if (cpi->sf.rt_sf.use_rtc_tf == 2) {
-      // Check neighbor blocks. If neighbor blocks aren't low-motion blocks,
-      // skip temporal filtering for this block.
-      MB_MODE_INFO **mi = cm->mi_params.mi_grid_base +
-                          get_mi_grid_idx(&cm->mi_params, mi_row, mi_col);
-      const TileInfo *const tile_info = &tile_data->tile_info;
-      const int is_neighbor_blocks_low_motion = check_neighbor_blocks(
-          mi, cm->mi_params.mi_stride, tile_info, mi_row, mi_col);
-      if (!is_neighbor_blocks_low_motion) return;
+    // Check neighbor blocks. If neighbor blocks aren't low-motion blocks,
+    // skip temporal filtering for this block.
+    MB_MODE_INFO **mi = cm->mi_params.mi_grid_base +
+                        get_mi_grid_idx(&cm->mi_params, mi_row, mi_col);
+    const TileInfo *const tile_info = &tile_data->tile_info;
+    const int is_neighbor_blocks_low_motion = check_neighbor_blocks(
+        mi, cm->mi_params.mi_stride, tile_info, mi_row, mi_col);
+    if (!is_neighbor_blocks_low_motion) return;
 
-      // Only consider 64x64 SB for now. Need to extend to 128x128 for large SB
-      // size.
-      // Test several nearby points. If non-zero mv exists, don't do temporal
-      // filtering.
-      const int is_this_blk_low_motion =
-          fast_detect_non_zero_motion(cpi, src_y, src_ystride, last_src_y,
-                                      last_src_ystride, mi_row, mi_col);
+    // Only consider 64x64 SB for now. Need to extend to 128x128 for large SB
+    // size.
+    // Test several nearby points. If non-zero mv exists, don't do temporal
+    // filtering.
+    const int is_this_blk_low_motion = fast_detect_non_zero_motion(
+        cpi, src_y, src_ystride, last_src_y, last_src_ystride, mi_row, mi_col);
 
-      if (!is_this_blk_low_motion) return;
-    }
+    if (!is_this_blk_low_motion) return;
 
     const int shift_x[2] = { 0, cpi->source->subsampling_x };
     const int shift_y[2] = { 0, cpi->source->subsampling_y };

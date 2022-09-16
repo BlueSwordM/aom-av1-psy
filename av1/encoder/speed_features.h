@@ -1536,6 +1536,7 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   int gf_refresh_based_on_qp;
 
   // Temporal filtering
+  // The value can be 1 or 2, which indicates the threshold to use.
   int use_rtc_tf;
 
   // Prune the use of the identity transform in nonrd_pickmode,
