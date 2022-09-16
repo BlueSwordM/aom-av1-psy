@@ -288,6 +288,7 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
     if (obudec_read_leb128(f, &detect_buf[0], &length_of_unit_size,
                            &unit_size) != 0) {
       fprintf(stderr, "obudec: Failure reading temporal unit header\n");
+      rewind(f);
       return 0;
     }
 
@@ -295,6 +296,7 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
     if (obudec_read_leb128(f, &detect_buf[length_of_unit_size],
                            &annexb_header_length, &unit_size) != 0) {
       fprintf(stderr, "obudec: Failure reading frame unit header\n");
+      rewind(f);
       return 0;
     }
     annexb_header_length += length_of_unit_size;
@@ -316,6 +318,7 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
 
   if (obu_header.type != OBU_TEMPORAL_DELIMITER &&
       obu_header.type != OBU_SEQUENCE_HEADER) {
+    rewind(f);
     return 0;
   }
 
