@@ -753,6 +753,44 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   }
 }
 
+/*!\brief Calculate source SAD at superblock level using 64x64 block source SAD
+ *
+ * \ingroup partition_search
+ * \callgraph
+ * \callergraph
+ */
+static AOM_INLINE uint64_t get_sb_source_sad(const AV1_COMP *cpi, int mi_row,
+                                             int mi_col) {
+  if (cpi->src_sad_blk_64x64 == NULL) return UINT64_MAX;
+
+  const AV1_COMMON *const cm = &cpi->common;
+  const int blk_64x64_in_mis = (cm->seq_params->sb_size == BLOCK_128X128)
+                                   ? (cm->seq_params->mib_size >> 1)
+                                   : cm->seq_params->mib_size;
+  const int num_blk_64x64_cols =
+      (cm->mi_params.mi_cols + blk_64x64_in_mis - 1) / blk_64x64_in_mis;
+  const int num_blk_64x64_rows =
+      (cm->mi_params.mi_rows + blk_64x64_in_mis - 1) / blk_64x64_in_mis;
+  const int blk_64x64_col_index = mi_col / blk_64x64_in_mis;
+  const int blk_64x64_row_index = mi_row / blk_64x64_in_mis;
+  uint64_t curr_sb_sad = UINT64_MAX;
+  const uint64_t *const src_sad_blk_64x64_data =
+      &cpi->src_sad_blk_64x64[blk_64x64_col_index +
+                              blk_64x64_row_index * num_blk_64x64_cols];
+  if (cm->seq_params->sb_size == BLOCK_128X128 &&
+      blk_64x64_col_index + 1 < num_blk_64x64_cols &&
+      blk_64x64_row_index + 1 < num_blk_64x64_rows) {
+    // Calculate SB source SAD by accumulating source SAD of 64x64 blocks in the
+    // superblock
+    curr_sb_sad = src_sad_blk_64x64_data[0] + src_sad_blk_64x64_data[1] +
+                  src_sad_blk_64x64_data[num_blk_64x64_cols] +
+                  src_sad_blk_64x64_data[num_blk_64x64_cols + 1];
+  } else if (cm->seq_params->sb_size == BLOCK_64X64) {
+    curr_sb_sad = src_sad_blk_64x64_data[0];
+  }
+  return curr_sb_sad;
+}
+
 /*!\brief Determine whether grading content can be skipped based on sad stat
  *
  * \ingroup partition_search
@@ -762,29 +800,30 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 static AOM_INLINE bool is_calc_src_content_needed(AV1_COMP *cpi,
                                                   MACROBLOCK *const x,
                                                   int mi_row, int mi_col) {
+  const uint64_t curr_sb_sad = get_sb_source_sad(cpi, mi_row, mi_col);
+  if (curr_sb_sad == UINT64_MAX) return true;
+  if (curr_sb_sad == 0) {
+    x->content_state_sb.source_sad_nonrd = kZeroSad;
+    return false;
+  }
   AV1_COMMON *const cm = &cpi->common;
   bool do_calc_src_content = true;
 
   if (cpi->oxcf.speed < 9) return do_calc_src_content;
 
-  // TODO(yunqing): Need to consider 4 64x64 results if later this is used for
-  // 128x128 sb size.
-  if (cpi->src_sad_blk_64x64 != NULL && AOMMIN(cm->width, cm->height) < 360) {
-    const int sb_size_by_mb = (cm->seq_params->sb_size == BLOCK_128X128)
-                                  ? (cm->seq_params->mib_size >> 1)
-                                  : cm->seq_params->mib_size;
-    const int sb_cols =
-        (cm->mi_params.mi_cols + sb_size_by_mb - 1) / sb_size_by_mb;
-    const int sbi_col = mi_col / sb_size_by_mb;
-    const int sbi_row = mi_row / sb_size_by_mb;
+  // TODO(yunqing): Tune/validate the thresholds for 128x128 SB size.
+  if (AOMMIN(cm->width, cm->height) < 360) {
+    // Derive Average 64x64 block source SAD from SB source SAD
+    const uint64_t avg_64x64_blk_sad =
+        (cm->seq_params->sb_size == BLOCK_128X128) ? ((curr_sb_sad + 2) >> 2)
+                                                   : curr_sb_sad;
+
     // The threshold is determined based on kLowSad and kHighSad threshold and
     // test results.
     const uint64_t thresh_low = 15000;
     const uint64_t thresh_high = 40000;
-    const uint64_t blk_sad =
-        cpi->src_sad_blk_64x64[sbi_col + sbi_row * sb_cols];
 
-    if (blk_sad > thresh_low && blk_sad < thresh_high) {
+    if (avg_64x64_blk_sad > thresh_low && avg_64x64_blk_sad < thresh_high) {
       do_calc_src_content = false;
       // Note: set x->content_state_sb.source_sad_rd as well if this is extended
       // to RTC rd path.
