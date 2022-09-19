@@ -68,7 +68,7 @@ void SetGopFrameByType(GopFrameType gop_frame_type, GopFrame *gop_frame) {
       gop_frame->is_key_frame = 0;
       gop_frame->is_arf_frame = 1;
       gop_frame->is_show_frame = 0;
-      gop_frame->is_golden_frame = 0;
+      gop_frame->is_golden_frame = gop_frame->layer_depth <= 2 ? 1 : 0;
       gop_frame->encode_ref_mode = EncodeRefMode::kRegular;
       break;
     case GopFrameType::kRegularLeaf:
@@ -106,10 +106,10 @@ GopFrame GopFrameBasic(int global_coding_idx_offset,
   gop_frame.display_idx = display_idx;
   gop_frame.global_coding_idx = global_coding_idx_offset + coding_idx;
   gop_frame.global_order_idx = global_order_idx_offset + order_idx;
-  SetGopFrameByType(gop_frame_type, &gop_frame);
+  gop_frame.layer_depth = depth + kLayerDepthOffset;
   gop_frame.colocated_ref_idx = -1;
   gop_frame.update_ref_idx = -1;
-  gop_frame.layer_depth = depth + kLayerDepthOffset;
+  SetGopFrameByType(gop_frame_type, &gop_frame);
   return gop_frame;
 }
 
