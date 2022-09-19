@@ -2765,7 +2765,7 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
 }
 
 static int check_frame_refs_short_signaling(AV1_COMMON *const cm,
-                                            int enable_ref_short_signaling) {
+                                            bool enable_ref_short_signaling) {
   // In rtc case when res < 360p and speed >= 9, we turn on
   // frame_refs_short_signaling if it won't break the decoder.
   if (enable_ref_short_signaling) {
@@ -3038,10 +3038,10 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #endif  // FRAME_REFS_SHORT_SIGNALING
 
       if (current_frame->frame_refs_short_signaling) {
-        //    In rtc case when cpi->sf.rt_sf.enable_ref_short_signaling is 1, we
-        //    turn on frame_refs_short_signaling when the current frame
-        //    and golden frame are in the same order_hint group,
-        //    and their relative distance is <= 64 (in order to be decodable).
+        //    In rtc case when cpi->sf.rt_sf.enable_ref_short_signaling is true,
+        //    we turn on frame_refs_short_signaling when the current frame and
+        //    golden frame are in the same order_hint group, and their relative
+        //    distance is <= 64 (in order to be decodable).
 
         //    For other cases, an example solution for encoder-side
         //    implementation on frame_refs_short_signaling is also provided in

@@ -1663,7 +1663,7 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // the final decision is made in check_frame_refs_short_signaling(). The flag
   // can only be turned on when res < 360p and speed >= 9, in which case only
   // LAST and GOLDEN ref frames are used now.
-  int enable_ref_short_signaling;
+  bool enable_ref_short_signaling;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

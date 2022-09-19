@@ -1283,12 +1283,11 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       // Only turn on enable_ref_short_signaling for low resolution when only
       // LAST and GOLDEN ref frames are used.
       sf->rt_sf.enable_ref_short_signaling =
-          (sf->rt_sf.use_nonrd_altref_frame ||
-           (sf->rt_sf.use_comp_ref_nonrd &&
-            (sf->rt_sf.ref_frame_comp_nonrd[1] ||
-             sf->rt_sf.ref_frame_comp_nonrd[2])))
-              ? 0
-              : 1;
+          (!sf->rt_sf.use_nonrd_altref_frame &&
+           (!sf->rt_sf.use_comp_ref_nonrd ||
+            (!sf->rt_sf.ref_frame_comp_nonrd[1] &&
+             !sf->rt_sf.ref_frame_comp_nonrd[2])));
+
 // TODO(kyslov) Re-enable when AV1 models are trained
 #if 0
 #if CONFIG_RT_ML_PARTITIONING
@@ -2082,7 +2081,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->set_zeromv_skip_based_on_source_sad = 1;
   rt_sf->use_adaptive_subpel_search = false;
   rt_sf->screen_content_cdef_filter_qindex_thresh = 0;
-  rt_sf->enable_ref_short_signaling = 0;
+  rt_sf->enable_ref_short_signaling = false;
 }
 
 // Populate appropriate sub-pel search method based on speed feature and user
