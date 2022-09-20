@@ -1269,6 +1269,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed >= 7) {
       sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
       sf->rt_sf.check_only_zero_zeromv_on_large_blocks = true;
+      sf->rt_sf.use_rtc_tf = 2;
     }
     if (speed == 8) sf->rt_sf.prefer_large_partition_blocks = 1;
     if (speed >= 8) {
@@ -1279,7 +1280,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.use_comp_ref_nonrd = 0;
       sf->rt_sf.nonrd_agressive_skip = 1;
       sf->rt_sf.skip_intra_pred = 1;
-      sf->rt_sf.use_rtc_tf = 2;
       // Only turn on enable_ref_short_signaling for low resolution when only
       // LAST and GOLDEN ref frames are used.
       sf->rt_sf.enable_ref_short_signaling =
