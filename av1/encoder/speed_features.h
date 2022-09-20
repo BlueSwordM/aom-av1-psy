@@ -1652,6 +1652,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // can only be turned on when res < 360p and speed >= 9, in which case only
   // LAST and GOLDEN ref frames are used now.
   bool enable_ref_short_signaling;
+
+  // A flag that controls if we check or bypass GLOBALMV in rtc single ref frame
+  // case.
+  bool check_globalmv_on_single_ref;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

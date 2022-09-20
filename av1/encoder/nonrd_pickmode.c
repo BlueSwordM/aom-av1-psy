@@ -81,21 +81,12 @@ typedef struct {
 } INTER_FILTER;
 /*!\endcond */
 
-#define NUM_INTER_MODES_RT 9
 #define NUM_COMP_INTER_MODES_RT (6)
-#define NUM_INTER_MODES_REDUCED 12
-
-static const REF_MODE ref_mode_set_rt[NUM_INTER_MODES_RT] = {
-  { LAST_FRAME, NEARESTMV },   { LAST_FRAME, NEARMV },
-  { LAST_FRAME, NEWMV },       { GOLDEN_FRAME, NEARESTMV },
-  { GOLDEN_FRAME, NEARMV },    { GOLDEN_FRAME, NEWMV },
-  { ALTREF_FRAME, NEARESTMV }, { ALTREF_FRAME, NEARMV },
-  { ALTREF_FRAME, NEWMV }
-};
+#define NUM_INTER_MODES 12
 
 // GLOBALMV in the set below is in fact ZEROMV as we don't do global ME in RT
 // mode
-static const REF_MODE ref_mode_set_reduced[NUM_INTER_MODES_REDUCED] = {
+static const REF_MODE ref_mode_set[NUM_INTER_MODES] = {
   { LAST_FRAME, NEARESTMV },   { LAST_FRAME, NEARMV },
   { LAST_FRAME, GLOBALMV },    { LAST_FRAME, NEWMV },
   { GOLDEN_FRAME, NEARESTMV }, { GOLDEN_FRAME, NEARMV },
@@ -2785,11 +2776,11 @@ static bool skip_comp_based_on_var(
 
 static AOM_FORCE_INLINE void fill_single_inter_mode_costs(
     int (*single_inter_mode_costs)[REF_FRAMES], const int num_inter_modes,
-    const REF_MODE *ref_mode_set, const ModeCosts *mode_costs,
+    const REF_MODE *reference_mode_set, const ModeCosts *mode_costs,
     const int16_t *mode_context) {
   bool ref_frame_used[REF_FRAMES] = { false };
   for (int idx = 0; idx < num_inter_modes; idx++) {
-    ref_frame_used[ref_mode_set[idx].ref_frame] = true;
+    ref_frame_used[reference_mode_set[idx].ref_frame] = true;
   }
 
   for (int this_ref_frame = LAST_FRAME; this_ref_frame < REF_FRAMES;
@@ -2958,17 +2949,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int force_skip_low_temp_var = 0;
   int use_ref_frame_mask[REF_FRAMES] = { 0 };
   unsigned int sse_zeromv_norm = UINT_MAX;
-  // Use mode set that includes zeromv (via globalmv) for speed >= 9 for
-  // content with low motion, and always for force_zeromv_skip.
-  int use_zeromv =
-      cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN ||
-      ((cpi->oxcf.speed >= 9 && cpi->rc.avg_frame_low_motion > 70) ||
-       cpi->sf.rt_sf.nonrd_aggressive_skip || x->force_zeromv_skip_for_blk);
   int skip_pred_mv = 0;
-  const int num_inter_modes =
-      use_zeromv ? NUM_INTER_MODES_REDUCED : NUM_INTER_MODES_RT;
-  const REF_MODE *const ref_mode_set =
-      use_zeromv ? ref_mode_set_reduced : ref_mode_set_rt;
+  const int num_inter_modes = NUM_INTER_MODES;
+  bool check_globalmv = cpi->sf.rt_sf.check_globalmv_on_single_ref;
   PRED_BUFFER tmp[4];
   DECLARE_ALIGNED(16, uint8_t, pred_buf[3 * 128 * 128]);
   PRED_BUFFER *this_mode_pred = NULL;
@@ -3118,11 +3101,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       TX_16X16);
 
   int single_inter_mode_costs[RTC_INTER_MODES][REF_FRAMES];
-  if (ref_mode_set == ref_mode_set_reduced) {
-    fill_single_inter_mode_costs(single_inter_mode_costs, num_inter_modes,
-                                 ref_mode_set, mode_costs,
-                                 mbmi_ext->mode_context);
-  }
+  fill_single_inter_mode_costs(single_inter_mode_costs, num_inter_modes,
+                               ref_mode_set, mode_costs,
+                               mbmi_ext->mode_context);
 
   MV_REFERENCE_FRAME last_comp_ref_frame = NONE_FRAME;
 
@@ -3164,6 +3145,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     }
 
     if (!comp_pred && mode_checked[this_mode][ref_frame]) {
+      continue;
+    }
+
+    if (!check_globalmv && this_mode == GLOBALMV) {
       continue;
     }
 
@@ -3545,7 +3530,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
     // TODO(kyslov) account for UV prediction cost
     this_rdc.rate += rate_mv;
-    if (comp_pred || ref_mode_set != ref_mode_set_reduced) {
+    if (comp_pred) {
       const int16_t mode_ctx =
           av1_mode_context_analyzer(mbmi_ext->mode_context, mi->ref_frame);
       this_rdc.rate += cost_mv_ref(mode_costs, this_mode, mode_ctx);
@@ -3592,6 +3577,16 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
     mode_checked[this_mode][ref_frame] = 1;
     mode_checked[this_best_mode][ref_frame] = 1;
+
+    if (check_globalmv) {
+      int32_t abs_mv = abs(frame_mv[this_best_mode][ref_frame].as_mv.row) +
+                       abs(frame_mv[this_best_mode][ref_frame].as_mv.col);
+      // Early exit check: if the magnitude of this_best_mode's mv is small
+      // enough, we skip GLOBALMV check in the next loop iteration.
+      if (abs_mv < 2) {
+        check_globalmv = false;
+      }
+    }
 #if COLLECT_PICK_MODE_STAT
     aom_usec_timer_mark(&ms_stat.timer1);
     ms_stat.nonskipped_search_times[bsize][this_mode] +=

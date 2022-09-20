@@ -2089,6 +2089,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->use_adaptive_subpel_search = false;
   rt_sf->screen_content_cdef_filter_qindex_thresh = 0;
   rt_sf->enable_ref_short_signaling = false;
+  rt_sf->check_globalmv_on_single_ref = true;
 }
 
 // Populate appropriate sub-pel search method based on speed feature and user
