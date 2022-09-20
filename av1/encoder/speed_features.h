@@ -920,6 +920,14 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   int prune_comp_using_best_single_mode_ref;
 
   // Skip NEARESTMV and NEARMV using weight computed in ref mv list population
+  // This speed feature sometimes leads to severe visual artifacts for
+  // the overlay frame. It makes inter RD mode search skip NEARESTMV
+  // and NEARMV, and no valid inter mode is evaluated when the NEWMV mode
+  // is also early terminated due to the constraint that it does not handle
+  // zero mv difference. In this cases, intra modes will be chosen, leading
+  // to bad prediction and flickering artifacts.
+  // Turn off this feature for now. Be careful to check visual quality if
+  // anyone is going to turn it on.
   int prune_nearest_near_mv_using_refmv_weight;
 
   // Based on previous ref_mv_idx search result, prune the following search.
