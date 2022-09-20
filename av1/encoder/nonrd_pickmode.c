@@ -2253,7 +2253,7 @@ static void estimate_intra_mode(
     }
     if ((x->source_variance < AOMMAX(50, (spatial_var_thresh >> 1)) &&
          x->content_state_sb.source_sad_nonrd >= kHighSad) ||
-        (is_screen_content && x->source_variance == 0 &&
+        (is_screen_content && x->source_variance < 50 &&
          ((bsize >= BLOCK_32X32 &&
            x->content_state_sb.source_sad_nonrd != kZeroSad) ||
           x->color_sensitivity[0] == 1 || x->color_sensitivity[1] == 1)))
@@ -2315,8 +2315,7 @@ static void estimate_intra_mode(
     const THR_MODES mode_index = mode_idx[INTRA_FRAME][mode_offset(this_mode)];
     const int64_t mode_rd_thresh = rd_threshes[mode_index];
 
-    if (i > 2 || !(force_intra_check == 1 &&
-                   best_pickmode->best_ref_frame != INTRA_FRAME)) {
+    if (i > 2 || force_intra_check == 0) {
       if (!((1 << this_mode) &
             cpi->sf.rt_sf.intra_y_mode_bsize_mask_nrd[bsize]))
         continue;
@@ -2328,8 +2327,8 @@ static void estimate_intra_mode(
       if (x->content_state_sb.source_sad_nonrd == kZeroSad &&
           x->source_variance == 0 && this_mode != DC_PRED)
         continue;
-      // Only test Intra for big blocks if spatial_variance is 0.
-      else if (bsize > BLOCK_32X32 && x->source_variance > 0)
+      // Only test Intra for big blocks if spatial_variance is small.
+      else if (bsize > BLOCK_32X32 && x->source_variance > 50)
         continue;
     }
 
