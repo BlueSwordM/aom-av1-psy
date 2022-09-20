@@ -517,11 +517,11 @@ static INLINE void hadamard_16x16_sse2(const int16_t *src_diff,
     coeff3 = _mm_sub_epi16(b1, b3);
 
     if (is_final) {
-      store_tran_low(coeff0, coeff);
-      store_tran_low(coeff1, coeff + 64);
-      store_tran_low(coeff2, coeff + 128);
-      store_tran_low(coeff3, coeff + 192);
-      coeff += 8;
+      store_tran_low_offset_4(coeff0, coeff);
+      store_tran_low_offset_4(coeff1, coeff + 64);
+      store_tran_low_offset_4(coeff2, coeff + 128);
+      store_tran_low_offset_4(coeff3, coeff + 192);
+      coeff += 4;
     } else {
       _mm_store_si128((__m128i *)coeff16, coeff0);
       _mm_store_si128((__m128i *)(coeff16 + 64), coeff1);
@@ -531,6 +531,10 @@ static INLINE void hadamard_16x16_sse2(const int16_t *src_diff,
     }
 
     t_coeff += 8;
+    // Increment the pointer additionally by 0 and 8 in alternate
+    // iterations(instead of 8) to ensure the coherency with the implementation
+    // of store_tran_low_offset_4()
+    coeff += (((idx >> 3) & 1) << 3);
   }
 }
 
@@ -573,15 +577,18 @@ void aom_hadamard_32x32_sse2(const int16_t *src_diff, ptrdiff_t src_stride,
 
     coeff0 = _mm_add_epi16(b0, b2);
     coeff1 = _mm_add_epi16(b1, b3);
-    store_tran_low(coeff0, coeff);
-    store_tran_low(coeff1, coeff + 256);
+    store_tran_low_offset_4(coeff0, coeff);
+    store_tran_low_offset_4(coeff1, coeff + 256);
 
     coeff2 = _mm_sub_epi16(b0, b2);
     coeff3 = _mm_sub_epi16(b1, b3);
-    store_tran_low(coeff2, coeff + 512);
-    store_tran_low(coeff3, coeff + 768);
+    store_tran_low_offset_4(coeff2, coeff + 512);
+    store_tran_low_offset_4(coeff3, coeff + 768);
 
-    coeff += 8;
+    // Increment the pointer by 4 and 12 in alternate iterations(instead of 8)
+    // to ensure the coherency with the implementation of
+    // store_tran_low_offset_4()
+    coeff += (4 + (((idx >> 3) & 1) << 3));
     t_coeff += 8;
   }
 }
