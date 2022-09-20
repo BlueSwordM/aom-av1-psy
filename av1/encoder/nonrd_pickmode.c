@@ -182,7 +182,7 @@ static INLINE int subpel_select(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                                 bool fullpel_performed_well) {
   const int frame_lowmotion = cpi->rc.avg_frame_low_motion;
   // Reduce MV precision for higher int MV value & frame-level motion
-  if (cpi->sf.rt_sf.reduce_mv_pel_precision_highmotion >= 2) {
+  if (cpi->sf.rt_sf.reduce_mv_pel_precision_highmotion >= 3) {
     int mv_thresh = 4;
     const int is_low_resoln =
         (cpi->common.width * cpi->common.height <= 320 * 240);
@@ -194,10 +194,15 @@ static INLINE int subpel_select(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
       return HALF_PEL;
   } else if (cpi->sf.rt_sf.reduce_mv_pel_precision_highmotion >= 1) {
     int mv_thresh;
+    const int th_vals[2][3] = { { 4, 8, 10 }, { 4, 6, 8 } };
+    const int th_idx = cpi->sf.rt_sf.reduce_mv_pel_precision_highmotion - 1;
+    assert(th_idx >= 0 && th_idx < 2);
     if (frame_lowmotion > 0 && frame_lowmotion < 40)
       mv_thresh = 12;
     else
-      mv_thresh = (bsize >= BLOCK_32X32) ? 4 : (bsize >= BLOCK_16X16) ? 6 : 8;
+      mv_thresh = (bsize >= BLOCK_32X32)   ? th_vals[th_idx][0]
+                  : (bsize >= BLOCK_16X16) ? th_vals[th_idx][1]
+                                           : th_vals[th_idx][2];
     if (abs(mv->as_fullmv.row) >= (mv_thresh << 1) ||
         abs(mv->as_fullmv.col) >= (mv_thresh << 1))
       return FULL_PEL;
