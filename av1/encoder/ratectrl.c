@@ -2770,7 +2770,6 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
     uint32_t min_thresh = 10000;
     if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN) min_thresh = 100000;
     const BLOCK_SIZE bsize = BLOCK_64X64;
-    int full_sampling = (cm->width * cm->height < 640 * 360) ? 1 : 0;
     // Loop over sub-sample of frame, compute average sad over 64x64 blocks.
     uint64_t avg_sad = 0;
     uint64_t tmp_sad = 0;
@@ -2790,7 +2789,6 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
     // Store blkwise SAD for later use
     if ((cm->spatial_layer_id == 0) && (cm->width == cm->render_width) &&
         (cm->height == cm->render_height)) {
-      full_sampling = 1;
       if (cpi->src_sad_blk_64x64 == NULL) {
         CHECK_MEM_ERROR(
             cm, cpi->src_sad_blk_64x64,
@@ -2800,30 +2798,24 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
     }
     for (int sbi_row = 0; sbi_row < sb_rows; ++sbi_row) {
       for (int sbi_col = 0; sbi_col < sb_cols; ++sbi_col) {
-        // Checker-board pattern, ignore boundary.
-        if (full_sampling ||
-            ((sbi_row > 0 && sbi_col > 0) &&
-             (sbi_row < sb_rows - 1 && sbi_col < sb_cols - 1) &&
-             ((sbi_row % 2 == 0 && sbi_col % 2 == 0) ||
-              (sbi_row % 2 != 0 && sbi_col % 2 != 0)))) {
-          tmp_sad = cpi->ppi->fn_ptr[bsize].sdf(src_y, src_ystride, last_src_y,
-                                                last_src_ystride);
-          if (cpi->src_sad_blk_64x64 != NULL)
-            cpi->src_sad_blk_64x64[sbi_col + sbi_row * sb_cols] = tmp_sad;
-          if (check_light_change) {
-            unsigned int sse, variance;
-            variance = cpi->ppi->fn_ptr[bsize].vf(
-                src_y, src_ystride, last_src_y, last_src_ystride, &sse);
-            // Note: sse - variance = ((sum * sum) >> 12)
-            // Detect large lighting change.
-            if (variance < (sse >> 1) && (sse - variance) > sum_sq_thresh) {
-              num_low_var_high_sumdiff++;
-            }
+        tmp_sad = cpi->ppi->fn_ptr[bsize].sdf(src_y, src_ystride, last_src_y,
+                                              last_src_ystride);
+        if (cpi->src_sad_blk_64x64 != NULL)
+          cpi->src_sad_blk_64x64[sbi_col + sbi_row * sb_cols] = tmp_sad;
+        if (check_light_change) {
+          unsigned int sse, variance;
+          variance = cpi->ppi->fn_ptr[bsize].vf(src_y, src_ystride, last_src_y,
+                                                last_src_ystride, &sse);
+          // Note: sse - variance = ((sum * sum) >> 12)
+          // Detect large lighting change.
+          if (variance < (sse >> 1) && (sse - variance) > sum_sq_thresh) {
+            num_low_var_high_sumdiff++;
           }
-          avg_sad += tmp_sad;
-          num_samples++;
-          if (tmp_sad == 0) num_zero_temp_sad++;
         }
+        avg_sad += tmp_sad;
+        num_samples++;
+        if (tmp_sad == 0) num_zero_temp_sad++;
+
         src_y += 64;
         last_src_y += 64;
       }
