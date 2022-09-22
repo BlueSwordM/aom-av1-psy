@@ -427,8 +427,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "Enable diagonal (D45 to D203) intra prediction modes, which are "
               "a subset of directional modes; has no effect if "
               "enable-directional-intra is 0 (0: false, 1: true (default))"),
-  .force_video_mode = ARG_DEF(NULL, "force-video-mode", 1,
-                              "Force video mode (0: false, 1: true (default))"),
+  .force_video_mode = ARG_DEF(
+      NULL, "force-video-mode", 1,
+      "Force video mode even for a single frame (0: false (default), 1: true)"),
   .enable_obmc = ARG_DEF(NULL, "enable-obmc", 1,
                          "Enable OBMC (0: false, 1: true (default))"),
   .enable_overlay =
