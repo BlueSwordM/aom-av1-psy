@@ -1139,7 +1139,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       extra_cfg->allow_ref_frame_mvs && !cfg->large_scale_tile;
   tool_cfg->superblock_size = extra_cfg->superblock_size;
   tool_cfg->enable_monochrome = cfg->monochrome;
-  tool_cfg->full_still_picture_hdr = cfg->full_still_picture_hdr;
+  tool_cfg->full_still_picture_hdr = cfg->full_still_picture_hdr != 0;
   tool_cfg->enable_dual_filter = extra_cfg->enable_dual_filter;
   tool_cfg->enable_order_hint = extra_cfg->enable_order_hint;
   tool_cfg->enable_interintra_comp = extra_cfg->enable_interintra_comp;
