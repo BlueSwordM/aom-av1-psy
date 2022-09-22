@@ -1449,7 +1449,9 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
           sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC_H_V;
       }
     }
-    if (cpi->rc.high_num_blocks_with_motion && speed >= 6) {
+    if (cpi->rc.max_block_source_sad > 20000 &&
+        cpi->rc.frame_source_sad > 100 &&
+        cpi->rc.percent_blocks_with_motion > 1 && speed >= 6) {
       sf->mv_sf.search_method = NSTEP;
       sf->rt_sf.fullpel_search_step_param = 2;
     }

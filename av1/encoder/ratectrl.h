@@ -238,7 +238,10 @@ typedef struct {
   int cnt_zeromv;
 
   // signals if number of blocks with motion is high
-  int high_num_blocks_with_motion;
+  int percent_blocks_with_motion;
+
+  // Maximum value of source sad across all blocks of frame.
+  uint64_t max_block_source_sad;
 
   // For dynamic resize, 1 pass cbr.
   RESIZE_STATE resize_state;

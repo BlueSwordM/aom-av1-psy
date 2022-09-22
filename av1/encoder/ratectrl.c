@@ -2761,7 +2761,8 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
     return;
   }
   rc->high_source_sad = 0;
-  rc->high_num_blocks_with_motion = 0;
+  rc->percent_blocks_with_motion = 0;
+  rc->max_block_source_sad = 0;
   rc->prev_avg_source_sad = rc->avg_source_sad;
   if (src_width == last_src_width && src_height == last_src_height) {
     const int num_mi_cols = cm->mi_params.mi_cols;
@@ -2815,6 +2816,8 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
         avg_sad += tmp_sad;
         num_samples++;
         if (tmp_sad == 0) num_zero_temp_sad++;
+        if (tmp_sad > rc->max_block_source_sad)
+          rc->max_block_source_sad = tmp_sad;
 
         src_y += 64;
         last_src_y += 64;
@@ -2840,9 +2843,9 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
       rc->high_source_sad = 0;
     rc->avg_source_sad = (3 * rc->avg_source_sad + avg_sad) >> 2;
     rc->frame_source_sad = avg_sad;
-
-    if (num_zero_temp_sad < (3 * num_samples >> 2))
-      rc->high_num_blocks_with_motion = 1;
+    if (num_samples > 0)
+      rc->percent_blocks_with_motion =
+          ((num_samples - num_zero_temp_sad) * 100) / num_samples;
   }
   cpi->svc.high_source_sad_superframe = rc->high_source_sad;
 }
