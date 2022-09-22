@@ -4037,6 +4037,8 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
     const int update_type = cpi->ppi->gf_group.update_type[cpi->gf_frame_index];
     if (update_type != ARF_UPDATE && update_type != INTNL_ARF_UPDATE) {
       FIRSTPASS_STATS this_frame;
+      assert(cpi->twopass_frame.stats_in >
+             twopass->stats_buf_ctx->stats_in_start);
       --cpi->twopass_frame.stats_in;
       if (cpi->ppi->lap_enabled) {
         input_stats_lap(twopass, &cpi->twopass_frame, &this_frame);
