@@ -173,7 +173,7 @@ static double calc_correction_factor(double err_per_mb, int q) {
 
 // Based on history adjust expectations of bits per macroblock.
 static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
-  TWO_PASS *twopass = &cpi->ppi->twopass;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
   const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
 
   // Based on recent history adjust expectations of bits per macroblock.
@@ -212,7 +212,7 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
   }
 
   int err_estimate = p_rc->rate_error_estimate;
-  int64_t bits_left = cpi->ppi->twopass.bits_left;
+  int64_t bits_left = twopass->bits_left;
   int64_t total_actual_bits = p_rc->total_actual_bits;
   int64_t bits_off_target = p_rc->vbr_bits_off_target;
   double rolling_arf_group_actual_bits =
@@ -231,8 +231,8 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
                                               : p_rc->total_actual_bits;
   bits_off_target = simulate_parallel_frame ? p_rc->temp_vbr_bits_off_target
                                             : p_rc->vbr_bits_off_target;
-  bits_left = simulate_parallel_frame ? p_rc->temp_bits_left
-                                      : cpi->ppi->twopass.bits_left;
+  bits_left =
+      simulate_parallel_frame ? p_rc->temp_bits_left : twopass->bits_left;
   rolling_arf_group_target_bits =
       (double)(simulate_parallel_frame
                    ? p_rc->temp_rolling_arf_group_target_bits
@@ -3437,13 +3437,13 @@ static void process_first_pass_stats(AV1_COMP *cpi,
 
   if (cpi->oxcf.rc_cfg.mode != AOM_Q && current_frame->frame_number == 0 &&
       cpi->gf_frame_index == 0 && total_stats &&
-      cpi->ppi->twopass.stats_buf_ctx->total_left_stats) {
+      twopass->stats_buf_ctx->total_left_stats) {
     if (cpi->ppi->lap_enabled) {
       /*
        * Accumulate total_stats using available limited number of stats,
        * and assign it to total_left_stats.
        */
-      *cpi->ppi->twopass.stats_buf_ctx->total_left_stats = *total_stats;
+      *twopass->stats_buf_ctx->total_left_stats = *total_stats;
     }
     // Special case code for first frame.
     const int section_target_bandwidth = get_section_target_bandwidth(cpi);
@@ -3470,8 +3470,7 @@ static void process_first_pass_stats(AV1_COMP *cpi,
     p_rc->avg_frame_qindex[KEY_FRAME] = p_rc->last_q[KEY_FRAME];
   }
 
-  if (cpi->twopass_frame.stats_in <
-      cpi->ppi->twopass.stats_buf_ctx->stats_in_end) {
+  if (cpi->twopass_frame.stats_in < twopass->stats_buf_ctx->stats_in_end) {
     *this_frame = *cpi->twopass_frame.stats_in;
     ++cpi->twopass_frame.stats_in;
   }
@@ -3931,7 +3930,7 @@ void av1_init_second_pass(AV1_COMP *cpi) {
       (int64_t)(stats->duration * oxcf->rc_cfg.target_bandwidth / 10000000.0);
 
 #if CONFIG_BITRATE_ACCURACY
-  av1_vbr_rc_init(&cpi->vbr_rc_info, cpi->ppi->twopass.bits_left,
+  av1_vbr_rc_init(&cpi->vbr_rc_info, twopass->bits_left,
                   (int)round(stats->count));
 #endif
 
@@ -4035,8 +4034,7 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
         input_stats(twopass, &cpi->twopass_frame, &this_frame);
       }
     } else if (cpi->ppi->lap_enabled) {
-      cpi->twopass_frame.stats_in =
-          cpi->ppi->twopass.stats_buf_ctx->stats_in_start;
+      cpi->twopass_frame.stats_in = twopass->stats_buf_ctx->stats_in_start;
     }
   }
 
