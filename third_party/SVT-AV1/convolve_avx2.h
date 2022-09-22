@@ -2195,11 +2195,9 @@ static AOM_FORCE_INLINE void av1_convolve_y_sr_specialized_avx2(
             s_32[1] = _mm_cvtsi32_si128(*(int32_t *)(src_ptr + src_stride));
             const __m128i d0 = _mm_avg_epu8(s_32[0], s_32[1]);
             xx_storel_32(dst, d0);
-            *(uint32_t *)dst = _mm_cvtsi128_si32(d0);
             s_32[0] = _mm_cvtsi32_si128(*(int32_t *)(src_ptr + 2 * src_stride));
             const __m128i d1 = _mm_avg_epu8(s_32[1], s_32[0]);
             xx_storel_32(dst + dst_stride, d1);
-            *(uint32_t *)(dst + dst_stride) = _mm_cvtsi128_si32(d1);
             src_ptr += 2 * src_stride;
             dst += 2 * dst_stride;
             y -= 2;
