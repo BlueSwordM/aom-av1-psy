@@ -1614,11 +1614,16 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   MultiThreadInfo *const mt_info = &cpi->mt_info;
 #if CONFIG_MULTITHREAD
   pthread_mutex_t *const enc_row_mt_mutex_ = mt_info->enc_row_mt.mutex_;
+  pthread_cond_t *const enc_row_mt_cond_ = mt_info->enc_row_mt.cond_;
   pthread_mutex_t *const gm_mt_mutex_ = mt_info->gm_sync.mutex_;
   pthread_mutex_t *const pack_bs_mt_mutex_ = mt_info->pack_bs_sync.mutex_;
   if (enc_row_mt_mutex_ != NULL) {
     pthread_mutex_destroy(enc_row_mt_mutex_);
     aom_free(enc_row_mt_mutex_);
+  }
+  if (enc_row_mt_cond_ != NULL) {
+    pthread_cond_destroy(enc_row_mt_cond_);
+    aom_free(enc_row_mt_cond_);
   }
   if (gm_mt_mutex_ != NULL) {
     pthread_mutex_destroy(gm_mt_mutex_);
@@ -2301,45 +2306,6 @@ static void extend_frame_borders(AV1_COMP *cpi) {
   }
 }
 
-static void set_postproc_filter_default_params(AV1_COMMON *cm) {
-  struct loopfilter *const lf = &cm->lf;
-  CdefInfo *const cdef_info = &cm->cdef_info;
-  RestorationInfo *const rst_info = cm->rst_info;
-
-  lf->filter_level[0] = 0;
-  lf->filter_level[1] = 0;
-  cdef_info->cdef_bits = 0;
-  cdef_info->cdef_strengths[0] = 0;
-  cdef_info->nb_cdef_strengths = 1;
-  cdef_info->cdef_uv_strengths[0] = 0;
-  rst_info[0].frame_restoration_type = RESTORE_NONE;
-  rst_info[1].frame_restoration_type = RESTORE_NONE;
-  rst_info[2].frame_restoration_type = RESTORE_NONE;
-}
-
-// Checks if post-processing filters need to be applied.
-// NOTE: This function decides if the application of different post-processing
-// filters on the reconstructed frame can be skipped at the encoder side.
-// However the computation of different filter parameters that are signaled in
-// the bitstream is still required.
-static bool should_skip_postproc_filtering(AV1_COMP *cpi, int use_cdef,
-                                           int use_restoration) {
-  if (!cpi->oxcf.algo_cfg.skip_postproc_filtering || cpi->ppi->b_calculate_psnr)
-    return false;
-  assert(cpi->oxcf.mode == ALLINTRA);
-  const AV1_COMMON *const cm = &cpi->common;
-
-  // The post-processing filters are applied one after the other. In case of
-  // ALLINTRA encoding, the reconstructed frame is not used as a reference
-  // frame. Hence, the application of these filters can be skipped when
-  // 1. filter parameters of the subsequent stages are not dependent on the
-  // filtered output of the current stage or
-  // 2. subsequent filtering stages are disabled
-  // Hence, the application of deblocking filters is also skipped if there are
-  // no further filtering stages.
-  return (!use_cdef && !av1_superres_scaled(cm) && !use_restoration);
-}
-
 /*!\brief Select and apply deblocking filters, cdef filters, and restoration
  * filters.
  *
@@ -2350,11 +2316,13 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   const int num_workers = mt_info->num_mod_workers[MOD_LPF];
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *xd = &cpi->td.mb.e_mbd;
+  cpi->td.mb.rdmult = cpi->rd.RDMULT;
 
   assert(IMPLIES(is_lossless_requested(&cpi->oxcf.rc_cfg),
                  cm->features.coded_lossless && cm->features.all_lossless));
 
-  const int use_loopfilter = is_loopfilter_used(cm);
+  const int use_loopfilter =
+      is_loopfilter_used(cm) && !cpi->mt_info.pipeline_lpf_mt_with_enc;
   const int use_cdef = is_cdef_used(cm);
   const int use_restoration = is_restoration_used(cm);
 
@@ -3160,7 +3128,8 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   cm->cur_frame->buf.render_width = cm->render_width;
   cm->cur_frame->buf.render_height = cm->render_height;
 
-  set_postproc_filter_default_params(cm);
+  if (!cpi->mt_info.pipeline_lpf_mt_with_enc)
+    set_postproc_filter_default_params(&cpi->common);
 
   if (!cm->features.allow_intrabc) loopfilter_frame(cpi, cm);
 

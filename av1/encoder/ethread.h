@@ -23,6 +23,8 @@ typedef struct EncWorkerData {
   struct AV1_COMP *cpi;
   struct ThreadData *td;
   struct ThreadData *original_td;
+  AV1LfSync *lf_sync;
+  LFWorkerData *lf_data;
   int start;
   int thread_id;
 } EncWorkerData;

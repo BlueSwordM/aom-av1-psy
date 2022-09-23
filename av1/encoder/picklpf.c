@@ -202,7 +202,6 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
   (void)sd;
 
   lf->sharpness_level = 0;
-  cpi->td.mb.rdmult = cpi->rd.RDMULT;
 
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
       cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&

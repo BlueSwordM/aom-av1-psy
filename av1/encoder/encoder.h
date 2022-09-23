@@ -1490,11 +1490,27 @@ typedef struct {
    */
   int thread_id_to_tile_id[MAX_NUM_THREADS];
 
+  /*!
+   * num_tile_cols_done[i] indicates the number of tile columns whose encoding
+   * is complete in the ith superblock row.
+   */
+  int *num_tile_cols_done;
+
+  /*!
+   * Number of superblock rows in a frame for which 'num_tile_cols_done' is
+   * allocated.
+   */
+  int allocated_sb_rows;
+
 #if CONFIG_MULTITHREAD
   /*!
    * Mutex lock used while dispatching jobs.
    */
   pthread_mutex_t *mutex_;
+  /*!
+   *  Condition variable used to dispatch loopfilter jobs.
+   */
+  pthread_cond_t *cond_;
 #endif
 
   /**
@@ -1675,6 +1691,12 @@ typedef struct MultiThreadInfo {
    * Buffers to be stored/restored before/after parallel encode.
    */
   RestoreStateBuffers restore_state_buf;
+
+  /*!
+   * In multi-threaded realtime encoding with row-mt enabled, pipeline
+   * loop-filtering after encoding.
+   */
+  int pipeline_lpf_mt_with_enc;
 } MultiThreadInfo;
 
 /*!\cond */
@@ -4089,6 +4111,45 @@ static INLINE int is_cdef_used(const AV1_COMMON *const cm) {
 static INLINE int is_restoration_used(const AV1_COMMON *const cm) {
   return cm->seq_params->enable_restoration && !cm->features.all_lossless &&
          !cm->tiles.large_scale;
+}
+
+// Checks if post-processing filters need to be applied.
+// NOTE: This function decides if the application of different post-processing
+// filters on the reconstructed frame can be skipped at the encoder side.
+// However the computation of different filter parameters that are signaled in
+// the bitstream is still required.
+static INLINE bool should_skip_postproc_filtering(AV1_COMP *cpi, int use_cdef,
+                                                  int use_restoration) {
+  if (!cpi->oxcf.algo_cfg.skip_postproc_filtering || cpi->ppi->b_calculate_psnr)
+    return false;
+  assert(cpi->oxcf.mode == ALLINTRA);
+  const AV1_COMMON *const cm = &cpi->common;
+
+  // The post-processing filters are applied one after the other. In case of
+  // ALLINTRA encoding, the reconstructed frame is not used as a reference
+  // frame. Hence, the application of these filters can be skipped when
+  // 1. filter parameters of the subsequent stages are not dependent on the
+  // filtered output of the current stage or
+  // 2. subsequent filtering stages are disabled
+  // Hence, the application of deblocking filters is also skipped if there are
+  // no further filtering stages.
+  return (!use_cdef && !av1_superres_scaled(cm) && !use_restoration);
+}
+
+static INLINE void set_postproc_filter_default_params(AV1_COMMON *cm) {
+  struct loopfilter *const lf = &cm->lf;
+  CdefInfo *const cdef_info = &cm->cdef_info;
+  RestorationInfo *const rst_info = cm->rst_info;
+
+  lf->filter_level[0] = 0;
+  lf->filter_level[1] = 0;
+  cdef_info->cdef_bits = 0;
+  cdef_info->cdef_strengths[0] = 0;
+  cdef_info->nb_cdef_strengths = 1;
+  cdef_info->cdef_uv_strengths[0] = 0;
+  rst_info[0].frame_restoration_type = RESTORE_NONE;
+  rst_info[1].frame_restoration_type = RESTORE_NONE;
+  rst_info[2].frame_restoration_type = RESTORE_NONE;
 }
 
 static INLINE int is_inter_tx_size_search_level_one(
