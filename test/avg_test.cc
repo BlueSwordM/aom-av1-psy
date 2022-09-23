@@ -1027,7 +1027,14 @@ INSTANTIATE_TEST_SUITE_P(
                       SatdTestParam<SatdFunc>(256, &aom_satd_c, &aom_satd_avx2),
                       SatdTestParam<SatdFunc>(1024, &aom_satd_c,
                                               &aom_satd_avx2)));
-#endif
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, VectorVarTest,
+    ::testing::Values(make_tuple(2, &aom_vector_var_c, &aom_vector_var_avx2),
+                      make_tuple(3, &aom_vector_var_c, &aom_vector_var_avx2),
+                      make_tuple(4, &aom_vector_var_c, &aom_vector_var_avx2),
+                      make_tuple(5, &aom_vector_var_c, &aom_vector_var_avx2)));
+#endif  // HAVE_AVX2
 
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(

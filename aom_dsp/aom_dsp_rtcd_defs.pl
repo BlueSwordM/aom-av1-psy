@@ -1195,7 +1195,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_int_pro_col avx2 sse2 neon/;
 
   add_proto qw/int aom_vector_var/, "const int16_t *ref, const int16_t *src, const int bwl";
-  specialize qw/aom_vector_var sse4_1 neon/;
+  specialize qw/aom_vector_var avx2 sse4_1 neon/;
   # TODO(kyslov@) bring back SSE2 by extending it to 128 block size
   #specialize qw/aom_vector_var neon sse2/;
 

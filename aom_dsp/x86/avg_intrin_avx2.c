@@ -669,3 +669,94 @@ void aom_int_pro_col_avx2(int16_t *vbuf, const uint8_t *ref,
     aom_int_pro_col_sse2(vbuf, ref, ref_stride, width, height, norm_factor);
   }
 }
+
+static inline void calc_vector_mean_sse_64wd(const int16_t *ref,
+                                             const int16_t *src, __m256i *mean,
+                                             __m256i *sse) {
+  const __m256i src_line0 = _mm256_loadu_si256((const __m256i *)src);
+  const __m256i src_line1 = _mm256_loadu_si256((const __m256i *)(src + 16));
+  const __m256i src_line2 = _mm256_loadu_si256((const __m256i *)(src + 32));
+  const __m256i src_line3 = _mm256_loadu_si256((const __m256i *)(src + 48));
+  const __m256i ref_line0 = _mm256_loadu_si256((const __m256i *)ref);
+  const __m256i ref_line1 = _mm256_loadu_si256((const __m256i *)(ref + 16));
+  const __m256i ref_line2 = _mm256_loadu_si256((const __m256i *)(ref + 32));
+  const __m256i ref_line3 = _mm256_loadu_si256((const __m256i *)(ref + 48));
+
+  const __m256i diff0 = _mm256_sub_epi16(ref_line0, src_line0);
+  const __m256i diff1 = _mm256_sub_epi16(ref_line1, src_line1);
+  const __m256i diff2 = _mm256_sub_epi16(ref_line2, src_line2);
+  const __m256i diff3 = _mm256_sub_epi16(ref_line3, src_line3);
+  const __m256i diff_sqr0 = _mm256_madd_epi16(diff0, diff0);
+  const __m256i diff_sqr1 = _mm256_madd_epi16(diff1, diff1);
+  const __m256i diff_sqr2 = _mm256_madd_epi16(diff2, diff2);
+  const __m256i diff_sqr3 = _mm256_madd_epi16(diff3, diff3);
+
+  *mean = _mm256_add_epi16(*mean, _mm256_add_epi16(diff0, diff1));
+  *mean = _mm256_add_epi16(*mean, diff2);
+  *mean = _mm256_add_epi16(*mean, diff3);
+  *sse = _mm256_add_epi32(*sse, _mm256_add_epi32(diff_sqr0, diff_sqr1));
+  *sse = _mm256_add_epi32(*sse, diff_sqr2);
+  *sse = _mm256_add_epi32(*sse, diff_sqr3);
+}
+
+#define CALC_VAR_FROM_MEAN_SSE(mean, sse)                                    \
+  {                                                                          \
+    mean = _mm256_madd_epi16(mean, _mm256_set1_epi16(1));                    \
+    mean = _mm256_hadd_epi32(mean, sse);                                     \
+    mean = _mm256_add_epi32(mean, _mm256_bsrli_epi128(mean, 4));             \
+    const __m128i result = _mm_add_epi32(_mm256_castsi256_si128(mean),       \
+                                         _mm256_extractf128_si256(mean, 1)); \
+    /*(mean * mean): dynamic range 31 bits.*/                                \
+    const int mean_int = _mm_extract_epi32(result, 0);                       \
+    const int sse_int = _mm_extract_epi32(result, 2);                        \
+    const unsigned int mean_abs = abs(mean_int);                             \
+    var = sse_int - ((mean_abs * mean_abs) >> (log_bw + 2));                 \
+  }
+
+// ref: [0 - 510]
+// src: [0 - 510]
+// bwl: {2, 3, 4, 5}
+int aom_vector_var_avx2(const int16_t *ref, const int16_t *src, int log_bw) {
+  const int width = 4 << log_bw;
+  assert(width % 16 == 0 && width <= 128);
+  int var = 0;
+
+  // Instead of having a loop over width 16, considered loop unrolling to avoid
+  // some addition operations.
+  if (width == 128) {
+    __m256i mean = _mm256_setzero_si256();
+    __m256i sse = _mm256_setzero_si256();
+
+    calc_vector_mean_sse_64wd(src, ref, &mean, &sse);
+    calc_vector_mean_sse_64wd(src + 64, ref + 64, &mean, &sse);
+    CALC_VAR_FROM_MEAN_SSE(mean, sse)
+  } else if (width == 64) {
+    __m256i mean = _mm256_setzero_si256();
+    __m256i sse = _mm256_setzero_si256();
+
+    calc_vector_mean_sse_64wd(src, ref, &mean, &sse);
+    CALC_VAR_FROM_MEAN_SSE(mean, sse)
+  } else if (width == 32) {
+    const __m256i src_line0 = _mm256_loadu_si256((const __m256i *)src);
+    const __m256i ref_line0 = _mm256_loadu_si256((const __m256i *)ref);
+    const __m256i src_line1 = _mm256_loadu_si256((const __m256i *)(src + 16));
+    const __m256i ref_line1 = _mm256_loadu_si256((const __m256i *)(ref + 16));
+
+    const __m256i diff0 = _mm256_sub_epi16(ref_line0, src_line0);
+    const __m256i diff1 = _mm256_sub_epi16(ref_line1, src_line1);
+    const __m256i diff_sqr0 = _mm256_madd_epi16(diff0, diff0);
+    const __m256i diff_sqr1 = _mm256_madd_epi16(diff1, diff1);
+    const __m256i sse = _mm256_add_epi32(diff_sqr0, diff_sqr1);
+    __m256i mean = _mm256_add_epi16(diff0, diff1);
+
+    CALC_VAR_FROM_MEAN_SSE(mean, sse)
+  } else if (width == 16) {
+    const __m256i src_line = _mm256_loadu_si256((const __m256i *)src);
+    const __m256i ref_line = _mm256_loadu_si256((const __m256i *)ref);
+    __m256i mean = _mm256_sub_epi16(ref_line, src_line);
+    const __m256i sse = _mm256_madd_epi16(mean, mean);
+
+    CALC_VAR_FROM_MEAN_SSE(mean, sse)
+  }
+  return var;
+}

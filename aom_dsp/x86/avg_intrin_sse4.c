@@ -37,24 +37,24 @@ int aom_vector_var_sse4_1(const int16_t *ref, const int16_t *src,
 
     diff = _mm_add_epi16(diff, diff2);
     diff_sqr = _mm_add_epi32(diff_sqr, diff_sqr2);
-    diff = _mm_madd_epi16(diff, k_one_epi16);
     sse = _mm_add_epi32(sse, diff_sqr);
-
-    mean = _mm_add_epi32(mean, diff);
+    mean = _mm_add_epi16(mean, diff);
 
     src += 16;
     ref += 16;
   }
 
-  mean = _mm_hadd_epi32(mean, mean);
-  sse = _mm_hadd_epi32(sse, sse);
-  mean = _mm_hadd_epi32(mean, mean);
-  sse = _mm_hadd_epi32(sse, sse);
+  // m0 m1 m2 m3
+  mean = _mm_madd_epi16(mean, k_one_epi16);
+  // m0+m1 m2+m3 s0+s1 s2+s3
+  __m128i result = _mm_hadd_epi32(mean, sse);
+  // m0+m1+m2+m3 s0+s1+s2+s3 x x
+  result = _mm_add_epi32(result, _mm_bsrli_si128(result, 4));
 
   // (mean * mean): dynamic range 31 bits.
-  const int mean_int = _mm_extract_epi32(mean, 0);
-  const int sse_int = _mm_extract_epi32(sse, 0);
-  const unsigned int mean_abs = mean_int >= 0 ? mean_int : -mean_int;
+  const int mean_int = _mm_extract_epi32(result, 0);
+  const int sse_int = _mm_extract_epi32(result, 2);
+  const unsigned int mean_abs = abs(mean_int);
   const int var = sse_int - ((mean_abs * mean_abs) >> (log_bw + 2));
   return var;
 }

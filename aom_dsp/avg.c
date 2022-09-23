@@ -575,7 +575,7 @@ int aom_vector_var_c(const int16_t *ref, const int16_t *src, const int bwl) {
   // (mean * mean): dynamic range 31 bits.
   // If width == 128, the mean can be 510 * 128 = 65280, and log2(65280 ** 2) ~=
   // 31.99, so it needs to be casted to unsigned int to compute its square.
-  const unsigned int mean_abs = mean >= 0 ? mean : -mean;
+  const unsigned int mean_abs = abs(mean);
   var = sse - ((mean_abs * mean_abs) >> (bwl + 2));
   return var;
 }
