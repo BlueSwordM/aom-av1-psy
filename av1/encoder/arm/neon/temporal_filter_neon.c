@@ -166,7 +166,8 @@ static void apply_temporal_filter(
 
 #else  // !(defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD))
 
-DECLARE_ALIGNED(16, static const uint16_t, kSlidingWindowMask[]) = {
+// When using vld1q_u16_x4 compilers may insert an alignment hint of 256 bits.
+DECLARE_ALIGNED(32, static const uint16_t, kSlidingWindowMask[]) = {
   0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0x0000, 0x0000, 0x0000,
   0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0x0000, 0x0000,
   0x0000, 0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0x0000,
