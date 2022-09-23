@@ -3166,7 +3166,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     PSNR_STATS psnr;
     aom_calc_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr);
     DuckyEncodeFrameResult *frame_result = &cpi->ducky_encode_info.frame_result;
-    frame_result->global_order_idx = cm->cur_frame->order_hint;
+    frame_result->global_order_idx = cm->cur_frame->display_order_hint;
     frame_result->q_index = cm->quant_params.base_qindex;
     frame_result->rdmult = cpi->rd.RDMULT;
     frame_result->rate = (int)(*size) * 8;
@@ -3548,7 +3548,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       aom_calc_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr);
       DuckyEncodeFrameResult *frame_result =
           &cpi->ducky_encode_info.frame_result;
-      frame_result->global_order_idx = cm->cur_frame->order_hint;
+      frame_result->global_order_idx = cm->cur_frame->display_order_hint;
       frame_result->q_index = cm->quant_params.base_qindex;
       frame_result->rdmult = cpi->rd.RDMULT;
       frame_result->rate = (int)(*size) * 8;
