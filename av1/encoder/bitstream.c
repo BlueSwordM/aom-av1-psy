@@ -2681,6 +2681,12 @@ static AOM_INLINE void write_global_motion_params(
     struct aom_write_bit_buffer *wb, int allow_hp) {
   const TransformationType type = params->wmtype;
 
+  // As a workaround for an AV1 spec bug, we avoid choosing TRANSLATION
+  // type models. Check here that we don't accidentally pick one somehow.
+  // See comments in gm_get_motion_vector() for details on the bug we're
+  // working around here
+  assert(type != TRANSLATION);
+
   aom_wb_write_bit(wb, type != IDENTITY);
   if (type != IDENTITY) {
     aom_wb_write_bit(wb, type == ROTZOOM);

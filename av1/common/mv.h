@@ -282,6 +282,17 @@ static INLINE int_mv gm_get_motion_vector(const WarpedMotionParams *gm,
     // After the right shifts, there are 3 fractional bits of precision. If
     // allow_hp is false, the bottom bit is always zero (so we don't need a
     // call to convert_to_trans_prec here)
+    //
+    // Note: There is an AV1 specification bug here:
+    //
+    // gm->wmmat[0] is supposed to be the horizontal translation, and so should
+    // go into res.as_mv.col, and gm->wmmat[1] is supposed to be the vertical
+    // translation and so should go into res.as_mv.row
+    //
+    // However, in the spec, these assignments are accidentally reversed, and so
+    // we must keep this incorrect logic to match the spec.
+    //
+    // See also: https://crbug.com/aomedia/3328
     res.as_mv.row = gm->wmmat[0] >> GM_TRANS_ONLY_PREC_DIFF;
     res.as_mv.col = gm->wmmat[1] >> GM_TRANS_ONLY_PREC_DIFF;
     assert(IMPLIES(1 & (res.as_mv.row | res.as_mv.col), allow_hp));

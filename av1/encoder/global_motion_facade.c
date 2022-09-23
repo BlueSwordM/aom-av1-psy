@@ -133,6 +133,16 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
       params_this_motion = params_by_motion[i].params;
       av1_convert_model_to_params(params_this_motion, &tmp_wm_params);
 
+      // Work around a bug in the AV1 specification
+      //
+      // For TRANSLATION type global motion models, gm_get_motion_vector() gives
+      // the wrong motion vector (see comments in that function for details).
+      // As translation-type models do not give much gain, we can avoid this bug
+      // by never choosing a TRANSLATION type model
+      if (tmp_wm_params.wmtype == TRANSLATION) {
+        continue;
+      }
+
       if (tmp_wm_params.wmtype != IDENTITY) {
         av1_compute_feature_segmentation_map(
             segment_map, segment_map_w, segment_map_h,
@@ -154,6 +164,12 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
             GM_REFINEMENT_COUNT, best_warp_error, segment_map, segment_map_w,
             erroradv_threshold);
 
+        // av1_refine_integerized_param() can return a TRANSLATION type model
+        // even if its input is some other type, so we have to skip those too
+        if (tmp_wm_params.wmtype == TRANSLATION) {
+          continue;
+        }
+
         if (warp_error < best_warp_error) {
           best_warp_error = warp_error;
           // Save the wm_params modified by
@@ -168,6 +184,8 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
       if (!av1_get_shear_params(&cm->global_motion[frame]))
         cm->global_motion[frame] = default_warp_params;
 
+#if 0
+    // We never choose translational models, so this code is disabled
     if (cm->global_motion[frame].wmtype == TRANSLATION) {
       cm->global_motion[frame].wmmat[0] =
           convert_to_trans_prec(cm->features.allow_high_precision_mv,
@@ -178,6 +196,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
                                 cm->global_motion[frame].wmmat[1]) *
           GM_TRANS_ONLY_DECODE_FACTOR;
     }
+#endif
 
     if (cm->global_motion[frame].wmtype == IDENTITY) continue;
 
