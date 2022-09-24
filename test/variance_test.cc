@@ -2265,6 +2265,13 @@ INSTANTIATE_TEST_SUITE_P(
                       MseWxHParams(2, 3, &aom_mse_wxh_16bit_sse2, 8),
                       MseWxHParams(2, 2, &aom_mse_wxh_16bit_sse2, 8)));
 
+INSTANTIATE_TEST_SUITE_P(
+    SSE2, Mse16xHTest,
+    ::testing::Values(Mse16xHParams(3, 3, &aom_mse_16xh_16bit_sse2, 8),
+                      Mse16xHParams(3, 2, &aom_mse_16xh_16bit_sse2, 8),
+                      Mse16xHParams(2, 3, &aom_mse_16xh_16bit_sse2, 8),
+                      Mse16xHParams(2, 2, &aom_mse_16xh_16bit_sse2, 8)));
+
 INSTANTIATE_TEST_SUITE_P(SSE2, SumOfSquaresTest,
                          ::testing::Values(aom_get_mb_ss_sse2));
 

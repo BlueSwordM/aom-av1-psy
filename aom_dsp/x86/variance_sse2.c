@@ -762,3 +762,17 @@ uint64_t aom_mse_wxh_16bit_sse2(uint8_t *dst, int dstride, uint16_t *src,
     default: assert(0 && "unsupported width"); return -1;
   }
 }
+
+uint64_t aom_mse_16xh_16bit_sse2(uint8_t *dst, int dstride, uint16_t *src,
+                                 int w, int h) {
+  assert((w == 8 || w == 4) && (h == 8 || h == 4) &&
+         "w=8/4 and h=8/4 must be satisfied");
+  const int num_blks = 16 / w;
+  uint64_t sum = 0;
+  for (int i = 0; i < num_blks; i++) {
+    sum += aom_mse_wxh_16bit_sse2(dst, dstride, src, w, w, h);
+    dst += w;
+    src += (w * h);
+  }
+  return sum;
+}
