@@ -238,11 +238,11 @@ DECLARE_ALIGNED(16, static const uint8_t, dot_prod_permute_tbl[48]) = {
   8, 9, 10, 11, 9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14
 };
 
-static INLINE int32x4_t convolve8_4_dot_s16(uint8x16_t samples,
-                                            const int8x8_t filters,
-                                            const int32x4_t correction,
-                                            const uint8x16_t range_limit,
-                                            const uint8x16x2_t permute_tbl) {
+static INLINE int32x4_t convolve8_4_sdot(uint8x16_t samples,
+                                         const int8x8_t filters,
+                                         const int32x4_t correction,
+                                         const uint8x16_t range_limit,
+                                         const uint8x16x2_t permute_tbl) {
   int8x16_t clamped_samples, permuted_samples[2];
   int32x4_t sum;
 
@@ -263,12 +263,12 @@ static INLINE int32x4_t convolve8_4_dot_s16(uint8x16_t samples,
   return sum;
 }
 
-static INLINE int16x8_t convolve8_8_dot_s16(uint8x16_t samples,
-                                            const int8x8_t filters,
-                                            const int32x4_t correction,
-                                            const uint8x16_t range_limit,
-                                            const uint8x16x3_t permute_tbl,
-                                            const int16x8_t shift_round_0) {
+static INLINE int16x8_t convolve8_8_sdot(uint8x16_t samples,
+                                         const int8x8_t filters,
+                                         const int32x4_t correction,
+                                         const uint8x16_t range_limit,
+                                         const uint8x16x3_t permute_tbl,
+                                         const int16x8_t shift_round_0) {
   int8x16_t clamped_samples, permuted_samples[3];
   int32x4_t sum0, sum1;
   int16x8_t sum;

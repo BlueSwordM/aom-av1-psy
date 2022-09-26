@@ -313,14 +313,10 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
       s2 = vld1q_u8(src + 2 * src_stride);
       s3 = vld1q_u8(src + 3 * src_stride);
 
-      t0 = convolve8_4_dot_s16(s0, x_filter, correction, range_limit,
-                               permute_tbl);
-      t1 = convolve8_4_dot_s16(s1, x_filter, correction, range_limit,
-                               permute_tbl);
-      t2 = convolve8_4_dot_s16(s2, x_filter, correction, range_limit,
-                               permute_tbl);
-      t3 = convolve8_4_dot_s16(s3, x_filter, correction, range_limit,
-                               permute_tbl);
+      t0 = convolve8_4_sdot(s0, x_filter, correction, range_limit, permute_tbl);
+      t1 = convolve8_4_sdot(s1, x_filter, correction, range_limit, permute_tbl);
+      t2 = convolve8_4_sdot(s2, x_filter, correction, range_limit, permute_tbl);
+      t3 = convolve8_4_sdot(s3, x_filter, correction, range_limit, permute_tbl);
 
       d0 = vqrshl_s16(vmovn_s32(t0), shift_round_0);
       d1 = vqrshl_s16(vmovn_s32(t1), shift_round_0);
@@ -355,14 +351,14 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
         s2 = vld1q_u8(s + 2 * src_stride);
         s3 = vld1q_u8(s + 3 * src_stride);
 
-        d0 = convolve8_8_dot_s16(s0, x_filter, correction, range_limit,
-                                 permute_tbl, shift_round_0);
-        d1 = convolve8_8_dot_s16(s1, x_filter, correction, range_limit,
-                                 permute_tbl, shift_round_0);
-        d2 = convolve8_8_dot_s16(s2, x_filter, correction, range_limit,
-                                 permute_tbl, shift_round_0);
-        d3 = convolve8_8_dot_s16(s3, x_filter, correction, range_limit,
-                                 permute_tbl, shift_round_0);
+        d0 = convolve8_8_sdot(s0, x_filter, correction, range_limit,
+                              permute_tbl, shift_round_0);
+        d1 = convolve8_8_sdot(s1, x_filter, correction, range_limit,
+                              permute_tbl, shift_round_0);
+        d2 = convolve8_8_sdot(s2, x_filter, correction, range_limit,
+                              permute_tbl, shift_round_0);
+        d3 = convolve8_8_sdot(s3, x_filter, correction, range_limit,
+                              permute_tbl, shift_round_0);
 
         vst1q_s16(d + 0 * dst_stride, d0);
         vst1q_s16(d + 1 * dst_stride, d1);
@@ -996,14 +992,10 @@ void av1_dist_wtd_convolve_x_neon(const uint8_t *src, int src_stride,
       s2 = vld1q_u8(src_ptr + 2 * src_stride);
       s3 = vld1q_u8(src_ptr + 3 * src_stride);
 
-      d0 = convolve8_4_dot_s16(s0, x_filter, correction, range_limit,
-                               permute_tbl);
-      d1 = convolve8_4_dot_s16(s1, x_filter, correction, range_limit,
-                               permute_tbl);
-      d2 = convolve8_4_dot_s16(s2, x_filter, correction, range_limit,
-                               permute_tbl);
-      d3 = convolve8_4_dot_s16(s3, x_filter, correction, range_limit,
-                               permute_tbl);
+      d0 = convolve8_4_sdot(s0, x_filter, correction, range_limit, permute_tbl);
+      d1 = convolve8_4_sdot(s1, x_filter, correction, range_limit, permute_tbl);
+      d2 = convolve8_4_sdot(s2, x_filter, correction, range_limit, permute_tbl);
+      d3 = convolve8_4_sdot(s3, x_filter, correction, range_limit, permute_tbl);
 
       d01 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));
       d23 = vcombine_s16(vmovn_s32(d2), vmovn_s32(d3));
@@ -1077,14 +1069,14 @@ void av1_dist_wtd_convolve_x_neon(const uint8_t *src, int src_stride,
         s2 = vld1q_u8(s + 2 * src_stride);
         s3 = vld1q_u8(s + 3 * src_stride);
 
-        d0 = convolve8_8_dot_s16(s0, x_filter, correction, range_limit,
-                                 permute_tbl, shift_round_0);
-        d1 = convolve8_8_dot_s16(s1, x_filter, correction, range_limit,
-                                 permute_tbl, shift_round_0);
-        d2 = convolve8_8_dot_s16(s2, x_filter, correction, range_limit,
-                                 permute_tbl, shift_round_0);
-        d3 = convolve8_8_dot_s16(s3, x_filter, correction, range_limit,
-                                 permute_tbl, shift_round_0);
+        d0 = convolve8_8_sdot(s0, x_filter, correction, range_limit,
+                              permute_tbl, shift_round_0);
+        d1 = convolve8_8_sdot(s1, x_filter, correction, range_limit,
+                              permute_tbl, shift_round_0);
+        d2 = convolve8_8_sdot(s2, x_filter, correction, range_limit,
+                              permute_tbl, shift_round_0);
+        d3 = convolve8_8_sdot(s3, x_filter, correction, range_limit,
+                              permute_tbl, shift_round_0);
 
         d0 = vrshlq_s16(d0, horiz_const);
         d1 = vrshlq_s16(d1, horiz_const);
