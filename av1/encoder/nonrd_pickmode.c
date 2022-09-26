@@ -129,6 +129,139 @@ enum {
   INTER_NEAR_NEW = (1 << NEARMV) | (1 << NEWMV),
 };
 
+// The original scan order (default_scan_8x8) is modified according to the extra
+// transpose in hadamard c implementation, i.e., aom_hadamard_lp_8x8_c and
+// aom_hadamard_8x8_c.
+static const int16_t default_scan_8x8_transpose[64] = {
+  0,  8,  1,  2,  9,  16, 24, 17, 10, 3,  4,  11, 18, 25, 32, 40,
+  33, 26, 19, 12, 5,  6,  13, 20, 27, 34, 41, 48, 56, 49, 42, 35,
+  28, 21, 14, 7,  15, 22, 29, 36, 43, 50, 57, 58, 51, 44, 37, 30,
+  23, 31, 38, 45, 52, 59, 60, 53, 46, 39, 47, 54, 61, 62, 55, 63
+};
+
+// The original scan order (av1_default_iscan_8x8) is modified to match
+// hadamard AVX2 implementation, i.e., aom_hadamard_lp_8x8_avx2 and
+// aom_hadamard_8x8_avx2. Since hadamard AVX2 implementation will modify the
+// order of coeffcients, such that the normal scan order is no longer guranteed
+// to scan low coeffcients first, therefore we modify the scan order
+// accordingly.
+// Note that this one has to be used in pair with default_scan_8x8_transpose.
+static const int16_t av1_default_iscan_8x8_transpose[64] = {
+  0,  2,  3,  9,  10, 20, 21, 35, 1,  4,  8,  11, 19, 22, 34, 36,
+  5,  7,  12, 18, 23, 33, 37, 48, 6,  13, 17, 24, 32, 38, 47, 49,
+  14, 16, 25, 31, 39, 46, 50, 57, 15, 26, 30, 40, 45, 51, 56, 58,
+  27, 29, 41, 44, 52, 55, 59, 62, 28, 42, 43, 53, 54, 60, 61, 63
+};
+
+// The original scan order (default_scan_16x16) is modified according to the
+// extra transpose in hadamard c implementation in lp case, i.e.,
+// aom_hadamard_lp_16x16_c.
+static const int16_t default_scan_lp_16x16_transpose[256] = {
+  0,   8,   2,   4,   10,  16,  24,  18,  12,  6,   64,  14,  20,  26,  32,
+  40,  34,  28,  22,  72,  66,  68,  74,  80,  30,  36,  42,  48,  56,  50,
+  44,  38,  88,  82,  76,  70,  128, 78,  84,  90,  96,  46,  52,  58,  1,
+  9,   3,   60,  54,  104, 98,  92,  86,  136, 130, 132, 138, 144, 94,  100,
+  106, 112, 62,  5,   11,  17,  25,  19,  13,  7,   120, 114, 108, 102, 152,
+  146, 140, 134, 192, 142, 148, 154, 160, 110, 116, 122, 65,  15,  21,  27,
+  33,  41,  35,  29,  23,  73,  67,  124, 118, 168, 162, 156, 150, 200, 194,
+  196, 202, 208, 158, 164, 170, 176, 126, 69,  75,  81,  31,  37,  43,  49,
+  57,  51,  45,  39,  89,  83,  77,  71,  184, 178, 172, 166, 216, 210, 204,
+  198, 206, 212, 218, 224, 174, 180, 186, 129, 79,  85,  91,  97,  47,  53,
+  59,  61,  55,  105, 99,  93,  87,  137, 131, 188, 182, 232, 226, 220, 214,
+  222, 228, 234, 240, 190, 133, 139, 145, 95,  101, 107, 113, 63,  121, 115,
+  109, 103, 153, 147, 141, 135, 248, 242, 236, 230, 238, 244, 250, 193, 143,
+  149, 155, 161, 111, 117, 123, 125, 119, 169, 163, 157, 151, 201, 195, 252,
+  246, 254, 197, 203, 209, 159, 165, 171, 177, 127, 185, 179, 173, 167, 217,
+  211, 205, 199, 207, 213, 219, 225, 175, 181, 187, 189, 183, 233, 227, 221,
+  215, 223, 229, 235, 241, 191, 249, 243, 237, 231, 239, 245, 251, 253, 247,
+  255
+};
+
+#if CONFIG_AV1_HIGHBITDEPTH
+// The original scan order (default_scan_16x16) is modified according to the
+// extra shift in hadamard c implementation in fp case, i.e.,
+// aom_hadamard_16x16_c. Note that 16x16 lp and fp hadamard generate different
+// outputs, so we handle them separately.
+static const int16_t default_scan_fp_16x16_transpose[256] = {
+  0,   4,   2,   8,   6,   16,  20,  18,  12,  10,  64,  14,  24,  22,  32,
+  36,  34,  28,  26,  68,  66,  72,  70,  80,  30,  40,  38,  48,  52,  50,
+  44,  42,  84,  82,  76,  74,  128, 78,  88,  86,  96,  46,  56,  54,  1,
+  5,   3,   60,  58,  100, 98,  92,  90,  132, 130, 136, 134, 144, 94,  104,
+  102, 112, 62,  9,   7,   17,  21,  19,  13,  11,  116, 114, 108, 106, 148,
+  146, 140, 138, 192, 142, 152, 150, 160, 110, 120, 118, 65,  15,  25,  23,
+  33,  37,  35,  29,  27,  69,  67,  124, 122, 164, 162, 156, 154, 196, 194,
+  200, 198, 208, 158, 168, 166, 176, 126, 73,  71,  81,  31,  41,  39,  49,
+  53,  51,  45,  43,  85,  83,  77,  75,  180, 178, 172, 170, 212, 210, 204,
+  202, 206, 216, 214, 224, 174, 184, 182, 129, 79,  89,  87,  97,  47,  57,
+  55,  61,  59,  101, 99,  93,  91,  133, 131, 188, 186, 228, 226, 220, 218,
+  222, 232, 230, 240, 190, 137, 135, 145, 95,  105, 103, 113, 63,  117, 115,
+  109, 107, 149, 147, 141, 139, 244, 242, 236, 234, 238, 248, 246, 193, 143,
+  153, 151, 161, 111, 121, 119, 125, 123, 165, 163, 157, 155, 197, 195, 252,
+  250, 254, 201, 199, 209, 159, 169, 167, 177, 127, 181, 179, 173, 171, 213,
+  211, 205, 203, 207, 217, 215, 225, 175, 185, 183, 189, 187, 229, 227, 221,
+  219, 223, 233, 231, 241, 191, 245, 243, 237, 235, 239, 249, 247, 253, 251,
+  255
+};
+#endif
+
+// The original scan order (av1_default_iscan_16x16) is modified to match
+// hadamard AVX2 implementation, i.e., aom_hadamard_lp_16x16_avx2.
+// Since hadamard AVX2 implementation will modify the order of coeffcients, such
+// that the normal scan order is no longer guranteed to scan low coeffcients
+// first, therefore we modify the scan order accordingly.
+// Note that this one has to be used in pair with
+// default_scan_lp_16x16_transpose.
+static const int16_t av1_default_iscan_lp_16x16_transpose[256] = {
+  0,   44,  2,   46,  3,   63,  9,   69,  1,   45,  4,   64,  8,   68,  11,
+  87,  5,   65,  7,   67,  12,  88,  18,  94,  6,   66,  13,  89,  17,  93,
+  24,  116, 14,  90,  16,  92,  25,  117, 31,  123, 15,  91,  26,  118, 30,
+  122, 41,  148, 27,  119, 29,  121, 42,  149, 48,  152, 28,  120, 43,  150,
+  47,  151, 62,  177, 10,  86,  20,  96,  21,  113, 35,  127, 19,  95,  22,
+  114, 34,  126, 37,  144, 23,  115, 33,  125, 38,  145, 52,  156, 32,  124,
+  39,  146, 51,  155, 58,  173, 40,  147, 50,  154, 59,  174, 73,  181, 49,
+  153, 60,  175, 72,  180, 83,  198, 61,  176, 71,  179, 84,  199, 98,  202,
+  70,  178, 85,  200, 97,  201, 112, 219, 36,  143, 54,  158, 55,  170, 77,
+  185, 53,  157, 56,  171, 76,  184, 79,  194, 57,  172, 75,  183, 80,  195,
+  102, 206, 74,  182, 81,  196, 101, 205, 108, 215, 82,  197, 100, 204, 109,
+  216, 131, 223, 99,  203, 110, 217, 130, 222, 140, 232, 111, 218, 129, 221,
+  141, 233, 160, 236, 128, 220, 142, 234, 159, 235, 169, 245, 78,  193, 104,
+  208, 105, 212, 135, 227, 103, 207, 106, 213, 134, 226, 136, 228, 107, 214,
+  133, 225, 137, 229, 164, 240, 132, 224, 138, 230, 163, 239, 165, 241, 139,
+  231, 162, 238, 166, 242, 189, 249, 161, 237, 167, 243, 188, 248, 190, 250,
+  168, 244, 187, 247, 191, 251, 210, 254, 186, 246, 192, 252, 209, 253, 211,
+  255
+};
+
+#if CONFIG_AV1_HIGHBITDEPTH
+// The original scan order (av1_default_iscan_16x16) is modified to match
+// hadamard AVX2 implementation, i.e., aom_hadamard_16x16_avx2.
+// Since hadamard AVX2 implementation will modify the order of coeffcients, such
+// that the normal scan order is no longer guranteed to scan low coeffcients
+// first, therefore we modify the scan order accordingly.
+// Note that this one has to be used in pair with
+// default_scan_fp_16x16_transpose.
+static const int16_t av1_default_iscan_fp_16x16_transpose[256] = {
+  0,   44,  2,   46,  1,   45,  4,   64,  3,   63,  9,   69,  8,   68,  11,
+  87,  5,   65,  7,   67,  6,   66,  13,  89,  12,  88,  18,  94,  17,  93,
+  24,  116, 14,  90,  16,  92,  15,  91,  26,  118, 25,  117, 31,  123, 30,
+  122, 41,  148, 27,  119, 29,  121, 28,  120, 43,  150, 42,  149, 48,  152,
+  47,  151, 62,  177, 10,  86,  20,  96,  19,  95,  22,  114, 21,  113, 35,
+  127, 34,  126, 37,  144, 23,  115, 33,  125, 32,  124, 39,  146, 38,  145,
+  52,  156, 51,  155, 58,  173, 40,  147, 50,  154, 49,  153, 60,  175, 59,
+  174, 73,  181, 72,  180, 83,  198, 61,  176, 71,  179, 70,  178, 85,  200,
+  84,  199, 98,  202, 97,  201, 112, 219, 36,  143, 54,  158, 53,  157, 56,
+  171, 55,  170, 77,  185, 76,  184, 79,  194, 57,  172, 75,  183, 74,  182,
+  81,  196, 80,  195, 102, 206, 101, 205, 108, 215, 82,  197, 100, 204, 99,
+  203, 110, 217, 109, 216, 131, 223, 130, 222, 140, 232, 111, 218, 129, 221,
+  128, 220, 142, 234, 141, 233, 160, 236, 159, 235, 169, 245, 78,  193, 104,
+  208, 103, 207, 106, 213, 105, 212, 135, 227, 134, 226, 136, 228, 107, 214,
+  133, 225, 132, 224, 138, 230, 137, 229, 164, 240, 163, 239, 165, 241, 139,
+  231, 162, 238, 161, 237, 167, 243, 166, 242, 189, 249, 188, 248, 190, 250,
+  168, 244, 187, 247, 186, 246, 192, 252, 191, 251, 210, 254, 209, 253, 211,
+  255
+};
+#endif
+
 static INLINE int early_term_inter_search_with_sse(int early_term_idx,
                                                    BLOCK_SIZE bsize,
                                                    int64_t this_sse,
@@ -1072,8 +1205,12 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
               aom_hadamard_16x16(src_diff, diff_stride, coeff);
               av1_quantize_fp(coeff, 16 * 16, p->zbin_QTX, p->round_fp_QTX,
                               p->quant_fp_QTX, p->quant_shift_QTX, qcoeff,
-                              dqcoeff, p->dequant_QTX, eob, scan_order->scan,
-                              scan_order->iscan);
+                              dqcoeff, p->dequant_QTX, eob,
+                              // default_scan_fp_16x16_transpose and
+                              // av1_default_iscan_fp_16x16_transpose have to be
+                              // used in a pair.
+                              default_scan_fp_16x16_transpose,
+                              av1_default_iscan_fp_16x16_transpose);
             } else {
               if (tx_type == IDTX) {
                 aom_pixel_scale(src_diff, diff_stride, low_coeff, 3, 2, 2);
@@ -1082,17 +1219,21 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
               }
               av1_quantize_lp(low_coeff, 16 * 16, p->round_fp_QTX,
                               p->quant_fp_QTX, low_qcoeff, low_dqcoeff,
-                              p->dequant_QTX, eob, scan_order->scan,
-                              scan_order->iscan);
+                              p->dequant_QTX, eob,
+                              // default_scan_lp_16x16_transpose and
+                              // av1_default_iscan_lp_16x16_transpose have to be
+                              // used in a pair.
+                              default_scan_lp_16x16_transpose,
+                              av1_default_iscan_lp_16x16_transpose);
             }
             break;
           case TX_8X8:
             if (use_hbd) {
               aom_hadamard_8x8(src_diff, diff_stride, coeff);
-              av1_quantize_fp(coeff, 8 * 8, p->zbin_QTX, p->round_fp_QTX,
-                              p->quant_fp_QTX, p->quant_shift_QTX, qcoeff,
-                              dqcoeff, p->dequant_QTX, eob, scan_order->scan,
-                              scan_order->iscan);
+              av1_quantize_fp(
+                  coeff, 8 * 8, p->zbin_QTX, p->round_fp_QTX, p->quant_fp_QTX,
+                  p->quant_shift_QTX, qcoeff, dqcoeff, p->dequant_QTX, eob,
+                  default_scan_8x8_transpose, av1_default_iscan_8x8_transpose);
             } else {
               if (tx_type == IDTX) {
                 aom_pixel_scale(src_diff, diff_stride, low_coeff, 3, 1, 1);
@@ -1101,14 +1242,19 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
               } else {
                 assert(is_tx_8x8_dual_applicable);
               }
-              av1_quantize_lp(low_coeff, 8 * 8, p->round_fp_QTX,
-                              p->quant_fp_QTX, low_qcoeff, low_dqcoeff,
-                              p->dequant_QTX, eob, scan_order->scan,
-                              scan_order->iscan);
+              av1_quantize_lp(
+                  low_coeff, 8 * 8, p->round_fp_QTX, p->quant_fp_QTX,
+                  low_qcoeff, low_dqcoeff, p->dequant_QTX, eob,
+                  // default_scan_8x8_transpose and
+                  // av1_default_iscan_8x8_transpose have to be used in a pair.
+                  default_scan_8x8_transpose, av1_default_iscan_8x8_transpose);
             }
             break;
           default:
             assert(tx_size == TX_4X4);
+            // In tx_size=4x4 case, aom_fdct4x4 and aom_fdct4x4_lp generate
+            // normal coefficients order, so we don't need to change the scan
+            // order here.
             if (use_hbd) {
               aom_fdct4x4(src_diff, coeff, diff_stride);
               av1_quantize_fp(coeff, 4 * 4, p->zbin_QTX, p->round_fp_QTX,
@@ -1135,8 +1281,9 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
             aom_hadamard_lp_16x16(src_diff, diff_stride, low_coeff);
             av1_quantize_lp(low_coeff, 16 * 16, p->round_fp_QTX,
                             p->quant_fp_QTX, low_qcoeff, low_dqcoeff,
-                            p->dequant_QTX, eob, scan_order->scan,
-                            scan_order->iscan);
+                            p->dequant_QTX, eob,
+                            default_scan_lp_16x16_transpose,
+                            av1_default_iscan_lp_16x16_transpose);
             break;
           case TX_8X8:
             if (!is_tx_8x8_dual_applicable) {
@@ -1146,7 +1293,8 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
             }
             av1_quantize_lp(low_coeff, 8 * 8, p->round_fp_QTX, p->quant_fp_QTX,
                             low_qcoeff, low_dqcoeff, p->dequant_QTX, eob,
-                            scan_order->scan, scan_order->iscan);
+                            default_scan_8x8_transpose,
+                            av1_default_iscan_8x8_transpose);
             break;
           default:
             aom_fdct4x4_lp(src_diff, low_coeff, diff_stride);
