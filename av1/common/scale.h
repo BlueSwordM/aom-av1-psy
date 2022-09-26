@@ -52,6 +52,7 @@ static INLINE int av1_is_scaled(const struct scale_factors *sf) {
          (sf->x_scale_fp != REF_NO_SCALE || sf->y_scale_fp != REF_NO_SCALE);
 }
 
+// See AV1 spec, Section 6.8.6. Frame size with refs semantics.
 static INLINE int valid_ref_frame_size(int ref_width, int ref_height,
                                        int this_width, int this_height) {
   return 2 * this_width >= ref_width && 2 * this_height >= ref_height &&
