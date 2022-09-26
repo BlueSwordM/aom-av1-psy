@@ -238,6 +238,62 @@ DECLARE_ALIGNED(16, static const uint8_t, dot_prod_permute_tbl[48]) = {
   8, 9, 10, 11, 9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14
 };
 
+#endif  // defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD)
+
+#if defined(__aarch64__) && defined(__ARM_FEATURE_MATMUL_INT8)
+
+static INLINE int32x4_t convolve8_4_usdot(uint8x16_t samples,
+                                          const int8x8_t filters,
+                                          const uint8x16x2_t permute_tbl,
+                                          const int32x4_t horiz_const) {
+  uint8x16_t permuted_samples[2];
+  int32x4_t sum;
+
+  /* Permute samples ready for dot product. */
+  /* { 0,  1,  2,  3,  1,  2,  3,  4,  2,  3,  4,  5,  3,  4,  5,  6 } */
+  permuted_samples[0] = vqtbl1q_u8(samples, permute_tbl.val[0]);
+  /* { 4,  5,  6,  7,  5,  6,  7,  8,  6,  7,  8,  9,  7,  8,  9, 10 } */
+  permuted_samples[1] = vqtbl1q_u8(samples, permute_tbl.val[1]);
+
+  /* First 4 output values. */
+  sum = vusdotq_lane_s32(horiz_const, permuted_samples[0], filters, 0);
+  sum = vusdotq_lane_s32(sum, permuted_samples[1], filters, 1);
+
+  /* Narrowing and packing is performed by the caller. */
+  return sum;
+}
+
+static INLINE int16x8_t convolve8_8_usdot(uint8x16_t samples,
+                                          const int8x8_t filters,
+                                          const uint8x16x3_t permute_tbl,
+                                          const int32x4_t horiz_const,
+                                          const int16x8_t shift_round_0) {
+  uint8x16_t permuted_samples[3];
+  int32x4_t sum0, sum1;
+  int16x8_t sum;
+
+  /* Permute samples ready for dot product. */
+  /* { 0,  1,  2,  3,  1,  2,  3,  4,  2,  3,  4,  5,  3,  4,  5,  6 } */
+  permuted_samples[0] = vqtbl1q_u8(samples, permute_tbl.val[0]);
+  /* { 4,  5,  6,  7,  5,  6,  7,  8,  6,  7,  8,  9,  7,  8,  9, 10 } */
+  permuted_samples[1] = vqtbl1q_u8(samples, permute_tbl.val[1]);
+  /* { 8,  9, 10, 11,  9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14 } */
+  permuted_samples[2] = vqtbl1q_u8(samples, permute_tbl.val[2]);
+
+  /* First 4 output values. */
+  sum0 = vusdotq_lane_s32(horiz_const, permuted_samples[0], filters, 0);
+  sum0 = vusdotq_lane_s32(sum0, permuted_samples[1], filters, 1);
+  /* Second 4 output values. */
+  sum1 = vusdotq_lane_s32(horiz_const, permuted_samples[1], filters, 0);
+  sum1 = vusdotq_lane_s32(sum1, permuted_samples[2], filters, 1);
+
+  /* Narrow and re-pack. */
+  sum = vcombine_s16(vmovn_s32(sum0), vmovn_s32(sum1));
+  return vqrshlq_s16(sum, shift_round_0);
+}
+
+#elif defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD)
+
 static INLINE int32x4_t convolve8_4_sdot(uint8x16_t samples,
                                          const int8x8_t filters,
                                          const int32x4_t correction,
