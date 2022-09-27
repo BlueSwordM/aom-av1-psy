@@ -1738,13 +1738,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.check_only_zero_zeromv_on_large_blocks = true;
     sf->rt_sf.reduce_mv_pel_precision_highmotion = 0;
     sf->rt_sf.use_adaptive_subpel_search = false;
-    // For multi-thread use case with row_mt enabled, enable top right
-    // dependency wait of threads at mi level.
-    if ((cpi->oxcf.row_mt == 1) && (cpi->mt_info.num_workers > 1)) {
-      // TODO(Deepa): Disabled this feature due to enc/dec mismatch
-      // seen on the RTC 1080P set. Need to re-enable it after the fix.
-      sf->rt_sf.top_right_sync_wait_in_mis = false;
-    }
   }
   if (speed >= 10) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_4;
@@ -2085,7 +2078,6 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->disable_cdf_update_non_reference_frame = false;
   rt_sf->prune_compoundmode_with_singlemode_var = false;
   rt_sf->skip_compound_based_on_var = false;
-  rt_sf->top_right_sync_wait_in_mis = false;
   rt_sf->set_zeromv_skip_based_on_source_sad = 1;
   rt_sf->use_adaptive_subpel_search = false;
   rt_sf->screen_content_cdef_filter_qindex_thresh = 0;

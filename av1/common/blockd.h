@@ -322,11 +322,9 @@ typedef struct MB_MODE_INFO {
   uint8_t compound_idx : 1;
   /*! \brief Whether to use interintra wedge */
   uint8_t use_wedge_interintra : 1;
-  /**@}*/
-
-  /****************************************************************************/
   /*! \brief CDEF strength per BLOCK_64X64 */
-  int8_t cdef_strength;
+  int8_t cdef_strength : 4;
+  /**@}*/
 
 #if CONFIG_RD_DEBUG
   /*! \brief RD info used for debugging */
@@ -422,16 +420,12 @@ PREDICTION_MODE av1_above_block_mode(const MB_MODE_INFO *above_mi);
 
 static INLINE int is_global_mv_block(const MB_MODE_INFO *const mbmi,
                                      TransformationType type) {
-  // As global mv is disabled in rt, return from the function before reading
-  // 'mbmi->bsize'. This prevents data race condition in multi-threaded
-  // realtime encoding as mbmi->bsize is updated in the function
-  // direct_partition_merging().
-  if (type <= TRANSLATION) return 0;
   const PREDICTION_MODE mode = mbmi->mode;
   const BLOCK_SIZE bsize = mbmi->bsize;
   const int block_size_allowed =
       AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8;
-  return (mode == GLOBALMV || mode == GLOBAL_GLOBALMV) && block_size_allowed;
+  return (mode == GLOBALMV || mode == GLOBAL_GLOBALMV) && type > TRANSLATION &&
+         block_size_allowed;
 }
 
 #if CONFIG_MISMATCH_DEBUG

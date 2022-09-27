@@ -1359,12 +1359,6 @@ typedef struct {
    */
   int *num_finished_cols;
   /*!
-   * Buffer to store the mi position of the block whose encoding is complete.
-   * finished_block_in_mi[i] stores the mi position of the block which finished
-   * encoding in the ith superblock row.
-   */
-  int *finished_block_in_mi;
-  /*!
    * Denotes the superblock interval at which conditional signalling should
    * happen. Also denotes the minimum number of extra superblocks of the top row
    * to be complete to start encoding the current superblock. A value of 1
