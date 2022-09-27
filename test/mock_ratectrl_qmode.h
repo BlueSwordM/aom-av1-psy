@@ -12,7 +12,7 @@
 #ifndef AOM_TEST_MOCK_RATECTRL_QMODE_H_
 #define AOM_TEST_MOCK_RATECTRL_QMODE_H_
 
-#include "av1/ratectrl_qmode_interface.h"
+#include "av1/qmode_rc/ratectrl_qmode_interface.h"
 #include "third_party/googletest/src/googlemock/include/gmock/gmock.h"
 
 namespace aom {

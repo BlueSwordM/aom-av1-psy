@@ -9,7 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#include "av1/ratectrl_qmode.h"
+#include "av1/qmode_rc/ratectrl_qmode.h"
 
 #include <algorithm>
 #include <array>
@@ -21,8 +21,8 @@
 #include <string>
 #include <vector>
 
-#include "av1/reference_manager.h"
-#include "av1/ducky_encode.h"
+#include "av1/qmode_rc/ducky_encode.h"
+#include "av1/qmode_rc/reference_manager.h"
 #include "test/mock_ratectrl_qmode.h"
 #include "test/video_source.h"
 #include "third_party/googletest/src/googlemock/include/gmock/gmock.h"

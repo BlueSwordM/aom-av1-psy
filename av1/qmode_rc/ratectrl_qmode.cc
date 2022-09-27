@@ -8,7 +8,7 @@
  * Media Patent License 1.0 was not distributed with this source code in the
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
-#include "av1/ratectrl_qmode.h"
+#include "av1/qmode_rc/ratectrl_qmode.h"
 
 #include <algorithm>
 #include <cassert>

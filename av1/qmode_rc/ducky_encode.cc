@@ -26,7 +26,7 @@
 #include "av1/encoder/ethread.h"
 #include "av1/encoder/firstpass.h"
 #include "av1/encoder/temporal_filter.h"
-#include "av1/ducky_encode.h"
+#include "av1/qmode_rc/ducky_encode.h"
 
 #include "common/tools_common.h"
 
@@ -126,7 +126,7 @@ static void DestroyStatsBufferCtx(STATS_BUFFER_CTX **stats_buf_context,
   (*stats_buf_context)->total_left_stats = nullptr;
   delete *stats_buf_context;
   *stats_buf_context = nullptr;
-  delete[](*stats_buffer);
+  delete[] (*stats_buffer);
   *stats_buffer = nullptr;
 }
 

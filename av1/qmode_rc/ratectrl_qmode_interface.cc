@@ -9,7 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#include "av1/ratectrl_qmode_interface.h"
+#include "av1/qmode_rc/ratectrl_qmode_interface.h"
 
 namespace aom {
 

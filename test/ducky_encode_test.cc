@@ -19,8 +19,8 @@
 #include <string>
 #include <vector>
 
-#include "av1/ducky_encode.h"
 #include "av1/encoder/encoder.h"
+#include "av1/qmode_rc/ducky_encode.h"
 #include "test/video_source.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 

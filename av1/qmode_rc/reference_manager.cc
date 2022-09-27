@@ -15,8 +15,8 @@
 #include <tuple>
 #include <vector>
 
-#include "av1/reference_manager.h"
-#include "av1/ratectrl_qmode.h"
+#include "av1/qmode_rc/reference_manager.h"
+#include "av1/qmode_rc/ratectrl_qmode.h"
 
 namespace aom {
 
