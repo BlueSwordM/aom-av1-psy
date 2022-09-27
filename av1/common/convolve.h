@@ -72,12 +72,16 @@ static INLINE ConvolveParams get_conv_params_no_round(int cmp_index, int plane,
   conv_params.round_0 = ROUND0_BITS;
   conv_params.round_1 = is_compound ? COMPOUND_ROUND1_BITS
                                     : 2 * FILTER_BITS - conv_params.round_0;
+#if CONFIG_AV1_HIGHBITDEPTH
   const int intbufrange = bd + FILTER_BITS - conv_params.round_0 + 2;
   assert(IMPLIES(bd < 12, intbufrange <= 16));
   if (intbufrange > 16) {
     conv_params.round_0 += intbufrange - 16;
     if (!is_compound) conv_params.round_1 -= intbufrange - 16;
   }
+#else
+  (void)bd;
+#endif  // CONFIG_AV1_HIGHBITDEPTH
   // TODO(yunqing): The following dst should only be valid while
   // is_compound = 1;
   conv_params.dst = dst;

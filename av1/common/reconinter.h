@@ -123,15 +123,42 @@ typedef struct InterPredParams {
   int is_intrabc;
 } InterPredParams;
 
-void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
-                           int block_height, int pix_row, int pix_col,
-                           int subsampling_x, int subsampling_y, int bit_depth,
-                           int use_hbd_buf, int is_intrabc,
-                           const struct scale_factors *sf,
-                           const struct buf_2d *ref_buf,
-                           int_interpfilters interp_filters);
+static AOM_INLINE void av1_init_inter_params(
+    InterPredParams *inter_pred_params, int block_width, int block_height,
+    int pix_row, int pix_col, int subsampling_x, int subsampling_y,
+    int bit_depth, int use_hbd_buf, int is_intrabc,
+    const struct scale_factors *sf, const struct buf_2d *ref_buf,
+    int_interpfilters interp_filters) {
+  inter_pred_params->block_width = block_width;
+  inter_pred_params->block_height = block_height;
+  inter_pred_params->pix_row = pix_row;
+  inter_pred_params->pix_col = pix_col;
+  inter_pred_params->subsampling_x = subsampling_x;
+  inter_pred_params->subsampling_y = subsampling_y;
+  inter_pred_params->bit_depth = bit_depth;
+  inter_pred_params->use_hbd_buf = use_hbd_buf;
+  inter_pred_params->is_intrabc = is_intrabc;
+  inter_pred_params->scale_factors = sf;
+  inter_pred_params->ref_frame_buf = *ref_buf;
+  inter_pred_params->mode = TRANSLATION_PRED;
+  inter_pred_params->comp_mode = UNIFORM_SINGLE;
 
-void av1_init_comp_mode(InterPredParams *inter_pred_params);
+  if (is_intrabc) {
+    inter_pred_params->interp_filter_params[0] = &av1_intrabc_filter_params;
+    inter_pred_params->interp_filter_params[1] = &av1_intrabc_filter_params;
+  } else {
+    inter_pred_params->interp_filter_params[0] =
+        av1_get_interp_filter_params_with_block_size(
+            (InterpFilter)interp_filters.as_filters.x_filter, block_width);
+    inter_pred_params->interp_filter_params[1] =
+        av1_get_interp_filter_params_with_block_size(
+            (InterpFilter)interp_filters.as_filters.y_filter, block_height);
+  }
+}
+
+static AOM_INLINE void av1_init_comp_mode(InterPredParams *inter_pred_params) {
+  inter_pred_params->comp_mode = UNIFORM_COMP;
+}
 
 void av1_init_warp_params(InterPredParams *inter_pred_params,
                           const WarpTypesAllowed *warp_types, int ref,
