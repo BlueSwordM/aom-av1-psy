@@ -2230,11 +2230,6 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, cdef_time);
 #endif
-  } else {
-    cm->cdef_info.cdef_bits = 0;
-    cm->cdef_info.cdef_strengths[0] = 0;
-    cm->cdef_info.nb_cdef_strengths = 1;
-    cm->cdef_info.cdef_uv_strengths[0] = 0;
   }
 
   av1_superres_post_encode(cpi);
@@ -2263,15 +2258,41 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                                           &cpi->lr_ctxt);
       }
     }
-  } else {
-    cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
-    cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
-    cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, loop_restoration_time);
 #endif
 #endif  // !CONFIG_REALTIME_ONLY
+}
+
+static void extend_frame_borders(AV1_COMP *cpi) {
+  const AV1_COMMON *const cm = &cpi->common;
+  // TODO(debargha): Fix mv search range on encoder side
+  for (int plane = 0; plane < av1_num_planes(cm); ++plane) {
+    const bool extend_border_done = extend_borders_mt(cpi, MOD_CDEF, plane) ||
+                                    extend_borders_mt(cpi, MOD_LR, plane);
+    if (!extend_border_done) {
+      const YV12_BUFFER_CONFIG *const ybf = &cm->cur_frame->buf;
+      aom_extend_frame_borders_plane_row(ybf, plane, 0,
+                                         ybf->crop_heights[plane > 0]);
+    }
+  }
+}
+
+static void set_inloop_postproc_filter_default_params(AV1_COMMON *cm) {
+  struct loopfilter *const lf = &cm->lf;
+  CdefInfo *const cdef_info = &cm->cdef_info;
+  RestorationInfo *const rst_info = cm->rst_info;
+
+  lf->filter_level[0] = 0;
+  lf->filter_level[1] = 0;
+  cdef_info->cdef_bits = 0;
+  cdef_info->cdef_strengths[0] = 0;
+  cdef_info->nb_cdef_strengths = 1;
+  cdef_info->cdef_uv_strengths[0] = 0;
+  rst_info[0].frame_restoration_type = RESTORE_NONE;
+  rst_info[1].frame_restoration_type = RESTORE_NONE;
+  rst_info[2].frame_restoration_type = RESTORE_NONE;
 }
 
 /*!\brief Select and apply in-loop deblocking filters, cdef filters, and
@@ -2292,41 +2313,40 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
       !cm->features.coded_lossless && !cm->tiles.large_scale;
   const int use_cdef = is_cdef_used(cm);
   const int use_restoration = is_restoration_used(cm);
-  // lpf_opt_level = 1 : Enables dual/quad loop-filtering.
-  // lpf_opt_level is set to 1 if transform size search depth in inter blocks
-  // is limited to one as quad loop filtering assumes that all the transform
-  // blocks within a 16x8/8x16/16x16 prediction block are of the same size.
-  // lpf_opt_level = 2 : Filters both chroma planes together, in addition to
-  // enabling dual/quad loop-filtering. This is enabled when lpf pick method
-  // is LPF_PICK_FROM_Q as u and v plane filter levels are equal.
-  int lpf_opt_level = 0;
-  if (is_inter_tx_size_search_level_one(&cpi->sf.tx_sf)) {
-    lpf_opt_level = (cpi->sf.lpf_sf.lpf_pick == LPF_PICK_FROM_Q) ? 2 : 1;
-  }
-
-  struct loopfilter *lf = &cm->lf;
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, loop_filter_time);
 #endif
   if (use_loopfilter) {
     av1_pick_filter_level(cpi->source, cpi, cpi->sf.lpf_sf.lpf_pick);
-  } else {
-    lf->filter_level[0] = 0;
-    lf->filter_level[1] = 0;
+    struct loopfilter *lf = &cm->lf;
+    if ((lf->filter_level[0] || lf->filter_level[1]) &&
+        !cpi->rtc_ref.non_reference_frame) {
+      // lpf_opt_level = 1 : Enables dual/quad loop-filtering.
+      // lpf_opt_level is set to 1 if transform size search depth in inter
+      // blocks is limited to one as quad loop filtering assumes that all the
+      // transform blocks within a 16x8/8x16/16x16 prediction block are of the
+      // same size. lpf_opt_level = 2 : Filters both chroma planes together, in
+      // addition to enabling dual/quad loop-filtering. This is enabled when lpf
+      // pick method is LPF_PICK_FROM_Q as u and v plane filter levels are
+      // equal.
+      int lpf_opt_level = 0;
+      if (is_inter_tx_size_search_level_one(&cpi->sf.tx_sf)) {
+        lpf_opt_level = (cpi->sf.lpf_sf.lpf_pick == LPF_PICK_FROM_Q) ? 2 : 1;
+      }
+      av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0,
+                               mt_info->workers, num_workers,
+                               &mt_info->lf_row_sync, lpf_opt_level);
+    }
   }
 
-  if ((lf->filter_level[0] || lf->filter_level[1]) &&
-      !cpi->rtc_ref.non_reference_frame) {
-    av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0,
-                             mt_info->workers, num_workers,
-                             &mt_info->lf_row_sync, lpf_opt_level);
-  }
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, loop_filter_time);
 #endif
 
   cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef);
+
+  extend_frame_borders(cpi);
 }
 
 static void update_motion_stat(AV1_COMP *const cpi) {
@@ -3100,30 +3120,12 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   cm->cur_frame->buf.render_width = cm->render_width;
   cm->cur_frame->buf.render_height = cm->render_height;
 
-  // Pick the loop filter level for the frame.
+  set_inloop_postproc_filter_default_params(cm);
+
   if (!cm->features.allow_intrabc) {
     loopfilter_frame(cpi, cm);
   } else {
-    cm->lf.filter_level[0] = 0;
-    cm->lf.filter_level[1] = 0;
-    cm->cdef_info.cdef_bits = 0;
-    cm->cdef_info.cdef_strengths[0] = 0;
-    cm->cdef_info.nb_cdef_strengths = 1;
-    cm->cdef_info.cdef_uv_strengths[0] = 0;
-    cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
-    cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
-    cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
-  }
-
-  // TODO(debargha): Fix mv search range on encoder side
-  for (int plane = 0; plane < av1_num_planes(cm); ++plane) {
-    const int extend_border_done = extend_borders_mt(cpi, MOD_CDEF, plane) ||
-                                   extend_borders_mt(cpi, MOD_LR, plane);
-    if (extend_border_done == 0) {
-      const YV12_BUFFER_CONFIG *ybf = &cm->cur_frame->buf;
-      aom_extend_frame_borders_plane_row(ybf, plane, 0,
-                                         ybf->crop_heights[plane > 0]);
-    }
+    extend_frame_borders(cpi);
   }
 
 #ifdef OUTPUT_YUV_REC
