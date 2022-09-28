@@ -1455,6 +1455,17 @@ enum aome_enc_control_id {
    */
   AV1E_GET_NUM_OPERATING_POINTS = 156,
 
+  /*!\brief Codec control function to skip the application of post-processing
+   * filters on reconstructed frame, unsigned int parameter
+   *
+   * - 0 = disable (default)
+   * - 1 = enable
+   *
+   * \attention For this value to be used aom_codec_enc_cfg_t::g_usage
+   *            must be set to AOM_USAGE_ALL_INTRA.
+   */
+  AV1E_SET_SKIP_POSTPROC_FILTERING = 157,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -2070,6 +2081,9 @@ AOM_CTRL_USE_TYPE(AV1E_GET_TARGET_SEQ_LEVEL_IDX, int *)
 
 AOM_CTRL_USE_TYPE(AV1E_GET_NUM_OPERATING_POINTS, int *)
 #define AOM_CTRL_AV1E_GET_NUM_OPERATING_POINTS
+
+AOM_CTRL_USE_TYPE(AV1E_SET_SKIP_POSTPROC_FILTERING, unsigned int)
+#define AOM_CTRL_AV1E_SET_SKIP_POSTPROC_FILTERING
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

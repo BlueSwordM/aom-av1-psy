@@ -849,6 +849,12 @@ typedef struct {
    * 3: Loop filter is disables for the frames with low motion
    */
   LOOPFILTER_CONTROL loopfilter_control;
+
+  /*!
+   * Indicates if the application of post-processing filters should be skipped
+   * on reconstructed frame.
+   */
+  bool skip_postproc_filtering;
 } AlgoCfg;
 /*!\cond */
 
