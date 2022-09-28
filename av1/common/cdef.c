@@ -100,15 +100,6 @@ void av1_cdef_copy_sb8_16(const AV1_COMMON *const cm, uint16_t *const dst,
   }
 }
 
-static INLINE void fill_rect(uint16_t *dst, int dstride, int v, int h,
-                             uint16_t x) {
-  for (int i = 0; i < v; i++) {
-    for (int j = 0; j < h; j++) {
-      dst[i * dstride + j] = x;
-    }
-  }
-}
-
 static INLINE void copy_rect(uint16_t *dst, int dstride, const uint16_t *src,
                              int sstride, int v, int h) {
   for (int i = 0; i < v; i++) {
