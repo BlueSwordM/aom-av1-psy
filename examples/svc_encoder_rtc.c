@@ -589,6 +589,9 @@ static void set_layer_pattern(
     aom_svc_ref_frame_config_t *ref_frame_config,
     aom_svc_ref_frame_comp_pred_t *ref_frame_comp_pred, int *use_svc_control,
     int spatial_layer_id, int is_key_frame, int ksvc_mode, int speed) {
+  // Setting this flag to 1 enables simplex example of
+  // RPS (Reference Picture Selection) for 1 layer.
+  int use_rps_example = 1;
   int i;
   int enable_longterm_temporal_ref = 1;
   int shift = (layering_mode == 8) ? 2 : 0;
@@ -613,10 +616,64 @@ static void set_layer_pattern(
   }
   switch (layering_mode) {
     case 0:
-      // 1-layer: update LAST on every frame, reference LAST.
-      layer_id->temporal_layer_id = 0;
-      ref_frame_config->refresh[0] = 1;
-      ref_frame_config->reference[SVC_LAST_FRAME] = 1;
+      if (use_rps_example == 0) {
+        // 1-layer: update LAST on every frame, reference LAST.
+        layer_id->temporal_layer_id = 0;
+        layer_id->spatial_layer_id = 0;
+        ref_frame_config->refresh[0] = 1;
+        ref_frame_config->reference[SVC_LAST_FRAME] = 1;
+      } else {
+        // Pattern of 2 references (ALTREF and GOLDEN) trailing
+        // LAST by 4 and 8 frame, with some switching logic to
+        // sometimes only predict from longer-term reference.
+        // This is simple example to test RPS (reference picture selection)
+        // as method to handle network packet loss.
+        int last_idx = 0;
+        int last_idx_refresh = 0;
+        int gld_idx = 0;
+        int alt_ref_idx = 0;
+        int lag_alt = 4;
+        int lag_gld = 8;
+        layer_id->temporal_layer_id = 0;
+        layer_id->spatial_layer_id = 0;
+        int sh = 8;  // slots 0 - 7.
+        // Moving index slot for last: 0 - (sh - 1)
+        if (superframe_cnt > 1) last_idx = (superframe_cnt - 1) % sh;
+        // Moving index for refresh of last: one ahead for next frame.
+        last_idx_refresh = superframe_cnt % sh;
+        // Moving index for gld_ref, lag behind current by lag_gld
+        if (superframe_cnt > lag_gld) gld_idx = (superframe_cnt - lag_gld) % sh;
+        // Moving index for alt_ref, lag behind LAST by lag_alt frames.
+        if (superframe_cnt > lag_alt)
+          alt_ref_idx = (superframe_cnt - lag_alt) % sh;
+        // Set the ref_idx.
+        // Default all references to slot for last.
+        for (i = 0; i < INTER_REFS_PER_FRAME; i++)
+          ref_frame_config->ref_idx[i] = last_idx;
+        // Set the ref_idx for the relevant references.
+        ref_frame_config->ref_idx[SVC_LAST_FRAME] = last_idx;
+        ref_frame_config->ref_idx[SVC_LAST2_FRAME] = last_idx_refresh;
+        ref_frame_config->ref_idx[SVC_GOLDEN_FRAME] = gld_idx;
+        ref_frame_config->ref_idx[SVC_ALTREF_FRAME] = alt_ref_idx;
+        // Refresh this slot, which will become LAST on next frame.
+        ref_frame_config->refresh[last_idx_refresh] = 1;
+        // Reference LAST, ALTREF, and GOLDEN
+        ref_frame_config->reference[SVC_LAST_FRAME] = 1;
+        ref_frame_config->reference[SVC_ALTREF_FRAME] = 1;
+        ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
+        // Switch to only ALTREF for frames 200 to 250.
+        if (superframe_cnt >= 200 && superframe_cnt < 250) {
+          ref_frame_config->reference[SVC_LAST_FRAME] = 0;
+          ref_frame_config->reference[SVC_ALTREF_FRAME] = 1;
+          ref_frame_config->reference[SVC_GOLDEN_FRAME] = 0;
+        }
+        // Switch to only GOLDEN for frames 400 to 450.
+        if (superframe_cnt >= 400 && superframe_cnt < 450) {
+          ref_frame_config->reference[SVC_LAST_FRAME] = 0;
+          ref_frame_config->reference[SVC_ALTREF_FRAME] = 0;
+          ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
+        }
+      }
       break;
     case 1:
       // 2-temporal layer.

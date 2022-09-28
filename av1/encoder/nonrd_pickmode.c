@@ -2227,22 +2227,28 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   const struct segmentation *const seg = &cm->seg;
   const int is_small_sb = (cm->seq_params->sb_size == BLOCK_64X64);
 
-  // For SVC the usage of alt_ref is determined by the ref_frame_flags.
+  // When the ref_frame_config is used to set the reference frame structure
+  // then the usage of alt_ref is determined by the ref_frame_flags
+  // (and not the speed feature use_nonrd_altref_frame).
   int use_alt_ref_frame =
-      cpi->ppi->use_svc || cpi->sf.rt_sf.use_nonrd_altref_frame;
+      cpi->rtc_ref.set_ref_frame_config || cpi->sf.rt_sf.use_nonrd_altref_frame;
+
   int use_golden_ref_frame = 1;
   int use_last_ref_frame = 1;
 
-  if (cpi->ppi->use_svc)
+  // When the ref_frame_config is used to set the reference frame structure:
+  // check if LAST is used as a reference. And only remove golden and altref
+  // references below if last is used as a reference.
+  if (cpi->rtc_ref.set_ref_frame_config)
     use_last_ref_frame =
         cpi->ref_frame_flags & AOM_LAST_FLAG ? use_last_ref_frame : 0;
 
-  // Only remove golden and altref reference below if last is a reference,
-  // which may not be the case for svc.
-  if (use_last_ref_frame && cpi->rc.frames_since_golden == 0 &&
-      gf_temporal_ref) {
+  // frame_since_golden is not used when user sets the referene structure.
+  if (!cpi->rtc_ref.set_ref_frame_config && use_last_ref_frame &&
+      cpi->rc.frames_since_golden == 0 && gf_temporal_ref) {
     use_golden_ref_frame = 0;
   }
+
   if (use_last_ref_frame && cpi->sf.rt_sf.short_circuit_low_temp_var &&
       x->nonrd_prune_ref_frame_search) {
     if (is_small_sb)
