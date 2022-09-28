@@ -85,7 +85,7 @@ void aom_video_reader_close(AvxVideoReader *reader) {
 
 int aom_video_reader_read_frame(AvxVideoReader *reader) {
   if (reader->input_ctx.file_type == FILE_TYPE_IVF) {
-    return !ivf_read_frame(reader->input_ctx.file, &reader->buffer,
+    return !ivf_read_frame(&reader->input_ctx, &reader->buffer,
                            &reader->frame_size, &reader->buffer_size,
                            &reader->pts);
   } else if (reader->input_ctx.file_type == FILE_TYPE_OBU) {

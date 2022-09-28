@@ -78,7 +78,7 @@ static int read_frame(THIRD_PASS_DEC_CTX *ctx) {
     init_third_pass(ctx);
   }
   if (!ctx->have_frame) {
-    if (ivf_read_frame(ctx->input_ctx->file, &ctx->buf, &ctx->bytes_in_buffer,
+    if (ivf_read_frame(ctx->input_ctx, &ctx->buf, &ctx->bytes_in_buffer,
                        &ctx->buffer_size, NULL) != 0) {
       if (feof(ctx->input_ctx->file)) {
         return 1;
