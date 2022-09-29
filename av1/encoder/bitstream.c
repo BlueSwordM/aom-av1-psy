@@ -3437,6 +3437,7 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
         aom_wb_write_bit(
             &wb, seq_params->op_params[i].display_model_param_present_flag);
         if (seq_params->op_params[i].display_model_param_present_flag) {
+          assert(seq_params->op_params[i].initial_display_delay >= 1);
           assert(seq_params->op_params[i].initial_display_delay <= 10);
           aom_wb_write_literal(
               &wb, seq_params->op_params[i].initial_display_delay - 1, 4);
