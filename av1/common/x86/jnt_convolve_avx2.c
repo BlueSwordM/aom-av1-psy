@@ -792,47 +792,72 @@ void av1_dist_wtd_convolve_2d_avx2(const uint8_t *src, int src_stride,
   }
 }
 
+#define DO_NO_AVG_2D_COPY_4X16(r0, c0, r1, c1, r2, c2, r3, c3)          \
+  do {                                                                  \
+    src_0 = _mm256_cvtepu8_epi16(                                       \
+        _mm_loadu_si128((__m128i *)(&src[r0 * src_stride + c0])));      \
+    src_1 = _mm256_cvtepu8_epi16(                                       \
+        _mm_loadu_si128((__m128i *)(&src[r1 * src_stride + c1])));      \
+    src_2 = _mm256_cvtepu8_epi16(                                       \
+        _mm_loadu_si128((__m128i *)(&src[r2 * src_stride + c2])));      \
+    src_3 = _mm256_cvtepu8_epi16(                                       \
+        _mm_loadu_si128((__m128i *)(&src[r3 * src_stride + c3])));      \
+                                                                        \
+    src_0 = _mm256_slli_epi16(src_0, LEFT_SHIFT);                       \
+    src_1 = _mm256_slli_epi16(src_1, LEFT_SHIFT);                       \
+    src_2 = _mm256_slli_epi16(src_2, LEFT_SHIFT);                       \
+    src_3 = _mm256_slli_epi16(src_3, LEFT_SHIFT);                       \
+                                                                        \
+    src_0 = _mm256_add_epi16(src_0, offset_const);                      \
+    src_1 = _mm256_add_epi16(src_1, offset_const);                      \
+    src_2 = _mm256_add_epi16(src_2, offset_const);                      \
+    src_3 = _mm256_add_epi16(src_3, offset_const);                      \
+                                                                        \
+    _mm256_store_si256((__m256i *)(&dst[r0 * dst_stride + c0]), src_0); \
+    _mm256_store_si256((__m256i *)(&dst[r1 * dst_stride + c1]), src_1); \
+    _mm256_store_si256((__m256i *)(&dst[r2 * dst_stride + c2]), src_2); \
+    _mm256_store_si256((__m256i *)(&dst[r3 * dst_stride + c3]), src_3); \
+  } while (0)
+
 #define LEFT_SHIFT (2 * FILTER_BITS - 3 - 7)
 static AOM_INLINE void av1_dist_wtd_convolve_2d_no_avg_copy_avx2(
     const uint8_t *src, int src_stride, CONV_BUF_TYPE *dst, int dst_stride,
     int w, int h, const __m256i offset_const) {
-  const __m256i zero = _mm256_setzero_si256();
-
   int i = h;
-  if (!(w % 16)) {
-    do {
-      int j = 0;
+  if (w >= 16) {
+    __m256i src_0, src_1, src_2, src_3;
+    if (w == 128) {
       do {
-        __m256i src_row_0 = _mm256_cvtepu8_epi16(
-            _mm_loadu_si128((__m128i *)(&src[0 * src_stride + j])));
-        __m256i src_row_1 = _mm256_cvtepu8_epi16(
-            _mm_loadu_si128((__m128i *)(&src[1 * src_stride + j])));
-        __m256i src_row_2 = _mm256_cvtepu8_epi16(
-            _mm_loadu_si128((__m128i *)(&src[2 * src_stride + j])));
-        __m256i src_row_3 = _mm256_cvtepu8_epi16(
-            _mm_loadu_si128((__m128i *)(&src[3 * src_stride + j])));
-
-        src_row_0 = _mm256_slli_epi16(src_row_0, LEFT_SHIFT);
-        src_row_1 = _mm256_slli_epi16(src_row_1, LEFT_SHIFT);
-        src_row_2 = _mm256_slli_epi16(src_row_2, LEFT_SHIFT);
-        src_row_3 = _mm256_slli_epi16(src_row_3, LEFT_SHIFT);
-
-        src_row_0 = _mm256_add_epi16(src_row_0, offset_const);
-        src_row_1 = _mm256_add_epi16(src_row_1, offset_const);
-        src_row_2 = _mm256_add_epi16(src_row_2, offset_const);
-        src_row_3 = _mm256_add_epi16(src_row_3, offset_const);
-
-        _mm256_store_si256((__m256i *)(&dst[0 * dst_stride + j]), src_row_0);
-        _mm256_store_si256((__m256i *)(&dst[1 * dst_stride + j]), src_row_1);
-        _mm256_store_si256((__m256i *)(&dst[2 * dst_stride + j]), src_row_2);
-        _mm256_store_si256((__m256i *)(&dst[3 * dst_stride + j]), src_row_3);
-        j += 16;
-      } while (j < w);
-      src += 4 * src_stride;
-      dst += 4 * dst_stride;
-      i -= 4;
-    } while (i);
+        DO_NO_AVG_2D_COPY_4X16(0, 0, 0, 16, 0, 32, 0, 48);
+        DO_NO_AVG_2D_COPY_4X16(0, 64, 0, 80, 0, 96, 0, 112);
+        src += 1 * src_stride;
+        dst += 1 * dst_stride;
+        i -= 1;
+      } while (i);
+    } else if (w == 64) {
+      do {
+        DO_NO_AVG_2D_COPY_4X16(0, 0, 0, 16, 0, 32, 0, 48);
+        src += 1 * src_stride;
+        dst += 1 * dst_stride;
+        i -= 1;
+      } while (i);
+    } else if (w == 32) {
+      do {
+        DO_NO_AVG_2D_COPY_4X16(0, 0, 1, 0, 0, 16, 1, 16);
+        src += 2 * src_stride;
+        dst += 2 * dst_stride;
+        i -= 2;
+      } while (i);
+    } else if (w == 16) {
+      do {
+        DO_NO_AVG_2D_COPY_4X16(0, 0, 1, 0, 2, 0, 3, 0);
+        src += 4 * src_stride;
+        dst += 4 * dst_stride;
+        i -= 4;
+      } while (i);
+    }
   } else {
+    const __m256i zero = _mm256_setzero_si256();
     do {
       const __m128i src_row_0 =
           _mm_loadl_epi64((__m128i *)(&src[0 * src_stride]));
@@ -874,74 +899,105 @@ static AOM_INLINE void av1_dist_wtd_convolve_2d_no_avg_copy_avx2(
   }
 }
 
+#define DO_AVG_2D_COPY_4X16(USE_DIST_WEIGHTED, r0, c0, r1, c1, r2, c2, r3, c3) \
+  do {                                                                         \
+    src_0 = _mm256_cvtepu8_epi16(                                              \
+        _mm_loadu_si128((__m128i *)(&src[r0 * src_stride + c0])));             \
+    src_1 = _mm256_cvtepu8_epi16(                                              \
+        _mm_loadu_si128((__m128i *)(&src[r1 * src_stride + c1])));             \
+    src_2 = _mm256_cvtepu8_epi16(                                              \
+        _mm_loadu_si128((__m128i *)(&src[r2 * src_stride + c2])));             \
+    src_3 = _mm256_cvtepu8_epi16(                                              \
+        _mm_loadu_si128((__m128i *)(&src[r3 * src_stride + c3])));             \
+                                                                               \
+    src_0 = _mm256_slli_epi16(src_0, LEFT_SHIFT);                              \
+    src_1 = _mm256_slli_epi16(src_1, LEFT_SHIFT);                              \
+    src_2 = _mm256_slli_epi16(src_2, LEFT_SHIFT);                              \
+    src_3 = _mm256_slli_epi16(src_3, LEFT_SHIFT);                              \
+    src_0 = _mm256_add_epi16(src_0, offset_const);                             \
+    src_1 = _mm256_add_epi16(src_1, offset_const);                             \
+    src_2 = _mm256_add_epi16(src_2, offset_const);                             \
+    src_3 = _mm256_add_epi16(src_3, offset_const);                             \
+                                                                               \
+    ref_0 = _mm256_loadu_si256((__m256i *)(&dst[r0 * dst_stride + c0]));       \
+    ref_1 = _mm256_loadu_si256((__m256i *)(&dst[r1 * dst_stride + c1]));       \
+    ref_2 = _mm256_loadu_si256((__m256i *)(&dst[r2 * dst_stride + c2]));       \
+    ref_3 = _mm256_loadu_si256((__m256i *)(&dst[r3 * dst_stride + c3]));       \
+                                                                               \
+    res_0 = comp_avg(&ref_0, &src_0, &wt, USE_DIST_WEIGHTED);                  \
+    res_1 = comp_avg(&ref_1, &src_1, &wt, USE_DIST_WEIGHTED);                  \
+    res_2 = comp_avg(&ref_2, &src_2, &wt, USE_DIST_WEIGHTED);                  \
+    res_3 = comp_avg(&ref_3, &src_3, &wt, USE_DIST_WEIGHTED);                  \
+                                                                               \
+    res_0 = convolve_rounding(&res_0, &offset_const, &rounding_const,          \
+                              rounding_shift);                                 \
+    res_1 = convolve_rounding(&res_1, &offset_const, &rounding_const,          \
+                              rounding_shift);                                 \
+    res_2 = convolve_rounding(&res_2, &offset_const, &rounding_const,          \
+                              rounding_shift);                                 \
+    res_3 = convolve_rounding(&res_3, &offset_const, &rounding_const,          \
+                              rounding_shift);                                 \
+                                                                               \
+    res_10 = _mm256_packus_epi16(res_0, res_1);                                \
+    res_32 = _mm256_packus_epi16(res_2, res_3);                                \
+    res_10 = _mm256_permute4x64_epi64(res_10, 0xD8);                           \
+    res_32 = _mm256_permute4x64_epi64(res_32, 0xD8);                           \
+                                                                               \
+    _mm_store_si128((__m128i *)(&dst0[r0 * dst_stride0 + c0]),                 \
+                    _mm256_castsi256_si128(res_10));                           \
+    _mm_store_si128((__m128i *)(&dst0[r1 * dst_stride0 + c1]),                 \
+                    _mm256_extracti128_si256(res_10, 1));                      \
+    _mm_store_si128((__m128i *)(&dst0[r2 * dst_stride0 + c2]),                 \
+                    _mm256_castsi256_si128(res_32));                           \
+    _mm_store_si128((__m128i *)(&dst0[r3 * dst_stride0 + c3]),                 \
+                    _mm256_extracti128_si256(res_32, 1));                      \
+  } while (0)
+
 #define DO_AVG_2D_COPY(USE_DIST_WEIGHTED)                                     \
   int i = h;                                                                  \
-  if (!(w % 16)) {                                                            \
-    do {                                                                      \
-      int j = 0;                                                              \
+  if (w >= 16) {                                                              \
+    __m256i src_0, src_1, src_2, src_3;                                       \
+    __m256i ref_0, ref_1, ref_2, ref_3;                                       \
+    __m256i res_0, res_1, res_2, res_3;                                       \
+    __m256i res_10, res_32;                                                   \
+    if (w == 128) {                                                           \
       do {                                                                    \
-        __m256i src_0 = _mm256_cvtepu8_epi16(                                 \
-            _mm_loadu_si128((__m128i *)(&src[0 * src_stride + j])));          \
-        __m256i src_1 = _mm256_cvtepu8_epi16(                                 \
-            _mm_loadu_si128((__m128i *)(&src[1 * src_stride + j])));          \
-        __m256i src_2 = _mm256_cvtepu8_epi16(                                 \
-            _mm_loadu_si128((__m128i *)(&src[2 * src_stride + j])));          \
-        __m256i src_3 = _mm256_cvtepu8_epi16(                                 \
-            _mm_loadu_si128((__m128i *)(&src[3 * src_stride + j])));          \
+        DO_AVG_2D_COPY_4X16(USE_DIST_WEIGHTED, 0, 0, 0, 16, 0, 32, 0, 48);    \
+        DO_AVG_2D_COPY_4X16(USE_DIST_WEIGHTED, 0, 64, 0, 80, 0, 96, 0, 112);  \
+        i -= 1;                                                               \
+        src += 1 * src_stride;                                                \
+        dst += 1 * dst_stride;                                                \
+        dst0 += 1 * dst_stride0;                                              \
+      } while (i);                                                            \
+    } else if (w == 64) {                                                     \
+      do {                                                                    \
+        DO_AVG_2D_COPY_4X16(USE_DIST_WEIGHTED, 0, 0, 0, 16, 0, 32, 0, 48);    \
                                                                               \
-        src_0 = _mm256_slli_epi16(src_0, LEFT_SHIFT);                         \
-        src_1 = _mm256_slli_epi16(src_1, LEFT_SHIFT);                         \
-        src_2 = _mm256_slli_epi16(src_2, LEFT_SHIFT);                         \
-        src_3 = _mm256_slli_epi16(src_3, LEFT_SHIFT);                         \
-        src_0 = _mm256_add_epi16(src_0, offset_const);                        \
-        src_1 = _mm256_add_epi16(src_1, offset_const);                        \
-        src_2 = _mm256_add_epi16(src_2, offset_const);                        \
-        src_3 = _mm256_add_epi16(src_3, offset_const);                        \
+        i -= 1;                                                               \
+        src += 1 * src_stride;                                                \
+        dst += 1 * dst_stride;                                                \
+        dst0 += 1 * dst_stride0;                                              \
+      } while (i);                                                            \
+    } else if (w == 32) {                                                     \
+      do {                                                                    \
+        DO_AVG_2D_COPY_4X16(USE_DIST_WEIGHTED, 0, 0, 1, 0, 0, 16, 1, 16);     \
                                                                               \
-        const __m256i ref_0 =                                                 \
-            _mm256_loadu_si256((__m256i *)(&dst[0 * dst_stride + j]));        \
-        const __m256i ref_1 =                                                 \
-            _mm256_loadu_si256((__m256i *)(&dst[1 * dst_stride + j]));        \
-        const __m256i ref_2 =                                                 \
-            _mm256_loadu_si256((__m256i *)(&dst[2 * dst_stride + j]));        \
-        const __m256i ref_3 =                                                 \
-            _mm256_loadu_si256((__m256i *)(&dst[3 * dst_stride + j]));        \
+        i -= 2;                                                               \
+        src += 2 * src_stride;                                                \
+        dst += 2 * dst_stride;                                                \
+        dst0 += 2 * dst_stride0;                                              \
+      } while (i);                                                            \
+    } else {                                                                  \
+      assert(w == 16);                                                        \
+      do {                                                                    \
+        DO_AVG_2D_COPY_4X16(USE_DIST_WEIGHTED, 0, 0, 1, 0, 2, 0, 3, 0);       \
                                                                               \
-        __m256i res_0 = comp_avg(&ref_0, &src_0, &wt, USE_DIST_WEIGHTED);     \
-        __m256i res_1 = comp_avg(&ref_1, &src_1, &wt, USE_DIST_WEIGHTED);     \
-        __m256i res_2 = comp_avg(&ref_2, &src_2, &wt, USE_DIST_WEIGHTED);     \
-        __m256i res_3 = comp_avg(&ref_3, &src_3, &wt, USE_DIST_WEIGHTED);     \
-                                                                              \
-        res_0 = convolve_rounding(&res_0, &offset_const, &rounding_const,     \
-                                  rounding_shift);                            \
-        res_1 = convolve_rounding(&res_1, &offset_const, &rounding_const,     \
-                                  rounding_shift);                            \
-        res_2 = convolve_rounding(&res_2, &offset_const, &rounding_const,     \
-                                  rounding_shift);                            \
-        res_3 = convolve_rounding(&res_3, &offset_const, &rounding_const,     \
-                                  rounding_shift);                            \
-                                                                              \
-        __m256i res_10 = _mm256_packus_epi16(res_0, res_1);                   \
-        __m256i res_32 = _mm256_packus_epi16(res_2, res_3);                   \
-        res_10 = _mm256_permute4x64_epi64(res_10, 0xD8);                      \
-        res_32 = _mm256_permute4x64_epi64(res_32, 0xD8);                      \
-                                                                              \
-        _mm_store_si128((__m128i *)(&dst0[0 * dst_stride0 + j]),              \
-                        _mm256_castsi256_si128(res_10));                      \
-        _mm_store_si128((__m128i *)(&dst0[1 * dst_stride0 + j]),              \
-                        _mm256_extracti128_si256(res_10, 1));                 \
-        _mm_store_si128((__m128i *)(&dst0[2 * dst_stride0 + j]),              \
-                        _mm256_castsi256_si128(res_32));                      \
-        _mm_store_si128((__m128i *)(&dst0[3 * dst_stride0 + j]),              \
-                        _mm256_extracti128_si256(res_32, 1));                 \
-                                                                              \
-        j += 16;                                                              \
-      } while (j < w);                                                        \
-      i -= 4;                                                                 \
-      src += 4 * src_stride;                                                  \
-      dst += 4 * dst_stride;                                                  \
-      dst0 += 4 * dst_stride0;                                                \
-    } while (i);                                                              \
+        i -= 4;                                                               \
+        src += 4 * src_stride;                                                \
+        dst += 4 * dst_stride;                                                \
+        dst0 += 4 * dst_stride0;                                              \
+      } while (i);                                                            \
+    }                                                                         \
   } else if (w == 8) {                                                        \
     do {                                                                      \
       const __m128i src_0 =                                                   \
