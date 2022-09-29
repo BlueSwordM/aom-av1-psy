@@ -2533,7 +2533,7 @@ static AOM_INLINE int prune_zero_mv_with_sse(
  * is currently only used by realtime mode as \ref
  * av1_interpolation_filter_search is not called during realtime encoding.
  *
- * This funciton only searches over two possible filters. EIGHTTAP_REGULAR is
+ * This function only searches over two possible filters. EIGHTTAP_REGULAR is
  * always search. For lowres clips (<= 240p), MULTITAP_SHARP is also search. For
  * higher  res slips (>240p), EIGHTTAP_SMOOTH is also searched.
  *  *

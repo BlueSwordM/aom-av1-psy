@@ -484,8 +484,8 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
     int i;
     for (i = 0; i < MAX_MB_PLANE; i++) xd->plane[i].pre[0] = backup_yv12[i];
   }
-  // Final MV can not be equal to referance MV as this will trigger assert
-  // later. This can happen if both NEAREST and NEAR modes were skipped
+  // The final MV can not be equal to the reference MV as this will trigger an
+  // assert later. This can happen if both NEAREST and NEAR modes were skipped.
   rv = (tmp_mv->as_mv.col != ref_mv.col || tmp_mv->as_mv.row != ref_mv.row);
   return rv;
 }
@@ -808,8 +808,8 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
   // Skipping test
   *early_term = 0;
   tx_size = calculate_tx_size(cpi, bsize, x, var, sse, early_term);
-  // The code below for setting skip flag assumes tranform size of at least 8x8,
-  // so force this lower limit on transform.
+  // The code below for setting skip flag assumes transform size of at least
+  // 8x8, so force this lower limit on transform.
   if (tx_size < TX_8X8) tx_size = TX_8X8;
   xd->mi[0]->tx_size = tx_size;
 
@@ -1589,7 +1589,7 @@ struct estimate_block_intra_args {
  * \param[in]    col            Column of a current TX block
  * \param[in]    plane_bsize    Block size of a current prediction block
  * \param[in]    tx_size        Transform size
- * \param[in]    arg            Pointer to a structure that holds paramaters
+ * \param[in]    arg            Pointer to a structure that holds parameters
  *                              for intra mode search
  *
  * \remark Nothing is returned. Instead, best mode and RD Cost of the best mode
@@ -1679,7 +1679,7 @@ static void recheck_zeromv_after_denoising(
     BEST_PICKMODE *best_pickmode, BLOCK_SIZE bsize, int mi_row, int mi_col) {
   // If INTRA or GOLDEN reference was selected, re-evaluate ZEROMV on
   // denoised result. Only do this under noise conditions, and if rdcost of
-  // ZEROMV onoriginal source is not significantly higher than rdcost of best
+  // ZEROMV on original source is not significantly higher than rdcost of best
   // mode.
   if (cpi->noise_estimate.enabled && cpi->noise_estimate.level > kLow &&
       ctx_den->zero_last_cost_orig < (best_rdc->rdcost << 3) &&
@@ -1744,7 +1744,7 @@ static void recheck_zeromv_after_denoising(
 
 #define FILTER_SEARCH_SIZE 2
 
-/*!\brief Searches for the best intrpolation filter
+/*!\brief Searches for the best interpolation filter
  *
  * \ingroup nonrd_mode_search
  * \callgraph
@@ -1777,7 +1777,7 @@ static void recheck_zeromv_after_denoising(
  *
  * \remark Nothing is returned. Instead, calculated RD cost is placed to
  * \c this_rdc and best filter is placed to \c mi->interp_filters. In case
- * \c reuse_inter_pred flag is set, this function also ouputs
+ * \c reuse_inter_pred flag is set, this function also outputs
  * \c this_mode_pred. Also \c this_early_temp is set if transform can be
  * skipped
  */
@@ -2268,7 +2268,7 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
     use_golden_ref_frame = 0;
     use_alt_ref_frame = 0;
     // Keep golden (longer-term) reference if sb has high source sad, for
-    // frames whose average souce_sad is below threshold. This is to try to
+    // frames whose average source_sad is below threshold. This is to try to
     // capture case where only part of frame has high motion.
     // Exclude screen content mode.
     if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN &&
@@ -2286,7 +2286,7 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   // Skip golden reference if color is set, on flat blocks with motion.
   // For screen: always skip golden (if color_sensitivity_sb_g is set)
   // except when x->nonrd_prune_ref_frame_search = 0. This latter flag
-  // may be set in the variance partition when golden is a much beter
+  // may be set in the variance partition when golden is a much better
   // reference than last, in which case it may not be worth skipping
   // golden completely.
   if (((cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
@@ -2373,7 +2373,7 @@ static void estimate_intra_mode(
       RDCOST(x->rdmult, ref_cost_intra + intra_cost_penalty, 0);
   int perform_intra_pred = cpi->sf.rt_sf.check_intra_pred_nonrd;
   int force_intra_check = 0;
-  // For spatial enhancemanent layer: turn off intra prediction if the
+  // For spatial enhancement layer: turn off intra prediction if the
   // previous spatial layer as golden ref is not chosen as best reference.
   // only do this for temporal enhancement layer and on non-key frames.
   if (cpi->svc.spatial_layer_id > 0 &&
@@ -3059,7 +3059,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   // (phase = 8), the target decimated pixel is shifted by (1/2, 1/2) relative
   // to source, so use subpel motion vector to compensate. The nonzero motion
   // is half pixel shifted to left and top, so (-4, -4). This has more effect
-  // on higher resolutins, so condition it on that for now.
+  // on higher resolutions, so condition it on that for now.
   if (cpi->ppi->use_svc && svc->spatial_layer_id > 0 &&
       svc->downsample_filter_phase[svc->spatial_layer_id - 1] == 8 &&
       cm->width * cm->height > 640 * 480) {
@@ -3095,7 +3095,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   }
 
   thresh_sad_pred = ((int64_t)x->pred_mv_sad[LAST_FRAME]) << 1;
-  // Increase threshold for less agressive pruning.
+  // Increase threshold for less aggressive pruning.
   if (cpi->sf.rt_sf.nonrd_prune_ref_frame_search == 1)
     thresh_sad_pred += (x->pred_mv_sad[LAST_FRAME] >> 2);
 
