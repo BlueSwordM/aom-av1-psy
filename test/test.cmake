@@ -76,6 +76,7 @@ list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
             "${AOM_ROOT}/test/level_test.cc"
             "${AOM_ROOT}/test/metadata_test.cc"
             "${AOM_ROOT}/test/monochrome_test.cc"
+            "${AOM_ROOT}/test/postproc_filters_test.cc"
             "${AOM_ROOT}/test/resize_test.cc"
             "${AOM_ROOT}/test/scalability_test.cc"
             "${AOM_ROOT}/test/sharpness_test.cc"
@@ -116,6 +117,7 @@ if(CONFIG_REALTIME_ONLY)
                    "${AOM_ROOT}/test/level_test.cc"
                    "${AOM_ROOT}/test/metadata_test.cc"
                    "${AOM_ROOT}/test/monochrome_test.cc"
+                   "${AOM_ROOT}/test/postproc_filters_test.cc"
                    "${AOM_ROOT}/test/sharpness_test.cc")
 endif()
 
