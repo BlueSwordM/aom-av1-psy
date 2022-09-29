@@ -142,10 +142,10 @@ static const int16_t default_scan_8x8_transpose[64] = {
 // The original scan order (av1_default_iscan_8x8) is modified to match
 // hadamard AVX2 implementation, i.e., aom_hadamard_lp_8x8_avx2 and
 // aom_hadamard_8x8_avx2. Since hadamard AVX2 implementation will modify the
-// order of coeffcients, such that the normal scan order is no longer guranteed
-// to scan low coeffcients first, therefore we modify the scan order
+// order of coefficients, such that the normal scan order is no longer
+// guaranteed to scan low coefficients first, therefore we modify the scan order
 // accordingly.
-// Note that this one has to be used in pair with default_scan_8x8_transpose.
+// Note that this one has to be used together with default_scan_8x8_transpose.
 static const int16_t av1_default_iscan_8x8_transpose[64] = {
   0,  2,  3,  9,  10, 20, 21, 35, 1,  4,  8,  11, 19, 22, 34, 36,
   5,  7,  12, 18, 23, 33, 37, 48, 6,  13, 17, 24, 32, 38, 47, 49,
@@ -206,11 +206,10 @@ static const int16_t default_scan_fp_16x16_transpose[256] = {
 
 // The original scan order (av1_default_iscan_16x16) is modified to match
 // hadamard AVX2 implementation, i.e., aom_hadamard_lp_16x16_avx2.
-// Since hadamard AVX2 implementation will modify the order of coeffcients, such
-// that the normal scan order is no longer guranteed to scan low coeffcients
-// first, therefore we modify the scan order accordingly.
-// Note that this one has to be used in pair with
-// default_scan_lp_16x16_transpose.
+// Since hadamard AVX2 implementation will modify the order of coefficients,
+// such that the normal scan order is no longer guaranteed to scan low
+// coefficients first, therefore we modify the scan order accordingly. Note that
+// this one has to be used together with default_scan_lp_16x16_transpose.
 static const int16_t av1_default_iscan_lp_16x16_transpose[256] = {
   0,   44,  2,   46,  3,   63,  9,   69,  1,   45,  4,   64,  8,   68,  11,
   87,  5,   65,  7,   67,  12,  88,  18,  94,  6,   66,  13,  89,  17,  93,
@@ -235,11 +234,10 @@ static const int16_t av1_default_iscan_lp_16x16_transpose[256] = {
 #if CONFIG_AV1_HIGHBITDEPTH
 // The original scan order (av1_default_iscan_16x16) is modified to match
 // hadamard AVX2 implementation, i.e., aom_hadamard_16x16_avx2.
-// Since hadamard AVX2 implementation will modify the order of coeffcients, such
-// that the normal scan order is no longer guranteed to scan low coeffcients
-// first, therefore we modify the scan order accordingly.
-// Note that this one has to be used in pair with
-// default_scan_fp_16x16_transpose.
+// Since hadamard AVX2 implementation will modify the order of coefficients,
+// such that the normal scan order is no longer guaranteed to scan low
+// coefficients first, therefore we modify the scan order accordingly. Note that
+// this one has to be used together with default_scan_fp_16x16_transpose.
 static const int16_t av1_default_iscan_fp_16x16_transpose[256] = {
   0,   44,  2,   46,  1,   45,  4,   64,  3,   63,  9,   69,  8,   68,  11,
   87,  5,   65,  7,   67,  6,   66,  13,  89,  12,  88,  18,  94,  17,  93,
@@ -1208,7 +1206,7 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
                               dqcoeff, p->dequant_QTX, eob,
                               // default_scan_fp_16x16_transpose and
                               // av1_default_iscan_fp_16x16_transpose have to be
-                              // used in a pair.
+                              // used together.
                               default_scan_fp_16x16_transpose,
                               av1_default_iscan_fp_16x16_transpose);
             } else {
@@ -1222,7 +1220,7 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
                               p->dequant_QTX, eob,
                               // default_scan_lp_16x16_transpose and
                               // av1_default_iscan_lp_16x16_transpose have to be
-                              // used in a pair.
+                              // used together.
                               default_scan_lp_16x16_transpose,
                               av1_default_iscan_lp_16x16_transpose);
             }
@@ -1246,7 +1244,7 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
                   low_coeff, 8 * 8, p->round_fp_QTX, p->quant_fp_QTX,
                   low_qcoeff, low_dqcoeff, p->dequant_QTX, eob,
                   // default_scan_8x8_transpose and
-                  // av1_default_iscan_8x8_transpose have to be used in a pair.
+                  // av1_default_iscan_8x8_transpose have to be used together.
                   default_scan_8x8_transpose, av1_default_iscan_8x8_transpose);
             }
             break;
