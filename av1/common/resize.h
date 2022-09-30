@@ -102,7 +102,7 @@ static INLINE int av1_superres_scaled(const AV1_COMMON *cm) {
   // Note: for some corner cases (e.g. cm->width of 1), there may be no scaling
   // required even though cm->superres_scale_denominator != SCALE_NUMERATOR.
   // So, the following check is more accurate.
-  return !(cm->width == cm->superres_upscaled_width);
+  return (cm->width != cm->superres_upscaled_width);
 }
 
 // There's SIMD optimizations for 1/4, 1/2 and 3/4 downscaling.
