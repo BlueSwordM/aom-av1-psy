@@ -561,13 +561,13 @@ typedef struct {
   int drop_frames_water_mark;
   /*!
    * under_shoot_pct indicates the tolerance of the VBR algorithm to
-   * undershoot and is used as a trigger threshold for more agressive
+   * undershoot and is used as a trigger threshold for more aggressive
    * adaptation of Q. It's value can range from 0-100.
    */
   int under_shoot_pct;
   /*!
    * over_shoot_pct indicates the tolerance of the VBR algorithm to overshoot
-   * and is used as a trigger threshold for more agressive adaptation of Q.
+   * and is used as a trigger threshold for more aggressive adaptation of Q.
    * It's value can range from 0-1000.
    */
   int over_shoot_pct;

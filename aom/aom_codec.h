@@ -14,7 +14,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 // There are two levels of interfaces used to access the AOM codec: the
-// the aom_codec_iface and the aom_codec_ctx.
+// aom_codec_iface and the aom_codec_ctx.
 //
 // 1. aom_codec_iface_t
 //    (Related files: aom/aom_codec.h, aom/src/aom_codec.c,
@@ -244,7 +244,7 @@ typedef int64_t aom_codec_pts_t;
  *   - aom_codec_get_caps(aom_codec_iface_t *iface): returns
  *     the capabilities of the codec
  *   - aom_codec_enc_config_default: generate the default config for
- *     initializing the encoder (see documention in aom_encoder.h)
+ *     initializing the encoder (see documentation in aom_encoder.h)
  *   - aom_codec_dec_init, aom_codec_enc_init: initialize the codec context
  *     structure (see documentation on aom_codec_ctx).
  *
@@ -365,7 +365,7 @@ int aom_codec_version(void);
  *
  * Returns a printable string containing the full library version number. This
  * may contain additional text following the three digit version number, as to
- * indicate release candidates, prerelease versions, etc.
+ * indicate release candidates, pre-release versions, etc.
  *
  */
 const char *aom_codec_version_str(void);
@@ -521,7 +521,7 @@ aom_codec_err_t aom_codec_set_option(aom_codec_ctx_t *ctx, const char *name,
 #define AOM_CODEC_CONTROL_TYPECHECKED(ctx, id, data) \
   aom_codec_control_typechecked_##id(ctx, id, data) /**<\hideinitializer*/
 
-/*!\brief Creates typechecking mechanisms for aom_codec_control
+/*!\brief Creates type checking mechanisms for aom_codec_control
  *
  * It defines a static function with the correctly typed arguments as a wrapper
  * to the type-unsafe aom_codec_control function. It also creates a typedef

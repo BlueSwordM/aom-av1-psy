@@ -432,7 +432,7 @@ enum aome_enc_control_id {
 
   /*!\brief Codec control function to enable error_resilient_mode, int parameter
    *
-   * AV1 has a bitstream feature to guarantee parseability of a frame
+   * AV1 has a bitstream feature to guarantee parsability of a frame
    * by turning on the error_resilient_decoding mode, even though the
    * reference buffers are unreliable or not received.
    *
@@ -1271,7 +1271,7 @@ enum aome_enc_control_id {
    */
   AV1E_SET_SVC_LAYER_ID = 131,
 
-  /*!\brief Codec control function to set SVC paramaeters, aom_svc_params_t*
+  /*!\brief Codec control function to set SVC parameters, aom_svc_params_t*
    * parameter
    */
   AV1E_SET_SVC_PARAMS = 132,

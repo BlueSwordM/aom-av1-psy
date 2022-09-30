@@ -1278,7 +1278,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
     if (speed >= 9) {
       sf->rt_sf.use_comp_ref_nonrd = 0;
-      sf->rt_sf.nonrd_agressive_skip = 1;
+      sf->rt_sf.nonrd_aggressive_skip = 1;
       sf->rt_sf.skip_intra_pred = 1;
       // Only turn on enable_ref_short_signaling for low resolution when only
       // LAST and GOLDEN ref frames are used.
@@ -1394,7 +1394,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.disable_cdf_update_non_reference_frame = true;
       sf->rt_sf.reduce_mv_pel_precision_highmotion = 3;
       if (rtc_ref->non_reference_frame) {
-        sf->rt_sf.nonrd_agressive_skip = 1;
+        sf->rt_sf.nonrd_aggressive_skip = 1;
         sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
       }
     }
@@ -1748,7 +1748,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   }
   if (speed >= 10) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_4;
-    sf->rt_sf.nonrd_agressive_skip = 1;
+    sf->rt_sf.nonrd_aggressive_skip = 1;
     sf->rt_sf.nonrd_prune_ref_frame_search = 3;
     sf->rt_sf.var_part_split_threshold_shift = 10;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
@@ -2054,7 +2054,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->fullpel_search_step_param = 0;
   for (int i = 0; i < BLOCK_SIZES; ++i)
     rt_sf->intra_y_mode_bsize_mask_nrd[i] = INTRA_ALL;
-  rt_sf->nonrd_agressive_skip = 0;
+  rt_sf->nonrd_aggressive_skip = 0;
   rt_sf->skip_cdef_sb = 0;
   rt_sf->force_large_partition_blocks_intra = 0;
   rt_sf->skip_tx_no_split_var_based_partition = 0;
