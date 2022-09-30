@@ -1215,6 +1215,9 @@ typedef struct macroblock {
   PixelLevelGradientInfo *pixel_gradient_info;
   /*! \brief Flags indicating the availability of cached gradient info. */
   bool is_sb_gradient_cached[PLANE_TYPES];
+
+  /*! \brief Flag to reuse predicted samples of inter block. */
+  bool reuse_inter_pred;
   /**@}*/
 
   /*****************************************************************************

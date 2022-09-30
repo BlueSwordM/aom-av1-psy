@@ -608,6 +608,7 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   (void)gather_tpl_data;
 #endif
 
+  x->reuse_inter_pred = false;
   x->txfm_search_params.mode_eval_type = DEFAULT_EVAL;
   reset_mb_rd_record(x->txfm_search_info.mb_rd_record);
   av1_zero(x->picked_ref_frames_mask);
