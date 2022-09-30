@@ -1255,6 +1255,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
                                                      int speed) {
   const AV1_COMMON *const cm = &cpi->common;
   const int boosted = frame_is_boosted(cpi);
+  const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
   const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
   const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
   const int is_360p_or_larger = AOMMIN(cm->width, cm->height) >= 360;
@@ -1367,6 +1368,11 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.reduce_mv_pel_precision_highmotion = 3;
     }
   }
+  // TODO(Any): Check/Tune settings of other sfs for 1080p.
+  if (is_1080p_or_larger) {
+    if (speed >= 7) sf->rt_sf.reduce_mv_pel_precision_highmotion = 0;
+  }
+
   // Setting for SVC, or when the ref_frame_config control is
   // used to set the reference structure.
   if (cpi->ppi->use_svc || cpi->rtc_ref.set_ref_frame_config) {
@@ -1416,6 +1422,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
   // Screen settings.
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
     // TODO(marpan): Check settings for speed 7 and 8.
+    if (speed >= 7) sf->rt_sf.reduce_mv_pel_precision_highmotion = 1;
     if (speed >= 9) {
       sf->rt_sf.prune_idtx_nonrd = 1;
       sf->rt_sf.part_early_exit_zeromv = 2;
