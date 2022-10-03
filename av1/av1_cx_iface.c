@@ -1227,6 +1227,12 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   kf_cfg->enable_intrabc = extra_cfg->enable_intrabc;
 
   oxcf->speed = extra_cfg->cpu_used;
+  // TODO(yunqingwang, any) In REALTIME mode, 1080p performance at speed 5 & 6
+  // is quite bad. Force to use speed 7 for now. Will investigate it when we
+  // work on rd path optimization later.
+  if (oxcf->mode == REALTIME && AOMMIN(cfg->g_w, cfg->g_h) >= 1080 &&
+      oxcf->speed < 7)
+    oxcf->speed = 7;
 
   // Set Color related configuration.
   color_cfg->color_primaries = extra_cfg->color_primaries;
