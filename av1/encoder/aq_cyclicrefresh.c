@@ -177,13 +177,10 @@ void av1_cyclic_reset_segment_skip(const AV1_COMP *cpi, MACROBLOCK *const x,
     if (prev_segment_id != mbmi->segment_id) {
       const int block_index = mi_row * cm->mi_params.mi_cols + mi_col;
       for (int mi_y = 0; mi_y < ymis; mi_y++) {
-        for (int mi_x = 0; mi_x < xmis; mi_x++) {
-          const int map_offset =
-              block_index + mi_y * cm->mi_params.mi_cols + mi_x;
-          cr->map[map_offset] = 0;
-          cpi->enc_seg.map[map_offset] = mbmi->segment_id;
-          cm->cur_frame->seg_map[map_offset] = mbmi->segment_id;
-        }
+        const int map_offset = block_index + mi_y * cm->mi_params.mi_cols;
+        memset(&cr->map[map_offset], 0, xmis);
+        memset(&cpi->enc_seg.map[map_offset], mbmi->segment_id, xmis);
+        memset(&cm->cur_frame->seg_map[map_offset], mbmi->segment_id, xmis);
       }
     }
   }
@@ -240,24 +237,13 @@ void av1_cyclic_refresh_update_segment(const AV1_COMP *cpi, MACROBLOCK *const x,
 
   // Update entries in the cyclic refresh map with new_map_value, and
   // copy mbmi->segment_id into global segmentation map.
-  if (sh == 1) {
-    for (int mi_y = 0; mi_y < ymis; mi_y += sh) {
-      const int map_offset = block_index + mi_y * cm->mi_params.mi_cols;
-      memset(&cr->map[map_offset], new_map_value, xmis);
-      memset(&cpi->enc_seg.map[map_offset], mbmi->segment_id, xmis);
-      memset(&cm->cur_frame->seg_map[map_offset], mbmi->segment_id, xmis);
-    }
-  } else {
-    for (int mi_y = 0; mi_y < ymis; mi_y += sh) {
-      for (int mi_x = 0; mi_x < xmis; mi_x += sh) {
-        const int map_offset =
-            block_index + mi_y * cm->mi_params.mi_cols + mi_x;
-        cr->map[map_offset] = new_map_value;
-        cpi->enc_seg.map[map_offset] = mbmi->segment_id;
-        cm->cur_frame->seg_map[map_offset] = mbmi->segment_id;
-      }
-    }
+  for (int mi_y = 0; mi_y < ymis; mi_y += sh) {
+    const int map_offset = block_index + mi_y * cm->mi_params.mi_cols;
+    memset(&cr->map[map_offset], new_map_value, xmis);
+    memset(&cpi->enc_seg.map[map_offset], mbmi->segment_id, xmis);
+    memset(&cm->cur_frame->seg_map[map_offset], mbmi->segment_id, xmis);
   }
+
   // Accumulate cyclic refresh update counters.
   if (!dry_run) {
     if (cyclic_refresh_segment_id(mbmi->segment_id) == CR_SEGMENT_ID_BOOST1)
