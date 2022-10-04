@@ -210,29 +210,6 @@ static uint64_t joint_strength_search_dual(int *best_lev0, int *best_lev1,
   return best_tot_mse;
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
-static void copy_sb16_16_highbd(uint16_t *dst, int dstride, const void *src,
-                                int src_voffset, int src_hoffset, int sstride,
-                                int vsize, int hsize) {
-  int r;
-  const uint16_t *src16 = CONVERT_TO_SHORTPTR((uint8_t *)src);
-  const uint16_t *base = &src16[src_voffset * sstride + src_hoffset];
-  for (r = 0; r < vsize; r++)
-    memcpy(dst + r * dstride, base + r * sstride, hsize * sizeof(*base));
-}
-#endif
-
-static void copy_sb16_16(uint16_t *dst, int dstride, const void *src,
-                         int src_voffset, int src_hoffset, int sstride,
-                         int vsize, int hsize) {
-  int r, c;
-  const uint8_t *src8 = (uint8_t *)src;
-  const uint8_t *base = &src8[src_voffset * sstride + src_hoffset];
-  for (r = 0; r < vsize; r++)
-    for (c = 0; c < hsize; c++)
-      dst[r * dstride + c] = (uint16_t)base[r * sstride + c];
-}
-
 static INLINE void init_src_params(int *src_stride, int *width, int *height,
                                    int *width_log2, int *height_log2,
                                    BLOCK_SIZE bsize) {
@@ -594,14 +571,14 @@ static AOM_INLINE void cdef_params_init(const YV12_BUFFER_CONFIG *frame,
   // Function pointer initialization.
 #if CONFIG_AV1_HIGHBITDEPTH
   if (cm->seq_params->use_highbitdepth) {
-    cdef_search_ctx->copy_fn = copy_sb16_16_highbd;
+    cdef_search_ctx->copy_fn = av1_cdef_copy_sb8_16_highbd;
     cdef_search_ctx->compute_cdef_dist_fn = compute_cdef_dist_highbd;
   } else {
-    cdef_search_ctx->copy_fn = copy_sb16_16;
+    cdef_search_ctx->copy_fn = av1_cdef_copy_sb8_16_lowbd;
     cdef_search_ctx->compute_cdef_dist_fn = compute_cdef_dist;
   }
 #else
-  cdef_search_ctx->copy_fn = copy_sb16_16;
+  cdef_search_ctx->copy_fn = av1_cdef_copy_sb8_16_lowbd;
   cdef_search_ctx->compute_cdef_dist_fn = compute_cdef_dist;
 #endif
 }

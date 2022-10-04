@@ -147,6 +147,14 @@ void av1_cdef_init_fb_row_mt(const AV1_COMMON *const cm,
 void av1_cdef_copy_sb8_16(const AV1_COMMON *const cm, uint16_t *const dst,
                           int dstride, const uint8_t *src, int src_voffset,
                           int src_hoffset, int sstride, int vsize, int hsize);
+void av1_cdef_copy_sb8_16_lowbd(uint16_t *const dst, int dstride,
+                                const uint8_t *src, int src_voffset,
+                                int src_hoffset, int sstride, int vsize,
+                                int hsize);
+void av1_cdef_copy_sb8_16_highbd(uint16_t *const dst, int dstride,
+                                 const uint8_t *src, int src_voffset,
+                                 int src_hoffset, int sstride, int vsize,
+                                 int hsize);
 void av1_alloc_cdef_sync(AV1_COMMON *const cm, AV1CdefSync *cdef_sync,
                          int num_workers);
 void av1_free_cdef_sync(AV1CdefSync *cdef_sync);

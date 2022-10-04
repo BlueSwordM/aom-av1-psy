@@ -65,7 +65,7 @@ static const int nb_cdef_strengths[CDEF_PICK_METHODS] = {
   TOTAL_STRENGTHS
 };
 
-typedef void (*copy_fn_t)(uint16_t *dst, int dstride, const void *src,
+typedef void (*copy_fn_t)(uint16_t *dst, int dstride, const uint8_t *src,
                           int src_voffset, int src_hoffset, int sstride,
                           int vsize, int hsize);
 typedef uint64_t (*compute_cdef_dist_t)(void *dst, int dstride, uint16_t *src,
