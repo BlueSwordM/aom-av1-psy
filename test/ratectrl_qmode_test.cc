@@ -376,7 +376,7 @@ double TplFrameStatsAccumulateIntraCost(const TplFrameStats &frame_stats) {
   for (auto &block_stats : frame_stats.block_stats_list) {
     sum += block_stats.intra_cost;
   }
-  return sum;
+  return std::max(sum, 1.0);
 }
 
 TEST_F(RateControlQModeTest, CreateTplFrameDepStats) {

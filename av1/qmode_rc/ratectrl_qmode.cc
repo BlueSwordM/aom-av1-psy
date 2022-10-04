@@ -1048,7 +1048,7 @@ double TplFrameDepStatsAccumulateIntraCost(
   for (const auto &row : frame_dep_stats.unit_stats) {
     sum = std::accumulate(row.begin(), row.end(), sum, getIntraCost);
   }
-  return sum;
+  return std::max(sum, 1.0);
 }
 
 double TplFrameDepStatsAccumulate(const TplFrameDepStats &frame_dep_stats) {
@@ -1059,7 +1059,7 @@ double TplFrameDepStatsAccumulate(const TplFrameDepStats &frame_dep_stats) {
   for (const auto &row : frame_dep_stats.unit_stats) {
     sum = std::accumulate(row.begin(), row.end(), sum, getOverallCost);
   }
-  return sum;
+  return std::max(sum, 1.0);
 }
 
 // This is a generalization of GET_MV_RAWPEL that allows for an arbitrary
