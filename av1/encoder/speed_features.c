@@ -1372,6 +1372,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
   if (is_1080p_or_larger) {
     if (speed >= 7) sf->rt_sf.reduce_mv_pel_precision_highmotion = 0;
   } else {
+    if (speed >= 9) sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     if (speed >= 10) sf->rt_sf.nonrd_aggressive_skip = 1;
   }
 
@@ -1435,6 +1436,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
       sf->rt_sf.reduce_mv_pel_precision_highmotion = 3;
       sf->rt_sf.reduce_mv_pel_precision_lowcomplex = 1;
+      sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     }
     if (speed >= 10) {
       if (cm->width * cm->height > 1920 * 1080)
@@ -1735,7 +1737,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.prune_compoundmode_with_singlemode_var = false;
   }
   if (speed >= 9) {
-    sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_3;
     sf->rt_sf.estimate_motion_for_var_based_partition = 0;
     sf->rt_sf.prefer_large_partition_blocks = 3;
