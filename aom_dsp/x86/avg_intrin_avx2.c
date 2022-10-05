@@ -716,7 +716,8 @@ static inline void calc_vector_mean_sse_64wd(const int16_t *ref,
 // ref: [0 - 510]
 // src: [0 - 510]
 // bwl: {2, 3, 4, 5}
-int aom_vector_var_avx2(const int16_t *ref, const int16_t *src, int log_bw) {
+int aom_vector_var_avx2(const int16_t *ref, const int16_t *src,
+                        const int log_bw) {
   const int width = 4 << log_bw;
   assert(width % 16 == 0 && width <= 128);
   int var = 0;
