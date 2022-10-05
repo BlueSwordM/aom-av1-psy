@@ -561,7 +561,7 @@ void aom_int_pro_col_c(int16_t *vbuf, const uint8_t *ref, const int ref_stride,
 // ref: [0 - 510]
 // src: [0 - 510]
 // bwl: {2, 3, 4, 5}
-int aom_vector_var_c(const int16_t *ref, const int16_t *src, const int bwl) {
+int aom_vector_var_c(const int16_t *ref, const int16_t *src, int bwl) {
   int i;
   int width = 4 << bwl;
   int sse = 0, mean = 0, var;

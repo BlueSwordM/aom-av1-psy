@@ -162,7 +162,7 @@ int aom_satd_neon(const tran_low_t *coeff, int length) {
   return horizontal_add_s32x4(accum);
 }
 
-int aom_vector_var_neon(const int16_t *ref, const int16_t *src, const int bwl) {
+int aom_vector_var_neon(const int16_t *ref, const int16_t *src, int bwl) {
   int32x4_t v_mean = vdupq_n_s32(0);
   int32x4_t v_sse = v_mean;
   int16x8_t v_ref, v_src;

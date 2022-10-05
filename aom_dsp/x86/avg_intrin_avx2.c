@@ -710,15 +710,14 @@ static inline void calc_vector_mean_sse_64wd(const int16_t *ref,
     const int mean_int = _mm_extract_epi32(result, 0);                       \
     const int sse_int = _mm_extract_epi32(result, 2);                        \
     const unsigned int mean_abs = abs(mean_int);                             \
-    var = sse_int - ((mean_abs * mean_abs) >> (log_bw + 2));                 \
+    var = sse_int - ((mean_abs * mean_abs) >> (bwl + 2));                    \
   }
 
 // ref: [0 - 510]
 // src: [0 - 510]
 // bwl: {2, 3, 4, 5}
-int aom_vector_var_avx2(const int16_t *ref, const int16_t *src,
-                        const int log_bw) {
-  const int width = 4 << log_bw;
+int aom_vector_var_avx2(const int16_t *ref, const int16_t *src, int bwl) {
+  const int width = 4 << bwl;
   assert(width % 16 == 0 && width <= 128);
   int var = 0;
 
