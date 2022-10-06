@@ -68,20 +68,20 @@ int av1_cdef_compute_sb_list(const CommonModeInfoParams *const mi_params,
 }
 
 void cdef_copy_rect8_8bit_to_16bit_c(uint16_t *dst, int dstride,
-                                     const uint8_t *src, int sstride, int v,
-                                     int h) {
-  for (int i = 0; i < v; i++) {
-    for (int j = 0; j < h; j++) {
+                                     const uint8_t *src, int sstride, int width,
+                                     int height) {
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
       dst[i * dstride + j] = src[i * sstride + j];
     }
   }
 }
 
 void cdef_copy_rect8_16bit_to_16bit_c(uint16_t *dst, int dstride,
-                                      const uint16_t *src, int sstride, int v,
-                                      int h) {
-  for (int i = 0; i < v; i++) {
-    for (int j = 0; j < h; j++) {
+                                      const uint16_t *src, int sstride,
+                                      int width, int height) {
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
       dst[i * dstride + j] = src[i * sstride + j];
     }
   }
@@ -92,7 +92,7 @@ void av1_cdef_copy_sb8_16_lowbd(uint16_t *const dst, int dstride,
                                 int src_hoffset, int sstride, int vsize,
                                 int hsize) {
   const uint8_t *base = &src[src_voffset * sstride + src_hoffset];
-  cdef_copy_rect8_8bit_to_16bit(dst, dstride, base, sstride, vsize, hsize);
+  cdef_copy_rect8_8bit_to_16bit(dst, dstride, base, sstride, hsize, vsize);
 }
 
 void av1_cdef_copy_sb8_16_highbd(uint16_t *const dst, int dstride,
@@ -101,7 +101,7 @@ void av1_cdef_copy_sb8_16_highbd(uint16_t *const dst, int dstride,
                                  int hsize) {
   const uint16_t *base =
       &CONVERT_TO_SHORTPTR(src)[src_voffset * sstride + src_hoffset];
-  cdef_copy_rect8_16bit_to_16bit(dst, dstride, base, sstride, vsize, hsize);
+  cdef_copy_rect8_16bit_to_16bit(dst, dstride, base, sstride, hsize, vsize);
 }
 
 void av1_cdef_copy_sb8_16(const AV1_COMMON *const cm, uint16_t *const dst,

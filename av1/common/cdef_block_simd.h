@@ -816,14 +816,14 @@ void SIMD_FUNC(cdef_filter_16_3)(void *dest, int dstride, const uint16_t *in,
 
 void SIMD_FUNC(cdef_copy_rect8_16bit_to_16bit)(uint16_t *dst, int dstride,
                                                const uint16_t *src, int sstride,
-                                               int v, int h) {
+                                               int width, int height) {
   int i, j;
-  for (i = 0; i < v; i++) {
-    for (j = 0; j < (h & ~0x7); j += 8) {
+  for (i = 0; i < height; i++) {
+    for (j = 0; j < (width & ~0x7); j += 8) {
       v128 row = v128_load_unaligned(&src[i * sstride + j]);
       v128_store_unaligned(&dst[i * dstride + j], row);
     }
-    for (; j < h; j++) {
+    for (; j < width; j++) {
       dst[i * dstride + j] = src[i * sstride + j];
     }
   }

@@ -256,7 +256,7 @@ void cdef_find_dir_dual_avx2(const uint16_t *img1, const uint16_t *img2,
 
 void cdef_copy_rect8_8bit_to_16bit_avx2(uint16_t *dst, int dstride,
                                         const uint8_t *src, int sstride,
-                                        int height, int width) {
+                                        int width, int height) {
   int j = 0;
   int remaining_width = width;
   assert(height % 2 == 0);

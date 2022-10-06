@@ -519,8 +519,8 @@ add_proto qw/void cdef_filter_16_1/, "void *dst16, int dstride, const uint16_t *
 add_proto qw/void cdef_filter_16_2/, "void *dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
 add_proto qw/void cdef_filter_16_3/, "void *dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
 
-add_proto qw/void cdef_copy_rect8_8bit_to_16bit/, "uint16_t *dst, int dstride, const uint8_t *src, int sstride, int v, int h";
-add_proto qw/void cdef_copy_rect8_16bit_to_16bit/, "uint16_t *dst, int dstride, const uint16_t *src, int sstride, int v, int h";
+add_proto qw/void cdef_copy_rect8_8bit_to_16bit/, "uint16_t *dst, int dstride, const uint8_t *src, int sstride, int width, int height";
+add_proto qw/void cdef_copy_rect8_16bit_to_16bit/, "uint16_t *dst, int dstride, const uint16_t *src, int sstride, int width, int height";
 
 # VS compiling for 32 bit targets does not support vector types in
 # structs as arguments, which makes the v256 type of the intrinsics
