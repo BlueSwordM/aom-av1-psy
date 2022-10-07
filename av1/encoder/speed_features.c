@@ -1426,6 +1426,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
     // TODO(marpan): Check settings for speed 7 and 8.
     if (speed >= 7) sf->rt_sf.reduce_mv_pel_precision_highmotion = 1;
+    if (speed >= 8) sf->rt_sf.nonrd_check_partition_merge_mode = 3;
     if (speed >= 9) {
       sf->rt_sf.prune_idtx_nonrd = 1;
       sf->rt_sf.part_early_exit_zeromv = 2;
@@ -1437,6 +1438,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.reduce_mv_pel_precision_highmotion = 3;
       sf->rt_sf.reduce_mv_pel_precision_lowcomplex = 1;
       sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
+      sf->rt_sf.nonrd_check_partition_merge_mode = 0;
     }
     if (speed >= 10) {
       if (cm->width * cm->height > 1920 * 1080)
