@@ -364,6 +364,15 @@ static INLINE int av1_is_subpelmv_in_range(const SubpelMvLimits *mv_limits,
          (mv.row >= mv_limits->row_min) && (mv.row <= mv_limits->row_max);
 }
 
+static INLINE int get_offset_from_fullmv(const FULLPEL_MV *mv, int stride) {
+  return mv->row * stride + mv->col;
+}
+
+static INLINE const uint8_t *get_buf_from_fullmv(const struct buf_2d *buf,
+                                                 const FULLPEL_MV *mv) {
+  return &buf->buf[get_offset_from_fullmv(mv, buf->stride)];
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

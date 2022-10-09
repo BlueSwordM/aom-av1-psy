@@ -185,15 +185,6 @@ void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
   init_ms_buffers(ms_buffers, x);
 }
 
-static INLINE int get_offset_from_fullmv(const FULLPEL_MV *mv, int stride) {
-  return mv->row * stride + mv->col;
-}
-
-static INLINE const uint8_t *get_buf_from_fullmv(const struct buf_2d *buf,
-                                                 const FULLPEL_MV *mv) {
-  return &buf->buf[get_offset_from_fullmv(mv, buf->stride)];
-}
-
 void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv) {
   int col_min =
       GET_MV_RAWPEL(mv->col) - MAX_FULL_PEL_VAL + (mv->col & 7 ? 1 : 0);

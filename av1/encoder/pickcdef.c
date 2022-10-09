@@ -22,6 +22,7 @@
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/ethread.h"
 #include "av1/encoder/pickcdef.h"
+#include "av1/encoder/mcomp.h"
 
 // Get primary and secondary filter strength for the given strength index and
 // search method
@@ -357,6 +358,70 @@ static INLINE void fill_borders_for_fbs_on_frame_boundary(
   }
 }
 
+// Returns if error should be calculated using 8-bit pixel data
+static INLINE bool should_calc_error_using_8bit_data(
+    const struct macroblockd_plane *pd, int row, int col, int cdef_count,
+    int tot_8x8_blk_count, BLOCK_SIZE plane_bsize, bool use_highbitdepth) {
+  return (row + block_size_high[plane_bsize] <= pd->dst.height &&
+          col + block_size_wide[plane_bsize] <= pd->dst.width &&
+          cdef_count == tot_8x8_blk_count && !use_highbitdepth);
+}
+
+// Returns the block error after CDEF filtering for a given strength
+static INLINE uint64_t get_filt_error(
+    const CdefSearchCtx *cdef_search_ctx, const struct macroblockd_plane *pd,
+    cdef_list *dlist, int dir[CDEF_NBLOCKS][CDEF_NBLOCKS], int *dirinit,
+    int var[CDEF_NBLOCKS][CDEF_NBLOCKS], uint16_t *in, uint8_t *ref_buffer,
+    int ref_stride, int row, int col, int pri_strength, int sec_strength,
+    int cdef_count, int tot_8x8_blk_count, int pli, int coeff_shift,
+    BLOCK_SIZE bs) {
+  uint64_t curr_mse;
+  const BLOCK_SIZE plane_bsize =
+      get_plane_block_size(bs, pd->subsampling_x, pd->subsampling_y);
+  const bool calc_error_using_8bit_data = should_calc_error_using_8bit_data(
+      pd, row, col, cdef_count, tot_8x8_blk_count, plane_bsize,
+      cdef_search_ctx->use_highbitdepth);
+  if (calc_error_using_8bit_data) {
+    unsigned int curr_uint_mse;
+    // Calculate the offset in the buffer based on block position
+    const FULLPEL_MV this_mv = { row, col };
+    const int buf_offset = get_offset_from_fullmv(&this_mv, ref_stride);
+    // TODO(Ranjit): Extend this optimization for HBD
+    if (pri_strength == 0 && sec_strength == 0) {
+      // When CDEF strength is zero, filtering is not applied. Hence
+      // error is calculated between source and unfiltered pixels
+      cdef_search_ctx->vfp[plane_bsize].vf(
+          &ref_buffer[buf_offset], ref_stride,
+          get_buf_from_fullmv(&pd->dst, &this_mv), pd->dst.stride,
+          &curr_uint_mse);
+    } else {
+      DECLARE_ALIGNED(32, uint8_t, tmp_dst8[1 << (MAX_SB_SIZE_LOG2 * 2)]);
+
+      av1_cdef_filter_fb(tmp_dst8, NULL, (1 << MAX_SB_SIZE_LOG2), in,
+                         cdef_search_ctx->xdec[pli], cdef_search_ctx->ydec[pli],
+                         dir, dirinit, var, pli, dlist, cdef_count,
+                         pri_strength, sec_strength + (sec_strength == 3),
+                         cdef_search_ctx->damping, coeff_shift);
+      cdef_search_ctx->vfp[plane_bsize].vf(&ref_buffer[buf_offset], ref_stride,
+                                           tmp_dst8, (1 << MAX_SB_SIZE_LOG2),
+                                           &curr_uint_mse);
+    }
+    curr_mse = curr_uint_mse;
+  } else {
+    DECLARE_ALIGNED(32, uint16_t, tmp_dst[1 << (MAX_SB_SIZE_LOG2 * 2)]);
+
+    av1_cdef_filter_fb(NULL, tmp_dst, CDEF_BSTRIDE, in,
+                       cdef_search_ctx->xdec[pli], cdef_search_ctx->ydec[pli],
+                       dir, dirinit, var, pli, dlist, cdef_count, pri_strength,
+                       sec_strength + (sec_strength == 3),
+                       cdef_search_ctx->damping, coeff_shift);
+    curr_mse = cdef_search_ctx->compute_cdef_dist_fn(
+        ref_buffer, ref_stride, tmp_dst, dlist, cdef_count,
+        cdef_search_ctx->bsize[pli], coeff_shift, row, col);
+  }
+  return curr_mse;
+}
+
 // Calculates MSE at block level.
 // Inputs:
 //   cdef_search_ctx: Pointer to the structure containing parameters related to
@@ -374,7 +439,6 @@ void av1_cdef_mse_calc_block(CdefSearchCtx *cdef_search_ctx, int fbr, int fbc,
   const int *mi_high_l2 = cdef_search_ctx->mi_high_l2;
 
   // Declare and initialize the temporary buffers.
-  DECLARE_ALIGNED(32, uint16_t, tmp_dst[1 << (MAX_SB_SIZE_LOG2 * 2)]);
   DECLARE_ALIGNED(32, uint16_t, inbuf[CDEF_INBUF_SIZE]);
   cdef_list dlist[MI_SIZE_128X128 * MI_SIZE_128X128];
   int dir[CDEF_NBLOCKS][CDEF_NBLOCKS] = { { 0 } };
@@ -410,9 +474,10 @@ void av1_cdef_mse_calc_block(CdefSearchCtx *cdef_search_ctx, int fbr, int fbc,
   }
   // Get number of 8x8 blocks which are not skip. Cdef processing happens for
   // 8x8 blocks which are not skip.
+  int tot_8x8_blk_count;
   const int cdef_count = av1_cdef_compute_sb_list(
-      mi_params, fbr * MI_SIZE_64X64, fbc * MI_SIZE_64X64, dlist, bs);
-
+      mi_params, fbr * MI_SIZE_64X64, fbc * MI_SIZE_64X64, dlist,
+      &tot_8x8_blk_count, bs);
   const bool is_fb_on_frm_left_boundary = (fbc == 0);
   const bool is_fb_on_frm_right_boundary =
       (fbc + hb_step == cdef_search_ctx->nhfb);
@@ -446,14 +511,10 @@ void av1_cdef_mse_calc_block(CdefSearchCtx *cdef_search_ctx, int fbr, int fbc,
       int pri_strength, sec_strength;
       get_cdef_filter_strengths(cdef_search_ctx->pick_method, &pri_strength,
                                 &sec_strength, gi);
-      av1_cdef_filter_fb(NULL, tmp_dst, CDEF_BSTRIDE, in,
-                         cdef_search_ctx->xdec[pli], cdef_search_ctx->ydec[pli],
-                         dir, &dirinit, var, pli, dlist, cdef_count,
-                         pri_strength, sec_strength + (sec_strength == 3),
-                         cdef_search_ctx->damping, coeff_shift);
-      const uint64_t curr_mse = cdef_search_ctx->compute_cdef_dist_fn(
-          ref_buffer[pli], ref_stride[pli], tmp_dst, dlist, cdef_count,
-          cdef_search_ctx->bsize[pli], coeff_shift, row, col);
+      const uint64_t curr_mse = get_filt_error(
+          cdef_search_ctx, &pd, dlist, dir, &dirinit, var, in, ref_buffer[pli],
+          ref_stride[pli], row, col, pri_strength, sec_strength, cdef_count,
+          tot_8x8_blk_count, pli, coeff_shift, bs);
       if (pli < 2)
         cdef_search_ctx->mse[pli][sb_count][gi] = curr_mse;
       else
@@ -537,6 +598,7 @@ static AOM_INLINE void cdef_params_init(const YV12_BUFFER_CONFIG *frame,
                                         const YV12_BUFFER_CONFIG *ref,
                                         AV1_COMMON *cm, MACROBLOCKD *xd,
                                         CdefSearchCtx *cdef_search_ctx,
+                                        aom_variance_fn_ptr_t *vfp,
                                         CDEF_PICK_METHOD pick_method) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int num_planes = av1_num_planes(cm);
@@ -552,6 +614,8 @@ static AOM_INLINE void cdef_params_init(const YV12_BUFFER_CONFIG *frame,
   cdef_search_ctx->num_planes = num_planes;
   cdef_search_ctx->pick_method = pick_method;
   cdef_search_ctx->sb_count = 0;
+  cdef_search_ctx->vfp = vfp;
+  cdef_search_ctx->use_highbitdepth = cm->seq_params->use_highbitdepth;
   av1_setup_dst_planes(xd->plane, cm->seq_params->sb_size, frame, 0, 0, 0,
                        num_planes);
   // Initialize plane wise information.
@@ -673,7 +737,8 @@ static void pick_cdef_from_qp(AV1_COMMON *const cm, int skip_cdef,
 
 void av1_cdef_search(MultiThreadInfo *mt_info, const YV12_BUFFER_CONFIG *frame,
                      const YV12_BUFFER_CONFIG *ref, AV1_COMMON *cm,
-                     MACROBLOCKD *xd, CDEF_PICK_METHOD pick_method, int rdmult,
+                     MACROBLOCKD *xd, aom_variance_fn_ptr_t *vfp,
+                     CDEF_PICK_METHOD pick_method, int rdmult,
                      int skip_cdef_feature, CDEF_CONTROL cdef_control,
                      const int is_screen_content, int non_reference_frame) {
   assert(cdef_control != CDEF_NONE);
@@ -697,7 +762,7 @@ void av1_cdef_search(MultiThreadInfo *mt_info, const YV12_BUFFER_CONFIG *frame,
   const int num_planes = av1_num_planes(cm);
   CdefSearchCtx cdef_search_ctx;
   // Initialize parameters related to CDEF search context.
-  cdef_params_init(frame, ref, cm, xd, &cdef_search_ctx, pick_method);
+  cdef_params_init(frame, ref, cm, xd, &cdef_search_ctx, vfp, pick_method);
   // Allocate CDEF search context buffers.
   if (!cdef_alloc_data(&cdef_search_ctx)) {
     CdefInfo *const cdef_info = &cm->cdef_info;
