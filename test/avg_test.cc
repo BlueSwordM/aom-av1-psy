@@ -43,7 +43,9 @@ class AverageTestBase : public ::testing::Test {
  protected:
   // Handle blocks up to 4 blocks 64x64 with stride up to 128
   static const int kDataAlignment = 16;
-  static const int kDataBlockSize = 128 * 128;
+  static const int kDataBlockWidth = 128;
+  static const int kDataBlockHeight = 128;
+  static const int kDataBlockSize = kDataBlockWidth * kDataBlockHeight;
 
   virtual void SetUp() {
     const testing::TestInfo *const test_info =
@@ -236,13 +238,11 @@ class AverageTest_8x8_quad
   using AverageTestBase<Pixel>::FillConstant;
   using AverageTestBase<Pixel>::FillRandom;
 
-  void CheckAverages(int iterations) {
+  void CheckAveragesAt(int iterations, int x16_idx, int y16_idx) {
     ASSERT_EQ(sizeof(Pixel), 1u);
     const int block_size = GET_PARAM(4);
     (void)block_size;
     int expected[4] = { 0 };
-    int x16_idx = 0;
-    int y16_idx = 0;
 
     // The reference frame, but not the source frame, may be unaligned for
     // certain types of searches.
@@ -285,19 +285,25 @@ class AverageTest_8x8_quad
     }
   }
 
+  void CheckAverages() {
+    for (int x16_idx = 0; x16_idx < this->kDataBlockWidth / 8; x16_idx += 2)
+      for (int y16_idx = 0; y16_idx < this->kDataBlockHeight / 8; y16_idx += 2)
+        CheckAveragesAt(1, x16_idx, y16_idx);
+  }
+
   void TestConstantValue(Pixel value) {
     FillConstant(value);
-    CheckAverages(1);
+    CheckAverages();
   }
 
   void TestRandom() {
     FillRandom();
-    CheckAverages(1);
+    CheckAverages();
   }
 
   void TestSpeed() {
     FillRandom();
-    CheckAverages(1000000);
+    CheckAveragesAt(1000000, 0, 0);
   }
 
   int64_t ref_elapsed_time_ = 0;

@@ -505,52 +505,42 @@ int aom_satd_lp_avx2(const int16_t *coeff, int length) {
   }
 }
 
-static INLINE __m256i calc_avg_8x8_dual_avx2(const uint8_t *s, int p) {
-  const __m256i s0 =
-      _mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i *)(s)));
-  const __m256i s1 =
-      _mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i *)(s + p)));
-  const __m256i s2 =
-      _mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i *)(s + 2 * p)));
-  const __m256i s3 =
-      _mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i *)(s + 3 * p)));
-  const __m256i sum0 =
-      _mm256_add_epi16(_mm256_add_epi16(s0, s1), _mm256_add_epi16(s2, s3));
-  const __m256i s4 =
-      _mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i *)(s + 4 * p)));
-  const __m256i s5 =
-      _mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i *)(s + 5 * p)));
-  const __m256i s6 =
-      _mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i *)(s + 6 * p)));
-  const __m256i s7 =
-      _mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i *)(s + 7 * p)));
-  const __m256i sum1 =
-      _mm256_add_epi16(_mm256_add_epi16(s4, s5), _mm256_add_epi16(s6, s7));
-
-  // The result of two 8x8 sub-blocks in 16x16 block.
-  return _mm256_add_epi16(sum0, sum1);
+static INLINE __m256i xx_loadu2_mi128(const void *hi, const void *lo) {
+  __m256i a = _mm256_castsi128_si256(_mm_loadu_si128((const __m128i *)(lo)));
+  a = _mm256_inserti128_si256(a, _mm_loadu_si128((const __m128i *)(hi)), 1);
+  return a;
 }
 
 void aom_avg_8x8_quad_avx2(const uint8_t *s, int p, int x16_idx, int y16_idx,
                            int *avg) {
-  // Process 1st and 2nd 8x8 sub-blocks in a 16x16 block.
-  const uint8_t *s_tmp = s + y16_idx * p + x16_idx;
-  __m256i result_0 = calc_avg_8x8_dual_avx2(s_tmp, p);
+  const uint8_t *s_y0 = s + y16_idx * p + x16_idx;
+  const uint8_t *s_y1 = s_y0 + 8 * p;
+  __m256i sum0, sum1, s0, s1, s2, s3, u0;
+  u0 = _mm256_setzero_si256();
+  s0 = _mm256_sad_epu8(xx_loadu2_mi128(s_y1, s_y0), u0);
+  s1 = _mm256_sad_epu8(xx_loadu2_mi128(s_y1 + p, s_y0 + p), u0);
+  s2 = _mm256_sad_epu8(xx_loadu2_mi128(s_y1 + 2 * p, s_y0 + 2 * p), u0);
+  s3 = _mm256_sad_epu8(xx_loadu2_mi128(s_y1 + 3 * p, s_y0 + 3 * p), u0);
+  sum0 = _mm256_add_epi16(s0, s1);
+  sum1 = _mm256_add_epi16(s2, s3);
+  s0 = _mm256_sad_epu8(xx_loadu2_mi128(s_y1 + 4 * p, s_y0 + 4 * p), u0);
+  s1 = _mm256_sad_epu8(xx_loadu2_mi128(s_y1 + 5 * p, s_y0 + 5 * p), u0);
+  s2 = _mm256_sad_epu8(xx_loadu2_mi128(s_y1 + 6 * p, s_y0 + 6 * p), u0);
+  s3 = _mm256_sad_epu8(xx_loadu2_mi128(s_y1 + 7 * p, s_y0 + 7 * p), u0);
+  sum0 = _mm256_add_epi16(sum0, _mm256_add_epi16(s0, s1));
+  sum1 = _mm256_add_epi16(sum1, _mm256_add_epi16(s2, s3));
+  sum0 = _mm256_add_epi16(sum0, sum1);
 
-  // Process 3rd and 4th 8x8 sub-blocks in a 16x16 block.
-  s_tmp = s + ((y16_idx + 8) * p) + x16_idx;
-  __m256i result_1 = calc_avg_8x8_dual_avx2(s_tmp, p);
-
-  const __m256i constant_32 = _mm256_set1_epi16(32);
-  result_0 = _mm256_hadd_epi16(result_0, result_1);
-  result_1 = _mm256_adds_epu16(result_0, _mm256_srli_si256(result_0, 4));
-  result_0 = _mm256_adds_epu16(result_1, _mm256_srli_si256(result_1, 2));
-  result_0 = _mm256_adds_epu16(result_0, constant_32);
-  result_0 = _mm256_srli_epi16(result_0, 6);
-  avg[0] = _mm_extract_epi16(_mm256_castsi256_si128(result_0), 0);
-  avg[1] = _mm_extract_epi16(_mm256_extracti128_si256(result_0, 1), 0);
-  avg[2] = _mm_extract_epi16(_mm256_castsi256_si128(result_0), 4);
-  avg[3] = _mm_extract_epi16(_mm256_extracti128_si256(result_0, 1), 4);
+  // (avg + 32) >> 6
+  __m256i rounding = _mm256_set1_epi32(32);
+  sum0 = _mm256_add_epi32(sum0, rounding);
+  sum0 = _mm256_srli_epi32(sum0, 6);
+  __m128i lo = _mm256_castsi256_si128(sum0);
+  __m128i hi = _mm256_extracti128_si256(sum0, 1);
+  avg[0] = _mm_cvtsi128_si32(lo);
+  avg[1] = _mm_extract_epi32(lo, 2);
+  avg[2] = _mm_cvtsi128_si32(hi);
+  avg[3] = _mm_extract_epi32(hi, 2);
 }
 
 void aom_int_pro_row_avx2(int16_t *hbuf, const uint8_t *ref,

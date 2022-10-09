@@ -14,6 +14,7 @@
 #include "config/aom_dsp_rtcd.h"
 #include "aom/aom_integer.h"
 #include "aom_dsp/x86/bitdepth_conversion_sse2.h"
+#include "aom_dsp/x86/mem_sse2.h"
 #include "aom_ports/mem.h"
 
 void aom_minmax_8x8_sse2(const uint8_t *s, int p, const uint8_t *d, int dp,
@@ -95,39 +96,61 @@ void aom_minmax_8x8_sse2(const uint8_t *s, int p, const uint8_t *d, int dp,
 }
 
 unsigned int aom_avg_8x8_sse2(const uint8_t *s, int p) {
-  __m128i s0, s1, u0;
+  __m128i sum0, sum1, s0, s1, s2, s3, u0;
   unsigned int avg = 0;
   u0 = _mm_setzero_si128();
-  s0 = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *)(s)), u0);
-  s1 = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *)(s + p)), u0);
-  s0 = _mm_adds_epu16(s0, s1);
-  s1 = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *)(s + 2 * p)), u0);
-  s0 = _mm_adds_epu16(s0, s1);
-  s1 = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *)(s + 3 * p)), u0);
-  s0 = _mm_adds_epu16(s0, s1);
-  s1 = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *)(s + 4 * p)), u0);
-  s0 = _mm_adds_epu16(s0, s1);
-  s1 = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *)(s + 5 * p)), u0);
-  s0 = _mm_adds_epu16(s0, s1);
-  s1 = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *)(s + 6 * p)), u0);
-  s0 = _mm_adds_epu16(s0, s1);
-  s1 = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *)(s + 7 * p)), u0);
-  s0 = _mm_adds_epu16(s0, s1);
+  s0 = loadh_epi64((const __m128i *)(s + p),
+                   _mm_loadl_epi64((const __m128i *)(s)));
+  s1 = loadh_epi64((const __m128i *)(s + 3 * p),
+                   _mm_loadl_epi64((const __m128i *)(s + 2 * p)));
+  s2 = loadh_epi64((const __m128i *)(s + 5 * p),
+                   _mm_loadl_epi64((const __m128i *)(s + 4 * p)));
+  s3 = loadh_epi64((const __m128i *)(s + 7 * p),
+                   _mm_loadl_epi64((const __m128i *)(s + 6 * p)));
+  s0 = _mm_sad_epu8(s0, u0);
+  s1 = _mm_sad_epu8(s1, u0);
+  s2 = _mm_sad_epu8(s2, u0);
+  s3 = _mm_sad_epu8(s3, u0);
 
-  s0 = _mm_adds_epu16(s0, _mm_srli_si128(s0, 8));
-  s0 = _mm_adds_epu16(s0, _mm_srli_epi64(s0, 32));
-  s0 = _mm_adds_epu16(s0, _mm_srli_epi64(s0, 16));
-  avg = _mm_extract_epi16(s0, 0);
+  sum0 = _mm_add_epi16(s0, s1);
+  sum1 = _mm_add_epi16(s2, s3);
+  sum0 = _mm_add_epi16(sum0, sum1);
+  sum0 = _mm_add_epi16(sum0, _mm_srli_si128(sum0, 8));
+  avg = _mm_cvtsi128_si32(sum0);
   return (avg + 32) >> 6;
+}
+
+void calc_avg_8x8_dual_sse2(const uint8_t *s, int p, int *avg) {
+  __m128i sum0, sum1, s0, s1, s2, s3, u0;
+  u0 = _mm_setzero_si128();
+  s0 = _mm_sad_epu8(_mm_loadu_si128((const __m128i *)(s)), u0);
+  s1 = _mm_sad_epu8(_mm_loadu_si128((const __m128i *)(s + p)), u0);
+  s2 = _mm_sad_epu8(_mm_loadu_si128((const __m128i *)(s + 2 * p)), u0);
+  s3 = _mm_sad_epu8(_mm_loadu_si128((const __m128i *)(s + 3 * p)), u0);
+  sum0 = _mm_add_epi16(s0, s1);
+  sum1 = _mm_add_epi16(s2, s3);
+  s0 = _mm_sad_epu8(_mm_loadu_si128((const __m128i *)(s + 4 * p)), u0);
+  s1 = _mm_sad_epu8(_mm_loadu_si128((const __m128i *)(s + 5 * p)), u0);
+  s2 = _mm_sad_epu8(_mm_loadu_si128((const __m128i *)(s + 6 * p)), u0);
+  s3 = _mm_sad_epu8(_mm_loadu_si128((const __m128i *)(s + 7 * p)), u0);
+  sum0 = _mm_add_epi16(sum0, _mm_add_epi16(s0, s1));
+  sum1 = _mm_add_epi16(sum1, _mm_add_epi16(s2, s3));
+  sum0 = _mm_add_epi16(sum0, sum1);
+
+  // (avg + 32) >> 6
+  __m128i rounding = _mm_set1_epi32(32);
+  sum0 = _mm_add_epi32(sum0, rounding);
+  sum0 = _mm_srli_epi32(sum0, 6);
+  avg[0] = _mm_cvtsi128_si32(sum0);
+  avg[1] = _mm_extract_epi16(sum0, 4);
 }
 
 void aom_avg_8x8_quad_sse2(const uint8_t *s, int p, int x16_idx, int y16_idx,
                            int *avg) {
-  for (int k = 0; k < 4; k++) {
-    const int x8_idx = x16_idx + ((k & 1) << 3);
-    const int y8_idx = y16_idx + ((k >> 1) << 3);
-    const uint8_t *s_tmp = s + y8_idx * p + x8_idx;
-    avg[k] = aom_avg_8x8_sse2(s_tmp, p);
+  const uint8_t *s_ptr = s + y16_idx * p + x16_idx;
+  for (int k = 0; k < 2; k++) {
+    calc_avg_8x8_dual_sse2(s_ptr, p, avg + k * 2);
+    s_ptr += 8 * p;
   }
 }
 
@@ -135,17 +158,14 @@ unsigned int aom_avg_4x4_sse2(const uint8_t *s, int p) {
   __m128i s0, s1, u0;
   unsigned int avg = 0;
   u0 = _mm_setzero_si128();
-  s0 = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *)(s)), u0);
-  s1 = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *)(s + p)), u0);
-  s0 = _mm_adds_epu16(s0, s1);
-  s1 = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *)(s + 2 * p)), u0);
-  s0 = _mm_adds_epu16(s0, s1);
-  s1 = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *)(s + 3 * p)), u0);
-  s0 = _mm_adds_epu16(s0, s1);
-
-  s0 = _mm_adds_epu16(s0, _mm_srli_si128(s0, 4));
-  s0 = _mm_adds_epu16(s0, _mm_srli_epi64(s0, 16));
-  avg = _mm_extract_epi16(s0, 0);
+  s0 = _mm_unpacklo_epi32(_mm_cvtsi32_si128(*(const int *)(s)),
+                          _mm_cvtsi32_si128(*(const int *)(s + p)));
+  s1 = _mm_unpacklo_epi32(_mm_cvtsi32_si128(*(const int *)(s + p * 2)),
+                          _mm_cvtsi32_si128(*(const int *)(s + p * 3)));
+  s0 = _mm_sad_epu8(s0, u0);
+  s1 = _mm_sad_epu8(s1, u0);
+  s0 = _mm_add_epi16(s0, s1);
+  avg = _mm_cvtsi128_si32(s0);
   return (avg + 8) >> 4;
 }
 
