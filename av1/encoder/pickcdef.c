@@ -722,7 +722,15 @@ void av1_cdef_search(MultiThreadInfo *mt_info, const YV12_BUFFER_CONFIG *frame,
   uint64_t(*mse[2])[TOTAL_STRENGTHS];
   mse[0] = cdef_search_ctx.mse[0];
   mse[1] = cdef_search_ctx.mse[1];
+  /* Calculate the maximum number of bits required to signal CDEF strengths at
+   * block level */
+  const int total_strengths = nb_cdef_strengths[pick_method];
+  const int joint_strengths =
+      num_planes > 1 ? total_strengths * total_strengths : total_strengths;
+  const int max_signaling_bits =
+      joint_strengths == 1 ? 0 : get_msb(joint_strengths - 1) + 1;
   for (int i = 0; i <= 3; i++) {
+    if (i > max_signaling_bits) break;
     int best_lev0[CDEF_MAX_STRENGTHS];
     int best_lev1[CDEF_MAX_STRENGTHS] = { 0 };
     const int nb_strengths = 1 << i;
