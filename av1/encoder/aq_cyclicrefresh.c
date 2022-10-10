@@ -157,7 +157,8 @@ int av1_cyclic_refresh_rc_bits_per_mb(const AV1_COMP *cpi, int i,
 }
 
 void av1_cyclic_reset_segment_skip(const AV1_COMP *cpi, MACROBLOCK *const x,
-                                   int mi_row, int mi_col, BLOCK_SIZE bsize) {
+                                   int mi_row, int mi_col, BLOCK_SIZE bsize,
+                                   RUN_TYPE dry_run) {
   int cdf_num;
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -184,10 +185,12 @@ void av1_cyclic_reset_segment_skip(const AV1_COMP *cpi, MACROBLOCK *const x,
       }
     }
   }
-  if (cyclic_refresh_segment_id(prev_segment_id) == CR_SEGMENT_ID_BOOST1)
-    x->actual_num_seg1_blocks -= xmis * ymis;
-  else if (cyclic_refresh_segment_id(prev_segment_id) == CR_SEGMENT_ID_BOOST2)
-    x->actual_num_seg2_blocks -= xmis * ymis;
+  if (!dry_run) {
+    if (cyclic_refresh_segment_id(prev_segment_id) == CR_SEGMENT_ID_BOOST1)
+      x->actual_num_seg1_blocks -= xmis * ymis;
+    else if (cyclic_refresh_segment_id(prev_segment_id) == CR_SEGMENT_ID_BOOST2)
+      x->actual_num_seg2_blocks -= xmis * ymis;
+  }
 }
 
 void av1_cyclic_refresh_update_segment(const AV1_COMP *cpi, MACROBLOCK *const x,
