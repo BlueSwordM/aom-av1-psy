@@ -572,15 +572,15 @@ void aom_int_pro_row_avx2(int16_t *hbuf, const uint8_t *ref,
         __m256i src_line = _mm256_loadu_si256((const __m256i *)ref_tmp);
         __m256i t0 = _mm256_unpacklo_epi8(src_line, zero);
         __m256i t1 = _mm256_unpackhi_epi8(src_line, zero);
-        s0 = _mm256_adds_epu16(s0, t0);
-        s1 = _mm256_adds_epu16(s1, t1);
+        s0 = _mm256_add_epi16(s0, t0);
+        s1 = _mm256_add_epi16(s1, t1);
         ref_tmp += ref_stride;
 
         src_line = _mm256_loadu_si256((const __m256i *)ref_tmp);
         t0 = _mm256_unpacklo_epi8(src_line, zero);
         t1 = _mm256_unpackhi_epi8(src_line, zero);
-        s0 = _mm256_adds_epu16(s0, t0);
-        s1 = _mm256_adds_epu16(s1, t1);
+        s0 = _mm256_add_epi16(s0, t0);
+        s1 = _mm256_add_epi16(s1, t1);
         ref_tmp += ref_stride;
         idx += 2;
       } while (idx < height);
@@ -616,16 +616,16 @@ void aom_int_pro_col_avx2(int16_t *vbuf, const uint8_t *ref,
       const __m256i s1 = _mm256_sad_epu8(src_line1, zero);
       const __m256i s2 = _mm256_sad_epu8(src_line2, zero);
       const __m256i s3 = _mm256_sad_epu8(src_line3, zero);
-      const __m256i result0_256bit = _mm256_adds_epu16(s0, s1);
-      const __m256i result1_256bit = _mm256_adds_epu16(s2, s3);
+      const __m256i result0_256bit = _mm256_add_epi16(s0, s1);
+      const __m256i result1_256bit = _mm256_add_epi16(s2, s3);
       const __m256i result_256bit =
-          _mm256_adds_epu16(result0_256bit, result1_256bit);
+          _mm256_add_epi16(result0_256bit, result1_256bit);
 
       const __m128i result =
-          _mm_adds_epu16(_mm256_castsi256_si128(result_256bit),
-                         _mm256_extractf128_si256(result_256bit, 1));
-      __m128i result1 = _mm_adds_epu16(result, _mm_srli_si128(result, 8));
-      vbuf[ht] = _mm_extract_epi16(result1, 0) >> norm_factor;
+          _mm_add_epi16(_mm256_castsi256_si128(result_256bit),
+                        _mm256_extractf128_si256(result_256bit, 1));
+      __m128i result1 = _mm_add_epi16(result, _mm_srli_si128(result, 8));
+      vbuf[ht] = _mm_cvtsi128_si32(result1) >> norm_factor;
       ref += ref_stride;
     }
   } else if (width == 64) {
@@ -635,13 +635,13 @@ void aom_int_pro_col_avx2(int16_t *vbuf, const uint8_t *ref,
       const __m256i src_line1 = _mm256_loadu_si256((const __m256i *)(ref + 32));
       const __m256i s1 = _mm256_sad_epu8(src_line0, zero);
       const __m256i s2 = _mm256_sad_epu8(src_line1, zero);
-      const __m256i result_256bit = _mm256_adds_epu16(s1, s2);
+      const __m256i result_256bit = _mm256_add_epi16(s1, s2);
 
       const __m128i result =
-          _mm_adds_epu16(_mm256_castsi256_si128(result_256bit),
-                         _mm256_extractf128_si256(result_256bit, 1));
-      __m128i result1 = _mm_adds_epu16(result, _mm_srli_si128(result, 8));
-      vbuf[ht] = _mm_extract_epi16(result1, 0) >> norm_factor;
+          _mm_add_epi16(_mm256_castsi256_si128(result_256bit),
+                        _mm256_extractf128_si256(result_256bit, 1));
+      __m128i result1 = _mm_add_epi16(result, _mm_srli_si128(result, 8));
+      vbuf[ht] = _mm_cvtsi128_si32(result1) >> norm_factor;
       ref += ref_stride;
     }
   } else if (width == 32) {
@@ -654,15 +654,15 @@ void aom_int_pro_col_avx2(int16_t *vbuf, const uint8_t *ref,
       const __m256i s0 = _mm256_sad_epu8(src_line0, zero);
       const __m256i s1 = _mm256_sad_epu8(src_line1, zero);
 
-      __m128i result0 = _mm_adds_epu16(_mm256_castsi256_si128(s0),
-                                       _mm256_extractf128_si256(s0, 1));
-      __m128i result1 = _mm_adds_epu16(_mm256_castsi256_si128(s1),
-                                       _mm256_extractf128_si256(s1, 1));
-      __m128i result2 = _mm_adds_epu16(result0, _mm_srli_si128(result0, 8));
-      __m128i result3 = _mm_adds_epu16(result1, _mm_srli_si128(result1, 8));
+      __m128i result0 = _mm_add_epi16(_mm256_castsi256_si128(s0),
+                                      _mm256_extractf128_si256(s0, 1));
+      __m128i result1 = _mm_add_epi16(_mm256_castsi256_si128(s1),
+                                      _mm256_extractf128_si256(s1, 1));
+      __m128i result2 = _mm_add_epi16(result0, _mm_srli_si128(result0, 8));
+      __m128i result3 = _mm_add_epi16(result1, _mm_srli_si128(result1, 8));
 
-      vbuf[ht] = _mm_extract_epi16(result2, 0) >> norm_factor;
-      vbuf[ht + 1] = _mm_extract_epi16(result3, 0) >> norm_factor;
+      vbuf[ht] = _mm_cvtsi128_si32(result2) >> norm_factor;
+      vbuf[ht + 1] = _mm_cvtsi128_si32(result3) >> norm_factor;
       ref += (2 * ref_stride);
     }
   } else if (width == 16) {

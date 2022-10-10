@@ -643,15 +643,15 @@ void aom_int_pro_row_sse2(int16_t *hbuf, const uint8_t *ref,
       __m128i src_line = _mm_loadu_si128((const __m128i *)ref_tmp);
       __m128i t0 = _mm_unpacklo_epi8(src_line, zero);
       __m128i t1 = _mm_unpackhi_epi8(src_line, zero);
-      s0 = _mm_adds_epu16(s0, t0);
-      s1 = _mm_adds_epu16(s1, t1);
+      s0 = _mm_add_epi16(s0, t0);
+      s1 = _mm_add_epi16(s1, t1);
       ref_tmp += ref_stride;
 
       src_line = _mm_loadu_si128((const __m128i *)ref_tmp);
       t0 = _mm_unpacklo_epi8(src_line, zero);
       t1 = _mm_unpackhi_epi8(src_line, zero);
-      s0 = _mm_adds_epu16(s0, t0);
-      s1 = _mm_adds_epu16(s1, t1);
+      s0 = _mm_add_epi16(s0, t0);
+      s1 = _mm_add_epi16(s1, t1);
       ref_tmp += ref_stride;
       idx += 2;
     } while (idx < height);
@@ -677,12 +677,12 @@ void aom_int_pro_col_sse2(int16_t *vbuf, const uint8_t *ref,
     for (int i = 0; i < width; i += 16) {
       src_line = _mm_loadu_si128((const __m128i *)ref_tmp);
       s1 = _mm_sad_epu8(src_line, zero);
-      s0 = _mm_adds_epu16(s0, s1);
+      s0 = _mm_add_epi16(s0, s1);
       ref_tmp += 16;
     }
 
     s1 = _mm_srli_si128(s0, 8);
-    s0 = _mm_adds_epu16(s0, s1);
-    vbuf[ht] = _mm_extract_epi16(s0, 0) >> norm_factor;
+    s0 = _mm_add_epi16(s0, s1);
+    vbuf[ht] = _mm_cvtsi128_si32(s0) >> norm_factor;
   }
 }
