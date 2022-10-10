@@ -2560,7 +2560,7 @@ static void set_baseline_gf_interval(AV1_COMP *cpi, FRAME_TYPE frame_type) {
 void av1_adjust_gf_refresh_qp_one_pass_rt(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
-  RTC_REF *const rtc_ref = &cpi->rtc_ref;
+  RTC_REF *const rtc_ref = &cpi->ppi->rtc_ref;
   const int resize_pending = is_frame_resize_pending(cpi);
   if (!resize_pending && !rc->high_source_sad) {
     // Check if we should disable GF refresh (if period is up),
@@ -2623,7 +2623,7 @@ void av1_set_rtc_reference_structure_one_layer(AV1_COMP *cpi, int gf_update) {
   RATE_CONTROL *const rc = &cpi->rc;
   ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
       &ext_flags->refresh_frame;
-  RTC_REF *const rtc_ref = &cpi->rtc_ref;
+  RTC_REF *const rtc_ref = &cpi->ppi->rtc_ref;
   unsigned int lag_alt = 4;
   int last_idx = 0;
   int last_idx_refresh = 0;
@@ -3103,10 +3103,10 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
       // If the user is setting the reference structure with
       // set_ref_frame_config and did not set any references, set the
       // frame type to Intra-only.
-      if (cpi->rtc_ref.set_ref_frame_config) {
+      if (cpi->ppi->rtc_ref.set_ref_frame_config) {
         int no_references_set = 1;
         for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-          if (cpi->rtc_ref.reference[i]) {
+          if (cpi->ppi->rtc_ref.reference[i]) {
             no_references_set = 0;
             break;
           }

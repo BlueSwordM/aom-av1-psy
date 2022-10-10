@@ -512,12 +512,12 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
   else
     threshold_base =
         scale_part_thresh_content(threshold_base, cpi->oxcf.speed, cm->width,
-                                  cm->height, cpi->rtc_ref.non_reference_frame);
+                                  cm->height, cpi->ppi->rtc_ref.non_reference_frame);
 #else
   // Increase base variance threshold based on content_state/sum_diff level.
-  threshold_base =
-      scale_part_thresh_content(threshold_base, cpi->oxcf.speed, cm->width,
-                                cm->height, cpi->rtc_ref.non_reference_frame);
+  threshold_base = scale_part_thresh_content(
+      threshold_base, cpi->oxcf.speed, cm->width, cm->height,
+      cpi->ppi->rtc_ref.non_reference_frame);
 #endif
   thresholds[0] = threshold_base >> 1;
   thresholds[1] = threshold_base;
@@ -1153,8 +1153,8 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
   int use_last_ref = (cpi->ref_frame_flags & AOM_LAST_FLAG) ||
                      cpi->svc.number_spatial_layers > 1;
   int use_golden_ref = cpi->ref_frame_flags & AOM_GOLD_FLAG;
-  int use_alt_ref =
-      cpi->rtc_ref.set_ref_frame_config || cpi->sf.rt_sf.use_nonrd_altref_frame;
+  int use_alt_ref = cpi->ppi->rtc_ref.set_ref_frame_config ||
+                    cpi->sf.rt_sf.use_nonrd_altref_frame;
 
   // For 1 spatial layer: GOLDEN is another temporal reference.
   // Check if it should be used as reference for partitioning.

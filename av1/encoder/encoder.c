@@ -582,11 +582,11 @@ static void init_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   cm->spatial_layer_id = 0;
   cm->temporal_layer_id = 0;
   // Init rtc_ref parameters.
-  cpi->rtc_ref.set_ref_frame_config = 0;
-  cpi->rtc_ref.non_reference_frame = 0;
-  cpi->rtc_ref.ref_frame_comp[0] = 0;
-  cpi->rtc_ref.ref_frame_comp[1] = 0;
-  cpi->rtc_ref.ref_frame_comp[2] = 0;
+  cpi->ppi->rtc_ref.set_ref_frame_config = 0;
+  cpi->ppi->rtc_ref.non_reference_frame = 0;
+  cpi->ppi->rtc_ref.ref_frame_comp[0] = 0;
+  cpi->ppi->rtc_ref.ref_frame_comp[1] = 0;
+  cpi->ppi->rtc_ref.ref_frame_comp[2] = 0;
 
   // change includes all joint functionality
   av1_change_config(cpi, oxcf, false);
@@ -838,7 +838,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
 
   set_tile_info(cm, &cpi->oxcf.tile_cfg);
 
-  if (!cpi->rtc_ref.set_ref_frame_config)
+  if (!cpi->ppi->rtc_ref.set_ref_frame_config)
     cpi->ext_flags.refresh_frame.update_pending = 0;
   cpi->ext_flags.refresh_frame_context_pending = 0;
 
@@ -2173,7 +2173,7 @@ static INLINE int extend_borders_mt(const AV1_COMP *cpi,
     // of the current and above superblock row is complete.
     case MOD_LPF: return 0;
     case MOD_CDEF:
-      return is_cdef_used(cm) && !cpi->rtc_ref.non_reference_frame &&
+      return is_cdef_used(cm) && !cpi->ppi->rtc_ref.non_reference_frame &&
              !is_restoration_used(cm) && !av1_superres_scaled(cm);
     case MOD_LR:
       return is_restoration_used(cm) &&
@@ -2211,10 +2211,11 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     av1_cdef_search(&cpi->mt_info, &cm->cur_frame->buf, cpi->source, cm, xd,
                     cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult,
                     cpi->sf.rt_sf.skip_cdef_sb, cpi->oxcf.tool_cfg.cdef_control,
-                    use_screen_content_model, cpi->rtc_ref.non_reference_frame);
+                    use_screen_content_model,
+                    cpi->ppi->rtc_ref.non_reference_frame);
 
     // Apply the filter
-    if (!cpi->rtc_ref.non_reference_frame) {
+    if (!cpi->ppi->rtc_ref.non_reference_frame) {
       if (num_workers > 1) {
         // Extension of frame borders is multi-threaded along with cdef.
         const int do_extend_border =
@@ -2345,7 +2346,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
     if (should_skip_postproc_filtering(cpi, use_cdef, use_restoration)) return;
     struct loopfilter *lf = &cm->lf;
     if ((lf->filter_level[0] || lf->filter_level[1]) &&
-        !cpi->rtc_ref.non_reference_frame) {
+        !cpi->ppi->rtc_ref.non_reference_frame) {
       // lpf_opt_level = 1 : Enables dual/quad loop-filtering.
       // lpf_opt_level is set to 1 if transform size search depth in inter
       // blocks is limited to one as quad loop filtering assumes that all the
@@ -3708,7 +3709,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       break;
     case 1:  // Enable CDF update for all frames.
       if (cpi->sf.rt_sf.disable_cdf_update_non_reference_frame &&
-          cpi->rtc_ref.non_reference_frame && cpi->rc.frames_since_key > 2)
+          cpi->ppi->rtc_ref.non_reference_frame && cpi->rc.frames_since_key > 2)
         features->disable_cdf_update = 1;
       else
         features->disable_cdf_update = 0;
@@ -4324,7 +4325,7 @@ static AOM_INLINE void update_frames_till_gf_update(AV1_COMP *cpi) {
   // We should fix the cpi->common.show_frame flag
   // instead of checking the other condition to update the counter properly.
   if (cpi->common.show_frame ||
-      is_frame_droppable(&cpi->rtc_ref, &cpi->ext_flags.refresh_frame)) {
+      is_frame_droppable(&cpi->ppi->rtc_ref, &cpi->ext_flags.refresh_frame)) {
     // Decrement count down till next gf
     if (cpi->rc.frames_till_gf_update_due > 0)
       cpi->rc.frames_till_gf_update_due--;
@@ -5118,7 +5119,7 @@ static int rtc_set_references_external_ref_frame_config(AV1_COMP *cpi) {
   // BWDREF_FRAME(4), ALTREF2_FRAME(5), ALTREF_FRAME(6).
   int ref = AOM_REFFRAME_ALL;
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-    if (!cpi->rtc_ref.reference[i]) ref ^= (1 << i);
+    if (!cpi->ppi->rtc_ref.reference[i]) ref ^= (1 << i);
   }
   return ref;
 }
@@ -5157,7 +5158,7 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
 
     av1_use_as_reference(&ext_flags->ref_frame_flags, ref);
   } else {
-    if (cpi->rtc_ref.set_ref_frame_config) {
+    if (cpi->ppi->rtc_ref.set_ref_frame_config) {
       int ref = rtc_set_references_external_ref_frame_config(cpi);
       av1_use_as_reference(&ext_flags->ref_frame_flags, ref);
     }
@@ -5185,8 +5186,9 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
     ext_refresh_frame_flags->alt2_ref_frame = (upd & AOM_ALT2_FLAG) != 0;
     ext_refresh_frame_flags->update_pending = 1;
   } else {
-    if (cpi->rtc_ref.set_ref_frame_config)
-      rtc_set_updates_ref_frame_config(ext_refresh_frame_flags, &cpi->rtc_ref);
+    if (cpi->ppi->rtc_ref.set_ref_frame_config)
+      rtc_set_updates_ref_frame_config(ext_refresh_frame_flags,
+                                       &cpi->ppi->rtc_ref);
     else
       ext_refresh_frame_flags->update_pending = 0;
   }

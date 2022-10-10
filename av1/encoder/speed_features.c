@@ -1378,8 +1378,8 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
 
   // Setting for SVC, or when the ref_frame_config control is
   // used to set the reference structure.
-  if (cpi->ppi->use_svc || cpi->rtc_ref.set_ref_frame_config) {
-    const RTC_REF *const rtc_ref = &cpi->rtc_ref;
+  if (cpi->ppi->use_svc || cpi->ppi->rtc_ref.set_ref_frame_config) {
+    const RTC_REF *const rtc_ref = &cpi->ppi->rtc_ref;
     // For SVC: for greater than 2 temporal layers, use better mv search on
     // base temporal layers, and only on base spatial layer if highest
     // resolution is above 640x360.

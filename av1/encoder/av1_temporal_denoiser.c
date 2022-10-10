@@ -348,8 +348,9 @@ void av1_denoiser_denoise(AV1_COMP *cpi, MACROBLOCK *mb, int mi_row, int mi_col,
     decision = perform_motion_compensation(
         &cpi->common, denoiser, mb, bs, increase_denoising, mi_row, mi_col, ctx,
         motion_magnitude, &zeromv_filter, cpi->svc.number_spatial_layers,
-        cpi->source->y_width, cpi->rtc_ref.ref_idx[0], cpi->rtc_ref.ref_idx[3],
-        cpi->ppi->use_svc, cpi->svc.spatial_layer_id, use_gf_temporal_ref);
+        cpi->source->y_width, cpi->ppi->rtc_ref.ref_idx[0],
+        cpi->ppi->rtc_ref.ref_idx[3], cpi->ppi->use_svc,
+        cpi->svc.spatial_layer_id, use_gf_temporal_ref);
 
   if (decision == FILTER_BLOCK) {
     decision = av1_denoiser_filter(src.buf, src.stride, mc_avg_start,
@@ -712,7 +713,7 @@ void av1_denoiser_reset_on_first_frame(AV1_COMP *const cpi) {
 
 void av1_denoiser_update_ref_frame(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
-  RTC_REF *const rtc_ref = &cpi->rtc_ref;
+  RTC_REF *const rtc_ref = &cpi->ppi->rtc_ref;
   SVC *const svc = &cpi->svc;
 
   if (cpi->oxcf.noise_sensitivity > 0 && denoise_svc(cpi) &&

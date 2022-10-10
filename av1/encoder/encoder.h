@@ -2705,6 +2705,11 @@ typedef struct AV1_PRIMARY {
    * found in the frame update type with enum value equal to i
    */
   int valid_gm_model_found[FRAME_UPDATE_TYPES];
+
+  /*!
+   * Struct for the reference structure for RTC.
+   */
+  RTC_REF rtc_ref;
 } AV1_PRIMARY;
 
 /*!
@@ -3408,11 +3413,6 @@ typedef struct AV1_COMP {
   int frames_since_last_update;
 
   /*!
-   * Struct for the reference structure for RTC.
-   */
-  RTC_REF rtc_ref;
-
-  /*!
    * Block level thresholds to force zeromv-skip at partition level.
    */
   unsigned int zeromv_skip_thresh_exit_part[BLOCK_SIZES_ALL];
@@ -3855,7 +3855,7 @@ static INLINE int is_one_pass_rt_params(const AV1_COMP *cpi) {
 static INLINE int use_rtc_reference_structure_one_layer(const AV1_COMP *cpi) {
   return is_one_pass_rt_params(cpi) && cpi->ppi->number_spatial_layers == 1 &&
          cpi->ppi->number_temporal_layers == 1 &&
-         !cpi->rtc_ref.set_ref_frame_config;
+         !cpi->ppi->rtc_ref.set_ref_frame_config;
 }
 
 // Function return size of frame stats buffer

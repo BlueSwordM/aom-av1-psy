@@ -183,7 +183,7 @@ static AOM_INLINE bool check_ref_is_low_spatial_res_super_frame(
 
 void av1_restore_layer_context(AV1_COMP *const cpi) {
   SVC *const svc = &cpi->svc;
-  RTC_REF *const rtc_ref = &cpi->rtc_ref;
+  RTC_REF *const rtc_ref = &cpi->ppi->rtc_ref;
   const AV1_COMMON *const cm = &cpi->common;
   LAYER_CONTEXT *const lc = get_layer_context(cpi);
   const int old_frame_since_key = cpi->rc.frames_since_key;
@@ -260,10 +260,10 @@ void av1_save_layer_context(AV1_COMP *const cpi) {
       svc->buffer_time_index[i] = svc->current_superframe;
       svc->buffer_spatial_layer[i] = svc->spatial_layer_id;
     }
-  } else if (cpi->rtc_ref.set_ref_frame_config) {
+  } else if (cpi->ppi->rtc_ref.set_ref_frame_config) {
     for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-      int ref_frame_map_idx = cpi->rtc_ref.ref_idx[i];
-      if (cpi->rtc_ref.refresh[ref_frame_map_idx]) {
+      int ref_frame_map_idx = cpi->ppi->rtc_ref.ref_idx[i];
+      if (cpi->ppi->rtc_ref.refresh[ref_frame_map_idx]) {
         svc->buffer_time_index[ref_frame_map_idx] = svc->current_superframe;
         svc->buffer_spatial_layer[ref_frame_map_idx] = svc->spatial_layer_id;
       }
@@ -371,7 +371,7 @@ enum {
 // spatial and temporal layers, and the ksvc_fixed_mode.
 void av1_set_svc_fixed_mode(AV1_COMP *const cpi) {
   SVC *const svc = &cpi->svc;
-  RTC_REF *const rtc_ref = &cpi->rtc_ref;
+  RTC_REF *const rtc_ref = &cpi->ppi->rtc_ref;
   int i;
   assert(svc->use_flexible_mode == 0);
   // Fixed SVC mode only supports at most 3 spatial or temporal layers.

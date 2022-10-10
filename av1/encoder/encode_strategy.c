@@ -615,7 +615,7 @@ int av1_get_refresh_frame_flags(
   // flags to 0 to keep things consistent.
   if (frame_params->show_existing_frame) return 0;
 
-  const RTC_REF *const rtc_ref = &cpi->rtc_ref;
+  const RTC_REF *const rtc_ref = &cpi->ppi->rtc_ref;
   if (is_frame_droppable(rtc_ref, ext_refresh_frame_flags)) return 0;
 
 #if !CONFIG_REALTIME_ONLY
@@ -1534,10 +1534,10 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       if (!ext_flags->refresh_frame.update_pending) {
         av1_get_ref_frames(ref_frame_map_pairs, cur_frame_disp, cpi,
                            cpi->gf_frame_index, 1, cm->remapped_ref_idx);
-      } else if (cpi->rtc_ref.set_ref_frame_config ||
+      } else if (cpi->ppi->rtc_ref.set_ref_frame_config ||
                  use_rtc_reference_structure_one_layer(cpi)) {
         for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++)
-          cm->remapped_ref_idx[i] = cpi->rtc_ref.ref_idx[i];
+          cm->remapped_ref_idx[i] = cpi->ppi->rtc_ref.ref_idx[i];
       }
     }
 
@@ -1673,7 +1673,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   // Leave a signal for a higher level caller about if this frame is droppable
   if (*size > 0) {
     cpi->droppable =
-        is_frame_droppable(&cpi->rtc_ref, &ext_flags->refresh_frame);
+        is_frame_droppable(&cpi->ppi->rtc_ref, &ext_flags->refresh_frame);
   }
 
   return AOM_CODEC_OK;

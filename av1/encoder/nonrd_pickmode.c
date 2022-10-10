@@ -2219,8 +2219,8 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   // When the ref_frame_config is used to set the reference frame structure
   // then the usage of alt_ref is determined by the ref_frame_flags
   // (and not the speed feature use_nonrd_altref_frame).
-  int use_alt_ref_frame =
-      cpi->rtc_ref.set_ref_frame_config || cpi->sf.rt_sf.use_nonrd_altref_frame;
+  int use_alt_ref_frame = cpi->ppi->rtc_ref.set_ref_frame_config ||
+                          cpi->sf.rt_sf.use_nonrd_altref_frame;
 
   int use_golden_ref_frame = 1;
   int use_last_ref_frame = 1;
@@ -2228,12 +2228,12 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   // When the ref_frame_config is used to set the reference frame structure:
   // check if LAST is used as a reference. And only remove golden and altref
   // references below if last is used as a reference.
-  if (cpi->rtc_ref.set_ref_frame_config)
+  if (cpi->ppi->rtc_ref.set_ref_frame_config)
     use_last_ref_frame =
         cpi->ref_frame_flags & AOM_LAST_FLAG ? use_last_ref_frame : 0;
 
   // frame_since_golden is not used when user sets the referene structure.
-  if (!cpi->rtc_ref.set_ref_frame_config && use_last_ref_frame &&
+  if (!cpi->ppi->rtc_ref.set_ref_frame_config && use_last_ref_frame &&
       cpi->rc.frames_since_golden == 0 && gf_temporal_ref) {
     use_golden_ref_frame = 0;
   }
