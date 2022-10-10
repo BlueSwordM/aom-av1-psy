@@ -88,6 +88,11 @@ class DuckyEncode {
   void AllocateBitstreamBuffer(const VideoInfo &video_info);
 
  private:
+  void InitEncoder(aom_enc_pass pass,
+                   const std::vector<FIRSTPASS_STATS> *stats_list);
+  void FreeEncoder();
+
+ private:
   class EncodeImpl;
   std::unique_ptr<EncodeImpl> impl_ptr_;
   bool write_temp_delimiter_;

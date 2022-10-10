@@ -32,7 +32,6 @@
 
 namespace aom {
 struct EncoderResource {
-  FILE *in_file;
   STATS_BUFFER_CTX *stats_buf_ctx;
   FIRSTPASS_STATS *stats_buffer;
   aom_image_t img;
@@ -52,6 +51,7 @@ class DuckyEncode::EncodeImpl {
   aom_rational64_t timestamp_ratio;
   std::vector<FIRSTPASS_STATS> stats_list;
   EncoderResource enc_resource;
+  struct AvxInputContext input;
 };
 
 DuckyEncode::DuckyEncode(const VideoInfo &video_info, int max_ref_frames,
@@ -68,6 +68,7 @@ DuckyEncode::DuckyEncode(const VideoInfo &video_info, int max_ref_frames,
   // timestamp_ratio.num = (int64_t)cfg->g_timebase.num * TICKS_PER_SEC;
   impl_ptr_->timestamp_ratio = { 1, 1 };
   // TODO(angiebird): How to set ptsvol and duration?
+  impl_ptr_->input.filename = impl_ptr_->video_info.file_path.c_str();
 }
 
 DuckyEncode::~DuckyEncode() {}
@@ -126,7 +127,7 @@ static void DestroyStatsBufferCtx(STATS_BUFFER_CTX **stats_buf_context,
   (*stats_buf_context)->total_left_stats = nullptr;
   delete *stats_buf_context;
   *stats_buf_context = nullptr;
-  delete[] (*stats_buffer);
+  delete[](*stats_buffer);
   *stats_buffer = nullptr;
 }
 
@@ -139,21 +140,61 @@ static FIRSTPASS_STATS ComputeTotalStats(
   return total_stats;
 }
 
-static EncoderResource InitEncoder(
-    const VideoInfo &video_info, int g_usage, enum aom_rc_mode rc_end_usage,
-    aom_enc_pass pass, const std::vector<FIRSTPASS_STATS> *stats_list,
-    int max_ref_frames, int speed) {
+static bool FileIsY4m(const char detect[4]) {
+  return memcmp(detect, "YUV4", 4) == 0;
+}
+
+static bool FourccIsIvf(const char detect[4]) {
+  return memcmp(detect, "DKIF", 4) == 0;
+}
+
+static void OpenInputFile(struct AvxInputContext *input) {
+  input->file = fopen(input->filename, "rb");
+  /* For RAW input sources, these bytes will applied on the first frame
+   *  in read_frame().
+   */
+  input->detect.buf_read = fread(input->detect.buf, 1, 4, input->file);
+  input->detect.position = 0;
+  aom_chroma_sample_position_t const csp = AOM_CSP_UNKNOWN;
+  if (input->detect.buf_read == 4 && FileIsY4m(input->detect.buf)) {
+    if (y4m_input_open(&input->y4m, input->file, input->detect.buf, 4, csp,
+                       input->only_i420) >= 0) {
+      input->file_type = FILE_TYPE_Y4M;
+      input->width = input->y4m.pic_w;
+      input->height = input->y4m.pic_h;
+      input->pixel_aspect_ratio.numerator = input->y4m.par_n;
+      input->pixel_aspect_ratio.denominator = input->y4m.par_d;
+      input->framerate.numerator = input->y4m.fps_n;
+      input->framerate.denominator = input->y4m.fps_d;
+      input->fmt = input->y4m.aom_fmt;
+      input->bit_depth = static_cast<aom_bit_depth_t>(input->y4m.bit_depth);
+      input->color_range = input->y4m.color_range;
+    } else
+      fatal("Unsupported Y4M stream.");
+  } else if (input->detect.buf_read == 4 && FourccIsIvf(input->detect.buf)) {
+    fatal("IVF is not supported as input.");
+  } else {
+    input->file_type = FILE_TYPE_RAW;
+  }
+}
+
+void DuckyEncode::InitEncoder(aom_enc_pass pass,
+                              const std::vector<FIRSTPASS_STATS> *stats_list) {
   EncoderResource enc_resource = {};
-  enc_resource.in_file = fopen(video_info.file_path.c_str(), "r");
   enc_resource.lookahead_push_count = 0;
-  aom_img_alloc(&enc_resource.img, video_info.img_fmt, video_info.frame_width,
-                video_info.frame_height, /*align=*/1);
-  AV1EncoderConfig oxcf = GetEncoderConfig(video_info, g_usage, pass);
+  OpenInputFile(&impl_ptr_->input);
+  if (impl_ptr_->input.file_type != FILE_TYPE_Y4M) {
+    aom_img_alloc(&enc_resource.img, impl_ptr_->video_info.img_fmt,
+                  impl_ptr_->video_info.frame_width,
+                  impl_ptr_->video_info.frame_height, /*align=*/1);
+  }
+  AV1EncoderConfig oxcf =
+      GetEncoderConfig(impl_ptr_->video_info, impl_ptr_->g_usage, pass);
   oxcf.dec_model_cfg.decoder_model_info_present_flag = 0;
   oxcf.dec_model_cfg.display_model_info_present_flag = 0;
-  oxcf.ref_frm_cfg.max_reference_frames = max_ref_frames;
-  oxcf.speed = speed;
-  av1_initialize_enc(g_usage, rc_end_usage);
+  oxcf.ref_frm_cfg.max_reference_frames = impl_ptr_->max_ref_frames;
+  oxcf.speed = impl_ptr_->speed;
+  av1_initialize_enc(impl_ptr_->g_usage, impl_ptr_->rc_end_usage);
   AV1_PRIMARY *ppi =
       av1_create_primary_compressor(nullptr,
                                     /*num_lap_buffers=*/0, &oxcf);
@@ -168,8 +209,8 @@ static EncoderResource InitEncoder(
 
   aom_codec_err_t res = AOM_CODEC_OK;
   (void)res;
-  enc_resource.stats_buf_ctx =
-      CreateStatsBufferCtx(video_info.frame_count, &enc_resource.stats_buffer);
+  enc_resource.stats_buf_ctx = CreateStatsBufferCtx(
+      impl_ptr_->video_info.frame_count, &enc_resource.stats_buffer);
   if (pass == AOM_RC_SECOND_PASS) {
     assert(stats_list != nullptr);
     std::copy(stats_list->begin(), stats_list->end(),
@@ -178,8 +219,8 @@ static EncoderResource InitEncoder(
     oxcf.twopass_stats_in.buf = enc_resource.stats_buffer;
     // We need +1 here because av1 encoder assumes
     // oxcf.twopass_stats_in.buf[video_info.frame_count] has the total_stats
-    oxcf.twopass_stats_in.sz =
-        (video_info.frame_count + 1) * sizeof(enc_resource.stats_buffer[0]);
+    oxcf.twopass_stats_in.sz = (impl_ptr_->video_info.frame_count + 1) *
+                               sizeof(enc_resource.stats_buffer[0]);
   } else {
     assert(pass == AOM_RC_FIRST_PASS);
     // We don't use stats_list for AOM_RC_FIRST_PASS.
@@ -217,12 +258,18 @@ static EncoderResource InitEncoder(
 
   av1_tf_info_alloc(&cpi->ppi->tf_info, cpi);
   assert(ppi->lookahead != nullptr);
-  return enc_resource;
+
+  impl_ptr_->enc_resource = enc_resource;
 }
 
-static void FreeEncoder(EncoderResource *enc_resource) {
-  fclose(enc_resource->in_file);
-  enc_resource->in_file = nullptr;
+static void CloseInputFile(struct AvxInputContext *input) {
+  fclose(input->file);
+  if (input->file_type == FILE_TYPE_Y4M) y4m_input_close(&input->y4m);
+}
+
+void DuckyEncode::FreeEncoder() {
+  EncoderResource *enc_resource = &impl_ptr_->enc_resource;
+  CloseInputFile(&impl_ptr_->input);
   aom_img_free(&enc_resource->img);
   DestroyStatsBufferCtx(&enc_resource->stats_buf_ctx,
                         &enc_resource->stats_buffer);
@@ -232,30 +279,42 @@ static void FreeEncoder(EncoderResource *enc_resource) {
   enc_resource->ppi = nullptr;
 }
 
+static int ReadFrame(struct AvxInputContext *input_ctx, aom_image_t *img) {
+  FILE *f = input_ctx->file;
+  y4m_input *y4m = &input_ctx->y4m;
+  int shortread = 0;
+
+  if (input_ctx->file_type == FILE_TYPE_Y4M) {
+    if (y4m_input_fetch_frame(y4m, f, img) < 1) return 0;
+  } else {
+    shortread = read_yuv_frame(input_ctx, img);
+  }
+
+  return !shortread;
+}
+
 std::vector<FIRSTPASS_STATS> DuckyEncode::ComputeFirstPassStats() {
   aom_enc_pass pass = AOM_RC_FIRST_PASS;
-  EncoderResource enc_resource = InitEncoder(
-      impl_ptr_->video_info, impl_ptr_->g_usage, impl_ptr_->rc_end_usage, pass,
-      nullptr, impl_ptr_->max_ref_frames, impl_ptr_->speed);
-  AV1_PRIMARY *ppi = enc_resource.ppi;
+  InitEncoder(pass, nullptr);
+  AV1_PRIMARY *ppi = impl_ptr_->enc_resource.ppi;
+  EncoderResource *enc_resource = &impl_ptr_->enc_resource;
   struct lookahead_ctx *lookahead = ppi->lookahead;
   int frame_count = impl_ptr_->video_info.frame_count;
-  FILE *in_file = enc_resource.in_file;
   aom_rational64_t timestamp_ratio = impl_ptr_->timestamp_ratio;
   // TODO(angiebird): Ideally, ComputeFirstPassStats() doesn't output
   // bitstream. Do we need bitstream buffer here?
   std::vector<uint8_t> buf(1000);
   std::vector<FIRSTPASS_STATS> stats_list;
   for (int i = 0; i < frame_count; ++i) {
-    if (aom_img_read(&enc_resource.img, in_file)) {
+    if (ReadFrame(&impl_ptr_->input, &impl_ptr_->enc_resource.img)) {
       // TODO(angiebird): Set ts_start/ts_end properly
-      int64_t ts_start = enc_resource.lookahead_push_count;
+      int64_t ts_start = enc_resource->lookahead_push_count;
       int64_t ts_end = ts_start + 1;
       YV12_BUFFER_CONFIG sd;
-      image2yuvconfig(&enc_resource.img, &sd);
+      image2yuvconfig(&enc_resource->img, &sd);
       av1_lookahead_push(lookahead, &sd, ts_start, ts_end,
                          /*use_highbitdepth=*/0, /*flags=*/0);
-      ++enc_resource.lookahead_push_count;
+      ++enc_resource->lookahead_push_count;
       AV1_COMP_DATA cpi_data = {};
       cpi_data.cx_data = buf.data();
       cpi_data.cx_data_sz = buf.size();
@@ -276,16 +335,14 @@ std::vector<FIRSTPASS_STATS> DuckyEncode::ComputeFirstPassStats() {
   }
   av1_end_first_pass(ppi->cpi);
 
-  FreeEncoder(&enc_resource);
+  FreeEncoder();
   return stats_list;
 }
 
 void DuckyEncode::StartEncode(const std::vector<FIRSTPASS_STATS> &stats_list) {
   aom_enc_pass pass = AOM_RC_SECOND_PASS;
   impl_ptr_->stats_list = stats_list;
-  impl_ptr_->enc_resource = InitEncoder(
-      impl_ptr_->video_info, impl_ptr_->g_usage, impl_ptr_->rc_end_usage, pass,
-      &stats_list, impl_ptr_->max_ref_frames, impl_ptr_->speed);
+  InitEncoder(pass, &stats_list);
   write_temp_delimiter_ = true;
 }
 
@@ -522,11 +579,10 @@ EncodeFrameResult DuckyEncode::EncodeFrame(
   AV1_PRIMARY *ppi = impl_ptr_->enc_resource.ppi;
   aom_image_t *img = &impl_ptr_->enc_resource.img;
   AV1_COMP *const cpi = ppi->cpi;
-  FILE *in_file = impl_ptr_->enc_resource.in_file;
   struct lookahead_ctx *lookahead = ppi->lookahead;
 
   while (!av1_lookahead_full(lookahead)) {
-    if (aom_img_read(img, in_file)) {
+    if (ReadFrame(&impl_ptr_->input, img)) {
       YV12_BUFFER_CONFIG sd;
       image2yuvconfig(img, &sd);
       int64_t ts_start = impl_ptr_->enc_resource.lookahead_push_count;
@@ -577,7 +633,7 @@ EncodeFrameResult DuckyEncode::EncodeFrame(
   return encode_frame_result;
 }
 
-void DuckyEncode::EndEncode() { FreeEncoder(&impl_ptr_->enc_resource); }
+void DuckyEncode::EndEncode() { FreeEncoder(); }
 
 void DuckyEncode::AllocateBitstreamBuffer(const VideoInfo &video_info) {
   pending_ctx_size_ = 0;
