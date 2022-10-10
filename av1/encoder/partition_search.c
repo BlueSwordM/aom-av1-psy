@@ -2775,9 +2775,10 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
                 break;
               }
 
-              encode_b_nonrd(cpi, tile_data, td, tp, mi_row + y_idx,
-                             mi_col + x_idx, 1, subsize, PARTITION_NONE,
-                             pc_tree->split[i]->none, NULL);
+              if (i != SUB_PARTITIONS_SPLIT - 1)
+                encode_b_nonrd(cpi, tile_data, td, tp, mi_row + y_idx,
+                               mi_col + x_idx, 1, subsize, PARTITION_NONE,
+                               pc_tree->split[i]->none, NULL);
             }
             av1_restore_context(x, &x_ctx, mi_row, mi_col, bsize, 3);
             split_rdc.rdcost =
