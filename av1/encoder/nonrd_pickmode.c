@@ -352,6 +352,22 @@ static INLINE int subpel_select(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   return cpi->sf.mv_sf.subpel_force_stop;
 }
 
+bool use_aggressive_subpel_search_method(MACROBLOCK *x,
+                                         int adaptive_subpel_search_level,
+                                         const bool fullpel_performed_well) {
+  if (!adaptive_subpel_search_level) return false;
+  const int qband = x->qindex >> (QINDEX_BITS - 2);
+  assert(qband < 4);
+  const bool is_fullpel_well_or_lowsad =
+      fullpel_performed_well || x->content_state_sb.source_sad_nonrd <= kLowSad;
+  if (adaptive_subpel_search_level == 2 && qband != 0 &&
+      (is_fullpel_well_or_lowsad || x->source_variance < 100))
+    return true;
+  else if (adaptive_subpel_search_level == 1 && is_fullpel_well_or_lowsad)
+    return true;
+  return false;
+}
+
 /*!\brief Runs Motion Estimation for a specific block and specific ref frame.
  *
  * \ingroup nonrd_mode_search
@@ -454,18 +470,16 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
                                             start_mv, fullpel_performed_well);
 
     MV subpel_start_mv = get_mv_from_fullmv(&tmp_mv->as_fullmv);
-    if (sf->rt_sf.use_adaptive_subpel_search &&
-        (fullpel_performed_well ||
-         x->content_state_sb.source_sad_nonrd <= kLowSad)) {
+    // adaptively downgrade subpel search method based on block properties
+    if (use_aggressive_subpel_search_method(
+            x, sf->rt_sf.adaptive_subpel_search_level, fullpel_performed_well))
       av1_find_best_sub_pixel_tree_pruned_more(xd, cm, &ms_params,
                                                subpel_start_mv, &tmp_mv->as_mv,
                                                &dis, &x->pred_sse[ref], NULL);
-    } else {
+    else
       cpi->mv_search_params.find_fractional_mv_step(
           xd, cm, &ms_params, subpel_start_mv, &tmp_mv->as_mv, &dis,
           &x->pred_sse[ref], NULL);
-    }
-
     *rate_mv =
         av1_mv_bit_cost(&tmp_mv->as_mv, &ref_mv, x->mv_costs->nmv_joint_cost,
                         x->mv_costs->mv_cost_stack, MV_COST_WEIGHT);

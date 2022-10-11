@@ -1297,6 +1297,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       }
 #endif
 #endif
+      sf->rt_sf.adaptive_subpel_search_level = 0;
     }
     if (speed >= 10) {
       sf->rt_sf.skip_intra_pred = 2;
@@ -1328,12 +1329,14 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.skip_cdef_sb = 1;
       sf->rt_sf.sad_based_adp_altref_lag = 2;
       sf->rt_sf.reduce_mv_pel_precision_highmotion = 2;
+      sf->rt_sf.adaptive_subpel_search_level = 2;
     }
     if (speed >= 10) {
       sf->rt_sf.hybrid_intra_pickmode = 2;
       sf->rt_sf.sad_based_adp_altref_lag = 4;
       sf->rt_sf.tx_size_level_based_on_qstep = 0;
       sf->rt_sf.reduce_mv_pel_precision_highmotion = 3;
+      sf->rt_sf.adaptive_subpel_search_level = 0;
     }
   }
   if (!is_480p_or_larger) {
@@ -1724,7 +1727,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.prune_compoundmode_with_singlecompound_var = true;
     sf->rt_sf.prune_compoundmode_with_singlemode_var = true;
     sf->rt_sf.skip_compound_based_on_var = true;
-    sf->rt_sf.use_adaptive_subpel_search = true;
+    sf->rt_sf.adaptive_subpel_search_level = 1;
   }
 
   if (speed >= 8) {
@@ -1752,7 +1755,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.frame_level_mode_cost_update = true;
     sf->rt_sf.check_only_zero_zeromv_on_large_blocks = true;
     sf->rt_sf.reduce_mv_pel_precision_highmotion = 0;
-    sf->rt_sf.use_adaptive_subpel_search = false;
+    sf->rt_sf.adaptive_subpel_search_level = 2;
   }
   if (speed >= 10) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_4;
@@ -2093,7 +2096,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->prune_compoundmode_with_singlemode_var = false;
   rt_sf->skip_compound_based_on_var = false;
   rt_sf->set_zeromv_skip_based_on_source_sad = 1;
-  rt_sf->use_adaptive_subpel_search = false;
+  rt_sf->adaptive_subpel_search_level = 0;
   rt_sf->screen_content_cdef_filter_qindex_thresh = 0;
   rt_sf->enable_ref_short_signaling = false;
   rt_sf->check_globalmv_on_single_ref = true;
