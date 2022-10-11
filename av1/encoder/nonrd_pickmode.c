@@ -2355,14 +2355,6 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
        (x->nonrd_prune_ref_frame_search > 1 && bsize > BLOCK_64X64))) {
     use_golden_ref_frame = 0;
     use_alt_ref_frame = 0;
-    // Keep golden (longer-term) reference if sb has high source sad, for
-    // frames whose average source_sad is below threshold. This is to try to
-    // capture case where only part of frame has high motion.
-    // Exclude screen content mode.
-    if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN &&
-        x->content_state_sb.source_sad_nonrd >= kHighSad &&
-        bsize <= BLOCK_32X32 && cpi->rc.frame_source_sad < 50000)
-      use_golden_ref_frame = 1;
   }
 
   if (segfeature_active(seg, mi->segment_id, SEG_LVL_REF_FRAME) &&
@@ -2383,6 +2375,22 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
         x->content_state_sb.source_sad_nonrd > kLowSad)) &&
       (x->color_sensitivity_sb_g[0] == 1 || x->color_sensitivity_sb_g[1] == 1))
     use_golden_ref_frame = 0;
+
+  // For non-screen: if golden and altref are not being selected as references
+  // (use_golden_ref_frame/use_alt_ref_frame = 0) check to allow golden back
+  // based on the sad of nearest/nearmv of LAST ref. If this block sad is large,
+  // keep golden as reference. Only do this for the agrressive pruning mode and
+  // avoid it when color is set for golden reference.
+  if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN &&
+      (cpi->ref_frame_flags & AOM_LAST_FLAG) && !use_golden_ref_frame &&
+      !use_alt_ref_frame && x->pred_mv_sad[LAST_FRAME] != INT_MAX &&
+      x->nonrd_prune_ref_frame_search > 2 &&
+      x->color_sensitivity_sb_g[0] == 0 && x->color_sensitivity_sb_g[1] == 0) {
+    int thr = (cm->width * cm->height >= 640 * 360) ? 100 : 150;
+    int pred = x->pred_mv_sad[LAST_FRAME] >>
+               (b_width_log2_lookup[bsize] + b_height_log2_lookup[bsize]);
+    if (pred > thr) use_golden_ref_frame = 1;
+  }
 
   use_alt_ref_frame =
       cpi->ref_frame_flags & AOM_ALT_FLAG ? use_alt_ref_frame : 0;
@@ -3144,6 +3152,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     svc_mv_row = -4;
   }
 
+  if (cpi->ref_frame_flags & AOM_LAST_FLAG)
+    find_predictors(cpi, x, LAST_FRAME, frame_mv, tile_data, yv12_mb, bsize,
+                    force_skip_low_temp_var, x->force_zeromv_skip_for_blk);
+
   get_ref_frame_use_mask(cpi, x, mi, mi_row, mi_col, bsize, gf_temporal_ref,
                          use_ref_frame_mask, &force_skip_low_temp_var);
 
@@ -3163,7 +3175,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     tot_num_comp_modes = 0;
   }
 
-  for (MV_REFERENCE_FRAME ref_frame_iter = LAST_FRAME;
+  // Start at LAST_FRAME + 1.
+  for (MV_REFERENCE_FRAME ref_frame_iter = LAST_FRAME + 1;
        ref_frame_iter <= ALTREF_FRAME; ++ref_frame_iter) {
     if (use_ref_frame_mask[ref_frame_iter]) {
       find_predictors(cpi, x, ref_frame_iter, frame_mv, tile_data, yv12_mb,
@@ -3171,10 +3184,12 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     }
   }
 
-  thresh_sad_pred = ((int64_t)x->pred_mv_sad[LAST_FRAME]) << 1;
-  // Increase threshold for less aggressive pruning.
-  if (cpi->sf.rt_sf.nonrd_prune_ref_frame_search == 1)
-    thresh_sad_pred += (x->pred_mv_sad[LAST_FRAME] >> 2);
+  if (x->pred_mv_sad[LAST_FRAME] != INT_MAX) {
+    thresh_sad_pred = ((int64_t)x->pred_mv_sad[LAST_FRAME]) << 1;
+    // Increase threshold for less aggressive pruning.
+    if (cpi->sf.rt_sf.nonrd_prune_ref_frame_search == 1)
+      thresh_sad_pred += (x->pred_mv_sad[LAST_FRAME] >> 2);
+  }
 
   const int large_block = bsize >= BLOCK_32X32;
   const int use_model_yrd_large =
