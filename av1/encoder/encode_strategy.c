@@ -194,7 +194,8 @@ static int choose_primary_ref_frame(
   // frame bit allocation.
   if (cm->tiles.large_scale) return (LAST_FRAME - LAST_FRAME);
 
-  if (cpi->ppi->use_svc) return av1_svc_primary_ref_frame(cpi);
+  if (cpi->ppi->use_svc || cpi->ppi->rtc_ref.set_ref_frame_config)
+    return av1_svc_primary_ref_frame(cpi);
 
   // Find the most recent reference frame with the same reference type as the
   // current frame

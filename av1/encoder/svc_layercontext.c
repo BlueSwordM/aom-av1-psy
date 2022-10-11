@@ -285,16 +285,29 @@ int av1_svc_primary_ref_frame(const AV1_COMP *const cpi) {
   const AV1_COMMON *const cm = &cpi->common;
   int fb_idx = -1;
   int primary_ref_frame = PRIMARY_REF_NONE;
-  // Set the primary_ref_frame to LAST_FRAME if that buffer slot for LAST
-  // was last updated on a lower temporal layer (or base TL0) and for the
-  // same spatial layer. For RTC patterns this allows for continued decoding
-  // when set of enhancement layers are dropped (continued decoding starting
-  // at next base TL0), so error_resilience can be off/0 for all layers.
-  fb_idx = get_ref_frame_map_idx(cm, LAST_FRAME);
-  if (svc->spatial_layer_fb[fb_idx] == svc->spatial_layer_id &&
-      (svc->temporal_layer_fb[fb_idx] < svc->temporal_layer_id ||
-       svc->temporal_layer_fb[fb_idx] == 0)) {
-    primary_ref_frame = 0;  // LAST_FRAME
+  if (cpi->svc.number_spatial_layers > 1 ||
+      cpi->svc.number_temporal_layers > 1) {
+    // Set the primary_ref_frame to LAST_FRAME if that buffer slot for LAST
+    // was last updated on a lower temporal layer (or base TL0) and for the
+    // same spatial layer. For RTC patterns this allows for continued decoding
+    // when set of enhancement layers are dropped (continued decoding starting
+    // at next base TL0), so error_resilience can be off/0 for all layers.
+    fb_idx = get_ref_frame_map_idx(cm, LAST_FRAME);
+    if (svc->spatial_layer_fb[fb_idx] == svc->spatial_layer_id &&
+        (svc->temporal_layer_fb[fb_idx] < svc->temporal_layer_id ||
+         svc->temporal_layer_fb[fb_idx] == 0)) {
+      primary_ref_frame = 0;  // LAST_FRAME: ref_frame - LAST_FRAME
+    }
+  } else if (cpi->ppi->rtc_ref.set_ref_frame_config) {
+    const ExternalFlags *const ext_flags = &cpi->ext_flags;
+    int flags = ext_flags->ref_frame_flags;
+    if (flags & AOM_LAST_FLAG) {
+      primary_ref_frame = 0;  // LAST_FRAME: ref_frame - LAST_FRAME
+    } else if (flags & AOM_GOLD_FLAG) {
+      primary_ref_frame = GOLDEN_FRAME - LAST_FRAME;
+    } else if (flags & AOM_ALT_FLAG) {
+      primary_ref_frame = ALTREF_FRAME - LAST_FRAME;
+    }
   }
   return primary_ref_frame;
 }

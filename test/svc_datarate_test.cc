@@ -1769,12 +1769,7 @@ class DatarateTestSVC
     ResetModel();
     rps_mode_ = 1;
     rps_recovery_frame_ = 100;
-
-    // Set error_resilience on.
-    // TODO(marpan): This should not be needed, look into fix for
-    // setting er = 0 (fix to setting PRIMARY_REF_FRAME).
-    cfg_.g_error_resilient = 1;
-
+    cfg_.g_error_resilient = 0;
     // Drop x frames before the recovery frames (where the reference
     // is switched to an older reference (golden or altref).
     // GOLDEN is 8 frames behind (for the rps pattern example) so we can't
