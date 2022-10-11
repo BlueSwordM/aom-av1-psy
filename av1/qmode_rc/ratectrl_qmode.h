@@ -99,6 +99,7 @@ class AV1RateControlQMode : public AV1RateControlQModeInterface {
       const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
       const std::vector<LookaheadStats> &lookahead_stats,
       const RefFrameTable &ref_frame_table_snapshot) override;
+  int GetRDMult(const GopFrame &gop_frame, int q_index) const override;
 
   // Public for testing only.
   // Returns snapshots of the ref frame before and after each frame in

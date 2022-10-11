@@ -42,6 +42,15 @@ struct RateControlParam {
 
   int base_q_index;
 
+  // If greater than 1, enables per-superblock q_index, and limits the number of
+  // unique q_index values which may be used in a frame.
+  int max_distinct_q_indices_per_frame;
+
+  // If per-superblock q_index is enabled and this is greater than 1, enables
+  // additional per-superblock scaling of lambda, and limits the number of
+  // unique lambda scale values which may be used in a frame.
+  int max_distinct_lambda_scales_per_frame;
+
   int frame_width;
   int frame_height;
 };
@@ -213,8 +222,24 @@ struct GopStruct {
 using GopStructList = std::vector<GopStruct>;
 
 struct FrameEncodeParameters {
+  // Base q_index for the frame.
   int q_index;
+  // TODO(b/242918889): Remove rdmult once it's no longer used.
   int rdmult;
+
+  // If max_distinct_q_indices_per_frame <= 1, this will be empty.
+  // Otherwise, it will have one q_index value per 64x64 superblock, in
+  // row-major order, with no more than max_distinct_q_indices_per_frame
+  // unique values.
+  std::vector<uint8_t> superblock_q_indices;
+
+  // If max_distinct_q_indices_per_frame <= 1 or
+  // max_distinct_lambda_scales_per_frame <= 1, this will be empty. Otherwise,
+  // it will have one entry per 64x64 superblock, in row-major order, with no
+  // more than max_distinct_lambda_scales_per_frame unique values. Each entry
+  // should be multiplied by the value returned by GetRDMult to compute the
+  // corresponding superblock's q_index.
+  std::vector<float> superblock_lambda_scales;
 };
 
 struct FirstpassInfo {
@@ -275,6 +300,13 @@ class AV1RateControlQModeInterface {
       const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
       const std::vector<LookaheadStats> &lookahead_stats,
       const RefFrameTable &ref_frame_table_snapshot_init) = 0;
+
+  // Returns the rdmult (lambda) value for the specified frame and q_index.
+  // TODO(b/242918889): Make pure virtual once all derived classes implement it.
+  virtual int GetRDMult(const GopFrame &gop_frame AOM_UNUSED,
+                        int q_index AOM_UNUSED) const {
+    return 0;
+  }
 };
 }  // namespace aom
 

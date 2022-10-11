@@ -1243,19 +1243,20 @@ StatusOr<TplGopDepStats> ComputeTplGopDepStats(
   return tpl_gop_dep_stats;
 }
 
-static int GetRDMult(const GopFrame &gop_frame, int qindex) {
+int AV1RateControlQMode::GetRDMult(const GopFrame &gop_frame,
+                                   int q_index) const {
   // TODO(angiebird):
   // 1) Check if these rdmult rules are good in our use case.
   // 2) Support high-bit-depth mode
   if (gop_frame.is_golden_frame) {
     // Assume ARF_UPDATE/GF_UPDATE share the same remult rule.
-    return av1_compute_rd_mult_based_on_qindex(AOM_BITS_8, GF_UPDATE, qindex);
+    return av1_compute_rd_mult_based_on_qindex(AOM_BITS_8, GF_UPDATE, q_index);
   } else if (gop_frame.is_key_frame) {
-    return av1_compute_rd_mult_based_on_qindex(AOM_BITS_8, KF_UPDATE, qindex);
+    return av1_compute_rd_mult_based_on_qindex(AOM_BITS_8, KF_UPDATE, q_index);
   } else {
     // Assume LF_UPDATE/OVERLAY_UPDATE/INTNL_OVERLAY_UPDATE/INTNL_ARF_UPDATE
     // share the same remult rule.
-    return av1_compute_rd_mult_based_on_qindex(AOM_BITS_8, LF_UPDATE, qindex);
+    return av1_compute_rd_mult_based_on_qindex(AOM_BITS_8, LF_UPDATE, q_index);
   }
 }
 

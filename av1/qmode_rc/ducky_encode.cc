@@ -518,10 +518,11 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
     aom::TplGopStats tpl_gop_stats;
     for (auto &frame : gop_struct.gop_frame_list) {
       // encoding frame frame_number
-      aom::EncodeFrameDecision frame_decision = { aom::EncodeFrameMode::kQindex,
-                                                  aom::EncodeGopMode::kGopRcl,
-                                                  { impl_ptr_->base_qindex,
-                                                    -1 } };
+      aom::EncodeFrameDecision frame_decision = {
+        aom::EncodeFrameMode::kQindex,
+        aom::EncodeGopMode::kGopRcl,
+        { impl_ptr_->base_qindex, -1, {}, {} }
+      };
       (void)frame;
       EncodeFrame(frame_decision);
       if (ppi->cpi->common.show_frame) pending_ctx_size_ = 0;
