@@ -400,7 +400,8 @@ static void set_bitstream_level_tier(AV1_PRIMARY *const ppi, int width,
 }
 
 void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi,
-                               const AV1EncoderConfig *oxcf, int use_svc) {
+                               const AV1EncoderConfig *oxcf,
+                               int disable_frame_id_numbers) {
   SequenceHeader *const seq = &ppi->seq_params;
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
   const ToolCfg *const tool_cfg = &oxcf->tool_cfg;
@@ -415,7 +416,7 @@ void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi,
   seq->frame_id_numbers_present_flag =
       !seq->reduced_still_picture_hdr &&
       !oxcf->tile_cfg.enable_large_scale_tile &&
-      tool_cfg->error_resilient_mode && !use_svc;
+      tool_cfg->error_resilient_mode && !disable_frame_id_numbers;
   if (seq->reduced_still_picture_hdr) {
     seq->order_hint_info.enable_order_hint = 0;
     seq->force_screen_content_tools = 2;
@@ -673,7 +674,8 @@ void av1_change_config_seq(struct AV1_PRIMARY *ppi,
         (ppi->number_spatial_layers > 1 || ppi->number_temporal_layers > 1)
             ? ppi->number_spatial_layers * ppi->number_temporal_layers - 1
             : 0;
-    av1_init_seq_coding_tools(ppi, oxcf, ppi->use_svc);
+    av1_init_seq_coding_tools(
+        ppi, oxcf, ppi->use_svc || ppi->rtc_ref.set_ref_frame_config);
   }
   seq_params->timing_info_present &= !seq_params->reduced_still_picture_hdr;
 
