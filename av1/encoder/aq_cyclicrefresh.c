@@ -380,6 +380,11 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
   }
 }
 
+static int is_scene_change_detected(AV1_COMP *const cpi) {
+  return cpi->rc.high_source_sad ||
+         (cpi->ppi->use_svc && cpi->svc.high_source_sad_superframe);
+}
+
 // Set cyclic refresh parameters.
 void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   // TODO(marpan): Parameters need to be tuned.
@@ -395,9 +400,7 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN)
     qp_thresh = AOMMIN(35, rc->best_quality << 1);
   int qp_max_thresh = 118 * MAXQ >> 7;
-  const int scene_change_detected =
-      cpi->rc.high_source_sad ||
-      (cpi->ppi->use_svc && cpi->svc.high_source_sad_superframe);
+  const int scene_change_detected = is_scene_change_detected(cpi);
 
   // Cases to reset the cyclic refresh adjustment parameters.
   if (frame_is_intra_only(cm) || scene_change_detected) {
@@ -507,9 +510,8 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
   const RATE_CONTROL *const rc = &cpi->rc;
   CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
   struct segmentation *const seg = &cm->seg;
-  const int scene_change_detected =
-      cpi->rc.high_source_sad ||
-      (cpi->ppi->use_svc && cpi->svc.high_source_sad_superframe);
+  const int scene_change_detected = is_scene_change_detected(cpi);
+
   const int resolution_change =
       cm->prev_frame && (cm->width != cm->prev_frame->width ||
                          cm->height != cm->prev_frame->height);
