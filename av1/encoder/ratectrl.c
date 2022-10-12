@@ -2513,14 +2513,34 @@ int av1_calc_iframe_target_size_one_pass_cbr(const AV1_COMP *cpi) {
   return av1_rc_clamp_iframe_target_size(cpi, target);
 }
 
+static void set_golden_update(AV1_COMP *const cpi) {
+  RATE_CONTROL *const rc = &cpi->rc;
+  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
+  int divisor = 10;
+  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ)
+    divisor = cpi->cyclic_refresh->percent_refresh;
+
+  // Set minimum gf_interval for GF update to a multiple of the refresh period,
+  // with some max limit. Depending on past encoding stats, GF flag may be
+  // reset and update may not occur until next baseline_gf_interval.
+  const int gf_length_mult[2] = { 8, 4 };
+  if (divisor > 0)
+    p_rc->baseline_gf_interval =
+        AOMMIN(gf_length_mult[cpi->sf.rt_sf.gf_length_lvl] * (100 / divisor),
+               MAX_GF_INTERVAL_RT);
+  else
+    p_rc->baseline_gf_interval = FIXED_GF_INTERVAL_RT;
+  if (rc->avg_frame_low_motion && rc->avg_frame_low_motion < 40)
+    p_rc->baseline_gf_interval = 16;
+}
+
 static void set_baseline_gf_interval(AV1_COMP *cpi, FRAME_TYPE frame_type) {
   RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   GF_GROUP *const gf_group = &cpi->ppi->gf_group;
-  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ)
-    av1_cyclic_refresh_set_golden_update(cpi);
-  else
-    p_rc->baseline_gf_interval = FIXED_GF_INTERVAL;
+
+  set_golden_update(cpi);
+
   if (p_rc->baseline_gf_interval > rc->frames_to_key &&
       cpi->oxcf.kf_cfg.auto_key)
     p_rc->baseline_gf_interval = rc->frames_to_key;
