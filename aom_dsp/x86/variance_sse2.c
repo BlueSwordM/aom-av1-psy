@@ -673,7 +673,7 @@ uint64_t aom_mse_4xh_16bit_sse2(uint8_t *dst, int dstride, uint16_t *src,
   uint64_t sum = 0;
   __m128i dst0_8x8, dst1_8x8, dst_16x8;
   __m128i src0_16x4, src1_16x4, src_16x8;
-  __m128i res0_32x4, res1_32x4, res0_64x4, res1_64x4, res2_64x4, res3_64x4;
+  __m128i res0_32x4, res0_64x2, res1_64x2;
   __m128i sub_result_16x8;
   const __m128i zeros = _mm_setzero_si128();
   __m128i square_result = _mm_setzero_si128();
@@ -688,26 +688,17 @@ uint64_t aom_mse_4xh_16bit_sse2(uint8_t *dst, int dstride, uint16_t *src,
 
     sub_result_16x8 = _mm_sub_epi16(src_16x8, dst_16x8);
 
-    res0_32x4 = _mm_unpacklo_epi16(sub_result_16x8, zeros);
-    res1_32x4 = _mm_unpackhi_epi16(sub_result_16x8, zeros);
+    res0_32x4 = _mm_madd_epi16(sub_result_16x8, sub_result_16x8);
 
-    res0_32x4 = _mm_madd_epi16(res0_32x4, res0_32x4);
-    res1_32x4 = _mm_madd_epi16(res1_32x4, res1_32x4);
+    res0_64x2 = _mm_unpacklo_epi32(res0_32x4, zeros);
+    res1_64x2 = _mm_unpackhi_epi32(res0_32x4, zeros);
 
-    res0_64x4 = _mm_unpacklo_epi32(res0_32x4, zeros);
-    res1_64x4 = _mm_unpackhi_epi32(res0_32x4, zeros);
-    res2_64x4 = _mm_unpacklo_epi32(res1_32x4, zeros);
-    res3_64x4 = _mm_unpackhi_epi32(res1_32x4, zeros);
-
-    square_result = _mm_add_epi64(
-        square_result,
-        _mm_add_epi64(
-            _mm_add_epi64(_mm_add_epi64(res0_64x4, res1_64x4), res2_64x4),
-            res3_64x4));
+    square_result =
+        _mm_add_epi64(square_result, _mm_add_epi64(res0_64x2, res1_64x2));
   }
-  const __m128i sum_1x64 =
+  const __m128i sum_64x1 =
       _mm_add_epi64(square_result, _mm_srli_si128(square_result, 8));
-  xx_storel_64(&sum, sum_1x64);
+  xx_storel_64(&sum, sum_64x1);
   return sum;
 }
 
@@ -716,7 +707,7 @@ uint64_t aom_mse_8xh_16bit_sse2(uint8_t *dst, int dstride, uint16_t *src,
   uint64_t sum = 0;
   __m128i dst_8x8, dst_16x8;
   __m128i src_16x8;
-  __m128i res0_32x4, res1_32x4, res0_64x4, res1_64x4, res2_64x4, res3_64x4;
+  __m128i res0_32x4, res0_64x2, res1_64x2;
   __m128i sub_result_16x8;
   const __m128i zeros = _mm_setzero_si128();
   __m128i square_result = _mm_setzero_si128();
@@ -729,26 +720,17 @@ uint64_t aom_mse_8xh_16bit_sse2(uint8_t *dst, int dstride, uint16_t *src,
 
     sub_result_16x8 = _mm_sub_epi16(src_16x8, dst_16x8);
 
-    res0_32x4 = _mm_unpacklo_epi16(sub_result_16x8, zeros);
-    res1_32x4 = _mm_unpackhi_epi16(sub_result_16x8, zeros);
+    res0_32x4 = _mm_madd_epi16(sub_result_16x8, sub_result_16x8);
 
-    res0_32x4 = _mm_madd_epi16(res0_32x4, res0_32x4);
-    res1_32x4 = _mm_madd_epi16(res1_32x4, res1_32x4);
+    res0_64x2 = _mm_unpacklo_epi32(res0_32x4, zeros);
+    res1_64x2 = _mm_unpackhi_epi32(res0_32x4, zeros);
 
-    res0_64x4 = _mm_unpacklo_epi32(res0_32x4, zeros);
-    res1_64x4 = _mm_unpackhi_epi32(res0_32x4, zeros);
-    res2_64x4 = _mm_unpacklo_epi32(res1_32x4, zeros);
-    res3_64x4 = _mm_unpackhi_epi32(res1_32x4, zeros);
-
-    square_result = _mm_add_epi64(
-        square_result,
-        _mm_add_epi64(
-            _mm_add_epi64(_mm_add_epi64(res0_64x4, res1_64x4), res2_64x4),
-            res3_64x4));
+    square_result =
+        _mm_add_epi64(square_result, _mm_add_epi64(res0_64x2, res1_64x2));
   }
-  const __m128i sum_1x64 =
+  const __m128i sum_64x1 =
       _mm_add_epi64(square_result, _mm_srli_si128(square_result, 8));
-  xx_storel_64(&sum, sum_1x64);
+  xx_storel_64(&sum, sum_64x1);
   return sum;
 }
 
