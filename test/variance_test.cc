@@ -2976,6 +2976,13 @@ INSTANTIATE_TEST_SUITE_P(
 #endif  // HAVE_AVX2
 
 #if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, MseWxHTest,
+    ::testing::Values(MseWxHParams(3, 3, &aom_mse_wxh_16bit_neon, 8),
+                      MseWxHParams(3, 2, &aom_mse_wxh_16bit_neon, 8),
+                      MseWxHParams(2, 3, &aom_mse_wxh_16bit_neon, 8),
+                      MseWxHParams(2, 2, &aom_mse_wxh_16bit_neon, 8)));
+
 INSTANTIATE_TEST_SUITE_P(NEON, AvxSseTest,
                          ::testing::Values(SseParams(2, 2,
                                                      &aom_get4x4sse_cs_neon)));
