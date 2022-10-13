@@ -1373,7 +1373,10 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
   }
   // TODO(Any): Check/Tune settings of other sfs for 1080p.
   if (is_1080p_or_larger) {
-    if (speed >= 7) sf->rt_sf.reduce_mv_pel_precision_highmotion = 0;
+    if (speed >= 7) {
+      sf->rt_sf.reduce_mv_pel_precision_highmotion = 0;
+      sf->rt_sf.adaptive_subpel_search_level = 0;
+    }
   } else {
     if (speed >= 9) sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     if (speed >= 10) sf->rt_sf.nonrd_aggressive_skip = 1;
