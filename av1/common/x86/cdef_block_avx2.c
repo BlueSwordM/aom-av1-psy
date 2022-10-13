@@ -336,10 +336,10 @@ void cdef_copy_rect8_8bit_to_16bit_avx2(uint16_t *dst, int dstride,
           _mm_cvtsi32_si128(*((const int32_t *)&src[(i + 0) * sstride + j]));
       __m128i row1 =
           _mm_cvtsi32_si128(*((const int32_t *)&src[(i + 1) * sstride + j]));
-      _mm_storeu_si64((__m128i *)&dst[(i + 0) * dstride + j],
-                      _mm_unpacklo_epi8(row0, _mm_setzero_si128()));
-      _mm_storeu_si64((__m128i *)&dst[(i + 1) * dstride + j],
-                      _mm_unpacklo_epi8(row1, _mm_setzero_si128()));
+      _mm_storel_epi64((__m128i *)&dst[(i + 0) * dstride + j],
+                       _mm_unpacklo_epi8(row0, _mm_setzero_si128()));
+      _mm_storel_epi64((__m128i *)&dst[(i + 1) * dstride + j],
+                       _mm_unpacklo_epi8(row1, _mm_setzero_si128()));
       i += 2;
     } while (i < height);
     remaining_width = width & 3;
