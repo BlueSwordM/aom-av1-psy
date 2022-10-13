@@ -1048,26 +1048,21 @@ static AOM_FORCE_INLINE void update_yrd_loop_vars(
  * \callergraph
  * Calculates RD Cost using Hadamard transform. For low bit depth this function
  * uses low-precision set of functions (16-bit) and 32 bit for high bit depth
- * \param[in]    cpi            Top-level encoder structure
  * \param[in]    x              Pointer to structure holding all the data for
                                 the current macroblock
- * \param[in]    mi_row         Row index in 4x4 units
- * \param[in]    mi_col         Column index in 4x4 units
  * \param[in]    this_rdc       Pointer to calculated RD Cost
  * \param[in]    skippable      Pointer to a flag indicating possible tx skip
  * \param[in]    bsize          Current block size
  * \param[in]    tx_size        Transform size
- * \param[in]    tx_type        Transform kernel type
  * \param[in]    is_inter_mode  Flag to indicate inter mode
  *
  * \remark Nothing is returned. Instead, calculated RD cost is placed to
  * \c this_rdc. \c skippable flag is set if there is no non-zero quantized
  * coefficients for Hadamard transform
  */
-void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
-                   int mi_col, RD_STATS *this_rdc, int *skippable,
-                   BLOCK_SIZE bsize, TX_SIZE tx_size, TX_TYPE tx_type,
-                   int is_inter_mode) {
+static void block_yrd(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
+                      const BLOCK_SIZE bsize, const TX_SIZE tx_size,
+                      const int is_inter_mode) {
   MACROBLOCKD *xd = &x->e_mbd;
   const struct macroblockd_plane *pd = &xd->plane[0];
   struct macroblock_plane *const p = &x->plane[0];
@@ -1093,10 +1088,6 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
     sh_blk_skip = 1;
   }
 
-  (void)mi_row;
-  (void)mi_col;
-  (void)cpi;
-
 #if CONFIG_AV1_HIGHBITDEPTH
   if (use_hbd) {
     aom_highbd_subtract_block(bh, bw, p->src_diff, bw, p->src.buf,
@@ -1110,6 +1101,200 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
                      pd->dst.buf, pd->dst.stride);
 #endif
 
+  *skippable = 1;
+  this_rdc->dist = 0;
+  this_rdc->rate = 0;
+  // For block sizes 8x16 or above, Hadamard txfm of two adjacent 8x8 blocks
+  // can be done per function call. Hence the call of Hadamard txfm is
+  // abstracted here for the specified cases.
+  int is_tx_8x8_dual_applicable =
+      (tx_size == TX_8X8 && block_size_wide[bsize] >= 16 &&
+       block_size_high[bsize] >= 8);
+
+#if CONFIG_AV1_HIGHBITDEPTH
+  // As of now, dual implementation of hadamard txfm is available for low
+  // bitdepth.
+  if (use_hbd) is_tx_8x8_dual_applicable = 0;
+#endif
+
+  if (is_tx_8x8_dual_applicable) {
+    aom_process_hadamard_lp_8x16(x, max_blocks_high, max_blocks_wide, num_4x4_w,
+                                 step, block_step);
+  }
+
+  // Keep track of the row and column of the blocks we use so that we know
+  // if we are in the unrestricted motion border.
+  for (int r = 0; r < max_blocks_high; r += block_step) {
+    for (int c = 0, s = 0; c < max_blocks_wide; c += block_step, s += step) {
+      DECLARE_LOOP_VARS_BLOCK_YRD()
+#if CONFIG_AV1_HIGHBITDEPTH
+      DECLARE_HBD_LOOP_VARS_BLOCK_YRD()
+#else
+      (void)use_hbd;
+#endif
+
+      switch (tx_size) {
+#if CONFIG_AV1_HIGHBITDEPTH
+        case TX_16X16:
+          if (use_hbd) {
+            aom_hadamard_16x16(src_diff, diff_stride, coeff);
+            av1_quantize_fp(coeff, 16 * 16, p->zbin_QTX, p->round_fp_QTX,
+                            p->quant_fp_QTX, p->quant_shift_QTX, qcoeff,
+                            dqcoeff, p->dequant_QTX, eob,
+                            // default_scan_fp_16x16_transpose and
+                            // av1_default_iscan_fp_16x16_transpose have to be
+                            // used together.
+                            default_scan_fp_16x16_transpose,
+                            av1_default_iscan_fp_16x16_transpose);
+          } else {
+            aom_hadamard_lp_16x16(src_diff, diff_stride, low_coeff);
+            av1_quantize_lp(low_coeff, 16 * 16, p->round_fp_QTX,
+                            p->quant_fp_QTX, low_qcoeff, low_dqcoeff,
+                            p->dequant_QTX, eob,
+                            // default_scan_lp_16x16_transpose and
+                            // av1_default_iscan_lp_16x16_transpose have to be
+                            // used together.
+                            default_scan_lp_16x16_transpose,
+                            av1_default_iscan_lp_16x16_transpose);
+          }
+          break;
+        case TX_8X8:
+          if (use_hbd) {
+            aom_hadamard_8x8(src_diff, diff_stride, coeff);
+            av1_quantize_fp(
+                coeff, 8 * 8, p->zbin_QTX, p->round_fp_QTX, p->quant_fp_QTX,
+                p->quant_shift_QTX, qcoeff, dqcoeff, p->dequant_QTX, eob,
+                default_scan_8x8_transpose, av1_default_iscan_8x8_transpose);
+          } else {
+            if (!is_tx_8x8_dual_applicable) {
+              aom_hadamard_lp_8x8(src_diff, diff_stride, low_coeff);
+            } else {
+              assert(is_tx_8x8_dual_applicable);
+            }
+            av1_quantize_lp(
+                low_coeff, 8 * 8, p->round_fp_QTX, p->quant_fp_QTX, low_qcoeff,
+                low_dqcoeff, p->dequant_QTX, eob,
+                // default_scan_8x8_transpose and
+                // av1_default_iscan_8x8_transpose have to be used together.
+                default_scan_8x8_transpose, av1_default_iscan_8x8_transpose);
+          }
+          break;
+        default:
+          assert(tx_size == TX_4X4);
+          // In tx_size=4x4 case, aom_fdct4x4 and aom_fdct4x4_lp generate
+          // normal coefficients order, so we don't need to change the scan
+          // order here.
+          if (use_hbd) {
+            aom_fdct4x4(src_diff, coeff, diff_stride);
+            av1_quantize_fp(coeff, 4 * 4, p->zbin_QTX, p->round_fp_QTX,
+                            p->quant_fp_QTX, p->quant_shift_QTX, qcoeff,
+                            dqcoeff, p->dequant_QTX, eob, scan_order->scan,
+                            scan_order->iscan);
+          } else {
+            aom_fdct4x4_lp(src_diff, low_coeff, diff_stride);
+            av1_quantize_lp(low_coeff, 4 * 4, p->round_fp_QTX, p->quant_fp_QTX,
+                            low_qcoeff, low_dqcoeff, p->dequant_QTX, eob,
+                            scan_order->scan, scan_order->iscan);
+          }
+          break;
+#else
+        case TX_16X16:
+          aom_hadamard_lp_16x16(src_diff, diff_stride, low_coeff);
+          av1_quantize_lp(low_coeff, 16 * 16, p->round_fp_QTX, p->quant_fp_QTX,
+                          low_qcoeff, low_dqcoeff, p->dequant_QTX, eob,
+                          default_scan_lp_16x16_transpose,
+                          av1_default_iscan_lp_16x16_transpose);
+          break;
+        case TX_8X8:
+          if (!is_tx_8x8_dual_applicable) {
+            aom_hadamard_lp_8x8(src_diff, diff_stride, low_coeff);
+          } else {
+            assert(is_tx_8x8_dual_applicable);
+          }
+          av1_quantize_lp(low_coeff, 8 * 8, p->round_fp_QTX, p->quant_fp_QTX,
+                          low_qcoeff, low_dqcoeff, p->dequant_QTX, eob,
+                          default_scan_8x8_transpose,
+                          av1_default_iscan_8x8_transpose);
+          break;
+        default:
+          aom_fdct4x4_lp(src_diff, low_coeff, diff_stride);
+          av1_quantize_lp(low_coeff, 4 * 4, p->round_fp_QTX, p->quant_fp_QTX,
+                          low_qcoeff, low_dqcoeff, p->dequant_QTX, eob,
+                          scan_order->scan, scan_order->iscan);
+          break;
+#endif
+      }
+      assert(*eob <= 1024);
+#if CONFIG_AV1_HIGHBITDEPTH
+      if (use_hbd)
+        update_yrd_loop_vars_hbd(x, skippable, step, *eob, coeff, qcoeff,
+                                 dqcoeff, this_rdc, &eob_cost,
+                                 (r * num_blk_skip_w + c) >> sh_blk_skip);
+      else
+#endif
+        update_yrd_loop_vars(x, skippable, step, *eob, low_coeff, low_qcoeff,
+                             low_dqcoeff, this_rdc, &eob_cost,
+                             (r * num_blk_skip_w + c) >> sh_blk_skip);
+    }
+    block += row_step;
+  }
+
+  this_rdc->skip_txfm = *skippable;
+  if (this_rdc->sse < INT64_MAX) {
+    this_rdc->sse = (this_rdc->sse << 6) >> 2;
+    if (*skippable) {
+      this_rdc->dist = 0;
+      this_rdc->dist = this_rdc->sse;
+      return;
+    }
+  }
+
+  // If skippable is set, rate gets clobbered later.
+  this_rdc->rate <<= (2 + AV1_PROB_COST_SHIFT);
+  this_rdc->rate += (eob_cost << AV1_PROB_COST_SHIFT);
+}
+
+/*!\brief Calculates RD Cost when the block uses Identity transform.
+ * Note that thie function is only for low bit depth encoding, since it
+ * is called in real-time mode for now, which sets high bit depth to 0:
+ * -DCONFIG_AV1_HIGHBITDEPTH=0
+ *
+ * \ingroup nonrd_mode_search
+ * \callgraph
+ * \callergraph
+ * Calculates RD Cost. For low bit depth this function
+ * uses low-precision set of functions (16-bit) and 32 bit for high bit depth
+ * \param[in]    x              Pointer to structure holding all the data for
+                                the current macroblock
+ * \param[in]    this_rdc       Pointer to calculated RD Cost
+ * \param[in]    skippable      Pointer to a flag indicating possible tx skip
+ * \param[in]    bsize          Current block size
+ * \param[in]    tx_size        Transform size
+ *
+ * \remark Nothing is returned. Instead, calculated RD cost is placed to
+ * \c this_rdc. \c skippable flag is set if all coefficients are zero.
+ */
+static void block_yrd_idtx(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
+                           const BLOCK_SIZE bsize, const TX_SIZE tx_size) {
+  MACROBLOCKD *xd = &x->e_mbd;
+  const struct macroblockd_plane *pd = &xd->plane[0];
+  struct macroblock_plane *const p = &x->plane[0];
+  assert(bsize < BLOCK_SIZES_ALL);
+  const int num_4x4_w = mi_size_wide[bsize];
+  const int num_4x4_h = mi_size_high[bsize];
+  const int step = 1 << (tx_size << 1);
+  const int block_step = (1 << tx_size);
+  const int row_step = step * num_4x4_w / block_step;
+  int block = 0;
+  const int max_blocks_wide =
+      num_4x4_w + (xd->mb_to_right_edge >= 0 ? 0 : xd->mb_to_right_edge >> 5);
+  const int max_blocks_high =
+      num_4x4_h + (xd->mb_to_bottom_edge >= 0 ? 0 : xd->mb_to_bottom_edge >> 5);
+  int eob_cost = 0;
+  const int bw = 4 * num_4x4_w;
+  const int bh = 4 * num_4x4_h;
+  const int num_blk_skip_w = num_4x4_w >> 1;
+  const int sh_blk_skip = 1;
   *skippable = 1;
   int tx_wd = 0;
   switch (tx_size) {
@@ -1126,187 +1311,29 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
       tx_wd = 4;
       break;
   }
-
   this_rdc->dist = 0;
   this_rdc->rate = 0;
-#if !CONFIG_AV1_HIGHBITDEPTH
-  if (tx_type == IDTX) {
-    // Keep track of the row and column of the blocks we use so that we know
-    // if we are in the unrestricted motion border.
-    for (int r = 0; r < max_blocks_high; r += block_step) {
-      for (int c = 0, s = 0; c < max_blocks_wide; c += block_step, s += step) {
-        DECLARE_LOOP_VARS_BLOCK_YRD()
-
-        for (int idy = 0; idy < tx_wd; ++idy)
-          for (int idx = 0; idx < tx_wd; ++idx)
-            low_coeff[idy * tx_wd + idx] =
-                src_diff[idy * diff_stride + idx] * 8;
-
-        av1_quantize_lp(low_coeff, tx_wd * tx_wd, p->round_fp_QTX,
-                        p->quant_fp_QTX, low_qcoeff, low_dqcoeff,
-                        p->dequant_QTX, eob, scan_order->scan,
-                        scan_order->iscan);
-        assert(*eob <= 1024);
-        update_yrd_loop_vars(x, skippable, step, *eob, low_coeff, low_qcoeff,
-                             low_dqcoeff, this_rdc, &eob_cost,
-                             (r * num_blk_skip_w + c) >> sh_blk_skip);
-      }
-      block += row_step;
-    }
-  } else {
-#else
-  {
-    (void)tx_wd;
-#endif
-    // For block sizes 8x16 or above, Hadamard txfm of two adjacent 8x8 blocks
-    // can be done per function call. Hence the call of Hadamard txfm is
-    // abstracted here for the specified cases.
-    int is_tx_8x8_dual_applicable =
-        (tx_size == TX_8X8 && block_size_wide[bsize] >= 16 &&
-         block_size_high[bsize] >= 8);
-
-#if CONFIG_AV1_HIGHBITDEPTH
-    // As of now, dual implementation of hadamard txfm is available for low
-    // bitdepth and when tx_type != IDTX.
-    if (use_hbd || tx_type == IDTX) is_tx_8x8_dual_applicable = 0;
-#endif
-
-    if (is_tx_8x8_dual_applicable) {
-      aom_process_hadamard_lp_8x16(x, max_blocks_high, max_blocks_wide,
-                                   num_4x4_w, step, block_step);
-    }
-
-    // Keep track of the row and column of the blocks we use so that we know
-    // if we are in the unrestricted motion border.
-    for (int r = 0; r < max_blocks_high; r += block_step) {
-      for (int c = 0, s = 0; c < max_blocks_wide; c += block_step, s += step) {
-        DECLARE_LOOP_VARS_BLOCK_YRD()
-#if CONFIG_AV1_HIGHBITDEPTH
-        DECLARE_HBD_LOOP_VARS_BLOCK_YRD()
-#else
-        (void)use_hbd;
-#endif
-
-        switch (tx_size) {
-#if CONFIG_AV1_HIGHBITDEPTH
-          case TX_16X16:
-            if (use_hbd) {
-              aom_hadamard_16x16(src_diff, diff_stride, coeff);
-              av1_quantize_fp(coeff, 16 * 16, p->zbin_QTX, p->round_fp_QTX,
-                              p->quant_fp_QTX, p->quant_shift_QTX, qcoeff,
-                              dqcoeff, p->dequant_QTX, eob,
-                              // default_scan_fp_16x16_transpose and
-                              // av1_default_iscan_fp_16x16_transpose have to be
-                              // used together.
-                              default_scan_fp_16x16_transpose,
-                              av1_default_iscan_fp_16x16_transpose);
-            } else {
-              if (tx_type == IDTX) {
-                aom_pixel_scale(src_diff, diff_stride, low_coeff, 3, 2, 2);
-              } else {
-                aom_hadamard_lp_16x16(src_diff, diff_stride, low_coeff);
-              }
-              av1_quantize_lp(low_coeff, 16 * 16, p->round_fp_QTX,
-                              p->quant_fp_QTX, low_qcoeff, low_dqcoeff,
-                              p->dequant_QTX, eob,
-                              // default_scan_lp_16x16_transpose and
-                              // av1_default_iscan_lp_16x16_transpose have to be
-                              // used together.
-                              default_scan_lp_16x16_transpose,
-                              av1_default_iscan_lp_16x16_transpose);
-            }
-            break;
-          case TX_8X8:
-            if (use_hbd) {
-              aom_hadamard_8x8(src_diff, diff_stride, coeff);
-              av1_quantize_fp(
-                  coeff, 8 * 8, p->zbin_QTX, p->round_fp_QTX, p->quant_fp_QTX,
-                  p->quant_shift_QTX, qcoeff, dqcoeff, p->dequant_QTX, eob,
-                  default_scan_8x8_transpose, av1_default_iscan_8x8_transpose);
-            } else {
-              if (tx_type == IDTX) {
-                aom_pixel_scale(src_diff, diff_stride, low_coeff, 3, 1, 1);
-              } else if (!is_tx_8x8_dual_applicable) {
-                aom_hadamard_lp_8x8(src_diff, diff_stride, low_coeff);
-              } else {
-                assert(is_tx_8x8_dual_applicable);
-              }
-              av1_quantize_lp(
-                  low_coeff, 8 * 8, p->round_fp_QTX, p->quant_fp_QTX,
-                  low_qcoeff, low_dqcoeff, p->dequant_QTX, eob,
-                  // default_scan_8x8_transpose and
-                  // av1_default_iscan_8x8_transpose have to be used together.
-                  default_scan_8x8_transpose, av1_default_iscan_8x8_transpose);
-            }
-            break;
-          default:
-            assert(tx_size == TX_4X4);
-            // In tx_size=4x4 case, aom_fdct4x4 and aom_fdct4x4_lp generate
-            // normal coefficients order, so we don't need to change the scan
-            // order here.
-            if (use_hbd) {
-              aom_fdct4x4(src_diff, coeff, diff_stride);
-              av1_quantize_fp(coeff, 4 * 4, p->zbin_QTX, p->round_fp_QTX,
-                              p->quant_fp_QTX, p->quant_shift_QTX, qcoeff,
-                              dqcoeff, p->dequant_QTX, eob, scan_order->scan,
-                              scan_order->iscan);
-            } else {
-              if (tx_type == IDTX) {
-                for (int idy = 0; idy < 4; ++idy)
-                  for (int idx = 0; idx < 4; ++idx)
-                    low_coeff[idy * 4 + idx] = src_diff[idy * diff_stride + idx]
-                                               << 3;
-              } else {
-                aom_fdct4x4_lp(src_diff, low_coeff, diff_stride);
-              }
-              av1_quantize_lp(low_coeff, 4 * 4, p->round_fp_QTX,
-                              p->quant_fp_QTX, low_qcoeff, low_dqcoeff,
-                              p->dequant_QTX, eob, scan_order->scan,
-                              scan_order->iscan);
-            }
-            break;
-#else
-          case TX_16X16:
-            aom_hadamard_lp_16x16(src_diff, diff_stride, low_coeff);
-            av1_quantize_lp(low_coeff, 16 * 16, p->round_fp_QTX,
-                            p->quant_fp_QTX, low_qcoeff, low_dqcoeff,
-                            p->dequant_QTX, eob,
-                            default_scan_lp_16x16_transpose,
-                            av1_default_iscan_lp_16x16_transpose);
-            break;
-          case TX_8X8:
-            if (!is_tx_8x8_dual_applicable) {
-              aom_hadamard_lp_8x8(src_diff, diff_stride, low_coeff);
-            } else {
-              assert(is_tx_8x8_dual_applicable);
-            }
-            av1_quantize_lp(low_coeff, 8 * 8, p->round_fp_QTX, p->quant_fp_QTX,
-                            low_qcoeff, low_dqcoeff, p->dequant_QTX, eob,
-                            default_scan_8x8_transpose,
-                            av1_default_iscan_8x8_transpose);
-            break;
-          default:
-            aom_fdct4x4_lp(src_diff, low_coeff, diff_stride);
-            av1_quantize_lp(low_coeff, 4 * 4, p->round_fp_QTX, p->quant_fp_QTX,
-                            low_qcoeff, low_dqcoeff, p->dequant_QTX, eob,
-                            scan_order->scan, scan_order->iscan);
-            break;
-#endif
+  aom_subtract_block(bh, bw, p->src_diff, bw, p->src.buf, p->src.stride,
+                     pd->dst.buf, pd->dst.stride);
+  // Keep track of the row and column of the blocks we use so that we know
+  // if we are in the unrestricted motion border.
+  for (int r = 0; r < max_blocks_high; r += block_step) {
+    for (int c = 0, s = 0; c < max_blocks_wide; c += block_step, s += step) {
+      DECLARE_LOOP_VARS_BLOCK_YRD()
+      for (int idy = 0; idy < tx_wd; ++idy) {
+        for (int idx = 0; idx < tx_wd; ++idx) {
+          low_coeff[idy * tx_wd + idx] = src_diff[idy * diff_stride + idx] * 8;
         }
-        assert(*eob <= 1024);
-#if CONFIG_AV1_HIGHBITDEPTH
-        if (use_hbd)
-          update_yrd_loop_vars_hbd(x, skippable, step, *eob, coeff, qcoeff,
-                                   dqcoeff, this_rdc, &eob_cost,
-                                   (r * num_blk_skip_w + c) >> sh_blk_skip);
-        else
-#endif
-          update_yrd_loop_vars(x, skippable, step, *eob, low_coeff, low_qcoeff,
-                               low_dqcoeff, this_rdc, &eob_cost,
-                               (r * num_blk_skip_w + c) >> sh_blk_skip);
       }
-      block += row_step;
+      av1_quantize_lp(low_coeff, tx_wd * tx_wd, p->round_fp_QTX,
+                      p->quant_fp_QTX, low_qcoeff, low_dqcoeff, p->dequant_QTX,
+                      eob, scan_order->scan, scan_order->iscan);
+      assert(*eob <= 1024);
+      update_yrd_loop_vars(x, skippable, step, *eob, low_coeff, low_qcoeff,
+                           low_dqcoeff, this_rdc, &eob_cost,
+                           (r * num_blk_skip_w + c) >> sh_blk_skip);
     }
+    block += row_step;
   }
   this_rdc->skip_txfm = *skippable;
   if (this_rdc->sse < INT64_MAX) {
@@ -1317,7 +1344,6 @@ void av1_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
       return;
     }
   }
-
   // If skippable is set, rate gets clobbered later.
   this_rdc->rate <<= (2 + AV1_PROB_COST_SHIFT);
   this_rdc->rate += (eob_cost << AV1_PROB_COST_SHIFT);
@@ -1613,8 +1639,8 @@ static void estimate_block_intra(int plane, int block, int row, int col,
   pd->dst.buf = &dst_buf_base[4 * (row * dst_stride + col)];
 
   if (plane == 0) {
-    av1_block_yrd(cpi, x, 0, 0, &this_rdc, &args->skippable, bsize_tx,
-                  AOMMIN(tx_size, TX_16X16), DCT_DCT, 0);
+    block_yrd(x, &this_rdc, &args->skippable, bsize_tx,
+              AOMMIN(tx_size, TX_16X16), 0);
   } else {
     int64_t sse = 0;
     model_rd_for_sb_uv(cpi, bsize_tx, x, xd, &this_rdc, &sse, plane, plane);
@@ -2349,8 +2375,6 @@ static void estimate_intra_mode(
   const int *const rd_thresh_freq_fact = x->thresh_freq_fact[bsize];
   const bool is_screen_content =
       cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN;
-  const int mi_row = xd->mi_row;
-  const int mi_col = xd->mi_col;
   struct macroblockd_plane *const pd = &xd->plane[0];
 
   const CommonQuantParams *quant_params = &cm->quant_params;
@@ -2499,8 +2523,7 @@ static void estimate_intra_mode(
     mi->tx_size = intra_tx_size;
     compute_intra_yprediction(cm, this_mode, bsize, x, xd);
     // Look into selecting tx_size here, based on prediction residual.
-    av1_block_yrd(cpi, x, mi_row, mi_col, &this_rdc, &args.skippable, bsize,
-                  mi->tx_size, DCT_DCT, 0);
+    block_yrd(x, &this_rdc, &args.skippable, bsize, mi->tx_size, 0);
     // TODO(kyslov@) Need to account for skippable
     if (x->color_sensitivity[0]) {
       av1_foreach_transformed_block_in_plane(xd, uv_bsize, 1,
@@ -3479,8 +3502,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #if COLLECT_PICK_MODE_STAT
       aom_usec_timer_start(&ms_stat.timer2);
 #endif
-      av1_block_yrd(cpi, x, mi_row, mi_col, &this_rdc, &is_skippable, bsize,
-                    mi->tx_size, DCT_DCT, 1);
+      block_yrd(x, &this_rdc, &is_skippable, bsize, mi->tx_size, 1);
       if (this_rdc.skip_txfm ||
           RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist) >=
               RDCOST(x->rdmult, 0, this_rdc.sse)) {
@@ -3689,8 +3711,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     pd->dst.buf = this_mode_pred->data;
     pd->dst.stride = bw;
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0, 0);
-    av1_block_yrd(cpi, x, mi_row, mi_col, &idtx_rdc, &is_skippable, bsize,
-                  mi->tx_size, IDTX, 1);
+    block_yrd_idtx(x, &idtx_rdc, &is_skippable, bsize, mi->tx_size);
     int64_t idx_rdcost = RDCOST(x->rdmult, idtx_rdc.rate, idtx_rdc.dist);
     if (idx_rdcost < best_rdc.rdcost) {
       // Keep the skip_txfm off if the color_sensitivity is set.
