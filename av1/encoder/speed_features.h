@@ -1644,12 +1644,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   int set_zeromv_skip_based_on_source_sad;
 
   // Downgrades the block-level subpel motion search to
-  // av1_find_best_sub_pixel_tree_pruned_more.
-  // 0: disable
-  // 1: when either fullpel search performed well, or when zeromv has low sad.
-  // 2: for higher QP and when fullpel search performed well, zeromv has low sad
-  // or low source_var
-  int adaptive_subpel_search_level;
+  // av1_find_best_sub_pixel_tree_pruned_more for higher QP and when fullpel
+  // search performed well, zeromv has low sad or low source_var
+  bool use_adaptive_subpel_search;
 
   // A flag used in RTC case to control frame_refs_short_signaling. Note that
   // the final decision is made in check_frame_refs_short_signaling(). The flag
