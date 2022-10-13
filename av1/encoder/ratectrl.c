@@ -2160,6 +2160,8 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
   }
 #endif
   if (current_frame->frame_type == KEY_FRAME) rc->frames_since_key = 0;
+  if (cpi->refresh_frame.golden_frame)
+    rc->frame_num_last_gf_refresh = current_frame->frame_number;
   // if (current_frame->frame_number == 1 && cm->show_frame)
   /*
   rc->this_frame_target =
@@ -2592,9 +2594,11 @@ void av1_adjust_gf_refresh_qp_one_pass_rt(AV1_COMP *cpi) {
         rc->frames_till_gf_update_due <= (p_rc->baseline_gf_interval - 10);
     int gf_update_changed = 0;
     int thresh = 87;
-    if (rc->frames_till_gf_update_due == 1 &&
+    if ((cm->current_frame.frame_number - cpi->rc.frame_num_last_gf_refresh) <
+            FIXED_GF_INTERVAL_RT &&
+        rc->frames_till_gf_update_due == 1 &&
         cm->quant_params.base_qindex > avg_qp) {
-      // Disable GF refresh since QP is above the runninhg average QP.
+      // Disable GF refresh since QP is above the running average QP.
       rtc_ref->refresh[rtc_ref->gld_idx_1layer] = 0;
       gf_update_changed = 1;
       cpi->refresh_frame.golden_frame = 0;

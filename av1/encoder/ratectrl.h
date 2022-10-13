@@ -256,6 +256,8 @@ typedef struct {
   int frame_level_fast_extra_bits;
 
   double frame_level_rate_correction_factors[RATE_FACTOR_LEVELS];
+
+  int frame_num_last_gf_refresh;
   /*!\endcond */
 } RATE_CONTROL;
 
