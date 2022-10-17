@@ -2215,7 +2215,8 @@ static INLINE int extend_borders_mt(const AV1_COMP *cpi,
  */
 static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                                    MACROBLOCKD *xd, int use_restoration,
-                                   int use_cdef) {
+                                   int use_cdef,
+                                   unsigned int skip_apply_postproc_filters) {
 #if !CONFIG_REALTIME_ONLY
   if (use_restoration)
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 0);
@@ -2241,7 +2242,8 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                     cpi->ppi->rtc_ref.non_reference_frame);
 
     // Apply the filter
-    if (!cpi->ppi->rtc_ref.non_reference_frame) {
+    if (!cpi->ppi->rtc_ref.non_reference_frame &&
+        (skip_apply_postproc_filters & SKIP_APPLY_CDEF) == 0) {
       if (num_workers > 1) {
         // Extension of frame borders is multi-threaded along with cdef.
         const int do_extend_border =
@@ -2259,7 +2261,12 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #endif
   }
 
-  av1_superres_post_encode(cpi);
+  const int use_superres = av1_superres_scaled(cm);
+  if (use_superres) {
+    if ((skip_apply_postproc_filters & SKIP_APPLY_SUPERRES) == 0) {
+      av1_superres_post_encode(cpi);
+    }
+  }
 
 #if !CONFIG_REALTIME_ONLY
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -2270,9 +2277,10 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     const int num_workers = mt_info->num_mod_workers[MOD_LR];
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 1);
     av1_pick_filter_restoration(cpi->source, cpi);
-    if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
-        cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
-        cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
+    if ((skip_apply_postproc_filters & SKIP_APPLY_RESTORATION) == 0 &&
+        (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
+         cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
+         cm->rst_info[2].frame_restoration_type != RESTORE_NONE)) {
       if (num_workers > 1) {
         // Extension of frame borders is multi-threaded along with loop
         // restoration filter.
@@ -2324,17 +2332,22 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   const int use_loopfilter =
       is_loopfilter_used(cm) && !cpi->mt_info.pipeline_lpf_mt_with_enc;
   const int use_cdef = is_cdef_used(cm);
+  const int use_superres = av1_superres_scaled(cm);
   const int use_restoration = is_restoration_used(cm);
+
+  const unsigned int skip_apply_postproc_filters =
+      derive_skip_apply_postproc_filters(cpi, use_loopfilter, use_cdef,
+                                         use_superres, use_restoration);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, loop_filter_time);
 #endif
   if (use_loopfilter) {
     av1_pick_filter_level(cpi->source, cpi, cpi->sf.lpf_sf.lpf_pick);
-    if (should_skip_postproc_filtering(cpi, use_cdef, use_restoration)) return;
     struct loopfilter *lf = &cm->lf;
     if ((lf->filter_level[0] || lf->filter_level[1]) &&
-        !cpi->ppi->rtc_ref.non_reference_frame) {
+        !cpi->ppi->rtc_ref.non_reference_frame &&
+        (skip_apply_postproc_filters & SKIP_APPLY_LOOPFILTER) == 0) {
       // lpf_opt_level = 1 : Enables dual/quad loop-filtering.
       // lpf_opt_level is set to 1 if transform size search depth in inter
       // blocks is limited to one as quad loop filtering assumes that all the
@@ -2354,7 +2367,8 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   end_timing(cpi, loop_filter_time);
 #endif
 
-  cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef);
+  cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef,
+                         skip_apply_postproc_filters);
 }
 
 static void update_motion_stat(AV1_COMP *const cpi) {

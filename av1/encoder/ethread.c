@@ -1603,22 +1603,26 @@ static void lpf_pipeline_mt_init(AV1_COMP *cpi) {
   // decides the filter level. Loop-filtering is disabled in case
   // of non-reference frames and for frames with intra block copy tool enabled.
   AV1_COMMON *cm = &cpi->common;
+  const int use_loopfilter = is_loopfilter_used(cm);
+  const int use_superres = av1_superres_scaled(cm);
   const int use_cdef = is_cdef_used(cm);
   const int use_restoration = is_restoration_used(cm);
-  const int skip_postproc_filtering =
-      should_skip_postproc_filtering(cpi, use_cdef, use_restoration);
+
+  const unsigned int skip_apply_postproc_filters =
+      derive_skip_apply_postproc_filters(cpi, use_loopfilter, use_cdef,
+                                         use_superres, use_restoration);
   cpi->mt_info.pipeline_lpf_mt_with_enc =
       (cpi->oxcf.mode == REALTIME) && (cpi->oxcf.speed >= 5) &&
       (cpi->sf.lpf_sf.lpf_pick == LPF_PICK_FROM_Q) &&
       (cpi->oxcf.algo_cfg.loopfilter_control != LOOPFILTER_SELECTIVELY) &&
       !cpi->ppi->rtc_ref.non_reference_frame && !cm->features.allow_intrabc &&
-      !skip_postproc_filtering;
+      ((skip_apply_postproc_filters & SKIP_APPLY_LOOPFILTER) == 0);
 
   if (!cpi->mt_info.pipeline_lpf_mt_with_enc) return;
 
   set_postproc_filter_default_params(cm);
 
-  if (!is_loopfilter_used(cm)) return;
+  if (!use_loopfilter) return;
 
   const LPF_PICK_METHOD method = cpi->sf.lpf_sf.lpf_pick;
   assert(method == LPF_PICK_FROM_Q);
