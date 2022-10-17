@@ -44,6 +44,8 @@ class DatarateTest : public ::libaom_test::EncoderTest {
     denoiser_offon_period_ = -1;
     tile_column_ = 0;
     screen_mode_ = false;
+    max_perc_spike_ = 1.0;
+    num_spikes_ = 0;
   }
 
   virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
@@ -132,6 +134,10 @@ class DatarateTest : public ::libaom_test::EncoderTest {
     last_pts_ = pkt->data.frame.pts;
     ++frame_number_;
     ++tot_frame_number_;
+    const int per_frame_bandwidth = (cfg_.rc_target_bitrate * 1000) / 30;
+    if (frame_size_in_bits > max_perc_spike_ * per_frame_bandwidth &&
+        frame_number_ > 1)
+      num_spikes_++;
   }
 
   virtual void EndPassHook() {
@@ -158,6 +164,8 @@ class DatarateTest : public ::libaom_test::EncoderTest {
   bool speed_change_test_;
   int tile_column_;
   bool screen_mode_;
+  double max_perc_spike_;
+  int num_spikes_;
 };
 
 }  // namespace
