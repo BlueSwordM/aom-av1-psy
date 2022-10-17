@@ -1525,10 +1525,10 @@ static void newmv_diff_bias(MACROBLOCKD *xd, PREDICTION_MODE this_mode,
   }
 }
 
-static void model_rd_for_sb_uv(AV1_COMP *cpi, BLOCK_SIZE plane_bsize,
-                               MACROBLOCK *x, MACROBLOCKD *xd,
-                               RD_STATS *this_rdc, int64_t *sse_y,
-                               int start_plane, int stop_plane) {
+static int64_t model_rd_for_sb_uv(AV1_COMP *cpi, BLOCK_SIZE plane_bsize,
+                                  MACROBLOCK *x, MACROBLOCKD *xd,
+                                  RD_STATS *this_rdc, int start_plane,
+                                  int stop_plane) {
   // Note our transform coeffs are 8 times an orthogonal transform.
   // Hence quantizer step is also 8 times. To get effective quantizer
   // we need to divide by 8 before sending to modeling function.
@@ -1536,7 +1536,7 @@ static void model_rd_for_sb_uv(AV1_COMP *cpi, BLOCK_SIZE plane_bsize,
   int rate;
   int64_t dist;
   int i;
-  int64_t tot_sse = *sse_y;
+  int64_t tot_sse = 0;
 
   this_rdc->rate = 0;
   this_rdc->dist = 0;
@@ -1580,7 +1580,7 @@ static void model_rd_for_sb_uv(AV1_COMP *cpi, BLOCK_SIZE plane_bsize,
     this_rdc->skip_txfm = 1;
   }
 
-  *sse_y = tot_sse;
+  return tot_sse;
 }
 
 /*!\cond */
@@ -1642,8 +1642,7 @@ static void estimate_block_intra(int plane, int block, int row, int col,
     block_yrd(x, &this_rdc, &args->skippable, bsize_tx,
               AOMMIN(tx_size, TX_16X16), 0);
   } else {
-    int64_t sse = 0;
-    model_rd_for_sb_uv(cpi, bsize_tx, x, xd, &this_rdc, &sse, plane, plane);
+    model_rd_for_sb_uv(cpi, bsize_tx, x, xd, &this_rdc, plane, plane);
   }
 
   p->src.buf = src_buf_base;
@@ -3530,7 +3529,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
           av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
                                         AOM_PLANE_V, AOM_PLANE_V);
         }
-        model_rd_for_sb_uv(cpi, uv_bsize, x, xd, &rdc_uv, &this_rdc.sse, 1, 2);
+        const int64_t sse_uv =
+            model_rd_for_sb_uv(cpi, uv_bsize, x, xd, &rdc_uv, 1, 2);
+        this_rdc.sse += sse_uv;
         // Restore Y rdc if UV rdc disallows txfm skip
         if (this_rdc.skip_txfm && !rdc_uv.skip_txfm &&
             nonskip_rdc.rate != INT_MAX)
