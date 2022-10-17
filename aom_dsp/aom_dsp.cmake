@@ -103,7 +103,12 @@ list(APPEND AOM_DSP_COMMON_INTRIN_AVX2
             "${AOM_ROOT}/aom_dsp/x86/intrapred_avx2.c"
             "${AOM_ROOT}/aom_dsp/x86/loopfilter_avx2.c"
             "${AOM_ROOT}/aom_dsp/x86/blend_a64_mask_avx2.c"
-            "${AOM_ROOT}/aom_dsp/x86/bitdepth_conversion_avx2.h")
+            "${AOM_ROOT}/aom_dsp/x86/bitdepth_conversion_avx2.h"
+            "${AOM_ROOT}/third_party/SVT-AV1/convolve_2d_avx2.h"
+            "${AOM_ROOT}/third_party/SVT-AV1/convolve_avx2.h"
+            "${AOM_ROOT}/third_party/SVT-AV1/EbMemory_AVX2.h"
+            "${AOM_ROOT}/third_party/SVT-AV1/EbMemory_SSE4_1.h"
+            "${AOM_ROOT}/third_party/SVT-AV1/synonyms.h")
 
 list(APPEND AOM_DSP_COMMON_INTRIN_NEON
             "${AOM_ROOT}/aom_dsp/arm/aom_convolve_copy_neon.c"
