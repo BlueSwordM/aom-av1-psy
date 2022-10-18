@@ -1606,9 +1606,8 @@ static void lpf_pipeline_mt_init(AV1_COMP *cpi) {
   const int use_restoration = is_restoration_used(cm);
   const int skip_postproc_filtering =
       should_skip_postproc_filtering(cpi, use_cdef, use_restoration);
-  // TODO(deepa.kg @ittiam.com) Enable for rt speed 5, 6.
   cpi->mt_info.pipeline_lpf_mt_with_enc =
-      (cpi->oxcf.mode == REALTIME) && (cpi->oxcf.speed >= 7) &&
+      (cpi->oxcf.mode == REALTIME) && (cpi->oxcf.speed >= 5) &&
       (cpi->sf.lpf_sf.lpf_pick == LPF_PICK_FROM_Q) &&
       (cpi->oxcf.algo_cfg.loopfilter_control != LOOPFILTER_SELECTIVELY) &&
       !cpi->ppi->rtc_ref.non_reference_frame && !cm->features.allow_intrabc &&
