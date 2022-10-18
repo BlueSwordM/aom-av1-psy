@@ -995,7 +995,7 @@ static INLINE void increment_int_ptr(MACROBLOCKD *xd, int rel_mi_row,
   (void)op_mi_size;
   (void)dir;
   (void)mi;
-  ++*(int *)fun_ctxt;
+  ++*(uint8_t *)fun_ctxt;
   (void)num_planes;
 }
 
