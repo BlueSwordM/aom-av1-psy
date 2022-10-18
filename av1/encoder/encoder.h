@@ -4131,8 +4131,10 @@ static INLINE bool should_skip_postproc_filtering(AV1_COMP *cpi, int use_cdef,
   // 1. filter parameters of the subsequent stages are not dependent on the
   // filtered output of the current stage or
   // 2. subsequent filtering stages are disabled
-  // Hence, the application of deblocking filters is also skipped if there are
-  // no further filtering stages.
+  // In case of ALLINTRA encode, CDEF is disabled by default and loop
+  // restoration is disabled for speed >= 5. Hence, the application of
+  // deblocking filters is skipped currently if there are no further filtering
+  // stages.
   return (!use_cdef && !av1_superres_scaled(cm) && !use_restoration);
 }
 

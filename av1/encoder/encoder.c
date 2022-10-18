@@ -3131,9 +3131,13 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   if (!cpi->mt_info.pipeline_lpf_mt_with_enc)
     set_postproc_filter_default_params(&cpi->common);
 
-  if (!cm->features.allow_intrabc) loopfilter_frame(cpi, cm);
+  if (!cm->features.allow_intrabc) {
+    loopfilter_frame(cpi, cm);
+  }
 
-  extend_frame_borders(cpi);
+  if (cpi->oxcf.mode != ALLINTRA) {
+    extend_frame_borders(cpi);
+  }
 
 #ifdef OUTPUT_YUV_REC
   aom_write_one_yuv_frame(cm, &cm->cur_frame->buf);
