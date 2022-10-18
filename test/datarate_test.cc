@@ -108,7 +108,7 @@ class DatarateTestLarge
         << " The datarate for the file is lower than target by too much!";
     ASSERT_LE(effective_datarate_, cfg_.rc_target_bitrate * 1.19)
         << " The datarate for the file is greater than target by too much!";
-    ASSERT_LE(num_spikes_, 15);
+    ASSERT_LE(num_spikes_, 18);
   }
 
   virtual void BasicRateTargetingMultiThreadCBRTest() {
