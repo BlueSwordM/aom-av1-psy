@@ -622,7 +622,10 @@ static int main_loop(int argc, const char **argv_) {
   input.aom_input_ctx->filename = fn;
   input.aom_input_ctx->file = infile;
 
-  // Webm type does not support reading from stdin.
+  // TODO(https://crbug.com/aomedia/1706): webm type does not support reading
+  // from stdin yet, and file_is_webm is not using the detect buffer when
+  // determining the type. Therefore it should only be checked when using a file
+  // and needs to be checked prior to other types.
   if (false) {
 #if CONFIG_WEBM_IO
   } else if (using_file && file_is_webm(input.webm_ctx, input.aom_input_ctx)) {
