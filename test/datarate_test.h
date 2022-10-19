@@ -45,7 +45,9 @@ class DatarateTest : public ::libaom_test::EncoderTest {
     tile_column_ = 0;
     screen_mode_ = false;
     max_perc_spike_ = 1.0;
+    max_perc_spike_high_ = 1.0;
     num_spikes_ = 0;
+    num_spikes_high_ = 0;
     frame_update_bitrate_ = 0;
     for (int i = 0; i < 3; i++) {
       target_bitrate_update_[i] = 0;
@@ -155,6 +157,9 @@ class DatarateTest : public ::libaom_test::EncoderTest {
     if (frame_size_in_bits > max_perc_spike_ * per_frame_bandwidth &&
         frame_number_ > 1)
       num_spikes_++;
+    if (frame_size_in_bits > max_perc_spike_high_ * per_frame_bandwidth &&
+        frame_number_ > 1)
+      num_spikes_high_++;
 
     if (frame_update_bitrate_ > 0) {
       if (frame_number_ < frame_update_bitrate_) {
@@ -201,7 +206,9 @@ class DatarateTest : public ::libaom_test::EncoderTest {
   int tile_column_;
   bool screen_mode_;
   double max_perc_spike_;
+  double max_perc_spike_high_;
   int num_spikes_;
+  int num_spikes_high_;
   // These are use for test with dynamic bitrate change.
   // Used to verify that the encoder can respond and hit bitrate that is updated
   // during the sequence.
