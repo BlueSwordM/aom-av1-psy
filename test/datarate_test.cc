@@ -111,6 +111,38 @@ class DatarateTestLarge
     ASSERT_LE(num_spikes_, 18);
   }
 
+  virtual void BasicRateTargetingCBRDynamicBitrateTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 2;
+    cfg_.rc_max_quantizer = 56;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.kf_max_dist = 3000;
+    cfg_.kf_min_dist = 3000;
+
+    ::libaom_test::I420VideoSource video("desktop1.320_180.yuv", 320, 180, 30,
+                                         1, 0, 800);
+    const int bitrate_array[2] = { 100, 200 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    ResetModel();
+    target_bitrate_update_[0] = cfg_.rc_target_bitrate;
+    target_bitrate_update_[1] = static_cast<int>(1.3 * cfg_.rc_target_bitrate);
+    target_bitrate_update_[2] = static_cast<int>(0.7 * cfg_.rc_target_bitrate);
+    frame_update_bitrate_ = 250;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    for (int i = 0; i < 3; i++) {
+      ASSERT_GE(effective_datarate_dynamic_[i],
+                target_bitrate_update_[i] * 0.85)
+          << " The datarate for the file is lower than target by too much!";
+      ASSERT_LE(effective_datarate_dynamic_[i],
+                target_bitrate_update_[i] * 1.20)
+          << " The datarate for the file is greater than target by too much!";
+    }
+  }
+
   virtual void BasicRateTargetingMultiThreadCBRTest() {
     ::libaom_test::I420VideoSource video("niklas_640_480_30.yuv", 640, 480, 30,
                                          1, 0, 400);
@@ -444,6 +476,13 @@ TEST_P(DatarateTestRealtime, BasicRateTargetingCBR) {
 // and verify #encode size spikes above threshold.
 TEST_P(DatarateTestRealtime, BasicRateTargetingCBRSpike) {
   BasicRateTargetingCBRSpikeTest();
+}
+
+// Check basic rate targeting for CBR. Use a longer clip,
+// and verify encoder can respnd and hit new bitrates updated
+// within the stream.
+TEST_P(DatarateTestRealtime, BasicRateTargetingCBRDynamicBitrate) {
+  BasicRateTargetingCBRDynamicBitrateTest();
 }
 
 // Check basic rate targeting for CBR, with 4 threads
