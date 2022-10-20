@@ -215,7 +215,7 @@ static INLINE void get_eobx_eoby_scan_v_identity(int *eobx, int *eoby,
   eob -= 1;
   const int txfm_size_row = tx_size_high[tx_size];
   const int eoby_max = AOMMIN(32, txfm_size_row) - 1;
-  *eobx = eob / (eoby_max + 1);
+  *eobx = eob_fill[eob / (eoby_max + 1)];
   *eoby = (eob >= eoby_max) ? eoby_max : eob_fill[eob];
 }
 

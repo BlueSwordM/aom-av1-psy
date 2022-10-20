@@ -269,6 +269,94 @@ static const int16_t av1_default_iscan_fp_16x16_transpose[256] = {
 };
 #endif
 
+// For entropy coding, IDTX shares the scan orders of the other 2D-transforms,
+// but the fastest way to calculate the IDTX transform (i.e. no transposes)
+// results in coefficients that are a transposition of the entropy coding
+// versions. These tables are used as substitute for the scan order for the
+// faster version of IDTX.
+
+// Must be used together with av1_fast_idtx_iscan_4x4
+static const int16_t av1_fast_idtx_scan_4x4[16] = {
+  0, 1, 4, 8, 5, 2, 3, 6, 9, 12, 13, 10, 7, 11, 14, 15
+};
+
+// Must be used together with av1_fast_idtx_scan_4x4
+static const int16_t av1_fast_idtx_iscan_4x4[16] = { 0, 1,  5,  6, 2,  4,
+                                                     7, 12, 3,  8, 11, 13,
+                                                     9, 10, 14, 15 };
+
+static const SCAN_ORDER av1_fast_idtx_scan_order_4x4 = {
+  av1_fast_idtx_scan_4x4, av1_fast_idtx_iscan_4x4
+};
+
+// Must be used together with av1_fast_idtx_iscan_8x8
+static const int16_t av1_fast_idtx_scan_8x8[64] = {
+  0,  1,  8,  16, 9,  2,  3,  10, 17, 24, 32, 25, 18, 11, 4,  5,
+  12, 19, 26, 33, 40, 48, 41, 34, 27, 20, 13, 6,  7,  14, 21, 28,
+  35, 42, 49, 56, 57, 50, 43, 36, 29, 22, 15, 23, 30, 37, 44, 51,
+  58, 59, 52, 45, 38, 31, 39, 46, 53, 60, 61, 54, 47, 55, 62, 63
+};
+
+// Must be used together with av1_fast_idtx_scan_8x8
+static const int16_t av1_fast_idtx_iscan_8x8[64] = {
+  0,  1,  5,  6,  14, 15, 27, 28, 2,  4,  7,  13, 16, 26, 29, 42,
+  3,  8,  12, 17, 25, 30, 41, 43, 9,  11, 18, 24, 31, 40, 44, 53,
+  10, 19, 23, 32, 39, 45, 52, 54, 20, 22, 33, 38, 46, 51, 55, 60,
+  21, 34, 37, 47, 50, 56, 59, 61, 35, 36, 48, 49, 57, 58, 62, 63
+};
+
+static const SCAN_ORDER av1_fast_idtx_scan_order_8x8 = {
+  av1_fast_idtx_scan_8x8, av1_fast_idtx_iscan_8x8
+};
+
+// Must be used together with av1_fast_idtx_iscan_16x16
+static const int16_t av1_fast_idtx_scan_16x16[256] = {
+  0,   1,   16,  32,  17,  2,   3,   18,  33,  48,  64,  49,  34,  19,  4,
+  5,   20,  35,  50,  65,  80,  96,  81,  66,  51,  36,  21,  6,   7,   22,
+  37,  52,  67,  82,  97,  112, 128, 113, 98,  83,  68,  53,  38,  23,  8,
+  9,   24,  39,  54,  69,  84,  99,  114, 129, 144, 160, 145, 130, 115, 100,
+  85,  70,  55,  40,  25,  10,  11,  26,  41,  56,  71,  86,  101, 116, 131,
+  146, 161, 176, 192, 177, 162, 147, 132, 117, 102, 87,  72,  57,  42,  27,
+  12,  13,  28,  43,  58,  73,  88,  103, 118, 133, 148, 163, 178, 193, 208,
+  224, 209, 194, 179, 164, 149, 134, 119, 104, 89,  74,  59,  44,  29,  14,
+  15,  30,  45,  60,  75,  90,  105, 120, 135, 150, 165, 180, 195, 210, 225,
+  240, 241, 226, 211, 196, 181, 166, 151, 136, 121, 106, 91,  76,  61,  46,
+  31,  47,  62,  77,  92,  107, 122, 137, 152, 167, 182, 197, 212, 227, 242,
+  243, 228, 213, 198, 183, 168, 153, 138, 123, 108, 93,  78,  63,  79,  94,
+  109, 124, 139, 154, 169, 184, 199, 214, 229, 244, 245, 230, 215, 200, 185,
+  170, 155, 140, 125, 110, 95,  111, 126, 141, 156, 171, 186, 201, 216, 231,
+  246, 247, 232, 217, 202, 187, 172, 157, 142, 127, 143, 158, 173, 188, 203,
+  218, 233, 248, 249, 234, 219, 204, 189, 174, 159, 175, 190, 205, 220, 235,
+  250, 251, 236, 221, 206, 191, 207, 222, 237, 252, 253, 238, 223, 239, 254,
+  255
+};
+
+// Must be used together with av1_fast_idtx_scan_16x16
+static const int16_t av1_fast_idtx_iscan_16x16[256] = {
+  0,   1,   5,   6,   14,  15,  27,  28,  44,  45,  65,  66,  90,  91,  119,
+  120, 2,   4,   7,   13,  16,  26,  29,  43,  46,  64,  67,  89,  92,  118,
+  121, 150, 3,   8,   12,  17,  25,  30,  42,  47,  63,  68,  88,  93,  117,
+  122, 149, 151, 9,   11,  18,  24,  31,  41,  48,  62,  69,  87,  94,  116,
+  123, 148, 152, 177, 10,  19,  23,  32,  40,  49,  61,  70,  86,  95,  115,
+  124, 147, 153, 176, 178, 20,  22,  33,  39,  50,  60,  71,  85,  96,  114,
+  125, 146, 154, 175, 179, 200, 21,  34,  38,  51,  59,  72,  84,  97,  113,
+  126, 145, 155, 174, 180, 199, 201, 35,  37,  52,  58,  73,  83,  98,  112,
+  127, 144, 156, 173, 181, 198, 202, 219, 36,  53,  57,  74,  82,  99,  111,
+  128, 143, 157, 172, 182, 197, 203, 218, 220, 54,  56,  75,  81,  100, 110,
+  129, 142, 158, 171, 183, 196, 204, 217, 221, 234, 55,  76,  80,  101, 109,
+  130, 141, 159, 170, 184, 195, 205, 216, 222, 233, 235, 77,  79,  102, 108,
+  131, 140, 160, 169, 185, 194, 206, 215, 223, 232, 236, 245, 78,  103, 107,
+  132, 139, 161, 168, 186, 193, 207, 214, 224, 231, 237, 244, 246, 104, 106,
+  133, 138, 162, 167, 187, 192, 208, 213, 225, 230, 238, 243, 247, 252, 105,
+  134, 137, 163, 166, 188, 191, 209, 212, 226, 229, 239, 242, 248, 251, 253,
+  135, 136, 164, 165, 189, 190, 210, 211, 227, 228, 240, 241, 249, 250, 254,
+  255
+};
+
+static const SCAN_ORDER av1_fast_idtx_scan_order_16x16 = {
+  av1_fast_idtx_scan_16x16, av1_fast_idtx_iscan_16x16
+};
+
 static INLINE int early_term_inter_search_with_sse(int early_term_idx,
                                                    BLOCK_SIZE bsize,
                                                    int64_t this_sse,
@@ -1153,14 +1241,13 @@ static INLINE void aom_process_hadamard_lp_8x16(MACROBLOCK *x,
   DECLARE_ALIGNED(64, tran_low_t, coeff_buf[16 * 16]);   \
   uint16_t eob[1];
 
-#define DECLARE_BLOCK_YRD_VARS()                                           \
-  /* When is_tx_8x8_dual_applicable is true, we compute the txfm for the   \
-   * entire bsize and write macroblock_plane::coeff. So low_coeff is kept  \
-   * as a non-const so we can reassign it to macroblock_plane::coeff. */   \
-  int16_t *low_coeff = (int16_t *)coeff_buf;                               \
-  int16_t *const low_qcoeff = (int16_t *)qcoeff_buf;                       \
-  int16_t *const low_dqcoeff = (int16_t *)dqcoeff_buf;                     \
-  const SCAN_ORDER *const scan_order = &av1_scan_orders[tx_size][DCT_DCT]; \
+#define DECLARE_BLOCK_YRD_VARS()                                          \
+  /* When is_tx_8x8_dual_applicable is true, we compute the txfm for the  \
+   * entire bsize and write macroblock_plane::coeff. So low_coeff is kept \
+   * as a non-const so we can reassign it to macroblock_plane::coeff. */  \
+  int16_t *low_coeff = (int16_t *)coeff_buf;                              \
+  int16_t *const low_qcoeff = (int16_t *)qcoeff_buf;                      \
+  int16_t *const low_dqcoeff = (int16_t *)dqcoeff_buf;                    \
   const int diff_stride = bw;
 
 #define DECLARE_LOOP_VARS_BLOCK_YRD() \
@@ -1292,6 +1379,7 @@ static void block_yrd(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
                                  step, block_step);
   }
 
+  const SCAN_ORDER *const scan_order = &av1_scan_orders[tx_size][DCT_DCT];
   DECLARE_BLOCK_YRD_BUFFERS()
   DECLARE_BLOCK_YRD_VARS()
 #if CONFIG_AV1_HIGHBITDEPTH
@@ -1509,6 +1597,7 @@ static void block_yrd_idtx(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
   // update_yrd_loop_vars.
   int temp_skippable = 1;
   int tx_wd = 0;
+  const SCAN_ORDER *scan_order = NULL;
   switch (tx_size) {
     case TX_64X64:
       assert(0);  // Not implemented
@@ -1516,13 +1605,22 @@ static void block_yrd_idtx(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
     case TX_32X32:
       assert(0);  // Not used
       break;
-    case TX_16X16: tx_wd = 16; break;
-    case TX_8X8: tx_wd = 8; break;
+    case TX_16X16:
+      scan_order = &av1_fast_idtx_scan_order_16x16;
+      tx_wd = 16;
+      break;
+    case TX_8X8:
+      scan_order = &av1_fast_idtx_scan_order_8x8;
+      tx_wd = 8;
+      break;
     default:
       assert(tx_size == TX_4X4);
+      scan_order = &av1_fast_idtx_scan_order_4x4;
       tx_wd = 4;
       break;
   }
+  assert(scan_order != NULL);
+
   this_rdc->dist = 0;
   this_rdc->rate = 0;
   aom_subtract_block(bh, bw, p->src_diff, bw, p->src.buf, p->src.stride,

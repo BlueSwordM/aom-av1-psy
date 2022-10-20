@@ -1641,9 +1641,9 @@ static INLINE void lowbd_inv_txfm2d_add_no_identity_avx2(
   const int txfm_size_col = tx_size_wide[tx_size];
   const int txfm_size_row = tx_size_high[tx_size];
   const int buf_size_w_div16 = txfm_size_col >> 4;
-  const int buf_size_nonzero_w_div16 = (eobx + 16) >> 4;
+  const int buf_size_nonzero_w = ((eobx + 16) >> 4) << 4;
   const int buf_size_nonzero_h_div16 = (eoby + 16) >> 4;
-  const int input_stride = AOMMIN(32, txfm_size_col);
+  const int input_stride = AOMMIN(32, txfm_size_row);
   const int rect_type = get_rect_tx_log_ratio(txfm_size_col, txfm_size_row);
 
   const int fun_idx_x = lowbd_txfm_all_1d_zeros_idx[eobx];
@@ -1660,16 +1660,10 @@ static INLINE void lowbd_inv_txfm2d_add_no_identity_avx2(
   const __m256i scale0 = _mm256_set1_epi16(1 << (15 + shift[0]));
   for (int i = 0; i < buf_size_nonzero_h_div16; i++) {
     __m256i buf0[64];
-    const int32_t *input_row = input + (i << 4) * input_stride;
-    for (int j = 0; j < buf_size_nonzero_w_div16; ++j) {
-      __m256i *buf0_cur = buf0 + j * 16;
-      const int32_t *input_cur = input_row + j * 16;
-      load_buffer_32bit_to_16bit_w16_avx2(input_cur, input_stride, buf0_cur,
-                                          16);
-      transpose_16bit_16x16_avx2(buf0_cur, buf0_cur);
-    }
+    load_buffer_32bit_to_16bit_w16_avx2(input + 16 * i, input_stride, buf0,
+                                        buf_size_nonzero_w);
     if (rect_type == 1 || rect_type == -1) {
-      round_shift_avx2(buf0, buf0, input_stride);  // rect special code
+      round_shift_avx2(buf0, buf0, buf_size_nonzero_w);  // rect special code
     }
     row_txfm(buf0, buf0);
     for (int j = 0; j < txfm_size_col; ++j) {
@@ -1778,15 +1772,20 @@ static INLINE void lowbd_inv_txfm2d_add_idtx_avx2(const int32_t *input,
   const int txh_idx = get_txh_idx(tx_size);
   const int txfm_size_col = tx_size_wide[tx_size];
   const int txfm_size_row = tx_size_high[tx_size];
-  const int input_stride = AOMMIN(32, txfm_size_col);
+  const int col_max = AOMMIN(32, txfm_size_col);
   const int row_max = AOMMIN(32, txfm_size_row);
+  const int input_stride = row_max;
   const int rect_type = get_rect_tx_log_ratio(txfm_size_col, txfm_size_row);
   __m256i buf[32];
-  for (int i = 0; i < input_stride; i += 16) {
-    iidentity_row_16xn_avx2(buf, input + i, input_stride, shift[0], row_max,
-                            txw_idx, rect_type);
-    iidentity_col_16xn_avx2(output + i, stride, buf, shift[1], row_max,
-                            txh_idx);
+
+  for (int i = 0; i < (col_max >> 4); ++i) {
+    for (int j = 0; j < (row_max >> 4); j++) {
+      iidentity_row_16xn_avx2(buf, input + j * 16 + i * 16 * input_stride,
+                              row_max, shift[0], 16, txw_idx, rect_type);
+      transpose_16bit_16x16_avx2(buf, buf);
+      iidentity_col_16xn_avx2(output + i * 16 + j * 16 * stride, stride, buf,
+                              shift[1], 16, txh_idx);
+    }
   }
 }
 
@@ -1800,9 +1799,10 @@ static INLINE void lowbd_inv_txfm2d_add_h_identity_avx2(
   const int txh_idx = get_txh_idx(tx_size);
   const int txfm_size_col = tx_size_wide[tx_size];
   const int txfm_size_row = tx_size_high[tx_size];
-  const int txfm_size_col_notzero = AOMMIN(32, txfm_size_col);
-  const int input_stride = txfm_size_col_notzero;
+  const int txfm_size_row_notzero = AOMMIN(32, txfm_size_row);
+  const int input_stride = txfm_size_row_notzero;
   const int buf_size_w_div16 = (eobx + 16) >> 4;
+  const int buf_size_h_div16 = (eoby + 16) >> 4;
   const int rect_type = get_rect_tx_log_ratio(txfm_size_col, txfm_size_row);
 
   const int fun_idx_y = lowbd_txfm_all_1d_zeros_idx[eoby];
@@ -1815,8 +1815,13 @@ static INLINE void lowbd_inv_txfm2d_add_h_identity_avx2(
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
   for (int i = 0; i < buf_size_w_div16; i++) {
     __m256i buf0[64];
-    iidentity_row_16xn_avx2(buf0, input + (i << 4), input_stride, shift[0],
-                            eoby + 1, txw_idx, rect_type);
+    for (int j = 0; j < buf_size_h_div16; j++) {
+      __m256i *buf0_cur = buf0 + j * 16;
+      const int32_t *input_cur = input + i * 16 * input_stride + j * 16;
+      iidentity_row_16xn_avx2(buf0_cur, input_cur, input_stride, shift[0], 16,
+                              txw_idx, rect_type);
+      transpose_16bit_16x16_avx2(buf0_cur, buf0_cur);
+    }
     col_txfm(buf0, buf0);
     __m256i mshift = _mm256_set1_epi16(1 << (15 + shift[1]));
     int k = ud_flip ? (txfm_size_row - 1) : 0;
@@ -1841,7 +1846,8 @@ static INLINE void lowbd_inv_txfm2d_add_v_identity_avx2(
   const int txfm_size_row = tx_size_high[tx_size];
   const int buf_size_w_div16 = txfm_size_col >> 4;
   const int buf_size_h_div16 = (eoby + 16) >> 4;
-  const int input_stride = AOMMIN(32, txfm_size_col);
+  const int buf_size_nonzero_w = ((eobx + 8) >> 3) << 3;
+  const int input_stride = AOMMIN(32, txfm_size_row);
   const int rect_type = get_rect_tx_log_ratio(txfm_size_col, txfm_size_row);
 
   const int fun_idx_x = lowbd_txfm_all_1d_zeros_idx[eobx];
@@ -1854,15 +1860,10 @@ static INLINE void lowbd_inv_txfm2d_add_v_identity_avx2(
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
   for (int i = 0; i < buf_size_h_div16; i++) {
     __m256i buf0[64];
-    const int32_t *input_row = input + i * input_stride * 16;
-    for (int j = 0; j < AOMMIN(4, buf_size_w_div16); ++j) {
-      __m256i *buf0_cur = buf0 + j * 16;
-      load_buffer_32bit_to_16bit_w16_avx2(input_row + j * 16, input_stride,
-                                          buf0_cur, 16);
-      transpose_16bit_16x16_avx2(buf0_cur, buf0_cur);
-    }
+    load_buffer_32bit_to_16bit_w16_avx2(input + i * 16, input_stride, buf0,
+                                        buf_size_nonzero_w);
     if (rect_type == 1 || rect_type == -1) {
-      round_shift_avx2(buf0, buf0, input_stride);  // rect special code
+      round_shift_avx2(buf0, buf0, buf_size_nonzero_w);  // rect special code
     }
     row_txfm(buf0, buf0);
     round_shift_16bit_w16_avx2(buf0, txfm_size_col, shift[0]);
