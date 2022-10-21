@@ -3135,7 +3135,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     loopfilter_frame(cpi, cm);
   }
 
-  if (cpi->oxcf.mode != ALLINTRA) {
+  if (cpi->oxcf.mode != ALLINTRA && !cpi->ppi->rtc_ref.non_reference_frame) {
     extend_frame_borders(cpi);
   }
 
