@@ -39,7 +39,9 @@ typedef unsigned int (*VarianceMxNFunc)(const uint8_t *a, int a_stride,
                                         unsigned int *sse);
 typedef void (*GetSseSum8x8QuadFunc)(const uint8_t *a, int a_stride,
                                      const uint8_t *b, int b_stride,
-                                     unsigned int *sse, int *sum);
+                                     uint32_t *sse8x8, int *sum8x8,
+                                     unsigned int *tot_sse, int *tot_sum,
+                                     uint32_t *var8x8);
 typedef unsigned int (*SubpixVarMxNFunc)(const uint8_t *a, int a_stride,
                                          int xoffset, int yoffset,
                                          const uint8_t *b, int b_stride,
@@ -859,26 +861,34 @@ void MainTestClass<GetSseSum8x8QuadFuncType>::RefTestSseSum() {
     }
     unsigned int sse1[256] = { 0 };
     unsigned int sse2[256] = { 0 };
+    unsigned int var1[256] = { 0 };
+    unsigned int var2[256] = { 0 };
     int sum1[256] = { 0 };
     int sum2[256] = { 0 };
+    unsigned int sse_tot_c = 0;
+    unsigned int sse_tot_simd = 0;
+    int sum_tot_c = 0;
+    int sum_tot_simd = 0;
     const int stride = width();
     int k = 0;
 
     for (int i = 0; i < height(); i += 8) {
       for (int j = 0; j < width(); j += 32) {
-        API_REGISTER_STATE_CHECK(params_.func(src_ + stride * i + j, stride,
-                                              ref_ + stride * i + j, stride,
-                                              &sse1[k], &sum1[k]));
-        aom_get_sse_sum_8x8_quad_c(src_ + stride * i + j, stride,
-                                   ref_ + stride * i + j, stride, &sse2[k],
-                                   &sum2[k]);
+        API_REGISTER_STATE_CHECK(params_.func(
+            src_ + stride * i + j, stride, ref_ + stride * i + j, stride,
+            &sse1[k], &sum1[k], &sse_tot_simd, &sum_tot_simd, &var1[k]));
+        aom_get_var_sse_sum_8x8_quad_c(
+            src_ + stride * i + j, stride, ref_ + stride * i + j, stride,
+            &sse2[k], &sum2[k], &sse_tot_c, &sum_tot_c, &var2[k]);
         k += 4;
       }
     }
-
+    EXPECT_EQ(sse_tot_c, sse_tot_simd);
+    EXPECT_EQ(sum_tot_c, sum_tot_simd);
     for (int p = 0; p < 256; p++) {
       EXPECT_EQ(sse1[p], sse2[p]);
       EXPECT_EQ(sum1[p], sum2[p]);
+      EXPECT_EQ(var1[p], var2[p]);
     }
   }
 }
@@ -889,26 +899,34 @@ void MainTestClass<GetSseSum8x8QuadFuncType>::MinTestSseSum() {
   memset(ref_, 255, block_size());
   unsigned int sse1[256] = { 0 };
   unsigned int sse2[256] = { 0 };
+  unsigned int var1[256] = { 0 };
+  unsigned int var2[256] = { 0 };
   int sum1[256] = { 0 };
   int sum2[256] = { 0 };
+  unsigned int sse_tot_c = 0;
+  unsigned int sse_tot_simd = 0;
+  int sum_tot_c = 0;
+  int sum_tot_simd = 0;
   const int stride = width();
   int k = 0;
 
   for (int i = 0; i < height(); i += 8) {
     for (int j = 0; j < width(); j += 32) {
-      API_REGISTER_STATE_CHECK(params_.func(src_ + stride * i + j, stride,
-                                            ref_ + stride * i + j, stride,
-                                            &sse1[k], &sum1[k]));
-      aom_get_sse_sum_8x8_quad_c(src_ + stride * i + j, stride,
-                                 ref_ + stride * i + j, stride, &sse2[k],
-                                 &sum2[k]);
+      API_REGISTER_STATE_CHECK(params_.func(
+          src_ + stride * i + j, stride, ref_ + stride * i + j, stride,
+          &sse1[k], &sum1[k], &sse_tot_simd, &sum_tot_simd, &var1[k]));
+      aom_get_var_sse_sum_8x8_quad_c(
+          src_ + stride * i + j, stride, ref_ + stride * i + j, stride,
+          &sse2[k], &sum2[k], &sse_tot_c, &sum_tot_c, &var2[k]);
       k += 4;
     }
   }
-
+  EXPECT_EQ(sse_tot_simd, sse_tot_c);
+  EXPECT_EQ(sum_tot_simd, sum_tot_c);
   for (int p = 0; p < 256; p++) {
     EXPECT_EQ(sse1[p], sse2[p]);
     EXPECT_EQ(sum1[p], sum2[p]);
+    EXPECT_EQ(var1[p], var2[p]);
   }
 }
 
@@ -918,26 +936,35 @@ void MainTestClass<GetSseSum8x8QuadFuncType>::MaxTestSseSum() {
   memset(ref_, 0, block_size());
   unsigned int sse1[256] = { 0 };
   unsigned int sse2[256] = { 0 };
+  unsigned int var1[256] = { 0 };
+  unsigned int var2[256] = { 0 };
   int sum1[256] = { 0 };
   int sum2[256] = { 0 };
+  unsigned int sse_tot_c = 0;
+  unsigned int sse_tot_simd = 0;
+  int sum_tot_c = 0;
+  int sum_tot_simd = 0;
   const int stride = width();
   int k = 0;
 
   for (int i = 0; i < height(); i += 8) {
     for (int j = 0; j < width(); j += 32) {
-      API_REGISTER_STATE_CHECK(params_.func(src_ + stride * i + j, stride,
-                                            ref_ + stride * i + j, stride,
-                                            &sse1[k], &sum1[k]));
-      aom_get_sse_sum_8x8_quad_c(src_ + stride * i + j, stride,
-                                 ref_ + stride * i + j, stride, &sse2[k],
-                                 &sum2[k]);
+      API_REGISTER_STATE_CHECK(params_.func(
+          src_ + stride * i + j, stride, ref_ + stride * i + j, stride,
+          &sse1[k], &sum1[k], &sse_tot_simd, &sum_tot_simd, &var1[k]));
+      aom_get_var_sse_sum_8x8_quad_c(
+          src_ + stride * i + j, stride, ref_ + stride * i + j, stride,
+          &sse2[k], &sum2[k], &sse_tot_c, &sum_tot_c, &var2[k]);
       k += 4;
     }
   }
+  EXPECT_EQ(sse_tot_c, sse_tot_simd);
+  EXPECT_EQ(sum_tot_c, sum_tot_simd);
 
   for (int p = 0; p < 256; p++) {
     EXPECT_EQ(sse1[p], sse2[p]);
     EXPECT_EQ(sum1[p], sum2[p]);
+    EXPECT_EQ(var1[p], var2[p]);
   }
 }
 
@@ -949,21 +976,26 @@ void MainTestClass<GetSseSum8x8QuadFuncType>::SseSum_SpeedTest() {
     ref_[j] = rnd_.Rand8();
   }
 
-  unsigned int sse1[4] = { 0 };
-  unsigned int sse2[4] = { 0 };
-  int sum1[4] = { 0 };
-  int sum2[4] = { 0 };
+  unsigned int sse1 = 0;
+  unsigned int sse2 = 0;
+  unsigned int var1 = 0;
+  unsigned int var2 = 0;
+  int sum1 = 0;
+  int sum2 = 0;
+  unsigned int sse_tot_c = 0;
+  unsigned int sse_tot_simd = 0;
+  int sum_tot_c = 0;
+  int sum_tot_simd = 0;
   const int stride = width();
-  const int k = 0;
 
   aom_usec_timer timer;
   aom_usec_timer_start(&timer);
   for (int r = 0; r < loop_count; ++r) {
     for (int i = 0; i < height(); i += 8) {
       for (int j = 0; j < width(); j += 32) {
-        aom_get_sse_sum_8x8_quad_c(src_ + stride * i + j, stride,
-                                   ref_ + stride * i + j, stride, &sse2[k],
-                                   &sum2[k]);
+        aom_get_var_sse_sum_8x8_quad_c(src_ + stride * i + j, stride,
+                                       ref_ + stride * i + j, stride, &sse2,
+                                       &sum2, &sse_tot_c, &sum_tot_c, &var2);
       }
     }
   }
@@ -976,7 +1008,7 @@ void MainTestClass<GetSseSum8x8QuadFuncType>::SseSum_SpeedTest() {
     for (int i = 0; i < height(); i += 8) {
       for (int j = 0; j < width(); j += 32) {
         params_.func(src_ + stride * i + j, stride, ref_ + stride * i + j,
-                     stride, &sse1[k], &sum1[k]);
+                     stride, &sse1, &sum1, &sse_tot_simd, &sum_tot_simd, &var1);
       }
     }
   }
@@ -1570,10 +1602,10 @@ INSTANTIATE_TEST_SUITE_P(C, AvxVarianceTest,
 
 typedef TestParams<GetSseSum8x8QuadFunc> GetSseSumParams;
 const GetSseSumParams kArrayGetSseSum8x8Quad_c[] = {
-  GetSseSumParams(7, 7, &aom_get_sse_sum_8x8_quad_c, 0),
-  GetSseSumParams(6, 6, &aom_get_sse_sum_8x8_quad_c, 0),
-  GetSseSumParams(5, 5, &aom_get_sse_sum_8x8_quad_c, 0),
-  GetSseSumParams(5, 4, &aom_get_sse_sum_8x8_quad_c, 0)
+  GetSseSumParams(7, 7, &aom_get_var_sse_sum_8x8_quad_c, 0),
+  GetSseSumParams(6, 6, &aom_get_var_sse_sum_8x8_quad_c, 0),
+  GetSseSumParams(5, 5, &aom_get_var_sse_sum_8x8_quad_c, 0),
+  GetSseSumParams(5, 4, &aom_get_var_sse_sum_8x8_quad_c, 0)
 };
 INSTANTIATE_TEST_SUITE_P(C, GetSseSum8x8QuadTest,
                          ::testing::ValuesIn(kArrayGetSseSum8x8Quad_c));
@@ -2311,10 +2343,10 @@ INSTANTIATE_TEST_SUITE_P(SSE2, AvxVarianceTest,
                          ::testing::ValuesIn(kArrayVariance_sse2));
 
 const GetSseSumParams kArrayGetSseSum8x8Quad_sse2[] = {
-  GetSseSumParams(7, 7, &aom_get_sse_sum_8x8_quad_sse2, 0),
-  GetSseSumParams(6, 6, &aom_get_sse_sum_8x8_quad_sse2, 0),
-  GetSseSumParams(5, 5, &aom_get_sse_sum_8x8_quad_sse2, 0),
-  GetSseSumParams(5, 4, &aom_get_sse_sum_8x8_quad_sse2, 0)
+  GetSseSumParams(7, 7, &aom_get_var_sse_sum_8x8_quad_sse2, 0),
+  GetSseSumParams(6, 6, &aom_get_var_sse_sum_8x8_quad_sse2, 0),
+  GetSseSumParams(5, 5, &aom_get_var_sse_sum_8x8_quad_sse2, 0),
+  GetSseSumParams(5, 4, &aom_get_var_sse_sum_8x8_quad_sse2, 0)
 };
 INSTANTIATE_TEST_SUITE_P(SSE2, GetSseSum8x8QuadTest,
                          ::testing::ValuesIn(kArrayGetSseSum8x8Quad_sse2));
@@ -2929,10 +2961,10 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AvxVarianceTest,
                          ::testing::ValuesIn(kArrayVariance_avx2));
 
 const GetSseSumParams kArrayGetSseSum8x8Quad_avx2[] = {
-  GetSseSumParams(7, 7, &aom_get_sse_sum_8x8_quad_avx2, 0),
-  GetSseSumParams(6, 6, &aom_get_sse_sum_8x8_quad_avx2, 0),
-  GetSseSumParams(5, 5, &aom_get_sse_sum_8x8_quad_avx2, 0),
-  GetSseSumParams(5, 4, &aom_get_sse_sum_8x8_quad_avx2, 0)
+  GetSseSumParams(7, 7, &aom_get_var_sse_sum_8x8_quad_avx2, 0),
+  GetSseSumParams(6, 6, &aom_get_var_sse_sum_8x8_quad_avx2, 0),
+  GetSseSumParams(5, 5, &aom_get_var_sse_sum_8x8_quad_avx2, 0),
+  GetSseSumParams(5, 4, &aom_get_var_sse_sum_8x8_quad_avx2, 0)
 };
 INSTANTIATE_TEST_SUITE_P(AVX2, GetSseSum8x8QuadTest,
                          ::testing::ValuesIn(kArrayGetSseSum8x8Quad_avx2));
@@ -3054,10 +3086,10 @@ INSTANTIATE_TEST_SUITE_P(NEON, AvxSubpelVarianceTest,
                          ::testing::ValuesIn(kArraySubpelVariance_neon));
 
 const GetSseSumParams kArrayGetSseSum8x8Quad_neon[] = {
-  GetSseSumParams(7, 7, &aom_get_sse_sum_8x8_quad_neon, 0),
-  GetSseSumParams(6, 6, &aom_get_sse_sum_8x8_quad_neon, 0),
-  GetSseSumParams(5, 5, &aom_get_sse_sum_8x8_quad_neon, 0),
-  GetSseSumParams(5, 4, &aom_get_sse_sum_8x8_quad_neon, 0)
+  GetSseSumParams(7, 7, &aom_get_var_sse_sum_8x8_quad_neon, 0),
+  GetSseSumParams(6, 6, &aom_get_var_sse_sum_8x8_quad_neon, 0),
+  GetSseSumParams(5, 5, &aom_get_var_sse_sum_8x8_quad_neon, 0),
+  GetSseSumParams(5, 4, &aom_get_var_sse_sum_8x8_quad_neon, 0)
 };
 INSTANTIATE_TEST_SUITE_P(NEON, GetSseSum8x8QuadTest,
                          ::testing::ValuesIn(kArrayGetSseSum8x8Quad_neon));

@@ -240,9 +240,11 @@ void aom_get8x8var_sse2(const uint8_t *src_ptr, int src_stride,
   variance_final_128_pel_sse2(vsse, vsum, sse, sum);
 }
 
-void aom_get_sse_sum_8x8_quad_sse2(const uint8_t *src_ptr, int src_stride,
-                                   const uint8_t *ref_ptr, int ref_stride,
-                                   unsigned int *sse, int *sum) {
+void aom_get_var_sse_sum_8x8_quad_sse2(const uint8_t *src_ptr, int src_stride,
+                                       const uint8_t *ref_ptr, int ref_stride,
+                                       uint32_t *sse8x8, int *sum8x8,
+                                       unsigned int *tot_sse, int *tot_sum,
+                                       uint32_t *var8x8) {
   // Loop over 4 8x8 blocks. Process one 8x32 block.
   for (int k = 0; k < 4; k++) {
     const uint8_t *src = src_ptr;
@@ -259,8 +261,14 @@ void aom_get_sse_sum_8x8_quad_sse2(const uint8_t *src_ptr, int src_stride,
       src += src_stride;
       ref += ref_stride;
     }
-    variance_final_128_pel_sse2(vsse, vsum, &sse[k], &sum[k]);
+    variance_final_128_pel_sse2(vsse, vsum, &sse8x8[k], &sum8x8[k]);
   }
+
+  // Calculate variance at 8x8 level and total sse, sum of 8x32 block.
+  *tot_sse += sse8x8[0] + sse8x8[1] + sse8x8[2] + sse8x8[3];
+  *tot_sum += sum8x8[0] + sum8x8[1] + sum8x8[2] + sum8x8[3];
+  for (int i = 0; i < 4; i++)
+    var8x8[i] = sse8x8[i] - (uint32_t)(((int64_t)sum8x8[i] * sum8x8[i]) >> 6);
 }
 
 #define AOM_VAR_NO_LOOP_SSE2(bw, bh, bits, max_pixels)                        \
