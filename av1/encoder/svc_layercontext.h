@@ -107,6 +107,7 @@ typedef struct SVC {
   int num_encoded_top_layer;
   int first_layer_denoise;
   int high_source_sad_superframe;
+  YV12_BUFFER_CONFIG source_last_ref;
   /*!\endcond */
 
   /*!
@@ -134,6 +135,11 @@ typedef struct SVC {
    * Force zero-mv in mode search for the spatial/inter-layer reference.
    */
   int force_zero_mode_spatial_ref;
+
+  /*!
+   * Frame numbers corresponding to each of the 8 reference buffer slots.
+   */
+  unsigned int frame_number_buffslot[8];
 } SVC;
 
 struct AV1_COMP;
@@ -276,6 +282,8 @@ void av1_get_layer_resolution(const int width_org, const int height_org,
 void av1_set_svc_fixed_mode(struct AV1_COMP *const cpi);
 
 void av1_svc_check_reset_layer_rc_flag(struct AV1_COMP *const cpi);
+
+void av1_svc_update_frame_number_buffslot(struct AV1_COMP *const cpi);
 
 #ifdef __cplusplus
 }  // extern "C"

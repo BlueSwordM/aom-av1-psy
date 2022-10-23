@@ -38,6 +38,7 @@ typedef struct {
   int layering_mode;
   int output_obu;
   int decode;
+  int tune_content;
 } AppInput;
 
 typedef enum {
@@ -91,6 +92,14 @@ static const arg_def_t output_obu_arg =
 static const arg_def_t test_decode_arg =
     ARG_DEF(NULL, "test-decode", 1,
             "Attempt to test decoding the output when set to 1. Default is 1.");
+static const struct arg_enum_list tune_content_enum[] = {
+  { "default", AOM_CONTENT_DEFAULT },
+  { "screen", AOM_CONTENT_SCREEN },
+  { "film", AOM_CONTENT_FILM },
+  { NULL, 0 }
+};
+static const arg_def_t tune_content_arg = ARG_DEF_ENUM(
+    NULL, "tune-content", 1, "Tune content type", tune_content_enum);
 
 #if CONFIG_AV1_HIGHBITDEPTH
 static const struct arg_enum_list bitdepth_enum[] = {
@@ -125,6 +134,7 @@ static const arg_def_t *svc_args[] = { &frames_arg,
                                        &error_resilient_arg,
                                        &output_obu_arg,
                                        &test_decode_arg,
+                                       &tune_content_arg,
                                        NULL };
 
 #define zero(Dest) memset(&(Dest), 0, sizeof(Dest))
@@ -365,6 +375,9 @@ static void parse_command_line(int argc, const char **argv_,
       if (app_input->decode != 0 && app_input->decode != 1)
         die("Invalid value for test decode flag (0, 1): %d.",
             app_input->decode);
+    } else if (arg_match(&arg, &tune_content_arg, argi)) {
+      app_input->tune_content = arg_parse_enum_or_int(&arg);
+      printf("tune content %d\n", app_input->tune_content);
     } else {
       ++argj;
     }
@@ -1356,6 +1369,12 @@ int main(int argc, const char **argv) {
   aom_codec_control(&codec, AV1E_SET_TILE_COLUMNS,
                     cfg.g_threads ? get_msb(cfg.g_threads) : 0);
   if (cfg.g_threads > 1) aom_codec_control(&codec, AV1E_SET_ROW_MT, 1);
+
+  aom_codec_control(&codec, AV1E_SET_TUNE_CONTENT, app_input.tune_content);
+  if (app_input.tune_content == AOM_CONTENT_SCREEN) {
+    aom_codec_control(&codec, AV1E_SET_ENABLE_PALETTE, 1);
+    aom_codec_control(&codec, AV1E_SET_ENABLE_CFL_INTRA, 1);
+  }
 
   svc_params.number_spatial_layers = ss_number_layers;
   svc_params.number_temporal_layers = ts_number_layers;

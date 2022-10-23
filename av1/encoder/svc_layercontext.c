@@ -539,3 +539,13 @@ void av1_svc_check_reset_layer_rc_flag(AV1_COMP *const cpi) {
     }
   }
 }
+void av1_svc_update_frame_number_buffslot(AV1_COMP *const cpi) {
+  SVC *const svc = &cpi->svc;
+  const AV1_COMMON *const cm = &cpi->common;
+  const CurrentFrame *const current_frame = &cm->current_frame;
+  const RTC_REF *const rtc_ref = &cpi->ppi->rtc_ref;
+  for (int i = 0; i < 8; i++) {
+    if (current_frame->frame_type == KEY_FRAME || rtc_ref->refresh[i] == 1)
+      svc->frame_number_buffslot[i] = current_frame->frame_number;
+  }
+}
