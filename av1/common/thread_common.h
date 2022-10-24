@@ -213,7 +213,8 @@ static AOM_FORCE_INLINE bool skip_loop_filter_plane(const int planes_to_lf[3],
 
 static AOM_INLINE void enqueue_lf_jobs(AV1LfSync *lf_sync, int start, int stop,
                                        const int planes_to_lf[3],
-                                       int lpf_opt_level, int mib_size) {
+                                       int lpf_opt_level,
+                                       int num_mis_in_lpf_unit_height) {
   int mi_row, plane, dir;
   AV1LfMTInfo *lf_job_queue = lf_sync->job_queue;
   lf_sync->jobs_enqueued = 0;
@@ -223,7 +224,7 @@ static AOM_INLINE void enqueue_lf_jobs(AV1LfSync *lf_sync, int start, int stop,
   // Launch top row jobs for all planes first, in case the output can be
   // partially reconstructed row by row.
   for (dir = 0; dir < 2; ++dir) {
-    for (mi_row = start; mi_row < stop; mi_row += mib_size) {
+    for (mi_row = start; mi_row < stop; mi_row += num_mis_in_lpf_unit_height) {
       for (plane = 0; plane < 3; ++plane) {
         if (skip_loop_filter_plane(planes_to_lf, plane, lpf_opt_level)) {
           continue;
@@ -242,9 +243,11 @@ static AOM_INLINE void enqueue_lf_jobs(AV1LfSync *lf_sync, int start, int stop,
 
 static AOM_INLINE void loop_filter_frame_mt_init(
     AV1_COMMON *cm, int start_mi_row, int end_mi_row, const int planes_to_lf[3],
-    int num_workers, AV1LfSync *lf_sync, int lpf_opt_level, int mib_size_log2) {
+    int num_workers, AV1LfSync *lf_sync, int lpf_opt_level,
+    int num_mis_in_lpf_unit_height_log2) {
   // Number of superblock rows
-  const int sb_rows = CEIL_POWER_OF_TWO(cm->mi_params.mi_rows, mib_size_log2);
+  const int sb_rows =
+      CEIL_POWER_OF_TWO(cm->mi_params.mi_rows, num_mis_in_lpf_unit_height_log2);
 
   if (!lf_sync->sync_range || sb_rows != lf_sync->rows ||
       num_workers > lf_sync->num_workers) {
@@ -259,7 +262,7 @@ static AOM_INLINE void loop_filter_frame_mt_init(
   }
 
   enqueue_lf_jobs(lf_sync, start_mi_row, end_mi_row, planes_to_lf,
-                  lpf_opt_level, (1 << mib_size_log2));
+                  lpf_opt_level, (1 << num_mis_in_lpf_unit_height_log2));
 }
 
 static AOM_INLINE AV1LfMTInfo *get_lf_job_info(AV1LfSync *lf_sync) {

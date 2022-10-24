@@ -252,10 +252,11 @@ void av1_thread_loop_filter_rows(
     const YV12_BUFFER_CONFIG *const frame_buffer, AV1_COMMON *const cm,
     struct macroblockd_plane *planes, MACROBLOCKD *xd, int mi_row, int plane,
     int dir, int lpf_opt_level, AV1LfSync *const lf_sync,
-    AV1_DEBLOCKING_PARAMETERS *params_buf, TX_SIZE *tx_buf, int mib_size_log2) {
+    AV1_DEBLOCKING_PARAMETERS *params_buf, TX_SIZE *tx_buf,
+    int num_mis_in_lpf_unit_height_log2) {
   const int sb_cols =
       CEIL_POWER_OF_TWO(cm->mi_params.mi_cols, MAX_MIB_SIZE_LOG2);
-  const int r = mi_row >> mib_size_log2;
+  const int r = mi_row >> num_mis_in_lpf_unit_height_log2;
   int mi_col, c;
 
   const bool joint_filter_chroma = (lpf_opt_level == 2) && plane > AOM_PLANE_Y;
@@ -272,11 +273,11 @@ void av1_thread_loop_filter_rows(
         if (plane == AOM_PLANE_Y) {
           av1_filter_block_plane_vert_opt(cm, xd, &planes[plane], mi_row,
                                           mi_col, params_buf, tx_buf,
-                                          mib_size_log2);
+                                          num_mis_in_lpf_unit_height_log2);
         } else {
           av1_filter_block_plane_vert_opt_chroma(
               cm, xd, &planes[plane], mi_row, mi_col, params_buf, tx_buf, plane,
-              joint_filter_chroma, mib_size_log2);
+              joint_filter_chroma, num_mis_in_lpf_unit_height_log2);
         }
       } else {
         av1_filter_block_plane_vert(cm, xd, plane, &planes[plane], mi_row,
@@ -305,11 +306,11 @@ void av1_thread_loop_filter_rows(
         if (plane == AOM_PLANE_Y) {
           av1_filter_block_plane_horz_opt(cm, xd, &planes[plane], mi_row,
                                           mi_col, params_buf, tx_buf,
-                                          mib_size_log2);
+                                          num_mis_in_lpf_unit_height_log2);
         } else {
           av1_filter_block_plane_horz_opt_chroma(
               cm, xd, &planes[plane], mi_row, mi_col, params_buf, tx_buf, plane,
-              joint_filter_chroma, mib_size_log2);
+              joint_filter_chroma, num_mis_in_lpf_unit_height_log2);
         }
       } else {
         av1_filter_block_plane_horz(cm, xd, plane, &planes[plane], mi_row,
