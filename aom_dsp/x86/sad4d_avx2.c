@@ -14,9 +14,9 @@
 
 #include "aom/aom_integer.h"
 
-void aom_sadMxNx4d_avx2(int M, int N, const uint8_t *src, int src_stride,
-                        const uint8_t *const ref[4], int ref_stride,
-                        uint32_t res[4]) {
+static AOM_FORCE_INLINE void aom_sadMxNx4d_avx2(
+    int M, int N, const uint8_t *src, int src_stride,
+    const uint8_t *const ref[4], int ref_stride, uint32_t res[4]) {
   __m256i src_reg, ref0_reg, ref1_reg, ref2_reg, ref3_reg;
   __m256i sum_ref0, sum_ref1, sum_ref2, sum_ref3;
   int i, j;
