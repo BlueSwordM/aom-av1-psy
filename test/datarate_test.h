@@ -215,7 +215,7 @@ class DatarateTest : public ::libaom_test::EncoderTest {
   int frame_update_bitrate_;
   int target_bitrate_update_[3];
   double effective_datarate_dynamic_[3];
-  int bits_total_dynamic_[3];
+  int64_t bits_total_dynamic_[3];
   int frame_number_dynamic_[3];
 };
 
