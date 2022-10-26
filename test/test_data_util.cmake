@@ -10,6 +10,7 @@
 #
 
 list(APPEND AOM_TEST_DATA_FILE_NAMES
+            "desktopqvga2.320_240.yuv"
             "desktop1.320_180.yuv"
             "hantro_collage_w176h144.yuv"
             "hantro_collage_w352h288.yuv"

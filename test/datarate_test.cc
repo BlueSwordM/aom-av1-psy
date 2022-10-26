@@ -97,22 +97,20 @@ class DatarateTestLarge
     cfg_.kf_max_dist = 3000;
     cfg_.kf_min_dist = 3000;
 
-    ::libaom_test::I420VideoSource video("desktop1.320_180.yuv", 320, 180, 30,
-                                         1, 0, 800);
+    ::libaom_test::I420VideoSource video("desktopqvga2.320_240.yuv", 320, 240,
+                                         30, 1, 0, 800);
     const int bitrate_array[2] = { 100, 200 };
     cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
     ResetModel();
-    // TODO(marpan): Reduce these numbers when RC gets better.
-    // The clip has some fast motion, so we may find better clip.
-    max_perc_spike_ = 2.5;
+    max_perc_spike_ = 3.0;
     max_perc_spike_high_ = 8.0;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
     ASSERT_GE(effective_datarate_, cfg_.rc_target_bitrate * 0.85)
         << " The datarate for the file is lower than target by too much!";
     ASSERT_LE(effective_datarate_, cfg_.rc_target_bitrate * 1.19)
         << " The datarate for the file is greater than target by too much!";
-    ASSERT_LE(num_spikes_, 18);
-    ASSERT_LT(num_spikes_high_, 2);
+    ASSERT_LT(num_spikes_, 8);
+    ASSERT_LT(num_spikes_high_, 1);
   }
 
   virtual void BasicRateTargetingCBRDynamicBitrateTest() {
