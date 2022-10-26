@@ -995,7 +995,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     if (seg->enabled) {
       const uint8_t *const map =
           seg->update_map ? cpi->enc_seg.map : cm->last_frame_seg_map;
-      const int segment_id =
+      const uint8_t segment_id =
           map ? get_segment_id(&cm->mi_params, map, sb_size, mi_row, mi_col)
               : 0;
       seg_skip = segfeature_active(seg, segment_id, SEG_LVL_SKIP);

@@ -279,7 +279,7 @@ int av1_neg_deinterleave(int diff, int ref, int max) {
 static int read_segment_id(AV1_COMMON *const cm, const MACROBLOCKD *const xd,
                            aom_reader *r, int skip) {
   int cdf_num;
-  const int pred = av1_get_spatial_seg_pred(cm, xd, &cdf_num, 0);
+  const uint8_t pred = av1_get_spatial_seg_pred(cm, xd, &cdf_num, 0);
   if (skip) return pred;
 
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
@@ -397,7 +397,7 @@ static int read_inter_segment_id(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   }
 
   if (seg->temporal_update) {
-    const int ctx = av1_get_pred_context_seg_id(xd);
+    const uint8_t ctx = av1_get_pred_context_seg_id(xd);
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     struct segmentation_probs *const segp = &ec_ctx->seg;
     aom_cdf_prob *pred_cdf = segp->pred_cdf[ctx];

@@ -59,7 +59,7 @@ struct segmentation_probs {
 };
 
 static INLINE int segfeature_active(const struct segmentation *seg,
-                                    int segment_id,
+                                    uint8_t segment_id,
                                     SEG_LVL_FEATURES feature_id) {
   return seg->enabled && (seg->feature_mask[segment_id] & (1 << feature_id));
 }
