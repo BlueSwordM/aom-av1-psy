@@ -346,7 +346,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 // TODO(aomedia:3314): Disable NEON unit test for now, since hadamard 16x16 NEON
 // need modifications to match C/AVX2 behavior.
-#if 0   // HAVE_NEON
+#if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
     NEON, HadamardLowbdTest,
     ::testing::Values(HadamardFuncWithSize(&aom_hadamard_8x8_neon, 8, 8),
