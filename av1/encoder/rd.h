@@ -155,7 +155,9 @@ static INLINE void av1_merge_rd_stats(RD_STATS *rd_stats_dst,
   if (!rd_stats_dst->zero_rate)
     rd_stats_dst->zero_rate = rd_stats_src->zero_rate;
   rd_stats_dst->dist += rd_stats_src->dist;
-  rd_stats_dst->sse += rd_stats_src->sse;
+  if (rd_stats_dst->sse < INT64_MAX && rd_stats_src->sse < INT64_MAX) {
+    rd_stats_dst->sse += rd_stats_src->sse;
+  }
   rd_stats_dst->skip_txfm &= rd_stats_src->skip_txfm;
 #if CONFIG_RD_DEBUG
   // This may run into problems when monochrome video is
