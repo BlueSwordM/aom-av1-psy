@@ -72,7 +72,7 @@ extern "C" {
 
 int av1_cdef_compute_sb_list(const CommonModeInfoParams *const mi_params,
                              int mi_row, int mi_col, cdef_list *dlist,
-                             int *tot_8x8_blk_count, BLOCK_SIZE bsize);
+                             BLOCK_SIZE bsize);
 
 typedef void (*cdef_init_fb_row_t)(
     const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
