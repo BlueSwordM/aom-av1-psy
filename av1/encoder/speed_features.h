@@ -1046,6 +1046,7 @@ typedef struct INTERP_FILTER_SPEED_FEATURES {
   // dual_filter=0 case
   int skip_sharp_interp_filter_search;
 
+  // skip interpolation filter search for a block in chessboard pattern
   int cb_pred_filter_search;
 
   // adaptive interp_filter search to allow skip of certain filter types.
