@@ -352,9 +352,9 @@ static INLINE int subpel_select(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   return cpi->sf.mv_sf.subpel_force_stop;
 }
 
-bool use_aggressive_subpel_search_method(MACROBLOCK *x,
-                                         bool use_adaptive_subpel_search,
-                                         const bool fullpel_performed_well) {
+static bool use_aggressive_subpel_search_method(
+    MACROBLOCK *x, bool use_adaptive_subpel_search,
+    const bool fullpel_performed_well) {
   if (!use_adaptive_subpel_search) return false;
   const int qband = x->qindex >> (QINDEX_BITS - 2);
   assert(qband < 4);
@@ -362,8 +362,7 @@ bool use_aggressive_subpel_search_method(MACROBLOCK *x,
                       (x->content_state_sb.source_sad_nonrd <= kLowSad) ||
                       (x->source_variance < 100)))
     return true;
-  else
-    return false;
+  return false;
 }
 
 /*!\brief Runs Motion Estimation for a specific block and specific ref frame.
@@ -2749,9 +2748,10 @@ static AOM_INLINE int skip_mode_by_bsize_and_ref_frame(
   return 0;
 }
 
-void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
-                           int y_sad, unsigned int source_variance,
-                           struct buf_2d yv12_mb[MAX_MB_PLANE]) {
+static void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x,
+                                  BLOCK_SIZE bsize, int y_sad,
+                                  unsigned int source_variance,
+                                  struct buf_2d yv12_mb[MAX_MB_PLANE]) {
   const int subsampling_x = cpi->common.seq_params->subsampling_x;
   const int subsampling_y = cpi->common.seq_params->subsampling_y;
   int factor = (bsize >= BLOCK_32X32) ? 2 : 3;
@@ -2797,10 +2797,11 @@ void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   }
 }
 
-void setup_compound_prediction(const AV1_COMMON *cm, MACROBLOCK *x,
-                               struct buf_2d yv12_mb[8][MAX_MB_PLANE],
-                               const int *use_ref_frame_mask,
-                               const MV_REFERENCE_FRAME *rf, int *ref_mv_idx) {
+static void setup_compound_prediction(const AV1_COMMON *cm, MACROBLOCK *x,
+                                      struct buf_2d yv12_mb[8][MAX_MB_PLANE],
+                                      const int *use_ref_frame_mask,
+                                      const MV_REFERENCE_FRAME *rf,
+                                      int *ref_mv_idx) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
