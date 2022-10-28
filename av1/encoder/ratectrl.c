@@ -3240,8 +3240,9 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
     // Adjust rate correction factor.
     target_bits_per_mb =
         (int)(((uint64_t)target_size << BPER_MB_NORMBITS) / cm->mi_params.MBs);
-    // Rate correction factor based on target_bits_per_mb and qp (==max_QP).
-    // This comes from the inverse computation of vp9_rc_bits_per_mb().
+    // Reset rate correction factor: for now base it on target_bits_per_mb
+    // and qp (==max_QP). This comes from the inverse computation of
+    // av1_rc_bits_per_mb().
     q2 = av1_convert_qindex_to_q(*q, cm->seq_params->bit_depth);
     enumerator = 1800000;  // Factor for inter frame.
     enumerator += (int)(enumerator * q2) >> 12;
