@@ -28,6 +28,8 @@ class MockRateControlQMode : public AV1RateControlQModeInterface {
                const std::vector<LookaheadStats> &lookahead_stats,
                const RefFrameTable &ref_frame_table_snapshot_init),
               (override));
+  MOCK_METHOD(int, GetRDMult, (const GopFrame &gop_frame, int q_index),
+              (const, override));
 };
 
 }  // namespace aom
