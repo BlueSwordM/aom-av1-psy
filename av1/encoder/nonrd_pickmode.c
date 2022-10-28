@@ -2777,7 +2777,8 @@ void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     x->color_sensitivity[1] = 0;
     return;
   }
-  for (int i = 1; i <= 2; ++i) {
+  const int num_planes = av1_num_planes(&cpi->common);
+  for (int i = 1; i < num_planes; ++i) {
     if (x->color_sensitivity[i - 1] == 2 || source_variance < 50) {
       struct macroblock_plane *const p = &x->plane[i];
       const BLOCK_SIZE bs =

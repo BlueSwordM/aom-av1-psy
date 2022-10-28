@@ -1237,7 +1237,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
     set_ref_ptrs(cm, xd, mi->ref_frame[0], mi->ref_frame[1]);
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL,
                                   cm->seq_params->sb_size, AOM_PLANE_Y,
-                                  AOM_PLANE_V);
+                                  num_planes - 1);
   }
 }
 
