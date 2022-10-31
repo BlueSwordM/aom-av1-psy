@@ -2758,9 +2758,14 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
   int last_src_ystride;
   int last_src_width;
   int last_src_height;
-  if (cm->spatial_layer_id != 0 || cm->width != cm->render_width ||
-      cm->height != cm->render_height || unscaled_src == NULL ||
-      unscaled_last_src == NULL) {
+  int width = cm->width;
+  int height = cm->height;
+  if (cpi->svc.number_spatial_layers > 1) {
+    width = cpi->oxcf.frm_dim_cfg.width;
+    height = cpi->oxcf.frm_dim_cfg.height;
+  }
+  if (width != cm->render_width || height != cm->render_height ||
+      unscaled_src == NULL || unscaled_last_src == NULL) {
     if (cpi->src_sad_blk_64x64) {
       aom_free(cpi->src_sad_blk_64x64);
       cpi->src_sad_blk_64x64 = NULL;
@@ -2787,8 +2792,12 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
   rc->max_block_source_sad = 0;
   rc->prev_avg_source_sad = rc->avg_source_sad;
   if (src_width == last_src_width && src_height == last_src_height) {
-    const int num_mi_cols = cm->mi_params.mi_cols;
-    const int num_mi_rows = cm->mi_params.mi_rows;
+    int num_mi_cols = cm->mi_params.mi_cols;
+    int num_mi_rows = cm->mi_params.mi_rows;
+    if (cpi->svc.number_spatial_layers > 1) {
+      num_mi_cols = cpi->svc.mi_cols_full_resoln;
+      num_mi_rows = cpi->svc.mi_rows_full_resoln;
+    }
     int num_zero_temp_sad = 0;
     uint32_t min_thresh = 10000;
     if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN) min_thresh = 100000;
@@ -2810,8 +2819,7 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
     // Flag to check light change or not.
     const int check_light_change = 0;
     // Store blkwise SAD for later use
-    if ((cm->spatial_layer_id == 0) && (cm->width == cm->render_width) &&
-        (cm->height == cm->render_height)) {
+    if (width == cm->render_width && height == cm->render_height) {
       if (cpi->src_sad_blk_64x64 == NULL) {
         CHECK_MEM_ERROR(
             cm, cpi->src_sad_blk_64x64,
@@ -2869,7 +2877,22 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
       rc->percent_blocks_with_motion =
           ((num_samples - num_zero_temp_sad) * 100) / num_samples;
   }
-  cpi->svc.high_source_sad_superframe = rc->high_source_sad;
+  // Scene detection is only on base SLO, and using full/orignal resolution.
+  // Pass the state to the upper spatial layers.
+  if (cpi->svc.number_spatial_layers > 1) {
+    SVC *svc = &cpi->svc;
+    for (int sl = 0; sl < svc->number_spatial_layers; ++sl) {
+      int tl = svc->temporal_layer_id;
+      const int layer = LAYER_IDS_TO_IDX(sl, tl, svc->number_temporal_layers);
+      LAYER_CONTEXT *lc = &svc->layer_context[layer];
+      RATE_CONTROL *lrc = &lc->rc;
+      lrc->high_source_sad = rc->high_source_sad;
+      lrc->frame_source_sad = rc->frame_source_sad;
+      lrc->avg_source_sad = rc->avg_source_sad;
+      lrc->percent_blocks_with_motion = rc->percent_blocks_with_motion;
+      lrc->max_block_source_sad = rc->max_block_source_sad;
+    }
+  }
 }
 
 /*!\brief Set the GF baseline interval for 1 pass real-time mode.

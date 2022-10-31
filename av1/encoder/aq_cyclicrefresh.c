@@ -328,7 +328,8 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
     ymis = AOMMIN(mi_params->mi_rows - mi_row, cm->seq_params->mib_size);
     if (cr->use_block_sad_scene_det && cpi->rc.frames_since_key > 30 &&
         cr->counter_encode_maxq_scene_change > 30 &&
-        cpi->src_sad_blk_64x64 != NULL) {
+        cpi->src_sad_blk_64x64 != NULL &&
+        cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1) {
       sb_sad = cpi->src_sad_blk_64x64[sb_col_index + sb_cols * sb_row_index];
       int scale = (cm->width * cm->height < 640 * 360) ? 6 : 8;
       int scale_low = 2;
@@ -373,8 +374,7 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
 }
 
 static int is_scene_change_detected(AV1_COMP *const cpi) {
-  return cpi->rc.high_source_sad ||
-         (cpi->ppi->use_svc && cpi->svc.high_source_sad_superframe);
+  return cpi->rc.high_source_sad;
 }
 
 // Set cyclic refresh parameters.

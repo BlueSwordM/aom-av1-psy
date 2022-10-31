@@ -971,6 +971,8 @@ static AOM_INLINE uint64_t get_sb_source_sad(const AV1_COMP *cpi, int mi_row,
 static AOM_INLINE bool is_calc_src_content_needed(AV1_COMP *cpi,
                                                   MACROBLOCK *const x,
                                                   int mi_row, int mi_col) {
+  if (cpi->svc.spatial_layer_id < cpi->svc.number_spatial_layers - 1)
+    return true;
   const uint64_t curr_sb_sad = get_sb_source_sad(cpi, mi_row, mi_col);
   if (curr_sb_sad == UINT64_MAX) return true;
   if (curr_sb_sad == 0) {
@@ -1017,15 +1019,16 @@ static AOM_INLINE void grade_source_content_sb(AV1_COMP *cpi,
                                                TileDataEnc *tile_data,
                                                int mi_row, int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
-  if (cm->current_frame.frame_type == KEY_FRAME) {
+  if (cm->current_frame.frame_type == KEY_FRAME ||
+      (cpi->ppi->use_svc &&
+       cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame)) {
     assert(x->content_state_sb.source_sad_nonrd == kMedSad);
     assert(x->content_state_sb.source_sad_rd == kMedSad);
     return;
   }
   bool calc_src_content = false;
 
-  if (cpi->sf.rt_sf.source_metrics_sb_nonrd &&
-      cpi->svc.number_spatial_layers <= 1) {
+  if (cpi->sf.rt_sf.source_metrics_sb_nonrd) {
     if (!cpi->sf.rt_sf.check_scene_detection || cpi->rc.frame_source_sad > 0) {
       calc_src_content = is_calc_src_content_needed(cpi, x, mi_row, mi_col);
     } else {

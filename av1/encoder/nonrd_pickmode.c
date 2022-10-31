@@ -2394,6 +2394,17 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   use_golden_ref_frame =
       cpi->ref_frame_flags & AOM_GOLD_FLAG ? use_golden_ref_frame : 0;
 
+  // For spatial layers: enable golden ref if it is set by user and
+  // corresponds to the lower spatial layer.
+  if (cpi->svc.spatial_layer_id > 0 && (cpi->ref_frame_flags & AOM_GOLD_FLAG) &&
+      x->content_state_sb.source_sad_nonrd < kHighSad) {
+    const int buffslot_golden =
+        cpi->ppi->rtc_ref.ref_idx[GOLDEN_FRAME - LAST_FRAME];
+    if (cpi->svc.buffer_time_index[buffslot_golden] ==
+        cpi->svc.current_superframe)
+      use_golden_ref_frame = 1;
+  }
+
   use_ref_frame[ALTREF_FRAME] = use_alt_ref_frame;
   use_ref_frame[GOLDEN_FRAME] = use_golden_ref_frame;
   use_ref_frame[LAST_FRAME] = use_last_ref_frame;
@@ -3340,8 +3351,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         get_segdata(seg, segment_id, SEG_LVL_REF_FRAME) != (int)ref_frame)
       continue;
 
-    // For screen content:
-    if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
+    // For screen content: for base spatial layer only for now.
+    if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+        cpi->svc.spatial_layer_id == 0) {
       // If source_sad is computed: skip non-zero motion
       // check for stationary (super)blocks. Otherwise if superblock
       // has motion skip the modes with zero motion for flat blocks,
@@ -3445,6 +3457,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     // skip newmv if the motion vector is (0, 0), and color is not set.
     if (this_mode == NEWMV &&
         cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+        cpi->svc.spatial_layer_id == 0 &&
         cpi->sf.rt_sf.source_metrics_sb_nonrd) {
       if (frame_mv[this_mode][ref_frame].as_int == 0 &&
           x->content_state_sb.source_sad_nonrd != kZeroSad &&

@@ -209,6 +209,7 @@ void av1_restore_layer_context(AV1_COMP *const cpi) {
     cr->sb_index = lc->sb_index;
     cr->actual_num_seg1_blocks = lc->actual_num_seg1_blocks;
     cr->actual_num_seg2_blocks = lc->actual_num_seg2_blocks;
+    cr->counter_encode_maxq_scene_change = lc->counter_encode_maxq_scene_change;
   }
   svc->skip_mvsearch_last = 0;
   svc->skip_mvsearch_gf = 0;
@@ -251,6 +252,7 @@ void av1_save_layer_context(AV1_COMP *const cpi) {
     lc->sb_index = cr->sb_index;
     lc->actual_num_seg1_blocks = cr->actual_num_seg1_blocks;
     lc->actual_num_seg2_blocks = cr->actual_num_seg2_blocks;
+    lc->counter_encode_maxq_scene_change = cr->counter_encode_maxq_scene_change;
   }
   // For any buffer slot that is refreshed, update it with
   // the spatial_layer_id and the current_superframe.
@@ -367,7 +369,10 @@ void av1_one_pass_cbr_svc_start_layer(AV1_COMP *const cpi) {
   cpi->common.height = height;
   alloc_mb_mode_info_buffers(cpi);
   av1_update_frame_size(cpi);
-  if (svc->spatial_layer_id == 0) svc->high_source_sad_superframe = 0;
+  if (svc->spatial_layer_id == svc->number_spatial_layers - 1) {
+    svc->mi_cols_full_resoln = cpi->common.mi_params.mi_cols;
+    svc->mi_rows_full_resoln = cpi->common.mi_params.mi_rows;
+  }
 }
 
 enum {
@@ -539,13 +544,28 @@ void av1_svc_check_reset_layer_rc_flag(AV1_COMP *const cpi) {
     }
   }
 }
-void av1_svc_update_frame_number_buffslot(AV1_COMP *const cpi) {
-  SVC *const svc = &cpi->svc;
-  const AV1_COMMON *const cm = &cpi->common;
-  const CurrentFrame *const current_frame = &cm->current_frame;
-  const RTC_REF *const rtc_ref = &cpi->ppi->rtc_ref;
-  for (int i = 0; i < 8; i++) {
-    if (current_frame->frame_type == KEY_FRAME || rtc_ref->refresh[i] == 1)
-      svc->frame_number_buffslot[i] = current_frame->frame_number;
+
+void av1_svc_set_last_source(AV1_COMP *const cpi, EncodeFrameInput *frame_input,
+                             YV12_BUFFER_CONFIG *prev_source) {
+  if (cpi->svc.spatial_layer_id == 0) {
+    // For base spatial layer: if the LAST reference (index 0) is not
+    // the previous (super)frame set the last_source to the source corresponding
+    // to the last TL0, otherwise keep it at prev_source.
+    frame_input->last_source = prev_source != NULL ? prev_source : NULL;
+    if (cpi->svc.current_superframe > 0) {
+      const int buffslot_last = cpi->ppi->rtc_ref.ref_idx[0];
+      if (cpi->svc.buffer_time_index[buffslot_last] <
+          cpi->svc.current_superframe - 1)
+        frame_input->last_source = &cpi->svc.source_last_TL0;
+    }
+  } else if (cpi->svc.spatial_layer_id > 0) {
+    // For spatial enhancement layers: the previous source (prev_source)
+    // corresponds to the lower spatial layer (which is the same source so
+    // we can't use that), so always set the last_source to the source of the
+    // last TL0.
+    if (cpi->svc.current_superframe > 0)
+      frame_input->last_source = &cpi->svc.source_last_TL0;
+    else
+      frame_input->last_source = NULL;
   }
 }
