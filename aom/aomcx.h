@@ -1467,6 +1467,17 @@ enum aome_enc_control_id {
    */
   AV1E_SET_SKIP_POSTPROC_FILTERING = 157,
 
+  /*!\brief Codec control function to enable the superblock level
+   * qp sweep in AV1 to ensure that end-to-end test runs well,
+   * unsigned int parameter.
+   *
+   * - 0 = disable (default)
+   * - 1 = enable
+   *
+   * \note This is only used in sb_qp_sweep unit test.
+   */
+  AV1E_ENABLE_SB_QP_SWEEP = 158,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -2085,6 +2096,9 @@ AOM_CTRL_USE_TYPE(AV1E_GET_NUM_OPERATING_POINTS, int *)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_SKIP_POSTPROC_FILTERING, unsigned int)
 #define AOM_CTRL_AV1E_SET_SKIP_POSTPROC_FILTERING
+
+AOM_CTRL_USE_TYPE(AV1E_ENABLE_SB_QP_SWEEP, unsigned int)
+#define AOM_CTRL_AV1E_ENABLE_SB_QP_SWEEP
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

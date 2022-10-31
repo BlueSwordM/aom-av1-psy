@@ -749,6 +749,7 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
   const int boost_index = AOMMIN(15, (cpi->ppi->p_rc.gfu_boost / 100));
   const int layer_depth = AOMMIN(gf_group->layer_depth[cpi->gf_frame_index], 6);
   const FRAME_TYPE frame_type = cm->current_frame.frame_type;
+  int qindex_rd;
 
   const int current_qindex = AOMMAX(
       0,
@@ -757,7 +758,18 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
                                    : quant_params->base_qindex));
   const int qindex = av1_get_qindex(&cm->seg, segment_id, current_qindex);
 
-  const int qindex_rdmult = qindex + quant_params->y_dc_delta_q;
+  if (cpi->oxcf.sb_qp_sweep) {
+    const int current_rd_qindex =
+        AOMMAX(0, AOMMIN(QINDEX_RANGE - 1, cm->delta_q_info.delta_q_present_flag
+                                               ? quant_params->base_qindex +
+                                                     x->rdmult_delta_qindex
+                                               : quant_params->base_qindex));
+    qindex_rd = av1_get_qindex(&cm->seg, segment_id, current_rd_qindex);
+  } else {
+    qindex_rd = qindex;
+  }
+
+  const int qindex_rdmult = qindex_rd + quant_params->y_dc_delta_q;
   const int rdmult = av1_compute_rd_mult(
       qindex_rdmult, cm->seq_params->bit_depth,
       cpi->ppi->gf_group.update_type[cpi->gf_frame_index], layer_depth,
@@ -778,7 +790,7 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
   x->seg_skip_block = segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP);
 
   av1_set_error_per_bit(&x->errorperbit, rdmult);
-  av1_set_sad_per_bit(cpi, &x->sadperbit, qindex);
+  av1_set_sad_per_bit(cpi, &x->sadperbit, qindex_rd);
 
   x->prev_segment_id = segment_id;
 }

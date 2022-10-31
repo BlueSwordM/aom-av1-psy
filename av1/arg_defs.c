@@ -679,5 +679,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       "key frame (-1 to 5). When set to -1 (default), it does not have any "
       "effect. The actual maximum pyramid height will be the minimum of this "
       "value and the value of gf_max_pyr_height."),
+  .sb_qp_sweep =
+      ARG_DEF(NULL, "sb-qp-sweep", 1,
+              "When set to 1, enable the superblock level qp sweep for a "
+              "given lambda to minimize the rdcost."),
 #endif  // CONFIG_AV1_ENCODER
 };

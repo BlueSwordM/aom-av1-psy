@@ -1904,8 +1904,9 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
       boost_index, frame_type, cpi->oxcf.q_cfg.use_fixed_qp_offsets,
       is_stat_consumption_stage(cpi));
 
-  const int new_qindex_rdmult =
-      quant_params->base_qindex + x->delta_qindex + quant_params->y_dc_delta_q;
+  const int new_qindex_rdmult = quant_params->base_qindex +
+                                x->rdmult_delta_qindex +
+                                quant_params->y_dc_delta_q;
   const int new_rdmult = av1_compute_rd_mult(
       new_qindex_rdmult, cm->seq_params->bit_depth,
       cpi->ppi->gf_group.update_type[cpi->gf_frame_index], layer_depth,

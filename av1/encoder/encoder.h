@@ -1064,6 +1064,9 @@ typedef struct AV1EncoderConfig {
 
   // Max depth for the GOP after a key frame
   int kf_max_pyr_height;
+
+  // A flag to control if we enable the superblock qp sweep for a given lambda
+  int sb_qp_sweep;
   /*!\endcond */
 } AV1EncoderConfig;
 

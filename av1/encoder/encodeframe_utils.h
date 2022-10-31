@@ -313,7 +313,7 @@ static AOM_INLINE int set_rdmult(const AV1_COMP *const cpi,
   if (segment_id >= 0) {
     qindex = av1_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex);
   } else {
-    qindex = quant_params->base_qindex + x->delta_qindex +
+    qindex = quant_params->base_qindex + x->rdmult_delta_qindex +
              quant_params->y_dc_delta_q;
   }
 

@@ -1547,8 +1547,12 @@ void av1_backup_sb_state(SB_FIRST_PASS_STATS *sb_fp_stats, const AV1_COMP *cpi,
 
   sb_fp_stats->fc = *td->counts;
 
-  memcpy(sb_fp_stats->inter_mode_rd_models, tile_data->inter_mode_rd_models,
-         sizeof(sb_fp_stats->inter_mode_rd_models));
+  // Don't copy in row_mt case, otherwise run into data race. No behavior change
+  // in row_mt case.
+  if (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1) {
+    memcpy(sb_fp_stats->inter_mode_rd_models, tile_data->inter_mode_rd_models,
+           sizeof(sb_fp_stats->inter_mode_rd_models));
+  }
 
   memcpy(sb_fp_stats->thresh_freq_fact, x->thresh_freq_fact,
          sizeof(sb_fp_stats->thresh_freq_fact));
@@ -1580,8 +1584,11 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
 
   *td->counts = sb_fp_stats->fc;
 
-  memcpy(tile_data->inter_mode_rd_models, sb_fp_stats->inter_mode_rd_models,
-         sizeof(sb_fp_stats->inter_mode_rd_models));
+  if (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1) {
+    memcpy(tile_data->inter_mode_rd_models, sb_fp_stats->inter_mode_rd_models,
+           sizeof(sb_fp_stats->inter_mode_rd_models));
+  }
+
   memcpy(x->thresh_freq_fact, sb_fp_stats->thresh_freq_fact,
          sizeof(sb_fp_stats->thresh_freq_fact));
 
