@@ -1290,7 +1290,6 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetTplPassGopEncodeInfo(
           (active_worst_quality * (depth_factor - 1) + active_best_quality) /
           depth_factor;
     }
-    param.rdmult = GetRDMult(gop_frame, param.q_index);
     gop_encode_info.param_list.push_back(param);
   }
   return gop_encode_info;
@@ -1360,7 +1359,6 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
           (active_worst_quality * (depth_factor - 1) + active_best_quality) /
           depth_factor;
     }
-    param.rdmult = GetRDMult(gop_frame, param.q_index);
     gop_encode_info.param_list.push_back(param);
   }
   return gop_encode_info;
