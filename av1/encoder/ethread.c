@@ -283,6 +283,7 @@ void av1_row_mt_mem_dealloc(AV1_COMP *cpi) {
     }
   }
   aom_free(enc_row_mt->num_tile_cols_done);
+  enc_row_mt->num_tile_cols_done = NULL;
   enc_row_mt->allocated_rows = 0;
   enc_row_mt->allocated_cols = 0;
   enc_row_mt->allocated_tile_cols = 0;
