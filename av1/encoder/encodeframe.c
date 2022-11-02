@@ -1203,6 +1203,8 @@ void av1_alloc_tile_data(AV1_COMP *cpi) {
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
 
+  av1_row_mt_mem_dealloc(cpi);
+
   if (cpi->tile_data != NULL) aom_free(cpi->tile_data);
   CHECK_MEM_ERROR(
       cm, cpi->tile_data,
