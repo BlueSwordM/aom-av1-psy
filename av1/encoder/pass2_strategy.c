@@ -3727,6 +3727,10 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
                                           oxcf->algo_cfg.arnr_max_frames / 2)
             : MAX_GF_LENGTH_LAP;
 
+    // Handle forward key frame when enabled.
+    if (oxcf->kf_cfg.fwd_kf_dist > 0)
+      max_gop_length = AOMMIN(rc->frames_to_fwd_kf + 1, max_gop_length);
+
     // Use the provided gop size in low delay setting
     if (oxcf->gf_cfg.lag_in_frames == 0) max_gop_length = rc->max_gf_interval;
 
