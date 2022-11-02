@@ -527,7 +527,6 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
       write_temp_delimiter_ = ppi->cpi->common.show_frame;
     }
     tpl_gop_stats = ObtainTplStats(gop_struct);
-    // TODO(jingning): Set the tpl stats file format and populate the stats.
     tpl_gop_stats_list.push_back(tpl_gop_stats);
   }
 
@@ -562,14 +561,13 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
       write_temp_delimiter_ = ppi->cpi->common.show_frame;
     }
     tpl_gop_stats = ObtainTplStats(gop_struct);
-    // TODO(jingning): Set the tpl stats file format and populate the stats.
     tpl_gop_stats_list.push_back(tpl_gop_stats);
   }
 
   return tpl_gop_stats_list;
 }
 
-// Obtain TPL stats through ducky_encode.
+// Conduct final encoding process.
 std::vector<EncodeFrameResult> DuckyEncode::EncodeVideo(
     const GopStructList &gop_list,
     const std::vector<std::vector<FrameParameters>> &gop_frame_parameters) {
