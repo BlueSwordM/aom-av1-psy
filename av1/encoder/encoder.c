@@ -2847,7 +2847,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
         // in RC lib.
         cm->delta_q_info.delta_q_present_flag = 0;
       }
-      // TODO(angiebird): Implement DUCKY_ENCODE_FRAME_MODE_QINDEX_RDMULT mode
     }
 
     av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
