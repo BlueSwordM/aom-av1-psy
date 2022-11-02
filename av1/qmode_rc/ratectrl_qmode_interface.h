@@ -225,6 +225,9 @@ struct FrameEncodeParameters {
   // Base q_index for the frame.
   int q_index;
 
+  // Frame level Lagrangian multiplier.
+  int rdmult;
+
   // If max_distinct_q_indices_per_frame <= 1, this will be empty.
   // Otherwise, it will have one q_index value per 64x64 superblock, in
   // row-major order, with no more than max_distinct_q_indices_per_frame
