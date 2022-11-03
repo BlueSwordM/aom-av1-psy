@@ -302,14 +302,18 @@ class AV1RateControlQModeInterface {
       const std::vector<LookaheadStats> &lookahead_stats,
       const RefFrameTable &ref_frame_table_snapshot_init) = 0;
 
-  // TODO(wachsler): Make pure virtual once all derived classes implement it.
+  // TODO(b/257303751): Make pure virtual once all derived classes implement it.
   virtual StatusOr<GopEncodeInfo> GetTplPassGopEncodeInfo(
       const GopStruct &gop_struct AOM_UNUSED) {
     return Status{ AOM_CODEC_UNSUP_FEATURE, "Not yet implemented" };
   }
 
   // Returns the rdmult (lambda) value for the specified frame and q_index.
-  virtual int GetRDMult(const GopFrame &gop_frame, int q_index) const = 0;
+  // TODO(b/257276448): Remove this once all callers are removed
+  virtual int GetRDMult(const GopFrame &gop_frame AOM_UNUSED,
+                        int q_index AOM_UNUSED) const {
+    return 0;
+  }
 };
 }  // namespace aom
 

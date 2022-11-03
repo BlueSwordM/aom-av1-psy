@@ -90,7 +90,7 @@ TEST(DuckyEncodeTest, EncodeFrameWithQindex) {
   int q_index = 0;
   EncodeFrameDecision decision = { aom::EncodeFrameMode::kQindex,
                                    aom::EncodeGopMode::kNone,
-                                   { q_index, -1 } };
+                                   { q_index, -1, {}, {} } };
   for (int i = 0; i < coding_frame_count; ++i) {
     ducky_encode.AllocateBitstreamBuffer(video_info);
     EncodeFrameResult encode_frame_result = ducky_encode.EncodeFrame(decision);

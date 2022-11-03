@@ -1040,28 +1040,17 @@ TEST_F(RateControlQModeTest, TestGetGopEncodeInfo) {
   DuckyEncode ducky_encode(input_video, rc_param_.max_ref_frames, 3,
                            rc_param_.base_q_index);
 
-  std::vector<std::vector<aom::FrameParameters>> gop_frame_parameters;
+  std::vector<aom::GopEncodeInfo> gop_encode_info_list;
   for (const auto &gop_struct : gop_list) {
     const auto gop_encode_info = rc.GetTplPassGopEncodeInfo(gop_struct);
     ASSERT_TRUE(gop_encode_info.ok());
-    const auto &gop_frame_list = gop_struct.gop_frame_list;
-    const auto &param_list = gop_encode_info->param_list;
-    ASSERT_EQ(gop_frame_list.size(), param_list.size());
-    std::vector<aom::FrameParameters> frame_parameters;
-    for (int i = 0; i < static_cast<int>(gop_frame_list.size()); ++i) {
-      const auto &gop_frame = gop_frame_list[i];
-      const auto &frame_encode_parameters = param_list[i];
-      frame_parameters.push_back(
-          { frame_encode_parameters.q_index,
-            rc.GetRDMult(gop_frame, frame_encode_parameters.q_index) });
-    }
-    gop_frame_parameters.push_back(frame_parameters);
+    gop_encode_info_list.push_back(gop_encode_info.value());
   }
 
   ducky_encode.StartEncode(firstpass_info.stats_list);
   // Read TPL stats
   std::vector<TplGopStats> tpl_gop_list =
-      ducky_encode.ComputeTplStats(gop_list, gop_frame_parameters);
+      ducky_encode.ComputeTplStats(gop_list, gop_encode_info_list);
   ducky_encode.EndEncode();
   RefFrameTable ref_frame_table;
   int num_gop_skipped = 0;
