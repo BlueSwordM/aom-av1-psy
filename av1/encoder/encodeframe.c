@@ -874,11 +874,15 @@ static AOM_INLINE void grade_source_content_sb(AV1_COMP *cpi,
                                                TileDataEnc *tile_data,
                                                int mi_row, int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
+  if (cm->current_frame.frame_type == KEY_FRAME) {
+    assert(x->content_state_sb.source_sad_nonrd == kMedSad);
+    assert(x->content_state_sb.source_sad_rd == kMedSad);
+    return;
+  }
   bool calc_src_content = false;
 
   if (cpi->sf.rt_sf.source_metrics_sb_nonrd &&
-      cpi->svc.number_spatial_layers <= 1 &&
-      cm->current_frame.frame_type != KEY_FRAME) {
+      cpi->svc.number_spatial_layers <= 1) {
     if (!cpi->sf.rt_sf.check_scene_detection || cpi->rc.frame_source_sad > 0) {
       calc_src_content = is_calc_src_content_needed(cpi, x, mi_row, mi_col);
     } else {
