@@ -1451,6 +1451,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.nonrd_check_partition_merge_mode = 3;
       sf->rt_sf.nonrd_prune_ref_frame_search = 1;
       sf->rt_sf.use_nonrd_filter_search = 0;
+      sf->rt_sf.prune_hv_pred_modes_using_src_sad = false;
     }
     if (speed >= 9) {
       sf->rt_sf.prune_idtx_nonrd = 1;
@@ -1763,6 +1764,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.partition_direct_merging = 1;
     sf->rt_sf.prune_compoundmode_with_singlemode_var = false;
     sf->mv_sf.use_bsize_dependent_search_method = 2;
+    sf->rt_sf.prune_hv_pred_modes_using_src_sad = true;
   }
   if (speed >= 9) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_3;
@@ -2087,6 +2089,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->fullpel_search_step_param = 0;
   for (int i = 0; i < BLOCK_SIZES; ++i)
     rt_sf->intra_y_mode_bsize_mask_nrd[i] = INTRA_ALL;
+  rt_sf->prune_hv_pred_modes_using_src_sad = false;
   rt_sf->nonrd_aggressive_skip = 0;
   rt_sf->skip_cdef_sb = 0;
   rt_sf->force_large_partition_blocks_intra = 0;

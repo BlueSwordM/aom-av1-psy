@@ -2734,6 +2734,36 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   assert(use_last_ref_frame || use_golden_ref_frame || use_alt_ref_frame);
 }
 
+// Checks whether Intra mode needs to be pruned based on
+// 'intra_y_mode_bsize_mask_nrd' and 'prune_hv_pred_modes_using_blksad'
+// speed features.
+static INLINE bool is_prune_intra_mode(AV1_COMP *cpi, int mode_index,
+                                       int force_intra_check, BLOCK_SIZE bsize,
+                                       uint8_t segment_id,
+                                       SOURCE_SAD source_sad_nonrd,
+                                       uint8_t color_sensitivity[2]) {
+  const PREDICTION_MODE this_mode = intra_mode_list[mode_index];
+  if (mode_index > 2 || force_intra_check == 0) {
+    if (!((1 << this_mode) & cpi->sf.rt_sf.intra_y_mode_bsize_mask_nrd[bsize]))
+      return true;
+
+    if (this_mode == DC_PRED) return false;
+
+    if (!cpi->sf.rt_sf.prune_hv_pred_modes_using_src_sad) return false;
+
+    const bool has_color_sensitivity =
+        color_sensitivity[0] && color_sensitivity[1];
+    if (has_color_sensitivity &&
+        (cpi->rc.frame_source_sad > 1.1 * cpi->rc.avg_source_sad ||
+         cyclic_refresh_segment_id_boosted(segment_id) ||
+         source_sad_nonrd > kMedSad))
+      return false;
+
+    return true;
+  }
+  return false;
+}
+
 /*!\brief Estimates best intra mode for inter mode search
  *
  * \ingroup nonrd_mode_search
@@ -2893,11 +2923,10 @@ static void estimate_intra_mode(
     const THR_MODES mode_index = mode_idx[INTRA_FRAME][mode_offset(this_mode)];
     const int64_t mode_rd_thresh = rd_threshes[mode_index];
 
-    if (i > 2 || force_intra_check == 0) {
-      if (!((1 << this_mode) &
-            cpi->sf.rt_sf.intra_y_mode_bsize_mask_nrd[bsize]))
-        continue;
-    }
+    if (is_prune_intra_mode(cpi, i, force_intra_check, bsize, segment_id,
+                            x->content_state_sb.source_sad_nonrd,
+                            x->color_sensitivity))
+      continue;
 
     if (is_screen_content && cpi->sf.rt_sf.source_metrics_sb_nonrd) {
       // For spatially flat blocks with zero motion only check
