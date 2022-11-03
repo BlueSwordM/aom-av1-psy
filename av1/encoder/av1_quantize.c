@@ -745,14 +745,25 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
                                int segment_id, const int do_update) {
   const AV1_COMMON *const cm = &cpi->common;
   const CommonQuantParams *const quant_params = &cm->quant_params;
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
+  const int boost_index = AOMMIN(15, (cpi->ppi->p_rc.gfu_boost / 100));
+  const int layer_depth = AOMMIN(gf_group->layer_depth[cpi->gf_frame_index], 6);
+  const FRAME_TYPE frame_type = cm->current_frame.frame_type;
+
   const int current_qindex = AOMMAX(
       0,
       AOMMIN(QINDEX_RANGE - 1, cm->delta_q_info.delta_q_present_flag
                                    ? quant_params->base_qindex + x->delta_qindex
                                    : quant_params->base_qindex));
   const int qindex = av1_get_qindex(&cm->seg, segment_id, current_qindex);
-  const int rdmult =
-      av1_compute_rd_mult(cpi, qindex + quant_params->y_dc_delta_q);
+
+  const int qindex_rdmult = qindex + quant_params->y_dc_delta_q;
+  const int rdmult = av1_compute_rd_mult(
+      qindex_rdmult, cm->seq_params->bit_depth,
+      cpi->ppi->gf_group.update_type[cpi->gf_frame_index], layer_depth,
+      boost_index, frame_type, cpi->oxcf.q_cfg.use_fixed_qp_offsets,
+      is_stat_consumption_stage(cpi));
+
   const int qindex_change = x->qindex != qindex;
   if (qindex_change || do_update) {
     av1_set_q_index(&cpi->enc_quant_dequant_params, qindex, x);

@@ -590,9 +590,9 @@ static void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                : av1_log_block_var(cpi, x, bsize);
         mbmi->segment_id = energy;
       }
-      x->rdmult = set_segment_rdmult(cpi, x, mbmi->segment_id);
+      x->rdmult = set_rdmult(cpi, x, mbmi->segment_id);
     } else if (aq_mode == COMPLEXITY_AQ) {
-      x->rdmult = set_segment_rdmult(cpi, x, mbmi->segment_id);
+      x->rdmult = set_rdmult(cpi, x, mbmi->segment_id);
     } else if (aq_mode == CYCLIC_REFRESH_AQ) {
       // If segment is boosted, use rdmult for that segment.
       if (cyclic_refresh_segment_id_boosted(mbmi->segment_id))

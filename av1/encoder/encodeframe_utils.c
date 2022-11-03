@@ -54,14 +54,6 @@ void av1_set_ssim_rdmult(const AV1_COMP *const cpi, int *errorperbit,
 
 // TODO(angiebird): Move these function to tpl_model.c
 #if !CONFIG_REALTIME_ONLY
-static AOM_INLINE int set_deltaq_rdmult(const AV1_COMP *const cpi,
-                                        const MACROBLOCK *const x) {
-  const AV1_COMMON *const cm = &cpi->common;
-  const CommonQuantParams *quant_params = &cm->quant_params;
-  return av1_compute_rd_mult(cpi, quant_params->base_qindex + x->delta_qindex +
-                                      quant_params->y_dc_delta_q);
-}
-
 // Return the end column for the current superblock, in unit of TPL blocks.
 static int get_superblock_tpl_column_end(const AV1_COMMON *const cm, int mi_col,
                                          int num_mi_w) {
@@ -89,7 +81,7 @@ int av1_get_cb_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   assert(IMPLIES(cpi->ppi->gf_group.size > 0,
                  cpi->gf_frame_index < cpi->ppi->gf_group.size));
   const int tpl_idx = cpi->gf_frame_index;
-  int deltaq_rdmult = set_deltaq_rdmult(cpi, x);
+  int deltaq_rdmult = set_rdmult(cpi, x, -1);
   if (!av1_tpl_stats_ready(&cpi->ppi->tpl_data, tpl_idx)) return deltaq_rdmult;
   if (cm->superres_scale_denominator != SCALE_NUMERATOR) return deltaq_rdmult;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return deltaq_rdmult;
@@ -143,7 +135,7 @@ int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   assert(IMPLIES(cpi->ppi->gf_group.size > 0,
                  cpi->gf_frame_index < cpi->ppi->gf_group.size));
   const int tpl_idx = cpi->gf_frame_index;
-  const int deltaq_rdmult = set_deltaq_rdmult(cpi, x);
+  const int deltaq_rdmult = set_rdmult(cpi, x, -1);
   if (!av1_tpl_stats_ready(&cpi->ppi->tpl_data, tpl_idx)) return deltaq_rdmult;
   if (!is_frame_tpl_eligible(gf_group, cpi->gf_frame_index))
     return deltaq_rdmult;
@@ -185,7 +177,7 @@ int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   av1_set_error_per_bit(&x->errorperbit, rdmult);
 #if !CONFIG_RD_COMMAND
   if (bsize == cm->seq_params->sb_size) {
-    const int rdmult_sb = set_deltaq_rdmult(cpi, x);
+    const int rdmult_sb = set_rdmult(cpi, x, -1);
     assert(rdmult_sb == rdmult);
     (void)rdmult_sb;
   }

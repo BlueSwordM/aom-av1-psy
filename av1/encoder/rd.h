@@ -226,7 +226,12 @@ int av1_compute_rd_mult_based_on_qindex(aom_bit_depth_t bit_depth,
                                         FRAME_UPDATE_TYPE update_type,
                                         int qindex);
 
-int av1_compute_rd_mult(const struct AV1_COMP *cpi, int qindex);
+int av1_compute_rd_mult(const int qindex, const aom_bit_depth_t bit_depth,
+                        const FRAME_UPDATE_TYPE update_type,
+                        const int layer_depth, const int boost_index,
+                        const FRAME_TYPE frame_type,
+                        const int use_fixed_qp_offsets,
+                        const int is_stat_consumption_stage);
 
 void av1_initialize_rd_consts(struct AV1_COMP *cpi);
 

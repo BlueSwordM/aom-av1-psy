@@ -1204,6 +1204,10 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
   tpl_reset_src_ref_frames(tpl_data);
   av1_tile_init(&xd->tile, cm, 0, 0);
 
+  const int boost_index = AOMMIN(15, (cpi->ppi->p_rc.gfu_boost / 100));
+  const int layer_depth = AOMMIN(gf_group->layer_depth[cpi->gf_frame_index], 6);
+  const FRAME_TYPE frame_type = cm->current_frame.frame_type;
+
   // Setup scaling factor
   av1_setup_scale_factors_for_frame(
       &tpl_data->sf, this_frame->y_crop_width, this_frame->y_crop_height,
@@ -1266,7 +1270,12 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
 
   const int base_qindex = pframe_qindex;
   // Get rd multiplier set up.
-  rdmult = (int)av1_compute_rd_mult(cpi, base_qindex);
+  rdmult = (int)av1_compute_rd_mult(
+      base_qindex, cm->seq_params->bit_depth,
+      cpi->ppi->gf_group.update_type[cpi->gf_frame_index], layer_depth,
+      boost_index, frame_type, cpi->oxcf.q_cfg.use_fixed_qp_offsets,
+      is_stat_consumption_stage(cpi));
+
   if (rdmult < 1) rdmult = 1;
   av1_set_error_per_bit(&x->errorperbit, rdmult);
   av1_set_sad_per_bit(cpi, &x->sadperbit, base_qindex);
@@ -1847,6 +1856,10 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
                  cpi->gf_frame_index < cpi->ppi->gf_group.size));
   const int tpl_idx = cpi->gf_frame_index;
 
+  const int boost_index = AOMMIN(15, (cpi->ppi->p_rc.gfu_boost / 100));
+  const int layer_depth = AOMMIN(gf_group->layer_depth[cpi->gf_frame_index], 6);
+  const FRAME_TYPE frame_type = cm->current_frame.frame_type;
+
   if (tpl_idx >= MAX_TPL_FRAME_IDX) return;
   TplDepFrame *tpl_frame = &cpi->ppi->tpl_data.tpl_frame[tpl_idx];
   if (!tpl_frame->is_valid) return;
@@ -1882,11 +1895,23 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
   }
 
   const CommonQuantParams *quant_params = &cm->quant_params;
+
+  const int orig_qindex_rdmult =
+      quant_params->base_qindex + quant_params->y_dc_delta_q;
   const int orig_rdmult = av1_compute_rd_mult(
-      cpi, quant_params->base_qindex + quant_params->y_dc_delta_q);
-  const int new_rdmult =
-      av1_compute_rd_mult(cpi, quant_params->base_qindex + x->delta_qindex +
-                                   quant_params->y_dc_delta_q);
+      orig_qindex_rdmult, cm->seq_params->bit_depth,
+      cpi->ppi->gf_group.update_type[cpi->gf_frame_index], layer_depth,
+      boost_index, frame_type, cpi->oxcf.q_cfg.use_fixed_qp_offsets,
+      is_stat_consumption_stage(cpi));
+
+  const int new_qindex_rdmult =
+      quant_params->base_qindex + x->delta_qindex + quant_params->y_dc_delta_q;
+  const int new_rdmult = av1_compute_rd_mult(
+      new_qindex_rdmult, cm->seq_params->bit_depth,
+      cpi->ppi->gf_group.update_type[cpi->gf_frame_index], layer_depth,
+      boost_index, frame_type, cpi->oxcf.q_cfg.use_fixed_qp_offsets,
+      is_stat_consumption_stage(cpi));
+
   const double scaling_factor = (double)new_rdmult / (double)orig_rdmult;
 
   double scale_adj = log(scaling_factor) - log_sum / base_block_count;

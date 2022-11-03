@@ -408,22 +408,18 @@ int av1_compute_rd_mult_based_on_qindex(aom_bit_depth_t bit_depth,
   return rdmult > 0 ? (int)AOMMIN(rdmult, INT_MAX) : 1;
 }
 
-int av1_compute_rd_mult(const AV1_COMP *cpi, int qindex) {
-  const aom_bit_depth_t bit_depth = cpi->common.seq_params->bit_depth;
-  const FRAME_UPDATE_TYPE update_type =
-      cpi->ppi->gf_group.update_type[cpi->gf_frame_index];
+int av1_compute_rd_mult(const int qindex, const aom_bit_depth_t bit_depth,
+                        const FRAME_UPDATE_TYPE update_type,
+                        const int layer_depth, const int boost_index,
+                        const FRAME_TYPE frame_type,
+                        const int use_fixed_qp_offsets,
+                        const int is_stat_consumption_stage) {
   int64_t rdmult =
       av1_compute_rd_mult_based_on_qindex(bit_depth, update_type, qindex);
-  if (is_stat_consumption_stage(cpi) && !cpi->oxcf.q_cfg.use_fixed_qp_offsets &&
-      (cpi->common.current_frame.frame_type != KEY_FRAME)) {
-    const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
-    const int boost_index = AOMMIN(15, (cpi->ppi->p_rc.gfu_boost / 100));
-    const int layer_depth =
-        AOMMIN(gf_group->layer_depth[cpi->gf_frame_index], 6);
-
+  if (is_stat_consumption_stage && !use_fixed_qp_offsets &&
+      (frame_type != KEY_FRAME)) {
     // Layer depth adjustment
     rdmult = (rdmult * rd_layer_depth_factor[layer_depth]) >> 7;
-
     // ARF boost adjustment
     rdmult += ((rdmult * rd_boost_factor[boost_index]) >> 7);
   }
@@ -474,10 +470,20 @@ int av1_adjust_q_from_delta_q_res(int delta_q_res, int prev_qindex,
 int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
   assert(beta > 0.0);
   const AV1_COMMON *cm = &cpi->common;
-  int q = av1_dc_quant_QTX(cm->quant_params.base_qindex, 0,
-                           cm->seq_params->bit_depth);
 
-  return (int)(av1_compute_rd_mult(cpi, q) / beta);
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
+  const int boost_index = AOMMIN(15, (cpi->ppi->p_rc.gfu_boost / 100));
+  const int layer_depth = AOMMIN(gf_group->layer_depth[cpi->gf_frame_index], 6);
+  const FRAME_TYPE frame_type = cm->current_frame.frame_type;
+
+  const int qindex_rdmult = cm->quant_params.base_qindex;
+  return (int)(av1_compute_rd_mult(
+                   qindex_rdmult, cm->seq_params->bit_depth,
+                   cpi->ppi->gf_group.update_type[cpi->gf_frame_index],
+                   layer_depth, boost_index, frame_type,
+                   cpi->oxcf.q_cfg.use_fixed_qp_offsets,
+                   is_stat_consumption_stage(cpi)) /
+               beta);
 }
 
 static int compute_rd_thresh_factor(int qindex, aom_bit_depth_t bit_depth) {
@@ -756,8 +762,18 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
   int use_nonrd_pick_mode = cpi->sf.rt_sf.use_nonrd_pick_mode;
   int frames_since_key = cpi->rc.frames_since_key;
 
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
+  const int boost_index = AOMMIN(15, (cpi->ppi->p_rc.gfu_boost / 100));
+  const int layer_depth = AOMMIN(gf_group->layer_depth[cpi->gf_frame_index], 6);
+  const FRAME_TYPE frame_type = cm->current_frame.frame_type;
+
+  const int qindex_rdmult =
+      cm->quant_params.base_qindex + cm->quant_params.y_dc_delta_q;
   rd->RDMULT = av1_compute_rd_mult(
-      cpi, cm->quant_params.base_qindex + cm->quant_params.y_dc_delta_q);
+      qindex_rdmult, cm->seq_params->bit_depth,
+      cpi->ppi->gf_group.update_type[cpi->gf_frame_index], layer_depth,
+      boost_index, frame_type, cpi->oxcf.q_cfg.use_fixed_qp_offsets,
+      is_stat_consumption_stage(cpi));
 #if CONFIG_RD_COMMAND
   if (cpi->oxcf.pass == 2) {
     const RD_COMMAND *rd_command = &cpi->rd_command;

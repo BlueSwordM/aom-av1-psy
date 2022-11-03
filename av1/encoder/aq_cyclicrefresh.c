@@ -511,6 +511,10 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
   CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
   struct segmentation *const seg = &cm->seg;
   const int scene_change_detected = is_scene_change_detected(cpi);
+  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
+  const int boost_index = AOMMIN(15, (cpi->ppi->p_rc.gfu_boost / 100));
+  const int layer_depth = AOMMIN(gf_group->layer_depth[cpi->gf_frame_index], 6);
+  const FRAME_TYPE frame_type = cm->current_frame.frame_type;
 
   const int resolution_change =
       cm->prev_frame && (cm->width != cm->prev_frame->width ||
@@ -574,7 +578,11 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
     const int qindex2 = clamp(
         quant_params->base_qindex + quant_params->y_dc_delta_q + qindex_delta,
         0, MAXQ);
-    cr->rdmult = av1_compute_rd_mult(cpi, qindex2);
+    cr->rdmult = av1_compute_rd_mult(
+        qindex2, cm->seq_params->bit_depth,
+        cpi->ppi->gf_group.update_type[cpi->gf_frame_index], layer_depth,
+        boost_index, frame_type, cpi->oxcf.q_cfg.use_fixed_qp_offsets,
+        is_stat_consumption_stage(cpi));
 
     av1_set_segdata(seg, CR_SEGMENT_ID_BOOST1, SEG_LVL_ALT_Q, qindex_delta);
 
