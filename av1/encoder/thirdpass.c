@@ -127,7 +127,7 @@ static int get_frame_info(THIRD_PASS_DEC_CTX *ctx) {
     aom_internal_error(ctx->err_info, AOM_CODEC_ERROR,
                        "Third pass frame info ran out of available slots.");
   }
-  int frame_type_flags = 0;
+  aom_codec_frame_flags_t frame_type_flags = 0;
   if (aom_codec_control(&ctx->decoder, AOMD_GET_FRAME_FLAGS,
                         &frame_type_flags) != AOM_CODEC_OK) {
     aom_internal_error(ctx->err_info, AOM_CODEC_ERROR,

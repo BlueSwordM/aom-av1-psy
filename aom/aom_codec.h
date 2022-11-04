@@ -268,18 +268,18 @@ typedef struct aom_codec_priv aom_codec_priv_t;
  * support frame types that are codec specific (MPEG-1 D-frames for example)
  */
 typedef uint32_t aom_codec_frame_flags_t;
-#define AOM_FRAME_IS_KEY 0x1 /**< frame is the start of a GOP */
+#define AOM_FRAME_IS_KEY 0x1u /**< frame is the start of a GOP */
 /*!\brief frame can be dropped without affecting the stream (no future frame
  * depends on this one) */
-#define AOM_FRAME_IS_DROPPABLE 0x2
+#define AOM_FRAME_IS_DROPPABLE 0x2u
 /*!\brief this is an INTRA_ONLY frame */
-#define AOM_FRAME_IS_INTRAONLY 0x10
+#define AOM_FRAME_IS_INTRAONLY 0x10u
 /*!\brief this is an S-frame */
-#define AOM_FRAME_IS_SWITCH 0x20
+#define AOM_FRAME_IS_SWITCH 0x20u
 /*!\brief this is an error-resilient frame */
-#define AOM_FRAME_IS_ERROR_RESILIENT 0x40
+#define AOM_FRAME_IS_ERROR_RESILIENT 0x40u
 /*!\brief this is a key-frame dependent recovery-point frame */
-#define AOM_FRAME_IS_DELAYED_RANDOM_ACCESS_POINT 0x80
+#define AOM_FRAME_IS_DELAYED_RANDOM_ACCESS_POINT 0x80u
 
 /*!\brief Iterator
  *
