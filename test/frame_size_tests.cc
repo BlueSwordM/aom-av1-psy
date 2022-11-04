@@ -140,6 +140,7 @@ TEST_P(AV1ResolutionChange, InvalidRefSize) {
     const aom_codec_cx_pkt_t *pkt;
 
     for (int i = 0; i < kNumFramesPerResolution; ++i) {
+      video.Next();  // SetSize() does not call FillFrame().
       EXPECT_EQ(aom_codec_encode(enc.get(), video.img(), video.pts(),
                                  video.duration(), /*flags=*/0),
                 AOM_CODEC_OK);
@@ -155,7 +156,6 @@ TEST_P(AV1ResolutionChange, InvalidRefSize) {
         }
         frame_count++;
       }
-      video.Next();
     }
   }
 
