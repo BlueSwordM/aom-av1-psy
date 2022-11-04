@@ -372,6 +372,7 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, RATE_CONTROL *rc) {
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
 
   rc->frames_since_key = 8;  // Sensible default for first frame.
+  rc->frames_to_fwd_kf = oxcf->kf_cfg.fwd_kf_dist;
 
   rc->frames_till_gf_update_due = 0;
   rc->ni_av_qi = rc_cfg->worst_allowed_q;

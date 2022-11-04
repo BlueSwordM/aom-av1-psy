@@ -3219,8 +3219,6 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     rc->frames_to_key = kf_cfg->key_freq_max;
   }
 
-  rc->frames_to_fwd_kf = kf_cfg->fwd_kf_dist;
-
   if (cpi->ppi->lap_enabled) correct_frames_to_key(cpi);
 
   // If there is a max kf interval set by the user we must obey it.
