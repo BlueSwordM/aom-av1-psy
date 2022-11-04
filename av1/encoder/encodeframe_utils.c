@@ -1379,6 +1379,9 @@ void av1_source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, TileDataEnc *tile_data,
   if (cpi->last_source->y_width != cpi->source->y_width ||
       cpi->last_source->y_height != cpi->source->y_height)
     return;
+#if CONFIG_AV1_HIGHBITDEPTH
+  if (x->e_mbd.cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) return;
+#endif
 
   unsigned int tmp_sse;
   unsigned int tmp_variance;
@@ -1395,10 +1398,6 @@ void av1_source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, TileDataEnc *tile_data,
 
   uint64_t avg_source_sse_threshold_high = 1000000;  // ~15*15*(64*64)
   uint64_t sum_sq_thresh = 10000;  // sum = sqrt(thresh / 64*64)) ~1.5
-#if CONFIG_AV1_HIGHBITDEPTH
-  MACROBLOCKD *xd = &x->e_mbd;
-  if (xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) return;
-#endif
   src_y += src_offset;
   last_src_y += last_src_offset;
   tmp_variance = cpi->ppi->fn_ptr[bsize].vf(src_y, src_ystride, last_src_y,
@@ -1408,9 +1407,11 @@ void av1_source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, TileDataEnc *tile_data,
     x->content_state_sb.source_sad_rd = kLowSad;
 
   // nonrd thresholds
-  if (tmp_sse == 0)
+  if (tmp_sse == 0) {
     x->content_state_sb.source_sad_nonrd = kZeroSad;
-  else if (tmp_sse < avg_source_sse_threshold_verylow)
+    return;
+  }
+  if (tmp_sse < avg_source_sse_threshold_verylow)
     x->content_state_sb.source_sad_nonrd = kVeryLowSad;
   else if (tmp_sse < avg_source_sse_threshold_low[0])
     x->content_state_sb.source_sad_nonrd = kLowSad;
@@ -1419,15 +1420,12 @@ void av1_source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, TileDataEnc *tile_data,
 
   // Detect large lighting change.
   // Note: tmp_sse - tmp_variance = ((sum * sum) >> 12)
-  if (tmp_sse > 0) {
-    if (tmp_variance < (tmp_sse >> 1) &&
-        (tmp_sse - tmp_variance) > sum_sq_thresh)
-      x->content_state_sb.lighting_change = 1;
-    if ((tmp_sse - tmp_variance) < (sum_sq_thresh >> 1))
-      x->content_state_sb.low_sumdiff = 1;
-  }
+  if (tmp_variance < (tmp_sse >> 1) && (tmp_sse - tmp_variance) > sum_sq_thresh)
+    x->content_state_sb.lighting_change = 1;
+  if ((tmp_sse - tmp_variance) < (sum_sq_thresh >> 1))
+    x->content_state_sb.low_sumdiff = 1;
 
-  if (!cpi->sf.rt_sf.use_rtc_tf || tmp_sse == 0 || cpi->rc.high_source_sad ||
+  if (!cpi->sf.rt_sf.use_rtc_tf || cpi->rc.high_source_sad ||
       cpi->rc.frame_source_sad > 20000)
     return;
 
