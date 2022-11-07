@@ -1878,7 +1878,10 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
     pd->dst.buf = (*this_mode_pred)->data;
     pd->dst.stride = (*this_mode_pred)->stride;
   } else if (best_filter_index < dim_factor * FILTER_SEARCH_SIZE - 1) {
-    av1_enc_build_inter_predictor_y(xd, mi_row, mi_col);
+    if (!comp_pred)
+      av1_enc_build_inter_predictor_y(xd, mi_row, mi_col);
+    else
+      av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0, 0);
   }
 }
 #if !CONFIG_REALTIME_ONLY
