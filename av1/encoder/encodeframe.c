@@ -632,9 +632,8 @@ static void sb_qp_sweep_init_quantizers(AV1_COMP *cpi, ThreadData *td,
                                              mi_row, mi_col);
   }
 
-  int current_qindex = x->rdmult_cur_qindex;
+  int current_qindex = x->rdmult_cur_qindex + delta_qp_ofs;
 
-  current_qindex += delta_qp_ofs;
   MACROBLOCKD *const xd = &x->e_mbd;
   current_qindex = av1_adjust_q_from_delta_q_res(
       delta_q_res, xd->current_base_qindex, current_qindex);
@@ -880,9 +879,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                             &dummy_rdc, dummy_rdc, pc_root_p1, sms_root, NULL,
                             SB_WET_PASS, NULL);
     }
-    if (sb_org_stats) {
-      aom_free(sb_org_stats);
-    }
+    aom_free(sb_org_stats);
 
     // Reset to 0 so that it wouldn't be used elsewhere mistakenly.
     sb_enc->tpl_data_count = 0;

@@ -943,7 +943,7 @@ typedef struct macroblock {
    */
   int delta_qindex;
 
-  /*! \brief Difference between frame-level qindex and qindex that used to
+  /*! \brief Difference between frame-level qindex and qindex used to
    * compute rdmult (lambda).
    *
    * rdmult_delta_qindex is assigned the same as delta_qindex before qp sweep.
@@ -953,8 +953,8 @@ typedef struct macroblock {
    */
   int rdmult_delta_qindex;
 
-  /*! \brief current qindex (before adjusted by delta_q_res) used to derive
-   * rdmult_delta_qindex.
+  /*! \brief Current qindex (before being adjusted by delta_q_res) used to
+   * derive rdmult_delta_qindex.
    */
   int rdmult_cur_qindex;
 
