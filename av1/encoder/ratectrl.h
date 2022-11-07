@@ -684,10 +684,9 @@ int av1_compute_qdelta(const RATE_CONTROL *rc, double qstart, double qtarget,
 
 // Computes a q delta (in "q index" terms) to get from a starting q value
 // to a value that should equate to the given rate ratio.
-int av1_compute_qdelta_by_rate(const RATE_CONTROL *rc, FRAME_TYPE frame_type,
-                               int qindex, double rate_target_ratio,
-                               const int is_screen_content_type,
-                               aom_bit_depth_t bit_depth);
+int av1_compute_qdelta_by_rate(const struct AV1_COMP *cpi,
+                               FRAME_TYPE frame_type, int qindex,
+                               double rate_target_ratio);
 
 int av1_frame_type_qdelta(const struct AV1_COMP *cpi, int q);
 

@@ -75,10 +75,8 @@ static int candidate_refresh_aq(const CYCLIC_REFRESH *cr,
 // Compute delta-q for the segment.
 static int compute_deltaq(const AV1_COMP *cpi, int q, double rate_factor) {
   const CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
-  const RATE_CONTROL *const rc = &cpi->rc;
   int deltaq = av1_compute_qdelta_by_rate(
-      rc, cpi->common.current_frame.frame_type, q, rate_factor,
-      cpi->is_screen_content_type, cpi->common.seq_params->bit_depth);
+      cpi, cpi->common.current_frame.frame_type, q, rate_factor);
   if ((-deltaq) > cr->max_qdelta_perc * q / 100) {
     deltaq = -cr->max_qdelta_perc * q / 100;
   }

@@ -1115,7 +1115,6 @@ static int rc_pick_q_and_bounds_no_stats_cbr(const AV1_COMP *cpi, int width,
   const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   const CurrentFrame *const current_frame = &cm->current_frame;
   int q;
-  const int bit_depth = cm->seq_params->bit_depth;
   int active_worst_quality = calc_active_worst_quality_no_stats_cbr(cpi);
   int active_best_quality = calc_active_best_quality_no_stats_cbr(
       cpi, active_worst_quality, width, height);
@@ -1135,9 +1134,8 @@ static int rc_pick_q_and_bounds_no_stats_cbr(const AV1_COMP *cpi, int width,
   if (current_frame->frame_type == KEY_FRAME && !p_rc->this_key_frame_forced &&
       current_frame->frame_number != 0) {
     int qdelta = 0;
-    qdelta = av1_compute_qdelta_by_rate(&cpi->rc, current_frame->frame_type,
-                                        active_worst_quality, 2.0,
-                                        cpi->is_screen_content_type, bit_depth);
+    qdelta = av1_compute_qdelta_by_rate(cpi, current_frame->frame_type,
+                                        active_worst_quality, 2.0);
     *top_index = active_worst_quality + qdelta;
     *top_index = AOMMAX(*top_index, *bottom_index);
   }
@@ -1365,14 +1363,12 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
     int qdelta = 0;
     if (current_frame->frame_type == KEY_FRAME &&
         !p_rc->this_key_frame_forced && current_frame->frame_number != 0) {
-      qdelta = av1_compute_qdelta_by_rate(
-          &cpi->rc, current_frame->frame_type, active_worst_quality, 2.0,
-          cpi->is_screen_content_type, bit_depth);
+      qdelta = av1_compute_qdelta_by_rate(cpi, current_frame->frame_type,
+                                          active_worst_quality, 2.0);
     } else if (!rc->is_src_frame_alt_ref &&
                (refresh_frame->golden_frame || refresh_frame->alt_ref_frame)) {
-      qdelta = av1_compute_qdelta_by_rate(
-          &cpi->rc, current_frame->frame_type, active_worst_quality, 1.75,
-          cpi->is_screen_content_type, bit_depth);
+      qdelta = av1_compute_qdelta_by_rate(cpi, current_frame->frame_type,
+                                          active_worst_quality, 1.75);
     }
     *top_index = active_worst_quality + qdelta;
     *top_index = AOMMAX(*top_index, *bottom_index);
@@ -1423,9 +1419,7 @@ int av1_frame_type_qdelta(const AV1_COMP *cpi, int q) {
   const double rate_factor =
       (rf_lvl == INTER_NORMAL) ? 1.0 : arf_layer_deltas[arf_layer];
 
-  return av1_compute_qdelta_by_rate(&cpi->rc, frame_type, q, rate_factor,
-                                    cpi->is_screen_content_type,
-                                    cpi->common.seq_params->bit_depth);
+  return av1_compute_qdelta_by_rate(cpi, frame_type, q, rate_factor);
 }
 
 // This unrestricted Q selection on CQ mode is useful when testing new features,
@@ -1563,7 +1557,6 @@ static void adjust_active_best_and_worst_quality(const AV1_COMP *cpi,
   const RATE_CONTROL *const rc = &cpi->rc;
   const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   const RefreshFrameInfo *const refresh_frame = &cpi->refresh_frame;
-  const int bit_depth = cpi->common.seq_params->bit_depth;
   int active_best_quality = *active_best;
   int active_worst_quality = *active_worst;
 #if CONFIG_FPMT_TEST
@@ -1618,9 +1611,8 @@ static void adjust_active_best_and_worst_quality(const AV1_COMP *cpi,
 
   // Modify active_best_quality for downscaled normal frames.
   if (av1_frame_scaled(cm) && !frame_is_kf_gf_arf(cpi)) {
-    int qdelta = av1_compute_qdelta_by_rate(
-        rc, cm->current_frame.frame_type, active_best_quality, 2.0,
-        cpi->is_screen_content_type, bit_depth);
+    int qdelta = av1_compute_qdelta_by_rate(cpi, cm->current_frame.frame_type,
+                                            active_best_quality, 2.0);
     active_best_quality =
         AOMMAX(active_best_quality + qdelta, rc->best_quality);
   }
@@ -2240,10 +2232,13 @@ static int find_qindex_by_rate(int desired_bits_per_mb,
   return low;
 }
 
-int av1_compute_qdelta_by_rate(const RATE_CONTROL *rc, FRAME_TYPE frame_type,
-                               int qindex, double rate_target_ratio,
-                               const int is_screen_content_type,
-                               aom_bit_depth_t bit_depth) {
+int av1_compute_qdelta_by_rate(const AV1_COMP *const cpi, FRAME_TYPE frame_type,
+                               int qindex, double rate_target_ratio) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const RATE_CONTROL *rc = &cpi->rc;
+  const int is_screen_content_type = cpi->is_screen_content_type;
+  const aom_bit_depth_t bit_depth = cm->seq_params->bit_depth;
+
   // Look up the current projected bits per block for the base index
   const int base_bits_per_mb = av1_rc_bits_per_mb(
       frame_type, qindex, 1.0, bit_depth, is_screen_content_type);
