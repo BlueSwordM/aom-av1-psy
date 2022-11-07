@@ -1626,7 +1626,16 @@ static INLINE void smooth_h_predictor_wxh(uint8_t *dst, ptrdiff_t stride,
   }
 }
 
+// TODO(slavarnway): Visual Studio only supports restrict when /std:c11
+// (available in 2019+) or greater is specified; __restrict can be used in that
+// case. This should be moved to rtcd and used consistently between the
+// function declarations and definitions to avoid warnings in Visual Studio
+// when defining LIBAOM_RESTRICT to restrict or __restrict.
+#if defined(_MSC_VER)
+#define LIBAOM_RESTRICT
+#else
 #define LIBAOM_RESTRICT restrict
+#endif
 
 static AOM_FORCE_INLINE __m128i Load4(const void *src) {
   // With new compilers such as clang 8.0.0 we can use the new _mm_loadu_si32
@@ -1675,9 +1684,9 @@ static AOM_FORCE_INLINE void write_smooth_directional_sum16(
 }
 
 void aom_smooth_h_predictor_16x4_ssse3(
-    uint8_t *LIBAOM_RESTRICT const dest, const ptrdiff_t stride,
-    const uint8_t *LIBAOM_RESTRICT const top_row,
-    const uint8_t *LIBAOM_RESTRICT const left_column) {
+    uint8_t *LIBAOM_RESTRICT dest, ptrdiff_t stride,
+    const uint8_t *LIBAOM_RESTRICT top_row,
+    const uint8_t *LIBAOM_RESTRICT left_column) {
   const uint8_t *const top = (const uint8_t *)top_row;
   const __m128i top_right = _mm_set1_epi16(top[15]);
   const __m128i left = cvtepu8_epi16(Load4(left_column));
@@ -1715,9 +1724,9 @@ void aom_smooth_h_predictor_16x4_ssse3(
 }
 
 void aom_smooth_h_predictor_16x8_ssse3(
-    uint8_t *LIBAOM_RESTRICT const dest, const ptrdiff_t stride,
-    const uint8_t *LIBAOM_RESTRICT const top_row,
-    const uint8_t *LIBAOM_RESTRICT const left_column) {
+    uint8_t *LIBAOM_RESTRICT dest, ptrdiff_t stride,
+    const uint8_t *LIBAOM_RESTRICT top_row,
+    const uint8_t *LIBAOM_RESTRICT left_column) {
   const uint8_t *const top = (const uint8_t *)top_row;
   const __m128i top_right = _mm_set1_epi16(top[15]);
   const __m128i left = cvtepu8_epi16(LoadLo8(left_column));
@@ -1743,9 +1752,9 @@ void aom_smooth_h_predictor_16x8_ssse3(
 }
 
 void aom_smooth_h_predictor_16x16_ssse3(
-    uint8_t *LIBAOM_RESTRICT const dest, const ptrdiff_t stride,
-    const uint8_t *LIBAOM_RESTRICT const top_row,
-    const uint8_t *LIBAOM_RESTRICT const left_column) {
+    uint8_t *LIBAOM_RESTRICT dest, ptrdiff_t stride,
+    const uint8_t *LIBAOM_RESTRICT top_row,
+    const uint8_t *LIBAOM_RESTRICT left_column) {
   const uint8_t *const top = (const uint8_t *)top_row;
   const __m128i top_right = _mm_set1_epi16(top[15]);
   const __m128i weights = LoadUnaligned16(smooth_weights + 12);
@@ -1780,9 +1789,9 @@ void aom_smooth_h_predictor_16x16_ssse3(
 }
 
 void aom_smooth_h_predictor_16x32_ssse3(
-    uint8_t *LIBAOM_RESTRICT const dest, const ptrdiff_t stride,
-    const uint8_t *LIBAOM_RESTRICT const top_row,
-    const uint8_t *LIBAOM_RESTRICT const left_column) {
+    uint8_t *LIBAOM_RESTRICT dest, ptrdiff_t stride,
+    const uint8_t *LIBAOM_RESTRICT top_row,
+    const uint8_t *LIBAOM_RESTRICT left_column) {
   const uint8_t *const top = (const uint8_t *)top_row;
   const __m128i top_right = _mm_set1_epi16(top[15]);
   const __m128i weights = LoadUnaligned16(smooth_weights + 12);
@@ -1833,9 +1842,9 @@ void aom_smooth_h_predictor_16x32_ssse3(
 }
 
 void aom_smooth_h_predictor_16x64_ssse3(
-    uint8_t *LIBAOM_RESTRICT const dest, const ptrdiff_t stride,
-    const uint8_t *LIBAOM_RESTRICT const top_row,
-    const uint8_t *LIBAOM_RESTRICT const left_column) {
+    uint8_t *LIBAOM_RESTRICT dest, ptrdiff_t stride,
+    const uint8_t *LIBAOM_RESTRICT top_row,
+    const uint8_t *LIBAOM_RESTRICT left_column) {
   const uint8_t *const top = (const uint8_t *)top_row;
   const __m128i top_right = _mm_set1_epi16(top[15]);
   const __m128i weights = LoadUnaligned16(smooth_weights + 12);
