@@ -555,9 +555,8 @@ void av1_primary_rc_init(const struct AV1EncoderConfig *oxcf,
 
 void av1_rc_init(const struct AV1EncoderConfig *oxcf, RATE_CONTROL *rc);
 
-int av1_estimate_bits_at_q(FRAME_TYPE frame_kind, int q, int mbs,
-                           double correction_factor, aom_bit_depth_t bit_depth,
-                           const int is_screen_content_type);
+int av1_estimate_bits_at_q(const struct AV1_COMP *cpi, int q,
+                           double correction_factor);
 
 double av1_convert_qindex_to_q(int qindex, aom_bit_depth_t bit_depth);
 

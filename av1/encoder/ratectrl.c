@@ -175,9 +175,13 @@ int av1_rc_bits_per_mb(FRAME_TYPE frame_type, int qindex,
   return (int)(enumerator * correction_factor / q);
 }
 
-int av1_estimate_bits_at_q(FRAME_TYPE frame_type, int q, int mbs,
-                           double correction_factor, aom_bit_depth_t bit_depth,
-                           const int is_screen_content_type) {
+int av1_estimate_bits_at_q(const AV1_COMP *cpi, int q,
+                           double correction_factor) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const FRAME_TYPE frame_type = cm->current_frame.frame_type;
+  const aom_bit_depth_t bit_depth = cm->seq_params->bit_depth;
+  const int mbs = cm->mi_params.MBs;
+  const int is_screen_content_type = cpi->is_screen_content_type;
   const int bpm = (int)(av1_rc_bits_per_mb(frame_type, q, correction_factor,
                                            bit_depth, is_screen_content_type));
   return AOMMAX(FRAME_OVERHEAD_BITS,
@@ -658,7 +662,6 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int is_encode_stage,
   double rate_correction_factor =
       get_rate_correction_factor(cpi, width, height);
   double adjustment_limit;
-  const int MBs = av1_get_MBs(width, height);
   int projected_size_based_on_q = 0;
   int cyclic_refresh_active =
       cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && cpi->common.seg.enabled;
@@ -676,9 +679,7 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int is_encode_stage,
         av1_cyclic_refresh_estimate_bits_at_q(cpi, rate_correction_factor);
   } else {
     projected_size_based_on_q = av1_estimate_bits_at_q(
-        cm->current_frame.frame_type, cm->quant_params.base_qindex, MBs,
-        rate_correction_factor, cm->seq_params->bit_depth,
-        cpi->is_screen_content_type);
+        cpi, cm->quant_params.base_qindex, rate_correction_factor);
   }
   // Work out a size correction factor.
   if (projected_size_based_on_q > FRAME_OVERHEAD_BITS)

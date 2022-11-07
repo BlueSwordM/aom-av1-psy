@@ -88,9 +88,7 @@ static int compute_deltaq(const AV1_COMP *cpi, int q, double rate_factor) {
 int av1_cyclic_refresh_estimate_bits_at_q(const AV1_COMP *cpi,
                                           double correction_factor) {
   const AV1_COMMON *const cm = &cpi->common;
-  const FRAME_TYPE frame_type = cm->current_frame.frame_type;
   const int base_qindex = cm->quant_params.base_qindex;
-  const int bit_depth = cm->seq_params->bit_depth;
   const CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
   const int mbs = cm->mi_params.MBs;
   const int num4x4bl = mbs << 4;
@@ -107,17 +105,13 @@ int av1_cyclic_refresh_estimate_bits_at_q(const AV1_COMP *cpi,
   // Take segment weighted average for estimated bits.
   const int estimated_bits =
       (int)((1.0 - weight_segment1 - weight_segment2) *
-                av1_estimate_bits_at_q(frame_type, base_qindex, mbs,
-                                       correction_factor, bit_depth,
-                                       cpi->is_screen_content_type) +
-            weight_segment1 * av1_estimate_bits_at_q(
-                                  frame_type, base_qindex + cr->qindex_delta[1],
-                                  mbs, correction_factor, bit_depth,
-                                  cpi->is_screen_content_type) +
-            weight_segment2 * av1_estimate_bits_at_q(
-                                  frame_type, base_qindex + cr->qindex_delta[2],
-                                  mbs, correction_factor, bit_depth,
-                                  cpi->is_screen_content_type));
+                av1_estimate_bits_at_q(cpi, base_qindex, correction_factor) +
+            weight_segment1 *
+                av1_estimate_bits_at_q(cpi, base_qindex + cr->qindex_delta[1],
+                                       correction_factor) +
+            weight_segment2 *
+                av1_estimate_bits_at_q(cpi, base_qindex + cr->qindex_delta[2],
+                                       correction_factor));
   return estimated_bits;
 }
 
