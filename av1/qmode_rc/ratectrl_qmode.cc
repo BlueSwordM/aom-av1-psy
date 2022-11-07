@@ -1243,6 +1243,64 @@ StatusOr<TplGopDepStats> ComputeTplGopDepStats(
   return tpl_gop_dep_stats;
 }
 
+static std::vector<uint8_t> SetupDeltaQ(const TplFrameDepStats &frame_dep_stats,
+                                        int frame_width, int frame_height,
+                                        int base_qindex,
+                                        double frame_importance) {
+  // TODO(jianj) : Add support to various superblock sizes.
+  const int sb_size = 64;
+  const int delta_q_res = 4;
+  const int num_unit_per_sb = sb_size / frame_dep_stats.unit_size;
+  const int sb_rows = (frame_height + sb_size - 1) / sb_size;
+  const int sb_cols = (frame_width + sb_size - 1) / sb_size;
+  const int unit_rows = (frame_height + frame_dep_stats.unit_size - 1) /
+                        frame_dep_stats.unit_size;
+  const int unit_cols =
+      (frame_width + frame_dep_stats.unit_size - 1) / frame_dep_stats.unit_size;
+  double intra_cost = 0;
+  double mc_dep_cost = 0;
+  std::vector<uint8_t> superblock_q_indices;
+  // Calculate delta_q offset for each superblock.
+  for (int sb_row = 0; sb_row < sb_rows; ++sb_row) {
+    for (int sb_col = 0; sb_col < sb_cols; ++sb_col) {
+      const int unit_row_start = sb_row * num_unit_per_sb;
+      const int unit_row_end =
+          std::min((sb_row + 1) * num_unit_per_sb, unit_rows);
+      const int unit_col_start = sb_col * num_unit_per_sb;
+      const int unit_col_end =
+          std::min((sb_col + 1) * num_unit_per_sb, unit_cols);
+      // A simplified version of av1_get_q_for_deltaq_objective()
+      for (int unit_row = unit_row_start; unit_row < unit_row_end; ++unit_row) {
+        for (int unit_col = unit_col_start; unit_col < unit_col_end;
+             ++unit_col) {
+          const TplUnitDepStats &unit_dep_stat =
+              frame_dep_stats.unit_stats[unit_row][unit_col];
+          intra_cost += unit_dep_stat.intra_cost;
+          mc_dep_cost += unit_dep_stat.intra_cost;
+        }
+      }
+
+      double beta = 1.0;
+      if (mc_dep_cost > 0 && intra_cost > 0) {
+        const double r0 = 1 / frame_importance;
+        const double rk = intra_cost / mc_dep_cost;
+        beta = r0 / rk;
+        assert(beta > 0.0);
+      }
+      int offset = av1_get_deltaq_offset(AOM_BITS_8, base_qindex, beta);
+      offset = std::min(offset, delta_q_res * 9 - 1);
+      offset = std::max(offset, -delta_q_res * 9 + 1);
+      int qindex = offset + base_qindex;
+      qindex = std::min(qindex, MAXQ);
+      qindex = std::max(qindex, MINQ);
+      qindex = av1_adjust_q_from_delta_q_res(delta_q_res, base_qindex, qindex);
+      superblock_q_indices.push_back(static_cast<uint8_t>(qindex));
+    }
+  }
+
+  return superblock_q_indices;
+}
+
 int AV1RateControlQMode::GetRDMult(const GopFrame &gop_frame,
                                    int q_index) const {
   // TODO(angiebird):
@@ -1352,6 +1410,14 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
                                                        qstep_ratio, AOM_BITS_8);
       if (rc_param_.base_q_index) param.q_index = AOMMAX(param.q_index, 1);
       active_best_quality = param.q_index;
+
+      if (rc_param_.max_distinct_q_indices_per_frame > 1) {
+        param.superblock_q_indices = SetupDeltaQ(
+            frame_dep_stats, rc_param_.frame_width, rc_param_.frame_height,
+            param.q_index, frame_importance);
+        // TODO(b/256852795): Implement K-means to restrict the numbers of q
+        // indices to rc_param_.max_distinct_q_indices_per_frame
+      }
     } else {
       // Intermediate ARFs
       assert(gop_frame.layer_depth >= 1);
