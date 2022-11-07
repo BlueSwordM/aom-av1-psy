@@ -43,7 +43,8 @@ struct RateControlParam {
   int base_q_index;
 
   // If greater than 1, enables per-superblock q_index, and limits the number of
-  // unique q_index values which may be used in a frame.
+  // unique q_index values which may be used in a frame (each of which will have
+  // it's own unique rdmult value).
   int max_distinct_q_indices_per_frame;
 
   // If per-superblock q_index is enabled and this is greater than 1, enables
@@ -221,6 +222,11 @@ struct GopStruct {
 
 using GopStructList = std::vector<GopStruct>;
 
+struct SuperblockEncodeParameters {
+  int q_index;
+  int rdmult;
+};
+
 struct FrameEncodeParameters {
   // Base q_index for the frame.
   int q_index;
@@ -229,17 +235,21 @@ struct FrameEncodeParameters {
   int rdmult;
 
   // If max_distinct_q_indices_per_frame <= 1, this will be empty.
-  // Otherwise, it will have one q_index value per 64x64 superblock, in
-  // row-major order, with no more than max_distinct_q_indices_per_frame
-  // unique values.
-  std::vector<uint8_t> superblock_q_indices;
+  // Otherwise:
+  // - There must be one entry per 64x64 superblock, in row-major order
+  // - There may be no more than max_distinct_q_indices_per_frame unique q_index
+  //   values
+  // - All entries with the same q_index must have the same rdmult
+  // (If it's desired to use different rdmult values with the same q_index, this
+  // must be done with superblock_lambda_scales.)
+  std::vector<SuperblockEncodeParameters> superblock_encode_params;
 
   // If max_distinct_q_indices_per_frame <= 1 or
   // max_distinct_lambda_scales_per_frame <= 1, this will be empty. Otherwise,
   // it will have one entry per 64x64 superblock, in row-major order, with no
   // more than max_distinct_lambda_scales_per_frame unique values. Each entry
-  // should be multiplied by the value returned by GetRDMult to compute the
-  // corresponding superblock's q_index.
+  // should be multiplied by the rdmult in the corresponding superblock's entry
+  // in superblock_encode_params.
   std::vector<float> superblock_lambda_scales;
 };
 
