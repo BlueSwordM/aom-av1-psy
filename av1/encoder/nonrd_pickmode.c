@@ -563,6 +563,14 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
         &x->pred_sse[ref_frame], NULL);
     frame_mv[NEWMV][ref_frame].as_int = best_mv.as_int;
 
+    // When NEWMV is same as ref_mv from the drl, it is preferred to code the
+    // MV as NEARESTMV or NEARMV. In this case, NEWMV needs to be skipped to
+    // avoid an assert failure at a later stage. The scenario can occur if
+    // NEARESTMV was not evaluated for ALTREF.
+    if (frame_mv[NEWMV][ref_frame].as_mv.col == ref_mv.col &&
+        frame_mv[NEWMV][ref_frame].as_mv.row == ref_mv.row)
+      return -1;
+
     *rate_mv = av1_mv_bit_cost(&frame_mv[NEWMV][ref_frame].as_mv, &ref_mv,
                                x->mv_costs->nmv_joint_cost,
                                x->mv_costs->mv_cost_stack, MV_COST_WEIGHT);
