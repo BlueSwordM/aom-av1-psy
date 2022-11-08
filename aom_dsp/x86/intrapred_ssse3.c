@@ -1874,9 +1874,9 @@ void aom_smooth_h_predictor_16x64_ssse3(
 }
 
 void aom_smooth_h_predictor_32x8_ssse3(
-    uint8_t *LIBAOM_RESTRICT const dest, const ptrdiff_t stride,
-    const uint8_t *LIBAOM_RESTRICT const top_row,
-    const uint8_t *LIBAOM_RESTRICT const left_column) {
+    uint8_t *LIBAOM_RESTRICT dest, ptrdiff_t stride,
+    const uint8_t *LIBAOM_RESTRICT top_row,
+    const uint8_t *LIBAOM_RESTRICT left_column) {
   const uint8_t *const top = (const uint8_t *)top_row;
   const __m128i top_right = _mm_set1_epi16(top[31]);
   const __m128i left = cvtepu8_epi16(LoadLo8(left_column));
@@ -1913,9 +1913,9 @@ void aom_smooth_h_predictor_32x8_ssse3(
 }
 
 void aom_smooth_h_predictor_32x16_ssse3(
-    uint8_t *LIBAOM_RESTRICT const dest, const ptrdiff_t stride,
-    const uint8_t *LIBAOM_RESTRICT const top_row,
-    const uint8_t *LIBAOM_RESTRICT const left_column) {
+    uint8_t *LIBAOM_RESTRICT dest, ptrdiff_t stride,
+    const uint8_t *LIBAOM_RESTRICT top_row,
+    const uint8_t *LIBAOM_RESTRICT left_column) {
   const uint8_t *const top = (const uint8_t *)top_row;
   const __m128i top_right = _mm_set1_epi16(top[31]);
   const __m128i left1 = cvtepu8_epi16(LoadLo8(left_column));
@@ -1963,9 +1963,9 @@ void aom_smooth_h_predictor_32x16_ssse3(
 }
 
 void aom_smooth_h_predictor_32x32_ssse3(
-    uint8_t *LIBAOM_RESTRICT const dest, const ptrdiff_t stride,
-    const uint8_t *LIBAOM_RESTRICT const top_row,
-    const uint8_t *LIBAOM_RESTRICT const left_column) {
+    uint8_t *LIBAOM_RESTRICT dest, ptrdiff_t stride,
+    const uint8_t *LIBAOM_RESTRICT top_row,
+    const uint8_t *LIBAOM_RESTRICT left_column) {
   const uint8_t *const top = (const uint8_t *)top_row;
   const __m128i top_right = _mm_set1_epi16(top[31]);
   const __m128i weights_lo = LoadUnaligned16(smooth_weights + 28);
@@ -2033,9 +2033,9 @@ void aom_smooth_h_predictor_32x32_ssse3(
 }
 
 void aom_smooth_h_predictor_32x64_ssse3(
-    uint8_t *LIBAOM_RESTRICT const dest, const ptrdiff_t stride,
-    const uint8_t *LIBAOM_RESTRICT const top_row,
-    const uint8_t *LIBAOM_RESTRICT const left_column) {
+    uint8_t *LIBAOM_RESTRICT dest, ptrdiff_t stride,
+    const uint8_t *LIBAOM_RESTRICT top_row,
+    const uint8_t *LIBAOM_RESTRICT left_column) {
   const uint8_t *const top = (const uint8_t *)top_row;
   const __m128i top_right = _mm_set1_epi16(top[31]);
   const __m128i weights_lo = LoadUnaligned16(smooth_weights + 28);
