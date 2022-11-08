@@ -136,15 +136,12 @@ int av1_cyclic_refresh_rc_bits_per_mb(const AV1_COMP *cpi, int i,
   // Compute delta-q corresponding to qindex i.
   int deltaq = compute_deltaq(cpi, i, cr->rate_ratio_qdelta);
   // Take segment weighted average for bits per mb.
-  bits_per_mb =
-      (int)((1.0 - weight_segment) *
-                av1_rc_bits_per_mb(cm->current_frame.frame_type, i,
-                                   correction_factor, cm->seq_params->bit_depth,
-                                   cpi->is_screen_content_type) +
-            weight_segment * av1_rc_bits_per_mb(cm->current_frame.frame_type,
-                                                i + deltaq, correction_factor,
-                                                cm->seq_params->bit_depth,
-                                                cpi->is_screen_content_type));
+  bits_per_mb = (int)((1.0 - weight_segment) *
+                          av1_rc_bits_per_mb(cpi, cm->current_frame.frame_type,
+                                             i, correction_factor, 0) +
+                      weight_segment *
+                          av1_rc_bits_per_mb(cpi, cm->current_frame.frame_type,
+                                             i + deltaq, correction_factor, 0));
   return bits_per_mb;
 }
 

@@ -660,9 +660,9 @@ int av1_rc_regulate_q(const struct AV1_COMP *cpi, int target_bits_per_frame,
 
 /*!\cond */
 // Estimates bits per mb for a given qindex and correction factor.
-int av1_rc_bits_per_mb(FRAME_TYPE frame_type, int qindex,
-                       double correction_factor, aom_bit_depth_t bit_depth,
-                       const int is_screen_content_type);
+int av1_rc_bits_per_mb(const struct AV1_COMP *cpi, FRAME_TYPE frame_type,
+                       int qindex, double correction_factor,
+                       int accurate_estimate);
 
 // Clamping utilities for bitrate targets for iframes and pframes.
 int av1_rc_clamp_iframe_target_size(const struct AV1_COMP *const cpi,

@@ -159,9 +159,12 @@ double av1_convert_qindex_to_q(int qindex, aom_bit_depth_t bit_depth) {
   }
 }
 
-int av1_rc_bits_per_mb(FRAME_TYPE frame_type, int qindex,
-                       double correction_factor, aom_bit_depth_t bit_depth,
-                       const int is_screen_content_type) {
+int av1_rc_bits_per_mb(const AV1_COMP *cpi, FRAME_TYPE frame_type, int qindex,
+                       double correction_factor, int accurate_estimate) {
+  (void)accurate_estimate;
+  const AV1_COMMON *const cm = &cpi->common;
+  const int is_screen_content_type = cpi->is_screen_content_type;
+  const aom_bit_depth_t bit_depth = cm->seq_params->bit_depth;
   const double q = av1_convert_qindex_to_q(qindex, bit_depth);
   int enumerator = frame_type == KEY_FRAME ? 2000000 : 1500000;
   if (is_screen_content_type) {
@@ -179,11 +182,9 @@ int av1_estimate_bits_at_q(const AV1_COMP *cpi, int q,
                            double correction_factor) {
   const AV1_COMMON *const cm = &cpi->common;
   const FRAME_TYPE frame_type = cm->current_frame.frame_type;
-  const aom_bit_depth_t bit_depth = cm->seq_params->bit_depth;
   const int mbs = cm->mi_params.MBs;
-  const int is_screen_content_type = cpi->is_screen_content_type;
-  const int bpm = (int)(av1_rc_bits_per_mb(frame_type, q, correction_factor,
-                                           bit_depth, is_screen_content_type));
+  const int bpm =
+      (int)(av1_rc_bits_per_mb(cpi, frame_type, q, correction_factor, 0));
   return AOMMAX(FRAME_OVERHEAD_BITS,
                 (int)((uint64_t)bpm * mbs) >> BPER_MB_NORMBITS);
 }
@@ -760,9 +761,8 @@ static int get_bits_per_mb(const AV1_COMP *cpi, int use_cyclic_refresh,
   const AV1_COMMON *const cm = &cpi->common;
   return use_cyclic_refresh
              ? av1_cyclic_refresh_rc_bits_per_mb(cpi, q, correction_factor)
-             : av1_rc_bits_per_mb(cm->current_frame.frame_type, q,
-                                  correction_factor, cm->seq_params->bit_depth,
-                                  cpi->is_screen_content_type);
+             : av1_rc_bits_per_mb(cpi, cm->current_frame.frame_type, q,
+                                  correction_factor, 0);
 }
 
 /*!\brief Searches for a Q index value predicted to give an average macro
@@ -2208,17 +2208,16 @@ int av1_compute_qdelta(const RATE_CONTROL *rc, double qstart, double qtarget,
 // To be precise, 'q_index' is the smallest integer, for which the corresponding
 // bits per mb <= desired_bits_per_mb.
 // If no such q index is found, returns 'worst_qindex'.
-static int find_qindex_by_rate(int desired_bits_per_mb,
-                               aom_bit_depth_t bit_depth, FRAME_TYPE frame_type,
-                               const int is_screen_content_type,
+static int find_qindex_by_rate(const AV1_COMP *const cpi,
+                               int desired_bits_per_mb, FRAME_TYPE frame_type,
                                int best_qindex, int worst_qindex) {
   assert(best_qindex <= worst_qindex);
   int low = best_qindex;
   int high = worst_qindex;
   while (low < high) {
     const int mid = (low + high) >> 1;
-    const int mid_bits_per_mb = av1_rc_bits_per_mb(
-        frame_type, mid, 1.0, bit_depth, is_screen_content_type);
+    const int mid_bits_per_mb =
+        av1_rc_bits_per_mb(cpi, frame_type, mid, 1.0, 0);
     if (mid_bits_per_mb > desired_bits_per_mb) {
       low = mid + 1;
     } else {
@@ -2226,29 +2225,25 @@ static int find_qindex_by_rate(int desired_bits_per_mb,
     }
   }
   assert(low == high);
-  assert(av1_rc_bits_per_mb(frame_type, low, 1.0, bit_depth,
-                            is_screen_content_type) <= desired_bits_per_mb ||
+  assert(av1_rc_bits_per_mb(cpi, frame_type, low, 1.0, 0) <=
+             desired_bits_per_mb ||
          low == worst_qindex);
   return low;
 }
 
 int av1_compute_qdelta_by_rate(const AV1_COMP *const cpi, FRAME_TYPE frame_type,
                                int qindex, double rate_target_ratio) {
-  const AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *rc = &cpi->rc;
-  const int is_screen_content_type = cpi->is_screen_content_type;
-  const aom_bit_depth_t bit_depth = cm->seq_params->bit_depth;
 
   // Look up the current projected bits per block for the base index
-  const int base_bits_per_mb = av1_rc_bits_per_mb(
-      frame_type, qindex, 1.0, bit_depth, is_screen_content_type);
+  const int base_bits_per_mb =
+      av1_rc_bits_per_mb(cpi, frame_type, qindex, 1.0, 0);
 
   // Find the target bits per mb based on the base value and given ratio.
   const int target_bits_per_mb = (int)(rate_target_ratio * base_bits_per_mb);
 
   const int target_index = find_qindex_by_rate(
-      target_bits_per_mb, bit_depth, frame_type, is_screen_content_type,
-      rc->best_quality, rc->worst_quality);
+      cpi, target_bits_per_mb, frame_type, rc->best_quality, rc->worst_quality);
   return target_index - qindex;
 }
 
