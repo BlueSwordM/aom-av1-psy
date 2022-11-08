@@ -1316,7 +1316,13 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
     if (speed == 6) sf->part_sf.disable_8x8_part_based_on_qidx = 1;
     if (speed >= 6) sf->rt_sf.skip_newmv_mode_based_on_sse = 2;
-    if (speed == 7) sf->rt_sf.prefer_large_partition_blocks = 1;
+    if (speed == 7) {
+      sf->rt_sf.prefer_large_partition_blocks = 1;
+      // Enable this feature for [360p, 720p] res range initially.
+      if (!cpi->rc.rtc_external_ratectrl &&
+          AOMMIN(cm->width, cm->height) <= 720)
+        sf->hl_sf.accurate_bit_estimate = cpi->oxcf.q_cfg.aq_mode == NO_AQ;
+    }
     if (speed >= 7) {
       sf->rt_sf.use_rtc_tf = 1;
     }
@@ -1429,6 +1435,10 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     } else {
       sf->rt_sf.use_comp_ref_nonrd = 0;
     }
+
+    if (cpi->svc.number_spatial_layers > 1 ||
+        cpi->svc.number_temporal_layers > 1)
+      sf->hl_sf.accurate_bit_estimate = 0;
   }
   // Screen settings.
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
@@ -1485,6 +1495,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.fullpel_search_step_param = 2;
     }
     sf->rt_sf.partition_direct_merging = 0;
+    sf->hl_sf.accurate_bit_estimate = 0;
   }
 }
 
@@ -1787,6 +1798,7 @@ static AOM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   hl_sf->disable_extra_sc_testing = 0;
   hl_sf->second_alt_ref_filtering = 1;
   hl_sf->num_frames_used_in_tf = INT_MAX;
+  hl_sf->accurate_bit_estimate = 0;
 }
 
 static AOM_INLINE void init_fp_sf(FIRST_PASS_SPEED_FEATURES *fp_sf) {

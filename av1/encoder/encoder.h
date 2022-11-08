@@ -3436,6 +3436,11 @@ typedef struct AV1_COMP {
   uint64_t *src_sad_blk_64x64;
 
   /*!
+   * SEE between the current frame and the reconstructed last frame
+   */
+  uint64_t rec_sse;
+
+  /*!
    * A flag to indicate whether the encoder is controlled by DuckyEncode or not.
    * 1:yes 0:no
    */

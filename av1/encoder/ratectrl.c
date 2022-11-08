@@ -34,6 +34,8 @@
 #include "av1/encoder/random.h"
 #include "av1/encoder/ratectrl.h"
 
+#include "config/aom_dsp_rtcd.h"
+
 #define USE_UNRESTRICTED_Q_IN_CQ_MODE 0
 
 // Max rate target for 1080P and below encodes under normal circumstances
@@ -174,11 +176,28 @@ int av1_get_bpmb_enumerator(FRAME_TYPE frame_type,
 
 int av1_rc_bits_per_mb(const AV1_COMP *cpi, FRAME_TYPE frame_type, int qindex,
                        double correction_factor, int accurate_estimate) {
-  (void)accurate_estimate;
   const AV1_COMMON *const cm = &cpi->common;
   const int is_screen_content_type = cpi->is_screen_content_type;
   const aom_bit_depth_t bit_depth = cm->seq_params->bit_depth;
   const double q = av1_convert_qindex_to_q(qindex, bit_depth);
+
+  const int min_dim = AOMMIN(cm->width, cm->height);
+
+  if (frame_type != KEY_FRAME && accurate_estimate) {
+    assert(cpi->rec_sse != UINT64_MAX);
+    const int mbs = cm->mi_params.MBs;
+    const int res = (min_dim < 480) ? 0 : ((min_dim < 720) ? 1 : 2);
+    const double sse_over_q2 = (double)(cpi->rec_sse << BPER_MB_NORMBITS) /
+                               ((double)q * q) / (double)mbs;
+    const double coef[3][2] = {
+      { 0.535, 3000.0 },  // < 480
+      { 0.590, 3000.0 },  // < 720
+      { 0.485, 1000.0 }   // 720
+    };
+    int bits = (int)(coef[res][0] * sse_over_q2 + coef[res][1]);
+    return (int)(bits * correction_factor);
+  }
+
   const int enumerator =
       av1_get_bpmb_enumerator(frame_type, is_screen_content_type);
   assert(correction_factor <= MAX_BPB_FACTOR &&
@@ -194,7 +213,8 @@ int av1_estimate_bits_at_q(const AV1_COMP *cpi, int q,
   const FRAME_TYPE frame_type = cm->current_frame.frame_type;
   const int mbs = cm->mi_params.MBs;
   const int bpm =
-      (int)(av1_rc_bits_per_mb(cpi, frame_type, q, correction_factor, 0));
+      (int)(av1_rc_bits_per_mb(cpi, frame_type, q, correction_factor,
+                               cpi->sf.hl_sf.accurate_bit_estimate));
   return AOMMAX(FRAME_OVERHEAD_BITS,
                 (int)((uint64_t)bpm * mbs) >> BPER_MB_NORMBITS);
 }
@@ -789,7 +809,8 @@ static int get_bits_per_mb(const AV1_COMP *cpi, int use_cyclic_refresh,
   return use_cyclic_refresh
              ? av1_cyclic_refresh_rc_bits_per_mb(cpi, q, correction_factor)
              : av1_rc_bits_per_mb(cpi, cm->current_frame.frame_type, q,
-                                  correction_factor, 0);
+                                  correction_factor,
+                                  cpi->sf.hl_sf.accurate_bit_estimate);
 }
 
 /*!\brief Searches for a Q index value predicted to give an average macro
@@ -1973,6 +1994,63 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
   return q;
 }
 
+static void rc_compute_variance_onepass_rt(AV1_COMP *cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  YV12_BUFFER_CONFIG const *const unscaled_src = cpi->unscaled_source;
+  if (unscaled_src == NULL) return;
+
+  const uint8_t *src_y = unscaled_src->y_buffer;
+  const int src_ystride = unscaled_src->y_stride;
+  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, LAST_FRAME);
+  const uint8_t *pre_y = yv12->buffers[0];
+  const int pre_ystride = yv12->strides[0];
+
+  // TODO(yunqing): support scaled reference frames.
+  if (cpi->scaled_ref_buf[LAST_FRAME - 1]) return;
+
+  const int num_mi_cols = cm->mi_params.mi_cols;
+  const int num_mi_rows = cm->mi_params.mi_rows;
+  const BLOCK_SIZE bsize = BLOCK_64X64;
+  int num_samples = 0;
+  // sse is computed on 64x64 blocks
+  const int sb_size_by_mb = (cm->seq_params->sb_size == BLOCK_128X128)
+                                ? (cm->seq_params->mib_size >> 1)
+                                : cm->seq_params->mib_size;
+  const int sb_cols = (num_mi_cols + sb_size_by_mb - 1) / sb_size_by_mb;
+  const int sb_rows = (num_mi_rows + sb_size_by_mb - 1) / sb_size_by_mb;
+
+  uint64_t fsse = 0;
+  cpi->rec_sse = 0;
+
+  for (int sbi_row = 0; sbi_row < sb_rows; ++sbi_row) {
+    for (int sbi_col = 0; sbi_col < sb_cols; ++sbi_col) {
+      unsigned int sse;
+      uint8_t src[64 * 64] = { 0 };
+      // Apply 4x4 block averaging/denoising on source frame.
+      for (int i = 0; i < 64; i += 4) {
+        for (int j = 0; j < 64; j += 4) {
+          const unsigned int avg =
+              aom_avg_4x4(src_y + i * src_ystride + j, src_ystride);
+
+          for (int m = 0; m < 4; ++m) {
+            for (int n = 0; n < 4; ++n) src[i * 64 + j + m * 64 + n] = avg;
+          }
+        }
+      }
+
+      cpi->ppi->fn_ptr[bsize].vf(src, 64, pre_y, pre_ystride, &sse);
+      fsse += sse;
+      num_samples++;
+      src_y += 64;
+      pre_y += 64;
+    }
+    src_y += (src_ystride << 6) - (sb_cols << 6);
+    pre_y += (pre_ystride << 6) - (sb_cols << 6);
+  }
+  assert(num_samples > 0);
+  if (num_samples > 0) cpi->rec_sse = fsse;
+}
+
 int av1_rc_pick_q_and_bounds(AV1_COMP *cpi, int width, int height, int gf_index,
                              int *bottom_index, int *top_index) {
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
@@ -1984,6 +2062,12 @@ int av1_rc_pick_q_and_bounds(AV1_COMP *cpi, int width, int height, int gf_index,
        gf_group->update_type[gf_index] == ARF_UPDATE) &&
       has_no_stats_stage(cpi)) {
     if (cpi->oxcf.rc_cfg.mode == AOM_CBR) {
+      // TODO(yunqing): the results could be used for encoder optimization.
+      cpi->rec_sse = UINT64_MAX;
+      if (cpi->sf.hl_sf.accurate_bit_estimate &&
+          cpi->common.current_frame.frame_type != KEY_FRAME)
+        rc_compute_variance_onepass_rt(cpi);
+
       q = rc_pick_q_and_bounds_no_stats_cbr(cpi, width, height, bottom_index,
                                             top_index);
       // preserve copy of active worst quality selected.
