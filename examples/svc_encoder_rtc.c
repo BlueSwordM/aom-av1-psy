@@ -1366,6 +1366,14 @@ int main(int argc, const char **argv) {
   aom_codec_control(&codec, AV1E_SET_MV_COST_UPD_FREQ, 3);
   aom_codec_control(&codec, AV1E_SET_DV_COST_UPD_FREQ, 3);
   aom_codec_control(&codec, AV1E_SET_CDF_UPDATE_MODE, 1);
+
+  // Settings to reduce key frame encoding time.
+  aom_codec_control(&codec, AV1E_SET_ENABLE_CFL_INTRA, 0);
+  aom_codec_control(&codec, AV1E_SET_ENABLE_SMOOTH_INTRA, 0);
+  aom_codec_control(&codec, AV1E_SET_ENABLE_ANGLE_DELTA, 0);
+  aom_codec_control(&codec, AV1E_SET_ENABLE_FILTER_INTRA, 0);
+  aom_codec_control(&codec, AV1E_SET_INTRA_DEFAULT_TX_ONLY, 1);
+
   aom_codec_control(&codec, AV1E_SET_TILE_COLUMNS,
                     cfg.g_threads ? get_msb(cfg.g_threads) : 0);
   if (cfg.g_threads > 1) aom_codec_control(&codec, AV1E_SET_ROW_MT, 1);
@@ -1374,6 +1382,8 @@ int main(int argc, const char **argv) {
   if (app_input.tune_content == AOM_CONTENT_SCREEN) {
     aom_codec_control(&codec, AV1E_SET_ENABLE_PALETTE, 1);
     aom_codec_control(&codec, AV1E_SET_ENABLE_CFL_INTRA, 1);
+    // INTRABC is currently disabled for rt mode, as it's too slow.
+    aom_codec_control(&codec, AV1E_SET_ENABLE_INTRABC, 0);
   }
 
   svc_params.number_spatial_layers = ss_number_layers;
