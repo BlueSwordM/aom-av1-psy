@@ -543,13 +543,11 @@ static INLINE void extend_mc_border(const struct scale_factors *const sf,
   }
 }
 
-static void dec_calc_subpel_params(const MV *const src_mv,
-                                   InterPredParams *const inter_pred_params,
-                                   const MACROBLOCKD *const xd, int mi_x,
-                                   int mi_y, uint8_t **pre,
-                                   SubpelParams *subpel_params, int *src_stride,
-                                   PadBlock *block, MV32 *scaled_mv,
-                                   int *subpel_x_mv, int *subpel_y_mv) {
+static AOM_INLINE void dec_calc_subpel_params(
+    const MV *const src_mv, InterPredParams *const inter_pred_params,
+    const MACROBLOCKD *const xd, int mi_x, int mi_y, uint8_t **pre,
+    SubpelParams *subpel_params, int *src_stride, PadBlock *block,
+    MV32 *scaled_mv, int *subpel_x_mv, int *subpel_y_mv) {
   const struct scale_factors *sf = inter_pred_params->scale_factors;
   struct buf_2d *pre_buf = &inter_pred_params->ref_frame_buf;
   const int bw = inter_pred_params->block_width;
@@ -631,7 +629,7 @@ static void dec_calc_subpel_params(const MV *const src_mv,
   *src_stride = pre_buf->stride;
 }
 
-static void dec_calc_subpel_params_and_extend(
+static AOM_INLINE void dec_calc_subpel_params_and_extend(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     MACROBLOCKD *const xd, int mi_x, int mi_y, int ref, uint8_t **mc_buf,
     uint8_t **pre, SubpelParams *subpel_params, int *src_stride) {
@@ -648,14 +646,17 @@ static void dec_calc_subpel_params_and_extend(
       inter_pred_params->use_hbd_buf, mc_buf[ref], pre, src_stride);
 }
 
+#define IS_ENC 0
+#include "av1/common/reconinter_template.inc"
+#undef IS_ENC
+
 static void dec_build_inter_predictors(const AV1_COMMON *cm,
                                        DecoderCodingBlock *dcb, int plane,
                                        const MB_MODE_INFO *mi,
                                        int build_for_obmc, int bw, int bh,
                                        int mi_x, int mi_y) {
-  av1_build_inter_predictors(cm, &dcb->xd, plane, mi, build_for_obmc, bw, bh,
-                             mi_x, mi_y, dcb->mc_buf,
-                             dec_calc_subpel_params_and_extend);
+  av1_dec_build_inter_predictors(cm, &dcb->xd, plane, mi, build_for_obmc, bw,
+                                 bh, mi_x, mi_y, dcb->mc_buf);
 }
 
 static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,

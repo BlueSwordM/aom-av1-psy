@@ -66,6 +66,7 @@ list(APPEND AOM_AV1_COMMON_SOURCES
             "${AOM_ROOT}/av1/common/quant_common.h"
             "${AOM_ROOT}/av1/common/reconinter.c"
             "${AOM_ROOT}/av1/common/reconinter.h"
+            "${AOM_ROOT}/av1/common/reconinter_template.inc"
             "${AOM_ROOT}/av1/common/reconintra.c"
             "${AOM_ROOT}/av1/common/reconintra.h"
             "${AOM_ROOT}/av1/common/resize.c"

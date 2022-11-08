@@ -28,20 +28,9 @@
 #include "av1/common/reconintra.h"
 #include "av1/encoder/reconinter_enc.h"
 
-static void enc_calc_subpel_params(const MV *const src_mv,
-                                   InterPredParams *const inter_pred_params,
-                                   MACROBLOCKD *xd, int mi_x, int mi_y, int ref,
-                                   uint8_t **mc_buf, uint8_t **pre,
-                                   SubpelParams *subpel_params,
-                                   int *src_stride) {
-  // These are part of the function signature to use this function through a
-  // function pointer. See typedef of 'CalcSubpelParamsFunc'.
-  (void)xd;
-  (void)mi_x;
-  (void)mi_y;
-  (void)ref;
-  (void)mc_buf;
-
+static AOM_INLINE void enc_calc_subpel_params(
+    const MV *const src_mv, InterPredParams *const inter_pred_params,
+    uint8_t **pre, SubpelParams *subpel_params, int *src_stride) {
   const struct scale_factors *sf = inter_pred_params->scale_factors;
 
   struct buf_2d *pre_buf = &inter_pred_params->ref_frame_buf;
@@ -80,21 +69,15 @@ static void enc_calc_subpel_params(const MV *const src_mv,
   *src_stride = pre_buf->stride;
 }
 
-void av1_enc_build_one_inter_predictor(uint8_t *dst, int dst_stride,
-                                       const MV *src_mv,
-                                       InterPredParams *inter_pred_params) {
-  av1_build_one_inter_predictor(
-      dst, dst_stride, src_mv, inter_pred_params, NULL /* xd */, 0 /* mi_x */,
-      0 /* mi_y */, inter_pred_params->conv_params.do_average /* ref */,
-      NULL /* mc_buf */, enc_calc_subpel_params);
-}
+#define IS_ENC 1
+#include "av1/common/reconinter_template.inc"
+#undef IS_ENC
 
 static void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                        int plane, const MB_MODE_INFO *mi,
                                        int bw, int bh, int mi_x, int mi_y) {
-  av1_build_inter_predictors(cm, xd, plane, mi, 0 /* build_for_obmc */, bw, bh,
-                             mi_x, mi_y, NULL /* mc_buf */,
-                             enc_calc_subpel_params);
+  av1_enc_build_inter_predictors(cm, xd, plane, mi, 0 /* build_for_obmc */, bw,
+                                 bh, mi_x, mi_y);
 }
 
 void av1_enc_build_inter_predictor_y(MACROBLOCKD *xd, int mi_row, int mi_col) {
