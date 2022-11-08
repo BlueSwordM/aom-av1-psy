@@ -413,13 +413,15 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
         }
       }
 
-      sum_rec_distortion += weber_stats->distortion;
-      int est_block_rate = 0;
-      int64_t est_block_dist = 0;
-      model_rd_sse_fn[MODELRD_LEGACY](cpi, x, bsize, 0, weber_stats->distortion,
-                                      pix_num, &est_block_rate,
-                                      &est_block_dist);
-      sum_est_rate += est_block_rate;
+      if (cpi->oxcf.intra_mode_cfg.auto_intra_tools_off) {
+        sum_rec_distortion += weber_stats->distortion;
+        int est_block_rate = 0;
+        int64_t est_block_dist = 0;
+        model_rd_sse_fn[MODELRD_LEGACY](cpi, x, bsize, 0,
+                                        weber_stats->distortion, pix_num,
+                                        &est_block_rate, &est_block_dist);
+        sum_est_rate += est_block_rate;
+      }
 
       weber_stats->src_variance -= (src_mean * src_mean) / pix_num;
       weber_stats->rec_variance -= (rec_mean * rec_mean) / pix_num;
