@@ -562,8 +562,8 @@ static void dec_calc_subpel_params(const MV *const src_mv,
     orig_pos_y += src_mv->row * (1 << (1 - ssy));
     int orig_pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
     orig_pos_x += src_mv->col * (1 << (1 - ssx));
-    int pos_y = sf->scale_value_y(orig_pos_y, sf);
-    int pos_x = sf->scale_value_x(orig_pos_x, sf);
+    int pos_y = av1_scaled_y(orig_pos_y, sf);
+    int pos_x = av1_scaled_x(orig_pos_x, sf);
     pos_x += SCALE_EXTRA_OFF;
     pos_y += SCALE_EXTRA_OFF;
 

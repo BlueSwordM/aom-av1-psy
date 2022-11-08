@@ -311,10 +311,17 @@ static INLINE MV clamp_mv_to_umv_border_sb(const MACROBLOCKD *xd,
 static INLINE int64_t scaled_buffer_offset(int x_offset, int y_offset,
                                            int stride,
                                            const struct scale_factors *sf) {
-  const int x =
-      sf ? sf->scale_value_x(x_offset, sf) >> SCALE_EXTRA_BITS : x_offset;
-  const int y =
-      sf ? sf->scale_value_y(y_offset, sf) >> SCALE_EXTRA_BITS : y_offset;
+  int x, y;
+  if (!sf) {
+    x = x_offset;
+    y = y_offset;
+  } else if (av1_is_scaled(sf)) {
+    x = av1_scaled_x(x_offset, sf) >> SCALE_EXTRA_BITS;
+    y = av1_scaled_y(y_offset, sf) >> SCALE_EXTRA_BITS;
+  } else {
+    x = av1_unscaled_value(x_offset, sf) >> SCALE_EXTRA_BITS;
+    y = av1_unscaled_value(y_offset, sf) >> SCALE_EXTRA_BITS;
+  }
   return (int64_t)y * stride + x;
 }
 
