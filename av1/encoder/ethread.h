@@ -73,6 +73,9 @@ void av1_tpl_dealloc(AV1TplRowMultiThreadSync *tpl_sync);
 
 #endif  // !CONFIG_REALTIME_ONLY
 
+void av1_calc_mb_wiener_var_mt(AV1_COMP *cpi, double *sum_rec_distortion,
+                               double *sum_est_rate);
+
 void av1_tf_do_filtering_mt(AV1_COMP *cpi);
 
 void av1_tf_mt_dealloc(AV1TemporalFilterSync *tf_sync);
