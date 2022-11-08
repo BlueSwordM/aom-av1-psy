@@ -14,6 +14,7 @@
 
 #include <deque>
 #include <queue>
+#include <unordered_map>
 #include <vector>
 #include "av1/encoder/firstpass.h"
 #include "av1/qmode_rc/ratectrl_qmode_interface.h"
@@ -84,6 +85,10 @@ void TplFrameDepStatsPropagate(int coding_idx,
                                TplGopDepStats *tpl_gop_dep_stats);
 
 int GetBlockOverlapArea(int r0, int c0, int r1, int c1, int size);
+
+namespace internal {
+std::unordered_map<int, int> KMeans(std::vector<uint8_t> qindices, int k);
+}
 
 StatusOr<TplGopDepStats> ComputeTplGopDepStats(
     const TplGopStats &tpl_gop_stats,
