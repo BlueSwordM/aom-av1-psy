@@ -1140,8 +1140,11 @@ static int rc_pick_q_and_bounds_no_stats_cbr(const AV1_COMP *cpi, int width,
     *top_index = AOMMAX(*top_index, *bottom_index);
   }
 
-  // Special case code to try and match quality with forced key frames
-  if (current_frame->frame_type == KEY_FRAME && p_rc->this_key_frame_forced) {
+  // Special case code to try and match quality with forced key frames.
+  // Avoid this for screen mode, to prevent low q on key frame
+  // (to avoid possibly massive frame size).
+  if (current_frame->frame_type == KEY_FRAME && p_rc->this_key_frame_forced &&
+      cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN) {
     q = p_rc->last_boosted_qindex;
   } else {
     q = av1_rc_regulate_q(cpi, rc->this_frame_target, active_best_quality,
