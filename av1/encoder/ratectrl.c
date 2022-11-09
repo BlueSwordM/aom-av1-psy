@@ -2234,7 +2234,7 @@ static int find_qindex_by_rate(const AV1_COMP *const cpi,
   return low;
 }
 
-int av1_compute_qdelta_by_rate(const AV1_COMP *const cpi, FRAME_TYPE frame_type,
+int av1_compute_qdelta_by_rate(const AV1_COMP *cpi, FRAME_TYPE frame_type,
                                int qindex, double rate_target_ratio) {
   const RATE_CONTROL *rc = &cpi->rc;
 
