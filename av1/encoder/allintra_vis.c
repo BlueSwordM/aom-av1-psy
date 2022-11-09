@@ -26,15 +26,6 @@
 #include "av1/encoder/model_rd.h"
 #include "av1/encoder/rdopt_utils.h"
 
-// Process the wiener variance in 16x16 block basis.
-static int qsort_comp(const void *elem1, const void *elem2) {
-  int a = *((const int *)elem1);
-  int b = *((const int *)elem2);
-  if (a > b) return 1;
-  if (a < b) return -1;
-  return 0;
-}
-
 void av1_init_mb_wiener_var_buffer(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
 
@@ -354,11 +345,12 @@ static void calc_mb_wiener_var(AV1_COMP *const cpi, double *sum_rec_distortion,
       weber_stats->satd = best_intra_cost;
 
       qcoeff[0] = 0;
-      for (int idx = 1; idx < coeff_count; ++idx)
-        qcoeff[idx] = abs(qcoeff[idx]);
-      qsort(qcoeff, coeff_count, sizeof(*coeff), qsort_comp);
-
-      weber_stats->max_scale = (double)qcoeff[coeff_count - 1];
+      int max_scale = 0;
+      for (int idx = 1; idx < coeff_count; ++idx) {
+        const int abs_qcoeff = abs(qcoeff[idx]);
+        max_scale = AOMMAX(max_scale, abs_qcoeff);
+      }
+      weber_stats->max_scale = max_scale;
     }
   }
 }
