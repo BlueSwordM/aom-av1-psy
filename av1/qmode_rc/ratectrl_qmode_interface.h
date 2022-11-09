@@ -26,7 +26,7 @@ constexpr int kBlockRefCount = 2;
 struct MotionVector {
   int row;  // subpel row
   int col;  // subpel col
-  // TODO(b/241589513): Move this to TPLFrameStats; it's wasteful to code it
+  // TODO(b/241589513): Move this to TplFrameStats; it's wasteful to code it
   // separately for each block.
   int subpel_bits;  // number of fractional bits used by row/col
 };
@@ -44,7 +44,7 @@ struct RateControlParam {
 
   // If greater than 1, enables per-superblock q_index, and limits the number of
   // unique q_index values which may be used in a frame (each of which will have
-  // it's own unique rdmult value).
+  // its own unique rdmult value).
   int max_distinct_q_indices_per_frame;
 
   // If per-superblock q_index is enabled and this is greater than 1, enables
@@ -60,7 +60,7 @@ struct TplBlockStats {
   int16_t height;  // Pixel height.
   int16_t width;   // Pixel width.
   int16_t row;     // Pixel row of the top left corner.
-  int16_t col;     // Pixel col of the top lef corner.
+  int16_t col;     // Pixel col of the top left corner.
   int64_t intra_cost;
   int64_t inter_cost;
 
