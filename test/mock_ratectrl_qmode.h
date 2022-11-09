@@ -30,8 +30,6 @@ class MockRateControlQMode : public AV1RateControlQModeInterface {
               (override));
   MOCK_METHOD(StatusOr<GopEncodeInfo>, GetTplPassGopEncodeInfo,
               (const GopStruct &gop_struct), (override));
-  MOCK_METHOD(int, GetRDMult, (const GopFrame &gop_frame, int q_index),
-              (const, override));
 };
 
 }  // namespace aom

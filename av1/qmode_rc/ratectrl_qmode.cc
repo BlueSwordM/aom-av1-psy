@@ -1301,8 +1301,7 @@ static std::vector<uint8_t> SetupDeltaQ(const TplFrameDepStats &frame_dep_stats,
   return superblock_q_indices;
 }
 
-int AV1RateControlQMode::GetRDMult(const GopFrame &gop_frame,
-                                   int q_index) const {
+static int GetRDMult(const GopFrame &gop_frame, int q_index) {
   // TODO(angiebird):
   // 1) Check if these rdmult rules are good in our use case.
   // 2) Support high-bit-depth mode

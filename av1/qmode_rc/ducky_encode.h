@@ -82,8 +82,6 @@ class DuckyEncode {
   std::vector<TplGopStats> ComputeTplStats(
       const GopStructList &gop_list,
       const GopEncodeInfoList &gop_encode_info_list);
-  // TODO(jingning): Remove this temporary overload function.
-  std::vector<TplGopStats> ComputeTplStats(const GopStructList &gop_list);
 
   std::vector<EncodeFrameResult> EncodeVideo(
       const GopStructList &gop_list,
