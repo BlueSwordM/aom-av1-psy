@@ -1412,9 +1412,13 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
       active_best_quality = param.q_index;
 
       if (rc_param_.max_distinct_q_indices_per_frame > 1) {
-        param.superblock_q_indices = SetupDeltaQ(
+        std::vector<uint8_t> superblock_q_indices = SetupDeltaQ(
             frame_dep_stats, rc_param_.frame_width, rc_param_.frame_height,
             param.q_index, frame_importance);
+        for (auto &qindex : superblock_q_indices) {
+          // TODO(jianj): Calcualte rdmult per SB.
+          param.superblock_encode_params.push_back({ qindex, 0 });
+        }
         // TODO(b/256852795): Implement K-means to restrict the numbers of q
         // indices to rc_param_.max_distinct_q_indices_per_frame
       }
