@@ -1140,29 +1140,22 @@ static int rc_pick_q_and_bounds_no_stats_cbr(const AV1_COMP *cpi, int width,
     *top_index = AOMMAX(*top_index, *bottom_index);
   }
 
-  // Special case code to try and match quality with forced key frames.
-  // Avoid this for screen mode, to prevent low q on key frame
-  // (to avoid possibly massive frame size).
-  if (current_frame->frame_type == KEY_FRAME && p_rc->this_key_frame_forced &&
-      cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN) {
-    q = p_rc->last_boosted_qindex;
-  } else {
-    q = av1_rc_regulate_q(cpi, rc->this_frame_target, active_best_quality,
-                          active_worst_quality, width, height);
+  q = av1_rc_regulate_q(cpi, rc->this_frame_target, active_best_quality,
+                        active_worst_quality, width, height);
 #if RT_PASSIVE_STRATEGY
-    if (current_frame->frame_type != KEY_FRAME &&
-        cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
-      q = get_q_passive_strategy(cpi, q, 50);
-    }
-#endif  // RT_PASSIVE_STRATEGY
-    if (q > *top_index) {
-      // Special case when we are targeting the max allowed rate
-      if (rc->this_frame_target >= rc->max_frame_bandwidth)
-        *top_index = q;
-      else
-        q = *top_index;
-    }
+  if (current_frame->frame_type != KEY_FRAME &&
+      cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
+    q = get_q_passive_strategy(cpi, q, 50);
   }
+#endif  // RT_PASSIVE_STRATEGY
+  if (q > *top_index) {
+    // Special case when we are targeting the max allowed rate
+    if (rc->this_frame_target >= rc->max_frame_bandwidth)
+      *top_index = q;
+    else
+      q = *top_index;
+  }
+
   // Special case: we force the first few frames to use low q such that
   // these frames are encoded at a high quality, which provides good
   // references for following frames.
