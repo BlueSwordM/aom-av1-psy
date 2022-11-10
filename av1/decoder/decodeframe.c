@@ -646,17 +646,17 @@ static AOM_INLINE void dec_calc_subpel_params_and_extend(
       inter_pred_params->use_hbd_buf, mc_buf[ref], pre, src_stride);
 }
 
-#define IS_ENC 0
+#define IS_DEC 1
 #include "av1/common/reconinter_template.inc"
-#undef IS_ENC
+#undef IS_DEC
 
 static void dec_build_inter_predictors(const AV1_COMMON *cm,
                                        DecoderCodingBlock *dcb, int plane,
                                        const MB_MODE_INFO *mi,
                                        int build_for_obmc, int bw, int bh,
                                        int mi_x, int mi_y) {
-  av1_dec_build_inter_predictors(cm, &dcb->xd, plane, mi, build_for_obmc, bw,
-                                 bh, mi_x, mi_y, dcb->mc_buf);
+  build_inter_predictors(cm, &dcb->xd, plane, mi, build_for_obmc, bw, bh, mi_x,
+                         mi_y, dcb->mc_buf);
 }
 
 static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,

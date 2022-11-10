@@ -40,9 +40,9 @@ static AOM_INLINE void enc_calc_subpel_params(
   *src_stride = pre_buf->stride;
 }
 
-#define IS_ENC 1
+#define IS_DEC 0
 #include "av1/common/reconinter_template.inc"
-#undef IS_ENC
+#undef IS_DEC
 
 static void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                        int plane, const MB_MODE_INFO *mi,
