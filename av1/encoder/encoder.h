@@ -4136,6 +4136,14 @@ static INLINE int is_restoration_used(const AV1_COMMON *const cm) {
 static INLINE unsigned int derive_skip_apply_postproc_filters(
     const AV1_COMP *cpi, int use_loopfilter, int use_cdef, int use_superres,
     int use_restoration) {
+  // Though CDEF parameter selection should be dependent on
+  // deblocked/loop-filtered pixels for cdef_pick_method <=
+  // CDEF_FAST_SEARCH_LVL5, CDEF strength values are calculated based on the
+  // pixel values that are not loop-filtered in svc real-time encoding mode.
+  // Hence this case is handled separately using the condition below.
+  if (cpi->ppi->rtc_ref.non_reference_frame)
+    return (SKIP_APPLY_LOOPFILTER | SKIP_APPLY_CDEF);
+
   if (!cpi->oxcf.algo_cfg.skip_postproc_filtering || cpi->ppi->b_calculate_psnr)
     return 0;
   assert(cpi->oxcf.mode == ALLINTRA);
