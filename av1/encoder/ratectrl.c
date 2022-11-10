@@ -680,6 +680,23 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int is_encode_stage,
   // Do not update the rate factors for arf overlay frames.
   if (cpi->rc.is_src_frame_alt_ref) return;
 
+  // Dont update rate correction factors here on scene changes as
+  // it is already reset av1_encodedframe_overshoot_cbr(),
+  // but reset variables related to previous frame q and size.
+  // Note that the counter of frames since the last scene change
+  // is only valid when cyclic refresh mode is enabled and that
+  // this break out only applies to scene changes that are not
+  // recorded as INTRA only key frames.
+  if ((cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ) &&
+      (cpi->cyclic_refresh->counter_encode_maxq_scene_change == 0) &&
+      (cm->current_frame.frame_type != KEY_FRAME) && (!cpi->ppi->use_svc)) {
+    cpi->rc.q_2_frame = cm->quant_params.base_qindex;
+    cpi->rc.q_1_frame = cm->quant_params.base_qindex;
+    cpi->rc.rc_2_frame = 0;
+    cpi->rc.rc_1_frame = 0;
+    return;
+  }
+
   // Clear down mmx registers to allow floating point in what follows
 
   // Work out how big we would have expected the frame to be at this Q given
