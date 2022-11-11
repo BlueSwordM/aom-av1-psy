@@ -20,9 +20,13 @@
 #endif  // IS_ENC
 
 #if !IS_ENC
-static
+static AOM_INLINE
+#elif !defined(_MSC_VER)
+// Visual studio seems to prefer a cpp style to inline, so if a declaration of
+// a function is inline, then all must be inline.
+AOM_INLINE
 #endif  // !IS_ENC
-   AOM_INLINE void
+    void
     RENAME(build_one_inter_predictor)(uint8_t *dst, int dst_stride,
                                       const MV *src_mv,
                                       InterPredParams *inter_pred_params
@@ -90,12 +94,13 @@ static bool is_sub8x8_inter(const MACROBLOCKD *xd, int plane, BLOCK_SIZE bsize,
   return true;
 }
 
-static AOM_INLINE void build_inter_predictors_sub8x8(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
-    int mi_x, int mi_y
+static AOM_INLINE void build_inter_predictors_sub8x8(const AV1_COMMON *cm,
+                                                     MACROBLOCKD *xd, int plane,
+                                                     const MB_MODE_INFO *mi,
+                                                     int mi_x, int mi_y
 #if !IS_ENC
-    ,
-    uint8_t **mc_buf
+                                                     ,
+                                                     uint8_t **mc_buf
 #endif  // !IS_ENC
 ) {
   const BLOCK_SIZE bsize = mi->bsize;
@@ -241,6 +246,7 @@ static AOM_INLINE void build_inter_predictors_8x8_and_bigger(
     );
   }
 }
+
 static AOM_INLINE void RENAME(build_inter_predictors)(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
     int build_for_obmc, int bw, int bh, int mi_x, int mi_y
@@ -252,19 +258,18 @@ static AOM_INLINE void RENAME(build_inter_predictors)(
   if (is_sub8x8_inter(xd, plane, mi->bsize, is_intrabc_block(mi),
                       build_for_obmc)) {
     assert(bw < 8 || bh < 8);
-    build_inter_predictors_sub8x8
-    (cm, xd, plane, mi, mi_x, mi_y
+    build_inter_predictors_sub8x8(cm, xd, plane, mi, mi_x, mi_y
 #if !IS_ENC
-     ,
-     mc_buf
+                                  ,
+                                  mc_buf
 #endif  // !IS_ENC
     );
   } else {
-    build_inter_predictors_8x8_and_bigger
-    (cm, xd, plane, mi, build_for_obmc, bw, bh, mi_x, mi_y
+    build_inter_predictors_8x8_and_bigger(cm, xd, plane, mi, build_for_obmc, bw,
+                                          bh, mi_x, mi_y
 #if !IS_ENC
-     ,
-     mc_buf
+                                          ,
+                                          mc_buf
 #endif  // !IS_ENC
     );
   }
