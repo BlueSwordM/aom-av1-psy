@@ -31,41 +31,12 @@
 static AOM_INLINE void enc_calc_subpel_params(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     uint8_t **pre, SubpelParams *subpel_params, int *src_stride) {
-  const struct scale_factors *sf = inter_pred_params->scale_factors;
-
   struct buf_2d *pre_buf = &inter_pred_params->ref_frame_buf;
-  int ssx = inter_pred_params->subsampling_x;
-  int ssy = inter_pred_params->subsampling_y;
-  int orig_pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
-  orig_pos_y += src_mv->row * (1 << (1 - ssy));
-  int orig_pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
-  orig_pos_x += src_mv->col * (1 << (1 - ssx));
-  const int is_scaled = av1_is_scaled(sf);
-  int pos_x, pos_y;
-  if (LIKELY(!is_scaled)) {
-    pos_y = av1_unscaled_value(orig_pos_y, sf);
-    pos_x = av1_unscaled_value(orig_pos_x, sf);
-  } else {
-    pos_y = av1_scaled_y(orig_pos_y, sf);
-    pos_x = av1_scaled_x(orig_pos_x, sf);
-  }
-
-  pos_x += SCALE_EXTRA_OFF;
-  pos_y += SCALE_EXTRA_OFF;
-
-  const int top = -AOM_LEFT_TOP_MARGIN_SCALED(ssy);
-  const int left = -AOM_LEFT_TOP_MARGIN_SCALED(ssx);
-  const int bottom = (pre_buf->height + AOM_INTERP_EXTEND) << SCALE_SUBPEL_BITS;
-  const int right = (pre_buf->width + AOM_INTERP_EXTEND) << SCALE_SUBPEL_BITS;
-  pos_y = clamp(pos_y, top, bottom);
-  pos_x = clamp(pos_x, left, right);
-
-  subpel_params->subpel_x = pos_x & SCALE_SUBPEL_MASK;
-  subpel_params->subpel_y = pos_y & SCALE_SUBPEL_MASK;
-  subpel_params->xs = sf->x_step_q4;
-  subpel_params->ys = sf->y_step_q4;
-  *pre = pre_buf->buf0 + (pos_y >> SCALE_SUBPEL_BITS) * pre_buf->stride +
-         (pos_x >> SCALE_SUBPEL_BITS);
+  init_subpel_params(src_mv, inter_pred_params, subpel_params, pre_buf->width,
+                     pre_buf->height);
+  *pre = pre_buf->buf0 +
+         (subpel_params->pos_y >> SCALE_SUBPEL_BITS) * pre_buf->stride +
+         (subpel_params->pos_x >> SCALE_SUBPEL_BITS);
   *src_stride = pre_buf->stride;
 }
 
@@ -102,6 +73,32 @@ void av1_enc_build_inter_predictor_y(MACROBLOCKD *xd, int mi_row, int mi_col) {
   inter_pred_params.conv_params.use_dist_wtd_comp_avg = 0;
   av1_enc_build_one_inter_predictor(dst, dst_buf->stride, &mv,
                                     &inter_pred_params);
+}
+
+void av1_enc_build_inter_predictor_y_nonrd(MACROBLOCKD *xd,
+                                           InterPredParams *inter_pred_params,
+                                           const SubpelParams *subpel_params) {
+  struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
+
+  const MB_MODE_INFO *mbmi = xd->mi[0];
+  struct buf_2d *const dst_buf = &pd->dst;
+  const struct buf_2d *pre_buf = &pd->pre[0];
+  const uint8_t *src =
+      pre_buf->buf0 +
+      (subpel_params->pos_y >> SCALE_SUBPEL_BITS) * pre_buf->stride +
+      (subpel_params->pos_x >> SCALE_SUBPEL_BITS);
+  uint8_t *const dst = dst_buf->buf;
+  int src_stride = pre_buf->stride;
+  int dst_stride = dst_buf->stride;
+  inter_pred_params->ref_frame_buf = *pre_buf;
+
+  // Initialize interp filter for single reference mode.
+  init_interp_filter_params(inter_pred_params->interp_filter_params,
+                            &mbmi->interp_filters.as_filters, pd->width,
+                            pd->height, /*is_intrabc=*/0);
+
+  av1_make_inter_predictor(src, src_stride, dst, dst_stride, inter_pred_params,
+                           subpel_params);
 }
 
 void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,

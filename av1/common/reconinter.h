@@ -79,6 +79,8 @@ typedef struct SubpelParams {
   int ys;
   int subpel_x;
   int subpel_y;
+  int pos_x;
+  int pos_y;
 } SubpelParams;
 
 struct build_prediction_ctxt {
@@ -121,14 +123,77 @@ typedef struct InterPredParams {
   INTERINTER_COMPOUND_DATA mask_comp;
   BLOCK_SIZE sb_type;
   int is_intrabc;
+  int top;
+  int left;
 } InterPredParams;
 
-static AOM_INLINE void av1_init_inter_params(
+// Initialize sub-pel params required for inter prediction.
+static AOM_INLINE void init_subpel_params(
+    const MV *const src_mv, InterPredParams *const inter_pred_params,
+    SubpelParams *subpel_params, int width, int height) {
+  const struct scale_factors *sf = inter_pred_params->scale_factors;
+  int ssx = inter_pred_params->subsampling_x;
+  int ssy = inter_pred_params->subsampling_y;
+  int orig_pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
+  orig_pos_y += src_mv->row * (1 << (1 - ssy));
+  int orig_pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
+  orig_pos_x += src_mv->col * (1 << (1 - ssx));
+  const int is_scaled = av1_is_scaled(sf);
+  int pos_x, pos_y;
+  if (LIKELY(!is_scaled)) {
+    pos_y = av1_unscaled_value(orig_pos_y, sf);
+    pos_x = av1_unscaled_value(orig_pos_x, sf);
+  } else {
+    pos_y = av1_scaled_y(orig_pos_y, sf);
+    pos_x = av1_scaled_x(orig_pos_x, sf);
+  }
+
+  pos_x += SCALE_EXTRA_OFF;
+  pos_y += SCALE_EXTRA_OFF;
+
+  const int bottom = (height + AOM_INTERP_EXTEND) << SCALE_SUBPEL_BITS;
+  const int right = (width + AOM_INTERP_EXTEND) << SCALE_SUBPEL_BITS;
+  pos_y = clamp(pos_y, inter_pred_params->top, bottom);
+  pos_x = clamp(pos_x, inter_pred_params->left, right);
+
+  subpel_params->pos_x = pos_x;
+  subpel_params->pos_y = pos_y;
+  subpel_params->subpel_x = pos_x & SCALE_SUBPEL_MASK;
+  subpel_params->subpel_y = pos_y & SCALE_SUBPEL_MASK;
+  subpel_params->xs = sf->x_step_q4;
+  subpel_params->ys = sf->y_step_q4;
+}
+
+// Initialize interp filter required for inter prediction.
+static AOM_INLINE void init_interp_filter_params(
+    const InterpFilterParams *interp_filter_params[2],
+    const InterpFilters *filter, int block_width, int block_height,
+    int is_intrabc) {
+  if (UNLIKELY(is_intrabc)) {
+    interp_filter_params[0] = &av1_intrabc_filter_params;
+    interp_filter_params[1] = &av1_intrabc_filter_params;
+  } else {
+    interp_filter_params[0] = av1_get_interp_filter_params_with_block_size(
+        (InterpFilter)filter->x_filter, block_width);
+    interp_filter_params[1] = av1_get_interp_filter_params_with_block_size(
+        (InterpFilter)filter->y_filter, block_height);
+  }
+}
+
+// Initialize parameters required for inter prediction at mode level.
+static AOM_INLINE void init_inter_mode_params(
+    const MV *const src_mv, InterPredParams *const inter_pred_params,
+    SubpelParams *subpel_params, const struct scale_factors *sf, int width,
+    int height) {
+  inter_pred_params->scale_factors = sf;
+  init_subpel_params(src_mv, inter_pred_params, subpel_params, width, height);
+}
+
+// Initialize parameters required for inter prediction at block level.
+static AOM_INLINE void init_inter_block_params(
     InterPredParams *inter_pred_params, int block_width, int block_height,
     int pix_row, int pix_col, int subsampling_x, int subsampling_y,
-    int bit_depth, int use_hbd_buf, int is_intrabc,
-    const struct scale_factors *sf, const struct buf_2d *ref_buf,
-    int_interpfilters interp_filters) {
+    int bit_depth, int use_hbd_buf, int is_intrabc) {
   inter_pred_params->block_width = block_width;
   inter_pred_params->block_height = block_height;
   inter_pred_params->pix_row = pix_row;
@@ -138,22 +203,27 @@ static AOM_INLINE void av1_init_inter_params(
   inter_pred_params->bit_depth = bit_depth;
   inter_pred_params->use_hbd_buf = use_hbd_buf;
   inter_pred_params->is_intrabc = is_intrabc;
-  inter_pred_params->scale_factors = sf;
-  inter_pred_params->ref_frame_buf = *ref_buf;
   inter_pred_params->mode = TRANSLATION_PRED;
   inter_pred_params->comp_mode = UNIFORM_SINGLE;
+  inter_pred_params->top = -AOM_LEFT_TOP_MARGIN_SCALED(subsampling_y);
+  inter_pred_params->left = -AOM_LEFT_TOP_MARGIN_SCALED(subsampling_x);
+}
 
-  if (is_intrabc) {
-    inter_pred_params->interp_filter_params[0] = &av1_intrabc_filter_params;
-    inter_pred_params->interp_filter_params[1] = &av1_intrabc_filter_params;
-  } else {
-    inter_pred_params->interp_filter_params[0] =
-        av1_get_interp_filter_params_with_block_size(
-            (InterpFilter)interp_filters.as_filters.x_filter, block_width);
-    inter_pred_params->interp_filter_params[1] =
-        av1_get_interp_filter_params_with_block_size(
-            (InterpFilter)interp_filters.as_filters.y_filter, block_height);
-  }
+// Initialize params required for inter prediction.
+static AOM_INLINE void av1_init_inter_params(
+    InterPredParams *inter_pred_params, int block_width, int block_height,
+    int pix_row, int pix_col, int subsampling_x, int subsampling_y,
+    int bit_depth, int use_hbd_buf, int is_intrabc,
+    const struct scale_factors *sf, const struct buf_2d *ref_buf,
+    int_interpfilters interp_filters) {
+  init_inter_block_params(inter_pred_params, block_width, block_height, pix_row,
+                          pix_col, subsampling_x, subsampling_y, bit_depth,
+                          use_hbd_buf, is_intrabc);
+  init_interp_filter_params(inter_pred_params->interp_filter_params,
+                            &interp_filters.as_filters, block_width,
+                            block_height, is_intrabc);
+  inter_pred_params->scale_factors = sf;
+  inter_pred_params->ref_frame_buf = *ref_buf;
 }
 
 static AOM_INLINE void av1_init_comp_mode(InterPredParams *inter_pred_params) {
