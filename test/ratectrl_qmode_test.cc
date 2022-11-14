@@ -237,7 +237,7 @@ class RateControlQModeTest : public ::testing::Test {
     rc_param_.frame_width = kFrameWidth;
   }
 
-  RateControlParam rc_param_;
+  RateControlParam rc_param_ = {};
 };
 
 TEST_F(RateControlQModeTest, ConstructGopARF) {
