@@ -2236,9 +2236,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
         cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN;
     // Find CDEF parameters
     av1_cdef_search(&cpi->mt_info, &cm->cur_frame->buf, cpi->source, cm, xd,
-                    cpi->ppi->fn_ptr, cpi->sf.lpf_sf.cdef_pick_method,
-                    cpi->td.mb.rdmult, cpi->sf.rt_sf.skip_cdef_sb,
-                    cpi->oxcf.tool_cfg.cdef_control, use_screen_content_model,
+                    cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult,
+                    cpi->sf.rt_sf.skip_cdef_sb, cpi->oxcf.tool_cfg.cdef_control,
+                    use_screen_content_model,
                     cpi->ppi->rtc_ref.non_reference_frame);
 
     // Apply the filter
