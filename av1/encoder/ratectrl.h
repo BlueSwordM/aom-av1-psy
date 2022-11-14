@@ -659,6 +659,10 @@ int av1_rc_regulate_q(const struct AV1_COMP *cpi, int target_bits_per_frame,
                       int width, int height);
 
 /*!\cond */
+// Gets the appropriate bpmb ennumerator based on the frame and content type
+int av1_get_bpmb_enumerator(FRAME_TYPE frame_type,
+                            const int is_screen_content_type);
+
 // Estimates bits per mb for a given qindex and correction factor.
 int av1_rc_bits_per_mb(const struct AV1_COMP *cpi, FRAME_TYPE frame_type,
                        int qindex, double correction_factor,

@@ -901,7 +901,7 @@ class DatarateTestSVC
     target_layer_bitrate_[8] = bitrate_sl2;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
-      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.60)
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.585)
           << " The datarate for the file is lower than target by too much!";
       ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.35)
           << " The datarate for the file is greater than target by too much!";
