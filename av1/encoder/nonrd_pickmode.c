@@ -75,11 +75,6 @@ typedef struct {
   PREDICTION_MODE pred_mode;
 } COMP_REF_MODE;
 
-typedef struct {
-  InterpFilter filter_x;
-  InterpFilter filter_y;
-} INTER_FILTER;
-
 /*!\brief Structure to store parameters and statistics used in non-rd inter mode
  * evaluation.
  */
@@ -122,12 +117,16 @@ static const COMP_REF_MODE comp_ref_mode_set[NUM_COMP_INTER_MODES_RT] = {
   { { LAST_FRAME, ALTREF_FRAME }, NEAREST_NEARESTMV },
 };
 
-static const INTER_FILTER filters_ref_set[9] = {
-  { EIGHTTAP_REGULAR, EIGHTTAP_REGULAR }, { EIGHTTAP_SMOOTH, EIGHTTAP_SMOOTH },
-  { EIGHTTAP_REGULAR, EIGHTTAP_SMOOTH },  { EIGHTTAP_SMOOTH, EIGHTTAP_REGULAR },
-  { MULTITAP_SHARP, MULTITAP_SHARP },     { EIGHTTAP_REGULAR, MULTITAP_SHARP },
-  { MULTITAP_SHARP, EIGHTTAP_REGULAR },   { EIGHTTAP_SMOOTH, MULTITAP_SHARP },
-  { MULTITAP_SHARP, EIGHTTAP_SMOOTH }
+static const int_interpfilters filters_ref_set[9] = {
+  [0].as_filters = { EIGHTTAP_REGULAR, EIGHTTAP_REGULAR },
+  [1].as_filters = { EIGHTTAP_SMOOTH, EIGHTTAP_SMOOTH },
+  [2].as_filters = { EIGHTTAP_REGULAR, EIGHTTAP_SMOOTH },
+  [3].as_filters = { EIGHTTAP_SMOOTH, EIGHTTAP_REGULAR },
+  [4].as_filters = { MULTITAP_SHARP, MULTITAP_SHARP },
+  [5].as_filters = { EIGHTTAP_REGULAR, MULTITAP_SHARP },
+  [6].as_filters = { MULTITAP_SHARP, EIGHTTAP_REGULAR },
+  [7].as_filters = { EIGHTTAP_SMOOTH, MULTITAP_SHARP },
+  [8].as_filters = { MULTITAP_SHARP, EIGHTTAP_SMOOTH }
 };
 
 enum {
@@ -2145,13 +2144,11 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
        ++filter_idx) {
     int64_t cost;
     if (cpi->sf.interp_sf.disable_dual_filter &&
-        filters_ref_set[filter_idx].filter_x !=
-            filters_ref_set[filter_idx].filter_y)
+        filters_ref_set[filter_idx].as_filters.x_filter !=
+            filters_ref_set[filter_idx].as_filters.y_filter)
       continue;
-    mi->interp_filters.as_filters.x_filter =
-        filters_ref_set[filter_idx].filter_x;
-    mi->interp_filters.as_filters.y_filter =
-        filters_ref_set[filter_idx].filter_y;
+
+    mi->interp_filters.as_int = filters_ref_set[filter_idx].as_int;
     if (is_single_pred)
       av1_enc_build_inter_predictor_y_nonrd(xd, inter_pred_params_sr,
                                             &subpel_params);
@@ -2193,10 +2190,7 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
   if (reuse_inter_pred && *this_mode_pred != current_pred)
     free_pred_buffer(current_pred);
 
-  mi->interp_filters.as_filters.x_filter =
-      filters_ref_set[best_filter_index].filter_x;
-  mi->interp_filters.as_filters.y_filter =
-      filters_ref_set[best_filter_index].filter_y;
+  mi->interp_filters.as_int = filters_ref_set[best_filter_index].as_int;
   mi->tx_size = pf_tx_size[best_filter_index];
   this_rdc->rate = pf_rd_stats[best_filter_index].rate;
   this_rdc->dist = pf_rd_stats[best_filter_index].dist;
