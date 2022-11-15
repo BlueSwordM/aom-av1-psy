@@ -1482,9 +1482,9 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
           const int adjusted_qindex = av1_adjust_q_from_delta_q_res(
               4, last_sb_qindex,
               qindex_centroids.find(superblock_q_indices[i])->second);
-          // TODO(jianj): Calcualte rdmult per SB.
+          const int rd_mult = GetRDMult(gop_frame, adjusted_qindex);
           param.superblock_encode_params.push_back(
-              { static_cast<uint8_t>(adjusted_qindex), 0 });
+              { static_cast<uint8_t>(adjusted_qindex), rd_mult });
         }
       }
     } else {
