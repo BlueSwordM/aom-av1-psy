@@ -44,11 +44,17 @@ static AOM_INLINE void enc_calc_subpel_params(
 #include "av1/common/reconinter_template.inc"
 #undef IS_DEC
 
+void av1_enc_build_one_inter_predictor(uint8_t *dst, int dst_stride,
+                                       const MV *src_mv,
+                                       InterPredParams *inter_pred_params) {
+  build_one_inter_predictor(dst, dst_stride, src_mv, inter_pred_params);
+}
+
 static void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                        int plane, const MB_MODE_INFO *mi,
                                        int bw, int bh, int mi_x, int mi_y) {
-  av1_enc_build_inter_predictors(cm, xd, plane, mi, 0 /* build_for_obmc */, bw,
-                                 bh, mi_x, mi_y);
+  build_inter_predictors(cm, xd, plane, mi, 0 /* build_for_obmc */, bw, bh,
+                         mi_x, mi_y);
 }
 
 void av1_enc_build_inter_predictor_y(MACROBLOCKD *xd, int mi_row, int mi_col) {

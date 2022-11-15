@@ -14,27 +14,14 @@
 #endif
 
 #if IS_DEC
-#define RENAME(x) x
-#else
-#define RENAME(x) av1_enc_##x
-#endif  // IS_DEC
-
-#if IS_DEC
-static AOM_INLINE void RENAME(build_one_inter_predictor)(
+static AOM_INLINE void build_one_inter_predictor(
     uint8_t *dst, int dst_stride, const MV *src_mv,
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
     int ref, uint8_t **mc_buf) {
 #else
-#if !defined(_MSC_VER)
-// Visual studio seems to prefer a cpp style to inline, so if a declaration of
-// a function is inline, then all must be inline. Since there is a non-inlined
-// declaration of av1_enc_build_one_inter_predictor in
-// av1/encoder/reconinter_enc.h, we disable the inline keyword here for now.
-AOM_INLINE
-#endif  // !defined(_MSC_VER)
-void RENAME(build_one_inter_predictor)(uint8_t *dst, int dst_stride,
-                                       const MV *src_mv,
-                                       InterPredParams *inter_pred_params) {
+static AOM_INLINE void build_one_inter_predictor(
+    uint8_t *dst, int dst_stride, const MV *src_mv,
+    InterPredParams *inter_pred_params) {
 #endif  // IS_DEC
   SubpelParams subpel_params;
   uint8_t *src;
@@ -160,12 +147,10 @@ static AOM_INLINE void build_inter_predictors_sub8x8(const AV1_COMMON *cm,
           get_conv_params_no_round(ref, plane, NULL, 0, is_compound, xd->bd);
 
 #if IS_DEC
-      RENAME(build_one_inter_predictor)
-      (dst, dst_buf->stride, &mv, &inter_pred_params, xd, mi_x + x, mi_y + y,
-       ref, mc_buf);
+      build_one_inter_predictor(dst, dst_buf->stride, &mv, &inter_pred_params,
+                                xd, mi_x + x, mi_y + y, ref, mc_buf);
 #else
-      RENAME(build_one_inter_predictor)
-      (dst, dst_buf->stride, &mv, &inter_pred_params);
+      build_one_inter_predictor(dst, dst_buf->stride, &mv, &inter_pred_params);
 #endif  // IS_DEC
 
       ++col;
@@ -243,18 +228,16 @@ static AOM_INLINE void build_inter_predictors_8x8_and_bigger(
     }
 
 #if IS_DEC
-    RENAME(build_one_inter_predictor)
-    (dst, dst_buf->stride, &mv, &inter_pred_params, xd, mi_x, mi_y, ref,
-     mc_buf);
+    build_one_inter_predictor(dst, dst_buf->stride, &mv, &inter_pred_params, xd,
+                              mi_x, mi_y, ref, mc_buf);
 #else
-    RENAME(build_one_inter_predictor)
-    (dst, dst_buf->stride, &mv, &inter_pred_params);
+    build_one_inter_predictor(dst, dst_buf->stride, &mv, &inter_pred_params);
 #endif  // IS_DEC
   }
 }
 
 #if IS_DEC
-static AOM_INLINE void RENAME(build_inter_predictors)(
+static AOM_INLINE void build_inter_predictors(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
     int build_for_obmc, int bw, int bh, int mi_x, int mi_y, uint8_t **mc_buf) {
   if (is_sub8x8_inter(xd, plane, mi->bsize, is_intrabc_block(mi),
@@ -267,9 +250,11 @@ static AOM_INLINE void RENAME(build_inter_predictors)(
   }
 }
 #else
-static AOM_INLINE void RENAME(build_inter_predictors)(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
-    int build_for_obmc, int bw, int bh, int mi_x, int mi_y) {
+static AOM_INLINE void build_inter_predictors(const AV1_COMMON *cm,
+                                              MACROBLOCKD *xd, int plane,
+                                              const MB_MODE_INFO *mi,
+                                              int build_for_obmc, int bw,
+                                              int bh, int mi_x, int mi_y) {
   if (is_sub8x8_inter(xd, plane, mi->bsize, is_intrabc_block(mi),
                       build_for_obmc)) {
     assert(bw < 8 || bh < 8);
