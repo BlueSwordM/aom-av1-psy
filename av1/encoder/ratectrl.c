@@ -3242,77 +3242,64 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
 
 int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
   AV1_COMMON *const cm = &cpi->common;
-  RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
-  SPEED_FEATURES *const sf = &cpi->sf;
-  int thresh_qp = 7 * (rc->worst_quality >> 3);
-  // Lower thresh_qp for video (more overshoot at lower Q) to be
-  // more conservative for video.
-  if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN)
-    thresh_qp = 3 * (rc->worst_quality >> 2);
-  if (sf->rt_sf.overshoot_detection_cbr == FAST_DETECTION_MAXQ &&
-      cm->quant_params.base_qindex < thresh_qp) {
-    double rate_correction_factor =
-        cpi->ppi->p_rc.rate_correction_factors[INTER_NORMAL];
-    const int target_size = cpi->rc.avg_frame_bandwidth;
-    double new_correction_factor;
-    int target_bits_per_mb;
-    double q2;
-    int enumerator;
-    int is_screen_content = (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN);
-
-    *q = (3 * cpi->rc.worst_quality + *q) >> 2;
-    // For screen content use the max-q set by the user to allow for less
-    // overshoot on slide changes.
-    if (is_screen_content) *q = cpi->rc.worst_quality;
-    cpi->cyclic_refresh->counter_encode_maxq_scene_change = 0;
-    // Adjust avg_frame_qindex, buffer_level, and rate correction factors, as
-    // these parameters will affect QP selection for subsequent frames. If they
-    // have settled down to a very different (low QP) state, then not adjusting
-    // them may cause next frame to select low QP and overshoot again.
-    p_rc->avg_frame_qindex[INTER_FRAME] = *q;
-    p_rc->buffer_level = p_rc->optimal_buffer_level;
-    p_rc->bits_off_target = p_rc->optimal_buffer_level;
-    // Reset rate under/over-shoot flags.
-    cpi->rc.rc_1_frame = 0;
-    cpi->rc.rc_2_frame = 0;
-    // Adjust rate correction factor.
-    target_bits_per_mb =
-        (int)(((uint64_t)target_size << BPER_MB_NORMBITS) / cm->mi_params.MBs);
-    // Reset rate correction factor: for now base it on target_bits_per_mb
-    // and qp (==max_QP). This comes from the inverse computation of
-    // av1_rc_bits_per_mb().
-    q2 = av1_convert_qindex_to_q(*q, cm->seq_params->bit_depth);
-    enumerator = av1_get_bpmb_enumerator(INTER_NORMAL, is_screen_content);
-    new_correction_factor = (double)target_bits_per_mb * q2 / enumerator;
-    if (new_correction_factor > rate_correction_factor) {
-      rate_correction_factor =
-          (new_correction_factor + rate_correction_factor) / 2.0;
-      if (rate_correction_factor > MAX_BPB_FACTOR)
-        rate_correction_factor = MAX_BPB_FACTOR;
-      cpi->ppi->p_rc.rate_correction_factors[INTER_NORMAL] =
-          rate_correction_factor;
-    }
-    // For temporal layers: reset the rate control parameters across all
-    // temporal layers.
-    if (cpi->svc.number_temporal_layers > 1) {
-      SVC *svc = &cpi->svc;
-      for (int tl = 0; tl < svc->number_temporal_layers; ++tl) {
-        int sl = svc->spatial_layer_id;
-        const int layer = LAYER_IDS_TO_IDX(sl, tl, svc->number_temporal_layers);
-        LAYER_CONTEXT *lc = &svc->layer_context[layer];
-        RATE_CONTROL *lrc = &lc->rc;
-        PRIMARY_RATE_CONTROL *lp_rc = &lc->p_rc;
-        lp_rc->avg_frame_qindex[INTER_FRAME] = *q;
-        lp_rc->buffer_level = lp_rc->optimal_buffer_level;
-        lp_rc->bits_off_target = lp_rc->optimal_buffer_level;
-        lrc->rc_1_frame = 0;
-        lrc->rc_2_frame = 0;
-        lp_rc->rate_correction_factors[INTER_NORMAL] = rate_correction_factor;
-      }
-    }
-    return 1;
-  } else {
-    return 0;
+  double rate_correction_factor =
+      cpi->ppi->p_rc.rate_correction_factors[INTER_NORMAL];
+  const int target_size = cpi->rc.avg_frame_bandwidth;
+  double new_correction_factor;
+  int target_bits_per_mb;
+  double q2;
+  int enumerator;
+  int is_screen_content = (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN);
+  *q = (3 * cpi->rc.worst_quality + *q) >> 2;
+  // For screen content use the max-q set by the user to allow for less
+  // overshoot on slide changes.
+  if (is_screen_content) *q = cpi->rc.worst_quality;
+  cpi->cyclic_refresh->counter_encode_maxq_scene_change = 0;
+  // Adjust avg_frame_qindex, buffer_level, and rate correction factors, as
+  // these parameters will affect QP selection for subsequent frames. If they
+  // have settled down to a very different (low QP) state, then not adjusting
+  // them may cause next frame to select low QP and overshoot again.
+  p_rc->avg_frame_qindex[INTER_FRAME] = *q;
+  p_rc->buffer_level = p_rc->optimal_buffer_level;
+  p_rc->bits_off_target = p_rc->optimal_buffer_level;
+  // Reset rate under/over-shoot flags.
+  cpi->rc.rc_1_frame = 0;
+  cpi->rc.rc_2_frame = 0;
+  // Adjust rate correction factor.
+  target_bits_per_mb =
+      (int)(((uint64_t)target_size << BPER_MB_NORMBITS) / cm->mi_params.MBs);
+  // Reset rate correction factor: for now base it on target_bits_per_mb
+  // and qp (==max_QP). This comes from the inverse computation of
+  // av1_rc_bits_per_mb().
+  q2 = av1_convert_qindex_to_q(*q, cm->seq_params->bit_depth);
+  enumerator = av1_get_bpmb_enumerator(INTER_NORMAL, is_screen_content);
+  new_correction_factor = (double)target_bits_per_mb * q2 / enumerator;
+  if (new_correction_factor > rate_correction_factor) {
+    rate_correction_factor =
+        (new_correction_factor + rate_correction_factor) / 2.0;
+    if (rate_correction_factor > MAX_BPB_FACTOR)
+      rate_correction_factor = MAX_BPB_FACTOR;
+    cpi->ppi->p_rc.rate_correction_factors[INTER_NORMAL] =
+        rate_correction_factor;
   }
+  // For temporal layers: reset the rate control parameters across all
+  // temporal layers.
+  if (cpi->svc.number_temporal_layers > 1) {
+    SVC *svc = &cpi->svc;
+    for (int tl = 0; tl < svc->number_temporal_layers; ++tl) {
+      int sl = svc->spatial_layer_id;
+      const int layer = LAYER_IDS_TO_IDX(sl, tl, svc->number_temporal_layers);
+      LAYER_CONTEXT *lc = &svc->layer_context[layer];
+      RATE_CONTROL *lrc = &lc->rc;
+      PRIMARY_RATE_CONTROL *lp_rc = &lc->p_rc;
+      lp_rc->avg_frame_qindex[INTER_FRAME] = *q;
+      lp_rc->buffer_level = lp_rc->optimal_buffer_level;
+      lp_rc->bits_off_target = lp_rc->optimal_buffer_level;
+      lrc->rc_1_frame = 0;
+      lrc->rc_2_frame = 0;
+      lp_rc->rate_correction_factors[INTER_NORMAL] = rate_correction_factor;
+    }
+  }
+  return 1;
 }
