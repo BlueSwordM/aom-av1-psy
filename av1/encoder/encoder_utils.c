@@ -732,9 +732,16 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
             aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                                "Failed to allocate frame buffer");
           }
-          const bool has_optimized_scaler = av1_has_optimized_scaler(
+          bool has_optimized_scaler = av1_has_optimized_scaler(
               ref->y_crop_width, ref->y_crop_height, new_fb->buf.y_crop_width,
               new_fb->buf.y_crop_height);
+          if (num_planes > 1) {
+            has_optimized_scaler =
+                has_optimized_scaler &&
+                av1_has_optimized_scaler(
+                    ref->uv_crop_width, ref->uv_crop_height,
+                    new_fb->buf.uv_crop_width, new_fb->buf.uv_crop_height);
+          }
 #if CONFIG_AV1_HIGHBITDEPTH
           if (use_optimized_scaler && has_optimized_scaler &&
               cm->seq_params->bit_depth == AOM_BITS_8)
