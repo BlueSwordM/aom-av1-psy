@@ -3116,7 +3116,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   const int pixels_in_block = bh * bw;
   const int num_8x8_blocks = ctx->num_4x4_blk / 4;
   struct buf_2d orig_dst = pd->dst;
-  const CommonQuantParams *quant_params = &cm->quant_params;
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
 #if COLLECT_PICK_MODE_STAT
@@ -3242,11 +3241,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       thresh_sad_pred += (x->pred_mv_sad[LAST_FRAME] >> 2);
   }
 
-  const int large_block = bsize >= BLOCK_32X32;
-  const int use_model_yrd_large =
-      cpi->oxcf.rc_cfg.mode == AOM_CBR && large_block &&
-      !cyclic_refresh_segment_id_boosted(xd->mi[0]->segment_id) &&
-      quant_params->base_qindex && cm->seq_params->bit_depth == 8;
+  const int use_model_yrd_large = get_model_rd_flag(cpi, xd, bsize);
 
   // decide block-level interp filter search flags:
   // filter_search_enabled_blk:

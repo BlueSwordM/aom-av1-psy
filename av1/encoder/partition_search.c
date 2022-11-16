@@ -9,6 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <float.h>
+
 #include "aom_dsp/txfm_common.h"
 
 #include "av1/common/av1_common_int.h"
@@ -2441,6 +2443,89 @@ static int try_split_partition(AV1_COMP *const cpi, ThreadData *const td,
   return split;
 }
 
+// Returns if SPLIT partitions should be evaluated
+static bool calc_do_split_flag(const AV1_COMP *cpi, const MACROBLOCK *x,
+                               const PC_TREE *pc_tree, const RD_STATS *none_rdc,
+                               const CommonModeInfoParams *mi_params,
+                               int mi_row, int mi_col, int hbs,
+                               BLOCK_SIZE bsize, PARTITION_TYPE partition) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const int is_larger_qindex = cm->quant_params.base_qindex > 100;
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  bool do_split =
+      (cpi->sf.rt_sf.nonrd_check_partition_merge_mode == 3)
+          ? (bsize <= BLOCK_32X32 || (is_larger_qindex && bsize <= BLOCK_64X64))
+          : true;
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN ||
+      cpi->sf.rt_sf.nonrd_check_partition_merge_mode < 2 ||
+      cyclic_refresh_segment_id_boosted(xd->mi[0]->segment_id) ||
+      !none_rdc->skip_txfm)
+    return do_split;
+
+  const int use_model_yrd_large = get_model_rd_flag(cpi, xd, bsize);
+
+  // When model based skip is not used (i.e.,use_model_yrd_large = 0), skip_txfm
+  // would have been populated based on Hadamard transform and skip_txfm flag is
+  // more reliable. Hence SPLIT evaluation is disabled at all quantizers for 8x8
+  // and 16x16 blocks.
+  // When model based skip is used (i.e.,use_model_yrd_large = 1), skip_txfm may
+  // not be reliable. Hence SPLIT evaluation is disabled only at lower
+  // quantizers for blocks >= 32x32.
+  if ((!use_model_yrd_large) || (!is_larger_qindex)) return false;
+
+  // Use residual statistics to decide if SPLIT partition should be evaluated
+  // for 32x32 blocks. The pruning logic is avoided for larger block size to
+  // avoid the visual artifacts
+  if (pc_tree->none->mic.mode == NEWMV && bsize == BLOCK_32X32 && do_split) {
+    const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
+    assert(subsize < BLOCK_SIZES_ALL);
+    double min_per_pixel_error = DBL_MAX;
+    double max_per_pixel_error = 0.;
+    int i;
+    for (i = 0; i < SUB_PARTITIONS_SPLIT; i++) {
+      const int x_idx = (i & 1) * hbs;
+      const int y_idx = (i >> 1) * hbs;
+      if ((mi_row + y_idx >= mi_params->mi_rows) ||
+          (mi_col + x_idx >= mi_params->mi_cols)) {
+        break;
+      }
+
+      // Populate the appropriate buffer pointers.
+      // Pass scale factors as NULL as the base pointer of the block would have
+      // been calculated appropriately.
+      struct buf_2d src_split_buf_2d, pred_split_buf_2d;
+      const struct buf_2d *src_none_buf_2d = &x->plane[AOM_PLANE_Y].src;
+      setup_pred_plane(&src_split_buf_2d, subsize, src_none_buf_2d->buf,
+                       src_none_buf_2d->width, src_none_buf_2d->height,
+                       src_none_buf_2d->stride, y_idx, x_idx, NULL, 0, 0);
+      const struct buf_2d *pred_none_buf_2d = &xd->plane[AOM_PLANE_Y].dst;
+      setup_pred_plane(&pred_split_buf_2d, subsize, pred_none_buf_2d->buf,
+                       pred_none_buf_2d->width, pred_none_buf_2d->height,
+                       pred_none_buf_2d->stride, y_idx, x_idx, NULL, 0, 0);
+
+      unsigned int curr_uint_mse;
+      const unsigned int curr_uint_var = cpi->ppi->fn_ptr[subsize].vf(
+          src_split_buf_2d.buf, src_split_buf_2d.stride, pred_split_buf_2d.buf,
+          pred_split_buf_2d.stride, &curr_uint_mse);
+      const double curr_per_pixel_error =
+          sqrt((double)curr_uint_var / block_size_wide[subsize] /
+               block_size_high[subsize]);
+      if (curr_per_pixel_error < min_per_pixel_error)
+        min_per_pixel_error = curr_per_pixel_error;
+      if (curr_per_pixel_error > max_per_pixel_error)
+        max_per_pixel_error = curr_per_pixel_error;
+    }
+
+    // Prune based on residual statistics only if all the sub-partitions are
+    // valid.
+    if (i == SUB_PARTITIONS_SPLIT) {
+      if (max_per_pixel_error - min_per_pixel_error <= 1.5) do_split = false;
+    }
+  }
+
+  return do_split;
+}
+
 static void try_merge(AV1_COMP *const cpi, ThreadData *td,
                       TileDataEnc *tile_data, MB_MODE_INFO **mib,
                       TokenExtra **tp, const int mi_row, const int mi_col,
@@ -2481,11 +2566,8 @@ static void try_merge(AV1_COMP *const cpi, ThreadData *td,
 
   if (cpi->sf.rt_sf.nonrd_check_partition_merge_mode < 2 ||
       none_rdc.skip_txfm != 1 || pc_tree->none->mic.mode == NEWMV) {
-    const int is_larger_qindex = cm->quant_params.base_qindex > 100;
-    do_split = (cpi->sf.rt_sf.nonrd_check_partition_merge_mode == 3)
-                   ? (bsize <= BLOCK_32X32 ||
-                      (is_larger_qindex && bsize <= BLOCK_64X64))
-                   : 1;
+    do_split = calc_do_split_flag(cpi, x, pc_tree, &none_rdc, mi_params, mi_row,
+                                  mi_col, hbs, bsize, partition);
     if (do_split) {
       av1_init_rd_stats(&split_rdc);
       split_rdc.rate += mode_costs->partition_cost[pl][PARTITION_SPLIT];

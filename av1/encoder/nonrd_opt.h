@@ -35,6 +35,16 @@ static const THR_MODES mode_idx[REF_FRAMES][RTC_MODES] = {
   { THR_NEARESTA, THR_NEARA, THR_GLOBALA, THR_NEWA },
 };
 
+// Indicates the blocks for which RD model should be based on special logic
+static INLINE int get_model_rd_flag(const AV1_COMP *cpi, const MACROBLOCKD *xd,
+                                    BLOCK_SIZE bsize) {
+  const int large_block = bsize >= BLOCK_32X32;
+  const AV1_COMMON *const cm = &cpi->common;
+  return cpi->oxcf.rc_cfg.mode == AOM_CBR && large_block &&
+         !cyclic_refresh_segment_id_boosted(xd->mi[0]->segment_id) &&
+         cm->quant_params.base_qindex &&
+         cm->seq_params->bit_depth == AOM_BITS_8;
+}
 /*!\brief Finds predicted motion vectors for a block.
  *
  * \ingroup nonrd_mode_search
