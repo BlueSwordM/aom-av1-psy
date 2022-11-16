@@ -998,21 +998,30 @@ static INLINE void aom_process_hadamard_lp_8x16(MACROBLOCK *x,
   }
 }
 
-#define DECLARE_LOOP_VARS_BLOCK_YRD()                                      \
+#define DECLARE_BLOCK_YRD_BUFFERS()                      \
+  DECLARE_ALIGNED(64, tran_low_t, dqcoeff_buf[16 * 16]); \
+  DECLARE_ALIGNED(64, tran_low_t, qcoeff_buf[16 * 16]);  \
+  DECLARE_ALIGNED(64, tran_low_t, coeff_buf[16 * 16]);   \
+  uint16_t eob[1];
+
+#define DECLARE_BLOCK_YRD_VARS()                                           \
+  /* When is_tx_8x8_dual_applicable is true, we compute the txfm for the   \
+   * entire bsize and write macroblock_plane::coeff. So low_coeff is kept  \
+   * as a non-const so we can reassign it to macroblock_plane::coeff. */   \
+  int16_t *low_coeff = (int16_t *)coeff_buf;                               \
+  int16_t *const low_qcoeff = (int16_t *)qcoeff_buf;                       \
+  int16_t *const low_dqcoeff = (int16_t *)dqcoeff_buf;                     \
   const SCAN_ORDER *const scan_order = &av1_scan_orders[tx_size][DCT_DCT]; \
-  const int block_offset = BLOCK_OFFSET(block + s);                        \
-  int16_t *const low_coeff = (int16_t *)p->coeff + block_offset;           \
-  int16_t *const low_qcoeff = (int16_t *)p->qcoeff + block_offset;         \
-  int16_t *const low_dqcoeff = (int16_t *)p->dqcoeff + block_offset;       \
-  uint16_t *const eob = &p->eobs[block + s];                               \
-  const int diff_stride = bw;                                              \
+  const int diff_stride = bw;
+
+#define DECLARE_LOOP_VARS_BLOCK_YRD() \
   const int16_t *src_diff = &p->src_diff[(r * diff_stride + c) << 2];
 
 #if CONFIG_AV1_HIGHBITDEPTH
-#define DECLARE_HBD_LOOP_VARS_BLOCK_YRD()              \
-  tran_low_t *const coeff = p->coeff + block_offset;   \
-  tran_low_t *const qcoeff = p->qcoeff + block_offset; \
-  tran_low_t *const dqcoeff = p->dqcoeff + block_offset;
+#define DECLARE_BLOCK_YRD_HBD_VARS()     \
+  tran_low_t *const coeff = coeff_buf;   \
+  tran_low_t *const qcoeff = qcoeff_buf; \
+  tran_low_t *const dqcoeff = dqcoeff_buf;
 
 static AOM_FORCE_INLINE void update_yrd_loop_vars_hbd(
     MACROBLOCK *x, int *skippable, const int step, const int ncoeffs,
@@ -1080,7 +1089,7 @@ static void block_yrd(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
   const int num_4x4_h = mi_size_high[bsize];
   const int step = 1 << (tx_size << 1);
   const int block_step = (1 << tx_size);
-  const int row_step = step * num_4x4_w / block_step;
+  const int row_step = step * num_4x4_w >> tx_size;
   int block = 0;
   const int max_blocks_wide =
       num_4x4_w + (xd->mb_to_right_edge >= 0 ? 0 : xd->mb_to_right_edge >> 5);
@@ -1110,7 +1119,10 @@ static void block_yrd(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
                      pd->dst.buf, pd->dst.stride);
 #endif
 
-  *skippable = 1;
+  // Keep the intermediate value on the stack here. Writing directly to
+  // skippable causes speed regression due to load-and-store issues in
+  // update_yrd_loop_vars.
+  int temp_skippable = 1;
   this_rdc->dist = 0;
   this_rdc->rate = 0;
   // For block sizes 8x16 or above, Hadamard txfm of two adjacent 8x8 blocks
@@ -1131,16 +1143,19 @@ static void block_yrd(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
                                  step, block_step);
   }
 
+  DECLARE_BLOCK_YRD_BUFFERS()
+  DECLARE_BLOCK_YRD_VARS()
+#if CONFIG_AV1_HIGHBITDEPTH
+  DECLARE_BLOCK_YRD_HBD_VARS()
+#else
+  (void)use_hbd;
+#endif
+
   // Keep track of the row and column of the blocks we use so that we know
   // if we are in the unrestricted motion border.
   for (int r = 0; r < max_blocks_high; r += block_step) {
     for (int c = 0, s = 0; c < max_blocks_wide; c += block_step, s += step) {
       DECLARE_LOOP_VARS_BLOCK_YRD()
-#if CONFIG_AV1_HIGHBITDEPTH
-      DECLARE_HBD_LOOP_VARS_BLOCK_YRD()
-#else
-      (void)use_hbd;
-#endif
 
       switch (tx_size) {
 #if CONFIG_AV1_HIGHBITDEPTH
@@ -1175,10 +1190,13 @@ static void block_yrd(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
                 p->quant_shift_QTX, qcoeff, dqcoeff, p->dequant_QTX, eob,
                 default_scan_8x8_transpose, av1_default_iscan_8x8_transpose);
           } else {
-            if (!is_tx_8x8_dual_applicable) {
-              aom_hadamard_lp_8x8(src_diff, diff_stride, low_coeff);
+            if (is_tx_8x8_dual_applicable) {
+              // The coeffs are pre-computed for the whole block, so re-assign
+              // low_coeff to the appropriate location.
+              const int block_offset = BLOCK_OFFSET(block + s);
+              low_coeff = (int16_t *)p->coeff + block_offset;
             } else {
-              assert(is_tx_8x8_dual_applicable);
+              aom_hadamard_lp_8x8(src_diff, diff_stride, low_coeff);
             }
             av1_quantize_lp(
                 low_coeff, 8 * 8, p->round_fp_QTX, p->quant_fp_QTX, low_qcoeff,
@@ -1215,10 +1233,13 @@ static void block_yrd(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
                           av1_default_iscan_lp_16x16_transpose);
           break;
         case TX_8X8:
-          if (!is_tx_8x8_dual_applicable) {
-            aom_hadamard_lp_8x8(src_diff, diff_stride, low_coeff);
+          if (is_tx_8x8_dual_applicable) {
+            // The coeffs are pre-computed for the whole block, so re-assign
+            // low_coeff to the appropriate location.
+            const int block_offset = BLOCK_OFFSET(block + s);
+            low_coeff = (int16_t *)p->coeff + block_offset;
           } else {
-            assert(is_tx_8x8_dual_applicable);
+            aom_hadamard_lp_8x8(src_diff, diff_stride, low_coeff);
           }
           av1_quantize_lp(low_coeff, 8 * 8, p->round_fp_QTX, p->quant_fp_QTX,
                           low_qcoeff, low_dqcoeff, p->dequant_QTX, eob,
@@ -1236,22 +1257,22 @@ static void block_yrd(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
       assert(*eob <= 1024);
 #if CONFIG_AV1_HIGHBITDEPTH
       if (use_hbd)
-        update_yrd_loop_vars_hbd(x, skippable, step, *eob, coeff, qcoeff,
+        update_yrd_loop_vars_hbd(x, &temp_skippable, step, *eob, coeff, qcoeff,
                                  dqcoeff, this_rdc, &eob_cost,
                                  (r * num_blk_skip_w + c) >> sh_blk_skip);
       else
 #endif
-        update_yrd_loop_vars(x, skippable, step, *eob, low_coeff, low_qcoeff,
-                             low_dqcoeff, this_rdc, &eob_cost,
+        update_yrd_loop_vars(x, &temp_skippable, step, *eob, low_coeff,
+                             low_qcoeff, low_dqcoeff, this_rdc, &eob_cost,
                              (r * num_blk_skip_w + c) >> sh_blk_skip);
     }
     block += row_step;
   }
 
-  this_rdc->skip_txfm = *skippable;
+  this_rdc->skip_txfm = *skippable = temp_skippable;
   if (this_rdc->sse < INT64_MAX) {
     this_rdc->sse = (this_rdc->sse << 6) >> 2;
-    if (*skippable) {
+    if (temp_skippable) {
       this_rdc->dist = 0;
       this_rdc->dist = this_rdc->sse;
       return;
@@ -1293,8 +1314,6 @@ static void block_yrd_idtx(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
   const int num_4x4_h = mi_size_high[bsize];
   const int step = 1 << (tx_size << 1);
   const int block_step = (1 << tx_size);
-  const int row_step = step * num_4x4_w / block_step;
-  int block = 0;
   const int max_blocks_wide =
       num_4x4_w + (xd->mb_to_right_edge >= 0 ? 0 : xd->mb_to_right_edge >> 5);
   const int max_blocks_high =
@@ -1304,7 +1323,10 @@ static void block_yrd_idtx(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
   const int bh = 4 * num_4x4_h;
   const int num_blk_skip_w = num_4x4_w >> 1;
   const int sh_blk_skip = 1;
-  *skippable = 1;
+  // Keep the intermediate value on the stack here. Writing directly to
+  // skippable causes speed regression due to load-and-store issues in
+  // update_yrd_loop_vars.
+  int temp_skippable = 1;
   int tx_wd = 0;
   switch (tx_size) {
     case TX_64X64:
@@ -1326,6 +1348,8 @@ static void block_yrd_idtx(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
                      pd->dst.buf, pd->dst.stride);
   // Keep track of the row and column of the blocks we use so that we know
   // if we are in the unrestricted motion border.
+  DECLARE_BLOCK_YRD_BUFFERS()
+  DECLARE_BLOCK_YRD_VARS()
   for (int r = 0; r < max_blocks_high; r += block_step) {
     for (int c = 0, s = 0; c < max_blocks_wide; c += block_step, s += step) {
       DECLARE_LOOP_VARS_BLOCK_YRD()
@@ -1338,16 +1362,15 @@ static void block_yrd_idtx(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
                       p->quant_fp_QTX, low_qcoeff, low_dqcoeff, p->dequant_QTX,
                       eob, scan_order->scan, scan_order->iscan);
       assert(*eob <= 1024);
-      update_yrd_loop_vars(x, skippable, step, *eob, low_coeff, low_qcoeff,
-                           low_dqcoeff, this_rdc, &eob_cost,
+      update_yrd_loop_vars(x, &temp_skippable, step, *eob, low_coeff,
+                           low_qcoeff, low_dqcoeff, this_rdc, &eob_cost,
                            (r * num_blk_skip_w + c) >> sh_blk_skip);
     }
-    block += row_step;
   }
-  this_rdc->skip_txfm = *skippable;
+  this_rdc->skip_txfm = *skippable = temp_skippable;
   if (this_rdc->sse < INT64_MAX) {
     this_rdc->sse = (this_rdc->sse << 6) >> 2;
-    if (*skippable) {
+    if (temp_skippable) {
       this_rdc->dist = 0;
       this_rdc->dist = this_rdc->sse;
       return;
