@@ -3732,6 +3732,9 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     // Use the provided gop size in low delay setting
     if (oxcf->gf_cfg.lag_in_frames == 0) max_gop_length = rc->max_gf_interval;
 
+    // Limit the max gop length for the last gop in 1 pass setting.
+    max_gop_length = AOMMIN(max_gop_length, rc->frames_to_key);
+
     // Identify regions if needed.
     // TODO(bohanli): identify regions for all stats available.
     if (rc->frames_since_key == 0 || rc->frames_since_key == 1 ||
