@@ -1139,8 +1139,7 @@ TEST_F(RateControlQModeTest, TestKMeans) {
   std::default_random_engine generator;
   for (int &centroid : centroids_ref) {
     // This is to make sure each cluster is far enough from others.
-    std::uniform_int_distribution<uint8_t> distribution(centroid - 8,
-                                                        centroid + 8);
+    std::uniform_int_distribution<int> distribution(centroid - 8, centroid + 8);
     for (int i = 0; i < num_sample_per_cluster; ++i) {
       const int random_sample = distribution(generator);
       random_input.push_back(random_sample);
