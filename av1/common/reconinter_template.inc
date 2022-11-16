@@ -265,4 +265,3 @@ static AOM_INLINE void build_inter_predictors(const AV1_COMMON *cm,
   }
 }
 #endif  // IS_DEC
-#undef RENAME
