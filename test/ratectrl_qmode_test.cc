@@ -1137,12 +1137,12 @@ TEST_F(RateControlQModeTest, TestKMeans) {
   const int num_sample_per_cluster = 10;
   const int num_clusters = 8;
   std::default_random_engine generator;
-  for (int &centroid : centroids_ref) {
+  for (const int centroid : centroids_ref) {
     // This is to make sure each cluster is far enough from others.
     std::uniform_int_distribution<int> distribution(centroid - 8, centroid + 8);
     for (int i = 0; i < num_sample_per_cluster; ++i) {
       const int random_sample = distribution(generator);
-      random_input.push_back(random_sample);
+      random_input.push_back(static_cast<uint8_t>(random_sample));
     }
   }
   std::shuffle(random_input.begin(), random_input.end(), generator);
@@ -1150,14 +1150,14 @@ TEST_F(RateControlQModeTest, TestKMeans) {
       aom::internal::KMeans(random_input, num_clusters);
 
   std::unordered_set<int> found_centroids;
-  for (auto &result : kmeans_result) {
+  for (const auto &result : kmeans_result) {
     found_centroids.insert(result.second);
   }
   // Verify there're num_clusters in the k-means result.
   EXPECT_EQ(static_cast<int>(found_centroids.size()), num_clusters);
 
   // Verify that for each data point, the assigned centroid is the closest one.
-  for (auto &result : kmeans_result) {
+  for (const auto &result : kmeans_result) {
     const int distance_from_cluster_centroid =
         abs(result.first - result.second);
     for (const int centroid : found_centroids) {
