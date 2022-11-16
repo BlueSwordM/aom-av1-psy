@@ -432,9 +432,9 @@ void av1_apply_active_map(AV1_COMP *cpi) {
 
   if (cpi->active_map.update) {
     if (cpi->active_map.enabled) {
-      for (i = 0;
-           i < cpi->common.mi_params.mi_rows * cpi->common.mi_params.mi_cols;
-           ++i)
+      const int num_mis =
+          cpi->common.mi_params.mi_rows * cpi->common.mi_params.mi_cols;
+      for (i = 0; i < num_mis; ++i)
         if (seg_map[i] == AM_SEGMENT_ID_ACTIVE) seg_map[i] = active_map[i];
       av1_enable_segmentation(seg);
       av1_enable_segfeature(seg, AM_SEGMENT_ID_INACTIVE, SEG_LVL_SKIP);

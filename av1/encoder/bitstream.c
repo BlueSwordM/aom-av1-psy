@@ -424,11 +424,7 @@ static INLINE void set_spatial_segment_id(
 
   const int mi_stride = mi_params->mi_cols;
 
-  segment_ids += mi_offset;
-  for (int y = 0; y < ymis; ++y) {
-    memset(&segment_ids[y * mi_stride], segment_id,
-           xmis * sizeof(segment_ids[0]));
-  }
+  set_segment_id(segment_ids, mi_offset, xmis, ymis, mi_stride, segment_id);
 }
 
 int av1_neg_interleave(int x, int ref, int max) {

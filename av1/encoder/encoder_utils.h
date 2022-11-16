@@ -42,9 +42,10 @@ extern const int default_switchable_interp_probs[FRAME_UPDATE_TYPES]
 static AOM_INLINE void suppress_active_map(AV1_COMP *cpi) {
   unsigned char *const seg_map = cpi->enc_seg.map;
   int i;
+  const int num_mis =
+      cpi->common.mi_params.mi_rows * cpi->common.mi_params.mi_cols;
   if (cpi->active_map.enabled || cpi->active_map.update)
-    for (i = 0;
-         i < cpi->common.mi_params.mi_rows * cpi->common.mi_params.mi_cols; ++i)
+    for (i = 0; i < num_mis; ++i)
       if (seg_map[i] == AM_SEGMENT_ID_INACTIVE)
         seg_map[i] = AM_SEGMENT_ID_ACTIVE;
 }

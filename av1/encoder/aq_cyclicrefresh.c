@@ -166,11 +166,13 @@ void av1_cyclic_reset_segment_skip(const AV1_COMP *cpi, MACROBLOCK *const x,
         av1_get_spatial_seg_pred(cm, xd, &cdf_num, cr->skip_over4x4);
     if (prev_segment_id != mbmi->segment_id) {
       const int block_index = mi_row * cm->mi_params.mi_cols + mi_col;
+      const int mi_stride = cm->mi_params.mi_cols;
+      const uint8_t segment_id = mbmi->segment_id;
       for (int mi_y = 0; mi_y < ymis; mi_y++) {
-        const int map_offset = block_index + mi_y * cm->mi_params.mi_cols;
+        const int map_offset = block_index + mi_y * mi_stride;
         memset(&cr->map[map_offset], 0, xmis);
-        memset(&cpi->enc_seg.map[map_offset], mbmi->segment_id, xmis);
-        memset(&cm->cur_frame->seg_map[map_offset], mbmi->segment_id, xmis);
+        memset(&cpi->enc_seg.map[map_offset], segment_id, xmis);
+        memset(&cm->cur_frame->seg_map[map_offset], segment_id, xmis);
       }
     }
   }
@@ -210,12 +212,13 @@ void av1_cyclic_refresh_update_segment(const AV1_COMP *cpi, MACROBLOCK *const x,
     // Reset segment_id if will be skipped.
     if (skip) mbmi->segment_id = CR_SEGMENT_ID_BASE;
   }
+  const uint8_t segment_id = mbmi->segment_id;
 
   // Update the cyclic refresh map, to be used for setting segmentation map
   // for the next frame. If the block  will be refreshed this frame, mark it
   // as clean. The magnitude of the -ve influences how long before we consider
   // it for refresh again.
-  if (cyclic_refresh_segment_id_boosted(mbmi->segment_id)) {
+  if (cyclic_refresh_segment_id_boosted(segment_id)) {
     new_map_value = -cr->time_for_refresh;
   } else if (refresh_this_block) {
     // Else if it is accepted as candidate for refresh, and has not already
@@ -229,19 +232,19 @@ void av1_cyclic_refresh_update_segment(const AV1_COMP *cpi, MACROBLOCK *const x,
 
   // Update entries in the cyclic refresh map with new_map_value, and
   // copy mbmi->segment_id into global segmentation map.
+  const int mi_stride = cm->mi_params.mi_cols;
   for (int mi_y = 0; mi_y < ymis; mi_y += sh) {
-    const int map_offset = block_index + mi_y * cm->mi_params.mi_cols;
+    const int map_offset = block_index + mi_y * mi_stride;
     memset(&cr->map[map_offset], new_map_value, xmis);
-    memset(&cpi->enc_seg.map[map_offset], mbmi->segment_id, xmis);
-    memset(&cm->cur_frame->seg_map[map_offset], mbmi->segment_id, xmis);
+    memset(&cpi->enc_seg.map[map_offset], segment_id, xmis);
+    memset(&cm->cur_frame->seg_map[map_offset], segment_id, xmis);
   }
 
   // Accumulate cyclic refresh update counters.
   if (!dry_run) {
-    if (cyclic_refresh_segment_id(mbmi->segment_id) == CR_SEGMENT_ID_BOOST1)
+    if (cyclic_refresh_segment_id(segment_id) == CR_SEGMENT_ID_BOOST1)
       x->actual_num_seg1_blocks += xmis * ymis;
-    else if (cyclic_refresh_segment_id(mbmi->segment_id) ==
-             CR_SEGMENT_ID_BOOST2)
+    else if (cyclic_refresh_segment_id(segment_id) == CR_SEGMENT_ID_BOOST2)
       x->actual_num_seg2_blocks += xmis * ymis;
   }
 }
@@ -294,15 +297,14 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
   uint64_t sb_sad = 0;
   uint64_t thresh_sad_low = 0;
   uint64_t thresh_sad = INT64_MAX;
-  memset(seg_map, CR_SEGMENT_ID_BASE, mi_params->mi_rows * mi_params->mi_cols);
-  sb_cols = (mi_params->mi_cols + cm->seq_params->mib_size - 1) /
-            cm->seq_params->mib_size;
-  sb_rows = (mi_params->mi_rows + cm->seq_params->mib_size - 1) /
-            cm->seq_params->mib_size;
+  const int mi_rows = mi_params->mi_rows, mi_cols = mi_params->mi_cols;
+  const int mi_stride = mi_cols;
+  memset(seg_map, CR_SEGMENT_ID_BASE, mi_rows * mi_cols);
+  sb_cols = (mi_cols + cm->seq_params->mib_size - 1) / cm->seq_params->mib_size;
+  sb_rows = (mi_rows + cm->seq_params->mib_size - 1) / cm->seq_params->mib_size;
   sbs_in_frame = sb_cols * sb_rows;
   // Number of target blocks to get the q delta (segment 1).
-  block_count =
-      cr->percent_refresh * mi_params->mi_rows * mi_params->mi_cols / 100;
+  block_count = cr->percent_refresh * mi_rows * mi_cols / 100;
   // Set the segmentation map: cycle through the superblocks, starting at
   // cr->mb_index, and stopping when either block_count blocks have been found
   // to be refreshed, or we have passed through whole frame.
@@ -317,12 +319,12 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
     int sb_col_index = i - sb_row_index * sb_cols;
     int mi_row = sb_row_index * cm->seq_params->mib_size;
     int mi_col = sb_col_index * cm->seq_params->mib_size;
-    assert(mi_row >= 0 && mi_row < mi_params->mi_rows);
-    assert(mi_col >= 0 && mi_col < mi_params->mi_cols);
-    bl_index = mi_row * mi_params->mi_cols + mi_col;
+    assert(mi_row >= 0 && mi_row < mi_rows);
+    assert(mi_col >= 0 && mi_col < mi_cols);
+    bl_index = mi_row * mi_stride + mi_col;
     // Loop through all MI blocks in superblock and update map.
-    xmis = AOMMIN(mi_params->mi_cols - mi_col, cm->seq_params->mib_size);
-    ymis = AOMMIN(mi_params->mi_rows - mi_row, cm->seq_params->mib_size);
+    xmis = AOMMIN(mi_cols - mi_col, cm->seq_params->mib_size);
+    ymis = AOMMIN(mi_rows - mi_row, cm->seq_params->mib_size);
     if (cr->use_block_sad_scene_det && cpi->rc.frames_since_key > 30 &&
         cr->counter_encode_maxq_scene_change > 30 &&
         cpi->src_sad_blk_64x64 != NULL &&
@@ -337,7 +339,7 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
     // cr_map only needed at 8x8 blocks.
     for (y = 0; y < ymis; y += 2) {
       for (x = 0; x < xmis; x += 2) {
-        const int bl_index2 = bl_index + y * mi_params->mi_cols + x;
+        const int bl_index2 = bl_index + y * mi_stride + x;
         // If the block is as a candidate for clean up then mark it
         // for possible boost/refresh (segment 1). The segment id may get
         // reset to 0 later if block gets coded anything other than low motion.
@@ -353,10 +355,8 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
     // If segment is at least half of superblock, set to 1.
     // Enforce that block sad (sb_sad) is not too high.
     if (sum_map >= (xmis * ymis) >> 1 && sb_sad < thresh_sad) {
-      for (y = 0; y < ymis; y++)
-        for (x = 0; x < xmis; x++) {
-          seg_map[bl_index + y * mi_params->mi_cols + x] = CR_SEGMENT_ID_BOOST1;
-        }
+      set_segment_id(seg_map, bl_index, xmis, ymis, mi_stride,
+                     CR_SEGMENT_ID_BOOST1);
       cr->target_num_seg_blocks += xmis * ymis;
     }
     i++;
