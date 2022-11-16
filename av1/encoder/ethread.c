@@ -2505,7 +2505,7 @@ static int cal_mb_wiener_var_hook(void *arg1, void *unused) {
 // computation is before the frame encoding, so we don't need to consider
 // the number of tiles, instead we allocate all available threads to
 // the computation.
-void av1_calc_mb_wiener_var_mt(AV1_COMP *const cpi, double *sum_rec_distortion,
+void av1_calc_mb_wiener_var_mt(AV1_COMP *cpi, double *sum_rec_distortion,
                                double *sum_est_rate) {
   (void)sum_rec_distortion;
   (void)sum_est_rate;
