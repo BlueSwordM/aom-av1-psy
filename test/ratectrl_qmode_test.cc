@@ -1164,7 +1164,7 @@ TEST_F(RateControlQModeTest, TestKMeans) {
       if (centroid == result.second) continue;
       const int distance_from_other_cluster_centroid =
           abs(result.first - centroid);
-      EXPECT_LT(distance_from_cluster_centroid,
+      EXPECT_LE(distance_from_cluster_centroid,
                 distance_from_other_cluster_centroid);
     }
   }
