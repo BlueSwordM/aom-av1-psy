@@ -1788,7 +1788,7 @@ static void recheck_zeromv_after_denoising(
                                       inter prediction for single reference
  * \param[in]    mi_row               Row index in 4x4 units
  * \param[in]    mi_col               Column index in 4x4 units
- * \param[in]    tmp                  Pointer to a temporary buffer for
+ * \param[in]    tmp_buffer           Pointer to a temporary buffer for
  *                                    prediction re-use
  * \param[in]    bsize                Current block size
  * \param[in]    reuse_inter_pred     Flag, indicating prediction re-use
@@ -1811,8 +1811,8 @@ static void recheck_zeromv_after_denoising(
  */
 static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
                               InterPredParams *inter_pred_params_sr, int mi_row,
-                              int mi_col, PRED_BUFFER *tmp, BLOCK_SIZE bsize,
-                              int reuse_inter_pred,
+                              int mi_col, PRED_BUFFER *tmp_buffer,
+                              BLOCK_SIZE bsize, int reuse_inter_pred,
                               PRED_BUFFER **this_mode_pred,
                               int *this_early_term, unsigned int *var,
                               int use_model_yrd_large, int64_t best_sse,
@@ -1873,7 +1873,7 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
           free_pred_buffer(*this_mode_pred);
           *this_mode_pred = current_pred;
         }
-        current_pred = &tmp[get_pred_buffer(tmp, 3)];
+        current_pred = &tmp_buffer[get_pred_buffer(tmp_buffer, 3)];
         pd->dst.buf = current_pred->data;
         pd->dst.stride = bw;
       }
@@ -3105,7 +3105,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int skip_pred_mv = 0;
   const int num_inter_modes = NUM_INTER_MODES;
   bool check_globalmv = cpi->sf.rt_sf.check_globalmv_on_single_ref;
-  PRED_BUFFER tmp[4];
+  PRED_BUFFER tmp_buffer[4];
   DECLARE_ALIGNED(16, uint8_t, pred_buf[3 * 128 * 128]);
   PRED_BUFFER *this_mode_pred = NULL;
   const int reuse_inter_pred = cpi->sf.rt_sf.reuse_inter_pred_nonrd &&
@@ -3157,13 +3157,13 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   memset(&mode_checked[0][0], 0, MB_MODE_COUNT * REF_FRAMES);
   if (reuse_inter_pred) {
     for (int i = 0; i < 3; i++) {
-      tmp[i].data = &pred_buf[pixels_in_block * i];
-      tmp[i].stride = bw;
-      tmp[i].in_use = 0;
+      tmp_buffer[i].data = &pred_buf[pixels_in_block * i];
+      tmp_buffer[i].stride = bw;
+      tmp_buffer[i].in_use = 0;
     }
-    tmp[3].data = pd->dst.buf;
-    tmp[3].stride = pd->dst.stride;
-    tmp[3].in_use = 0;
+    tmp_buffer[3].data = pd->dst.buf;
+    tmp_buffer[3].stride = pd->dst.stride;
+    tmp_buffer[3].in_use = 0;
   }
 
   txfm_info->skip_txfm = 0;
@@ -3505,9 +3505,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
     if (reuse_inter_pred) {
       if (!this_mode_pred) {
-        this_mode_pred = &tmp[3];
+        this_mode_pred = &tmp_buffer[3];
       } else {
-        this_mode_pred = &tmp[get_pred_buffer(tmp, 3)];
+        this_mode_pred = &tmp_buffer[get_pred_buffer(tmp_buffer, 3)];
         pd->dst.buf = this_mode_pred->data;
         pd->dst.stride = bw;
       }
@@ -3567,9 +3567,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       aom_usec_timer_start(&ms_stat.timer2);
 #endif
       search_filter_ref(cpi, x, &this_rdc, &inter_pred_params_sr, mi_row,
-                        mi_col, tmp, bsize, reuse_inter_pred, &this_mode_pred,
-                        &this_early_term, &var, use_model_yrd_large,
-                        best_pickmode.best_sse, comp_pred);
+                        mi_col, tmp_buffer, bsize, reuse_inter_pred,
+                        &this_mode_pred, &this_early_term, &var,
+                        use_model_yrd_large, best_pickmode.best_sse, comp_pred);
 #if COLLECT_PICK_MODE_STAT
       aom_usec_timer_mark(&ms_stat.timer2);
       ms_stat.ifs_time[bsize][this_mode] +=
@@ -3859,7 +3859,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   if (!x->force_zeromv_skip_for_blk)
     estimate_intra_mode(cpi, x, bsize, best_early_term,
                         ref_costs_single[INTRA_FRAME], reuse_inter_pred,
-                        &orig_dst, tmp, &this_mode_pred, &best_rdc,
+                        &orig_dst, tmp_buffer, &this_mode_pred, &best_rdc,
                         &best_pickmode, ctx);
 
   int skip_idtx_palette =
@@ -3878,7 +3878,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     RD_STATS idtx_rdc;
     av1_init_rd_stats(&idtx_rdc);
     int is_skippable;
-    this_mode_pred = &tmp[get_pred_buffer(tmp, 3)];
+    this_mode_pred = &tmp_buffer[get_pred_buffer(tmp_buffer, 3)];
     pd->dst.buf = this_mode_pred->data;
     pd->dst.stride = bw;
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0, 0);
