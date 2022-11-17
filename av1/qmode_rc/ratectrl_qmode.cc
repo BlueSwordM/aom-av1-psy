@@ -1381,32 +1381,12 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetTplPassGopEncodeInfo(
     const GopStruct &gop_struct) {
   GopEncodeInfo gop_encode_info;
   const int frame_count = static_cast<int>(gop_struct.gop_frame_list.size());
-  const int active_worst_quality = rc_param_.base_q_index;
-  int active_best_quality = rc_param_.base_q_index;
   for (int i = 0; i < frame_count; i++) {
     FrameEncodeParameters param;
     const GopFrame &gop_frame = gop_struct.gop_frame_list[i];
-
-    if (gop_frame.update_type == GopFrameType::kOverlay ||
-        gop_frame.update_type == GopFrameType::kIntermediateOverlay ||
-        gop_frame.update_type == GopFrameType::kRegularLeaf) {
-      param.q_index = rc_param_.base_q_index;
-    } else if (gop_frame.update_type == GopFrameType::kRegularGolden ||
-               gop_frame.update_type == GopFrameType::kRegularKey ||
-               gop_frame.update_type == GopFrameType::kRegularArf) {
-      double qstep_ratio = 1 / 3.0;
-      param.q_index = av1_get_q_index_from_qstep_ratio(active_worst_quality,
-                                                       qstep_ratio, AOM_BITS_8);
-      if (rc_param_.base_q_index) param.q_index = AOMMAX(param.q_index, 1);
-      active_best_quality = param.q_index;
-    } else {
-      // Intermediate ARFs
-      assert(gop_frame.layer_depth >= 1);
-      const int depth_factor = 1 << (gop_frame.layer_depth - 1);
-      param.q_index =
-          (active_worst_quality * (depth_factor - 1) + active_best_quality) /
-          depth_factor;
-    }
+    // Use constant QP for TPL pass encoding. Keep the functionality
+    // that allows QP changes across sub-gop.
+    param.q_index = rc_param_.base_q_index;
     param.rdmult = GetRDMult(gop_frame, param.q_index);
     gop_encode_info.param_list.push_back(param);
   }
