@@ -16,7 +16,6 @@
 #include "av1/common/entropymv.h"
 #include "av1/common/filter.h"
 #include "av1/common/seg_common.h"
-#include "aom_dsp/aom_filter.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,6 +54,10 @@ extern "C" {
 //   ...
 // 4096(BLOCK_64X64)                        -> 6
 #define PALATTE_BSIZE_CTXS 7
+
+#define MAX_COLOR_CONTEXT_HASH 8
+
+#define NUM_PALETTE_NEIGHBORS 3  // left, top-left and top.
 
 #define KF_MODE_CONTEXTS 5
 
@@ -205,10 +208,11 @@ int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
                                         int r, int c, int palette_size,
                                         uint8_t *color_order, int *color_idx);
 
-// A faster version of av1_get_palette_color_index_context used by the encoder
-// exploiting the fact that the encoder does not need to maintain a color order.
-int av1_fast_palette_color_index_context(const uint8_t *color_map, int stride,
-                                         int r, int c, int *color_idx);
+// Negative values are invalid
+static const int av1_palette_color_index_context_lookup[MAX_COLOR_CONTEXT_HASH +
+                                                        1] = { -1, -1, 0,
+                                                               -1, -1, 4,
+                                                               3,  2,  1 };
 
 #ifdef __cplusplus
 }  // extern "C"
