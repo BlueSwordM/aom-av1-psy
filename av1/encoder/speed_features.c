@@ -1415,8 +1415,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.check_only_zero_zeromv_on_large_blocks = false;
     else
       sf->rt_sf.check_only_zero_zeromv_on_large_blocks = true;
-    if (cpi->svc.number_temporal_layers > 1 && cpi->svc.temporal_layer_id == 0)
-      sf->rt_sf.source_metrics_sb_nonrd = 0;
     // Compound mode enabling.
     if (rtc_ref->ref_frame_comp[0] || rtc_ref->ref_frame_comp[1] ||
         rtc_ref->ref_frame_comp[2]) {

@@ -1337,7 +1337,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   int variance4x4downsample[64];
   const int segment_id = xd->mi[0]->segment_id;
   uint64_t blk_sad = 0;
-  if (cpi->src_sad_blk_64x64 != NULL && cpi->svc.number_spatial_layers == 1) {
+  if (cpi->src_sad_blk_64x64 != NULL && !cpi->ppi->use_svc) {
     const int sb_size_by_mb = (cm->seq_params->sb_size == BLOCK_128X128)
                                   ? (cm->seq_params->mib_size >> 1)
                                   : cm->seq_params->mib_size;
@@ -1497,6 +1497,10 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
       // (some threshold of) the average variance over the sub-16x16 blocks,
       // then force this block to split. This also forces a split on the upper
       // (64x64) level.
+      uint64_t frame_sad_thresh = 20000;
+      if (cpi->svc.number_temporal_layers > 2 &&
+          cpi->svc.temporal_layer_id == 0)
+        frame_sad_thresh = frame_sad_thresh << 1;
       if (force_split[5 + m2 + i] == PART_EVAL_ALL) {
         get_variance(&vt->split[m].split[i].part_variances.none);
         var_32x32 = vt->split[m].split[i].part_variances.none.variance;
@@ -1518,7 +1522,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                      maxvar_16x16[m][i] > thresholds[2]) ||
                     (cpi->sf.rt_sf.prefer_large_partition_blocks &&
                      x->content_state_sb.source_sad_nonrd > kLowSad &&
-                     cpi->rc.frame_source_sad < 20000 &&
+                     cpi->rc.frame_source_sad < frame_sad_thresh &&
                      maxvar_16x16[m][i] > (thresholds[2] >> 4) &&
                      maxvar_16x16[m][i] > (minvar_16x16[m][i] << 2)))) {
           force_split[5 + m2 + i] = PART_EVAL_ONLY_SPLIT;
