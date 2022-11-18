@@ -1259,12 +1259,12 @@ static std::vector<uint8_t> SetupDeltaQ(const TplFrameDepStats &frame_dep_stats,
                         frame_dep_stats.unit_size;
   const int unit_cols =
       (frame_width + frame_dep_stats.unit_size - 1) / frame_dep_stats.unit_size;
-  double intra_cost = 0;
-  double mc_dep_cost = 0;
   std::vector<uint8_t> superblock_q_indices;
   // Calculate delta_q offset for each superblock.
   for (int sb_row = 0; sb_row < sb_rows; ++sb_row) {
     for (int sb_col = 0; sb_col < sb_cols; ++sb_col) {
+      double intra_cost = 0;
+      double mc_dep_cost = 0;
       const int unit_row_start = sb_row * num_unit_per_sb;
       const int unit_row_end =
           std::min((sb_row + 1) * num_unit_per_sb, unit_rows);
@@ -1278,7 +1278,7 @@ static std::vector<uint8_t> SetupDeltaQ(const TplFrameDepStats &frame_dep_stats,
           const TplUnitDepStats &unit_dep_stat =
               frame_dep_stats.unit_stats[unit_row][unit_col];
           intra_cost += unit_dep_stat.intra_cost;
-          mc_dep_cost += unit_dep_stat.intra_cost;
+          mc_dep_cost += unit_dep_stat.propagation_cost;
         }
       }
 
