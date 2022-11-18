@@ -883,62 +883,106 @@ void aom_smooth_predictor_8x32_ssse3(uint8_t *dst, ptrdiff_t stride,
   smooth_pred_8xh(&pixels[4], &wh[6], ww, 8, dst, stride, 1);
 }
 
-static INLINE void smooth_predictor_wxh(uint8_t *dst, ptrdiff_t stride,
-                                        const uint8_t *above,
-                                        const uint8_t *left, uint32_t bw,
-                                        uint32_t bh) {
-  const uint8_t *const sm_weights_w = smooth_weights + bw - 4;
-  const uint8_t *const sm_weights_h = smooth_weights + bh - 4;
+// TODO(slavarnway): Visual Studio only supports restrict when /std:c11
+// (available in 2019+) or greater is specified; __restrict can be used in that
+// case. This should be moved to rtcd and used consistently between the
+// function declarations and definitions to avoid warnings in Visual Studio
+// when defining LIBAOM_RESTRICT to restrict or __restrict.
+#if defined(_MSC_VER)
+#define LIBAOM_RESTRICT
+#else
+#define LIBAOM_RESTRICT restrict
+#endif
+
+static AOM_FORCE_INLINE __m128i Load4(const void *src) {
+  // With new compilers such as clang 8.0.0 we can use the new _mm_loadu_si32
+  // intrinsic. Both _mm_loadu_si32(src) and the code here are compiled into a
+  // movss instruction.
+  //
+  // Until compiler support of _mm_loadu_si32 is widespread, use of
+  // _mm_loadu_si32 is banned.
+  int val;
+  memcpy(&val, src, sizeof(val));
+  return _mm_cvtsi32_si128(val);
+}
+
+static AOM_FORCE_INLINE __m128i LoadLo8(const void *a) {
+  return _mm_loadl_epi64((const __m128i *)(a));
+}
+
+static AOM_FORCE_INLINE __m128i LoadUnaligned16(const void *a) {
+  return _mm_loadu_si128((const __m128i *)(a));
+}
+
+static AOM_FORCE_INLINE void StoreUnaligned16(void *a, const __m128i v) {
+  _mm_storeu_si128((__m128i *)(a), v);
+}
+
+static AOM_FORCE_INLINE void StoreLo8(void *a, const __m128i v) {
+  _mm_storel_epi64((__m128i *)(a), v);
+}
+
+static AOM_FORCE_INLINE __m128i cvtepu8_epi16(__m128i x) {
+  return _mm_unpacklo_epi8((x), _mm_setzero_si128());
+}
+
+static AOM_FORCE_INLINE __m128i cvtepu16_epi32(__m128i x) {
+  return _mm_unpacklo_epi16((x), _mm_setzero_si128());
+}
+
+void smooth_predictor_wxh(uint8_t *LIBAOM_RESTRICT dst, ptrdiff_t stride,
+                          const uint8_t *LIBAOM_RESTRICT top_row,
+                          const uint8_t *LIBAOM_RESTRICT left_column, int width,
+                          int height) {
+  const uint8_t *const sm_weights_h = smooth_weights + height - 4;
+  const uint8_t *const sm_weights_w = smooth_weights + width - 4;
   const __m128i zero = _mm_setzero_si128();
-  const __m128i scale_value =
-      _mm_set1_epi16((int16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
-  const __m128i bottom_left = _mm_cvtsi32_si128(left[bh - 1]);
-  const __m128i dup16 = _mm_set1_epi32(0x01000100);
-  const __m128i top_right =
-      _mm_shuffle_epi8(_mm_cvtsi32_si128(above[bw - 1]), dup16);
-  const __m128i gat = _mm_set_epi32(0, 0, 0xe0c0a08, 0x6040200);
-  const __m128i round =
-      _mm_set1_epi32((uint16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
-
-  for (uint32_t y = 0; y < bh; ++y) {
+  const __m128i scale_value = _mm_set1_epi16(1 << SMOOTH_WEIGHT_LOG2_SCALE);
+  const __m128i bottom_left = _mm_cvtsi32_si128(left_column[height - 1]);
+  const __m128i top_right = _mm_set1_epi16(top_row[width - 1]);
+  const __m128i round = _mm_set1_epi32(1 << SMOOTH_WEIGHT_LOG2_SCALE);
+  for (int y = 0; y < height; ++y) {
     const __m128i weights_y = _mm_cvtsi32_si128(sm_weights_h[y]);
-    const __m128i left_y = _mm_cvtsi32_si128(left[y]);
+    const __m128i left_y = _mm_cvtsi32_si128(left_column[y]);
     const __m128i scale_m_weights_y = _mm_sub_epi16(scale_value, weights_y);
-    __m128i pred_scaled_bl = _mm_mullo_epi16(scale_m_weights_y, bottom_left);
-    const __m128i wl_y =
+    __m128i scaled_bottom_left =
+        _mm_mullo_epi16(scale_m_weights_y, bottom_left);
+    const __m128i weight_left_y =
         _mm_shuffle_epi32(_mm_unpacklo_epi16(weights_y, left_y), 0);
-    pred_scaled_bl = _mm_add_epi32(pred_scaled_bl, round);
-    pred_scaled_bl = _mm_shuffle_epi32(pred_scaled_bl, 0);
+    scaled_bottom_left = _mm_add_epi32(scaled_bottom_left, round);
+    scaled_bottom_left = _mm_shuffle_epi32(scaled_bottom_left, 0);
+    for (int x = 0; x < width; x += 8) {
+      const __m128i top_x = LoadLo8(top_row + x);
+      const __m128i weights_x = LoadLo8(sm_weights_w + x);
+      const __m128i top_weights_x = _mm_unpacklo_epi8(top_x, weights_x);
+      const __m128i top_weights_x_lo = cvtepu8_epi16(top_weights_x);
+      const __m128i top_weights_x_hi = _mm_unpackhi_epi8(top_weights_x, zero);
 
-    for (uint32_t x = 0; x < bw; x += 8) {
-      const __m128i top_x = _mm_loadl_epi64((const __m128i *)(above + x));
-      const __m128i weights_x =
-          _mm_loadl_epi64((const __m128i *)(sm_weights_w + x));
-      const __m128i tw_x = _mm_unpacklo_epi8(top_x, weights_x);
-      const __m128i tw_x_lo = _mm_unpacklo_epi8(tw_x, zero);
-      const __m128i tw_x_hi = _mm_unpackhi_epi8(tw_x, zero);
+      // Here opposite weights and pixels are multiplied, where the order of
+      // interleaving is indicated in the names.
+      __m128i pred_lo = _mm_madd_epi16(top_weights_x_lo, weight_left_y);
+      __m128i pred_hi = _mm_madd_epi16(top_weights_x_hi, weight_left_y);
 
-      __m128i pred_lo = _mm_madd_epi16(tw_x_lo, wl_y);
-      __m128i pred_hi = _mm_madd_epi16(tw_x_hi, wl_y);
+      // |scaled_bottom_left| is always scaled by the same weight each row, so
+      // we only derive |scaled_top_right| values here.
+      const __m128i inverted_weights_x =
+          _mm_sub_epi16(scale_value, cvtepu8_epi16(weights_x));
+      const __m128i scaled_top_right =
+          _mm_mullo_epi16(inverted_weights_x, top_right);
+      const __m128i scaled_top_right_lo = cvtepu16_epi32(scaled_top_right);
+      const __m128i scaled_top_right_hi =
+          _mm_unpackhi_epi16(scaled_top_right, zero);
+      pred_lo = _mm_add_epi32(pred_lo, scaled_bottom_left);
+      pred_hi = _mm_add_epi32(pred_hi, scaled_bottom_left);
+      pred_lo = _mm_add_epi32(pred_lo, scaled_top_right_lo);
+      pred_hi = _mm_add_epi32(pred_hi, scaled_top_right_hi);
 
-      const __m128i scale_m_weights_x =
-          _mm_sub_epi16(scale_value, _mm_unpacklo_epi8(weights_x, zero));
-      const __m128i swxtr = _mm_mullo_epi16(scale_m_weights_x, top_right);
-      const __m128i swxtr_lo = _mm_unpacklo_epi16(swxtr, zero);
-      const __m128i swxtr_hi = _mm_unpackhi_epi16(swxtr, zero);
-
-      pred_lo = _mm_add_epi32(pred_lo, pred_scaled_bl);
-      pred_hi = _mm_add_epi32(pred_hi, pred_scaled_bl);
-
-      pred_lo = _mm_add_epi32(pred_lo, swxtr_lo);
-      pred_hi = _mm_add_epi32(pred_hi, swxtr_hi);
-
-      pred_lo = _mm_srai_epi32(pred_lo, (1 + SMOOTH_WEIGHT_LOG2_SCALE));
-      pred_hi = _mm_srai_epi32(pred_hi, (1 + SMOOTH_WEIGHT_LOG2_SCALE));
-
-      __m128i pred = _mm_packus_epi16(pred_lo, pred_hi);
-      pred = _mm_shuffle_epi8(pred, gat);
-      _mm_storel_epi64((__m128i *)(dst + x), pred);
+      // The round value for RightShiftWithRounding was added with
+      // |scaled_bottom_left|.
+      pred_lo = _mm_srli_epi32(pred_lo, (1 + SMOOTH_WEIGHT_LOG2_SCALE));
+      pred_hi = _mm_srli_epi32(pred_hi, (1 + SMOOTH_WEIGHT_LOG2_SCALE));
+      const __m128i pred = _mm_packus_epi16(pred_lo, pred_hi);
+      StoreLo8(dst + x, _mm_packus_epi16(pred, pred));
     }
     dst += stride;
   }
@@ -968,6 +1012,12 @@ void aom_smooth_predictor_16x32_ssse3(uint8_t *dst, ptrdiff_t stride,
   smooth_predictor_wxh(dst, stride, above, left, 16, 32);
 }
 
+void aom_smooth_predictor_16x64_ssse3(uint8_t *dst, ptrdiff_t stride,
+                                      const uint8_t *above,
+                                      const uint8_t *left) {
+  smooth_predictor_wxh(dst, stride, above, left, 16, 64);
+}
+
 void aom_smooth_predictor_32x8_ssse3(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *above,
                                      const uint8_t *left) {
@@ -992,10 +1042,10 @@ void aom_smooth_predictor_32x64_ssse3(uint8_t *dst, ptrdiff_t stride,
   smooth_predictor_wxh(dst, stride, above, left, 32, 64);
 }
 
-void aom_smooth_predictor_64x64_ssse3(uint8_t *dst, ptrdiff_t stride,
+void aom_smooth_predictor_64x16_ssse3(uint8_t *dst, ptrdiff_t stride,
                                       const uint8_t *above,
                                       const uint8_t *left) {
-  smooth_predictor_wxh(dst, stride, above, left, 64, 64);
+  smooth_predictor_wxh(dst, stride, above, left, 64, 16);
 }
 
 void aom_smooth_predictor_64x32_ssse3(uint8_t *dst, ptrdiff_t stride,
@@ -1004,16 +1054,31 @@ void aom_smooth_predictor_64x32_ssse3(uint8_t *dst, ptrdiff_t stride,
   smooth_predictor_wxh(dst, stride, above, left, 64, 32);
 }
 
-void aom_smooth_predictor_64x16_ssse3(uint8_t *dst, ptrdiff_t stride,
+void aom_smooth_predictor_64x64_ssse3(uint8_t *dst, ptrdiff_t stride,
                                       const uint8_t *above,
                                       const uint8_t *left) {
-  smooth_predictor_wxh(dst, stride, above, left, 64, 16);
+  smooth_predictor_wxh(dst, stride, above, left, 64, 64);
 }
 
-void aom_smooth_predictor_16x64_ssse3(uint8_t *dst, ptrdiff_t stride,
-                                      const uint8_t *above,
-                                      const uint8_t *left) {
-  smooth_predictor_wxh(dst, stride, above, left, 16, 64);
+// -----------------------------------------------------------------------------
+// Smooth helper function.
+
+// For Horizontal, pixels1 and pixels2 are the same repeated value. For
+// Vertical, weights1 and weights2 are the same, and scaled_corner1 and
+// scaled_corner2 are the same.
+static AOM_FORCE_INLINE void write_smooth_directional_sum16(
+    uint8_t *LIBAOM_RESTRICT dst, const __m128i pixels1, const __m128i pixels2,
+    const __m128i weights1, const __m128i weights2,
+    const __m128i scaled_corner1, const __m128i scaled_corner2,
+    const __m128i round) {
+  const __m128i weighted_px1 = _mm_mullo_epi16(pixels1, weights1);
+  const __m128i weighted_px2 = _mm_mullo_epi16(pixels2, weights2);
+  const __m128i pred_sum1 = _mm_add_epi16(scaled_corner1, weighted_px1);
+  const __m128i pred_sum2 = _mm_add_epi16(scaled_corner2, weighted_px2);
+  // Equivalent to RightShiftWithRounding(pred[x][y], 8).
+  const __m128i pred1 = _mm_srli_epi16(_mm_add_epi16(pred_sum1, round), 8);
+  const __m128i pred2 = _mm_srli_epi16(_mm_add_epi16(pred_sum2, round), 8);
+  StoreUnaligned16(dst, _mm_packus_epi16(pred1, pred2));
 }
 
 // -----------------------------------------------------------------------------
@@ -1251,63 +1316,6 @@ void aom_smooth_v_predictor_8x32_ssse3(uint8_t *dst, ptrdiff_t stride,
   smooth_v_pred_8xh(pixels, &wh[4], 8, dst, stride);
   dst += stride << 3;
   smooth_v_pred_8xh(pixels, &wh[6], 8, dst, stride);
-}
-
-// TODO(slavarnway): Visual Studio only supports restrict when /std:c11
-// (available in 2019+) or greater is specified; __restrict can be used in that
-// case. This should be moved to rtcd and used consistently between the
-// function declarations and definitions to avoid warnings in Visual Studio
-// when defining LIBAOM_RESTRICT to restrict or __restrict.
-#if defined(_MSC_VER)
-#define LIBAOM_RESTRICT
-#else
-#define LIBAOM_RESTRICT restrict
-#endif
-
-static AOM_FORCE_INLINE __m128i Load4(const void *src) {
-  // With new compilers such as clang 8.0.0 we can use the new _mm_loadu_si32
-  // intrinsic. Both _mm_loadu_si32(src) and the code here are compiled into a
-  // movss instruction.
-  //
-  // Until compiler support of _mm_loadu_si32 is widespread, use of
-  // _mm_loadu_si32 is banned.
-  int val;
-  memcpy(&val, src, sizeof(val));
-  return _mm_cvtsi32_si128(val);
-}
-
-static AOM_FORCE_INLINE __m128i LoadLo8(const void *a) {
-  return _mm_loadl_epi64((const __m128i *)(a));
-}
-
-static AOM_FORCE_INLINE __m128i LoadUnaligned16(const void *a) {
-  return _mm_loadu_si128((const __m128i *)(a));
-}
-
-static AOM_FORCE_INLINE void StoreUnaligned16(void *a, const __m128i v) {
-  _mm_storeu_si128((__m128i *)(a), v);
-}
-
-static AOM_FORCE_INLINE __m128i cvtepu8_epi16(__m128i x) {
-  return _mm_unpacklo_epi8((x), _mm_setzero_si128());
-}
-
-// For Horizontal, pixels1 and pixels2 are the same repeated value. For
-// Vertical, weights1 and weights2 are the same, and scaled_corner1 and
-// scaled_corner2 are the same.
-static AOM_FORCE_INLINE void write_smooth_directional_sum16(
-    uint8_t *LIBAOM_RESTRICT dst, const __m128i pixels1, const __m128i pixels2,
-    const __m128i weights1, const __m128i weights2,
-    const __m128i scaled_corner1, const __m128i scaled_corner2,
-    const __m128i round) {
-  const __m128i weighted_px1 = _mm_mullo_epi16(pixels1, weights1);
-  const __m128i weighted_px2 = _mm_mullo_epi16(pixels2, weights2);
-  const __m128i pred_sum1 = _mm_add_epi16(scaled_corner1, weighted_px1);
-  const __m128i pred_sum2 = _mm_add_epi16(scaled_corner2, weighted_px2);
-  // Equivalent to RightShiftWithRounding(pred[x][y], 8).
-  const __m128i pred1 = _mm_srli_epi16(_mm_add_epi16(pred_sum1, round), 8);
-  const __m128i pred2 = _mm_srli_epi16(_mm_add_epi16(pred_sum2, round), 8);
-  StoreUnaligned16(dst, _mm_packus_epi16(pred1, pred2));
 }
 
 void aom_smooth_v_predictor_16x4_ssse3(
