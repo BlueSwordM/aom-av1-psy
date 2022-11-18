@@ -1210,7 +1210,7 @@ StatusOr<TplGopDepStats> ComputeTplGopDepStats(
   for (const auto &tpl_frame_stats : tpl_gop_stats.frame_stats_list) {
     tpl_frame_stats_list_with_lookahead.push_back(&tpl_frame_stats);
   }
-  for (auto &lookahead_stat : lookahead_stats) {
+  for (const auto &lookahead_stat : lookahead_stats) {
     for (const auto &tpl_frame_stats :
          lookahead_stat.tpl_gop_stats->frame_stats_list) {
       tpl_frame_stats_list_with_lookahead.push_back(&tpl_frame_stats);
@@ -1337,7 +1337,7 @@ std::unordered_map<int, int> KMeans(std::vector<uint8_t> qindices, int k) {
     intermediate_cluster_map = FindKMeansClusterMap(qindices, centroids);
     // For each cluster, calculate the new centroids
     std::unordered_map<double, std::vector<int>> centroid_to_qindices;
-    for (auto &qindex_centroid : intermediate_cluster_map) {
+    for (const auto &qindex_centroid : intermediate_cluster_map) {
       centroid_to_qindices[qindex_centroid.second].push_back(
           qindex_centroid.first);
     }
@@ -1356,7 +1356,7 @@ std::unordered_map<int, int> KMeans(std::vector<uint8_t> qindices, int k) {
     centroids = new_centroids;
   }
   std::unordered_map<int, int> cluster_map;
-  for (auto &qindex_centroid : intermediate_cluster_map) {
+  for (const auto &qindex_centroid : intermediate_cluster_map) {
     cluster_map.insert(
         { qindex_centroid.first, static_cast<int>(qindex_centroid.second) });
   }
@@ -1405,7 +1405,7 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
     return status;
   }
 
-  for (auto &lookahead_stat : lookahead_stats) {
+  for (const auto &lookahead_stat : lookahead_stats) {
     Status status = ValidateTplStats(*lookahead_stat.gop_struct,
                                      *lookahead_stat.tpl_gop_stats);
     if (!status.ok()) {
