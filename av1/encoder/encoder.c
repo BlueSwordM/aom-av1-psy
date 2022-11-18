@@ -2243,6 +2243,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 
     // Apply the filter
     if ((skip_apply_postproc_filters & SKIP_APPLY_CDEF) == 0) {
+      assert(!cpi->ppi->rtc_ref.non_reference_frame);
       if (num_workers > 1) {
         // Extension of frame borders is multi-threaded along with cdef.
         const int do_extend_border =
@@ -2346,6 +2347,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
     struct loopfilter *lf = &cm->lf;
     if ((lf->filter_level[0] || lf->filter_level[1]) &&
         (skip_apply_postproc_filters & SKIP_APPLY_LOOPFILTER) == 0) {
+      assert(!cpi->ppi->rtc_ref.non_reference_frame);
       // lpf_opt_level = 1 : Enables dual/quad loop-filtering.
       // lpf_opt_level is set to 1 if transform size search depth in inter
       // blocks is limited to one as quad loop filtering assumes that all the
