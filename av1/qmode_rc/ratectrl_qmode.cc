@@ -1355,8 +1355,11 @@ std::unordered_map<int, int> KMeans(std::vector<uint8_t> qindices, int k) {
     if (!centroids_changed) break;
     centroids = new_centroids;
   }
-  std::unordered_map<int, int> cluster_map(intermediate_cluster_map.begin(),
-                                           intermediate_cluster_map.end());
+  std::unordered_map<int, int> cluster_map;
+  for (auto &qindex_centroid : intermediate_cluster_map) {
+    cluster_map.insert(
+        { qindex_centroid.first, static_cast<int>(qindex_centroid.second) });
+  }
   return cluster_map;
 }
 }  // namespace internal
