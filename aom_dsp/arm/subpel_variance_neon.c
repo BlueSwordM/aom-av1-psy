@@ -247,3 +247,186 @@ SPECIALIZED_SUBPEL_VARIANCE_WXH_NEON(64, 16, 1)
 
 #undef SUBPEL_VARIANCE_WXH_NEON
 #undef SPECIALIZED_SUBPEL_VARIANCE_WXH_NEON
+
+// Combine bilinear filter with aom_comp_avg_pred for blocks having width 4.
+static void avg_pred_var_filter_block2d_bil_w4(const uint8_t *src_ptr,
+                                               uint8_t *dst_ptr, int src_stride,
+                                               int pixel_step, int dst_height,
+                                               int filter_offset,
+                                               const uint8_t *second_pred) {
+  const uint8x8_t f0 = vdup_n_u8(8 - filter_offset);
+  const uint8x8_t f1 = vdup_n_u8(filter_offset);
+
+  int i = 0;
+  do {
+    uint8x8_t s0 = load_unaligned_u8(src_ptr, src_stride);
+    uint8x8_t s1 = load_unaligned_u8(src_ptr + pixel_step, src_stride);
+    uint16x8_t blend = vmull_u8(s0, f0);
+    blend = vmlal_u8(blend, s1, f1);
+    uint8x8_t blend_u8 = vrshrn_n_u16(blend, 3);
+
+    uint8x8_t p = vld1_u8(second_pred);
+    uint8x8_t avg = vrhadd_u8(blend_u8, p);
+
+    vst1_u8(dst_ptr, avg);
+
+    src_ptr += 2 * src_stride;
+    dst_ptr += 2 * 4;
+    second_pred += 2 * 4;
+    i += 2;
+  } while (i < dst_height);
+}
+
+// Combine bilinear filter with aom_comp_avg_pred for blocks having width 8.
+static void avg_pred_var_filter_block2d_bil_w8(const uint8_t *src_ptr,
+                                               uint8_t *dst_ptr, int src_stride,
+                                               int pixel_step, int dst_height,
+                                               int filter_offset,
+                                               const uint8_t *second_pred) {
+  const uint8x8_t f0 = vdup_n_u8(8 - filter_offset);
+  const uint8x8_t f1 = vdup_n_u8(filter_offset);
+
+  int i = 0;
+  do {
+    uint8x8_t s0 = vld1_u8(src_ptr);
+    uint8x8_t s1 = vld1_u8(src_ptr + pixel_step);
+    uint16x8_t blend = vmull_u8(s0, f0);
+    blend = vmlal_u8(blend, s1, f1);
+    uint8x8_t blend_u8 = vrshrn_n_u16(blend, 3);
+
+    uint8x8_t p = vld1_u8(second_pred);
+    uint8x8_t avg = vrhadd_u8(blend_u8, p);
+
+    vst1_u8(dst_ptr, avg);
+
+    src_ptr += src_stride;
+    dst_ptr += 8;
+    second_pred += 8;
+    i++;
+  } while (i < dst_height);
+}
+
+// Combine bilinear filter with aom_comp_avg_pred for large blocks.
+static void avg_pred_var_filter_block2d_bil_large(
+    const uint8_t *src_ptr, uint8_t *dst_ptr, int src_stride, int pixel_step,
+    int dst_width, int dst_height, int filter_offset,
+    const uint8_t *second_pred) {
+  const uint8x8_t f0 = vdup_n_u8(8 - filter_offset);
+  const uint8x8_t f1 = vdup_n_u8(filter_offset);
+
+  int i = 0;
+  do {
+    int j = 0;
+    do {
+      uint8x16_t s0 = vld1q_u8(src_ptr + j);
+      uint8x16_t s1 = vld1q_u8(src_ptr + j + pixel_step);
+      uint16x8_t blend_l = vmull_u8(vget_low_u8(s0), f0);
+      blend_l = vmlal_u8(blend_l, vget_low_u8(s1), f1);
+      uint16x8_t blend_h = vmull_u8(vget_high_u8(s0), f0);
+      blend_h = vmlal_u8(blend_h, vget_high_u8(s1), f1);
+      uint8x16_t blend_u8 =
+          vcombine_u8(vrshrn_n_u16(blend_l, 3), vrshrn_n_u16(blend_h, 3));
+
+      uint8x16_t p = vld1q_u8(second_pred);
+      uint8x16_t avg = vrhaddq_u8(blend_u8, p);
+
+      vst1q_u8(dst_ptr + j, avg);
+
+      j += 16;
+      second_pred += 16;
+    } while (j < dst_width);
+
+    src_ptr += src_stride;
+    dst_ptr += dst_width;
+    i++;
+  } while (i < dst_height);
+}
+
+// Combine bilinear filter with aom_comp_avg_pred for blocks having width 16.
+static void avg_pred_var_filter_block2d_bil_w16(
+    const uint8_t *src_ptr, uint8_t *dst_ptr, int src_stride, int pixel_step,
+    int dst_height, int filter_offset, const uint8_t *second_pred) {
+  avg_pred_var_filter_block2d_bil_large(src_ptr, dst_ptr, src_stride,
+                                        pixel_step, 16, dst_height,
+                                        filter_offset, second_pred);
+}
+
+// Combine bilinear filter with aom_comp_avg_pred for blocks having width 32.
+static void avg_pred_var_filter_block2d_bil_w32(
+    const uint8_t *src_ptr, uint8_t *dst_ptr, int src_stride, int pixel_step,
+    int dst_height, int filter_offset, const uint8_t *second_pred) {
+  avg_pred_var_filter_block2d_bil_large(src_ptr, dst_ptr, src_stride,
+                                        pixel_step, 32, dst_height,
+                                        filter_offset, second_pred);
+}
+
+// Combine bilinear filter with aom_comp_avg_pred for blocks having width 64.
+static void avg_pred_var_filter_block2d_bil_w64(
+    const uint8_t *src_ptr, uint8_t *dst_ptr, int src_stride, int pixel_step,
+    int dst_height, int filter_offset, const uint8_t *second_pred) {
+  avg_pred_var_filter_block2d_bil_large(src_ptr, dst_ptr, src_stride,
+                                        pixel_step, 64, dst_height,
+                                        filter_offset, second_pred);
+}
+
+// Combine bilinear filter with aom_comp_avg_pred for blocks having width 128.
+static void avg_pred_var_filter_block2d_bil_w128(
+    const uint8_t *src_ptr, uint8_t *dst_ptr, int src_stride, int pixel_step,
+    int dst_height, int filter_offset, const uint8_t *second_pred) {
+  avg_pred_var_filter_block2d_bil_large(src_ptr, dst_ptr, src_stride,
+                                        pixel_step, 128, dst_height,
+                                        filter_offset, second_pred);
+}
+
+#define SUBPEL_AVG_VARIANCE_WXH_NEON(w, h, padding)                      \
+  unsigned int aom_sub_pixel_avg_variance##w##x##h##_neon(               \
+      const uint8_t *src, int src_stride, int xoffset, int yoffset,      \
+      const uint8_t *ref, int ref_stride, uint32_t *sse,                 \
+      const uint8_t *second_pred) {                                      \
+    uint8_t tmp0[w * (h + padding)];                                     \
+    uint8_t tmp1[w * h];                                                 \
+    var_filter_block2d_bil_w##w(src, tmp0, src_stride, 1, (h + padding), \
+                                xoffset);                                \
+    avg_pred_var_filter_block2d_bil_w##w(tmp0, tmp1, w, w, h, yoffset,   \
+                                         second_pred);                   \
+    return aom_variance##w##x##h(tmp1, w, ref, ref_stride, sse);         \
+  }
+
+SUBPEL_AVG_VARIANCE_WXH_NEON(4, 4, 2)
+SUBPEL_AVG_VARIANCE_WXH_NEON(4, 8, 2)
+
+SUBPEL_AVG_VARIANCE_WXH_NEON(8, 4, 1)
+SUBPEL_AVG_VARIANCE_WXH_NEON(8, 8, 1)
+SUBPEL_AVG_VARIANCE_WXH_NEON(8, 16, 1)
+
+SUBPEL_AVG_VARIANCE_WXH_NEON(16, 8, 1)
+SUBPEL_AVG_VARIANCE_WXH_NEON(16, 16, 1)
+SUBPEL_AVG_VARIANCE_WXH_NEON(16, 32, 1)
+
+SUBPEL_AVG_VARIANCE_WXH_NEON(32, 16, 1)
+SUBPEL_AVG_VARIANCE_WXH_NEON(32, 32, 1)
+SUBPEL_AVG_VARIANCE_WXH_NEON(32, 64, 1)
+
+SUBPEL_AVG_VARIANCE_WXH_NEON(64, 32, 1)
+SUBPEL_AVG_VARIANCE_WXH_NEON(64, 64, 1)
+SUBPEL_AVG_VARIANCE_WXH_NEON(64, 128, 1)
+
+SUBPEL_AVG_VARIANCE_WXH_NEON(128, 64, 1)
+SUBPEL_AVG_VARIANCE_WXH_NEON(128, 128, 1)
+
+#if !CONFIG_REALTIME_ONLY
+
+SUBPEL_AVG_VARIANCE_WXH_NEON(4, 16, 2)
+
+SUBPEL_AVG_VARIANCE_WXH_NEON(8, 32, 1)
+
+SUBPEL_AVG_VARIANCE_WXH_NEON(16, 4, 1)
+SUBPEL_AVG_VARIANCE_WXH_NEON(16, 64, 1)
+
+SUBPEL_AVG_VARIANCE_WXH_NEON(32, 8, 1)
+
+SUBPEL_AVG_VARIANCE_WXH_NEON(64, 16, 1)
+
+#endif  // !CONFIG_REALTIME_ONLY
+
+#undef SUBPEL_AVG_VARIANCE_WXH_NEON

@@ -3085,6 +3085,35 @@ const SubpelVarianceParams kArraySubpelVariance_neon[] = {
 INSTANTIATE_TEST_SUITE_P(NEON, AvxSubpelVarianceTest,
                          ::testing::ValuesIn(kArraySubpelVariance_neon));
 
+const SubpelAvgVarianceParams kArraySubpelAvgVariance_neon[] = {
+  SubpelAvgVarianceParams(7, 7, &aom_sub_pixel_avg_variance128x128_neon, 0),
+  SubpelAvgVarianceParams(7, 6, &aom_sub_pixel_avg_variance128x64_neon, 0),
+  SubpelAvgVarianceParams(6, 7, &aom_sub_pixel_avg_variance64x128_neon, 0),
+  SubpelAvgVarianceParams(6, 6, &aom_sub_pixel_avg_variance64x64_neon, 0),
+  SubpelAvgVarianceParams(6, 5, &aom_sub_pixel_avg_variance64x32_neon, 0),
+  SubpelAvgVarianceParams(5, 6, &aom_sub_pixel_avg_variance32x64_neon, 0),
+  SubpelAvgVarianceParams(5, 5, &aom_sub_pixel_avg_variance32x32_neon, 0),
+  SubpelAvgVarianceParams(5, 4, &aom_sub_pixel_avg_variance32x16_neon, 0),
+  SubpelAvgVarianceParams(4, 5, &aom_sub_pixel_avg_variance16x32_neon, 0),
+  SubpelAvgVarianceParams(4, 4, &aom_sub_pixel_avg_variance16x16_neon, 0),
+  SubpelAvgVarianceParams(4, 3, &aom_sub_pixel_avg_variance16x8_neon, 0),
+  SubpelAvgVarianceParams(3, 4, &aom_sub_pixel_avg_variance8x16_neon, 0),
+  SubpelAvgVarianceParams(3, 3, &aom_sub_pixel_avg_variance8x8_neon, 0),
+  SubpelAvgVarianceParams(3, 2, &aom_sub_pixel_avg_variance8x4_neon, 0),
+  SubpelAvgVarianceParams(2, 3, &aom_sub_pixel_avg_variance4x8_neon, 0),
+  SubpelAvgVarianceParams(2, 2, &aom_sub_pixel_avg_variance4x4_neon, 0),
+#if !CONFIG_REALTIME_ONLY
+  SubpelAvgVarianceParams(6, 4, &aom_sub_pixel_avg_variance64x16_neon, 0),
+  SubpelAvgVarianceParams(4, 6, &aom_sub_pixel_avg_variance16x64_neon, 0),
+  SubpelAvgVarianceParams(5, 3, &aom_sub_pixel_avg_variance32x8_neon, 0),
+  SubpelAvgVarianceParams(3, 5, &aom_sub_pixel_avg_variance8x32_neon, 0),
+  SubpelAvgVarianceParams(4, 2, &aom_sub_pixel_avg_variance16x4_neon, 0),
+  SubpelAvgVarianceParams(2, 4, &aom_sub_pixel_avg_variance4x16_neon, 0),
+#endif
+};
+INSTANTIATE_TEST_SUITE_P(NEON, AvxSubpelAvgVarianceTest,
+                         ::testing::ValuesIn(kArraySubpelAvgVariance_neon));
+
 const GetSseSumParams kArrayGetSseSum8x8Quad_neon[] = {
   GetSseSumParams(7, 7, &aom_get_var_sse_sum_8x8_quad_neon, 0),
   GetSseSumParams(6, 6, &aom_get_var_sse_sum_8x8_quad_neon, 0),
