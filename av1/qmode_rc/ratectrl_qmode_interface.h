@@ -31,6 +31,11 @@ struct MotionVector {
   int subpel_bits;  // number of fractional bits used by row/col
 };
 
+enum class TplPassCount {
+  kOneTplPass = 1,
+  kTwoTplPasses = 2,
+};
+
 struct RateControlParam {
   // Range of allowed GOP sizes (number of displayed frames).
   int max_gop_show_frame_count;
@@ -54,6 +59,11 @@ struct RateControlParam {
 
   int frame_width;
   int frame_height;
+
+  // Total number of TPL passes.
+  TplPassCount tpl_pass_count = TplPassCount::kOneTplPass;
+  // Current TPL pass number, 0 or 1 (for GetTplPassGopEncodeInfo).
+  int tpl_pass_index = 0;
 };
 
 struct TplBlockStats {
@@ -275,6 +285,9 @@ struct TplFrameStats {
   int frame_height;
   bool rate_dist_present;  // True if recrf_rate and recrf_dist are populated.
   std::vector<TplBlockStats> block_stats_list;
+  // Optional stats computed with different settings, should be empty unless
+  // tpl_pass_count == kTwoTplPasses.
+  std::vector<TplBlockStats> alternate_block_stats_list;
 };
 
 struct TplGopStats {

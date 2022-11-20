@@ -1100,7 +1100,7 @@ TEST_F(RateControlQModeTest, GetGopEncodeInfoRefFrameMissingBlockStats) {
 
   // Only frame 0 has TPL block stats.
   TplGopStats tpl_gop_stats;
-  tpl_gop_stats.frame_stats_list.assign(3, { 8, 176, 144, false, {} });
+  tpl_gop_stats.frame_stats_list.assign(3, { 8, 176, 144, false, {}, {} });
   tpl_gop_stats.frame_stats_list[0] = CreateToyTplFrameStatsWithDiffSizes(8, 8);
 
   AV1RateControlQMode rc;
