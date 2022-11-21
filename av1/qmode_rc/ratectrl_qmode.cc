@@ -1460,11 +1460,12 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
         std::unordered_map<int, int> qindex_centroids = internal::KMeans(
             superblock_q_indices, rc_param_.max_distinct_q_indices_per_frame);
         for (size_t i = 0; i < superblock_q_indices.size(); ++i) {
-          const int last_sb_qindex =
-              i == 0 ? param.q_index : superblock_q_indices[i - 1];
-          const int adjusted_qindex = av1_adjust_q_from_delta_q_res(
-              4, last_sb_qindex,
-              qindex_centroids.find(superblock_q_indices[i])->second);
+          const int curr_sb_qindex =
+              qindex_centroids.find(superblock_q_indices[i])->second;
+          const int delta_q_res = 4;
+          const int adjusted_qindex =
+              param.q_index +
+              (curr_sb_qindex - param.q_index) / delta_q_res * delta_q_res;
           const int rd_mult = GetRDMult(gop_frame, adjusted_qindex);
           param.superblock_encode_params.push_back(
               { static_cast<uint8_t>(adjusted_qindex), rd_mult });
