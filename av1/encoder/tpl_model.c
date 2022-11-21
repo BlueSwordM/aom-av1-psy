@@ -569,6 +569,15 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
     }
   }
 
+  int rate_cost = 1;
+  get_rate_distortion(&rate_cost, &recon_error, &pred_error, src_diff, coeff,
+                      qcoeff, dqcoeff, cm, x, NULL, rec_buffer_pool,
+                      rec_stride_pool, tx_size, best_mode, mi_row, mi_col,
+                      use_y_only_rate_distortion, NULL);
+
+  tpl_stats->intra_dist = recon_error << TPL_DEP_COST_SCALE_LOG2;
+  tpl_stats->intra_sse = pred_error << TPL_DEP_COST_SCALE_LOG2;
+
   if (cpi->third_pass_ctx &&
       frame_offset < cpi->third_pass_ctx->frame_info_count &&
       tpl_data->frame_idx < gf_group->size) {
@@ -889,7 +898,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
           ? tpl_data->src_ref_frame[comp_ref_frames[best_cmp_rf_idx][1]]
           : NULL,
     };
-    int rate_cost = 1;
+    rate_cost = 1;
     get_rate_distortion(&rate_cost, &recon_error, &pred_error, src_diff, coeff,
                         qcoeff, dqcoeff, cm, x, ref_frame_ptr, rec_buffer_pool,
                         rec_stride_pool, tx_size, best_mode, mi_row, mi_col,
@@ -906,7 +915,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
   tpl_stats->srcrf_sse = pred_error << TPL_DEP_COST_SCALE_LOG2;
 
   // Final encode
-  int rate_cost = 0;
+  rate_cost = 0;
   const YV12_BUFFER_CONFIG *ref_frame_ptr[2];
 
   ref_frame_ptr[0] =
@@ -923,11 +932,12 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
                       rec_stride_pool, tx_size, best_mode, mi_row, mi_col,
                       use_y_only_rate_distortion, tpl_txfm_stats);
 
-  tpl_stats->recrf_dist = recon_error << (TPL_DEP_COST_SCALE_LOG2);
+  tpl_stats->recrf_dist = recon_error << TPL_DEP_COST_SCALE_LOG2;
+  tpl_stats->recrf_sse = pred_error << TPL_DEP_COST_SCALE_LOG2;
   tpl_stats->recrf_rate = rate_cost;
 
   if (!is_inter_mode(best_mode)) {
-    tpl_stats->srcrf_dist = recon_error << (TPL_DEP_COST_SCALE_LOG2);
+    tpl_stats->srcrf_dist = recon_error << TPL_DEP_COST_SCALE_LOG2;
     tpl_stats->srcrf_rate = rate_cost;
     tpl_stats->srcrf_sse = pred_error << TPL_DEP_COST_SCALE_LOG2;
   }
