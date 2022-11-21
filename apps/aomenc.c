@@ -2585,11 +2585,18 @@ int main(int argc, const char **argv_) {
 
         for (int i = 0; i < num_operating_points; i++) {
           if (levels[i] > target_levels[i]) {
-            aom_tools_warn(
-                "Failed to encode to target level %d.%d for operating point "
-                "%d. The output level is %d.%d",
-                2 + (target_levels[i] >> 2), target_levels[i] & 3, i,
-                2 + (levels[i] >> 2), levels[i] & 3);
+            if (levels[i] == 31) {
+              aom_tools_warn(
+                  "Failed to encode to target level %d.%d for operating point "
+                  "%d. The output level is SEQ_LEVEL_MAX",
+                  2 + (target_levels[i] >> 2), target_levels[i] & 3, i);
+            } else {
+              aom_tools_warn(
+                  "Failed to encode to target level %d.%d for operating point "
+                  "%d. The output level is %d.%d",
+                  2 + (target_levels[i] >> 2), target_levels[i] & 3, i,
+                  2 + (levels[i] >> 2), levels[i] & 3);
+            }
           }
         }
       }
