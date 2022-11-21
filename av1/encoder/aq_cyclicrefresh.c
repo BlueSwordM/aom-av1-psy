@@ -393,6 +393,15 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
     qp_thresh = AOMMIN(35, rc->best_quality << 1);
   int qp_max_thresh = 118 * MAXQ >> 7;
   const int scene_change_detected = is_scene_change_detected(cpi);
+  const int is_screen_content =
+      (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN);
+
+  // A scene change or key frame marks the start of a cyclic refresh cycle.
+  const int frames_since_scene_change =
+      (cpi->ppi->use_svc || !is_screen_content)
+          ? cpi->rc.frames_since_key
+          : AOMMIN(cpi->rc.frames_since_key,
+                   cr->counter_encode_maxq_scene_change);
 
   // Cases to reset the cyclic refresh adjustment parameters.
   if (frame_is_intra_only(cm) || scene_change_detected) {
@@ -418,10 +427,10 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
       p_rc->avg_frame_qindex[INTER_FRAME] < qp_thresh ||
       (cpi->svc.number_spatial_layers > 1 &&
        cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame) ||
-      (rc->frames_since_key > 20 &&
+      (frames_since_scene_change > 20 &&
        p_rc->avg_frame_qindex[INTER_FRAME] > qp_max_thresh) ||
       (rc->avg_frame_low_motion && rc->avg_frame_low_motion < 30 &&
-       rc->frames_since_key > 40)) {
+       frames_since_scene_change > 40)) {
     cr->apply_cyclic_refresh = 0;
     return;
   }
@@ -442,13 +451,30 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   cr->motion_thresh = 32;
   cr->rate_boost_fac =
       (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) ? 10 : 15;
-  // Use larger delta-qp (increase rate_ratio_qdelta) for first few (~4)
-  // periods of the refresh cycle, after a key frame.
-  // Account for larger interval on base layer for temporal layers.
-  if (cr->percent_refresh > 0 &&
-      rc->frames_since_key <
-          (4 * cpi->svc.number_temporal_layers) * (100 / cr->percent_refresh)) {
-    cr->rate_ratio_qdelta = 3.0 + cr->rate_ratio_qdelta_adjustment;
+
+  // Use larger delta-qp (increase rate_ratio_qdelta) for first few
+  // refresh cycles after a key frame (svc) or scene change (non svc).
+  // For non svc screen content, after a scene change gradually reduce
+  // this boost and supress it further if either of the previous two
+  // frames overshot.
+  if (cr->percent_refresh > 0) {
+    if (cpi->ppi->use_svc || !is_screen_content) {
+      if (frames_since_scene_change < ((4 * cpi->svc.number_temporal_layers) *
+                                       (100 / cr->percent_refresh))) {
+        cr->rate_ratio_qdelta = 3.0 + cr->rate_ratio_qdelta_adjustment;
+      } else {
+        cr->rate_ratio_qdelta = 2.25 + cr->rate_ratio_qdelta_adjustment;
+      }
+    } else {
+      double distance_from_sc_factor =
+          AOMMIN(0.75, (int)(frames_since_scene_change / 10) * 0.1);
+      cr->rate_ratio_qdelta =
+          3.0 + cr->rate_ratio_qdelta_adjustment - distance_from_sc_factor;
+      if ((frames_since_scene_change < 10) &&
+          ((cpi->rc.rc_1_frame < 0) || (cpi->rc.rc_2_frame < 0))) {
+        cr->rate_ratio_qdelta -= 0.25;
+      }
+    }
   } else {
     cr->rate_ratio_qdelta = 2.25 + cr->rate_ratio_qdelta_adjustment;
   }
