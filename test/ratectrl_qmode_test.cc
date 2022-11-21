@@ -1039,8 +1039,8 @@ TEST_F(RateControlQModeTest, TestGetGopEncodeInfo) {
     frame_rate,  AOM_IMG_FMT_I420,
     50,          libaom_test::GetDataPath() + "/hantro_collage_w352h288.yuv"
   };
-  DuckyEncode ducky_encode(input_video, rc_param_.max_ref_frames, 3,
-                           rc_param_.base_q_index);
+  DuckyEncode ducky_encode(input_video, BLOCK_64X64, rc_param_.max_ref_frames,
+                           3, rc_param_.base_q_index);
 
   std::vector<aom::GopEncodeInfo> gop_encode_info_list;
   for (const auto &gop_struct : gop_list) {

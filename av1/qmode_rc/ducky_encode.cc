@@ -48,6 +48,7 @@ class DuckyEncode::EncodeImpl {
   int max_ref_frames;
   int speed;
   int base_qindex;
+  BLOCK_SIZE sb_size;
   enum aom_rc_mode rc_end_usage;
   aom_rational64_t timestamp_ratio;
   std::vector<FIRSTPASS_STATS> stats_list;
@@ -55,14 +56,15 @@ class DuckyEncode::EncodeImpl {
   struct AvxInputContext input;
 };
 
-DuckyEncode::DuckyEncode(const VideoInfo &video_info, int max_ref_frames,
-                         int speed, int base_qindex) {
+DuckyEncode::DuckyEncode(const VideoInfo &video_info, BLOCK_SIZE sb_size,
+                         int max_ref_frames, int speed, int base_qindex) {
   impl_ptr_ = std::unique_ptr<EncodeImpl>(new EncodeImpl());
   impl_ptr_->video_info = video_info;
   impl_ptr_->g_usage = GOOD;
   impl_ptr_->max_ref_frames = max_ref_frames;
   impl_ptr_->speed = speed;
   impl_ptr_->base_qindex = base_qindex;
+  impl_ptr_->sb_size = sb_size;
   impl_ptr_->rc_end_usage = AOM_Q;
   // TODO(angiebird): Set timestamp_ratio properly
   // timestamp_ratio.den = cfg->g_timebase.den;
@@ -244,7 +246,7 @@ void DuckyEncode::InitEncoder(aom_enc_pass pass,
   assert(buffer_pool != nullptr);
   const AV1_COMP *cpi = ppi->cpi;
   SequenceHeader *seq_params = ppi->cpi->common.seq_params;
-
+  set_sb_size(seq_params, impl_ptr_->sb_size);
   ppi->seq_params_locked = 1;
   assert(ppi->lookahead == nullptr);
 
