@@ -1311,7 +1311,7 @@ static std::unordered_map<int, double> FindKMeansClusterMap(
     double nearest_centroid = *std::min_element(
         centroids.begin(), centroids.end(),
         [qindex](const double centroid_a, const double centroid_b) {
-          return abs(centroid_a - qindex) < abs(centroid_b - qindex);
+          return fabs(centroid_a - qindex) < fabs(centroid_b - qindex);
         });
     cluster_map.insert({ qindex, nearest_centroid });
   }
