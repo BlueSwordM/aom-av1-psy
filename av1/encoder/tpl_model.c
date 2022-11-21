@@ -577,6 +577,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
 
   tpl_stats->intra_dist = recon_error << TPL_DEP_COST_SCALE_LOG2;
   tpl_stats->intra_sse = pred_error << TPL_DEP_COST_SCALE_LOG2;
+  tpl_stats->intra_rate = rate_cost;
 
   if (cpi->third_pass_ctx &&
       frame_offset < cpi->third_pass_ctx->frame_info_count &&

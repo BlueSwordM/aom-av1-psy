@@ -118,6 +118,7 @@ typedef struct TplDepStats {
   int32_t inter_cost;
   int32_t srcrf_rate;
   int32_t recrf_rate;
+  int32_t intra_rate;
   int32_t cmp_recrf_rate[2];
   int_mv mv[INTER_REFS_PER_FRAME];
   int8_t ref_frame_index[2];

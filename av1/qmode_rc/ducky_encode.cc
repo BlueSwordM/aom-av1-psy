@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "av1/common/enums.h"
+#include "av1/encoder/rd.h"
 #include "config/aom_config.h"
 
 #include "aom/aom_encoder.h"
@@ -433,7 +434,8 @@ static void WriteObu(AV1_PRIMARY *ppi, AV1_COMP_DATA *cpi_data) {
       obu_header_size + obu_payload_size + length_field_size;
 }
 
-TplGopStats DuckyEncode::ObtainTplStats(const GopStruct gop_struct) {
+TplGopStats DuckyEncode::ObtainTplStats(const GopStruct gop_struct,
+                                        bool rate_dist_present) {
   TplGopStats tpl_gop_stats;
 
   AV1_PRIMARY *ppi = impl_ptr_->enc_resource.ppi;
@@ -441,6 +443,8 @@ TplGopStats DuckyEncode::ObtainTplStats(const GopStruct gop_struct) {
 
   for (size_t idx = 0; idx < gop_struct.gop_frame_list.size(); ++idx) {
     TplFrameStats tpl_frame_stats = {};
+    tpl_frame_stats.rate_dist_present = rate_dist_present;
+
     TplDepFrame *tpl_frame = &ppi->tpl_data.tpl_frame[idx];
     if (gop_struct.gop_frame_list[idx].update_type == GopFrameType::kOverlay ||
         gop_struct.gop_frame_list[idx].update_type ==
@@ -475,10 +479,21 @@ TplGopStats DuckyEncode::ObtainTplStats(const GopStruct gop_struct) {
         block_stats.col = mi_col * MI_SIZE;
         block_stats.height = (1 << block_mis_log2) * MI_SIZE;
         block_stats.width = (1 << block_mis_log2) * MI_SIZE;
-        block_stats.inter_cost = tpl_stats_ptr->inter_cost
-                                 << TPL_DEP_COST_SCALE_LOG2;
-        block_stats.intra_cost = tpl_stats_ptr->intra_cost
-                                 << TPL_DEP_COST_SCALE_LOG2;
+
+        block_stats.inter_cost =
+            RDCOST(tpl_frame->base_rdmult, tpl_stats_ptr->recrf_rate,
+                   tpl_stats_ptr->recrf_dist);
+        block_stats.intra_cost =
+            RDCOST(tpl_frame->base_rdmult, tpl_stats_ptr->intra_rate,
+                   tpl_stats_ptr->intra_dist);
+
+        if (tpl_frame_stats.rate_dist_present) {
+          block_stats.recrf_dist = tpl_stats_ptr->recrf_dist;
+          block_stats.recrf_rate = tpl_stats_ptr->recrf_rate;
+          block_stats.intra_pred_err = tpl_stats_ptr->intra_sse;
+          block_stats.inter_pred_err = tpl_stats_ptr->recrf_sse;
+        }
+
         block_stats.ref_frame_index = { -1, -1 };
 
         for (int i = 0; i < kBlockRefCount; ++i) {
@@ -502,6 +517,7 @@ TplGopStats DuckyEncode::ObtainTplStats(const GopStruct gop_struct) {
 }
 
 // Obtain TPL stats through ducky_encode.
+// TODO(jianj): Populate rate_dist_present flag through qmode_rc_encoder
 std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
     const GopStructList &gop_list,
     const GopEncodeInfoList &gop_encode_info_list) {
@@ -528,7 +544,8 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
       if (ppi->cpi->common.show_frame) pending_ctx_size_ = 0;
       write_temp_delimiter_ = ppi->cpi->common.show_frame;
     }
-    tpl_gop_stats = ObtainTplStats(gop_struct);
+    // The rate_dist_present needs to be populated.
+    tpl_gop_stats = ObtainTplStats(gop_struct, 0);
     tpl_gop_stats_list.push_back(tpl_gop_stats);
   }
 
