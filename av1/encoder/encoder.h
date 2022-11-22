@@ -2370,6 +2370,10 @@ typedef struct DuckyEncodeFrameInfo {
   DUCKY_ENCODE_GOP_MODE gop_mode;
   int q_index;
   int rdmult;
+  // These two arrays are equivalent to std::vector<SuperblockEncodeParameters>
+  int *superblock_encode_qindex;
+  int *superblock_encode_rdmult;
+  int delta_q_enabled;
 } DuckyEncodeFrameInfo;
 
 typedef struct DuckyEncodeFrameResult {

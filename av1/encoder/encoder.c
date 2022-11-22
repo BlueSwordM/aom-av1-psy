@@ -2720,7 +2720,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
 #if !CONFIG_RD_COMMAND
   // Determine whether to use screen content tools using two fast encoding.
-  if (!cpi->sf.hl_sf.disable_extra_sc_testing)
+  if (!cpi->sf.hl_sf.disable_extra_sc_testing && !cpi->use_ducky_encode)
     av1_determine_sc_tools_with_encoding(cpi, q);
 #endif  // !CONFIG_RD_COMMAND
 
@@ -2852,10 +2852,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
           &cpi->ducky_encode_info.frame_info;
       if (frame_info->qp_mode == DUCKY_ENCODE_FRAME_MODE_QINDEX) {
         q = frame_info->q_index;
-
-        // TODO(jingning): Coding block level QP offset is currently disabled
-        // in RC lib.
-        cm->delta_q_info.delta_q_present_flag = 0;
+        cm->delta_q_info.delta_q_present_flag = frame_info->delta_q_enabled;
       }
     }
 

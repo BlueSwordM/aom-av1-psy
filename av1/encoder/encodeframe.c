@@ -242,7 +242,16 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
 
   const int delta_q_res = delta_q_info->delta_q_res;
   int current_qindex = cm->quant_params.base_qindex;
-  if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL) {
+  if (cpi->use_ducky_encode && cpi->ducky_encode_info.frame_info.qp_mode ==
+                                   DUCKY_ENCODE_FRAME_MODE_QINDEX) {
+    const int sb_row = mi_row >> cm->seq_params->mib_size_log2;
+    const int sb_col = mi_col >> cm->seq_params->mib_size_log2;
+    const int sb_cols =
+        CEIL_POWER_OF_TWO(cm->mi_params.mi_cols, MAX_MIB_SIZE_LOG2);
+    const int sb_index = sb_row * sb_cols + sb_col;
+    current_qindex =
+        cpi->ducky_encode_info.frame_info.superblock_encode_qindex[sb_index];
+  } else if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL) {
     if (DELTA_Q_PERCEPTUAL_MODULATION == 1) {
       const int block_wavelet_energy_level =
           av1_block_wavelet_energy_level(cpi, x, sb_size);
@@ -270,8 +279,12 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
 
   x->rdmult_cur_qindex = current_qindex;
   MACROBLOCKD *const xd = &x->e_mbd;
-  current_qindex = av1_adjust_q_from_delta_q_res(
+  const int adjusted_qindex = av1_adjust_q_from_delta_q_res(
       delta_q_res, xd->current_base_qindex, current_qindex);
+  if (cpi->use_ducky_encode) {
+    assert(adjusted_qindex == current_qindex);
+  }
+  current_qindex = adjusted_qindex;
 
   x->delta_qindex = current_qindex - cm->quant_params.base_qindex;
   x->rdmult_delta_qindex = x->delta_qindex;
@@ -1797,8 +1810,11 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   features->all_lossless = features->coded_lossless && !av1_superres_scaled(cm);
 
   // Fix delta q resolution for the moment
+
   cm->delta_q_info.delta_q_res = 0;
-  if (cpi->oxcf.q_cfg.aq_mode != CYCLIC_REFRESH_AQ) {
+  if (cpi->use_ducky_encode) {
+    cm->delta_q_info.delta_q_res = DEFAULT_DELTA_Q_RES_DUCKY_ENCODE;
+  } else if (cpi->oxcf.q_cfg.aq_mode != CYCLIC_REFRESH_AQ) {
     if (deltaq_mode == DELTA_Q_OBJECTIVE)
       cm->delta_q_info.delta_q_res = DEFAULT_DELTA_Q_RES_OBJECTIVE;
     else if (deltaq_mode == DELTA_Q_PERCEPTUAL)
