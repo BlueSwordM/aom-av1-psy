@@ -173,9 +173,9 @@ int av1_get_sb_cols_in_tile(AV1_COMMON *cm, const TileInfo *tile) {
                            cm->seq_params->mib_size_log2);
 }
 
-AV1PixelRect av1_get_tile_rect(const TileInfo *tile_info, const AV1_COMMON *cm,
-                               int is_uv) {
-  AV1PixelRect r;
+PixelRect av1_get_tile_rect(const TileInfo *tile_info, const AV1_COMMON *cm,
+                            int is_uv) {
+  PixelRect r;
 
   // Calculate position in the Y plane
   r.left = tile_info->mi_col_start * MI_SIZE;
