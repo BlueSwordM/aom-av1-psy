@@ -187,7 +187,7 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
     block_mv = best_mv.as_mv;
     *ref_mv = best_mv.as_mv;
     // On 4 sub-blocks.
-    const BLOCK_SIZE subblock_size = ss_size_lookup[block_size][1][1];
+    const BLOCK_SIZE subblock_size = av1_ss_size_lookup[block_size][1][1];
     const int subblock_height = block_size_high[subblock_size];
     const int subblock_width = block_size_wide[subblock_size];
     const int subblock_pels = subblock_height * subblock_width;

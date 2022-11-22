@@ -1193,7 +1193,7 @@ static INLINE BLOCK_SIZE get_plane_block_size(BLOCK_SIZE bsize,
   assert(bsize < BLOCK_SIZES_ALL);
   assert(subsampling_x >= 0 && subsampling_x < 2);
   assert(subsampling_y >= 0 && subsampling_y < 2);
-  return ss_size_lookup[bsize][subsampling_x][subsampling_y];
+  return av1_ss_size_lookup[bsize][subsampling_x][subsampling_y];
 }
 
 /*

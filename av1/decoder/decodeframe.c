@@ -377,8 +377,8 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
   if (bsize >= BLOCK_8X8 &&
       (seq_params->subsampling_x || seq_params->subsampling_y)) {
     const BLOCK_SIZE uv_subsize =
-        ss_size_lookup[bsize][seq_params->subsampling_x]
-                      [seq_params->subsampling_y];
+        av1_ss_size_lookup[bsize][seq_params->subsampling_x]
+                          [seq_params->subsampling_y];
     if (uv_subsize == BLOCK_INVALID)
       aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
                          "Invalid block size.");
