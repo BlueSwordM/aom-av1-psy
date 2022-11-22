@@ -115,16 +115,18 @@ static aom_codec_err_t decoder_init(aom_codec_ctx_t *ctx) {
 static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
   if (ctx->frame_worker != NULL) {
     AVxWorker *const worker = ctx->frame_worker;
-    FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
-    AV1Decoder *const pbi = frame_worker_data->pbi;
     aom_get_worker_interface()->end(worker);
-    aom_free(pbi->common.tpl_mvs);
-    pbi->common.tpl_mvs = NULL;
-    av1_remove_common(&frame_worker_data->pbi->common);
-    av1_free_cdef_buffers(&pbi->common, &pbi->cdef_worker, &pbi->cdef_sync);
-    av1_free_cdef_sync(&pbi->cdef_sync);
-    av1_free_restoration_buffers(&pbi->common);
-    av1_decoder_remove(pbi);
+    FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
+    if (frame_worker_data != NULL && frame_worker_data->pbi != NULL) {
+      AV1Decoder *const pbi = frame_worker_data->pbi;
+      aom_free(pbi->common.tpl_mvs);
+      pbi->common.tpl_mvs = NULL;
+      av1_remove_common(&frame_worker_data->pbi->common);
+      av1_free_cdef_buffers(&pbi->common, &pbi->cdef_worker, &pbi->cdef_sync);
+      av1_free_cdef_sync(&pbi->cdef_sync);
+      av1_free_restoration_buffers(&pbi->common);
+      av1_decoder_remove(pbi);
+    }
     aom_free(frame_worker_data);
 #if CONFIG_MULTITHREAD
     pthread_mutex_destroy(&ctx->buffer_pool->pool_mutex);
