@@ -2429,6 +2429,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
 
   set_size_independent_vars(cpi);
   av1_setup_frame_size(cpi);
+  cm->prev_frame = get_primary_ref_frame_buf(cm);
   av1_set_size_dependent_vars(cpi, &q, &bottom_index, &top_index);
   av1_set_mv_search_params(cpi);
 

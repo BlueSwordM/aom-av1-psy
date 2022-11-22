@@ -1478,14 +1478,43 @@ int main(int argc, const char **argv) {
       if (frame_avail && slx == 0) ++rc.layer_input_frames[layer];
 
       if (test_dynamic_scaling_single_layer) {
-        if (frame_cnt >= 200 && frame_cnt <= 400) {
+        // Example to scale source down by 2x2, then 4x4, and then back up to
+        // 2x2, and then back to original.
+        int frame_2x2 = 200;
+        int frame_4x4 = 400;
+        int frame_2x2up = 600;
+        int frame_orig = 800;
+        if (frame_cnt >= frame_2x2 && frame_cnt < frame_4x4) {
           // Scale source down by 2x2.
           struct aom_scaling_mode mode = { AOME_ONETWO, AOME_ONETWO };
           aom_codec_control(&codec, AOME_SET_SCALEMODE, &mode);
-        } else {
+        } else if (frame_cnt >= frame_4x4 && frame_cnt < frame_2x2up) {
+          // Scale source down by 4x4.
+          struct aom_scaling_mode mode = { AOME_ONEFOUR, AOME_ONEFOUR };
+          aom_codec_control(&codec, AOME_SET_SCALEMODE, &mode);
+        } else if (frame_cnt >= frame_2x2up && frame_cnt < frame_orig) {
+          // Source back up to 2x2.
+          struct aom_scaling_mode mode = { AOME_ONETWO, AOME_ONETWO };
+          aom_codec_control(&codec, AOME_SET_SCALEMODE, &mode);
+        } else if (frame_cnt >= frame_orig) {
           // Source back up to original resolution (no scaling).
           struct aom_scaling_mode mode = { AOME_NORMAL, AOME_NORMAL };
           aom_codec_control(&codec, AOME_SET_SCALEMODE, &mode);
+        }
+        if (frame_cnt == frame_2x2 || frame_cnt == frame_4x4 ||
+            frame_cnt == frame_2x2up || frame_cnt == frame_orig) {
+          // For dynamic resize testing on single layer: refresh all references
+          // on the resized frame: this is to avoid decode error:
+          // if resize goes down by >= 4x4 then libaom decoder will throw an
+          // error that some reference (even though not used) is beyond the
+          // limit size (must be smaller than 4x4).
+          for (i = 0; i < REF_FRAMES; i++) ref_frame_config.refresh[i] = 1;
+          if (use_svc_control) {
+            aom_codec_control(&codec, AV1E_SET_SVC_REF_FRAME_CONFIG,
+                              &ref_frame_config);
+            aom_codec_control(&codec, AV1E_SET_SVC_REF_FRAME_COMP_PRED,
+                              &ref_frame_comp_pred);
+          }
         }
       }
 
