@@ -1273,7 +1273,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
     if (speed == 8) sf->rt_sf.prefer_large_partition_blocks = 1;
     if (speed >= 8) {
-      sf->rt_sf.use_nonrd_filter_search = 0;
+      sf->rt_sf.use_nonrd_filter_search = 1;
       sf->rt_sf.tx_size_level_based_on_qstep = 1;
     }
     if (speed >= 9) {
@@ -1304,6 +1304,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.hybrid_intra_pickmode = 3;
       sf->rt_sf.reduce_mv_pel_precision_lowcomplex = 1;
       sf->rt_sf.reduce_mv_pel_precision_highmotion = 2;
+      sf->rt_sf.use_nonrd_filter_search = 0;
     }
   } else {
     sf->rt_sf.prune_intra_mode_based_on_mv_range = 2;
@@ -1436,12 +1437,12 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed >= 8) {
       sf->rt_sf.nonrd_check_partition_merge_mode = 3;
       sf->rt_sf.nonrd_prune_ref_frame_search = 1;
+      sf->rt_sf.use_nonrd_filter_search = 0;
     }
     if (speed >= 9) {
       sf->rt_sf.prune_idtx_nonrd = 1;
       sf->rt_sf.part_early_exit_zeromv = 2;
       sf->rt_sf.skip_lf_screen = 1;
-      sf->rt_sf.use_nonrd_filter_search = 0;
       sf->rt_sf.nonrd_prune_ref_frame_search = 3;
       sf->rt_sf.var_part_split_threshold_shift = 10;
       sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
