@@ -30,10 +30,12 @@
 namespace AV1Kmeans {
 typedef void (*av1_calc_indices_dim1_func)(const int *data,
                                            const int *centroids,
-                                           uint8_t *indices, int n, int k);
+                                           uint8_t *indices,
+                                           int64_t *total_dist, int n, int k);
 typedef void (*av1_calc_indices_dim2_func)(const int *data,
                                            const int *centroids,
-                                           uint8_t *indices, int n, int k);
+                                           uint8_t *indices,
+                                           int64_t *total_dist, int n, int k);
 
 typedef std::tuple<av1_calc_indices_dim1_func, BLOCK_SIZE>
     av1_calc_indices_dim1Param;
@@ -92,8 +94,9 @@ void AV1KmeansTest1::RunCheckOutput(av1_calc_indices_dim1_func test_impl,
   const int w = block_size_wide[bsize];
   const int h = block_size_high[bsize];
   const int n = w * h;
-  av1_calc_indices_dim1_c(data_, centroids_, indices1_, n, k);
-  test_impl(data_, centroids_, indices2_, n, k);
+  av1_calc_indices_dim1_c(data_, centroids_, indices1_, /*total_dist=*/nullptr,
+                          n, k);
+  test_impl(data_, centroids_, indices2_, /*total_dist=*/nullptr, n, k);
 
   ASSERT_EQ(CheckResult(n), true)
       << " block " << bsize << " index " << n << " Centroids " << k;
@@ -113,7 +116,7 @@ void AV1KmeansTest1::RunSpeedTest(av1_calc_indices_dim1_func test_impl,
     aom_usec_timer_start(&timer);
     av1_calc_indices_dim1_func func = funcs[i];
     for (int j = 0; j < num_loops; ++j) {
-      func(data_, centroids_, indices1_, n, k);
+      func(data_, centroids_, indices1_, /*total_dist=*/nullptr, n, k);
     }
     aom_usec_timer_mark(&timer);
     double time = static_cast<double>(aom_usec_timer_elapsed(&timer));
@@ -200,8 +203,9 @@ void AV1KmeansTest2::RunCheckOutput(av1_calc_indices_dim2_func test_impl,
   const int w = block_size_wide[bsize];
   const int h = block_size_high[bsize];
   const int n = w * h;
-  av1_calc_indices_dim2_c(data_, centroids_, indices1_, n, k);
-  test_impl(data_, centroids_, indices2_, n, k);
+  av1_calc_indices_dim2_c(data_, centroids_, indices1_, /*total_dist=*/nullptr,
+                          n, k);
+  test_impl(data_, centroids_, indices2_, /*total_dist=*/nullptr, n, k);
 
   ASSERT_EQ(CheckResult(n), true)
       << " block " << bsize << " index " << n << " Centroids " << k;
@@ -221,7 +225,7 @@ void AV1KmeansTest2::RunSpeedTest(av1_calc_indices_dim2_func test_impl,
     aom_usec_timer_start(&timer);
     av1_calc_indices_dim2_func func = funcs[i];
     for (int j = 0; j < num_loops; ++j) {
-      func(data_, centroids_, indices1_, n, k);
+      func(data_, centroids_, indices1_, nullptr, n, k);
     }
     aom_usec_timer_mark(&timer);
     double time = static_cast<double>(aom_usec_timer_elapsed(&timer));

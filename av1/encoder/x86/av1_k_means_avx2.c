@@ -13,10 +13,18 @@
 #include "config/aom_dsp_rtcd.h"
 #include "aom_dsp/x86/synonyms.h"
 
+static int64_t k_means_horizontal_sum_avx2(__m256i a) {
+  int64_t dists[4];
+  _mm256_store_si256((__m256i *)dists, a);
+  return a[0] + a[1] + a[2] + a[3];
+}
+
 void av1_calc_indices_dim1_avx2(const int *data, const int *centroids,
-                                uint8_t *indices, int n, int k) {
+                                uint8_t *indices, int64_t *total_dist, int n,
+                                int k) {
   __m256i dist[PALETTE_MAX_SIZE];
   const __m256i v_zero = _mm256_setzero_si256();
+  __m256i sum = _mm256_setzero_si256();
 
   for (int i = 0; i < n; i += 8) {
     __m256i ind = _mm256_loadu_si256((__m256i *)data);
@@ -44,16 +52,29 @@ void av1_calc_indices_dim1_avx2(const int *data, const int *centroids,
 
     _mm_storel_epi64((__m128i *)indices, d1);
 
+    if (total_dist) {
+      // Convert to 64 bit and add to sum.
+      const __m256i dist1 = _mm256_unpacklo_epi32(v_zero, dist[0]);
+      const __m256i dist2 = _mm256_unpackhi_epi32(v_zero, dist[0]);
+      sum = _mm256_add_epi64(sum, dist1);
+      sum = _mm256_add_epi64(sum, dist2);
+    }
+
     indices += 8;
     data += 8;
+  }
+  if (total_dist) {
+    *total_dist = k_means_horizontal_sum_avx2(sum);
   }
 }
 
 void av1_calc_indices_dim2_avx2(const int *data, const int *centroids,
-                                uint8_t *indices, int n, int k) {
+                                uint8_t *indices, int64_t *total_dist, int n,
+                                int k) {
   __m256i dist[PALETTE_MAX_SIZE];
   const __m256i v_zero = _mm256_setzero_si256();
   const __m256i v_permute = _mm256_setr_epi32(0, 1, 4, 5, 2, 3, 6, 7);
+  __m256i sum = _mm256_setzero_si256();
 
   for (int i = 0; i < n; i += 8) {
     __m256i ind1 = _mm256_loadu_si256((__m256i *)data);
@@ -89,7 +110,18 @@ void av1_calc_indices_dim2_avx2(const int *data, const int *centroids,
 
     _mm_storel_epi64((__m128i *)indices, d1);
 
+    if (total_dist) {
+      // Convert to 64 bit and add to sum.
+      const __m256i dist1 = _mm256_unpacklo_epi32(v_zero, dist[0]);
+      const __m256i dist2 = _mm256_unpackhi_epi32(v_zero, dist[0]);
+      sum = _mm256_add_epi64(sum, dist1);
+      sum = _mm256_add_epi64(sum, dist2);
+    }
+
     indices += 8;
     data += 16;
+  }
+  if (total_dist) {
+    *total_dist = k_means_horizontal_sum_avx2(sum);
   }
 }

@@ -56,9 +56,9 @@ static INLINE void av1_calc_indices(const int *data, const int *centroids,
   assert(n > 0);
   assert(k > 0);
   if (dim == 1) {
-    av1_calc_indices_dim1(data, centroids, indices, n, k);
+    av1_calc_indices_dim1(data, centroids, indices, /*total_dist=*/NULL, n, k);
   } else if (dim == 2) {
-    av1_calc_indices_dim2(data, centroids, indices, n, k);
+    av1_calc_indices_dim2(data, centroids, indices, /*total_dist=*/NULL, n, k);
   } else {
     assert(0 && "Untemplated k means dimension");
   }

@@ -34,7 +34,10 @@ static int RENAME(calc_dist)(const int *p1, const int *p2) {
 }
 
 void RENAME(av1_calc_indices)(const int *data, const int *centroids,
-                              uint8_t *indices, int n, int k) {
+                              uint8_t *indices, int64_t *dist, int n, int k) {
+  if (dist) {
+    *dist = 0;
+  }
   for (int i = 0; i < n; ++i) {
     int min_dist = RENAME(calc_dist)(data + i * AV1_K_MEANS_DIM, centroids);
     indices[i] = 0;
@@ -45,6 +48,9 @@ void RENAME(av1_calc_indices)(const int *data, const int *centroids,
         min_dist = this_dist;
         indices[i] = j;
       }
+    }
+    if (dist) {
+      dist += min_dist;
     }
   }
 }
@@ -80,17 +86,6 @@ static void RENAME(calc_centroids)(const int *data, int *centroids,
   }
 }
 
-static int64_t RENAME(calc_total_dist)(const int *data, const int *centroids,
-                                       const uint8_t *indices, int n, int k) {
-  int64_t dist = 0;
-  (void)k;
-  for (int i = 0; i < n; ++i) {
-    dist += RENAME(calc_dist)(data + i * AV1_K_MEANS_DIM,
-                              centroids + indices[i] * AV1_K_MEANS_DIM);
-  }
-  return dist;
-}
-
 void RENAME(av1_k_means)(const int *data, int *centroids, uint8_t *indices,
                          int n, int k, int max_itr) {
   int centroids_tmp[AV1_K_MEANS_DIM * PALETTE_MAX_SIZE];
@@ -103,11 +98,10 @@ void RENAME(av1_k_means)(const int *data, int *centroids, uint8_t *indices,
   assert(n <= MAX_PALETTE_BLOCK_WIDTH * MAX_PALETTE_BLOCK_HEIGHT);
 
 #if AV1_K_MEANS_DIM - 2
-  av1_calc_indices_dim1(data, centroids, indices, n, k);
+  av1_calc_indices_dim1(data, centroids, indices, &this_dist, n, k);
 #else
-  av1_calc_indices_dim2(data, centroids, indices, n, k);
+  av1_calc_indices_dim2(data, centroids, indices, &this_dist, n, k);
 #endif
-  this_dist = RENAME(calc_total_dist)(data, centroids, indices, n, k);
 
   for (i = 0; i < max_itr; ++i) {
     const int64_t prev_dist = this_dist;
@@ -116,12 +110,12 @@ void RENAME(av1_k_means)(const int *data, int *centroids, uint8_t *indices,
 
     RENAME(calc_centroids)(data, meta_centroids[l], meta_indices[prev_l], n, k);
 #if AV1_K_MEANS_DIM - 2
-    av1_calc_indices_dim1(data, meta_centroids[l], meta_indices[l], n, k);
+    av1_calc_indices_dim1(data, meta_centroids[l], meta_indices[l], &this_dist,
+                          n, k);
 #else
-    av1_calc_indices_dim2(data, meta_centroids[l], meta_indices[l], n, k);
+    av1_calc_indices_dim2(data, meta_centroids[l], meta_indices[l], &this_dist,
+                          n, k);
 #endif
-    this_dist =
-        RENAME(calc_total_dist)(data, meta_centroids[l], meta_indices[l], n, k);
 
     if (this_dist > prev_dist) {
       best_l = prev_l;
