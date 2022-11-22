@@ -1284,6 +1284,38 @@ static void block_yrd(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
   this_rdc->rate += (eob_cost << AV1_PROB_COST_SHIFT);
 }
 
+// Explicitly enumerate the cases so the compiler can generate SIMD for the
+// function. According to the disassembler, gcc generates SSE codes for each of
+// the possible block sizes. The hottest case is tx_width 16, which takes up
+// about 8% of the self cycle of av1_nonrd_pick_inter_mode_sb. Since
+// av1_nonrd_pick_inter_mode_sb takes up about 3% of total encoding time, the
+// potential room of improvement for writing AVX2 optimization is only 3% * 8% =
+// 0.24% of total encoding time.
+static AOM_INLINE void scale_square_buf_vals(int16_t *dst, const int tx_width,
+                                             const int16_t *src,
+                                             const int src_stride) {
+#define DO_SCALING                                                   \
+  do {                                                               \
+    for (int idy = 0; idy < tx_width; ++idy) {                       \
+      for (int idx = 0; idx < tx_width; ++idx) {                     \
+        dst[idy * tx_width + idx] = src[idy * src_stride + idx] * 8; \
+      }                                                              \
+    }                                                                \
+  } while (0)
+
+  if (tx_width == 4) {
+    DO_SCALING;
+  } else if (tx_width == 8) {
+    DO_SCALING;
+  } else if (tx_width == 16) {
+    DO_SCALING;
+  } else {
+    assert(0);
+  }
+
+#undef DO_SCALING
+}
+
 /*!\brief Calculates RD Cost when the block uses Identity transform.
  * Note that thie function is only for low bit depth encoding, since it
  * is called in real-time mode for now, which sets high bit depth to 0:
@@ -1353,11 +1385,7 @@ static void block_yrd_idtx(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
   for (int r = 0; r < max_blocks_high; r += block_step) {
     for (int c = 0, s = 0; c < max_blocks_wide; c += block_step, s += step) {
       DECLARE_LOOP_VARS_BLOCK_YRD()
-      for (int idy = 0; idy < tx_wd; ++idy) {
-        for (int idx = 0; idx < tx_wd; ++idx) {
-          low_coeff[idy * tx_wd + idx] = src_diff[idy * diff_stride + idx] * 8;
-        }
-      }
+      scale_square_buf_vals(low_coeff, tx_wd, src_diff, diff_stride);
       av1_quantize_lp(low_coeff, tx_wd * tx_wd, p->round_fp_QTX,
                       p->quant_fp_QTX, low_qcoeff, low_dqcoeff, p->dequant_QTX,
                       eob, scan_order->scan, scan_order->iscan);
