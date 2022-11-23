@@ -739,6 +739,107 @@ static int ac_thr_factor(const int speed, const int width, const int height,
   return 1;
 }
 
+// Sets early_term flag based on chroma planes prediction
+static INLINE void set_early_term_based_on_uv_plane(
+    AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, MACROBLOCKD *xd, int mi_row,
+    int mi_col, int *early_term, int num_blk, const unsigned int *sse_tx,
+    const unsigned int *var_tx, int sum, unsigned int var, unsigned int sse) {
+  AV1_COMMON *const cm = &cpi->common;
+  struct macroblock_plane *const p = &x->plane[0];
+  const uint32_t dc_quant = p->dequant_QTX[0];
+  const uint32_t ac_quant = p->dequant_QTX[1];
+  const int64_t dc_thr = dc_quant * dc_quant >> 6;
+  int64_t ac_thr = ac_quant * ac_quant >> 6;
+  const int bw = b_width_log2_lookup[bsize];
+  const int bh = b_height_log2_lookup[bsize];
+  int ac_test = 1;
+  int dc_test = 1;
+  const int norm_sum = abs(sum) >> (bw + bh);
+
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  if (cpi->oxcf.noise_sensitivity > 0 && denoise_svc(cpi) &&
+      cpi->oxcf.speed > 5)
+    ac_thr = av1_scale_acskip_thresh(ac_thr, cpi->denoiser.denoising_level,
+                                     norm_sum, cpi->svc.temporal_layer_id);
+  else
+    ac_thr *= ac_thr_factor(cpi->oxcf.speed, cm->width, cm->height, norm_sum);
+#else
+  ac_thr *= ac_thr_factor(cpi->oxcf.speed, cm->width, cm->height, norm_sum);
+
+#endif
+
+  for (int k = 0; k < num_blk; k++) {
+    // Check if all ac coefficients can be quantized to zero.
+    if (!(var_tx[k] < ac_thr || var == 0)) {
+      ac_test = 0;
+      break;
+    }
+    // Check if dc coefficient can be quantized to zero.
+    if (!(sse_tx[k] - var_tx[k] < dc_thr || sse == var)) {
+      dc_test = 0;
+      break;
+    }
+  }
+
+  // Check if chroma can be skipped based on ac and dc test flags.
+  if (ac_test && dc_test) {
+    int skip_uv[2] = { 0 };
+    unsigned int var_uv[2];
+    unsigned int sse_uv[2];
+    // Transform skipping test in UV planes.
+    for (int i = 1; i <= 2; i++) {
+      int j = i - 1;
+      skip_uv[j] = 1;
+      if (x->color_sensitivity[j]) {
+        skip_uv[j] = 0;
+        struct macroblock_plane *const puv = &x->plane[i];
+        struct macroblockd_plane *const puvd = &xd->plane[i];
+        const BLOCK_SIZE uv_bsize = get_plane_block_size(
+            bsize, puvd->subsampling_x, puvd->subsampling_y);
+        // Adjust these thresholds for UV.
+        const int64_t uv_dc_thr =
+            (puv->dequant_QTX[0] * puv->dequant_QTX[0]) >> 3;
+        const int64_t uv_ac_thr =
+            (puv->dequant_QTX[1] * puv->dequant_QTX[1]) >> 3;
+        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, i,
+                                      i);
+        var_uv[j] = cpi->ppi->fn_ptr[uv_bsize].vf(puv->src.buf, puv->src.stride,
+                                                  puvd->dst.buf,
+                                                  puvd->dst.stride, &sse_uv[j]);
+        if ((var_uv[j] < uv_ac_thr || var_uv[j] == 0) &&
+            (sse_uv[j] - var_uv[j] < uv_dc_thr || sse_uv[j] == var_uv[j]))
+          skip_uv[j] = 1;
+        else
+          break;
+      }
+    }
+    if (skip_uv[0] & skip_uv[1]) {
+      *early_term = 1;
+    }
+  }
+}
+
+static INLINE void calc_rate_dist_block_param(AV1_COMP *cpi, MACROBLOCK *x,
+                                              RD_STATS *rd_stats,
+                                              int calculate_rd, int *early_term,
+                                              BLOCK_SIZE bsize,
+                                              unsigned int sse) {
+  if (calculate_rd) {
+    if (!*early_term) {
+      const int bw = block_size_wide[bsize];
+      const int bh = block_size_high[bsize];
+
+      model_rd_with_curvfit(cpi, x, bsize, AOM_PLANE_Y, rd_stats->sse, bw * bh,
+                            &rd_stats->rate, &rd_stats->dist);
+    }
+
+    if (*early_term) {
+      rd_stats->rate = 0;
+      rd_stats->dist = sse << 4;
+    }
+  }
+}
+
 static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
                                       int mi_row, int mi_col, MACROBLOCK *x,
                                       MACROBLOCKD *xd, RD_STATS *rd_stats,
@@ -746,29 +847,6 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
                                       int64_t best_sse,
                                       unsigned int *var_output,
                                       unsigned int var_prune_threshold) {
-  // Note our transform coeffs are 8 times an orthogonal transform.
-  // Hence quantizer step is also 8 times. To get effective quantizer
-  // we need to divide by 8 before sending to modeling function.
-  unsigned int sse;
-  struct macroblock_plane *const p = &x->plane[0];
-  struct macroblockd_plane *const pd = &xd->plane[0];
-  const uint32_t dc_quant = p->dequant_QTX[0];
-  const uint32_t ac_quant = p->dequant_QTX[1];
-  const int64_t dc_thr = dc_quant * dc_quant >> 6;
-  int64_t ac_thr = ac_quant * ac_quant >> 6;
-  int test_skip = 1;
-  unsigned int var;
-  int sum;
-
-  const int bw = b_width_log2_lookup[bsize];
-  const int bh = b_height_log2_lookup[bsize];
-  const int num8x8 = 1 << (bw + bh - 2);
-  unsigned int sse8x8[256] = { 0 };
-  int sum8x8[256] = { 0 };
-  unsigned int var8x8[256] = { 0 };
-  TX_SIZE tx_size;
-  int k;
-
   if (x->force_zeromv_skip_for_blk) {
     *early_term = 1;
     rd_stats->rate = 0;
@@ -776,6 +854,23 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
     rd_stats->sse = 0;
     return;
   }
+
+  // Note our transform coeffs are 8 times an orthogonal transform.
+  // Hence quantizer step is also 8 times. To get effective quantizer
+  // we need to divide by 8 before sending to modeling function.
+  unsigned int sse;
+  struct macroblock_plane *const p = &x->plane[0];
+  struct macroblockd_plane *const pd = &xd->plane[0];
+  int test_skip = 1;
+  unsigned int var;
+  int sum;
+
+  const int bw = b_width_log2_lookup[bsize];
+  const int bh = b_height_log2_lookup[bsize];
+  unsigned int sse8x8[256] = { 0 };
+  int sum8x8[256] = { 0 };
+  unsigned int var8x8[256] = { 0 };
+  TX_SIZE tx_size;
 
   // Calculate variance for whole partition, and also save 8x8 blocks' variance
   // to be used in following transform skipping test.
@@ -790,24 +885,10 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
   }
 
   rd_stats->sse = sse;
-
-#if CONFIG_AV1_TEMPORAL_DENOISING
-  if (cpi->oxcf.noise_sensitivity > 0 && denoise_svc(cpi) &&
-      cpi->oxcf.speed > 5)
-    ac_thr = av1_scale_acskip_thresh(ac_thr, cpi->denoiser.denoising_level,
-                                     (abs(sum) >> (bw + bh)),
-                                     cpi->svc.temporal_layer_id);
-  else
-    ac_thr *= ac_thr_factor(cpi->oxcf.speed, cpi->common.width,
-                            cpi->common.height, abs(sum) >> (bw + bh));
-#else
-  ac_thr *= ac_thr_factor(cpi->oxcf.speed, cpi->common.width,
-                          cpi->common.height, abs(sum) >> (bw + bh));
-
-#endif
   // Skipping test
   *early_term = 0;
   tx_size = calculate_tx_size(cpi, bsize, x, var, sse, early_term);
+  assert(tx_size <= TX_16X16);
   // The code below for setting skip flag assumes transform size of at least
   // 8x8, so force this lower limit on transform.
   if (tx_size < TX_8X8) tx_size = TX_8X8;
@@ -827,98 +908,23 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
     unsigned int sse16x16[64] = { 0 };
     int sum16x16[64] = { 0 };
     unsigned int var16x16[64] = { 0 };
-    const int num16x16 = num8x8 >> 2;
+    const unsigned int *sse_tx = sse8x8;
+    const unsigned int *var_tx = var8x8;
+    unsigned int num_blks = 1 << (bw + bh - 2);
 
-    unsigned int sse32x32[16] = { 0 };
-    int sum32x32[16] = { 0 };
-    unsigned int var32x32[16] = { 0 };
-    const int num32x32 = num8x8 >> 4;
-
-    int ac_test = 1;
-    int dc_test = 1;
-    const int num = (tx_size == TX_8X8)
-                        ? num8x8
-                        : ((tx_size == TX_16X16) ? num16x16 : num32x32);
-    const unsigned int *sse_tx =
-        (tx_size == TX_8X8) ? sse8x8
-                            : ((tx_size == TX_16X16) ? sse16x16 : sse32x32);
-    const unsigned int *var_tx =
-        (tx_size == TX_8X8) ? var8x8
-                            : ((tx_size == TX_16X16) ? var16x16 : var32x32);
-
-    // Calculate variance if tx_size > TX_8X8
-    if (tx_size >= TX_16X16)
+    if (tx_size >= TX_16X16) {
       calculate_variance(bw, bh, TX_8X8, sse8x8, sum8x8, var16x16, sse16x16,
                          sum16x16);
-    if (tx_size == TX_32X32)
-      calculate_variance(bw, bh, TX_16X16, sse16x16, sum16x16, var32x32,
-                         sse32x32, sum32x32);
-
-    for (k = 0; k < num; k++)
-      // Check if all ac coefficients can be quantized to zero.
-      if (!(var_tx[k] < ac_thr || var == 0)) {
-        ac_test = 0;
-        break;
-      }
-
-    for (k = 0; k < num; k++)
-      // Check if dc coefficient can be quantized to zero.
-      if (!(sse_tx[k] - var_tx[k] < dc_thr || sse == var)) {
-        dc_test = 0;
-        break;
-      }
-
-    if (ac_test && dc_test) {
-      int skip_uv[2] = { 0 };
-      unsigned int var_uv[2];
-      unsigned int sse_uv[2];
-      AV1_COMMON *const cm = &cpi->common;
-      // Transform skipping test in UV planes.
-      for (int i = 1; i <= 2; i++) {
-        int j = i - 1;
-        skip_uv[j] = 1;
-        if (x->color_sensitivity[j]) {
-          skip_uv[j] = 0;
-          struct macroblock_plane *const puv = &x->plane[i];
-          struct macroblockd_plane *const puvd = &xd->plane[i];
-          const BLOCK_SIZE uv_bsize = get_plane_block_size(
-              bsize, puvd->subsampling_x, puvd->subsampling_y);
-          // Adjust these thresholds for UV.
-          const int64_t uv_dc_thr =
-              (puv->dequant_QTX[0] * puv->dequant_QTX[0]) >> 3;
-          const int64_t uv_ac_thr =
-              (puv->dequant_QTX[1] * puv->dequant_QTX[1]) >> 3;
-          av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, i,
-                                        i);
-          var_uv[j] = cpi->ppi->fn_ptr[uv_bsize].vf(
-              puv->src.buf, puv->src.stride, puvd->dst.buf, puvd->dst.stride,
-              &sse_uv[j]);
-          if ((var_uv[j] < uv_ac_thr || var_uv[j] == 0) &&
-              (sse_uv[j] - var_uv[j] < uv_dc_thr || sse_uv[j] == var_uv[j]))
-            skip_uv[j] = 1;
-          else
-            break;
-        }
-      }
-      if (skip_uv[0] & skip_uv[1]) {
-        *early_term = 1;
-      }
+      sse_tx = sse16x16;
+      var_tx = var16x16;
+      num_blks = num_blks >> 2;
     }
+    set_early_term_based_on_uv_plane(cpi, x, bsize, xd, mi_row, mi_col,
+                                     early_term, num_blks, sse_tx, var_tx, sum,
+                                     var, sse);
   }
-  if (calculate_rd) {
-    if (!*early_term) {
-      const int bwide = block_size_wide[bsize];
-      const int bhigh = block_size_high[bsize];
-
-      model_rd_with_curvfit(cpi, x, bsize, AOM_PLANE_Y, sse, bwide * bhigh,
-                            &rd_stats->rate, &rd_stats->dist);
-    }
-
-    if (*early_term) {
-      rd_stats->rate = 0;
-      rd_stats->dist = sse << 4;
-    }
-  }
+  calc_rate_dist_block_param(cpi, x, rd_stats, calculate_rd, early_term, bsize,
+                             sse);
 }
 
 static void model_rd_for_sb_y(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
