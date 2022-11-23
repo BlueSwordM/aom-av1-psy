@@ -854,9 +854,18 @@ StatusOr<GopStructList> AV1RateControlQMode::DetermineGopInfo(
   RefFrameManager ref_frame_manager(rc_param_.ref_frame_table_size,
                                     rc_param_.max_ref_frames);
 
+  // Make a copy of the first pass stats, and analyze them
+  FirstpassInfo fp_info_copy = firstpass_info;
+  av1_mark_flashes(fp_info_copy.stats_list.data(),
+                   fp_info_copy.stats_list.data() + stats_size);
+  av1_estimate_noise(fp_info_copy.stats_list.data(),
+                     fp_info_copy.stats_list.data() + stats_size);
+  av1_estimate_coeff(fp_info_copy.stats_list.data(),
+                     fp_info_copy.stats_list.data() + stats_size);
+
   int global_coding_idx_offset = 0;
   int global_order_idx_offset = 0;
-  std::vector<int> key_frame_list = GetKeyFrameList(firstpass_info);
+  std::vector<int> key_frame_list = GetKeyFrameList(fp_info_copy);
   key_frame_list.push_back(stats_size);  // a sentinel value
   for (size_t ki = 0; ki + 1 < key_frame_list.size(); ++ki) {
     int frames_to_key = key_frame_list[ki + 1] - key_frame_list[ki];
@@ -864,11 +873,11 @@ StatusOr<GopStructList> AV1RateControlQMode::DetermineGopInfo(
 
     std::vector<REGIONS> regions_list(MAX_FIRSTPASS_ANALYSIS_FRAMES);
     int total_regions = 0;
-    av1_identify_regions(firstpass_info.stats_list.data() + key_order_index,
+    av1_identify_regions(fp_info_copy.stats_list.data() + key_order_index,
                          frames_to_key, 0, regions_list.data(), &total_regions);
     regions_list.resize(total_regions);
     std::vector<int> gf_intervals = PartitionGopIntervals(
-        rc_param_, firstpass_info.stats_list, regions_list, key_order_index,
+        rc_param_, fp_info_copy.stats_list, regions_list, key_order_index,
         /*frames_since_key=*/0, frames_to_key);
     for (size_t gi = 0; gi < gf_intervals.size(); ++gi) {
       const bool has_key_frame = gi == 0;

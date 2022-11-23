@@ -148,6 +148,13 @@ void av1_identify_regions(const FIRSTPASS_STATS *const stats_start,
                           int total_frames, int offset, REGIONS *regions,
                           int *total_regions);
 
+void av1_mark_flashes(FIRSTPASS_STATS *first_stats,
+                      FIRSTPASS_STATS *last_stats);
+void av1_estimate_noise(FIRSTPASS_STATS *first_stats,
+                        FIRSTPASS_STATS *last_stats);
+void av1_estimate_coeff(FIRSTPASS_STATS *first_stats,
+                        FIRSTPASS_STATS *last_stats);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
