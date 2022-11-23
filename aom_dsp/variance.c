@@ -227,6 +227,25 @@ void aom_get_var_sse_sum_8x8_quad_c(const uint8_t *a, int a_stride,
     var8x8[i] = sse8x8[i] - (uint32_t)(((int64_t)sum8x8[i] * sum8x8[i]) >> 6);
 }
 
+void aom_get_var_sse_sum_16x16_dual_c(const uint8_t *a, int a_stride,
+                                      const uint8_t *b, int b_stride,
+                                      uint32_t *sse16x16, unsigned int *tot_sse,
+                                      int *tot_sum, uint32_t *var16x16) {
+  int sum16x16[64] = { 0 };
+  // Loop over two consecutive 16x16 blocks and process as one 16x32 block.
+  for (int k = 0; k < 2; k++) {
+    variance(a + (k * 16), a_stride, b + (k * 16), b_stride, 16, 16,
+             &sse16x16[k], &sum16x16[k]);
+  }
+
+  // Calculate variance at 16x16 level and total sse, sum of 16x32 block.
+  *tot_sse += sse16x16[0] + sse16x16[1];
+  *tot_sum += sum16x16[0] + sum16x16[1];
+  for (int i = 0; i < 2; i++)
+    var16x16[i] =
+        sse16x16[i] - (uint32_t)(((int64_t)sum16x16[i] * sum16x16[i]) >> 8);
+}
+
 /* Identical to the variance call except it does not calculate the
  * sse - sum^2 / w*h and returns sse in addtion to modifying the passed in
  * variable.

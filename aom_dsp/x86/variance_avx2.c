@@ -712,11 +712,11 @@ uint64_t aom_mse_16xh_16bit_avx2(uint8_t *dst, int dstride, uint16_t *src,
   }
 }
 
-static INLINE void calc_sum_sse_for_8x32_block_avx2(const uint8_t *src,
-                                                    const uint8_t *ref,
-                                                    __m256i set_one_minusone,
-                                                    __m256i sse_8x16[2],
-                                                    __m256i sum_8x16[2]) {
+static INLINE void calc_sum_sse_wd32_avx2(const uint8_t *src,
+                                          const uint8_t *ref,
+                                          __m256i set_one_minusone,
+                                          __m256i sse_8x16[2],
+                                          __m256i sum_8x16[2]) {
   const __m256i s00_256 = _mm256_loadu_si256((__m256i const *)(src));
   const __m256i r00_256 = _mm256_loadu_si256((__m256i const *)(ref));
 
@@ -732,30 +732,12 @@ static INLINE void calc_sum_sse_for_8x32_block_avx2(const uint8_t *src,
   sum_8x16[1] = _mm256_add_epi16(sum_8x16[1], diff1);
 }
 
-static INLINE void get_var_sse_sum_8x8_quad_avx2(
-    const uint8_t *src, int src_stride, const uint8_t *ref,
-    const int ref_stride, const int h, uint32_t *sse8x8, int *sum8x8,
-    unsigned int *tot_sse, int *tot_sum, uint32_t *var8x8) {
-  assert(h <= 128);  // May overflow for larger height.
-  __m256i sse_8x16[2], sum_8x16[2];
-  sum_8x16[0] = _mm256_setzero_si256();
-  sse_8x16[0] = _mm256_setzero_si256();
-  sum_8x16[1] = sum_8x16[0];
-  sse_8x16[1] = sse_8x16[0];
-  __m256i set_one_minusone = _mm256_set1_epi16((short)0xff01);
-
-  for (int i = 0; i < h; i++) {
-    // Process 8x32 block of one row.
-    calc_sum_sse_for_8x32_block_avx2(src, ref, set_one_minusone, sse_8x16,
-                                     sum_8x16);
-    src += src_stride;
-    ref += ref_stride;
-  }
-
+static INLINE __m256i calc_sum_sse_order(__m256i *sse_hx16, __m256i *sum_hx16,
+                                         unsigned int *tot_sse, int *tot_sum) {
   // s00 s01 s10 s11 s20 s21 s30 s31
-  const __m256i sse_results = _mm256_hadd_epi32(sse_8x16[0], sse_8x16[1]);
+  const __m256i sse_results = _mm256_hadd_epi32(sse_hx16[0], sse_hx16[1]);
   // d00 d01 d02 d03 | d10 d11 d12 d13 | d20 d21 d22 d23 | d30 d31 d32 d33
-  const __m256i sum_result_r0 = _mm256_hadd_epi16(sum_8x16[0], sum_8x16[1]);
+  const __m256i sum_result_r0 = _mm256_hadd_epi16(sum_hx16[0], sum_hx16[1]);
   // d00 d01 d10 d11 | d00 d02 d10 d11 | d20 d21 d30 d31 | d20 d21 d30 d31
   const __m256i sum_result_1 = _mm256_hadd_epi16(sum_result_r0, sum_result_r0);
   // d00 d01 d10 d11 d20 d21 d30 d31 | X
@@ -782,6 +764,30 @@ static INLINE void get_var_sse_sum_8x8_quad_avx2(
   // d0
   const int second_value = _mm256_extract_epi32(sum_sse_order_add_final, 4);
   *tot_sum += second_value;
+  return sum_sse_order_add;
+}
+
+static INLINE void get_var_sse_sum_8x8_quad_avx2(
+    const uint8_t *src, int src_stride, const uint8_t *ref,
+    const int ref_stride, const int h, uint32_t *sse8x8, int *sum8x8,
+    unsigned int *tot_sse, int *tot_sum, uint32_t *var8x8) {
+  assert(h <= 128);  // May overflow for larger height.
+  __m256i sse_8x16[2], sum_8x16[2];
+  sum_8x16[0] = _mm256_setzero_si256();
+  sse_8x16[0] = _mm256_setzero_si256();
+  sum_8x16[1] = sum_8x16[0];
+  sse_8x16[1] = sse_8x16[0];
+  const __m256i set_one_minusone = _mm256_set1_epi16((short)0xff01);
+
+  for (int i = 0; i < h; i++) {
+    // Process 8x32 block of one row.
+    calc_sum_sse_wd32_avx2(src, ref, set_one_minusone, sse_8x16, sum_8x16);
+    src += src_stride;
+    ref += ref_stride;
+  }
+
+  const __m256i sum_sse_order_add =
+      calc_sum_sse_order(sse_8x16, sum_8x16, tot_sse, tot_sum);
 
   // s0 s1 s2 s3
   _mm_storeu_si128((__m128i *)sse8x8,
@@ -800,6 +806,51 @@ static INLINE void get_var_sse_sum_8x8_quad_avx2(
   _mm_storeu_si128((__m128i *)var8x8, variance_8x8);
 }
 
+static INLINE void get_var_sse_sum_16x16_dual_avx2(
+    const uint8_t *src, int src_stride, const uint8_t *ref,
+    const int ref_stride, const int h, uint32_t *sse16x16,
+    unsigned int *tot_sse, int *tot_sum, uint32_t *var16x16) {
+  assert(h <= 128);  // May overflow for larger height.
+  __m256i sse_16x16[2], sum_16x16[2];
+  sum_16x16[0] = _mm256_setzero_si256();
+  sse_16x16[0] = _mm256_setzero_si256();
+  sum_16x16[1] = sum_16x16[0];
+  sse_16x16[1] = sse_16x16[0];
+  const __m256i set_one_minusone = _mm256_set1_epi16((short)0xff01);
+
+  for (int i = 0; i < h; i++) {
+    // Process 16x32 block of one row.
+    calc_sum_sse_wd32_avx2(src, ref, set_one_minusone, sse_16x16, sum_16x16);
+    src += src_stride;
+    ref += ref_stride;
+  }
+
+  const __m256i sum_sse_order_add =
+      calc_sum_sse_order(sse_16x16, sum_16x16, tot_sse, tot_sum);
+
+  const __m256i sum_sse_order_add_1 =
+      _mm256_hadd_epi32(sum_sse_order_add, sum_sse_order_add);
+
+  // s0+s1 s2+s3 x x
+  _mm_storel_epi64((__m128i *)sse16x16,
+                   _mm256_castsi256_si128(sum_sse_order_add_1));
+
+  // d0+d1 d2+d3 x x
+  const __m128i sum_temp16x16 =
+      _mm256_extractf128_si256(sum_sse_order_add_1, 1);
+
+  // (d0xd0 >> 6)=f0 (d1xd1 >> 6)=f1 (d2xd2 >> 6)=f2 (d3xd3 >> 6)=f3
+  const __m128i mull_results =
+      _mm_srli_epi32(_mm_mullo_epi32(sum_temp16x16, sum_temp16x16), 8);
+
+  // s0-f0=v0 s1-f1=v1 s2-f2=v2 s3-f3=v3
+  const __m128i variance_16x16 =
+      _mm_sub_epi32(_mm256_castsi256_si128(sum_sse_order_add_1), mull_results);
+
+  // v0 v1 v2 v3
+  _mm_storel_epi64((__m128i *)var16x16, variance_16x16);
+}
+
 void aom_get_var_sse_sum_8x8_quad_avx2(const uint8_t *src_ptr,
                                        int source_stride,
                                        const uint8_t *ref_ptr, int ref_stride,
@@ -808,4 +859,14 @@ void aom_get_var_sse_sum_8x8_quad_avx2(const uint8_t *src_ptr,
                                        uint32_t *var8x8) {
   get_var_sse_sum_8x8_quad_avx2(src_ptr, source_stride, ref_ptr, ref_stride, 8,
                                 sse8x8, sum8x8, tot_sse, tot_sum, var8x8);
+}
+
+void aom_get_var_sse_sum_16x16_dual_avx2(const uint8_t *src_ptr,
+                                         int source_stride,
+                                         const uint8_t *ref_ptr, int ref_stride,
+                                         uint32_t *sse16x16,
+                                         unsigned int *tot_sse, int *tot_sum,
+                                         uint32_t *var16x16) {
+  get_var_sse_sum_16x16_dual_avx2(src_ptr, source_stride, ref_ptr, ref_stride,
+                                  16, sse16x16, tot_sse, tot_sum, var16x16);
 }

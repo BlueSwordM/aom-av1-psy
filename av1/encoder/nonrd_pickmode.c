@@ -614,6 +614,29 @@ static void estimate_single_ref_frame_costs(const AV1_COMMON *cm,
   }
 }
 
+static INLINE void set_force_skip_flag(const AV1_COMP *const cpi,
+                                       MACROBLOCK *const x, unsigned int sse,
+                                       int *force_skip) {
+  if (x->txfm_search_params.tx_mode_search_type == TX_MODE_SELECT &&
+      cpi->sf.rt_sf.tx_size_level_based_on_qstep &&
+      cpi->sf.rt_sf.tx_size_level_based_on_qstep >= 2) {
+    const int qstep = x->plane[0].dequant_QTX[1] >> (x->e_mbd.bd - 5);
+    const unsigned int qstep_sq = qstep * qstep;
+    // If the sse is low for low source variance blocks, mark those as
+    // transform skip.
+    // Note: Though qstep_sq is based on ac qstep, the threshold is kept
+    // low so that reliable early estimate of tx skip can be obtained
+    // through its comparison with sse.
+    if (sse < qstep_sq && x->source_variance < qstep_sq &&
+        x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0)
+      *force_skip = 1;
+  }
+}
+
+#define CAP_TX_SIZE_FOR_BSIZE_GT32(tx_mode_search_type, bsize) \
+  (((tx_mode_search_type) != ONLY_4X4 && (bsize) > BLOCK_32X32) ? true : false)
+#define TX_SIZE_FOR_BSIZE_GT32 (TX_16X16)
+
 static TX_SIZE calculate_tx_size(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
                                  MACROBLOCK *const x, unsigned int var,
                                  unsigned int sse, int *force_skip) {
@@ -667,8 +690,8 @@ static TX_SIZE calculate_tx_size(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
                tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]);
   }
 
-  if (txfm_params->tx_mode_search_type != ONLY_4X4 && bsize > BLOCK_32X32)
-    tx_size = TX_16X16;
+  if (CAP_TX_SIZE_FOR_BSIZE_GT32(txfm_params->tx_mode_search_type, bsize))
+    tx_size = TX_SIZE_FOR_BSIZE_GT32;
 
   return AOMMIN(tx_size, TX_16X16);
 }
@@ -700,6 +723,30 @@ static void block_variance(const uint8_t *src, int src_stride,
           src + src_stride * i + j, src_stride, ref + ref_stride * i + j,
           ref_stride, &sse8x8[k], &sum8x8[k], sse, sum, &var8x8[k]);
       k += 4;
+    }
+  }
+}
+
+static void block_variance_16x16_dual(const uint8_t *src, int src_stride,
+                                      const uint8_t *ref, int ref_stride, int w,
+                                      int h, unsigned int *sse, int *sum,
+                                      int block_size, uint32_t *sse16x16,
+                                      uint32_t *var16x16) {
+  int k = 0;
+  *sse = 0;
+  *sum = 0;
+  // This function is called for block sizes >= BLOCK_32x32. As per the design
+  // the aom_get_var_sse_sum_16x16_dual() processes four 16x16 blocks (in a
+  // 16x32) per call. Hence the width and height of the block need to be at
+  // least 16 and 32 samples respectively.
+  assert(w >= 32);
+  assert(h >= 16);
+  for (int i = 0; i < h; i += block_size) {
+    for (int j = 0; j < w; j += 32) {
+      aom_get_var_sse_sum_16x16_dual(src + src_stride * i + j, src_stride,
+                                     ref + ref_stride * i + j, ref_stride,
+                                     &sse16x16[k], sse, sum, &var16x16[k]);
+      k += 2;
     }
   }
 }
@@ -840,6 +887,71 @@ static INLINE void calc_rate_dist_block_param(AV1_COMP *cpi, MACROBLOCK *x,
   }
 }
 
+static void model_skip_for_sb_y_large_64(AV1_COMP *cpi, BLOCK_SIZE bsize,
+                                         int mi_row, int mi_col, MACROBLOCK *x,
+                                         MACROBLOCKD *xd, RD_STATS *rd_stats,
+                                         int *early_term, int calculate_rd,
+                                         int64_t best_sse,
+                                         unsigned int *var_output,
+                                         unsigned int var_prune_threshold) {
+  // Note our transform coeffs are 8 times an orthogonal transform.
+  // Hence quantizer step is also 8 times. To get effective quantizer
+  // we need to divide by 8 before sending to modeling function.
+  unsigned int sse;
+  struct macroblock_plane *const p = &x->plane[0];
+  struct macroblockd_plane *const pd = &xd->plane[0];
+  int test_skip = 1;
+  unsigned int var;
+  int sum;
+  const int bw = b_width_log2_lookup[bsize];
+  const int bh = b_height_log2_lookup[bsize];
+  unsigned int sse16x16[64] = { 0 };
+  unsigned int var16x16[64] = { 0 };
+  assert(xd->mi[0]->tx_size == TX_16X16);
+  assert(bsize > BLOCK_32X32);
+
+  // Calculate variance for whole partition, and also save 16x16 blocks'
+  // variance to be used in following transform skipping test.
+  block_variance_16x16_dual(p->src.buf, p->src.stride, pd->dst.buf,
+                            pd->dst.stride, 4 << bw, 4 << bh, &sse, &sum, 16,
+                            sse16x16, var16x16);
+
+  var = sse - (unsigned int)(((int64_t)sum * sum) >> (bw + bh + 4));
+  if (var_output) {
+    *var_output = var;
+    if (*var_output > var_prune_threshold) {
+      return;
+    }
+  }
+
+  rd_stats->sse = sse;
+  // Skipping test
+  *early_term = 0;
+  set_force_skip_flag(cpi, x, sse, early_term);
+  // The code below for setting skip flag assumes transform size of at least
+  // 8x8, so force this lower limit on transform.
+  MB_MODE_INFO *const mi = xd->mi[0];
+  if (!calculate_rd && cpi->sf.rt_sf.sse_early_term_inter_search &&
+      early_term_inter_search_with_sse(
+          cpi->sf.rt_sf.sse_early_term_inter_search, bsize, sse, best_sse,
+          mi->mode))
+    test_skip = 0;
+
+  if (*early_term) test_skip = 0;
+
+  // Evaluate if the partition block is a skippable block in Y plane.
+  if (test_skip) {
+    const unsigned int *sse_tx = sse16x16;
+    const unsigned int *var_tx = var16x16;
+    const unsigned int num_block = (1 << (bw + bh - 2)) >> 2;
+    set_early_term_based_on_uv_plane(cpi, x, bsize, xd, mi_row, mi_col,
+                                     early_term, num_block, sse_tx, var_tx, sum,
+                                     var, sse);
+  }
+  calc_rate_dist_block_param(cpi, x, rd_stats, calculate_rd, early_term, bsize,
+                             sse);
+}
+
 static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
                                       int mi_row, int mi_col, MACROBLOCK *x,
                                       MACROBLOCKD *xd, RD_STATS *rd_stats,
@@ -852,6 +964,19 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
     rd_stats->rate = 0;
     rd_stats->dist = 0;
     rd_stats->sse = 0;
+    return;
+  }
+
+  // For block sizes greater than 32x32, the transform size is always 16x16.
+  // This function avoids calling calculate_variance() for tx_size 16x16 cases
+  // by directly populating variance at tx_size level from
+  // block_variance_16x16_dual() function.
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
+  if (CAP_TX_SIZE_FOR_BSIZE_GT32(txfm_params->tx_mode_search_type, bsize)) {
+    xd->mi[0]->tx_size = TX_SIZE_FOR_BSIZE_GT32;
+    model_skip_for_sb_y_large_64(cpi, bsize, mi_row, mi_col, x, xd, rd_stats,
+                                 early_term, calculate_rd, best_sse, var_output,
+                                 var_prune_threshold);
     return;
   }
 
