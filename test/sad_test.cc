@@ -337,6 +337,30 @@ class SADTestBase : public ::testing::Test {
     }
   }
 
+  virtual void SADForSpeedTest(unsigned int *results,
+                               const uint8_t *const *references) {
+    (void)results;
+    (void)references;
+  }
+
+  void SpeedSAD() {
+    int test_count = 20000000;
+    unsigned int exp_sad[4];
+    const uint8_t *references[] = { GetReference(0), GetReference(1),
+                                    GetReference(2), GetReference(3) };
+    aom_usec_timer timer;
+    aom_usec_timer_start(&timer);
+    while (test_count > 0) {
+      SADForSpeedTest(exp_sad, references);
+      test_count -= 1;
+    }
+    aom_usec_timer_mark(&timer);
+    const int64_t time = aom_usec_timer_elapsed(&timer) / 1000;
+    std::cout << "BLOCK_" << width_ << "X" << height_
+              << ", bit_depth:" << bit_depth_ << ",Time: " << time << "ms"
+              << std::endl;
+  }
+
   int width_, height_, mask_, bd_;
   aom_bit_depth_t bit_depth_;
   static uint8_t *source_data_;
@@ -376,23 +400,19 @@ class SADx4Test : public ::testing::WithParamInterface<SadMxNx4Param>,
         source_data_, source_stride_, references, reference_stride_, results));
   }
 
+  void SADForSpeedTest(unsigned int *results,
+                       const uint8_t *const *references) {
+    GET_PARAM(2)
+    (source_data_, source_stride_, references, reference_stride_, results);
+  }
+
   void CheckSADs() {
     unsigned int reference_sad, exp_sad[4];
-
     SADs(exp_sad);
     for (int block = 0; block < 4; ++block) {
       reference_sad = ReferenceSAD(block);
 
       EXPECT_EQ(reference_sad, exp_sad[block]) << "block " << block;
-    }
-  }
-
-  void SpeedSAD() {
-    int test_count = 2000000;
-    unsigned int exp_sad[4];
-    while (test_count > 0) {
-      SADs(exp_sad);
-      test_count -= 1;
     }
   }
 };
@@ -407,8 +427,14 @@ class SADx3Test : public ::testing::WithParamInterface<SadMxNx4Param>,
     const uint8_t *references[] = { GetReference(0), GetReference(1),
                                     GetReference(2), GetReference(3) };
 
-    API_REGISTER_STATE_CHECK(GET_PARAM(2)(
-        source_data_, source_stride_, references, reference_stride_, results));
+    GET_PARAM(2)
+    (source_data_, source_stride_, references, reference_stride_, results);
+  }
+
+  void SADForSpeedTest(unsigned int *results,
+                       const uint8_t *const *references) {
+    GET_PARAM(2)
+    (source_data_, source_stride_, references, reference_stride_, results);
   }
 
   void CheckSADs() {
@@ -419,15 +445,6 @@ class SADx3Test : public ::testing::WithParamInterface<SadMxNx4Param>,
       reference_sad = ReferenceSAD(block);
 
       EXPECT_EQ(reference_sad, exp_sad[block]) << "block " << block;
-    }
-  }
-
-  void SpeedSAD() {
-    int test_count = 2000000;
-    unsigned int exp_sad[4];
-    while (test_count > 0) {
-      SADs(exp_sad);
-      test_count -= 1;
     }
   }
 };
@@ -457,13 +474,10 @@ class SADSkipx4Test : public ::testing::WithParamInterface<SadMxNx4Param>,
     }
   }
 
-  void SpeedSAD() {
-    int test_count = 2000000;
-    unsigned int exp_sad[4];
-    while (test_count > 0) {
-      SADs(exp_sad);
-      test_count -= 1;
-    }
+  void SADForSpeedTest(unsigned int *results,
+                       const uint8_t *const *references) {
+    GET_PARAM(2)
+    (source_data_, source_stride_, references, reference_stride_, results);
   }
 };
 
@@ -494,13 +508,11 @@ class SADx4AvgTest : public ::testing::WithParamInterface<SadMxNx4AvgParam>,
     }
   }
 
-  void SpeedSAD() {
-    int test_count = 200000;
-    unsigned int exp_sad[4];
-    while (test_count > 0) {
-      SADs(exp_sad);
-      test_count -= 1;
-    }
+  void SADForSpeedTest(unsigned int *results,
+                       const uint8_t *const *references) {
+    GET_PARAM(2)
+    (source_data_, source_stride_, references, reference_stride_, second_pred_,
+     results);
   }
 };
 #endif  // !CONFIG_REALTIME_ONLY
@@ -527,12 +539,11 @@ class SADTest : public ::testing::WithParamInterface<SadMxNParam>,
     ASSERT_EQ(reference_sad, exp_sad);
   }
 
-  void SpeedSAD() {
-    int test_count = 20000000;
-    while (test_count > 0) {
-      SAD(0);
-      test_count -= 1;
-    }
+  void SADForSpeedTest(unsigned int *results,
+                       const uint8_t *const *references) {
+    GET_PARAM(2)
+    (source_data_, source_stride_, references[0], reference_stride_);
+    (void)results;
   }
 };
 
@@ -558,12 +569,11 @@ class SADSkipTest : public ::testing::WithParamInterface<SadMxNParam>,
     ASSERT_EQ(reference_sad, exp_sad);
   }
 
-  void SpeedSAD() {
-    int test_count = 20000000;
-    while (test_count > 0) {
-      SAD(0);
-      test_count -= 1;
-    }
+  void SADForSpeedTest(unsigned int *results,
+                       const uint8_t *const *references) {
+    GET_PARAM(2)
+    (source_data_, source_stride_, references[0], reference_stride_);
+    (void)results;
   }
 };
 
@@ -648,12 +658,12 @@ class DistWtdSADTest : public ::testing::WithParamInterface<DistWtdSadMxhParam>,
     ASSERT_EQ(reference_sad, exp_sad);
   }
 
-  void SpeedSAD() {
-    int test_count = 20000000;
-    while (test_count > 0) {
-      SAD(0);
-      test_count -= 1;
-    }
+  void SADForSpeedTest(unsigned int *results,
+                       const uint8_t *const *references) {
+    GET_PARAM(2)
+    (source_data_, source_stride_, references[0], reference_stride_, width_,
+     height_);
+    (void)results;
   }
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(DistWtdSADTest);
@@ -2928,6 +2938,9 @@ const SadSkipMxNx4Param skip_x4d_avx2_tests[] = {
   make_tuple(32, 64, &aom_sad_skip_32x64x4d_avx2, -1),
   make_tuple(32, 32, &aom_sad_skip_32x32x4d_avx2, -1),
   make_tuple(32, 16, &aom_sad_skip_32x16x4d_avx2, -1),
+  make_tuple(16, 32, &aom_sad_skip_16x32x4d_avx2, -1),
+  make_tuple(16, 16, &aom_sad_skip_16x16x4d_avx2, -1),
+  make_tuple(16, 8, &aom_sad_skip_16x8x4d_avx2, -1),
 
 #if CONFIG_AV1_HIGHBITDEPTH
   make_tuple(128, 128, &aom_highbd_sad_skip_128x128x4d_avx2, 8),
@@ -2984,6 +2997,8 @@ const SadSkipMxNx4Param skip_x4d_avx2_tests[] = {
 #if !CONFIG_REALTIME_ONLY
   make_tuple(64, 16, &aom_sad_skip_64x16x4d_avx2, -1),
   make_tuple(32, 8, &aom_sad_skip_32x8x4d_avx2, -1),
+
+  make_tuple(16, 64, &aom_sad_skip_16x64x4d_avx2, -1),
 #endif
 };
 
@@ -2991,6 +3006,9 @@ INSTANTIATE_TEST_SUITE_P(AVX2, SADSkipx4Test,
                          ::testing::ValuesIn(skip_x4d_avx2_tests));
 
 const SadMxNx4Param x4d_avx2_tests[] = {
+  make_tuple(16, 32, &aom_sad16x32x4d_avx2, -1),
+  make_tuple(16, 16, &aom_sad16x16x4d_avx2, -1),
+  make_tuple(16, 8, &aom_sad16x8x4d_avx2, -1),
   make_tuple(32, 64, &aom_sad32x64x4d_avx2, -1),
   make_tuple(32, 32, &aom_sad32x32x4d_avx2, -1),
   make_tuple(32, 16, &aom_sad32x16x4d_avx2, -1),
@@ -3001,6 +3019,8 @@ const SadMxNx4Param x4d_avx2_tests[] = {
   make_tuple(128, 64, &aom_sad128x64x4d_avx2, -1),
 
 #if !CONFIG_REALTIME_ONLY
+  make_tuple(16, 64, &aom_sad16x64x4d_avx2, -1),
+  make_tuple(16, 4, &aom_sad16x4x4d_avx2, -1),
   make_tuple(32, 8, &aom_sad32x8x4d_avx2, -1),
   make_tuple(64, 16, &aom_sad64x16x4d_avx2, -1),
 #endif
