@@ -54,7 +54,7 @@ static INLINE uint32_t sse_8xh_neon(const uint8_t *src, int src_stride,
                                     int height) {
   uint32x2_t sse[2] = { vdup_n_u32(0), vdup_n_u32(0) };
 
-  int i = 0;
+  int i = height;
   do {
     sse_8x1_neon(src, ref, &sse[0]);
     src += src_stride;
@@ -62,8 +62,8 @@ static INLINE uint32_t sse_8xh_neon(const uint8_t *src, int src_stride,
     sse_8x1_neon(src, ref, &sse[1]);
     src += src_stride;
     ref += ref_stride;
-    i += 2;
-  } while (i < height);
+    i -= 2;
+  } while (i != 0);
 
   return horizontal_add_u32x4(vcombine_u32(sse[0], sse[1]));
 }
@@ -73,14 +73,14 @@ static INLINE uint32_t sse_4xh_neon(const uint8_t *src, int src_stride,
                                     int height) {
   uint32x2_t sse = vdup_n_u32(0);
 
-  int i = 0;
+  int i = height;
   do {
     sse_4x2_neon(src, src_stride, ref, ref_stride, &sse);
 
     src += 2 * src_stride;
     ref += 2 * ref_stride;
-    i += 2;
-  } while (i < height);
+    i -= 2;
+  } while (i != 0);
 
   return horizontal_add_u32x2(sse);
 }
@@ -91,7 +91,7 @@ static INLINE uint32_t sse_wxh_neon(const uint8_t *src, int src_stride,
   uint32x2_t sse[2] = { vdup_n_u32(0), vdup_n_u32(0) };
 
   if ((width & 0x07) && ((width & 0x07) < 5)) {
-    int i = 0;
+    int i = height;
     do {
       int j = 0;
       do {
@@ -103,10 +103,10 @@ static INLINE uint32_t sse_wxh_neon(const uint8_t *src, int src_stride,
       sse_4x2_neon(src + j, src_stride, ref + j, ref_stride, &sse[0]);
       src += 2 * src_stride;
       ref += 2 * ref_stride;
-      i += 2;
-    } while (i < height);
+      i -= 2;
+    } while (i != 0);
   } else {
-    int i = 0;
+    int i = height;
     do {
       int j = 0;
       do {
@@ -117,8 +117,8 @@ static INLINE uint32_t sse_wxh_neon(const uint8_t *src, int src_stride,
 
       src += 2 * src_stride;
       ref += 2 * ref_stride;
-      i += 2;
-    } while (i < height);
+      i -= 2;
+    } while (i != 0);
   }
   return horizontal_add_u32x4(vcombine_u32(sse[0], sse[1]));
 }
@@ -164,14 +164,13 @@ static INLINE uint32_t sse_8xh_neon(const uint8_t *src, int src_stride,
                                     int height) {
   uint32x4_t sse = vdupq_n_u32(0);
 
-  int i = 0;
+  int i = height;
   do {
     sse_8x1_neon(src, ref, &sse);
 
     src += src_stride;
     ref += ref_stride;
-    i++;
-  } while (i < height);
+  } while (--i != 0);
 
   return horizontal_add_u32x4(sse);
 }
@@ -181,14 +180,14 @@ static INLINE uint32_t sse_4xh_neon(const uint8_t *src, int src_stride,
                                     int height) {
   uint32x4_t sse = vdupq_n_u32(0);
 
-  int i = 0;
+  int i = height;
   do {
     sse_4x2_neon(src, src_stride, ref, ref_stride, &sse);
 
     src += 2 * src_stride;
     ref += 2 * ref_stride;
-    i += 2;
-  } while (i < height);
+    i -= 2;
+  } while (i != 0);
 
   return horizontal_add_u32x4(sse);
 }
@@ -199,7 +198,7 @@ static INLINE uint32_t sse_wxh_neon(const uint8_t *src, int src_stride,
   uint32x4_t sse = vdupq_n_u32(0);
 
   if ((width & 0x07) && ((width & 0x07) < 5)) {
-    int i = 0;
+    int i = height;
     do {
       int j = 0;
       do {
@@ -211,10 +210,10 @@ static INLINE uint32_t sse_wxh_neon(const uint8_t *src, int src_stride,
       sse_4x2_neon(src + j, src_stride, ref + j, ref_stride, &sse);
       src += 2 * src_stride;
       ref += 2 * ref_stride;
-      i += 2;
-    } while (i < height);
+      i -= 2;
+    } while (i != 0);
   } else {
-    int i = 0;
+    int i = height;
     do {
       int j = 0;
       do {
@@ -224,8 +223,7 @@ static INLINE uint32_t sse_wxh_neon(const uint8_t *src, int src_stride,
 
       src += src_stride;
       ref += ref_stride;
-      i++;
-    } while (i < height);
+    } while (--i != 0);
   }
   return horizontal_add_u32x4(sse);
 }
@@ -237,7 +235,7 @@ static INLINE uint32_t sse_128xh_neon(const uint8_t *src, int src_stride,
                                       int height) {
   uint32x4_t sse[2] = { vdupq_n_u32(0), vdupq_n_u32(0) };
 
-  int i = 0;
+  int i = height;
   do {
     sse_16x1_neon(src, ref, &sse[0]);
     sse_16x1_neon(src + 16, ref + 16, &sse[1]);
@@ -250,8 +248,7 @@ static INLINE uint32_t sse_128xh_neon(const uint8_t *src, int src_stride,
 
     src += src_stride;
     ref += ref_stride;
-    i++;
-  } while (i < height);
+  } while (--i != 0);
 
   return horizontal_add_u32x4(vaddq_u32(sse[0], sse[1]));
 }
@@ -261,7 +258,7 @@ static INLINE uint32_t sse_64xh_neon(const uint8_t *src, int src_stride,
                                      int height) {
   uint32x4_t sse[2] = { vdupq_n_u32(0), vdupq_n_u32(0) };
 
-  int i = 0;
+  int i = height;
   do {
     sse_16x1_neon(src, ref, &sse[0]);
     sse_16x1_neon(src + 16, ref + 16, &sse[1]);
@@ -270,8 +267,7 @@ static INLINE uint32_t sse_64xh_neon(const uint8_t *src, int src_stride,
 
     src += src_stride;
     ref += ref_stride;
-    i++;
-  } while (i < height);
+  } while (--i != 0);
 
   return horizontal_add_u32x4(vaddq_u32(sse[0], sse[1]));
 }
@@ -281,15 +277,14 @@ static INLINE uint32_t sse_32xh_neon(const uint8_t *src, int src_stride,
                                      int height) {
   uint32x4_t sse[2] = { vdupq_n_u32(0), vdupq_n_u32(0) };
 
-  int i = 0;
+  int i = height;
   do {
     sse_16x1_neon(src, ref, &sse[0]);
     sse_16x1_neon(src + 16, ref + 16, &sse[1]);
 
     src += src_stride;
     ref += ref_stride;
-    i++;
-  } while (i < height);
+  } while (--i != 0);
 
   return horizontal_add_u32x4(vaddq_u32(sse[0], sse[1]));
 }
@@ -299,7 +294,7 @@ static INLINE uint32_t sse_16xh_neon(const uint8_t *src, int src_stride,
                                      int height) {
   uint32x4_t sse[2] = { vdupq_n_u32(0), vdupq_n_u32(0) };
 
-  int i = 0;
+  int i = height;
   do {
     sse_16x1_neon(src, ref, &sse[0]);
     src += src_stride;
@@ -307,8 +302,8 @@ static INLINE uint32_t sse_16xh_neon(const uint8_t *src, int src_stride,
     sse_16x1_neon(src, ref, &sse[1]);
     src += src_stride;
     ref += ref_stride;
-    i += 2;
-  } while (i < height);
+    i -= 2;
+  } while (i != 0);
 
   return horizontal_add_u32x4(vaddq_u32(sse[0], sse[1]));
 }
