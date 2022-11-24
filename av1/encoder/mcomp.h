@@ -196,7 +196,8 @@ static const SEARCH_METHODS search_method_lookup[NUM_SEARCH_METHODS] = {
   SQUARE,           // SQUARE
   HEX,              // FAST_HEX
   BIGDIA,           // FAST_DIAMOND
-  BIGDIA            // FAST_BIGDIA
+  BIGDIA,           // FAST_BIGDIA
+  BIGDIA            // VFAST_DIAMOND
 };
 
 // Mv beyond the range do not produce new/different prediction block.

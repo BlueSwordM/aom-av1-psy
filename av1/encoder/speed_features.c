@@ -1433,7 +1433,10 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
   // Screen settings.
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
     // TODO(marpan): Check settings for speed 7 and 8.
-    if (speed >= 7) sf->rt_sf.reduce_mv_pel_precision_highmotion = 1;
+    if (speed >= 7) {
+      sf->rt_sf.reduce_mv_pel_precision_highmotion = 1;
+      sf->mv_sf.use_bsize_dependent_search_method = 0;
+    }
     if (speed >= 8) {
       sf->rt_sf.nonrd_check_partition_merge_mode = 3;
       sf->rt_sf.nonrd_prune_ref_frame_search = 1;
@@ -1748,6 +1751,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.var_part_based_on_qidx = 4;
     sf->rt_sf.partition_direct_merging = 1;
     sf->rt_sf.prune_compoundmode_with_singlemode_var = false;
+    sf->mv_sf.use_bsize_dependent_search_method = 2;
   }
   if (speed >= 9) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_3;
@@ -1762,6 +1766,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.check_only_zero_zeromv_on_large_blocks = true;
     sf->rt_sf.reduce_mv_pel_precision_highmotion = 0;
     sf->rt_sf.use_adaptive_subpel_search = true;
+    sf->mv_sf.use_bsize_dependent_search_method = 0;
   }
   if (speed >= 10) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_4;

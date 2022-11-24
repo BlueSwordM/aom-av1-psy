@@ -725,8 +725,8 @@ typedef struct MV_SPEED_FEATURES {
   // Motion search method (Diamond, NSTEP, Hex, Big Diamond, Square, etc).
   SEARCH_METHODS search_method;
 
-  // Enable the use of faster, less accurate mv search method on bsize >=
-  // BLOCK_32X32.
+  // Enable the use of faster, less accurate mv search method
+  // 0: disable, 1: if bsize >= BLOCK_32X32, 2: based on bsize, SAD and qp
   // TODO(chiyotsai@google.com): Take the clip's resolution and mv activity into
   // account.
   int use_bsize_dependent_search_method;
