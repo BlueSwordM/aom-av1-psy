@@ -733,7 +733,7 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
                                "Failed to allocate frame buffer");
           }
           const bool has_optimized_scaler = av1_has_optimized_scaler(
-              cm->width, cm->height, new_fb->buf.y_crop_width,
+              ref->y_crop_width, ref->y_crop_height, new_fb->buf.y_crop_width,
               new_fb->buf.y_crop_height);
 #if CONFIG_AV1_HIGHBITDEPTH
           if (use_optimized_scaler && has_optimized_scaler &&
