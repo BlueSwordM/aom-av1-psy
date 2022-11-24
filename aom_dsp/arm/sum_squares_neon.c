@@ -35,7 +35,7 @@ static INLINE uint64_t aom_sum_squares_2d_i16_4xn_neon(const int16_t *src,
                                                        int stride, int height) {
   int32x4_t sum_squares[2] = { vdupq_n_s32(0), vdupq_n_s32(0) };
 
-  int h = 0;
+  int h = height;
   do {
     int16x4_t s0 = vld1_s16(src + 0 * stride);
     int16x4_t s1 = vld1_s16(src + 1 * stride);
@@ -48,8 +48,8 @@ static INLINE uint64_t aom_sum_squares_2d_i16_4xn_neon(const int16_t *src,
     sum_squares[1] = vmlal_s16(sum_squares[1], s3, s3);
 
     src += 4 * stride;
-    h += 4;
-  } while (h < height);
+    h -= 4;
+  } while (h != 0);
 
   return horizontal_long_add_u32x4(
       vreinterpretq_u32_s32(vaddq_s32(sum_squares[0], sum_squares[1])));
@@ -60,7 +60,7 @@ static INLINE uint64_t aom_sum_squares_2d_i16_nxn_neon(const int16_t *src,
                                                        int height) {
   uint64x2_t sum_squares = vdupq_n_u64(0);
 
-  int h = 0;
+  int h = height;
   do {
     int32x4_t ss_row[2] = { vdupq_n_s32(0), vdupq_n_s32(0) };
     int w = 0;
@@ -86,8 +86,8 @@ static INLINE uint64_t aom_sum_squares_2d_i16_nxn_neon(const int16_t *src,
         sum_squares, vreinterpretq_u32_s32(vaddq_s32(ss_row[0], ss_row[1])));
 
     src += 4 * stride;
-    h += 4;
-  } while (h < height);
+    h -= 4;
+  } while (h != 0);
 
   return horizontal_add_u64x2(sum_squares);
 }
@@ -134,7 +134,7 @@ static INLINE uint64_t aom_sum_sse_2d_i16_4xn_neon(const int16_t *src,
   int32x4_t sse[2] = { vdupq_n_s32(0), vdupq_n_s32(0) };
   int32x2_t sum_acc[2] = { vdup_n_s32(0), vdup_n_s32(0) };
 
-  int h = 0;
+  int h = height;
   do {
     int16x4_t s0 = vld1_s16(src + 0 * stride);
     int16x4_t s1 = vld1_s16(src + 1 * stride);
@@ -152,8 +152,8 @@ static INLINE uint64_t aom_sum_sse_2d_i16_4xn_neon(const int16_t *src,
     sum_acc[1] = vpadal_s16(sum_acc[1], s3);
 
     src += 4 * stride;
-    h += 4;
-  } while (h < height);
+    h -= 4;
+  } while (h != 0);
 
   *sum += horizontal_add_s32x4(vcombine_s32(sum_acc[0], sum_acc[1]));
   return horizontal_long_add_u32x4(
@@ -166,7 +166,7 @@ static INLINE uint64_t aom_sum_sse_2d_i16_nxn_neon(const int16_t *src,
   uint64x2_t sse = vdupq_n_u64(0);
   int32x4_t sum_acc = vdupq_n_s32(0);
 
-  int h = 0;
+  int h = height;
   do {
     int32x4_t sse_row[2] = { vdupq_n_s32(0), vdupq_n_s32(0) };
     int w = 0;
@@ -198,8 +198,8 @@ static INLINE uint64_t aom_sum_sse_2d_i16_nxn_neon(const int16_t *src,
                       vreinterpretq_u32_s32(vaddq_s32(sse_row[0], sse_row[1])));
 
     src += 4 * stride;
-    h += 4;
-  } while (h < height);
+    h -= 4;
+  } while (h != 0);
 
   *sum += horizontal_add_s32x4(sum_acc);
   return horizontal_add_u64x2(sse);
