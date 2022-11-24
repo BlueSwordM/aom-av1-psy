@@ -24,7 +24,7 @@ static INLINE unsigned int sadwxh_neon(const uint8_t *src_ptr, int src_stride,
   // the ABD, UDOT sequence on CPUs with either 2 or 4 Neon pipes.
   uint32x4_t sum[2] = { vdupq_n_u32(0), vdupq_n_u32(0) };
 
-  int i = 0;
+  int i = h;
   do {
     int j = 0;
     do {
@@ -45,8 +45,7 @@ static INLINE unsigned int sadwxh_neon(const uint8_t *src_ptr, int src_stride,
 
     src_ptr += src_stride;
     ref_ptr += ref_stride;
-    i++;
-  } while (i < h);
+  } while (--i != 0);
 
   return horizontal_add_u32x4(vaddq_u32(sum[0], sum[1]));
 }
@@ -74,7 +73,7 @@ static INLINE unsigned int sad16xh_neon(const uint8_t *src_ptr, int src_stride,
                                         int h) {
   uint32x4_t sum[2] = { vdupq_n_u32(0), vdupq_n_u32(0) };
 
-  int i = 0;
+  int i = h / 2;
   do {
     uint8x16_t s0, s1, r0, r1, diff0, diff1;
 
@@ -93,8 +92,7 @@ static INLINE unsigned int sad16xh_neon(const uint8_t *src_ptr, int src_stride,
 
     src_ptr += src_stride;
     ref_ptr += ref_stride;
-    i++;
-  } while (i < h / 2);
+  } while (--i != 0);
 
   return horizontal_add_u32x4(vaddq_u32(sum[0], sum[1]));
 }
@@ -111,7 +109,7 @@ static INLINE unsigned int sad128xh_neon(const uint8_t *src_ptr, int src_stride,
                         vdupq_n_u16(0), vdupq_n_u16(0), vdupq_n_u16(0),
                         vdupq_n_u16(0), vdupq_n_u16(0) };
 
-  int i = 0;
+  int i = h;
   do {
     uint8x16_t s0, s1, s2, s3, s4, s5, s6, s7;
     uint8x16_t r0, r1, r2, r3, r4, r5, r6, r7;
@@ -159,8 +157,7 @@ static INLINE unsigned int sad128xh_neon(const uint8_t *src_ptr, int src_stride,
 
     src_ptr += src_stride;
     ref_ptr += ref_stride;
-    i++;
-  } while (i < h);
+  } while (--i != 0);
 
   uint32x4_t sum_u32 = vpaddlq_u16(sum[0]);
   sum_u32 = vpadalq_u16(sum_u32, sum[1]);
@@ -180,7 +177,7 @@ static INLINE unsigned int sad64xh_neon(const uint8_t *src_ptr, int src_stride,
   uint16x8_t sum[4] = { vdupq_n_u16(0), vdupq_n_u16(0), vdupq_n_u16(0),
                         vdupq_n_u16(0) };
 
-  int i = 0;
+  int i = h;
   do {
     uint8x16_t s0, s1, s2, s3, r0, r1, r2, r3;
     uint8x16_t diff0, diff1, diff2, diff3;
@@ -207,8 +204,7 @@ static INLINE unsigned int sad64xh_neon(const uint8_t *src_ptr, int src_stride,
 
     src_ptr += src_stride;
     ref_ptr += ref_stride;
-    i++;
-  } while (i < h);
+  } while (--i != 0);
 
   uint32x4_t sum_u32 = vpaddlq_u16(sum[0]);
   sum_u32 = vpadalq_u16(sum_u32, sum[1]);
@@ -223,7 +219,7 @@ static INLINE unsigned int sad32xh_neon(const uint8_t *src_ptr, int src_stride,
                                         int h) {
   uint32x4_t sum = vdupq_n_u32(0);
 
-  int i = 0;
+  int i = h;
   do {
     uint8x16_t s0 = vld1q_u8(src_ptr);
     uint8x16_t r0 = vld1q_u8(ref_ptr);
@@ -240,8 +236,7 @@ static INLINE unsigned int sad32xh_neon(const uint8_t *src_ptr, int src_stride,
 
     src_ptr += src_stride;
     ref_ptr += ref_stride;
-    i++;
-  } while (i < h);
+  } while (--i != 0);
 
   return horizontal_add_u32x4(sum);
 }
@@ -251,7 +246,7 @@ static INLINE unsigned int sad16xh_neon(const uint8_t *src_ptr, int src_stride,
                                         int h) {
   uint16x8_t sum = vdupq_n_u16(0);
 
-  int i = 0;
+  int i = h;
   do {
     uint8x16_t s = vld1q_u8(src_ptr);
     uint8x16_t r = vld1q_u8(ref_ptr);
@@ -261,8 +256,7 @@ static INLINE unsigned int sad16xh_neon(const uint8_t *src_ptr, int src_stride,
 
     src_ptr += src_stride;
     ref_ptr += ref_stride;
-    i++;
-  } while (i < h);
+  } while (--i != 0);
 
   return horizontal_add_u16x8(sum);
 }
@@ -274,7 +268,7 @@ static INLINE unsigned int sad8xh_neon(const uint8_t *src_ptr, int src_stride,
                                        int h) {
   uint16x8_t sum = vdupq_n_u16(0);
 
-  int i = 0;
+  int i = h;
   do {
     uint8x8_t s = vld1_u8(src_ptr);
     uint8x8_t r = vld1_u8(ref_ptr);
@@ -283,8 +277,7 @@ static INLINE unsigned int sad8xh_neon(const uint8_t *src_ptr, int src_stride,
 
     src_ptr += src_stride;
     ref_ptr += ref_stride;
-    i++;
-  } while (i < h);
+  } while (--i != 0);
 
   return horizontal_add_u16x8(sum);
 }
@@ -294,7 +287,7 @@ static INLINE unsigned int sad4xh_neon(const uint8_t *src_ptr, int src_stride,
                                        int h) {
   uint16x8_t sum = vdupq_n_u16(0);
 
-  int i = 0;
+  int i = h / 2;
   do {
     uint32x2_t s, r;
     uint32_t s0, s1, r0, r1;
@@ -314,8 +307,7 @@ static INLINE unsigned int sad4xh_neon(const uint8_t *src_ptr, int src_stride,
     ref_ptr += ref_stride;
 
     sum = vabal_u8(sum, vreinterpret_u8_u32(s), vreinterpret_u8_u32(r));
-    i++;
-  } while (i < h / 2);
+  } while (--i != 0);
 
   return horizontal_add_u16x8(sum);
 }
@@ -402,7 +394,7 @@ static INLINE unsigned int sadwxh_avg_neon(const uint8_t *src_ptr,
   // the ABD, UDOT sequence on CPUs with either 2 or 4 Neon pipes.
   uint32x4_t sum[2] = { vdupq_n_u32(0), vdupq_n_u32(0) };
 
-  int i = 0;
+  int i = h;
   do {
     int j = 0;
     do {
@@ -428,8 +420,7 @@ static INLINE unsigned int sadwxh_avg_neon(const uint8_t *src_ptr,
 
     src_ptr += src_stride;
     ref_ptr += ref_stride;
-    i++;
-  } while (i < h);
+  } while (--i != 0);
 
   return horizontal_add_u32x4(vaddq_u32(sum[0], sum[1]));
 }
@@ -468,7 +459,7 @@ static INLINE unsigned int sad16xh_avg_neon(const uint8_t *src_ptr,
                                             const uint8_t *second_pred) {
   uint32x4_t sum[2] = { vdupq_n_u32(0), vdupq_n_u32(0) };
 
-  int i = 0;
+  int i = h / 2;
   do {
     uint8x16_t s0, s1, r0, r1, p0, p1, avg0, avg1, diff0, diff1;
 
@@ -493,8 +484,7 @@ static INLINE unsigned int sad16xh_avg_neon(const uint8_t *src_ptr,
     src_ptr += src_stride;
     ref_ptr += ref_stride;
     second_pred += 16;
-    i++;
-  } while (i < h / 2);
+  } while (--i != 0);
 
   return horizontal_add_u32x4(vaddq_u32(sum[0], sum[1]));
 }
@@ -513,7 +503,7 @@ static INLINE unsigned int sad128xh_avg_neon(const uint8_t *src_ptr,
                         vdupq_n_u16(0), vdupq_n_u16(0), vdupq_n_u16(0),
                         vdupq_n_u16(0), vdupq_n_u16(0) };
 
-  int i = 0;
+  int i = h;
   do {
     uint8x16_t s0, s1, s2, s3, s4, s5, s6, s7;
     uint8x16_t r0, r1, r2, r3, r4, r5, r6, r7;
@@ -580,8 +570,7 @@ static INLINE unsigned int sad128xh_avg_neon(const uint8_t *src_ptr,
     src_ptr += src_stride;
     ref_ptr += ref_stride;
     second_pred += 128;
-    i++;
-  } while (i < h);
+  } while (--i != 0);
 
   uint32x4_t sum_u32 = vpaddlq_u16(sum[0]);
   sum_u32 = vpadalq_u16(sum_u32, sum[1]);
@@ -603,7 +592,7 @@ static INLINE unsigned int sad64xh_avg_neon(const uint8_t *src_ptr,
   uint16x8_t sum[4] = { vdupq_n_u16(0), vdupq_n_u16(0), vdupq_n_u16(0),
                         vdupq_n_u16(0) };
 
-  int i = 0;
+  int i = h;
   do {
     uint8x16_t s0, s1, s2, s3, r0, r1, r2, r3, p0, p1, p2, p3;
     uint8x16_t avg0, avg1, avg2, avg3, diff0, diff1, diff2, diff3;
@@ -639,8 +628,7 @@ static INLINE unsigned int sad64xh_avg_neon(const uint8_t *src_ptr,
     src_ptr += src_stride;
     ref_ptr += ref_stride;
     second_pred += 64;
-    i++;
-  } while (i < h);
+  } while (--i != 0);
 
   uint32x4_t sum_u32 = vpaddlq_u16(sum[0]);
   sum_u32 = vpadalq_u16(sum_u32, sum[1]);
@@ -657,7 +645,7 @@ static INLINE unsigned int sad32xh_avg_neon(const uint8_t *src_ptr,
                                             const uint8_t *second_pred) {
   uint32x4_t sum = vdupq_n_u32(0);
 
-  int i = 0;
+  int i = h;
   do {
     uint8x16_t s0 = vld1q_u8(src_ptr);
     uint8x16_t r0 = vld1q_u8(ref_ptr);
@@ -679,8 +667,7 @@ static INLINE unsigned int sad32xh_avg_neon(const uint8_t *src_ptr,
     src_ptr += src_stride;
     ref_ptr += ref_stride;
     second_pred += 32;
-    i++;
-  } while (i < h);
+  } while (--i != 0);
 
   return horizontal_add_u32x4(sum);
 }
@@ -692,7 +679,7 @@ static INLINE unsigned int sad16xh_avg_neon(const uint8_t *src_ptr,
                                             const uint8_t *second_pred) {
   uint16x8_t sum = vdupq_n_u16(0);
 
-  int i = 0;
+  int i = h;
   do {
     uint8x16_t s = vld1q_u8(src_ptr);
     uint8x16_t r = vld1q_u8(ref_ptr);
@@ -705,8 +692,7 @@ static INLINE unsigned int sad16xh_avg_neon(const uint8_t *src_ptr,
     src_ptr += src_stride;
     ref_ptr += ref_stride;
     second_pred += 16;
-    i++;
-  } while (i < h);
+  } while (--i != 0);
 
   return horizontal_add_u16x8(sum);
 }
@@ -720,7 +706,7 @@ static INLINE unsigned int sad8xh_avg_neon(const uint8_t *src_ptr,
                                            const uint8_t *second_pred) {
   uint16x8_t sum = vdupq_n_u16(0);
 
-  int i = 0;
+  int i = h;
   do {
     uint8x8_t s = vld1_u8(src_ptr);
     uint8x8_t r = vld1_u8(ref_ptr);
@@ -732,8 +718,7 @@ static INLINE unsigned int sad8xh_avg_neon(const uint8_t *src_ptr,
     src_ptr += src_stride;
     ref_ptr += ref_stride;
     second_pred += 8;
-    i++;
-  } while (i < h);
+  } while (--i != 0);
 
   return horizontal_add_u16x8(sum);
 }
@@ -745,7 +730,7 @@ static INLINE unsigned int sad4xh_avg_neon(const uint8_t *src_ptr,
                                            const uint8_t *second_pred) {
   uint16x8_t sum = vdupq_n_u16(0);
 
-  int i = 0;
+  int i = h / 2;
   do {
     uint32x2_t s, r;
     uint32_t s0, s1, r0, r1;
@@ -770,8 +755,7 @@ static INLINE unsigned int sad4xh_avg_neon(const uint8_t *src_ptr,
 
     sum = vabal_u8(sum, vreinterpret_u8_u32(s), avg);
     second_pred += 8;
-    i++;
-  } while (i < h / 2);
+  } while (--i != 0);
 
   return horizontal_add_u16x8(sum);
 }
