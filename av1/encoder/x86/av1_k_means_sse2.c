@@ -22,6 +22,15 @@ static int64_t k_means_horizontal_sum_sse2(__m128i a) {
   return res;
 }
 
+static __m128i absolute_diff_epi32(__m128i a, __m128i b) {
+  const __m128i diff1 = _mm_sub_epi32(a, b);
+  const __m128i diff2 = _mm_sub_epi32(b, a);
+  const __m128i cmp = _mm_cmpgt_epi32(diff1, diff2);
+  const __m128i masked1 = _mm_and_si128(cmp, diff1);
+  const __m128i masked2 = _mm_andnot_si128(cmp, diff2);
+  return _mm_or_si128(masked1, masked2);
+}
+
 void av1_calc_indices_dim1_sse2(const int *data, const int *centroids,
                                 uint8_t *indices, int64_t *total_dist, int n,
                                 int k) {
@@ -36,11 +45,7 @@ void av1_calc_indices_dim1_sse2(const int *data, const int *centroids,
     ind[l] = _mm_loadu_si128((__m128i *)data);
     for (int j = 0; j < k; j++) {
       __m128i cent = _mm_set1_epi32(centroids[j]);
-      __m128i d1 = _mm_sub_epi32(ind[l], cent);
-      __m128i d2 = _mm_packs_epi32(d1, d1);
-      __m128i d3 = _mm_mullo_epi16(d2, d2);
-      __m128i d4 = _mm_mulhi_epi16(d2, d2);
-      dist[j] = _mm_unpacklo_epi16(d3, d4);
+      dist[j] = absolute_diff_epi32(ind[l], cent);
     }
 
     ind[l] = _mm_setzero_si128();
@@ -55,6 +60,11 @@ void av1_calc_indices_dim1_sse2(const int *data, const int *centroids,
     }
     ind[l] = _mm_packus_epi16(ind[l], v_zero);
     if (total_dist) {
+      // Square and convert to 32 bit.
+      const __m128i d1 = _mm_packs_epi32(dist[0], v_zero);
+      const __m128i d2 = _mm_mullo_epi16(d1, d1);
+      const __m128i d3 = _mm_mulhi_epi16(d1, d1);
+      dist[0] = _mm_unpacklo_epi16(d2, d3);
       // Convert to 64 bit and add to sum.
       const __m128i dist1 = _mm_unpacklo_epi32(dist[0], v_zero);
       const __m128i dist2 = _mm_unpackhi_epi32(dist[0], v_zero);
@@ -71,15 +81,6 @@ void av1_calc_indices_dim1_sse2(const int *data, const int *centroids,
   if (total_dist) {
     *total_dist = k_means_horizontal_sum_sse2(sum);
   }
-}
-
-static __m128i absolute_diff_epi32(__m128i a, __m128i b) {
-  const __m128i diff1 = _mm_sub_epi32(a, b);
-  const __m128i diff2 = _mm_sub_epi32(b, a);
-  const __m128i cmp = _mm_cmpgt_epi32(diff1, diff2);
-  const __m128i masked1 = _mm_and_si128(cmp, diff1);
-  const __m128i masked2 = _mm_andnot_si128(cmp, diff2);
-  return _mm_or_si128(masked1, masked2);
 }
 
 void av1_calc_indices_dim2_sse2(const int *data, const int *centroids,

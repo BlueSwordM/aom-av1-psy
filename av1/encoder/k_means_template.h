@@ -11,6 +11,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "av1/common/blockd.h"
@@ -24,13 +25,20 @@
 #define RENAME_(x, y) AV1_K_MEANS_RENAME(x, y)
 #define RENAME(x) RENAME_(x, AV1_K_MEANS_DIM)
 
+// Though we want to compute the smallest L2 norm, in 1 dimension,
+// it is equivalent to find the smallest L1 norm and then square it.
+// This is preferrable for speed, especially on the SIMD side.
 static int RENAME(calc_dist)(const int *p1, const int *p2) {
+#if AV1_K_MEANS_DIM == 1
+  return abs(p1[0] - p2[0]);
+#else
   int dist = 0;
   for (int i = 0; i < AV1_K_MEANS_DIM; ++i) {
     const int diff = p1[i] - p2[i];
     dist += diff * diff;
   }
   return dist;
+#endif
 }
 
 void RENAME(av1_calc_indices)(const int *data, const int *centroids,
@@ -50,7 +58,11 @@ void RENAME(av1_calc_indices)(const int *data, const int *centroids,
       }
     }
     if (dist) {
+#if AV1_K_MEANS_DIM == 1
+      *dist += min_dist * min_dist;
+#else
       *dist += min_dist;
+#endif
     }
   }
 }
@@ -97,7 +109,7 @@ void RENAME(av1_k_means)(const int *data, int *centroids, uint8_t *indices,
 
   assert(n <= MAX_PALETTE_BLOCK_WIDTH * MAX_PALETTE_BLOCK_HEIGHT);
 
-#if AV1_K_MEANS_DIM - 2
+#if AV1_K_MEANS_DIM == 1
   av1_calc_indices_dim1(data, centroids, indices, &this_dist, n, k);
 #else
   av1_calc_indices_dim2(data, centroids, indices, &this_dist, n, k);
@@ -109,7 +121,7 @@ void RENAME(av1_k_means)(const int *data, int *centroids, uint8_t *indices,
     l = (l == 1) ? 0 : 1;
 
     RENAME(calc_centroids)(data, meta_centroids[l], meta_indices[prev_l], n, k);
-#if AV1_K_MEANS_DIM - 2
+#if AV1_K_MEANS_DIM == 1
     av1_calc_indices_dim1(data, meta_centroids[l], meta_indices[l], &this_dist,
                           n, k);
 #else

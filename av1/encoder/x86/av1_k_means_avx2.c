@@ -35,7 +35,7 @@ void av1_calc_indices_dim1_avx2(const int *data, const int *centroids,
     for (int j = 0; j < k; j++) {
       __m256i cent = _mm256_set1_epi32(centroids[j]);
       __m256i d1 = _mm256_sub_epi32(ind, cent);
-      dist[j] = _mm256_mullo_epi32(d1, d1);
+      dist[j] = _mm256_abs_epi32(d1);
     }
 
     ind = _mm256_setzero_si256();
@@ -57,7 +57,8 @@ void av1_calc_indices_dim1_avx2(const int *data, const int *centroids,
     _mm_storel_epi64((__m128i *)indices, d1);
 
     if (total_dist) {
-      // Convert to 64 bit and add to sum.
+      // Square, convert to 64 bit and add to sum.
+      dist[0] = _mm256_mullo_epi32(dist[0], dist[0]);
       const __m256i dist1 = _mm256_unpacklo_epi32(dist[0], v_zero);
       const __m256i dist2 = _mm256_unpackhi_epi32(dist[0], v_zero);
       sum = _mm256_add_epi64(sum, dist1);
