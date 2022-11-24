@@ -93,8 +93,12 @@ static int64_t RENAME(calc_total_dist)(const int *data, const int *centroids,
 
 void RENAME(av1_k_means)(const int *data, int *centroids, uint8_t *indices,
                          int n, int k, int max_itr) {
-  int pre_centroids[2 * PALETTE_MAX_SIZE];
-  uint8_t pre_indices[MAX_PALETTE_BLOCK_WIDTH * MAX_PALETTE_BLOCK_HEIGHT];
+  int centroids_tmp[AV1_K_MEANS_DIM * PALETTE_MAX_SIZE];
+  uint8_t indices_tmp[MAX_PALETTE_BLOCK_WIDTH * MAX_PALETTE_BLOCK_HEIGHT];
+  int *meta_centroids[2] = { centroids, centroids_tmp };
+  uint8_t *meta_indices[2] = { indices, indices_tmp };
+  int i, l = 0, prev_l, best_l = 0;
+  int64_t this_dist;
 
   assert(n <= MAX_PALETTE_BLOCK_WIDTH * MAX_PALETTE_BLOCK_HEIGHT);
 
@@ -103,31 +107,35 @@ void RENAME(av1_k_means)(const int *data, int *centroids, uint8_t *indices,
 #else
   av1_calc_indices_dim2(data, centroids, indices, n, k);
 #endif
-  int64_t this_dist = RENAME(calc_total_dist)(data, centroids, indices, n, k);
+  this_dist = RENAME(calc_total_dist)(data, centroids, indices, n, k);
 
-  for (int i = 0; i < max_itr; ++i) {
-    const int64_t pre_dist = this_dist;
-    memcpy(pre_centroids, centroids,
-           sizeof(pre_centroids[0]) * k * AV1_K_MEANS_DIM);
-    memcpy(pre_indices, indices, sizeof(pre_indices[0]) * n);
+  for (i = 0; i < max_itr; ++i) {
+    const int64_t prev_dist = this_dist;
+    prev_l = l;
+    l = (l == 1) ? 0 : 1;
 
-    RENAME(calc_centroids)(data, centroids, indices, n, k);
+    RENAME(calc_centroids)(data, meta_centroids[l], meta_indices[prev_l], n, k);
 #if AV1_K_MEANS_DIM - 2
-    av1_calc_indices_dim1(data, centroids, indices, n, k);
+    av1_calc_indices_dim1(data, meta_centroids[l], meta_indices[l], n, k);
 #else
-    av1_calc_indices_dim2(data, centroids, indices, n, k);
+    av1_calc_indices_dim2(data, meta_centroids[l], meta_indices[l], n, k);
 #endif
-    this_dist = RENAME(calc_total_dist)(data, centroids, indices, n, k);
+    this_dist =
+        RENAME(calc_total_dist)(data, meta_centroids[l], meta_indices[l], n, k);
 
-    if (this_dist > pre_dist) {
-      memcpy(centroids, pre_centroids,
-             sizeof(pre_centroids[0]) * k * AV1_K_MEANS_DIM);
-      memcpy(indices, pre_indices, sizeof(pre_indices[0]) * n);
+    if (this_dist > prev_dist) {
+      best_l = prev_l;
       break;
     }
-    if (!memcmp(centroids, pre_centroids,
-                sizeof(pre_centroids[0]) * k * AV1_K_MEANS_DIM))
+    if (!memcmp(meta_centroids[l], meta_centroids[prev_l],
+                sizeof(centroids[0]) * k * AV1_K_MEANS_DIM))
       break;
+  }
+  if (i == max_itr) best_l = l;
+  if (best_l != 0) {
+    memcpy(centroids, meta_centroids[1],
+           sizeof(centroids[0]) * k * AV1_K_MEANS_DIM);
+    memcpy(indices, meta_indices[1], sizeof(indices[0]) * n);
   }
 }
 #undef RENAME_
