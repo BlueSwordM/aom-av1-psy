@@ -415,9 +415,8 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/void av1_calc_indices_dim1/, "const int *data, const int *centroids, uint8_t *indices, int n, int k";
   specialize qw/av1_calc_indices_dim1 sse2 avx2/;
 
-  # TODO(any): Disable av1_calc_indices_dim2 sse2 version due to c/SIMD mismatch. Re-enable it after mismatch is fixed.
   add_proto qw/void av1_calc_indices_dim2/, "const int *data, const int *centroids, uint8_t *indices, int n, int k";
-  specialize qw/av1_calc_indices_dim2 avx2/;
+  specialize qw/av1_calc_indices_dim2 sse2 avx2/;
 
   # ENCODEMB INVOKE
   if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {

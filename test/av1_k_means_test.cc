@@ -278,12 +278,10 @@ INSTANTIATE_TEST_SUITE_P(
     SSE2, AV1KmeansTest1,
     ::testing::Combine(::testing::Values(&av1_calc_indices_dim1_sse2),
                        ::testing::ValuesIn(kValidBlockSize)));
-// TODO(any): Disable av1_calc_indices_dim2 sse2 SIMD and its unit test due to
-// c/SIMD mismatch. Re-enable it after mismatch is fixed.
-// INSTANTIATE_TEST_SUITE_P(
-//    SSE2, AV1KmeansTest2,
-//    ::testing::Combine(::testing::Values(&av1_calc_indices_dim2_sse2),
-//                       ::testing::ValuesIn(kValidBlockSize)));
+INSTANTIATE_TEST_SUITE_P(
+    SSE2, AV1KmeansTest2,
+    ::testing::Combine(::testing::Values(&av1_calc_indices_dim2_sse2),
+                       ::testing::ValuesIn(kValidBlockSize)));
 #endif
 
 }  // namespace AV1Kmeans
