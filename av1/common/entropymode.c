@@ -885,6 +885,11 @@ static const aom_cdf_prob default_tx_size_cdf[MAX_TX_CATS][TX_SIZE_CONTEXTS]
                                                  { AOM_CDF3(16803, 22759) } },
                                              };
 
+// Negative values are invalid
+const int av1_palette_color_index_context_lookup[MAX_COLOR_CONTEXT_HASH + 1] = {
+  -1, -1, 0, -1, -1, 4, 3, 2, 1
+};
+
 int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
                                         int r, int c, int palette_size,
                                         uint8_t *color_order, int *color_idx) {

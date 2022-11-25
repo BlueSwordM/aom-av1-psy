@@ -31,7 +31,7 @@ extern "C" {
 // Number of possible contexts for a color index.
 // As can be seen from av1_get_palette_color_index_context(), the possible
 // contexts are (2,0,0), (2,2,1), (3,2,0), (4,1,0), (5,0,0). These are mapped to
-// a value from 0 to 4 using 'palette_color_index_context_lookup' table.
+// a value from 0 to 4 using 'av1_palette_color_index_context_lookup' table.
 #define PALETTE_COLOR_INDEX_CONTEXTS 5
 
 // Palette Y mode context for a block is determined by number of neighboring
@@ -208,11 +208,8 @@ int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
                                         int r, int c, int palette_size,
                                         uint8_t *color_order, int *color_idx);
 
-// Negative values are invalid
-static const int av1_palette_color_index_context_lookup[MAX_COLOR_CONTEXT_HASH +
-                                                        1] = { -1, -1, 0,
-                                                               -1, -1, 4,
-                                                               3,  2,  1 };
+extern const int
+    av1_palette_color_index_context_lookup[MAX_COLOR_CONTEXT_HASH + 1];
 
 #ifdef __cplusplus
 }  // extern "C"
