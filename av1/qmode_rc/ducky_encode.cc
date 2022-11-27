@@ -350,7 +350,8 @@ void DuckyEncode::StartEncode(const std::vector<FIRSTPASS_STATS> &stats_list) {
 }
 
 static void DuckyEncodeInfoSetGopStruct(AV1_PRIMARY *ppi,
-                                        GopStruct gop_struct) {
+                                        const GopStruct &gop_struct,
+                                        const GopEncodeInfo &gop_encode_info) {
   GF_GROUP *gf_group = &ppi->gf_group;
   ppi->p_rc.baseline_gf_interval = gop_struct.show_frame_count;
   ppi->internal_altref_allowed = 1;
@@ -364,6 +365,8 @@ static void DuckyEncodeInfoSetGopStruct(AV1_PRIMARY *ppi,
     if (frame.update_type == GopFrameType::kRegularArf) gf_group->arf_index = i;
 
     gf_group->frame_type[i] = !frame.is_key_frame;
+
+    gf_group->q_val[i] = gop_encode_info.param_list[i].q_index;
 
     gf_group->cur_frame_idx[i] = 0;
     gf_group->arf_src_offset[i] = frame.order_idx - frame.display_idx;
@@ -532,9 +535,9 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
   // Go through each gop and encode each frame in the gop
   for (size_t i = 0; i < gop_list.size(); ++i) {
     const aom::GopStruct &gop_struct = gop_list[i];
-    const aom::GopEncodeInfo gop_encode_info = gop_encode_info_list[i];
+    const aom::GopEncodeInfo &gop_encode_info = gop_encode_info_list[i];
 
-    DuckyEncodeInfoSetGopStruct(ppi, gop_struct);
+    DuckyEncodeInfoSetGopStruct(ppi, gop_struct, gop_encode_info);
 
     aom::TplGopStats tpl_gop_stats;
     for (auto &frame_param : gop_encode_info.param_list) {
@@ -568,8 +571,8 @@ std::vector<EncodeFrameResult> DuckyEncode::EncodeVideo(
   // Go through each gop and encode each frame in the gop
   for (size_t i = 0; i < gop_list.size(); ++i) {
     const aom::GopStruct &gop_struct = gop_list[i];
-    DuckyEncodeInfoSetGopStruct(ppi, gop_struct);
-    aom::GopEncodeInfo gop_encode_info = gop_encode_info_list[i];
+    const aom::GopEncodeInfo &gop_encode_info = gop_encode_info_list[i];
+    DuckyEncodeInfoSetGopStruct(ppi, gop_struct, gop_encode_info);
 
     for (auto &frame_param : gop_encode_info.param_list) {
       aom::EncodeFrameDecision frame_decision = { aom::EncodeFrameMode::kQindex,

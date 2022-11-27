@@ -1654,6 +1654,8 @@ void av1_tpl_preload_rc_estimate(AV1_COMP *cpi,
   AV1_COMMON *cm = &cpi->common;
   GF_GROUP *gf_group = &cpi->ppi->gf_group;
   int bottom_index, top_index;
+  if (cpi->use_ducky_encode) return;
+
   cm->current_frame.frame_type = frame_params->frame_type;
   for (int gf_index = cpi->gf_frame_index; gf_index < gf_group->size;
        ++gf_index) {
