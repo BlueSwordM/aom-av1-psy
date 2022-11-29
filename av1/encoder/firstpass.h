@@ -355,6 +355,7 @@ typedef struct GF_GROUP {
   int max_layer_depth_allowed;
   // This is currently only populated for AOM_Q mode
   int q_val[MAX_STATIC_GF_GROUP_LENGTH];
+  int rdmult_val[MAX_STATIC_GF_GROUP_LENGTH];
   int bit_allocation[MAX_STATIC_GF_GROUP_LENGTH];
   // The frame coding type - inter/intra frame
   FRAME_TYPE frame_type[MAX_STATIC_GF_GROUP_LENGTH];

@@ -1307,6 +1307,9 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
                                bd_info.bit_depth, update_type, base_qindex) /
                            6;
 
+  if (cpi->use_ducky_encode)
+    tpl_frame->base_rdmult = gf_group->rdmult_val[frame_idx];
+
   av1_init_tpl_txfm_stats(tpl_txfm_stats);
 
   // Initialize x->mbmi_ext when compound predictions are enabled.

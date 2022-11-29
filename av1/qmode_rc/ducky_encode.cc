@@ -367,6 +367,7 @@ static void DuckyEncodeInfoSetGopStruct(AV1_PRIMARY *ppi,
     gf_group->frame_type[i] = !frame.is_key_frame;
 
     gf_group->q_val[i] = gop_encode_info.param_list[i].q_index;
+    gf_group->rdmult_val[i] = gop_encode_info.param_list[i].rdmult;
 
     gf_group->cur_frame_idx[i] = 0;
     gf_group->arf_src_offset[i] = frame.order_idx - frame.display_idx;
