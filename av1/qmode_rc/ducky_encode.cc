@@ -399,12 +399,14 @@ static void DuckyEncodeInfoSetGopStruct(AV1_PRIMARY *ppi,
 static void DuckyEncodeInfoSetEncodeFrameDecision(
     DuckyEncodeInfo *ducky_encode_info, const EncodeFrameDecision &decision) {
   DuckyEncodeFrameInfo *frame_info = &ducky_encode_info->frame_info;
+  *frame_info = {};
   frame_info->qp_mode = static_cast<DUCKY_ENCODE_FRAME_MODE>(decision.qp_mode);
   frame_info->gop_mode = static_cast<DUCKY_ENCODE_GOP_MODE>(decision.gop_mode);
   frame_info->q_index = decision.parameters.q_index;
   frame_info->rdmult = decision.parameters.rdmult;
   const size_t num_superblocks =
       decision.parameters.superblock_encode_params.size();
+  frame_info->delta_q_enabled = 0;
   if (num_superblocks > 1) {
     frame_info->delta_q_enabled = 1;
     frame_info->superblock_encode_qindex = new int[num_superblocks];
@@ -591,10 +593,10 @@ std::vector<EncodeFrameResult> DuckyEncode::EncodeVideo(
       aom::EncodeFrameDecision frame_decision = { aom::EncodeFrameMode::kQindex,
                                                   aom::EncodeGopMode::kGopRcl,
                                                   frame_param };
-      EncodeFrame(frame_decision);
+      EncodeFrameResult temp_result = EncodeFrame(frame_decision);
       if (ppi->cpi->common.show_frame) {
         bitstream_buf_.resize(pending_ctx_size_);
-        EncodeFrameResult encode_frame_result = {};
+        EncodeFrameResult encode_frame_result = temp_result;
         encode_frame_result.bitstream_buf = bitstream_buf_;
         encoded_frame_list.push_back(encode_frame_result);
 
