@@ -622,4 +622,9 @@ static INLINE void store_s16q_to_tran_low_offset_4(tran_low_t *buf,
   vst1q_s32(buf + 8, v1);
 }
 
+static INLINE void store_s16_to_tran_low(tran_low_t *buf, const int16x4_t a) {
+  const int32x4_t v0 = vmovl_s16(a);
+  vst1q_s32(buf, v0);
+}
+
 #endif  // AOM_AOM_DSP_ARM_MEM_NEON_H_
