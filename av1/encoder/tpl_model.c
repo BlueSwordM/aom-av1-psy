@@ -1282,7 +1282,8 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
   xd->block_ref_scale_factors[0] = &tpl_data->sf;
   xd->block_ref_scale_factors[1] = &tpl_data->sf;
 
-  const int base_qindex = pframe_qindex;
+  const int base_qindex =
+      cpi->use_ducky_encode ? gf_group->q_val[frame_idx] : pframe_qindex;
   // Get rd multiplier set up.
   rdmult = (int)av1_compute_rd_mult(
       base_qindex, cm->seq_params->bit_depth,
@@ -1303,7 +1304,7 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
   const FRAME_UPDATE_TYPE update_type =
       gf_group->update_type[cpi->gf_frame_index];
   tpl_frame->base_rdmult = av1_compute_rd_mult_based_on_qindex(
-                               bd_info.bit_depth, update_type, pframe_qindex) /
+                               bd_info.bit_depth, update_type, base_qindex) /
                            6;
 
   av1_init_tpl_txfm_stats(tpl_txfm_stats);
