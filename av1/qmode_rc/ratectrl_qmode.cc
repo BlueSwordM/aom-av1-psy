@@ -1399,7 +1399,10 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetTplPassGopEncodeInfo(
     // Use constant QP for TPL pass encoding. Keep the functionality
     // that allows QP changes across sub-gop.
     param.q_index = rc_param_.base_q_index;
-    param.rdmult = GetRDMult(gop_frame, param.q_index);
+    param.rdmult = av1_compute_rd_mult_based_on_qindex(AOM_BITS_8, LF_UPDATE,
+                                                       rc_param_.base_q_index);
+    // TODO(jingning): gop_frame is needed in two pass tpl later.
+    (void)gop_frame;
     gop_encode_info.param_list.push_back(param);
   }
   return gop_encode_info;
