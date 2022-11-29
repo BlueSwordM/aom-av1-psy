@@ -1018,6 +1018,9 @@ StatusOr<TplFrameDepStats> CreateTplFrameDepStatsWithoutPropagation(
       }
     }
   }
+
+  frame_dep_stats.rdcost = TplFrameDepStatsAccumulateInterCost(frame_dep_stats);
+
   return frame_dep_stats;
 }
 
@@ -1058,6 +1061,18 @@ double TplFrameDepStatsAccumulateIntraCost(
   double sum = 0;
   for (const auto &row : frame_dep_stats.unit_stats) {
     sum = std::accumulate(row.begin(), row.end(), sum, getIntraCost);
+  }
+  return std::max(sum, 1.0);
+}
+
+double TplFrameDepStatsAccumulateInterCost(
+    const TplFrameDepStats &frame_dep_stats) {
+  auto getInterCost = [](double sum, const TplUnitDepStats &unit) {
+    return sum + unit.inter_cost;
+  };
+  double sum = 0;
+  for (const auto &row : frame_dep_stats.unit_stats) {
+    sum = std::accumulate(row.begin(), row.end(), sum, getInterCost);
   }
   return std::max(sum, 1.0);
 }

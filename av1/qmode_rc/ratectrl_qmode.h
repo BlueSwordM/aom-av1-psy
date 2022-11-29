@@ -36,6 +36,7 @@ struct TplUnitDepStats {
 
 struct TplFrameDepStats {
   int unit_size;  // equivalent to min_block_size
+  double rdcost;  // overall rate-distortion cost
   std::vector<std::vector<TplUnitDepStats>> unit_stats;
 };
 
@@ -76,6 +77,9 @@ StatusOr<TplFrameDepStats> CreateTplFrameDepStatsWithoutPropagation(
 std::vector<int> GetKeyFrameList(const FirstpassInfo &first_pass_info);
 
 double TplFrameDepStatsAccumulateIntraCost(
+    const TplFrameDepStats &frame_dep_stats);
+
+double TplFrameDepStatsAccumulateInterCost(
     const TplFrameDepStats &frame_dep_stats);
 
 double TplFrameDepStatsAccumulate(const TplFrameDepStats &frame_dep_stats);
