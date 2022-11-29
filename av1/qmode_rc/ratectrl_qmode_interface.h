@@ -322,6 +322,8 @@ class AV1RateControlQModeInterface {
   // ref_frame_table_snapshot_init; for subsequent GOPs, it should be the
   // final_snapshot returned on the previous call.
   //
+  // TODO(b/260859962): Remove these once the extension to use firstpass stats
+  // is done.
   virtual StatusOr<GopEncodeInfo> GetGopEncodeInfo(
       const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
       const std::vector<LookaheadStats> &lookahead_stats,
@@ -329,6 +331,24 @@ class AV1RateControlQModeInterface {
 
   virtual StatusOr<GopEncodeInfo> GetTplPassGopEncodeInfo(
       const GopStruct &gop_struct) = 0;
+
+  // Extensions to the API to pass in the first pass info. There should be stats
+  // for all frames starting from the first frame of the GOP and continuing to
+  // the end of the sequence.
+  // TODO(b/260859962): Make pure virtual once all derived classes implement it.
+  virtual StatusOr<GopEncodeInfo> GetGopEncodeInfo(
+      const GopStruct &gop_struct AOM_UNUSED,
+      const TplGopStats &tpl_gop_stats AOM_UNUSED,
+      const std::vector<LookaheadStats> &lookahead_stats AOM_UNUSED,
+      const FirstpassInfo &firstpass_info AOM_UNUSED,
+      const RefFrameTable &ref_frame_table_snapshot AOM_UNUSED) {
+    return Status{ AOM_CODEC_UNSUP_FEATURE, "Not yet implemented" };
+  }
+  virtual StatusOr<GopEncodeInfo> GetTplPassGopEncodeInfo(
+      const GopStruct &gop_struct AOM_UNUSED,
+      const FirstpassInfo &firstpass_info AOM_UNUSED) {
+    return Status{ AOM_CODEC_UNSUP_FEATURE, "Not yet implemented" };
+  }
 };
 }  // namespace aom
 

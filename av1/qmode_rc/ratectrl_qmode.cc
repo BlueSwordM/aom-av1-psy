@@ -1404,7 +1404,7 @@ static int GetRDMult(const GopFrame &gop_frame, int q_index) {
   }
 }
 
-StatusOr<GopEncodeInfo> AV1RateControlQMode::GetTplPassGopEncodeInfo(
+StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithNoStats(
     const GopStruct &gop_struct) {
   GopEncodeInfo gop_encode_info;
   const int frame_count = static_cast<int>(gop_struct.gop_frame_list.size());
@@ -1423,23 +1423,18 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetTplPassGopEncodeInfo(
   return gop_encode_info;
 }
 
-StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
+StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithFp(
+    const GopStruct &gop_struct,
+    const FirstpassInfo &firstpass_info AOM_UNUSED) {
+  // TODO(b/260859962): This is currently a placeholder. Should use the fp stats
+  // to calculate frame-level qp.
+  return GetGopEncodeInfoWithNoStats(gop_struct);
+}
+
+StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithTpl(
     const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
     const std::vector<LookaheadStats> &lookahead_stats,
     const RefFrameTable &ref_frame_table_snapshot_init) {
-  Status status = ValidateTplStats(gop_struct, tpl_gop_stats);
-  if (!status.ok()) {
-    return status;
-  }
-
-  for (const auto &lookahead_stat : lookahead_stats) {
-    Status status = ValidateTplStats(*lookahead_stat.gop_struct,
-                                     *lookahead_stat.tpl_gop_stats);
-    if (!status.ok()) {
-      return status;
-    }
-  }
-
   const std::vector<RefFrameTable> ref_frame_table_list = GetRefFrameTableList(
       gop_struct, lookahead_stats, ref_frame_table_snapshot_init);
 
@@ -1510,6 +1505,63 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
     gop_encode_info.param_list.push_back(param);
   }
   return gop_encode_info;
+}
+
+StatusOr<GopEncodeInfo> AV1RateControlQMode::GetTplPassGopEncodeInfo(
+    const GopStruct &gop_struct) {
+  return GetGopEncodeInfoWithNoStats(gop_struct);
+}
+
+StatusOr<GopEncodeInfo> AV1RateControlQMode::GetTplPassGopEncodeInfo(
+    const GopStruct &gop_struct, const FirstpassInfo &firstpass_info) {
+  return GetGopEncodeInfoWithFp(gop_struct, firstpass_info);
+}
+
+StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
+    const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
+    const std::vector<LookaheadStats> &lookahead_stats,
+    const RefFrameTable &ref_frame_table_snapshot_init) {
+  Status status = ValidateTplStats(gop_struct, tpl_gop_stats);
+  if (!status.ok()) {
+    return status;
+  }
+
+  for (const auto &lookahead_stat : lookahead_stats) {
+    Status status = ValidateTplStats(*lookahead_stat.gop_struct,
+                                     *lookahead_stat.tpl_gop_stats);
+    if (!status.ok()) {
+      return status;
+    }
+  }
+
+  return GetGopEncodeInfoWithTpl(gop_struct, tpl_gop_stats, lookahead_stats,
+                                 ref_frame_table_snapshot_init);
+}
+
+StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
+    const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
+    const std::vector<LookaheadStats> &lookahead_stats,
+    const FirstpassInfo &firstpass_info AOM_UNUSED,
+    const RefFrameTable &ref_frame_table_snapshot_init) {
+  // When TPL stats are not valid, use first pass stats.
+  Status status = ValidateTplStats(gop_struct, tpl_gop_stats);
+  if (!status.ok()) {
+    return status;
+  }
+
+  for (const auto &lookahead_stat : lookahead_stats) {
+    Status status = ValidateTplStats(*lookahead_stat.gop_struct,
+                                     *lookahead_stat.tpl_gop_stats);
+    if (!status.ok()) {
+      return status;
+    }
+  }
+
+  // TODO(b/260859962): Currently firstpass stats are used as an alternative,
+  // but we could also combine it with tpl results in the future for more stable
+  // qp determination.
+  return GetGopEncodeInfoWithTpl(gop_struct, tpl_gop_stats, lookahead_stats,
+                                 ref_frame_table_snapshot_init);
 }
 
 }  // namespace aom
