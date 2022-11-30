@@ -116,8 +116,10 @@ static STATS_BUFFER_CTX *CreateStatsBufferCtx(int frame_count,
   stats_buf_ctx->total_stats = stats_buf_ctx->stats_in_buf_end;
   stats_buf_ctx->total_left_stats =
       stats_buf_ctx->stats_in_start + frame_count + 1;
-  av1_twopass_zero_stats(stats_buf_ctx->total_left_stats);
-  av1_twopass_zero_stats(stats_buf_ctx->total_stats);
+  for (FIRSTPASS_STATS *buffer = stats_buf_ctx->stats_in_start;
+       buffer <= stats_buf_ctx->total_left_stats; ++buffer) {
+    av1_twopass_zero_stats(buffer);
+  }
   return stats_buf_ctx;
 }
 
