@@ -79,7 +79,8 @@ class DuckyEncode {
   std::vector<FIRSTPASS_STATS> ComputeFirstPassStats();
   void StartEncode(const std::vector<FIRSTPASS_STATS> &stats_list);
 
-  TplGopStats ObtainTplStats(const GopStruct gop_struct, bool rate_dist_flag);
+  TplGopStats ObtainTplStats(const GopStruct gop_struct,
+                             bool rate_dist_present);
 
   std::vector<TplGopStats> ComputeTplStats(
       const GopStructList &gop_list,
