@@ -12,10 +12,10 @@
 #include <math.h>
 
 #include <immintrin.h>
-#include "config/av1_rtcd.h"
+#include "config/aom_dsp_rtcd.h"
 
 #include "aom_ports/mem.h"
-#include "av1/encoder/corner_match.h"
+#include "aom_dsp/flow_estimation/corner_match.h"
 
 DECLARE_ALIGNED(16, static const uint8_t,
                 byte_mask[16]) = { 255, 255, 255, 255, 255, 255, 255, 255,

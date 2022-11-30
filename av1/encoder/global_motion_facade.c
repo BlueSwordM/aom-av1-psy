@@ -11,7 +11,9 @@
 
 #include "aom_dsp/binary_codes_writer.h"
 
-#include "av1/encoder/corner_detect.h"
+#include "aom_dsp/flow_estimation/corner_detect.h"
+#include "aom_dsp/flow_estimation/flow_estimation.h"
+#include "av1/common/warped_motion.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/ethread.h"
 #include "av1/encoder/rdopt.h"
@@ -121,7 +123,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
       params_by_motion[i].num_inliers = 0;
     }
 
-    av1_compute_global_motion(model, src_buffer, src_width, src_height,
+    aom_compute_global_motion(model, src_buffer, src_width, src_height,
                               src_stride, src_corners, num_src_corners,
                               ref_buf[frame], cpi->common.seq_params->bit_depth,
                               gm_estimation_type, inliers_by_motion,

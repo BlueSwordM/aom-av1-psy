@@ -554,11 +554,6 @@ specialize qw/av1_warp_affine sse4_1 avx2 neon/;
 add_proto qw/int64_t av1_calc_frame_error/, "const uint8_t *const ref, int stride, const uint8_t *const dst, int p_width, int p_height, int p_stride";
 specialize qw/av1_calc_frame_error sse2 avx2/;
 
-if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
-  add_proto qw/double av1_compute_cross_correlation/, "unsigned char *im1, int stride1, int x1, int y1, unsigned char *im2, int stride2, int x2, int y2";
-  specialize qw/av1_compute_cross_correlation sse4_1 avx2/;
-}
-
 # LOOP_RESTORATION functions
 add_proto qw/void av1_apply_selfguided_restoration/, "const uint8_t *dat, int width, int height, int stride, int eps, const int *xqd, uint8_t *dst, int dst_stride, int32_t *tmpbuf, int bit_depth, int highbd";
 specialize qw/av1_apply_selfguided_restoration sse4_1 avx2 neon/;

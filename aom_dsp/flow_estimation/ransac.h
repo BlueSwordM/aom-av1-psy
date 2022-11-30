@@ -9,16 +9,19 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AOM_AV1_ENCODER_RANSAC_H_
-#define AOM_AV1_ENCODER_RANSAC_H_
+#ifndef AOM_AOM_DSP_FLOW_ESTIMATION_RANSAC_H_
+#define AOM_AOM_DSP_FLOW_ESTIMATION_RANSAC_H_
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <memory.h>
 
-#include "av1/common/warped_motion.h"
-#include "av1/encoder/global_motion.h"
+#include "aom_dsp/flow_estimation/flow_estimation.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef int (*RansacFunc)(int *matched_points, int npoints,
                           int *num_inliers_by_motion,
@@ -28,4 +31,9 @@ typedef int (*RansacFuncDouble)(double *matched_points, int npoints,
                                 MotionModel *params_by_motion, int num_motions);
 RansacFunc av1_get_ransac_type(TransformationType type);
 RansacFuncDouble av1_get_ransac_double_prec_type(TransformationType type);
-#endif  // AOM_AV1_ENCODER_RANSAC_H_
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif  // AOM_AOM_DSP_FLOW_ESTIMATION_RANSAC_H_

@@ -137,10 +137,6 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/compound_type.h"
             "${AOM_ROOT}/av1/encoder/context_tree.c"
             "${AOM_ROOT}/av1/encoder/context_tree.h"
-            "${AOM_ROOT}/av1/encoder/corner_detect.c"
-            "${AOM_ROOT}/av1/encoder/corner_detect.h"
-            "${AOM_ROOT}/av1/encoder/corner_match.c"
-            "${AOM_ROOT}/av1/encoder/corner_match.h"
             "${AOM_ROOT}/av1/encoder/cost.c"
             "${AOM_ROOT}/av1/encoder/cost.h"
             "${AOM_ROOT}/av1/encoder/encodeframe.c"
@@ -211,8 +207,6 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/picklpf.h"
             "${AOM_ROOT}/av1/encoder/pickrst.c"
             "${AOM_ROOT}/av1/encoder/pickrst.h"
-            "${AOM_ROOT}/av1/encoder/ransac.c"
-            "${AOM_ROOT}/av1/encoder/ransac.h"
             "${AOM_ROOT}/av1/encoder/ratectrl.c"
             "${AOM_ROOT}/av1/encoder/ratectrl.h"
             "${AOM_ROOT}/av1/encoder/rc_utils.h"
@@ -335,7 +329,6 @@ list(APPEND AOM_AV1_ENCODER_ASM_SSSE3_X86_64
 list(APPEND AOM_AV1_ENCODER_INTRIN_SSE4_1
             "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm1d_sse4.c"
             "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_sse4.c"
-            "${AOM_ROOT}/av1/encoder/x86/corner_match_sse4.c"
             "${AOM_ROOT}/av1/encoder/x86/encodetxb_sse4.c"
             "${AOM_ROOT}/av1/encoder/x86/highbd_fwd_txfm_sse4.c"
             "${AOM_ROOT}/av1/encoder/x86/rdopt_sse4.c"
@@ -343,7 +336,6 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_SSE4_1
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_AVX2
             "${AOM_ROOT}/av1/encoder/x86/av1_quantize_avx2.c"
-            "${AOM_ROOT}/av1/encoder/x86/corner_match_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/error_intrin_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm_avx2.h"
             "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_avx2.c"

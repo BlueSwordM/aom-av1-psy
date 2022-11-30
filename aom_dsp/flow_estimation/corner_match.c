@@ -1,21 +1,26 @@
 /*
- * Copyright (c) 2016, Alliance for Open Media. All rights reserved
+ * Copyright (c) 2022, Alliance for Open Media. All rights reserved
  *
- * This source code is subject to the terms of the BSD 2 Clause License and
- * the Alliance for Open Media Patent License 1.0. If the BSD 2 Clause License
- * was not distributed with this source code in the LICENSE file, you can
- * obtain it at www.aomedia.org/license/software. If the Alliance for Open
- * Media Patent License 1.0 was not distributed with this source code in the
- * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
+ * This source code is subject to the terms of the BSD 3-Clause Clear License
+ * and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+ * License was not distributed with this source code in the LICENSE file, you
+ * can obtain it at aomedia.org/license/software-license/bsd-3-c-c/.  If the
+ * Alliance for Open Media Patent License 1.0 was not distributed with this
+ * source code in the PATENTS file, you can obtain it at
+ * aomedia.org/license/patent-license/.
  */
 
 #include <stdlib.h>
 #include <memory.h>
 #include <math.h>
 
-#include "config/av1_rtcd.h"
+#include "config/aom_dsp_rtcd.h"
 
-#include "av1/encoder/corner_match.h"
+#include "aom_dsp/flow_estimation/corner_detect.h"
+#include "aom_dsp/flow_estimation/corner_match.h"
+#include "aom_dsp/flow_estimation/flow_estimation.h"
+#include "aom_dsp/flow_estimation/ransac.h"
+#include "aom_scale/yv12config.h"
 
 #define SEARCH_SZ 9
 #define SEARCH_SZ_BY2 ((SEARCH_SZ - 1) / 2)
@@ -139,7 +144,7 @@ static void improve_correspondence(unsigned char *frm, unsigned char *ref,
   }
 }
 
-int av1_determine_correspondence(unsigned char *src, int *src_corners,
+int aom_determine_correspondence(unsigned char *src, int *src_corners,
                                  int num_src_corners, unsigned char *ref,
                                  int *ref_corners, int num_ref_corners,
                                  int width, int height, int src_stride,
@@ -189,4 +194,73 @@ int av1_determine_correspondence(unsigned char *src, int *src_corners,
   improve_correspondence(src, ref, width, height, src_stride, ref_stride,
                          correspondences, num_correspondences);
   return num_correspondences;
+}
+
+static bool get_inliers_from_indices(MotionModel *params,
+                                     int *correspondences) {
+  int *inliers_tmp = (int *)aom_calloc(2 * MAX_CORNERS, sizeof(*inliers_tmp));
+  if (!inliers_tmp) return false;
+
+  for (int i = 0; i < params->num_inliers; i++) {
+    int index = params->inliers[i];
+    inliers_tmp[2 * i] = correspondences[4 * index];
+    inliers_tmp[2 * i + 1] = correspondences[4 * index + 1];
+  }
+  memcpy(params->inliers, inliers_tmp, sizeof(*inliers_tmp) * 2 * MAX_CORNERS);
+  aom_free(inliers_tmp);
+  return true;
+}
+
+int av1_compute_global_motion_feature_based(
+    TransformationType type, unsigned char *src_buffer, int src_width,
+    int src_height, int src_stride, int *src_corners, int num_src_corners,
+    YV12_BUFFER_CONFIG *ref, int bit_depth, int *num_inliers_by_motion,
+    MotionModel *params_by_motion, int num_motions) {
+  int i;
+  int num_ref_corners;
+  int num_correspondences;
+  int *correspondences;
+  int ref_corners[2 * MAX_CORNERS];
+  unsigned char *ref_buffer = ref->y_buffer;
+  RansacFunc ransac = av1_get_ransac_type(type);
+
+  if (ref->flags & YV12_FLAG_HIGHBITDEPTH) {
+    ref_buffer = av1_downconvert_frame(ref, bit_depth);
+  }
+
+  num_ref_corners =
+      av1_fast_corner_detect(ref_buffer, ref->y_width, ref->y_height,
+                             ref->y_stride, ref_corners, MAX_CORNERS);
+
+  // find correspondences between the two images
+  correspondences =
+      (int *)aom_malloc(num_src_corners * 4 * sizeof(*correspondences));
+  if (!correspondences) return 0;
+  num_correspondences = aom_determine_correspondence(
+      src_buffer, (int *)src_corners, num_src_corners, ref_buffer,
+      (int *)ref_corners, num_ref_corners, src_width, src_height, src_stride,
+      ref->y_stride, correspondences);
+
+  ransac(correspondences, num_correspondences, num_inliers_by_motion,
+         params_by_motion, num_motions);
+
+  // Set num_inliers = 0 for motions with too few inliers so they are ignored.
+  for (i = 0; i < num_motions; ++i) {
+    if (num_inliers_by_motion[i] < MIN_INLIER_PROB * num_correspondences ||
+        num_correspondences == 0) {
+      num_inliers_by_motion[i] = 0;
+    } else if (!get_inliers_from_indices(&params_by_motion[i],
+                                         correspondences)) {
+      aom_free(correspondences);
+      return 0;
+    }
+  }
+
+  aom_free(correspondences);
+
+  // Return true if any one of the motions has inliers.
+  for (i = 0; i < num_motions; ++i) {
+    if (num_inliers_by_motion[i] > 0) return 1;
+  }
+  return 0;
 }

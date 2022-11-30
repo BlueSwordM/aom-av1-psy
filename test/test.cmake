@@ -204,8 +204,12 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/av1_k_means_test.cc")
 
   list(APPEND AOM_UNIT_TEST_ENCODER_INTRIN_SSE4_1
-              "${AOM_ROOT}/test/corner_match_test.cc"
               "${AOM_ROOT}/test/simd_cmp_sse4.cc")
+
+  if(NOT CONFIG_REALTIME_ONLY)
+    list(APPEND AOM_UNIT_TEST_ENCODER_INTRIN_SSE4_1
+                "${AOM_ROOT}/test/corner_match_test.cc")
+  endif()
 
   if(CONFIG_ACCOUNTING)
     list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
