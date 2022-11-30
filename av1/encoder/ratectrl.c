@@ -2813,92 +2813,89 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
   rc->percent_blocks_with_motion = 0;
   rc->max_block_source_sad = 0;
   rc->prev_avg_source_sad = rc->avg_source_sad;
-  if (src_width == last_src_width && src_height == last_src_height) {
-    int num_mi_cols = cm->mi_params.mi_cols;
-    int num_mi_rows = cm->mi_params.mi_rows;
-    if (cpi->svc.number_spatial_layers > 1) {
-      num_mi_cols = cpi->svc.mi_cols_full_resoln;
-      num_mi_rows = cpi->svc.mi_rows_full_resoln;
-    }
-    int num_zero_temp_sad = 0;
-    uint32_t min_thresh = 10000;
-    if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN) min_thresh = 100000;
-    const BLOCK_SIZE bsize = BLOCK_64X64;
-    // Loop over sub-sample of frame, compute average sad over 64x64 blocks.
-    uint64_t avg_sad = 0;
-    uint64_t tmp_sad = 0;
-    int num_samples = 0;
-    const int thresh = 6;
-    // SAD is computed on 64x64 blocks
-    const int sb_size_by_mb = (cm->seq_params->sb_size == BLOCK_128X128)
-                                  ? (cm->seq_params->mib_size >> 1)
-                                  : cm->seq_params->mib_size;
-    const int sb_cols = (num_mi_cols + sb_size_by_mb - 1) / sb_size_by_mb;
-    const int sb_rows = (num_mi_rows + sb_size_by_mb - 1) / sb_size_by_mb;
-    uint64_t sum_sq_thresh = 10000;  // sum = sqrt(thresh / 64*64)) ~1.5
-    int num_low_var_high_sumdiff = 0;
-    int light_change = 0;
-    // Flag to check light change or not.
-    const int check_light_change = 0;
-    // Store blkwise SAD for later use
-    if (width == cm->render_width && height == cm->render_height) {
-      if (cpi->src_sad_blk_64x64 == NULL) {
-        CHECK_MEM_ERROR(
-            cm, cpi->src_sad_blk_64x64,
-            (uint64_t *)aom_calloc(sb_cols * sb_rows,
-                                   sizeof(*cpi->src_sad_blk_64x64)));
-      }
-    }
-    for (int sbi_row = 0; sbi_row < sb_rows; ++sbi_row) {
-      for (int sbi_col = 0; sbi_col < sb_cols; ++sbi_col) {
-        tmp_sad = cpi->ppi->fn_ptr[bsize].sdf(src_y, src_ystride, last_src_y,
-                                              last_src_ystride);
-        if (cpi->src_sad_blk_64x64 != NULL)
-          cpi->src_sad_blk_64x64[sbi_col + sbi_row * sb_cols] = tmp_sad;
-        if (check_light_change) {
-          unsigned int sse, variance;
-          variance = cpi->ppi->fn_ptr[bsize].vf(src_y, src_ystride, last_src_y,
-                                                last_src_ystride, &sse);
-          // Note: sse - variance = ((sum * sum) >> 12)
-          // Detect large lighting change.
-          if (variance < (sse >> 1) && (sse - variance) > sum_sq_thresh) {
-            num_low_var_high_sumdiff++;
-          }
-        }
-        avg_sad += tmp_sad;
-        num_samples++;
-        if (tmp_sad == 0) num_zero_temp_sad++;
-        if (tmp_sad > rc->max_block_source_sad)
-          rc->max_block_source_sad = tmp_sad;
-
-        src_y += 64;
-        last_src_y += 64;
-      }
-      src_y += (src_ystride << 6) - (sb_cols << 6);
-      last_src_y += (last_src_ystride << 6) - (sb_cols << 6);
-    }
-    if (check_light_change && num_samples > 0 &&
-        num_low_var_high_sumdiff > (num_samples >> 1))
-      light_change = 1;
-    if (num_samples > 0) avg_sad = avg_sad / num_samples;
-    // Set high_source_sad flag if we detect very high increase in avg_sad
-    // between current and previous frame value(s). Use minimum threshold
-    // for cases where there is small change from content that is completely
-    // static.
-    if (!light_change &&
-        avg_sad >
-            AOMMAX(min_thresh, (unsigned int)(rc->avg_source_sad * thresh)) &&
-        rc->frames_since_key > 1 + cpi->svc.number_spatial_layers &&
-        num_zero_temp_sad < 3 * (num_samples >> 2))
-      rc->high_source_sad = 1;
-    else
-      rc->high_source_sad = 0;
-    rc->avg_source_sad = (3 * rc->avg_source_sad + avg_sad) >> 2;
-    rc->frame_source_sad = avg_sad;
-    if (num_samples > 0)
-      rc->percent_blocks_with_motion =
-          ((num_samples - num_zero_temp_sad) * 100) / num_samples;
+  int num_mi_cols = cm->mi_params.mi_cols;
+  int num_mi_rows = cm->mi_params.mi_rows;
+  if (cpi->svc.number_spatial_layers > 1) {
+    num_mi_cols = cpi->svc.mi_cols_full_resoln;
+    num_mi_rows = cpi->svc.mi_rows_full_resoln;
   }
+  int num_zero_temp_sad = 0;
+  uint32_t min_thresh = 10000;
+  if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN) min_thresh = 100000;
+  const BLOCK_SIZE bsize = BLOCK_64X64;
+  // Loop over sub-sample of frame, compute average sad over 64x64 blocks.
+  uint64_t avg_sad = 0;
+  uint64_t tmp_sad = 0;
+  int num_samples = 0;
+  const int thresh = 6;
+  // SAD is computed on 64x64 blocks
+  const int sb_size_by_mb = (cm->seq_params->sb_size == BLOCK_128X128)
+                                ? (cm->seq_params->mib_size >> 1)
+                                : cm->seq_params->mib_size;
+  const int sb_cols = (num_mi_cols + sb_size_by_mb - 1) / sb_size_by_mb;
+  const int sb_rows = (num_mi_rows + sb_size_by_mb - 1) / sb_size_by_mb;
+  uint64_t sum_sq_thresh = 10000;  // sum = sqrt(thresh / 64*64)) ~1.5
+  int num_low_var_high_sumdiff = 0;
+  int light_change = 0;
+  // Flag to check light change or not.
+  const int check_light_change = 0;
+  // Store blkwise SAD for later use
+  if (width == cm->render_width && height == cm->render_height) {
+    if (cpi->src_sad_blk_64x64 == NULL) {
+      CHECK_MEM_ERROR(cm, cpi->src_sad_blk_64x64,
+                      (uint64_t *)aom_calloc(sb_cols * sb_rows,
+                                             sizeof(*cpi->src_sad_blk_64x64)));
+    }
+  }
+  for (int sbi_row = 0; sbi_row < sb_rows; ++sbi_row) {
+    for (int sbi_col = 0; sbi_col < sb_cols; ++sbi_col) {
+      tmp_sad = cpi->ppi->fn_ptr[bsize].sdf(src_y, src_ystride, last_src_y,
+                                            last_src_ystride);
+      if (cpi->src_sad_blk_64x64 != NULL)
+        cpi->src_sad_blk_64x64[sbi_col + sbi_row * sb_cols] = tmp_sad;
+      if (check_light_change) {
+        unsigned int sse, variance;
+        variance = cpi->ppi->fn_ptr[bsize].vf(src_y, src_ystride, last_src_y,
+                                              last_src_ystride, &sse);
+        // Note: sse - variance = ((sum * sum) >> 12)
+        // Detect large lighting change.
+        if (variance < (sse >> 1) && (sse - variance) > sum_sq_thresh) {
+          num_low_var_high_sumdiff++;
+        }
+      }
+      avg_sad += tmp_sad;
+      num_samples++;
+      if (tmp_sad == 0) num_zero_temp_sad++;
+      if (tmp_sad > rc->max_block_source_sad)
+        rc->max_block_source_sad = tmp_sad;
+
+      src_y += 64;
+      last_src_y += 64;
+    }
+    src_y += (src_ystride << 6) - (sb_cols << 6);
+    last_src_y += (last_src_ystride << 6) - (sb_cols << 6);
+  }
+  if (check_light_change && num_samples > 0 &&
+      num_low_var_high_sumdiff > (num_samples >> 1))
+    light_change = 1;
+  if (num_samples > 0) avg_sad = avg_sad / num_samples;
+  // Set high_source_sad flag if we detect very high increase in avg_sad
+  // between current and previous frame value(s). Use minimum threshold
+  // for cases where there is small change from content that is completely
+  // static.
+  if (!light_change &&
+      avg_sad >
+          AOMMAX(min_thresh, (unsigned int)(rc->avg_source_sad * thresh)) &&
+      rc->frames_since_key > 1 + cpi->svc.number_spatial_layers &&
+      num_zero_temp_sad < 3 * (num_samples >> 2))
+    rc->high_source_sad = 1;
+  else
+    rc->high_source_sad = 0;
+  rc->avg_source_sad = (3 * rc->avg_source_sad + avg_sad) >> 2;
+  rc->frame_source_sad = avg_sad;
+  if (num_samples > 0)
+    rc->percent_blocks_with_motion =
+        ((num_samples - num_zero_temp_sad) * 100) / num_samples;
   // Scene detection is only on base SLO, and using full/orignal resolution.
   // Pass the state to the upper spatial layers.
   if (cpi->svc.number_spatial_layers > 1) {
