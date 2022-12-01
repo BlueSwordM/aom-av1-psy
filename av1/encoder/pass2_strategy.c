@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 
+#include "aom_mem/aom_mem.h"
 #include "config/aom_config.h"
 #include "config/aom_scale_rtcd.h"
 
@@ -3508,6 +3509,39 @@ void av1_mark_flashes(FIRSTPASS_STATS *first_stats,
   }
 }
 
+// Smooth-out the noise variance so it is more stable
+// TODO(bohanli): Use a better low-pass filter than averaging
+static void smooth_filter_noise(FIRSTPASS_STATS *first_stats,
+                                FIRSTPASS_STATS *last_stats) {
+  int len = (int)(last_stats - first_stats);
+  double *smooth_noise = aom_malloc(len * sizeof(*smooth_noise));
+  if (!smooth_noise) return;
+
+  for (int i = 0; i < len; i++) {
+    double total_noise = 0;
+    double total_wt = 0;
+    for (int j = -HALF_FILT_LEN; j <= HALF_FILT_LEN; j++) {
+      int idx = AOMMIN(AOMMAX(i + j, 0), len - 1);
+      if (first_stats[idx].is_flash) continue;
+
+      total_noise += first_stats[idx].noise_var;
+      total_wt += 1.0;
+    }
+    if (total_wt > 0.01) {
+      total_noise /= total_wt;
+    } else {
+      total_noise = first_stats[i].noise_var;
+    }
+    smooth_noise[i] = total_noise;
+  }
+
+  for (int i = 0; i < len; i++) {
+    first_stats[i].noise_var = smooth_noise[i];
+  }
+
+  aom_free(smooth_noise);
+}
+
 // Estimate the noise variance of each frame from the first pass stats
 void av1_estimate_noise(FIRSTPASS_STATS *first_stats,
                         FIRSTPASS_STATS *last_stats) {
@@ -3595,6 +3629,8 @@ void av1_estimate_noise(FIRSTPASS_STATS *first_stats,
        this_stats++) {
     this_stats->noise_var = (first_stats + 2)->noise_var;
   }
+
+  smooth_filter_noise(first_stats, last_stats);
 }
 
 // Estimate correlation coefficient of each frame with its previous frame.
