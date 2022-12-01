@@ -145,10 +145,9 @@ TEST(DuckyEncodeRCTest, EncodeVideoWithRC) {
     ASSERT_TRUE(gop_encode_info.status().ok());
     tpl_pass_gop_encode_info_list.push_back(std::move(*gop_encode_info));
   }
-  ducky_encode.StartEncode(firstpass_info.stats_list);
-  tpl_gop_stats_list =
-      ducky_encode.ComputeTplStats(gop_list, tpl_pass_gop_encode_info_list);
-  ducky_encode.EndEncode();
+
+  tpl_gop_stats_list = ducky_encode.ComputeTplStats(
+      firstpass_info.stats_list, gop_list, tpl_pass_gop_encode_info_list);
 
   std::vector<aom::GopEncodeInfo> final_pass_gop_encode_info_list;
   aom::RefFrameTable ref_frame_table;

@@ -1049,11 +1049,10 @@ TEST_F(RateControlQModeTest, TestGetGopEncodeInfo) {
     gop_encode_info_list.push_back(gop_encode_info.value());
   }
 
-  ducky_encode.StartEncode(firstpass_info.stats_list);
   // Read TPL stats
-  std::vector<TplGopStats> tpl_gop_list =
-      ducky_encode.ComputeTplStats(gop_list, gop_encode_info_list);
-  ducky_encode.EndEncode();
+  std::vector<TplGopStats> tpl_gop_list = ducky_encode.ComputeTplStats(
+      firstpass_info.stats_list, gop_list, gop_encode_info_list);
+
   RefFrameTable ref_frame_table;
   int num_gop_skipped = 0;
   for (size_t gop_idx = 0; gop_idx < gop_list.size(); gop_idx++) {

@@ -542,8 +542,10 @@ TplGopStats DuckyEncode::ObtainTplStats(const GopStruct gop_struct,
 // Obtain TPL stats through ducky_encode.
 // TODO(jianj): Populate rate_dist_present flag through qmode_rc_encoder
 std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
+    const std::vector<FIRSTPASS_STATS> &stats_list,
     const GopStructList &gop_list,
     const GopEncodeInfoList &gop_encode_info_list) {
+  StartEncode(stats_list);
   std::vector<TplGopStats> tpl_gop_stats_list;
   AV1_PRIMARY *ppi = impl_ptr_->enc_resource.ppi;
   const VideoInfo &video_info = impl_ptr_->video_info;
@@ -571,8 +573,33 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
     tpl_gop_stats = ObtainTplStats(gop_struct, 0);
     tpl_gop_stats_list.push_back(tpl_gop_stats);
   }
-
+  EndEncode();
   return tpl_gop_stats_list;
+}
+
+std::vector<TplGopStats> DuckyEncode::ComputeTwoPassTplStats(
+    const std::vector<FIRSTPASS_STATS> &stats_list,
+    const GopStructList &gop_list,
+    const GopEncodeInfoList &gop_encode_info_list,
+    const GopEncodeInfoList &alt_gop_encode_info_list) {
+  std::vector<TplGopStats> first_tpl_gop_stats_list =
+      ComputeTplStats(stats_list, gop_list, gop_encode_info_list);
+  const std::vector<TplGopStats> second_tpl_gop_stats_list =
+      ComputeTplStats(stats_list, gop_list, alt_gop_encode_info_list);
+  assert(first_tpl_gop_stats_list.size() == second_tpl_gop_stats_list.size());
+
+  // Set alternate_block_stats_list in first_tpl_gop_stats_list
+  // and return first_tpl_gop_stats_list
+  for (size_t i = 0; i < first_tpl_gop_stats_list.size(); ++i) {
+    for (size_t j = 0; j < first_tpl_gop_stats_list[i].frame_stats_list.size();
+         ++j) {
+      first_tpl_gop_stats_list[i]
+          .frame_stats_list[j]
+          .alternate_block_stats_list =
+          second_tpl_gop_stats_list[i].frame_stats_list[j].block_stats_list;
+    }
+  }
+  return first_tpl_gop_stats_list;
 }
 
 // Conduct final encoding process.
