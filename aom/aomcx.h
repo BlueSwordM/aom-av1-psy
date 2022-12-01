@@ -619,7 +619,7 @@ enum aome_enc_control_id {
    *  - xy: Target level index for the OP. Can be values 0~27 (corresponding to
    *    level 2.0 ~ 8.3, note levels 2.2, 2.3, 3.2, 3.3, 4.2 & 4.3 are
    *    undefined, and that levels 7.x and 8.x are in draft status), 31
-   *    (maximum level parameter, no level-based constraints) or 32 (keep
+   *    (maximum parameters level, no level-based constraints) or 32 (keep
    *    level stats only for level monitoring).
    *
    * E.g.:
@@ -627,8 +627,8 @@ enum aome_enc_control_id {
    * - "109" means target level index 9 (4.1) for the 1st OP;
    * - "1019" means target level index 19 (6.3) for the 10th OP.
    *
-   * If the target level is not specified for an OP, the maximum level parameter
-   * of 31 is used as default.
+   * If the target level is not specified for an OP, the maximum parameters
+   * level of 31 is used as default.
    */
   AV1E_SET_TARGET_SEQ_LEVEL_IDX = 54,
 
