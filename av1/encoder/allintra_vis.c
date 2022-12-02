@@ -220,17 +220,12 @@ void av1_calc_mb_wiener_var_row(AV1_COMP *const cpi, const int mi_row,
   const BitDepthInfo bd_info = get_bit_depth_info(xd);
   cm->quant_params.base_qindex = cpi->oxcf.rc_cfg.cq_level;
   av1_frame_init_quantizer(cpi);
-  MultiThreadInfo *const mt_info = &cpi->mt_info;
-  AV1EncRowMultiThreadInfo *const enc_row_mt = &mt_info->enc_row_mt;
-  TileDataEnc *const tile_data = cpi->tile_data;
-  AV1EncRowMultiThreadSync *row_mt_sync = NULL;
-  // TODO(any):
-  // This line is to avoid warnings:
-  // "member access within null pointer of type 'TileDataEnc'".
-  // There might be a better way.
-  if (tile_data != NULL) {
-    row_mt_sync = &cpi->tile_data[0].row_mt_sync;
-  }
+  const AV1EncRowMultiThreadInfo *const enc_row_mt = &cpi->mt_info.enc_row_mt;
+  // We allocate cpi->tile_data (of size 1) when we call this function in
+  // multithreaded mode, so cpi->tile_data may be a null pointer when we call
+  // this function in single-threaded mode.
+  AV1EncRowMultiThreadSync *const row_mt_sync =
+      cpi->tile_data ? &cpi->tile_data[0].row_mt_sync : NULL;
   const int mi_cols = cm->mi_params.mi_cols;
   const int mt_thread_id = mi_row / mb_step;
   // TODO(chengchen): test different unit step size
@@ -469,7 +464,8 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
   if (num_workers > 1) {
     enc_row_mt->sync_read_ptr = av1_row_mt_sync_read;
     enc_row_mt->sync_write_ptr = av1_row_mt_sync_write;
-    av1_calc_mb_wiener_var_mt(cpi, &sum_rec_distortion, &sum_est_rate);
+    av1_calc_mb_wiener_var_mt(cpi, num_workers, &sum_rec_distortion,
+                              &sum_est_rate);
   } else {
     calc_mb_wiener_var(cpi, &sum_rec_distortion, &sum_est_rate);
   }

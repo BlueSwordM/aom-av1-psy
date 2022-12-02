@@ -2521,14 +2521,13 @@ static int cal_mb_wiener_var_hook(void *arg1, void *unused) {
 // computation is before the frame encoding, so we don't need to consider
 // the number of tiles, instead we allocate all available threads to
 // the computation.
-void av1_calc_mb_wiener_var_mt(AV1_COMP *cpi, double *sum_rec_distortion,
+void av1_calc_mb_wiener_var_mt(AV1_COMP *cpi, int num_workers,
+                               double *sum_rec_distortion,
                                double *sum_est_rate) {
   (void)sum_rec_distortion;
   (void)sum_est_rate;
   AV1_COMMON *const cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
-  const int num_workers =
-      AOMMIN(mt_info->num_mod_workers[MOD_AI], mt_info->num_workers);
   const int tile_cols = 1;
   const int tile_rows = 1;
   if (cpi->tile_data != NULL) aom_free(cpi->tile_data);
@@ -2543,17 +2542,15 @@ void av1_calc_mb_wiener_var_mt(AV1_COMP *cpi, double *sum_rec_distortion,
   const int mi_rows = cm->mi_params.mi_rows;
   wiener_var_sync_mem_alloc(row_mt_sync, cm, mi_rows);
 
-  // wiener_var_sync_mem_alloc(row_mt_sync, cm, num_workers);
   row_mt_sync->intrabc_extra_top_right_sb_delay = 0;
   row_mt_sync->num_threads_working = num_workers;
   row_mt_sync->next_mi_row = 0;
-  row_mt_sync->sync_range = 1;
   memset(row_mt_sync->num_finished_cols, -1,
          sizeof(*row_mt_sync->num_finished_cols) * num_workers);
 
   prepare_wiener_var_workers(cpi, cal_mb_wiener_var_hook, num_workers);
-  launch_workers(&cpi->mt_info, num_workers);
-  sync_enc_workers(&cpi->mt_info, cm, num_workers);
+  launch_workers(mt_info, num_workers);
+  sync_enc_workers(mt_info, cm, num_workers);
 }
 
 // Compare and order tiles based on absolute sum of tx coeffs.
