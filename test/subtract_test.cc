@@ -38,7 +38,7 @@ using std::tuple;
 using libaom_test::ACMRandom;
 
 // <BLOCK_SIZE, optimized subtract func, reference subtract func>
-typedef tuple<BLOCK_SIZE, SubtractFunc, SubtractFunc> Params;
+using Params = tuple<BLOCK_SIZE, SubtractFunc, SubtractFunc>;
 
 class AV1SubtractBlockTestBase : public ::testing::Test {
  public:
@@ -253,7 +253,7 @@ INSTANTIATE_TEST_SUITE_P(
 #if CONFIG_AV1_HIGHBITDEPTH
 
 // <BLOCK_SIZE, bit_depth, optimized subtract func, reference subtract func>
-typedef tuple<BLOCK_SIZE, int, SubtractFunc, SubtractFunc> ParamsHBD;
+using ParamsHBD = tuple<BLOCK_SIZE, int, SubtractFunc, SubtractFunc>;
 
 class AV1HBDSubtractBlockTest : public ::testing::WithParamInterface<ParamsHBD>,
                                 public AV1SubtractBlockTestBase {
