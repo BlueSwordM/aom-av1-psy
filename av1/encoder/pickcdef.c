@@ -386,8 +386,9 @@ static AOM_FORCE_INLINE int get_error_calc_width_in_filt_units(
      * logic if y co-ordinates match and x co-ordinates are
      * separated by 3 for first and fourth 8x8/4x4 blocks in dlist[]. */
     return 4;
-  } else if (bi + 1 < cdef_count && dlist[bi].by == dlist[bi + 1].by &&
-             dlist[bi].bx + 1 == dlist[bi + 1].bx) {
+  }
+  if (bi + 1 < cdef_count && dlist[bi].by == dlist[bi + 1].by &&
+      dlist[bi].bx + 1 == dlist[bi + 1].bx) {
     /* Calculate error for two 8x8/4x4 blocks using 16x8/8x4 block specific
      * logic if their y co-ordinates match and x co-ordinates are
      * separated by 1 for first and second 8x8/4x4 blocks in dlist[]. */
