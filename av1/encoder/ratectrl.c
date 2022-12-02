@@ -700,8 +700,8 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int is_encode_stage,
   // Do not update the rate factors for arf overlay frames.
   if (cpi->rc.is_src_frame_alt_ref) return;
 
-  // Dont update rate correction factors here on scene changes as
-  // it is already reset av1_encodedframe_overshoot_cbr(),
+  // Don't update rate correction factors here on scene changes as
+  // it is already reset in av1_encodedframe_overshoot_cbr(),
   // but reset variables related to previous frame q and size.
   // Note that the counter of frames since the last scene change
   // is only valid when cyclic refresh mode is enabled and that
