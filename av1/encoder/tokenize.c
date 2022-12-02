@@ -39,9 +39,8 @@ static AOM_INLINE int av1_fast_palette_color_index_context_on_edge(
   const uint8_t color_neighbor = has_above
                                      ? color_map[(r - 1) * stride + (c - 0)]
                                      : color_map[(r - 0) * stride + (c - 1)];
-  // If any of the neighbor color has higher index than current color index,
-  // then we move up by 1 unless the current color is the same as one of the
-  // neighbor
+  // If the neighbor color has higher index than current color index, then we
+  // move up by 1.
   const uint8_t current_color = *color_idx = color_map[r * stride + c];
   if (color_neighbor > current_color) {
     (*color_idx)++;
@@ -146,9 +145,9 @@ static AOM_INLINE int av1_fast_palette_color_index_context(
     }
   }
 
-  // If any of the neighbor color has higher index than current color index,
+  // If any of the neighbor colors has higher index than current color index,
   // then we move up by 1 unless the current color is the same as one of the
-  // neighbor
+  // neighbors.
   const uint8_t current_color = *color_idx = color_map[r * stride + c];
   for (int idx = 0; idx < num_valid_colors; idx++) {
     if (color_rank[idx] > current_color) {
