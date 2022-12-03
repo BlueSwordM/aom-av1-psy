@@ -199,6 +199,11 @@ void DuckyEncode::InitEncoder(aom_enc_pass pass,
   oxcf.dec_model_cfg.display_model_info_present_flag = 0;
   oxcf.ref_frm_cfg.max_reference_frames = impl_ptr_->max_ref_frames;
   oxcf.speed = impl_ptr_->speed;
+  if (impl_ptr_->sb_size == BLOCK_64X64)
+    oxcf.tool_cfg.superblock_size = AOM_SUPERBLOCK_SIZE_64X64;
+  else
+    oxcf.tool_cfg.superblock_size = AOM_SUPERBLOCK_SIZE_128X128;
+
   av1_initialize_enc(impl_ptr_->g_usage, impl_ptr_->rc_end_usage);
   AV1_PRIMARY *ppi =
       av1_create_primary_compressor(nullptr,
