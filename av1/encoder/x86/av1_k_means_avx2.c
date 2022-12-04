@@ -14,9 +14,13 @@
 #include "aom_dsp/x86/synonyms.h"
 
 static int64_t k_means_horizontal_sum_avx2(__m256i a) {
-  int64_t dists[4];
-  _mm256_store_si256((__m256i *)dists, a);
-  return a[0] + a[1] + a[2] + a[3];
+  const __m128i low = _mm256_castsi256_si128(a);
+  const __m128i high = _mm256_extracti128_si256(a, 1);
+  const __m128i sum = _mm_add_epi64(low, high);
+  const __m128i sum_high = _mm_unpackhi_epi64(sum, sum);
+  int64_t res;
+  _mm_storel_epi64((__m128i *)&res, _mm_add_epi64(sum, sum_high));
+  return res;
 }
 
 void av1_calc_indices_dim1_avx2(const int *data, const int *centroids,
@@ -54,8 +58,8 @@ void av1_calc_indices_dim1_avx2(const int *data, const int *centroids,
 
     if (total_dist) {
       // Convert to 64 bit and add to sum.
-      const __m256i dist1 = _mm256_unpacklo_epi32(v_zero, dist[0]);
-      const __m256i dist2 = _mm256_unpackhi_epi32(v_zero, dist[0]);
+      const __m256i dist1 = _mm256_unpacklo_epi32(dist[0], v_zero);
+      const __m256i dist2 = _mm256_unpackhi_epi32(dist[0], v_zero);
       sum = _mm256_add_epi64(sum, dist1);
       sum = _mm256_add_epi64(sum, dist2);
     }
@@ -112,8 +116,8 @@ void av1_calc_indices_dim2_avx2(const int *data, const int *centroids,
 
     if (total_dist) {
       // Convert to 64 bit and add to sum.
-      const __m256i dist1 = _mm256_unpacklo_epi32(v_zero, dist[0]);
-      const __m256i dist2 = _mm256_unpackhi_epi32(v_zero, dist[0]);
+      const __m256i dist1 = _mm256_unpacklo_epi32(dist[0], v_zero);
+      const __m256i dist2 = _mm256_unpackhi_epi32(dist[0], v_zero);
       sum = _mm256_add_epi64(sum, dist1);
       sum = _mm256_add_epi64(sum, dist2);
     }

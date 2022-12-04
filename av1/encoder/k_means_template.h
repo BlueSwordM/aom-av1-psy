@@ -50,7 +50,7 @@ void RENAME(av1_calc_indices)(const int *data, const int *centroids,
       }
     }
     if (dist) {
-      dist += min_dist;
+      *dist += min_dist;
     }
   }
 }
