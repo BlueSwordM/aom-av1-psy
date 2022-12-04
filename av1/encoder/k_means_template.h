@@ -28,7 +28,7 @@
 // Though we want to compute the smallest L2 norm, in 1 dimension,
 // it is equivalent to find the smallest L1 norm and then square it.
 // This is preferrable for speed, especially on the SIMD side.
-static int RENAME(calc_dist)(const int *p1, const int *p2) {
+static int RENAME(calc_dist)(const int16_t *p1, const int16_t *p2) {
 #if AV1_K_MEANS_DIM == 1
   return abs(p1[0] - p2[0]);
 #else
@@ -41,7 +41,7 @@ static int RENAME(calc_dist)(const int *p1, const int *p2) {
 #endif
 }
 
-void RENAME(av1_calc_indices)(const int *data, const int *centroids,
+void RENAME(av1_calc_indices)(const int16_t *data, const int16_t *centroids,
                               uint8_t *indices, int64_t *dist, int n, int k) {
   if (dist) {
     *dist = 0;
@@ -67,20 +67,22 @@ void RENAME(av1_calc_indices)(const int *data, const int *centroids,
   }
 }
 
-static void RENAME(calc_centroids)(const int *data, int *centroids,
+static void RENAME(calc_centroids)(const int16_t *data, int16_t *centroids,
                                    const uint8_t *indices, int n, int k) {
   int i, j;
   int count[PALETTE_MAX_SIZE] = { 0 };
+  int centroids_sum[AV1_K_MEANS_DIM * PALETTE_MAX_SIZE];
   unsigned int rand_state = (unsigned int)data[0];
   assert(n <= 32768);
-  memset(centroids, 0, sizeof(centroids[0]) * k * AV1_K_MEANS_DIM);
+  memset(centroids_sum, 0, sizeof(centroids_sum[0]) * k * AV1_K_MEANS_DIM);
 
   for (i = 0; i < n; ++i) {
     const int index = indices[i];
     assert(index < k);
     ++count[index];
     for (j = 0; j < AV1_K_MEANS_DIM; ++j) {
-      centroids[index * AV1_K_MEANS_DIM + j] += data[i * AV1_K_MEANS_DIM + j];
+      centroids_sum[index * AV1_K_MEANS_DIM + j] +=
+          data[i * AV1_K_MEANS_DIM + j];
     }
   }
 
@@ -92,17 +94,17 @@ static void RENAME(calc_centroids)(const int *data, int *centroids,
     } else {
       for (j = 0; j < AV1_K_MEANS_DIM; ++j) {
         centroids[i * AV1_K_MEANS_DIM + j] =
-            DIVIDE_AND_ROUND(centroids[i * AV1_K_MEANS_DIM + j], count[i]);
+            DIVIDE_AND_ROUND(centroids_sum[i * AV1_K_MEANS_DIM + j], count[i]);
       }
     }
   }
 }
 
-void RENAME(av1_k_means)(const int *data, int *centroids, uint8_t *indices,
-                         int n, int k, int max_itr) {
-  int centroids_tmp[AV1_K_MEANS_DIM * PALETTE_MAX_SIZE];
+void RENAME(av1_k_means)(const int16_t *data, int16_t *centroids,
+                         uint8_t *indices, int n, int k, int max_itr) {
+  int16_t centroids_tmp[AV1_K_MEANS_DIM * PALETTE_MAX_SIZE];
   uint8_t indices_tmp[MAX_PALETTE_BLOCK_WIDTH * MAX_PALETTE_BLOCK_HEIGHT];
-  int *meta_centroids[2] = { centroids, centroids_tmp };
+  int16_t *meta_centroids[2] = { centroids, centroids_tmp };
   uint8_t *meta_indices[2] = { indices, indices_tmp };
   int i, l = 0, prev_l, best_l = 0;
   int64_t this_dist;

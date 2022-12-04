@@ -28,12 +28,12 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 namespace AV1Kmeans {
-typedef void (*av1_calc_indices_dim1_func)(const int *data,
-                                           const int *centroids,
+typedef void (*av1_calc_indices_dim1_func)(const int16_t *data,
+                                           const int16_t *centroids,
                                            uint8_t *indices,
                                            int64_t *total_dist, int n, int k);
-typedef void (*av1_calc_indices_dim2_func)(const int *data,
-                                           const int *centroids,
+typedef void (*av1_calc_indices_dim2_func)(const int16_t *data,
+                                           const int16_t *centroids,
                                            uint8_t *indices,
                                            int64_t *total_dist, int n, int k);
 
@@ -68,8 +68,8 @@ class AV1KmeansTest1
   }
 
   libaom_test::ACMRandom rnd_;
-  int data_[4096];
-  int centroids_[8];
+  int16_t data_[4096];
+  int16_t centroids_[8];
   uint8_t indices1_[4096];
   uint8_t indices2_[4096];
 };
@@ -178,8 +178,8 @@ class AV1KmeansTest2
   }
 
   libaom_test::ACMRandom rnd_;
-  int data_[4096 * 2];
-  int centroids_[8 * 2];
+  int16_t data_[4096 * 2];
+  int16_t centroids_[8 * 2];
   uint8_t indices1_[4096];
   uint8_t indices2_[4096];
 };

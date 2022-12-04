@@ -326,7 +326,7 @@ typedef struct {
   //! The best color map found.
   uint8_t best_palette_color_map[MAX_PALETTE_SQUARE];
   //! A temporary buffer used for k-means clustering.
-  int kmeans_data_buf[2 * MAX_PALETTE_SQUARE];
+  int16_t kmeans_data_buf[2 * MAX_PALETTE_SQUARE];
 } PALETTE_BUFFER;
 
 /*! \brief Contains buffers used by av1_compound_type_rd()

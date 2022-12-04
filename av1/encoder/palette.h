@@ -28,10 +28,10 @@ struct macroblock;
 /*!\cond */
 #define AV1_K_MEANS_RENAME(func, dim) func##_dim##dim##_c
 
-void AV1_K_MEANS_RENAME(av1_k_means, 1)(const int *data, int *centroids,
+void AV1_K_MEANS_RENAME(av1_k_means, 1)(const int16_t *data, int16_t *centroids,
                                         uint8_t *indices, int n, int k,
                                         int max_itr);
-void AV1_K_MEANS_RENAME(av1_k_means, 2)(const int *data, int *centroids,
+void AV1_K_MEANS_RENAME(av1_k_means, 2)(const int16_t *data, int16_t *centroids,
                                         uint8_t *indices, int n, int k,
                                         int max_itr);
 /*!\endcond */
@@ -51,8 +51,9 @@ void AV1_K_MEANS_RENAME(av1_k_means, 2)(const int *data, int *centroids,
  *
  * \remark Returns nothing, but saves each data's cluster index in \a indices.
  */
-static INLINE void av1_calc_indices(const int *data, const int *centroids,
-                                    uint8_t *indices, int n, int k, int dim) {
+static INLINE void av1_calc_indices(const int16_t *data,
+                                    const int16_t *centroids, uint8_t *indices,
+                                    int n, int k, int dim) {
   assert(n > 0);
   assert(k > 0);
   if (dim == 1) {
@@ -84,7 +85,7 @@ static INLINE void av1_calc_indices(const int *data, const int *centroids,
  *
  * \attention The output centroids are rounded off to nearest integers.
  */
-static INLINE void av1_k_means(const int *data, int *centroids,
+static INLINE void av1_k_means(const int16_t *data, int16_t *centroids,
                                uint8_t *indices, int n, int k, int dim,
                                int max_itr) {
   assert(n > 0);
@@ -110,7 +111,7 @@ static INLINE void av1_k_means(const int *data, int *centroids,
  * \attention The centroids should be rounded to integers before calling this
  * method.
  */
-int av1_remove_duplicates(int *centroids, int num_centroids);
+int av1_remove_duplicates(int16_t *centroids, int num_centroids);
 
 /*!\brief Checks what colors are in the color cache.
  *
