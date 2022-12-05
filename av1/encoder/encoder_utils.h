@@ -127,14 +127,15 @@ static AOM_INLINE void init_buffer_indices(
   force_intpel_info->rate_size = 0;
 }
 
-#define HIGHBD_BFP(BT, SDF, SDAF, VF, SVF, SVAF, SDX4DF, JSDAF, JSVAF) \
-  ppi->fn_ptr[BT].sdf = SDF;                                           \
-  ppi->fn_ptr[BT].sdaf = SDAF;                                         \
-  ppi->fn_ptr[BT].vf = VF;                                             \
-  ppi->fn_ptr[BT].svf = SVF;                                           \
-  ppi->fn_ptr[BT].svaf = SVAF;                                         \
-  ppi->fn_ptr[BT].sdx4df = SDX4DF;                                     \
-  ppi->fn_ptr[BT].jsdaf = JSDAF;                                       \
+#define HIGHBD_BFP(BT, SDF, SDAF, VF, SVF, SVAF, SDX4DF, SDX3DF, JSDAF, JSVAF) \
+  ppi->fn_ptr[BT].sdf = SDF;                                                   \
+  ppi->fn_ptr[BT].sdaf = SDAF;                                                 \
+  ppi->fn_ptr[BT].vf = VF;                                                     \
+  ppi->fn_ptr[BT].svf = SVF;                                                   \
+  ppi->fn_ptr[BT].svaf = SVAF;                                                 \
+  ppi->fn_ptr[BT].sdx4df = SDX4DF;                                             \
+  ppi->fn_ptr[BT].sdx3df = SDX3DF;                                             \
+  ppi->fn_ptr[BT].jsdaf = JSDAF;                                               \
   ppi->fn_ptr[BT].jsvaf = JSVAF;
 
 #define HIGHBD_BFP_WRAPPER(WIDTH, HEIGHT, BD)                                \
@@ -145,6 +146,7 @@ static AOM_INLINE void init_buffer_indices(
       aom_highbd_##BD##_sub_pixel_variance##WIDTH##x##HEIGHT,                \
       aom_highbd_##BD##_sub_pixel_avg_variance##WIDTH##x##HEIGHT,            \
       aom_highbd_sad##WIDTH##x##HEIGHT##x4d_bits##BD,                        \
+      aom_highbd_sad##WIDTH##x##HEIGHT##x3d_bits##BD,                        \
       aom_highbd_dist_wtd_sad##WIDTH##x##HEIGHT##_avg_bits##BD,              \
       aom_highbd_##BD##_dist_wtd_sub_pixel_avg_variance##WIDTH##x##HEIGHT)
 
@@ -234,71 +236,93 @@ static AOM_INLINE void init_buffer_indices(
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad128x128)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad128x128_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad128x128x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad128x128x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad128x64)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad128x64_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad128x64x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad128x64x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad64x128)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad64x128_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad64x128x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad64x128x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad32x16)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad32x16_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad32x16x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad32x16x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad16x32)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad16x32_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad16x32x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad16x32x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad64x32)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad64x32_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad64x32x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad64x32x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad32x64)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad32x64_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad32x64x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad32x64x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad32x32)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad32x32_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad32x32x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad32x32x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad64x64)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad64x64_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad64x64x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad64x64x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad16x16)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad16x16_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad16x16x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad16x16x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad16x8)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad16x8_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad16x8x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad16x8x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad8x16)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad8x16_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad8x16x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad8x16x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad8x8)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad8x8_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad8x8x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad8x8x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad8x4)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad8x4_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad8x4x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad8x4x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad4x8)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad4x8_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad4x8x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad4x8x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad4x4)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad4x4_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad4x4x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad4x4x3d)
 
 #if !CONFIG_REALTIME_ONLY
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad4x16)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad4x16_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad4x16x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad4x16x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad16x4)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad16x4_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad16x4x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad16x4x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad8x32)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad8x32_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad8x32x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad8x32x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad32x8)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad32x8_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad32x8x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad32x8x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad16x64)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad16x64_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad16x64x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad16x64x3d)
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad64x16)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad64x16_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad64x16x4d)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad64x16x3d)
 #endif
 
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad128x128_avg)

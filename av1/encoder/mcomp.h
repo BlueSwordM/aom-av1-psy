@@ -137,6 +137,7 @@ typedef struct {
   // sdf in vfp (e.g. downsampled sad and not sad) to allow speed up.
   aom_sad_fn_t sdf;
   aom_sad_multi_d_fn_t sdx4df;
+  aom_sad_multi_d_fn_t sdx3df;
 } FULLPEL_MOTION_SEARCH_PARAMS;
 
 void av1_init_obmc_buffer(OBMCBuffer *obmc_buffer);

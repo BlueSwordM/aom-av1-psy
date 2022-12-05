@@ -124,9 +124,12 @@ void av1_make_default_fullpel_ms_params(
   if (use_downsampled_sad) {
     ms_params->sdf = ms_params->vfp->sdsf;
     ms_params->sdx4df = ms_params->vfp->sdsx4df;
+    // Skip version of sadx3 is not is not available yet
+    ms_params->sdx3df = ms_params->vfp->sdsx4df;
   } else {
     ms_params->sdf = ms_params->vfp->sdf;
     ms_params->sdx4df = ms_params->vfp->sdx4df;
+    ms_params->sdx3df = ms_params->vfp->sdx3df;
   }
 
   ms_params->mesh_patterns[0] = mv_sf->mesh_patterns;
@@ -909,7 +912,7 @@ static AOM_INLINE void calc_sad3_update_bestmv(
     center_address,
   };
   unsigned int sads[4];
-  ms_params->sdx4df(src->buf, src->stride, block_offset, ref->stride, sads);
+  ms_params->sdx3df(src->buf, src->stride, block_offset, ref->stride, sads);
   for (int j = 0; j < 3; j++) {
     const int index = chkpts_indices[j];
     const FULLPEL_MV this_mv = { center_mv.row + site[index].mv.row,
@@ -1799,6 +1802,7 @@ int av1_full_pixel_search(const FULLPEL_MV start_mv,
       FULLPEL_MOTION_SEARCH_PARAMS new_ms_params = *ms_params;
       new_ms_params.sdf = new_ms_params.vfp->sdf;
       new_ms_params.sdx4df = new_ms_params.vfp->sdx4df;
+      new_ms_params.sdx3df = new_ms_params.vfp->sdx3df;
 
       return av1_full_pixel_search(start_mv, &new_ms_params, step_param,
                                    cost_list, best_mv, second_best_mv);
