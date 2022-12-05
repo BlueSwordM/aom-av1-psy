@@ -859,7 +859,7 @@ static AOM_INLINE int update_mvs_and_sad(const unsigned int this_sad,
 static AOM_INLINE void calc_sad4_update_bestmv(
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
     const MV_COST_PARAMS *mv_cost_params, FULLPEL_MV *best_mv,
-    const FULLPEL_MV *temp_best_mv, const uint8_t *center_address,
+    const FULLPEL_MV center_mv, const uint8_t *center_address,
     unsigned int *bestsad, unsigned int *raw_bestsad, int search_step,
     int *best_site, int cand_start, int *cost_list) {
   const struct buf_2d *const src = ms_params->ms_buffers.src;
@@ -884,10 +884,8 @@ static AOM_INLINE void calc_sad4_update_bestmv(
   ms_params->sdx4df(src_buf, src_stride, block_offset, ref->stride, sads);
 
   for (int j = 0; j < 4; j++) {
-    const FULLPEL_MV this_mv = {
-      temp_best_mv->row + site[cand_start + j].mv.row,
-      temp_best_mv->col + site[cand_start + j].mv.col
-    };
+    const FULLPEL_MV this_mv = { center_mv.row + site[cand_start + j].mv.row,
+                                 center_mv.col + site[cand_start + j].mv.col };
     const int found_better_mv = update_mvs_and_sad(
         sads[j], &this_mv, mv_cost_params, bestsad, raw_bestsad, best_mv,
         /*second_best_mv=*/NULL);
@@ -913,9 +911,9 @@ static AOM_INLINE void calc_sad3_update_bestmv(
   unsigned int sads[4];
   ms_params->sdx4df(src->buf, src->stride, block_offset, ref->stride, sads);
   for (int j = 0; j < 3; j++) {
-    const FULLPEL_MV this_mv = { center_mv.row + site[chkpts_indices[j]].mv.row,
-                                 center_mv.col +
-                                     site[chkpts_indices[j]].mv.col };
+    const int index = chkpts_indices[j];
+    const FULLPEL_MV this_mv = { center_mv.row + site[index].mv.row,
+                                 center_mv.col + site[index].mv.col };
     const int found_better_mv = update_mvs_and_sad(
         sads[j], &this_mv, mv_cost_params, bestsad, raw_bestsad, best_mv,
         /*second_best_mv=*/NULL);
@@ -923,7 +921,8 @@ static AOM_INLINE void calc_sad3_update_bestmv(
   }
   if (cost_list) {
     for (int j = 0; j < 3; j++) {
-      cost_list[chkpts_indices[j] + 1] = sads[j];
+      int index = chkpts_indices[j];
+      cost_list[index + 1] = sads[j];
     }
   }
 }
@@ -933,19 +932,55 @@ static AOM_INLINE void calc_sad3_update_bestmv(
 static AOM_INLINE void calc_sad_update_bestmv(
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
     const MV_COST_PARAMS *mv_cost_params, FULLPEL_MV *best_mv,
-    const FULLPEL_MV *temp_best_mv, const uint8_t *center_address,
+    const FULLPEL_MV center_mv, const uint8_t *center_address,
     unsigned int *bestsad, unsigned int *raw_bestsad, int search_step,
-    int *best_site, const int num_candidates, int cand_start) {
+    int *best_site, const int num_candidates, int cand_start, int *cost_list) {
   const struct buf_2d *const src = ms_params->ms_buffers.src;
   const struct buf_2d *const ref = ms_params->ms_buffers.ref;
   const search_site *site = ms_params->search_sites->site[search_step];
   // Loop over number of candidates.
   for (int i = cand_start; i < num_candidates; i++) {
-    const FULLPEL_MV this_mv = { temp_best_mv->row + site[i].mv.row,
-                                 temp_best_mv->col + site[i].mv.col };
+    const FULLPEL_MV this_mv = { center_mv.row + site[i].mv.row,
+                                 center_mv.col + site[i].mv.col };
     if (!av1_is_fullmv_in_range(&ms_params->mv_limits, this_mv)) continue;
     int thissad = get_mvpred_sad(ms_params, src,
                                  center_address + site[i].offset, ref->stride);
+    if (cost_list) {
+      cost_list[i + 1] = thissad;
+    }
+    const int found_better_mv = update_mvs_and_sad(
+        thissad, &this_mv, mv_cost_params, bestsad, raw_bestsad, best_mv,
+        /*second_best_mv=*/NULL);
+    if (found_better_mv) *best_site = i;
+  }
+}
+
+static AOM_INLINE void calc_sad_update_bestmv_with_indices(
+    const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
+    const MV_COST_PARAMS *mv_cost_params, FULLPEL_MV *best_mv,
+    const FULLPEL_MV center_mv, const uint8_t *center_address,
+    unsigned int *bestsad, unsigned int *raw_bestsad, int search_step,
+    int *best_site, const int num_candidates, const int *chkpts_indices,
+    int *cost_list) {
+  const struct buf_2d *const src = ms_params->ms_buffers.src;
+  const struct buf_2d *const ref = ms_params->ms_buffers.ref;
+  const search_site *site = ms_params->search_sites->site[search_step];
+  // Loop over number of candidates.
+  for (int i = 0; i < num_candidates; i++) {
+    int index = chkpts_indices[i];
+    const FULLPEL_MV this_mv = { center_mv.row + site[index].mv.row,
+                                 center_mv.col + site[index].mv.col };
+    if (!av1_is_fullmv_in_range(&ms_params->mv_limits, this_mv)) {
+      if (cost_list) {
+        cost_list[index + 1] = INT_MAX;
+      }
+      continue;
+    }
+    const int thissad = get_mvpred_sad(
+        ms_params, src, center_address + site[index].offset, ref->stride);
+    if (cost_list) {
+      cost_list[index + 1] = thissad;
+    }
     const int found_better_mv = update_mvs_and_sad(
         thissad, &this_mv, mv_cost_params, bestsad, raw_bestsad, best_mv,
         /*second_best_mv=*/NULL);
@@ -974,7 +1009,6 @@ static int pattern_search(FULLPEL_MV start_mv,
   const int last_is_4 = num_candidates[0] == 4;
   int br, bc;
   unsigned int bestsad = UINT_MAX, raw_bestsad = UINT_MAX;
-  int thissad;
   int k = -1;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
   search_step = AOMMIN(search_step, MAX_MVSEARCH_STEPS - 1);
@@ -1004,25 +1038,25 @@ static int pattern_search(FULLPEL_MV start_mv,
     best_init_s = -1;
     for (t = 0; t <= s; ++t) {
       int best_site = -1;
-      FULLPEL_MV temp_best_mv = { br, bc };
+      FULLPEL_MV center_mv = { br, bc };
       if (check_bounds(&ms_params->mv_limits, br, bc, 1 << t)) {
         // Call 4-point sad for multiples of 4 candidates.
         const int no_of_4_cand_loops = num_candidates[t] >> 2;
         for (i = 0; i < no_of_4_cand_loops; i++) {
-          calc_sad4_update_bestmv(
-              ms_params, mv_cost_params, best_mv, &temp_best_mv, center_address,
-              &bestsad, &raw_bestsad, t, &best_site, i * 4, /*cost_list=*/NULL);
+          calc_sad4_update_bestmv(ms_params, mv_cost_params, best_mv, center_mv,
+                                  center_address, &bestsad, &raw_bestsad, t,
+                                  &best_site, i * 4, /*cost_list=*/NULL);
         }
         // Rest of the candidates
         const int remaining_cand = num_candidates[t] % 4;
-        calc_sad_update_bestmv(ms_params, mv_cost_params, best_mv,
-                               &temp_best_mv, center_address, &bestsad,
-                               &raw_bestsad, t, &best_site, remaining_cand,
-                               no_of_4_cand_loops * 4);
+        calc_sad_update_bestmv(ms_params, mv_cost_params, best_mv, center_mv,
+                               center_address, &bestsad, &raw_bestsad, t,
+                               &best_site, remaining_cand,
+                               no_of_4_cand_loops * 4, NULL);
       } else {
-        calc_sad_update_bestmv(
-            ms_params, mv_cost_params, best_mv, &temp_best_mv, center_address,
-            &bestsad, &raw_bestsad, t, &best_site, num_candidates[t], 0);
+        calc_sad_update_bestmv(ms_params, mv_cost_params, best_mv, center_mv,
+                               center_address, &bestsad, &raw_bestsad, t,
+                               &best_site, num_candidates[t], 0, NULL);
       }
       if (best_site == -1) {
         continue;
@@ -1048,26 +1082,26 @@ static int pattern_search(FULLPEL_MV start_mv,
     for (; s >= last_s; s--) {
       // No need to search all points the 1st time if initial search was used
       if (!do_init_search || s != best_init_s) {
-        FULLPEL_MV temp_best_mv = { br, bc };
+        FULLPEL_MV center_mv = { br, bc };
         if (check_bounds(&ms_params->mv_limits, br, bc, 1 << s)) {
           // Call 4-point sad for multiples of 4 candidates.
           const int no_of_4_cand_loops = num_candidates[s] >> 2;
           for (i = 0; i < no_of_4_cand_loops; i++) {
             calc_sad4_update_bestmv(ms_params, mv_cost_params, best_mv,
-                                    &temp_best_mv, center_address, &bestsad,
+                                    center_mv, center_address, &bestsad,
                                     &raw_bestsad, s, &best_site, i * 4,
                                     /*cost_list=*/NULL);
           }
           // Rest of the candidates
           const int remaining_cand = num_candidates[s] % 4;
-          calc_sad_update_bestmv(ms_params, mv_cost_params, best_mv,
-                                 &temp_best_mv, center_address, &bestsad,
-                                 &raw_bestsad, s, &best_site, remaining_cand,
-                                 no_of_4_cand_loops * 4);
+          calc_sad_update_bestmv(ms_params, mv_cost_params, best_mv, center_mv,
+                                 center_address, &bestsad, &raw_bestsad, s,
+                                 &best_site, remaining_cand,
+                                 no_of_4_cand_loops * 4, NULL);
         } else {
-          calc_sad_update_bestmv(
-              ms_params, mv_cost_params, best_mv, &temp_best_mv, center_address,
-              &bestsad, &raw_bestsad, s, &best_site, num_candidates[s], 0);
+          calc_sad_update_bestmv(ms_params, mv_cost_params, best_mv, center_mv,
+                                 center_address, &bestsad, &raw_bestsad, s,
+                                 &best_site, num_candidates[s], 0, NULL);
         }
 
         if (best_site == -1) {
@@ -1087,27 +1121,16 @@ static int pattern_search(FULLPEL_MV start_mv,
         next_chkpts_indices[1] = k;
         next_chkpts_indices[2] = (k == num_candidates[s] - 1) ? 0 : k + 1;
 
+        FULLPEL_MV center_mv = { br, bc };
         if (check_bounds(&ms_params->mv_limits, br, bc, 1 << s)) {
-          FULLPEL_MV center_mv = { br, bc };
           calc_sad3_update_bestmv(ms_params, mv_cost_params, best_mv, center_mv,
                                   center_address, &bestsad, &raw_bestsad, s,
                                   &best_site, next_chkpts_indices, NULL);
         } else {
-          for (i = 0; i < PATTERN_CANDIDATES_REF; i++) {
-            const FULLPEL_MV this_mv = {
-              br + search_sites->site[s][next_chkpts_indices[i]].mv.row,
-              bc + search_sites->site[s][next_chkpts_indices[i]].mv.col
-            };
-            if (!av1_is_fullmv_in_range(&ms_params->mv_limits, this_mv))
-              continue;
-            thissad = get_mvpred_sad(
-                ms_params, src, get_buf_from_fullmv(ref, &this_mv), ref_stride);
-            const int found_better_mv =
-                update_mvs_and_sad(thissad, &this_mv, mv_cost_params, &bestsad,
-                                   &raw_bestsad, best_mv,
-                                   /*second_best_mv=*/NULL);
-            if (found_better_mv) best_site = i;
-          }
+          calc_sad_update_bestmv_with_indices(
+              ms_params, mv_cost_params, best_mv, center_mv, center_address,
+              &bestsad, &raw_bestsad, s, &best_site, PATTERN_CANDIDATES_REF,
+              next_chkpts_indices, NULL);
         }
 
         if (best_site != -1) {
@@ -1122,27 +1145,18 @@ static int pattern_search(FULLPEL_MV start_mv,
     if (s == 0) {
       cost_list[0] = raw_bestsad;
       costlist_has_sad = 1;
+      assert(num_candidates[s] == 4);
       if (!do_init_search || s != best_init_s) {
+        FULLPEL_MV center_mv = { br, bc };
         if (check_bounds(&ms_params->mv_limits, br, bc, 1 << s)) {
-          assert(num_candidates[s] == 4);
-          FULLPEL_MV temp_best_mv = { br, bc };
-          calc_sad4_update_bestmv(ms_params, mv_cost_params, best_mv,
-                                  &temp_best_mv, center_address, &bestsad,
-                                  &raw_bestsad, s, &best_site, 0, cost_list);
+          calc_sad4_update_bestmv(ms_params, mv_cost_params, best_mv, center_mv,
+                                  center_address, &bestsad, &raw_bestsad, s,
+                                  &best_site, 0, cost_list);
         } else {
-          for (i = 0; i < num_candidates[s]; i++) {
-            const FULLPEL_MV this_mv = { br + search_sites->site[s][i].mv.row,
-                                         bc + search_sites->site[s][i].mv.col };
-            if (!av1_is_fullmv_in_range(&ms_params->mv_limits, this_mv))
-              continue;
-            cost_list[i + 1] = thissad = get_mvpred_sad(
-                ms_params, src, get_buf_from_fullmv(ref, &this_mv), ref_stride);
-            const int found_better_mv =
-                update_mvs_and_sad(thissad, &this_mv, mv_cost_params, &bestsad,
-                                   &raw_bestsad, best_mv,
-                                   /*second_best_mv=*/NULL);
-            if (found_better_mv) best_site = i;
-          }
+          calc_sad_update_bestmv(ms_params, mv_cost_params, best_mv, center_mv,
+                                 center_address, &bestsad, &raw_bestsad, s,
+                                 &best_site, /*num_candidates=*/4,
+                                 /*cand_start=*/0, cost_list);
         }
 
         if (best_site != -1) {
@@ -1162,30 +1176,17 @@ static int pattern_search(FULLPEL_MV start_mv,
         cost_list[((k + 2) % 4) + 1] = cost_list[0];
         cost_list[0] = raw_bestsad;
 
+        FULLPEL_MV center_mv = { br, bc };
         if (check_bounds(&ms_params->mv_limits, br, bc, 1 << s)) {
           assert(PATTERN_CANDIDATES_REF == 3);
-          FULLPEL_MV center_mv = { br, bc };
           calc_sad3_update_bestmv(ms_params, mv_cost_params, best_mv, center_mv,
                                   center_address, &bestsad, &raw_bestsad, s,
                                   &best_site, next_chkpts_indices, cost_list);
         } else {
-          for (i = 0; i < PATTERN_CANDIDATES_REF; i++) {
-            const FULLPEL_MV this_mv = {
-              br + search_sites->site[s][next_chkpts_indices[i]].mv.row,
-              bc + search_sites->site[s][next_chkpts_indices[i]].mv.col
-            };
-            if (!av1_is_fullmv_in_range(&ms_params->mv_limits, this_mv)) {
-              cost_list[next_chkpts_indices[i] + 1] = INT_MAX;
-              continue;
-            }
-            cost_list[next_chkpts_indices[i] + 1] = thissad = get_mvpred_sad(
-                ms_params, src, get_buf_from_fullmv(ref, &this_mv), ref_stride);
-            const int found_better_mv =
-                update_mvs_and_sad(thissad, &this_mv, mv_cost_params, &bestsad,
-                                   &raw_bestsad, best_mv,
-                                   /*second_best_mv=*/NULL);
-            if (found_better_mv) best_site = i;
-          }
+          calc_sad_update_bestmv_with_indices(
+              ms_params, mv_cost_params, best_mv, center_mv, center_address,
+              &bestsad, &raw_bestsad, s, &best_site, PATTERN_CANDIDATES_REF,
+              next_chkpts_indices, cost_list);
         }
 
         if (best_site != -1) {
