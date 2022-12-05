@@ -107,14 +107,8 @@ class AV1RateControlQMode : public AV1RateControlQModeInterface {
   StatusOr<GopEncodeInfo> GetGopEncodeInfo(
       const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
       const std::vector<LookaheadStats> &lookahead_stats,
-      const RefFrameTable &ref_frame_table_snapshot) override;
-  StatusOr<GopEncodeInfo> GetGopEncodeInfo(
-      const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
-      const std::vector<LookaheadStats> &lookahead_stats,
       const FirstpassInfo &firstpass_info,
       const RefFrameTable &ref_frame_table_snapshot) override;
-  StatusOr<GopEncodeInfo> GetTplPassGopEncodeInfo(
-      const GopStruct &gop_struct) override;
   StatusOr<GopEncodeInfo> GetTplPassGopEncodeInfo(
       const GopStruct &gop_struct,
       const FirstpassInfo &firstpass_info) override;

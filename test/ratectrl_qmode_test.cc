@@ -1044,7 +1044,8 @@ TEST_F(RateControlQModeTest, TestGetGopEncodeInfo) {
 
   std::vector<aom::GopEncodeInfo> gop_encode_info_list;
   for (const auto &gop_struct : gop_list) {
-    const auto gop_encode_info = rc.GetTplPassGopEncodeInfo(gop_struct);
+    const auto gop_encode_info =
+        rc.GetTplPassGopEncodeInfo(gop_struct, firstpass_info);
     ASSERT_TRUE(gop_encode_info.ok());
     gop_encode_info_list.push_back(gop_encode_info.value());
   }
@@ -1057,8 +1058,9 @@ TEST_F(RateControlQModeTest, TestGetGopEncodeInfo) {
   int num_gop_skipped = 0;
   for (size_t gop_idx = 0; gop_idx < gop_list.size(); gop_idx++) {
     size_t tpl_gop_idx = gop_idx - num_gop_skipped;
-    const auto gop_encode_info = rc.GetGopEncodeInfo(
-        gop_list[gop_idx], tpl_gop_list[tpl_gop_idx], {}, ref_frame_table);
+    const auto gop_encode_info =
+        rc.GetGopEncodeInfo(gop_list[gop_idx], tpl_gop_list[tpl_gop_idx], {},
+                            firstpass_info, ref_frame_table);
     ASSERT_THAT(gop_encode_info.status(), IsOkStatus());
     for (auto &frame_param : gop_encode_info->param_list) {
       EXPECT_LE(frame_param.q_index, rc_param_.base_q_index);
@@ -1079,7 +1081,7 @@ TEST_F(RateControlQModeTest, GetGopEncodeInfoWrongGopSize) {
       5, CreateToyTplFrameStatsWithDiffSizes(8, 8));
   AV1RateControlQMode rc;
   const Status status =
-      rc.GetGopEncodeInfo(gop_struct, tpl_gop_stats, {}, RefFrameTable())
+      rc.GetGopEncodeInfo(gop_struct, tpl_gop_stats, {}, {}, RefFrameTable())
           .status();
   EXPECT_EQ(status.code, AOM_CODEC_INVALID_PARAM);
   EXPECT_THAT(status.message,
@@ -1104,7 +1106,7 @@ TEST_F(RateControlQModeTest, GetGopEncodeInfoRefFrameMissingBlockStats) {
 
   AV1RateControlQMode rc;
   const Status status =
-      rc.GetGopEncodeInfo(gop_struct, tpl_gop_stats, {}, RefFrameTable())
+      rc.GetGopEncodeInfo(gop_struct, tpl_gop_stats, {}, {}, RefFrameTable())
           .status();
   EXPECT_EQ(status.code, AOM_CODEC_INVALID_PARAM);
   EXPECT_THAT(status.message,

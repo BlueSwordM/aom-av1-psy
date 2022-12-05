@@ -1519,34 +1519,8 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithTpl(
 }
 
 StatusOr<GopEncodeInfo> AV1RateControlQMode::GetTplPassGopEncodeInfo(
-    const GopStruct &gop_struct) {
-  return GetGopEncodeInfoWithNoStats(gop_struct);
-}
-
-StatusOr<GopEncodeInfo> AV1RateControlQMode::GetTplPassGopEncodeInfo(
     const GopStruct &gop_struct, const FirstpassInfo &firstpass_info) {
   return GetGopEncodeInfoWithFp(gop_struct, firstpass_info);
-}
-
-StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
-    const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
-    const std::vector<LookaheadStats> &lookahead_stats,
-    const RefFrameTable &ref_frame_table_snapshot_init) {
-  Status status = ValidateTplStats(gop_struct, tpl_gop_stats);
-  if (!status.ok()) {
-    return status;
-  }
-
-  for (const auto &lookahead_stat : lookahead_stats) {
-    Status status = ValidateTplStats(*lookahead_stat.gop_struct,
-                                     *lookahead_stat.tpl_gop_stats);
-    if (!status.ok()) {
-      return status;
-    }
-  }
-
-  return GetGopEncodeInfoWithTpl(gop_struct, tpl_gop_stats, lookahead_stats,
-                                 ref_frame_table_snapshot_init);
 }
 
 StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
