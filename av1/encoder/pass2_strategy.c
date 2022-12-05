@@ -2043,8 +2043,9 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
                 temp_accu_coeff *= stats[n].cor_coeff;
                 this_score +=
                     temp_accu_coeff *
-                    (1 - stats[n].noise_var /
-                             AOMMAX(regions[this_reg].avg_intra_err, 0.001));
+                    sqrt(AOMMAX(0.5,
+                                1 - stats[n].noise_var /
+                                        AOMMAX(stats[n].intra_error, 0.001)));
                 count_f++;
               }
               // preceding frames
@@ -2054,8 +2055,9 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
                 temp_accu_coeff *= stats[n].cor_coeff;
                 this_score +=
                     temp_accu_coeff *
-                    (1 - stats[n].noise_var /
-                             AOMMAX(regions[this_reg].avg_intra_err, 0.001));
+                    sqrt(AOMMAX(0.5,
+                                1 - stats[n].noise_var /
+                                        AOMMAX(stats[n].intra_error, 0.001)));
               }
 
               if (this_score > best_score) {
