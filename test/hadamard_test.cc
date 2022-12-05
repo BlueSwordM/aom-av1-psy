@@ -351,7 +351,8 @@ INSTANTIATE_TEST_SUITE_P(
     NEON, HadamardLowbdTest,
     ::testing::Values(HadamardFuncWithSize(&aom_hadamard_4x4_neon, 4, 4),
                       HadamardFuncWithSize(&aom_hadamard_8x8_neon, 8, 8),
-                      HadamardFuncWithSize(&aom_hadamard_16x16_neon, 16, 16)));
+                      HadamardFuncWithSize(&aom_hadamard_16x16_neon, 16, 16),
+                      HadamardFuncWithSize(&aom_hadamard_32x32_neon, 32, 32)));
 #endif  // HAVE_NEON
 
 // Tests for low precision
