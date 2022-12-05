@@ -79,6 +79,24 @@ typedef struct {
   InterpFilter filter_x;
   InterpFilter filter_y;
 } INTER_FILTER;
+
+/*!\brief Structure to store parameters and statistics used in non-rd inter mode
+ * evaluation.
+ */
+typedef struct {
+  BEST_PICKMODE best_pickmode;
+  RD_STATS this_rdc;
+  RD_STATS best_rdc;
+  int64_t uv_dist[RTC_INTER_MODES][REF_FRAMES];
+  struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE];
+  unsigned int vars[RTC_INTER_MODES][REF_FRAMES];
+  unsigned int ref_costs_single[REF_FRAMES];
+  int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES];
+  int_mv frame_mv_best[MB_MODE_COUNT][REF_FRAMES];
+  int single_inter_mode_costs[RTC_INTER_MODES][REF_FRAMES];
+  int use_ref_frame_mask[REF_FRAMES];
+  uint8_t mode_checked[MB_MODE_COUNT][REF_FRAMES];
+} InterModeSearchStateNonrd;
 /*!\endcond */
 
 #define NUM_COMP_INTER_MODES_RT (6)
@@ -3266,23 +3284,15 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   const MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
   const InterpFilter filter_ref = cm->features.interp_filter;
   const InterpFilter default_interp_filter = EIGHTTAP_REGULAR;
-  BEST_PICKMODE best_pickmode;
 #if COLLECT_PICK_MODE_STAT
   static mode_search_stat ms_stat;
 #endif
   MV_REFERENCE_FRAME ref_frame, ref_frame2;
-  int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES];
-  int_mv frame_mv_best[MB_MODE_COUNT][REF_FRAMES];
-  uint8_t mode_checked[MB_MODE_COUNT][REF_FRAMES];
-  struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE];
-  RD_STATS this_rdc, best_rdc;
   const unsigned char segment_id = mi->segment_id;
   const int *const rd_threshes = cpi->rd.threshes[segment_id][bsize];
   const int *const rd_thresh_freq_fact = x->thresh_freq_fact[bsize];
   int best_early_term = 0;
-  unsigned int ref_costs_single[REF_FRAMES];
   int force_skip_low_temp_var = 0;
-  int use_ref_frame_mask[REF_FRAMES] = { 0 };
   unsigned int sse_zeromv_norm = UINT_MAX;
   int skip_pred_mv = 0;
   const int num_inter_modes = NUM_INTER_MODES;
@@ -3292,6 +3302,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   PRED_BUFFER *this_mode_pred = NULL;
   const int reuse_inter_pred = cpi->sf.rt_sf.reuse_inter_pred_nonrd &&
                                cm->seq_params->bit_depth == AOM_BITS_8;
+  InterModeSearchStateNonrd search_state;
+  av1_zero(search_state.use_ref_frame_mask);
 
   const int bh = block_size_high[bsize];
   const int bw = block_size_wide[bsize];
@@ -3311,12 +3323,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int force_mv_inter_layer = 0;
   bool comp_use_zero_zeromv_only = 0;
   int tot_num_comp_modes = NUM_COMP_INTER_MODES_RT;
-  unsigned int vars[RTC_INTER_MODES][REF_FRAMES];
-  int64_t uv_dist[RTC_INTER_MODES][REF_FRAMES];
   for (int idx = 0; idx < RTC_INTER_MODES; idx++) {
     for (int ref = 0; ref < REF_FRAMES; ref++) {
-      vars[idx][ref] = UINT_MAX;
-      uv_dist[idx][ref] = INT64_MAX;
+      search_state.vars[idx][ref] = UINT_MAX;
+      search_state.uv_dist[idx][ref] = INT64_MAX;
     }
   }
 #if CONFIG_AV1_TEMPORAL_DENOISING
@@ -3328,14 +3338,14 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #endif
   x->color_sensitivity[0] = x->color_sensitivity_sb[0];
   x->color_sensitivity[1] = x->color_sensitivity_sb[1];
-  init_best_pickmode(&best_pickmode);
+  init_best_pickmode(&search_state.best_pickmode);
 
   const ModeCosts *mode_costs = &x->mode_costs;
 
   estimate_single_ref_frame_costs(cm, xd, mode_costs, segment_id, bsize,
-                                  ref_costs_single);
+                                  search_state.ref_costs_single);
 
-  memset(&mode_checked[0][0], 0, MB_MODE_COUNT * REF_FRAMES);
+  memset(&search_state.mode_checked[0][0], 0, MB_MODE_COUNT * REF_FRAMES);
   if (reuse_inter_pred) {
     for (int i = 0; i < 3; i++) {
       tmp_buffer[i].data = &pred_buf[pixels_in_block * i];
@@ -3350,8 +3360,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   txfm_info->skip_txfm = 0;
 
   // initialize mode decisions
-  av1_invalid_rd_stats(&best_rdc);
-  av1_invalid_rd_stats(&this_rdc);
+  av1_invalid_rd_stats(&search_state.best_rdc);
+  av1_invalid_rd_stats(&search_state.this_rdc);
   av1_invalid_rd_stats(rd_cost);
   for (int i = 0; i < REF_FRAMES; ++i) {
     x->warp_sample_info[i].num = -1;
@@ -3385,11 +3395,13 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   }
 
   if (cpi->ref_frame_flags & AOM_LAST_FLAG)
-    find_predictors(cpi, x, LAST_FRAME, frame_mv, tile_data, yv12_mb, bsize,
-                    force_skip_low_temp_var, x->force_zeromv_skip_for_blk);
+    find_predictors(cpi, x, LAST_FRAME, search_state.frame_mv, tile_data,
+                    search_state.yv12_mb, bsize, force_skip_low_temp_var,
+                    x->force_zeromv_skip_for_blk);
 
   get_ref_frame_use_mask(cpi, x, mi, mi_row, mi_col, bsize, gf_temporal_ref,
-                         use_ref_frame_mask, &force_skip_low_temp_var);
+                         search_state.use_ref_frame_mask,
+                         &force_skip_low_temp_var);
 
   skip_pred_mv = x->force_zeromv_skip_for_blk ||
                  (x->nonrd_prune_ref_frame_search > 2 &&
@@ -3410,9 +3422,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   // Start at LAST_FRAME + 1.
   for (MV_REFERENCE_FRAME ref_frame_iter = LAST_FRAME + 1;
        ref_frame_iter <= ALTREF_FRAME; ++ref_frame_iter) {
-    if (use_ref_frame_mask[ref_frame_iter]) {
-      find_predictors(cpi, x, ref_frame_iter, frame_mv, tile_data, yv12_mb,
-                      bsize, force_skip_low_temp_var, skip_pred_mv);
+    if (search_state.use_ref_frame_mask[ref_frame_iter]) {
+      find_predictors(cpi, x, ref_frame_iter, search_state.frame_mv, tile_data,
+                      search_state.yv12_mb, bsize, force_skip_low_temp_var,
+                      skip_pred_mv);
     }
   }
 
@@ -3449,9 +3462,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
              tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]),
       TX_16X16);
 
-  int single_inter_mode_costs[RTC_INTER_MODES][REF_FRAMES];
-  fill_single_inter_mode_costs(single_inter_mode_costs, num_inter_modes,
-                               ref_mode_set, mode_costs,
+  fill_single_inter_mode_costs(search_state.single_inter_mode_costs,
+                               num_inter_modes, ref_mode_set, mode_costs,
                                mbmi_ext->mode_context);
 
   MV_REFERENCE_FRAME last_comp_ref_frame = NONE_FRAME;
@@ -3470,7 +3482,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     // If we are at the first compound mode, and the single modes already
     // perform well, then end the search.
     if (cpi->sf.rt_sf.skip_compound_based_on_var && idx == num_inter_modes &&
-        skip_comp_based_on_var(vars, bsize)) {
+        skip_comp_based_on_var(search_state.vars, bsize)) {
       break;
     }
 
@@ -3491,9 +3503,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     if (idx >= num_inter_modes) {
       const int comp_index = idx - num_inter_modes;
       if (!setup_compound_params_from_comp_idx(
-              cpi, x, yv12_mb, &this_mode, &ref_frame, &ref_frame2, frame_mv,
-              use_ref_frame_mask, comp_index, comp_use_zero_zeromv_only,
-              &last_comp_ref_frame)) {
+              cpi, x, search_state.yv12_mb, &this_mode, &ref_frame, &ref_frame2,
+              search_state.frame_mv, search_state.use_ref_frame_mask,
+              comp_index, comp_use_zero_zeromv_only, &last_comp_ref_frame)) {
         continue;
       }
       comp_pred = 1;
@@ -3503,7 +3515,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       ref_frame2 = NONE_FRAME;
     }
 
-    if (!comp_pred && mode_checked[this_mode][ref_frame]) {
+    if (!comp_pred && search_state.mode_checked[this_mode][ref_frame]) {
       continue;
     }
 
@@ -3519,19 +3531,20 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     mi->ref_frame[0] = ref_frame;
     mi->ref_frame[1] = ref_frame2;
 
-    if (!use_ref_frame_mask[ref_frame]) continue;
+    if (!search_state.use_ref_frame_mask[ref_frame]) continue;
 
     if (x->force_zeromv_skip_for_blk &&
         ((!(this_mode == NEARESTMV &&
-            frame_mv[this_mode][ref_frame].as_int == 0) &&
+            search_state.frame_mv[this_mode][ref_frame].as_int == 0) &&
           this_mode != GLOBALMV) ||
          ref_frame != LAST_FRAME))
       continue;
 
     if (cpi->sf.rt_sf.prune_compoundmode_with_singlemode_var && comp_pred &&
-        prune_compoundmode_with_singlemode_var(this_mode, ref_frame, ref_frame2,
-                                               frame_mv, mode_checked, vars,
-                                               uv_dist)) {
+        prune_compoundmode_with_singlemode_var(
+            this_mode, ref_frame, ref_frame2, search_state.frame_mv,
+            search_state.mode_checked, search_state.vars,
+            search_state.uv_dist)) {
       continue;
     }
 
@@ -3545,10 +3558,12 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       // Skip newmv and filter search.
       force_mv_inter_layer = 1;
       if (this_mode == NEWMV) {
-        frame_mv[this_mode][ref_frame].as_mv.col = svc_mv_col;
-        frame_mv[this_mode][ref_frame].as_mv.row = svc_mv_row;
-      } else if (frame_mv[this_mode][ref_frame].as_mv.col != svc_mv_col ||
-                 frame_mv[this_mode][ref_frame].as_mv.row != svc_mv_row) {
+        search_state.frame_mv[this_mode][ref_frame].as_mv.col = svc_mv_col;
+        search_state.frame_mv[this_mode][ref_frame].as_mv.row = svc_mv_row;
+      } else if (search_state.frame_mv[this_mode][ref_frame].as_mv.col !=
+                     svc_mv_col ||
+                 search_state.frame_mv[this_mode][ref_frame].as_mv.row !=
+                     svc_mv_row) {
         continue;
       }
     }
@@ -3570,9 +3585,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       // to newmv if (0, 0), so this latter condition is repeated
       // below after search_new_mv.
       if (cpi->sf.rt_sf.source_metrics_sb_nonrd) {
-        if ((frame_mv[this_mode][ref_frame].as_int != 0 &&
+        if ((search_state.frame_mv[this_mode][ref_frame].as_int != 0 &&
              x->content_state_sb.source_sad_nonrd == kZeroSad) ||
-            (frame_mv[this_mode][ref_frame].as_int == 0 &&
+            (search_state.frame_mv[this_mode][ref_frame].as_int == 0 &&
              x->content_state_sb.source_sad_nonrd != kZeroSad &&
              ((x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0) ||
               cpi->rc.high_source_sad) &&
@@ -3593,7 +3608,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       continue;
 
     if (skip_mode_by_low_temp(this_mode, ref_frame, bsize, x->content_state_sb,
-                              frame_mv[this_mode][ref_frame],
+                              search_state.frame_mv[this_mode][ref_frame],
                               force_skip_low_temp_var))
       continue;
 
@@ -3614,17 +3629,18 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
     if (!comp_pred) {
       if (skip_mode_by_threshold(
-              this_mode, ref_frame, frame_mv[this_mode][ref_frame],
+              this_mode, ref_frame, search_state.frame_mv[this_mode][ref_frame],
               cpi->rc.frames_since_golden, rd_threshes, rd_thresh_freq_fact,
-              best_rdc.rdcost, best_pickmode.best_mode_skip_txfm,
+              search_state.best_rdc.rdcost,
+              search_state.best_pickmode.best_mode_skip_txfm,
               (cpi->sf.rt_sf.nonrd_aggressive_skip ? 1 : 0)))
         continue;
     }
 
     // Select prediction reference frames.
     for (int i = 0; i < MAX_MB_PLANE; i++) {
-      xd->plane[i].pre[0] = yv12_mb[ref_frame][i];
-      if (comp_pred) xd->plane[i].pre[1] = yv12_mb[ref_frame2][i];
+      xd->plane[i].pre[0] = search_state.yv12_mb[ref_frame][i];
+      if (comp_pred) xd->plane[i].pre[1] = search_state.yv12_mb[ref_frame2][i];
     }
 
     mi->ref_frame[0] = ref_frame;
@@ -3635,9 +3651,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #if COLLECT_PICK_MODE_STAT
       aom_usec_timer_start(&ms_stat.timer2);
 #endif
-      const bool skip_newmv =
-          search_new_mv(cpi, x, frame_mv, ref_frame, gf_temporal_ref, bsize,
-                        mi_row, mi_col, &rate_mv, &best_rdc);
+      const bool skip_newmv = search_new_mv(
+          cpi, x, search_state.frame_mv, ref_frame, gf_temporal_ref, bsize,
+          mi_row, mi_col, &rate_mv, &search_state.best_rdc);
 #if COLLECT_PICK_MODE_STAT
       aom_usec_timer_mark(&ms_stat.timer2);
       ms_stat.ms_time[bsize][this_mode] +=
@@ -3651,9 +3667,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     for (PREDICTION_MODE inter_mv_mode = NEARESTMV; inter_mv_mode <= NEWMV;
          inter_mv_mode++) {
       if (inter_mv_mode == this_mode) continue;
-      if (!comp_pred && mode_checked[inter_mv_mode][ref_frame] &&
-          frame_mv[this_mode][ref_frame].as_int ==
-              frame_mv[inter_mv_mode][ref_frame].as_int) {
+      if (!comp_pred && search_state.mode_checked[inter_mv_mode][ref_frame] &&
+          search_state.frame_mv[this_mode][ref_frame].as_int ==
+              search_state.frame_mv[inter_mv_mode][ref_frame].as_int) {
         skip_this_mv = 1;
         break;
       }
@@ -3667,7 +3683,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
         cpi->svc.spatial_layer_id == 0 &&
         cpi->sf.rt_sf.source_metrics_sb_nonrd) {
-      if (frame_mv[this_mode][ref_frame].as_int == 0 &&
+      if (search_state.frame_mv[this_mode][ref_frame].as_int == 0 &&
           x->content_state_sb.source_sad_nonrd != kZeroSad &&
           ((x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0) ||
            cpi->rc.high_source_sad) &&
@@ -3676,9 +3692,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     }
 
     mi->mode = this_mode;
-    mi->mv[0].as_int = frame_mv[this_mode][ref_frame].as_int;
+    mi->mv[0].as_int = search_state.frame_mv[this_mode][ref_frame].as_int;
     mi->mv[1].as_int = 0;
-    if (comp_pred) mi->mv[1].as_int = frame_mv[this_mode][ref_frame2].as_int;
+    if (comp_pred)
+      mi->mv[1].as_int = search_state.frame_mv[this_mode][ref_frame2].as_int;
 
     if (reuse_inter_pred) {
       if (!this_mode_pred) {
@@ -3698,19 +3715,19 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       // For screen: first check if golden reference is being used, if so,
       // force color_sensitivity on if the color sensitivity for sb_g is on.
       if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-          use_ref_frame_mask[GOLDEN_FRAME]) {
+          search_state.use_ref_frame_mask[GOLDEN_FRAME]) {
         if (x->color_sensitivity_sb_g[0] == 1) x->color_sensitivity[0] = 1;
         if (x->color_sensitivity_sb_g[1] == 1) x->color_sensitivity[1] = 1;
       } else {
         int y_sad = x->pred_mv0_sad[LAST_FRAME];
         if (x->pred_mv1_sad[LAST_FRAME] != INT_MAX &&
-            (abs(frame_mv[NEARMV][LAST_FRAME].as_mv.col) +
-             abs(frame_mv[NEARMV][LAST_FRAME].as_mv.row)) <
-                (abs(frame_mv[NEARESTMV][LAST_FRAME].as_mv.col) +
-                 abs(frame_mv[NEARESTMV][LAST_FRAME].as_mv.row)))
+            (abs(search_state.frame_mv[NEARMV][LAST_FRAME].as_mv.col) +
+             abs(search_state.frame_mv[NEARMV][LAST_FRAME].as_mv.row)) <
+                (abs(search_state.frame_mv[NEARESTMV][LAST_FRAME].as_mv.col) +
+                 abs(search_state.frame_mv[NEARESTMV][LAST_FRAME].as_mv.row)))
           y_sad = x->pred_mv1_sad[LAST_FRAME];
         set_color_sensitivity(cpi, x, bsize, y_sad, x->source_variance,
-                              yv12_mb[LAST_FRAME]);
+                              search_state.yv12_mb[LAST_FRAME]);
       }
     }
     mi->motion_mode = SIMPLE_TRANSLATION;
@@ -3726,9 +3743,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       const PREDICTION_MODE single_mode0 = compound_ref0_mode(this_mode);
       const PREDICTION_MODE single_mode1 = compound_ref1_mode(this_mode);
       var_threshold =
-          AOMMIN(var_threshold, vars[INTER_OFFSET(single_mode0)][ref_frame]);
+          AOMMIN(var_threshold,
+                 search_state.vars[INTER_OFFSET(single_mode0)][ref_frame]);
       var_threshold =
-          AOMMIN(var_threshold, vars[INTER_OFFSET(single_mode1)][ref_frame2]);
+          AOMMIN(var_threshold,
+                 search_state.vars[INTER_OFFSET(single_mode1)][ref_frame2]);
     }
     // decide interpolation filter, build prediction signal, get sse
     const bool is_mv_subpel =
@@ -3743,10 +3762,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #if COLLECT_PICK_MODE_STAT
       aom_usec_timer_start(&ms_stat.timer2);
 #endif
-      search_filter_ref(cpi, x, &this_rdc, &inter_pred_params_sr, mi_row,
-                        mi_col, tmp_buffer, bsize, reuse_inter_pred,
+      search_filter_ref(cpi, x, &search_state.this_rdc, &inter_pred_params_sr,
+                        mi_row, mi_col, tmp_buffer, bsize, reuse_inter_pred,
                         &this_mode_pred, &this_early_term, &var,
-                        use_model_yrd_large, best_pickmode.best_sse, comp_pred);
+                        use_model_yrd_large,
+                        search_state.best_pickmode.best_sse, comp_pred);
 #if COLLECT_PICK_MODE_STAT
       aom_usec_timer_mark(&ms_stat.timer2);
       ms_stat.ifs_time[bsize][this_mode] +=
@@ -3755,11 +3775,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #if !CONFIG_REALTIME_ONLY
     } else if (cpi->oxcf.motion_mode_cfg.allow_warped_motion &&
                this_mode == NEWMV) {
-      search_motion_mode(cpi, x, &this_rdc, mi_row, mi_col, bsize,
+      search_motion_mode(cpi, x, &search_state.this_rdc, mi_row, mi_col, bsize,
                          &this_early_term, use_model_yrd_large, &rate_mv,
-                         best_pickmode.best_sse);
+                         search_state.best_pickmode.best_sse);
       if (this_mode == NEWMV) {
-        frame_mv[this_mode][ref_frame] = mi->mv[0];
+        search_state.frame_mv[this_mode][ref_frame] = mi->mv[0];
       }
 #endif
     } else {
@@ -3792,11 +3812,12 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       }
 
       if (use_model_yrd_large) {
-        model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd, &this_rdc,
-                                  &this_early_term, 0, best_pickmode.best_sse,
-                                  &var, var_threshold);
+        model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd,
+                                  &search_state.this_rdc, &this_early_term, 0,
+                                  search_state.best_pickmode.best_sse, &var,
+                                  var_threshold);
       } else {
-        model_rd_for_sb_y(cpi, bsize, x, xd, &this_rdc, &var, 0,
+        model_rd_for_sb_y(cpi, bsize, x, xd, &search_state.this_rdc, &var, 0,
                           &this_early_term);
       }
 #if COLLECT_PICK_MODE_STAT
@@ -3807,9 +3828,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     }
     // update variance for single mode
     if (!comp_pred) {
-      vars[INTER_OFFSET(this_mode)][ref_frame] = var;
-      if (frame_mv[this_mode][ref_frame].as_int == 0) {
-        vars[INTER_OFFSET(GLOBALMV)][ref_frame] = var;
+      search_state.vars[INTER_OFFSET(this_mode)][ref_frame] = var;
+      if (search_state.frame_mv[this_mode][ref_frame].as_int == 0) {
+        search_state.vars[INTER_OFFSET(GLOBALMV)][ref_frame] = var;
       }
     }
     // prune compound mode based on single mode var threshold
@@ -3818,16 +3839,18 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       continue;
     }
 
-    if (ref_frame == LAST_FRAME && frame_mv[this_mode][ref_frame].as_int == 0) {
-      sse_zeromv_norm =
-          (unsigned int)(this_rdc.sse >> (b_width_log2_lookup[bsize] +
-                                          b_height_log2_lookup[bsize]));
+    if (ref_frame == LAST_FRAME &&
+        search_state.frame_mv[this_mode][ref_frame].as_int == 0) {
+      sse_zeromv_norm = (unsigned int)(search_state.this_rdc.sse >>
+                                       (b_width_log2_lookup[bsize] +
+                                        b_height_log2_lookup[bsize]));
     }
 
     if (cpi->sf.rt_sf.sse_early_term_inter_search &&
         early_term_inter_search_with_sse(
-            cpi->sf.rt_sf.sse_early_term_inter_search, bsize, this_rdc.sse,
-            best_pickmode.best_sse, this_mode)) {
+            cpi->sf.rt_sf.sse_early_term_inter_search, bsize,
+            search_state.this_rdc.sse, search_state.best_pickmode.best_sse,
+            this_mode)) {
       if (reuse_inter_pred) free_pred_buffer(this_mode_pred);
       continue;
     }
@@ -3839,30 +3862,32 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     const int skip_ctx = av1_get_skip_txfm_context(xd);
     const int skip_txfm_cost = mode_costs->skip_txfm_cost[skip_ctx][1];
     const int no_skip_txfm_cost = mode_costs->skip_txfm_cost[skip_ctx][0];
-    const int64_t sse_y = this_rdc.sse;
+    const int64_t sse_y = search_state.this_rdc.sse;
     if (this_early_term) {
-      this_rdc.skip_txfm = 1;
-      this_rdc.rate = skip_txfm_cost;
-      this_rdc.dist = this_rdc.sse << 4;
+      search_state.this_rdc.skip_txfm = 1;
+      search_state.this_rdc.rate = skip_txfm_cost;
+      search_state.this_rdc.dist = search_state.this_rdc.sse << 4;
     } else {
 #if COLLECT_PICK_MODE_STAT
       aom_usec_timer_start(&ms_stat.timer2);
 #endif
-      block_yrd(x, &this_rdc, &is_skippable, bsize, mi->tx_size, 1);
-      if (this_rdc.skip_txfm ||
-          RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist) >=
-              RDCOST(x->rdmult, 0, this_rdc.sse)) {
-        if (!this_rdc.skip_txfm) {
+      block_yrd(x, &search_state.this_rdc, &is_skippable, bsize, mi->tx_size,
+                1);
+      if (search_state.this_rdc.skip_txfm ||
+          RDCOST(x->rdmult, search_state.this_rdc.rate,
+                 search_state.this_rdc.dist) >=
+              RDCOST(x->rdmult, 0, search_state.this_rdc.sse)) {
+        if (!search_state.this_rdc.skip_txfm) {
           // Need to store "real" rdc for possible future use if UV rdc
           // disallows tx skip
-          nonskip_rdc = this_rdc;
+          nonskip_rdc = search_state.this_rdc;
           nonskip_rdc.rate += no_skip_txfm_cost;
         }
-        this_rdc.rate = skip_txfm_cost;
-        this_rdc.skip_txfm = 1;
-        this_rdc.dist = this_rdc.sse;
+        search_state.this_rdc.rate = skip_txfm_cost;
+        search_state.this_rdc.skip_txfm = 1;
+        search_state.this_rdc.dist = search_state.this_rdc.sse;
       } else {
-        this_rdc.rate += no_skip_txfm_cost;
+        search_state.this_rdc.rate += no_skip_txfm_cost;
       }
       if ((x->color_sensitivity[0] || x->color_sensitivity[1])) {
         RD_STATS rdc_uv;
@@ -3878,17 +3903,19 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         }
         const int64_t sse_uv =
             model_rd_for_sb_uv(cpi, uv_bsize, x, xd, &rdc_uv, 1, 2);
-        this_rdc.sse += sse_uv;
+        search_state.this_rdc.sse += sse_uv;
         // Restore Y rdc if UV rdc disallows txfm skip
-        if (this_rdc.skip_txfm && !rdc_uv.skip_txfm &&
+        if (search_state.this_rdc.skip_txfm && !rdc_uv.skip_txfm &&
             nonskip_rdc.rate != INT_MAX)
-          this_rdc = nonskip_rdc;
+          search_state.this_rdc = nonskip_rdc;
         if (!comp_pred) {
-          uv_dist[INTER_OFFSET(this_mode)][ref_frame] = rdc_uv.dist;
+          search_state.uv_dist[INTER_OFFSET(this_mode)][ref_frame] =
+              rdc_uv.dist;
         }
-        this_rdc.rate += rdc_uv.rate;
-        this_rdc.dist += rdc_uv.dist;
-        this_rdc.skip_txfm = this_rdc.skip_txfm && rdc_uv.skip_txfm;
+        search_state.this_rdc.rate += rdc_uv.rate;
+        search_state.this_rdc.dist += rdc_uv.dist;
+        search_state.this_rdc.skip_txfm =
+            search_state.this_rdc.skip_txfm && rdc_uv.skip_txfm;
       }
 #if COLLECT_PICK_MODE_STAT
       aom_usec_timer_mark(&ms_stat.timer2);
@@ -3899,58 +3926,66 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     PREDICTION_MODE this_best_mode = this_mode;
 
     // TODO(kyslov) account for UV prediction cost
-    this_rdc.rate += rate_mv;
+    search_state.this_rdc.rate += rate_mv;
     if (comp_pred) {
       const int16_t mode_ctx =
           av1_mode_context_analyzer(mbmi_ext->mode_context, mi->ref_frame);
-      this_rdc.rate += cost_mv_ref(mode_costs, this_mode, mode_ctx);
+      search_state.this_rdc.rate +=
+          cost_mv_ref(mode_costs, this_mode, mode_ctx);
     } else {
       // If the current mode has zeromv but is not GLOBALMV, compare the rate
       // cost. If GLOBALMV is cheaper, use GLOBALMV instead.
-      if (this_mode != GLOBALMV && frame_mv[this_mode][ref_frame].as_int ==
-                                       frame_mv[GLOBALMV][ref_frame].as_int) {
+      if (this_mode != GLOBALMV &&
+          search_state.frame_mv[this_mode][ref_frame].as_int ==
+              search_state.frame_mv[GLOBALMV][ref_frame].as_int) {
         if (is_globalmv_better(this_mode, ref_frame, rate_mv, mode_costs,
-                               single_inter_mode_costs, mbmi_ext)) {
+                               search_state.single_inter_mode_costs,
+                               mbmi_ext)) {
           this_best_mode = GLOBALMV;
         }
       }
 
-      this_rdc.rate +=
-          single_inter_mode_costs[INTER_OFFSET(this_best_mode)][ref_frame];
+      search_state.this_rdc.rate +=
+          search_state
+              .single_inter_mode_costs[INTER_OFFSET(this_best_mode)][ref_frame];
     }
 
-    if (!comp_pred && frame_mv[this_mode][ref_frame].as_int == 0 &&
+    if (!comp_pred && search_state.frame_mv[this_mode][ref_frame].as_int == 0 &&
         var < UINT_MAX) {
-      vars[INTER_OFFSET(GLOBALMV)][ref_frame] = var;
+      search_state.vars[INTER_OFFSET(GLOBALMV)][ref_frame] = var;
     }
 
-    this_rdc.rate += ref_costs_single[ref_frame];
+    search_state.this_rdc.rate += search_state.ref_costs_single[ref_frame];
 
-    this_rdc.rdcost = RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist);
+    search_state.this_rdc.rdcost = RDCOST(x->rdmult, search_state.this_rdc.rate,
+                                          search_state.this_rdc.dist);
     if (cpi->oxcf.rc_cfg.mode == AOM_CBR && !comp_pred) {
-      newmv_diff_bias(xd, this_best_mode, &this_rdc, bsize,
-                      frame_mv[this_best_mode][ref_frame].as_mv.row,
-                      frame_mv[this_best_mode][ref_frame].as_mv.col, cpi->speed,
-                      x->source_variance, x->content_state_sb);
+      newmv_diff_bias(
+          xd, this_best_mode, &search_state.this_rdc, bsize,
+          search_state.frame_mv[this_best_mode][ref_frame].as_mv.row,
+          search_state.frame_mv[this_best_mode][ref_frame].as_mv.col,
+          cpi->speed, x->source_variance, x->content_state_sb);
     }
 #if CONFIG_AV1_TEMPORAL_DENOISING
     if (cpi->oxcf.noise_sensitivity > 0 && denoise_svc_pickmode &&
         cpi->denoiser.denoising_level > kDenLowLow) {
       av1_denoiser_update_frame_stats(mi, sse_y, this_mode, ctx);
       // Keep track of zero_last cost.
-      if (ref_frame == LAST_FRAME && frame_mv[this_mode][ref_frame].as_int == 0)
-        zero_last_cost_orig = this_rdc.rdcost;
+      if (ref_frame == LAST_FRAME &&
+          search_state.frame_mv[this_mode][ref_frame].as_int == 0)
+        zero_last_cost_orig = search_state.this_rdc.rdcost;
     }
 #else
     (void)sse_y;
 #endif
 
-    mode_checked[this_mode][ref_frame] = 1;
-    mode_checked[this_best_mode][ref_frame] = 1;
+    search_state.mode_checked[this_mode][ref_frame] = 1;
+    search_state.mode_checked[this_best_mode][ref_frame] = 1;
 
     if (check_globalmv) {
-      int32_t abs_mv = abs(frame_mv[this_best_mode][ref_frame].as_mv.row) +
-                       abs(frame_mv[this_best_mode][ref_frame].as_mv.col);
+      int32_t abs_mv =
+          abs(search_state.frame_mv[this_best_mode][ref_frame].as_mv.row) +
+          abs(search_state.frame_mv[this_best_mode][ref_frame].as_mv.col);
       // Early exit check: if the magnitude of this_best_mode's mv is small
       // enough, we skip GLOBALMV check in the next loop iteration.
       if (abs_mv < 2) {
@@ -3962,37 +3997,38 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     ms_stat.nonskipped_search_times[bsize][this_mode] +=
         aom_usec_timer_elapsed(&ms_stat.timer1);
 #endif
-    if (this_rdc.rdcost < best_rdc.rdcost) {
-      best_rdc = this_rdc;
+    if (search_state.this_rdc.rdcost < search_state.best_rdc.rdcost) {
+      search_state.best_rdc = search_state.this_rdc;
       best_early_term = this_early_term;
-      best_pickmode.best_sse = sse_y;
-      best_pickmode.best_mode = this_best_mode;
-      best_pickmode.best_motion_mode = mi->motion_mode;
-      best_pickmode.wm_params = mi->wm_params;
-      best_pickmode.num_proj_ref = mi->num_proj_ref;
-      best_pickmode.best_pred_filter = mi->interp_filters;
-      best_pickmode.best_tx_size = mi->tx_size;
-      best_pickmode.best_ref_frame = ref_frame;
-      best_pickmode.best_second_ref_frame = ref_frame2;
-      best_pickmode.best_mode_skip_txfm = this_rdc.skip_txfm;
-      best_pickmode.best_mode_initial_skip_flag =
-          (nonskip_rdc.rate == INT_MAX && this_rdc.skip_txfm);
-      if (!best_pickmode.best_mode_skip_txfm) {
-        memcpy(best_pickmode.blk_skip, txfm_info->blk_skip,
+      search_state.best_pickmode.best_sse = sse_y;
+      search_state.best_pickmode.best_mode = this_best_mode;
+      search_state.best_pickmode.best_motion_mode = mi->motion_mode;
+      search_state.best_pickmode.wm_params = mi->wm_params;
+      search_state.best_pickmode.num_proj_ref = mi->num_proj_ref;
+      search_state.best_pickmode.best_pred_filter = mi->interp_filters;
+      search_state.best_pickmode.best_tx_size = mi->tx_size;
+      search_state.best_pickmode.best_ref_frame = ref_frame;
+      search_state.best_pickmode.best_second_ref_frame = ref_frame2;
+      search_state.best_pickmode.best_mode_skip_txfm =
+          search_state.this_rdc.skip_txfm;
+      search_state.best_pickmode.best_mode_initial_skip_flag =
+          (nonskip_rdc.rate == INT_MAX && search_state.this_rdc.skip_txfm);
+      if (!search_state.best_pickmode.best_mode_skip_txfm) {
+        memcpy(search_state.best_pickmode.blk_skip, txfm_info->blk_skip,
                sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
       }
 
       // This is needed for the compound modes.
-      frame_mv_best[this_best_mode][ref_frame].as_int =
-          frame_mv[this_best_mode][ref_frame].as_int;
+      search_state.frame_mv_best[this_best_mode][ref_frame].as_int =
+          search_state.frame_mv[this_best_mode][ref_frame].as_int;
       if (ref_frame2 > NONE_FRAME) {
-        frame_mv_best[this_best_mode][ref_frame2].as_int =
-            frame_mv[this_best_mode][ref_frame2].as_int;
+        search_state.frame_mv_best[this_best_mode][ref_frame2].as_int =
+            search_state.frame_mv[this_best_mode][ref_frame2].as_int;
       }
 
       if (reuse_inter_pred) {
-        free_pred_buffer(best_pickmode.best_pred);
-        best_pickmode.best_pred = this_mode_pred;
+        free_pred_buffer(search_state.best_pickmode.best_pred);
+        search_state.best_pickmode.best_pred = this_mode_pred;
       }
     } else {
       if (reuse_inter_pred) free_pred_buffer(this_mode_pred);
@@ -4003,23 +4039,27 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     }
   }
 
-  mi->mode = best_pickmode.best_mode;
-  mi->motion_mode = best_pickmode.best_motion_mode;
-  mi->wm_params = best_pickmode.wm_params;
-  mi->num_proj_ref = best_pickmode.num_proj_ref;
-  mi->interp_filters = best_pickmode.best_pred_filter;
-  mi->tx_size = best_pickmode.best_tx_size;
+  mi->mode = search_state.best_pickmode.best_mode;
+  mi->motion_mode = search_state.best_pickmode.best_motion_mode;
+  mi->wm_params = search_state.best_pickmode.wm_params;
+  mi->num_proj_ref = search_state.best_pickmode.num_proj_ref;
+  mi->interp_filters = search_state.best_pickmode.best_pred_filter;
+  mi->tx_size = search_state.best_pickmode.best_tx_size;
   memset(mi->inter_tx_size, mi->tx_size, sizeof(mi->inter_tx_size));
-  mi->ref_frame[0] = best_pickmode.best_ref_frame;
+  mi->ref_frame[0] = search_state.best_pickmode.best_ref_frame;
   mi->mv[0].as_int =
-      frame_mv_best[best_pickmode.best_mode][best_pickmode.best_ref_frame]
+      search_state
+          .frame_mv_best[search_state.best_pickmode.best_mode]
+                        [search_state.best_pickmode.best_ref_frame]
           .as_int;
   mi->mv[1].as_int = 0;
-  if (best_pickmode.best_second_ref_frame > INTRA_FRAME) {
-    mi->ref_frame[1] = best_pickmode.best_second_ref_frame;
-    mi->mv[1].as_int = frame_mv_best[best_pickmode.best_mode]
-                                    [best_pickmode.best_second_ref_frame]
-                                        .as_int;
+  if (search_state.best_pickmode.best_second_ref_frame > INTRA_FRAME) {
+    mi->ref_frame[1] = search_state.best_pickmode.best_second_ref_frame;
+    mi->mv[1].as_int =
+        search_state
+            .frame_mv_best[search_state.best_pickmode.best_mode]
+                          [search_state.best_pickmode.best_second_ref_frame]
+            .as_int;
   }
   // Perform intra prediction search, if the best SAD is above a certain
   // threshold.
@@ -4035,9 +4075,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   if (!x->force_zeromv_skip_for_blk)
     estimate_intra_mode(cpi, x, bsize, best_early_term,
-                        ref_costs_single[INTRA_FRAME], reuse_inter_pred,
-                        &orig_dst, tmp_buffer, &this_mode_pred, &best_rdc,
-                        &best_pickmode, ctx);
+                        search_state.ref_costs_single[INTRA_FRAME],
+                        reuse_inter_pred, &orig_dst, tmp_buffer,
+                        &this_mode_pred, &search_state.best_rdc,
+                        &search_state.best_pickmode, ctx);
 
   int skip_idtx_palette =
       (x->color_sensitivity[0] || x->color_sensitivity[1]) &&
@@ -4048,10 +4089,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   // is set.
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN && !skip_idtx_palette &&
       !cpi->oxcf.txfm_cfg.use_inter_dct_only && !x->force_zeromv_skip_for_blk &&
-      is_inter_mode(best_pickmode.best_mode) &&
+      is_inter_mode(search_state.best_pickmode.best_mode) &&
       (!cpi->sf.rt_sf.prune_idtx_nonrd ||
        (cpi->sf.rt_sf.prune_idtx_nonrd && bsize <= BLOCK_32X32 &&
-        best_pickmode.best_mode_skip_txfm != 1 && x->source_variance > 200))) {
+        search_state.best_pickmode.best_mode_skip_txfm != 1 &&
+        x->source_variance > 200))) {
     RD_STATS idtx_rdc;
     av1_init_rd_stats(&idtx_rdc);
     int is_skippable;
@@ -4061,20 +4103,22 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0, 0);
     block_yrd_idtx(x, &idtx_rdc, &is_skippable, bsize, mi->tx_size);
     int64_t idx_rdcost = RDCOST(x->rdmult, idtx_rdc.rate, idtx_rdc.dist);
-    if (idx_rdcost < best_rdc.rdcost) {
+    if (idx_rdcost < search_state.best_rdc.rdcost) {
       // Keep the skip_txfm off if the color_sensitivity is set.
       if (x->color_sensitivity[0] || x->color_sensitivity[1])
         idtx_rdc.skip_txfm = 0;
-      best_pickmode.tx_type = IDTX;
-      best_rdc.rdcost = idx_rdcost;
-      best_pickmode.best_mode_skip_txfm = idtx_rdc.skip_txfm;
+      search_state.best_pickmode.tx_type = IDTX;
+      search_state.best_rdc.rdcost = idx_rdcost;
+      search_state.best_pickmode.best_mode_skip_txfm = idtx_rdc.skip_txfm;
       if (!idtx_rdc.skip_txfm) {
-        memcpy(best_pickmode.blk_skip, txfm_info->blk_skip,
+        memcpy(search_state.best_pickmode.blk_skip, txfm_info->blk_skip,
                sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
       }
-      xd->tx_type_map[0] = best_pickmode.tx_type;
-      memset(ctx->tx_type_map, best_pickmode.tx_type, ctx->num_4x4_blk);
-      memset(xd->tx_type_map, best_pickmode.tx_type, ctx->num_4x4_blk);
+      xd->tx_type_map[0] = search_state.best_pickmode.tx_type;
+      memset(ctx->tx_type_map, search_state.best_pickmode.tx_type,
+             ctx->num_4x4_blk);
+      memset(xd->tx_type_map, search_state.best_pickmode.tx_type,
+             ctx->num_4x4_blk);
     }
     pd->dst = orig_dst;
   }
@@ -4083,27 +4127,31 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       !skip_idtx_palette && cpi->oxcf.tool_cfg.enable_palette &&
       av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                         mi->bsize);
-  try_palette = try_palette && is_mode_intra(best_pickmode.best_mode) &&
+  try_palette = try_palette &&
+                is_mode_intra(search_state.best_pickmode.best_mode) &&
                 x->source_variance > 0 && !x->force_zeromv_skip_for_blk &&
                 (cpi->rc.high_source_sad || x->source_variance > 500);
 
   if (try_palette) {
-    const unsigned int intra_ref_frame_cost = ref_costs_single[INTRA_FRAME];
+    const unsigned int intra_ref_frame_cost =
+        search_state.ref_costs_single[INTRA_FRAME];
 
     av1_search_palette_mode_luma(cpi, x, bsize, intra_ref_frame_cost, ctx,
-                                 &this_rdc, best_rdc.rdcost);
-    if (this_rdc.rdcost < best_rdc.rdcost) {
-      best_pickmode.pmi = mi->palette_mode_info;
-      best_pickmode.best_mode = DC_PRED;
+                                 &search_state.this_rdc,
+                                 search_state.best_rdc.rdcost);
+    if (search_state.this_rdc.rdcost < search_state.best_rdc.rdcost) {
+      search_state.best_pickmode.pmi = mi->palette_mode_info;
+      search_state.best_pickmode.best_mode = DC_PRED;
       mi->mv[0].as_int = 0;
-      best_rdc.rate = this_rdc.rate;
-      best_rdc.dist = this_rdc.dist;
-      best_rdc.rdcost = this_rdc.rdcost;
-      best_pickmode.best_mode_skip_txfm = this_rdc.skip_txfm;
+      search_state.best_rdc.rate = search_state.this_rdc.rate;
+      search_state.best_rdc.dist = search_state.this_rdc.dist;
+      search_state.best_rdc.rdcost = search_state.this_rdc.rdcost;
+      search_state.best_pickmode.best_mode_skip_txfm =
+          search_state.this_rdc.skip_txfm;
       // Keep the skip_txfm off if the color_sensitivity is set.
       if (x->color_sensitivity[0] || x->color_sensitivity[1])
-        this_rdc.skip_txfm = 0;
-      if (!this_rdc.skip_txfm) {
+        search_state.this_rdc.skip_txfm = 0;
+      if (!search_state.this_rdc.skip_txfm) {
         memcpy(ctx->blk_skip, txfm_info->blk_skip,
                sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
       }
@@ -4119,18 +4167,18 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #endif
 
   pd->dst = orig_dst;
-  if (try_palette) mi->palette_mode_info = best_pickmode.pmi;
-  mi->mode = best_pickmode.best_mode;
-  mi->ref_frame[0] = best_pickmode.best_ref_frame;
-  mi->ref_frame[1] = best_pickmode.best_second_ref_frame;
-  txfm_info->skip_txfm = best_pickmode.best_mode_skip_txfm;
+  if (try_palette) mi->palette_mode_info = search_state.best_pickmode.pmi;
+  mi->mode = search_state.best_pickmode.best_mode;
+  mi->ref_frame[0] = search_state.best_pickmode.best_ref_frame;
+  mi->ref_frame[1] = search_state.best_pickmode.best_second_ref_frame;
+  txfm_info->skip_txfm = search_state.best_pickmode.best_mode_skip_txfm;
   if (!txfm_info->skip_txfm) {
     // For inter modes: copy blk_skip from best_pickmode, which is
     // defined for 8x8 blocks. If palette or intra mode was selected
     // as best then blk_skip is already copied into the ctx.
-    if (best_pickmode.best_mode >= INTRA_MODE_END)
-      memcpy(ctx->blk_skip, best_pickmode.blk_skip,
-             sizeof(best_pickmode.blk_skip[0]) * num_8x8_blocks);
+    if (search_state.best_pickmode.best_mode >= INTRA_MODE_END)
+      memcpy(ctx->blk_skip, search_state.best_pickmode.blk_skip,
+             sizeof(search_state.best_pickmode.blk_skip[0]) * num_8x8_blocks);
   }
   if (has_second_ref(mi)) {
     mi->comp_group_idx = 0;
@@ -4142,8 +4190,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     mi->interp_filters = av1_broadcast_interp_filter(SWITCHABLE_FILTERS);
   }
 
-  if (reuse_inter_pred && best_pickmode.best_pred != NULL) {
-    PRED_BUFFER *const best_pred = best_pickmode.best_pred;
+  if (reuse_inter_pred && search_state.best_pickmode.best_pred != NULL) {
+    PRED_BUFFER *const best_pred = search_state.best_pickmode.best_pred;
     if (best_pred->data != orig_dst.buf && is_inter_mode(mi->mode)) {
       aom_convolve_copy(best_pred->data, best_pred->stride, pd->dst.buf,
                         pd->dst.stride, bw, bh);
@@ -4156,22 +4204,25 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       cpi->denoiser.reset == 0) {
     AV1_DENOISER_DECISION decision = COPY_BLOCK;
     ctx->sb_skip_denoising = 0;
-    av1_pickmode_ctx_den_update(&ctx_den, zero_last_cost_orig, ref_costs_single,
-                                frame_mv, reuse_inter_pred, &best_pickmode);
+    av1_pickmode_ctx_den_update(
+        &ctx_den, zero_last_cost_orig, search_state.ref_costs_single,
+        search_state.frame_mv, reuse_inter_pred, &search_state.best_pickmode);
     av1_denoiser_denoise(cpi, x, mi_row, mi_col, bsize, ctx, &decision,
                          gf_temporal_ref);
     if (denoise_recheck_zeromv)
-      recheck_zeromv_after_denoising(cpi, mi, x, xd, decision, &ctx_den,
-                                     yv12_mb, &best_rdc, &best_pickmode, bsize,
-                                     mi_row, mi_col);
-    best_pickmode.best_ref_frame = ctx_den.best_ref_frame;
+      recheck_zeromv_after_denoising(
+          cpi, mi, x, xd, decision, &ctx_den, search_state.yv12_mb,
+          &search_state.best_rdc, &search_state.best_pickmode, bsize, mi_row,
+          mi_col);
+    search_state.best_pickmode.best_ref_frame = ctx_den.best_ref_frame;
   }
 #endif
 
   if (cpi->sf.inter_sf.adaptive_rd_thresh && !has_second_ref(mi)) {
     THR_MODES best_mode_idx =
-        mode_idx[best_pickmode.best_ref_frame][mode_offset(mi->mode)];
-    if (best_pickmode.best_ref_frame == INTRA_FRAME) {
+        mode_idx[search_state.best_pickmode.best_ref_frame]
+                [mode_offset(mi->mode)];
+    if (search_state.best_pickmode.best_ref_frame == INTRA_FRAME) {
       // Only consider the modes that are included in the intra_mode_list.
       int intra_modes = sizeof(intra_mode_list) / sizeof(PREDICTION_MODE);
       for (int i = 0; i < intra_modes; i++) {
@@ -4181,7 +4232,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     } else {
       PREDICTION_MODE this_mode;
       for (this_mode = NEARESTMV; this_mode <= NEWMV; ++this_mode) {
-        update_thresh_freq_fact(cpi, x, bsize, best_pickmode.best_ref_frame,
+        update_thresh_freq_fact(cpi, x, bsize,
+                                search_state.best_pickmode.best_ref_frame,
                                 best_mode_idx, this_mode);
       }
     }
@@ -4201,5 +4253,5 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
              mi_row, mi_col);
 #endif  // COLLECT_PICK_MODE_STAT
 
-  *rd_cost = best_rdc;
+  *rd_cost = search_state.best_rdc;
 }
