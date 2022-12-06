@@ -1418,6 +1418,17 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithNoStats(
                                                        rc_param_.base_q_index);
     // TODO(jingning): gop_frame is needed in two pass tpl later.
     (void)gop_frame;
+
+    if (rc_param_.tpl_pass_index) {
+      if (gop_frame.update_type == GopFrameType::kRegularGolden ||
+          gop_frame.update_type == GopFrameType::kRegularKey ||
+          gop_frame.update_type == GopFrameType::kRegularArf) {
+        double qstep_ratio = 1 / 3.0;
+        param.q_index = av1_get_q_index_from_qstep_ratio(
+            rc_param_.base_q_index, qstep_ratio, AOM_BITS_8);
+        if (rc_param_.base_q_index) param.q_index = AOMMAX(param.q_index, 1);
+      }
+    }
     gop_encode_info.param_list.push_back(param);
   }
   return gop_encode_info;
@@ -1426,8 +1437,8 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithNoStats(
 StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithFp(
     const GopStruct &gop_struct,
     const FirstpassInfo &firstpass_info AOM_UNUSED) {
-  // TODO(b/260859962): This is currently a placeholder. Should use the fp stats
-  // to calculate frame-level qp.
+  // TODO(b/260859962): This is currently a placeholder. Should use the fp
+  // stats to calculate frame-level qp.
   return GetGopEncodeInfoWithNoStats(gop_struct);
 }
 
@@ -1558,8 +1569,8 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfo(
   }
 
   // TODO(b/260859962): Currently firstpass stats are used as an alternative,
-  // but we could also combine it with tpl results in the future for more stable
-  // qp determination.
+  // but we could also combine it with tpl results in the future for more
+  // stable qp determination.
   return GetGopEncodeInfoWithTpl(gop_struct, tpl_gop_stats, lookahead_stats,
                                  ref_frame_table_snapshot_init);
 }
