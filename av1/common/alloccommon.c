@@ -372,14 +372,19 @@ void av1_free_above_context_buffers(CommonContexts *above_contexts) {
 
   for (int tile_row = 0; tile_row < above_contexts->num_tile_rows; tile_row++) {
     for (i = 0; i < num_planes; i++) {
+      if (above_contexts->entropy[i] == NULL) break;
       aom_free(above_contexts->entropy[i][tile_row]);
       above_contexts->entropy[i][tile_row] = NULL;
     }
-    aom_free(above_contexts->partition[tile_row]);
-    above_contexts->partition[tile_row] = NULL;
+    if (above_contexts->partition != NULL) {
+      aom_free(above_contexts->partition[tile_row]);
+      above_contexts->partition[tile_row] = NULL;
+    }
 
-    aom_free(above_contexts->txfm[tile_row]);
-    above_contexts->txfm[tile_row] = NULL;
+    if (above_contexts->txfm != NULL) {
+      aom_free(above_contexts->txfm[tile_row]);
+      above_contexts->txfm[tile_row] = NULL;
+    }
   }
   for (i = 0; i < num_planes; i++) {
     aom_free(above_contexts->entropy[i]);
@@ -397,7 +402,7 @@ void av1_free_above_context_buffers(CommonContexts *above_contexts) {
 }
 
 void av1_free_context_buffers(AV1_COMMON *cm) {
-  cm->mi_params.free_mi(&cm->mi_params);
+  if (cm->mi_params.free_mi != NULL) cm->mi_params.free_mi(&cm->mi_params);
 
   av1_free_above_context_buffers(&cm->above_contexts);
 }
