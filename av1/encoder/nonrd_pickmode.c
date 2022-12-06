@@ -3400,6 +3400,89 @@ static AOM_INLINE bool prune_compoundmode_with_singlemode_var(
   return false;
 }
 
+// Function to setup parameters used for inter mode evaluation.
+static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
+    AV1_COMP *cpi, MACROBLOCK *x, InterModeSearchStateNonrd *search_state,
+    TileDataEnc *tile_data, PICK_MODE_CONTEXT *ctx, RD_STATS *rd_cost,
+    int *force_skip_low_temp_var, int *skip_pred_mv, const int mi_row,
+    const int mi_col, const int gf_temporal_ref, const unsigned char segment_id,
+    BLOCK_SIZE bsize
+#if CONFIG_AV1_TEMPORAL_DENOISING
+    ,
+    int denoise_svc_pickmode
+#endif
+) {
+  AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  TxfmSearchInfo *txfm_info = &x->txfm_search_info;
+  MB_MODE_INFO *const mi = xd->mi[0];
+  const ModeCosts *mode_costs = &x->mode_costs;
+  (void)ctx;
+
+  for (int idx = 0; idx < RTC_INTER_MODES; idx++) {
+    for (int ref = 0; ref < REF_FRAMES; ref++) {
+      search_state->vars[idx][ref] = UINT_MAX;
+      search_state->uv_dist[idx][ref] = INT64_MAX;
+    }
+  }
+
+  x->color_sensitivity[0] = x->color_sensitivity_sb[0];
+  x->color_sensitivity[1] = x->color_sensitivity_sb[1];
+  init_best_pickmode(&search_state->best_pickmode);
+
+  estimate_single_ref_frame_costs(cm, xd, mode_costs, segment_id, bsize,
+                                  search_state->ref_costs_single);
+
+  memset(&search_state->mode_checked[0][0], 0, MB_MODE_COUNT * REF_FRAMES);
+
+  txfm_info->skip_txfm = 0;
+
+  // initialize mode decisions
+  av1_invalid_rd_stats(&search_state->best_rdc);
+  av1_invalid_rd_stats(&search_state->this_rdc);
+  av1_invalid_rd_stats(rd_cost);
+  for (int i = 0; i < REF_FRAMES; ++i) {
+    x->warp_sample_info[i].num = -1;
+  }
+
+  mi->bsize = bsize;
+  mi->ref_frame[0] = NONE_FRAME;
+  mi->ref_frame[1] = NONE_FRAME;
+
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  if (cpi->oxcf.noise_sensitivity > 0) {
+    // if (cpi->ppi->use_svc) denoise_svc_pickmode =
+    // av1_denoise_svc_non_key(cpi);
+    if (cpi->denoiser.denoising_level > kDenLowLow && denoise_svc_pickmode)
+      av1_denoiser_reset_frame_stats(ctx);
+  }
+#endif
+
+  if (cpi->ref_frame_flags & AOM_LAST_FLAG)
+    find_predictors(cpi, x, LAST_FRAME, search_state->frame_mv, tile_data,
+                    search_state->yv12_mb, bsize, *force_skip_low_temp_var,
+                    x->force_zeromv_skip_for_blk);
+
+  get_ref_frame_use_mask(cpi, x, mi, mi_row, mi_col, bsize, gf_temporal_ref,
+                         search_state->use_ref_frame_mask,
+                         force_skip_low_temp_var);
+
+  *skip_pred_mv =
+      x->force_zeromv_skip_for_blk ||
+      (x->nonrd_prune_ref_frame_search > 2 && x->color_sensitivity[0] != 2 &&
+       x->color_sensitivity[1] != 2);
+
+  // Start at LAST_FRAME + 1.
+  for (MV_REFERENCE_FRAME ref_frame_iter = LAST_FRAME + 1;
+       ref_frame_iter <= ALTREF_FRAME; ++ref_frame_iter) {
+    if (search_state->use_ref_frame_mask[ref_frame_iter]) {
+      find_predictors(cpi, x, ref_frame_iter, search_state->frame_mv, tile_data,
+                      search_state->yv12_mb, bsize, *force_skip_low_temp_var,
+                      *skip_pred_mv);
+    }
+  }
+}
+
 void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                   MACROBLOCK *x, RD_STATS *rd_cost,
                                   BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx) {
@@ -3450,12 +3533,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int force_mv_inter_layer = 0;
   bool comp_use_zero_zeromv_only = 0;
   int tot_num_comp_modes = NUM_COMP_INTER_MODES_RT;
-  for (int idx = 0; idx < RTC_INTER_MODES; idx++) {
-    for (int ref = 0; ref < REF_FRAMES; ref++) {
-      search_state.vars[idx][ref] = UINT_MAX;
-      search_state.uv_dist[idx][ref] = INT64_MAX;
-    }
-  }
 #if CONFIG_AV1_TEMPORAL_DENOISING
   const int denoise_recheck_zeromv = 1;
   AV1_PICKMODE_CTX_DEN ctx_den;
@@ -3463,16 +3540,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int denoise_svc_pickmode = 1;
   const int resize_pending = is_frame_resize_pending(cpi);
 #endif
-  x->color_sensitivity[0] = x->color_sensitivity_sb[0];
-  x->color_sensitivity[1] = x->color_sensitivity_sb[1];
-  init_best_pickmode(&search_state.best_pickmode);
-
   const ModeCosts *mode_costs = &x->mode_costs;
 
-  estimate_single_ref_frame_costs(cm, xd, mode_costs, segment_id, bsize,
-                                  search_state.ref_costs_single);
-
-  memset(&search_state.mode_checked[0][0], 0, MB_MODE_COUNT * REF_FRAMES);
   if (reuse_inter_pred) {
     for (int i = 0; i < 3; i++) {
       tmp_buffer[i].data = &pred_buf[pixels_in_block * i];
@@ -3483,29 +3552,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     tmp_buffer[3].stride = pd->dst.stride;
     tmp_buffer[3].in_use = 0;
   }
-
-  txfm_info->skip_txfm = 0;
-
-  // initialize mode decisions
-  av1_invalid_rd_stats(&search_state.best_rdc);
-  av1_invalid_rd_stats(&search_state.this_rdc);
-  av1_invalid_rd_stats(rd_cost);
-  for (int i = 0; i < REF_FRAMES; ++i) {
-    x->warp_sample_info[i].num = -1;
-  }
-
-  mi->bsize = bsize;
-  mi->ref_frame[0] = NONE_FRAME;
-  mi->ref_frame[1] = NONE_FRAME;
-
-#if CONFIG_AV1_TEMPORAL_DENOISING
-  if (cpi->oxcf.noise_sensitivity > 0) {
-    // if (cpi->ppi->use_svc) denoise_svc_pickmode =
-    // av1_denoise_svc_non_key(cpi);
-    if (cpi->denoiser.denoising_level > kDenLowLow && denoise_svc_pickmode)
-      av1_denoiser_reset_frame_stats(ctx);
-  }
-#endif
 
   const int gf_temporal_ref = is_same_gf_and_last_scale(cm);
 
@@ -3521,18 +3567,15 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     svc_mv_row = -4;
   }
 
-  if (cpi->ref_frame_flags & AOM_LAST_FLAG)
-    find_predictors(cpi, x, LAST_FRAME, search_state.frame_mv, tile_data,
-                    search_state.yv12_mb, bsize, force_skip_low_temp_var,
-                    x->force_zeromv_skip_for_blk);
-
-  get_ref_frame_use_mask(cpi, x, mi, mi_row, mi_col, bsize, gf_temporal_ref,
-                         search_state.use_ref_frame_mask,
-                         &force_skip_low_temp_var);
-
-  skip_pred_mv = x->force_zeromv_skip_for_blk ||
-                 (x->nonrd_prune_ref_frame_search > 2 &&
-                  x->color_sensitivity[0] != 2 && x->color_sensitivity[1] != 2);
+  // Setup parameters used for inter mode evaluation.
+  set_params_nonrd_pick_inter_mode(
+      cpi, x, &search_state, tile_data, ctx, rd_cost, &force_skip_low_temp_var,
+      &skip_pred_mv, mi_row, mi_col, gf_temporal_ref, segment_id, bsize
+#if CONFIG_AV1_TEMPORAL_DENOISING
+      ,
+      denoise_svc_pickmode
+#endif
+  );
 
   if (cpi->sf.rt_sf.use_comp_ref_nonrd && is_comp_ref_allowed(bsize)) {
     // Only search compound if bsize \gt BLOCK_16X16.
@@ -3544,16 +3587,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     }
   } else {
     tot_num_comp_modes = 0;
-  }
-
-  // Start at LAST_FRAME + 1.
-  for (MV_REFERENCE_FRAME ref_frame_iter = LAST_FRAME + 1;
-       ref_frame_iter <= ALTREF_FRAME; ++ref_frame_iter) {
-    if (search_state.use_ref_frame_mask[ref_frame_iter]) {
-      find_predictors(cpi, x, ref_frame_iter, search_state.frame_mv, tile_data,
-                      search_state.yv12_mb, bsize, force_skip_low_temp_var,
-                      skip_pred_mv);
-    }
   }
 
   if (x->pred_mv_sad[LAST_FRAME] != INT_MAX) {
