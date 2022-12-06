@@ -860,10 +860,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     if (gf_group->size > MAX_LENGTH_TPL_FRAME_STATS) {
       allow_tpl = 0;
     }
-    if (frame_params->frame_type == KEY_FRAME) {
-      // TODO(angiebird): handle disable_filtered_key_tpl properly
-      allow_tpl = allow_tpl && !cpi->sf.tpl_sf.disable_filtered_key_tpl;
-    } else {
+    if (frame_params->frame_type != KEY_FRAME) {
       // In rare case, it's possible to have non ARF/GF update_type here.
       // We should set allow_tpl to zero in the situation
       allow_tpl =

@@ -1239,7 +1239,6 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.skip_fullpel_search_using_startmv = boosted ? 0 : 1;
 
     sf->tpl_sf.gop_length_decision_method = 3;
-    sf->tpl_sf.disable_filtered_key_tpl = 1;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 6 : 8;
 
@@ -1818,7 +1817,6 @@ static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
   tpl_sf->skip_alike_starting_mv = 0;
   tpl_sf->subpel_force_stop = EIGHTH_PEL;
   tpl_sf->search_method = NSTEP;
-  tpl_sf->disable_filtered_key_tpl = 0;
   tpl_sf->prune_ref_frames_in_tpl = 0;
   tpl_sf->allow_compound_pred = 1;
   tpl_sf->use_y_only_rate_distortion = 0;
