@@ -163,9 +163,10 @@ void av1_init_layer_context(struct AV1_COMP *const cpi);
  * \param[in]       cpi  Top level encoder structure
  * \param[in]       num_layers  Number of layers to be allocated
  *
- * \remark  Nothing returned. Allocates memory for cpi->svc.layer_context.
+ * \remark  Allocates memory for cpi->svc.layer_context.
+ * \return  True on success, false on allocation failure.
  */
-void av1_alloc_layer_context(struct AV1_COMP *cpi, int num_layers);
+bool av1_alloc_layer_context(struct AV1_COMP *cpi, int num_layers);
 
 /*!\brief Update the layer context from a change_config() call.
  *

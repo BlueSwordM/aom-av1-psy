@@ -81,16 +81,17 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
   }
 }
 
-void av1_alloc_layer_context(AV1_COMP *cpi, int num_layers) {
-  AV1_COMMON *const cm = &cpi->common;
+bool av1_alloc_layer_context(AV1_COMP *cpi, int num_layers) {
   SVC *const svc = &cpi->svc;
   if (svc->layer_context == NULL || svc->num_allocated_layers < num_layers) {
     aom_free(svc->layer_context);
-    CHECK_MEM_ERROR(
-        cm, svc->layer_context,
-        (LAYER_CONTEXT *)aom_calloc(num_layers, sizeof(*svc->layer_context)));
+    svc->num_allocated_layers = 0;
+    svc->layer_context =
+        (LAYER_CONTEXT *)aom_calloc(num_layers, sizeof(*svc->layer_context));
+    if (svc->layer_context == NULL) return false;
     svc->num_allocated_layers = num_layers;
   }
+  return true;
 }
 
 // Update the layer context from a change_config() call.

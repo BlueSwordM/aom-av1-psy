@@ -69,7 +69,7 @@ std::unique_ptr<AV1RateControlRTC> AV1RateControlRTC::Create(
   rc_api->cpi_->common.seq_params = &rc_api->cpi_->ppi->seq_params;
   av1_zero(*rc_api->cpi_->common.seq_params);
   const int num_layers = cfg.ss_number_layers * cfg.ts_number_layers;
-  av1_alloc_layer_context(rc_api->cpi_, num_layers);
+  if (!av1_alloc_layer_context(rc_api->cpi_, num_layers)) return nullptr;
   rc_api->InitRateControl(cfg);
   if (cfg.aq_mode) {
     AV1_COMP *const cpi = rc_api->cpi_;
