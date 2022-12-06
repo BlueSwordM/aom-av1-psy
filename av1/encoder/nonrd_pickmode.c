@@ -2323,6 +2323,8 @@ typedef struct _mode_search_stat {
   struct aom_usec_timer bsize_timer;
 } mode_search_stat;
 
+static mode_search_stat ms_stat;
+
 static AOM_INLINE void print_stage_time(const char *stage_name,
                                         int64_t stage_time,
                                         int64_t total_time) {
@@ -3385,6 +3387,164 @@ static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
   }
 }
 
+// Function to check the inter mode can be skipped based on mode statistics and
+// speed features settings.
+static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
+    AV1_COMP *cpi, MACROBLOCK *x, InterModeSearchStateNonrd *search_state,
+    int64_t *thresh_sad_pred, int *force_mv_inter_layer, int *comp_pred,
+    PREDICTION_MODE *this_mode, MV_REFERENCE_FRAME *last_comp_ref_frame,
+    MV_REFERENCE_FRAME *ref_frame, MV_REFERENCE_FRAME *ref_frame2, int idx,
+    int svc_mv_col, int svc_mv_row, int force_skip_low_temp_var,
+    unsigned int sse_zeromv_norm, const int num_inter_modes,
+    const unsigned char segment_id, BLOCK_SIZE bsize,
+    bool comp_use_zero_zeromv_only, bool check_globalmv) {
+  AV1_COMMON *const cm = &cpi->common;
+  const struct segmentation *const seg = &cm->seg;
+  const SVC *const svc = &cpi->svc;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mi = xd->mi[0];
+
+  if (idx >= num_inter_modes) {
+    const int comp_index = idx - num_inter_modes;
+    if (!setup_compound_params_from_comp_idx(
+            cpi, x, search_state->yv12_mb, this_mode, ref_frame, ref_frame2,
+            search_state->frame_mv, search_state->use_ref_frame_mask,
+            comp_index, comp_use_zero_zeromv_only, last_comp_ref_frame)) {
+      return true;
+    }
+    *comp_pred = 1;
+  } else {
+    *this_mode = ref_mode_set[idx].pred_mode;
+    *ref_frame = ref_mode_set[idx].ref_frame;
+    *ref_frame2 = NONE_FRAME;
+  }
+
+  if (!*comp_pred && search_state->mode_checked[*this_mode][*ref_frame]) {
+    return true;
+  }
+
+  if (!check_globalmv && *this_mode == GLOBALMV) {
+    return true;
+  }
+
+#if COLLECT_PICK_MODE_STAT
+  aom_usec_timer_start(&ms_stat.timer1);
+  ms_stat.num_searches[bsize][*this_mode]++;
+#endif
+  mi->mode = *this_mode;
+  mi->ref_frame[0] = *ref_frame;
+  mi->ref_frame[1] = *ref_frame2;
+
+  if (!search_state->use_ref_frame_mask[*ref_frame]) return true;
+
+  if (x->force_zeromv_skip_for_blk &&
+      ((!(*this_mode == NEARESTMV &&
+          search_state->frame_mv[*this_mode][*ref_frame].as_int == 0) &&
+        *this_mode != GLOBALMV) ||
+       *ref_frame != LAST_FRAME))
+    return true;
+
+  if (cpi->sf.rt_sf.prune_compoundmode_with_singlemode_var && *comp_pred &&
+      prune_compoundmode_with_singlemode_var(
+          *this_mode, *ref_frame, *ref_frame2, search_state->frame_mv,
+          search_state->mode_checked, search_state->vars,
+          search_state->uv_dist)) {
+    return true;
+  }
+
+  *force_mv_inter_layer = 0;
+  if (cpi->ppi->use_svc && svc->spatial_layer_id > 0 &&
+      ((*ref_frame == LAST_FRAME && svc->skip_mvsearch_last) ||
+       (*ref_frame == GOLDEN_FRAME && svc->skip_mvsearch_gf) ||
+       (*ref_frame == ALTREF_FRAME && svc->skip_mvsearch_altref))) {
+    // Only test mode if NEARESTMV/NEARMV is (svc_mv_col, svc_mv_row),
+    // otherwise set NEWMV to (svc_mv_col, svc_mv_row).
+    // Skip newmv and filter search.
+    *force_mv_inter_layer = 1;
+    if (*this_mode == NEWMV) {
+      search_state->frame_mv[*this_mode][*ref_frame].as_mv.col = svc_mv_col;
+      search_state->frame_mv[*this_mode][*ref_frame].as_mv.row = svc_mv_row;
+    } else if (search_state->frame_mv[*this_mode][*ref_frame].as_mv.col !=
+                   svc_mv_col ||
+               search_state->frame_mv[*this_mode][*ref_frame].as_mv.row !=
+                   svc_mv_row) {
+      return true;
+    }
+  }
+
+  // If the segment reference frame feature is enabled then do nothing if the
+  // current ref frame is not allowed.
+  if (segfeature_active(seg, segment_id, SEG_LVL_REF_FRAME) &&
+      get_segdata(seg, segment_id, SEG_LVL_REF_FRAME) != (int)(*ref_frame))
+    return true;
+
+  // For screen content: for base spatial layer only for now.
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+      cpi->svc.spatial_layer_id == 0) {
+    // If source_sad is computed: skip non-zero motion
+    // check for stationary (super)blocks. Otherwise if superblock
+    // has motion skip the modes with zero motion for flat blocks,
+    // and color is not set.
+    // For the latter condition: the same condition should apply
+    // to newmv if (0, 0), so this latter condition is repeated
+    // below after search_new_mv.
+    if (cpi->sf.rt_sf.source_metrics_sb_nonrd) {
+      if ((search_state->frame_mv[*this_mode][*ref_frame].as_int != 0 &&
+           x->content_state_sb.source_sad_nonrd == kZeroSad) ||
+          (search_state->frame_mv[*this_mode][*ref_frame].as_int == 0 &&
+           x->content_state_sb.source_sad_nonrd != kZeroSad &&
+           ((x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0) ||
+            cpi->rc.high_source_sad) &&
+           x->source_variance == 0))
+        return true;
+    }
+    // Skip NEWMV search for flat blocks.
+    if (*this_mode == NEWMV && x->source_variance < 100) return true;
+    // Skip non-LAST for color on flat blocks.
+    if (*ref_frame > LAST_FRAME && x->source_variance == 0 &&
+        (x->color_sensitivity[0] == 1 || x->color_sensitivity[1] == 1))
+      return true;
+  }
+
+  if (skip_mode_by_bsize_and_ref_frame(
+          *this_mode, *ref_frame, bsize, x->nonrd_prune_ref_frame_search,
+          sse_zeromv_norm, cpi->sf.rt_sf.nonrd_aggressive_skip))
+    return true;
+
+  if (skip_mode_by_low_temp(*this_mode, *ref_frame, bsize, x->content_state_sb,
+                            search_state->frame_mv[*this_mode][*ref_frame],
+                            force_skip_low_temp_var))
+    return true;
+
+  // Disable this drop out case if the ref frame segment level feature is
+  // enabled for this segment. This is to prevent the possibility that we
+  // end up unable to pick any mode.
+  if (!segfeature_active(seg, segment_id, SEG_LVL_REF_FRAME)) {
+    // Check for skipping GOLDEN and ALTREF based pred_mv_sad.
+    if (cpi->sf.rt_sf.nonrd_prune_ref_frame_search > 0 &&
+        x->pred_mv_sad[*ref_frame] != INT_MAX && *ref_frame != LAST_FRAME) {
+      if ((int64_t)(x->pred_mv_sad[*ref_frame]) > *thresh_sad_pred) return true;
+    }
+  }
+
+  // Check for skipping NEARMV based on pred_mv_sad.
+  if (*this_mode == NEARMV && x->pred_mv1_sad[*ref_frame] != INT_MAX &&
+      x->pred_mv1_sad[*ref_frame] > (x->pred_mv0_sad[*ref_frame] << 1))
+    return true;
+
+  if (!*comp_pred) {
+    if (skip_mode_by_threshold(
+            *this_mode, *ref_frame,
+            search_state->frame_mv[*this_mode][*ref_frame],
+            cpi->rc.frames_since_golden, cpi->rd.threshes[segment_id][bsize],
+            x->thresh_freq_fact[bsize], search_state->best_rdc.rdcost,
+            search_state->best_pickmode.best_mode_skip_txfm,
+            (cpi->sf.rt_sf.nonrd_aggressive_skip ? 1 : 0)))
+      return true;
+  }
+  return false;
+}
+
 void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                   MACROBLOCK *x, RD_STATS *rd_cost,
                                   BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx) {
@@ -3396,13 +3556,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   const MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
   const InterpFilter filter_ref = cm->features.interp_filter;
   const InterpFilter default_interp_filter = EIGHTTAP_REGULAR;
-#if COLLECT_PICK_MODE_STAT
-  static mode_search_stat ms_stat;
-#endif
   MV_REFERENCE_FRAME ref_frame, ref_frame2;
   const unsigned char segment_id = mi->segment_id;
-  const int *const rd_threshes = cpi->rd.threshes[segment_id][bsize];
-  const int *const rd_thresh_freq_fact = x->thresh_freq_fact[bsize];
   int best_early_term = 0;
   int force_skip_low_temp_var = 0;
   unsigned int sse_zeromv_norm = UINT_MAX;
@@ -3548,8 +3703,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       break;
     }
 
-    const struct segmentation *const seg = &cm->seg;
-
     int rate_mv = 0;
     int is_skippable;
     int this_early_term = 0;
@@ -3562,142 +3715,15 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     memset(txfm_info->blk_skip, 0,
            sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
 
-    if (idx >= num_inter_modes) {
-      const int comp_index = idx - num_inter_modes;
-      if (!setup_compound_params_from_comp_idx(
-              cpi, x, search_state.yv12_mb, &this_mode, &ref_frame, &ref_frame2,
-              search_state.frame_mv, search_state.use_ref_frame_mask,
-              comp_index, comp_use_zero_zeromv_only, &last_comp_ref_frame)) {
-        continue;
-      }
-      comp_pred = 1;
-    } else {
-      this_mode = ref_mode_set[idx].pred_mode;
-      ref_frame = ref_mode_set[idx].ref_frame;
-      ref_frame2 = NONE_FRAME;
-    }
-
-    if (!comp_pred && search_state.mode_checked[this_mode][ref_frame]) {
+    // Check the inter mode can be skipped based on mode statistics and speed
+    // features settings.
+    if (skip_inter_mode_nonrd(
+            cpi, x, &search_state, &thresh_sad_pred, &force_mv_inter_layer,
+            &comp_pred, &this_mode, &last_comp_ref_frame, &ref_frame,
+            &ref_frame2, idx, svc_mv_col, svc_mv_row, force_skip_low_temp_var,
+            sse_zeromv_norm, num_inter_modes, segment_id, bsize,
+            comp_use_zero_zeromv_only, check_globalmv))
       continue;
-    }
-
-    if (!check_globalmv && this_mode == GLOBALMV) {
-      continue;
-    }
-
-#if COLLECT_PICK_MODE_STAT
-    aom_usec_timer_start(&ms_stat.timer1);
-    ms_stat.num_searches[bsize][this_mode]++;
-#endif
-    mi->mode = this_mode;
-    mi->ref_frame[0] = ref_frame;
-    mi->ref_frame[1] = ref_frame2;
-
-    if (!search_state.use_ref_frame_mask[ref_frame]) continue;
-
-    if (x->force_zeromv_skip_for_blk &&
-        ((!(this_mode == NEARESTMV &&
-            search_state.frame_mv[this_mode][ref_frame].as_int == 0) &&
-          this_mode != GLOBALMV) ||
-         ref_frame != LAST_FRAME))
-      continue;
-
-    if (cpi->sf.rt_sf.prune_compoundmode_with_singlemode_var && comp_pred &&
-        prune_compoundmode_with_singlemode_var(
-            this_mode, ref_frame, ref_frame2, search_state.frame_mv,
-            search_state.mode_checked, search_state.vars,
-            search_state.uv_dist)) {
-      continue;
-    }
-
-    force_mv_inter_layer = 0;
-    if (cpi->ppi->use_svc && svc->spatial_layer_id > 0 &&
-        ((ref_frame == LAST_FRAME && svc->skip_mvsearch_last) ||
-         (ref_frame == GOLDEN_FRAME && svc->skip_mvsearch_gf) ||
-         (ref_frame == ALTREF_FRAME && svc->skip_mvsearch_altref))) {
-      // Only test mode if NEARESTMV/NEARMV is (svc_mv_col, svc_mv_row),
-      // otherwise set NEWMV to (svc_mv_col, svc_mv_row).
-      // Skip newmv and filter search.
-      force_mv_inter_layer = 1;
-      if (this_mode == NEWMV) {
-        search_state.frame_mv[this_mode][ref_frame].as_mv.col = svc_mv_col;
-        search_state.frame_mv[this_mode][ref_frame].as_mv.row = svc_mv_row;
-      } else if (search_state.frame_mv[this_mode][ref_frame].as_mv.col !=
-                     svc_mv_col ||
-                 search_state.frame_mv[this_mode][ref_frame].as_mv.row !=
-                     svc_mv_row) {
-        continue;
-      }
-    }
-
-    // If the segment reference frame feature is enabled then do nothing if the
-    // current ref frame is not allowed.
-    if (segfeature_active(seg, segment_id, SEG_LVL_REF_FRAME) &&
-        get_segdata(seg, segment_id, SEG_LVL_REF_FRAME) != (int)ref_frame)
-      continue;
-
-    // For screen content: for base spatial layer only for now.
-    if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-        cpi->svc.spatial_layer_id == 0) {
-      // If source_sad is computed: skip non-zero motion
-      // check for stationary (super)blocks. Otherwise if superblock
-      // has motion skip the modes with zero motion for flat blocks,
-      // and color is not set.
-      // For the latter condition: the same condition should apply
-      // to newmv if (0, 0), so this latter condition is repeated
-      // below after search_new_mv.
-      if (cpi->sf.rt_sf.source_metrics_sb_nonrd) {
-        if ((search_state.frame_mv[this_mode][ref_frame].as_int != 0 &&
-             x->content_state_sb.source_sad_nonrd == kZeroSad) ||
-            (search_state.frame_mv[this_mode][ref_frame].as_int == 0 &&
-             x->content_state_sb.source_sad_nonrd != kZeroSad &&
-             ((x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0) ||
-              cpi->rc.high_source_sad) &&
-             x->source_variance == 0))
-          continue;
-      }
-      // Skip NEWMV search for flat blocks.
-      if (this_mode == NEWMV && x->source_variance < 100) continue;
-      // Skip non-LAST for color on flat blocks.
-      if (ref_frame > LAST_FRAME && x->source_variance == 0 &&
-          (x->color_sensitivity[0] == 1 || x->color_sensitivity[1] == 1))
-        continue;
-    }
-
-    if (skip_mode_by_bsize_and_ref_frame(
-            this_mode, ref_frame, bsize, x->nonrd_prune_ref_frame_search,
-            sse_zeromv_norm, cpi->sf.rt_sf.nonrd_aggressive_skip))
-      continue;
-
-    if (skip_mode_by_low_temp(this_mode, ref_frame, bsize, x->content_state_sb,
-                              search_state.frame_mv[this_mode][ref_frame],
-                              force_skip_low_temp_var))
-      continue;
-
-    // Disable this drop out case if the ref frame segment level feature is
-    // enabled for this segment. This is to prevent the possibility that we
-    // end up unable to pick any mode.
-    if (!segfeature_active(seg, segment_id, SEG_LVL_REF_FRAME)) {
-      // Check for skipping GOLDEN and ALTREF based pred_mv_sad.
-      if (cpi->sf.rt_sf.nonrd_prune_ref_frame_search > 0 &&
-          x->pred_mv_sad[ref_frame] != INT_MAX && ref_frame != LAST_FRAME) {
-        if ((int64_t)(x->pred_mv_sad[ref_frame]) > thresh_sad_pred) continue;
-      }
-    }
-    // Check for skipping NEARMV based on pred_mv_sad.
-    if (this_mode == NEARMV && x->pred_mv1_sad[ref_frame] != INT_MAX &&
-        x->pred_mv1_sad[ref_frame] > (x->pred_mv0_sad[ref_frame] << 1))
-      continue;
-
-    if (!comp_pred) {
-      if (skip_mode_by_threshold(
-              this_mode, ref_frame, search_state.frame_mv[this_mode][ref_frame],
-              cpi->rc.frames_since_golden, rd_threshes, rd_thresh_freq_fact,
-              search_state.best_rdc.rdcost,
-              search_state.best_pickmode.best_mode_skip_txfm,
-              (cpi->sf.rt_sf.nonrd_aggressive_skip ? 1 : 0)))
-        continue;
-    }
 
     // Select prediction reference frames.
     for (int i = 0; i < MAX_MB_PLANE; i++) {
