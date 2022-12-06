@@ -225,6 +225,7 @@ void av1_decoder_remove(AV1Decoder *pbi) {
 #endif
   av1_free_mc_tmp_buf(&pbi->td);
   aom_img_metadata_array_free(pbi->metadata);
+  av1_remove_common(&pbi->common);
   aom_free(pbi);
 }
 
