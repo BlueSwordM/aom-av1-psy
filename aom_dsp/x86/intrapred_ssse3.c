@@ -1110,99 +1110,107 @@ static AOM_FORCE_INLINE void write_smooth_directional_sum8(
 // -----------------------------------------------------------------------------
 // SMOOTH_V_PRED
 
-// pixels[0]: above and below_pred interleave vector
-static INLINE void load_pixel_v_w4(const uint8_t *above, const uint8_t *left,
-                                   int height, __m128i *pixels) {
-  const __m128i zero = _mm_setzero_si128();
-  __m128i d = _mm_cvtsi32_si128(((const int *)above)[0]);
-  const __m128i bp = _mm_set1_epi16((int16_t)left[height - 1]);
-  d = _mm_unpacklo_epi8(d, zero);
-  pixels[0] = _mm_unpacklo_epi16(d, bp);
+static AOM_FORCE_INLINE void load_smooth_vertical_pixels4(
+    const uint8_t *LIBAOM_RESTRICT above, const uint8_t *LIBAOM_RESTRICT left,
+    const int height, __m128i *pixels) {
+  __m128i top = Load4(above);
+  const __m128i bottom_left = _mm_set1_epi16(left[height - 1]);
+  top = cvtepu8_epi16(top);
+  pixels[0] = _mm_unpacklo_epi16(top, bottom_left);
 }
 
-// weights[0]: weights_h vector
-// weights[1]: scale - weights_h vector
-static INLINE void load_weight_v_w4(int height, __m128i *weights) {
-  const __m128i zero = _mm_setzero_si128();
-  const __m128i d = _mm_set1_epi16((int16_t)(1 << SMOOTH_WEIGHT_LOG2_SCALE));
+// |weight_array| alternates weight vectors from the table with their inverted
+// (256-w) counterparts. This is precomputed by the compiler when the weights
+// table is visible to this module. Removing this visibility can cut speed by up
+// to half in both 4xH and 8xH transforms.
+static AOM_FORCE_INLINE void load_smooth_vertical_weights4(
+    const uint8_t *LIBAOM_RESTRICT weight_array, const int height,
+    __m128i *weights) {
+  const __m128i inverter = _mm_set1_epi16(256);
 
   if (height == 4) {
-    const __m128i weight = _mm_cvtsi32_si128(((const int *)smooth_weights)[0]);
-    weights[0] = _mm_unpacklo_epi8(weight, zero);
-    weights[1] = _mm_sub_epi16(d, weights[0]);
+    const __m128i weight = Load4(weight_array);
+    weights[0] = cvtepu8_epi16(weight);
+    weights[1] = _mm_sub_epi16(inverter, weights[0]);
   } else if (height == 8) {
-    const __m128i weight = _mm_loadl_epi64((const __m128i *)&smooth_weights[4]);
-    weights[0] = _mm_unpacklo_epi8(weight, zero);
-    weights[1] = _mm_sub_epi16(d, weights[0]);
+    const __m128i weight = LoadLo8(weight_array + 4);
+    weights[0] = cvtepu8_epi16(weight);
+    weights[1] = _mm_sub_epi16(inverter, weights[0]);
   } else {
-    const __m128i weight =
-        _mm_loadu_si128((const __m128i *)&smooth_weights[12]);
-    weights[0] = _mm_unpacklo_epi8(weight, zero);
-    weights[1] = _mm_sub_epi16(d, weights[0]);
+    const __m128i weight = LoadUnaligned16(weight_array + 12);
+    const __m128i zero = _mm_setzero_si128();
+    weights[0] = cvtepu8_epi16(weight);
+    weights[1] = _mm_sub_epi16(inverter, weights[0]);
     weights[2] = _mm_unpackhi_epi8(weight, zero);
-    weights[3] = _mm_sub_epi16(d, weights[2]);
+    weights[3] = _mm_sub_epi16(inverter, weights[2]);
   }
 }
 
-static INLINE void smooth_v_pred_4xh(const __m128i *pixel,
-                                     const __m128i *weight, int h, uint8_t *dst,
-                                     ptrdiff_t stride) {
-  const __m128i pred_round =
-      _mm_set1_epi32((1 << (SMOOTH_WEIGHT_LOG2_SCALE - 1)));
-  const __m128i inc = _mm_set1_epi16(0x202);
-  const __m128i gat = _mm_set1_epi32(0xc080400);
-  __m128i d = _mm_set1_epi16(0x100);
+static AOM_FORCE_INLINE void write_smooth_vertical4xh(
+    const __m128i *pixel, const __m128i *weight, const int height,
+    uint8_t *LIBAOM_RESTRICT dst, const ptrdiff_t stride) {
+  const __m128i pred_round = _mm_set1_epi32(128);
+  const __m128i mask_increment = _mm_set1_epi16(0x0202);
+  const __m128i cvtepu8_epi32 = _mm_set1_epi32(0xC080400);
+  __m128i y_select = _mm_set1_epi16(0x0100);
 
-  for (int i = 0; i < h; ++i) {
-    const __m128i wg_wg = _mm_shuffle_epi8(weight[0], d);
-    const __m128i sc_sc = _mm_shuffle_epi8(weight[1], d);
-    const __m128i wh_sc = _mm_unpacklo_epi16(wg_wg, sc_sc);
-    __m128i sum = _mm_madd_epi16(pixel[0], wh_sc);
+  for (int y = 0; y < height; ++y) {
+    const __m128i weight_y = _mm_shuffle_epi8(weight[0], y_select);
+    const __m128i inverted_weight_y = _mm_shuffle_epi8(weight[1], y_select);
+    const __m128i alternate_weights =
+        _mm_unpacklo_epi16(weight_y, inverted_weight_y);
+    // Here the pixel vector is top_row[0], corner, top_row[1], corner, ...
+    // The madd instruction yields four results of the form:
+    // (top_row[x] * weight[y] + corner * inverted_weight[y])
+    __m128i sum = _mm_madd_epi16(pixel[0], alternate_weights);
     sum = _mm_add_epi32(sum, pred_round);
-    sum = _mm_srai_epi32(sum, SMOOTH_WEIGHT_LOG2_SCALE);
-    sum = _mm_shuffle_epi8(sum, gat);
-    *(int *)dst = _mm_cvtsi128_si32(sum);
+    sum = _mm_srai_epi32(sum, 8);
+    sum = _mm_shuffle_epi8(sum, cvtepu8_epi32);
+    Store4(dst, sum);
     dst += stride;
-    d = _mm_add_epi16(d, inc);
+    y_select = _mm_add_epi16(y_select, mask_increment);
   }
 }
 
-void aom_smooth_v_predictor_4x4_ssse3(uint8_t *dst, ptrdiff_t stride,
-                                      const uint8_t *above,
-                                      const uint8_t *left) {
+void aom_smooth_v_predictor_4x4_ssse3(
+    uint8_t *LIBAOM_RESTRICT dst, ptrdiff_t stride,
+    const uint8_t *LIBAOM_RESTRICT top_row,
+    const uint8_t *LIBAOM_RESTRICT left_column) {
   __m128i pixels;
-  load_pixel_v_w4(above, left, 4, &pixels);
+  load_smooth_vertical_pixels4(top_row, left_column, 4, &pixels);
 
   __m128i weights[2];
-  load_weight_v_w4(4, weights);
+  load_smooth_vertical_weights4(smooth_weights, 4, weights);
 
-  smooth_v_pred_4xh(&pixels, weights, 4, dst, stride);
+  write_smooth_vertical4xh(&pixels, weights, 4, dst, stride);
 }
 
-void aom_smooth_v_predictor_4x8_ssse3(uint8_t *dst, ptrdiff_t stride,
-                                      const uint8_t *above,
-                                      const uint8_t *left) {
+void aom_smooth_v_predictor_4x8_ssse3(
+    uint8_t *LIBAOM_RESTRICT dst, ptrdiff_t stride,
+    const uint8_t *LIBAOM_RESTRICT top_row,
+    const uint8_t *LIBAOM_RESTRICT left_column) {
   __m128i pixels;
-  load_pixel_v_w4(above, left, 8, &pixels);
+  load_smooth_vertical_pixels4(top_row, left_column, 8, &pixels);
 
   __m128i weights[2];
-  load_weight_v_w4(8, weights);
+  load_smooth_vertical_weights4(smooth_weights, 8, weights);
 
-  smooth_v_pred_4xh(&pixels, weights, 8, dst, stride);
+  write_smooth_vertical4xh(&pixels, weights, 8, dst, stride);
 }
 
-void aom_smooth_v_predictor_4x16_ssse3(uint8_t *dst, ptrdiff_t stride,
-                                       const uint8_t *above,
-                                       const uint8_t *left) {
+void aom_smooth_v_predictor_4x16_ssse3(
+    uint8_t *LIBAOM_RESTRICT dst, ptrdiff_t stride,
+    const uint8_t *LIBAOM_RESTRICT top_row,
+    const uint8_t *LIBAOM_RESTRICT left_column) {
   __m128i pixels;
-  load_pixel_v_w4(above, left, 16, &pixels);
+  load_smooth_vertical_pixels4(top_row, left_column, 16, &pixels);
 
   __m128i weights[4];
-  load_weight_v_w4(16, weights);
+  load_smooth_vertical_weights4(smooth_weights, 16, weights);
 
-  smooth_v_pred_4xh(&pixels, weights, 8, dst, stride);
+  write_smooth_vertical4xh(&pixels, weights, 8, dst, stride);
   dst += stride << 3;
-  smooth_v_pred_4xh(&pixels, &weights[2], 8, dst, stride);
+  write_smooth_vertical4xh(&pixels, &weights[2], 8, dst, stride);
 }
 
 void aom_smooth_v_predictor_8x4_ssse3(
