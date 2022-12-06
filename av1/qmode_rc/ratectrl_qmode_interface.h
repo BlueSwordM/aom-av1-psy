@@ -322,15 +322,18 @@ class AV1RateControlQModeInterface {
   // ref_frame_table_snapshot_init; for subsequent GOPs, it should be the
   // final_snapshot returned on the previous call.
   //
-  // TODO(b/260859962): Remove these once the extension to use firstpass stats
-  // is done.
+  // TODO(b/260859962): Remove these once all callers and overrides are gone.
   virtual StatusOr<GopEncodeInfo> GetGopEncodeInfo(
-      const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
-      const std::vector<LookaheadStats> &lookahead_stats,
-      const RefFrameTable &ref_frame_table_snapshot_init) = 0;
-
+      const GopStruct &gop_struct AOM_UNUSED,
+      const TplGopStats &tpl_gop_stats AOM_UNUSED,
+      const std::vector<LookaheadStats> &lookahead_stats AOM_UNUSED,
+      const RefFrameTable &ref_frame_table_snapshot AOM_UNUSED) {
+    return Status{ AOM_CODEC_UNSUP_FEATURE, "Deprecated" };
+  }
   virtual StatusOr<GopEncodeInfo> GetTplPassGopEncodeInfo(
-      const GopStruct &gop_struct) = 0;
+      const GopStruct &gop_struct AOM_UNUSED) {
+    return Status{ AOM_CODEC_UNSUP_FEATURE, "Deprecated" };
+  }
 
   // Extensions to the API to pass in the first pass info. There should be stats
   // for all frames starting from the first frame of the GOP and continuing to
