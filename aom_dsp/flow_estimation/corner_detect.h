@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-int av1_fast_corner_detect(unsigned char *buf, int width, int height,
+int av1_fast_corner_detect(const unsigned char *buf, int width, int height,
                            int stride, int *points, int max_points);
 
 #ifdef __cplusplus

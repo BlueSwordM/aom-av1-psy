@@ -1950,9 +1950,9 @@ typedef struct {
   YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES];
 
   /*!
-   * Pointer to the source frame buffer.
+   * Pointer to the downsampling pyramid for the source frame.
    */
-  unsigned char *src_buffer;
+  ImagePyramid *src_pyramid;
 
   /*!
    * Holds the number of valid reference frames in past and future directions
@@ -3462,6 +3462,12 @@ typedef struct AV1_COMP {
    * Block level thresholds to force zeromv-skip at partition level.
    */
   unsigned int zeromv_skip_thresh_exit_part[BLOCK_SIZES_ALL];
+
+  /*!
+   *  Number of downsampling pyramid levels to allocate for each frame
+   *  This is currently only used for global motion
+   */
+  int image_pyramid_levels;
 } AV1_COMP;
 
 /*!

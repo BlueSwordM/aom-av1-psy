@@ -1289,7 +1289,7 @@ void av1_tf_info_alloc(TEMPORAL_FILTER_INFO *tf_info, const AV1_COMP *cpi) {
         seq_params->subsampling_x, seq_params->subsampling_y,
         seq_params->use_highbitdepth, cpi->oxcf.border_in_pixels,
         cm->features.byte_alignment, NULL, NULL, NULL,
-        cpi->oxcf.tool_cfg.enable_global_motion, 0);
+        cpi->image_pyramid_levels, 0);
     if (ret) {
       aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate tf_info");
