@@ -314,7 +314,7 @@ static TplBlockStats CreateToyTplBlockStats(int h, int w, int r, int c,
 
 static TplFrameStats CreateToyTplFrameStatsWithDiffSizes(int min_block_size,
                                                          int max_block_size) {
-  TplFrameStats frame_stats;
+  TplFrameStats frame_stats = {};
   const int max_h = max_block_size;
   const int max_w = max_h;
   const int count = max_block_size / min_block_size;
@@ -455,7 +455,7 @@ TEST_F(RateControlQModeTest, TplFrameDepStatsPropagateSingleZeroMotion) {
   // ref frame with coding_idx 0
   TplFrameDepStats frame_dep_stats0 =
       CreateTplFrameDepStats(frame_stats.frame_height, frame_stats.frame_width,
-                             frame_stats.min_block_size);
+                             frame_stats.min_block_size, false);
   gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats0);
 
   // cur frame with coding_idx 1
@@ -492,13 +492,13 @@ TEST_F(RateControlQModeTest, TplFrameDepStatsPropagateCompoundZeroMotion) {
   // ref frame with coding_idx 0
   const TplFrameDepStats frame_dep_stats0 =
       CreateTplFrameDepStats(frame_stats.frame_height, frame_stats.frame_width,
-                             frame_stats.min_block_size);
+                             frame_stats.min_block_size, false);
   gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats0);
 
   // ref frame with coding_idx 1
   const TplFrameDepStats frame_dep_stats1 =
       CreateTplFrameDepStats(frame_stats.frame_height, frame_stats.frame_width,
-                             frame_stats.min_block_size);
+                             frame_stats.min_block_size, false);
   gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats1);
 
   // cur frame with coding_idx 2
@@ -546,7 +546,7 @@ TEST_F(RateControlQModeTest, TplFrameDepStatsPropagateSingleWithMotion) {
   // ref frame with coding_idx 0
   gop_dep_stats.frame_dep_stats_list.push_back(
       CreateTplFrameDepStats(frame_stats.frame_height, frame_stats.frame_width,
-                             frame_stats.min_block_size));
+                             frame_stats.min_block_size, false));
 
   // cur frame with coding_idx 1
   const StatusOr<TplFrameDepStats> frame_dep_stats =

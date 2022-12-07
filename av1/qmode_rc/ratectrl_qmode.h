@@ -35,9 +35,11 @@ struct TplUnitDepStats {
 };
 
 struct TplFrameDepStats {
-  int unit_size;  // equivalent to min_block_size
-  double rdcost;  // overall rate-distortion cost
+  int unit_size;      // equivalent to min_block_size
+  double rdcost;      // overall rate-distortion cost
+  double alt_rdcost;  // rate-distortion cost in the second tpl pass
   std::vector<std::vector<TplUnitDepStats>> unit_stats;
+  std::vector<std::vector<TplUnitDepStats>> alt_unit_stats;
 };
 
 struct TplGopDepStats {
@@ -66,10 +68,14 @@ GopStruct ConstructGop(RefFrameManager *ref_frame_manager, int show_frame_count,
 // and blocks along the bottom or right edge of the frame may extend beyond the
 // edges of the frame.
 TplFrameDepStats CreateTplFrameDepStats(int frame_height, int frame_width,
-                                        int min_block_size);
+                                        int min_block_size, bool has_alt_stats);
 
 TplUnitDepStats TplBlockStatsToDepStats(const TplBlockStats &block_stats,
                                         int unit_count);
+
+Status FillTplUnitDepStats(TplFrameDepStats &frame_dep_stats,
+                           const TplFrameStats &frame_stats,
+                           const std::vector<TplBlockStats> &block_stats_list);
 
 StatusOr<TplFrameDepStats> CreateTplFrameDepStatsWithoutPropagation(
     const TplFrameStats &frame_stats);
@@ -80,7 +86,7 @@ double TplFrameDepStatsAccumulateIntraCost(
     const TplFrameDepStats &frame_dep_stats);
 
 double TplFrameDepStatsAccumulateInterCost(
-    const TplFrameDepStats &frame_dep_stats);
+    const std::vector<std::vector<TplUnitDepStats>> &unit_stats);
 
 double TplFrameDepStatsAccumulate(const TplFrameDepStats &frame_dep_stats);
 

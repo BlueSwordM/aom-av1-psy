@@ -899,7 +899,8 @@ StatusOr<GopStructList> AV1RateControlQMode::DetermineGopInfo(
 }
 
 TplFrameDepStats CreateTplFrameDepStats(int frame_height, int frame_width,
-                                        int min_block_size) {
+                                        int min_block_size,
+                                        bool has_alt_stats) {
   const int unit_rows = (frame_height + min_block_size - 1) / min_block_size;
   const int unit_cols = (frame_width + min_block_size - 1) / min_block_size;
   TplFrameDepStats frame_dep_stats;
@@ -907,6 +908,13 @@ TplFrameDepStats CreateTplFrameDepStats(int frame_height, int frame_width,
   frame_dep_stats.unit_stats.resize(unit_rows);
   for (auto &row : frame_dep_stats.unit_stats) {
     row.resize(unit_cols);
+  }
+
+  if (has_alt_stats) {
+    frame_dep_stats.alt_unit_stats.resize(unit_rows);
+    for (auto &row : frame_dep_stats.alt_unit_stats) {
+      row.resize(unit_cols);
+    }
   }
   return frame_dep_stats;
 }
@@ -919,7 +927,10 @@ TplUnitDepStats TplBlockStatsToDepStats(const TplBlockStats &block_stats,
   // In rare case, inter_cost may be greater than intra_cost.
   // If so, we need to modify inter_cost such that inter_cost <= intra_cost
   // because it is required by GetPropagationFraction()
-  dep_stats.inter_cost = std::min(dep_stats.intra_cost, dep_stats.inter_cost);
+  if (block_stats.ref_frame_index[0] >= 0)
+    dep_stats.inter_cost = std::min(dep_stats.intra_cost, dep_stats.inter_cost);
+  else
+    dep_stats.inter_cost = dep_stats.intra_cost;
   dep_stats.mv = block_stats.mv;
   dep_stats.ref_frame_index = block_stats.ref_frame_index;
   return dep_stats;
@@ -985,19 +996,15 @@ Status ValidateTplStats(const GopStruct &gop_struct,
 }
 }  // namespace
 
-StatusOr<TplFrameDepStats> CreateTplFrameDepStatsWithoutPropagation(
-    const TplFrameStats &frame_stats) {
-  if (frame_stats.block_stats_list.empty()) {
-    return TplFrameDepStats();
-  }
+Status FillTplUnitDepStats(TplFrameDepStats &frame_dep_stats,
+                           const TplFrameStats &frame_stats,
+                           const std::vector<TplBlockStats> &block_stats_list) {
   const int min_block_size = frame_stats.min_block_size;
   const int unit_rows =
       (frame_stats.frame_height + min_block_size - 1) / min_block_size;
   const int unit_cols =
       (frame_stats.frame_width + min_block_size - 1) / min_block_size;
-  TplFrameDepStats frame_dep_stats = CreateTplFrameDepStats(
-      frame_stats.frame_height, frame_stats.frame_width, min_block_size);
-  for (const TplBlockStats &block_stats : frame_stats.block_stats_list) {
+  for (const TplBlockStats &block_stats : block_stats_list) {
     Status status =
         ValidateBlockStats(frame_stats, block_stats, min_block_size);
     if (!status.ok()) {
@@ -1022,8 +1029,32 @@ StatusOr<TplFrameDepStats> CreateTplFrameDepStatsWithoutPropagation(
       }
     }
   }
+  return { AOM_CODEC_OK, "" };
+}
 
-  frame_dep_stats.rdcost = TplFrameDepStatsAccumulateInterCost(frame_dep_stats);
+StatusOr<TplFrameDepStats> CreateTplFrameDepStatsWithoutPropagation(
+    const TplFrameStats &frame_stats) {
+  if (frame_stats.block_stats_list.empty()) {
+    return TplFrameDepStats();
+  }
+  const int min_block_size = frame_stats.min_block_size;
+  TplFrameDepStats frame_dep_stats = CreateTplFrameDepStats(
+      frame_stats.frame_height, frame_stats.frame_width, min_block_size,
+      !frame_stats.alternate_block_stats_list.empty());
+
+  Status status = FillTplUnitDepStats(frame_dep_stats, frame_stats,
+                                      frame_stats.block_stats_list);
+  if (!status.ok()) return status;
+
+  if (!frame_stats.alternate_block_stats_list.empty()) {
+    status = FillTplUnitDepStats(frame_dep_stats, frame_stats,
+                                 frame_stats.alternate_block_stats_list);
+    if (!status.ok()) return status;
+    frame_dep_stats.rdcost =
+        TplFrameDepStatsAccumulateInterCost(frame_dep_stats.unit_stats);
+    frame_dep_stats.alt_rdcost =
+        TplFrameDepStatsAccumulateInterCost(frame_dep_stats.alt_unit_stats);
+  }
 
   return frame_dep_stats;
 }
@@ -1070,12 +1101,12 @@ double TplFrameDepStatsAccumulateIntraCost(
 }
 
 double TplFrameDepStatsAccumulateInterCost(
-    const TplFrameDepStats &frame_dep_stats) {
+    const std::vector<std::vector<TplUnitDepStats>> &unit_stats) {
   auto getInterCost = [](double sum, const TplUnitDepStats &unit) {
     return sum + unit.inter_cost;
   };
   double sum = 0;
-  for (const auto &row : frame_dep_stats.unit_stats) {
+  for (const auto &row : unit_stats) {
     sum = std::accumulate(row.begin(), row.end(), sum, getInterCost);
   }
   return std::max(sum, 1.0);
@@ -1427,10 +1458,7 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithNoStats(
       if (gop_frame.update_type == GopFrameType::kRegularGolden ||
           gop_frame.update_type == GopFrameType::kRegularKey ||
           gop_frame.update_type == GopFrameType::kRegularArf) {
-        double qstep_ratio = 1 / 3.0;
-        param.q_index = av1_get_q_index_from_qstep_ratio(
-            rc_param_.base_q_index, qstep_ratio, AOM_BITS_8);
-        if (rc_param_.base_q_index) param.q_index = AOMMAX(param.q_index, 1);
+        param.q_index = 5;
       }
     }
     gop_encode_info.param_list.push_back(param);
@@ -1464,6 +1492,36 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithTpl(
       static_cast<int>(tpl_gop_stats.frame_stats_list.size());
   const int active_worst_quality = rc_param_.base_q_index;
   int active_best_quality = rc_param_.base_q_index;
+
+  double base_rdcost = 1.0;  // baseline total rdcost
+  double hqr_rdcost = 0;     // high quality reference total rdcost
+  double arf_rdcost_high = 1.0;
+  double arf_rdcost_low = 0;
+
+  bool kf_arf_seen = false;
+
+  for (int i = 0; i < frame_count; ++i) {
+    FrameEncodeParameters param;
+    const GopFrame &gop_frame = gop_struct.gop_frame_list[i];
+    const TplFrameDepStats &frame_dep_stats =
+        gop_dep_stats->frame_dep_stats_list[i];
+    if (gop_frame.update_type == GopFrameType::kRegularGolden ||
+        gop_frame.update_type == GopFrameType::kRegularKey ||
+        gop_frame.update_type == GopFrameType::kRegularArf) {
+      if (!kf_arf_seen) {
+        arf_rdcost_high += frame_dep_stats.rdcost;
+        arf_rdcost_low += frame_dep_stats.alt_rdcost;
+      }
+      kf_arf_seen = 1;
+    } else {
+      base_rdcost += frame_dep_stats.rdcost;
+      hqr_rdcost += frame_dep_stats.alt_rdcost;
+    }
+  }
+
+  double tp_frame_importance =
+      1.0 + fabs((base_rdcost - hqr_rdcost) / arf_rdcost_high);
+
   for (int i = 0; i < frame_count; i++) {
     FrameEncodeParameters param;
     const GopFrame &gop_frame = gop_struct.gop_frame_list[i];
@@ -1481,8 +1539,15 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithTpl(
           TplFrameDepStatsAccumulateIntraCost(frame_dep_stats);
       const double cost_with_propagation =
           TplFrameDepStatsAccumulate(frame_dep_stats);
-      const double frame_importance =
+      double frame_importance =
           cost_with_propagation / cost_without_propagation;
+
+      // TODO(jingning): Temporarily make the switch between single and
+      // two TPL passes depending on the availability. This part of code
+      // needs further modifications to support SB level calculation.
+      if (rc_param_.tpl_pass_count == TplPassCount::kTwoTplPasses)
+        frame_importance = tp_frame_importance;
+
       // Imitate the behavior of av1_tpl_get_qstep_ratio()
       const double qstep_ratio = sqrt(1 / frame_importance);
       param.q_index = av1_get_q_index_from_qstep_ratio(rc_param_.base_q_index,
