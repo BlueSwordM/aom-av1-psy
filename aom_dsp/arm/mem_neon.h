@@ -609,19 +609,6 @@ static INLINE void store_s16q_to_tran_low(tran_low_t *buf, const int16x8_t a) {
   vst1q_s32(buf + 4, v1);
 }
 
-// Stores the second result at an offset of 8 (instead of 4) to match the output
-// with that of C implementation and the function is similar to
-// store_s16q_to_tran_low(). The offset in the function name signifies that
-// pointer should be incremented by at least 4 in the calling function after
-// store_s16q_to_tran_low_offset_4() call.
-static INLINE void store_s16q_to_tran_low_offset_4(tran_low_t *buf,
-                                                   const int16x8_t a) {
-  const int32x4_t v0 = vmovl_s16(vget_low_s16(a));
-  const int32x4_t v1 = vmovl_s16(vget_high_s16(a));
-  vst1q_s32(buf, v0);
-  vst1q_s32(buf + 8, v1);
-}
-
 static INLINE void store_s16_to_tran_low(tran_low_t *buf, const int16x4_t a) {
   const int32x4_t v0 = vmovl_s16(a);
   vst1q_s32(buf, v0);
