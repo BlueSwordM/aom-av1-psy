@@ -76,7 +76,7 @@ static void idct4_w4_sse2(const __m128i *input, __m128i *output) {
   btf_16_adds_subs_out_sse2(output[1], output[2], x[1], x[2]);
 }
 
-static void idct8_low1_ssse3(const __m128i *input, __m128i *output) {
+void av1_idct8_low1_ssse3(const __m128i *input, __m128i *output) {
   const int32_t *cospi = cospi_arr(INV_COS_BIT);
 
   // stage 1
@@ -99,7 +99,7 @@ static void idct8_low1_ssse3(const __m128i *input, __m128i *output) {
   output[4] = x[0];
 }
 
-static void idct8_sse2(const __m128i *input, __m128i *output) {
+void av1_idct8_sse2(const __m128i *input, __m128i *output) {
   const int8_t cos_bit = INV_COS_BIT;
   const int32_t *cospi = cospi_arr(INV_COS_BIT);
   const __m128i __rounding = _mm_set1_epi32(1 << (INV_COS_BIT - 1));
@@ -1698,7 +1698,7 @@ static void iadst4_w4_sse2(const __m128i *input, __m128i *output) {
   }
 }
 
-static void iadst8_low1_ssse3(const __m128i *input, __m128i *output) {
+void av1_iadst8_low1_ssse3(const __m128i *input, __m128i *output) {
   const int8_t cos_bit = INV_COS_BIT;
   const int32_t *cospi = cospi_arr(INV_COS_BIT);
   const __m128i __zero = _mm_setzero_si128();
@@ -1744,7 +1744,7 @@ static void iadst8_low1_ssse3(const __m128i *input, __m128i *output) {
   output[7] = _mm_subs_epi16(__zero, x[1]);
 }
 
-static void iadst8_sse2(const __m128i *input, __m128i *output) {
+void av1_iadst8_sse2(const __m128i *input, __m128i *output) {
   const int8_t cos_bit = INV_COS_BIT;
   const int32_t *cospi = cospi_arr(INV_COS_BIT);
   const __m128i __zero = _mm_setzero_si128();
@@ -2269,7 +2269,7 @@ static INLINE void lowbd_write_buffer_8xn_sse2(__m128i *in, uint8_t *output,
 static const transform_1d_ssse3
     lowbd_txfm_all_1d_w8_arr[TX_SIZES][ITX_TYPES_1D] = {
       { idct4_sse2, iadst4_sse2, iidentity4_ssse3 },
-      { idct8_sse2, iadst8_sse2, iidentity8_sse2 },
+      { av1_idct8_sse2, av1_iadst8_sse2, iidentity8_sse2 },
       { idct16_sse2, iadst16_sse2, iidentity16_ssse3 },
       { idct32_sse2, NULL, NULL },
       { idct64_low32_ssse3, NULL, NULL },
@@ -2284,8 +2284,8 @@ static const transform_1d_ssse3
           { iadst4_sse2, iadst4_sse2, NULL, NULL },
           { iidentity4_ssse3, iidentity4_ssse3, NULL, NULL },
       },
-      { { idct8_low1_ssse3, idct8_sse2, NULL, NULL },
-        { iadst8_low1_ssse3, iadst8_sse2, NULL, NULL },
+      { { av1_idct8_low1_ssse3, av1_idct8_sse2, NULL, NULL },
+        { av1_iadst8_low1_ssse3, av1_iadst8_sse2, NULL, NULL },
         { iidentity8_sse2, iidentity8_sse2, NULL, NULL } },
       {
           { idct16_low1_ssse3, idct16_low8_ssse3, idct16_sse2, NULL },
@@ -2382,9 +2382,8 @@ static INLINE void iidentity_col_8xn_ssse3(uint8_t *output, int stride,
   }
 }
 
-static INLINE void lowbd_inv_txfm2d_add_idtx_ssse3(const int32_t *input,
-                                                   uint8_t *output, int stride,
-                                                   TX_SIZE tx_size) {
+void av1_lowbd_inv_txfm2d_add_idtx_ssse3(const int32_t *input, uint8_t *output,
+                                         int stride, TX_SIZE tx_size) {
   const int8_t *shift = av1_inv_txfm_shift_ls[tx_size];
   const int txw_idx = get_txw_idx(tx_size);
   const int txh_idx = get_txh_idx(tx_size);
@@ -2539,9 +2538,10 @@ static INLINE void lowbd_inv_txfm2d_add_no_identity_ssse3(
   }
 }
 
-static INLINE void lowbd_inv_txfm2d_add_h_identity_ssse3(
-    const int32_t *input, uint8_t *output, int stride, TX_TYPE tx_type,
-    TX_SIZE tx_size, int eob) {
+void av1_lowbd_inv_txfm2d_add_h_identity_ssse3(const int32_t *input,
+                                               uint8_t *output, int stride,
+                                               TX_TYPE tx_type, TX_SIZE tx_size,
+                                               int eob) {
   const int8_t *shift = av1_inv_txfm_shift_ls[tx_size];
   int eobx, eoby;
   get_eobx_eoby_scan_h_identity(&eobx, &eoby, tx_size, eob);
@@ -2587,9 +2587,10 @@ static INLINE void lowbd_inv_txfm2d_add_h_identity_ssse3(
   }
 }
 
-static INLINE void lowbd_inv_txfm2d_add_v_identity_ssse3(
-    const int32_t *input, uint8_t *output, int stride, TX_TYPE tx_type,
-    TX_SIZE tx_size, int eob) {
+void av1_lowbd_inv_txfm2d_add_v_identity_ssse3(const int32_t *input,
+                                               uint8_t *output, int stride,
+                                               TX_TYPE tx_type, TX_SIZE tx_size,
+                                               int eob) {
   __m128i buf1[64];
   int eobx, eoby;
   get_eobx_eoby_scan_v_identity(&eobx, &eoby, tx_size, eob);
@@ -2650,19 +2651,19 @@ static INLINE void lowbd_inv_txfm2d_add_universe_ssse3(
                                              tx_size, eob);
       break;
     case IDTX:
-      lowbd_inv_txfm2d_add_idtx_ssse3(input, output, stride, tx_size);
+      av1_lowbd_inv_txfm2d_add_idtx_ssse3(input, output, stride, tx_size);
       break;
     case V_DCT:
     case V_ADST:
     case V_FLIPADST:
-      lowbd_inv_txfm2d_add_h_identity_ssse3(input, output, stride, tx_type,
-                                            tx_size, eob);
+      av1_lowbd_inv_txfm2d_add_h_identity_ssse3(input, output, stride, tx_type,
+                                                tx_size, eob);
       break;
     case H_DCT:
     case H_ADST:
     case H_FLIPADST:
-      lowbd_inv_txfm2d_add_v_identity_ssse3(input, output, stride, tx_type,
-                                            tx_size, eob);
+      av1_lowbd_inv_txfm2d_add_v_identity_ssse3(input, output, stride, tx_type,
+                                                tx_size, eob);
       break;
     default:
       lowbd_inv_txfm2d_add_no_identity_ssse3(input, output, stride, tx_type,

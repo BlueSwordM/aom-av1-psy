@@ -19,7 +19,6 @@
 
 #include "aom/aom_integer.h"
 #include "aom_dsp/x86/transpose_sse2.h"
-#include "aom_dsp/x86/txfm_common_sse2.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -224,6 +223,23 @@ typedef void (*transform_1d_ssse3)(const __m128i *input, __m128i *output);
 void av1_lowbd_inv_txfm2d_add_ssse3(const int32_t *input, uint8_t *output,
                                     int stride, TX_TYPE tx_type,
                                     TX_SIZE tx_size, int eob);
+
+void av1_lowbd_inv_txfm2d_add_idtx_ssse3(const int32_t *input, uint8_t *output,
+                                         int stride, TX_SIZE tx_size);
+
+void av1_lowbd_inv_txfm2d_add_h_identity_ssse3(const int32_t *input,
+                                               uint8_t *output, int stride,
+                                               TX_TYPE tx_type, TX_SIZE tx_size,
+                                               int eob);
+void av1_lowbd_inv_txfm2d_add_v_identity_ssse3(const int32_t *input,
+                                               uint8_t *output, int stride,
+                                               TX_TYPE tx_type, TX_SIZE tx_size,
+                                               int eob);
+
+void av1_iadst8_low1_ssse3(const __m128i *input, __m128i *output);
+
+void av1_idct8_low1_ssse3(const __m128i *input, __m128i *output);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
