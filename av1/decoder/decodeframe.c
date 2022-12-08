@@ -150,7 +150,6 @@ static AOM_INLINE void inverse_transform_block(DecoderCodingBlock *dcb,
   uint16_t eob = eob_data->eob;
   av1_inverse_transform_block(&dcb->xd, dqcoeff, plane, tx_type, tx_size, dst,
                               stride, eob, reduced_tx_set);
-
   memset(dqcoeff, 0, (scan_line + 1) * sizeof(dqcoeff[0]));
 }
 
