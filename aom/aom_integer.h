@@ -15,7 +15,13 @@
 #include <stddef.h>
 
 #if defined(_MSC_VER)
+// Work around compiler out of memory issues with Win32 builds. This issue has
+// been observed with Visual Studio 2017 & 2019.
+#if defined(_M_IX86) && _MSC_VER < 1930
+#define AOM_FORCE_INLINE __inline
+#else
 #define AOM_FORCE_INLINE __forceinline
+#endif
 #define AOM_INLINE __inline
 #else
 #define AOM_FORCE_INLINE __inline__ __attribute__((always_inline))
