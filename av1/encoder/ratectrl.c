@@ -3068,19 +3068,21 @@ static void resize_reset_rc(AV1_COMP *cpi, int resize_width, int resize_height,
     if (qindex <= 120 * p_rc->last_q[INTER_FRAME] / 100)
       p_rc->rate_correction_factors[INTER_NORMAL] *= 1.5;
   }
-  // Apply the same rate control reset to all temporal layers.
-  for (int tl = 0; tl < svc->number_temporal_layers; tl++) {
-    LAYER_CONTEXT *lc = NULL;
-    lc = &svc->layer_context[svc->spatial_layer_id *
-                                 svc->number_temporal_layers +
-                             tl];
-    lc->rc.resize_state = rc->resize_state;
-    lc->p_rc.buffer_level = lc->p_rc.optimal_buffer_level;
-    lc->p_rc.bits_off_target = lc->p_rc.optimal_buffer_level;
-    lc->p_rc.rate_correction_factors[INTER_NORMAL] =
-        p_rc->rate_correction_factors[INTER_NORMAL];
-    lc->p_rc.avg_frame_qindex[INTER_FRAME] =
-        p_rc->avg_frame_qindex[INTER_FRAME];
+  if (svc->number_temporal_layers > 1) {
+    // Apply the same rate control reset to all temporal layers.
+    for (int tl = 0; tl < svc->number_temporal_layers; tl++) {
+      LAYER_CONTEXT *lc = NULL;
+      lc = &svc->layer_context[svc->spatial_layer_id *
+                                   svc->number_temporal_layers +
+                               tl];
+      lc->rc.resize_state = rc->resize_state;
+      lc->p_rc.buffer_level = lc->p_rc.optimal_buffer_level;
+      lc->p_rc.bits_off_target = lc->p_rc.optimal_buffer_level;
+      lc->p_rc.rate_correction_factors[INTER_NORMAL] =
+          p_rc->rate_correction_factors[INTER_NORMAL];
+      lc->p_rc.avg_frame_qindex[INTER_FRAME] =
+          p_rc->avg_frame_qindex[INTER_FRAME];
+    }
   }
 }
 

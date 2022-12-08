@@ -2896,7 +2896,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
     const int num_layers =
         cpi->svc.number_spatial_layers * cpi->svc.number_temporal_layers;
-    if (!av1_alloc_layer_context(cpi, num_layers)) return AOM_CODEC_MEM_ERROR;
+    if (num_layers > 1 && !av1_alloc_layer_context(cpi, num_layers)) {
+      return AOM_CODEC_MEM_ERROR;
+    }
 
     // Set up internal flags
     if (ctx->base.init_flags & AOM_CODEC_USE_PSNR) ppi->b_calculate_psnr = 1;

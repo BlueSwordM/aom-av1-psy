@@ -8,6 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <assert.h>
 #include <math.h>
 
 #include "av1/encoder/encoder.h"
@@ -84,6 +85,7 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
 bool av1_alloc_layer_context(AV1_COMP *cpi, int num_layers) {
   SVC *const svc = &cpi->svc;
   if (svc->layer_context == NULL || svc->num_allocated_layers < num_layers) {
+    assert(num_layers > 1);
     aom_free(svc->layer_context);
     svc->num_allocated_layers = 0;
     svc->layer_context =
