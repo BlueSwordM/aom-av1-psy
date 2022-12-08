@@ -4345,9 +4345,11 @@ static AOM_INLINE void update_keyframe_counters(AV1_COMP *cpi) {
       av1_firstpass_info_move_cur_index(firstpass_info);
     }
 #endif
-    cpi->rc.frames_since_key++;
-    cpi->rc.frames_to_key--;
-    cpi->rc.frames_to_fwd_kf--;
+    if (cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1) {
+      cpi->rc.frames_since_key++;
+      cpi->rc.frames_to_key--;
+      cpi->rc.frames_to_fwd_kf--;
+    }
   }
 }
 

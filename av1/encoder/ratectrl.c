@@ -2277,8 +2277,10 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
 void av1_rc_postencode_update_drop_frame(AV1_COMP *cpi) {
   // Update buffer level with zero size, update frame counters, and return.
   update_buffer_level(cpi, 0);
-  cpi->rc.frames_since_key++;
-  cpi->rc.frames_to_key--;
+  if (cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1) {
+    cpi->rc.frames_since_key++;
+    cpi->rc.frames_to_key--;
+  }
   cpi->rc.rc_2_frame = 0;
   cpi->rc.rc_1_frame = 0;
   cpi->rc.prev_avg_frame_bandwidth = cpi->rc.avg_frame_bandwidth;

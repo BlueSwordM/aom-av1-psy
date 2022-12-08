@@ -257,7 +257,8 @@ void AV1RateControlRTC::ComputeQP(const AV1FrameParamsRTC &frame_params) {
       cpi_->svc.layer_context[layer].is_key_frame = 0;
     }
   }
-  cpi_->rc.frames_since_key++;
+  if (cpi_->svc.spatial_layer_id == cpi_->svc.number_spatial_layers - 1)
+    cpi_->rc.frames_since_key++;
   if (cpi_->svc.number_spatial_layers > 1 ||
       cpi_->svc.number_temporal_layers > 1) {
     av1_update_temporal_layer_framerate(cpi_);
