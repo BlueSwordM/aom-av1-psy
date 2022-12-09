@@ -197,39 +197,6 @@ static AOM_INLINE void update_filter_type_count(FRAME_COUNTS *counts,
   }
 }
 
-static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
-                          const TX_MODE tx_mode) {
-  MACROBLOCKD *const xd = &x->e_mbd;
-  TxfmSearchInfo *txfm_info = &x->txfm_search_info;
-  if (xd->lossless[mbmi->segment_id]) {
-    mbmi->tx_size = TX_4X4;
-  } else if (tx_mode != TX_MODE_SELECT) {
-    mbmi->tx_size = tx_size_from_tx_mode(mbmi->bsize, tx_mode);
-  } else {
-    const BLOCK_SIZE bsize = mbmi->bsize;
-    const TX_SIZE min_tx_size = depth_to_tx_size(MAX_TX_DEPTH, bsize);
-    if (tx_size_wide[min_tx_size] > tx_size_wide[mbmi->tx_size] ||
-        tx_size_high[min_tx_size] > tx_size_high[mbmi->tx_size])
-      mbmi->tx_size = min_tx_size;
-
-    const TX_SIZE max_tx_size = get_vartx_max_txsize(xd, bsize, 0);
-    if (tx_size_wide[max_tx_size] < tx_size_wide[mbmi->tx_size] ||
-        tx_size_high[max_tx_size] < tx_size_high[mbmi->tx_size])
-      mbmi->tx_size = max_tx_size;
-  }
-  if (is_inter_block(mbmi)) {
-    memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
-  }
-  const int stride = xd->tx_type_map_stride;
-  const int bw = mi_size_wide[mbmi->bsize];
-  for (int row = 0; row < mi_size_high[mbmi->bsize]; ++row) {
-    memset(xd->tx_type_map + row * stride, DCT_DCT,
-           bw * sizeof(xd->tx_type_map[0]));
-  }
-  av1_zero(txfm_info->blk_skip);
-  txfm_info->skip_txfm = 0;
-}
-
 // This function will copy the best reference mode information from
 // MB_MODE_INFO_EXT_FRAME to MB_MODE_INFO_EXT.
 static INLINE void copy_mbmi_ext_frame_to_mbmi_ext(
@@ -302,7 +269,6 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
           seg->update_map ? cpi->enc_seg.map : cm->last_frame_seg_map;
       mi_addr->segment_id =
           map ? get_segment_id(mi_params, map, bsize, mi_row, mi_col) : 0;
-      reset_tx_size(x, mi_addr, x->txfm_search_params.tx_mode_search_type);
     }
     // Else for cyclic refresh mode update the segment map, set the segment id
     // and then update the quantizer.
