@@ -461,11 +461,11 @@ typedef struct CommonTileParams {
    */
   int min_log2_rows;
   /*!
-   * Min num of tile columns possible based on frame width.
+   * Max num of tile columns possible based on frame width.
    */
   int max_log2_cols;
   /*!
-   * Max num of tile columns possible based on frame width.
+   * Max num of tile rows possible based on frame height.
    */
   int max_log2_rows;
   /*!
