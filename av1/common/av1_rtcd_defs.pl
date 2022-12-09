@@ -429,9 +429,6 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/av1_highbd_quantize_fp sse4_1 avx2 neon/;
   }
 
-  add_proto qw/void av1_highbd_fwht4x4/, "const int16_t *input, tran_low_t *output, int stride";
-  specialize qw/av1_highbd_fwht4x4 sse4_1 neon/;
-
   # End av1_high encoder functions
 
   # txb
