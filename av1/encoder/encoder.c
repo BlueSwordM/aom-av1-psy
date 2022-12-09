@@ -16,6 +16,7 @@
 #include <time.h>
 #include <stdlib.h>
 
+#include "av1/common/scale.h"
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 
@@ -280,6 +281,13 @@ static void set_tile_info(AV1_COMMON *const cm,
   if (tile_cfg->tile_width_count == 0 || tile_cfg->tile_height_count == 0) {
     tiles->uniform_spacing = 1;
     tiles->log2_cols = AOMMAX(tile_cfg->tile_columns, tiles->min_log2_cols);
+    // Add a special case to handle super resolution
+    sb_cols = coded_to_superres_mi(sb_cols, cm->superres_scale_denominator);
+    int min_log2_cols = 0;
+    for (; (tiles->max_width_sb << min_log2_cols) <= sb_cols; ++min_log2_cols) {
+    }
+    tiles->log2_cols = AOMMAX(tiles->log2_cols, min_log2_cols);
+
     tiles->log2_cols = AOMMIN(tiles->log2_cols, tiles->max_log2_cols);
   } else if (tile_cfg->tile_widths[0] < 0) {
     auto_tile_size_balancing(cm, sb_cols, tile_cfg->tile_columns, 1);
