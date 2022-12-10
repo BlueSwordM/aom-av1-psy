@@ -2323,9 +2323,7 @@ typedef struct _mode_search_stat {
   struct aom_usec_timer bsize_timer;
 } mode_search_stat;
 
-#if COLLECT_PICK_MODE_STAT
 static mode_search_stat ms_stat;
-#endif
 
 static AOM_INLINE void print_stage_time(const char *stage_name,
                                         int64_t stage_time,
