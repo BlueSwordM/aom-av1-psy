@@ -102,12 +102,12 @@ static const arg_def_t tune_content_arg = ARG_DEF_ENUM(
     NULL, "tune-content", 1, "Tune content type", tune_content_enum);
 
 #if CONFIG_AV1_HIGHBITDEPTH
-static const struct arg_enum_list bitdepth_enum[] = {
-  { "8", AOM_BITS_8 }, { "10", AOM_BITS_10 }, { "12", AOM_BITS_12 }, { NULL, 0 }
-};
+static const struct arg_enum_list bitdepth_enum[] = { { "8", AOM_BITS_8 },
+                                                      { "10", AOM_BITS_10 },
+                                                      { NULL, 0 } };
 
 static const arg_def_t bitdepth_arg = ARG_DEF_ENUM(
-    "d", "bit-depth", 1, "Bit depth for codec 8, 10 or 12. ", bitdepth_enum);
+    "d", "bit-depth", 1, "Bit depth for codec 8 or 10. ", bitdepth_enum);
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 static const arg_def_t *svc_args[] = { &frames_arg,
@@ -347,11 +347,7 @@ static void parse_command_line(int argc, const char **argv_,
           break;
         case AOM_BITS_10:
           enc_cfg->g_input_bit_depth = 10;
-          enc_cfg->g_profile = 2;
-          break;
-        case AOM_BITS_12:
-          enc_cfg->g_input_bit_depth = 12;
-          enc_cfg->g_profile = 2;
+          enc_cfg->g_profile = 0;
           break;
         default:
           die("Error: Invalid bit depth selected (%d)\n", enc_cfg->g_bit_depth);
@@ -1339,14 +1335,15 @@ int main(int argc, const char **argv) {
 
   // Initialize codec.
   aom_codec_ctx_t codec;
-  if (aom_codec_enc_init(&codec, encoder, &cfg, 0))
+  if (aom_codec_enc_init(
+          &codec, encoder, &cfg,
+          cfg.g_input_bit_depth == AOM_BITS_8 ? 0 : AOM_CODEC_USE_HIGHBITDEPTH))
     die("Failed to initialize encoder");
 
 #if CONFIG_AV1_DECODER
   if (app_input.decode) {
-    if (aom_codec_dec_init(&decoder, get_aom_decoder_by_index(0), NULL, 0)) {
+    if (aom_codec_dec_init(&decoder, get_aom_decoder_by_index(0), NULL, 0))
       die("Failed to initialize decoder");
-    }
   }
 #endif
 
