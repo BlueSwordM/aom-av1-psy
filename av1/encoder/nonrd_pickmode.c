@@ -4175,7 +4175,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   // Check for IDTX: based only on Y channel, so avoid when color_sensitivity
   // is set.
-  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN && !skip_idtx_palette &&
+  // TODO(marpan): Only allow for 8 bit-depth for now, re-enable for 10/12 bit
+  // when issue 3359 is fixed.
+  if (cm->seq_params->bit_depth == 8 &&
+      cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN && !skip_idtx_palette &&
       !cpi->oxcf.txfm_cfg.use_inter_dct_only && !x->force_zeromv_skip_for_blk &&
       is_inter_mode(search_state.best_pickmode.best_mode) &&
       (!cpi->sf.rt_sf.prune_idtx_nonrd ||
