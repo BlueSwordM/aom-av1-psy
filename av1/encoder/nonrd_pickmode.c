@@ -3545,6 +3545,436 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
   return false;
 }
 
+// Function to perform inter mode evaluation for non-rd
+static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
+    AV1_COMP *cpi, MACROBLOCK *x, InterModeSearchStateNonrd *search_state,
+    PICK_MODE_CONTEXT *ctx, PRED_BUFFER **this_mode_pred,
+    PRED_BUFFER *tmp_buffer, InterPredParams inter_pred_params_sr,
+    int *best_early_term, unsigned int *sse_zeromv_norm, bool *check_globalmv,
+#if CONFIG_AV1_TEMPORAL_DENOISING
+    int64_t *zero_last_cost_orig, int denoise_svc_pickmode,
+#endif
+    int idx, int force_mv_inter_layer, int comp_pred, int skip_pred_mv,
+    const int gf_temporal_ref, const int use_model_yrd_large,
+    const int filter_search_enabled_blk, BLOCK_SIZE bsize,
+    PREDICTION_MODE this_mode, InterpFilter filt_select,
+    const int cb_pred_filter_search, const int reuse_inter_pred) {
+  AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mi = xd->mi[0];
+  const MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
+  struct macroblockd_plane *const pd = &xd->plane[0];
+  const int bw = block_size_wide[bsize];
+  const InterpFilter filter_ref = cm->features.interp_filter;
+  const InterpFilter default_interp_filter = EIGHTTAP_REGULAR;
+  TxfmSearchInfo *txfm_info = &x->txfm_search_info;
+  const ModeCosts *mode_costs = &x->mode_costs;
+
+  MV_REFERENCE_FRAME ref_frame = mi->ref_frame[0];
+  MV_REFERENCE_FRAME ref_frame2 = mi->ref_frame[1];
+  const int num_8x8_blocks = ctx->num_4x4_blk / 4;
+  unsigned int var = UINT_MAX;
+  int this_early_term = 0;
+  int rate_mv = 0;
+  int is_skippable;
+  int skip_this_mv = 0;
+  unsigned int var_threshold = UINT_MAX;
+  PREDICTION_MODE this_best_mode;
+  RD_STATS nonskip_rdc;
+  av1_invalid_rd_stats(&nonskip_rdc);
+
+  if (this_mode == NEWMV && !force_mv_inter_layer) {
+#if COLLECT_PICK_MODE_STAT
+    aom_usec_timer_start(&ms_stat.timer2);
+#endif
+    const bool skip_newmv = search_new_mv(
+        cpi, x, search_state->frame_mv, ref_frame, gf_temporal_ref, bsize,
+        mi_row, mi_col, &rate_mv, &search_state->best_rdc);
+#if COLLECT_PICK_MODE_STAT
+    aom_usec_timer_mark(&ms_stat.timer2);
+    ms_stat.ms_time[bsize][this_mode] +=
+        aom_usec_timer_elapsed(&ms_stat.timer2);
+#endif
+    if (skip_newmv) {
+      return true;
+    }
+  }
+
+  for (PREDICTION_MODE inter_mv_mode = NEARESTMV; inter_mv_mode <= NEWMV;
+       inter_mv_mode++) {
+    if (inter_mv_mode == this_mode) continue;
+    if (!comp_pred && search_state->mode_checked[inter_mv_mode][ref_frame] &&
+        search_state->frame_mv[this_mode][ref_frame].as_int ==
+            search_state->frame_mv[inter_mv_mode][ref_frame].as_int) {
+      skip_this_mv = 1;
+      break;
+    }
+  }
+
+  if (skip_this_mv && !comp_pred) return true;
+
+  // For screen: for spatially flat blocks with non-zero motion,
+  // skip newmv if the motion vector is (0, 0), and color is not set.
+  if (this_mode == NEWMV && cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+      cpi->svc.spatial_layer_id == 0 && cpi->sf.rt_sf.source_metrics_sb_nonrd) {
+    if (search_state->frame_mv[this_mode][ref_frame].as_int == 0 &&
+        x->content_state_sb.source_sad_nonrd != kZeroSad &&
+        ((x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0) ||
+         cpi->rc.high_source_sad) &&
+        x->source_variance == 0)
+      return true;
+  }
+
+  mi->mode = this_mode;
+  mi->mv[0].as_int = search_state->frame_mv[this_mode][ref_frame].as_int;
+  mi->mv[1].as_int = 0;
+  if (comp_pred)
+    mi->mv[1].as_int = search_state->frame_mv[this_mode][ref_frame2].as_int;
+
+  if (reuse_inter_pred) {
+    if (!*this_mode_pred) {
+      *this_mode_pred = &tmp_buffer[3];
+    } else {
+      *this_mode_pred = &tmp_buffer[get_pred_buffer(tmp_buffer, 3)];
+      pd->dst.buf = (*this_mode_pred)->data;
+      pd->dst.stride = bw;
+    }
+  }
+
+  if (idx == 0 && !skip_pred_mv) {
+    // Set color sensitivity on first tested mode only.
+    // Use y-sad already computed in find_predictors: take the sad with motion
+    // vector closest to 0; the uv-sad computed below in set_color_sensitivity
+    // is for zeromv.
+    // For screen: first check if golden reference is being used, if so,
+    // force color_sensitivity on if the color sensitivity for sb_g is on.
+    if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+        search_state->use_ref_frame_mask[GOLDEN_FRAME]) {
+      if (x->color_sensitivity_sb_g[0] == 1) x->color_sensitivity[0] = 1;
+      if (x->color_sensitivity_sb_g[1] == 1) x->color_sensitivity[1] = 1;
+    } else {
+      int y_sad = x->pred_mv0_sad[LAST_FRAME];
+      if (x->pred_mv1_sad[LAST_FRAME] != INT_MAX &&
+          (abs(search_state->frame_mv[NEARMV][LAST_FRAME].as_mv.col) +
+           abs(search_state->frame_mv[NEARMV][LAST_FRAME].as_mv.row)) <
+              (abs(search_state->frame_mv[NEARESTMV][LAST_FRAME].as_mv.col) +
+               abs(search_state->frame_mv[NEARESTMV][LAST_FRAME].as_mv.row)))
+        y_sad = x->pred_mv1_sad[LAST_FRAME];
+      set_color_sensitivity(cpi, x, bsize, y_sad, x->source_variance,
+                            search_state->yv12_mb[LAST_FRAME]);
+    }
+  }
+
+  mi->motion_mode = SIMPLE_TRANSLATION;
+#if !CONFIG_REALTIME_ONLY
+  if (cpi->oxcf.motion_mode_cfg.allow_warped_motion) {
+    calc_num_proj_ref(cpi, x, mi);
+  }
+#endif
+  // set variance threshold for compound more pruning
+  if (cpi->sf.rt_sf.prune_compoundmode_with_singlecompound_var && comp_pred &&
+      use_model_yrd_large) {
+    const PREDICTION_MODE single_mode0 = compound_ref0_mode(this_mode);
+    const PREDICTION_MODE single_mode1 = compound_ref1_mode(this_mode);
+    var_threshold =
+        AOMMIN(var_threshold,
+               search_state->vars[INTER_OFFSET(single_mode0)][ref_frame]);
+    var_threshold =
+        AOMMIN(var_threshold,
+               search_state->vars[INTER_OFFSET(single_mode1)][ref_frame2]);
+  }
+
+  // decide interpolation filter, build prediction signal, get sse
+  const bool is_mv_subpel =
+      (mi->mv[0].as_mv.row & 0x07) || (mi->mv[0].as_mv.col & 0x07);
+  const bool enable_filt_search_this_mode =
+      (filter_search_enabled_blk == 2)
+          ? true
+          : (filter_search_enabled_blk && !force_mv_inter_layer && !comp_pred &&
+             (ref_frame == LAST_FRAME || !x->nonrd_prune_ref_frame_search));
+  if (is_mv_subpel && enable_filt_search_this_mode) {
+#if COLLECT_PICK_MODE_STAT
+    aom_usec_timer_start(&ms_stat.timer2);
+#endif
+    search_filter_ref(cpi, x, &search_state->this_rdc, &inter_pred_params_sr,
+                      mi_row, mi_col, tmp_buffer, bsize, reuse_inter_pred,
+                      this_mode_pred, &this_early_term, &var,
+                      use_model_yrd_large, search_state->best_pickmode.best_sse,
+                      comp_pred);
+#if COLLECT_PICK_MODE_STAT
+    aom_usec_timer_mark(&ms_stat.timer2);
+    ms_stat.ifs_time[bsize][this_mode] +=
+        aom_usec_timer_elapsed(&ms_stat.timer2);
+#endif
+#if !CONFIG_REALTIME_ONLY
+  } else if (cpi->oxcf.motion_mode_cfg.allow_warped_motion &&
+             this_mode == NEWMV) {
+    search_motion_mode(cpi, x, &search_state->this_rdc, mi_row, mi_col, bsize,
+                       &this_early_term, use_model_yrd_large, &rate_mv,
+                       search_state->best_pickmode.best_sse);
+    if (this_mode == NEWMV) {
+      search_state->frame_mv[this_mode][ref_frame] = mi->mv[0];
+    }
+#endif
+  } else {
+    mi->interp_filters =
+        (filter_ref == SWITCHABLE)
+            ? av1_broadcast_interp_filter(default_interp_filter)
+            : av1_broadcast_interp_filter(filter_ref);
+    if (force_mv_inter_layer)
+      mi->interp_filters = av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
+
+    // If it is sub-pel motion and cb_pred_filter_search is enabled, select
+    // the pre-decided filter
+    if (is_mv_subpel && cb_pred_filter_search)
+      mi->interp_filters = av1_broadcast_interp_filter(filt_select);
+
+#if COLLECT_PICK_MODE_STAT
+    aom_usec_timer_start(&ms_stat.timer2);
+#endif
+    if (!comp_pred) {
+      SubpelParams subpel_params;
+      // Initialize inter mode level params for single reference mode.
+      init_inter_mode_params(&mi->mv[0].as_mv, &inter_pred_params_sr,
+                             &subpel_params, xd->block_ref_scale_factors[0],
+                             pd->pre->width, pd->pre->height);
+      av1_enc_build_inter_predictor_y_nonrd(xd, &inter_pred_params_sr,
+                                            &subpel_params);
+    } else {
+      av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0, 0);
+    }
+
+    if (use_model_yrd_large) {
+      model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd,
+                                &search_state->this_rdc, &this_early_term, 0,
+                                search_state->best_pickmode.best_sse, &var,
+                                var_threshold);
+    } else {
+      model_rd_for_sb_y(cpi, bsize, x, xd, &search_state->this_rdc, &var, 0,
+                        &this_early_term);
+    }
+#if COLLECT_PICK_MODE_STAT
+    aom_usec_timer_mark(&ms_stat.timer2);
+    ms_stat.model_rd_time[bsize][this_mode] +=
+        aom_usec_timer_elapsed(&ms_stat.timer2);
+#endif
+  }
+
+  // update variance for single mode
+  if (!comp_pred) {
+    search_state->vars[INTER_OFFSET(this_mode)][ref_frame] = var;
+    if (search_state->frame_mv[this_mode][ref_frame].as_int == 0) {
+      search_state->vars[INTER_OFFSET(GLOBALMV)][ref_frame] = var;
+    }
+  }
+  // prune compound mode based on single mode var threshold
+  if (comp_pred && var > var_threshold) {
+    if (reuse_inter_pred) free_pred_buffer(*this_mode_pred);
+    return true;
+  }
+
+  if (ref_frame == LAST_FRAME &&
+      search_state->frame_mv[this_mode][ref_frame].as_int == 0) {
+    *sse_zeromv_norm = (unsigned int)(search_state->this_rdc.sse >>
+                                      (b_width_log2_lookup[bsize] +
+                                       b_height_log2_lookup[bsize]));
+  }
+
+  if (cpi->sf.rt_sf.sse_early_term_inter_search &&
+      early_term_inter_search_with_sse(
+          cpi->sf.rt_sf.sse_early_term_inter_search, bsize,
+          search_state->this_rdc.sse, search_state->best_pickmode.best_sse,
+          this_mode)) {
+    if (reuse_inter_pred) free_pred_buffer(*this_mode_pred);
+    return true;
+  }
+
+#if COLLECT_PICK_MODE_STAT
+  ms_stat.num_nonskipped_searches[bsize][this_mode]++;
+#endif
+
+  const int skip_ctx = av1_get_skip_txfm_context(xd);
+  const int skip_txfm_cost = mode_costs->skip_txfm_cost[skip_ctx][1];
+  const int no_skip_txfm_cost = mode_costs->skip_txfm_cost[skip_ctx][0];
+  const int64_t sse_y = search_state->this_rdc.sse;
+
+  if (this_early_term) {
+    search_state->this_rdc.skip_txfm = 1;
+    search_state->this_rdc.rate = skip_txfm_cost;
+    search_state->this_rdc.dist = search_state->this_rdc.sse << 4;
+  } else {
+#if COLLECT_PICK_MODE_STAT
+    aom_usec_timer_start(&ms_stat.timer2);
+#endif
+    block_yrd(x, &search_state->this_rdc, &is_skippable, bsize, mi->tx_size, 1);
+    if (search_state->this_rdc.skip_txfm ||
+        RDCOST(x->rdmult, search_state->this_rdc.rate,
+               search_state->this_rdc.dist) >=
+            RDCOST(x->rdmult, 0, search_state->this_rdc.sse)) {
+      if (!search_state->this_rdc.skip_txfm) {
+        // Need to store "real" rdc for possible future use if UV rdc
+        // disallows tx skip
+        nonskip_rdc = search_state->this_rdc;
+        nonskip_rdc.rate += no_skip_txfm_cost;
+      }
+      search_state->this_rdc.rate = skip_txfm_cost;
+      search_state->this_rdc.skip_txfm = 1;
+      search_state->this_rdc.dist = search_state->this_rdc.sse;
+    } else {
+      search_state->this_rdc.rate += no_skip_txfm_cost;
+    }
+    if ((x->color_sensitivity[0] || x->color_sensitivity[1])) {
+      RD_STATS rdc_uv;
+      const BLOCK_SIZE uv_bsize = get_plane_block_size(
+          bsize, xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
+      if (x->color_sensitivity[0]) {
+        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                      AOM_PLANE_U, AOM_PLANE_U);
+      }
+      if (x->color_sensitivity[1]) {
+        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                      AOM_PLANE_V, AOM_PLANE_V);
+      }
+      const int64_t sse_uv =
+          model_rd_for_sb_uv(cpi, uv_bsize, x, xd, &rdc_uv, 1, 2);
+      search_state->this_rdc.sse += sse_uv;
+      // Restore Y rdc if UV rdc disallows txfm skip
+      if (search_state->this_rdc.skip_txfm && !rdc_uv.skip_txfm &&
+          nonskip_rdc.rate != INT_MAX)
+        search_state->this_rdc = nonskip_rdc;
+      if (!comp_pred) {
+        search_state->uv_dist[INTER_OFFSET(this_mode)][ref_frame] = rdc_uv.dist;
+      }
+      search_state->this_rdc.rate += rdc_uv.rate;
+      search_state->this_rdc.dist += rdc_uv.dist;
+      search_state->this_rdc.skip_txfm =
+          search_state->this_rdc.skip_txfm && rdc_uv.skip_txfm;
+    }
+#if COLLECT_PICK_MODE_STAT
+    aom_usec_timer_mark(&ms_stat.timer2);
+    ms_stat.txfm_time[bsize][this_mode] +=
+        aom_usec_timer_elapsed(&ms_stat.timer2);
+#endif
+  }
+
+  this_best_mode = this_mode;
+  // TODO(kyslov) account for UV prediction cost
+  search_state->this_rdc.rate += rate_mv;
+  if (comp_pred) {
+    const int16_t mode_ctx =
+        av1_mode_context_analyzer(mbmi_ext->mode_context, mi->ref_frame);
+    search_state->this_rdc.rate += cost_mv_ref(mode_costs, this_mode, mode_ctx);
+  } else {
+    // If the current mode has zeromv but is not GLOBALMV, compare the rate
+    // cost. If GLOBALMV is cheaper, use GLOBALMV instead.
+    if (this_mode != GLOBALMV &&
+        search_state->frame_mv[this_mode][ref_frame].as_int ==
+            search_state->frame_mv[GLOBALMV][ref_frame].as_int) {
+      if (is_globalmv_better(this_mode, ref_frame, rate_mv, mode_costs,
+                             search_state->single_inter_mode_costs, mbmi_ext)) {
+        this_best_mode = GLOBALMV;
+      }
+    }
+
+    search_state->this_rdc.rate +=
+        search_state
+            ->single_inter_mode_costs[INTER_OFFSET(this_best_mode)][ref_frame];
+  }
+
+  if (!comp_pred && search_state->frame_mv[this_mode][ref_frame].as_int == 0 &&
+      var < UINT_MAX) {
+    search_state->vars[INTER_OFFSET(GLOBALMV)][ref_frame] = var;
+  }
+
+  search_state->this_rdc.rate += search_state->ref_costs_single[ref_frame];
+
+  search_state->this_rdc.rdcost = RDCOST(x->rdmult, search_state->this_rdc.rate,
+                                         search_state->this_rdc.dist);
+  if (cpi->oxcf.rc_cfg.mode == AOM_CBR && !comp_pred) {
+    newmv_diff_bias(xd, this_best_mode, &search_state->this_rdc, bsize,
+                    search_state->frame_mv[this_best_mode][ref_frame].as_mv.row,
+                    search_state->frame_mv[this_best_mode][ref_frame].as_mv.col,
+                    cpi->speed, x->source_variance, x->content_state_sb);
+  }
+
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  if (cpi->oxcf.noise_sensitivity > 0 && denoise_svc_pickmode &&
+      cpi->denoiser.denoising_level > kDenLowLow) {
+    av1_denoiser_update_frame_stats(mi, sse_y, this_mode, ctx);
+    // Keep track of zero_last cost.
+    if (ref_frame == LAST_FRAME &&
+        search_state->frame_mv[this_mode][ref_frame].as_int == 0)
+      *zero_last_cost_orig = search_state->this_rdc.rdcost;
+  }
+#else
+  (void)(sse_y);
+#endif
+
+  search_state->mode_checked[this_mode][ref_frame] = 1;
+  search_state->mode_checked[this_best_mode][ref_frame] = 1;
+
+  if (*check_globalmv) {
+    int32_t abs_mv =
+        abs(search_state->frame_mv[this_best_mode][ref_frame].as_mv.row) +
+        abs(search_state->frame_mv[this_best_mode][ref_frame].as_mv.col);
+    // Early exit check: if the magnitude of this_best_mode's mv is small
+    // enough, we skip GLOBALMV check in the next loop iteration.
+    if (abs_mv < 2) {
+      *check_globalmv = false;
+    }
+  }
+#if COLLECT_PICK_MODE_STAT
+  aom_usec_timer_mark(&ms_stat.timer1);
+  ms_stat.nonskipped_search_times[bsize][this_mode] +=
+      aom_usec_timer_elapsed(&ms_stat.timer1);
+#endif
+
+  if (search_state->this_rdc.rdcost < search_state->best_rdc.rdcost) {
+    search_state->best_rdc = search_state->this_rdc;
+    *best_early_term = this_early_term;
+    search_state->best_pickmode.best_sse = sse_y;
+    search_state->best_pickmode.best_mode = this_best_mode;
+    search_state->best_pickmode.best_motion_mode = mi->motion_mode;
+    search_state->best_pickmode.wm_params = mi->wm_params;
+    search_state->best_pickmode.num_proj_ref = mi->num_proj_ref;
+    search_state->best_pickmode.best_pred_filter = mi->interp_filters;
+    search_state->best_pickmode.best_tx_size = mi->tx_size;
+    search_state->best_pickmode.best_ref_frame = ref_frame;
+    search_state->best_pickmode.best_second_ref_frame = ref_frame2;
+    search_state->best_pickmode.best_mode_skip_txfm =
+        search_state->this_rdc.skip_txfm;
+    search_state->best_pickmode.best_mode_initial_skip_flag =
+        (nonskip_rdc.rate == INT_MAX && search_state->this_rdc.skip_txfm);
+    if (!search_state->best_pickmode.best_mode_skip_txfm) {
+      memcpy(search_state->best_pickmode.blk_skip, txfm_info->blk_skip,
+             sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
+    }
+
+    // This is needed for the compound modes.
+    search_state->frame_mv_best[this_best_mode][ref_frame].as_int =
+        search_state->frame_mv[this_best_mode][ref_frame].as_int;
+    if (ref_frame2 > NONE_FRAME) {
+      search_state->frame_mv_best[this_best_mode][ref_frame2].as_int =
+          search_state->frame_mv[this_best_mode][ref_frame2].as_int;
+    }
+
+    if (reuse_inter_pred) {
+      free_pred_buffer(search_state->best_pickmode.best_pred);
+      search_state->best_pickmode.best_pred = *this_mode_pred;
+    }
+  } else {
+    if (reuse_inter_pred) free_pred_buffer(*this_mode_pred);
+  }
+
+  if (*best_early_term && (idx > 0 || cpi->sf.rt_sf.nonrd_aggressive_skip)) {
+    txfm_info->skip_txfm = 1;
+    return false;
+  }
+  return true;
+}
+
 void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                   MACROBLOCK *x, RD_STATS *rd_cost,
                                   BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx) {
@@ -3554,8 +3984,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   MB_MODE_INFO *const mi = xd->mi[0];
   struct macroblockd_plane *const pd = &xd->plane[0];
   const MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
-  const InterpFilter filter_ref = cm->features.interp_filter;
-  const InterpFilter default_interp_filter = EIGHTTAP_REGULAR;
   MV_REFERENCE_FRAME ref_frame, ref_frame2;
   const unsigned char segment_id = mi->segment_id;
   int best_early_term = 0;
@@ -3703,17 +4131,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       break;
     }
 
-    int rate_mv = 0;
-    int is_skippable;
-    int this_early_term = 0;
-    int skip_this_mv = 0;
     int comp_pred = 0;
-    unsigned int var = UINT_MAX;
     PREDICTION_MODE this_mode;
-    RD_STATS nonskip_rdc;
-    av1_invalid_rd_stats(&nonskip_rdc);
-    memset(txfm_info->blk_skip, 0,
-           sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
 
     // Check the inter mode can be skipped based on mode statistics and speed
     // features settings.
@@ -3734,395 +4153,20 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     mi->ref_frame[0] = ref_frame;
     mi->ref_frame[1] = ref_frame2;
     set_ref_ptrs(cm, xd, ref_frame, ref_frame2);
+    memset(txfm_info->blk_skip, 0,
+           sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
 
-    if (this_mode == NEWMV && !force_mv_inter_layer) {
-#if COLLECT_PICK_MODE_STAT
-      aom_usec_timer_start(&ms_stat.timer2);
-#endif
-      const bool skip_newmv = search_new_mv(
-          cpi, x, search_state.frame_mv, ref_frame, gf_temporal_ref, bsize,
-          mi_row, mi_col, &rate_mv, &search_state.best_rdc);
-#if COLLECT_PICK_MODE_STAT
-      aom_usec_timer_mark(&ms_stat.timer2);
-      ms_stat.ms_time[bsize][this_mode] +=
-          aom_usec_timer_elapsed(&ms_stat.timer2);
-#endif
-      if (skip_newmv) {
-        continue;
-      }
-    }
-
-    for (PREDICTION_MODE inter_mv_mode = NEARESTMV; inter_mv_mode <= NEWMV;
-         inter_mv_mode++) {
-      if (inter_mv_mode == this_mode) continue;
-      if (!comp_pred && search_state.mode_checked[inter_mv_mode][ref_frame] &&
-          search_state.frame_mv[this_mode][ref_frame].as_int ==
-              search_state.frame_mv[inter_mv_mode][ref_frame].as_int) {
-        skip_this_mv = 1;
-        break;
-      }
-    }
-
-    if (skip_this_mv && !comp_pred) continue;
-
-    // For screen: for spatially flat blocks with non-zero motion,
-    // skip newmv if the motion vector is (0, 0), and color is not set.
-    if (this_mode == NEWMV &&
-        cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-        cpi->svc.spatial_layer_id == 0 &&
-        cpi->sf.rt_sf.source_metrics_sb_nonrd) {
-      if (search_state.frame_mv[this_mode][ref_frame].as_int == 0 &&
-          x->content_state_sb.source_sad_nonrd != kZeroSad &&
-          ((x->color_sensitivity[0] == 0 && x->color_sensitivity[1] == 0) ||
-           cpi->rc.high_source_sad) &&
-          x->source_variance == 0)
-        continue;
-    }
-
-    mi->mode = this_mode;
-    mi->mv[0].as_int = search_state.frame_mv[this_mode][ref_frame].as_int;
-    mi->mv[1].as_int = 0;
-    if (comp_pred)
-      mi->mv[1].as_int = search_state.frame_mv[this_mode][ref_frame2].as_int;
-
-    if (reuse_inter_pred) {
-      if (!this_mode_pred) {
-        this_mode_pred = &tmp_buffer[3];
-      } else {
-        this_mode_pred = &tmp_buffer[get_pred_buffer(tmp_buffer, 3)];
-        pd->dst.buf = this_mode_pred->data;
-        pd->dst.stride = bw;
-      }
-    }
-
-    if (idx == 0 && !skip_pred_mv) {
-      // Set color sensitivity on first tested mode only.
-      // Use y-sad already computed in find_predictors: take the sad with motion
-      // vector closest to 0; the uv-sad computed below in set_color_sensitivity
-      // is for zeromv.
-      // For screen: first check if golden reference is being used, if so,
-      // force color_sensitivity on if the color sensitivity for sb_g is on.
-      if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-          search_state.use_ref_frame_mask[GOLDEN_FRAME]) {
-        if (x->color_sensitivity_sb_g[0] == 1) x->color_sensitivity[0] = 1;
-        if (x->color_sensitivity_sb_g[1] == 1) x->color_sensitivity[1] = 1;
-      } else {
-        int y_sad = x->pred_mv0_sad[LAST_FRAME];
-        if (x->pred_mv1_sad[LAST_FRAME] != INT_MAX &&
-            (abs(search_state.frame_mv[NEARMV][LAST_FRAME].as_mv.col) +
-             abs(search_state.frame_mv[NEARMV][LAST_FRAME].as_mv.row)) <
-                (abs(search_state.frame_mv[NEARESTMV][LAST_FRAME].as_mv.col) +
-                 abs(search_state.frame_mv[NEARESTMV][LAST_FRAME].as_mv.row)))
-          y_sad = x->pred_mv1_sad[LAST_FRAME];
-        set_color_sensitivity(cpi, x, bsize, y_sad, x->source_variance,
-                              search_state.yv12_mb[LAST_FRAME]);
-      }
-    }
-    mi->motion_mode = SIMPLE_TRANSLATION;
-#if !CONFIG_REALTIME_ONLY
-    if (cpi->oxcf.motion_mode_cfg.allow_warped_motion) {
-      calc_num_proj_ref(cpi, x, mi);
-    }
-#endif
-    // set variance threshold for compound more pruning
-    unsigned int var_threshold = UINT_MAX;
-    if (cpi->sf.rt_sf.prune_compoundmode_with_singlecompound_var && comp_pred &&
-        use_model_yrd_large) {
-      const PREDICTION_MODE single_mode0 = compound_ref0_mode(this_mode);
-      const PREDICTION_MODE single_mode1 = compound_ref1_mode(this_mode);
-      var_threshold =
-          AOMMIN(var_threshold,
-                 search_state.vars[INTER_OFFSET(single_mode0)][ref_frame]);
-      var_threshold =
-          AOMMIN(var_threshold,
-                 search_state.vars[INTER_OFFSET(single_mode1)][ref_frame2]);
-    }
-    // decide interpolation filter, build prediction signal, get sse
-    const bool is_mv_subpel =
-        (mi->mv[0].as_mv.row & 0x07) || (mi->mv[0].as_mv.col & 0x07);
-    const bool enable_filt_search_this_mode =
-        (filter_search_enabled_blk == 2)
-            ? true
-            : (filter_search_enabled_blk && !force_mv_inter_layer &&
-               !comp_pred &&
-               (ref_frame == LAST_FRAME || !x->nonrd_prune_ref_frame_search));
-    if (is_mv_subpel && enable_filt_search_this_mode) {
-#if COLLECT_PICK_MODE_STAT
-      aom_usec_timer_start(&ms_stat.timer2);
-#endif
-      search_filter_ref(cpi, x, &search_state.this_rdc, &inter_pred_params_sr,
-                        mi_row, mi_col, tmp_buffer, bsize, reuse_inter_pred,
-                        &this_mode_pred, &this_early_term, &var,
-                        use_model_yrd_large,
-                        search_state.best_pickmode.best_sse, comp_pred);
-#if COLLECT_PICK_MODE_STAT
-      aom_usec_timer_mark(&ms_stat.timer2);
-      ms_stat.ifs_time[bsize][this_mode] +=
-          aom_usec_timer_elapsed(&ms_stat.timer2);
-#endif
-#if !CONFIG_REALTIME_ONLY
-    } else if (cpi->oxcf.motion_mode_cfg.allow_warped_motion &&
-               this_mode == NEWMV) {
-      search_motion_mode(cpi, x, &search_state.this_rdc, mi_row, mi_col, bsize,
-                         &this_early_term, use_model_yrd_large, &rate_mv,
-                         search_state.best_pickmode.best_sse);
-      if (this_mode == NEWMV) {
-        search_state.frame_mv[this_mode][ref_frame] = mi->mv[0];
-      }
-#endif
-    } else {
-      mi->interp_filters =
-          (filter_ref == SWITCHABLE)
-              ? av1_broadcast_interp_filter(default_interp_filter)
-              : av1_broadcast_interp_filter(filter_ref);
-      if (force_mv_inter_layer)
-        mi->interp_filters = av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
-
-      // If it is sub-pel motion and cb_pred_filter_search is enabled, select
-      // the pre-decided filter
-      if (is_mv_subpel && cb_pred_filter_search)
-        mi->interp_filters = av1_broadcast_interp_filter(filt_select);
-
-#if COLLECT_PICK_MODE_STAT
-      aom_usec_timer_start(&ms_stat.timer2);
-#endif
-      if (!comp_pred) {
-        SubpelParams subpel_params;
-        // Initialize inter mode level params for single reference mode.
-        init_inter_mode_params(&mi->mv[0].as_mv, &inter_pred_params_sr,
-                               &subpel_params, xd->block_ref_scale_factors[0],
-                               pd->pre->width, pd->pre->height);
-        av1_enc_build_inter_predictor_y_nonrd(xd, &inter_pred_params_sr,
-                                              &subpel_params);
-      } else {
-        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
-                                      0);
-      }
-
-      if (use_model_yrd_large) {
-        model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd,
-                                  &search_state.this_rdc, &this_early_term, 0,
-                                  search_state.best_pickmode.best_sse, &var,
-                                  var_threshold);
-      } else {
-        model_rd_for_sb_y(cpi, bsize, x, xd, &search_state.this_rdc, &var, 0,
-                          &this_early_term);
-      }
-#if COLLECT_PICK_MODE_STAT
-      aom_usec_timer_mark(&ms_stat.timer2);
-      ms_stat.model_rd_time[bsize][this_mode] +=
-          aom_usec_timer_elapsed(&ms_stat.timer2);
-#endif
-    }
-    // update variance for single mode
-    if (!comp_pred) {
-      search_state.vars[INTER_OFFSET(this_mode)][ref_frame] = var;
-      if (search_state.frame_mv[this_mode][ref_frame].as_int == 0) {
-        search_state.vars[INTER_OFFSET(GLOBALMV)][ref_frame] = var;
-      }
-    }
-    // prune compound mode based on single mode var threshold
-    if (comp_pred && var > var_threshold) {
-      if (reuse_inter_pred) free_pred_buffer(this_mode_pred);
-      continue;
-    }
-
-    if (ref_frame == LAST_FRAME &&
-        search_state.frame_mv[this_mode][ref_frame].as_int == 0) {
-      sse_zeromv_norm = (unsigned int)(search_state.this_rdc.sse >>
-                                       (b_width_log2_lookup[bsize] +
-                                        b_height_log2_lookup[bsize]));
-    }
-
-    if (cpi->sf.rt_sf.sse_early_term_inter_search &&
-        early_term_inter_search_with_sse(
-            cpi->sf.rt_sf.sse_early_term_inter_search, bsize,
-            search_state.this_rdc.sse, search_state.best_pickmode.best_sse,
-            this_mode)) {
-      if (reuse_inter_pred) free_pred_buffer(this_mode_pred);
-      continue;
-    }
-
-#if COLLECT_PICK_MODE_STAT
-    ms_stat.num_nonskipped_searches[bsize][this_mode]++;
-#endif
-
-    const int skip_ctx = av1_get_skip_txfm_context(xd);
-    const int skip_txfm_cost = mode_costs->skip_txfm_cost[skip_ctx][1];
-    const int no_skip_txfm_cost = mode_costs->skip_txfm_cost[skip_ctx][0];
-    const int64_t sse_y = search_state.this_rdc.sse;
-    if (this_early_term) {
-      search_state.this_rdc.skip_txfm = 1;
-      search_state.this_rdc.rate = skip_txfm_cost;
-      search_state.this_rdc.dist = search_state.this_rdc.sse << 4;
-    } else {
-#if COLLECT_PICK_MODE_STAT
-      aom_usec_timer_start(&ms_stat.timer2);
-#endif
-      block_yrd(x, &search_state.this_rdc, &is_skippable, bsize, mi->tx_size,
-                1);
-      if (search_state.this_rdc.skip_txfm ||
-          RDCOST(x->rdmult, search_state.this_rdc.rate,
-                 search_state.this_rdc.dist) >=
-              RDCOST(x->rdmult, 0, search_state.this_rdc.sse)) {
-        if (!search_state.this_rdc.skip_txfm) {
-          // Need to store "real" rdc for possible future use if UV rdc
-          // disallows tx skip
-          nonskip_rdc = search_state.this_rdc;
-          nonskip_rdc.rate += no_skip_txfm_cost;
-        }
-        search_state.this_rdc.rate = skip_txfm_cost;
-        search_state.this_rdc.skip_txfm = 1;
-        search_state.this_rdc.dist = search_state.this_rdc.sse;
-      } else {
-        search_state.this_rdc.rate += no_skip_txfm_cost;
-      }
-      if ((x->color_sensitivity[0] || x->color_sensitivity[1])) {
-        RD_STATS rdc_uv;
-        const BLOCK_SIZE uv_bsize = get_plane_block_size(
-            bsize, xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
-        if (x->color_sensitivity[0]) {
-          av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                        AOM_PLANE_U, AOM_PLANE_U);
-        }
-        if (x->color_sensitivity[1]) {
-          av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                        AOM_PLANE_V, AOM_PLANE_V);
-        }
-        const int64_t sse_uv =
-            model_rd_for_sb_uv(cpi, uv_bsize, x, xd, &rdc_uv, 1, 2);
-        search_state.this_rdc.sse += sse_uv;
-        // Restore Y rdc if UV rdc disallows txfm skip
-        if (search_state.this_rdc.skip_txfm && !rdc_uv.skip_txfm &&
-            nonskip_rdc.rate != INT_MAX)
-          search_state.this_rdc = nonskip_rdc;
-        if (!comp_pred) {
-          search_state.uv_dist[INTER_OFFSET(this_mode)][ref_frame] =
-              rdc_uv.dist;
-        }
-        search_state.this_rdc.rate += rdc_uv.rate;
-        search_state.this_rdc.dist += rdc_uv.dist;
-        search_state.this_rdc.skip_txfm =
-            search_state.this_rdc.skip_txfm && rdc_uv.skip_txfm;
-      }
-#if COLLECT_PICK_MODE_STAT
-      aom_usec_timer_mark(&ms_stat.timer2);
-      ms_stat.txfm_time[bsize][this_mode] +=
-          aom_usec_timer_elapsed(&ms_stat.timer2);
-#endif
-    }
-    PREDICTION_MODE this_best_mode = this_mode;
-
-    // TODO(kyslov) account for UV prediction cost
-    search_state.this_rdc.rate += rate_mv;
-    if (comp_pred) {
-      const int16_t mode_ctx =
-          av1_mode_context_analyzer(mbmi_ext->mode_context, mi->ref_frame);
-      search_state.this_rdc.rate +=
-          cost_mv_ref(mode_costs, this_mode, mode_ctx);
-    } else {
-      // If the current mode has zeromv but is not GLOBALMV, compare the rate
-      // cost. If GLOBALMV is cheaper, use GLOBALMV instead.
-      if (this_mode != GLOBALMV &&
-          search_state.frame_mv[this_mode][ref_frame].as_int ==
-              search_state.frame_mv[GLOBALMV][ref_frame].as_int) {
-        if (is_globalmv_better(this_mode, ref_frame, rate_mv, mode_costs,
-                               search_state.single_inter_mode_costs,
-                               mbmi_ext)) {
-          this_best_mode = GLOBALMV;
-        }
-      }
-
-      search_state.this_rdc.rate +=
-          search_state
-              .single_inter_mode_costs[INTER_OFFSET(this_best_mode)][ref_frame];
-    }
-
-    if (!comp_pred && search_state.frame_mv[this_mode][ref_frame].as_int == 0 &&
-        var < UINT_MAX) {
-      search_state.vars[INTER_OFFSET(GLOBALMV)][ref_frame] = var;
-    }
-
-    search_state.this_rdc.rate += search_state.ref_costs_single[ref_frame];
-
-    search_state.this_rdc.rdcost = RDCOST(x->rdmult, search_state.this_rdc.rate,
-                                          search_state.this_rdc.dist);
-    if (cpi->oxcf.rc_cfg.mode == AOM_CBR && !comp_pred) {
-      newmv_diff_bias(
-          xd, this_best_mode, &search_state.this_rdc, bsize,
-          search_state.frame_mv[this_best_mode][ref_frame].as_mv.row,
-          search_state.frame_mv[this_best_mode][ref_frame].as_mv.col,
-          cpi->speed, x->source_variance, x->content_state_sb);
-    }
+    // Perform inter mode evaluation for non-rd
+    if (!handle_inter_mode_nonrd(
+            cpi, x, &search_state, ctx, &this_mode_pred, tmp_buffer,
+            inter_pred_params_sr, &best_early_term, &sse_zeromv_norm,
+            &check_globalmv,
 #if CONFIG_AV1_TEMPORAL_DENOISING
-    if (cpi->oxcf.noise_sensitivity > 0 && denoise_svc_pickmode &&
-        cpi->denoiser.denoising_level > kDenLowLow) {
-      av1_denoiser_update_frame_stats(mi, sse_y, this_mode, ctx);
-      // Keep track of zero_last cost.
-      if (ref_frame == LAST_FRAME &&
-          search_state.frame_mv[this_mode][ref_frame].as_int == 0)
-        zero_last_cost_orig = search_state.this_rdc.rdcost;
-    }
-#else
-    (void)sse_y;
+            &zero_last_cost_orig, denoise_svc_pickmode,
 #endif
-
-    search_state.mode_checked[this_mode][ref_frame] = 1;
-    search_state.mode_checked[this_best_mode][ref_frame] = 1;
-
-    if (check_globalmv) {
-      int32_t abs_mv =
-          abs(search_state.frame_mv[this_best_mode][ref_frame].as_mv.row) +
-          abs(search_state.frame_mv[this_best_mode][ref_frame].as_mv.col);
-      // Early exit check: if the magnitude of this_best_mode's mv is small
-      // enough, we skip GLOBALMV check in the next loop iteration.
-      if (abs_mv < 2) {
-        check_globalmv = false;
-      }
-    }
-#if COLLECT_PICK_MODE_STAT
-    aom_usec_timer_mark(&ms_stat.timer1);
-    ms_stat.nonskipped_search_times[bsize][this_mode] +=
-        aom_usec_timer_elapsed(&ms_stat.timer1);
-#endif
-    if (search_state.this_rdc.rdcost < search_state.best_rdc.rdcost) {
-      search_state.best_rdc = search_state.this_rdc;
-      best_early_term = this_early_term;
-      search_state.best_pickmode.best_sse = sse_y;
-      search_state.best_pickmode.best_mode = this_best_mode;
-      search_state.best_pickmode.best_motion_mode = mi->motion_mode;
-      search_state.best_pickmode.wm_params = mi->wm_params;
-      search_state.best_pickmode.num_proj_ref = mi->num_proj_ref;
-      search_state.best_pickmode.best_pred_filter = mi->interp_filters;
-      search_state.best_pickmode.best_tx_size = mi->tx_size;
-      search_state.best_pickmode.best_ref_frame = ref_frame;
-      search_state.best_pickmode.best_second_ref_frame = ref_frame2;
-      search_state.best_pickmode.best_mode_skip_txfm =
-          search_state.this_rdc.skip_txfm;
-      search_state.best_pickmode.best_mode_initial_skip_flag =
-          (nonskip_rdc.rate == INT_MAX && search_state.this_rdc.skip_txfm);
-      if (!search_state.best_pickmode.best_mode_skip_txfm) {
-        memcpy(search_state.best_pickmode.blk_skip, txfm_info->blk_skip,
-               sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
-      }
-
-      // This is needed for the compound modes.
-      search_state.frame_mv_best[this_best_mode][ref_frame].as_int =
-          search_state.frame_mv[this_best_mode][ref_frame].as_int;
-      if (ref_frame2 > NONE_FRAME) {
-        search_state.frame_mv_best[this_best_mode][ref_frame2].as_int =
-            search_state.frame_mv[this_best_mode][ref_frame2].as_int;
-      }
-
-      if (reuse_inter_pred) {
-        free_pred_buffer(search_state.best_pickmode.best_pred);
-        search_state.best_pickmode.best_pred = this_mode_pred;
-      }
-    } else {
-      if (reuse_inter_pred) free_pred_buffer(this_mode_pred);
-    }
-    if (best_early_term && (idx > 0 || cpi->sf.rt_sf.nonrd_aggressive_skip)) {
-      txfm_info->skip_txfm = 1;
+            idx, force_mv_inter_layer, comp_pred, skip_pred_mv, gf_temporal_ref,
+            use_model_yrd_large, filter_search_enabled_blk, bsize, this_mode,
+            filt_select, cb_pred_filter_search, reuse_inter_pred)) {
       break;
     }
   }
