@@ -311,47 +311,28 @@ class AV1RateControlQModeInterface {
   virtual StatusOr<GopStructList> DetermineGopInfo(
       const FirstpassInfo &firstpass_info) = 0;
 
-  // Accepts GOP structure and TPL info from the encoder and returns q index and
-  // rdmult for each frame. This should be called with consecutive GOPs as
-  // returned by DetermineGopInfo.
+  // Accepts GOP structure, TPL info, and first pass stats from the encoder and
+  // returns per-frame (and optionally per-superblock) q index and rdmult. This
+  // should be called with consecutive GOPs as returned by DetermineGopInfo.
   //
   // GOP structure and TPL info from zero or more subsequent GOPs may optionally
   // be passed in lookahead_stats.
   //
+  // Stats starting at the first frame of the GOP and extending at least through
+  // any lookup GOPs should be passed in firstpass_info.
+  //
   // For the first GOP, a default-constructed RefFrameTable may be passed in as
   // ref_frame_table_snapshot_init; for subsequent GOPs, it should be the
   // final_snapshot returned on the previous call.
-  //
-  // TODO(b/260859962): Remove these once all callers and overrides are gone.
   virtual StatusOr<GopEncodeInfo> GetGopEncodeInfo(
-      const GopStruct &gop_struct AOM_UNUSED,
-      const TplGopStats &tpl_gop_stats AOM_UNUSED,
-      const std::vector<LookaheadStats> &lookahead_stats AOM_UNUSED,
-      const RefFrameTable &ref_frame_table_snapshot AOM_UNUSED) {
-    return Status{ AOM_CODEC_UNSUP_FEATURE, "Deprecated" };
-  }
+      const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
+      const std::vector<LookaheadStats> &lookahead_stats,
+      const FirstpassInfo &firstpass_info,
+      const RefFrameTable &ref_frame_table_snapshot) = 0;
+  // Similar to GetGopEncodeInfo but for the TPL pass. The returned encode info
+  // is only per-frame level, never per-superblock.
   virtual StatusOr<GopEncodeInfo> GetTplPassGopEncodeInfo(
-      const GopStruct &gop_struct AOM_UNUSED) {
-    return Status{ AOM_CODEC_UNSUP_FEATURE, "Deprecated" };
-  }
-
-  // Extensions to the API to pass in the first pass info. There should be stats
-  // for all frames starting from the first frame of the GOP and continuing to
-  // the end of the sequence.
-  // TODO(b/260859962): Make pure virtual once all derived classes implement it.
-  virtual StatusOr<GopEncodeInfo> GetGopEncodeInfo(
-      const GopStruct &gop_struct AOM_UNUSED,
-      const TplGopStats &tpl_gop_stats AOM_UNUSED,
-      const std::vector<LookaheadStats> &lookahead_stats AOM_UNUSED,
-      const FirstpassInfo &firstpass_info AOM_UNUSED,
-      const RefFrameTable &ref_frame_table_snapshot AOM_UNUSED) {
-    return Status{ AOM_CODEC_UNSUP_FEATURE, "Not yet implemented" };
-  }
-  virtual StatusOr<GopEncodeInfo> GetTplPassGopEncodeInfo(
-      const GopStruct &gop_struct AOM_UNUSED,
-      const FirstpassInfo &firstpass_info AOM_UNUSED) {
-    return Status{ AOM_CODEC_UNSUP_FEATURE, "Not yet implemented" };
-  }
+      const GopStruct &gop_struct, const FirstpassInfo &firstpass_info) = 0;
 };
 }  // namespace aom
 
