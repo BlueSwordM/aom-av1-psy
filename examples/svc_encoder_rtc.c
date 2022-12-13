@@ -1213,7 +1213,7 @@ int main(int argc, const char **argv) {
   /* Setup default input stream settings */
   app_input.input_ctx.framerate.numerator = 30;
   app_input.input_ctx.framerate.denominator = 1;
-  app_input.input_ctx.only_i420 = 1;
+  app_input.input_ctx.only_i420 = 0;
   app_input.input_ctx.bit_depth = 0;
   app_input.speed = 7;
   exec_name = argv[0];
@@ -1264,7 +1264,7 @@ int main(int argc, const char **argv) {
     }
   }
 
-  aom_codec_iface_t *encoder = get_aom_encoder_by_short_name("av1");
+  aom_codec_iface_t *encoder = aom_codec_av1_cx();
 
   memcpy(&rc.layer_target_bitrate[0], &svc_params.layer_target_bitrate[0],
          sizeof(svc_params.layer_target_bitrate));
