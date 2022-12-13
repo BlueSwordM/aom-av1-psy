@@ -262,8 +262,7 @@ static AOM_INLINE int all_blks_inside(int x16_idx, int y16_idx, int pixels_wide,
 // TODO(yunqingwang): Perform average of four 8x8 blocks similar to lowbd
 static AOM_INLINE void fill_variance_8x8avg_highbd(
     const uint8_t *s, int sp, const uint8_t *d, int dp, int x16_idx,
-    int y16_idx, VP16x16 *vst, int pixels_wide, int pixels_high,
-    int is_key_frame) {
+    int y16_idx, VP16x16 *vst, int pixels_wide, int pixels_high) {
   for (int k = 0; k < 4; k++) {
     const int x8_idx = x16_idx + ((k & 1) << 3);
     const int y8_idx = y16_idx + ((k >> 1) << 3);
@@ -273,8 +272,7 @@ static AOM_INLINE void fill_variance_8x8avg_highbd(
       int s_avg;
       int d_avg = 128;
       s_avg = aom_highbd_avg_8x8(s + y8_idx * sp + x8_idx, sp);
-      if (!is_key_frame)
-        d_avg = aom_highbd_avg_8x8(d + y8_idx * dp + x8_idx, dp);
+      d_avg = aom_highbd_avg_8x8(d + y8_idx * dp + x8_idx, dp);
 
       sum = s_avg - d_avg;
       sse = sum * sum;
@@ -288,8 +286,7 @@ static AOM_INLINE void fill_variance_8x8avg_lowbd(const uint8_t *s, int sp,
                                                   const uint8_t *d, int dp,
                                                   int x16_idx, int y16_idx,
                                                   VP16x16 *vst, int pixels_wide,
-                                                  int pixels_high,
-                                                  int is_key_frame) {
+                                                  int pixels_high) {
   unsigned int sse[4] = { 0 };
   int sum[4] = { 0 };
   int d_avg[4] = { 128, 128, 128, 128 };
@@ -297,7 +294,7 @@ static AOM_INLINE void fill_variance_8x8avg_lowbd(const uint8_t *s, int sp,
 
   if (all_blks_inside(x16_idx, y16_idx, pixels_wide, pixels_high)) {
     aom_avg_8x8_quad(s, sp, x16_idx, y16_idx, s_avg);
-    if (!is_key_frame) aom_avg_8x8_quad(d, dp, x16_idx, y16_idx, d_avg);
+    aom_avg_8x8_quad(d, dp, x16_idx, y16_idx, d_avg);
     for (int k = 0; k < 4; k++) {
       sum[k] = s_avg[k] - d_avg[k];
       sse[k] = sum[k] * sum[k];
@@ -308,7 +305,7 @@ static AOM_INLINE void fill_variance_8x8avg_lowbd(const uint8_t *s, int sp,
       const int y8_idx = y16_idx + ((k >> 1) << 3);
       if (x8_idx < pixels_wide && y8_idx < pixels_high) {
         s_avg[k] = aom_avg_8x8(s + y8_idx * sp + x8_idx, sp);
-        if (!is_key_frame) d_avg[k] = aom_avg_8x8(d + y8_idx * dp + x8_idx, dp);
+        d_avg[k] = aom_avg_8x8(d + y8_idx * dp + x8_idx, dp);
         sum[k] = s_avg[k] - d_avg[k];
         sse[k] = sum[k] * sum[k];
       }
@@ -322,23 +319,24 @@ static AOM_INLINE void fill_variance_8x8avg_lowbd(const uint8_t *s, int sp,
 
 // Obtain parameters required to calculate variance (such as sum, sse, etc,.)
 // at 8x8 sub-block level for a given 16x16 block.
+// The function can be called only when is_key_frame is false since sum is
+// computed between source and reference frames.
 static AOM_INLINE void fill_variance_8x8avg(const uint8_t *s, int sp,
                                             const uint8_t *d, int dp,
                                             int x16_idx, int y16_idx,
                                             VP16x16 *vst, int highbd_flag,
-                                            int pixels_wide, int pixels_high,
-                                            int is_key_frame) {
+                                            int pixels_wide, int pixels_high) {
 #if CONFIG_AV1_HIGHBITDEPTH
   if (highbd_flag) {
     fill_variance_8x8avg_highbd(s, sp, d, dp, x16_idx, y16_idx, vst,
-                                pixels_wide, pixels_high, is_key_frame);
+                                pixels_wide, pixels_high);
     return;
   }
 #else
   (void)highbd_flag;
 #endif  // CONFIG_AV1_HIGHBITDEPTH
   fill_variance_8x8avg_lowbd(s, sp, d, dp, x16_idx, y16_idx, vst, pixels_wide,
-                             pixels_high, is_key_frame);
+                             pixels_high);
 }
 
 static int compute_minmax_8x8(const uint8_t *s, int sp, const uint8_t *d,
@@ -376,14 +374,15 @@ static int compute_minmax_8x8(const uint8_t *s, int sp, const uint8_t *d,
   return (minmax_max - minmax_min);
 }
 
+// Function to compute average and variance of 4x4 sub-block.
+// The function can be called only when is_key_frame is true since sum is
+// computed using source frame only.
 static AOM_INLINE void fill_variance_4x4avg(const uint8_t *s, int sp,
-                                            const uint8_t *d, int dp,
                                             int x8_idx, int y8_idx, VP8x8 *vst,
 #if CONFIG_AV1_HIGHBITDEPTH
                                             int highbd_flag,
 #endif
                                             int pixels_wide, int pixels_high,
-                                            int is_key_frame,
                                             int border_offset_4x4) {
   int k;
   for (k = 0; k < 4; k++) {
@@ -398,15 +397,11 @@ static AOM_INLINE void fill_variance_4x4avg(const uint8_t *s, int sp,
 #if CONFIG_AV1_HIGHBITDEPTH
       if (highbd_flag & YV12_FLAG_HIGHBITDEPTH) {
         s_avg = aom_highbd_avg_4x4(s + y4_idx * sp + x4_idx, sp);
-        if (!is_key_frame)
-          d_avg = aom_highbd_avg_4x4(d + y4_idx * dp + x4_idx, dp);
       } else {
         s_avg = aom_avg_4x4(s + y4_idx * sp + x4_idx, sp);
-        if (!is_key_frame) d_avg = aom_avg_4x4(d + y4_idx * dp + x4_idx, dp);
       }
 #else
       s_avg = aom_avg_4x4(s + y4_idx * sp + x4_idx, sp);
-      if (!is_key_frame) d_avg = aom_avg_4x4(d + y4_idx * dp + x4_idx, dp);
 #endif
 
       sum = s_avg - d_avg;
@@ -1009,11 +1004,11 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
 }
 
 static void fill_variance_tree_leaves(
-    AV1_COMP *cpi, MACROBLOCK *x, VP128x128 *vt, VP16x16 *vt2,
-    PART_EVAL_STATUS *force_split, int avg_16x16[][4], int maxvar_16x16[][4],
-    int minvar_16x16[][4], int *variance4x4downsample, int64_t *thresholds,
-    const uint8_t *src, int src_stride, const uint8_t *dst, int dst_stride,
-    bool is_key_frame, const bool is_small_sb) {
+    AV1_COMP *cpi, MACROBLOCK *x, VP128x128 *vt, PART_EVAL_STATUS *force_split,
+    int avg_16x16[][4], int maxvar_16x16[][4], int minvar_16x16[][4],
+    int *variance4x4downsample, int64_t *thresholds, const uint8_t *src,
+    int src_stride, const uint8_t *dst, int dst_stride, bool is_key_frame,
+    const bool is_small_sb) {
   MACROBLOCKD *xd = &x->e_mbd;
   const int num_64x64_blocks = is_small_sb ? 1 : 4;
   // TODO(kyslov) Bring back compute_minmax_variance with content type detection
@@ -1061,7 +1056,7 @@ static void fill_variance_tree_leaves(
         if (!is_key_frame) {
           fill_variance_8x8avg(src, src_stride, dst, dst_stride, x16_idx,
                                y16_idx, vst, is_cur_buf_hbd(xd), pixels_wide,
-                               pixels_high, is_key_frame);
+                               pixels_high);
 
           fill_variance_tree(vst, BLOCK_16X16);
           VPartVar *none_var = &vt->split[blk64_idx]
@@ -1094,7 +1089,7 @@ static void fill_variance_tree_leaves(
                                             xd->cur_buf->flags,
 #endif
                                             pixels_wide, pixels_high);
-            int thresh_minmax = (int)cpi->vbp_info.threshold_minmax;
+            const int thresh_minmax = (int)cpi->vbp_info.threshold_minmax;
             if (minmax > thresh_minmax) {
               force_split[split_index] = PART_EVAL_ONLY_SPLIT;
               force_split[5 + blk64_scale_idx + lvl1_idx] =
@@ -1111,15 +1106,12 @@ static void fill_variance_tree_leaves(
           for (int lvl3_idx = 0; lvl3_idx < 4; lvl3_idx++) {
             int x8_idx = x16_idx + ((lvl3_idx & 1) << 3);
             int y8_idx = y16_idx + ((lvl3_idx >> 1) << 3);
-            VP8x8 *vst2 = is_key_frame
-                              ? &vst->split[lvl3_idx]
-                              : &vt2[lvl1_scale_idx + lvl2_idx].split[lvl3_idx];
-            fill_variance_4x4avg(
-                src, src_stride, dst, dst_stride, x8_idx, y8_idx, vst2,
+            VP8x8 *vst2 = &vst->split[lvl3_idx];
+            fill_variance_4x4avg(src, src_stride, x8_idx, y8_idx, vst2,
 #if CONFIG_AV1_HIGHBITDEPTH
-                xd->cur_buf->flags,
+                                 xd->cur_buf->flags,
 #endif
-                pixels_wide, pixels_high, is_key_frame, border_offset_4x4);
+                                 pixels_wide, pixels_high, border_offset_4x4);
           }
         }
       }
@@ -1451,10 +1443,10 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
     CHECK_MEM_ERROR(cm, vt2, aom_malloc(sizeof(*vt2)));
   // Fill in the entire tree of 8x8 (or 4x4 under some conditions) variances
   // for splits.
-  fill_variance_tree_leaves(cpi, x, vt, vt2, force_split, avg_16x16,
-                            maxvar_16x16, minvar_16x16, variance4x4downsample,
-                            thresholds, src_buf, src_stride, dst_buf,
-                            dst_stride, is_key_frame, is_small_sb);
+  fill_variance_tree_leaves(cpi, x, vt, force_split, avg_16x16, maxvar_16x16,
+                            minvar_16x16, variance4x4downsample, thresholds,
+                            src_buf, src_stride, dst_buf, dst_stride,
+                            is_key_frame, is_small_sb);
 
   avg_64x64 = 0;
   for (int blk64_idx = 0; blk64_idx < num_64x64_blocks; ++blk64_idx) {
