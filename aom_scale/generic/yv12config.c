@@ -59,11 +59,17 @@ static int realloc_frame_buffer_aligned(
 
     uint8_t *buf = NULL;
 
+#if CONFIG_REALTIME_ONLY || !CONFIG_AV1_ENCODER
+    // We should only need an 8-bit version of the source frame if we are
+    // encoding in non-realtime mode
+    assert(alloc_y_buffer_8bit == 0);
+#endif  // CONFIG_REALTIME_ONLY || !CONFIG_AV1_ENCODER
+
 #if defined AOM_MAX_ALLOCABLE_MEMORY
     // The size of ybf->buffer_alloc.
     uint64_t alloc_size = frame_size;
     // The size of ybf->y_buffer_8bit.
-    if (use_highbitdepth) alloc_size += yplane_size;
+    if (use_highbitdepth && alloc_y_buffer_8bit) alloc_size += yplane_size;
     // The decoder may allocate REF_FRAMES frame buffers in the frame buffer
     // pool. Bound the total amount of allocated memory as if these REF_FRAMES
     // frame buffers were allocated in a single allocation.
