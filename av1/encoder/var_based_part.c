@@ -1024,7 +1024,7 @@ static void fill_variance_tree_leaves(
   const int segment_id = xd->mi[0]->segment_id;
   int pixels_wide = 128, pixels_high = 128;
   int border_offset_4x4 = 0;
-  const bool temporal_denoising = cpi->sf.rt_sf.use_rtc_tf;
+  int temporal_denoising = cpi->sf.rt_sf.use_rtc_tf;
   if (is_small_sb) {
     pixels_wide = 64;
     pixels_high = 64;
