@@ -196,7 +196,7 @@ enum aome_enc_control_id {
    */
   AOME_SET_SCALEMODE = 11,
 
-  /*!\brief Codec control function to set encoder spatial layer id, unsigned int
+  /*!\brief Codec control function to set encoder spatial layer id, int
    * parameter.
    */
   AOME_SET_SPATIAL_LAYER_ID = 12,
@@ -1660,7 +1660,7 @@ AOM_CTRL_USE_TYPE(AOME_SET_ACTIVEMAP, aom_active_map_t *)
 AOM_CTRL_USE_TYPE(AOME_SET_SCALEMODE, aom_scaling_mode_t *)
 #define AOM_CTRL_AOME_SET_SCALEMODE
 
-AOM_CTRL_USE_TYPE(AOME_SET_SPATIAL_LAYER_ID, unsigned int)
+AOM_CTRL_USE_TYPE(AOME_SET_SPATIAL_LAYER_ID, int)
 #define AOM_CTRL_AOME_SET_SPATIAL_LAYER_ID
 
 AOM_CTRL_USE_TYPE(AOME_SET_CPUUSED, int)
