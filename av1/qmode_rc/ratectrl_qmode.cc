@@ -1313,7 +1313,7 @@ static std::vector<uint8_t> SetupDeltaQ(const TplFrameDepStats &frame_dep_stats,
       double beta = 1.0;
       if (mc_dep_cost > 0 && intra_cost > 0) {
         const double r0 = 1 / frame_importance;
-        const double rk = intra_cost / mc_dep_cost;
+        const double rk = intra_cost / (mc_dep_cost + intra_cost);
         beta = r0 / rk;
         assert(beta > 0.0);
       }
