@@ -3111,8 +3111,8 @@ static void setup_compound_prediction(const AV1_COMMON *cm, MACROBLOCK *x,
   *ref_mv_idx = mbmi->ref_mv_idx + 1;
 }
 
-static void set_compound_mode(MACROBLOCK *x, int ref_frame, int ref_frame2,
-                              int ref_mv_idx,
+static void set_compound_mode(MACROBLOCK *x, MV_REFERENCE_FRAME ref_frame,
+                              MV_REFERENCE_FRAME ref_frame2, int ref_mv_idx,
                               int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES],
                               PREDICTION_MODE this_mode) {
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -3399,9 +3399,8 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
     int64_t *thresh_sad_pred, int *force_mv_inter_layer, int *comp_pred,
     PREDICTION_MODE *this_mode, MV_REFERENCE_FRAME *last_comp_ref_frame,
     MV_REFERENCE_FRAME *ref_frame, MV_REFERENCE_FRAME *ref_frame2, int idx,
-    int svc_mv_col, int svc_mv_row, int force_skip_low_temp_var,
-    unsigned int sse_zeromv_norm, const int num_inter_modes,
-    const unsigned char segment_id, BLOCK_SIZE bsize,
+    int_mv svc_mv, int force_skip_low_temp_var, unsigned int sse_zeromv_norm,
+    const int num_inter_modes, const unsigned char segment_id, BLOCK_SIZE bsize,
     bool comp_use_zero_zeromv_only, bool check_globalmv) {
   AV1_COMMON *const cm = &cpi->common;
   const struct segmentation *const seg = &cm->seg;
@@ -3463,17 +3462,14 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
       ((*ref_frame == LAST_FRAME && svc->skip_mvsearch_last) ||
        (*ref_frame == GOLDEN_FRAME && svc->skip_mvsearch_gf) ||
        (*ref_frame == ALTREF_FRAME && svc->skip_mvsearch_altref))) {
-    // Only test mode if NEARESTMV/NEARMV is (svc_mv_col, svc_mv_row),
-    // otherwise set NEWMV to (svc_mv_col, svc_mv_row).
+    // Only test mode if NEARESTMV/NEARMV is (svc_mv.mv.col, svc_mv.mv.row),
+    // otherwise set NEWMV to (svc_mv.mv.col, svc_mv.mv.row).
     // Skip newmv and filter search.
     *force_mv_inter_layer = 1;
     if (*this_mode == NEWMV) {
-      search_state->frame_mv[*this_mode][*ref_frame].as_mv.col = svc_mv_col;
-      search_state->frame_mv[*this_mode][*ref_frame].as_mv.row = svc_mv_row;
-    } else if (search_state->frame_mv[*this_mode][*ref_frame].as_mv.col !=
-                   svc_mv_col ||
-               search_state->frame_mv[*this_mode][*ref_frame].as_mv.row !=
-                   svc_mv_row) {
+      search_state->frame_mv[*this_mode][*ref_frame] = svc_mv;
+    } else if (search_state->frame_mv[*this_mode][*ref_frame].as_int !=
+               svc_mv.as_int) {
       return true;
     }
   }
@@ -4017,8 +4013,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int64_t thresh_sad_pred = INT64_MAX;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-  int svc_mv_col = 0;
-  int svc_mv_row = 0;
+  int_mv svc_mv = { .as_int = 0 };
   int force_mv_inter_layer = 0;
   bool comp_use_zero_zeromv_only = 0;
   int tot_num_comp_modes = NUM_COMP_INTER_MODES_RT;
@@ -4052,8 +4047,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   if (cpi->ppi->use_svc && svc->spatial_layer_id > 0 &&
       svc->downsample_filter_phase[svc->spatial_layer_id - 1] == 8 &&
       cm->width * cm->height > 640 * 480) {
-    svc_mv_col = -4;
-    svc_mv_row = -4;
+    svc_mv.as_mv.row = -4;
+    svc_mv.as_mv.col = -4;
   }
 
   // Setup parameters used for inter mode evaluation.
@@ -4139,12 +4134,12 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
     // Check the inter mode can be skipped based on mode statistics and speed
     // features settings.
-    if (skip_inter_mode_nonrd(
-            cpi, x, &search_state, &thresh_sad_pred, &force_mv_inter_layer,
-            &comp_pred, &this_mode, &last_comp_ref_frame, &ref_frame,
-            &ref_frame2, idx, svc_mv_col, svc_mv_row, force_skip_low_temp_var,
-            sse_zeromv_norm, num_inter_modes, segment_id, bsize,
-            comp_use_zero_zeromv_only, check_globalmv))
+    if (skip_inter_mode_nonrd(cpi, x, &search_state, &thresh_sad_pred,
+                              &force_mv_inter_layer, &comp_pred, &this_mode,
+                              &last_comp_ref_frame, &ref_frame, &ref_frame2,
+                              idx, svc_mv, force_skip_low_temp_var,
+                              sse_zeromv_norm, num_inter_modes, segment_id,
+                              bsize, comp_use_zero_zeromv_only, check_globalmv))
       continue;
 
     // Select prediction reference frames.
