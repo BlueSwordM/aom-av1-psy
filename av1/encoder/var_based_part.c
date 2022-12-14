@@ -1014,7 +1014,7 @@ static void fill_variance_tree_leaves(
     PART_EVAL_STATUS *force_split, int avg_16x16[][4], int maxvar_16x16[][4],
     int minvar_16x16[][4], int *variance4x4downsample, int64_t *thresholds,
     const uint8_t *src, int src_stride, const uint8_t *dst, int dst_stride,
-    const bool is_key_frame) {
+    bool is_key_frame) {
   AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   const bool is_small_sb = (cm->seq_params->sb_size == BLOCK_64X64);
