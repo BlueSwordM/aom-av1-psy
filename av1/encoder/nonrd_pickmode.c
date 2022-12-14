@@ -4066,6 +4066,92 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
   return true;
 }
 
+// Function to perform screen content mode evaluation for non-rd
+static AOM_FORCE_INLINE void handle_screen_content_mode_nonrd(
+    AV1_COMP *cpi, MACROBLOCK *x, InterModeSearchStateNonrd *search_state,
+    PRED_BUFFER *this_mode_pred, PICK_MODE_CONTEXT *ctx,
+    PRED_BUFFER *tmp_buffer, struct buf_2d *orig_dst, int skip_idtx_palette,
+    int try_palette, BLOCK_SIZE bsize) {
+  AV1_COMMON *const cm = &cpi->common;
+  const REAL_TIME_SPEED_FEATURES *const rt_sf = &cpi->sf.rt_sf;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mi = xd->mi[0];
+  struct macroblockd_plane *const pd = &xd->plane[0];
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
+  const int bw = block_size_wide[bsize];
+  const int num_8x8_blocks = ctx->num_4x4_blk / 4;
+  TxfmSearchInfo *txfm_info = &x->txfm_search_info;
+
+  // Check for IDTX: based only on Y channel, so avoid when color_sensitivity
+  // is set.
+  // TODO(marpan): Only allow for 8 bit-depth for now, re-enable for 10/12 bit
+  // when issue 3359 is fixed.
+  if (cm->seq_params->bit_depth == 8 &&
+      cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN && !skip_idtx_palette &&
+      !cpi->oxcf.txfm_cfg.use_inter_dct_only && !x->force_zeromv_skip_for_blk &&
+      is_inter_mode(search_state->best_pickmode.best_mode) &&
+      (!rt_sf->prune_idtx_nonrd ||
+       (rt_sf->prune_idtx_nonrd && bsize <= BLOCK_32X32 &&
+        search_state->best_pickmode.best_mode_skip_txfm != 1 &&
+        x->source_variance > 200))) {
+    RD_STATS idtx_rdc;
+    av1_init_rd_stats(&idtx_rdc);
+    int is_skippable;
+    this_mode_pred = &tmp_buffer[get_pred_buffer(tmp_buffer, 3)];
+    pd->dst.buf = this_mode_pred->data;
+    pd->dst.stride = bw;
+    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0, 0);
+    block_yrd_idtx(x, &idtx_rdc, &is_skippable, bsize, mi->tx_size);
+    int64_t idx_rdcost = RDCOST(x->rdmult, idtx_rdc.rate, idtx_rdc.dist);
+    if (idx_rdcost < search_state->best_rdc.rdcost) {
+      // Keep the skip_txfm off if the color_sensitivity is set.
+      if (x->color_sensitivity[0] || x->color_sensitivity[1])
+        idtx_rdc.skip_txfm = 0;
+      search_state->best_pickmode.tx_type = IDTX;
+      search_state->best_rdc.rdcost = idx_rdcost;
+      search_state->best_pickmode.best_mode_skip_txfm = idtx_rdc.skip_txfm;
+      if (!idtx_rdc.skip_txfm) {
+        memcpy(search_state->best_pickmode.blk_skip, txfm_info->blk_skip,
+               sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
+      }
+      xd->tx_type_map[0] = search_state->best_pickmode.tx_type;
+      memset(ctx->tx_type_map, search_state->best_pickmode.tx_type,
+             ctx->num_4x4_blk);
+      memset(xd->tx_type_map, search_state->best_pickmode.tx_type,
+             ctx->num_4x4_blk);
+    }
+    pd->dst = *orig_dst;
+  }
+
+  if (!try_palette) return;
+  const unsigned int intra_ref_frame_cost =
+      search_state->ref_costs_single[INTRA_FRAME];
+
+  av1_search_palette_mode_luma(cpi, x, bsize, intra_ref_frame_cost, ctx,
+                               &search_state->this_rdc,
+                               search_state->best_rdc.rdcost);
+  if (search_state->this_rdc.rdcost < search_state->best_rdc.rdcost) {
+    search_state->best_pickmode.pmi = mi->palette_mode_info;
+    search_state->best_pickmode.best_mode = DC_PRED;
+    mi->mv[0].as_int = 0;
+    search_state->best_rdc.rate = search_state->this_rdc.rate;
+    search_state->best_rdc.dist = search_state->this_rdc.dist;
+    search_state->best_rdc.rdcost = search_state->this_rdc.rdcost;
+    search_state->best_pickmode.best_mode_skip_txfm =
+        search_state->this_rdc.skip_txfm;
+    // Keep the skip_txfm off if the color_sensitivity is set.
+    if (x->color_sensitivity[0] || x->color_sensitivity[1])
+      search_state->this_rdc.skip_txfm = 0;
+    if (!search_state->this_rdc.skip_txfm) {
+      memcpy(ctx->blk_skip, txfm_info->blk_skip,
+             sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
+    }
+    if (xd->tx_type_map[0] != DCT_DCT)
+      av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
+  }
+}
+
 void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                   MACROBLOCK *x, RD_STATS *rd_cost,
                                   BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx) {
@@ -4307,47 +4393,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       x->content_state_sb.source_sad_nonrd != kZeroSad &&
       !cpi->rc.high_source_sad;
 
-  // Check for IDTX: based only on Y channel, so avoid when color_sensitivity
-  // is set.
-  // TODO(marpan): Only allow for 8 bit-depth for now, re-enable for 10/12 bit
-  // when issue 3359 is fixed.
-  if (cm->seq_params->bit_depth == 8 &&
-      cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN && !skip_idtx_palette &&
-      !cpi->oxcf.txfm_cfg.use_inter_dct_only && !x->force_zeromv_skip_for_blk &&
-      is_inter_mode(search_state.best_pickmode.best_mode) &&
-      (!rt_sf->prune_idtx_nonrd ||
-       (rt_sf->prune_idtx_nonrd && bsize <= BLOCK_32X32 &&
-        search_state.best_pickmode.best_mode_skip_txfm != 1 &&
-        x->source_variance > 200))) {
-    RD_STATS idtx_rdc;
-    av1_init_rd_stats(&idtx_rdc);
-    int is_skippable;
-    this_mode_pred = &tmp_buffer[get_pred_buffer(tmp_buffer, 3)];
-    pd->dst.buf = this_mode_pred->data;
-    pd->dst.stride = bw;
-    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0, 0);
-    block_yrd_idtx(x, &idtx_rdc, &is_skippable, bsize, mi->tx_size);
-    int64_t idx_rdcost = RDCOST(x->rdmult, idtx_rdc.rate, idtx_rdc.dist);
-    if (idx_rdcost < search_state.best_rdc.rdcost) {
-      // Keep the skip_txfm off if the color_sensitivity is set.
-      if (x->color_sensitivity[0] || x->color_sensitivity[1])
-        idtx_rdc.skip_txfm = 0;
-      search_state.best_pickmode.tx_type = IDTX;
-      search_state.best_rdc.rdcost = idx_rdcost;
-      search_state.best_pickmode.best_mode_skip_txfm = idtx_rdc.skip_txfm;
-      if (!idtx_rdc.skip_txfm) {
-        memcpy(search_state.best_pickmode.blk_skip, txfm_info->blk_skip,
-               sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
-      }
-      xd->tx_type_map[0] = search_state.best_pickmode.tx_type;
-      memset(ctx->tx_type_map, search_state.best_pickmode.tx_type,
-             ctx->num_4x4_blk);
-      memset(xd->tx_type_map, search_state.best_pickmode.tx_type,
-             ctx->num_4x4_blk);
-    }
-    pd->dst = orig_dst;
-  }
-
   int try_palette =
       !skip_idtx_palette && cpi->oxcf.tool_cfg.enable_palette &&
       av1_allow_palette(cpi->common.features.allow_screen_content_tools,
@@ -4357,33 +4402,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                 x->source_variance > 0 && !x->force_zeromv_skip_for_blk &&
                 (cpi->rc.high_source_sad || x->source_variance > 500);
 
-  if (try_palette) {
-    const unsigned int intra_ref_frame_cost =
-        search_state.ref_costs_single[INTRA_FRAME];
-
-    av1_search_palette_mode_luma(cpi, x, bsize, intra_ref_frame_cost, ctx,
-                                 &search_state.this_rdc,
-                                 search_state.best_rdc.rdcost);
-    if (search_state.this_rdc.rdcost < search_state.best_rdc.rdcost) {
-      search_state.best_pickmode.pmi = mi->palette_mode_info;
-      search_state.best_pickmode.best_mode = DC_PRED;
-      mi->mv[0].as_int = 0;
-      search_state.best_rdc.rate = search_state.this_rdc.rate;
-      search_state.best_rdc.dist = search_state.this_rdc.dist;
-      search_state.best_rdc.rdcost = search_state.this_rdc.rdcost;
-      search_state.best_pickmode.best_mode_skip_txfm =
-          search_state.this_rdc.skip_txfm;
-      // Keep the skip_txfm off if the color_sensitivity is set.
-      if (x->color_sensitivity[0] || x->color_sensitivity[1])
-        search_state.this_rdc.skip_txfm = 0;
-      if (!search_state.this_rdc.skip_txfm) {
-        memcpy(ctx->blk_skip, txfm_info->blk_skip,
-               sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
-      }
-      if (xd->tx_type_map[0] != DCT_DCT)
-        av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
-    }
-  }
+  // Perform screen content mode evaluation for non-rd
+  handle_screen_content_mode_nonrd(cpi, x, &search_state, this_mode_pred, ctx,
+                                   tmp_buffer, &orig_dst, skip_idtx_palette,
+                                   try_palette, bsize);
 
 #if COLLECT_PICK_MODE_STAT
   aom_usec_timer_mark(&ms_stat.timer1);
