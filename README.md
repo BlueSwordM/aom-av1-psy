@@ -165,6 +165,8 @@ The toolchain files available at the time of this writing are:
  - armv7-linux-gcc.cmake
  - armv7-mingw-gcc.cmake
  - armv7s-ios.cmake
+ - ppc-linux-gcc.cmake
+ - riscv-linux-gcc.cmake
  - x86-ios-simulator.cmake
  - x86-linux.cmake
  - x86-macos.cmake
