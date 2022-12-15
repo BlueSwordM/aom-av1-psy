@@ -247,7 +247,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
     const int sb_row = mi_row >> cm->seq_params->mib_size_log2;
     const int sb_col = mi_col >> cm->seq_params->mib_size_log2;
     const int sb_cols =
-        CEIL_POWER_OF_TWO(cm->mi_params.mi_cols, MAX_MIB_SIZE_LOG2);
+        CEIL_POWER_OF_TWO(cm->mi_params.mi_cols, cm->seq_params->mib_size_log2);
     const int sb_index = sb_row * sb_cols + sb_col;
     current_qindex =
         cpi->ducky_encode_info.frame_info.superblock_encode_qindex[sb_index];
