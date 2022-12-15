@@ -373,9 +373,9 @@ static INLINE int subpel_select(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   return cpi->sf.mv_sf.subpel_force_stop;
 }
 
-static bool use_aggressive_subpel_search_method(
-    MACROBLOCK *x, bool use_adaptive_subpel_search,
-    const bool fullpel_performed_well) {
+static bool use_aggressive_subpel_search_method(MACROBLOCK *x,
+                                                bool use_adaptive_subpel_search,
+                                                bool fullpel_performed_well) {
   if (!use_adaptive_subpel_search) return false;
   const int qband = x->qindex >> (QINDEX_BITS - 2);
   assert(qband < 4);
@@ -797,8 +797,7 @@ static void calculate_variance(int bw, int bh, TX_SIZE tx_size,
 }
 
 // Adjust the ac_thr according to speed, width, height and normalized sum
-static int ac_thr_factor(const int speed, const int width, const int height,
-                         const int norm_sum) {
+static int ac_thr_factor(int speed, int width, int height, int norm_sum) {
   if (speed >= 8 && norm_sum < 5) {
     if (width <= 640 && height <= 480)
       return 4;
@@ -1177,10 +1176,10 @@ static INLINE void aom_process_hadamard_lp_8x16(MACROBLOCK *x,
   tran_low_t *const dqcoeff = dqcoeff_buf;
 
 static AOM_FORCE_INLINE void update_yrd_loop_vars_hbd(
-    MACROBLOCK *x, int *skippable, const int step, const int ncoeffs,
+    MACROBLOCK *x, int *skippable, int step, int ncoeffs,
     tran_low_t *const coeff, tran_low_t *const qcoeff,
     tran_low_t *const dqcoeff, RD_STATS *this_rdc, int *eob_cost,
-    const int tx_blk_id) {
+    int tx_blk_id) {
   const int is_txfm_skip = (ncoeffs == 0);
   *skippable &= is_txfm_skip;
   x->txfm_search_info.blk_skip[tx_blk_id] = is_txfm_skip;
@@ -1196,10 +1195,10 @@ static AOM_FORCE_INLINE void update_yrd_loop_vars_hbd(
 }
 #endif
 static AOM_FORCE_INLINE void update_yrd_loop_vars(
-    MACROBLOCK *x, int *skippable, const int step, const int ncoeffs,
+    MACROBLOCK *x, int *skippable, int step, int ncoeffs,
     int16_t *const low_coeff, int16_t *const low_qcoeff,
     int16_t *const low_dqcoeff, RD_STATS *this_rdc, int *eob_cost,
-    const int tx_blk_id) {
+    int tx_blk_id) {
   const int is_txfm_skip = (ncoeffs == 0);
   *skippable &= is_txfm_skip;
   x->txfm_search_info.blk_skip[tx_blk_id] = is_txfm_skip;
@@ -1232,8 +1231,7 @@ static AOM_FORCE_INLINE void update_yrd_loop_vars(
  * coefficients for Hadamard transform
  */
 static void block_yrd(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
-                      const BLOCK_SIZE bsize, const TX_SIZE tx_size,
-                      const int is_inter_mode) {
+                      BLOCK_SIZE bsize, TX_SIZE tx_size, int is_inter_mode) {
   MACROBLOCKD *xd = &x->e_mbd;
   const struct macroblockd_plane *pd = &xd->plane[0];
   struct macroblock_plane *const p = &x->plane[0];
@@ -1444,9 +1442,9 @@ static void block_yrd(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
 // av1_nonrd_pick_inter_mode_sb takes up about 3% of total encoding time, the
 // potential room of improvement for writing AVX2 optimization is only 3% * 8% =
 // 0.24% of total encoding time.
-static AOM_INLINE void scale_square_buf_vals(int16_t *dst, const int tx_width,
+static AOM_INLINE void scale_square_buf_vals(int16_t *dst, int tx_width,
                                              const int16_t *src,
-                                             const int src_stride) {
+                                             int src_stride) {
 #define DO_SCALING                                                   \
   do {                                                               \
     for (int idy = 0; idy < tx_width; ++idy) {                       \
@@ -1490,7 +1488,7 @@ static AOM_INLINE void scale_square_buf_vals(int16_t *dst, const int tx_width,
  * \c this_rdc. \c skippable flag is set if all coefficients are zero.
  */
 static void block_yrd_idtx(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
-                           const BLOCK_SIZE bsize, const TX_SIZE tx_size) {
+                           BLOCK_SIZE bsize, TX_SIZE tx_size) {
   MACROBLOCKD *xd = &x->e_mbd;
   const struct macroblockd_plane *pd = &xd->plane[0];
   struct macroblock_plane *const p = &x->plane[0];
@@ -1619,8 +1617,7 @@ static void free_pred_buffer(PRED_BUFFER *p) {
   if (p != NULL) p->in_use = 0;
 }
 
-static INLINE int get_drl_cost(const PREDICTION_MODE this_mode,
-                               const int ref_mv_idx,
+static INLINE int get_drl_cost(PREDICTION_MODE this_mode, int ref_mv_idx,
                                const MB_MODE_INFO_EXT *mbmi_ext,
                                const int (*const drl_mode_cost0)[2],
                                int8_t ref_frame_type) {
@@ -2336,9 +2333,8 @@ static AOM_INLINE void print_stage_time(const char *stage_name,
          100 * stage_time / (float)total_time);
 }
 
-static void print_time(const mode_search_stat *const ms_stat,
-                       const BLOCK_SIZE bsize, const int mi_rows,
-                       const int mi_cols, const int mi_row, const int mi_col) {
+static void print_time(const mode_search_stat *const ms_stat, BLOCK_SIZE bsize,
+                       int mi_rows, int mi_cols, int mi_row, int mi_col) {
   if ((mi_row + mi_size_high[bsize] >= mi_rows) &&
       (mi_col + mi_size_wide[bsize] >= mi_cols)) {
     int64_t total_time = 0l;
@@ -3164,7 +3160,7 @@ static bool skip_comp_based_on_var(
 }
 
 static AOM_FORCE_INLINE void fill_single_inter_mode_costs(
-    int (*single_inter_mode_costs)[REF_FRAMES], const int num_inter_modes,
+    int (*single_inter_mode_costs)[REF_FRAMES], int num_inter_modes,
     const REF_MODE *reference_mode_set, const ModeCosts *mode_costs,
     const int16_t *mode_context) {
   bool ref_frame_used[REF_FRAMES] = { false };
@@ -3313,9 +3309,8 @@ static AOM_INLINE bool prune_compoundmode_with_singlemode_var(
 static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
     AV1_COMP *cpi, MACROBLOCK *x, InterModeSearchStateNonrd *search_state,
     TileDataEnc *tile_data, PICK_MODE_CONTEXT *ctx, RD_STATS *rd_cost,
-    int *force_skip_low_temp_var, int *skip_pred_mv, const int mi_row,
-    const int mi_col, const int gf_temporal_ref, const unsigned char segment_id,
-    BLOCK_SIZE bsize
+    int *force_skip_low_temp_var, int *skip_pred_mv, int mi_row, int mi_col,
+    int gf_temporal_ref, unsigned char segment_id, BLOCK_SIZE bsize
 #if CONFIG_AV1_TEMPORAL_DENOISING
     ,
     int denoise_svc_pickmode
@@ -3400,7 +3395,7 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
     PREDICTION_MODE *this_mode, MV_REFERENCE_FRAME *last_comp_ref_frame,
     MV_REFERENCE_FRAME *ref_frame, MV_REFERENCE_FRAME *ref_frame2, int idx,
     int_mv svc_mv, int force_skip_low_temp_var, unsigned int sse_zeromv_norm,
-    const int num_inter_modes, const unsigned char segment_id, BLOCK_SIZE bsize,
+    int num_inter_modes, unsigned char segment_id, BLOCK_SIZE bsize,
     bool comp_use_zero_zeromv_only, bool check_globalmv) {
   AV1_COMMON *const cm = &cpi->common;
   const struct segmentation *const seg = &cm->seg;
@@ -3557,10 +3552,9 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
     int64_t *zero_last_cost_orig, int denoise_svc_pickmode,
 #endif
     int idx, int force_mv_inter_layer, int comp_pred, int skip_pred_mv,
-    const int gf_temporal_ref, const int use_model_yrd_large,
-    const int filter_search_enabled_blk, BLOCK_SIZE bsize,
-    PREDICTION_MODE this_mode, InterpFilter filt_select,
-    const int cb_pred_filter_search, const int reuse_inter_pred) {
+    int gf_temporal_ref, int use_model_yrd_large, int filter_search_enabled_blk,
+    BLOCK_SIZE bsize, PREDICTION_MODE this_mode, InterpFilter filt_select,
+    int cb_pred_filter_search, int reuse_inter_pred) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mi = xd->mi[0];
