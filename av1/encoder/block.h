@@ -42,6 +42,9 @@ extern "C" {
 
 /*! Maximum value taken by transform type probabilities */
 #define MAX_TX_TYPE_PROB 1024
+
+//! Compute color sensitivity index for given plane
+#define COLOR_SENS_IDX(plane) ((plane)-1)
 /*! \brief Superblock level encoder info
  *
  * SuperblockEnc stores superblock level information used by the encoder for
@@ -1286,11 +1289,11 @@ typedef struct macroblock {
    * Used in REALTIME coding mode to enhance the visual quality at the boundary
    * of moving color objects.
    */
-  uint8_t color_sensitivity_sb[2];
+  uint8_t color_sensitivity_sb[MAX_MB_PLANE - 1];
   //! Color sensitivity flag for the superblock for golden reference.
-  uint8_t color_sensitivity_sb_g[2];
+  uint8_t color_sensitivity_sb_g[MAX_MB_PLANE - 1];
   //! Color sensitivity flag for the coding block.
-  uint8_t color_sensitivity[2];
+  uint8_t color_sensitivity[MAX_MB_PLANE - 1];
   /**@}*/
 
   /*****************************************************************************

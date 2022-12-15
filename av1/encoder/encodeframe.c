@@ -1132,12 +1132,9 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     av1_set_cost_upd_freq(cpi, td, tile_info, mi_row, mi_col);
 
     // Reset color coding related parameters
-    x->color_sensitivity_sb[0] = 0;
-    x->color_sensitivity_sb[1] = 0;
-    x->color_sensitivity_sb_g[0] = 0;
-    x->color_sensitivity_sb_g[1] = 0;
-    x->color_sensitivity[0] = 0;
-    x->color_sensitivity[1] = 0;
+    av1_zero(x->color_sensitivity_sb);
+    av1_zero(x->color_sensitivity_sb_g);
+    av1_zero(x->color_sensitivity);
     x->content_state_sb.source_sad_nonrd = kMedSad;
     x->content_state_sb.source_sad_rd = kMedSad;
     x->content_state_sb.lighting_change = 0;
