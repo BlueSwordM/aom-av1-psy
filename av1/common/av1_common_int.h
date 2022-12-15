@@ -1237,10 +1237,8 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
 
   const int mem_size =
       ((mi_params->mi_rows + MAX_MIB_SIZE) >> 1) * (mi_params->mi_stride >> 1);
-  int realloc = cm->tpl_mvs == NULL;
-  if (cm->tpl_mvs) realloc |= cm->tpl_mvs_mem_size < mem_size;
 
-  if (realloc) {
+  if (cm->tpl_mvs == NULL || cm->tpl_mvs_mem_size < mem_size) {
     aom_free(cm->tpl_mvs);
     CHECK_MEM_ERROR(cm, cm->tpl_mvs,
                     (TPL_MV_REF *)aom_calloc(mem_size, sizeof(*cm->tpl_mvs)));
