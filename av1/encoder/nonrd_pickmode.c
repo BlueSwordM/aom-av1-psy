@@ -400,9 +400,9 @@ static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
   bp->best_pred = NULL;
   bp->best_motion_mode = SIMPLE_TRANSLATION;
   bp->num_proj_ref = 0;
-  memset(&bp->wm_params, 0, sizeof(bp->wm_params));
-  memset(&bp->blk_skip, 0, sizeof(bp->blk_skip));
-  memset(&bp->pmi, 0, sizeof(bp->pmi));
+  av1_zero(bp->wm_params);
+  av1_zero(bp->blk_skip);
+  av1_zero(bp->pmi);
 }
 
 static INLINE int subpel_select(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
@@ -3435,7 +3435,7 @@ static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
   estimate_single_ref_frame_costs(cm, xd, mode_costs, segment_id, bsize,
                                   search_state->ref_costs_single);
 
-  memset(&search_state->mode_checked[0][0], 0, MB_MODE_COUNT * REF_FRAMES);
+  av1_zero(search_state->mode_checked);
 
   txfm_info->skip_txfm = 0;
 
