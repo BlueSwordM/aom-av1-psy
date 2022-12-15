@@ -860,6 +860,7 @@ static void set_good_speed_feature_framesize_dependent(
 
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
 
+    sf->hl_sf.recode_tolerance = 55;
     if (!is_480p_or_larger) sf->hl_sf.num_frames_used_in_tf = 3;
   }
 }
@@ -1212,7 +1213,6 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 6) {
     sf->hl_sf.disable_extra_sc_testing = 1;
     sf->hl_sf.second_alt_ref_filtering = 0;
-    sf->hl_sf.recode_tolerance = 55;
 
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
     sf->inter_sf.selective_ref_frame = 6;
