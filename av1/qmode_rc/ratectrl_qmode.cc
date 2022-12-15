@@ -1496,7 +1496,6 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithTpl(
   double base_rdcost = 1.0;  // baseline total rdcost
   double hqr_rdcost = 0;     // high quality reference total rdcost
   double arf_rdcost_high = 1.0;
-  double arf_rdcost_low = 0;
 
   bool kf_arf_seen = false;
 
@@ -1510,7 +1509,6 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithTpl(
         gop_frame.update_type == GopFrameType::kRegularArf) {
       if (!kf_arf_seen) {
         arf_rdcost_high += frame_dep_stats.rdcost;
-        arf_rdcost_low += frame_dep_stats.alt_rdcost;
       }
       kf_arf_seen = 1;
     } else {
