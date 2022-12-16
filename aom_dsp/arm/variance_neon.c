@@ -688,11 +688,14 @@ static AOM_INLINE uint64_t mse_8xh_16bit_neon(uint8_t *dst, int dstride,
   int i = h;
   do {
     // d7 d6 d5 d4 d3 d2 d1 d0 - 8 bit
-    const uint16x8_t dst_16x8 = vmovl_u8(vld1_u8(&dst[i * dstride]));
+    const uint16x8_t dst_16x8 = vmovl_u8(vld1_u8(dst));
     // s7 s6 s5 s4 s3 s2 s1 s0 - 16 bit
-    const uint16x8_t src_16x8 = vld1q_u16(&src[i * sstride]);
+    const uint16x8_t src_16x8 = vld1q_u16(src);
 
     COMPUTE_MSE_16BIT(src_16x8, dst_16x8)
+
+    dst += dstride;
+    src += sstride;
   } while (--i != 0);
   uint64x1_t sum =
       vadd_u64(vget_high_u64(square_result), vget_low_u64(square_result));
