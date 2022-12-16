@@ -1492,11 +1492,17 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
   av1_zero(cpi->partition_stats);
 #endif  // CONFIG_COLLECT_PARTITION_STATS
 
-  /* av1_init_quantizer() is first called here. Add check in
-   * av1_frame_init_quantizer() so that av1_init_quantizer is only
-   * called later when needed. This will avoid unnecessary calls of
-   * av1_init_quantizer() for every frame.
-   */
+  // Initialize the members of DeltaQuantParams with INT_MAX to ensure that
+  // the quantizer tables are correctly initialized using the default deltaq
+  // parameters when av1_init_quantizer is called for the first time.
+  DeltaQuantParams *const prev_deltaq_params =
+      &cpi->enc_quant_dequant_params.prev_deltaq_params;
+  prev_deltaq_params->y_dc_delta_q = INT_MAX;
+  prev_deltaq_params->u_dc_delta_q = INT_MAX;
+  prev_deltaq_params->v_dc_delta_q = INT_MAX;
+  prev_deltaq_params->u_ac_delta_q = INT_MAX;
+  prev_deltaq_params->v_ac_delta_q = INT_MAX;
+
   av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
                      cm->seq_params->bit_depth);
   av1_qm_init(&cm->quant_params, av1_num_planes(cm));
@@ -2583,9 +2589,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
   av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                     q_cfg->enable_chroma_deltaq, q_cfg->enable_hdr_deltaq);
   av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
-  if ((q_cfg->deltaq_mode != NO_DELTA_Q) || q_cfg->enable_chroma_deltaq)
-    av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
-                       cm->seq_params->bit_depth);
+  av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
+                     cm->seq_params->bit_depth);
   av1_set_variance_partition_thresholds(cpi, q, 0);
   av1_setup_frame(cpi);
 
@@ -2598,9 +2603,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
       av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                         q_cfg->enable_chroma_deltaq, q_cfg->enable_hdr_deltaq);
       av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
-      if (q_cfg->deltaq_mode != NO_DELTA_Q || q_cfg->enable_chroma_deltaq)
-        av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
-                           cm->seq_params->bit_depth);
+      av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
+                         cm->seq_params->bit_depth);
       av1_set_variance_partition_thresholds(cpi, q, 0);
       if (frame_is_intra_only(cm) || cm->features.error_resilient_mode ||
           cm->features.primary_ref_frame == PRIMARY_REF_NONE)
@@ -2888,10 +2892,8 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                       q_cfg->enable_chroma_deltaq, q_cfg->enable_hdr_deltaq);
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
-
-    if (q_cfg->deltaq_mode != NO_DELTA_Q || q_cfg->enable_chroma_deltaq)
-      av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
-                         cm->seq_params->bit_depth);
+    av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
+                       cm->seq_params->bit_depth);
 
     av1_set_variance_partition_thresholds(cpi, q, 0);
 
