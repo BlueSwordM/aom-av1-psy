@@ -1063,41 +1063,19 @@ static void fill_variance_tree_leaves(
                                y16_idx, vst, is_cur_buf_hbd(xd), pixels_wide,
                                pixels_high, is_key_frame);
 
-          fill_variance_tree(
-              &vt->split[blk64_idx].split[lvl1_idx].split[lvl2_idx],
-              BLOCK_16X16);
-          get_variance(&vt->split[blk64_idx]
-                            .split[lvl1_idx]
-                            .split[lvl2_idx]
-                            .part_variances.none);
-          avg_16x16[blk64_idx][lvl1_idx] += vt->split[blk64_idx]
-                                                .split[lvl1_idx]
-                                                .split[lvl2_idx]
-                                                .part_variances.none.variance;
-          if (vt->split[blk64_idx]
-                  .split[lvl1_idx]
-                  .split[lvl2_idx]
-                  .part_variances.none.variance <
-              minvar_16x16[blk64_idx][lvl1_idx])
-            minvar_16x16[blk64_idx][lvl1_idx] =
-                vt->split[blk64_idx]
-                    .split[lvl1_idx]
-                    .split[lvl2_idx]
-                    .part_variances.none.variance;
-          if (vt->split[blk64_idx]
-                  .split[lvl1_idx]
-                  .split[lvl2_idx]
-                  .part_variances.none.variance >
-              maxvar_16x16[blk64_idx][lvl1_idx])
-            maxvar_16x16[blk64_idx][lvl1_idx] =
-                vt->split[blk64_idx]
-                    .split[lvl1_idx]
-                    .split[lvl2_idx]
-                    .part_variances.none.variance;
-          if (vt->split[blk64_idx]
-                  .split[lvl1_idx]
-                  .split[lvl2_idx]
-                  .part_variances.none.variance > thresholds[3]) {
+          fill_variance_tree(vst, BLOCK_16X16);
+          VPartVar *none_var = &vt->split[blk64_idx]
+                                    .split[lvl1_idx]
+                                    .split[lvl2_idx]
+                                    .part_variances.none;
+          get_variance(none_var);
+          const int val_none_var = none_var->variance;
+          avg_16x16[blk64_idx][lvl1_idx] += val_none_var;
+          minvar_16x16[blk64_idx][lvl1_idx] =
+              AOMMIN(minvar_16x16[blk64_idx][lvl1_idx], val_none_var);
+          maxvar_16x16[blk64_idx][lvl1_idx] =
+              AOMMAX(maxvar_16x16[blk64_idx][lvl1_idx], val_none_var);
+          if (val_none_var > thresholds[3]) {
             // 16X16 variance is above threshold for split, so force split to
             // 8x8 for this 16x16 block (this also forces splits for upper
             // levels).
@@ -1106,11 +1084,7 @@ static void fill_variance_tree_leaves(
             force_split[blk64_idx + 1] = PART_EVAL_ONLY_SPLIT;
             force_split[0] = PART_EVAL_ONLY_SPLIT;
           } else if (!cyclic_refresh_segment_id_boosted(segment_id) &&
-                     compute_minmax_variance &&
-                     vt->split[blk64_idx]
-                             .split[lvl1_idx]
-                             .split[lvl2_idx]
-                             .part_variances.none.variance > thresholds[2]) {
+                     compute_minmax_variance && val_none_var > thresholds[2]) {
             // We have some nominal amount of 16x16 variance (based on average),
             // compute the minmax over the 8x8 sub-blocks, and if above
             // threshold, force split to 8x8 block for this 16x16 block.
