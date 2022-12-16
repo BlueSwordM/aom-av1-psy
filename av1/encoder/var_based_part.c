@@ -779,14 +779,13 @@ static AOM_INLINE void set_low_temp_var_flag_128x128(
 static AOM_INLINE void set_low_temp_var_flag(
     AV1_COMP *cpi, PartitionSearchInfo *part_info, MACROBLOCKD *xd,
     VP128x128 *vt, int64_t thresholds[], MV_REFERENCE_FRAME ref_frame_partition,
-    int mi_col, int mi_row) {
+    int mi_col, int mi_row, const bool is_small_sb) {
   AV1_COMMON *const cm = &cpi->common;
   // Check temporal variance for bsize >= 16x16, if LAST_FRAME was selected.
   // If the temporal variance is small set the flag
   // variance_low for the block. The variance threshold can be adjusted, the
   // higher the more aggressive.
   if (ref_frame_partition == LAST_FRAME) {
-    const int is_small_sb = (cm->seq_params->sb_size == BLOCK_64X64);
     if (is_small_sb)
       set_low_temp_var_flag_64x64(&cm->mi_params, part_info, xd,
                                   &(vt->split[0]), thresholds, mi_col, mi_row);
@@ -1014,10 +1013,8 @@ static void fill_variance_tree_leaves(
     PART_EVAL_STATUS *force_split, int avg_16x16[][4], int maxvar_16x16[][4],
     int minvar_16x16[][4], int *variance4x4downsample, int64_t *thresholds,
     const uint8_t *src, int src_stride, const uint8_t *dst, int dst_stride,
-    bool is_key_frame) {
-  AV1_COMMON *cm = &cpi->common;
+    bool is_key_frame, const bool is_small_sb) {
   MACROBLOCKD *xd = &x->e_mbd;
-  const bool is_small_sb = (cm->seq_params->sb_size == BLOCK_64X64);
   const int num_64x64_blocks = is_small_sb ? 1 : 4;
   // TODO(kyslov) Bring back compute_minmax_variance with content type detection
   const int compute_minmax_variance = 0;
@@ -1160,11 +1157,10 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                          unsigned int *y_sad_g, unsigned int *y_sad_alt,
                          unsigned int *y_sad_last,
                          MV_REFERENCE_FRAME *ref_frame_partition, int mi_row,
-                         int mi_col) {
+                         int mi_col, const bool is_small_sb) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   const int num_planes = av1_num_planes(cm);
-  const int is_small_sb = (cm->seq_params->sb_size == BLOCK_64X64);
   BLOCK_SIZE bsize = is_small_sb ? BLOCK_64X64 : BLOCK_128X128;
   MB_MODE_INFO *mi = xd->mi[0];
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, LAST_FRAME);
@@ -1334,7 +1330,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
 
   assert(cm->seq_params->sb_size == BLOCK_64X64 ||
          cm->seq_params->sb_size == BLOCK_128X128);
-  const int is_small_sb = (cm->seq_params->sb_size == BLOCK_64X64);
+  const bool is_small_sb = (cm->seq_params->sb_size == BLOCK_64X64);
   const int num_64x64_blocks = is_small_sb ? 1 : 4;
 
   unsigned int y_sad = UINT_MAX;
@@ -1414,7 +1410,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
 
   if (!is_key_frame) {
     setup_planes(cpi, x, &y_sad, &y_sad_g, &y_sad_alt, &y_sad_last,
-                 &ref_frame_partition, mi_row, mi_col);
+                 &ref_frame_partition, mi_row, mi_col, is_small_sb);
 
     MB_MODE_INFO *mi = xd->mi[0];
     // Use reference SB directly for zero mv.
@@ -1484,7 +1480,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   fill_variance_tree_leaves(cpi, x, vt, vt2, force_split, avg_16x16,
                             maxvar_16x16, minvar_16x16, variance4x4downsample,
                             thresholds, src_buf, src_stride, dst_buf,
-                            dst_stride, is_key_frame);
+                            dst_stride, is_key_frame, is_small_sb);
 
   avg_64x64 = 0;
   for (int blk64_idx = 0; blk64_idx < num_64x64_blocks; ++blk64_idx) {
@@ -1656,7 +1652,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
 
   if (cpi->sf.rt_sf.short_circuit_low_temp_var) {
     set_low_temp_var_flag(cpi, &x->part_search_info, xd, vt, thresholds,
-                          ref_frame_partition, mi_col, mi_row);
+                          ref_frame_partition, mi_col, mi_row, is_small_sb);
   }
 
   if (vt2) aom_free(vt2);
