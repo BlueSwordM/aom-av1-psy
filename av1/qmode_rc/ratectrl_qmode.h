@@ -25,6 +25,7 @@ namespace aom {
 constexpr int kLayerDepthOffset = 1;
 constexpr int kMinIntervalToAddArf = 3;
 constexpr int kMinArfInterval = (kMinIntervalToAddArf + 1) / 2;
+constexpr double kIntArfAdjFactor = 0.5;
 
 struct TplUnitDepStats {
   double propagation_cost;
@@ -137,7 +138,8 @@ class AV1RateControlQMode : public AV1RateControlQModeInterface {
       const GopStruct &gop_struct);
   StatusOr<GopEncodeInfo> GetGopEncodeInfoWithFp(
       const GopStruct &gop_struct, const FirstpassInfo &firstpass_info,
-      const std::vector<LookaheadStats> &lookahead_stats);
+      const std::vector<LookaheadStats> &lookahead_stats,
+      const RefFrameTable &ref_frame_table_snapshot_init);
   StatusOr<GopEncodeInfo> GetGopEncodeInfoWithTpl(
       const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
       const std::vector<LookaheadStats> &lookahead_stats,
