@@ -284,23 +284,32 @@ static INLINE void store_rect_16bit_to_32bit(const int16x8_t a,
   vst1q_s32((b + 4), b_hi);
 }
 
-static INLINE void load_buffer_16bit_to_16bit_w4(const int16_t *const in,
+static INLINE void load_buffer_16bit_to_16bit_w4(const int16_t *in,
                                                  const int stride,
                                                  int16x8_t *const out,
                                                  const int out_size) {
-  for (int i = 0; i < out_size; ++i)
-    out[i] = vreinterpretq_s16_u64(vld1q_lane_u64(
-        (uint64_t *)(in + i * stride), vreinterpretq_u64_s16(out[i]), 0));
+  for (int i = 0; i < out_size; ++i) {
+    // vld1q_dup_u64 is used rather than vld1q_lane_u64(lane=0) to avoid
+    // -Wmaybe-uninitialized warnings with some versions of gcc. This assumes
+    // the upper lane is unused or further modified after this call. The
+    // latency should be similar between the two.
+    out[i] = vreinterpretq_s16_u64(vld1q_dup_u64((uint64_t *)in));
+    in += stride;
+  }
 }
 
-static INLINE void load_buffer_16bit_to_16bit_w4_flip(const int16_t *const in,
+static INLINE void load_buffer_16bit_to_16bit_w4_flip(const int16_t *in,
                                                       const int stride,
                                                       int16x8_t *const out,
                                                       const int out_size) {
-  for (int i = 0; i < out_size; ++i)
-    out[out_size - i - 1] = vreinterpretq_s16_u64(
-        vld1q_lane_u64((uint64_t *)(in + i * stride),
-                       vreinterpretq_u64_s16(out[out_size - i - 1]), 0));
+  for (int i = out_size - 1; i >= 0; --i) {
+    // vld1q_dup_u64 is used rather than vld1q_lane_u64(lane=0) to avoid
+    // -Wmaybe-uninitialized warnings with some versions of gcc. This assumes
+    // the upper lane is unused or further modified after this call. The
+    // latency should be similar between the two.
+    out[i] = vreinterpretq_s16_u64(vld1q_dup_u64((uint64_t *)in));
+    in += stride;
+  }
 }
 
 static INLINE void load_buffer_16bit_to_16bit(const int16_t *in, int stride,
