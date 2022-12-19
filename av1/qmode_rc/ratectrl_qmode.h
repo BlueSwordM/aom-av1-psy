@@ -142,7 +142,8 @@ class AV1RateControlQMode : public AV1RateControlQModeInterface {
       const std::vector<LookaheadStats> &lookahead_stats,
       const RefFrameTable &ref_frame_table_snapshot_init);
   StatusOr<GopEncodeInfo> GetGopEncodeInfoWithTpl(
-      const GopStruct &gop_struct, const TplGopStats &tpl_gop_stats,
+      const GopStruct &gop_struct, const FirstpassInfo &firstpass_info,
+      const TplGopStats &tpl_gop_stats,
       const std::vector<LookaheadStats> &lookahead_stats,
       const RefFrameTable &ref_frame_table_snapshot_init);
 };
