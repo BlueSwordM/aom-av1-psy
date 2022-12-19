@@ -3477,7 +3477,7 @@ static AOM_INLINE bool prune_compoundmode_with_singlemode_var(
   return false;
 }
 
-// Function to setup parameters used for inter mode evaluation.
+// Function to setup parameters used for inter mode evaluation in non-rd.
 static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
     AV1_COMP *cpi, MACROBLOCK *x, InterModeSearchStateNonrd *search_state,
     TileDataEnc *tile_data, PICK_MODE_CONTEXT *ctx, RD_STATS *rd_cost,
@@ -3495,6 +3495,8 @@ static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
   const ModeCosts *mode_costs = &x->mode_costs;
   (void)ctx;
 
+  // Initialize variance and distortion (chroma) for all modes and reference
+  // frames
   for (int idx = 0; idx < RTC_INTER_MODES; idx++) {
     for (int ref = 0; ref < REF_FRAMES; ref++) {
       search_state->vars[idx][ref] = UINT_MAX;
@@ -3502,17 +3504,21 @@ static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
     }
   }
 
+  // Initialize values of color sensitivity with sb level color sensitivity
   av1_copy(x->color_sensitivity, x->color_sensitivity_sb);
+
   init_best_pickmode(&search_state->best_pickmode);
 
+  // Estimate cost for single reference frames
   estimate_single_ref_frame_costs(cm, xd, mode_costs, segment_id, bsize,
                                   search_state->ref_costs_single);
 
+  // Reset flag to indicate modes evaluated
   av1_zero(search_state->mode_checked);
 
   txfm_info->skip_txfm = 0;
 
-  // initialize mode decisions
+  // Initialize mode decisions
   av1_invalid_rd_stats(&search_state->best_rdc);
   av1_invalid_rd_stats(&search_state->this_rdc);
   av1_invalid_rd_stats(rd_cost);
@@ -3533,11 +3539,13 @@ static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
   }
 #endif
 
+  // Populate predicated motion vectors for LAST_FRAME
   if (cpi->ref_frame_flags & AOM_LAST_FLAG)
     find_predictors(cpi, x, LAST_FRAME, search_state->frame_mv, tile_data,
                     search_state->yv12_mb, bsize, *force_skip_low_temp_var,
                     x->force_zeromv_skip_for_blk);
 
+  // Update mask to use all reference frame
   get_ref_frame_use_mask(cpi, x, mi, mi_row, mi_col, bsize, gf_temporal_ref,
                          search_state->use_ref_frame_mask,
                          force_skip_low_temp_var);
@@ -3547,6 +3555,7 @@ static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
                    x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_U)] != 2 &&
                    x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_V)] != 2);
 
+  // Populate predicated motion vectors for other single reference frame
   // Start at LAST_FRAME + 1.
   for (MV_REFERENCE_FRAME ref_frame_iter = LAST_FRAME + 1;
        ref_frame_iter <= ALTREF_FRAME; ++ref_frame_iter) {
@@ -3575,6 +3584,8 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
   MB_MODE_INFO *const mi = xd->mi[0];
   const REAL_TIME_SPEED_FEATURES *const rt_sf = &cpi->sf.rt_sf;
 
+  // Skip compound mode based on reference frame mask and type of the mode and
+  // for allowed compound modes, setup ref mv stack and reference frame.
   if (idx >= num_inter_modes) {
     const int comp_index = idx - num_inter_modes;
     if (!setup_compound_params_from_comp_idx(
@@ -3590,10 +3601,12 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
     *ref_frame2 = NONE_FRAME;
   }
 
+  // Skip the single reference mode for which mode check flag is set.
   if (*is_single_pred && search_state->mode_checked[*this_mode][*ref_frame]) {
     return true;
   }
 
+  // Skip GLOBALMV mode if check_globalmv flag is not enabled.
   if (!check_globalmv && *this_mode == GLOBALMV) {
     return true;
   }
@@ -3606,8 +3619,11 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
   mi->ref_frame[0] = *ref_frame;
   mi->ref_frame[1] = *ref_frame2;
 
+  // Skip the mode if use reference frame mask flag is not set.
   if (!search_state->use_ref_frame_mask[*ref_frame]) return true;
 
+  // Skip mode for some modes and reference frames when
+  // force_zeromv_skip_for_blk flag is true.
   if (x->force_zeromv_skip_for_blk &&
       ((!(*this_mode == NEARESTMV &&
           search_state->frame_mv[*this_mode][*ref_frame].as_int == 0) &&
@@ -3615,6 +3631,8 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
        *ref_frame != LAST_FRAME))
     return true;
 
+  // Skip compound mode based on variance of previously evaluated single
+  // reference modes.
   if (rt_sf->prune_compoundmode_with_singlemode_var && !*is_single_pred &&
       prune_compoundmode_with_singlemode_var(
           *this_mode, *ref_frame, *ref_frame2, search_state->frame_mv,
@@ -3676,11 +3694,14 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
       return true;
   }
 
+  // Skip mode based on block size, reference frame mode and other block
+  // properties.
   if (skip_mode_by_bsize_and_ref_frame(
           *this_mode, *ref_frame, bsize, x->nonrd_prune_ref_frame_search,
           sse_zeromv_norm, rt_sf->nonrd_aggressive_skip))
     return true;
 
+  // Skip mode based on low temporal variance and souce sad.
   if (skip_mode_by_low_temp(*this_mode, *ref_frame, bsize, x->content_state_sb,
                             search_state->frame_mv[*this_mode][*ref_frame],
                             force_skip_low_temp_var))
@@ -3702,6 +3723,7 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
       x->pred_mv1_sad[*ref_frame] > (x->pred_mv0_sad[*ref_frame] << 1))
     return true;
 
+  // Skip single reference mode based on rd threshold.
   if (*is_single_pred) {
     if (skip_mode_by_threshold(
             *this_mode, *ref_frame,
@@ -3760,6 +3782,7 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
 #if COLLECT_PICK_MODE_STAT
     aom_usec_timer_start(&ms_stat.timer2);
 #endif
+    // Find the best motion vector for single/compound mode.
     const bool skip_newmv = search_new_mv(
         cpi, x, search_state->frame_mv, ref_frame, gf_temporal_ref, bsize,
         mi_row, mi_col, &rate_mv, &search_state->best_rdc);
@@ -3768,11 +3791,17 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
     ms_stat.ms_time[bsize][this_mode] +=
         aom_usec_timer_elapsed(&ms_stat.timer2);
 #endif
+    // Skip NEWMV mode,
+    //   (i). For bsize smaller than 16X16
+    //  (ii). Based on sad of the predicted mv w.r.t LAST_FRAME
+    // (iii). When motion vector is same as that of reference mv
     if (skip_newmv) {
       return true;
     }
   }
 
+  // Check the current motion vector is same as that of previously evaluated
+  // motion vectors.
   for (PREDICTION_MODE inter_mv_mode = NEARESTMV; inter_mv_mode <= NEWMV;
        inter_mv_mode++) {
     if (inter_mv_mode == this_mode) continue;
@@ -3785,6 +3814,8 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
     }
   }
 
+  // Skip single mode if current motion vector is same that of previously
+  // evaluated motion vectors.
   if (skip_this_mv && is_single_pred) return true;
 
   // For screen: for spatially flat blocks with non-zero motion,
@@ -3806,6 +3837,7 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
   if (!is_single_pred)
     mi->mv[1].as_int = search_state->frame_mv[this_mode][ref_frame2].as_int;
 
+  // Set buffers to store predicted samples for reuse
   if (reuse_inter_pred) {
     if (!*this_mode_pred) {
       *this_mode_pred = &tmp_buffer[3];
@@ -3848,7 +3880,7 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
     calc_num_proj_ref(cpi, x, mi);
   }
 #endif
-  // set variance threshold for compound more pruning
+  // set variance threshold for compound mode pruning
   if (rt_sf->prune_compoundmode_with_singlecompound_var && !is_single_pred &&
       use_model_yrd_large) {
     const PREDICTION_MODE single_mode0 = compound_ref0_mode(this_mode);
@@ -3886,6 +3918,7 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
 #if !CONFIG_REALTIME_ONLY
   } else if (cpi->oxcf.motion_mode_cfg.allow_warped_motion &&
              this_mode == NEWMV) {
+    // Find the best motion mode when current mode is NEWMV
     search_motion_mode(cpi, x, &search_state->this_rdc, mi_row, mi_col, bsize,
                        &this_early_term, use_model_yrd_large, &rate_mv,
                        best_pickmode->best_sse);
@@ -3956,6 +3989,7 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
                                        b_height_log2_lookup[bsize]));
   }
 
+  // Perform early termination based on sse.
   if (rt_sf->sse_early_term_inter_search &&
       early_term_inter_search_with_sse(rt_sf->sse_early_term_inter_search,
                                        bsize, search_state->this_rdc.sse,
@@ -3981,6 +4015,7 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
 #if COLLECT_PICK_MODE_STAT
     aom_usec_timer_start(&ms_stat.timer2);
 #endif
+    // Calculates RD Cost using Hadamard transform.
     block_yrd(x, &search_state->this_rdc, &is_skippable, bsize, mi->tx_size, 1);
     if (search_state->this_rdc.skip_txfm ||
         RDCOST(x->rdmult, search_state->this_rdc.rate,
@@ -3998,6 +4033,8 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
     } else {
       search_state->this_rdc.rate += no_skip_txfm_cost;
     }
+
+    // Populate predicted sample for chroma planes based on color sensitivity.
     if ((x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_U)] ||
          x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_V)])) {
       RD_STATS rdc_uv;
@@ -4012,6 +4049,7 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
         av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
                                       AOM_PLANE_V, AOM_PLANE_V);
       }
+      // Compute sse for chroma planes.
       const int64_t sse_uv = model_rd_for_sb_uv(cpi, uv_bsize, x, xd, &rdc_uv,
                                                 AOM_PLANE_U, AOM_PLANE_V);
       search_state->this_rdc.sse += sse_uv;
@@ -4103,6 +4141,7 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
       aom_usec_timer_elapsed(&ms_stat.timer1);
 #endif
 
+  // Copy best mode params to search state
   if (search_state->this_rdc.rdcost < search_state->best_rdc.rdcost) {
     search_state->best_rdc = search_state->this_rdc;
     *best_early_term = this_early_term;
@@ -4218,6 +4257,35 @@ static AOM_FORCE_INLINE void handle_screen_content_mode_nonrd(
   }
 }
 
+/*!\brief AV1 inter mode selection based on Non-RD optimized model.
+ *
+ * \ingroup nonrd_mode_search
+ * \callgraph
+ * Top level function for Non-RD optimized inter mode selection.
+ * This finction will loop over subset of inter modes and select the best one
+ * based on calculated modelled RD cost. While making decisions which modes to
+ * check, this function applies heuristics based on previously checked modes,
+ * block residual variance, block size, and other factors to prune certain
+ * modes and reference frames. Currently only single reference frame modes
+ * are checked. Additional heuristics are applied to decide if intra modes
+ *  need to be checked.
+ *  *
+ * \param[in]    cpi            Top-level encoder structure
+ * \param[in]    tile_data      Pointer to struct holding adaptive
+                                data/contexts/models for the tile during
+                                encoding
+ * \param[in]    x              Pointer to structure holding all the data for
+                                the current macroblock
+ * \param[in]    rd_cost        Struct to keep track of the RD information
+ * \param[in]    bsize          Current block size
+ * \param[in]    ctx            Structure to hold snapshot of coding context
+                                during the mode picking process
+ *
+ * \remark Nothing is returned. Instead, the MB_MODE_INFO struct inside x
+ * is modified to store information about the best mode computed
+ * in this function. The rd_cost struct is also updated with the RD stats
+ * corresponding to the best mode found.
+ */
 void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                   MACROBLOCK *x, RD_STATS *rd_cost,
                                   BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx) {
