@@ -1533,10 +1533,10 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithFp(
       double boost = 0.0;
 
       // Check the influence of this arf frame to the frames before it
-      for (int f = this_gop_len - 1; f > 0; --f) {
+      for (int f = this_gop_len - 2; f > 0; --f) {
         // The contribution of this arf to frame f
         double coeff_this = 1.0;
-        for (int k = this_gop_len; k > f; --k) {
+        for (int k = this_gop_len - 1; k > f; --k) {
           if (CheckFlash(analyzed_fp_info.stats_list, k)) continue;
           coeff_this *= analyzed_fp_info.stats_list[k].cor_coeff;
         }
@@ -1566,10 +1566,10 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithFp(
       }
 
       // Check the influence of this arf frame to the frames after it
-      for (int f = this_gop_len + 1; f < this_gop_len + next_gop_len; ++f) {
+      for (int f = this_gop_len; f < this_gop_len + next_gop_len; ++f) {
         // The contribution of this arf to frame f
         double coeff_this = 1.0;
-        for (int k = this_gop_len + 1; k <= f; ++k) {
+        for (int k = this_gop_len; k <= f; ++k) {
           if (CheckFlash(analyzed_fp_info.stats_list, k)) continue;
           coeff_this *= analyzed_fp_info.stats_list[k].cor_coeff;
         }
@@ -1577,7 +1577,7 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithFp(
         if (next_gop_len >= 4) {
           // The contribution of next arf to frame f
           double coeff_next = 1.0;
-          for (int k = this_gop_len + next_gop_len; k > f; --k) {
+          for (int k = this_gop_len + next_gop_len - 1; k > f; --k) {
             if (CheckFlash(analyzed_fp_info.stats_list, k)) continue;
             coeff_next *= analyzed_fp_info.stats_list[k].cor_coeff;
           }
