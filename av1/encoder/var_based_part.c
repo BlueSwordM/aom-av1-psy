@@ -456,6 +456,7 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
   int64_t threshold_base = (int64_t)(threshold_multiplier * ac_q);
   const int current_qindex = cm->quant_params.base_qindex;
   const int threshold_left_shift = cpi->sf.rt_sf.var_part_split_threshold_shift;
+  const int num_pixels = cm->width * cm->height;
 
   if (is_key_frame) {
     if (cpi->sf.rt_sf.force_large_partition_blocks_intra) {
@@ -466,7 +467,7 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
     }
     thresholds[0] = threshold_base;
     thresholds[1] = threshold_base;
-    if (cm->width * cm->height < 1280 * 720) {
+    if (num_pixels < RESOLUTION_720P) {
       thresholds[2] = threshold_base / 3;
       thresholds[3] = threshold_base >> 1;
     } else {
@@ -487,8 +488,7 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
   // whose only change is due to noise will be low (i.e, noise will average
   // out over large block).
   if (cpi->noise_estimate.enabled && content_lowsumdiff &&
-      (cm->width * cm->height > 640 * 480) &&
-      cm->current_frame.frame_number > 60) {
+      num_pixels > RESOLUTION_480P && cm->current_frame.frame_number > 60) {
     NOISE_LEVEL noise_level =
         av1_noise_estimate_extract_level(&cpi->noise_estimate);
     if (noise_level == kHigh)
@@ -517,9 +517,8 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
   thresholds[0] = threshold_base >> 1;
   thresholds[1] = threshold_base;
   thresholds[3] = threshold_base << threshold_left_shift;
-  if (cm->width >= 1280 && cm->height >= 720)
-    thresholds[3] = thresholds[3] << 1;
-  if (cm->width * cm->height <= 352 * 288) {
+  if (num_pixels >= RESOLUTION_720P) thresholds[3] = thresholds[3] << 1;
+  if (num_pixels <= RESOLUTION_288P) {
     const int qindex_thr[5][2] = {
       { 200, 220 }, { 140, 170 }, { 120, 150 }, { 200, 210 }, { 170, 220 },
     };
@@ -558,14 +557,14 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
                        qi_diff_high * (threshold_base << 3)) /
                       threshold_diff;
     }
-  } else if (cm->width < 1280 && cm->height < 720) {
+  } else if (num_pixels < RESOLUTION_720P) {
     thresholds[2] = (5 * threshold_base) >> 2;
-  } else if (cm->width < 1920 && cm->height < 1080) {
+  } else if (num_pixels < RESOLUTION_1080P) {
     thresholds[2] = threshold_base << 1;
   } else {
-    // cm->width >= 1920 || cm->height >= 1080
+    // num_pixels >= RESOLUTION_1080P
     if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
-      if (cm->width < 2560 && cm->height < 1440) {
+      if (num_pixels < RESOLUTION_1440P) {
         thresholds[2] = (5 * threshold_base) >> 1;
       } else {
         thresholds[2] = (7 * threshold_base) >> 1;
@@ -589,12 +588,12 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
     else
       weight =
           1.0 - (current_qindex - QINDEX_LARGE_BLOCK_THR + win) / (2 * win);
-    if (cm->width * cm->height > 640 * 480) {
+    if (num_pixels > RESOLUTION_480P) {
       for (int i = 0; i < 4; i++) {
         thresholds[i] <<= 1;
       }
     }
-    if (cm->width * cm->height <= 352 * 288) {
+    if (num_pixels <= RESOLUTION_288P) {
       thresholds[3] = INT64_MAX;
       if (segment_id == 0) {
         thresholds[1] <<= 2;
@@ -617,7 +616,7 @@ static AOM_INLINE void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[],
       // high source sad, unless the whole frame has very high motion
       // (i.e, cpi->rc.avg_source_sad is very large, in which case all blocks
       // have high source sad).
-    } else if (cm->width * cm->height > 640 * 480 && segment_id == 0 &&
+    } else if (num_pixels > RESOLUTION_480P && segment_id == 0 &&
                (source_sad_nonrd != kHighSad ||
                 cpi->rc.avg_source_sad > 50000)) {
       thresholds[0] = (3 * thresholds[0]) >> 1;
@@ -1496,7 +1495,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
       // then force this block to split. This also forces a split on the upper
       // (64x64) level.
       uint64_t frame_sad_thresh = 20000;
-      const int is_360p_or_smaller = cm->width * cm->height <= 640 * 360;
+      const int is_360p_or_smaller = cm->width * cm->height <= RESOLUTION_360P;
       if (cpi->svc.number_temporal_layers > 2 &&
           cpi->svc.temporal_layer_id == 0)
         frame_sad_thresh = frame_sad_thresh << 1;
