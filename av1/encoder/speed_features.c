@@ -1352,12 +1352,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed == 7) {
       sf->rt_sf.nonrd_check_partition_merge_mode = 2;
     }
-    if (speed >= 8) {
-      sf->rt_sf.estimate_motion_for_var_based_partition = 1;
-    }
-    if (speed >= 9) {
-      sf->rt_sf.estimate_motion_for_var_based_partition = 0;
-    }
   }
   if (!is_720p_or_larger) {
     if (speed >= 9) {
@@ -1754,7 +1748,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   if (speed >= 8) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_2;
     sf->intra_sf.intra_pruning_with_hog = 1;
-    sf->rt_sf.estimate_motion_for_var_based_partition = 1;
     sf->rt_sf.short_circuit_low_temp_var = 1;
     sf->rt_sf.use_nonrd_altref_frame = 0;
     sf->rt_sf.nonrd_prune_ref_frame_search = 2;
