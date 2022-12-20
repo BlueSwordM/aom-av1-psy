@@ -25,7 +25,11 @@ namespace {
 
 constexpr size_t kNumFrames = 450;
 
-constexpr int kTemporalId[4] = { 0, 2, 1, 2 };
+const int kTemporalId3Layer[4] = { 0, 2, 1, 2 };
+const int kTemporalId2Layer[2] = { 0, 1 };
+const int kTemporalRateAllocation3Layer[3] = { 50, 70, 100 };
+const int kTemporalRateAllocation2Layer[2] = { 60, 100 };
+const int kSpatialLayerBitrate[3] = { 200, 500, 900 };
 
 // Parameter: aq mode: 0 and 3
 class RcInterfaceTest : public ::libaom_test::EncoderTest,
@@ -63,7 +67,12 @@ class RcInterfaceTest : public ::libaom_test::EncoderTest,
     if (use_svc) {
       frame_params_.spatial_layer_id =
           layer_frame_cnt_ % rc_cfg_.ss_number_layers;
-      frame_params_.temporal_layer_id = kTemporalId[video->frame() % 4];
+      if (rc_cfg_.ts_number_layers == 3)
+        frame_params_.temporal_layer_id = kTemporalId3Layer[video->frame() % 4];
+      else if (rc_cfg_.ts_number_layers == 2)
+        frame_params_.temporal_layer_id = kTemporalId2Layer[video->frame() % 2];
+      else
+        frame_params_.temporal_layer_id = 0;
       layer_id_.spatial_layer_id = frame_params_.spatial_layer_id;
       layer_id_.temporal_layer_id = frame_params_.temporal_layer_id;
       encoder->Control(AV1E_SET_SVC_LAYER_ID, &layer_id_);
@@ -125,7 +134,7 @@ class RcInterfaceTest : public ::libaom_test::EncoderTest,
 
   void RunSvc() {
     key_interval_ = 10000;
-    SetConfigSvc();
+    SetConfigSvc(3, 3);
     rc_api_ = aom::AV1RateControlRTC::Create(rc_cfg_);
     frame_params_.spatial_layer_id = 0;
     frame_params_.temporal_layer_id = 0;
@@ -138,7 +147,7 @@ class RcInterfaceTest : public ::libaom_test::EncoderTest,
 
   void RunSvcPeriodicKey() {
     key_interval_ = 100;
-    SetConfigSvc();
+    SetConfigSvc(3, 3);
     rc_api_ = aom::AV1RateControlRTC::Create(rc_cfg_);
     frame_params_.spatial_layer_id = 0;
     frame_params_.temporal_layer_id = 0;
@@ -191,12 +200,11 @@ class RcInterfaceTest : public ::libaom_test::EncoderTest,
     cfg_.kf_max_dist = key_interval_;
   }
 
-  void SetConfigSvc() {
+  void SetConfigSvc(int number_spatial_layers, int number_temporal_layers) {
     rc_cfg_.width = 640;
     rc_cfg_.height = 480;
-    rc_cfg_.max_quantizer = 52;
+    rc_cfg_.max_quantizer = 56;
     rc_cfg_.min_quantizer = 2;
-    rc_cfg_.target_bandwidth = 1000;
     rc_cfg_.buf_initial_sz = 600;
     rc_cfg_.buf_optimal_sz = 600;
     rc_cfg_.buf_sz = 1000;
@@ -204,85 +212,117 @@ class RcInterfaceTest : public ::libaom_test::EncoderTest,
     rc_cfg_.overshoot_pct = 50;
     rc_cfg_.max_intra_bitrate_pct = 1000;
     rc_cfg_.framerate = 30.0;
-    rc_cfg_.ss_number_layers = 3;
-    rc_cfg_.ts_number_layers = 3;
     rc_cfg_.aq_mode = aq_mode_;
-
-    rc_cfg_.scaling_factor_num[0] = 1;
-    rc_cfg_.scaling_factor_den[0] = 4;
-    rc_cfg_.scaling_factor_num[1] = 2;
-    rc_cfg_.scaling_factor_den[1] = 4;
-    rc_cfg_.scaling_factor_num[2] = 4;
-    rc_cfg_.scaling_factor_den[2] = 4;
-
-    rc_cfg_.ts_rate_decimator[0] = 4;
-    rc_cfg_.ts_rate_decimator[1] = 2;
-    rc_cfg_.ts_rate_decimator[2] = 1;
-
-    rc_cfg_.layer_target_bitrate[0] = 100;
-    rc_cfg_.layer_target_bitrate[1] = 140;
-    rc_cfg_.layer_target_bitrate[2] = 200;
-    rc_cfg_.layer_target_bitrate[3] = 250;
-    rc_cfg_.layer_target_bitrate[4] = 350;
-    rc_cfg_.layer_target_bitrate[5] = 500;
-    rc_cfg_.layer_target_bitrate[6] = 450;
-    rc_cfg_.layer_target_bitrate[7] = 630;
-    rc_cfg_.layer_target_bitrate[8] = 900;
-
-    for (int sl = 0; sl < rc_cfg_.ss_number_layers; ++sl) {
-      for (int tl = 0; tl < rc_cfg_.ts_number_layers; ++tl) {
-        const int i = sl * rc_cfg_.ts_number_layers + tl;
-        rc_cfg_.max_quantizers[i] = 56;
-        rc_cfg_.min_quantizers[i] = 2;
-      }
-    }
+    rc_cfg_.ss_number_layers = number_spatial_layers;
+    rc_cfg_.ts_number_layers = number_temporal_layers;
 
     // Encoder settings for ground truth.
     cfg_.g_w = 640;
     cfg_.g_h = 480;
-    svc_params_.number_spatial_layers = 3;
-    svc_params_.number_temporal_layers = 3;
-    cfg_.g_timebase.num = 1;
-    cfg_.g_timebase.den = 30;
-    svc_params_.scaling_factor_num[0] = 72;
-    svc_params_.scaling_factor_den[0] = 288;
-    svc_params_.scaling_factor_num[1] = 144;
-    svc_params_.scaling_factor_den[1] = 288;
-    svc_params_.scaling_factor_num[2] = 288;
-    svc_params_.scaling_factor_den[2] = 288;
-    for (int i = 0; i < AOM_MAX_LAYERS; ++i) {
-      svc_params_.max_quantizers[i] = 56;
-      svc_params_.min_quantizers[i] = 2;
-    }
-    cfg_.rc_end_usage = AOM_CBR;
-    cfg_.g_lag_in_frames = 0;
-    cfg_.g_error_resilient = 0;
-    // 3 temporal layers
-    svc_params_.framerate_factor[0] = 4;
-    svc_params_.framerate_factor[1] = 2;
-    svc_params_.framerate_factor[2] = 1;
-
+    cfg_.rc_max_quantizer = 56;
+    cfg_.rc_min_quantizer = 2;
     cfg_.rc_buf_initial_sz = 600;
     cfg_.rc_buf_optimal_sz = 600;
     cfg_.rc_buf_sz = 1000;
-    cfg_.rc_min_quantizer = 2;
-    cfg_.rc_max_quantizer = 56;
+    cfg_.rc_overshoot_pct = 50;
+    cfg_.rc_undershoot_pct = 50;
     cfg_.g_threads = 1;
     cfg_.kf_min_dist = key_interval_;
     cfg_.kf_max_dist = key_interval_;
-    cfg_.rc_target_bitrate = 1000;
-    cfg_.rc_overshoot_pct = 50;
-    cfg_.rc_undershoot_pct = 50;
+    cfg_.g_timebase.num = 1;
+    cfg_.g_timebase.den = 30;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.g_error_resilient = 0;
+    svc_params_.number_spatial_layers = number_spatial_layers;
+    svc_params_.number_temporal_layers = number_temporal_layers;
 
-    svc_params_.layer_target_bitrate[0] = 100;
-    svc_params_.layer_target_bitrate[1] = 140;
-    svc_params_.layer_target_bitrate[2] = 200;
-    svc_params_.layer_target_bitrate[3] = 250;
-    svc_params_.layer_target_bitrate[4] = 350;
-    svc_params_.layer_target_bitrate[5] = 500;
-    svc_params_.layer_target_bitrate[6] = 450;
-    svc_params_.layer_target_bitrate[7] = 630;
-    svc_params_.layer_target_bitrate[8] = 900;
+    // Scale factors.
+    if (number_spatial_layers == 3) {
+      rc_cfg_.scaling_factor_num[0] = 1;
+      rc_cfg_.scaling_factor_den[0] = 4;
+      rc_cfg_.scaling_factor_num[1] = 2;
+      rc_cfg_.scaling_factor_den[1] = 4;
+      rc_cfg_.scaling_factor_num[2] = 4;
+      rc_cfg_.scaling_factor_den[2] = 4;
+      svc_params_.scaling_factor_num[0] = 1;
+      svc_params_.scaling_factor_den[0] = 4;
+      svc_params_.scaling_factor_num[1] = 2;
+      svc_params_.scaling_factor_den[1] = 4;
+      svc_params_.scaling_factor_num[2] = 4;
+      svc_params_.scaling_factor_den[2] = 4;
+    } else if (number_spatial_layers == 2) {
+      rc_cfg_.scaling_factor_num[0] = 1;
+      rc_cfg_.scaling_factor_den[0] = 2;
+      rc_cfg_.scaling_factor_num[1] = 2;
+      rc_cfg_.scaling_factor_den[1] = 2;
+      svc_params_.scaling_factor_num[0] = 1;
+      svc_params_.scaling_factor_den[0] = 2;
+      svc_params_.scaling_factor_num[1] = 2;
+      svc_params_.scaling_factor_den[1] = 2;
+    } else if (number_spatial_layers == 1) {
+      rc_cfg_.scaling_factor_num[0] = 1;
+      rc_cfg_.scaling_factor_den[0] = 1;
+      svc_params_.scaling_factor_num[0] = 1;
+      svc_params_.scaling_factor_den[0] = 1;
+    }
+
+    // TS rate decimator.
+    if (number_temporal_layers == 3) {
+      rc_cfg_.ts_rate_decimator[0] = 4;
+      rc_cfg_.ts_rate_decimator[1] = 2;
+      rc_cfg_.ts_rate_decimator[2] = 1;
+      svc_params_.framerate_factor[0] = 4;
+      svc_params_.framerate_factor[1] = 2;
+      svc_params_.framerate_factor[2] = 1;
+    } else if (number_temporal_layers == 2) {
+      rc_cfg_.ts_rate_decimator[0] = 2;
+      rc_cfg_.ts_rate_decimator[1] = 1;
+      svc_params_.framerate_factor[0] = 2;
+      svc_params_.framerate_factor[1] = 1;
+    } else if (number_temporal_layers == 1) {
+      rc_cfg_.ts_rate_decimator[0] = 1;
+      svc_params_.framerate_factor[0] = 1;
+    }
+
+    // Bitate.
+    rc_cfg_.target_bandwidth = 0;
+    cfg_.rc_target_bitrate = 0;
+    for (int sl = 0; sl < number_spatial_layers; sl++) {
+      int spatial_bitrate = 0;
+      if (number_spatial_layers <= 3)
+        spatial_bitrate = kSpatialLayerBitrate[sl];
+      for (int tl = 0; tl < number_temporal_layers; tl++) {
+        int layer = sl * number_temporal_layers + tl;
+        if (number_temporal_layers == 3) {
+          rc_cfg_.layer_target_bitrate[layer] =
+              kTemporalRateAllocation3Layer[tl] * spatial_bitrate / 100;
+          svc_params_.layer_target_bitrate[layer] =
+              kTemporalRateAllocation3Layer[tl] * spatial_bitrate / 100;
+        } else if (number_temporal_layers == 2) {
+          rc_cfg_.layer_target_bitrate[layer] =
+              kTemporalRateAllocation2Layer[tl] * spatial_bitrate / 100;
+          svc_params_.layer_target_bitrate[layer] =
+              kTemporalRateAllocation2Layer[tl] * spatial_bitrate / 100;
+        } else if (number_temporal_layers == 1) {
+          rc_cfg_.layer_target_bitrate[layer] = spatial_bitrate;
+          svc_params_.layer_target_bitrate[layer] = spatial_bitrate;
+        }
+      }
+      rc_cfg_.target_bandwidth += spatial_bitrate;
+      cfg_.rc_target_bitrate += spatial_bitrate;
+    }
+
+    // Layer min/max quantizer.
+    for (int sl = 0; sl < number_spatial_layers; ++sl) {
+      for (int tl = 0; tl < number_temporal_layers; ++tl) {
+        const int i = sl * number_temporal_layers + tl;
+        rc_cfg_.max_quantizers[i] = rc_cfg_.max_quantizer;
+        rc_cfg_.min_quantizers[i] = rc_cfg_.min_quantizer;
+        svc_params_.max_quantizers[i] = cfg_.rc_max_quantizer;
+        svc_params_.min_quantizers[i] = cfg_.rc_min_quantizer;
+      }
+    }
   }
 
   std::unique_ptr<aom::AV1RateControlRTC> rc_api_;
