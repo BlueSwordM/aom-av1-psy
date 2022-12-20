@@ -150,10 +150,8 @@ void av1_free_pmc(PICK_MODE_CONTEXT *ctx, int num_planes) {
 }
 
 PC_TREE *av1_alloc_pc_tree_node(BLOCK_SIZE bsize) {
-  PC_TREE *pc_tree = NULL;
-  struct aom_internal_error_info error;
-
-  AOM_CHECK_MEM_ERROR(&error, pc_tree, aom_calloc(1, sizeof(*pc_tree)));
+  PC_TREE *pc_tree = aom_calloc(1, sizeof(*pc_tree));
+  if (pc_tree == NULL) return NULL;
 
   pc_tree->partitioning = PARTITION_NONE;
   pc_tree->block_size = bsize;
