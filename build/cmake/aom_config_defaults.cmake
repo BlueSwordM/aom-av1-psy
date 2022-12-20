@@ -155,6 +155,8 @@ set_aom_config_var(CONFIG_TFLITE 0
                    "AV1 experiment: Enable tensorflow lite library.")
 set_aom_config_var(CONFIG_THREE_PASS 0
                    "AV1 experiment: Enable three-pass encoding.")
+set_aom_config_var(CONFIG_OUTPUT_FRAME_SIZE 0
+                   "AV1 experiment: Output frame size information.")
 
 #
 # Variables in this section control optional features of the build system.

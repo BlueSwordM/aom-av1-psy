@@ -4497,6 +4497,13 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
   }
 #endif
 
+#if CONFIG_OUTPUT_FRAME_SIZE
+  FILE *f = fopen("frame_sizes.csv", "a");
+  fprintf(f, "%d,", 8 * (int)cpi_data->frame_size);
+  fprintf(f, "%d\n", cm->quant_params.base_qindex);
+  fclose(f);
+#endif  // CONFIG_OUTPUT_FRAME_SIZE
+
   if (!is_stat_generation_stage(cpi) && !cpi->is_dropped_frame) {
     // Before calling refresh_reference_frames(), copy ppi->ref_frame_map_copy
     // to cm->ref_frame_map for frame_parallel_level 2 frame in a parallel
