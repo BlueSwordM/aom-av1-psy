@@ -87,12 +87,6 @@ class DuckyEncode {
       const GopStructList &gop_list,
       const GopEncodeInfoList &gop_encode_info_list);
 
-  std::vector<TplGopStats> ComputeTwoPassTplStats(
-      const std::vector<FIRSTPASS_STATS> &stats_list,
-      const GopStructList &gop_list,
-      const GopEncodeInfoList &gop_encode_info_list,
-      const GopEncodeInfoList &alt_gop_encode_info_list);
-
   std::vector<EncodeFrameResult> EncodeVideo(
       const GopStructList &gop_list,
       const GopEncodeInfoList &gop_encode_info_list);
