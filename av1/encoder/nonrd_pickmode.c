@@ -2575,6 +2575,8 @@ static bool should_prune_intra_modes_using_neighbors(
     PREDICTION_MODE left_mode) {
   if (!enable_intra_mode_pruning_using_neighbors) return false;
 
+  // Avoid pruning of DC_PRED as it is the most probable mode to win as per the
+  // statistics generated for nonrd intra mode evaluations.
   if (this_mode == DC_PRED) return false;
 
   // Enable the pruning for current mode only if it is not the winner mode of
@@ -2618,10 +2620,10 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
 
     // As per the statistics generated for intra mode evaluation in the nonrd
     // path, it is found that the probability of H_PRED mode being the winner is
-    // very less when the best mode so far is V_PRED (out of DC_PRED and
-    // V_PRED). If V_PRED is the winner mode out of DC_PRED and V_PRED, it could
-    // imply the presence of a vertically dominant pattern. Hence, H_PRED mode
-    // is not evaluated.
+    // very low when the best mode so far is V_PRED (out of DC_PRED and V_PRED).
+    // If V_PRED is the winner mode out of DC_PRED and V_PRED, it could imply
+    // the presence of a vertically dominant pattern. Hence, H_PRED mode is not
+    // evaluated.
     if (cpi->sf.rt_sf.prune_h_pred_using_best_mode_so_far &&
         this_mode == H_PRED && best_mode == V_PRED)
       continue;
@@ -2634,8 +2636,8 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
       if ((this_mode == V_PRED || this_mode == H_PRED) && source_variance <= 50)
         continue;
 
-      // As per the statistics, probability of SMOOTH_PRED being the winner
-      // is less when best mode so far is DC_PRED (out of DC_PRED, V_PRED and
+      // As per the statistics, probability of SMOOTH_PRED being the winner is
+      // low when best mode so far is DC_PRED (out of DC_PRED, V_PRED and
       // H_PRED). Hence, SMOOTH_PRED mode is not evaluated.
       if (best_mode == DC_PRED && this_mode == SMOOTH_PRED) continue;
     }
