@@ -46,7 +46,7 @@ struct lookahead_ctx *av1_lookahead_init(
     unsigned int width, unsigned int height, unsigned int subsampling_x,
     unsigned int subsampling_y, int use_highbitdepth, unsigned int depth,
     const int border_in_pixels, int byte_alignment, int num_lap_buffers,
-    bool is_all_intra, int num_pyramid_levels) {
+    bool is_all_intra, int enable_global_motion) {
   int lag_in_frames = AOMMAX(1, depth);
 
   // For all-intra frame encoding, previous source frames are not required.
@@ -82,7 +82,7 @@ struct lookahead_ctx *av1_lookahead_init(
       if (aom_realloc_frame_buffer(
               &ctx->buf[i].img, width, height, subsampling_x, subsampling_y,
               use_highbitdepth, border_in_pixels, byte_alignment, NULL, NULL,
-              NULL, num_pyramid_levels, 0)) {
+              NULL, enable_global_motion, 0)) {
         goto fail;
       }
     }

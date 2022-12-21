@@ -264,12 +264,13 @@ void av1_setup_butteraugli_rdmult(AV1_COMP *cpi) {
 
   cpi->source = av1_realloc_and_scale_if_required(
       cm, cpi->unscaled_source, &cpi->scaled_source, cm->features.interp_filter,
-      0, false, false, cpi->oxcf.border_in_pixels, cpi->image_pyramid_levels);
+      0, false, false, cpi->oxcf.border_in_pixels,
+      cpi->oxcf.tool_cfg.enable_global_motion);
   if (cpi->unscaled_last_source != NULL) {
     cpi->last_source = av1_realloc_and_scale_if_required(
         cm, cpi->unscaled_last_source, &cpi->scaled_last_source,
         cm->features.interp_filter, 0, false, false, cpi->oxcf.border_in_pixels,
-        cpi->image_pyramid_levels);
+        cpi->oxcf.tool_cfg.enable_global_motion);
   }
 
   av1_setup_butteraugli_source(cpi);

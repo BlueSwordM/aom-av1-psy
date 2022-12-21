@@ -1369,7 +1369,7 @@ YV12_BUFFER_CONFIG *av1_realloc_and_scale_if_required(
     AV1_COMMON *cm, YV12_BUFFER_CONFIG *unscaled, YV12_BUFFER_CONFIG *scaled,
     const InterpFilter filter, const int phase, const bool use_optimized_scaler,
     const bool for_psnr, const int border_in_pixels,
-    const int num_pyramid_levels) {
+    const bool alloc_y_buffer_8bit) {
   // If scaling is performed for the sole purpose of calculating PSNR, then our
   // target dimensions are superres upscaled width/height. Otherwise our target
   // dimensions are coded width/height.
@@ -1389,7 +1389,7 @@ YV12_BUFFER_CONFIG *av1_realloc_and_scale_if_required(
             scaled, scaled_width, scaled_height, seq_params->subsampling_x,
             seq_params->subsampling_y, seq_params->use_highbitdepth,
             border_in_pixels, cm->features.byte_alignment, NULL, NULL, NULL,
-            num_pyramid_levels, 0))
+            alloc_y_buffer_8bit, 0))
       aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate scaled buffer");
 
@@ -1422,9 +1422,6 @@ YV12_BUFFER_CONFIG *av1_realloc_and_scale_if_required(
 #endif
     return scaled;
   } else {
-#if CONFIG_AV1_ENCODER && !CONFIG_REALTIME_ONLY
-    aom_invalidate_pyramid(unscaled->y_pyramid);
-#endif  // CONFIG_AV1_ENCODER && !CONFIG_REALTIME_ONLY
     return unscaled;
   }
 }

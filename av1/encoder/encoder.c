@@ -642,8 +642,6 @@ static void init_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   init_buffer_indices(&cpi->force_intpel_info, cm->remapped_ref_idx);
 
   av1_noise_estimate_init(&cpi->noise_estimate, cm->width, cm->height);
-
-  cpi->image_pyramid_levels = oxcf->tool_cfg.enable_global_motion ? 1 : 0;
 }
 
 void av1_change_config_seq(struct AV1_PRIMARY *ppi,
@@ -2174,7 +2172,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
           &cm->cur_frame->buf, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, seq_params->use_highbitdepth,
           cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
-          NULL, cpi->image_pyramid_levels, 0))
+          NULL, cpi->oxcf.tool_cfg.enable_global_motion, 0))
     aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
 
@@ -2518,7 +2516,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
 
   cpi->source = av1_realloc_and_scale_if_required(
       cm, unscaled, &cpi->scaled_source, filter_scaler, phase_scaler, true,
-      false, cpi->oxcf.border_in_pixels, cpi->image_pyramid_levels);
+      false, cpi->oxcf.border_in_pixels,
+      cpi->oxcf.tool_cfg.enable_global_motion);
   if (frame_is_intra_only(cm) || resize_pending != 0) {
     memset(cpi->consec_zero_mv, 0,
            ((cm->mi_params.mi_rows * cm->mi_params.mi_cols) >> 2) *
@@ -2529,7 +2528,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
     cpi->last_source = av1_realloc_and_scale_if_required(
         cm, cpi->unscaled_last_source, &cpi->scaled_last_source, filter_scaler,
         phase_scaler, true, false, cpi->oxcf.border_in_pixels,
-        cpi->image_pyramid_levels);
+        cpi->oxcf.tool_cfg.enable_global_motion);
   }
 
   if (cpi->sf.rt_sf.use_temporal_noise_estimate) {
@@ -2714,9 +2713,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       cpi->sf.interp_sf.adaptive_interp_filter_search)
     cpi->interp_search_flags.interp_filter_search_mask =
         av1_setup_interp_filter_search_mask(cpi);
-#if !CONFIG_REALTIME_ONLY
-  aom_invalidate_pyramid(cpi->source->y_pyramid);
-#endif  // !CONFIG_REALTIME_ONLY
+  cpi->source->buf_8bit_valid = 0;
 
   av1_setup_frame_size(cpi);
 
@@ -2791,7 +2788,8 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     }
     cpi->source = av1_realloc_and_scale_if_required(
         cm, cpi->unscaled_source, &cpi->scaled_source, EIGHTTAP_REGULAR, 0,
-        false, false, cpi->oxcf.border_in_pixels, cpi->image_pyramid_levels);
+        false, false, cpi->oxcf.border_in_pixels,
+        cpi->oxcf.tool_cfg.enable_global_motion);
 
 #if CONFIG_TUNE_BUTTERAUGLI
     if (oxcf->tune_cfg.tuning == AOM_TUNE_BUTTERAUGLI) {
@@ -2811,7 +2809,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       cpi->last_source = av1_realloc_and_scale_if_required(
           cm, cpi->unscaled_last_source, &cpi->scaled_last_source,
           EIGHTTAP_REGULAR, 0, false, false, cpi->oxcf.border_in_pixels,
-          cpi->image_pyramid_levels);
+          cpi->oxcf.tool_cfg.enable_global_motion);
     }
 
     int scale_references = 0;

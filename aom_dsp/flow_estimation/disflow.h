@@ -20,9 +20,10 @@ extern "C" {
 #endif
 
 int av1_compute_global_motion_disflow_based(
-    TransformationType type, const ImagePyramid *frm_pyramid, int *frm_corners,
-    int num_frm_corners, const ImagePyramid *ref_pyramid,
-    int *num_inliers_by_motion, MotionModel *params_by_motion, int num_motions);
+    TransformationType type, unsigned char *frm_buffer, int frm_width,
+    int frm_height, int frm_stride, int *frm_corners, int num_frm_corners,
+    YV12_BUFFER_CONFIG *ref, int bit_depth, int *num_inliers_by_motion,
+    MotionModel *params_by_motion, int num_motions);
 
 #ifdef __cplusplus
 }

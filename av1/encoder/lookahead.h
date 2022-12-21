@@ -70,7 +70,7 @@ struct lookahead_ctx *av1_lookahead_init(
     unsigned int width, unsigned int height, unsigned int subsampling_x,
     unsigned int subsampling_y, int use_highbitdepth, unsigned int depth,
     const int border_in_pixels, int byte_alignment, int num_lap_buffers,
-    bool is_all_intra, int num_pyramid_levels);
+    bool is_all_intra, int enable_global_motion);
 
 /**\brief Destroys the lookahead stage
  */

@@ -263,7 +263,8 @@ void DuckyEncode::InitEncoder(aom_enc_pass pass,
       seq_params->subsampling_x, seq_params->subsampling_y,
       seq_params->use_highbitdepth, lag_in_frames, cpi->oxcf.border_in_pixels,
       cpi->common.features.byte_alignment,
-      /*num_lap_buffers=*/0, /*is_all_intra=*/0, cpi->image_pyramid_levels);
+      /*num_lap_buffers=*/0, /*is_all_intra=*/0,
+      cpi->oxcf.tool_cfg.enable_global_motion);
 
   av1_tf_info_alloc(&cpi->ppi->tf_info, cpi);
   assert(ppi->lookahead != nullptr);
