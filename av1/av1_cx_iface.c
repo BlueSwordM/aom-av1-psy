@@ -27,6 +27,7 @@
 #include "av1/encoder/ethread.h"
 #include "av1/encoder/external_partition.h"
 #include "av1/encoder/firstpass.h"
+#include "av1/encoder/rc_utils.h"
 #include "av1/arg_defs.h"
 
 #include "common/args_helper.h"
@@ -3417,6 +3418,7 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
   AV1_PRIMARY *const ppi = ctx->ppi;
   AV1_COMP *const cpi = ppi->cpi;
   AV1_COMMON *const cm = &cpi->common;
+  AV1EncoderConfig *oxcf = &cpi->oxcf;
   aom_svc_params_t *const params = va_arg(args, aom_svc_params_t *);
   int64_t target_bandwidth = 0;
   ppi->number_spatial_layers = params->number_spatial_layers;
@@ -3453,7 +3455,10 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
       }
       av1_init_layer_context(cpi);
     }
+    oxcf->rc_cfg.target_bandwidth = target_bandwidth;
+    set_primary_rc_buffer_sizes(oxcf, cpi->ppi);
     av1_update_layer_context_change_config(cpi, target_bandwidth);
+    check_reset_rc_flag(cpi);
   }
   av1_check_fpmt_config(ctx->ppi, &ctx->ppi->cpi->oxcf);
   return AOM_CODEC_OK;

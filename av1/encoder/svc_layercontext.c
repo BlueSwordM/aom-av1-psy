@@ -105,6 +105,9 @@ void av1_update_layer_context_change_config(AV1_COMP *const cpi,
   int layer = 0;
   int64_t spatial_layer_target = 0;
   float bitrate_alloc = 1.0;
+  AV1_COMMON *const cm = &cpi->common;
+  const int mi_rows = cm->mi_params.mi_rows;
+  const int mi_cols = cm->mi_params.mi_cols;
   for (int sl = 0; sl < svc->number_spatial_layers; ++sl) {
     for (int tl = 0; tl < svc->number_temporal_layers; ++tl) {
       layer = LAYER_IDS_TO_IDX(sl, tl, svc->number_temporal_layers);
@@ -136,6 +139,17 @@ void av1_update_layer_context_change_config(AV1_COMP *const cpi,
       lrc->rtc_external_ratectrl = rc->rtc_external_ratectrl;
       lrc->worst_quality = av1_quantizer_to_qindex(lc->max_q);
       lrc->best_quality = av1_quantizer_to_qindex(lc->min_q);
+      // Reset the cyclic refresh parameters, if needed (map is NULL).
+      // Cyclic refresh is only applied on base temporal layer.
+      if (svc->number_spatial_layers > 1 && tl == 0 && lc->map == NULL) {
+        lc->sb_index = 0;
+        lc->actual_num_seg1_blocks = 0;
+        lc->actual_num_seg2_blocks = 0;
+        lc->counter_encode_maxq_scene_change = 0;
+        if (lc->map) aom_free(lc->map);
+        CHECK_MEM_ERROR(cm, lc->map,
+                        aom_calloc(mi_rows * mi_cols, sizeof(*lc->map)));
+      }
     }
   }
 }
