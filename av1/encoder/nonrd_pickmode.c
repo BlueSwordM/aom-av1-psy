@@ -987,7 +987,7 @@ static INLINE void set_early_term_based_on_uv_plane(
     for (int plane = AOM_PLANE_U; plane <= AOM_PLANE_V; plane++) {
       int j = plane - 1;
       skip_uv[j] = 1;
-      if (x->color_sensitivity[j]) {
+      if (x->color_sensitivity[COLOR_SENS_IDX(plane)]) {
         skip_uv[j] = 0;
         struct macroblock_plane *const puv = &x->plane[plane];
         struct macroblockd_plane *const puvd = &xd->plane[plane];
@@ -1898,7 +1898,7 @@ static int64_t model_rd_for_sb_uv(AV1_COMP *cpi, BLOCK_SIZE plane_bsize,
     const uint32_t ac_quant = p->dequant_QTX[1];
     const BLOCK_SIZE bs = plane_bsize;
     unsigned int var;
-    if (!x->color_sensitivity[plane - 1]) continue;
+    if (!x->color_sensitivity[COLOR_SENS_IDX(plane)]) continue;
 
     var = cpi->ppi->fn_ptr[bs].vf(p->src.buf, p->src.stride, pd->dst.buf,
                                   pd->dst.stride, &sse);
@@ -2822,11 +2822,10 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
 // Checks whether Intra mode needs to be pruned based on
 // 'intra_y_mode_bsize_mask_nrd' and 'prune_hv_pred_modes_using_blksad'
 // speed features.
-static INLINE bool is_prune_intra_mode(AV1_COMP *cpi, int mode_index,
-                                       int force_intra_check, BLOCK_SIZE bsize,
-                                       uint8_t segment_id,
-                                       SOURCE_SAD source_sad_nonrd,
-                                       uint8_t color_sensitivity[2]) {
+static INLINE bool is_prune_intra_mode(
+    AV1_COMP *cpi, int mode_index, int force_intra_check, BLOCK_SIZE bsize,
+    uint8_t segment_id, SOURCE_SAD source_sad_nonrd,
+    uint8_t color_sensitivity[MAX_MB_PLANE - 1]) {
   const PREDICTION_MODE this_mode = intra_mode_list[mode_index];
   if (mode_index > 2 || force_intra_check == 0) {
     if (!((1 << this_mode) & cpi->sf.rt_sf.intra_y_mode_bsize_mask_nrd[bsize]))
@@ -3006,7 +3005,7 @@ static void estimate_intra_mode(
   }
   pd->dst = *orig_dst;
 
-  for (int midx = 0; midx < 4; ++midx) {
+  for (int midx = 0; midx < RTC_INTRA_MODES; ++midx) {
     const PREDICTION_MODE this_mode = intra_mode_list[midx];
     const THR_MODES mode_index = mode_idx[INTRA_FRAME][mode_offset(this_mode)];
     const int64_t mode_rd_thresh = rd_threshes[mode_index];
@@ -3247,7 +3246,8 @@ static void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x,
   const int num_planes = av1_num_planes(&cpi->common);
 
   for (int plane = AOM_PLANE_U; plane < num_planes; ++plane) {
-    if (x->color_sensitivity[plane - 1] == 2 || source_variance < 50) {
+    if (x->color_sensitivity[COLOR_SENS_IDX(plane)] == 2 ||
+        source_variance < 50) {
       struct macroblock_plane *const p = &x->plane[plane];
       const BLOCK_SIZE bs =
           get_plane_block_size(bsize, subsampling_x, subsampling_y);
@@ -3257,10 +3257,10 @@ static void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x,
 
       const int norm_uv_sad =
           uv_sad >> (b_width_log2_lookup[bs] + b_height_log2_lookup[bs]);
-      x->color_sensitivity[plane - 1] =
+      x->color_sensitivity[COLOR_SENS_IDX(plane)] =
           uv_sad > (factor * (y_sad >> shift)) && norm_uv_sad > 40;
       if (source_variance < 50 && norm_uv_sad > 100)
-        x->color_sensitivity[plane - 1] = 1;
+        x->color_sensitivity[COLOR_SENS_IDX(plane)] = 1;
     }
   }
 }
