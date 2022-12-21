@@ -1392,7 +1392,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Skipping aggressiveness increases from level 1 to 2.
   int skip_intra_pred;
 
-  // Perform coarse ME before calculating variance in variance-based partition
+  // Estimate motion before calculating variance in variance-based partition
+  // 0 - Only use zero MV
+  // 1 - perform coarse ME
+  // 2 - perform coarse ME, and also use neighbours' MVs
   int estimate_motion_for_var_based_partition;
 
   // For nonrd_use_partition: mode of extra check of leaf partition

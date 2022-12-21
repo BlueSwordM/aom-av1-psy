@@ -1433,6 +1433,11 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (cpi->svc.number_spatial_layers > 1 ||
         cpi->svc.number_temporal_layers > 1)
       sf->hl_sf.accurate_bit_estimate = 0;
+
+    // TODO(yunqingwang@google.com): test to see if
+    // estimate_motion_for_var_based_partition == 2 helps here.
+    if (sf->rt_sf.estimate_motion_for_var_based_partition == 2)
+      sf->rt_sf.estimate_motion_for_var_based_partition = 1;
   }
   // Screen settings.
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
@@ -1491,6 +1496,11 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
     sf->rt_sf.partition_direct_merging = 0;
     sf->hl_sf.accurate_bit_estimate = 0;
+
+    // "sf->rt_sf.estimate_motion_for_var_based_partition = 2" doesn't work well
+    // for screen contents.
+    if (sf->rt_sf.estimate_motion_for_var_based_partition == 2)
+      sf->rt_sf.estimate_motion_for_var_based_partition = 1;
   }
 }
 
@@ -1747,6 +1757,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
   if (speed >= 8) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_2;
+    sf->rt_sf.estimate_motion_for_var_based_partition = 2;
     sf->intra_sf.intra_pruning_with_hog = 1;
     sf->rt_sf.short_circuit_low_temp_var = 1;
     sf->rt_sf.use_nonrd_altref_frame = 0;
