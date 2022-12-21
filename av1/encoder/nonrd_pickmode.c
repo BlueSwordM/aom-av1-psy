@@ -404,6 +404,32 @@ static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
   av1_zero(bp->pmi);
 }
 
+// Copy best inter mode parameters to best_pickmode
+static INLINE void update_search_state_nonrd(
+    InterModeSearchStateNonrd *search_state, MB_MODE_INFO *const mi,
+    TxfmSearchInfo *txfm_info, RD_STATS *nonskip_rdc, PICK_MODE_CONTEXT *ctx,
+    PREDICTION_MODE this_best_mode, const int64_t sse_y) {
+  BEST_PICKMODE *const best_pickmode = &search_state->best_pickmode;
+  const int num_8x8_blocks = ctx->num_4x4_blk / 4;
+
+  best_pickmode->best_sse = sse_y;
+  best_pickmode->best_mode = this_best_mode;
+  best_pickmode->best_motion_mode = mi->motion_mode;
+  best_pickmode->wm_params = mi->wm_params;
+  best_pickmode->num_proj_ref = mi->num_proj_ref;
+  best_pickmode->best_pred_filter = mi->interp_filters;
+  best_pickmode->best_tx_size = mi->tx_size;
+  best_pickmode->best_ref_frame = mi->ref_frame[0];
+  best_pickmode->best_second_ref_frame = mi->ref_frame[1];
+  best_pickmode->best_mode_skip_txfm = search_state->this_rdc.skip_txfm;
+  best_pickmode->best_mode_initial_skip_flag =
+      (nonskip_rdc->rate == INT_MAX && search_state->this_rdc.skip_txfm);
+  if (!best_pickmode->best_mode_skip_txfm) {
+    memcpy(best_pickmode->blk_skip, txfm_info->blk_skip,
+           sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
+  }
+}
+
 static INLINE int subpel_select(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                                 int_mv *mv, MV ref_mv, FULLPEL_MV start_mv,
                                 bool fullpel_performed_well) {
@@ -3720,7 +3746,6 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
   MV_REFERENCE_FRAME ref_frame = mi->ref_frame[0];
   MV_REFERENCE_FRAME ref_frame2 = mi->ref_frame[1];
   int_mv *const this_mv = &search_state->frame_mv[this_mode][ref_frame];
-  const int num_8x8_blocks = ctx->num_4x4_blk / 4;
   unsigned int var = UINT_MAX;
   int this_early_term = 0;
   int rate_mv = 0;
@@ -4081,22 +4106,8 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
   if (search_state->this_rdc.rdcost < search_state->best_rdc.rdcost) {
     search_state->best_rdc = search_state->this_rdc;
     *best_early_term = this_early_term;
-    best_pickmode->best_sse = sse_y;
-    best_pickmode->best_mode = this_best_mode;
-    best_pickmode->best_motion_mode = mi->motion_mode;
-    best_pickmode->wm_params = mi->wm_params;
-    best_pickmode->num_proj_ref = mi->num_proj_ref;
-    best_pickmode->best_pred_filter = mi->interp_filters;
-    best_pickmode->best_tx_size = mi->tx_size;
-    best_pickmode->best_ref_frame = ref_frame;
-    best_pickmode->best_second_ref_frame = ref_frame2;
-    best_pickmode->best_mode_skip_txfm = search_state->this_rdc.skip_txfm;
-    best_pickmode->best_mode_initial_skip_flag =
-        (nonskip_rdc.rate == INT_MAX && search_state->this_rdc.skip_txfm);
-    if (!best_pickmode->best_mode_skip_txfm) {
-      memcpy(best_pickmode->blk_skip, txfm_info->blk_skip,
-             sizeof(txfm_info->blk_skip[0]) * num_8x8_blocks);
-    }
+    update_search_state_nonrd(search_state, mi, txfm_info, &nonskip_rdc, ctx,
+                              this_best_mode, sse_y);
 
     // This is needed for the compound modes.
     search_state->frame_mv_best[this_best_mode][ref_frame].as_int =
