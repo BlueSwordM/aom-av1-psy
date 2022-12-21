@@ -3480,9 +3480,9 @@ static AOM_INLINE bool prune_compoundmode_with_singlemode_var(
 // Function to setup parameters used for inter mode evaluation in non-rd.
 static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
     AV1_COMP *cpi, MACROBLOCK *x, InterModeSearchStateNonrd *search_state,
-    TileDataEnc *tile_data, PICK_MODE_CONTEXT *ctx, RD_STATS *rd_cost,
-    int *force_skip_low_temp_var, int *skip_pred_mv, int mi_row, int mi_col,
-    int gf_temporal_ref, unsigned char segment_id, BLOCK_SIZE bsize
+    PICK_MODE_CONTEXT *ctx, RD_STATS *rd_cost, int *force_skip_low_temp_var,
+    int *skip_pred_mv, int mi_row, int mi_col, int gf_temporal_ref,
+    unsigned char segment_id, BLOCK_SIZE bsize
 #if CONFIG_AV1_TEMPORAL_DENOISING
     ,
     int denoise_svc_pickmode
@@ -3541,7 +3541,7 @@ static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
 
   // Populate predicated motion vectors for LAST_FRAME
   if (cpi->ref_frame_flags & AOM_LAST_FLAG)
-    find_predictors(cpi, x, LAST_FRAME, search_state->frame_mv, tile_data,
+    find_predictors(cpi, x, LAST_FRAME, search_state->frame_mv,
                     search_state->yv12_mb, bsize, *force_skip_low_temp_var,
                     x->force_zeromv_skip_for_blk);
 
@@ -3560,7 +3560,7 @@ static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
   for (MV_REFERENCE_FRAME ref_frame_iter = LAST_FRAME + 1;
        ref_frame_iter <= ALTREF_FRAME; ++ref_frame_iter) {
     if (search_state->use_ref_frame_mask[ref_frame_iter]) {
-      find_predictors(cpi, x, ref_frame_iter, search_state->frame_mv, tile_data,
+      find_predictors(cpi, x, ref_frame_iter, search_state->frame_mv,
                       search_state->yv12_mb, bsize, *force_skip_low_temp_var,
                       *skip_pred_mv);
     }
@@ -4312,6 +4312,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   InterModeSearchStateNonrd search_state;
   av1_zero(search_state.use_ref_frame_mask);
   BEST_PICKMODE *const best_pickmode = &search_state.best_pickmode;
+  (void)tile_data;
 
   const int bh = block_size_high[bsize];
   const int bw = block_size_wide[bsize];
@@ -4366,7 +4367,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   // Setup parameters used for inter mode evaluation.
   set_params_nonrd_pick_inter_mode(
-      cpi, x, &search_state, tile_data, ctx, rd_cost, &force_skip_low_temp_var,
+      cpi, x, &search_state, ctx, rd_cost, &force_skip_low_temp_var,
       &skip_pred_mv, mi_row, mi_col, gf_temporal_ref, segment_id, bsize
 #if CONFIG_AV1_TEMPORAL_DENOISING
       ,

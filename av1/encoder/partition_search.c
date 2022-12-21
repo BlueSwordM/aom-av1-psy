@@ -2761,7 +2761,7 @@ static void direct_partition_merging(AV1_COMP *cpi, ThreadData *td,
                   x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_U)] != 2 &&
                   x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_V)] != 2);
 
-  find_predictors(cpi, x, ref_frame, frame_mv, tile_data, yv12_mb, bsize,
+  find_predictors(cpi, x, ref_frame, frame_mv, yv12_mb, bsize,
                   force_skip_low_temp_var, skip_pred_mv);
 
   int continue_merging = 1;
@@ -2777,8 +2777,8 @@ static void direct_partition_merging(AV1_COMP *cpi, ThreadData *td,
     // calling find_predictors() again.
     av1_set_offsets_without_segment_id(cpi, &tile_data->tile_info, x, mi_row,
                                        mi_col, this_mi[0]->bsize);
-    find_predictors(cpi, x, ref_frame, frame_mv, tile_data, yv12_mb,
-                    this_mi[0]->bsize, force_skip_low_temp_var, skip_pred_mv);
+    find_predictors(cpi, x, ref_frame, frame_mv, yv12_mb, this_mi[0]->bsize,
+                    force_skip_low_temp_var, skip_pred_mv);
   } else {
     struct scale_factors *sf = get_ref_scale_factors(cm, ref_frame);
     const int is_scaled = av1_is_scaled(sf);
