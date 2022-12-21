@@ -855,11 +855,12 @@ static void block_variance(const uint8_t *src, int src_stride,
   // 32 samples respectively.
   assert(w >= 32);
   assert(h >= 8);
-  for (int i = 0; i < h; i += block_size) {
-    for (int j = 0; j < w; j += 32) {
-      aom_get_var_sse_sum_8x8_quad(
-          src + src_stride * i + j, src_stride, ref + ref_stride * i + j,
-          ref_stride, &sse8x8[k], &sum8x8[k], sse, sum, &var8x8[k]);
+  for (int row = 0; row < h; row += block_size) {
+    for (int col = 0; col < w; col += 32) {
+      aom_get_var_sse_sum_8x8_quad(src + src_stride * row + col, src_stride,
+                                   ref + ref_stride * row + col, ref_stride,
+                                   &sse8x8[k], &sum8x8[k], sse, sum,
+                                   &var8x8[k]);
       k += 4;
     }
   }
@@ -879,10 +880,10 @@ static void block_variance_16x16_dual(const uint8_t *src, int src_stride,
   // least 16 and 32 samples respectively.
   assert(w >= 32);
   assert(h >= 16);
-  for (int i = 0; i < h; i += block_size) {
-    for (int j = 0; j < w; j += 32) {
-      aom_get_var_sse_sum_16x16_dual(src + src_stride * i + j, src_stride,
-                                     ref + ref_stride * i + j, ref_stride,
+  for (int row = 0; row < h; row += block_size) {
+    for (int col = 0; col < w; col += 32) {
+      aom_get_var_sse_sum_16x16_dual(src + src_stride * row + col, src_stride,
+                                     ref + ref_stride * row + col, ref_stride,
                                      &sse16x16[k], sse, sum, &var16x16[k]);
       k += 2;
     }
@@ -896,14 +897,14 @@ static void calculate_variance(int bw, int bh, TX_SIZE tx_size,
   const BLOCK_SIZE unit_size = txsize_to_bsize[tx_size];
   const int nw = 1 << (bw - b_width_log2_lookup[unit_size]);
   const int nh = 1 << (bh - b_height_log2_lookup[unit_size]);
-  int i, j, k = 0;
+  int row, col, k = 0;
 
-  for (i = 0; i < nh; i += 2) {
-    for (j = 0; j < nw; j += 2) {
-      sse_o[k] = sse_i[i * nw + j] + sse_i[i * nw + j + 1] +
-                 sse_i[(i + 1) * nw + j] + sse_i[(i + 1) * nw + j + 1];
-      sum_o[k] = sum_i[i * nw + j] + sum_i[i * nw + j + 1] +
-                 sum_i[(i + 1) * nw + j] + sum_i[(i + 1) * nw + j + 1];
+  for (row = 0; row < nh; row += 2) {
+    for (col = 0; col < nw; col += 2) {
+      sse_o[k] = sse_i[row * nw + col] + sse_i[row * nw + col + 1] +
+                 sse_i[(row + 1) * nw + col] + sse_i[(row + 1) * nw + col + 1];
+      sum_o[k] = sum_i[row * nw + col] + sum_i[row * nw + col + 1] +
+                 sum_i[(row + 1) * nw + col] + sum_i[(row + 1) * nw + col + 1];
       var_o[k] = sse_o[k] - (uint32_t)(((int64_t)sum_o[k] * sum_o[k]) >>
                                        (b_width_log2_lookup[unit_size] +
                                         b_height_log2_lookup[unit_size] + 6));
@@ -1730,10 +1731,10 @@ static void store_coding_context(MACROBLOCK *x, PICK_MODE_CONTEXT *ctx) {
 }
 
 static int get_pred_buffer(PRED_BUFFER *p, int len) {
-  for (int i = 0; i < len; i++) {
-    if (!p[i].in_use) {
-      p[i].in_use = 1;
-      return i;
+  for (int buf_idx = 0; buf_idx < len; buf_idx++) {
+    if (!p[buf_idx].in_use) {
+      p[buf_idx].in_use = 1;
+      return buf_idx;
     }
   }
   return -1;
@@ -2993,12 +2994,12 @@ static void estimate_intra_mode(
   }
   pd->dst = *orig_dst;
 
-  for (int i = 0; i < 4; ++i) {
-    const PREDICTION_MODE this_mode = intra_mode_list[i];
+  for (int midx = 0; midx < 4; ++midx) {
+    const PREDICTION_MODE this_mode = intra_mode_list[midx];
     const THR_MODES mode_index = mode_idx[INTRA_FRAME][mode_offset(this_mode)];
     const int64_t mode_rd_thresh = rd_threshes[mode_index];
 
-    if (is_prune_intra_mode(cpi, i, force_intra_check, bsize, segment_id,
+    if (is_prune_intra_mode(cpi, midx, force_intra_check, bsize, segment_id,
                             x->content_state_sb.source_sad_nonrd,
                             x->color_sensitivity))
       continue;
@@ -3524,8 +3525,8 @@ static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
   av1_invalid_rd_stats(&search_state->best_rdc);
   av1_invalid_rd_stats(&search_state->this_rdc);
   av1_invalid_rd_stats(rd_cost);
-  for (int i = 0; i < REF_FRAMES; ++i) {
-    x->warp_sample_info[i].num = -1;
+  for (int ref_idx = 0; ref_idx < REF_FRAMES; ++ref_idx) {
+    x->warp_sample_info[ref_idx].num = -1;
   }
 
   mi->bsize = bsize;
@@ -4343,10 +4344,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   const ModeCosts *mode_costs = &x->mode_costs;
 
   if (reuse_inter_pred) {
-    for (int i = 0; i < 3; i++) {
-      tmp_buffer[i].data = &pred_buf[pixels_in_block * i];
-      tmp_buffer[i].stride = bw;
-      tmp_buffer[i].in_use = 0;
+    for (int buf_idx = 0; buf_idx < 3; buf_idx++) {
+      tmp_buffer[buf_idx].data = &pred_buf[pixels_in_block * buf_idx];
+      tmp_buffer[buf_idx].stride = bw;
+      tmp_buffer[buf_idx].in_use = 0;
     }
     tmp_buffer[3].data = pd->dst.buf;
     tmp_buffer[3].stride = pd->dst.stride;
