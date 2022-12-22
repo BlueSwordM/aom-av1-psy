@@ -3483,12 +3483,12 @@ static AOM_INLINE bool prune_compoundmode_with_singlemode_var(
 // Function to setup parameters used for inter mode evaluation in non-rd.
 static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
     AV1_COMP *cpi, MACROBLOCK *x, InterModeSearchStateNonrd *search_state,
-    PICK_MODE_CONTEXT *ctx, RD_STATS *rd_cost, int *force_skip_low_temp_var,
-    int *skip_pred_mv, int mi_row, int mi_col, int gf_temporal_ref,
-    unsigned char segment_id, BLOCK_SIZE bsize
+    RD_STATS *rd_cost, int *force_skip_low_temp_var, int *skip_pred_mv,
+    int mi_row, int mi_col, int gf_temporal_ref, unsigned char segment_id,
+    BLOCK_SIZE bsize
 #if CONFIG_AV1_TEMPORAL_DENOISING
     ,
-    int denoise_svc_pickmode
+    PICK_MODE_CONTEXT *ctx, int denoise_svc_pickmode
 #endif
 ) {
   AV1_COMMON *const cm = &cpi->common;
@@ -3496,7 +3496,6 @@ static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
   MB_MODE_INFO *const mi = xd->mi[0];
   const ModeCosts *mode_costs = &x->mode_costs;
-  (void)ctx;
 
   // Initialize variance and distortion (chroma) for all modes and reference
   // frames
@@ -4370,11 +4369,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   // Setup parameters used for inter mode evaluation.
   set_params_nonrd_pick_inter_mode(
-      cpi, x, &search_state, ctx, rd_cost, &force_skip_low_temp_var,
-      &skip_pred_mv, mi_row, mi_col, gf_temporal_ref, segment_id, bsize
+      cpi, x, &search_state, rd_cost, &force_skip_low_temp_var, &skip_pred_mv,
+      mi_row, mi_col, gf_temporal_ref, segment_id, bsize
 #if CONFIG_AV1_TEMPORAL_DENOISING
       ,
-      denoise_svc_pickmode
+      ctx, denoise_svc_pickmode
 #endif
   );
 
