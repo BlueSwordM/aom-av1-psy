@@ -447,7 +447,7 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
           &cm->cur_frame->buf, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, seq_params->use_highbitdepth,
           cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
-          NULL, cpi->oxcf.tool_cfg.enable_global_motion, 0))
+          NULL, cpi->image_pyramid_levels, 0))
     aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
   cpi->norm_wiener_variance = 0;

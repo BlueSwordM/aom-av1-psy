@@ -32,16 +32,15 @@ typedef struct {
   int rx, ry;
 } Correspondence;
 
-int aom_determine_correspondence(unsigned char *src, int *src_corners,
-                                 int num_src_corners, unsigned char *ref,
+int aom_determine_correspondence(const unsigned char *src, int *src_corners,
+                                 int num_src_corners, const unsigned char *ref,
                                  int *ref_corners, int num_ref_corners,
                                  int width, int height, int src_stride,
                                  int ref_stride, int *correspondence_pts);
 
 int av1_compute_global_motion_feature_based(
-    TransformationType type, unsigned char *src_buffer, int src_width,
-    int src_height, int src_stride, int *src_corners, int num_src_corners,
-    YV12_BUFFER_CONFIG *ref, int bit_depth, int *num_inliers_by_motion,
+    TransformationType type, ImagePyramid *src_pyramid, int *src_corners,
+    int num_src_corners, ImagePyramid *ref_pyramid, int *num_inliers_by_motion,
     MotionModel *params_by_motion, int num_motions);
 
 #ifdef __cplusplus

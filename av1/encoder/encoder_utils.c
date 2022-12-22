@@ -701,7 +701,8 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
           RefCntBuffer *ref_fb = get_ref_frame_buf(cm, ref_frame);
           if (aom_yv12_realloc_with_new_border(
                   &ref_fb->buf, AOM_BORDER_IN_PIXELS,
-                  cm->features.byte_alignment, num_planes) != 0) {
+                  cm->features.byte_alignment, cpi->image_pyramid_levels,
+                  num_planes) != 0) {
             aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                                "Failed to allocate frame buffer");
           }
@@ -1029,13 +1030,12 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
 
   cpi->source = av1_realloc_and_scale_if_required(
       cm, cpi->unscaled_source, &cpi->scaled_source, cm->features.interp_filter,
-      0, false, false, cpi->oxcf.border_in_pixels,
-      cpi->oxcf.tool_cfg.enable_global_motion);
+      0, false, false, cpi->oxcf.border_in_pixels, cpi->image_pyramid_levels);
   if (cpi->unscaled_last_source != NULL) {
     cpi->last_source = av1_realloc_and_scale_if_required(
         cm, cpi->unscaled_last_source, &cpi->scaled_last_source,
         cm->features.interp_filter, 0, false, false, cpi->oxcf.border_in_pixels,
-        cpi->oxcf.tool_cfg.enable_global_motion);
+        cpi->image_pyramid_levels);
   }
 
   av1_setup_frame(cpi);

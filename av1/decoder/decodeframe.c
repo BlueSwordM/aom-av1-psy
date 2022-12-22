@@ -5128,7 +5128,7 @@ static AOM_INLINE void superres_post_decode(AV1Decoder *pbi) {
   if (!av1_superres_scaled(cm)) return;
   assert(!cm->features.all_lossless);
 
-  av1_superres_upscale(cm, pool);
+  av1_superres_upscale(cm, pool, 0);
 }
 
 uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,

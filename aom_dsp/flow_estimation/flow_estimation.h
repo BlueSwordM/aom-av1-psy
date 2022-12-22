@@ -12,6 +12,7 @@
 #ifndef AOM_AOM_DSP_FLOW_ESTIMATION_H_
 #define AOM_AOM_DSP_FLOW_ESTIMATION_H_
 
+#include "aom_dsp/pyramid.h"
 #include "aom_ports/mem.h"
 #include "aom_scale/yv12config.h"
 
@@ -48,15 +49,11 @@ typedef struct {
 } MotionModel;
 
 int aom_compute_global_motion(TransformationType type,
-                              unsigned char *src_buffer, int src_width,
-                              int src_height, int src_stride, int *src_corners,
-                              int num_src_corners, YV12_BUFFER_CONFIG *ref,
-                              int bit_depth,
+                              ImagePyramid *src_pyramid, int *src_corners,
+                              int num_src_corners, ImagePyramid *ref_pyramid,
                               GlobalMotionEstimationType gm_estimation_type,
                               int *num_inliers_by_motion,
                               MotionModel *params_by_motion, int num_motions);
-
-unsigned char *av1_downconvert_frame(YV12_BUFFER_CONFIG *frm, int bit_depth);
 
 #ifdef __cplusplus
 }

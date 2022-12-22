@@ -32,8 +32,9 @@ DECLARE_ALIGNED(16, static const uint8_t,
    correlation/standard deviation are taken over MATCH_SZ by MATCH_SZ windows
    of each image, centered at (x1, y1) and (x2, y2) respectively.
 */
-double av1_compute_cross_correlation_sse4_1(unsigned char *im1, int stride1,
-                                            int x1, int y1, unsigned char *im2,
+double av1_compute_cross_correlation_sse4_1(const unsigned char *im1,
+                                            int stride1, int x1, int y1,
+                                            const unsigned char *im2,
                                             int stride2, int x2, int y2) {
   int i;
   // 2 16-bit partial sums in lanes 0, 4 (== 2 32-bit partial sums in lanes 0,

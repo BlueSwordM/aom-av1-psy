@@ -19,6 +19,7 @@
 #include "aom_dsp/flow_estimation/corner_match.h"
 #include "aom_dsp/flow_estimation/flow_estimation.h"
 #include "aom_dsp/flow_estimation/ransac.h"
+#include "aom_dsp/pyramid.h"
 #include "aom_scale/yv12config.h"
 
 #define SEARCH_SZ 9
@@ -29,7 +30,8 @@
 /* Compute var(im) * MATCH_SZ_SQ over a MATCH_SZ by MATCH_SZ window of im,
    centered at (x, y).
 */
-static double compute_variance(unsigned char *im, int stride, int x, int y) {
+static double compute_variance(const unsigned char *im, int stride, int x,
+                               int y) {
   int sum = 0;
   int sumsq = 0;
   int var;
@@ -48,9 +50,9 @@ static double compute_variance(unsigned char *im, int stride, int x, int y) {
    correlation/standard deviation are taken over MATCH_SZ by MATCH_SZ windows
    of each image, centered at (x1, y1) and (x2, y2) respectively.
 */
-double av1_compute_cross_correlation_c(unsigned char *im1, int stride1, int x1,
-                                       int y1, unsigned char *im2, int stride2,
-                                       int x2, int y2) {
+double av1_compute_cross_correlation_c(const unsigned char *im1, int stride1,
+                                       int x1, int y1, const unsigned char *im2,
+                                       int stride2, int x2, int y2) {
   int v1, v2;
   int sum1 = 0;
   int sum2 = 0;
@@ -84,9 +86,9 @@ static int is_eligible_distance(int point1x, int point1y, int point2x,
           (point1y - point2y) * (point1y - point2y)) <= thresh * thresh;
 }
 
-static void improve_correspondence(unsigned char *frm, unsigned char *ref,
-                                   int width, int height, int frm_stride,
-                                   int ref_stride,
+static void improve_correspondence(const unsigned char *frm,
+                                   const unsigned char *ref, int width,
+                                   int height, int frm_stride, int ref_stride,
                                    Correspondence *correspondences,
                                    int num_correspondences) {
   int i;
@@ -143,8 +145,8 @@ static void improve_correspondence(unsigned char *frm, unsigned char *ref,
   }
 }
 
-int aom_determine_correspondence(unsigned char *src, int *src_corners,
-                                 int num_src_corners, unsigned char *ref,
+int aom_determine_correspondence(const unsigned char *src, int *src_corners,
+                                 int num_src_corners, const unsigned char *ref,
                                  int *ref_corners, int num_ref_corners,
                                  int width, int height, int src_stride,
                                  int ref_stride, int *correspondence_pts) {
@@ -211,25 +213,30 @@ static bool get_inliers_from_indices(MotionModel *params,
 }
 
 int av1_compute_global_motion_feature_based(
-    TransformationType type, unsigned char *src_buffer, int src_width,
-    int src_height, int src_stride, int *src_corners, int num_src_corners,
-    YV12_BUFFER_CONFIG *ref, int bit_depth, int *num_inliers_by_motion,
+    TransformationType type, ImagePyramid *src_pyramid, int *src_corners,
+    int num_src_corners, ImagePyramid *ref_pyramid, int *num_inliers_by_motion,
     MotionModel *params_by_motion, int num_motions) {
   int i;
   int num_ref_corners;
   int num_correspondences;
   int *correspondences;
   int ref_corners[2 * MAX_CORNERS];
-  unsigned char *ref_buffer = ref->y_buffer;
   RansacFunc ransac = av1_get_ransac_type(type);
 
-  if (ref->flags & YV12_FLAG_HIGHBITDEPTH) {
-    ref_buffer = av1_downconvert_frame(ref, bit_depth);
-  }
+  assert(aom_is_pyramid_valid(src_pyramid));
+  const uint8_t *src_buffer = src_pyramid->layers[0].buffer;
+  const int src_width = src_pyramid->layers[0].width;
+  const int src_height = src_pyramid->layers[0].height;
+  const int src_stride = src_pyramid->layers[0].stride;
 
-  num_ref_corners =
-      av1_fast_corner_detect(ref_buffer, ref->y_width, ref->y_height,
-                             ref->y_stride, ref_corners, MAX_CORNERS);
+  assert(aom_is_pyramid_valid(ref_pyramid));
+  const uint8_t *ref_buffer = ref_pyramid->layers[0].buffer;
+  const int ref_width = ref_pyramid->layers[0].width;
+  const int ref_height = ref_pyramid->layers[0].height;
+  const int ref_stride = ref_pyramid->layers[0].stride;
+
+  num_ref_corners = av1_fast_corner_detect(
+      ref_buffer, ref_width, ref_height, ref_stride, ref_corners, MAX_CORNERS);
 
   // find correspondences between the two images
   correspondences =
@@ -238,7 +245,7 @@ int av1_compute_global_motion_feature_based(
   num_correspondences = aom_determine_correspondence(
       src_buffer, (int *)src_corners, num_src_corners, ref_buffer,
       (int *)ref_corners, num_ref_corners, src_width, src_height, src_stride,
-      ref->y_stride, correspondences);
+      ref_stride, correspondences);
 
   ransac(correspondences, num_correspondences, num_inliers_by_motion,
          params_by_motion, num_motions);

@@ -16,6 +16,7 @@
 #include "aom_dsp/flow_estimation/disflow.h"
 #include "aom_dsp/flow_estimation/flow_estimation.h"
 #include "aom_dsp/flow_estimation/ransac.h"
+#include "aom_dsp/pyramid.h"
 
 #include "aom_scale/yv12config.h"
 
@@ -48,7 +49,7 @@ typedef struct {
   unsigned char *level_buffer;
   double *level_dx_buffer;
   double *level_dy_buffer;
-} ImagePyramid;
+} FlowPyramid;
 
 // Don't use points around the frame border since they are less reliable
 static INLINE int valid_point(int x, int y, int width, int height) {
@@ -327,7 +328,7 @@ static INLINE void sobel_xy_image_gradient(const uint8_t *src, int src_stride,
   }
 }
 
-static void free_pyramid(ImagePyramid *pyr) {
+static void free_pyramid(FlowPyramid *pyr) {
   aom_free(pyr->level_buffer);
   if (pyr->has_gradient) {
     aom_free(pyr->level_dx_buffer);
@@ -336,9 +337,9 @@ static void free_pyramid(ImagePyramid *pyr) {
   aom_free(pyr);
 }
 
-static ImagePyramid *alloc_pyramid(int width, int height, int pad_size,
-                                   int compute_gradient) {
-  ImagePyramid *pyr = aom_calloc(1, sizeof(*pyr));
+static FlowPyramid *alloc_pyramid(int width, int height, int pad_size,
+                                  int compute_gradient) {
+  FlowPyramid *pyr = aom_calloc(1, sizeof(*pyr));
   if (!pyr) return NULL;
   pyr->has_gradient = compute_gradient;
   // 2 * width * height is the upper bound for a buffer that fits
@@ -366,7 +367,7 @@ static ImagePyramid *alloc_pyramid(int width, int height, int pad_size,
   return pyr;
 }
 
-static INLINE void update_level_dims(ImagePyramid *frm_pyr, int level) {
+static INLINE void update_level_dims(FlowPyramid *frm_pyr, int level) {
   frm_pyr->widths[level] = frm_pyr->widths[level - 1] >> 1;
   frm_pyr->heights[level] = frm_pyr->heights[level - 1] >> 1;
   frm_pyr->strides[level] = frm_pyr->widths[level] + 2 * frm_pyr->pad_size;
@@ -379,10 +380,10 @@ static INLINE void update_level_dims(ImagePyramid *frm_pyr, int level) {
 }
 
 // Compute coarse to fine pyramids for a frame
-static void compute_flow_pyramids(unsigned char *frm, const int frm_width,
+static void compute_flow_pyramids(const unsigned char *frm, const int frm_width,
                                   const int frm_height, const int frm_stride,
                                   int n_levels, int pad_size, int compute_grad,
-                                  ImagePyramid *frm_pyr) {
+                                  FlowPyramid *frm_pyr) {
   int cur_width, cur_height, cur_stride, cur_loc;
   assert((frm_width >> n_levels) > 0);
   assert((frm_height >> n_levels) > 0);
@@ -480,7 +481,7 @@ static INLINE void compute_flow_at_point(unsigned char *frm, unsigned char *ref,
 }
 
 // make sure flow_u and flow_v start at 0
-static bool compute_flow_field(ImagePyramid *frm_pyr, ImagePyramid *ref_pyr,
+static bool compute_flow_field(FlowPyramid *frm_pyr, FlowPyramid *ref_pyr,
                                double *flow_u, double *flow_v) {
   int cur_width, cur_height, cur_stride, cur_loc, patch_loc, patch_center;
   double *u_upscale =
@@ -539,17 +540,26 @@ static bool compute_flow_field(ImagePyramid *frm_pyr, ImagePyramid *ref_pyr,
 }
 
 int av1_compute_global_motion_disflow_based(
-    TransformationType type, unsigned char *frm_buffer, int frm_width,
-    int frm_height, int frm_stride, int *frm_corners, int num_frm_corners,
-    YV12_BUFFER_CONFIG *ref, int bit_depth, int *num_inliers_by_motion,
+    TransformationType type, ImagePyramid *frm_pyramid, int *frm_corners,
+    int num_frm_corners, ImagePyramid *ref_pyramid, int *num_inliers_by_motion,
     MotionModel *params_by_motion, int num_motions) {
-  unsigned char *ref_buffer = ref->y_buffer;
-  const int ref_width = ref->y_width;
-  const int ref_height = ref->y_height;
   const int pad_size = AOMMAX(PATCH_SIZE, MIN_PAD);
   int num_correspondences;
   double *correspondences;
   RansacFuncDouble ransac = av1_get_ransac_double_prec_type(type);
+
+  assert(aom_is_pyramid_valid(frm_pyramid));
+  const uint8_t *frm_buffer = frm_pyramid->layers[0].buffer;
+  const int frm_width = frm_pyramid->layers[0].width;
+  const int frm_height = frm_pyramid->layers[0].height;
+  const int frm_stride = frm_pyramid->layers[0].stride;
+
+  assert(aom_is_pyramid_valid(ref_pyramid));
+  const uint8_t *ref_buffer = ref_pyramid->layers[0].buffer;
+  const int ref_width = ref_pyramid->layers[0].width;
+  const int ref_height = ref_pyramid->layers[0].height;
+  const int ref_stride = ref_pyramid->layers[0].stride;
+
   assert(frm_width == ref_width);
   assert(frm_height == ref_height);
 
@@ -557,10 +567,6 @@ int av1_compute_global_motion_disflow_based(
   const int msb =
       frm_width < frm_height ? get_msb(frm_width) : get_msb(frm_height);
   const int n_levels = AOMMIN(msb, N_LEVELS);
-
-  if (ref->flags & YV12_FLAG_HIGHBITDEPTH) {
-    ref_buffer = av1_downconvert_frame(ref, bit_depth);
-  }
 
   // TODO(sarahparker) We will want to do the source pyramid computation
   // outside of this function so it doesn't get recomputed for every
@@ -570,21 +576,21 @@ int av1_compute_global_motion_disflow_based(
   // once the full implementation is working.
   // Allocate frm image pyramids
   int compute_gradient = 1;
-  ImagePyramid *frm_pyr =
+  FlowPyramid *frm_pyr =
       alloc_pyramid(frm_width, frm_height, pad_size, compute_gradient);
   if (!frm_pyr) return 0;
   compute_flow_pyramids(frm_buffer, frm_width, frm_height, frm_stride, n_levels,
                         pad_size, compute_gradient, frm_pyr);
   // Allocate ref image pyramids
   compute_gradient = 0;
-  ImagePyramid *ref_pyr =
+  FlowPyramid *ref_pyr =
       alloc_pyramid(ref_width, ref_height, pad_size, compute_gradient);
   if (!ref_pyr) {
     free_pyramid(frm_pyr);
     return 0;
   }
-  compute_flow_pyramids(ref_buffer, ref_width, ref_height, ref->y_stride,
-                        n_levels, pad_size, compute_gradient, ref_pyr);
+  compute_flow_pyramids(ref_buffer, ref_width, ref_height, ref_stride, n_levels,
+                        pad_size, compute_gradient, ref_pyr);
 
   int ret = 0;
   double *flow_u =

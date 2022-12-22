@@ -801,7 +801,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
           oxcf->frm_dim_cfg.height, cm->seq_params->subsampling_x,
           cm->seq_params->subsampling_y, cm->seq_params->use_highbitdepth,
           cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
-          NULL, cpi->oxcf.tool_cfg.enable_global_motion, 0);
+          NULL, cpi->image_pyramid_levels, 0);
       if (ret)
         aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                            "Failed to allocate tf_buf_second_arf");
@@ -905,8 +905,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   if (apply_filtering && is_psnr_calc_enabled(cpi)) {
     cpi->source = av1_realloc_and_scale_if_required(
         cm, source_buffer, &cpi->scaled_source, cm->features.interp_filter, 0,
-        false, true, cpi->oxcf.border_in_pixels,
-        cpi->oxcf.tool_cfg.enable_global_motion);
+        false, true, cpi->oxcf.border_in_pixels, cpi->image_pyramid_levels);
     cpi->unscaled_source = source_buffer;
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING

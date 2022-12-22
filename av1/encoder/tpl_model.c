@@ -190,7 +190,7 @@ void av1_setup_tpl_buffers(AV1_PRIMARY *const ppi,
             &tpl_data->tpl_rec_pool[frame], width, height,
             seq_params->subsampling_x, seq_params->subsampling_y,
             seq_params->use_highbitdepth, tpl_data->border_in_pixels,
-            byte_alignment, alloc_y_plane_only))
+            byte_alignment, 0, alloc_y_plane_only))
       aom_internal_error(&ppi->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate frame buffer");
   }
