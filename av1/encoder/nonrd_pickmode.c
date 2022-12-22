@@ -74,25 +74,37 @@ typedef struct {
   MV_REFERENCE_FRAME ref_frame[2];
   PREDICTION_MODE pred_mode;
 } COMP_REF_MODE;
+/*!\endcond */
 
 /*!\brief Structure to store parameters and statistics used in non-rd inter mode
  * evaluation.
  */
 typedef struct {
+  //! Structure to hold best inter mode data
   BEST_PICKMODE best_pickmode;
+  //! Structure to RD cost of current mode
   RD_STATS this_rdc;
+  //! Pointer to the RD Cost for the best mode found so far
   RD_STATS best_rdc;
+  //! Distortion of chroma planes for all modes and reference frames
   int64_t uv_dist[RTC_INTER_MODES][REF_FRAMES];
+  //! Buffer to hold predicted block for all reference frames and planes
   struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE];
+  //! Array to hold variance of all modes and reference frames
   unsigned int vars[RTC_INTER_MODES][REF_FRAMES];
+  //! Array to hold ref cost of single reference mode for all ref frames
   unsigned int ref_costs_single[REF_FRAMES];
+  //! Array to hold motion vector for all modes and reference frames
   int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES];
+  //! Array to hold best mv for all modes and reference frames
   int_mv frame_mv_best[MB_MODE_COUNT][REF_FRAMES];
+  //! Array to hold inter mode cost of single ref mode for all ref frames
   int single_inter_mode_costs[RTC_INTER_MODES][REF_FRAMES];
+  //! Array to hold use reference frame mask for each reference frame
   int use_ref_frame_mask[REF_FRAMES];
+  //! Array to hold flags of evaluated modes for each reference frame
   uint8_t mode_checked[MB_MODE_COUNT][REF_FRAMES];
 } InterModeSearchStateNonrd;
-/*!\endcond */
 
 #define NUM_COMP_INTER_MODES_RT (6)
 #define NUM_INTER_MODES 12
@@ -4208,6 +4220,9 @@ static AOM_FORCE_INLINE void handle_screen_content_mode_nonrd(
     this_mode_pred = &tmp_buffer[get_pred_buffer(tmp_buffer, 3)];
     pd->dst.buf = this_mode_pred->data;
     pd->dst.stride = bw;
+
+    // Build inter predicted samples and compute RD cost using Identity
+    // transform.
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
                                   AOM_PLANE_Y, AOM_PLANE_Y);
     block_yrd_idtx(x, &idtx_rdc, &is_skippable, bsize, mi->tx_size);
@@ -4235,9 +4250,11 @@ static AOM_FORCE_INLINE void handle_screen_content_mode_nonrd(
   const unsigned int intra_ref_frame_cost =
       search_state->ref_costs_single[INTRA_FRAME];
 
+  // Search palette mode for Luma plane in inter frame.
   av1_search_palette_mode_luma(cpi, x, bsize, intra_ref_frame_cost, ctx,
                                &search_state->this_rdc,
                                search_state->best_rdc.rdcost);
+  // Update best mode data in search_state
   if (search_state->this_rdc.rdcost < search_state->best_rdc.rdcost) {
     best_pickmode->pmi = mi->palette_mode_info;
     best_pickmode->best_mode = DC_PRED;
@@ -4487,6 +4504,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     }
   }
 
+  // Restore mode data of best inter mode
   mi->mode = best_pickmode->best_mode;
   mi->motion_mode = best_pickmode->best_motion_mode;
   mi->wm_params = best_pickmode->wm_params;
@@ -4519,6 +4537,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   ms_stat.num_nonskipped_searches[bsize][DC_PRED]++;
 #endif
 
+  // Evaluate Intra modes in inter frame
   if (!x->force_zeromv_skip_for_blk)
     estimate_intra_mode(cpi, x, bsize, best_early_term,
                         search_state.ref_costs_single[INTRA_FRAME],
@@ -4551,6 +4570,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #endif
 
   pd->dst = orig_dst;
+  // Best mode is finalized. Restore the mode data to mbmi
   if (try_palette) mi->palette_mode_info = best_pickmode->pmi;
   mi->mode = best_pickmode->best_mode;
   mi->ref_frame[0] = best_pickmode->best_ref_frame;
@@ -4574,6 +4594,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     mi->interp_filters = av1_broadcast_interp_filter(SWITCHABLE_FILTERS);
   }
 
+  // Restore the predicted samples of best mode to final buffer
   if (reuse_inter_pred && best_pickmode->best_pred != NULL) {
     PRED_BUFFER *const best_pred = best_pickmode->best_pred;
     if (best_pred->data != orig_dst.buf && is_inter_mode(mi->mode)) {
@@ -4601,6 +4622,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   }
 #endif
 
+  // Update the factors used for RD thresholding for all modes.
   if (cpi->sf.inter_sf.adaptive_rd_thresh && !has_second_ref(mi)) {
     THR_MODES best_mode_idx =
         mode_idx[best_pickmode->best_ref_frame][mode_offset(mi->mode)];
