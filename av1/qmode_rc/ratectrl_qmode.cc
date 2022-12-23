@@ -22,6 +22,7 @@
 
 #include "aom/aom_codec.h"
 #include "av1/encoder/pass2_strategy.h"
+#include "av1/encoder/ratectrl.h"
 #include "av1/encoder/tpl_model.h"
 
 namespace aom {
@@ -1002,9 +1003,10 @@ Status ValidateTplStats(const GopStruct &gop_struct,
 }
 }  // namespace
 
-Status FillTplUnitDepStats(TplFrameDepStats &frame_dep_stats,
-                           const TplFrameStats &frame_stats,
-                           const std::vector<TplBlockStats> &block_stats_list) {
+Status FillTplUnitDepStats(
+    std::vector<std::vector<TplUnitDepStats>> &unit_stats,
+    const TplFrameStats &frame_stats,
+    const std::vector<TplBlockStats> &block_stats_list) {
   const int min_block_size = frame_stats.min_block_size;
   const int unit_rows =
       (frame_stats.frame_height + min_block_size - 1) / min_block_size;
@@ -1026,12 +1028,11 @@ Status FillTplUnitDepStats(TplFrameDepStats &frame_dep_stats,
     const int block_unit_cols = std::min(block_stats.width / min_block_size,
                                          unit_cols - block_unit_col);
     const int unit_count = block_unit_rows * block_unit_cols;
-    TplUnitDepStats unit_stats =
+    TplUnitDepStats this_unit_stats =
         TplBlockStatsToDepStats(block_stats, unit_count);
     for (int r = 0; r < block_unit_rows; r++) {
       for (int c = 0; c < block_unit_cols; c++) {
-        frame_dep_stats.unit_stats[block_unit_row + r][block_unit_col + c] =
-            unit_stats;
+        unit_stats[block_unit_row + r][block_unit_col + c] = this_unit_stats;
       }
     }
   }
@@ -1048,12 +1049,12 @@ StatusOr<TplFrameDepStats> CreateTplFrameDepStatsWithoutPropagation(
       frame_stats.frame_height, frame_stats.frame_width, min_block_size,
       !frame_stats.alternate_block_stats_list.empty());
 
-  Status status = FillTplUnitDepStats(frame_dep_stats, frame_stats,
+  Status status = FillTplUnitDepStats(frame_dep_stats.unit_stats, frame_stats,
                                       frame_stats.block_stats_list);
   if (!status.ok()) return status;
 
   if (!frame_stats.alternate_block_stats_list.empty()) {
-    status = FillTplUnitDepStats(frame_dep_stats, frame_stats,
+    status = FillTplUnitDepStats(frame_dep_stats.alt_unit_stats, frame_stats,
                                  frame_stats.alternate_block_stats_list);
     if (!status.ok()) return status;
     frame_dep_stats.rdcost =
@@ -1556,6 +1557,8 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithNoStats(
           gop_frame.update_type == GopFrameType::kRegularKey ||
           gop_frame.update_type == GopFrameType::kRegularArf) {
         param.q_index = 5;
+        param.rdmult = av1_compute_rd_mult_based_on_qindex(
+            AOM_BITS_8, ARF_UPDATE, param.q_index);
       }
     }
     gop_encode_info.param_list.push_back(param);
