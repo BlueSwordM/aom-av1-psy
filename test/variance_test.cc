@@ -42,6 +42,11 @@ typedef void (*GetSseSum8x8QuadFunc)(const uint8_t *a, int a_stride,
                                      uint32_t *sse8x8, int *sum8x8,
                                      unsigned int *tot_sse, int *tot_sum,
                                      uint32_t *var8x8);
+typedef void (*GetSseSum16x16DualFunc)(const uint8_t *a, int a_stride,
+                                       const uint8_t *b, int b_stride,
+                                       uint32_t *sse16x16,
+                                       unsigned int *tot_sse, int *tot_sum,
+                                       uint32_t *var16x16);
 typedef unsigned int (*SubpixVarMxNFunc)(const uint8_t *a, int a_stride,
                                          int xoffset, int yoffset,
                                          const uint8_t *b, int b_stride,
@@ -707,6 +712,12 @@ class MainTestClass
   void MaxTestSseSum();
   void SseSum_SpeedTest();
 
+  // SSE&SUM dual tests
+  void RefTestSseSumDual();
+  void MinTestSseSumDual();
+  void MaxTestSseSumDual();
+  void SseSum_SpeedTestDual();
+
   // MSE/SSE tests
   void RefTestMse();
   void RefTestSse();
@@ -1022,6 +1033,171 @@ void MainTestClass<GetSseSum8x8QuadFuncType>::SseSum_SpeedTest() {
       width(), height(), elapsed_time_ref, elapsed_time_simd,
       elapsed_time_ref / elapsed_time_simd);
 }
+
+template <typename GetSseSum16x16DualFuncType>
+void MainTestClass<GetSseSum16x16DualFuncType>::RefTestSseSumDual() {
+  for (int iter = 0; iter < 10; ++iter) {
+    for (int idx = 0; idx < block_size(); ++idx) {
+      src_[idx] = rnd_.Rand8();
+      ref_[idx] = rnd_.Rand8();
+    }
+    unsigned int sse1[64] = { 0 };
+    unsigned int sse2[64] = { 0 };
+    unsigned int var1[64] = { 0 };
+    unsigned int var2[64] = { 0 };
+    unsigned int sse_tot_c = 0;
+    unsigned int sse_tot_simd = 0;
+    int sum_tot_c = 0;
+    int sum_tot_simd = 0;
+    const int stride = width();
+    int k = 0;
+
+    for (int row = 0; row < height(); row += 16) {
+      for (int col = 0; col < width(); col += 32) {
+        API_REGISTER_STATE_CHECK(params_.func(
+            src_ + stride * row + col, stride, ref_ + stride * row + col,
+            stride, &sse1[k], &sse_tot_simd, &sum_tot_simd, &var1[k]));
+        aom_get_var_sse_sum_16x16_dual_c(
+            src_ + stride * row + col, stride, ref_ + stride * row + col,
+            stride, &sse2[k], &sse_tot_c, &sum_tot_c, &var2[k]);
+        k += 2;
+      }
+    }
+    EXPECT_EQ(sse_tot_c, sse_tot_simd);
+    EXPECT_EQ(sum_tot_c, sum_tot_simd);
+    for (int p = 0; p < 64; p++) {
+      EXPECT_EQ(sse1[p], sse2[p]);
+      EXPECT_EQ(sse_tot_simd, sse_tot_c);
+      EXPECT_EQ(sum_tot_simd, sum_tot_c);
+      EXPECT_EQ(var1[p], var2[p]);
+    }
+  }
+}
+
+template <typename GetSseSum16x16DualFuncType>
+void MainTestClass<GetSseSum16x16DualFuncType>::MinTestSseSumDual() {
+  memset(src_, 0, block_size());
+  memset(ref_, 255, block_size());
+  unsigned int sse1[64] = { 0 };
+  unsigned int sse2[64] = { 0 };
+  unsigned int var1[64] = { 0 };
+  unsigned int var2[64] = { 0 };
+  unsigned int sse_tot_c = 0;
+  unsigned int sse_tot_simd = 0;
+  int sum_tot_c = 0;
+  int sum_tot_simd = 0;
+  const int stride = width();
+  int k = 0;
+
+  for (int row = 0; row < height(); row += 16) {
+    for (int col = 0; col < width(); col += 32) {
+      API_REGISTER_STATE_CHECK(params_.func(
+          src_ + stride * row + col, stride, ref_ + stride * row + col, stride,
+          &sse1[k], &sse_tot_simd, &sum_tot_simd, &var1[k]));
+      aom_get_var_sse_sum_16x16_dual_c(
+          src_ + stride * row + col, stride, ref_ + stride * row + col, stride,
+          &sse2[k], &sse_tot_c, &sum_tot_c, &var2[k]);
+      k += 2;
+    }
+  }
+  EXPECT_EQ(sse_tot_simd, sse_tot_c);
+  EXPECT_EQ(sum_tot_simd, sum_tot_c);
+  for (int p = 0; p < 64; p++) {
+    EXPECT_EQ(sse1[p], sse2[p]);
+    EXPECT_EQ(var1[p], var2[p]);
+  }
+}
+
+template <typename GetSseSum16x16DualFuncType>
+void MainTestClass<GetSseSum16x16DualFuncType>::MaxTestSseSumDual() {
+  memset(src_, 255, block_size());
+  memset(ref_, 0, block_size());
+  unsigned int sse1[64] = { 0 };
+  unsigned int sse2[64] = { 0 };
+  unsigned int var1[64] = { 0 };
+  unsigned int var2[64] = { 0 };
+  unsigned int sse_tot_c = 0;
+  unsigned int sse_tot_simd = 0;
+  int sum_tot_c = 0;
+  int sum_tot_simd = 0;
+  const int stride = width();
+  int k = 0;
+
+  for (int row = 0; row < height(); row += 16) {
+    for (int col = 0; col < width(); col += 32) {
+      API_REGISTER_STATE_CHECK(params_.func(
+          src_ + stride * row + col, stride, ref_ + stride * row + col, stride,
+          &sse1[k], &sse_tot_simd, &sum_tot_simd, &var1[k]));
+      aom_get_var_sse_sum_16x16_dual_c(
+          src_ + stride * row + col, stride, ref_ + stride * row + col, stride,
+          &sse2[k], &sse_tot_c, &sum_tot_c, &var2[k]);
+      k += 2;
+    }
+  }
+  EXPECT_EQ(sse_tot_c, sse_tot_simd);
+  EXPECT_EQ(sum_tot_c, sum_tot_simd);
+
+  for (int p = 0; p < 64; p++) {
+    EXPECT_EQ(sse1[p], sse2[p]);
+    EXPECT_EQ(var1[p], var2[p]);
+  }
+}
+
+template <typename GetSseSum16x16DualFuncType>
+void MainTestClass<GetSseSum16x16DualFuncType>::SseSum_SpeedTestDual() {
+  const int loop_count = 1000000000 / block_size();
+  for (int idx = 0; idx < block_size(); ++idx) {
+    src_[idx] = rnd_.Rand8();
+    ref_[idx] = rnd_.Rand8();
+  }
+
+  unsigned int sse1[2] = { 0 };
+  unsigned int sse2[2] = { 0 };
+  unsigned int var1[2] = { 0 };
+  unsigned int var2[2] = { 0 };
+  unsigned int sse_tot_c = 0;
+  unsigned int sse_tot_simd = 0;
+  int sum_tot_c = 0;
+  int sum_tot_simd = 0;
+  const int stride = width();
+
+  aom_usec_timer timer;
+  aom_usec_timer_start(&timer);
+  for (int r = 0; r < loop_count; ++r) {
+    for (int row = 0; row < height(); row += 16) {
+      for (int col = 0; col < width(); col += 32) {
+        aom_get_var_sse_sum_16x16_dual_c(src_ + stride * row + col, stride,
+                                         ref_ + stride * row + col, stride,
+                                         sse2, &sse_tot_c, &sum_tot_c, var2);
+      }
+    }
+  }
+  aom_usec_timer_mark(&timer);
+  const double elapsed_time_ref =
+      static_cast<double>(aom_usec_timer_elapsed(&timer));
+
+  aom_usec_timer_start(&timer);
+  for (int r = 0; r < loop_count; ++r) {
+    for (int row = 0; row < height(); row += 16) {
+      for (int col = 0; col < width(); col += 32) {
+        params_.func(src_ + stride * row + col, stride,
+                     ref_ + stride * row + col, stride, sse1, &sse_tot_simd,
+                     &sum_tot_simd, var1);
+      }
+    }
+  }
+  aom_usec_timer_mark(&timer);
+  const double elapsed_time_simd =
+      static_cast<double>(aom_usec_timer_elapsed(&timer));
+
+  printf(
+      "aom_getvar_16x16_dual for block=%dx%d : ref_time=%lf \t simd_time=%lf "
+      "\t "
+      "gain=%lf \n",
+      width(), height(), elapsed_time_ref, elapsed_time_simd,
+      elapsed_time_ref / elapsed_time_simd);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Tests related to MSE / SSE.
 
@@ -1500,6 +1676,7 @@ typedef MainTestClass<Get4x4SseFunc> AvxSseTest;
 typedef MainTestClass<VarianceMxNFunc> AvxMseTest;
 typedef MainTestClass<VarianceMxNFunc> AvxVarianceTest;
 typedef MainTestClass<GetSseSum8x8QuadFunc> GetSseSum8x8QuadTest;
+typedef MainTestClass<GetSseSum16x16DualFunc> GetSseSum16x16DualTest;
 typedef SubpelVarianceTest<SubpixVarMxNFunc> AvxSubpelVarianceTest;
 typedef SubpelVarianceTest<SubpixAvgVarMxNFunc> AvxSubpelAvgVarianceTest;
 typedef SubpelVarianceTest<DistWtdSubpixAvgVarMxNFunc>
@@ -1528,6 +1705,10 @@ TEST_P(GetSseSum8x8QuadTest, RefMseSum) { RefTestSseSum(); }
 TEST_P(GetSseSum8x8QuadTest, MinSseSum) { MinTestSseSum(); }
 TEST_P(GetSseSum8x8QuadTest, MaxMseSum) { MaxTestSseSum(); }
 TEST_P(GetSseSum8x8QuadTest, DISABLED_Speed) { SseSum_SpeedTest(); }
+TEST_P(GetSseSum16x16DualTest, RefMseSum) { RefTestSseSumDual(); }
+TEST_P(GetSseSum16x16DualTest, MinSseSum) { MinTestSseSumDual(); }
+TEST_P(GetSseSum16x16DualTest, MaxMseSum) { MaxTestSseSumDual(); }
+TEST_P(GetSseSum16x16DualTest, DISABLED_Speed) { SseSum_SpeedTestDual(); }
 TEST_P(SumOfSquaresTest, Const) { ConstTest(); }
 TEST_P(SumOfSquaresTest, Ref) { RefTest(); }
 TEST_P(AvxSubpelVarianceTest, Ref) { RefTest(); }
@@ -1609,6 +1790,17 @@ const GetSseSumParams kArrayGetSseSum8x8Quad_c[] = {
 };
 INSTANTIATE_TEST_SUITE_P(C, GetSseSum8x8QuadTest,
                          ::testing::ValuesIn(kArrayGetSseSum8x8Quad_c));
+
+typedef TestParams<GetSseSum16x16DualFunc> GetSseSumParamsDual;
+const GetSseSumParamsDual kArrayGetSseSum16x16Dual_c[] = {
+  GetSseSumParamsDual(7, 7, &aom_get_var_sse_sum_16x16_dual_c, 0),
+  GetSseSumParamsDual(6, 6, &aom_get_var_sse_sum_16x16_dual_c, 0),
+  GetSseSumParamsDual(5, 5, &aom_get_var_sse_sum_16x16_dual_c, 0),
+  GetSseSumParamsDual(5, 4, &aom_get_var_sse_sum_16x16_dual_c, 0)
+};
+
+INSTANTIATE_TEST_SUITE_P(C, GetSseSum16x16DualTest,
+                         ::testing::ValuesIn(kArrayGetSseSum16x16Dual_c));
 
 typedef TestParams<SubpixVarMxNFunc> SubpelVarianceParams;
 const SubpelVarianceParams kArraySubpelVariance_c[] = {
@@ -2351,6 +2543,15 @@ const GetSseSumParams kArrayGetSseSum8x8Quad_sse2[] = {
 INSTANTIATE_TEST_SUITE_P(SSE2, GetSseSum8x8QuadTest,
                          ::testing::ValuesIn(kArrayGetSseSum8x8Quad_sse2));
 
+const GetSseSumParamsDual kArrayGetSseSum16x16Dual_sse2[] = {
+  GetSseSumParamsDual(7, 7, &aom_get_var_sse_sum_16x16_dual_sse2, 0),
+  GetSseSumParamsDual(6, 6, &aom_get_var_sse_sum_16x16_dual_sse2, 0),
+  GetSseSumParamsDual(5, 5, &aom_get_var_sse_sum_16x16_dual_sse2, 0),
+  GetSseSumParamsDual(5, 4, &aom_get_var_sse_sum_16x16_dual_sse2, 0)
+};
+INSTANTIATE_TEST_SUITE_P(SSE2, GetSseSum16x16DualTest,
+                         ::testing::ValuesIn(kArrayGetSseSum16x16Dual_sse2));
+
 const SubpelVarianceParams kArraySubpelVariance_sse2[] = {
   SubpelVarianceParams(7, 7, &aom_sub_pixel_variance128x128_sse2, 0),
   SubpelVarianceParams(7, 6, &aom_sub_pixel_variance128x64_sse2, 0),
@@ -2969,6 +3170,15 @@ const GetSseSumParams kArrayGetSseSum8x8Quad_avx2[] = {
 INSTANTIATE_TEST_SUITE_P(AVX2, GetSseSum8x8QuadTest,
                          ::testing::ValuesIn(kArrayGetSseSum8x8Quad_avx2));
 
+const GetSseSumParamsDual kArrayGetSseSum16x16Dual_avx2[] = {
+  GetSseSumParamsDual(7, 7, &aom_get_var_sse_sum_16x16_dual_avx2, 0),
+  GetSseSumParamsDual(6, 6, &aom_get_var_sse_sum_16x16_dual_avx2, 0),
+  GetSseSumParamsDual(5, 5, &aom_get_var_sse_sum_16x16_dual_avx2, 0),
+  GetSseSumParamsDual(5, 4, &aom_get_var_sse_sum_16x16_dual_avx2, 0)
+};
+INSTANTIATE_TEST_SUITE_P(AVX2, GetSseSum16x16DualTest,
+                         ::testing::ValuesIn(kArrayGetSseSum16x16Dual_avx2));
+
 const SubpelVarianceParams kArraySubpelVariance_avx2[] = {
   SubpelVarianceParams(7, 7, &aom_sub_pixel_variance128x128_avx2, 0),
   SubpelVarianceParams(7, 6, &aom_sub_pixel_variance128x64_avx2, 0),
@@ -3122,6 +3332,15 @@ const GetSseSumParams kArrayGetSseSum8x8Quad_neon[] = {
 };
 INSTANTIATE_TEST_SUITE_P(NEON, GetSseSum8x8QuadTest,
                          ::testing::ValuesIn(kArrayGetSseSum8x8Quad_neon));
+
+const GetSseSumParamsDual kArrayGetSseSum16x16Dual_neon[] = {
+  GetSseSumParamsDual(7, 7, &aom_get_var_sse_sum_16x16_dual_neon, 0),
+  GetSseSumParamsDual(6, 6, &aom_get_var_sse_sum_16x16_dual_neon, 0),
+  GetSseSumParamsDual(5, 5, &aom_get_var_sse_sum_16x16_dual_neon, 0),
+  GetSseSumParamsDual(5, 4, &aom_get_var_sse_sum_16x16_dual_neon, 0)
+};
+INSTANTIATE_TEST_SUITE_P(NEON, GetSseSum16x16DualTest,
+                         ::testing::ValuesIn(kArrayGetSseSum16x16Dual_neon));
 
 #if CONFIG_AV1_HIGHBITDEPTH
 const VarianceParams kArrayHBDVariance_neon[] = {

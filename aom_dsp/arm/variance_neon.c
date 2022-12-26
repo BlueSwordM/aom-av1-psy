@@ -405,6 +405,25 @@ void aom_get_var_sse_sum_8x8_quad_neon(const uint8_t *src, int src_stride,
     var8x8[i] = sse8x8[i] - (uint32_t)(((int64_t)sum8x8[i] * sum8x8[i]) >> 6);
 }
 
+void aom_get_var_sse_sum_16x16_dual_neon(const uint8_t *src, int src_stride,
+                                         const uint8_t *ref, int ref_stride,
+                                         uint32_t *sse16x16,
+                                         unsigned int *tot_sse, int *tot_sum,
+                                         uint32_t *var16x16) {
+  int sum16x16[2] = { 0 };
+  // Loop over 2 16x16 blocks. Process one 16x32 block.
+  for (int k = 0; k < 2; k++) {
+    variance_16xh_neon(src + (k * 16), src_stride, ref + (k * 16), ref_stride,
+                       16, &sse16x16[k], &sum16x16[k]);
+  }
+
+  *tot_sse += sse16x16[0] + sse16x16[1];
+  *tot_sum += sum16x16[0] + sum16x16[1];
+  for (int i = 0; i < 2; i++)
+    var16x16[i] =
+        sse16x16[i] - (uint32_t)(((int64_t)sum16x16[i] * sum16x16[i]) >> 8);
+}
+
 #if defined(__ARM_FEATURE_DOTPROD)
 
 static INLINE unsigned int mse8xh_neon(const uint8_t *src, int src_stride,
