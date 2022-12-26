@@ -438,96 +438,123 @@ static int64_t scale_part_thresh_content(int64_t threshold_base, int speed,
   return threshold;
 }
 
-static AOM_INLINE void tune_thresh_based_on_qindex_window(
-    int qindex, int th, int win, int fac, int64_t thresholds[]) {
+// Tune thresholds less or more aggressively to prefer larger partitions
+static AOM_INLINE void tune_thresh_based_on_qindex(
+    AV1_COMP *cpi, int64_t thresholds[], uint64_t blk_sad, int current_qindex,
+    int num_pixels, bool is_segment_id_boosted, int source_sad_nonrd,
+    int lighting_change) {
   double weight;
-
-  if (qindex < th - win)
-    weight = 1.0;
-  else if (qindex > th + win)
-    weight = 0.0;
-  else
-    weight = 1.0 - (qindex - th + win) / (2 * win);
-  thresholds[1] =
-      (int)((1 - weight) * (thresholds[1] << 1) + weight * thresholds[1]);
-  thresholds[2] =
-      (int)((1 - weight) * (thresholds[2] << 1) + weight * thresholds[2]);
-  thresholds[3] =
-      (int)((1 - weight) * (thresholds[3] << fac) + weight * thresholds[3]);
+  if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 3) {
+    const int win = 20;
+    if (current_qindex < QINDEX_LARGE_BLOCK_THR - win)
+      weight = 1.0;
+    else if (current_qindex > QINDEX_LARGE_BLOCK_THR + win)
+      weight = 0.0;
+    else
+      weight =
+          1.0 - (current_qindex - QINDEX_LARGE_BLOCK_THR + win) / (2 * win);
+    if (num_pixels > RESOLUTION_480P) {
+      for (int i = 0; i < 4; i++) {
+        thresholds[i] <<= 1;
+      }
+    }
+    if (num_pixels <= RESOLUTION_288P) {
+      thresholds[3] = INT64_MAX;
+      if (is_segment_id_boosted == false) {
+        thresholds[1] <<= 2;
+        thresholds[2] <<= (source_sad_nonrd <= kLowSad) ? 5 : 4;
+      } else {
+        thresholds[1] <<= 1;
+        thresholds[2] <<= 3;
+      }
+      // Allow for split to 8x8 for superblocks where part of it has
+      // moving boundary. So allow for sb with source_sad above threshold,
+      // and avoid very large source_sad or high source content, to avoid
+      // too many 8x8 within superblock.
+      if (is_segment_id_boosted == false && cpi->rc.avg_source_sad < 25000 &&
+          blk_sad > 25000 && blk_sad < 50000 && !lighting_change) {
+        thresholds[2] = (3 * thresholds[2]) >> 2;
+        thresholds[3] = thresholds[2] << 3;
+      }
+      // Condition the increase of partition thresholds on the segment
+      // and the content. Avoid the increase for superblocks which have
+      // high source sad, unless the whole frame has very high motion
+      // (i.e, cpi->rc.avg_source_sad is very large, in which case all blocks
+      // have high source sad).
+    } else if (num_pixels > RESOLUTION_480P && is_segment_id_boosted == false &&
+               (source_sad_nonrd != kHighSad ||
+                cpi->rc.avg_source_sad > 50000)) {
+      thresholds[0] = (3 * thresholds[0]) >> 1;
+      thresholds[3] = INT64_MAX;
+      if (current_qindex > QINDEX_LARGE_BLOCK_THR) {
+        thresholds[1] =
+            (int)((1 - weight) * (thresholds[1] << 1) + weight * thresholds[1]);
+        thresholds[2] =
+            (int)((1 - weight) * (thresholds[2] << 1) + weight * thresholds[2]);
+      }
+    } else if (current_qindex > QINDEX_LARGE_BLOCK_THR &&
+               is_segment_id_boosted == false &&
+               (source_sad_nonrd != kHighSad ||
+                cpi->rc.avg_source_sad > 50000)) {
+      thresholds[1] =
+          (int)((1 - weight) * (thresholds[1] << 2) + weight * thresholds[1]);
+      thresholds[2] =
+          (int)((1 - weight) * (thresholds[2] << 4) + weight * thresholds[2]);
+      thresholds[3] = INT64_MAX;
+    }
+  } else if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 2) {
+    thresholds[1] <<= (source_sad_nonrd <= kLowSad) ? 2 : 0;
+    thresholds[2] =
+        (source_sad_nonrd <= kLowSad) ? (3 * thresholds[2]) : thresholds[2];
+  } else if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 1) {
+    const int fac = (source_sad_nonrd <= kLowSad) ? 2 : 1;
+    if (current_qindex < QINDEX_LARGE_BLOCK_THR - 45)
+      weight = 1.0;
+    else if (current_qindex > QINDEX_LARGE_BLOCK_THR + 45)
+      weight = 0.0;
+    else
+      weight = 1.0 - (current_qindex - QINDEX_LARGE_BLOCK_THR + 45) / (2 * 45);
+    thresholds[1] =
+        (int)((1 - weight) * (thresholds[1] << 1) + weight * thresholds[1]);
+    thresholds[2] =
+        (int)((1 - weight) * (thresholds[2] << 1) + weight * thresholds[2]);
+    thresholds[3] =
+        (int)((1 - weight) * (thresholds[3] << fac) + weight * thresholds[3]);
+  }
+  if (cpi->sf.part_sf.disable_8x8_part_based_on_qidx && (current_qindex < 128))
+    thresholds[3] = INT64_MAX;
 }
 
-static AOM_INLINE void set_vbp_thresholds(
-    AV1_COMP *cpi, int64_t thresholds[], uint64_t blk_sad, int qindex,
-    int content_lowsumdiff, int source_sad_nonrd, int source_sad_rd,
-    bool is_segment_id_boosted, int lighting_change) {
-  AV1_COMMON *const cm = &cpi->common;
-  const int is_key_frame = frame_is_intra_only(cm);
-  const int threshold_multiplier = is_key_frame ? 120 : 1;
-  const int ac_q = av1_ac_quant_QTX(qindex, 0, cm->seq_params->bit_depth);
-  int64_t threshold_base = (int64_t)(threshold_multiplier * ac_q);
-  const int current_qindex = cm->quant_params.base_qindex;
-  const int threshold_left_shift = cpi->sf.rt_sf.var_part_split_threshold_shift;
-  const int num_pixels = cm->width * cm->height;
-
-  if (is_key_frame) {
-    if (cpi->sf.rt_sf.force_large_partition_blocks_intra) {
-      const int shift_steps =
-          threshold_left_shift - (cpi->oxcf.mode == ALLINTRA ? 7 : 8);
-      assert(shift_steps >= 0);
-      threshold_base <<= shift_steps;
-    }
-    thresholds[0] = threshold_base;
-    thresholds[1] = threshold_base;
-    if (num_pixels < RESOLUTION_720P) {
-      thresholds[2] = threshold_base / 3;
-      thresholds[3] = threshold_base >> 1;
-    } else {
-      int shift_val = 2;
-      if (cpi->sf.rt_sf.force_large_partition_blocks_intra) {
-        shift_val = 0;
-      }
-
-      thresholds[2] = threshold_base >> shift_val;
-      thresholds[3] = threshold_base >> shift_val;
-    }
-    thresholds[4] = threshold_base << 2;
-    return;
+static void set_vbp_thresholds_key_frame(AV1_COMP *cpi, int64_t thresholds[],
+                                         int64_t threshold_base,
+                                         int threshold_left_shift,
+                                         int num_pixels) {
+  if (cpi->sf.rt_sf.force_large_partition_blocks_intra) {
+    const int shift_steps =
+        threshold_left_shift - (cpi->oxcf.mode == ALLINTRA ? 7 : 8);
+    assert(shift_steps >= 0);
+    threshold_base <<= shift_steps;
   }
-
-  // Increase partition thresholds for noisy content. Apply it only for
-  // superblocks where sumdiff is low, as we assume the sumdiff of superblock
-  // whose only change is due to noise will be low (i.e, noise will average
-  // out over large block).
-  if (cpi->noise_estimate.enabled && content_lowsumdiff &&
-      num_pixels > RESOLUTION_480P && cm->current_frame.frame_number > 60) {
-    NOISE_LEVEL noise_level =
-        av1_noise_estimate_extract_level(&cpi->noise_estimate);
-    if (noise_level == kHigh)
-      threshold_base = (5 * threshold_base) >> 1;
-    else if (noise_level == kMedium &&
-             !cpi->sf.rt_sf.prefer_large_partition_blocks)
-      threshold_base = (5 * threshold_base) >> 2;
-  }
-  // TODO(kyslov) Enable var based partition adjusment on temporal denoising
-#if 0  // CONFIG_AV1_TEMPORAL_DENOISING
-  if (cpi->oxcf.noise_sensitivity > 0 && denoise_svc(cpi) &&
-      cpi->oxcf.speed > 5 && cpi->denoiser.denoising_level >= kDenLow)
-      threshold_base =
-          av1_scale_part_thresh(threshold_base, cpi->denoiser.denoising_level,
-                                content_state, cpi->svc.temporal_layer_id);
-  else
-    threshold_base =
-        scale_part_thresh_content(threshold_base, cpi->oxcf.speed, cm->width,
-                                  cm->height, cpi->ppi->rtc_ref.non_reference_frame);
-#else
-  // Increase base variance threshold based on content_state/sum_diff level.
-  threshold_base = scale_part_thresh_content(
-      threshold_base, cpi->oxcf.speed, cm->width, cm->height,
-      cpi->ppi->rtc_ref.non_reference_frame);
-#endif
-  thresholds[0] = threshold_base >> 1;
+  thresholds[0] = threshold_base;
   thresholds[1] = threshold_base;
-  thresholds[3] = threshold_base << threshold_left_shift;
+  if (num_pixels < RESOLUTION_720P) {
+    thresholds[2] = threshold_base / 3;
+    thresholds[3] = threshold_base >> 1;
+  } else {
+    int shift_val = 2;
+    if (cpi->sf.rt_sf.force_large_partition_blocks_intra) {
+      shift_val = 0;
+    }
+
+    thresholds[2] = threshold_base >> shift_val;
+    thresholds[3] = threshold_base >> shift_val;
+  }
+  thresholds[4] = threshold_base << 2;
+}
+
+static AOM_INLINE void tune_thresh_based_on_resolution(
+    AV1_COMP *cpi, int64_t thresholds[], int64_t threshold_base,
+    int current_qindex, int source_sad_rd, int num_pixels) {
   if (num_pixels >= RESOLUTION_720P) thresholds[3] = thresholds[3] << 1;
   if (num_pixels <= RESOLUTION_288P) {
     const int qindex_thr[5][2] = {
@@ -588,77 +615,79 @@ static AOM_INLINE void set_vbp_thresholds(
       }
     }
   }
-  // Tune thresholds less or more aggressively to prefer larger partitions
-  if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 3) {
-    double weight;
-    const int win = 20;
-    if (current_qindex < QINDEX_LARGE_BLOCK_THR - win)
-      weight = 1.0;
-    else if (current_qindex > QINDEX_LARGE_BLOCK_THR + win)
-      weight = 0.0;
-    else
-      weight =
-          1.0 - (current_qindex - QINDEX_LARGE_BLOCK_THR + win) / (2 * win);
-    if (num_pixels > RESOLUTION_480P) {
-      for (int idx = 0; idx < 4; idx++) {
-        thresholds[idx] <<= 1;
-      }
-    }
-    if (num_pixels <= RESOLUTION_288P) {
-      thresholds[3] = INT64_MAX;
-      if (is_segment_id_boosted == false) {
-        thresholds[1] <<= 2;
-        thresholds[2] <<= (source_sad_nonrd <= kLowSad) ? 5 : 4;
-      } else {
-        thresholds[1] <<= 1;
-        thresholds[2] <<= 3;
-      }
-      // Allow for split to 8x8 for superblocks where part of it has
-      // moving boundary. So allow for sb with source_sad above threshold,
-      // and avoid very large source_sad or high source content, to avoid
-      // too many 8x8 within superblock.
-      if (is_segment_id_boosted == false && cpi->rc.avg_source_sad < 25000 &&
-          blk_sad > 25000 && blk_sad < 50000 && !lighting_change) {
-        thresholds[2] = (3 * thresholds[2]) >> 2;
-        thresholds[3] = thresholds[2] << 3;
-      }
-      // Condition the increase of partition thresholds on the segment
-      // and the content. Avoid the increase for superblocks which have
-      // high source sad, unless the whole frame has very high motion
-      // (i.e, cpi->rc.avg_source_sad is very large, in which case all blocks
-      // have high source sad).
-    } else if (num_pixels > RESOLUTION_480P && is_segment_id_boosted == false &&
-               (source_sad_nonrd != kHighSad ||
-                cpi->rc.avg_source_sad > 50000)) {
-      thresholds[0] = (3 * thresholds[0]) >> 1;
-      thresholds[3] = INT64_MAX;
-      if (current_qindex > QINDEX_LARGE_BLOCK_THR) {
-        thresholds[1] =
-            (int)((1 - weight) * (thresholds[1] << 1) + weight * thresholds[1]);
-        thresholds[2] =
-            (int)((1 - weight) * (thresholds[2] << 1) + weight * thresholds[2]);
-      }
-    } else if (current_qindex > QINDEX_LARGE_BLOCK_THR &&
-               is_segment_id_boosted == false &&
-               (source_sad_nonrd != kHighSad ||
-                cpi->rc.avg_source_sad > 50000)) {
-      thresholds[1] =
-          (int)((1 - weight) * (thresholds[1] << 2) + weight * thresholds[1]);
-      thresholds[2] =
-          (int)((1 - weight) * (thresholds[2] << 4) + weight * thresholds[2]);
-      thresholds[3] = INT64_MAX;
-    }
-  } else if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 2) {
-    thresholds[1] <<= (source_sad_nonrd <= kLowSad) ? 2 : 0;
-    thresholds[2] =
-        (source_sad_nonrd <= kLowSad) ? (3 * thresholds[2]) : thresholds[2];
-  } else if (cpi->sf.rt_sf.prefer_large_partition_blocks >= 1) {
-    const int fac = (source_sad_nonrd <= kLowSad) ? 2 : 1;
-    tune_thresh_based_on_qindex_window(current_qindex, QINDEX_LARGE_BLOCK_THR,
-                                       45, fac, thresholds);
+}
+
+// Increase partition thresholds for noisy content. Apply it only for
+// superblocks where sumdiff is low, as we assume the sumdiff of superblock
+// whose only change is due to noise will be low (i.e, noise will average
+// out over large block).
+static AOM_INLINE int64_t tune_thresh_noisy_content(AV1_COMP *cpi,
+                                                    int64_t threshold_base,
+                                                    int content_lowsumdiff,
+                                                    int num_pixels) {
+  AV1_COMMON *const cm = &cpi->common;
+  int64_t updated_thresh_base = threshold_base;
+  if (cpi->noise_estimate.enabled && content_lowsumdiff &&
+      num_pixels > RESOLUTION_480P && cm->current_frame.frame_number > 60) {
+    NOISE_LEVEL noise_level =
+        av1_noise_estimate_extract_level(&cpi->noise_estimate);
+    if (noise_level == kHigh)
+      updated_thresh_base = (5 * updated_thresh_base) >> 1;
+    else if (noise_level == kMedium &&
+             !cpi->sf.rt_sf.prefer_large_partition_blocks)
+      updated_thresh_base = (5 * updated_thresh_base) >> 2;
   }
-  if (cpi->sf.part_sf.disable_8x8_part_based_on_qidx && (current_qindex < 128))
-    thresholds[3] = INT64_MAX;
+  // TODO(kyslov) Enable var based partition adjusment on temporal denoising
+#if 0  // CONFIG_AV1_TEMPORAL_DENOISING
+  if (cpi->oxcf.noise_sensitivity > 0 && denoise_svc(cpi) &&
+      cpi->oxcf.speed > 5 && cpi->denoiser.denoising_level >= kDenLow)
+      updated_thresh_base =
+          av1_scale_part_thresh(updated_thresh_base, cpi->denoiser.denoising_level,
+                                content_state, cpi->svc.temporal_layer_id);
+  else
+    threshold_base =
+        scale_part_thresh_content(updated_thresh_base, cpi->oxcf.speed, cm->width,
+                                  cm->height, cpi->ppi->rtc_ref.non_reference_frame);
+#else
+  // Increase base variance threshold based on content_state/sum_diff level.
+  updated_thresh_base = scale_part_thresh_content(
+      updated_thresh_base, cpi->oxcf.speed, cm->width, cm->height,
+      cpi->ppi->rtc_ref.non_reference_frame);
+#endif
+  return updated_thresh_base;
+}
+
+static AOM_INLINE void set_vbp_thresholds(
+    AV1_COMP *cpi, int64_t thresholds[], uint64_t blk_sad, int qindex,
+    int content_lowsumdiff, int source_sad_nonrd, int source_sad_rd,
+    bool is_segment_id_boosted, int lighting_change) {
+  AV1_COMMON *const cm = &cpi->common;
+  const int is_key_frame = frame_is_intra_only(cm);
+  const int threshold_multiplier = is_key_frame ? 120 : 1;
+  const int ac_q = av1_ac_quant_QTX(qindex, 0, cm->seq_params->bit_depth);
+  int64_t threshold_base = (int64_t)(threshold_multiplier * ac_q);
+  const int current_qindex = cm->quant_params.base_qindex;
+  const int threshold_left_shift = cpi->sf.rt_sf.var_part_split_threshold_shift;
+  const int num_pixels = cm->width * cm->height;
+
+  if (is_key_frame) {
+    set_vbp_thresholds_key_frame(cpi, thresholds, threshold_base,
+                                 threshold_left_shift, num_pixels);
+    return;
+  }
+
+  threshold_base = tune_thresh_noisy_content(cpi, threshold_base,
+                                             content_lowsumdiff, num_pixels);
+  thresholds[0] = threshold_base >> 1;
+  thresholds[1] = threshold_base;
+  thresholds[3] = threshold_base << threshold_left_shift;
+
+  tune_thresh_based_on_resolution(cpi, thresholds, threshold_base,
+                                  current_qindex, source_sad_rd, num_pixels);
+
+  tune_thresh_based_on_qindex(cpi, thresholds, blk_sad, current_qindex,
+                              num_pixels, is_segment_id_boosted,
+                              source_sad_nonrd, lighting_change);
 }
 
 // Set temporal variance low flag for superblock 64x64.
@@ -1146,6 +1175,41 @@ static void fill_variance_tree_leaves(
   }
 }
 
+static AOM_INLINE void set_ref_frame_for_partition(
+    AV1_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
+    MV_REFERENCE_FRAME *ref_frame_partition, MB_MODE_INFO *mi,
+    unsigned int *y_sad, unsigned int *y_sad_g, unsigned int *y_sad_alt,
+    const YV12_BUFFER_CONFIG *yv12_g, const YV12_BUFFER_CONFIG *yv12_alt,
+    int mi_row, int mi_col, int num_planes) {
+  AV1_COMMON *const cm = &cpi->common;
+  const bool is_set_golden_ref_frame =
+      *y_sad_g < 0.9 * *y_sad && *y_sad_g < *y_sad_alt;
+  const bool is_set_altref_ref_frame =
+      *y_sad_alt < 0.9 * *y_sad && *y_sad_alt < *y_sad_g;
+
+  if (is_set_golden_ref_frame) {
+    av1_setup_pre_planes(xd, 0, yv12_g, mi_row, mi_col,
+                         get_ref_scale_factors(cm, GOLDEN_FRAME), num_planes);
+    mi->ref_frame[0] = GOLDEN_FRAME;
+    mi->mv[0].as_int = 0;
+    *y_sad = *y_sad_g;
+    *ref_frame_partition = GOLDEN_FRAME;
+    x->nonrd_prune_ref_frame_search = 0;
+  } else if (is_set_altref_ref_frame) {
+    av1_setup_pre_planes(xd, 0, yv12_alt, mi_row, mi_col,
+                         get_ref_scale_factors(cm, ALTREF_FRAME), num_planes);
+    mi->ref_frame[0] = ALTREF_FRAME;
+    mi->mv[0].as_int = 0;
+    *y_sad = *y_sad_alt;
+    *ref_frame_partition = ALTREF_FRAME;
+    x->nonrd_prune_ref_frame_search = 0;
+  } else {
+    *ref_frame_partition = LAST_FRAME;
+    x->nonrd_prune_ref_frame_search =
+        cpi->sf.rt_sf.nonrd_prune_ref_frame_search;
+  }
+}
+
 static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                          unsigned int *y_sad_g, unsigned int *y_sad_alt,
                          unsigned int *y_sad_last,
@@ -1226,27 +1290,9 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
 
   // Pick the ref frame for partitioning, use golden or altref frame only if
   // its lower sad, bias to LAST with factor 0.9.
-  if (*y_sad_g < 0.9 * *y_sad && *y_sad_g < *y_sad_alt) {
-    av1_setup_pre_planes(xd, 0, yv12_g, mi_row, mi_col,
-                         get_ref_scale_factors(cm, GOLDEN_FRAME), num_planes);
-    mi->ref_frame[0] = GOLDEN_FRAME;
-    mi->mv[0].as_int = 0;
-    *y_sad = *y_sad_g;
-    *ref_frame_partition = GOLDEN_FRAME;
-    x->nonrd_prune_ref_frame_search = 0;
-  } else if (*y_sad_alt < 0.9 * *y_sad && *y_sad_alt < *y_sad_g) {
-    av1_setup_pre_planes(xd, 0, yv12_alt, mi_row, mi_col,
-                         get_ref_scale_factors(cm, ALTREF_FRAME), num_planes);
-    mi->ref_frame[0] = ALTREF_FRAME;
-    mi->mv[0].as_int = 0;
-    *y_sad = *y_sad_alt;
-    *ref_frame_partition = ALTREF_FRAME;
-    x->nonrd_prune_ref_frame_search = 0;
-  } else {
-    *ref_frame_partition = LAST_FRAME;
-    x->nonrd_prune_ref_frame_search =
-        cpi->sf.rt_sf.nonrd_prune_ref_frame_search;
-  }
+  set_ref_frame_for_partition(cpi, x, xd, ref_frame_partition, mi, y_sad,
+                              y_sad_g, y_sad_alt, yv12_g, yv12_alt, mi_row,
+                              mi_col, num_planes);
 
   // Only calculate the predictor for non-zero MV.
   if (mi->mv[0].as_int != 0) {
@@ -1287,6 +1333,37 @@ static AOM_INLINE bool is_set_force_zeromv_skip_based_on_src_sad(
   else if (set_zeromv_skip_based_on_source_sad >= 1)
     return source_sad_nonrd == kZeroSad;
 
+  return false;
+}
+
+static AOM_INLINE bool set_force_zeromv_skip_for_sb(
+    AV1_COMP *cpi, MACROBLOCK *x, const TileInfo *const tile, VP16x16 *vt2,
+    VP128x128 *vt, unsigned int *uv_sad, int mi_row, int mi_col,
+    unsigned int y_sad, BLOCK_SIZE bsize) {
+  AV1_COMMON *const cm = &cpi->common;
+  if (!is_set_force_zeromv_skip_based_on_src_sad(
+          cpi->sf.rt_sf.set_zeromv_skip_based_on_source_sad,
+          x->content_state_sb.source_sad_nonrd))
+    return false;
+  const int block_width = mi_size_wide[cm->seq_params->sb_size];
+  const int block_height = mi_size_high[cm->seq_params->sb_size];
+  const unsigned int thresh_exit_part_y =
+      cpi->zeromv_skip_thresh_exit_part[bsize];
+  const unsigned int thresh_exit_part_uv =
+      CALC_CHROMA_THRESH_FOR_ZEROMV_SKIP(thresh_exit_part_y);
+  if (mi_col + block_width <= tile->mi_col_end &&
+      mi_row + block_height <= tile->mi_row_end && y_sad < thresh_exit_part_y &&
+      uv_sad[0] < thresh_exit_part_uv && uv_sad[1] < thresh_exit_part_uv) {
+    set_block_size(cpi, mi_row, mi_col, bsize);
+    x->force_zeromv_skip_for_sb = 1;
+    if (vt2) aom_free(vt2);
+    if (vt) aom_free(vt);
+    // Partition shape is set here at SB level.
+    // Exit needs to happen from av1_choose_var_based_partitioning().
+    return true;
+  } else if (x->content_state_sb.source_sad_nonrd == kZeroSad &&
+             cpi->sf.rt_sf.part_early_exit_zeromv >= 2)
+    x->force_zeromv_skip_for_sb = 2;
   return false;
 }
 
@@ -1426,10 +1503,6 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                uv_sad);
 
   x->force_zeromv_skip_for_sb = 0;
-  const bool is_set_force_zeromv_skip =
-      is_set_force_zeromv_skip_based_on_src_sad(
-          cpi->sf.rt_sf.set_zeromv_skip_based_on_source_sad,
-          x->content_state_sb.source_sad_nonrd);
 
   // If the superblock is completely static (zero source sad) and
   // the y_sad (relative to LAST ref) is very small, take the sb_size partition
@@ -1439,28 +1512,11 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   // Condition on color uv_sad is also added.
   if (!is_key_frame && cpi->sf.rt_sf.part_early_exit_zeromv &&
       cpi->rc.frames_since_key > 30 && segment_id == CR_SEGMENT_ID_BASE &&
-      is_set_force_zeromv_skip && ref_frame_partition == LAST_FRAME &&
-      xd->mi[0]->mv[0].as_int == 0) {
-    const int block_width = mi_size_wide[cm->seq_params->sb_size];
-    const int block_height = mi_size_high[cm->seq_params->sb_size];
-    const unsigned int thresh_exit_part_y =
-        cpi->zeromv_skip_thresh_exit_part[bsize];
-    const unsigned int thresh_exit_part_uv =
-        CALC_CHROMA_THRESH_FOR_ZEROMV_SKIP(thresh_exit_part_y);
-    if (mi_col + block_width <= tile->mi_col_end &&
-        mi_row + block_height <= tile->mi_row_end &&
-        y_sad < thresh_exit_part_y &&
-        uv_sad[AOM_PLANE_U - 1] < thresh_exit_part_uv &&
-        uv_sad[AOM_PLANE_V - 1] < thresh_exit_part_uv) {
-      set_block_size(cpi, mi_row, mi_col, bsize);
-      x->force_zeromv_skip_for_sb = 1;
-      if (vt2) aom_free(vt2);
-      if (vt) aom_free(vt);
+      ref_frame_partition == LAST_FRAME && xd->mi[0]->mv[0].as_int == 0) {
+    // Exit here, if zero mv skip flag is set at SB level.
+    if (set_force_zeromv_skip_for_sb(cpi, x, tile, vt2, vt, uv_sad, mi_row,
+                                     mi_col, y_sad, bsize))
       return 0;
-    } else if (x->content_state_sb.source_sad_nonrd == kZeroSad &&
-               cpi->sf.rt_sf.part_early_exit_zeromv >= 2) {
-      x->force_zeromv_skip_for_sb = 2;
-    }
   }
 
   if (cpi->noise_estimate.enabled)
