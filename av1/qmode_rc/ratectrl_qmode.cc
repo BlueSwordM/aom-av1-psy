@@ -1556,7 +1556,7 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithNoStats(
       if (gop_frame.update_type == GopFrameType::kRegularGolden ||
           gop_frame.update_type == GopFrameType::kRegularKey ||
           gop_frame.update_type == GopFrameType::kRegularArf) {
-        param.q_index = 5;
+        param.q_index = kSecondTplPassQp;
         param.rdmult = av1_compute_rd_mult_based_on_qindex(
             AOM_BITS_8, ARF_UPDATE, param.q_index);
       }

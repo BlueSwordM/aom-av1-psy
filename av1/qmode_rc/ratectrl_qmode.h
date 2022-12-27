@@ -26,6 +26,7 @@ constexpr int kLayerDepthOffset = 1;
 constexpr int kMinIntervalToAddArf = 3;
 constexpr int kMinArfInterval = (kMinIntervalToAddArf + 1) / 2;
 constexpr double kIntArfAdjFactor = 0.5;
+constexpr int kSecondTplPassQp = 5;
 
 struct TplUnitDepStats {
   double propagation_cost;
