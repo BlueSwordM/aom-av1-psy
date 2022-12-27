@@ -231,7 +231,7 @@ void aom_get_var_sse_sum_16x16_dual_c(const uint8_t *src_ptr, int source_stride,
                                       const uint8_t *ref_ptr, int ref_stride,
                                       uint32_t *sse16x16, unsigned int *tot_sse,
                                       int *tot_sum, uint32_t *var16x16) {
-  int sum16x16[64] = { 0 };
+  int sum16x16[2] = { 0 };
   // Loop over two consecutive 16x16 blocks and process as one 16x32 block.
   for (int k = 0; k < 2; k++) {
     variance(src_ptr + (k * 16), source_stride, ref_ptr + (k * 16), ref_stride,

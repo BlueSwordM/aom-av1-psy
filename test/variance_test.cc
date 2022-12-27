@@ -976,12 +976,12 @@ void MainTestClass<GetSseSum8x8QuadFuncType>::SseSum_SpeedTest() {
     ref_[j] = rnd_.Rand8();
   }
 
-  unsigned int sse1 = 0;
-  unsigned int sse2 = 0;
-  unsigned int var1 = 0;
-  unsigned int var2 = 0;
-  int sum1 = 0;
-  int sum2 = 0;
+  unsigned int sse1[4] = { 0 };
+  unsigned int sse2[4] = { 0 };
+  unsigned int var1[4] = { 0 };
+  unsigned int var2[4] = { 0 };
+  int sum1[4] = { 0 };
+  int sum2[4] = { 0 };
   unsigned int sse_tot_c = 0;
   unsigned int sse_tot_simd = 0;
   int sum_tot_c = 0;
@@ -994,8 +994,8 @@ void MainTestClass<GetSseSum8x8QuadFuncType>::SseSum_SpeedTest() {
     for (int i = 0; i < height(); i += 8) {
       for (int j = 0; j < width(); j += 32) {
         aom_get_var_sse_sum_8x8_quad_c(src_ + stride * i + j, stride,
-                                       ref_ + stride * i + j, stride, &sse2,
-                                       &sum2, &sse_tot_c, &sum_tot_c, &var2);
+                                       ref_ + stride * i + j, stride, sse2,
+                                       sum2, &sse_tot_c, &sum_tot_c, var2);
       }
     }
   }
@@ -1008,7 +1008,7 @@ void MainTestClass<GetSseSum8x8QuadFuncType>::SseSum_SpeedTest() {
     for (int i = 0; i < height(); i += 8) {
       for (int j = 0; j < width(); j += 32) {
         params_.func(src_ + stride * i + j, stride, ref_ + stride * i + j,
-                     stride, &sse1, &sum1, &sse_tot_simd, &sum_tot_simd, &var1);
+                     stride, sse1, sum1, &sse_tot_simd, &sum_tot_simd, var1);
       }
     }
   }
