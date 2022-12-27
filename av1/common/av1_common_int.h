@@ -184,7 +184,8 @@ typedef struct BufferPool {
   aom_get_frame_buffer_cb_fn_t get_fb_cb;
   aom_release_frame_buffer_cb_fn_t release_fb_cb;
 
-  RefCntBuffer frame_bufs[FRAME_BUFFERS];
+  RefCntBuffer *frame_bufs;
+  uint8_t num_frame_bufs;
 
   // Frame buffers allocated internally by the codec.
   InternalFrameBufferList int_frame_buffers;
@@ -1092,10 +1093,11 @@ static INLINE int get_free_fb(AV1_COMMON *cm) {
   int i;
 
   lock_buffer_pool(cm->buffer_pool);
-  for (i = 0; i < FRAME_BUFFERS; ++i)
+  const int num_frame_bufs = cm->buffer_pool->num_frame_bufs;
+  for (i = 0; i < num_frame_bufs; ++i)
     if (frame_bufs[i].ref_count == 0) break;
 
-  if (i != FRAME_BUFFERS) {
+  if (i != num_frame_bufs) {
     if (frame_bufs[i].buf.use_external_reference_buffers) {
       // If this frame buffer's y_buffer, u_buffer, and v_buffer point to the
       // external reference buffers. Restore the buffer pointers to point to the

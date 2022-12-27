@@ -428,6 +428,13 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
 
   ctx->buffer_pool = (BufferPool *)aom_calloc(1, sizeof(BufferPool));
   if (ctx->buffer_pool == NULL) return AOM_CODEC_MEM_ERROR;
+  ctx->buffer_pool->num_frame_bufs = FRAME_BUFFERS;
+  ctx->buffer_pool->frame_bufs = (RefCntBuffer *)aom_calloc(
+      ctx->buffer_pool->num_frame_bufs, sizeof(*ctx->buffer_pool->frame_bufs));
+  if (ctx->buffer_pool->frame_bufs == NULL) {
+    ctx->buffer_pool->num_frame_bufs = 0;
+    return AOM_CODEC_MEM_ERROR;
+  }
 
 #if CONFIG_MULTITHREAD
   if (pthread_mutex_init(&ctx->buffer_pool->pool_mutex, NULL)) {

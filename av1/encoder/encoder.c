@@ -2035,7 +2035,7 @@ static void init_ref_frame_bufs(AV1_COMP *cpi) {
   }
 #ifndef NDEBUG
   BufferPool *const pool = cm->buffer_pool;
-  for (i = 0; i < FRAME_BUFFERS; ++i) {
+  for (i = 0; i < pool->num_frame_bufs; ++i) {
     assert(pool->frame_bufs[i].ref_count == 0);
   }
 #endif
@@ -4746,7 +4746,7 @@ void av1_scale_references_fpmt(AV1_COMP *cpi, int *ref_buffers_used_map) {
 
       RefCntBuffer *buf = get_ref_frame_buf(cm, ref_frame);
       cpi->scaled_ref_buf[ref_frame - 1] = buf;
-      for (int i = 0; i < FRAME_BUFFERS; ++i) {
+      for (int i = 0; i < cm->buffer_pool->num_frame_bufs; ++i) {
         if (&cm->buffer_pool->frame_bufs[i] == buf) {
           *ref_buffers_used_map |= (1 << i);
         }
@@ -4761,7 +4761,7 @@ void av1_scale_references_fpmt(AV1_COMP *cpi, int *ref_buffers_used_map) {
 // corresponding to frames in a parallel encode set.
 void av1_increment_scaled_ref_counts_fpmt(BufferPool *buffer_pool,
                                           int ref_buffers_used_map) {
-  for (int i = 0; i < FRAME_BUFFERS; ++i) {
+  for (int i = 0; i < buffer_pool->num_frame_bufs; ++i) {
     if (ref_buffers_used_map & (1 << i)) {
       ++buffer_pool->frame_bufs[i].ref_count;
     }
@@ -4784,7 +4784,7 @@ void av1_release_scaled_references_fpmt(AV1_COMP *cpi) {
 // corresponding to frames in a parallel encode set.
 void av1_decrement_ref_counts_fpmt(BufferPool *buffer_pool,
                                    int ref_buffers_used_map) {
-  for (int i = 0; i < FRAME_BUFFERS; ++i) {
+  for (int i = 0; i < buffer_pool->num_frame_bufs; ++i) {
     if (ref_buffers_used_map & (1 << i)) {
       --buffer_pool->frame_bufs[i].ref_count;
     }

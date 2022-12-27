@@ -4434,7 +4434,7 @@ static INLINE void reset_frame_buffers(AV1_COMMON *cm) {
   lock_buffer_pool(cm->buffer_pool);
   reset_ref_frame_map(cm);
   assert(cm->cur_frame->ref_count == 1);
-  for (i = 0; i < FRAME_BUFFERS; ++i) {
+  for (i = 0; i < cm->buffer_pool->num_frame_bufs; ++i) {
     // Reset all unreferenced frame buffers. We can also reset cm->cur_frame
     // because we are the sole owner of cm->cur_frame.
     if (frame_bufs[i].ref_count > 0 && &frame_bufs[i] != cm->cur_frame) {

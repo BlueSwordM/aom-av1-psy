@@ -36,7 +36,7 @@ int av1_get_MBs(int width, int height) {
 void av1_free_ref_frame_buffers(BufferPool *pool) {
   int i;
 
-  for (i = 0; i < FRAME_BUFFERS; ++i) {
+  for (i = 0; i < pool->num_frame_bufs; ++i) {
     if (pool->frame_bufs[i].ref_count > 0 &&
         pool->frame_bufs[i].raw_frame_buffer.data != NULL) {
       pool->release_fb_cb(pool->cb_priv, &pool->frame_bufs[i].raw_frame_buffer);
@@ -51,6 +51,9 @@ void av1_free_ref_frame_buffers(BufferPool *pool) {
     pool->frame_bufs[i].seg_map = NULL;
     aom_free_frame_buffer(&pool->frame_bufs[i].buf);
   }
+  aom_free(pool->frame_bufs);
+  pool->frame_bufs = NULL;
+  pool->num_frame_bufs = 0;
 }
 
 static INLINE void free_cdef_linebuf_conditional(
