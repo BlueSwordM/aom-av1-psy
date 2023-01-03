@@ -101,11 +101,11 @@ void av1_update_layer_context_change_config(AV1_COMP *const cpi,
                                             const int64_t target_bandwidth) {
   const RATE_CONTROL *const rc = &cpi->rc;
   const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
+  AV1_COMMON *const cm = &cpi->common;
   SVC *const svc = &cpi->svc;
   int layer = 0;
   int64_t spatial_layer_target = 0;
   float bitrate_alloc = 1.0;
-  AV1_COMMON *const cm = &cpi->common;
   const int mi_rows = cm->mi_params.mi_rows;
   const int mi_cols = cm->mi_params.mi_cols;
   for (int sl = 0; sl < svc->number_spatial_layers; ++sl) {
@@ -139,9 +139,12 @@ void av1_update_layer_context_change_config(AV1_COMP *const cpi,
       lrc->rtc_external_ratectrl = rc->rtc_external_ratectrl;
       lrc->worst_quality = av1_quantizer_to_qindex(lc->max_q);
       lrc->best_quality = av1_quantizer_to_qindex(lc->min_q);
-      // Reset the cyclic refresh parameters, if needed (map is NULL).
+      // Reset the cyclic refresh parameters, if needed (map is NULL),
+      // or number of spatial layers has changed.
       // Cyclic refresh is only applied on base temporal layer.
-      if (svc->number_spatial_layers > 1 && tl == 0 && lc->map == NULL) {
+      if (svc->number_spatial_layers > 1 && tl == 0 &&
+          (lc->map == NULL ||
+           svc->prev_number_spatial_layers != svc->number_spatial_layers)) {
         lc->sb_index = 0;
         lc->actual_num_seg1_blocks = 0;
         lc->actual_num_seg2_blocks = 0;

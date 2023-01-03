@@ -3865,6 +3865,9 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     cpi->frames_since_last_update = 1;
   }
 
+  if (cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1)
+    cpi->svc.prev_number_spatial_layers = cpi->svc.number_spatial_layers;
+
   // Clear the one shot update flags for segmentation map and mode/ref loop
   // filter deltas.
   cm->seg.update_map = 0;

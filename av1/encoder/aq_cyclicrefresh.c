@@ -384,6 +384,7 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   const AV1_COMMON *const cm = &cpi->common;
   CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
+  SVC *const svc = &cpi->svc;
   int num4x4bl = cm->mi_params.MBs << 4;
   int target_refresh = 0;
   double weight_segment_target = 0;
@@ -423,10 +424,11 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   // should we enable cyclic refresh on this frame.
   cr->apply_cyclic_refresh = 1;
   if (frame_is_intra_only(cm) || is_lossless_requested(&cpi->oxcf.rc_cfg) ||
-      scene_change_detected || cpi->svc.temporal_layer_id > 0 ||
+      scene_change_detected || svc->temporal_layer_id > 0 ||
+      svc->prev_number_spatial_layers != svc->number_spatial_layers ||
       p_rc->avg_frame_qindex[INTER_FRAME] < qp_thresh ||
-      (cpi->svc.number_spatial_layers > 1 &&
-       cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame) ||
+      (svc->number_spatial_layers > 1 &&
+       svc->layer_context[svc->temporal_layer_id].is_key_frame) ||
       (frames_since_scene_change > 20 &&
        p_rc->avg_frame_qindex[INTER_FRAME] > qp_max_thresh) ||
       (rc->avg_frame_low_motion && rc->avg_frame_low_motion < 30 &&
@@ -436,7 +438,7 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   }
 
   // Increase the amount of refresh for #temporal_layers > 2
-  if (cpi->svc.number_temporal_layers > 2)
+  if (svc->number_temporal_layers > 2)
     cr->percent_refresh = 15;
   else
     cr->percent_refresh = 10 + cr->percent_refresh_adjustment;
@@ -459,8 +461,8 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   // frames overshot.
   if (cr->percent_refresh > 0) {
     if (cpi->ppi->use_svc || !is_screen_content) {
-      if (frames_since_scene_change < ((4 * cpi->svc.number_temporal_layers) *
-                                       (100 / cr->percent_refresh))) {
+      if (frames_since_scene_change <
+          ((4 * svc->number_temporal_layers) * (100 / cr->percent_refresh))) {
         cr->rate_ratio_qdelta = 3.0 + cr->rate_ratio_qdelta_adjustment;
       } else {
         cr->rate_ratio_qdelta = 2.25 + cr->rate_ratio_qdelta_adjustment;
@@ -534,9 +536,13 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
   const int layer_depth = AOMMIN(gf_group->layer_depth[cpi->gf_frame_index], 6);
   const FRAME_TYPE frame_type = cm->current_frame.frame_type;
 
+  // Set resolution_change flag: for svc only set it when the
+  // number of spatial layers has not changed.
   const int resolution_change =
-      cm->prev_frame && (cm->width != cm->prev_frame->width ||
-                         cm->height != cm->prev_frame->height);
+      cm->prev_frame &&
+      (cm->width != cm->prev_frame->width ||
+       cm->height != cm->prev_frame->height) &&
+      cpi->svc.prev_number_spatial_layers == cpi->svc.number_spatial_layers;
 
   if (resolution_change) av1_cyclic_refresh_reset_resize(cpi);
   if (!cr->apply_cyclic_refresh) {

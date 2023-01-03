@@ -542,9 +542,9 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality,
              cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN)
       q = rc->q_1_frame + max_delta_up;
   }
-  // For single spatial layer: if resolution has increased push q closer
+  // For non-svc (single layer): if resolution has increased push q closer
   // to the active_worst to avoid excess overshoot.
-  if (cpi->svc.number_spatial_layers <= 1 && cm->prev_frame &&
+  if (!cpi->ppi->use_svc && cm->prev_frame &&
       (width * height > 1.5 * cm->prev_frame->width * cm->prev_frame->height))
     q = (q + active_worst_quality) >> 1;
   return AOMMAX(AOMMIN(q, cpi->rc.worst_quality), cpi->rc.best_quality);
