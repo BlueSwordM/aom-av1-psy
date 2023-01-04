@@ -826,6 +826,16 @@ BLOCK_SIZE av1_select_sb_size(const AV1EncoderConfig *const oxcf, int width,
     if (!is_480p_or_lesser && is_1080p_or_lesser && oxcf->mode == GOOD &&
         oxcf->row_mt == 1 && oxcf->max_threads > 1 && oxcf->speed >= 5)
       return BLOCK_64X64;
+
+    // For allintra encode, since the maximum partition size is set to 32X32 for
+    // speed>=6, superblock size is set to 64X64 instead of 128X128. This
+    // improves the multithread performance due to reduction in top right delay
+    // and thread sync wastage. Currently, this setting is selectively enabled
+    // only for speed>=9 and resolutions less than 4k since cost update
+    // frequency is set to INTERNAL_COST_UPD_OFF in these cases.
+    const int is_4k_or_larger = AOMMIN(width, height) >= 2160;
+    if (oxcf->mode == ALLINTRA && oxcf->speed >= 9 && !is_4k_or_larger)
+      return BLOCK_64X64;
   }
   return BLOCK_128X128;
 }

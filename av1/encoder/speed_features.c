@@ -309,6 +309,11 @@ static void set_allintra_speed_feature_framesize_dependent(
   if (speed >= 9) {
     // TODO(kyslov): add more speed features to control speed/quality
     if (!is_4k_or_larger) {
+      // In av1_select_sb_size(), superblock size is set to 64x64 only for
+      // resolutions less than 4k in speed>=9, to improve the multithread
+      // performance. If cost update levels are set to INTERNAL_COST_UPD_OFF
+      // for resolutions >= 4k, the SB size setting can be modified for these
+      // resolutions as well.
       sf->inter_sf.coeff_cost_upd_level = INTERNAL_COST_UPD_OFF;
       sf->inter_sf.mode_cost_upd_level = INTERNAL_COST_UPD_OFF;
     }
