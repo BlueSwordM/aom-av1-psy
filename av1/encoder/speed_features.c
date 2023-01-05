@@ -502,6 +502,7 @@ static void set_allintra_speed_features_framesize_independent(
 
     sf->part_sf.prune_rectangular_split_based_on_qidx =
         allow_screen_content_tools ? 0 : 2;
+    sf->part_sf.prune_rect_part_using_4x4_var_deviation = true;
     sf->part_sf.prune_sub_8x8_partition_level =
         allow_screen_content_tools ? 0 : 1;
     sf->part_sf.prune_part4_search = 3;
@@ -1878,6 +1879,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->rect_partition_eval_thresh = BLOCK_128X128;
   part_sf->prune_ext_part_using_split_info = 0;
   part_sf->prune_rectangular_split_based_on_qidx = 0;
+  part_sf->prune_rect_part_using_4x4_var_deviation = false;
   part_sf->early_term_after_none_split = 0;
   part_sf->ml_predict_breakout_level = 0;
   part_sf->prune_sub_8x8_partition_level = 0;
