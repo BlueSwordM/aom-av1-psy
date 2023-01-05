@@ -1447,7 +1447,9 @@ static std::vector<uint8_t> SetupDeltaQ(const TplFrameDepStats &frame_dep_stats,
         }
       }
     }
-    frame_importance = (cum_rdcost_diff + cum_inter_cost) / cum_inter_cost;
+    frame_importance = cum_inter_cost > 0
+                           ? (cum_rdcost_diff + cum_inter_cost) / cum_inter_cost
+                           : -1.0;
   }
 
   // Calculate delta_q offset for each superblock.
@@ -1479,7 +1481,7 @@ static std::vector<uint8_t> SetupDeltaQ(const TplFrameDepStats &frame_dep_stats,
       }
 
       double beta = 1.0;
-      if (mc_dep_cost > 0 && intra_cost > 0) {
+      if (frame_importance > 0 && mc_dep_cost > 0 && intra_cost > 0) {
         const double r0 = 1 / frame_importance;
         const double rk = intra_cost / (mc_dep_cost + intra_cost);
         beta = r0 / rk;
