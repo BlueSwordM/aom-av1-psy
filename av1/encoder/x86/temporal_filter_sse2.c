@@ -168,20 +168,24 @@ static void apply_temporal_filter(
     }
   }
 
+  double subblock_mses_scaled[4];
+  double d_factor_decayed[4];
+  for (int idx = 0; idx < 4; idx++) {
+    subblock_mses_scaled[idx] = subblock_mses[idx] * inv_factor;
+    d_factor_decayed[idx] = d_factor[idx] * decay_factor;
+  }
   for (int i = 0, k = 0; i < block_height; i++) {
+    const int y_blk_raster_offset = (i >= block_height / 2) * 2;
     for (int j = 0; j < block_width; j++, k++) {
       const int pixel_value = frame2[i * stride2 + j];
       uint32_t diff_sse = acc_5x5_sse[i][j] + luma_sse_sum[i * BW + j];
 
       const double window_error = diff_sse * inv_num_ref_pixels;
-      const int subblock_idx =
-          (i >= block_height / 2) * 2 + (j >= block_width / 2);
-      const double block_error = (double)subblock_mses[subblock_idx];
+      const int subblock_idx = y_blk_raster_offset + (j >= block_width / 2);
       const double combined_error =
-          weight_factor * window_error + block_error * inv_factor;
+          weight_factor * window_error + subblock_mses_scaled[subblock_idx];
 
-      double scaled_error =
-          combined_error * d_factor[subblock_idx] * decay_factor;
+      double scaled_error = combined_error * d_factor_decayed[subblock_idx];
       scaled_error = AOMMIN(scaled_error, 7);
       const int weight = (int)(exp(-scaled_error) * TF_WEIGHT_SCALE);
 
