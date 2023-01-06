@@ -1396,6 +1396,7 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // 0 - Only use zero MV
   // 1 - perform coarse ME
   // 2 - perform coarse ME, and also use neighbours' MVs
+  // 3 - use neighbours' MVs without performing coarse ME
   int estimate_motion_for_var_based_partition;
 
   // For nonrd_use_partition: mode of extra check of leaf partition
