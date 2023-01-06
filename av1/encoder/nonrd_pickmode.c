@@ -2105,28 +2105,9 @@ static void search_motion_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
-#define COLLECT_PICK_MODE_STAT 0
 #define COLLECT_NON_SQR_STAT 0
 
-#if COLLECT_PICK_MODE_STAT
-#include "aom_ports/aom_timer.h"
-typedef struct _mode_search_stat {
-  int32_t num_blocks[BLOCK_SIZES];
-  int64_t total_block_times[BLOCK_SIZES];
-  int32_t num_searches[BLOCK_SIZES][MB_MODE_COUNT];
-  int32_t num_nonskipped_searches[BLOCK_SIZES][MB_MODE_COUNT];
-  int64_t search_times[BLOCK_SIZES][MB_MODE_COUNT];
-  int64_t nonskipped_search_times[BLOCK_SIZES][MB_MODE_COUNT];
-  int64_t ms_time[BLOCK_SIZES][MB_MODE_COUNT];
-  int64_t ifs_time[BLOCK_SIZES][MB_MODE_COUNT];
-  int64_t model_rd_time[BLOCK_SIZES][MB_MODE_COUNT];
-  int64_t txfm_time[BLOCK_SIZES][MB_MODE_COUNT];
-  struct aom_usec_timer timer1;
-  struct aom_usec_timer timer2;
-  struct aom_usec_timer bsize_timer;
-} mode_search_stat;
-
-static mode_search_stat ms_stat;
+#if COLLECT_NONRD_PICK_MODE_STAT
 
 static AOM_INLINE void print_stage_time(const char *stage_name,
                                         int64_t stage_time,
@@ -2135,8 +2116,9 @@ static AOM_INLINE void print_stage_time(const char *stage_name,
          100 * stage_time / (float)total_time);
 }
 
-static void print_time(const mode_search_stat *const ms_stat, BLOCK_SIZE bsize,
-                       int mi_rows, int mi_cols, int mi_row, int mi_col) {
+static void print_time(const mode_search_stat_nonrd *const ms_stat,
+                       BLOCK_SIZE bsize, int mi_rows, int mi_cols, int mi_row,
+                       int mi_col) {
   if ((mi_row + mi_size_high[bsize] >= mi_rows) &&
       (mi_col + mi_size_wide[bsize] >= mi_cols)) {
     int64_t total_time = 0l;
@@ -2193,7 +2175,7 @@ static void print_time(const mode_search_stat *const ms_stat, BLOCK_SIZE bsize,
     printf("Total time = %ld. Total blocks = %d\n", total_time, total_blocks);
   }
 }
-#endif  // COLLECT_PICK_MODE_STAT
+#endif  // COLLECT_NONRD_PICK_MODE_STAT
 
 static void compute_intra_yprediction(const AV1_COMMON *cm,
                                       PREDICTION_MODE mode, BLOCK_SIZE bsize,
@@ -3279,9 +3261,9 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
     return true;
   }
 
-#if COLLECT_PICK_MODE_STAT
-  aom_usec_timer_start(&ms_stat.timer1);
-  ms_stat.num_searches[bsize][*this_mode]++;
+#if COLLECT_NONRD_PICK_MODE_STAT
+  aom_usec_timer_start(&x->ms_stat_nonrd.timer1);
+  x->ms_stat_nonrd.num_searches[bsize][*this_mode]++;
 #endif
   mi->mode = *this_mode;
   mi->ref_frame[0] = *ref_frame;
@@ -3447,17 +3429,17 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
   av1_invalid_rd_stats(&nonskip_rdc);
 
   if (this_mode == NEWMV && !force_mv_inter_layer) {
-#if COLLECT_PICK_MODE_STAT
-    aom_usec_timer_start(&ms_stat.timer2);
+#if COLLECT_NONRD_PICK_MODE_STAT
+    aom_usec_timer_start(&x->ms_stat_nonrd.timer2);
 #endif
     // Find the best motion vector for single/compound mode.
     const bool skip_newmv = search_new_mv(
         cpi, x, search_state->frame_mv, ref_frame, gf_temporal_ref, bsize,
         mi_row, mi_col, &rate_mv, &search_state->best_rdc);
-#if COLLECT_PICK_MODE_STAT
-    aom_usec_timer_mark(&ms_stat.timer2);
-    ms_stat.ms_time[bsize][this_mode] +=
-        aom_usec_timer_elapsed(&ms_stat.timer2);
+#if COLLECT_NONRD_PICK_MODE_STAT
+    aom_usec_timer_mark(&x->ms_stat_nonrd.timer2);
+    x->ms_stat_nonrd.ms_time[bsize][this_mode] +=
+        aom_usec_timer_elapsed(&x->ms_stat_nonrd.timer2);
 #endif
     // Skip NEWMV mode,
     //   (i). For bsize smaller than 16X16
@@ -3571,17 +3553,17 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
              is_single_pred &&
              (ref_frame == LAST_FRAME || !x->nonrd_prune_ref_frame_search));
   if (is_mv_subpel && enable_filt_search_this_mode) {
-#if COLLECT_PICK_MODE_STAT
-    aom_usec_timer_start(&ms_stat.timer2);
+#if COLLECT_NONRD_PICK_MODE_STAT
+    aom_usec_timer_start(&x->ms_stat_nonrd.timer2);
 #endif
     search_filter_ref(
         cpi, x, &search_state->this_rdc, &inter_pred_params_sr, mi_row, mi_col,
         tmp_buffer, bsize, reuse_inter_pred, this_mode_pred, &this_early_term,
         &var, use_model_yrd_large, best_pickmode->best_sse, is_single_pred);
-#if COLLECT_PICK_MODE_STAT
-    aom_usec_timer_mark(&ms_stat.timer2);
-    ms_stat.ifs_time[bsize][this_mode] +=
-        aom_usec_timer_elapsed(&ms_stat.timer2);
+#if COLLECT_NONRD_PICK_MODE_STAT
+    aom_usec_timer_mark(&x->ms_stat_nonrd.timer2);
+    x->ms_stat_nonrd.ifs_time[bsize][this_mode] +=
+        aom_usec_timer_elapsed(&x->ms_stat_nonrd.timer2);
 #endif
 #if !CONFIG_REALTIME_ONLY
   } else if (cpi->oxcf.motion_mode_cfg.allow_warped_motion &&
@@ -3607,8 +3589,8 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
     if (is_mv_subpel && cb_pred_filter_search)
       mi->interp_filters = av1_broadcast_interp_filter(filt_select);
 
-#if COLLECT_PICK_MODE_STAT
-    aom_usec_timer_start(&ms_stat.timer2);
+#if COLLECT_NONRD_PICK_MODE_STAT
+    aom_usec_timer_start(&x->ms_stat_nonrd.timer2);
 #endif
     if (is_single_pred) {
       SubpelParams subpel_params;
@@ -3631,10 +3613,10 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
       model_rd_for_sb_y(cpi, bsize, x, xd, &search_state->this_rdc, &var, 0,
                         &this_early_term);
     }
-#if COLLECT_PICK_MODE_STAT
-    aom_usec_timer_mark(&ms_stat.timer2);
-    ms_stat.model_rd_time[bsize][this_mode] +=
-        aom_usec_timer_elapsed(&ms_stat.timer2);
+#if COLLECT_NONRD_PICK_MODE_STAT
+    aom_usec_timer_mark(&x->ms_stat_nonrd.timer2);
+    x->ms_stat_nonrd.model_rd_time[bsize][this_mode] +=
+        aom_usec_timer_elapsed(&x->ms_stat_nonrd.timer2);
 #endif
   }
 
@@ -3666,8 +3648,8 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
     return true;
   }
 
-#if COLLECT_PICK_MODE_STAT
-  ms_stat.num_nonskipped_searches[bsize][this_mode]++;
+#if COLLECT_NONRD_PICK_MODE_STAT
+  x->ms_stat_nonrd.num_nonskipped_searches[bsize][this_mode]++;
 #endif
 
   const int skip_ctx = av1_get_skip_txfm_context(xd);
@@ -3680,8 +3662,8 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
     search_state->this_rdc.rate = skip_txfm_cost;
     search_state->this_rdc.dist = search_state->this_rdc.sse << 4;
   } else {
-#if COLLECT_PICK_MODE_STAT
-    aom_usec_timer_start(&ms_stat.timer2);
+#if COLLECT_NONRD_PICK_MODE_STAT
+    aom_usec_timer_start(&x->ms_stat_nonrd.timer2);
 #endif
     // Calculates RD Cost using Hadamard transform.
     block_yrd(x, &search_state->this_rdc, &is_skippable, bsize, mi->tx_size, 1);
@@ -3733,10 +3715,10 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
       search_state->this_rdc.skip_txfm =
           search_state->this_rdc.skip_txfm && rdc_uv.skip_txfm;
     }
-#if COLLECT_PICK_MODE_STAT
-    aom_usec_timer_mark(&ms_stat.timer2);
-    ms_stat.txfm_time[bsize][this_mode] +=
-        aom_usec_timer_elapsed(&ms_stat.timer2);
+#if COLLECT_NONRD_PICK_MODE_STAT
+    aom_usec_timer_mark(&x->ms_stat_nonrd.timer2);
+    x->ms_stat_nonrd.txfm_time[bsize][this_mode] +=
+        aom_usec_timer_elapsed(&x->ms_stat_nonrd.timer2);
 #endif
   }
 
@@ -3803,10 +3785,10 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
       *check_globalmv = false;
     }
   }
-#if COLLECT_PICK_MODE_STAT
-  aom_usec_timer_mark(&ms_stat.timer1);
-  ms_stat.nonskipped_search_times[bsize][this_mode] +=
-      aom_usec_timer_elapsed(&ms_stat.timer1);
+#if COLLECT_NONRD_PICK_MODE_STAT
+  aom_usec_timer_mark(&x->ms_stat_nonrd.timer1);
+  x->ms_stat_nonrd.nonskipped_search_times[bsize][this_mode] +=
+      aom_usec_timer_elapsed(&x->ms_stat_nonrd.timer1);
 #endif
 
   // Copy best mode params to search state
@@ -3994,8 +3976,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   struct buf_2d orig_dst = pd->dst;
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
-#if COLLECT_PICK_MODE_STAT
-  aom_usec_timer_start(&ms_stat.bsize_timer);
+#if COLLECT_NONRD_PICK_MODE_STAT
+  // Mode statistics can be collected only when num_workers is 1
+  assert(cpi->mt_info.num_workers <= 1);
+  aom_usec_timer_start(&x->ms_stat_nonrd.bsize_timer);
 #endif
   int64_t thresh_sad_pred = INT64_MAX;
   const int mi_row = xd->mi_row;
@@ -4083,8 +4067,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       is_filter_search_enabled_blk(cpi, x, mi_row, mi_col, bsize, segment_id,
                                    cb_pred_filter_search, &filt_select);
 
-#if COLLECT_PICK_MODE_STAT
-  ms_stat.num_blocks[bsize]++;
+#if COLLECT_NONRD_PICK_MODE_STAT
+  x->ms_stat_nonrd.num_blocks[bsize]++;
 #endif
   init_mbmi(mi, DC_PRED, NONE_FRAME, NONE_FRAME, cm);
   mi->tx_size = AOMMIN(
@@ -4185,10 +4169,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   mi->angle_delta[PLANE_TYPE_UV] = 0;
   mi->filter_intra_mode_info.use_filter_intra = 0;
 
-#if COLLECT_PICK_MODE_STAT
-  aom_usec_timer_start(&ms_stat.timer1);
-  ms_stat.num_searches[bsize][DC_PRED]++;
-  ms_stat.num_nonskipped_searches[bsize][DC_PRED]++;
+#if COLLECT_NONRD_PICK_MODE_STAT
+  aom_usec_timer_start(&x->ms_stat_nonrd.timer1);
+  x->ms_stat_nonrd.num_searches[bsize][DC_PRED]++;
+  x->ms_stat_nonrd.num_nonskipped_searches[bsize][DC_PRED]++;
 #endif
 
   // Evaluate Intra modes in inter frame
@@ -4217,10 +4201,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                    tmp_buffer, &orig_dst, skip_idtx_palette,
                                    try_palette, bsize);
 
-#if COLLECT_PICK_MODE_STAT
-  aom_usec_timer_mark(&ms_stat.timer1);
-  ms_stat.nonskipped_search_times[bsize][DC_PRED] +=
-      aom_usec_timer_elapsed(&ms_stat.timer1);
+#if COLLECT_NONRD_PICK_MODE_STAT
+  aom_usec_timer_mark(&x->ms_stat_nonrd.timer1);
+  x->ms_stat_nonrd.nonskipped_search_times[bsize][DC_PRED] +=
+      aom_usec_timer_elapsed(&x->ms_stat_nonrd.timer1);
 #endif
 
   pd->dst = orig_dst;
@@ -4302,13 +4286,13 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   store_coding_context(x, ctx);
 #endif  // CONFIG_INTERNAL_STATS
 
-#if COLLECT_PICK_MODE_STAT
-  aom_usec_timer_mark(&ms_stat.bsize_timer);
-  ms_stat.total_block_times[bsize] +=
-      aom_usec_timer_elapsed(&ms_stat.bsize_timer);
-  print_time(&ms_stat, bsize, cm->mi_params.mi_rows, cm->mi_params.mi_cols,
-             mi_row, mi_col);
-#endif  // COLLECT_PICK_MODE_STAT
+#if COLLECT_NONRD_PICK_MODE_STAT
+  aom_usec_timer_mark(&x->ms_stat_nonrd.bsize_timer);
+  x->ms_stat_nonrd.total_block_times[bsize] +=
+      aom_usec_timer_elapsed(&x->ms_stat_nonrd.bsize_timer);
+  print_time(&x->ms_stat_nonrd, bsize, cm->mi_params.mi_rows,
+             cm->mi_params.mi_cols, mi_row, mi_col);
+#endif  // COLLECT_NONRD_PICK_MODE_STAT
 
   *rd_cost = search_state.best_rdc;
 }

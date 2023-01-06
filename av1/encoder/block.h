@@ -45,6 +45,32 @@ extern "C" {
 
 //! Compute color sensitivity index for given plane
 #define COLOR_SENS_IDX(plane) ((plane)-1)
+
+//! Enable timer statistics of mode search in non-rd
+#define COLLECT_NONRD_PICK_MODE_STAT 0
+
+/*!\cond */
+#if COLLECT_NONRD_PICK_MODE_STAT
+#include "aom_ports/aom_timer.h"
+
+typedef struct _mode_search_stat_nonrd {
+  int32_t num_blocks[BLOCK_SIZES];
+  int64_t total_block_times[BLOCK_SIZES];
+  int32_t num_searches[BLOCK_SIZES][MB_MODE_COUNT];
+  int32_t num_nonskipped_searches[BLOCK_SIZES][MB_MODE_COUNT];
+  int64_t search_times[BLOCK_SIZES][MB_MODE_COUNT];
+  int64_t nonskipped_search_times[BLOCK_SIZES][MB_MODE_COUNT];
+  int64_t ms_time[BLOCK_SIZES][MB_MODE_COUNT];
+  int64_t ifs_time[BLOCK_SIZES][MB_MODE_COUNT];
+  int64_t model_rd_time[BLOCK_SIZES][MB_MODE_COUNT];
+  int64_t txfm_time[BLOCK_SIZES][MB_MODE_COUNT];
+  struct aom_usec_timer timer1;
+  struct aom_usec_timer timer2;
+  struct aom_usec_timer bsize_timer;
+} mode_search_stat_nonrd;
+#endif  // COLLECT_NONRD_PICK_MODE_STAT
+/*!\endcond */
+
 /*! \brief Superblock level encoder info
  *
  * SuperblockEnc stores superblock level information used by the encoder for
@@ -1329,6 +1355,10 @@ typedef struct macroblock {
   /*! \brief A hash to make sure av1_set_offsets is called */
   SetOffsetsLoc last_set_offsets_loc;
 #endif  // NDEBUG
+
+#if COLLECT_NONRD_PICK_MODE_STAT
+  mode_search_stat_nonrd ms_stat_nonrd;
+#endif  // COLLECT_NONRD_PICK_MODE_STAT
 } MACROBLOCK;
 #undef SINGLE_REF_MODES
 
