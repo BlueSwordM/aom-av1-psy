@@ -1280,24 +1280,31 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                          unsigned int *y_sad_g, unsigned int *y_sad_alt,
                          unsigned int *y_sad_last,
                          MV_REFERENCE_FRAME *ref_frame_partition, int mi_row,
-                         int mi_col, bool is_small_sb) {
+                         int mi_col, bool is_small_sb, bool scaled_ref_last) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   const int num_planes = av1_num_planes(cm);
   BLOCK_SIZE bsize = is_small_sb ? BLOCK_64X64 : BLOCK_128X128;
   MB_MODE_INFO *mi = xd->mi[0];
-  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, LAST_FRAME);
+  const YV12_BUFFER_CONFIG *yv12 =
+      scaled_ref_last ? av1_get_scaled_ref_frame(cpi, LAST_FRAME)
+                      : get_ref_frame_yv12_buf(cm, LAST_FRAME);
   assert(yv12 != NULL);
   const YV12_BUFFER_CONFIG *yv12_g = NULL;
   const YV12_BUFFER_CONFIG *yv12_alt = NULL;
   // Check if LAST is a reference. For spatial layers always use it as
-  // reference scaling (golden or altref being lower resolution) is not
-  // handled/check here.
+  // reference scaling.
   int use_last_ref = (cpi->ref_frame_flags & AOM_LAST_FLAG) ||
                      cpi->svc.number_spatial_layers > 1;
   int use_golden_ref = cpi->ref_frame_flags & AOM_GOLD_FLAG;
   int use_alt_ref = cpi->ppi->rtc_ref.set_ref_frame_config ||
                     cpi->sf.rt_sf.use_nonrd_altref_frame;
+  // On a resized frame (reference has different scale) only use
+  // LAST as reference for partitioning for now.
+  if (scaled_ref_last) {
+    use_golden_ref = 0;
+    use_alt_ref = 0;
+  }
 
   // For 1 spatial layer: GOLDEN is another temporal reference.
   // Check if it should be used as reference for partitioning.
@@ -1331,8 +1338,10 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
   }
 
   if (use_last_ref) {
-    av1_setup_pre_planes(xd, 0, yv12, mi_row, mi_col,
-                         get_ref_scale_factors(cm, LAST_FRAME), num_planes);
+    av1_setup_pre_planes(
+        xd, 0, yv12, mi_row, mi_col,
+        scaled_ref_last ? NULL : get_ref_scale_factors(cm, LAST_FRAME),
+        num_planes);
     mi->ref_frame[0] = LAST_FRAME;
     mi->ref_frame[1] = NONE_FRAME;
     mi->bsize = cm->seq_params->sb_size;
@@ -1471,6 +1480,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   unsigned int uv_sad[MAX_MB_PLANE - 1];
   NOISE_LEVEL noise_level = kLow;
   bool is_zero_motion = true;
+  bool scaled_ref_last = false;
 
   bool is_key_frame =
       (frame_is_intra_only(cm) ||
@@ -1538,24 +1548,29 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   memset(x->part_search_info.variance_low, 0,
          sizeof(x->part_search_info.variance_low));
 
-  // Check if LAST frame is NULL or if the resolution of LAST is
-  // different than the current frame resolution, and if so, treat this frame
+  // Check if LAST frame is NULL, and if so, treat this frame
   // as a key frame, for the purpose of the superblock partitioning.
   // LAST == NULL can happen in cases where enhancement spatial layers are
   // enabled dyanmically and the only reference is the spatial(GOLDEN).
-  // TODO(marpan): Check se of scaled references for the different resoln.
+  // If LAST frame has a different resolution: set the scaled_ref_last flag
+  // and check if ref_scaled is NULL.
   if (!frame_is_intra_only(cm)) {
-    const YV12_BUFFER_CONFIG *const ref =
-        get_ref_frame_yv12_buf(cm, LAST_FRAME);
-    if (ref == NULL || ref->y_crop_height != cm->height ||
-        ref->y_crop_width != cm->width) {
+    const YV12_BUFFER_CONFIG *ref = get_ref_frame_yv12_buf(cm, LAST_FRAME);
+    if (ref == NULL) {
       is_key_frame = true;
+    } else if (ref->y_crop_height != cm->height ||
+               ref->y_crop_width != cm->width) {
+      scaled_ref_last = true;
+      const YV12_BUFFER_CONFIG *ref_scaled =
+          av1_get_scaled_ref_frame(cpi, LAST_FRAME);
+      if (ref_scaled == NULL) is_key_frame = true;
     }
   }
 
   if (!is_key_frame) {
     setup_planes(cpi, x, &y_sad, &y_sad_g, &y_sad_alt, &y_sad_last,
-                 &ref_frame_partition, mi_row, mi_col, is_small_sb);
+                 &ref_frame_partition, mi_row, mi_col, is_small_sb,
+                 scaled_ref_last);
 
     MB_MODE_INFO *mi = xd->mi[0];
     // Use reference SB directly for zero mv.
