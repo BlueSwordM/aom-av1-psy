@@ -1346,21 +1346,11 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
       }
     }
 
-    // av1_int_pro_motion_estimation() doesn't test zero MV. So, while
-    // av1_int_pro_motion_estimation() is called above and the found MV is non-
-    // zero, test zero MV here.
-    if (*y_sad == UINT_MAX || mi->mv[0].as_int != 0) {
-      unsigned int tmp_sad = cpi->ppi->fn_ptr[bsize].sdf(
+    if (*y_sad == UINT_MAX) {
+      *y_sad = cpi->ppi->fn_ptr[bsize].sdf(
           x->plane[AOM_PLANE_Y].src.buf, x->plane[AOM_PLANE_Y].src.stride,
           xd->plane[AOM_PLANE_Y].pre[0].buf,
           xd->plane[AOM_PLANE_Y].pre[0].stride);
-
-      if (*y_sad == UINT_MAX) {
-        *y_sad = tmp_sad;
-      } else if (*y_sad > tmp_sad) {
-        *y_sad = tmp_sad;
-        mi->mv[0].as_int = 0;
-      }
     }
 
     // Evaluate if neighbours' MVs give better predictions. Zero MV is tested
