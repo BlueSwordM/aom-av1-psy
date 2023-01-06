@@ -125,6 +125,14 @@ static INLINE void Scale2Ratio(AOM_SCALING_MODE mode, int *hr, int *hs) {
       *hr = 1;
       *hs = 2;
       break;
+    case AOME_TWOTHREE:
+      *hr = 2;
+      *hs = 3;
+      break;
+    case AOME_ONETHREE:
+      *hr = 1;
+      *hs = 3;
+      break;
     default:
       *hr = 1;
       *hs = 1;
@@ -5070,7 +5078,8 @@ int av1_set_internal_size(AV1EncoderConfig *const oxcf,
                           AOM_SCALING_MODE vert_mode) {
   int hr = 0, hs = 0, vr = 0, vs = 0;
 
-  if (horiz_mode > AOME_ONETWO || vert_mode > AOME_ONETWO) return -1;
+  // Checks for invalid AOM_SCALING_MODE values.
+  if (horiz_mode > AOME_ONETHREE || vert_mode > AOME_ONETHREE) return -1;
 
   Scale2Ratio(horiz_mode, &hr, &hs);
   Scale2Ratio(vert_mode, &vr, &vs);
