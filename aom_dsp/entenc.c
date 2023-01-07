@@ -168,20 +168,17 @@ static void od_ec_encode_q15(od_ec_enc *enc, unsigned fl, unsigned fh, int s,
   assert(32768U <= r);
   assert(fh <= fl);
   assert(fl <= 32768U);
-  assert(7 - EC_PROB_SHIFT - CDF_SHIFT >= 0);
+  assert(7 - EC_PROB_SHIFT >= 0);
   const int N = nsyms - 1;
   if (fl < CDF_PROB_TOP) {
-    u = ((r >> 8) * (uint32_t)(fl >> EC_PROB_SHIFT) >>
-         (7 - EC_PROB_SHIFT - CDF_SHIFT)) +
+    u = ((r >> 8) * (uint32_t)(fl >> EC_PROB_SHIFT) >> (7 - EC_PROB_SHIFT)) +
         EC_MIN_PROB * (N - (s - 1));
-    v = ((r >> 8) * (uint32_t)(fh >> EC_PROB_SHIFT) >>
-         (7 - EC_PROB_SHIFT - CDF_SHIFT)) +
+    v = ((r >> 8) * (uint32_t)(fh >> EC_PROB_SHIFT) >> (7 - EC_PROB_SHIFT)) +
         EC_MIN_PROB * (N - (s + 0));
     l += r - u;
     r = u - v;
   } else {
-    r -= ((r >> 8) * (uint32_t)(fh >> EC_PROB_SHIFT) >>
-          (7 - EC_PROB_SHIFT - CDF_SHIFT)) +
+    r -= ((r >> 8) * (uint32_t)(fh >> EC_PROB_SHIFT) >> (7 - EC_PROB_SHIFT)) +
          EC_MIN_PROB * (N - (s + 0));
   }
   od_ec_enc_normalize(enc, l, r);

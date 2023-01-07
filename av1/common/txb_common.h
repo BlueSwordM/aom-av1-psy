@@ -17,14 +17,6 @@
 extern const int16_t av1_eob_group_start[12];
 extern const int16_t av1_eob_offset_bits[12];
 
-extern const int8_t av1_coeff_band_4x4[16];
-
-extern const int8_t av1_coeff_band_8x8[64];
-
-extern const int8_t av1_coeff_band_16x16[256];
-
-extern const int8_t av1_coeff_band_32x32[1024];
-
 extern const int8_t *av1_nz_map_ctx_offset[TX_SIZES_ALL];
 
 typedef struct txb_ctx {
